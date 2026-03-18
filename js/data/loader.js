@@ -114,6 +114,10 @@ async function loadGameData() {
     spellRows.forEach(row => { if (row['id']) SPELL_POOL.push(_rowToSpell(row)); });
 
     // ── 階層データ ──
+    const floorLines = ft.trim().split('\n');
+    const floorHeaders = _csvRow(floorLines[0]).map(h => h.trim());
+    console.log('[Vesselbound] 階層データ列名:', floorHeaders);
+    console.log('[Vesselbound] "行動"列インデックス:', floorHeaders.indexOf('行動'));
     const floorRows = _parseCSV(ft);
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
@@ -124,6 +128,7 @@ async function loadGameData() {
       const isBoss = row['ボス'] === '✓';
       const actStr = (row['行動'] || '').trim();
       const actions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(Boolean) : [];
+      console.log(`[Vesselbound] 階層${fl} 行動列raw="${row['行動']}" → actions=`, actions);
       FLOOR_DATA[fl] = {
         power:   parseInt(row['power']) || 10,
         grade:   parseInt(row['grade']) || 1,
