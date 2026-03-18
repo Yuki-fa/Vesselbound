@@ -31,6 +31,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // ═══════════════════════════════════════
 function startGame(){ initState(); showScreen('battle'); startBattle(); }
 function gameOver(){ document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
+function showVictoryOverlay(){ document.getElementById('victory-overlay').style.display='flex'; }
+function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {

@@ -153,8 +153,10 @@ function renderRankUp(){
   div.className='ru-opt'+(can?'':' dis');
   div.textContent=`Lv${G.rewardLv}→Lv${G.rewardLv+1}　必要:${needed}金（累計${cost}金）`;
   div.onclick=()=>{
-    if(!can) return;
-    G.gold-=needed; G.rewardLvInvested=cost; G.rewardLv++;
+    const _cost=RANK_UP_COSTS[G.rewardLv];
+    const _needed=_cost-G.rewardLvInvested;
+    if(G.gold<_needed||_needed<=0) return;
+    G.gold-=_needed; G.rewardLvInvested=_cost; G.rewardLv++;
     document.getElementById('rw-gold').textContent=G.gold;
     log(`報酬ランク→Lv${G.rewardLv}`,'sys');
     _rewCards=drawRewards(6);

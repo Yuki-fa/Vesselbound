@@ -116,7 +116,7 @@ function checkInstantRetreat(){
   applyVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
-  setTimeout(()=>goToReward(),600);
+  setTimeout(()=>showVictoryOverlay(),600);
   return true;
 }
 
@@ -289,7 +289,7 @@ function checkInstantVictory(){
     log('全敵撃破！','gold');
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>goToReward(),400);
+    setTimeout(()=>showVictoryOverlay(),400);
     return true;
   }
   return false;
@@ -519,17 +519,17 @@ async function enemyAttackPhase(){
     applyVictoryBonuses();
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>goToReward(),600);
+    setTimeout(()=>showVictoryOverlay(),600);
     return;
   }
 
   // ターン上限（5ターン）→ 耐久成功
   if(G.turn>=5){
-    log('耐久成功！報酬画面へ','gold');
+    log('耐久成功！','gold');
     applyVictoryBonuses();
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>goToReward(),600);
+    setTimeout(()=>showVictoryOverlay(),600);
     return;
   }
 
