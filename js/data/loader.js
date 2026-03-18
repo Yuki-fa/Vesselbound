@@ -96,13 +96,13 @@ function _rowToSpell(row) {
 
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
-  const sheetUrl = s => _PUB_BASE + _SHEET_GIDS[s] + '&cachebust=' + Date.now();
   try {
+    const _t1 = new Date().getTime();
     const fetches = [
-      fetch(sheetUrl('指輪プール')),
-      fetch(sheetUrl('魔法プール')),
-      fetch(sheetUrl('階層データ')),
-      fetch(sheetUrl('エンチャント')),
+      fetch(_PUB_BASE + _SHEET_GIDS['指輪プール']  + '&cachebust=' + new Date().getTime()),
+      fetch(_PUB_BASE + _SHEET_GIDS['魔法プール']  + '&cachebust=' + new Date().getTime()),
+      fetch(_PUB_BASE + _SHEET_GIDS['階層データ']  + '&cachebust=' + new Date().getTime()),
+      fetch(_PUB_BASE + _SHEET_GIDS['エンチャント'] + '&cachebust=' + new Date().getTime()),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
@@ -122,6 +122,9 @@ async function loadGameData() {
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
+    console.log('Latest Data from Sheet:', floorRows.slice(0, 5));
+    // floors.js のフォールバック actions を事前に退避
+    const _savedActions = FLOOR_DATA.map(fd => fd?.actions);
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
@@ -130,7 +133,9 @@ async function loadGameData() {
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓';
       const actStr = (row['司令官行動'] || '').trim();
-      const actions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s && !s.startsWith('なし')) : [];
+      const sheetActions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s && !s.startsWith('なし')) : [];
+      // スプレッドシートに有効な行動がなければ floors.js の値を使用
+      const actions = sheetActions.length > 0 ? sheetActions : (_savedActions[fl] || []);
       FLOOR_DATA[fl] = {
         power:   parseInt(row['power']) || 10,
         grade:   parseInt(row['grade']) || 1,
