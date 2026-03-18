@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-**Vesselbound（仮）** — Argante 製のローグライクカードゲーム。`Vesselbound.html` を開くだけで動作するシングルファイル構成（ビルドツールなし、`file://` プロトコル対応）。JavaScript はすべてグローバルスコープ。
+**Vesselbound（仮）** — Argante 製のローグライクカードゲーム。`index.html` を開くだけで動作するシングルファイル構成（ビルドツールなし、`file://` プロトコル対応）。JavaScript はすべてグローバルスコープ。
 
 ## ファイル構成
 
 ```
-Vesselbound.html       — HTML/CSS のみ。<script src> タグで全JSを読み込む
+index.html             — HTML/CSS のみ。<script src> タグで全JSを読み込む
 js/
   data/                — カード・ゲームデータ（カード追加時はここを編集）
     floors.js          — FLOOR_DATA（20階分）, BOSS_FLOORS, NODE_TYPES
@@ -32,7 +32,7 @@ js/
     main.js            — showScreen(), updateHUD(), log(), startGame(), gameOver()
 ```
 
-### スクリプトロード順（Vesselbound.html）
+### スクリプトロード順（index.html）
 
 `constants.js` → `data/*` → `state.js` → engine 各ファイル → `main.js`
 
