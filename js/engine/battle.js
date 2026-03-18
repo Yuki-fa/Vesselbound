@@ -57,16 +57,12 @@ async function startBattle(){
   log(`敵 ${G.enemies.length}体が現れた`,'em');
   applyLeaderBonus();
 
-  // 非ボス戦：行動列に「ヘイト」が含まれる場合のみランダム仲間1体にヘイト付与
+  // 非ボス戦：行動列からランダムに1つ実行（戦闘開始時のみ）
   if(!_isBossFight){
     const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
-    if(_fdAct.includes('ヘイト')){
-      const _liveA=G.allies.filter(a=>a.hp>0);
-      if(_liveA.length>0){
-        const _ht=randFrom(_liveA);
-        _ht.hate=true; _ht.hateTurns=99;
-        log(`👹 敵司令官：${_ht.name}にヘイトを付与`,'bad');
-      }
+    if(_fdAct.length>0){
+      const _pool=_fdAct.filter(a=>a!=='召喚'||G.enemies.filter(e=>e.hp>0).length<6);
+      if(_pool.length>0) runCommanderAction(randFrom(_pool));
     }
   }
 
@@ -120,40 +116,27 @@ function checkInstantRetreat(){
   return true;
 }
 
-// ── 敵司令官フェイズ ──────────────────────────
+// ── 司令官行動を実行（ボス・非ボス共通）────────
 
-async function commanderPhase(){
-  G.phase='commander';
-  renderControls();
-  log('👹 敵司令官フェイズ','bad');
-
+function runCommanderAction(action){
   const liveE=G.enemies.filter(e=>e.hp>0);
-  if(!liveE.length){ await sleep(300); return; }
-
+  const liveA=G.allies.filter(a=>a.hp>0);
   const bonus=Math.max(1,Math.floor(G.floor/5));
-  // 行動プールをスプレッドシートの行動列から取得（空なら司令官行動なし）
-  const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
-  if(!_fdAct.length){ await sleep(300); return; }
-  const actions=_fdAct.filter(a=>a!=='召喚'||liveE.length<6);
-  if(!actions.length){ await sleep(300); return; }
-  const action=randFrom(actions);
-
   switch(action){
     case '強化':
       liveE.forEach(e=>{ e.atk+=bonus; });
-      log(`👹 強化：全敵ATK+${bonus}`,'bad');
+      log(`👹 敵司令官：強化（全敵ATK+${bonus}）`,'bad');
       break;
-    case 'ヘイト':{
-      const liveA=G.allies.filter(a=>a.hp>0);
+    case 'ヘイト':
       if(liveA.length>0){
         G.allies.forEach(a=>a.hate=false);
         const t=randFrom(liveA);
         t.hate=true; t.hateTurns=99;
-        log(`👹 ヘイト：${t.name}にヘイトを付与`,'bad');
+        log(`👹 敵司令官：${t.name}にヘイトを付与`,'bad');
       }
       break;
-    }
     case '召喚':{
+      if(!liveE.length||liveE.length>=6) break;
       const avgAtk=Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.atk,0)/liveE.length));
       const avgHp =Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.hp, 0)/liveE.length));
       const ni=randi(0,ENEMY_NAMES.length-1);
@@ -165,26 +148,41 @@ async function commanderPhase(){
         shield:0,keywords:[],powerBreak:false
       };
       const emptyIdx=G.enemies.findIndex(e=>e.hp<=0);
-      if(emptyIdx>=0) G.enemies[emptyIdx]=ne;
-      else if(G.enemies.filter(e=>e.hp>0).length<6) G.enemies.push(ne);
-      log(`👹 召喚：${ne.name}(${avgAtk}/${avgHp})が現れた！`,'bad');
+      if(emptyIdx>=0) G.enemies[emptyIdx]=ne; else G.enemies.push(ne);
+      log(`👹 敵司令官：召喚（${ne.name} ${avgAtk}/${avgHp}）`,'bad');
       break;
     }
-    case '鼓舞':{
-      const t=randFrom(liveE);
-      const hp=G.floor*2;
-      t.hp+=hp; t.maxHp+=hp;
-      log(`👹 鼓舞：${t.name}のHP+${hp}`,'bad');
+    case '鼓舞':
+      if(liveE.length>0){
+        const t=randFrom(liveE);
+        const hp=G.floor*2;
+        t.hp+=hp; t.maxHp+=hp;
+        log(`👹 敵司令官：鼓舞（${t.name} HP+${hp}）`,'bad');
+      }
       break;
-    }
-    case 'シールド':{
-      const t=randFrom(liveE);
-      t.shield=(t.shield||0)+1;
-      log(`👹 シールド：${t.name}にシールド+1`,'bad');
+    case 'シールド':
+      if(liveE.length>0){
+        const t=randFrom(liveE);
+        t.shield=(t.shield||0)+1;
+        log(`👹 敵司令官：${t.name}にシールド+1`,'bad');
+      }
       break;
-    }
   }
+}
 
+// ── 敵司令官フェイズ（ボス専用・毎ターン）──────
+
+async function commanderPhase(){
+  G.phase='commander';
+  renderControls();
+  log('👹 敵司令官フェイズ','bad');
+  const liveE=G.enemies.filter(e=>e.hp>0);
+  if(!liveE.length){ await sleep(300); return; }
+  const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
+  if(!_fdAct.length){ await sleep(300); return; }
+  const pool=_fdAct.filter(a=>a!=='召喚'||liveE.length<6);
+  if(!pool.length){ await sleep(300); return; }
+  runCommanderAction(randFrom(pool));
   renderAll();
   await sleep(700);
 }

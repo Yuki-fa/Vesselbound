@@ -152,6 +152,7 @@ function summonAllies(){
       };
       G.allies.push(unit);
       G.battleCounters.summons++;
+      fireTrigger('on_summon',ring.id);
       if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
     }
   });
