@@ -5,10 +5,9 @@
 // fetch 失敗時は内蔵データ（他の data/*.js）をそのまま使用。
 // ═══════════════════════════════════════
 
-const _PUB_BASE =
-  'https://docs.google.com/spreadsheets/d/e/' +
-  '2PACX-1vRr3wWLfbyxvDQjJN80BJDgqmdow8aUWTXOwiY__3OvvlhPAID_fMkqxqTnKQLbiQ' +
-  '/pub?output=csv&gid=';
+const _EXPORT_BASE =
+  'https://docs.google.com/spreadsheets/d/19rqZZey6ftz_ntoxs7P4RkJt2SGxQi7B' +
+  '/export?format=csv&gid=';
 const _SHEET_GIDS = {
   '指輪プール':  1078274854,
   '魔法プール':  1593958181,
@@ -97,12 +96,11 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    const _t1 = new Date().getTime();
     const fetches = [
-      fetch(_PUB_BASE + _SHEET_GIDS['指輪プール']  + '&cachebust=' + new Date().getTime()),
-      fetch(_PUB_BASE + _SHEET_GIDS['魔法プール']  + '&cachebust=' + new Date().getTime()),
-      fetch(_PUB_BASE + _SHEET_GIDS['階層データ']  + '&cachebust=' + new Date().getTime()),
-      fetch(_PUB_BASE + _SHEET_GIDS['エンチャント'] + '&cachebust=' + new Date().getTime()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['指輪プール']  + '&t=' + Date.now()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['魔法プール']  + '&t=' + Date.now()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['階層データ']  + '&t=' + Date.now()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['エンチャント'] + '&t=' + Date.now()),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
@@ -122,7 +120,7 @@ async function loadGameData() {
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
-    console.log('Latest Data from Sheet:', floorRows.slice(0, 5));
+    console.table(floorRows.slice(0, 5));
     // floors.js のフォールバック actions を事前に退避
     const _savedActions = FLOOR_DATA.map(fd => fd?.actions);
     FLOOR_DATA.length = 0;
