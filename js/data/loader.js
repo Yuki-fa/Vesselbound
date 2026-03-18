@@ -5,9 +5,16 @@
 // fetch 失敗時は内蔵データ（他の data/*.js）をそのまま使用。
 // ═══════════════════════════════════════
 
-const _SHEET_BASE =
-  'https://docs.google.com/spreadsheets/d/19rqZZey6ftz_ntoxs7P4RkJt2SGxQi7B' +
-  '/gviz/tq?tqx=out:csv&sheet=';
+const _PUB_BASE =
+  'https://docs.google.com/spreadsheets/d/e/' +
+  '2PACX-1vRr3wWLfbyxvDQjJN80BJDgqmdow8aUWTXOwiY__3OvvlhPAID_fMkqxqTnKQLbiQ' +
+  '/pub?output=csv&gid=';
+const _SHEET_GIDS = {
+  '指輪プール':  1078274854,
+  '魔法プール':  1593958181,
+  '階層データ':  701286537,
+  'エンチャント': 300601659,
+};
 
 // ── CSV パーサー ────────────────────────────────────
 function _csvRow(line) {
@@ -90,13 +97,13 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   const _ts = Date.now();
-  const sheetName = s => _SHEET_BASE + encodeURIComponent(s) + '&_=' + _ts;
+  const sheetUrl = s => _PUB_BASE + _SHEET_GIDS[s] + '&_=' + _ts;
   try {
     const fetches = [
-      fetch(sheetName('指輪プール')),
-      fetch(sheetName('魔法プール')),
-      fetch(sheetName('階層データ')),
-      fetch(sheetName('エンチャント')),
+      fetch(sheetUrl('指輪プール')),
+      fetch(sheetUrl('魔法プール')),
+      fetch(sheetUrl('階層データ')),
+      fetch(sheetUrl('エンチャント')),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
