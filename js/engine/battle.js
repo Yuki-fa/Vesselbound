@@ -60,9 +60,10 @@ async function startBattle(){
   // 非ボス戦：行動列からランダムに1つ実行（戦闘開始時のみ）
   if(!_isBossFight){
     const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
+    console.log(`[Battle] 階層${G.floor} actions=`, _fdAct);
     if(_fdAct.length>0){
       const _pool=_fdAct.filter(a=>a!=='召喚'||G.enemies.filter(e=>e.hp>0).length<6);
-      if(_pool.length>0) runCommanderAction(randFrom(_pool));
+      if(_pool.length>0){ const _act=randFrom(_pool); console.log(`[Battle] runCommanderAction('${_act}')`); runCommanderAction(_act); }
     }
   }
 
