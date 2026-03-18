@@ -89,7 +89,8 @@ function _rowToSpell(row) {
 
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
-  const sheetName = s => _SHEET_BASE + encodeURIComponent(s);
+  const _ts = Date.now();
+  const sheetName = s => _SHEET_BASE + encodeURIComponent(s) + '&_=' + _ts;
   try {
     const fetches = [
       fetch(sheetName('指輪プール')),
@@ -123,7 +124,7 @@ async function loadGameData() {
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓';
       const actStr = (row['司令官行動'] || '').trim();
-      const actions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(Boolean) : [];
+      const actions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s && !s.startsWith('なし')) : [];
       FLOOR_DATA[fl] = {
         power:   parseInt(row['power']) || 10,
         grade:   parseInt(row['grade']) || 1,
