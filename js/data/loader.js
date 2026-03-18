@@ -96,8 +96,7 @@ function _rowToSpell(row) {
 
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
-  const _ts = Date.now();
-  const sheetUrl = s => _PUB_BASE + _SHEET_GIDS[s] + '&_=' + _ts;
+  const sheetUrl = s => _PUB_BASE + _SHEET_GIDS[s] + '&cachebust=' + Date.now();
   try {
     const fetches = [
       fetch(sheetUrl('指輪プール')),

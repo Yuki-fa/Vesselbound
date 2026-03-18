@@ -57,13 +57,11 @@ async function startBattle(){
   log(`敵 ${G.enemies.length}体が現れた`,'em');
   applyLeaderBonus();
 
-  // 非ボス戦：行動列から実行（1つなら確定、複数ならランダム）
+  // 非ボス戦：行動列の先頭を確定実行（召喚は敵満員時スキップ）
   if(!_isBossFight){
     const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
-    if(_fdAct.length>0){
-      const _pool=_fdAct.filter(a=>a!=='召喚'||G.enemies.filter(e=>e.hp>0).length<6);
-      if(_pool.length>0){ runCommanderAction(_pool.length===1?_pool[0]:randFrom(_pool)); }
-    }
+    const _act=_fdAct.find(a=>a!=='召喚'||G.enemies.filter(e=>e.hp>0).length<6);
+    if(_act) runCommanderAction(_act);
   }
 
   updateHUD();
