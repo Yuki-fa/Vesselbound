@@ -9,15 +9,17 @@ const BOSS_FLOORS=[4,9,14,19];
 const BOSS_SHIELD={5:3,10:5,15:8,20:12};
 
 // 各階層の敵パワー・グレード設定（index=階層番号、0はnull）
+const _BOSS_ACTIONS=['強化','鼓舞','シールド','ヘイト','召喚'];
+
 const FLOOR_DATA=[null,
   {power:18, grade:1},{power:18, grade:1},{power:18, grade:1},{power:23, grade:1},
-  {power:31, grade:1,boss:true},
+  {power:31, grade:1,boss:true, actions:_BOSS_ACTIONS},
   {power:180,grade:2},{power:220,grade:2},{power:270,grade:2},{power:340,grade:2},
-  {power:600,grade:2,boss:true},
+  {power:600,grade:2,boss:true, actions:_BOSS_ACTIONS},
   {power:450,grade:3},{power:450,grade:3},{power:450,grade:3},{power:585,grade:3},
-  {power:765,grade:3,boss:true},
+  {power:765,grade:3,boss:true, actions:_BOSS_ACTIONS},
   {power:4050,grade:4},{power:4050,grade:4},{power:4050,grade:4},{power:5265,grade:4},
-  {power:6885,grade:4,boss:true},
+  {power:6885,grade:4,boss:true, actions:_BOSS_ACTIONS},
 ];
 
 // マップノードの種類定義

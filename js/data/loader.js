@@ -122,9 +122,12 @@ async function loadGameData() {
       const fl = parseInt(row['階層']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓';
+      const actStr = (row['行動'] || '').trim();
+      const actions = actStr ? actStr.split(/[,、]+/).map(s => s.trim()).filter(Boolean) : [];
       FLOOR_DATA[fl] = {
-        power: parseInt(row['power'])  || 10,
-        grade: parseInt(row['grade'])  || 1,
+        power:   parseInt(row['power']) || 10,
+        grade:   parseInt(row['grade']) || 1,
+        actions: actions,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;

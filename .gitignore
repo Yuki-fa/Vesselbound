@@ -1,0 +1,13 @@
+# Adobe
+*.psd
+*.ai
+
+# Unity Build
+Build/
+
+# macOS
+.DS_Store
+
+# Numbers / Office
+*.numbers
+*.xlsx

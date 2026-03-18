@@ -57,13 +57,16 @@ async function startBattle(){
   log(`敵 ${G.enemies.length}体が現れた`,'em');
   applyLeaderBonus();
 
-  // 非ボス戦：戦闘開始時にランダムな仲間1体にヘイトを付与
+  // 非ボス戦：行動列に「ヘイト」が含まれる場合のみランダム仲間1体にヘイト付与
   if(!_isBossFight){
-    const _liveA=G.allies.filter(a=>a.hp>0);
-    if(_liveA.length>0){
-      const _ht=randFrom(_liveA);
-      _ht.hate=true; _ht.hateTurns=99;
-      log(`👹 敵司令官：${_ht.name}にヘイトを付与`,'bad');
+    const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
+    if(_fdAct.includes('ヘイト')){
+      const _liveA=G.allies.filter(a=>a.hp>0);
+      if(_liveA.length>0){
+        const _ht=randFrom(_liveA);
+        _ht.hate=true; _ht.hateTurns=99;
+        log(`👹 敵司令官：${_ht.name}にヘイトを付与`,'bad');
+      }
     }
   }
 
@@ -128,8 +131,11 @@ async function commanderPhase(){
   if(!liveE.length){ await sleep(300); return; }
 
   const bonus=Math.max(1,Math.floor(G.floor/5));
-  const actions=['強化','鼓舞','シールド','ヘイト'];
-  if(liveE.length<6) actions.push('召喚');
+  // 行動プールをスプレッドシートの行動列から取得（空なら司令官行動なし）
+  const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
+  if(!_fdAct.length){ await sleep(300); return; }
+  const actions=_fdAct.filter(a=>a!=='召喚'||liveE.length<6);
+  if(!actions.length){ await sleep(300); return; }
   const action=randFrom(actions);
 
   switch(action){
