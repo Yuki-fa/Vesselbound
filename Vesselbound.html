@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCANA SIEGE</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0f14;--bg2:#141720;--bg3:#1c2030;
+  --gold:#c9a84c;--gold2:#f0d080;
+  --red:#c04040;--red2:#e05050;
+  --blue:#3a6ea8;--blue2:#5090d0;
+  --teal:#2a8070;--teal2:#40b090;
+  --purple:#6a3a9a;--purple2:#9060c0;
+  --text:#d8dce8;--text2:#9098b0;
+  --border:rgba(100,110,140,0.25);--border2:rgba(180,190,220,0.15);
+  --font-hd:'Cinzel',serif;--font-bd:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size:14px;min-height:100vh;overflow-x:hidden}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column}
+
+/* TITLE */
+#scr-title{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#1a1030 0%,var(--bg) 70%)}
+#scr-title h1{font-family:var(--font-hd);font-size:clamp(2rem,6vw,4rem);letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 40px rgba(200,160,60,.5);margin-bottom:.3em}
+#scr-title .sub{color:var(--text2);letter-spacing:.1em;font-size:.9rem;margin-bottom:3rem}
+
+/* BUTTONS */
+.btn{cursor:pointer;border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:.85rem;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
+.btn:hover{background:rgba(200,160,60,.15);box-shadow:0 0 16px rgba(200,160,60,.3)}
+.btn:active{transform:scale(.97)}
+.btn.danger{border-color:var(--red);color:var(--red2)}
+.btn.danger:hover{background:rgba(192,64,64,.15)}
+.btn.small{font-size:.75rem;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
+.btn.tiny{font-size:.68rem;padding:.3em .8em;font-family:var(--font-bd)}
+
+/* HUD */
+#hud{display:flex;align-items:center;gap:12px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.hud-title{font-family:var(--font-hd);font-size:.75rem;letter-spacing:.1em;color:var(--gold)}
+.hs{display:flex;align-items:center;gap:4px;font-size:.75rem}
+.hs .l{color:var(--text2)}.hs .v{font-weight:700;min-width:22px}
+.v.life{color:#e07070}.v.gold{color:var(--gold2)}.v.floor{color:var(--teal2)}.v.turn{color:var(--blue2)}.v.act{color:var(--purple2)}
+#hud .sp{flex:1}
+
+/* BATTLE */
+#scr-battle{flex-direction:column}
+.battle-area{display:flex;flex-direction:column;flex:1;padding:8px 12px;gap:7px;overflow-y:auto}
+.field-label{font-size:.65rem;color:var(--text2);letter-spacing:.07em;margin-bottom:3px}
+.field{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+
+/* UNIT SLOTS */
+.slot{position:relative;border:1px solid var(--border);border-radius:4px;background:var(--bg3);min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .18s}
+.slot.enemy{border-color:rgba(180,60,60,.3);background:#1a0f0f}
+.slot.empty{opacity:.25}
+.slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:pointer;animation:pgold .9s ease-in-out infinite alternate}
+.slot.selectable{cursor:pointer;border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
+.slot.selectable:hover{background:rgba(200,160,60,.14)}
+@keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
+.slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
+.slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
+.slot-name{font-size:.6rem;color:var(--text2);text-align:center;line-height:1.2}
+.slot-stats{font-size:.7rem;font-weight:700}
+.slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
+.slot-hpbar{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.07);border-radius:0 0 3px 3px;overflow:hidden}
+.slot-hpfill{height:100%;background:var(--teal2);transition:width .25s}
+.slot-badge{position:absolute;top:2px;right:2px;font-size:.5rem;padding:1px 3px;border-radius:2px}
+.b-hate{background:rgba(80,200,200,.2);color:var(--teal2);border:1px solid var(--teal)}
+.b-seal{background:rgba(100,100,220,.2);color:#8090e0;border:1px solid #5060c0}
+.b-dead{background:rgba(200,80,80,.2);color:var(--red2);border:1px solid var(--red)}
+.b-psn{background:rgba(160,60,200,.2);color:#c080e0;border:1px solid #9040b0}
+.b-regen{background:rgba(60,180,100,.2);color:#60d090;border:1px solid var(--teal)}
+.b-guard{background:rgba(200,160,60,.2);color:var(--gold2);border:1px solid var(--gold)}
+.kw-badges{position:absolute;bottom:3px;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
+.b-shield{background:rgba(100,160,220,.2);color:var(--blue2);border:1px solid var(--blue)}
+.move-icon{font-size:.95rem;margin-bottom:1px}
+.move-lbl{font-size:.58rem;text-align:center;color:var(--gold);font-weight:500}
+
+/* LOG */
+#log-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 10px;height:80px;overflow-y:auto;font-size:.7rem;line-height:1.5;flex-shrink:0}
+#log-box p{margin:0;color:var(--text2)}
+#log-box p.em{color:var(--text)}
+#log-box p.good{color:var(--teal2)}
+#log-box p.bad{color:var(--red2)}
+#log-box p.gold{color:var(--gold2)}
+#log-box p.sys{color:var(--blue2)}
+
+/* HAND AREA — 2 panes */
+.hand-area{display:flex;gap:8px;flex-shrink:0;padding:4px 0}
+.hand-pane{display:flex;flex-direction:column;gap:4px}
+.hand-pane-label{font-size:.62rem;letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
+.ring-label{background:rgba(150,96,192,.18);color:var(--purple2);border:1px solid rgba(150,96,192,.3)}
+.spell-label{background:rgba(58,110,168,.18);color:var(--blue2);border:1px solid rgba(58,110,168,.3)}
+.hand-slots{display:flex;gap:5px;flex-wrap:wrap}
+
+/* CARDS */
+.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px 7px;min-width:88px;max-width:112px;cursor:pointer;transition:all .15s;position:relative;flex-shrink:0;user-select:none}
+.card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
+.card.inert{opacity:.38;cursor:default;pointer-events:none}
+.card.ring{border-top:2px solid var(--purple2)}
+.card.wand{border-top:2px solid var(--blue2)}
+.card.consumable{border-top:2px solid var(--red2)}
+.card-tp{font-size:.54rem;letter-spacing:.05em;margin-bottom:2px}
+.card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
+.card-name{font-size:.7rem;font-weight:500;margin-bottom:1px;line-height:1.2}
+.card-desc{font-size:.58rem;color:var(--text2);line-height:1.22}
+.card-grade{position:absolute;top:3px;right:4px;font-size:.56rem;color:var(--gold);font-weight:700}
+.card-enc{font-size:.56rem;color:var(--teal2);margin-top:2px}
+.card-buf{font-size:.56rem;color:var(--gold2);margin-top:1px}
+.card-order{position:absolute;bottom:3px;left:4px;font-size:.52rem;color:rgba(150,96,192,.6);font-weight:700}
+
+/* empty slot placeholder */
+.card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;min-width:88px;max-width:112px;min-height:64px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.4}
+.card-empty.spell{border-color:rgba(58,110,168,.25)}
+
+/* BATTLE CONTROLS */
+.bctl{display:flex;gap:7px;padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);align-items:center;flex-shrink:0;flex-wrap:wrap}
+.ph-badge{font-size:.66rem;padding:.26em .7em;border-radius:3px;font-weight:500;letter-spacing:.04em}
+.ph-player{background:rgba(58,110,168,.2);border:1px solid var(--blue);color:var(--blue2)}
+.ph-enemy{background:rgba(192,64,64,.2);border:1px solid var(--red);color:var(--red2)}
+.hint{font-size:.66rem;color:var(--text2);flex:1}
+
+/* REWARD */
+#scr-reward{flex-direction:column}
+.rew-area{flex:1;padding:14px;max-width:780px;margin:0 auto;width:100%;overflow-y:auto}
+.rew-title{font-family:var(--font-hd);font-size:.95rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:8px}
+.rew-gold-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;font-size:.78rem;flex-wrap:wrap}
+.rew-gold-bar .amt{font-size:.95rem;font-weight:700;color:var(--gold2)}
+.rew-rankup{padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:8px}
+.rew-ru-title{font-size:.7rem;color:var(--text2);margin-bottom:5px}
+.ru-opt{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:all .14s;margin:2px;font-size:.7rem}
+.ru-opt:hover:not(.dis){border-color:var(--gold);color:var(--gold2)}
+.ru-opt.dis{opacity:.3;cursor:default}
+.rew-sec{font-size:.7rem;color:var(--text2);margin-bottom:5px}
+.rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+.rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;min-width:106px;max-width:136px;cursor:pointer;transition:all .18s}
+.rew-card:hover:not(.taken){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
+.rew-card.taken{opacity:.35;cursor:default;pointer-events:none}
+.rew-card-tp{font-size:.56rem;letter-spacing:.05em;margin-bottom:2px}
+.rew-card-name{font-size:.74rem;font-weight:500;margin-bottom:2px}
+.rew-card-desc{font-size:.6rem;color:var(--text2);line-height:1.28}
+
+/* HAND EDITOR in reward */
+.hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
+.hand-editor-title{font-size:.72rem;color:var(--text2);margin-bottom:8px}
+.he-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.he-label{font-size:.65rem;min-width:52px;padding:2px 6px;border-radius:3px;font-weight:500;text-align:center}
+.he-ring{background:rgba(150,96,192,.15);color:var(--purple2);border:1px solid rgba(150,96,192,.25)}
+.he-spell{background:rgba(58,110,168,.15);color:var(--blue2);border:1px solid rgba(58,110,168,.25)}
+.he-slots{display:flex;gap:5px;flex-wrap:wrap}
+
+/* DRAG STYLES */
+.card.dragging{opacity:.4;transform:scale(.95)}
+.card.drag-over{border-color:var(--gold);box-shadow:0 0 8px rgba(200,160,60,.5);transform:scale(1.04)}
+.card-empty.drag-over{border-color:var(--gold);opacity:.8}
+
+/* ENCHANT MODAL */
+#enc-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center}
+#enc-modal.open{display:flex}
+.enc-box{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:18px;max-width:400px;width:92%}
+.enc-box h3{font-family:var(--font-hd);font-size:.88rem;color:var(--gold2);margin-bottom:10px;letter-spacing:.08em}
+.enc-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.enc-item{padding:6px 10px;border:1px solid var(--border2);border-radius:4px;cursor:pointer;transition:all .14s;font-size:.73rem}
+.enc-item:hover{border-color:var(--gold);background:rgba(200,160,60,.07)}
+.enc-type-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.enc-type{padding:4px 9px;border:1px solid var(--border2);border-radius:4px;cursor:pointer;transition:all .14s;font-size:.7rem}
+.enc-type:hover{border-color:var(--teal);color:var(--teal2)}
+
+/* MOVE / EVENT / SHOP */
+#scr-move{flex-direction:column;align-items:center;justify-content:center;background:var(--bg2)}
+.mv-wrap{max-width:520px;width:92%;text-align:center}
+.mv-title{font-family:var(--font-hd);font-size:.92rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
+.mv-opts{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.mv-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 16px;cursor:pointer;transition:all .2s;min-width:100px;text-align:center}
+.mv-opt:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.mo-icon{font-size:1.4rem;margin-bottom:4px}
+.mo-name{font-size:.8rem;font-weight:500;margin-bottom:3px}
+.mo-desc{font-size:.6rem;color:var(--text2)}
+.mv-opt.t-battle{border-top:2px solid var(--red)}
+.mv-opt.t-shrine{border-top:2px solid var(--purple2)}
+.mv-opt.t-shop{border-top:2px solid var(--gold)}
+.mv-opt.t-heal{border-top:2px solid var(--teal2)}
+.mv-opt.t-chest{border-top:2px solid #d0a040}
+.mv-opt.t-boss{border-top:2px solid var(--red2);animation:pred .8s ease-in-out infinite alternate}
+@keyframes pred{from{box-shadow:0 0 4px rgba(200,60,60,.2)}to{box-shadow:0 0 12px rgba(200,60,60,.5)}}
+
+#scr-event{flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.ev-box{max-width:420px;width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:20px}
+.ev-name{font-family:var(--font-hd);font-size:.92rem;color:var(--gold2);margin-bottom:6px}
+.ev-desc{font-size:.8rem;color:var(--text);line-height:1.7;margin-bottom:14px}
+.ev-result{font-size:.76rem;color:var(--teal2);margin-bottom:12px;min-height:1.2em}
+
+#scr-shop{flex-direction:column}
+.shop-area{flex:1;padding:12px;max-width:660px;margin:0 auto;width:100%;overflow-y:auto}
+.shop-title{font-family:var(--font-hd);font-size:.92rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:10px}
+.shop-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.sh-item{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px;min-width:112px;max-width:140px;cursor:pointer;transition:all .18s}
+.sh-item:hover:not(.cant){border-color:var(--gold);transform:translateY(-2px)}
+.sh-item.cant{opacity:.38}
+.si-price{font-size:.66rem;color:var(--gold);font-weight:700;margin-bottom:2px}
+.si-name{font-size:.73rem;font-weight:500;margin-bottom:2px}
+.si-desc{font-size:.59rem;color:var(--text2)}
+
+#scr-gameover,#scr-clear{align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.result-title{font-family:var(--font-hd);font-size:clamp(2rem,8vw,3.5rem);letter-spacing:.2em}
+.result-title.over{color:var(--red2);text-shadow:0 0 28px rgba(200,60,60,.5)}
+.result-title.clear{color:var(--gold2);text-shadow:0 0 28px rgba(200,160,60,.6)}
+.result-sub{color:var(--text2);font-size:.86rem}
+
+.discard-btn{position:absolute;top:2px;right:2px;font-size:.52rem;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;z-index:2}
+.discard-btn:hover{background:rgba(192,64,64,.15)}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="scr-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;gap:16px;background:var(--bg)">
+  <div style="font-family:var(--font-hd);font-size:1.1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.4)">ARCANA SIEGE</div>
+  <div id="load-msg" style="font-size:.78rem;color:var(--text2)">データを読み込み中...</div>
+</div>
+
+<!-- TITLE -->
+<div id="scr-title" class="screen">
+  <h1>ARCANA SIEGE</h1>
+  <p class="sub">ローグライク × オートバトル × 魔法介入</p>
+  <button class="btn" onclick="startGame()">PLAY</button>
+</div>
+
+<!-- BATTLE -->
+<div id="scr-battle" class="screen">
+  <div id="hud">
+    <span class="hud-title">ARCANA SIEGE</span>
+    <div class="hs"><span class="l">階層</span><span class="v floor" id="h-floor">1</span></div>
+    <div class="hs"><span class="l">ライフ</span><span class="v life" id="h-life">20</span></div>
+    <div class="hs"><span class="l">金</span><span class="v gold" id="h-gold">0</span></div>
+    <div class="hs"><span class="l">報酬Lv</span><span class="v" id="h-rlv">1</span></div>
+    <div class="hs"><span class="l">ターン</span><span class="v turn" id="h-turn">0</span></div>
+    <div class="hs"><span class="l">行動</span><span class="v act" id="h-act">1/1</span></div>
+    <div class="sp"></div>
+  </div>
+  <div class="battle-area">
+    <div><div class="field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
+    <div id="log-box"></div>
+    <div><div class="field-label">味方の盤面</div><div class="field" id="f-ally"></div></div>
+    <div class="hand-area">
+      <div class="hand-pane">
+        <span class="hand-pane-label ring-label">指輪 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
+        <div class="hand-slots" id="ring-slots"></div>
+      </div>
+      <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
+      <div class="hand-pane">
+        <span class="hand-pane-label spell-label">杖 <span id="wand-count">0</span>/<span id="wand-max">2</span></span>
+        <div class="hand-slots" id="wand-slots"></div>
+      </div>
+      <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
+      <div class="hand-pane">
+        <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">消耗品 <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
+        <div class="hand-slots" id="consum-slots"></div>
+      </div>
+    </div>
+  </div>
+  <div class="bctl">
+    <span class="ph-badge" id="ph-badge">準備中</span>
+    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
+    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
+<span class="hint" id="hint-txt"></span>
+  </div>
+</div>
+
+<!-- REWARD -->
+<div id="scr-reward" class="screen">
+  <div class="rew-area">
+    <div class="rew-title">報酬フェイズ</div>
+    <div class="rew-gold-bar">
+      <span style="color:var(--text2)">所持金</span><span class="amt" id="rw-gold">0</span><span style="color:var(--text2)">金　獲得：</span><span class="amt" id="rw-earned">+0</span><span style="color:var(--text2)">金</span>
+    </div>
+    <div id="boss-reward-notice" style="display:none;padding:7px 12px;background:rgba(200,160,60,.15);border:1px solid var(--gold);border-radius:4px;margin-bottom:8px;font-size:.8rem;color:var(--gold2);font-weight:500"></div>
+    <div class="rew-rankup">
+      <div class="rew-ru-title">報酬ランクアップ（現在 Lv<span id="rw-rlv">1</span>）</div>
+      <div id="rw-rankups"></div>
+    </div>
+    <div class="rew-sec">報酬カード（6枚）—— 1枚購入可。杖・指輪は破棄で1金払い戻し</div>
+    <div class="rew-cards" id="rw-cards"></div>
+
+    <div class="hand-editor">
+      <div class="hand-editor-title">現在の装備　—— ドラッグで並べ替え　× で破棄</div>
+      <div class="he-row">
+        <span class="he-label he-ring">指輪枠</span>
+        <div class="he-slots" id="he-rings"></div>
+      </div>
+      <div class="he-row">
+        <span class="he-label he-spell">杖枠</span>
+        <div class="he-slots" id="he-wands"></div>
+      </div>
+      <div class="he-row">
+        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">消耗品枠</span>
+        <div class="he-slots" id="he-consums"></div>
+      </div>
+    </div>
+    <button class="btn small" onclick="rewardDone()">次へ進む</button>
+  </div>
+</div>
+
+<!-- MOVE SELECT -->
+<div id="scr-move" class="screen">
+  <div class="mv-wrap">
+    <div class="mv-title" id="mv-title">行き先を選んでください</div>
+    <div class="mv-opts" id="mv-opts"></div>
+    <div style="font-size:.68rem;color:var(--text2)" id="mv-hint"></div>
+  </div>
+</div>
+
+<!-- EVENT -->
+<div id="scr-event" class="screen">
+  <div class="ev-box">
+    <div class="ev-name" id="ev-name"></div>
+    <div class="ev-desc" id="ev-desc"></div>
+    <div class="ev-result" id="ev-result"></div>
+    <button class="btn small" onclick="eventDone()">続ける</button>
+  </div>
+</div>
+
+<!-- SHOP -->
+<div id="scr-shop" class="screen">
+  <div class="shop-area">
+    <div class="shop-title">商　人</div>
+    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持金：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span> 金</div>
+    <div class="shop-grid" id="sh-grid"></div>
+    <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
+      <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
+      <div class="he-row">
+        <span class="he-label he-ring">指輪枠</span>
+        <div class="he-slots" id="sh-he-rings"></div>
+      </div>
+      <div class="he-row">
+        <span class="he-label he-spell">杖枠</span>
+        <div class="he-slots" id="sh-he-wands"></div>
+      </div>
+      <div class="he-row">
+        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">消耗品枠</span>
+        <div class="he-slots" id="sh-he-consums"></div>
+      </div>
+    </div>
+    <button class="btn small" onclick="shopDone()">立ち去る</button>
+  </div>
+</div>
+
+<!-- ENCHANT MODAL -->
+<div id="enc-modal">
+  <div class="enc-box">
+    <h3>エンチャント付与</h3>
+    <div id="enc-s1">
+      <div style="font-size:.72rem;color:var(--text2);margin-bottom:7px">対象の指輪を選択</div>
+      <div class="enc-list" id="enc-rings"></div>
+      <button class="btn tiny" onclick="closeEncModal()">キャンセル</button>
+    </div>
+    <div id="enc-s2" style="display:none">
+      <div style="font-size:.72rem;color:var(--text2);margin-bottom:7px">エンチャントを選択</div>
+      <div class="enc-type-list" id="enc-types"></div>
+      <button class="btn tiny" onclick="encBack()">戻る</button>
+      <button class="btn tiny" style="margin-left:5px" onclick="closeEncModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAMEOVER / CLEAR -->
+<div id="scr-gameover" class="screen">
+  <div class="result-title over">GAME OVER</div>
+  <div class="result-sub" id="go-sub"></div>
+  <button class="btn" onclick="startGame()">もう一度</button>
+</div>
+<div id="scr-clear" class="screen">
+  <div class="result-title clear">DUNGEON CLEAR</div>
+  <div class="result-sub">全20階を踏破しました</div>
+  <button class="btn" onclick="startGame()">もう一度</button>
+</div>
+
+<script src="js/engine/constants.js"></script>
+<script src="js/data/floors.js"></script>
+<script src="js/data/events.js"></script>
+<script src="js/data/rings.js"></script>
+<script src="js/data/spells.js"></script>
+<script src="js/data/loader.js"></script>
+<script src="js/engine/state.js"></script>
+<script src="js/engine/pool.js"></script>
+<script src="js/engine/enemy.js"></script>
+<script src="js/engine/summon.js"></script>
+<script src="js/engine/battle.js"></script>
+<script src="js/engine/render.js"></script>
+<script src="js/engine/spell.js"></script>
+<script src="js/engine/reward.js"></script>
+<script src="js/engine/shop.js"></script>
+<script src="js/engine/move.js"></script>
+<script src="js/engine/event.js"></script>
+<script src="js/engine/main.js"></script>
+</body>
+</html>
