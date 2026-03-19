@@ -53,7 +53,7 @@ function renderField(id,units,isEnemy){
         // キーワードバッジ（敵のみ）
         if(isEnemy&&u.keywords&&u.keywords.length){
           u.keywords.forEach(k=>{
-            const kColor={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080'}[k]||'#888';
+            const kColor={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700'}[k]||'#888';
             bs.push(`<span style="position:relative;font-size:.48rem;padding:1px 3px;border-radius:2px;background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor};margin-right:1px">${k}</span>`);
           });
         }

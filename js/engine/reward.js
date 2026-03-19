@@ -29,6 +29,13 @@ function goToReward(){
     if(bossNotice) bossNotice.style.display='none';
   }
 
+  // エリート撃破ボーナス：ユニーク指輪が確定で1枚追加
+  if(G._isEliteFight){
+    const uRing=drawUniqueRing();
+    if(uRing){ _rewCards.unshift(uRing); }
+    const en=document.getElementById('boss-reward-notice');
+    if(en&&!_isBossFight){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が報酬に追加されました（3金）'; }
+  }
   renderRewCards();
   renderHandEditor();
 }

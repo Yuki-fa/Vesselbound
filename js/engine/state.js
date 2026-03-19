@@ -30,6 +30,7 @@ function initState(){
     rewardCards:3,       // 現在の報酬カード枚数（ボス撃破ごとに+1）
     maxRewardCards:MAX_REWARD_CARDS,
     bannedRings:['r_adj_cnt'],  // G10到達 or isUnique でプールから抹消された指輪ID
+    _isEliteFight:false,         // 現在の戦闘にエリートが出現したか
   };
   // 初期装備（ヘイトの杖なし）
   G.rings=[clone(RING_POOL[0])];

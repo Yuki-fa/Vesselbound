@@ -44,6 +44,7 @@ async function startBattle(){
   _isBossFight=!!(fd&&fd.boss);
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
+  G._isEliteFight=false;
   G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12};
 
   G.enemies=generateEnemies(G.floor);
@@ -102,7 +103,7 @@ function checkInstantRetreat(){
     const idx=G.enemies.indexOf(e);
     if(!e._dp){
       e._dp=true; e.hp=0;
-      G.earnedGold++; G.gold++;
+      G.earnedGold+=(e.grade||1); G.gold+=(e.grade||1);
       if(G.moveMasks[idx]&&!G.visibleMoves.includes(idx)) G.visibleMoves.push(idx);
     }
   });
@@ -141,7 +142,7 @@ function runCommanderAction(action){
       const ne={
         id:uid(),name:ENEMY_NAMES[ni],icon:ENEMY_ICONS[ni],
         atk:avgAtk,hp:avgHp,maxHp:avgHp,baseAtk:avgAtk,
-        grade:FLOOR_DATA[G.floor].grade,
+        grade:rollEnemyGrade(G.floor),
         sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
         shield:0,keywords:[],powerBreak:false
       };
@@ -332,8 +333,9 @@ function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
-  G.earnedGold+=1; G.gold+=1;
-  log(`${e.name} 撃破！金+1`,'gold');
+  const gold=e.grade||1;
+  G.earnedGold+=gold; G.gold+=gold;
+  log(`${e.name} 撃破！金+${gold}`,'gold');
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
     log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
@@ -366,8 +368,9 @@ async function enemyAttackPhase(){
 
     const lv=living();
     if(lv.length===0){
-      G.life=Math.max(0,G.life-1);
-      log(`${e.name} がプレイヤーを直接攻撃！ライフ-1`,'bad');
+      const directDmg=e.grade||1;
+      G.life=Math.max(0,G.life-directDmg);
+      log(`${e.name} がプレイヤーを直接攻撃！ライフ-${directDmg}`,'bad');
       updateHUD();
       if(G.life<=0){ renderAll(); await sleep(200); gameOver(); return; }
       continue;
@@ -492,8 +495,9 @@ async function enemyAttackPhase(){
     }
 
     if(G.allies.filter(a=>a.hp>0).length===0&&e.hp>0){
-      G.life=Math.max(0,G.life-1);
-      log(`${e.name} がプレイヤーを直接攻撃！ライフ-1`,'bad');
+      const directDmg2=e.grade||1;
+      G.life=Math.max(0,G.life-directDmg2);
+      log(`${e.name} がプレイヤーを直接攻撃！ライフ-${directDmg2}`,'bad');
       updateHUD();
       if(G.life<=0){ renderAll(); await sleep(200); gameOver(); return; }
     }

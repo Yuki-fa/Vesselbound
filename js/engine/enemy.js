@@ -3,23 +3,34 @@
 // 依存: constants.js, state.js, floors.js, events.js
 // ═══════════════════════════════════════
 
-// ボスのシールド数（グレード別）
-function bossShield(grade){ return [0,3,3,5,8][grade]||3; }
+// セクション別グレード抽選
+function rollEnemyGrade(floor){
+  const r=Math.random();
+  if(floor<=5)  return r<0.80?1:2;
+  if(floor<=10) return r<0.40?1:r<0.90?2:3;
+  if(floor<=15) return r<0.50?2:r<0.90?3:4;
+  return r<0.30?3:r<0.80?4:5;
+}
+function eliteGradeForFloor(floor){
+  if(floor<=5)  return 2;
+  if(floor<=10) return 3;
+  if(floor<=15) return 4;
+  return 5;
+}
+function bossGradeForFloor(floor){
+  if(floor<=5)  return 3;
+  if(floor<=10) return 4;
+  if(floor<=15) return 5;
+  return 6;
+}
+// グレードに応じた敵のATK/HP
+function enemyStatsByGrade(g){
+  return {atk:randi(g*2,g*4), hp:randi(g*4,g*7)};
+}
 
-// 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）
-const ENEMY_KEYWORDS=['即死','毒','パワーブレイク','範囲攻撃','加護','リーダー'];
-const EFFECT_IDS=[];
-function rollKeywords(floor, isBoss, isLeader){
-  const kws=[];
-  if(floor<3) return kws; // 1〜2階はキーワードなし
-  const base=floor/20;   // 0.15〜1.0
-  if(Math.random()<base*0.30) kws.push('毒');
-  if(Math.random()<base*0.25) kws.push('パワーブレイク');
-  if(Math.random()<base*0.20) kws.push('範囲攻撃');
-  if(Math.random()<base*0.15) kws.push('加護');
-  if(Math.random()<base*0.10&&!isBoss) kws.push('即死');
-  if(isLeader) kws.push('リーダー'); // リーダーは呼び出し側で1体のみ制御
-  return [...new Set(kws)];
+// ボスのシールド数（階層別）
+function bossShieldForFloor(floor){
+  return BOSS_SHIELD[floor]||3;
 }
 
 // 敵ユニットを1体生成するヘルパー
@@ -29,11 +40,25 @@ function _mkEnemy(atk,hp,name,icon,grade,shield,kws){
     shield:shield||0,keywords:kws||[],powerBreak:false};
 }
 
+// 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）
+const ENEMY_KEYWORDS=['即死','毒','パワーブレイク','範囲攻撃','加護','リーダー'];
+const EFFECT_IDS=[];
+function rollKeywords(floor, isBoss, isLeader){
+  const kws=[];
+  if(floor<3) return kws;
+  const base=floor/20;
+  if(Math.random()<base*0.30) kws.push('毒');
+  if(Math.random()<base*0.25) kws.push('パワーブレイク');
+  if(Math.random()<base*0.20) kws.push('範囲攻撃');
+  if(Math.random()<base*0.15) kws.push('加護');
+  if(Math.random()<base*0.10&&!isBoss) kws.push('即死');
+  if(isLeader) kws.push('リーダー');
+  return [...new Set(kws)];
+}
+
 // 1階固定敵パターン（序盤バランス）
 const _FLOOR1_PRESETS=[
-  // 3体パターン: 3/1、2/2、3/1
   [{atk:3,hp:1},{atk:2,hp:2},{atk:3,hp:1}],
-  // 4体パターン: 2/2、3/1、3/1、2/2
   [{atk:2,hp:2},{atk:3,hp:1},{atk:3,hp:1},{atk:2,hp:2}],
 ];
 
@@ -47,26 +72,47 @@ function generateEnemies(floor){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
     return preset.map(p=>{
       const ni=randi(0,ENEMY_NAMES.length-1);
-      return _mkEnemy(p.atk,p.hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],fd.grade,0,[]);
+      return _mkEnemy(p.atk,p.hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],1,0,[]);
     });
   }
 
-  const count=isBoss?5:randi(2,6);
+  if(isBoss){
+    // ボス: 5体。ボス（1体目）はボスグレード、側近は1グレード下
+    const bg=bossGradeForFloor(floor);
+    const count=5;
+    const enemies=[];
+    for(let i=0;i<count;i++){
+      const g=i===0?bg:Math.max(1,bg-1);
+      const {atk,hp}=enemyStatsByGrade(g);
+      const name=i===0?'ボス':'側近';
+      const icon=i===0?'💀':'👹';
+      const shield=i===0?bossShieldForFloor(floor):0;
+      const kws=rollKeywords(floor,true,false);
+      enemies.push(_mkEnemy(atk,hp,name,icon,g,shield,kws));
+    }
+    return enemies;
+  }
+
+  // 通常戦: S16-20は3-4体、それ以外は4-5体
+  const count=floor>=16?randi(3,4):randi(4,5);
+
+  // エリート判定（30%の確率）。G._isEliteFightはstartBattleで事前にfalseリセット済み
+  const hasElite=Math.random()<0.30;
+  if(hasElite) G._isEliteFight=true;
+  const eliteIdx=hasElite?randi(0,count-1):-1;
+  const eg=eliteGradeForFloor(floor);
+
   const enemies=[];
-  let rem=fd.power;
   for(let i=0;i<count;i++){
-    const isLast=i===count-1;
-    const budget=isLast?rem:Math.floor(rem/(count-i)*randi(7,13)/10);
-    const hp =Math.max(1,Math.round(Math.sqrt(Math.max(1,budget)*0.7)));
-    const atk=Math.max(1,Math.round(Math.max(1,budget)/hp));
+    const isElite=(i===eliteIdx);
+    const g=isElite?eg:rollEnemyGrade(floor);
+    const {atk,hp}=enemyStatsByGrade(g);
     const ni=randi(0,ENEMY_NAMES.length-1);
-    const shield=isBoss?bossShield(fd.grade):0;
-    const name=isBoss?(i===0?'ボス':'側近'):ENEMY_NAMES[ni];
-    const icon=isBoss?(i===0?'💀':'👹'):ENEMY_ICONS[ni];
-    const isLeader=!isBoss&&i===0&&Math.random()<floor/25;
-    const kws=rollKeywords(floor,isBoss,isLeader);
-    enemies.push(_mkEnemy(atk,hp,name,icon,fd.grade,shield,kws));
-    rem=Math.max(0,rem-atk*hp);
+    const name=isElite?'エリート':ENEMY_NAMES[ni];
+    const icon=isElite?'⭐':ENEMY_ICONS[ni];
+    const kws=rollKeywords(floor,false,false);
+    if(isElite) kws.unshift('エリート');
+    enemies.push(_mkEnemy(atk,hp,name,icon,g,0,kws));
   }
   return enemies;
 }

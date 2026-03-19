@@ -70,6 +70,15 @@ function drawRewards(n){
   return res;
 }
 
+// エリート撃破報酬用のユニーク指輪を抽選（bannedRingsを無視してisUniqueプールから）
+function drawUniqueRing(){
+  const pool=RING_POOL.filter(r=>r.isUnique);
+  if(!pool.length) return null;
+  const c=clone(randFrom(pool));
+  c._buyPrice=3;
+  return c;
+}
+
 // 消耗品のみのプールからランダムに1枚取得（休息所用）
 function drawConsumable(){
   const pool=SPELL_POOL.filter(s=>s.type==='consumable');

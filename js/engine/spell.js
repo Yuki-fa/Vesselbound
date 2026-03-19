@@ -79,11 +79,14 @@ function applySpell(sp,idx,tgt){
       }
     break;}
     case 'golem':{
-      const gAtk=Math.round(10*g), gHp=Math.round(10*g);
       if(G.allies.filter(a=>a.hp>0).length<6){
-        G.allies.push({id:uid(),name:'ゴーレム',icon:'🗼',atk:gAtk,baseAtk:gAtk,hp:gHp,maxHp:gHp,
+        const gAtk=Math.round(10*g), gHp=Math.round(10*g);
+        const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gAtk,baseAtk:gAtk,hp:gHp,maxHp:gHp,
           ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
-          enchants:[],regen:false,onDeath:undefined,onHit:undefined,taunt50:false,guardian:false,unique:undefined});
+          enchants:[],regen:false,onDeath:undefined,onHit:undefined,taunt50:false,guardian:false,unique:undefined};
+        const emptySlot=G.allies.findIndex(a=>a.hp<=0);
+        if(emptySlot>=0) G.allies[emptySlot]=golem;
+        else if(G.allies.length<6) G.allies.push(golem);
         log(`🗼 ゴーレム（${gAtk}/${gHp}・ヘイト）を召喚`,'good');
       }
     break;}
