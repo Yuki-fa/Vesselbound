@@ -220,6 +220,7 @@ function mkCardEl(card,idx,ctx){
   const t=card.type||'ring';
   div.className=`card ${t}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
+  const tpLabel=card.kind==='summon'?'召喚指輪':card.kind==='passive'?'指輪':(typeLabel[t]||'指輪');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
   const orderLabel=card.kind==='summon'&&ctx==='ring-battle'?`<span class="card-order">${idx+1}</span>`:'';
   const usesLabel=card.type==='wand'&&card.usesLeft!==undefined?`<span style="font-size:.56rem;color:var(--gold2);position:absolute;bottom:3px;right:4px">×${card.usesLeft}</span>`:'';
@@ -236,7 +237,7 @@ function mkCardEl(card,idx,ctx){
     }
   }
   const dynDesc=computeDesc(card);
-  div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kindLabel}</div>${card.grade?`<div class="card-grade">${gradeStr(card.grade)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
+  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade">${gradeStr(card.grade)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
   return div;
 }
 

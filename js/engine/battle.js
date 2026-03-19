@@ -334,7 +334,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     onDamageCount();
-    if(srcUnit) applyPoisonOnDmg(e,srcUnit);
+    applyPoisonOnDmg(e,srcUnit); // ring check は常時動作、enchant check は srcUnit がある場合のみ
     G.rings.forEach(fr=>{
       if(!fr||fr.unique!=='fury_passive') return;
       const fm=GRADE_MULT[fr.grade||1];

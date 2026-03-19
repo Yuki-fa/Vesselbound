@@ -140,6 +140,7 @@ function renderRewCards(){
     const rdesc=computeDesc(card);
     const refund=cardRefund(card);
     const refundTxt=refund>0?`<div class="rew-card-refund">売却+${refund}ソウル</div>`:'';
+    const tpLabel=card.kind==='summon'?'召喚指輪':(typeLabel[t]||'指輪');
     // 同名指輪所持時はグレード加算プレビュー
     const isRingCard=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
     let mergeHint='';
@@ -150,7 +151,7 @@ function renderRewCards(){
         mergeHint=`<div class="rew-merge">▲ ${gradeStr(owned.grade||1)}→${gradeStr(newG)}</div>`;
       }
     }
-    div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${typeLabel[t]||'指輪'}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}`;
+    div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}`;
     if(canBuy) div.onclick=()=>takeRewCard(i);
     el.appendChild(div);
   });
@@ -249,9 +250,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const gs=gradeStr(g);
       const refund=cardRefund(card);
       const refundEl=refund>0?`<div class="card-sell">売却+${refund}ソウル</div>`:'';
+      const tpLabel=card.kind==='summon'?'召喚指輪':(typeLabel[t]||'指輪');
       let heStats='';
       if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';heStats=`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
-      div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kl}</div><div class="card-grade">${gs}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}${refundEl}<button class="discard-btn" title="売却">売却</button>`;
+      div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kl}</div><div class="card-grade">${gs}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}${refundEl}<button class="discard-btn" title="売却">売却</button>`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); });
@@ -306,8 +308,9 @@ let _encTargetIdx=-1;
 function openEncModal(src='reward',cost=0,presetEnchantType=null){
   _encCtx={src,cost};
   _encTargetIdx=-1;
-  const rings=G.rings.map((r,i)=>({card:r,idx:i})).filter(x=>x.card);
-  if(!rings.length){ alert('手持ちの指輪がありません'); return; }
+  // エンチャントは召喚指輪のみ対象
+  const rings=G.rings.map((r,i)=>({card:r,idx:i})).filter(x=>x.card&&x.card.kind==='summon');
+  if(!rings.length){ alert('手持ちの召喚指輪がありません'); return; }
   const el=document.getElementById('enc-rings');
   el.innerHTML='';
   rings.forEach(({card,idx})=>{

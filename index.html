@@ -246,6 +246,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
+  <div style="text-align:center;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
+    <span style="font-family:var(--font-hd);font-size:.85rem;letter-spacing:.18em;color:var(--gold2);text-shadow:0 0 12px rgba(200,160,60,.35)">Vesselbound</span>
+  </div>
   <div class="battle-area">
     <div><div class="field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
     <div id="log-box"></div>
@@ -313,6 +316,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     </div>
   </div>
 
+  <div class="bctl">
+    <span class="ph-badge" id="ph-badge">準備中</span>
+    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
+    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
+    <span class="hint" id="hint-txt"></span>
+  </div>
+
   <!-- 底部HUD -->
   <div class="bottom-hud">
     <div class="bhud-item">
@@ -335,13 +345,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <span class="bhud-label">行動</span>
       <span class="bhud-val act" id="h-act">0/1</span>
     </div>
-  </div>
-
-  <div class="bctl">
-    <span class="ph-badge" id="ph-badge">準備中</span>
-    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
-    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
-    <span class="hint" id="hint-txt"></span>
   </div>
 </div>
 
