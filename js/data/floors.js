@@ -36,10 +36,9 @@ const FLOOR_DATA=[null,
 
 // マップノードの種類定義
 const NODE_TYPES={
-  battle:{icon:'⚔️', label:'戦闘',   desc:'次の敵と戦う',         cls:'t-battle'},
-  shrine:{icon:'🔮', label:'祠',     desc:'ランダムイベント',       cls:'t-shrine'},
-  shop:  {icon:'🪙', label:'商人',   desc:'金でカードを購入',       cls:'t-shop'},
-  heal:  {icon:'💊', label:'回復',   desc:'ライフ+3',              cls:'t-heal'},
-  chest: {icon:'📦', label:'宝箱',   desc:'カードを1枚獲得',        cls:'t-chest'},
-  boss:  {icon:'💀', label:'ボス戦', desc:'固定強敵との決戦',       cls:'t-boss'},
+  battle:{icon:'⚔️', label:'戦闘',    desc:'次の敵と戦う',                          cls:'t-battle'},
+  smithy:{icon:'⚒️', label:'鍛冶屋',  desc:'指輪強化かエンチャント付与（1つ選択）', cls:'t-smithy'},
+  rest:  {icon:'🏕️', label:'休息所',  desc:'回復か消耗品か杖リチャージ（1つ選択）', cls:'t-rest'},
+  chest: {icon:'📦', label:'宝箱',    desc:'カードを1枚獲得',                       cls:'t-chest'},
+  boss:  {icon:'💀', label:'ボス戦',  desc:'固定強敵との決戦',                      cls:'t-boss'},
 };

@@ -6,43 +6,75 @@
 // 杖の残り使用回数をランダムに決定（3〜6回）
 function randUses(){ return 3+Math.floor(Math.random()*4); }
 
-// 報酬ランクに応じたカードプールを生成
-function getPool(lv){
-  const maxG=lv<=1?1:lv<=2?2:lv<=3?3:4;
+// 階層に応じたグレード抽選
+// S1-5: G1=90% G2=9% G3=1%  S6-10: G1=80% G2=17% G3=3%
+// S11-15: G1=70% G2=24% G3=6%  S16-20: G1=60% G2=30% G3=10%
+function rollGrade(floor){
+  const r=Math.random();
+  if(floor<=5)  return r<0.90?1:r<0.99?2:3;
+  if(floor<=10) return r<0.80?1:r<0.97?2:3;
+  if(floor<=15) return r<0.70?1:r<0.94?2:3;
+  return r<0.60?1:r<0.90?2:3;
+}
+
+// カードの購入金額を生成時に確定
+// 指輪G1=3金、杖G1=2金、消耗品=1金。G2以上は+2金(75%)か+1金(25%)を積み上げ
+function calcBuyPrice(card){
+  if(card.type==='consumable') return 1;
+  const grade=card.grade||1;
+  let price=card.type==='wand'?2:3;
+  for(let i=1;i<grade;i++) price+=Math.random()<0.75?2:1;
+  return price;
+}
+
+// 売却時の払い戻し金額（G1=1金、G2=2金…G10=10金。消耗品=0金）
+function cardRefund(card){
+  if(!card) return 0;
+  if(card.type==='consumable') return 0;
+  return card.grade||1;
+}
+
+// 報酬用カードプールを生成（ユニーク・抹消済み指輪を除外）
+function getPool(){
   const pool=[];
-  RING_POOL.forEach(r=>{ const c=clone(r); c.grade=Math.min(maxG,4); pool.push(c); });
-  SPELL_POOL.forEach(r=>{
-    if(r.starterOnly) return; // 炎の杖は報酬に出ない
+  RING_POOL.forEach(r=>{
+    if(r.isUnique) return;                   // ユニーク指輪は報酬に出ない
+    if(G.bannedRings&&G.bannedRings.includes(r.id)) return; // G10抹消済みも除外
     const c=clone(r);
-    c.grade=Math.min(maxG,4);
-    if(c.type==='wand') c.usesLeft=c.baseUses||randUses();
+    c.grade=rollGrade(G.floor);
+    c._buyPrice=calcBuyPrice(c);
+    pool.push(c);
+  });
+  SPELL_POOL.forEach(r=>{
+    if(r.starterOnly) return;
+    const c=clone(r);
+    c.grade=rollGrade(G.floor);
+    if(c.type==='wand'){ c.usesLeft=c.baseUses||randUses(); c._maxUses=c.usesLeft; }
+    c._buyPrice=calcBuyPrice(c);
     pool.push(c);
   });
   return pool;
 }
 
-// エンチャントカードオブジェクトを生成
-function makeEnchantCard(et){
-  return {id:'enc_'+et, name:et+'のエンチャント', type:'enchant', isEnchant:true,
-          enchantType:et, desc:`指輪に「${et}」を付与する`, kind:'enchant'};
-}
-
-// 報酬カードをn枚抽選（エンチャント1枚を必ず含む）
-function drawRewards(n=6){
-  const pool=getPool(G.rewardLv);
-  ENCHANT_TYPES.forEach(et=>pool.push(makeEnchantCard(et)));
-  const res=[]; const used=new Set();
-  // 最低1枚エンチャント保証
-  const fixedEnc=makeEnchantCard(randFrom(ENCHANT_TYPES));
-  res.push(fixedEnc); used.add(fixedEnc.id);
-  const fi=pool.findIndex(p=>p.id===fixedEnc.id); if(fi>=0) pool.splice(fi,1);
+// 報酬カードを n 枚抽選（同IDは重複可）
+function drawRewards(n){
+  const count=(n!=null)?n:(G.rewardCards||3);
+  const pool=getPool();
+  const res=[];
   let t=0;
-  while(res.length<n&&pool.length>0&&t++<200){
+  while(res.length<count&&pool.length>0&&t++<500){
     const i=Math.floor(Math.random()*pool.length);
-    if(!used.has(pool[i].id)){ used.add(pool[i].id); res.push(pool[i]); }
-    pool.splice(i,1);
+    res.push(pool.splice(i,1)[0]);
   }
-  // シャッフル
   for(let i=res.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [res[i],res[j]]=[res[j],res[i]]; }
   return res;
+}
+
+// 消耗品のみのプールからランダムに1枚取得（休息所用）
+function drawConsumable(){
+  const pool=SPELL_POOL.filter(s=>s.type==='consumable');
+  if(!pool.length) return null;
+  const c=clone(randFrom(pool));
+  c._buyPrice=1;
+  return c;
 }

@@ -22,10 +22,35 @@ function rollKeywords(floor, isBoss, isLeader){
   return [...new Set(kws)];
 }
 
+// 敵ユニットを1体生成するヘルパー
+function _mkEnemy(atk,hp,name,icon,grade,shield,kws){
+  return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
+    sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
+    shield:shield||0,keywords:kws||[],powerBreak:false};
+}
+
+// 1階固定敵パターン（序盤バランス）
+const _FLOOR1_PRESETS=[
+  // 3体パターン: 3/1、2/2、3/1
+  [{atk:3,hp:1},{atk:2,hp:2},{atk:3,hp:1}],
+  // 4体パターン: 2/2、3/1、3/1、2/2
+  [{atk:2,hp:2},{atk:3,hp:1},{atk:3,hp:1},{atk:2,hp:2}],
+];
+
 // 指定階層の敵グループを生成
 function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
   const isBoss=!!fd.boss;
+
+  // 1階は固定敵パターンを使用
+  if(floor===1&&!isBoss){
+    const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
+    return preset.map(p=>{
+      const ni=randi(0,ENEMY_NAMES.length-1);
+      return _mkEnemy(p.atk,p.hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],fd.grade,0,[]);
+    });
+  }
+
   const count=isBoss?5:randi(2,6);
   const enemies=[];
   let rem=fd.power;
@@ -38,12 +63,9 @@ function generateEnemies(floor){
     const shield=isBoss?bossShield(fd.grade):0;
     const name=isBoss?(i===0?'ボス':'側近'):ENEMY_NAMES[ni];
     const icon=isBoss?(i===0?'💀':'👹'):ENEMY_ICONS[ni];
-    const isLeader=!isBoss&&i===0&&Math.random()<floor/25; // 先頭1体のみリーダー候補
+    const isLeader=!isBoss&&i===0&&Math.random()<floor/25;
     const kws=rollKeywords(floor,isBoss,isLeader);
-    enemies.push({id:uid(), name, icon,
-      atk, hp, maxHp:hp, baseAtk:atk, grade:fd.grade,
-      sealed:0, instadead:false, nullified:0, poison:0, _dp:false,
-      shield, keywords:kws, powerBreak:false});
+    enemies.push(_mkEnemy(atk,hp,name,icon,fd.grade,shield,kws));
     rem=Math.max(0,rem-atk*hp);
   }
   return enemies;
@@ -60,7 +82,7 @@ function generateMoveMasks(){
   } else {
     types=['battle'];
     const canNon=G.prevNodeType==='battle';
-    const nonTypes=['shrine','shop','heal','chest'];
+    const nonTypes=['smithy','rest','chest'];
     if(canNon&&total>=2) types.push(randFrom(nonTypes));
     if(canNon&&total>=3){ let t; do{t=randFrom(nonTypes);}while(t===types[1]); types.push(t); }
   }

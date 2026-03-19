@@ -43,10 +43,10 @@ function applySpell(sp,idx,tgt){
   log(`→ ${sp.name} を使用`,'em');
   const spread=G.spreadActive&&sp.needsEnemy;
 
-  const sg=SPELL_GRADE[sp.grade||1]; // spell grade multiplier
+  const g=sp.grade||1;
   switch(sp.effect){
     case 'fire':{
-      const dmg=2*sg;
+      const dmg=2*g;
       if(spread){ G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`炎（拡散）全敵に${dmg}ダメ`,'good'); }
       else { const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,dmg,tgt.idx); log(`炎の杖：${e.name}に${dmg}ダメ`,'good'); }
     break;}
@@ -57,9 +57,9 @@ function applySpell(sp,idx,tgt){
       if(spread){ G.enemies.forEach(e=>{ if(e.hp>0) e.nullified=1; }); log('沈黙（拡散）全敵','good'); }
       else { G.enemies[tgt.idx].nullified=1; log(`${G.enemies[tgt.idx].name} 沈黙1T`,'good'); }
     break;}
-    case 'boost':{ const a=G.allies[tgt.idx]; const br=0.5*sg; a.atk=Math.round(a.atk*(1+br)); a.hp=Math.min(Math.round(a.hp+a.maxHp*br),Math.round(a.maxHp*(1+br))); log(`${a.name} ATK/HP+${Math.round(br*100)}%`,'good'); break;}
-    case 'rally':{ const rr=0.3*sg; G.allies.forEach(a=>{ a.atk=Math.round(a.atk*(1+rr)); }); log(`全仲間ATK+${Math.round(rr*100)}%`,'good'); break;}
-    case 'heal_ally':{ const a=G.allies[tgt.idx]; const h=Math.round(a.maxHp*.3*sg); a.hp=Math.min(a.hp+h,a.maxHp); log(`${a.name} HP+${h}`,'good'); break;}
+    case 'boost':{ const a=G.allies[tgt.idx]; const br=0.5*g; a.atk=Math.round(a.atk*(1+br)); a.hp=Math.min(Math.round(a.hp+a.maxHp*br),Math.round(a.maxHp*(1+br))); log(`${a.name} ATK/HP+${Math.round(br*100)}%`,'good'); break;}
+    case 'rally':{ const rr=0.3*g; G.allies.forEach(a=>{ a.atk=Math.round(a.atk*(1+rr)); }); log(`全仲間ATK+${Math.round(rr*100)}%`,'good'); break;}
+    case 'heal_ally':{ const a=G.allies[tgt.idx]; const h=Math.round(a.maxHp*.3*g); a.hp=Math.min(a.hp+h,a.maxHp); log(`${a.name} HP+${h}`,'good'); break;}
     case 'seal':{
       if(spread){ G.enemies.forEach(e=>{ if(e.hp>0) e.sealed=1; }); log('封印（拡散）全敵','good'); }
       else { G.enemies[tgt.idx].sealed=1; log(`${G.enemies[tgt.idx].name} 封印1T`,'good'); }
@@ -79,7 +79,7 @@ function applySpell(sp,idx,tgt){
       }
     break;}
     case 'golem':{
-      const gAtk=Math.round(10*sg), gHp=Math.round(10*sg);
+      const gAtk=Math.round(10*g), gHp=Math.round(10*g);
       if(G.allies.filter(a=>a.hp>0).length<6){
         G.allies.push({id:uid(),name:'ゴーレム',icon:'🗼',atk:gAtk,baseAtk:gAtk,hp:gHp,maxHp:gHp,
           ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
@@ -88,7 +88,7 @@ function applySpell(sp,idx,tgt){
       }
     break;}
     case 'meteor':{
-      const mDmg=3*sg;
+      const mDmg=3*g;
       const mHits=2;
       for(let mi=0;mi<mHits;mi++){
         const all=[...G.enemies.filter(e=>e.hp>0),...G.allies.filter(a=>a.hp>0)];

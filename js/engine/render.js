@@ -144,10 +144,12 @@ function renderConsumSlots(){
   }
 }
 
+// グレード表示（G10=★）— reward.js でも参照
+function gradeStr(g){ return (g>=MAX_GRADE)?'★':('G'+g); }
+
 function computeDesc(card){
   const g=card.grade||1;
-  const gm=GRADE_MULT[g];
-  const sg=SPELL_GRADE[g]||1;
+  const gm=g; // GRADE_MULT[g] === g (線形)
   const enc=card.enchants||[];
   const bab=(typeof G!=='undefined'&&G.buffAdjBonuses&&G.buffAdjBonuses[card.id])||{atk:0,hp:0};
   if(card.kind==='summon'&&card.summon){
@@ -166,23 +168,27 @@ function computeDesc(card){
     return trig+atk+'/'+hp+'の'+card.summon.name+'を'+cntStr+'召喚'+extra;
   }
   if(card.kind==='passive'){
-    const m={'needle':'ターン開始時、ランダムな敵に1ダメx'+(2*gm)+'回','adj_count':'隣接する召喚指輪の召喚数+'+gm,
-      'life_reg':'戦闘終了時ライフ+'+gm,'fury_passive':'キャラがダメージを受けるたび全仲間ATK+'+gm,
-      'extra_action':'行動回数+'+gm,'buff_adj':'戦闘終了時、隣接する召喚指輪の仲間ATK/HP+1（永続累積）',
+    const m={'needle':'ターン開始時、ランダムな敵に1ダメx'+g+'回',
+      'adj_count':'隣接する召喚指輪の召喚数+1（★固定）',
+      'life_reg':'戦闘終了時ライフ+'+g,
+      'fury_passive':'キャラがダメージを受けるたび全仲間ATK+'+g,
+      'extra_action':'行動回数+'+g,
+      'buff_adj':'戦闘終了時、隣接する召喚指輪の仲間ATK/HP+'+g+'（永続累積）',
       'shared_def':'同名仲間が複数いる場合、全員ATK+'+(5*gm)+'/HP+'+(5*gm),
-      'poison_aura':'ダメージを受けた敵に毒（HP-'+(3*gm)+'/T、重複可）','catalyst':'毒ダメージx'+(g+1)+'倍'};
+      'poison_aura':'ダメージを受けた敵に毒（HP-'+g+'/T、重複可）',
+      'catalyst':'毒ダメージx'+(g+1)+'倍'};
     return m[card.unique]||card.desc;
   }
   if(card.type==='wand'||card.type==='consumable'){
     const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
     const usesStr=card.type==='wand'?' (残'+uses+'回）':'';
-    const m={'fire':'対象の敵に'+Math.round(2*sg)+'ダメ','hate':'対象の仲間にヘイト付与（戦闘終了まで）',
+    const m={'fire':'対象の敵に'+(2*g)+'ダメ','hate':'対象の仲間にヘイト付与（戦闘終了まで）',
       'double_hp':'対象の仲間のHPを2倍','swap_all':'全キャラのATK/HPを入れ替え','nullify':'対象の敵のATKを0（1ターン）',
-      'boost':'対象の仲間のATK・HP+'+Math.round(50*sg)+'%','rally':'全仲間ATK+'+Math.round(30*sg)+'%',
-      'heal_ally':'対象の仲間のHPを最大値の'+Math.round(30*sg)+'%回復',
-      'golem':Math.round(10*sg)+'/'+Math.round(10*sg)+'のヘイト持ちゴーレムを召喚',
+      'boost':'対象の仲間のATK・HP+'+(50*g)+'%','rally':'全仲間ATK+'+(30*g)+'%',
+      'heal_ally':'対象の仲間のHPを最大値の'+(30*g)+'%回復',
+      'golem':(10*g)+'/'+(10*g)+'のヘイト持ちゴーレムを召喚',
       'spread':'もう片方の杖が'+(g+1)+'回発動（戦闘終了まで）',
-      'meteor':'ランダムなキャラに'+Math.round(3*sg)+'ダメx2回',
+      'meteor':'ランダムなキャラに'+(3*g)+'ダメx2回',
       'instakill':'対象に即死付与（攻撃したユニットが即死）',
       'bomb':'全敵にグレードx5ダメ','revive':'最後に死んだ仲間をHP50%で復活',
       'big_rally':'全仲間ATK・HP+100%','gold_8':'金+8'};
@@ -214,7 +220,7 @@ function mkCardEl(card,idx,ctx){
     }
   }
   const dynDesc=computeDesc(card);
-  div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kindLabel}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
+  div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kindLabel}</div>${card.grade?`<div class="card-grade">${gradeStr(card.grade)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
   return div;
 }
 

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════
 // move.js — 移動先選択・ノード遷移
-// 依存: constants.js, state.js, events.js, pool.js, battle.js, shop.js
+// 依存: constants.js, state.js, events.js, pool.js, battle.js
 // ═══════════════════════════════════════
 
 function renderMoveSelect(opts){
@@ -23,9 +23,8 @@ function chooseMove(nt){
   G.floor++;
   if(G.floor>20){ showScreen('clear'); return; }
   if(nt==='battle'||nt==='boss'){ showScreen('battle'); startBattle(); }
-  else if(nt==='shrine') doShrine();
-  else if(nt==='shop') doShop();
-  else if(nt==='heal'){ G.life=Math.min(20,G.life+3); updateHUD(); showEvent('回復','温かい光に包まれた。','ライフ+3'); }
+  else if(nt==='smithy') doSmithy();
+  else if(nt==='rest') doRest();
   else if(nt==='chest'){
     const c=drawRewards(1)[0];
     const isRing=c&&(c.kind==='summon'||c.kind==='passive'||!c.type);

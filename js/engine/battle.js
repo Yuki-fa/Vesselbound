@@ -224,9 +224,8 @@ function applyTurnStart(){
   // パッシブ：針
   G.rings.forEach(ring=>{
     if(!ring) return;
-    const mult=GRADE_MULT[ring.grade||1];
     if(ring.unique==='needle'){
-      const shots=2*mult;
+      const shots=ring.grade||1;
       for(let i=0;i<shots;i++){
         const ts=G.enemies.filter(e=>e.hp>0); if(!ts.length) break;
         const te=randFrom(ts);
@@ -268,9 +267,10 @@ function applyVictoryBonuses(){
       const adj=G.rings[hi+d];
       if(adj&&adj.kind==='summon'){
         if(!G.buffAdjBonuses[adj.id]) G.buffAdjBonuses[adj.id]={atk:0,hp:0};
-        G.buffAdjBonuses[adj.id].atk++;
-        G.buffAdjBonuses[adj.id].hp++;
-        log(`増幅：${adj.name}に+1/+1蓄積（累計+${G.buffAdjBonuses[adj.id].atk}）`,'sys');
+        const bonus=ring.grade||1;
+        G.buffAdjBonuses[adj.id].atk+=bonus;
+        G.buffAdjBonuses[adj.id].hp+=bonus;
+        log(`増幅：${adj.name}に+${bonus}/+${bonus}蓄積（累計+${G.buffAdjBonuses[adj.id].atk}）`,'sys');
       }
     });
   });

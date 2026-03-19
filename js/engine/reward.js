@@ -4,112 +4,115 @@
 // ═══════════════════════════════════════
 
 let _rewCards=[];
-let _takenCardIds=new Set(); // 購入済みカードID（1フェイズ内）
 
-// カードの購入コスト（報酬フェイズ用）
-function cardCost(card){
-  if(!card) return 0;
-  if(card.isEnchant) return 3;
-  if(card.type==='consumable') return 1;
-  if(card.type==='wand') return 2;
-  return 3; // ring
-}
-// 売却時の払い戻し（杖・指輪のみ1金）
-function cardRefund(card){
-  if(!card) return 0;
-  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return 1;
-  if(card.type==='wand') return 1;
-  return 0;
-}
+// ── 報酬フェイズ開始 ─────────────────────────────
 
 function goToReward(){
-  _rewCards=drawRewards(6);
-  _takenCardIds=new Set(); // リセット
+  _rewCards=drawRewards();
   showScreen('reward');
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-earned').textContent='+'+G.earnedGold;
-  document.getElementById('rw-rlv').textContent=G.rewardLv;
+  document.getElementById('rw-count').textContent=G.rewardCards;
 
-  // ボス戦後スロット拡張報酬
+  // ボス戦後：報酬カード枚数+1
   const bossNotice=document.getElementById('boss-reward-notice');
   if(_isBossFight){
-    const msg=giveBossSlotReward();
-    if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=msg; }
+    if(G.rewardCards<G.maxRewardCards){
+      G.rewardCards++;
+      _rewCards=drawRewards(); // 増えた枚数で再抽選
+      if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=`🎁 ボスクリア：報酬カード+1（現在${G.rewardCards}枚）`; }
+    } else {
+      if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=`🎁 ボスクリア：報酬カードは最大（${G.rewardCards}枚）`; }
+    }
+    document.getElementById('rw-count').textContent=G.rewardCards;
   } else {
     if(bossNotice) bossNotice.style.display='none';
   }
 
-  renderRankUp();
   renderRewCards();
   renderHandEditor();
 }
 
-// ボス戦後ランダムスロット拡張（無償）
-function giveBossSlotReward(){
-  const opts=[];
-  if(G.ringSlots<7) opts.push('ring');
-  if(G.wandSlots<7&&G.wandSlots+G.consumSlots<7) opts.push('wand');
-  if(G.consumSlots<7&&G.wandSlots+G.consumSlots<7) opts.push('consumable');
-  if(!opts.length) return '🎁 ボスクリア報酬：全スロットが上限に達しています';
-  const chosen=randFrom(opts);
-  if(chosen==='ring'){
-    G.ringSlots++;
-    return `🎁 ボスクリア報酬：指輪スロット+1（現在${G.ringSlots}枠）`;
-  } else if(chosen==='wand'){
-    G.spells.splice(G.wandSlots,0,null);
-    G.wandSlots++;
-    return `🎁 ボスクリア報酬：杖スロット+1（現在${G.wandSlots}枠）`;
-  } else {
-    G.consumSlots++;
-    return `🎁 ボスクリア報酬：消耗品スロット+1（現在${G.consumSlots}枠）`;
-  }
+// ── リロール（1金で全カード入れ替え）──────────────
+
+function rerollRewards(){
+  if(G.gold<1){ return; }
+  G.gold-=1;
+  _rewCards=drawRewards();
+  document.getElementById('rw-gold').textContent=G.gold;
+  const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
+  renderRewCards();
 }
+
+// ── 報酬カードの描画 ──────────────────────────────
 
 function renderRewCards(){
   const el=document.getElementById('rw-cards');
   el.innerHTML='';
-  const typeLabel={ring:'指輪（指）',wand:'杖（魔）',consumable:'消耗品（魔）',enchant:'エンチャント'};
+  const typeLabel={ring:'指輪',wand:'杖',consumable:'消耗品'};
   _rewCards.forEach((card,i)=>{
     if(!card) return;
     const div=document.createElement('div');
-    const cost=cardCost(card);
-    const alreadyTaken=_takenCardIds.has(card.id);
-    const canBuy=G.gold>=cost&&!alreadyTaken;
-    div.className='rew-card'+((!canBuy)?' taken':'');
+    const cost=card._buyPrice||1;
+    const canBuy=G.gold>=cost;
+    div.className='rew-card'+(canBuy?'':' cant');
     const t=card.type||'ring';
-    const tColor=t==='ring'?'purple2':t==='wand'?'blue2':t==='enchant'?'teal2':'red2';
-    const enc=card.enchants&&card.enchants.length?`<div style="font-size:.56rem;color:var(--teal2);margin-top:2px">${card.enchants.join('・')}</div>`:'';
-    const kl=card.kind==='passive'?' <span style="font-size:.5rem;color:var(--teal2)">P</span>':'';
+    const tColor=t==='ring'?'purple2':t==='wand'?'blue2':'red2';
+    const g=card.grade||1;
+    const gs=gradeStr(g);
     const rdesc=computeDesc(card);
-    div.innerHTML=`<div style="font-size:.6rem;color:var(--gold);font-weight:700;margin-bottom:2px">${cost}金</div><div class="rew-card-tp" style="color:var(--${tColor})">${typeLabel[t]||'指輪'}${kl}</div><div class="rew-card-name">${card.name}${card.grade?' G'+card.grade:''}</div><div class="rew-card-desc">${rdesc}</div>${enc}`;
+    const refund=cardRefund(card);
+    const refundTxt=refund>0?`<div class="rew-card-refund">売却+${refund}金</div>`:'';
+    // 同名指輪所持時はグレード加算プレビュー
+    const isRingCard=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
+    let mergeHint='';
+    if(isRingCard){
+      const owned=G.rings.find(r=>r&&r.id===card.id);
+      if(owned){
+        const newG=Math.min(MAX_GRADE,(owned.grade||1)+g);
+        mergeHint=`<div class="rew-merge">▲ ${gradeStr(owned.grade||1)}→${gradeStr(newG)}</div>`;
+      }
+    }
+    div.innerHTML=`<div class="rew-card-cost">${cost}金</div><div class="rew-card-tp" style="color:var(--${tColor})">${typeLabel[t]||'指輪'}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}`;
     if(canBuy) div.onclick=()=>takeRewCard(i);
     el.appendChild(div);
   });
+  const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
 }
+
+// ── カード購入 ────────────────────────────────────
 
 function takeRewCard(i){
   const card=_rewCards[i]; if(!card) return;
-  const cost=cardCost(card);
-  if(G.gold<cost){ alert(`金が足りません（必要:${cost}金、所持:${G.gold}金）`); return; }
+  const cost=card._buyPrice||1;
+  if(G.gold<cost) return;
 
-  // エンチャントカードの場合はモーダルで指輪選択
-  if(card.isEnchant){
-    _rewCards[i]=null;
-    G.gold-=cost;
-    document.getElementById('rw-gold').textContent=G.gold;
-    openEncModal('reward',0,card.enchantType);
-    renderRewCards();
-    return;
-  }
-
-  const isRing=card.kind==='summon'||card.kind==='passive'||card.type==='ring'||(!card.type);
+  const isRing=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
   const nc=clone(card);
-  if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
+  if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
 
   if(isRing){
+    // 同じ指輪を所持→グレード加算
+    const ownedIdx=G.rings.findIndex(r=>r&&r.id===nc.id);
+    if(ownedIdx>=0){
+      const owned=G.rings[ownedIdx];
+      const newGrade=Math.min(MAX_GRADE,(owned.grade||1)+(nc.grade||1));
+      G.gold-=cost;
+      log(`${owned.name} グレード加算 ${gradeStr(owned.grade||1)}→${gradeStr(newGrade)}`,'good');
+      owned.grade=newGrade;
+      if(newGrade>=MAX_GRADE&&!G.bannedRings.includes(nc.id)){
+        G.bannedRings.push(nc.id);
+        log(`${owned.name} が${gradeStr(MAX_GRADE)}に到達。プールから除外`,'sys');
+      }
+      _rewCards[i]=null;
+      document.getElementById('rw-gold').textContent=G.gold;
+      updateHUD(); renderRewCards(); renderHandEditor();
+      return;
+    }
+    // 空きスロットに配置
     if(G.rings.filter(r=>r).length>=G.ringSlots){
-      alert(`指輪枠（${G.ringSlots}）が満杯です。下の手札から破棄してください。`); return;
+      alert(`指輪枠（${G.ringSlots}）が満杯です。下の手札から売却してください。`); return;
     }
     G.gold-=cost;
     let placed=false;
@@ -117,15 +120,15 @@ function takeRewCard(i){
     if(!placed) G.rings.push(nc);
   } else if(card.type==='wand'){
     if(G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){
-      alert(`杖枠（${G.wandSlots}）が満杯です。下の手札から破棄してください。`); return;
+      alert(`杖枠（${G.wandSlots}）が満杯です。下の手札から売却してください。`); return;
     }
     G.gold-=cost;
     let placed=false;
     for(let j=0;j<G.wandSlots;j++){ if(!G.spells[j]){ G.spells[j]=nc; placed=true; break; } }
     if(!placed) G.spells.splice(G.wandSlots,0,nc);
-  } else { // consumable
+  } else {
     if(G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length>=G.consumSlots){
-      alert(`消耗品枠（${G.consumSlots}）が満杯です。下の手札から破棄してください。`); return;
+      alert(`消耗品枠（${G.consumSlots}）が満杯です。下の手札から売却してください。`); return;
     }
     G.gold-=cost;
     let placed=false;
@@ -133,44 +136,34 @@ function takeRewCard(i){
     if(!placed) G.spells.push(nc);
   }
 
-  _takenCardIds.add(card.id);
-  document.getElementById('rw-gold').textContent=G.gold;
   log(card.name+' を'+cost+'金で取得','good');
-  updateHUD();
-  renderRewCards();
-  renderHandEditor();
+  _rewCards[i]=null;
+  document.getElementById('rw-gold').textContent=G.gold;
+  updateHUD(); renderRewCards(); renderHandEditor();
 }
 
-function renderRankUp(){
-  const el=document.getElementById('rw-rankups');
-  el.innerHTML='';
-  document.getElementById('rw-rlv').textContent=G.rewardLv;
-  if(G.rewardLv>=5){ el.innerHTML='<span style="color:var(--teal2);font-size:.7rem">最大ランクです</span>'; return; }
-  const cost=RANK_UP_COSTS[G.rewardLv];
-  const needed=cost-G.rewardLvInvested;
-  const can=G.gold>=needed&&needed>0;
-  const div=document.createElement('div');
-  div.className='ru-opt'+(can?'':' dis');
-  div.textContent=`Lv${G.rewardLv}→Lv${G.rewardLv+1}　必要:${needed}金（累計${cost}金）`;
-  div.onclick=()=>{
-    const _cost=RANK_UP_COSTS[G.rewardLv];
-    const _needed=_cost-G.rewardLvInvested;
-    if(G.gold<_needed||_needed<=0) return;
-    G.gold-=_needed; G.rewardLvInvested=_cost; G.rewardLv++;
-    document.getElementById('rw-gold').textContent=G.gold;
-    log(`報酬ランク→Lv${G.rewardLv}`,'sys');
-    _rewCards=drawRewards(6);
-    G.rewardTaken=false;
-    renderRankUp();
-    renderRewCards();
-  };
-  el.appendChild(div);
+// ── 報酬終了（金リセット）────────────────────────
+
+function rewardDone(){
+  G.gold=0;  // 報酬フェイズ終了で金をリセット
+  if(G._retryFloor){
+    G._retryFloor=false;
+    G.floor--;
+    const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
+    renderMoveSelect([{nodeType,idx:-1}]);
+    showScreen('move');
+    return;
+  }
+  const opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
+  if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
+  renderMoveSelect(opts);
+  showScreen('move');
 }
 
 // ═══════════════════════════════════════
-// HAND EDITOR (reward phase, with drag)
+// HAND EDITOR（ドラッグ並べ替え・売却）
 // ═══════════════════════════════════════
-let _dragSrc=null; // {arr:'rings'|'spells', idx}
+let _dragSrc=null;
 
 function renderHandEditor(){
   renderHeRow('he-rings', G.rings, 0, G.ringSlots, 'rings');
@@ -178,7 +171,6 @@ function renderHandEditor(){
   renderHeRow('he-consums', G.spells, G.wandSlots, G.consumSlots, 'consums');
 }
 
-// startIdx から count 枠分 arr を描画。arrName は 'rings'|'wands'|'consums'
 function renderHeRow(elId, arr, startIdx, count, arrName){
   const el=document.getElementById(elId);
   if(!el) return;
@@ -192,15 +184,16 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const t=card.type||'ring';
       div.className=`card ${t}`;
       div.draggable=true;
-      div.dataset.arr=arrName;
-      div.dataset.idx=i;
       const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
       const kl=card.kind==='passive'?' <span style="font-size:.5rem;color:var(--teal2)">P</span>':'';
+      const g=card.grade||1;
+      const gs=gradeStr(g);
+      const refund=cardRefund(card);
+      const refundEl=refund>0?`<div class="card-sell">売却+${refund}金</div>`:'';
       let heStats='';
-      if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const base=card.summon.atk+'/'+card.summon.hp;const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';heStats=eff!==base||es.count>1?`<div class="card-buf">${eff}${cs}<span style="color:var(--text2);font-size:.52rem"> (基:${base})</span></div>`:`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
-      div.innerHTML=`<button class="discard-btn" title="破棄">×</button><div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}`;
+      if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';heStats=`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
+      div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kl}</div><div class="card-grade">${gs}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}${refundEl}<button class="discard-btn" title="売却">売却</button>`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); };
-
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); });
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
@@ -210,8 +203,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty'+(isSpells?' spell':'');
-      ph.dataset.arr=arrName;
-      ph.dataset.idx=i;
       ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
       ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
       ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard(arrName,i); });
@@ -224,50 +215,27 @@ function dropOnCard(destArr, destIdx){
   if(!_dragSrc) return;
   const srcArr=_dragSrc.arr; const srcIdx=_dragSrc.idx;
   _dragSrc=null;
-  if(srcArr!==destArr) return; // 異なるペイン間のドラッグは不可
-  const arr=srcArr==='rings'?G.rings:G.spells; // wands/consums は両方 G.spells
-  const tmp=arr[srcIdx];
-  arr[srcIdx]=arr[destIdx];
-  arr[destIdx]=tmp;
+  if(srcArr!==destArr) return;
+  const arr=srcArr==='rings'?G.rings:G.spells;
+  const tmp=arr[srcIdx]; arr[srcIdx]=arr[destIdx]; arr[destIdx]=tmp;
   renderHandEditor();
 }
 
 function discardHeCard(arrName, idx){
-  const arr=(arrName==='rings')?G.rings:G.spells; // wands/consums は G.spells
-  const card=arr[idx];
-  if(!card) return;
+  const arr=(arrName==='rings')?G.rings:G.spells;
+  const card=arr[idx]; if(!card) return;
   arr[idx]=null;
   const refund=cardRefund(card);
   if(refund>0){
     G.gold+=refund;
     updateHUD();
     const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
-    const shg=document.getElementById('sh-gold'); if(shg) shg.textContent=G.gold;
-    try{ log(card.name+' を破棄（+'+refund+'金）','gold'); }catch(e){}
-    // ランクアップボタンを再評価
-    try{ renderRankUp(); }catch(e){}
+    try{ log(card.name+' を売却（+'+refund+'金）','gold'); }catch(e){}
   } else {
-    try{ log(card.name+' を破棄した','sys'); }catch(e){}
+    try{ log(card.name+' を破棄','sys'); }catch(e){}
   }
   renderHandEditor();
-  renderShopHandEditor();
-  try{ renderShop(); }catch(e){}
   try{ renderRewCards(); }catch(e){}
-}
-
-function rewardDone(){
-  if(G._retryFloor){
-    G._retryFloor=false;
-    G.floor--;
-    const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
-    renderMoveSelect([{nodeType,idx:-1}]);
-    showScreen('move');
-    return;
-  }
-  const opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
-  if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
-  renderMoveSelect(opts);
-  showScreen('move');
 }
 
 // ═══════════════════════════════════════
@@ -286,12 +254,8 @@ function openEncModal(src='reward',cost=0,presetEnchantType=null){
   rings.forEach(({card,idx})=>{
     const div=document.createElement('div');
     div.className='enc-item';
-    div.textContent=`${card.name} G${card.grade||1}${card.enchants?.length?' ['+card.enchants.join('・')+']':''}`;
-    div.onclick=()=>{
-      _encTargetIdx=idx;
-      if(presetEnchantType){ applyEnc(presetEnchantType); }
-      else showEncStep2();
-    };
+    div.textContent=`${card.name} ${gradeStr(card.grade||1)}${card.enchants?.length?' ['+card.enchants.join('・')+']':''}`;
+    div.onclick=()=>{ _encTargetIdx=idx; if(presetEnchantType){ applyEnc(presetEnchantType); } else showEncStep2(); };
     el.appendChild(div);
   });
   document.getElementById('enc-s1').style.display='';
@@ -320,8 +284,6 @@ function applyEnc(et){
   if(_encCtx.cost>0){ G.gold-=_encCtx.cost; updateHUD(); }
   log(ring.name+' に「'+et+'」付与','good');
   closeEncModal();
-  if(_encCtx.shopIdx>=0){ _shopItems[_encCtx.shopIdx]=null; _encCtx.shopIdx=-1; }
   if(_encCtx.src==='reward'){ renderHandEditor(); renderRewCards(); }
-  if(_encCtx.src==='shop'){ updateHUD(); renderShop(); renderShopHandEditor(); }
 }
 function closeEncModal(){ document.getElementById('enc-modal').classList.remove('open'); }

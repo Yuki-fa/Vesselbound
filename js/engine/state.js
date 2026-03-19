@@ -14,24 +14,25 @@ const clone    = o     => JSON.parse(JSON.stringify(o));
 
 function initState(){
   G={
-    floor:1, life:20, gold:0, rewardLv:1, rewardLvInvested:0,
+    floor:1, life:20, gold:0,
     rings:[], spells:[],
     allies:[], enemies:[],
     moveMasks:[], visibleMoves:[],
     turn:0, phase:'init',
     actionsPerTurn:1, actionsLeft:0,
-    ringSlots:5, wandSlots:2, consumSlots:2, // 動的スロット数（指輪上限7、杖+消耗品合計上限7）
+    ringSlots:5, wandSlots:2, consumSlots:2,
     lastDead:null, fogNext:false,
     prevNodeType:'battle', earnedGold:0,
-    spreadActive:false,
-    spreadMult:0,
+    spreadActive:false, spreadMult:0,
     battleCounters:{damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12},
-    buffAdjBonuses:{},  // ringId→{atk,hp} 永続累積ボーナス
+    buffAdjBonuses:{},   // ringId→{atk,hp} 永続累積ボーナス
     rewardTaken:false,
+    rewardCards:3,       // 現在の報酬カード枚数（ボス撃破ごとに+1）
+    maxRewardCards:MAX_REWARD_CARDS,
+    bannedRings:[],      // G10到達でプールから抹消された指輪ID
   };
-  // 初期装備
-  G.rings=[clone(RING_POOL[0])];                       // 狼の指輪
+  // 初期装備（ヘイトの杖なし）
+  G.rings=[clone(RING_POOL[0])];
   const fireWand=clone(SPELL_POOL[0]); fireWand.usesLeft=5; fireWand._maxUses=5;
-  const hateWand=clone(SPELL_POOL[1]); hateWand.usesLeft=randUses(); hateWand._maxUses=hateWand.usesLeft;
-  G.spells=[fireWand, hateWand];                       // 炎の杖, ヘイトの杖（3枠目は空）
+  G.spells=[fireWand];
 }

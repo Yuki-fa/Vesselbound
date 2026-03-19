@@ -103,8 +103,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card.consumable{border-top:2px solid var(--red2)}
 .card-tp{font-size:.62rem;letter-spacing:.05em;margin-bottom:2px}
 .card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
-.card-name{font-size:.78rem;font-weight:500;margin-bottom:2px;line-height:1.2}
-.card-desc{font-size:.66rem;color:var(--text2);line-height:1.28}
+.card-name{font-size:.82rem;font-weight:500;margin-bottom:2px;line-height:1.2}
+.card-desc{font-size:.7rem;color:var(--text2);line-height:1.3}
 .card-grade{position:absolute;top:3px;right:4px;font-size:.6rem;color:var(--gold);font-weight:700}
 .card-enc{font-size:.6rem;color:var(--teal2);margin-top:2px}
 .card-buf{font-size:.6rem;color:var(--gold2);margin-top:1px}
@@ -127,19 +127,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .rew-title{font-family:var(--font-hd);font-size:.95rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:8px}
 .rew-gold-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;font-size:.78rem;flex-wrap:wrap}
 .rew-gold-bar .amt{font-size:.95rem;font-weight:700;color:var(--gold2)}
-.rew-rankup{padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:8px}
-.rew-ru-title{font-size:.7rem;color:var(--text2);margin-bottom:5px}
-.ru-opt{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--border2);border-radius:3px;cursor:pointer;transition:all .14s;margin:2px;font-size:.7rem}
-.ru-opt:hover:not(.dis){border-color:var(--gold);color:var(--gold2)}
-.ru-opt.dis{opacity:.3;cursor:default}
 .rew-sec{font-size:.7rem;color:var(--text2);margin-bottom:5px}
 .rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
-.rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;min-width:106px;max-width:136px;cursor:pointer;transition:all .18s}
-.rew-card:hover:not(.taken){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
-.rew-card.taken{opacity:.35;cursor:default;pointer-events:none}
+.rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;min-width:106px;max-width:136px;cursor:pointer;transition:all .18s;position:relative}
+.rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
+.rew-card.cant{opacity:.45;cursor:default;pointer-events:none}
 .rew-card-tp{font-size:.56rem;letter-spacing:.05em;margin-bottom:2px}
 .rew-card-name{font-size:.74rem;font-weight:500;margin-bottom:2px}
-.rew-card-desc{font-size:.6rem;color:var(--text2);line-height:1.28}
+.rew-card-desc{font-size:.64rem;color:var(--text2);line-height:1.3}
+.rew-card-cost{font-size:.62rem;color:var(--gold);font-weight:700;margin-bottom:2px}
+.rew-card-refund{font-size:.58rem;color:var(--teal2);margin-top:2px}
+.rew-merge{font-size:.6rem;color:var(--gold2);margin-top:2px;font-weight:500}
+.rew-grade{font-size:.6rem;color:var(--gold);font-weight:700;margin-left:3px}
+.card-sell{font-size:.58rem;color:var(--teal2);margin-top:2px}
+
+/* SMITHY / REST screens */
+#scr-smithy,#scr-rest{flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.choice-wrap{max-width:480px;width:100%}
+.choice-title{font-family:var(--font-hd);font-size:.9rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:14px;text-align:center}
+.choice-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 14px;cursor:pointer;transition:all .18s;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.choice-opt:hover:not(.disabled){border-color:var(--gold);transform:translateX(3px);background:rgba(200,160,60,.06)}
+.choice-opt.disabled{opacity:.35;cursor:default;pointer-events:none}
+.choice-icon{font-size:1.3rem;flex-shrink:0}
+.choice-label{font-size:.78rem;font-weight:500;margin-bottom:2px}
+.choice-desc{font-size:.64rem;color:var(--text2)}
 
 /* HAND EDITOR in reward */
 .hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
@@ -178,9 +189,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .mo-name{font-size:.8rem;font-weight:500;margin-bottom:3px}
 .mo-desc{font-size:.6rem;color:var(--text2)}
 .mv-opt.t-battle{border-top:2px solid var(--red)}
-.mv-opt.t-shrine{border-top:2px solid var(--purple2)}
-.mv-opt.t-shop{border-top:2px solid var(--gold)}
-.mv-opt.t-heal{border-top:2px solid var(--teal2)}
+.mv-opt.t-smithy{border-top:2px solid var(--gold)}
+.mv-opt.t-rest{border-top:2px solid var(--teal2)}
 .mv-opt.t-chest{border-top:2px solid #d0a040}
 .mv-opt.t-boss{border-top:2px solid var(--red2);animation:pred .8s ease-in-out infinite alternate}
 @keyframes pred{from{box-shadow:0 0 4px rgba(200,60,60,.2)}to{box-shadow:0 0 12px rgba(200,60,60,.5)}}
@@ -208,7 +218,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .result-title.clear{color:var(--gold2);text-shadow:0 0 28px rgba(200,160,60,.6)}
 .result-sub{color:var(--text2);font-size:.86rem}
 
-.discard-btn{position:absolute;top:2px;right:2px;font-size:.52rem;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;z-index:2}
+.discard-btn{display:block;margin-top:4px;width:100%;font-size:.56rem;padding:2px 4px;border:1px solid var(--red);color:var(--red2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;text-align:center}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
 
 /* VICTORY OVERLAY */
@@ -239,7 +249,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div class="hs"><span class="l">階層</span><span class="v floor" id="h-floor">1</span></div>
     <div class="hs"><span class="l">ライフ</span><span class="v life" id="h-life">20</span></div>
     <div class="hs"><span class="l">金</span><span class="v gold" id="h-gold">0</span></div>
-    <div class="hs"><span class="l">報酬Lv</span><span class="v" id="h-rlv">1</span></div>
+    <div class="hs"><span class="l">報酬枚</span><span class="v" id="h-rlv">3</span></div>
     <div class="hs"><span class="l">ターン</span><span class="v turn" id="h-turn">0</span></div>
     <div class="hs"><span class="l">行動</span><span class="v act" id="h-act">1/1</span></div>
     <div class="sp"></div>
@@ -279,17 +289,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div class="rew-title">報酬フェイズ</div>
     <div class="rew-gold-bar">
       <span style="color:var(--text2)">所持金</span><span class="amt" id="rw-gold">0</span><span style="color:var(--text2)">金　獲得：</span><span class="amt" id="rw-earned">+0</span><span style="color:var(--text2)">金</span>
+      <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:8px">リロール（1金）</button>
     </div>
     <div id="boss-reward-notice" style="display:none;padding:7px 12px;background:rgba(200,160,60,.15);border:1px solid var(--gold);border-radius:4px;margin-bottom:8px;font-size:.8rem;color:var(--gold2);font-weight:500"></div>
-    <div class="rew-rankup">
-      <div class="rew-ru-title">報酬ランクアップ（現在 Lv<span id="rw-rlv">1</span>）</div>
-      <div id="rw-rankups"></div>
-    </div>
-    <div class="rew-sec">報酬カード（6枚）—— 1枚購入可。杖・指輪は破棄で1金払い戻し</div>
+    <div class="rew-sec">報酬カード <span id="rw-count">3</span>枚 —— 指輪3金・杖2金・消耗品1金（G2以上は追加コスト）。売却で金払い戻し</div>
     <div class="rew-cards" id="rw-cards"></div>
 
     <div class="hand-editor">
-      <div class="hand-editor-title">現在の装備　—— ドラッグで並べ替え　× で破棄</div>
+      <div class="hand-editor-title">現在の装備　—— ドラッグで並べ替え、売却ボタンで売れます</div>
       <div class="he-row">
         <span class="he-label he-ring">指輪枠</span>
         <div class="he-slots" id="he-rings"></div>
@@ -348,6 +355,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       </div>
     </div>
     <button class="btn small" onclick="shopDone()">立ち去る</button>
+  </div>
+</div>
+
+<!-- SMITHY -->
+<div id="scr-smithy" class="screen">
+  <div class="choice-wrap">
+    <div class="choice-title">⚒️ 鍛冶屋</div>
+    <div id="smithy-opts"></div>
+  </div>
+</div>
+
+<!-- REST -->
+<div id="scr-rest" class="screen">
+  <div class="choice-wrap">
+    <div class="choice-title">🏕️ 休息所</div>
+    <div id="rest-opts"></div>
   </div>
 </div>
 
