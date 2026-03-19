@@ -9,13 +9,13 @@ function doShop(){
   const pool=getPool(G.rewardLv);
   _shopItems=[];
   for(let i=0;i<3;i++){ if(!pool.length) break; const idx=Math.floor(Math.random()*pool.length); _shopItems.push({type:'card',card:clone(pool[idx]),price:randFrom([3,4,5,6])}); pool.splice(idx,1); }
-  _shopItems.push({type:'grade_up_ring',label:'指輪グレードアップ',desc:'指輪を1段階強化（G4まで）',price:4});
+  _shopItems.push({type:'grade_up_ring',label:'契約グレードアップ',desc:'契約を1段階強化（G4まで）',price:4});
   _shopItems.push({type:'grade_up_spell',label:'杖グレードアップ',desc:'杖の攻撃・回復効果を1段階強化',price:3});
   _shopItems.push({type:'enchant', label:'エンチャント付与',  desc:'対象の指輪にエンチャントを1つ付与',price:3});
   _shopItems.push({type:'life',    label:'回復薬',           desc:'ライフ+3',price:5});
-  _shopItems.push({type:'ring_slot',     label:'指輪スロット+1',  desc:`指輪枠を追加（現在${G.ringSlots}枠、上限7）`,price:5});
+  _shopItems.push({type:'ring_slot',     label:'契約スロット+1',  desc:`契約枠を追加（現在${G.ringSlots}枠、上限7）`,price:5});
   _shopItems.push({type:'wand_slot',     label:'杖スロット+1',    desc:`杖枠を追加（現在${G.wandSlots}枠、杖+消耗品合計上限7）`,price:5});
-  _shopItems.push({type:'consumable_slot',label:'消耗品スロット+1',desc:`消耗品枠を追加（現在${G.consumSlots}枠、杖+消耗品合計上限7）`,price:5});
+  _shopItems.push({type:'consumable_slot',label:'アイテムスロット+1',desc:`アイテム枠を追加（現在${G.consumSlots}枠、杖+アイテム合計上限7）`,price:5});
   _takenCardIds=new Set();
   renderShop();
   renderShopHandEditor();
@@ -26,7 +26,7 @@ function renderShop(){
   document.getElementById('sh-gold').textContent=G.gold;
   const el=document.getElementById('sh-grid');
   el.innerHTML='';
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'消耗品'};
+  const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
   _shopItems.forEach((item,i)=>{
     if(!item) return;
     const can=G.gold>=item.price;
@@ -48,11 +48,11 @@ function buyItem(i){
   if(item.type==='card'){
     const isRing=item.card.kind==='summon'||item.card.kind==='passive'||!item.card.type;
     if(isRing){
-      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('指輪枠が満杯です。先に破棄してください。'); return; }
+      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('契約枠が満杯です。先に還魂してください。'); return; }
     } else if(item.card.type==='wand'){
       if(G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){ alert('杖枠が満杯です。先に破棄してください。'); return; }
     } else {
-      if(G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length>=G.consumSlots){ alert('消耗品枠が満杯です。先に破棄してください。'); return; }
+      if(G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length>=G.consumSlots){ alert('アイテム枠が満杯です。先に破棄してください。'); return; }
     }
     G.gold-=item.price; takeCardToHand(item.card); log(item.card.name+'を購入','good');
     _takenCardIds.add(item.card.id);
@@ -66,14 +66,14 @@ function buyItem(i){
   } else if(item.type==='life'){
     G.gold-=item.price; G.life=Math.min(20,G.life+3); log('ライフ+3','good');
   } else if(item.type==='ring_slot'){
-    if(G.ringSlots>=7){ alert('指輪スロットは上限（7枠）です'); return; }
-    G.gold-=item.price; G.ringSlots++; log(`指輪スロット+1（${G.ringSlots}枠）`,'good');
+    if(G.ringSlots>=7){ alert('契約スロットは上限（7枠）です'); return; }
+    G.gold-=item.price; G.ringSlots++; log(`契約スロット+1（${G.ringSlots}枠）`,'good');
   } else if(item.type==='wand_slot'){
-    if(G.wandSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('杖スロットは上限です（杖+消耗品合計7枠）'); return; }
+    if(G.wandSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('杖スロットは上限です（杖+アイテム合計7枠）'); return; }
     G.gold-=item.price; G.spells.splice(G.wandSlots,0,null); G.wandSlots++; log(`杖スロット+1（${G.wandSlots}枠）`,'good');
   } else if(item.type==='consumable_slot'){
-    if(G.consumSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('消耗品スロットは上限です（杖+消耗品合計7枠）'); return; }
-    G.gold-=item.price; G.consumSlots++; log(`消耗品スロット+1（${G.consumSlots}枠）`,'good');
+    if(G.consumSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('アイテムスロットは上限です（杖+アイテム合計7枠）'); return; }
+    G.gold-=item.price; G.consumSlots++; log(`アイテムスロット+1（${G.consumSlots}枠）`,'good');
   }
   _shopItems[i]=null;
   updateHUD(); renderShop(); renderShopHandEditor();
@@ -87,7 +87,7 @@ function openGradeUpModal(target, price, shopIdx){
   _gradeUpCtx={target,price,shopIdx};
   const arr=target==='ring'?G.rings:G.spells;
   const eligible=arr.map((c,i)=>({c,i})).filter(({c})=>c&&(c.grade||1)<4);
-  if(!eligible.length){ alert('強化できる'+(target==='ring'?'指輪':'杖')+'がありません'); return; }
+  if(!eligible.length){ alert('強化できる'+(target==='ring'?'契約':'杖')+'がありません'); return; }
   const enc=document.getElementById('enc-modal');
   const s1=document.getElementById('enc-s1');
   const s2=document.getElementById('enc-s2');
@@ -130,7 +130,7 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
   const el=document.getElementById(elId);
   if(!el) return;
   el.innerHTML='';
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'消耗品'};
+  const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
   const isSpells=(arrName==='wands'||arrName==='consums');
   for(let i=startIdx;i<startIdx+count;i++){
     const card=arr[i];
@@ -144,8 +144,11 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
       const kl=card.kind==='passive'?' <span style="font-size:.5rem;color:var(--teal2)">P</span>':'';
       let shStats='';
       if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const base=card.summon.atk+'/'+card.summon.hp;const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';shStats=eff!==base||es.count>1?`<div class="card-buf">${eff}${cs}<span style="color:var(--text2);font-size:.52rem"> (基:${base})</span></div>`:`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
-      div.innerHTML=`<button class="discard-btn">×</button><div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); if(ctx==='shop') renderShopHandEditor(); else renderHandEditor(); };
+      const isRingCard=t==='ring'||card.kind==='summon'||card.kind==='passive';
+      const shBtnCls=isRingCard?'return-btn':'discard-btn';
+      const shBtnTxt=isRingCard?'還魂':'破棄';
+      div.innerHTML=`<button class="${shBtnCls}">${shBtnTxt}</button><div class="card-tp ${t}">${typeLabel[t]||'契約'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
+      div.querySelector('.'+shBtnCls).onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); if(ctx==='shop') renderShopHandEditor(); else renderHandEditor(); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });

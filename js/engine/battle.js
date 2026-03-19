@@ -6,6 +6,15 @@
 // ── ボスフラグ（startBattleで設定・必ず参照より先に宣言）──
 let _isBossFight = false;
 
+// ── 勝利ルーティング：最終ボスならゲームクリア、それ以外は報酬オーバーレイ ──
+function _handleVictory(){
+  if(_isBossFight && G.floor===FLOOR_DATA.length-1){
+    showScreen('clear');
+  } else {
+    showVictoryOverlay();
+  }
+}
+
 // ── リーダーボーナス ──────────────────────────
 
 function applyLeaderBonus(){
@@ -59,7 +68,7 @@ async function startBattle(){
   _isBossFight=!!(fd&&fd.boss);
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
-  G._isEliteFight=false;
+  G._isEliteFight=false; G._eliteIdx=-1;
   G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12};
 
   G.enemies=generateEnemies(G.floor);
@@ -107,6 +116,8 @@ async function nextTurn(){
 
 function checkInstantRetreat(){
   if(G.turn<=1) return false;
+  // 最終ボス戦では撤退不可
+  if(_isBossFight && G.floor===FLOOR_DATA.length-1) return false;
   const liveE=G.enemies.filter(e=>e.hp>0);
   if(!liveE.length) return false;
   const allyAtk=G.allies.filter(a=>a.hp>0).reduce((s,a)=>s+a.atk,0);
@@ -126,7 +137,7 @@ function checkInstantRetreat(){
   applyVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
-  setTimeout(()=>showVictoryOverlay(),600);
+  setTimeout(()=>_handleVictory(),600);
   return true;
 }
 
@@ -301,7 +312,7 @@ function checkInstantVictory(){
     log('全敵撃破！','gold');
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>showVictoryOverlay(),400);
+    setTimeout(()=>_handleVictory(),400);
     return true;
   }
   return false;
@@ -534,7 +545,7 @@ async function enemyAttackPhase(){
     applyVictoryBonuses();
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>showVictoryOverlay(),600);
+    setTimeout(()=>_handleVictory(),600);
     return;
   }
 
@@ -544,7 +555,7 @@ async function enemyAttackPhase(){
     applyVictoryBonuses();
     updateHUD(); renderAll();
     G.phase='reward';
-    setTimeout(()=>showVictoryOverlay(),600);
+    setTimeout(()=>_handleVictory(),600);
     return;
   }
 

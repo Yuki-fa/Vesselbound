@@ -139,6 +139,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .rew-merge{font-size:.6rem;color:var(--gold2);margin-top:2px;font-weight:500}
 .rew-grade{font-size:.6rem;color:var(--gold);font-weight:700;margin-left:3px}
 .card-sell{font-size:.58rem;color:var(--teal2);margin-top:2px}
+.rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
+.rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
+.rew-legend-badge{font-size:.54rem;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
 
 /* MOVE INLINE */
 .move-inline-area{flex-shrink:0;padding:4px 0}
@@ -223,6 +226,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 .discard-btn{display:block;margin-top:4px;width:100%;font-size:.56rem;padding:2px 4px;border:1px solid var(--red);color:var(--red2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;text-align:center}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
+.return-btn{display:block;margin-top:4px;width:100%;font-size:.56rem;padding:2px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;text-align:center}
+.return-btn:hover{background:rgba(64,192,160,.15)}
 
 /* VICTORY OVERLAY */
 #victory-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:28px}
@@ -270,14 +275,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
     <!-- 報酬カード（報酬中のみ表示） -->
     <div id="reward-cards-section" style="display:none">
-      <div class="field-label" style="margin-bottom:5px">報酬カード　（指輪3ソウル・杖2ソウル・消耗品1ソウル　G2以上は追加コスト　売却で払い戻し）</div>
+      <div class="field-label" style="margin-bottom:5px">報酬カード　（契約3ソウル・杖2ソウル・アイテム1ソウル　G2以上は追加コスト　契約は還魂で払い戻し）</div>
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
       <div class="hand-pane">
-        <span class="hand-pane-label ring-label">指輪 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
+        <span class="hand-pane-label ring-label">契約 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
         <div class="hand-slots" id="ring-slots"></div>
       </div>
       <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
@@ -287,7 +292,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       </div>
       <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
       <div class="hand-pane">
-        <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">消耗品 <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
+        <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">アイテム <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
         <div class="hand-slots" id="consum-slots"></div>
       </div>
     </div>
@@ -356,7 +361,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
       <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
       <div class="he-row">
-        <span class="he-label he-ring">指輪枠</span>
+        <span class="he-label he-ring">契約枠</span>
         <div class="he-slots" id="sh-he-rings"></div>
       </div>
       <div class="he-row">
@@ -364,7 +369,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
         <div class="he-slots" id="sh-he-wands"></div>
       </div>
       <div class="he-row">
-        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">消耗品枠</span>
+        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">アイテム枠</span>
         <div class="he-slots" id="sh-he-consums"></div>
       </div>
     </div>

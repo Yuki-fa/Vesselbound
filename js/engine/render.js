@@ -211,17 +211,17 @@ function computeDesc(card){
       'big_rally':'全仲間ATK・HP+100%','gold_8':'ソウル+8'};
     return (m[card.effect]||card.desc)+usesStr;
   }
-  if(card.isEnchant) return '指輪に「'+card.enchantType+'」を付与する';
+  if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   return card.desc||'';
 }
 
 function mkCardEl(card,idx,ctx){
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'消耗品'};
+  const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
   div.className=`card ${t}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=card.kind==='summon'?'召喚指輪':card.kind==='passive'?'指輪':(typeLabel[t]||'指輪');
+  const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
   const orderLabel=card.kind==='summon'&&ctx==='ring-battle'?`<span class="card-order">${idx+1}</span>`:'';
   const usesLabel=card.type==='wand'&&card.usesLeft!==undefined?`<span style="font-size:.56rem;color:var(--gold2);position:absolute;bottom:3px;right:4px">×${card.usesLeft}</span>`:'';

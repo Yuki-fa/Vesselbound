@@ -27,9 +27,19 @@ function bossGradeForFloor(floor){
   if(floor<=15) return 5;
   return 6;
 }
-// グレードに応じた敵のATK/HP（G1合計4〜5程度）
+// グレードに応じた敵のATK/HP（G1合計4〜5、G2以降は急増）
+const _ENEMY_STAT_TABLE=[
+  null,
+  {a:[1,2],  h:[2,4]},   // G1: 合計 3〜 6
+  {a:[5,7],  h:[10,14]}, // G2: 合計15〜21
+  {a:[10,14],h:[20,28]}, // G3: 合計30〜42
+  {a:[18,24],h:[36,48]}, // G4: 合計54〜72
+  {a:[28,36],h:[56,72]}, // G5: 合計84〜108
+  {a:[40,50],h:[80,100]},// G6: 合計120〜150
+];
 function enemyStatsByGrade(g){
-  return {atk:randi(g,Math.round(g*1.5)), hp:randi(Math.round(g*1.5),g*3)};
+  const row=_ENEMY_STAT_TABLE[g]||{a:[g*7,g*9],h:[g*14,g*18]};
+  return {atk:randi(row.a[0],row.a[1]), hp:randi(row.h[0],row.h[1])};
 }
 
 // ボスのシールド数（階層別）
@@ -105,6 +115,7 @@ function generateEnemies(floor){
   const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
   if(hasElite) G._isEliteFight=true;
   const eliteIdx=hasElite?randi(0,count-1):-1;
+  G._eliteIdx=eliteIdx; // generateMoveMasks で移動マス除外に使用
   const eg=eliteGradeForFloor(floor);
 
   const enemies=[];
@@ -123,27 +134,32 @@ function generateEnemies(floor){
 }
 
 // 敵スロットにマップノード（戦闘/鍛冶屋/休息所）を割り当て
-// 鍛冶屋・休息所はスロットごとに各4%（重複なし）
+// ボス戦はスロット0のみ、最終ボス戦はなし、通常戦はエリートのスロットを除外して配置
 function generateMoveMasks(){
   const slots=G.enemies.length;
-  const total=Math.min(3,slots);
   const isBoss=BOSS_FLOORS.includes(G.floor);
   const masks=Array(6).fill(null);
+
+  // 最終ボス戦（floor 20）：移動マスを置かない
+  if(FLOOR_DATA[G.floor]?.boss && G.floor===FLOOR_DATA.length-1) return masks;
+
+  // 通常ボス戦：スロット0（ボス）にのみ移動マスを配置
   if(isBoss){ masks[0]='boss'; return masks; }
 
-  // ランダムにtotal個のスロットを選ぶ
-  const idxs=[...Array(slots).keys()];
+  // 通常戦：エリートのスロットを候補から除外してランダム配置
+  const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
+  let idxs=[...Array(slots).keys()].filter(i=>i!==eliteSlot);
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
+  const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは確率で鍛冶屋/休息所（外れはnull=非表示）
+  // 最初のスロットは必ず戦闘、追加スロットは各5%で鍛冶屋/休息所
   const usedNon=new Set();
   chosen.forEach((idx,ci)=>{
     if(ci===0){ masks[idx]='battle'; return; }
     const r=Math.random();
-    if(r<0.04&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
-    else if(r<0.08&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
-    // 外れはnull（行き先に表示されない）
+    if(r<0.05&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<0.10&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

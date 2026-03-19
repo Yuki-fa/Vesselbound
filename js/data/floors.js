@@ -12,7 +12,7 @@ const BOSS_SHIELD={5:3,10:5,15:8,20:12};
 const _BOSS_ACTIONS=['強化','鼓舞','シールド','ヘイト','召喚'];
 
 const FLOOR_DATA=[null,
-  {power:18, grade:1,actions:['ヘイト']},
+  {power:18, grade:1,actions:[]},
   {power:18, grade:1,actions:['シールド']},
   {power:18, grade:1,actions:['召喚']},
   {power:23, grade:1,actions:['鼓舞']},

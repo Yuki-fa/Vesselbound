@@ -72,6 +72,13 @@ function _rowToRing(row) {
   }
   if (row['unique'])  obj.unique  = row['unique'];
   if (row['onDeath']) obj.onDeath = row['onDeath'];
+  // グレードごとの上昇値（atkPerGrade / hpPerGrade）
+  const atkPG = parseFloat(row['上昇ATK']);
+  const hpPG  = parseFloat(row['上昇HP']);
+  if (!isNaN(atkPG)) obj.atkPerGrade = atkPG;
+  if (!isNaN(hpPG))  obj.hpPerGrade  = hpPG;
+  // legend フラグ（ユニーク指輪・通常報酬に出ない）
+  if (row['legend'] === 'TRUE' || row['legend'] === '✓') obj.legend = true;
   return obj;
 }
 
@@ -135,9 +142,17 @@ async function loadGameData() {
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓';
       const actStr = (row['司令官行動'] || '').trim();
-      const sheetActions = actStr ? actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s && !s.startsWith('なし')) : [];
-      // スプレッドシートに有効な行動がなければ floors.js の値を使用
-      const actions = sheetActions.length > 0 ? sheetActions : (_savedActions[fl] || []);
+      let actions;
+      if (!actStr) {
+        // 空欄 → floors.js のフォールバックを使用
+        actions = _savedActions[fl] || [];
+      } else if (actStr.startsWith('なし')) {
+        // 明示的スキップ → 行動なし（floors.js フォールバック不使用）
+        actions = [];
+      } else {
+        // 有効な行動文字列 → パース
+        actions = actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s);
+      }
       FLOOR_DATA[fl] = {
         power:   parseInt(row['power']) || 10,
         grade:   parseInt(row['grade']) || 1,
