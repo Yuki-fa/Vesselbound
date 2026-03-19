@@ -66,7 +66,7 @@ const RING_POOL=[
   {id:'r_needle',    name:'針の指輪',   kind:'passive',grade:1,
    desc:'ターン開始時にランダムな敵に1ダメ×(Grade×2)',unique:'needle'},
 
-  {id:'r_adj_cnt',   name:'隣接の指輪', kind:'passive',grade:1,isUnique:true,
+  {id:'r_adj_cnt',   name:'隣接の指輪', kind:'passive',grade:10,isUnique:true,
    desc:'隣接する召喚指輪の battle_start 召喚数+1',unique:'adj_count'},
 
   {id:'r_lifereg',   name:'生命の指輪', kind:'passive',grade:1,

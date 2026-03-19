@@ -85,13 +85,14 @@ function generateMoveMasks(){
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
   const chosen=idxs.slice(0,total);
 
+  // 最初のスロットは必ず戦闘、追加スロットは確率で鍛冶屋/休息所（外れはnull=非表示）
   const usedNon=new Set();
-  chosen.forEach(idx=>{
-    let type='battle';
+  chosen.forEach((idx,ci)=>{
+    if(ci===0){ masks[idx]='battle'; return; }
     const r=Math.random();
-    if(r<0.04&&!usedNon.has('smithy')){ type='smithy'; usedNon.add('smithy'); }
-    else if(r<0.08&&!usedNon.has('rest')){ type='rest'; usedNon.add('rest'); }
-    masks[idx]=type;
+    if(r<0.04&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<0.08&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    // 外れはnull（行き先に表示されない）
   });
   return masks;
 }
