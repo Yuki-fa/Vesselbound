@@ -6,9 +6,10 @@
 // 指輪の実効ステータスを計算（グレード倍率・エンチャント・バフ込み）
 function effectiveStats(ring){
   if(!ring||!ring.summon) return null;
-  const mult=GRADE_MULT[ring.grade||1];
-  let atk=Math.round(ring.summon.atk*mult);
-  let hp =Math.round(ring.summon.hp*mult);
+  const grade=ring.grade||1;
+  const mult=GRADE_MULT[grade];
+  let atk=ring.atkPerGrade!==undefined?ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
+  let hp =ring.hpPerGrade !==undefined?ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
   const bab=G.buffAdjBonuses[ring.id];
   if(bab){ atk+=bab.atk||0; hp+=bab.hp||0; }
   const enc=ring.enchants||[];

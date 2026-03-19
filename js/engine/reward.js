@@ -25,7 +25,6 @@ function goToReward(){
 
   // ソウル表示
   document.getElementById('rw-gold').textContent=G.gold;
-  document.getElementById('rw-earned').textContent='+'+G.earnedGold;
   document.getElementById('rw-count').textContent=G.rewardCards;
 
   // 戦闘ボタン非表示

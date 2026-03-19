@@ -20,13 +20,16 @@ function adjacentRings(idx){
 
 // 指輪から仲間ユニットを生成（エンチャント・永続ボーナスを反映）
 function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
-  const mult=GRADE_MULT[ring.grade||1];
+  const grade=ring.grade||1;
+  const mult=GRADE_MULT[grade];
   const s=ring.summon||{atk:1,hp:1,name:'？',icon:'？'};
   const bab=G.buffAdjBonuses[ring.id]||{atk:0,hp:0};
   const enc=ring.enchants||[];
   const gm=mult;
-  let bAtk=overrideAtk!==undefined?overrideAtk:Math.round(s.atk*mult)+bab.atk+(enc.filter(e=>e==='凶暴').length*5*gm);
-  let bHp =overrideHp !==undefined?overrideHp :Math.round(s.hp *mult)+bab.hp +(enc.filter(e=>e==='強壮').length*5*gm);
+  const baseAtk=ring.atkPerGrade!==undefined?ring.atkPerGrade*grade:Math.round(s.atk*mult);
+  const baseHp =ring.hpPerGrade !==undefined?ring.hpPerGrade *grade:Math.round(s.hp *mult);
+  let bAtk=overrideAtk!==undefined?overrideAtk:baseAtk+bab.atk+(enc.filter(e=>e==='凶暴').length*5*gm);
+  let bHp =overrideHp !==undefined?overrideHp :baseHp +bab.hp +(enc.filter(e=>e==='強壮').length*5*gm);
   if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
   return {
     id:uid(),
@@ -129,11 +132,14 @@ function summonAllies(){
   G.rings.forEach((ring,hi)=>{
     if(!ring||ring.kind!=='summon'||ring.trigger!=='battle_start') return;
     if(!ring.summon) return;
-    const mult=GRADE_MULT[ring.grade||1];
+    const grade=ring.grade||1;
+    const mult=GRADE_MULT[grade];
     const enc=ring.enchants||[];
     const gm=mult;
-    let bAtk=Math.round(ring.summon.atk*mult)+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
-    let bHp =Math.round(ring.summon.hp *mult)+(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
+    const baseAtk=ring.atkPerGrade!==undefined?ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
+    const baseHp =ring.hpPerGrade !==undefined?ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
+    let bAtk=baseAtk+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
+    let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){

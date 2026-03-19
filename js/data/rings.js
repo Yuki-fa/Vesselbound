@@ -18,23 +18,29 @@
 const RING_POOL=[
 
   // ── SUMMON RINGS ──
+  // atkPerGrade / hpPerGrade: グレードごとの上昇値（grade × perGrade = 実効値）
   {id:'r_wolf',  name:'狼の指輪',   kind:'summon',grade:1,
+   atkPerGrade:3, hpPerGrade:3,
    desc:'戦闘開始時、3/3の狼を召喚。狼が生存中、全仲間ATK+2',
    trigger:'battle_start', summon:{name:'狼',atk:3,hp:3,icon:'🐺'}, unique:'wolf_aura'},
 
   {id:'r_hyena', name:'腐臭の指輪', kind:'summon',grade:1,
+   atkPerGrade:1, hpPerGrade:2,
    desc:'ターン開始時、1/2のハイエナを1体召喚する',
    trigger:'turn_start',   summon:{name:'ハイエナ',atk:1,hp:2,icon:'🦴'}},
 
   {id:'r_flame', name:'鬼火の指輪', kind:'summon',grade:1,
+   atkPerGrade:4, hpPerGrade:1,
    desc:'仲間が召喚されるたびに4/1の鬼火を1体召喚する',
    trigger:'on_summon',    summon:{name:'鬼火',atk:4,hp:1,icon:'🔥'}},
 
   {id:'r_stone', name:'石像の指輪', kind:'summon',grade:1,
-   desc:'杖を使用するたびに4/5の石像を1体召喚する',
+   atkPerGrade:4, hpPerGrade:5,
+   desc:'杖（消耗品を除く）を使用するたびに4/5の石像を1体召喚する',
    trigger:'on_spell',     summon:{name:'石像',atk:4,hp:5,icon:'🗿'}, onDeath:'stone_death'},
 
   {id:'r_dragon',name:'竜の指輪',   kind:'summon',grade:1,
+   atkPerGrade:15, hpPerGrade:20,
    desc:'キャラクターが累計12回ダメージを受けるたびに15/20の竜を1体召喚する',
    trigger:'on_damage_count', triggerCount:12, summon:{name:'竜',atk:15,hp:20,icon:'🐉'}},
 
@@ -43,22 +49,27 @@ const RING_POOL=[
    trigger:'on_death_count', triggerCount:10, unique:'shadow_copy'},
 
   {id:'r_rat',   name:'鼠の指輪',   kind:'summon',grade:1,
+   atkPerGrade:1, hpPerGrade:1,
    desc:'戦闘開始時、1/1の鼠を5体召喚する',
    trigger:'battle_start', summon:{name:'鼠',atk:1,hp:1,icon:'🐀'}, count:5},
 
   {id:'r_skel',  name:'骸骨の指輪', kind:'summon',grade:1,
+   atkPerGrade:1, hpPerGrade:1,
    desc:'骸骨以外の仲間が死ぬたびに1/1の骸骨を1体召喚する',
    trigger:'on_ally_death_notskel', summon:{name:'骸骨',atk:1,hp:1,icon:'💀'}},
 
   {id:'r_djinn', name:'魔神の指輪', kind:'summon',grade:1,
+   atkPerGrade:15, hpPerGrade:15,
    desc:'仲間が召喚された時に盤面が6体なら、魔神以外の全仲間を破壊し15/15の魔神を召喚する',
    trigger:'on_full_board', unique:'djinn_replace', summon:{name:'魔神',atk:15,hp:15,icon:'👿'}},
 
   {id:'r_bear',  name:'熊の指輪',   kind:'summon',grade:1,
+   atkPerGrade:8, hpPerGrade:10,
    desc:'ターン開始時、敵の数が自分の場の3倍以上なら8/10の熊を1体召喚する',
    trigger:'on_outnumbered', summon:{name:'熊',atk:8,hp:10,icon:'🐻'}, unique:'bear_grow'},
 
   {id:'r_wall',  name:'城壁の指輪', kind:'summon',grade:1,
+   atkPerGrade:0, hpPerGrade:20,
    desc:'戦闘開始時、0/20の城壁を1体召喚。守護：攻撃を受けた時、守護を持たない仲間が反撃する',
    trigger:'battle_start', summon:{name:'城壁',atk:0,hp:20,icon:'🏰'}, guardian:true},
 
@@ -66,7 +77,7 @@ const RING_POOL=[
   {id:'r_needle',    name:'針の指輪',   kind:'passive',grade:1,
    desc:'ターン開始時にランダムな敵に1ダメ×(Grade×2)',unique:'needle'},
 
-  {id:'r_adj_cnt',   name:'隣接の指輪', kind:'passive',grade:10,isUnique:true,
+  {id:'r_adj_cnt',   name:'隣接の指輪', kind:'passive',grade:10,legend:true,
    desc:'隣接する召喚指輪の battle_start 召喚数+1',unique:'adj_count'},
 
   {id:'r_lifereg',   name:'生命の指輪', kind:'passive',grade:1,

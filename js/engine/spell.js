@@ -112,8 +112,8 @@ function applySpell(sp,idx,tgt){
   if(sp.effect!=='spread') G.spreadActive=false;
   if(sp.type==='consumable') G.spells[idx]=null;
 
-  // 石像の指輪：杖使用トリガー
-  if(sp.type==='wand'||sp.type==='consumable') onSpellUsed();
+  // 石像の指輪：杖使用トリガー（消耗品は対象外）
+  if(sp.type==='wand') onSpellUsed();
 
   // 拡散の杖：もう一方の杖をspreadMult回追加発動
   if(sp.effect!=='spread'&&G.spreadMult>0){

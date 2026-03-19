@@ -27,9 +27,9 @@ function bossGradeForFloor(floor){
   if(floor<=15) return 5;
   return 6;
 }
-// グレードに応じた敵のATK/HP
+// グレードに応じた敵のATK/HP（G1合計4〜5程度）
 function enemyStatsByGrade(g){
-  return {atk:randi(g*2,g*4), hp:randi(g*4,g*7)};
+  return {atk:randi(g,Math.round(g*1.5)), hp:randi(Math.round(g*1.5),g*3)};
 }
 
 // ボスのシールド数（階層別）

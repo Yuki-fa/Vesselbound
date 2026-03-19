@@ -38,7 +38,7 @@ function cardRefund(card){
 function getPool(){
   const pool=[];
   RING_POOL.forEach(r=>{
-    if(r.isUnique) return;                   // ユニーク指輪は報酬に出ない
+    if(r.legend) return;                      // legend指輪は通常報酬に出ない
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return; // G10抹消済みも除外
     const c=clone(r);
     c.grade=rollGrade(G.floor);
@@ -73,7 +73,7 @@ function drawRewards(n){
 // エリート撃破報酬用のユニーク指輪を抽選（bannedRings無視。既にMAX_GRADE所持済みは除外）
 function drawUniqueRing(){
   const pool=RING_POOL.filter(r=>{
-    if(!r.isUnique) return false;
+    if(!r.legend) return false;
     const owned=G.rings&&G.rings.find(x=>x&&x.id===r.id);
     if(owned&&(owned.grade||1)>=MAX_GRADE) return false; // 既にMAX所持→スキップ
     return true;
