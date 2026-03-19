@@ -11,16 +11,17 @@ function goToReward(){
   _rewCards=drawRewards();
   G.phase='reward';
 
-  // フィールドをクリア
-  document.getElementById('f-enemy').innerHTML='';
+  // 味方フィールドをクリア・隠す
   document.getElementById('f-ally').innerHTML='';
-
-  // セクション切り替え
   document.getElementById('ally-section').style.display='none';
+
+  // 敵フィールドラベルを隠す（行き先ノードに使用）
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='none';
+
+  // 報酬セクション表示
   document.getElementById('reward-info-bar').style.display='';
   document.getElementById('reward-cards-section').style.display='';
-  document.getElementById('inline-hand-editor').style.display='';
-  document.getElementById('move-inline').style.display='';
 
   // ソウル表示
   document.getElementById('rw-gold').textContent=G.gold;
@@ -61,14 +62,16 @@ function goToReward(){
   }
 
   renderRewCards();
+  // 行き先ノードを敵フィールドに表示
+  renderMoveSlotsInEnemy();
+  // 手札を売却・並べ替え可能モードで再描画
   renderHandEditor();
-  renderInlineMoveNodes();
   updateHUD();
 }
 
-// ── 行き先ノード（インライン）──────────────────────
+// ── 行き先ノードを敵フィールドにスロットとして表示 ──────
 
-function renderInlineMoveNodes(){
+function renderMoveSlotsInEnemy(){
   let opts;
   if(G._retryFloor){
     const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
@@ -77,24 +80,32 @@ function renderInlineMoveNodes(){
     opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
     if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
   }
-  const el=document.getElementById('mi-opts');
+  const el=document.getElementById('f-enemy');
   el.innerHTML='';
-  opts.forEach(opt=>{
-    const nt=NODE_TYPES[opt.nodeType];
+  // 6スロット分表示（ノードを先頭に、残りは空）
+  for(let i=0;i<6;i++){
+    const opt=opts[i];
     const div=document.createElement('div');
-    div.className=`mv-opt ${nt.cls}`;
-    div.innerHTML=`<div class="mo-icon">${nt.icon}</div><div class="mo-name">${nt.label}</div><div class="mo-desc">${nt.desc}</div>`;
-    div.onclick=()=>chooseMoveInline(opt.nodeType);
+    if(opt){
+      const nt=NODE_TYPES[opt.nodeType];
+      div.className='slot has-move';
+      div.style.flexDirection='column';
+      div.innerHTML=`<div class="move-icon" style="font-size:1.4rem">${nt.icon}</div><div class="move-lbl" style="font-size:.64rem;font-weight:600">${nt.label}</div><div style="font-size:.54rem;color:var(--text2);margin-top:2px;text-align:center;padding:0 4px">${nt.desc}</div>`;
+      div.onclick=()=>chooseMoveInline(opt.nodeType);
+    } else {
+      div.className='slot empty';
+    }
     el.appendChild(div);
-  });
+  }
 }
 
 function chooseMoveInline(nt){
   // 報酬セクション非表示
   document.getElementById('reward-info-bar').style.display='none';
   document.getElementById('reward-cards-section').style.display='none';
-  document.getElementById('inline-hand-editor').style.display='none';
-  document.getElementById('move-inline').style.display='none';
+  // 敵フィールドラベルを復元
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='';
   // 味方ゾーン復元
   document.getElementById('ally-section').style.display='';
   // 戦闘ボタン復元
@@ -226,9 +237,14 @@ function takeRewCard(i){
 let _dragSrc=null;
 
 function renderHandEditor(){
-  renderHeRow('he-rings', G.rings, 0, G.ringSlots, 'rings');
-  renderHeRow('he-wands', G.spells, 0, G.wandSlots, 'wands');
-  renderHeRow('he-consums', G.spells, G.wandSlots, G.consumSlots, 'consums');
+  // 報酬フェイズ中は戦闘用手札スロットに売却・並べ替え機能付きで上書きレンダリング
+  renderHeRow('ring-slots', G.rings, 0, G.ringSlots, 'rings');
+  renderHeRow('wand-slots', G.spells, 0, G.wandSlots, 'wands');
+  renderHeRow('consum-slots', G.spells, G.wandSlots, G.consumSlots, 'consums');
+  // カウント表示も更新
+  const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
+  const wc=document.getElementById('wand-count'); if(wc) wc.textContent=G.spells.slice(0,G.wandSlots).filter(s=>s).length;
+  const cc=document.getElementById('consum-count'); if(cc) cc.textContent=G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length;
 }
 
 function renderHeRow(elId, arr, startIdx, count, arrName){

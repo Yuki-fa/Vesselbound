@@ -107,7 +107,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* BATTLE CONTROLS */
-.bctl{display:flex;gap:7px;padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);align-items:center;flex-shrink:0;flex-wrap:wrap}
+.bctl-wrap{background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.bctl{display:flex;gap:7px;padding:6px 12px;align-items:center;flex-wrap:wrap;max-width:1100px;margin:0 auto;width:100%}
 .ph-badge{font-size:.66rem;padding:.26em .7em;border-radius:3px;font-weight:500;letter-spacing:.04em}
 .ph-player{background:rgba(58,110,168,.2);border:1px solid var(--blue);color:var(--blue2)}
 .ph-enemy{background:rgba(192,64,64,.2);border:1px solid var(--red);color:var(--red2)}
@@ -233,13 +234,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 <!-- LOADING -->
 <div id="scr-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;gap:16px;background:var(--bg)">
-  <div style="font-family:var(--font-hd);font-size:1.1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.4)">ARCANA SIEGE</div>
+  <div style="font-family:var(--font-hd);font-size:1.1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.4)">Vesselbound</div>
   <div id="load-msg" style="font-size:.78rem;color:var(--text2)">データを読み込み中...</div>
 </div>
 
 <!-- TITLE -->
 <div id="scr-title" class="screen">
-  <h1>ARCANA SIEGE</h1>
+  <h1>Vesselbound</h1>
   <p class="sub">ローグライク × オートバトル × 魔法介入</p>
   <button class="btn" onclick="startGame()">PLAY</button>
 </div>
@@ -250,7 +251,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <span style="font-family:var(--font-hd);font-size:.85rem;letter-spacing:.18em;color:var(--gold2);text-shadow:0 0 12px rgba(200,160,60,.35)">Vesselbound</span>
   </div>
   <div class="battle-area">
-    <div><div class="field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
+    <div><div class="field-label" id="enemy-field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
     <div id="log-box"></div>
 
     <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
@@ -292,35 +293,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       </div>
     </div>
 
-    <!-- 手札エディタ（報酬中のみ表示） -->
-    <div id="inline-hand-editor" class="hand-editor" style="display:none">
-      <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え、売却で売れます</div>
-      <div class="he-row">
-        <span class="he-label he-ring">指輪枠</span>
-        <div class="he-slots" id="he-rings"></div>
-      </div>
-      <div class="he-row">
-        <span class="he-label he-spell">杖枠</span>
-        <div class="he-slots" id="he-wands"></div>
-      </div>
-      <div class="he-row">
-        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">消耗品枠</span>
-        <div class="he-slots" id="he-consums"></div>
-      </div>
-    </div>
-
-    <!-- 行き先選択（報酬中のみ表示） -->
-    <div id="move-inline" class="move-inline-area" style="display:none">
-      <div class="move-inline-title">行き先を選択してください</div>
-      <div class="mv-opts" id="mi-opts"></div>
-    </div>
   </div>
 
-  <div class="bctl">
-    <span class="ph-badge" id="ph-badge">準備中</span>
-    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
-    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
-    <span class="hint" id="hint-txt"></span>
+  <div class="bctl-wrap">
+    <div class="bctl">
+      <span class="ph-badge" id="ph-badge">準備中</span>
+      <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
+      <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
+      <span class="hint" id="hint-txt"></span>
+    </div>
   </div>
 
   <!-- 底部HUD -->
