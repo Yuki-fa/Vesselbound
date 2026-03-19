@@ -8,8 +8,8 @@ function effectiveStats(ring){
   if(!ring||!ring.summon) return null;
   const grade=ring.grade||1;
   const mult=GRADE_MULT[grade];
-  let atk=ring.atkPerGrade!==undefined?ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
-  let hp =ring.hpPerGrade !==undefined?ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
+  let atk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*(grade-1):Math.round(ring.summon.atk*mult);
+  let hp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *(grade-1):Math.round(ring.summon.hp *mult);
   const bab=G.buffAdjBonuses[ring.id];
   if(bab){ atk+=bab.atk||0; hp+=bab.hp||0; }
   const enc=ring.enchants||[];
@@ -155,8 +155,10 @@ function computeDesc(card){
   const enc=card.enchants||[];
   const bab=(typeof G!=='undefined'&&G.buffAdjBonuses&&G.buffAdjBonuses[card.id])||{atk:0,hp:0};
   if(card.kind==='summon'&&card.summon){
-    let atk=Math.round(card.summon.atk*gm)+bab.atk+enc.filter(e=>e==='凶暴').length*5*gm;
-    let hp=Math.round(card.summon.hp*gm)+bab.hp+enc.filter(e=>e==='強壮').length*5*gm;
+    const _bAtk=card.atkPerGrade!==undefined?card.summon.atk+card.atkPerGrade*(g-1):Math.round(card.summon.atk*gm);
+    const _bHp =card.hpPerGrade !==undefined?card.summon.hp +card.hpPerGrade *(g-1):Math.round(card.summon.hp *gm);
+    let atk=_bAtk+bab.atk+enc.filter(e=>e==='凶暴').length*5*gm;
+    let hp=_bHp+bab.hp+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) hp=Math.round(hp*1.3);
     let cnt=(card.count||1)+enc.filter(e=>e==='増殖').length*g;
     const cntStr=cnt>1?' x'+cnt+'体':'';
