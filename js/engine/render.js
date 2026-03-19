@@ -57,7 +57,8 @@ function renderField(id,units,isEnemy){
             bs.push(`<span style="position:relative;font-size:.48rem;padding:1px 3px;border-radius:2px;background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor};margin-right:1px">${k}</span>`);
           });
         }
-        slot.innerHTML=`${bs.join('')}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+        const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
+        slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
       const nt=NODE_TYPES[G.moveMasks[i]];
@@ -159,9 +160,18 @@ function computeDesc(card){
     let cnt=(card.count||1)+enc.filter(e=>e==='増殖').length*g;
     const cntStr=cnt>1?' x'+cnt+'体':'';
     const trigDesc={'battle_start':'戦闘開始時','turn_start':'ターン開始時','on_summon':'仲間召喚時','on_spell':'杖使用時',
-      'on_damage_count':'累計'+(card.triggerCount||12)+'回ダメージ時','on_death_count':'仲間累計'+(card.triggerCount||10)+'回死亡時',
       'on_full_board':'盤面6体時','on_ally_death_notskel':'骸骨以外の仲間死亡時','on_outnumbered':'敵数3倍以上のターン開始時'};
-    const trig=(trigDesc[card.trigger]||'')+'、';
+    let trigStr=trigDesc[card.trigger]||'';
+    if(card.trigger==='on_damage_count'){
+      const tgt=card.triggerCount||12;
+      const rem=typeof G!=='undefined'&&G.battleCounters?Math.max(0,G.battleCounters.damageTriggerNext-G.battleCounters.damage):tgt;
+      trigStr=`累計${tgt}回ダメージ時（あと${rem}）`;
+    } else if(card.trigger==='on_death_count'){
+      const tgt=card.triggerCount||10;
+      const rem=typeof G!=='undefined'&&G.battleCounters?Math.max(0,G.battleCounters.deathTriggerNext-G.battleCounters.deaths):tgt;
+      trigStr=`仲間累計${tgt}回死亡時（あと${rem}）`;
+    }
+    const trig=trigStr?trigStr+'、':'';
     if(card.unique==='shadow_copy') return trig+'最高ATKの仲間のコピーを召喚';
     if(card.unique==='djinn_replace') return trig+'魔神以外を全破壊して'+atk+'/'+hp+'の魔神を召喚';
     const extra=card.unique==='wolf_aura'?' 狼生存中、全仲間ATK+'+(2*gm):'';

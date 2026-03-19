@@ -6,10 +6,14 @@
 // セクション別グレード抽選
 function rollEnemyGrade(floor){
   const r=Math.random();
-  if(floor<=5)  return r<0.80?1:2;
-  if(floor<=10) return r<0.40?1:r<0.90?2:3;
-  if(floor<=15) return r<0.50?2:r<0.90?3:4;
-  return r<0.30?3:r<0.80?4:5;
+  if(floor<=3)  return 1;                         // S1-3: G1 100%
+  if(floor<=5)  return r<0.80?1:2;                // S4-5: G1 80%, G2 20%
+  if(floor<=8)  return r<0.60?1:2;                // S6-8: G1 60%, G2 40%
+  if(floor<=10) return r<0.40?1:r<0.90?2:3;       // S9-10: G1 40%, G2 50%, G3 10%
+  if(floor<=13) return r<0.60?2:3;                // S11-13: G2 60%, G3 40%
+  if(floor<=15) return r<0.50?2:r<0.90?3:4;       // S14-15: G2 50%, G3 40%, G4 10%
+  if(floor<=18) return r<0.60?3:4;                // S16-18: G3 60%, G4 40%
+  return r<0.30?3:r<0.80?4:5;                     // S19-20: G3 30%, G4 50%, G5 20%
 }
 function eliteGradeForFloor(floor){
   if(floor<=5)  return 2;
@@ -96,8 +100,9 @@ function generateEnemies(floor){
   // 通常戦: S16-20は3-4体、それ以外は4-5体
   const count=floor>=16?randi(3,4):randi(4,5);
 
-  // エリート判定（30%の確率）。G._isEliteFightはstartBattleで事前にfalseリセット済み
-  const hasElite=Math.random()<0.30;
+  // エリート判定（30%の確率。S1-3および各セクション初回フロアは出現しない）
+  const noEliteFloors=[1,2,3,6,11,16];
+  const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
   if(hasElite) G._isEliteFight=true;
   const eliteIdx=hasElite?randi(0,count-1):-1;
   const eg=eliteGradeForFloor(floor);
