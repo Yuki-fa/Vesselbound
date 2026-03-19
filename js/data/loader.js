@@ -13,6 +13,8 @@ const _SHEET_GIDS = {
   '魔法プール':  1593958181,
   '階層データ':  701286537,
   'エンチャント': 300601659,
+  '敵キーワード': 1366116419,
+  'effect_id':   1282840648,
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -101,12 +103,14 @@ async function loadGameData() {
       fetch(_EXPORT_BASE + _SHEET_GIDS['魔法プール']  + '&t=' + Date.now()),
       fetch(_EXPORT_BASE + _SHEET_GIDS['階層データ']  + '&t=' + Date.now()),
       fetch(_EXPORT_BASE + _SHEET_GIDS['エンチャント'] + '&t=' + Date.now()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['敵キーワード'] + '&t=' + Date.now()),
+      fetch(_EXPORT_BASE + _SHEET_GIDS['effect_id']   + '&t=' + Date.now()),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [rt, st, ft, et] = await Promise.all(responses.map(r => r.text()));
+    const [rt, st, ft, et, kt, xt] = await Promise.all(responses.map(r => r.text()));
 
     // ── 指輪プール ──
     const ringRows = _parseCSV(rt);
@@ -151,9 +155,26 @@ async function loadGameData() {
     ENCHANT_TYPES.length = 0;
     encRows.forEach(row => { if (row['id']) ENCHANT_TYPES.push(row['id']); });
 
+    // ── 敵キーワード ──
+    const kwRows = _parseCSV(kt);
+    if (kwRows.length > 0) {
+      const kwKey = Object.keys(kwRows[0])[0]; // 先頭列名を自動取得
+      ENEMY_KEYWORDS.length = 0;
+      kwRows.forEach(row => { if (row[kwKey]) ENEMY_KEYWORDS.push(row[kwKey]); });
+    }
+
+    // ── effect_id一覧 ──
+    const exRows = _parseCSV(xt);
+    if (exRows.length > 0) {
+      const exKey = Object.keys(exRows[0])[0];
+      EFFECT_IDS.length = 0;
+      exRows.forEach(row => { if (row[exKey]) EFFECT_IDS.push(row[exKey]); });
+    }
+
     console.log(
       `[Vesselbound] データ読み込み完了 — 指輪:${RING_POOL.length} 魔法:${SPELL_POOL.length}` +
-      ` 階層:${FLOOR_DATA.length - 1} エンチャント:${ENCHANT_TYPES.length}`
+      ` 階層:${FLOOR_DATA.length - 1} エンチャント:${ENCHANT_TYPES.length}` +
+      ` 敵KW:${ENEMY_KEYWORDS.length} effectID:${EFFECT_IDS.length}`
     );
     return true;
 

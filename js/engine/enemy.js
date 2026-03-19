@@ -8,6 +8,7 @@ function bossShield(grade){ return [0,3,3,5,8][grade]||3; }
 
 // 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）
 const ENEMY_KEYWORDS=['即死','毒','パワーブレイク','範囲攻撃','加護','リーダー'];
+const EFFECT_IDS=[];
 function rollKeywords(floor, isBoss, isLeader){
   const kws=[];
   if(floor<3) return kws; // 1〜2階はキーワードなし
