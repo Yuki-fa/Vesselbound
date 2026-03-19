@@ -72,6 +72,6 @@ const SPELL_POOL=[
   {id:'c_rally',  name:'鼓舞の旗',   type:'consumable',
    desc:'全仲間ATK・HP+100%',effect:'big_rally'},
 
-  {id:'c_gold',   name:'金の壺',     type:'consumable',
-   desc:'金+8を得る',effect:'gold_8'},
+  {id:'c_gold',   name:'ソウルの壺', type:'consumable',
+   desc:'ソウル+8を得る',effect:'gold_8'},
 ];

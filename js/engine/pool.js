@@ -70,9 +70,14 @@ function drawRewards(n){
   return res;
 }
 
-// エリート撃破報酬用のユニーク指輪を抽選（bannedRingsを無視してisUniqueプールから）
+// エリート撃破報酬用のユニーク指輪を抽選（bannedRings無視。既にMAX_GRADE所持済みは除外）
 function drawUniqueRing(){
-  const pool=RING_POOL.filter(r=>r.isUnique);
+  const pool=RING_POOL.filter(r=>{
+    if(!r.isUnique) return false;
+    const owned=G.rings&&G.rings.find(x=>x&&x.id===r.id);
+    if(owned&&(owned.grade||1)>=MAX_GRADE) return false; // 既にMAX所持→スキップ
+    return true;
+  });
   if(!pool.length) return null;
   const c=clone(randFrom(pool));
   c._buyPrice=3;

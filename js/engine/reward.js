@@ -5,21 +5,40 @@
 
 let _rewCards=[];
 
-// ── 報酬フェイズ開始 ─────────────────────────────
+// ── 報酬フェイズ開始（戦闘画面のまま表示）─────────────
 
 function goToReward(){
   _rewCards=drawRewards();
-  showScreen('reward');
+  G.phase='reward';
+
+  // フィールドをクリア
+  document.getElementById('f-enemy').innerHTML='';
+  document.getElementById('f-ally').innerHTML='';
+
+  // セクション切り替え
+  document.getElementById('ally-section').style.display='none';
+  document.getElementById('reward-info-bar').style.display='';
+  document.getElementById('reward-cards-section').style.display='';
+  document.getElementById('inline-hand-editor').style.display='';
+  document.getElementById('move-inline').style.display='';
+
+  // ソウル表示
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-earned').textContent='+'+G.earnedGold;
   document.getElementById('rw-count').textContent=G.rewardCards;
+
+  // 戦闘ボタン非表示
+  document.getElementById('btn-pass').style.display='none';
+  document.getElementById('btn-retreat').style.display='none';
+  document.getElementById('ph-badge').textContent='報酬フェイズ';
+  document.getElementById('ph-badge').className='ph-badge';
 
   // ボス戦後：報酬カード枚数+1
   const bossNotice=document.getElementById('boss-reward-notice');
   if(_isBossFight){
     if(G.rewardCards<G.maxRewardCards){
       G.rewardCards++;
-      _rewCards=drawRewards(); // 増えた枚数で再抽選
+      _rewCards=drawRewards();
       if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=`🎁 ボスクリア：報酬カード+1（現在${G.rewardCards}枚）`; }
     } else {
       if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=`🎁 ボスクリア：報酬カードは最大（${G.rewardCards}枚）`; }
@@ -30,23 +49,74 @@ function goToReward(){
   }
 
   // エリート撃破ボーナス：ユニーク指輪が確定で1枚追加
-  if(G._isEliteFight){
+  if(G._isEliteFight&&!_isBossFight){
     const uRing=drawUniqueRing();
-    if(uRing){ _rewCards.unshift(uRing); }
     const en=document.getElementById('boss-reward-notice');
-    if(en&&!_isBossFight){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が報酬に追加されました（3金）'; }
+    if(uRing){
+      _rewCards.unshift(uRing);
+      if(en){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が報酬に追加されました（3ソウル）'; }
+    } else {
+      if(en){ en.style.display=''; en.textContent='⭐ エリート撃破（ユニーク指輪は取得済み）'; }
+    }
   }
+
   renderRewCards();
   renderHandEditor();
+  renderInlineMoveNodes();
+  updateHUD();
 }
 
-// ── リロール（1金で全カード入れ替え）──────────────
+// ── 行き先ノード（インライン）──────────────────────
+
+function renderInlineMoveNodes(){
+  let opts;
+  if(G._retryFloor){
+    const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
+    opts=[{nodeType,idx:-1}];
+  } else {
+    opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
+    if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
+  }
+  const el=document.getElementById('mi-opts');
+  el.innerHTML='';
+  opts.forEach(opt=>{
+    const nt=NODE_TYPES[opt.nodeType];
+    const div=document.createElement('div');
+    div.className=`mv-opt ${nt.cls}`;
+    div.innerHTML=`<div class="mo-icon">${nt.icon}</div><div class="mo-name">${nt.label}</div><div class="mo-desc">${nt.desc}</div>`;
+    div.onclick=()=>chooseMoveInline(opt.nodeType);
+    el.appendChild(div);
+  });
+}
+
+function chooseMoveInline(nt){
+  // 報酬セクション非表示
+  document.getElementById('reward-info-bar').style.display='none';
+  document.getElementById('reward-cards-section').style.display='none';
+  document.getElementById('inline-hand-editor').style.display='none';
+  document.getElementById('move-inline').style.display='none';
+  // 味方ゾーン復元
+  document.getElementById('ally-section').style.display='';
+  // 戦闘ボタン復元
+  document.getElementById('btn-pass').style.display='';
+
+  // retryFloor 処理
+  if(G._retryFloor){
+    G._retryFloor=false;
+    G.floor--;
+  }
+
+  chooseMove(nt);
+}
+
+// ── リロール（1ソウルで全カード入れ替え）──────────────
 
 function rerollRewards(){
   if(G.gold<1){ return; }
   G.gold-=1;
   _rewCards=drawRewards();
   document.getElementById('rw-gold').textContent=G.gold;
+  updateHUD();
   const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
   renderRewCards();
 }
@@ -69,7 +139,7 @@ function renderRewCards(){
     const gs=gradeStr(g);
     const rdesc=computeDesc(card);
     const refund=cardRefund(card);
-    const refundTxt=refund>0?`<div class="rew-card-refund">売却+${refund}金</div>`:'';
+    const refundTxt=refund>0?`<div class="rew-card-refund">売却+${refund}ソウル</div>`:'';
     // 同名指輪所持時はグレード加算プレビュー
     const isRingCard=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
     let mergeHint='';
@@ -80,7 +150,7 @@ function renderRewCards(){
         mergeHint=`<div class="rew-merge">▲ ${gradeStr(owned.grade||1)}→${gradeStr(newG)}</div>`;
       }
     }
-    div.innerHTML=`<div class="rew-card-cost">${cost}金</div><div class="rew-card-tp" style="color:var(--${tColor})">${typeLabel[t]||'指輪'}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}`;
+    div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${typeLabel[t]||'指輪'}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}`;
     if(canBuy) div.onclick=()=>takeRewCard(i);
     el.appendChild(div);
   });
@@ -143,28 +213,10 @@ function takeRewCard(i){
     if(!placed) G.spells.push(nc);
   }
 
-  log(card.name+' を'+cost+'金で取得','good');
+  log(card.name+' を'+cost+'ソウルで取得','good');
   _rewCards[i]=null;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards(); renderHandEditor();
-}
-
-// ── 報酬終了（金リセット）────────────────────────
-
-function rewardDone(){
-  G.gold=0;  // 報酬フェイズ終了で金をリセット
-  if(G._retryFloor){
-    G._retryFloor=false;
-    G.floor--;
-    const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
-    renderMoveSelect([{nodeType,idx:-1}]);
-    showScreen('move');
-    return;
-  }
-  const opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
-  if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
-  renderMoveSelect(opts);
-  showScreen('move');
 }
 
 // ═══════════════════════════════════════
@@ -196,7 +248,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const g=card.grade||1;
       const gs=gradeStr(g);
       const refund=cardRefund(card);
-      const refundEl=refund>0?`<div class="card-sell">売却+${refund}金</div>`:'';
+      const refundEl=refund>0?`<div class="card-sell">売却+${refund}ソウル</div>`:'';
       let heStats='';
       if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';heStats=`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
       div.innerHTML=`<div class="card-tp ${t}">${typeLabel[t]||'指輪'}${kl}</div><div class="card-grade">${gs}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}${refundEl}<button class="discard-btn" title="売却">売却</button>`;
@@ -237,7 +289,7 @@ function discardHeCard(arrName, idx){
     G.gold+=refund;
     updateHUD();
     const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
-    try{ log(card.name+' を売却（+'+refund+'金）','gold'); }catch(e){}
+    try{ log(card.name+' を売却（+'+refund+'ソウル）','gold'); }catch(e){}
   } else {
     try{ log(card.name+' を破棄','sys'); }catch(e){}
   }

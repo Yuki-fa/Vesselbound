@@ -36,14 +36,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .btn.small{font-size:.75rem;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
 .btn.tiny{font-size:.68rem;padding:.3em .8em;font-family:var(--font-bd)}
 
-/* HUD */
-#hud{display:flex;align-items:center;gap:12px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.hud-title{font-family:var(--font-hd);font-size:.75rem;letter-spacing:.1em;color:var(--gold)}
-.hs{display:flex;align-items:center;gap:4px;font-size:.75rem}
-.hs .l{color:var(--text2)}.hs .v{font-weight:700;min-width:22px}
-.v.life{color:#e07070}.v.gold{color:var(--gold2)}.v.floor{color:var(--teal2)}.v.turn{color:var(--blue2)}.v.act{color:var(--purple2)}
-#hud .sp{flex:1}
-
 /* BATTLE */
 #scr-battle{flex-direction:column}
 .battle-area{display:flex;flex-direction:column;flex:1;padding:8px 12px;gap:7px;overflow-y:auto;max-width:1100px;margin:0 auto;width:100%}
@@ -121,14 +113,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .ph-enemy{background:rgba(192,64,64,.2);border:1px solid var(--red);color:var(--red2)}
 .hint{font-size:.66rem;color:var(--text2);flex:1}
 
-/* REWARD */
-#scr-reward{flex-direction:column}
-.rew-area{flex:1;padding:14px;max-width:780px;margin:0 auto;width:100%;overflow-y:auto}
-.rew-title{font-family:var(--font-hd);font-size:.95rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:8px}
-.rew-gold-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;font-size:.78rem;flex-wrap:wrap}
-.rew-gold-bar .amt{font-size:.95rem;font-weight:700;color:var(--gold2)}
-.rew-sec{font-size:.7rem;color:var(--text2);margin-bottom:5px}
-.rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px}
+/* BOTTOM HUD */
+.bottom-hud{display:flex;justify-content:center;flex-shrink:0;background:var(--bg2);border-top:2px solid rgba(200,160,60,.5)}
+.bhud-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 16px;flex:1;max-width:160px;border-right:1px solid var(--border)}
+.bhud-item:last-child{border-right:none}
+.bhud-label{font-size:.58rem;color:var(--text2);letter-spacing:.07em;font-family:var(--font-hd)}
+.bhud-val{font-size:1.2rem;font-weight:700;line-height:1}
+.bhud-val.floor{color:var(--teal2)}.bhud-val.life{color:#e07070}.bhud-val.soul{color:var(--gold2)}.bhud-val.turn{color:var(--blue2)}.bhud-val.act{color:var(--purple2)}
+
+/* REWARD INLINE */
+.reward-info-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(200,160,60,.08);border:1px solid rgba(200,160,60,.3);border-radius:4px;font-size:.78rem;flex-wrap:wrap;flex-shrink:0}
+.ri-soul{color:var(--text2)}.ri-val{font-size:.92rem;font-weight:700;color:var(--gold2)}
+
+/* REWARD CARDS */
+.rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px}
 .rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .18s;position:relative}
 .rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
 .rew-card.cant{opacity:.45;cursor:default;pointer-events:none}
@@ -141,6 +139,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .rew-grade{font-size:.6rem;color:var(--gold);font-weight:700;margin-left:3px}
 .card-sell{font-size:.58rem;color:var(--teal2);margin-top:2px}
 
+/* MOVE INLINE */
+.move-inline-area{flex-shrink:0;padding:4px 0}
+.move-inline-title{font-size:.7rem;color:var(--text2);margin-bottom:6px;text-align:center;letter-spacing:.05em}
+
 /* SMITHY / REST screens */
 #scr-smithy,#scr-rest{flex-direction:column;align-items:center;justify-content:center;padding:24px}
 .choice-wrap{max-width:480px;width:100%}
@@ -152,8 +154,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .choice-label{font-size:.78rem;font-weight:500;margin-bottom:2px}
 .choice-desc{font-size:.64rem;color:var(--text2)}
 
-/* HAND EDITOR in reward */
-.hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
+/* HAND EDITOR */
+.hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:4px}
 .hand-editor-title{font-size:.72rem;color:var(--text2);margin-bottom:8px}
 .he-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
 .he-label{font-size:.65rem;min-width:52px;padding:2px 6px;border-radius:3px;font-weight:500;text-align:center}
@@ -244,20 +246,32 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
-  <div id="hud">
-    <span class="hud-title">ARCANA SIEGE</span>
-    <div class="hs"><span class="l">階層</span><span class="v floor" id="h-floor">1</span></div>
-    <div class="hs"><span class="l">ライフ</span><span class="v life" id="h-life">20</span></div>
-    <div class="hs"><span class="l">金</span><span class="v gold" id="h-gold">0</span></div>
-    <div class="hs"><span class="l">報酬枚</span><span class="v" id="h-rlv">3</span></div>
-    <div class="hs"><span class="l">ターン</span><span class="v turn" id="h-turn">0</span></div>
-    <div class="hs"><span class="l">行動</span><span class="v act" id="h-act">1/1</span></div>
-    <div class="sp"></div>
-  </div>
   <div class="battle-area">
     <div><div class="field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
     <div id="log-box"></div>
-    <div><div class="field-label">味方の盤面</div><div class="field" id="f-ally"></div></div>
+
+    <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
+    <div id="reward-info-bar" class="reward-info-bar" style="display:none">
+      <span class="ri-soul">ソウル</span><span class="ri-val" id="rw-gold">0</span>
+      <span class="ri-soul">（獲得</span><span class="ri-val" id="rw-earned">+0</span><span class="ri-soul">）</span>
+      <span class="ri-soul" style="margin-left:6px">報酬 <span id="rw-count">3</span>枚</span>
+      <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto">リロール（1ソウル）</button>
+      <div id="boss-reward-notice" style="display:none;margin-top:4px;padding:4px 8px;background:rgba(200,160,60,.12);border:1px solid var(--gold);border-radius:3px;font-size:.74rem;color:var(--gold2);font-weight:500;width:100%"></div>
+    </div>
+
+    <!-- 味方の盤面（戦闘中のみ表示） -->
+    <div id="ally-section">
+      <div class="field-label">味方の盤面</div>
+      <div class="field" id="f-ally"></div>
+    </div>
+
+    <!-- 報酬カード（報酬中のみ表示） -->
+    <div id="reward-cards-section" style="display:none">
+      <div class="field-label" style="margin-bottom:5px">報酬カード　（指輪3ソウル・杖2ソウル・消耗品1ソウル　G2以上は追加コスト　売却で払い戻し）</div>
+      <div class="rew-cards" id="rw-cards"></div>
+    </div>
+
+    <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
       <div class="hand-pane">
         <span class="hand-pane-label ring-label">指輪 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
@@ -274,29 +288,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
         <div class="hand-slots" id="consum-slots"></div>
       </div>
     </div>
-  </div>
-  <div class="bctl">
-    <span class="ph-badge" id="ph-badge">準備中</span>
-    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
-    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
-<span class="hint" id="hint-txt"></span>
-  </div>
-</div>
 
-<!-- REWARD -->
-<div id="scr-reward" class="screen">
-  <div class="rew-area">
-    <div class="rew-title">報酬フェイズ</div>
-    <div class="rew-gold-bar">
-      <span style="color:var(--text2)">所持金</span><span class="amt" id="rw-gold">0</span><span style="color:var(--text2)">金　獲得：</span><span class="amt" id="rw-earned">+0</span><span style="color:var(--text2)">金</span>
-      <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:8px">リロール（1金）</button>
-    </div>
-    <div id="boss-reward-notice" style="display:none;padding:7px 12px;background:rgba(200,160,60,.15);border:1px solid var(--gold);border-radius:4px;margin-bottom:8px;font-size:.8rem;color:var(--gold2);font-weight:500"></div>
-    <div class="rew-sec">報酬カード <span id="rw-count">3</span>枚 —— 指輪3金・杖2金・消耗品1金（G2以上は追加コスト）。売却で金払い戻し</div>
-    <div class="rew-cards" id="rw-cards"></div>
-
-    <div class="hand-editor">
-      <div class="hand-editor-title">現在の装備　—— ドラッグで並べ替え、売却ボタンで売れます</div>
+    <!-- 手札エディタ（報酬中のみ表示） -->
+    <div id="inline-hand-editor" class="hand-editor" style="display:none">
+      <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え、売却で売れます</div>
       <div class="he-row">
         <span class="he-label he-ring">指輪枠</span>
         <div class="he-slots" id="he-rings"></div>
@@ -310,11 +305,47 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
         <div class="he-slots" id="he-consums"></div>
       </div>
     </div>
-    <button class="btn small" onclick="rewardDone()">次へ進む</button>
+
+    <!-- 行き先選択（報酬中のみ表示） -->
+    <div id="move-inline" class="move-inline-area" style="display:none">
+      <div class="move-inline-title">行き先を選択してください</div>
+      <div class="mv-opts" id="mi-opts"></div>
+    </div>
+  </div>
+
+  <!-- 底部HUD -->
+  <div class="bottom-hud">
+    <div class="bhud-item">
+      <span class="bhud-label">階層</span>
+      <span class="bhud-val floor" id="h-floor">1</span>
+    </div>
+    <div class="bhud-item">
+      <span class="bhud-label">ライフ</span>
+      <span class="bhud-val life" id="h-life">20</span>
+    </div>
+    <div class="bhud-item">
+      <span class="bhud-label">ソウル</span>
+      <span class="bhud-val soul" id="h-gold">0</span>
+    </div>
+    <div class="bhud-item">
+      <span class="bhud-label">ターン</span>
+      <span class="bhud-val turn"><span id="h-turn">0</span><span style="font-size:.8rem;opacity:.6">/5</span></span>
+    </div>
+    <div class="bhud-item">
+      <span class="bhud-label">行動</span>
+      <span class="bhud-val act" id="h-act">0/1</span>
+    </div>
+  </div>
+
+  <div class="bctl">
+    <span class="ph-badge" id="ph-badge">準備中</span>
+    <button class="btn small" id="btn-pass" onclick="playerPass()">パス</button>
+    <button class="btn small danger" id="btn-retreat" style="display:none" onclick="retreat()">撤退</button>
+    <span class="hint" id="hint-txt"></span>
   </div>
 </div>
 
-<!-- MOVE SELECT -->
+<!-- MOVE SELECT (fallback / smithy-rest after) -->
 <div id="scr-move" class="screen">
   <div class="mv-wrap">
     <div class="mv-title" id="mv-title">行き先を選んでください</div>
@@ -337,7 +368,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 <div id="scr-shop" class="screen">
   <div class="shop-area">
     <div class="shop-title">商　人</div>
-    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持金：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span> 金</div>
+    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持ソウル：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span></div>
     <div class="shop-grid" id="sh-grid"></div>
     <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
       <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
@@ -395,7 +426,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 <!-- VICTORY OVERLAY -->
 <div id="victory-overlay">
   <div class="victory-title">You Win</div>
-  <button class="btn" onclick="hideVictoryOverlay()">先へ進む</button>
+  <button class="btn" onclick="hideVictoryOverlay()">報酬を受け取る</button>
 </div>
 
 <!-- GAMEOVER / CLEAR -->

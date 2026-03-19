@@ -101,7 +101,7 @@ function generateEnemies(floor){
   const count=floor>=16?randi(3,4):randi(4,5);
 
   // エリート判定（30%の確率。S1-3および各セクション初回フロアは出現しない）
-  const noEliteFloors=[1,2,3,6,11,16];
+  const noEliteFloors=[1,2,5,6,10,11,15,16,20]; // S1-2・ボス階はエリート不出現
   const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
   if(hasElite) G._isEliteFight=true;
   const eliteIdx=hasElite?randi(0,count-1):-1;

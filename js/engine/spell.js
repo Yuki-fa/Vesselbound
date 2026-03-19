@@ -106,7 +106,7 @@ function applySpell(sp,idx,tgt){
     case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`,'bad'); break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.floor(c.maxHp*.5); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`,'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ G.allies.forEach(a=>{ a.atk*=2; a.maxHp*=2; a.hp=Math.min(a.hp*2,a.maxHp); }); log('鼓舞の旗：全仲間+100%！','good'); break;}
-    case 'gold_8':{ G.gold+=8; log('金+8','gold'); break;}
+    case 'gold_8':{ G.gold+=8; log('ソウル+8','gold'); break;}
   }
 
   if(sp.effect!=='spread') G.spreadActive=false;

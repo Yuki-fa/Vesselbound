@@ -174,8 +174,14 @@ function computeDesc(card){
     const trig=trigStr?trigStr+'、':'';
     if(card.unique==='shadow_copy') return trig+'最高ATKの仲間のコピーを召喚';
     if(card.unique==='djinn_replace') return trig+'魔神以外を全破壊して'+atk+'/'+hp+'の魔神を召喚';
-    const extra=card.unique==='wolf_aura'?' 狼生存中、全仲間ATK+'+(2*gm):'';
-    return trig+atk+'/'+hp+'の'+card.summon.name+'を'+cntStr+'召喚'+extra;
+    const extra=card.unique==='wolf_aura'?' 狼生存中、全仲間ATK+'+(2*gm)
+      :card.unique==='bear_grow'?' 攻撃を受けるたびATK+'+(2*gm)+'/HP+'+(2*gm)
+      :'';
+    const guardExtra=card.guardian?' 守護（攻撃を受けた時、他の仲間がランダムに反撃）':'';
+    const deathExtra=card.onDeath==='stone_death'?' 死亡時、他の仲間全員にATK+'+(10*gm)+'/HP+'+(10*gm)
+      :card.onDeath==='shadow_death'?' 死亡時、全キャラに'+Math.max(1,gm)+'ダメ'
+      :'';
+    return trig+atk+'/'+hp+'の'+card.summon.name+'を'+cntStr+'召喚'+extra+guardExtra+deathExtra;
   }
   if(card.kind==='passive'){
     const m={'needle':'ターン開始時、ランダムな敵に1ダメx'+g+'回',
@@ -185,7 +191,7 @@ function computeDesc(card){
       'extra_action':'行動回数+'+g,
       'buff_adj':'戦闘終了時、隣接する召喚指輪の仲間ATK/HP+'+g+'（永続累積）',
       'shared_def':'同名仲間が複数いる場合、全員ATK+'+(5*gm)+'/HP+'+(5*gm),
-      'poison_aura':'ダメージを受けた敵に毒（HP-'+g+'/T、重複可）',
+      'poison_aura':'ダメージを受けた敵に毒（HP-'+(3*g)+'/T、重複可）',
       'catalyst':'毒ダメージx'+(g+1)+'倍'};
     return m[card.unique]||card.desc;
   }
@@ -201,7 +207,7 @@ function computeDesc(card){
       'meteor':'ランダムなキャラに'+(3*g)+'ダメx2回',
       'instakill':'対象に即死付与（攻撃したユニットが即死）',
       'bomb':'全敵にグレードx5ダメ','revive':'最後に死んだ仲間をHP50%で復活',
-      'big_rally':'全仲間ATK・HP+100%','gold_8':'金+8'};
+      'big_rally':'全仲間ATK・HP+100%','gold_8':'ソウル+8'};
     return (m[card.effect]||card.desc)+usesStr;
   }
   if(card.isEnchant) return '指輪に「'+card.enchantType+'」を付与する';

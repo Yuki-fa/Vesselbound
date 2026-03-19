@@ -75,7 +75,7 @@ function triggerSummon(ring){
   let adjBonus=0;
   G.rings.forEach((r,ri)=>{
     if(!r||r.unique!=='adj_count') return;
-    if(Math.abs(ri-ringIdx)===1) adjBonus+=GRADE_MULT[r.grade||1];
+    if(Math.abs(ri-ringIdx)===1) adjBonus+=1;
   });
   let count=(ring.count||1)+adjBonus+enc.filter(e=>e==='増殖').length*(ring.grade||1);
 
@@ -119,10 +119,9 @@ function summonAllies(){
   const adjBonus={};
   G.rings.forEach((ring,hi)=>{
     if(!ring||ring.unique!=='adj_count') return;
-    const am=GRADE_MULT[ring.grade||1];
     [-1,1].forEach(d=>{
       const ni=hi+d;
-      if(G.rings[ni]&&G.rings[ni].kind==='summon') adjBonus[ni]=(adjBonus[ni]||0)+am;
+      if(G.rings[ni]&&G.rings[ni].kind==='summon') adjBonus[ni]=(adjBonus[ni]||0)+1;
     });
   });
 

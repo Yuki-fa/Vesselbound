@@ -39,6 +39,21 @@ function removeLeaderBonus(leader){
 async function startBattle(){
   clearLog();
 
+  // ソウルリセット（新しい戦闘開始時）
+  G.gold=0;
+
+  // 報酬フェイズUIをリセット（インライン表示→非表示）
+  const rInfo=document.getElementById('reward-info-bar');
+  const rCards=document.getElementById('reward-cards-section');
+  const rHand=document.getElementById('inline-hand-editor');
+  const rMove=document.getElementById('move-inline');
+  const allySection=document.getElementById('ally-section');
+  if(rInfo) rInfo.style.display='none';
+  if(rCards) rCards.style.display='none';
+  if(rHand) rHand.style.display='none';
+  if(rMove) rMove.style.display='none';
+  if(allySection) allySection.style.display='';
+
   // isBossFightを最初に確定（参照より先に必ず宣言）
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);
@@ -335,7 +350,7 @@ function processEnemyDeath(e,eIdx){
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
   const gold=e.grade||1;
   G.earnedGold+=gold; G.gold+=gold;
-  log(`${e.name} 撃破！金+${gold}`,'gold');
+  log(`${e.name} 撃破！ソウル+${gold}`,'gold');
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
     log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
