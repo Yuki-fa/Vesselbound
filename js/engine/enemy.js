@@ -154,12 +154,16 @@ function generateMoveMasks(){
   const chosen=idxs.slice(0,total);
 
   // 最初のスロットは必ず戦闘、追加スロットは各5%で鍛冶屋/休息所
+  // 遠見の契約：鍛冶屋・休息所の出現率+50%
+  const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
+  const smithyRate=hasFarsight?0.075:0.05;
+  const restRate  =hasFarsight?0.15 :0.10;
   const usedNon=new Set();
   chosen.forEach((idx,ci)=>{
     if(ci===0){ masks[idx]='battle'; return; }
     const r=Math.random();
-    if(r<0.05&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
-    else if(r<0.10&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    if(r<smithyRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<restRate&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

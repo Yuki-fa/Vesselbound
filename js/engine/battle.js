@@ -276,6 +276,35 @@ function applyTurnStart(){
     const ec=G.enemies.filter(e=>e.hp>0).length;
     if(ec>=Math.max(1,ac)*3) triggerSummon(ring);
   });
+
+  // 我慢の契約：「戦闘開始時」の契約効果をターン開始時にも発動
+  if(G.rings.some(r=>r&&r.unique==='patience')){
+    G.rings.forEach(ring=>{
+      if(!ring||ring.kind!=='summon'||ring.trigger!=='battle_start') return;
+      triggerSummon(ring);
+    });
+    log('我慢の契約：戦闘開始時効果を発動','good');
+  }
+
+  // 孤高の契約：前ターンのバフを除去してから再評価
+  G.allies.forEach(a=>{
+    if(a._solBuff){
+      a.atk=Math.round(a.atk/2);
+      a.maxHp=Math.round(a.maxHp/2);
+      a.hp=Math.min(a.hp,a.maxHp);
+      a._solBuff=false;
+    }
+  });
+  const solRing=G.rings.find(r=>r&&r.unique==='solitude');
+  if(solRing){
+    const live=G.allies.filter(a=>a.hp>0);
+    if(live.length===1){
+      const a=live[0];
+      a.atk*=2; a.maxHp*=2; a.hp=Math.min(a.hp*2,a.maxHp);
+      a._solBuff=true;
+      log(`孤高の契約：${a.name} ATK/HP×2`,'good');
+    }
+  }
 }
 
 // ── 勝利ボーナス ───────────────────────────────

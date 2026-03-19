@@ -31,6 +31,7 @@ function initState(){
     maxRewardCards:MAX_REWARD_CARDS,
     bannedRings:['r_adj_cnt'],  // G10到達 or isUnique でプールから抹消された指輪ID
     _isEliteFight:false,         // 現在の戦闘にエリートが出現したか
+    rerollCount:0,               // 累計リロール回数（試行の契約用）
   };
   // 初期装備（ヘイトの杖なし）
   G.rings=[clone(RING_POOL[0])];

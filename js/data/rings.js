@@ -77,8 +77,8 @@ const RING_POOL=[
   {id:'r_needle',    name:'針の指輪',   kind:'passive',grade:1,
    desc:'ターン開始時にランダムな敵に1ダメ×(Grade×2)',unique:'needle'},
 
-  {id:'r_adj_cnt',   name:'隣接の指輪', kind:'passive',grade:10,legend:true,
-   desc:'隣接する召喚指輪の battle_start 召喚数+1',unique:'adj_count'},
+  {id:'r_adj_cnt',   name:'隣接の契約', kind:'passive',grade:10,legend:true,
+   desc:'隣接する召喚契約の召喚数+1（★固定）',unique:'adj_count'},
 
   {id:'r_lifereg',   name:'生命の指輪', kind:'passive',grade:1,
    desc:'戦闘終了時ライフ+Grade',unique:'life_reg'},
@@ -100,4 +100,28 @@ const RING_POOL=[
 
   {id:'r_catalyst',  name:'触媒の指輪', kind:'passive',grade:1,
    desc:'毒のダメージが(Grade+1)倍になる',unique:'catalyst'},
+
+  // ── LEGEND PASSIVE RINGS ──
+  {id:'r_farsight',     name:'遠見の契約',   kind:'passive',grade:1,legend:true,
+   desc:'鍛冶屋・休息所の出現率+50%。鍛冶屋と休息所ですべての選択肢を選べる',unique:'farsight'},
+
+  {id:'r_mana_cycle',   name:'魔力循環の契約', kind:'passive',grade:1,legend:true,
+   desc:'装備中の杖のチャージが減らなくなる',unique:'mana_cycle'},
+
+  {id:'r_catalyst_ring',name:'触媒環の契約', kind:'passive',grade:1,legend:true,
+   desc:'消耗品の効果が2倍になる',unique:'catalyst_ring'},
+
+  {id:'r_solitude',     name:'孤高の契約',   kind:'passive',grade:1,legend:true,
+   desc:'盤面に仲間が1体だけの時、その仲間のATKとHPを2倍にする',unique:'solitude'},
+
+  {id:'r_trials',       name:'試行の契約',   kind:'passive',grade:1,legend:true,
+   desc:'4回リロールするたびにランダムな契約を1グレードアップする',unique:'trials'},
+
+  {id:'r_patience',     name:'我慢の契約',   kind:'passive',grade:1,legend:true,
+   desc:'「戦闘開始時」の契約効果をターン開始時にも発動する',unique:'patience'},
+
+  // ── LEGEND SUMMON RINGS ──
+  {id:'r_mirror',       name:'鏡の契約',     kind:'summon', grade:1,legend:true,
+   desc:'戦闘開始時、右の契約のコピーになる（右の契約の後に処理）',
+   trigger:'battle_start', unique:'mirror', summon:{name:'鏡像',atk:0,hp:0,icon:'🪞'}},
 ];

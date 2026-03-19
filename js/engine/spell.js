@@ -44,6 +44,9 @@ function applySpell(sp,idx,tgt){
   const spread=G.spreadActive&&sp.needsEnemy;
 
   const g=sp.grade||1;
+  // 触媒環の契約：消耗品の効果が2倍
+  const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
+  const cMult=(sp.type==='consumable'&&catRingC)?2:1;
   switch(sp.effect){
     case 'fire':{
       const dmg=2*g;
@@ -69,29 +72,25 @@ function applySpell(sp,idx,tgt){
       log(`拡散：もう一方の杖が${G.spreadMult+1}回発動するようになる`,'sys');
     break;}
     case 'instakill':{
-      // 付与されたキャラを攻撃したユニットが即死
       if(tgt){
-        const all=[...G.allies,...G.enemies];
-        const tu=all[tgt.idx]||G.enemies[tgt.idx]||G.allies[tgt.idx];
-        // needsAny: can target any
         const target=G.enemies[tgt.idx]||G.allies[tgt.idx];
         if(target){ target.instadead=true; log(`${target.name}に即死付与（攻撃したユニットが即死）`,'good'); }
       }
     break;}
     case 'golem':{
       if(G.allies.filter(a=>a.hp>0).length<6){
-        const gAtk=Math.round(10*g), gHp=Math.round(10*g);
+        const gAtk=Math.round(10*g*cMult), gHp=Math.round(10*g*cMult);
         const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gAtk,baseAtk:gAtk,hp:gHp,maxHp:gHp,
           ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
           enchants:[],regen:false,onDeath:undefined,onHit:undefined,taunt50:false,guardian:false,unique:undefined};
         const emptySlot=G.allies.findIndex(a=>a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
         else if(G.allies.length<6) G.allies.push(golem);
-        log(`🗼 ゴーレム（${gAtk}/${gHp}・ヘイト）を召喚`,'good');
+        log(`🗼 ゴーレム（${gAtk}/${gHp}・ヘイト）を召喚`+(cMult>1?' [×2]':''),'good');
       }
     break;}
     case 'meteor':{
-      const mDmg=3*g;
+      const mDmg=3*g*cMult;
       const mHits=2;
       for(let mi=0;mi<mHits;mi++){
         const all=[...G.enemies.filter(e=>e.hp>0),...G.allies.filter(a=>a.hp>0)];
@@ -101,12 +100,12 @@ function applySpell(sp,idx,tgt){
         if(isEnemy) dealDmgToEnemy(mt,mDmg,G.enemies.indexOf(mt));
         else { mt.hp=Math.max(0,mt.hp-mDmg); log(`☄ 隕石：${mt.name}に${mDmg}ダメ`,'bad'); }
       }
-      log(`☄ 隕石の杖：${mHits}回ランダムに${mDmg}ダメ`,'bad');
+      log(`☄ 隕石の杖：${mHits}回ランダムに${mDmg}ダメ`+(cMult>1?' [×2]':''),'bad');
     break;}
-    case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`,'bad'); break;}
-    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.floor(c.maxHp*.5); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`,'good'); } else log('復活対象なし'); break;}
-    case 'big_rally':{ G.allies.forEach(a=>{ a.atk*=2; a.maxHp*=2; a.hp=Math.min(a.hp*2,a.maxHp); }); log('鼓舞の旗：全仲間+100%！','good'); break;}
-    case 'gold_8':{ G.gold+=8; log('ソウル+8','gold'); break;}
+    case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5*cMult; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); break;}
+    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
+    case 'big_rally':{ const rm=1+cMult; G.allies.forEach(a=>{ a.atk=Math.round(a.atk*rm); a.maxHp=Math.round(a.maxHp*rm); a.hp=Math.min(Math.round(a.hp*rm),a.maxHp); }); log(`鼓舞の旗：全仲間+${Math.round((rm-1)*100)}%！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
   }
 
   if(sp.effect!=='spread') G.spreadActive=false;
@@ -133,8 +132,11 @@ function applySpell(sp,idx,tgt){
   // 使用回数管理
   if(sp.type==='wand'){
     if(sp.usesLeft===undefined) sp.usesLeft=1; // fallback
-    if(sp.effect!=='spread') sp.usesLeft--;
-    if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
+    const manaCycle=G.rings.find(r=>r&&r.unique==='mana_cycle');
+    if(!manaCycle){
+      if(sp.effect!=='spread') sp.usesLeft--;
+      if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
+    }
   }
 
   G.actionsLeft--;

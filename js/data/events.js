@@ -6,8 +6,15 @@
 const ENEMY_NAMES=['ゴブリン','オーク','スケルトン','ゾンビ','コウモリ','魔狼','暗黒騎士','魔女','ドレイク','骸骨王'];
 const ENEMY_ICONS=['👺','👹','💀','🧟','🦇','🐺','⚔️','🧙','🦎','💀'];
 
-// エンチャントの種類（指輪に付与できる）
-const ENCHANT_TYPES=['強壮','凶暴','増殖','再生','猛毒','憎悪'];
+// エンチャントの種類（指輪に付与できる）— {id, effect} 形式
+const ENCHANT_TYPES=[
+  {id:'強壮',   effect:'HP+5×Grade'},
+  {id:'凶暴',   effect:'ATK+5×Grade'},
+  {id:'増殖',   effect:'召喚数+Grade'},
+  {id:'再生',   effect:'死亡時1度HP50%で復活'},
+  {id:'猛毒',   effect:'与ダメ時に敵へ毒+3/T'},
+  {id:'憎悪',   effect:'召喚時にヘイト付与'},
+];
 
 // 祠イベント定義
 // eff キー一覧（doShrine で処理）:

@@ -162,6 +162,17 @@ function summonAllies(){
     }
   });
 
+  // 鏡の契約：右の召喚契約のコピーとして battle_start 後に発動
+  G.rings.forEach((ring,hi)=>{
+    if(!ring||ring.unique!=='mirror') return;
+    const right=G.rings[hi+1];
+    if(!right||right.kind!=='summon') return;
+    const tempRing=clone(right);
+    tempRing.grade=ring.grade||1;
+    triggerSummon(tempRing);
+    log(`🪞 鏡の契約：${right.name}のコピーとして発動`,'good');
+  });
+
   // 狼のオーラ（狼生存中、全仲間ATK+）
   const wolfRings=G.rings.filter(r=>r&&r.unique==='wolf_aura');
   if(wolfRings.length>0&&G.allies.some(a=>a.name==='狼'&&a.hp>0)){

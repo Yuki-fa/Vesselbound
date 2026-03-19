@@ -127,8 +127,23 @@ function chooseMoveInline(nt){
 function rerollRewards(){
   if(G.gold<1){ return; }
   G.gold-=1;
+  G.rerollCount=(G.rerollCount||0)+1;
   _rewCards=drawRewards();
   _eliteRing=null; // リロールでユニーク指輪は消える
+
+  // 試行の契約：4回リロールごとにランダムな契約を1グレードアップ
+  const trialsRing=G.rings.find(r=>r&&r.unique==='trials');
+  if(trialsRing&&G.rerollCount%4===0){
+    const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
+    if(eligible.length){
+      const picked=randFrom(eligible);
+      const newG=Math.min(MAX_GRADE,(picked.grade||1)+1);
+      picked.grade=newG;
+      if(newG>=MAX_GRADE&&!G.bannedRings.includes(picked.id)) G.bannedRings.push(picked.id);
+      log(`🎯 試行の契約：${picked.name} → ${gradeStr(newG)}`,'gold');
+    }
+  }
+
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
@@ -396,8 +411,8 @@ function showEncStep2(){
   ENCHANT_TYPES.forEach(et=>{
     const div=document.createElement('div');
     div.className='enc-type';
-    div.textContent=et;
-    div.onclick=()=>applyEnc(et);
+    div.innerHTML=`<strong>${et.id}</strong><div style="font-size:.65rem;color:var(--text2);margin-top:2px">${et.effect}</div>`;
+    div.onclick=()=>applyEnc(et.id);
     el.appendChild(div);
   });
 }
@@ -411,6 +426,14 @@ function applyEnc(et){
   log(ring.name+' に「'+et+'」付与','good');
   closeEncModal();
   if(_encCtx.src==='reward'){ renderHandEditor(); renderRewCards(); }
-  else if(_encCtx.src==='smithy'){ showEvent('鍛冶屋',`${ring.name} に「${et}」を付与した。`,`エンチャント「${et}」付与`); }
+  else if(_encCtx.src==='smithy'){
+    if(_encCtx.farsight){
+      log(`${ring.name} に「${et}」を付与`,'good');
+      _smithyChosen.add(_encCtx.smithyKey||'enc0');
+      doSmithy(false);
+    } else {
+      showEvent('鍛冶屋',`${ring.name} に「${et}」を付与した。`,`エンチャント「${et}」付与`);
+    }
+  }
 }
 function closeEncModal(){ document.getElementById('enc-modal').classList.remove('open'); }

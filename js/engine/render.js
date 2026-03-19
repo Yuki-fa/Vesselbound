@@ -155,6 +155,7 @@ function computeDesc(card){
   const enc=card.enchants||[];
   const bab=(typeof G!=='undefined'&&G.buffAdjBonuses&&G.buffAdjBonuses[card.id])||{atk:0,hp:0};
   if(card.kind==='summon'&&card.summon){
+    if(card.unique==='mirror') return '戦闘開始時、右の契約のコピーとして動作する（右の契約の後に処理）';
     const _bAtk=card.atkPerGrade!==undefined?card.summon.atk+card.atkPerGrade*(g-1):Math.round(card.summon.atk*gm);
     const _bHp =card.hpPerGrade !==undefined?card.summon.hp +card.hpPerGrade *(g-1):Math.round(card.summon.hp *gm);
     let atk=_bAtk+bab.atk+enc.filter(e=>e==='凶暴').length*5*gm;
@@ -188,14 +189,20 @@ function computeDesc(card){
   }
   if(card.kind==='passive'){
     const m={'needle':'ターン開始時、ランダムな敵に1ダメx'+g+'回',
-      'adj_count':'隣接する召喚指輪の召喚数+1（★固定）',
+      'adj_count':'隣接する召喚契約の召喚数+1（★固定）',
       'life_reg':'戦闘終了時ライフ+'+g,
       'fury_passive':'キャラがダメージを受けるたび全仲間ATK+'+g,
       'extra_action':'行動回数+'+g,
-      'buff_adj':'戦闘終了時、隣接する召喚指輪の仲間ATK/HP+'+g+'（永続累積）',
+      'buff_adj':'戦闘終了時、隣接する召喚契約の仲間ATK/HP+'+g+'（永続累積）',
       'shared_def':'同名仲間が複数いる場合、全員ATK+'+(5*gm)+'/HP+'+(5*gm),
       'poison_aura':'ダメージを受けた敵に毒（HP-'+(3*g)+'/T、重複可）',
-      'catalyst':'毒ダメージx'+(g+1)+'倍'};
+      'catalyst':'毒ダメージx'+(g+1)+'倍',
+      'farsight':'鍛冶屋・休息所の出現率+50%。すべての選択肢を選べる',
+      'mana_cycle':'装備中の杖のチャージが減らなくなる',
+      'catalyst_ring':'消耗品の効果が2倍になる',
+      'solitude':'盤面に仲間が1体だけの時、その仲間のATK/HP×2',
+      'trials':'4回リロールするたびにランダムな契約を1グレードアップ',
+      'patience':'「戦闘開始時」の契約効果をターン開始時にも発動する'};
     return m[card.unique]||card.desc;
   }
   if(card.type==='wand'||card.type==='consumable'){

@@ -168,7 +168,7 @@ async function loadGameData() {
     // ── エンチャント ──
     const encRows = _parseCSV(et);
     ENCHANT_TYPES.length = 0;
-    encRows.forEach(row => { if (row['id']) ENCHANT_TYPES.push(row['id']); });
+    encRows.forEach(row => { if (row['id']) ENCHANT_TYPES.push({id:row['id'], effect:row['効果']||''}); });
 
     // ── 敵キーワード ──
     const kwRows = _parseCSV(kt);
