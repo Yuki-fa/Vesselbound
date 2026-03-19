@@ -71,32 +71,27 @@ function generateEnemies(floor){
   return enemies;
 }
 
-// 敵スロットにマップノード（戦闘/祠/商人など）を割り当て
+// 敵スロットにマップノード（戦闘/鍛冶屋/休息所）を割り当て
+// 鍛冶屋・休息所はスロットごとに各4%（重複なし）
 function generateMoveMasks(){
   const slots=G.enemies.length;
   const total=Math.min(3,slots);
   const isBoss=BOSS_FLOORS.includes(G.floor);
-  let types;
-  if(isBoss){
-    types=['boss'];
-  } else {
-    types=['battle'];
-    const canNon=G.prevNodeType==='battle';
-    const nonTypes=['smithy','rest','chest'];
-    if(canNon&&total>=2) types.push(randFrom(nonTypes));
-    if(canNon&&total>=3){ let t; do{t=randFrom(nonTypes);}while(t===types[1]); types.push(t); }
-  }
   const masks=Array(6).fill(null);
-  if(isBoss){
-    masks[0]='boss';
-  } else {
-    const idxs=[...Array(slots).keys()];
-    const chosen=[];
-    while(chosen.length<types.length&&idxs.length){
-      const ri=Math.floor(Math.random()*idxs.length);
-      chosen.push(idxs.splice(ri,1)[0]);
-    }
-    chosen.forEach((idx,i)=>{ masks[idx]=types[i]; });
-  }
+  if(isBoss){ masks[0]='boss'; return masks; }
+
+  // ランダムにtotal個のスロットを選ぶ
+  const idxs=[...Array(slots).keys()];
+  for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
+  const chosen=idxs.slice(0,total);
+
+  const usedNon=new Set();
+  chosen.forEach(idx=>{
+    let type='battle';
+    const r=Math.random();
+    if(r<0.04&&!usedNon.has('smithy')){ type='smithy'; usedNon.add('smithy'); }
+    else if(r<0.08&&!usedNon.has('rest')){ type='rest'; usedNon.add('rest'); }
+    masks[idx]=type;
+  });
   return masks;
 }

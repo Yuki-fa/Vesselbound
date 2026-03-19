@@ -285,5 +285,6 @@ function applyEnc(et){
   log(ring.name+' に「'+et+'」付与','good');
   closeEncModal();
   if(_encCtx.src==='reward'){ renderHandEditor(); renderRewCards(); }
+  else if(_encCtx.src==='smithy'){ showEvent('鍛冶屋',`${ring.name} に「${et}」を付与した。`,`エンチャント「${et}」付与`); }
 }
 function closeEncModal(){ document.getElementById('enc-modal').classList.remove('open'); }

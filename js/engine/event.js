@@ -34,14 +34,14 @@ function doSmithy(){
   const o2=document.createElement('div');
   o2.className='choice-opt';
   o2.innerHTML=`<div class="choice-icon">✨</div><div class="choice-label">エンチャント付与：${encA}</div><div class="choice-desc">指輪を1つ選んで「${encA}」を付与する（無料）</div>`;
-  o2.onclick=()=>{ openEncModal('reward',0,encA); };
+  o2.onclick=()=>{ openEncModal('smithy',0,encA); };
   el.appendChild(o2);
 
   // 選択肢3：エンチャントB
   const o3=document.createElement('div');
   o3.className='choice-opt';
   o3.innerHTML=`<div class="choice-icon">✨</div><div class="choice-label">エンチャント付与：${encB}</div><div class="choice-desc">指輪を1つ選んで「${encB}」を付与する（無料）</div>`;
-  o3.onclick=()=>{ openEncModal('reward',0,encB); };
+  o3.onclick=()=>{ openEncModal('smithy',0,encB); };
   el.appendChild(o3);
 
   showScreen('smithy');
