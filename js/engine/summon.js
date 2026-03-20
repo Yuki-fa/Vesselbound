@@ -59,6 +59,7 @@ function addAlly(unit, fromRingId){
     fireTrigger('on_summon', fromRingId);
     if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
   }
+  checkSolitudeBuff();
   return true;
 }
 
@@ -172,15 +173,42 @@ function summonAllies(){
     }
   });
 
-  // 鏡の契約：右の召喚契約のコピーとして battle_start 後に発動
+  // 鏡の契約：右隣の召喚契約のコピーを直接召喚
   G.rings.forEach((ring,hi)=>{
     if(!ring||ring.unique!=='mirror') return;
-    const right=G.rings[hi+1];
-    if(!right||right.kind!=='summon') return;
-    const tempRing=clone(right);
-    tempRing.grade=ring.grade||1;
-    triggerSummon(tempRing);
-    log(`🪞 鏡の契約：${right.name}のコピーとして発動`,'good');
+    const src=G.rings[hi+1];
+    if(!src||src.kind!=='summon'||!src.summon) return;
+    const grade=ring.grade||1;
+    const mult=GRADE_MULT[grade];
+    const enc=src.enchants||[];
+    const gm=mult;
+    const baseAtk=src.atkPerGrade!==undefined?src.summon.atk+src.atkPerGrade*(grade-1):Math.round(src.summon.atk*mult);
+    const baseHp =src.hpPerGrade !==undefined?src.summon.hp +src.hpPerGrade *(grade-1):Math.round(src.summon.hp *mult);
+    let bAtk=baseAtk+(G.buffAdjBonuses[src.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
+    let bHp =baseHp +(G.buffAdjBonuses[src.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
+    if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
+    const count=(src.count||1)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
+    for(let i=0;i<count;i++){
+      if(G.allies.filter(a=>a.hp>0).length>=6) break;
+      const unit={
+        id:uid(),name:src.summon.name,icon:src.summon.icon,
+        atk:bAtk,baseAtk:bAtk,hp:bHp,maxHp:bHp,
+        ringId:ring.id,ringIdx:hi,
+        hate:enc.includes('憎悪'),hateTurns:enc.includes('憎悪')?99:0,
+        instadead:false,sealed:0,nullified:0,
+        enchants:enc,regen:enc.includes('再生'),regenUsed:false,
+        onDeath:src.onDeath,onHit:src.onHit,
+        taunt50:src.taunt50||false,guardian:src.guardian||false,
+        unique:src.unique,keywords:src.keywords||[],poison:0,shield:0,_dp:false,
+      };
+      G.allies.push(unit);
+      G.battleCounters.summons++;
+      if(!G._djinnActive){
+        fireTrigger('on_summon',ring.id);
+        if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
+      }
+    }
+    log(`🪞 鏡の契約：${src.name}(${bAtk}/${bHp})×${count}体を召喚`,'good');
   });
 
   // 狼のオーラ（狼生存中、全仲間ATK+）
@@ -204,6 +232,32 @@ function summonAllies(){
       }
     });
   });
+  checkSolitudeBuff();
+}
+
+// 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）
+function checkSolitudeBuff(){
+  const solRing=G.rings&&G.rings.find(r=>r&&r.unique==='solitude');
+  const live=G.allies.filter(a=>a.hp>0);
+  if(!solRing||live.length!==1){
+    // バフ解除
+    G.allies.forEach(a=>{
+      if(a._solBuff){
+        a.atk=Math.max(1,Math.round(a.atk/2));
+        a.maxHp=Math.max(1,Math.round(a.maxHp/2));
+        a.hp=Math.min(a.hp,a.maxHp);
+        a._solBuff=false;
+      }
+    });
+    return;
+  }
+  // 1体のみ：バフ付与（未適用なら）
+  const a=live[0];
+  if(!a._solBuff){
+    a.atk*=2; a.maxHp*=2; a.hp=Math.min(a.hp*2,a.maxHp);
+    a._solBuff=true;
+    log(`孤高の契約：${a.name} ATK/HP×2`,'good');
+  }
 }
 
 // 仲間死亡時の処理（カウンタ更新・骸骨/影トリガー）
@@ -224,6 +278,7 @@ function onAllyDeath(ally){
       if(addAlly(unit,ring.id)) log(`💀 骸骨の指輪：骸骨(${unit.atk}/${unit.hp})を召喚`,'good');
     });
   }
+  checkSolitudeBuff();
 }
 
 // ダメージカウンタ更新（竜の指輪トリガー）

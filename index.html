@@ -79,7 +79,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #log-box p.sys{color:var(--blue2)}
 
 /* HAND AREA — 2 panes */
-.hand-area{display:flex;gap:8px;flex-shrink:0;padding:4px 0;overflow-x:auto}
+.hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
+.hand-row1{display:flex;gap:8px;align-items:flex-start}
 .hand-pane{display:flex;flex-direction:column;gap:4px}
 .hand-pane-label{font-size:.62rem;letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
 .ring-label{background:rgba(150,96,192,.18);color:var(--purple2);border:1px solid rgba(150,96,192,.3)}
@@ -295,7 +296,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <span style="font-family:var(--font-hd);font-size:.85rem;letter-spacing:.18em;color:var(--gold2);text-shadow:0 0 12px rgba(200,160,60,.35)">Vesselbound</span>
   </div>
   <div class="battle-area">
-    <div><div class="field-label" id="enemy-field-label">敵の盤面</div><div class="field" id="f-enemy"></div></div>
+    <div><div class="field-label" id="enemy-field-label">敵の盤面</div><div id="commander-wands-bar" style="display:none;padding:2px 0 3px;font-size:.6rem;color:var(--blue2)"></div><div class="field" id="f-enemy"></div></div>
     <div id="log-box"></div>
 
     <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
@@ -322,19 +323,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
-      <div class="hand-pane">
-        <span class="hand-pane-label ring-label">契約 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
-        <div class="hand-slots" id="ring-slots"></div>
+      <div class="hand-row1">
+        <div class="hand-pane">
+          <span class="hand-pane-label ring-label">契約 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
+          <div class="hand-slots" id="ring-slots"></div>
+        </div>
+        <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
+        <div class="hand-pane">
+          <span class="hand-pane-label spell-label">杖 <span id="wand-count">0</span>/<span id="wand-max">2</span></span>
+          <div class="hand-slots" id="wand-slots"></div>
+        </div>
+        <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
+        <div class="hand-pane">
+          <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">アイテム <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
+          <div class="hand-slots" id="consum-slots"></div>
+        </div>
       </div>
-      <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
-      <div class="hand-pane">
-        <span class="hand-pane-label spell-label">杖 <span id="wand-count">0</span>/<span id="wand-max">2</span></span>
-        <div class="hand-slots" id="wand-slots"></div>
-      </div>
-      <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
-      <div class="hand-pane">
-        <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">アイテム <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
-        <div class="hand-slots" id="consum-slots"></div>
+      <div id="ring-extra-row" style="display:none">
+        <div class="hand-slots" id="ring-slots-2"></div>
       </div>
     </div>
 

@@ -45,10 +45,10 @@ const SPELL_POOL=[
   {id:'w_hate',   name:'ヘイトの杖', type:'wand',grade:1,
    desc:'対象の仲間にヘイト付与（戦闘終了まで）',effect:'hate',needsAlly:true},
 
-  {id:'w_double', name:'二重化の杖', type:'wand',grade:1,
+  {id:'w_double', name:'二重化の杖', type:'wand',grade:1,unique:true,
    desc:'対象の仲間のHPを2倍にする',effect:'double_hp',needsAlly:true},
 
-  {id:'w_swap',   name:'混沌の杖',   type:'wand',grade:1,
+  {id:'w_swap',   name:'混沌の杖',   type:'wand',grade:1,unique:true,
    desc:'全キャラのATKとHPを入れ替える',effect:'swap_all'},
 
   {id:'w_nullify',name:'沈黙の杖',   type:'wand',grade:1,
@@ -66,10 +66,10 @@ const SPELL_POOL=[
   {id:'w_golem',  name:'岩の杖',     type:'wand',grade:1,
    desc:'ATK10/HP10×Grade係数のヘイト持ちゴーレムを1体召喚',effect:'golem'},
 
-  {id:'w_spread', name:'拡散の杖',   type:'wand',grade:1,
+  {id:'w_spread', name:'拡散の杖',   type:'wand',grade:1,unique:true,
    desc:'もう片方の杖がGrade+1回発動するようになる（戦闘終了まで）',effect:'spread'},
 
-  {id:'w_meteor', name:'隕石の杖',   type:'wand',grade:1,
+  {id:'w_meteor', name:'隕石の杖',   type:'wand',grade:1,unique:true,
    desc:'ランダムなキャラに3×Grade係数ダメージ×2回',effect:'meteor'},
 
   // ── CONSUMABLES ──

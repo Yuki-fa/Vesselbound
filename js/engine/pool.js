@@ -48,6 +48,7 @@ function getPool(){
   });
   SPELL_POOL.forEach(r=>{
     if(r.starterOnly) return;
+    if(r.unique&&G.seenWands&&G.seenWands.includes(r.id)) return; // ユニーク杖の重複除外
     const c=clone(r);
     c.grade=rollGrade(G.floor);
     if(c.type==='wand'){ c.usesLeft=c.baseUses||randUses(); c._maxUses=c.usesLeft; }
@@ -68,6 +69,8 @@ function drawRewards(n){
     res.push(pool.splice(i,1)[0]);
   }
   for(let i=res.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [res[i],res[j]]=[res[j],res[i]]; }
+  // ユニーク杖を出現済みとしてマーク（取得有無に関係なく）
+  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); });
   return res;
 }
 

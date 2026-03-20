@@ -30,6 +30,7 @@ function initState(){
     rewardCards:3,       // 現在の報酬カード枚数（ボス撃破ごとに+1）
     maxRewardCards:MAX_REWARD_CARDS,
     bannedRings:['r_adj_cnt'],  // G10到達 or isUnique でプールから抹消された指輪ID
+    seenWands:[],                // 報酬で出現済みのユニーク杖ID（再出現しない）
     _isEliteFight:false,         // 現在の戦闘にエリートが出現したか
     rerollCount:0,               // 累計リロール回数（試行の契約用）
     _djinnActive:false,          // 魔神降臨処理中フラグ（再帰防止）

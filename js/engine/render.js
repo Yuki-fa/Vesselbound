@@ -27,6 +27,7 @@ function renderAll(){
   renderHand();
   renderControls();
   renderArcanaBar();
+  renderCommanderWands();
   updateHUD();
 }
 
@@ -81,19 +82,45 @@ function renderHand(){
 
 function renderRingSlots(){
   const el=document.getElementById('ring-slots');
+  const el2=document.getElementById('ring-slots-2');
+  const extraRow=document.getElementById('ring-extra-row');
   el.innerHTML='';
+  if(el2) el2.innerHTML='';
   document.getElementById('ring-count').textContent=G.rings.filter(r=>r).length;
   const rmEl=document.getElementById('ring-max'); if(rmEl) rmEl.textContent=G.ringSlots;
-  for(let i=0;i<G.ringSlots;i++){
+
+  // Row 1: always render 5 ring slots (indices 0-4)
+  for(let i=0;i<5;i++){
     const ring=G.rings[i];
     if(ring){
       const div=mkCardEl(ring,i,'ring-battle');
-      div.classList.add('inert'); // rings are auto-fire, not clickable in battle
+      div.classList.add('inert');
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty';
       el.appendChild(ph);
+    }
+  }
+
+  // Row 2: extra ring slots (indices 5+)
+  if(el2&&extraRow){
+    if(G.ringSlots>5){
+      extraRow.style.display='';
+      for(let i=5;i<G.ringSlots;i++){
+        const ring=G.rings[i];
+        if(ring){
+          const div=mkCardEl(ring,i,'ring-battle');
+          div.classList.add('inert');
+          el2.appendChild(div);
+        } else {
+          const ph=document.createElement('div');
+          ph.className='card-empty';
+          el2.appendChild(ph);
+        }
+      }
+    } else {
+      extraRow.style.display='none';
     }
   }
 }
@@ -272,6 +299,16 @@ function renderControls(){
 }
 
 function setHint(t){ document.getElementById('hint-txt').textContent=t; }
+
+function renderCommanderWands(){
+  const bar=document.getElementById('commander-wands-bar');
+  if(!bar) return;
+  const wands=G.commanderWands||[];
+  if(!wands.length){ bar.style.display='none'; return; }
+  bar.style.display='';
+  bar.innerHTML='<span style="opacity:.6;font-size:.58rem;margin-right:4px">敵の杖：</span>'
+    +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
+}
 
 // 秘術情報バー（常時表示）
 function renderArcanaBar(){

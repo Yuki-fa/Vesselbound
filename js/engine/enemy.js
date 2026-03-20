@@ -129,7 +129,7 @@ function generateEnemies(floor){
 // ボス戦はスロット0のみ、最終ボス戦はなし、通常戦はエリートのスロットを除外して配置
 function generateMoveMasks(){
   const slots=G.enemies.length;
-  const isBoss=BOSS_FLOORS.includes(G.floor);
+  const isBoss=!!(FLOOR_DATA[G.floor]?.boss);
   const masks=Array(6).fill(null);
 
   // 最終ボス戦（floor 20）：移動マスを置かない
