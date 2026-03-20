@@ -165,7 +165,7 @@ function _mkRewDiv(card, onBuy){
   const t=card.type||'ring';
   const tColor=t==='ring'?'purple2':t==='wand'?'blue2':'red2';
   const g=card.grade||1;
-  const gs=gradeStr(g);
+  const gs=card.legend?'★':gradeStr(g);
   const rdesc=computeDesc(card);
   const refund=cardRefund(card);
   const refundTxt=refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
@@ -305,8 +305,10 @@ function renderHandEditor(){
   renderHeRow('consum-slots', G.spells, G.wandSlots, G.consumSlots, 'consums');
   // カウント表示も更新
   const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
+  const rmEl=document.getElementById('ring-max'); if(rmEl) rmEl.textContent=G.ringSlots;
   const wc=document.getElementById('wand-count'); if(wc) wc.textContent=G.spells.slice(0,G.wandSlots).filter(s=>s).length;
   const cc=document.getElementById('consum-count'); if(cc) cc.textContent=G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length;
+  renderArcanaBar();
 }
 
 function renderHeRow(elId, arr, startIdx, count, arrName){
@@ -320,12 +322,12 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     if(card){
       const div=document.createElement('div');
       const t=card.type||'ring';
-      div.className=`card ${t}`;
+      div.className=`card ${t}${card.legend?' legend-card':''}`;
       div.draggable=true;
       const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
       const kl=card.kind==='passive'?' <span style="font-size:.5rem;color:var(--teal2)">P</span>':'';
       const g=card.grade||1;
-      const gs=gradeStr(g);
+      const gs=card.legend?'★':gradeStr(g);
       const refund=cardRefund(card);
       const isRing=t==='ring'||card.kind==='summon'||card.kind==='passive';
       const refundEl=refund>0?`<div class="card-sell">還魂+${refund}ソウル</div>`:'';

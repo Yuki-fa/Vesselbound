@@ -26,6 +26,7 @@ function renderAll(){
   renderField('f-ally',G.allies,false);
   renderHand();
   renderControls();
+  renderArcanaBar();
   updateHUD();
 }
 
@@ -148,6 +149,8 @@ function renderConsumSlots(){
 
 // グレード表示（G10=★）— reward.js でも参照
 function gradeStr(g){ return (g>=MAX_GRADE)?'★':('G'+g); }
+// legend指輪のグレード表示（★固定）
+function cardGradeStr(card){ return card.legend?'★':gradeStr(card.grade||1); }
 
 function computeDesc(card){
   const g=card.grade||1;
@@ -228,7 +231,7 @@ function mkCardEl(card,idx,ctx){
   const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
-  div.className=`card ${t}`;
+  div.className=`card ${t}${card.legend?' legend-card':''}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
@@ -247,7 +250,7 @@ function mkCardEl(card,idx,ctx){
     }
   }
   const dynDesc=computeDesc(card);
-  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade">${gradeStr(card.grade)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
+  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
   return div;
 }
 
@@ -269,3 +272,15 @@ function renderControls(){
 }
 
 function setHint(t){ document.getElementById('hint-txt').textContent=t; }
+
+// 秘術情報バー（常時表示）
+function renderArcanaBar(){
+  const bar=document.getElementById('arcana-bar');
+  if(!bar) return;
+  const arc=G.arcana;
+  if(!arc){ bar.style.display='none'; return; }
+  bar.style.display='';
+  const typeStr=arc.type==='passive'?'パッシブ':arc.cost>0?arc.cost+'ソウル':'無料';
+  const usedStr=(arc.type==='active'&&G.arcanaUsed)?' 【使用済】':'';
+  bar.innerHTML=`<span style="opacity:.7">秘術</span> ${arc.icon} <strong>${arc.id}</strong>（${typeStr}）${usedStr} <span style="color:var(--text2);font-size:.6rem">${arc.desc}</span>`;
+}

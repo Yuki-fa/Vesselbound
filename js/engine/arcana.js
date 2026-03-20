@@ -208,7 +208,7 @@ function _arcanaTrust(){
       G.arcanaUsed=true;
       closeEncModal();
       document.getElementById('rw-gold').textContent=G.gold;
-      updateHUD(); renderHandEditor();
+      updateHUD(); renderRewCards(); renderHandEditor();
       _renderArcanaBtn();
       log(`🤝 信頼：${r.name} の仲間に永続ATK+${bonus}/HP+${bonus}`,'gold');
     };
@@ -226,7 +226,7 @@ function _arcanaObserve(){
   G.arcanaForceNode=true;
   G.arcanaUsed=true;
   document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD();
+  updateHUD(); renderRewCards();
   _renderArcanaBtn();
   log('👁️ 観察：次の戦闘で祭壇か休息所が確定で出現する','gold');
 }
@@ -238,7 +238,7 @@ function _arcanaBlood(){
   G.gold+=1;
   G.arcanaUsed=true;
   document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD();
+  updateHUD(); renderRewCards();
   _renderArcanaBtn();
   log('🩸 血盟：ライフ-1、ソウル+1','gold');
 }
@@ -285,6 +285,7 @@ function _renderArcanaBtn(){
   // パッシブ表示（arcana-passive-info）
   const pi=document.getElementById('arcana-passive-info');
   if(pi) pi.style.display='none';
+  renderArcanaBar();
 }
 
 function renderArcanaInfo(){
@@ -307,4 +308,5 @@ function arcanaPhaseStart(){
   G.arcanaUsed=false;
   renderArcanaInfo();
   _renderArcanaBtn();
+  renderArcanaBar();
 }

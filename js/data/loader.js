@@ -132,8 +132,11 @@ async function loadGameData() {
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
     console.table(floorRows.slice(0, 5));
-    // floors.js のフォールバック actions を事前に退避
-    const _savedActions = FLOOR_DATA.map(fd => fd?.actions);
+    // floors.js のフォールバック wands を事前に退避
+    const _savedWands = FLOOR_DATA.map(fd => fd?.wands);
+    // 旧アクション文字列 → 杖ID のマッピング
+    const _actionToWandId = {'強化':'cw_buff','鼓舞':'cw_heal','召喚':'cw_summon','シールド':'cw_shield','ヘイト':'cw_hate'};
+    const _validWandIds = new Set(['cw_buff','cw_heal','cw_summon','cw_shield','cw_hate']);
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
@@ -141,22 +144,24 @@ async function loadGameData() {
       const fl = parseInt(row['階層']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓';
-      const actStr = (row['司令官行動'] || '').trim();
-      let actions;
+      const actStr = (row['杖'] || row['司令官行動'] || '').trim();
+      let wands;
       if (!actStr) {
         // 空欄 → floors.js のフォールバックを使用
-        actions = _savedActions[fl] || [];
+        wands = _savedWands[fl] || [];
       } else if (actStr.startsWith('なし')) {
-        // 明示的スキップ → 行動なし（floors.js フォールバック不使用）
-        actions = [];
+        // 明示的スキップ → 杖なし
+        wands = [];
       } else {
-        // 有効な行動文字列 → パース
-        actions = actStr.split(/[,、;；\s]+/).map(s => s.trim()).filter(s => s);
+        // 有効な文字列 → 杖IDまたは旧アクション文字列をパース
+        wands = actStr.split(/[,、;；\s]+/)
+          .map(s => _actionToWandId[s.trim()] || s.trim())
+          .filter(s => _validWandIds.has(s));
       }
       FLOOR_DATA[fl] = {
-        power:   parseInt(row['power']) || 10,
-        grade:   parseInt(row['grade']) || 1,
-        actions: actions,
+        power: parseInt(row['power']) || 10,
+        grade: parseInt(row['grade']) || 1,
+        wands: wands,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;

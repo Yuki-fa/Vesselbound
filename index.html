@@ -87,7 +87,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .hand-slots{display:flex;gap:5px;flex-wrap:wrap}
 
 /* CARDS */
-.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px 7px;flex:0 0 110px;width:110px;max-width:110px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
+.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px 7px;flex:0 0 90px;width:90px;max-width:90px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
 .card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
 .card.inert{opacity:.38;cursor:default;pointer-events:none}
 .card.ring{border-top:2px solid var(--purple2)}
@@ -101,9 +101,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-enc{font-size:.6rem;color:var(--teal2);margin-top:2px}
 .card-buf{font-size:.6rem;color:var(--gold2);margin-top:1px}
 .card-order{position:absolute;bottom:3px;left:4px;font-size:.56rem;color:rgba(150,96,192,.6);font-weight:700}
+.card.legend-card{border-color:rgba(200,160,60,.6);box-shadow:0 0 8px rgba(200,160,60,.2)}
+.card.legend-card .card-grade,.legend-grade{color:var(--gold2);font-size:.68rem}
+/* 秘術バー */
+#arcana-bar{padding:3px 12px;background:rgba(106,58,154,.08);border-top:1px solid rgba(106,58,154,.18);font-size:.63rem;color:var(--purple2);flex-shrink:0}
 
 /* empty slot placeholder */
-.card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:0 0 110px;width:110px;max-width:110px;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
+.card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:0 0 90px;width:90px;max-width:90px;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* BATTLE CONTROLS */
@@ -335,6 +339,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     </div>
 
   </div>
+
+  <!-- 秘術情報バー（常時表示） -->
+  <div id="arcana-bar" style="display:none"></div>
 
   <div class="bctl-wrap">
     <div class="bctl">
