@@ -70,9 +70,6 @@ function goToReward(){
   renderArcanaInfo();
   // 行き先ノードを敵フィールドに表示
   renderMoveSlotsInEnemy();
-  // 報酬フェイズ中は ring-extra-row を非表示（renderHandEditor が ring-slots に全スロット描画するため）
-  const _extraRow=document.getElementById('ring-extra-row');
-  if(_extraRow) _extraRow.style.display='none';
   // 手札を売却・並べ替え可能モードで再描画
   renderHandEditor();
   setHint('報酬を獲得してください');
@@ -306,7 +303,16 @@ let _dragSrc=null;
 
 function renderHandEditor(){
   // 報酬フェイズ中は戦闘用手札スロットに売却・並べ替え機能付きで上書きレンダリング
-  renderHeRow('ring-slots', G.rings, 0, G.ringSlots, 'rings');
+  // 契約は row1（インデックス0-4）と row2（5+）に分割（戦闘ビューと同じ）
+  renderHeRow('ring-slots', G.rings, 0, Math.min(5, G.ringSlots), 'rings');
+  const extraRow=document.getElementById('ring-extra-row');
+  const extraSlots=document.getElementById('ring-slots-2');
+  if(G.ringSlots>5){
+    if(extraRow) extraRow.style.display='';
+    if(extraSlots) renderHeRow('ring-slots-2', G.rings, 5, G.ringSlots-5, 'rings');
+  } else {
+    if(extraRow) extraRow.style.display='none';
+  }
   renderHeRow('wand-slots', G.spells, 0, G.wandSlots, 'wands');
   renderHeRow('consum-slots', G.spells, G.wandSlots, G.consumSlots, 'consums');
   // カウント表示も更新
