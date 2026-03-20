@@ -218,7 +218,7 @@ function computeDesc(card){
     return trig+atk+'/'+hp+'の'+card.summon.name+'を'+cntStr+'召喚'+extra+guardExtra+deathExtra;
   }
   if(card.kind==='passive'){
-    const m={'needle':'ターン開始時、ランダムな敵に1ダメx'+g+'回',
+    const m={'needle':'ターン開始時、ランダムな敵に1ダメを与える。これを'+g+'回繰り返す（複数の敵に当たる）',
       'adj_count':'隣接する召喚契約の召喚数+1（★固定）',
       'life_reg':'戦闘終了時ライフ+'+g,
       'fury_passive':'キャラがダメージを受けるたび全仲間ATK+'+g,

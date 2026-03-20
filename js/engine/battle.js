@@ -101,7 +101,7 @@ async function startBattle(){
   G.commanderWands=wandIds.map(id=>COMMANDER_WAND_POOL.find(w=>w.id===id)).filter(Boolean);
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
-  G._isEliteFight=false; G._eliteIdx=-1;
+  G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
   G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12};
 
   G.enemies=generateEnemies(G.floor);
@@ -256,7 +256,7 @@ function startPlayerPhase(){
   renderAll();
   setHint(G.allies.filter(a=>a.hp>0).length===0
     ?'仲間がいない！魔法で倒すか撤退を'
-    :'魔法カードを使うかパスしてください');
+    :'杖を使うかパスしてください');
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -422,6 +422,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
+  if(e.keywords&&e.keywords.includes('エリート')) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
   const gold=e.grade||1;
   G.earnedGold+=gold; G.gold+=gold;
@@ -534,13 +535,7 @@ async function enemyAttackPhase(){
         log(`🐉 竜の反撃：${dt.name}に${counterUnit.atk}ダメ`,'bad');
       }
     }
-    if(tgt.unique==='bear_grow'&&dmgToAlly>0&&tgt.hp>0){
-      const brRing=G.rings.find(r=>r&&r.id===tgt.ringId);
-      const bm=GRADE_MULT[brRing?.grade||1];
-      const bg=2*bm;
-      tgt.atk+=bg; tgt.hp+=bg; tgt.maxHp+=bg;
-      log(`🐻 熊が強化：ATK+${bg}/HP+${bg}→${tgt.atk}/${tgt.hp}`,'good');
-    }
+
 
     // 仲間死亡処理（tgt・counterUnit・範囲攻撃で倒れたユニットをすべてチェック）
     const baseCheck=counterUnit.id!==tgt.id?[tgt,counterUnit]:[tgt];

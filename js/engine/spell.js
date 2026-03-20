@@ -35,7 +35,7 @@ function pickTarget(who,idx,checkBless){
   document.addEventListener('keydown',escCancel,{once:true});
 }
 
-function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('魔法カードを使うかパスしてください'); } }
+function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('杖を使うかパスしてください'); } }
 function clearSelectable(){ document.querySelectorAll('.selectable').forEach(s=>{ s.classList.remove('selectable'); s.onclick=null; }); }
 
 function applySpell(sp,idx,tgt){

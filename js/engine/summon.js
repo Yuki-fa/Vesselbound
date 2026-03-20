@@ -266,8 +266,9 @@ function onAllyDeath(ally){
   if(G._djinnActive) return; // 魔神降臨中はチェーントリガーをスキップ
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_death_count') return;
-    if(G.battleCounters.deaths>=G.battleCounters.deathTriggerNext){
-      G.battleCounters.deathTriggerNext+=ring.triggerCount||10;
+    ring._count=(ring._count||0)+1;
+    if(ring._count>=(ring.triggerCount||10)){
+      ring._count=0;
       triggerSummon(ring);
     }
   });
@@ -286,11 +287,11 @@ function onDamageCount(){
   G.battleCounters.damage++;
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_damage_count') return;
-    const threshold=ring.triggerCount||12;
-    if(G.battleCounters.damage>=G.battleCounters.damageTriggerNext){
-      G.battleCounters.damageTriggerNext+=threshold;
+    ring._count=(ring._count||0)+1;
+    if(ring._count>=(ring.triggerCount||12)){
+      ring._count=0;
       triggerSummon(ring);
-      log(`🐉 竜の指輪：${G.battleCounters.damage}回ダメージ到達→竜を召喚`,'good');
+      log(`🐉 竜の指輪：${ring.triggerCount||12}回ダメージ到達→竜を召喚`,'good');
     }
   });
 }

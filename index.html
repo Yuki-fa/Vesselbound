@@ -80,15 +80,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 /* HAND AREA — 2 panes */
 .hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
-.hand-row1{display:flex;gap:8px;align-items:flex-start}
+.hand-row1{display:flex;gap:5px;align-items:flex-start;width:100%}
 .hand-pane{display:flex;flex-direction:column;gap:4px}
+.hp-rings{flex:5}.hp-wands{flex:2}.hp-consum{flex:2}
 .hand-pane-label{font-size:.62rem;letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
 .ring-label{background:rgba(150,96,192,.18);color:var(--purple2);border:1px solid rgba(150,96,192,.3)}
 .spell-label{background:rgba(58,110,168,.18);color:var(--blue2);border:1px solid rgba(58,110,168,.3)}
-.hand-slots{display:flex;gap:5px;flex-wrap:wrap}
+.hand-slots{display:flex;gap:5px}
 
 /* CARDS */
-.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px 7px;flex:0 0 90px;width:90px;max-width:90px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
+.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px 7px;flex:1 1 0;min-width:0;width:0;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
 .card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
 .card.inert{opacity:.38;cursor:default;pointer-events:none}
 .card.ring{border-top:2px solid var(--purple2)}
@@ -108,7 +109,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #arcana-bar{padding:3px 12px;background:rgba(106,58,154,.08);border-top:1px solid rgba(106,58,154,.18);font-size:.63rem;color:var(--purple2);flex-shrink:0}
 
 /* empty slot placeholder */
-.card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:0 0 90px;width:90px;max-width:90px;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
+.card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* BATTLE CONTROLS */
@@ -324,17 +325,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
       <div class="hand-row1">
-        <div class="hand-pane">
+        <div class="hand-pane hp-rings">
           <span class="hand-pane-label ring-label">契約 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
           <div class="hand-slots" id="ring-slots"></div>
         </div>
-        <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
-        <div class="hand-pane">
+        <div class="hand-pane hp-wands">
           <span class="hand-pane-label spell-label">杖 <span id="wand-count">0</span>/<span id="wand-max">2</span></span>
           <div class="hand-slots" id="wand-slots"></div>
         </div>
-        <div style="width:1px;background:var(--border);flex-shrink:0;margin:0 2px"></div>
-        <div class="hand-pane">
+        <div class="hand-pane hp-consum">
           <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">アイテム <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
           <div class="hand-slots" id="consum-slots"></div>
         </div>

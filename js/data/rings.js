@@ -75,7 +75,7 @@ const RING_POOL=[
 
   // ── PASSIVE RINGS ──
   {id:'r_needle',    name:'針の指輪',   kind:'passive',grade:1,
-   desc:'ターン開始時にランダムな敵に1ダメ×(Grade×2)',unique:'needle'},
+   desc:'ターン開始時、ランダムな敵に1ダメを与える。これをGrade回繰り返す（複数の敵に当たる）',unique:'needle'},
 
   {id:'r_adj_cnt',   name:'隣接の契約', kind:'passive',grade:10,legend:true,
    desc:'隣接する召喚契約の召喚数+1（★固定）',unique:'adj_count'},
