@@ -507,13 +507,9 @@ async function enemyAttackPhase(){
     const tgtHpBefore=tgt.hp;
     const dmgToAlly=atkVal;
     tgt.hp=Math.max(0,tgt.hp-dmgToAlly);
-    if(dmgToAlly>0){
-      onDamageCount();
-      // 敵キーワード：敵が仲間にダメージを与えた時に発動
-      applyKeywordOnHit(e,tgt);
-    }
+    if(dmgToAlly>0) onDamageCount();
 
-    // 範囲攻撃（隣接仲間にもダメージ。キーワード効果も適用。反撃は対象のみ）
+    // 範囲攻撃（隣接仲間にもダメージ。キーワード効果は反撃後に適用）
     const rangeHit=[];
     if(dmgToAlly>0&&e.keywords&&e.keywords.includes('範囲攻撃')){
       const tgtIdx=G.allies.indexOf(tgt);
@@ -522,7 +518,6 @@ async function enemyAttackPhase(){
         if(adj&&adj.hp>0){
           adj.hp=Math.max(0,adj.hp-dmgToAlly);
           log(`💥 範囲攻撃：${adj.name}にも${dmgToAlly}ダメ`,'bad');
-          applyKeywordOnHit(e,adj);
           rangeHit.push(adj);
         }
       });
@@ -535,6 +530,7 @@ async function enemyAttackPhase(){
       if(nonG.length>0){ counterUnit=randFrom(nonG); log(`🛡 守護発動：${tgt.name}の代わりに${counterUnit.name}が反撃！`,'good'); }
     }
 
+    // 反撃ダメージは攻撃を受ける前のATKで計算（パワーブレイク等の効果は反撃後に適用）
     const dmgToEnemy=counterUnit.atk;
     const eHpBefore=e.hp;
     dealDmgToEnemy(e,dmgToEnemy,G.enemies.indexOf(e),counterUnit);
@@ -542,6 +538,9 @@ async function enemyAttackPhase(){
 
     log(`${e.name}(${atkVal})→${tgt.name}[${tgtHpBefore}→${tgt.hp}] 反撃:${counterUnit.name}(${dmgToEnemy})→${e.name}[${e.hp}]`);
 
+    // キーワード効果を反撃処理後に適用（パワーブレイクは反撃後にATKを0にする）
+    if(dmgToAlly>0) applyKeywordOnHit(e,tgt);
+    rangeHit.forEach(adj=>applyKeywordOnHit(e,adj));
     // 仲間キーワード：反撃でダメージを与えた時に発動（シールドで防がれた場合は無効）
     if(actualDmg>0) applyKeywordOnHit(counterUnit,e);
 
