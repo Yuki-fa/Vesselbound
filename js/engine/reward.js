@@ -203,7 +203,7 @@ function renderRewCards(){
 
 function takeRewCard(i){
   const card=_rewCards[i]; if(!card) return;
-  const cost=card._buyPrice||1;
+  const cost=card._buyPrice??1;
   if(G.gold<cost) return;
 
   const isRing=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
