@@ -273,6 +273,7 @@ function applyTurnStart(){
       if(e.hp<=0) processEnemyDeath(e,G.enemies.indexOf(e));
     }
   });
+  if(checkInstantVictory()) return;
 
   // 毒ティック（仲間）
   G.allies.forEach(a=>{

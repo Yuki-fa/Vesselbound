@@ -135,8 +135,8 @@ function generateMoveMasks(){
   // 最終ボス戦（floor 20）：移動マスを置かない
   if(FLOOR_DATA[G.floor]?.boss && G.floor===FLOOR_DATA.length-1) return masks;
 
-  // 通常ボス戦：スロット0（ボス）にのみ移動マスを配置
-  if(isBoss){ masks[0]='boss'; return masks; }
+  // ボス戦：スロット0（ボス）に戦闘マスのみ。他は出現しない
+  if(isBoss){ masks[0]='battle'; return masks; }
 
   // 通常戦：エリートのスロットを候補から除外してランダム配置
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;

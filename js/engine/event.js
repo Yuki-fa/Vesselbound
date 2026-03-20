@@ -68,7 +68,7 @@ function doSmithy(regen=true){
 }
 
 function smithyGradeUp(onDone){
-  const rings=G.rings.map((r,i)=>({r,i})).filter(x=>x.r&&(x.r.grade||1)<MAX_GRADE);
+  const rings=G.rings.map((r,i)=>({r,i})).filter(x=>x.r&&!x.r.legend&&(x.r.grade||1)<MAX_GRADE);
   if(!rings.length){
     if(onDone){ log('グレードアップできる契約がない（全て★か空）','sys'); onDone(); }
     else alert('グレードアップできる指輪がありません（全て★か空）');

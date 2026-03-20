@@ -139,6 +139,7 @@ function summonAllies(){
   G.rings.forEach((ring,hi)=>{
     if(!ring||ring.kind!=='summon'||ring.trigger!=='battle_start') return;
     if(!ring.summon) return;
+    if(ring.unique==='mirror') return; // 鏡は専用ブロックで処理
     const grade=ring.grade||1;
     const mult=GRADE_MULT[grade];
     const enc=ring.enchants||[];

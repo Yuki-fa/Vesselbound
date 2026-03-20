@@ -98,7 +98,8 @@ function _arcanaFavor(){
   const idx=_rewCards.indexOf(first);
   // 枠チェック
   const isRing=!first.type||first.type==='ring'||first.kind==='summon'||first.kind==='passive';
-  if(isRing&&G.rings.filter(r=>r).length>=G.ringSlots){ log('契約枠が満杯（寵愛は使用できない）','bad'); return; }
+  const alreadyOwned=isRing&&G.rings.findIndex(r=>r&&r.id===first.id)>=0;
+  if(isRing&&!alreadyOwned&&G.rings.filter(r=>r).length>=G.ringSlots){ log('契約枠が満杯（寵愛は使用できない）','bad'); return; }
   if(first.type==='wand'&&G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){ log('杖枠が満杯','bad'); return; }
   if(first.type==='consumable'&&G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length>=G.consumSlots){ log('アイテム枠が満杯','bad'); return; }
   G.gold-=1;
