@@ -229,6 +229,34 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .return-btn{display:block;margin-top:4px;width:100%;font-size:.56rem;padding:2px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:2px;cursor:pointer;background:transparent;line-height:1.4;text-align:center}
 .return-btn:hover{background:rgba(64,192,160,.15)}
 
+/* ARCANA SELECT */
+#scr-arcana{flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;background:radial-gradient(ellipse at 50% 20%,#1a0a2a 0%,var(--bg) 70%)}
+.arcana-title{font-family:var(--font-hd);font-size:1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.5);margin-bottom:4px;text-align:center}
+.arcana-sub{font-size:.72rem;color:var(--text2);margin-bottom:12px;text-align:center}
+.arcana-sets{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:900px}
+.arcana-set{border:1px solid var(--border2);border-radius:8px;background:var(--bg3);padding:14px;cursor:pointer;transition:all .2s;width:260px;display:flex;flex-direction:column;gap:8px}
+.arcana-set:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 6px 20px rgba(200,160,60,.2)}
+.arcana-wand{background:rgba(58,110,168,.12);border:1px solid rgba(58,110,168,.25);border-radius:6px;padding:8px 10px}
+.arcana-wand-icon{font-size:1.1rem;margin-bottom:2px}
+.arcana-wand-name{font-size:.78rem;font-weight:500;color:var(--blue2);margin-bottom:2px}
+.arcana-wand-desc{font-size:.62rem;color:var(--text2)}
+.arcana-plus{text-align:center;color:var(--text2);font-size:.9rem;line-height:1}
+.arcana-card{border-radius:6px;padding:8px 10px;flex:1}
+.arcana-card.active{background:rgba(150,96,192,.12);border:1px solid rgba(150,96,192,.25)}
+.arcana-card.passive{background:rgba(40,128,112,.12);border:1px solid rgba(40,128,112,.25)}
+.arcana-icon{font-size:1.3rem;margin-bottom:2px}
+.arcana-name{font-size:.82rem;font-weight:700;color:var(--gold2);margin-bottom:1px}
+.arcana-type-badge{font-size:.56rem;color:var(--text2);margin-bottom:2px}
+.arcana-cost{font-size:.64rem;color:var(--gold);font-weight:600;margin-bottom:3px}
+.arcana-desc{font-size:.63rem;color:var(--text);line-height:1.4}
+/* 秘術ボタン（報酬フェイズ） */
+#arcana-btn{border-color:var(--purple);color:var(--purple2)}
+#arcana-btn:hover:not(:disabled){background:rgba(106,58,154,.15)}
+#arcana-btn:disabled,.cant-arcana{opacity:.45;cursor:default;pointer-events:none}
+#arcana-passive-info{font-size:.66rem;color:var(--teal2);padding:4px 8px;background:rgba(40,128,112,.1);border:1px solid rgba(40,128,112,.3);border-radius:3px}
+/* ターゲット選択オーバーレイ */
+#arcana-pick-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:150;align-items:center;justify-content:center}
+.arcana-pick-box{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:18px;max-width:380px;width:92%;max-height:80vh;overflow-y:auto}
 /* VICTORY OVERLAY */
 #victory-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:28px}
 .victory-title{font-family:var(--font-hd);font-size:clamp(2.8rem,9vw,5rem);letter-spacing:.25em;color:var(--gold2);text-shadow:0 0 40px rgba(200,160,60,.8),0 0 80px rgba(200,160,60,.3);animation:vglow 1.6s ease-in-out infinite alternate}
@@ -241,6 +269,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 <div id="scr-loading" class="screen active" style="align-items:center;justify-content:center;flex-direction:column;gap:16px;background:var(--bg)">
   <div style="font-family:var(--font-hd);font-size:1.1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.4)">Vesselbound</div>
   <div id="load-msg" style="font-size:.78rem;color:var(--text2)">データを読み込み中...</div>
+</div>
+
+<!-- ARCANA SELECT -->
+<div id="scr-arcana" class="screen">
+  <div class="arcana-title">秘術を選んでください</div>
+  <div class="arcana-sub">初期杖と秘術（ヒーローパワー）のセットを1つ選びます</div>
+  <div class="arcana-sets" id="arcana-sets"></div>
 </div>
 
 <!-- TITLE -->
@@ -264,6 +299,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <span class="ri-soul">ソウル</span><span class="ri-val" id="rw-gold">0</span>
       <span class="ri-soul" style="margin-left:6px">報酬 <span id="rw-count">3</span>枚</span>
       <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto">リロール（1ソウル）</button>
+      <button class="btn tiny" id="arcana-btn" onclick="useArcana()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">秘術</button>
+      <div id="arcana-passive-info" style="display:none;width:100%;margin-top:4px;font-size:.66rem;color:var(--teal2)"></div>
       <div id="boss-reward-notice" style="display:none;margin-top:4px;padding:4px 8px;background:rgba(200,160,60,.12);border:1px solid var(--gold);border-radius:3px;font-size:.74rem;color:var(--gold2);font-weight:500;width:100%"></div>
     </div>
 
@@ -377,10 +414,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   </div>
 </div>
 
-<!-- SMITHY -->
+<!-- SMITHY (祭壇) -->
 <div id="scr-smithy" class="screen">
   <div class="choice-wrap">
-    <div class="choice-title">⚒️ 鍛冶屋</div>
+    <div class="choice-title">⛩️ 祭壇</div>
     <div id="smithy-opts"></div>
   </div>
 </div>
@@ -409,6 +446,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <button class="btn tiny" style="margin-left:5px" onclick="closeEncModal()">キャンセル</button>
     </div>
   </div>
+</div>
+
+<!-- ARCANA PICK OVERLAY -->
+<div id="arcana-pick-overlay">
+  <div class="arcana-pick-box" id="arcana-pick-list"></div>
 </div>
 
 <!-- VICTORY OVERLAY -->
@@ -442,6 +484,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 <script src="js/engine/battle.js"></script>
 <script src="js/engine/render.js"></script>
 <script src="js/engine/spell.js"></script>
+<script src="js/engine/arcana.js"></script>
 <script src="js/engine/reward.js"></script>
 <script src="js/engine/shop.js"></script>
 <script src="js/engine/move.js"></script>

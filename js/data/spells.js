@@ -26,8 +26,21 @@ const SPELL_POOL=[
 
   // ── WANDS ──
   // starterOnly:true のカードは報酬プールに出現しない
-  {id:'w_fire',   name:'炎の杖',     type:'wand',grade:1,starterOnly:true,
-   desc:'対象の敵に2×Grade係数ダメージ（初期装備専用・5回）',effect:'fire',needsEnemy:true,baseUses:5},
+  // starterOnly:true = 選択画面専用（通常報酬に出ない）
+  {id:'w_fire',      name:'炎の杖',      type:'wand',grade:1,starterOnly:true,
+   desc:'対象の敵に2×Grade係数ダメージ',effect:'fire',needsEnemy:true,baseUses:5},
+
+  {id:'w_start_null',name:'沈黙の杖',    type:'wand',grade:1,starterOnly:true,
+   desc:'対象の敵のATKを0にする（1ターン）',effect:'nullify',needsEnemy:true,baseUses:5},
+
+  {id:'w_start_heal',name:'回復の杖',    type:'wand',grade:1,starterOnly:true,
+   desc:'対象の仲間のHPを最大値の30%×Grade係数回復',effect:'heal_ally',needsAlly:true,baseUses:5},
+
+  {id:'w_start_buff',name:'強化の杖',    type:'wand',grade:1,starterOnly:true,
+   desc:'対象の仲間のATK・HP+50%×Grade係数',effect:'boost',needsAlly:true,baseUses:5},
+
+  {id:'w_start_golem',name:'岩の杖',     type:'wand',grade:1,starterOnly:true,
+   desc:'ATK10/HP10×Grade係数のヘイト持ちゴーレムを1体召喚',effect:'golem',baseUses:5},
 
   {id:'w_hate',   name:'ヘイトの杖', type:'wand',grade:1,
    desc:'対象の仲間にヘイト付与（戦闘終了まで）',effect:'hate',needsAlly:true},
@@ -74,4 +87,14 @@ const SPELL_POOL=[
 
   {id:'c_gold',   name:'ソウルの壺', type:'consumable',
    desc:'ソウル+8を得る',effect:'gold_8'},
+
+  // ── 特殊消耗品（通常報酬プールには出ない）──
+  {id:'c_soul_dregs', name:'魂の残滓', type:'consumable', starterOnly:true,
+   desc:'G9以下の契約を1つ選ぶ。その契約のグレードを次の戦闘終了まで+1する',effect:'soul_dregs'},
+
+  {id:'c_copy_scroll',  name:'複製の巻物', type:'consumable', starterOnly:true,
+   desc:'敵の杖を1本選んでコピーし、自分の杖として入手する',effect:'copy_scroll'},
+
+  {id:'c_destroy_scroll',name:'破壊の巻物', type:'consumable', starterOnly:true,
+   desc:'敵の杖を1本選んで破壊し、ソウル+3を得る',effect:'destroy_scroll'},
 ];

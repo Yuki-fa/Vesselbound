@@ -106,6 +106,45 @@ function applySpell(sp,idx,tgt){
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rm=1+cMult; G.allies.forEach(a=>{ a.atk=Math.round(a.atk*rm); a.maxHp=Math.round(a.maxHp*rm); a.hp=Math.min(Math.round(a.hp*rm),a.maxHp); }); log(`鼓舞の旗：全仲間+${Math.round((rm-1)*100)}%！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
+    case 'soul_dregs':{
+      // G9以下の契約を1つ選んでグレードを次の戦闘終了まで+1
+      const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
+      if(!eligible.length){ log('魂の残滓：グレードを上げられる契約がない','sys'); break; }
+      if(eligible.length===1){
+        eligible[0].grade++;
+        eligible[0]._tempGrade=true;
+        log(`💀 魂の残滓：${eligible[0].name} グレード+1（次の戦闘終了まで）`,'good');
+      } else {
+        // 複数ある場合は簡易選択（arcana-pick-overlayを再利用）
+        _arcanaPickTarget('魂の残滓', eligible.map(r=>({...r,_isRing:true})), (target)=>{
+          const ring=G.rings.find(r=>r&&r.id===target.id);
+          if(ring){ ring.grade++; ring._tempGrade=true; log(`💀 魂の残滓：${ring.name} グレード+1（次の戦闘終了まで）`,'good'); }
+        });
+      }
+    break;}
+    case 'shield_ally':{ const a=G.allies[tgt.idx]; a.shield=(a.shield||0)+1; log(`🛡 ${a.name}にシールド+1`,'good'); break;}
+    case 'copy_scroll':{
+      // 敵の司令官杖を1本選んでコピーし、自分の杖として入手
+      if(!G.commanderWands||!G.commanderWands.length){ log('複製の巻物：敵の司令官杖がない','sys'); break; }
+      if(G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){ log('杖枠が満杯','bad'); break; }
+      const picked=randFrom(G.commanderWands);
+      const pw=clone(SPELL_POOL.find(s=>s.effect===picked.playerEffect)||{id:picked.id,name:picked.name,type:'wand',effect:picked.playerEffect,baseUses:3,grade:1});
+      pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
+      let placed=false;
+      for(let j=0;j<G.wandSlots;j++){ if(!G.spells[j]){ G.spells[j]=pw; placed=true; break; } }
+      if(!placed) G.spells.splice(G.wandSlots,0,pw);
+      log(`📜 複製の巻物：${pw.name} を入手`,'good');
+    break;}
+    case 'destroy_scroll':{
+      // 敵の司令官杖を1本選んで破壊し、ソウル+3
+      if(!G.commanderWands||!G.commanderWands.length){ log('破壊の巻物：敵の司令官杖がない','sys'); break; }
+      const dw=randFrom(G.commanderWands);
+      const di=G.commanderWands.indexOf(dw);
+      G.commanderWands.splice(di,1);
+      G.gold+=3; updateHUD();
+      const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
+      log(`🔥 破壊の巻物：${dw.name} を破壊してソウル+3`,'gold');
+    break;}
   }
 
   if(sp.effect!=='spread') G.spreadActive=false;

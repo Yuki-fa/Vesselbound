@@ -22,7 +22,11 @@ function chooseMove(nt){
   G.prevNodeType=nt;
   G.floor++;
   if(G.floor>20){ showScreen('clear'); return; }
-  if(nt==='battle'||nt==='boss'){ showScreen('battle'); startBattle(); }
+  if(nt==='battle'||nt==='boss'){
+    // 強欲秘術：報酬フェイズで残ったソウルを最大3まで持ち越す
+    if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
+    showScreen('battle'); startBattle();
+  }
   else if(nt==='smithy') doSmithy();
   else if(nt==='rest') doRest();
   else if(nt==='chest'){

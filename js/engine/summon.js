@@ -43,6 +43,7 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
     onDeath:ring.onDeath,onHit:ring.onHit,
     taunt50:ring.taunt50||false,guardian:ring.guardian||false,
     unique:ring.unique,
+    keywords:ring.keywords||[],
     poison:0,shield:0,_dp:false,
   };
 }
@@ -54,8 +55,10 @@ function addAlly(unit, fromRingId){
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
-  fireTrigger('on_summon', fromRingId);
-  if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
+  if(!G._djinnActive){
+    fireTrigger('on_summon', fromRingId);
+    if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
+  }
   return true;
 }
 
@@ -93,7 +96,10 @@ function triggerSummon(ring){
 
   if(ring.unique==='djinn_replace'){
     const living=G.allies.filter(a=>a.hp>0);
-    if(living.length<6) return;
+    const nonDjinn=living.filter(a=>a.name!=='魔神');
+    if(nonDjinn.length<6) return;
+    if(G._djinnActive) return; // 再帰防止
+    G._djinnActive=true;
     log('👿 魔神降臨：魔神以外の全仲間を破壊！','bad');
     G.allies.forEach(a=>{
       if(a.hp>0&&a.name!=='魔神'){ a.hp=0; onAllyDeath(a); }
@@ -102,6 +108,7 @@ function triggerSummon(ring){
     const empty=G.allies.findIndex(a=>a.hp<=0);
     if(empty>=0) G.allies[empty]=djinn; else G.allies.push(djinn);
     log(`👿 魔神（${djinn.atk}/${djinn.hp}）召喚！`,'good');
+    G._djinnActive=false;
     return;
   }
 
@@ -153,12 +160,14 @@ function summonAllies(){
         enchants:enc,regen:enc.includes('再生'),regenUsed:false,
         onDeath:ring.onDeath,onHit:ring.onHit,
         taunt50:ring.taunt50||false,guardian:ring.guardian||false,
-        unique:ring.unique,poison:0,shield:0,_dp:false,
+        unique:ring.unique,keywords:ring.keywords||[],poison:0,shield:0,_dp:false,
       };
       G.allies.push(unit);
       G.battleCounters.summons++;
-      fireTrigger('on_summon',ring.id);
-      if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
+      if(!G._djinnActive){
+        fireTrigger('on_summon',ring.id);
+        if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
+      }
     }
   });
 
@@ -199,6 +208,7 @@ function summonAllies(){
 // 仲間死亡時の処理（カウンタ更新・骸骨/影トリガー）
 function onAllyDeath(ally){
   G.battleCounters.deaths++;
+  if(G._djinnActive) return; // 魔神降臨中はチェーントリガーをスキップ
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_death_count') return;
     if(G.battleCounters.deaths>=G.battleCounters.deathTriggerNext){

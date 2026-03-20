@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════
-// event.js — 鍛冶屋・休息所・イベント画面
+// event.js — 祭壇・休息所・イベント画面
 // 依存: state.js, events.js, pool.js, move.js, reward.js
 // ═══════════════════════════════════════
 
@@ -13,9 +13,9 @@ function showEvent(name,desc,result){
 }
 function eventDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
 
-// ── 鍛冶屋（smithy）────────────────────────────────
+// ── 祭壇（smithy）────────────────────────────────
 
-let _smithyEncs=[];      // 現在の鍛冶屋エンチャント選択肢
+let _smithyEncs=[];      // 現在の祭壇エンチャント選択肢
 let _smithyChosen=new Set(); // 遠見モード：選択済みキー
 
 function doSmithy(regen=true){
@@ -85,7 +85,7 @@ function smithyGradeUp(onDone){
       r.grade=newG;
       if(newG>=MAX_GRADE&&!G.bannedRings.includes(r.id)) G.bannedRings.push(r.id);
       if(onDone){ log(`${r.name} を ${gradeStr(newG)} に強化`,'good'); onDone(); }
-      else showEvent('鍛冶屋',`${r.name} を強化した。`,`${r.name} ${gradeStr(r.grade)}に強化`);
+      else showEvent('祭壇',`${r.name} を強化した。`,`${r.name} ${gradeStr(r.grade)}に強化`);
     };
     el.appendChild(div);
   });

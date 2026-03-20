@@ -43,13 +43,42 @@ function removeLeaderBonus(leader){
   log(`👑 リーダー死亡：強化が消えた`,'sys');
 }
 
+function applyAllyLeaderBonus(){
+  const leader=G.allies.find(a=>a.hp>0&&a.keywords&&a.keywords.includes('リーダー'));
+  if(!leader) return;
+  const bonus=Math.max(1,Math.floor(G.floor/4));
+  leader._leaderBonus=bonus;
+  G.allies.forEach(a=>{
+    if(a.id!==leader.id&&a.hp>0){
+      a.atk+=bonus; a.hp+=bonus*2; a.maxHp+=bonus*2;
+    }
+  });
+  log(`👑 リーダー「${leader.name}」が他の仲間を強化（+${bonus}/+${bonus*2}）`,'good');
+}
+
+function removeAllyLeaderBonus(leader){
+  if(!leader._leaderBonus) return;
+  const bonus=leader._leaderBonus;
+  G.allies.forEach(a=>{
+    if(a.id!==leader.id&&a.hp>0){
+      a.atk=Math.max(1,a.atk-bonus);
+      a.hp=Math.max(1,a.hp-bonus*2);
+      a.maxHp=Math.max(1,a.maxHp-bonus*2);
+    }
+  });
+  log(`👑 リーダー仲間死亡：強化が消えた`,'sys');
+}
+
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
   clearLog();
 
-  // ソウルリセット（新しい戦闘開始時）
-  G.gold=0;
+  // 魂の残滓の一時グレードブーストを解除
+  G.rings.forEach(r=>{ if(r&&r._tempGrade){ r.grade=Math.max(1,r.grade-1); delete r._tempGrade; } });
+
+  // ソウルリセット（強欲秘術による持ち越し考慮）
+  G.gold=G.arcanaCarryGold||0; G.arcanaCarryGold=0;
 
   // 報酬フェイズUIをリセット（インライン表示→非表示）
   const rInfo=document.getElementById('reward-info-bar');
@@ -67,6 +96,10 @@ async function startBattle(){
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);
 
+  // 司令官杖をセットアップ
+  const wandIds=fd?.wands||[];
+  G.commanderWands=wandIds.map(id=>COMMANDER_WAND_POOL.find(w=>w.id===id)).filter(Boolean);
+
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1;
   G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12};
@@ -81,12 +114,12 @@ async function startBattle(){
   if(_isBossFight) log('⚠ ボス戦！','bad');
   log(`敵 ${G.enemies.length}体が現れた`,'em');
   applyLeaderBonus();
+  applyAllyLeaderBonus();
 
-  // 非ボス戦：行動列の先頭を確定実行（召喚は敵満員時スキップ）
-  if(!_isBossFight){
-    const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
-    const _act=_fdAct.find(a=>a!=='召喚'||G.enemies.filter(e=>e.hp>0).length<6);
-    if(_act) runCommanderAction(_act);
+  // 非ボス戦：戦闘開始時に司令官杖を1本発動
+  if(!_isBossFight && G.commanderWands.length){
+    const validWands=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||G.enemies.filter(e=>e.hp>0).length<6);
+    if(validWands.length) runCommanderWand(randFrom(validWands));
   }
 
   updateHUD();
@@ -141,26 +174,28 @@ function checkInstantRetreat(){
   return true;
 }
 
-// ── 司令官行動を実行（ボス・非ボス共通）────────
+// ── 司令官杖を実行（ボス・非ボス共通）────────
 
-function runCommanderAction(action){
+function runCommanderWand(wand){
   const liveE=G.enemies.filter(e=>e.hp>0);
   const liveA=G.allies.filter(a=>a.hp>0);
   const bonus=Math.max(1,Math.floor(G.floor/5));
-  switch(action){
-    case '強化':
+  switch(wand.commanderEffect){
+    case 'enemy_buff':
       liveE.forEach(e=>{ e.atk+=bonus; });
-      log(`👹 敵司令官：強化（全敵ATK+${bonus}）`,'bad');
+      log(`👹 敵司令官「${wand.name}」：全敵ATK+${bonus}`,'bad');
       break;
-    case 'ヘイト':
+    case 'enemy_hate':
       if(liveA.length>0){
         G.allies.forEach(a=>a.hate=false);
-        const t=randFrom(liveA);
+        const eligible=liveA.filter(a=>!a.keywords||!a.keywords.includes('加護'));
+        if(eligible.length===0){ log(`👹 敵司令官「${wand.name}」：ヘイト（加護により無効）`,'sys'); break; }
+        const t=randFrom(eligible);
         t.hate=true; t.hateTurns=99;
-        log(`👹 敵司令官：${t.name}にヘイトを付与`,'bad');
+        log(`👹 敵司令官「${wand.name}」：${t.name}にヘイトを付与`,'bad');
       }
       break;
-    case '召喚':{
+    case 'enemy_summon':{
       if(!liveE.length||liveE.length>=6) break;
       const avgAtk=Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.atk,0)/liveE.length));
       const avgHp =Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.hp, 0)/liveE.length));
@@ -174,22 +209,22 @@ function runCommanderAction(action){
       };
       const emptyIdx=G.enemies.findIndex(e=>e.hp<=0);
       if(emptyIdx>=0) G.enemies[emptyIdx]=ne; else G.enemies.push(ne);
-      log(`👹 敵司令官：召喚（${ne.name} ${avgAtk}/${avgHp}）`,'bad');
+      log(`👹 敵司令官「${wand.name}」：${ne.name}(${avgAtk}/${avgHp})を召喚`,'bad');
       break;
     }
-    case '鼓舞':
+    case 'enemy_heal':
       if(liveE.length>0){
         const t=randFrom(liveE);
         const hp=G.floor*2;
         t.hp+=hp; t.maxHp+=hp;
-        log(`👹 敵司令官：鼓舞（${t.name} HP+${hp}）`,'bad');
+        log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad');
       }
       break;
-    case 'シールド':
+    case 'enemy_shield':
       if(liveE.length>0){
         const t=randFrom(liveE);
         t.shield=(t.shield||0)+1;
-        log(`👹 敵司令官：${t.name}にシールド+1`,'bad');
+        log(`👹 敵司令官「${wand.name}」：${t.name}にシールド+1`,'bad');
       }
       break;
   }
@@ -203,11 +238,10 @@ async function commanderPhase(){
   log('👹 敵司令官フェイズ','bad');
   const liveE=G.enemies.filter(e=>e.hp>0);
   if(!liveE.length){ await sleep(300); return; }
-  const _fdAct=(FLOOR_DATA[G.floor]?.actions)||[];
-  if(!_fdAct.length){ await sleep(300); return; }
-  const pool=_fdAct.filter(a=>a!=='召喚'||liveE.length<6);
+  if(!G.commanderWands.length){ await sleep(300); return; }
+  const pool=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||liveE.length<6);
   if(!pool.length){ await sleep(300); return; }
-  runCommanderAction(randFrom(pool));
+  runCommanderWand(randFrom(pool));
   renderAll();
   await sleep(700);
 }
@@ -347,6 +381,25 @@ function checkInstantVictory(){
   return false;
 }
 
+// ── キーワード効果：効果を持つユニットがダメージを与えた時に発動 ──
+
+function applyKeywordOnHit(attacker, target){
+  const kws=attacker.keywords||[];
+  if(!kws.length||target.hp<=0) return;
+  if(kws.includes('即死')){
+    target.hp=0;
+    log(`💀 即死：${attacker.name}の攻撃で${target.name}が即死！`,'bad');
+  }
+  if(kws.includes('毒')&&target.hp>0){
+    target.poison=(target.poison||0)+3;
+    log(`☠ 毒：${attacker.name}が${target.name}に毒付与（HP-3/T）`,'bad');
+  }
+  if(kws.includes('パワーブレイク')&&!target.powerBroken&&target.hp>0){
+    target.powerBroken=true; target._savedAtk=target.atk; target.atk=0;
+    log(`💢 パワーブレイク：${attacker.name}が${target.name}のATK→0（次ターンまで）`,'bad');
+  }
+}
+
 // ── ダメージ処理 ───────────────────────────────
 
 function applyPoisonOnDmg(e,srcUnit){
@@ -453,14 +506,24 @@ async function enemyAttackPhase(){
     const tgtHpBefore=tgt.hp;
     const dmgToAlly=atkVal;
     tgt.hp=Math.max(0,tgt.hp-dmgToAlly);
-    if(dmgToAlly>0) onDamageCount();
+    if(dmgToAlly>0){
+      onDamageCount();
+      // 敵キーワード：敵が仲間にダメージを与えた時に発動
+      applyKeywordOnHit(e,tgt);
+    }
 
-    // 範囲攻撃（隣接仲間にもダメージ。反撃は対象のみ）
+    // 範囲攻撃（隣接仲間にもダメージ。キーワード効果も適用。反撃は対象のみ）
+    const rangeHit=[];
     if(dmgToAlly>0&&e.keywords&&e.keywords.includes('範囲攻撃')){
       const tgtIdx=G.allies.indexOf(tgt);
       [-1,1].forEach(d=>{
         const adj=G.allies[tgtIdx+d];
-        if(adj&&adj.hp>0){ adj.hp=Math.max(0,adj.hp-dmgToAlly); log(`💥 範囲攻撃：${adj.name}にも${dmgToAlly}ダメ`,'bad'); }
+        if(adj&&adj.hp>0){
+          adj.hp=Math.max(0,adj.hp-dmgToAlly);
+          log(`💥 範囲攻撃：${adj.name}にも${dmgToAlly}ダメ`,'bad');
+          applyKeywordOnHit(e,adj);
+          rangeHit.push(adj);
+        }
       });
     }
 
@@ -478,22 +541,8 @@ async function enemyAttackPhase(){
 
     log(`${e.name}(${atkVal})→${tgt.name}[${tgtHpBefore}→${tgt.hp}] 反撃:${counterUnit.name}(${dmgToEnemy})→${e.name}[${e.hp}]`);
 
-    // 敵キーワード：この敵にダメージを与えた仲間（counterUnit）に効果適用
-    // ※シールドで防がれた場合（actualDmg=0）は発動しない
-    if(actualDmg>0&&e.keywords){
-      if(e.keywords.includes('即死')){
-        counterUnit.hp=0;
-        log(`💀 即死：${counterUnit.name}が即死！`,'bad');
-      }
-      if(e.keywords.includes('毒')){
-        counterUnit.poison=(counterUnit.poison||0)+3;
-        log(`☠ ${e.name}の毒：${counterUnit.name}に毒付与（HP-3/T）`,'bad');
-      }
-      if(e.keywords.includes('パワーブレイク')&&!counterUnit.powerBroken){
-        counterUnit.powerBroken=true; counterUnit._savedAtk=counterUnit.atk; counterUnit.atk=0;
-        log(`💢 パワーブレイク：${counterUnit.name}のATK→0（次ターンまで）`,'bad');
-      }
-    }
+    // 仲間キーワード：反撃でダメージを与えた時に発動（シールドで防がれた場合は無効）
+    if(actualDmg>0) applyKeywordOnHit(counterUnit,e);
 
     // 特殊ユニット効果
     if(tgt.unique==='dragon_counter'&&dmgToAlly>0&&tgt.hp>0){
@@ -512,8 +561,9 @@ async function enemyAttackPhase(){
       log(`🐻 熊が強化：ATK+${bg}/HP+${bg}→${tgt.atk}/${tgt.hp}`,'good');
     }
 
-    // 仲間死亡処理（tgt と counterUnit が異なる場合は両方チェック）
-    const toCheck=counterUnit.id!==tgt.id?[tgt,counterUnit]:[tgt];
+    // 仲間死亡処理（tgt・counterUnit・範囲攻撃で倒れたユニットをすべてチェック）
+    const baseCheck=counterUnit.id!==tgt.id?[tgt,counterUnit]:[tgt];
+    const toCheck=[...new Set([...baseCheck,...rangeHit])];
     for(const unit of toCheck){
       if(unit.hp>0) continue;
       if(unit.resurrection&&!unit.resurrected){
@@ -523,6 +573,7 @@ async function enemyAttackPhase(){
       }
       unit.hp=0;
       onAllyDeath(unit);
+      if(unit.keywords&&unit.keywords.includes('リーダー')) removeAllyLeaderBonus(unit);
       if(unit.regen&&!unit.regenUsed){
         unit.hp=unit.maxHp; unit.regenUsed=true;
         log(`✨ 再生：${unit.name}が完全復活！`,'good');
@@ -559,10 +610,13 @@ async function enemyAttackPhase(){
     await sleep(400); // 各敵の攻撃間 400ms
   }
 
-  // ヘイトターン数消費・パワーブレイク解除
+  // ヘイトターン数消費・パワーブレイク解除（仲間・敵共通）
   G.allies.forEach(a=>{
     if(a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; }
     if(a.powerBroken){ a.atk=a._savedAtk||a.baseAtk; a.powerBroken=false; delete a._savedAtk; }
+  });
+  G.enemies.forEach(e=>{
+    if(e.powerBroken){ e.atk=e._savedAtk||e.baseAtk; e.powerBroken=false; delete e._savedAtk; }
   });
   updateHUD(); renderAll();
   await sleep(600); // 敵ターン終了後 600ms

@@ -27,11 +27,11 @@ function calcBuyPrice(card){
   return price;
 }
 
-// 売却時の払い戻し金額（G1=1金、G2=2金…G10=10金。杖・消耗品=0金）
+// 売却時の払い戻し金額（G1=1金、G2=2金…G10=10金。杖・消耗品=0金。還魂促進秘術は杖・消耗品も1金）
 function cardRefund(card){
   if(!card) return 0;
-  if(card.type==='consumable') return 0;
-  if(card.type==='wand') return 0;
+  if(card.type==='consumable') return (G.arcana&&G.arcana.id==='還魂促進')?1:0;
+  if(card.type==='wand') return (G.arcana&&G.arcana.id==='還魂促進')?1:0;
   return card.grade||1;
 }
 

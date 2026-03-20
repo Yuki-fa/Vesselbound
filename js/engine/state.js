@@ -32,6 +32,15 @@ function initState(){
     bannedRings:['r_adj_cnt'],  // G10到達 or isUnique でプールから抹消された指輪ID
     _isEliteFight:false,         // 現在の戦闘にエリートが出現したか
     rerollCount:0,               // 累計リロール回数（試行の契約用）
+    _djinnActive:false,          // 魔神降臨処理中フラグ（再帰防止）
+    // ── 秘術（ヒーローパワー）──
+    arcana:null,          // 選択した秘術オブジェクト
+    arcanaUsed:false,     // この報酬フェイズで使用済みか
+    arcanaTrustCount:0,   // 信頼の使用回数（次回ボーナス算出用）
+    arcanaCarryGold:0,    // 強欲：次の戦闘開始時に引き継ぐソウル
+    arcanaForceNode:false,// 観察：次の戦闘で祭壇/休息所が確定
+    // ── 司令官杖 ──
+    commanderWands:[],    // 現在の戦闘で司令官が使う杖オブジェクト
   };
   // 初期装備（ヘイトの杖なし）
   G.rings=[clone(RING_POOL[0])];
