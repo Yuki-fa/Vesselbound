@@ -111,7 +111,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 /* empty slot placeholder */
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
 /* 手札スロットをグリッドで固定列数に（スロット数が変わっても各カードのサイズが一定） */
-#ring-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+#ring-slots,#ring-slots-2{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 #wand-slots,#consum-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
@@ -342,7 +342,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
         </div>
       </div>
       <div id="ring-extra-row" style="display:none">
-        <div class="hand-slots" id="ring-slots-2"></div>
+        <div style="display:flex;gap:5px">
+          <div style="flex:5;min-width:0"><div id="ring-slots-2"></div></div>
+          <div style="flex:4"></div>
+        </div>
       </div>
     </div>
 
