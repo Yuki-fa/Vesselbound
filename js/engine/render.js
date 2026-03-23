@@ -236,15 +236,15 @@ function computeDesc(card){
   if(card.type==='wand'||card.type==='consumable'){
     const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
     const usesStr=card.type==='wand'?' (残'+uses+'回）':'';
-    const m={'fire':'対象の敵に'+(2*g)+'ダメ','hate':'対象の仲間にヘイト付与（戦闘終了まで）',
-      'double_hp':'対象の仲間のHPを2倍','swap_all':'全キャラのATK/HPを入れ替え','nullify':'対象の敵のATKを0（1ターン）',
-      'boost':'対象の仲間のATK・HP+'+(50*g)+'%','rally':'全仲間ATK+'+(30*g)+'%',
-      'heal_ally':'対象の仲間のHPを最大値の'+(30*g)+'%回復',
-      'golem':(10*g)+'/'+(10*g)+'のヘイト持ちゴーレムを召喚',
-      'spread':'もう片方の杖が'+(g+1)+'回発動（戦闘終了まで）',
-      'meteor':'ランダムなキャラに'+(3*g)+'ダメx2回',
+    const m={'fire':'対象の敵に2ダメ','hate':'対象の仲間にヘイト付与（戦闘終了まで）',
+      'double_hp':'対象の仲間のHPを2倍','swap_all':'全キャラのATK/HPを入れ替え','nullify':'対象のATKを0（1ターン）',
+      'boost':'対象のATK・HPを1.5倍','rally':'全仲間ATKを1.2倍',
+      'heal_ally':'全ての仲間のHPを全回復',
+      'golem':'ヘイト持ちの2/2ゴーレムを召喚',
+      'spread':'右隣の杖の効果を使用する',
+      'meteor':'全キャラに1ダメ',
       'instakill':'対象に即死付与（攻撃したユニットが即死）',
-      'bomb':'全敵にグレードx5ダメ','revive':'最後に死んだ仲間をHP50%で復活',
+      'bomb':'全敵にグレード×5ダメ','revive':'最後に死んだ仲間をHP50%で復活',
       'big_rally':'全仲間ATK・HP+100%','gold_8':'ソウル+8'};
     return (m[card.effect]||card.desc)+usesStr;
   }

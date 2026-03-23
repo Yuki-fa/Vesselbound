@@ -36,18 +36,20 @@ function cardRefund(card){
 function getPool(){
   const pool=[];
   RING_POOL.forEach(r=>{
+    if(!r.id) return;                         // idなしは除外
     if(r.legend) return;                      // legend指輪は通常報酬に出ない
-    if(G.bannedRings&&G.bannedRings.includes(r.id)) return; // G10抹消済みも除外
+    if(G.bannedRings&&G.bannedRings.includes(r.id)) return; // 抹消済みも除外
     const c=clone(r);
-    c.grade=rollGrade(G.floor);
+    c.grade=rollGrade(G.floor);              // 契約のみグレードあり
     c._buyPrice=calcBuyPrice(c);
     pool.push(c);
   });
   SPELL_POOL.forEach(r=>{
+    if(!r.id) return;                         // idなしは除外
     if(r.starterOnly) return;
     if(r.unique&&G.seenWands&&G.seenWands.includes(r.id)) return; // ユニーク杖の重複除外
     const c=clone(r);
-    c.grade=rollGrade(G.floor);
+    // 杖・消耗品にはグレードなし（delete して undefined ではなく未設定にする）
     if(c.type==='wand'){ c.usesLeft=c.baseUses||randUses(); c._maxUses=c.usesLeft; }
     c._buyPrice=calcBuyPrice(c);
     pool.push(c);
