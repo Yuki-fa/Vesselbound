@@ -72,6 +72,7 @@ function _rowToRing(row) {
   }
   if (row['unique'])  obj.unique  = row['unique'];
   if (row['onDeath']) obj.onDeath = row['onDeath'];
+  obj.desc = row['説明文'] || '';
   // グレードごとの上昇値（atkPerGrade / hpPerGrade）
   const atkPG = parseFloat(row['上昇ATK']);
   const hpPG  = parseFloat(row['上昇HP']);
@@ -99,6 +100,7 @@ function _rowToSpell(row) {
   if (usesStr && !usesStr.includes('-')) obj.baseUses = parseInt(usesStr) || undefined;
   // instakill は任意ターゲット
   if (obj.effect === 'instakill') obj.needsAny = true;
+  obj.desc = row['説明文'] || '';
   return obj;
 }
 
