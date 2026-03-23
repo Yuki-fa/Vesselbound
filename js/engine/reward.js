@@ -139,13 +139,17 @@ function rerollRewards(){
 
   // 試行の契約：4回リロールごとにランダムな契約を1グレードアップ
   const trialsRing=G.rings.find(r=>r&&r.unique==='trials');
-  if(trialsRing&&G.rerollCount%4===0){
-    const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
-    if(eligible.length){
-      const picked=randFrom(eligible);
-      const newG=Math.min(MAX_GRADE,(picked.grade||1)+1);
-      picked.grade=newG;
-      log(`🎯 試行の契約：${picked.name} → ${gradeStr(newG)}`,'gold');
+  if(trialsRing){
+    trialsRing._rerollProgress=(trialsRing._rerollProgress||0)+1;
+    if(trialsRing._rerollProgress>=4){
+      trialsRing._rerollProgress=0;
+      const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
+      if(eligible.length){
+        const picked=randFrom(eligible);
+        const newG=Math.min(MAX_GRADE,(picked.grade||1)+1);
+        picked.grade=newG;
+        log(`🎯 試行の契約：${picked.name} → ${gradeStr(newG)}`,'gold');
+      }
     }
   }
 
@@ -442,9 +446,11 @@ function showBossGradeModal(){
     if(ring.summon){
       const es=effectiveStats(ring);
       const nxtG=Math.min(MAX_GRADE,(ring.grade||1)+1);
-      const nxtAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*nxtG:0;
-      const nxtHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *nxtG:0;
-      if(es) statsHint=` (${es.atk}/${es.hp}→${nxtAtk}/${nxtHp})`;
+      const savedGrade=ring.grade;
+      ring.grade=nxtG;
+      const esNext=effectiveStats(ring);
+      ring.grade=savedGrade;
+      if(es&&esNext) statsHint=` (${es.atk}/${es.hp}→${esNext.atk}/${esNext.hp})`;
     }
     div.textContent=`${ring.name} ${cur} → ${nxt}${statsHint}`;
     div.onclick=()=>{

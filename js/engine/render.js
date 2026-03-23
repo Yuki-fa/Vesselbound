@@ -229,6 +229,11 @@ function computeDesc(card){
     const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
     desc+=`（あと${rem}回）`;
   }
+  if(card.unique==='trials'){
+    const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
+    const prog=ringInst?ringInst._rerollProgress||0:0;
+    desc+=`（あと${4-prog}回）`;
+  }
   if(card.type==='wand'){
     const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
     desc+=' (残'+uses+'回）';
