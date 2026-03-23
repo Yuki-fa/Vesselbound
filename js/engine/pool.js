@@ -6,11 +6,11 @@
 // 杖の残り使用回数をランダムに決定（3〜6回）
 function randUses(){ return 3+Math.floor(Math.random()*4); }
 
-// 階層に応じたグレード（固定）S1-5→G1、S6-10→G2、S11-15→G3、S16-20→G4
+// 階層に応じたグレード（固定）S1-4→G1、S5(ボス)以降→G2、S10以降→G3、S15以降→G4
 function rollGrade(floor){
-  if(floor<=5)  return 1;
-  if(floor<=10) return 2;
-  if(floor<=15) return 3;
+  if(floor<5)  return 1;
+  if(floor<10) return 2;
+  if(floor<15) return 3;
   return 4;
 }
 
