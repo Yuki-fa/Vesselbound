@@ -61,7 +61,7 @@ const RING_POOL=[
    atkPerGrade:1, hpPerGrade:1,
    summon:{name:'鼠',atk:0,hp:0,icon:'🐀'},
    desc:'召喚時：更に2体召喚する。\n召喚トリガー：戦闘開始時',
-   trigger:'battle_start', count:3, unique:'rat_extra'},
+   trigger:'battle_start', count:1, unique:'rat_extra'},
 
   {id:'r_skel',  name:'骸骨の契約', kind:'summon',grade:1,
    atkPerGrade:1, hpPerGrade:1,

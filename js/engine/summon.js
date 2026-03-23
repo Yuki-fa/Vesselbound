@@ -75,16 +75,18 @@ function fireTrigger(trigger, sourceRingId){
     if(trigger==='on_summon'&&G.phase==='enemy') return;
     triggerSummon(ring);
   });
-  // 鼠の契約（rat_extra）：仲間召喚時に鼠を2体追加（自身のリングIDからの召喚は除く）
-  if(trigger==='on_summon'&&G.phase!=='enemy'){
+  // 鼠の契約（rat_extra）：鼠自身の召喚時のみ追加2体（再帰防止フラグあり）
+  if(trigger==='on_summon'&&G.phase!=='enemy'&&!G._ratExtraFiring){
     G.rings.forEach(ring=>{
       if(!ring||ring.unique!=='rat_extra') return;
-      if(ring.id===sourceRingId) return; // 鼠の召喚では発動しない
+      if(ring.id!==sourceRingId) return; // 鼠自身の召喚時のみ発動
+      G._ratExtraFiring=true;
       for(let i=0;i<2;i++){
         const unit=makeUnit(ring);
         if(!addAlly(unit,ring.id)) break;
         log(`🐀 ${ring.name}：鼠(${unit.atk}/${unit.hp})を追加召喚`,'good');
       }
+      G._ratExtraFiring=false;
     });
   }
 }
@@ -291,6 +293,18 @@ function checkSolitudeBuff(){
 // 仲間死亡時の処理（カウンタ更新・骸骨/影トリガー）
 function onAllyDeath(ally){
   G.battleCounters.deaths++;
+  // 狼死亡：最後の狼が死んだ場合にオーラを解除
+  if(ally.name==='狼'){
+    const stillHasWolf=G.allies.some(a=>a.hp>0&&a.name==='狼');
+    if(!stillHasWolf){
+      const wolfRings=G.rings.filter(r=>r&&r.unique==='wolf_aura');
+      if(wolfRings.length>0){
+        const bonus=wolfRings.reduce((s,r)=>s+(r.grade||1),0);
+        G.allies.forEach(a=>{ if(a.hp>0) a.atk=Math.max(0,a.atk-bonus); });
+        log(`狼が死亡：オーラ解除（全仲間ATK-${bonus}）`,'sys');
+      }
+    }
+  }
   if(G._djinnActive) return; // 魔神降臨中はチェーントリガーをスキップ
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_death_count') return;
