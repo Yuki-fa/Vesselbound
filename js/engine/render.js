@@ -180,76 +180,25 @@ function gradeStr(g){ return (g>=MAX_GRADE)?'★':('G'+g); }
 function cardGradeStr(card){ return card.legend?'★':gradeStr(card.grade||1); }
 
 function computeDesc(card){
-  const g=card.grade||1;
-  const gm=g; // GRADE_MULT[g] === g (線形)
-  const enc=card.enchants||[];
-  if(card.kind==='summon'&&card.summon){
-    if(card.unique==='mirror') return '戦闘開始時、右の契約のコピーとして動作する（右の契約の後に処理）';
-    let cnt=(card.count||1)+enc.filter(e=>e==='増殖').length*g;
-    const cntPre=cnt>1?cnt+'体の':'';
-    const trigDesc={'battle_start':'戦闘開始時','turn_start':'ターン開始時','on_summon':'仲間召喚時','on_spell':'杖使用時',
-      'on_full_board':'盤面6体時','on_outnumbered':'敵数3倍以上のターン開始時'};
-    let trigStr=trigDesc[card.trigger]||'';
-    if(card.trigger==='on_damage_count'){
-      const tgt=card.triggerCount||15;
-      const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
-      const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
-      trigStr=`累計${tgt}回ダメージ時（あと${rem}）`;
-    } else if(card.trigger==='on_death_count'){
-      const tgt=card.triggerCount||5;
-      const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
-      const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
-      trigStr=`仲間累計${tgt}回死亡時（あと${rem}）`;
-    }
-    const trig=trigStr?trigStr+'、':'';
-    if(card.unique==='shadow_copy') return trig+'最高ATKの仲間のコピーを召喚';
-    if(card.unique==='djinn_replace') return trig+'魔神以外を全破壊して魔神を召喚';
-    const extra=card.unique==='wolf_aura'?` 狼生存中、全仲間ATK+${g}`
-      :card.unique==='rat_extra'?' 仲間召喚時、鼠を2体追加召喚（自身は除く）'
-      :card.unique==='wall_copy_atk'?' ATK=最高味方ATK'
-      :'';
-    const guardExtra=card.guardian?' 守護（攻撃を受けた時、他の仲間が反撃）':'';
-    const deathExtra=card.onDeath==='stone_death'?` 死亡時、全仲間HP+${g*2}`
-      :card.onDeath==='shadow_death'?` 死亡時、全キャラに${Math.max(1,g)}ダメ`
-      :'';
-    const regenExtra=card.regen?' 再生付き':'';
-    return trig+cntPre+card.summon.name+'を召喚'+extra+guardExtra+deathExtra+regenExtra;
-  }
-  if(card.kind==='passive'){
-    const m={'needle':'ターン開始時、ランダムな敵に1ダメを与える。これを'+g+'回繰り返す（複数の敵に当たる）',
-      'adj_count':'隣接する召喚契約の召喚数+1（★固定）',
-      'life_reg':'戦闘終了時ライフ+'+g,
-      'fury_passive':'キャラがダメージを受けるたび全仲間ATK+'+g,
-      'extra_action':'行動回数+'+g,
-      'buff_adj':'戦闘終了時、隣接する召喚契約の仲間ATK/HP+'+g+'（永続累積）',
-      'shared_def':'同名仲間が複数いる場合、全員ATK+'+(5*gm)+'/HP+'+(5*gm),
-      'poison_aura':'ダメージを受けた敵に毒（HP-'+(3*g)+'/T、重複可）',
-      'catalyst':'毒ダメージx'+(g+1)+'倍',
-      'farsight':'鍛冶屋・休息所の出現率+50%。すべての選択肢を選べる',
-      'mana_cycle':'装備中の杖のチャージが減らなくなる',
-      'catalyst_ring':'消耗品の効果が2倍になる',
-      'solitude':'盤面に仲間が1体だけの時、その仲間のATK/HP×2',
-      'trials':'4回リロールするたびにランダムな契約を1グレードアップ',
-      'patience':'「戦闘開始時」の契約効果をターン開始時にも発動する'};
-    return m[card.unique]||card.desc;
-  }
-  if(card.type==='wand'||card.type==='consumable'){
-    const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
-    const usesStr=card.type==='wand'?' (残'+uses+'回）':'';
-    const m={'fire':'対象の敵に2ダメ','hate':'対象の仲間にヘイト付与（戦闘終了まで）',
-      'double_hp':'対象の仲間のHPを2倍','swap_all':'全キャラのATK/HPを入れ替え','nullify':'対象のATKを0（1ターン）',
-      'boost':'対象のATK・HPを1.5倍','rally':'全仲間ATKを1.2倍',
-      'heal_ally':'全ての仲間のHPを全回復',
-      'golem':'ヘイト持ちの2/2ゴーレムを召喚',
-      'spread':'右隣の杖の効果を使用する',
-      'meteor':'全キャラに1ダメ',
-      'instakill':'対象に即死付与（攻撃したユニットが即死）',
-      'bomb':'全敵にグレード×5ダメ','revive':'最後に死んだ仲間をHP50%で復活',
-      'big_rally':'全仲間ATK・HP+100%','gold_8':'ソウル+8'};
-    return (m[card.effect]||card.desc)+usesStr;
-  }
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
-  return card.desc||'';
+  const g=card.grade||1;
+  let desc=(card.desc||'').replace(/Grade/g,String(g));
+  if(card.trigger==='on_damage_count'){
+    const tgt=card.triggerCount||15;
+    const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
+    const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
+    desc+=`（あと${rem}回）`;
+  } else if(card.trigger==='on_death_count'){
+    const tgt=card.triggerCount||5;
+    const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
+    const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
+    desc+=`（あと${rem}回）`;
+  }
+  if(card.type==='wand'){
+    const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
+    desc+=' (残'+uses+'回）';
+  }
+  return desc;
 }
 
 function mkCardEl(card,idx,ctx){
