@@ -8,16 +8,10 @@ function rollEnemyGrade(floor){
   return FLOOR_DATA[floor]?.grade||1;
 }
 function eliteGradeForFloor(floor){
-  if(floor<=5)  return 2;
-  if(floor<=10) return 3;
-  if(floor<=15) return 4;
-  return 5;
+  return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
 }
 function bossGradeForFloor(floor){
-  if(floor<=5)  return 3;
-  if(floor<=10) return 4;
-  if(floor<=15) return 5;
-  return 6;
+  return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+2);
 }
 // グレードに応じた敵のATK/HP（G1合計4〜5、G2以降は急増）
 const _ENEMY_STAT_TABLE=[

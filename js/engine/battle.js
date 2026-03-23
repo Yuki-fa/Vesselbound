@@ -20,7 +20,7 @@ function _handleVictory(){
 function applyLeaderBonus(){
   const leader=G.enemies.find(e=>e.keywords&&e.keywords.includes('リーダー')&&e.hp>0);
   if(!leader) return;
-  const bonus=Math.max(1,Math.floor(G.floor/4));
+  const bonus=FLOOR_DATA[G.floor]?.grade||1;
   leader._leaderBonus=bonus;
   G.enemies.forEach(e=>{
     if(e.id!==leader.id&&e.hp>0){
@@ -46,7 +46,7 @@ function removeLeaderBonus(leader){
 function applyAllyLeaderBonus(){
   const leader=G.allies.find(a=>a.hp>0&&a.keywords&&a.keywords.includes('リーダー'));
   if(!leader) return;
-  const bonus=Math.max(1,Math.floor(G.floor/4));
+  const bonus=FLOOR_DATA[G.floor]?.grade||1;
   leader._leaderBonus=bonus;
   G.allies.forEach(a=>{
     if(a.id!==leader.id&&a.hp>0){
@@ -179,7 +179,7 @@ function checkInstantRetreat(){
 function runCommanderWand(wand){
   const liveE=G.enemies.filter(e=>e.hp>0);
   const liveA=G.allies.filter(a=>a.hp>0);
-  const bonus=Math.max(1,Math.floor(G.floor/5));
+  const bonus=FLOOR_DATA[G.floor]?.grade||1;
   switch(wand.commanderEffect){
     case 'enemy_buff':
       liveE.forEach(e=>{ e.atk+=bonus; });
@@ -215,7 +215,7 @@ function runCommanderWand(wand){
     case 'enemy_heal':
       if(liveE.length>0){
         const t=randFrom(liveE);
-        const hp=G.floor*2;
+        const hp=(FLOOR_DATA[G.floor]?.grade||1)*4;
         t.hp+=hp; t.maxHp+=hp;
         log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad');
       }
