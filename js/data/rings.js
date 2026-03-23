@@ -24,74 +24,75 @@ const RING_POOL=[
   {id:'r_wolf',  name:'狼の契約',   kind:'summon',grade:1,
    atkPerGrade:3, hpPerGrade:3,
    summon:{name:'狼',atk:0,hp:0,icon:'🐺'},
-   desc:'戦闘開始時、狼を召喚。狼が生存中、全仲間ATK+Grade',
+   desc:'生存時：全ての味方のATK+Grade\n召喚トリガー：戦闘開始時',
    trigger:'battle_start', unique:'wolf_aura'},
 
   {id:'r_hyena', name:'腐臭の契約', kind:'summon',grade:1,
    atkPerGrade:1, hpPerGrade:2,
    summon:{name:'ハイエナ',atk:0,hp:0,icon:'🦴'},
-   desc:'ターン開始時、ハイエナを召喚',
+   desc:'召喚トリガー：ターン開始時',
    trigger:'turn_start'},
 
   {id:'r_flame', name:'鬼火の契約', kind:'summon',grade:1,
    atkPerGrade:4, hpPerGrade:1,
    summon:{name:'鬼火',atk:0,hp:0,icon:'🔥'},
-   desc:'仲間が召喚されるたびに鬼火を召喚（プレイヤーターン中・自身の召喚では発動しない）',
+   desc:'召喚トリガー：プレイヤーフェイズ中に鬼火以外の味方が召喚された時',
    trigger:'on_summon'},
 
   {id:'r_stone', name:'石像の契約', kind:'summon',grade:1,
    atkPerGrade:4, hpPerGrade:5,
    summon:{name:'石像',atk:0,hp:0,icon:'🗿'},
-   desc:'戦闘開始時、石像を召喚。死亡時、他の仲間全員にHP+Grade×2',
+   desc:'死亡時：すべての味方のHP+Grade×2\n召喚トリガー：戦闘開始時',
    trigger:'battle_start', onDeath:'stone_death'},
 
   {id:'r_dragon',name:'竜の契約',   kind:'summon',grade:1,
    atkPerGrade:15, hpPerGrade:20,
    summon:{name:'竜',atk:0,hp:0,icon:'🐉'},
-   desc:'キャラクターが累計15回ダメージを受けるたびに竜を召喚',
+   desc:'召喚トリガー：キャラクターが15回ダメージを受けた時',
    trigger:'on_damage_count', triggerCount:15},
 
   {id:'r_shadow',name:'影の契約',   kind:'summon',grade:1,
+   atkPerGrade:10, hpPerGrade:10,
    summon:{name:'影',atk:0,hp:0,icon:'👻'},
-   desc:'仲間が累計10回死ぬたびに、現在最高ATKの仲間のコピーを召喚',
+   desc:'召喚トリガー：味方が10回死んだ時',
    trigger:'on_death_count', triggerCount:10, unique:'shadow_copy'},
 
   {id:'r_rat',   name:'鼠の契約',   kind:'summon',grade:1,
    atkPerGrade:1, hpPerGrade:1,
    summon:{name:'鼠',atk:0,hp:0,icon:'🐀'},
-   desc:'戦闘開始時、鼠を1体召喚。仲間が召喚されるたびに鼠を2体追加召喚（自身は除く）',
+   desc:'召喚時：更に2体召喚する。\n召喚トリガー：戦闘開始時',
    trigger:'battle_start', count:1, unique:'rat_extra'},
 
   {id:'r_skel',  name:'骸骨の契約', kind:'summon',grade:1,
    atkPerGrade:1, hpPerGrade:1,
    summon:{name:'骸骨',atk:0,hp:0,icon:'💀'},
-   desc:'仲間が累計5回死ぬたびに骸骨を召喚（再生付き）',
+   desc:'再生\n召喚トリガー：味方が5体死んだ時',
    trigger:'on_death_count', triggerCount:5, regen:true},
 
   {id:'r_djinn', name:'魔神の契約', kind:'summon',grade:1,
    atkPerGrade:15, hpPerGrade:15,
    summon:{name:'魔神',atk:0,hp:0,icon:'👿'},
-   desc:'仲間が召喚された時に盤面が6体なら、魔神以外の全仲間を破壊し魔神を召喚',
+   desc:'召喚時：全ての味方を破壊する。\n召喚トリガー：魔神以外の味方が6体いる時',
    trigger:'on_full_board', unique:'djinn_replace'},
 
   {id:'r_bear',  name:'熊の契約',   kind:'summon',grade:1,
    atkPerGrade:8, hpPerGrade:10,
    summon:{name:'熊',atk:0,hp:0,icon:'🐻'},
-   desc:'ターン開始時、敵の数が自分の場の3倍以上なら熊を召喚',
+   desc:'召喚トリガー：敵の数が味方の3倍以上のターン開始時',
    trigger:'on_outnumbered'},
 
   {id:'r_wall',  name:'城壁の契約', kind:'summon',grade:1,
    atkPerGrade:0, hpPerGrade:20,
    summon:{name:'城壁',atk:0,hp:0,icon:'🏰'},
-   desc:'戦闘開始時、城壁を召喚（ATK=最高味方ATK）。守護：攻撃を受けた時、他の仲間が反撃',
+   desc:'生存時：このキャラクターの攻撃力は最も高い味方の攻撃力に等しい。\n召喚トリガー：戦闘開始時',
    trigger:'battle_start', guardian:true, unique:'wall_copy_atk'},
 
   // ── PASSIVE RINGS ──
   {id:'r_needle',    name:'針の契約',   kind:'passive',grade:1,
-   desc:'ターン開始時、ランダムな敵に1ダメを与える。これをGrade回繰り返す（複数の敵に当たる）',unique:'needle'},
+   desc:'ターン開始時、ランダムな敵に1ダメ×(Grade×2)回',unique:'needle'},
 
   {id:'r_adj_cnt',   name:'隣接の契約', kind:'passive',grade:1,legend:true,
-   desc:'隣接する召喚契約の召喚数+1（★固定）',unique:'adj_count'},
+   desc:'隣接する召喚契約の召喚数+1',unique:'adj_count'},
 
   {id:'r_lifereg',   name:'生命の契約', kind:'passive',grade:1,
    desc:'戦闘終了時ライフ+Grade',unique:'life_reg'},
@@ -106,36 +107,36 @@ const RING_POOL=[
    desc:'戦闘終了時、隣接する召喚契約の仲間ATK/HP+1（永続累積）',unique:'buff_adj'},
 
   {id:'r_shared_def',name:'共鳴の契約', kind:'passive',grade:1,
-   desc:'同名仲間が複数いる場合、それら全員にATK+5/HP+5×Grade',unique:'shared_def'},
+   desc:'同名仲間が複数いる場合、全員にATK+5/HP+5×Grade',unique:'shared_def'},
 
   {id:'r_poison',    name:'毒沼の契約', kind:'passive',grade:1,
-   desc:'ダメージを受けた敵に毒付与（HP-3/T、重複可）',unique:'poison_aura'},
+   desc:'ダメージを受けた敵に毒付与（HP-3×Grade/ターン、重複可）',unique:'poison_aura'},
 
   {id:'r_catalyst',  name:'触媒の契約', kind:'passive',grade:1,
-   desc:'毒のダメージが(Grade+1)倍になる',unique:'catalyst'},
+   desc:'毒ダメージ×(Grade+1)倍',unique:'catalyst'},
 
   // ── LEGEND PASSIVE RINGS ──
   {id:'r_farsight',     name:'遠見の契約',   kind:'passive',grade:1,legend:true,
-   desc:'鍛冶屋・休息所の出現率+50%。鍛冶屋と休息所ですべての選択肢を選べる',unique:'farsight'},
+   desc:'鍛冶屋、休息所の出現率が1.5倍になり、すべての選択肢を選べるようになる。',unique:'farsight'},
 
   {id:'r_mana_cycle',   name:'魔力循環の契約', kind:'passive',grade:1,legend:true,
-   desc:'装備中の杖のチャージが減らなくなる',unique:'mana_cycle'},
+   desc:'杖のチャージが減らなくなる。',unique:'mana_cycle'},
 
   {id:'r_catalyst_ring',name:'触媒環の契約', kind:'passive',grade:1,legend:true,
-   desc:'消耗品の効果が2倍になる',unique:'catalyst_ring'},
+   desc:'消耗品の効果が2倍になる。',unique:'catalyst_ring'},
 
   {id:'r_solitude',     name:'孤高の契約',   kind:'passive',grade:1,legend:true,
-   desc:'盤面に仲間が1体だけの時、その仲間のATKとHPを2倍にする',unique:'solitude'},
+   desc:'盤面に仲間が1体だけの時、その仲間のATKとHPを2倍にする。',unique:'solitude'},
 
   {id:'r_trials',       name:'試行の契約',   kind:'passive',grade:1,legend:true,
-   desc:'4回リロールするたびにランダムな契約を1グレードアップする',unique:'trials'},
+   desc:'4回リロールするたびにランダムな指輪が1グレードアップする。',unique:'trials'},
 
   {id:'r_patience',     name:'我慢の契約',   kind:'passive',grade:1,legend:true,
-   desc:'「戦闘開始時」の契約効果をターン開始時にも発動する',unique:'patience'},
+   desc:'「戦闘開始時」を「ターン開始時」に変更する。',unique:'patience'},
 
   // ── LEGEND SUMMON RINGS ──
   {id:'r_mirror',       name:'鏡の契約',     kind:'summon', grade:1,legend:true,
    summon:{name:'鏡像',atk:0,hp:0,icon:'🪞'},
-   desc:'戦闘開始時、右の契約のコピーになる（右の契約の後に処理）',
+   desc:'戦闘開始時、右の契約のコピーになる。（コピー後に戦闘開始時効果がある場合はこのあとで処理）',
    trigger:'battle_start', unique:'mirror'},
 ];

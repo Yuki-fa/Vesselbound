@@ -11,7 +11,7 @@ const SPELL_POOL=[
 
   // ── WANDS（初期装備専用）──
   {id:'w_fire',      name:'炎の杖',      type:'wand',starterOnly:true,
-   desc:'対象の敵に2ダメージ',effect:'fire',needsEnemy:true,baseUses:5},
+   desc:'初期装備専用。対象の敵に2ダメージ',effect:'fire',needsEnemy:true,baseUses:5},
 
   {id:'w_start_null',name:'沈黙の杖',    type:'wand',starterOnly:true,
    desc:'対象のATKを0にする（1ターン）',effect:'nullify',needsEnemy:true,baseUses:5},
@@ -23,7 +23,7 @@ const SPELL_POOL=[
    desc:'対象のATK・HPを1.5倍にする',effect:'boost',needsAlly:true,baseUses:5},
 
   {id:'w_golem',     name:'岩の杖',      type:'wand',starterOnly:true,
-   desc:'ヘイト持ちの2/2ゴーレムを召喚する',effect:'golem',baseUses:5},
+   desc:'初期装備専用。ヘイト持ちの2/2ゴーレムを召喚',effect:'golem',baseUses:5},
 
   // ── WANDS（通常報酬プール）──
   {id:'w_hate',   name:'ヘイトの杖', type:'wand',
@@ -42,20 +42,20 @@ const SPELL_POOL=[
    desc:'対象のATK・HPを1.5倍にする',effect:'boost',needsAlly:true,baseUses:3},
 
   {id:'w_rally',  name:'激励の杖',   type:'wand',
-   desc:'全ての仲間のATKを1.2倍にする',effect:'rally',baseUses:4},
+   desc:'全ての仲間のATKを1.2倍にする。',effect:'rally',baseUses:4},
 
   {id:'w_heal',   name:'回復の杖',   type:'wand',
-   desc:'全ての仲間のHPを全回復する',effect:'heal_ally',baseUses:3},
+   desc:'全ての仲間のHPを全回復',effect:'heal_ally',baseUses:3},
 
   {id:'w_spread', name:'拡散の杖',   type:'wand',unique:true,
-   desc:'右隣の杖の効果を使用する',effect:'spread',baseUses:4},
+   desc:'右隣の杖の効果を使用する。',effect:'spread',baseUses:4},
 
   {id:'w_meteor', name:'隕石の杖',   type:'wand',unique:true,
-   desc:'全キャラに1ダメージを与える',effect:'meteor',baseUses:5},
+   desc:'全キャラに1ダメージ',effect:'meteor',baseUses:5},
 
   // ── CONSUMABLES ──
   {id:'c_kill',   name:'即死の薬瓶', type:'consumable',
-   desc:'対象のキャラに即死付与（そのキャラを攻撃したユニットが即死）',effect:'instakill',needsAny:true},
+   desc:'対象に即死付与（攻撃したユニットが即死）',effect:'instakill',needsAny:true},
 
   {id:'c_bomb',   name:'全体爆弾',   type:'consumable',
    desc:'全敵にグレード×5ダメージ',effect:'bomb'},

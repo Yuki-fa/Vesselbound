@@ -182,7 +182,7 @@ function cardGradeStr(card){ return card.legend?'★':gradeStr(card.grade||1); }
 function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
-  let desc=(card.desc||'').replace(/Grade/g,String(g));
+  let desc=(card.desc||'').replace(/Grade/g,String(g)).replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;
     const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
