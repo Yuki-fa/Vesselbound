@@ -38,7 +38,7 @@ function goToReward(){
   document.getElementById('ph-badge').textContent='報酬フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
 
-  // ボス戦後：報酬カード枚数+1、契約スロット+1
+  // ボス戦後：報酬カード枚数+1、契約スロット+1、契約グレードアップ選択
   const bossNotice=document.getElementById('boss-reward-notice');
   if(_isBossFight){
     G.ringSlots++;
@@ -52,6 +52,7 @@ function goToReward(){
     }
     if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=bonusMsg; }
     document.getElementById('rw-count').textContent=G.rewardCards;
+    setTimeout(()=>showBossGradeModal(),300);
   } else {
     if(bossNotice) bossNotice.style.display='none';
   }
@@ -144,7 +145,6 @@ function rerollRewards(){
       const picked=randFrom(eligible);
       const newG=Math.min(MAX_GRADE,(picked.grade||1)+1);
       picked.grade=newG;
-      if(newG>=MAX_GRADE&&!G.bannedRings.includes(picked.id)) G.bannedRings.push(picked.id);
       log(`🎯 試行の契約：${picked.name} → ${gradeStr(newG)}`,'gold');
     }
   }
@@ -173,17 +173,13 @@ function _mkRewDiv(card, onBuy){
   const refund=cardRefund(card);
   const refundTxt=refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
   const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
-  const isRingCard=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
-  let mergeHint='';
-  if(isRingCard){
-    const owned=G.rings.find(r=>r&&r.id===card.id);
-    if(owned){
-      const newG=Math.min(MAX_GRADE,(owned.grade||1)+g);
-      mergeHint=`<div class="rew-merge">▲ ${gradeStr(owned.grade||1)}→${gradeStr(newG)}</div>`;
-    }
+  let summonStats='';
+  if(card.kind==='summon'&&card.summon){
+    const es=effectiveStats(card);
+    if(es){ const cs=es.count>1?'×'+es.count:''; summonStats=` <span style="font-size:.6rem;color:var(--text2);margin-left:4px">${es.atk}/${es.hp}${cs}</span>`; }
   }
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-  div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${mergeHint}${legendBadge}`;
+  div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span>${summonStats}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
   if(canBuy) div.onclick=onBuy;
   return div;
 }
@@ -215,23 +211,6 @@ function takeRewCard(i){
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
 
   if(isRing){
-    // 同じ指輪を所持→グレード加算
-    const ownedIdx=G.rings.findIndex(r=>r&&r.id===nc.id);
-    if(ownedIdx>=0){
-      const owned=G.rings[ownedIdx];
-      const newGrade=Math.min(MAX_GRADE,(owned.grade||1)+(nc.grade||1));
-      G.gold-=cost;
-      log(`${owned.name} グレード加算 ${gradeStr(owned.grade||1)}→${gradeStr(newGrade)}`,'good');
-      owned.grade=newGrade;
-      if(newGrade>=MAX_GRADE&&!G.bannedRings.includes(nc.id)){
-        G.bannedRings.push(nc.id);
-        log(`${owned.name} が${gradeStr(MAX_GRADE)}に到達。プールから除外`,'sys');
-      }
-      _rewCards[i]=null;
-      document.getElementById('rw-gold').textContent=G.gold;
-      updateHUD(); renderRewCards(); renderHandEditor();
-      return;
-    }
     // 空きスロットに配置
     if(G.rings.filter(r=>r).length>=G.ringSlots){
       alert(`契約枠（${G.ringSlots}）が満杯です。下の手札から還魂してください。`); return;
@@ -270,19 +249,6 @@ function takeEliteRing(){
   const cost=card._buyPrice||3;
   if(G.gold<cost) return;
   const nc=clone(card);
-  // 同じ指輪を所持→グレード加算
-  const ownedIdx=G.rings.findIndex(r=>r&&r.id===nc.id);
-  if(ownedIdx>=0){
-    const owned=G.rings[ownedIdx];
-    const newGrade=Math.min(MAX_GRADE,(owned.grade||1)+(nc.grade||1));
-    G.gold-=cost;
-    log(`${owned.name} グレード加算 ${gradeStr(owned.grade||1)}→${gradeStr(newGrade)}`,'good');
-    owned.grade=newGrade;
-    _eliteRing=null;
-    document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD(); renderRewCards(); renderHandEditor();
-    return;
-  }
   if(G.rings.filter(r=>r).length>=G.ringSlots){
     alert(`契約枠（${G.ringSlots}）が満杯です。下の手札から還魂してください。`); return;
   }
@@ -347,7 +313,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const btnCls=isRing?'return-btn':'discard-btn';
       const btnTxt=isRing?'還魂':'破棄';
       let heStats='';
-      if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const eff=es.atk+'/'+es.hp;const cs=es.count>1?' x'+es.count:'';heStats=`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;}}
+      if(card.kind==='summon'&&card.summon){const es=effectiveStats(card);if(es){const cs=es.count>1?' ×'+es.count:'';heStats=`<div style="font-size:.62rem;font-weight:700;margin-top:2px"><span style="color:var(--teal2)">${es.atk}</span><span style="color:var(--text2);margin:0 2px">/</span><span style="color:#e05060">${es.hp}</span>${cs}</div>`;}}
       div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kl}</div><div class="card-grade">${gs}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${heStats}${refundEl}<button class="${btnCls}" title="${btnTxt}">${btnTxt}</button>`;
       div.querySelector('.'+btnCls).onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
@@ -453,3 +419,40 @@ function applyEnc(et){
   }
 }
 function closeEncModal(){ document.getElementById('enc-modal').classList.remove('open'); }
+
+// ── ボス報酬：契約グレードアップ選択 ──────────────────────
+function showBossGradeModal(){
+  const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
+  const modal=document.getElementById('boss-grade-modal');
+  if(!modal) return;
+  if(!eligible.length){
+    log('ボス報酬：グレードアップできる契約がありません（すべて★）','sys');
+    return;
+  }
+  const list=document.getElementById('boss-grade-list');
+  list.innerHTML='';
+  eligible.forEach(ring=>{
+    const div=document.createElement('div');
+    div.className='enc-item';
+    const cur=gradeStr(ring.grade||1);
+    const nxt=gradeStr(Math.min(MAX_GRADE,(ring.grade||1)+1));
+    let statsHint='';
+    if(ring.summon){
+      const es=effectiveStats(ring);
+      const nxtG=Math.min(MAX_GRADE,(ring.grade||1)+1);
+      const nxtAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*nxtG:0;
+      const nxtHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *nxtG:0;
+      if(es) statsHint=` (${es.atk}/${es.hp}→${nxtAtk}/${nxtHp})`;
+    }
+    div.textContent=`${ring.name} ${cur} → ${nxt}${statsHint}`;
+    div.onclick=()=>{
+      ring.grade=Math.min(MAX_GRADE,(ring.grade||1)+1);
+      log(`🎖 ボス報酬：${ring.name} → ${gradeStr(ring.grade)}`,'gold');
+      modal.style.display='none';
+      renderHandEditor();
+    };
+    list.appendChild(div);
+  });
+  modal.style.display='flex';
+}
+function closeBossGradeModal(){ const m=document.getElementById('boss-grade-modal'); if(m) m.style.display='none'; }

@@ -26,11 +26,15 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   const bab=G.buffAdjBonuses[ring.id]||{atk:0,hp:0};
   const enc=ring.enchants||[];
   const gm=mult;
-  const baseAtk=ring.atkPerGrade!==undefined?s.atk+ring.atkPerGrade*(grade-1):Math.round(s.atk*mult);
-  const baseHp =ring.hpPerGrade !==undefined?s.hp +ring.hpPerGrade *(grade-1):Math.round(s.hp *mult);
+  const baseAtk=ring.atkPerGrade!==undefined?s.atk+ring.atkPerGrade*grade:Math.round(s.atk*mult);
+  const baseHp =ring.hpPerGrade !==undefined?s.hp +ring.hpPerGrade *grade:Math.round(s.hp *mult);
   let bAtk=overrideAtk!==undefined?overrideAtk:baseAtk+bab.atk+(enc.filter(e=>e==='凶暴').length*5*gm);
   let bHp =overrideHp !==undefined?overrideHp :baseHp +bab.hp +(enc.filter(e=>e==='強壮').length*5*gm);
   if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
+  // 城壁の契約：ATK=盤面最高味方ATK
+  if(ring.unique==='wall_copy_atk'&&overrideAtk===undefined){
+    bAtk=G.allies.filter(a=>a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
+  }
   return {
     id:uid(),
     name:overrideName||s.name,
@@ -39,7 +43,7 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
     ringId:ring.id,ringIdx:G.rings.indexOf(ring),
     hate:enc.includes('憎悪'),hateTurns:enc.includes('憎悪')?99:0,
     instadead:false,sealed:0,nullified:0,
-    enchants:enc,regen:enc.includes('再生'),regenUsed:false,
+    enchants:enc,regen:enc.includes('再生')||!!ring.regen,regenUsed:false,
     onDeath:ring.onDeath,onHit:ring.onHit,
     taunt50:ring.taunt50||false,guardian:ring.guardian||false,
     unique:ring.unique,
@@ -71,6 +75,18 @@ function fireTrigger(trigger, sourceRingId){
     if(trigger==='on_summon'&&G.phase==='enemy') return;
     triggerSummon(ring);
   });
+  // 鼠の契約（rat_extra）：仲間召喚時に鼠を2体追加（自身のリングIDからの召喚は除く）
+  if(trigger==='on_summon'&&G.phase!=='enemy'){
+    G.rings.forEach(ring=>{
+      if(!ring||ring.unique!=='rat_extra') return;
+      if(ring.id===sourceRingId) return; // 鼠の召喚では発動しない
+      for(let i=0;i<2;i++){
+        const unit=makeUnit(ring);
+        if(!addAlly(unit,ring.id)) break;
+        log(`🐀 ${ring.name}：鼠(${unit.atk}/${unit.hp})を追加召喚`,'good');
+      }
+    });
+  }
 }
 
 // 指輪の召喚効果を実行
@@ -124,7 +140,7 @@ function triggerSummon(ring){
 function summonAllies(){
   G.allies=[];
   G.actionsPerTurn=calcActions();
-  G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12};
+  G.battleCounters={damage:0,deaths:0,summons:0,deathTriggerNext:5,damageTriggerNext:15};
 
   // adj_count パッシブ（隣接召喚指輪の召喚数+グレード倍率）を先に計算
   const adjBonus={};
@@ -145,21 +161,23 @@ function summonAllies(){
     const mult=GRADE_MULT[grade];
     const enc=ring.enchants||[];
     const gm=mult;
-    const baseAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*(grade-1):Math.round(ring.summon.atk*mult);
-    const baseHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *(grade-1):Math.round(ring.summon.hp *mult);
+    const baseAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
+    const baseHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
     let bAtk=baseAtk+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
       if(G.allies.filter(a=>a.hp>0).length>=6) break;
+      // 城壁の契約：ATK=現在の最高味方ATK
+      if(ring.unique==='wall_copy_atk') bAtk=G.allies.filter(a=>a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
       const unit={
         id:uid(),name:ring.summon.name,icon:ring.summon.icon,
         atk:bAtk,baseAtk:bAtk,hp:bHp,maxHp:bHp,
         ringId:ring.id,ringIdx:hi,
         hate:enc.includes('憎悪'),hateTurns:enc.includes('憎悪')?99:0,
         instadead:false,sealed:0,nullified:0,
-        enchants:enc,regen:enc.includes('再生'),regenUsed:false,
+        enchants:enc,regen:enc.includes('再生')||!!ring.regen,regenUsed:false,
         onDeath:ring.onDeath,onHit:ring.onHit,
         taunt50:ring.taunt50||false,guardian:ring.guardian||false,
         unique:ring.unique,keywords:ring.keywords||[],poison:0,shield:0,_dp:false,
@@ -182,8 +200,8 @@ function summonAllies(){
     const mult=GRADE_MULT[grade];
     const enc=src.enchants||[];
     const gm=mult;
-    const baseAtk=src.atkPerGrade!==undefined?src.summon.atk+src.atkPerGrade*(grade-1):Math.round(src.summon.atk*mult);
-    const baseHp =src.hpPerGrade !==undefined?src.summon.hp +src.hpPerGrade *(grade-1):Math.round(src.summon.hp *mult);
+    const baseAtk=src.atkPerGrade!==undefined?src.summon.atk+src.atkPerGrade*grade:Math.round(src.summon.atk*mult);
+    const baseHp =src.hpPerGrade !==undefined?src.summon.hp +src.hpPerGrade *grade:Math.round(src.summon.hp *mult);
     let bAtk=baseAtk+(G.buffAdjBonuses[src.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[src.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
@@ -211,10 +229,10 @@ function summonAllies(){
     log(`🪞 鏡の契約：${src.name}(${bAtk}/${bHp})×${count}体を召喚`,'good');
   });
 
-  // 狼のオーラ（狼生存中、全仲間ATK+）
+  // 狼のオーラ（狼生存中、全仲間ATK+Grade per ring）
   const wolfRings=G.rings.filter(r=>r&&r.unique==='wolf_aura');
   if(wolfRings.length>0&&G.allies.some(a=>a.name==='狼'&&a.hp>0)){
-    const bonus=2*GRADE_MULT[wolfRings[0].grade||1]*wolfRings.length;
+    const bonus=wolfRings.reduce((s,r)=>s+(r.grade||1),0);
     G.allies.forEach(a=>{ a.atk+=bonus; });
     log(`狼のオーラ：全仲間ATK+${bonus}`,'good');
   }
@@ -267,18 +285,11 @@ function onAllyDeath(ally){
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_death_count') return;
     ring._count=(ring._count||0)+1;
-    if(ring._count>=(ring.triggerCount||10)){
+    if(ring._count>=(ring.triggerCount||5)){
       ring._count=0;
       triggerSummon(ring);
     }
   });
-  if(ally.name!=='骸骨'){
-    G.rings.forEach(ring=>{
-      if(!ring||ring.trigger!=='on_ally_death_notskel') return;
-      const unit=makeUnit(ring);
-      if(addAlly(unit,ring.id)) log(`💀 骸骨の指輪：骸骨(${unit.atk}/${unit.hp})を召喚`,'good');
-    });
-  }
   checkSolitudeBuff();
 }
 
@@ -288,10 +299,10 @@ function onDamageCount(){
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_damage_count') return;
     ring._count=(ring._count||0)+1;
-    if(ring._count>=(ring.triggerCount||12)){
+    if(ring._count>=(ring.triggerCount||15)){
       ring._count=0;
       triggerSummon(ring);
-      log(`🐉 竜の指輪：${ring.triggerCount||12}回ダメージ到達→竜を召喚`,'good');
+      log(`🐉 ${ring.name}：${ring.triggerCount||15}回ダメージ到達→竜を召喚`,'good');
     }
   });
 }

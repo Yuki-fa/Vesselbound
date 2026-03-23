@@ -6,15 +6,12 @@
 // 杖の残り使用回数をランダムに決定（3〜6回）
 function randUses(){ return 3+Math.floor(Math.random()*4); }
 
-// 階層に応じたグレード抽選
-// S1-5: G1=90% G2=9% G3=1%  S6-10: G1=80% G2=17% G3=3%
-// S11-15: G1=70% G2=24% G3=6%  S16-20: G1=60% G2=30% G3=10%
+// 階層に応じたグレード（固定）S1-5→G1、S6-10→G2、S11-15→G3、S16-20→G4
 function rollGrade(floor){
-  const r=Math.random();
-  if(floor<=5)  return r<0.90?1:r<0.99?2:3;
-  if(floor<=10) return r<0.80?1:r<0.97?2:3;
-  if(floor<=15) return r<0.70?1:r<0.94?2:3;
-  return r<0.60?1:r<0.90?2:3;
+  if(floor<=5)  return 1;
+  if(floor<=10) return 2;
+  if(floor<=15) return 3;
+  return 4;
 }
 
 // カードの購入金額を生成時に確定
@@ -27,7 +24,7 @@ function calcBuyPrice(card){
   return price;
 }
 
-// 売却時の払い戻し金額（G1=1金、G2=2金…G10=10金。杖・消耗品=0金。還魂促進秘術は杖・消耗品も1金）
+// 売却時の払い戻し金額（G1=1金、G2=2金…G5=5金。杖・消耗品=0金。還魂促進秘術は杖・消耗品も1金）
 function cardRefund(card){
   if(!card) return 0;
   if(card.type==='consumable') return (G.arcana&&G.arcana.id==='還魂促進')?1:0;

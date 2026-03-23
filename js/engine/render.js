@@ -8,8 +8,8 @@ function effectiveStats(ring){
   if(!ring||!ring.summon) return null;
   const grade=ring.grade||1;
   const mult=GRADE_MULT[grade];
-  let atk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*(grade-1):Math.round(ring.summon.atk*mult);
-  let hp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *(grade-1):Math.round(ring.summon.hp *mult);
+  let atk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
+  let hp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
   const bab=G.buffAdjBonuses[ring.id];
   if(bab){ atk+=bab.atk||0; hp+=bab.hp||0; }
   const enc=ring.enchants||[];
@@ -183,39 +183,37 @@ function computeDesc(card){
   const g=card.grade||1;
   const gm=g; // GRADE_MULT[g] === g (線形)
   const enc=card.enchants||[];
-  const bab=(typeof G!=='undefined'&&G.buffAdjBonuses&&G.buffAdjBonuses[card.id])||{atk:0,hp:0};
   if(card.kind==='summon'&&card.summon){
     if(card.unique==='mirror') return '戦闘開始時、右の契約のコピーとして動作する（右の契約の後に処理）';
-    const _bAtk=card.atkPerGrade!==undefined?card.summon.atk+card.atkPerGrade*(g-1):Math.round(card.summon.atk*gm);
-    const _bHp =card.hpPerGrade !==undefined?card.summon.hp +card.hpPerGrade *(g-1):Math.round(card.summon.hp *gm);
-    let atk=_bAtk+bab.atk+enc.filter(e=>e==='凶暴').length*5*gm;
-    let hp=_bHp+bab.hp+enc.filter(e=>e==='強壮').length*5*gm;
-    if(enc.includes('堅牢')) hp=Math.round(hp*1.3);
     let cnt=(card.count||1)+enc.filter(e=>e==='増殖').length*g;
-    const cntStr=cnt>1?' x'+cnt+'体':'';
+    const cntPre=cnt>1?cnt+'体の':'';
     const trigDesc={'battle_start':'戦闘開始時','turn_start':'ターン開始時','on_summon':'仲間召喚時','on_spell':'杖使用時',
-      'on_full_board':'盤面6体時','on_ally_death_notskel':'骸骨以外の仲間死亡時','on_outnumbered':'敵数3倍以上のターン開始時'};
+      'on_full_board':'盤面6体時','on_outnumbered':'敵数3倍以上のターン開始時'};
     let trigStr=trigDesc[card.trigger]||'';
     if(card.trigger==='on_damage_count'){
-      const tgt=card.triggerCount||12;
-      const rem=typeof G!=='undefined'&&G.battleCounters?Math.max(0,G.battleCounters.damageTriggerNext-G.battleCounters.damage):tgt;
+      const tgt=card.triggerCount||15;
+      const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
+      const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
       trigStr=`累計${tgt}回ダメージ時（あと${rem}）`;
     } else if(card.trigger==='on_death_count'){
-      const tgt=card.triggerCount||10;
-      const rem=typeof G!=='undefined'&&G.battleCounters?Math.max(0,G.battleCounters.deathTriggerNext-G.battleCounters.deaths):tgt;
+      const tgt=card.triggerCount||5;
+      const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;
+      const rem=ringInst?Math.max(0,tgt-(ringInst._count||0)):tgt;
       trigStr=`仲間累計${tgt}回死亡時（あと${rem}）`;
     }
     const trig=trigStr?trigStr+'、':'';
     if(card.unique==='shadow_copy') return trig+'最高ATKの仲間のコピーを召喚';
-    if(card.unique==='djinn_replace') return trig+'魔神以外を全破壊して'+atk+'/'+hp+'の魔神を召喚';
-    const extra=card.unique==='wolf_aura'?' 狼生存中、全仲間ATK+'+(2*gm)
-      :card.unique==='bear_grow'?' 攻撃を受けるたびATK+'+(2*gm)+'/HP+'+(2*gm)
+    if(card.unique==='djinn_replace') return trig+'魔神以外を全破壊して魔神を召喚';
+    const extra=card.unique==='wolf_aura'?` 狼生存中、全仲間ATK+${g}`
+      :card.unique==='rat_extra'?' 仲間召喚時、鼠を2体追加召喚（自身は除く）'
+      :card.unique==='wall_copy_atk'?' ATK=最高味方ATK'
       :'';
-    const guardExtra=card.guardian?' 守護（攻撃を受けた時、他の仲間がランダムに反撃）':'';
-    const deathExtra=card.onDeath==='stone_death'?' 死亡時、他の仲間全員にATK+'+(10*gm)+'/HP+'+(10*gm)
-      :card.onDeath==='shadow_death'?' 死亡時、全キャラに'+Math.max(1,gm)+'ダメ'
+    const guardExtra=card.guardian?' 守護（攻撃を受けた時、他の仲間が反撃）':'';
+    const deathExtra=card.onDeath==='stone_death'?` 死亡時、全仲間HP+${g*2}`
+      :card.onDeath==='shadow_death'?` 死亡時、全キャラに${Math.max(1,g)}ダメ`
       :'';
-    return trig+atk+'/'+hp+'の'+card.summon.name+'を'+cntStr+'召喚'+extra+guardExtra+deathExtra;
+    const regenExtra=card.regen?' 再生付き':'';
+    return trig+cntPre+card.summon.name+'を召喚'+extra+guardExtra+deathExtra+regenExtra;
   }
   if(card.kind==='passive'){
     const m={'needle':'ターン開始時、ランダムな敵に1ダメを与える。これを'+g+'回繰り返す（複数の敵に当たる）',
@@ -262,22 +260,18 @@ function mkCardEl(card,idx,ctx){
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
-  const orderLabel=card.kind==='summon'&&ctx==='ring-battle'?`<span class="card-order">${idx+1}</span>`:'';
   const usesLabel=card.type==='wand'&&card.usesLeft!==undefined?`<span style="font-size:.56rem;color:var(--gold2);position:absolute;bottom:3px;right:4px">×${card.usesLeft}</span>`:'';
-  let statsStr='';
+  let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
     if(es){
-      const base=card.summon.atk+'/'+card.summon.hp;
-      const eff=es.atk+'/'+es.hp;
-      const cs=es.count>1?' x'+es.count:'';
-      statsStr=eff!==base||es.count>1
-        ?`<div class="card-buf">${eff}${cs}<span style="color:var(--text2);font-size:.52rem"> (基:${base})</span></div>`
-        :`<div style="font-size:.58rem;color:var(--text2);margin-top:1px">${eff}${cs}</div>`;
+      const cs=es.count>1?'×'+es.count:'';
+      atkLabel=`<span class="card-summon-atk">${es.atk}${cs}</span>`;
+      hpLabel=`<span class="card-summon-hp">${es.hp}</span>`;
     }
   }
   const dynDesc=computeDesc(card);
-  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${statsStr}${orderLabel}${usesLabel}`;
+  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}${usesLabel}`;
   return div;
 }
 

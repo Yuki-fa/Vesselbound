@@ -83,7 +83,6 @@ function smithyGradeUp(onDone){
     div.innerHTML=`<div class="choice-label">${r.name} ${gradeStr(r.grade||1)} → ${gradeStr(newG)}</div>`;
     div.onclick=()=>{
       r.grade=newG;
-      if(newG>=MAX_GRADE&&!G.bannedRings.includes(r.id)) G.bannedRings.push(r.id);
       if(onDone){ log(`${r.name} を ${gradeStr(newG)} に強化`,'good'); onDone(); }
       else showEvent('祭壇',`${r.name} を強化した。`,`${r.name} ${gradeStr(r.grade)}に強化`);
     };

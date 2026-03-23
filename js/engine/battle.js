@@ -557,11 +557,11 @@ async function enemyAttackPhase(){
         G.lastDead=clone(unit);
         log(`${unit.name} が倒れた…`,'bad');
         if(unit.onDeath==='stone_death'){
-          const stMult=GRADE_MULT[G.rings.find(r=>r&&r.id===unit.ringId)?.grade||1];
-          const stB=Math.round(10*stMult);
+          const stGrade=G.rings.find(r=>r&&r.id===unit.ringId)?.grade||1;
+          const stB=stGrade*2;
           let stN=0;
-          G.allies.forEach(a=>{ if(a.id!==unit.id&&a.hp>0){ a.atk+=stB; a.hp+=stB; a.maxHp+=stB; stN++; }});
-          log(`🗿 石像効果：${stN}体にATK+${stB}/HP+${stB}`,'good');
+          G.allies.forEach(a=>{ if(a.id!==unit.id&&a.hp>0){ a.hp+=stB; a.maxHp+=stB; stN++; }});
+          log(`🗿 石像効果：${stN}体にHP+${stB}`,'good');
         }
         if(unit.onDeath==='shadow_death'){
           const shRing=G.rings.find(r=>r&&r.id===unit.ringId);
