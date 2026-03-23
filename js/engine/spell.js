@@ -49,7 +49,22 @@ function applySpell(sp,idx,tgt){
     break;}
     case 'hate':{ G.allies.forEach(a=>a.hate=false); const a=G.allies[tgt.idx]; a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト（戦闘終了まで）`); break;}
     case 'double_hp':{ const a=G.allies[tgt.idx]; a.hp*=2; a.maxHp*=2; log(`${a.name} HP×2→${a.hp}`,'good'); break;}
-    case 'swap_all':{ [...G.allies,...G.enemies].forEach(u=>{ const t=u.atk; u.atk=u.hp; u.hp=Math.max(1,t); u.maxHp=Math.max(u.maxHp,u.hp); }); log('全キャラATK/HP入れ替え','sys'); break;}
+    case 'swap_all':{
+      // 死亡ユニットを除いてATK/HP入れ替え
+      [...G.allies,...G.enemies].forEach(u=>{
+        if(u.hp<=0) return;
+        const t=u.atk; u.atk=u.hp; u.hp=Math.max(1,t); u.maxHp=Math.max(u.maxHp,u.hp);
+      });
+      // 入れ替え後に狼オーラを再付与（入れ替え前のATKがHPに移ったため、新ATKにも再度乗せる）
+      G.rings.forEach(r=>{
+        if(!r||r.unique!=='wolf_aura') return;
+        if(G.allies.some(a=>a.hp>0&&a.ringId===r.id)){
+          const bonus=r.grade||1;
+          G.allies.forEach(a=>{ if(a.hp>0) a.atk+=bonus; });
+        }
+      });
+      log('全キャラATK/HP入れ替え','sys');
+    break;}
     case 'nullify':{ G.enemies[tgt.idx].nullified=1; log(`${G.enemies[tgt.idx].name} 沈黙1T`,'good'); break;}
     case 'boost':{ const a=G.allies[tgt.idx]; a.atk=Math.round(a.atk*1.5); a.maxHp=Math.round(a.maxHp*1.5); a.hp=Math.min(Math.round(a.hp*1.5),a.maxHp); log(`${a.name} ATK/HP×1.5`,'good'); break;}
     case 'rally':{ G.allies.forEach(a=>{ a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}

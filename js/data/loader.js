@@ -139,9 +139,20 @@ async function loadGameData() {
     const [rt, st, ft, et, kt, xt] = await Promise.all(responses.map(r => r.text()));
 
     // ── 指輪プール ──
+    // JS定義（rings.js）の行動プロパティを退避（trigger/unique/onDeath/regenはコード管理）
+    const _savedRings = RING_POOL.slice();
     const ringRows = _parseCSV(rt);
     RING_POOL.length = 0;
     ringRows.forEach(row => { if (row['id'] && row['名前']) RING_POOL.push(_rowToRing(row)); });
+    // スプレッドシートのtrigger/unique/onDeath/regenはコードの定義で上書き
+    RING_POOL.forEach(ring => {
+      const js = _savedRings.find(r => r && r.id === ring.id);
+      if (!js) return;
+      if (js.trigger  !== undefined) ring.trigger  = js.trigger;
+      if (js.unique   !== undefined) ring.unique    = js.unique;
+      if (js.onDeath  !== undefined) ring.onDeath   = js.onDeath;
+      if (js.regen    !== undefined) ring.regen     = js.regen;
+    });
 
     // ── 魔法プール ──
     const spellRows = _parseCSV(st);
