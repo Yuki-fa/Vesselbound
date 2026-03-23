@@ -153,6 +153,7 @@ async function loadGameData() {
       if (js.onDeath  !== undefined) ring.onDeath   = js.onDeath;
       if (js.regen    !== undefined) ring.regen     = js.regen;
       if (js.legend   !== undefined) ring.legend    = js.legend;
+      if (js.count    !== undefined) ring.count     = js.count;
     });
 
     // ── 魔法プール ──
