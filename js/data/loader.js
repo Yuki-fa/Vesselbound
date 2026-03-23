@@ -60,7 +60,7 @@ function _parseCSV(text) {
     const obj = {};
     headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
     return obj;
-  }).filter(row => row && row[headers[0]] && row['名前']);
+  }).filter(row => row && row[headers[0]]);
 }
 
 // ── 行 → 指輪オブジェクト ──────────────────────────
@@ -141,12 +141,12 @@ async function loadGameData() {
     // ── 指輪プール ──
     const ringRows = _parseCSV(rt);
     RING_POOL.length = 0;
-    ringRows.forEach(row => { if (row['id']) RING_POOL.push(_rowToRing(row)); });
+    ringRows.forEach(row => { if (row['id'] && row['名前']) RING_POOL.push(_rowToRing(row)); });
 
     // ── 魔法プール ──
     const spellRows = _parseCSV(st);
     SPELL_POOL.length = 0;
-    spellRows.forEach(row => { if (row['id']) SPELL_POOL.push(_rowToSpell(row)); });
+    spellRows.forEach(row => { if (row['id'] && row['名前']) SPELL_POOL.push(_rowToSpell(row)); });
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
