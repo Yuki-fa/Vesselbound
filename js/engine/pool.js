@@ -58,14 +58,21 @@ function getPool(){
 }
 
 // 報酬カードを n 枚抽選（同IDは重複可）
+// 熟練秘術が有効な場合、最後の1枠は消耗品を強制
 function drawRewards(n){
-  const count=(n!=null)?n:(G.rewardCards||3);
+  const totalCount=(n!=null)?n:(G.rewardCards||3);
+  const consumBonus=(n==null&&G.arcana&&G.arcana.id==='熟練')?1:0;
+  const normalCount=totalCount-consumBonus;
   const pool=getPool();
   const res=[];
   let t=0;
-  while(res.length<count&&pool.length>0&&t++<500){
+  while(res.length<normalCount&&pool.length>0&&t++<500){
     const i=Math.floor(Math.random()*pool.length);
     res.push(pool.splice(i,1)[0]);
+  }
+  // 熟練ボーナス枠：消耗品を1枚追加
+  for(let i=0;i<consumBonus;i++){
+    const c=drawConsumable(); if(c) res.push(c);
   }
   for(let i=res.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [res[i],res[j]]=[res[j],res[i]]; }
   // ユニーク杖を出現済みとしてマーク（取得有無に関係なく）

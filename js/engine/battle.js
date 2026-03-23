@@ -576,13 +576,6 @@ async function enemyAttackPhase(){
       }
     }
 
-    if(G.allies.filter(a=>a.hp>0).length===0&&e.hp>0){
-      const directDmg2=e.grade||1;
-      G.life=Math.max(0,G.life-directDmg2);
-      log(`${e.name} がプレイヤーを直接攻撃！ライフ-${directDmg2}`,'bad');
-      updateHUD();
-      if(G.life<=0){ renderAll(); await sleep(200); gameOver(); return; }
-    }
     await sleep(400); // 各敵の攻撃間 400ms
   }
 
