@@ -250,7 +250,17 @@ function summonAllies(){
       }
     });
   });
+  // 城壁の契約：全召喚・オーラ適用後にATKを最高味方ATKに同期
+  syncWallAtk();
   checkSolitudeBuff();
+}
+
+// 城壁の契約ユニットのATKを「非城壁味方の最高ATK」に同期する
+function syncWallAtk(){
+  const walls=G.allies.filter(a=>a.hp>0&&a.unique==='wall_copy_atk');
+  if(!walls.length) return;
+  const maxAtk=G.allies.filter(a=>a.hp>0&&a.unique!=='wall_copy_atk').reduce((m,a)=>Math.max(m,a.atk),0);
+  walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
 }
 
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）
