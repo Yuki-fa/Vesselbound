@@ -29,6 +29,7 @@ function renderAll(){
   renderArcanaBar();
   renderCommanderWands();
   updateHUD();
+  requestAnimationFrame(fitCardDescs);
 }
 
 function renderField(id,units,isEnemy){
@@ -179,10 +180,44 @@ function gradeStr(g){ return (g>=MAX_GRADE)?'★':('G'+g); }
 // legend指輪のグレード表示（★固定）
 function cardGradeStr(card){ return card.legend?'★':gradeStr(card.grade||1); }
 
+// ()内の数式を計算する（×÷対応）
+function _evalMath(desc){
+  return desc.replace(/\(([^)]+)\)/g,(match,inner)=>{
+    const expr=inner.replace(/×/g,'*').replace(/÷/g,'/').trim();
+    if(/^[\d\s+\-*/.]+$/.test(expr)){
+      try{
+        // eslint-disable-next-line no-new-func
+        const r=Function('"use strict";return ('+expr+')')();
+        if(typeof r==='number'&&isFinite(r))
+          return Number.isInteger(r)?String(r):r.toFixed(1);
+      }catch(e){}
+    }
+    return match;
+  });
+}
+
+// カードのdesc要素をコンテナからはみ出さないようフォントサイズを縮小
+function fitCardDescs(){
+  function fit(el,container){
+    el.style.fontSize='';
+    let fs=parseFloat(window.getComputedStyle(el).fontSize);
+    while(container.scrollHeight>container.clientHeight+1&&fs>6.5){
+      fs=Math.max(6.5,fs-0.5);
+      el.style.fontSize=fs+'px';
+    }
+  }
+  document.querySelectorAll('.card .card-desc').forEach(el=>{
+    const c=el.closest('.card'); if(c) fit(el,c);
+  });
+  document.querySelectorAll('.rew-card .rew-card-desc').forEach(el=>{
+    const c=el.closest('.rew-card'); if(c) fit(el,c);
+  });
+}
+
 function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
-  let desc=(card.desc||'').replace(/Grade/g,String(g)).replace(/\n/g,'<br>');
+  let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g))).replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;
     const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;

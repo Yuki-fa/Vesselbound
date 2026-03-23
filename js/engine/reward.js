@@ -196,6 +196,7 @@ function renderRewCards(){
     el.appendChild(_mkRewDiv(_eliteRing, ()=>takeEliteRing()));
   }
   const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
+  requestAnimationFrame(fitCardDescs);
 }
 
 // ── カード購入 ────────────────────────────────────
@@ -286,6 +287,7 @@ function renderHandEditor(){
   const rmEl=document.getElementById('ring-max'); if(rmEl) rmEl.textContent=G.ringSlots;
   const wc=document.getElementById('wand-count'); if(wc) wc.textContent=G.spells.slice(0,G.wandSlots).filter(s=>s).length;
   const cc=document.getElementById('consum-count'); if(cc) cc.textContent=G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length;
+  requestAnimationFrame(fitCardDescs);
   renderArcanaBar();
 }
 
