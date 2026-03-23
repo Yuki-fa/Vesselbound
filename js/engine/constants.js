@@ -5,6 +5,10 @@
 // グレード倍率（index=グレード番号、G1=×1 〜 G5=★ の線形）
 const GRADE_MULT=[0,1,2,3,4,5,6,7,8,9,10];
 
+// 召喚契約スタッツ用グレード係数（G1=1, G2=3, G3=6, G4=14, G5=30）
+// 計算式: 基本ATK + 上昇ATK × GRADE_COEFF[grade]
+const GRADE_COEFF=[0,1,3,6,14,30];
+
 // グレード上限（G5=★）
 const MAX_GRADE=5;
 

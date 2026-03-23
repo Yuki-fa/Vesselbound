@@ -196,6 +196,8 @@ async function loadGameData() {
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
+        const bs = parseInt(row['ボスシールド']);
+        if (!isNaN(bs)) FLOOR_DATA[fl].bossShield = bs;
         // BOSS_FLOORS はボス階の「1つ前」の階番号（移動先選択でボス専用表示に使う）
         BOSS_FLOORS.push(fl - 1);
       }

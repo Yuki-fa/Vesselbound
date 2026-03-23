@@ -36,6 +36,8 @@ function enemyStatsByGrade(g){
 
 // ボスのシールド数（階層別）
 function bossShieldForFloor(floor){
+  const fd=FLOOR_DATA[floor];
+  if(fd&&fd.bossShield!==undefined) return fd.bossShield;
   return BOSS_SHIELD[floor]||3;
 }
 

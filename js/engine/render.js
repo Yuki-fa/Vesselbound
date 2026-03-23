@@ -8,8 +8,8 @@ function effectiveStats(ring){
   if(!ring||!ring.summon) return null;
   const grade=ring.grade||1;
   const mult=GRADE_MULT[grade];
-  let atk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
-  let hp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
+  let atk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*(GRADE_COEFF[grade]||grade):Math.round(ring.summon.atk*mult);
+  let hp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *(GRADE_COEFF[grade]||grade):Math.round(ring.summon.hp *mult);
   const bab=G.buffAdjBonuses[ring.id];
   if(bab){ atk+=bab.atk||0; hp+=bab.hp||0; }
   const enc=ring.enchants||[];

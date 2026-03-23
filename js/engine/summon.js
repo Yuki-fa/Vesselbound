@@ -26,8 +26,8 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   const bab=G.buffAdjBonuses[ring.id]||{atk:0,hp:0};
   const enc=ring.enchants||[];
   const gm=mult;
-  const baseAtk=ring.atkPerGrade!==undefined?s.atk+ring.atkPerGrade*grade:Math.round(s.atk*mult);
-  const baseHp =ring.hpPerGrade !==undefined?s.hp +ring.hpPerGrade *grade:Math.round(s.hp *mult);
+  const baseAtk=ring.atkPerGrade!==undefined?s.atk+ring.atkPerGrade*(GRADE_COEFF[grade]||grade):Math.round(s.atk*mult);
+  const baseHp =ring.hpPerGrade !==undefined?s.hp +ring.hpPerGrade *(GRADE_COEFF[grade]||grade):Math.round(s.hp *mult);
   let bAtk=overrideAtk!==undefined?overrideAtk:baseAtk+bab.atk+(enc.filter(e=>e==='凶暴').length*5*gm);
   let bHp =overrideHp !==undefined?overrideHp :baseHp +bab.hp +(enc.filter(e=>e==='強壮').length*5*gm);
   if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
@@ -161,8 +161,8 @@ function summonAllies(){
     const mult=GRADE_MULT[grade];
     const enc=ring.enchants||[];
     const gm=mult;
-    const baseAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*grade:Math.round(ring.summon.atk*mult);
-    const baseHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *grade:Math.round(ring.summon.hp *mult);
+    const baseAtk=ring.atkPerGrade!==undefined?ring.summon.atk+ring.atkPerGrade*(GRADE_COEFF[grade]||grade):Math.round(ring.summon.atk*mult);
+    const baseHp =ring.hpPerGrade !==undefined?ring.summon.hp +ring.hpPerGrade *(GRADE_COEFF[grade]||grade):Math.round(ring.summon.hp *mult);
     let bAtk=baseAtk+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
@@ -200,8 +200,8 @@ function summonAllies(){
     const mult=GRADE_MULT[grade];
     const enc=src.enchants||[];
     const gm=mult;
-    const baseAtk=src.atkPerGrade!==undefined?src.summon.atk+src.atkPerGrade*grade:Math.round(src.summon.atk*mult);
-    const baseHp =src.hpPerGrade !==undefined?src.summon.hp +src.hpPerGrade *grade:Math.round(src.summon.hp *mult);
+    const baseAtk=src.atkPerGrade!==undefined?src.summon.atk+src.atkPerGrade*(GRADE_COEFF[grade]||grade):Math.round(src.summon.atk*mult);
+    const baseHp =src.hpPerGrade !==undefined?src.summon.hp +src.hpPerGrade *(GRADE_COEFF[grade]||grade):Math.round(src.summon.hp *mult);
     let bAtk=baseAtk+(G.buffAdjBonuses[src.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[src.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
