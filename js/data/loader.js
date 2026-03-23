@@ -34,16 +34,33 @@ function _csvRow(line) {
 }
 
 function _parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = _csvRow(lines[0]).map(h => h.trim());
-  return lines.slice(1).map(line => {
+  // クォート内の改行を保持しながら行に分割
+  const rows = [];
+  let row = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQ && text[i + 1] === '"') { row += '""'; i++; }
+      else { inQ = !inQ; row += c; }
+    } else if (c === '\r') {
+      // CR は無視
+    } else if (c === '\n' && !inQ) {
+      rows.push(row); row = '';
+    } else {
+      row += c;
+    }
+  }
+  if (row.trim()) rows.push(row);
+
+  if (rows.length < 2) return [];
+  const headers = _csvRow(rows[0]).map(h => h.trim());
+  return rows.slice(1).map(line => {
     if (!line.trim()) return null;
     const vals = _csvRow(line);
     const obj = {};
     headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
     return obj;
-  }).filter(row => row && row[headers[0]]);
+  }).filter(row => row && row[headers[0]] && row['名前']);
 }
 
 // ── 行 → 指輪オブジェクト ──────────────────────────
