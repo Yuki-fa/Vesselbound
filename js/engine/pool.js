@@ -15,11 +15,13 @@ function rollGrade(floor){
 }
 
 // カードの購入金額を生成時に確定
-// 指輪G1=3金、杖G1=2金、消耗品=1金。G2以上は+2金(75%)か+1金(25%)を積み上げ
+// 契約=3ソウル固定、杖G1=2ソウル（G2以上+1〜2積み上げ）、消耗品=1ソウル
 function calcBuyPrice(card){
   if(card.type==='consumable') return 1;
+  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return 3;
+  // 杖
   const grade=card.grade||1;
-  let price=card.type==='wand'?2:3;
+  let price=2;
   for(let i=1;i<grade;i++) price+=Math.random()<0.75?2:1;
   return price;
 }

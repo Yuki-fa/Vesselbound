@@ -329,6 +329,7 @@ function applyTurnStart(){
 // ── 勝利ボーナス ───────────────────────────────
 
 function applyVictoryBonuses(){
+  // 生命の契約
   G.rings.forEach(r=>{
     if(r&&r.unique==='life_reg'){
       const gain=GRADE_MULT[r.grade||1];
@@ -336,6 +337,11 @@ function applyVictoryBonuses(){
       log(`生命の指輪：ライフ+${gain}`,'good');
     }
   });
+  // ステージ突破ボーナス
+  const fl=G.floor;
+  const stageBonus=fl>=15?4:fl>=10?3:fl>=5?2:1;
+  G.gold+=stageBonus; G.earnedGold+=stageBonus;
+  log(`ステージ突破ボーナス：${stageBonus}ソウル`,'gold');
   G.rings.forEach((ring,hi)=>{
     if(!ring||ring.unique!=='buff_adj') return;
     [-1,1].forEach(d=>{
@@ -427,7 +433,7 @@ function processEnemyDeath(e,eIdx){
   e._dp=true;
   if(e.keywords&&e.keywords.includes('エリート')) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
-  const gold=e.grade||1;
+  const gold=1;
   G.earnedGold+=gold; G.gold+=gold;
   log(`${e.name} 撃破！ソウル+${gold}`,'gold');
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
@@ -624,6 +630,7 @@ function retreat(){
   if(G.phase!=='player') return;
   if(!G.visibleMoves.some(i=>G.moveMasks[i])) return;
   log('撤退を選択','sys');
+  applyVictoryBonuses();
   G.phase='reward';
   goToReward();
 }
