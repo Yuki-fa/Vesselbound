@@ -4,14 +4,66 @@
 // ═══════════════════════════════════════
 
 let _tgtCtx=null;
+let _swapFirst=-1;
 
 function useSpell(idx){
   const sp=G.spells[idx];
   if(!sp||G.actionsLeft<=0) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return; // チャージ切れ
+  if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
   else if(sp.needsEnemy) pickTarget('enemy',idx,true); // 加護チェックあり
+  else if(sp.needsAny) pickTargetAny(idx);
   else applySpell(sp,idx,null);
+}
+
+// 転移の杖：2体選択UI
+function startSwapPick(idx){
+  _swapFirst=-1;
+  setHint('入れ替える1体目を選択（ESCでキャンセル）');
+  document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+    if(G.allies[i]&&G.allies[i].hp>0){
+      slot.classList.add('selectable');
+      slot.onclick=()=>{
+        clearSelectable();
+        _swapFirst=i;
+        setHint(`${G.allies[i].name}を選択。2体目を選択（ESCでキャンセル）`);
+        document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot2,j)=>{
+          if(G.allies[j]&&G.allies[j].hp>0&&j!==i){
+            slot2.classList.add('selectable');
+            slot2.onclick=()=>{
+              clearSelectable();
+              applySpell(G.spells[idx],idx,{who:'pair',idx1:_swapFirst,idx2:j});
+              _swapFirst=-1;
+            };
+          }
+        });
+        document.addEventListener('keydown',escCancel,{once:true});
+      };
+    }
+  });
+  document.addEventListener('keydown',escCancel,{once:true});
+}
+
+// 任意キャラクター選択（needsAny）
+function pickTargetAny(idx){
+  _tgtCtx={who:'any',idx};
+  setHint('対象を選択（ESCでキャンセル）');
+  // 味方
+  document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+    if(G.allies[i]&&G.allies[i].hp>0){
+      slot.classList.add('selectable');
+      slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'ally',idx:i}); };
+    }
+  });
+  // 敵
+  document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+    if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
+      slot.classList.add('selectable');
+      slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'enemy',idx:i}); };
+    }
+  });
+  document.addEventListener('keydown',escCancel,{once:true});
 }
 
 function pickTarget(who,idx,checkBless){
@@ -65,7 +117,83 @@ function applySpell(sp,idx,tgt){
       });
       log('全キャラATK/HP入れ替え','sys');
     break;}
-    case 'nullify':{ G.enemies[tgt.idx].nullified=1; log(`${G.enemies[tgt.idx].name} 沈黙1T`,'good'); break;}
+    case 'nullify':{ const nu=G.enemies[tgt.idx]; nu.nullified=1; log(`${nu.name} 沈黙1T`,'good'); break;}
+    case 'weaken':{
+      const wu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      if(wu){ wu.nullified=1; log(`${wu.name} 脱力1T（ATK→0）`,'good'); }
+    break;}
+    case 'stealth':{ const sa=G.allies[tgt.idx]; if(sa){ sa.stealth=true; log(`${sa.name}に隠密付与`,'good'); } break;}
+    case 'poison_wand':{ const pe=G.enemies[tgt.idx]; if(pe){ pe.poison=(pe.poison||0)+3; log(`${pe.name}に毒+3付与（毒${pe.poison}）`,'good'); } break;}
+    case 'sacrifice':{
+      const si=tgt.idx;
+      const sa2=G.allies[si]; if(!sa2) break;
+      const dmg=sa2.atk;
+      G.allies[si]=null;
+      log(`犠牲：${sa2.name}を破壊、全敵に${dmg}ダメ`,'good');
+      G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,ei); });
+    break;}
+    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ ba.atk+=3; ba.baseAtk+=3; log(`${ba.name}：ATK+3`,'good'); } break;}
+    case 'swap_pos':{
+      if(!tgt||tgt.who!=='pair') break;
+      const {idx1,idx2}=tgt;
+      const tmp=G.allies[idx1]; G.allies[idx1]=G.allies[idx2]; G.allies[idx2]=tmp;
+      log(`転移：スロット${idx1+1}↔${idx2+1}を入れ替え`,'good');
+    break;}
+    case 'meteor_multi':{
+      const hits=3;
+      for(let h=0;h<hits;h++){
+        const all=[...G.allies.map((a,i)=>a&&a.hp>0?{u:a,team:'ally',i}:null).filter(Boolean),
+                   ...G.enemies.map((e,i)=>e&&e.hp>0?{u:e,team:'enemy',i}:null).filter(Boolean)];
+        if(!all.length) break;
+        const pick=randFrom(all);
+        if(pick.team==='enemy') dealDmgToEnemy(pick.u,3,pick.i);
+        else { pick.u.hp=Math.max(0,pick.u.hp-3); if(pick.u.hp<=0) processAllyDeath(pick.u,pick.i); }
+      }
+      log(`隕石の杖：ランダムキャラに3ダメ×${hits}`,'bad');
+    break;}
+    case 'doom':{ const dd=5; G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); log(`破滅の杖：全敵に${dd}ダメ`,'good'); break;}
+    case 'possess':{
+      const pi=tgt.idx;
+      const pa=G.allies[pi]; if(!pa) break;
+      const liveE=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0);
+      if(!liveE.length) break;
+      const weakE=liveE.reduce((m,x)=>x.e.atk<m.e.atk?x:m,liveE[0]);
+      const ei=weakE.i;
+      // 位置入れ替え（インデックスを交換）
+      const tmpA=G.allies[pi]; G.allies[pi]=G.allies[ei]||null; G.allies[ei]=tmpA;
+      const tmpE=G.enemies[ei]; G.enemies[ei]=G.enemies[pi]||null; G.enemies[pi]=tmpE;
+      log(`憑依：${pa.name}(${pi+1})⟺${weakE.e.name}(${ei+1})`,'good');
+    break;}
+    case 'battle_start_book':{ log('開幕の書：戦闘開始時効果を発動','good'); onBattleStart(); break;}
+    case 'magic_book':{ G.magicLevel=(G.magicLevel||0)+2*cMult; log(`魔術の書：魔術レベル+${2*cMult}（現在${G.magicLevel}）`,'good'); break;}
+    case 'sacrifice_doll':{
+      if(!tgt) break;
+      const sdu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      if(!sdu) break;
+      if(tgt.who==='enemy') dealDmgToEnemy(sdu,sdu.hp+999,tgt.idx);
+      else G.allies[tgt.idx]=null;
+      log(`生贄人形：${sdu.name}を破壊`,'good');
+    break;}
+    case 'swap_stats':{
+      if(!tgt) break;
+      const ssu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      if(!ssu) break;
+      const sst=ssu.atk; ssu.atk=ssu.hp; ssu.hp=Math.max(1,sst); ssu.maxHp=Math.max(ssu.maxHp,ssu.hp);
+      log(`黒い薬瓶：${ssu.name} ATK↔HP（${ssu.atk}/${ssu.hp}）`,'good');
+    break;}
+    case 'counter_scroll':{
+      const csa=G.allies[tgt.idx];
+      if(csa){ csa.counter=true; log(`無力化の巻物：${csa.name}に反撃付与`,'good'); }
+    break;}
+    case 'regen_grant':{
+      const rga=G.allies[tgt.idx];
+      if(rga){ rga.regen=true; rga.regenUsed=false; log(`アンデッドの秘宝：${rga.name}に再生付与`,'good'); }
+    break;}
+    case 'purify_hate':{
+      if(!tgt) break;
+      const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
+    break;}
     case 'boost':{ const a=G.allies[tgt.idx]; a.atk=Math.round(a.atk*1.5); a.maxHp=Math.round(a.maxHp*1.5); a.hp=Math.min(Math.round(a.hp*1.5),a.maxHp); log(`${a.name} ATK/HP×1.5`,'good'); break;}
     case 'rally':{ G.allies.forEach(a=>{ a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
     case 'heal_ally':{ G.allies.forEach(a=>{ if(a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
@@ -94,8 +222,12 @@ function applySpell(sp,idx,tgt){
     break;}
     case 'instakill':{
       if(tgt){
-        const target=G.enemies[tgt.idx]||G.allies[tgt.idx];
-        if(target){ target.instadead=true; log(`${target.name}に即死付与（攻撃したユニットが即死）`,'good'); }
+        const iku=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+        if(iku&&iku.hp>0){
+          if(tgt.who==='enemy') dealDmgToEnemy(iku,iku.hp+999,tgt.idx);
+          else { iku.hp=0; processAllyDeath(iku,tgt.idx); }
+          log(`即死の薬瓶：${iku.name}を消滅`,'good');
+        }
       }
     break;}
     case 'golem':{
@@ -117,7 +249,7 @@ function applySpell(sp,idx,tgt){
     break;}
     case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5*cMult; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
-    case 'big_rally':{ const rm=1+cMult; G.allies.forEach(a=>{ a.atk=Math.round(a.atk*rm); a.maxHp=Math.round(a.maxHp*rm); a.hp=Math.min(Math.round(a.hp*rm),a.maxHp); }); log(`鼓舞の旗：全仲間+${Math.round((rm-1)*100)}%！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
       // G4以下の契約を1つ選んでグレードを次の戦闘終了まで+1

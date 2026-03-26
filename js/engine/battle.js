@@ -169,6 +169,7 @@ async function commanderPhase(){
 
 function startPlayerPhase(){
   G.phase='player';
+  G.actionsPerTurn=calcActions();
   G.actionsLeft=G.actionsPerTurn;
   G.spreadActive=false;
   applyTurnStart();
@@ -211,6 +212,9 @@ function applyTurnStart(){
   });
   // 城壁ATK同期
   syncWallAtk();
+  // patience 指輪：battle_start トリガーをターン開始時に発動
+  if(G.rings&&G.rings.some(r=>r&&r.unique==='patience')) fireTrigger('battle_start');
+  checkSolitudeBuff();
 }
 
 // ── 戦闘フェイズ（インターリーブ攻撃）─────────────
@@ -315,9 +319,10 @@ async function enemyAttackAction(enemy, enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
-  // ターゲット選択（ヘイト→ランダム）
+  // ターゲット選択（ヘイト→ランダム、隠密は候補から除外）
   const hateT=liveA.find(a=>a.hate&&a.hateTurns>0);
-  let tgt=hateT||randFrom(liveA);
+  const visibleA=liveA.filter(a=>!a.stealth);
+  let tgt=hateT||(visibleA.length?randFrom(visibleA):randFrom(liveA));
   const aIdx=G.allies.indexOf(tgt);
 
   // アニメーション
@@ -383,6 +388,12 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
   }
 
   if(unit.hp<=0) processAllyDeath(unit,fieldIdx);
+
+  // 反撃（counter フラグ持ちが生存時に攻撃者へ反撃）
+  if(unit.counter&&src&&dmg>0&&unit.hp>0){
+    const srcIdx=G.enemies.indexOf(src);
+    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+  }
 }
 
 // ── 味方の死亡処理 ──────────────────────────────
@@ -406,6 +417,7 @@ function processAllyDeath(unit, fieldIdx){
 
   log(`${unit.name} が倒れた…`,'bad');
   G.battleCounters.deaths++;
+  checkSolitudeBuff();
 
   // 石像効果
   if(unit.onDeath==='stone_death'){
@@ -502,6 +514,17 @@ function onBattleStart(){
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a.shield>0){ a.atk+=2; a.baseAtk+=2; } });
     log(`エルフ：シールド持ち仲間ATK+2`,'good');
   }
+  // fury_start 指輪：戦闘開始時、全仲間+3/+3
+  G.rings.forEach(r=>{
+    if(r&&r.unique==='fury_start'){
+      const fb=3*(r.grade||1);
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; a.hp+=fb; a.maxHp+=fb; }});
+      log(`憤激の指輪：全仲間+${fb}/+${fb}`,'good');
+    }
+  });
+  // patience 指輪がない場合、battle_start 指輪トリガーを発火
+  const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
+  if(!_hasPatience) fireTrigger('battle_start');
 }
 
 // ── 戦闘終了時処理（勝利・撤退共通）────────────────
@@ -627,8 +650,6 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
     applyPoisonOnDmg(e,srcUnit);
-    // 憤怒エンチャント
-    G.rings.forEach(fr=>{ if(!fr||fr.unique!=='fury_passive') return; const fm=GRADE_MULT[fr.grade||1]; G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk+=fm; }); });
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
 }

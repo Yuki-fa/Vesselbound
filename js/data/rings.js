@@ -88,8 +88,8 @@ const RING_POOL=[
    trigger:'battle_start', guardian:true, unique:'wall_copy_atk'},
 
   // ── PASSIVE RINGS ──
-  {id:'r_needle',    name:'針の契約',   kind:'passive',grade:1,
-   desc:'ターン開始時、ランダムな敵に1ダメ×(Grade×2)回',unique:'needle'},
+  {id:'r_needle',    name:'針の指輪',   kind:'passive',grade:1,
+   desc:'ターン開始時、全ての敵に1ダメージを与える。',unique:'needle'},
 
   {id:'r_adj_cnt',   name:'隣接の契約', kind:'passive',grade:1,legend:true,
    desc:'隣接する召喚契約の召喚数+1',unique:'adj_count'},
@@ -97,8 +97,8 @@ const RING_POOL=[
   {id:'r_lifereg',   name:'生命の契約', kind:'passive',grade:1,
    desc:'戦闘終了時ライフ+Grade',unique:'life_reg'},
 
-  {id:'r_fury',      name:'憤激の契約', kind:'passive',grade:1,
-   desc:'キャラがダメージを受けるたび全仲間ATK+Grade',unique:'fury_passive'},
+  {id:'r_fury',      name:'憤激の指輪', kind:'passive',grade:1,
+   desc:'戦闘開始時、すべての仲間に+3/+3を付与する。',unique:'fury_start'},
 
   {id:'r_extra',     name:'行動の契約', kind:'passive',grade:1,
    desc:'プレイヤーの行動回数+Grade',unique:'extra_action'},

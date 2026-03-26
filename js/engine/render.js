@@ -55,6 +55,8 @@ function renderField(id,units,isEnemy){
         if(u.poison>0) bs.push(`<span class="slot-badge b-psn">毒${u.poison}</span>`);
         if(u.regen&&!u._isSoul&&!u.regenUsed) bs.push('<span class="slot-badge b-regen">再生</span>');
         if(u._isSoul) bs.push('<span class="slot-badge b-regen">魂</span>');
+        if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
+        if(u.counter) bs.push('<span class="slot-badge b-counter">反撃</span>');
         // キーワードバッジ（敵のみ）
         if(isEnemy&&u.keywords&&u.keywords.length){
           u.keywords.forEach(k=>{
