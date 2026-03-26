@@ -176,7 +176,10 @@ function fitCardDescs(){
 function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
-  let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g))).replace(/\n/g,'<br>');
+  const ml=typeof G!=='undefined'?G.magicLevel||1:1;
+  let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)))
+    .replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`)
+    .replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;
     const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;

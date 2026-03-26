@@ -40,7 +40,7 @@ function initState(){
     _retryFloor:false,
     battleCounters:{damage:0,deaths:0},
     // ── 魔術レベル（亜人キャラ効果用）──
-    magicLevel:0,
+    magicLevel:1,
     // ── マミー効果：魂HP補正 ──
     _soulHpBonus:0,
     // ── 報酬 ──

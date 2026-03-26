@@ -33,7 +33,7 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
   // 城壁の契約：ATK=盤面最高味方ATK
   if(ring.unique==='wall_copy_atk'&&overrideAtk===undefined){
-    bAtk=G.allies.filter(a=>a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
+    bAtk=G.allies.filter(a=>a&&a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
   }
   return {
     id:uid(),
@@ -54,14 +54,14 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 
 // 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
 function addAlly(unit, fromRingId){
-  if(G.allies.filter(a=>a.hp>0).length>=6) return false;
-  const empty=G.allies.findIndex(a=>a.hp<=0);
+  if(G.allies.filter(a=>a&&a.hp>0).length>=6) return false;
+  const empty=G.allies.findIndex(a=>!a||a.hp<=0);
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
   if(!G._djinnActive){
     fireTrigger('on_summon', fromRingId);
-    if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
+    if(G.allies.filter(a=>a&&a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
   }
   checkSolitudeBuff();
   return true;
@@ -105,7 +105,7 @@ function triggerSummon(ring){
   let count=(ring.count||1)+adjBonus+enc.filter(e=>e==='増殖').length*(ring.grade||1);
 
   if(ring.unique==='shadow_copy'){
-    const living=G.allies.filter(a=>a.hp>0);
+    const living=G.allies.filter(a=>a&&a.hp>0);
     if(!living.length) return;
     const strongest=living.reduce((a,b)=>a.atk>=b.atk?a:b);
     const copy={...clone(strongest),id:uid(),_dp:false};
@@ -114,17 +114,17 @@ function triggerSummon(ring){
   }
 
   if(ring.unique==='djinn_replace'){
-    const living=G.allies.filter(a=>a.hp>0);
+    const living=G.allies.filter(a=>a&&a.hp>0);
     const nonDjinn=living.filter(a=>a.name!=='魔神');
     if(nonDjinn.length<6) return;
     if(G._djinnActive) return; // 再帰防止
     G._djinnActive=true;
     log('👿 魔神降臨：魔神以外の全仲間を破壊！','bad');
     G.allies.forEach(a=>{
-      if(a.hp>0&&a.name!=='魔神'){ a.hp=0; onAllyDeath(a); }
+      if(a&&a.hp>0&&a.name!=='魔神'){ a.hp=0; onAllyDeath(a); }
     });
     const djinn=makeUnit(ring);
-    const empty=G.allies.findIndex(a=>a.hp<=0);
+    const empty=G.allies.findIndex(a=>!a||a.hp<=0);
     if(empty>=0) G.allies[empty]=djinn; else G.allies.push(djinn);
     log(`👿 魔神（${djinn.atk}/${djinn.hp}）召喚！`,'good');
     G._djinnActive=false;
@@ -170,9 +170,9 @@ function summonAllies(){
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
-      if(G.allies.filter(a=>a.hp>0).length>=6) break;
+      if(G.allies.filter(a=>a&&a.hp>0).length>=6) break;
       // 城壁の契約：ATK=現在の最高味方ATK
-      if(ring.unique==='wall_copy_atk') bAtk=G.allies.filter(a=>a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
+      if(ring.unique==='wall_copy_atk') bAtk=G.allies.filter(a=>a&&a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
       const unit={
         id:uid(),name:ring.summon.name,icon:ring.summon.icon,
         atk:bAtk,baseAtk:bAtk,hp:bHp,maxHp:bHp,
@@ -188,7 +188,7 @@ function summonAllies(){
       G.battleCounters.summons++;
       if(!G._djinnActive){
         fireTrigger('on_summon',ring.id);
-        if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
+        if(G.allies.filter(a=>a&&a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
       }
     }
   });
@@ -209,7 +209,7 @@ function summonAllies(){
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
     const count=(src.count||1)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
-      if(G.allies.filter(a=>a.hp>0).length>=6) break;
+      if(G.allies.filter(a=>a&&a.hp>0).length>=6) break;
       const unit={
         id:uid(),name:src.summon.name,icon:src.summon.icon,
         atk:bAtk,baseAtk:bAtk,hp:bHp,maxHp:bHp,
@@ -225,7 +225,7 @@ function summonAllies(){
       G.battleCounters.summons++;
       if(!G._djinnActive){
         fireTrigger('on_summon',ring.id);
-        if(G.allies.filter(a=>a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
+        if(G.allies.filter(a=>a&&a.hp>0).length>=6) fireTrigger('on_full_board',ring.id);
       }
     }
     log(`🪞 鏡の契約：${src.name}(${bAtk}/${bHp})×${count}体を召喚`,'good');
@@ -233,9 +233,9 @@ function summonAllies(){
 
   // 狼のオーラ（狼生存中、全仲間ATK+Grade per ring）
   const wolfRings=G.rings.filter(r=>r&&r.unique==='wolf_aura');
-  if(wolfRings.length>0&&G.allies.some(a=>a.name==='狼'&&a.hp>0)){
+  if(wolfRings.length>0&&G.allies.some(a=>a&&a.name==='狼'&&a.hp>0)){
     const bonus=wolfRings.reduce((s,r)=>s+(r.grade||1),0);
-    G.allies.forEach(a=>{ a.atk+=bonus; });
+    G.allies.forEach(a=>{ if(a) a.atk+=bonus; });
     log(`狼のオーラ：全仲間ATK+${bonus}`,'good');
   }
 
@@ -244,10 +244,10 @@ function summonAllies(){
     if(!ring||ring.unique!=='shared_def') return;
     const bonus=5*GRADE_MULT[ring.grade||1];
     const names={};
-    G.allies.forEach(a=>{ if(a.hp>0) names[a.name]=(names[a.name]||0)+1; });
+    G.allies.forEach(a=>{ if(a&&a.hp>0) names[a.name]=(names[a.name]||0)+1; });
     Object.entries(names).forEach(([nm,cnt])=>{
       if(cnt>=2){
-        G.allies.forEach(a=>{ if(a.name===nm&&a.hp>0){ a.atk+=bonus; a.hp+=bonus; a.maxHp+=bonus; }});
+        G.allies.forEach(a=>{ if(a&&a.name===nm&&a.hp>0){ a.atk+=bonus; a.hp+=bonus; a.maxHp+=bonus; }});
         log(`共鳴：${nm}×${cnt}体にATK+${bonus}/HP+${bonus}`,'good');
       }
     });
@@ -259,20 +259,20 @@ function summonAllies(){
 
 // 城壁の契約ユニットのATKを「非城壁味方の最高ATK」に同期する
 function syncWallAtk(){
-  const walls=G.allies.filter(a=>a.hp>0&&a.unique==='wall_copy_atk');
+  const walls=G.allies.filter(a=>a&&a.hp>0&&a.unique==='wall_copy_atk');
   if(!walls.length) return;
-  const maxAtk=G.allies.filter(a=>a.hp>0&&a.unique!=='wall_copy_atk').reduce((m,a)=>Math.max(m,a.atk),0);
+  const maxAtk=G.allies.filter(a=>a&&a.hp>0&&a.unique!=='wall_copy_atk').reduce((m,a)=>Math.max(m,a.atk),0);
   walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
 }
 
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）
 function checkSolitudeBuff(){
   const solRing=G.rings&&G.rings.find(r=>r&&r.unique==='solitude');
-  const live=G.allies.filter(a=>a.hp>0);
+  const live=G.allies.filter(a=>a&&a.hp>0);
   if(!solRing||live.length!==1){
     // バフ解除
     G.allies.forEach(a=>{
-      if(a._solBuff){
+      if(a&&a._solBuff){
         a.atk=Math.max(1,Math.round(a.atk/2));
         a.maxHp=Math.max(1,Math.round(a.maxHp/2));
         a.hp=Math.min(a.hp,a.maxHp);
@@ -295,7 +295,7 @@ function onAllyDeath(ally){
   G.battleCounters.deaths++;
   // 狼死亡：最後の狼が死んだ場合にオーラを解除
   if(ally.name==='狼'){
-    const stillHasWolf=G.allies.some(a=>a.hp>0&&a.name==='狼');
+    const stillHasWolf=G.allies.some(a=>a&&a.hp>0&&a.name==='狼');
     if(!stillHasWolf){
       const wolfRings=G.rings.filter(r=>r&&r.unique==='wolf_aura');
       if(wolfRings.length>0){
