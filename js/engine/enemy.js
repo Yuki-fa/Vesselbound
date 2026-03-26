@@ -141,28 +141,25 @@ function generateMoveMasks(){
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは各5%で鍛冶屋/休息所
-  // 遠見の契約：鍛冶屋・休息所の出現率+50%
+  // 最初のスロットは必ず戦闘、追加スロットは各10%で休息所（祭壇は出現しない）
+  // 遠見の契約：休息所の出現率+50%
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
-  const smithyRate=hasFarsight?0.075:0.05;
-  const restRate  =hasFarsight?0.15 :0.10;
+  const restRate=hasFarsight?0.15:0.10;
 
-  // 観察秘術：祭壇か休息所を確定で1つ出現させる
-  let forceNonBattle=G.arcanaForceNode?randFrom(['smithy','rest']):null;
+  // 観察秘術：休息所を確定で1つ出現させる
+  let forceNonBattle=G.arcanaForceNode?'rest':null;
   if(forceNonBattle) G.arcanaForceNode=false;
 
   const usedNon=new Set();
   chosen.forEach((idx,ci)=>{
     if(ci===0){
-      // 観察が発動した場合、最初のスロットを強制ノードにして以降のスロットは戦闘
       if(forceNonBattle){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); }
       else masks[idx]='battle';
       return;
     }
     if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
-    if(r<smithyRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
-    else if(r<restRate&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    if(r<restRate&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

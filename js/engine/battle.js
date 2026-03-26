@@ -268,6 +268,7 @@ function _onAllEnemiesDefeated(){
 // ── 味方攻撃アクション ──────────────────────────
 
 async function allyAttackAction(ally, allyIdx){
+  if(ally.atk<=0) return; // ATK0は攻撃しない
   const target=G.enemies.find(e=>e&&e.hp>0);
   if(!target) return;
   const eIdx=G.enemies.indexOf(target);
@@ -281,14 +282,9 @@ async function allyAttackAction(ally, allyIdx){
   if(aSlot) aSlot.classList.remove('glow-blue');
   if(eSlot) eSlot.classList.remove('glow-red');
 
-  // 同時ダメージ計算（攻撃前の値を保存）
-  const dmgToEnemy=ally.atk;
-  const dmgToAlly=target.sealed>0?0:(target.atk+(target.curse||0));
-
-  // 攻撃
-  dealDmgToEnemy(target,dmgToEnemy,eIdx,ally);
-  dealDmgToAlly(ally,dmgToAlly,allyIdx,target);
-  log(`${ally.name}(${ally.atk})→${target.name} / 反撃${dmgToAlly}→${ally.name}`);
+  // 一方攻撃（攻撃側はノーダメージ）
+  dealDmgToEnemy(target,ally.atk,eIdx,ally);
+  log(`${ally.name}(${ally.atk})→${target.name}`);
 
   // キャラクター固有：攻撃時効果
   if(ally.hp>0){
@@ -335,37 +331,25 @@ async function enemyAttackAction(enemy, enemyIdx){
 
   const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
-  const dmgToAlly=atkVal;
-  const dmgToEnemy=tgt.hp>0?tgt.atk:0;
 
   // 範囲攻撃チェック
   const rangeHit=[];
-  if(dmgToAlly>0&&enemy.keywords&&enemy.keywords.includes('範囲攻撃')){
+  if(atkVal>0&&enemy.keywords&&enemy.keywords.includes('範囲攻撃')){
     [-1,1].forEach(d=>{
       const adj=G.allies[aIdx+d];
       if(adj&&adj.hp>0){ rangeHit.push({unit:adj,idx:aIdx+d}); }
     });
   }
 
-  // 守護
-  let counterUnit=tgt;
-  if(tgt.guardian&&tgt.hp>0){
-    const nonG=liveA.filter(a=>!a.guardian&&a.id!==tgt.id);
-    if(nonG.length>0){ counterUnit=randFrom(nonG); log(`🛡 守護：${tgt.name}の代わりに${counterUnit.name}が反撃`,'good'); }
-  }
+  // 一方攻撃（敵が攻撃→味方のみダメージ、反撃なし）
+  dealDmgToAlly(tgt,atkVal,aIdx,enemy);
+  rangeHit.forEach(h=>dealDmgToAlly(h.unit,atkVal,h.idx,enemy));
 
-  // 同時ダメージ
-  dealDmgToAlly(tgt,dmgToAlly,aIdx,enemy);
-  rangeHit.forEach(h=>dealDmgToAlly(h.unit,dmgToAlly,h.idx,enemy));
-  if(dmgToEnemy>0) dealDmgToEnemy(enemy,dmgToEnemy,enemyIdx,counterUnit);
-
-  log(`${enemy.name}(${atkVal})→${tgt.name} / 反撃${dmgToEnemy}→${enemy.name}`);
+  log(`${enemy.name}(${atkVal})→${tgt.name}`);
 
   // キーワード効果（敵→味方）
-  if(dmgToAlly>0&&tgt.hp>=0) applyKeywordOnHit(enemy,tgt);
-  rangeHit.forEach(h=>{ if(dmgToAlly>0) applyKeywordOnHit(enemy,h.unit); });
-  // キーワード効果（味方→敵）
-  if(dmgToEnemy>0&&enemy.hp>=0) applyKeywordOnHit(counterUnit,enemy);
+  if(atkVal>0&&tgt.hp>=0) applyKeywordOnHit(enemy,tgt);
+  rangeHit.forEach(h=>{ if(atkVal>0) applyKeywordOnHit(enemy,h.unit); });
 
   // ヘイトターン消費
   G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
@@ -413,6 +397,7 @@ function processAllyDeath(unit, fieldIdx){
     unit.maxHp=Math.max(unit.maxHp, unit.hp);
     unit._isSoul=true;
     unit.regenUsed=true;
+    unit.poison=0; // 魂になると毒を解除
     unit._savedIcon=unit.icon;
     unit.icon='👻';
     log(`👻 ${unit.name}が魂に変身（戦闘後に復活）`,'good');
@@ -554,6 +539,7 @@ function onBattleEnd(){
     a.hp=a._battleStartHp||a.maxHp;
     a.atk=a.baseAtk;
     a._isSoul=false;
+    a.poison=0; // 復活時に毒をリセット
     if(a._savedIcon){ a.icon=a._savedIcon; delete a._savedIcon; }
     log(`✨ ${a.name}が復活！`,'good');
   });

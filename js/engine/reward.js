@@ -38,8 +38,8 @@ function goToReward(){
     if(bossNotice) bossNotice.style.display='none';
   }
 
-  // エリート撃破ボーナス
-  if(G._eliteKilled&&!_isBossFight){
+  // エリート撃破ボーナス（ボス戦でも必ず出現）
+  if(G._eliteKilled){
     _eliteRing=drawUniqueRing();
     if(_eliteRing){
       _eliteRing._isLegend=true;

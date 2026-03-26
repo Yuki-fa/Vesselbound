@@ -6,8 +6,9 @@
 // ═══════════════════════════════════════
 
 const _EXPORT_BASE =
-  'https://docs.google.com/spreadsheets/d/19rqZZey6ftz_ntoxs7P4RkJt2SGxQi7B' +
-  '/export?format=csv&gid=';
+  'https://docs.google.com/spreadsheets/d/e/' +
+  '2PACX-1vRr3wWLfbyxvDQjJN80BJDgqmdow8aUWTXOwiY__3OvvlhPAID_fMkqxqTnKQLbiQ' +
+  '/pub?output=csv&gid=';
 const _SHEET_GIDS = {
   '指輪プール':  1078274854,
   '魔法プール':  1593958181,
