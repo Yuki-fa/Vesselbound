@@ -8,14 +8,15 @@
 const _EXPORT_BASE =
   'https://docs.google.com/spreadsheets/d/e/' +
   '2PACX-1vRr3wWLfbyxvDQjJN80BJDgqmdow8aUWTXOwiY__3OvvlhPAID_fMkqxqTnKQLbiQ' +
-  '/pub?output=csv&gid=';
+  '/pub?output=csv';
+function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
 const _SHEET_GIDS = {
-  '指輪プール':  1078274854,
-  '魔法プール':  1593958181,
-  '階層データ':  701286537,
-  'エンチャント': 300601659,
-  '敵キーワード': 1366116419,
-  'effect_id':   1282840648,
+  '指輪プール':   426459898,
+  '魔法プール':  1848829406,
+  '階層データ':   920830789,
+  'エンチャント':  320923773,
+  '敵キーワード':  769775182,
+  'effect_id':    992952088,
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -126,12 +127,12 @@ function _rowToSpell(row) {
 async function loadGameData() {
   try {
     const fetches = [
-      fetch(_EXPORT_BASE + _SHEET_GIDS['指輪プール']  + '&t=' + Date.now()),
-      fetch(_EXPORT_BASE + _SHEET_GIDS['魔法プール']  + '&t=' + Date.now()),
-      fetch(_EXPORT_BASE + _SHEET_GIDS['階層データ']  + '&t=' + Date.now()),
-      fetch(_EXPORT_BASE + _SHEET_GIDS['エンチャント'] + '&t=' + Date.now()),
-      fetch(_EXPORT_BASE + _SHEET_GIDS['敵キーワード'] + '&t=' + Date.now()),
-      fetch(_EXPORT_BASE + _SHEET_GIDS['effect_id']   + '&t=' + Date.now()),
+      fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
+      fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
+      fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
+      fetch(_sheetUrl(_SHEET_GIDS['エンチャント'])),
+      fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
+      fetch(_sheetUrl(_SHEET_GIDS['effect_id'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
