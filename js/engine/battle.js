@@ -401,18 +401,14 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
 function processAllyDeath(unit, fieldIdx){
   if(unit.hp>0) return;
 
-  // 再生：魂に変身
+  // 再生：次のターン開始時に魂として出現（即時変換しない）
   if(unit.regen&&!unit.regenUsed){
-    unit.atk=0;
-    unit.hp=1+(G._soulHpBonus||0);
-    unit.maxHp=Math.max(unit.maxHp, unit.hp);
-    unit._isSoul=true;
     unit.regenUsed=true;
-    unit.poison=0; // 魂になると毒を解除
+    unit.poison=0;
+    unit._pendingSoul=true;
     unit._savedIcon=unit.icon;
-    unit.icon='👻';
-    log(`👻 ${unit.name}が魂に変身（戦闘後に復活）`,'good');
-    return;
+    log(`💀 ${unit.name}が倒れた… 次のターン開始時に魂として出現`,'good');
+    return; // deaths++ はスキップ（魂として復活するため）
   }
 
   log(`${unit.name} が倒れた…`,'bad');

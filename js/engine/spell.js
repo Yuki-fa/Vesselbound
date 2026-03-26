@@ -99,20 +99,20 @@ function applySpell(sp,idx,tgt){
     case 'fire':{
       const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,2,tgt.idx); log(`炎の杖：${e.name}に2ダメ`,'good');
     break;}
-    case 'hate':{ G.allies.forEach(a=>a.hate=false); const a=G.allies[tgt.idx]; a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト（戦闘終了まで）`); break;}
+    case 'hate':{ G.allies.forEach(a=>{ if(a) a.hate=false; }); const a=G.allies[tgt.idx]; if(a){ a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト（戦闘終了まで）`,'good'); } break;}
     case 'double_hp':{ const a=G.allies[tgt.idx]; a.hp*=2; a.maxHp*=2; log(`${a.name} HP×2→${a.hp}`,'good'); break;}
     case 'swap_all':{
       // 死亡ユニットを除いてATK/HP入れ替え
       [...G.allies,...G.enemies].forEach(u=>{
-        if(u.hp<=0) return;
+        if(!u||u.hp<=0) return;
         const t=u.atk; u.atk=u.hp; u.hp=Math.max(1,t); u.maxHp=Math.max(u.maxHp,u.hp);
       });
-      // 入れ替え後に狼オーラを再付与（入れ替え前のATKがHPに移ったため、新ATKにも再度乗せる）
+      // 入れ替え後に狼オーラを再付与
       G.rings.forEach(r=>{
         if(!r||r.unique!=='wolf_aura') return;
-        if(G.allies.some(a=>a.hp>0&&a.ringId===r.id)){
+        if(G.allies.some(a=>a&&a.hp>0&&a.ringId===r.id)){
           const bonus=r.grade||1;
-          G.allies.forEach(a=>{ if(a.hp>0) a.atk+=bonus; });
+          G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk+=bonus; });
         }
       });
       log('全キャラATK/HP入れ替え','sys');
@@ -195,8 +195,8 @@ function applySpell(sp,idx,tgt){
       if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
     break;}
     case 'boost':{ const a=G.allies[tgt.idx]; a.atk=Math.round(a.atk*1.5); a.maxHp=Math.round(a.maxHp*1.5); a.hp=Math.min(Math.round(a.hp*1.5),a.maxHp); log(`${a.name} ATK/HP×1.5`,'good'); break;}
-    case 'rally':{ G.allies.forEach(a=>{ a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
-    case 'heal_ally':{ G.allies.forEach(a=>{ if(a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
+    case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
+    case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
     case 'seal':{ G.enemies[tgt.idx].sealed=1; log(`${G.enemies[tgt.idx].name} 封印1T`,'good'); break;}
     case 'spread':{
       // 右隣の杖の効果を発動（アクション消費なし）
@@ -212,7 +212,7 @@ function applySpell(sp,idx,tgt){
           if(live.length) applySpell(rw,rightIdx,{who:'enemy',idx:randFrom(live).i});
           else G.actionsLeft--;
         } else if(rw.needsAlly){
-          const live=G.allies.map((a,i)=>({a,i})).filter(x=>x.a.hp>0);
+          const live=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0);
           if(live.length) applySpell(rw,rightIdx,{who:'ally',idx:randFrom(live).i});
           else G.actionsLeft--;
         }
@@ -231,24 +231,25 @@ function applySpell(sp,idx,tgt){
       }
     break;}
     case 'golem':{
-      if(G.allies.filter(a=>a.hp>0).length<6){
-        const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:2,baseAtk:2,hp:2,maxHp:2,
+      if(G.allies.filter(a=>a&&a.hp>0).length<6){
+        const gl=G.magicLevel||1;
+        const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gl,baseAtk:gl,hp:gl,maxHp:gl,
           ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
           enchants:[],regen:false,regenUsed:false,onDeath:undefined,onHit:undefined,
           taunt50:false,guardian:false,unique:undefined,keywords:[],poison:0,shield:0,_dp:false};
-        const emptySlot=G.allies.findIndex(a=>a.hp<=0);
+        const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
         else if(G.allies.length<6) G.allies.push(golem);
-        log('🗼 ゴーレム（2/2・ヘイト）を召喚','good');
+        log(`🗼 ゴーレム（${gl}/${gl}・ヘイト）を召喚`,'good');
       }
     break;}
     case 'meteor':{
-      G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,1,i); });
-      G.allies.forEach(a=>{ if(a.hp>0){ a.hp=Math.max(0,a.hp-1); } });
+      G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,i); });
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp=Math.max(0,a.hp-1); } });
       log('☄ 隕石の杖：全キャラに1ダメ','bad');
     break;}
     case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5*cMult; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); break;}
-    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
+    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
