@@ -73,7 +73,7 @@ function applySpell(sp,idx,tgt){
     case 'spread':{
       // 右隣の杖の効果を発動（アクション消費なし）
       const rightIdx=idx+1;
-      const rw=(rightIdx<(G.handSlots||7))?G.spells[rightIdx]:null;
+      const rw=(rightIdx<G.wandSlots)?G.spells[rightIdx]:null;
       if(rw&&rw.type==='wand'&&(rw.usesLeft===undefined||rw.usesLeft>0)){
         log(`拡散：${rw.name}を発動`,'sys');
         G.actionsLeft++; // 内部呼出のデクリメントを補償（拡散自体は1アクション消費のまま）
@@ -138,11 +138,13 @@ function applySpell(sp,idx,tgt){
     case 'shield_ally':{ const a=G.allies[tgt.idx]; a.shield=(a.shield||0)+1; log(`🛡 ${a.name}にシールド+1`,'good'); break;}
     case 'copy_scroll':{
       if(!G.commanderWands||!G.commanderWands.length){ log('複製の巻物：敵の司令官杖がない','sys'); break; }
-      if(G.spells.filter(s=>s).length>=(G.handSlots||7)){ log('手札が満杯','bad'); break; }
+      if(G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){ log('杖枠が満杯','bad'); break; }
       const picked=randFrom(G.commanderWands);
       const pw=clone(SPELL_POOL.find(s=>s.effect===picked.playerEffect)||{id:picked.id,name:picked.name,type:'wand',effect:picked.playerEffect,baseUses:3});
       pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
-      for(let j=0;j<(G.handSlots||7);j++){ if(!G.spells[j]){ G.spells[j]=pw; break; } }
+      let placed=false;
+      for(let j=0;j<G.wandSlots;j++){ if(!G.spells[j]){ G.spells[j]=pw; placed=true; break; } }
+      if(!placed) G.spells.splice(G.wandSlots,0,pw);
       log(`📜 複製の巻物：${pw.name} を入手`,'good');
     break;}
     case 'destroy_scroll':{
@@ -158,8 +160,8 @@ function applySpell(sp,idx,tgt){
 
   if(sp.type==='consumable') G.spells[idx]=null;
 
-  // 杖使用トリガー
-  if(sp.type==='wand'){ onSpellUsed(); onWandUsed(); }
+  // 石像の契約：杖使用トリガー（消耗品は対象外）
+  if(sp.type==='wand') onSpellUsed();
 
   // 使用回数管理
   if(sp.type==='wand'){

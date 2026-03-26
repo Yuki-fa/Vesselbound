@@ -34,7 +34,9 @@ function chooseMove(nt){
     const isRing=c&&(c.kind==='summon'||c.kind==='passive'||!c.type);
     const hasSpace=!c||(isRing
       ? G.rings.filter(r=>r).length<G.ringSlots
-      : G.spells.filter(s=>s).length<(G.handSlots||7));
+      : c.type==='wand'
+        ? G.spells.slice(0,G.wandSlots).filter(s=>s).length<G.wandSlots
+        : G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length<G.consumSlots);
     if(hasSpace) takeCardToHand(c);
     showEvent('宝箱',`埋もれた箱に「${c?.name||'？'}」があった。`,hasSpace&&c?`${c.name} を入手`:'手札が満杯で受け取れなかった');
   }
@@ -48,8 +50,9 @@ function takeCardToHand(card){
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   if(isRing){
     for(let i=0;i<G.ringSlots;i++){ if(!G.rings[i]){ G.rings[i]=nc; return; } }
+  } else if(card.type==='wand'){
+    for(let i=0;i<G.wandSlots;i++){ if(!G.spells[i]){ G.spells[i]=nc; return; } }
   } else {
-    const hi=G.spells.indexOf(null);
-    if(hi>=0) G.spells[hi]=nc;
+    for(let i=G.wandSlots;i<G.wandSlots+G.consumSlots;i++){ if(!G.spells[i]){ G.spells[i]=nc; return; } }
   }
 }

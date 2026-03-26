@@ -103,7 +103,7 @@ function doRest(regen=true){
   el.innerHTML='';
 
   // 選択肢1：杖リチャージ
-  const wands=G.spells.filter(s=>s&&s.type==='wand');
+  const wands=G.spells.slice(0,G.wandSlots).filter(s=>s);
   const doneWand=_restChosen.has('wand');
   const o1=document.createElement('div');
   o1.className='choice-opt'+(wands.length&&!doneWand?'':' disabled');
@@ -118,13 +118,13 @@ function doRest(regen=true){
   const cName=freeConsumable?freeConsumable.name:'アイテムなし';
   o2.innerHTML=`<div class="choice-icon">🎒</div><div class="choice-label">アイテム入手：${cName}</div><div class="choice-desc">${freeConsumable?computeDesc(freeConsumable):''}（無料）</div>`;
   if(freeConsumable&&!doneItem) o2.onclick=()=>{
-    const slot=G.spells.indexOf(null);
+    const slot=G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).findIndex(s=>!s);
     if(slot<0){
       if(hasFarsight){ log('アイテム枠が満杯','sys'); _restChosen.add('item'); doRest(false); }
-      else showEvent('休息所','消耗品を受け取ろうとしたが…','手札が満杯のため受け取れなかった');
+      else showEvent('休息所','消耗品を受け取ろうとしたが…','アイテム枠が満杯のため受け取れなかった');
       return;
     }
-    G.spells[slot]=freeConsumable;
+    G.spells[G.wandSlots+slot]=freeConsumable;
     if(hasFarsight){ log(`${freeConsumable.name} を入手`,'good'); _restChosen.add('item'); doRest(false); }
     else showEvent('休息所','旅人から消耗品を受け取った。',`${freeConsumable.name} を入手`);
   };
@@ -155,7 +155,7 @@ function doRest(regen=true){
 }
 
 function restWandRecharge(onDone){
-  const wands=G.spells.map((s,i)=>({s,i})).filter(x=>x.s&&x.s.type==='wand');
+  const wands=G.spells.slice(0,G.wandSlots).map((s,i)=>({s,i})).filter(x=>x.s);
   if(wands.length===1){
     const {s}=wands[0];
     s.usesLeft=(s.usesLeft||0)+5;

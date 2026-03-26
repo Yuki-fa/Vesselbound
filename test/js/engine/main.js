@@ -28,7 +28,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // ═══════════════════════════════════════
 // GAME FLOW
 // ═══════════════════════════════════════
-function startGame(){ initState(); showScreen('battle'); startBattle(); }
+function startGame(){ initState(); showScreen('battle'); showArcanaSelect(); }
 function gameOver(){ G.rings.forEach(r=>{ if(r) r._count=0; }); document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
 function showVictoryOverlay(){ document.getElementById('victory-overlay').style.display='flex'; }
 function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }

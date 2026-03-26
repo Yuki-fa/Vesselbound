@@ -113,8 +113,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 /* empty slot placeholder */
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
 /* 手札スロットをグリッドで固定列数に（スロット数が変わっても各カードのサイズが一定） */
-#ring-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
-#hand-slots{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#ring-slots,#ring-slots-2{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+#wand-slots,#consum-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* BATTLE CONTROLS */
@@ -327,27 +327,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 
-    <!-- 報酬フェイズ：フィールドエディタ（キャラ配置・売却） -->
-    <div id="inline-hand-editor" style="display:none">
-      <div class="hand-editor">
-        <div class="hand-editor-title">盤面配置 — ドラッグで並べ替え　売却ボタンで売却 (+1ソウル)</div>
-        <div class="field" id="field-editor-row" style="margin-bottom:4px"></div>
-      </div>
-    </div>
-
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
-      <div class="hand-row1" style="gap:8px">
-        <div class="hand-pane" style="flex:2;min-width:0">
-          <span class="hand-pane-label ring-label">指輪 <span id="ring-count">0</span>/<span id="ring-max">2</span></span>
-          <div id="ring-slots"></div>
+      <div class="hand-row1">
+        <div class="hand-pane hp-rings">
+          <span class="hand-pane-label ring-label">契約 <span id="ring-count">0</span>/<span id="ring-max">5</span></span>
+          <div class="hand-slots" id="ring-slots"></div>
         </div>
-        <div class="hand-pane" style="flex:7;min-width:0">
-          <span class="hand-pane-label spell-label">手札 <span id="hand-count">0</span>/<span id="hand-max">7</span></span>
-          <div id="hand-slots"></div>
+        <div class="hand-pane hp-wands">
+          <span class="hand-pane-label spell-label">杖 <span id="wand-count">0</span>/<span id="wand-max">2</span></span>
+          <div class="hand-slots" id="wand-slots"></div>
+        </div>
+        <div class="hand-pane hp-consum">
+          <span class="hand-pane-label" style="background:rgba(192,64,64,.18);color:var(--red2);border:1px solid rgba(192,64,64,.3)">アイテム <span id="consum-count">0</span>/<span id="consum-max">2</span></span>
+          <div class="hand-slots" id="consum-slots"></div>
         </div>
       </div>
-      <div id="ring-extra-row" style="display:none"></div>
+      <div id="ring-extra-row" style="display:none">
+        <div style="display:flex;gap:5px">
+          <div style="flex:5;min-width:0"><div id="ring-slots-2"></div></div>
+          <div style="flex:4"></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -380,7 +381,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     </div>
     <div class="bhud-item">
       <span class="bhud-label">ターン</span>
-      <span class="bhud-val turn" id="h-turn">0</span>
+      <span class="bhud-val turn"><span id="h-turn">0</span><span style="font-size:.8rem;opacity:.6">/5</span></span>
     </div>
     <div class="bhud-item">
       <span class="bhud-label">行動</span>
@@ -417,12 +418,16 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
       <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
       <div class="he-row">
-        <span class="he-label he-ring">指輪枠</span>
+        <span class="he-label he-ring">契約枠</span>
         <div class="he-slots" id="sh-he-rings"></div>
       </div>
       <div class="he-row">
-        <span class="he-label he-spell">手札</span>
+        <span class="he-label he-spell">杖枠</span>
         <div class="he-slots" id="sh-he-wands"></div>
+      </div>
+      <div class="he-row">
+        <span class="he-label" style="background:rgba(192,64,64,.15);color:var(--red2);border:1px solid rgba(192,64,64,.25)">アイテム枠</span>
+        <div class="he-slots" id="sh-he-consums"></div>
       </div>
     </div>
     <button class="btn small" onclick="shopDone()">立ち去る</button>
@@ -502,7 +507,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 <script src="js/data/rings.js"></script>
 <script src="js/data/spells.js"></script>
 <script src="js/data/loader.js"></script>
-<script src="js/data/units.js"></script>
 <script src="js/engine/state.js"></script>
 <script src="js/engine/pool.js"></script>
 <script src="js/engine/enemy.js"></script>

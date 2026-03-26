@@ -53,8 +53,7 @@ function renderField(id,units,isEnemy){
         if(u.sealed>0) bs.push('<span class="slot-badge b-seal">封印</span>');
         if(u.instadead) bs.push('<span class="slot-badge b-dead">即死</span>');
         if(u.poison>0) bs.push(`<span class="slot-badge b-psn">毒${u.poison}</span>`);
-        if(u.regen&&!u._isSoul&&!u.regenUsed) bs.push('<span class="slot-badge b-regen">再生</span>');
-        if(u._isSoul) bs.push('<span class="slot-badge b-regen">魂</span>');
+        if(u.resurrection&&!u.resurrected) bs.push('<span class="slot-badge b-regen">再生</span>');
         // キーワードバッジ（敵のみ）
         if(isEnemy&&u.keywords&&u.keywords.length){
           u.keywords.forEach(k=>{
@@ -78,20 +77,21 @@ function renderField(id,units,isEnemy){
 
 function renderHand(){
   renderRingSlots();
-  renderHandSlots();
+  renderWandSlots();
+  renderConsumSlots();
 }
 
 function renderRingSlots(){
   const el=document.getElementById('ring-slots');
-  if(!el) return;
-  // 旧row2は非表示
+  const el2=document.getElementById('ring-slots-2');
   const extraRow=document.getElementById('ring-extra-row');
-  if(extraRow) extraRow.style.display='none';
   el.innerHTML='';
-  const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
-  const rm=document.getElementById('ring-max');   if(rm) rm.textContent=G.ringSlots;
+  if(el2) el2.innerHTML='';
+  document.getElementById('ring-count').textContent=G.rings.filter(r=>r).length;
+  const rmEl=document.getElementById('ring-max'); if(rmEl) rmEl.textContent=G.ringSlots;
 
-  for(let i=0;i<G.ringSlots;i++){
+  // Row 1: always render 5 ring slots (indices 0-4)
+  for(let i=0;i<5;i++){
     const ring=G.rings[i];
     if(ring){
       const div=mkCardEl(ring,i,'ring-battle');
@@ -103,26 +103,69 @@ function renderRingSlots(){
       el.appendChild(ph);
     }
   }
+
+  // Row 2: extra ring slots (indices 5+)
+  if(el2&&extraRow){
+    if(G.ringSlots>5){
+      extraRow.style.display='';
+      for(let i=5;i<G.ringSlots;i++){
+        const ring=G.rings[i];
+        if(ring){
+          const div=mkCardEl(ring,i,'ring-battle');
+          div.classList.add('inert');
+          el2.appendChild(div);
+        } else {
+          const ph=document.createElement('div');
+          ph.className='card-empty';
+          el2.appendChild(ph);
+        }
+      }
+    } else {
+      extraRow.style.display='none';
+    }
+  }
 }
 
-// 手札スロット（杖＋消耗品の混合 7 枠）
-function renderHandSlots(){
-  const el=document.getElementById('hand-slots');
-  if(!el) return;
+function renderWandSlots(){
+  const el=document.getElementById('wand-slots');
   el.innerHTML='';
-  const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
-  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=G.handSlots||7;
-
-  for(let i=0;i<(G.handSlots||7);i++){
+  document.getElementById('wand-count').textContent=G.spells.slice(0,G.wandSlots).filter(s=>s).length;
+  const wmEl=document.getElementById('wand-max'); if(wmEl) wmEl.textContent=G.wandSlots;
+  for(let i=0;i<G.wandSlots;i++){
     const sp=G.spells[i];
     if(sp){
       const div=mkCardEl(sp,i,'spell-battle');
-      const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
-      // 杖はプレイヤーフェイズに使用可。消耗品は報酬フェイズのみ
-      const canUse=G.phase==='player'&&G.actionsLeft>0&&isWand&&hasCharge;
-      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
-      else       { div.classList.add('inert'); }
+      if(G.phase==='player'&&G.actionsLeft>0&&hasCharge){
+        div.classList.remove('inert');
+        div.onclick=()=>useSpell(i);
+      } else {
+        div.classList.add('inert');
+      }
+      el.appendChild(div);
+    } else {
+      const ph=document.createElement('div');
+      ph.className='card-empty spell';
+      el.appendChild(ph);
+    }
+  }
+}
+
+function renderConsumSlots(){
+  const el=document.getElementById('consum-slots');
+  el.innerHTML='';
+  document.getElementById('consum-count').textContent=G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length;
+  const cmEl=document.getElementById('consum-max'); if(cmEl) cmEl.textContent=G.consumSlots;
+  for(let i=G.wandSlots;i<G.wandSlots+G.consumSlots;i++){
+    const sp=G.spells[i];
+    if(sp){
+      const div=mkCardEl(sp,i,'spell-battle');
+      if(G.phase==='player'&&G.actionsLeft>0){
+        div.classList.remove('inert');
+        div.onclick=()=>useSpell(i);
+      } else {
+        div.classList.add('inert');
+      }
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');

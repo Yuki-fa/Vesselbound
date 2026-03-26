@@ -1,51 +1,70 @@
 // ═══════════════════════════════════════
 // state.js — ゲーム状態とユーティリティ
-// 依存: constants.js, rings.js, spells.js
+// 依存: constants.js, units.js, spells.js
 // ═══════════════════════════════════════
 
-// ゲームのグローバル状態
 let G={};
 
-// ユーティリティ
 const uid      = ()    => '_'+Math.random().toString(36).slice(2,8);
 const randFrom = a     => a[Math.floor(Math.random()*a.length)];
 const randi    = (a,b) => a+Math.floor(Math.random()*(b-a+1));
 const clone    = o     => JSON.parse(JSON.stringify(o));
 
+function rand(){ return Math.random(); }
+
+function gradeStr(g){
+  const s=['','G1','G2','G3','G4','★'];
+  return s[Math.min(g||1, s.length-1)];
+}
+
 function initState(){
   G={
     floor:1, life:20, gold:0,
-    rings:[], spells:[],
-    allies:[], enemies:[],
-    moveMasks:[], visibleMoves:[],
-    turn:0, phase:'init',
+    // ── 盤面（6スロット固定・HP持続）──
+    allies: Array(6).fill(null),
+    enemies:[],
+    // ── プレイヤー装備 ──
+    rings:   [null, null],       // 指輪スロット（初期2枠・最大4枠）
+    ringSlots: 2,
+    // ── 手札（杖＋消耗品混合・最大7枠）──
+    spells:  Array(7).fill(null),
+    handSlots: 7,
+    // ── 状態 ──
+    phase:'init',
     actionsPerTurn:1, actionsLeft:0,
-    ringSlots:5, wandSlots:2, consumSlots:2,
-    lastDead:null, fogNext:false,
-    prevNodeType:'battle', earnedGold:0,
+    turn:0, earnedGold:0,
+    moveMasks:[], visibleMoves:[],
+    fogNext:false, prevNodeType:'battle',
     spreadActive:false, spreadMult:0,
-    battleCounters:{damage:0,deaths:0,summons:0,deathTriggerNext:10,damageTriggerNext:12},
-    buffAdjBonuses:{},   // ringId→{atk,hp} 永続累積ボーナス
-    rewardTaken:false,
-    rewardCards:3,       // 現在の報酬カード枚数（ボス撃破ごとに+1）
-    maxRewardCards:MAX_REWARD_CARDS,
-    bannedRings:['r_adj_cnt'],  // G10到達 or isUnique でプールから抹消された指輪ID
-    seenWands:[],                // 報酬で出現済みのユニーク杖ID（再出現しない）
-    _isEliteFight:false,         // 現在の戦闘にエリートが出現したか
-    _eliteKilled:false,          // エリートを実際に撃破したか（耐久・撤退では false のまま）
-    rerollCount:0,               // 累計リロール回数（試行の契約用）
-    _djinnActive:false,          // 魔神降臨処理中フラグ（再帰防止）
-    // ── 秘術（ヒーローパワー）──
-    arcana:null,          // 選択した秘術オブジェクト
-    arcanaUsed:false,     // この報酬フェイズで使用済みか
-    arcanaTrustCount:0,   // 信頼の使用回数（次回ボーナス算出用）
-    arcanaCarryGold:0,    // 強欲：次の戦闘開始時に引き継ぐソウル
-    arcanaForceNode:false,// 観察：次の戦闘で祭壇/休息所が確定
-    // ── 司令官杖 ──
-    commanderWands:[],    // 現在の戦闘で司令官が使う杖オブジェクト
+    _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false,
+    _retryFloor:false,
+    battleCounters:{damage:0,deaths:0},
+    // ── 魔術レベル（亜人キャラ効果用）──
+    magicLevel:0,
+    // ── マミー効果：魂HP補正 ──
+    _soulHpBonus:0,
+    // ── 報酬 ──
+    rerollCount:0,
+    // ── 秘術（互換性のため残す）──
+    arcana:null, arcanaUsed:false,
+    arcanaCarryGold:0, arcanaForceNode:false, arcanaTrustCount:0,
+    commanderWands:[],
+    seenWands:[],
+    bannedRings:[],
+    buffAdjBonuses:{},
+    rewardCards:6,
+    maxRewardCards:6,
   };
-  // 初期装備（ヘイトの杖なし）
-  G.rings=[clone(RING_POOL[0])];
-  const fireWand=clone(SPELL_POOL[0]); fireWand.usesLeft=5; fireWand._maxUses=5;
-  G.spells=[fireWand];
+
+  // 初期キャラクター：ゴーレム
+  const golemDef = UNIT_POOL.find(u=>u.id==='c_golem');
+  if(golemDef) G.allies[0] = makeUnitFromDef(golemDef);
+
+  // 初期杖：炎の杖
+  const fireWand = SPELL_POOL.find(s=>s.id==='s_fire')||clone(SPELL_POOL[0]);
+  if(fireWand){
+    const fw = clone(fireWand);
+    fw.usesLeft = 5; fw._maxUses = 5;
+    G.spells[0] = fw;
+  }
 }

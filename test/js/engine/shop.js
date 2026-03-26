@@ -6,13 +6,16 @@
 let _shopItems=[];
 
 function doShop(){
-  const pool=getRingPool();
+  const pool=getPool(G.rewardLv);
   _shopItems=[];
-  for(let i=0;i<3;i++){ if(!pool.length) break; const idx=Math.floor(Math.random()*pool.length); _shopItems.push({type:'card',card:clone(pool[idx]),price:3}); pool.splice(idx,1); }
-  _shopItems.push({type:'grade_up_ring',label:'指輪グレードアップ',desc:'指輪を1段階強化（G4まで）',price:4});
+  for(let i=0;i<3;i++){ if(!pool.length) break; const idx=Math.floor(Math.random()*pool.length); _shopItems.push({type:'card',card:clone(pool[idx]),price:randFrom([3,4,5,6])}); pool.splice(idx,1); }
+  _shopItems.push({type:'grade_up_ring',label:'契約グレードアップ',desc:'契約を1段階強化（G4まで）',price:4});
+  _shopItems.push({type:'grade_up_spell',label:'杖グレードアップ',desc:'杖の攻撃・回復効果を1段階強化',price:3});
   _shopItems.push({type:'enchant', label:'エンチャント付与',  desc:'対象の指輪にエンチャントを1つ付与',price:3});
   _shopItems.push({type:'life',    label:'回復薬',           desc:'ライフ+3',price:5});
-  _shopItems.push({type:'ring_slot',     label:'指輪スロット+1',  desc:`指輪枠を追加（現在${G.ringSlots}枠、上限4）`,price:5});
+  _shopItems.push({type:'ring_slot',     label:'契約スロット+1',  desc:`契約枠を追加（現在${G.ringSlots}枠、上限7）`,price:5});
+  _shopItems.push({type:'wand_slot',     label:'杖スロット+1',    desc:`杖枠を追加（現在${G.wandSlots}枠、杖+消耗品合計上限7）`,price:5});
+  _shopItems.push({type:'consumable_slot',label:'アイテムスロット+1',desc:`アイテム枠を追加（現在${G.consumSlots}枠、杖+アイテム合計上限7）`,price:5});
   _takenCardIds=new Set();
   renderShop();
   renderShopHandEditor();
@@ -45,9 +48,11 @@ function buyItem(i){
   if(item.type==='card'){
     const isRing=item.card.kind==='summon'||item.card.kind==='passive'||!item.card.type;
     if(isRing){
-      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('指輪枠が満杯です。先に還魂してください。'); return; }
+      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('契約枠が満杯です。先に還魂してください。'); return; }
+    } else if(item.card.type==='wand'){
+      if(G.spells.slice(0,G.wandSlots).filter(s=>s).length>=G.wandSlots){ alert('杖枠が満杯です。先に破棄してください。'); return; }
     } else {
-      if(G.spells.filter(s=>s).length>=(G.handSlots||7)){ alert('手札が満杯です。先に破棄してください。'); return; }
+      if(G.spells.slice(G.wandSlots,G.wandSlots+G.consumSlots).filter(s=>s).length>=G.consumSlots){ alert('アイテム枠が満杯です。先に破棄してください。'); return; }
     }
     G.gold-=item.price; takeCardToHand(item.card); log(item.card.name+'を購入','good');
     _takenCardIds.add(item.card.id);
@@ -63,6 +68,12 @@ function buyItem(i){
   } else if(item.type==='ring_slot'){
     if(G.ringSlots>=7){ alert('契約スロットは上限（7枠）です'); return; }
     G.gold-=item.price; G.ringSlots++; log(`契約スロット+1（${G.ringSlots}枠）`,'good');
+  } else if(item.type==='wand_slot'){
+    if(G.wandSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('杖スロットは上限です（杖+アイテム合計7枠）'); return; }
+    G.gold-=item.price; G.spells.splice(G.wandSlots,0,null); G.wandSlots++; log(`杖スロット+1（${G.wandSlots}枠）`,'good');
+  } else if(item.type==='consumable_slot'){
+    if(G.consumSlots>=7||G.wandSlots+G.consumSlots>=7){ alert('アイテムスロットは上限です（杖+アイテム合計7枠）'); return; }
+    G.gold-=item.price; G.consumSlots++; log(`アイテムスロット+1（${G.consumSlots}枠）`,'good');
   }
   _shopItems[i]=null;
   updateHUD(); renderShop(); renderShopHandEditor();
@@ -111,8 +122,9 @@ function openGradeUpModal(target, price, shopIdx){
 
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){
-  renderHeRowIn('sh-he-rings',  G.rings,  0, G.ringSlots,      'rings',  'shop');
-  renderHeRowIn('sh-he-wands',  G.spells, 0, G.handSlots||7,   'spells', 'shop');
+  renderHeRowIn('sh-he-rings',  G.rings,  0,          G.ringSlots,  'rings',  'shop');
+  renderHeRowIn('sh-he-wands',  G.spells, 0,          G.wandSlots,  'wands',  'shop');
+  renderHeRowIn('sh-he-consums',G.spells, G.wandSlots, G.consumSlots,'consums','shop');
 }
 function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
   const el=document.getElementById(elId);
