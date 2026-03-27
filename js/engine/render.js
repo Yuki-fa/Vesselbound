@@ -35,6 +35,16 @@ function renderAll(){
 function renderField(id,units,isEnemy){
   const el=document.getElementById(id);
   el.innerHTML='';
+  // 優先ターゲットのインデックスを特定
+  const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
+  let priorityIdx=-1;
+  if(isEnemy){
+    const forced=liveUnits.find(x=>x.u.allyTarget);
+    priorityIdx=forced?forced.i:(liveUnits.length?liveUnits[liveUnits.length-1].i:-1);
+  } else {
+    const hate=liveUnits.find(x=>x.u.hate&&x.u.hateTurns>0);
+    priorityIdx=hate?hate.i:(liveUnits.length?liveUnits[liveUnits.length-1].i:-1);
+  }
   for(let i=0;i<6;i++){
     const u=units[i];
     const slot=document.createElement('div');
@@ -65,7 +75,11 @@ function renderField(id,units,isEnemy){
           });
         }
         const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
-        slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+        const dragonetTag=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--text2);text-align:center">あと${3-(u._battleCount||0)}戦</div>`:'';
+        const descTag=u.desc?`<div class="slot-desc">${u.desc}</div>`:'';
+        slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${descTag}${dragonetTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+        // 優先ターゲットは少し前に出す
+        if(i===priorityIdx) slot.style.transform=isEnemy?'translateY(4px)':'translateY(-4px)';
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
       const nt=NODE_TYPES[G.moveMasks[i]];

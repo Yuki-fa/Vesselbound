@@ -46,6 +46,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .slot{position:relative;border:1px solid var(--border);border-radius:4px;background:var(--bg3);aspect-ratio:63/88;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .18s;overflow:hidden}
 .slot.enemy{border-color:rgba(180,60,60,.3);background:#1a0f0f}
 .slot.empty{opacity:.25}
+.slot.bless-blocked{opacity:.3;pointer-events:none}
+.slot-desc{font-size:.42rem;color:var(--text2);text-align:center;line-height:1.2;padding:0 2px;overflow:hidden;max-height:2.4em}
 .slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:pointer;animation:pgold .9s ease-in-out infinite alternate}
 .slot.selectable{cursor:pointer;border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
 .slot.selectable:hover{background:rgba(200,160,60,.14)}
@@ -317,25 +319,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <div id="boss-reward-notice" style="display:none;margin-top:4px;padding:4px 8px;background:rgba(200,160,60,.12);border:1px solid var(--gold);border-radius:3px;font-size:.74rem;color:var(--gold2);font-weight:500;width:100%"></div>
     </div>
 
-    <!-- 味方の盤面（戦闘中のみ表示） -->
-    <div id="ally-section">
-      <div class="field-label">味方の盤面</div>
-      <div class="field" id="f-ally"></div>
-    </div>
-
     <!-- 報酬カード（報酬中のみ表示） -->
     <div id="reward-cards-section" style="display:none">
       <div class="field-label" style="margin-bottom:5px">報酬カード　（契約3ソウル・杖2ソウル・アイテム1ソウル　G2以上は追加コスト　契約は還魂で払い戻し）</div>
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 
-    <!-- 報酬フェイズ：フィールドエディタ（キャラ配置・売却） -->
-    <div id="inline-hand-editor" style="display:none">
-      <div class="hand-editor">
-        <div class="hand-editor-title">盤面配置 — ドラッグで並べ替え　売却ボタンで売却 (+1ソウル)</div>
-        <div class="field" id="field-editor-row" style="margin-bottom:4px"></div>
-      </div>
+    <!-- 味方の盤面（戦闘中：スロット表示、報酬中：カード+売却+ドラッグ） -->
+    <div id="ally-section">
+      <div class="field-label">味方の盤面</div>
+      <div class="field" id="f-ally"></div>
     </div>
+
+    <!-- 報酬フェイズ：フィールドエディタ（非表示・後方互換用） -->
+    <div id="inline-hand-editor" style="display:none"></div>
 
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
@@ -373,8 +370,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
       <span class="bhud-val floor" id="h-floor">1</span>
     </div>
     <div class="bhud-item">
-      <span class="bhud-label">ライフ</span>
-      <span class="bhud-val life" id="h-life">20</span>
+      <span class="bhud-label">魔術Lv</span>
+      <span class="bhud-val life" id="h-life">1</span>
     </div>
     <div class="bhud-item">
       <span class="bhud-label">ソウル</span>

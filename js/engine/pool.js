@@ -120,7 +120,7 @@ function drawRewards(n){
 // ── 消耗品のみ抽選（休息所・インプ用）──────────────
 
 function drawConsumable(){
-  const pool=SPELL_POOL.filter(s=>s.type==='consumable');
+  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly);
   if(!pool.length) return null;
   const c=clone(randFrom(pool));
   c._buyPrice=calcBuyPrice(c);

@@ -9,7 +9,7 @@
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('scr-'+id).classList.add('active'); }
 function updateHUD(){
   document.getElementById('h-floor').textContent=G.floor;
-  document.getElementById('h-life').textContent=G.life;
+  document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-turn').textContent=G.turn;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;

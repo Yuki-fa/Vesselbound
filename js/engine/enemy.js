@@ -134,6 +134,9 @@ function generateMoveMasks(){
   // ボス戦：スロット0（ボス）に戦闘マスのみ。他は出現しない
   if(isBoss){ masks[0]='battle'; return masks; }
 
+  // ボス直前フロア：戦闘マスのみ（鍛冶屋・休息所は出現しない）
+  if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[0]='battle'; return masks; }
+
   // 通常戦：エリートのスロットを候補から除外してランダム配置
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
   let idxs=[...Array(slots).keys()].filter(i=>i!==eliteSlot);

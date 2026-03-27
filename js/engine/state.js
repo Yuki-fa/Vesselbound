@@ -41,8 +41,8 @@ function initState(){
     battleCounters:{damage:0,deaths:0},
     // ── 魔術レベル（亜人キャラ効果用）──
     magicLevel:1,
-    // ── マミー効果：魂HP補正 ──
-    _soulHpBonus:0,
+    // ── マミー効果：不死HP補正（累積） ──
+    _undeadHpBonus:0,
     // ── 報酬 ──
     rerollCount:0,
     // ── 秘術（互換性のため残す）──

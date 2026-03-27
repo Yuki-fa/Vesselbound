@@ -176,6 +176,16 @@ function startPlayerPhase(){
 // ── ターン開始時効果 ───────────────────────────
 
 function applyTurnStart(){
+  // パワーブレイク回復（1ターンのみ）
+  G.enemies.forEach(e=>{
+    if(e&&e.powerBroken){
+      e.atk=e._savedAtk!==undefined?e._savedAtk:(e.baseAtk||0);
+      e.powerBroken=false;
+      delete e._savedAtk;
+      log(`${e.name} のパワーブレイクが回復`,'sys');
+    }
+  });
+
   // 触媒の指輪による毒倍率
   const catRing=G.rings.find(r=>r&&r.unique==='catalyst');
   const catMult=catRing?(catRing.grade||1)+1:1;
@@ -296,6 +306,12 @@ async function allyAttackAction(ally, allyIdx){
   // 一方攻撃（攻撃側はノーダメージ）
   dealDmgToEnemy(target,ally.atk,eIdx,ally);
   log(`${ally.name}(${ally.atk})→${target.name}`);
+
+  // 反撃キーワード（敵が生存中の場合、攻撃した味方に反撃）
+  if(target.hp>0&&target.keywords&&target.keywords.includes('反撃')&&ally.hp>0){
+    dealDmgToAlly(ally,target.atk,allyIdx,target);
+    log(`⚔ ${target.name}の反撃：${ally.name}に${target.atk}ダメ`,'bad');
+  }
 
   // キャラクター固有：攻撃時効果
   if(ally.hp>0){
@@ -438,9 +454,12 @@ function triggerInjury(unit, fieldIdx){
       break;
     }
     case 'mummy':{
-      // 以後、魂HPボーナス+1
-      G._soulHpBonus=(G._soulHpBonus||0)+1;
-      log(`マミー：以後の魂HP+1`,'good');
+      G._undeadHpBonus=(G._undeadHpBonus||0)+1;
+      // 現在フィールドにいる不死全員に+1HP
+      G.allies.forEach(a=>{
+        if(a&&a.hp>0&&a.race==='不死'){ a.hp+=1; a.maxHp+=1; }
+      });
+      log(`マミー：全ての不死が±0/+1（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
     case 'worm':{

@@ -203,7 +203,6 @@ function takeRewCard(i){
     updateHUD();
     renderRewCards();
     renderFieldEditor();
-    requestAnimationFrame(()=>renderField('f-ally',G.allies,false));
     return;
   }
 
@@ -244,13 +243,9 @@ function takeEliteRing(){
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
 
 function renderFieldEditor(){
-  const el=document.getElementById('inline-hand-editor');
-  if(!el) return;
-  el.style.display='';
-
-  // フィールド（キャラクター）
-  const fRow=document.getElementById('field-editor-row');
-  if(fRow) _renderFieldRow(fRow);
+  // フィールド（キャラクター）: f-allyに直接描画
+  const fAlly=document.getElementById('f-ally');
+  if(fAlly) _renderFieldRow(fAlly);
 
   // 手札（アイテム）
   renderHandEditor();
@@ -288,7 +283,6 @@ function _dropFieldUnit(destIdx){
   const src=_fieldDragSrc; _fieldDragSrc=-1;
   const tmp=G.allies[src]; G.allies[src]=G.allies[destIdx]; G.allies[destIdx]=tmp;
   renderFieldEditor();
-  requestAnimationFrame(()=>renderField('f-ally',G.allies,false));
 }
 
 function sellFieldUnit(idx){
@@ -300,7 +294,6 @@ function sellFieldUnit(idx){
   updateHUD();
   renderRewCards();
   renderFieldEditor();
-  requestAnimationFrame(()=>renderField('f-ally',G.allies,false));
 }
 
 // ── 手札エディタ（アイテム）──────────────────────

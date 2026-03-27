@@ -75,7 +75,7 @@ function pickTarget(who,idx,checkBless){
     if(u&&u.hp>0&&!slot.classList.contains('has-move')){
       // 加護：杖の効果対象にならない
       if(checkBless&&who==='enemy'&&u.keywords&&u.keywords.includes('加護')){
-        slot.classList.add('empty'); // グレーアウト表示
+        slot.classList.add('bless-blocked'); // グレーアウト表示
         return;
       }
       slot.classList.add('selectable');
@@ -86,7 +86,10 @@ function pickTarget(who,idx,checkBless){
 }
 
 function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('杖を使うかパスしてください'); } }
-function clearSelectable(){ document.querySelectorAll('.selectable').forEach(s=>{ s.classList.remove('selectable'); s.onclick=null; }); }
+function clearSelectable(){
+  document.querySelectorAll('.selectable').forEach(s=>{ s.classList.remove('selectable'); s.onclick=null; });
+  document.querySelectorAll('.bless-blocked').forEach(s=>s.classList.remove('bless-blocked'));
+}
 
 function applySpell(sp,idx,tgt){
   clearSelectable();
