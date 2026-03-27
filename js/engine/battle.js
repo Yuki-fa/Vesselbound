@@ -39,8 +39,8 @@ function removeLeaderBonus(leader){
 async function startBattle(){
   clearLog();
 
-  // ソウルリセット
-  G.gold = G.arcanaCarryGold||0; G.arcanaCarryGold=0;
+  // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
+  G.gold += G.arcanaCarryGold||0; G.arcanaCarryGold=0;
 
   // 報酬フェイズUI非表示
   const rInfo=document.getElementById('reward-info-bar');
@@ -394,15 +394,15 @@ async function enemyAttackAction(enemy, enemyIdx){
 
 // ── 味方へのダメージ処理 ─────────────────────────
 
-function dealDmgToAlly(unit, dmg, fieldIdx, src){
+function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(!unit||unit.hp<=0) return;
   if(dmg<=0) return;
 
-  // シールド
-  if(unit.shield>0){
+  // シールド（ATK0の攻撃では消費しない）
+  if(dmg>0&&unit.shield>0){
     unit.shield--;
     log(`🛡 ${unit.name}のシールドがダメージを防いだ（残${unit.shield}）`,'sys');
-    onAllyShieldLost(unit);
+    onAllyShieldLost();
     return;
   }
 
@@ -410,12 +410,13 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
   const actualDmg=dmg+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
 
-  // 逆鱗・負傷トリガー
+  // 逆鱗・負傷トリガー（死亡判定は負傷前のHPで行う）
+  const willDie=unit.hp<=0;
   if(unit.injury&&unit.hp>=0){
-    triggerInjury(unit,fieldIdx);
+    triggerInjury(unit);
   }
 
-  if(unit.hp<=0) processAllyDeath(unit,fieldIdx);
+  if(willDie) processAllyDeath(unit);
 
   // 反撃（counter フラグ持ちが生存時に攻撃者へ反撃）
   if(unit.counter&&src&&dmg>0&&unit.hp>0){
@@ -426,7 +427,7 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
 
 // ── 味方の死亡処理 ──────────────────────────────
 
-function processAllyDeath(unit, fieldIdx){
+function processAllyDeath(unit){
   if(unit.hp>0) return;
 
   log(`${unit.name} が倒れた…`,'bad');
@@ -443,7 +444,7 @@ function processAllyDeath(unit, fieldIdx){
 
 // ── 負傷トリガー ──────────────────────────────
 
-function triggerInjury(unit, fieldIdx){
+function triggerInjury(unit){
   switch(unit.injury){
     case 'lizardman':{
       // 逆鱗：ランダムな敵にATK分ダメ
@@ -485,7 +486,7 @@ function triggerInjury(unit, fieldIdx){
 
 // ── シールド喪失時 ──────────────────────────────
 
-function onAllyShieldLost(unit){
+function onAllyShieldLost(){
   // エインセル：味方がシールドを失うと自身HP+2
   G.allies.forEach(a=>{
     if(a&&a.hp>0&&a.effect==='einsel_shieldlost'){ a.hp+=2; a.maxHp+=2; log(`エインセル：HP+2`,'good'); }
@@ -573,17 +574,12 @@ function onBattleEnd(){
     }
   });
 
-  // 再生：戦闘終了時にHP+X（死亡中でも適用・蘇生）
+  // 再生：戦闘終了時にHP+X（生存時のみ）
   G.allies.forEach(a=>{
-    if(!a||!a.regen) return;
+    if(!a||!a.regen||a.hp<=0) return;
     const heal=a.regen;
-    if(a.hp<=0){
-      a.hp=heal;
-      log(`✨ ${a.name} 再生${heal}：復活！（HP:${a.hp}）`,'good');
-    } else {
-      a.hp=Math.min(a.maxHp,a.hp+heal);
-      log(`✨ ${a.name} 再生${heal}：HP+${heal}（${a.hp}）`,'good');
-    }
+    a.hp=Math.min(a.maxHp,a.hp+heal);
+    log(`✨ ${a.name} 再生${heal}：HP+${heal}（${a.hp}）`,'good');
   });
 
   // 死亡ユニット（再生で回復しなかった）をフィールドから除去

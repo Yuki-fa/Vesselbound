@@ -272,14 +272,17 @@ function _renderFieldRow(el){
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡${unit.shield}</span>`);
       if(unit.regen)   badges.push(`<span class="slot-badge b-regen">再生${unit.regen}</span>`);
       if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
+      const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const descTag=unit.desc?`<div class="slot-desc">${unit.desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._battleCount||0)}戦</div>`:'';
-      div.innerHTML=`${badges.join('')}${gradeTag}
-        <div style="font-size:1.1rem;margin:4px 0 2px">${unit.icon||'❓'}</div>
-        ${dragonetSub}
-        <div class="slot-name">${unit.name}</div>
-        <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
+      div.innerHTML=`${badgeBlock}${gradeTag}
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+          <div style="font-size:1.1rem">${unit.icon||'❓'}</div>
+          ${dragonetSub}
+          <div class="slot-name">${unit.name}</div>
+          <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
+        </div>
         <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
         ${descTag}
         <button class="return-btn" style="bottom:8px">売却 +1ソウル</button>`;

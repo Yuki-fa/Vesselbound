@@ -11,6 +11,7 @@ const _EXPORT_BASE =
   '/pub?output=csv';
 function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
 const _SHEET_GIDS = {
+  'キャラクタープール': 0,          // ← 正しいGIDに変更してください
   '指輪プール':   426459898,
   '魔法プール':  1848829406,
   '階層データ':   920830789,
@@ -62,7 +63,24 @@ function _parseCSV(text) {
     const obj = {};
     headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
     return obj;
-  }).filter(row => row && row[headers[0]]);
+  // 「名前」列があれば名前ベース、なければ先頭列ベースでフィルタ
+  }).filter(row => row && (row['名前'] || row[headers[0]]));
+}
+
+// ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
+function _rowToUnit(row) {
+  return {
+    id:     '',                                // JS定義から名前マッチで補完
+    name:   row['名前'],
+    race:   row['種族']  || '-',
+    grade:  parseInt(row['グレード']) || 1,
+    atk:    parseInt(row['ATK'])   || 0,
+    hp:     parseInt(row['HP'])    || 0,
+    cost:   parseInt(row['価格']) || 0,
+    unique: row['ユニーク'] === 'TRUE' || row['ユニーク'] === '✓',
+    desc:   row['効果']   || '',
+    icon:   row['アイコン'] || '❓',
+  };
 }
 
 // ── 行 → 指輪オブジェクト ──────────────────────────
@@ -126,7 +144,10 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
+    const unitGid = _SHEET_GIDS['キャラクタープール'];
+    const hasUnitSheet = unitGid && unitGid !== 0;
     const fetches = [
+      hasUnitSheet ? fetch(_sheetUrl(unitGid)) : Promise.resolve(null),
       fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
@@ -136,54 +157,83 @@ async function loadGameData() {
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [rt, st, ft, et, kt, xt] = await Promise.all(responses.map(r => r.text()));
+    const texts = await Promise.all(responses.map(r => r ? r.text() : Promise.resolve('')));
+    const [ut, rt, st, ft, et, kt, xt] = texts;
 
-    // ── 指輪プール ──
-    // JS定義（rings.js）の行動プロパティを退避（trigger/unique/onDeath/regenはコード管理）
+    // ── キャラクタープール（GIDが設定されている場合のみ）──
+    if (hasUnitSheet && ut) {
+      const unitRows = _parseCSV(ut);
+      // JS定義を退避（effect/injury/icon等コード管理プロパティ用）
+      const _savedUnits = UNIT_POOL.slice();
+      UNIT_POOL.length = 0;
+      unitRows.forEach(row => {
+        if (!row['名前']) return;
+        const su = _rowToUnit(row);
+        // JS定義から名前マッチでid・コード管理プロパティを補完
+        const js = _savedUnits.find(u => u && u.name === su.name);
+        if (js) {
+          su.id     = js.id;
+          su.icon   = js.icon || su.icon;
+          su.effect = js.effect || null;
+          su.injury = js.injury || null;
+          su.counter= js.counter || false;
+          su.hate   = js.hate   || false;
+          su.regen  = js.regen  || 0;
+          su.shield = js.shield || 0;
+        } else {
+          su.id = 'u_' + su.name;
+        }
+        UNIT_POOL.push(su);
+      });
+    }
+
+    // ── 指輪プール（名前ベースマッチング）──
     const _savedRings = RING_POOL.slice();
     const ringRows = _parseCSV(rt);
     RING_POOL.length = 0;
-    ringRows.forEach(row => { if (row['id'] && row['名前']) RING_POOL.push(_rowToRing(row)); });
-    // スプレッドシートのtrigger/unique/onDeath/regenはコードの定義で上書き
+    ringRows.forEach(row => { if (row['名前']) RING_POOL.push(_rowToRing(row)); });
+    // trigger/unique/onDeath/regen/count はコード定義で上書き（名前ベース）
     RING_POOL.forEach(ring => {
-      const js = _savedRings.find(r => r && r.id === ring.id);
+      const js = _savedRings.find(r => r && r.name === ring.name);
       if (!js) return;
+      ring.id = js.id; // idはJS定義を使用
       if (js.trigger  !== undefined) ring.trigger  = js.trigger;
       if (js.unique   !== undefined) ring.unique    = js.unique;
       if (js.onDeath  !== undefined) ring.onDeath   = js.onDeath;
       if (js.regen    !== undefined) ring.regen     = js.regen;
       if (js.legend   !== undefined) ring.legend    = js.legend;
       if (js.count    !== undefined) ring.count     = js.count;
-      if (js.desc     !== undefined) ring.desc      = js.desc;
     });
 
-    // ── 魔法プール ──
+    // ── 魔法プール（名前ベースマッチング、シートにないものは出さない）──
     const _savedSpells = SPELL_POOL.slice();
     const spellRows = _parseCSV(st);
     SPELL_POOL.length = 0;
-    spellRows.forEach(row => { if (row['id'] && row['名前']) SPELL_POOL.push(_rowToSpell(row)); });
-    // すべてのプロパティをコード定義で上書き（descを含む）
-    SPELL_POOL.forEach(spell => {
-      const js = _savedSpells.find(s => s && s.id === spell.id);
-      if (!js) return;
-      if (js.needsEnemy !== undefined) spell.needsEnemy = js.needsEnemy;
-      if (js.needsAlly  !== undefined) spell.needsAlly  = js.needsAlly;
-      if (js.needsAny   !== undefined) spell.needsAny   = js.needsAny;
-      if (js.effect     !== undefined) spell.effect     = js.effect;
-      if (js.baseUses   !== undefined) spell.baseUses   = js.baseUses;
-      if (js.starterOnly!== undefined) spell.starterOnly= js.starterOnly;
-      if (js.unique     !== undefined) spell.unique     = js.unique;
-      if (js.cost       !== undefined) spell.cost       = js.cost;
-      if (js.type       !== undefined) spell.type       = js.type;
-      if (js.desc       !== undefined) spell.desc       = js.desc;
+    spellRows.forEach(row => {
+      if (!row['名前']) return;
+      const ss = _rowToSpell(row);
+      // JS定義から名前マッチでid・コード管理プロパティを補完
+      const js = _savedSpells.find(s => s && s.name === ss.name);
+      if (js) {
+        ss.id         = js.id;
+        if (js.needsEnemy !== undefined) ss.needsEnemy = js.needsEnemy;
+        if (js.needsAlly  !== undefined) ss.needsAlly  = js.needsAlly;
+        if (js.needsAny   !== undefined) ss.needsAny   = js.needsAny;
+        if (js.effect     !== undefined) ss.effect     = js.effect;
+        if (js.baseUses   !== undefined) ss.baseUses   = js.baseUses;
+        if (js.starterOnly!== undefined) ss.starterOnly= js.starterOnly;
+        if (js.unique     !== undefined) ss.unique     = js.unique;
+        if (js.type       !== undefined) ss.type       = js.type;
+      } else {
+        ss.id = 'sp_' + ss.name;
+      }
+      // 価格はシートのものを優先（JS定義で上書きしない）
+      if (!ss.cost && row['価格']) ss.cost = parseInt(row['価格']) || 0;
+      SPELL_POOL.push(ss);
     });
-    // シートにない JS 定義のスペル（消耗品など）を補完
-    _savedSpells.forEach(js => {
-      if (!js || SPELL_POOL.find(s => s.id === js.id)) return;
-      SPELL_POOL.push(clone(js));
-    });
+    // ※ シートにないJS定義スペルは補完しない（シートが正とする）
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);

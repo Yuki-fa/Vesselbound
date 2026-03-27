@@ -5,6 +5,7 @@
 
 let _tgtCtx=null;
 let _swapFirst=-1;
+let _spreadTargetPending=false;
 
 function useSpell(idx){
   const sp=G.spells[idx];
@@ -86,6 +87,32 @@ function pickTarget(who,idx,checkBless){
 }
 
 function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('杖を使うかパスしてください'); } }
+
+// 拡散の杖：対象選択が必要な右隣杖のためのピッカー
+function _pickForSpread(rw,rightIdx){
+  setHint(`拡散：${rw.name}の対象を選択（ESCでキャンセル）`);
+  const applyFn=tgt=>applySpell(rw,rightIdx,tgt);
+  if(rw.needsAny){
+    document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+      if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
+    });
+    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+      if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); }; }
+    });
+  } else if(rw.needsEnemy){
+    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+      const u=G.enemies[i]; if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
+      if(u.keywords&&u.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
+      slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); };
+    });
+  } else if(rw.needsAlly){
+    document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+      if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
+    });
+  }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ clearSelectable(); _spreadTargetPending=false; renderHand(); setHint('杖を使うかパスしてください'); } },{once:true});
+}
+
 function clearSelectable(){
   document.querySelectorAll('.selectable').forEach(s=>{ s.classList.remove('selectable'); s.onclick=null; });
   document.querySelectorAll('.bless-blocked').forEach(s=>s.classList.remove('bless-blocked'));
@@ -98,6 +125,8 @@ function applySpell(sp,idx,tgt){
   // 触媒環の契約：消耗品の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
   const cMult=(sp.type==='consumable'&&catRingC)?2:1;
+  _spreadTargetPending=false;
+  let _spreadPick=null;
   switch(sp.effect){
     case 'fire':{
       const e=G.enemies[tgt.idx]; const fd=G.magicLevel||1; dealDmgToEnemy(e,fd,tgt.idx); log(`炎の杖：${e.name}に${fd}ダメ`,'good');
@@ -164,7 +193,7 @@ function applySpell(sp,idx,tgt){
       }
       log(`隕石の杖：ランダムキャラに3ダメ×${hits}`,'bad');
     break;}
-    case 'doom':{ const dd=5; G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); log(`破滅の杖：全敵に${dd}ダメ`,'good'); break;}
+    case 'doom':{ const dd=G.magicLevel||1; G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); log(`破滅の杖：全敵に${dd}ダメ`,'good'); break;}
     case 'possess':{
       const pi=tgt.idx;
       const pa=G.allies[pi]; if(!pa) break;
@@ -183,7 +212,7 @@ function applySpell(sp,idx,tgt){
       if(!tgt) break;
       const sdu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(!sdu) break;
-      if(tgt.who==='enemy') dealDmgToEnemy(sdu,sdu.hp+999,tgt.idx);
+      if(tgt.who==='enemy'){ sdu.hp=0; processEnemyDeath(sdu,tgt.idx); } // シールド無視
       else G.allies[tgt.idx]=null;
       log(`生贄人形：${sdu.name}を破壊`,'good');
     break;}
@@ -207,27 +236,22 @@ function applySpell(sp,idx,tgt){
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
     break;}
-    case 'boost':{ const a=G.allies[tgt.idx]; a.atk=Math.round(a.atk*1.5); a.maxHp=Math.round(a.maxHp*1.5); a.hp=Math.min(Math.round(a.hp*1.5),a.maxHp); log(`${a.name} ATK/HP×1.5`,'good'); break;}
+    case 'boost':{ const a=G.allies[tgt.idx]; const bv=G.magicLevel||1; a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
     case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
     case 'seal':{ G.enemies[tgt.idx].sealed=1; log(`${G.enemies[tgt.idx].name} 封印1T`,'good'); break;}
     case 'spread':{
-      // 右隣の杖の効果を発動（アクション消費なし）
       const rightIdx=idx+1;
       const rw=(rightIdx<(G.handSlots||7))?G.spells[rightIdx]:null;
       if(rw&&rw.type==='wand'&&(rw.usesLeft===undefined||rw.usesLeft>0)){
         log(`拡散：${rw.name}を発動`,'sys');
-        G.actionsLeft++; // 内部呼出のデクリメントを補償（拡散自体は1アクション消費のまま）
         if(!rw.needsEnemy&&!rw.needsAlly&&!rw.needsAny){
+          G.actionsLeft++; // 内部呼出のデクリメントを補償
           applySpell(rw,rightIdx,null);
-        } else if(rw.needsEnemy){
-          const live=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e.hp>0&&!(x.e.keywords?.includes('加護')));
-          if(live.length) applySpell(rw,rightIdx,{who:'enemy',idx:randFrom(live).i});
-          else G.actionsLeft--;
-        } else if(rw.needsAlly){
-          const live=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0);
-          if(live.length) applySpell(rw,rightIdx,{who:'ally',idx:randFrom(live).i});
-          else G.actionsLeft--;
+        } else {
+          // 対象選択が必要な場合：renderAll後にピッカーを起動
+          _spreadTargetPending=true;
+          _spreadPick=()=>_pickForSpread(rw,rightIdx);
         }
       } else {
         log('拡散：右隣に有効な杖がない','sys');
@@ -237,8 +261,8 @@ function applySpell(sp,idx,tgt){
       if(tgt){
         const iku=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
         if(iku&&iku.hp>0){
-          if(tgt.who==='enemy') dealDmgToEnemy(iku,iku.hp+999,tgt.idx);
-          else { iku.hp=0; processAllyDeath(iku,tgt.idx); }
+          if(tgt.who==='enemy'){ iku.hp=0; processEnemyDeath(iku,tgt.idx); } // シールド無視
+          else { iku.hp=0; processAllyDeath(iku); }
           log(`即死の薬瓶：${iku.name}を消滅`,'good');
         }
       }
@@ -317,9 +341,10 @@ function applySpell(sp,idx,tgt){
     }
   }
 
-  if(sp.type!=='consumable') G.actionsLeft--;
+  if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
   renderAll();
   if(checkInstantVictory()) return;
+  if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasConsumable=G.spells.some(s=>s&&s.type==='consumable');
   const hasWand=G.spells.some(s=>s&&s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0));
   if(G.actionsLeft<=0&&!hasConsumable){
