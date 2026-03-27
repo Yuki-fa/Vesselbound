@@ -73,11 +73,8 @@ async function startBattle(){
     if(!a) return;
     a.sealed=0; a.poison=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
-    a.regenUsed=false;
-    if(a._isSoul){
-      // 前の戦闘で魂になったが復活済みのはず。念のためリセット
-      a._isSoul=false;
-    }
+    a.regenUsed=false; a._pendingSoul=false; a.stealth=false;
+    if(a._isSoul){ a._isSoul=false; }
     a._injuryFired=false;
     a._battleStartHp=a.hp;
   });
@@ -181,11 +178,27 @@ function startPlayerPhase(){
 // ── ターン開始時効果 ───────────────────────────
 
 function applyTurnStart(){
+  // 前ターン死亡した再生キャラを魂として出現
+  G.allies.forEach(a=>{
+    if(!a||!a._pendingSoul) return;
+    a._pendingSoul=false;
+    a.atk=0; a.hp=1+(G._soulHpBonus||0);
+    a.maxHp=Math.max(a.maxHp, a.hp);
+    a._isSoul=true; a.nullified=0; a.sealed=0;
+    a.icon='👻';
+    log(`👻 ${a.name}が魂として出現！（戦闘後に復活）`,'good');
+  });
+
+  // 触媒の指輪による毒倍率
+  const catRing=G.rings.find(r=>r&&r.unique==='catalyst');
+  const catMult=catRing?(catRing.grade||1)+1:1;
+
   // 毒ティック（敵）
   G.enemies.forEach(e=>{
     if(e.poison>0&&e.hp>0){
-      e.hp=Math.max(0,e.hp-e.poison);
-      log(`☠ ${e.name}が毒でHP-${e.poison}（残HP:${e.hp}）`,'bad');
+      const dmg=e.poison*catMult;
+      e.hp=Math.max(0,e.hp-dmg);
+      log(`☠ ${e.name}が毒でHP-${dmg}${catMult>1?'（触媒×'+catMult+'）':''}（残HP:${e.hp}）`,'bad');
       if(e.hp<=0) processEnemyDeath(e,G.enemies.indexOf(e));
     }
   });
@@ -195,6 +208,7 @@ function applyTurnStart(){
     if(a&&a.poison>0&&a.hp>0){
       a.hp=Math.max(0,a.hp-a.poison);
       log(`☠ ${a.name}が毒でHP-${a.poison}（残HP:${a.hp}）`,'bad');
+      if(a.hp<=0) processAllyDeath(a, G.allies.indexOf(a));
     }
   });
   // 指輪パッシブ（針など）
@@ -244,7 +258,7 @@ async function battlePhase(){
     _onAllEnemiesDefeated();
     return;
   }
-  const liveA=G.allies.filter(a=>a&&a.hp>0);
+  const liveA=G.allies.filter(a=>a&&(a.hp>0||a._pendingSoul));
   if(!liveA.length){ await sleep(200); gameOver(); return; }
 
   await sleep(400);
@@ -256,7 +270,7 @@ function _checkBattleOver(){
     _onAllEnemiesDefeated();
     return true;
   }
-  if(!G.allies.filter(a=>a&&a.hp>0).length){ setTimeout(()=>gameOver(),200); return true; }
+  if(!G.allies.filter(a=>a&&(a.hp>0||a._pendingSoul)).length){ setTimeout(()=>gameOver(),200); return true; }
   return false;
 }
 
@@ -285,6 +299,9 @@ async function allyAttackAction(ally, allyIdx){
   await sleep(300);
   if(aSlot) aSlot.classList.remove('glow-blue');
   if(eSlot) eSlot.classList.remove('glow-red');
+
+  // 隠密解除（攻撃すると解除）
+  if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
   // 一方攻撃（攻撃側はノーダメージ）
   dealDmgToEnemy(target,ally.atk,eIdx,ally);
@@ -552,21 +569,21 @@ function onBattleEnd(){
     }
   });
 
-  // 魂の復活
+  // 魂・保留魂の復活
   G.allies.forEach((a,i)=>{
-    if(!a||!a._isSoul) return;
+    if(!a||(!a._isSoul&&!a._pendingSoul)) return;
     a.hp=a._battleStartHp||a.maxHp;
     a.atk=a.baseAtk;
-    a._isSoul=false;
-    a.poison=0; // 復活時に毒をリセット
+    a._isSoul=false; a._pendingSoul=false;
+    a.poison=0;
     if(a._savedIcon){ a.icon=a._savedIcon; delete a._savedIcon; }
     log(`✨ ${a.name}が復活！`,'good');
   });
 
-  // 永久死亡ユニット（hp=0 かつ 魂でない）をフィールドから除去
+  // 永久死亡ユニット（hp=0 かつ 魂でも保留魂でもない）をフィールドから除去
   for(let i=0;i<G.allies.length;i++){
     const a=G.allies[i];
-    if(a&&a.hp<=0&&!a._isSoul) G.allies[i]=null;
+    if(a&&a.hp<=0&&!a._isSoul&&!a._pendingSoul) G.allies[i]=null;
   }
 }
 
