@@ -75,7 +75,6 @@ async function startBattle(){
     a.nullified=0; a.instadead=false;
     a.regenUsed=false; a._pendingSoul=false; a.stealth=false;
     if(a._isSoul){ a._isSoul=false; }
-    a._injuryFired=false;
     a._battleStartHp=a.hp;
   });
 
@@ -398,9 +397,8 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
   const actualDmg=dmg+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
 
-  // 逆鱗・負傷トリガー（初回のみ）
-  if(!unit._injuryFired&&unit.injury&&unit.hp>=0){
-    unit._injuryFired=true;
+  // 逆鱗・負傷トリガー
+  if(unit.injury&&unit.hp>=0){
     triggerInjury(unit,fieldIdx);
   }
 

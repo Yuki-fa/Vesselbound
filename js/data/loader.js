@@ -159,9 +159,22 @@ async function loadGameData() {
     });
 
     // ── 魔法プール ──
+    const _savedSpells = SPELL_POOL.slice();
     const spellRows = _parseCSV(st);
     SPELL_POOL.length = 0;
     spellRows.forEach(row => { if (row['id'] && row['名前']) SPELL_POOL.push(_rowToSpell(row)); });
+    // needsEnemy/needsAlly/needsAny/effect/baseUses/starterOnly/unique はコード管理プロパティ
+    SPELL_POOL.forEach(spell => {
+      const js = _savedSpells.find(s => s && s.id === spell.id);
+      if (!js) return;
+      if (js.needsEnemy !== undefined) spell.needsEnemy = js.needsEnemy;
+      if (js.needsAlly  !== undefined) spell.needsAlly  = js.needsAlly;
+      if (js.needsAny   !== undefined) spell.needsAny   = js.needsAny;
+      if (js.effect     !== undefined) spell.effect     = js.effect;
+      if (js.baseUses   !== undefined) spell.baseUses   = js.baseUses;
+      if (js.starterOnly!== undefined) spell.starterOnly= js.starterOnly;
+      if (js.unique     !== undefined) spell.unique     = js.unique;
+    });
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
