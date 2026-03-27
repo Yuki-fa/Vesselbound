@@ -156,6 +156,7 @@ async function loadGameData() {
       if (js.regen    !== undefined) ring.regen     = js.regen;
       if (js.legend   !== undefined) ring.legend    = js.legend;
       if (js.count    !== undefined) ring.count     = js.count;
+      if (js.desc     !== undefined) ring.desc      = js.desc;
     });
 
     // ── 魔法プール ──
@@ -163,7 +164,7 @@ async function loadGameData() {
     const spellRows = _parseCSV(st);
     SPELL_POOL.length = 0;
     spellRows.forEach(row => { if (row['id'] && row['名前']) SPELL_POOL.push(_rowToSpell(row)); });
-    // needsEnemy/needsAlly/needsAny/effect/baseUses/starterOnly/unique はコード管理プロパティ
+    // すべてのプロパティをコード定義で上書き（descを含む）
     SPELL_POOL.forEach(spell => {
       const js = _savedSpells.find(s => s && s.id === spell.id);
       if (!js) return;
@@ -174,6 +175,14 @@ async function loadGameData() {
       if (js.baseUses   !== undefined) spell.baseUses   = js.baseUses;
       if (js.starterOnly!== undefined) spell.starterOnly= js.starterOnly;
       if (js.unique     !== undefined) spell.unique     = js.unique;
+      if (js.cost       !== undefined) spell.cost       = js.cost;
+      if (js.type       !== undefined) spell.type       = js.type;
+      if (js.desc       !== undefined) spell.desc       = js.desc;
+    });
+    // シートにない JS 定義のスペル（消耗品など）を補完
+    _savedSpells.forEach(js => {
+      if (!js || SPELL_POOL.find(s => s.id === js.id)) return;
+      SPELL_POOL.push(clone(js));
     });
 
     // ── 階層データ ──

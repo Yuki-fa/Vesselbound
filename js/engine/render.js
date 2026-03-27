@@ -77,9 +77,18 @@ function renderField(id,units,isEnemy){
         const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
         const dragonetTag=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--text2);text-align:center">あと${3-(u._battleCount||0)}戦</div>`:'';
         const descTag=u.desc?`<div class="slot-desc">${u.desc}</div>`:'';
-        slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${descTag}${dragonetTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
-        // 優先ターゲットは少し前に出す
-        if(i===priorityIdx) slot.style.transform=isEnemy?'translateY(4px)':'translateY(-4px)';
+        if(isEnemy){
+          slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+        } else {
+          slot.style.justifyContent='flex-start';
+          slot.style.paddingTop='2px';
+          slot.innerHTML=`${bs.join('')}${gradeTag}<div class="slot-name">${u.name}</div><div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:1.1rem">${u.icon}</div>${dragonetTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
+        }
+        // 優先ターゲットは赤枠＋前に出す
+        if(i===priorityIdx){
+          slot.classList.add('priority-target');
+          slot.style.transform=isEnemy?'translateY(4px)':'translateY(-4px)';
+        }
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
       const nt=NODE_TYPES[G.moveMasks[i]];

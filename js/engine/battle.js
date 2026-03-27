@@ -455,9 +455,9 @@ function triggerInjury(unit, fieldIdx){
     }
     case 'mummy':{
       G._undeadHpBonus=(G._undeadHpBonus||0)+1;
-      // 現在フィールドにいる不死全員に+1HP
+      // 現在の全不死（盤面上・死亡中を問わず）に+1HP
       G.allies.forEach(a=>{
-        if(a&&a.hp>0&&a.race==='不死'){ a.hp+=1; a.maxHp+=1; }
+        if(a&&a.race==='不死'){ a.hp+=1; a.maxHp+=1; }
       });
       log(`マミー：全ての不死が±0/+1（累計+${G._undeadHpBonus}）`,'good');
       break;

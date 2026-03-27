@@ -159,7 +159,13 @@ function _mkRewDiv(card, onBuy){
     const disabled=!hasSlot;
     div.className='rew-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
-    const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px"><span style="color:var(--teal2)">${card.atk}</span><span style="color:var(--text2)">/</span><span style="color:#e05060">${card.hp}</span></div>`;
+    // 不死HPボーナス表示
+    const hpBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
+    const displayHp=card.hp+hpBonus;
+    const hpStr=hpBonus>0
+      ?`<span style="color:#60d090">${displayHp}</span><span style="font-size:.5rem;color:#4a9;margin-left:1px">(+${hpBonus})</span>`
+      :`<span style="color:#60d090">${card.hp}</span>`;
+    const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px"><span style="color:var(--teal2)">${card.atk}</span><span style="color:var(--text2)">/</span>${hpStr}</div>`;
     const costLine=`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
@@ -257,18 +263,32 @@ function _renderFieldRow(el){
     const unit=G.allies[i];
     const div=document.createElement('div');
     if(unit){
-      div.className='card ring';
+      div.className='slot';
+      div.style.justifyContent='flex-start';
+      div.style.paddingTop='2px';
       div.draggable=true;
-      const statusBadge=unit._isSoul?'<span style="font-size:.55rem;color:#aaa">（魂）</span>':'';
-      div.innerHTML=`<div class="card-tp ring">キャラ</div><div class="card-grade">${unit.icon||''}</div><div class="card-name">${unit.name}${statusBadge}</div><div class="card-desc" style="font-size:.6rem;color:var(--teal2)">${unit.atk}/${unit.hp}</div><div class="card-desc">${unit.desc||''}</div><div class="card-sell">売却 +1ソウル</div><button class="return-btn" title="売却">売却</button>`;
-      div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+      const badges=[];
+      if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
+      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡${unit.shield}</span>`);
+      if(unit.regen)   badges.push(`<span class="slot-badge b-regen">再生${unit.regen}</span>`);
+      if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
+      const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
+      const descTag=unit.desc?`<div class="slot-desc">${unit.desc}</div>`:'';
+      div.innerHTML=`${badges.join('')}${gradeTag}
+        <div class="slot-name">${unit.name}</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:1.1rem">${unit.icon||'❓'}</div>
+        <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
+        <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
+        ${descTag}
+        <button class="sell-field-btn" style="margin-top:2px;width:100%;font-size:.48rem;padding:1px 2px;border:1px solid rgba(255,100,100,.4);background:rgba(255,50,50,.08);color:#e07070;border-radius:2px;cursor:pointer;flex-shrink:0">売却 +1ソウル</button>`;
+      div.querySelector('.sell-field-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
       div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); _dropFieldUnit(i); });
     } else {
-      div.className='card-empty';
+      div.className='slot empty';
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
       div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); _dropFieldUnit(i); });
