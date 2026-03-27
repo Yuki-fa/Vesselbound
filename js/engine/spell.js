@@ -100,7 +100,7 @@ function applySpell(sp,idx,tgt){
   const cMult=(sp.type==='consumable'&&catRingC)?2:1;
   switch(sp.effect){
     case 'fire':{
-      const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,2,tgt.idx); log(`炎の杖：${e.name}に2ダメ`,'good');
+      const e=G.enemies[tgt.idx]; const fd=G.magicLevel||1; dealDmgToEnemy(e,fd,tgt.idx); log(`炎の杖：${e.name}に${fd}ダメ`,'good');
     break;}
     case 'hate':{
       if(tgt.who==='ally'){

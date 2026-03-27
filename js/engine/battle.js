@@ -182,7 +182,7 @@ function applyTurnStart(){
       e.atk=e._savedAtk!==undefined?e._savedAtk:(e.baseAtk||0);
       e.powerBroken=false;
       delete e._savedAtk;
-      log(`${e.name} のパワーブレイクが回復`,'sys');
+      log(`${e.name} のパワーブレイクが回復（ATK→${e.atk}）`,'sys');
     }
   });
 
@@ -342,16 +342,16 @@ async function enemyAttackAction(enemy, enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
-  // ターゲット選択（ヘイト優先、なければ最右端。隠密は候補から除外）
-  const hateT=liveA.find(a=>a.hate&&a.hateTurns>0);
+  // ターゲット選択：ヘイト持ち全員 or 最右端（隠密除外）
+  const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
   const visibleA=liveA.filter(a=>!a.stealth);
   const candidates=visibleA.length?visibleA:liveA;
-  let tgt=hateT||candidates[candidates.length-1];
-  const aIdx=G.allies.indexOf(tgt);
+  const targets=hateTgts.length>0?hateTgts:[candidates[candidates.length-1]];
+  const primaryIdx=G.allies.indexOf(targets[0]);
 
-  // アニメーション
+  // アニメーション（先頭ターゲット代表）
   const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[enemyIdx];
-  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[aIdx];
+  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[primaryIdx];
   if(eSlot) eSlot.classList.add('glow-blue');
   if(aSlot) aSlot.classList.add('glow-red');
   await sleep(300);
@@ -361,24 +361,29 @@ async function enemyAttackAction(enemy, enemyIdx){
   const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
 
-  // 範囲攻撃チェック
-  const rangeHit=[];
-  if(atkVal>0&&enemy.keywords&&enemy.keywords.includes('範囲攻撃')){
-    [-1,1].forEach(d=>{
-      const adj=G.allies[aIdx+d];
-      if(adj&&adj.hp>0){ rangeHit.push({unit:adj,idx:aIdx+d}); }
-    });
-  }
+  // 全ターゲットを攻撃
+  const hitNames=[];
+  const hitSet=new Set(); // 重複ダメージ防止（範囲攻撃の重複）
+  targets.forEach(tgt=>{
+    const aIdx=G.allies.indexOf(tgt);
+    const rangeHit=[];
+    if(atkVal>0&&enemy.keywords&&enemy.keywords.includes('範囲攻撃')){
+      [-1,1].forEach(d=>{
+        const adj=G.allies[aIdx+d];
+        if(adj&&adj.hp>0&&!hitSet.has(adj.id)){ rangeHit.push({unit:adj,idx:aIdx+d}); }
+      });
+    }
+    if(!hitSet.has(tgt.id)){
+      dealDmgToAlly(tgt,atkVal,aIdx,enemy);
+      hitSet.add(tgt.id);
+    }
+    rangeHit.forEach(h=>{ dealDmgToAlly(h.unit,atkVal,h.idx,enemy); hitSet.add(h.unit.id); });
+    if(atkVal>0&&tgt.hp>=0) applyKeywordOnHit(enemy,tgt);
+    rangeHit.forEach(h=>{ if(atkVal>0) applyKeywordOnHit(enemy,h.unit); });
+    hitNames.push(tgt.name);
+  });
 
-  // 一方攻撃（敵が攻撃→味方のみダメージ、反撃なし）
-  dealDmgToAlly(tgt,atkVal,aIdx,enemy);
-  rangeHit.forEach(h=>dealDmgToAlly(h.unit,atkVal,h.idx,enemy));
-
-  log(`${enemy.name}(${atkVal})→${tgt.name}`);
-
-  // キーワード効果（敵→味方）
-  if(atkVal>0&&tgt.hp>=0) applyKeywordOnHit(enemy,tgt);
-  rangeHit.forEach(h=>{ if(atkVal>0) applyKeywordOnHit(enemy,h.unit); });
+  log(`${enemy.name}(${atkVal})→${hitNames.join('・')}`);
 
   // ヘイトターン消費
   G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
@@ -632,8 +637,10 @@ function applyKeywordOnHit(attacker, target){
   if(kws.includes('即死')){ target.hp=0; log(`💀 即死：${attacker.name}の攻撃で${target.name}が即死！`,'bad'); }
   if(kws.includes('毒')&&target.hp>0){ target.poison=(target.poison||0)+3; log(`☠ 毒：${attacker.name}が${target.name}に毒（HP-3/T）`,'bad'); }
   if(kws.includes('パワーブレイク')&&!target.powerBroken&&target.hp>0){
-    target.powerBroken=true; target._savedAtk=target.atk; target.atk=0;
-    log(`💢 パワーブレイク：${attacker.name}が${target.name}のATK→0`,'bad');
+    const pbX=G.floor||1;
+    target.powerBroken=true; target._savedAtk=target.atk;
+    target.atk=Math.max(0,target.atk-pbX);
+    log(`💢 パワーブレイク${pbX}：${attacker.name}が${target.name}のATK-${pbX}（${target._savedAtk}→${target.atk}）`,'bad');
   }
 }
 

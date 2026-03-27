@@ -265,7 +265,7 @@ function _renderFieldRow(el){
     if(unit){
       div.className='slot';
       div.style.justifyContent='flex-start';
-      div.style.paddingTop='2px';
+      div.style.padding='3px 2px 8px';
       div.draggable=true;
       const badges=[];
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
@@ -274,14 +274,16 @@ function _renderFieldRow(el){
       if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const descTag=unit.desc?`<div class="slot-desc">${unit.desc}</div>`:'';
+      const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._battleCount||0)}戦</div>`:'';
       div.innerHTML=`${badges.join('')}${gradeTag}
         <div class="slot-name">${unit.name}</div>
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:1.1rem">${unit.icon||'❓'}</div>
+        ${dragonetSub}
+        <div style="font-size:1.1rem;margin:2px 0">${unit.icon||'❓'}</div>
         <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
         <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
         ${descTag}
-        <button class="sell-field-btn" style="margin-top:2px;width:100%;font-size:.48rem;padding:1px 2px;border:1px solid rgba(255,100,100,.4);background:rgba(255,50,50,.08);color:#e07070;border-radius:2px;cursor:pointer;flex-shrink:0">売却 +1ソウル</button>`;
-      div.querySelector('.sell-field-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+        <button class="return-btn" style="margin-top:auto">売却 +1ソウル</button>`;
+      div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
