@@ -11,7 +11,7 @@ function eliteGradeForFloor(floor){
   return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
 }
 function bossGradeForFloor(floor){
-  return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+2);
+  return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1.5);
 }
 // グレードに応じた敵のATK/HP（G1合計4〜5、G2以降は急増）
 const _ENEMY_STAT_TABLE=[
@@ -88,12 +88,13 @@ function generateEnemies(floor){
   }
 
   if(isBoss){
-    // ボス: 5体。ボス（1体目）はボスグレード、側近は1グレード下
+    // ボス: 5体。ボス（1体目）はgrade+1.5、側近はベースgrade
     const bg=bossGradeForFloor(floor);
+    const baseG=FLOOR_DATA[floor]?.grade||1;
     const count=5;
     const enemies=[];
     for(let i=0;i<count;i++){
-      const g=i===0?bg:Math.max(1,bg-1);
+      const g=i===0?bg:baseG;
       const {atk,hp}=enemyStatsByGrade(g);
       const name=i===0?'ボス':'側近';
       const icon=i===0?'💀':'👹';
