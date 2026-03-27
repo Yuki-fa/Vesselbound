@@ -667,6 +667,10 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
     applyPoisonOnDmg(e,srcUnit);
+    // 即死キーワード（味方側）
+    if(srcUnit&&srcUnit.keywords&&srcUnit.keywords.includes('即死')&&e.hp>0){
+      e.hp=0; log(`💀 即死：${srcUnit.name}の攻撃で${e.name}が即死！`,'good');
+    }
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
 }

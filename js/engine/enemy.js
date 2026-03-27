@@ -24,8 +24,17 @@ const _ENEMY_STAT_TABLE=[
   {a:[40,50],h:[80,100]},// G6: 合計120〜150
 ];
 function enemyStatsByGrade(g){
-  const row=_ENEMY_STAT_TABLE[g]||{a:[g*7,g*9],h:[g*14,g*18]};
-  return {atk:randi(row.a[0],row.a[1]), hp:randi(row.h[0],row.h[1])};
+  // 小数グレードは隣接するグレード間を線形補間（例：1.5→G1とG2の中間）
+  const lo=Math.max(1,Math.floor(g));
+  const hi=Math.min(6,Math.ceil(g));
+  const t=g-lo; // 補間係数 0〜1
+  const rLo=_ENEMY_STAT_TABLE[lo]||{a:[lo*7,lo*9],h:[lo*14,lo*18]};
+  const rHi=_ENEMY_STAT_TABLE[hi]||{a:[hi*7,hi*9],h:[hi*14,hi*18]};
+  const aMin=Math.round(rLo.a[0]+(rHi.a[0]-rLo.a[0])*t);
+  const aMax=Math.round(rLo.a[1]+(rHi.a[1]-rLo.a[1])*t);
+  const hMin=Math.round(rLo.h[0]+(rHi.h[0]-rLo.h[0])*t);
+  const hMax=Math.round(rLo.h[1]+(rHi.h[1]-rLo.h[1])*t);
+  return {atk:randi(aMin,aMax), hp:randi(hMin,hMax)};
 }
 
 // ボスのシールド数（階層別）

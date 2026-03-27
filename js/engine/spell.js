@@ -261,9 +261,9 @@ function applySpell(sp,idx,tgt){
       if(tgt){
         const iku=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
         if(iku&&iku.hp>0){
-          if(tgt.who==='enemy'){ iku.hp=0; processEnemyDeath(iku,tgt.idx); } // シールド無視
-          else { iku.hp=0; processAllyDeath(iku); }
-          log(`即死の薬瓶：${iku.name}を消滅`,'good');
+          if(!iku.keywords) iku.keywords=[];
+          if(!iku.keywords.includes('即死')) iku.keywords.push('即死');
+          log(`即死の薬瓶：${iku.name}に即死を付与`,'good');
         }
       }
     break;}
