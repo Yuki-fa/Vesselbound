@@ -201,9 +201,9 @@ function applySpell(sp,idx,tgt){
       if(!liveE.length) break;
       const weakE=liveE.reduce((m,x)=>x.e.atk<m.e.atk?x:m,liveE[0]);
       const ei=weakE.i;
-      // 位置入れ替え（インデックスを交換）
-      const tmpA=G.allies[pi]; G.allies[pi]=G.allies[ei]||null; G.allies[ei]=tmpA;
-      const tmpE=G.enemies[ei]; G.enemies[ei]=G.enemies[pi]||null; G.enemies[pi]=tmpE;
+      // チーム間で入れ替え：味方→敵陣、敵→味方陣
+      G.allies[pi]=weakE.e;
+      G.enemies[ei]=pa;
       log(`憑依：${pa.name}(${pi+1})⟺${weakE.e.name}(${ei+1})`,'good');
     break;}
     case 'battle_start_book':{ log('開幕の書：戦闘開始時効果を発動','good'); onBattleStart(); break;}
