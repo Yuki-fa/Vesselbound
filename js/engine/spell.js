@@ -8,8 +8,8 @@ let _swapFirst=-1;
 
 function useSpell(idx){
   const sp=G.spells[idx];
-  if(!sp||G.actionsLeft<=0) return;
-  if(sp.type==='wand'&&sp.usesLeft<=0) return; // チャージ切れ
+  if(!sp) return;
+  if(sp.type==='wand'&&(G.actionsLeft<=0||sp.usesLeft<=0)) return; // チャージ切れ or 行動権なし
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
   else if(sp.needsEnemy) pickTarget('enemy',idx,true); // 加護チェックあり
@@ -317,15 +317,20 @@ function applySpell(sp,idx,tgt){
     }
   }
 
-  G.actionsLeft--;
+  if(sp.type!=='consumable') G.actionsLeft--;
   renderAll();
   if(checkInstantVictory()) return;
-  if(G.actionsLeft<=0){
+  const hasConsumable=G.spells.some(s=>s&&s.type==='consumable');
+  const hasWand=G.spells.some(s=>s&&s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0));
+  if(G.actionsLeft<=0&&!hasConsumable){
     setHint('行動終了。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+  } else if(!hasWand&&!hasConsumable){
+    setHint('使用できる魔法がありません。自動でターンを終了します...');
+    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+  } else if(G.actionsLeft<=0){
+    setHint('アイテムを使うかパスしてください');
   } else {
-    const hasUsable=G.spells.some(sp=>sp&&(sp.type==='consumable'||(sp.type==='wand'&&(sp.usesLeft===undefined||sp.usesLeft>0))));
-    if(!hasUsable){ setHint('使用できる魔法がありません。自動でターンを終了します...'); setTimeout(()=>{ if(G.phase==='player') playerPass(); },500); }
-    else setHint('あと'+G.actionsLeft+'回行動できます');
+    setHint('あと'+G.actionsLeft+'回行動できます');
   }
 }

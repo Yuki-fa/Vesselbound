@@ -84,7 +84,7 @@ function renderField(id,units,isEnemy){
           slot.style.justifyContent='flex-start';
           slot.style.padding='3px 2px 8px';
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._battleCount||0)}戦</div>`:'';
-          slot.innerHTML=`${bs.join('')}${gradeTag}<div class="slot-name">${u.name}</div>${dragonetSub}<div style="font-size:1.1rem;margin:2px 0">${u.icon}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
+          slot.innerHTML=`${bs.join('')}${gradeTag}<div style="font-size:1.1rem;margin:4px 0 2px">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         }
         // 優先ターゲットは赤枠＋前に出す
         if(i===priorityIdx){
@@ -146,8 +146,8 @@ function renderHandSlots(){
       const div=mkCardEl(sp,i,'spell-battle');
       const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
-      // 杖はプレイヤーフェイズに使用可。消耗品は報酬フェイズのみ
-      const canUse=G.phase==='player'&&G.actionsLeft>0&&isWand&&hasCharge;
+      // 杖はアクション消費、消耗品はアクション消費なし（両方プレイヤーフェイズに使用可）
+      const canUse=G.phase==='player'&&(isWand?G.actionsLeft>0&&hasCharge:true);
       if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
       else       { div.classList.add('inert'); }
       el.appendChild(div);
