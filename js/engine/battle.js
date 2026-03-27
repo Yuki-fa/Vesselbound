@@ -416,7 +416,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     triggerInjury(unit);
   }
 
-  if(willDie) processAllyDeath(unit);
+  if(willDie){ unit.hp=0; processAllyDeath(unit); } // 負傷でHP回復しても死亡確定
 
   // 反撃（counter フラグ持ちが生存時に攻撃者へ反撃）
   if(unit.counter&&src&&dmg>0&&unit.hp>0){

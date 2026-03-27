@@ -266,7 +266,7 @@ async function loadGameData() {
       }
       FLOOR_DATA[fl] = {
         power: parseInt(row['power']) || 10,
-        grade: parseInt(row['grade']) || 1,
+        grade: Math.max(1, Math.round(parseFloat(row['grade']) || 1)),
         wands: wands,
       };
       if (isBoss) {

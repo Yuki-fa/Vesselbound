@@ -9,7 +9,7 @@ const UNIT_POOL = [
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'自動：戦闘開始時、魔術レベル+1。',       effect:'mermaid_start'},
   {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:3,  cost:3,  unique:false, icon:'💀', desc:'再生3',                                   regen:3},
-  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:1,  hp:12, cost:3,  unique:false, icon:'🧟', desc:'再生5　ヘイト',                           regen:5, hate:true},
+  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:1,  hp:12, cost:3,  unique:false, icon:'🧟', desc:'再生5',                                   regen:5},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：2/4の「ナイトキャット」を召喚する。',injury:'kettcat'},
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:10, cost:3,  unique:false, icon:'😼', desc:'自動：戦闘開始時、右隣のキャラにヘイトを与える。', effect:'grimalkin_start'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'自動：シールドを持つ味方は+2/±0を得る。', effect:'elf_shield'},
@@ -17,7 +17,7 @@ const UNIT_POOL = [
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'自動：戦闘開始時、ランダムなアイテムを得る。', effect:'imp_start'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'自動：3回目の戦闘終了時、「ワーム」に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'自動：杖を使うたび、全ての味方が+1/±0を得る。', effect:'dwarf_wand'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'ヘイト　負傷：以後、全ての「不死」が±0/+1を得る。', hate:true, injury:'mummy'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'負傷：以後、全ての「不死」が±0/+1を得る。', injury:'mummy'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'自動：杖を使うたび、全ての敵に呪詛1を与える。',   effect:'gremlin_wand'},
   {id:'c_jack',       name:'ジャックランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'自動：杖を使うたび、ランダムな仲間がシールド1を得る。', effect:'jack_wand'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃',                                   counter:true},

@@ -17,10 +17,10 @@ const SPELL_POOL=[
    desc:'対象の仲間のATK・HPを1.5倍にする。', effect:'boost', needsAlly:true, baseUses:5},
 
   {id:'w_golem',     name:'岩の杖',   type:'wand', starterOnly:true,
-   desc:'初期装備専用。ヘイト持ちの2/2ゴーレムを召喚。', effect:'golem', baseUses:5},
+   desc:'初期装備専用。2/2ゴーレムを召喚。', effect:'golem', baseUses:5},
 
   // ── WANDS（通常報酬プール） ──
-  {id:'w_hate',     name:'ヘイトの杖',  type:'wand', cost:2,
+  {id:'w_hate',     name:'ヘイトの杖',  type:'wand', starterOnly:true, cost:2,
    desc:'味方に使うと敵が優先的に狙う。敵に使うと味方が優先的に狙う。', effect:'hate', needsAny:true, baseUses:3},
 
   {id:'w_stealth',  name:'隠密の杖',   type:'wand', cost:2,
@@ -42,7 +42,7 @@ const SPELL_POOL=[
    desc:'対象のATKを0にする（1ターン）。', effect:'weaken', needsAny:true, baseUses:4},
 
   {id:'w_golem_pool',name:'岩の杖',   type:'wand', cost:3,
-   desc:'ヘイトを持つX/Xのゴーレムを召喚する。', effect:'golem', baseUses:4},
+   desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:4},
 
   {id:'w_spread',   name:'拡散の杖',  type:'wand', cost:3, unique:true,
    desc:'右隣の杖の効果を使用する。', effect:'spread', baseUses:4},
