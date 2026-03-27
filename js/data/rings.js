@@ -66,8 +66,8 @@ const RING_POOL=[
   {id:'r_skel',  name:'骸骨の契約', kind:'summon',grade:1,
    atkPerGrade:1, hpPerGrade:1,
    summon:{name:'骸骨',atk:0,hp:0,icon:'💀'},
-   desc:'再生\n召喚トリガー：味方が5体死んだ時',
-   trigger:'on_death_count', triggerCount:5, regen:true},
+   desc:'再生3\n召喚トリガー：味方が5体死んだ時',
+   trigger:'on_death_count', triggerCount:5, regen:3},
 
   {id:'r_djinn', name:'魔神の契約', kind:'summon',grade:1,
    atkPerGrade:15, hpPerGrade:15,

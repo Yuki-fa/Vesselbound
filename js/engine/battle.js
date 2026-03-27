@@ -64,6 +64,7 @@ async function startBattle(){
   G.battleCounters={damage:0,deaths:0};
 
   G.enemies=generateEnemies(G.floor);
+  G.enemies.forEach(e=>{ if(e) e.allyTarget=false; });
   G.moveMasks=generateMoveMasks();
   G.visibleMoves=[];
   G.fogNext=false;
@@ -72,9 +73,7 @@ async function startBattle(){
   G.allies.forEach(a=>{
     if(!a) return;
     a.sealed=0; a.poison=0; a._dp=false; a.powerBroken=false;
-    a.nullified=0; a.instadead=false;
-    a.regenUsed=false; a._pendingSoul=false; a.stealth=false;
-    if(a._isSoul){ a._isSoul=false; }
+    a.nullified=0; a.instadead=false; a.stealth=false;
     a._battleStartHp=a.hp;
   });
 
@@ -177,17 +176,6 @@ function startPlayerPhase(){
 // ── ターン開始時効果 ───────────────────────────
 
 function applyTurnStart(){
-  // 前ターン死亡した再生キャラを魂として出現
-  G.allies.forEach(a=>{
-    if(!a||!a._pendingSoul) return;
-    a._pendingSoul=false;
-    a.atk=0; a.hp=1+(G._soulHpBonus||0);
-    a.maxHp=Math.max(a.maxHp, a.hp);
-    a._isSoul=true; a.nullified=0; a.sealed=0;
-    a.icon='👻';
-    log(`👻 ${a.name}が魂として出現！（戦闘後に復活）`,'good');
-  });
-
   // 触媒の指輪による毒倍率
   const catRing=G.rings.find(r=>r&&r.unique==='catalyst');
   const catMult=catRing?(catRing.grade||1)+1:1;
@@ -257,7 +245,7 @@ async function battlePhase(){
     _onAllEnemiesDefeated();
     return;
   }
-  const liveA=G.allies.filter(a=>a&&(a.hp>0||a._pendingSoul));
+  const liveA=G.allies.filter(a=>a&&(a.hp>0));
   if(!liveA.length){ await sleep(200); gameOver(); return; }
 
   await sleep(400);
@@ -269,7 +257,7 @@ function _checkBattleOver(){
     _onAllEnemiesDefeated();
     return true;
   }
-  if(!G.allies.filter(a=>a&&(a.hp>0||a._pendingSoul)).length){ setTimeout(()=>gameOver(),200); return true; }
+  if(!G.allies.filter(a=>a&&(a.hp>0)).length){ setTimeout(()=>gameOver(),200); return true; }
   return false;
 }
 
@@ -286,8 +274,11 @@ function _onAllEnemiesDefeated(){
 
 async function allyAttackAction(ally, allyIdx){
   if(ally.atk<=0) return; // ATK0は攻撃しない
-  const target=G.enemies.find(e=>e&&e.hp>0);
-  if(!target) return;
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);
+  if(!liveE.length) return;
+  // allyTarget フラグ持ち優先、なければ最右端
+  const forcedT=liveE.find(e=>e.allyTarget);
+  const target=forcedT||liveE[liveE.length-1];
   const eIdx=G.enemies.indexOf(target);
 
   // アニメーション
@@ -335,10 +326,11 @@ async function enemyAttackAction(enemy, enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
-  // ターゲット選択（ヘイト→ランダム、隠密は候補から除外）
+  // ターゲット選択（ヘイト優先、なければ最右端。隠密は候補から除外）
   const hateT=liveA.find(a=>a.hate&&a.hateTurns>0);
   const visibleA=liveA.filter(a=>!a.stealth);
-  let tgt=hateT||(visibleA.length?randFrom(visibleA):randFrom(liveA));
+  const candidates=visibleA.length?visibleA:liveA;
+  let tgt=hateT||candidates[candidates.length-1];
   const aIdx=G.allies.indexOf(tgt);
 
   // アニメーション
@@ -415,16 +407,6 @@ function dealDmgToAlly(unit, dmg, fieldIdx, src){
 
 function processAllyDeath(unit, fieldIdx){
   if(unit.hp>0) return;
-
-  // 再生：次のターン開始時に魂として出現（即時変換しない）
-  if(unit.regen&&!unit.regenUsed){
-    unit.regenUsed=true;
-    unit.poison=0;
-    unit._pendingSoul=true;
-    unit._savedIcon=unit.icon;
-    log(`💀 ${unit.name}が倒れた… 次のターン開始時に魂として出現`,'good');
-    return; // deaths++ はスキップ（魂として復活するため）
-  }
 
   log(`${unit.name} が倒れた…`,'bad');
   G.battleCounters.deaths++;
@@ -514,7 +496,7 @@ function onBattleStart(){
         // 隣接キャラに再生付与
         [-1,1].forEach(d=>{
           const adj=G.allies[i+d];
-          if(adj&&adj.hp>0&&!adj.regen){ adj.regen=true; adj.regenUsed=false; log(`${a.name}：${adj.name}に再生付与`,'good'); }
+          if(adj&&adj.hp>0&&!adj.regen){ adj.regen=3; log(`${a.name}：${adj.name}に再生3付与`,'good'); }
         });
         break;
       }
@@ -567,21 +549,23 @@ function onBattleEnd(){
     }
   });
 
-  // 魂・保留魂の復活
-  G.allies.forEach((a,i)=>{
-    if(!a||(!a._isSoul&&!a._pendingSoul)) return;
-    a.hp=a._battleStartHp||a.maxHp;
-    a.atk=a.baseAtk;
-    a._isSoul=false; a._pendingSoul=false;
-    a.poison=0;
-    if(a._savedIcon){ a.icon=a._savedIcon; delete a._savedIcon; }
-    log(`✨ ${a.name}が復活！`,'good');
+  // 再生：戦闘終了時にHP+X（死亡中でも適用・蘇生）
+  G.allies.forEach(a=>{
+    if(!a||!a.regen) return;
+    const heal=a.regen;
+    if(a.hp<=0){
+      a.hp=heal;
+      log(`✨ ${a.name} 再生${heal}：復活！（HP:${a.hp}）`,'good');
+    } else {
+      a.hp=Math.min(a.maxHp,a.hp+heal);
+      log(`✨ ${a.name} 再生${heal}：HP+${heal}（${a.hp}）`,'good');
+    }
   });
 
-  // 永久死亡ユニット（hp=0 かつ 魂でも保留魂でもない）をフィールドから除去
+  // 死亡ユニット（再生で回復しなかった）をフィールドから除去
   for(let i=0;i<G.allies.length;i++){
     const a=G.allies[i];
-    if(a&&a.hp<=0&&!a._isSoul&&!a._pendingSoul) G.allies[i]=null;
+    if(a&&a.hp<=0) G.allies[i]=null;
   }
 }
 

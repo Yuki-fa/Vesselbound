@@ -8,8 +8,8 @@ const UNIT_POOL = [
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'自動：戦闘開始時、魔術レベル+1。',       effect:'mermaid_start'},
-  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:3,  cost:3,  unique:false, icon:'💀', desc:'再生',                                    regen:true},
-  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:1,  hp:12, cost:3,  unique:false, icon:'🧟', desc:'再生　ヘイト',                            regen:true, hate:true},
+  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:3,  cost:3,  unique:false, icon:'💀', desc:'再生3',                                   regen:3},
+  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:1,  hp:12, cost:3,  unique:false, icon:'🧟', desc:'再生5　ヘイト',                           regen:5, hate:true},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：2/4の「ナイトキャット」を召喚する。',injury:'kettcat'},
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:10, cost:3,  unique:false, icon:'😼', desc:'自動：戦闘開始時、右隣のキャラにヘイトを与える。', effect:'grimalkin_start'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'自動：シールドを持つ味方は+2/±0を得る。', effect:'elf_shield'},
@@ -61,10 +61,7 @@ function makeUnitFromDef(def, fieldIdx){
     _dp:      false,
     powerBroken: false,
     // 不死
-    regen:      def.regen    || false,
-    regenUsed:  false,
-    _isSoul:    false,
-    _soulHpBonus: 0,    // マミー効果
+    regen:      def.regen    || 0,    // 再生値（0=なし）
     _battleStartHp: def.hp,
     // 能力キー
     effect:   def.effect  || null,

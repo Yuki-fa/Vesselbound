@@ -39,7 +39,7 @@ function bossShieldForFloor(floor){
 function _mkEnemy(atk,hp,name,icon,grade,shield,kws){
   return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
     sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
-    shield:shield||0,keywords:kws||[],powerBreak:false};
+    shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false};
 }
 
 // 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）

@@ -21,7 +21,7 @@ const SPELL_POOL=[
 
   // ── WANDS（通常報酬プール） ──
   {id:'w_hate',     name:'ヘイトの杖',  type:'wand',
-   desc:'対象のキャラクターにヘイトを与える。', effect:'hate', needsAlly:true, baseUses:3},
+   desc:'味方に使うと敵が優先的に狙う。敵に使うと味方が優先的に狙う。', effect:'hate', needsAny:true, baseUses:3},
 
   {id:'w_stealth',  name:'隠密の杖',   type:'wand',
    desc:'対象の仲間に隠密を与える。敵から狙われなくなる。', effect:'stealth', needsAlly:true, baseUses:3},

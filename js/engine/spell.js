@@ -99,7 +99,17 @@ function applySpell(sp,idx,tgt){
     case 'fire':{
       const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,2,tgt.idx); log(`炎の杖：${e.name}に2ダメ`,'good');
     break;}
-    case 'hate':{ G.allies.forEach(a=>{ if(a) a.hate=false; }); const a=G.allies[tgt.idx]; if(a){ a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト（戦闘終了まで）`,'good'); } break;}
+    case 'hate':{
+      if(tgt.who==='ally'){
+        G.allies.forEach(a=>{ if(a) a.hate=false; });
+        const a=G.allies[tgt.idx];
+        if(a){ a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト付与（敵が優先的に狙う）`,'good'); }
+      } else {
+        G.enemies.forEach(e=>{ if(e) e.allyTarget=false; });
+        const e=G.enemies[tgt.idx];
+        if(e){ e.allyTarget=true; log(`${e.name}を強制ターゲットに設定（味方が優先的に狙う）`,'good'); }
+      }
+    break;}
     case 'double_hp':{ const a=G.allies[tgt.idx]; a.hp*=2; a.maxHp*=2; log(`${a.name} HP×2→${a.hp}`,'good'); break;}
     case 'swap_all':{
       // 死亡ユニットを除いてATK/HP入れ替え
@@ -187,7 +197,7 @@ function applySpell(sp,idx,tgt){
     break;}
     case 'regen_grant':{
       const rga=G.allies[tgt.idx];
-      if(rga){ rga.regen=true; rga.regenUsed=false; log(`アンデッドの秘宝：${rga.name}に再生付与`,'good'); }
+      if(rga){ rga.regen=3; log(`アンデッドの秘宝：${rga.name}に再生3付与`,'good'); }
     break;}
     case 'purify_hate':{
       if(!tgt) break;
