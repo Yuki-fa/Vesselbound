@@ -29,15 +29,7 @@ function chooseMove(nt){
   }
   else if(nt==='smithy') doSmithy();
   else if(nt==='rest') doRest();
-  else if(nt==='chest'){
-    const c=drawRewards(1)[0];
-    const isRing=c&&(c.kind==='summon'||c.kind==='passive'||!c.type);
-    const hasSpace=!c||(isRing
-      ? G.rings.filter(r=>r).length<G.ringSlots
-      : G.spells.filter(s=>s).length<(G.handSlots||7));
-    if(hasSpace) takeCardToHand(c);
-    showEvent('宝箱',`埋もれた箱に「${c?.name||'？'}」があった。`,hasSpace&&c?`${c.name} を入手`:'手札が満杯で受け取れなかった');
-  }
+  // chest は goToReward() 内で処理されるため、ここには到達しない
 }
 
 function takeCardToHand(card){

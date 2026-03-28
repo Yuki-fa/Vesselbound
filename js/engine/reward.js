@@ -16,6 +16,16 @@ function goToReward(){
   _eliteRing=null;
   G.phase='reward';
 
+  // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
+  if(G._pendingTreasure){
+    G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
+    G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
+    const treasureItem=drawRewards(1)[0];
+    if(treasureItem){ treasureItem._buyPrice=0; treasureItem._isTreasure=true; _rewCards.push(treasureItem); }
+    log('📦 宝箱の中身が報酬欄に追加された！','gold');
+    G._pendingTreasure=false;
+  }
+
   // 報酬フェイズUI
   document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
@@ -161,7 +171,8 @@ function _mkRewDiv(card, onBuy){
   const cost=card._buyPrice||1;
   const canBuy=G.gold>=cost;
   const isLegend=!!card._isLegend;
-  div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'');
+  const isTreasure=!!card._isTreasure;
+  div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
 
   if(card._isChar){
     // キャラクターカード
@@ -176,7 +187,7 @@ function _mkRewDiv(card, onBuy){
       ?`<span style="color:var(--teal2)">${displayAtk}</span><span style="font-size:.5rem;color:var(--teal2);margin-left:1px">(+${atkBonus})</span>`
       :`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
-    const costLine=`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`;
+    const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
@@ -194,7 +205,7 @@ function _mkRewDiv(card, onBuy){
   const refundTxt=refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
   const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-  div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
+  div.innerHTML=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
   if(canBuy) div.onclick=onBuy;
   return div;
 }
