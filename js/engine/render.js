@@ -39,21 +39,34 @@ function _computeDeathRisk(){
   const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
   if(!liveAllies.length||!liveEnemies.length) return new Set();
 
-  // 味方の合計ATKで敵を全滅できるなら、敵フェイズは発生しない
-  const totalAllyAtk=liveAllies.reduce((s,{a})=>s+(a.atk||0),0);
-  const totalEnemyHp=liveEnemies.reduce((s,{e})=>s+(e.hp||0),0);
-  if(totalAllyAtk>=totalEnemyHp) return new Set();
+  // 味方攻撃フェーズをシミュレーション（最適戦略：倒せる中で最もHPが低い敵から撃破）
+  const simHp=liveEnemies.map(({e,i})=>({idx:i, hp:e.hp, atk:e.atk}));
+  for(const {a} of liveAllies){
+    // 倒せる敵（HP≤ATK）のうち最小HPを優先
+    let best=null;
+    for(const s of simHp){
+      if(s.hp<=0) continue;
+      if(s.hp<=(a.atk||0)&&(!best||s.hp<best.hp)) best=s;
+    }
+    if(best){ best.hp=0; }
+    else{
+      // 倒せない場合は最小HPの敵にダメージ
+      let min=null;
+      for(const s of simHp){ if(s.hp>0&&(!min||s.hp<min.hp)) min=s; }
+      if(min) min.hp=Math.max(0,min.hp-(a.atk||0));
+    }
+  }
 
-  // 敵が攻撃してくる場合のみ（ATK>0の敵）
-  const attackingEnemies=liveEnemies.filter(({e})=>e.atk>0);
-  if(!attackingEnemies.length) return new Set();
+  // 生き残りATK>0の敵のみが反撃
+  const survivors=simHp.filter(s=>s.hp>0&&s.atk>0);
+  if(!survivors.length) return new Set();
 
   const dmgMap={};
   liveAllies.forEach(({i})=>{ dmgMap[i]=[]; });
-  attackingEnemies.forEach(({e})=>{
+  survivors.forEach(s=>{
     const hateA=liveAllies.find(x=>x.a.hate&&x.a.hateTurns>0);
     const tgt=hateA||liveAllies[liveAllies.length-1];
-    dmgMap[tgt.i].push(e.atk);
+    dmgMap[tgt.i].push(s.atk);
   });
   const result=new Set();
   liveAllies.forEach(({a,i})=>{

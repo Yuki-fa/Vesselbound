@@ -14,6 +14,16 @@ function goToReward(){
   _rewCards=drawRewards();
   G.phase='reward';
 
+  // エリート撃破ボーナス：確定でユニーク指輪を無料で報酬欄に追加（通常宝箱処理より先に実行）
+  if(G._eliteKilled){
+    G._pendingTreasure=false; // 通常宝箱処理をスキップ
+    const eliteRing=drawUniqueRing();
+    if(eliteRing){
+      eliteRing._isLegend=true; eliteRing._isTreasure=true; eliteRing._buyPrice=0;
+      _rewCards.push(eliteRing);
+    }
+  }
+
   // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
   if(G._pendingTreasure){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
@@ -41,22 +51,11 @@ function goToReward(){
     G.ringSlots=Math.min(4,G.ringSlots+1);
     let bonusMsg=`🎁 ボスクリア：指輪スロット+1（現在${G.ringSlots}枠）`;
     if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=bonusMsg; }
-    // ボス報酬：指輪スロット増加のみ（グレードアップモーダルは廃止）
+  } else if(G._eliteKilled){
+    if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent='⭐ エリート撃破：ユニーク指輪が宝箱から出現！（無料）'; }
+    log('⭐ エリート撃破：ユニーク指輪を獲得！','gold');
   } else {
     if(bossNotice) bossNotice.style.display='none';
-  }
-
-  // エリート撃破ボーナス：宝箱の中身としてユニーク指輪を無料で報酬欄に追加
-  if(G._eliteKilled&&G._pendingTreasure){
-    G._pendingTreasure=false; // 通常の宝箱処理をスキップ
-    const eliteRing=drawUniqueRing();
-    if(eliteRing){
-      eliteRing._isLegend=true; eliteRing._isTreasure=true; eliteRing._buyPrice=0;
-      _rewCards.push(eliteRing);
-      const en=document.getElementById('boss-reward-notice');
-      if(en){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が宝箱から出現！（無料）'; }
-      log('⭐ エリート撃破：ユニーク指輪を獲得！','gold');
-    }
   }
 
   document.getElementById('rw-gold').textContent=G.gold;
@@ -159,8 +158,8 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy){
   const div=document.createElement('div');
-  const cost=card._buyPrice||1;
-  const canBuy=G.gold>=cost;
+  const cost=card._buyPrice??1;
+  const canBuy=cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const isTreasure=!!card._isTreasure;
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
@@ -470,6 +469,7 @@ function renderGradeUpBtn(){
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
     renderGradeUpBtn();
+    renderRewCards();
   };
 }
 
