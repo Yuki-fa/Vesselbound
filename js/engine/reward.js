@@ -354,6 +354,7 @@ function sellFieldUnit(idx){
   updateHUD();
   renderRewCards();
   renderFieldEditor();
+  renderGradeUpBtn();
 }
 
 // ── 手札エディタ（アイテム）──────────────────────
@@ -445,6 +446,7 @@ function discardHeCard(arrName, idx){
   }
   renderHandEditor();
   try{ renderRewCards(); }catch(e){}
+  try{ renderGradeUpBtn(); }catch(e){}
 }
 
 function discardRing(idx){
@@ -456,6 +458,7 @@ function discardRing(idx){
   const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
   log(ring.name+' を還魂（+'+refund+'ソウル）','gold');
   renderHandEditor();
+  renderGradeUpBtn();
 }
 
 // ── 報酬グレードアップUI ────────────────────────
