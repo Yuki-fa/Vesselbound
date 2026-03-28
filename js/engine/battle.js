@@ -316,6 +316,24 @@ async function allyAttackAction(ally, allyIdx){
 
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
+  // 攻撃時効果（ダメージを与える前に発動）
+  if(ally.hp>0){
+    // エルフ：攻撃時+1/±0（発動後のATKでダメージを与える）
+    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
+      ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
+    }
+    // ブラウニー：攻撃時、全仲間±0/+1
+    if(ally.effect==='brownie_attack'){
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
+      log(`${ally.name}：攻撃時→全仲間±0/+1`,'good');
+    }
+    // フォルニョート：攻撃時、全仲間+1/±0
+    if(ally.effect==='forniot'){
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
+      log(`${ally.name}：攻撃時→全仲間+1/±0`,'good');
+    }
+  }
+
   // 全体攻撃キーワード：全ての敵を攻撃
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
   const attackTargets=isGlobal?[...liveE]:[target];
@@ -331,27 +349,10 @@ async function allyAttackAction(ally, allyIdx){
   });
   log(`${ally.name}(${ally.atk})→${isGlobal?'全敵':target.name}`);
 
-  // 攻撃時効果
-  if(ally.hp>0){
-    // エルフ：攻撃時+1/±0
-    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
-      ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
-    }
-    // ブラウニー：攻撃時、全仲間±0/+1
-    if(ally.effect==='brownie_attack'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
-      log(`${ally.name}：攻撃時→全仲間±0/+1`,'good');
-    }
-    // フォルニョート：攻撃時、全仲間+1/±0
-    if(ally.effect==='forniot'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||a.atk); a.baseAtk+=1; }});
-      log(`${ally.name}：攻撃時→全仲間+1/±0`,'good');
-    }
-    // 二段攻撃キーワード
-    if(ally.keywords&&ally.keywords.includes('二段攻撃')){
-      const t2=G.enemies.find(e=>e&&e.hp>0);
-      if(t2){ dealDmgToEnemy(t2,ally.atk,G.enemies.indexOf(t2),ally); log(`${ally.name}：二段攻撃`,'good'); }
-    }
+  // 二段攻撃キーワード（ダメージ後に追加攻撃）
+  if(ally.hp>0&&ally.keywords&&ally.keywords.includes('二段攻撃')){
+    const t2=G.enemies.find(e=>e&&e.hp>0);
+    if(t2){ dealDmgToEnemy(t2,ally.atk,G.enemies.indexOf(t2),ally); log(`${ally.name}：二段攻撃`,'good'); }
   }
 
   renderAll();

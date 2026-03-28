@@ -33,7 +33,7 @@ function goToReward(){
     G.ringSlots=Math.min(4,G.ringSlots+1);
     let bonusMsg=`🎁 ボスクリア：指輪スロット+1（現在${G.ringSlots}枠）`;
     if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=bonusMsg; }
-    setTimeout(()=>showBossGradeModal(),300);
+    // ボス報酬：指輪スロット増加のみ（グレードアップモーダルは廃止）
   } else {
     if(bossNotice) bossNotice.style.display='none';
   }
@@ -64,6 +64,17 @@ function goToReward(){
 // ── 行き先ノード表示 ───────────────────────────
 
 function renderMoveSlotsInEnemy(){
+  const el=document.getElementById('f-enemy');
+  el.innerHTML='';
+  // イベントアイテム受け取りモードは「戻る」ボタンのみ表示
+  if(_eventItemDone){
+    const btn=document.createElement('button');
+    btn.className='btn small'; btn.style='margin:auto;display:block';
+    btn.textContent='戻る（入手せず）';
+    btn.onclick=_eventItemBack;
+    el.appendChild(btn);
+    return;
+  }
   let opts;
   if(G._retryFloor){
     const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
@@ -72,8 +83,6 @@ function renderMoveSlotsInEnemy(){
     opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
     if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
   }
-  const el=document.getElementById('f-enemy');
-  el.innerHTML='';
   for(let i=0;i<6;i++){
     const opt=opts[i];
     const div=document.createElement('div');
@@ -160,13 +169,13 @@ function _mkRewDiv(card, onBuy){
     const disabled=!hasSlot;
     div.className='rew-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
-    // 不死HPボーナス表示
-    const hpBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
-    const displayHp=card.hp+hpBonus;
-    const hpStr=hpBonus>0
-      ?`<span style="color:#60d090">${displayHp}</span><span style="font-size:.5rem;color:#4a9;margin-left:1px">(+${hpBonus})</span>`
-      :`<span style="color:#60d090">${card.hp}</span>`;
-    const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px"><span style="color:var(--teal2)">${card.atk}</span><span style="color:var(--text2)">/</span>${hpStr}</div>`;
+    // 不死ATKボーナス表示（マミー負傷効果）
+    const atkBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
+    const displayAtk=card.atk+atkBonus;
+    const atkStr=atkBonus>0
+      ?`<span style="color:var(--teal2)">${displayAtk}</span><span style="font-size:.5rem;color:var(--teal2);margin-left:1px">(+${atkBonus})</span>`
+      :`<span style="color:var(--teal2)">${card.atk}</span>`;
+    const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
     const costLine=`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
@@ -200,16 +209,30 @@ function takeRewCard(i){
   if(card._isChar){
     // キャラクター：フィールドへ配置
     const emptyIdx=G.allies.indexOf(null);
-    if(emptyIdx<0){ alert('盤面が満杯です。キャラクターを売却してください。'); return; }
+    if(emptyIdx<0){ alert('盤面が満杯です。フィールドのキャラクターを売却してください。'); return; }
     G.gold-=cost;
     const unit=makeUnitFromDef(card);
     G.allies[emptyIdx]=unit;
-    log(`${card.name} を${cost}ソウルで獲得（盤面[${emptyIdx}]へ配置）`,'good');
+    log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD();
-    renderRewCards();
-    renderFieldEditor();
+    updateHUD(); renderRewCards(); renderFieldEditor();
+    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
+    return;
+  }
+
+  // 指輪
+  if(card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
+    const ringIdx=G.rings.indexOf(null);
+    if(ringIdx<0){ alert(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を売却してください。`); return; }
+    G.gold-=cost;
+    const rc=clone(card);
+    G.rings[ringIdx]=rc;
+    log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
+    _rewCards[i]=null;
+    document.getElementById('rw-gold').textContent=G.gold;
+    updateHUD(); renderRewCards(); renderFieldEditor();
+    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
     return;
   }
 
@@ -463,40 +486,44 @@ function renderGradeUpBtn(){
   };
 }
 
-// ── ボス報酬：指輪グレードアップ ─────────────────
+// ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
+// onDone は受け取り後または「戻る」を押したときに呼ばれるコールバック
 
-function showBossGradeModal(){
-  const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
-  const modal=document.getElementById('boss-grade-modal');
-  if(!modal) return;
-  if(!eligible.length){ log('ボス報酬：グレードアップできる指輪がありません','sys'); return; }
-  const list=document.getElementById('boss-grade-list');
-  list.innerHTML='';
-  eligible.forEach(ring=>{
-    const div=document.createElement('div');
-    div.className='enc-item';
-    const cur=gradeStr(ring.grade||1);
-    const nxt=gradeStr(Math.min(MAX_GRADE,(ring.grade||1)+1));
-    const nxtG=Math.min(MAX_GRADE,(ring.grade||1)+1);
-    const savedGrade=ring.grade;
-    ring.grade=nxtG;
-    const esNext=effectiveStats(ring);
-    ring.grade=savedGrade;
-    const es=effectiveStats(ring);
-    let statsHint='';
-    if(es&&esNext) statsHint=` (${es.atk}/${es.hp}→${esNext.atk}/${esNext.hp})`;
-    div.textContent=`${ring.name} ${cur} → ${nxt}${statsHint}`;
-    div.onclick=()=>{
-      ring.grade=Math.min(MAX_GRADE,(ring.grade||1)+1);
-      log(`🎖 ボス報酬：${ring.name} → ${gradeStr(ring.grade)}`,'gold');
-      modal.style.display='none';
-      renderHandEditor();
-    };
-    list.appendChild(div);
-  });
-  modal.style.display='flex';
+let _eventItemDone=null;
+
+function showEventItemPickup(item, onDone){
+  const itemCopy=clone(item);
+  if(itemCopy._isChar){ itemCopy._buyPrice=0; }
+  else { itemCopy._buyPrice=0; }
+  _rewCards=[itemCopy];
+  _eliteRing=null;
+  _eventItemDone=onDone||null;
+
+  document.getElementById('f-ally').innerHTML='';
+  document.getElementById('ally-section').style.display='';
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='none';
+  document.getElementById('reward-info-bar').style.display='';
+  document.getElementById('reward-cards-section').style.display='';
+  document.getElementById('btn-pass').style.display='none';
+  document.getElementById('btn-retreat').style.display='none';
+  document.getElementById('ph-badge').textContent='アイテム受け取り';
+  document.getElementById('ph-badge').className='ph-badge';
+  const bossNotice=document.getElementById('boss-reward-notice');
+  if(bossNotice) bossNotice.style.display='none';
+  document.getElementById('rw-gold').textContent=G.gold;
+  document.getElementById('rw-count').textContent='';
+  const gradeBtn=document.getElementById('rw-grade-up-btn');
+  if(gradeBtn) gradeBtn.style.display='none';
+  const rerollBtn=document.getElementById('rw-reroll');
+  if(rerollBtn) rerollBtn.style.display='none';
+
+  renderAll(); renderRewCards(); renderMoveSlotsInEnemy(); renderFieldEditor(); updateHUD();
 }
-function closeBossGradeModal(){ const m=document.getElementById('boss-grade-modal'); if(m) m.style.display='none'; }
+
+function _eventItemBack(){
+  if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
+}
 
 // ── エンチャントモーダル（互換）──────────────────
 

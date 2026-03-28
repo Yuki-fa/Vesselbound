@@ -62,15 +62,12 @@ function doSmithy(regen=true){
   const rDesc=freeRing?computeDesc(freeRing):'';
   o3.innerHTML=`<div class="choice-icon">💍</div><div class="choice-label">祭壇の恵み：${rName}</div><div class="choice-desc">${rDesc}（無料）</div>`;
   if(freeRing&&!doneRing) o3.onclick=()=>{
-    const slot=G.rings.indexOf(null);
-    if(slot<0){
-      if(hasFarsight){ log('指輪スロットが満杯','sys'); _smithyChosen.add('ring'); doSmithy(false); }
-      else showEvent('祭壇','指輪を受け取ろうとしたが…','指輪スロットが満杯のため受け取れなかった');
-      return;
-    }
-    G.rings[slot]=clone(freeRing); updateHUD();
-    if(hasFarsight){ log(`${freeRing.name} を入手`,'good'); _smithyChosen.add('ring'); doSmithy(false); }
-    else showEvent('祭壇','祭壇から指輪を授かった。',`${freeRing.name} を入手`);
+    const ringCard=clone(freeRing);
+    ringCard._buyPrice=0;
+    showEventItemPickup(ringCard, ()=>{
+      _smithyChosen.add('ring');
+      if(hasFarsight) doSmithy(false); else showEvent('祭壇','祭壇から指輪を授かった。',`${freeRing.name} を入手`);
+    });
   };
   el.appendChild(o3);
 
@@ -134,15 +131,12 @@ function doRest(regen=true){
   const nDesc=namedUnit?computeDesc(namedUnit):'';
   o3.innerHTML=`<div class="choice-icon">⭐</div><div class="choice-label">旅の仲間：${nName}</div><div class="choice-desc">${nDesc}（無料）</div>`;
   if(namedUnit&&!doneNamed) o3.onclick=()=>{
-    const slot=G.allies.indexOf(null);
-    if(slot<0){
-      if(hasFarsight){ log('仲間スロットが満杯','sys'); _restChosen.add('named'); doRest(false); }
-      else showEvent('宿屋','仲間を迎え入れようとしたが…','仲間スロットが満杯のため迎え入れられなかった');
-      return;
-    }
-    G.allies[slot]=makeUnitFromDef(namedUnit); updateHUD();
-    if(hasFarsight){ log(`${namedUnit.name} が仲間になった`,'good'); _restChosen.add('named'); doRest(false); }
-    else showEvent('宿屋',`${namedUnit.name} が仲間になった。`,`${namedUnit.name} を獲得`);
+    const charCard=clone(namedUnit);
+    charCard._isChar=true; charCard._buyPrice=0;
+    showEventItemPickup(charCard, ()=>{
+      _restChosen.add('named');
+      if(hasFarsight) doRest(false); else showEvent('宿屋',`${namedUnit.name} が仲間になった。`,`${namedUnit.name} を獲得`);
+    });
   };
   el.appendChild(o3);
 

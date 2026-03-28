@@ -125,105 +125,16 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    const unitGid = _SHEET_GIDS['キャラクタープール'];
-    const hasUnitSheet = unitGid && unitGid !== 0;
+    // 階層データとキーワードのみシートから取得（キャラ・指輪・魔法・エンチャントは内蔵データを使用）
     const fetches = [
-      hasUnitSheet ? fetch(_sheetUrl(unitGid)) : Promise.resolve(null),
-      fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
-      fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
-      fetch(_sheetUrl(_SHEET_GIDS['エンチャント'])),
       fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
-      fetch(_sheetUrl(_SHEET_GIDS['effect_id'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const texts = await Promise.all(responses.map(r => r ? r.text() : Promise.resolve('')));
-    const [ut, rt, st, ft, et, kt, xt] = texts;
-
-    // ── キャラクタープール（GIDが設定されている場合のみ）──
-    if (hasUnitSheet && ut) {
-      const unitRows = _parseCSV(ut);
-      // JS定義を退避（effect/injury/icon等コード管理プロパティ用）
-      const _savedUnits = UNIT_POOL.slice();
-      UNIT_POOL.length = 0;
-      unitRows.forEach(row => {
-        if (!row['名前']) return;
-        const su = _rowToUnit(row);
-        // JS定義から名前マッチでid・コード管理プロパティを補完
-        const js = _savedUnits.find(u => u && u.name === su.name);
-        if (js) {
-          su.id     = js.id;
-          su.icon   = js.icon || su.icon;
-          su.effect = js.effect || null;
-          su.injury = js.injury || null;
-          su.counter= js.counter || false;
-          su.hate   = js.hate   || false;
-          su.regen  = js.regen  || 0;
-          su.shield = js.shield || 0;
-        } else {
-          su.id = 'u_' + su.name;
-        }
-        UNIT_POOL.push(su);
-      });
-    }
-
-    // ── 指輪プール（名前ベースマッチング）──
-    const _savedRings = RING_POOL.slice();
-    const ringRows = _parseCSV(rt);
-    RING_POOL.length = 0;
-    ringRows.forEach(row => { if (row['名前']) RING_POOL.push(_rowToRing(row)); });
-    // trigger/unique/onDeath/regen/count はコード定義で上書き（名前ベース）
-    RING_POOL.forEach(ring => {
-      const js = _savedRings.find(r => r && r.name === ring.name);
-      if (!js) return;
-      // JS定義のすべてのコードプロパティを上書き（シートは説明文・価格・starterOnlyのみ）
-      ring.id       = js.id;
-      ring.kind     = js.kind;
-      if (js.trigger     !== undefined) ring.trigger     = js.trigger;
-      if (js.unique      !== undefined) ring.unique      = js.unique;
-      if (js.onDeath     !== undefined) ring.onDeath     = js.onDeath;
-      if (js.regen       !== undefined) ring.regen       = js.regen;
-      if (js.legend      !== undefined) ring.legend      = js.legend;
-      if (js.count       !== undefined) ring.count       = js.count;
-      if (js.summon      !== undefined) ring.summon      = js.summon;
-      if (js.atkPerGrade !== undefined) ring.atkPerGrade = js.atkPerGrade;
-      if (js.hpPerGrade  !== undefined) ring.hpPerGrade  = js.hpPerGrade;
-      if (js.guardian    !== undefined) ring.guardian    = js.guardian;
-      if (js.triggerCount!== undefined) ring.triggerCount= js.triggerCount;
-      // starterOnly はシート優先（JS定義でも上書き可）
-      if (!ring.starterOnly && js.starterOnly) ring.starterOnly = js.starterOnly;
-    });
-
-    // ── 魔法プール（名前ベースマッチング、シートにないものは出さない）──
-    const _savedSpells = SPELL_POOL.slice();
-    const spellRows = _parseCSV(st);
-    SPELL_POOL.length = 0;
-    spellRows.forEach(row => {
-      if (!row['名前']) return;
-      const ss = _rowToSpell(row);
-      // JS定義から名前マッチでid・コード管理プロパティを補完
-      const js = _savedSpells.find(s => s && s.name === ss.name);
-      if (js) {
-        ss.id         = js.id;
-        if (js.needsEnemy !== undefined) ss.needsEnemy = js.needsEnemy;
-        if (js.needsAlly  !== undefined) ss.needsAlly  = js.needsAlly;
-        if (js.needsAny   !== undefined) ss.needsAny   = js.needsAny;
-        if (js.effect     !== undefined) ss.effect     = js.effect;
-        if (js.baseUses   !== undefined) ss.baseUses   = js.baseUses;
-        if (js.starterOnly!== undefined) ss.starterOnly= js.starterOnly;
-        if (js.unique     !== undefined) ss.unique     = js.unique;
-        if (js.type       !== undefined) ss.type       = js.type;
-      } else {
-        ss.id = 'sp_' + ss.name;
-      }
-      // 価格はシートのものを優先（JS定義で上書きしない）
-      if (!ss.cost && row['価格']) ss.cost = parseInt(row['価格']) || 0;
-      SPELL_POOL.push(ss);
-    });
-    // ※ シートにないJS定義スペルは補完しない（シートが正とする）
+    const [ft, kt] = await Promise.all(responses.map(r => r.text()));
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -268,11 +179,6 @@ async function loadGameData() {
       }
     });
 
-    // ── エンチャント ──
-    const encRows = _parseCSV(et);
-    ENCHANT_TYPES.length = 0;
-    encRows.forEach(row => { if (row['id']) ENCHANT_TYPES.push({id:row['id'], effect:row['効果']||''}); });
-
     // ── 敵キーワード ──
     const kwRows = _parseCSV(kt);
     if (kwRows.length > 0) {
@@ -281,18 +187,8 @@ async function loadGameData() {
       kwRows.forEach(row => { if (row[kwKey]) ENEMY_KEYWORDS.push(row[kwKey]); });
     }
 
-    // ── effect_id一覧 ──
-    const exRows = _parseCSV(xt);
-    if (exRows.length > 0) {
-      const exKey = Object.keys(exRows[0])[0];
-      EFFECT_IDS.length = 0;
-      exRows.forEach(row => { if (row[exKey]) EFFECT_IDS.push(row[exKey]); });
-    }
-
     console.log(
-      `[Vesselbound] データ読み込み完了 — 指輪:${RING_POOL.length} 魔法:${SPELL_POOL.length}` +
-      ` 階層:${FLOOR_DATA.length - 1} エンチャント:${ENCHANT_TYPES.length}` +
-      ` 敵KW:${ENEMY_KEYWORDS.length} effectID:${EFFECT_IDS.length}`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length}`
     );
     return true;
 

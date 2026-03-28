@@ -212,8 +212,10 @@ function applySpell(sp,idx,tgt){
       if(!tgt) break;
       const sdu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(!sdu) break;
-      if(tgt.who==='enemy'){ sdu.hp=0; processEnemyDeath(sdu,tgt.idx); } // シールド無視
-      else G.allies[tgt.idx]=null;
+      if(tgt.who==='enemy'){
+        if(sdu.boss){ log('生贄人形：ボスには効果がない','sys'); break; }
+        sdu.hp=0; processEnemyDeath(sdu,tgt.idx); // シールド無視
+      } else G.allies[tgt.idx]=null;
       log(`生贄人形：${sdu.name}を破壊`,'good');
     break;}
     case 'swap_stats':{
