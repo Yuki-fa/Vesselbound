@@ -126,17 +126,19 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    // 階層データ・キーワード・グレードアップ費用をシートから取得
+    // 階層データ・キーワード・グレードアップ費用・魔法プール・指輪プールをシートから取得
     const fetches = [
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
       fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
       fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
+      fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
+      fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [ft, kt, gt] = await Promise.all(responses.map(r => r.text()));
+    const [ft, kt, gt, st, rt] = await Promise.all(responses.map(r => r.text()));
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -199,6 +201,26 @@ async function loadGameData() {
       GRADE_UP_COSTS.length = 0;
       newCosts.forEach(c => GRADE_UP_COSTS.push(c));
     }
+
+    // ── 魔法グレード ──
+    const spellRows = _parseCSV(st);
+    spellRows.forEach(row => {
+      const name = row['名前'];
+      const grade = parseInt(row['グレード']);
+      if (!name || isNaN(grade) || grade < 1) return;
+      const spell = SPELL_POOL.find(s => s.name === name);
+      if (spell) spell.grade = grade;
+    });
+
+    // ── 指輪グレード ──
+    const ringRows = _parseCSV(rt);
+    ringRows.forEach(row => {
+      const name = row['名前'];
+      const grade = parseInt(row['グレード']);
+      if (!name || isNaN(grade) || grade < 1) return;
+      const ring = RING_POOL.find(r => r.name === name);
+      if (ring) ring.grade = grade;
+    });
 
     console.log(
       `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length} グレードアップ費用:${GRADE_UP_COSTS.join(',')}`

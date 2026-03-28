@@ -60,6 +60,7 @@ function goToReward(){
 
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-count').textContent=6;
+  const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='';
 
   renderAll(); // フィールド（仲間エリア）も再描画
   renderRewCards();
@@ -76,15 +77,6 @@ function goToReward(){
 function renderMoveSlotsInEnemy(){
   const el=document.getElementById('f-enemy');
   el.innerHTML='';
-  // イベントアイテム受け取りモードは「戻る」ボタンのみ表示
-  if(_eventItemDone){
-    const btn=document.createElement('button');
-    btn.className='btn small'; btn.style='margin:auto;display:block';
-    btn.textContent='戻る（入手せず）';
-    btn.onclick=_eventItemBack;
-    el.appendChild(btn);
-    return;
-  }
   let opts;
   if(G._retryFloor){
     const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
@@ -110,6 +102,8 @@ function renderMoveSlotsInEnemy(){
 }
 
 function chooseMoveInline(nt){
+  // イベントアイテム受け取り中なら状態更新コールバックを先に実行
+  if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
   document.getElementById('reward-info-bar').style.display='none';
   document.getElementById('reward-cards-section').style.display='none';
   const eLabel=document.getElementById('enemy-field-label');
@@ -189,7 +183,8 @@ function _mkRewDiv(card, onBuy){
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
     const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-    div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
+    const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
+    div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
   }
@@ -220,7 +215,7 @@ function takeRewCard(i){
   if(card._isChar){
     // キャラクター：フィールドへ配置
     const emptyIdx=G.allies.indexOf(null);
-    if(emptyIdx<0){ alert('盤面が満杯です。フィールドのキャラクターを売却してください。'); return; }
+    if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを売却してください。','bad'); return; }
     G.gold-=cost;
     const unit=makeUnitFromDef(card);
     G.allies[emptyIdx]=unit;
@@ -228,14 +223,14 @@ function takeRewCard(i){
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor();
-    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
+    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
   }
 
   // 指輪
   if(card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
     const ringIdx=G.rings.indexOf(null);
-    if(ringIdx<0){ alert(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を売却してください。`); return; }
+    if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を売却してください。`,'bad'); return; }
     G.gold-=cost;
     const rc=clone(card);
     G.rings[ringIdx]=rc;
@@ -243,13 +238,13 @@ function takeRewCard(i){
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor();
-    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
+    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
   }
 
   // アイテム（杖・消耗品）
   const handIdx=G.spells.indexOf(null);
-  if(handIdx<0){ alert(`手札が満杯（${G.handSlots}枠）です。アイテムを捨ててください。`); return; }
+  if(handIdx<0){ log(`手札が満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
   G.gold-=cost;
   const nc=clone(card);
@@ -272,7 +267,7 @@ function takeEliteRing(){
   const cost=card._buyPrice||3;
   if(G.gold<cost) return;
   const ringSlot=G.rings.indexOf(null);
-  if(ringSlot<0){ alert(`指輪スロット（${G.ringSlots}）が満杯です。`); return; }
+  if(ringSlot<0){ log(`指輪スロット（${G.ringSlots}）が満杯です。フィールドの指輪を売却してください。`,'bad'); return; }
   G.gold-=cost;
   G.rings[ringSlot]=clone(card);
   log(card.name+' を'+cost+'ソウルで取得（ユニーク）','good');
@@ -488,12 +483,10 @@ function renderGradeUpBtn(){
     G.gold-=cost;
     G.rewardGrade=(G.rewardGrade||1)+1;
     G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
-    log(`📈 報酬グレードアップ：G${G.rewardGrade}（コスト:${cost}ソウル）`,'gold');
-    // 報酬カードを新グレードで引き直し
-    _rewCards=drawRewards();
+    log(`📈 報酬グレードアップ：G${G.rewardGrade}（次のリロールから適用）`,'gold');
+    // 直後は引き直さない。次のリロール・次の戦闘から適用
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
-    renderRewCards();
     renderGradeUpBtn();
   };
 }
@@ -505,8 +498,7 @@ let _eventItemDone=null;
 
 function showEventItemPickup(item, onDone){
   const itemCopy=clone(item);
-  if(itemCopy._isChar){ itemCopy._buyPrice=0; }
-  else { itemCopy._buyPrice=0; }
+  itemCopy._buyPrice=0;
   _rewCards=[itemCopy];
   _eliteRing=null;
   _eventItemDone=onDone||null;

@@ -56,7 +56,7 @@ function drawCharacters(n){
   const pool=UNIT_POOL.filter(u=>{
     if(!u.id||u.id==='c_golem') return false;
     if(u.unique) return false;
-    if((u.grade||1)!==targetGrade) return false;
+    if((u.grade||1)>targetGrade) return false;
     return true;
   });
   if(!pool.length) return [];

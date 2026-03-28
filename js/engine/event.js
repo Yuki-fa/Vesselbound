@@ -21,7 +21,8 @@ let _smithyChosen=new Set(); // 遠見モード：選択済みキー
 function doSmithy(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
   if(regen){
-    const pool=getRingPool();
+    const targetGrade=G.rewardGrade||1;
+    const pool=getRingPool().filter(r=>(r.grade||1)<=targetGrade);
     _smithyRing=pool.length?randFrom(pool):null;
     _smithyChosen=new Set();
   }
@@ -66,7 +67,7 @@ function doSmithy(regen=true){
     ringCard._buyPrice=0;
     showEventItemPickup(ringCard, ()=>{
       _smithyChosen.add('ring');
-      if(hasFarsight) doSmithy(false); else showEvent('祭壇','祭壇から指輪を授かった。',`${freeRing.name} を入手`);
+      if(hasFarsight) doSmithy(false);
     });
   };
   el.appendChild(o3);
@@ -91,7 +92,8 @@ let _restChosen=new Set();
 function doRest(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
   if(regen){
-    const namedPool=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem');
+    const targetGrade=G.rewardGrade||1;
+    const namedPool=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem'&&(u.grade||1)<=targetGrade);
     _restNamedUnit=namedPool.length?clone(randFrom(namedPool)):null;
     _restChosen=new Set();
   }
@@ -135,7 +137,7 @@ function doRest(regen=true){
     charCard._isChar=true; charCard._buyPrice=0;
     showEventItemPickup(charCard, ()=>{
       _restChosen.add('named');
-      if(hasFarsight) doRest(false); else showEvent('宿屋',`${namedUnit.name} が仲間になった。`,`${namedUnit.name} を獲得`);
+      if(hasFarsight) doRest(false);
     });
   };
   el.appendChild(o3);

@@ -32,9 +32,33 @@ function renderAll(){
   requestAnimationFrame(fitCardDescs);
 }
 
+// 次の敵フェイズで確実に死亡する味方インデックスのセットを計算
+function _computeDeathRisk(){
+  if(G.phase!=='player') return new Set();
+  const liveAllies=G.allies.map((a,i)=>a&&a.hp>0?{a,i}:null).filter(Boolean);
+  const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&e.atk>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
+  if(!liveAllies.length||!liveEnemies.length) return new Set();
+  const dmgMap={};
+  liveAllies.forEach(({i})=>{ dmgMap[i]=[]; });
+  liveEnemies.forEach(({e})=>{
+    const hateA=liveAllies.find(x=>x.a.hate&&x.a.hateTurns>0);
+    const tgt=hateA||liveAllies[liveAllies.length-1];
+    dmgMap[tgt.i].push(e.atk);
+  });
+  const result=new Set();
+  liveAllies.forEach(({a,i})=>{
+    const atks=dmgMap[i]; if(!atks||!atks.length) return;
+    let shield=a.shield||0, totalDmg=0;
+    for(const atk of atks){ if(atk>0&&shield>0) shield--; else totalDmg+=atk; }
+    if(totalDmg>0&&totalDmg>=a.hp) result.add(i);
+  });
+  return result;
+}
+
 function renderField(id,units,isEnemy){
   const el=document.getElementById(id);
   el.innerHTML='';
+  const deathRisk=(!isEnemy)?_computeDeathRisk():new Set();
   // 優先ターゲットのインデックスを特定
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   let priorityIdx=-1;
@@ -92,6 +116,8 @@ function renderField(id,units,isEnemy){
           slot.classList.add('priority-target');
           slot.style.transform=isEnemy?'translateY(4px)':'translateY(-4px)';
         }
+        // 確実に死亡する味方：赤斜線を点滅表示
+        if(!isEnemy&&deathRisk.has(i)) slot.classList.add('will-die');
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
       const nt=NODE_TYPES[G.moveMasks[i]];
@@ -202,10 +228,20 @@ function fitCardDescs(){
 function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
-  const ml=typeof G!=='undefined'?G.magicLevel||1:1;
-  let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)))
-    .replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`)
-    .replace(/\n/g,'<br>');
+  const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
+  // ザ・グレートマザー：自身以外の味方カード効果中の数値を全て+grade
+  const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
+  const gmBonus=gmRing&&card.id!==gmRing.id?(gmRing.grade||1):0;
+  const ml=rawMl+gmBonus;
+  let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
+  if(gmBonus>0){
+    desc=desc
+      .replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`)
+      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`);
+  } else {
+    desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
+  }
+  desc=desc.replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;
     const ringInst=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.id===card.id):null;

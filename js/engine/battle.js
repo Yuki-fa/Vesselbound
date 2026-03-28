@@ -77,8 +77,8 @@ async function startBattle(){
   // ── 味方の戦闘状態をリセット（HP は保持）──
   G.allies.forEach(a=>{
     if(!a) return;
-    a.sealed=0; a.poison=0; a._dp=false; a.powerBroken=false;
-    a.nullified=0; a.instadead=false; a.stealth=false;
+    a.sealed=0; a._dp=false; a.powerBroken=false;
+    a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
   });
 
@@ -173,6 +173,8 @@ function startPlayerPhase(){
   G.actionsLeft=G.actionsPerTurn;
   G.spreadActive=false;
   applyTurnStart();
+  // 毒処理後も仲間が全滅していたらゲームオーバー
+  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
   setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'杖を使うかパスしてください');
@@ -401,7 +403,7 @@ async function enemyAttackAction(enemy, enemyIdx){
       hitSet.add(tgt.id);
     }
     rangeHit.forEach(h=>{ dealDmgToAlly(h.unit,atkVal,h.idx,enemy); hitSet.add(h.unit.id); });
-    if(atkVal>0&&tgt.hp>=0) applyKeywordOnHit(enemy,tgt);
+    if(atkVal>0&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
     rangeHit.forEach(h=>{ if(atkVal>0) applyKeywordOnHit(enemy,h.unit); });
     hitNames.push(tgt.name);
   });
@@ -502,17 +504,26 @@ function triggerInjury(unit){
       }
       break;
     }
-    // 旧互換
-    case 'worm':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }}); log(`${unit.name}：負傷→全仲間+1/+1`,'good'); break; }
-    case 'minotaur':{ const mts=G.enemies.filter(e=>e.hp>0); if(mts.length){ const mt=randFrom(mts); dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit); log(`${unit.name}：負傷→ランダムな敵に攻撃`,'good'); } break; }
-    case 'lizardman':{ const ts=G.enemies.filter(e=>e.hp>0); if(ts.length){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); } break; }
+    case 'worm':{
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }});
+      log(`${unit.name}：負傷→全仲間+1/+1`,'good');
+      break;
+    }
+    case 'minotaur':{
+      const mts=G.enemies.filter(e=>e.hp>0);
+      if(mts.length){ const mt=randFrom(mts); dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit); log(`${unit.name}：負傷→ランダムな敵に攻撃`,'good'); }
+      break;
+    }
+    case 'lizardman':{
+      const ts=G.enemies.filter(e=>e.hp>0);
+      if(ts.length){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); }
+      break;
+    }
     case 'kettcat':{
       const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
-      const si=G.allies.indexOf(unit);
-      let ei=-1;
-      if(si>0&&!G.allies[si-1]) ei=si-1;                   // 左優先
-      else if(si<G.allies.length-1&&!G.allies[si+1]) ei=si+1; // 次に右
-      else ei=G.allies.indexOf(null);                        // それ以外の空き
+      // 死亡中ユニットのスロットも空き扱い（ただしケットシー自身のスロットは除外）
+      const kIdx=G.allies.indexOf(unit);
+      const ei=G.allies.findIndex((a,i)=>i!==kIdx&&(!a||a.hp<=0));
       if(ei>=0){ G.allies[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャットを召喚（スロット${ei}）`,'good'); }
       break;
     }
@@ -587,7 +598,7 @@ function onBattleEnd(){
     if(a._dragonetCount>=3){
       const worm=UNIT_POOL.find(u=>u.id==='c_worm');
       if(worm){
-        const w=clone(worm); w._isChar=true; w.hp=Math.min(w.hp,w.hp); w.maxHp=w.hp;
+        const w=clone(worm); w._isChar=true; w.maxHp=w.hp;
         G.allies[i]=w;
         log(`🐲 ドラゴネット：3戦目→ワームに変身！`,'gold');
       }
@@ -787,14 +798,6 @@ function surrender(){
   gameOver();
 }
 
-// ── 城壁ATK同期 ──────────────────────────────
-
-function syncWallAtk(){
-  const walls=G.allies.filter(a=>a&&a.hp>0&&a.injury==='wall_copy_atk');
-  if(!walls.length) return;
-  const maxAtk=G.allies.filter(a=>a&&a.hp>0&&a.injury!=='wall_copy_atk').reduce((m,a)=>Math.max(m,a.atk),0);
-  walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
-}
 
 // ── 勝利オーバーレイ ──────────────────────────
 

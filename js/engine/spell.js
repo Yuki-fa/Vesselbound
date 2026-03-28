@@ -142,7 +142,7 @@ function applySpell(sp,idx,tgt){
         if(e){ e.allyTarget=true; log(`${e.name}を強制ターゲットに設定（味方が優先的に狙う）`,'good'); }
       }
     break;}
-    case 'double_hp':{ const a=G.allies[tgt.idx]; a.hp*=2; a.maxHp*=2; log(`${a.name} HP×2→${a.hp}`,'good'); break;}
+    case 'double_hp':{ const a=G.allies[tgt.idx]; if(a){ a.hp*=2; a.maxHp*=2; log(`${a.name} HP×2→${a.hp}`,'good'); } break;}
     case 'swap_all':{
       // 死亡ユニットを除いてATK/HP入れ替え
       [...G.allies,...G.enemies].forEach(u=>{
@@ -165,7 +165,7 @@ function applySpell(sp,idx,tgt){
       if(wu){ wu.nullified=1; log(`${wu.name} 脱力1T（ATK→0）`,'good'); }
     break;}
     case 'stealth':{ const sa=G.allies[tgt.idx]; if(sa){ sa.stealth=true; log(`${sa.name}に隠密付与`,'good'); } break;}
-    case 'poison_wand':{ const pe=G.enemies[tgt.idx]; if(pe){ pe.poison=(pe.poison||0)+3; log(`${pe.name}に毒+3付与（毒${pe.poison}）`,'good'); } break;}
+    case 'poison_wand':{ const pe=G.enemies[tgt.idx]; if(pe){ const pv=G.magicLevel||1; pe.poison=(pe.poison||0)+pv; log(`${pe.name}に毒+${pv}付与（毒${pe.poison}）`,'good'); } break;}
     case 'sacrifice':{
       const si=tgt.idx;
       const sa2=G.allies[si]; if(!sa2) break;
@@ -174,7 +174,7 @@ function applySpell(sp,idx,tgt){
       log(`犠牲：${sa2.name}を破壊、全敵に${dmg}ダメ`,'good');
       G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,ei); });
     break;}
-    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ ba.atk+=3; ba.baseAtk+=3; log(`${ba.name}：ATK+3`,'good'); } break;}
+    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ const bav=G.magicLevel||1; ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); } break;}
     case 'swap_pos':{
       if(!tgt||tgt.who!=='pair') break;
       const {idx1,idx2}=tgt;
@@ -182,16 +182,14 @@ function applySpell(sp,idx,tgt){
       log(`転移：スロット${idx1+1}↔${idx2+1}を入れ替え`,'good');
     break;}
     case 'meteor_multi':{
-      const hits=3;
+      const hits=G.magicLevel||1;
       for(let h=0;h<hits;h++){
-        const all=[...G.allies.map((a,i)=>a&&a.hp>0?{u:a,team:'ally',i}:null).filter(Boolean),
-                   ...G.enemies.map((e,i)=>e&&e.hp>0?{u:e,team:'enemy',i}:null).filter(Boolean)];
-        if(!all.length) break;
-        const pick=randFrom(all);
-        if(pick.team==='enemy') dealDmgToEnemy(pick.u,3,pick.i);
-        else { pick.u.hp=Math.max(0,pick.u.hp-3); if(pick.u.hp<=0) processAllyDeath(pick.u,pick.i); }
+        const live=G.enemies.map((e,i)=>e&&e.hp>0?{u:e,i}:null).filter(Boolean);
+        if(!live.length) break;
+        const pick=randFrom(live);
+        dealDmgToEnemy(pick.u,3,pick.i);
       }
-      log(`隕石の杖：ランダムキャラに3ダメ×${hits}`,'bad');
+      log(`隕石の杖：ランダムな敵に3ダメ×${hits}`,'good');
     break;}
     case 'doom':{ const dd=G.magicLevel||1; G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); log(`破滅の杖：全敵に${dd}ダメ`,'good'); break;}
     case 'possess':{
@@ -238,7 +236,7 @@ function applySpell(sp,idx,tgt){
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
     break;}
-    case 'boost':{ const a=G.allies[tgt.idx]; const bv=G.magicLevel||1; a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); break;}
+    case 'boost':{ const a=G.allies[tgt.idx]; if(a){ const bv=G.magicLevel||1; a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
     case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
     case 'seal':{ G.enemies[tgt.idx].sealed=1; log(`${G.enemies[tgt.idx].name} 封印1T`,'good'); break;}

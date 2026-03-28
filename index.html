@@ -55,6 +55,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 @keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
 .slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
+@keyframes blink-death{0%,100%{opacity:.75}50%{opacity:.12}}
+.slot.will-die::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,50,50,.5) 0,rgba(255,50,50,.5) 3px,transparent 3px,transparent 12px);pointer-events:none;border-radius:inherit;animation:blink-death .85s ease-in-out infinite}
 .slot-name{font-size:.65rem;color:var(--text2);text-align:center;line-height:1.2;padding:0 2px}
 .slot-stats{font-size:.75rem;font-weight:700}
 .slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
@@ -158,6 +160,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-sell{font-size:.58rem;color:var(--teal2);margin-top:2px}
 .rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
 .rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
+.rew-card.treasure{border-color:rgba(60,160,255,.8);box-shadow:0 0 8px rgba(60,160,255,.3)}
+.rew-card.treasure:hover:not(.cant){border-color:#5cf;box-shadow:0 4px 14px rgba(60,160,255,.55)}
 .rew-legend-badge{font-size:.54rem;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
 
 /* MOVE INLINE */
