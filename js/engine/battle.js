@@ -729,7 +729,11 @@ function processEnemyDeath(e,eIdx){
   G.earnedGold+=gold; G.gold+=gold;
   log(`${e.name} 撃破！ソウル+${gold}`,'gold');
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
-  if(!G._pendingTreasure&&!G._retreated){
+  // エリート戦ではエリート本体が宝箱を確定ドロップ（他の敵は落とさない）
+  if(e.keywords&&e.keywords.includes('エリート')){
+    G._pendingTreasure=true;
+    log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+  } else if(!G._pendingTreasure&&!G._retreated&&!G._isEliteFight){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
     const rate=hasGreed?0.10:0.05;
     if(Math.random()<rate){

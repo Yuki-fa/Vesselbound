@@ -36,11 +36,21 @@ function renderAll(){
 function _computeDeathRisk(){
   if(G.phase!=='player') return new Set();
   const liveAllies=G.allies.map((a,i)=>a&&a.hp>0?{a,i}:null).filter(Boolean);
-  const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&e.atk>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
+  const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
   if(!liveAllies.length||!liveEnemies.length) return new Set();
+
+  // 味方の合計ATKで敵を全滅できるなら、敵フェイズは発生しない
+  const totalAllyAtk=liveAllies.reduce((s,{a})=>s+(a.atk||0),0);
+  const totalEnemyHp=liveEnemies.reduce((s,{e})=>s+(e.hp||0),0);
+  if(totalAllyAtk>=totalEnemyHp) return new Set();
+
+  // 敵が攻撃してくる場合のみ（ATK>0の敵）
+  const attackingEnemies=liveEnemies.filter(({e})=>e.atk>0);
+  if(!attackingEnemies.length) return new Set();
+
   const dmgMap={};
   liveAllies.forEach(({i})=>{ dmgMap[i]=[]; });
-  liveEnemies.forEach(({e})=>{
+  attackingEnemies.forEach(({e})=>{
     const hateA=liveAllies.find(x=>x.a.hate&&x.a.hateTurns>0);
     const tgt=hateA||liveAllies[liveAllies.length-1];
     dmgMap[tgt.i].push(e.atk);
@@ -229,9 +239,10 @@ function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
   const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
-  // ザ・グレートマザー：自身以外の味方カード効果中の数値を全て+grade
+  // ザ・グレートマザー：味方キャラクターカードの効果テキスト数値を全て+grade（指輪・杖・アイテムは対象外）
   const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
-  const gmBonus=gmRing&&card.id!==gmRing.id?(gmRing.grade||1):0;
+  const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
+  const gmBonus=gmRing&&card.id!==gmRing.id&&isCharCard?(gmRing.grade||1):0;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   if(gmBonus>0){

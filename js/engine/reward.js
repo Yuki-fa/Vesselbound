@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════
 
 let _rewCards=[];
-let _eliteRing=null;
 let _placingChar=null; // フィールド配置待ちのキャラカード
 
 // ── 報酬フェイズ開始 ────────────────────────────
@@ -13,7 +12,6 @@ function goToReward(){
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
   _rewCards=drawRewards();
-  _eliteRing=null;
   G.phase='reward';
 
   // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
@@ -48,13 +46,16 @@ function goToReward(){
     if(bossNotice) bossNotice.style.display='none';
   }
 
-  // エリート撃破ボーナス（ボス戦でも必ず出現）
-  if(G._eliteKilled){
-    _eliteRing=drawUniqueRing();
-    if(_eliteRing){
-      _eliteRing._isLegend=true;
+  // エリート撃破ボーナス：宝箱の中身としてユニーク指輪を無料で報酬欄に追加
+  if(G._eliteKilled&&G._pendingTreasure){
+    G._pendingTreasure=false; // 通常の宝箱処理をスキップ
+    const eliteRing=drawUniqueRing();
+    if(eliteRing){
+      eliteRing._isLegend=true; eliteRing._isTreasure=true; eliteRing._buyPrice=0;
+      _rewCards.push(eliteRing);
       const en=document.getElementById('boss-reward-notice');
-      if(en){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が出現（3ソウル・リロールで消えます）'; }
+      if(en){ en.style.display=''; en.textContent='⭐ エリート撃破：ユニーク指輪が宝箱から出現！（無料）'; }
+      log('⭐ エリート撃破：ユニーク指輪を獲得！','gold');
     }
   }
 
@@ -120,7 +121,6 @@ function rerollRewards(){
   G.gold-=1;
   G.rerollCount=(G.rerollCount||0)+1;
   _rewCards=drawRewards();
-  _eliteRing=null;
 
   // 試行の指輪
   const trialsRing=G.rings.find(r=>r&&r.unique==='trials');
@@ -153,9 +153,6 @@ function renderRewCards(){
     if(!card) return;
     el.appendChild(_mkRewDiv(card, ()=>takeRewCard(i)));
   });
-  if(_eliteRing){
-    el.appendChild(_mkRewDiv(_eliteRing, ()=>takeEliteRing()));
-  }
   const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
   requestAnimationFrame(fitCardDescs);
 }
@@ -260,21 +257,6 @@ function takeRewCard(i){
   renderFieldEditor();
 }
 
-// ── エリート指輪購入 ──────────────────────────
-
-function takeEliteRing(){
-  const card=_eliteRing; if(!card) return;
-  const cost=card._buyPrice||3;
-  if(G.gold<cost) return;
-  const ringSlot=G.rings.indexOf(null);
-  if(ringSlot<0){ log(`指輪スロット（${G.ringSlots}）が満杯です。フィールドの指輪を売却してください。`,'bad'); return; }
-  G.gold-=cost;
-  G.rings[ringSlot]=clone(card);
-  log(card.name+' を'+cost+'ソウルで取得（ユニーク）','good');
-  _eliteRing=null;
-  document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD(); renderRewCards(); renderFieldEditor();
-}
 
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
 
@@ -500,7 +482,6 @@ function showEventItemPickup(item, onDone){
   const itemCopy=clone(item);
   itemCopy._buyPrice=0;
   _rewCards=[itemCopy];
-  _eliteRing=null;
   _eventItemDone=onDone||null;
 
   document.getElementById('f-ally').innerHTML='';
