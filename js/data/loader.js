@@ -11,7 +11,7 @@ const _EXPORT_BASE =
   '/pub?output=csv';
 function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
 const _SHEET_GIDS = {
-  'キャラクタープール': 0,          // ← 正しいGIDに変更してください
+  'キャラクタープール': 848932419,
   '指輪プール':   426459898,
   '魔法プール':  1848829406,
   '階層データ':   920830789,

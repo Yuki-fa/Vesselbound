@@ -155,9 +155,9 @@ function generateMoveMasks(){
   const chosen=idxs.slice(0,total);
 
   // 最初のスロットは必ず戦闘、追加スロットは各10%で休息所（祭壇は出現しない）
-  // 遠見の契約：休息所の出現率+50%
+  // 遠見の指輪：祭壇・商店・宿屋の出現率2倍
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
-  const restRate=hasFarsight?0.15:0.10;
+  const restRate=hasFarsight?0.20:0.10;
 
   // 観察秘術：休息所を確定で1つ出現させる
   let forceNonBattle=G.arcanaForceNode?'rest':null;

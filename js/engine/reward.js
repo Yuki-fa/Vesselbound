@@ -13,20 +13,6 @@ function goToReward(){
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
   _rewCards=drawRewards();
-  // 宝箱ドロップ：全滅時に無料追加報酬（撤退時は無効）
-  if((G._pendingTreasure||0)>0&&!G._retreated){
-    const extras=drawRewards(G._pendingTreasure);
-    extras.forEach(c=>{ c._buyPrice=0; });
-    _rewCards=[..._rewCards,...extras];
-    log(`📦 宝箱×${G._pendingTreasure}：無料追加報酬`,'gold');
-  }
-  G._pendingTreasure=0;
-  G._retreated=false;
-  // キャラクターグレードアップ選択肢（現在グレードのキャラが対象）
-  const targetGrade=rollCharGrade(G.floor);
-  if(targetGrade<MAX_GRADE){
-    _rewCards.push({_isGradeUp:true, _buyPrice:3});
-  }
   _eliteRing=null;
   G.phase='reward';
 
@@ -67,6 +53,7 @@ function goToReward(){
 
   renderAll(); // フィールド（仲間エリア）も再描画
   renderRewCards();
+  renderGradeUpBtn();
   renderArcanaInfo();
   renderMoveSlotsInEnemy();
   renderFieldEditor();
@@ -167,17 +154,6 @@ function _mkRewDiv(card, onBuy){
   const isLegend=!!card._isLegend;
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'');
 
-  if(card._isGradeUp){
-    // キャラクターグレードアップカード
-    const targetGrade=rollCharGrade(G.floor);
-    const eligible=G.allies.filter(a=>a&&a.hp>0&&(a.grade||1)===targetGrade&&(a.grade||1)<MAX_GRADE);
-    const disabled=!eligible.length;
-    div.className='rew-card'+(canBuy&&!disabled?'':' cant');
-    div.innerHTML=`<div class="rew-card-cost">${cost}ソウル</div><div class="rew-card-tp" style="color:var(--gold)">グレードアップ</div><div class="rew-card-name">キャラ強化</div><div class="rew-card-desc">G${targetGrade}のキャラクター1体をG${targetGrade+1}にする${disabled?' （対象なし）':''}</div>`;
-    if(canBuy&&!disabled) div.onclick=onBuy;
-    return div;
-  }
-
   if(card._isChar){
     // キャラクターカード
     const hasSlot=G.allies.includes(null);
@@ -220,20 +196,6 @@ function takeRewCard(i){
   const card=_rewCards[i]; if(!card) return;
   const cost=card._buyPrice??1;
   if(G.gold<cost) return;
-
-  if(card._isGradeUp){
-    // キャラクターグレードアップ：現在グレードのキャラを選んで+1
-    const targetGrade=rollCharGrade(G.floor);
-    const eligible=G.allies.map((a,idx)=>({a,idx})).filter(({a})=>a&&a.hp>0&&(a.grade||1)===targetGrade&&(a.grade||1)<MAX_GRADE);
-    if(!eligible.length){ return; }
-    G.gold-=cost;
-    _rewCards[i]=null;
-    document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD();
-    // 選択モーダルを使って対象を選ばせる
-    _openAllyPickerForGradeUp(eligible);
-    return;
-  }
 
   if(card._isChar){
     // キャラクター：フィールドへ配置
@@ -462,36 +424,43 @@ function discardRing(idx){
   renderHandEditor();
 }
 
-// ── 報酬画面：キャラクターグレードアップ選択 ──────────
+// ── 報酬グレードアップUI ────────────────────────
 
-function _openAllyPickerForGradeUp(eligible){
-  // enc-modal を流用してキャラ選択UIを表示
-  const modal=document.getElementById('enc-modal');
-  const s1=document.getElementById('enc-s1');
-  const s2=document.getElementById('enc-s2');
-  if(!modal){ renderRewCards(); renderFieldEditor(); return; }
-  s2.style.display='none'; s1.style.display='';
-  document.querySelector('.enc-box h3').textContent='グレードアップするキャラクターを選択';
-  const el=document.getElementById('enc-rings');
-  el.innerHTML='';
-  eligible.forEach(({a})=>{
-    const div=document.createElement('div');
-    div.className='enc-item';
-    const newG=(a.grade||1)+1;
-    div.textContent=`${a.name} G${a.grade||1} → G${newG}`;
-    div.onclick=()=>{
-      a.grade=newG;
-      // パワー・ライフを1.5倍（切り上げ）
-      a.atk=Math.ceil(a.atk*1.5); a.baseAtk=Math.ceil((a.baseAtk||a.atk)*1.5);
-      const newHp=Math.ceil(a.maxHp*1.5); a.hp=Math.min(newHp,a.hp+newHp-a.maxHp); a.maxHp=newHp;
-      log(`${a.name} → G${newG} にグレードアップ（パワー/ライフ×1.5）`,'gold');
-      modal.classList.remove('open');
-      document.querySelector('.enc-box h3').textContent='エンチャント付与';
-      renderRewCards(); renderFieldEditor();
-    };
-    el.appendChild(div);
-  });
-  modal.classList.add('open');
+const _GRADE_UP_COSTS=[8,18,30]; // 1回目・2回目・3回目
+
+function renderGradeUpBtn(){
+  // reward-info-bar 内に grade-up ボタンを動的挿入
+  let el=document.getElementById('rw-grade-up-btn');
+  if(!el){
+    el=document.createElement('button');
+    el.id='rw-grade-up-btn';
+    el.className='btn tiny';
+    el.style='border-color:var(--gold);color:var(--gold2);margin-left:6px';
+    document.getElementById('reward-info-bar').appendChild(el);
+  }
+  const count=G.rewardGradeUpCount||0;
+  const maxGrade=4; // 最大G4まで
+  if(count>=_GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
+    el.style.display='none'; return;
+  }
+  const cost=_GRADE_UP_COSTS[count];
+  const canAfford=G.gold>=cost;
+  el.style.display='';
+  el.textContent=`報酬G${(G.rewardGrade||1)}→G${(G.rewardGrade||1)+1}（${cost}ソウル）`;
+  el.disabled=!canAfford;
+  el.onclick=()=>{
+    if(G.gold<cost) return;
+    G.gold-=cost;
+    G.rewardGrade=(G.rewardGrade||1)+1;
+    G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
+    log(`📈 報酬グレードアップ：G${G.rewardGrade}（コスト:${cost}ソウル）`,'gold');
+    // 報酬カードを新グレードで引き直し
+    _rewCards=drawRewards();
+    document.getElementById('rw-gold').textContent=G.gold;
+    updateHUD();
+    renderRewCards();
+    renderGradeUpBtn();
+  };
 }
 
 // ── ボス報酬：指輪グレードアップ ─────────────────

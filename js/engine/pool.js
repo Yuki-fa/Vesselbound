@@ -51,12 +51,12 @@ function getRingPool(){
 // ── キャラクタープールから N 体抽選 ────────────────
 
 function drawCharacters(n){
-  const targetGrade=rollCharGrade(G.floor);
-  // 利用可能なキャラ（ネームド=unique は報酬に出ない、G2以上は階層で解禁）
+  // 報酬グレードと一致するグレードのみ出現（ネームドは除外）
+  const targetGrade=G.rewardGrade||1;
   const pool=UNIT_POOL.filter(u=>{
-    if(!u.id||u.id==='c_golem') return false; // ゴーレムは報酬に出ない
-    if(u.unique) return false;                // ネームドは報酬に出ない
-    if(u.grade>targetGrade) return false;     // 階層不足
+    if(!u.id||u.id==='c_golem') return false;
+    if(u.unique) return false;
+    if((u.grade||1)!==targetGrade) return false;
     return true;
   });
   if(!pool.length) return [];

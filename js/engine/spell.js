@@ -122,9 +122,9 @@ function applySpell(sp,idx,tgt){
   clearSelectable();
   log(`→ ${sp.name} を使用`,'em');
 
-  // 触媒環の契約：消耗品の効果が2倍
+  // 触媒の指輪：杖の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
-  const cMult=(sp.type==='consumable'&&catRingC)?2:1;
+  const cMult=(sp.type==='wand'&&catRingC)?2:1;
   _spreadTargetPending=false;
   let _spreadPick=null;
   switch(sp.effect){
@@ -335,7 +335,9 @@ function applySpell(sp,idx,tgt){
   if(sp.type==='wand'){
     if(sp.usesLeft===undefined) sp.usesLeft=1; // fallback
     const manaCycle=G.rings.find(r=>r&&r.unique==='mana_cycle');
-    if(!manaCycle){
+    let skipDecrement=false;
+    if(manaCycle&&!G._manaCycleUsed){ G._manaCycleUsed=true; skipDecrement=true; log(`魔導の指輪：最初の杖のチャージ消費をスキップ`,'sys'); }
+    if(!skipDecrement){
       if(sp.effect!=='spread') sp.usesLeft--;
       if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
     }

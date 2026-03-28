@@ -39,6 +39,11 @@ function removeLeaderBonus(leader){
 async function startBattle(){
   clearLog();
 
+  // 宝箱・撤退フラグをリセット（前の戦闘の状態を持ち越さない）
+  G._pendingTreasure=false;
+  G._retreated=false;
+  G._manaCycleUsed=false;
+
   // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
   G.gold += G.arcanaCarryGold||0; G.arcanaCarryGold=0;
 
@@ -212,12 +217,10 @@ function applyTurnStart(){
   G.rings.forEach(ring=>{
     if(!ring) return;
     if(ring.unique==='needle'){
-      const shots=ring.grade||1;
-      for(let i=0;i<shots;i++){
-        const ts=G.enemies.filter(e=>e.hp>0); if(!ts.length) break;
-        dealDmgToEnemy(randFrom(ts),1,G.enemies.indexOf(randFrom(ts)));
-      }
-      if(shots>0) log(`🎯 針の指輪：敵にランダム1ダメ×${shots}`,'good');
+      const dmg=G.turn||1; // X = 現在ターン数
+      const ts=G.enemies.filter(e=>e.hp>0); if(!ts.length) return;
+      ts.forEach(e=>{ dealDmgToEnemy(e,dmg,G.enemies.indexOf(e)); });
+      log(`🎯 針の指輪：全敵に${dmg}ダメージ（ターン${G.turn}）`,'good');
       if(checkInstantVictory()) return;
     }
   });
@@ -499,7 +502,8 @@ function triggerInjury(unit){
       break;
     }
     // 旧互換
-    case 'worm':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }}); break; }
+    case 'worm':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }}); log(`${unit.name}：負傷→全仲間+1/+1`,'good'); break; }
+    case 'minotaur':{ const mts=G.enemies.filter(e=>e.hp>0); if(mts.length){ const mt=randFrom(mts); dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit); log(`${unit.name}：負傷→ランダムな敵に攻撃`,'good'); } break; }
     case 'lizardman':{ const ts=G.enemies.filter(e=>e.hp>0); if(ts.length){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); } break; }
     case 'kettcat':{ const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''}; const ei=G.allies.indexOf(null); if(ei>=0) G.allies[ei]=makeUnitFromDef(def); break; }
   }
@@ -545,6 +549,11 @@ function onBattleStart(){
       log(`憤激の指輪：全仲間パワー+${fb}`,'good');
     }
   });
+  // 絆の指輪：全仲間に「絆」キーワード付与
+  if(G.rings.some(r=>r&&r.unique==='bond')){
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('絆')) a.keywords.push('絆'); }});
+    log(`絆の指輪：全仲間に絆を付与`,'good');
+  }
   // patience 指輪がない場合、battle_start 指輪トリガーを発火
   const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
   if(!_hasPatience) fireTrigger('battle_start');
@@ -559,6 +568,35 @@ function onBattleEnd(){
       a.hp=1;
       log(`${a.name}：ライフ1で復活`,'good');
     }
+  });
+
+  // ドラゴネット：3回目の戦闘終了時にワームへ変身
+  G.allies.forEach((a,i)=>{
+    if(!a||a.effect!=='dragonet_end') return;
+    a._dragonetCount=(a._dragonetCount||0)+1;
+    if(a._dragonetCount>=3){
+      const worm=UNIT_POOL.find(u=>u.id==='c_worm');
+      if(worm){
+        const w=clone(worm); w._isChar=true; w.hp=Math.min(w.hp,w.hp); w.maxHp=w.hp;
+        G.allies[i]=w;
+        log(`🐲 ドラゴネット：3戦目→ワームに変身！`,'gold');
+      }
+    } else {
+      log(`🐲 ドラゴネット：変身まで${3-a._dragonetCount}戦`,'sys');
+    }
+  });
+
+  // ラミア：戦闘終了時、魔術レベル4につきソウル1を得る
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0||a.effect!=='lamia_end') return;
+    const bonus=Math.floor((G.magicLevel||1)/4);
+    if(bonus>0){ G.gold+=bonus; log(`🐍 ラミア：魔術Lv${G.magicLevel}→ソウル+${bonus}`,'gold'); }
+  });
+
+  // ノーム：戦闘終了時、2ソウルを得る
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0||a.effect!=='gnome_end') return;
+    G.gold+=2; log(`🧌 ノーム：戦闘終了→ソウル+2`,'gold');
   });
 
   // 再生：戦闘終了時にHP+X（生存時のみ）
@@ -579,12 +617,11 @@ function onBattleEnd(){
 // ── 勝利ボーナス ───────────────────────────────
 
 function applyVictoryBonuses(){
-  // 生命の指輪
+  // 生命の指輪：全ての味方が±0/+1を得る
   G.rings.forEach(r=>{
     if(r&&r.unique==='life_reg'){
-      const gain=GRADE_MULT[r.grade||1];
-      G.life=Math.min(20,G.life+gain);
-      log(`生命の指輪：ライフ+${gain}`,'good');
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
+      log(`生命の指輪：全仲間ライフ+1`,'good');
     }
   });
 
@@ -670,14 +707,19 @@ function processEnemyDeath(e,eIdx){
   const gold=1;
   G.earnedGold+=gold; G.gold+=gold;
   log(`${e.name} 撃破！ソウル+${gold}`,'gold');
+  // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
+  if(!G._pendingTreasure&&!G._retreated){
+    const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
+    const rate=hasGreed?0.10:0.05;
+    if(Math.random()<rate){
+      G._pendingTreasure=true;
+      G.moveMasks[eIdx]='chest'; // この敵スロットに宝箱を表示
+      log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+    }
+  }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
     log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
-  }
-  // 宝箱ドロップ（5%）
-  if(Math.random()<0.05&&!G._retreated){
-    G._pendingTreasure=(G._pendingTreasure||0)+1;
-    log(`📦 宝箱を落とした！`,'gold');
   }
   // ナグルファル：敵死亡でも+2/+1
   _onAnyCharDeath();
@@ -694,6 +736,15 @@ function onWandUsed(){
         G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1; b.baseAtk+=1; b.hp+=1; b.maxHp+=1; }});
         log(`ドワーフ：杖使用→全仲間+1/+1`,'good');
         break;
+      case 'gremlin_wand':
+        G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk=Math.max(0,e.atk-1); }});
+        log(`グレムリン：杖使用→全敵ATK-1`,'good');
+        break;
+      case 'jack_wand':{
+        const alive=G.allies.filter(b=>b&&b.hp>0);
+        if(alive.length){ const t=alive[Math.floor(Math.random()*alive.length)]; t.shield=(t.shield||0)+1; log(`ジャック：杖使用→${t.name}にシールド+1`,'good'); }
+        break;
+      }
     }
   });
 }
