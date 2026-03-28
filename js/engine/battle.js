@@ -506,7 +506,16 @@ function triggerInjury(unit){
     case 'worm':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }}); log(`${unit.name}：負傷→全仲間+1/+1`,'good'); break; }
     case 'minotaur':{ const mts=G.enemies.filter(e=>e.hp>0); if(mts.length){ const mt=randFrom(mts); dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit); log(`${unit.name}：負傷→ランダムな敵に攻撃`,'good'); } break; }
     case 'lizardman':{ const ts=G.enemies.filter(e=>e.hp>0); if(ts.length){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); } break; }
-    case 'kettcat':{ const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''}; const ei=G.allies.indexOf(null); if(ei>=0) G.allies[ei]=makeUnitFromDef(def); break; }
+    case 'kettcat':{
+      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
+      const si=G.allies.indexOf(unit);
+      let ei=-1;
+      if(si>0&&!G.allies[si-1]) ei=si-1;                   // 左優先
+      else if(si<G.allies.length-1&&!G.allies[si+1]) ei=si+1; // 次に右
+      else ei=G.allies.indexOf(null);                        // それ以外の空き
+      if(ei>=0){ G.allies[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャットを召喚（スロット${ei}）`,'good'); }
+      break;
+    }
   }
 }
 
