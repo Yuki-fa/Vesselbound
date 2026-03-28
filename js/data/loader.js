@@ -18,6 +18,7 @@ const _SHEET_GIDS = {
   'エンチャント':  320923773,
   '敵キーワード':  769775182,
   'effect_id':    992952088,
+  'グレードアップ費用': 1903359867,
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -125,16 +126,17 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    // 階層データとキーワードのみシートから取得（キャラ・指輪・魔法・エンチャントは内蔵データを使用）
+    // 階層データ・キーワード・グレードアップ費用をシートから取得
     const fetches = [
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
       fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
+      fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [ft, kt] = await Promise.all(responses.map(r => r.text()));
+    const [ft, kt, gt] = await Promise.all(responses.map(r => r.text()));
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -187,8 +189,19 @@ async function loadGameData() {
       kwRows.forEach(row => { if (row[kwKey]) ENEMY_KEYWORDS.push(row[kwKey]); });
     }
 
+    // ── グレードアップ費用 ──
+    // シート列：グレード, 費用（グレード2以上の費用 = G1→G2, G2→G3, ...）
+    const gradeRows = _parseCSV(gt);
+    const newCosts = gradeRows
+      .map(row => parseInt(row['費用']))
+      .filter(v => !isNaN(v) && v > 0);
+    if (newCosts.length > 0) {
+      GRADE_UP_COSTS.length = 0;
+      newCosts.forEach(c => GRADE_UP_COSTS.push(c));
+    }
+
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length}`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length} グレードアップ費用:${GRADE_UP_COSTS.join(',')}`
     );
     return true;
 

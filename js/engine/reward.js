@@ -463,8 +463,6 @@ function discardRing(idx){
 
 // ── 報酬グレードアップUI ────────────────────────
 
-const _GRADE_UP_COSTS=[8,18,30]; // 1回目・2回目・3回目
-
 function renderGradeUpBtn(){
   // reward-info-bar 内に grade-up ボタンを動的挿入
   let el=document.getElementById('rw-grade-up-btn');
@@ -477,10 +475,10 @@ function renderGradeUpBtn(){
   }
   const count=G.rewardGradeUpCount||0;
   const maxGrade=4; // 最大G4まで
-  if(count>=_GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
+  if(count>=GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
     el.style.display='none'; return;
   }
-  const cost=_GRADE_UP_COSTS[count];
+  const cost=GRADE_UP_COSTS[count];
   const canAfford=G.gold>=cost;
   el.style.display='';
   el.textContent=`報酬G${(G.rewardGrade||1)}→G${(G.rewardGrade||1)+1}（${cost}ソウル）`;
