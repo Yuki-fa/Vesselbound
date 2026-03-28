@@ -3,10 +3,11 @@
 // 依存: constants.js, state.js
 // ═══════════════════════════════════════
 
-// 行動の指輪による行動回数を計算
+// 行動の指輪・宿屋ボーナスによる行動回数を計算
 function calcActions(){
   let n=1;
   G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=(r.grade||1); });
+  if(G._bonusAction){ n+=G._bonusAction; G._bonusAction=0; } // 宿屋ボーナスは1回限り
   return n;
 }
 

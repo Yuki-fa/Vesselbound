@@ -74,10 +74,10 @@ function _rowToUnit(row) {
     name:   row['名前'],
     race:   row['種族']  || '-',
     grade:  parseInt(row['グレード']) || 1,
-    atk:    parseInt(row['ATK'])   || 0,
-    hp:     parseInt(row['HP'])    || 0,
+    atk:    parseInt(row['パワー'] || row['ATK'])   || 0,
+    hp:     parseInt(row['ライフ'] || row['HP'])    || 0,
     cost:   parseInt(row['価格']) || 0,
-    unique: row['ユニーク'] === 'TRUE' || row['ユニーク'] === '✓',
+    unique: row['ネームド'] === 'TRUE' || row['ネームド'] === '✓' || row['ユニーク'] === 'TRUE' || row['ユニーク'] === '✓',
     desc:   row['効果']   || '',
     icon:   row['アイコン'] || '❓',
   };
@@ -85,58 +85,39 @@ function _rowToUnit(row) {
 
 // ── 行 → 指輪オブジェクト ──────────────────────────
 function _rowToRing(row) {
-  const isSummon = row['種別(summon/passive)'] === 'summon';
   const obj = {
-    id:    row['id'],
+    id:    '',    // JS定義から補完
     name:  row['名前'],
     type:  'ring',
-    kind:  row['種別(summon/passive)'],
     grade: 1,
   };
-  if (isSummon) {
-    obj.trigger = row['トリガー'];
-    obj.summon  = {
-      atk:  parseInt(row['基本ATK']) || 0,
-      hp:   parseInt(row['基本HP'])  || 0,
-      name: row['召喚名'],
-      icon: row['アイコン'],
-    };
-    const cnt = parseInt(row['召喚数']);
-    if (cnt > 0) obj.count = cnt;
-    if (row['guardian'] === 'TRUE') obj.guardian = true;
-    const tc = parseInt(row['triggerCount']);
-    if (tc > 0) obj.triggerCount = tc;
-  }
-  if (row['unique'])  obj.unique  = row['unique'];
-  if (row['onDeath']) obj.onDeath = row['onDeath'];
+  // ユニーク・legend
+  if (row['ユニーク'] === 'TRUE' || row['ユニーク'] === '✓') obj.legend = true;
+  // 価格
+  const cost = parseInt(row['価格']);
+  if (!isNaN(cost)) obj.cost = cost;
+  // 初期装備分類
+  if (row['初期装備'] === 'TRUE' || row['初期装備'] === '✓') obj.starterOnly = true;
   obj.desc = row['効果'] || row['説明文'] || '';
-  // グレードごとの上昇値（atkPerGrade / hpPerGrade）
-  const atkPG = parseFloat(row['上昇ATK']);
-  const hpPG  = parseFloat(row['上昇HP']);
-  if (!isNaN(atkPG)) obj.atkPerGrade = atkPG;
-  if (!isNaN(hpPG))  obj.hpPerGrade  = hpPG;
-  // legend フラグ（ユニーク指輪・通常報酬に出ない）
-  if (row['legend'] === 'TRUE' || row['legend'] === '✓') obj.legend = true;
   return obj;
 }
 
 // ── 行 → 魔法オブジェクト ──────────────────────────
 function _rowToSpell(row) {
   const obj = {
-    id:     row['id'],
-    name:   row['名前'],
-    type:   row['種別(wand/consumable)'],
-    effect: row['effect'],
-    grade:  1,
+    id:    '',    // JS定義から補完
+    name:  row['名前'],
+    type:  row['種別'] || row['種別(wand/consumable)'],
+    grade: 1,
   };
-  if (row['needsEnemy']  === 'TRUE') obj.needsEnemy  = true;
-  if (row['needsAlly']   === 'TRUE') obj.needsAlly   = true;
-  if (row['starterOnly'] === 'TRUE') obj.starterOnly  = true;
-  // 使用回数："5" → 固定値、"3-6" → randUses() に任せる（baseUses未設定）
+  // 基本使用回数
   const usesStr = row['基本使用回数'] || '';
   if (usesStr && !usesStr.includes('-')) obj.baseUses = parseInt(usesStr) || undefined;
-  // instakill は任意ターゲット
-  if (obj.effect === 'instakill') obj.needsAny = true;
+  // 価格
+  const cost = parseInt(row['価格']);
+  if (!isNaN(cost)) obj.cost = cost;
+  // 初期装備分類
+  if (row['初期装備'] === 'TRUE' || row['初期装備'] === '✓') obj.starterOnly = true;
   obj.desc = row['効果'] || row['説明文'] || '';
   return obj;
 }
@@ -198,13 +179,22 @@ async function loadGameData() {
     RING_POOL.forEach(ring => {
       const js = _savedRings.find(r => r && r.name === ring.name);
       if (!js) return;
-      ring.id = js.id; // idはJS定義を使用
-      if (js.trigger  !== undefined) ring.trigger  = js.trigger;
-      if (js.unique   !== undefined) ring.unique    = js.unique;
-      if (js.onDeath  !== undefined) ring.onDeath   = js.onDeath;
-      if (js.regen    !== undefined) ring.regen     = js.regen;
-      if (js.legend   !== undefined) ring.legend    = js.legend;
-      if (js.count    !== undefined) ring.count     = js.count;
+      // JS定義のすべてのコードプロパティを上書き（シートは説明文・価格・starterOnlyのみ）
+      ring.id       = js.id;
+      ring.kind     = js.kind;
+      if (js.trigger     !== undefined) ring.trigger     = js.trigger;
+      if (js.unique      !== undefined) ring.unique      = js.unique;
+      if (js.onDeath     !== undefined) ring.onDeath     = js.onDeath;
+      if (js.regen       !== undefined) ring.regen       = js.regen;
+      if (js.legend      !== undefined) ring.legend      = js.legend;
+      if (js.count       !== undefined) ring.count       = js.count;
+      if (js.summon      !== undefined) ring.summon      = js.summon;
+      if (js.atkPerGrade !== undefined) ring.atkPerGrade = js.atkPerGrade;
+      if (js.hpPerGrade  !== undefined) ring.hpPerGrade  = js.hpPerGrade;
+      if (js.guardian    !== undefined) ring.guardian    = js.guardian;
+      if (js.triggerCount!== undefined) ring.triggerCount= js.triggerCount;
+      // starterOnly はシート優先（JS定義でも上書き可）
+      if (!ring.starterOnly && js.starterOnly) ring.starterOnly = js.starterOnly;
     });
 
     // ── 魔法プール（名前ベースマッチング、シートにないものは出さない）──
@@ -249,8 +239,8 @@ async function loadGameData() {
     floorRows.forEach(row => {
       const fl = parseInt(row['階層']);
       if (!fl || isNaN(fl)) return;
-      const isBoss = row['ボス'] === '✓';
-      const actStr = (row['杖'] || row['司令官行動'] || '').trim();
+      const isBoss = row['ボス'] === '✓' || row['ボスかどうか'] === '✓' || row['ボス'] === 'TRUE';
+      const actStr = (row['行動'] || row['杖'] || row['司令官行動'] || '').trim();
       let wands;
       if (!actStr) {
         // 空欄 → floors.js のフォールバックを使用
@@ -266,12 +256,12 @@ async function loadGameData() {
       }
       FLOOR_DATA[fl] = {
         power: parseInt(row['power']) || 10,
-        grade: Math.max(1, parseFloat(row['grade']) || 1),
+        grade: Math.max(1, parseFloat(row['グレード'] || row['grade']) || 1),
         wands: wands,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
-        const bs = parseInt(row['ボスシールド']);
+        const bs = parseInt(row['ボスシールドの数'] || row['ボスシールド']);
         if (!isNaN(bs)) FLOOR_DATA[fl].bossShield = bs;
         // BOSS_FLOORS はボス階の「1つ前」の階番号（移動先選択でボス専用表示に使う）
         BOSS_FLOORS.push(fl - 1);

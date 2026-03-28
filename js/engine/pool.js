@@ -52,14 +52,11 @@ function getRingPool(){
 
 function drawCharacters(n){
   const targetGrade=rollCharGrade(G.floor);
-  // 利用可能なキャラ（G1ユニークは5%、G2以上は階層で解禁、現在G1+ワームのみ）
+  // 利用可能なキャラ（ネームド=unique は報酬に出ない、G2以上は階層で解禁）
   const pool=UNIT_POOL.filter(u=>{
     if(!u.id||u.id==='c_golem') return false; // ゴーレムは報酬に出ない
-    if(u.grade>targetGrade) return false;      // 階層不足
-    if(u.unique){
-      // ユニーク：5%の確率で候補に
-      return Math.random()<0.05;
-    }
+    if(u.unique) return false;                // ネームドは報酬に出ない
+    if(u.grade>targetGrade) return false;     // 階層不足
     return true;
   });
   if(!pool.length) return [];

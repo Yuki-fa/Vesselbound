@@ -18,7 +18,7 @@ function _handleVictory(){
 function applyLeaderBonus(){
   const leader=G.enemies.find(e=>e.keywords&&e.keywords.includes('リーダー')&&e.hp>0);
   if(!leader) return;
-  const bonus=FLOOR_DATA[G.floor]?.grade||1;
+  const bonus=Math.ceil(FLOOR_DATA[G.floor]?.grade||1);
   leader._leaderBonus=bonus;
   G.enemies.forEach(e=>{
     if(e.id!==leader.id&&e.hp>0){ e.atk+=bonus; e.hp+=bonus*2; e.maxHp+=bonus*2; }
@@ -112,7 +112,7 @@ function runCommanderWand(wand){
   if(!wand) return;
   const liveE=G.enemies.filter(e=>e.hp>0);
   const liveA=G.allies.filter(a=>a&&a.hp>0);
-  const bonus=FLOOR_DATA[G.floor]?.grade||1;
+  const bonus=Math.ceil(FLOOR_DATA[G.floor]?.grade||1);
   switch(wand.commanderEffect){
     case 'enemy_buff':
       liveE.forEach(e=>{ e.atk+=bonus; });
@@ -139,7 +139,7 @@ function runCommanderWand(wand){
       break;
     }
     case 'enemy_heal':
-      if(liveE.length>0){ const t=randFrom(liveE); const hp=(FLOOR_DATA[G.floor]?.grade||1)*4; t.hp+=hp; t.maxHp+=hp; log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad'); }
+      if(liveE.length>0){ const t=randFrom(liveE); const hp=Math.ceil(FLOOR_DATA[G.floor]?.grade||1)*4; t.hp+=hp; t.maxHp+=hp; log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad'); }
       break;
     case 'enemy_shield':
       if(liveE.length>0){ const t=randFrom(liveE); t.shield=(t.shield||0)+1; log(`👹 敵司令官「${wand.name}」：${t.name}にシールド+1`,'bad'); }
@@ -221,6 +221,18 @@ function applyTurnStart(){
       if(checkInstantVictory()) return;
     }
   });
+  // エインセル①：ターン開始時、一番右の生存キャラにシールド+1
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0) return;
+    if(a.effect==='einsel'||a.effect==='einsel_shieldlost'){
+      const liveIdxs=G.allies.map((u,i)=>u&&u.hp>0?i:-1).filter(i=>i>=0);
+      if(liveIdxs.length){
+        const r=G.allies[liveIdxs[liveIdxs.length-1]];
+        r.shield=(r.shield||0)+1;
+        log(`${a.name}：${r.name}にシールド+1`,'good');
+      }
+    }
+  });
   // 城壁ATK同期
   syncWallAtk();
   // patience 指輪：battle_start トリガーをターン開始時に発動
@@ -286,12 +298,11 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.atk<=0) return; // ATK0は攻撃しない
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length) return;
-  // allyTarget フラグ持ち優先、なければ最右端
+
+  // アニメーション（代表ターゲット）
   const forcedT=liveE.find(e=>e.allyTarget);
   const target=forcedT||liveE[liveE.length-1];
   const eIdx=G.enemies.indexOf(target);
-
-  // アニメーション
   const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[allyIdx];
   const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[eIdx];
   if(aSlot) aSlot.classList.add('glow-blue');
@@ -300,35 +311,43 @@ async function allyAttackAction(ally, allyIdx){
   if(aSlot) aSlot.classList.remove('glow-blue');
   if(eSlot) eSlot.classList.remove('glow-red');
 
-  // 隠密解除（攻撃すると解除）
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
-  // 一方攻撃（攻撃側はノーダメージ）
-  dealDmgToEnemy(target,ally.atk,eIdx,ally);
-  log(`${ally.name}(${ally.atk})→${target.name}`);
+  // 全体攻撃キーワード：全ての敵を攻撃
+  const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
+  const attackTargets=isGlobal?[...liveE]:[target];
 
-  // 反撃キーワード（敵が生存中の場合、攻撃した味方に反撃）
-  if(target.hp>0&&target.keywords&&target.keywords.includes('反撃')&&ally.hp>0){
-    dealDmgToAlly(ally,target.atk,allyIdx,target);
-    log(`⚔ ${target.name}の反撃：${ally.name}に${target.atk}ダメ`,'bad');
-  }
+  attackTargets.forEach(t=>{
+    const ti=G.enemies.indexOf(t);
+    dealDmgToEnemy(t,ally.atk,ti,ally);
+    // 敵の反撃
+    if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
+      dealDmgToAlly(ally,t.atk,allyIdx,t);
+      log(`⚔ ${t.name}の反撃：${ally.name}に${t.atk}ダメ`,'bad');
+    }
+  });
+  log(`${ally.name}(${ally.atk})→${isGlobal?'全敵':target.name}`);
 
-  // キャラクター固有：攻撃時効果
+  // 攻撃時効果
   if(ally.hp>0){
-    // ブラウニー：攻撃時、全仲間HP+1
+    // エルフ：攻撃時+1/±0
+    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
+      ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
+    }
+    // ブラウニー：攻撃時、全仲間±0/+1
     if(ally.effect==='brownie_attack'){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
-      log(`ブラウニー：全仲間HP+1`,'good');
+      log(`${ally.name}：攻撃時→全仲間±0/+1`,'good');
     }
-    // フレイ：2回攻撃
-    if(ally.effect==='freyr_double'){
-      const t2=G.enemies.find(e=>e&&e.hp>0);
-      if(t2){ dealDmgToEnemy(t2,ally.atk,G.enemies.indexOf(t2),ally); log(`${ally.name}：2回目の攻撃`,'good'); }
-    }
-    // フォルニョート：攻撃時 ATK+魔術レベル
+    // フォルニョート：攻撃時、全仲間+1/±0
     if(ally.effect==='forniot'){
-      const bonus=G.magicLevel||0;
-      if(bonus>0){ ally.atk+=bonus; ally.baseAtk+=bonus; log(`${ally.name}：ATK+${bonus}（魔術Lv${G.magicLevel}）`,'good'); }
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||a.atk); a.baseAtk+=1; }});
+      log(`${ally.name}：攻撃時→全仲間+1/±0`,'good');
+    }
+    // 二段攻撃キーワード
+    if(ally.keywords&&ally.keywords.includes('二段攻撃')){
+      const t2=G.enemies.find(e=>e&&e.hp>0);
+      if(t2){ dealDmgToEnemy(t2,ally.atk,G.enemies.indexOf(t2),ally); log(`${ally.name}：二段攻撃`,'good'); }
     }
   }
 
@@ -396,6 +415,13 @@ async function enemyAttackAction(enemy, enemyIdx){
 
 function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(!unit||unit.hp<=0) return;
+
+  // 反撃：攻撃を受けたら（0ダメージでも）生存中なら発動
+  if(unit.counter&&src&&unit.hp>0){
+    const srcIdx=G.enemies.indexOf(src);
+    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+  }
+
   if(dmg<=0) return;
 
   // シールド（ATK0の攻撃では消費しない）
@@ -410,19 +436,13 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   const actualDmg=dmg+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
 
-  // 逆鱗・負傷トリガー（死亡判定は負傷前のHPで行う）
+  // 負傷トリガー（死亡判定は負傷前のHPで行う）
   const willDie=unit.hp<=0;
   if(unit.injury&&unit.hp>=0){
     triggerInjury(unit);
   }
 
   if(willDie){ unit.hp=0; processAllyDeath(unit); } // 負傷でHP回復しても死亡確定
-
-  // 反撃（counter フラグ持ちが生存時に攻撃者へ反撃）
-  if(unit.counter&&src&&dmg>0&&unit.hp>0){
-    const srcIdx=G.enemies.indexOf(src);
-    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
-  }
 }
 
 // ── 味方の死亡処理 ──────────────────────────────
@@ -438,58 +458,62 @@ function processAllyDeath(unit){
   if(unit.onDeath==='stone_death'){
     const stB=2;
     G.allies.forEach(a=>{ if(a&&a.id!==unit.id&&a.hp>0){ a.hp+=stB; a.maxHp+=stB; }});
-    log(`🗿 石像効果：全仲間HP+${stB}`,'good');
+    log(`🗿 石像効果：全仲間ライフ+${stB}`,'good');
   }
+
+  // ナグルファル：キャラクター死亡ごとに+2/+1
+  _onAnyCharDeath();
+}
+
+function _onAnyCharDeath(){
+  G.allies.forEach(a=>{
+    if(a&&a.hp>0&&a.effect==='naglfar_ondeath'){
+      a.atk+=2; a.baseAtk=(a.baseAtk||0)+2; a.hp+=1; a.maxHp+=1;
+      log(`${a.name}：キャラ死亡→+2/+1`,'good');
+    }
+  });
 }
 
 // ── 負傷トリガー ──────────────────────────────
 
 function triggerInjury(unit){
   switch(unit.injury){
-    case 'lizardman':{
-      // 逆鱗：ランダムな敵にATK分ダメ
-      const ts=G.enemies.filter(e=>e.hp>0);
-      if(ts.length>0){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); log(`⚔ ${unit.name}の逆鱗：${t.name}に${unit.baseAtk}ダメ`,'good'); }
-      break;
-    }
-    case 'kettcat':{
-      // ナイトキャット(2/4)を左端空きマスに召喚
-      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
-      const ei=G.allies.indexOf(null);
-      if(ei>=0){ G.allies[ei]=makeUnitFromDef(def); log(`🐱 ケットシー：ナイトキャット(2/4)を召喚`,'good'); }
-      break;
-    }
     case 'mummy':{
       G._undeadHpBonus=(G._undeadHpBonus||0)+1;
-      // 現在の全不死（盤面上・死亡中を問わず）に+1HP
+      // 現在の全不死に+1/±0
       G.allies.forEach(a=>{
-        if(a&&a.race==='不死'){ a.hp+=1; a.maxHp+=1; }
+        if(a&&a.race==='不死'){ a.atk+=1; a.baseAtk=(a.baseAtk||a.atk); }
       });
-      log(`マミー：全ての不死が±0/+1（累計+${G._undeadHpBonus}）`,'good');
-      break;
-    }
-    case 'worm':{
-      // 全仲間+1/+1
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }});
-      log(`ワーム：全仲間+1/+1`,'good');
+      log(`${unit.name}：全不死が+1/±0（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
     case 'freyr':{
-      // 全キャラに1ダメ
-      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a.id!==unit.id) dealDmgToAlly(a,1,ai,unit); });
-      G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,ei,unit); });
-      log(`${unit.name}：全キャラに1ダメ`,'bad');
+      // 最も右の空きスロットに反撃持ちロイヤルガード(4/6)を召喚
+      const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
+      const freeIdx=G.allies.map((a,i)=>(!a||a.hp<=0)?i:-1).filter(i=>i>=0);
+      if(freeIdx.length){
+        const slot=freeIdx[freeIdx.length-1]; // 最も右
+        G.allies[slot]=makeUnitFromDef(rgDef);
+        log(`${unit.name}：ロイヤルガード(4/6+反撃)を召喚`,'good');
+      }
       break;
     }
+    // 旧互換
+    case 'worm':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.hp+=1; a.maxHp+=1; }}); break; }
+    case 'lizardman':{ const ts=G.enemies.filter(e=>e.hp>0); if(ts.length){ const t=randFrom(ts); dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit); } break; }
+    case 'kettcat':{ const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:2,hp:4,cost:0,unique:false,icon:'🐈‍⬛',desc:''}; const ei=G.allies.indexOf(null); if(ei>=0) G.allies[ei]=makeUnitFromDef(def); break; }
   }
 }
 
 // ── シールド喪失時 ──────────────────────────────
 
 function onAllyShieldLost(){
-  // エインセル：味方がシールドを失うと自身HP+2
+  // エインセル②：味方がシールドを失うと+1/+2を得る
   G.allies.forEach(a=>{
-    if(a&&a.hp>0&&a.effect==='einsel_shieldlost'){ a.hp+=2; a.maxHp+=2; log(`エインセル：HP+2`,'good'); }
+    if(a&&a.hp>0&&(a.effect==='einsel'||a.effect==='einsel_shieldlost')){
+      a.atk+=1; a.baseAtk+=1; a.hp+=2; a.maxHp+=2;
+      log(`${a.name}：シールド喪失→+1/+2`,'good');
+    }
   });
 }
 
@@ -499,45 +523,26 @@ function onBattleStart(){
   G.allies.forEach((a,i)=>{
     if(!a||a.hp<=0) return;
     switch(a.effect){
-      case 'mermaid_start':
-        G.magicLevel++;
-        log(`${a.name}：魔術レベル+1（現在${G.magicLevel}）`,'good');
-        break;
       case 'grimalkin_start':
-        // 右隣にヘイト付与
-        if(G.allies[i+1]&&G.allies[i+1].hp>0){ G.allies[i+1].hate=true; G.allies[i+1].hateTurns=99; log(`${a.name}：右隣にヘイト付与`,'good'); }
+        // 正面の敵（同インデックス）にヘイト付与
+        { const fe=G.enemies[i];
+          if(fe&&fe.hp>0){ fe.allyTarget=true; log(`${a.name}：正面の敵にヘイト付与`,'good'); } }
         break;
-      case 'imp_start':{
-        // ランダムなアイテムを手札に追加
-        const ei=G.spells.indexOf(null);
-        if(ei>=0){ const item=drawConsumable(); if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}を入手`,'good'); } }
+      // 旧効果（互換性）
+      case 'mermaid_start':
+        G.magicLevel++; log(`${a.name}：魔術レベル+1`,'good'); break;
+      case 'imp_start':
+        { const ei=G.spells.indexOf(null);
+          if(ei>=0){ const item=drawConsumable(); if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}を入手`,'good'); } } }
         break;
-      }
-      case 'abadon_start':
-        G.enemies.forEach(e=>{ if(e.hp>0) e.curse=(e.curse||0)+2; });
-        log(`${a.name}：全敵に呪詛2`,'bad');
-        break;
-      case 'naglfar_start':{
-        // 隣接キャラに再生付与
-        [-1,1].forEach(d=>{
-          const adj=G.allies[i+d];
-          if(adj&&adj.hp>0&&!adj.regen){ adj.regen=3; log(`${a.name}：${adj.name}に再生3付与`,'good'); }
-        });
-        break;
-      }
     }
   });
-  // エルフ：シールドを持つ仲間 ATK+2
-  if(G.allies.some(a=>a&&a.hp>0&&a.effect==='elf_shield')){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a.shield>0){ a.atk+=2; a.baseAtk+=2; } });
-    log(`エルフ：シールド持ち仲間ATK+2`,'good');
-  }
-  // fury_start 指輪：戦闘開始時、全仲間+3/+3
+  // 憤激の指輪：戦闘開始時全仲間+3/±0
   G.rings.forEach(r=>{
     if(r&&r.unique==='fury_start'){
       const fb=3*(r.grade||1);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; a.hp+=fb; a.maxHp+=fb; }});
-      log(`憤激の指輪：全仲間+${fb}/+${fb}`,'good');
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; }});
+      log(`憤激の指輪：全仲間パワー+${fb}`,'good');
     }
   });
   // patience 指輪がない場合、battle_start 指輪トリガーを発火
@@ -548,29 +553,11 @@ function onBattleStart(){
 // ── 戦闘終了時処理（勝利・撤退共通）────────────────
 
 function onBattleEnd(){
-  // ドラゴネット変身カウンタ
-  G.allies.forEach((a,i)=>{
-    if(!a||!a.effect) return;
-    if(a.effect==='dragonet_end'){
-      a._battleCount=(a._battleCount||0)+1;
-      if(a._battleCount>=3){
-        const wormDef=UNIT_POOL.find(u=>u.id==='c_worm');
-        if(wormDef){
-          G.allies[i]=makeUnitFromDef(wormDef);
-          G.allies[i].hp=G.allies[i].maxHp; // 変身時はHP全回復
-          log(`${a.name} → ワームに変身！`,'gold');
-        }
-      }
-    }
-    // フォルニョート：戦闘終了時 魔術レベル+2
-    if(a.effect==='forniot'&&a.hp>0){
-      G.magicLevel+=2;
-      log(`${a.name}：魔術レベル+2（現在${G.magicLevel}）`,'good');
-    }
-    // ラミア：魔術レベル4ごとにソウル+1
-    if(a.effect==='lamia_end'&&a.hp>0){
-      const gain=Math.floor(G.magicLevel/4);
-      if(gain>0){ G.gold+=gain; G.earnedGold+=gain; log(`${a.name}：ソウル+${gain}（魔術Lv${G.magicLevel}）`,'gold'); }
+  // スケルトン：戦闘終了時、死亡していればライフ1で復活
+  G.allies.forEach(a=>{
+    if(a&&a.hp<=0&&a.effect==='skeleton_revive'){
+      a.hp=1;
+      log(`${a.name}：ライフ1で復活`,'good');
     }
   });
 
@@ -579,10 +566,10 @@ function onBattleEnd(){
     if(!a||!a.regen||a.hp<=0) return;
     const heal=a.regen;
     a.hp=Math.min(a.maxHp,a.hp+heal);
-    log(`✨ ${a.name} 再生${heal}：HP+${heal}（${a.hp}）`,'good');
+    log(`✨ ${a.name} 再生${heal}：ライフ+${heal}（${a.hp}）`,'good');
   });
 
-  // 死亡ユニット（再生で回復しなかった）をフィールドから除去
+  // 死亡ユニット（再生・復活で回復しなかった）をフィールドから除去
   for(let i=0;i<G.allies.length;i++){
     const a=G.allies[i];
     if(a&&a.hp<=0) G.allies[i]=null;
@@ -667,9 +654,9 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
     applyPoisonOnDmg(e,srcUnit);
-    // 即死キーワード（味方側）
-    if(srcUnit&&srcUnit.keywords&&srcUnit.keywords.includes('即死')&&e.hp>0){
-      e.hp=0; log(`💀 即死：${srcUnit.name}の攻撃で${e.name}が即死！`,'good');
+    // 味方キーワード（即死・毒・パワーブレイク等、possessで移動したキャラ含む）
+    if(srcUnit&&srcUnit.keywords&&srcUnit.keywords.length&&e.hp>0){
+      applyKeywordOnHit(srcUnit,e);
     }
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
@@ -687,6 +674,13 @@ function processEnemyDeath(e,eIdx){
     G.visibleMoves.push(eIdx);
     log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
   }
+  // 宝箱ドロップ（5%）
+  if(Math.random()<0.05&&!G._retreated){
+    G._pendingTreasure=(G._pendingTreasure||0)+1;
+    log(`📦 宝箱を落とした！`,'gold');
+  }
+  // ナグルファル：敵死亡でも+2/+1
+  _onAnyCharDeath();
   updateHUD();
 }
 
@@ -697,18 +691,9 @@ function onWandUsed(){
     if(!a||a.hp<=0) return;
     switch(a.effect){
       case 'dwarf_wand':
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1; b.baseAtk+=1; }});
-        log(`ドワーフ：杖使用→全仲間ATK+1`,'good');
+        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1; b.baseAtk+=1; b.hp+=1; b.maxHp+=1; }});
+        log(`ドワーフ：杖使用→全仲間+1/+1`,'good');
         break;
-      case 'gremlin_wand':
-        G.enemies.forEach(e=>{ if(e.hp>0) e.curse=(e.curse||0)+1; });
-        log(`グレムリン：杖使用→全敵に呪詛1`,'bad');
-        break;
-      case 'jack_wand':{
-        const living=G.allies.filter(b=>b&&b.hp>0);
-        if(living.length){ randFrom(living).shield=(randFrom(living).shield||0)+1; log(`ジャックランタン：杖使用→ランダムな仲間にシールド+1`,'good'); }
-        break;
-      }
     }
   });
 }
@@ -727,6 +712,7 @@ function retreat(){
   if(G.phase!=='player') return;
   if(!G.visibleMoves.some(i=>G.moveMasks[i])) return;
   log('撤退を選択','sys');
+  G._retreated=true;
   applyVictoryBonuses();
   G.phase='reward';
   goToReward();

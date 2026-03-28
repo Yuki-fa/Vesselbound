@@ -3,17 +3,19 @@
 // 依存: constants.js, state.js, pool.js, render.js, reward.js
 // ═══════════════════════════════════════
 
-let _shopItems=[];
+let _shopRings=[];
 
 function doShop(){
   const pool=getRingPool();
-  _shopItems=[];
-  for(let i=0;i<3;i++){ if(!pool.length) break; const idx=Math.floor(Math.random()*pool.length); _shopItems.push({type:'card',card:clone(pool[idx]),price:3}); pool.splice(idx,1); }
-  _shopItems.push({type:'grade_up_ring',label:'指輪グレードアップ',desc:'指輪を1段階強化（G4まで）',price:4});
-  _shopItems.push({type:'enchant', label:'エンチャント付与',  desc:'対象の指輪にエンチャントを1つ付与',price:3});
-  _shopItems.push({type:'life',    label:'回復薬',           desc:'ライフ+3',price:5});
-  _shopItems.push({type:'ring_slot',     label:'指輪スロット+1',  desc:`指輪枠を追加（現在${G.ringSlots}枠、上限4）`,price:5});
-  _takenCardIds=new Set();
+  _shopRings=[];
+  const n=Math.min(6,pool.length);
+  for(let i=0;i<n;i++){
+    const idx=Math.floor(Math.random()*pool.length);
+    const ring=clone(pool[idx]);
+    ring._buyPrice=ring.cost||3;
+    _shopRings.push(ring);
+    pool.splice(idx,1);
+  }
   renderShop();
   renderShopHandEditor();
   showScreen('shop');
@@ -23,91 +25,24 @@ function renderShop(){
   document.getElementById('sh-gold').textContent=G.gold;
   const el=document.getElementById('sh-grid');
   el.innerHTML='';
-  const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
-  _shopItems.forEach((item,i)=>{
-    if(!item) return;
-    const can=G.gold>=item.price;
-    const div=document.createElement('div');
-    div.className='sh-item'+(can?'':' cant');
-    if(item.type==='card'){
-      const t=item.card.type||'ring';
-      div.innerHTML=`<div class="si-price">${item.price}金</div><div class="si-name">${item.card.name}${item.card.grade?' G'+item.card.grade:''}</div><div class="si-desc">${typeLabel[t]} ${item.card.desc}</div>`;
-    } else { div.innerHTML=`<div class="si-price">${item.price}金</div><div class="si-name">${item.label}</div><div class="si-desc">${item.desc}</div>`; }
-    if(can) div.onclick=()=>buyItem(i);
-    el.appendChild(div);
+  _shopRings.forEach((ring,i)=>{
+    if(!ring) return;
+    el.appendChild(_mkRewDiv(ring, ()=>{
+      if(G.gold<ring._buyPrice){ return; }
+      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('指輪枠が満杯です。先に還魂してください。'); return; }
+      G.gold-=ring._buyPrice;
+      takeCardToHand(ring);
+      log(ring.name+'を購入','good');
+      _shopRings[i]=null;
+      updateHUD(); renderShop(); renderShopHandEditor();
+    }));
   });
+  requestAnimationFrame(fitCardDescs);
 }
 
-function buyItem(i){
-  const item=_shopItems[i]; if(!item||G.gold<item.price) return;
-  const itemId=item.type==='card'?item.card.id:(item.type+'_service');
-  if(_takenCardIds.has(itemId)){ alert('このアイテムはすでに購入済みです'); return; }
-  if(item.type==='card'){
-    const isRing=item.card.kind==='summon'||item.card.kind==='passive'||!item.card.type;
-    if(isRing){
-      if(G.rings.filter(r=>r).length>=G.ringSlots){ alert('指輪枠が満杯です。先に還魂してください。'); return; }
-    } else {
-      if(G.spells.filter(s=>s).length>=(G.handSlots||7)){ alert('手札が満杯です。先に破棄してください。'); return; }
-    }
-    G.gold-=item.price; takeCardToHand(item.card); log(item.card.name+'を購入','good');
-    _takenCardIds.add(item.card.id);
-  } else if(item.type==='grade_up_ring'){
-    openGradeUpModal('ring', item.price, i); return;
-  } else if(item.type==='grade_up_spell'){
-    openGradeUpModal('spell', item.price, i); return;
-  } else if(item.type==='enchant'){
-    _encCtx={src:'shop',cost:item.price,shopIdx:i};
-    openEncModal('shop',0); return;
-  } else if(item.type==='life'){
-    G.gold-=item.price; G.life=Math.min(20,G.life+3); log('ライフ+3','good');
-  } else if(item.type==='ring_slot'){
-    if(G.ringSlots>=7){ alert('契約スロットは上限（7枠）です'); return; }
-    G.gold-=item.price; G.ringSlots++; log(`契約スロット+1（${G.ringSlots}枠）`,'good');
-  }
-  _shopItems[i]=null;
-  updateHUD(); renderShop(); renderShopHandEditor();
-}
+function buyItem(){ /* legacy stub — shop now uses ring-only via renderShop */ }
 
 function shopDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
-
-// グレードアップ対象選択モーダル（指輪 or 杖）
-let _gradeUpCtx={target:'ring', price:0, shopIdx:-1};
-function openGradeUpModal(target, price, shopIdx){
-  _gradeUpCtx={target,price,shopIdx};
-  const arr=target==='ring'?G.rings:G.spells;
-  const eligible=arr.map((c,i)=>({c,i})).filter(({c})=>c&&(c.grade||1)<4);
-  if(!eligible.length){ alert('強化できる'+(target==='ring'?'契約':'杖')+'がありません'); return; }
-  const enc=document.getElementById('enc-modal');
-  const s1=document.getElementById('enc-s1');
-  const s2=document.getElementById('enc-s2');
-  s2.style.display='none';
-  s1.style.display='';
-  document.querySelector('.enc-box h3').textContent='グレードアップ対象を選択';
-  const el=document.getElementById('enc-rings');
-  el.innerHTML='';
-  eligible.forEach(({c,i})=>{
-    const div=document.createElement('div');
-    div.className='enc-item';
-    div.textContent=`${c.name} G${c.grade||1} → G${(c.grade||1)+1}`;
-    div.onclick=()=>{
-      if(G.gold<_gradeUpCtx.price){
-        alert(`金が足りません（必要:${_gradeUpCtx.price}金、所持:${G.gold}金）`);
-        closeEncModal();
-        document.querySelector('.enc-box h3').textContent='エンチャント付与';
-        return;
-      }
-      c.grade=(c.grade||1)+1;
-      G.gold-=_gradeUpCtx.price;
-      _shopItems[_gradeUpCtx.shopIdx]=null;
-      log(`${c.name} → G${c.grade} にグレードアップ`,'good');
-      closeEncModal();
-      document.querySelector('.enc-box h3').textContent='エンチャント付与';
-      updateHUD(); renderShop(); renderShopHandEditor();
-    };
-    el.appendChild(div);
-  });
-  enc.classList.add('open');
-}
 
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){

@@ -67,10 +67,10 @@ function renderField(id,units,isEnemy){
         if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
         if(u.counter) bs.push('<span class="slot-badge b-counter">反撃</span>');
         if(u.allyTarget) bs.push('<span class="slot-badge b-hate">狙われ</span>');
-        // キーワードバッジ（敵のみ）
-        if(isEnemy&&u.keywords&&u.keywords.length){
+        // キーワードバッジ（敵味方共通）
+        if(u.keywords&&u.keywords.length){
+          const kColorMap={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700','二段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0'};
           u.keywords.forEach(k=>{
-            const kColorMap={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700'};
             const kColor=kColorMap[k]||'#888';
             const kLabel=k==='パワーブレイク'?`パワーブレイク${G.floor||1}`:k;
             bs.push(`<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${kLabel}</span>`);

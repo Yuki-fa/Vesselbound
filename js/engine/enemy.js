@@ -30,10 +30,10 @@ function enemyStatsByGrade(g){
   const t=g-lo; // 補間係数 0〜1
   const rLo=_ENEMY_STAT_TABLE[lo]||{a:[lo*7,lo*9],h:[lo*14,lo*18]};
   const rHi=_ENEMY_STAT_TABLE[hi]||{a:[hi*7,hi*9],h:[hi*14,hi*18]};
-  const aMin=Math.round(rLo.a[0]+(rHi.a[0]-rLo.a[0])*t);
-  const aMax=Math.round(rLo.a[1]+(rHi.a[1]-rLo.a[1])*t);
-  const hMin=Math.round(rLo.h[0]+(rHi.h[0]-rLo.h[0])*t);
-  const hMax=Math.round(rLo.h[1]+(rHi.h[1]-rLo.h[1])*t);
+  const aMin=Math.ceil(rLo.a[0]+(rHi.a[0]-rLo.a[0])*t);
+  const aMax=Math.ceil(rLo.a[1]+(rHi.a[1]-rLo.a[1])*t);
+  const hMin=Math.ceil(rLo.h[0]+(rHi.h[0]-rLo.h[0])*t);
+  const hMax=Math.ceil(rLo.h[1]+(rHi.h[1]-rLo.h[1])*t);
   return {atk:randi(aMin,aMax), hp:randi(hMin,hMax)};
 }
 

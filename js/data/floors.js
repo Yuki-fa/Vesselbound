@@ -48,9 +48,9 @@ const FLOOR_DATA=[null,
 
 // マップノードの種類定義
 const NODE_TYPES={
-  battle:{icon:'⚔️', label:'戦闘',    desc:'次の敵と戦う',                          cls:'t-battle'},
-  smithy:{icon:'⛩️', label:'祭壇',    desc:'契約グレードアップかエンチャント付与（1つ選択）', cls:'t-smithy'},
-  rest:  {icon:'🏕️', label:'休息所',  desc:'回復か消耗品か杖リチャージ（1つ選択）', cls:'t-rest'},
-  chest: {icon:'📦', label:'宝箱',    desc:'カードを1枚獲得',                       cls:'t-chest'},
-  boss:  {icon:'💀', label:'ボス戦',  desc:'固定強敵との決戦',                      cls:'t-boss'},
+  battle:{icon:'⚔️', label:'戦闘',    desc:'次の敵と戦う',                                       cls:'t-battle'},
+  smithy:{icon:'⛩️', label:'祭壇',    desc:'全仲間シールド付与 / 魔術レベル+3 / ランダム指輪1つ', cls:'t-smithy'},
+  rest:  {icon:'🏕️', label:'宿屋',    desc:'全仲間±0/+5 / 行動権+1 / ランダムなネームド1人',      cls:'t-rest'},
+  chest: {icon:'📦', label:'宝箱',    desc:'カードを1枚獲得',                                    cls:'t-chest'},
+  boss:  {icon:'💀', label:'ボス戦',  desc:'固定強敵との決戦',                                   cls:'t-boss'},
 };

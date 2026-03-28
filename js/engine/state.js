@@ -43,6 +43,10 @@ function initState(){
     magicLevel:1,
     // ── マミー効果：不死HP補正（累積） ──
     _undeadHpBonus:0,
+    // ── 宝箱・撤退・宿屋ボーナス ──
+    _pendingTreasure:0,
+    _retreated:false,
+    _bonusAction:0,
     // ── 報酬 ──
     rerollCount:0,
     // ── 秘術（互換性のため残す）──

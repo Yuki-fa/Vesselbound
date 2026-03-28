@@ -15,47 +15,66 @@ function eventDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen
 
 // ── 祭壇（smithy）────────────────────────────────
 
-let _smithyEncs=[];      // 現在の祭壇エンチャント選択肢
+let _smithyRing=null;    // 現在の祭壇で出現したランダム指輪
 let _smithyChosen=new Set(); // 遠見モード：選択済みキー
 
 function doSmithy(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
   if(regen){
-    const encA=randFrom(ENCHANT_TYPES);
-    const poolB=ENCHANT_TYPES.filter(e=>e.id!==encA.id);
-    const encB=poolB.length?randFrom(poolB):encA;
-    _smithyEncs=[encA,encB];
+    const pool=getRingPool();
+    _smithyRing=pool.length?randFrom(pool):null;
     _smithyChosen=new Set();
   }
-  const [encA,encB]=_smithyEncs;
+  const freeRing=_smithyRing;
   const el=document.getElementById('smithy-opts');
   el.innerHTML='';
 
-  // 選択肢1：契約グレードアップ
-  const doneGrade=_smithyChosen.has('grade');
+  // 選択肢1：全仲間シールド付与
+  const doneShield=_smithyChosen.has('shield');
   const o1=document.createElement('div');
-  o1.className='choice-opt'+(doneGrade?' done':'');
-  o1.innerHTML='<div class="choice-icon">⬆️</div><div class="choice-label">契約グレードアップ</div><div class="choice-desc">所持している契約を1つ選んでグレードを+1する（無料）</div>';
-  if(!doneGrade) o1.onclick=()=>smithyGradeUp(hasFarsight?()=>{ _smithyChosen.add('grade'); doSmithy(false); }:null);
+  o1.className='choice-opt'+(doneShield?' done':'');
+  o1.innerHTML='<div class="choice-icon">🛡️</div><div class="choice-label">加護の恩寵</div><div class="choice-desc">全ての仲間にシールド+1を付与する（無料）</div>';
+  if(!doneShield) o1.onclick=()=>{
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.shield=(a.shield||0)+1; }});
+    updateHUD();
+    if(hasFarsight){ log('全仲間にシールド+1','good'); _smithyChosen.add('shield'); doSmithy(false); }
+    else showEvent('祭壇','祭壇の加護を受けた。','全仲間にシールド+1');
+  };
   el.appendChild(o1);
 
-  // 選択肢2：エンチャントA
-  const doneEncA=_smithyChosen.has('enc0');
+  // 選択肢2：魔術レベル+3
+  const doneMagic=_smithyChosen.has('magic');
   const o2=document.createElement('div');
-  o2.className='choice-opt'+(doneEncA?' done':'');
-  o2.innerHTML=`<div class="choice-icon">✨</div><div class="choice-label">エンチャント：${encA.id}</div><div class="choice-desc">「${encA.id}」を付与する — ${encA.effect}（無料）</div>`;
-  if(!doneEncA) o2.onclick=()=>{ if(hasFarsight) _encCtx={src:'smithy',cost:0,farsight:true,smithyKey:'enc0'}; openEncModal('smithy',0,encA.id); };
+  o2.className='choice-opt'+(doneMagic?' done':'');
+  o2.innerHTML='<div class="choice-icon">📖</div><div class="choice-label">秘術の伝授</div><div class="choice-desc">魔術レベルが+3される（無料）</div>';
+  if(!doneMagic) o2.onclick=()=>{
+    G.magicLevel=(G.magicLevel||0)+3; updateHUD();
+    if(hasFarsight){ log(`魔術レベル+3（現在${G.magicLevel}）`,'good'); _smithyChosen.add('magic'); doSmithy(false); }
+    else showEvent('祭壇','古の魔法書を読み解いた。',`魔術レベル+3（現在${G.magicLevel}）`);
+  };
   el.appendChild(o2);
 
-  // 選択肢3：エンチャントB
-  const doneEncB=_smithyChosen.has('enc1');
+  // 選択肢3：ランダム指輪1つ（無料）
+  const doneRing=_smithyChosen.has('ring');
   const o3=document.createElement('div');
-  o3.className='choice-opt'+(doneEncB?' done':'');
-  o3.innerHTML=`<div class="choice-icon">✨</div><div class="choice-label">エンチャント：${encB.id}</div><div class="choice-desc">「${encB.id}」を付与する — ${encB.effect}（無料）</div>`;
-  if(!doneEncB) o3.onclick=()=>{ if(hasFarsight) _encCtx={src:'smithy',cost:0,farsight:true,smithyKey:'enc1'}; openEncModal('smithy',0,encB.id); };
+  o3.className='choice-opt'+(freeRing&&!doneRing?'':' disabled');
+  const rName=freeRing?freeRing.name:'指輪なし';
+  const rDesc=freeRing?computeDesc(freeRing):'';
+  o3.innerHTML=`<div class="choice-icon">💍</div><div class="choice-label">祭壇の恵み：${rName}</div><div class="choice-desc">${rDesc}（無料）</div>`;
+  if(freeRing&&!doneRing) o3.onclick=()=>{
+    const slot=G.rings.indexOf(null);
+    if(slot<0){
+      if(hasFarsight){ log('指輪スロットが満杯','sys'); _smithyChosen.add('ring'); doSmithy(false); }
+      else showEvent('祭壇','指輪を受け取ろうとしたが…','指輪スロットが満杯のため受け取れなかった');
+      return;
+    }
+    G.rings[slot]=clone(freeRing); updateHUD();
+    if(hasFarsight){ log(`${freeRing.name} を入手`,'good'); _smithyChosen.add('ring'); doSmithy(false); }
+    else showEvent('祭壇','祭壇から指輪を授かった。',`${freeRing.name} を入手`);
+  };
   el.appendChild(o3);
 
-  // 遠見モード：全選択後または完了ボタンで帰還
+  // 遠見モード：完了ボタン
   if(hasFarsight){
     const btn=document.createElement('button');
     btn.className='btn small'; btn.style.marginTop='10px';
@@ -67,78 +86,63 @@ function doSmithy(regen=true){
   showScreen('smithy');
 }
 
-function smithyGradeUp(onDone){
-  const rings=G.rings.map((r,i)=>({r,i})).filter(x=>x.r&&!x.r.legend&&(x.r.grade||1)<MAX_GRADE);
-  if(!rings.length){
-    if(onDone){ log('グレードアップできる契約がない（全て★か空）','sys'); onDone(); }
-    else alert('グレードアップできる指輪がありません（全て★か空）');
-    return;
-  }
-  const el=document.getElementById('smithy-opts');
-  el.innerHTML='<div style="font-size:.8rem;color:var(--text2);margin-bottom:8px">グレードアップする契約を選んでください</div>';
-  rings.forEach(({r,i})=>{
-    const div=document.createElement('div');
-    div.className='choice-opt';
-    const newG=Math.min(MAX_GRADE,(r.grade||1)+1);
-    div.innerHTML=`<div class="choice-label">${r.name} ${gradeStr(r.grade||1)} → ${gradeStr(newG)}</div>`;
-    div.onclick=()=>{
-      r.grade=newG;
-      if(onDone){ log(`${r.name} を ${gradeStr(newG)} に強化`,'good'); onDone(); }
-      else showEvent('祭壇',`${r.name} を強化した。`,`${r.name} ${gradeStr(r.grade)}に強化`);
-    };
-    el.appendChild(div);
-  });
-}
+// ── 宿屋（rest）────────────────────────────────
 
-// ── 休息所（rest）────────────────────────────────
-
-let _restConsumable=null;
+let _restNamedUnit=null; // 現在の宿屋で出現したネームドキャラ
 let _restChosen=new Set();
 
 function doRest(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
-  if(regen){ _restConsumable=drawConsumable(); _restChosen=new Set(); }
-  const freeConsumable=_restConsumable;
+  if(regen){
+    const namedPool=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem');
+    _restNamedUnit=namedPool.length?clone(randFrom(namedPool)):null;
+    _restChosen=new Set();
+  }
+  const namedUnit=_restNamedUnit;
   const el=document.getElementById('rest-opts');
   el.innerHTML='';
 
-  // 選択肢1：杖リチャージ
-  const wands=G.spells.filter(s=>s&&s.type==='wand');
-  const doneWand=_restChosen.has('wand');
+  // 選択肢1：全仲間±0/+5
+  const doneHeal=_restChosen.has('heal');
   const o1=document.createElement('div');
-  o1.className='choice-opt'+(wands.length&&!doneWand?'':' disabled');
-  o1.innerHTML='<div class="choice-icon">🪄</div><div class="choice-label">杖リチャージ+5</div><div class="choice-desc">杖を1本選んで残り使用回数+5（無料）</div>';
-  if(wands.length&&!doneWand) o1.onclick=()=>restWandRecharge(hasFarsight?()=>{ _restChosen.add('wand'); doRest(false); }:null);
+  o1.className='choice-opt'+(doneHeal?' done':'');
+  o1.innerHTML='<div class="choice-icon">🍺</div><div class="choice-label">宿屋の宴</div><div class="choice-desc">全ての仲間のライフが+5される（無料）</div>';
+  if(!doneHeal) o1.onclick=()=>{
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=5; a.maxHp+=5; }}); updateHUD();
+    if(hasFarsight){ log('全仲間ライフ+5','good'); _restChosen.add('heal'); doRest(false); }
+    else showEvent('宿屋','宴で体力を回復した。','全仲間ライフ+5');
+  };
   el.appendChild(o1);
 
-  // 選択肢2：アイテム入手
-  const doneItem=_restChosen.has('item');
+  // 選択肢2：行動権+1
+  const doneAction=_restChosen.has('action');
   const o2=document.createElement('div');
-  o2.className='choice-opt'+(freeConsumable&&!doneItem?'':' disabled');
-  const cName=freeConsumable?freeConsumable.name:'アイテムなし';
-  o2.innerHTML=`<div class="choice-icon">🎒</div><div class="choice-label">アイテム入手：${cName}</div><div class="choice-desc">${freeConsumable?computeDesc(freeConsumable):''}（無料）</div>`;
-  if(freeConsumable&&!doneItem) o2.onclick=()=>{
-    const slot=G.spells.indexOf(null);
-    if(slot<0){
-      if(hasFarsight){ log('アイテム枠が満杯','sys'); _restChosen.add('item'); doRest(false); }
-      else showEvent('休息所','消耗品を受け取ろうとしたが…','手札が満杯のため受け取れなかった');
-      return;
-    }
-    G.spells[slot]=freeConsumable;
-    if(hasFarsight){ log(`${freeConsumable.name} を入手`,'good'); _restChosen.add('item'); doRest(false); }
-    else showEvent('休息所','旅人から消耗品を受け取った。',`${freeConsumable.name} を入手`);
+  o2.className='choice-opt'+(doneAction?' done':'');
+  o2.innerHTML='<div class="choice-icon">⚡</div><div class="choice-label">旅の準備</div><div class="choice-desc">次の戦闘の行動回数が+1される（無料）</div>';
+  if(!doneAction) o2.onclick=()=>{
+    G._bonusAction=(G._bonusAction||0)+1; updateHUD();
+    if(hasFarsight){ log('行動権+1','good'); _restChosen.add('action'); doRest(false); }
+    else showEvent('宿屋','旅の準備を整えた。','次の戦闘の行動回数+1');
   };
   el.appendChild(o2);
 
-  // 選択肢3：ライフ+5
-  const doneHeal=_restChosen.has('heal');
+  // 選択肢3：ランダムなネームド1人（無料）
+  const doneNamed=_restChosen.has('named');
   const o3=document.createElement('div');
-  o3.className='choice-opt'+(doneHeal?' done':'');
-  o3.innerHTML='<div class="choice-icon">💊</div><div class="choice-label">ライフ+5</div><div class="choice-desc">ライフを5回復する（上限20）（無料）</div>';
-  if(!doneHeal) o3.onclick=()=>{
-    G.life=Math.min(20,G.life+5); updateHUD();
-    if(hasFarsight){ log('ライフ+5','good'); _restChosen.add('heal'); doRest(false); }
-    else showEvent('休息所','焚き火で体を休めた。','ライフ+5');
+  o3.className='choice-opt'+(namedUnit&&!doneNamed?'':' disabled');
+  const nName=namedUnit?namedUnit.name:'なし';
+  const nDesc=namedUnit?computeDesc(namedUnit):'';
+  o3.innerHTML=`<div class="choice-icon">⭐</div><div class="choice-label">旅の仲間：${nName}</div><div class="choice-desc">${nDesc}（無料）</div>`;
+  if(namedUnit&&!doneNamed) o3.onclick=()=>{
+    const slot=G.allies.indexOf(null);
+    if(slot<0){
+      if(hasFarsight){ log('仲間スロットが満杯','sys'); _restChosen.add('named'); doRest(false); }
+      else showEvent('宿屋','仲間を迎え入れようとしたが…','仲間スロットが満杯のため迎え入れられなかった');
+      return;
+    }
+    G.allies[slot]=makeUnitFromDef(namedUnit); updateHUD();
+    if(hasFarsight){ log(`${namedUnit.name} が仲間になった`,'good'); _restChosen.add('named'); doRest(false); }
+    else showEvent('宿屋',`${namedUnit.name} が仲間になった。`,`${namedUnit.name} を獲得`);
   };
   el.appendChild(o3);
 
@@ -152,30 +156,4 @@ function doRest(regen=true){
   }
 
   showScreen('rest');
-}
-
-function restWandRecharge(onDone){
-  const wands=G.spells.map((s,i)=>({s,i})).filter(x=>x.s&&x.s.type==='wand');
-  if(wands.length===1){
-    const {s}=wands[0];
-    s.usesLeft=(s.usesLeft||0)+5;
-    s._maxUses=Math.max(s._maxUses||0,s.usesLeft);
-    if(onDone){ log(`${s.name} 残り使用回数+5（${s.usesLeft}回）`,'good'); onDone(); }
-    else showEvent('休息所','杖に魔力を注ぎ込んだ。',`${s.name} 残り使用回数+5（${s.usesLeft}回）`);
-    return;
-  }
-  const el=document.getElementById('rest-opts');
-  el.innerHTML='<div style="font-size:.8rem;color:var(--text2);margin-bottom:8px">リチャージする杖を選んでください</div>';
-  wands.forEach(({s})=>{
-    const div=document.createElement('div');
-    div.className='choice-opt';
-    div.innerHTML=`<div class="choice-label">${s.name}（残${s.usesLeft||0}回）</div>`;
-    div.onclick=()=>{
-      s.usesLeft=(s.usesLeft||0)+5;
-      s._maxUses=Math.max(s._maxUses||0,s.usesLeft);
-      if(onDone){ log(`${s.name} 残り使用回数+5（${s.usesLeft}回）`,'good'); onDone(); }
-      else showEvent('休息所','杖に魔力を注ぎ込んだ。',`${s.name} 残り使用回数+5（${s.usesLeft}回）`);
-    };
-    el.appendChild(div);
-  });
 }
