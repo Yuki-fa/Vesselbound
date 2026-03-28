@@ -7,7 +7,7 @@
 function calcActions(){
   let n=1;
   G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=(r.grade||1); });
-  if(G._bonusAction){ n+=G._bonusAction; G._bonusAction=0; } // 宿屋ボーナスは1回限り
+  if(G._bonusAction) n+=G._bonusAction; // 宿屋ボーナス（永続）
   return n;
 }
 

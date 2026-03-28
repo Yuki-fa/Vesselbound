@@ -530,6 +530,7 @@ function showEventItemPickup(item, onDone){
   const rerollBtn=document.getElementById('rw-reroll');
   if(rerollBtn) rerollBtn.style.display='none';
 
+  showScreen('battle');
   renderAll(); renderRewCards(); renderMoveSlotsInEnemy(); renderFieldEditor(); updateHUD();
 }
 
