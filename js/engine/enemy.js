@@ -45,10 +45,35 @@ function bossShieldForFloor(floor){
 }
 
 // 敵ユニットを1体生成するヘルパー
-function _mkEnemy(atk,hp,name,icon,grade,shield,kws){
+function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
   return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
     sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
-    shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false};
+    shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false,
+    race:race||'-'};
+}
+
+// 階層からネームドキャラのグレード帯を決定（1-5:G1, 6-10:G2, 11-15:G3, 16-20:G4）
+function namedGradeForFloor(floor){
+  if(floor<=5) return 1;
+  if(floor<=10) return 2;
+  if(floor<=15) return 3;
+  return 4;
+}
+
+// ネームドキャラを敵として生成（エリート/ボス共通）
+function _mkNamedEnemy(def,shield,extraKws){
+  const kws=[...(def.keywords||[]),...(extraKws||[])];
+  const e=_mkEnemy(def.atk,def.hp,def.name,def.icon,def.grade||1,shield,kws,def.race||'-');
+  e.desc=def.desc||'';
+  return e;
+}
+
+// ネームド候補プールを返す（使用済み除外）
+function _namedPool(grade){
+  return UNIT_POOL.filter(u=>
+    u.unique && (u.grade||1)===grade && u.id!=='c_golem' &&
+    !G._usedNamedElite.has(u.id) && !(G._usedNamedRest&&G._usedNamedRest.has(u.id))
+  );
 }
 
 // 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）
@@ -88,20 +113,29 @@ function generateEnemies(floor){
   }
 
   if(isBoss){
-    // ボス: 5体。ボス（1体目）はgrade+1.5、側近はベースgrade
-    const bg=bossGradeForFloor(floor);
+    // ボス: 5体。ボス（1体目）はネームドキャラ、側近はベースgrade乱数
+    const ng=namedGradeForFloor(floor);
     const baseG=FLOOR_DATA[floor]?.grade||1;
+    const pool=_namedPool(ng);
+    const pickedBoss=pool.length?randFrom(pool):null;
+    if(pickedBoss) G._usedNamedElite.add(pickedBoss.id);
     const count=5;
     const enemies=[];
     for(let i=0;i<count;i++){
-      const g=i===0?bg:baseG;
-      const {atk,hp}=enemyStatsByGrade(g);
-      const name=i===0?'ボス':'側近';
-      const icon=i===0?'💀':'👹';
-      const shield=i===0?bossShieldForFloor(floor):0;
-      const kws=rollKeywords(floor,true,false);
-      const e=_mkEnemy(atk,hp,name,icon,g,shield,kws);
-      if(i===0) e.boss=true;
+      let e;
+      if(i===0){
+        const shield=bossShieldForFloor(floor);
+        if(pickedBoss){
+          e=_mkNamedEnemy(pickedBoss,shield,rollKeywords(floor,true,false));
+        } else {
+          const {atk,hp}=enemyStatsByGrade(bossGradeForFloor(floor));
+          e=_mkEnemy(atk,hp,'ボス','💀',ng,shield,rollKeywords(floor,true,false));
+        }
+        e.boss=true;
+      } else {
+        const {atk,hp}=enemyStatsByGrade(baseG);
+        e=_mkEnemy(atk,hp,'側近','👹',baseG,0,rollKeywords(floor,false,false));
+      }
       enemies.push(e);
     }
     return enemies;
@@ -111,24 +145,42 @@ function generateEnemies(floor){
   const count=floor>=16?randi(3,4):randi(4,5);
 
   // エリート判定（30%の確率。S1-3および各セクション初回フロアは出現しない）
-  const noEliteFloors=[1,2,5,6,10,11,15,16,20]; // S1-2・ボス階はエリート不出現
+  const noEliteFloors=[1,2,5,6,10,11,15,16,20];
   const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
   if(hasElite) G._isEliteFight=true;
   const eliteIdx=hasElite?randi(0,count-1):-1;
-  G._eliteIdx=eliteIdx; // generateMoveMasks で移動マス除外に使用
-  const eg=eliteGradeForFloor(floor);
+  G._eliteIdx=eliteIdx;
+  const ng=namedGradeForFloor(floor);
+
+  // エリート用ネームドを事前抽選
+  let pickedElite=null;
+  if(hasElite){
+    const pool=_namedPool(ng);
+    pickedElite=pool.length?randFrom(pool):null;
+    if(pickedElite) G._usedNamedElite.add(pickedElite.id);
+  }
 
   const enemies=[];
   for(let i=0;i<count;i++){
     const isElite=(i===eliteIdx);
-    const g=isElite?eg:rollEnemyGrade(floor);
-    const {atk,hp}=enemyStatsByGrade(g);
     const ni=randi(0,ENEMY_NAMES.length-1);
-    const name=isElite?'エリート':ENEMY_NAMES[ni];
-    const icon=isElite?'⭐':ENEMY_ICONS[ni];
-    const kws=rollKeywords(floor,false,false);
-    if(isElite) kws.unshift('エリート');
-    enemies.push(_mkEnemy(atk,hp,name,icon,g,0,kws));
+    let e;
+    if(isElite){
+      const kws=['エリート',...rollKeywords(floor,false,false)];
+      if(pickedElite){
+        e=_mkNamedEnemy(pickedElite,0,kws);
+      } else {
+        const g=eliteGradeForFloor(floor);
+        const {atk,hp}=enemyStatsByGrade(g);
+        e=_mkEnemy(atk,hp,'エリート','⭐',g,0,kws);
+      }
+    } else {
+      const g=rollEnemyGrade(floor);
+      const {atk,hp}=enemyStatsByGrade(g);
+      const kws=rollKeywords(floor,false,false);
+      e=_mkEnemy(atk,hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],g,0,kws,ENEMY_RACES[ni]);
+    }
+    enemies.push(e);
   }
   return enemies;
 }

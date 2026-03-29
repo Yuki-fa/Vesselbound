@@ -495,7 +495,7 @@ function triggerInjury(unit){
     }
     case 'freyr':{
       // 最も右の空きスロットに反撃持ちロイヤルガード(4/6)を召喚
-      const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
+      const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
       const freeIdx=G.allies.map((a,i)=>(!a||a.hp<=0)?i:-1).filter(i=>i>=0);
       if(freeIdx.length){
         const slot=freeIdx[freeIdx.length-1]; // 最も右
@@ -545,17 +545,29 @@ function onAllyShieldLost(){
 // ── 戦闘開始時キャラクター効果 ───────────────────
 
 function onBattleStart(){
-  G.allies.forEach((a,i)=>{
+  G.allies.forEach((a)=>{
     if(!a||a.hp<=0) return;
     switch(a.effect){
-      case 'grimalkin_start':
-        // 正面の敵（同インデックス）にヘイト付与
-        { const fe=G.enemies[i];
-          if(fe&&fe.hp>0){ fe.allyTarget=true; log(`${a.name}：正面の敵にヘイト付与`,'good'); } }
+      case 'gremlin_start':
+        // グレムリン：最もライフの多い敵とHPを入れ替える
+        { const liveEn=G.enemies.filter(e=>e&&e.hp>0);
+          if(liveEn.length){
+            const top=liveEn.reduce((m,e)=>e.hp>m.hp?e:m);
+            const myHp=a.hp; const eHp=top.hp;
+            a.hp=eHp; a.maxHp=Math.max(a.maxHp,eHp);
+            top.hp=myHp;
+            log(`${a.name}：${top.name}とライフを入れ替え（${myHp}⇔${eHp}）`,'good');
+          }
+        }
         break;
       // 旧効果（互換性）
       case 'mermaid_start':
         G.magicLevel++; log(`${a.name}：魔術レベル+1`,'good'); break;
+      case 'homunculus_start':
+        a.shield=(a.shield||0)+1; log(`${a.name}：シールドを得た`,'good'); break;
+      case 'lilith_start':
+        G.allies.forEach(b=>{ if(b&&b.hp>0) b.shield=(b.shield||0)+1; });
+        log(`${a.name}：全味方にシールドを付与`,'good'); break;
       case 'imp_start':
         { const ei=G.spells.indexOf(null);
           if(ei>=0){ const item=drawConsumable(); if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}を入手`,'good'); } } }

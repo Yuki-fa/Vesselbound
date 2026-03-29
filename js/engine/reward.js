@@ -83,7 +83,9 @@ function renderMoveSlotsInEnemy(){
     opts=[{nodeType,idx:-1}];
   } else {
     opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
-    if(opts.length===0) opts.push({nodeType:'battle',idx:-1});
+    // イベントアイテム受け取り中（宿屋・祭壇から遷移）は戦闘/ボス戦のみ表示
+    if(_eventItemDone) opts=opts.filter(o=>o.nodeType==='battle'||o.nodeType==='boss');
+    if(opts.length===0) opts.push({nodeType:FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle',idx:-1});
   }
   for(let i=0;i<6;i++){
     const opt=opts[i];
@@ -180,7 +182,7 @@ function _mkRewDiv(card, onBuy){
     const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
-    div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${card.desc||''}</div>${statsLine}${uniqueBadge}`;
+    div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${computeDesc(card)}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
   }
@@ -193,7 +195,10 @@ function _mkRewDiv(card, onBuy){
   const gs=card.legend?'★':gradeStr(g);
   const rdesc=computeDesc(card);
   const refund=cardRefund(card);
-  const refundTxt=refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
+  const isRingCard=!card.type||card.type==='ring'||card.kind==='summon'||card.kind==='passive';
+  const refundTxt=isRingCard
+    ?`<div class="rew-card-refund" style="color:var(--red2)">破棄（ソウルなし）</div>`
+    :refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
   const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
   div.innerHTML=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
@@ -211,11 +216,16 @@ function takeRewCard(i){
   if(card._isChar){
     // キャラクター：フィールドへ配置
     const emptyIdx=G.allies.indexOf(null);
-    if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを売却してください。','bad'); return; }
+    if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを還魂してください。','bad'); return; }
     G.gold-=cost;
     const unit=makeUnitFromDef(card);
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
+    // ジャック・オ・ランタン：召喚時、全ての味方にシールド付与
+    if(unit.effect==='jack_summon'){
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.shield=(a.shield||0)+1; }});
+      log(`${unit.name}：全ての味方にシールドを付与`,'good');
+    }
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor();
@@ -226,10 +236,12 @@ function takeRewCard(i){
   // 指輪
   if(card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
     const ringIdx=G.rings.indexOf(null);
-    if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を売却してください。`,'bad'); return; }
+    if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
     G.gold-=cost;
     const rc=clone(card);
     G.rings[ringIdx]=rc;
+    // ユニーク指輪取得時に再出現しないよう記録
+    if(card.legend||card._isLegend) G._seenLegendRings.add(card.id);
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
@@ -296,7 +308,7 @@ function _renderFieldRow(el){
         </div>
         <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
         ${descTag}
-        <button class="return-btn" style="bottom:8px">売却 +1ソウル</button>`;
+        <button class="return-btn" style="bottom:8px">還魂 +1ソウル</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
@@ -325,7 +337,12 @@ function sellFieldUnit(idx){
   const unit=G.allies[idx]; if(!unit) return;
   G.allies[idx]=null;
   G.gold+=1; G.earnedGold+=1;
-  log(`${unit.name} を売却（+1ソウル）`,'gold');
+  log(`${unit.name} を還魂（+1ソウル）`,'gold');
+  // グリマルキン：還魂時、以後の召喚される仲間が+1/+1
+  if(unit.effect==='grimalkin_sell'){
+    G._grimalkinBonus=(G._grimalkinBonus||0)+1;
+    log(`${unit.name}：以後の召喚ユニットが+1/+1（計${G._grimalkinBonus}回）`,'good');
+  }
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderRewCards();
@@ -355,8 +372,8 @@ function renderHeRingSlots(){
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
-      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div><button class="return-btn" title="還魂">還魂</button>`;
-      div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); discardRing(i); };
+      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div><button class="discard-btn" title="破棄">破棄</button>`;
+      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardRing(i); };
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
@@ -428,11 +445,11 @@ function discardHeCard(arrName, idx){
 function discardRing(idx){
   const ring=G.rings[idx]; if(!ring) return;
   G.rings[idx]=null;
-  const refund=ring.grade||1;
-  G.gold+=refund;
+  // ユニーク指輪は破棄時に再出現しないよう記録
+  if(ring.legend||ring._isLegend) G._seenLegendRings.add(ring.id);
   updateHUD();
   const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
-  log(ring.name+' を還魂（+'+refund+'ソウル）','gold');
+  log(ring.name+' を破棄','sys');
   renderHandEditor();
   renderGradeUpBtn();
 }

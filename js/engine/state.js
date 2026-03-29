@@ -37,12 +37,16 @@ function initState(){
     fogNext:false, prevNodeType:'battle',
     spreadActive:false, spreadMult:0,
     _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false,
+    _usedNamedElite:new Set(), _usedNamedRest:new Set(),
+    _seenLegendRings:new Set(),
     _retryFloor:false,
     battleCounters:{damage:0,deaths:0},
     // ── 魔術レベル（亜人キャラ効果用）──
     magicLevel:1,
-    // ── マミー効果：不死HP補正（累積） ──
+    // ── マミー効果：不死ATK補正（累積） ──
     _undeadHpBonus:0,
+    // ── グリマルキン効果：召喚ユニット補正（累積） ──
+    _grimalkinBonus:0,
     // ── 宝箱・撤退・宿屋ボーナス ──
     _pendingTreasure:false,
     _retreated:false,

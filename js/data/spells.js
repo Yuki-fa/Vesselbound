@@ -4,8 +4,8 @@
 const SPELL_POOL=[
 
   // ── WANDS（初期装備専用） ──
-  {id:'w_fire',       name:'炎の杖',    type:'wand', starterOnly:true,
-   desc:'対象の敵にXダメージを与える。', effect:'fire', needsEnemy:true, baseUses:5},
+  {id:'w_fire',       name:'炎の杖',    type:'wand',
+   desc:'対象のキャラクターにXダメージを与える。', effect:'fire', needsAny:true, baseUses:4},
 
   {id:'w_start_null', name:'沈黙の杖',  type:'wand', starterOnly:true,
    desc:'対象の敵のATKを0にする（1ターン）。', effect:'nullify', needsEnemy:true, baseUses:5},

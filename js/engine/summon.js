@@ -36,6 +36,8 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   if(ring.unique==='wall_copy_atk'&&overrideAtk===undefined){
     bAtk=G.allies.filter(a=>a&&a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
   }
+  // グリマルキン：還魂時ボーナス（+1/+1 累積）
+  if(G._grimalkinBonus){ bAtk+=G._grimalkinBonus; bHp+=G._grimalkinBonus; }
   return {
     id:uid(),
     name:overrideName||s.name,

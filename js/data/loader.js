@@ -111,9 +111,13 @@ function _rowToSpell(row) {
     type:  row['種別'] || row['種別(wand/consumable)'],
     grade: 1,
   };
-  // 基本使用回数
+  // 基本使用回数（固定値 or "3-5" 形式のレンジ）
   const usesStr = row['基本使用回数'] || '';
-  if (usesStr && !usesStr.includes('-')) obj.baseUses = parseInt(usesStr) || undefined;
+  if (usesStr) {
+    const rng = usesStr.match(/^(\d+)-(\d+)$/);
+    if (rng) obj.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])];
+    else if (!usesStr.includes('-')) obj.baseUses = parseInt(usesStr) || undefined;
+  }
   // 価格
   const cost = parseInt(row['価格']);
   if (!isNaN(cost)) obj.cost = cost;

@@ -45,6 +45,6 @@ const RING_POOL=[
    desc:'「戦闘開始時」を「ターン開始時」に変更する。', unique:'patience'},
 
   // ── ネームド（legend）──
-  {id:'r_great_mother', name:'ザ・グレートマザー', kind:'passive', grade:1, legend:true,
+  {id:'r_great_mother', name:'黄金の雫', kind:'passive', grade:1, legend:true,
    desc:'味方のカード効果中の数値が全て+1される。', unique:'great_mother'},
 ];

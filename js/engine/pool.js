@@ -33,9 +33,7 @@ function calcBuyPrice(card){
 function cardRefund(card){
   if(!card) return 0;
   if(card._isChar) return 1;
-  if(card.type==='consumable') return 0;
-  if(card.type==='wand') return 0;
-  return card.grade||1;
+  return 0; // 指輪・杖・消耗品はすべてソウル還元なし
 }
 
 // 指輪プール（商店・イベント用）
@@ -83,7 +81,10 @@ function drawItems(n){
     if(!s.id||s.starterOnly) return;
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     const c=clone(s);
-    if(c.type==='wand'){ c.usesLeft=c.baseUses||randUses(); c._maxUses=c.usesLeft; }
+    if(c.type==='wand'){
+      const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses());
+      c.usesLeft=uses; c._maxUses=uses;
+    }
     c._buyPrice=calcBuyPrice(c);
     pool.push(c);
   });
@@ -127,14 +128,15 @@ function drawConsumable(){
 // ── ユニーク指輪（エリート撃破報酬）─────────────────
 
 function drawUniqueRing(){
-  const pool=RING_POOL.filter(r=>{
-    if(!r.legend) return false;
-    const owned=G.rings&&G.rings.find(x=>x&&x.id===r.id);
-    if(owned&&(owned.grade||1)>=MAX_GRADE) return false;
-    return true;
-  });
-  if(!pool.length) return null;
+  const seen=G._seenLegendRings||new Set();
+  const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
+  if(!pool.length){
+    // ユニーク指輪が残っていない場合は5ソウル付与
+    G.gold+=5; updateHUD();
+    log('ユニーク指輪が残っていません。ソウル+5','gold');
+    return null;
+  }
   const c=clone(randFrom(pool));
-  c._buyPrice=3;
+  c._buyPrice=0;
   return c;
 }

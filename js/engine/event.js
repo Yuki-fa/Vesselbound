@@ -93,8 +93,14 @@ function doRest(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
   if(regen){
     const targetGrade=G.rewardGrade||1;
-    const namedPool=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem'&&(u.grade||1)<=targetGrade);
-    _restNamedUnit=namedPool.length?clone(randFrom(namedPool)):null;
+    const namedPool=UNIT_POOL.filter(u=>
+      u.unique && u.id!=='c_golem' && (u.grade||1)<=targetGrade &&
+      !G._usedNamedElite.has(u.id) && !G._usedNamedRest.has(u.id)
+    );
+    const picked=namedPool.length?randFrom(namedPool):null;
+    _restNamedUnit=picked?clone(picked):null;
+    // 登場した時点で宿屋使用済みとしてマーク（得なくても除外）
+    if(picked) G._usedNamedRest.add(picked.id);
     _restChosen=new Set();
   }
   const namedUnit=_restNamedUnit;

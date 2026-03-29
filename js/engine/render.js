@@ -40,9 +40,8 @@ function _computeDeathRisk(){
   if(!liveAllies.length||!liveEnemies.length) return new Set();
 
   // 味方攻撃フェーズをシミュレーション（最適戦略：倒せる中で最もHPが低い敵から撃破）
-  const simHp=liveEnemies.map(({e,i})=>({idx:i, hp:e.hp, atk:e.atk}));
+  const simHp=liveEnemies.map(({e,i})=>({idx:i, hp:e.hp, atk:e.atk, keywords:e.keywords||[]}));
   for(const {a} of liveAllies){
-    // 倒せる敵（HP≤ATK）のうち最小HPを優先
     let best=null;
     for(const s of simHp){
       if(s.hp<=0) continue;
@@ -50,31 +49,28 @@ function _computeDeathRisk(){
     }
     if(best){ best.hp=0; }
     else{
-      // 倒せない場合は最小HPの敵にダメージ
       let min=null;
       for(const s of simHp){ if(s.hp>0&&(!min||s.hp<min.hp)) min=s; }
       if(min) min.hp=Math.max(0,min.hp-(a.atk||0));
     }
   }
 
-  // 生き残りATK>0の敵のみが反撃
+  // 生き残り敵による逐次攻撃シミュレーション（連鎖ターゲット・AoE対応）
   const survivors=simHp.filter(s=>s.hp>0&&s.atk>0);
   if(!survivors.length) return new Set();
 
-  const dmgMap={};
-  liveAllies.forEach(({i})=>{ dmgMap[i]=[]; });
-  survivors.forEach(s=>{
-    const hateA=liveAllies.find(x=>x.a.hate&&x.a.hateTurns>0);
-    const tgt=hateA||liveAllies[liveAllies.length-1];
-    dmgMap[tgt.i].push(s.atk);
-  });
+  const allyState=liveAllies.map(({a,i})=>({i, hp:a.hp, shield:a.shield||0, hate:a.hate&&a.hateTurns>0, dead:false}));
   const result=new Set();
-  liveAllies.forEach(({a,i})=>{
-    const atks=dmgMap[i]; if(!atks||!atks.length) return;
-    let shield=a.shield||0, totalDmg=0;
-    for(const atk of atks){ if(atk>0&&shield>0) shield--; else totalDmg+=atk; }
-    if(totalDmg>0&&totalDmg>=a.hp) result.add(i);
-  });
+  for(const s of survivors){
+    const alive=allyState.filter(a=>!a.dead);
+    if(!alive.length) break;
+    const isAoe=s.keywords.includes('範囲攻撃');
+    const targets=isAoe?alive:[alive.find(x=>x.hate)||alive[alive.length-1]];
+    for(const tgt of targets){
+      if(tgt.shield>0){ tgt.shield--; }
+      else{ tgt.hp-=s.atk; if(tgt.hp<=0){ tgt.dead=true; result.add(tgt.i); } }
+    }
+  }
   return result;
 }
 
@@ -125,14 +121,15 @@ function renderField(id,units,isEnemy){
         }
         const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
         const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
-        const descTag=u.desc?`<div class="slot-desc">${u.desc}</div>`:'';
+        const descTag=u.desc?`<div class="slot-desc">${computeDesc(u)}</div>`:'';
+        const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
         } else {
           slot.style.justifyContent='flex-start';
           slot.style.padding='0 2px 8px';
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._battleCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div><div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         }
         // 優先ターゲットは赤枠＋前に出す
         if(i===priorityIdx){
@@ -252,7 +249,7 @@ function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
   const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
-  // ザ・グレートマザー：味方キャラクターカードの効果テキスト数値を全て+grade（指輪・杖・アイテムは対象外）
+  // 黄金の雫：味方キャラクターカードの効果テキスト数値を全て+grade（指輪・杖・アイテムは対象外）
   const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
   const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
   const gmBonus=gmRing&&card.id!==gmRing.id&&isCharCard?(gmRing.grade||1):0;
@@ -261,7 +258,8 @@ function computeDesc(card){
   if(gmBonus>0){
     desc=desc
       .replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`)
-      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`);
+      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`)
+      .replace(/±(<span)/g,'+$1'); // ±0 → +N（0にボーナス加算後は正の数）
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
@@ -289,7 +287,7 @@ function computeDesc(card){
   return desc;
 }
 
-function mkCardEl(card,idx,ctx){
+function mkCardEl(card,_idx,_ctx){
   const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
@@ -319,7 +317,7 @@ function renderControls(){
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
     pp.style.display=''; pp.textContent=G.actionsLeft>0?'パス':'ターン終了';
-    pr.style.display=G.visibleMoves.some(i=>G.moveMasks[i])?'':'none';
+    pr.style.display=G.visibleMoves.some(i=>G.moveMasks[i]&&G.moveMasks[i]!=='chest')?'':'none';
   } else if(G.phase==='commander'){
     badge.className='ph-badge ph-enemy'; badge.textContent='司令官フェイズ';
     pp.style.display='none'; pr.style.display='none';

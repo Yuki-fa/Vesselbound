@@ -11,15 +11,15 @@ const UNIT_POOL = [
   {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'①：戦闘終了時、ライフ1で復活する。',         effect:'skeleton_revive'},
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'再生3',                                      regen:3},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'①：負傷時、最も左の空き地に2/4の「ナイトキャット」を召喚する。', injury:'kettcat'},
-  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'①：戦闘開始時、正面の敵にヘイトを与える。',   effect:'grimalkin_start'},
+  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'①：仲間を還魂すると、以後の全ての戦闘中に召喚される仲間が+1/+1される。', effect:'grimalkin_sell'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'①：攻撃時、+1/±0を得る。',                  effect:'elf_attack'},
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'①：攻撃時、全ての味方が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'①：戦闘開始時、ランダムなアイテムを得る。',   effect:'imp_start'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'①：3回目の戦闘終了時、「ワーム」に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'①：杖を使うたび、全ての味方が+1/+1を得る。', effect:'dwarf_wand'},
   {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'①：負傷時、以後の全ての「不死」が+1/±0を得る。', injury:'mummy'},
-  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'①：杖を使うたび、全ての敵に呪詛1を与える。', effect:'gremlin_wand'},
-  {id:'c_jack',       name:'ジャックランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'①：杖を使うたび、ランダムな味方がシールドを得る。', effect:'jack_wand'},
+  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'①：戦闘開始時、このキャラクターと、最もライフの多い敵のライフを入れ替える。', effect:'gremlin_start'},
+  {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'①：召喚時、全ての味方がシールドを得る。', effect:'jack_summon'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃',                                       counter:true},
   {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'①：戦闘終了時、魔術レベル4につきソウル1を得る。', effect:'lamia_end'},
 
@@ -40,7 +40,7 @@ const UNIT_POOL = [
   {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'追加：即死（20%）', keywords:['即死']},
   {id:'c_hellhound',  name:'ヘルハウンド',     race:'悪魔', grade:2, atk:11, hp:15, cost:5,  unique:false, icon:'🐕', desc:'反撃', counter:true},
   {id:'c_centaur',    name:'ケンタウロス',     race:'亜人', grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🏇', desc:'2回攻撃', keywords:['二段攻撃']},
-  {id:'c_homunculus', name:'ホムンクルス',     race:'全て', grade:2, atk:7,  hp:23, cost:5,  unique:false, icon:'🧪', desc:'①：戦闘開始時、シールドを得る。', shield:1},
+  {id:'c_homunculus', name:'ホムンクルス',     race:'全て', grade:2, atk:7,  hp:23, cost:5,  unique:false, icon:'🧪', desc:'①：戦闘開始時、シールドを得る。', effect:'homunculus_start'},
   {id:'c_dryad',      name:'ドリアード',       race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'🌿', desc:'①：受けるダメージが半分になる。（端数切り上げ）'},
 
   // ─── G2 ネームド ───
@@ -134,10 +134,10 @@ function makeUnitFromDef(def, fieldIdx){
     counter:  def.counter || false,
     keywords: def.keywords ? [...def.keywords] : [],
   };
-  // マミー効果：不死HPボーナス（累積）
+  // マミー効果：不死ATKボーナス（累積）
   if(def.race==='不死' && typeof G!=='undefined' && G._undeadHpBonus){
-    unit.hp    += G._undeadHpBonus;
-    unit.maxHp += G._undeadHpBonus;
+    unit.atk    += G._undeadHpBonus;
+    unit.baseAtk += G._undeadHpBonus;
   }
   return unit;
 }
