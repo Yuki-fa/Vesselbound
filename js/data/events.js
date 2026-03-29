@@ -2,11 +2,54 @@
 // events.js — 敵・エンチャント・祠イベント定義
 // ═══════════════════════════════════════
 
-// 通常敵の名前・アイコン・種族（インデックスで対応）
-// ※ 味方キャラ名と重複しないよう命名
-const ENEMY_NAMES=['ゴブリン','オーク','ボーングレイ','グール','コウモリ','魔狼','暗黒騎士','魔女','ドレイク','骸骨王'];
-const ENEMY_ICONS=['👺','👹','💀','🧟','🦇','🐺','⚔️','🧙','🦎','💀'];
-const ENEMY_RACES=['亜人','亜人','不死','不死','獣','獣','亜人','悪魔','竜','不死'];
+// 通常敵プール（シートの「敵専用」列でも管理）
+// パワー/ライフは stat table で算出するためここでは定義しない
+const ENEMY_POOL=[
+  // ── G1（1-5階）──
+  {name:'ゴブリン',          grade:1, icon:'👺', keywords:[],             race:'亜人'},
+  {name:'オーク',            grade:1, icon:'👹', keywords:['反撃'],       race:'亜人'},
+  {name:'グール',            grade:1, icon:'🧟', keywords:[],             race:'不死'},
+  {name:'バンシー',          grade:1, icon:'👻', keywords:[],             race:'不死'},
+  {name:'ジャイアントラット',grade:1, icon:'🐀', keywords:[],             race:'獣'},
+  {name:'マッドキャット',    grade:1, icon:'🐱', keywords:['狩人'],       race:'獣'},
+  {name:'ウィスプ',          grade:1, icon:'🔮', keywords:[],             race:'精霊'},
+  {name:'ピクシー',          grade:1, icon:'🧚', keywords:[],             race:'精霊'},
+  // ── G2（6-10階）──
+  {name:'ファイアブレス',    grade:2, icon:'🔥', keywords:['貫通'],       race:'竜'},
+  {name:'ポイズンミスト',    grade:2, icon:'☁️', keywords:['毒3'],        race:'精霊'},
+  {name:'サテュロス',        grade:2, icon:'🐐', keywords:[],             race:'亜人'},
+  {name:'ダークエルフ',      grade:2, icon:'🧝', keywords:['狩人'],       race:'亜人'},
+  {name:'カースドアーマー',  grade:2, icon:'🪖', keywords:['即死'],       race:'不死'},
+  {name:'ボーンナイト',      grade:2, icon:'💀', keywords:[],             race:'不死'},
+  {name:'ダイアウルフ',      grade:2, icon:'🐺', keywords:['二段攻撃'],   race:'獣'},
+  {name:'ヒポグリフ',        grade:2, icon:'🦅', keywords:[],             race:'竜'},
+  // ── G3（11-15階）──
+  {name:'ケルピー',          grade:3, icon:'🐴', keywords:[],             race:'獣'},
+  {name:'スプリガン',        grade:3, icon:'🧌', keywords:['シールド'],   race:'精霊'},
+  {name:'シーサーペント',    grade:3, icon:'🐍', keywords:['貫通'],       race:'竜'},
+  {name:'ブラッドロード',    grade:3, icon:'🩸', keywords:['邪眼5'],      race:'悪魔'},
+  {name:'グラディエーター',  grade:3, icon:'⚔️', keywords:['反撃'],       race:'亜人'},
+  {name:'ベルセルク',        grade:3, icon:'💢', keywords:[],             race:'亜人'},
+  {name:'デスナイト',        grade:3, icon:'🪖', keywords:[],             race:'不死'},
+  {name:'スケルトンキング',  grade:3, icon:'👑', keywords:['結束3'],      race:'不死'},
+  // ── G4（16-20階）──
+  {name:'マンティコア',      grade:4, icon:'🦁', keywords:[],             race:'獣'},
+  {name:'カトブレパス',      grade:4, icon:'🐂', keywords:['邪眼8'],      race:'獣'},
+  {name:'イフリート',        grade:4, icon:'🔥', keywords:[],             race:'悪魔'},
+  {name:'ニンフ',            grade:4, icon:'🌸', keywords:['加護'],       race:'精霊'},
+  {name:'ティアマト',        grade:4, icon:'🐉', keywords:['全体攻撃'],   race:'竜'},
+  {name:'グレーターデーモン',grade:4, icon:'😈', keywords:['魂喰らい3'],  race:'悪魔'},
+  {name:'サイクロプス',      grade:4, icon:'👁️', keywords:[],             race:'亜人'},
+  {name:'ヘカトンケイル',    grade:4, icon:'💪', keywords:['シールド'],   race:'亜人'},
+  {name:'アポリオン',        grade:4, icon:'⚫', keywords:[],             race:'悪魔'},
+  {name:'グリムリーパー',    grade:4, icon:'💀', keywords:['三段攻撃'],   race:'不死'},
+  {name:'サンダーバード',    grade:4, icon:'⚡', keywords:['反撃'],       race:'竜'},
+  {name:'アークエンジェル',  grade:4, icon:'😇', keywords:['加護'],       race:'精霊'},
+  {name:'エンシェントドラゴン',grade:4,icon:'🐲',keywords:[],             race:'竜'},
+  {name:'カオスドラゴン',    grade:4, icon:'🌀', keywords:['全体攻撃'],   race:'竜'},
+  {name:'アークデーモン',    grade:4, icon:'👿', keywords:[],             race:'悪魔'},
+  {name:'メフィスト',        grade:4, icon:'🔮', keywords:['魂喰らい4'],  race:'悪魔'},
+];
 
 // エンチャントの種類（指輪に付与できる）— {id, effect} 形式
 const ENCHANT_TYPES=[

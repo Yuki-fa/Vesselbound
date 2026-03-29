@@ -131,11 +131,8 @@ function renderField(id,units,isEnemy){
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._battleCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         }
-        // 優先ターゲットは赤枠＋前に出す
-        if(i===priorityIdx){
-          slot.classList.add('priority-target');
-          slot.style.transform=isEnemy?'translateY(4px)':'translateY(-4px)';
-        }
+        // 優先ターゲットは赤枠
+        if(i===priorityIdx) slot.classList.add('priority-target');
         // 確実に死亡する味方：赤斜線を点滅表示
         if(!isEnemy&&deathRisk.has(i)) slot.classList.add('will-die');
       }

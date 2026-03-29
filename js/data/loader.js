@@ -265,32 +265,40 @@ async function loadGameData() {
       if (desc) ring.desc = desc;
     });
 
-    // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文）──
+    // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSV(ct);
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
+      const isEnemyOnly = row['敵専用'] === 'TRUE' || row['敵専用'] === '✓';
+      if (isEnemyOnly) {
+        // 敵専用：ENEMY_POOL を更新（ATK/HPは除く）
+        const ep = ENEMY_POOL.find(e => e.name === name);
+        if (!ep) return;
+        const grade = parseInt(row['グレード']);
+        if (!isNaN(grade) && grade >= 1) ep.grade = grade;
+        if (row['アイコン']) ep.icon = row['アイコン'];
+        if (row['種族']) ep.race = row['種族'];
+        // 効果列をキーワード配列として解釈（スペース/読点区切り）
+        const kwStr = (row['効果'] || '').trim();
+        if (kwStr) ep.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
+        return;
+      }
+      // 通常キャラクター：UNIT_POOL を更新
       const unit = UNIT_POOL.find(u => u.name === name);
       if (!unit) return;
-      // ネームド（unique）
       const nv = row['ネームド'] || row['ユニーク'];
       if (nv === 'TRUE' || nv === '✓') unit.unique = true;
       else if (nv === 'FALSE') unit.unique = false;
-      // グレード
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
-      // パワー
       const atk = parseInt(row['パワー'] || row['ATK']);
       if (!isNaN(atk) && atk > 0) unit.atk = atk;
-      // ライフ
       const hp = parseInt(row['ライフ'] || row['HP']);
       if (!isNaN(hp) && hp > 0) unit.hp = hp;
-      // 種族
       if (row['種族']) unit.race = row['種族'];
-      // 価格
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) unit.cost = cost;
-      // 説明文（effect/injury 等のゲームロジックは JS 側で管理）
       const desc = row['効果'];
       if (desc) unit.desc = desc;
     });

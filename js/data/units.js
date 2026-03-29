@@ -44,12 +44,12 @@ const UNIT_POOL = [
   {id:'c_dryad',      name:'ドリアード',       race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'🌿', desc:'①：受けるダメージが半分になる。（端数切り上げ）'},
 
   // ─── G2 ネームド ───
-  {id:'c_ran',        name:'波の娘"ラン・ドーター"',       race:'亜人', grade:2, atk:3,  hp:35, cost:10, unique:true, icon:'🌊', desc:'負傷：7/Xの「海の眷属」を左端に召喚する。（X=被ダメージ）'},
+  {id:'c_ran',        name:'波の娘"ラン・ドーター"',       race:'亜人', grade:2, atk:3,  hp:35, cost:10, unique:true, icon:'🌊', desc:'負傷：7/Xの「海の眷属」を左端に召喚する。（X=被ダメージ）', injury:'ran'},
   {id:'c_garm',       name:'隻眼の魔狼"ガルム・グリーム"', race:'獣',   grade:2, atk:15, hp:30, cost:12, unique:true, icon:'🐺', desc:'トリプル', keywords:['三段攻撃']},
-  {id:'c_manigans',   name:'不敗の剣鬼"マニガンス"',       race:'亜人', grade:2, atk:14, hp:32, cost:12, unique:true, icon:'⚔️', desc:'①：ターン開始時、シールドを得る。'},
-  {id:'c_vidar',      name:'緑域の隠者"ヴィーザル"',       race:'精霊', grade:2, atk:16, hp:25, cost:12, unique:true, icon:'🌳', desc:'①：すべての味方が+3/+3を得る。'},
+  {id:'c_manigans',   name:'不敗の剣鬼"マニガンス"',       race:'亜人', grade:2, atk:14, hp:32, cost:12, unique:true, icon:'⚔️', desc:'①：ターン開始時、シールドを得る。', effect:'manigans_turn'},
+  {id:'c_vidar',      name:'緑域の隠者"ヴィーザル"',       race:'精霊', grade:2, atk:16, hp:25, cost:12, unique:true, icon:'🌳', desc:'①：すべての味方が+3/+3を得る。', effect:'vidar_start'},
   {id:'c_lilith',     name:'虚飾の歌姫"リリス・ヴェノム"', race:'悪魔', grade:2, atk:18, hp:20, cost:12, unique:true, icon:'🎤', desc:'①：戦闘開始時、すべての味方にシールドを与える。'},
-  {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'負傷：すべての敵に3ダメージを与える。'},
+  {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'負傷：すべての敵に3ダメージを与える。', injury:'limslus'},
 
   // ─── G3 通常 ───
   {id:'c_phantom',    name:'ファントム',       race:'不死', grade:3, atk:11, hp:48, cost:7,  unique:false, icon:'👤', desc:'①：受けるダメージが半分（端数切り上げ）になる。'},

@@ -65,6 +65,11 @@ function _mkNamedEnemy(def,shield,extraKws){
   const kws=[...(def.keywords||[]),...(extraKws||[])];
   const e=_mkEnemy(def.atk,def.hp,def.name,def.icon,def.grade||1,shield,kws,def.race||'-');
   e.desc=def.desc||'';
+  // キャラクター効果をそのまま引き継ぐ（憑依でも維持）
+  e.effect =def.effect ||null;
+  e.injury =def.injury ||null;
+  e.counter=def.counter||false;
+  e.regen  =def.regen  ||0;
   return e;
 }
 
@@ -92,6 +97,19 @@ function rollKeywords(floor, isBoss, isLeader){
   return [...new Set(kws)];
 }
 
+// ENEMY_POOL からグレードに合った敵定義を抽選
+function _pickEnemyDef(grade){
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade);
+  return pool.length?randFrom(pool):(ENEMY_POOL[0]||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'亜人'});
+}
+
+// 「シールド」キーワードの値を返す（シールド → 1、シールド2 → 2、なければ 0）
+function _kwShield(def){
+  const k=(def.keywords||[]).find(k=>k==='シールド'||/^シールド\d+$/.test(k));
+  if(!k) return 0;
+  return k==='シールド'?1:parseInt(k.slice(3));
+}
+
 // 1階固定敵パターン（序盤バランス）
 const _FLOOR1_PRESETS=[
   [{atk:3,hp:1},{atk:2,hp:2},{atk:3,hp:1}],
@@ -107,8 +125,8 @@ function generateEnemies(floor){
   if(floor===1&&!isBoss){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
     return preset.map(p=>{
-      const ni=randi(0,ENEMY_NAMES.length-1);
-      return _mkEnemy(p.atk,p.hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],1,0,[]);
+      const def=_pickEnemyDef(1);
+      return _mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     });
   }
 
@@ -163,7 +181,6 @@ function generateEnemies(floor){
   const enemies=[];
   for(let i=0;i<count;i++){
     const isElite=(i===eliteIdx);
-    const ni=randi(0,ENEMY_NAMES.length-1);
     let e;
     if(isElite){
       const kws=['エリート',...rollKeywords(floor,false,false)];
@@ -177,8 +194,8 @@ function generateEnemies(floor){
     } else {
       const g=rollEnemyGrade(floor);
       const {atk,hp}=enemyStatsByGrade(g);
-      const kws=rollKeywords(floor,false,false);
-      e=_mkEnemy(atk,hp,ENEMY_NAMES[ni],ENEMY_ICONS[ni],g,0,kws,ENEMY_RACES[ni]);
+      const def=_pickEnemyDef(g);
+      e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     }
     enemies.push(e);
   }
