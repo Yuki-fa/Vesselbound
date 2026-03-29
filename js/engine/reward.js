@@ -297,7 +297,9 @@ function _renderFieldRow(el){
       if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
-      const descTag=unit.desc?`<div class="slot-desc">${unit.desc}</div>`:'';
+      const _rawDesc=unit.desc?computeDesc(unit):'';
+      const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
+      const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._battleCount||0)}戦</div>`:'';
       div.innerHTML=`${badgeBlock}${gradeTag}
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
