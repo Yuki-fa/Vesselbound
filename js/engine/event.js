@@ -123,11 +123,11 @@ function doRest(regen=true){
   const doneAction=_restChosen.has('action');
   const o2=document.createElement('div');
   o2.className='choice-opt'+(doneAction?' done':'');
-  o2.innerHTML='<div class="choice-icon">⚡</div><div class="choice-label">旅の準備</div><div class="choice-desc">次の戦闘の行動回数が+1される（無料）</div>';
+  o2.innerHTML='<div class="choice-icon">⚡</div><div class="choice-label">旅の準備</div><div class="choice-desc">行動回数が永続で+1される（無料）</div>';
   if(!doneAction) o2.onclick=()=>{
     G._bonusAction=(G._bonusAction||0)+1; updateHUD();
-    if(hasFarsight){ log('行動権+1','good'); _restChosen.add('action'); doRest(false); }
-    else showEvent('宿屋','旅の準備を整えた。','次の戦闘の行動回数+1');
+    if(hasFarsight){ log('行動権+1（永続）','good'); _restChosen.add('action'); doRest(false); }
+    else showEvent('宿屋','旅の準備を整えた。','行動回数+1（永続）');
   };
   el.appendChild(o2);
 

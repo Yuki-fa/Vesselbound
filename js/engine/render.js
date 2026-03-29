@@ -74,6 +74,28 @@ function _computeDeathRisk(){
   return result;
 }
 
+// キーワードバッジで表示済みの文字列をdesc先頭から除去
+function _stripKeywordsFromDesc(desc, unit){
+  if(!desc) return desc;
+  const patterns=[
+    ...(unit.keywords||[]),
+    ...(unit.counter?['反撃']:[]),
+    '2回攻撃','トリプル','3段攻撃','2段攻撃',
+  ];
+  let result=desc;
+  let changed=true;
+  while(changed){
+    changed=false;
+    for(const kw of patterns){
+      const esc=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      const re=new RegExp('^'+esc+'[\\s\u3000。、]*');
+      const next=result.replace(re,'').trimStart();
+      if(next!==result){ result=next; changed=true; break; }
+    }
+  }
+  return result.trim();
+}
+
 function renderField(id,units,isEnemy){
   const el=document.getElementById(id);
   el.innerHTML='';
@@ -122,16 +144,18 @@ function renderField(id,units,isEnemy){
             const kLabel=k==='パワーブレイク'?`パワーブレイク${G.floor||1}`:k;
             return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${kLabel}</span>`;
           }).join('');
-          kwBlock=`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:1px 0 1px;padding:0 2px">${kwSpans}</div>`;
+          kwBlock=`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:4px 0 3px;padding:0 2px">${kwSpans}</div>`;
         }
         const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
-        const descTag=u.desc?`<div class="slot-desc">${computeDesc(u)}</div>`:'';
+        const _rawDesc=u.desc?computeDesc(u):'';
+        const _desc=_stripKeywordsFromDesc(_rawDesc,u);
+        const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
         const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
+        slot.style.justifyContent='flex-start';
+        slot.style.padding='0 2px 8px';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div>${kwBlock}<div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div>${kwBlock}<div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         } else {
-          slot.style.justifyContent='flex-start';
-          slot.style.padding='0 2px 8px';
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._battleCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div>${kwBlock}<div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         }
