@@ -216,7 +216,7 @@ async function loadGameData() {
       if (!spell) return;
       // 種別
       const type = (row['種別'] || row['種別(wand/consumable)'] || '').trim();
-      if (type) spell.type = type;
+      if (type && spell.id !== 'w_fire') spell.type = type;
       // グレード
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) spell.grade = grade;
