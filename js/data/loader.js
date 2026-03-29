@@ -133,7 +133,6 @@ async function loadGameData() {
     // 全シートを並列取得
     const fetches = [
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
-      fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
       fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
       fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
@@ -143,7 +142,7 @@ async function loadGameData() {
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [ft, kt, gt, st, rt, ct] = await Promise.all(responses.map(r => r.text()));
+    const [ft, gt, st, rt, ct] = await Promise.all(responses.map(r => r.text()));
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -187,14 +186,6 @@ async function loadGameData() {
         BOSS_FLOORS.push(fl - 1);
       }
     });
-
-    // ── 敵キーワード ──
-    const kwRows = _parseCSV(kt);
-    if (kwRows.length > 0) {
-      const kwKey = Object.keys(kwRows[0])[0]; // 先頭列名を自動取得
-      ENEMY_KEYWORDS.length = 0;
-      kwRows.forEach(row => { if (row[kwKey]) ENEMY_KEYWORDS.push(row[kwKey]); });
-    }
 
     // ── グレードアップ費用 ──
     // シート列：グレード, 費用（グレード2以上の費用 = G1→G2, G2→G3, ...）
@@ -306,7 +297,7 @@ async function loadGameData() {
     });
 
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件`
     );
     return true;
 
