@@ -278,12 +278,15 @@ function computeDesc(card){
   const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
   const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
   const gmBonus=gmRing&&card.id!==gmRing.id&&isCharCard?(gmRing.grade||1):0;
+  // グリマルキン：還魂回数分、キャラクターカードの召喚数値に加算
+  const grimBonus=isCharCard&&typeof G!=='undefined'?(G._grimalkinBonus||0):0;
+  const totalBonus=gmBonus+grimBonus;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
-  if(gmBonus>0){
+  if(totalBonus>0){
     desc=desc
       .replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`)
-      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`)
+      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+totalBonus}</span>`)
       .replace(/±(<span)/g,'+$1'); // ±0 → +N（0にボーナス加算後は正の数）
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);

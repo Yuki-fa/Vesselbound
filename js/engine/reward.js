@@ -338,10 +338,11 @@ function sellFieldUnit(idx){
   G.allies[idx]=null;
   G.gold+=1; G.earnedGold+=1;
   log(`${unit.name} を還魂（+1ソウル）`,'gold');
-  // グリマルキン：還魂時、以後の召喚される仲間が+1/+1
-  if(unit.effect==='grimalkin_sell'){
+  // グリマルキン：フィールドに残っているときに別の仲間が還魂されたらボーナス発動
+  const grimalkin=G.allies.find(a=>a&&a.effect==='grimalkin_sell');
+  if(grimalkin){
     G._grimalkinBonus=(G._grimalkinBonus||0)+1;
-    log(`${unit.name}：以後の召喚ユニットが+1/+1（計${G._grimalkinBonus}回）`,'good');
+    log(`${grimalkin.name}：以後の召喚ユニットが+1/+1（計${G._grimalkinBonus}回）`,'good');
   }
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
