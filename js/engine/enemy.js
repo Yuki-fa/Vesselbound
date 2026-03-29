@@ -151,8 +151,10 @@ function generateEnemies(floor){
         }
         e.boss=true;
       } else {
+        const def=_pickEnemyDef(baseG);
         const {atk,hp}=enemyStatsByGrade(baseG);
-        e=_mkEnemy(atk,hp,'側近','👹',baseG,0,rollKeywords(floor,false,false));
+        const kws=[...(def.keywords||[]),...rollKeywords(floor,false,false)];
+        e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
       }
       enemies.push(e);
     }

@@ -99,6 +99,7 @@ function renderField(id,units,isEnemy){
         const nt=NODE_TYPES[mv];
         slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>`;
       } else {
+        // ── ステータスバッジ（右上固定：状態異常のみ）──
         const bs=[];
         if(u.hate) bs.push('<span class="slot-badge b-hate">ヘイト</span>');
         if(u.guardian) bs.push('<span class="slot-badge b-guard">守護</span>');
@@ -110,26 +111,29 @@ function renderField(id,units,isEnemy){
         if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
         if(u.counter) bs.push('<span class="slot-badge b-counter">反撃</span>');
         if(u.allyTarget) bs.push('<span class="slot-badge b-hate">狙われ</span>');
-        // キーワードバッジ（敵味方共通）
-        if(u.keywords&&u.keywords.length){
-          const kColorMap={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700','二段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0'};
-          u.keywords.forEach(k=>{
-            const kColor=kColorMap[k]||'#888';
-            const kLabel=k==='パワーブレイク'?`パワーブレイク${G.floor||1}`:k;
-            bs.push(`<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${kLabel}</span>`);
-          });
-        }
         const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
+        // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
+        let kwBlock='';
+        if(u.keywords&&u.keywords.length){
+          const kColorMap={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0'};
+          const kwSpans=u.keywords.map(k=>{
+            const kBase=k.replace(/\d+$/,'');
+            const kColor=kColorMap[k]||kColorMap[kBase]||'#888';
+            const kLabel=k==='パワーブレイク'?`パワーブレイク${G.floor||1}`:k;
+            return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${kLabel}</span>`;
+          }).join('');
+          kwBlock=`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:1px 0 1px;padding:0 2px">${kwSpans}</div>`;
+        }
         const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
         const descTag=u.desc?`<div class="slot-desc">${computeDesc(u)}</div>`:'';
         const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div>${kwBlock}<div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         } else {
           slot.style.justifyContent='flex-start';
           slot.style.padding='0 2px 8px';
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._battleCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${u.icon}</div>${dragonetSub}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div>${kwBlock}<div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>${descTag}`;
         }
         // 優先ターゲットは赤枠
         if(i===priorityIdx) slot.classList.add('priority-target');

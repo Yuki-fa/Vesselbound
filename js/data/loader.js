@@ -214,8 +214,10 @@ async function loadGameData() {
       if (!name) return;
       const spell = SPELL_POOL.find(s => s.name === name);
       if (!spell) return;
-      // 種別
-      const type = (row['種別'] || row['種別(wand/consumable)'] || '').trim();
+      // 種別（日本語・英語両対応。マップ外の値は無視してJS定義を保持）
+      const _typeRaw = (row['種別'] || row['種別(wand/consumable)'] || '').trim();
+      const _typeMap = {'杖':'wand','wand':'wand','消耗品':'consumable','アイテム':'consumable','consumable':'consumable'};
+      const type = _typeMap[_typeRaw] || null;
       if (type && spell.id !== 'w_fire') spell.type = type;
       // グレード
       const grade = parseInt(row['グレード']);
