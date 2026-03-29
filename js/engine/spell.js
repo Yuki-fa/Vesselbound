@@ -129,7 +129,13 @@ function applySpell(sp,idx,tgt){
   let _spreadPick=null;
   switch(sp.effect){
     case 'fire':{
-      const e=G.enemies[tgt.idx]; const fd=G.magicLevel||1; dealDmgToEnemy(e,fd,tgt.idx); log(`炎の杖：${e.name}に${fd}ダメ`,'good');
+      const fd=G.magicLevel||1;
+      if(tgt.who==='ally'){
+        const a=G.allies[tgt.idx];
+        if(a){ log(`炎の杖：${a.name}に${fd}ダメ`,'good'); dealDmgToAlly(a,fd,tgt.idx,null); }
+      } else {
+        const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,fd,tgt.idx); log(`炎の杖：${e.name}に${fd}ダメ`,'good');
+      }
     break;}
     case 'hate':{
       if(tgt.who==='ally'){

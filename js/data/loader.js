@@ -130,19 +130,20 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    // 階層データ・キーワード・グレードアップ費用・魔法プール・指輪プールをシートから取得
+    // 全シートを並列取得
     const fetches = [
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
       fetch(_sheetUrl(_SHEET_GIDS['敵キーワード'])),
       fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
       fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
+      fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [ft, kt, gt, st, rt] = await Promise.all(responses.map(r => r.text()));
+    const [ft, kt, gt, st, rt, ct] = await Promise.all(responses.map(r => r.text()));
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -206,28 +207,96 @@ async function loadGameData() {
       newCosts.forEach(c => GRADE_UP_COSTS.push(c));
     }
 
-    // ── 魔法グレード ──
+    // ── 魔法プール（種別・グレード・使用回数・価格・初期装備・説明文）──
     const spellRows = _parseCSV(st);
     spellRows.forEach(row => {
       const name = row['名前'];
-      const grade = parseInt(row['グレード']);
-      if (!name || isNaN(grade) || grade < 1) return;
+      if (!name) return;
       const spell = SPELL_POOL.find(s => s.name === name);
-      if (spell) spell.grade = grade;
+      if (!spell) return;
+      // 種別
+      const type = (row['種別'] || row['種別(wand/consumable)'] || '').trim();
+      if (type) spell.type = type;
+      // グレード
+      const grade = parseInt(row['グレード']);
+      if (!isNaN(grade) && grade >= 1) spell.grade = grade;
+      // 基本使用回数（"3-5" レンジ対応、初期装備炎の杖の usesLeft は initState で上書き）
+      const usesStr = (row['基本使用回数'] || '').trim();
+      if (usesStr) {
+        const rng = usesStr.match(/^(\d+)-(\d+)$/);
+        if (rng) { spell.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])]; delete spell.baseUses; }
+        else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
+      }
+      // 価格
+      const cost = parseInt(row['価格']);
+      if (!isNaN(cost)) spell.cost = cost;
+      // 初期装備
+      const sv = row['初期装備'];
+      if (sv === 'TRUE' || sv === '✓') spell.starterOnly = true;
+      else if (sv === 'FALSE') delete spell.starterOnly;
+      // 説明文（ゲームロジックは JS 側で管理）
+      const desc = row['効果'] || row['説明文'];
+      if (desc) spell.desc = desc;
     });
 
-    // ── 指輪グレード ──
+    // ── 指輪プール（ユニーク・グレード・価格・初期装備・説明文）──
     const ringRows = _parseCSV(rt);
     ringRows.forEach(row => {
       const name = row['名前'];
-      const grade = parseInt(row['グレード']);
-      if (!name || isNaN(grade) || grade < 1) return;
+      if (!name) return;
       const ring = RING_POOL.find(r => r.name === name);
-      if (ring) ring.grade = grade;
+      if (!ring) return;
+      // ユニーク（legend）
+      const uv = row['ユニーク'];
+      if (uv === 'TRUE' || uv === '✓') ring.legend = true;
+      else if (uv === 'FALSE') delete ring.legend;
+      // グレード
+      const grade = parseInt(row['グレード']);
+      if (!isNaN(grade) && grade >= 1) ring.grade = grade;
+      // 価格
+      const cost = parseInt(row['価格']);
+      if (!isNaN(cost)) ring.cost = cost;
+      // 初期装備
+      const sv = row['初期装備'];
+      if (sv === 'TRUE' || sv === '✓') ring.starterOnly = true;
+      else if (sv === 'FALSE') delete ring.starterOnly;
+      // 説明文
+      const desc = row['効果'] || row['説明文'];
+      if (desc) ring.desc = desc;
+    });
+
+    // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文）──
+    const charRows = _parseCSV(ct);
+    charRows.forEach(row => {
+      const name = row['名前'];
+      if (!name) return;
+      const unit = UNIT_POOL.find(u => u.name === name);
+      if (!unit) return;
+      // ネームド（unique）
+      const nv = row['ネームド'] || row['ユニーク'];
+      if (nv === 'TRUE' || nv === '✓') unit.unique = true;
+      else if (nv === 'FALSE') unit.unique = false;
+      // グレード
+      const grade = parseInt(row['グレード']);
+      if (!isNaN(grade) && grade >= 1) unit.grade = grade;
+      // パワー
+      const atk = parseInt(row['パワー'] || row['ATK']);
+      if (!isNaN(atk) && atk > 0) unit.atk = atk;
+      // ライフ
+      const hp = parseInt(row['ライフ'] || row['HP']);
+      if (!isNaN(hp) && hp > 0) unit.hp = hp;
+      // 種族
+      if (row['種族']) unit.race = row['種族'];
+      // 価格
+      const cost = parseInt(row['価格']);
+      if (!isNaN(cost)) unit.cost = cost;
+      // 説明文（effect/injury 等のゲームロジックは JS 側で管理）
+      const desc = row['効果'];
+      if (desc) unit.desc = desc;
     });
 
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length} グレードアップ費用:${GRADE_UP_COSTS.join(',')}`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} 敵KW:${ENEMY_KEYWORDS.length} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件`
     );
     return true;
 
