@@ -81,21 +81,7 @@ function _namedPool(grade){
   );
 }
 
-// 敵のキーワード能力を抽選（階層が高いほど付与確率が上がる）
-const ENEMY_KEYWORDS=['即死','毒','パワーブレイク','範囲攻撃','加護','リーダー'];
 const EFFECT_IDS=[];
-function rollKeywords(floor, isBoss, isLeader){
-  const kws=[];
-  if(floor<3) return kws;
-  const base=floor/20;
-  if(Math.random()<base*0.30) kws.push('毒');
-  if(Math.random()<base*0.25) kws.push('パワーブレイク');
-  if(Math.random()<base*0.20) kws.push('範囲攻撃');
-  if(Math.random()<base*0.15) kws.push('加護');
-  if(Math.random()<base*0.10&&!isBoss) kws.push('即死');
-  if(isLeader) kws.push('リーダー');
-  return [...new Set(kws)];
-}
 
 // ENEMY_POOL からグレードに合った敵定義を抽選
 function _pickEnemyDef(grade){
@@ -144,17 +130,16 @@ function generateEnemies(floor){
       if(i===0){
         const shield=bossShieldForFloor(floor);
         if(pickedBoss){
-          e=_mkNamedEnemy(pickedBoss,shield,rollKeywords(floor,true,false));
+          e=_mkNamedEnemy(pickedBoss,shield,[]);
         } else {
           const {atk,hp}=enemyStatsByGrade(bossGradeForFloor(floor));
-          e=_mkEnemy(atk,hp,'ボス','💀',ng,shield,rollKeywords(floor,true,false));
+          e=_mkEnemy(atk,hp,'ボス','💀',ng,shield,[]);
         }
         e.boss=true;
       } else {
         const def=_pickEnemyDef(baseG);
         const {atk,hp}=enemyStatsByGrade(baseG);
-        const kws=[...(def.keywords||[]),...rollKeywords(floor,false,false)];
-        e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
+        e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       }
       enemies.push(e);
     }
@@ -185,13 +170,12 @@ function generateEnemies(floor){
     const isElite=(i===eliteIdx);
     let e;
     if(isElite){
-      const kws=['エリート',...rollKeywords(floor,false,false)];
       if(pickedElite){
-        e=_mkNamedEnemy(pickedElite,0,kws);
+        e=_mkNamedEnemy(pickedElite,0,['エリート']);
       } else {
         const g=eliteGradeForFloor(floor);
         const {atk,hp}=enemyStatsByGrade(g);
-        e=_mkEnemy(atk,hp,'エリート','⭐',g,0,kws);
+        e=_mkEnemy(atk,hp,'エリート','⭐',g,0,['エリート']);
       }
     } else {
       const g=rollEnemyGrade(floor);

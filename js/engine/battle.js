@@ -430,23 +430,14 @@ async function enemyAttackAction(enemy, enemyIdx){
 
   // 全ターゲットを攻撃
   const hitNames=[];
-  const hitSet=new Set(); // 重複ダメージ防止（範囲攻撃の重複）
+  const hitSet=new Set();
   finalTargets.forEach(tgt=>{
     const aIdx=G.allies.indexOf(tgt);
-    const rangeHit=[];
-    if(atkVal>0&&!isGlobalAtk&&enemy.keywords&&enemy.keywords.includes('範囲攻撃')){
-      [-1,1].forEach(d=>{
-        const adj=G.allies[aIdx+d];
-        if(adj&&adj.hp>0&&!hitSet.has(adj.id)){ rangeHit.push({unit:adj,idx:aIdx+d}); }
-      });
-    }
     if(!hitSet.has(tgt.id)){
       dealDmgToAlly(tgt,atkVal,aIdx,enemy);
       hitSet.add(tgt.id);
     }
-    rangeHit.forEach(h=>{ dealDmgToAlly(h.unit,atkVal,h.idx,enemy); hitSet.add(h.unit.id); });
     if(atkVal>0&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
-    rangeHit.forEach(h=>{ if(atkVal>0) applyKeywordOnHit(enemy,h.unit); });
     hitNames.push(tgt.name);
   });
 

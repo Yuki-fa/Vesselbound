@@ -64,7 +64,7 @@ function _computeDeathRisk(){
   for(const s of survivors){
     const alive=allyState.filter(a=>!a.dead);
     if(!alive.length) break;
-    const isAoe=s.keywords.includes('範囲攻撃');
+    const isAoe=s.keywords.includes('全体攻撃');
     const targets=isAoe?alive:[alive.find(x=>x.hate)||alive[alive.length-1]];
     for(const tgt of targets){
       if(tgt.shield>0){ tgt.shield--; }
@@ -137,12 +137,11 @@ function renderField(id,units,isEnemy){
         // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
         let kwBlock='';
         if(u.keywords&&u.keywords.length){
-          const kColorMap={'即死':'#e060e0','毒':'#a060d0','パワーブレイク':'#e08060','範囲攻撃':'#e04040','加護':'#60b0e0','リーダー':'#f0d080','エリート':'#ffd700','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0'};
+          const kColorMap={'即死':'#e060e0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','再生':'#60d090'};
           const kwSpans=u.keywords.map(k=>{
             const kBase=k.replace(/\d+$/,'');
             const kColor=kColorMap[k]||kColorMap[kBase]||'#888';
-            const kLabel=k==='パワーブレイク'?`パワーブレイク${G.floor||1}`:k;
-            return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${kLabel}</span>`;
+            return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kColor};border:1px solid ${kColor}">${k}</span>`;
           }).join('');
           kwBlock=`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:4px 0 3px;padding:0 2px">${kwSpans}</div>`;
         }
@@ -274,12 +273,13 @@ function computeDesc(card){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
   const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
-  // 黄金の雫：味方キャラクターカードの効果テキスト数値を全て+grade（指輪・杖・アイテムは対象外）
+  // 黄金の雫・グリマルキン：G.alliesに実在する味方ユニットのみ適用（報酬プール/敵は対象外）
   const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
   const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
-  const gmBonus=gmRing&&card.id!==gmRing.id&&isCharCard?(gmRing.grade||1):0;
-  // グリマルキン：還魂回数分、キャラクターカードの召喚数値に加算
-  const grimBonus=isCharCard&&typeof G!=='undefined'?(G._grimalkinBonus||0):0;
+  const isAllyUnit=isCharCard&&typeof G!=='undefined'&&G.allies&&G.allies.indexOf(card)>=0;
+  const gmBonus=gmRing&&isAllyUnit?(gmRing.grade||1):0;
+  // グリマルキン：還魂回数分、味方ユニットの召喚数値に加算
+  const grimBonus=isAllyUnit&&typeof G!=='undefined'?(G._grimalkinBonus||0):0;
   const totalBonus=gmBonus+grimBonus;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
