@@ -401,15 +401,19 @@ function computeDesc(card){
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   if(totalBonus>0){
-    // グリマルキン自身のdescはgmBonusのみ適用（grimBonusは他ユニットの召喚効果に乗るもの）
-    const _bonus=card.effect==='grimalkin_sell'?gmBonus:totalBonus;
-    desc=desc
-      .replace(/(再生|毒)(\d+)|X|(\d+)/g,(m,rpfx,_rnum,n)=>{
-        if(rpfx) return m; // 再生N・毒N はそのまま（数字を変えない）
-        if(m==='X') return `<span style="color:var(--gold2);font-weight:700">${ml}</span>`;
-        return `<span style="color:var(--gold2);font-weight:700">${parseInt(n)+_bonus}</span>`;
-      })
-      .replace(/±(<span)/g,'+$1'); // ±0 → +N（0にボーナス加算後は正の数）
+    // X はゴールド色で表示
+    desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
+    // 召喚スタッツ（「A/Bの〇〇を召喚/呼び出」）のみ totalBonus を加算
+    desc=desc.replace(/(\d+)\/(\d+)(の.+?を(?:召喚|呼び出))/g,(_m,a,h,suf)=>{
+      return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+totalBonus}/${parseInt(h)+totalBonus}${suf}</span>`;
+    });
+    // グリマルキン自身のdesc：gmBonusを残りの数字に加算（「+1/+1される」→「+2/+2される」）
+    if(card.effect==='grimalkin_sell'&&gmBonus>0){
+      desc=desc.replace(/(再生|毒)(\d+)|(\d+)/g,(m,rpfx,_rn,n)=>{
+        if(rpfx) return m;
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`;
+      });
+    }
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
