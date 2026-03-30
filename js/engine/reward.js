@@ -287,23 +287,20 @@ function _renderFieldRow(el){
     const div=document.createElement('div');
     if(unit){
       div.className='slot';
-      div.style.justifyContent='flex-start';
-      div.style.padding='3px 2px 30px';
       div.draggable=true;
       const badges=[];
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
       if(unit.regen)   badges.push(`<span class="slot-badge b-regen">再生${unit.regen}</span>`);
-      if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
-      const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._battleCount||0)}戦</div>`:'';
+      const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._dragonetCount||0)}戦</div>`:'';
       const raceTag=unit.race&&unit.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${unit.race}</div>`:'';
       const _kColorMap={'即死':'#e060e0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','再生':'#60d090'};
-      const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}">${k}</span>`;};
+      const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=_KW_DESC[k]||_KW_DESC[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       const _allKws=[...(unit.keywords||[]),...(unit.counter?['反撃']:[])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
@@ -311,18 +308,9 @@ function _renderFieldRow(el){
       const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       let kwBlock='';
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-      div.innerHTML=`${badgeBlock}${gradeTag}
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
-          <div style="font-size:1.1rem">${unit.icon||'❓'}</div>
-          ${dragonetSub}
-          <div class="slot-name">${unit.name}</div>
-          ${raceTag}
-          <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
-        </div>
-        ${kwBlock}
-        <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
-        ${descTag}
-        <button class="return-btn" style="bottom:8px">還魂 +1ソウル</button>`;
+      const _infoStyle='position:absolute;inset:0 0 3px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
+      const _btmStyle='position:absolute;bottom:3px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:center;padding:0 2px 2px';
+      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}<button class="return-btn" style="position:relative;bottom:auto;margin-top:2px">還魂 +1ソウル</button></div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));

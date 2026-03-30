@@ -369,13 +369,17 @@ async function allyAttackAction(ally, allyIdx){
   });
   log(`${ally.name}(${ally.atk})→${isGlobal?'全敵':target.name}`);
 
-  // 多段攻撃（三段=同一ターゲットに再攻撃×2、二段=×1）
+  // 多段攻撃（三段=×2、二段=×1）：ターゲットが死亡した場合は新ターゲットへ
   if(ally.hp>0&&!isGlobal){
     const extraHits=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
+    let curTgt=target;
     for(let hi=0;hi<extraHits;hi++){
-      if(!target||target.hp<=0) break;
-      dealDmgToEnemy(target,ally.atk,G.enemies.indexOf(target),ally);
-      log(`${ally.name}：${hi+2}段目→${target.name}`,'good');
+      if(!curTgt||curTgt.hp<=0){
+        curTgt=G.enemies.find(e=>e&&e.hp>0);
+        if(!curTgt) break;
+      }
+      dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
+      log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
     }
   }
 
@@ -444,11 +448,17 @@ async function enemyAttackAction(enemy, enemyIdx){
 
   log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':hitNames.join('・')}`);
 
-  // 多段攻撃キーワード（三段=同一ターゲットに再攻撃×2、二段=×1）
+  // 多段攻撃キーワード（三段=×2、二段=×1）：ターゲットが死亡した場合は新ターゲットへ
   if(!isGlobalAtk&&enemy.hp>0){
     const extraHits=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
-    const reTgt=finalTargets[0];
+    let reTgt=finalTargets[0];
     for(let hi=0;hi<extraHits;hi++){
+      if(!reTgt||reTgt.hp<=0){
+        const nextLive=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
+        if(!nextLive.length) break;
+        const nextHate=nextLive.filter(a=>a.hate&&a.hateTurns>0);
+        reTgt=nextHate.length>0?nextHate[nextHate.length-1]:nextLive[nextLive.length-1];
+      }
       if(!reTgt||reTgt.hp<=0) break;
       dealDmgToAlly(reTgt,atkVal,G.allies.indexOf(reTgt),enemy);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
@@ -792,7 +802,8 @@ function onBattleEnd(){
   G.allies.forEach(a=>{
     if(!a||!a.regen||a.hp<=0) return;
     const heal=a.regen;
-    a.hp=Math.min(a.maxHp,a.hp+heal);
+    a.hp=a.hp+heal;
+    if(a.hp>a.maxHp) a.maxHp=a.hp;
     log(`✨ ${a.name} 再生${heal}：ライフ+${heal}（${a.hp}）`,'good');
   });
 
