@@ -102,7 +102,7 @@ function _kwShield(def){
 // 1階固定敵パターン（序盤バランス）
 const _FLOOR1_PRESETS=[
   [{atk:3,hp:1},{atk:2,hp:2},{atk:3,hp:1}],
-  [{atk:2,hp:2},{atk:3,hp:1},{atk:3,hp:1},{atk:2,hp:2}],
+  [{atk:3,hp:1},{atk:2,hp:1},{atk:1,hp:2},{atk:3,hp:1}],
 ];
 // 1階出現敵（限定）
 const _FLOOR1_NAMES=new Set(['ゴブリン','グール','ジャイアントラット','ウィスプ']);

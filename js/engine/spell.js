@@ -220,7 +220,7 @@ function applySpell(sp,idx,tgt){
         if(sdu.boss){ log('生贄人形：ボスには効果がない','sys'); break; }
         sdu.hp=0; processEnemyDeath(sdu,tgt.idx); // シールド無視
       } else G.allies[tgt.idx]=null;
-      log(`生贄人形：${sdu.name}を破壊`,'good');
+      log(`破壊の巻物：${sdu.name}を破壊`,'good');
     break;}
     case 'swap_stats':{
       if(!tgt) break;
@@ -265,8 +265,18 @@ function applySpell(sp,idx,tgt){
         if(iku&&iku.hp>0){
           if(!iku.keywords) iku.keywords=[];
           if(!iku.keywords.includes('即死')) iku.keywords.push('即死');
-          log(`即死の薬瓶：${iku.name}に即死を付与`,'good');
+          log(`禁呪の薬：${iku.name}に即死を付与`,'good');
         }
+      }
+    break;}
+    case 'growth_grant':{
+      const gga=G.allies[tgt.idx];
+      if(gga){
+        if(!gga.keywords) gga.keywords=[];
+        const _gi=gga.keywords.findIndex(k=>/^成長\d+$/.test(k));
+        if(_gi>=0){ const _gv=parseInt(gga.keywords[_gi].slice(2)); gga.keywords[_gi]=`成長${_gv+3}`; }
+        else gga.keywords.push('成長3');
+        log(`成長の薬：${gga.name}に成長3を付与`,'good');
       }
     break;}
     case 'golem':{

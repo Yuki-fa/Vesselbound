@@ -43,9 +43,6 @@ function goToReward(){
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
   document.getElementById('btn-retreat').style.display='none';
-  const _nextFloor=G.floor+1;
-  document.getElementById('ph-badge').innerHTML=`<span style="font-size:.75em;opacity:.75">Next</span> ${_nextFloor}`;
-  document.getElementById('ph-badge').className='ph-badge';
 
   const bossNotice=document.getElementById('boss-reward-notice');
   if(_isBossFight){
@@ -64,6 +61,10 @@ function goToReward(){
   const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='';
 
   renderAll(); // フィールド（仲間エリア）も再描画
+  // renderAll→renderControls が textContent を上書きするので必ず後で設定する
+  const _nextFloor=G.floor+1;
+  document.getElementById('ph-badge').innerHTML=`<span style="font-size:.75em;opacity:.75">Next</span> ${_nextFloor}`;
+  document.getElementById('ph-badge').className='ph-badge';
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();

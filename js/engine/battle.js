@@ -730,7 +730,7 @@ function onBattleStart(){
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
       case 'imp_start':
         { const ei=G.spells.indexOf(null);
-          if(ei>=0){ const items=drawItems(1,1); const item=items[0]||null; if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}（G1）を入手`,'good'); } } }
+          if(ei>=0){ const item=drawConsumable(); if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}を入手`,'good'); } } }
         break;
       case 'salamander_start':
         G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,4,G.enemies.indexOf(e),a); });
