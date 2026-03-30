@@ -59,9 +59,10 @@ function goToReward(){
 
   renderAll(); // フィールド（仲間エリア）も再描画
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
-  const _nextFloor=G.floor+1;
-  document.getElementById('ph-badge').innerHTML=`<span style="font-size:.75em;opacity:.75">Next</span> ${_nextFloor}`;
+  document.getElementById('ph-badge').textContent='報酬フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
+  const _nf=document.getElementById('h-next-floor');
+  if(_nf){ _nf.textContent=`Next ${G.floor+1}`; _nf.style.display=''; }
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();
@@ -386,6 +387,7 @@ function _renderFieldRow(el){
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
       if(unit.poison>0)badges.push(`<span class="slot-badge b-psn">毒${unit.poison}</span>`);
+      if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead">破滅${unit.doomed}</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';

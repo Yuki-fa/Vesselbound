@@ -13,6 +13,8 @@ function updateHUD(){
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
+  const _nf=document.getElementById('h-next-floor');
+  if(_nf&&G.phase!=='reward') _nf.style.display='none';
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');
