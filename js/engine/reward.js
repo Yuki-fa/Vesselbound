@@ -312,7 +312,7 @@ function _renderFieldRow(el){
       let kwBlock='';
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
       div.innerHTML=`${badgeBlock}${gradeTag}
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;gap:1px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
           <div style="font-size:1.1rem">${unit.icon||'❓'}</div>
           ${dragonetSub}
           <div class="slot-name">${unit.name}</div>
