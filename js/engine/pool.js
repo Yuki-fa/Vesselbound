@@ -75,10 +75,11 @@ function drawCharacters(n){
 
 // ── アイテムプールから N 個抽選 ─────────────────
 
-function drawItems(n){
+function drawItems(n, maxGrade){
   const pool=[];
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
+    if(maxGrade!=null&&(s.grade||1)>maxGrade) return; // グレード上限フィルタ
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     const c=clone(s);
     if(c.type==='wand'){
@@ -102,8 +103,10 @@ function drawItems(n){
 
 function drawRewards(n){
   if(n!=null){
-    // n指定の場合はアイテムのみ
-    return drawItems(n);
+    // 宝箱：現在の階層セクショングレード以下のアイテムのみ
+    const fd=FLOOR_DATA[G.floor];
+    const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
+    return drawItems(n, maxGrade);
   }
   const numChars=3+(Math.random()<0.5?1:0); // 3 or 4
   const numItems=6-numChars;               // 2 or 3

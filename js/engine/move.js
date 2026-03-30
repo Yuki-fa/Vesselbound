@@ -29,6 +29,7 @@ function chooseMove(nt){
   }
   else if(nt==='smithy') doSmithy();
   else if(nt==='rest') doRest();
+  else if(nt==='shop') doShop();
   // chest は goToReward() 内で処理されるため、ここには到達しない
 }
 

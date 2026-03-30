@@ -215,10 +215,11 @@ function generateMoveMasks(){
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは各10%で休息所（祭壇は出現しない）
+  // 最初のスロットは必ず戦闘、追加スロットは各10%で休息所・商店（祭壇は出現しない）
   // 遠見の指輪：祭壇・商店・宿屋の出現率2倍
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
   const restRate=hasFarsight?0.20:0.10;
+  const shopRate=hasFarsight?0.20:0.10;
 
   // 観察秘術：休息所を確定で1つ出現させる
   let forceNonBattle=G.arcanaForceNode?'rest':null;
@@ -234,6 +235,7 @@ function generateMoveMasks(){
     if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
     if(r<restRate&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    else if(r<restRate+shopRate&&!usedNon.has('shop')){ masks[idx]='shop'; usedNon.add('shop'); }
   });
   return masks;
 }

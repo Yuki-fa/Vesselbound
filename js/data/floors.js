@@ -53,4 +53,5 @@ const NODE_TYPES={
   rest:  {icon:'🏕️', label:'宿屋',    desc:'全仲間±0/+5 / 行動権+1 / ランダムなネームド1人',      cls:'t-rest'},
   chest: {icon:'📦', label:'宝箱',    desc:'カードを1枚獲得',                                    cls:'t-chest'},
   boss:  {icon:'💀', label:'ボス戦',  desc:'固定強敵との決戦',                                   cls:'t-boss'},
+  shop:  {icon:'🏪', label:'商店',    desc:'指輪を購入できる',                                   cls:'t-shop'},
 };

@@ -189,7 +189,10 @@ async function loadGameData() {
       }
       FLOOR_DATA[fl] = {
         power: parseInt(row['power']) || 10,
-        grade: Math.max(1, parseFloat(row['グレード'] || row['grade']) || 1),
+        // 補正：敵ステータス算出用スケーリング（小数値）
+        grade: Math.max(1, parseFloat(row['補正'] || row['グレード'] || row['grade']) || 1),
+        // sectionGrade：アイテムドロップグレード上限用（整数1-4）
+        sectionGrade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         wands: wands,
       };
       if (isBoss) {
