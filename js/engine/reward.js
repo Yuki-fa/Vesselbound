@@ -14,22 +14,24 @@ function goToReward(){
   _rewCards=drawRewards();
   G.phase='reward';
 
-  // エリート撃破ボーナス：確定でユニーク指輪を無料で報酬欄に追加（通常宝箱処理より先に実行）
+  // エリート撃破ボーナス：レアリティ2-3の宝箱を追加
   if(G._eliteKilled){
     G._pendingTreasure=false; // 通常宝箱処理をスキップ
-    const eliteRing=drawUniqueRing();
-    if(eliteRing){
-      eliteRing._isLegend=true; eliteRing._isTreasure=true; eliteRing._buyPrice=0;
-      _rewCards.push(eliteRing);
-    }
+    const fd=FLOOR_DATA[G.floor];
+    const maxGrade=fd?(fd.sectionGrade||1):1;
+    const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);
+    if(eliteItem){ _rewCards.push(eliteItem); }
+    log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
   }
 
   // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
   if(G._pendingTreasure){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
-    const treasureItem=drawRewards(1)[0];
-    if(treasureItem){ treasureItem._buyPrice=0; treasureItem._isTreasure=true; _rewCards.push(treasureItem); }
+    const fd2=FLOOR_DATA[G.floor];
+    const maxGrade2=fd2?(fd2.sectionGrade||1):1;
+    const treasureItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},maxGrade2);
+    if(treasureItem){ _rewCards.push(treasureItem); }
     log('📦 宝箱の中身が報酬欄に追加された！','gold');
     G._pendingTreasure=false;
   }
@@ -45,13 +47,8 @@ function goToReward(){
   document.getElementById('btn-retreat').style.display='none';
 
   const bossNotice=document.getElementById('boss-reward-notice');
-  if(_isBossFight){
-    G.ringSlots=Math.min(4,G.ringSlots+1);
-    let bonusMsg=`🎁 ボスクリア：指輪スロット+1（現在${G.ringSlots}枠）`;
-    if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent=bonusMsg; }
-  } else if(G._eliteKilled){
-    if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent='⭐ エリート撃破：ユニーク指輪が宝箱から出現！（無料）'; }
-    log('⭐ エリート撃破：ユニーク指輪を獲得！','gold');
+  if(G._eliteKilled){
+    if(bossNotice){ bossNotice.style.display=''; bossNotice.textContent='⭐ エリート撃破：高レアリティ宝箱が出現！'; }
   } else {
     if(bossNotice) bossNotice.style.display='none';
   }
@@ -72,6 +69,88 @@ function goToReward(){
   renderFieldEditor();
   setHint('報酬を獲得してください');
   updateHUD();
+  if(_isBossFight) _showBossRewardOverlay();
+}
+
+// ── ボス報酬選択オーバーレイ ─────────────────────
+
+const _BOSS_REWARD_OPTIONS=[
+  {id:'ring_slot',   label:'指輪スロット拡張',     desc:'指輪を装備できるスロットが+1される。',     apply:()=>{ G.ringSlots++; log(`ボス報酬：指輪スロット+1（現在${G.ringSlots}枠）`,'gold'); }},
+  {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||7)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
+  {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
+  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; log(`ボス報酬：行動権永続+1（現在${G._bonusAction}）`,'gold'); }},
+  {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
+  {id:'unique_ring', label:'ユニーク指輪',            desc:'現在のグレードのランダムなユニーク指輪を1つ得る。', apply:()=>{
+    const seen=G._seenLegendRings||new Set();
+    const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
+    if(!pool.length){ G.gold+=5; updateHUD(); log('ボス報酬：ユニーク指輪なし→ソウル+5','gold'); return; }
+    const fd=FLOOR_DATA[G.floor];
+    const gr=fd?(fd.sectionGrade||1):1;
+    const r=clone(randFrom(pool));
+    r.grade=gr; r._buyPrice=0; r._isTreasure=true; r._isLegend=true;
+    const ri=G.rings.indexOf(null);
+    if(ri>=0){ G.rings[ri]=r; G._seenLegendRings.add(r.id); log(`ボス報酬：${r.name}(G${gr})を取得`,'gold'); }
+    else { _rewCards.unshift(r); renderRewCards(); }
+  }},
+];
+
+function _showBossRewardOverlay(){
+  // 3つランダムに選ぶ
+  const shuffled=[..._BOSS_REWARD_OPTIONS].sort(()=>Math.random()-0.5);
+  const choices=shuffled.slice(0,3);
+
+  // ユニーク指輪が選ばれた場合は具体的なリング名を表示
+  choices.forEach(opt=>{
+    if(opt.id==='unique_ring'){
+      const seen=G._seenLegendRings||new Set();
+      const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
+      if(pool.length){
+        const r=randFrom(pool);
+        opt._uniqueRingPreview=`${r.name}`;
+      }
+    }
+  });
+
+  // オーバーレイ生成
+  const ov=document.createElement('div');
+  ov.id='boss-reward-overlay';
+  ov.style=`position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px`;
+  const title=document.createElement('div');
+  title.style='font-size:1.3rem;font-weight:700;color:var(--gold2);margin-bottom:8px';
+  title.textContent='🏆 ボスクリア報酬 — 1つ選択してください';
+  ov.appendChild(title);
+  const row=document.createElement('div');
+  row.style='display:flex;gap:12px;flex-wrap:wrap;justify-content:center';
+  choices.forEach(opt=>{
+    const card=document.createElement('div');
+    card.style=`background:var(--card);border:2px solid var(--gold);border-radius:10px;padding:16px 20px;min-width:160px;max-width:210px;cursor:pointer;text-align:center;transition:transform .15s`;
+    card.onmouseenter=()=>card.style.transform='scale(1.04)';
+    card.onmouseleave=()=>card.style.transform='';
+    const labelEl=document.createElement('div');
+    labelEl.style='font-weight:700;font-size:.95rem;color:var(--gold2);margin-bottom:6px';
+    labelEl.textContent=opt.label;
+    const descEl=document.createElement('div');
+    descEl.style='font-size:.75rem;color:var(--text2);line-height:1.4';
+    descEl.textContent=opt._uniqueRingPreview?`${opt.desc}\n（${opt._uniqueRingPreview}）`:opt.desc;
+    card.appendChild(labelEl);
+    card.appendChild(descEl);
+    card.onclick=()=>{
+      ov.remove();
+      opt.apply();
+      // ボス確定宝箱（R3）を報酬欄に追加
+      const fd=FLOOR_DATA[G.floor];
+      const maxGrade=fd?(fd.sectionGrade||1):1;
+      const bossTreasure=drawTreasure({3:100},{wand:30,consumable:20,ring:50},maxGrade);
+      if(bossTreasure){ _rewCards.push(bossTreasure); log('🏆 ボス宝箱（R3）が出現！','gold'); }
+      document.getElementById('rw-gold').textContent=G.gold;
+      updateHUD();
+      renderRewCards();
+      renderHandEditor();
+    };
+    row.appendChild(card);
+  });
+  ov.appendChild(row);
+  document.body.appendChild(ov);
 }
 
 // ── 行き先ノード表示 ───────────────────────────
@@ -401,8 +480,9 @@ function renderHeRingSlots(){
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
-      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div><button class="discard-btn" title="破棄">破棄</button>`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardRing(i); };
+      const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
+      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
+      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardRing(i); };
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
@@ -424,8 +504,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       div.className=`card ${t}`;
       div.draggable=true;
       const uses=t==='wand'?` (残${card.usesLeft||0})`:''
-      div.innerHTML=`<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}${uses}</div><div class="card-desc">${computeDesc(card)}</div><button class="discard-btn" title="破棄">破棄</button>`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); };
+      const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
+      div.innerHTML=`<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}${uses}</div><div class="card-desc">${computeDesc(card)}</div>${_spellBtn}`;
+      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardHeCard(arrName,i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });

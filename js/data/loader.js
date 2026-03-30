@@ -240,6 +240,9 @@ async function loadGameData() {
       // 価格
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) spell.cost = cost;
+      // レアリティ
+      const rarity = parseInt(row['レアリティ']);
+      if (!isNaN(rarity) && rarity >= 1) spell.rarity = rarity;
       // 初期装備
       const sv = row['初期装備'];
       if (sv === 'TRUE' || sv === '✓') spell.starterOnly = true;
@@ -266,6 +269,9 @@ async function loadGameData() {
       // 価格
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) ring.cost = cost;
+      // レアリティ
+      const rarity = parseInt(row['レアリティ']);
+      if (!isNaN(rarity) && rarity >= 1) ring.rarity = rarity;
       // 初期装備
       const sv = row['初期装備'];
       if (sv === 'TRUE' || sv === '✓') ring.starterOnly = true;
@@ -302,6 +308,8 @@ async function loadGameData() {
       else if (nv === 'FALSE') unit.unique = false;
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
+      const rarity = parseInt(row['レアリティ']);
+      if (!isNaN(rarity) && rarity >= 1) unit.rarity = rarity;
       const atk = parseInt(row['パワー'] || row['ATK']);
       if (!isNaN(atk) && atk > 0) unit.atk = atk;
       const hp = parseInt(row['ライフ'] || row['HP']);

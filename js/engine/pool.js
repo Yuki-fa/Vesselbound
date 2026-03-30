@@ -119,6 +119,40 @@ function _drawByType(type, n, maxGrade){
   return res;
 }
 
+// ── 宝箱ドロップ抽選 ────────────────────────────
+function _rollRarity(weights){
+  let roll=Math.random()*100, cum=0;
+  for(const [r,w] of Object.entries(weights)){ cum+=parseFloat(w); if(roll<cum) return parseInt(r); }
+  return parseInt(Object.keys(weights).pop());
+}
+
+// rarityWeights: e.g. {1:60,2:30,3:10} / typeWeights: e.g. {wand:40,consumable:40,ring:20}
+function drawTreasure(rarityWeights, typeWeights, maxGrade){
+  const rarity=_rollRarity(rarityWeights);
+  const wv=typeWeights.wand||0, cv=typeWeights.consumable||0;
+  const roll=Math.random()*100;
+  const type=roll<wv?'wand':roll<wv+cv?'consumable':'ring';
+
+  let pool, c;
+  if(type==='ring'){
+    pool=RING_POOL.filter(r=>!r.starterOnly&&(r.rarity||1)===rarity);
+    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly);
+    if(!pool.length) return null;
+    c=clone(randFrom(pool));
+    c.grade=maxGrade;
+  } else {
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&(s.rarity||1)===rarity);
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type);
+    if(!pool.length) return null;
+    c=clone(randFrom(pool));
+    if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
+  }
+  c._rarity=rarity;
+  c._buyPrice=0;
+  c._isTreasure=true;
+  return c;
+}
+
 function drawRewards(n){
   if(n!=null){
     // 宝箱：現在の階層セクショングレード以下のアイテムのみ
