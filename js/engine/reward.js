@@ -347,8 +347,11 @@ function sellFieldUnit(idx){
   // グリマルキン：フィールドに残っているときに別の仲間が還魂されたらボーナス発動
   const grimalkin=G.allies.find(a=>a&&a.effect==='grimalkin_sell');
   if(grimalkin){
-    G._grimalkinBonus=(G._grimalkinBonus||0)+1;
-    log(`${grimalkin.name}：以後の召喚ユニットが+1/+1（計${G._grimalkinBonus}回）`,'good');
+    const _gmRing=G.rings.find(r=>r&&r.unique==='great_mother');
+    const _gmB=_gmRing?(_gmRing.grade||1):0;
+    const _incr=1+_gmB;
+    G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
+    log(`${grimalkin.name}：以後の召喚ユニットが+${_incr}/+${_incr}（累計+${G._grimalkinBonus}/+${G._grimalkinBonus}）`,'good');
   }
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();

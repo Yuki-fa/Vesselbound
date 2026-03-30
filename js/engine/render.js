@@ -305,9 +305,14 @@ function computeDesc(card){
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   if(totalBonus>0){
+    // グリマルキン自身のdescはgmBonusのみ適用（grimBonusは他ユニットの召喚効果に乗るもの）
+    const _bonus=card.effect==='grimalkin_sell'?gmBonus:totalBonus;
     desc=desc
-      .replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`)
-      .replace(/(\d+)/g,n=>`<span style="color:var(--gold2);font-weight:700">${parseInt(n)+totalBonus}</span>`)
+      .replace(/(再生|毒)(\d+)|X|(\d+)/g,(m,rpfx,_rnum,n)=>{
+        if(rpfx) return m; // 再生N・毒N はそのまま（数字を変えない）
+        if(m==='X') return `<span style="color:var(--gold2);font-weight:700">${ml}</span>`;
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(n)+_bonus}</span>`;
+      })
       .replace(/±(<span)/g,'+$1'); // ±0 → +N（0にボーナス加算後は正の数）
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
