@@ -350,6 +350,7 @@ function applySpell(sp,idx,tgt){
   }
 
   if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
+  syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
   if(checkInstantVictory()) return;
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動

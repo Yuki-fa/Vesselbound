@@ -36,7 +36,7 @@ const UNIT_POOL = [
   {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'①：戦闘終了時、2ソウルを得る。', effect:'gnome_end'},
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:''},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'負傷：ランダムな敵に攻撃する。', injury:'minotaur'},
-  {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:8,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃', counter:true},
+  {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:1,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'このキャラクターのパワーは魔術レベルに等しい。', effect:'harpy_magic'},
   {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'追加：即死（20%）', keywords:['即死']},
   {id:'c_hellhound',  name:'ヘルハウンド',     race:'悪魔', grade:2, atk:11, hp:15, cost:5,  unique:false, icon:'🐕', desc:'反撃', counter:true},
   {id:'c_centaur',    name:'ケンタウロス',     race:'亜人', grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🏇', desc:'2回攻撃', keywords:['二段攻撃']},

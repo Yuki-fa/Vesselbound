@@ -258,8 +258,9 @@ function applyTurnStart(){
       e.shield=(e.shield||0)+1; log(`${e.name}：ターン開始時シールドを得た`,'bad');
     }
   });
-  // 城壁ATK同期
+  // 城壁・ハーピーATK同期
   syncWallAtk();
+  syncHarpyAtk();
   // patience 指輪：battle_start トリガーをターン開始時に発動
   if(G.rings&&G.rings.some(r=>r&&r.unique==='patience')) fireTrigger('battle_start');
   checkSolitudeBuff();
@@ -753,6 +754,8 @@ function onBattleStart(){
   // patience 指輪がない場合、battle_start 指輪トリガーを発火
   const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
   if(!_hasPatience) fireTrigger('battle_start');
+  // harpy_magic：魔術レベルが確定した後にATKを同期
+  syncHarpyAtk();
 }
 
 // ── 戦闘終了時処理（勝利・撤退共通）────────────────

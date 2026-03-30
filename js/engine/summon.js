@@ -268,6 +268,12 @@ function syncWallAtk(){
   walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
 }
 
+// ハーピーのATKを現在の魔術レベルに同期する
+function syncHarpyAtk(){
+  const ml=G.magicLevel||1;
+  G.allies.forEach(a=>{ if(a&&a.hp>0&&a.effect==='harpy_magic'){ a.atk=ml; a.baseAtk=ml; } });
+}
+
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）
 function checkSolitudeBuff(){
   const solRing=G.rings&&G.rings.find(r=>r&&r.unique==='solitude');
