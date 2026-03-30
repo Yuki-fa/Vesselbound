@@ -44,7 +44,7 @@ function enemyStatsByGrade(g){
 function bossShieldForFloor(floor){
   const fd=FLOOR_DATA[floor];
   if(fd&&fd.bossShield!==undefined) return fd.bossShield;
-  return BOSS_SHIELD[floor]||3;
+  return BOSS_SHIELD[floor]??0;
 }
 
 // 敵ユニットを1体生成するヘルパー
