@@ -8,6 +8,7 @@ function calcActions(){
   let n=1;
   G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=(r.grade||1); });
   if(G._bonusAction) n+=G._bonusAction; // 宿屋ボーナス（永続）
+  if(G._minotaurBonus) n+=G._minotaurBonus; // ミノタウロス：ボス戦で+1
   return n;
 }
 
@@ -46,7 +47,7 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
     ringId:ring.id,ringIdx:G.rings.indexOf(ring),
     hate:enc.includes('憎悪'),hateTurns:enc.includes('憎悪')?99:0,
     instadead:false,sealed:0,nullified:0,
-    enchants:enc,regen:enc.includes('再生')?(ring.regen||3):(ring.regen||0),
+    enchants:enc,regen:0,
     onDeath:ring.onDeath,onHit:ring.onHit,
     taunt50:ring.taunt50||false,guardian:ring.guardian||false,
     unique:ring.unique,
@@ -62,6 +63,27 @@ function addAlly(unit, fromRingId){
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
+  // ケンタウロス：召喚時、魔術レベル+2
+  if(unit.effect==='centaur_summon'){
+    G.magicLevel=(G.magicLevel||1)+2;
+    if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+    log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
+  }
+  // キメラ：召喚時、ランダムなキーワード3つを得る
+  if(unit.effect==='chimera_summon'){
+    const _pool=['即死','浸食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
+    const _avail=[..._pool];
+    const _chosen=[];
+    for(let _i=0;_i<3&&_avail.length>0;_i++){
+      const _idx=Math.floor(Math.random()*_avail.length);
+      _chosen.push(_avail.splice(_idx,1)[0]);
+    }
+    if(!unit.keywords) unit.keywords=[];
+    _chosen.forEach(k=>{ if(!unit.keywords.includes(k)) unit.keywords.push(k); });
+    if(_chosen.includes('反撃')) unit.counter=true;
+    if(_chosen.includes('ヘイト')){ unit.hate=true; unit.hateTurns=99; }
+    log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
+  }
   if(!G._djinnActive){
     fireTrigger('on_summon', fromRingId);
     if(G.allies.filter(a=>a&&a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
@@ -182,7 +204,7 @@ function summonAllies(){
         ringId:ring.id,ringIdx:hi,
         hate:enc.includes('憎悪'),hateTurns:enc.includes('憎悪')?99:0,
         instadead:false,sealed:0,nullified:0,
-        enchants:enc,regen:enc.includes('再生')?(ring.regen||3):(ring.regen||0),
+        enchants:enc,regen:0,
         onDeath:ring.onDeath,onHit:ring.onHit,
         taunt50:ring.taunt50||false,guardian:ring.guardian||false,
         unique:ring.unique,keywords:ring.keywords||[],poison:0,shield:0,_dp:false,

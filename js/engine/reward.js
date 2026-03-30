@@ -295,7 +295,6 @@ function _renderFieldRow(el){
       const badges=[];
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
-      if(unit.regen)   badges.push(`<span class="slot-badge b-regen">再生${unit.regen}</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';
@@ -303,7 +302,7 @@ function _renderFieldRow(el){
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(unit._dragonetBonus||0))-(unit._dragonetCount||0)}戦</div>`:'';
       const raceTag=unit.race&&unit.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${unit.race}</div>`:'';
-      const _kColorMap={'即死':'#e060e0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','再生':'#60d090'};
+      const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       const _allKws=[...(unit.keywords||[]),...(unit.counter?['反撃']:[])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
@@ -352,6 +351,15 @@ function sellFieldUnit(idx){
     const _incr=1+_gmB;
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
     log(`${grimalkin.name}：以後の召喚ユニットが+${_incr}/+${_incr}（累計+${G._grimalkinBonus}/+${G._grimalkinBonus}）`,'good');
+  }
+  // コカトリス：ソウルストーン以外の仲間を還魂すると0/1の「ソウルストーン」を召喚
+  if(unit.name!=='ソウルストーン'){
+    G.allies.forEach(cc=>{
+      if(!cc||cc.hp<=0||cc.effect!=='cocatrice_sell') return;
+      const ssDef={id:'c_soulstone',name:'ソウルストーン',race:'-',grade:1,atk:0,hp:1,cost:0,unique:false,icon:'💎',desc:''};
+      const empty=G.allies.findIndex(s=>!s||s.hp<=0);
+      if(empty>=0){ G.allies[empty]=makeUnitFromDef(ssDef); log(`${cc.name}：ソウルストーン(0/1)を召喚`,'good'); }
+    });
   }
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();

@@ -233,10 +233,6 @@ function applySpell(sp,idx,tgt){
       const csa=G.allies[tgt.idx];
       if(csa){ csa.counter=true; log(`無力化の巻物：${csa.name}に反撃付与`,'good'); }
     break;}
-    case 'regen_grant':{
-      const rga=G.allies[tgt.idx];
-      if(rga){ rga.regen=(rga.regen||0)+3; log(`アンデッドの秘宝：${rga.name}に再生${rga.regen}付与`,'good'); }
-    break;}
     case 'purify_hate':{
       if(!tgt) break;
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
@@ -350,6 +346,15 @@ function applySpell(sp,idx,tgt){
   }
 
   if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
+  // ヘルハウンド：アイテム使用時にランダムな敵を攻撃
+  G.allies.forEach(hh=>{
+    if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
+    const _liveE=G.enemies.filter(e=>e&&e.hp>0);
+    if(!_liveE.length) return;
+    const _ht=randFrom(_liveE);
+    dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
+    log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+  });
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
   if(checkInstantVictory()) return;

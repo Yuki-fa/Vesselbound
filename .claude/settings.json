@@ -3,6 +3,17 @@
     "allow": [
       "WebFetch(domain:docs.google.com)",
       "WebFetch(domain:doc-0g-1o-sheets.googleusercontent.com)"
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git status*)",
+      "Bash(cat*)",
+      "Bash(head*)",
+      "Bash(tail*)",
+      "Bash(grep*)",
+      "Bash(ls*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)"
     ]
   }
 }
