@@ -385,6 +385,7 @@ function _renderFieldRow(el){
       const badges=[];
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
+      if(unit.poison>0)badges.push(`<span class="slot-badge b-psn">毒${unit.poison}</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';

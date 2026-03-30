@@ -18,25 +18,41 @@ function useSpell(idx){
   else applySpell(sp,idx,null);
 }
 
-// 転移の杖：2体選択UI
+// 転移の杖：2体選択UI（味方-味方 または 敵-敵）
 function startSwapPick(idx){
+  clearSelectable(); // 前の選択状態を必ずクリア
   _swapFirst=-1;
-  setHint('入れ替える1体目を選択（ESCでキャンセル）');
+  setHint('入れ替える1体目を選択（味方同士または敵同士・ESCでキャンセル）');
+  // 味方スロット
   document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
     if(G.allies[i]&&G.allies[i].hp>0){
       slot.classList.add('selectable');
       slot.onclick=()=>{
         clearSelectable();
         _swapFirst=i;
-        setHint(`${G.allies[i].name}を選択。2体目を選択（ESCでキャンセル）`);
-        document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot2,j)=>{
+        setHint(`${G.allies[i].name}を選択。2体目の味方を選択（ESCでキャンセル）`);
+        document.getElementById('f-ally').querySelectorAll('.slot').forEach((s2,j)=>{
           if(G.allies[j]&&G.allies[j].hp>0&&j!==i){
-            slot2.classList.add('selectable');
-            slot2.onclick=()=>{
-              clearSelectable();
-              applySpell(G.spells[idx],idx,{who:'pair',idx1:_swapFirst,idx2:j});
-              _swapFirst=-1;
-            };
+            s2.classList.add('selectable');
+            s2.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'pair',team:'ally',idx1:_swapFirst,idx2:j}); _swapFirst=-1; };
+          }
+        });
+        document.addEventListener('keydown',escCancel,{once:true});
+      };
+    }
+  });
+  // 敵スロット
+  document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+    if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
+      slot.classList.add('selectable');
+      slot.onclick=()=>{
+        clearSelectable();
+        _swapFirst=i;
+        setHint(`${G.enemies[i].name}を選択。2体目の敵を選択（ESCでキャンセル）`);
+        document.getElementById('f-enemy').querySelectorAll('.slot').forEach((s2,j)=>{
+          if(G.enemies[j]&&G.enemies[j].hp>0&&!s2.classList.contains('has-move')&&j!==i){
+            s2.classList.add('selectable');
+            s2.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'pair',team:'enemy',idx1:_swapFirst,idx2:j}); _swapFirst=-1; };
           }
         });
         document.addEventListener('keydown',escCancel,{once:true});
@@ -183,9 +199,10 @@ function applySpell(sp,idx,tgt){
     case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ const bav=G.magicLevel||1; ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); } break;}
     case 'swap_pos':{
       if(!tgt||tgt.who!=='pair') break;
-      const {idx1,idx2}=tgt;
-      const tmp=G.allies[idx1]; G.allies[idx1]=G.allies[idx2]; G.allies[idx2]=tmp;
-      log(`転移：スロット${idx1+1}↔${idx2+1}を入れ替え`,'good');
+      const {idx1,idx2,team}=tgt;
+      const _swapArr=team==='enemy'?G.enemies:G.allies;
+      const tmp=_swapArr[idx1]; _swapArr[idx1]=_swapArr[idx2]; _swapArr[idx2]=tmp;
+      log(`転移：${team==='enemy'?'敵':'味方'}スロット${idx1+1}↔${idx2+1}を入れ替え`,'good');
     break;}
     case 'meteor_multi':{
       const hits=G.magicLevel||1;

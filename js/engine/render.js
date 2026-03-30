@@ -395,23 +395,28 @@ function computeDesc(card){
   const gmBonus=gmRing&&isAllyUnit?(gmRing.grade||1):0;
   // グリマルキン：還魂回数分、味方ユニットの召喚数値に加算
   const grimBonus=isAllyUnit&&typeof G!=='undefined'?(G._grimalkinBonus||0):0;
-  const totalBonus=gmBonus+grimBonus;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
-  if(gmBonus>0||grimBonus>0){
-    // X はゴールド色で表示（魔術レベル＋gmBonus）
-    desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
-    // 召喚スタッツ（「A/Bの〇〇を召喚/呼び出」）に totalBonus（gm＋grim）を加算
-    desc=desc.replace(/(\d+)\/(\d+)(の.+?を(?:召喚|呼び出))/g,(_m,a,h,suf)=>{
-      return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+totalBonus}/${parseInt(h)+totalBonus}${suf}</span>`;
-    });
-    // 黄金の雫・グリマルキン：残りの全ての数字に totalBonus を加算（既にspan化済みのものはスキップ）
-    if(totalBonus>0){
-      desc=desc.replace(/(<span[^>]*>[\s\S]*?<\/span>)|(\d+)/g,(_m,spanned,num)=>{
-        if(spanned) return spanned;
-        return `<span style="color:var(--gold2);font-weight:700">${parseInt(num)+totalBonus}</span>`;
+  // グリマルキン：「数字/数字、」形式の召喚スタッツのみに grimBonus を加算
+  // 黄金の雫：X表示と全ての残数値に gmBonus を加算
+  // 両方ある場合：召喚スタッツは (gmBonus+grimBonus)、他の数値は gmBonus のみ
+  if(grimBonus>0||gmBonus>0){
+    const summonBonus=gmBonus+grimBonus;
+    if(summonBonus>0){
+      // 「数字/数字、」パターンのみを対象にする（±0/+1 や +X/+X などは絶対に対象外）
+      desc=desc.replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>{
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+summonBonus}/${parseInt(h)+summonBonus}、</span>`;
       });
     }
+  }
+  if(gmBonus>0){
+    // X はゴールド色で表示（魔術レベル＋gmBonus）
+    desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
+    // 黄金の雫：残りの全ての数字に gmBonus を加算（span化済みはスキップ）
+    desc=desc.replace(/(<span[^>]*>[\s\S]*?<\/span>)|(\d+)/g,(_m,spanned,num)=>{
+      if(spanned) return spanned;
+      return `<span style="color:var(--gold2);font-weight:700">${parseInt(num)+gmBonus}</span>`;
+    });
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }

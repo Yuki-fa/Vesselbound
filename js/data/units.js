@@ -11,7 +11,7 @@ const UNIT_POOL = [
   {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'①：死亡した場合、戦闘終了時にライフ1で召喚する。', effect:'skeleton_revive'},
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'終戦：±0/+4を得る。',                        effect:'zombie_end'},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：最も左の空き地に1/3、獣の「ナイトキャット」を召喚する。', injury:'kettcat'},
-  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'①：仲間を還魂すると、以後の全ての戦闘中に召喚される仲間が+1/+1される。', effect:'grimalkin_sell'},
+  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'誘発：仲間を還魂すると、以後キャラクターの効果で召喚される仲間が+1/+1される。', effect:'grimalkin_sell'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'①：攻撃時、+1/±0を得る。',                  effect:'elf_attack'},
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'①：攻撃時、全ての味方が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'開戦：ランダムなG1のアイテムを得る。',         effect:'imp_start'},
@@ -32,7 +32,7 @@ const UNIT_POOL = [
 
   // ─── G2 通常 ───
   {id:'c_worm',       name:'ワーム',           race:'竜',   grade:2, atk:9,  hp:22, cost:7,  unique:false, icon:'🪱', desc:'反撃　①：負傷時、全ての味方が+1/+1を得る。', counter:true, injury:'worm'},
-  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🦅', desc:'誘発：「ソウルストーン」以外の仲間を還魂すると、0/1の「ソウルストーン」を召喚する。', effect:'cocatrice_sell'},
+  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🦅', desc:'誘発：「ソウルストーン」以外の仲間を還魂すると、0/1、「ソウルストーン」を召喚する。', effect:'cocatrice_sell'},
   {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'常時：宝箱出現率が2倍になる。（宝箱は1戦闘に1個までしか出現しない）', effect:'gnome_treasure'},
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　二段攻撃',                             counter:true, keywords:['二段攻撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：敵にボスがいる場合、行動回数+1を得る。', effect:'minotaur_start', keywords:['成長3']},
