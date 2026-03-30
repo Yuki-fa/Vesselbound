@@ -48,10 +48,9 @@ const FLOOR_DATA=[null,
 
 // マップノードの種類定義
 const NODE_TYPES={
-  battle:{icon:'⚔️', label:'戦闘',    desc:'次の敵と戦う',                                       cls:'t-battle'},
-  smithy:{icon:'⛩️', label:'祭壇',    desc:'全仲間シールド付与 / 魔術レベル+3 / ランダム指輪1つ', cls:'t-smithy'},
-  rest:  {icon:'🏕️', label:'宿屋',    desc:'全仲間±0/+5 / 行動権+1 / ランダムなネームド1人',      cls:'t-rest'},
-  chest: {icon:'📦', label:'宝箱',    desc:'カードを1枚獲得',                                    cls:'t-chest'},
-  boss:  {icon:'💀', label:'ボス戦',  desc:'固定強敵との決戦',                                   cls:'t-boss'},
-  shop:  {icon:'🏪', label:'商店',    desc:'指輪を購入できる',                                   cls:'t-shop'},
+  battle:{icon:'⚔️', label:'戦闘',   desc:'次の敵と戦う',                          cls:'t-battle'},
+  smithy:{icon:'⛩️', label:'祭壇',   desc:'魔術レベル+3 / 行動権+1 / 全仲間±0/+5', cls:'t-smithy'},
+  chest: {icon:'📦', label:'宝箱',   desc:'カードを1枚獲得',                       cls:'t-chest'},
+  boss:  {icon:'💀', label:'ボス戦', desc:'固定強敵との決戦',                      cls:'t-boss'},
+  shop:  {icon:'🛒', label:'行商',   desc:'指輪を購入できる',                      cls:'t-shop'},
 };

@@ -104,6 +104,8 @@ const _FLOOR1_PRESETS=[
   [{atk:3,hp:1},{atk:2,hp:2},{atk:3,hp:1}],
   [{atk:2,hp:2},{atk:3,hp:1},{atk:3,hp:1},{atk:2,hp:2}],
 ];
+// 1階出現敵（限定）
+const _FLOOR1_NAMES=new Set(['ゴブリン','グール','ジャイアントラット','ウィスプ']);
 
 // 指定階層の敵グループを生成
 function generateEnemies(floor){
@@ -111,11 +113,12 @@ function generateEnemies(floor){
   if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [{id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'亜人'}]; }
   const isBoss=!!fd.boss;
 
-  // 1階は固定敵パターンを使用
+  // 1階は固定敵パターンを使用（出現敵は限定リストから）
   if(floor===1&&!isBoss){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
+    const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
     return preset.map(p=>{
-      const def=_pickEnemyDef(1);
+      const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
       return _mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     });
   }
@@ -189,6 +192,17 @@ function generateEnemies(floor){
     }
     enemies.push(e);
   }
+  // 非ボス戦：キーワード持ちの敵は最大2体（エリートは除く）
+  if(!isBoss){
+    let _kwCount=0;
+    enemies.forEach(e=>{
+      if(!e||!e.keywords) return;
+      const _ownKws=e.keywords.filter(k=>k!=='エリート'&&k!=='ボス');
+      if(!_ownKws.length) return;
+      _kwCount++;
+      if(_kwCount>2) e.keywords=e.keywords.filter(k=>k==='エリート'||k==='ボス');
+    });
+  }
   return enemies;
 }
 
@@ -215,27 +229,24 @@ function generateMoveMasks(){
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは各10%で休息所・商店（祭壇は出現しない）
-  // 遠見の指輪：祭壇・商店・宿屋の出現率2倍
+  // 最初のスロットは必ず戦闘、追加スロットは各10%で商店
+  // 遠見の指輪：商店の出現率2倍
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
-  const restRate=hasFarsight?0.20:0.10;
   const shopRate=hasFarsight?0.20:0.10;
 
-  // 観察秘術：休息所を確定で1つ出現させる
-  let forceNonBattle=G.arcanaForceNode?'rest':null;
+  // 観察秘術：祭壇を確定で1つ出現させる
+  let forceNonBattle=G.arcanaForceNode?'smithy':null;
   if(forceNonBattle) G.arcanaForceNode=false;
 
   const usedNon=new Set();
   chosen.forEach((idx,ci)=>{
     if(ci===0){
-      if(forceNonBattle){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); }
-      else masks[idx]='battle';
+      masks[idx]='battle'; // 戦闘マスは必ず出現
       return;
     }
     if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
-    if(r<restRate&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
-    else if(r<restRate+shopRate&&!usedNon.has('shop')){ masks[idx]='shop'; usedNon.add('shop'); }
+    if(r<shopRate&&!usedNon.has('shop')){ masks[idx]='shop'; usedNon.add('shop'); }
   });
   return masks;
 }

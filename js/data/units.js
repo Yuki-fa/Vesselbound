@@ -20,7 +20,7 @@ const UNIT_POOL = [
   {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'①：負傷時、以後の全ての「不死」が+1/±0を得る。', injury:'mummy'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'①：戦闘開始時、このキャラクターと、最もライフの多い敵のライフを入れ替える。', effect:'gremlin_start'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'①：召喚時、全ての味方がシールドを得る。', effect:'jack_summon'},
-  {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃',                                       counter:true},
+  {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'',                                           counter:true, keywords:['成長1']},
   {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'①：戦闘終了時、魔術レベル4につきソウル1を得る。', effect:'lamia_end'},
 
   // ─── G1 ネームド（報酬に出ない） ───
@@ -137,6 +137,16 @@ function makeUnitFromDef(def, fieldIdx){
   if(def.race==='不死' && typeof G!=='undefined' && G._undeadHpBonus){
     unit.atk    += G._undeadHpBonus;
     unit.baseAtk += G._undeadHpBonus;
+  }
+  // 黄金の雫・グリマルキン：味方として召喚される場合にボーナス適用
+  if(typeof G!=='undefined'){
+    const _gmRingD=G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
+    const _gmBonusD=_gmRingD?(_gmRingD.grade||1):0;
+    const _totalBD=_gmBonusD+(G._grimalkinBonus||0);
+    if(_totalBD>0){
+      unit.atk+=_totalBD; unit.baseAtk+=_totalBD;
+      unit.hp+=_totalBD; unit.maxHp+=_totalBD;
+    }
   }
   return unit;
 }

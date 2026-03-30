@@ -43,7 +43,8 @@ function goToReward(){
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
   document.getElementById('btn-retreat').style.display='none';
-  document.getElementById('ph-badge').textContent='報酬フェイズ';
+  const _nextFloor=G.floor+1;
+  document.getElementById('ph-badge').innerHTML=`<span style="font-size:.75em;opacity:.75">Next</span> ${_nextFloor}`;
   document.getElementById('ph-badge').className='ph-badge';
 
   const bossNotice=document.getElementById('boss-reward-notice');
@@ -59,7 +60,7 @@ function goToReward(){
   }
 
   document.getElementById('rw-gold').textContent=G.gold;
-  document.getElementById('rw-count').textContent=6;
+  document.getElementById('rw-count').textContent=5;
   const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='';
 
   renderAll(); // フィールド（仲間エリア）も再描画
@@ -78,7 +79,10 @@ function renderMoveSlotsInEnemy(){
   const el=document.getElementById('f-enemy');
   el.innerHTML='';
   let opts;
-  if(G._retryFloor){
+  if(G._isShop){
+    const _nextIsBoss=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss;
+    opts=[{nodeType:_nextIsBoss?'boss':'battle',idx:-1}];
+  } else if(G._retryFloor){
     const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
     opts=[{nodeType,idx:-1}];
   } else {
@@ -104,6 +108,7 @@ function renderMoveSlotsInEnemy(){
 }
 
 function chooseMoveInline(nt){
+  G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
   document.getElementById('reward-info-bar').style.display='none';
@@ -221,10 +226,15 @@ function takeRewCard(i){
     const unit=makeUnitFromDef(card);
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
-    // ジャック・オ・ランタン：召喚時、全ての味方にシールド付与
+    // 召喚時効果
     if(unit.effect==='jack_summon'){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.shield=(a.shield||0)+1; }});
       log(`${unit.name}：全ての味方にシールドを付与`,'good');
+    }
+    if(unit.effect==='centaur_summon'){
+      G.magicLevel=(G.magicLevel||1)+2;
+      if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+      log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
     }
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;

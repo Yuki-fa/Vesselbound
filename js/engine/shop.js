@@ -7,18 +7,40 @@ let _shopRings=[];
 
 function doShop(){
   const pool=getRingPool();
-  _shopRings=[];
-  const n=Math.min(6,pool.length);
-  for(let i=0;i<n;i++){
+  _rewCards=[];
+  for(let i=0;i<Math.min(5,pool.length);i++){
     const idx=Math.floor(Math.random()*pool.length);
     const ring=clone(pool[idx]);
     ring._buyPrice=ring.cost||3;
-    _shopRings.push(ring);
+    _rewCards.push(ring);
     pool.splice(idx,1);
   }
-  renderShop();
-  renderShopHandEditor();
-  showScreen('shop');
+
+  G._isShop=true;
+  G.phase='reward';
+
+  document.getElementById('f-ally').innerHTML='';
+  document.getElementById('ally-section').style.display='';
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='none';
+  document.getElementById('reward-info-bar').style.display='';
+  document.getElementById('reward-cards-section').style.display='';
+  document.getElementById('btn-pass').style.display='none';
+  document.getElementById('btn-retreat').style.display='none';
+  document.getElementById('ph-badge').innerHTML='<span style="font-size:.75em;opacity:.75">行商</span>';
+  document.getElementById('ph-badge').className='ph-badge';
+  const bossNotice=document.getElementById('boss-reward-notice');
+  if(bossNotice) bossNotice.style.display='none';
+  document.getElementById('rw-gold').textContent=G.gold;
+  const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='none';
+
+  renderAll();
+  renderRewCards();
+  renderGradeUpBtn();
+  renderMoveSlotsInEnemy();
+  renderFieldEditor();
+  setHint('行商でアイテムを購入してください。購入後は戦闘へ進んでください。');
+  updateHUD();
 }
 
 function renderShop(){

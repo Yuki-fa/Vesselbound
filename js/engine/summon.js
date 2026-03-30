@@ -37,6 +37,10 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   if(ring.unique==='wall_copy_atk'&&overrideAtk===undefined){
     bAtk=G.allies.filter(a=>a&&a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
   }
+  // 黄金の雫：グレード分を全スタッツに加算
+  const _gmRingU=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
+  const _gmBonusU=_gmRingU?(_gmRingU.grade||1):0;
+  if(_gmBonusU){ bAtk+=_gmBonusU; bHp+=_gmBonusU; }
   // グリマルキン：還魂時ボーナス（+1/+1 累積）
   if(G._grimalkinBonus){ bAtk+=G._grimalkinBonus; bHp+=G._grimalkinBonus; }
   return {
@@ -71,7 +75,7 @@ function addAlly(unit, fromRingId){
   }
   // キメラ：召喚時、ランダムなキーワード3つを得る
   if(unit.effect==='chimera_summon'){
-    const _pool=['即死','浸食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
+    const _pool=['即死','侵食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
     const _avail=[..._pool];
     const _chosen=[];
     for(let _i=0;_i<3&&_avail.length>0;_i++){
@@ -193,6 +197,8 @@ function summonAllies(){
     let bAtk=baseAtk+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
+    // 黄金の雫・グリマルキンボーナス
+    { const _gmRingS=G.rings.find(r=>r&&r.unique==='great_mother'); const _gmBS=_gmRingS?(_gmRingS.grade||1):0; bAtk+=_gmBS+(G._grimalkinBonus||0); bHp+=_gmBS+(G._grimalkinBonus||0); }
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
       if(G.allies.filter(a=>a&&a.hp>0).length>=6) break;

@@ -16,7 +16,7 @@ const ENEMY_POOL=[
   {name:'ピクシー',          grade:1, icon:'🧚', keywords:[],             race:'精霊'},
   // ── G2（6-10階）──
   {name:'ファイアブレス',    grade:2, icon:'🔥', keywords:[],             race:'竜'},
-  {name:'ポイズンミスト',    grade:2, icon:'☁️', keywords:['浸食3'],      race:'精霊'},
+  {name:'ポイズンミスト',    grade:1, icon:'☁️', keywords:['侵食3'],      race:'精霊'},
   {name:'サテュロス',        grade:2, icon:'🐐', keywords:[],             race:'亜人'},
   {name:'ダークエルフ',      grade:2, icon:'🧝', keywords:['狩人'],       race:'亜人'},
   {name:'カースドアーマー',  grade:2, icon:'🪖', keywords:['呪詛2'],      race:'不死'},

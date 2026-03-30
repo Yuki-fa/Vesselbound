@@ -99,7 +99,25 @@ function drawItems(n, maxGrade){
   return res;
 }
 
-// ── 報酬 6 枚（キャラ3〜4体 + アイテム2〜3個）──────
+// ── 報酬 5 枚（キャラ3体 + 杖1 + アイテム1）──────
+
+function _drawByType(type, n, maxGrade){
+  const pool=[];
+  SPELL_POOL.forEach(s=>{
+    if(!s.id||s.starterOnly) return;
+    if(s.type!==type) return;
+    if(maxGrade!=null&&(s.grade||1)>maxGrade) return;
+    if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
+    const c=clone(s);
+    if(c.type==='wand'){ const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses()); c.usesLeft=uses; c._maxUses=uses; }
+    c._buyPrice=calcBuyPrice(c);
+    pool.push(c);
+  });
+  const res=[];
+  while(res.length<n&&pool.length>0){ const i=Math.floor(Math.random()*pool.length); res.push(pool.splice(i,1)[0]); }
+  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); });
+  return res;
+}
 
 function drawRewards(n){
   if(n!=null){
@@ -108,13 +126,13 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  const numChars=3+(Math.random()<0.5?1:0); // 3 or 4
-  const numItems=6-numChars;               // 2 or 3
-  const chars=drawCharacters(numChars);
-  const items=drawItems(numItems);
-  const res=[...chars,...items];
-  // シャッフル
-  for(let i=res.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [res[i],res[j]]=[res[j],res[i]]; }
+  // 左3枚：キャラクター、4枚目：杖、5枚目：消耗品
+  const chars=drawCharacters(3);
+  const wand=_drawByType('wand',1)[0]||null;
+  const item=_drawByType('consumable',1)[0]||null;
+  const res=[...chars];
+  if(wand) res.push(wand);
+  if(item) res.push(item);
   return res;
 }
 

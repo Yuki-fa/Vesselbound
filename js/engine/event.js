@@ -20,55 +20,43 @@ let _smithyChosen=new Set(); // 遠見モード：選択済みキー
 
 function doSmithy(regen=true){
   const hasFarsight=G.rings.some(r=>r&&r.unique==='farsight');
-  if(regen){
-    const targetGrade=G.rewardGrade||1;
-    const pool=getRingPool().filter(r=>(r.grade||1)<=targetGrade);
-    _smithyRing=pool.length?randFrom(pool):null;
-    _smithyChosen=new Set();
-  }
-  const freeRing=_smithyRing;
+  if(regen) _smithyChosen=new Set();
   const el=document.getElementById('smithy-opts');
   el.innerHTML='';
 
-  // 選択肢1：全仲間シールド付与
-  const doneShield=_smithyChosen.has('shield');
-  const o1=document.createElement('div');
-  o1.className='choice-opt'+(doneShield?' done':'');
-  o1.innerHTML='<div class="choice-icon">🛡️</div><div class="choice-label">加護の恩寵</div><div class="choice-desc">全ての仲間にシールド+1を付与する（無料）</div>';
-  if(!doneShield) o1.onclick=()=>{
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.shield=(a.shield||0)+1; }});
-    updateHUD();
-    if(hasFarsight){ log('全仲間にシールド+1','good'); _smithyChosen.add('shield'); doSmithy(false); }
-    else showEvent('祭壇','祭壇の加護を受けた。','全仲間にシールド+1');
-  };
-  el.appendChild(o1);
-
-  // 選択肢2：魔術レベル+3
+  // 選択肢1：魔術レベル+3
   const doneMagic=_smithyChosen.has('magic');
-  const o2=document.createElement('div');
-  o2.className='choice-opt'+(doneMagic?' done':'');
-  o2.innerHTML='<div class="choice-icon">📖</div><div class="choice-label">秘術の伝授</div><div class="choice-desc">魔術レベルが+3される（無料）</div>';
-  if(!doneMagic) o2.onclick=()=>{
+  const o1=document.createElement('div');
+  o1.className='choice-opt'+(doneMagic?' done':'');
+  o1.innerHTML='<div class="choice-icon">📖</div><div class="choice-label">秘術の伝授</div><div class="choice-desc">魔術レベルが+3される（無料）</div>';
+  if(!doneMagic) o1.onclick=()=>{
     G.magicLevel=(G.magicLevel||0)+3; updateHUD();
     if(hasFarsight){ log(`魔術レベル+3（現在${G.magicLevel}）`,'good'); _smithyChosen.add('magic'); doSmithy(false); }
     else showEvent('祭壇','古の魔法書を読み解いた。',`魔術レベル+3（現在${G.magicLevel}）`);
   };
+  el.appendChild(o1);
+
+  // 選択肢2：行動権永続+1
+  const doneAction=_smithyChosen.has('action');
+  const o2=document.createElement('div');
+  o2.className='choice-opt'+(doneAction?' done':'');
+  o2.innerHTML='<div class="choice-icon">⚡</div><div class="choice-label">旅の準備</div><div class="choice-desc">行動回数が永続で+1される（無料）</div>';
+  if(!doneAction) o2.onclick=()=>{
+    G._bonusAction=(G._bonusAction||0)+1; updateHUD();
+    if(hasFarsight){ log('行動権+1（永続）','good'); _smithyChosen.add('action'); doSmithy(false); }
+    else showEvent('祭壇','行軍の備えを整えた。','行動回数+1（永続）');
+  };
   el.appendChild(o2);
 
-  // 選択肢3：ランダム指輪1つ（無料）
-  const doneRing=_smithyChosen.has('ring');
+  // 選択肢3：全仲間±0/+5
+  const doneHeal=_smithyChosen.has('heal');
   const o3=document.createElement('div');
-  o3.className='choice-opt'+(freeRing&&!doneRing?'':' disabled');
-  const rName=freeRing?freeRing.name:'指輪なし';
-  const rDesc=freeRing?computeDesc(freeRing):'';
-  o3.innerHTML=`<div class="choice-icon">💍</div><div class="choice-label">祭壇の恵み：${rName}</div><div class="choice-desc">${rDesc}（無料）</div>`;
-  if(freeRing&&!doneRing) o3.onclick=()=>{
-    const ringCard=clone(freeRing);
-    ringCard._buyPrice=0;
-    showEventItemPickup(ringCard, ()=>{
-      _smithyChosen.add('ring');
-      if(hasFarsight) doSmithy(false);
-    });
+  o3.className='choice-opt'+(doneHeal?' done':'');
+  o3.innerHTML='<div class="choice-icon">💚</div><div class="choice-label">祭壇の癒し</div><div class="choice-desc">全ての仲間のライフが+5される（無料）</div>';
+  if(!doneHeal) o3.onclick=()=>{
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=5; a.maxHp+=5; }}); updateHUD();
+    if(hasFarsight){ log('全仲間ライフ+5','good'); _smithyChosen.add('heal'); doSmithy(false); }
+    else showEvent('祭壇','祭壇の祝福を受けた。','全仲間ライフ+5');
   };
   el.appendChild(o3);
 

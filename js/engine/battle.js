@@ -329,6 +329,43 @@ function _onAllEnemiesDefeated(){
 
 // ── 味方攻撃アクション ──────────────────────────
 
+function _applyAllyAttackEffects(ally){
+  if(!ally||ally.hp<=0) return;
+  if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
+    ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
+  }
+  if(ally.effect==='brownie_attack'){
+    const _gmRing=G.rings.find(r=>r&&r.unique==='great_mother');
+    const _totalBonus=(_gmRing?(_gmRing.grade||1):0)+(G._grimalkinBonus||0);
+    const _atkGain=_totalBonus; const _hpGain=1+_totalBonus;
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_atkGain>0){a.atk+=_atkGain;a.baseAtk=(a.baseAtk||0)+_atkGain;} a.hp+=_hpGain; a.maxHp+=_hpGain; }});
+    log(`${ally.name}：攻撃時→全仲間${_atkGain>0?'+'+_atkGain:'±0'}/+${_hpGain}`,'good');
+  }
+  if(ally.effect==='forniot'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
+    log(`${ally.name}：攻撃時→全仲間+1/±0`,'good');
+  }
+  if(ally.effect==='vampire_attack'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=2; a.baseAtk=(a.baseAtk||0)+2; a.hp+=1; a.maxHp+=1; }});
+    log(`${ally.name}：攻撃→全不死+2/+1`,'good');
+  }
+}
+
+function _applyEnemyAttackEffects(enemy){
+  if(!enemy||enemy.hp<=0) return;
+  if(enemy.effect==='forniot'){
+    G.enemies.forEach(f=>{ if(f&&f.hp>0) f.atk+=1; });
+    log(`${enemy.name}：攻撃時→全仲間+1/±0`,'bad');
+  }
+  if(enemy.effect==='elf_attack'||enemy.effect==='elf_shield'){
+    enemy.atk+=1; log(`${enemy.name}：攻撃時+1/±0`,'bad');
+  }
+  if(enemy.effect==='brownie_attack'){
+    G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }});
+    log(`${enemy.name}：攻撃時→全仲間±0/+1`,'bad');
+  }
+}
+
 async function allyAttackAction(ally, allyIdx){
   if(ally.atk<=0) return; // ATK0は攻撃しない
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
@@ -349,31 +386,7 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
   // 攻撃時効果（ダメージを与える前に発動）
-  if(ally.hp>0){
-    // エルフ：攻撃時+1/±0（発動後のATKでダメージを与える）
-    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
-      ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
-    }
-    // ブラウニー：攻撃時、全仲間±0/+1（黄金の雫・グリマルキンボーナス反映）
-    if(ally.effect==='brownie_attack'){
-      const _gmRing=G.rings.find(r=>r&&r.unique==='great_mother');
-      const _totalBonus=(_gmRing?(_gmRing.grade||1):0)+(G._grimalkinBonus||0);
-      const _atkGain=_totalBonus;
-      const _hpGain=1+_totalBonus;
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_atkGain>0){a.atk+=_atkGain;a.baseAtk=(a.baseAtk||0)+_atkGain;} a.hp+=_hpGain; a.maxHp+=_hpGain; }});
-      log(`${ally.name}：攻撃時→全仲間${_atkGain>0?'+'+_atkGain:'±0'}/+${_hpGain}`,'good');
-    }
-    // フォルニョート：攻撃時、全仲間+1/±0
-    if(ally.effect==='forniot'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
-      log(`${ally.name}：攻撃時→全仲間+1/±0`,'good');
-    }
-    // ヴァンパイア：攻撃時、全不死仲間に+2/+1
-    if(ally.effect==='vampire_attack'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=2; a.baseAtk=(a.baseAtk||0)+2; a.hp+=1; a.maxHp+=1; }});
-      log(`${ally.name}：攻撃→全不死+2/+1`,'good');
-    }
-  }
+  if(ally.hp>0) _applyAllyAttackEffects(ally);
 
   // 全体攻撃キーワード：全ての敵を攻撃
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
@@ -401,6 +414,9 @@ async function allyAttackAction(ally, allyIdx){
         const _newForced=_newLiveE.find(e=>e.allyTarget);
         curTgt=_newForced||_newLiveE[_newLiveE.length-1];
       }
+      if(!curTgt||curTgt.hp<=0) break;
+      // 攻撃時効果（各段攻撃ごとに発動）
+      if(ally.hp>0) _applyAllyAttackEffects(ally);
       dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
       log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
     }
@@ -436,19 +452,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(enemy.nullified>0) enemy.nullified--;
 
   // 攻撃時効果（フォルニョート・エルフ等、敵陣営版）
-  if(atkVal>0&&enemy.hp>0){
-    if(enemy.effect==='forniot'){
-      G.enemies.forEach(f=>{ if(f&&f.hp>0) f.atk+=1; });
-      log(`${enemy.name}：攻撃時→全仲間+1/±0`,'bad');
-    }
-    if(enemy.effect==='elf_attack'||enemy.effect==='elf_shield'){
-      enemy.atk+=1; log(`${enemy.name}：攻撃時+1/±0`,'bad');
-    }
-    if(enemy.effect==='brownie_attack'){
-      G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }});
-      log(`${enemy.name}：攻撃時→全仲間±0/+1`,'bad');
-    }
-  }
+  if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffects(enemy);
 
   // 全体攻撃キーワード：全ての味方を攻撃
   const isGlobalAtk=enemy.keywords&&enemy.keywords.includes('全体攻撃');
@@ -483,7 +487,10 @@ async function enemyAttackAction(enemy, enemyIdx){
         reTgt=nextHate.length>0?nextHate[nextHate.length-1]:nextLive[nextLive.length-1];
       }
       if(!reTgt||reTgt.hp<=0) break;
-      dealDmgToAlly(reTgt,atkVal,G.allies.indexOf(reTgt),enemy);
+      // 攻撃時効果（各段攻撃ごとに発動）
+      if(enemy.hp>0) _applyEnemyAttackEffects(enemy);
+      const _dmgPassed2=dealDmgToAlly(reTgt,enemy.atk,G.allies.indexOf(reTgt),enemy);
+      if(_dmgPassed2&&reTgt.hp>0) applyKeywordOnHit(enemy,reTgt);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
     }
   }
@@ -916,11 +923,11 @@ function applyKeywordOnHit(attacker, target){
   if(!kws.length||target.hp<=0) return;
   if(kws.includes('即死')){ target.hp=0; log(`💀 即死：${attacker.name}の攻撃で${target.name}が即死！`,'bad'); }
   // 浸食X：命中時に毒Xを付与（加算）
-  const erosionKw=kws.find(k=>/^浸食\d+$/.test(k));
+  const erosionKw=kws.find(k=>/^侵食\d+$/.test(k));
   if(erosionKw&&target.hp>0){
     const pv=parseInt(erosionKw.slice(2));
     target.poison=(target.poison||0)+pv;
-    log(`☠ 浸食${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
+    log(`☠ 侵食${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
   }
   // 呪詛X：命中時に破滅Xを付与（加算）。10で即死
   const curseKw=kws.find(k=>/^呪詛\d+$/.test(k));
@@ -939,16 +946,15 @@ function applyKeywordOnHit(attacker, target){
     target.atk=Math.max(0,target.atk-pbX);
     log(`💢 パワーブレイク${pbX}：${attacker.name}が${target.name}のATK-${pbX}（${target._savedAtk}→${target.atk}）`,'bad');
   }
-  // 魂喰らいX：攻撃時、プレイヤーのソウルをX消費して+X/+Xを得る
+  // 魂喰らいX：攻撃時、プレイヤーのソウルをX消費して+X/+Xを得る（ソウル不足時は不発）
   const soulKw=kws.find(k=>/^魂喰らい\d+$/.test(k));
   if(soulKw&&target.hp>0){
     const x=parseInt(soulKw.slice(4));
-    const consumed=Math.min(G.gold,x);
-    if(consumed>0){
-      G.gold-=consumed;
-      attacker.atk+=consumed; attacker.hp+=consumed; attacker.maxHp+=consumed;
+    if(G.gold>=x){
+      G.gold-=x;
+      attacker.atk+=x; attacker.hp+=x; attacker.maxHp+=x;
       updateHUD();
-      log(`💀 魂喰らい：${consumed}ソウル消費→${attacker.name}+${consumed}/+${consumed}`,'bad');
+      log(`💀 魂喰らい${x}：${x}ソウル消費→${attacker.name}+${x}/+${x}`,'bad');
     }
   }
 }
