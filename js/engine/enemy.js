@@ -3,9 +3,12 @@
 // 依存: constants.js, state.js, floors.js, events.js
 // ═══════════════════════════════════════
 
-// セクション別グレード抽選（細分化なし・FLOOR_DATAの基本グレードをそのまま使用）
+// セクション別グレード（1-5:G1, 6-10:G2, 11-15:G3, 16-20:G4）
 function rollEnemyGrade(floor){
-  return FLOOR_DATA[floor]?.grade||1;
+  if(floor<=5)  return 1;
+  if(floor<=10) return 2;
+  if(floor<=15) return 3;
+  return 4;
 }
 function eliteGradeForFloor(floor){
   return Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);

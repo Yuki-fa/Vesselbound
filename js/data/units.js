@@ -8,7 +8,7 @@ const UNIT_POOL = [
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'①：戦闘開始時、魔術レベル+1。',             effect:'mermaid_start'},
-  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'①：戦闘終了時、ライフ1で復活する。',         effect:'skeleton_revive'},
+  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'①：死亡した場合、戦闘終了時にライフ1で召喚する。', effect:'skeleton_revive'},
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'再生3',                                      regen:3},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'①：負傷時、最も左の空き地に2/4の「ナイトキャット」を召喚する。', injury:'kettcat'},
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'①：仲間を還魂すると、以後の全ての戦闘中に召喚される仲間が+1/+1される。', effect:'grimalkin_sell'},
@@ -48,7 +48,7 @@ const UNIT_POOL = [
   {id:'c_garm',       name:'隻眼の魔狼"ガルム・グリーム"', race:'獣',   grade:2, atk:15, hp:30, cost:12, unique:true, icon:'🐺', desc:'トリプル', keywords:['三段攻撃']},
   {id:'c_manigans',   name:'不敗の剣鬼"マニガンス"',       race:'亜人', grade:2, atk:14, hp:32, cost:12, unique:true, icon:'⚔️', desc:'①：ターン開始時、シールドを得る。', effect:'manigans_turn'},
   {id:'c_vidar',      name:'緑域の隠者"ヴィーザル"',       race:'精霊', grade:2, atk:16, hp:25, cost:12, unique:true, icon:'🌳', desc:'①：すべての味方が+3/+3を得る。', effect:'vidar_start'},
-  {id:'c_lilith',     name:'虚飾の歌姫"リリス・ヴェノム"', race:'悪魔', grade:2, atk:18, hp:20, cost:12, unique:true, icon:'🎤', desc:'①：戦闘開始時、すべての味方にシールドを与える。'},
+  {id:'c_lilith',     name:'虚飾の歌姫"リリス・ヴェノム"', race:'悪魔', grade:2, atk:18, hp:20, cost:12, unique:true, icon:'🎤', desc:'①：戦闘開始時、すべての味方にシールドを与える。', effect:'lilith_start'},
   {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'負傷：すべての敵に3ダメージを与える。', injury:'limslus'},
 
   // ─── G3 通常 ───

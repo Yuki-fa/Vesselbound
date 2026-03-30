@@ -3,28 +3,7 @@
 // 依存: constants.js, state.js, battle.js
 // ═══════════════════════════════════════
 
-// ── キーワードツールチップ ──
-const _KW_DESC={
-  '即死':      '攻撃がヒットしたキャラクターを即座に死亡させる。',
-  '毒':        '毎ターン開始時にX点のダメージを与える。',
-  '加護':      '魔法の効果を受けない（消耗品・杖の対象にならない）。',
-  '貫通':      'シールドを無視してダメージを与える。',
-  '二段攻撃':  '1回の攻撃で同じ対象に2回ダメージを与える。',
-  '三段攻撃':  '1回の攻撃で同じ対象に3回ダメージを与える。',
-  '全体攻撃':  '攻撃が全ての味方ユニットに同時に当たる。',
-  '反撃':      '攻撃を受けて生き残った時、攻撃してきた相手に反撃を行う。',
-  '再生':      '戦闘終了時にXライフを回復する（最大ライフも増加）。',
-  '絆':        '同じ種族の仲間が多いほど強くなる。',
-  '魂喰らい':  'キャラクターを倒すと自身のパワー／ライフが増加する。',
-  '結束':      '味方の数が敵より多い時に強化される。',
-  '邪眼':      'ターン開始時、対象の敵に即死デバフを付与する。',
-  '呪詛':      'このユニットを攻撃した相手のパワーを永続的に減少させる。',
-  '狩人':      '戦闘開始時、最も弱い敵を即座に仕留める。',
-  'ヘイト':    '敵が攻撃対象を選ぶ際、優先的に狙われる。',
-  '守護':      '後ろの味方の代わりにダメージを引き受ける。',
-  'エリート':  'エリート敵。倒すと追加報酬が得られる。',
-  'ボス':      'ボス敵。非常に強力で、特殊な報酬を持つ。',
-};
+// ── キーワードツールチップ（KW_DESC_MAP は loader.js で effect_id シートから読み込み）──
 
 (function _initKwTooltip(){
   const tip=document.getElementById('kw-tooltip');
@@ -209,7 +188,7 @@ function renderField(id,units,isEnemy){
         // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
         // 反撃はキーワード欄に表示。エリート/ボスは他キーワードの1行上。
         const _kColorMap={'即死':'#e060e0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','再生':'#60d090'};
-        const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=_KW_DESC[k]||_KW_DESC[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
+        const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
         const _allKws=[...(u.keywords||[]),...(u.counter?['反撃']:[])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
@@ -229,7 +208,7 @@ function renderField(id,units,isEnemy){
         if(isEnemy){
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
         } else {
-          const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(u._dragonetCount||0)}戦</div>`:'';
+          const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
         }
         // 優先ターゲットは赤枠

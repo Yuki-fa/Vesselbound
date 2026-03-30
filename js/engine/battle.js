@@ -342,10 +342,14 @@ async function allyAttackAction(ally, allyIdx){
     if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
       ally.atk+=1; ally.baseAtk+=1; log(`${ally.name}：攻撃時+1/±0`,'good');
     }
-    // ブラウニー：攻撃時、全仲間±0/+1
+    // ブラウニー：攻撃時、全仲間±0/+1（黄金の雫・グリマルキンボーナス反映）
     if(ally.effect==='brownie_attack'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
-      log(`${ally.name}：攻撃時→全仲間±0/+1`,'good');
+      const _gmRing=G.rings.find(r=>r&&r.unique==='great_mother');
+      const _totalBonus=(_gmRing?(_gmRing.grade||1):0)+(G._grimalkinBonus||0);
+      const _atkGain=_totalBonus;
+      const _hpGain=1+_totalBonus;
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_atkGain>0){a.atk+=_atkGain;a.baseAtk=(a.baseAtk||0)+_atkGain;} a.hp+=_hpGain; a.maxHp+=_hpGain; }});
+      log(`${ally.name}：攻撃時→全仲間${_atkGain>0?'+'+_atkGain:'±0'}/+${_hpGain}`,'good');
     }
     // フォルニョート：攻撃時、全仲間+1/±0
     if(ally.effect==='forniot'){
@@ -375,8 +379,10 @@ async function allyAttackAction(ally, allyIdx){
     let curTgt=target;
     for(let hi=0;hi<extraHits;hi++){
       if(!curTgt||curTgt.hp<=0){
-        curTgt=G.enemies.find(e=>e&&e.hp>0);
-        if(!curTgt) break;
+        const _newLiveE=G.enemies.filter(e=>e&&e.hp>0);
+        if(!_newLiveE.length) break;
+        const _newForced=_newLiveE.find(e=>e.allyTarget);
+        curTgt=_newForced||_newLiveE[_newLiveE.length-1];
       }
       dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
       log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
@@ -761,11 +767,14 @@ function onBattleEnd(){
     }
   });
 
-  // スケルトン：戦闘終了時、死亡していればライフ1で復活
+  // スケルトン：死亡していれば戦闘終了時にライフ1で召喚（グリマルキンボーナス適用）
   G.allies.forEach(a=>{
     if(a&&a.hp<=0&&a.effect==='skeleton_revive'){
+      const _grimBonus=G._grimalkinBonus||0;
+      a.atk=(a.baseAtk||a.atk)+_grimBonus;
       a.hp=1;
-      log(`${a.name}：ライフ1で復活`,'good');
+      if(a.maxHp<1) a.maxHp=1;
+      log(`${a.name}：ライフ1で召喚`+(_grimBonus>0?`（atk+${_grimBonus}）`:''),'good');
     }
   });
 
@@ -773,7 +782,7 @@ function onBattleEnd(){
   G.allies.forEach((a,i)=>{
     if(!a||a.effect!=='dragonet_end') return;
     a._dragonetCount=(a._dragonetCount||0)+1;
-    if(a._dragonetCount>=3){
+    if(a._dragonetCount>=(3+(a._dragonetBonus||0))){
       const worm=UNIT_POOL.find(u=>u.id==='c_worm');
       if(worm){
         const w=clone(worm); w._isChar=true; w.maxHp=w.hp;
@@ -781,7 +790,7 @@ function onBattleEnd(){
         log(`🐲 ドラゴネット：3戦目→ワームに変身！`,'gold');
       }
     } else {
-      log(`🐲 ドラゴネット：変身まで${3-a._dragonetCount}戦`,'sys');
+      log(`🐲 ドラゴネット：変身まで${(3+(a._dragonetBonus||0))-a._dragonetCount}戦`,'sys');
     }
   });
 
@@ -957,10 +966,14 @@ function onWandUsed(){
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     switch(a.effect){
-      case 'dwarf_wand':
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1; b.baseAtk+=1; b.hp+=1; b.maxHp+=1; }});
-        log(`ドワーフ：杖使用→全仲間+1/+1`,'good');
-        break;
+      case 'dwarf_wand':{
+        const _gmRingD=G.rings.find(r=>r&&r.unique==='great_mother');
+        const _totalBonusD=(_gmRingD?(_gmRingD.grade||1):0)+(G._grimalkinBonus||0);
+        const _gainD=1+_totalBonusD;
+        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=_gainD; b.baseAtk+=_gainD; b.hp+=_gainD; b.maxHp+=_gainD; }});
+        log(`ドワーフ：杖使用→全仲間+${_gainD}/+${_gainD}`,'good');
+        break;}
+
       case 'gremlin_wand':
         G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk=Math.max(0,e.atk-1); }});
         log(`グレムリン：杖使用→全敵ATK-1`,'good');

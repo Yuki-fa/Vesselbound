@@ -39,7 +39,15 @@ function takeCardToHand(card){
   if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   if(isRing){
-    for(let i=0;i<G.ringSlots;i++){ if(!G.rings[i]){ G.rings[i]=nc; return; } }
+    for(let i=0;i<G.ringSlots;i++){
+      if(!G.rings[i]){
+        G.rings[i]=nc;
+        if(nc.unique==='great_mother'){
+          G.allies.forEach(a=>{ if(a&&a.effect==='dragonet_end') a._dragonetBonus=(a._dragonetBonus||0)+1; });
+        }
+        return;
+      }
+    }
   } else {
     const hi=G.spells.indexOf(null);
     if(hi>=0) G.spells[hi]=nc;

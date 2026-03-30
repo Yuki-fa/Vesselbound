@@ -5,6 +5,9 @@
 
 let G={};
 
+// キーワード説明文マップ（loader.js で effect_id シートから上書き）
+const KW_DESC_MAP={};
+
 const uid      = ()    => '_'+Math.random().toString(36).slice(2,8);
 const randFrom = a     => a[Math.floor(Math.random()*a.length)];
 const randi    = (a,b) => a+Math.floor(Math.random()*(b-a+1));
