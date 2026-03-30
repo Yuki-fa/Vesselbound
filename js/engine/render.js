@@ -62,34 +62,130 @@ function renderAll(){
   requestAnimationFrame(fitCardDescs);
 }
 
-// 現在の敵が全員攻撃してきた場合に死亡する味方インデックスのセットを計算
+// 戦闘フェイズ1ターン分（インターリーブ）をシミュレーションし、死亡する味方インデックスを返す
+// 実際のbattle.jsの関数（dealDmgToAlly/dealDmgToEnemy等）をclone上で実行することで
+// キーワード効果・シールド・反撃など全ての処理を自動的に反映する
 function _computeDeathRisk(){
   if(G.phase!=='player') return new Set();
-  const liveAllies=G.allies.map((a,i)=>a&&a.hp>0?{a,i}:null).filter(Boolean);
-  const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
-  if(!liveAllies.length||!liveEnemies.length) return new Set();
+  if(!G.allies.some(a=>a&&a.hp>0)||!G.enemies.some(e=>e&&e.hp>0)) return new Set();
 
-  // 敵フェイズをそのままシミュレーション（味方攻撃なし）
-  const allyState=liveAllies.map(({a,i})=>({i, hp:a.hp, shield:a.shield||0, hate:a.hate&&a.hateTurns>0, instadead:a.instadead||false, dead:false}));
-  const result=new Set();
-  for(const {e} of liveEnemies){
-    if(!e.atk) continue;
-    const alive=allyState.filter(a=>!a.dead);
-    if(!alive.length) break;
-    const isAoe=(e.keywords||[]).includes('全体攻撃');
-    const targets=isAoe?alive:[alive.find(x=>x.hate)||alive[alive.length-1]];
-    const hits=(e.keywords||[]).includes('三段攻撃')?3:(e.keywords||[]).includes('二段攻撃')?2:1;
-    const isInstakill=(e.keywords||[]).includes('即死');
-    for(const tgt of targets){
-      for(let h=0;h<hits;h++){
-        if(tgt.dead) break;
-        if(tgt.shield>0){ tgt.shield--; }
-        else if(isInstakill||tgt.instadead){ tgt.hp=0; tgt.dead=true; result.add(tgt.i); }
-        else{ tgt.hp-=e.atk; if(tgt.hp<=0){ tgt.dead=true; result.add(tgt.i); } }
-      }
+  // ── 状態を退避 ──
+  const _sA=G.allies, _sE=G.enemies;
+  const _sGold=G.gold, _sEarned=G.earnedGold;
+  const _sBC=G.battleCounters, _sPT=G._pendingTreasure, _sEK=G._eliteKilled;
+  const _sVM=G.visibleMoves, _sMM=G.moveMasks;
+  const _sPhase=G.phase;
+  // ログ・描画関数を無効化
+  const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
+  window.log=()=>{}; window.renderAll=()=>{}; window.updateHUD=()=>{}; window.renderControls=()=>{};
+
+  try{
+    // ── Gにcloneを差し込む ──
+    G.allies=G.allies.map(a=>a?JSON.parse(JSON.stringify(a)):null);
+    G.enemies=G.enemies.map(e=>e?JSON.parse(JSON.stringify(e)):null);
+    G.battleCounters={damage:0,deaths:0};
+    G.visibleMoves=[...(_sVM||[])];
+    G.moveMasks=[...(_sMM||[])];
+    G._pendingTreasure=_sPT;
+
+    // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
+    for(let i=0;i<6;i++){
+      const ally=G.allies[i];
+      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
+      if(!G.enemies.some(e=>e&&e.hp>0)) break;
+      const enemy=G.enemies[i];
+      if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
+      if(!G.allies.some(a=>a&&a.hp>0)) break;
+    }
+
+    // ── 死亡した味方インデックスを収集 ──
+    const result=new Set();
+    G.allies.forEach((a,i)=>{ if(a&&a.hp<=0) result.add(i); });
+    return result;
+
+  } finally {
+    // ── 状態を完全復元 ──
+    G.allies=_sA; G.enemies=_sE;
+    G.gold=_sGold; G.earnedGold=_sEarned;
+    G.battleCounters=_sBC; G._pendingTreasure=_sPT; G._eliteKilled=_sEK;
+    G.visibleMoves=_sVM; G.moveMasks=_sMM;
+    G.phase=_sPhase;
+    window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
+  }
+}
+
+// シミュレーション用：allyAttackActionの同期コア（アニメーション・sleep除去）
+function _drSimAllySlot(ally,allyIdx){
+  if(ally.atk<=0) return;
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);
+  if(!liveE.length) return;
+  if(ally.stealth) ally.stealth=false;
+  // 攻撃時効果
+  if(ally.hp>0){
+    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){ ally.atk+=1; ally.baseAtk+=1; }
+    if(ally.effect==='brownie_attack'){
+      const _gmR=G.rings.find(r=>r&&r.unique==='great_mother');
+      const _tb=(_gmR?(_gmR.grade||1):0)+(G._grimalkinBonus||0);
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=1+_tb; a.maxHp+=1+_tb; }});
+    }
+    if(ally.effect==='forniot'){
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
     }
   }
-  return result;
+  const forcedT=liveE.find(e=>e.allyTarget);
+  const target=forcedT||liveE[liveE.length-1];
+  const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
+  const atkTargets=isGlobal?[...liveE]:[target];
+  atkTargets.forEach(t=>{
+    dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
+    if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0)
+      dealDmgToAlly(ally,t.atk,allyIdx,t);
+  });
+  if(ally.hp>0&&!isGlobal){
+    const extra=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
+    let cur=target;
+    for(let h=0;h<extra;h++){
+      if(!cur||cur.hp<=0){ const _nl=G.enemies.filter(e=>e&&e.hp>0); if(!_nl.length) break; cur=_nl.find(e=>e.allyTarget)||_nl[_nl.length-1]; }
+      dealDmgToEnemy(cur,ally.atk,G.enemies.indexOf(cur),ally);
+    }
+  }
+}
+
+// シミュレーション用：enemyAttackActionの同期コア（アニメーション・sleep除去）
+function _drSimEnemySlot(enemy,_enemyIdx){
+  const liveA=G.allies.filter(a=>a&&a.hp>0);
+  if(!liveA.length) return;
+  const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
+  const visibleA=liveA.filter(a=>!a.stealth);
+  const cands=visibleA.length?visibleA:liveA;
+  const targets=hateTgts.length>0?hateTgts:[cands[cands.length-1]];
+  const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
+  if(enemy.nullified>0) enemy.nullified--;
+  // 攻撃時効果
+  if(atkVal>0&&enemy.hp>0){
+    if(enemy.effect==='forniot'){ G.enemies.forEach(f=>{ if(f&&f.hp>0) f.atk+=1; }); }
+    if(enemy.effect==='elf_attack'||enemy.effect==='elf_shield'){ enemy.atk+=1; }
+    if(enemy.effect==='brownie_attack'){ G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }}); }
+  }
+  const isGlobal=enemy.keywords&&enemy.keywords.includes('全体攻撃');
+  const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):targets;
+  const hitSet=new Set();
+  finalT.forEach(tgt=>{
+    if(hitSet.has(tgt.id)) return;
+    const _passed=dealDmgToAlly(tgt,atkVal,G.allies.indexOf(tgt),enemy);
+    hitSet.add(tgt.id);
+    if(_passed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
+  });
+  if(!isGlobal&&enemy.hp>0){
+    const extra=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
+    let cur=finalT[0];
+    for(let h=0;h<extra;h++){
+      if(!cur||cur.hp<=0){ const _nl=G.allies.filter(a=>a&&a.hp>0&&!a.stealth); if(!_nl.length) break; const _nh=_nl.filter(a=>a.hate&&a.hateTurns>0); cur=_nh.length?_nh[_nh.length-1]:_nl[_nl.length-1]; }
+      if(!cur||cur.hp<=0) break;
+      dealDmgToAlly(cur,atkVal,G.allies.indexOf(cur),enemy);
+    }
+  }
+  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 }
 
 // キーワードバッジで表示済みの文字列をdesc先頭から除去
