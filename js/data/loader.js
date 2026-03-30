@@ -280,7 +280,7 @@ async function loadGameData() {
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const isEnemyOnly = row['敵専用'] === 'TRUE' || row['敵専用'] === '✓';
+      const isEnemyOnly = row['敵専用'] === 'TRUE' || row['敵専用'] === '✓' || row['敵専用'] === '◯';
       if (isEnemyOnly) {
         // 敵専用：ENEMY_POOL を更新（ATK/HPは除く）
         const ep = ENEMY_POOL.find(e => e.name === name);
