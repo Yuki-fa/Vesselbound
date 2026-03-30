@@ -58,6 +58,8 @@ async function startBattle(){
   if(rHand)  rHand.style.display='none';
   if(rMove)  rMove.style.display='none';
   if(allySection) allySection.style.display='';
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='';
 
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);

@@ -108,6 +108,7 @@ const _FLOOR1_PRESETS=[
 // 指定階層の敵グループを生成
 function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
+  if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [{id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'亜人'}]; }
   const isBoss=!!fd.boss;
 
   // 1階は固定敵パターンを使用

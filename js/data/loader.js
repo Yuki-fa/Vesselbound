@@ -130,20 +130,33 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    // 全シートを並列取得
+    // 全シートを並列取得（effect_id は任意）
     const fetches = [
       fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
       fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
       fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
       fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
-      fetch(_sheetUrl(_SHEET_GIDS['effect_id'])),
     ];
     const responses = await Promise.all(fetches);
     for (const r of responses) {
       if (r && !r.ok) throw new Error('HTTP ' + r.status);
     }
-    const [ft, gt, st, rt, ct, kwt] = await Promise.all(responses.map(r => r.text()));
+    const [ft, gt, st, rt, ct] = await Promise.all(responses.map(r => r.text()));
+
+    // effect_id は任意シート：失敗してもメイン読み込みには影響しない
+    try {
+      const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['effect_id']));
+      if (kwRes.ok) {
+        const kwt = await kwRes.text();
+        const kwRows = _parseCSV(kwt);
+        kwRows.forEach(row => {
+          const name = row['名前'] || row['キーワード'] || row[Object.keys(row)[0]];
+          const desc = row['効果'];
+          if (name && desc) KW_DESC_MAP[name] = desc;
+        });
+      }
+    } catch (_) { /* キーワード説明文なしで続行 */ }
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -295,14 +308,6 @@ async function loadGameData() {
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
       if (desc) unit.desc = desc;
-    });
-
-    // ── キーワード説明文（effect_id シート）──
-    const kwRows = _parseCSV(kwt);
-    kwRows.forEach(row => {
-      const name = row['名前'] || row['キーワード'] || row[Object.keys(row)[0]];
-      const desc = row['効果'];
-      if (name && desc) KW_DESC_MAP[name] = desc;
     });
 
     console.log(
