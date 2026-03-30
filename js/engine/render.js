@@ -62,62 +62,30 @@ function renderAll(){
   requestAnimationFrame(fitCardDescs);
 }
 
-// 次の敵フェイズで確実に死亡する味方インデックスのセットを計算
+// 現在の敵が全員攻撃してきた場合に死亡する味方インデックスのセットを計算
 function _computeDeathRisk(){
   if(G.phase!=='player') return new Set();
   const liveAllies=G.allies.map((a,i)=>a&&a.hp>0?{a,i}:null).filter(Boolean);
   const liveEnemies=G.enemies.map((e,i)=>e&&e.hp>0&&!e.sealed&&!e.nullified?{e,i}:null).filter(Boolean);
   if(!liveAllies.length||!liveEnemies.length) return new Set();
 
-  // 味方攻撃フェーズをシミュレーション（最適戦略：倒せる中で最もHPが低い敵から撃破）
-  const simHp=liveEnemies.map(({e,i})=>({idx:i, hp:e.hp, atk:e.atk, keywords:e.keywords||[], instadead:e.instadead||false, injury:e.injury||null}));
-  // injury効果で召喚された追加敵（freyr=ロイヤルガード4/6、kettcat=ナイトキャット2/4、ran=海の眷属7/dmg）
-  const _injurySpawned=[];
-  for(const {a} of liveAllies){
-    let best=null;
-    for(const s of simHp){
-      if(s.hp<=0) continue;
-      if(s.hp<=(a.atk||0)&&(!best||s.hp<best.hp)) best=s;
-    }
-    if(best){
-      // 止めを刺す→死亡なので負傷効果は発動しない
-      best.hp=0;
-    } else {
-      let min=null;
-      for(const s of simHp){ if(s.hp>0&&(!min||s.hp<min.hp)) min=s; }
-      if(min){
-        const newHp=Math.max(0,min.hp-(a.atk||0));
-        // 生き残る場合のみ負傷効果を発動
-        if(newHp>0){
-          if(min.injury==='freyr')        _injurySpawned.push({hp:6,atk:4,keywords:[],instadead:false});
-          else if(min.injury==='kettcat') _injurySpawned.push({hp:4,atk:2,keywords:[],instadead:false});
-          else if(min.injury==='ran')     _injurySpawned.push({hp:Math.max(1,a.atk||1),atk:7,keywords:[],instadead:false});
-        }
-        min.hp=newHp;
-      }
-    }
-  }
-
-  // 生き残り敵による逐次攻撃シミュレーション（連鎖ターゲット・AoE対応）
-  const survivors=[...simHp.filter(s=>s.hp>0&&s.atk>0),..._injurySpawned.filter(s=>s.atk>0)];
-  if(!survivors.length) return new Set();
-
+  // 敵フェイズをそのままシミュレーション（味方攻撃なし）
   const allyState=liveAllies.map(({a,i})=>({i, hp:a.hp, shield:a.shield||0, hate:a.hate&&a.hateTurns>0, instadead:a.instadead||false, dead:false}));
   const result=new Set();
-  for(const s of survivors){
+  for(const {e} of liveEnemies){
+    if(!e.atk) continue;
     const alive=allyState.filter(a=>!a.dead);
     if(!alive.length) break;
-    const isAoe=s.keywords.includes('全体攻撃');
+    const isAoe=(e.keywords||[]).includes('全体攻撃');
     const targets=isAoe?alive:[alive.find(x=>x.hate)||alive[alive.length-1]];
-    // 攻撃回数（三段攻撃=3、二段攻撃=2、それ以外=1）
-    const hits=s.keywords.includes('三段攻撃')?3:s.keywords.includes('二段攻撃')?2:1;
-    const isInstakill=s.keywords.includes('即死');
+    const hits=(e.keywords||[]).includes('三段攻撃')?3:(e.keywords||[]).includes('二段攻撃')?2:1;
+    const isInstakill=(e.keywords||[]).includes('即死');
     for(const tgt of targets){
       for(let h=0;h<hits;h++){
         if(tgt.dead) break;
         if(tgt.shield>0){ tgt.shield--; }
         else if(isInstakill||tgt.instadead){ tgt.hp=0; tgt.dead=true; result.add(tgt.i); }
-        else{ tgt.hp-=s.atk; if(tgt.hp<=0){ tgt.dead=true; result.add(tgt.i); } }
+        else{ tgt.hp-=e.atk; if(tgt.hp<=0){ tgt.dead=true; result.add(tgt.i); } }
       }
     }
   }
