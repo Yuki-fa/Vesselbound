@@ -8,13 +8,14 @@
 // ═══════════════════════════════════════
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('scr-'+id).classList.add('active'); }
 function updateHUD(){
-  document.getElementById('h-floor').textContent=G.floor;
+  if(G.phase!=='reward'){
+    document.getElementById('h-floor').textContent=G.floor;
+    const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
+  }
   document.getElementById('h-reward-grade').textContent='G'+(G.rewardGrade||1);
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
-  const _nf=document.getElementById('h-next-floor');
-  if(_nf&&G.phase!=='reward') _nf.style.display='none';
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');

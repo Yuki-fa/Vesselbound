@@ -376,8 +376,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   <div class="bottom-hud">
     <div class="bhud-item">
       <span class="bhud-label">階層</span>
-      <span class="bhud-val floor" id="h-floor">1</span>
-      <span id="h-next-floor" style="display:none;font-size:.55rem;color:var(--text2);letter-spacing:.04em;line-height:1"></span>
+      <div style="display:flex;align-items:baseline;gap:3px">
+        <span id="h-next-label" style="display:none;font-size:.6em;opacity:.7;font-weight:500">Next</span>
+        <span class="bhud-val floor" id="h-floor">1</span>
+      </div>
     </div>
     <div class="bhud-item">
       <span class="bhud-label">報酬G</span>

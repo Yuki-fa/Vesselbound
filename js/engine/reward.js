@@ -61,8 +61,8 @@ function goToReward(){
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
   document.getElementById('ph-badge').textContent='報酬フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
-  const _nf=document.getElementById('h-next-floor');
-  if(_nf){ _nf.textContent=`Next ${G.floor+1}`; _nf.style.display=''; }
+  document.getElementById('h-floor').textContent=G.floor+1;
+  const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();
