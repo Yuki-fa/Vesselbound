@@ -77,9 +77,9 @@ function goToReward(){
 
 const _BOSS_REWARD_OPTIONS=[
   {id:'ring_slot',   label:'指輪スロット拡張',     desc:'指輪を装備できるスロットが+1される。',     apply:()=>{ G.ringSlots++; log(`ボス報酬：指輪スロット+1（現在${G.ringSlots}枠）`,'gold'); }},
-  {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||7)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
+  {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||5)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
   {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
-  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; log(`ボス報酬：行動権永続+1（現在${G._bonusAction}）`,'gold'); }},
+  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; log(`ボス報酬：行動権永続+1（次の戦闘から${calcActions()}行動/ターン）`,'gold'); }},
   {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
   {id:'unique_ring', label:'ユニーク指輪',            desc:'現在のグレードのランダムなユニーク指輪を1つ得る。', apply:()=>{
     const seen=G._seenLegendRings||new Set();
@@ -337,6 +337,7 @@ function takeRewCard(i){
     if(rc.unique==='great_mother'){
       G.allies.forEach(a=>{ if(a&&a.effect==='dragonet_end') a._dragonetBonus=(a._dragonetBonus||0)+1; });
     }
+    updateGoldenDrop();
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
@@ -384,10 +385,11 @@ function _renderFieldRow(el){
       div.className='slot';
       div.draggable=true;
       const badges=[];
-      if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
-      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
-      if(unit.poison>0)badges.push(`<span class="slot-badge b-psn">毒${unit.poison}</span>`);
-      if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead">破滅${unit.doomed}</span>`);
+      const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
+      if(unit.hate)    badges.push(`<span class="slot-badge b-hate"${_sd('ヘイト')}>ヘイト</span>`);
+      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
+      if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
+      if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${unit.doomed}</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${unit.grade}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';
@@ -439,9 +441,7 @@ function sellFieldUnit(idx){
   // グリマルキン：フィールドに残っているときに別の仲間が還魂されたらボーナス発動
   const grimalkin=G.allies.find(a=>a&&a.effect==='grimalkin_sell');
   if(grimalkin){
-    const _gmRing=G.rings.find(r=>r&&r.unique==='great_mother');
-    const _gmB=_gmRing?(_gmRing.grade||1):0;
-    const _incr=1+_gmB;
+    const _incr=1+(G.hasGoldenDrop?1:0);
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
     log(`${grimalkin.name}：以後の召喚ユニットが+${_incr}/+${_incr}（累計+${G._grimalkinBonus}/+${G._grimalkinBonus}）`,'good');
   }
@@ -558,6 +558,7 @@ function discardHeCard(arrName, idx){
 function discardRing(idx){
   const ring=G.rings[idx]; if(!ring) return;
   G.rings[idx]=null;
+  updateGoldenDrop();
   // ユニーク指輪は破棄時に再出現しないよう記録
   if(ring.legend||ring._isLegend) G._seenLegendRings.add(ring.id);
   updateHUD();

@@ -196,7 +196,7 @@ function applySpell(sp,idx,tgt){
       log(`犠牲：${sa2.name}を破壊、全敵に${dmg}ダメ`,'good');
       G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,ei); });
     break;}
-    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ const bav=G.magicLevel||1; ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); } break;}
+    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ const bav=(G.magicLevel||1)+(G.hasGoldenDrop?1:0)+_dryadBonus(); ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); } break;}
     case 'swap_pos':{
       if(!tgt||tgt.who!=='pair') break;
       const {idx1,idx2,team}=tgt;
@@ -256,13 +256,13 @@ function applySpell(sp,idx,tgt){
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
     break;}
-    case 'boost':{ const a=G.allies[tgt.idx]; if(a){ const bv=G.magicLevel||1; a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); } break;}
+    case 'boost':{ const a=G.allies[tgt.idx]; if(a){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0)+_dryadBonus(); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
     case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
     case 'seal':{ G.enemies[tgt.idx].sealed=1; log(`${G.enemies[tgt.idx].name} 封印1T`,'good'); break;}
     case 'spread':{
       const rightIdx=idx+1;
-      const rw=(rightIdx<(G.handSlots||7))?G.spells[rightIdx]:null;
+      const rw=(rightIdx<(G.handSlots||5))?G.spells[rightIdx]:null;
       if(rw&&rw.type==='wand'&&(rw.usesLeft===undefined||rw.usesLeft>0)){
         log(`拡散：${rw.name}を発動`,'sys');
         if(!rw.needsEnemy&&!rw.needsAlly&&!rw.needsAny){
@@ -338,11 +338,11 @@ function applySpell(sp,idx,tgt){
     case 'shield_ally':{ const a=G.allies[tgt.idx]; a.shield=(a.shield||0)+1; log(`🛡 ${a.name}にシールド+1`,'good'); break;}
     case 'copy_scroll':{
       if(!G.commanderWands||!G.commanderWands.length){ log('複製の巻物：敵の司令官杖がない','sys'); break; }
-      if(G.spells.filter(s=>s).length>=(G.handSlots||7)){ log('手札が満杯','bad'); break; }
+      if(G.spells.filter(s=>s).length>=(G.handSlots||5)){ log('手札が満杯','bad'); break; }
       const picked=randFrom(G.commanderWands);
       const pw=clone(SPELL_POOL.find(s=>s.effect===picked.playerEffect)||{id:picked.id,name:picked.name,type:'wand',effect:picked.playerEffect,baseUses:3});
       pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
-      for(let j=0;j<(G.handSlots||7);j++){ if(!G.spells[j]){ G.spells[j]=pw; break; } }
+      for(let j=0;j<(G.handSlots||5);j++){ if(!G.spells[j]){ G.spells[j]=pw; break; } }
       log(`📜 複製の巻物：${pw.name} を入手`,'good');
     break;}
     case 'destroy_scroll':{

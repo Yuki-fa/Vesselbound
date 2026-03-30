@@ -124,9 +124,8 @@ function _drSimAllySlot(ally,allyIdx){
   if(ally.hp>0){
     if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){ ally.atk+=1; ally.baseAtk+=1; }
     if(ally.effect==='brownie_attack'){
-      const _gmR=G.rings.find(r=>r&&r.unique==='great_mother');
-      const _tb=(_gmR?(_gmR.grade||1):0)+(G._grimalkinBonus||0);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=1+_tb; a.maxHp+=1+_tb; }});
+      const _db=_dryadBonus(); const _tb=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0)+_db; const _thp=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0)+_db;
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=_thp; a.maxHp+=_thp; }});
     }
     if(ally.effect==='forniot'){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
@@ -237,13 +236,14 @@ function renderField(id,units,isEnemy){
       } else {
         // ── ステータスバッジ（右上固定：状態異常のみ）──
         const bs=[];
-        if(u.hate) bs.push('<span class="slot-badge b-hate">ヘイト</span>');
+        const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
+        if(u.hate) bs.push(`<span class="slot-badge b-hate"${_sd('ヘイト')}>ヘイト</span>`);
         if(u.guardian) bs.push('<span class="slot-badge b-guard">守護</span>');
-        if(u.shield>0) bs.push(`<span class="slot-badge b-shield">🛡</span>`);
+        if(u.shield>0) bs.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
         if(u.sealed>0) bs.push('<span class="slot-badge b-seal">封印</span>');
         if(u.instadead) bs.push('<span class="slot-badge b-dead">即死</span>');
-        if(u.poison>0) bs.push(`<span class="slot-badge b-psn">毒${u.poison}</span>`);
-        if(u.doomed>0) bs.push(`<span class="slot-badge b-dead">破滅${u.doomed}</span>`);
+        if(u.poison>0) bs.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${u.poison}</span>`);
+        if(u.doomed>0) bs.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${u.doomed}</span>`);
         if(u.regen) bs.push(`<span class="slot-badge b-regen">再生${u.regen}</span>`);
         if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
         if(u.allyTarget) bs.push('<span class="slot-badge b-hate">狙われ</span>');
@@ -325,9 +325,9 @@ function renderHandSlots(){
   if(!el) return;
   el.innerHTML='';
   const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
-  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=G.handSlots||7;
+  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=G.handSlots||5;
 
-  for(let i=0;i<(G.handSlots||7);i++){
+  for(let i=0;i<(G.handSlots||5);i++){
     const sp=G.spells[i];
     if(sp){
       const div=mkCardEl(sp,i,'spell-battle');
@@ -390,14 +390,15 @@ function computeDesc(card){
   const g=card.grade||1;
   const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
   // 黄金の雫・グリマルキン：G.alliesに実在する味方ユニットのみ適用（報酬プール/敵は対象外）
-  const gmRing=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
   const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
   const isAllyUnit=isCharCard&&typeof G!=='undefined'&&G.allies&&G.allies.indexOf(card)>=0;
-  const gmBonus=gmRing&&isAllyUnit?(gmRing.grade||1):0;
+  const gmBonus=isAllyUnit&&typeof G!=='undefined'&&G.hasGoldenDrop?1:0;
   // グリマルキン：還魂回数分、味方ユニットの召喚数値に加算
   const grimBonus=isAllyUnit&&typeof G!=='undefined'?(G._grimalkinBonus||0):0;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
+  // X=自身のATK のカードはATK実値で置換（golden drop による数値加算の対象になる）
+  if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   // グリマルキン：「数字/数字、」形式の召喚スタッツのみに grimBonus を加算
   // 黄金の雫：X表示と全ての残数値に gmBonus を加算
   // 両方ある場合：召喚スタッツは (gmBonus+grimBonus)、他の数値は gmBonus のみ
@@ -411,15 +412,15 @@ function computeDesc(card){
     }
   }
   if(gmBonus>0){
-    // X はゴールド色で表示（魔術レベル＋gmBonus）
-    desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
+    // X は杖のみ魔術レベルで置換（それ以外はXのまま）
+    if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
     // 黄金の雫：残りの全ての数字に gmBonus を加算（span化済みはスキップ）
     desc=desc.replace(/(<span[^>]*>[\s\S]*?<\/span>)|(\d+)/g,(_m,spanned,num)=>{
       if(spanned) return spanned;
       return `<span style="color:var(--gold2);font-weight:700">${parseInt(num)+gmBonus}</span>`;
     });
   } else {
-    desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
+    if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
   // タイミングキーワードを太字化（「開戦：」「終戦：」等）
   desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在)：/g,'<strong>$1</strong>：');

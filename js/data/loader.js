@@ -152,7 +152,7 @@ async function loadGameData() {
         const kwRows = _parseCSV(kwt);
         kwRows.forEach(row => {
           const name = row['名前'] || row['キーワード'] || row[Object.keys(row)[0]];
-          const desc = row['効果'];
+          const desc = row['効果']||row['説明']||row['説明文'];
           if (name && desc) KW_DESC_MAP[name] = desc;
         });
       }

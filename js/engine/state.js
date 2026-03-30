@@ -30,8 +30,8 @@ function initState(){
     rings:   [null, null],       // 指輪スロット（初期2枠・最大4枠）
     ringSlots: 2,
     // ── 手札（杖＋消耗品混合・最大7枠）──
-    spells:  Array(7).fill(null),
-    handSlots: 7,
+    spells:  Array(5).fill(null),
+    handSlots: 5,
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
@@ -54,6 +54,7 @@ function initState(){
     _pendingTreasure:false,
     _retreated:false,
     _bonusAction:0,
+    hasGoldenDrop:false,
     // ── 報酬グレード ──
     rewardGrade:1,
     rewardGradeUpCount:0,
@@ -64,6 +65,7 @@ function initState(){
     arcanaCarryGold:0, arcanaForceNode:false, arcanaTrustCount:0,
     commanderWands:[],
     seenWands:[],
+    _seenRarity3:new Set(),
     bannedRings:[],
     buffAdjBonuses:{},
     rewardCards:6,

@@ -15,6 +15,7 @@ function doShop(){
     _rewCards.push(ring);
     pool.splice(idx,1);
   }
+  _rewCards.forEach(r=>{ if(r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
 
   G._isShop=true;
   G.phase='reward';
@@ -69,7 +70,7 @@ function shopDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen(
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){
   renderHeRowIn('sh-he-rings',  G.rings,  0, G.ringSlots,      'rings',  'shop');
-  renderHeRowIn('sh-he-wands',  G.spells, 0, G.handSlots||7,   'spells', 'shop');
+  renderHeRowIn('sh-he-wands',  G.spells, 0, G.handSlots||5,   'spells', 'shop');
 }
 function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
   const el=document.getElementById(elId);

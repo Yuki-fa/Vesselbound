@@ -37,10 +37,8 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   if(ring.unique==='wall_copy_atk'&&overrideAtk===undefined){
     bAtk=G.allies.filter(a=>a&&a.hp>0).reduce((m,a)=>Math.max(m,a.atk),0);
   }
-  // 黄金の雫：グレード分を全スタッツに加算
-  const _gmRingU=typeof G!=='undefined'&&G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
-  const _gmBonusU=_gmRingU?(_gmRingU.grade||1):0;
-  if(_gmBonusU){ bAtk+=_gmBonusU; bHp+=_gmBonusU; }
+  // 黄金の雫：+1を全スタッツに加算
+  if(typeof G!=='undefined'&&G.hasGoldenDrop){ bAtk+=1; bHp+=1; }
   // グリマルキン：還魂時ボーナス（+1/+1 累積）
   if(G._grimalkinBonus){ bAtk+=G._grimalkinBonus; bHp+=G._grimalkinBonus; }
   return {
@@ -198,7 +196,7 @@ function summonAllies(){
     let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
     // 黄金の雫・グリマルキンボーナス
-    { const _gmRingS=G.rings.find(r=>r&&r.unique==='great_mother'); const _gmBS=_gmRingS?(_gmRingS.grade||1):0; bAtk+=_gmBS+(G._grimalkinBonus||0); bHp+=_gmBS+(G._grimalkinBonus||0); }
+    bAtk+=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0); bHp+=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
       if(G.allies.filter(a=>a&&a.hp>0).length>=6) break;

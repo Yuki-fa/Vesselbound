@@ -37,7 +37,7 @@ const UNIT_POOL = [
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　二段攻撃',                             counter:true, keywords:['二段攻撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：敵にボスがいる場合、行動回数+1を得る。', effect:'minotaur_start', keywords:['成長3']},
   {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:1,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　常時：このキャラクターのパワーは魔術レベルに等しい。', effect:'harpy_magic', counter:true},
-  {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'誘発：死亡した場合、全ての仲間に+X/±0を与える。Xはこのキャラクターの攻撃力に等しい。', effect:'wraith_death'},
+  {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'誘発：死亡した場合、全ての仲間に+X/±0を与える。Xはこのキャラクターの攻撃力に等しい。', effect:'wraith_death', descXEqualsAtk:true},
   {id:'c_hellhound',  name:'ヘルハウンド',     race:'悪魔', grade:2, atk:11, hp:15, cost:5,  unique:false, icon:'🐕', desc:'誘発：アイテムを使用するたび、このキャラクターはランダムな敵を攻撃する。', effect:'hellhound_spell'},
   {id:'c_centaur',    name:'ケンタウロス',     race:'亜人', grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🏇', desc:'二段攻撃　召喚：魔術レベル+2を得る。',        effect:'centaur_summon', keywords:['二段攻撃']},
   {id:'c_homunculus', name:'ホムンクルス',     race:'全て', grade:2, atk:7,  hp:23, cost:5,  unique:false, icon:'🧪', desc:'終戦：ソウル2を得る。',                      effect:'gnome_end'},
@@ -140,13 +140,15 @@ function makeUnitFromDef(def, fieldIdx){
   }
   // 黄金の雫・グリマルキン：味方として召喚される場合にボーナス適用
   if(typeof G!=='undefined'){
-    const _gmRingD=G.rings?G.rings.find(r=>r&&r.unique==='great_mother'):null;
-    const _gmBonusD=_gmRingD?(_gmRingD.grade||1):0;
-    const _totalBD=_gmBonusD+(G._grimalkinBonus||0);
+    const _totalBD=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
     if(_totalBD>0){
       unit.atk+=_totalBD; unit.baseAtk+=_totalBD;
       unit.hp+=_totalBD; unit.maxHp+=_totalBD;
     }
+  }
+  // ハーピー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
+  if(unit.effect==='harpy_magic'&&typeof G!=='undefined'){
+    const _ml=G.magicLevel||1; unit.atk=_ml; unit.baseAtk=_ml;
   }
   return unit;
 }

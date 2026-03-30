@@ -7,6 +7,9 @@
 // HELPERS
 // ═══════════════════════════════════════
 function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('scr-'+id).classList.add('active'); }
+function updateGoldenDrop(){
+  G.hasGoldenDrop=!!(G.rings&&G.rings.some(r=>r&&r.unique==='great_mother'));
+}
 function updateHUD(){
   if(G.phase!=='reward'){
     document.getElementById('h-floor').textContent=G.floor;

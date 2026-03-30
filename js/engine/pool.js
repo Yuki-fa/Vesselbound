@@ -41,6 +41,7 @@ function getRingPool(){
   return RING_POOL.filter(r=>{
     if(!r.id) return false;
     if(r.legend) return false;
+    if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
     return true;
   }).map(r=>{ const c=clone(r); c.grade=rollGrade(G.floor); c._buyPrice=3; return c; });
@@ -55,6 +56,7 @@ function drawCharacters(n){
     if(!u.id||u.id==='c_golem') return false;
     if(u.unique) return false;
     if((u.grade||1)>targetGrade) return false;
+    if(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)) return false;
     return true;
   });
   if(!pool.length) return [];
@@ -70,6 +72,7 @@ function drawCharacters(n){
     card._buyPrice=calcBuyPrice(card);
     res.push(card);
   }
+  res.forEach(c=>{ if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
   return res;
 }
 
@@ -81,6 +84,7 @@ function drawItems(n, maxGrade){
     if(!s.id||s.starterOnly) return;
     if(maxGrade!=null&&(s.grade||1)>maxGrade) return; // グレード上限フィルタ
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
+    if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);
     if(c.type==='wand'){
       const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses());
@@ -95,7 +99,7 @@ function drawItems(n, maxGrade){
     const i=Math.floor(Math.random()*pool.length);
     res.push(pool.splice(i,1)[0]);
   }
-  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); });
+  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
   return res;
 }
 
@@ -108,6 +112,7 @@ function _drawByType(type, n, maxGrade){
     if(s.type!==type) return;
     if(maxGrade!=null&&(s.grade||1)>maxGrade) return;
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
+    if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);
     if(c.type==='wand'){ const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses()); c.usesLeft=uses; c._maxUses=uses; }
     c._buyPrice=calcBuyPrice(c);
@@ -115,7 +120,7 @@ function _drawByType(type, n, maxGrade){
   });
   const res=[];
   while(res.length<n&&pool.length>0){ const i=Math.floor(Math.random()*pool.length); res.push(pool.splice(i,1)[0]); }
-  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); });
+  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
   return res;
 }
 
@@ -133,16 +138,17 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
   const roll=Math.random()*100;
   const type=roll<wv?'wand':roll<wv+cv?'consumable':'ring';
 
+  const _seen3=G._seenRarity3||new Set();
   let pool, c;
   if(type==='ring'){
-    pool=RING_POOL.filter(r=>!r.starterOnly&&(r.rarity||1)===rarity);
-    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly);
+    pool=RING_POOL.filter(r=>!r.starterOnly&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
+    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&!(r.rarity===3&&_seen3.has(r.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     c.grade=maxGrade;
   } else {
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&(s.rarity||1)===rarity);
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type);
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&!(s.rarity===3&&_seen3.has(s.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
@@ -150,6 +156,7 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
   c._rarity=rarity;
   c._buyPrice=0;
   c._isTreasure=true;
+  if(rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;
 }
 
