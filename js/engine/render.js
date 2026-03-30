@@ -398,18 +398,18 @@ function computeDesc(card){
   const totalBonus=gmBonus+grimBonus;
   const ml=rawMl+gmBonus;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
-  if(totalBonus>0){
-    // X はゴールド色で表示
+  if(gmBonus>0||grimBonus>0){
+    // X はゴールド色で表示（魔術レベル＋gmBonus）
     desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
-    // 召喚スタッツ（「A/Bの〇〇を召喚/呼び出」）のみ totalBonus を加算
+    // 召喚スタッツ（「A/Bの〇〇を召喚/呼び出」）に totalBonus（gm＋grim）を加算
     desc=desc.replace(/(\d+)\/(\d+)(の.+?を(?:召喚|呼び出))/g,(_m,a,h,suf)=>{
       return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+totalBonus}/${parseInt(h)+totalBonus}${suf}</span>`;
     });
-    // グリマルキン自身のdesc：gmBonusを残りの数字に加算（「+1/+1される」→「+2/+2される」）
-    if(card.effect==='grimalkin_sell'&&gmBonus>0){
-      desc=desc.replace(/(再生|毒)(\d+)|(\d+)/g,(m,rpfx,_rn,n)=>{
-        if(rpfx) return m;
-        return `<span style="color:var(--gold2);font-weight:700">${parseInt(n)+gmBonus}</span>`;
+    // 黄金の雫：残りの全ての数字に gmBonus を加算（既にspan化済みのものはスキップ）
+    if(gmBonus>0){
+      desc=desc.replace(/(<span[^>]*>[\s\S]*?<\/span>)|(\d+)/g,(_m,spanned,num)=>{
+        if(spanned) return spanned;
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(num)+gmBonus}</span>`;
       });
     }
   } else {
