@@ -417,6 +417,8 @@ function computeDesc(card){
   } else {
     desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
+  // タイミングキーワードを太字化（「開戦：」「終戦：」等）
+  desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在)：/g,'<strong>$1</strong>：');
   desc=desc.replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;
