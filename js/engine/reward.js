@@ -55,7 +55,7 @@ function goToReward(){
 
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-count').textContent=5;
-  const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='';
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
 
   renderAll(); // フィールド（仲間エリア）も再描画
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
@@ -227,7 +227,7 @@ function rerollRewards(){
 
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
-  const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
   renderRewCards();
 }
 
@@ -240,7 +240,7 @@ function renderRewCards(){
     if(!card) return;
     el.appendChild(_mkRewDiv(card, ()=>takeRewCard(i)));
   });
-  const rb=document.getElementById('rw-reroll'); if(rb) rb.disabled=G.gold<1;
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
   requestAnimationFrame(fitCardDescs);
 }
 
@@ -589,6 +589,7 @@ function renderGradeUpBtn(){
   el.style.display='';
   el.textContent=`報酬G${(G.rewardGrade||1)}→G${(G.rewardGrade||1)+1}（${cost}ソウル）`;
   el.disabled=!canAfford;
+  el.style.opacity=canAfford?'':'0.4';
   el.onclick=()=>{
     if(G.gold<cost) return;
     G.gold-=cost;

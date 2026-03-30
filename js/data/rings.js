@@ -6,7 +6,7 @@ const RING_POOL=[
 
   // ── 通常指輪 ──
   {id:'r_needle',       name:'針の指輪',       kind:'passive', grade:1,
-   desc:'ターン開始時、全ての敵にXダメージを与える。Xは現在のターン数に等しい。', unique:'needle'},
+   desc:'ターン開始時、全ての敵に現在のターン数分のダメージを与える。', unique:'needle'},
 
   {id:'r_lifereg',      name:'生命の指輪',     kind:'passive', grade:1,
    desc:'戦闘終了時、全ての味方に±0/+1を与える。', unique:'life_reg'},

@@ -64,7 +64,7 @@ const SPELL_POOL=[
    desc:'魔術レベルが+2される。', effect:'magic_book'},
 
   {id:'c_sacr_doll',    name:'破壊の巻物', type:'consumable', cost:2,
-   desc:'対象のボスでないキャラクターを破壊する。', effect:'sacrifice_doll', needsAny:true},
+   desc:'対象のボス、エリートでないキャラクターを破壊する。', effect:'sacrifice_doll', needsAny:true},
 
   {id:'c_counter',      name:'反逆の薬',   type:'consumable', cost:2,
    desc:'対象のキャラクターに反撃を与える。', effect:'counter_scroll', needsAlly:true},

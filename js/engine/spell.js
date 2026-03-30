@@ -234,7 +234,8 @@ function applySpell(sp,idx,tgt){
       const sdu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(!sdu) break;
       if(tgt.who==='enemy'){
-        if(sdu.boss){ log('生贄人形：ボスには効果がない','sys'); break; }
+        if(sdu.boss){ log('破壊の巻物：ボスには効果がない','sys'); break; }
+        if(sdu.keywords&&sdu.keywords.includes('エリート')){ log('破壊の巻物：エリートには効果がない','sys'); break; }
         sdu.hp=0; processEnemyDeath(sdu,tgt.idx); // シールド無視
       } else G.allies[tgt.idx]=null;
       log(`破壊の巻物：${sdu.name}を破壊`,'good');
