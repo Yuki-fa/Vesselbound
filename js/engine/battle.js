@@ -495,9 +495,9 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   const actualDmg=dmg+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
 
-  // 負傷トリガー（死亡判定は負傷前のHPで行う）
+  // 負傷トリガー：生き残った場合のみ発動
   const willDie=unit.hp<=0;
-  if(unit.injury&&unit.hp>=0){
+  if(unit.injury&&!willDie){
     triggerInjury(unit, actualDmg);
   }
 
@@ -903,8 +903,8 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     if(srcUnit&&srcUnit.keywords&&srcUnit.keywords.length&&e.hp>0){
       applyKeywordOnHit(srcUnit,e);
     }
-    // 負傷トリガー（敵キャラクター）
-    if(e.injury&&e.hp>=0) triggerInjury(e, dmg);
+    // 負傷トリガー：生き残った場合のみ発動
+    if(e.injury&&e.hp>0) triggerInjury(e, dmg);
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
 }
