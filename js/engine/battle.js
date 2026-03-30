@@ -434,10 +434,11 @@ async function enemyAttackAction(enemy, enemyIdx){
   finalTargets.forEach(tgt=>{
     const aIdx=G.allies.indexOf(tgt);
     if(!hitSet.has(tgt.id)){
-      dealDmgToAlly(tgt,atkVal,aIdx,enemy);
+      const _dmgPassed=dealDmgToAlly(tgt,atkVal,aIdx,enemy);
       hitSet.add(tgt.id);
+      // キーワード効果：ダメージが通った場合のみ（シールドブロック時は発動しない）
+      if(_dmgPassed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
     }
-    if(atkVal>0&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
     hitNames.push(tgt.name);
   });
 
@@ -463,24 +464,31 @@ async function enemyAttackAction(enemy, enemyIdx){
 
 // ── 味方へのダメージ処理 ─────────────────────────
 
+// 戻り値：ダメージが通った(true) / 0ダメまたはシールドでブロック(false)
 function dealDmgToAlly(unit, dmg, _fieldIdx, src){
-  if(!unit||unit.hp<=0) return;
+  if(!unit||unit.hp<=0) return false;
 
-  // 反撃：攻撃を受けたら（0ダメージでも）生存中なら発動
-  if(unit.counter&&src&&unit.hp>0){
-    const srcIdx=G.enemies.indexOf(src);
-    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+  // 0ダメ（封印・無効化）：反撃は攻撃行為に対して発動（生存確定なので発動OK）
+  if(dmg<=0){
+    if(unit.counter&&src&&unit.hp>0){
+      const srcIdx=G.enemies.indexOf(src);
+      if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+    }
+    return false;
   }
-
-  if(dmg<=0) return;
 
   // シールド（貫通キーワードはシールドを無視）
   const _srcPenetrate=src&&src.keywords&&src.keywords.includes('貫通');
-  if(dmg>0&&unit.shield>0&&!_srcPenetrate){
+  if(unit.shield>0&&!_srcPenetrate){
     unit.shield--;
     log(`🛡 ${unit.name}のシールドがダメージを防いだ（残${unit.shield}）`,'sys');
     onAllyShieldLost();
-    return;
+    // 反撃：シールドで防いでも生き残っているので発動
+    if(unit.counter&&src&&unit.hp>0){
+      const srcIdx=G.enemies.indexOf(src);
+      if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+    }
+    return false; // ダメージをシールドで防いだ
   }
 
   // 呪詛加算
@@ -493,7 +501,14 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     triggerInjury(unit, actualDmg);
   }
 
+  // 反撃：ダメージを受けて生き残った場合のみ発動
+  if(!willDie&&unit.counter&&src&&unit.hp>0){
+    const srcIdx=G.enemies.indexOf(src);
+    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+  }
+
   if(willDie){ unit.hp=0; processAllyDeath(unit); } // 負傷でHP回復しても死亡確定
+  return true; // ダメージが通った
 }
 
 // ── 味方の死亡処理 ──────────────────────────────
@@ -725,6 +740,17 @@ function onBattleStart(){
 // ── 戦闘終了時処理（勝利・撤退共通）────────────────
 
 function onBattleEnd(){
+  // 仲間になったエリート/ボスの属性を解除
+  G.allies.forEach(a=>{
+    if(!a||!a.keywords) return;
+    const had=a.keywords.some(k=>k==='エリート'||k==='ボス');
+    if(had){
+      a.keywords=a.keywords.filter(k=>k!=='エリート'&&k!=='ボス');
+      if(a.boss) delete a.boss;
+      log(`${a.name}：エリート/ボス属性を解除`,'sys');
+    }
+  });
+
   // スケルトン：戦闘終了時、死亡していればライフ1で復活
   G.allies.forEach(a=>{
     if(a&&a.hp<=0&&a.effect==='skeleton_revive'){

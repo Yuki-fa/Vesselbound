@@ -235,7 +235,7 @@ function applySpell(sp,idx,tgt){
     break;}
     case 'regen_grant':{
       const rga=G.allies[tgt.idx];
-      if(rga){ rga.regen=3; log(`アンデッドの秘宝：${rga.name}に再生3付与`,'good'); }
+      if(rga){ rga.regen=(rga.regen||0)+3; log(`アンデッドの秘宝：${rga.name}に再生${rga.regen}付与`,'good'); }
     break;}
     case 'purify_hate':{
       if(!tgt) break;

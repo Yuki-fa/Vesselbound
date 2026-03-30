@@ -292,7 +292,7 @@ function _renderFieldRow(el){
       div.draggable=true;
       const badges=[];
       if(unit.hate)    badges.push('<span class="slot-badge b-hate">ヘイト</span>');
-      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡${unit.shield}</span>`);
+      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield">🛡</span>`);
       if(unit.regen)   badges.push(`<span class="slot-badge b-regen">再生${unit.regen}</span>`);
       if(unit.counter) badges.push('<span class="slot-badge b-counter">反撃</span>');
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
@@ -301,13 +301,25 @@ function _renderFieldRow(el){
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${3-(unit._battleCount||0)}戦</div>`:'';
+      const raceTag=unit.race&&unit.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${unit.race}</div>`:'';
+      const _kColorMap={'即死':'#e060e0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','貫通':'#a0d060','絆':'#d080d0','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','再生':'#60d090'};
+      const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}">${k}</span>`;};
+      const _allKws=[...(unit.keywords||[]),...(unit.counter?['反撃']:[])];
+      const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
+      const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
+      const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
+      const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
+      let kwBlock='';
+      if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
       div.innerHTML=`${badgeBlock}${gradeTag}
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:8px;gap:1px">
           <div style="font-size:1.1rem">${unit.icon||'❓'}</div>
           ${dragonetSub}
           <div class="slot-name">${unit.name}</div>
+          ${raceTag}
           <div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div>
         </div>
+        ${kwBlock}
         <div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,unit.hp/unit.maxHp*100)}%"></div></div>
         ${descTag}
         <button class="return-btn" style="bottom:8px">還魂 +1ソウル</button>`;
