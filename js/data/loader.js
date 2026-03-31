@@ -68,15 +68,31 @@ function _parseCSV(text) {
   }).filter(row => row && (row['名前'] || row[headers[0]]));
 }
 
+// ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
+function _parseIntRange(s, fallback) {
+  if (!s || !String(s).trim()) return { val: fallback, range: [fallback, fallback] };
+  const m = String(s).match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
+  if (m) {
+    const lo = parseInt(m[1]), hi = parseInt(m[2]);
+    return { val: hi, range: [lo, hi] };
+  }
+  const v = parseInt(s);
+  return isNaN(v) ? { val: fallback, range: [fallback, fallback] } : { val: v, range: [v, v] };
+}
+
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
 function _rowToUnit(row) {
+  const atkP = _parseIntRange(row['パワー'] || row['ATK'], 0);
+  const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  0);
   return {
-    id:     '',                                // JS定義から名前マッチで補完
-    name:   row['名前'],
-    race:   row['種族']  || '-',
-    grade:  parseInt(row['グレード']) || 1,
-    atk:    parseInt(row['パワー'] || row['ATK'])   || 0,
-    hp:     parseInt(row['ライフ'] || row['HP'])    || 0,
+    id:      '',                               // JS定義から名前マッチで補完
+    name:    row['名前'],
+    race:    row['種族']  || '-',
+    grade:   parseInt(row['グレード']) || 1,
+    atk:     atkP.val,
+    hp:      hpP.val,
+    baseAtk: atkP.range,
+    baseHp:  hpP.range,
     cost:   parseInt(row['価格']) || 0,
     unique: row['ネームド'] === 'TRUE' || row['ネームド'] === '✓' || row['ユニーク'] === 'TRUE' || row['ユニーク'] === '✓',
     desc:   row['効果']   || '',
@@ -187,21 +203,9 @@ async function loadGameData() {
           .map(s => _actionToWandId[s.trim()] || s.trim())
           .filter(s => _validWandIds.has(s));
       }
-      // 基礎ATK/HPレンジをパース（例: "1-2" → [1,2]  単値 "3" → [3,3]）
-      const _parseRange = (s, fallback) => {
-        if (!s) return fallback;
-        const m = String(s).match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
-        if (m) return [parseInt(m[1]), parseInt(m[2])];
-        const v = parseInt(s);
-        return isNaN(v) ? fallback : [v, v];
-      };
-      // floors.js のフォールバック値を引き継ぐ
-      const _fdFallback = _savedWands[fl] ? (FLOOR_DATA[fl]||{}) : {};
       FLOOR_DATA[fl] = {
-        grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || _fdFallback.grade || 1),
-        mult:  parseFloat(row['補正'] || row['mult']) || _fdFallback.mult || 1.0,
-        baseAtk: _parseRange(row['基礎ATK'] || row['baseAtk'], _fdFallback.baseAtk || [1,2]),
-        baseHp:  _parseRange(row['基礎HP']  || row['baseHp'],  _fdFallback.baseHp  || [2,4]),
+        grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
+        mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
         wands: wands,
       };
       if (isBoss) {
@@ -295,13 +299,17 @@ async function loadGameData() {
       if (!name) return;
       const isEnemyOnly = row['敵専用'] === 'TRUE' || row['敵専用'] === '✓' || row['敵専用'] === '◯';
       if (isEnemyOnly) {
-        // 敵専用：ENEMY_POOL を更新（ATK/HPは除く）
+        // 敵専用：ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
         const ep = ENEMY_POOL.find(e => e.name === name);
         if (!ep) return;
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
         if (row['アイコン']) ep.icon = row['アイコン'];
         if (row['種族']) ep.race = row['種族'];
+        const atkP = _parseIntRange(row['パワー'] || row['ATK'], ep.atk || 1);
+        const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  ep.hp  || 2);
+        ep.atk = atkP.val; ep.baseAtk = atkP.range;
+        ep.hp  = hpP.val;  ep.baseHp  = hpP.range;
         // 効果列をキーワード配列として解釈（スペース/読点区切り）
         const kwStr = (row['効果'] || '').trim();
         if (kwStr) ep.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
@@ -317,10 +325,10 @@ async function loadGameData() {
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
       const rarity = parseInt(row['レアリティ']);
       if (!isNaN(rarity) && rarity >= 1) unit.rarity = rarity;
-      const atk = parseInt(row['パワー'] || row['ATK']);
-      if (!isNaN(atk) && atk > 0) unit.atk = atk;
-      const hp = parseInt(row['ライフ'] || row['HP']);
-      if (!isNaN(hp) && hp > 0) unit.hp = hp;
+      const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
+      const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
+      if (atkP2.val > 0) { unit.atk = atkP2.val; unit.baseAtk = atkP2.range; }
+      if (hpP2.val  > 0) { unit.hp  = hpP2.val;  unit.baseHp  = hpP2.range; }
       if (row['種族']) unit.race = row['種族'];
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) unit.cost = cost;

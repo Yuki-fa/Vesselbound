@@ -10,15 +10,16 @@ function rollEnemyGrade(floor){
   if(floor<=15) return 3;
   return 4;
 }
-// 指定階層の敵スタッツを計算（FLOOR_DATA.baseAtk/baseHp/mult を使用）
-// 通常敵：そのまま  エリート：×1.5  ボス：×2.0
-function enemyStatsByFloor(floor, extraMult){
+// 敵スタッツを計算: rand(def.baseAtk) × floor.mult × extraMult
+// def.baseAtk/baseHp がない場合は def.atk/hp を単値レンジとして使用
+function enemyStats(def, floor, extraMult){
   const fd=FLOOR_DATA[floor];
-  if(!fd||!fd.baseAtk) return {atk:3,hp:6};
-  const m=(fd.mult||1.0)*(extraMult||1.0);
+  const m=(fd?.mult||1.0)*(extraMult||1.0);
+  const atkRange=def.baseAtk||[Math.max(1,def.atk||1),Math.max(1,def.atk||1)];
+  const hpRange =def.baseHp ||[Math.max(1,def.hp ||1),Math.max(1,def.hp ||1)];
   return {
-    atk:Math.max(1,Math.round(randi(fd.baseAtk[0],fd.baseAtk[1])*m)),
-    hp: Math.max(1,Math.round(randi(fd.baseHp[0], fd.baseHp[1]) *m))
+    atk:Math.max(1,Math.round(randi(atkRange[0],atkRange[1])*m)),
+    hp: Math.max(1,Math.round(randi(hpRange[0], hpRange[1]) *m))
   };
 }
 
@@ -39,12 +40,13 @@ function namedGradeForFloor(floor){
   return 4;
 }
 
-// ネームドキャラを敵として生成（エリート/ボス共通）
-function _mkNamedEnemy(def,shield,extraKws){
+// ネームドキャラを敵として生成（通常/エリート/ボス共通）
+// floor と extraMult を渡すと def.baseAtk × floor.mult × extraMult でスタッツ計算
+function _mkNamedEnemy(def,floor,extraMult,extraKws){
+  const {atk,hp}=enemyStats(def,floor,extraMult||1.0);
   const kws=[...(def.keywords||[]),...(extraKws||[])];
-  const e=_mkEnemy(def.atk,def.hp,def.name,def.icon,def.grade||1,shield,kws,def.race||'-');
+  const e=_mkEnemy(atk,hp,def.name,def.icon,def.grade||1,0,kws,def.race||'-');
   e.desc=def.desc||'';
-  // キャラクター効果をそのまま引き継ぐ（憑依でも維持）
   e.effect =def.effect ||null;
   e.injury =def.injury ||null;
   e.counter=def.counter||false;
@@ -112,15 +114,16 @@ function generateEnemies(floor){
       let e;
       if(i===0){
         if(pickedBoss){
-          e=_mkNamedEnemy(pickedBoss,0,[]);
+          e=_mkNamedEnemy(pickedBoss,floor,2.0,[]);
         } else {
-          const {atk,hp}=enemyStatsByFloor(floor,2.0);
-          e=_mkEnemy(atk,hp,'ボス','💀',ng,0,[]);
+          const def=_pickEnemyDef(baseG);
+          const {atk,hp}=enemyStats(def,floor,2.0);
+          e=_mkEnemy(atk,hp,def.name,def.icon,baseG,0,[...(def.keywords||[])],def.race||'-');
         }
         e.boss=true;
       } else {
         const def=_pickEnemyDef(baseG);
-        const {atk,hp}=enemyStatsByFloor(floor);
+        const {atk,hp}=enemyStats(def,floor,1.0);
         e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       }
       enemies.push(e);
@@ -153,16 +156,18 @@ function generateEnemies(floor){
     let e;
     if(isElite){
       if(pickedElite){
-        e=_mkNamedEnemy(pickedElite,0,['エリート']);
+        e=_mkNamedEnemy(pickedElite,floor,1.5,['エリート']);
       } else {
-        const {atk,hp}=enemyStatsByFloor(floor,1.5);
+        const g=rollEnemyGrade(floor);
+        const def=_pickEnemyDef(g);
+        const {atk,hp}=enemyStats(def,floor,1.5);
         const eg=Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
-        e=_mkEnemy(atk,hp,'エリート','⭐',eg,0,['エリート']);
+        e=_mkEnemy(atk,hp,def.name,def.icon,eg,0,['エリート'],def.race||'-');
       }
     } else {
       const g=rollEnemyGrade(floor);
-      const {atk,hp}=enemyStatsByFloor(floor);
       const def=_pickEnemyDef(g);
+      const {atk,hp}=enemyStats(def,floor,1.0);
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     }
     enemies.push(e);
