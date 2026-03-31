@@ -78,7 +78,16 @@ async function startBattle(){
   G.battleCounters={damage:0,deaths:0};
 
   G.enemies=generateEnemies(G.floor);
-  G.enemies.forEach(e=>{ if(e) e.allyTarget=false; });
+  // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
+  G.enemies.forEach(e=>{
+    if(!e) return;
+    const pa=G.enemyPermanentBonus||{atk:0,hp:0};
+    if(pa.atk){ e.atk+=pa.atk; e.baseAtk=(e.baseAtk||0)+pa.atk; }
+    if(pa.hp){ e.hp+=pa.hp; e.maxHp+=pa.hp; }
+    const ua=G.enemyUndeadAtkBonus||0;
+    if(ua&&e.race==='不死'){ e.atk+=ua; e.baseAtk=(e.baseAtk||0)+ua; }
+    e.allyTarget=false;
+  });
   G.moveMasks=generateMoveMasks();
   G.visibleMoves=[];
   G.fogNext=false;
@@ -146,7 +155,9 @@ function runCommanderWand(wand){
       const avgAtk=Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.atk,0)/liveE.length));
       const avgHp =Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.hp, 0)/liveE.length));
       const ni=randi(0,ENEMY_NAMES.length-1);
-      const ne={id:uid(),name:ENEMY_NAMES[ni],icon:ENEMY_ICONS[ni],atk:avgAtk,hp:avgHp,maxHp:avgHp,baseAtk:avgAtk,grade:rollEnemyGrade(G.floor),sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
+      const _pa=G.enemyPermanentBonus||{atk:0,hp:0};
+      const _sumAtk=avgAtk+(_pa.atk||0), _sumHp=avgHp+(_pa.hp||0);
+      const ne={id:uid(),name:ENEMY_NAMES[ni],icon:ENEMY_ICONS[ni],atk:_sumAtk,hp:_sumHp,maxHp:_sumHp,baseAtk:_sumAtk,grade:rollEnemyGrade(G.floor),sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
       const ei=G.enemies.findIndex(e=>e.hp<=0);
       if(ei>=0) G.enemies[ei]=ne; else G.enemies.push(ne);
       log(`👹 敵司令官「${wand.name}」：${ne.name}(${avgAtk}/${avgHp})を召喚`,'bad');
@@ -624,7 +635,10 @@ function triggerInjury(unit, dmg=0){
     case 'mummy':{
       const _mv=1+(G.hasGoldenDrop?1:0)+(!isEnemy?_dryadBonus():0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
-      ownSide.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; a.baseAtk=(a.baseAtk||a.atk); } });
+      if(isEnemy){
+        G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
+      }
+      ownSide.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; if(a.baseAtk!=null) a.baseAtk+=_mv; } });
       log(`${unit.name}：全不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
       break;
     }
@@ -719,6 +733,12 @@ function onEnemyShieldLost(){
 // ── 戦闘開始時キャラクター効果 ───────────────────
 
 function onBattleStart(){
+  // 絆の指輪：全仲間に「結束X」キーワードを一時付与（戦闘終了時に削除）
+  const _bondRing=G.rings&&G.rings.find(r=>r&&r.unique==='bond');
+  if(_bondRing){
+    const _bx=_bondRing.grade||1;
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&!a._bondKw){ a.keywords=(a.keywords||[]).concat([`結束${_bx}`]); a._bondKw=`結束${_bx}`; }});
+  }
   G.allies.forEach((a)=>{
     if(!a||a.hp<=0) return;
     switch(a.effect){
@@ -803,7 +823,10 @@ function onBattleStart(){
         break;
     }
   });
-  // 憤激の指輪：戦闘開始時全仲間+3/±0
+  // patience 指輪がない場合、battle_start 指輪トリガーを発火（召喚ユニット生成）
+  const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
+  if(!_hasPatience) fireTrigger('battle_start');
+  // 憤激の指輪：全召喚完了後に全仲間へ+3/±0（召喚ユニットにも適用）
   G.rings.forEach(r=>{
     if(r&&r.unique==='fury_start'){
       const _db=_dryadBonus(); const fb=3*(r.grade||1)+_db;
@@ -811,9 +834,15 @@ function onBattleStart(){
       log(`憤激の指輪：全仲間パワー+${fb}${_db>0?'/+'+_db:'/±0'}`,'good');
     }
   });
-  // patience 指輪がない場合、battle_start 指輪トリガーを発火
-  const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
-  if(!_hasPatience) fireTrigger('battle_start');
+  // 成長X：戦闘開始時、+X/+Xを得る（生存時のみ）
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0) return;
+    const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
+    if(!growKw) return;
+    const x=parseInt(growKw.slice(2))+_dryadBonus();
+    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x; a.maxHp+=x;
+    log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
+  });
   // harpy_magic：魔術レベルが確定した後にATKを同期
   syncHarpyAtk();
 }
@@ -879,15 +908,8 @@ function onBattleEnd(){
     log(`${a.name}：終戦±0/+${zv}`,'good');
   });
 
-  // 成長X：戦闘終了時、+X/+Xを得る（生存時のみ）
-  G.allies.forEach(a=>{
-    if(!a||a.hp<=0) return;
-    const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
-    if(!growKw) return;
-    const x=parseInt(growKw.slice(2))+_dryadBonus();
-    a.atk+=x; a.baseAtk+=x; a.hp+=x; a.maxHp+=x;
-    log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
-  });
+  // 絆の指輪：一時付与した「結束X」キーワードを削除
+  G.allies.forEach(a=>{ if(a&&a._bondKw){ a.keywords=(a.keywords||[]).filter(k=>k!==a._bondKw); delete a._bondKw; }});
 
   // 死亡ユニット（再生・復活で回復しなかった）をフィールドから除去
   for(let i=0;i<G.allies.length;i++){
@@ -971,15 +993,29 @@ function applyKeywordOnHit(attacker, target){
     target.atk=Math.max(0,target.atk-pbX);
     log(`💢 パワーブレイク${pbX}：${attacker.name}が${target.name}のATK-${pbX}（${target._savedAtk}→${target.atk}）`,'bad');
   }
-  // 魂喰らいX：攻撃時、プレイヤーのソウルをX消費して+X/+Xを得る（ソウル不足時は不発）
-  const soulKw=kws.find(k=>/^魂喰らい\d+$/.test(k));
-  if(soulKw&&target.hp>0){
-    const x=parseInt(soulKw.slice(4));
+  // 魂喰（味方専用）：攻撃時、1ソウル消費→攻撃者にシールド+1
+  if(kws.includes('魂喰')&&target.hp>0){
+    if(G.gold>=1){
+      G.gold-=1;
+      attacker.shield=(attacker.shield||0)+1;
+      updateHUD();
+      log(`💀 魂喰：1ソウル消費→${attacker.name}にシールド+1`,'good');
+    }
+  }
+  // 魂喰X（敵専用）：攻撃時、Xソウル消費→全敵に永続+X/+X（ドリアードボーナス込み）
+  const soulKwE=kws.find(k=>/^魂喰\d+$/.test(k));
+  if(soulKwE&&target.hp>0){
+    const x=parseInt(soulKwE.slice(2));
     if(G.gold>=x){
       G.gold-=x;
-      attacker.atk+=x; attacker.hp+=x; attacker.maxHp+=x;
-      updateHUD();
-      log(`💀 魂喰らい${x}：${x}ソウル消費→${attacker.name}+${x}/+${x}`,'bad');
+      const _db=_dryadBonus();
+      const gain=x+_db;
+      G.enemyPermanentBonus=G.enemyPermanentBonus||{atk:0,hp:0};
+      G.enemyPermanentBonus.atk+=gain;
+      G.enemyPermanentBonus.hp+=gain;
+      G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk+=gain; e.baseAtk=(e.baseAtk||0)+gain; e.hp+=gain; e.maxHp+=gain; }});
+      updateHUD(); renderAll();
+      log(`💀 魂喰${x}：${x}ソウル消費→全敵に永続+${gain}/+${gain}`,'bad');
     }
   }
 }

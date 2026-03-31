@@ -81,36 +81,12 @@ const _BOSS_REWARD_OPTIONS=[
   {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
   {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; log(`ボス報酬：行動権永続+1（次の戦闘から${calcActions()}行動/ターン）`,'gold'); }},
   {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
-  {id:'unique_ring', label:'ユニーク指輪',            desc:'現在のグレードのランダムなユニーク指輪を1つ得る。', apply:()=>{
-    const seen=G._seenLegendRings||new Set();
-    const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
-    if(!pool.length){ G.gold+=5; updateHUD(); log('ボス報酬：ユニーク指輪なし→ソウル+5','gold'); return; }
-    const fd=FLOOR_DATA[G.floor];
-    const gr=fd?(fd.sectionGrade||1):1;
-    const r=clone(randFrom(pool));
-    r.grade=gr; r._buyPrice=0; r._isTreasure=true; r._isLegend=true;
-    const ri=G.rings.indexOf(null);
-    if(ri>=0){ G.rings[ri]=r; G._seenLegendRings.add(r.id); log(`ボス報酬：${r.name}(G${gr})を取得`,'gold'); }
-    else { _rewCards.unshift(r); renderRewCards(); }
-  }},
 ];
 
 function _showBossRewardOverlay(){
   // 3つランダムに選ぶ
   const shuffled=[..._BOSS_REWARD_OPTIONS].sort(()=>Math.random()-0.5);
   const choices=shuffled.slice(0,3);
-
-  // ユニーク指輪が選ばれた場合は具体的なリング名を表示
-  choices.forEach(opt=>{
-    if(opt.id==='unique_ring'){
-      const seen=G._seenLegendRings||new Set();
-      const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
-      if(pool.length){
-        const r=randFrom(pool);
-        opt._uniqueRingPreview=`${r.name}`;
-      }
-    }
-  });
 
   // オーバーレイ生成
   const ov=document.createElement('div');
@@ -132,7 +108,7 @@ function _showBossRewardOverlay(){
     labelEl.textContent=opt.label;
     const descEl=document.createElement('div');
     descEl.style='font-size:.75rem;color:var(--text2);line-height:1.4';
-    descEl.textContent=opt._uniqueRingPreview?`${opt.desc}\n（${opt._uniqueRingPreview}）`:opt.desc;
+    descEl.textContent=opt.desc;
     card.appendChild(labelEl);
     card.appendChild(descEl);
     card.onclick=()=>{

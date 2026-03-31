@@ -70,6 +70,9 @@ function initState(){
     buffAdjBonuses:{},
     rewardCards:6,
     maxRewardCards:6,
+    // ── 敵永続強化（魂喰X・マミー敵）──
+    enemyPermanentBonus:{atk:0,hp:0},
+    enemyUndeadAtkBonus:0,
   };
 
   // 初期キャラクター：ゴーレム

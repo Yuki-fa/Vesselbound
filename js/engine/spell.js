@@ -192,7 +192,8 @@ function applySpell(sp,idx,tgt){
       const si=tgt.idx;
       const sa2=G.allies[si]; if(!sa2) break;
       const dmg=sa2.atk;
-      G.allies[si]=null;
+      sa2.hp=0;
+      processAllyDeath(sa2);
       log(`犠牲：${sa2.name}を破壊、全敵に${dmg}ダメ`,'good');
       G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,ei); });
     break;}
