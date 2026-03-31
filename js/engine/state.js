@@ -75,6 +75,7 @@ function initState(){
     _grimalkinBonus:0,
     // ── 宝箱・撤退・宿屋ボーナス ──
     _pendingTreasure:false,
+    _pendingEliteChest:false,
     _retreated:false,
     _bonusAction:0,
     hasGoldenDrop:false,

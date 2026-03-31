@@ -81,11 +81,12 @@ function drawCharacters(n){
 // ── アイテムプールから N 個抽選 ─────────────────
 
 function drawItems(n, maxGrade){
+  const effectiveMax=maxGrade!=null?maxGrade:(G.rewardGrade||1);
   const pool=[];
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
     if(s.rarity===-1) return;
-    if(maxGrade!=null&&(s.grade||1)>maxGrade) return; // グレード上限フィルタ
+    if((s.grade||1)>effectiveMax) return; // グレード上限フィルタ
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);
@@ -109,12 +110,13 @@ function drawItems(n, maxGrade){
 // ── 報酬 5 枚（キャラ3体 + 杖1 + アイテム1）──────
 
 function _drawByType(type, n, maxGrade){
+  const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
   const pool=[];
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
     if(s.rarity===-1) return;
     if(s.type!==type) return;
-    if(maxGrade!=null&&(s.grade||1)>maxGrade) return;
+    if((s.grade||1)>targetGrade) return;
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);

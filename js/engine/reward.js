@@ -14,9 +14,10 @@ function goToReward(){
   _rewCards=drawRewards();
   G.phase='reward';
 
-  // エリート撃破ボーナス：レアリティ2-3の宝箱を追加
-  if(G._eliteKilled){
-    G._pendingTreasure=false; // 通常宝箱処理をスキップ
+  // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
+  if(G._pendingEliteChest){
+    G._pendingEliteChest=false;
+    G._pendingTreasure=false;
     const fd=FLOOR_DATA[G.floor];
     const maxGrade=fd?(fd.sectionGrade||1):1;
     const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);

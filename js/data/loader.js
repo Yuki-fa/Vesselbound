@@ -314,8 +314,8 @@ async function loadGameData() {
         const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  ep.hp  || 2);
         ep.atk = atkP.val; ep.baseAtk = atkP.range;
         ep.hp  = hpP.val;  ep.baseHp  = hpP.range;
-        // 効果列をキーワード配列として解釈（スペース/読点区切り）
-        const kwStr = (row['効果'] || '').trim();
+        // キーワード列（なければ効果列）をキーワード配列として解釈（スペース/読点区切り）
+        const kwStr = (row['キーワード'] || row['効果'] || '').trim();
         if (kwStr) ep.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
         return;
       }

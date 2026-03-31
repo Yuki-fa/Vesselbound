@@ -297,6 +297,8 @@ function renderHand(){
   renderHandSlots();
 }
 
+let _selectedRingIdx=-1;
+
 function renderRingSlots(){
   const el=document.getElementById('ring-slots');
   if(!el) return;
@@ -311,11 +313,39 @@ function renderRingSlots(){
     const ring=G.rings[i];
     if(ring){
       const div=mkCardEl(ring,i,'ring-battle');
-      div.classList.add('inert');
+      if(i===_selectedRingIdx){
+        div.style.outline='2px solid var(--gold2)';
+        div.style.opacity='0.75';
+      }
+      div.style.cursor='pointer';
+      div.onclick=()=>{
+        if(_selectedRingIdx===-1){
+          _selectedRingIdx=i;
+        } else if(_selectedRingIdx===i){
+          _selectedRingIdx=-1;
+        } else {
+          // swap
+          const tmp=G.rings[_selectedRingIdx];
+          G.rings[_selectedRingIdx]=G.rings[i];
+          G.rings[i]=tmp;
+          _selectedRingIdx=-1;
+        }
+        renderRingSlots();
+      };
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty';
+      if(_selectedRingIdx>=0){
+        ph.style.cursor='pointer';
+        ph.style.outline='1px dashed var(--gold)';
+        ph.onclick=()=>{
+          G.rings[i]=G.rings[_selectedRingIdx];
+          G.rings[_selectedRingIdx]=null;
+          _selectedRingIdx=-1;
+          renderRingSlots();
+        };
+      }
       el.appendChild(ph);
     }
   }

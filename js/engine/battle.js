@@ -47,6 +47,7 @@ async function startBattle(){
   // 宝箱・撤退フラグをリセット（前の戦闘の状態を持ち越さない）
   updateGoldenDrop();
   G._pendingTreasure=false;
+  G._pendingEliteChest=false;
   G._retreated=false;
   G._manaCycleUsed=false;
   G._minotaurBonus=0;
@@ -1081,7 +1082,7 @@ function processEnemyDeath(e,eIdx){
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
   // エリート戦ではエリート本体が宝箱を確定ドロップ（他の敵は落とさない）
   if(e.keywords&&e.keywords.includes('エリート')){
-    G._pendingTreasure=true;
+    G._pendingEliteChest=true;
     log(`📦 ${e.name}が宝箱を落とした！`,'gold');
   } else if(!G._pendingTreasure&&!G._retreated&&!G._isEliteFight){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');

@@ -156,6 +156,7 @@ function generateEnemies(floor){
   }
 
   const enemies=[];
+  let kwCount=0; // キーワード持ち通常敵の数（最大2体）
   for(let i=0;i<count;i++){
     const isElite=(i===eliteIdx);
     let e;
@@ -171,22 +172,20 @@ function generateEnemies(floor){
       }
     } else {
       const g=rollEnemyGrade(floor);
-      const def=_pickEnemyDef(g);
+      let def;
+      if(!isBoss&&kwCount>=2){
+        // キーワード持ちが既に2体いる場合はキーワードなしの敵を優先
+        const noKwPool=ENEMY_POOL.filter(ep=>ep.grade===g&&!(ep.keywords||[]).some(k=>k!=='エリート'&&k!=='ボス'));
+        def=noKwPool.length?randFrom(noKwPool):_pickEnemyDef(g);
+      } else {
+        def=_pickEnemyDef(g);
+      }
       const {atk,hp}=enemyStats(def,floor,1.0);
-      e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      const kws=[...(def.keywords||[])];
+      e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
+      if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
     }
     enemies.push(e);
-  }
-  // 非ボス戦：キーワード持ちの敵は最大2体（エリートは除く）
-  if(!isBoss){
-    let _kwCount=0;
-    enemies.forEach(e=>{
-      if(!e||!e.keywords) return;
-      const _ownKws=e.keywords.filter(k=>k!=='エリート'&&k!=='ボス');
-      if(!_ownKws.length) return;
-      _kwCount++;
-      if(_kwCount>2) e.keywords=e.keywords.filter(k=>k==='エリート'||k==='ボス');
-    });
   }
   return enemies;
 }
