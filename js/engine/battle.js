@@ -1076,8 +1076,10 @@ function processEnemyDeath(e,eIdx){
     log(`📦 ${e.name}が宝箱を落とした！`,'gold');
   } else if(!G._pendingTreasure&&!G._retreated&&!G._isEliteFight){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
-    const hasGnome=G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='gnome_treasure');
-    const rate=(hasGreed?2:1)*(hasGnome?2:1)*0.05;
+    // ノーム：1体=2倍、2体=4倍（黄金の雫所持時は各1体あたり3倍）・複数体は乗算
+    const gnomeCount=G.allies?G.allies.filter(a=>a&&a.hp>0&&a.effect==='gnome_treasure').length:0;
+    const gnomeMult=gnomeCount===0?1:Math.pow(G.hasGoldenDrop?3:2,gnomeCount);
+    const rate=(hasGreed?2:1)*gnomeMult*0.05;
     if(Math.random()<rate){
       G._pendingTreasure=true;
       log(`📦 ${e.name}が宝箱を落とした！`,'gold');

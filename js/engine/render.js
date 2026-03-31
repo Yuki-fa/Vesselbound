@@ -200,7 +200,9 @@ function _stripKeywordsFromDesc(desc, unit){
   while(changed){
     changed=false;
     for(const kw of patterns){
-      const esc=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      // 数字部分が黄金の雫で<span>化されていても一致するよう柔軟にマッチ
+      const esc=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')
+                  .replace(/\d+/g,'(?:\\d+|<span[^>]*>\\d+<\\/span>)');
       const re=new RegExp('^'+esc+'[\\s\u3000。、]*');
       const next=result.replace(re,'').trimStart();
       if(next!==result){ result=next; changed=true; break; }
@@ -414,10 +416,11 @@ function computeDesc(card){
   if(gmBonus>0){
     // X は杖のみ魔術レベルで置換（それ以外はXのまま）
     if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
-    // 黄金の雫：残りの全ての数字に gmBonus を加算（span化済みはスキップ）
-    desc=desc.replace(/(<span[^>]*>[\s\S]*?<\/span>)|(\d+)/g,(_m,spanned,num)=>{
-      if(spanned) return spanned;
-      return `<span style="color:var(--gold2);font-weight:700">${parseInt(num)+gmBonus}</span>`;
+    // 黄金の雫：残りの全ての数字に gmBonus を加算
+    // 除外：①（）内の数値（上限説明）・G1/G2等グレード記号・span化済み
+    desc=desc.replace(/（[^）]*）|G\d+|<span[^>]*>[\s\S]*?<\/span>|\d+/g,m=>{
+      if(m.startsWith('（')||/^G\d+$/.test(m)||m.startsWith('<span')) return m;
+      return `<span style="color:var(--gold2);font-weight:700">${parseInt(m)+gmBonus}</span>`;
     });
   } else {
     if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);

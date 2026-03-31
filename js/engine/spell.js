@@ -375,15 +375,17 @@ function applySpell(sp,idx,tgt){
   }
 
   if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
-  // ヘルハウンド：アイテム使用時にランダムな敵を攻撃
-  G.allies.forEach(hh=>{
-    if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
-    const _liveE=G.enemies.filter(e=>e&&e.hp>0);
-    if(!_liveE.length) return;
-    const _ht=randFrom(_liveE);
-    dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
-    log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
-  });
+  // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵を攻撃（杖は対象外）
+  if(sp.type==='consumable'){
+    G.allies.forEach(hh=>{
+      if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
+      const _liveE=G.enemies.filter(e=>e&&e.hp>0);
+      if(!_liveE.length) return;
+      const _ht=randFrom(_liveE);
+      dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
+      log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+    });
+  }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
   if(checkInstantVictory()) return;
