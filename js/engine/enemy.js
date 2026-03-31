@@ -10,13 +10,18 @@ function rollEnemyGrade(floor){
   if(floor<=15) return 3;
   return 4;
 }
-// 敵スタッツを計算: rand(def.baseAtk) × floor.mult × extraMult
-// def.baseAtk/baseHp がない場合は def.atk/hp を単値レンジとして使用
+// グレード別の基礎レンジデフォルト（シートで明示されていない場合に使用）
+// ENEMY_POOLキャラはシート値を使い、UNIT_POOLキャラ（味方兼敵）はこれを使用
+const _GRADE_BASE_ATK=[[1,2],[1,2],[2,4],[4,7],[7,12]]; // index=grade(0-4)
+const _GRADE_BASE_HP =[[2,4],[2,4],[4,8],[8,14],[14,24]];
+
+// 敵スタッツを計算: rand(def.baseAtk or グレードデフォルト) × floor.mult × extraMult
 function enemyStats(def, floor, extraMult){
   const fd=FLOOR_DATA[floor];
   const m=(fd?.mult||1.0)*(extraMult||1.0);
-  const atkRange=def.baseAtk||[Math.max(1,def.atk||1),Math.max(1,def.atk||1)];
-  const hpRange =def.baseHp ||[Math.max(1,def.hp ||1),Math.max(1,def.hp ||1)];
+  const g=Math.min(4,Math.max(0,def.grade||1));
+  const atkRange=def.baseAtk||_GRADE_BASE_ATK[g];
+  const hpRange =def.baseHp ||_GRADE_BASE_HP[g];
   return {
     atk:Math.max(1,Math.round(randi(atkRange[0],atkRange[1])*m)),
     hp: Math.max(1,Math.round(randi(hpRange[0], hpRange[1]) *m))

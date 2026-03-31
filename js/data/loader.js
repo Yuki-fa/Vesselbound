@@ -327,8 +327,10 @@ async function loadGameData() {
       if (!isNaN(rarity) && rarity >= 1) unit.rarity = rarity;
       const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
-      if (atkP2.val > 0) { unit.atk = atkP2.val; unit.baseAtk = atkP2.range; }
-      if (hpP2.val  > 0) { unit.hp  = hpP2.val;  unit.baseHp  = hpP2.range; }
+      // atk/hp は味方スタッツとして更新のみ（baseAtk/baseHpは設定しない）
+      // 敵として出現時の基礎レンジは enemy.js のグレード別デフォルトを使用
+      if (atkP2.val > 0) unit.atk = atkP2.val;
+      if (hpP2.val  > 0) unit.hp  = hpP2.val;
       if (row['種族']) unit.race = row['種族'];
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) unit.cost = cost;
