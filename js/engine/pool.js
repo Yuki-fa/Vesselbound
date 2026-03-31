@@ -40,6 +40,7 @@ function cardRefund(card){
 function getRingPool(){
   return RING_POOL.filter(r=>{
     if(!r.id) return false;
+    if(r.rarity===-1) return false;
     if(r.legend) return false;
     if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
@@ -55,6 +56,7 @@ function drawCharacters(n){
   const pool=UNIT_POOL.filter(u=>{
     if(!u.id||u.id==='c_golem') return false;
     if(u.unique) return false;
+    if(u.rarity===-1) return false;
     if((u.grade||1)>targetGrade) return false;
     if(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)) return false;
     return true;
@@ -82,6 +84,7 @@ function drawItems(n, maxGrade){
   const pool=[];
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
+    if(s.rarity===-1) return;
     if(maxGrade!=null&&(s.grade||1)>maxGrade) return; // グレード上限フィルタ
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
@@ -109,6 +112,7 @@ function _drawByType(type, n, maxGrade){
   const pool=[];
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
+    if(s.rarity===-1) return;
     if(s.type!==type) return;
     if(maxGrade!=null&&(s.grade||1)>maxGrade) return;
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
@@ -141,14 +145,14 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
   const _seen3=G._seenRarity3||new Set();
   let pool, c;
   if(type==='ring'){
-    pool=RING_POOL.filter(r=>!r.starterOnly&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
-    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&!(r.rarity===3&&_seen3.has(r.id)));
+    pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
+    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&!(r.rarity===3&&_seen3.has(r.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     c.grade=maxGrade;
   } else {
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.type===type&&!(s.rarity===3&&_seen3.has(s.id)));
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&!(s.rarity===3&&_seen3.has(s.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
@@ -158,6 +162,44 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
   c._isTreasure=true;
   if(rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;
+}
+
+// 祭壇効果①：次の報酬に同種のユニークを1枚含める
+function _applyUniqueSlot(res){
+  const targetGrade=G.rewardGrade||1;
+  const allyIds=G.allies.filter(Boolean).map(a=>a.id);
+  const uChars=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem'&&u.rarity!==-1&&(u.grade||1)<=targetGrade&&!allyIds.includes(u.id));
+  const uWands=SPELL_POOL.filter(s=>s.type==='wand'&&s.unique&&!s.starterOnly&&s.rarity!==-1&&!(G.seenWands&&G.seenWands.includes(s.id)));
+  const uCons=SPELL_POOL.filter(s=>s.type==='consumable'&&s.unique&&!s.starterOnly&&s.rarity!==-1);
+
+  const charSlots=res.map((c,i)=>({c,i})).filter(({c})=>c&&c._isChar);
+  const wandSlot=res.findIndex(c=>c&&c.type==='wand');
+  const conSlot=res.findIndex(c=>c&&c.type==='consumable');
+
+  const candidates=[];
+  if(uChars.length&&charSlots.length) candidates.push('char');
+  if(uWands.length&&wandSlot>=0) candidates.push('wand');
+  if(uCons.length&&conSlot>=0) candidates.push('consumable');
+  if(!candidates.length) return;
+
+  const pick=randFrom(candidates);
+  if(pick==='char'){
+    const {i}=randFrom(charSlots);
+    const card=clone(randFrom(uChars));
+    card._isChar=true; card._buyPrice=calcBuyPrice(card);
+    res[i]=card;
+  } else if(pick==='wand'){
+    const def=randFrom(uWands);
+    const card=clone(def);
+    const uses=card.baseUses||4; card.usesLeft=uses; card._maxUses=uses;
+    card._buyPrice=calcBuyPrice(card);
+    if(!G.seenWands.includes(card.id)) G.seenWands.push(card.id);
+    res[wandSlot]=card;
+  } else {
+    const card=clone(randFrom(uCons));
+    card._buyPrice=calcBuyPrice(card);
+    res[conSlot]=card;
+  }
 }
 
 function drawRewards(n){
@@ -174,13 +216,18 @@ function drawRewards(n){
   const res=[...chars];
   if(wand) res.push(wand);
   if(item) res.push(item);
+  // 祭壇効果①：ユニークスロット
+  if(G._nextRewardUniqueSlot){
+    G._nextRewardUniqueSlot=false;
+    _applyUniqueSlot(res);
+  }
   return res;
 }
 
 // ── 消耗品のみ抽選（休息所・インプ用）──────────────
 
 function drawConsumable(){
-  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly);
+  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1);
   if(!pool.length) return null;
   const c=clone(randFrom(pool));
   c._buyPrice=calcBuyPrice(c);

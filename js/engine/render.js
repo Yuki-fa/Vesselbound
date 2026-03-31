@@ -480,7 +480,7 @@ function renderControls(){
   const pr=document.getElementById('btn-retreat');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
-    pp.style.display=''; pp.textContent=G.actionsLeft>0?'パス':'ターン終了';
+    pp.style.display=''; pp.textContent='ターン終了';
     pr.style.display=G.visibleMoves.some(i=>G.moveMasks[i]&&G.moveMasks[i]!=='chest')?'':'none';
   } else if(G.phase==='commander'){
     badge.className='ph-badge ph-enemy'; badge.textContent='司令官フェイズ';

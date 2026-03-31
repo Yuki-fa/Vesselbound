@@ -107,7 +107,7 @@ function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); se
 // 拡散の杖：対象選択が必要な右隣杖のためのピッカー
 function _pickForSpread(rw,rightIdx){
   setHint(`拡散：${rw.name}の対象を選択（ESCでキャンセル）`);
-  const applyFn=tgt=>applySpell(rw,rightIdx,tgt);
+  const applyFn=tgt=>applySpell(rw,rightIdx,tgt,true); // _noDecrement=true：右隣杖のチャージ消費なし
   if(rw.needsAny){
     document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
       if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
@@ -134,7 +134,7 @@ function clearSelectable(){
   document.querySelectorAll('.bless-blocked').forEach(s=>s.classList.remove('bless-blocked'));
 }
 
-function applySpell(sp,idx,tgt){
+function applySpell(sp,idx,tgt,_noDecrement){
   clearSelectable();
   log(`→ ${sp.name} を使用`,'em');
 
@@ -184,7 +184,12 @@ function applySpell(sp,idx,tgt){
     case 'nullify':{ const nu=G.enemies[tgt.idx]; nu.nullified=1; log(`${nu.name} 沈黙1T`,'good'); break;}
     case 'weaken':{
       const wu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
-      if(wu){ wu.nullified=1; log(`${wu.name} 脱力1T（ATK→0）`,'good'); }
+      if(wu){
+        wu._weakenedSavedAtk=wu.atk; // 元のATKを保存
+        wu.atk=0;                     // 表示ATKを0に
+        wu.nullified=1;
+        log(`${wu.name} 脱力1T（ATK→0）`,'good');
+      }
     break;}
     case 'stealth':{ const sa=G.allies[tgt.idx]; if(sa){ sa.stealth=true; log(`${sa.name}に隠密付与`,'good'); } break;}
     case 'poison_wand':{ const pe=G.enemies[tgt.idx]; if(pe){ const pv=G.magicLevel||1; pe.poison=(pe.poison||0)+pv; log(`${pe.name}に毒+${pv}付与（毒${pe.poison}）`,'good'); } break;}
@@ -255,7 +260,7 @@ function applySpell(sp,idx,tgt){
     case 'purify_hate':{
       if(!tgt) break;
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
-      if(phu){ phu.hate=false; phu.hateTurns=0; log(`浄化の炎：${phu.name}のヘイト解除`,'good'); }
+      if(phu){ phu.poison=0; log(`浄化の薬：${phu.name}の毒を消した`,'good'); }
     break;}
     case 'boost':{ const a=G.allies[tgt.idx]; if(a){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0)+_dryadBonus(); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
@@ -268,7 +273,7 @@ function applySpell(sp,idx,tgt){
         log(`拡散：${rw.name}を発動`,'sys');
         if(!rw.needsEnemy&&!rw.needsAlly&&!rw.needsAny){
           G.actionsLeft++; // 内部呼出のデクリメントを補償
-          applySpell(rw,rightIdx,null);
+          applySpell(rw,rightIdx,null,true); // _noDecrement=true：右隣杖のチャージ消費なし
         } else {
           // 対象選択が必要な場合：renderAll後にピッカーを起動
           _spreadTargetPending=true;
@@ -316,6 +321,31 @@ function applySpell(sp,idx,tgt){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp=Math.max(0,a.hp-1); } });
       log('☄ 隕石の杖：全キャラに1ダメ','bad');
     break;}
+    case 'meteor_multi':{
+      const ml=G.magicLevel||1;
+      for(let _mi=0;_mi<ml*cMult;_mi++){
+        const liveE=G.enemies.filter(e=>e&&e.hp>0);
+        if(!liveE.length) break;
+        const mt=randFrom(liveE);
+        dealDmgToEnemy(mt,ml,G.enemies.indexOf(mt));
+      }
+      log(`☄ 隕石の杖：ランダムな敵に${ml}ダメ×${ml*cMult}回`,'good');
+    break;}
+    case 'shield_wand':{
+      const sw=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      if(sw){ if(!sw.shield) sw.shield=1; log(`光輝の杖：${sw.name}にシールドを付与`,'good'); }
+    break;}
+    case 'growth_wand':{
+      const gwA=G.allies[tgt.idx];
+      if(gwA){
+        if(!gwA.keywords) gwA.keywords=[];
+        const gwV=(G.magicLevel||1)*cMult;
+        const gwI=gwA.keywords.findIndex(k=>/^成長\d+$/.test(k));
+        if(gwI>=0){ const _v=parseInt(gwA.keywords[gwI].slice(2)); gwA.keywords[gwI]=`成長${_v+gwV}`; }
+        else gwA.keywords.push(`成長${gwV}`);
+        log(`成長の杖：${gwA.name}に成長${gwV}を付与`,'good');
+      }
+    break;}
     case 'bomb':{ const dmg=(G.enemies[0]?.grade||1)*5*cMult; G.enemies.forEach((e,i)=>{ if(e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
@@ -336,7 +366,7 @@ function applySpell(sp,idx,tgt){
         });
       }
     break;}
-    case 'shield_ally':{ const a=G.allies[tgt.idx]; a.shield=(a.shield||0)+1; log(`🛡 ${a.name}にシールド+1`,'good'); break;}
+    case 'shield_ally':{ const a=G.allies[tgt.idx]; if(a){ if(!a.shield) a.shield=1; log(`🛡 ${a.name}にシールドを付与`,'good'); } break;}
     case 'copy_scroll':{
       if(!G.commanderWands||!G.commanderWands.length){ log('複製の巻物：敵の司令官杖がない','sys'); break; }
       if(G.spells.filter(s=>s).length>=(G.handSlots||5)){ log('手札が満杯','bad'); break; }
@@ -368,8 +398,8 @@ function applySpell(sp,idx,tgt){
     const manaCycle=G.rings.find(r=>r&&r.unique==='mana_cycle');
     let skipDecrement=false;
     if(manaCycle&&!G._manaCycleUsed){ G._manaCycleUsed=true; skipDecrement=true; log(`魔導の指輪：最初の杖のチャージ消費をスキップ`,'sys'); }
-    if(!skipDecrement){
-      if(sp.effect!=='spread') sp.usesLeft--;
+    if(!_noDecrement&&!skipDecrement){
+      sp.usesLeft--;
       if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
     }
   }

@@ -122,6 +122,7 @@ function _showBossRewardOverlay(){
       document.getElementById('rw-gold').textContent=G.gold;
       updateHUD();
       renderRewCards();
+      renderGradeUpBtn();
       renderHandEditor();
     };
     row.appendChild(card);
@@ -285,7 +286,7 @@ function takeRewCard(i){
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果
     if(unit.effect==='jack_summon'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.shield=(a.shield||0)+1; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&!a.shield){ a.shield=1; }});
       log(`${unit.name}：全ての味方にシールドを付与`,'good');
     }
     if(unit.effect==='centaur_summon'){

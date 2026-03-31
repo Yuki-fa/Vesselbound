@@ -45,7 +45,13 @@ const SPELL_POOL=[
    desc:'右隣の杖の効果を使用する。', effect:'spread', baseUses:3},
 
   {id:'w_meteor',     name:'隕石の杖',  type:'wand', cost:3,
-   desc:'ランダムな敵に3ダメージをX回与える。', effect:'meteor_multi', baseUses:4},
+   desc:'ランダムな敵にXダメージをX回与える。', effect:'meteor_multi', baseUses:4},
+
+  {id:'w_shield_grant', name:'光輝の杖', type:'wand', cost:2,
+   desc:'対象のキャラクターにシールドを与える。', effect:'shield_wand', needsAny:true, baseUses:4},
+
+  {id:'w_growth_grant', name:'成長の杖', type:'wand', cost:3,
+   desc:'対象のキャラクターに成長Xを与える。', effect:'growth_wand', needsAlly:true, baseUses:3},
 
   {id:'w_doom',       name:'破滅の杖',  type:'wand', cost:3,
    desc:'全ての敵にXダメージを与える。', effect:'doom', baseUses:4},
@@ -69,11 +75,8 @@ const SPELL_POOL=[
   {id:'c_counter',      name:'反逆の薬',   type:'consumable', cost:2,
    desc:'対象のキャラクターに反撃を与える。', effect:'counter_scroll', needsAlly:true},
 
-  {id:'c_growth',       name:'成長の薬',   type:'consumable', cost:2,
-   desc:'対象のキャラクターに成長3を与える。', effect:'growth_grant', needsAlly:true},
-
   {id:'c_purify',       name:'浄化の薬',   type:'consumable', cost:1,
-   desc:'対象のキャラクターのヘイトを外す。', effect:'purify_hate', needsAny:true},
+   desc:'対象のキャラクターの毒を消す。', effect:'purify_hate', needsAny:true},
 
   {id:'c_kill',         name:'禁呪の薬',   type:'consumable', cost:3,
    desc:'対象のキャラクターに即死を与える。', effect:'instakill', needsAny:true},

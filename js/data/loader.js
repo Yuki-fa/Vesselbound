@@ -252,8 +252,10 @@ async function loadGameData() {
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) spell.cost = cost;
       // レアリティ
-      const rarity = parseInt(row['レアリティ']);
-      if (!isNaN(rarity) && rarity >= 1) spell.rarity = rarity;
+      { const rarStr=(row['レアリティ']||'').trim();
+        const rarVal=parseInt(rarStr);
+        if(rarStr==='-') spell.rarity=-1;
+        else if(!isNaN(rarVal)&&rarVal>=1) spell.rarity=rarVal; }
       // 初期装備
       const sv = row['初期装備'];
       if (sv === 'TRUE' || sv === '✓') spell.starterOnly = true;
@@ -281,8 +283,10 @@ async function loadGameData() {
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) ring.cost = cost;
       // レアリティ
-      const rarity = parseInt(row['レアリティ']);
-      if (!isNaN(rarity) && rarity >= 1) ring.rarity = rarity;
+      { const rarStr=(row['レアリティ']||'').trim();
+        const rarVal=parseInt(rarStr);
+        if(rarStr==='-') ring.rarity=-1;
+        else if(!isNaN(rarVal)&&rarVal>=1) ring.rarity=rarVal; }
       // 初期装備
       const sv = row['初期装備'];
       if (sv === 'TRUE' || sv === '✓') ring.starterOnly = true;
@@ -323,8 +327,10 @@ async function loadGameData() {
       else if (nv === 'FALSE') unit.unique = false;
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
-      const rarity = parseInt(row['レアリティ']);
-      if (!isNaN(rarity) && rarity >= 1) unit.rarity = rarity;
+      { const rarStr=(row['レアリティ']||'').trim();
+        const rarVal=parseInt(rarStr);
+        if(rarStr==='-') unit.rarity=-1;
+        else if(!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
       const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
       // atk/hp は味方スタッツとして更新のみ（baseAtk/baseHpは設定しない）

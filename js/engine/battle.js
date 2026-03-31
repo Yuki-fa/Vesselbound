@@ -98,6 +98,7 @@ async function startBattle(){
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
+    delete a._weakenedSavedAtk;
   });
 
   log(`── 階層 ${G.floor} ──`,'sys');
@@ -167,7 +168,7 @@ function runCommanderWand(wand){
       if(liveE.length>0){ const t=randFrom(liveE); const hp=Math.ceil(FLOOR_DATA[G.floor]?.grade||1)*4; t.hp+=hp; t.maxHp+=hp; log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad'); }
       break;
     case 'enemy_shield':
-      if(liveE.length>0){ const t=randFrom(liveE); t.shield=(t.shield||0)+1; log(`👹 敵司令官「${wand.name}」：${t.name}にシールド+1`,'bad'); }
+      if(liveE.length>0){ const t=randFrom(liveE); if(!t.shield) t.shield=1; log(`👹 敵司令官「${wand.name}」：${t.name}にシールドを付与`,'bad'); }
       break;
   }
 }
@@ -212,6 +213,14 @@ function applyTurnStart(){
       log(`${e.name} のパワーブレイクが回復（ATK→${e.atk}）`,'sys');
     }
   });
+  // 脱力回復（プレイヤーターン開始時にATK復元）
+  [...G.enemies,...G.allies].forEach(u=>{
+    if(u&&u._weakenedSavedAtk!==undefined){
+      u.atk=(u.atk||0)+u._weakenedSavedAtk;
+      log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
+      delete u._weakenedSavedAtk;
+    }
+  });
 
   // 指輪パッシブ（針など）
   G.rings.forEach(ring=>{
@@ -231,7 +240,7 @@ function applyTurnStart(){
       const liveIdxs=G.allies.map((u,i)=>u&&u.hp>0?i:-1).filter(i=>i>=0);
       if(liveIdxs.length){
         const r=G.allies[liveIdxs[liveIdxs.length-1]];
-        r.shield=(r.shield||0)+1;
+        if(!r.shield) r.shield=1;
         log(`${a.name}：${r.name}にシールド+1`,'good');
       }
     }
@@ -248,7 +257,7 @@ function applyTurnStart(){
       const liveIdxs=G.enemies.map((u,i)=>u&&u.hp>0?i:-1).filter(i=>i>=0);
       if(liveIdxs.length){
         const r=G.enemies[liveIdxs[liveIdxs.length-1]];
-        r.shield=(r.shield||0)+1;
+        if(!r.shield) r.shield=1;
         log(`${e.name}：${r.name}にシールド+1`,'bad');
       }
     }
@@ -758,9 +767,9 @@ function onBattleStart(){
       case 'mermaid_start':
         G.magicLevel++; log(`${a.name}：魔術レベル+1`,'good'); break;
       case 'homunculus_start':
-        a.shield=(a.shield||0)+1; log(`${a.name}：シールドを得た`,'good'); break;
+        if(!a.shield) a.shield=1; log(`${a.name}：シールドを得た`,'good'); break;
       case 'manigans_start':
-        G.allies.forEach(b=>{ if(b&&b.hp>0) b.shield=(b.shield||0)+1; });
+        G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
       case 'imp_start':
         { const ei=G.spells.indexOf(null);
@@ -797,9 +806,9 @@ function onBattleStart(){
       case 'mermaid_start':
         G.magicLevel++; log(`${e.name}：魔術レベル+1`,'bad'); break;
       case 'homunculus_start':
-        e.shield=(e.shield||0)+1; log(`${e.name}：シールドを得た`,'bad'); break;
+        if(!e.shield) e.shield=1; log(`${e.name}：シールドを得た`,'bad'); break;
       case 'manigans_start':
-        G.enemies.forEach(f=>{ if(f&&f.hp>0) f.shield=(f.shield||0)+1; });
+        G.enemies.forEach(f=>{ if(f&&f.hp>0&&!f.shield) f.shield=1; });
         log(`${e.name}：全仲間にシールドを付与`,'bad'); break;
       case 'gremlin_start':{
         const liveA=G.allies.filter(a=>a&&a.hp>0);
@@ -997,7 +1006,7 @@ function applyKeywordOnHit(attacker, target){
   if(kws.includes('魂喰')&&target.hp>0){
     if(G.gold>=1){
       G.gold-=1;
-      attacker.shield=(attacker.shield||0)+1;
+      if(!attacker.shield) attacker.shield=1;
       updateHUD();
       log(`💀 魂喰：1ソウル消費→${attacker.name}にシールド+1`,'good');
     }
@@ -1066,7 +1075,7 @@ function processEnemyDeath(e,eIdx){
   e._dp=true;
   if(e.keywords&&e.keywords.includes('エリート')) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
-  const gold=1;
+  const gold=G.baseIncome||1;
   G.earnedGold+=gold; G.gold+=gold;
   log(`${e.name} 撃破！ソウル+${gold}`,'gold');
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
@@ -1112,7 +1121,7 @@ function onWandUsed(){
         break;
       case 'jack_wand':{
         const alive=G.allies.filter(b=>b&&b.hp>0);
-        if(alive.length){ const t=alive[Math.floor(Math.random()*alive.length)]; t.shield=(t.shield||0)+1; log(`ジャック：杖使用→${t.name}にシールド+1`,'good'); }
+        if(alive.length){ const t=alive[Math.floor(Math.random()*alive.length)]; if(!t.shield) t.shield=1; log(`ジャック：杖使用→${t.name}にシールド+1`,'good'); }
         break;
       }
     }

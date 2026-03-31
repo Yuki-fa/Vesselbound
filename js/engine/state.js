@@ -78,6 +78,8 @@ function initState(){
     _retreated:false,
     _bonusAction:0,
     hasGoldenDrop:false,
+    baseIncome:1,
+    _nextRewardUniqueSlot:false,
     // ── 報酬グレード ──
     rewardGrade:1,
     rewardGradeUpCount:0,
