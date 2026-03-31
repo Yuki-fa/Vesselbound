@@ -197,7 +197,7 @@ function startPlayerPhase(){
   if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
-  setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'杖を使うかパスしてください');
+  setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -1121,7 +1121,7 @@ function onWandUsed(){
 
 async function playerPass(){
   if(G.phase!=='player') return;
-  document.getElementById('btn-pass').textContent='パス';
+  document.getElementById('btn-pass').textContent='ターン終了';
   await battlePhase();
 }
 

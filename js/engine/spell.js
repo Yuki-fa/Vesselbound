@@ -102,7 +102,7 @@ function pickTarget(who,idx,checkBless){
   document.addEventListener('keydown',escCancel,{once:true});
 }
 
-function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('杖を使うかパスしてください'); } }
+function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。'); } }
 
 // 拡散の杖：対象選択が必要な右隣杖のためのピッカー
 function _pickForSpread(rw,rightIdx){
@@ -126,7 +126,7 @@ function _pickForSpread(rw,rightIdx){
       if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
     });
   }
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ clearSelectable(); _spreadTargetPending=false; renderHand(); setHint('杖を使うかパスしてください'); } },{once:true});
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ clearSelectable(); _spreadTargetPending=false; renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。'); } },{once:true});
 }
 
 function clearSelectable(){
@@ -397,7 +397,7 @@ function applySpell(sp,idx,tgt){
     setHint('使用できる魔法がありません。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else if(G.actionsLeft<=0){
-    setHint('アイテムを使うかパスしてください');
+    setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }
