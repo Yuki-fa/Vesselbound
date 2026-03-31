@@ -187,18 +187,25 @@ async function loadGameData() {
           .map(s => _actionToWandId[s.trim()] || s.trim())
           .filter(s => _validWandIds.has(s));
       }
+      // 基礎ATK/HPレンジをパース（例: "1-2" → [1,2]  単値 "3" → [3,3]）
+      const _parseRange = (s, fallback) => {
+        if (!s) return fallback;
+        const m = String(s).match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
+        if (m) return [parseInt(m[1]), parseInt(m[2])];
+        const v = parseInt(s);
+        return isNaN(v) ? fallback : [v, v];
+      };
+      // floors.js のフォールバック値を引き継ぐ
+      const _fdFallback = _savedWands[fl] ? (FLOOR_DATA[fl]||{}) : {};
       FLOOR_DATA[fl] = {
-        power: parseInt(row['power']) || 10,
-        // 補正：敵ステータス算出用スケーリング（小数値）
-        grade: Math.max(1, parseFloat(row['補正'] || row['グレード'] || row['grade']) || 1),
-        // sectionGrade：アイテムドロップグレード上限用（整数1-4）
-        sectionGrade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
+        grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || _fdFallback.grade || 1),
+        mult:  parseFloat(row['補正'] || row['mult']) || _fdFallback.mult || 1.0,
+        baseAtk: _parseRange(row['基礎ATK'] || row['baseAtk'], _fdFallback.baseAtk || [1,2]),
+        baseHp:  _parseRange(row['基礎HP']  || row['baseHp'],  _fdFallback.baseHp  || [2,4]),
         wands: wands,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
-        const bs = parseInt(row['ボスシールドの数'] || row['ボスシールド']);
-        if (!isNaN(bs)) FLOOR_DATA[fl].bossShield = bs;
         // BOSS_FLOORS はボス階の「1つ前」の階番号（移動先選択でボス専用表示に使う）
         BOSS_FLOORS.push(fl - 1);
       }

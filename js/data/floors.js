@@ -5,9 +5,6 @@
 // ボス戦が発生する階層
 const BOSS_FLOORS=[4,9,14,19];
 
-// ボス戦のシールド数（floor番号をキーに）
-const BOSS_SHIELD={5:3,10:5,15:8,20:12};
-
 // ── 司令官杖プール（汎用）──────────────────────────────────
 // commanderEffect: 敵が使う時の効果
 // playerEffect:   プレイヤーが複製した時の効果（spell.jsのeffect名）
@@ -23,27 +20,29 @@ const COMMANDER_WAND_POOL=[
 // wands: 司令官が使う杖のID（COMMANDER_WAND_POOL参照）
 const _BOSS_WANDS=['cw_buff','cw_heal','cw_shield','cw_hate','cw_summon'];
 
+// baseAtk/baseHp: 基礎レンジ [min,max]  mult: 階層補正値
+// 通常敵ATK = round(rand(baseAtk)*mult)  エリート×1.5  ボス×2.0
 const FLOOR_DATA=[null,
-  {power:18, grade:1,wands:[]},
-  {power:18, grade:1,wands:['cw_shield']},
-  {power:18, grade:1,wands:['cw_summon']},
-  {power:23, grade:1,wands:['cw_heal']},
-  {power:31, grade:1,boss:true, wands:_BOSS_WANDS},
-  {power:180,grade:2,wands:['cw_hate']},
-  {power:220,grade:2,wands:['cw_shield']},
-  {power:270,grade:2,wands:['cw_summon']},
-  {power:340,grade:2,wands:['cw_heal']},
-  {power:600,grade:2,boss:true, wands:_BOSS_WANDS},
-  {power:450,grade:3,wands:['cw_hate']},
-  {power:450,grade:3,wands:['cw_shield']},
-  {power:450,grade:3,wands:['cw_summon']},
-  {power:585,grade:3,wands:['cw_heal']},
-  {power:765,grade:3,boss:true, wands:_BOSS_WANDS},
-  {power:4050,grade:4,wands:['cw_hate','cw_buff']},
-  {power:4050,grade:4,wands:['cw_shield','cw_summon']},
-  {power:4050,grade:4,wands:['cw_summon','cw_buff']},
-  {power:5265,grade:4,wands:['cw_heal','cw_hate']},
-  {power:6885,grade:4,boss:true, wands:_BOSS_WANDS},
+  {grade:1,baseAtk:[1,2], baseHp:[2,4],  mult:1.0, wands:[]},
+  {grade:1,baseAtk:[1,2], baseHp:[2,4],  mult:1.0, wands:['cw_shield']},
+  {grade:1,baseAtk:[1,2], baseHp:[2,4],  mult:1.1, wands:['cw_summon']},
+  {grade:1,baseAtk:[1,2], baseHp:[2,4],  mult:1.2, wands:['cw_heal']},
+  {grade:1,baseAtk:[1,2], baseHp:[2,4],  mult:1.3, boss:true, wands:_BOSS_WANDS},
+  {grade:2,baseAtk:[5,7], baseHp:[10,14],mult:2.0, wands:['cw_hate']},
+  {grade:2,baseAtk:[5,7], baseHp:[10,14],mult:2.0, wands:['cw_shield']},
+  {grade:2,baseAtk:[5,7], baseHp:[10,14],mult:2.2, wands:['cw_summon']},
+  {grade:2,baseAtk:[5,7], baseHp:[10,14],mult:2.4, wands:['cw_heal']},
+  {grade:2,baseAtk:[5,7], baseHp:[10,14],mult:2.8, boss:true, wands:_BOSS_WANDS},
+  {grade:3,baseAtk:[10,14],baseHp:[20,28],mult:4.0,wands:['cw_hate']},
+  {grade:3,baseAtk:[10,14],baseHp:[20,28],mult:4.0,wands:['cw_shield']},
+  {grade:3,baseAtk:[10,14],baseHp:[20,28],mult:4.3,wands:['cw_summon']},
+  {grade:3,baseAtk:[10,14],baseHp:[20,28],mult:4.6,wands:['cw_heal']},
+  {grade:3,baseAtk:[10,14],baseHp:[20,28],mult:5.0,boss:true, wands:_BOSS_WANDS},
+  {grade:4,baseAtk:[17,20],baseHp:[34,40],mult:8.0, wands:['cw_hate','cw_buff']},
+  {grade:4,baseAtk:[17,20],baseHp:[34,40],mult:8.5, wands:['cw_shield','cw_summon']},
+  {grade:4,baseAtk:[17,20],baseHp:[34,40],mult:9.0, wands:['cw_summon','cw_buff']},
+  {grade:4,baseAtk:[17,20],baseHp:[34,40],mult:9.5, wands:['cw_heal','cw_hate']},
+  {grade:4,baseAtk:[17,20],baseHp:[34,40],mult:10.0,boss:true, wands:_BOSS_WANDS},
 ];
 
 // マップノードの種類定義
