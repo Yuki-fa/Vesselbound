@@ -60,6 +60,7 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._retreated=false;
+  G._retreatTargetNodeType=null;
   G._pendingSkelRevive=[];
   G._manaCycleUsed=false;
   G._minotaurBonus=0;
@@ -78,6 +79,10 @@ async function startBattle(){
   if(rHand)  rHand.style.display='none';
   if(rMove)  rMove.style.display='none';
   if(allySection) allySection.style.display='';
+  const eArea=document.getElementById('enemy-area');
+  if(eArea) eArea.style.display='';
+  const rMoveBtns=document.getElementById('reward-move-btns');
+  if(rMoveBtns) rMoveBtns.style.display='none';
   const eLabel=document.getElementById('enemy-field-label');
   if(eLabel) eLabel.style.display='';
 
@@ -124,7 +129,7 @@ async function startBattle(){
 
   // 非ボス戦：司令官杖を1本発動
   if(!_isBossFight&&G.commanderWands&&G.commanderWands.length){
-    const vw=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||G.enemies.filter(e=>e.hp>0).length<6);
+    const vw=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||G.enemies.filter(e=>e&&e.hp>0).length<6);
     if(vw.length) runCommanderWand(randFrom(vw));
   }
 
@@ -147,7 +152,7 @@ async function nextTurn(){
 
 function runCommanderWand(wand){
   if(!wand) return;
-  const liveE=G.enemies.filter(e=>e.hp>0);
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   const bonus=Math.ceil(FLOOR_DATA[G.floor]?.grade||1);
   switch(wand.commanderEffect){
@@ -190,7 +195,7 @@ async function commanderPhase(){
   G.phase='commander';
   renderControls();
   log('👹 敵司令官フェイズ','bad');
-  const liveE=G.enemies.filter(e=>e.hp>0);
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length||!G.commanderWands||!G.commanderWands.length){ await sleep(300); return; }
   const pool=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||liveE.length<6);
   if(!pool.length){ await sleep(300); return; }
@@ -240,7 +245,7 @@ function applyTurnStart(){
     if(!ring) return;
     if(ring.unique==='needle'){
       const dmg=G.turn||1; // X = 現在ターン数
-      const ts=G.enemies.filter(e=>e.hp>0); if(!ts.length) return;
+      const ts=G.enemies.filter(e=>e&&e.hp>0); if(!ts.length) return;
       ts.forEach(e=>{ dealDmgToEnemy(e,dmg,G.enemies.indexOf(e)); });
       log(`🎯 針の指輪：全敵に${dmg}ダメージ（ターン${G.turn}）`,'good');
       if(checkInstantVictory()) return;
@@ -311,7 +316,7 @@ async function battlePhase(){
   }
 
   // 全攻撃後：勝敗判定
-  if(G.enemies.filter(e=>e.hp>0).length===0){
+  if(G.enemies.filter(e=>e&&e.hp>0).length===0){
     _onAllEnemiesDefeated();
     return;
   }
@@ -345,7 +350,7 @@ async function battlePhase(){
 }
 
 function _checkBattleOver(){
-  if(G.enemies.filter(e=>e.hp>0).length===0){
+  if(G.enemies.filter(e=>e&&e.hp>0).length===0){
     _onAllEnemiesDefeated();
     return true;
   }
@@ -989,7 +994,7 @@ function applyVictoryBonuses(){
 // ── スペル使用後の勝利チェック ──────────────────
 
 function checkInstantVictory(){
-  if(G.phase==='player'&&G.enemies.filter(e=>e.hp>0).length===0){
+  if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0).length===0){
     G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     applyVictoryBonuses();
     log('全敵撃破！','gold');

@@ -41,12 +41,13 @@ function goToReward(){
   // 報酬フェイズUI
   document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
-  const eLabel=document.getElementById('enemy-field-label');
-  if(eLabel) eLabel.style.display='none';
+  const eArea=document.getElementById('enemy-area');
+  if(eArea) eArea.style.display='none';
+  const rMoveBtns=document.getElementById('reward-move-btns');
+  if(rMoveBtns) rMoveBtns.style.display='';
   document.getElementById('reward-info-bar').style.display='';
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
-  document.getElementById('btn-retreat').style.display='none';
 
   const bossNotice=document.getElementById('boss-reward-notice');
   if(G._eliteKilled){
@@ -136,35 +137,32 @@ function _showBossRewardOverlay(){
 // ── 行き先ノード表示 ───────────────────────────
 
 function renderMoveSlotsInEnemy(){
-  const el=document.getElementById('f-enemy');
+  const el=document.getElementById('reward-move-btns');
+  if(!el) return;
   el.innerHTML='';
   let opts;
-  if(G._isShop){
+  if(G._retreated&&G._retreatTargetNodeType){
+    opts=[{nodeType:G._retreatTargetNodeType,idx:-1}];
+  } else if(G._isShop){
     const _nextIsBoss=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss;
     opts=[{nodeType:_nextIsBoss?'boss':'battle',idx:-1}];
   } else if(G._retryFloor){
     const nodeType=FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle';
     opts=[{nodeType,idx:-1}];
   } else {
-    opts=G.visibleMoves.filter(i=>G.moveMasks[i]).map(i=>({nodeType:G.moveMasks[i],idx:i}));
+    opts=G.visibleMoves.filter(i=>G.moveMasks[i]&&G.moveMasks[i]!=='chest').map(i=>({nodeType:G.moveMasks[i],idx:i}));
     // イベントアイテム受け取り中（宿屋・祭壇から遷移）は戦闘/ボス戦のみ表示
     if(_eventItemDone) opts=opts.filter(o=>o.nodeType==='battle'||o.nodeType==='boss');
     if(opts.length===0) opts.push({nodeType:FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle',idx:-1});
   }
-  for(let i=0;i<6;i++){
-    const opt=opts[i];
-    const div=document.createElement('div');
-    if(opt){
-      const nt=NODE_TYPES[opt.nodeType];
-      div.className='slot has-move';
-      div.style.flexDirection='column';
-      div.innerHTML=`<div class="move-icon" style="font-size:1.4rem">${nt.icon}</div><div class="move-lbl" style="font-size:.64rem;font-weight:600">${nt.label}</div><div style="font-size:.54rem;color:var(--text2);margin-top:2px;text-align:center;padding:0 4px">${nt.desc||''}</div>`;
-      div.onclick=()=>chooseMoveInline(opt.nodeType);
-    } else {
-      div.className='slot empty';
-    }
-    el.appendChild(div);
-  }
+  opts.slice(0,3).forEach(opt=>{
+    const nt=NODE_TYPES[opt.nodeType];
+    const btn=document.createElement('button');
+    btn.className='btn rew-move-btn';
+    btn.innerHTML=`<span style="font-size:1.1rem">${nt.icon}</span><span>${nt.label}</span>`;
+    btn.onclick=()=>chooseMoveInline(opt.nodeType);
+    el.appendChild(btn);
+  });
 }
 
 function chooseMoveInline(nt){
@@ -173,6 +171,10 @@ function chooseMoveInline(nt){
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
   document.getElementById('reward-info-bar').style.display='none';
   document.getElementById('reward-cards-section').style.display='none';
+  const rMoveBtns=document.getElementById('reward-move-btns');
+  if(rMoveBtns) rMoveBtns.style.display='none';
+  const eArea=document.getElementById('enemy-area');
+  if(eArea) eArea.style.display='';
   const eLabel=document.getElementById('enemy-field-label');
   if(eLabel) eLabel.style.display='';
   document.getElementById('btn-pass').style.display='';
@@ -313,16 +315,17 @@ function renderRewCards(){
       const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       const _rawDesc=card.desc?computeDesc(card):'';
       const descTag=_rawDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_rawDesc}</div>`:'';
-      const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
-      const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.5rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
+      const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.68rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
+      const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.68rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
       const summTag=card._rewSummoned?`<div style="position:absolute;bottom:16px;right:2px;font-size:.42rem;color:var(--purple2)">召喚</div>`:'';
+      const shortBadge=!canBuy?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
       const _stBadges=[];
       if(card.shield>0) _stBadges.push(`<span class="slot-badge b-shield">🛡${card.shield>1?'×'+card.shield:''}</span>`);
       if(card.poison>0) _stBadges.push(`<span class="slot-badge b-psn">毒${card.poison}</span>`);
       if(card.doomed>0) _stBadges.push(`<span class="slot-badge b-dead">破滅${card.doomed}</span>`);
       const statusBlock=_stBadges.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-bottom:3px">${_stBadges.join('')}</div>`:'';
       const hpPct=Math.max(0,card.hp/card.maxHp*100);
-      slot.innerHTML=`${gradeTag}${costTag}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">${statusBlock}<div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
+      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">${statusBlock}<div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
       if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
       else { slot.style.cursor='default'; }
     }
@@ -364,7 +367,8 @@ function _mkRewDiv(card, onBuy){
     const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
-    div.innerHTML=`${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${computeDesc(card)}</div>${statsLine}${uniqueBadge}`;
+    const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
+    div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${computeDesc(card)}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
   }
@@ -383,7 +387,8 @@ function _mkRewDiv(card, onBuy){
     :refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
   const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-  div.innerHTML=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
+  const shortBadgeItem=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
+  div.innerHTML=`${shortBadgeItem}<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
   if(canBuy) div.onclick=onBuy;
   return div;
 }
@@ -738,12 +743,13 @@ function showEventItemPickup(item, onDone){
 
   document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
-  const eLabel=document.getElementById('enemy-field-label');
-  if(eLabel) eLabel.style.display='none';
+  const eArea2=document.getElementById('enemy-area');
+  if(eArea2) eArea2.style.display='none';
+  const rMB2=document.getElementById('reward-move-btns');
+  if(rMB2) rMB2.style.display='';
   document.getElementById('reward-info-bar').style.display='';
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
-  document.getElementById('btn-retreat').style.display='none';
   document.getElementById('ph-badge').textContent='アイテム受け取り';
   document.getElementById('ph-badge').className='ph-badge';
   const bossNotice=document.getElementById('boss-reward-notice');

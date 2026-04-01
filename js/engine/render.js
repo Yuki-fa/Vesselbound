@@ -246,6 +246,16 @@ function renderField(id,units,isEnemy){
         slot.classList.add('has-move');
         const nt=NODE_TYPES[mv];
         slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>`;
+        if(mv!=='chest'){
+          slot.title='クリックで撤退';
+          slot.onclick=()=>{
+            if(G.phase!=='player') return;
+            if(confirm(`${nt.label}に移動して撤退しますか？`)){
+              G._retreatTargetNodeType=mv;
+              retreat();
+            }
+          };
+        }
       } else {
         // ── ステータスバッジ（右上固定：状態異常のみ）──
         const bs=[];
@@ -272,11 +282,11 @@ function renderField(id,units,isEnemy){
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
         if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-        const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
+        const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.68rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
-        const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
+        const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.56rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
         const _infoStyle='position:absolute;inset:0 0 3px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
@@ -293,9 +303,20 @@ function renderField(id,units,isEnemy){
         if(!isEnemy&&deathRisk.has(i)) slot.classList.add('will-die');
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
-      const nt=NODE_TYPES[G.moveMasks[i]];
+      const _mvType=G.moveMasks[i];
+      const nt=NODE_TYPES[_mvType];
       slot.classList.add('has-move');
       slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>`;
+      if(_mvType!=='chest'){
+        slot.title='クリックで撤退';
+        slot.onclick=()=>{
+          if(G.phase!=='player') return;
+          if(confirm(`${nt.label}に移動して撤退しますか？`)){
+            G._retreatTargetNodeType=_mvType;
+            retreat();
+          }
+        };
+      }
     } else {
       slot.classList.add('empty');
     }
@@ -519,17 +540,15 @@ function mkCardEl(card,_idx,_ctx){
 function renderControls(){
   const badge=document.getElementById('ph-badge');
   const pp=document.getElementById('btn-pass');
-  const pr=document.getElementById('btn-retreat');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
-    pp.style.display=''; pp.textContent='ターン終了';
-    pr.style.display=G.visibleMoves.some(i=>G.moveMasks[i]&&G.moveMasks[i]!=='chest')?'':'none';
+    pp.style.display='';
   } else if(G.phase==='commander'){
     badge.className='ph-badge ph-enemy'; badge.textContent='司令官フェイズ';
-    pp.style.display='none'; pr.style.display='none';
+    pp.style.display='none';
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
-    pp.style.display='none'; pr.style.display='none';
+    pp.style.display='none';
   }
 }
 

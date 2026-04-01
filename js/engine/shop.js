@@ -22,12 +22,13 @@ function doShop(){
 
   document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
-  const eLabel=document.getElementById('enemy-field-label');
-  if(eLabel) eLabel.style.display='none';
+  const eAreaS=document.getElementById('enemy-area');
+  if(eAreaS) eAreaS.style.display='none';
+  const rMBS=document.getElementById('reward-move-btns');
+  if(rMBS) rMBS.style.display='';
   document.getElementById('reward-info-bar').style.display='';
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
-  document.getElementById('btn-retreat').style.display='none';
   document.getElementById('ph-badge').innerHTML='<span style="font-size:.75em;opacity:.75">行商</span>';
   document.getElementById('ph-badge').className='ph-badge';
   const bossNotice=document.getElementById('boss-reward-notice');

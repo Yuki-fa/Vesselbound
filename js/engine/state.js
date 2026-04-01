@@ -77,6 +77,7 @@ function initState(){
     _pendingTreasure:false,
     _pendingEliteChest:false,
     _retreated:false,
+    _retreatTargetNodeType:null,
     _bonusAction:0,
     hasGoldenDrop:false,
     baseIncome:1,
