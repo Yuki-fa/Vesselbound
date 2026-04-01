@@ -262,7 +262,7 @@ async function loadGameData() {
       else if (sv === 'FALSE') delete spell.starterOnly;
       // 説明文（ゲームロジックは JS 側で管理）
       const desc = row['効果'] || row['説明文'];
-      if (desc) spell.desc = desc;
+      spell.desc = desc || '';
     });
 
     // ── 指輪プール（ユニーク・グレード・価格・初期装備・説明文）──
@@ -293,7 +293,7 @@ async function loadGameData() {
       else if (sv === 'FALSE') delete ring.starterOnly;
       // 説明文
       const desc = row['効果'] || row['説明文'];
-      if (desc) ring.desc = desc;
+      ring.desc = desc || '';
     });
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
@@ -341,7 +341,7 @@ async function loadGameData() {
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
-      if (desc) unit.desc = desc;
+      unit.desc = desc || '';
     });
 
     console.log(

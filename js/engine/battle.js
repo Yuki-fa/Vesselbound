@@ -5,9 +5,20 @@
 
 let _isBossFight = false;
 
-// ドリアード：パッシブバフ+1/+1（+X/+X 対称バフに乗る）
-function _dryadBonus(){
-  return (G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='dryad_buff'))?1:0;
+// ドリアード：生存確認
+function _hasDryad(){
+  return !!(G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='dryad_buff'));
+}
+function triggerDryadBuff(){
+  if(!_hasDryad()) return;
+  const dryad=G.allies.find(a=>a&&a.hp>0&&a.effect==='dryad_buff');
+  for(let _di=0;_di<3;_di++){
+    const liveA=G.allies.filter(a=>a&&a.hp>0);
+    if(!liveA.length) break;
+    const t=randFrom(liveA);
+    t.atk+=1; t.baseAtk=(t.baseAtk||0)+1; t.hp+=1; t.maxHp+=1;
+  }
+  log(`${dryad.name}：バフ発動→ランダムな仲間に+1/+1×3`,'good');
 }
 
 function _handleVictory(){
@@ -49,6 +60,7 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._retreated=false;
+  G._pendingSkelRevive=[];
   G._manaCycleUsed=false;
   G._minotaurBonus=0;
 
@@ -246,9 +258,10 @@ function applyTurnStart(){
       }
     }
     if(a.effect==='vidar_turn'){
-      const db=_dryadBonus(); const vv=2+db+(G.hasGoldenDrop?1:0);
+      const vv=2+(G.hasGoldenDrop?1:0);
       G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=vv; b.hp+=vv; b.maxHp+=vv; }});
       log(`${a.name}：全仲間+${vv}/+${vv}`,'good');
+      triggerDryadBuff();
     }
   });
   // エインセル①・ヴィーザル：ターン開始時効果（敵）
@@ -354,27 +367,29 @@ function _onAllEnemiesDefeated(){
 function _applyAllyAttackEffects(ally){
   if(!ally||ally.hp<=0) return;
   const _gd=G.hasGoldenDrop?1:0;
-  const _db=_dryadBonus();
   if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
-    const v=1+_gd+_db; ally.atk+=v; ally.baseAtk+=v;
-    if(_db>0){ ally.hp+=_db; ally.maxHp+=_db; }
-    log(`${ally.name}：攻撃時+${v}/${_db>0?'+'+_db:'±0'}`,'good');
+    const v=1+_gd; ally.atk+=v; ally.baseAtk+=v;
+    log(`${ally.name}：攻撃時+${v}/±0`,'good');
+    triggerDryadBuff();
   }
   if(ally.effect==='brownie_attack'){
     const _grimB=G._grimalkinBonus||0;
-    const _atkGain=_gd+_grimB+_db; const _hpGain=1+_gd+_grimB+_db;
+    const _atkGain=_gd+_grimB; const _hpGain=1+_gd+_grimB;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_atkGain>0){a.atk+=_atkGain;a.baseAtk=(a.baseAtk||0)+_atkGain;} a.hp+=_hpGain; a.maxHp+=_hpGain; }});
     log(`${ally.name}：攻撃時→全仲間${_atkGain>0?'+'+_atkGain:'±0'}/+${_hpGain}`,'good');
+    triggerDryadBuff();
   }
   if(ally.effect==='forniot'){
-    const v=1+_gd+_db;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=v; a.baseAtk=(a.baseAtk||0)+v; if(_db>0){a.hp+=_db;a.maxHp+=_db;} }});
-    log(`${ally.name}：攻撃時→全仲間+${v}/${_db>0?'+'+_db:'±0'}`,'good');
+    const v=1+_gd;
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=v; a.baseAtk=(a.baseAtk||0)+v; }});
+    log(`${ally.name}：攻撃時→全仲間+${v}/±0`,'good');
+    triggerDryadBuff();
   }
   if(ally.effect==='vampire_attack'){
-    const va=2+_gd+_db, vh=1+_gd+_db;
+    const va=2+_gd, vh=1+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
     log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
+    triggerDryadBuff();
   }
 }
 
@@ -588,18 +603,25 @@ function processAllyDeath(unit){
 
   // 石像効果
   if(unit.onDeath==='stone_death'){
-    const _db=_dryadBonus(); const stB=2+_db;
+    const stB=2;
     G.allies.forEach(a=>{ if(a&&a.id!==unit.id&&a.hp>0){ a.hp+=stB; a.maxHp+=stB; }});
     log(`🗿 石像効果：全仲間ライフ+${stB}`,'good');
+    triggerDryadBuff();
   }
 
   // レイス：死亡時、全仲間に+ATK/±0
   if(unit.effect==='wraith_death'){
-    const _db=_dryadBonus(); const x=(unit.atk||0)+_db;
+    const x=(unit.atk||0);
     if(x>0){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; if(_db>0){a.hp+=_db;a.maxHp+=_db;} }});
-      log(`${unit.name}：死亡→全仲間パワー+${x}/${_db>0?'+'+_db:'±0'}`,'good');
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; }});
+      log(`${unit.name}：死亡→全仲間パワー+${x}/±0`,'good');
+      triggerDryadBuff();
     }
+  }
+  // スケルトン：死亡時に復活リストへ登録（アク等に上書きされても復活できるよう）
+  if(unit.effect==='skeleton_revive'){
+    if(!G._pendingSkelRevive) G._pendingSkelRevive=[];
+    G._pendingSkelRevive.push(unit);
   }
   // ファントム：アク以外の仲間が死んだ時、0/1不死の「アク」を召喚
   if(unit.name!=='アク'){
@@ -616,12 +638,12 @@ function processAllyDeath(unit){
 
 function _onAnyCharDeath(){
   const _gd0=G.hasGoldenDrop?1:0;
-  const _db=_dryadBonus();
   G.allies.forEach(a=>{
     if(a&&a.hp>0&&a.effect==='naglfar_ondeath'){
-      const nv=2+_gd0+_db, nhv=1+_gd0+_db;
+      const nv=2+_gd0, nhv=1+_gd0;
       a.atk+=nv; a.baseAtk=(a.baseAtk||0)+nv; a.hp+=nhv; a.maxHp+=nhv;
       log(`${a.name}：キャラ死亡→+${nv}/+${nhv}`,'good');
+      triggerDryadBuff();
     }
   });
   G.enemies.forEach(e=>{
@@ -643,13 +665,14 @@ function triggerInjury(unit, dmg=0){
   const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
   switch(unit.injury){
     case 'mummy':{
-      const _mv=1+(G.hasGoldenDrop?1:0)+(!isEnemy?_dryadBonus():0);
+      const _mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
       if(isEnemy){
         G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
       }
       ownSide.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; if(a.baseAtk!=null) a.baseAtk+=_mv; } });
       log(`${unit.name}：全不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
+      if(!isEnemy) triggerDryadBuff();
       break;
     }
     case 'freyr':{
@@ -663,9 +686,10 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'worm':{
-      const _wv=1+(G.hasGoldenDrop&&!isEnemy?1:0)+(!isEnemy?_dryadBonus():0);
+      const _wv=1+(G.hasGoldenDrop&&!isEnemy?1:0);
       ownSide.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.hp+=_wv; a.maxHp+=_wv; }});
       log(`${unit.name}：負傷→全仲間+${_wv}/+${_wv}`,col);
+      if(!isEnemy) triggerDryadBuff();
       break;
     }
     case 'minotaur':{
@@ -720,12 +744,12 @@ function triggerInjury(unit, dmg=0){
 function onAllyShieldLost(){
   // エインセル②：味方がシールドを失うと+1/+2を得る
   const _gde=G.hasGoldenDrop?1:0;
-  const _db=_dryadBonus();
   G.allies.forEach(a=>{
     if(a&&a.hp>0&&(a.effect==='einsel'||a.effect==='einsel_shieldlost')){
-      const ea=1+_gde+_db, eh=2+_gde+_db;
+      const ea=1+_gde, eh=2+_gde;
       a.atk+=ea; a.baseAtk+=ea; a.hp+=eh; a.maxHp+=eh;
       log(`${a.name}：シールド喪失→+${ea}/+${eh}`,'good');
+      triggerDryadBuff();
     }
   });
 }
@@ -792,7 +816,7 @@ function onBattleStart(){
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     const kw=(a.keywords||[]).find(k=>/^結束\d+$/.test(k));
-    if(kw){ const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0)+_dryadBonus(); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x; b.maxHp+=x; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x}`,'good'); }
+    if(kw){ const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x; b.maxHp+=x; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x}`,'good'); triggerDryadBuff(); }
   });
   // 結束X（敵側）
   G.enemies.forEach(e=>{
@@ -839,9 +863,10 @@ function onBattleStart(){
   // 憤激の指輪：全召喚完了後に全仲間へ+3/±0（召喚ユニットにも適用）
   G.rings.forEach(r=>{
     if(r&&r.unique==='fury_start'){
-      const _db=_dryadBonus(); const fb=3*(r.grade||1)+_db;
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; if(_db>0){a.hp+=_db;a.maxHp+=_db;} }});
-      log(`憤激の指輪：全仲間パワー+${fb}${_db>0?'/+'+_db:'/±0'}`,'good');
+      const fb=3*(r.grade||1);
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; }});
+      log(`憤激の指輪：全仲間パワー+${fb}/±0`,'good');
+      triggerDryadBuff();
     }
   });
   // 成長X：戦闘開始時、+X/+Xを得る（生存時のみ）
@@ -849,9 +874,10 @@ function onBattleStart(){
     if(!a||a.hp<=0) return;
     const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
     if(!growKw) return;
-    const x=parseInt(growKw.slice(2))+_dryadBonus();
+    const x=parseInt(growKw.slice(2));
     a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x; a.maxHp+=x;
     log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
+    triggerDryadBuff();
   });
   // harpy_magic：魔術レベルが確定した後にATKを同期
   syncHarpyAtk();
@@ -871,16 +897,27 @@ function onBattleEnd(){
     }
   });
 
-  // スケルトン：死亡していれば戦闘終了時にライフ1で召喚（グリマルキンボーナス適用）
-  G.allies.forEach(a=>{
-    if(a&&a.hp<=0&&a.effect==='skeleton_revive'){
-      const _grimBonus=G._grimalkinBonus||0;
-      a.atk=(a.baseAtk||a.atk)+_grimBonus;
-      a.hp=1;
-      if(a.maxHp<1) a.maxHp=1;
-      log(`${a.name}：ライフ1で召喚`+(_grimBonus>0?`（atk+${_grimBonus}）`:''),'good');
+  // スケルトン：死亡していれば戦闘終了時にライフ1で召喚（空きマスの一番右端）
+  (G._pendingSkelRevive||[]).forEach(skel=>{
+    const _grimBonus=G._grimalkinBonus||0;
+    skel.atk=(skel.baseAtk||skel.atk)+_grimBonus;
+    skel.hp=1;
+    if(skel.maxHp<1) skel.maxHp=1;
+    // 自分が既に盤面に残っていれば（誰にも上書きされていなければ）そのまま
+    const selfIdx=G.allies.indexOf(skel);
+    if(selfIdx>=0&&G.allies[selfIdx]===skel){
+      log(`${skel.name}：ライフ1で召喚`+(_grimBonus>0?`（atk+${_grimBonus}）`:''),'good');
+      return;
+    }
+    // 空きマスの一番右端（インデックスが最大のスロット）を探す
+    let emptyIdx=-1;
+    for(let _si=5;_si>=0;_si--){ if(!G.allies[_si]||G.allies[_si].hp<=0){ emptyIdx=_si; break; } }
+    if(emptyIdx>=0){
+      G.allies[emptyIdx]=skel;
+      log(`${skel.name}：ライフ1で召喚（スロット${emptyIdx}）`+(_grimBonus>0?`（atk+${_grimBonus}）`:''),'good');
     }
   });
+  G._pendingSkelRevive=[];
 
   // ドラゴネット：3回目の戦闘終了時にワームへ変身
   G.allies.forEach((a,i)=>{
@@ -913,9 +950,10 @@ function onBattleEnd(){
   // ゾンビ：戦闘終了時、±0/+4を得る
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const _db=_dryadBonus(); const zv=4+_db;
+    const zv=4;
     a.hp+=zv; a.maxHp+=zv;
     log(`${a.name}：終戦±0/+${zv}`,'good');
+    triggerDryadBuff();
   });
 
   // 絆の指輪：一時付与した「結束X」キーワードを削除
@@ -934,9 +972,9 @@ function applyVictoryBonuses(){
   // 生命の指輪：全ての味方が±0/+1を得る
   G.rings.forEach(r=>{
     if(r&&r.unique==='life_reg'){
-      const _db=_dryadBonus(); const lv=1+_db;
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=lv; a.maxHp+=lv; if(_db>0){a.atk+=_db;a.baseAtk+=_db;} }});
-      log(`生命の指輪：全仲間ライフ+${lv}`,'good');
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
+      log(`生命の指輪：全仲間ライフ+1`,'good');
+      triggerDryadBuff();
     }
   });
 
@@ -1012,14 +1050,13 @@ function applyKeywordOnHit(attacker, target){
       log(`💀 魂喰：1ソウル消費→${attacker.name}にシールド+1`,'good');
     }
   }
-  // 魂喰X（敵専用）：攻撃時、Xソウル消費→全敵に永続+X/+X（ドリアードボーナス込み）
+  // 魂喰X（敵専用）：攻撃時、Xソウル消費→全敵に永続+X/+X
   const soulKwE=kws.find(k=>/^魂喰\d+$/.test(k));
   if(soulKwE&&target.hp>0){
     const x=parseInt(soulKwE.slice(2));
     if(G.gold>=x){
       G.gold-=x;
-      const _db=_dryadBonus();
-      const gain=x+_db;
+      const gain=x;
       G.enemyPermanentBonus=G.enemyPermanentBonus||{atk:0,hp:0};
       G.enemyPermanentBonus.atk+=gain;
       G.enemyPermanentBonus.hp+=gain;
@@ -1111,9 +1148,10 @@ function onWandUsed(){
     if(!a||a.hp<=0) return;
     switch(a.effect){
       case 'dwarf_wand':{
-        const _gainD=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0)+_dryadBonus();
+        const _gainD=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
         G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=_gainD; b.baseAtk+=_gainD; b.hp+=_gainD; b.maxHp+=_gainD; }});
         log(`ドワーフ：杖使用→全仲間+${_gainD}/+${_gainD}`,'good');
+        triggerDryadBuff();
         break;}
 
       case 'gremlin_wand':

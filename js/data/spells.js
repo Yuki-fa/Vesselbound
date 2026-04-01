@@ -53,6 +53,12 @@ const SPELL_POOL=[
   {id:'w_growth_grant', name:'成長の杖', type:'wand', cost:3,
    desc:'対象のキャラクターに成長Xを与える。', effect:'growth_wand', needsAlly:true, baseUses:3},
 
+  {id:'w_flash_blade', name:'閃刃の杖', type:'wand', cost:3,
+   desc:'全てのキャラクターに1ダメージを与える。', effect:'flash_blade', baseUses:4},
+
+  {id:'w_charm',      name:'魅了の杖',  type:'wand', cost:3,
+   desc:'対象のパワーが魔術レベル以下の敵を仲間にする。', effect:'charm', needsEnemy:true, baseUses:3},
+
   {id:'w_doom',       name:'破滅の杖',  type:'wand', cost:3,
    desc:'全ての敵にXダメージを与える。', effect:'doom', baseUses:4},
 

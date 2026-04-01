@@ -18,9 +18,9 @@
   --font-hd:'Cinzel',serif;--font-bd:'Noto Sans JP',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size:14px;min-height:100vh;overflow-x:hidden}
-.screen{display:none;min-height:100vh}
-.screen.active{display:flex;flex-direction:column}
+body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size:14px;height:100dvh;overflow:hidden}
+.screen{display:none}
+.screen.active{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 
 /* TITLE */
 #scr-title{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#1a1030 0%,var(--bg) 70%)}
@@ -39,7 +39,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 /* BATTLE */
 #scr-battle{flex-direction:column}
-.battle-area{display:flex;flex-direction:column;flex:1;padding:8px 12px;gap:7px;overflow-y:auto;max-width:1100px;margin:0 auto;width:100%}
+.battle-area{display:flex;flex-direction:column;flex:1;padding:8px 12px;gap:7px;overflow-y:auto;overflow-x:hidden;max-width:1100px;margin:0 auto;width:100%;min-height:0}
 .field-label{font-size:.65rem;color:var(--text2);letter-spacing:.07em;margin-bottom:3px}
 .field{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
 

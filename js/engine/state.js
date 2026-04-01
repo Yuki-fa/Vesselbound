@@ -50,7 +50,7 @@ function initState(){
     allies: Array(6).fill(null),
     enemies:[],
     // ── プレイヤー装備 ──
-    rings:   [null, null],       // 指輪スロット（初期2枠・最大4枠）
+    rings:   Array(4).fill(null), // 指輪スロット（初期2枠・最大4枠）
     ringSlots: 2,
     // ── 手札（杖＋消耗品混合・最大7枠）──
     spells:  Array(5).fill(null),

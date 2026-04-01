@@ -185,6 +185,7 @@ function rerollRewards(){
   if(G.gold<1) return;
   G.gold-=1;
   G.rerollCount=(G.rerollCount||0)+1;
+  // 召喚済みキャラも含め全リセット
   _rewCards=drawRewards();
 
   // 試行の指輪
@@ -209,15 +210,111 @@ function rerollRewards(){
   renderRewCards();
 }
 
+// ── 報酬キャラクター：ダメージ・召喚・負傷トリガー ─────────
+
+// 報酬枠のキャラクターにダメージを与える
+function dealDmgToRewChar(rewIdx, dmg){
+  const c=_rewCards[rewIdx];
+  if(!c||!c._isChar||c.hp<=0) return;
+  if(c.shield>0){ c.shield--; log(`${c.name}：シールドがダメージを防いだ`,'sys'); renderRewCards(); return; }
+  c.hp=Math.max(0,c.hp-dmg);
+  if(c.hp<=0){
+    log(`${c.name}：報酬枠から消滅`,'bad');
+    _rewCards[rewIdx]=null;
+    renderRewCards();
+    return;
+  }
+  // 負傷トリガー（常在・誘発・負傷のみ）
+  if(c.injury) _triggerRewCharInjury(c);
+  renderRewCards();
+}
+
+// 報酬フェイズ中の負傷トリガー（開戦・終戦・攻撃・召喚は除く）
+function _triggerRewCharInjury(unit){
+  if(!unit||!unit.injury) return;
+  switch(unit.injury){
+    case 'mummy':{
+      const mv=1+(G.hasGoldenDrop?1:0);
+      G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
+      G.allies.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=mv; if(a.baseAtk!=null) a.baseAtk+=mv; }});
+      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.race==='不死'&&c.hp>0){ c.atk+=mv; if(c.baseAtk!=null) c.baseAtk+=mv; }});
+      log(`${unit.name}：全不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
+      break;
+    }
+    case 'freyr':{
+      const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
+      addRewChar(makeUnitFromDef(rgDef));
+      log(`${unit.name}：負傷→ロイヤルガードを報酬枠に召喚`,'good');
+      break;
+    }
+  }
+}
+
+// 報酬枠にユニットを追加（召喚時：2ソウルで購入可・リロール時消滅）
+function addRewChar(unit){
+  const card=Object.assign({},unit);
+  card._isChar=true;
+  card._buyPrice=2;
+  card._rewSummoned=true; // リロール時消滅フラグ
+  // 既存のnullスロットを探す
+  const nullIdx=_rewCards.indexOf(null);
+  if(nullIdx>=0) _rewCards[nullIdx]=card;
+  else _rewCards.push(card);
+  renderRewCards();
+}
+
 // ── 報酬カード描画 ─────────────────────────────
 
 function renderRewCards(){
   const el=document.getElementById('rw-cards');
   el.innerHTML='';
+
+  // ①キャラクターをスロットサイズで描画
+  const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
+  const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
+  const hasChars=_rewCards.some(c=>c&&c._isChar);
+  if(hasChars){
+    const charRow=document.createElement('div');
+    charRow.className='field';
+    charRow.style='margin-bottom:8px;width:100%';
+    _rewCards.forEach((card,i)=>{
+      if(!card||!card._isChar) return;
+      const slot=document.createElement('div');
+      slot.className='slot';
+      slot.dataset.rewIdx=String(i);
+      const cost=card._buyPrice??2;
+      const canBuy=G.gold>=cost;
+      const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
+      const atkBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
+      const dispAtk=card.atk+(atkBonus);
+      const _allKws=[...(card.keywords||[]),...(card.counter?['反撃']:[])];
+      const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
+      const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
+      const _rawDesc=card.desc?computeDesc(card):'';
+      const descTag=_rawDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_rawDesc}</div>`:'';
+      const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
+      const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.5rem;color:${canBuy?'var(--gold2)':'var(--red2)'};font-weight:700">${cost}💀</div>`;
+      const summTag=card._rewSummoned?`<div style="position:absolute;bottom:16px;right:2px;font-size:.42rem;color:var(--purple2)">召喚</div>`:'';
+      const hpPct=Math.max(0,card.hp/card.maxHp*100);
+      slot.innerHTML=`${gradeTag}${costTag}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
+      if(canBuy&&hasSlot){
+        slot.onclick=()=>takeRewCard(i);
+        slot.style.cursor='pointer';
+      } else {
+        slot.style.opacity='0.6';
+        slot.style.cursor='default';
+      }
+      charRow.appendChild(slot);
+    });
+    el.appendChild(charRow);
+  }
+
+  // ②アイテム・指輪は従来の小カードで描画
   _rewCards.forEach((card,i)=>{
-    if(!card) return;
+    if(!card||card._isChar) return;
     el.appendChild(_mkRewDiv(card, ()=>takeRewCard(i)));
   });
+
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
   requestAnimationFrame(fitCardDescs);
 }
@@ -295,6 +392,20 @@ function takeRewCard(i){
       if(typeof syncHarpyAtk==='function') syncHarpyAtk();
       log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
     }
+    if(unit.effect==='chimera_summon'){
+      const _pool=['即死','侵食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
+      const _avail=[..._pool];
+      const _chosen=[];
+      for(let _ci=0;_ci<3&&_avail.length>0;_ci++){
+        const _idx=Math.floor(Math.random()*_avail.length);
+        _chosen.push(_avail.splice(_idx,1)[0]);
+      }
+      if(!unit.keywords) unit.keywords=[];
+      _chosen.forEach(k=>{ if(!unit.keywords.includes(k)) unit.keywords.push(k); });
+      if(_chosen.includes('反撃')) unit.counter=true;
+      if(_chosen.includes('ヘイト')){ unit.hate=true; unit.hateTurns=99; }
+      log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
+    }
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor();
@@ -304,7 +415,7 @@ function takeRewCard(i){
 
   // 指輪
   if(card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
-    const ringIdx=G.rings.indexOf(null);
+    const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
     G.gold-=cost;
     const rc=clone(card);
@@ -488,6 +599,11 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
       div.innerHTML=`<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}${uses}</div><div class="card-desc">${computeDesc(card)}</div>${_spellBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardHeCard(arrName,i); };
+      if(G.phase==='reward'&&arrName==='spells'){
+        const _isWand=t==='wand';
+        const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
+        if(_hasCharge){ div.onclick=()=>useSpell(i); div.style.cursor='pointer'; }
+      }
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });

@@ -18,7 +18,7 @@ function updateHUD(){
   document.getElementById('h-reward-grade').textContent='G'+(G.rewardGrade||1);
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
-  document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
+  document.getElementById('h-act').textContent=G.phase==='reward'?'∞/'+G.actionsPerTurn:G.actionsLeft+'/'+G.actionsPerTurn;
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');

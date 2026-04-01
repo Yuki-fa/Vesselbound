@@ -74,7 +74,10 @@ function _computeDeathRisk(){
   const _sGold=G.gold, _sEarned=G.earnedGold;
   const _sBC=G.battleCounters, _sPT=G._pendingTreasure, _sEK=G._eliteKilled;
   const _sVM=G.visibleMoves, _sMM=G.moveMasks;
-  const _sPhase=G.phase;
+  const _sPhase=G.phase, _sSkelRevive=G._pendingSkelRevive;
+  const _sUndeadBonus=G._undeadHpBonus, _sEnemyUndeadAtk=G.enemyUndeadAtkBonus;
+  const _sEnemyPermBonus=G.enemyPermanentBonus?{...G.enemyPermanentBonus}:null;
+  const _sMagicLevel=G.magicLevel;
   // ログ・描画関数を無効化
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
   window.log=()=>{}; window.renderAll=()=>{}; window.updateHUD=()=>{}; window.renderControls=()=>{};
@@ -87,6 +90,8 @@ function _computeDeathRisk(){
     G.visibleMoves=[...(_sVM||[])];
     G.moveMasks=[...(_sMM||[])];
     G._pendingTreasure=_sPT;
+    // シミュレーション前の各スロットのユニットIDを記録（アク等への置き換え検出用）
+    const origAliveIds=G.allies.map(a=>a&&a.hp>0?a.id:null);
 
     // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
     for(let i=0;i<6;i++){
@@ -98,9 +103,12 @@ function _computeDeathRisk(){
       if(!G.allies.some(a=>a&&a.hp>0)) break;
     }
 
-    // ── 死亡した味方インデックスを収集 ──
+    // ── 死亡した味方インデックスを収集（アクに置き換えられたスロットも死亡扱い）──
     const result=new Set();
-    G.allies.forEach((a,i)=>{ if(a&&a.hp<=0) result.add(i); });
+    G.allies.forEach((a,i)=>{
+      if(!origAliveIds[i]) return; // 元から空 or 死亡していたスロットは無視
+      if(!a||a.hp<=0||a.id!==origAliveIds[i]) result.add(i);
+    });
     return result;
 
   } finally {
@@ -109,7 +117,10 @@ function _computeDeathRisk(){
     G.gold=_sGold; G.earnedGold=_sEarned;
     G.battleCounters=_sBC; G._pendingTreasure=_sPT; G._eliteKilled=_sEK;
     G.visibleMoves=_sVM; G.moveMasks=_sMM;
-    G.phase=_sPhase;
+    G.phase=_sPhase; G._pendingSkelRevive=_sSkelRevive;
+    G._undeadHpBonus=_sUndeadBonus; G.enemyUndeadAtkBonus=_sEnemyUndeadAtk;
+    if(_sEnemyPermBonus) G.enemyPermanentBonus=_sEnemyPermBonus;
+    G.magicLevel=_sMagicLevel;
     window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
   }
 }
@@ -124,7 +135,7 @@ function _drSimAllySlot(ally,allyIdx){
   if(ally.hp>0){
     if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){ ally.atk+=1; ally.baseAtk+=1; }
     if(ally.effect==='brownie_attack'){
-      const _db=_dryadBonus(); const _tb=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0)+_db; const _thp=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0)+_db;
+      const _tb=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0); const _thp=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
       G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=_thp; a.maxHp+=_thp; }});
     }
     if(ally.effect==='forniot'){
@@ -365,8 +376,9 @@ function renderHandSlots(){
       const div=mkCardEl(sp,i,'spell-battle');
       const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
-      // 杖はアクション消費、消耗品はアクション消費なし（両方プレイヤーフェイズに使用可）
-      const canUse=G.phase==='player'&&(isWand?G.actionsLeft>0&&hasCharge:true);
+      const inReward=G.phase==='reward';
+      // 杖はアクション消費、消耗品はアクション消費なし（プレイヤーターン or 報酬フェイズで使用可）
+      const canUse=(G.phase==='player'||inReward)&&(isWand?(inReward?hasCharge:G.actionsLeft>0&&hasCharge):true);
       if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
       else       { div.classList.add('inert'); }
       el.appendChild(div);

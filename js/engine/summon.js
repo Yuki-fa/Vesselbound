@@ -60,6 +60,8 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 
 // 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
 function addAlly(unit, fromRingId){
+  // 報酬フェイズ中は報酬枠へ誘導
+  if(G.phase==='reward'&&typeof addRewChar==='function'){ addRewChar(unit); return true; }
   if(G.allies.filter(a=>a&&a.hp>0).length>=6) return false;
   const empty=G.allies.findIndex(a=>!a||a.hp<=0);
   if(empty>=0) G.allies[empty]=unit;

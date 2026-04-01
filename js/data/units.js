@@ -41,7 +41,7 @@ const UNIT_POOL = [
   {id:'c_hellhound',  name:'ヘルハウンド',     race:'悪魔', grade:2, atk:11, hp:15, cost:5,  unique:false, icon:'🐕', desc:'誘発：アイテムを使用するたび、このキャラクターはランダムな敵を攻撃する。', effect:'hellhound_spell'},
   {id:'c_centaur',    name:'ケンタウロス',     race:'亜人', grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🏇', desc:'二段攻撃　召喚：魔術レベル+2を得る。',        effect:'centaur_summon', keywords:['二段攻撃']},
   {id:'c_homunculus', name:'ホムンクルス',     race:'全て', grade:2, atk:7,  hp:23, cost:5,  unique:false, icon:'🧪', desc:'終戦：ソウル2を得る。',                      effect:'gnome_end'},
-  {id:'c_dryad',      name:'ドリアード',       race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'🌿', desc:'常在：仲間のバフ効果を+1/+1する。（バフ効果とは「+X/+X」のこと。）', effect:'dryad_buff'},
+  {id:'c_dryad',      name:'ドリアード',       race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'🌿', desc:'常時：仲間のバフ効果が発動するたび、ランダムな仲間に+1/+1を3回与える。', effect:'dryad_buff'},
   // ─── G2 ネームド ───
   {id:'c_ran',        name:'波の娘"ラン・ドーター"',       race:'亜人', grade:2, atk:3,  hp:35, cost:10, unique:true, icon:'🌊', desc:'負傷：10/X、亜人の「海の眷属」を左端に召喚する。（X=被ダメージ）', injury:'ran'},
   {id:'c_garm',       name:'隻眼の魔狼"ガルム・グリーム"', race:'獣',   grade:2, atk:15, hp:30, cost:12, unique:true, icon:'🐺', desc:'三段攻撃',                          keywords:['三段攻撃']},
