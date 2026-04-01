@@ -275,7 +275,7 @@ function renderField(id,units,isEnemy){
         // 反撃はキーワード欄に表示。エリート/ボスは他キーワードの1行上。
         const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
         const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-        const _allKws=[...(u.keywords||[]),...(u.counter?['反撃']:[])];
+        const _allKws=[...new Set([...(u.keywords||[]),...(u.counter?['反撃']:[])])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
         const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';

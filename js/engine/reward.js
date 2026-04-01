@@ -310,22 +310,23 @@ function renderRewCards(){
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
       const atkBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
       const dispAtk=card.atk+(atkBonus);
-      const _allKws=[...(card.keywords||[]),...(card.counter?['反撃']:[])];
+      const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       const _rawDesc=card.desc?computeDesc(card):'';
       const descTag=_rawDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_rawDesc}</div>`:'';
       const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.68rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
       const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.68rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
-      const summTag=card._rewSummoned?`<div style="position:absolute;bottom:16px;right:2px;font-size:.42rem;color:var(--purple2)">召喚</div>`:'';
+
       const shortBadge=!canBuy?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
       const _stBadges=[];
       if(card.shield>0) _stBadges.push(`<span class="slot-badge b-shield">🛡${card.shield>1?'×'+card.shield:''}</span>`);
       if(card.poison>0) _stBadges.push(`<span class="slot-badge b-psn">毒${card.poison}</span>`);
       if(card.doomed>0) _stBadges.push(`<span class="slot-badge b-dead">破滅${card.doomed}</span>`);
-      const statusBlock=_stBadges.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-bottom:3px">${_stBadges.join('')}</div>`:'';
+      // 状態異常バッジ：絶対配置（センタリング列の外）でアイコン/名前を固定
+      const statusBlock=_stBadges.length?`<div style="position:absolute;top:20px;left:0;right:0;display:flex;justify-content:center;flex-wrap:wrap;gap:2px;z-index:3">${_stBadges.join('')}</div>`:'';
       const hpPct=Math.max(0,card.hp/card.maxHp*100);
-      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">${statusBlock}<div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
+      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
       if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
       else { slot.style.cursor='default'; }
     }
@@ -387,8 +388,12 @@ function _mkRewDiv(card, onBuy){
     :refund>0?`<div class="rew-card-refund">還魂+${refund}ソウル</div>`:'';
   const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-  const shortBadgeItem=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
-  div.innerHTML=`${shortBadgeItem}<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}</div><div class="rew-card-tp" style="color:var(--${tColor})">${tpLabel}</div><div class="rew-card-name">${card.name} <span class="rew-grade">${gs}</span></div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}`;
+  const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
+  const priceTagItem=isTreasure
+    ?`<div style="position:absolute;top:3px;right:4px;font-size:.58rem;color:var(--blue2);font-weight:700">無料</div>`
+    :`<div style="position:absolute;top:3px;right:4px;font-size:.68rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
+  const shortBadgeItem=!canBuy&&!isTreasure?`<div style="position:absolute;top:3px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
+  div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div style="margin-top:20px"><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
   if(canBuy) div.onclick=onBuy;
   return div;
 }
@@ -514,7 +519,7 @@ function _renderFieldRow(el){
       const raceTag=unit.race&&unit.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${unit.race}</div>`:'';
       const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-      const _allKws=[...(unit.keywords||[]),...(unit.counter?['反撃']:[])];
+      const _allKws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
