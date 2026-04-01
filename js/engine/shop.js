@@ -6,16 +6,35 @@
 let _shopRings=[];
 
 function doShop(){
-  const pool=getRingPool();
-  _rewCards=[];
-  for(let i=0;i<Math.min(5,pool.length);i++){
-    const idx=Math.floor(Math.random()*pool.length);
-    const ring=clone(pool[idx]);
-    ring._buyPrice=ring.cost||3;
-    _rewCards.push(ring);
-    pool.splice(idx,1);
+  const floorGrade=rollGrade(G.floor);
+  // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
+  const eligible=RING_POOL.filter(r=>{
+    if(!r.id||r.rarity===-1||r.legend) return false;
+    if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
+    if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
+    if((r.grade||1)>floorGrade) return false;
+    return true;
+  });
+  const currentGrade=eligible.filter(r=>(r.grade||1)===floorGrade);
+  const picks=[];
+  const usedIds=new Set();
+  // 現在グレードを1枚保証
+  if(currentGrade.length>0){
+    const src=clone(currentGrade[Math.floor(Math.random()*currentGrade.length)]);
+    src._buyPrice=src.cost||3;
+    picks.push(src); usedIds.add(src.id);
   }
-  _rewCards.forEach(r=>{ if(r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
+  // 残りをランダムに補充（重複なし、最大5枚）
+  const rest=eligible.filter(r=>!usedIds.has(r.id));
+  while(picks.length<5&&rest.length>0){
+    const idx=Math.floor(Math.random()*rest.length);
+    const src=clone(rest.splice(idx,1)[0]);
+    src._buyPrice=src.cost||3;
+    picks.push(src); usedIds.add(src.id);
+  }
+  // _rewCards: 0-5 = キャラスロット(null)、6+ = 指輪
+  _rewCards=[null,null,null,null,null,null,...picks];
+  _rewCards.forEach(r=>{ if(r&&r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
 
   G._isShop=true;
   G.phase='reward';

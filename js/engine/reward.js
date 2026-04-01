@@ -229,12 +229,12 @@ function dealDmgToRewChar(rewIdx, dmg){
     return;
   }
   // 負傷トリガー（常在・誘発・負傷のみ）
-  if(c.injury) _triggerRewCharInjury(c);
+  if(c.injury) _triggerRewCharInjury(c, dmg);
   renderRewCards();
 }
 
 // 報酬フェイズ中の負傷トリガー（開戦・終戦・攻撃・召喚は除く）
-function _triggerRewCharInjury(unit){
+function _triggerRewCharInjury(unit, dmg=0){
   if(!unit||!unit.injury) return;
   switch(unit.injury){
     case 'mummy':{
@@ -254,9 +254,15 @@ function _triggerRewCharInjury(unit){
     }
     case 'kettcat':{
       const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
-      const _nc=makeUnitFromDef(_ncDef);
-      addRewChar(_nc);
+      addRewChar(makeUnitFromDef(_ncDef));
       log(`${unit.name}：負傷→ナイトキャット(1/3)を報酬枠に召喚`,'good');
+      break;
+    }
+    case 'ran':{
+      const ranHp=Math.max(1,dmg);
+      const ranDef={id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''};
+      addRewChar(makeUnitFromDef(ranDef));
+      log(`${unit.name}：負傷→海の眷属(10/${ranHp})を報酬枠に召喚`,'good');
       break;
     }
   }
@@ -413,7 +419,7 @@ function takeRewCard(i){
     const unit=makeUnitFromDef(card);
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
-    // 召喚時効果
+    // 召喚時効果（addAlly と同じ処理を実行）
     if(unit.effect==='jack_summon'){
       G.allies.forEach(a=>{ if(a&&a.hp>0&&!a.shield){ a.shield=1; }});
       log(`${unit.name}：全ての味方にシールドを付与`,'good');
@@ -437,6 +443,8 @@ function takeRewCard(i){
       if(_chosen.includes('ヘイト')){ unit.hate=true; unit.hateTurns=99; }
       log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
     }
+    // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
+    fireTrigger('on_summon', null);
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor();
@@ -630,7 +638,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
       div.innerHTML=`<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}${uses}</div><div class="card-desc">${computeDesc(card)}</div>${_spellBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardHeCard(arrName,i); };
-      if(G.phase==='reward'&&arrName==='spells'){
+      if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse){
         const _isWand=t==='wand';
         const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
         if(_hasCharge){ div.onclick=()=>useSpell(i); div.style.cursor='pointer'; }

@@ -231,38 +231,39 @@ async function loadGameData() {
     spellRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const spell = SPELL_POOL.find(s => s.name === name);
-      if (!spell) return;
-      // 種別（日本語・英語両対応。マップ外の値は無視してJS定義を保持）
+      // 同名カードが複数ある場合（例：初期装備版と報酬プール版）は全件更新
+      const spells = SPELL_POOL.filter(s => s.name === name);
+      if (!spells.length) return;
+      // 種別・グレード・使用回数・価格・レアリティ・初期装備・説明文を各フィールドに適用
       const _typeRaw = (row['種別'] || row['種別(wand/consumable)'] || '').trim();
       const _typeMap = {'杖':'wand','wand':'wand','消耗品':'consumable','アイテム':'consumable','consumable':'consumable'};
       const type = _typeMap[_typeRaw] || null;
-      if (type && spell.id !== 'w_fire') spell.type = type;
-      // グレード
       const grade = parseInt(row['グレード']);
-      if (!isNaN(grade) && grade >= 1) spell.grade = grade;
-      // 基本使用回数（"3-5" レンジ対応、初期装備炎の杖の usesLeft は initState で上書き）
       const usesStr = (row['基本使用回数'] || '').trim();
-      if (usesStr) {
-        const rng = usesStr.match(/^(\d+)-(\d+)$/);
-        if (rng) { spell.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])]; delete spell.baseUses; }
-        else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
-      }
-      // 価格
       const cost = parseInt(row['価格']);
-      if (!isNaN(cost)) spell.cost = cost;
-      // レアリティ
-      { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
-        if(rarStr==='-') spell.rarity=-1;
-        else if(!isNaN(rarVal)&&rarVal>=1) spell.rarity=rarVal; }
-      // 初期装備
+      const rarStr = (row['レアリティ'] || '').trim();
+      const rarVal = parseInt(rarStr);
       const sv = row['初期装備'];
-      if (sv === 'TRUE' || sv === '✓') spell.starterOnly = true;
-      else if (sv === 'FALSE') delete spell.starterOnly;
-      // 説明文（ゲームロジックは JS 側で管理）
       const desc = row['効果'] || row['説明文'];
-      spell.desc = desc || '';
+      spells.forEach(spell => {
+        if (type && spell.id !== 'w_fire') spell.type = type;
+        if (!isNaN(grade) && grade >= 1) spell.grade = grade;
+        if (usesStr) {
+          const rng = usesStr.match(/^(\d+)-(\d+)$/);
+          if (rng) { spell.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])]; delete spell.baseUses; }
+          else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
+        }
+        if (!isNaN(cost)) spell.cost = cost;
+        if (rarStr === '-') spell.rarity = -1;
+        else if (!isNaN(rarVal) && rarVal >= 1) spell.rarity = rarVal;
+        if (sv === 'TRUE' || sv === '✓') spell.starterOnly = true;
+        else if (sv === 'FALSE') delete spell.starterOnly;
+        // 報酬中使用不可
+        const nrv = row['報酬中使用不可'];
+        if (nrv === 'TRUE' || nrv === '✓') spell.noRewardUse = true;
+        else if (nrv === 'FALSE') delete spell.noRewardUse;
+        spell.desc = desc || '';
+      });
     });
 
     // ── 指輪プール（ユニーク・グレード・価格・初期装備・説明文）──
