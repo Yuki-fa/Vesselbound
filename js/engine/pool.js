@@ -211,8 +211,8 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  // 左3枚：キャラクター、4枚目：杖、5枚目：消耗品
-  const chars=drawCharacters(3);
+  // キャラクター（初期3体、報酬グレードアップで増加）、杖、消耗品
+  const chars=drawCharacters(G.rewardCharCount||3);
   const wand=_drawByType('wand',1)[0]||null;
   const item=_drawByType('consumable',1)[0]||null;
   const res=[...chars];

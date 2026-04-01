@@ -389,8 +389,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
       log(`☄ 隕石の杖：ランダムな敵に${ml}ダメ×${ml*cMult}回`,'good');
     break;}
     case 'shield_wand':{
-      const sw=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
-      if(sw){ if(!sw.shield) sw.shield=1; log(`光輝の杖：${sw.name}にシールドを付与`,'good'); }
+      const sw=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
+      if(sw){ sw.shield=(sw.shield||0)+1; log(`光輝の杖：${sw.name}にシールドを付与`,'good'); }
     break;}
     case 'growth_wand':{
       const gwA=G.allies[tgt.idx];
@@ -516,9 +516,11 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(!_inReward&&checkInstantVictory()) return;
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   if(_inReward){
-    // 報酬フェイズ：行動回数制限なし
+    // 報酬フェイズ：行動回数制限なし。renderAll()が上書きした各UIを再描画する
     setHint('報酬を獲得してください');
     renderRewCards();
+    renderFieldEditor();      // f-ally還魂ボタン＋hand-slots廃棄ボタンを復元
+    renderMoveSlotsInEnemy(); // f-enemyの移動マスを復元
     return;
   }
   const hasConsumable=G.spells.some(s=>s&&s.type==='consumable');

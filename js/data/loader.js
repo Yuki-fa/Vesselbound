@@ -342,6 +342,9 @@ async function loadGameData() {
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
       unit.desc = desc || '';
+      // キーワード列が存在する場合、unit.keywords を上書き（スペース/読点/コンマ区切り）
+      const kwStr = (row['キーワード'] || '').trim();
+      if (kwStr) unit.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
     });
 
     console.log(

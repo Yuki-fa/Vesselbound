@@ -84,6 +84,7 @@ function initState(){
     // ── 報酬グレード ──
     rewardGrade:1,
     rewardGradeUpCount:0,
+    rewardCharCount:3,
     // ── 報酬 ──
     rerollCount:0,
     // ── 秘術（互換性のため残す）──

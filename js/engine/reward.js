@@ -12,6 +12,7 @@ function goToReward(){
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
   _rewCards=drawRewards();
+  _padRewCharSlots(); // キャラ0-5・アイテム6+に整列
   G.phase='reward';
 
   // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
@@ -187,6 +188,7 @@ function rerollRewards(){
   G.rerollCount=(G.rerollCount||0)+1;
   // 召喚済みキャラも含め全リセット
   _rewCards=drawRewards();
+  _padRewCharSlots();
 
   // 試行の指輪
   const trialsRing=G.rings.find(r=>r&&r.unique==='trials');
@@ -236,8 +238,9 @@ function _triggerRewCharInjury(unit){
     case 'mummy':{
       const mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
+      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+mv; // 報酬キャラは敵扱いのため両方更新
       G.allies.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=mv; if(a.baseAtk!=null) a.baseAtk+=mv; }});
-      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.race==='不死'&&c.hp>0){ c.atk+=mv; if(c.baseAtk!=null) c.baseAtk+=mv; }});
+      // 報酬枠の不死は atkBonus（G._undeadHpBonus）で自動更新
       log(`${unit.name}：全不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
@@ -247,7 +250,23 @@ function _triggerRewCharInjury(unit){
       log(`${unit.name}：負傷→ロイヤルガードを報酬枠に召喚`,'good');
       break;
     }
+    case 'kettcat':{
+      const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
+      const _nc=makeUnitFromDef(_ncDef);
+      addRewChar(_nc);
+      log(`${unit.name}：負傷→ナイトキャット(1/3)を報酬枠に召喚`,'good');
+      break;
+    }
   }
+}
+
+// _rewCards を常に「キャラスロット0-5・アイテム6+」構造に整列する
+function _padRewCharSlots(){
+  const chars=_rewCards.filter(c=>c&&c._isChar);
+  const items=_rewCards.filter(c=>c&&!c._isChar);
+  const padded=[...chars];
+  while(padded.length<6) padded.push(null);
+  _rewCards=[...padded,...items];
 }
 
 // 報酬枠にユニットを追加（召喚時：2ソウルで購入可・リロール時消滅）
@@ -256,10 +275,11 @@ function addRewChar(unit){
   card._isChar=true;
   card._buyPrice=2;
   card._rewSummoned=true; // リロール時消滅フラグ
-  // 既存のnullスロットを探す
-  const nullIdx=_rewCards.indexOf(null);
-  if(nullIdx>=0) _rewCards[nullIdx]=card;
-  else _rewCards.push(card);
+  // 0-5のcharスロットの空きを探す
+  let slot=-1;
+  for(let i=0;i<6;i++){ if(!_rewCards[i]||!_rewCards[i]._isChar||_rewCards[i].hp<=0){ slot=i; break; } }
+  if(slot>=0) _rewCards[slot]=card;
+  else _rewCards.push(card); // 全スロット埋まっている場合はoverflow
   renderRewCards();
 }
 
@@ -269,17 +289,18 @@ function renderRewCards(){
   const el=document.getElementById('rw-cards');
   el.innerHTML='';
 
-  // ①キャラクターをスロットサイズで描画
+  // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
   const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-  const hasChars=_rewCards.some(c=>c&&c._isChar);
-  if(hasChars){
-    const charRow=document.createElement('div');
-    charRow.className='field';
-    charRow.style='margin-bottom:8px;width:100%';
-    _rewCards.forEach((card,i)=>{
-      if(!card||!card._isChar) return;
-      const slot=document.createElement('div');
+  const charRow=document.createElement('div');
+  charRow.className='field';
+  charRow.style='margin-bottom:8px;width:100%';
+  for(let i=0;i<6;i++){
+    const card=(_rewCards[i]&&_rewCards[i]._isChar)?_rewCards[i]:null;
+    const slot=document.createElement('div');
+    if(!card){
+      slot.className='slot empty';
+    } else {
       slot.className='slot';
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
@@ -293,25 +314,25 @@ function renderRewCards(){
       const _rawDesc=card.desc?computeDesc(card):'';
       const descTag=_rawDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_rawDesc}</div>`:'';
       const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.48rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
-      const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.5rem;color:${canBuy?'var(--gold2)':'var(--red2)'};font-weight:700">${cost}💀</div>`;
+      const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.5rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
       const summTag=card._rewSummoned?`<div style="position:absolute;bottom:16px;right:2px;font-size:.42rem;color:var(--purple2)">召喚</div>`:'';
+      const _stBadges=[];
+      if(card.shield>0) _stBadges.push(`<span class="slot-badge b-shield">🛡${card.shield>1?'×'+card.shield:''}</span>`);
+      if(card.poison>0) _stBadges.push(`<span class="slot-badge b-psn">毒${card.poison}</span>`);
+      if(card.doomed>0) _stBadges.push(`<span class="slot-badge b-dead">破滅${card.doomed}</span>`);
+      const statusBlock=_stBadges.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-bottom:3px">${_stBadges.join('')}</div>`:'';
       const hpPct=Math.max(0,card.hp/card.maxHp*100);
-      slot.innerHTML=`${gradeTag}${costTag}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
-      if(canBuy&&hasSlot){
-        slot.onclick=()=>takeRewCard(i);
-        slot.style.cursor='pointer';
-      } else {
-        slot.style.opacity='0.6';
-        slot.style.cursor='default';
-      }
-      charRow.appendChild(slot);
-    });
-    el.appendChild(charRow);
+      slot.innerHTML=`${gradeTag}${costTag}<div style="position:absolute;inset:0 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">${statusBlock}<div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name" style="font-size:.74rem;font-weight:500">${card.name}</div><div style="font-size:.56rem;color:var(--text2)">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:3px;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:0 2px">${kwBlock}${descTag}${summTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${hpPct}%"></div></div>`;
+      if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
+      else { slot.style.cursor='default'; }
+    }
+    charRow.appendChild(slot);
   }
+  el.appendChild(charRow);
 
-  // ②アイテム・指輪は従来の小カードで描画
+  // ②アイテム・指輪は従来の小カードで描画（index 6以降）
   _rewCards.forEach((card,i)=>{
-    if(!card||card._isChar) return;
+    if(i<6||!card||card._isChar) return;
     el.appendChild(_mkRewDiv(card, ()=>takeRewCard(i)));
   });
 
@@ -690,8 +711,13 @@ function renderGradeUpBtn(){
     G.gold-=cost;
     G.rewardGrade=(G.rewardGrade||1)+1;
     G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
-    log(`📈 報酬グレードアップ：G${G.rewardGrade}（次のリロールから適用）`,'gold');
-    // 直後は引き直さない。次のリロール・次の戦闘から適用
+    // 報酬キャラ出現数を+1（最大6）し、即座に1体追加
+    if((G.rewardCharCount||3)<6){
+      G.rewardCharCount=(G.rewardCharCount||3)+1;
+      const newChars=drawCharacters(1);
+      if(newChars.length){ _rewCards.push(newChars[0]); _padRewCharSlots(); }
+    }
+    log(`📈 報酬グレードアップ：G${G.rewardGrade}　報酬キャラ${G.rewardCharCount}体`,'gold');
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
     renderGradeUpBtn();

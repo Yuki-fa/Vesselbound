@@ -667,10 +667,9 @@ function triggerInjury(unit, dmg=0){
     case 'mummy':{
       const _mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
-      if(isEnemy){
-        G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
-      }
-      ownSide.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; if(a.baseAtk!=null) a.baseAtk+=_mv; } });
+      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
+      // 敵味方問わず全ての不死にバフ
+      [...ownSide,...oppSide].forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; if(a.baseAtk!=null) a.baseAtk+=_mv; } });
       log(`${unit.name}：全不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
       if(!isEnemy) triggerDryadBuff();
       break;
