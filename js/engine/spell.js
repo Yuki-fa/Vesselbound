@@ -66,6 +66,7 @@ function startSwapPick(idx){
 
 // 任意キャラクター選択（needsAny）
 function pickTargetAny(idx){
+  clearSelectable(); // 前の選択状態をリセット
   _tgtCtx={who:'any',idx};
   setHint('対象を選択（ESCでキャンセル）');
   // 味方
@@ -97,6 +98,7 @@ function pickTargetAny(idx){
 }
 
 function pickTarget(who,idx,checkBless){
+  clearSelectable(); // 前の選択状態をリセット
   _tgtCtx={who,idx};
   setHint(`対象を選択（ESCでキャンセル）`);
   // 報酬フェイズ中に「敵」を対象にする場合は報酬キャラクターをターゲットにする
@@ -128,7 +130,7 @@ function pickTarget(who,idx,checkBless){
   document.addEventListener('keydown',escCancel,{once:true});
 }
 
-function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。'); } }
+function escCancel(e){ if(e.key==='Escape'){ clearSelectable(); if(G.phase==='reward'){ renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください'); } else { renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。'); } } }
 
 // 拡散の杖：対象選択が必要な右隣杖のためのピッカー
 function _pickForSpread(rw,rightIdx){
