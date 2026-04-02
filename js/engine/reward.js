@@ -265,6 +265,13 @@ function _triggerRewCharInjury(unit, dmg=0){
       log(`${unit.name}：負傷→海の眷属(10/${ranHp})を報酬枠に召喚`,'good');
       break;
     }
+    case 'banshee':{
+      // 「バンシー」以外の全キャラに1ダメ
+      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,1,ai,null); });
+      _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,1); });
+      log(`${unit.name}：負傷→全キャラに1ダメ`,'good');
+      break;
+    }
   }
 }
 
@@ -298,7 +305,7 @@ function renderRewCards(){
   el.innerHTML='';
 
   // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
-  const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
+  const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
   const charRow=document.createElement('div');
   charRow.className='field';
@@ -430,7 +437,7 @@ function takeRewCard(i){
       log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
     }
     if(unit.effect==='chimera_summon'){
-      const _pool=['即死','侵食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
+      const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
       const _avail=[..._pool];
       const _chosen=[];
       for(let _ci=0;_ci<3&&_avail.length>0;_ci++){
@@ -440,8 +447,29 @@ function takeRewCard(i){
       if(!unit.keywords) unit.keywords=[];
       _chosen.forEach(k=>{ if(!unit.keywords.includes(k)) unit.keywords.push(k); });
       if(_chosen.includes('反撃')) unit.counter=true;
-      if(_chosen.includes('ヘイト')){ unit.hate=true; unit.hateTurns=99; }
+      if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
       log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
+    }
+    // ミテーラ：報酬枠に2/2ペリカンを追加
+    if(unit.effect==='mitera_summon'){
+      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
+      addRewChar(makeUnitFromDef(_pelDef));
+      log(`${unit.name}：ペリカン(2/2)を召喚`,'good');
+    }
+    // ジャッカロープ：「霊峰の秘薬」を2枚手札に追加
+    if(unit.effect==='jackalope_summon'){
+      const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
+      if(_herb){ let _ha=0;
+        for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
+          if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
+        }
+        if(_ha>0) log(`${unit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+      }
+    }
+    // スリン：全仲間に「成長1」を付与
+    if(unit.effect==='slin_summon'){
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+      log(`${unit.name}：全仲間に「成長1」を付与`,'good');
     }
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
@@ -514,7 +542,7 @@ function _renderFieldRow(el){
       div.draggable=true;
       const badges=[];
       const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
-      if(unit.hate)    badges.push(`<span class="slot-badge b-hate"${_sd('ヘイト')}>ヘイト</span>`);
+      if(unit.hate)    badges.push(`<span class="slot-badge b-hate"${_sd('標的')}>標的</span>`);
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
       if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
       if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${unit.doomed}</span>`);
@@ -525,7 +553,7 @@ function _renderFieldRow(el){
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(unit._dragonetBonus||0))-(unit._dragonetCount||0)}戦</div>`:'';
       const raceTag=unit.race&&unit.race!=='-'?`<div style="font-size:.44rem;color:var(--text2);line-height:1">${unit.race}</div>`:'';
-      const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','ヘイト':'#60c0c0','成長':'#60d090'};
+      const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       const _allKws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');

@@ -20,8 +20,8 @@ const SPELL_POOL=[
    desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:5},
 
   // ── WANDS（通常報酬プール） ──
-  {id:'w_hate',       name:'ヘイトの杖', type:'wand', cost:2,
-   desc:'対象のキャラクターにヘイトを与える。', effect:'hate', needsAny:true, baseUses:4},
+  {id:'w_hate',       name:'標的の杖', type:'wand', cost:2,
+   desc:'対象のキャラクターに標的を与える。', effect:'hate', needsAny:true, baseUses:4},
 
   {id:'w_poison',     name:'毒の杖',    type:'wand', cost:2,
    desc:'対象のキャラクターに毒Xを与える。', effect:'poison_wand', needsEnemy:true, baseUses:4},
@@ -93,4 +93,7 @@ const SPELL_POOL=[
   // ── 特殊消耗品（通常報酬には出ない） ──
   {id:'c_soul_dregs',  name:'魂の残滓', type:'consumable', starterOnly:true,
    desc:'契約を1つ選ぶ。そのグレードを次の戦闘終了まで+1する。', effect:'soul_dregs'},
+
+  {id:'c_reiki_herb',  name:'霊峰の秘薬', type:'consumable', rarity:-1,
+   desc:'対象が+1/+3を得る。', effect:'reiki_herb', needsAlly:true},
 ];

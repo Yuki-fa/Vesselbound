@@ -16,12 +16,31 @@ const UNIT_POOL = [
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'①：攻撃時、全ての味方が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'開戦：ランダムなG1のアイテムを得る。',         effect:'imp_start'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'①：3回目の戦闘終了時、「ワーム」に変身する。', effect:'dragonet_end'},
-  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'①：杖を使うたび、全ての味方が+1/+1を得る。', effect:'dwarf_wand'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'①：負傷時、以後の全ての「不死」が+1/±0を得る。', injury:'mummy'},
-  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'①：戦闘開始時、このキャラクターと、最もライフの多い敵のライフを入れ替える。', effect:'gremlin_start'},
-  {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'①：召喚時、全ての味方がシールドを得る。', effect:'jack_summon'},
+  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：オーナーが杖を使うたび、隣接する仲間が+1/+1を得る。', effect:'dwarf_wand'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'負傷：「マミー」以外の全ての「不死」が+1/±0を得る。', injury:'mummy'},
+  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'開戦：このキャラクターと、ランダムな敵のライフを入れ替える。', effect:'gremlin_start'},
+  {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'使役：全ての仲間がシールドを得る。', effect:'jack_summon'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'',                                           counter:true, keywords:['成長1']},
-  {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'①：戦闘終了時、魔術レベル4につきソウル1を得る。', effect:'lamia_end'},
+  {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'終戦：魔術レベル4につきソウル1を得る。', effect:'lamia_end'},
+  {id:'c_mitera',     name:'ミテーラ',         race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🦤', desc:'使役：最も左の空き地に2/2、獣の「ペリカン」を召喚する。', effect:'mitera_summon'},
+  {id:'c_jackalope',  name:'ジャッカロープ',   race:'獣',   grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'🐰', desc:'使役：オーナーは「霊峰の秘薬」を2枚得る。', effect:'jackalope_summon'},
+  {id:'c_pigmy',      name:'ピグミー',         race:'亜人', grade:1, atk:1,  hp:8,  cost:3,  unique:false, icon:'🏹', desc:'反撃　常時：このキャラクターの本来のパワーは魔術レベルに等しい。', effect:'pigmy_magic', counter:true},
+  {id:'c_banshee',    name:'バンシー',         race:'不死', grade:1, atk:4,  hp:8,  cost:3,  unique:false, icon:'🙀', desc:'負傷：「バンシー」以外の全てのキャラクターに1ダメージを与える。', injury:'banshee'},
+  {id:'c_sylph',      name:'シルフ',           race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🌬️', desc:'攻撃：隣接するキャラクターが+1/±0を得る。', effect:'sylph_attack'},
+  {id:'c_incubus',    name:'インキュバス',     race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、最も左の空き地に4/1、悪魔の「ナイトメア」を召喚する。', effect:'incubus_spell'},
+  {id:'c_lesser_demon',name:'レッサーデーモン',race:'悪魔', grade:1, atk:5,  hp:10, cost:3,  unique:false, icon:'👿', desc:'成長2', keywords:['成長2']},
+  {id:'c_arachas',    name:'アラッサス',       race:'亜人', grade:1, atk:4,  hp:9,  cost:3,  unique:false, icon:'🦂', desc:'攻撃：全ての敵に「侵食1」を与える。', effect:'arachas_attack'},
+  {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'使役：全ての仲間が「成長1」を得る。', effect:'slin_summon'},
+  {id:'c_goblin',     name:'ゴブリン',         race:'亜人', grade:1, atk:4,  hp:8,  cost:2,  unique:false, icon:'👺', desc:''},
+  {id:'c_orc',        name:'オーク',           race:'亜人', grade:1, atk:5,  hp:12, cost:3,  unique:false, icon:'🪓', desc:'反撃', counter:true},
+  {id:'c_ghoul',      name:'グール',           race:'不死', grade:1, atk:5,  hp:9,  cost:2,  unique:false, icon:'🧟', desc:''},
+  {id:'c_poltergeist',name:'ポルターガイスト', race:'不死', grade:1, atk:3,  hp:8,  cost:2,  unique:false, icon:'🌀', desc:'呪詛1', keywords:['呪詛1']},
+  {id:'c_giant_rat',  name:'ジャイアントラット',race:'獣',  grade:1, atk:6,  hp:7,  cost:2,  unique:false, icon:'🐀', desc:''},
+  {id:'c_madcat',     name:'マッドキャット',   race:'獣',   grade:1, atk:5,  hp:9,  cost:3,  unique:false, icon:'😾', desc:'狩人', keywords:['狩人']},
+  {id:'c_wisp',       name:'ウィスプ',         race:'精霊', grade:1, atk:2,  hp:9,  cost:2,  unique:false, icon:'🕯️', desc:''},
+  {id:'c_kobran',     name:'コブラン',         race:'亜人', grade:1, atk:4,  hp:10, cost:3,  unique:false, icon:'🐍', desc:'シールド', shield:1, keywords:['シールド']},
+  {id:'c_firebreath', name:'ファイアブレス',   race:'竜',   grade:1, atk:6,  hp:7,  cost:2,  unique:false, icon:'🔥', desc:''},
+  {id:'c_poisonmist', name:'ポイズンミスト',   race:'亜人', grade:1, atk:3,  hp:9,  cost:2,  unique:false, icon:'🌫️', desc:'侵食1', keywords:['侵食1']},
 
   // ─── G1 ネームド（報酬に出ない） ───
   {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'シールド　①：ターン開始時、一番右のキャラにシールド+1。②：味方がシールドを失うと+1/+2を得る。', shield:1, effect:'einsel'},
@@ -54,7 +73,7 @@ const UNIT_POOL = [
   {id:'c_phantom',    name:'ファントム',       race:'不死', grade:3, atk:11, hp:48, cost:7,  unique:false, icon:'👤', desc:'誘発：「アク」以外の仲間が死んだ時、0/1、不死の「アク」を召喚する。', effect:'phantom_onallydie'},
   {id:'c_salamander', name:'サラマンダー',     race:'竜',   grade:3, atk:16, hp:40, cost:7,  unique:false, icon:'🔥', desc:'成長4　開幕：全ての敵に4ダメージを与える。', effect:'salamander_start', keywords:['成長4']},
   {id:'c_vampire',    name:'ヴァンパイア',     race:'不死', grade:3, atk:13, hp:45, cost:7,  unique:false, icon:'🧛', desc:'攻撃：以後の全ての仲間の「不死」が+2/+1を得る。', effect:'vampire_attack'},
-  {id:'c_chimera',    name:'キメラ',           race:'獣',   grade:3, atk:15, hp:42, cost:7,  unique:false, icon:'🐉', desc:'召喚：ランダムなキーワード能力を3つ得る。（即死、浸食5、狩人、ヘイト、成長5、加護、反撃、二段攻撃から抽選。同じものは選ばれない。）', effect:'chimera_summon'},
+  {id:'c_chimera',    name:'キメラ',           race:'獣',   grade:3, atk:15, hp:42, cost:7,  unique:false, icon:'🐉', desc:'召喚：ランダムなキーワード能力を3つ得る。（即死、浸食5、狩人、標的、成長5、加護、反撃、二段攻撃から抽選。同じものは選ばれない。）', effect:'chimera_summon'},
   {id:'c_ogre',       name:'オーガ',           race:'亜人', grade:3, atk:14, hp:55, cost:7,  unique:false, icon:'👹', desc:'①：戦闘終了時、この戦闘で死んだランダムなキャラクター1体をライフ1で召喚する。'},
   {id:'c_succubus',   name:'サキュバス',       race:'悪魔', grade:3, atk:18, hp:30, cost:7,  unique:false, icon:'😈', desc:''},
   {id:'c_medusa',     name:'メデューサ',       race:'亜人', grade:3, atk:13, hp:50, cost:7,  unique:false, icon:'🐍', desc:''},
@@ -146,8 +165,8 @@ function makeUnitFromDef(def, fieldIdx){
       unit.hp+=_totalBD; unit.maxHp+=_totalBD;
     }
   }
-  // ハーピー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
-  if(unit.effect==='harpy_magic'&&typeof G!=='undefined'){
+  // ハーピー・ピグミー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
+  if((unit.effect==='harpy_magic'||unit.effect==='pigmy_magic')&&typeof G!=='undefined'){
     const _ml=G.magicLevel||1; unit.atk=_ml; unit.baseAtk=_ml;
   }
   return unit;

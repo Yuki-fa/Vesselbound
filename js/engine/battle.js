@@ -164,9 +164,9 @@ function runCommanderWand(wand){
       if(liveA.length>0){
         G.allies.forEach(a=>{if(a)a.hate=false;});
         const eligible=liveA.filter(a=>!a.keywords||!a.keywords.includes('加護'));
-        if(!eligible.length){ log(`👹 敵司令官「${wand.name}」：ヘイト（加護により無効）`,'sys'); break; }
+        if(!eligible.length){ log(`👹 敵司令官「${wand.name}」：標的（加護により無効）`,'sys'); break; }
         const t=randFrom(eligible); t.hate=true; t.hateTurns=99;
-        log(`👹 敵司令官「${wand.name}」：${t.name}にヘイトを付与`,'bad');
+        log(`👹 敵司令官「${wand.name}」：${t.name}に標的を付与`,'bad');
       }
       break;
     case 'enemy_summon':{
@@ -396,6 +396,16 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
     triggerDryadBuff();
   }
+  if(ally.effect==='sylph_attack'){
+    const _si=G.allies.indexOf(ally); const _sv=1+_gd;
+    [G.allies[_si-1],G.allies[_si+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_sv; b.baseAtk=(b.baseAtk||0)+_sv; }});
+    log(`${ally.name}：攻撃→隣接仲間+${_sv}/±0`,'good');
+    triggerDryadBuff();
+  }
+  if(ally.effect==='arachas_attack'){
+    G.enemies.forEach(e=>{ if(e&&e.hp>0) e.poison=(e.poison||0)+1; });
+    log(`${ally.name}：攻撃→全敵に侵食1`,'good');
+  }
 }
 
 function _applyEnemyAttackEffects(enemy){
@@ -410,6 +420,15 @@ function _applyEnemyAttackEffects(enemy){
   if(enemy.effect==='brownie_attack'){
     G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }});
     log(`${enemy.name}：攻撃時→全仲間±0/+1`,'bad');
+  }
+  if(enemy.effect==='sylph_attack'){
+    const _esi=G.enemies.indexOf(enemy);
+    [G.enemies[_esi-1],G.enemies[_esi+1]].forEach(f=>{ if(f&&f.hp>0){ f.atk+=1; }});
+    log(`${enemy.name}：攻撃→隣接+1/±0`,'bad');
+  }
+  if(enemy.effect==='arachas_attack'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0) a.poison=(a.poison||0)+1; });
+    log(`${enemy.name}：攻撃→全仲間に侵食1`,'bad');
   }
 }
 
@@ -479,7 +498,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
-  // ターゲット選択：ヘイト持ち全員 or 最右端（隠密除外）
+  // ターゲット選択：標的持ち全員 or 最右端（隠密除外）
   const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
   const visibleA=liveA.filter(a=>!a.stealth);
   const candidates=visibleA.length?visibleA:liveA;
@@ -542,7 +561,7 @@ async function enemyAttackAction(enemy, enemyIdx){
     }
   }
 
-  // ヘイトターン消費
+  // 標的ターン消費
   G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 
   renderAll();
@@ -740,6 +759,17 @@ function triggerInjury(unit, dmg=0){
       log(`${unit.name}：負傷→相手全体に3ダメ`,col);
       break;
     }
+    case 'banshee':{
+      // 「バンシー」以外の全キャラに1ダメ
+      [...G.allies,...G.enemies].forEach(u=>{
+        if(!u||u.hp<=0||u===unit) return;
+        const _bi=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
+        if(G.allies.includes(u)) dealDmgToAlly(u,1,_bi,unit);
+        else dealDmgToEnemy(u,1,_bi,unit);
+      });
+      log(`${unit.name}：負傷→全キャラに1ダメ`,col);
+      break;
+    }
   }
 }
 
@@ -781,10 +811,10 @@ function onBattleStart(){
     if(!a||a.hp<=0) return;
     switch(a.effect){
       case 'gremlin_start':
-        // グレムリン：最もライフの多い敵とHPを入れ替える
+        // グレムリン：ランダムな敵とHPを入れ替える
         { const liveEn=G.enemies.filter(e=>e&&e.hp>0);
           if(liveEn.length){
-            const top=liveEn.reduce((m,e)=>e.hp>m.hp?e:m);
+            const top=randFrom(liveEn);
             const myHp=a.hp; const eHp=top.hp;
             a.hp=eHp; a.maxHp=Math.max(a.maxHp,eHp);
             top.hp=myHp;
@@ -842,7 +872,7 @@ function onBattleStart(){
       case 'gremlin_start':{
         const liveA=G.allies.filter(a=>a&&a.hp>0);
         if(liveA.length){
-          const top=liveA.reduce((m,a)=>a.hp>m.hp?a:m);
+          const top=randFrom(liveA);
           const eHp=e.hp; const aHp=top.hp;
           e.hp=aHp; e.maxHp=Math.max(e.maxHp,aHp); top.hp=eHp;
           log(`${e.name}：${top.name}とライフを入れ替え（${eHp}⇔${aHp}）`,'bad');
@@ -1153,8 +1183,10 @@ function onWandUsed(){
     switch(a.effect){
       case 'dwarf_wand':{
         const _gainD=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=_gainD; b.baseAtk+=_gainD; b.hp+=_gainD; b.maxHp+=_gainD; }});
-        log(`ドワーフ：杖使用→全仲間+${_gainD}/+${_gainD}`,'good');
+        const _di=G.allies.indexOf(a);
+        const _adjD=[G.allies[_di-1],G.allies[_di+1]].filter(b=>b&&b.hp>0);
+        _adjD.forEach(b=>{ b.atk+=_gainD; b.baseAtk+=_gainD; b.hp+=_gainD; b.maxHp+=_gainD; });
+        if(_adjD.length) log(`ドワーフ：杖使用→隣接仲間+${_gainD}/+${_gainD}`,'good');
         triggerDryadBuff();
         break;}
 

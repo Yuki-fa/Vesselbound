@@ -73,9 +73,29 @@ function addAlly(unit, fromRingId){
     if(typeof syncHarpyAtk==='function') syncHarpyAtk();
     log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
   }
+  // ミテーラ：召喚時、最も左の空き地に2/2の「ペリカン」を召喚
+  if(unit.effect==='mitera_summon'){
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
+    if(addAlly(makeUnitFromDef(_pelDef),null)) log(`${unit.name}：ペリカン(2/2)を召喚`,'good');
+  }
+  // ジャッカロープ：召喚時、「霊峰の秘薬」を2枚手札に追加
+  if(unit.effect==='jackalope_summon'){
+    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
+    if(_herb){ let _ha=0;
+      for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
+        if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
+      }
+      if(_ha>0) log(`${unit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+    }
+  }
+  // スリン：召喚時、全仲間に「成長1」キーワードを付与
+  if(unit.effect==='slin_summon'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+    log(`${unit.name}：全仲間に「成長1」を付与`,'good');
+  }
   // キメラ：召喚時、ランダムなキーワード3つを得る
   if(unit.effect==='chimera_summon'){
-    const _pool=['即死','侵食5','狩人','ヘイト','成長5','加護','反撃','二段攻撃'];
+    const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
     const _avail=[..._pool];
     const _chosen=[];
     for(let _i=0;_i<3&&_avail.length>0;_i++){
@@ -85,7 +105,7 @@ function addAlly(unit, fromRingId){
     if(!unit.keywords) unit.keywords=[];
     _chosen.forEach(k=>{ if(!unit.keywords.includes(k)) unit.keywords.push(k); });
     if(_chosen.includes('反撃')) unit.counter=true;
-    if(_chosen.includes('ヘイト')){ unit.hate=true; unit.hateTurns=99; }
+    if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
     log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
   }
   if(!G._djinnActive){
@@ -296,10 +316,10 @@ function syncWallAtk(){
   walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
 }
 
-// ハーピーのATKを現在の魔術レベルに同期する
+// ハーピー・ピグミーのATKを現在の魔術レベルに同期する
 function syncHarpyAtk(){
   const ml=G.magicLevel||1;
-  G.allies.forEach(a=>{ if(a&&a.hp>0&&a.effect==='harpy_magic'){ a.atk=ml; a.baseAtk=ml; } });
+  G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.effect==='harpy_magic'||a.effect==='pigmy_magic')){ a.atk=ml; a.baseAtk=ml; } });
 }
 
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）

@@ -180,7 +180,7 @@ async function loadGameData() {
     // floors.js のフォールバック wands を事前に退避
     const _savedWands = FLOOR_DATA.map(fd => fd?.wands);
     // 旧アクション文字列 → 杖ID のマッピング
-    const _actionToWandId = {'強化':'cw_buff','鼓舞':'cw_heal','召喚':'cw_summon','シールド':'cw_shield','ヘイト':'cw_hate'};
+    const _actionToWandId = {'強化':'cw_buff','鼓舞':'cw_heal','召喚':'cw_summon','シールド':'cw_shield','標的':'cw_hate'};
     const _validWandIds = new Set(['cw_buff','cw_heal','cw_summon','cw_shield','cw_hate']);
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
@@ -343,9 +343,17 @@ async function loadGameData() {
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
       unit.desc = desc || '';
-      // キーワード列が存在する場合、unit.keywords を上書き（スペース/読点/コンマ区切り）
-      const kwStr = (row['キーワード'] || '').trim();
-      if (kwStr) unit.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
+      // キーワード列が存在する場合、unit.keywords を上書きし効果フラグも同期
+      // row['キーワード'] が undefined = 列なし（JS定義をそのまま使用）
+      if (row['キーワード'] !== undefined) {
+        const kwStr = row['キーワード'].trim();
+        unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
+        // キーワードから効果フラグを自動同期（シートが信源）
+        unit.counter = unit.keywords.includes('反撃');
+        unit.shield  = unit.keywords.includes('シールド') ? (unit.shield || 1) : 0;
+        if (unit.keywords.includes('標的')) { unit.hate = true; unit.hateTurns = 99; }
+        else { unit.hate = false; unit.hateTurns = 0; }
+      }
     });
 
     console.log(

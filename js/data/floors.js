@@ -13,7 +13,7 @@ const COMMANDER_WAND_POOL=[
   {id:'cw_heal',   name:'鼓舞の杖',   commanderEffect:'enemy_heal',   playerEffect:'heal_ally', type:'wand',grade:1,baseUses:3,desc:'ランダムな敵HP+X',needsAlly:true},
   {id:'cw_summon', name:'召喚の杖',   commanderEffect:'enemy_summon', playerEffect:'golem',     type:'wand',grade:1,baseUses:3,desc:'敵を1体追加'},
   {id:'cw_shield', name:'シールドの杖',commanderEffect:'enemy_shield', playerEffect:'shield_ally',type:'wand',grade:1,baseUses:3,desc:'対象の仲間にシールド+1',needsAlly:true},
-  {id:'cw_hate',   name:'ヘイトの杖', commanderEffect:'enemy_hate',   playerEffect:'hate',      type:'wand',grade:1,baseUses:3,desc:'ランダムな仲間にヘイト付与',needsAlly:true},
+  {id:'cw_hate',   name:'標的の杖', commanderEffect:'enemy_hate',   playerEffect:'hate',      type:'wand',grade:1,baseUses:3,desc:'ランダムな仲間に標的付与',needsAlly:true},
 ];
 
 // 各階層の敵パワー・グレード設定（index=階層番号、0はnull）

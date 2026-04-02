@@ -218,7 +218,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(tgt.who==='ally'){
         G.allies.forEach(a=>{ if(a) a.hate=false; });
         const a=G.allies[tgt.idx];
-        if(a){ a.hate=true; a.hateTurns=99; log(`${a.name}にヘイト付与（敵が優先的に狙う）`,'good'); }
+        if(a){ a.hate=true; a.hateTurns=99; log(`${a.name}に標的付与（敵が優先的に狙う）`,'good'); }
       } else if(tgt.who==='rew-char'){
         const c=_rewCards[tgt.idx]; if(c){ log(`${c.name}を優先ターゲットに設定`,'good'); }
       } else {
@@ -459,6 +459,15 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'reiki_herb':{
+      const _ru=tgt.who==='ally'?G.allies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
+      if(_ru&&_ru.hp>0){
+        const _rv=1+(G.hasGoldenDrop?1:0);
+        _ru.atk+=_rv; _ru.baseAtk=(_ru.baseAtk||0)+_rv; _ru.hp+=3; _ru.maxHp+=3;
+        log(`霊峰の秘薬：${_ru.name}に+${_rv}/+3`,'good');
+        if(!_inReward) triggerDryadBuff();
+      }
+    break;}
     case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
       // G4以下の契約を1つ選んでグレードを次の戦闘終了まで+1
@@ -559,6 +568,12 @@ function applySpell(sp,idx,tgt,_noDecrement){
       const _ht=randFrom(_liveE);
       dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
       log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+    });
+    // インキュバス：アイテム使用時、最も左の空き地に4/1の「ナイトメア」を召喚
+    G.allies.forEach(ic=>{
+      if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
+      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:4,hp:1,cost:0,unique:false,icon:'😱',desc:''};
+      if(addAlly(makeUnitFromDef(_nmDef),null)) log(`${ic.name}：ナイトメア(4/1)を召喚`,'good');
     });
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
