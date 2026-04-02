@@ -327,7 +327,8 @@ function renderRewCards(){
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       const _rawDesc=card.desc?computeDesc(card):'';
-      const descTag=_rawDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_rawDesc}</div>`:'';
+      const _strippedDesc=_stripKeywordsFromDesc(_rawDesc,card);
+      const descTag=_strippedDesc?`<div class="slot-desc" style="font-size:.64rem;color:var(--text2);text-align:center;margin-top:1px;line-height:1.3">${_strippedDesc}</div>`:'';
       const gradeTag=card.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.68rem;color:var(--gold);font-weight:700">G${card.grade}</div>`:'';
       const costTag=`<div style="position:absolute;top:2px;right:2px;font-size:.68rem;color:var(--gold2);font-weight:700">${cost}💀</div>`;
 
@@ -382,7 +383,8 @@ function _mkRewDiv(card, onBuy){
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
-    div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div><div class="rew-card-desc">${computeDesc(card)}</div>${statsLine}${uniqueBadge}`;
+    const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
+    div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
   }

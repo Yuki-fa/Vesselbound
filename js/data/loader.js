@@ -304,7 +304,10 @@ async function loadGameData() {
       if (!name) return;
       const isEnemyOnly = row['敵専用'] === 'TRUE' || row['敵専用'] === '✓' || row['敵専用'] === '◯';
       if (isEnemyOnly) {
-        // 敵専用：ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
+        // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
+        const upUnit = UNIT_POOL.find(u => u.name === name);
+        if (upUnit) upUnit.rarity = -1;
+        // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
         const ep = ENEMY_POOL.find(e => e.name === name);
         if (!ep) return;
         const grade = parseInt(row['グレード']);
