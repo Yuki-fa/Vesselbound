@@ -452,11 +452,12 @@ function takeRewCard(i){
       if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
       log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
     }
-    // ミテーラ：報酬枠に2/2ペリカンを追加
+    // ミテーラ：自分の場（G.allies）に2/2ペリカンを直接配置
     if(unit.effect==='mitera_summon'){
       const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
-      addRewChar(makeUnitFromDef(_pelDef));
-      log(`${unit.name}：ペリカン(2/2)を召喚`,'good');
+      const _pelUnit=makeUnitFromDef(_pelDef);
+      const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
+      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(2/2)を盤面に召喚`,'good'); }
     }
     // ジャッカロープ：「霊峰の秘薬」を2枚手札に追加
     if(unit.effect==='jackalope_summon'){
