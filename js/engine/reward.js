@@ -82,7 +82,7 @@ const _BOSS_REWARD_OPTIONS=[
   {id:'ring_slot',   label:'指輪スロット拡張',     desc:'指輪を装備できるスロットが+1される。',     apply:()=>{ G.ringSlots++; log(`ボス報酬：指輪スロット+1（現在${G.ringSlots}枠）`,'gold'); }},
   {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||5)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
   {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
-  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; log(`ボス報酬：行動権永続+1（次の戦闘から${calcActions()}行動/ターン）`,'gold'); }},
+  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); updateHUD(); log(`ボス報酬：行動権永続+1（現在${G.actionsPerTurn}行動/ターン）`,'gold'); }},
   {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
 ];
 
@@ -497,6 +497,16 @@ function takeRewCard(i){
       G.allies.forEach(a=>{ if(a&&a.effect==='dragonet_end') a._dragonetBonus=(a._dragonetBonus||0)+1; });
     }
     updateGoldenDrop();
+    // 憤激の指輪：装備時点で全仲間に即座に+3/±0を適用
+    if(rc.unique==='fury_start'){
+      const _fb=3*(rc.grade||1);
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_fb; a.baseAtk=(a.baseAtk||0)+_fb; } });
+      log(`憤激の指輪：全仲間パワー+${_fb}/±0`,'good');
+    }
+    // 行動の指輪：装備時点でactionsPerTurnを更新
+    if(rc.unique==='extra_action'){
+      G.actionsPerTurn=calcActions();
+    }
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
