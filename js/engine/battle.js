@@ -840,8 +840,9 @@ function onBattleStart(){
         break;
       case 'minotaur_start':
         if(G.enemies.some(e=>e&&e.boss)){
-          G._minotaurBonus=(G._minotaurBonus||0)+1;
-          log(`${a.name}：ボスと対戦→行動回数+1`,'good');
+          const _mb=1+(G.hasGoldenDrop?1:0);
+          G._minotaurBonus=(G._minotaurBonus||0)+_mb;
+          log(`${a.name}：ボスと対戦→行動回数+${_mb}`,'good');
         }
         break;
     }
