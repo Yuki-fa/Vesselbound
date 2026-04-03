@@ -240,10 +240,8 @@ function _triggerRewCharInjury(unit, dmg=0){
     case 'mummy':{
       const mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
-      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+mv; // 報酬キャラは敵扱いのため両方更新
-      G.allies.forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=mv; if(a.baseAtk!=null) a.baseAtk+=mv; }});
-      // 報酬枠の不死は atkBonus（G._undeadHpBonus）で自動更新
-      log(`${unit.name}：全不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
+      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+mv;
+      log(`${unit.name}：今後現れるG2以上が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
     case 'freyr':{
@@ -321,7 +319,7 @@ function renderRewCards(){
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
-      const atkBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
+      const atkBonus=(card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0;
       const dispAtk=card.atk+(atkBonus);
       const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
@@ -372,8 +370,8 @@ function _mkRewDiv(card, onBuy){
     const disabled=!hasSlot;
     div.className='rew-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
-    // 不死ATKボーナス表示（マミー負傷効果）
-    const atkBonus=card.race==='不死'&&G._undeadHpBonus?G._undeadHpBonus:0;
+    // G2以上ATKボーナス表示（マミー負傷効果）
+    const atkBonus=(card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0;
     const displayAtk=card.atk+atkBonus;
     const atkStr=atkBonus>0
       ?`<span style="color:var(--teal2)">${displayAtk}</span><span style="font-size:.5rem;color:var(--teal2);margin-left:1px">(+${atkBonus})</span>`

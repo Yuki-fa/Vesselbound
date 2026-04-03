@@ -103,7 +103,7 @@ async function startBattle(){
     if(pa.atk){ e.atk+=pa.atk; e.baseAtk=(e.baseAtk||0)+pa.atk; }
     if(pa.hp){ e.hp+=pa.hp; e.maxHp+=pa.hp; }
     const ua=G.enemyUndeadAtkBonus||0;
-    if(ua&&e.race==='不死'){ e.atk+=ua; e.baseAtk=(e.baseAtk||0)+ua; }
+    if(ua&&(e.grade||1)>=2){ e.atk+=ua; e.baseAtk=(e.baseAtk||0)+ua; }
     e.allyTarget=false;
   });
   G.moveMasks=generateMoveMasks();
@@ -692,10 +692,7 @@ function triggerInjury(unit, dmg=0){
       const _mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
       G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
-      // 敵味方問わず全ての不死にバフ
-      [...ownSide,...oppSide].forEach(a=>{ if(a&&a.race==='不死'&&a.hp>0){ a.atk+=_mv; if(a.baseAtk!=null) a.baseAtk+=_mv; } });
-      log(`${unit.name}：全不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
-      if(!isEnemy) triggerDryadBuff();
+      log(`${unit.name}：今後現れるG2以上が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
       break;
     }
     case 'freyr':{
@@ -839,10 +836,9 @@ function onBattleStart(){
         log(`${a.name}：開幕全敵に4ダメ`,'good');
         break;
       case 'minotaur_start':
-        if(G.enemies.some(e=>e&&e.boss)&&!a._minotaurGranted){
+        if(G.enemies.some(e=>e&&e.boss)){
           const _mb=1+(G.hasGoldenDrop?1:0);
           G._minotaurBonus=(G._minotaurBonus||0)+_mb;
-          a._minotaurGranted=true;
           log(`${a.name}：ボスと対戦→行動回数+${_mb}（永続）`,'good');
         }
         break;

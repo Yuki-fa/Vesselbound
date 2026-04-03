@@ -17,7 +17,7 @@ const UNIT_POOL = [
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'開戦：ランダムなG1のアイテムを得る。',         effect:'imp_start'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'①：3回目の戦闘終了時、「ワーム」に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：オーナーが杖を使うたび、隣接する仲間が+1/+1を得る。', effect:'dwarf_wand'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'負傷：「マミー」以外の全ての「不死」が+1/±0を得る。', injury:'mummy'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'負傷：今後現れるグレード2以上の全てのキャラクターが+1/±0を得る。', injury:'mummy'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'開戦：このキャラクターと、ランダムな敵のライフを入れ替える。', effect:'gremlin_start'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'使役：全ての仲間がシールドを得る。', effect:'jack_summon'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'',                                           counter:true, keywords:['成長1']},
@@ -152,8 +152,8 @@ function makeUnitFromDef(def, fieldIdx){
     counter:  def.counter || false,
     keywords: def.keywords ? [...def.keywords] : [],
   };
-  // マミー効果：不死ATKボーナス（累積）
-  if(def.race==='不死' && typeof G!=='undefined' && G._undeadHpBonus){
+  // マミー効果：グレード2以上のキャラクターにATKボーナス（累積）
+  if((def.grade||1)>=2 && typeof G!=='undefined' && G._undeadHpBonus){
     unit.atk    += G._undeadHpBonus;
     unit.baseAtk += G._undeadHpBonus;
   }
