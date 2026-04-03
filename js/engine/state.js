@@ -79,6 +79,7 @@ function initState(){
     _retreated:false,
     _retreatTargetNodeType:null,
     _bonusAction:0,
+    _minotaurBonus:0,
     hasGoldenDrop:false,
     baseIncome:1,
     _nextRewardUniqueSlot:false,

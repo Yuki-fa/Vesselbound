@@ -63,7 +63,7 @@ async function startBattle(){
   G._retreatTargetNodeType=null;
   G._pendingSkelRevive=[];
   G._manaCycleUsed=false;
-  G._minotaurBonus=0;
+
 
   // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
   G.gold += G.arcanaCarryGold||0; G.arcanaCarryGold=0;
@@ -839,10 +839,11 @@ function onBattleStart(){
         log(`${a.name}：開幕全敵に4ダメ`,'good');
         break;
       case 'minotaur_start':
-        if(G.enemies.some(e=>e&&e.boss)){
+        if(G.enemies.some(e=>e&&e.boss)&&!a._minotaurGranted){
           const _mb=1+(G.hasGoldenDrop?1:0);
           G._minotaurBonus=(G._minotaurBonus||0)+_mb;
-          log(`${a.name}：ボスと対戦→行動回数+${_mb}`,'good');
+          a._minotaurGranted=true;
+          log(`${a.name}：ボスと対戦→行動回数+${_mb}（永続）`,'good');
         }
         break;
     }
