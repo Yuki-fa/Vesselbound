@@ -231,6 +231,7 @@ function rerollRewards(){
   _generateMasterHand(); // renderRewCards前に再生成
   renderRewCards();
   renderEnemyHand();
+  renderGradeUpBtn();
 }
 
 // ── 報酬キャラクター：ダメージ・召喚・負傷トリガー ─────────
@@ -551,7 +552,7 @@ function takeRewCard(i){
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand();
+    updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
   }
@@ -573,8 +574,8 @@ function takeRewCard(i){
   renderRewCards();
   renderFieldEditor();
   renderEnemyHand();
+  renderGradeUpBtn();
 }
-
 
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
 
@@ -989,6 +990,7 @@ function buyMasterHandItem(idx){
   renderFieldEditor(); // プレイヤー手札（廃棄ボタン付き）を再描画
   renderEnemyHand();   // マスター手札を再描画
   renderRewCards();    // 提示カードのソウル不足状態を更新
+  renderGradeUpBtn();  // ソウル不足状態を更新
 }
 
 // 誘発「オーナーが〜」のオーナー判定：将来マスターが行動した時に呼ぶ
