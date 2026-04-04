@@ -144,6 +144,8 @@ async function startBattle(){
     if(vw.length) runCommanderWand(randFrom(vw));
   }
 
+  G.phase='player'; // 報酬フェイズからの遷移時に renderAll/updateHUD が reward UI を誤表示しないよう先行設定
+  G.actionsPerTurn=calcActions(); G.actionsLeft=G.actionsPerTurn;
   updateHUD();
   renderAll();
   await nextTurn();

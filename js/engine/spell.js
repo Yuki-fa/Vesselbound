@@ -315,7 +315,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         _rewCards[weakR.ri]=Object.assign(clone(pa),{_isChar:true,_buyPrice:pa.cost||2});
         log(`憑依：${pa.name}⟺${weakR.c.name}（報酬枠${weakR.ri}）`,'good');
         // 召喚時効果
-        if(newAlly.effect==='jack_summon'){ G.allies.forEach(a=>{if(a&&a.hp>0&&!a.shield)a.shield=1;}); log(`${newAlly.name}：全仲間にシールド`,'good'); }
+        if(newAlly.effect==='jack_summon'){ G.allies.forEach(a=>{if(a&&a.hp>0&&a!==newAlly&&!a.shield)a.shield=1;}); log(`${newAlly.name}：全仲間にシールド`,'good'); }
         if(newAlly.effect==='centaur_summon'){ G.magicLevel=(G.magicLevel||1)+2; if(typeof syncHarpyAtk==='function')syncHarpyAtk(); log(`${newAlly.name}：魔術レベル+2`,'good'); }
         fireTrigger('on_summon',null);
         renderRewCards(); renderAll();

@@ -30,7 +30,7 @@ const UNIT_POOL = [
   {id:'c_incubus',    name:'インキュバス',     race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、最も左の空き地に4/1、悪魔の「ナイトメア」を召喚する。', effect:'incubus_spell'},
   {id:'c_lesser_demon',name:'レッサーデーモン',race:'悪魔', grade:1, atk:5,  hp:10, cost:3,  unique:false, icon:'👿', desc:'', keywords:['成長2']},
   {id:'c_arachas',    name:'アラッサス',       race:'亜人', grade:1, atk:4,  hp:9,  cost:3,  unique:false, icon:'🦂', desc:'攻撃：全ての敵に「侵食1」を与える。', effect:'arachas_attack'},
-  {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'使役：全ての仲間が「成長1」を得る。', effect:'slin_summon'},
+  {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'使役：全ての仲間が「成長1」を得る。', effect:'slin_summon', keywords:['成長1']},
   {id:'c_goblin',     name:'ゴブリン',         race:'亜人', grade:1, atk:4,  hp:8,  cost:2,  unique:false, icon:'👺', desc:''},
   {id:'c_orc',        name:'オーク',           race:'亜人', grade:1, atk:5,  hp:12, cost:3,  unique:false, icon:'🪓', desc:'', counter:true},
   {id:'c_ghoul',      name:'グール',           race:'不死', grade:1, atk:5,  hp:9,  cost:2,  unique:false, icon:'🧟', desc:''},
