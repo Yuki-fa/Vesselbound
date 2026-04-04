@@ -58,7 +58,7 @@ function renderAll(){
   renderControls();
   renderArcanaBar();
   renderCommanderWands();
-  renderBossInfo();
+  renderEnemyHand();
   updateHUD();
   requestAnimationFrame(fitCardDescs);
 }
@@ -558,7 +558,7 @@ function setHint(t){ document.getElementById('hint-txt').textContent=t; }
 function renderCommanderWands(){
   const bar=document.getElementById('commander-wands-bar');
   if(!bar) return;
-  // ボス戦ではboss-info-barが代替表示するため非表示
+  // ボス戦ではenemy-hand-areaが代替表示するため非表示
   if(typeof _isBossFight!=='undefined'&&_isBossFight){ bar.style.display='none'; return; }
   const wands=G.commanderWands||[];
   if(!wands.length){ bar.style.display='none'; return; }
@@ -567,35 +567,67 @@ function renderCommanderWands(){
     +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
 }
 
-// ボス戦の指輪・手札バー表示
-function renderBossInfo(){
-  const bar=document.getElementById('boss-info-bar');
-  if(!bar) return;
+// 敵オーナー手札エリア（ボス戦・報酬フェイズ共通・プレイヤー手札と同形式）
+function renderEnemyHand(){
+  const area=document.getElementById('enemy-hand-area');
+  if(!area) return;
   const isBoss=typeof _isBossFight!=='undefined'&&_isBossFight;
-  if(!isBoss||G.phase==='reward'){ bar.style.display='none'; return; }
-  bar.style.display='';
-  // 指輪パネル
-  const ringsPane=document.getElementById('boss-rings-pane');
-  const ringsSlots=document.getElementById('boss-ring-slots');
-  const ringCount=document.getElementById('boss-ring-count');
-  const rings=G.bossRings||[];
+  const isReward=G.phase==='reward';
+  if(!isBoss&&!isReward){ area.style.display='none'; return; }
+  area.style.display='';
+
+  // 指輪パネル（ボス戦のみ表示）
+  const ringsPane=document.getElementById('enemy-rings-pane');
+  const ringsEl=document.getElementById('enemy-ring-slots');
+  const ringCountEl=document.getElementById('enemy-ring-count');
+  const ringMaxEl=document.getElementById('enemy-ring-max');
   if(ringsPane){
-    if(rings.length){ ringsPane.style.display=''; } else { ringsPane.style.display='none'; }
-    if(ringCount) ringCount.textContent=rings.length;
-    if(ringsSlots){
-      ringsSlots.innerHTML=rings.map(r=>`<span style="display:inline-block;background:rgba(200,60,60,.15);border:1px solid rgba(200,60,60,.35);border-radius:3px;padding:1px 5px;font-size:.58rem;color:var(--red2);margin:1px">${r.name||'?'}</span>`).join('');
+    const rings=G.bossRings||[];
+    if(isBoss&&rings.length){ ringsPane.style.display=''; } else { ringsPane.style.display='none'; }
+    if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
+    if(ringMaxEl) ringMaxEl.textContent=2;
+    if(ringsEl&&isBoss){
+      ringsEl.innerHTML='';
+      for(let i=0;i<2;i++){
+        const ring=rings[i];
+        if(ring){
+          const div=mkCardEl(ring,i,'ring-boss');
+          div.classList.add('inert'); div.style.cursor='default';
+          ringsEl.appendChild(div);
+        } else {
+          const ph=document.createElement('div'); ph.className='card-empty'; ringsEl.appendChild(ph);
+        }
+      }
     }
   }
+
   // 手札パネル
-  const handSlots=document.getElementById('boss-hand-slots');
-  const handCount=document.getElementById('boss-hand-count');
-  const hand=G.bossHand||[];
-  if(handCount) handCount.textContent=hand.length;
-  if(handSlots){
-    handSlots.innerHTML=hand.map(s=>{
-      const uses=s.type==='wand'?` ×${s.usesLeft||0}`:'';
-      return `<span style="display:inline-block;background:rgba(80,120,200,.15);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 5px;font-size:.58rem;color:var(--blue2);margin:1px">${s.name||'?'}${uses}</span>`;
-    }).join('');
+  const handEl=document.getElementById('enemy-hand-slots');
+  const handCountEl=document.getElementById('enemy-hand-count');
+  const handMaxEl=document.getElementById('enemy-hand-max');
+  if(!handEl) return;
+  handEl.innerHTML='';
+  const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
+  const maxHand=isReward?5:5;
+  if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
+  if(handMaxEl) handMaxEl.textContent=maxHand;
+  for(let i=0;i<maxHand;i++){
+    const sp=hand[i]||null;
+    if(sp){
+      const div=mkCardEl(sp,i,'spell-enemy');
+      if(isReward){
+        // 報酬フェイズ：クリックで購入
+        const cost=sp._buyPrice||2;
+        const canBuy=G.gold>=cost;
+        if(canBuy){ div.classList.remove('inert'); div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); }
+        else { div.classList.add('inert'); div.style.cursor='default'; }
+      } else {
+        div.classList.add('inert'); div.style.cursor='default';
+      }
+      handEl.appendChild(div);
+    } else {
+      const ph=document.createElement('div'); ph.className='card-empty spell'; handEl.appendChild(ph);
+    }
   }
 }
 

@@ -324,38 +324,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
 
+    <!-- 敵オーナー手札エリア（ボス戦・報酬フェイズで表示、プレイヤー手札と対称） -->
+    <div id="enemy-hand-area" class="hand-area" style="display:none">
+      <div class="hand-row1" style="gap:8px">
+        <div id="enemy-rings-pane" class="hand-pane" style="flex:2;min-width:0;display:none">
+          <span class="hand-pane-label ring-label">指輪 <span id="enemy-ring-count">0</span>/<span id="enemy-ring-max">2</span></span>
+          <div id="enemy-ring-slots"></div>
+        </div>
+        <div class="hand-pane" style="flex:7;min-width:0">
+          <span class="hand-pane-label spell-label">手札 <span id="enemy-hand-count">0</span>/<span id="enemy-hand-max">5</span></span>
+          <div id="enemy-hand-slots"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 戦闘フェイズ：敵の盤面（戦闘中のみ表示） -->
     <div id="enemy-area">
       <div class="field-label" id="enemy-field-label">敵の盤面</div>
       <div id="commander-wands-bar" style="display:none;padding:2px 0 3px;font-size:.6rem;color:var(--blue2)"></div>
-      <!-- ボス戦：ボスの指輪・手札（ボス戦のみ表示） -->
-      <div id="boss-info-bar" style="display:none;padding:3px 4px 3px;border-bottom:1px solid rgba(200,60,60,.25)">
-        <div class="hand-row1" style="gap:6px">
-          <div id="boss-rings-pane" class="hand-pane" style="flex:2;min-width:0;display:none">
-            <span class="hand-pane-label ring-label">指輪 <span id="boss-ring-count">0</span>/2</span>
-            <div id="boss-ring-slots"></div>
-          </div>
-          <div id="boss-hand-pane" class="hand-pane" style="flex:7;min-width:0">
-            <span class="hand-pane-label spell-label">手札 <span id="boss-hand-count">0</span>/5</span>
-            <div id="boss-hand-slots"></div>
-          </div>
-        </div>
-      </div>
       <div class="field" id="f-enemy"></div>
     </div>
 
     <!-- 報酬カード（報酬中のみ表示・敵の盤面と同位置） -->
     <div id="reward-cards-section" style="display:none">
-      <!-- マスター手札（報酬フェイズのみ表示） -->
-      <div id="master-hand-area" style="display:none;padding:3px 4px 3px;border-bottom:1px solid rgba(80,120,200,.25);margin-bottom:4px">
-        <div class="hand-row1">
-          <div class="hand-pane" style="flex:1;min-width:0">
-            <span class="hand-pane-label spell-label">マスターの手札 <span id="master-hand-count">0</span>/5</span>
-            <div id="master-hand-slots"></div>
-          </div>
-        </div>
-      </div>
-      <div class="field-label" style="margin-bottom:5px">報酬カード　（契約3ソウル・杖2ソウル・アイテム2ソウル　G2以上は追加コスト　契約は還魂で払い戻し）</div>
+      <div class="field-label" style="margin-bottom:5px">報酬カード　（契約3ソウル　G2以上は追加コスト　契約は還魂で払い戻し）</div>
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 

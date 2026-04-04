@@ -81,6 +81,9 @@ async function startBattle(){
   if(allySection) allySection.style.display='';
   const eArea=document.getElementById('enemy-area');
   if(eArea) eArea.style.display='';
+  // 通常戦闘ではenemy-hand-areaを非表示（ボス戦はrenderEnemyHandが制御）
+  const eHandArea=document.getElementById('enemy-hand-area');
+  if(eHandArea) eHandArea.style.display='none';
   const rMoveBtns=document.getElementById('reward-move-btns');
   if(rMoveBtns) rMoveBtns.style.display='none';
   const eLabel=document.getElementById('enemy-field-label');
