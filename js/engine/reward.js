@@ -345,11 +345,17 @@ function renderRewCards(){
       const atkBonus=((card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0);
       const dispAtk=card.atk+atkBonus;
       const dispHp=card.hp;
-      // 仲間加入プレビュー（グリマルキン・黄金の雫）
-      const _grimBonus=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-      const _previewAtk=card.atk+atkBonus+_grimBonus;
-      const _previewHp=card.hp+_grimBonus;
-      const _previewStr=_grimBonus>0?`仲間になった時: ${_previewAtk} / ${_previewHp}（+${_grimBonus}/+${_grimBonus}）`:(atkBonus>0?`仲間になった時: ${_previewAtk} / ${_previewHp}`:'');
+      // 仲間加入プレビュー
+      // グリマルキン・黄金の雫は召喚効果で出るユニットにのみ影響（X/Y、パターンのある説明文のみ対象）
+      const _summonBonus=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+      const _hasSummonDesc=_summonBonus>0&&/\d+\/\d+、/.test(card.desc||'');
+      let _previewStr='';
+      if(_hasSummonDesc){
+        const _modDesc=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_summonBonus}/${parseInt(h)+_summonBonus}、`);
+        _previewStr=`グリマルキン：${_modDesc}`;
+      } else if(atkBonus>0){
+        _previewStr=`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`;
+      };
       const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
@@ -412,10 +418,13 @@ function _mkRewDiv(card, onBuy){
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
-    const _grimBonusCard=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-    if(_grimBonusCard>0||atkBonus>0){
-      const _pa=card.atk+atkBonus+_grimBonusCard, _ph=card.hp+_grimBonusCard;
-      div.setAttribute('data-preview',`仲間になった時: ${_pa} / ${_ph}（+${atkBonus+_grimBonusCard}/+${_grimBonusCard}）`);
+    const _sumBonusCard=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+    const _hasSumDescCard=_sumBonusCard>0&&/\d+\/\d+、/.test(card.desc||'');
+    if(_hasSumDescCard){
+      const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCard}/${parseInt(h)+_sumBonusCard}、`);
+      div.setAttribute('data-preview',`グリマルキン：${_modDescCard}`);
+    } else if(atkBonus>0){
+      div.setAttribute('data-preview',`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`);
     }
     div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
