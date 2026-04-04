@@ -134,12 +134,8 @@ function _showBossRewardOverlay(){
       const maxGrade=fd?(fd.grade||1):1;
       const bossTreasure=drawTreasure({3:100},{wand:30,consumable:20,ring:50},maxGrade);
       if(bossTreasure){
-        // _generateMasterHand()実行後なので杖・アイテムは直接masterHandへ
-        if(bossTreasure.type==='wand'||bossTreasure.type==='consumable'){
-          G.masterHand.push(bossTreasure);
-        } else {
-          _rewCards.push(bossTreasure);
-        }
+        // _generateMasterHand()実行後なので全種類を直接masterHandへ
+        G.masterHand.push(bossTreasure);
         log('🏆 ボス宝箱（R3）が出現！','gold');
       }
       document.getElementById('rw-gold').textContent=G.gold;
@@ -373,6 +369,7 @@ function renderRewCards(){
       // 状態異常バッジ：絶対配置（センタリング列の外）でアイコン/名前を固定
       const statusBlock=_stBadges.length?`<div style="position:absolute;top:20px;left:0;right:0;display:flex;justify-content:center;flex-wrap:wrap;gap:2px;z-index:3">${_stBadges.join('')}</div>`:'';
       slot.style.borderTop='2px solid var(--teal2)';
+      if(!canBuy) slot.style.background='var(--bg)';
       if(_previewStr) slot.setAttribute('data-preview',_previewStr);
       slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
       if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
@@ -443,7 +440,7 @@ function _mkRewDiv(card, onBuy){
   const refundTxt=isRingCard
     ?`<div class="rew-card-refund" style="color:var(--red2)">破棄（ソウルなし）</div>`
     :refund>0?`<div class="rew-card-refund">還魂（ソウル+${refund}）</div>`:'';
-  const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
+  const tpLabel=typeLabel[t]||'指輪';
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
   const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
   const priceTagItem=isTreasure
@@ -848,6 +845,7 @@ function renderGradeUpBtn(){
     updateHUD();
     renderGradeUpBtn();
     renderRewCards();
+    renderEnemyHand();
   };
 }
 

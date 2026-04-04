@@ -549,7 +549,7 @@ function mkCardEl(card,_idx,_ctx){
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
   const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(_gradeNum)}</span>`:'';
-  const badgeEl=card._buyPrice!=null?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
+  const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
   // 杖のチャージ表示（テキスト下）
   const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))

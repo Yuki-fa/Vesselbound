@@ -505,7 +505,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'reiki_herb':{
-      const _ru=tgt.who==='ally'?G.allies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
+      const _ru=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
       if(_ru&&_ru.hp>0){
         const _rv=1+(G.hasGoldenDrop?1:0);
         _ru.atk+=_rv; _ru.baseAtk=(_ru.baseAtk||0)+_rv; _ru.hp+=3; _ru.maxHp+=3;
@@ -594,7 +594,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
     if(sp.usesLeft===undefined) sp.usesLeft=1; // fallback
     const manaCycle=G.rings.find(r=>r&&r.unique==='mana_cycle');
     let skipDecrement=false;
-    if(manaCycle&&!G._manaCycleUsed){ G._manaCycleUsed=true; skipDecrement=true; log(`魔導の指輪：最初の杖のチャージ消費をスキップ`,'sys'); }
+    // _noDecrement=true（拡散の内部呼び出し等）の場合はmana_cycleを消費しない
+    if(!_noDecrement&&manaCycle&&!G._manaCycleUsed){ G._manaCycleUsed=true; skipDecrement=true; log(`魔導の指輪：最初の杖のチャージ消費をスキップ`,'sys'); }
     if(!_noDecrement&&!skipDecrement){
       sp.usesLeft--;
       if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
@@ -612,11 +613,13 @@ function applySpell(sp,idx,tgt,_noDecrement){
       dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
       log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
     });
-    // インキュバス：アイテム使用時、最も左の空き地に4/1の「ナイトメア」を召喚
+    // インキュバス：アイテム使用時、最も左の空き地に4/1の「ナイトメア」を召喚（報酬フェイズ中も戦場に直接配置）
     G.allies.forEach(ic=>{
       if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
       const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:4,hp:1,cost:0,unique:false,icon:'😱',desc:''};
-      if(addAlly(makeUnitFromDef(_nmDef),null)) log(`${ic.name}：ナイトメア(4/1)を召喚`,'good');
+      const _nm=makeUnitFromDef(_nmDef);
+      const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
+      if(_ei>=0){ G.allies[_ei]=_nm; log(`${ic.name}：ナイトメア(4/1)を召喚`,'good'); }
     });
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新

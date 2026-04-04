@@ -95,5 +95,5 @@ const SPELL_POOL=[
    desc:'契約を1つ選ぶ。そのグレードを次の戦闘終了まで+1する。', effect:'soul_dregs'},
 
   {id:'c_reiki_herb',  name:'霊峰の秘薬', type:'consumable', rarity:-1,
-   desc:'対象が+1/+3を得る。', effect:'reiki_herb', needsAlly:true},
+   desc:'対象が+1/+3を得る。', effect:'reiki_herb', needsAny:true},
 ];

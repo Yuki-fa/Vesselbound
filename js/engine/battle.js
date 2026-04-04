@@ -65,6 +65,8 @@ async function startBattle(){
   G._retreatTargetNodeType=null;
   G._pendingSkelRevive=[];
   G._manaCycleUsed=false;
+  G.allies.forEach(a=>{ if(a) delete a._deathProcessed; });
+  G.enemies.forEach(e=>{ if(e) delete e._deathProcessed; });
 
 
   // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
@@ -596,7 +598,8 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
 // ── 味方の死亡処理 ──────────────────────────────
 
 function processAllyDeath(unit){
-  if(unit.hp>0) return;
+  if(unit.hp>0||unit._deathProcessed) return;
+  unit._deathProcessed=true;
 
   log(`${unit.name} が倒れた…`,'bad');
   G.battleCounters.deaths++;
@@ -622,7 +625,7 @@ function processAllyDeath(unit){
   // スケルトン：死亡時に復活リストへ登録（アク等に上書きされても復活できるよう）
   if(unit.effect==='skeleton_revive'){
     if(!G._pendingSkelRevive) G._pendingSkelRevive=[];
-    G._pendingSkelRevive.push(unit);
+    if(!G._pendingSkelRevive.includes(unit)) G._pendingSkelRevive.push(unit);
   }
   // ファントム：アク以外の仲間が死んだ時、0/1不死の「アク」を召喚
   if(unit.name!=='アク'){

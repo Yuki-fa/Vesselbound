@@ -147,14 +147,16 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
   const _seen3=G._seenRarity3||new Set();
   let pool, c;
   if(type==='ring'){
-    pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
-    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&!(r.rarity===3&&_seen3.has(r.id)));
+    const _mgr=maxGrade||4;
+    pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
+    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&!(r.rarity===3&&_seen3.has(r.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     c.grade=maxGrade;
   } else {
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&!(s.rarity===3&&_seen3.has(s.id)));
+    const _mg=maxGrade||4;
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.grade||1)<=_mg&&!(s.rarity===3&&_seen3.has(s.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }

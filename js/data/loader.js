@@ -215,12 +215,14 @@ async function loadGameData() {
           .map(s => _actionToWandId[s.trim()] || s.trim())
           .filter(s => _validWandIds.has(s));
       }
+      const _mlVal = parseInt(row['魔術レベル'] || row['magicLevel']);
       FLOOR_DATA[fl] = {
         grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
         wands: wands,
         enemyHand: enemyHand,
         enemyRings: enemyRings,
+        magicLevel: isNaN(_mlVal) ? 0 : _mlVal,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
