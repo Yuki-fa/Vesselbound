@@ -80,9 +80,12 @@ function initState(){
     _retreatTargetNodeType:null,
     _bonusAction:0,
     _minotaurBonus:0,
-    // ── ボスオーナーシステム ──
-    bossRings:[],   // ボスが装備している指輪
-    bossHand:[],    // ボスの手札（杖・アイテム）
+    // ── 敵オーナーシステム ──
+    bossRings:[],         // 敵オーナーが装備している指輪
+    bossHand:[],          // 敵オーナーの手札（杖・アイテム）
+    enemyMagicLevel:0,       // 敵オーナーの魔術レベル（FLOOR_DATA.magicLevel から設定）
+    _enemyHandDynamic:false, // true = 戦闘中に動的取得した手札（手札3・指輪非表示）
+    _enemySpreadActive:false,// 敵の spread 効果が有効中
     masterHand:[],  // 報酬フェイズのマスター手札
     hasGoldenDrop:false,
     baseIncome:1,
@@ -96,7 +99,6 @@ function initState(){
     // ── 秘術（互換性のため残す）──
     arcana:null, arcanaUsed:false,
     arcanaCarryGold:0, arcanaForceNode:false, arcanaTrustCount:0,
-    commanderWands:[],
     seenWands:[],
     _seenRarity3:new Set(),
     bannedRings:[],

@@ -22,6 +22,8 @@ function triggerDryadBuff(){
 }
 
 function _handleVictory(){
+  // stale setTimeout が次の戦闘中に発火した場合は何もしない
+  if(G.phase!=='reward') return;
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
     showScreen('clear');
   } else {
@@ -86,9 +88,6 @@ async function startBattle(){
   if(logWrap) logWrap.style.display='';
   const eArea=document.getElementById('enemy-area');
   if(eArea) eArea.style.display='';
-  // 通常戦闘ではenemy-hand-areaを非表示（ボス戦はrenderEnemyHandが制御）
-  const eHandArea=document.getElementById('enemy-hand-area');
-  if(eHandArea) eHandArea.style.display='none';
   const rMoveBtns=document.getElementById('reward-move-btns');
   if(rMoveBtns) rMoveBtns.style.display='none';
   const eLabel=document.getElementById('enemy-field-label');
@@ -96,11 +95,12 @@ async function startBattle(){
 
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);
-  const wandIds=fd?.wands||[];
-  G.commanderWands=wandIds.map(id=>COMMANDER_WAND_POOL&&COMMANDER_WAND_POOL.find(w=>w.id===id)).filter(Boolean);
-  // ボス手札・指輪を読み込む
-  G.bossHand=_isBossFight ? (fd?.enemyHand||[]).map(s=>Object.assign({},s)) : [];
-  G.bossRings=_isBossFight ? (fd?.enemyRings||[]).map(r=>Object.assign({},r)) : [];
+  // 敵オーナー手札・指輪をすべての階層で読み込む（持ち物がなければ空配列）
+  G.bossHand=(fd?.enemyHand||[]).map(s=>Object.assign({},s));
+  G.bossRings=(fd?.enemyRings||[]).map(r=>Object.assign({},r));
+  G.enemyMagicLevel=fd?.magicLevel||0;
+  // 動的取得モード：戦闘開始時に持ち物がない場合、戦闘中取得は手札3・指輪非表示
+  G._enemyHandDynamic=G.bossHand.length===0&&G.bossRings.length===0;
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
@@ -141,12 +141,6 @@ async function startBattle(){
   // ボス指輪：battle_startトリガー（プレイヤー指輪の後に発火）
   if(_isBossFight&&G.bossRings.length) fireBossRingTrigger('battle_start');
 
-  // 非ボス戦：司令官杖を1本発動
-  if(!_isBossFight&&G.commanderWands&&G.commanderWands.length){
-    const vw=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||G.enemies.filter(e=>e&&e.hp>0).length<6);
-    if(vw.length) runCommanderWand(randFrom(vw));
-  }
-
   updateHUD();
   renderAll();
   await nextTurn();
@@ -158,76 +152,33 @@ async function nextTurn(){
   G.turn++;
   updateHUD();
   log(`── ターン ${G.turn} ──`,'sys');
-  if(_isBossFight) await commanderPhase();
+  await commanderPhase(); // 敵オーナーが何も持っていなければ即return
   startPlayerPhase();
 }
 
-// ── 司令官フェイズ（ボス専用）────────────────────
-
-function runCommanderWand(wand){
-  if(!wand) return;
-  const liveE=G.enemies.filter(e=>e&&e.hp>0);
-  const liveA=G.allies.filter(a=>a&&a.hp>0);
-  const bonus=Math.ceil(FLOOR_DATA[G.floor]?.grade||1);
-  switch(wand.commanderEffect){
-    case 'enemy_buff':
-      liveE.forEach(e=>{ e.atk+=bonus; });
-      log(`👹 敵司令官「${wand.name}」：全敵ATK+${bonus}`,'bad');
-      break;
-    case 'enemy_hate':
-      if(liveA.length>0){
-        G.allies.forEach(a=>{if(a)a.hate=false;});
-        const eligible=liveA.filter(a=>!a.keywords||!a.keywords.includes('加護'));
-        if(!eligible.length){ log(`👹 敵司令官「${wand.name}」：標的（加護により無効）`,'sys'); break; }
-        const t=randFrom(eligible); t.hate=true; t.hateTurns=99;
-        log(`👹 敵司令官「${wand.name}」：${t.name}に標的を付与`,'bad');
-      }
-      break;
-    case 'enemy_summon':{
-      if(!liveE.length||liveE.length>=6) break;
-      const avgAtk=Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.atk,0)/liveE.length));
-      const avgHp =Math.max(1,Math.round(liveE.reduce((s,e)=>s+e.hp, 0)/liveE.length));
-      const ni=randi(0,ENEMY_NAMES.length-1);
-      const _pa=G.enemyPermanentBonus||{atk:0,hp:0};
-      const _sumAtk=avgAtk+(_pa.atk||0), _sumHp=avgHp+(_pa.hp||0);
-      const ne={id:uid(),name:ENEMY_NAMES[ni],icon:ENEMY_ICONS[ni],atk:_sumAtk,hp:_sumHp,maxHp:_sumHp,baseAtk:_sumAtk,grade:rollEnemyGrade(G.floor),sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
-      const ei=G.enemies.findIndex(e=>e.hp<=0);
-      if(ei>=0) G.enemies[ei]=ne; else G.enemies.push(ne);
-      log(`👹 敵司令官「${wand.name}」：${ne.name}(${avgAtk}/${avgHp})を召喚`,'bad');
-      break;
-    }
-    case 'enemy_heal':
-      if(liveE.length>0){ const t=randFrom(liveE); const hp=Math.ceil(FLOOR_DATA[G.floor]?.grade||1)*4; t.hp+=hp; t.maxHp+=hp; log(`👹 敵司令官「${wand.name}」：${t.name} HP+${hp}`,'bad'); }
-      break;
-    case 'enemy_shield':
-      if(liveE.length>0){ const t=randFrom(liveE); if(!t.shield) t.shield=1; log(`👹 敵司令官「${wand.name}」：${t.name}にシールドを付与`,'bad'); }
-      break;
-  }
-}
+// ── 敵オーナーフェイズ（全階層共通）────────────────
 
 async function commanderPhase(){
+  // 手札がなく、ボス戦でもない場合はスキップ
+  const _liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
+  if(!_liveHand.length&&!_isBossFight) return;
+
   G.phase='commander';
   renderControls();
-  log('👹 ボスフェイズ','bad');
-  // ボス指輪：ターン開始トリガー
-  if(G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
-  // ボス手札からランダムに1枚使用
-  const _liveHand=G.bossHand?G.bossHand.filter(s=>s&&(s.type!=='wand'||s.usesLeft>0)):[];
+  log('👹 敵フェイズ','bad');
+  // ボス指輪：ターン開始トリガー（ボス戦のみ）
+  if(_isBossFight&&G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
+  // 手札からランダムに1枚使用
   if(_liveHand.length){
     const _bsp=randFrom(_liveHand);
     applyBossSpell(_bsp);
     if(_bsp.type==='wand'){
-      _bsp.usesLeft=(_bsp.usesLeft||1)-1;
+      _bsp.usesLeft=(_bsp.usesLeft??1)-1;
       if(_bsp.usesLeft<=0){
         G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
-        log(`ボスの「${_bsp.name}」チャージが切れた`,'sys');
+        log(`敵の「${_bsp.name}」チャージが切れた`,'sys');
       }
     }
-  } else if(G.commanderWands&&G.commanderWands.length){
-    // フォールバック：旧commanderWands
-    const liveE=G.enemies.filter(e=>e&&e.hp>0);
-    const pool=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||liveE.length<6);
-    if(pool.length) runCommanderWand(randFrom(pool));
   }
   renderAll();
   await sleep(700);
@@ -1276,48 +1227,44 @@ function fireBossRingTrigger(trigger){
   });
 }
 
-// ボスが手札から魔法を使用（敵側視点：needsEnemy→G.allies対象）
+// 戦闘中に敵オーナーが手札アイテムを取得（動的モード：手札3・指輪非表示）
+function addEnemyHandItem(item){
+  if(!item) return false;
+  const cap=G._enemyHandDynamic?3:8;
+  if((G.bossHand||[]).filter(s=>s).length>=cap) return false;
+  if(!G.bossHand) G.bossHand=[];
+  G.bossHand.push(item);
+  renderEnemyHand(); // 即時更新
+  return true;
+}
+
+// 敵オーナーが手札から魔法を使用（敵側視点：「敵」=プレイヤー側、「味方」=敵側）
 function applyBossSpell(sp){
-  const liveA=G.allies.filter(a=>a&&a.hp>0);
-  const liveE=G.enemies.filter(e=>e&&e.hp>0);
+  const liveA=G.allies.filter(a=>a&&a.hp>0);   // プレイヤー側（敵の「敵」）
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);  // 敵側（敵の「味方」）
   const grade=FLOOR_DATA[G.floor]?.grade||1;
-  log(`👹 ボス「${sp.name}」を使用`,'bad');
+  const eml=G.enemyMagicLevel||0;              // 敵オーナーの魔術レベル
+  log(`👹 敵「${sp.name}」を使用`,'bad');
   switch(sp.effect){
+    // ── ダメージ・デバフ系（プレイヤー側を対象）──
     case 'fire':{
       if(!liveA.length) break;
       const t=randFrom(liveA); const dmg=Math.ceil(grade*3);
       dealDmgToAlly(t,dmg,G.allies.indexOf(t),null);
+      log(`→ ${t.name}に${dmg}ダメージ`,'bad');
       break;
     }
     case 'meteor':{
       const dmg=Math.ceil(grade*2);
       liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
+      log(`→ 全仲間に${dmg}ダメージ`,'bad');
       break;
     }
     case 'bomb':{
       const dmg=Math.ceil(grade*2);
       liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
       liveE.forEach(e=>dealDmgToEnemy(e,dmg,G.enemies.indexOf(e),null));
-      break;
-    }
-    case 'boost':{
-      if(!liveE.length) break;
-      const t=randFrom(liveE); const v=Math.ceil(grade*2);
-      t.atk+=v; t.baseAtk=(t.baseAtk||0)+v;
-      log(`→ ${t.name}パワー+${v}`,'bad');
-      break;
-    }
-    case 'rally': case 'big_rally':{
-      const v=Math.ceil(grade*(sp.effect==='big_rally'?2:1));
-      liveE.forEach(e=>{ e.atk+=v; e.baseAtk=(e.baseAtk||0)+v; });
-      log(`→ 全敵パワー+${v}`,'bad');
-      break;
-    }
-    case 'heal_ally':{
-      if(!liveE.length) break;
-      const t=randFrom(liveE); const hp=Math.ceil(grade*3);
-      t.hp=Math.min(t.maxHp,t.hp+hp);
-      log(`→ ${t.name}HP+${hp}`,'bad');
+      log(`→ 全キャラに${dmg}ダメージ`,'bad');
       break;
     }
     case 'hate':{
@@ -1341,10 +1288,49 @@ function applyBossSpell(sp){
       break;
     }
     case 'instakill':{
-      const eligible=liveA.filter(a=>!a.instadead&&(!a.keywords||!a.keywords.includes('加護')));
-      if(!eligible.length) break;
+      // 魔術レベル以下のパワーを持つ仲間（プレイヤー側）を即死
+      const eligible=liveA.filter(a=>a.atk<=eml&&!a.instadead&&(!a.keywords||!a.keywords.includes('加護')));
+      if(!eligible.length){ log(`→ 対象なし（魔術レベル${eml}以下の仲間がいない）`,'sys'); break; }
       const t=randFrom(eligible);
       dealDmgToAlly(t,t.hp+999,G.allies.indexOf(t),null);
+      break;
+    }
+    case 'spread':{
+      // 次の効果を2倍に（敵側の「スプレッド」は敵の次の使用アイテム効果2倍）
+      G._enemySpreadActive=true;
+      log(`→ 次の効果が2倍になる`,'bad');
+      break;
+    }
+    // ── 強化系（敵側を対象）──
+    case 'boost':{
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const v=Math.ceil(grade*2)*(G._enemySpreadActive?2:1);
+      G._enemySpreadActive=false;
+      t.atk+=v; t.baseAtk=(t.baseAtk||0)+v;
+      log(`→ ${t.name}パワー+${v}`,'bad');
+      break;
+    }
+    case 'rally': case 'big_rally':{
+      const base=sp.effect==='big_rally'?2:1;
+      const v=Math.ceil(grade*base)*(G._enemySpreadActive?2:1);
+      G._enemySpreadActive=false;
+      liveE.forEach(e=>{ e.atk+=v; e.baseAtk=(e.baseAtk||0)+v; });
+      log(`→ 全敵パワー+${v}`,'bad');
+      break;
+    }
+    case 'heal_ally':{
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const hp=Math.ceil(grade*3)*(G._enemySpreadActive?2:1);
+      G._enemySpreadActive=false;
+      t.hp=Math.min(t.maxHp,t.hp+hp);
+      log(`→ ${t.name}HP+${hp}`,'bad');
+      break;
+    }
+    case 'double_hp':{
+      if(!liveE.length) break;
+      const t=randFrom(liveE);
+      t.hp=Math.min(t.maxHp,t.hp*2); t.maxHp=t.maxHp*2;
+      log(`→ ${t.name}最大HP×2`,'bad');
       break;
     }
     case 'golem':{
@@ -1363,8 +1349,9 @@ function applyBossSpell(sp){
       log(`→ ${e.name}を復活(HP:${e.hp})`,'bad');
       break;
     }
-    default: break; // gold_8, swap_all, double_hp等は効果なし
+    default: log(`→ 効果なし`,'sys'); break;
   }
+  G._enemySpreadActive=false; // 未消費のspreadは次ターンに持ち越さない
 }
 
 // ── 降伏 ──────────────────────────────────────

@@ -501,22 +501,22 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'shield_ally':{ const a=G.allies[tgt.idx]; if(a){ if(!a.shield) a.shield=1; log(`🛡 ${a.name}にシールドを付与`,'good'); } break;}
     case 'copy_scroll':{
-      if(!G.commanderWands||!G.commanderWands.length){ log('複製の巻物：敵の司令官杖がない','sys'); break; }
+      const _cwSrc=(G.bossHand||[]).filter(s=>s&&s.type==='wand');
+      if(!_cwSrc.length){ log('複製の巻物：敵の手札に杖がない','sys'); break; }
       if(G.spells.filter(s=>s).length>=(G.handSlots||5)){ log('手札が満杯','bad'); break; }
-      const picked=randFrom(G.commanderWands);
-      const pw=clone(SPELL_POOL.find(s=>s.effect===picked.playerEffect)||{id:picked.id,name:picked.name,type:'wand',effect:picked.playerEffect,baseUses:3});
-      pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
+      const picked=randFrom(_cwSrc);
+      const pw=clone(picked); pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
       for(let j=0;j<(G.handSlots||5);j++){ if(!G.spells[j]){ G.spells[j]=pw; break; } }
       log(`📜 複製の巻物：${pw.name} を入手`,'good');
     break;}
     case 'destroy_scroll':{
-      if(!G.commanderWands||!G.commanderWands.length){ log('破壊の巻物：敵の司令官杖がない','sys'); break; }
-      const dw=randFrom(G.commanderWands);
-      const di=G.commanderWands.indexOf(dw);
-      G.commanderWands.splice(di,1);
+      const _dwSrc=(G.bossHand||[]).filter(s=>s);
+      if(!_dwSrc.length){ log('破壊の巻物：敵の手札がない','sys'); break; }
+      const dw=randFrom(_dwSrc);
+      G.bossHand.splice(G.bossHand.indexOf(dw),1);
       G.gold+=3; updateHUD();
       const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
-      log(`🔥 破壊の巻物：${dw.name} を破壊してソウル+3`,'gold');
+      log(`🔥 破壊の巻物：敵の「${dw.name}」を破壊してソウル+3`,'gold');
     break;}
     case 'flash_blade':{
       // 全キャラに1ダメージ（報酬フェイズ：仲間＋報酬キャラ、戦闘：仲間＋全敵）

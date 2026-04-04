@@ -9,6 +9,8 @@ let _placingChar=null; // フィールド配置待ちのキャラカード
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
+  // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
+  if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
   _rewCards=drawRewards();

@@ -57,7 +57,6 @@ function renderAll(){
   renderHand();
   renderControls();
   renderArcanaBar();
-  renderCommanderWands();
   renderEnemyHand();
   updateHUD();
   requestAnimationFrame(fitCardDescs);
@@ -588,8 +587,9 @@ function setHint(t){ document.getElementById('hint-txt').textContent=t; }
 function renderCommanderWands(){
   const bar=document.getElementById('commander-wands-bar');
   if(!bar) return;
-  // ボス戦ではenemy-hand-areaが代替表示するため非表示
+  // ボス戦・報酬フェイズではenemy-hand-areaが代替表示するため非表示
   if(typeof _isBossFight!=='undefined'&&_isBossFight){ bar.style.display='none'; return; }
+  if(G.phase==='reward'){ bar.style.display='none'; return; }
   const wands=G.commanderWands||[];
   if(!wands.length){ bar.style.display='none'; return; }
   bar.style.display='';
@@ -597,53 +597,61 @@ function renderCommanderWands(){
     +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
 }
 
-// 敵オーナー手札エリア（ボス戦・報酬フェイズ共通・プレイヤー手札と同形式）
+// 敵オーナー手札エリア（全階層・報酬フェイズ共通・プレイヤー手札と同形式）
 function renderEnemyHand(){
   const area=document.getElementById('enemy-hand-area');
   if(!area) return;
-  const isBoss=typeof _isBossFight!=='undefined'&&_isBossFight;
   const isReward=G.phase==='reward';
-  if(!isBoss&&!isReward){ area.style.display='none'; return; }
+  const hasEnemyItems=(G.bossRings&&G.bossRings.some(r=>r))||(G.bossHand&&G.bossHand.some(s=>s));
+  if(!hasEnemyItems&&!isReward){ area.style.display='none'; return; }
   area.style.display='';
 
-  // 指輪パネル（常時表示・ボス戦は実際の指輪、報酬は空スロット）
+  // 動的取得モード：指輪非表示・手札3枠
+  const isDynamic=!isReward&&(G._enemyHandDynamic||false);
+
+  // 指輪パネル（動的モードと報酬フェイズは非表示）
   const ringsPane=document.getElementById('enemy-rings-pane');
   const ringsEl=document.getElementById('enemy-ring-slots');
   const ringCountEl=document.getElementById('enemy-ring-count');
   const ringMaxEl=document.getElementById('enemy-ring-max');
+  const eHandPane=document.getElementById('enemy-hand-pane');
   if(ringsPane){
-    ringsPane.style.display='';
-    const rings=G.bossRings||[];
-    const eR=2; // 敵指輪スロットは2固定
-    ringsPane.style.flex=eR;
-    if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
-    if(ringMaxEl) ringMaxEl.textContent=eR;
-    const eHandPane=document.getElementById('enemy-hand-pane');
-    if(eHandPane) eHandPane.style.flex=10-eR;
-    if(ringsEl){
-      ringsEl.innerHTML='';
-      ringsEl.style.gridTemplateColumns=`repeat(${eR},1fr)`;
-      for(let i=0;i<eR;i++){
-        const ring=rings[i];
-        if(ring&&isBoss){
-          const div=mkCardEl(ring,i,'ring-boss');
-          div.classList.add('inert'); div.style.cursor='default';
-          ringsEl.appendChild(div);
-        } else {
-          const ph=document.createElement('div'); ph.className='card-empty'; ringsEl.appendChild(ph);
+    if(isDynamic||isReward){
+      ringsPane.style.display='none';
+      if(eHandPane) eHandPane.style.flex='1';
+    } else {
+      ringsPane.style.display='';
+      const rings=G.bossRings||[];
+      const eR=2; // 敵指輪スロットは2固定
+      ringsPane.style.flex=eR;
+      if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
+      if(ringMaxEl) ringMaxEl.textContent=eR;
+      if(eHandPane) eHandPane.style.flex=10-eR;
+      if(ringsEl){
+        ringsEl.innerHTML='';
+        ringsEl.style.gridTemplateColumns=`repeat(${eR},1fr)`;
+        for(let i=0;i<eR;i++){
+          const ring=rings[i];
+          if(ring){
+            const div=mkCardEl(ring,i,'ring-boss');
+            div.classList.add('inert'); div.style.cursor='default';
+            ringsEl.appendChild(div);
+          } else {
+            const ph=document.createElement('div'); ph.className='card-empty'; ringsEl.appendChild(ph);
+          }
         }
       }
     }
   }
 
-  // 手札パネル（常に10-eR=8列）
+  // 手札パネル（動的モード=3枠、通常=8枠、報酬=handSlots）
   const handEl=document.getElementById('enemy-hand-slots');
   const handCountEl=document.getElementById('enemy-hand-count');
   const handMaxEl=document.getElementById('enemy-hand-max');
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  const eHcols=8; // 常に8列（2指輪+8手札=10）
+  const eHcols=isReward?8:isDynamic?3:8;
   const activeHand=isReward?(G.handSlots||5):eHcols;
   handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
