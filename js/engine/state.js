@@ -80,6 +80,10 @@ function initState(){
     _retreatTargetNodeType:null,
     _bonusAction:0,
     _minotaurBonus:0,
+    // ── ボスオーナーシステム ──
+    bossRings:[],   // ボスが装備している指輪
+    bossHand:[],    // ボスの手札（杖・アイテム）
+    masterHand:[],  // 報酬フェイズのマスター手札
     hasGoldenDrop:false,
     baseIncome:1,
     _nextRewardUniqueSlot:false,

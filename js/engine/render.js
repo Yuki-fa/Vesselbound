@@ -58,6 +58,7 @@ function renderAll(){
   renderControls();
   renderArcanaBar();
   renderCommanderWands();
+  renderBossInfo();
   updateHUD();
   requestAnimationFrame(fitCardDescs);
 }
@@ -557,11 +558,45 @@ function setHint(t){ document.getElementById('hint-txt').textContent=t; }
 function renderCommanderWands(){
   const bar=document.getElementById('commander-wands-bar');
   if(!bar) return;
+  // ボス戦ではboss-info-barが代替表示するため非表示
+  if(typeof _isBossFight!=='undefined'&&_isBossFight){ bar.style.display='none'; return; }
   const wands=G.commanderWands||[];
   if(!wands.length){ bar.style.display='none'; return; }
   bar.style.display='';
   bar.innerHTML='<span style="opacity:.6;font-size:.58rem;margin-right:4px">敵の杖：</span>'
     +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
+}
+
+// ボス戦の指輪・手札バー表示
+function renderBossInfo(){
+  const bar=document.getElementById('boss-info-bar');
+  if(!bar) return;
+  const isBoss=typeof _isBossFight!=='undefined'&&_isBossFight;
+  if(!isBoss||G.phase==='reward'){ bar.style.display='none'; return; }
+  bar.style.display='';
+  // 指輪パネル
+  const ringsPane=document.getElementById('boss-rings-pane');
+  const ringsSlots=document.getElementById('boss-ring-slots');
+  const ringCount=document.getElementById('boss-ring-count');
+  const rings=G.bossRings||[];
+  if(ringsPane){
+    if(rings.length){ ringsPane.style.display=''; } else { ringsPane.style.display='none'; }
+    if(ringCount) ringCount.textContent=rings.length;
+    if(ringsSlots){
+      ringsSlots.innerHTML=rings.map(r=>`<span style="display:inline-block;background:rgba(200,60,60,.15);border:1px solid rgba(200,60,60,.35);border-radius:3px;padding:1px 5px;font-size:.58rem;color:var(--red2);margin:1px">${r.name||'?'}</span>`).join('');
+    }
+  }
+  // 手札パネル
+  const handSlots=document.getElementById('boss-hand-slots');
+  const handCount=document.getElementById('boss-hand-count');
+  const hand=G.bossHand||[];
+  if(handCount) handCount.textContent=hand.length;
+  if(handSlots){
+    handSlots.innerHTML=hand.map(s=>{
+      const uses=s.type==='wand'?` ×${s.usesLeft||0}`:'';
+      return `<span style="display:inline-block;background:rgba(80,120,200,.15);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 5px;font-size:.58rem;color:var(--blue2);margin:1px">${s.name||'?'}${uses}</span>`;
+    }).join('');
+  }
 }
 
 // 秘術情報バー（常時表示）

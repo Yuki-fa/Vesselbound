@@ -60,6 +60,9 @@ function goToReward(){
   document.getElementById('rw-count').textContent=5;
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
 
+  // マスター手札生成
+  _generateMasterHand();
+
   renderAll(); // フィールド（仲間エリア）も再描画
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
   document.getElementById('ph-badge').textContent='報酬フェイズ';
@@ -71,6 +74,7 @@ function goToReward(){
   renderArcanaInfo();
   renderMoveSlotsInEnemy();
   renderFieldEditor();
+  renderMasterHand();
   setHint('報酬を獲得してください');
   updateHUD();
   if(_isBossFight) _showBossRewardOverlay();
@@ -207,6 +211,10 @@ function rerollRewards(){
       }
     }
   }
+
+  // マスター手札もリロール
+  _generateMasterHand();
+  renderMasterHand();
 
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
@@ -878,3 +886,43 @@ function applyEnc(et){
   }
 }
 function closeEncModal(){ document.getElementById('enc-modal').classList.remove('open'); }
+
+// ── マスターオーナーシステム ─────────────────────────
+
+// マスターの手札を生成（報酬グレード以下の杖・アイテムからランダム5枚）
+function _generateMasterHand(){
+  if(typeof SPELL_POOL==='undefined') return;
+  const grade=G.rewardGrade||1;
+  const pool=SPELL_POOL.filter(s=>s.rarity!==-1&&(s.grade||1)<=grade);
+  G.masterHand=[];
+  if(!pool.length) return;
+  for(let i=0;i<5;i++){
+    const s=Object.assign({},randFrom(pool));
+    if(s.baseUses) s.usesLeft=s.baseUses;
+    G.masterHand.push(s);
+  }
+}
+
+// マスター手札バーの表示
+function renderMasterHand(){
+  const area=document.getElementById('master-hand-area');
+  const slots=document.getElementById('master-hand-slots');
+  const countEl=document.getElementById('master-hand-count');
+  if(!area||!slots) return;
+  const hand=G.masterHand||[];
+  if(!hand.length){ area.style.display='none'; return; }
+  area.style.display='';
+  if(countEl) countEl.textContent=hand.length;
+  const _sty='display:inline-block;background:rgba(80,120,200,.15);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 5px;font-size:.58rem;color:var(--blue2);margin:1px';
+  slots.innerHTML=hand.map(s=>{
+    const uses=s.type==='wand'?` ×${s.usesLeft||0}`:'';
+    return `<span style="${_sty}">${s.name||'?'}${uses}</span>`;
+  }).join('');
+}
+
+// 誘発「オーナーが〜」のオーナー判定：将来マスターが行動した時に呼ぶ
+// 現時点ではマスターは行動しないため発動なし
+function _checkMasterTrigger(_triggerType){
+  // TODO: マスターがアクションを起こした時に実装
+  // _rewCards.forEach((c,i)=>{ if(c&&c._isChar&&c.effect==='xxx_owner_trigger') { ... } });
+}

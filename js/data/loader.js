@@ -189,16 +189,28 @@ async function loadGameData() {
       const fl = parseInt(row['階層']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓' || row['ボスかどうか'] === '✓' || row['ボス'] === 'TRUE';
+      // 「敵手札」列（旧「行動」列）：カンマ区切りの杖/アイテム名 → SPELL_POOLから検索
+      const handStr = (row['敵手札'] || '').trim();
+      const enemyHand = handStr && !handStr.startsWith('なし')
+        ? handStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
+            .map(name => typeof SPELL_POOL!=='undefined' ? SPELL_POOL.find(s=>s.name===name) : null)
+            .filter(Boolean).map(s=>{ const c=Object.assign({},s); if(c.baseUses) c.usesLeft=c.baseUses; return c; })
+        : [];
+      // 「敵指輪」列：カンマ区切りの指輪名 → RING_POOLから検索
+      const ringStr = (row['敵指輪'] || '').trim();
+      const enemyRings = ringStr && !ringStr.startsWith('なし')
+        ? ringStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
+            .map(name => typeof RING_POOL!=='undefined' ? RING_POOL.find(r=>r.name===name) : null)
+            .filter(Boolean)
+        : [];
+      // 旧「行動」列（後方互換：commanderWands用）
       const actStr = (row['行動'] || row['杖'] || row['司令官行動'] || '').trim();
       let wands;
       if (!actStr) {
-        // 空欄 → floors.js のフォールバックを使用
         wands = _savedWands[fl] || [];
       } else if (actStr.startsWith('なし')) {
-        // 明示的スキップ → 杖なし
         wands = [];
       } else {
-        // 有効な文字列 → 杖IDまたは旧アクション文字列をパース
         wands = actStr.split(/[,、;；\s]+/)
           .map(s => _actionToWandId[s.trim()] || s.trim())
           .filter(s => _validWandIds.has(s));
@@ -207,6 +219,8 @@ async function loadGameData() {
         grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
         wands: wands,
+        enemyHand: enemyHand,
+        enemyRings: enemyRings,
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;

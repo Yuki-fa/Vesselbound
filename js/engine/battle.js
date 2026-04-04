@@ -90,6 +90,9 @@ async function startBattle(){
   _isBossFight=!!(fd&&fd.boss);
   const wandIds=fd?.wands||[];
   G.commanderWands=wandIds.map(id=>COMMANDER_WAND_POOL&&COMMANDER_WAND_POOL.find(w=>w.id===id)).filter(Boolean);
+  // ボス手札・指輪を読み込む
+  G.bossHand=_isBossFight ? (fd?.enemyHand||[]).map(s=>Object.assign({},s)) : [];
+  G.bossRings=_isBossFight ? (fd?.enemyRings||[]).map(r=>Object.assign({},r)) : [];
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
@@ -126,6 +129,9 @@ async function startBattle(){
 
   // 戦闘開始時キャラクター効果
   onBattleStart();
+
+  // ボス指輪：battle_startトリガー（プレイヤー指輪の後に発火）
+  if(_isBossFight&&G.bossRings.length) fireBossRingTrigger('battle_start');
 
   // 非ボス戦：司令官杖を1本発動
   if(!_isBossFight&&G.commanderWands&&G.commanderWands.length){
@@ -194,12 +200,27 @@ function runCommanderWand(wand){
 async function commanderPhase(){
   G.phase='commander';
   renderControls();
-  log('👹 敵司令官フェイズ','bad');
-  const liveE=G.enemies.filter(e=>e&&e.hp>0);
-  if(!liveE.length||!G.commanderWands||!G.commanderWands.length){ await sleep(300); return; }
-  const pool=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||liveE.length<6);
-  if(!pool.length){ await sleep(300); return; }
-  runCommanderWand(randFrom(pool));
+  log('👹 ボスフェイズ','bad');
+  // ボス指輪：ターン開始トリガー
+  if(G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
+  // ボス手札からランダムに1枚使用
+  const _liveHand=G.bossHand?G.bossHand.filter(s=>s&&(s.type!=='wand'||s.usesLeft>0)):[];
+  if(_liveHand.length){
+    const _bsp=randFrom(_liveHand);
+    applyBossSpell(_bsp);
+    if(_bsp.type==='wand'){
+      _bsp.usesLeft=(_bsp.usesLeft||1)-1;
+      if(_bsp.usesLeft<=0){
+        G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
+        log(`ボスの「${_bsp.name}」チャージが切れた`,'sys');
+      }
+    }
+  } else if(G.commanderWands&&G.commanderWands.length){
+    // フォールバック：旧commanderWands
+    const liveE=G.enemies.filter(e=>e&&e.hp>0);
+    const pool=G.commanderWands.filter(w=>w.commanderEffect!=='enemy_summon'||liveE.length<6);
+    if(pool.length) runCommanderWand(randFrom(pool));
+  }
   renderAll();
   await sleep(700);
 }
@@ -1219,6 +1240,123 @@ function retreat(){
   applyVictoryBonuses();
   G.phase='reward';
   goToReward();
+}
+
+// ── ボスオーナーシステム ──────────────────────
+
+// ボス指輪のトリガーを発火（敵側から召喚・バフ）
+function fireBossRingTrigger(trigger){
+  if(!G.bossRings||!G.bossRings.length) return;
+  G.bossRings.forEach(ring=>{
+    if(!ring||ring.trigger!==trigger) return;
+    if(ring.kind==='summon'&&ring.summon){
+      const count=ring.count||1;
+      for(let i=0;i<count;i++){
+        const s=ring.summon;
+        const grade=ring.grade||1;
+        const mult=(typeof GRADE_MULT!=='undefined'?GRADE_MULT[grade]:1)||1;
+        const pa=G.enemyPermanentBonus||{atk:0,hp:0};
+        const ne={id:uid(),name:s.name,icon:s.icon,
+          atk:Math.round(s.atk*mult)+(pa.atk||0),hp:Math.round(s.hp*mult)+(pa.hp||0),
+          maxHp:Math.round(s.hp*mult)+(pa.hp||0),baseAtk:Math.round(s.atk*mult)+(pa.atk||0),
+          grade:grade,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
+        const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
+        if(ei>=0) G.enemies[ei]=ne; else if(G.enemies.length<6) G.enemies.push(ne);
+        log(`👹 ボス指輪「${ring.name}」：${ne.name}(${ne.atk}/${ne.hp})を召喚`,'bad');
+      }
+    }
+  });
+}
+
+// ボスが手札から魔法を使用（敵側視点：needsEnemy→G.allies対象）
+function applyBossSpell(sp){
+  const liveA=G.allies.filter(a=>a&&a.hp>0);
+  const liveE=G.enemies.filter(e=>e&&e.hp>0);
+  const grade=FLOOR_DATA[G.floor]?.grade||1;
+  log(`👹 ボス「${sp.name}」を使用`,'bad');
+  switch(sp.effect){
+    case 'fire':{
+      if(!liveA.length) break;
+      const t=randFrom(liveA); const dmg=Math.ceil(grade*3);
+      dealDmgToAlly(t,dmg,G.allies.indexOf(t),null);
+      break;
+    }
+    case 'meteor':{
+      const dmg=Math.ceil(grade*2);
+      liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
+      break;
+    }
+    case 'bomb':{
+      const dmg=Math.ceil(grade*2);
+      liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
+      liveE.forEach(e=>dealDmgToEnemy(e,dmg,G.enemies.indexOf(e),null));
+      break;
+    }
+    case 'boost':{
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const v=Math.ceil(grade*2);
+      t.atk+=v; t.baseAtk=(t.baseAtk||0)+v;
+      log(`→ ${t.name}パワー+${v}`,'bad');
+      break;
+    }
+    case 'rally': case 'big_rally':{
+      const v=Math.ceil(grade*(sp.effect==='big_rally'?2:1));
+      liveE.forEach(e=>{ e.atk+=v; e.baseAtk=(e.baseAtk||0)+v; });
+      log(`→ 全敵パワー+${v}`,'bad');
+      break;
+    }
+    case 'heal_ally':{
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const hp=Math.ceil(grade*3);
+      t.hp=Math.min(t.maxHp,t.hp+hp);
+      log(`→ ${t.name}HP+${hp}`,'bad');
+      break;
+    }
+    case 'hate':{
+      const eligible=liveA.filter(a=>!a.keywords||!a.keywords.includes('加護'));
+      if(!eligible.length) break;
+      G.allies.forEach(a=>{ if(a) a.hate=false; });
+      const t=randFrom(eligible); t.hate=true; t.hateTurns=99;
+      log(`→ ${t.name}に標的を付与`,'bad');
+      break;
+    }
+    case 'seal':{
+      if(!liveA.length) break;
+      const t=randFrom(liveA); t.sealed=(t.sealed||0)+1;
+      log(`→ ${t.name}に封印`,'bad');
+      break;
+    }
+    case 'nullify':{
+      if(!liveA.length) break;
+      const t=randFrom(liveA); t.nullified=(t.nullified||0)+1;
+      log(`→ ${t.name}を無効化`,'bad');
+      break;
+    }
+    case 'instakill':{
+      const eligible=liveA.filter(a=>!a.instadead&&(!a.keywords||!a.keywords.includes('加護')));
+      if(!eligible.length) break;
+      const t=randFrom(eligible);
+      dealDmgToAlly(t,t.hp+999,G.allies.indexOf(t),null);
+      break;
+    }
+    case 'golem':{
+      const hp=Math.ceil(grade*8);
+      const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:0,hp:hp,maxHp:hp,baseAtk:0,
+        grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
+      const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
+      if(ei>=0) G.enemies[ei]=ne; else if(G.enemies.length<6) G.enemies.push(ne);
+      log(`→ ゴーレム(0/${hp})を召喚`,'bad');
+      break;
+    }
+    case 'revive':{
+      const dead=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp<=0&&x.e.maxHp>0);
+      if(!dead.length) break;
+      const {e}=randFrom(dead); e.hp=Math.ceil(e.maxHp/2);
+      log(`→ ${e.name}を復活(HP:${e.hp})`,'bad');
+      break;
+    }
+    default: break; // gold_8, swap_all, double_hp等は効果なし
+  }
 }
 
 // ── 降伏 ──────────────────────────────────────
