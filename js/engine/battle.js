@@ -68,6 +68,9 @@ async function startBattle(){
   // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
   G.gold += G.arcanaCarryGold||0; G.arcanaCarryGold=0;
 
+  // フェイズを先行設定（報酬フェイズから遷移時、addAlly/renderAll 等が reward UI を誤操作しないよう）
+  G.phase='player';
+
   // 報酬フェイズUI非表示
   const rInfo=document.getElementById('reward-info-bar');
   const rCards=document.getElementById('reward-cards-section');
@@ -144,8 +147,6 @@ async function startBattle(){
     if(vw.length) runCommanderWand(randFrom(vw));
   }
 
-  G.phase='player'; // 報酬フェイズからの遷移時に renderAll/updateHUD が reward UI を誤表示しないよう先行設定
-  G.actionsPerTurn=calcActions(); G.actionsLeft=G.actionsPerTurn;
   updateHUD();
   renderAll();
   await nextTurn();
