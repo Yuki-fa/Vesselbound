@@ -13,6 +13,7 @@ function useSpell(idx){
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
   if(sp.type==='wand'&&G.actionsLeft<=0) return;
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
+  if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
   else if(sp.needsEnemy) pickTarget('enemy',idx,true); // 加護チェックあり
   else if(sp.needsAny) pickTargetAny(idx);
@@ -129,6 +130,34 @@ function pickTarget(who,idx,checkBless){
   _addCancelListeners();
 }
 
+// 魅了の杖専用：ATK > 魔術レベルの敵は選択不可（加護と同様にグレーアウト）
+function pickTargetCharm(idx){
+  clearSelectable();
+  _tgtCtx={who:'enemy',idx};
+  setHint(`対象を選択（ESC or 右クリックでキャンセル）`);
+  const ml=G.magicLevel||1;
+  if(G.phase==='reward'){
+    document.querySelectorAll('[data-rew-idx]').forEach(slot=>{
+      const ri=parseInt(slot.dataset.rewIdx);
+      const c=(_rewCards||[])[ri];
+      if(!c||!c._isChar||c.hp<=0) return;
+      if(c.keywords&&c.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
+      if(c.atk>ml){ slot.classList.add('bless-blocked'); return; }
+      slot.classList.add('selectable');
+      slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'rew-char',idx:ri}); };
+    });
+  } else {
+    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+      const u=G.enemies[i];
+      if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
+      if((u.keywords&&u.keywords.includes('加護'))||u.atk>ml){ slot.classList.add('bless-blocked'); return; }
+      slot.classList.add('selectable');
+      slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'enemy',idx:i}); };
+    });
+  }
+  _addCancelListeners();
+}
+
 function _cancelPick(){
   document.removeEventListener('keydown',_cancelPickKD);
   document.removeEventListener('contextmenu',_cancelPickCM);
@@ -178,17 +207,20 @@ function _pickForSpread(rw,rightIdx){
       if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); }; }
     });
   } else if(rw.needsEnemy){
+    const _charmML=rw.effect==='charm'?(G.magicLevel||1):null;
     if(G.phase==='reward'){
       document.querySelectorAll('[data-rew-idx]').forEach(slot=>{
         const ri=parseInt(slot.dataset.rewIdx);
         const c=_rewCards[ri];
         if(!c||!c._isChar||c.hp<=0) return;
+        if(_charmML!==null&&c.atk>_charmML){ slot.classList.add('bless-blocked'); return; }
         slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'rew-char',idx:ri}); };
       });
     } else {
       document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
         const u=G.enemies[i]; if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
         if(u.keywords&&u.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
+        if(_charmML!==null&&u.atk>_charmML){ slot.classList.add('bless-blocked'); return; }
         slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); };
       });
     }
@@ -533,8 +565,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(tgt.who==='rew-char'){
         const rc=_rewCards[tgt.idx];
         if(!rc||!rc._isChar||rc.hp<=0) break;
-        if(rc.atk>ml){ log(`魅了の杖：${rc.name}のATK(${rc.atk})が魔術レベル(${ml})を超えるため効果がない`,'sys'); break; }
-        const emptySlot=G.allies.indexOf(null);
+        const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot<0){ log('魅了の杖：盤面が満杯','bad'); break; }
         const charmed=makeUnitFromDef(rc);
         G.allies[emptySlot]=charmed;
@@ -544,8 +575,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
       } else if(tgt.who==='enemy'){
         const e=G.enemies[tgt.idx];
         if(!e||e.hp<=0) break;
-        if(e.atk>ml){ log(`魅了の杖：${e.name}のATK(${e.atk})が魔術レベル(${ml})を超えるため効果がない`,'sys'); break; }
-        const emptySlot=G.allies.indexOf(null);
+        const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot<0){ log('魅了の杖：盤面が満杯','bad'); break; }
         G.allies[emptySlot]=e;
         G.enemies[tgt.idx]=null;

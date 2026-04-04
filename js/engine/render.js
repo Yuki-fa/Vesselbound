@@ -8,10 +8,14 @@
 (function _initKwTooltip(){
   const tip=document.getElementById('kw-tooltip');
   if(!tip) return;
+  function _getTarget(e){
+    return e.target.closest('.slot-badge[data-kwdesc]')||e.target.closest('[data-preview]');
+  }
   document.addEventListener('mouseover',e=>{
-    const el=e.target.closest('.slot-badge[data-kwdesc]');
+    const el=_getTarget(e);
     if(!el){ tip.style.display='none'; return; }
-    const desc=el.getAttribute('data-kwdesc');
+    const kd=el.getAttribute('data-kwdesc'), pv=el.getAttribute('data-preview');
+    const desc=kd||pv;
     if(!desc){ tip.style.display='none'; return; }
     tip.textContent=desc;
     tip.style.display='block';
@@ -19,11 +23,12 @@
   });
   document.addEventListener('mousemove',e=>{
     if(tip.style.display==='none') return;
-    if(!e.target.closest('.slot-badge[data-kwdesc]')){ tip.style.display='none'; return; }
+    if(!_getTarget(e)){ tip.style.display='none'; return; }
     _posKwTip(tip,e);
   });
   document.addEventListener('mouseout',e=>{
-    if(!e.relatedTarget||!e.relatedTarget.closest('.slot-badge[data-kwdesc]')) tip.style.display='none';
+    const rt=e.relatedTarget;
+    if(!rt||((!rt.closest('.slot-badge[data-kwdesc]'))&&(!rt.closest('[data-preview]')))) tip.style.display='none';
   });
 })();
 function _posKwTip(tip,e){
@@ -289,7 +294,7 @@ function renderField(id,units,isEnemy){
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
-        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
+        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
@@ -494,7 +499,7 @@ function computeDesc(card){
     if(summonBonus>0){
       // 「数字/数字、」パターンのみを対象にする（±0/+1 や +X/+X などは絶対に対象外）
       desc=desc.replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>{
-        return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+summonBonus}/${parseInt(h)+summonBonus}、</span>`;
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+summonBonus}/${parseInt(h)+summonBonus}</span>、`;
       });
     }
   }
@@ -538,8 +543,8 @@ function mkCardEl(card,_idx,_ctx){
   const t=card.type||'ring';
   div.className=`card ${t}${card.legend?' legend-card':''}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
-  const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
+  const tpLabel=typeLabel[t]||'指輪';
+  const kindLabel='';
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
   const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
@@ -663,6 +668,7 @@ function renderEnemyHand(){
     const sp=hand[i]||null;
     if(sp){
       const div=mkCardEl(sp,i,'spell-enemy');
+      if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
         // 報酬フェイズ：クリックで購入
         const cost=sp._buyPrice??2;
@@ -670,6 +676,7 @@ function renderEnemyHand(){
         if(canBuy){ div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); }
         else {
           div.style.cursor='default';
+          div.style.background='var(--bg)';
           const nb=document.createElement('div');
           nb.textContent='ソウル不足';
           nb.style.cssText='position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10';

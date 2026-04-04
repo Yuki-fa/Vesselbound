@@ -118,7 +118,7 @@ const UNIT_POOL = [
 ];
 
 // 単体のユニットを定義IDから生成する
-function makeUnitFromDef(def, fieldIdx){
+function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
   const unit = {
     id:       uid(),
     defId:    def.id,
@@ -157,8 +157,8 @@ function makeUnitFromDef(def, fieldIdx){
     unit.atk    += G._undeadHpBonus;
     unit.baseAtk += G._undeadHpBonus;
   }
-  // 黄金の雫・グリマルキン：味方として召喚される場合にボーナス適用
-  if(typeof G!=='undefined'){
+  // 黄金の雫・グリマルキン：キャラクター効果で召喚される場合にボーナス適用（購入時は対象外）
+  if(!skipSummonBonus && typeof G!=='undefined'){
     const _totalBD=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
     if(_totalBD>0){
       unit.atk+=_totalBD; unit.baseAtk+=_totalBD;

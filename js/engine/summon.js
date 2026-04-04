@@ -61,11 +61,12 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 // ユニット召喚時の使役効果を適用（addAlly経由・直接追加どちらからも呼べる）
 function applyUnitSummonEffect(unit, fromRingId){
   if(!unit) return;
-  // ケンタウロス：召喚時、魔術レベル+2
+  // ケンタウロス：召喚時、魔術レベル+2（黄金の雫：+3）
   if(unit.effect==='centaur_summon'){
-    G.magicLevel=(G.magicLevel||1)+2;
+    const _cv=2+(G.hasGoldenDrop?1:0);
+    G.magicLevel=(G.magicLevel||1)+_cv;
     if(typeof syncHarpyAtk==='function') syncHarpyAtk();
-    log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
+    log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
   }
   // ミテーラ：召喚時、最も左の空き地に2/2の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
@@ -341,6 +342,7 @@ function checkSolitudeBuff(){
         a.maxHp=Math.max(1,Math.round(a.maxHp/2));
         a.hp=Math.min(a.hp,a.maxHp);
         a._solBuff=false;
+        log(`孤高の指輪：${a.name} ATK/HP半減（仲間増加）`,'sys');
       }
     });
     return;

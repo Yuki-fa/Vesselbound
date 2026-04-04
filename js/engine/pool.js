@@ -139,7 +139,7 @@ function _rollRarity(weights){
 
 // rarityWeights: e.g. {1:60,2:30,3:10} / typeWeights: e.g. {wand:40,consumable:40,ring:20}
 function drawTreasure(rarityWeights, typeWeights, maxGrade){
-  const rarity=_rollRarity(rarityWeights);
+  const rarity=Math.min(_rollRarity(rarityWeights), maxGrade||4);
   const wv=typeWeights.wand||0, cv=typeWeights.consumable||0;
   const roll=Math.random()*100;
   const type=roll<wv?'wand':roll<wv+cv?'consumable':'ring';

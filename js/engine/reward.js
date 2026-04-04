@@ -25,7 +25,7 @@ function goToReward(){
     G._pendingEliteChest=false;
     G._pendingTreasure=false;
     const fd=FLOOR_DATA[G.floor];
-    const maxGrade=fd?(fd.sectionGrade||1):1;
+    const maxGrade=fd?(fd.grade||1):1;
     const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);
     if(eliteItem){ _rewCards.push(eliteItem); }
     log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
@@ -36,7 +36,7 @@ function goToReward(){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
     const fd2=FLOOR_DATA[G.floor];
-    const maxGrade2=fd2?(fd2.sectionGrade||1):1;
+    const maxGrade2=fd2?(fd2.grade||1):1;
     const treasureItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},maxGrade2);
     if(treasureItem){ _rewCards.push(treasureItem); }
     log('📦 宝箱の中身が報酬欄に追加された！','gold');
@@ -131,7 +131,7 @@ function _showBossRewardOverlay(){
       opt.apply();
       // ボス確定宝箱（R3）を報酬欄に追加
       const fd=FLOOR_DATA[G.floor];
-      const maxGrade=fd?(fd.sectionGrade||1):1;
+      const maxGrade=fd?(fd.grade||1):1;
       const bossTreasure=drawTreasure({3:100},{wand:30,consumable:20,ring:50},maxGrade);
       if(bossTreasure){
         // _generateMasterHand()実行後なので杖・アイテムは直接masterHandへ
@@ -342,8 +342,14 @@ function renderRewCards(){
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
-      const atkBonus=(card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0;
-      const dispAtk=card.atk+(atkBonus);
+      const atkBonus=((card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0);
+      const dispAtk=card.atk+atkBonus;
+      const dispHp=card.hp;
+      // 仲間加入プレビュー（グリマルキン・黄金の雫）
+      const _grimBonus=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+      const _previewAtk=card.atk+atkBonus+_grimBonus;
+      const _previewHp=card.hp+_grimBonus;
+      const _previewStr=_grimBonus>0?`仲間になった時: ${_previewAtk} / ${_previewHp}（+${_grimBonus}/+${_grimBonus}）`:(atkBonus>0?`仲間になった時: ${_previewAtk} / ${_previewHp}`:'');
       const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const kwBlock=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin-top:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
@@ -361,7 +367,8 @@ function renderRewCards(){
       // 状態異常バッジ：絶対配置（センタリング列の外）でアイコン/名前を固定
       const statusBlock=_stBadges.length?`<div style="position:absolute;top:20px;left:0;right:0;display:flex;justify-content:center;flex-wrap:wrap;gap:2px;z-index:3">${_stBadges.join('')}</div>`:'';
       slot.style.borderTop='2px solid var(--teal2)';
-      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${card.hp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
+      if(_previewStr) slot.setAttribute('data-preview',_previewStr);
+      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
       if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
       else { slot.style.cursor='default'; }
     }
@@ -405,6 +412,11 @@ function _mkRewDiv(card, onBuy){
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
+    const _grimBonusCard=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+    if(_grimBonusCard>0||atkBonus>0){
+      const _pa=card.atk+atkBonus+_grimBonusCard, _ph=card.hp+_grimBonusCard;
+      div.setAttribute('data-preview',`仲間になった時: ${_pa} / ${_ph}（+${atkBonus+_grimBonusCard}/+${_grimBonusCard}）`);
+    }
     div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
@@ -446,7 +458,7 @@ function takeRewCard(i){
     const emptyIdx=G.allies.indexOf(null);
     if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを還魂してください。','bad'); return; }
     G.gold-=cost;
-    const unit=makeUnitFromDef(card);
+    const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
@@ -455,9 +467,10 @@ function takeRewCard(i){
       log(`${unit.name}：全ての味方にシールドを付与`,'good');
     }
     if(unit.effect==='centaur_summon'){
-      G.magicLevel=(G.magicLevel||1)+2;
+      const _cv=2+(G.hasGoldenDrop?1:0);
+      G.magicLevel=(G.magicLevel||1)+_cv;
       if(typeof syncHarpyAtk==='function') syncHarpyAtk();
-      log(`${unit.name}：召喚→魔術レベル+2（Lv${G.magicLevel}）`,'good');
+      log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
     }
     if(unit.effect==='chimera_summon'){
       const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
@@ -598,7 +611,7 @@ function _renderFieldRow(el){
       const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       let kwBlock='';
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
+      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop='2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
@@ -931,8 +944,14 @@ function closeEncModal(){ document.getElementById('enc-modal').classList.remove(
 // マスターの手札を生成（報酬グレード以下の杖・アイテムからランダム5枚）
 // _rewCards から杖・アイテムをmasterHandに移動（キャラクターのみ報酬エリアに残す）
 function _generateMasterHand(){
-  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'));
-  _rewCards=_rewCards.map(c=>(c&&(c.type==='wand'||c.type==='consumable'))?null:c);
+  // 杖・消耗品に加えて、宝箱由来の指輪もmasterHandへ移動
+  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'||(c._isTreasure&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring'))));
+  _rewCards=_rewCards.map(c=>{
+    if(!c) return c;
+    if(c.type==='wand'||c.type==='consumable') return null;
+    if(c._isTreasure&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring')) return null;
+    return c;
+  });
 }
 
 // マスター手札アイテムを購入
@@ -940,13 +959,24 @@ function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
   const cost=sp._buyPrice??2;
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
-  const handIdx=G.spells.indexOf(null);
-  if(handIdx<0){ log(`手札（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
-  G.gold-=cost;
-  delete sp._buyPrice;   // 購入後は価格バッジを消す
-  G.spells[handIdx]=sp;
+  const isRing=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
+  if(isRing){
+    const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
+    if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
+    G.gold-=cost;
+    delete sp._buyPrice;
+    G.rings[ringIdx]=sp;
+    if(sp.legend||sp._isLegend) G._seenLegendRings.add(sp.id);
+    updateGoldenDrop();
+  } else {
+    const handIdx=G.spells.indexOf(null);
+    if(handIdx<0){ log(`手札（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
+    G.gold-=cost;
+    delete sp._buyPrice;   // 購入後は価格バッジを消す
+    G.spells[handIdx]=sp;
+  }
   G.masterHand[idx]=null;
-  log(`${sp.name} を購入（-${cost}ソウル）`,'good');
+  log(`${sp.name} を取得（-${cost}ソウル）`,'good');
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderFieldEditor(); // プレイヤー手札（廃棄ボタン付き）を再描画

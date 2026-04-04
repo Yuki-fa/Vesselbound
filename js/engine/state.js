@@ -112,7 +112,7 @@ function initState(){
 
   // 初期キャラクター：ゴーレム
   const golemDef = UNIT_POOL.find(u=>u.id==='c_golem');
-  if(golemDef) G.allies[0] = makeUnitFromDef(golemDef);
+  if(golemDef) G.allies[0] = makeUnitFromDef(golemDef, undefined, true);
 
   // 初期杖：炎の杖
   const fireWand = SPELL_POOL.find(s=>s.id==='s_fire')||clone(SPELL_POOL[0]);
