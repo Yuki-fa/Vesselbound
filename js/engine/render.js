@@ -293,7 +293,7 @@ function renderField(id,units,isEnemy){
         const _infoStyle='position:absolute;inset:0 0 3px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
         const _btmStyle='position:absolute;bottom:3px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:center;padding:0 2px 2px';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
@@ -523,7 +523,10 @@ function mkCardEl(card,_idx,_ctx){
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
-  const usesLabel=card.type==='wand'&&card.usesLeft!==undefined?`<span style="font-size:.56rem;color:var(--gold2);position:absolute;bottom:3px;right:4px">×${card.usesLeft}</span>`:'';
+  // 右上：杖は使用回数、購入可能カードはソウル価格
+  const rightBadge=card.type==='wand'&&card.usesLeft!==undefined
+    ?`<div style="position:absolute;top:3px;right:4px;font-size:.56rem;color:var(--gold2);font-weight:700">×${card.usesLeft}💀</div>`
+    :card._buyPrice!=null?`<div style="position:absolute;top:3px;right:4px;font-size:.56rem;color:var(--gold2);font-weight:700">${card._buyPrice}💀</div>`:'';
   let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
@@ -534,7 +537,8 @@ function mkCardEl(card,_idx,_ctx){
     }
   }
   const dynDesc=computeDesc(card);
-  div.innerHTML=`<div class="card-tp ${t}">${tpLabel}${kindLabel}</div>${card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}${usesLabel}`;
+  const gradeTag=card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:'';
+  div.innerHTML=`${gradeTag}${rightBadge}<div class="card-tp ${t}" style="margin-top:14px">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}`;
   return div;
 }
 
@@ -608,7 +612,7 @@ function renderEnemyHand(){
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  const maxHand=isReward?5:5;
+  const maxHand=7;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
   if(handMaxEl) handMaxEl.textContent=maxHand;
   for(let i=0;i<maxHand;i++){
@@ -619,8 +623,8 @@ function renderEnemyHand(){
         // 報酬フェイズ：クリックで購入
         const cost=sp._buyPrice||2;
         const canBuy=G.gold>=cost;
-        if(canBuy){ div.classList.remove('inert'); div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); }
-        else { div.classList.add('inert'); div.style.cursor='default'; }
+        if(canBuy){ div.classList.remove('inert'); div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); div.style.outline=''; }
+        else { div.classList.add('inert'); div.style.cursor='default'; div.style.outline='2px solid #c0392b'; }
       } else {
         div.classList.add('inert'); div.style.cursor='default';
       }

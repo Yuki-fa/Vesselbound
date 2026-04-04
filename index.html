@@ -39,7 +39,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 /* BATTLE */
 #scr-battle{flex-direction:column}
-.battle-area{display:flex;flex-direction:column;flex:1;padding:8px 12px;gap:7px;overflow-y:auto;overflow-x:hidden;max-width:1100px;margin:0 auto;width:100%;min-height:0}
+.battle-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0}
+.battle-area{display:flex;flex-direction:column;padding:8px 12px;gap:7px;max-width:1100px;margin:0 auto;width:100%}
 .field-label{font-size:.65rem;color:var(--text2);letter-spacing:.07em;margin-bottom:3px}
 .field{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
 
@@ -106,11 +107,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card.ring{border-top:2px solid var(--purple2)}
 .card.wand{border-top:2px solid var(--blue2)}
 .card.consumable{border-top:2px solid var(--red2)}
-.card-tp{font-size:.62rem;letter-spacing:.05em;margin-bottom:2px}
+.card-tp{font-size:.62rem;letter-spacing:.05em;margin-bottom:2px;text-align:center}
 .card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
-.card-name{font-size:.82rem;font-weight:500;margin-bottom:2px;line-height:1.2}
-.card-desc{font-size:.7rem;color:var(--text2);line-height:1.3}
-.card-grade{position:absolute;top:3px;right:4px;font-size:.6rem;color:var(--gold);font-weight:700}
+.card-name{font-size:.82rem;font-weight:500;margin-bottom:2px;line-height:1.2;text-align:center}
+.card-desc{font-size:.7rem;color:var(--text2);line-height:1.3;text-align:left}
+.card-grade{position:absolute;top:3px;left:4px;font-size:.6rem;color:var(--gold);font-weight:700}
 .card-enc{font-size:.6rem;color:var(--teal2);margin-top:2px}
 .card-buf{font-size:.6rem;color:var(--gold2);margin-top:1px}
 .card-order{position:absolute;bottom:3px;left:4px;font-size:.56rem;color:rgba(150,96,192,.6);font-weight:700}
@@ -127,7 +128,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #ring-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
 #hand-slots{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 #enemy-ring-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
-#enemy-hand-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+#enemy-hand-slots{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* 報酬移動ボタン */
@@ -322,6 +323,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   <div style="text-align:center;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
     <span style="font-family:var(--font-hd);font-size:.85rem;letter-spacing:.18em;color:var(--gold2);text-shadow:0 0 12px rgba(200,160,60,.35)">Vesselbound</span>
   </div>
+  <div class="battle-scroll">
   <div class="battle-area">
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
@@ -349,7 +351,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
     <!-- 報酬カード（報酬中のみ表示・敵の盤面と同位置） -->
     <div id="reward-cards-section" style="display:none">
-      <div class="field-label" style="margin-bottom:5px">報酬カード　（契約3ソウル　G2以上は追加コスト　契約は還魂で払い戻し）</div>
+      <div class="field-label" style="margin-bottom:5px">提示カード</div>
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 
@@ -394,6 +396,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     </div>
 
   </div>
+  </div><!-- /.battle-scroll -->
 
   <!-- 秘術情報バー（常時表示） -->
   <div id="arcana-bar" style="display:none"></div>

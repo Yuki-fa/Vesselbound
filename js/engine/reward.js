@@ -65,7 +65,7 @@ function goToReward(){
 
   renderAll(); // フィールド（仲間エリア）も再描画
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
-  document.getElementById('ph-badge').textContent='報酬フェイズ';
+  document.getElementById('ph-badge').textContent='商談フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
   document.getElementById('h-floor').textContent=G.floor+1;
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
