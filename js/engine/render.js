@@ -609,14 +609,14 @@ function renderEnemyHand(){
   // 動的取得モード：指輪非表示・手札3枠
   const isDynamic=!isReward&&(G._enemyHandDynamic||false);
 
-  // 指輪パネル（動的モードと報酬フェイズは非表示）
+  // 指輪パネル（動的取得モードのみ非表示。報酬フェイズ・通常は表示）
   const ringsPane=document.getElementById('enemy-rings-pane');
   const ringsEl=document.getElementById('enemy-ring-slots');
   const ringCountEl=document.getElementById('enemy-ring-count');
   const ringMaxEl=document.getElementById('enemy-ring-max');
   const eHandPane=document.getElementById('enemy-hand-pane');
   if(ringsPane){
-    if(isDynamic||isReward){
+    if(isDynamic){
       ringsPane.style.display='none';
       if(eHandPane) eHandPane.style.flex='1';
     } else {
