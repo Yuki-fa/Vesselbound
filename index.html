@@ -126,6 +126,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 /* 手札スロットをグリッドで固定列数に（スロット数が変わっても各カードのサイズが一定） */
 #ring-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
 #hand-slots{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#enemy-ring-slots{display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+#enemy-hand-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* 報酬移動ボタン */
@@ -327,7 +329,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <!-- 敵オーナー手札エリア（ボス戦・報酬フェイズで表示、プレイヤー手札と対称） -->
     <div id="enemy-hand-area" class="hand-area" style="display:none">
       <div class="hand-row1" style="gap:8px">
-        <div id="enemy-rings-pane" class="hand-pane" style="flex:2;min-width:0;display:none">
+        <div id="enemy-rings-pane" class="hand-pane" style="flex:2;min-width:0">
           <span class="hand-pane-label ring-label">指輪 <span id="enemy-ring-count">0</span>/<span id="enemy-ring-max">2</span></span>
           <div id="enemy-ring-slots"></div>
         </div>

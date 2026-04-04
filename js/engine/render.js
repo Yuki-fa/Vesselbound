@@ -576,21 +576,21 @@ function renderEnemyHand(){
   if(!isBoss&&!isReward){ area.style.display='none'; return; }
   area.style.display='';
 
-  // 指輪パネル（ボス戦のみ表示）
+  // 指輪パネル（常時表示・ボス戦は実際の指輪、報酬は空スロット）
   const ringsPane=document.getElementById('enemy-rings-pane');
   const ringsEl=document.getElementById('enemy-ring-slots');
   const ringCountEl=document.getElementById('enemy-ring-count');
   const ringMaxEl=document.getElementById('enemy-ring-max');
   if(ringsPane){
+    ringsPane.style.display='';
     const rings=G.bossRings||[];
-    if(isBoss&&rings.length){ ringsPane.style.display=''; } else { ringsPane.style.display='none'; }
     if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
     if(ringMaxEl) ringMaxEl.textContent=2;
-    if(ringsEl&&isBoss){
+    if(ringsEl){
       ringsEl.innerHTML='';
       for(let i=0;i<2;i++){
         const ring=rings[i];
-        if(ring){
+        if(ring&&isBoss){
           const div=mkCardEl(ring,i,'ring-boss');
           div.classList.add('inert'); div.style.cursor='default';
           ringsEl.appendChild(div);

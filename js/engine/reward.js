@@ -69,8 +69,8 @@ function goToReward(){
   document.getElementById('ph-badge').className='ph-badge';
   document.getElementById('h-floor').textContent=G.floor+1;
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
+  _generateMasterHand(); // renderRewCards前に杖・アイテムを抽出してmasterHandへ
   renderRewCards();
-  _generateMasterHand(); // _rewCardsから杖・アイテムを抽出してmasterHandへ
   renderGradeUpBtn();
   renderArcanaInfo();
   renderMoveSlotsInEnemy();
@@ -216,8 +216,8 @@ function rerollRewards(){
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
+  _generateMasterHand(); // renderRewCards前に再生成
   renderRewCards();
-  _generateMasterHand(); // リロール時もmasterHandを再生成
   renderEnemyHand();
 }
 
@@ -908,7 +908,8 @@ function buyMasterHandItem(idx){
   log(`${sp.name} を購入（-${cost}ソウル）`,'good');
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
-  renderEnemyHand();
+  renderHand();      // プレイヤー手札に反映
+  renderEnemyHand(); // マスター手札を再描画
 }
 
 // 誘発「オーナーが〜」のオーナー判定：将来マスターが行動した時に呼ぶ
