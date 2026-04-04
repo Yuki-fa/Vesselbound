@@ -283,20 +283,21 @@ function renderField(id,units,isEnemy){
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
         if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-        const gradeTag=u.grade?`<div style="position:absolute;top:2px;left:2px;font-size:.68rem;color:var(--gold);font-weight:700">${gradeStr(u.grade)}</div>`:'';
+        const gradeTag=u.grade?`<div class="slot-grade">${gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
-        const raceTag=u.race&&u.race!=='-'?`<div style="font-size:.56rem;color:var(--text2);line-height:1">${u.race}</div>`:'';
+        const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
-        const _infoStyle='position:absolute;inset:0 0 3px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
-        const _btmStyle='position:absolute;bottom:3px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:center;padding:0 2px 2px';
+        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px';
+        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
+        slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><div class="slot-hpbar"><div class="slot-hpfill" style="width:${Math.max(0,u.hp/u.maxHp*100)}%"></div></div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
         // 優先ターゲットは赤枠
         if(i===priorityIdx) slot.classList.add('priority-target');
@@ -339,10 +340,16 @@ function renderRingSlots(){
   const extraRow=document.getElementById('ring-extra-row');
   if(extraRow) extraRow.style.display='none';
   el.innerHTML='';
+  const R=G.ringSlots;
+  el.style.gridTemplateColumns=`repeat(${R},1fr)`;
+  const ringPane=document.getElementById('ring-pane');
+  if(ringPane) ringPane.style.flex=R;
+  const handPane=document.getElementById('hand-pane');
+  if(handPane) handPane.style.flex=10-R;
   const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
-  const rm=document.getElementById('ring-max');   if(rm) rm.textContent=G.ringSlots;
+  const rm=document.getElementById('ring-max');   if(rm) rm.textContent=R;
 
-  for(let i=0;i<G.ringSlots;i++){
+  for(let i=0;i<R;i++){
     const ring=G.rings[i];
     if(ring){
       const div=mkCardEl(ring,i,'ring-battle');
@@ -389,17 +396,26 @@ function renderHandSlots(){
   const el=document.getElementById('hand-slots');
   if(!el) return;
   el.innerHTML='';
+  const H=G.handSlots||5;
+  const Hcols=10-(G.ringSlots||2); // 常に合計10スロット幅
+  el.style.gridTemplateColumns=`repeat(${Hcols},1fr)`;
   const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
-  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=G.handSlots||5;
+  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=H;
 
-  for(let i=0;i<(G.handSlots||5);i++){
+  for(let i=0;i<Hcols;i++){
+    if(i>=H){
+      // 未解放スロット：極めて薄い表示
+      const ph=document.createElement('div');
+      ph.className='card-empty spell'; ph.style.opacity='0.1';
+      el.appendChild(ph);
+      continue;
+    }
     const sp=G.spells[i];
     if(sp){
       const div=mkCardEl(sp,i,'spell-battle');
       const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
       const inReward=G.phase==='reward';
-      // 杖はアクション消費、消耗品はアクション消費なし（プレイヤーターン or 報酬フェイズで使用可）
       const canUse=(G.phase==='player'||inReward)&&(isWand?(inReward?hasCharge:G.actionsLeft>0&&hasCharge):true);
       if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
       else       { div.classList.add('inert'); }
@@ -413,9 +429,15 @@ function renderHandSlots(){
 }
 
 // グレード表示（G10=★）— reward.js でも参照
-function gradeStr(g){ return (g>=MAX_GRADE)?'★':('G'+g); }
-// legend指輪のグレード表示（★固定）
-function cardGradeStr(card){ return card.legend?'★':gradeStr(card.grade||1); }
+function gradeStr(g){
+  const n=Math.min(Math.max(g||1,1),MAX_GRADE);
+  return '★'.repeat(n);
+}
+function _circleCost(n){
+  const chars=['⓪','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+  return (n>=0&&n<chars.length)?chars[n]:`(${n})`;
+}
+function cardGradeStr(card){ return gradeStr(card.grade||1); }
 
 // ()内の数式を計算する（×÷対応）
 function _evalMath(desc){
@@ -508,10 +530,6 @@ function computeDesc(card){
     const prog=ringInst?ringInst._rerollProgress||0:0;
     desc+=`（あと${4-prog}回）`;
   }
-  if(card.type==='wand'){
-    const uses=card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?');
-    desc+=' (残'+uses+'回）';
-  }
   return desc;
 }
 
@@ -523,10 +541,16 @@ function mkCardEl(card,_idx,_ctx){
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
-  // 右上：杖は使用回数、購入可能カードはソウル価格
-  const rightBadge=card.type==='wand'&&card.usesLeft!==undefined
-    ?`<div style="position:absolute;top:3px;right:4px;font-size:.56rem;color:var(--gold2);font-weight:700">×${card.usesLeft}💀</div>`
-    :card._buyPrice!=null?`<div style="position:absolute;top:3px;right:4px;font-size:.56rem;color:var(--gold2);font-weight:700">${card._buyPrice}💀</div>`:'';
+  // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
+  // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
+  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
+  const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(_gradeNum)}</span>`:'';
+  const badgeEl=card._buyPrice!=null?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
+  // 杖のチャージ表示（テキスト下）
+  const charges=card.type==='wand'
+    ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
+    :null;
+  const chargeLabel=charges!==null?`<div class="card-charge">チャージ：${charges}</div>`:'';
   let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
@@ -537,8 +561,7 @@ function mkCardEl(card,_idx,_ctx){
     }
   }
   const dynDesc=computeDesc(card);
-  const gradeTag=card.grade?`<div class="card-grade${card.legend?' legend-grade':''}">${cardGradeStr(card)}</div>`:'';
-  div.innerHTML=`${gradeTag}${rightBadge}<div class="card-tp ${t}" style="margin-top:14px">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-tp ${t}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 
@@ -550,6 +573,9 @@ function renderControls(){
     pp.style.display='';
   } else if(G.phase==='commander'){
     badge.className='ph-badge ph-enemy'; badge.textContent='司令官フェイズ';
+    pp.style.display='none';
+  } else if(G.phase==='reward'){
+    // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
@@ -588,11 +614,16 @@ function renderEnemyHand(){
   if(ringsPane){
     ringsPane.style.display='';
     const rings=G.bossRings||[];
+    const eR=2; // 敵指輪スロットは2固定
+    ringsPane.style.flex=eR;
     if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
-    if(ringMaxEl) ringMaxEl.textContent=2;
+    if(ringMaxEl) ringMaxEl.textContent=eR;
+    const eHandPane=document.getElementById('enemy-hand-pane');
+    if(eHandPane) eHandPane.style.flex=10-eR;
     if(ringsEl){
       ringsEl.innerHTML='';
-      for(let i=0;i<2;i++){
+      ringsEl.style.gridTemplateColumns=`repeat(${eR},1fr)`;
+      for(let i=0;i<eR;i++){
         const ring=rings[i];
         if(ring&&isBoss){
           const div=mkCardEl(ring,i,'ring-boss');
@@ -605,26 +636,39 @@ function renderEnemyHand(){
     }
   }
 
-  // 手札パネル
+  // 手札パネル（常に10-eR=8列）
   const handEl=document.getElementById('enemy-hand-slots');
   const handCountEl=document.getElementById('enemy-hand-count');
   const handMaxEl=document.getElementById('enemy-hand-max');
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  const maxHand=7;
+  const eHcols=8; // 常に8列（2指輪+8手札=10）
+  const activeHand=isReward?(G.handSlots||5):eHcols;
+  handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
-  if(handMaxEl) handMaxEl.textContent=maxHand;
-  for(let i=0;i<maxHand;i++){
+  if(handMaxEl) handMaxEl.textContent=activeHand;
+  for(let i=0;i<eHcols;i++){
+    if(i>=activeHand&&!hand[i]){
+      const ph=document.createElement('div'); ph.className='card-empty spell'; ph.style.opacity='0.1'; handEl.appendChild(ph); continue;
+    }
     const sp=hand[i]||null;
     if(sp){
       const div=mkCardEl(sp,i,'spell-enemy');
       if(isReward){
         // 報酬フェイズ：クリックで購入
-        const cost=sp._buyPrice||2;
+        const cost=sp._buyPrice??2;
         const canBuy=G.gold>=cost;
-        if(canBuy){ div.classList.remove('inert'); div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); div.style.outline=''; }
-        else { div.classList.add('inert'); div.style.cursor='default'; div.style.outline='2px solid #c0392b'; }
+        if(canBuy){ div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); }
+        else {
+          div.style.cursor='default';
+          const nb=document.createElement('div');
+          nb.textContent='ソウル不足';
+          nb.style.cssText='position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10';
+          div.appendChild(nb);
+          const tp=div.querySelector('.card-tp');
+          if(tp) tp.style.marginTop='16px';
+        }
       } else {
         div.classList.add('inert'); div.style.cursor='default';
       }

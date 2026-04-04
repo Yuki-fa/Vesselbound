@@ -79,6 +79,8 @@ async function startBattle(){
   if(rHand)  rHand.style.display='none';
   if(rMove)  rMove.style.display='none';
   if(allySection) allySection.style.display='';
+  const logWrap=document.getElementById('log-wrap');
+  if(logWrap) logWrap.style.display='';
   const eArea=document.getElementById('enemy-area');
   if(eArea) eArea.style.display='';
   // 通常戦闘ではenemy-hand-areaを非表示（ボス戦はrenderEnemyHandが制御）

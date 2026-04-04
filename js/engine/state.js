@@ -39,8 +39,8 @@ const clone    = o     => JSON.parse(JSON.stringify(o));
 function rand(){ return Math.random(); }
 
 function gradeStr(g){
-  const s=['','G1','G2','G3','G4','★'];
-  return s[Math.min(g||1, s.length-1)];
+  const n=Math.min(Math.max(g||1,1),MAX_GRADE);
+  return '★'.repeat(n);
 }
 
 function initState(){

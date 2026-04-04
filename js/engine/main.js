@@ -15,7 +15,7 @@ function updateHUD(){
     document.getElementById('h-floor').textContent=G.floor;
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
   }
-  document.getElementById('h-reward-grade').textContent='G'+(G.rewardGrade||1);
+  document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.phase==='reward'?'∞/'+G.actionsPerTurn:G.actionsLeft+'/'+G.actionsPerTurn;

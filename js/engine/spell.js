@@ -149,7 +149,12 @@ function _addCancelListeners(){
 function _cancelSpread(){
   document.removeEventListener('keydown',_cancelSpreadKD);
   document.removeEventListener('contextmenu',_cancelSpreadCM);
-  clearSelectable(); _spreadTargetPending=false; renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
+  clearSelectable(); _spreadTargetPending=false;
+  if(G.phase==='reward'){
+    renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください');
+  } else {
+    renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
+  }
 }
 function _cancelSpreadKD(e){ if(e.key==='Escape') _cancelSpread(); }
 function _cancelSpreadCM(e){ e.preventDefault(); _cancelSpread(); }
@@ -174,11 +179,20 @@ function _pickForSpread(rw,rightIdx){
       if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); }; }
     });
   } else if(rw.needsEnemy){
-    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
-      const u=G.enemies[i]; if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
-      if(u.keywords&&u.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
-      slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); };
-    });
+    if(G.phase==='reward'){
+      document.querySelectorAll('[data-rew-idx]').forEach(slot=>{
+        const ri=parseInt(slot.dataset.rewIdx);
+        const c=_rewCards[ri];
+        if(!c||!c._isChar||c.hp<=0) return;
+        slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'rew-char',idx:ri}); };
+      });
+    } else {
+      document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+        const u=G.enemies[i]; if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
+        if(u.keywords&&u.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
+        slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); };
+      });
+    }
   } else if(rw.needsAlly){
     document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
       if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
@@ -337,10 +351,10 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'swap_stats':{
       if(!tgt) break;
-      const ssu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
+      const ssu=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
       if(!ssu) break;
       const sst=ssu.atk; ssu.atk=ssu.hp; ssu.hp=Math.max(1,sst); ssu.maxHp=Math.max(ssu.maxHp,ssu.hp);
-      log(`黒い薬瓶：${ssu.name} ATK↔HP（${ssu.atk}/${ssu.hp}）`,'good');
+      log(`混乱の杖：${ssu.name} ATK↔HP（${ssu.atk}/${ssu.hp}）`,'good');
     break;}
     case 'counter_scroll':{
       const csa=G.allies[tgt.idx];
@@ -579,15 +593,16 @@ function applySpell(sp,idx,tgt,_noDecrement){
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
   if(!_inReward&&checkInstantVictory()) return;
-  if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   if(_inReward){
-    // 報酬フェイズ：行動回数制限なし。renderAll()が上書きした各UIを再描画する
+    // 報酬フェイズ：renderAll()が上書きした各UIを復元してから、必要なら拡散ピッカーを起動
     setHint('報酬を獲得してください');
     renderRewCards();
     renderFieldEditor();      // f-ally還魂ボタン＋hand-slots廃棄ボタンを復元
     renderMoveSlotsInEnemy(); // f-enemyの移動マスを復元
+    if(_spreadPick) _spreadPick(); // 拡散対象選択：報酬UI復元後に起動
     return;
   }
+  if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasConsumable=G.spells.some(s=>s&&s.type==='consumable');
   const hasWand=G.spells.some(s=>s&&s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0));
   if(G.actionsLeft<=0&&!hasConsumable){
