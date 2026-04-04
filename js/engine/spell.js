@@ -10,9 +10,8 @@ let _spreadTargetPending=false;
 function useSpell(idx){
   const sp=G.spells[idx];
   if(!sp) return;
-  // 報酬フェイズは行動回数無制限（チャージ切れのみチェック）
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(sp.type==='wand'&&G.phase!=='reward'&&G.actionsLeft<=0) return;
+  if(sp.type==='wand'&&G.actionsLeft<=0) return;
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
   else if(sp.needsEnemy) pickTarget('enemy',idx,true); // 加護チェックあり
@@ -314,10 +313,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[pi]=newAlly;
         _rewCards[weakR.ri]=Object.assign(clone(pa),{_isChar:true,_buyPrice:pa.cost||2});
         log(`憑依：${pa.name}⟺${weakR.c.name}（報酬枠${weakR.ri}）`,'good');
-        // 召喚時効果
-        if(newAlly.effect==='jack_summon'){ G.allies.forEach(a=>{if(a&&a.hp>0&&a!==newAlly&&!a.shield)a.shield=1;}); log(`${newAlly.name}：全仲間にシールド`,'good'); }
-        if(newAlly.effect==='centaur_summon'){ G.magicLevel=(G.magicLevel||1)+2; if(typeof syncHarpyAtk==='function')syncHarpyAtk(); log(`${newAlly.name}：魔術レベル+2`,'good'); }
-        fireTrigger('on_summon',null);
+        // 召喚時効果（使役）
+        applyUnitSummonEffect(newAlly, null);
         renderRewCards(); renderAll();
       } else {
         const liveE=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0);
@@ -328,6 +325,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[pi]=weakE.e;
         G.enemies[ei]=pa;
         log(`憑依：${pa.name}(${pi+1})⟺${weakE.e.name}(${ei+1})`,'good');
+        // 召喚時効果（使役）
+        applyUnitSummonEffect(weakE.e, null);
       }
     break;}
     case 'battle_start_book':{ log('開幕の書：戦闘開始時効果を発動','good'); onBattleStart(); break;}
@@ -572,7 +571,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     }
   }
 
-  if(sp.type!=='consumable'&&!_spreadTargetPending&&!_inReward) G.actionsLeft--;
+  if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
   // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵を攻撃（杖は対象外）
   if(sp.type==='consumable'){
     G.allies.forEach(hh=>{

@@ -1233,6 +1233,7 @@ function addEnemyHandItem(item){
   const cap=G._enemyHandDynamic?3:8;
   if((G.bossHand||[]).filter(s=>s).length>=cap) return false;
   if(!G.bossHand) G.bossHand=[];
+  delete item._buyPrice;
   G.bossHand.push(item);
   renderEnemyHand(); // 即時更新
   return true;
@@ -1334,12 +1335,11 @@ function applyBossSpell(sp){
       break;
     }
     case 'golem':{
-      const hp=Math.ceil(grade*8);
-      const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:0,hp:hp,maxHp:hp,baseAtk:0,
+      const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:eml,hp:eml,maxHp:eml,baseAtk:eml,
         grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false};
       const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
       if(ei>=0) G.enemies[ei]=ne; else if(G.enemies.length<6) G.enemies.push(ne);
-      log(`→ ゴーレム(0/${hp})を召喚`,'bad');
+      log(`→ ゴーレム(${eml}/${eml})を召喚`,'bad');
       break;
     }
     case 'revive':{

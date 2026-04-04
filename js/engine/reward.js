@@ -16,6 +16,9 @@ function goToReward(){
   _rewCards=drawRewards();
   _padRewCharSlots(); // キャラ0-5・アイテム6+に整列
   G.phase='reward';
+  // 商談フェイズ突入時に行動権を戦闘フェイズと同値にリセット
+  G.actionsPerTurn=calcActions();
+  G.actionsLeft=G.actionsPerTurn;
 
   // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
   if(G._pendingEliteChest){
@@ -507,6 +510,7 @@ function takeRewCard(i){
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
     G.gold-=cost;
     const rc=clone(card);
+    delete rc._buyPrice;
     G.rings[ringIdx]=rc;
     // ユニーク指輪取得時に再出現しないよう記録
     if(card.legend||card._isLegend) G._seenLegendRings.add(card.id);

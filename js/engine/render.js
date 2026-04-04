@@ -533,12 +533,12 @@ function computeDesc(card){
 }
 
 function mkCardEl(card,_idx,_ctx){
-  const typeLabel={ring:'契約',wand:'杖',consumable:'アイテム'};
+  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
   div.className=`card ${t}${card.legend?' legend-card':''}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=card.kind==='summon'?'契約（召喚）':card.kind==='passive'?'契約（補助）':(typeLabel[t]||'契約');
+  const tpLabel=card.kind==='summon'?'指輪（召喚）':card.kind==='passive'?'指輪（補助）':(typeLabel[t]||'指輪');
   const kindLabel=card.kind==='passive'?'<span style="font-size:.5rem;color:var(--teal2);margin-left:3px">P</span>':'';
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック

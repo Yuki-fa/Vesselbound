@@ -39,6 +39,7 @@ function takeCardToHand(card){
   if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   if(isRing){
+    delete nc._buyPrice;
     for(let i=0;i<G.ringSlots;i++){
       if(!G.rings[i]){
         G.rings[i]=nc;

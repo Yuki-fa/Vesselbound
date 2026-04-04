@@ -58,15 +58,9 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   };
 }
 
-// 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
-function addAlly(unit, fromRingId){
-  // 報酬フェイズ中は報酬枠へ誘導
-  if(G.phase==='reward'&&typeof addRewChar==='function'){ addRewChar(unit); return true; }
-  if(G.allies.filter(a=>a&&a.hp>0).length>=6) return false;
-  const empty=G.allies.findIndex(a=>!a||a.hp<=0);
-  if(empty>=0) G.allies[empty]=unit;
-  else G.allies.push(unit);
-  G.battleCounters.summons++;
+// ユニット召喚時の使役効果を適用（addAlly経由・直接追加どちらからも呼べる）
+function applyUnitSummonEffect(unit, fromRingId){
+  if(!unit) return;
   // ケンタウロス：召喚時、魔術レベル+2
   if(unit.effect==='centaur_summon'){
     G.magicLevel=(G.magicLevel||1)+2;
@@ -108,11 +102,24 @@ function addAlly(unit, fromRingId){
     if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
     log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
   }
+  // on_summon / on_full_board トリガー
   if(!G._djinnActive){
     fireTrigger('on_summon', fromRingId);
     if(G.allies.filter(a=>a&&a.hp>0).length>=6) fireTrigger('on_full_board', fromRingId);
   }
   checkSolitudeBuff();
+}
+
+// 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
+function addAlly(unit, fromRingId){
+  // 報酬フェイズ中は報酬枠へ誘導
+  if(G.phase==='reward'&&typeof addRewChar==='function'){ addRewChar(unit); return true; }
+  if(G.allies.filter(a=>a&&a.hp>0).length>=6) return false;
+  const empty=G.allies.findIndex(a=>!a||a.hp<=0);
+  if(empty>=0) G.allies[empty]=unit;
+  else G.allies.push(unit);
+  G.battleCounters.summons++;
+  applyUnitSummonEffect(unit, fromRingId);
   return true;
 }
 
