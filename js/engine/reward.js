@@ -637,7 +637,7 @@ function _renderFieldRow(el){
       if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
       if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${unit.doomed}</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
-      const gradeTag=unit.grade?`<div class="slot-grade">G${unit.grade}</div>`:'';
+      const gradeTag=unit.grade?`<div class="slot-grade">${gradeStr(unit.grade)}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
@@ -938,7 +938,7 @@ function _showStackPreviewOverlay(_ignored, fieldUnit, srcUnit){
   const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
   const _mkKw=k=>{const kb=k.replace(/\d+$/,'');const c=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`;};
   const kwHtml=result.keywords.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${result.keywords.map(_mkKw).join('')}</div>`:'';
-  const _gradeTag=`<div class="slot-grade" style="color:${gc}">G${result.grade}</div>`;
+  const _gradeTag=`<div class="slot-grade" style="color:${gc}">${gradeStr(result.grade)}</div>`;
   // テキスト数値を再計算したdescをもとにキーワード除去して表示
   const _fakeUnit={...fieldUnit,desc:result.desc,keywords:result.keywords,_stackCount:result.stackCount,_baseDesc:result.baseDesc};
   const _rawDesc=result.desc?computeDesc(_fakeUnit):'';

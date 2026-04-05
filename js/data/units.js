@@ -4,7 +4,7 @@
 
 const UNIT_POOL = [
   // ─── ゴーレム（初期キャラ・非売品） ───
-  {id:'c_golem',      name:'ゴーレム',        race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
+  {id:'c_golem',      name:'守護者"アイギス"', race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'①：戦闘開始時、魔術レベル+1。',             effect:'mermaid_start'},
