@@ -71,9 +71,10 @@ function renderAll(){
 // 戦闘フェイズ1ターン分（インターリーブ）をシミュレーションし、死亡する味方インデックスを返す
 // 実際のbattle.jsの関数（dealDmgToAlly/dealDmgToEnemy等）をclone上で実行することで
 // キーワード効果・シールド・反撃など全ての処理を自動的に反映する
+const _emptyDR={allyRisk:new Set(),enemyRisk:new Set()};
 function _computeDeathRisk(){
-  if(G.phase!=='player') return new Set();
-  if(!G.allies.some(a=>a&&a.hp>0)||!G.enemies.some(e=>e&&e.hp>0)) return new Set();
+  if(G.phase!=='player') return _emptyDR;
+  if(!G.allies.some(a=>a&&a.hp>0)||!G.enemies.some(e=>e&&e.hp>0)) return _emptyDR;
 
   // ── 状態を退避 ──
   const _sA=G.allies, _sE=G.enemies;

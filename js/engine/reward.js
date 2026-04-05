@@ -774,6 +774,51 @@ function _applyStack(fieldIdx, rewIdx){
   fieldUnit.keywords=result.keywords;
   if(result.keywords.includes('反撃')) fieldUnit.counter=true;
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
+  // 使役効果（重ね後も発動）
+  if(fieldUnit.effect==='jack_summon'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit&&!a.shield){ a.shield=1; }});
+    log(`${fieldUnit.name}：全ての味方にシールドを付与`,'good');
+  }
+  if(fieldUnit.effect==='centaur_summon'){
+    const _cv=2+(G.hasGoldenDrop?1:0);
+    G.magicLevel=(G.magicLevel||1)+_cv;
+    if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+    log(`${fieldUnit.name}：魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
+  }
+  if(fieldUnit.effect==='chimera_summon'){
+    const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
+    const _avail=[..._pool.filter(k=>!(fieldUnit.keywords||[]).includes(k))];
+    const _chosen=[];
+    for(let _ci=0;_ci<3&&_avail.length>0;_ci++){
+      const _idx=Math.floor(Math.random()*_avail.length);
+      _chosen.push(_avail.splice(_idx,1)[0]);
+    }
+    if(!fieldUnit.keywords) fieldUnit.keywords=[];
+    _chosen.forEach(k=>{ if(!fieldUnit.keywords.includes(k)) fieldUnit.keywords.push(k); });
+    if(_chosen.includes('反撃')) fieldUnit.counter=true;
+    if(_chosen.includes('標的')){ fieldUnit.hate=true; fieldUnit.hateTurns=99; }
+    log(`${fieldUnit.name}：キーワード${_chosen.join('、')}を追加獲得`,'good');
+  }
+  if(fieldUnit.effect==='mitera_summon'){
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
+    const _pelUnit=makeUnitFromDef(_pelDef);
+    const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
+    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(2/2)を盤面に召喚`,'good'); }
+  }
+  if(fieldUnit.effect==='jackalope_summon'){
+    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
+    if(_herb){ let _ha=0;
+      for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
+        if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
+      }
+      if(_ha>0) log(`${fieldUnit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+    }
+  }
+  if(fieldUnit.effect==='slin_summon'){
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+    log(`${fieldUnit.name}：全仲間に「成長1」を付与`,'good');
+  }
+  fireTrigger('on_summon', null);
   _rewCards[rewIdx]=null;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
