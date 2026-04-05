@@ -671,10 +671,12 @@ function _renderFieldRow(el){
           if(!rc?._isChar) return;
           if(unit.name===rc.name&&(unit.grade||1)<5&&G.gold>=(rc._buyPrice??2)){
             e.preventDefault();
-            if(!div.querySelector('.stack-preview-ov')) _showStackPreviewOverlay(div,unit,rc);
+            _showStackPreviewOverlay(null,unit,rc,e.clientX,e.clientY);
           }
         } else if(_fieldDragSrc>=0&&_fieldDragSrc!==i){
           e.preventDefault();
+          _lastDragX=e.clientX; _lastDragY=e.clientY;
+          _moveStackPreview(e.clientX,e.clientY);
           const srcUnit=G.allies[_fieldDragSrc];
           if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<5){
             // 同名・マージ候補：0.5秒タイマー
@@ -685,7 +687,7 @@ function _renderFieldRow(el){
                 _fieldMergeReady=true;
                 const fAlly=document.getElementById('f-ally');
                 if(fAlly&&fAlly.children[i]) fAlly.children[i].classList.add('merge-ready');
-                _showStackPreviewOverlay(null, unit, srcUnit);
+                _showStackPreviewOverlay(null, unit, srcUnit, _lastDragX||0, _lastDragY||0);
               },500);
             }
           } else {
@@ -741,6 +743,7 @@ let _rewDragSrc=-1;       // 報酬欄からドラッグ中のインデックス
 let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
 let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
 let _fieldMergeReady=false;// タイマー発火済みフラグ
+let _lastDragX=0, _lastDragY=0; // dragover座標キャッシュ
 
 function _clearFieldMergeTimer(){
   clearTimeout(_fieldMergeTimer);
@@ -917,49 +920,58 @@ function _clearFieldDropHighlights(){
 }
 
 // フィールドスロットに重ねプレビューオーバーレイを表示
-function _getDragSrcEl(){
-  if(_rewDragSrc>=0){
-    const charRow=document.querySelector('#rw-cards .field');
-    return charRow?charRow.children[_rewDragSrc]||null:null;
-  }
-  return _fieldDragSrcEl||null;
-}
-function _showStackPreviewOverlay(_ignored, fieldUnit, srcUnit){
-  const srcEl=_getDragSrcEl();
-  if(!srcEl||srcEl.querySelector('.stack-preview-ov')) return;
-  const result=_computeStackResult(fieldUnit,srcUnit);
-  const ov=document.createElement('div');
-  ov.className='stack-preview-ov';
-  ov.style='position:absolute;inset:0;background:var(--card,#1e1e2e);z-index:20;border-radius:6px;border:2px solid var(--gold2);pointer-events:none;overflow:hidden;display:flex;flex-direction:column';
+// ── 合成プレビュー（カーソル追従フローティング）──────
+let _stackPreviewEl=null;
 
-  // ── 合成プレビューラベル ──
+function _buildStackPreviewEl(fieldUnit, srcUnit){
+  const result=_computeStackResult(fieldUnit,srcUnit);
+  const el=document.getElementById('stack-preview-float')||document.createElement('div');
+  el.id='stack-preview-float';
+  el.className='stack-preview-ov';
+  el.style=`position:fixed;width:90px;z-index:9999;pointer-events:none;display:flex;flex-direction:column;
+    background:var(--card,#1e1e2e);border:2px solid var(--gold2);border-radius:6px;overflow:hidden;
+    box-shadow:0 4px 24px rgba(0,0,0,.7)`;
   const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f'];
   const gc=gradeColors[result.grade]||'#fff';
   const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
   const _mkKw=k=>{const kb=k.replace(/\d+$/,'');const c=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`;};
   const kwHtml=result.keywords.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${result.keywords.map(_mkKw).join('')}</div>`:'';
-  const _gradeTag=`<div class="slot-grade" style="color:${gc}">${gradeStr(result.grade)}</div>`;
-  // テキスト数値を再計算したdescをもとにキーワード除去して表示
   const _fakeUnit={...fieldUnit,desc:result.desc,keywords:result.keywords,_stackCount:result.stackCount,_baseDesc:result.baseDesc};
   const _rawDesc=result.desc?computeDesc(_fakeUnit):'';
   const _stripped=_stripKeywordsFromDesc(_rawDesc,_fakeUnit);
-  const descHtml=_stripped?`<div class="slot-desc">${_stripped}</div>`:'';
-
-  ov.innerHTML=`
-    <div style="text-align:center;border:1px solid var(--gold2);border-radius:3px;margin:3px 4px 0;padding:1px 4px;font-size:.42rem;color:var(--gold2);font-weight:700;flex-shrink:0">合成プレビュー</div>
-    ${_gradeTag}
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:18px">
-      <div style="font-size:1.1rem">${srcUnit.icon||fieldUnit.icon||'❓'}</div>
+  const descHtml=_stripped?`<div class="slot-desc" style="font-size:.42rem;padding:0 3px 3px">${_stripped}</div>`:'';
+  el.innerHTML=`
+    <div style="text-align:center;border-bottom:1px solid var(--gold2);padding:2px 4px;font-size:.42rem;color:var(--gold2);font-weight:700">合成プレビュー</div>
+    <div class="slot-grade" style="color:${gc}">${gradeStr(result.grade)}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px 4px">
+      <div style="font-size:1.0rem">${fieldUnit.icon||'❓'}</div>
       <div class="slot-name">${fieldUnit.name}</div>
       <div class="slot-race">${fieldUnit.race||'-'}</div>
       <div class="slot-stats"><span class="a">${result.atk}</span><span class="s">/</span><span class="h">${result.hp}</span></div>
     </div>
-    <div style="position:absolute;bottom:4px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwHtml}${descHtml}</div>`;
+    ${kwHtml}${descHtml}`;
+  if(!el.parentNode) document.body.appendChild(el);
+  _stackPreviewEl=el;
+}
 
-  srcEl.style.position='relative';
-  srcEl.appendChild(ov);
+function _moveStackPreview(clientX, clientY){
+  if(!_stackPreviewEl) return;
+  const W=_stackPreviewEl.offsetWidth||90;
+  const H=_stackPreviewEl.offsetHeight||120;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let x=clientX+16, y=clientY+16;
+  if(x+W>vw) x=clientX-W-8;
+  if(y+H>vh) y=clientY-H-8;
+  _stackPreviewEl.style.left=x+'px';
+  _stackPreviewEl.style.top=y+'px';
+}
+
+function _showStackPreviewOverlay(_ignored, fieldUnit, srcUnit, clientX, clientY){
+  _buildStackPreviewEl(fieldUnit, srcUnit);
+  _moveStackPreview(clientX||0, clientY||0);
 }
 function _removeStackPreviewOverlay(){
+  if(_stackPreviewEl){ _stackPreviewEl.remove(); _stackPreviewEl=null; }
   document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
 }
 

@@ -247,6 +247,16 @@ function applySpell(sp,idx,tgt,_noDecrement){
   const _inReward=G.phase==='reward';
   _spreadTargetPending=false;
   let _spreadPick=null;
+  // インキュバス：アイテム使用時、効果処理の前にナイトメアを召喚
+  if(sp.type==='consumable'){
+    G.allies.forEach(ic=>{
+      if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
+      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:4,hp:1,cost:0,unique:false,icon:'😱',desc:''};
+      const _nm=makeUnitFromDef(_nmDef);
+      const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
+      if(_ei>=0){ G.allies[_ei]=_nm; log(`${ic.name}：ナイトメア(4/1)を召喚`,'good'); }
+    });
+  }
   switch(sp.effect){
     case 'fire':{
       const fd=G.magicLevel||1;
@@ -612,14 +622,6 @@ function applySpell(sp,idx,tgt,_noDecrement){
       const _ht=randFrom(_liveE);
       dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
       log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
-    });
-    // インキュバス：アイテム使用時、最も左の空き地に4/1の「ナイトメア」を召喚（報酬フェイズ中も戦場に直接配置）
-    G.allies.forEach(ic=>{
-      if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
-      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:4,hp:1,cost:0,unique:false,icon:'😱',desc:''};
-      const _nm=makeUnitFromDef(_nmDef);
-      const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
-      if(_ei>=0){ G.allies[_ei]=_nm; log(`${ic.name}：ナイトメア(4/1)を召喚`,'good'); }
     });
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
