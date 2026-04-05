@@ -387,7 +387,7 @@ function renderRewCards(){
         slot.addEventListener('dragend',()=>{
           if(_rewDragSrc>=0){ _rewDragSrc=-1; _clearFieldDropHighlights(); }
           slot.classList.remove('dragging');
-          document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
+          _removeStackPreviewOverlay();
         });
       }
       // 報酬カード同士の入れ替え（他のキャラスロットへドロップ）
@@ -658,12 +658,12 @@ function _renderFieldRow(el){
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{
-        _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+        _fieldDragSrc=i; _fieldDragSrcEl=div; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         _updateFieldDropHighlights(unit.name,0,true,i);
       });
       div.addEventListener('dragend',()=>{
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
-        document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
+        _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
       });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
@@ -685,6 +685,7 @@ function _renderFieldRow(el){
                 _fieldMergeReady=true;
                 const fAlly=document.getElementById('f-ally');
                 if(fAlly&&fAlly.children[i]) fAlly.children[i].classList.add('merge-ready');
+                _showStackPreviewOverlay(null, unit, srcUnit);
               },500);
             }
           } else {
@@ -735,6 +736,7 @@ function _renderFieldRow(el){
 }
 
 let _fieldDragSrc=-1;
+let _fieldDragSrcEl=null; // 盤面ドラッグ中のソース要素
 let _rewDragSrc=-1;       // 報酬欄からドラッグ中のインデックス
 let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
 let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
@@ -915,30 +917,49 @@ function _clearFieldDropHighlights(){
 }
 
 // フィールドスロットに重ねプレビューオーバーレイを表示
-function _getRewCardSlotEl(){
-  const charRow=document.querySelector('#rw-cards .field');
-  if(!charRow||_rewDragSrc<0) return null;
-  return charRow.children[_rewDragSrc]||null;
+function _getDragSrcEl(){
+  if(_rewDragSrc>=0){
+    const charRow=document.querySelector('#rw-cards .field');
+    return charRow?charRow.children[_rewDragSrc]||null:null;
+  }
+  return _fieldDragSrcEl||null;
 }
-function _showStackPreviewOverlay(_ignored, fieldUnit, rewCard){
-  const srcEl=_getRewCardSlotEl();
+function _showStackPreviewOverlay(_ignored, fieldUnit, srcUnit){
+  const srcEl=_getDragSrcEl();
   if(!srcEl||srcEl.querySelector('.stack-preview-ov')) return;
-  const result=_computeStackResult(fieldUnit,rewCard);
+  const result=_computeStackResult(fieldUnit,srcUnit);
   const ov=document.createElement('div');
   ov.className='stack-preview-ov';
-  ov.style='position:absolute;inset:0;background:rgba(0,0,0,.88);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:6px;border:2px solid var(--gold2);pointer-events:none';
-  const _kc={'反撃':'#e0a060','成長':'#60d090','シールド':'#60a0e0','加護':'#60b0e0','即死':'#e060e0','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','アーティファクト':'#b0a080'};
-  const kwHtml=result.keywords.length?result.keywords.map(k=>{const kb=k.replace(/\d+$/,'');const c=_kc[k]||_kc[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`}).join(''):'';
+  ov.style='position:absolute;inset:0;background:var(--card,#1e1e2e);z-index:20;border-radius:6px;border:2px solid var(--gold2);pointer-events:none;overflow:hidden;display:flex;flex-direction:column';
+
+  // ── 合成プレビューラベル ──
   const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f'];
   const gc=gradeColors[result.grade]||'#fff';
-  ov.innerHTML=`<div style="font-size:.42rem;color:var(--gold2);font-weight:700">重ね後</div><div style="font-size:.82rem;font-weight:700;color:var(--text)"><span style="color:var(--teal2)">${result.atk}</span><span style="color:var(--text2)">/</span><span style="color:#60d090">${result.hp}</span></div><div style="font-size:.46rem;font-weight:700;color:${gc}">G${result.grade}</div><div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${kwHtml}</div>`;
+  const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
+  const _mkKw=k=>{const kb=k.replace(/\d+$/,'');const c=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`;};
+  const kwHtml=result.keywords.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${result.keywords.map(_mkKw).join('')}</div>`:'';
+  const _gradeTag=`<div class="slot-grade" style="color:${gc}">G${result.grade}</div>`;
+  // テキスト数値を再計算したdescをもとにキーワード除去して表示
+  const _fakeUnit={...fieldUnit,desc:result.desc,keywords:result.keywords,_stackCount:result.stackCount,_baseDesc:result.baseDesc};
+  const _rawDesc=result.desc?computeDesc(_fakeUnit):'';
+  const _stripped=_stripKeywordsFromDesc(_rawDesc,_fakeUnit);
+  const descHtml=_stripped?`<div class="slot-desc">${_stripped}</div>`:'';
+
+  ov.innerHTML=`
+    <div style="text-align:center;border:1px solid var(--gold2);border-radius:3px;margin:3px 4px 0;padding:1px 4px;font-size:.42rem;color:var(--gold2);font-weight:700;flex-shrink:0">合成プレビュー</div>
+    ${_gradeTag}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:18px">
+      <div style="font-size:1.1rem">${srcUnit.icon||fieldUnit.icon||'❓'}</div>
+      <div class="slot-name">${fieldUnit.name}</div>
+      <div class="slot-race">${fieldUnit.race||'-'}</div>
+      <div class="slot-stats"><span class="a">${result.atk}</span><span class="s">/</span><span class="h">${result.hp}</span></div>
+    </div>
+    <div style="position:absolute;bottom:4px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwHtml}${descHtml}</div>`;
+
   srcEl.style.position='relative';
   srcEl.appendChild(ov);
 }
-function _removeStackPreviewOverlay(_ignored){
-  const srcEl=_getRewCardSlotEl();
-  if(srcEl){ const ov=srcEl.querySelector('.stack-preview-ov'); if(ov) ov.remove(); }
-  // フォールバック：残っているオーバーレイを全消去
+function _removeStackPreviewOverlay(){
   document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
 }
 

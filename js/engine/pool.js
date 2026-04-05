@@ -230,8 +230,9 @@ function drawRewards(n){
 
 // ── 消耗品のみ抽選（休息所・インプ用）──────────────
 
-function drawConsumable(){
-  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1);
+function drawConsumable(maxGrade){
+  const _mg=maxGrade!=null?maxGrade:99;
+  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1&&(s.grade||1)<=_mg);
   if(!pool.length) return null;
   const c=clone(randFrom(pool));
   c._buyPrice=calcBuyPrice(c);
