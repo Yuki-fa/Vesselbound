@@ -373,6 +373,8 @@ async function loadGameData() {
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
       unit.desc = desc || '';
+      if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
+      else delete unit.stackEffect;
       // キーワード列が存在する場合、unit.keywords を上書きし効果フラグも同期
       // row['キーワード'] が undefined = 列なし（JS定義をそのまま使用）
       if (row['キーワード'] !== undefined) {

@@ -1273,6 +1273,18 @@ function applyBossSpell(sp){
       log(`→ 全仲間に${dmg}ダメージ`,'bad');
       break;
     }
+    case 'meteor_multi':{
+      // ランダムな仲間（プレイヤー側）にeml回×emlダメージ
+      const _hits=eml||1;
+      for(let _mi=0;_mi<_hits;_mi++){
+        const live=G.allies.filter(a=>a&&a.hp>0);
+        if(!live.length) break;
+        const t=randFrom(live);
+        dealDmgToAlly(t,eml||1,G.allies.indexOf(t),null);
+      }
+      log(`→ ランダムな仲間に${eml}ダメ×${_hits}回`,'bad');
+      break;
+    }
     case 'bomb':{
       const dmg=Math.ceil(grade*2);
       liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));

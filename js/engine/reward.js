@@ -373,8 +373,36 @@ function renderRewCards(){
       if(!canBuy) slot.style.background='var(--bg)';
       if(_previewStr) slot.setAttribute('data-preview',_previewStr);
       slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
-      if(canBuy&&hasSlot){ slot.onclick=()=>takeRewCard(i); slot.style.cursor='pointer'; }
-      else { slot.style.cursor='default'; }
+      // ドラッグで購入・配置・重ね
+      if(canBuy&&hasSlot){
+        slot.draggable=true;
+        slot.style.cursor='grab';
+        slot.addEventListener('dragstart',e=>{
+          _rewDragSrc=i;
+          e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.setData('text/plain',String(i));
+          _updateFieldDropHighlights(card.name,cost);
+          setTimeout(()=>slot.classList.add('dragging'),0);
+        });
+        slot.addEventListener('dragend',()=>{
+          if(_rewDragSrc>=0){ _rewDragSrc=-1; _clearFieldDropHighlights(); }
+          slot.classList.remove('dragging');
+          document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
+        });
+      }
+      // 報酬カード同士の入れ替え（他のキャラスロットへドロップ）
+      slot.addEventListener('dragover',e=>{
+        if(_rewDragSrc>=0&&_rewDragSrc!==i){ e.preventDefault(); slot.classList.add('drag-over'); }
+      });
+      slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+      slot.addEventListener('drop',e=>{
+        e.preventDefault(); slot.classList.remove('drag-over');
+        if(_rewDragSrc>=0&&_rewDragSrc!==i){
+          const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+          const tmp=_rewCards[src]; _rewCards[src]=_rewCards[i]; _rewCards[i]=tmp;
+          renderRewCards();
+        }
+      });
     }
     charRow.appendChild(slot);
   }
@@ -455,14 +483,20 @@ function _mkRewDiv(card, onBuy){
 
 // ── カード購入処理 ──────────────────────────────
 
-function takeRewCard(i){
+function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const cost=card._buyPrice??1;
   if(G.gold<cost) return;
 
   if(card._isChar){
-    // キャラクター：フィールドへ配置
-    const emptyIdx=G.allies.indexOf(null);
+    // キャラクター：指定スロット or 最初の空きへ配置
+    let emptyIdx;
+    if(targetSlot!=null){
+      if(G.allies[targetSlot]!=null){ log('盤面が満杯です。','bad'); return; }
+      emptyIdx=targetSlot;
+    } else {
+      emptyIdx=G.allies.indexOf(null);
+    }
     if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを還魂してください。','bad'); return; }
     G.gold-=cost;
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
@@ -625,25 +659,165 @@ function _renderFieldRow(el){
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));
-      div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
-      div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); _dropFieldUnit(i); });
+      div.addEventListener('dragover',e=>{
+        if(_rewDragSrc>=0){
+          const rc=_rewCards[_rewDragSrc];
+          if(!rc?._isChar) return;
+          if(unit.name===rc.name&&(unit.grade||1)<5&&G.gold>=(rc._buyPrice??2)){
+            e.preventDefault();
+            if(!div.querySelector('.stack-preview-ov')) _showStackPreviewOverlay(div,unit,rc);
+          }
+          // 別キャラ or グレード5 は受け付けない
+        } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
+      });
+      div.addEventListener('dragleave',e=>{
+        if(div.contains(e.relatedTarget)) return;
+        _removeStackPreviewOverlay(div); div.classList.remove('drag-over');
+      });
+      div.addEventListener('drop',e=>{
+        e.preventDefault(); _removeStackPreviewOverlay(div); div.classList.remove('drag-over');
+        if(_rewDragSrc>=0){
+          const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+          const rc=_rewCards[src];
+          if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<5) _applyStack(i,src);
+        } else if(_fieldDragSrc>=0){ _dropFieldUnit(i); }
+      });
     } else {
       div.className='slot empty';
-      div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
+      div.addEventListener('dragover',e=>{
+        if(_rewDragSrc>=0){
+          const rc=_rewCards[_rewDragSrc];
+          if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); div.classList.add('drag-over'); }
+        } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
+      });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); _dropFieldUnit(i); });
+      div.addEventListener('drop',e=>{
+        e.preventDefault(); div.classList.remove('drag-over');
+        if(_rewDragSrc>=0){
+          const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+          takeRewCard(src,i);
+        } else if(_fieldDragSrc>=0){ _dropFieldUnit(i); }
+      });
     }
     el.appendChild(div);
   }
 }
 
 let _fieldDragSrc=-1;
+let _rewDragSrc=-1; // 報酬欄からドラッグ中のインデックス
+
 function _dropFieldUnit(destIdx){
   if(_fieldDragSrc<0) return;
   const src=_fieldDragSrc; _fieldDragSrc=-1;
   const tmp=G.allies[src]; G.allies[src]=G.allies[destIdx]; G.allies[destIdx]=tmp;
   renderFieldEditor();
+}
+
+// ── 重ねシステム ヘルパー ──────────────────────────
+
+// 効果テキスト内の数値を加算（同位置の数値を対応させて足す）
+function _addDescNumbers(baseDesc, addDesc){
+  if(!addDesc||!baseDesc) return baseDesc||'';
+  const addNums=[...addDesc.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+  if(!addNums.length) return baseDesc;
+  let idx=0;
+  return baseDesc.replace(/\d+/g, m=>{
+    if(idx<addNums.length){ return String(parseInt(m)+addNums[idx++]); }
+    return m;
+  });
+}
+
+// キーワード配列をマージ（数値付きキーワードは数値を加算）
+function _mergeKeywords(baseKws, addKws){
+  const result=[...baseKws];
+  (addKws||[]).forEach(kw=>{
+    const base=kw.replace(/\d+$/,'');
+    const num=parseInt(kw.match(/\d+$/)?.[0]);
+    const existIdx=result.findIndex(k=>k.replace(/\d+$/,'')===base);
+    if(existIdx>=0){
+      if(!isNaN(num)){
+        const existNum=parseInt(result[existIdx].match(/\d+$/)?.[0])||0;
+        result[existIdx]=base+(existNum+num);
+      }
+    } else { result.push(kw); }
+  });
+  return result;
+}
+
+// 重ね後のスタッツ・テキストを計算（プレビュー・実行共用）
+function _computeStackResult(fieldUnit, rewCard){
+  const newAtk=fieldUnit.atk+rewCard.atk;
+  const newHp=fieldUnit.hp+rewCard.hp;
+  const newGrade=Math.min(5,(fieldUnit.grade||1)+1);
+  // 専用重ね効果があればそれを優先
+  const def=UNIT_POOL.find(u=>u.id===fieldUnit.defId||u.name===fieldUnit.name);
+  const stackEffect=def?.stackEffect||null;
+  const newDesc=stackEffect||_addDescNumbers(fieldUnit.desc||'',rewCard.desc||'');
+  const newKws=_mergeKeywords(fieldUnit.keywords||[],rewCard.keywords||[]);
+  return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws};
+}
+
+// 重ねを実行する
+function _applyStack(fieldIdx, rewIdx){
+  const rewCard=_rewCards[rewIdx];
+  const fieldUnit=G.allies[fieldIdx];
+  if(!rewCard||!fieldUnit) return;
+  const cost=rewCard._buyPrice??2;
+  if(G.gold<cost){ log('ソウルが不足しています','bad'); return; }
+  if((fieldUnit.grade||1)>=5){ log('グレード5には重ねられません','bad'); return; }
+  G.gold-=cost;
+  const result=_computeStackResult(fieldUnit,rewCard);
+  fieldUnit.atk=result.atk; fieldUnit.baseAtk=result.atk;
+  fieldUnit.hp=result.hp; fieldUnit.maxHp=result.hp;
+  fieldUnit.grade=result.grade;
+  fieldUnit.desc=result.desc;
+  fieldUnit.keywords=result.keywords;
+  if(result.keywords.includes('反撃')) fieldUnit.counter=true;
+  log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
+  _rewCards[rewIdx]=null;
+  document.getElementById('rw-gold').textContent=G.gold;
+  updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
+}
+
+// フィールドスロットをドラッグ中にハイライト
+function _updateFieldDropHighlights(cardName, cost){
+  const fAlly=document.getElementById('f-ally');
+  if(!fAlly) return;
+  const canAfford=G.gold>=cost;
+  Array.from(fAlly.children).forEach((slotEl,i)=>{
+    const unit=G.allies[i];
+    if(!unit){
+      if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }
+    } else if(unit.name===cardName){
+      if((unit.grade||1)>=5){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
+      else if(canAfford){ slotEl.style.boxShadow='0 0 12px 2px var(--gold2)'; slotEl.style.outline='2px dashed var(--gold2)'; }
+    }
+  });
+}
+function _clearFieldDropHighlights(){
+  const fAlly=document.getElementById('f-ally');
+  if(!fAlly) return;
+  Array.from(fAlly.children).forEach(s=>{ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; });
+}
+
+// フィールドスロットに重ねプレビューオーバーレイを表示
+function _showStackPreviewOverlay(slotEl, fieldUnit, rewCard){
+  if(slotEl.querySelector('.stack-preview-ov')) return;
+  const result=_computeStackResult(fieldUnit,rewCard);
+  const ov=document.createElement('div');
+  ov.className='stack-preview-ov';
+  ov.style='position:absolute;inset:0;background:rgba(0,0,0,.82);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:6px;border:2px solid var(--gold2);pointer-events:none';
+  const _kc={'反撃':'#e0a060','成長':'#60d090','シールド':'#60a0e0','加護':'#60b0e0','即死':'#e060e0','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','アーティファクト':'#b0a080'};
+  const kwHtml=result.keywords.length?result.keywords.map(k=>{const kb=k.replace(/\d+$/,'');const c=_kc[k]||_kc[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`}).join(''):'';
+  const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f'];
+  const gc=gradeColors[result.grade]||'#fff';
+  ov.innerHTML=`<div style="font-size:.42rem;color:var(--gold2);font-weight:700">重ね後</div><div style="font-size:.82rem;font-weight:700;color:var(--text)"><span style="color:var(--teal2)">${result.atk}</span><span style="color:var(--text2)">/</span><span style="color:#60d090">${result.hp}</span></div><div style="font-size:.46rem;font-weight:700;color:${gc}">G${result.grade}</div><div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${kwHtml}</div>`;
+  slotEl.style.position='relative';
+  slotEl.appendChild(ov);
+}
+function _removeStackPreviewOverlay(slotEl){
+  const ov=slotEl.querySelector('.stack-preview-ov');
+  if(ov) ov.remove();
 }
 
 function sellFieldUnit(idx){
