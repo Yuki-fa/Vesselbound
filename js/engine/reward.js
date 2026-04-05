@@ -265,9 +265,9 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'freyr':{
-      const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
-      addRewChar(makeUnitFromDef(rgDef));
-      log(`${unit.name}：負傷→ロイヤルガードを報酬枠に召喚`,'good');
+      const scDef2={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']};
+      addRewChar(makeUnitFromDef(scDef2));
+      log(`${unit.name}：負傷→ストーンキャットを報酬枠に召喚`,'good');
       break;
     }
     case 'kettcat':{

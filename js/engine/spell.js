@@ -446,7 +446,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gl,baseAtk:gl,hp:gl,maxHp:gl,
           ringId:'w_golem',ringIdx:-1,hate:false,hateTurns:0,instadead:false,sealed:0,nullified:0,
           enchants:[],regen:false,regenUsed:false,onDeath:undefined,onHit:undefined,
-          taunt50:false,guardian:false,unique:undefined,keywords:[],poison:0,shield:0,_dp:false};
+          taunt50:false,guardian:false,unique:undefined,keywords:['アーティファクト'],poison:0,shield:0,_dp:false};
         const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
         else if(G.allies.length<6) G.allies.push(golem);

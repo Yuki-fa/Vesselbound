@@ -4,7 +4,7 @@
 
 const UNIT_POOL = [
   // ─── ゴーレム（初期キャラ・非売品） ───
-  {id:'c_golem',      name:'ゴーレム',        race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:''},
+  {id:'c_golem',      name:'ゴーレム',        race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'①：戦闘開始時、魔術レベル+1。',             effect:'mermaid_start'},
@@ -46,7 +46,7 @@ const UNIT_POOL = [
   {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'シールド　①：ターン開始時、一番右のキャラにシールド+1。②：味方がシールドを失うと+1/+2を得る。', shield:1, effect:'einsel'},
   {id:'c_forniot',    name:'鉄の拳"フォルニョート"',       race:'亜人', grade:1, atk:6,  hp:18, cost:10, unique:true, icon:'👊', desc:'二段攻撃　①：攻撃時、全ての味方が+1/±0を得る。', effect:'forniot', keywords:['二段攻撃']},
   {id:'c_abadon',     name:'残響の魔導師"アバドン"',       race:'悪魔', grade:1, atk:3,  hp:16, cost:9,  unique:true, icon:'🔮', desc:'全体攻撃', keywords:['全体攻撃']},
-  {id:'c_freyr',      name:'黄金の瞳"フレイ"',             race:'獣',   grade:1, atk:7,  hp:11, cost:10, unique:true, icon:'👁️', desc:'負傷：最も右の空き地に「反撃」を持つ4/6、獣の「ロイヤルガード」を召喚する。', injury:'freyr'},
+  {id:'c_freyr',      name:'黄金の瞳"フレイ"',             race:'獣',   grade:1, atk:7,  hp:11, cost:10, unique:true, icon:'👁️', desc:'負傷：最も右の空き地に「反撃」「アーティファクト」を持つ4/6、種族なしの「ストーンキャット」を召喚する。', injury:'freyr'},
   {id:'c_naglfar',    name:'虚空の渡し守"ナグルファル"',   race:'不死', grade:1, atk:4,  hp:14, cost:9,  unique:true, icon:'⚓', desc:'①：キャラクターが死亡するたび、+2/+1を得る。', effect:'naglfar_ondeath'},
 
   // ─── G2 通常 ───

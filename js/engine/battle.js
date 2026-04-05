@@ -280,16 +280,16 @@ async function battlePhase(){
   log(`── T${G.turn} 戦闘フェイズ ──`,'sys');
 
   for(let i=0;i<6;i++){
-    // 味方 i 番目の攻撃
-    const ally=G.allies[i];
-    if(ally&&ally.hp>0&&!ally._isSoul){
-      await allyAttackAction(ally,i);
-      if(_checkBattleOver()) return;
-    }
     // 敵 i 番目の攻撃
     const enemy=G.enemies[i];
     if(enemy&&enemy.hp>0){
       await enemyAttackAction(enemy,i);
+      if(_checkBattleOver()) return;
+    }
+    // 味方 i 番目の攻撃
+    const ally=G.allies[i];
+    if(ally&&ally.hp>0&&!ally._isSoul){
+      await allyAttackAction(ally,i);
       if(_checkBattleOver()) return;
     }
   }
@@ -676,12 +676,13 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'freyr':{
-      // 最も右の空きスロットにロイヤルガードを召喚（自陣）
+      // 最も右の空きスロットにストーンキャットを召喚（自陣）
+      const scDef={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']};
       const freeIdx=ownSide.map((a,i)=>(!a||a.hp<=0)?i:-1).filter(i=>i>=0);
       if(freeIdx.length){
         const slot=freeIdx[freeIdx.length-1];
-        ownSide[slot]=makeUnitFromDef(rgDef);
-        log(`${unit.name}：ロイヤルガード(4/6+反撃)を召喚`,col);
+        ownSide[slot]=makeUnitFromDef(scDef);
+        log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
         if(!isEnemy) checkSolitudeBuff();
       }
       break;
@@ -1135,9 +1136,10 @@ function processEnemyDeath(e,eIdx){
   e._dp=true;
   if(e.keywords&&e.keywords.includes('エリート')) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
-  const gold=G.baseIncome||1;
-  G.earnedGold+=gold; G.gold+=gold;
-  log(`${e.name} 撃破！ソウル+${gold}`,'gold');
+  const _isArtifact=e.keywords&&e.keywords.includes('アーティファクト');
+  const gold=_isArtifact?0:(G.baseIncome||1);
+  if(gold>0){ G.earnedGold+=gold; G.gold+=gold; log(`${e.name} 撃破！ソウル+${gold}`,'gold'); }
+  else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
   // エリート戦ではエリート本体が宝箱を確定ドロップ（他の敵は落とさない）
   if(e.keywords&&e.keywords.includes('エリート')){
