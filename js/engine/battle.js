@@ -1153,6 +1153,7 @@ function processEnemyDeath(e,eIdx){
     const rate=(hasGreed?2:1)*gnomeMult*0.05;
     if(Math.random()<rate){
       G._pendingTreasure=true;
+      G.moveMasks[eIdx]='chest';
       log(`📦 ${e.name}が宝箱を落とした！`,'gold');
     }
   }

@@ -801,23 +801,31 @@ function _clearFieldDropHighlights(){
 }
 
 // フィールドスロットに重ねプレビューオーバーレイを表示
-function _showStackPreviewOverlay(slotEl, fieldUnit, rewCard){
-  if(slotEl.querySelector('.stack-preview-ov')) return;
+function _getRewCardSlotEl(){
+  const charRow=document.querySelector('#rw-cards .field');
+  if(!charRow||_rewDragSrc<0) return null;
+  return charRow.children[_rewDragSrc]||null;
+}
+function _showStackPreviewOverlay(_ignored, fieldUnit, rewCard){
+  const srcEl=_getRewCardSlotEl();
+  if(!srcEl||srcEl.querySelector('.stack-preview-ov')) return;
   const result=_computeStackResult(fieldUnit,rewCard);
   const ov=document.createElement('div');
   ov.className='stack-preview-ov';
-  ov.style='position:absolute;inset:0;background:rgba(0,0,0,.82);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:6px;border:2px solid var(--gold2);pointer-events:none';
+  ov.style='position:absolute;inset:0;background:rgba(0,0,0,.88);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:6px;border:2px solid var(--gold2);pointer-events:none';
   const _kc={'反撃':'#e0a060','成長':'#60d090','シールド':'#60a0e0','加護':'#60b0e0','即死':'#e060e0','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','アーティファクト':'#b0a080'};
   const kwHtml=result.keywords.length?result.keywords.map(k=>{const kb=k.replace(/\d+$/,'');const c=_kc[k]||_kc[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`}).join(''):'';
   const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f'];
   const gc=gradeColors[result.grade]||'#fff';
   ov.innerHTML=`<div style="font-size:.42rem;color:var(--gold2);font-weight:700">重ね後</div><div style="font-size:.82rem;font-weight:700;color:var(--text)"><span style="color:var(--teal2)">${result.atk}</span><span style="color:var(--text2)">/</span><span style="color:#60d090">${result.hp}</span></div><div style="font-size:.46rem;font-weight:700;color:${gc}">G${result.grade}</div><div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${kwHtml}</div>`;
-  slotEl.style.position='relative';
-  slotEl.appendChild(ov);
+  srcEl.style.position='relative';
+  srcEl.appendChild(ov);
 }
-function _removeStackPreviewOverlay(slotEl){
-  const ov=slotEl.querySelector('.stack-preview-ov');
-  if(ov) ov.remove();
+function _removeStackPreviewOverlay(_ignored){
+  const srcEl=_getRewCardSlotEl();
+  if(srcEl){ const ov=srcEl.querySelector('.stack-preview-ov'); if(ov) ov.remove(); }
+  // フォールバック：残っているオーバーレイを全消去
+  document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
 }
 
 function sellFieldUnit(idx){
