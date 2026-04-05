@@ -151,6 +151,10 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     injury:   def.injury  || null,
     counter:  def.counter || false,
     keywords: def.keywords ? [...def.keywords] : [],
+    // 重ねシステム
+    _stackCount: 0,
+    _baseDesc:   def.desc  || '',
+    _baseGrade:  def.grade || 1,
   };
   // マミー効果：グレード2以上のキャラクターにATKボーナス（累積）
   if((def.grade||1)>=2 && typeof G!=='undefined' && G._undeadHpBonus){

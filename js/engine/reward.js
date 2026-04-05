@@ -657,8 +657,14 @@ function _renderFieldRow(el){
       div.style.borderTop='2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
-      div.addEventListener('dragstart',e=>{ _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
-      div.addEventListener('dragend',()=>div.classList.remove('dragging'));
+      div.addEventListener('dragstart',e=>{
+        _fieldDragSrc=i; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+        _updateFieldDropHighlights(unit.name,0,true,i);
+      });
+      div.addEventListener('dragend',()=>{
+        div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
+        document.querySelectorAll('.stack-preview-ov').forEach(p=>p.remove());
+      });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
@@ -667,20 +673,45 @@ function _renderFieldRow(el){
             e.preventDefault();
             if(!div.querySelector('.stack-preview-ov')) _showStackPreviewOverlay(div,unit,rc);
           }
-          // 別キャラ or グレード5 は受け付けない
-        } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
+        } else if(_fieldDragSrc>=0&&_fieldDragSrc!==i){
+          e.preventDefault();
+          const srcUnit=G.allies[_fieldDragSrc];
+          if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<5){
+            // 同名・マージ候補：0.5秒タイマー
+            if(_fieldMergeTarget!==i){
+              _clearFieldMergeTimer();
+              _fieldMergeTarget=i;
+              _fieldMergeTimer=setTimeout(()=>{
+                _fieldMergeReady=true;
+                const fAlly=document.getElementById('f-ally');
+                if(fAlly&&fAlly.children[i]) fAlly.children[i].classList.add('merge-ready');
+              },500);
+            }
+          } else {
+            if(_fieldMergeTarget===i) _clearFieldMergeTimer();
+            div.classList.add('drag-over');
+          }
+        }
       });
       div.addEventListener('dragleave',e=>{
         if(div.contains(e.relatedTarget)) return;
+        if(_fieldMergeTarget===i){ _clearFieldMergeTimer(); div.classList.remove('merge-ready'); }
         _removeStackPreviewOverlay(div); div.classList.remove('drag-over');
       });
       div.addEventListener('drop',e=>{
-        e.preventDefault(); _removeStackPreviewOverlay(div); div.classList.remove('drag-over');
+        e.preventDefault();
+        const wasMergeReady=_fieldMergeReady&&_fieldMergeTarget===i;
+        _clearFieldMergeTimer(); _removeStackPreviewOverlay(div);
+        div.classList.remove('drag-over','merge-ready');
         if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
           if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<5) _applyStack(i,src);
-        } else if(_fieldDragSrc>=0){ _dropFieldUnit(i); }
+        } else if(_fieldDragSrc>=0){
+          _clearFieldDropHighlights();
+          if(wasMergeReady){ _applyFieldMerge(_fieldDragSrc,i); }
+          else { _dropFieldUnit(i); }
+        }
       });
     } else {
       div.className='slot empty';
@@ -704,7 +735,15 @@ function _renderFieldRow(el){
 }
 
 let _fieldDragSrc=-1;
-let _rewDragSrc=-1; // 報酬欄からドラッグ中のインデックス
+let _rewDragSrc=-1;       // 報酬欄からドラッグ中のインデックス
+let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
+let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
+let _fieldMergeReady=false;// タイマー発火済みフラグ
+
+function _clearFieldMergeTimer(){
+  clearTimeout(_fieldMergeTimer);
+  _fieldMergeTimer=null; _fieldMergeTarget=-1; _fieldMergeReady=false;
+}
 
 function _dropFieldUnit(destIdx){
   if(_fieldDragSrc<0) return;
@@ -713,17 +752,37 @@ function _dropFieldUnit(destIdx){
   renderFieldEditor();
 }
 
+// 盤面内重ね（使役効果なし）
+function _applyFieldMerge(srcIdx, dstIdx){
+  const src=G.allies[srcIdx]; const dst=G.allies[dstIdx];
+  if(!src||!dst) return;
+  const result=_computeStackResult(dst,src);
+  dst.atk=result.atk; dst.baseAtk=result.atk;
+  dst.hp=result.hp; dst.maxHp=result.hp;
+  dst.grade=result.grade;
+  dst.desc=result.desc;
+  dst.keywords=result.keywords;
+  dst._stackCount=result.stackCount;
+  dst._baseGrade=result.baseGrade;
+  dst._baseDesc=result.baseDesc;
+  if(result.keywords.includes('反撃')) dst.counter=true;
+  G.allies[srcIdx]=null;
+  _fieldDragSrc=-1;
+  log(`${dst.name} を重ねた（盤面内）→ ${result.atk}/${result.hp} G${result.grade}`,'good');
+  updateHUD(); renderRewCards(); renderFieldEditor(); renderGradeUpBtn();
+}
+
 // ── 重ねシステム ヘルパー ──────────────────────────
 
-// 効果テキスト内の数値を加算（同位置の数値を対応させて足す）
-function _addDescNumbers(baseDesc, addDesc){
-  if(!addDesc||!baseDesc) return baseDesc||'';
-  const addNums=[...addDesc.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-  if(!addNums.length) return baseDesc;
+// ベースdesc の各数値に n 回分の加算を適用（結果 = baseNum * (n+1)）
+function _applyDescStack(baseDesc, newStackCount){
+  if(!baseDesc||newStackCount<=0) return baseDesc||'';
+  const baseNums=[...baseDesc.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+  if(!baseNums.length) return baseDesc;
   let idx=0;
-  return baseDesc.replace(/\d+/g, m=>{
-    if(idx<addNums.length){ return String(parseInt(m)+addNums[idx++]); }
-    return m;
+  return baseDesc.replace(/\d+/g,()=>{
+    const bNum=idx<baseNums.length?baseNums[idx++]:0;
+    return String(bNum*(newStackCount+1));
   });
 }
 
@@ -745,16 +804,22 @@ function _mergeKeywords(baseKws, addKws){
 }
 
 // 重ね後のスタッツ・テキストを計算（プレビュー・実行共用）
-function _computeStackResult(fieldUnit, rewCard){
-  const newAtk=fieldUnit.atk+rewCard.atk;
-  const newHp=fieldUnit.hp+rewCard.hp;
-  const newGrade=Math.min(5,(fieldUnit.grade||1)+1);
+function _computeStackResult(fieldUnit, srcUnit){
+  const newAtk=fieldUnit.atk+srcUnit.atk;
+  const newHp=fieldUnit.hp+srcUnit.hp;
+  const fSC=fieldUnit._stackCount||0;
+  const sSC=srcUnit._stackCount||0;
+  const newStackCount=fSC+sSC+1;
+  const baseGrade=fieldUnit._baseGrade||fieldUnit.grade||1;
+  const newGrade=Math.min(5,baseGrade+newStackCount);
+  const baseDesc=fieldUnit._baseDesc!=null?fieldUnit._baseDesc:(fieldUnit.desc||'');
   // 専用重ね効果があればそれを優先
-  const def=UNIT_POOL.find(u=>u.id===fieldUnit.defId||u.name===fieldUnit.name);
+  const def=UNIT_POOL.find(u=>u.id===(fieldUnit.defId||fieldUnit.id)||u.name===fieldUnit.name);
   const stackEffect=def?.stackEffect||null;
-  const newDesc=stackEffect||_addDescNumbers(fieldUnit.desc||'',rewCard.desc||'');
-  const newKws=_mergeKeywords(fieldUnit.keywords||[],rewCard.keywords||[]);
-  return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws};
+  const newDesc=stackEffect||_applyDescStack(baseDesc,newStackCount);
+  const newKws=_mergeKeywords(fieldUnit.keywords||[],srcUnit.keywords||[]);
+  return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws,
+    stackCount:newStackCount,baseGrade,baseDesc};
 }
 
 // 重ねを実行する
@@ -772,6 +837,9 @@ function _applyStack(fieldIdx, rewIdx){
   fieldUnit.grade=result.grade;
   fieldUnit.desc=result.desc;
   fieldUnit.keywords=result.keywords;
+  fieldUnit._stackCount=result.stackCount;
+  fieldUnit._baseGrade=result.baseGrade;
+  fieldUnit._baseDesc=result.baseDesc;
   if(result.keywords.includes('反撃')) fieldUnit.counter=true;
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
   // 使役効果（重ね後も発動）
@@ -825,11 +893,12 @@ function _applyStack(fieldIdx, rewIdx){
 }
 
 // フィールドスロットをドラッグ中にハイライト
-function _updateFieldDropHighlights(cardName, cost){
+function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
   const fAlly=document.getElementById('f-ally');
   if(!fAlly) return;
-  const canAfford=G.gold>=cost;
+  const canAfford=isFieldDrag||G.gold>=cost;
   Array.from(fAlly.children).forEach((slotEl,i)=>{
+    if(i===excludeIdx) return;
     const unit=G.allies[i];
     if(!unit){
       if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }

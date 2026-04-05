@@ -207,6 +207,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-empty.drag-over{border-color:var(--gold);opacity:.8}
 .slot.dragging{opacity:.35;transform:scale(.93)}
 .slot.drag-over{box-shadow:0 0 10px 2px var(--gold);outline:2px solid var(--gold)}
+.slot.merge-ready{outline:2px solid var(--gold2);animation:merge-pulse .6s ease-in-out infinite}
+@keyframes merge-pulse{0%,100%{box-shadow:0 0 8px 2px var(--gold2)}50%{box-shadow:0 0 20px 8px var(--gold2)}}
 
 /* ENCHANT MODAL */
 #enc-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center}
