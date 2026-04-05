@@ -160,16 +160,19 @@ async function loadGameData() {
     }
     const [ft, gt, st, rt, ct] = await Promise.all(responses.map(r => r.text()));
 
-    // effect_id は任意シート：失敗してもメイン読み込みには影響しない
+    // 敵キーワード シート（任意）：失敗してもメイン読み込みには影響しない
     try {
-      const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['effect_id']));
+      const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['敵キーワード']));
       if (kwRes.ok) {
         const kwt = await kwRes.text();
         const kwRows = _parseCSV(kwt);
         kwRows.forEach(row => {
-          const name = row['名前'] || row['キーワード'] || row[Object.keys(row)[0]];
-          const desc = row['効果']||row['説明']||row['説明文'];
-          if (name && desc) KW_DESC_MAP[name] = desc;
+          const name = (row['名前'] || row['キーワード'] || row[Object.keys(row)[0]] || '').trim();
+          const desc = (row['効果']||row['説明']||row['説明文']||'').trim();
+          if (!name || !desc) return;
+          KW_DESC_MAP[name] = desc;
+          // 「侵食X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（侵食1等）でも引けるよう登録
+          if (/X$/.test(name)) KW_DESC_MAP[name.slice(0,-1)] = desc;
         });
       }
     } catch (_) { /* キーワード説明文なしで続行 */ }

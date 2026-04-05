@@ -177,6 +177,9 @@ async function commanderPhase(){
         G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
         log(`敵の「${_bsp.name}」チャージが切れた`,'sys');
       }
+    } else {
+      // 消耗品は使用後に手札から除去
+      G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
     }
   }
   renderAll();
@@ -1379,6 +1382,30 @@ function applyBossSpell(sp){
       log(`→ ゴーレム(${eml}/${eml})を召喚`,'bad');
       break;
     }
+    case 'weaken':{
+      // 脱力の杖：ランダムな仲間（プレイヤー側）のATKを1ターン0にする
+      if(!liveA.length) break;
+      const t=randFrom(liveA);
+      t._weakenedSavedAtk=t.atk;
+      t.atk=0;
+      log(`→ ${t.name}のパワーを0にした（1ターン）`,'bad');
+      break;
+    }
+    case 'doom':{
+      // 破滅の杖：全ての仲間（プレイヤー側）に魔術レベル分のダメージ
+      const dmg=eml||1;
+      liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
+      log(`→ 全仲間に${dmg}ダメージ`,'bad');
+      break;
+    }
+    case 'shield_wand':{
+      // 光輝の杖：ランダムな敵（ボス側の仲間）にシールドを付与
+      if(!liveE.length) break;
+      const t=randFrom(liveE);
+      t.shield=(t.shield||0)+1;
+      log(`→ ${t.name}にシールドを付与`,'bad');
+      break;
+    }
     case 'revive':{
       const dead=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp<=0&&x.e.maxHp>0);
       if(!dead.length) break;
@@ -1386,7 +1413,96 @@ function applyBossSpell(sp){
       log(`→ ${e.name}を復活(HP:${e.hp})`,'bad');
       break;
     }
-    default: log(`→ 効果なし`,'sys'); break;
+    case 'poison_wand':{
+      // 毒の杖：ランダムな仲間（プレイヤー側）に毒を与える
+      if(!liveA.length) break;
+      const t=randFrom(liveA); const pv=eml||1;
+      t.poison=(t.poison||0)+pv;
+      log(`→ ${t.name}に毒+${pv}`,'bad');
+      break;
+    }
+    case 'boost_atk':{
+      // 強化の杖：ランダムな敵（ボス側）のATKを強化
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const v=Math.ceil(grade*2)*(G._enemySpreadActive?2:1);
+      G._enemySpreadActive=false;
+      t.atk+=v; t.baseAtk=(t.baseAtk||0)+v;
+      log(`→ ${t.name}パワー+${v}`,'bad');
+      break;
+    }
+    case 'flash_blade':{
+      // 閃刃の杖：全キャラに1ダメージ
+      liveA.forEach(a=>dealDmgToAlly(a,1,G.allies.indexOf(a),null));
+      liveE.forEach(e=>dealDmgToEnemy(e,1,G.enemies.indexOf(e),null));
+      log(`→ 全キャラに1ダメージ`,'bad');
+      break;
+    }
+    case 'swap_stats':{
+      // 混乱の杖：ランダムな仲間（プレイヤー側）のATKとHPを入れ替え
+      if(!liveA.length) break;
+      const t=randFrom(liveA);
+      const _sa=t.atk, _sh=t.hp, _sm=t.maxHp;
+      t.atk=_sh; t.baseAtk=_sh;
+      t.hp=_sa; t.maxHp=Math.max(_sa,_sm);
+      log(`→ ${t.name}のATKとHPを入れ替え（${_sa}/${_sh}→${t.atk}/${t.hp}）`,'bad');
+      break;
+    }
+    case 'growth_wand':{
+      // 成長の杖：ランダムな敵（ボス側）に成長Xを付与
+      if(!liveE.length) break;
+      const t=randFrom(liveE); const gv=eml||1;
+      if(!t.keywords) t.keywords=[];
+      const existG=t.keywords.findIndex(k=>/^成長\d+$/.test(k));
+      if(existG>=0) t.keywords[existG]='成長'+(parseInt(t.keywords[existG].slice(2))+gv);
+      else t.keywords.push(`成長${gv}`);
+      log(`→ ${t.name}に成長${gv}を付与`,'bad');
+      break;
+    }
+    case 'sacrifice':{
+      // 犠牲の杖：最もHPの低い敵（ボス側）を生贄に、プレイヤー側全体にそのATK分ダメージ
+      if(!liveE.length) break;
+      const t=liveE.reduce((a,b)=>a.hp<=b.hp?a:b);
+      const dmg=t.atk||0;
+      t.hp=0; processEnemyDeath(t,G.enemies.indexOf(t));
+      if(dmg>0) liveA.forEach(a=>dealDmgToAlly(a,dmg,G.allies.indexOf(a),null));
+      log(`→ ${t.name}を生贄に、全仲間に${dmg}ダメージ`,'bad');
+      break;
+    }
+    case 'magic_book':{
+      // 叡智の巻物：敵の魔術レベルを+2する
+      G.enemyMagicLevel=(G.enemyMagicLevel||0)+2;
+      log(`→ 敵の魔術レベルが+2（現在${G.enemyMagicLevel}）`,'bad');
+      break;
+    }
+    case 'sacrifice_doll':{
+      // 破壊の巻物：ランダムな仲間（プレイヤー側・ボス・エリート以外）を破壊
+      const eligible=liveA.filter(a=>!a.keywords||(!a.keywords.includes('ボス')&&!a.keywords.includes('エリート')));
+      if(!eligible.length) break;
+      const t=randFrom(eligible);
+      dealDmgToAlly(t,t.hp+999,G.allies.indexOf(t),null);
+      log(`→ ${t.name}を破壊`,'bad');
+      break;
+    }
+    case 'counter_scroll':{
+      // 反逆の薬：ランダムな敵（ボス側）に反撃を付与
+      if(!liveE.length) break;
+      const t=randFrom(liveE);
+      if(!t.keywords) t.keywords=[];
+      if(!t.keywords.includes('反撃')) t.keywords.push('反撃');
+      t.counter=true;
+      log(`→ ${t.name}に反撃を付与`,'bad');
+      break;
+    }
+    case 'purify_hate':{
+      // 浄化の薬：ランダムな敵（ボス側）の毒を除去
+      if(!liveE.length) break;
+      const poisoned=liveE.filter(e=>e.poison>0);
+      if(!poisoned.length){ log(`→ 毒状態の仲間なし`,'sys'); break; }
+      const t=randFrom(poisoned); t.poison=0;
+      log(`→ ${t.name}の毒を除去`,'bad');
+      break;
+    }
+    default: log(`→ 効果なし（未対応：${sp.effect}）`,'sys'); break;
   }
   G._enemySpreadActive=false; // 未消費のspreadは次ターンに持ち越さない
 }
