@@ -193,8 +193,19 @@ async function loadGameData() {
       const handStr = (row['敵手札'] || '').trim();
       const enemyHand = handStr && !handStr.startsWith('なし')
         ? handStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
-            .map(name => typeof SPELL_POOL!=='undefined' ? SPELL_POOL.find(s=>s.name===name) : null)
-            .filter(Boolean).map(s=>{ const c=Object.assign({},s); if(c.baseUses) c.usesLeft=c.baseUses; return c; })
+            .map(entry => {
+              // 「名前（N）」形式でチャージ数を上書き
+              const m = entry.match(/^(.+?)（(\d+)）$/);
+              const name = m ? m[1].trim() : entry;
+              const overrideUses = m ? parseInt(m[2]) : null;
+              const def = typeof SPELL_POOL!=='undefined' ? SPELL_POOL.find(s=>s.name===name) : null;
+              if(!def) return null;
+              const c = Object.assign({}, def);
+              const uses = overrideUses!=null ? overrideUses : (c.baseUses || c.baseUsesRange ? (c.baseUsesRange?Math.round((c.baseUsesRange[0]+c.baseUsesRange[1])/2):c.baseUses) : 4);
+              c.usesLeft = uses; c._maxUses = uses;
+              return c;
+            })
+            .filter(Boolean)
         : [];
       // 「敵指輪」列：カンマ区切りの指輪名 → RING_POOLから検索
       const ringStr = (row['敵指輪'] || '').trim();

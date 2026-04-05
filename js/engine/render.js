@@ -57,8 +57,9 @@ function effectiveStats(ring){
 }
 
 function renderAll(){
-  renderField('f-enemy',G.enemies,true);
-  renderField('f-ally',G.allies,false);
+  const _drResult=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
+  renderField('f-enemy',G.enemies,true,_drResult.enemyRisk);
+  renderField('f-ally',G.allies,false,_drResult.allyRisk);
   renderHand();
   renderControls();
   renderArcanaBar();
@@ -97,24 +98,30 @@ function _computeDeathRisk(){
     G._pendingTreasure=_sPT;
     // シミュレーション前の各スロットのユニットIDを記録（アク等への置き換え検出用）
     const origAliveIds=G.allies.map(a=>a&&a.hp>0?a.id:null);
+    const origEnemyIds=G.enemies.map(e=>e&&e.hp>0?e.id:null);
 
     // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
     for(let i=0;i<6;i++){
-      const ally=G.allies[i];
-      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
-      if(!G.enemies.some(e=>e&&e.hp>0)) break;
       const enemy=G.enemies[i];
       if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
       if(!G.allies.some(a=>a&&a.hp>0)) break;
+      const ally=G.allies[i];
+      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
+      if(!G.enemies.some(e=>e&&e.hp>0)) break;
     }
 
-    // ── 死亡した味方インデックスを収集（アクに置き換えられたスロットも死亡扱い）──
-    const result=new Set();
+    // ── 死亡した味方・敵インデックスを収集 ──
+    const allyRisk=new Set();
     G.allies.forEach((a,i)=>{
-      if(!origAliveIds[i]) return; // 元から空 or 死亡していたスロットは無視
-      if(!a||a.hp<=0||a.id!==origAliveIds[i]) result.add(i);
+      if(!origAliveIds[i]) return;
+      if(!a||a.hp<=0||a.id!==origAliveIds[i]) allyRisk.add(i);
     });
-    return result;
+    const enemyRisk=new Set();
+    G.enemies.forEach((e,i)=>{
+      if(!origEnemyIds[i]) return;
+      if(!e||e.hp<=0||e.id!==origEnemyIds[i]) enemyRisk.add(i);
+    });
+    return {allyRisk, enemyRisk};
 
   } finally {
     // ── 状態を完全復元 ──
@@ -227,10 +234,13 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
-function renderField(id,units,isEnemy){
+function renderField(id,units,isEnemy,_extDeathRisk){
   const el=document.getElementById(id);
   el.innerHTML='';
-  const deathRisk=(!isEnemy)?_computeDeathRisk():new Set();
+  const deathRisk=_extDeathRisk!=null?_extDeathRisk:(()=>{
+    const _dr=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
+    return isEnemy?_dr.enemyRisk:_dr.allyRisk;
+  })();
   // 優先ターゲットのインデックスを特定
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   let priorityIdx=-1;
@@ -255,10 +265,7 @@ function renderField(id,units,isEnemy){
           slot.title='クリックで撤退';
           slot.onclick=()=>{
             if(G.phase!=='player') return;
-            if(confirm(`${nt.label}に移動して撤退しますか？`)){
-              G._retreatTargetNodeType=mv;
-              retreat();
-            }
+            showRetreatConfirm(mv, nt);
           };
         }
       } else {
@@ -305,8 +312,8 @@ function renderField(id,units,isEnemy){
         }
         // 優先ターゲットは赤枠
         if(i===priorityIdx) slot.classList.add('priority-target');
-        // 確実に死亡する味方：赤斜線を点滅表示
-        if(!isEnemy&&deathRisk.has(i)) slot.classList.add('will-die');
+        // 確実に死亡するユニット：赤斜線を点滅表示
+        if(deathRisk.has(i)) slot.classList.add('will-die');
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
       const _mvType=G.moveMasks[i];
@@ -317,10 +324,7 @@ function renderField(id,units,isEnemy){
         slot.title='クリックで撤退';
         slot.onclick=()=>{
           if(G.phase!=='player') return;
-          if(confirm(`${nt.label}に移動して撤退しますか？`)){
-            G._retreatTargetNodeType=_mvType;
-            retreat();
-          }
+          showRetreatConfirm(_mvType, nt);
         };
       }
     } else {
@@ -477,10 +481,10 @@ function fitCardDescs(){
   });
 }
 
-function computeDesc(card){
+function computeDesc(card,_mlOverride){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   const g=card.grade||1;
-  const rawMl=typeof G!=='undefined'?G.magicLevel||1:1;
+  const rawMl=_mlOverride!=null?_mlOverride:(typeof G!=='undefined'?G.magicLevel||1:1);
   // 黄金の雫・グリマルキン：G.alliesに実在する味方ユニットのみ適用（報酬プール/敵は対象外）
   const isCharCard=!card.type&&!card.kind; // キャラクター判定（type/kindなし）
   const isAllyUnit=isCharCard&&typeof G!=='undefined'&&G.allies&&G.allies.indexOf(card)>=0;
@@ -537,7 +541,7 @@ function computeDesc(card){
   return desc;
 }
 
-function mkCardEl(card,_idx,_ctx){
+function mkCardEl(card,_idx,_ctx,_mlOverride){
   const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
@@ -564,7 +568,7 @@ function mkCardEl(card,_idx,_ctx){
       hpLabel=`<span class="card-summon-hp">${es.hp}</span>`;
     }
   }
-  const dynDesc=computeDesc(card);
+  const dynDesc=computeDesc(card,_mlOverride);
   div.innerHTML=`${gradeEl}${badgeEl}<div class="card-tp ${t}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
@@ -667,7 +671,7 @@ function renderEnemyHand(){
     }
     const sp=hand[i]||null;
     if(sp){
-      const div=mkCardEl(sp,i,'spell-enemy');
+      const div=mkCardEl(sp,i,'spell-enemy',isReward?undefined:(G.enemyMagicLevel||G.magicLevel));
       if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
         // 報酬フェイズ：クリックで購入
@@ -704,4 +708,33 @@ function renderArcanaBar(){
   const typeStr=arc.type==='passive'?'パッシブ':arc.cost>0?arc.cost+'ソウル':'無料';
   const usedStr=(arc.type==='active'&&G.arcanaUsed)?' 【使用済】':'';
   bar.innerHTML=`<div style="max-width:1100px;margin:0 auto;padding:0 12px"><span style="opacity:.7">秘術</span> ${arc.icon} <strong>${arc.id}</strong>（${typeStr}）${usedStr} <span style="color:var(--text2);font-size:.6rem">${arc.desc}</span></div>`;
+}
+
+// ── 撤退確認オーバーレイ ──────────────────────────
+function showRetreatConfirm(mv, nt){
+  const ov=document.createElement('div');
+  ov.style='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px';
+
+  const title=document.createElement('div');
+  title.style='font-size:1.2rem;font-weight:700;color:var(--text)';
+  title.textContent=`${nt.icon} ${nt.label}に移動して撤退しますか？`;
+  ov.appendChild(title);
+
+  const row=document.createElement('div');
+  row.style='display:flex;gap:16px';
+
+  const btnYes=document.createElement('button');
+  btnYes.textContent='撤退する';
+  btnYes.style='padding:10px 28px;background:var(--bad,#c44);color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer';
+  btnYes.onclick=()=>{ ov.remove(); G._retreatTargetNodeType=mv; retreat(); };
+
+  const btnNo=document.createElement('button');
+  btnNo.textContent='キャンセル';
+  btnNo.style='padding:10px 28px;background:var(--card,#333);color:var(--text);border:1px solid var(--text2,#888);border-radius:8px;font-size:1rem;cursor:pointer';
+  btnNo.onclick=()=>ov.remove();
+
+  row.appendChild(btnYes);
+  row.appendChild(btnNo);
+  ov.appendChild(row);
+  document.body.appendChild(ov);
 }

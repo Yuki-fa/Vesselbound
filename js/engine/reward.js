@@ -519,7 +519,7 @@ function takeRewCard(i){
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand();
+    updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
   }
