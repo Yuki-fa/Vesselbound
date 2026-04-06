@@ -155,10 +155,157 @@ async function nextTurn(){
   startPlayerPhase();
 }
 
+// ── 敵AIパーソナリティ思考システム ────────────────
+
+const _PERSONALITY_WEIGHTS = {
+  aggressive: { kill:3.0, damage:2.0, debuff:1.5, buff:0.5, sustain:0.3, control:0.5 },
+  defensive:  { kill:1.0, damage:0.5, debuff:0.8, buff:2.0, sustain:3.0, control:0.8 },
+  tactical:   { kill:2.0, damage:1.0, debuff:2.5, buff:1.5, sustain:1.0, control:3.0 },
+  chaotic:    { kill:1.0, damage:1.0, debuff:1.0, buff:1.0, sustain:1.0, control:1.0 },
+};
+
+const _COMBO_SYNERGIES = {
+  magic_book: { doom:20, flash_blade:5 },
+  weaken:     { doom:8, flash_blade:5 },
+  doom:       { flash_blade:3 },
+  swap_stats: { weaken:10, doom:8 },
+};
+
+function _buildBattleState(usedEffects){
+  return {
+    allies: G.enemies.filter(e=>e&&e.hp>0).map(e=>({
+      id:e.id, hp:e.hp, maxHp:e.maxHp, atk:e.atk, shield:e.shield||0,
+      isBoss:!!(e.keywords&&e.keywords.includes('ボス')),
+      isElite:!!(e.keywords&&e.keywords.includes('エリート')),
+      keywords:e.keywords||[], position:G.enemies.indexOf(e), poison:e.poison||0,
+    })),
+    enemies: G.allies.filter(a=>a&&a.hp>0).map(a=>({
+      id:a.id, hp:a.hp, maxHp:a.maxHp, atk:a.atk, shield:a.shield||0,
+      isBoss:!!(a.keywords&&a.keywords.includes('ボス')),
+      isElite:!!(a.keywords&&a.keywords.includes('エリート')),
+      keywords:a.keywords||[], position:G.allies.indexOf(a), poison:a.poison||0,
+    })),
+    magicLevel: G.enemyMagicLevel||0,
+    usedEffects: usedEffects||[],
+  };
+}
+
+function _scoreEffect(effect, battleState, personality){
+  const w = _PERSONALITY_WEIGHTS[personality] || _PERSONALITY_WEIGHTS.chaotic;
+  const { allies, enemies, magicLevel } = battleState;
+  switch(effect){
+    case 'weaken':{
+      const maxAtk = Math.max(...enemies.map(e=>e.atk), 0);
+      return maxAtk * w.debuff * 1.5;
+    }
+    case 'doom':{
+      const kills = enemies.filter(e=>e.hp<=magicLevel).length;
+      return kills * w.kill * 10 + enemies.length * magicLevel * w.damage;
+    }
+    case 'shield_wand':{
+      const unshielded = allies.filter(a=>a.shield===0);
+      if(!unshielded.length) return 0;
+      const mt = unshielded.reduce((a,b)=>a.hp<b.hp?a:b);
+      return Math.max(10-mt.hp, 1) * w.sustain * 2;
+    }
+    case 'poison_wand':{
+      const unpoisoned = enemies.filter(e=>e.poison===0);
+      return unpoisoned.length * w.debuff;
+    }
+    case 'boost_atk': case 'boost':{
+      const maxAllyAtk = Math.max(...allies.map(a=>a.atk), 0);
+      return maxAllyAtk * w.buff;
+    }
+    case 'rally': case 'big_rally':{
+      return allies.length * w.buff * 1.5;
+    }
+    case 'heal_ally':{
+      const damaged = allies.filter(a=>a.hp<a.maxHp);
+      return damaged.length * w.sustain * 2;
+    }
+    case 'flash_blade':{
+      const eKills = enemies.filter(e=>e.hp<=1).length;
+      return eKills * w.kill * 10 - allies.length * w.sustain * 2;
+    }
+    case 'swap_stats':{
+      const swappable = enemies.filter(e=>e.atk<e.hp);
+      if(!swappable.length) return -5;
+      const best = swappable.reduce((a,b)=>(b.hp-b.atk)>(a.hp-a.atk)?b:a);
+      return (best.hp - best.atk) * w.control;
+    }
+    case 'growth_wand':{
+      const ungrown = allies.filter(a=>!a.keywords.some(k=>/^成長/.test(k)));
+      return ungrown.length * w.buff * 1.2;
+    }
+    case 'sacrifice':{
+      if(!allies.length) return -999;
+      const weakest = allies.reduce((a,b)=>a.hp<b.hp?a:b);
+      const totalDmg = enemies.length * (weakest.atk||0);
+      return (weakest.hp<=1?5:-5) * w.sustain + totalDmg * w.damage;
+    }
+    case 'magic_book':{
+      return magicLevel * w.damage + 5;
+    }
+    case 'sacrifice_doll':{
+      const targets = enemies.filter(e=>!e.isBoss&&!e.isElite);
+      if(!targets.length) return -999;
+      const avgAtk = targets.reduce((s,e)=>s+e.atk,0)/targets.length;
+      return avgAtk * w.kill * 2;
+    }
+    case 'counter_scroll':{
+      const without = allies.filter(a=>!a.keywords.includes('反撃'));
+      return without.length * w.buff * 1.5;
+    }
+    case 'purify_hate':{
+      const poisoned = allies.filter(a=>a.poison>0);
+      return poisoned.length * w.sustain * 3;
+    }
+    case 'revive':{
+      const dead = G.enemies.filter(e=>e&&e.hp<=0&&e.maxHp>0);
+      return dead.length * w.sustain * 4;
+    }
+    case 'golem': case 'double_hp': case 'spread':
+      return 5 * w.buff;
+    case 'fire': case 'meteor': case 'meteor_multi': case 'bomb':{
+      const dmg = magicLevel||1;
+      const kills = enemies.filter(e=>e.hp<=dmg).length;
+      return kills * w.kill * 10 + enemies.length * dmg * w.damage * 0.5;
+    }
+    case 'instakill':
+      return enemies.filter(e=>e.atk<=(magicLevel||0)).length * w.kill * 15;
+    case 'hate': case 'seal': case 'nullify':
+      return enemies.length>0 ? 5 * w.debuff : 0;
+    default: return 0;
+  }
+}
+
+function _getComboBonus(effect, usedEffects){
+  let bonus = 0;
+  for(const used of usedEffects){
+    bonus += (_COMBO_SYNERGIES[used]?.[effect] ?? 0);
+  }
+  return bonus;
+}
+
+const _USE_THRESHOLD = 5;
+const _CHAOS_NOISE   = 30;
+
+function _chooseBestItem(hand, battleState, personality){
+  if(!hand.length) return null;
+  const scored = hand.map(item=>{
+    let score = _scoreEffect(item.effect, battleState, personality);
+    if(personality==='tactical') score += _getComboBonus(item.effect, battleState.usedEffects);
+    if(personality==='chaotic')  score += Math.random() * _CHAOS_NOISE;
+    return { item, score };
+  });
+  scored.sort((a,b)=>b.score-a.score);
+  if(scored[0].score < _USE_THRESHOLD) return null;
+  return scored[0].item;
+}
+
 // ── 敵オーナーフェイズ（全階層共通）────────────────
 
 async function commanderPhase(){
-  // 手札がなく、ボス戦でもない場合はスキップ
   const _liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
   if(!_liveHand.length&&!_isBossFight) return;
 
@@ -167,21 +314,37 @@ async function commanderPhase(){
   log('👹 敵フェイズ','bad');
   // ボス指輪：ターン開始トリガー（ボス戦のみ）
   if(_isBossFight&&G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
-  // 手札からランダムに1枚使用
-  if(_liveHand.length){
-    const _bsp=randFrom(_liveHand);
-    applyBossSpell(_bsp);
-    if(_bsp.type==='wand'){
-      _bsp.usesLeft=(_bsp.usesLeft??1)-1;
-      if(_bsp.usesLeft<=0){
-        G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
-        log(`敵の「${_bsp.name}」チャージが切れた`,'sys');
+
+  // パーソナリティ・行動数を取得
+  const _fd = FLOOR_DATA[G.floor]||{};
+  const _personality = _fd.personality||'chaotic';
+  const _actionCount = _fd.actionCount||1;
+  const _usedEffects = [];
+
+  for(let _ai=0; _ai<_actionCount; _ai++){
+    const liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
+    if(!liveHand.length) break;
+
+    const _bs = _buildBattleState(_usedEffects);
+    const chosen = _chooseBestItem(liveHand, _bs, _personality);
+    if(!chosen) break;
+
+    applyBossSpell(chosen);
+    _usedEffects.push(chosen.effect);
+
+    if(chosen.type==='wand'){
+      chosen.usesLeft=(chosen.usesLeft??1)-1;
+      if(chosen.usesLeft<=0){
+        G.bossHand.splice(G.bossHand.indexOf(chosen),1);
+        log(`敵の「${chosen.name}」チャージが切れた`,'sys');
       }
     } else {
-      // 消耗品は使用後に手札から除去
-      G.bossHand.splice(G.bossHand.indexOf(_bsp),1);
+      G.bossHand.splice(G.bossHand.indexOf(chosen),1);
     }
+
+    if(_ai < _actionCount-1){ renderAll(); await sleep(400); }
   }
+
   renderAll();
   await sleep(700);
 }

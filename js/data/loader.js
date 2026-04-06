@@ -230,6 +230,9 @@ async function loadGameData() {
           .filter(s => _validWandIds.has(s));
       }
       const _mlVal = parseInt(row['魔術レベル'] || row['magicLevel']);
+      const _personalityMap = {'攻撃':'aggressive','防衛':'defensive','策士':'tactical','道化':'chaotic'};
+      const _persRaw = (row['パーソナリティ'] || row['personality'] || '').trim();
+      const _acVal = parseInt(row['行動数'] || row['actionCount']);
       FLOOR_DATA[fl] = {
         grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
@@ -237,6 +240,8 @@ async function loadGameData() {
         enemyHand: enemyHand,
         enemyRings: enemyRings,
         magicLevel: isNaN(_mlVal) ? 0 : _mlVal,
+        personality: _personalityMap[_persRaw] ?? 'chaotic',
+        actionCount: isNaN(_acVal) ? 1 : Math.max(1, _acVal),
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
