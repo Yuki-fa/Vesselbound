@@ -214,9 +214,11 @@ function generateMoveMasks(){
   const chosen=idxs.slice(0,total);
 
   // 最初のスロットは必ず戦闘、追加スロットは各10%で商店
+  // 行商直後は商店を出現させない
+  const _postShop=!!G._prevWasShop; G._prevWasShop=false;
   // 遠見の指輪：商店の出現率2倍
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
-  const shopRate=hasFarsight?0.20:0.10;
+  const shopRate=_postShop?0:(hasFarsight?0.20:0.10);
 
   // 観察秘術：祭壇を確定で1つ出現させる
   let forceNonBattle=G.arcanaForceNode?'smithy':null;

@@ -257,19 +257,8 @@ function renderField(id,units,isEnemy,_extDeathRisk){
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
     if(u&&u.hp>0){
-      const mv=isEnemy&&G.visibleMoves.includes(i)?G.moveMasks[i]:null;
-      if(mv){
-        slot.classList.add('has-move');
-        const nt=NODE_TYPES[mv];
-        slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>`;
-        if(mv!=='chest'){
-          slot.title='クリックで撤退';
-          slot.onclick=()=>{
-            if(G.phase!=='player') return;
-            showRetreatConfirm(mv, nt);
-          };
-        }
-      } else {
+      // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
+      {
         // ── ステータスバッジ（右上固定：状態異常のみ）──
         const bs=[];
         const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};

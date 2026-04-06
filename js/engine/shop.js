@@ -37,6 +37,9 @@ function doShop(){
   _rewCards.forEach(r=>{ if(r&&r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
 
   G._isShop=true;
+  G._prevWasShop=true; // 行商直後の戦闘では商店マスを抑制
+  G._retreated=false;  // 撤退フラグをクリア（撤退先が行商の場合、次の行き先判定が繰り返し行商を選ぶのを防ぐ）
+  G._retreatTargetNodeType=null;
   G.phase='reward';
 
   document.getElementById('f-ally').innerHTML='';
@@ -85,7 +88,7 @@ function renderShop(){
 
 function buyItem(){ /* legacy stub — shop now uses ring-only via renderShop */ }
 
-function shopDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
+function shopDone(){ G._isShop=false; renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
 
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){

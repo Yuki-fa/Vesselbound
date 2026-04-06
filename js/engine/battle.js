@@ -1382,8 +1382,8 @@ function retreat(){
 
 // ── ボスオーナーシステム ──────────────────────
 
-// 敵スロットに新ユニットが配置された時、そのスロットのmoveMaskをクリアする
-// （死亡マスに召喚すると moveMask がユニットを隠してしまうため）
+// 敵スロットの moveMask を明示的に除去する（宝箱取得など、マスを消費した場合に呼ぶ）
+// 注意：召喚時には呼ばない。renderField でライブユニットが moveMask より優先描画される。
 function _clearEnemyMoveMask(idx){
   if(G.moveMasks[idx]){
     G.moveMasks[idx]=null;
@@ -1409,7 +1409,7 @@ function fireBossRingTrigger(trigger){
           maxHp:Math.round(s.hp*mult)+(pa.hp||0),baseAtk:Math.round(s.atk*mult)+(pa.atk||0),
           grade:grade,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[...(s.keywords||[])],powerBroken:false};
         const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
-        if(ei>=0){ G.enemies[ei]=ne; _clearEnemyMoveMask(ei); }
+        if(ei>=0) G.enemies[ei]=ne;
         else if(G.enemies.length<6) G.enemies.push(ne);
         log(`👹 ボス指輪「${ring.name}」：${ne.name}(${ne.atk}/${ne.hp})を召喚`,'bad');
       }
@@ -1540,7 +1540,7 @@ function applyBossSpell(sp){
       const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:eml,hp:eml,maxHp:eml,baseAtk:eml,
         grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:['アーティファクト'],powerBroken:false};
       const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
-      if(ei>=0){ G.enemies[ei]=ne; _clearEnemyMoveMask(ei); }
+      if(ei>=0) G.enemies[ei]=ne;
       else if(G.enemies.length<6) G.enemies.push(ne);
       log(`→ ゴーレム(${eml}/${eml})を召喚`,'bad');
       break;

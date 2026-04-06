@@ -76,6 +76,7 @@ function initState(){
     // ── グリマルキン効果：召喚ユニット補正（累積） ──
     _grimalkinBonus:0,
     // ── 宝箱・撤退・宿屋ボーナス ──
+    _prevWasShop:false,
     _pendingTreasure:false,
     _pendingEliteChest:false,
     _retreated:false,
