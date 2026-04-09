@@ -583,7 +583,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[emptySlot]=charmed;
         _rewCards[tgt.idx]=null;
         log(`✨ 魅了の杖：${rc.name}(ATK${rc.atk}≤${ml})を仲間にした！`,'good');
-        if(typeof squirrelSay==='function') squirrelSay('コントロール取得時');
+        if(typeof squirrelSay==='function') squirrelSay('提示カードのコントロールを得た時');
         renderRewCards();
       } else if(tgt.who==='enemy'){
         const e=G.enemies[tgt.idx];

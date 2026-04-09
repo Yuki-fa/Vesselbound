@@ -23,17 +23,17 @@ const _SHEET_GIDS = {
 };
 
 // リスNPCメッセージ（シートから上書き）
-// キー: トリガー名、値: メッセージ文字列の配列
+// キー: 条件列の値、値: メッセージ文字列の配列
 const SQUIRREL_MESSAGES = {
-  '入店時': ['いらっしゃい！','よく来たね！','何か良いものを買っていくかい？'],
-  'キャラ購入時_強化': ['いい買い物だね！','それは強いよ！'],
-  'キャラ購入時_弱化': ['うーん…大丈夫？','まあ、縁だね'],
-  '重ね時': ['合体！','パワーアップだ！'],
-  'コントロール取得時': ['仲間が増えたね！','その仲間、頼れるよ！'],
-  'ダメージ時': ['大丈夫？','くっ…！'],
-  '死亡時': ['…ごめんね','強かったのに…'],
-  'グレードアップ時': ['進化した！','どんどん強くなるね！'],
-  '退店時': ['またね！','次も来てね！'],
+  '入店時': [],
+  '現在グレードのキャラを購入時': [],
+  '現在グレード未満のキャラを購入時': [],
+  'カードを重ねた時': [],
+  '提示カードのコントロールを得た時': [],
+  '提示カードにダメージを与えた時': [],
+  '提示カードを死亡させた時': [],
+  'グレードを上げた時': [],
+  '退店時': [],
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -199,8 +199,8 @@ async function loadGameData() {
         const sqt = await sqRes.text();
         const sqRows = _parseCSV(sqt);
         sqRows.forEach(row => {
-          const trigger = (row['トリガー'] || row['trigger'] || row[Object.keys(row)[0]] || '').trim();
-          const msg = (row['メッセージ'] || row['message'] || row['テキスト'] || '').trim();
+          const trigger = (row['条件'] || row['トリガー'] || row[Object.keys(row)[0]] || '').trim();
+          const msg = (row['基礎戦力'] || row['メッセージ'] || row['テキスト'] || '').trim();
           if (!trigger || !msg) return;
           if (!SQUIRREL_MESSAGES[trigger]) SQUIRREL_MESSAGES[trigger] = [];
           SQUIRREL_MESSAGES[trigger].push(msg);

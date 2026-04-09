@@ -273,10 +273,12 @@ function dealDmgToRewChar(rewIdx, dmg){
   c.hp=Math.max(0,c.hp-dmg);
   if(c.hp<=0){
     log(`${c.name}：報酬枠から消滅`,'bad');
+    squirrelSay('提示カードを死亡させた時');
     _rewCards[rewIdx]=null;
     renderRewCards();
     return;
   }
+  squirrelSay('提示カードにダメージを与えた時');
   // 負傷トリガー（常在・誘発・負傷のみ）
   if(c.injury) _triggerRewCharInjury(c, dmg);
   renderRewCards();
@@ -588,7 +590,7 @@ function takeRewCard(i, targetSlot){
     document.getElementById('rw-gold').textContent=G.gold;
     // リスNPC：キャラ購入時（購入キャラのグレードと盤面平均を比較）
     { const _fg=G.allies.filter(a=>a&&a.hp>0); const _avgG=_fg.length?_fg.reduce((s,a)=>s+(a.grade||1),0)/_fg.length:1;
-      squirrelSay((unit.grade||1)>=_avgG?'キャラ購入時_強化':'キャラ購入時_弱化'); }
+      squirrelSay((unit.grade||1)>=_avgG?'現在グレードのキャラを購入時':'現在グレード未満のキャラを購入時'); }
     updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
@@ -886,7 +888,7 @@ function _applyStack(fieldIdx, rewIdx){
   fieldUnit._baseDesc=result.baseDesc;
   if(result.keywords.includes('反撃')) fieldUnit.counter=true;
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
-  squirrelSay('重ね時');
+  squirrelSay('カードを重ねた時');
   // 使役効果（重ね後も発動）
   if(fieldUnit.effect==='jack_summon'){
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit&&!a.shield){ a.shield=1; }});
@@ -1267,7 +1269,7 @@ function renderGradeUpBtn(){
       if(newChars.length){ _rewCards.push(newChars[0]); _padRewCharSlots(); }
     }
     log(`📈 報酬グレードアップ：G${G.rewardGrade}　報酬キャラ${G.rewardCharCount}体`,'gold');
-    squirrelSay('グレードアップ時');
+    squirrelSay('グレードを上げた時');
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
     renderGradeUpBtn();
