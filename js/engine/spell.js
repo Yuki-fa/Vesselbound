@@ -11,7 +11,7 @@ function useSpell(idx){
   const sp=G.spells[idx];
   if(!sp) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(sp.type==='wand'&&G.actionsLeft<=0) return;
+  if(G.actionsLeft<=0) return;
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
@@ -163,7 +163,7 @@ function _cancelPick(){
   document.removeEventListener('contextmenu',_cancelPickCM);
   clearSelectable();
   if(G.phase==='reward'){ renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください'); }
-  else { renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。'); }
+  else { renderHand(); setHint('行動を終えたらターン終了してください。'); }
 }
 function _cancelPickKD(e){ if(e.key==='Escape') _cancelPick(); }
 function _cancelPickCM(e){ e.preventDefault(); _cancelPick(); }
@@ -181,7 +181,7 @@ function _cancelSpread(){
   if(G.phase==='reward'){
     renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください');
   } else {
-    renderHand(); setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
+    renderHand(); setHint('行動を終えたらターン終了してください。');
   }
 }
 function _cancelSpreadKD(e){ if(e.key==='Escape') _cancelSpread(); }
@@ -372,7 +372,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
       }
     break;}
     case 'battle_start_book':{ log('開幕の書：戦闘開始時効果を発動','good'); onBattleStart(); break;}
-    case 'magic_book':{ G.magicLevel=(G.magicLevel||0)+2*cMult; log(`魔術の書：魔術レベル+${2*cMult}（現在${G.magicLevel}）`,'good'); break;}
+    case 'magic_book':{ G.magicLevel=(G.magicLevel||0)+1*cMult; log(`叡智の薬：魔術レベル+${1*cMult}（現在${G.magicLevel}）`,'good'); break;}
+    case 'magic_book_3':{ G.magicLevel=(G.magicLevel||0)+3*cMult; log(`賢者の秘薬：魔術レベル+${3*cMult}（現在${G.magicLevel}）`,'good'); break;}
     case 'sacrifice_doll':{
       if(!tgt) break;
       if(tgt.who==='rew-char'){
@@ -513,13 +514,12 @@ function applySpell(sp,idx,tgt,_noDecrement){
       else { G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); }
     break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
-    case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の旗：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の巻物：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'reiki_herb':{
       const _ru=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
       if(_ru&&_ru.hp>0){
-        const _rv=1+(G.hasGoldenDrop?1:0);
-        _ru.atk+=_rv; _ru.baseAtk=(_ru.baseAtk||0)+_rv; _ru.hp+=3; _ru.maxHp+=3;
-        log(`霊峰の秘薬：${_ru.name}に+${_rv}/+3`,'good');
+        _ru.hp+=3; _ru.maxHp+=3;
+        log(`治癒の薬：${_ru.name}に±0/+3`,'good');
         if(!_inReward) triggerDryadBuff();
       }
     break;}
@@ -540,6 +540,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
         });
       }
     break;}
+    case 'soul_income':{ G._soulIncomeBonus=(G._soulIncomeBonus||0)+1; log(`魔神の秘薬：戦闘終了時ソウル獲得+1（現在+${G._soulIncomeBonus}）`,'good'); break;}
+    case 'bonus_action_herb':{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); log(`聖王の秘薬：行動回数+1（現在${G.actionsPerTurn}行動/ターン）`,'good'); break;}
     case 'shield_ally':{ const a=G.allies[tgt.idx]; if(a){ if(!a.shield) a.shield=1; log(`🛡 ${a.name}にシールドを付与`,'good'); } break;}
     case 'copy_scroll':{
       const _cwSrc=(G.bossHand||[]).filter(s=>s&&s.type==='wand');
@@ -581,6 +583,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[emptySlot]=charmed;
         _rewCards[tgt.idx]=null;
         log(`✨ 魅了の杖：${rc.name}(ATK${rc.atk}≤${ml})を仲間にした！`,'good');
+        if(typeof squirrelSay==='function') squirrelSay('コントロール取得時');
         renderRewCards();
       } else if(tgt.who==='enemy'){
         const e=G.enemies[tgt.idx];
@@ -612,7 +615,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     }
   }
 
-  if(sp.type!=='consumable'&&!_spreadTargetPending) G.actionsLeft--;
+  if(!_spreadTargetPending) G.actionsLeft--;
   // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵を攻撃（杖は対象外）
   if(sp.type==='consumable'){
     G.allies.forEach(hh=>{
@@ -637,16 +640,13 @@ function applySpell(sp,idx,tgt,_noDecrement){
     return;
   }
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
-  const hasConsumable=G.spells.some(s=>s&&s.type==='consumable');
-  const hasWand=G.spells.some(s=>s&&s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0));
-  if(G.actionsLeft<=0&&!hasConsumable){
+  const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
+  if(G.actionsLeft<=0){
     setHint('行動終了。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
-  } else if(!hasWand&&!hasConsumable){
+  } else if(!hasUsable){
     setHint('使用できる魔法がありません。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
-  } else if(G.actionsLeft<=0){
-    setHint('行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

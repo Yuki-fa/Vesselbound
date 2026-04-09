@@ -134,6 +134,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 /* 報酬移動ボタン */
 #reward-move-btns{display:flex;gap:6px;flex-shrink:0}
+
+/* リスNPC */
+#squirrel-npc{display:none;align-items:flex-end;gap:8px;padding:4px 0;flex-shrink:0}
+#squirrel-npc.visible{display:flex}
+.sq-icon{font-size:1.5rem;line-height:1;flex-shrink:0}
+.sq-bubble{position:relative;background:var(--bg3);border:1px solid var(--gold);border-radius:8px;padding:6px 10px;font-size:.74rem;color:var(--gold2);max-width:calc(100% - 46px);line-height:1.4}
+.sq-bubble::before{content:'';position:absolute;left:-7px;bottom:8px;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid var(--gold)}
 .rew-move-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;font-size:.84rem;font-weight:600;border-radius:5px;cursor:pointer}
 
 /* BATTLE CONTROLS */
@@ -334,6 +341,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   <div class="battle-area">
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
+
+    <!-- リスNPC吹き出し（報酬フェイズのみ表示） -->
+    <div id="squirrel-npc">
+      <div class="sq-icon">🐿️</div>
+      <div class="sq-bubble" id="squirrel-bubble"></div>
+    </div>
 
     <!-- 敵オーナー手札エリア（ボス戦・報酬フェイズで表示、プレイヤー手札と対称） -->
     <div id="enemy-hand-area" class="hand-area" style="display:none">

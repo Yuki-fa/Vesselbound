@@ -180,13 +180,15 @@ function generateEnemies(floor){
       } else {
         def=_pickEnemyDef(g);
       }
-      const {atk,hp}=enemyStats(def,floor,1.0);
+      const _xm=(G._extraBattleMult||1.0);
+      const {atk,hp}=enemyStats(def,floor,_xm);
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
       if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
     }
     enemies.push(e);
   }
+  G._extraBattleMult=1.0; // 使い捨てリセット
   return enemies;
 }
 
@@ -213,12 +215,14 @@ function generateMoveMasks(){
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは各10%で商店
+  // 最初のスロットは必ず戦闘、追加スロットは各10%で商店/洞窟/池
   // 行商直後は商店を出現させない
   const _postShop=!!G._prevWasShop; G._prevWasShop=false;
   // 遠見の指輪：商店の出現率2倍
   const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
   const shopRate=_postShop?0:(hasFarsight?0.20:0.10);
+  // 洞窟（smithy）・池（rest）：追加スロットで各10%
+  const specialRate=0.10;
 
   // 観察秘術：祭壇を確定で1つ出現させる
   let forceNonBattle=G.arcanaForceNode?'smithy':null;
@@ -233,6 +237,8 @@ function generateMoveMasks(){
     if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
     if(r<shopRate&&!usedNon.has('shop')){ masks[idx]='shop'; usedNon.add('shop'); }
+    else if(r<shopRate+specialRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<shopRate+specialRate*2&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

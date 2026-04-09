@@ -16,7 +16,7 @@ const ENEMY_POOL=[
   {name:'ピクシー',          grade:1, icon:'🧚', keywords:[],             race:'精霊'},
   // ── G2（6-10階）──
   {name:'ファイアブレス',    grade:2, icon:'🔥', keywords:[],             race:'竜'},
-  {name:'ポイズンミスト',    grade:1, icon:'☁️', keywords:['侵食1'],      race:'精霊'},
+  {name:'ポイズンミスト',    grade:1, icon:'☁️', keywords:['毒牙1'],      race:'精霊'},
   {name:'サテュロス',        grade:2, icon:'🐐', keywords:[],             race:'亜人'},
   {name:'ダークエルフ',      grade:2, icon:'🧝', keywords:['狩人'],       race:'亜人'},
   {name:'カースドアーマー',  grade:2, icon:'🪖', keywords:['呪詛2'],      race:'不死'},
@@ -26,7 +26,7 @@ const ENEMY_POOL=[
   // ── G3（11-15階）──
   {name:'ケルピー',          grade:3, icon:'🐴', keywords:[],             race:'獣'},
   {name:'スプリガン',        grade:3, icon:'🧌', keywords:['シールド'],   race:'精霊'},
-  {name:'シーサーペント',    grade:3, icon:'🐍', keywords:['侵食3'],      race:'竜'},
+  {name:'シーサーペント',    grade:3, icon:'🐍', keywords:['毒牙3'],      race:'竜'},
   {name:'ブラッドロード',    grade:3, icon:'🩸', keywords:['邪眼5'],      race:'悪魔'},
   {name:'グラディエーター',  grade:3, icon:'⚔️', keywords:['反撃'],       race:'亜人'},
   {name:'ベルセルク',        grade:3, icon:'💢', keywords:[],             race:'亜人'},

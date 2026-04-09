@@ -31,6 +31,31 @@ function goToReward(){
     log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
   }
 
+  // 洞窟ボーナス：rarity4消耗品1つを報酬欄に追加（リロール消失）
+  if(G._pendingCaveBonus){
+    G._pendingCaveBonus=false;
+    const _cavePool=SPELL_POOL.filter(s=>s.rarity===4&&s.type==='consumable');
+    if(_cavePool.length){
+      const _caveItem=clone(randFrom(_cavePool));
+      _caveItem._buyPrice=0; _caveItem._caveBonus=true; // リロール消失フラグ
+      _rewCards.push(_caveItem);
+      log('⛩️ 洞窟の秘宝：レアアイテムが出現！','gold');
+    }
+  }
+
+  // 池ボーナス：rarity≤2の指輪2つを報酬欄に追加（リロール消失）
+  if(G._pendingPondBonus){
+    G._pendingPondBonus=false;
+    const _pondPool=RING_POOL.filter(r=>(r.grade||1)<=2);
+    for(let _pi=0;_pi<2;_pi++){
+      if(!_pondPool.length) break;
+      const _pondRing=clone(randFrom(_pondPool));
+      _pondRing._buyPrice=0; _pondRing._pondBonus=true; // リロール消失フラグ
+      _rewCards.push(_pondRing);
+    }
+    log('💧 池の恵み：指輪2つが出現！','gold');
+  }
+
   // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
   if(G._pendingTreasure){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
@@ -58,6 +83,8 @@ function goToReward(){
   document.getElementById('btn-pass').style.display='none';
   const logWrap=document.getElementById('log-wrap');
   if(logWrap) logWrap.style.display='none';
+
+  squirrelSay('入店時');
 
   const bossNotice=document.getElementById('boss-reward-notice');
   if(G._eliteKilled){
@@ -183,6 +210,8 @@ function renderMoveSlotsInEnemy(){
 }
 
 function chooseMoveInline(nt){
+  squirrelSay('退店時');
+  squirrelHide();
   G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
@@ -381,12 +410,16 @@ function renderRewCards(){
           _rewDragSrc=i;
           e.dataTransfer.effectAllowed='move';
           e.dataTransfer.setData('text/plain',String(i));
+          e.dataTransfer.setDragImage(_transparentDragImg,0,0);
           _updateFieldDropHighlights(card.name,cost);
+          _createDragGhost(slot);
           setTimeout(()=>slot.classList.add('dragging'),0);
         });
+        slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
         slot.addEventListener('dragend',()=>{
           if(_rewDragSrc>=0){ _rewDragSrc=-1; _clearFieldDropHighlights(); }
           slot.classList.remove('dragging');
+          _removeDragGhost();
           _removeStackPreviewOverlay();
         });
       }
@@ -514,7 +547,7 @@ function takeRewCard(i, targetSlot){
       log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
     }
     if(unit.effect==='chimera_summon'){
-      const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
+      const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
       const _avail=[..._pool];
       const _chosen=[];
       for(let _ci=0;_ci<3&&_avail.length>0;_ci++){
@@ -534,14 +567,14 @@ function takeRewCard(i, targetSlot){
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(2/2)を盤面に召喚`,'good'); }
     }
-    // ジャッカロープ：「霊峰の秘薬」を2枚手札に追加
+    // ジャッカロープ：「治癒の薬」を2枚手札に追加
     if(unit.effect==='jackalope_summon'){
       const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
       if(_herb){ let _ha=0;
         for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
           if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
         }
-        if(_ha>0) log(`${unit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+        if(_ha>0) log(`${unit.name}：治癒の薬×${_ha}を入手`,'good');
       }
     }
     // スリン：全仲間に「成長1」を付与
@@ -553,6 +586,9 @@ function takeRewCard(i, targetSlot){
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
+    // リスNPC：キャラ購入時（購入キャラのグレードと盤面平均を比較）
+    { const _fg=G.allies.filter(a=>a&&a.hp>0); const _avgG=_fg.length?_fg.reduce((s,a)=>s+(a.grade||1),0)/_fg.length:1;
+      squirrelSay((unit.grade||1)>=_avgG?'キャラ購入時_強化':'キャラ購入時_弱化'); }
     updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
@@ -659,17 +695,20 @@ function _renderFieldRow(el){
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{
         _fieldDragSrc=i; _fieldDragSrcEl=div; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
+        _createDragGhost(div);
       });
+      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
       div.addEventListener('dragend',()=>{
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
-        _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
+        _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
       });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
           if(!rc?._isChar) return;
-          if(unit.name===rc.name&&(unit.grade||1)<5&&G.gold>=(rc._buyPrice??2)){
+          if(unit.name===rc.name&&(unit.grade||1)<6&&G.gold>=(rc._buyPrice??2)){
             e.preventDefault();
             _showStackPreviewOverlay(null,unit,rc,e.clientX,e.clientY);
           }
@@ -678,7 +717,7 @@ function _renderFieldRow(el){
           _lastDragX=e.clientX; _lastDragY=e.clientY;
           _moveStackPreview(e.clientX,e.clientY);
           const srcUnit=G.allies[_fieldDragSrc];
-          if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<5){
+          if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<6){
             // 同名・マージ候補：0.5秒タイマー
             if(_fieldMergeTarget!==i){
               _clearFieldMergeTimer();
@@ -709,7 +748,7 @@ function _renderFieldRow(el){
         if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
-          if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<5) _applyStack(i,src);
+          if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<6) _applyStack(i,src);
         } else if(_fieldDragSrc>=0){
           _clearFieldDropHighlights();
           if(wasMergeReady){ _applyFieldMerge(_fieldDragSrc,i); }
@@ -834,7 +873,7 @@ function _applyStack(fieldIdx, rewIdx){
   if(!rewCard||!fieldUnit) return;
   const cost=rewCard._buyPrice??2;
   if(G.gold<cost){ log('ソウルが不足しています','bad'); return; }
-  if((fieldUnit.grade||1)>=5){ log('グレード5には重ねられません','bad'); return; }
+  if((fieldUnit.grade||1)>=6){ log('グレード6には重ねられません','bad'); return; }
   G.gold-=cost;
   const result=_computeStackResult(fieldUnit,rewCard);
   fieldUnit.atk=result.atk; fieldUnit.baseAtk=result.atk;
@@ -847,6 +886,7 @@ function _applyStack(fieldIdx, rewIdx){
   fieldUnit._baseDesc=result.baseDesc;
   if(result.keywords.includes('反撃')) fieldUnit.counter=true;
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
+  squirrelSay('重ね時');
   // 使役効果（重ね後も発動）
   if(fieldUnit.effect==='jack_summon'){
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit&&!a.shield){ a.shield=1; }});
@@ -859,7 +899,7 @@ function _applyStack(fieldIdx, rewIdx){
     log(`${fieldUnit.name}：魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
   }
   if(fieldUnit.effect==='chimera_summon'){
-    const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
+    const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
     const _avail=[..._pool.filter(k=>!(fieldUnit.keywords||[]).includes(k))];
     const _chosen=[];
     for(let _ci=0;_ci<3&&_avail.length>0;_ci++){
@@ -884,7 +924,7 @@ function _applyStack(fieldIdx, rewIdx){
       for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
         if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
       }
-      if(_ha>0) log(`${fieldUnit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+      if(_ha>0) log(`${fieldUnit.name}：治癒の薬×${_ha}を入手`,'good');
     }
   }
   if(fieldUnit.effect==='slin_summon'){
@@ -908,7 +948,7 @@ function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
     if(!unit){
       if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }
     } else if(unit.name===cardName){
-      if((unit.grade||1)>=5){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
+      if((unit.grade||1)>=6){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
       else if(canAfford){ slotEl.style.boxShadow='0 0 12px 2px var(--gold2)'; slotEl.style.outline='2px dashed var(--gold2)'; }
     }
   });
@@ -919,8 +959,34 @@ function _clearFieldDropHighlights(){
   Array.from(fAlly.children).forEach(s=>{ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; });
 }
 
-// フィールドスロットに重ねプレビューオーバーレイを表示
-// ── 合成プレビュー（カーソル追従フローティング）──────
+// ── カスタムドラッグゴースト＋合成プレビュー ─────────
+// ブラウザネイティブのドラッグゴーストはCSSのz-indexより上のコンポジタレイヤーに描画される。
+// setDragImageで透明画像に差し替え、自前のゴーストdivを使うことでプレビューを上に出す。
+
+const _transparentDragImg=(()=>{ const c=document.createElement('canvas'); c.width=c.height=1; return c; })();
+
+let _dragGhostDiv=null;
+function _createDragGhost(srcEl){
+  _removeDragGhost();
+  const d=srcEl.cloneNode(true);
+  d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
+  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:.82;
+    width:${srcEl.offsetWidth}px;height:${srcEl.offsetHeight}px;
+    transform:scale(.95);transition:none;left:-9999px;top:-9999px;
+    border-radius:6px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
+  document.body.appendChild(d);
+  _dragGhostDiv=d;
+}
+function _moveDragGhost(clientX,clientY){
+  if(!_dragGhostDiv) return;
+  const W=_dragGhostDiv.offsetWidth||80, H=_dragGhostDiv.offsetHeight||80;
+  _dragGhostDiv.style.left=(clientX-W/2)+'px';
+  _dragGhostDiv.style.top=(clientY-H/2)+'px';
+}
+function _removeDragGhost(){
+  if(_dragGhostDiv){ _dragGhostDiv.remove(); _dragGhostDiv=null; }
+}
+
 let _stackPreviewEl=null;
 
 function _buildStackPreviewEl(fieldUnit, srcUnit){
@@ -931,15 +997,44 @@ function _buildStackPreviewEl(fieldUnit, srcUnit){
   el.style=`position:fixed;width:90px;z-index:9999;pointer-events:none;display:flex;flex-direction:column;
     background:var(--card,#1e1e2e);border:2px solid var(--gold2);border-radius:6px;overflow:hidden;
     box-shadow:0 4px 24px rgba(0,0,0,.7)`;
-  const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f'];
+  const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f','#fff'];  // G6=白金
   const gc=gradeColors[result.grade]||'#fff';
-  const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
+  const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
   const _mkKw=k=>{const kb=k.replace(/\d+$/,'');const c=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`;};
   const kwHtml=result.keywords.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${result.keywords.map(_mkKw).join('')}</div>`:'';
-  const _fakeUnit={...fieldUnit,desc:result.desc,keywords:result.keywords,_stackCount:result.stackCount,_baseDesc:result.baseDesc};
-  const _rawDesc=result.desc?computeDesc(_fakeUnit):'';
-  const _stripped=_stripKeywordsFromDesc(_rawDesc,_fakeUnit);
-  const descHtml=_stripped?`<div class="slot-desc" style="font-size:.42rem;padding:0 3px 3px">${_stripped}</div>`:'';
+
+  // ── DESC: 現在の実効値（補正込み）＋ src の基礎値 ──
+  // computeDesc(fieldUnit) は fieldUnit が G.allies にある実オブジェクトなので
+  // グリマルキン・黄金の雫ボーナスが正しく適用される
+  const _currDescHtml = fieldUnit.desc ? computeDesc(fieldUnit) : '';
+  const _currDescPlain = _currDescHtml.replace(/<[^>]+>/g,'');
+  const _currNums = [..._currDescPlain.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+  const _srcBaseDesc = srcUnit._baseDesc!=null ? srcUnit._baseDesc : (srcUnit.desc||'');
+  const _srcNums = [..._srcBaseDesc.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+  let _ni=0;
+  const _previewDescHtml = _currDescPlain.replace(/\d+/g,()=>{
+    const curr=_currNums[_ni]??0;
+    const add=_srcNums[_ni]??0;
+    _ni++;
+    const sum=curr+add;
+    return add>0
+      ? `<span style="color:var(--gold2);font-weight:700">${sum}</span>`
+      : String(curr);
+  });
+  const _fakeForStrip={keywords:result.keywords,counter:result.keywords.includes('反撃')};
+  const _stripped = _stripKeywordsFromDesc(_previewDescHtml, _fakeForStrip);
+  const descHtml = _stripped ? `<div class="slot-desc" style="font-size:.42rem;padding:0 3px 3px">${_stripped}</div>` : '';
+
+  // ── ATK/HP: 変化があれば金色で表示 ──
+  const _atkChanged = result.atk !== fieldUnit.atk;
+  const _hpChanged  = result.hp  !== fieldUnit.hp;
+  const atkHtml = _atkChanged
+    ? `<span class="a" style="color:var(--gold2);font-weight:700">${result.atk}</span>`
+    : `<span class="a">${result.atk}</span>`;
+  const hpHtml = _hpChanged
+    ? `<span class="h" style="color:var(--gold2);font-weight:700">${result.hp}</span>`
+    : `<span class="h">${result.hp}</span>`;
+
   el.innerHTML=`
     <div style="text-align:center;border-bottom:1px solid var(--gold2);padding:2px 4px;font-size:.42rem;color:var(--gold2);font-weight:700">合成プレビュー</div>
     <div class="slot-grade" style="color:${gc}">${gradeStr(result.grade)}</div>
@@ -947,7 +1042,7 @@ function _buildStackPreviewEl(fieldUnit, srcUnit){
       <div style="font-size:1.0rem">${fieldUnit.icon||'❓'}</div>
       <div class="slot-name">${fieldUnit.name}</div>
       <div class="slot-race">${fieldUnit.race||'-'}</div>
-      <div class="slot-stats"><span class="a">${result.atk}</span><span class="s">/</span><span class="h">${result.hp}</span></div>
+      <div class="slot-stats">${atkHtml}<span class="s">/</span>${hpHtml}</div>
     </div>
     ${kwHtml}${descHtml}`;
   if(!el.parentNode) document.body.appendChild(el);
@@ -1077,8 +1172,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
         if(_hasCharge){ div.onclick=()=>useSpell(i); div.style.cursor='pointer'; }
       }
-      div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
-      div.addEventListener('dragend',()=>div.classList.remove('dragging'));
+      div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
+      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
       div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard(arrName,i); });
@@ -1149,7 +1245,7 @@ function renderGradeUpBtn(){
     document.getElementById('reward-info-bar').appendChild(el);
   }
   const count=G.rewardGradeUpCount||0;
-  const maxGrade=4; // 最大G4まで
+  const maxGrade=5; // 最大G5まで（報酬グレードアップの上限）
   if(count>=GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
     el.style.display='none'; return;
   }
@@ -1171,6 +1267,7 @@ function renderGradeUpBtn(){
       if(newChars.length){ _rewCards.push(newChars[0]); _padRewCharSlots(); }
     }
     log(`📈 報酬グレードアップ：G${G.rewardGrade}　報酬キャラ${G.rewardCharCount}体`,'gold');
+    squirrelSay('グレードアップ時');
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
     renderGradeUpBtn();

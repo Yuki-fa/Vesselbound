@@ -361,7 +361,7 @@ function startPlayerPhase(){
   if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
-  setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。アイテムは行動力を消費しません。');
+  setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。');
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -549,7 +549,7 @@ function _applyAllyAttackEffects(ally){
   }
   if(ally.effect==='arachas_attack'){
     G.enemies.forEach(e=>{ if(e&&e.hp>0) e.poison=(e.poison||0)+1; });
-    log(`${ally.name}：攻撃→全敵に侵食1`,'good');
+    log(`${ally.name}：攻撃→全敵に毒牙1`,'good');
   }
 }
 
@@ -573,7 +573,7 @@ function _applyEnemyAttackEffects(enemy){
   }
   if(enemy.effect==='arachas_attack'){
     G.allies.forEach(a=>{ if(a&&a.hp>0) a.poison=(a.poison||0)+1; });
-    log(`${enemy.name}：攻撃→全仲間に侵食1`,'bad');
+    log(`${enemy.name}：攻撃→全仲間に毒牙1`,'bad');
   }
 }
 
@@ -1055,16 +1055,6 @@ function onBattleStart(){
     const kw=(a.keywords||[]).find(k=>/^結束\d+$/.test(k));
     if(kw){ const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x; b.maxHp+=x; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x}`,'good'); triggerDryadBuff(); }
   });
-  // 成長X：戦闘開始時、+X/+Xを得る（生存時のみ）
-  G.allies.forEach(a=>{
-    if(!a||a.hp<=0) return;
-    const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
-    if(!growKw) return;
-    const x=parseInt(growKw.slice(2))+(G.hasGoldenDrop?1:0);
-    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x; a.maxHp+=x;
-    log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
-    triggerDryadBuff();
-  });
   // harpy_magic：魔術レベルが確定した後にATKを同期
   syncHarpyAtk();
 }
@@ -1146,6 +1136,17 @@ function onBattleEnd(){
   // 絆の指輪：一時付与した「結束X」キーワードを削除
   G.allies.forEach(a=>{ if(a&&a._bondKw){ a.keywords=(a.keywords||[]).filter(k=>k!==a._bondKw); delete a._bondKw; }});
 
+  // 成長X：戦闘終了時、+X/+Xを得る（生存時のみ）
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0) return;
+    const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
+    if(!growKw) return;
+    const x=parseInt(growKw.slice(2))+(G.hasGoldenDrop?1:0);
+    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x; a.maxHp+=x;
+    log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
+    triggerDryadBuff();
+  });
+
   // 死亡ユニット（再生・復活で回復しなかった）をフィールドから除去
   for(let i=0;i<G.allies.length;i++){
     const a=G.allies[i];
@@ -1167,9 +1168,10 @@ function applyVictoryBonuses(){
 
   // ステージ突破ボーナス
   const fl=G.floor;
-  const stageBonus=fl>=15?4:fl>=10?3:fl>=5?2:1;
+  const _sib=G._soulIncomeBonus||0;
+  const stageBonus=(fl>=15?4:fl>=10?3:fl>=5?2:1)+_sib;
   G.gold+=stageBonus; G.earnedGold+=stageBonus;
-  log(`ステージ突破ボーナス：${stageBonus}ソウル`,'gold');
+  log(`ステージ突破ボーナス：${stageBonus}ソウル`+(_sib>0?`（+${_sib}魔神）`:''),'gold');
 
   onBattleEnd();
 }
@@ -1198,11 +1200,11 @@ function applyKeywordOnHit(attacker, target){
   const _gdKw=_isPlayerAlly&&G.hasGoldenDrop?1:0;
   if(kws.includes('即死')){ target.hp=0; log(`💀 即死：${attacker.name}の攻撃で${target.name}が即死！`,'bad'); }
   // 浸食X：命中時に毒Xを付与（加算）
-  const erosionKw=kws.find(k=>/^侵食\d+$/.test(k));
+  const erosionKw=kws.find(k=>/^毒牙\d+$/.test(k));
   if(erosionKw&&target.hp>0){
     const pv=parseInt(erosionKw.slice(2))+_gdKw;
     target.poison=(target.poison||0)+pv;
-    log(`☠ 侵食${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
+    log(`☠ 毒牙${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
   }
   // 邪眼X：命中時にターゲットのATKをX減少
   const evilEyeKw=kws.find(k=>/^邪眼\d+$/.test(k));

@@ -27,7 +27,20 @@ function chooseMove(nt){
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     showScreen('battle'); startBattle();
   }
-  else if(nt==='smithy') doSmithy();
+  else if(nt==='smithy'){
+    // 洞窟の中へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity4アイテム1つ追加
+    if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
+    G._extraBattleMult=1.2;
+    G._pendingCaveBonus=true;
+    showScreen('battle'); startBattle();
+  }
+  else if(nt==='rest'){
+    // 池の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加
+    if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
+    G._extraBattleMult=1.2;
+    G._pendingPondBonus=true;
+    showScreen('battle'); startBattle();
+  }
   else if(nt==='shop') doShop();
   // chest は goToReward() 内で処理されるため、ここには到達しない
 }

@@ -32,6 +32,23 @@ function clearLog(){ document.getElementById('log-box').innerHTML=''; }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 // ═══════════════════════════════════════
+// リスNPC
+// ═══════════════════════════════════════
+function squirrelSay(trigger){
+  const msgs=SQUIRREL_MESSAGES[trigger];
+  if(!msgs||!msgs.length) return;
+  const el=document.getElementById('squirrel-npc');
+  const bubble=document.getElementById('squirrel-bubble');
+  if(!el||!bubble) return;
+  bubble.textContent=randFrom(msgs);
+  el.classList.add('visible');
+}
+function squirrelHide(){
+  const el=document.getElementById('squirrel-npc');
+  if(el) el.classList.remove('visible');
+}
+
+// ═══════════════════════════════════════
 // GAME FLOW
 // ═══════════════════════════════════════
 function startGame(){ initState(); showScreen('battle'); startBattle(); }

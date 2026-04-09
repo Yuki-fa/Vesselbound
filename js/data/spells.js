@@ -72,8 +72,8 @@ const SPELL_POOL=[
   {id:'c_battle_start', name:'栄光の巻物', type:'consumable', cost:2,
    desc:'全ての戦闘開始時の効果を発動する。', effect:'battle_start_book'},
 
-  {id:'c_magic_book',   name:'叡智の巻物', type:'consumable', cost:2,
-   desc:'魔術レベルが+2される。', effect:'magic_book'},
+  {id:'c_magic_book',   name:'叡智の薬',   type:'consumable', cost:2,
+   desc:'魔術レベルが+1される。', effect:'magic_book'},
 
   {id:'c_sacr_doll',    name:'破壊の巻物', type:'consumable', cost:2,
    desc:'対象のボス、エリートでないキャラクターを破壊する。', effect:'sacrifice_doll', needsAny:true},
@@ -87,13 +87,23 @@ const SPELL_POOL=[
   {id:'c_kill',         name:'禁呪の薬',   type:'consumable', cost:2,
    desc:'対象のキャラクターに即死を与える。', effect:'instakill', needsAny:true},
 
-  {id:'c_rally',        name:'鼓舞の旗',   type:'consumable', cost:2,
+  {id:'c_rally',        name:'鼓舞の巻物', type:'consumable', cost:2,
    desc:'全ての仲間に±0/+5を与える。', effect:'big_rally'},
 
   // ── 特殊消耗品（通常報酬には出ない） ──
   {id:'c_soul_dregs',  name:'魂の残滓', type:'consumable', starterOnly:true,
    desc:'契約を1つ選ぶ。そのグレードを次の戦闘終了まで+1する。', effect:'soul_dregs'},
 
-  {id:'c_reiki_herb',  name:'霊峰の秘薬', type:'consumable', rarity:-1,
-   desc:'対象が+1/+3を得る。', effect:'reiki_herb', needsAny:true},
+  {id:'c_reiki_herb',  name:'治癒の薬',   type:'consumable', rarity:-1,
+   desc:'対象のキャラクターに±0/+3を与える。', effect:'reiki_herb', needsAny:true},
+
+  // ── レアリティ4消耗品（洞窟ボーナス・特殊入手のみ） ──
+  {id:'c_demon_herb',  name:'魔神の秘薬', type:'consumable', rarity:4,
+   desc:'戦闘終了時に得るソウルが永続で+1される。', effect:'soul_income'},
+
+  {id:'c_king_herb',   name:'聖王の秘薬', type:'consumable', rarity:4,
+   desc:'行動回数が永続で+1される。', effect:'bonus_action_herb'},
+
+  {id:'c_sage_herb',   name:'賢者の秘薬', type:'consumable', rarity:4,
+   desc:'魔術レベルが+3される。', effect:'magic_book_3'},
 ];

@@ -73,14 +73,14 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
     if(addAlly(makeUnitFromDef(_pelDef),null)) log(`${unit.name}：ペリカン(2/2)を召喚`,'good');
   }
-  // ジャッカロープ：召喚時、「霊峰の秘薬」を2枚手札に追加
+  // ジャッカロープ：召喚時、「治癒の薬」を2枚手札に追加
   if(unit.effect==='jackalope_summon'){
     const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
     if(_herb){ let _ha=0;
       for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
         if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
       }
-      if(_ha>0) log(`${unit.name}：霊峰の秘薬×${_ha}を入手`,'good');
+      if(_ha>0) log(`${unit.name}：治癒の薬×${_ha}を入手`,'good');
     }
   }
   // スリン：召喚時、全仲間に「成長1」キーワードを付与
@@ -90,7 +90,7 @@ function applyUnitSummonEffect(unit, fromRingId){
   }
   // キメラ：召喚時、ランダムなキーワード3つを得る
   if(unit.effect==='chimera_summon'){
-    const _pool=['即死','侵食5','狩人','標的','成長5','加護','反撃','二段攻撃'];
+    const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
     const _avail=[..._pool];
     const _chosen=[];
     for(let _i=0;_i<3&&_avail.length>0;_i++){

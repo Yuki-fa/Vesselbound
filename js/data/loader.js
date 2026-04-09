@@ -19,6 +19,21 @@ const _SHEET_GIDS = {
   '敵キーワード':  769775182,
   'effect_id':    992952088,
   'グレードアップ費用': 1903359867,
+  'リスNPC':     687265448,
+};
+
+// リスNPCメッセージ（シートから上書き）
+// キー: トリガー名、値: メッセージ文字列の配列
+const SQUIRREL_MESSAGES = {
+  '入店時': ['いらっしゃい！','よく来たね！','何か良いものを買っていくかい？'],
+  'キャラ購入時_強化': ['いい買い物だね！','それは強いよ！'],
+  'キャラ購入時_弱化': ['うーん…大丈夫？','まあ、縁だね'],
+  '重ね時': ['合体！','パワーアップだ！'],
+  'コントロール取得時': ['仲間が増えたね！','その仲間、頼れるよ！'],
+  'ダメージ時': ['大丈夫？','くっ…！'],
+  '死亡時': ['…ごめんね','強かったのに…'],
+  'グレードアップ時': ['進化した！','どんどん強くなるね！'],
+  '退店時': ['またね！','次も来てね！'],
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -171,11 +186,27 @@ async function loadGameData() {
           const desc = (row['効果']||row['説明']||row['説明文']||'').trim();
           if (!name || !desc) return;
           KW_DESC_MAP[name] = desc;
-          // 「侵食X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（侵食1等）でも引けるよう登録
+          // 「毒牙X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（毒牙1等）でも引けるよう登録
           if (/X$/.test(name)) KW_DESC_MAP[name.slice(0,-1)] = desc;
         });
       }
     } catch (_) { /* キーワード説明文なしで続行 */ }
+
+    // リスNPCメッセージ シート（任意）
+    try {
+      const sqRes = await fetch(_sheetUrl(_SHEET_GIDS['リスNPC']));
+      if (sqRes.ok) {
+        const sqt = await sqRes.text();
+        const sqRows = _parseCSV(sqt);
+        sqRows.forEach(row => {
+          const trigger = (row['トリガー'] || row['trigger'] || row[Object.keys(row)[0]] || '').trim();
+          const msg = (row['メッセージ'] || row['message'] || row['テキスト'] || '').trim();
+          if (!trigger || !msg) return;
+          if (!SQUIRREL_MESSAGES[trigger]) SQUIRREL_MESSAGES[trigger] = [];
+          SQUIRREL_MESSAGES[trigger].push(msg);
+        });
+      }
+    } catch (_) { /* リスNPCデータなしで続行 */ }
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
