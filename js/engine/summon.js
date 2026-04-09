@@ -39,8 +39,6 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
   }
   // 黄金の雫：+1を全スタッツに加算
   if(typeof G!=='undefined'&&G.hasGoldenDrop){ bAtk+=1; bHp+=1; }
-  // グリマルキン：還魂時ボーナス（+1/+1 累積）
-  if(G._grimalkinBonus){ bAtk+=G._grimalkinBonus; bHp+=G._grimalkinBonus; }
   return {
     id:uid(),
     name:overrideName||s.name,
@@ -61,27 +59,29 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 // ユニット召喚時の使役効果を適用（addAlly経由・直接追加どちらからも呼べる）
 function applyUnitSummonEffect(unit, fromRingId){
   if(!unit) return;
-  // ケンタウロス：召喚時、魔術レベル+2（黄金の雫：+3）
+  // ケンタウロス：召喚時、魔術レベル+1（黄金の雫：+2）
   if(unit.effect==='centaur_summon'){
-    const _cv=2+(G.hasGoldenDrop?1:0);
-    G.magicLevel=(G.magicLevel||1)+_cv;
-    if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+    const _cv=1+(G.hasGoldenDrop?1:0);
+    if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
+    else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
     log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
   }
-  // ミテーラ：召喚時、最も左の空き地に2/2の「ペリカン」を召喚
+  // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
-    if(addAlly(makeUnitFromDef(_pelDef),null)) log(`${unit.name}：ペリカン(2/2)を召喚`,'good');
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
+    if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(1/3)を召喚`,'good');
   }
-  // ジャッカロープ：召喚時、「治癒の薬」を2枚手札に追加
+  // ジャッカロープ：召喚時、「治癒の薬」を1枚手札に追加
   if(unit.effect==='jackalope_summon'){
-    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-    if(_herb){ let _ha=0;
-      for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
-        if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
-      }
-      if(_ha>0) log(`${unit.name}：治癒の薬×${_ha}を入手`,'good');
+    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
+    if(_herb){ const _hi=G.spells.findIndex(s=>!s);
+      if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${unit.name}：治癒の薬を入手`,'good'); }
     }
+  }
+  // コボルド：召喚時、最も左の杖に充填数+1
+  if(unit.effect==='kobold_summon'){
+    const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
+    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${unit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
   }
   // スリン：召喚時、全仲間に「成長1」キーワードを付与
   if(unit.effect==='slin_summon'){
@@ -112,7 +112,8 @@ function applyUnitSummonEffect(unit, fromRingId){
 }
 
 // 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
-function addAlly(unit, fromRingId){
+// fromCharEffect=true の場合はキャラクター効果による召喚（グリマルキン誘発対象）
+function addAlly(unit, fromRingId, fromCharEffect=false){
   // 報酬フェイズ中は報酬枠へ誘導
   if(G.phase==='reward'&&typeof addRewChar==='function'){ addRewChar(unit); return true; }
   if(G.allies.filter(a=>a&&a.hp>0).length>=6) return false;
@@ -120,6 +121,17 @@ function addAlly(unit, fromRingId){
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
+  // グリマルキン：キャラクター効果で仲間が召喚された時、自身+1/+1
+  if(fromCharEffect){
+    const _gd=G.hasGoldenDrop?1:0;
+    G.allies.forEach(g=>{
+      if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==unit){
+        const _gv=1+_gd;
+        g.atk+=_gv; g.baseAtk=(g.baseAtk||0)+_gv; g.hp+=_gv; g.maxHp+=_gv;
+        log(`${g.name}：仲間が召喚→+${_gv}/+${_gv}`,'good');
+      }
+    });
+  }
   applyUnitSummonEffect(unit, fromRingId);
   return true;
 }
@@ -225,8 +237,8 @@ function summonAllies(){
     let bAtk=baseAtk+(G.buffAdjBonuses[ring.id]?.atk||0)+enc.filter(e=>e==='凶暴').length*5*gm;
     let bHp =baseHp +(G.buffAdjBonuses[ring.id]?.hp||0)+enc.filter(e=>e==='強壮').length*5*gm;
     if(enc.includes('堅牢')) bHp=Math.round(bHp*1.3);
-    // 黄金の雫・グリマルキンボーナス
-    bAtk+=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0); bHp+=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
+    // 黄金の雫ボーナス
+    bAtk+=(G.hasGoldenDrop?1:0); bHp+=(G.hasGoldenDrop?1:0);
     let count=(ring.count||1)+(adjBonus[hi]||0)+enc.filter(e=>e==='増殖').length*(ring.grade||1);
     for(let i=0;i<count;i++){
       if(G.allies.filter(a=>a&&a.hp>0).length>=6) break;
@@ -327,7 +339,7 @@ function syncWallAtk(){
 // ハーピー・ピグミーのATKを現在の魔術レベルに同期する
 function syncHarpyAtk(){
   const ml=G.magicLevel||1;
-  G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.effect==='harpy_magic'||a.effect==='pigmy_magic')){ a.atk=ml; a.baseAtk=ml; } });
+  G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.effect==='harpy_magiclevel'||a.effect==='harpy_magic'||a.effect==='pigmy_magic')){ a.atk=ml; a.baseAtk=ml; } });
 }
 
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）

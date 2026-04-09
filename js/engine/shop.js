@@ -37,6 +37,7 @@ function doShop(){
   _rewCards.forEach(r=>{ if(r&&r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
 
   G._isShop=true;
+  G._familiarUsed=false; // ファミリア：行商フェイズ開始時にリセット
   G._prevWasShop=true; // 行商直後の戦闘では商店マスを抑制
   G._retreated=false;  // 撤退フラグをクリア（撤退先が行商の場合、次の行き先判定が繰り返し行商を選ぶのを防ぐ）
   G._retreatTargetNodeType=null;

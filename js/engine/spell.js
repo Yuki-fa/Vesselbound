@@ -611,7 +611,14 @@ function applySpell(sp,idx,tgt,_noDecrement){
     if(!_noDecrement&&manaCycle&&!G._manaCycleUsed){ G._manaCycleUsed=true; skipDecrement=true; log(`魔導の指輪：最初の杖のチャージ消費をスキップ`,'sys'); }
     if(!_noDecrement&&!skipDecrement){
       sp.usesLeft--;
-      if(sp.usesLeft<=0){ log(`${sp.name}のチャージが切れた`,'sys'); G.spells[idx]=null; }
+      if(sp.usesLeft<=0){
+        log(`${sp.name}のチャージが切れた`,'sys');
+        // アラクネ：杖が壊れた時、魔術レベル+1
+        if(G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='arachne_wand')){
+          if(typeof onMagicLevelUp==='function') onMagicLevelUp(1+(G.hasGoldenDrop?1:0));
+        }
+        G.spells[idx]=null;
+      }
     }
   }
 

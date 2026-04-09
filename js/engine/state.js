@@ -73,8 +73,14 @@ function initState(){
     magicLevel:1,
     // ── マミー効果：不死ATK補正（累積） ──
     _undeadHpBonus:0,
-    // ── グリマルキン効果：召喚ユニット補正（累積） ──
-    _grimalkinBonus:0,
+    // ── ペリュトン効果：キャラ効果召喚ユニットATK補正（累積） ──
+    _grimalkinBonus:0,  // 旧: グリマルキン / 現: ペリュトン 還魂トリガー
+    // ── スペクター効果：今後の不死キャラATK+HP補正（累積） ──
+    _specterBonus:0,
+    // ── ミノタウロス効果：グレードアップコスト削減（累積） ──
+    _gradeUpCostBonus:0,
+    // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──
+    _familiarUsed:false,
     // ── 宝箱・撤退・宿屋ボーナス ──
     _prevWasShop:false,
     _pendingTreasure:false,

@@ -50,7 +50,7 @@ function goToReward(){
     for(let _pi=0;_pi<2;_pi++){
       if(!_pondPool.length) break;
       const _pondRing=clone(randFrom(_pondPool));
-      _pondRing._buyPrice=0; _pondRing._pondBonus=true; // リロール消失フラグ
+      _pondRing._buyPrice=0; _pondRing._isTreasure=true; _pondRing._pondBonus=true;
       _rewCards.push(_pondRing);
     }
     log('💧 池の恵み：指輪2つが出現！','gold');
@@ -380,7 +380,7 @@ function renderRewCards(){
       let _previewStr='';
       if(_hasSummonDesc){
         const _modDesc=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_summonBonus}/${parseInt(h)+_summonBonus}、`);
-        _previewStr=`グリマルキン：${_modDesc}`;
+        _previewStr=`ペリュトン：${_modDesc}`;
       } else if(atkBonus>0){
         _previewStr=`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`;
       };
@@ -483,7 +483,7 @@ function _mkRewDiv(card, onBuy){
     const _hasSumDescCard=_sumBonusCard>0&&/\d+\/\d+、/.test(card.desc||'');
     if(_hasSumDescCard){
       const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCard}/${parseInt(h)+_sumBonusCard}、`);
-      div.setAttribute('data-preview',`グリマルキン：${_modDescCard}`);
+      div.setAttribute('data-preview',`ペリュトン：${_modDescCard}`);
     } else if(atkBonus>0){
       div.setAttribute('data-preview',`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`);
     }
@@ -538,14 +538,14 @@ function takeRewCard(i, targetSlot){
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
-    if(unit.effect==='jack_summon'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit&&!a.shield){ a.shield=1; }});
-      log(`${unit.name}：全ての味方にシールドを付与`,'good');
+    if(unit.effect==='jack_start'){
+      const _liveJ=G.allies.filter(a=>a&&a.hp>0&&a!==unit&&!a.shield);
+      if(_liveJ.length){ const _jt=randFrom(_liveJ); _jt.shield=1; log(`${unit.name}：${_jt.name}にシールドを付与`,'good'); }
     }
     if(unit.effect==='centaur_summon'){
-      const _cv=2+(G.hasGoldenDrop?1:0);
-      G.magicLevel=(G.magicLevel||1)+_cv;
-      if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+      const _cv=1+(G.hasGoldenDrop?1:0);
+      if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
+      else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
       log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
     }
     if(unit.effect==='chimera_summon'){
@@ -562,22 +562,24 @@ function takeRewCard(i, targetSlot){
       if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
       log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
     }
-    // ミテーラ：自分の場（G.allies）に2/2ペリカンを直接配置
+    // ミテーラ：自分の場（G.allies）に1/3ペリカンを直接配置
     if(unit.effect==='mitera_summon'){
-      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
+      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
       const _pelUnit=makeUnitFromDef(_pelDef);
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(2/2)を盤面に召喚`,'good'); }
+      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
     }
-    // ジャッカロープ：「治癒の薬」を2枚手札に追加
+    // ジャッカロープ：「治癒の薬」を1枚手札に追加
     if(unit.effect==='jackalope_summon'){
-      const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-      if(_herb){ let _ha=0;
-        for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
-          if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
-        }
-        if(_ha>0) log(`${unit.name}：治癒の薬×${_ha}を入手`,'good');
+      const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
+      if(_herb){ const _hi=G.spells.findIndex(s=>!s);
+        if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${unit.name}：治癒の薬を入手`,'good'); }
       }
+    }
+    // コボルド：最も左の杖に充填数+1
+    if(unit.effect==='kobold_summon'){
+      const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
+      if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${unit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
     }
     // スリン：全仲間に「成長1」を付与
     if(unit.effect==='slin_summon'){
@@ -622,6 +624,16 @@ function takeRewCard(i, targetSlot){
       G.actionsPerTurn=calcActions();
     }
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
+    // ファミリア：行商で最初に購入したアイテムのコピーを得る（指輪の場合）
+    if(G._isShop&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+      G._familiarUsed=true;
+      const _famRingIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
+      if(_famRingIdx>=0){
+        const _famCopy=clone(rc); delete _famCopy._buyPrice;
+        G.rings[_famRingIdx]=_famCopy;
+        log(`ファミリア：${rc.name}のコピーを獲得（指輪スロット[${_famRingIdx}]）`,'good');
+      }
+    }
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
@@ -638,6 +650,17 @@ function takeRewCard(i, targetSlot){
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   G.spells[handIdx]=nc;
+
+  // ファミリア：行商で最初に購入したアイテムのコピーを得る（杖・消耗品の場合）
+  if(G._isShop&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+    G._familiarUsed=true;
+    const _famHandIdx=G.spells.indexOf(null);
+    if(_famHandIdx>=0){
+      const _famCopy=clone(nc);
+      G.spells[_famHandIdx]=_famCopy;
+      log(`ファミリア：${nc.name}のコピーを獲得`,'good');
+    }
+  }
 
   log(card.name+' を'+cost+'ソウルで取得','good');
   _rewCards[i]=null;
@@ -890,14 +913,14 @@ function _applyStack(fieldIdx, rewIdx){
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
   squirrelSay('カードを重ねた時');
   // 使役効果（重ね後も発動）
-  if(fieldUnit.effect==='jack_summon'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit&&!a.shield){ a.shield=1; }});
-    log(`${fieldUnit.name}：全ての味方にシールドを付与`,'good');
+  if(fieldUnit.effect==='jack_start'){
+    const _liveJ=G.allies.filter(a=>a&&a.hp>0&&a!==fieldUnit&&!a.shield);
+    if(_liveJ.length){ const _jt=randFrom(_liveJ); _jt.shield=1; log(`${fieldUnit.name}：${_jt.name}にシールドを付与`,'good'); }
   }
   if(fieldUnit.effect==='centaur_summon'){
-    const _cv=2+(G.hasGoldenDrop?1:0);
-    G.magicLevel=(G.magicLevel||1)+_cv;
-    if(typeof syncHarpyAtk==='function') syncHarpyAtk();
+    const _cv=1+(G.hasGoldenDrop?1:0);
+    if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
+    else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
     log(`${fieldUnit.name}：魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
   }
   if(fieldUnit.effect==='chimera_summon'){
@@ -915,19 +938,20 @@ function _applyStack(fieldIdx, rewIdx){
     log(`${fieldUnit.name}：キーワード${_chosen.join('、')}を追加獲得`,'good');
   }
   if(fieldUnit.effect==='mitera_summon'){
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:2,hp:2,cost:0,unique:false,icon:'🦤',desc:''};
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
     const _pelUnit=makeUnitFromDef(_pelDef);
     const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(2/2)を盤面に召喚`,'good'); }
+    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
   }
   if(fieldUnit.effect==='jackalope_summon'){
-    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-    if(_herb){ let _ha=0;
-      for(let _hi=0;_ha<2&&_hi<G.spells.length;_hi++){
-        if(!G.spells[_hi]){ G.spells[_hi]=clone(_herb); _ha++; }
-      }
-      if(_ha>0) log(`${fieldUnit.name}：治癒の薬×${_ha}を入手`,'good');
+    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
+    if(_herb){ const _hi=G.spells.findIndex(s=>!s);
+      if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${fieldUnit.name}：治癒の薬を入手`,'good'); }
     }
+  }
+  if(fieldUnit.effect==='kobold_summon'){
+    const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
+    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
   }
   if(fieldUnit.effect==='slin_summon'){
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
@@ -1077,12 +1101,13 @@ function sellFieldUnit(idx){
   G.allies[idx]=null;
   G.gold+=1; G.earnedGold+=1;
   log(`${unit.name} を還魂（+1ソウル）`,'gold');
-  // グリマルキン：フィールドに残っているときに別の仲間が還魂されたらボーナス発動
-  const grimalkin=G.allies.find(a=>a&&a.effect==='grimalkin_sell');
-  if(grimalkin){
+  squirrelSay('カードを売却した時');
+  // ペリュトン：フィールドに残っているときに別の仲間が還魂されたら以後のキャラ効果召喚ATK+1
+  const perytons=G.allies.find(a=>a&&a.effect==='perytons_sell');
+  if(perytons){
     const _incr=1+(G.hasGoldenDrop?1:0);
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
-    log(`${grimalkin.name}：以後の召喚ユニットが+${_incr}/+${_incr}（累計+${G._grimalkinBonus}/+${G._grimalkinBonus}）`,'good');
+    log(`${perytons.name}：以後のキャラクター効果召喚が+${_incr}/±0（累計+${G._grimalkinBonus}）`,'good');
   }
   // コカトリス：ソウルストーン以外の仲間を還魂すると0/1の「ソウルストーン」を召喚
   if(unit.name!=='ソウルストーン'){
@@ -1131,7 +1156,7 @@ function renderHeRingSlots(){
       div.className='card ring';
       const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
       div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardRing(i); };
+      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
@@ -1168,7 +1193,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
       div.innerHTML=`${_gradeEl}<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); renderHandEditor(); } else discardHeCard(arrName,i); };
+      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardHeCard(arrName,i); };
       if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse){
         const _isWand=t==='wand';
         const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
