@@ -14,7 +14,7 @@ const UNIT_POOL = [
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'誘発：他のキャラクターの効果でキャラクターが召喚されると+1/+1を得る。', effect:'grimalkin_onsum'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'攻撃：+1/±0を得る。',                  effect:'elf_attack'},
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間が±0/+1を得る。',       effect:'brownie_attack'},
-  {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'開戦：ランダムなG1のアイテムを得る。',         effect:'imp_start'},
+  {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'誘発：仲間を還魂すると、ランダムなG1のアイテムを得る。', effect:'imp_sell'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：オーナーが杖を使うたび、隣接する仲間が+1/+1を得る。', effect:'dwarf_wand'},
   {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'負傷：今後商談フェイズで現れる「不死」のキャラクターが+1/±0を得る。', injury:'mummy'},
@@ -23,7 +23,7 @@ const UNIT_POOL = [
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'攻撃：±0/+1を得る。',                   counter:true, effect:'lizardman_attack', keywords:['成長1','反撃']},
   {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'終戦：魔術レベル5につきソウル1を得る。', effect:'lamia_end'},
   {id:'c_mitera',     name:'ミテーラ',         race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🦤', desc:'使役：最も左の空き地に1/3、獣の「ペリカン」を召喚する。', effect:'mitera_summon'},
-  {id:'c_jackalope',  name:'ジャッカロープ',   race:'獣',   grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'🐰', desc:'使役：オーナーは「治癒の薬」を1枚得る。', effect:'jackalope_summon'},
+  {id:'c_jackalope',  name:'ジャッカロープ',   race:'獣',   grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'🐰', desc:'開戦：オーナーは「治癒の薬」を1枚得る。', effect:'jackalope_start'},
   {id:'c_pigmy',      name:'ピグミー',         race:'亜人', grade:1, atk:1,  hp:8,  cost:3,  unique:false, icon:'🏹', desc:'常時：このキャラクターのパワーは魔術レベルに等しい。', effect:'pigmy_magic', counter:true, keywords:['反撃']},
   {id:'c_banshee',    name:'バンシー',         race:'不死', grade:1, atk:4,  hp:8,  cost:3,  unique:false, icon:'🙀', desc:'負傷：「バンシー」以外の全てのキャラクターに1ダメージを与える。', injury:'banshee'},
   {id:'c_sylph',      name:'シルフ',           race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🌬️', desc:'攻撃：隣接するキャラクターが+1/±0を得る。', effect:'sylph_attack'},
@@ -50,7 +50,10 @@ const UNIT_POOL = [
   {id:'c_naglfar',    name:'虚空の渡し守"ナグルファル"',   race:'不死', grade:1, atk:4,  hp:14, cost:9,  unique:true, icon:'⚓', desc:'誘発：キャラクターが死亡するたび、このキャラクターは+2/+1を得る。', effect:'naglfar_ondeath'},
 
   // ─── G2 通常 ───
-  {id:'c_worm',       name:'ワーム',           race:'竜',   grade:2, atk:9,  hp:22, cost:7,  unique:false, icon:'🪱', desc:'反撃　負傷：全ての仲間が+1/+1を得る。', counter:true, injury:'worm', keywords:['反撃']},
+  {id:'c_worm',       name:'ワーム',           race:'竜',   grade:2, atk:9,  hp:22, cost:7,  unique:false, icon:'🪱', desc:'反撃　負傷：全ての仲間が+1/±0を得る。', counter:true, injury:'worm', keywords:['反撃']},
+  {id:'c_darkone',    name:'ダークワン',       race:'悪魔', grade:2, atk:6,  hp:12, cost:5,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、全ての仲間の悪魔が+1/+1を得る。', effect:'darkone_spell'},
+  {id:'c_drake',      name:'ドレイク',         race:'竜',   grade:2, atk:5,  hp:8,  cost:3,  unique:false, icon:'🐲', desc:'開戦：全てのキャラクターに1ダメージを与える。', effect:'drake_start'},
+  {id:'c_lindworm',   name:'リンドヴルム',     race:'竜',   grade:2, atk:9,  hp:6,  cost:5,  unique:false, icon:'🐍', desc:'誘発：仲間の負傷効果が発動するたび、全ての仲間の竜が+1/+1を得る。', effect:'lindworm_injury'},
   {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'常時：宝箱出現率が1.5倍になる。（宝箱は1戦闘に1個までしか出現しない）', effect:'gnome_treasure'},
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　常時：味方が受けるダメージは-1される。', counter:true, effect:'gargoyle_shield', keywords:['反撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：グレードアップのコストが-1される。', effect:'minotaur_gradeup', keywords:['成長3']},
@@ -98,7 +101,7 @@ const UNIT_POOL = [
   {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'呪詛1　負傷：全ての敵に3ダメージを与える。', injury:'limslus', keywords:['呪詛1']},
 
   // ─── G3 通常 ───
-  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'誘発：「ソウルストーン」以外の仲間を還魂すると、0/1、「ソウルストーン」を召喚する。', effect:'cocatrice_sell'},
+  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'常時：カードの効果で召喚された仲間が+2/+1を得る。', effect:'cocatrice_passive'},
   {id:'c_phantom',    name:'ファントム',       race:'不死', grade:3, atk:11, hp:48, cost:7,  unique:false, icon:'👤', desc:'誘発：「アク」以外の仲間が死んだ時、0/1、不死の「アク」を召喚する。', effect:'phantom_onallydie'},
   {id:'c_salamander', name:'サラマンダー',     race:'竜',   grade:3, atk:16, hp:40, cost:7,  unique:false, icon:'🔥', desc:'成長4　開戦：全ての敵に4ダメージを与える。', effect:'salamander_start', keywords:['成長4']},
   {id:'c_vampire',    name:'ヴァンパイア',     race:'不死', grade:3, atk:13, hp:45, cost:7,  unique:false, icon:'🧛', desc:'攻撃：全ての仲間の「不死」が+2/+1を得る。', effect:'vampire_attack'},

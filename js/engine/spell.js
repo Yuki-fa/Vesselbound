@@ -633,6 +633,12 @@ function applySpell(sp,idx,tgt,_noDecrement){
       dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
       log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
     });
+    // ダークワン：アイテム使用時、全仲間の悪魔+1/+1
+    { const _dkv=1+(G.hasGoldenDrop?1:0);
+      let _dkTriggered=false;
+      G.allies.forEach(dk=>{ if(dk&&dk.hp>0&&dk.effect==='darkone_spell'){ _dkTriggered=true; }});
+      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='悪魔'){ a.atk+=_dkv; a.baseAtk=(a.baseAtk||0)+_dkv; a.hp+=_dkv; a.maxHp+=_dkv; }}); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
+    }
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();

@@ -572,13 +572,6 @@ function takeRewCard(i, targetSlot){
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
     }
-    // ジャッカロープ：「治癒の薬」を1枚手札に追加
-    if(unit.effect==='jackalope_summon'){
-      const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
-      if(_herb){ const _hi=G.spells.findIndex(s=>!s);
-        if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${unit.name}：治癒の薬を入手`,'good'); }
-      }
-    }
     // コボルド：最も左の杖に充填数+1
     if(unit.effect==='kobold_summon'){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
@@ -946,12 +939,6 @@ function _applyStack(fieldIdx, rewIdx){
     const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
     if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
   }
-  if(fieldUnit.effect==='jackalope_summon'){
-    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
-    if(_herb){ const _hi=G.spells.findIndex(s=>!s);
-      if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${fieldUnit.name}：治癒の薬を入手`,'good'); }
-    }
-  }
   if(fieldUnit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
@@ -1118,15 +1105,11 @@ function sellFieldUnit(idx){
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
     log(`${perytons.name}：以後のキャラクター効果召喚が+${_incr}/±0（累計+${G._grimalkinBonus}）`,'good');
   }
-  // コカトリス：ソウルストーン以外の仲間を還魂すると0/1の「ソウルストーン」を召喚
-  if(unit.name!=='ソウルストーン'){
-    G.allies.forEach(cc=>{
-      if(!cc||cc.hp<=0||cc.effect!=='cocatrice_sell') return;
-      const ssDef={id:'c_soulstone',name:'ソウルストーン',race:'-',grade:1,atk:0,hp:1,cost:0,unique:false,icon:'💎',desc:''};
-      const empty=G.allies.findIndex(s=>!s||s.hp<=0);
-      if(empty>=0){ G.allies[empty]=makeUnitFromDef(ssDef); log(`${cc.name}：ソウルストーン(0/1)を召喚`,'good'); }
-    });
-  }
+  // インプ：仲間を還魂すると、ランダムなG1のアイテムを得る
+  G.allies.forEach(imp=>{ if(!imp||imp.hp<=0||imp.effect!=='imp_sell') return;
+    const _ei=G.spells.indexOf(null);
+    if(_ei>=0){ const _item=drawConsumable(1); if(_item){ G.spells[_ei]=_item; log(`${imp.name}：還魂→${_item.name}を入手`,'good'); }}
+  });
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderRewCards();

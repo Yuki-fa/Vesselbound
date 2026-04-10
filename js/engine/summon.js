@@ -71,13 +71,7 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(1/3)を召喚`,'good');
   }
-  // ジャッカロープ：召喚時、「治癒の薬」を1枚手札に追加
-  if(unit.effect==='jackalope_summon'){
-    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb')||SPELL_POOL.find(s=>s.effect==='heal_ally');
-    if(_herb){ const _hi=G.spells.findIndex(s=>!s);
-      if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${unit.name}：治癒の薬を入手`,'good'); }
-    }
-  }
+  // ジャッカロープ：開戦効果のため、召喚時トリガーは不要（battle.js で処理）
   // コボルド：召喚時、最も左の杖に充填数+1
   if(unit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
@@ -122,6 +116,7 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   else G.allies.push(unit);
   G.battleCounters.summons++;
   // グリマルキン：キャラクター効果で仲間が召喚された時、自身+1/+1
+  // コカトリス（passive）：カード効果で召喚された仲間が+2/+1を得る
   if(fromCharEffect){
     const _gd=G.hasGoldenDrop?1:0;
     G.allies.forEach(g=>{
@@ -129,6 +124,11 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
         const _gv=1+_gd;
         g.atk+=_gv; g.baseAtk=(g.baseAtk||0)+_gv; g.hp+=_gv; g.maxHp+=_gv;
         log(`${g.name}：仲間が召喚→+${_gv}/+${_gv}`,'good');
+      }
+      if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==unit){
+        const _cv=2+_gd, _ch=1+_gd;
+        unit.atk+=_cv; unit.baseAtk=(unit.baseAtk||0)+_cv; unit.hp+=_ch; unit.maxHp+=_ch;
+        log(`${g.name}：カード効果召喚→${unit.name}が+${_cv}/+${_ch}`,'good');
       }
     });
   }

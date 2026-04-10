@@ -926,9 +926,14 @@ function triggerInjury(unit, dmg=0){
     }
     case 'worm':{
       const _wv=1+(G.hasGoldenDrop&&!isEnemy?1:0);
-      ownSide.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.hp+=_wv; a.maxHp+=_wv; }});
-      log(`${unit.name}：負傷→全仲間+${_wv}/+${_wv}`,col);
-      if(!isEnemy) triggerDryadBuff();
+      ownSide.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.baseAtk=(a.baseAtk||0)+_wv; }});
+      log(`${unit.name}：負傷→全仲間+${_wv}/±0`,col);
+      if(!isEnemy){
+        // リンドヴルム：仲間の負傷発動時、全仲間竜+1/+1
+        const _lv=1+(G.hasGoldenDrop?1:0);
+        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&d.race==='竜'){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+        triggerDryadBuff();
+      }
       break;
     }
     case 'minotaur':{
@@ -1012,6 +1017,11 @@ function triggerInjury(unit, dmg=0){
       log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,col);
       break;
     }
+  }
+  // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
+  if(!isEnemy && unit.injury !== 'worm'){
+    const _lv=1+(G.hasGoldenDrop?1:0);
+    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&d.race==='竜'){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
   }
 }
 
@@ -1120,9 +1130,14 @@ function onBattleStart(){
       case 'manigans_start':
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
-      case 'imp_start':
-        { const ei=G.spells.indexOf(null);
-          if(ei>=0){ const _ig=(a.grade||1)+(G.hasGoldenDrop?1:0); const item=drawConsumable(_ig); if(item){ G.spells[ei]=item; log(`${a.name}：${item.name}（G${_ig}以下）を入手`,'good'); } } }
+      case 'jackalope_start':
+        { const _herb=SPELL_POOL.find(s=>s.effect==='heal_ally');
+          if(_herb){ const _hi=G.spells.findIndex(s=>!s); if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${a.name}：治癒の薬を入手`,'good'); }} }
+        break;
+      case 'drake_start':
+        { const _dkdmg=1+(G.hasGoldenDrop?1:0);
+          [...G.allies,...G.enemies].forEach(u=>{ if(!u||u.hp<=0) return; const _ui=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u); if(G.allies.includes(u)) dealDmgToAlly(u,_dkdmg,_ui,a); else dealDmgToEnemy(u,_dkdmg,_ui,a); });
+          log(`${a.name}：開戦→全キャラに${_dkdmg}ダメ`,'good'); }
         break;
       case 'salamander_start':
         { const _sdmg=4+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
