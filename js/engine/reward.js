@@ -201,21 +201,11 @@ function renderMoveSlotsInEnemy(){
   }
   opts.slice(0,3).forEach(opt=>{
     const nt=NODE_TYPES[opt.nodeType];
-    const wrap=document.createElement('div');
-    wrap.className='rew-move-row';
-    wrap.style='display:flex;align-items:center;gap:8px';
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
-    btn.innerHTML=`<span style="font-size:1.1rem">${nt.icon}</span><span>${nt.label}</span>`;
+    btn.innerHTML=`<span style="font-size:1.1rem">${nt.icon}</span><span>${nt.label}</span>${nt.desc?`<span class="rew-move-btn-desc">${nt.desc}</span>`:''}`;
     btn.onclick=()=>chooseMoveInline(opt.nodeType);
-    wrap.appendChild(btn);
-    if(nt.desc){
-      const descEl=document.createElement('span');
-      descEl.style='font-size:.72rem;color:var(--text2);white-space:nowrap';
-      descEl.textContent=nt.desc;
-      wrap.appendChild(descEl);
-    }
-    el.appendChild(wrap);
+    el.appendChild(btn);
   });
 }
 
