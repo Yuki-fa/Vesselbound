@@ -8,12 +8,8 @@ let _shopRings=[];
 function doShop(){
   const floorGrade=rollGrade(G.floor);
   // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
-  // 湖の畔を経由した場合のみrarity4解放（それ以外は除外）
-  const _allowRarity4=G._pondShopBonus||false;
-  if(_allowRarity4) G._pondShopBonus=false;
   const eligible=RING_POOL.filter(r=>{
     if(!r.id||r.rarity===-1||r.legend) return false;
-    if((r.rarity||1)>=4&&!_allowRarity4) return false;
     if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
     if((r.grade||1)>floorGrade) return false;

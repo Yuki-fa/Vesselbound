@@ -216,7 +216,9 @@ function generateMoveMasks(){
   const chosen=idxs.slice(0,total);
 
   // 最初のスロットは必ず戦闘、追加スロットは洞窟/池
-  G._prevWasShop=false;
+  // 直前に選んだノードと同じ種類は今回は出現しない
+  const _noSmithy=G._prevWasSmithy; G._prevWasSmithy=false;
+  const _noRest=G._prevWasRest;     G._prevWasRest=false;
   // 洞窟（smithy）・池（rest）：追加スロットで各15%
   const specialRate=0.15;
 
@@ -230,10 +232,10 @@ function generateMoveMasks(){
       masks[idx]='battle'; // 戦闘マスは必ず出現
       return;
     }
-    if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
+    if(forceNonBattle&&!usedNon.has(forceNonBattle)&&!_noSmithy){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
-    if(r<specialRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
-    else if(r<specialRate*2&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    if(r<specialRate&&!usedNon.has('smithy')&&!_noSmithy){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<specialRate*2&&!usedNon.has('rest')&&!_noRest){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

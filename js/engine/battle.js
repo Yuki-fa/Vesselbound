@@ -524,10 +524,7 @@ function _onAllEnemiesDefeated(){
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   applyVictoryBonuses();
   G.phase='reward';
-  updateHUD(); renderAll();
-  // 移動ボタンを即座に表示（You Win オーバーレイと共存させるため）
-  const _rMBV=document.getElementById('reward-move-btns');
-  if(_rMBV){ _rMBV.style.display=''; renderMoveSlotsInEnemy(); }
+  updateHUD();
   setTimeout(()=>_handleVictory(),600);
 }
 

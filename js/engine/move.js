@@ -28,18 +28,19 @@ function chooseMove(nt){
     showScreen('battle'); startBattle();
   }
   else if(nt==='smithy'){
-    // 洞窟の中へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity4アイテム1つ追加
+    // 洞窟の奥へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity4アイテム1つ追加
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingCaveBonus=true;
+    G._prevWasSmithy=true;
     showScreen('battle'); startBattle();
   }
   else if(nt==='rest'){
-    // 池の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加 + 次の行商でrarity4解放
+    // 湖の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingPondBonus=true;
-    G._pondShopBonus=true;
+    G._prevWasRest=true;
     showScreen('battle'); startBattle();
   }
   else if(nt==='shop') doShop();

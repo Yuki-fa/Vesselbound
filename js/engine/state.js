@@ -81,8 +81,9 @@ function initState(){
     _gradeUpCostBonus:0,
     // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──
     _familiarUsed:false,
-    // ── 宝箱・撤退・宿屋ボーナス ──
-    _prevWasShop:false,
+    // ── 宝箱・撤退・特殊マス連続抑制 ──
+    _prevWasRest:false,     // 直前が湖の畔→次の戦闘で湖の畔を非表示
+    _prevWasSmithy:false,   // 直前が洞窟→次の戦闘で洞窟を非表示
     _pendingTreasure:false,
     _pendingEliteChest:false,
     _retreated:false,
@@ -93,7 +94,6 @@ function initState(){
     _extraBattleMult:1.0,  // 洞窟/池ノードで 1.2x
     _pendingCaveBonus:false,  // 洞窟：rarity4アイテム1つ追加
     _pendingPondBonus:false,  // 池：rarity≤2指輪2つ追加
-    _pondShopBonus:false,     // 池：次の行商でrarity4解放
     _soulIncomeBonus:0,    // 魔神の秘薬：戦闘終了時ソウル追加
     // ── 敵オーナーシステム ──
     bossRings:[],         // 敵オーナーが装備している指輪

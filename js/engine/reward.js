@@ -50,7 +50,7 @@ function goToReward(){
     for(let _pi=0;_pi<2;_pi++){
       if(!_pondPool.length) break;
       const _pondRing=clone(randFrom(_pondPool));
-      _pondRing._buyPrice=0; _pondRing._isTreasure=true; _pondRing._pondBonus=true;
+      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._isTreasure=true; _pondRing._pondBonus=true;
       _rewCards.push(_pondRing);
     }
     log('💧 池の恵み：指輪2つが出現！','gold');
@@ -995,6 +995,8 @@ function _clearFieldDropHighlights(){
 const _transparentDragImg=(()=>{ const c=document.createElement('canvas'); c.width=c.height=1; return c; })();
 
 let _dragGhostDiv=null;
+// ドロップ後にDOMが再構築されると dragend が発火しない場合があるため、グローバルで確実に除去
+document.addEventListener('dragend', ()=>{ _removeDragGhost(); _removeStackPreviewOverlay(); }, true);
 function _createDragGhost(srcEl){
   _removeDragGhost();
   const d=srcEl.cloneNode(true);
