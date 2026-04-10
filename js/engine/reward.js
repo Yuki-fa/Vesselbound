@@ -37,7 +37,7 @@ function goToReward(){
     const _cavePool=SPELL_POOL.filter(s=>s.rarity===4&&s.type==='consumable');
     if(_cavePool.length){
       const _caveItem=clone(randFrom(_cavePool));
-      _caveItem._buyPrice=0; _caveItem._caveBonus=true; // リロール消失フラグ
+      _caveItem._buyPrice=_caveItem.cost||calcBuyPrice(_caveItem); _caveItem._caveBonus=true; // リロール消失フラグ
       _rewCards.push(_caveItem);
       log('⛩️ 洞窟の秘宝：レアアイテムが出現！','gold');
     }
