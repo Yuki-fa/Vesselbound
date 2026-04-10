@@ -86,6 +86,7 @@ function drawItems(n, maxGrade){
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
     if(s.rarity===-1) return;
+    if(s.rarity===4) return; // rarity4は洞窟ボーナス専用
     if((s.grade||1)>effectiveMax) return; // グレード上限フィルタ
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
@@ -115,6 +116,7 @@ function _drawByType(type, n, maxGrade){
   SPELL_POOL.forEach(s=>{
     if(!s.id||s.starterOnly) return;
     if(s.rarity===-1) return;
+    if(s.rarity===4) return; // rarity4は洞窟ボーナス専用
     if(s.type!==type) return;
     if((s.grade||1)>targetGrade) return;
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
