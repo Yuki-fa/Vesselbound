@@ -294,8 +294,9 @@ function _triggerRewCharInjury(unit, dmg=0){
     case 'mummy':{
       const mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
-      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+mv;
-      log(`${unit.name}：今後現れるG2以上が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
+      // 既にフィールドにいる不死キャラにもボーナスを適用
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
+      log(`${unit.name}：不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
     case 'freyr':{
@@ -373,19 +374,16 @@ function renderRewCards(){
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
-      const atkBonus=((card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0);
-      const dispAtk=card.atk+atkBonus;
+      // マミーボーナスは drawCharacters で card.atk に反映済み（_bonusApplied フラグ）
+      const dispAtk=card.atk;
       const dispHp=card.hp;
-      // 仲間加入プレビュー
-      // グリマルキン・黄金の雫は召喚効果で出るユニットにのみ影響（X/Y、パターンのある説明文のみ対象）
+      // 仲間加入プレビュー（ペリュトン：キャラ効果召喚のスタッツ変動のみ表示）
       const _summonBonus=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
       const _hasSummonDesc=_summonBonus>0&&/\d+\/\d+、/.test(card.desc||'');
       let _previewStr='';
       if(_hasSummonDesc){
         const _modDesc=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_summonBonus}/${parseInt(h)+_summonBonus}、`);
         _previewStr=`ペリュトン：${_modDesc}`;
-      } else if(atkBonus>0){
-        _previewStr=`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`;
       };
       const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
@@ -470,12 +468,8 @@ function _mkRewDiv(card, onBuy){
     const disabled=!hasSlot;
     div.className='rew-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
-    // G2以上ATKボーナス表示（マミー負傷効果）
-    const atkBonus=(card.grade||1)>=2&&G._undeadHpBonus?G._undeadHpBonus:0;
-    const displayAtk=card.atk+atkBonus;
-    const atkStr=atkBonus>0
-      ?`<span style="color:var(--teal2)">${displayAtk}</span><span style="font-size:.5rem;color:var(--teal2);margin-left:1px">(+${atkBonus})</span>`
-      :`<span style="color:var(--teal2)">${card.atk}</span>`;
+    // マミーボーナスは drawCharacters で card.atk に反映済み
+    const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
     const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
@@ -487,8 +481,6 @@ function _mkRewDiv(card, onBuy){
     if(_hasSumDescCard){
       const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCard}/${parseInt(h)+_sumBonusCard}、`);
       div.setAttribute('data-preview',`ペリュトン：${_modDescCard}`);
-    } else if(atkBonus>0){
-      div.setAttribute('data-preview',`仲間になった時: ${card.atk+atkBonus} / ${card.hp}`);
     }
     div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
@@ -541,10 +533,6 @@ function takeRewCard(i, targetSlot){
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
-    if(unit.effect==='jack_start'){
-      const _liveJ=G.allies.filter(a=>a&&a.hp>0&&a!==unit&&!a.shield);
-      if(_liveJ.length){ const _jt=randFrom(_liveJ); _jt.shield=1; log(`${unit.name}：${_jt.name}にシールドを付与`,'good'); }
-    }
     if(unit.effect==='centaur_summon'){
       const _cv=1+(G.hasGoldenDrop?1:0);
       if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
@@ -909,10 +897,6 @@ function _applyStack(fieldIdx, rewIdx){
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
   squirrelSay('カードを重ねた時');
   // 使役効果（重ね後も発動）
-  if(fieldUnit.effect==='jack_start'){
-    const _liveJ=G.allies.filter(a=>a&&a.hp>0&&a!==fieldUnit&&!a.shield);
-    if(_liveJ.length){ const _jt=randFrom(_liveJ); _jt.shield=1; log(`${fieldUnit.name}：${_jt.name}にシールドを付与`,'good'); }
-  }
   if(fieldUnit.effect==='centaur_summon'){
     const _cv=1+(G.hasGoldenDrop?1:0);
     if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
@@ -1098,6 +1082,14 @@ function sellFieldUnit(idx){
   G.gold+=1; G.earnedGold+=1;
   log(`${unit.name} を還魂（+1ソウル）`,'gold');
   squirrelSay('カードを売却した時');
+  // レプラコーン：ソウルを得るたびに全キャラ±0/+1
+  { const _gd=G.hasGoldenDrop?1:0; const _lv=1+_gd;
+    const _hasLep=G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
+    if(_hasLep){
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_lv; a.maxHp+=_lv; }});
+      log(`レプラコーン：ソウル獲得→全仲間±0/+${_lv}`,'good');
+    }
+  }
   // ペリュトン：フィールドに残っているときに別の仲間が還魂されたら以後のキャラ効果召喚ATK+1
   const perytons=G.allies.find(a=>a&&a.effect==='perytons_sell');
   if(perytons){

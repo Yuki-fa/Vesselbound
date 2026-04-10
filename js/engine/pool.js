@@ -72,6 +72,10 @@ function drawCharacters(n){
     const card=clone(def);
     card._isChar=true;
     card._buyPrice=calcBuyPrice(card);
+    // マミー効果：不死キャラの表示ATKにボーナスを反映（makeUnitFromDef での二重加算を防ぐため _bonusApplied フラグを付ける）
+    if(card.race==='不死'&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
+    // スペクター効果：不死キャラの表示ATK/HPにボーナスを反映
+    if(card.race==='不死'&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
     res.push(card);
   }
   res.forEach(c=>{ if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
@@ -234,7 +238,7 @@ function drawRewards(n){
 
 function drawConsumable(maxGrade){
   const _mg=maxGrade!=null?maxGrade:99;
-  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1&&(s.grade||1)<=_mg);
+  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&(s.grade||1)<=_mg);
   if(!pool.length) return null;
   const c=clone(randFrom(pool));
   c._buyPrice=calcBuyPrice(c);

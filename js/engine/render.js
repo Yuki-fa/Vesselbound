@@ -8,10 +8,14 @@
 (function _initKwTooltip(){
   const tip=document.getElementById('kw-tooltip');
   if(!tip) return;
+  let _dragging=false;
+  document.addEventListener('dragstart',()=>{ _dragging=true; tip.style.display='none'; }, true);
+  document.addEventListener('dragend',()=>{ _dragging=false; }, true);
   function _getTarget(e){
     return e.target.closest('.slot-badge[data-kwdesc]')||e.target.closest('[data-preview]');
   }
   document.addEventListener('mouseover',e=>{
+    if(_dragging){ tip.style.display='none'; return; }
     const el=_getTarget(e);
     if(!el){ tip.style.display='none'; return; }
     const kd=el.getAttribute('data-kwdesc'), pv=el.getAttribute('data-preview');
@@ -22,6 +26,7 @@
     _posKwTip(tip,e);
   });
   document.addEventListener('mousemove',e=>{
+    if(_dragging){ tip.style.display='none'; return; }
     if(tip.style.display==='none') return;
     if(!_getTarget(e)){ tip.style.display='none'; return; }
     _posKwTip(tip,e);

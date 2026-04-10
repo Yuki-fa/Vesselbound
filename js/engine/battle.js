@@ -906,10 +906,11 @@ function triggerInjury(unit, dmg=0){
   const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
   switch(unit.injury){
     case 'mummy':{
-      const _mv=1+(G.hasGoldenDrop?1:0);
-      G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
-      G.enemyUndeadAtkBonus=(G.enemyUndeadAtkBonus||0)+_mv;
-      log(`${unit.name}：今後現れる不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
+      if(!isEnemy){
+        const _mv=1+(G.hasGoldenDrop?1:0);
+        G._undeadHpBonus=(G._undeadHpBonus||0)+_mv;
+        log(`${unit.name}：今後商談フェイズで現れる不死が+${_mv}/±0（累計+${G._undeadHpBonus}）`,col);
+      }
       break;
     }
     case 'freyr':{
@@ -1130,7 +1131,7 @@ function onBattleStart(){
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
       case 'jackalope_start':
-        { const _herb=SPELL_POOL.find(s=>s.effect==='heal_ally');
+        { const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
           if(_herb){ const _hi=G.spells.findIndex(s=>!s); if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${a.name}：治癒の薬を入手`,'good'); }} }
         break;
       case 'drake_start':
@@ -1155,13 +1156,14 @@ function onBattleStart(){
           const _frontE=G.enemies[_shadowIdx]||(G.enemies.find(e=>e&&e.hp>0));
           if(_frontE&&_frontE.hp>0){
             a.name=_frontE.name; a.icon=_frontE.icon; a.race=_frontE.race||'-';
-            a.atk=_frontE.atk; a.baseAtk=_frontE.atk;
-            a.hp=_frontE.hp; a.maxHp=_frontE.hp;
+            // ATK/HPは変更しない（シャドウ自身のスタッツを維持）
             if(_frontE.keywords&&_frontE.keywords.length) a.keywords=[..._frontE.keywords];
             if(_frontE.counter) a.counter=true;
-            log(`${_frontE.name}に変身！（${a.atk}/${a.hp}）`,'good');
+            a.effect=_frontE.effect||null; // 効果をコピー
+            log(`${a.name}（${_frontE.name}に変身）（${a.atk}/${a.hp}）`,'good');
+          } else {
+            a.effect=null;
           }
-          a.effect=null; // 変身後は effect を削除 }
         }
         break;
       case 'homunculus_start':
