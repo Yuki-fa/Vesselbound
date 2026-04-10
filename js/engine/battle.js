@@ -956,10 +956,9 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'kettcat':{
-      const def={id:'c_babycat',name:'ベビーキャット',race:'獣',grade:1,atk:0,hp:2,cost:0,unique:false,icon:'🐱',desc:''};
-      const selfIdx=ownSide.indexOf(unit);
-      const ei=ownSide.findIndex((a,i)=>i!==selfIdx&&(!a||a.hp<=0));
-      if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ベビーキャット(0/2)を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
+      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:2,cost:0,unique:false,icon:'🐱',desc:''};
+      const ei=ownSide.findIndex(a=>!a||a.hp<=0);
+      if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャット(1/2)を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
       break;
     }
     case 'ran':{
