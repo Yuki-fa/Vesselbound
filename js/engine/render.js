@@ -309,7 +309,7 @@ function renderField(id,units,isEnemy,_extDeathRisk){
       const _mvType=G.moveMasks[i];
       const nt=NODE_TYPES[_mvType];
       slot.classList.add('has-move');
-      slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>`;
+      slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>${nt.desc?`<div class="move-desc">${nt.desc}</div>`:''}` ;
       if(_mvType!=='chest'){
         slot.title='クリックで撤退';
         slot.onclick=()=>{
