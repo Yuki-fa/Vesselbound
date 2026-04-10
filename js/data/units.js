@@ -77,7 +77,7 @@ const UNIT_POOL = [
   {id:'c_frost_sprite',name:'フロスト・スプライト',race:'精霊',grade:2,atk:7,hp:24, cost:5,  unique:false, icon:'❄️', desc:'開戦：正面の敵を1ターン行動不能にする。', effect:'frost_start'},
   {id:'c_leprechaun', name:'レプラコーン',     race:'精霊', grade:2, atk:5,  hp:28, cost:5,  unique:false, icon:'🍀', desc:'誘発：ソウルを得るたび、全てのキャラクターは±0/+1を得る。', effect:'leprechaun_gold'},
   {id:'c_alp',        name:'アルプ',           race:'不死', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'😈', desc:'負傷：敵の場に0/1、精霊の「ソウルボム」を召喚する。', injury:'alp'},
-  {id:'c_familiar',   name:'ファミリア',       race:'悪魔', grade:2, atk:9,  hp:20, cost:5,  unique:false, icon:'🦇', desc:'常時：行商フェイズで最初に購入したアイテムのコピーを得る。', effect:'familiar_shop'},
+  {id:'c_familiar',   name:'ファミリア',       race:'悪魔', grade:2, atk:9,  hp:20, cost:5,  unique:false, icon:'🦇', desc:'常時：商談フェイズで最初に購入したアイテムのコピーを得る。', effect:'familiar_shop'},
   {id:'c_hydra',      name:'ハイドラ',         race:'獣',   grade:2, atk:8,  hp:26, cost:5,  unique:false, icon:'🐉', desc:'負傷：+2/+2を得る。', injury:'hydra'},
   {id:'c_sea_serpent',name:'シーサーペント',   race:'獣',   grade:2, atk:10, hp:20, cost:5,  unique:false, icon:'🐍', desc:'開戦：全ての敵に2ダメージを与える。', effect:'sea_serpent_start', keywords:['毒牙4']},
   // キーワードのみG2

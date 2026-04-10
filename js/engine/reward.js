@@ -19,6 +19,7 @@ function goToReward(){
   // 商談フェイズ突入時に行動権を戦闘フェイズと同値にリセット
   G.actionsPerTurn=calcActions();
   G.actionsLeft=G.actionsPerTurn;
+  G._familiarUsed=false; // ファミリア：商談フェイズ開始時にリセット
 
   // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
   if(G._pendingEliteChest){
@@ -50,7 +51,7 @@ function goToReward(){
     for(let _pi=0;_pi<2;_pi++){
       if(!_pondPool.length) break;
       const _pondRing=clone(randFrom(_pondPool));
-      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._isTreasure=true; _pondRing._pondBonus=true;
+      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._pondBonus=true;
       _rewCards.push(_pondRing);
     }
     log('💧 池の恵み：指輪2つが出現！','gold');
@@ -121,7 +122,7 @@ const _BOSS_REWARD_OPTIONS=[
   {id:'ring_slot',   label:'指輪スロット拡張',     desc:'指輪を装備できるスロットが+1される。',     apply:()=>{ G.ringSlots++; log(`ボス報酬：指輪スロット+1（現在${G.ringSlots}枠）`,'gold'); }},
   {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||5)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
   {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
-  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); updateHUD(); log(`ボス報酬：行動権永続+1（現在${G.actionsPerTurn}行動/ターン）`,'gold'); }},
+  {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); G.actionsLeft=G.actionsPerTurn; updateHUD(); log(`ボス報酬：行動権永続+1（現在${G.actionsPerTurn}行動/ターン）`,'gold'); }},
   {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
 ];
 
@@ -574,7 +575,7 @@ function takeRewCard(i, targetSlot){
     }
     // スリン：全仲間に「成長1」を付与
     if(unit.effect==='slin_summon'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
       log(`${unit.name}：全仲間に「成長1」を付与`,'good');
     }
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
@@ -610,13 +611,14 @@ function takeRewCard(i, targetSlot){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_fb; a.baseAtk=(a.baseAtk||0)+_fb; } });
       log(`憤激の指輪：全仲間パワー+${_fb}/±0`,'good');
     }
-    // 行動の指輪：装備時点でactionsPerTurnを更新
+    // 行動の指輪：装備時点でactionsPerTurn/actionsLeftを更新
     if(rc.unique==='extra_action'){
       G.actionsPerTurn=calcActions();
+      G.actionsLeft=G.actionsPerTurn;
     }
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
-    // ファミリア：行商で最初に購入したアイテムのコピーを得る（指輪の場合）
-    if(G._isShop&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+    // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（指輪の場合）
+    if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
       G._familiarUsed=true;
       const _famRingIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
       if(_famRingIdx>=0){
@@ -642,8 +644,8 @@ function takeRewCard(i, targetSlot){
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   G.spells[handIdx]=nc;
 
-  // ファミリア：行商で最初に購入したアイテムのコピーを得る（杖・消耗品の場合）
-  if(G._isShop&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+  // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（杖・消耗品の場合）
+  if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
     G._familiarUsed=true;
     const _famHandIdx=G.spells.indexOf(null);
     if(_famHandIdx>=0){
@@ -935,7 +937,7 @@ function _applyStack(fieldIdx, rewIdx){
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
   }
   if(fieldUnit.effect==='slin_summon'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
     log(`${fieldUnit.name}：全仲間に「成長1」を付与`,'good');
   }
   fireTrigger('on_summon', null);
@@ -1145,13 +1147,23 @@ function renderHeRingSlots(){
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
+      div.draggable=true;
       const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
       div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
+      div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
+      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
+      div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
+      div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard('rings',i); });
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty';
+      ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
+      ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
+      ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard('rings',i); });
       el.appendChild(ph);
     }
   }

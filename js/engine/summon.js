@@ -79,7 +79,7 @@ function applyUnitSummonEffect(unit, fromRingId){
   }
   // スリン：召喚時、全仲間に「成長1」キーワードを付与
   if(unit.effect==='slin_summon'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
     log(`${unit.name}：全仲間に「成長1」を付与`,'good');
   }
   // キメラ：召喚時、ランダムなキーワード3つを得る

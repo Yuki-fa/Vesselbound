@@ -319,7 +319,7 @@ function renderField(id,units,isEnemy,_extDeathRisk){
         slot.title='クリックで撤退';
         slot.onclick=()=>{
           if(G.phase!=='player') return;
-          showRetreatConfirm(_mvType, nt);
+          showRetreatConfirm(_mvType);
         };
       }
     } else {
@@ -706,13 +706,13 @@ function renderArcanaBar(){
 }
 
 // ── 撤退確認オーバーレイ ──────────────────────────
-function showRetreatConfirm(mv, nt){
+function showRetreatConfirm(mv){
   const ov=document.createElement('div');
   ov.style='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px';
 
   const title=document.createElement('div');
   title.style='font-size:1.2rem;font-weight:700;color:var(--text)';
-  title.textContent=`${nt.icon} ${nt.label}に移動して撤退しますか？`;
+  title.textContent='戦闘を離脱しますか？';
   ov.appendChild(title);
 
   const row=document.createElement('div');

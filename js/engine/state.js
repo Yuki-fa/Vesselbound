@@ -82,8 +82,8 @@ function initState(){
     // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──
     _familiarUsed:false,
     // ── 宝箱・撤退・特殊マス連続抑制 ──
-    _prevWasRest:false,     // 直前が湖の畔→次の戦闘で湖の畔を非表示
-    _prevWasSmithy:false,   // 直前が洞窟→次の戦闘で洞窟を非表示
+    _prevWasRest:0,     // 直前が湖の畔→次の2戦闘で湖の畔を非表示（カウントダウン）
+    _prevWasSmithy:0,   // 直前が洞窟→次の2戦闘で洞窟を非表示（カウントダウン）
     _pendingTreasure:false,
     _pendingEliteChest:false,
     _retreated:false,

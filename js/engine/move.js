@@ -32,7 +32,7 @@ function chooseMove(nt){
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingCaveBonus=true;
-    G._prevWasSmithy=true;
+    G._prevWasSmithy=2;
     showScreen('battle'); startBattle();
   }
   else if(nt==='rest'){
@@ -40,7 +40,7 @@ function chooseMove(nt){
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingPondBonus=true;
-    G._prevWasRest=true;
+    G._prevWasRest=2;
     showScreen('battle'); startBattle();
   }
   else if(nt==='shop') doShop();

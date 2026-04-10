@@ -208,8 +208,9 @@ function generateMoveMasks(){
   // ボス直前フロア：ボス戦マスのみ（鍛冶屋・休息所は出現しない）
   if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[0]='boss'; return masks; }
 
-  // 通常戦：エリートのスロットを候補から除外してランダム配置
+  // 通常戦：エリートのスロットは宝箱確定、候補から除外してランダム配置
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
+  if(eliteSlot>=0) masks[eliteSlot]='chest';
   let idxs=[...Array(slots).keys()].filter(i=>i!==eliteSlot);
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
   const total=Math.min(3,idxs.length);
@@ -217,8 +218,8 @@ function generateMoveMasks(){
 
   // 最初のスロットは必ず戦闘、追加スロットは洞窟/池
   // 直前に選んだノードと同じ種類は今回は出現しない
-  const _noSmithy=G._prevWasSmithy; G._prevWasSmithy=false;
-  const _noRest=G._prevWasRest;     G._prevWasRest=false;
+  const _noSmithy=G._prevWasSmithy>0; G._prevWasSmithy=Math.max(0,(G._prevWasSmithy||0)-1);
+  const _noRest=G._prevWasRest>0;     G._prevWasRest=Math.max(0,(G._prevWasRest||0)-1);
   // 洞窟（smithy）・池（rest）：追加スロットで各15%
   const specialRate=0.15;
 

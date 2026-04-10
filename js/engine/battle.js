@@ -495,6 +495,7 @@ async function battlePhase(){
       if(e.hp<=0) processEnemyDeath(e,G.enemies.indexOf(e));
     }
   });
+  if(G.enemies.filter(e=>e&&e.hp>0).length===0){ _onAllEnemiesDefeated(); return; }
   if(checkInstantVictory()) return;
   G.allies.forEach(a=>{
     if(a&&a.poison>0&&a.hp>0){
@@ -1130,7 +1131,15 @@ function onBattleStart(){
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
       case 'jackalope_start':
         { const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-          if(_herb){ const _hi=G.spells.findIndex(s=>!s); if(_hi>=0){ G.spells[_hi]=clone(_herb); log(`${a.name}：治癒の薬を入手`,'good'); }} }
+          if(_herb){
+            const _count=(a._stackCount||0)+1;
+            for(let _ji=0;_ji<_count;_ji++){
+              const _herbClone=clone(_herb); _herbClone._buyPrice=0;
+              G.masterHand.push(_herbClone);
+            }
+            log(`${a.name}：オーナーが「治癒の薬」×${_count}枚を得た`,'good');
+          }
+        }
         break;
       case 'drake_start':
         { const _dkdmg=1+(G.hasGoldenDrop?1:0);
