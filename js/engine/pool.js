@@ -26,7 +26,7 @@ function calcBuyPrice(card){
   if(card.type==='consumable') return card.cost||1;
   if(card.type==='wand') return card.cost||2;
   // 指輪
-  return 3;
+  return card.cost||4;
 }
 
 // 売却払い戻し
@@ -45,7 +45,7 @@ function getRingPool(){
     if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
     return true;
-  }).map(r=>{ const c=clone(r); c.grade=rollGrade(G.floor); c._buyPrice=3; return c; });
+  }).map(r=>{ const c=clone(r); c._buyPrice=c.cost||4; return c; });
 }
 
 // ── キャラクタープールから N 体抽選 ────────────────

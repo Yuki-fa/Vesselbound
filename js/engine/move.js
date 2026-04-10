@@ -35,10 +35,11 @@ function chooseMove(nt){
     showScreen('battle'); startBattle();
   }
   else if(nt==='rest'){
-    // 池の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加
+    // 池の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加 + 次の行商でrarity4解放
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingPondBonus=true;
+    G._pondShopBonus=true;
     showScreen('battle'); startBattle();
   }
   else if(nt==='shop') doShop();

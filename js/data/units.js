@@ -43,7 +43,7 @@ const UNIT_POOL = [
   {id:'c_poisonmist', name:'ポイズンミスト',   race:'亜人', grade:1, atk:3,  hp:9,  cost:2,  unique:false, icon:'🌫️', desc:'', keywords:['侵食1']},
 
   // ─── G1 ネームド（legend） ───
-  {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'シールド　常時：ターン開始時、一番右のキャラクターがシールドを得る。　誘発：仲間がシールドを失った時、+1/+2を得る。', shield:1, effect:'einsel'},
+  {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'シールド　常時：ターン開始時、一番右のキャラクターがシールドを得る。　誘発：仲間がシールドを失った時、+1/+2を得る。', shield:1, effect:'einsel', keywords:['シールド']},
   {id:'c_forniot',    name:'鉄の拳"フォルニョート"',       race:'亜人', grade:1, atk:6,  hp:18, cost:10, unique:true, icon:'👊', desc:'二段攻撃　攻撃：全ての仲間が+1/±0を得る。', effect:'forniot', keywords:['二段攻撃']},
   {id:'c_abadon',     name:'残響の魔導師"アバドン"',       race:'悪魔', grade:1, atk:3,  hp:16, cost:9,  unique:true, icon:'🔮', desc:'全体攻撃', keywords:['全体攻撃']},
   {id:'c_freyr',      name:'黄金の瞳"フレイ"',             race:'獣',   grade:1, atk:7,  hp:11, cost:10, unique:true, icon:'👁️', desc:'負傷：最も右の空き地に「反撃」を持つ4/6、種族なしの「ストーンキャット」を召喚する。', injury:'freyr'},

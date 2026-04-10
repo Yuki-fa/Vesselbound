@@ -8,8 +8,12 @@ let _shopRings=[];
 function doShop(){
   const floorGrade=rollGrade(G.floor);
   // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
+  // 湖の畔を経由した場合のみrarity4解放（それ以外は除外）
+  const _allowRarity4=G._pondShopBonus||false;
+  if(_allowRarity4) G._pondShopBonus=false;
   const eligible=RING_POOL.filter(r=>{
     if(!r.id||r.rarity===-1||r.legend) return false;
+    if((r.rarity||1)>=4&&!_allowRarity4) return false;
     if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
     if((r.grade||1)>floorGrade) return false;
@@ -21,7 +25,7 @@ function doShop(){
   // 現在グレードを1枚保証
   if(currentGrade.length>0){
     const src=clone(currentGrade[Math.floor(Math.random()*currentGrade.length)]);
-    src._buyPrice=src.cost||3;
+    src._buyPrice=src.cost||4;
     picks.push(src); usedIds.add(src.id);
   }
   // 残りをランダムに補充（重複なし、最大5枚）
@@ -29,7 +33,7 @@ function doShop(){
   while(picks.length<5&&rest.length>0){
     const idx=Math.floor(Math.random()*rest.length);
     const src=clone(rest.splice(idx,1)[0]);
-    src._buyPrice=src.cost||3;
+    src._buyPrice=src.cost||4;
     picks.push(src); usedIds.add(src.id);
   }
   // _rewCards: 0-5 = キャラスロット(null)、6+ = 指輪

@@ -523,8 +523,11 @@ function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   applyVictoryBonuses();
-  updateHUD(); renderAll();
   G.phase='reward';
+  updateHUD(); renderAll();
+  // 移動ボタンを即座に表示（You Win オーバーレイと共存させるため）
+  const _rMBV=document.getElementById('reward-move-btns');
+  if(_rMBV){ _rMBV.style.display=''; renderMoveSlotsInEnemy(); }
   setTimeout(()=>_handleVictory(),600);
 }
 
@@ -587,8 +590,8 @@ function _applyAllyAttackEffects(ally){
     // 攻撃後に処理（ターゲットはallyAttackActionで管理）- フラグで通知
     ally._draugJustAttacked=true;
   }
-  // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1
-  if(ally!==null&&G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')&&ally.effect!=='undine_passive'){
+  // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1（ウンディーネ自身も含む）
+  if(ally!==null&&G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
     const _uv=1+_gd; ally.atk+=_uv; ally.baseAtk=(ally.baseAtk||0)+_uv; ally.hp+=_uv; ally.maxHp+=_uv;
     log(`ウンディーネ：${ally.name}が+${_uv}/+${_uv}`,'good');
   }
@@ -691,6 +694,13 @@ async function enemyAttackAction(enemy, enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
+  // 行動不能（封印）：このターンはスキップしてカウンタを減らす
+  if(enemy.sealed>0){
+    enemy.sealed--;
+    log(`${enemy.name}：行動不能`,'sys');
+    return;
+  }
+
   // ターゲット選択：標的持ち全員 or 最右端（隠密除外）
   const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
   const visibleA=liveA.filter(a=>!a.stealth);
@@ -707,7 +717,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(eSlot) eSlot.classList.remove('glow-blue');
   if(aSlot) aSlot.classList.remove('glow-red');
 
-  const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
+  const atkVal=enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
 
   // 攻撃時効果（フォルニョート・エルフ等、敵陣営版）
@@ -829,13 +839,13 @@ function processAllyDeath(unit){
     triggerDryadBuff();
   }
 
-  // レイス：死亡時、全仲間に+ATK/±0
+  // レイス：死亡時、全ての敵に攻撃力に等しいダメージを与える
   if(unit.effect==='wraith_death'){
     const x=(unit.atk||0);
     if(x>0){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; }});
-      log(`${unit.name}：死亡→全仲間パワー+${x}/±0`,'good');
-      triggerDryadBuff();
+      const _wrCopy=[...G.enemies];
+      _wrCopy.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,x,ei); });
+      log(`${unit.name}：死亡→全ての敵に${x}ダメ`,'good');
     }
   }
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
@@ -944,10 +954,10 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'kettcat':{
-      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
+      const def={id:'c_babycat',name:'ベビーキャット',race:'獣',grade:1,atk:0,hp:2,cost:0,unique:false,icon:'🐱',desc:''};
       const selfIdx=ownSide.indexOf(unit);
       const ei=ownSide.findIndex((a,i)=>i!==selfIdx&&(!a||a.hp<=0));
-      if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャット(1/3)を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
+      if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ベビーキャット(0/2)を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
       break;
     }
     case 'ran':{

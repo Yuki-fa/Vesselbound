@@ -215,16 +215,12 @@ function generateMoveMasks(){
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
 
-  // 最初のスロットは必ず戦闘、追加スロットは各10%で商店/洞窟/池
-  // 行商直後は商店を出現させない
-  const _postShop=!!G._prevWasShop; G._prevWasShop=false;
-  // 遠見の指輪：商店の出現率2倍
-  const hasFarsight=typeof G!=='undefined'&&G.rings&&G.rings.some(r=>r&&r.unique==='farsight');
-  const shopRate=_postShop?0:(hasFarsight?0.20:0.10);
-  // 洞窟（smithy）・池（rest）：追加スロットで各10%
-  const specialRate=0.10;
+  // 最初のスロットは必ず戦闘、追加スロットは洞窟/池
+  G._prevWasShop=false;
+  // 洞窟（smithy）・池（rest）：追加スロットで各15%
+  const specialRate=0.15;
 
-  // 観察秘術：祭壇を確定で1つ出現させる
+  // 観察秘術：洞窟を確定で1つ出現させる
   let forceNonBattle=G.arcanaForceNode?'smithy':null;
   if(forceNonBattle) G.arcanaForceNode=false;
 
@@ -236,9 +232,8 @@ function generateMoveMasks(){
     }
     if(forceNonBattle&&!usedNon.has(forceNonBattle)){ masks[idx]=forceNonBattle; forceNonBattle=null; usedNon.add(masks[idx]); return; }
     const r=Math.random();
-    if(r<shopRate&&!usedNon.has('shop')){ masks[idx]='shop'; usedNon.add('shop'); }
-    else if(r<shopRate+specialRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
-    else if(r<shopRate+specialRate*2&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
+    if(r<specialRate&&!usedNon.has('smithy')){ masks[idx]='smithy'; usedNon.add('smithy'); }
+    else if(r<specialRate*2&&!usedNon.has('rest')){ masks[idx]='rest'; usedNon.add('rest'); }
   });
   return masks;
 }

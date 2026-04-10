@@ -251,7 +251,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(sp.type==='consumable'){
     G.allies.forEach(ic=>{
       if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
-      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:4,hp:1,cost:0,unique:false,icon:'😱',desc:''};
+      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:3,hp:1,cost:0,unique:false,icon:'😱',desc:''};
       const _nm=makeUnitFromDef(_nmDef);
       const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_ei>=0){ G.allies[_ei]=_nm; log(`${ic.name}：ナイトメア(4/1)を召喚`,'good'); }

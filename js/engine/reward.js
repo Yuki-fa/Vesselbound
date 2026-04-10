@@ -211,21 +211,24 @@ function renderMoveSlotsInEnemy(){
 
 function chooseMoveInline(nt){
   squirrelSay('退店時');
-  squirrelHide();
   G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
-  document.getElementById('reward-info-bar').style.display='none';
-  document.getElementById('reward-cards-section').style.display='none';
-  const rMoveBtns=document.getElementById('reward-move-btns');
-  if(rMoveBtns) rMoveBtns.style.display='none';
-  const eArea=document.getElementById('enemy-area');
-  if(eArea) eArea.style.display='';
-  const eLabel=document.getElementById('enemy-field-label');
-  if(eLabel) eLabel.style.display='';
-  document.getElementById('btn-pass').style.display='';
-  if(G._retryFloor){ G._retryFloor=false; G.floor--; }
-  chooseMove(nt);
+  // 退店メッセージを読ませるため少し遅らせてから画面遷移
+  setTimeout(()=>{
+    squirrelHide();
+    document.getElementById('reward-info-bar').style.display='none';
+    document.getElementById('reward-cards-section').style.display='none';
+    const rMoveBtns=document.getElementById('reward-move-btns');
+    if(rMoveBtns) rMoveBtns.style.display='none';
+    const eArea=document.getElementById('enemy-area');
+    if(eArea) eArea.style.display='';
+    const eLabel=document.getElementById('enemy-field-label');
+    if(eLabel) eLabel.style.display='';
+    document.getElementById('btn-pass').style.display='';
+    if(G._retryFloor){ G._retryFloor=false; G.floor--; }
+    chooseMove(nt);
+  }, 900);
 }
 
 // ── リロール ──────────────────────────────────
@@ -996,18 +999,22 @@ function _createDragGhost(srcEl){
   _removeDragGhost();
   const d=srcEl.cloneNode(true);
   d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
-  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:.82;
-    width:${srcEl.offsetWidth}px;height:${srcEl.offsetHeight}px;
-    transform:scale(.95);transition:none;left:-9999px;top:-9999px;
-    border-radius:6px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
+  const W=srcEl.offsetWidth||80, H=srcEl.offsetHeight||80;
+  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:.82;visibility:hidden;`+
+    `width:${W}px;height:${H}px;`+
+    `transform:scale(.95);transition:none;left:0;top:0;`+
+    `border-radius:6px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
+  d._ghostW=W; d._ghostH=H;
   document.body.appendChild(d);
   _dragGhostDiv=d;
 }
 function _moveDragGhost(clientX,clientY){
   if(!_dragGhostDiv) return;
-  const W=_dragGhostDiv.offsetWidth||80, H=_dragGhostDiv.offsetHeight||80;
+  const W=_dragGhostDiv._ghostW||_dragGhostDiv.offsetWidth||80;
+  const H=_dragGhostDiv._ghostH||_dragGhostDiv.offsetHeight||80;
   _dragGhostDiv.style.left=(clientX-W/2)+'px';
   _dragGhostDiv.style.top=(clientY-H/2)+'px';
+  _dragGhostDiv.style.visibility='visible';
 }
 function _removeDragGhost(){
   if(_dragGhostDiv){ _dragGhostDiv.remove(); _dragGhostDiv=null; }
