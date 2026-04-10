@@ -565,6 +565,13 @@ function takeRewCard(i, targetSlot){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
       if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${unit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
     }
+    // マーメイド：使役時に魔術レベル+1
+    if(unit.effect==='mermaid_start'){
+      const _mv=1+(G.hasGoldenDrop?1:0);
+      if(typeof onMagicLevelUp==='function') onMagicLevelUp(_mv);
+      else { G.magicLevel=(G.magicLevel||1)+_mv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
+      log(`${unit.name}：使役→魔術レベル+${_mv}（Lv${G.magicLevel}）`,'good');
+    }
     // スリン：全仲間に「成長1」を付与
     if(unit.effect==='slin_summon'){
       G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; if(!a.keywords.includes('成長1')) a.keywords.push('成長1'); }});

@@ -1125,8 +1125,6 @@ function onBattleStart(){
           G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk=Math.max(0,e.atk-_gmv); e.baseAtk=Math.max(0,(e.baseAtk||0)-_gmv); }});
           log(`${a.name}：開戦→全敵-${_gmv}/±0`,'good'); }
         break;
-      case 'mermaid_start':
-        { const _mv=1+(G.hasGoldenDrop?1:0); onMagicLevelUp(_mv); log(`${a.name}：魔術レベル+${_mv}（Lv${G.magicLevel}）`,'good'); } break;
       case 'manigans_start':
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
