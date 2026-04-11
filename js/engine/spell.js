@@ -11,7 +11,7 @@ function useSpell(idx){
   const sp=G.spells[idx];
   if(!sp) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(G.actionsLeft<=0) return;
+  if(G.actionsLeft<=0&&!G._debugMode) return;
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);
@@ -622,7 +622,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     }
   }
 
-  if(!_spreadTargetPending) G.actionsLeft--;
+  if(!_spreadTargetPending){ G.actionsLeft--; if(G._debugMode) G.actionsLeft=G.actionsPerTurn; }
   // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵を攻撃（杖は対象外）
   if(sp.type==='consumable'){
     G.allies.forEach(hh=>{
@@ -654,10 +654,10 @@ function applySpell(sp,idx,tgt,_noDecrement){
   }
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
-  if(G.actionsLeft<=0){
+  if(G.actionsLeft<=0&&!G._debugMode){
     setHint('行動終了。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
-  } else if(!hasUsable){
+  } else if(!hasUsable&&!G._debugMode){
     setHint('使用できる魔法がありません。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else {
