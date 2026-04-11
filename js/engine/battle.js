@@ -584,10 +584,7 @@ function _applyAllyAttackEffects(ally){
     G._specterBonus=(G._specterBonus||0)+_sv;
     log(`${ally.name}：攻撃→今後の「不死」に+${_sv}/+${_sv}（累計+${G._specterBonus}）`,'good');
   }
-  if(ally.effect==='draug_attack'){
-    // 攻撃後に処理（ターゲットはallyAttackActionで管理）- フラグで通知
-    ally._draugJustAttacked=true;
-  }
+  // ドラウグは受動効果（攻撃時ではなく被攻撃時）のため、ここでは処理しない
   // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1（ウンディーネ自身も含む）
   if(ally!==null&&G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
     const _uv=1+_gd; ally.atk+=_uv; ally.baseAtk=(ally.baseAtk||0)+_uv; ally.hp+=_uv; ally.maxHp+=_uv;
@@ -675,13 +672,6 @@ async function allyAttackAction(ally, allyIdx){
     }
   }
 
-  // ドラウグ：攻撃した敵に毒3を付与
-  if(ally.hp>0&&ally._draugJustAttacked){
-    delete ally._draugJustAttacked;
-    const _draugTgt=target.hp>0?target:(G.enemies.filter(e=>e&&e.hp>0).pop());
-    if(_draugTgt){ _draugTgt.poison=(_draugTgt.poison||0)+3+(G.hasGoldenDrop?1:0); log(`${ally.name}：攻撃した敵に毒3`,'good'); }
-  }
-
   renderAll();
   await sleep(300);
 }
@@ -764,6 +754,13 @@ async function enemyAttackAction(enemy, enemyIdx){
 
   // 標的ターン消費
   G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+
+  // ドラウグ：攻撃した敵に毒3（受動効果：攻撃を行った敵が毒を受ける）
+  if(enemy.hp>0&&G.allies.some(a=>a&&a.hp>0&&a.effect==='draug_attack')){
+    const _dpv=3+(G.hasGoldenDrop?1:0);
+    enemy.poison=(enemy.poison||0)+_dpv;
+    log(`ドラウグ：${enemy.name}が攻撃→毒${_dpv}`,'good');
+  }
 
   renderAll();
   await sleep(300);
@@ -851,10 +848,21 @@ function processAllyDeath(unit){
     const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:unit.grade||1,atk:0,hp:4,cost:0,unique:false,icon:'🦴',desc:''};
     const _boneSlot=G.allies.findIndex(a=>!a||a.hp<=0);
     if(_boneSlot>=0){
-      G.allies[_boneSlot]=makeUnitFromDef(_boneDef);
+      const _boneUnit=makeUnitFromDef(_boneDef);
+      G.allies[_boneSlot]=_boneUnit;
       log(`${unit.name}：死亡→骨(0/4)を召喚`,'good');
+      // グリマルキン：キャラクター効果で召喚されると+1/+1
+      { const _gbv=1+(G.hasGoldenDrop?1:0);
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_boneUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
       checkSolitudeBuff();
     }
+  }
+  // ソウルボム（アルプ負傷）：死亡時、仲間全員にダメージ
+  if(unit.effect==='soul_bomb_death'){
+    const _sbdmg=3*(unit.grade||1);
+    const _sbCopy=[...G.allies];
+    _sbCopy.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_sbdmg,ai,unit); });
+    log(`${unit.name}：死亡→仲間全員に${_sbdmg}ダメ`,'bad');
   }
   // ファントム：アク以外の仲間が死んだ時、0/1不死の「アク」を召喚
   if(unit.name!=='アク'){
@@ -862,7 +870,15 @@ function processAllyDeath(unit){
       if(!ph||ph.hp<=0||ph.effect!=='phantom_onallydie') return;
       const akDef={id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''};
       const empty=G.allies.findIndex(s=>!s||s.hp<=0);
-      if(empty>=0){ G.allies[empty]=makeUnitFromDef(akDef); log(`${ph.name}：${unit.name}の死→アク(0/1)を召喚`,'good'); checkSolitudeBuff(); }
+      if(empty>=0){
+        const _akUnit=makeUnitFromDef(akDef);
+        G.allies[empty]=_akUnit;
+        log(`${ph.name}：${unit.name}の死→アク(0/1)を召喚`,'good');
+        // グリマルキン：キャラクター効果で召喚されると+1/+1
+        { const _gbv=1+(G.hasGoldenDrop?1:0);
+          G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_akUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+        checkSolitudeBuff();
+      }
     });
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
@@ -958,9 +974,23 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'kettcat':{
-      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:2,cost:0,unique:false,icon:'🐱',desc:''};
-      const ei=ownSide.findIndex(a=>!a||a.hp<=0);
-      if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャット(1/2)を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
+      const _ncG=unit.grade||1, _ncAtk=_ncG, _ncHp=2*_ncG;
+      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncG,atk:_ncAtk,hp:_ncHp,cost:0,unique:false,icon:'🐱',desc:''};
+      if(!isEnemy){
+        const _nc=makeUnitFromDef(def);
+        const ei=G.allies.findIndex(a=>!a||a.hp<=0);
+        if(ei>=0){
+          G.allies[ei]=_nc;
+          log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,'good');
+          // グリマルキン：キャラクター効果で召喚されると+1/+1
+          { const _gbv=1+(G.hasGoldenDrop?1:0);
+            G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_nc){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+          checkSolitudeBuff();
+        }
+      } else {
+        const ei=ownSide.findIndex(a=>!a||a.hp<=0);
+        if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,col); }
+      }
       break;
     }
     case 'ran':{
@@ -1002,12 +1032,13 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'alp':{
-      // 敵の場に0/1「ソウルボム」を召喚
-      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:1,atk:0,hp:1,cost:0,unique:false,icon:'💣',desc:''};
+      // 相手の場に0/1「ソウルボム」を召喚（死亡時、その仲間全員にダメージ）
+      const _alpG=unit.grade||1;
+      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_alpG,atk:0,hp:1,cost:0,unique:false,icon:'💣',desc:`死亡：仲間全員に${3*_alpG}ダメ`,effect:'soul_bomb_death'};
       const _alpSlot=oppSide.findIndex(a=>!a||a.hp<=0);
       if(_alpSlot>=0){
         oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
-        log(`${unit.name}：負傷→ソウルボム(0/1)を敵陣に召喚`,col);
+        log(`${unit.name}：負傷→ソウルボム(0/1)を相手陣に召喚`,col);
       }
       break;
     }
@@ -1188,8 +1219,13 @@ function onBattleStart(){
           G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg2,G.enemies.indexOf(e),a); });
           log(`${a.name}：開戦→全敵に${_sdmg2}ダメ`,'good'); }
         break;
+      case 'centaur_start':
+        { const _cv=1+(G.hasGoldenDrop?1:0);
+          onMagicLevelUp(_cv);
+          log(`${a.name}：開戦→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good'); }
+        break;
       case 'golden_goose_start':
-        { const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:1,atk:0,hp:1,cost:0,unique:false,icon:'🥚',desc:''};
+        { const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:a.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🥚',desc:'還魂：ソウルを追加で得る',effect:'golden_egg_sell'};
           const _ggi=G.allies.findIndex(b=>!b||b.hp<=0);
           if(_ggi>=0){ G.allies[_ggi]=makeUnitFromDef(_ggDef); log(`${a.name}：ゴールデンエッグ(0/1)を召喚`,'good'); checkSolitudeBuff(); } }
         break;
@@ -1461,6 +1497,13 @@ function processEnemyDeath(e,eIdx){
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
     log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
+  }
+  // ソウルボム（アルプ負傷・敵陣）：死亡時、敵全員にダメージ（プレイヤーに有利）
+  if(e.effect==='soul_bomb_death'){
+    const _sbdmg=3*(e.grade||1);
+    const _sbCopy=[...G.enemies];
+    _sbCopy.forEach((f,fi)=>{ if(f&&f.hp>0&&f!==e) dealDmgToEnemy(f,_sbdmg,fi,e); });
+    log(`${e.name}：死亡→敵全員に${_sbdmg}ダメ`,'good');
   }
   // ナグルファル：敵死亡でも+2/+1
   _onAnyCharDeath();

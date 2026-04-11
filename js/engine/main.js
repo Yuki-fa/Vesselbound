@@ -51,7 +51,26 @@ function squirrelHide(){
 // ═══════════════════════════════════════
 // GAME FLOW
 // ═══════════════════════════════════════
-function startGame(){ initState(); showScreen('battle'); startBattle(); }
+function startGame(debugMode){
+  initState();
+  G._debugMode=!!debugMode;
+  if(G._debugMode){
+    G.gold=999;
+    const dbg=document.getElementById('btn-debug-kill');
+    if(dbg) dbg.style.display='';
+    log('[DEBUG] デバッグモード：ソウル999','sys');
+  }
+  showScreen('battle'); startBattle();
+}
+
+function debugKillAll(){
+  if(!G._debugMode||G.phase!=='player') return;
+  const alive=G.enemies.filter(e=>e&&e.hp>0);
+  if(!alive.length) return;
+  alive.forEach((e,_)=>{ e.hp=0; processEnemyDeath(e,G.enemies.indexOf(e)); });
+  log('[DEBUG] 全敵を撃破','sys');
+  if(G.enemies.filter(e=>e&&e.hp>0).length===0) _onAllEnemiesDefeated();
+}
 function gameOver(){ G.rings.forEach(r=>{ if(r) r._count=0; }); document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
 function showVictoryOverlay(){ document.getElementById('victory-overlay').style.display='flex'; }
 function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }

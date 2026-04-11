@@ -571,18 +571,23 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
 function renderControls(){
   const badge=document.getElementById('ph-badge');
   const pp=document.getElementById('btn-pass');
+  const dbg=document.getElementById('btn-debug-kill');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
     pp.style.display='';
+    if(dbg) dbg.style.display=G._debugMode?'':'none';
   } else if(G.phase==='commander'){
     badge.className='ph-badge ph-enemy'; badge.textContent='司令官フェイズ';
     pp.style.display='none';
+    if(dbg) dbg.style.display='none';
   } else if(G.phase==='reward'){
     // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
+    if(dbg) dbg.style.display='none';
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
     pp.style.display='none';
+    if(dbg) dbg.style.display='none';
   }
 }
 

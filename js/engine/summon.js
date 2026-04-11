@@ -6,7 +6,7 @@
 // 行動の指輪・宿屋ボーナスによる行動回数を計算
 function calcActions(){
   let n=1;
-  G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=(r.grade||1); });
+  G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=1; }); // 行動の指輪は常に+1（グレード無関係）
   if(G._bonusAction) n+=G._bonusAction; // 宿屋ボーナス（永続）
   if(G._minotaurBonus) n+=G._minotaurBonus; // ミノタウロス：ボス戦で+1
   return n;
@@ -59,13 +59,7 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 // ユニット召喚時の使役効果を適用（addAlly経由・直接追加どちらからも呼べる）
 function applyUnitSummonEffect(unit, fromRingId){
   if(!unit) return;
-  // ケンタウロス：召喚時、魔術レベル+1（黄金の雫：+2）
-  if(unit.effect==='centaur_summon'){
-    const _cv=1+(G.hasGoldenDrop?1:0);
-    if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
-    else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
-    log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
-  }
+  // ケンタウロス：開戦時に魔術レベル+1（onBattleStartで処理）
   // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};

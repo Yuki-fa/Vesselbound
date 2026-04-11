@@ -307,9 +307,10 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'kettcat':{
-      const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
+      const _ncRG=unit.grade||1, _ncRA=_ncRG, _ncRH=2*_ncRG;
+      const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncRG,atk:_ncRA,hp:_ncRH,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
       addRewChar(makeUnitFromDef(_ncDef));
-      log(`${unit.name}：負傷→ナイトキャット(1/3)を報酬枠に召喚`,'good');
+      log(`${unit.name}：負傷→ナイトキャット(${_ncRA}/${_ncRH})を報酬枠に召喚`,'good');
       break;
     }
     case 'ran':{
@@ -534,12 +535,6 @@ function takeRewCard(i, targetSlot){
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
-    if(unit.effect==='centaur_summon'){
-      const _cv=1+(G.hasGoldenDrop?1:0);
-      if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
-      else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
-      log(`${unit.name}：召喚→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
-    }
     if(unit.effect==='chimera_summon'){
       const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
       const _avail=[..._pool];
@@ -611,10 +606,11 @@ function takeRewCard(i, targetSlot){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_fb; a.baseAtk=(a.baseAtk||0)+_fb; } });
       log(`憤激の指輪：全仲間パワー+${_fb}/±0`,'good');
     }
-    // 行動の指輪：装備時点でactionsPerTurn/actionsLeftを更新
+    // 行動の指輪：装備時点でactionsPerTurnを更新し、差分をactionsLeftに加算
     if(rc.unique==='extra_action'){
+      const _oldPT=G.actionsPerTurn;
       G.actionsPerTurn=calcActions();
-      G.actionsLeft=G.actionsPerTurn;
+      G.actionsLeft=G.actionsLeft+(G.actionsPerTurn-_oldPT);
     }
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（指輪の場合）
@@ -906,12 +902,6 @@ function _applyStack(fieldIdx, rewIdx){
   log(`${fieldUnit.name} を重ねた → ${result.atk}/${result.hp} G${result.grade}`,'good');
   squirrelSay('カードを重ねた時');
   // 使役効果（重ね後も発動）
-  if(fieldUnit.effect==='centaur_summon'){
-    const _cv=1+(G.hasGoldenDrop?1:0);
-    if(typeof onMagicLevelUp==='function') onMagicLevelUp(_cv);
-    else { G.magicLevel=(G.magicLevel||1)+_cv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
-    log(`${fieldUnit.name}：魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good');
-  }
   if(fieldUnit.effect==='chimera_summon'){
     const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
     const _avail=[..._pool.filter(k=>!(fieldUnit.keywords||[]).includes(k))];
@@ -1088,8 +1078,13 @@ function _removeStackPreviewOverlay(){
 function sellFieldUnit(idx){
   const unit=G.allies[idx]; if(!unit) return;
   G.allies[idx]=null;
-  G.gold+=1; G.earnedGold+=1;
-  log(`${unit.name} を還魂（+1ソウル）`,'gold');
+  const _baseGold=1;
+  // ゴールデンエッグ：還魂時に追加ソウル（X=グレード）
+  const _eggBonus=(unit.effect==='golden_egg_sell')?(unit.grade||1):0;
+  const _totalGold=_baseGold+_eggBonus;
+  G.gold+=_totalGold; G.earnedGold+=_totalGold;
+  if(_eggBonus>0) log(`${unit.name} を還魂（+${_totalGold}ソウル：ゴールデンエッグ+${_eggBonus}）`,'gold');
+  else log(`${unit.name} を還魂（+1ソウル）`,'gold');
   squirrelSay('カードを売却した時');
   // レプラコーン：ソウルを得るたびに全キャラ±0/+1
   { const _gd=G.hasGoldenDrop?1:0; const _lv=1+_gd;
