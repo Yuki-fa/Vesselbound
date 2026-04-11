@@ -188,14 +188,14 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     _baseDesc:   def.desc  || '',
     _baseGrade:  def.grade || 1,
   };
-  // マミー効果：「不死」のキャラクターにATKボーナス（累積）
+  // マミー効果：「不死」または「全て」のキャラクターにATKボーナス（累積）
   // drawCharacters で既に適用済みの場合（_bonusApplied）は二重加算しない
-  if(def.race==='不死' && typeof G!=='undefined' && G._undeadHpBonus && !def._bonusApplied){
+  if((def.race==='不死'||def.race==='全て') && typeof G!=='undefined' && G._undeadHpBonus && !def._bonusApplied){
     unit.atk    += G._undeadHpBonus;
     unit.baseAtk += G._undeadHpBonus;
   }
-  // スペクター効果：「不死」のキャラクターにATK+HPボーナス（累積）
-  if(def.race==='不死' && typeof G!=='undefined' && G._specterBonus && !def._bonusApplied){
+  // スペクター効果：「不死」または「全て」のキャラクターにATK+HPボーナス（累積）
+  if((def.race==='不死'||def.race==='全て') && typeof G!=='undefined' && G._specterBonus && !def._bonusApplied){
     unit.atk    += G._specterBonus;
     unit.baseAtk += G._specterBonus;
     unit.hp     += G._specterBonus;

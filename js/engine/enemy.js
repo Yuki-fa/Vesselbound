@@ -50,7 +50,7 @@ function namedGradeForFloor(floor){
 function _mkNamedEnemy(def,floor,extraMult,extraKws){
   const {atk,hp}=enemyStats(def,floor,extraMult||1.0);
   const kws=[...(def.keywords||[]),...(extraKws||[])];
-  const e=_mkEnemy(atk,hp,def.name,def.icon,def.grade||1,0,kws,def.race||'-');
+  const e=_mkEnemy(atk,hp,def.name,def.icon,def.grade||1,_kwShield(def),kws,def.race||'-');
   e.desc=def.desc||'';
   e.effect =def.effect ||null;
   e.injury =def.injury ||null;
@@ -77,6 +77,7 @@ function _pickEnemyDef(grade){
 
 // 「シールド」キーワードの値を返す（シールド → 1、シールド2 → 2、なければ 0）
 function _kwShield(def){
+  if(def.shield) return def.shield; // def に直接 shield フィールドがある場合を優先
   const k=(def.keywords||[]).find(k=>k==='シールド'||/^シールド\d+$/.test(k));
   if(!k) return 0;
   return k==='シールド'?1:parseInt(k.slice(3));
@@ -133,6 +134,10 @@ function generateEnemies(floor){
       }
       enemies.push(e);
     }
+    // ボスをスロット0〜2のランダムな位置に配置
+    const _bossSlot=randi(0,2);
+    if(_bossSlot!==0){ const tmp=enemies[0]; enemies[0]=enemies[_bossSlot]; enemies[_bossSlot]=tmp; }
+    G._bossSlot=_bossSlot;
     return enemies;
   }
 
@@ -143,7 +148,7 @@ function generateEnemies(floor){
   const noEliteFloors=[1,2,5,6,10,11,15,16,20];
   const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
   if(hasElite) G._isEliteFight=true;
-  const eliteIdx=hasElite?randi(0,count-1):-1;
+  const eliteIdx=hasElite?randi(0,Math.min(2,count-1)):-1;
   G._eliteIdx=eliteIdx;
   const ng=namedGradeForFloor(floor);
 
@@ -202,11 +207,11 @@ function generateMoveMasks(){
   // 最終ボス戦（floor 20）：移動マスを置かない
   if(FLOOR_DATA[G.floor]?.boss && G.floor===FLOOR_DATA.length-1) return masks;
 
-  // ボス戦：スロット0（ボス）に戦闘マスのみ。他は出現しない
-  if(isBoss){ masks[0]='battle'; return masks; }
+  // ボス戦：ボスのスロット（0〜2のランダム）に戦闘マスのみ。他は出現しない
+  if(isBoss){ masks[G._bossSlot||0]='battle'; return masks; }
 
   // ボス直前フロア：ボス戦マスのみ（鍛冶屋・休息所は出現しない）
-  if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[0]='boss'; return masks; }
+  if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[randi(0,2)]='boss'; return masks; }
 
   // 通常戦：エリートのスロットは宝箱確定、候補から除外してランダム配置
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;

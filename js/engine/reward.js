@@ -296,7 +296,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       const mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
       // 既にフィールドにいる不死キャラにもボーナスを適用
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
       log(`${unit.name}：不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
       break;
     }
@@ -380,11 +380,12 @@ function renderRewCards(){
       const dispAtk=card.atk;
       const dispHp=card.hp;
       // 仲間加入プレビュー（ペリュトン：キャラ効果召喚のスタッツ変動のみ表示）
-      const _summonBonus=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-      const _hasSummonDesc=_summonBonus>0&&/\d+\/\d+、/.test(card.desc||'');
+      const _sumBonusAtk=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+      const _sumBonusHp=(G.hasGoldenDrop?1:0);
+      const _hasSummonDesc=(_sumBonusAtk>0||_sumBonusHp>0)&&/\d+\/\d+、/.test(card.desc||'');
       let _previewStr='';
       if(_hasSummonDesc){
-        const _modDesc=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_summonBonus}/${parseInt(h)+_summonBonus}、`);
+        const _modDesc=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusAtk}/${parseInt(h)+_sumBonusHp}、`);
         _previewStr=`ペリュトン：${_modDesc}`;
       };
       const _allKws=[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])];
@@ -478,10 +479,11 @@ function _mkRewDiv(card, onBuy){
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
-    const _sumBonusCard=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-    const _hasSumDescCard=_sumBonusCard>0&&/\d+\/\d+、/.test(card.desc||'');
+    const _sumBonusCardAtk=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
+    const _sumBonusCardHp=(G.hasGoldenDrop?1:0);
+    const _hasSumDescCard=(_sumBonusCardAtk>0||_sumBonusCardHp>0)&&/\d+\/\d+、/.test(card.desc||'');
     if(_hasSumDescCard){
-      const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCard}/${parseInt(h)+_sumBonusCard}、`);
+      const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCardAtk}/${parseInt(h)+_sumBonusCardHp}、`);
       div.setAttribute('data-preview',`ペリュトン：${_modDescCard}`);
     }
     div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
@@ -549,17 +551,19 @@ function takeRewCard(i, targetSlot){
       if(_chosen.includes('標的')){ unit.hate=true; unit.hateTurns=99; }
       log(`${unit.name}：召喚→キーワード${_chosen.join('、')}を獲得`,'good');
     }
-    // ミテーラ：自分の場（G.allies）に1/3ペリカンを直接配置
+    // ミテーラ：自分の場（G.allies）にペリカンを直接配置（グレードスケール）
     if(unit.effect==='mitera_summon'){
-      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
+      const _pelG=unit.grade||1;
+      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
       const _pelUnit=makeUnitFromDef(_pelDef);
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
+      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good'); }
     }
-    // コボルド：最も左の杖に充填数+1
+    // コボルド：最も左の杖に充填数+(_stackCount+1)
     if(unit.effect==='kobold_summon'){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-      if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${unit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
+      const _kc=(unit._stackCount||0)+1;
+      if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_kc}`,'good'); }
     }
     // マーメイド：使役時に魔術レベル+1
     if(unit.effect==='mermaid_start'){
@@ -917,14 +921,16 @@ function _applyStack(fieldIdx, rewIdx){
     log(`${fieldUnit.name}：キーワード${_chosen.join('、')}を追加獲得`,'good');
   }
   if(fieldUnit.effect==='mitera_summon'){
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
+    const _pelG=fieldUnit.grade||1;
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
     const _pelUnit=makeUnitFromDef(_pelDef);
     const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(1/3)を盤面に召喚`,'good'); }
+    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good'); }
   }
   if(fieldUnit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
+    const _kcs=fieldUnit._stackCount||0; // 増分（新スタック数分）
+    if(_kcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_kcs}`,'good'); }
   }
   if(fieldUnit.effect==='slin_summon'){
     G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
@@ -962,7 +968,14 @@ function _clearFieldDropHighlights(){
 // ブラウザネイティブのドラッグゴーストはCSSのz-indexより上のコンポジタレイヤーに描画される。
 // setDragImageで透明画像に差し替え、自前のゴーストdivを使うことでプレビューを上に出す。
 
-const _transparentDragImg=(()=>{ const c=document.createElement('canvas'); c.width=c.height=1; return c; })();
+// setDragImage 用の透明画像（DOMに追加済みのimg要素が最も確実に動作する）
+const _transparentDragImg=(()=>{
+  const img=document.createElement('img');
+  img.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  img.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px';
+  document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(img));
+  return img;
+})();
 
 let _dragGhostDiv=null;
 // ドロップ後にDOMが再構築されると dragend が発火しない場合があるため、グローバルで確実に除去
@@ -1274,7 +1287,7 @@ function renderGradeUpBtn(){
   if(count>=GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
     el.style.display='none'; return;
   }
-  const cost=GRADE_UP_COSTS[count];
+  const cost=Math.max(0, GRADE_UP_COSTS[count]-(G._gradeUpCostBonus||0));
   const canAfford=G.gold>=cost;
   el.style.display='';
   el.textContent=`報酬G${(G.rewardGrade||1)}→G${(G.rewardGrade||1)+1}（${cost}ソウル）`;

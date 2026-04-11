@@ -145,7 +145,7 @@ async function startBattle(){
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
-    delete a._weakenedSavedAtk;
+    delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
   });
 
   log(`── 階層 ${G.floor} ──`,'sys');
@@ -373,6 +373,7 @@ function startPlayerPhase(){
   G.actionsLeft=G.actionsPerTurn;
   G.spreadActive=false;
   applyTurnStart();
+  if(G.phase!=='player') return; // 針の指輪等でターン開始時に勝利確定した場合は中断
   // 毒処理後も仲間が全滅していたらゲームオーバー
   if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
   renderAll();
@@ -392,12 +393,13 @@ function applyTurnStart(){
       log(`${e.name} のパワーブレイクが回復（ATK→${e.atk}）`,'sys');
     }
   });
-  // 脱力回復（プレイヤーターン開始時にATK復元）
+  // 脱力回復（プレイヤーフェーズ適用分のみ：敵フェーズ適用分はbattlePhase冒頭で解除）
   [...G.enemies,...G.allies].forEach(u=>{
-    if(u&&u._weakenedSavedAtk!==undefined){
+    if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied!=='battle'){
       u.atk=(u.atk||0)+u._weakenedSavedAtk;
       log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
       delete u._weakenedSavedAtk;
+      delete u._weakenPhaseApplied;
     }
   });
 
@@ -446,6 +448,16 @@ function applyTurnStart(){
       triggerDryadBuff();
     }
   });
+  // 骨：ターン開始時にスケルトンへ変身
+  G.allies.forEach((a,i)=>{
+    if(!a||a.hp<=0||a.effect!=='bone_transform') return;
+    const _bkg=a.grade||1;
+    const _skDef=UNIT_POOL?UNIT_POOL.find(u=>u.id==='c_skeleton'):null;
+    const _skAtk=7*_bkg, _skHp=7*_bkg;
+    const _skBase=_skDef?{..._skDef,atk:_skAtk,hp:_skHp,maxHp:_skHp,grade:_bkg}:{id:'c_skeleton',name:'スケルトン',race:'不死',grade:_bkg,atk:_skAtk,hp:_skHp,maxHp:_skHp,cost:0,unique:false,icon:'💀',desc:'',effect:'skeleton_bone',keywords:[]};
+    G.allies[i]=makeUnitFromDef(_skBase);
+    log(`骨：スケルトン(${_skAtk}/${_skHp})に変身`,'good');
+  });
   // 城壁・ハーピーATK同期
   syncWallAtk();
   syncHarpyAtk();
@@ -460,6 +472,15 @@ async function battlePhase(){
   G.phase='enemy';
   renderControls();
   log(`── T${G.turn} 戦闘フェイズ ──`,'sys');
+  // 脱力回復（前ターンの敵フェーズで適用された分をここで解除：プレイヤーフェーズ中ATK=0が見えた後）
+  [...G.enemies,...G.allies].forEach(u=>{
+    if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
+      u.atk=(u.atk||0)+u._weakenedSavedAtk;
+      log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
+      delete u._weakenedSavedAtk;
+      delete u._weakenPhaseApplied;
+    }
+  });
 
   for(let i=0;i<6;i++){
     // 敵 i 番目の攻撃
@@ -550,7 +571,7 @@ function _applyAllyAttackEffects(ally){
   }
   if(ally.effect==='vampire_attack'){
     const va=2+_gd, vh=1+_gd;
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a.race==='不死'){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
     log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
   }
   if(ally.effect==='sylph_attack'){
@@ -576,11 +597,11 @@ function _applyAllyAttackEffects(ally){
     if(_rightmost){ const _pv=4+_gd; _rightmost.hp+=_pv; _rightmost.maxHp+=_pv; log(`${ally.name}：攻撃→右端の${_rightmost.name}に±0/+${_pv}`,'good'); }
   }
   if(ally.effect==='lizardman_attack'){
-    const _lv=1+_gd; ally.hp+=_lv; ally.maxHp+=_lv;
+    const _lv=((ally._stackCount||0)+1)+_gd; ally.hp+=_lv; ally.maxHp+=_lv;
     log(`${ally.name}：攻撃時±0/+${_lv}`,'good');
   }
   if(ally.effect==='specter_attack'){
-    const _sv=1+_gd;
+    const _sv=((ally._stackCount||0)+1)+_gd;
     G._specterBonus=(G._specterBonus||0)+_sv;
     log(`${ally.name}：攻撃→今後の「不死」に+${_sv}/+${_sv}（累計+${G._specterBonus}）`,'good');
   }
@@ -845,12 +866,14 @@ function processAllyDeath(unit){
   }
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
   if(unit.effect==='skeleton_bone'){
-    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:unit.grade||1,atk:0,hp:4,cost:0,unique:false,icon:'🦴',desc:''};
+    const _boneG=unit.grade||1;
+    const _boneHp=4*_boneG;
+    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
     const _boneSlot=G.allies.findIndex(a=>!a||a.hp<=0);
     if(_boneSlot>=0){
       const _boneUnit=makeUnitFromDef(_boneDef);
       G.allies[_boneSlot]=_boneUnit;
-      log(`${unit.name}：死亡→骨(0/4)を召喚`,'good');
+      log(`${unit.name}：死亡→骨(0/${_boneHp})を召喚`,'good');
       // グリマルキン：キャラクター効果で召喚されると+1/+1
       { const _gbv=1+(G.hasGoldenDrop?1:0);
         G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_boneUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
@@ -932,13 +955,18 @@ function triggerInjury(unit, dmg=0){
     }
     case 'freyr':{
       // 最も右の空きスロットにストーンキャットを召喚（自陣）
-      const scDef={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']};
+      const scDef={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'',counter:true,keywords:['反撃','アーティファクト']};
       const freeIdx=ownSide.map((a,i)=>(!a||a.hp<=0)?i:-1).filter(i=>i>=0);
       if(freeIdx.length){
         const slot=freeIdx[freeIdx.length-1];
         ownSide[slot]=makeUnitFromDef(scDef);
         log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
-        if(!isEnemy) checkSolitudeBuff();
+        if(!isEnemy){
+          // グリマルキン：キャラクター効果で召喚されると+1/+1
+          { const _gbv=1+(G.hasGoldenDrop?1:0);
+            G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==ownSide[slot]){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+          checkSolitudeBuff();
+        }
       }
       break;
     }
@@ -949,7 +977,7 @@ function triggerInjury(unit, dmg=0){
       if(!isEnemy){
         // リンドヴルム：仲間の負傷発動時、全仲間竜+1/+1
         const _lv=1+(G.hasGoldenDrop?1:0);
-        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&d.race==='竜'){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
         triggerDryadBuff();
       }
       break;
@@ -1027,19 +1055,21 @@ function triggerInjury(unit, dmg=0){
     case 'warg':{
       // 全ての仲間の獣が+1/+1
       const _wgv=1+(!isEnemy&&G.hasGoldenDrop?1:0);
-      ownSide.forEach(a=>{ if(a&&a.hp>0&&a.race==='獣'){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
+      ownSide.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,col);
       break;
     }
     case 'alp':{
-      // 相手の場に0/1「ソウルボム」を召喚（死亡時、その仲間全員にダメージ）
+      // 相手の場に0/N「ソウルボム」を召喚（死亡時、その仲間全員にダメージ）
       const _alpG=unit.grade||1;
-      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_alpG,atk:0,hp:1,cost:0,unique:false,icon:'💣',desc:`死亡：仲間全員に${3*_alpG}ダメ`,effect:'soul_bomb_death'};
+      const _sbG=Math.max(1,_alpG-1); // G1→sbG=1, G2→sbG=1, G3→sbG=2, G4→sbG=3
+      const _sbHp=_sbG;
+      const _sbDmg=3*_sbG;
+      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
       const _alpSlot=oppSide.findIndex(a=>!a||a.hp<=0);
-      if(_alpSlot>=0){
-        oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
-        log(`${unit.name}：負傷→ソウルボム(0/1)を相手陣に召喚`,col);
-      }
+      if(_alpSlot>=0) oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
+      else oppSide.push(makeUnitFromDef(_alpDef)); // 空きがなければ末尾に追加
+      log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を相手陣に召喚`,col);
       break;
     }
     case 'hydra':{
@@ -1053,7 +1083,7 @@ function triggerInjury(unit, dmg=0){
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
     const _lv=1+(G.hasGoldenDrop?1:0);
-    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&d.race==='竜'){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
   }
 }
 
@@ -1164,11 +1194,13 @@ function onBattleStart(){
         { const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
           if(_herb){
             const _count=(a._stackCount||0)+1;
+            let _added=0;
             for(let _ji=0;_ji<_count;_ji++){
-              const _herbClone=clone(_herb); _herbClone._buyPrice=0;
-              G.masterHand.push(_herbClone);
+              const _herbClone=clone(_herb); _herbClone._buyPrice=0; delete _herbClone._buyPrice;
+              const _si=G.spells.findIndex(s=>!s);
+              if(_si>=0){ G.spells[_si]=_herbClone; _added++; }
             }
-            log(`${a.name}：オーナーが「治癒の薬」×${_count}枚を得た`,'good');
+            if(_added>0) log(`${a.name}：オーナーが「治癒の薬」×${_added}枚を得た`,'good');
           }
         }
         break;
@@ -1181,7 +1213,7 @@ function onBattleStart(){
         { const _sdmg=4+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
         break;
       case 'minotaur_gradeup':
-        { const _mg=1+(G.hasGoldenDrop?1:0);
+        { const _mg=((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
           G._gradeUpCostBonus=(G._gradeUpCostBonus||0)+_mg;
           log(`${a.name}：グレードアップコスト-${_mg}（累計-${G._gradeUpCostBonus}）`,'good'); }
         break;
@@ -1191,23 +1223,26 @@ function onBattleStart(){
         break;
       case 'shadow_start':
         { const _shadowIdx=G.allies.indexOf(a);
-          const _frontE=G.enemies[_shadowIdx]||(G.enemies.find(e=>e&&e.hp>0));
+          const _frontE=G.enemies[_shadowIdx];
           if(_frontE&&_frontE.hp>0){
+            const _prevName=a.name;
             a.name=_frontE.name; a.icon=_frontE.icon; a.race=_frontE.race||'-';
             // ATK/HPは変更しない（シャドウ自身のスタッツを維持）
-            if(_frontE.keywords&&_frontE.keywords.length) a.keywords=[..._frontE.keywords];
-            if(_frontE.counter) a.counter=true;
-            a.effect=_frontE.effect||null; // 効果をコピー
-            log(`${a.name}（${_frontE.name}に変身）（${a.atk}/${a.hp}）`,'good');
+            a.keywords=_frontE.keywords&&_frontE.keywords.length?[..._frontE.keywords]:[];
+            a.counter=_frontE.counter||false;
+            a.effect=_frontE.effect||null;
+            a.injury=_frontE.injury||null;
+            a.desc=_frontE.desc||'';
+            log(`${_prevName}：${a.name}に変身（${a.atk}/${a.hp}）`,'good');
           } else {
-            a.effect=null;
+            a.effect=null; a.injury=null; a.desc='';
           }
         }
         break;
       case 'homunculus_start':
-        { const _races=new Set(G.allies.filter(b=>b&&b.hp>0&&b!==a&&b.race&&b.race!=='-').map(b=>b.race));
-          const _hx=_races.size+(G.hasGoldenDrop?1:0);
-          if(_hx>0){ a.atk+=_hx; a.baseAtk=(a.baseAtk||0)+_hx; a.hp+=_hx; a.maxHp+=_hx; log(`${a.name}：種族数${_races.size}→+${_hx}/+${_hx}`,'good'); } }
+        { const _races=new Set(G.allies.filter(b=>b&&b.hp>0&&b!==a&&b.race&&b.race!=='-'&&b.race!=='全て').map(b=>b.race));
+          const _hx=_races.size+1+(G.hasGoldenDrop?1:0); // +1 for ホムンクルス自身の種族（「全て」として1カウント）
+          if(_hx>0){ a.atk+=_hx; a.baseAtk=(a.baseAtk||0)+_hx; a.hp+=_hx; a.maxHp+=_hx; log(`${a.name}：種族数${_races.size}＋自身→+${_hx}/+${_hx}`,'good'); } }
         break;
       case 'frost_start':
         { const _fsi=G.allies.indexOf(a);
@@ -1225,9 +1260,18 @@ function onBattleStart(){
           log(`${a.name}：開戦→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good'); }
         break;
       case 'golden_goose_start':
-        { const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:a.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🥚',desc:'還魂：ソウルを追加で得る',effect:'golden_egg_sell'};
+        { const _ggG=Math.max(1,(a.grade||1)-1);
+          const _ggHp=_ggG;
+          const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ソウルを追加で${_ggG}得る。`,effect:'golden_egg_sell'};
           const _ggi=G.allies.findIndex(b=>!b||b.hp<=0);
-          if(_ggi>=0){ G.allies[_ggi]=makeUnitFromDef(_ggDef); log(`${a.name}：ゴールデンエッグ(0/1)を召喚`,'good'); checkSolitudeBuff(); } }
+          if(_ggi>=0){
+            G.allies[_ggi]=makeUnitFromDef(_ggDef);
+            log(`${a.name}：ゴールデンエッグ(0/${_ggHp})を召喚`,'good');
+            // グリマルキン：キャラクター効果で召喚されると+1/+1
+            { const _gbv=1+(G.hasGoldenDrop?1:0);
+              G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==G.allies[_ggi]){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+            checkSolitudeBuff();
+          } }
         break;
     }
   });
@@ -1261,12 +1305,15 @@ function onBattleEnd(){
     if(!a||a.effect!=='dragonet_end') return;
     a._dragonetCount=(a._dragonetCount||0)+1;
     if(a._dragonetCount>=(3+(a._dragonetBonus||0))){
-      const _g2dragons=UNIT_POOL.filter(u=>u.race==='竜'&&(u.grade||1)>=2&&u.id!=='c_dragonet');
-      const _target=_g2dragons.length?randFrom(_g2dragons):UNIT_POOL.find(u=>u.id==='c_worm');
+      const _sc=a._stackCount||0;
+      const _targetGrade=_sc>=2?4:2;
+      const _allowNamed=_sc>=5;
+      const _dragons=UNIT_POOL.filter(u=>u.race==='竜'&&(u.grade||1)===_targetGrade&&u.id!=='c_dragonet'&&(_allowNamed||!u.unique));
+      const _target=_dragons.length?randFrom(_dragons):(UNIT_POOL.find(u=>u.id==='c_worm')||null);
       if(_target){
-        const w=clone(_target); w._isChar=true; w.maxHp=w.hp;
+        const w=makeUnitFromDef(_target); w._isChar=true;
         G.allies[i]=w;
-        log(`🐲 ドラゴネット：3戦目→${w.name}に変身！`,'gold');
+        log(`🐲 ドラゴネット：3戦目→${w.name}(G${_targetGrade})に変身！`,'gold');
       }
     } else {
       log(`🐲 ドラゴネット：変身まで${(3+(a._dragonetBonus||0))-a._dragonetCount}戦`,'sys');
@@ -1331,7 +1378,7 @@ function applyVictoryBonuses(){
   // ステージ突破ボーナス
   const fl=G.floor;
   const _sib=G._soulIncomeBonus||0;
-  const stageBonus=(fl>=15?4:fl>=10?3:fl>=5?2:1)+_sib;
+  const stageBonus=(fl>=16?4:fl>=11?3:fl>=6?2:1)+_sib;
   G.gold+=stageBonus; G.earnedGold+=stageBonus;
   log(`ステージ突破ボーナス：${stageBonus}ソウル`+(_sib>0?`（+${_sib}魔神）`:''),'gold');
 
@@ -1475,7 +1522,7 @@ function processEnemyDeath(e,eIdx){
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
   const _isArtifact=e.keywords&&e.keywords.includes('アーティファクト');
   const gold=_isArtifact?0:(G.baseIncome||1);
-  if(gold>0){ G.earnedGold+=gold; G.gold+=gold; log(`${e.name} 撃破！ソウル+${gold}`,'gold'); }
+  if(gold>0){ log(`${e.name} 撃破！ソウル+${gold}`,'gold'); onGoldGained(gold); }
   else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
   // エリート戦ではエリート本体が宝箱を確定ドロップ（他の敵は落とさない）
@@ -1729,6 +1776,7 @@ function applyBossSpell(sp){
       const t=randFrom(liveA);
       t._weakenedSavedAtk=t.atk;
       t.atk=0;
+      t._weakenPhaseApplied='battle'; // 敵フェーズ適用→プレイヤーフェーズで可視化、次のbattlePhase冒頭で回復
       log(`→ ${t.name}のパワーを0にした（1ターン）`,'bad');
       break;
     }

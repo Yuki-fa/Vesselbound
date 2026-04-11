@@ -211,6 +211,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .he-slots{display:flex;gap:5px;flex-wrap:wrap}
 
 /* DRAG STYLES */
+* { -webkit-user-drag: none; }
+[draggable="true"] { -webkit-user-drag: element; }
 .card.dragging{opacity:.4;transform:scale(.95)}
 .card.drag-over{border-color:var(--gold);box-shadow:0 0 8px rgba(200,160,60,.5);transform:scale(1.04)}
 .card-empty.drag-over{border-color:var(--gold);opacity:.8}

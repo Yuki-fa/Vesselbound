@@ -62,14 +62,16 @@ function applyUnitSummonEffect(unit, fromRingId){
   // ケンタウロス：開戦時に魔術レベル+1（onBattleStartで処理）
   // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:1,atk:1,hp:3,cost:0,unique:false,icon:'🦤',desc:''};
-    if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(1/3)を召喚`,'good');
+    const _pelG=unit.grade||1;
+    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
+    if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
   // ジャッカロープ：開戦効果のため、召喚時トリガーは不要（battle.js で処理）
-  // コボルド：召喚時、最も左の杖に充填数+1
+  // コボルド：召喚時、最も左の杖に充填数+(_stackCount+1)
   if(unit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+1; log(`${unit.name}：${G.spells[_wi].name}に充填+1`,'good'); }
+    const _kc=(unit._stackCount||0)+1;
+    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_kc}`,'good'); }
   }
   // スリン：召喚時、全仲間に「成長1」キーワードを付与
   if(unit.effect==='slin_summon'){
@@ -110,7 +112,6 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   else G.allies.push(unit);
   G.battleCounters.summons++;
   // グリマルキン：キャラクター効果で仲間が召喚された時、自身+1/+1
-  // コカトリス（passive）：カード効果で召喚された仲間が+2/+1を得る
   if(fromCharEffect){
     const _gd=G.hasGoldenDrop?1:0;
     G.allies.forEach(g=>{
@@ -119,6 +120,12 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
         g.atk+=_gv; g.baseAtk=(g.baseAtk||0)+_gv; g.hp+=_gv; g.maxHp+=_gv;
         log(`${g.name}：仲間が召喚→+${_gv}/+${_gv}`,'good');
       }
+    });
+  }
+  // コカトリス（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間が+2/+1を得る
+  if(fromCharEffect || fromRingId){
+    const _gd=G.hasGoldenDrop?1:0;
+    G.allies.forEach(g=>{
       if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==unit){
         const _cv=2+_gd, _ch=1+_gd;
         unit.atk+=_cv; unit.baseAtk=(unit.baseAtk||0)+_cv; unit.hp+=_ch; unit.maxHp+=_ch;

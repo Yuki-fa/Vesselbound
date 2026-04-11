@@ -64,7 +64,7 @@ function initState(){
     moveMasks:[], visibleMoves:[],
     fogNext:false, prevNodeType:'battle',
     spreadActive:false, spreadMult:0,
-    _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false,
+    _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false, _bossSlot:0,
     _usedNamedElite:new Set(), _usedNamedRest:new Set(),
     _seenLegendRings:new Set(),
     _retryFloor:false,

@@ -312,6 +312,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         wu._weakenedSavedAtk=wu.atk; // 元のATKを保存
         wu.atk=0;                     // 表示ATKを0に
         wu.nullified=1;
+        wu._weakenPhaseApplied='player'; // プレイヤーフェーズ適用→次のapplyTurnStartで回復
         log(`${wu.name} 脱力1T（ATK→0）`,'good');
       }
     break;}
@@ -372,8 +373,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
       }
     break;}
     case 'battle_start_book':{ log('開幕の書：戦闘開始時効果を発動','good'); onBattleStart(); break;}
-    case 'magic_book':{ G.magicLevel=(G.magicLevel||0)+1*cMult; log(`叡智の薬：魔術レベル+${1*cMult}（現在${G.magicLevel}）`,'good'); break;}
-    case 'magic_book_3':{ G.magicLevel=(G.magicLevel||0)+3*cMult; log(`賢者の秘薬：魔術レベル+${3*cMult}（現在${G.magicLevel}）`,'good'); break;}
+    case 'magic_book':{ const _mbv=1*cMult; onMagicLevelUp(_mbv); log(`叡智の薬：魔術レベル+${_mbv}（現在${G.magicLevel}）`,'good'); break;}
+    case 'magic_book_3':{ const _mb3v=3*cMult; onMagicLevelUp(_mb3v); log(`賢者の秘薬：魔術レベル+${_mb3v}（現在${G.magicLevel}）`,'good'); break;}
     case 'sacrifice_doll':{
       if(!tgt) break;
       if(tgt.who==='rew-char'){
@@ -387,7 +388,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
           if(sdu.boss){ log('破壊の巻物：ボスには効果がない','sys'); break; }
           if(sdu.keywords&&sdu.keywords.includes('エリート')){ log('破壊の巻物：エリートには効果がない','sys'); break; }
           sdu.hp=0; processEnemyDeath(sdu,tgt.idx);
-        } else G.allies[tgt.idx]=null;
+        } else { sdu.hp=0; processAllyDeath(sdu); } // 死亡効果（レイス等）を発動させる
         log(`破壊の巻物：${sdu.name}を破壊`,'good');
       }
     break;}
@@ -623,15 +624,30 @@ function applySpell(sp,idx,tgt,_noDecrement){
   }
 
   if(!_spreadTargetPending){ G.actionsLeft--; if(G._debugMode) G.actionsLeft=G.actionsPerTurn; }
-  // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵を攻撃（杖は対象外）
+  // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵/提示カードを攻撃（杖は対象外）
   if(sp.type==='consumable'){
     G.allies.forEach(hh=>{
       if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
-      const _liveE=G.enemies.filter(e=>e&&e.hp>0);
-      if(!_liveE.length) return;
-      const _ht=randFrom(_liveE);
-      dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
-      log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+      if(_inReward){
+        // 報酬フェイズ：ランダムな提示キャラに攻撃
+        const _liveR=_rewCards.map((c,ri)=>({c,ri})).filter(({c})=>c&&c._isChar&&c.hp>0);
+        if(!_liveR.length) return;
+        const {c:_rht,ri:_rhi}=randFrom(_liveR);
+        dealDmgToRewChar(_rhi,hh.atk);
+        log(`${hh.name}：アイテム使用→${_rht.name}に${hh.atk}ダメ`,'good');
+      } else {
+        const _liveE=G.enemies.filter(e=>e&&e.hp>0);
+        if(!_liveE.length) return;
+        const _ht=randFrom(_liveE);
+        dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
+        log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+      }
+      // ウンディーネ：ヘルハウンドの効果攻撃にも適用
+      const _hhGd=G.hasGoldenDrop?1:0;
+      if(G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
+        const _uv=1+_hhGd; hh.atk+=_uv; hh.baseAtk=(hh.baseAtk||0)+_uv; hh.hp+=_uv; hh.maxHp+=_uv;
+        log(`ウンディーネ：${hh.name}が+${_uv}/+${_uv}`,'good');
+      }
     });
     // ダークワン：アイテム使用時、全仲間の悪魔+1/+1
     { const _dkv=1+(G.hasGoldenDrop?1:0);
