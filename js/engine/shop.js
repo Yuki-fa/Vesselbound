@@ -61,6 +61,7 @@ function doShop(){
   const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='none';
 
   renderAll();
+  _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   renderRewCards();
   renderGradeUpBtn();
   renderMoveSlotsInEnemy();

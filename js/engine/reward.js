@@ -100,6 +100,7 @@ function goToReward(){
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
 
   renderAll(); // フィールド（仲間エリア）も再描画
+  _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
   document.getElementById('ph-badge').textContent='商談フェイズ';
   document.getElementById('ph-badge').className='ph-badge';

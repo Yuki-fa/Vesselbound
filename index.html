@@ -322,17 +322,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
 /* 自軍：前衛が上（z-index低）・後衛が下（z-index高 → タッチが全域で反応） */
 .field-2lane .field-row.row-front{top:0;z-index:1}
-.field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:2}
-.field-2lane .field-row.row-rear .slot{filter:brightness(0.85)}
+.field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:2;background:rgba(40,60,100,0.18);border-radius:4px}
+.field-2lane .field-row.row-rear .slot:not(.lane-drop){filter:brightness(0.85)}
 /* 敵軍（flipped）：後衛が上（z-index低）・前衛が下（z-index高） */
-.field-2lane.flipped .field-row.row-rear{top:0;z-index:1;filter:none}
-.field-2lane.flipped .field-row.row-rear .slot{filter:brightness(0.85)}
+.field-2lane.flipped .field-row.row-rear{top:0;z-index:1;background:rgba(40,60,100,0.18)}
+.field-2lane.flipped .field-row.row-rear .slot:not(.lane-drop){filter:brightness(0.85)}
 .field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:2}
 /* 空スロット（battle表示用）は上位レイヤーのタッチを通過させる */
 .slot.empty{pointer-events:none}
-/* フィールドエディタのドロップ受付スロット（lane-drop）はemptyと同見た目だがpointevents有効 */
-.slot.lane-drop{opacity:.25}
-.slot.lane-drop.drag-over{opacity:.7;border-color:var(--gold)!important}
+/* フィールドエディタのドロップ受付スロット（lane-drop）：後衛ゾーンで視認できる程度に表示 */
+.slot.lane-drop{opacity:.4;border-style:dashed}
+.slot.lane-drop.drag-over{opacity:.85;border-color:var(--gold)!important;border-style:solid}
 .slot.is-front{border-top:2px solid var(--red2)!important}
 .slot.is-rear{border-top:2px solid var(--blue2)!important}
 .field-row.drop-highlight-front{outline:2px dashed var(--red2);background:rgba(224,80,80,.06);border-radius:4px}
