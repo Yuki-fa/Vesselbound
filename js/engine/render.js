@@ -157,10 +157,20 @@ function _computeDeathRisk(){
     // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
     for(let i=0;i<6;i++){
       const enemy=G.enemies[i];
-      if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
+      if(enemy&&enemy.hp>0){
+        // 後衛は味方前衛が生存中スキップ
+        const _isRearE=(enemy.lane||'front')==='rear';
+        const _allyFrontAlive=G.allies.some(a=>a&&a.hp>0&&(a.lane||'front')==='front');
+        if(!_isRearE||!_allyFrontAlive) _drSimEnemySlot(enemy,i);
+      }
       if(!G.allies.some(a=>a&&a.hp>0)) break;
       const ally=G.allies[i];
-      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
+      if(ally&&ally.hp>0&&!ally._isSoul){
+        // 後衛は敵前衛が生存中スキップ
+        const _isRearA=(ally.lane||'front')==='rear';
+        const _enemyFrontAlive=G.enemies.some(e=>e&&e.hp>0&&(e.lane||'front')==='front');
+        if(!_isRearA||!_enemyFrontAlive) _drSimAllySlot(ally,i);
+      }
       if(!G.enemies.some(e=>e&&e.hp>0)) break;
     }
 
@@ -208,8 +218,8 @@ function _drSimAllySlot(ally,allyIdx){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
     }
   }
-  const forcedT=liveE.find(e=>e.allyTarget);
-  const target=forcedT||liveE[liveE.length-1];
+  const target=getAttackTarget(ally,G.enemies);
+  if(!target) return;
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
   const atkTargets=isGlobal?[...liveE]:[target];
   atkTargets.forEach(t=>{
@@ -231,10 +241,9 @@ function _drSimAllySlot(ally,allyIdx){
 function _drSimEnemySlot(enemy,_enemyIdx){
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
-  const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
-  const visibleA=liveA.filter(a=>!a.stealth);
-  const cands=visibleA.length?visibleA:liveA;
-  const targets=hateTgts.length>0?hateTgts:[cands[cands.length-1]];
+  const primaryTarget=getAttackTarget(enemy,G.allies);
+  if(!primaryTarget) return;
+  const targets=[primaryTarget];
   const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
   // 攻撃時効果

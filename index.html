@@ -320,14 +320,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 }
 .field-2lane{position:relative;min-height:calc(var(--_slot-h) * 1.5 + 8px)}
 .field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
-/* 自軍：前衛が上・後衛が下（後衛は前衛の下半分から始まる） */
-.field-2lane .field-row.row-front{top:0;z-index:2}
-.field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:1}
+/* 自軍：前衛が上（z-index低）・後衛が下（z-index高 → タッチが全域で反応） */
+.field-2lane .field-row.row-front{top:0;z-index:1}
+.field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:2}
 .field-2lane .field-row.row-rear .slot{filter:brightness(0.85)}
-/* 敵軍（flipped）：後衛が上・前衛が下（プレイヤー前衛と向かい合う） */
-.field-2lane.flipped .field-row.row-rear{top:0;z-index:2;filter:none}
+/* 敵軍（flipped）：後衛が上（z-index低）・前衛が下（z-index高） */
+.field-2lane.flipped .field-row.row-rear{top:0;z-index:1;filter:none}
 .field-2lane.flipped .field-row.row-rear .slot{filter:brightness(0.85)}
-.field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:1}
+.field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:2}
 /* 空スロット（battle表示用）は上位レイヤーのタッチを通過させる */
 .slot.empty{pointer-events:none}
 /* フィールドエディタのドロップ受付スロット（lane-drop）はemptyと同見た目だがpointevents有効 */
