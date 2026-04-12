@@ -694,6 +694,7 @@ function renderFieldEditor(){
   const fRear =document.getElementById('f-ally-rear');
   if(fFront&&fRear) _renderFieldRows(fFront,fRear);
   renderHandEditor();
+  requestAnimationFrame(_updateLaneOffset);
 }
 
 function _renderFieldRows(frontEl,rearEl){

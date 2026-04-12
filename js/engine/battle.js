@@ -159,6 +159,7 @@ async function startBattle(){
 
   updateHUD();
   renderAll();
+  requestAnimationFrame(_updateLaneOffset); // スロット描画後にオフセット再計算
   await nextTurn();
 }
 

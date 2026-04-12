@@ -313,19 +313,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 @keyframes vglow{from{text-shadow:0 0 30px rgba(200,160,60,.6)}to{text-shadow:0 0 60px rgba(200,160,60,1),0 0 100px rgba(200,160,60,.4)}}
 
 /* ── 前衛後衛 2段レイアウト ── */
-:root{--lane-rear-top:0px}
-.field-2lane{position:relative;min-height:calc((100vw - 24px) / 6 * 88 / 63 * 1.5 + 8px)}
+:root{--lane-rear-top:50px}
+.field-2lane{position:relative;min-height:calc(var(--lane-rear-top) + (min(100vw,1100px) - 49px) / 6 * 88 / 63 + 8px)}
 .field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
+/* 自軍：前衛が上・後衛が下（後衛は前衛の下半分から始まる） */
 .field-2lane .field-row.row-front{top:0;z-index:2}
 .field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:1}
 .field-2lane .field-row.row-rear .slot{filter:brightness(0.85)}
+/* 敵軍（flipped）：後衛が上・前衛が下（プレイヤー前衛と向かい合う） */
+.field-2lane.flipped .field-row.row-rear{top:0;z-index:2;filter:none}
+.field-2lane.flipped .field-row.row-rear .slot{filter:brightness(0.85)}
+.field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:1}
 .slot.is-front{border-top:2px solid var(--red2)!important}
 .slot.is-rear{border-top:2px solid var(--blue2)!important}
 .field-row.drop-highlight-front{outline:2px dashed var(--red2);background:rgba(224,80,80,.06);border-radius:4px}
 .field-row.drop-highlight-rear{outline:2px dashed var(--blue2);background:rgba(80,144,208,.06);border-radius:4px}
-.lane-label{position:absolute;font-size:.52rem;letter-spacing:.05em;pointer-events:none;z-index:10;left:0;right:0;text-align:center}
-.lane-label.lbl-front{top:2px;color:var(--red2)}
-.lane-label.lbl-rear{top:var(--lane-rear-top);margin-top:2px;color:var(--blue2)}
 </style>
 </head>
 <body>
@@ -386,11 +388,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div id="enemy-area">
       <div class="field-label" id="enemy-field-label">敵の盤面</div>
       <div id="commander-wands-bar" style="display:none;padding:2px 0 3px;font-size:.6rem;color:var(--blue2)"></div>
-      <div class="field-2lane" id="f-enemy-2lane">
-        <span class="lane-label lbl-front">前衛</span>
-        <div class="field field-row row-front" id="f-enemy-front"></div>
+      <div class="field-2lane flipped" id="f-enemy-2lane">
         <div class="field field-row row-rear"  id="f-enemy-rear"></div>
-        <span class="lane-label lbl-rear">後衛</span>
+        <div class="field field-row row-front" id="f-enemy-front"></div>
       </div>
     </div>
 
@@ -421,10 +421,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div id="ally-section">
       <div class="field-label">味方の盤面</div>
       <div class="field-2lane" id="f-ally-2lane">
-        <span class="lane-label lbl-front">前衛</span>
         <div class="field field-row row-front" id="f-ally-front"></div>
         <div class="field field-row row-rear"  id="f-ally-rear"></div>
-        <span class="lane-label lbl-rear">後衛</span>
       </div>
     </div>
 

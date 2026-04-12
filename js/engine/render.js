@@ -86,12 +86,22 @@ function _laneSlots(units, lane){
   return units.map(u=>(u&&(u.lane||'front')===lane)?u:null);
 }
 
-// 後衛オフセットをCSSカスタムプロパティに反映
+// 後衛オフセットをCSSカスタムプロパティに反映（実際のスロット高さを計測して設定）
 function _updateLaneOffset(){
-  const slotW=(document.documentElement.clientWidth-24)/6;
-  const slotH=slotW*88/63;
-  const offset=Math.round(slotH*0.5);
-  document.documentElement.style.setProperty('--lane-rear-top',offset+'px');
+  // 実在スロットが計測できれば最も正確
+  const anyRow=document.getElementById('f-ally-front')||document.getElementById('f-enemy-front');
+  const anySlot=anyRow&&anyRow.querySelector('.slot');
+  if(anySlot){
+    const h=anySlot.getBoundingClientRect().height;
+    if(h>0){
+      document.documentElement.style.setProperty('--lane-rear-top',Math.round(h*0.5)+'px');
+      return;
+    }
+  }
+  // フォールバック：max-width:1100px を考慮した計算
+  const W=Math.min(document.documentElement.clientWidth,1100);
+  const slotH=(W-49)/6*88/63; // 24px padding + 25px gaps
+  document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.5)+'px');
 }
 
 function renderAll(){
