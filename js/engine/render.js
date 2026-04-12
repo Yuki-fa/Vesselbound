@@ -90,7 +90,7 @@ function _laneSlots(units, lane){
 function _updateLaneOffset(){
   const slotW=(document.documentElement.clientWidth-24)/6;
   const slotH=slotW*88/63;
-  const offset=Math.round(slotH*0.67);
+  const offset=Math.round(slotH*0.5);
   document.documentElement.style.setProperty('--lane-rear-top',offset+'px');
 }
 

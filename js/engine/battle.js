@@ -662,7 +662,7 @@ function getAttackTarget(attacker, targets){
   // 3. 前衛後衛ルール：前衛が残っていれば前衛の左端、全滅後は後衛ランダム
   const front=live.filter(u=>(u.lane||'front')==='front'&&!u.stealth);
   const rear =live.filter(u=>(u.lane||'front')==='rear' &&!u.stealth);
-  if(front.length>0) return front[0];
+  if(front.length>0) return front[Math.floor(Math.random()*front.length)];
   if(rear.length >0) return rear[Math.floor(Math.random()*rear.length)];
   return live[0]; // 全員隠密の場合
 }

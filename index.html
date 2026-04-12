@@ -314,7 +314,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
 /* ── 前衛後衛 2段レイアウト ── */
 :root{--lane-rear-top:0px}
-.field-2lane{position:relative;min-height:calc((100vw - 24px) / 6 * 88 / 63 * 1.33 + 8px)}
+.field-2lane{position:relative;min-height:calc((100vw - 24px) / 6 * 88 / 63 * 1.5 + 8px)}
 .field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
 .field-2lane .field-row.row-front{top:0;z-index:2}
 .field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:1}
@@ -323,9 +323,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .slot.is-rear{border-top:2px solid var(--blue2)!important}
 .field-row.drop-highlight-front{outline:2px dashed var(--red2);background:rgba(224,80,80,.06);border-radius:4px}
 .field-row.drop-highlight-rear{outline:2px dashed var(--blue2);background:rgba(80,144,208,.06);border-radius:4px}
-.lane-label{position:absolute;font-size:.52rem;color:var(--text2);letter-spacing:.05em;pointer-events:none;z-index:10}
-.lane-label.lbl-front{top:2px;left:2px;color:var(--red2)}
-.lane-label.lbl-rear{top:var(--lane-rear-top);left:2px;margin-top:2px;color:var(--blue2)}
+.lane-label{position:absolute;font-size:.52rem;letter-spacing:.05em;pointer-events:none;z-index:10;left:0;right:0;text-align:center}
+.lane-label.lbl-front{top:2px;color:var(--red2)}
+.lane-label.lbl-rear{top:var(--lane-rear-top);margin-top:2px;color:var(--blue2)}
 </style>
 </head>
 <body>
