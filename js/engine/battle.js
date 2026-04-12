@@ -1512,7 +1512,10 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     onEnemyShieldLost();
     return;
   }
-  e.hp=Math.max(0,e.hp-dmg);
+  // ガーゴイル：敵の場にガーゴイルがいる場合、敵が受けるダメージを-1
+  const _gargoyleEnemyReduction=G.enemies.some(en=>en&&en.hp>0&&en.effect==='gargoyle_shield')?1:0;
+  const actualDmgToEnemy=Math.max(0,dmg-_gargoyleEnemyReduction);
+  e.hp=Math.max(0,e.hp-actualDmgToEnemy);
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;

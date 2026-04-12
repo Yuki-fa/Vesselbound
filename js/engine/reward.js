@@ -319,7 +319,10 @@ function dealDmgToRewChar(rewIdx, dmg){
   const c=_rewCards[rewIdx];
   if(!c||!c._isChar||c.hp<=0) return;
   if(c.shield>0){ c.shield--; log(`${c.name}：シールドがダメージを防いだ`,'sys'); renderRewCards(); return; }
-  c.hp=Math.max(0,c.hp-dmg);
+  // ガーゴイル：報酬キャラにガーゴイルがいる場合、受けるダメージを-1
+  const _grReduction=_rewCards.some(rc=>rc&&rc._isChar&&rc.hp>0&&rc.effect==='gargoyle_shield')?1:0;
+  const actualRewDmg=Math.max(0,dmg-_grReduction);
+  c.hp=Math.max(0,c.hp-actualRewDmg);
   if(c.hp<=0){
     log(`${c.name}：報酬枠から消滅`,'bad');
     squirrelSay('提示カードを死亡させた時');
@@ -530,7 +533,8 @@ function _mkRewDiv(card, onBuy){
   const cost=card._buyPrice??1;
   const canBuy=cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
-  const isTreasure=!!card._isTreasure;
+  const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
+  const isTreasure=!!card._isTreasure&&!_isRingCard; // 指輪は「無料」扱いにしない
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
 
   if(card._isChar){
@@ -779,7 +783,7 @@ function _renderFieldRow(el){
       const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       let kwBlock='';
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
+      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
@@ -1532,11 +1536,13 @@ function closeEncModal(){ document.getElementById('enc-modal').classList.remove(
 // マスターの手札を生成（報酬グレード以下の杖・アイテムからランダム5枚）
 // _rewCards から杖・アイテムをmasterHandに移動（キャラクターのみ報酬エリアに残す）
 function _generateMasterHand(){
-  // 杖・消耗品のみmasterHandへ移動（指輪は指輪スロットへ自動装備済み or _rewCardsに残す）
-  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'));
+  const _isRing=c=>c.kind==='summon'||c.kind==='passive'||c.type==='ring';
+  // 杖・消耗品・指輪をすべてmasterHandへ移動（提示カード欄には出さない）
+  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'||_isRing(c)));
   _rewCards=_rewCards.map(c=>{
     if(!c) return c;
     if(c.type==='wand'||c.type==='consumable') return null;
+    if(_isRing(c)) return null;
     return c;
   });
 }
@@ -1561,6 +1567,16 @@ function buyMasterHandItem(idx){
     G.gold-=cost;
     delete sp._buyPrice;   // 購入後は価格バッジを消す
     G.spells[handIdx]=sp;
+    // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る
+    if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+      G._familiarUsed=true;
+      const _famHandIdx=G.spells.indexOf(null);
+      if(_famHandIdx>=0){
+        const _famCopy=clone(sp);
+        G.spells[_famHandIdx]=_famCopy;
+        log(`ファミリア：${sp.name}のコピーを獲得`,'good');
+      }
+    }
   }
   G.masterHand[idx]=null;
   log(`${sp.name} を取得（-${cost}ソウル）`,'good');

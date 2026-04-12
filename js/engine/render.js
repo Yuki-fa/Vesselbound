@@ -344,7 +344,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
         const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
-        if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
+        if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
         const gradeTag=u.grade?`<div class="slot-grade">${gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
@@ -352,7 +352,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
-        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
+        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
@@ -551,11 +551,12 @@ function computeDesc(card,_mlOverride){
   // 黄金の雫：X表示と全ての残数値に gmBonus を加算
   // 両方ある場合：召喚スタッツは (gmBonus+grimBonus)、他の数値は gmBonus のみ
   if(grimBonus>0||gmBonus>0){
-    const summonBonus=gmBonus+grimBonus;
-    if(summonBonus>0){
+    const summonAtkBonus=gmBonus+grimBonus; // ATK：黄金の雫＋ペリュトン
+    const summonHpBonus=gmBonus;            // HP：黄金の雫のみ（ペリュトンはATKのみ）
+    if(summonAtkBonus>0||summonHpBonus>0){
       // 「数字/数字、」パターンのみを対象にする（±0/+1 や +X/+X などは絶対に対象外）
       desc=desc.replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>{
-        return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+summonBonus}/${parseInt(h)+summonBonus}</span>、`;
+        return `<span style="color:var(--gold2);font-weight:700">${parseInt(a)+summonAtkBonus}/${parseInt(h)+summonHpBonus}</span>、`;
       });
     }
   }
