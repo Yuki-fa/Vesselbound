@@ -485,25 +485,17 @@ async function battlePhase(){
   });
 
   for(let i=0;i<6;i++){
-    // 敵 i 番目の攻撃
+    // 敵 i 番目の攻撃（前衛後衛問わず左から順に攻撃）
     const enemy=G.enemies[i];
     if(enemy&&enemy.hp>0){
-      const _isRearE=(enemy.lane||'front')==='rear';
-      const _allyFrontAlive=G.allies.filter(u=>u&&u.hp>0&&(u.lane||'front')==='front');
-      if(!_isRearE||_allyFrontAlive.length===0){
-        await enemyAttackAction(enemy,i);
-        if(_checkBattleOver()) return;
-      }
+      await enemyAttackAction(enemy,i);
+      if(_checkBattleOver()) return;
     }
-    // 味方 i 番目の攻撃
+    // 味方 i 番目の攻撃（前衛後衛問わず左から順に攻撃）
     const ally=G.allies[i];
     if(ally&&ally.hp>0&&!ally._isSoul){
-      const _isRearA=(ally.lane||'front')==='rear';
-      const _enemyFrontAlive=G.enemies.filter(u=>u&&u.hp>0&&(u.lane||'front')==='front');
-      if(!_isRearA||_enemyFrontAlive.length===0){
-        await allyAttackAction(ally,i);
-        if(_checkBattleOver()) return;
-      }
+      await allyAttackAction(ally,i);
+      if(_checkBattleOver()) return;
     }
   }
 

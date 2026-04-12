@@ -157,20 +157,10 @@ function _computeDeathRisk(){
     // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
     for(let i=0;i<6;i++){
       const enemy=G.enemies[i];
-      if(enemy&&enemy.hp>0){
-        // 後衛は味方前衛が生存中スキップ
-        const _isRearE=(enemy.lane||'front')==='rear';
-        const _allyFrontAlive=G.allies.some(a=>a&&a.hp>0&&(a.lane||'front')==='front');
-        if(!_isRearE||!_allyFrontAlive) _drSimEnemySlot(enemy,i);
-      }
+      if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
       if(!G.allies.some(a=>a&&a.hp>0)) break;
       const ally=G.allies[i];
-      if(ally&&ally.hp>0&&!ally._isSoul){
-        // 後衛は敵前衛が生存中スキップ
-        const _isRearA=(ally.lane||'front')==='rear';
-        const _enemyFrontAlive=G.enemies.some(e=>e&&e.hp>0&&(e.lane||'front')==='front');
-        if(!_isRearA||!_enemyFrontAlive) _drSimAllySlot(ally,i);
-      }
+      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
       if(!G.enemies.some(e=>e&&e.hp>0)) break;
     }
 
