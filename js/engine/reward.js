@@ -327,6 +327,18 @@ function _triggerRewCharInjury(unit, dmg=0){
       log(`${unit.name}：負傷→全キャラに1ダメ`,'good');
       break;
     }
+    case 'alp':{
+      // 提示カード側の反対（仲間の場）にソウルボムを召喚
+      const _alpG=unit.grade||1;
+      const _sbG=Math.max(1,_alpG-1);
+      const _sbHp=_sbG;
+      const _sbDmg=3*_sbG;
+      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
+      const _alpSlot=G.allies.findIndex(a=>!a||a.hp<=0);
+      if(_alpSlot>=0) G.allies[_alpSlot]=makeUnitFromDef(_alpDef);
+      log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を仲間の場に召喚`,'good');
+      break;
+    }
   }
 }
 
