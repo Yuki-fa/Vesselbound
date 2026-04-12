@@ -57,8 +57,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 @keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
 .slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
-@keyframes blink-death{0%,100%{opacity:.75}50%{opacity:.12}}
-.slot.will-die::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,50,50,.5) 0,rgba(255,50,50,.5) 3px,transparent 3px,transparent 12px);pointer-events:none;border-radius:inherit;animation:blink-death .85s ease-in-out infinite}
+@keyframes blink-death{0%,100%{opacity:1}50%{opacity:.08}}
+@keyframes blink-warn{0%,100%{opacity:.7}50%{opacity:.15}}
+/* 確実死：密な赤斜線＋赤枠＋速い点滅 */
+.slot.will-die{outline:2px solid rgba(255,60,60,.85)!important;outline-offset:-2px}
+.slot.will-die::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,40,40,.55) 0,rgba(255,40,40,.55) 4px,transparent 4px,transparent 9px);pointer-events:none;border-radius:inherit;animation:blink-death .7s ease-in-out infinite}
+/* 不確実死：疎な黄斜線＋黄枠＋遅い点滅 */
+.slot.will-warn{outline:2px solid rgba(240,200,0,.6)!important;outline-offset:-2px}
+.slot.will-warn::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,210,0,.28) 0,rgba(255,210,0,.28) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.6s ease-in-out infinite}
 .slot-name{font-size:.82rem;font-weight:500;color:var(--text);text-align:center;line-height:1.2;padding:0 2px}
 .slot-stats{font-size:.82rem;font-weight:700}
 .slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
@@ -312,33 +318,57 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .victory-title{font-family:var(--font-hd);font-size:clamp(2.8rem,9vw,5rem);letter-spacing:.25em;color:var(--gold2);text-shadow:0 0 40px rgba(200,160,60,.8),0 0 80px rgba(200,160,60,.3);animation:vglow 1.6s ease-in-out infinite alternate}
 @keyframes vglow{from{text-shadow:0 0 30px rgba(200,160,60,.6)}to{text-shadow:0 0 60px rgba(200,160,60,1),0 0 100px rgba(200,160,60,.4)}}
 
-/* ── 前衛後衛 2段レイアウト ── */
-/* CSS-onlyの初期値（JSが動く前の計算。スロット高の50%をオフセットに使用） */
-:root{
-  --_slot-h:calc((min(100vw,1100px) - 49px) / 6 * 88 / 63);
-  --lane-rear-top:calc(var(--_slot-h) * 0.5);
+/* ── ヘイト（前衛）スロットのビジュアル ── */
+.slot.is-front{
+  transform:translateY(-20%);
+  box-shadow:0 6px 16px rgba(224,80,80,.3);
+  border-top:2px solid var(--red2)!important;
+  position:relative;z-index:2;
 }
-.field-2lane{position:relative;min-height:calc(var(--_slot-h) * 1.5 + 8px)}
-.field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
-/* 自軍：前衛が上（z-index低）・後衛が下（z-index高 → タッチが全域で反応） */
-.field-2lane .field-row.row-front{top:0;z-index:1}
-.field-2lane .field-row.row-rear{top:var(--lane-rear-top);z-index:2;background:rgba(40,60,100,0.18);border-radius:4px}
-.field-2lane .field-row.row-rear .slot:not(.lane-drop){filter:brightness(0.85)}
-/* 敵軍（flipped）：後衛が上（z-index低）・前衛が下（z-index高） */
-.field-2lane.flipped .field-row.row-rear{top:0;z-index:1;background:rgba(40,60,100,0.18)}
-.field-2lane.flipped .field-row.row-rear .slot:not(.lane-drop){filter:brightness(0.85)}
-.field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:2}
-/* rowコンテナDIV自体はイベントを通過させる（DIVがz-index上位でもイベントを横取りしない） */
-.field-2lane .field-row{pointer-events:none}
-/* 空スロットも通過（継承されないので明示的に設定） */
-.slot.empty{pointer-events:none}
-/* フィールドエディタのドロップ受付スロット（lane-drop）：後衛ゾーンで視認できる程度に表示 */
-.slot.lane-drop{opacity:.4;border-style:dashed}
-.slot.lane-drop.drag-over{opacity:.85;border-color:var(--gold)!important;border-style:solid}
-.slot.is-front{border-top:2px solid var(--red2)!important}
-.slot.is-rear{border-top:2px solid var(--blue2)!important}
-.field-row.drop-highlight-front{outline:2px dashed var(--red2);background:rgba(224,80,80,.06);border-radius:4px}
-.field-row.drop-highlight-rear{outline:2px dashed var(--blue2);background:rgba(80,144,208,.06);border-radius:4px}
+/* ── 敵後退スロットのビジュアル ── */
+.slot.is-rear{
+  transform:translateY(20%);
+}
+/* ── 前衛ガイドライン・衝突回避パディング ── */
+#f-ally{
+  position:relative;
+  overflow:visible;
+  margin-top:clamp(18px,4vw,50px);
+}
+#f-ally::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+  background:rgba(224,80,80,.15);
+  z-index:-1;
+  pointer-events:none;
+}
+/* 前衛シフト位置のガイドライン（カード上端・最背面） */
+#f-ally::after{
+  content:'';
+  position:absolute;
+  top:-20%;left:0;right:0;
+  height:1px;
+  background:rgba(224,80,80,.28);
+  z-index:-1;
+  pointer-events:none;
+}
+#f-enemy{
+  position:relative;
+  overflow:visible;
+  margin-bottom:clamp(22px,5.5vw,62px);
+}
+/* 後退位置のガイドライン（敵カード下端・最背面） */
+#f-enemy::after{
+  content:'';
+  position:absolute;
+  top:120%;left:0;right:0;
+  height:1px;
+  background:rgba(180,60,60,.22);
+  z-index:-1;
+  pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -399,10 +429,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div id="enemy-area">
       <div class="field-label" id="enemy-field-label">敵の盤面</div>
       <div id="commander-wands-bar" style="display:none;padding:2px 0 3px;font-size:.6rem;color:var(--blue2)"></div>
-      <div class="field-2lane flipped" id="f-enemy-2lane">
-        <div class="field field-row row-rear"  id="f-enemy-rear"></div>
-        <div class="field field-row row-front" id="f-enemy-front"></div>
-      </div>
+      <div class="field" id="f-enemy"></div>
     </div>
 
     <!-- 報酬カード（報酬中のみ表示・敵の盤面と同位置） -->
@@ -431,10 +458,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <!-- 味方の盤面（戦闘中：スロット表示、報酬中：カード+売却+ドラッグ） -->
     <div id="ally-section">
       <div class="field-label">味方の盤面</div>
-      <div class="field-2lane" id="f-ally-2lane">
-        <div class="field field-row row-front" id="f-ally-front"></div>
-        <div class="field field-row row-rear"  id="f-ally-rear"></div>
-      </div>
+      <div class="field" id="f-ally"></div>
     </div>
 
     <!-- 報酬フェイズ：フィールドエディタ（非表示・後方互換用） -->

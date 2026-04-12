@@ -103,7 +103,9 @@ function generateEnemies(floor){
     const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
     return preset.map(p=>{
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
-      return _mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      e._visualShift=Math.random()<0.5;
+      return e;
     });
   }
 
@@ -193,6 +195,7 @@ function generateEnemies(floor){
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
       e.lane=Math.random()<0.6?'front':'rear'; // 通常敵はランダム（60%前衛）
+      e._visualShift=Math.random()<0.5; // ボス・エリート以外はランダムで下にずらす
       if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
     }
     enemies.push(e);
@@ -203,6 +206,14 @@ function generateEnemies(floor){
   if(!hasFront&&enemies.length>0){
     const first=enemies.find(e=>e&&!e.boss&&!(e.keywords||[]).includes('エリート'));
     if(first) first.lane='front';
+  }
+  // 全員が同じ前衛/後衛（_visualShift）にならないよう保証
+  const shiftable=enemies.filter(e=>!e.boss&&!(e.keywords||[]).includes('エリート'));
+  if(shiftable.length>=2){
+    const allShifted=shiftable.every(e=>e._visualShift);
+    const noneShifted=shiftable.every(e=>!e._visualShift);
+    if(allShifted) randFrom(shiftable)._visualShift=false;
+    else if(noneShifted) randFrom(shiftable)._visualShift=true;
   }
   return enemies;
 }

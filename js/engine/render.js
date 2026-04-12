@@ -63,40 +63,22 @@ function effectiveStats(ring){
 
 // 味方・敵の全6スロット DOM 要素を配列で返す（lane 対応・ピッカー用）
 function _getAllyDomSlots(){
-  const front=[...(document.getElementById('f-ally-front')?.querySelectorAll('.slot')||[])];
-  const rear =[...(document.getElementById('f-ally-rear')?.querySelectorAll('.slot')||[])];
-  return Array.from({length:6},(_,i)=>{
-    const u=G.allies[i];
-    if(!u||u.hp<=0) return front[i]||rear[i];
-    return (u.lane||'front')==='front'?front[i]:rear[i];
-  });
+  return [...(document.getElementById('f-ally')?.querySelectorAll('.slot')||[])];
 }
 function _getEnemyDomSlots(){
-  const front=[...(document.getElementById('f-enemy-front')?.querySelectorAll('.slot')||[])];
-  const rear =[...(document.getElementById('f-enemy-rear')?.querySelectorAll('.slot')||[])];
-  return Array.from({length:6},(_,i)=>{
-    const u=G.enemies[i];
-    if(!u||u.hp<=0) return front[i]||rear[i];
-    return (u.lane||'front')==='front'?front[i]:rear[i];
-  });
+  return [...(document.getElementById('f-enemy')?.querySelectorAll('.slot')||[])];
 }
 
-// lane に属するユニットのみ抽出（スロット位置を保持：他 lane は null）
-function _laneSlots(units, lane){
-  return units.map(u=>(u&&(u.lane||'front')===lane)?u:null);
-}
-
-// 後衛オフセットをCSSカスタムプロパティに反映（実際のスロット高さを計測して設定）
+// スロット高さをCSSカスタムプロパティに反映（リサイズ対応）
 function _updateLaneOffset(){
-  // 実在スロットが計測できれば最も正確（lane-dropも含めて探す）
-  const anyRow=document.getElementById('f-ally-front')||document.getElementById('f-enemy-front');
-  const anySlot=anyRow&&(anyRow.querySelector('.slot')||anyRow.querySelector('.lane-drop'));
+  // 実在スロットが計測できれば最も正確
+  const anyRow=document.getElementById('f-ally')||document.getElementById('f-enemy');
+  const anySlot=anyRow&&anyRow.querySelector('.slot');
   if(anySlot){
     const h=anySlot.getBoundingClientRect().height;
     if(h>0){
-      const halfH=Math.round(h*0.5)+'px';
       document.documentElement.style.setProperty('--_slot-h',h+'px');
-      document.documentElement.style.setProperty('--lane-rear-top',halfH);
+      document.documentElement.style.setProperty('--lane-rear-top',Math.round(h*0.67)+'px');
       return;
     }
   }
@@ -104,15 +86,13 @@ function _updateLaneOffset(){
   const W=Math.min(document.documentElement.clientWidth,1100);
   const slotH=(W-49)/6*88/63;
   document.documentElement.style.setProperty('--_slot-h',Math.round(slotH)+'px');
-  document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.5)+'px');
+  document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.67)+'px');
 }
 
 function renderAll(){
-  const _drResult=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
-  renderField('f-ally-front', _laneSlots(G.allies,'front'),  false, _drResult.allyRisk);
-  renderField('f-ally-rear',  _laneSlots(G.allies,'rear'),   false, _drResult.allyRisk);
-  renderField('f-enemy-front',_laneSlots(G.enemies,'front'), true,  _drResult.enemyRisk, 'front');
-  renderField('f-enemy-rear', _laneSlots(G.enemies,'rear'),  true,  _drResult.enemyRisk, 'rear');
+  const _drResult=G.phase==='player'?_computeDeathRisk():_emptyDR;
+  renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn);
+  renderField('f-enemy', G.enemies, true,  _drResult.enemyRisk, undefined, _drResult.enemyWarn);
   renderHand();
   renderControls();
   renderArcanaBar();
@@ -121,10 +101,9 @@ function renderAll(){
   requestAnimationFrame(fitCardDescs);
 }
 
-// 戦闘フェイズ1ターン分（インターリーブ）をシミュレーションし、死亡する味方インデックスを返す
-// 実際のbattle.jsの関数（dealDmgToAlly/dealDmgToEnemy等）をclone上で実行することで
-// キーワード効果・シールド・反撃など全ての処理を自動的に反映する
-const _emptyDR={allyRisk:new Set(),enemyRisk:new Set()};
+// 戦闘フェイズ1ターン分をモンテカルロシミュレーション（N回）し死亡確率を集計する
+// 確実死（全N回）→ allyRisk/enemyRisk、可能性あり（1〜N-1回）→ allyWarn/enemyWarn
+const _emptyDR={allyRisk:new Set(),enemyRisk:new Set(),allyWarn:new Set(),enemyWarn:new Set()};
 function _computeDeathRisk(){
   if(G.phase!=='player') return _emptyDR;
   if(!G.allies.some(a=>a&&a.hp>0)||!G.enemies.some(e=>e&&e.hp>0)) return _emptyDR;
@@ -138,44 +117,62 @@ function _computeDeathRisk(){
   const _sUndeadBonus=G._undeadHpBonus, _sEnemyUndeadAtk=G.enemyUndeadAtkBonus;
   const _sEnemyPermBonus=G.enemyPermanentBonus?{...G.enemyPermanentBonus}:null;
   const _sMagicLevel=G.magicLevel;
+
   // ログ・描画関数を無効化
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
   window.log=()=>{}; window.renderAll=()=>{}; window.updateHUD=()=>{}; window.renderControls=()=>{};
 
-  try{
-    // ── Gにcloneを差し込む ──
-    G.allies=G.allies.map(a=>a?JSON.parse(JSON.stringify(a)):null);
-    G.enemies=G.enemies.map(e=>e?JSON.parse(JSON.stringify(e)):null);
-    G.battleCounters={damage:0,deaths:0};
-    G.visibleMoves=[...(_sVM||[])];
-    G.moveMasks=[...(_sMM||[])];
-    G._pendingTreasure=_sPT;
-    // シミュレーション前の各スロットのユニットIDを記録（アク等への置き換え検出用）
-    const origAliveIds=G.allies.map(a=>a&&a.hp>0?a.id:null);
-    const origEnemyIds=G.enemies.map(e=>e&&e.hp>0?e.id:null);
+  const N=20; // シミュレーション回数
+  const allyDeathCount  =new Array(6).fill(0);
+  const enemyDeathCount =new Array(6).fill(0);
+  const origAliveIds=_sA.map(a=>a&&a.hp>0?a.id:null);
+  const origEnemyIds=_sE.map(e=>e&&e.hp>0?e.id:null);
 
-    // ── インターリーブ攻撃シミュレーション（allyAttackAction/enemyAttackActionの同期版）──
-    for(let i=0;i<6;i++){
-      const enemy=G.enemies[i];
-      if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
-      if(!G.allies.some(a=>a&&a.hp>0)) break;
-      const ally=G.allies[i];
-      if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
-      if(!G.enemies.some(e=>e&&e.hp>0)) break;
+  try{
+    for(let trial=0;trial<N;trial++){
+      // ── 毎回クローンを差し込んでシミュレーション ──
+      G.allies  =_sA.map(a=>a?JSON.parse(JSON.stringify(a)):null);
+      G.enemies =_sE.map(e=>e?JSON.parse(JSON.stringify(e)):null);
+      G.battleCounters={damage:0,deaths:0};
+      G.visibleMoves=[...(_sVM||[])];
+      G.moveMasks=[...(_sMM||[])];
+      G._pendingTreasure=_sPT;
+
+      // インターリーブ攻撃シミュレーション
+      for(let i=0;i<6;i++){
+        const enemy=G.enemies[i];
+        if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
+        if(!G.allies.some(a=>a&&a.hp>0)) break;
+        const ally=G.allies[i];
+        if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
+        if(!G.enemies.some(e=>e&&e.hp>0)) break;
+      }
+
+      // 死亡カウントを加算
+      G.allies.forEach((a,i)=>{
+        if(!origAliveIds[i]) return;
+        if(!a||a.hp<=0||a.id!==origAliveIds[i]) allyDeathCount[i]++;
+      });
+      G.enemies.forEach((e,i)=>{
+        if(!origEnemyIds[i]) return;
+        if(!e||e.hp<=0||e.id!==origEnemyIds[i]) enemyDeathCount[i]++;
+      });
     }
 
-    // ── 死亡した味方・敵インデックスを収集 ──
-    const allyRisk=new Set();
-    G.allies.forEach((a,i)=>{
+    // ── 集計：確実（全回死亡）vs 可能性（一部死亡）──
+    const allyRisk=new Set(), allyWarn=new Set();
+    allyDeathCount.forEach((count,i)=>{
       if(!origAliveIds[i]) return;
-      if(!a||a.hp<=0||a.id!==origAliveIds[i]) allyRisk.add(i);
+      if(count>=N)     allyRisk.add(i);
+      else if(count>0) allyWarn.add(i);
     });
-    const enemyRisk=new Set();
-    G.enemies.forEach((e,i)=>{
+    const enemyRisk=new Set(), enemyWarn=new Set();
+    enemyDeathCount.forEach((count,i)=>{
       if(!origEnemyIds[i]) return;
-      if(!e||e.hp<=0||e.id!==origEnemyIds[i]) enemyRisk.add(i);
+      if(count>=N)     enemyRisk.add(i);
+      else if(count>0) enemyWarn.add(i);
     });
-    return {allyRisk, enemyRisk};
+    return {allyRisk, enemyRisk, allyWarn, enemyWarn};
 
   } finally {
     // ── 状態を完全復元 ──
@@ -214,12 +211,7 @@ function _drSimAllySlot(ally,allyIdx){
   const atkTargets=isGlobal?[...liveE]:[target];
   atkTargets.forEach(t=>{
     dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
-    const isPrimary=!isGlobal||t===target;
-    // 迎撃（相互攻撃）：プライマリターゲットのみ
-    if(isPrimary&&t.hp>0&&ally.hp>0){
-      dealDmgToAlly(ally,t.atk,allyIdx,t);
-    }
-    // 反撃キーワード：さらに追加ダメージ
+    // 反撃キーワード：さらに追加ダメージ（生き残った場合のみ）
     if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
       dealDmgToAlly(ally,t.atk,allyIdx,t);
     }
@@ -228,7 +220,7 @@ function _drSimAllySlot(ally,allyIdx){
     const extra=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
     let cur=target;
     for(let h=0;h<extra;h++){
-      if(!cur||cur.hp<=0){ const _nl=G.enemies.filter(e=>e&&e.hp>0); if(!_nl.length) break; cur=_nl.find(e=>e.allyTarget)||_nl[_nl.length-1]; }
+      if(!cur||cur.hp<=0){ cur=getAttackTarget(ally,G.enemies); if(!cur) break; }
       dealDmgToEnemy(cur,ally.atk,G.enemies.indexOf(cur),ally);
     }
   }
@@ -257,17 +249,12 @@ function _drSimEnemySlot(enemy,_enemyIdx){
     const _passed=dealDmgToAlly(tgt,atkVal,G.allies.indexOf(tgt),enemy);
     hitSet.add(tgt.id);
     if(_passed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
-    // 迎撃（相互攻撃）：プライマリターゲットのみ
-    const isPrimary=!isGlobal||tgt===primaryTarget;
-    if(isPrimary&&tgt.hp>0&&enemy.hp>0&&atkVal>0){
-      dealDmgToEnemy(enemy,tgt.atk,_enemyIdx,tgt);
-    }
   });
   if(!isGlobal&&enemy.hp>0){
     const extra=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
     let cur=finalT[0];
     for(let h=0;h<extra;h++){
-      if(!cur||cur.hp<=0){ const _nl=G.allies.filter(a=>a&&a.hp>0&&!a.stealth); if(!_nl.length) break; const _nh=_nl.filter(a=>a.hate&&a.hateTurns>0); cur=_nh.length?_nh[_nh.length-1]:_nl[_nl.length-1]; }
+      if(!cur||cur.hp<=0){ cur=getAttackTarget(enemy,G.allies); if(!cur) break; }
       if(!cur||cur.hp<=0) break;
       dealDmgToAlly(cur,atkVal,G.allies.indexOf(cur),enemy);
     }
@@ -299,35 +286,44 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
-function renderField(id,units,isEnemy,_extDeathRisk,_lane){
+function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
   const el=document.getElementById(id);
   el.innerHTML='';
   const deathRisk=_extDeathRisk!=null?_extDeathRisk:(()=>{
-    const _dr=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
+    const _dr=G.phase==='player'?_computeDeathRisk():_emptyDR;
     return isEnemy?_dr.enemyRisk:_dr.allyRisk;
   })();
-  // 優先ターゲットのインデックスを特定
+  const warnRisk=_extWarnRisk!=null?_extWarnRisk:new Set();
+  // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
-  let priorityIdx=-1;
+  const prioritySet=new Set();
   if(isEnemy){
-    const forced=liveUnits.find(x=>x.u.allyTarget);
-    priorityIdx=forced?forced.i:(liveUnits.length?liveUnits[liveUnits.length-1].i:-1);
+    // allyTarget 強制指定 → 後退敵（_visualShift）→ 全生存敵
+    const forced=liveUnits.filter(x=>x.u.allyTarget);
+    if(forced.length){
+      forced.forEach(x=>prioritySet.add(x.i));
+    } else {
+      const shifted=liveUnits.filter(x=>x.u._visualShift);
+      (shifted.length?shifted:liveUnits).forEach(x=>prioritySet.add(x.i));
+    }
   } else {
-    const hate=liveUnits.find(x=>x.u.hate&&x.u.hateTurns>0);
-    priorityIdx=hate?hate.i:(liveUnits.length?liveUnits[liveUnits.length-1].i:-1);
+    // 前衛（hate）→ 全生存味方
+    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0);
+    (hated.length?hated:liveUnits).forEach(x=>prioritySet.add(x.i));
   }
   for(let i=0;i<6;i++){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0) slot.classList.add((u.lane||'front')==='front'?'is-front':'is-rear');
+    if(u&&u.hp>0&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
+    if(u&&u.hp>0&&isEnemy&&u._visualShift) slot.classList.add('is-rear');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
         // ── ステータスバッジ（右上固定：状態異常のみ）──
         const bs=[];
         const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
-        if(u.hate) bs.push(`<span class="slot-badge b-hate"${_sd('標的')}>標的</span>`);
+        // 標的バッジは非表示（is-front の視覚的シフトで代用）
         if(u.guardian) bs.push('<span class="slot-badge b-guard">守護</span>');
         if(u.shield>0) bs.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
         if(u.sealed>0) bs.push('<span class="slot-badge b-seal">封印</span>');
@@ -365,10 +361,11 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane){
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
-        // 優先ターゲットは赤枠
-        if(i===priorityIdx) slot.classList.add('priority-target');
-        // 確実に死亡するユニット：赤斜線を点滅表示
+        // 優先ターゲットグループは赤枠
+        if(prioritySet.has(i)) slot.classList.add('priority-target');
+        // 死亡予測：確実（全試行）→ 赤斜線、可能性あり（一部試行）→ 黄斜線
         if(deathRisk.has(i)) slot.classList.add('will-die');
+        else if(warnRisk.has(i)) slot.classList.add('will-warn');
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
       const _mvType=G.moveMasks[i];
@@ -703,7 +700,26 @@ function renderEnemyHand(){
           const ring=rings[i];
           if(ring){
             const div=mkCardEl(ring,i,'ring-boss');
-            div.classList.add('inert'); div.style.cursor='default';
+            if(isReward&&ring._buyPrice!=null){
+              // 報酬フェイズ：ドラッグで購入
+              const rCost=ring._buyPrice??2;
+              const rCanBuy=G.gold>=rCost;
+              div.style.cursor=rCanBuy?'pointer':'default';
+              if(rCanBuy){
+                div.onclick=()=>buyMasterHandItem(-10-i); // 負のインデックスで指輪を識別
+                div.draggable=true;
+                div.addEventListener('dragstart',e=>{
+                  _rewDragSrc=-200-i; // -200以下で指輪ドラッグを識別
+                  e.dataTransfer.effectAllowed='move';
+                  e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+                  _createDragGhost(div);
+                });
+                div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+                div.addEventListener('dragend',()=>{ _rewDragSrc=-1; _removeDragGhost(); });
+              }
+            } else {
+              div.classList.add('inert'); div.style.cursor='default';
+            }
             ringsEl.appendChild(div);
           } else {
             const ph=document.createElement('div'); ph.className='card-empty'; ringsEl.appendChild(ph);
@@ -734,11 +750,22 @@ function renderEnemyHand(){
       const div=mkCardEl(sp,i,'spell-enemy',isReward?undefined:(G.enemyMagicLevel||G.magicLevel));
       if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
-        // 報酬フェイズ：クリックで購入
+        // 報酬フェイズ：クリックまたはドラッグで購入
         const cost=sp._buyPrice??2;
         const canBuy=G.gold>=cost;
-        if(canBuy){ div.style.cursor='pointer'; div.onclick=()=>buyMasterHandItem(i); }
-        else {
+        if(canBuy){
+          div.style.cursor='pointer';
+          div.onclick=()=>buyMasterHandItem(i);
+          div.draggable=true;
+          div.addEventListener('dragstart',e=>{
+            _rewDragSrc=-100-i; // 特殊インデックスで手札ドラッグを識別
+            e.dataTransfer.effectAllowed='move';
+            e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+            _createDragGhost(div);
+          });
+          div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+          div.addEventListener('dragend',()=>{ _rewDragSrc=-1; _removeDragGhost(); });
+        } else {
           div.style.cursor='default';
           div.style.background='var(--bg)';
           const nb=document.createElement('div');
