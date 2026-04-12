@@ -328,10 +328,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .field-2lane.flipped .field-row.row-rear{top:0;z-index:1;background:rgba(40,60,100,0.18)}
 .field-2lane.flipped .field-row.row-rear .slot:not(.lane-drop){filter:brightness(0.85)}
 .field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:2}
-/* rowコンテナ自体はイベントを通過させ、個別スロットのみで制御する */
+/* rowコンテナDIV自体はイベントを通過させる（DIVがz-index上位でもイベントを横取りしない） */
 .field-2lane .field-row{pointer-events:none}
-/* インタラクション可能なスロットのみpointevents有効 */
-.field-2lane .field-row .slot:not(.empty){pointer-events:auto}
+/* 空スロットも通過（継承されないので明示的に設定） */
+.slot.empty{pointer-events:none}
 /* フィールドエディタのドロップ受付スロット（lane-drop）：後衛ゾーンで視認できる程度に表示 */
 .slot.lane-drop{opacity:.4;border-style:dashed}
 .slot.lane-drop.drag-over{opacity:.85;border-color:var(--gold)!important;border-style:solid}
