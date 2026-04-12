@@ -313,8 +313,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 @keyframes vglow{from{text-shadow:0 0 30px rgba(200,160,60,.6)}to{text-shadow:0 0 60px rgba(200,160,60,1),0 0 100px rgba(200,160,60,.4)}}
 
 /* ── 前衛後衛 2段レイアウト ── */
-:root{--lane-rear-top:50px}
-.field-2lane{position:relative;min-height:calc(var(--lane-rear-top) + (min(100vw,1100px) - 49px) / 6 * 88 / 63 + 8px)}
+/* CSS-onlyの初期値（JSが動く前の計算。スロット高の50%をオフセットに使用） */
+:root{
+  --_slot-h:calc((min(100vw,1100px) - 49px) / 6 * 88 / 63);
+  --lane-rear-top:calc(var(--_slot-h) * 0.5);
+}
+.field-2lane{position:relative;min-height:calc(var(--_slot-h) * 1.5 + 8px)}
 .field-2lane .field-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;position:absolute;left:0;right:0}
 /* 自軍：前衛が上・後衛が下（後衛は前衛の下半分から始まる） */
 .field-2lane .field-row.row-front{top:0;z-index:2}
@@ -324,6 +328,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .field-2lane.flipped .field-row.row-rear{top:0;z-index:2;filter:none}
 .field-2lane.flipped .field-row.row-rear .slot{filter:brightness(0.85)}
 .field-2lane.flipped .field-row.row-front{top:var(--lane-rear-top);z-index:1}
+/* 空スロット（battle表示用）は上位レイヤーのタッチを通過させる */
+.slot.empty{pointer-events:none}
+/* フィールドエディタのドロップ受付スロット（lane-drop）はemptyと同見た目だがpointevents有効 */
+.slot.lane-drop{opacity:.25}
+.slot.lane-drop.drag-over{opacity:.7;border-color:var(--gold)!important}
 .slot.is-front{border-top:2px solid var(--red2)!important}
 .slot.is-rear{border-top:2px solid var(--blue2)!important}
 .field-row.drop-highlight-front{outline:2px dashed var(--red2);background:rgba(224,80,80,.06);border-radius:4px}

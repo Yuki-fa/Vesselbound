@@ -88,19 +88,22 @@ function _laneSlots(units, lane){
 
 // 後衛オフセットをCSSカスタムプロパティに反映（実際のスロット高さを計測して設定）
 function _updateLaneOffset(){
-  // 実在スロットが計測できれば最も正確
+  // 実在スロットが計測できれば最も正確（lane-dropも含めて探す）
   const anyRow=document.getElementById('f-ally-front')||document.getElementById('f-enemy-front');
-  const anySlot=anyRow&&anyRow.querySelector('.slot');
+  const anySlot=anyRow&&(anyRow.querySelector('.slot')||anyRow.querySelector('.lane-drop'));
   if(anySlot){
     const h=anySlot.getBoundingClientRect().height;
     if(h>0){
-      document.documentElement.style.setProperty('--lane-rear-top',Math.round(h*0.5)+'px');
+      const halfH=Math.round(h*0.5)+'px';
+      document.documentElement.style.setProperty('--_slot-h',h+'px');
+      document.documentElement.style.setProperty('--lane-rear-top',halfH);
       return;
     }
   }
   // フォールバック：max-width:1100px を考慮した計算
   const W=Math.min(document.documentElement.clientWidth,1100);
-  const slotH=(W-49)/6*88/63; // 24px padding + 25px gaps
+  const slotH=(W-49)/6*88/63;
+  document.documentElement.style.setProperty('--_slot-h',Math.round(slotH)+'px');
   document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.5)+'px');
 }
 

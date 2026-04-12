@@ -832,7 +832,7 @@ function _renderFieldRows(frontEl,rearEl){
       const emptyEl =lane==='rear'?frontEl:rearEl;
       targetEl.appendChild(div);
       const emptyDiv=document.createElement('div');
-      emptyDiv.className='slot empty';
+      emptyDiv.className='slot lane-drop';
       emptyDiv.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){ const rc=_rewCards[_rewDragSrc]; if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); emptyDiv.classList.add('drag-over'); } }
         else if(_fieldDragSrc>=0){ e.preventDefault(); emptyDiv.classList.add('drag-over'); }
@@ -857,7 +857,7 @@ function _renderFieldRows(frontEl,rearEl){
       // 空スロット：前衛・後衛両方に配置
       function _mkEmptySlot(targetLane){
         const d=document.createElement('div');
-        d.className='slot empty';
+        d.className='slot lane-drop';
         d.addEventListener('dragover',e=>{
           if(_rewDragSrc>=0){ const rc=_rewCards[_rewDragSrc]; if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); d.classList.add('drag-over'); } }
           else if(_fieldDragSrc>=0){ e.preventDefault(); d.classList.add('drag-over'); }
