@@ -108,8 +108,8 @@ function renderAll(){
   const _drResult=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
   renderField('f-ally-front', _laneSlots(G.allies,'front'),  false, _drResult.allyRisk);
   renderField('f-ally-rear',  _laneSlots(G.allies,'rear'),   false, _drResult.allyRisk);
-  renderField('f-enemy-front',_laneSlots(G.enemies,'front'), true,  _drResult.enemyRisk);
-  renderField('f-enemy-rear', _laneSlots(G.enemies,'rear'),  true,  _drResult.enemyRisk);
+  renderField('f-enemy-front',_laneSlots(G.enemies,'front'), true,  _drResult.enemyRisk, 'front');
+  renderField('f-enemy-rear', _laneSlots(G.enemies,'rear'),  true,  _drResult.enemyRisk, 'rear');
   renderHand();
   renderControls();
   renderArcanaBar();
@@ -285,7 +285,7 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
-function renderField(id,units,isEnemy,_extDeathRisk){
+function renderField(id,units,isEnemy,_extDeathRisk,_lane){
   const el=document.getElementById(id);
   el.innerHTML='';
   const deathRisk=_extDeathRisk!=null?_extDeathRisk:(()=>{
@@ -356,7 +356,7 @@ function renderField(id,units,isEnemy,_extDeathRisk){
         // 確実に死亡するユニット：赤斜線を点滅表示
         if(deathRisk.has(i)) slot.classList.add('will-die');
       }
-    } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)){
+    } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
       const _mvType=G.moveMasks[i];
       const nt=NODE_TYPES[_mvType];
       slot.classList.add('has-move');
