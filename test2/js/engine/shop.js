@@ -43,7 +43,7 @@ function doShop(){
   G._retreatTargetNodeType=null;
   G.phase='reward';
 
-  const _fafS=document.getElementById('f-ally'); if(_fafS) _fafS.innerHTML='';
+  document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eAreaS=document.getElementById('enemy-area');
   if(eAreaS) eAreaS.style.display='none';
@@ -60,7 +60,6 @@ function doShop(){
   const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='none';
 
   renderAll();
-  _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   renderRewCards();
   renderGradeUpBtn();
   renderMoveSlotsInEnemy();

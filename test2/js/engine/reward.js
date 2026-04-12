@@ -6,31 +6,6 @@
 let _rewCards=[];
 let _placingChar=null; // フィールド配置待ちのキャラカード
 
-// 指輪を空き指輪スロットに直接装備する（成功→スロットindex、失敗→false）
-function _autoEquipRingInner(ring){
-  const rIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
-  if(rIdx<0) return false;
-  const rc=clone(ring); delete rc._buyPrice;
-  G.rings[rIdx]=rc;
-  if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
-  if(rc.unique==='great_mother'){
-    G.allies.forEach(a=>{ if(a&&a.effect==='dragonet_end') a._dragonetBonus=(a._dragonetBonus||0)+1; });
-  }
-  updateGoldenDrop();
-  if(rc.unique==='fury_start'){
-    const _fb=3*(rc.grade||1);
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_fb; a.baseAtk=(a.baseAtk||0)+_fb; } });
-    log(`憤激の指輪：全仲間パワー+${_fb}/±0`,'good');
-  }
-  if(rc.unique==='extra_action'){
-    const _oldPT=G.actionsPerTurn;
-    G.actionsPerTurn=calcActions();
-    G.actionsLeft=G.actionsLeft+(G.actionsPerTurn-_oldPT);
-  }
-  return rIdx;
-}
-const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring');
-
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
@@ -53,13 +28,8 @@ function goToReward(){
     const fd=FLOOR_DATA[G.floor];
     const maxGrade=fd?(fd.grade||1):1;
     const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);
-    if(eliteItem){
-      if(_isRingCard(eliteItem)){
-        const rIdx=_autoEquipRingInner(eliteItem);
-        if(rIdx!==false) log(`⭐ エリート宝箱：${eliteItem.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-        else { _rewCards.push(eliteItem); log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold'); }
-      } else { _rewCards.push(eliteItem); log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold'); }
-    }
+    if(eliteItem){ _rewCards.push(eliteItem); }
+    log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
   }
 
   // 洞窟ボーナス：rarity4消耗品1つを報酬欄に追加（リロール消失）
@@ -74,42 +44,33 @@ function goToReward(){
     }
   }
 
-  // 池ボーナス：rarity≤2の指輪2つを指輪スロットに直接装備（満杯なら報酬欄へ）
+  // 池ボーナス：rarity≤2の指輪2つを報酬欄に追加（リロール消失）
   if(G._pendingPondBonus){
     G._pendingPondBonus=false;
     const _pondPool=RING_POOL.filter(r=>(r.grade||1)<=2);
-    let _pondLog=[];
     for(let _pi=0;_pi<2;_pi++){
       if(!_pondPool.length) break;
       const _pondRing=clone(randFrom(_pondPool));
-      _pondRing._buyPrice=0; _pondRing._pondBonus=true;
-      const rIdx=_autoEquipRingInner(_pondRing);
-      if(rIdx!==false) _pondLog.push(`${_pondRing.name}→[${rIdx}]`);
-      else _rewCards.push(_pondRing);
+      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._pondBonus=true;
+      _rewCards.push(_pondRing);
     }
-    if(_pondLog.length) log(`💧 池の恵み：${_pondLog.join('、')}を指輪スロットに装備！`,'gold');
-    else log('💧 池の恵み：指輪2つが出現！','gold');
+    log('💧 池の恵み：指輪2つが出現！','gold');
   }
 
-  // 宝箱：moveMasksからchestを除去し、中身を指輪スロットまたは報酬欄へ
+  // 宝箱：moveMasksからchestを除去し、中身を報酬欄に無料で追加
   if(G._pendingTreasure){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
     const treasureItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},maxGrade2);
-    if(treasureItem){
-      if(_isRingCard(treasureItem)){
-        const rIdx=_autoEquipRingInner(treasureItem);
-        if(rIdx!==false) log(`📦 宝箱：${treasureItem.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-        else { _rewCards.push(treasureItem); log('📦 宝箱の中身が報酬欄に追加された！','gold'); }
-      } else { _rewCards.push(treasureItem); log('📦 宝箱の中身が報酬欄に追加された！','gold'); }
-    }
+    if(treasureItem){ _rewCards.push(treasureItem); }
+    log('📦 宝箱の中身が報酬欄に追加された！','gold');
     G._pendingTreasure=false;
   }
 
   // 報酬フェイズUI
-  const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
+  document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea=document.getElementById('enemy-area');
   if(eArea) eArea.style.display='none';
@@ -138,7 +99,6 @@ function goToReward(){
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
 
   renderAll(); // フィールド（仲間エリア）も再描画
-  _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
   document.getElementById('ph-badge').textContent='商談フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
@@ -202,14 +162,9 @@ function _showBossRewardOverlay(){
       const maxGrade=fd?(fd.grade||1):1;
       const bossTreasure=drawTreasure({3:100},{wand:30,consumable:20,ring:50},maxGrade);
       if(bossTreasure){
-        if(_isRingCard(bossTreasure)){
-          const rIdx=_autoEquipRingInner(bossTreasure);
-          if(rIdx!==false) log(`🏆 ボス宝箱：${bossTreasure.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-          else { G.masterHand.push(bossTreasure); log('🏆 ボス宝箱（R3）が出現！','gold'); }
-        } else {
-          G.masterHand.push(bossTreasure);
-          log('🏆 ボス宝箱（R3）が出現！','gold');
-        }
+        // _generateMasterHand()実行後なので全種類を直接masterHandへ
+        G.masterHand.push(bossTreasure);
+        log('🏆 ボス宝箱（R3）が出現！','gold');
       }
       document.getElementById('rw-gold').textContent=G.gold;
       updateHUD();
@@ -427,19 +382,6 @@ function renderRewCards(){
     const slot=document.createElement('div');
     if(!card){
       slot.className='slot empty';
-      // 空の報酬スロット：他のキャラカードをドラッグして移動できる
-      slot.addEventListener('dragover',e=>{
-        if(_rewDragSrc>=0&&_rewDragSrc!==i){ e.preventDefault(); slot.classList.add('drag-over'); }
-      });
-      slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
-      slot.addEventListener('drop',e=>{
-        e.preventDefault(); slot.classList.remove('drag-over');
-        if(_rewDragSrc>=0&&_rewDragSrc!==i){
-          const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
-          const tmp=_rewCards[src]; _rewCards[src]=_rewCards[i]; _rewCards[i]=tmp;
-          renderRewCards();
-        }
-      });
     } else {
       slot.className='slot';
       slot.dataset.rewIdx=String(i);
@@ -478,25 +420,27 @@ function renderRewCards(){
       if(!canBuy) slot.style.background='var(--bg)';
       if(_previewStr) slot.setAttribute('data-preview',_previewStr);
       slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
-      // ドラッグ（常に可能。購入チェックはdrop時）
-      slot.draggable=true;
-      slot.style.cursor=canBuy&&hasSlot?'grab':'default';
-      slot.addEventListener('dragstart',e=>{
-        _rewDragSrc=i;
-        e.dataTransfer.effectAllowed='move';
-        e.dataTransfer.setData('text/plain',String(i));
-        e.dataTransfer.setDragImage(_transparentDragImg,0,0);
-        if(canBuy&&hasSlot) _updateFieldDropHighlights(card.name,cost);
-        _createDragGhost(slot);
-        setTimeout(()=>slot.classList.add('dragging'),0);
-      });
-      slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      slot.addEventListener('dragend',()=>{
-        if(_rewDragSrc>=0){ _rewDragSrc=-1; _clearFieldDropHighlights(); }
-        slot.classList.remove('dragging');
-        _removeDragGhost();
-        _removeStackPreviewOverlay();
-      });
+      // ドラッグで購入・配置・重ね
+      if(canBuy&&hasSlot){
+        slot.draggable=true;
+        slot.style.cursor='grab';
+        slot.addEventListener('dragstart',e=>{
+          _rewDragSrc=i;
+          e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.setData('text/plain',String(i));
+          e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+          _updateFieldDropHighlights(card.name,cost);
+          _createDragGhost(slot);
+          setTimeout(()=>slot.classList.add('dragging'),0);
+        });
+        slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+        slot.addEventListener('dragend',()=>{
+          if(_rewDragSrc>=0){ _rewDragSrc=-1; _clearFieldDropHighlights(); }
+          slot.classList.remove('dragging');
+          _removeDragGhost();
+          _removeStackPreviewOverlay();
+        });
+      }
       // 報酬カード同士の入れ替え（他のキャラスロットへドロップ）
       slot.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0&&_rewDragSrc!==i){ e.preventDefault(); slot.classList.add('drag-over'); }
@@ -744,8 +688,11 @@ function takeRewCard(i, targetSlot){
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
 
 function renderFieldEditor(){
+  // フィールド（キャラクター）: f-allyに直接描画
   const fAlly=document.getElementById('f-ally');
   if(fAlly) _renderFieldRow(fAlly);
+
+  // 手札（アイテム）
   renderHandEditor();
 }
 
@@ -755,11 +702,11 @@ function _renderFieldRow(el){
     const unit=G.allies[i];
     const div=document.createElement('div');
     if(unit&&unit.hp>0){
-      div.className='slot'+(unit.hate&&unit.hateTurns>0?' is-front':'');
+      div.className='slot';
       div.draggable=true;
       const badges=[];
-      const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
-      // 標的バッジは非表示（is-front の視覚的シフトで代用）
+      const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
+      if(unit.hate)    badges.push(`<span class="slot-badge b-hate"${_sd('標的')}>標的</span>`);
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
       if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
       if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${unit.doomed}</span>`);
@@ -781,41 +728,19 @@ function _renderFieldRow(el){
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
-      div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
+      div.style.borderTop='2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{
-        _fieldDragSrc=i; _fieldDragSrcEl=div; _fieldDragStartY=e.clientY;
-        div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+        _fieldDragSrc=i; _fieldDragSrcEl=div; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
         _createDragGhost(div);
       });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      div.addEventListener('dragend',e=>{
+      div.addEventListener('dragend',()=>{
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
-        // ドロップが発生しなかった場合（_fieldDragSrcがまだiのまま）は上下ドラッグでhate切替
-        if(_fieldDragSrc===i){
-          const dy=e.clientY-_fieldDragStartY;
-          const u=G.allies[i];
-          if(u&&Math.abs(dy)>30){
-            if(dy<0){
-              // 上方向：前衛（ヘイト）に設定
-              u.hate=true; u.hateTurns=99;
-              log(`${u.name}が前衛に出た`,'good');
-            } else {
-              // 下方向：後衛（ヘイト解除）
-              u.hate=false; u.hateTurns=0;
-              log(`${u.name}が後衛に下がった`,'sys');
-            }
-            _fieldDragSrc=-1;
-            updateHUD();
-            renderFieldEditor();
-            return;
-          }
-        }
-        _fieldDragSrc=-1;
       });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
@@ -831,6 +756,7 @@ function _renderFieldRow(el){
           _moveStackPreview(e.clientX,e.clientY);
           const srcUnit=G.allies[_fieldDragSrc];
           if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<6){
+            // 同名・マージ候補：0.5秒タイマー
             if(_fieldMergeTarget!==i){
               _clearFieldMergeTimer();
               _fieldMergeTarget=i;
@@ -838,7 +764,7 @@ function _renderFieldRow(el){
                 _fieldMergeReady=true;
                 const fAlly=document.getElementById('f-ally');
                 if(fAlly&&fAlly.children[i]) fAlly.children[i].classList.add('merge-ready');
-                _showStackPreviewOverlay(null,unit,srcUnit,_lastDragX||0,_lastDragY||0);
+                _showStackPreviewOverlay(null, unit, srcUnit, _lastDragX||0, _lastDragY||0);
               },500);
             }
           } else {
@@ -857,11 +783,7 @@ function _renderFieldRow(el){
         const wasMergeReady=_fieldMergeReady&&_fieldMergeTarget===i;
         _clearFieldMergeTimer(); _removeStackPreviewOverlay(div);
         div.classList.remove('drag-over','merge-ready');
-        if(_rewDragSrc<=-100){
-          // 相手手札からのドラッグ購入（既存ユニット上でも発動）
-          const handIdx=-(_rewDragSrc+100); _rewDragSrc=-1;
-          buyMasterHandItem(handIdx);
-        } else if(_rewDragSrc>=0){
+        if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
           if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<6) _applyStack(i,src);
@@ -876,28 +798,15 @@ function _renderFieldRow(el){
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
-          if(rc?._isChar){ e.preventDefault(); div.classList.add('drag-over'); }
-        } else if(_rewDragSrc<=-100){ e.preventDefault(); div.classList.add('drag-over'); }
-        else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
+          if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); div.classList.add('drag-over'); }
+        } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
       });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
       div.addEventListener('drop',e=>{
         e.preventDefault(); div.classList.remove('drag-over');
-        if(_rewDragSrc<=-100){
-          // 相手手札からのドラッグ購入
-          const handIdx=-(_rewDragSrc+100); _rewDragSrc=-1;
-          buyMasterHandItem(handIdx);
-        } else if(_rewDragSrc>=0){
+        if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
-          const rc=_rewCards[src];
-          if(rc&&rc._isChar){
-            if(G.gold>=(rc._buyPrice??2)){
-              takeRewCard(src,i);
-            } else {
-              log('ソウルが不足しています','bad');
-              renderRewCards();
-            }
-          }
+          takeRewCard(src,i);
         } else if(_fieldDragSrc>=0){ _dropFieldUnit(i); }
       });
     }
@@ -905,11 +814,8 @@ function _renderFieldRow(el){
   }
 }
 
-
-
 let _fieldDragSrc=-1;
 let _fieldDragSrcEl=null; // 盤面ドラッグ中のソース要素
-let _fieldDragStartY=0;   // dragstart時のY座標（上下ドラッグでhate切替に使用）
 let _rewDragSrc=-1;       // 報酬欄からドラッグ中のインデックス
 let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
 let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
@@ -1064,11 +970,13 @@ function _applyStack(fieldIdx, rewIdx){
 
 // フィールドスロットをドラッグ中にハイライト
 function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
+  const fAlly=document.getElementById('f-ally');
+  if(!fAlly) return;
   const canAfford=isFieldDrag||G.gold>=cost;
-  _getAllyDomSlots().forEach((slotEl,i)=>{
-    if(!slotEl||i===excludeIdx) return;
+  Array.from(fAlly.children).forEach((slotEl,i)=>{
+    if(i===excludeIdx) return;
     const unit=G.allies[i];
-    if(!unit||unit.hp<=0){
+    if(!unit){
       if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }
     } else if(unit.name===cardName){
       if((unit.grade||1)>=6){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
@@ -1077,7 +985,9 @@ function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
   });
 }
 function _clearFieldDropHighlights(){
-  _getAllyDomSlots().forEach(s=>{ if(s){ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; } });
+  const fAlly=document.getElementById('f-ally');
+  if(!fAlly) return;
+  Array.from(fAlly.children).forEach(s=>{ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; });
 }
 
 // ── カスタムドラッグゴースト＋合成プレビュー ─────────
@@ -1441,7 +1351,7 @@ function showEventItemPickup(item, onDone){
   _rewCards=[itemCopy];
   _eventItemDone=onDone||null;
 
-  const _faf2=document.getElementById('f-ally'); if(_faf2) _faf2.innerHTML='';
+  document.getElementById('f-ally').innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea2=document.getElementById('enemy-area');
   if(eArea2) eArea2.style.display='none';
@@ -1532,11 +1442,12 @@ function closeEncModal(){ document.getElementById('enc-modal').classList.remove(
 // マスターの手札を生成（報酬グレード以下の杖・アイテムからランダム5枚）
 // _rewCards から杖・アイテムをmasterHandに移動（キャラクターのみ報酬エリアに残す）
 function _generateMasterHand(){
-  // 杖・消耗品のみmasterHandへ移動（指輪は指輪スロットへ自動装備済み or _rewCardsに残す）
-  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'));
+  // 杖・消耗品に加えて、宝箱由来の指輪もmasterHandへ移動
+  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'||(c._isTreasure&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring'))));
   _rewCards=_rewCards.map(c=>{
     if(!c) return c;
     if(c.type==='wand'||c.type==='consumable') return null;
+    if(c._isTreasure&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring')) return null;
     return c;
   });
 }
