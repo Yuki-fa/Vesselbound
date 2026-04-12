@@ -214,8 +214,15 @@ function _drSimAllySlot(ally,allyIdx){
   const atkTargets=isGlobal?[...liveE]:[target];
   atkTargets.forEach(t=>{
     dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
-    if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0)
+    const isPrimary=!isGlobal||t===target;
+    // 迎撃（相互攻撃）：プライマリターゲットのみ
+    if(isPrimary&&t.hp>0&&ally.hp>0){
       dealDmgToAlly(ally,t.atk,allyIdx,t);
+    }
+    // 反撃キーワード：さらに追加ダメージ
+    if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
+      dealDmgToAlly(ally,t.atk,allyIdx,t);
+    }
   });
   if(ally.hp>0&&!isGlobal){
     const extra=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
@@ -250,6 +257,11 @@ function _drSimEnemySlot(enemy,_enemyIdx){
     const _passed=dealDmgToAlly(tgt,atkVal,G.allies.indexOf(tgt),enemy);
     hitSet.add(tgt.id);
     if(_passed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
+    // 迎撃（相互攻撃）：プライマリターゲットのみ
+    const isPrimary=!isGlobal||tgt===primaryTarget;
+    if(isPrimary&&tgt.hp>0&&enemy.hp>0&&atkVal>0){
+      dealDmgToEnemy(enemy,tgt.atk,_enemyIdx,tgt);
+    }
   });
   if(!isGlobal&&enemy.hp>0){
     const extra=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
