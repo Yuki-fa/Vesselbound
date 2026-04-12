@@ -285,10 +285,10 @@ function renderField(id,units,isEnemy,_extDeathRisk){
         const _allKws=[...new Set([...(u.keywords||[]),...(u.counter?['反撃']:[])])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
-        const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
+        const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
-        if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
+        if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
         const gradeTag=u.grade?`<div class="slot-grade">${gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
@@ -300,10 +300,10 @@ function renderField(id,units,isEnemy,_extDeathRisk){
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
         // 優先ターゲットは赤枠
         if(i===priorityIdx) slot.classList.add('priority-target');
@@ -515,7 +515,7 @@ function computeDesc(card,_mlOverride){
     if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
   // タイミングキーワードを太字化（「開戦：」「終戦：」等）
-  desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在)：/g,'<strong>$1</strong>：');
+  desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在|常時)：/g,'<strong>$1</strong>：');
   desc=desc.replace(/\n/g,'<br>');
   if(card.trigger==='on_damage_count'){
     const tgt=card.triggerCount||15;

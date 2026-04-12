@@ -557,7 +557,13 @@ function takeRewCard(i, targetSlot){
       const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
       const _pelUnit=makeUnitFromDef(_pelDef);
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-      if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good'); }
+      if(_pei>=0){
+        G.allies[_pei]=_pelUnit;
+        log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
+        // コカトリス：カード効果召喚バフ
+        const _gd=G.hasGoldenDrop?1:0;
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_pelUnit){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); } });
+      }
     }
     // コボルド：最も左の杖に充填数+(_stackCount+1)
     if(unit.effect==='kobold_summon'){
@@ -620,8 +626,10 @@ function takeRewCard(i, targetSlot){
     // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（指輪の場合）
     if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
       G._familiarUsed=true;
-      const _famRingIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
+      // 通常スロット内を優先。空きがなければ最大4枠まで拡張して配置
+      let _famRingIdx=G.rings.indexOf(null);
       if(_famRingIdx>=0){
+        if(_famRingIdx>=G.ringSlots) G.ringSlots=_famRingIdx+1;
         const _famCopy=clone(rc); delete _famCopy._buyPrice;
         G.rings[_famRingIdx]=_famCopy;
         log(`ファミリア：${rc.name}のコピーを獲得（指輪スロット[${_famRingIdx}]）`,'good');
@@ -681,7 +689,7 @@ function _renderFieldRow(el){
   for(let i=0;i<6;i++){
     const unit=G.allies[i];
     const div=document.createElement('div');
-    if(unit){
+    if(unit&&unit.hp>0){
       div.className='slot';
       div.draggable=true;
       const badges=[];
@@ -925,7 +933,13 @@ function _applyStack(fieldIdx, rewIdx){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
     const _pelUnit=makeUnitFromDef(_pelDef);
     const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
-    if(_pei>=0){ G.allies[_pei]=_pelUnit; log(`${fieldUnit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good'); }
+    if(_pei>=0){
+      G.allies[_pei]=_pelUnit;
+      log(`${fieldUnit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
+      // コカトリス：カード効果召喚バフ
+      const _gd=G.hasGoldenDrop?1:0;
+      G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_pelUnit){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); } });
+    }
   }
   if(fieldUnit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');

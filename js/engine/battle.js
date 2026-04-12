@@ -1234,9 +1234,7 @@ function onBattleStart(){
             a.injury=_frontE.injury||null;
             a.desc=_frontE.desc||'';
             log(`${_prevName}：${a.name}に変身（${a.atk}/${a.hp}）`,'good');
-          } else {
-            a.effect=null; a.injury=null; a.desc='';
-          }
+          } // 正面に敵なし：変身しない。シャドウ自身の状態は維持（次の戦闘でも変身可能）
         }
         break;
       case 'homunculus_start':
