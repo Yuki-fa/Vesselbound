@@ -43,7 +43,8 @@ function doShop(){
   G._retreatTargetNodeType=null;
   G.phase='reward';
 
-  document.getElementById('f-ally').innerHTML='';
+  const _fafS=document.getElementById('f-ally-front'); if(_fafS) _fafS.innerHTML='';
+  const _farS=document.getElementById('f-ally-rear');  if(_farS) _farS.innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eAreaS=document.getElementById('enemy-area');
   if(eAreaS) eAreaS.style.display='none';

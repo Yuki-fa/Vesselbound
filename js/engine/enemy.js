@@ -34,7 +34,7 @@ function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
   return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
     sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
     shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false,
-    race:race||'-'};
+    race:race||'-', lane:'front'};
 }
 
 // 階層からネームドキャラのグレード帯を決定（1-5:G1, 6-10:G2, 11-15:G3, 16-20:G4）
@@ -127,10 +127,12 @@ function generateEnemies(floor){
           e=_mkEnemy(atk,hp,def.name,def.icon,baseG,0,[...(def.keywords||[])],def.race||'-');
         }
         e.boss=true;
+        e.lane='rear'; // ボスは後衛
       } else {
         const def=_pickEnemyDef(baseG);
         const {atk,hp}=enemyStats(def,floor,1.0);
         e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+        e.lane=Math.random()<0.6?'front':'rear'; // 側近はランダム
       }
       enemies.push(e);
     }
@@ -175,6 +177,7 @@ function generateEnemies(floor){
         const eg=Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
         e=_mkEnemy(atk,hp,def.name,def.icon,eg,0,['エリート'],def.race||'-');
       }
+      e.lane='rear'; // エリートは後衛
     } else {
       const g=rollEnemyGrade(floor);
       let def;
@@ -189,11 +192,18 @@ function generateEnemies(floor){
       const {atk,hp}=enemyStats(def,floor,_xm);
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
+      e.lane=Math.random()<0.6?'front':'rear'; // 通常敵はランダム（60%前衛）
       if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
     }
     enemies.push(e);
   }
   G._extraBattleMult=1.0; // 使い捨てリセット
+  // 前衛が0体の場合は最初の非エリート・非ボスを前衛にする
+  const hasFront=enemies.some(e=>e&&(e.lane||'front')==='front');
+  if(!hasFront&&enemies.length>0){
+    const first=enemies.find(e=>e&&!e.boss&&!(e.keywords||[]).includes('エリート'));
+    if(first) first.lane='front';
+  }
   return enemies;
 }
 

@@ -26,14 +26,14 @@ function startSwapPick(idx){
   _swapFirst=-1;
   setHint('入れ替える1体目を選択（味方同士または敵同士・ESC or 右クリックでキャンセル）');
   // 味方スロット
-  document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+  _getAllyDomSlots().forEach((slot,i)=>{
     if(G.allies[i]&&G.allies[i].hp>0){
       slot.classList.add('selectable');
       slot.onclick=()=>{
         clearSelectable();
         _swapFirst=i;
         setHint(`${G.allies[i].name}を選択。2体目の味方を選択（ESC or 右クリックでキャンセル）`);
-        document.getElementById('f-ally').querySelectorAll('.slot').forEach((s2,j)=>{
+        _getAllyDomSlots().forEach((s2,j)=>{
           if(G.allies[j]&&G.allies[j].hp>0&&j!==i){
             s2.classList.add('selectable');
             s2.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'pair',team:'ally',idx1:_swapFirst,idx2:j}); _swapFirst=-1; };
@@ -44,14 +44,14 @@ function startSwapPick(idx){
     }
   });
   // 敵スロット
-  document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+  _getEnemyDomSlots().forEach((slot,i)=>{
     if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
       slot.classList.add('selectable');
       slot.onclick=()=>{
         clearSelectable();
         _swapFirst=i;
         setHint(`${G.enemies[i].name}を選択。2体目の敵を選択（ESC or 右クリックでキャンセル）`);
-        document.getElementById('f-enemy').querySelectorAll('.slot').forEach((s2,j)=>{
+        _getEnemyDomSlots().forEach((s2,j)=>{
           if(G.enemies[j]&&G.enemies[j].hp>0&&!s2.classList.contains('has-move')&&j!==i){
             s2.classList.add('selectable');
             s2.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'pair',team:'enemy',idx1:_swapFirst,idx2:j}); _swapFirst=-1; };
@@ -70,7 +70,7 @@ function pickTargetAny(idx){
   _tgtCtx={who:'any',idx};
   setHint('対象を選択（ESC or 右クリックでキャンセル）');
   // 味方
-  document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+  _getAllyDomSlots().forEach((slot,i)=>{
     if(G.allies[i]&&G.allies[i].hp>0){
       slot.classList.add('selectable');
       slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'ally',idx:i}); };
@@ -87,7 +87,7 @@ function pickTargetAny(idx){
     });
   } else {
     // 戦闘中：敵を選択肢に追加
-    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+    _getEnemyDomSlots().forEach((slot,i)=>{
       if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
         slot.classList.add('selectable');
         slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'enemy',idx:i}); };
@@ -115,7 +115,7 @@ function pickTarget(who,idx,checkBless){
     return;
   }
   const units=who==='ally'?G.allies:G.enemies;
-  document.getElementById(who==='ally'?'f-ally':'f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+  (who==='ally'?_getAllyDomSlots():_getEnemyDomSlots()).forEach((slot,i)=>{
     const u=units[i];
     if(u&&u.hp>0&&!slot.classList.contains('has-move')){
       // 加護：杖の効果対象にならない
@@ -147,7 +147,7 @@ function pickTargetCharm(idx){
       slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'rew-char',idx:ri}); };
     });
   } else {
-    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+    _getEnemyDomSlots().forEach((slot,i)=>{
       const u=G.enemies[i];
       if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
       if((u.keywords&&u.keywords.includes('加護'))||u.atk>ml){ slot.classList.add('bless-blocked'); return; }
@@ -200,10 +200,10 @@ function _pickForSpread(rw,rightIdx){
   setHint(`拡散：${rw.name}の対象を選択（ESC or 右クリックでキャンセル）`);
   const applyFn=tgt=>applySpell(rw,rightIdx,tgt,true); // _noDecrement=true：右隣杖のチャージ消費なし
   if(rw.needsAny){
-    document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+    _getAllyDomSlots().forEach((slot,i)=>{
       if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
     });
-    document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+    _getEnemyDomSlots().forEach((slot,i)=>{
       if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'enemy',idx:i}); }; }
     });
   } else if(rw.needsEnemy){
@@ -217,7 +217,7 @@ function _pickForSpread(rw,rightIdx){
         slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'rew-char',idx:ri}); };
       });
     } else {
-      document.getElementById('f-enemy').querySelectorAll('.slot').forEach((slot,i)=>{
+      _getEnemyDomSlots().forEach((slot,i)=>{
         const u=G.enemies[i]; if(!u||u.hp<=0||slot.classList.contains('has-move')) return;
         if(u.keywords&&u.keywords.includes('加護')){ slot.classList.add('bless-blocked'); return; }
         if(_charmML!==null&&u.atk>_charmML){ slot.classList.add('bless-blocked'); return; }
@@ -225,7 +225,7 @@ function _pickForSpread(rw,rightIdx){
       });
     }
   } else if(rw.needsAlly){
-    document.getElementById('f-ally').querySelectorAll('.slot').forEach((slot,i)=>{
+    _getAllyDomSlots().forEach((slot,i)=>{
       if(G.allies[i]&&G.allies[i].hp>0){ slot.classList.add('selectable'); slot.onclick=()=>{ clearSelectable(); applyFn({who:'ally',idx:i}); }; }
     });
   }

@@ -70,7 +70,8 @@ function goToReward(){
   }
 
   // 報酬フェイズUI
-  document.getElementById('f-ally').innerHTML='';
+  const _faf=document.getElementById('f-ally-front'); if(_faf) _faf.innerHTML='';
+  const _far=document.getElementById('f-ally-rear');  if(_far) _far.innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea=document.getElementById('enemy-area');
   if(eArea) eArea.style.display='none';
@@ -546,6 +547,7 @@ function takeRewCard(i, targetSlot){
     if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを還魂してください。','bad'); return; }
     G.gold-=cost;
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
+    if(card._destLane){ unit.lane=card._destLane; delete card._destLane; }
     G.allies[emptyIdx]=unit;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
@@ -688,18 +690,36 @@ function takeRewCard(i, targetSlot){
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
 
 function renderFieldEditor(){
-  // フィールド（キャラクター）: f-allyに直接描画
-  const fAlly=document.getElementById('f-ally');
-  if(fAlly) _renderFieldRow(fAlly);
-
-  // 手札（アイテム）
+  const fFront=document.getElementById('f-ally-front');
+  const fRear =document.getElementById('f-ally-rear');
+  if(fFront&&fRear) _renderFieldRows(fFront,fRear);
   renderHandEditor();
 }
 
-function _renderFieldRow(el){
-  el.innerHTML='';
+function _renderFieldRows(frontEl,rearEl){
+  frontEl.innerHTML=''; rearEl.innerHTML='';
+
+  // ドロップ時のlane変更用ハンドラ
+  function _addLaneDropHandlers(rowEl,targetLane){
+    rowEl.addEventListener('dragover',e=>{
+      if(_fieldDragSrc<0&&_rewDragSrc<0) return;
+      e.preventDefault();
+      rowEl.classList.add(targetLane==='front'?'drop-highlight-front':'drop-highlight-rear');
+    });
+    rowEl.addEventListener('dragleave',e=>{
+      if(rowEl.contains(e.relatedTarget)) return;
+      rowEl.classList.remove('drop-highlight-front','drop-highlight-rear');
+    });
+    rowEl.addEventListener('drop',()=>{
+      rowEl.classList.remove('drop-highlight-front','drop-highlight-rear');
+    });
+  }
+  _addLaneDropHandlers(frontEl,'front');
+  _addLaneDropHandlers(rearEl,'rear');
+
   for(let i=0;i<6;i++){
     const unit=G.allies[i];
+    const lane=unit&&unit.hp>0?(unit.lane||'front'):null;
     const div=document.createElement('div');
     if(unit&&unit.hp>0){
       div.className='slot';
@@ -728,7 +748,7 @@ function _renderFieldRow(el){
       if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
-      div.style.borderTop='2px solid var(--teal2)';
+      div.classList.add(lane==='rear'?'is-rear':'is-front');
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       div.addEventListener('dragstart',e=>{
@@ -736,11 +756,15 @@ function _renderFieldRow(el){
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
         _createDragGhost(div);
+        frontEl.classList.add('drop-highlight-front');
+        rearEl.classList.add('drop-highlight-rear');
       });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
       div.addEventListener('dragend',()=>{
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
+        frontEl.classList.remove('drop-highlight-front');
+        rearEl.classList.remove('drop-highlight-rear');
       });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
@@ -762,9 +786,8 @@ function _renderFieldRow(el){
               _fieldMergeTarget=i;
               _fieldMergeTimer=setTimeout(()=>{
                 _fieldMergeReady=true;
-                const fAlly=document.getElementById('f-ally');
-                if(fAlly&&fAlly.children[i]) fAlly.children[i].classList.add('merge-ready');
-                _showStackPreviewOverlay(null, unit, srcUnit, _lastDragX||0, _lastDragY||0);
+                div.classList.add('merge-ready');
+                _showStackPreviewOverlay(null,unit,srcUnit,_lastDragX||0,_lastDragY||0);
               },500);
             }
           } else {
@@ -783,34 +806,80 @@ function _renderFieldRow(el){
         const wasMergeReady=_fieldMergeReady&&_fieldMergeTarget===i;
         _clearFieldMergeTimer(); _removeStackPreviewOverlay(div);
         div.classList.remove('drag-over','merge-ready');
+        frontEl.classList.remove('drop-highlight-front');
+        rearEl.classList.remove('drop-highlight-rear');
         if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
           if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<6) _applyStack(i,src);
         } else if(_fieldDragSrc>=0){
           _clearFieldDropHighlights();
-          if(wasMergeReady){ _applyFieldMerge(_fieldDragSrc,i); }
-          else { _dropFieldUnit(i); }
+          // ドロップ先のlaneを更新
+          const destLane=div.closest('.field-row')===rearEl?'rear':'front';
+          const srcUnit=G.allies[_fieldDragSrc];
+          if(wasMergeReady){
+            _applyFieldMerge(_fieldDragSrc,i);
+          } else {
+            if(srcUnit) srcUnit.lane=destLane;
+            _dropFieldUnit(i);
+          }
         }
       });
-    } else {
-      div.className='slot empty';
-      div.addEventListener('dragover',e=>{
-        if(_rewDragSrc>=0){
-          const rc=_rewCards[_rewDragSrc];
-          if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); div.classList.add('drag-over'); }
-        } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
+
+      // ユニットのlaneに応じた行に追加、反対の行には空スロットを追加
+      const targetEl=lane==='rear'?rearEl:frontEl;
+      const emptyEl =lane==='rear'?frontEl:rearEl;
+      targetEl.appendChild(div);
+      const emptyDiv=document.createElement('div');
+      emptyDiv.className='slot empty';
+      emptyDiv.addEventListener('dragover',e=>{
+        if(_rewDragSrc>=0){ const rc=_rewCards[_rewDragSrc]; if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); emptyDiv.classList.add('drag-over'); } }
+        else if(_fieldDragSrc>=0){ e.preventDefault(); emptyDiv.classList.add('drag-over'); }
       });
-      div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-      div.addEventListener('drop',e=>{
-        e.preventDefault(); div.classList.remove('drag-over');
+      emptyDiv.addEventListener('dragleave',()=>emptyDiv.classList.remove('drag-over'));
+      emptyDiv.addEventListener('drop',e=>{
+        e.preventDefault(); emptyDiv.classList.remove('drag-over');
+        const destLane=emptyDiv.closest('.field-row')===rearEl?'rear':'front';
         if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+          const rc=_rewCards[src]; if(rc) rc._destLane=destLane;
           takeRewCard(src,i);
-        } else if(_fieldDragSrc>=0){ _dropFieldUnit(i); }
+        } else if(_fieldDragSrc>=0){
+          _clearFieldDropHighlights();
+          const srcUnit=G.allies[_fieldDragSrc];
+          if(srcUnit){ srcUnit.lane=destLane; if(_fieldDragSrc===i){ renderFieldEditor(); return; } }
+          _dropFieldUnit(i);
+        }
       });
+      emptyEl.appendChild(emptyDiv);
+    } else {
+      // 空スロット：前衛・後衛両方に配置
+      function _mkEmptySlot(targetLane){
+        const d=document.createElement('div');
+        d.className='slot empty';
+        d.addEventListener('dragover',e=>{
+          if(_rewDragSrc>=0){ const rc=_rewCards[_rewDragSrc]; if(rc?._isChar&&G.gold>=(rc._buyPrice??2)){ e.preventDefault(); d.classList.add('drag-over'); } }
+          else if(_fieldDragSrc>=0){ e.preventDefault(); d.classList.add('drag-over'); }
+        });
+        d.addEventListener('dragleave',()=>d.classList.remove('drag-over'));
+        d.addEventListener('drop',e=>{
+          e.preventDefault(); d.classList.remove('drag-over');
+          if(_rewDragSrc>=0){
+            const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+            const rc=_rewCards[src]; if(rc) rc._destLane=targetLane;
+            takeRewCard(src,i);
+          } else if(_fieldDragSrc>=0){
+            _clearFieldDropHighlights();
+            const srcUnit=G.allies[_fieldDragSrc];
+            if(srcUnit) srcUnit.lane=targetLane;
+            _dropFieldUnit(i);
+          }
+        });
+        return d;
+      }
+      frontEl.appendChild(_mkEmptySlot('front'));
+      rearEl.appendChild(_mkEmptySlot('rear'));
     }
-    el.appendChild(div);
   }
 }
 
@@ -970,13 +1039,11 @@ function _applyStack(fieldIdx, rewIdx){
 
 // フィールドスロットをドラッグ中にハイライト
 function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
-  const fAlly=document.getElementById('f-ally');
-  if(!fAlly) return;
   const canAfford=isFieldDrag||G.gold>=cost;
-  Array.from(fAlly.children).forEach((slotEl,i)=>{
-    if(i===excludeIdx) return;
+  _getAllyDomSlots().forEach((slotEl,i)=>{
+    if(!slotEl||i===excludeIdx) return;
     const unit=G.allies[i];
-    if(!unit){
+    if(!unit||unit.hp<=0){
       if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }
     } else if(unit.name===cardName){
       if((unit.grade||1)>=6){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
@@ -985,9 +1052,7 @@ function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
   });
 }
 function _clearFieldDropHighlights(){
-  const fAlly=document.getElementById('f-ally');
-  if(!fAlly) return;
-  Array.from(fAlly.children).forEach(s=>{ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; });
+  _getAllyDomSlots().forEach(s=>{ if(s){ s.style.boxShadow=''; s.style.outline=''; s.style.opacity=''; } });
 }
 
 // ── カスタムドラッグゴースト＋合成プレビュー ─────────
@@ -1351,7 +1416,8 @@ function showEventItemPickup(item, onDone){
   _rewCards=[itemCopy];
   _eventItemDone=onDone||null;
 
-  document.getElementById('f-ally').innerHTML='';
+  const _faf2=document.getElementById('f-ally-front'); if(_faf2) _faf2.innerHTML='';
+  const _far2=document.getElementById('f-ally-rear');  if(_far2) _far2.innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea2=document.getElementById('enemy-area');
   if(eArea2) eArea2.style.display='none';

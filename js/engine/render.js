@@ -61,10 +61,45 @@ function effectiveStats(ring){
   return {atk,hp,count};
 }
 
+// 味方・敵の全6スロット DOM 要素を配列で返す（lane 対応・ピッカー用）
+function _getAllyDomSlots(){
+  const front=[...(document.getElementById('f-ally-front')?.querySelectorAll('.slot')||[])];
+  const rear =[...(document.getElementById('f-ally-rear')?.querySelectorAll('.slot')||[])];
+  return Array.from({length:6},(_,i)=>{
+    const u=G.allies[i];
+    if(!u||u.hp<=0) return front[i]||rear[i];
+    return (u.lane||'front')==='front'?front[i]:rear[i];
+  });
+}
+function _getEnemyDomSlots(){
+  const front=[...(document.getElementById('f-enemy-front')?.querySelectorAll('.slot')||[])];
+  const rear =[...(document.getElementById('f-enemy-rear')?.querySelectorAll('.slot')||[])];
+  return Array.from({length:6},(_,i)=>{
+    const u=G.enemies[i];
+    if(!u||u.hp<=0) return front[i]||rear[i];
+    return (u.lane||'front')==='front'?front[i]:rear[i];
+  });
+}
+
+// lane に属するユニットのみ抽出（スロット位置を保持：他 lane は null）
+function _laneSlots(units, lane){
+  return units.map(u=>(u&&(u.lane||'front')===lane)?u:null);
+}
+
+// 後衛オフセットをCSSカスタムプロパティに反映
+function _updateLaneOffset(){
+  const slotW=(document.documentElement.clientWidth-24)/6;
+  const slotH=slotW*88/63;
+  const offset=Math.round(slotH*0.67);
+  document.documentElement.style.setProperty('--lane-rear-top',offset+'px');
+}
+
 function renderAll(){
   const _drResult=G.phase==='player'?_computeDeathRisk():{allyRisk:new Set(),enemyRisk:new Set()};
-  renderField('f-enemy',G.enemies,true,_drResult.enemyRisk);
-  renderField('f-ally',G.allies,false,_drResult.allyRisk);
+  renderField('f-ally-front', _laneSlots(G.allies,'front'),  false, _drResult.allyRisk);
+  renderField('f-ally-rear',  _laneSlots(G.allies,'rear'),   false, _drResult.allyRisk);
+  renderField('f-enemy-front',_laneSlots(G.enemies,'front'), true,  _drResult.enemyRisk);
+  renderField('f-enemy-rear', _laneSlots(G.enemies,'rear'),  true,  _drResult.enemyRisk);
   renderHand();
   renderControls();
   renderArcanaBar();
@@ -261,6 +296,7 @@ function renderField(id,units,isEnemy,_extDeathRisk){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
+    if(u&&u.hp>0) slot.classList.add((u.lane||'front')==='front'?'is-front':'is-rear');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {

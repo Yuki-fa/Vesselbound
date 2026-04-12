@@ -71,6 +71,7 @@ function removeLeaderBonus(leader){
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
+  _updateLaneOffset();
   clearLog();
 
   // 宝箱・撤退フラグをリセット（前の戦闘の状態を持ち越さない）
@@ -486,14 +487,22 @@ async function battlePhase(){
     // 敵 i 番目の攻撃
     const enemy=G.enemies[i];
     if(enemy&&enemy.hp>0){
-      await enemyAttackAction(enemy,i);
-      if(_checkBattleOver()) return;
+      const _isRearE=(enemy.lane||'front')==='rear';
+      const _allyFrontAlive=G.allies.filter(u=>u&&u.hp>0&&(u.lane||'front')==='front');
+      if(!_isRearE||_allyFrontAlive.length===0){
+        await enemyAttackAction(enemy,i);
+        if(_checkBattleOver()) return;
+      }
     }
     // 味方 i 番目の攻撃
     const ally=G.allies[i];
     if(ally&&ally.hp>0&&!ally._isSoul){
-      await allyAttackAction(ally,i);
-      if(_checkBattleOver()) return;
+      const _isRearA=(ally.lane||'front')==='rear';
+      const _enemyFrontAlive=G.enemies.filter(u=>u&&u.hp>0&&(u.lane||'front')==='front');
+      if(!_isRearA||_enemyFrontAlive.length===0){
+        await allyAttackAction(ally,i);
+        if(_checkBattleOver()) return;
+      }
     }
   }
 
@@ -637,17 +646,54 @@ function _applyEnemyAttackEffects(enemy){
   }
 }
 
+// 攻撃ターゲットを決定する（前衛後衛ルール）
+function getAttackTarget(attacker, targets){
+  const live=targets.filter(u=>u&&u.hp>0);
+  if(!live.length) return null;
+  // 1. ヘイト（標的）優先
+  const hated=live.find(u=>u.hate&&u.hateTurns>0&&!u.stealth);
+  if(hated) return hated;
+  // 2. 狩人：最もHPの低い相手
+  if(attacker.keywords&&attacker.keywords.includes('狩人')){
+    const visible=live.filter(u=>!u.stealth);
+    const pool=visible.length?visible:live;
+    return pool.reduce((a,b)=>a.hp<b.hp?a:b);
+  }
+  // 3. 前衛後衛ルール：前衛が残っていれば前衛の左端、全滅後は後衛ランダム
+  const front=live.filter(u=>(u.lane||'front')==='front'&&!u.stealth);
+  const rear =live.filter(u=>(u.lane||'front')==='rear' &&!u.stealth);
+  if(front.length>0) return front[0];
+  if(rear.length >0) return rear[Math.floor(Math.random()*rear.length)];
+  return live[0]; // 全員隠密の場合
+}
+
+// 味方スロット要素を取得（前衛後衛対応）
+function _getAllySlotEl(unitArrayIdx){
+  const unit=G.allies[unitArrayIdx];
+  if(!unit) return null;
+  const laneId=(unit.lane||'front')==='front'?'f-ally-front':'f-ally-rear';
+  return document.getElementById(laneId)?.querySelectorAll('.slot')[unitArrayIdx]||null;
+}
+
+// 敵スロット要素を取得（前衛後衛対応）
+function _getEnemySlotEl(unitArrayIdx){
+  const unit=G.enemies[unitArrayIdx];
+  if(!unit) return null;
+  const laneId=(unit.lane||'front')==='front'?'f-enemy-front':'f-enemy-rear';
+  return document.getElementById(laneId)?.querySelectorAll('.slot')[unitArrayIdx]||null;
+}
+
 async function allyAttackAction(ally, allyIdx){
   if(ally.atk<=0) return; // ATK0は攻撃しない
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length) return;
 
   // アニメーション（代表ターゲット）
-  const forcedT=liveE.find(e=>e.allyTarget);
-  const target=forcedT||liveE[liveE.length-1];
+  const target=getAttackTarget(ally,G.enemies);
+  if(!target) return;
   const eIdx=G.enemies.indexOf(target);
-  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[allyIdx];
-  const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[eIdx];
+  const aSlot=_getAllySlotEl(allyIdx);
+  const eSlot=_getEnemySlotEl(eIdx);
   if(aSlot) aSlot.classList.add('glow-blue');
   if(eSlot) eSlot.classList.add('glow-red');
   await sleep(300);
@@ -666,7 +712,13 @@ async function allyAttackAction(ally, allyIdx){
   attackTargets.forEach(t=>{
     const ti=G.enemies.indexOf(t);
     dealDmgToEnemy(t,ally.atk,ti,ally);
-    // 敵の反撃
+    // 相互攻撃（全体攻撃はプライマリターゲットのみ迎撃）
+    const isPrimary=!isGlobal||t===target;
+    if(isPrimary&&t.hp>0&&ally.hp>0){
+      dealDmgToAlly(ally,t.atk,allyIdx,t);
+      log(`⚔ ${t.name}の迎撃：${ally.name}に${t.atk}ダメ`,'bad');
+    }
+    // 反撃キーワード持ちはさらに追加ダメージ
     if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
       dealDmgToAlly(ally,t.atk,allyIdx,t);
       log(`⚔ ${t.name}の反撃：${ally.name}に${t.atk}ダメ`,'bad');
@@ -680,10 +732,7 @@ async function allyAttackAction(ally, allyIdx){
     let curTgt=target;
     for(let hi=0;hi<extraHits;hi++){
       if(!curTgt||curTgt.hp<=0){
-        const _newLiveE=G.enemies.filter(e=>e&&e.hp>0);
-        if(!_newLiveE.length) break;
-        const _newForced=_newLiveE.find(e=>e.allyTarget);
-        curTgt=_newForced||_newLiveE[_newLiveE.length-1];
+        curTgt=getAttackTarget(ally,G.enemies);
       }
       if(!curTgt||curTgt.hp<=0) break;
       // 攻撃時効果（各段攻撃ごとに発動）
@@ -710,16 +759,15 @@ async function enemyAttackAction(enemy, enemyIdx){
     return;
   }
 
-  // ターゲット選択：標的持ち全員 or 最右端（隠密除外）
-  const hateTgts=liveA.filter(a=>a.hate&&a.hateTurns>0&&!a.stealth);
-  const visibleA=liveA.filter(a=>!a.stealth);
-  const candidates=visibleA.length?visibleA:liveA;
-  const targets=hateTgts.length>0?hateTgts:[candidates[candidates.length-1]];
-  const primaryIdx=G.allies.indexOf(targets[0]);
+  // ターゲット選択（前衛後衛ルール）
+  const primaryTarget=getAttackTarget(enemy,G.allies);
+  if(!primaryTarget) return;
+  const targets=[primaryTarget];
+  const primaryIdx=G.allies.indexOf(primaryTarget);
 
   // アニメーション（先頭ターゲット代表）
-  const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[enemyIdx];
-  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[primaryIdx];
+  const eSlot=_getEnemySlotEl(enemyIdx);
+  const aSlot=_getAllySlotEl(primaryIdx);
   if(eSlot) eSlot.classList.add('glow-blue');
   if(aSlot) aSlot.classList.add('glow-red');
   await sleep(300);
@@ -747,6 +795,12 @@ async function enemyAttackAction(enemy, enemyIdx){
       hitSet.add(tgt.id);
       // キーワード効果：ダメージが通った場合のみ（シールドブロック時は発動しない）
       if(_dmgPassed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
+      // 相互攻撃（全体攻撃はプライマリターゲットのみ迎撃）
+      const isPrimary=!isGlobalAtk||tgt===targets[0];
+      if(isPrimary&&tgt.hp>0&&enemy.hp>0&&atkVal>0){
+        dealDmgToEnemy(enemy,tgt.atk,enemyIdx,tgt);
+        log(`⚔ ${tgt.name}の迎撃：${enemy.name}に${tgt.atk}ダメ`,'good');
+      }
     }
     hitNames.push(tgt.name);
   });
@@ -759,10 +813,7 @@ async function enemyAttackAction(enemy, enemyIdx){
     let reTgt=finalTargets[0];
     for(let hi=0;hi<extraHits;hi++){
       if(!reTgt||reTgt.hp<=0){
-        const nextLive=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
-        if(!nextLive.length) break;
-        const nextHate=nextLive.filter(a=>a.hate&&a.hateTurns>0);
-        reTgt=nextHate.length>0?nextHate[nextHate.length-1]:nextLive[nextLive.length-1];
+        reTgt=getAttackTarget(enemy,G.allies);
       }
       if(!reTgt||reTgt.hp<=0) break;
       // 攻撃時効果（各段攻撃ごとに発動）

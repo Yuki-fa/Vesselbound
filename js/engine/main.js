@@ -82,6 +82,7 @@ function showVictoryOverlay(){ document.getElementById('victory-overlay').style.
 function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
 
 // ── 起動時データ読み込み ─────────────────────────────
+window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });
 window.addEventListener('DOMContentLoaded', async () => {
   const msgEl = document.getElementById('load-msg');
   const ok = await loadGameData();

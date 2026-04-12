@@ -166,6 +166,7 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     unique:   def.unique || false,
     desc:     def.desc  || '',
     enchants: [],
+    lane:     def.lane || 'front', // 'front' | 'rear'
     // 戦闘状態
     shield:   def.shield || 0,
     hate:     def.hate   || false,
