@@ -455,9 +455,19 @@ function renderRewCards(){
   // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
   const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
+  // 提示カードの前後衛パターン（枚数別）
+  const _rewLaneMap={
+    3:['is-front','is-rear','is-front'],
+    4:['is-front','is-rear','is-rear','is-front'],
+    5:['is-front','is-rear','is-front','is-rear','is-front'],
+    6:['is-rear','is-rear','is-front','is-front','is-rear','is-rear'],
+  };
+  const _charCount=_rewCards.slice(0,6).filter(c=>c&&c._isChar).length;
+  const _lanePattern=_rewLaneMap[_charCount]||_rewLaneMap[3];
+
   const charRow=document.createElement('div');
   charRow.className='field';
-  charRow.style='margin-bottom:28px;width:100%';
+  charRow.style='margin-bottom:44px;width:100%';  // 前衛下シフト分の余白
   for(let i=0;i<6;i++){
     const card=(_rewCards[i]&&_rewCards[i]._isChar)?_rewCards[i]:null;
     const slot=document.createElement('div');
@@ -477,7 +487,8 @@ function renderRewCards(){
         }
       });
     } else {
-      slot.className='slot is-front';
+      const _laneClass=_lanePattern[i]||'is-front';
+      slot.className='slot '+_laneClass;
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;

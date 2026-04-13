@@ -337,6 +337,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #rw-cards .slot.is-front{
   transform:translateY(15%);
 }
+/* 提示カード後衛：上（画面上部）へ */
+#rw-cards .slot.is-rear{
+  transform:translateY(-15%);
+}
 /* ── 敵後退スロットのビジュアル ── */
 /* 敵後退：上（画面上部）へ */
 .slot.is-rear{
@@ -346,7 +350,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-ally{
   position:relative;
   overflow:visible;
-  margin-top:clamp(26px,5vw,52px);  /* is-front 上方シフト分の余白 */
+  margin-top:clamp(18px,3.5vw,40px);  /* is-front 上方シフト分の余白 */
   margin-bottom:clamp(4px,1vw,10px);
 }
 #f-ally::before{
@@ -371,7 +375,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-enemy{
   position:relative;
   overflow:visible;
-  margin-top:clamp(26px,5vw,52px);  /* is-rear 上方シフト分の余白 */
+  margin-top:clamp(18px,3.5vw,40px);  /* is-rear 上方シフト分の余白 */
   margin-bottom:clamp(4px,1vw,10px);
 }
 /* 後退位置のガイドライン（敵カード下端・最背面） */

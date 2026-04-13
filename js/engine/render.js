@@ -683,21 +683,15 @@ function renderEnemyHand(){
   const ringMaxEl=document.getElementById('enemy-ring-max');
   const eHandPane=document.getElementById('enemy-hand-pane');
   if(ringsPane){
-    if(isReward){
-      // 商談フェイズ：プレイヤー側と同じ比率（flex:2 + flex:5）でレイアウト
-      ringsPane.style.display='';
-      ringsPane.style.visibility='hidden'; // スペーサーとして残す
-      ringsPane.style.flex='2';
-      if(ringsEl) ringsEl.innerHTML=''; // 中身は空に
-      if(eHandPane){ eHandPane.style.flex='5'; eHandPane.style.maxWidth=''; }
-    } else if(isDynamic){
+    if(isReward||isDynamic){
+      // 商談/動的：指輪パネルを非表示。商談は7列で全幅（プレイヤー5列5/7幅と同じカード幅）
       ringsPane.style.display='none';
       ringsPane.style.visibility='';
       if(eHandPane){ eHandPane.style.flex='1'; eHandPane.style.maxWidth=''; }
     } else {
       ringsPane.style.display='';
       ringsPane.style.visibility='';
-      if(eHandPane) eHandPane.style.maxWidth='';
+      if(eHandPane){ eHandPane.style.flex=''; eHandPane.style.maxWidth=''; }
       // 戦闘中は bossRings を表示
       const rings=G.bossRings||[];
       const eR=2;
@@ -729,8 +723,9 @@ function renderEnemyHand(){
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  const eHcols=isReward?5:isDynamic?3:8;
-  const activeHand=isReward?5:eHcols;
+  // 商談=7列（全幅÷7 = プレイヤー5/7幅÷5 と同じカード幅）、動的=3列、通常=8列
+  const eHcols=isReward?7:isDynamic?3:8;
+  const activeHand=isReward?7:eHcols;
   handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
   if(handMaxEl) handMaxEl.textContent=activeHand;
