@@ -342,8 +342,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-ally{
   position:relative;
   overflow:visible;
-  margin-top:clamp(14px,3vw,32px);
-  margin-bottom:clamp(14px,3vw,32px);
+  margin-top:clamp(26px,5vw,52px);  /* is-front 上方シフト分の余白 */
+  margin-bottom:clamp(4px,1vw,10px);
 }
 #f-ally::before{
   content:'';
@@ -367,8 +367,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-enemy{
   position:relative;
   overflow:visible;
-  margin-top:clamp(14px,3vw,32px);
-  margin-bottom:clamp(14px,3vw,32px);
+  margin-top:clamp(26px,5vw,52px);  /* is-rear 上方シフト分の余白 */
+  margin-bottom:clamp(4px,1vw,10px);
 }
 /* 後退位置のガイドライン（敵カード下端・最背面） */
 #f-enemy::after{
