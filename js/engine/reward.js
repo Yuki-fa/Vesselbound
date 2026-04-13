@@ -467,7 +467,7 @@ function renderRewCards(){
 
   const charRow=document.createElement('div');
   charRow.className='field';
-  charRow.style='margin-bottom:44px;width:100%';  // 前衛下シフト分の余白
+  charRow.style='margin-top:14px;margin-bottom:44px;width:100%';  // 後衛上シフト分の上余白・前衛下シフト分の下余白
   for(let i=0;i<6;i++){
     const card=(_rewCards[i]&&_rewCards[i]._isChar)?_rewCards[i]:null;
     const slot=document.createElement('div');
