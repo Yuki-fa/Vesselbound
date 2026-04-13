@@ -333,6 +333,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   border-top:2px solid var(--red2)!important;
   position:relative;z-index:2;
 }
+/* 提示カード前衛：下（プレイヤー側）へ（敵エリア位置に表示されるため） */
+#rw-cards .slot.is-front{
+  transform:translateY(15%);
+}
 /* ── 敵後退スロットのビジュアル ── */
 /* 敵後退：上（画面上部）へ */
 .slot.is-rear{

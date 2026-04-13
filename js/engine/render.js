@@ -683,22 +683,21 @@ function renderEnemyHand(){
   const ringMaxEl=document.getElementById('enemy-ring-max');
   const eHandPane=document.getElementById('enemy-hand-pane');
   if(ringsPane){
-    if(isDynamic||isReward){
+    if(isReward){
+      // 商談フェイズ：プレイヤー側と同じ比率（flex:2 + flex:5）でレイアウト
+      ringsPane.style.display='';
+      ringsPane.style.visibility='hidden'; // スペーサーとして残す
+      ringsPane.style.flex='2';
+      if(ringsEl) ringsEl.innerHTML=''; // 中身は空に
+      if(eHandPane){ eHandPane.style.flex='5'; eHandPane.style.maxWidth=''; }
+    } else if(isDynamic){
       ringsPane.style.display='none';
-      if(eHandPane){
-        eHandPane.style.flex='1';
-        if(isReward){
-          // 商談フェイズ：手札パネルをフィールド幅に合わせる
-          const fieldEl=document.getElementById('f-enemy')||document.getElementById('f-ally');
-          if(fieldEl){
-            const fieldW=fieldEl.getBoundingClientRect().width;
-            if(fieldW>0) eHandPane.style.maxWidth=fieldW+'px';
-          }
-        }
-      }
+      ringsPane.style.visibility='';
+      if(eHandPane){ eHandPane.style.flex='1'; eHandPane.style.maxWidth=''; }
     } else {
       ringsPane.style.display='';
-      if(eHandPane) eHandPane.style.maxWidth=''; // 戦闘時はmaxWidthを解除
+      ringsPane.style.visibility='';
+      if(eHandPane) eHandPane.style.maxWidth='';
       // 戦闘中は bossRings を表示
       const rings=G.bossRings||[];
       const eR=2;
