@@ -323,7 +323,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
     case 'poison_wand':{
       const pv=G.magicLevel||1;
       if(tgt.who==='rew-char'){ const rc=_rewCards[tgt.idx]; if(rc){ rc.poison=(rc.poison||0)+pv; log(`${rc.name}に毒+${pv}付与`,'good'); dealDmgToRewChar(tgt.idx,pv); } }
-      else { const pe=G.enemies[tgt.idx]; if(pe){ pe.poison=(pe.poison||0)+pv; log(`${pe.name}に毒+${pv}付与（毒${pe.poison}）`,'good'); } }
+      else if(tgt.who==='ally'){ const pa=G.allies[tgt.idx]; if(pa&&pa.hp>0){ pa.poison=(pa.poison||0)+pv; log(`${pa.name}に毒+${pv}付与（毒${pa.poison}）`,'good'); } }
+      else { const pe=G.enemies[tgt.idx]; if(pe&&pe.hp>0){ pe.poison=(pe.poison||0)+pv; log(`${pe.name}に毒+${pv}付与（毒${pe.poison}）`,'good'); } }
     break;}
     case 'sacrifice':{
       const si=tgt.idx;
@@ -334,7 +335,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
       log(`犠牲：${sa2.name}を破壊、全敵に${dmg}ダメ`,'good');
       G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,ei); });
     break;}
-    case 'boost_atk':{ const ba=G.allies[tgt.idx]; if(ba){ const bav=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); triggerDryadBuff(); } break;}
+    case 'boost_atk':{ const ba=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx]; if(ba&&ba.hp>0){ const bav=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); ba.atk+=bav; ba.baseAtk=(ba.baseAtk||0)+bav; log(`${ba.name}：ATK+${bav}`,'good'); if(!_inReward) triggerDryadBuff(); } break;}
     case 'swap_pos':{
       if(!tgt||tgt.who!=='pair') break;
       const {idx1,idx2,team}=tgt;
@@ -403,15 +404,15 @@ function applySpell(sp,idx,tgt,_noDecrement){
       log(`混乱の杖：${ssu.name} ATK↔HP（${ssu.atk}/${ssu.hp}）`,'good');
     break;}
     case 'counter_scroll':{
-      const csa=G.allies[tgt.idx];
-      if(csa){ csa.counter=true; log(`無力化の巻物：${csa.name}に反撃付与`,'good'); }
+      const csa=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
+      if(csa&&csa.hp>0){ csa.counter=true; if(!csa.keywords) csa.keywords=[]; if(!csa.keywords.includes('反撃')) csa.keywords.push('反撃'); log(`反逆の薬：${csa.name}に反撃付与`,'good'); }
     break;}
     case 'purify_hate':{
       if(!tgt) break;
       const phu=tgt.who==='ally'?G.allies[tgt.idx]:G.enemies[tgt.idx];
       if(phu){ phu.poison=0; log(`浄化の薬：${phu.name}の毒を消した`,'good'); }
     break;}
-    case 'boost':{ const a=G.allies[tgt.idx]; if(a){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); triggerDryadBuff(); } break;}
+    case 'boost':{ const a=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx]; if(a&&a.hp>0){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); if(!_inReward) triggerDryadBuff(); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
     case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
     case 'seal':{
@@ -503,8 +504,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(sw){ sw.shield=(sw.shield||0)+1; log(`光輝の杖：${sw.name}にシールドを付与`,'good'); }
     break;}
     case 'growth_wand':{
-      const gwA=G.allies[tgt.idx];
-      if(gwA){
+      const gwA=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
+      if(gwA&&gwA.hp>0){
         if(!gwA.keywords) gwA.keywords=[];
         const gwV=(G.magicLevel||1)*cMult;
         const gwI=gwA.keywords.findIndex(k=>/^成長\d+$/.test(k));
