@@ -348,6 +348,25 @@ function dealDmgToRewChar(rewIdx, dmg){
   renderRewCards();
 }
 
+// 商談フェイズ：リンドヴルムの「仲間の負傷発動時、全仲間の竜+1/+1」トリガー
+function _triggerLindwormRew(){
+  const _lv=1+(G.hasGoldenDrop?1:0);
+  // 提示カードのリンドヴルム
+  _rewCards.forEach(lw=>{
+    if(!lw||!lw._isChar||lw.hp<=0||lw.effect!=='lindworm_injury') return;
+    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
+  });
+  // 盤面のリンドヴルム
+  G.allies.forEach(lw=>{
+    if(!lw||lw.hp<=0||lw.effect!=='lindworm_injury') return;
+    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
+  });
+}
+
 // 報酬フェイズ中の負傷トリガー（開戦・終戦・攻撃・召喚は除く）
 function _triggerRewCharInjury(unit, dmg=0){
   if(!unit||!unit.injury) return;
@@ -358,19 +377,23 @@ function _triggerRewCharInjury(unit, dmg=0){
       // 既にフィールドにいる不死キャラにもボーナスを適用
       G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
       log(`${unit.name}：不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
+      _triggerLindwormRew();
       break;
     }
     case 'freyr':{
       const scDef2={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']};
       addRewChar(makeUnitFromDef(scDef2));
       log(`${unit.name}：負傷→ストーンキャットを報酬枠に召喚`,'good');
+      _triggerLindwormRew();
       break;
     }
     case 'kettcat':{
       const _ncRG=unit.grade||1, _ncRA=_ncRG, _ncRH=2*_ncRG;
       const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncRG,atk:_ncRA,hp:_ncRH,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
-      addRewChar(makeUnitFromDef(_ncDef));
+      const _nc=makeUnitFromDef(_ncDef, undefined, true); // skipSummonBonus=true
+      addRewChar(_nc);
       log(`${unit.name}：負傷→ナイトキャット(${_ncRA}/${_ncRH})を報酬枠に召喚`,'good');
+      _triggerLindwormRew();
       break;
     }
     case 'ran':{
@@ -378,6 +401,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       const ranDef={id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''};
       addRewChar(makeUnitFromDef(ranDef));
       log(`${unit.name}：負傷→海の眷属(10/${ranHp})を報酬枠に召喚`,'good');
+      _triggerLindwormRew();
       break;
     }
     case 'banshee':{
@@ -385,6 +409,15 @@ function _triggerRewCharInjury(unit, dmg=0){
       G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,1,ai,null); });
       _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,1); });
       log(`${unit.name}：負傷→全キャラに1ダメ`,'good');
+      _triggerLindwormRew();
+      break;
+    }
+    case 'warg':{
+      const _wgv=1+(G.hasGoldenDrop?1:0);
+      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&(c.race==='獣'||c.race==='全て')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
+      log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,'good');
+      _triggerLindwormRew();
       break;
     }
     case 'alp':{
@@ -397,6 +430,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       const _alpSlot=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_alpSlot>=0) G.allies[_alpSlot]=makeUnitFromDef(_alpDef);
       log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を仲間の場に召喚`,'good');
+      _triggerLindwormRew();
       break;
     }
   }
