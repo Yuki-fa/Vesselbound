@@ -642,6 +642,32 @@ function _applyEnemyAttackEffects(enemy){
     G.allies.forEach(a=>{ if(a&&a.hp>0) a.poison=(a.poison||0)+1; });
     log(`${enemy.name}：攻撃→全仲間に毒牙1`,'bad');
   }
+  if(enemy.effect==='vampire_attack'){
+    const va=2, vh=1;
+    G.enemies.forEach(f=>{ if(f&&f.hp>0&&(f.race==='不死'||f.race==='全て')){ f.atk+=va; f.baseAtk=(f.baseAtk||0)+va; f.hp+=vh; f.maxHp+=vh; }});
+    log(`${enemy.name}：攻撃→全不死+${va}/+${vh}`,'bad');
+  }
+  if(enemy.effect==='dryad_attack'){
+    const _liveE=G.enemies.filter(f=>f&&f.hp>0&&f!==enemy);
+    for(let _di=0;_di<2&&_liveE.length>0;_di++){
+      const _ti=Math.floor(Math.random()*_liveE.length);
+      const _t=_liveE.splice(_ti,1)[0];
+      _t.atk+=1; _t.baseAtk=(_t.baseAtk||0)+1; _t.hp+=1; _t.maxHp+=1;
+    }
+    log(`${enemy.name}：攻撃→ランダムな仲間2体に+1/+1`,'bad');
+  }
+  if(enemy.effect==='pegasus_attack'){
+    const _rightmost=G.enemies.filter(f=>f&&f.hp>0).pop();
+    if(_rightmost){ _rightmost.hp+=4; _rightmost.maxHp+=4; log(`${enemy.name}：攻撃→右端の${_rightmost.name}に±0/+4`,'bad'); }
+  }
+  if(enemy.effect==='lizardman_attack'){
+    enemy.hp+=1; enemy.maxHp+=1;
+    log(`${enemy.name}：攻撃時±0/+1`,'bad');
+  }
+  if(enemy.effect==='specter_attack'){
+    G._enemySpecterBonus=(G._enemySpecterBonus||0)+1;
+    log(`${enemy.name}：攻撃→今後の「不死」に+1/+1蓄積`,'bad');
+  }
 }
 
 // 攻撃ターゲットを決定する
@@ -853,6 +879,11 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(!willDie&&unit.counter&&src&&unit.hp>0){
     const srcIdx=G.enemies.indexOf(src);
     if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+  }
+
+  // リリス・ヴェノム（敵側）：味方がダメージを受けた時、毒3を与える
+  if(!willDie && actualDmg>0){
+    G.enemies.forEach(li=>{ if(li&&li.hp>0&&li.effect==='lilith_ondmg'){ unit.poison=(unit.poison||0)+3; log(`🎤 ${li.name}：${unit.name}に毒+3`,'bad'); }});
   }
 
   if(willDie){ unit.hp=0; processAllyDeath(unit); } // 負傷でHP回復しても死亡確定
@@ -1575,6 +1606,36 @@ function processEnemyDeath(e,eIdx){
     _sbCopy.forEach((f,fi)=>{ if(f&&f.hp>0&&f!==e) dealDmgToEnemy(f,_sbdmg,fi,e); });
     log(`${e.name}：死亡→敵全員に${_sbdmg}ダメ`,'good');
   }
+  // レイス（敵）：死亡時、全ての味方（プレイヤー側）にATKダメージを与える
+  if(e.effect==='wraith_death'){
+    const x=(e.atk||0);
+    if(x>0){
+      const _wrCopy=[...G.allies];
+      _wrCopy.forEach((a,ai)=>{ if(a&&a.hp>0) dealDmgToAlly(a,x,ai,e); });
+      log(`${e.name}：死亡→全ての味方に${x}ダメ`,'bad');
+    }
+  }
+  // スケルトン（敵）：死亡時、骨を敵陣に召喚
+  if(e.effect==='skeleton_bone'){
+    const _boneG=e.grade||1;
+    const _boneHp=4*_boneG;
+    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+    const _boneSlot=G.enemies.findIndex(f=>!f||f.hp<=0);
+    if(_boneSlot>=0){
+      G.enemies[_boneSlot]=makeUnitFromDef(_boneDef);
+      log(`${e.name}：死亡→骨(0/${_boneHp})を召喚`,'bad');
+    }
+  }
+  // ファントム（敵）：仲間（敵）が死亡したとき、アクを召喚
+  G.enemies.forEach(ph=>{
+    if(!ph||ph.hp<=0||ph.effect!=='phantom_onallydie'||ph===e) return;
+    const akDef={id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''};
+    const empty=G.enemies.findIndex(f=>!f||f.hp<=0);
+    if(empty>=0){
+      G.enemies[empty]=makeUnitFromDef(akDef);
+      log(`${ph.name}：${e.name}の死→アク(0/1)を召喚`,'bad');
+    }
+  });
   // ナグルファル：敵死亡でも+2/+1
   _onAnyCharDeath();
   updateHUD();
