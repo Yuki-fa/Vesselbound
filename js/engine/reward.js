@@ -457,7 +457,7 @@ function renderRewCards(){
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
   const charRow=document.createElement('div');
   charRow.className='field';
-  charRow.style='margin-bottom:24px;width:100%';
+  charRow.style='margin-bottom:28px;width:100%';
   for(let i=0;i<6;i++){
     const card=(_rewCards[i]&&_rewCards[i]._isChar)?_rewCards[i]:null;
     const slot=document.createElement('div');
@@ -477,9 +477,8 @@ function renderRewCards(){
         }
       });
     } else {
-      slot.className='slot';
+      slot.className='slot is-front';
       slot.dataset.rewIdx=String(i);
-      // 提示カードは is-front を付けない（translateY でレイアウトが崩れるため）
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
