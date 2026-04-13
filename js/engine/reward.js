@@ -634,6 +634,9 @@ function takeRewCard(i, targetSlot){
       emptyIdx=G.allies.indexOf(null);
     }
     if(emptyIdx<0){ log('盤面が満杯です。フィールドのキャラクターを還魂してください。','bad'); return; }
+    // 購入前の盤面平均グレードを記録（リスNPC判定用）
+    const _preAllyG=G.allies.filter(a=>a&&a.hp>0);
+    const _preBuyAvgG=_preAllyG.length?_preAllyG.reduce((s,a)=>s+(a.grade||1),0)/_preAllyG.length:0;
     G.gold-=cost;
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
     G.allies[emptyIdx]=unit;
@@ -689,9 +692,8 @@ function takeRewCard(i, targetSlot){
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
     document.getElementById('rw-gold').textContent=G.gold;
-    // リスNPC：キャラ購入時（購入キャラのグレードと盤面平均を比較）
-    { const _fg=G.allies.filter(a=>a&&a.hp>0); const _avgG=_fg.length?_fg.reduce((s,a)=>s+(a.grade||1),0)/_fg.length:1;
-      squirrelSay((unit.grade||1)>=_avgG?'現在グレードのキャラを購入時':'現在グレード未満のキャラを購入時'); }
+    // リスNPC：キャラ購入時（購入前の盤面平均グレードと比較）
+    squirrelSay((unit.grade||1)>=_preBuyAvgG?'現在グレードのキャラを購入時':'現在グレード未満のキャラを購入時');
     updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
     return;
