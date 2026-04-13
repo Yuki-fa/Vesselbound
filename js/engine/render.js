@@ -723,9 +723,9 @@ function renderEnemyHand(){
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  // 商談=7列（全幅÷7 = プレイヤー5/7幅÷5 と同じカード幅）、動的=3列、通常=8列
-  const eHcols=isReward?7:isDynamic?3:8;
-  const activeHand=isReward?7:eHcols;
+  // 商談=10列（全幅を小分けしプレイヤー側と近いカードサイズに）、動的=3列、通常=8列
+  const eHcols=isReward?10:isDynamic?3:8;
+  const activeHand=isReward?10:eHcols;
   handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
   if(handMaxEl) handMaxEl.textContent=activeHand;
