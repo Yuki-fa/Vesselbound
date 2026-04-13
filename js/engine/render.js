@@ -451,7 +451,7 @@ function renderRingSlots(){
   }
 }
 
-// 手札スロット（杖＋消耗品の混合 7 枠）
+// インベントリスロット（杖＋消耗品の混合 7 枠）
 function renderHandSlots(){
   const el=document.getElementById('hand-slots');
   if(!el) return;
@@ -664,7 +664,7 @@ function renderCommanderWands(){
     +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
 }
 
-// 敵オーナー手札エリア（全階層・報酬フェイズ共通・プレイヤー手札と同形式）
+// 敵オーナーインベントリエリア（全階層・報酬フェイズ共通・プレイヤーインベントリと同形式）
 function renderEnemyHand(){
   const area=document.getElementById('enemy-hand-area');
   if(!area) return;
@@ -673,24 +673,24 @@ function renderEnemyHand(){
   if(!hasEnemyItems&&!isReward){ area.style.display='none'; return; }
   area.style.display='';
 
-  // 動的取得モード：指輪非表示・手札3枠
+  // 動的取得モード：指輪非表示・インベントリ3枠
   const isDynamic=!isReward&&(G._enemyHandDynamic||false);
 
-  // 指輪パネル（動的取得モードのみ非表示。報酬フェイズ・通常は表示）
+  // 指輪パネル（動的取得モード・報酬フェイズは非表示。戦闘中通常は表示）
   const ringsPane=document.getElementById('enemy-rings-pane');
   const ringsEl=document.getElementById('enemy-ring-slots');
   const ringCountEl=document.getElementById('enemy-ring-count');
   const ringMaxEl=document.getElementById('enemy-ring-max');
   const eHandPane=document.getElementById('enemy-hand-pane');
   if(ringsPane){
-    if(isDynamic){
+    if(isDynamic||isReward){
       ringsPane.style.display='none';
       if(eHandPane) eHandPane.style.flex='1';
     } else {
       ringsPane.style.display='';
-      // 商談フェイズは masterRings、戦闘中は bossRings を表示
-      const rings=isReward?(G.masterRings||[]):(G.bossRings||[]);
-      const eR=isReward?Math.max(2,rings.filter(r=>r).length||2):2;
+      // 戦闘中は bossRings を表示
+      const rings=G.bossRings||[];
+      const eR=2;
       ringsPane.style.flex=eR;
       if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
       if(ringMaxEl) ringMaxEl.textContent=eR;
@@ -702,36 +702,7 @@ function renderEnemyHand(){
           const ring=rings[i];
           if(ring){
             const div=mkCardEl(ring,i,'ring-boss');
-            if(isReward){
-              const rCost=ring._buyPrice??4;
-              const rCanBuy=G.gold>=rCost;
-              div.style.cursor=rCanBuy?'pointer':'default';
-              if(!rCanBuy){
-                div.style.background='var(--bg)';
-                const nb=document.createElement('div');
-                nb.textContent='ソウル不足';
-                nb.style.cssText='position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10';
-                div.appendChild(nb);
-              } else {
-                div.onclick=()=>buyMasterRingItem(i);
-                div.draggable=true;
-                div.addEventListener('dragstart',e=>{
-                  _rewDragSrc=-200-i;
-                  e.dataTransfer.effectAllowed='move';
-                  e.dataTransfer.setDragImage(_transparentDragImg,0,0);
-                  _createDragGhost(div);
-                });
-                div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-                div.addEventListener('dragend',()=>{ _rewDragSrc=-1; _removeDragGhost(); });
-              }
-              // コスト表示
-              const costTag=document.createElement('div');
-              costTag.style.cssText='position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1';
-              costTag.textContent=_circleCost(rCost);
-              div.appendChild(costTag);
-            } else {
-              div.classList.add('inert'); div.style.cursor='default';
-            }
+            div.classList.add('inert'); div.style.cursor='default';
             ringsEl.appendChild(div);
           } else {
             const ph=document.createElement('div'); ph.className='card-empty'; ringsEl.appendChild(ph);
@@ -741,7 +712,7 @@ function renderEnemyHand(){
     }
   }
 
-  // 手札パネル（動的モード=3枠、通常=8枠、報酬=handSlots）
+  // インベントリパネル（動的モード=3枠、通常=8枠、報酬=handSlots）
   const handEl=document.getElementById('enemy-hand-slots');
   const handCountEl=document.getElementById('enemy-hand-count');
   const handMaxEl=document.getElementById('enemy-hand-max');
@@ -770,7 +741,7 @@ function renderEnemyHand(){
           div.onclick=()=>buyMasterHandItem(i);
           div.draggable=true;
           div.addEventListener('dragstart',e=>{
-            _rewDragSrc=-100-i; // 特殊インデックスで手札ドラッグを識別
+            _rewDragSrc=-100-i; // 特殊インデックスでインベントリドラッグを識別
             e.dataTransfer.effectAllowed='move';
             e.dataTransfer.setDragImage(_transparentDragImg,0,0);
             _createDragGhost(div);

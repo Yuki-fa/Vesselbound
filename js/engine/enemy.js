@@ -222,6 +222,11 @@ function generateEnemies(floor){
     if(allShifted) randFrom(shiftable)._visualShift=false;
     else if(noneShifted) randFrom(shiftable)._visualShift=true;
   }
+  // Fisher-Yates シャッフル（非ボス戦のみ）
+  for(let _si=enemies.length-1;_si>0;_si--){
+    const _sj=Math.floor(Math.random()*(_si+1));
+    const _st=enemies[_si]; enemies[_si]=enemies[_sj]; enemies[_sj]=_st;
+  }
   return enemies;
 }
 
