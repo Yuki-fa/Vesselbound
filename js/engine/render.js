@@ -341,10 +341,10 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
         const _allKws=[...new Set([...(u.keywords||[]),...(u.counter?['反撃']:[])])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
-        const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
+        const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
-        if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
+        if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
         const gradeTag=u.grade?`<div class="slot-grade">${gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);

@@ -492,7 +492,7 @@ function renderRewCards(){
       slot.style.borderTop='2px solid var(--teal2)';
       if(!canBuy) slot.style.background='var(--bg)';
       if(_previewStr) slot.setAttribute('data-preview',_previewStr);
-      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
+      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
       // ドラッグ（常に可能。購入チェックはdrop時）
       slot.draggable=true;
       slot.style.cursor=canBuy&&hasSlot?'grab':'default';
@@ -736,8 +736,8 @@ function takeRewCard(i, targetSlot){
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   G.spells[handIdx]=nc;
 
-  // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（杖・消耗品の場合）
-  if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+  // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
+  if(nc.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
     G._familiarUsed=true;
     const _famHandIdx=G.spells.indexOf(null);
     if(_famHandIdx>=0){
@@ -791,11 +791,11 @@ function _renderFieldRow(el){
       const _allKws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
-      const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
+      const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
       const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       let kwBlock='';
-      if(_topKws.length||_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_topRow}${_normRow}</div>`;
-      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:20px;pointer-events:none';
+      if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
+      const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
@@ -1579,8 +1579,8 @@ function buyMasterHandItem(idx){
     G.gold-=cost;
     delete sp._buyPrice;   // 購入後は価格バッジを消す
     G.spells[handIdx]=sp;
-    // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る
-    if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+    // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
+    if(sp.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
       G._familiarUsed=true;
       const _famHandIdx=G.spells.indexOf(null);
       if(_famHandIdx>=0){
