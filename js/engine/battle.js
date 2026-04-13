@@ -557,53 +557,56 @@ function _onAllEnemiesDefeated(){
 function _applyAllyAttackEffects(ally){
   if(!ally||ally.hp<=0) return;
   const _gd=G.hasGoldenDrop?1:0;
+  const _sc=(ally._stackCount||0)+1; // 重ね倍率（G1=1, G2=2, ...）
   if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){
-    const v=1+_gd; ally.atk+=v; ally.baseAtk+=v;
+    const v=_sc+_gd; ally.atk+=v; ally.baseAtk+=v;
     log(`${ally.name}：攻撃時+${v}/±0`,'good');
   }
   if(ally.effect==='brownie_attack'){
-    const _hpGain=1+_gd;
+    const _hpGain=_sc+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_hpGain; a.maxHp+=_hpGain; }});
     log(`${ally.name}：攻撃時→全仲間±0/+${_hpGain}`,'good');
   }
   if(ally.effect==='forniot'){
-    const v=1+_gd;
+    const v=_sc+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=v; a.baseAtk=(a.baseAtk||0)+v; }});
     log(`${ally.name}：攻撃時→全仲間+${v}/±0`,'good');
   }
   if(ally.effect==='vampire_attack'){
-    const va=2+_gd, vh=1+_gd;
+    const va=2*_sc+_gd, vh=_sc+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
     log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
   }
   if(ally.effect==='sylph_attack'){
-    const _si=G.allies.indexOf(ally); const _sv=1+_gd;
+    const _si=G.allies.indexOf(ally); const _sv=_sc+_gd;
     [G.allies[_si-1],G.allies[_si+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_sv; b.baseAtk=(b.baseAtk||0)+_sv; }});
     log(`${ally.name}：攻撃→隣接仲間+${_sv}/±0`,'good');
   }
   if(ally.effect==='arachas_attack'){
-    G.enemies.forEach(e=>{ if(e&&e.hp>0) e.poison=(e.poison||0)+1; });
-    log(`${ally.name}：攻撃→全敵に毒牙1`,'good');
+    const _av=_sc;
+    G.enemies.forEach(e=>{ if(e&&e.hp>0) e.poison=(e.poison||0)+_av; });
+    log(`${ally.name}：攻撃→全敵に毒牙${_av}`,'good');
   }
   if(ally.effect==='dryad_attack'){
     const _liveA=G.allies.filter(a=>a&&a.hp>0&&a!==ally);
+    const _dv=_sc+_gd;
     for(let _di=0;_di<2&&_liveA.length>0;_di++){
       const _ti=Math.floor(Math.random()*_liveA.length);
       const _t=_liveA.splice(_ti,1)[0];
-      const _dv=1+_gd; _t.atk+=_dv; _t.baseAtk=(_t.baseAtk||0)+_dv; _t.hp+=_dv; _t.maxHp+=_dv;
+      _t.atk+=_dv; _t.baseAtk=(_t.baseAtk||0)+_dv; _t.hp+=_dv; _t.maxHp+=_dv;
     }
-    log(`${ally.name}：攻撃→ランダムな仲間2体に+${1+_gd}/+${1+_gd}`,'good');
+    log(`${ally.name}：攻撃→ランダムな仲間2体に+${_dv}/+${_dv}`,'good');
   }
   if(ally.effect==='pegasus_attack'){
     const _rightmost=G.allies.filter(a=>a&&a.hp>0).pop();
-    if(_rightmost){ const _pv=4+_gd; _rightmost.hp+=_pv; _rightmost.maxHp+=_pv; log(`${ally.name}：攻撃→右端の${_rightmost.name}に±0/+${_pv}`,'good'); }
+    if(_rightmost){ const _pv=4*_sc+_gd; _rightmost.hp+=_pv; _rightmost.maxHp+=_pv; log(`${ally.name}：攻撃→右端の${_rightmost.name}に±0/+${_pv}`,'good'); }
   }
   if(ally.effect==='lizardman_attack'){
-    const _lv=((ally._stackCount||0)+1)+_gd; ally.hp+=_lv; ally.maxHp+=_lv;
+    const _lv=_sc+_gd; ally.hp+=_lv; ally.maxHp+=_lv;
     log(`${ally.name}：攻撃時±0/+${_lv}`,'good');
   }
   if(ally.effect==='specter_attack'){
-    const _sv=((ally._stackCount||0)+1)+_gd;
+    const _sv=_sc+_gd;
     G._specterBonus=(G._specterBonus||0)+_sv;
     log(`${ally.name}：攻撃→今後の「不死」に+${_sv}/+${_sv}（累計+${G._specterBonus}）`,'good');
   }
@@ -1200,7 +1203,7 @@ function onBattleStart(){
     if(!a||a.hp<=0) return;
     switch(a.effect){
       case 'gremlin_start':
-        { const _gdGrem=G.hasGoldenDrop?1:0; const _gmv=1+_gdGrem;
+        { const _gdGrem=G.hasGoldenDrop?1:0; const _gmv=((a._stackCount||0)+1)+_gdGrem;
           G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk=Math.max(0,e.atk-_gmv); e.baseAtk=Math.max(0,(e.baseAtk||0)-_gmv); }});
           log(`${a.name}：開戦→全敵-${_gmv}/±0`,'good'); }
         break;
@@ -1222,12 +1225,12 @@ function onBattleStart(){
         }
         break;
       case 'drake_start':
-        { const _dkdmg=1+(G.hasGoldenDrop?1:0);
+        { const _dkdmg=((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
           [...G.allies,...G.enemies].forEach(u=>{ if(!u||u.hp<=0) return; const _ui=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u); if(G.allies.includes(u)) dealDmgToAlly(u,_dkdmg,_ui,a); else dealDmgToEnemy(u,_dkdmg,_ui,a); });
           log(`${a.name}：開戦→全キャラに${_dkdmg}ダメ`,'good'); }
         break;
       case 'salamander_start':
-        { const _sdmg=4+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
+        { const _sdmg=4*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
         break;
       case 'minotaur_gradeup':
         { const _mg=((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
@@ -1265,7 +1268,7 @@ function onBattleStart(){
           if(_fe&&_fe.hp>0){ _fe.sealed=(_fe.sealed||0)+1; log(`${a.name}：正面の${_fe.name}を1T行動不能に`,'good'); } }
         break;
       case 'sea_serpent_start':
-        { const _sdmg2=2+(G.hasGoldenDrop?1:0);
+        { const _sdmg2=2*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
           G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg2,G.enemies.indexOf(e),a); });
           log(`${a.name}：開戦→全敵に${_sdmg2}ダメ`,'good'); }
         break;
