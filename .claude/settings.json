@@ -5,6 +5,7 @@
       "WebFetch(domain:doc-0g-1o-sheets.googleusercontent.com)",
       "Bash(git diff*)",
       "Bash(git log*)",
+      "Bash(git push*)",
       "Bash(git status*)",
       "Bash(cat*)",
       "Bash(head*)",
