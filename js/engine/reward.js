@@ -800,8 +800,21 @@ function _renderFieldRow(el){
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+      // クリックでヘイト切り替え
+      div.onclick=e=>{
+        if(e.detail===0) return; // プログラム的クリックは無視
+        const u=G.allies[i]; if(!u||u.hp<=0) return;
+        if(u.hate&&u.hateTurns>0){
+          u.hate=false; u.hateTurns=0;
+          log(`${u.name}が後衛に下がった`,'sys');
+        } else {
+          u.hate=true; u.hateTurns=99;
+          log(`${u.name}が前衛に出た`,'good');
+        }
+        updateHUD(); renderFieldEditor();
+      };
       div.addEventListener('dragstart',e=>{
-        _fieldDragSrc=i; _fieldDragSrcEl=div; _fieldDragStartY=e.clientY;
+        _fieldDragSrc=i; _fieldDragSrcEl=div;
         div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
@@ -811,26 +824,6 @@ function _renderFieldRow(el){
       div.addEventListener('dragend',e=>{
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
-        // ドロップが発生しなかった場合（_fieldDragSrcがまだiのまま）は上下ドラッグでhate切替
-        if(_fieldDragSrc===i){
-          const dy=e.clientY-_fieldDragStartY;
-          const u=G.allies[i];
-          if(u&&Math.abs(dy)>30){
-            if(dy<0){
-              // 上方向：前衛（ヘイト）に設定
-              u.hate=true; u.hateTurns=99;
-              log(`${u.name}が前衛に出た`,'good');
-            } else {
-              // 下方向：後衛（ヘイト解除）
-              u.hate=false; u.hateTurns=0;
-              log(`${u.name}が後衛に下がった`,'sys');
-            }
-            _fieldDragSrc=-1;
-            updateHUD();
-            renderFieldEditor();
-            return;
-          }
-        }
         _fieldDragSrc=-1;
       });
       div.addEventListener('dragover',e=>{
@@ -925,7 +918,6 @@ function _renderFieldRow(el){
 
 let _fieldDragSrc=-1;
 let _fieldDragSrcEl=null; // 盤面ドラッグ中のソース要素
-let _fieldDragStartY=0;   // dragstart時のY座標（上下ドラッグでhate切替に使用）
 let _rewDragSrc=-1;       // 報酬欄からドラッグ中のインデックス
 let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
 let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
