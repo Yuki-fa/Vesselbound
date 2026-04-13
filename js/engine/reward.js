@@ -114,6 +114,9 @@ function goToReward(){
   const logWrap=document.getElementById('log-wrap');
   if(logWrap) logWrap.style.display='none';
 
+  // リスNPCを明示的に表示（squirrelSayが空メッセージの場合でも表示する）
+  const _sqEl=document.getElementById('squirrel-npc');
+  if(_sqEl) _sqEl.classList.add('visible');
   squirrelSay('入店時');
 
   const bossNotice=document.getElementById('boss-reward-notice');
@@ -1600,6 +1603,7 @@ function buyMasterHandItem(idx){
     G.masterHand[idx]=null;
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
+    renderFieldEditor();
     renderEnemyHand();
     renderRewCards();
     renderGradeUpBtn();
