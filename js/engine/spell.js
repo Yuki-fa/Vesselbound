@@ -257,7 +257,13 @@ function applySpell(sp,idx,tgt,_noDecrement){
       const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:3,hp:1,cost:0,unique:false,icon:'😱',desc:''};
       const _nm=makeUnitFromDef(_nmDef);
       const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
-      if(_ei>=0){ G.allies[_ei]=_nm; log(`${ic.name}：ナイトメア(4/1)を召喚`,'good'); }
+      if(_ei>=0){
+        G.allies[_ei]=_nm;
+        log(`${ic.name}：ナイトメア(4/1)を召喚`,'good');
+        // グリマルキン：キャラクター効果で召喚されると+1/+1
+        const _gbv=1+(G.hasGoldenDrop?1:0);
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==ic){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }});
+      }
     });
   }
   switch(sp.effect){
