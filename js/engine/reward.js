@@ -54,11 +54,8 @@ function goToReward(){
     const maxGrade=fd?(fd.grade||1):1;
     const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);
     if(eliteItem){
-      if(_isRingCard(eliteItem)){
-        const rIdx=_autoEquipRingInner(eliteItem);
-        if(rIdx!==false) log(`⭐ エリート宝箱：${eliteItem.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-        else { _rewCards.push(eliteItem); log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold'); }
-      } else { _rewCards.push(eliteItem); log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold'); }
+      _rewCards.push(eliteItem);
+      log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
     }
   }
 
@@ -78,17 +75,13 @@ function goToReward(){
   if(G._pendingPondBonus){
     G._pendingPondBonus=false;
     const _pondPool=RING_POOL.filter(r=>(r.grade||1)<=2);
-    let _pondLog=[];
     for(let _pi=0;_pi<2;_pi++){
       if(!_pondPool.length) break;
       const _pondRing=clone(randFrom(_pondPool));
-      _pondRing._buyPrice=0; _pondRing._pondBonus=true;
-      const rIdx=_autoEquipRingInner(_pondRing);
-      if(rIdx!==false) _pondLog.push(`${_pondRing.name}→[${rIdx}]`);
-      else _rewCards.push(_pondRing);
+      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._pondBonus=true;
+      _rewCards.push(_pondRing);
     }
-    if(_pondLog.length) log(`💧 池の恵み：${_pondLog.join('、')}を指輪スロットに装備！`,'gold');
-    else log('💧 池の恵み：指輪2つが出現！','gold');
+    log('💧 池の恵み：指輪2つが出現！','gold');
   }
 
   // 宝箱：moveMasksからchestを除去し、中身を指輪スロットまたは報酬欄へ
@@ -99,11 +92,8 @@ function goToReward(){
     const maxGrade2=fd2?(fd2.grade||1):1;
     const treasureItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},maxGrade2);
     if(treasureItem){
-      if(_isRingCard(treasureItem)){
-        const rIdx=_autoEquipRingInner(treasureItem);
-        if(rIdx!==false) log(`📦 宝箱：${treasureItem.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-        else { _rewCards.push(treasureItem); log('📦 宝箱の中身が報酬欄に追加された！','gold'); }
-      } else { _rewCards.push(treasureItem); log('📦 宝箱の中身が報酬欄に追加された！','gold'); }
+      _rewCards.push(treasureItem);
+      log('📦 宝箱の中身が報酬欄に追加された！','gold');
     }
     G._pendingTreasure=false;
   }
@@ -202,14 +192,8 @@ function _showBossRewardOverlay(){
       const maxGrade=fd?(fd.grade||1):1;
       const bossTreasure=drawTreasure({3:100},{wand:30,consumable:20,ring:50},maxGrade);
       if(bossTreasure){
-        if(_isRingCard(bossTreasure)){
-          const rIdx=_autoEquipRingInner(bossTreasure);
-          if(rIdx!==false) log(`🏆 ボス宝箱：${bossTreasure.name}を指輪スロット[${rIdx}]に装備！`,'gold');
-          else { G.masterHand.push(bossTreasure); log('🏆 ボス宝箱（R3）が出現！','gold'); }
-        } else {
-          G.masterHand.push(bossTreasure);
-          log('🏆 ボス宝箱（R3）が出現！','gold');
-        }
+        G.masterHand.push(bossTreasure);
+        log('🏆 ボス宝箱（R3）が出現！','gold');
       }
       document.getElementById('rw-gold').textContent=G.gold;
       updateHUD();
