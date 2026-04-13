@@ -319,21 +319,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 @keyframes vglow{from{text-shadow:0 0 30px rgba(200,160,60,.6)}to{text-shadow:0 0 60px rgba(200,160,60,1),0 0 100px rgba(200,160,60,.4)}}
 
 /* ── ヘイト（前衛）スロットのビジュアル ── */
+/* 味方前衛：上（敵側）へ */
 .slot.is-front{
-  transform:translateY(20%);   /* 前衛：下（プレイヤー側）へ */
+  transform:translateY(-15%);
+  box-shadow:0 6px 16px rgba(224,80,80,.3);
+  border-top:2px solid var(--red2)!important;
+  position:relative;z-index:2;
+}
+/* 敵前衛：下（プレイヤー側）へ */
+.slot.enemy.is-front{
+  transform:translateY(15%);
   box-shadow:0 6px 16px rgba(224,80,80,.3);
   border-top:2px solid var(--red2)!important;
   position:relative;z-index:2;
 }
 /* ── 敵後退スロットのビジュアル ── */
+/* 敵後退：上（画面上部）へ */
 .slot.is-rear{
-  transform:translateY(-20%);  /* 後衛：上（画面上部）へ */
+  transform:translateY(-15%);
 }
 /* ── 前衛ガイドライン・衝突回避パディング ── */
 #f-ally{
   position:relative;
   overflow:visible;
-  margin-top:clamp(28px,6vw,68px);
+  margin-top:clamp(14px,3vw,32px);
+  margin-bottom:clamp(14px,3vw,32px);
 }
 #f-ally::before{
   content:'';
@@ -348,7 +358,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-ally::after{
   content:'';
   position:absolute;
-  top:-20%;left:0;right:0;
+  top:-15%;left:0;right:0;
   height:1px;
   background:rgba(224,80,80,.28);
   z-index:-1;
@@ -357,13 +367,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-enemy{
   position:relative;
   overflow:visible;
-  margin-bottom:clamp(32px,7vw,80px);
+  margin-top:clamp(14px,3vw,32px);
+  margin-bottom:clamp(14px,3vw,32px);
 }
 /* 後退位置のガイドライン（敵カード下端・最背面） */
 #f-enemy::after{
   content:'';
   position:absolute;
-  top:120%;left:0;right:0;
+  top:115%;left:0;right:0;
   height:1px;
   background:rgba(180,60,60,.22);
   z-index:-1;
