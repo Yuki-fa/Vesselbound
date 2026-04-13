@@ -261,7 +261,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[_ei]=_nm;
         log(`${ic.name}：ナイトメア(4/1)を召喚`,'good');
         // グリマルキン：キャラクター効果で召喚されると+1/+1
-        const _gbv=1+(G.hasGoldenDrop?1:0);
+        const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
         G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==ic){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }});
       }
     });

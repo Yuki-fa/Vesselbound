@@ -16,8 +16,9 @@ function onMagicLevelUp(amount){
   const _gd=G.hasGoldenDrop?1:0;
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='harpy_magiclevel') return;
-    G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1+_gd; b.baseAtk=(b.baseAtk||0)+1+_gd; b.hp+=2+_gd; b.maxHp+=2+_gd; }});
-    log(`${a.name}：魔術Lv上昇→全仲間+${1+_gd}/+${2+_gd}`,'good');
+    const _sc_h=(a._stackCount||0)+1;
+    G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=_sc_h+_gd; b.baseAtk=(b.baseAtk||0)+_sc_h+_gd; b.hp+=2*_sc_h+_gd; b.maxHp+=2*_sc_h+_gd; }});
+    log(`${a.name}：魔術Lv上昇→全仲間+${_sc_h+_gd}/+${2*_sc_h+_gd}`,'good');
   });
   // アラクネ：（杖が壊れた時に呼ばれるため、ここでは不要）
 }
@@ -30,7 +31,8 @@ function onGoldGained(amount){
   const _gd=G.hasGoldenDrop?1:0;
   const hasLep=G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
   if(hasLep){
-    const _lv=1+_gd;
+    const _lepUnit=G.allies.find(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
+    const _lv=(((_lepUnit&&_lepUnit._stackCount)||0)+1)+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_lv; a.maxHp+=_lv; }});
     G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.hp+=_lv; e.maxHp+=_lv; }});
     log(`レプラコーン：ソウル獲得→全キャラ±0/+${_lv}`,'good');
@@ -895,7 +897,7 @@ function processAllyDeath(unit){
       G.allies[_boneSlot]=_boneUnit;
       log(`${unit.name}：死亡→骨(0/${_boneHp})を召喚`,'good');
       // グリマルキン：キャラクター効果で召喚されると+1/+1
-      { const _gbv=1+(G.hasGoldenDrop?1:0);
+      { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
         G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_boneUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
       checkSolitudeBuff();
     }
@@ -918,7 +920,7 @@ function processAllyDeath(unit){
         G.allies[empty]=_akUnit;
         log(`${ph.name}：${unit.name}の死→アク(0/1)を召喚`,'good');
         // グリマルキン：キャラクター効果で召喚されると+1/+1
-        { const _gbv=1+(G.hasGoldenDrop?1:0);
+        { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
           G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_akUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
         checkSolitudeBuff();
       }
@@ -932,13 +934,13 @@ function _onAnyCharDeath(){
   const _gd0=G.hasGoldenDrop?1:0;
   G.allies.forEach(a=>{
     if(a&&a.hp>0&&a.effect==='naglfar_ondeath'){
-      const nv=2+_gd0, nhv=1+_gd0;
+      const _sc_n=(a._stackCount||0)+1; const nv=2*_sc_n+_gd0, nhv=_sc_n+_gd0;
       a.atk+=nv; a.baseAtk=(a.baseAtk||0)+nv; a.hp+=nhv; a.maxHp+=nhv;
       log(`${a.name}：キャラ死亡→+${nv}/+${nhv}`,'good');
     }
     // ゴースト：他のキャラクターが死亡するたびに+1/+1
     if(a&&a.hp>0&&a.effect==='ghost_ondeath'){
-      const gv=1+_gd0;
+      const gv=((a._stackCount||0)+1)+_gd0;
       a.atk+=gv; a.baseAtk=(a.baseAtk||0)+gv; a.hp+=gv; a.maxHp+=gv;
       log(`${a.name}：キャラ死亡→+${gv}/+${gv}`,'good');
     }
@@ -983,7 +985,7 @@ function triggerInjury(unit, dmg=0){
         log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
         if(!isEnemy){
           // グリマルキン：キャラクター効果で召喚されると+1/+1
-          { const _gbv=1+(G.hasGoldenDrop?1:0);
+          { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
             G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==ownSide[slot]){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
           checkSolitudeBuff();
         }
@@ -1031,7 +1033,7 @@ function triggerInjury(unit, dmg=0){
           G.allies[ei]=_nc;
           log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,'good');
           // グリマルキン：キャラクター効果で召喚されると+1/+1
-          { const _gbv=1+(G.hasGoldenDrop?1:0);
+          { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
             G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_nc){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
           checkSolitudeBuff();
         }
@@ -1286,7 +1288,7 @@ function onBattleStart(){
             G.allies[_ggi]=makeUnitFromDef(_ggDef);
             log(`${a.name}：ゴールデンエッグ(0/${_ggHp})を召喚`,'good');
             // グリマルキン：キャラクター効果で召喚されると+1/+1
-            { const _gbv=1+(G.hasGoldenDrop?1:0);
+            { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
               G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==G.allies[_ggi]){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
             checkSolitudeBuff();
           } }
@@ -1355,7 +1357,7 @@ function onBattleEnd(){
   // ゾンビ：戦闘終了時、±0/+3（黄金の雫：+4）を得る
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const zv=3+(G.hasGoldenDrop?1:0);
+    const _sc_z=(a._stackCount||0)+1; const zv=3*_sc_z+(G.hasGoldenDrop?1:0);
     a.hp+=zv; a.maxHp+=zv;
     log(`${a.name}：終戦±0/+${zv}`,'good');
   });
