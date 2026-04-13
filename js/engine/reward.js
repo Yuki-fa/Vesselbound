@@ -1315,7 +1315,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     const card=arr[i];
     if(card){
       const div=document.createElement('div');
-      const t=card.type||'wand';
+      const _isRingInHand=!card.type||(card.kind==='summon'||card.kind==='passive');
+      const t=_isRingInHand?'ring':(card.type||'wand');
       div.className=`card ${t}`;
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
       div.draggable=true;
@@ -1323,7 +1324,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
-      div.innerHTML=`${_gradeEl}<div class="card-tp ${t}">${t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
+      div.innerHTML=`${_gradeEl}<div class="card-tp ${t}">${t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardHeCard(arrName,i); };
       if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse){
         const _isWand=t==='wand';
