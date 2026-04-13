@@ -324,6 +324,18 @@ function dealDmgToRewChar(rewIdx, dmg){
   const actualRewDmg=Math.max(0,dmg-_grReduction);
   c.hp=Math.max(0,c.hp-actualRewDmg);
   if(c.hp<=0){
+    // スケルトン：死亡時に同スロットへ「骨」を残す
+    if(c.effect==='skeleton_bone'){
+      const _boneG=c.grade||1;
+      const _boneHp=4*_boneG;
+      const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,maxHp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+      const _boneCard=Object.assign({},makeUnitFromDef(_boneDef));
+      _boneCard._isChar=true; _boneCard._buyPrice=2; _boneCard._rewSummoned=true;
+      _rewCards[rewIdx]=_boneCard;
+      log(`${c.name}：死亡→骨(0/${_boneHp})を残した`,'good');
+      renderRewCards();
+      return;
+    }
     log(`${c.name}：報酬枠から消滅`,'bad');
     squirrelSay('提示カードを死亡させた時');
     _rewCards[rewIdx]=null;

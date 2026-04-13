@@ -135,6 +135,7 @@ function generateEnemies(floor){
         const {atk,hp}=enemyStats(def,floor,1.0);
         e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
         e.lane=Math.random()<0.6?'front':'rear'; // 側近はランダム
+        e._visualShift=Math.random()<0.5; // 側近はランダムで下にずらす
       }
       enemies.push(e);
     }
@@ -142,6 +143,12 @@ function generateEnemies(floor){
     const _bossSlot=randi(0,2);
     if(_bossSlot!==0){ const tmp=enemies[0]; enemies[0]=enemies[_bossSlot]; enemies[_bossSlot]=tmp; }
     G._bossSlot=_bossSlot;
+    // 側近が全員同じ配置にならないよう保証
+    const _bossShiftable=enemies.filter(e=>!e.boss);
+    if(_bossShiftable.length>=2){
+      if(_bossShiftable.every(e=>e._visualShift)) randFrom(_bossShiftable)._visualShift=false;
+      else if(_bossShiftable.every(e=>!e._visualShift)) randFrom(_bossShiftable)._visualShift=true;
+    }
     return enemies;
   }
 
