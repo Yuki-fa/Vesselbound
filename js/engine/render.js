@@ -687,9 +687,20 @@ function renderEnemyHand(){
   if(ringsPane){
     if(isDynamic||isReward){
       ringsPane.style.display='none';
-      if(eHandPane) eHandPane.style.flex='1';
+      if(eHandPane){
+        eHandPane.style.flex='1';
+        if(isReward){
+          // 商談フェイズ：手札パネルをフィールド幅に合わせる
+          const fieldEl=document.getElementById('f-enemy')||document.getElementById('f-ally');
+          if(fieldEl){
+            const fieldW=fieldEl.getBoundingClientRect().width;
+            if(fieldW>0) eHandPane.style.maxWidth=fieldW+'px';
+          }
+        }
+      }
     } else {
       ringsPane.style.display='';
+      if(eHandPane) eHandPane.style.maxWidth=''; // 戦闘時はmaxWidthを解除
       // 戦闘中は bossRings を表示
       const rings=G.bossRings||[];
       const eR=2;
