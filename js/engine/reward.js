@@ -564,7 +564,7 @@ function _mkRewDiv(card, onBuy){
   const canBuy=cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
-  const isTreasure=!!card._isTreasure&&!_isRingCard; // 指輪は「無料」扱いにしない
+  const isTreasure=!!card._isTreasure;
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
 
   if(card._isChar){
@@ -576,7 +576,7 @@ function _mkRewDiv(card, onBuy){
     // マミーボーナスは drawCharacters で card.atk に反映済み
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
-    const costLine=`<div class="rew-card-cost">${isTreasure?'📦 宝箱（無料）':cost+'ソウル'}${disabled?' （盤面満杯）':''}</div>`;
+    const costLine=`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
@@ -608,9 +608,7 @@ function _mkRewDiv(card, onBuy){
   const tpLabel=typeLabel[t]||'指輪';
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
   const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
-  const priceTagItem=isTreasure
-    ?`<div style="position:absolute;top:3px;right:5px;font-size:.75rem;color:#5cf;font-weight:700;z-index:4;pointer-events:none;text-shadow:0 0 6px rgba(60,160,255,.8)">無料</div>`
-    :`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`;
+  const priceTagItem=`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`;
   const shortBadgeItem=!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
   div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div style="margin-top:20px"><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
   if(canBuy) div.onclick=onBuy;
@@ -1561,8 +1559,9 @@ function closeEncModal(){ document.getElementById('enc-modal').classList.remove(
 // _rewCards から杖・アイテムをmasterHandに移動（キャラクターのみ報酬エリアに残す）
 function _generateMasterHand(){
   const _isRing=c=>c.kind==='summon'||c.kind==='passive'||c.type==='ring';
-  // 杖・消耗品・指輪をすべてmasterHandへ移動（提示カード欄には出さない）
-  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'||_isRing(c)));
+  // 指輪はmasterRingsへ、杖・消耗品はmasterHandへ分離
+  G.masterRings=_rewCards.filter(c=>c&&_isRing(c));
+  G.masterHand=_rewCards.filter(c=>c&&(c.type==='wand'||c.type==='consumable'));
   _rewCards=_rewCards.map(c=>{
     if(!c) return c;
     if(c.type==='wand'||c.type==='consumable') return null;
@@ -1571,45 +1570,65 @@ function _generateMasterHand(){
   });
 }
 
-// マスター手札アイテムを購入
+// マスター手札アイテムを購入（杖・消耗品のみ）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
   const cost=sp._buyPrice??2;
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
-  const isRing=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
-  if(isRing){
-    const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
-    if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    G.gold-=cost;
-    delete sp._buyPrice;
-    G.rings[ringIdx]=sp;
-    if(sp.legend||sp._isLegend) G._seenLegendRings.add(sp.id);
-    updateGoldenDrop();
-  } else {
-    const handIdx=G.spells.indexOf(null);
-    if(handIdx<0){ log(`手札（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
-    G.gold-=cost;
-    delete sp._buyPrice;   // 購入後は価格バッジを消す
-    G.spells[handIdx]=sp;
-    // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
-    if(sp.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
-      G._familiarUsed=true;
-      const _famHandIdx=G.spells.indexOf(null);
-      if(_famHandIdx>=0){
-        const _famCopy=clone(sp);
-        G.spells[_famHandIdx]=_famCopy;
-        log(`ファミリア：${sp.name}のコピーを獲得`,'good');
-      }
+  const handIdx=G.spells.indexOf(null);
+  if(handIdx<0){ log(`手札（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
+  G.gold-=cost;
+  delete sp._buyPrice;
+  G.spells[handIdx]=sp;
+  // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
+  if(sp.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+    G._familiarUsed=true;
+    const _famHandIdx=G.spells.indexOf(null);
+    if(_famHandIdx>=0){
+      const _famCopy=clone(sp);
+      G.spells[_famHandIdx]=_famCopy;
+      log(`ファミリア：${sp.name}のコピーを獲得`,'good');
     }
   }
   G.masterHand[idx]=null;
   log(`${sp.name} を取得（-${cost}ソウル）`,'good');
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
-  renderFieldEditor(); // プレイヤー手札（廃棄ボタン付き）を再描画
-  renderEnemyHand();   // マスター手札を再描画
-  renderRewCards();    // 提示カードのソウル不足状態を更新
-  renderGradeUpBtn();  // ソウル不足状態を更新
+  renderFieldEditor();
+  renderEnemyHand();
+  renderRewCards();
+  renderGradeUpBtn();
+}
+
+// マスター指輪を購入
+function buyMasterRingItem(idx){
+  const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
+  const cost=ring._buyPrice??4;
+  if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
+  const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
+  if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。破棄してください。`,'bad'); return; }
+  G.gold-=cost;
+  const rc=clone(ring); delete rc._buyPrice;
+  G.rings[ringIdx]=rc;
+  if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
+  updateGoldenDrop();
+  if(rc.unique==='fury_start'){
+    const _fb=3*(rc.grade||1);
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_fb; a.baseAtk=(a.baseAtk||0)+_fb; }});
+    log(`憤激の指輪：全仲間パワー+${_fb}/±0`,'good');
+  }
+  if(rc.unique==='extra_action'){
+    const _oldPT=G.actionsPerTurn;
+    G.actionsPerTurn=calcActions();
+    G.actionsLeft=G.actionsLeft+(G.actionsPerTurn-_oldPT);
+  }
+  G.masterRings[idx]=null;
+  log(`${rc.name} を装備（-${cost}ソウル）`,'good');
+  document.getElementById('rw-gold').textContent=G.gold;
+  updateHUD();
+  renderEnemyHand();
+  renderRewCards();
+  renderGradeUpBtn();
 }
 
 // 誘発「オーナーが〜」のオーナー判定：将来マスターが行動した時に呼ぶ

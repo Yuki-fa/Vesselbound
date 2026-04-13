@@ -688,12 +688,13 @@ function renderEnemyHand(){
       if(eHandPane) eHandPane.style.flex='1';
     } else {
       ringsPane.style.display='';
-      const rings=G.bossRings||[];
-      const eR=2; // 敵指輪スロットは2固定
+      // 商談フェイズは masterRings、戦闘中は bossRings を表示
+      const rings=isReward?(G.masterRings||[]):(G.bossRings||[]);
+      const eR=isReward?Math.max(2,rings.filter(r=>r).length||2):2;
       ringsPane.style.flex=eR;
       if(ringCountEl) ringCountEl.textContent=rings.filter(r=>r).length;
       if(ringMaxEl) ringMaxEl.textContent=eR;
-      if(eHandPane) eHandPane.style.flex=10-eR;
+      if(eHandPane) eHandPane.style.flex=Math.max(1,10-eR);
       if(ringsEl){
         ringsEl.innerHTML='';
         ringsEl.style.gridTemplateColumns=`repeat(${eR},1fr)`;
@@ -701,16 +702,21 @@ function renderEnemyHand(){
           const ring=rings[i];
           if(ring){
             const div=mkCardEl(ring,i,'ring-boss');
-            if(isReward&&ring._buyPrice!=null){
-              // 報酬フェイズ：ドラッグで購入
-              const rCost=ring._buyPrice??2;
+            if(isReward){
+              const rCost=ring._buyPrice??4;
               const rCanBuy=G.gold>=rCost;
               div.style.cursor=rCanBuy?'pointer':'default';
-              if(rCanBuy){
-                div.onclick=()=>buyMasterHandItem(-10-i); // 負のインデックスで指輪を識別
+              if(!rCanBuy){
+                div.style.background='var(--bg)';
+                const nb=document.createElement('div');
+                nb.textContent='ソウル不足';
+                nb.style.cssText='position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10';
+                div.appendChild(nb);
+              } else {
+                div.onclick=()=>buyMasterRingItem(i);
                 div.draggable=true;
                 div.addEventListener('dragstart',e=>{
-                  _rewDragSrc=-200-i; // -200以下で指輪ドラッグを識別
+                  _rewDragSrc=-200-i;
                   e.dataTransfer.effectAllowed='move';
                   e.dataTransfer.setDragImage(_transparentDragImg,0,0);
                   _createDragGhost(div);
@@ -718,6 +724,11 @@ function renderEnemyHand(){
                 div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
                 div.addEventListener('dragend',()=>{ _rewDragSrc=-1; _removeDragGhost(); });
               }
+              // コスト表示
+              const costTag=document.createElement('div');
+              costTag.style.cssText='position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1';
+              costTag.textContent=_circleCost(rCost);
+              div.appendChild(costTag);
             } else {
               div.classList.add('inert'); div.style.cursor='default';
             }

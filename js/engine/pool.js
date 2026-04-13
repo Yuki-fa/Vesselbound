@@ -168,7 +168,7 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
     if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
   }
   c._rarity=rarity;
-  c._buyPrice=(type==='ring')?(c.cost||4):0; // 指輪は正規コスト、杖・アイテムは無料
+  c._buyPrice=0; // 宝箱の中身は全て無料（指輪含む）
   c._isTreasure=true;
   if(rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;

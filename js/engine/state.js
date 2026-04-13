@@ -102,6 +102,7 @@ function initState(){
     _enemyHandDynamic:false, // true = 戦闘中に動的取得した手札（手札3・指輪非表示）
     _enemySpreadActive:false,// 敵の spread 効果が有効中
     masterHand:[],  // 報酬フェイズのマスター手札
+    masterRings:[],  // 報酬フェイズの購入可能指輪
     hasGoldenDrop:false,
     baseIncome:1,
     _nextRewardUniqueSlot:false,
