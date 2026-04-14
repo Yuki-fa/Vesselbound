@@ -222,10 +222,19 @@ function generateEnemies(floor){
     if(allShifted) randFrom(shiftable)._visualShift=false;
     else if(noneShifted) randFrom(shiftable)._visualShift=true;
   }
-  // Fisher-Yates シャッフル（非ボス戦のみ）
-  for(let _si=enemies.length-1;_si>0;_si--){
-    const _sj=Math.floor(Math.random()*(_si+1));
-    const _st=enemies[_si]; enemies[_si]=enemies[_sj]; enemies[_sj]=_st;
+  // Fisher-Yatesシャッフル＋偏り防止（最大10回再試行）
+  for(let _retry=0;_retry<10;_retry++){
+    // シャッフル
+    for(let _si=enemies.length-1;_si>0;_si--){
+      const _sj=Math.floor(Math.random()*(_si+1));
+      const _st=enemies[_si]; enemies[_si]=enemies[_sj]; enemies[_sj]=_st;
+    }
+    // 偏り判定：左端2体または右端2体が全員前衛でないかチェック
+    const _lanes=enemies.map(e=>e?(e.lane||'front'):'rear');
+    const _leftBiased =_lanes.length>=2&&_lanes[0]==='front'&&_lanes[1]==='front';
+    const _rightBiased=_lanes.length>=2&&_lanes[_lanes.length-1]==='front'&&_lanes[_lanes.length-2]==='front';
+    if(!_leftBiased&&!_rightBiased) break; // 偏りなし → 確定
+    // 偏りあり → 再シャッフル（最終試行はそのまま使う）
   }
   return enemies;
 }

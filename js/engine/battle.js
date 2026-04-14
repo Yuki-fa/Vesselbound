@@ -452,15 +452,35 @@ function applyTurnStart(){
       triggerDryadBuff();
     }
   });
-  // 骨：ターン開始時にスケルトンへ変身
+  // 骨：ターン開始時にスケルトンへ変身（味方）
   G.allies.forEach((a,i)=>{
     if(!a||a.hp<=0||a.effect!=='bone_transform') return;
     const _bkg=a.grade||1;
     const _skDef=UNIT_POOL?UNIT_POOL.find(u=>u.id==='c_skeleton'):null;
-    const _skAtk=7*_bkg, _skHp=7*_bkg;
-    const _skBase=_skDef?{..._skDef,atk:_skAtk,hp:_skHp,maxHp:_skHp,grade:_bkg}:{id:'c_skeleton',name:'スケルトン',race:'不死',grade:_bkg,atk:_skAtk,hp:_skHp,maxHp:_skHp,cost:0,unique:false,icon:'💀',desc:'',effect:'skeleton_bone',keywords:[]};
-    G.allies[i]=makeUnitFromDef(_skBase);
+    const _skAtk=a._skelAtk!=null?a._skelAtk:7*_bkg;
+    const _skHp =a._skelHp !=null?a._skelHp :7*_bkg;
+    const _skelKws=[...(a._skelKws||[])];
+    const _skBase=_skDef?{..._skDef,atk:_skAtk,hp:_skHp,maxHp:_skHp,grade:_bkg,keywords:[..._skelKws]}:{id:'c_skeleton',name:'スケルトン',race:'不死',grade:_bkg,atk:_skAtk,hp:_skHp,maxHp:_skHp,cost:0,unique:false,icon:'💀',desc:'',effect:'skeleton_bone',keywords:[..._skelKws]};
+    const _newSkel=makeUnitFromDef(_skBase);
+    _newSkel.keywords=[..._skelKws];
+    if(_skelKws.includes('反撃')) _newSkel.counter=true;
+    G.allies[i]=_newSkel;
     log(`骨：スケルトン(${_skAtk}/${_skHp})に変身`,'good');
+  });
+  // 骨：ターン開始時にスケルトンへ変身（敵）
+  G.enemies.forEach((a,i)=>{
+    if(!a||a.hp<=0||a.effect!=='bone_transform') return;
+    const _bkg=a.grade||1;
+    const _skDef=UNIT_POOL?UNIT_POOL.find(u=>u.id==='c_skeleton'):null;
+    const _skAtk=a._skelAtk!=null?a._skelAtk:7*_bkg;
+    const _skHp =a._skelHp !=null?a._skelHp :7*_bkg;
+    const _skelKws=[...(a._skelKws||[])];
+    const _skBase=_skDef?{..._skDef,atk:_skAtk,hp:_skHp,maxHp:_skHp,grade:_bkg,keywords:[..._skelKws]}:{id:'c_skeleton',name:'スケルトン',race:'不死',grade:_bkg,atk:_skAtk,hp:_skHp,maxHp:_skHp,cost:0,unique:false,icon:'💀',desc:'',effect:'skeleton_bone',keywords:[..._skelKws]};
+    const _newSkel=makeUnitFromDef(_skBase);
+    _newSkel.keywords=[..._skelKws];
+    if(_skelKws.includes('反撃')) _newSkel.counter=true;
+    G.enemies[i]=_newSkel;
+    log(`骨（敵）：スケルトン(${_skAtk}/${_skHp})に変身`,'bad');
   });
   // 城壁・ハーピーATK同期
   syncWallAtk();
@@ -921,10 +941,14 @@ function processAllyDeath(unit){
   if(unit.effect==='skeleton_bone'){
     const _boneG=unit.grade||1;
     const _boneHp=4*_boneG;
-    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+    const _deadAtk=unit.atk||0;
+    const _deadHp=unit.maxHp!=null?unit.maxHp:(7*_boneG);
+    const _deadKws=[...(unit.keywords||[])];
+    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
     const _boneSlot=G.allies.findIndex(a=>!a||a.hp<=0);
     if(_boneSlot>=0){
       const _boneUnit=makeUnitFromDef(_boneDef);
+      _boneUnit._skelAtk=_deadAtk; _boneUnit._skelHp=_deadHp; _boneUnit._skelKws=[..._deadKws];
       G.allies[_boneSlot]=_boneUnit;
       log(`${unit.name}：死亡→骨(0/${_boneHp})を召喚`,'good');
       // グリマルキン：キャラクター効果で召喚されると+1/+1
@@ -1619,10 +1643,15 @@ function processEnemyDeath(e,eIdx){
   if(e.effect==='skeleton_bone'){
     const _boneG=e.grade||1;
     const _boneHp=4*_boneG;
-    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+    const _deadAtk=e.atk||0;
+    const _deadHp=e.maxHp!=null?e.maxHp:(7*_boneG);
+    const _deadKws=[...(e.keywords||[])];
+    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
     const _boneSlot=G.enemies.findIndex(f=>!f||f.hp<=0);
     if(_boneSlot>=0){
-      G.enemies[_boneSlot]=makeUnitFromDef(_boneDef);
+      const _boneEnemy=makeUnitFromDef(_boneDef);
+      _boneEnemy._skelAtk=_deadAtk; _boneEnemy._skelHp=_deadHp; _boneEnemy._skelKws=[..._deadKws];
+      G.enemies[_boneSlot]=_boneEnemy;
       log(`${e.name}：死亡→骨(0/${_boneHp})を召喚`,'bad');
     }
   }

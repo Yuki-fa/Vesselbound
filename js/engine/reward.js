@@ -315,8 +315,12 @@ function dealDmgToRewChar(rewIdx, dmg){
     if(c.effect==='skeleton_bone'){
       const _boneG=c.grade||1;
       const _boneHp=4*_boneG;
-      const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,maxHp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${7*_boneG}/${7*_boneG}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+      const _deadAtk=c.atk||0;
+      const _deadHp=c.maxHp!=null?c.maxHp:(7*_boneG);
+      const _deadKws=[...(c.keywords||[])];
+      const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,maxHp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
       const _boneCard=Object.assign({},makeUnitFromDef(_boneDef));
+      _boneCard._skelAtk=_deadAtk; _boneCard._skelHp=_deadHp; _boneCard._skelKws=[..._deadKws];
       _boneCard._isChar=true; _boneCard._buyPrice=2; _boneCard._rewSummoned=true;
       _rewCards[rewIdx]=_boneCard;
       log(`${c.name}：死亡→骨(0/${_boneHp})を残した`,'good');
