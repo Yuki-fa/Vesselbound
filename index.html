@@ -172,7 +172,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .ri-soul{color:var(--text2)}.ri-val{font-size:.92rem;font-weight:700;color:var(--gold2)}
 
 /* REWARD CARDS */
-.rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+.rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:0}
 .rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .18s;position:relative}
 .rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
 .rew-card.cant{cursor:default;pointer-events:none;background:var(--bg)}
@@ -346,9 +346,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .slot.is-rear{
   transform:translateY(15%);
 }
-/* ── 間隔の対称調整 ── */
-/* 敵ガイドライン→ログ ≈ 13px に合わせて味方側も同じ間隔に */
-#ally-section{margin-top:6px}
+/* ── ラベル非表示 ── */
+#enemy-field-label,
+#ally-section>.field-label,
+#reward-cards-section>.field-label{display:none}
 /* ── 前衛ガイドライン・衝突回避パディング ── */
 #f-ally{
   position:relative;
@@ -387,7 +388,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   position:absolute;
   top:115%;left:0;right:0;
   height:1px;
-  background:rgba(180,60,60,.22);
+  background:rgba(224,80,80,.28);
   z-index:-1;
   pointer-events:none;
 }

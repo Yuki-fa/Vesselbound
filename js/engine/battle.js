@@ -319,7 +319,9 @@ function _chooseBestItem(hand, battleState, personality){
     return { item, score };
   });
   scored.sort((a,b)=>b.score-a.score);
-  if(scored[0].score < _USE_THRESHOLD) return null;
+  // 手札が1枚だけの場合はスコアが正ならば必ず使う（パーソナリティによる不使用を防ぐ）
+  const _effectiveThreshold = hand.length === 1 ? 0 : _USE_THRESHOLD;
+  if(scored[0].score < _effectiveThreshold) return null;
   return scored[0].item;
 }
 
@@ -1033,9 +1035,11 @@ function triggerInjury(unit, dmg=0){
     case 'freyr':{
       // 最も右の空きスロットにストーンキャットを召喚（自陣）
       const scDef={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'',counter:true,keywords:['反撃','アーティファクト']};
-      const freeIdx=ownSide.map((a,i)=>(!a||a.hp<=0)?i:-1).filter(i=>i>=0);
-      if(freeIdx.length){
-        const slot=freeIdx[freeIdx.length-1];
+      // 右（スロット5）から順に空きを探す（配列長に依存しない）
+      let _fSlot=-1;
+      for(let _fsi=5;_fsi>=0;_fsi--){ if(!ownSide[_fsi]||ownSide[_fsi].hp<=0){_fSlot=_fsi;break;} }
+      if(_fSlot>=0){
+        const slot=_fSlot;
         ownSide[slot]=makeUnitFromDef(scDef);
         log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
         if(!isEnemy){
@@ -1048,7 +1052,7 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'worm':{
-      const _wv=1+(G.hasGoldenDrop&&!isEnemy?1:0);
+      const _wv=1*((unit._stackCount||0)+1)+(G.hasGoldenDrop&&!isEnemy?1:0);
       ownSide.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.baseAtk=(a.baseAtk||0)+_wv; }});
       log(`${unit.name}：負傷→全仲間+${_wv}/±0`,col);
       if(!isEnemy){
@@ -1065,6 +1069,7 @@ function triggerInjury(unit, dmg=0){
         const mt=randFrom(mts);
         if(isEnemy) dealDmgToAlly(mt,unit.atk,G.allies.indexOf(mt),unit);
         else dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit);
+        if(mt.hp>0) applyKeywordOnHit(unit,mt);
         log(`${unit.name}：負傷→ランダムな相手に攻撃`,col);
       }
       break;
@@ -1075,6 +1080,7 @@ function triggerInjury(unit, dmg=0){
         const t=randFrom(ts);
         if(isEnemy) dealDmgToAlly(t,unit.baseAtk,G.allies.indexOf(t),unit);
         else dealDmgToEnemy(t,unit.baseAtk,G.enemies.indexOf(t),unit);
+        if(t.hp>0) applyKeywordOnHit(unit,t);
       }
       break;
     }
@@ -1107,19 +1113,20 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'limslus':{
-      // 負傷：敵（opposing side）全体に3ダメ
-      const _ldmg=3+(!isEnemy&&G.hasGoldenDrop?1:0);
+      // 負傷：敵（opposing side）全体に3ダメ＋呪詛などキーワード効果を適用
+      const _ldmg=3*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       oppSide.forEach((u,ui)=>{
         if(!u||u.hp<=0) return;
         if(isEnemy) dealDmgToAlly(u,_ldmg,ui,unit);
         else dealDmgToEnemy(u,_ldmg,ui,unit);
+        if(u.hp>0) applyKeywordOnHit(unit,u); // 呪詛・毒牙・邪眼等を付与
       });
       log(`${unit.name}：負傷→相手全体に${_ldmg}ダメ`,col);
       break;
     }
     case 'banshee':{
       // 「バンシー」以外の全キャラに1ダメ
-      const _bdmg=1+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _bdmg=1*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       [...G.allies,...G.enemies].forEach(u=>{
         if(!u||u.hp<=0||u===unit) return;
         const _bi=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
@@ -1131,7 +1138,7 @@ function triggerInjury(unit, dmg=0){
     }
     case 'warg':{
       // 全ての仲間の獣が+1/+1
-      const _wgv=1+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _wgv=1*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       ownSide.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,col);
       break;
@@ -1150,8 +1157,8 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'hydra':{
-      // 自身+2/+2
-      const _hdv=2+(!isEnemy&&G.hasGoldenDrop?1:0);
+      // 自身+2/+2（重ね倍率適用）
+      const _hdv=2*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; unit.hp+=_hdv; unit.maxHp+=_hdv;
       log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,col);
       break;

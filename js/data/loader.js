@@ -199,13 +199,17 @@ async function loadGameData() {
       if (sqRes.ok) {
         const sqt = await sqRes.text();
         const sqRows = _parseCSV(sqt);
+        // シートのデータでハードコード済みデフォルトを上書きする
+        const _sqFromSheet = {};
         sqRows.forEach(row => {
           const trigger = (row['条件'] || row['トリガー'] || row[Object.keys(row)[0]] || '').trim();
-          const msg = (row['基礎戦力'] || row['メッセージ'] || row['テキスト'] || '').trim();
+          const msg = (row['セリフ'] || row['メッセージ'] || row['テキスト'] || row[Object.keys(row)[1]] || '').trim();
           if (!trigger || !msg) return;
-          if (!SQUIRREL_MESSAGES[trigger]) SQUIRREL_MESSAGES[trigger] = [];
-          SQUIRREL_MESSAGES[trigger].push(msg);
+          if (!_sqFromSheet[trigger]) _sqFromSheet[trigger] = [];
+          _sqFromSheet[trigger].push(msg);
         });
+        // シートに存在するトリガーのみ上書き（シート読み込み失敗時はデフォルトを維持）
+        Object.assign(SQUIRREL_MESSAGES, _sqFromSheet);
       }
     } catch (_) { /* リスNPCデータなしで続行 */ }
 
