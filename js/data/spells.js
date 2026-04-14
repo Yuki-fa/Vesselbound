@@ -20,8 +20,8 @@ const SPELL_POOL=[
    desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:5},
 
   // ── WANDS（通常報酬プール） ──
-  {id:'w_hate',       name:'標的の杖', type:'wand', cost:2,
-   desc:'対象のキャラクターに標的を与える。', effect:'hate', needsAny:true, baseUses:4},
+  {id:'w_hate',       name:'撹乱の杖', type:'wand', cost:2,
+   desc:'対象のキャラクターの隊列を変更する。（前衛なら後衛、後衛なら前衛にする）', effect:'change_formation', needsAny:true, baseUses:4},
 
   {id:'w_poison',     name:'毒の杖',    type:'wand', cost:2,
    desc:'対象のキャラクターに毒Xを与える。', effect:'poison_wand', needsAny:true, baseUses:4},

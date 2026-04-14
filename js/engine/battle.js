@@ -293,7 +293,7 @@ function _scoreEffect(effect, battleState, personality){
     }
     case 'instakill':
       return enemies.filter(e=>e.atk<=(magicLevel||0)).length * w.kill * 15;
-    case 'hate': case 'seal': case 'nullify':
+    case 'hate': case 'seal': case 'nullify': case 'change_formation':
       return enemies.length>0 ? 5 * w.debuff : 0;
     default: return 0;
   }
@@ -719,17 +719,26 @@ async function allyAttackAction(ally, allyIdx){
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length) return;
 
-  // アニメーション（代表ターゲット）
+  // アニメーション（攻撃ライン＋グロー）
   const target=getAttackTarget(ally,G.enemies);
   if(!target) return;
   const eIdx=G.enemies.indexOf(target);
   const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[allyIdx];
-  const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[eIdx];
+  const eAllSlots=document.getElementById('f-enemy')?.querySelectorAll('.slot');
+  const eSlot=eAllSlots?.[eIdx];
+  const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
   if(aSlot) aSlot.classList.add('glow-blue');
   if(eSlot) eSlot.classList.add('glow-red');
+  if(isGlobal){
+    const allTgtSlots=liveE.map(e=>eAllSlots?.[G.enemies.indexOf(e)]).filter(Boolean);
+    showAttackLine(aSlot,allTgtSlots);
+  } else {
+    showAttackLine(aSlot,eSlot?[eSlot]:[]);
+  }
   await sleep(300);
   if(aSlot) aSlot.classList.remove('glow-blue');
   if(eSlot) eSlot.classList.remove('glow-red');
+  hideAttackLine();
 
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
@@ -737,7 +746,6 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.hp>0) _applyAllyAttackEffects(ally);
 
   // 全体攻撃キーワード：全ての敵を攻撃
-  const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
   const attackTargets=isGlobal?[...liveE]:[target];
 
   attackTargets.forEach(t=>{
@@ -760,6 +768,15 @@ async function allyAttackAction(ally, allyIdx){
         curTgt=getAttackTarget(ally,G.enemies);
       }
       if(!curTgt||curTgt.hp<=0) break;
+      // 各段ごとにアニメーション
+      const hitSlot=eAllSlots?.[G.enemies.indexOf(curTgt)];
+      if(aSlot) aSlot.classList.add('glow-blue');
+      if(hitSlot) hitSlot.classList.add('glow-red');
+      showAttackLine(aSlot,hitSlot?[hitSlot]:[]);
+      await sleep(200);
+      if(aSlot) aSlot.classList.remove('glow-blue');
+      if(hitSlot) hitSlot.classList.remove('glow-red');
+      hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(ally.hp>0) _applyAllyAttackEffects(ally);
       dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
@@ -790,14 +807,24 @@ async function enemyAttackAction(enemy, enemyIdx){
   const targets=[primaryTarget];
   const primaryIdx=G.allies.indexOf(primaryTarget);
 
-  // アニメーション（先頭ターゲット代表）
+  // アニメーション（攻撃ライン＋グロー）
   const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[enemyIdx];
-  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[primaryIdx];
+  const aAllSlots=document.getElementById('f-ally')?.querySelectorAll('.slot');
+  const aSlot=aAllSlots?.[primaryIdx];
+  const isGlobalAtk=enemy.keywords&&enemy.keywords.includes('全体攻撃');
+  const liveAllForGlobal=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
   if(eSlot) eSlot.classList.add('glow-blue');
   if(aSlot) aSlot.classList.add('glow-red');
+  if(isGlobalAtk){
+    const allTgtSlots=liveAllForGlobal.map(a=>aAllSlots?.[G.allies.indexOf(a)]).filter(Boolean);
+    showAttackLine(eSlot,allTgtSlots,'#ff4040');
+  } else {
+    showAttackLine(eSlot,aSlot?[aSlot]:[],'#ff4040');
+  }
   await sleep(300);
   if(eSlot) eSlot.classList.remove('glow-blue');
   if(aSlot) aSlot.classList.remove('glow-red');
+  hideAttackLine();
 
   const atkVal=enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
@@ -806,8 +833,6 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffects(enemy);
 
   // 全体攻撃キーワード：全ての味方を攻撃
-  const isGlobalAtk=enemy.keywords&&enemy.keywords.includes('全体攻撃');
-  const liveAllForGlobal=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
   const finalTargets=isGlobalAtk?liveAllForGlobal:targets;
 
   // 全ターゲットを攻撃
@@ -835,6 +860,15 @@ async function enemyAttackAction(enemy, enemyIdx){
         reTgt=getAttackTarget(enemy,G.allies);
       }
       if(!reTgt||reTgt.hp<=0) break;
+      // 各段ごとにアニメーション
+      const reHitSlot=aAllSlots?.[G.allies.indexOf(reTgt)];
+      if(eSlot) eSlot.classList.add('glow-blue');
+      if(reHitSlot) reHitSlot.classList.add('glow-red');
+      showAttackLine(eSlot,reHitSlot?[reHitSlot]:[],'#ff4040');
+      await sleep(200);
+      if(eSlot) eSlot.classList.remove('glow-blue');
+      if(reHitSlot) reHitSlot.classList.remove('glow-red');
+      hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(enemy.hp>0) _applyEnemyAttackEffects(enemy);
       const _dmgPassed2=dealDmgToAlly(reTgt,enemy.atk,G.allies.indexOf(reTgt),enemy);

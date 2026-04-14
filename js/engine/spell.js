@@ -8,6 +8,7 @@ let _swapFirst=-1;
 let _spreadTargetPending=false;
 
 function useSpell(idx){
+  if(_spreadTargetPending) return; // 拡散の対象選択中は他の杖使用を禁止
   const sp=G.spells[idx];
   if(!sp) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
@@ -406,8 +407,43 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(!tgt) break;
       const ssu=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
       if(!ssu) break;
-      const sst=ssu.atk; ssu.atk=ssu.hp; ssu.hp=Math.max(1,sst); ssu.maxHp=Math.max(ssu.maxHp,ssu.hp);
+      const sst=ssu.atk; ssu.atk=ssu.hp; ssu.hp=sst; ssu.maxHp=Math.max(ssu.maxHp,ssu.hp);
       log(`混乱の杖：${ssu.name} ATK↔HP（${ssu.atk}/${ssu.hp}）`,'good');
+      if(ssu.hp<=0){
+        if(tgt.who==='enemy') processEnemyDeath(ssu,tgt.idx);
+        else if(tgt.who==='ally') processAllyDeath(ssu);
+        else { _rewCards[tgt.idx]=null; renderRewCards(); }
+      }
+    break;}
+    case 'change_formation':{
+      if(!tgt) break;
+      const cfu=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:_rewCards[tgt.idx];
+      if(!cfu||cfu.hp<=0) break;
+      if(tgt.who==='enemy'){
+        if(cfu.hate&&cfu.hateTurns>0){
+          // 前衛 → 後衛
+          cfu.hate=false; cfu.hateTurns=0; cfu._visualShift=true;
+          log(`撹乱の杖：${cfu.name}を後衛に変更`,'good');
+        } else if(cfu._visualShift){
+          // 後衛 → 前衛
+          cfu._visualShift=false; cfu.hate=true; cfu.hateTurns=99;
+          log(`撹乱の杖：${cfu.name}を前衛に変更`,'good');
+        } else {
+          // デフォルト → 前衛
+          cfu.hate=true; cfu.hateTurns=99;
+          log(`撹乱の杖：${cfu.name}を前衛に変更`,'good');
+        }
+      } else {
+        if(cfu.hate&&cfu.hateTurns>0){
+          // 前衛 → 後衛
+          cfu.hate=false; cfu.hateTurns=0;
+          log(`撹乱の杖：${cfu.name}を後衛に変更`,'good');
+        } else {
+          // 後衛/デフォルト → 前衛
+          cfu.hate=true; cfu.hateTurns=99;
+          log(`撹乱の杖：${cfu.name}を前衛に変更`,'good');
+        }
+      }
     break;}
     case 'counter_scroll':{
       const csa=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx];
