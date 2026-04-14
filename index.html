@@ -108,7 +108,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .hand-slots{display:flex;gap:5px}
 
 /* CARDS */
-.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:7px;flex:1 1 0;min-width:0;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
+.card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none}
 .card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
 .card.inert{opacity:.38;cursor:default;pointer-events:none}
 .card.ring{border-top:2px solid var(--purple2)}
@@ -137,7 +137,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
 /* 手札スロット：列数・flex比はJSで動的に設定（合計10スロットを1行に収める） */
 #ring-slots,#hand-slots,#enemy-ring-slots,#enemy-hand-slots{display:grid;gap:5px}
-.hand-row1{gap:0!important}
+.hand-row1{gap:8px!important}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
 /* 報酬移動ボタン */
