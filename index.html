@@ -326,14 +326,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   border-top:2px solid var(--red2)!important;
   position:relative;z-index:2;
 }
-/* 敵前衛：下（プレイヤー側）へ */
+/* 敵前衛：上（画面上部）へ ─ 前衛は画面上部 */
 .slot.enemy.is-front{
-  transform:translateY(15%);
+  transform:translateY(-15%);
   box-shadow:0 6px 16px rgba(224,80,80,.3);
   border-top:2px solid var(--red2)!important;
   position:relative;z-index:2;
 }
-/* 提示カード前衛：下（プレイヤー側）へ（敵エリア位置に表示されるため） */
+/* 提示カード前衛（念のため残す） */
 #rw-cards .slot.is-front{
   transform:translateY(8%);
 }
@@ -341,10 +341,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #rw-cards .slot.is-rear{
   transform:translateY(-8%);
 }
-/* ── 敵後退スロットのビジュアル ── */
-/* 敵後退：上（画面上部）へ */
+/* ── 敵後衛スロットのビジュアル ── */
+/* 敵後衛：下（プレイヤー側）へ ─ 後衛は先程の前衛位置 */
 .slot.is-rear{
-  transform:translateY(-15%);
+  transform:translateY(15%);
 }
 /* ── 前衛ガイドライン・衝突回避パディング ── */
 #f-ally{
@@ -375,8 +375,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 #f-enemy{
   position:relative;
   overflow:visible;
-  margin-top:clamp(18px,3.5vw,40px);  /* is-rear 上方シフト分の余白 */
-  margin-bottom:clamp(4px,1vw,10px);
+  margin-top:clamp(4px,1vw,8px);       /* is-front（前衛）上方シフト分 ─ 前衛が上に出ても余白小さめ */
+  margin-bottom:clamp(18px,3.5vw,40px); /* is-rear（後衛）下方シフト分の余白 */
 }
 /* 後退位置のガイドライン（敵カード下端・最背面） */
 #f-enemy::after{
@@ -453,7 +453,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 
     <!-- 報酬カード（報酬中のみ表示・敵の盤面と同位置） -->
     <div id="reward-cards-section" style="display:none">
-      <div class="field-label" style="margin-bottom:5px">提示カード</div>
+      <div class="field-label">提示カード</div>
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 

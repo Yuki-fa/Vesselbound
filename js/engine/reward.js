@@ -455,24 +455,14 @@ function renderRewCards(){
   // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
   const _kColorMap={'即死':'#e060e0','浸食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc}"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-  // 提示カードの前後衛パターン（枚数別）
-  const _rewLaneMap={
-    3:['is-front','is-rear','is-front'],
-    4:['is-front','is-rear','is-rear','is-front'],
-    5:['is-front','is-rear','is-front','is-rear','is-front'],
-    6:['is-rear','is-rear','is-front','is-front','is-rear','is-rear'],
-  };
-  const _charCount=_rewCards.slice(0,6).filter(c=>c&&c._isChar).length;
-  const _lanePattern=_rewLaneMap[_charCount]||_rewLaneMap[3];
-
   const charRow=document.createElement('div');
   charRow.className='field';
-  charRow.style='margin-top:14px;margin-bottom:44px;width:100%';  // 後衛上シフト分の上余白・前衛下シフト分の下余白
+  charRow.style='margin-top:20px;margin-bottom:0px;width:100%;position:relative';  // 後衛上シフト分の上余白
   for(let i=0;i<6;i++){
     const card=(_rewCards[i]&&_rewCards[i]._isChar)?_rewCards[i]:null;
     const slot=document.createElement('div');
     if(!card){
-      slot.className='slot empty';
+      slot.className='slot empty is-rear';
       // 空の報酬スロット：他のキャラカードをドラッグして移動できる
       slot.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0&&_rewDragSrc!==i){ e.preventDefault(); slot.classList.add('drag-over'); }
@@ -487,8 +477,7 @@ function renderRewCards(){
         }
       });
     } else {
-      const _laneClass=_lanePattern[i]||'is-front';
-      slot.className='slot '+_laneClass;
+      slot.className='slot is-rear';
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
       const canBuy=G.gold>=cost;
@@ -531,10 +520,41 @@ function renderRewCards(){
       } else {
         slot.style.cursor='default';
       }
+      // ドラッグで移動・重ね・盤面配置
+      slot.draggable=true;
+      slot.addEventListener('dragstart',e=>{
+        _rewDragSrc=i; slot.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';
+        e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+        _updateFieldDropHighlights(card.name,card.grade||1,false,-1);
+        _createDragGhost(slot);
+      });
+      slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      slot.addEventListener('dragend',()=>{
+        slot.classList.remove('dragging'); _removeDragGhost(); _clearFieldDropHighlights();
+        if(_rewDragSrc===i) _rewDragSrc=-1;
+        renderRewCards();
+      });
+      slot.addEventListener('dragover',e=>{
+        if(_rewDragSrc>=0&&_rewDragSrc!==i){ e.preventDefault(); slot.classList.add('drag-over'); }
+      });
+      slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+      slot.addEventListener('drop',e=>{
+        e.preventDefault(); slot.classList.remove('drag-over');
+        if(_rewDragSrc>=0&&_rewDragSrc!==i){
+          const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
+          const tmp=_rewCards[src]; _rewCards[src]=_rewCards[i]; _rewCards[i]=tmp;
+          renderRewCards();
+        }
+      });
     }
     charRow.appendChild(slot);
   }
   el.appendChild(charRow);
+  // 前衛ガイドライン（前衛位置の赤いライン）
+  const _frontGuide=document.createElement('div');
+  _frontGuide.style='width:100%;height:1px;margin-top:4px;margin-bottom:6px;flex-shrink:0;background:rgba(224,80,80,.28);pointer-events:none';
+  el.appendChild(_frontGuide);
 
   // ②アイテム・指輪は従来の小カードで描画（index 6以降）
   _rewCards.forEach((card,i)=>{
@@ -626,9 +646,9 @@ function takeRewCard(i, targetSlot){
     G.gold-=cost;
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
     G.allies[emptyIdx]=unit;
-    // 提示カードから購入したキャラは前衛（ヘイト）で配置
-    unit.hate=true;
-    unit.hateTurns=99;
+    // 提示カードから購入したキャラは後衛で配置
+    unit.hate=false;
+    unit.hateTurns=0;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
     // 召喚時効果（addAlly と同じ処理を実行）
     if(unit.effect==='chimera_summon'){
@@ -823,7 +843,7 @@ function _renderFieldRow(el){
         updateHUD(); renderFieldEditor();
       };
       div.addEventListener('dragstart',e=>{
-        _fieldDragSrc=i; _fieldDragSrcEl=div;
+        _fieldDragSrc=i; _fieldDragSrcEl=div; _fieldDragStartY=e.clientY;
         div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
@@ -831,9 +851,26 @@ function _renderFieldRow(el){
       });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
       div.addEventListener('dragend',e=>{
+        const srcIdx=_fieldDragSrc; // dropで既に-1になっていれば移動済み
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
         _fieldDragSrc=-1;
+        // 移動・合体なしのドラッグ終了 → Y方向で前衛後衛切り替え
+        if(srcIdx>=0){
+          const u=G.allies[srcIdx];
+          if(u&&u.hp>0){
+            const dy=e.clientY-_fieldDragStartY;
+            if(dy < -30&&!(u.hate&&u.hateTurns>0)){
+              u.hate=true; u.hateTurns=99;
+              log(`${u.name}が前衛に出た`,'good');
+              updateHUD(); renderFieldEditor();
+            } else if(dy > 30&&(u.hate&&u.hateTurns>0)){
+              u.hate=false; u.hateTurns=0;
+              log(`${u.name}が後衛に下がった`,'sys');
+              updateHUD(); renderFieldEditor();
+            }
+          }
+        }
       });
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
@@ -932,6 +969,7 @@ let _fieldMergeTimer=null;// 盤面内重ねの0.5秒タイマー
 let _fieldMergeTarget=-1; // タイマー対象のスロットインデックス
 let _fieldMergeReady=false;// タイマー発火済みフラグ
 let _lastDragX=0, _lastDragY=0; // dragover座標キャッシュ
+let _fieldDragStartY=0;   // dragstart時のY座標（前衛後衛切り替え判定用）
 
 function _clearFieldMergeTimer(){
   clearTimeout(_fieldMergeTimer);
@@ -1333,7 +1371,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       div.className=`card ${t}`;
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
       div.draggable=true;
-      const _gradeEl=card.grade?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(card.grade||1)}</span>`:'';
+      const _gradeEl=`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(card.grade||1)}</span>`;
       const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
