@@ -62,9 +62,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 /* 確実死：密な赤斜線＋赤枠＋速い点滅 */
 .slot.will-die{outline:2px solid rgba(255,60,60,.85)!important;outline-offset:-2px}
 .slot.will-die::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,40,40,.55) 0,rgba(255,40,40,.55) 4px,transparent 4px,transparent 9px);pointer-events:none;border-radius:inherit;animation:blink-death .7s ease-in-out infinite}
-/* 不確実死：疎な黄斜線＋黄枠＋遅い点滅 */
-.slot.will-warn{outline:2px solid rgba(240,200,0,.6)!important;outline-offset:-2px}
-.slot.will-warn::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,210,0,.28) 0,rgba(255,210,0,.28) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.6s ease-in-out infinite}
+/* 不確実死・小(1-33%)：黄斜線＋黄枠＋遅い点滅 */
+.slot.will-warn-low{outline:2px solid rgba(240,200,0,.6)!important;outline-offset:-2px}
+.slot.will-warn-low::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,210,0,.28) 0,rgba(255,210,0,.28) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.6s ease-in-out infinite}
+/* 不確実死・中(34-66%)：橙斜線＋橙枠＋中速点滅 */
+.slot.will-warn-mid{outline:2px solid rgba(240,140,0,.65)!important;outline-offset:-2px}
+.slot.will-warn-mid::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,140,0,.30) 0,rgba(255,140,0,.30) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.15s ease-in-out infinite}
+/* 不確実死・大(67-99%)：赤橙斜線＋赤橙枠＋速い点滅 */
+.slot.will-warn-high{outline:2px solid rgba(240,70,0,.72)!important;outline-offset:-2px}
+.slot.will-warn-high::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,70,0,.34) 0,rgba(255,70,0,.34) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn .85s ease-in-out infinite}
 .slot-name{font-size:.82rem;font-weight:500;color:var(--text);text-align:center;line-height:1.2;padding:0 2px}
 .slot-stats{font-size:.82rem;font-weight:700}
 .slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
