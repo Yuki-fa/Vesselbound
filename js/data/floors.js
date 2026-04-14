@@ -36,8 +36,8 @@ const FLOOR_DATA=[null,
 // マップノードの種類定義
 const NODE_TYPES={
   battle:{icon:'⚔️', label:'森の奥へ',   desc:'先へ進もう',                              cls:'t-battle'},
-  smithy:{icon:'⛩️', label:'洞窟の中へ', desc:'貴重なアイテムがありそうだ',               cls:'t-smithy'},
-  rest:  {icon:'💧', label:'池の畔へ',   desc:'指輪がありそうだ',                         cls:'t-rest'},
+  smithy:{icon:'⛩️', label:'洞窟の奥へ', desc:'貴重なアイテムがありそうだ',               cls:'t-smithy'},
+  rest:  {icon:'💧', label:'湖の畔へ',   desc:'指輪がありそうだ',                         cls:'t-rest'},
   chest: {icon:'📦', label:'宝箱',       desc:'カードを1枚獲得',                          cls:'t-chest'},
   boss:  {icon:'💀', label:'ボス戦',     desc:'固定強敵との決戦',                         cls:'t-boss'},
   shop:  {icon:'🛒', label:'行商',       desc:'指輪を購入できる',                         cls:'t-shop'},

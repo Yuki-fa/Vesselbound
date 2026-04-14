@@ -138,14 +138,18 @@ function _computeDeathRisk(){
       G.moveMasks=[...(_sMM||[])];
       G._pendingTreasure=_sPT;
 
-      // インターリーブ攻撃シミュレーション
-      for(let i=0;i<6;i++){
-        const enemy=G.enemies[i];
-        if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
+      // インターリーブ攻撃シミュレーション（最大10ターン）
+      for(let _turn=0;_turn<10;_turn++){
         if(!G.allies.some(a=>a&&a.hp>0)) break;
-        const ally=G.allies[i];
-        if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
         if(!G.enemies.some(e=>e&&e.hp>0)) break;
+        for(let i=0;i<6;i++){
+          const enemy=G.enemies[i];
+          if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
+          if(!G.allies.some(a=>a&&a.hp>0)) break;
+          const ally=G.allies[i];
+          if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
+          if(!G.enemies.some(e=>e&&e.hp>0)) break;
+        }
       }
 
       // 死亡カウントを加算

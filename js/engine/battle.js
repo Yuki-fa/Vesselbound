@@ -731,9 +731,9 @@ async function allyAttackAction(ally, allyIdx){
   if(eSlot) eSlot.classList.add('glow-red');
   if(isGlobal){
     const allTgtSlots=liveE.map(e=>eAllSlots?.[G.enemies.indexOf(e)]).filter(Boolean);
-    showAttackLine(aSlot,allTgtSlots);
+    showAttackLine(aSlot,allTgtSlots,'#4080ff');
   } else {
-    showAttackLine(aSlot,eSlot?[eSlot]:[]);
+    showAttackLine(aSlot,eSlot?[eSlot]:[],'#4080ff');
   }
   await sleep(300);
   if(aSlot) aSlot.classList.remove('glow-blue');
@@ -772,7 +772,7 @@ async function allyAttackAction(ally, allyIdx){
       const hitSlot=eAllSlots?.[G.enemies.indexOf(curTgt)];
       if(aSlot) aSlot.classList.add('glow-blue');
       if(hitSlot) hitSlot.classList.add('glow-red');
-      showAttackLine(aSlot,hitSlot?[hitSlot]:[]);
+      showAttackLine(aSlot,hitSlot?[hitSlot]:[],'#4080ff');
       await sleep(200);
       if(aSlot) aSlot.classList.remove('glow-blue');
       if(hitSlot) hitSlot.classList.remove('glow-red');

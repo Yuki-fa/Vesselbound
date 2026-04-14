@@ -230,6 +230,9 @@ function renderMoveSlotsInEnemy(){
     opts=G.visibleMoves.filter(i=>G.moveMasks[i]&&G.moveMasks[i]!=='chest').map(i=>({nodeType:G.moveMasks[i],idx:i}));
     // イベントアイテム受け取り中（宿屋・祭壇から遷移）は戦闘/ボス戦のみ表示
     if(_eventItemDone) opts=opts.filter(o=>o.nodeType==='battle'||o.nodeType==='boss');
+    // 表示順を固定：forest（battle）→ 湖（rest）→ 洞窟（smithy）→ その他
+    const _moveOrder={battle:0,rest:1,smithy:2,boss:3,shop:4,chest:5};
+    opts.sort((a,b)=>(_moveOrder[a.nodeType]??9)-(_moveOrder[b.nodeType]??9));
     if(opts.length===0) opts.push({nodeType:FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss?'boss':'battle',idx:-1});
   }
   opts.slice(0,3).forEach(opt=>{

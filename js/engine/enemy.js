@@ -236,6 +236,10 @@ function generateEnemies(floor){
     if(!_leftBiased&&!_rightBiased) break; // 偏りなし → 確定
     // 偏りあり → 再シャッフル（最終試行はそのまま使う）
   }
+  // シャッフル後にエリートの実際の位置を更新（moveMasks生成前に必要）
+  if(hasElite){
+    G._eliteIdx=enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
+  }
   return enemies;
 }
 
