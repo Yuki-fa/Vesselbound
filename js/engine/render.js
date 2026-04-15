@@ -138,18 +138,22 @@ function _computeDeathRisk(){
       G.moveMasks=[...(_sMM||[])];
       G._pendingTreasure=_sPT;
 
-      // インターリーブ攻撃シミュレーション（最大10ターン）
-      for(let _turn=0;_turn<10;_turn++){
-        if(!G.allies.some(a=>a&&a.hp>0)) break;
-        if(!G.enemies.some(e=>e&&e.hp>0)) break;
-        for(let i=0;i<6;i++){
-          const enemy=G.enemies[i];
-          if(enemy&&enemy.hp>0) _drSimEnemySlot(enemy,i);
-          if(!G.allies.some(a=>a&&a.hp>0)) break;
-          const ally=G.allies[i];
-          if(ally&&ally.hp>0&&!ally._isSoul) _drSimAllySlot(ally,i);
-          if(!G.enemies.some(e=>e&&e.hp>0)) break;
+      // 1ターン分シミュレーション（全生存ユニットが1回ずつ行動）
+      // 敵と味方を生存順に収集してインターリーブ
+      const _simEnemies=G.enemies.map((e,i)=>({u:e,i})).filter(({u})=>u&&u.hp>0);
+      const _simAllies =G.allies .map((a,i)=>({u:a,i})).filter(({u})=>u&&u.hp>0&&!u._isSoul);
+      const _simLen=Math.max(_simEnemies.length,_simAllies.length);
+      for(let _si=0;_si<_simLen;_si++){
+        if(_si<_simEnemies.length){
+          const {u:e,i:ei}=_simEnemies[_si];
+          if(e.hp>0) _drSimEnemySlot(e,ei);
         }
+        if(!G.allies.some(a=>a&&a.hp>0)) break;
+        if(_si<_simAllies.length){
+          const {u:a,i:ai}=_simAllies[_si];
+          if(a.hp>0&&!a._isSoul) _drSimAllySlot(a,ai);
+        }
+        if(!G.enemies.some(e=>e&&e.hp>0)) break;
       }
 
       // 死亡カウントを加算
