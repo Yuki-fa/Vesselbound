@@ -89,6 +89,41 @@ function _updateLaneOffset(){
   document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.67)+'px');
 }
 
+// ── 攻撃ライン描画 ──
+(function _initAttackLineSvg(){
+  if(document.getElementById('atk-line-svg')) return;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.id='atk-line-svg';
+  svg.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+  document.body.appendChild(svg);
+})();
+
+function showAttackLine(fromEl, toEls, color){
+  const svg=document.getElementById('atk-line-svg');
+  if(!svg||!fromEl||!toEls||!toEls.length) return;
+  svg.innerHTML='';
+  const fr=fromEl.getBoundingClientRect();
+  const fx=fr.left+fr.width/2, fy=fr.top+fr.height/2;
+  toEls.forEach(toEl=>{
+    if(!toEl) return;
+    const tr=toEl.getBoundingClientRect();
+    const tx=tr.left+tr.width/2, ty=tr.top+tr.height/2;
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',fx); line.setAttribute('y1',fy);
+    line.setAttribute('x2',tx); line.setAttribute('y2',ty);
+    line.setAttribute('stroke',color||'#fff');
+    line.setAttribute('stroke-width','2');
+    line.setAttribute('stroke-opacity','0.85');
+    line.setAttribute('stroke-linecap','round');
+    svg.appendChild(line);
+  });
+}
+
+function hideAttackLine(){
+  const svg=document.getElementById('atk-line-svg');
+  if(svg) svg.innerHTML='';
+}
+
 function renderAll(){
   const _drResult=G.phase==='player'?_computeDeathRisk():_emptyDR;
   renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn);
@@ -308,25 +343,26 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   const prioritySet=new Set();
   if(isEnemy){
-    // allyTarget 強制指定 → 後退敵（_visualShift）→ 全生存敵
+    // allyTarget 強制指定 → 前衛（lane='front'）→ 全生存敵
     const forced=liveUnits.filter(x=>x.u.allyTarget);
     if(forced.length){
       forced.forEach(x=>prioritySet.add(x.i));
     } else {
-      const shifted=liveUnits.filter(x=>x.u._visualShift);
-      (shifted.length?shifted:liveUnits).forEach(x=>prioritySet.add(x.i));
+      const front=liveUnits.filter(x=>(x.u.lane||'front')==='front');
+      (front.length?front:liveUnits).forEach(x=>prioritySet.add(x.i));
     }
   } else {
-    // 前衛（hate）→ 全生存味方
-    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0);
-    (hated.length?hated:liveUnits).forEach(x=>prioritySet.add(x.i));
+    // 前衛（hate または lane='front'）→ 全生存味方
+    const isFrontAlly=x=>(x.u.hate&&x.u.hateTurns>0)||(x.u.lane||'front')==='front';
+    const frontAllies=liveUnits.filter(x=>isFrontAlly(x)&&!x.u.stealth);
+    (frontAllies.length?frontAllies:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
   for(let i=0;i<6;i++){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
-    if(u&&u.hp>0&&isEnemy&&u._visualShift) slot.classList.add('is-rear');
+    if(u&&u.hp>0&&((u.hate&&u.hateTurns>0)||(u.lane||'front')==='front')) slot.classList.add('is-front');
+    if(u&&u.hp>0&&isEnemy&&u.lane==='rear') slot.classList.add('is-rear');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
