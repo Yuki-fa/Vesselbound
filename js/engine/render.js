@@ -361,8 +361,9 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0&&((u.hate&&u.hateTurns>0)||(u.lane||'front')==='front')) slot.classList.add('is-front');
+    if(u&&u.hp>0&&isEnemy&&(u.lane||'front')==='front') slot.classList.add('is-front');
     if(u&&u.hp>0&&isEnemy&&u.lane==='rear') slot.classList.add('is-rear');
+    if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
