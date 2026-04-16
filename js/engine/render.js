@@ -12,7 +12,7 @@
   document.addEventListener('dragstart',()=>{ _dragging=true; tip.style.display='none'; }, true);
   document.addEventListener('dragend',()=>{ _dragging=false; }, true);
   function _getTarget(e){
-    return e.target.closest('.slot-badge[data-kwdesc]')||e.target.closest('[data-preview]');
+    return e.target.closest('[data-kwdesc]')||e.target.closest('[data-preview]');
   }
   document.addEventListener('mouseover',e=>{
     if(_dragging){ tip.style.display='none'; return; }
@@ -33,7 +33,7 @@
   });
   document.addEventListener('mouseout',e=>{
     const rt=e.relatedTarget;
-    if(!rt||((!rt.closest('.slot-badge[data-kwdesc]'))&&(!rt.closest('[data-preview]')))) tip.style.display='none';
+    if(!rt||((!rt.closest('[data-kwdesc]'))&&(!rt.closest('[data-preview]')))) tip.style.display='none';
   });
 })();
 function _posKwTip(tip,e){
@@ -218,7 +218,9 @@ function _drSimAllySlot(ally,allyIdx){
   const target=getAttackTarget(ally,G.enemies);
   if(!target) return;
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
-  const atkTargets=isGlobal?[...liveE]:[target];
+  const isTriDir=ally.keywords&&ally.keywords.includes('三方向攻撃');
+  const _tgtIdx=G.enemies.indexOf(target);
+  const atkTargets=isGlobal?[...liveE]:isTriDir?([_tgtIdx-1,_tgtIdx,_tgtIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
   atkTargets.forEach(t=>{
     dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
     // 反撃キーワード：さらに追加ダメージ（生き残った場合のみ）
@@ -252,7 +254,9 @@ function _drSimEnemySlot(enemy,_enemyIdx){
     if(enemy.effect==='brownie_attack'){ G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }}); }
   }
   const isGlobal=enemy.keywords&&enemy.keywords.includes('全体攻撃');
-  const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):targets;
+  const isTriDir=enemy.keywords&&enemy.keywords.includes('三方向攻撃');
+  const _pIdx=G.allies.indexOf(primaryTarget);
+  const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):isTriDir?([_pIdx-1,_pIdx,_pIdx+1].filter(i=>i>=0&&i<G.allies.length).map(i=>G.allies[i]).filter(a=>a&&a.hp>0&&!a.stealth)):targets;
   const hitSet=new Set();
   finalT.forEach(tgt=>{
     if(hitSet.has(tgt.id)) return;
@@ -336,19 +340,19 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const bs=[];
         const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
         // 標的バッジは非表示（is-front の視覚的シフトで代用）
-        if(u.guardian) bs.push('<span class="slot-badge b-guard">守護</span>');
+        if(u.guardian) bs.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
         if(u.shield>0) bs.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
-        if(u.sealed>0) bs.push('<span class="slot-badge b-seal">封印</span>');
-        if(u.instadead) bs.push('<span class="slot-badge b-dead">即死</span>');
+        if(u.sealed>0) bs.push(`<span class="slot-badge b-seal"${_sd('封印')}>封印</span>`);
+        if(u.instadead) bs.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
         if(u.poison>0) bs.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${u.poison}</span>`);
         if(u.doomed>0) bs.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${u.doomed}</span>`);
-        if(u.regen) bs.push(`<span class="slot-badge b-regen">再生${u.regen}</span>`);
-        if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
-        if(u.allyTarget) bs.push('<span class="slot-badge b-hate">狙われ</span>');
+        if(u.regen) bs.push(`<span class="slot-badge b-regen"${_sd('再生')}>再生${u.regen}</span>`);
+        if(u.stealth) bs.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
+        if(u.allyTarget) bs.push(`<span class="slot-badge b-hate"${_sd('狩われ')}>狩われ</span>`);
         const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
         // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
         // 反撃はキーワード欄に表示。エリート/ボスは他キーワードの1行上。
-        const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','成長':'#60d090','アーティファクト':'#b0a080'};
+        const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','三方向攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','成長':'#60d090','アーティファクト':'#b0a080'};
         const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
         const _allKws=[...new Set([...(u.keywords||[]),...(u.counter?['反撃']:[])])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
@@ -368,7 +372,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
         const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
-        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
+        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
           slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;

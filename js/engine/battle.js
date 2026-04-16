@@ -727,11 +727,15 @@ async function allyAttackAction(ally, allyIdx){
   const eAllSlots=document.getElementById('f-enemy')?.querySelectorAll('.slot');
   const eSlot=eAllSlots?.[eIdx];
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
+  const isTriDir=ally.keywords&&ally.keywords.includes('三方向攻撃');
   if(aSlot) aSlot.classList.add('glow-blue');
   if(eSlot) eSlot.classList.add('glow-red');
   if(isGlobal){
     const allTgtSlots=liveE.map(e=>eAllSlots?.[G.enemies.indexOf(e)]).filter(Boolean);
     showAttackLine(aSlot,allTgtSlots,'#4080ff');
+  } else if(isTriDir){
+    const _tdIdxs=[eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length&&G.enemies[i]&&G.enemies[i].hp>0);
+    showAttackLine(aSlot,_tdIdxs.map(i=>eAllSlots?.[i]).filter(Boolean),'#4080ff');
   } else {
     showAttackLine(aSlot,eSlot?[eSlot]:[],'#4080ff');
   }
@@ -745,22 +749,24 @@ async function allyAttackAction(ally, allyIdx){
   // 攻撃時効果（ダメージを与える前に発動）
   if(ally.hp>0) _applyAllyAttackEffects(ally);
 
-  // 全体攻撃キーワード：全ての敵を攻撃
-  const attackTargets=isGlobal?[...liveE]:[target];
+  // 全体攻撃・三方向攻撃・単体攻撃の振り分け
+  const attackTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
 
   attackTargets.forEach(t=>{
     const ti=G.enemies.indexOf(t);
     dealDmgToEnemy(t,ally.atk,ti,ally);
-    // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ）
+    // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ・攻撃効果も発動）
     if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
+      _applyEnemyAttackEffects(t);
       dealDmgToAlly(ally,t.atk,allyIdx,t);
       log(`⚔ ${t.name}の反撃：${ally.name}に${t.atk}ダメ`,'bad');
     }
   });
-  log(`${ally.name}(${ally.atk})→${isGlobal?'全敵':target.name}`);
+  const _atkLabel=isGlobal?'全敵':isTriDir?`${target.name}周辺3体`:target.name;
+  log(`${ally.name}(${ally.atk})→${_atkLabel}`);
 
-  // 多段攻撃（三段=×2、二段=×1）：ターゲットが死亡した場合は新ターゲットへ
-  if(ally.hp>0&&!isGlobal){
+  // 多段攻撃（三段=×2、二段=×1）：三方向攻撃とは併用しない
+  if(ally.hp>0&&!isGlobal&&!isTriDir){
     const extraHits=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
     let curTgt=target;
     for(let hi=0;hi<extraHits;hi++){
@@ -812,12 +818,16 @@ async function enemyAttackAction(enemy, enemyIdx){
   const aAllSlots=document.getElementById('f-ally')?.querySelectorAll('.slot');
   const aSlot=aAllSlots?.[primaryIdx];
   const isGlobalAtk=enemy.keywords&&enemy.keywords.includes('全体攻撃');
+  const isTriDirAtk=enemy.keywords&&enemy.keywords.includes('三方向攻撃');
   const liveAllForGlobal=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
   if(eSlot) eSlot.classList.add('glow-blue');
   if(aSlot) aSlot.classList.add('glow-red');
   if(isGlobalAtk){
     const allTgtSlots=liveAllForGlobal.map(a=>aAllSlots?.[G.allies.indexOf(a)]).filter(Boolean);
     showAttackLine(eSlot,allTgtSlots,'#ff4040');
+  } else if(isTriDirAtk){
+    const _tdAIdxs=[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth);
+    showAttackLine(eSlot,_tdAIdxs.map(i=>aAllSlots?.[i]).filter(Boolean),'#ff4040');
   } else {
     showAttackLine(eSlot,aSlot?[aSlot]:[],'#ff4040');
   }
@@ -832,8 +842,9 @@ async function enemyAttackAction(enemy, enemyIdx){
   // 攻撃時効果（フォルニョート・エルフ等、敵陣営版）
   if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffects(enemy);
 
-  // 全体攻撃キーワード：全ての味方を攻撃
-  const finalTargets=isGlobalAtk?liveAllForGlobal:targets;
+  // 全体攻撃・三方向攻撃・単体攻撃の振り分け（三方向攻撃：隣接3スロット、隠密は除外）
+  const _triAIdxs=isTriDirAtk?[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth):[];
+  const finalTargets=isGlobalAtk?liveAllForGlobal:isTriDirAtk?_triAIdxs.map(i=>G.allies[i]):targets;
 
   // 全ターゲットを攻撃
   const hitNames=[];
@@ -849,10 +860,10 @@ async function enemyAttackAction(enemy, enemyIdx){
     hitNames.push(tgt.name);
   });
 
-  log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':hitNames.join('・')}`);
+  log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':isTriDirAtk?`${primaryTarget.name}周辺3体`:hitNames.join('・')}`);
 
-  // 多段攻撃キーワード（三段=×2、二段=×1）：ターゲットが死亡した場合は新ターゲットへ
-  if(!isGlobalAtk&&enemy.hp>0){
+  // 多段攻撃キーワード（三段=×2、二段=×1）：三方向攻撃とは併用しない
+  if(!isGlobalAtk&&!isTriDirAtk&&enemy.hp>0){
     const extraHits=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
     let reTgt=finalTargets[0];
     for(let hi=0;hi<extraHits;hi++){
@@ -901,7 +912,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(dmg<=0){
     if(unit.counter&&src&&unit.hp>0){
       const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+      if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
     }
     return false;
   }
@@ -914,7 +925,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     // 反撃：シールドで防いでも生き残っているので発動
     if(unit.counter&&src&&unit.hp>0){
       const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+      if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
     }
     return false; // ダメージをシールドで防いだ
   }
@@ -934,7 +945,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   // 反撃：ダメージを受けて生き残った場合のみ発動
   if(!willDie&&unit.counter&&src&&unit.hp>0){
     const srcIdx=G.enemies.indexOf(src);
-    if(srcIdx>=0){ dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+    if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
   }
 
   // リリス・ヴェノム（敵側）：味方がダメージを受けた時、毒3を与える
@@ -981,7 +992,7 @@ function processAllyDeath(unit){
     const _deadHp=unit.maxHp!=null?unit.maxHp:(7*_boneG);
     const _deadKws=[...(unit.keywords||[])];
     const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
-    const _boneSlot=G.allies.findIndex(a=>!a||a.hp<=0);
+    const _boneSlot=G.allies.findIndex(a=>a===unit);
     if(_boneSlot>=0){
       const _boneUnit=makeUnitFromDef(_boneDef);
       _boneUnit._skelAtk=_deadAtk; _boneUnit._skelHp=_deadHp; _boneUnit._skelKws=[..._deadKws];
@@ -990,6 +1001,9 @@ function processAllyDeath(unit){
       // グリマルキン：キャラクター効果で召喚されると+1/+1
       { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
         G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_boneUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+      // コカトリス：キャラクター効果で召喚された仲間が+2/+1を得る
+      { const _gd=G.hasGoldenDrop?1:0;
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_boneUnit){ const _cv=2+_gd,_ch=1+_gd; _boneUnit.atk+=_cv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_cv; _boneUnit.hp+=_ch; _boneUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_boneUnit.name}が+${_cv}/+${_ch}`,'good'); } }); }
       checkSolitudeBuff();
     }
   }
@@ -1013,6 +1027,9 @@ function processAllyDeath(unit){
         // グリマルキン：キャラクター効果で召喚されると+1/+1
         { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
           G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==_akUnit){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+        // コカトリス：キャラクター効果で召喚された仲間が+2/+1を得る
+        { const _gd=G.hasGoldenDrop?1:0;
+          G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_akUnit){ const _cv=2+_gd,_ch=1+_gd; _akUnit.atk+=_cv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_cv; _akUnit.hp+=_ch; _akUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_akUnit.name}が+${_cv}/+${_ch}`,'good'); } }); }
         checkSolitudeBuff();
       }
     });
@@ -1386,6 +1403,9 @@ function onBattleStart(){
             // グリマルキン：キャラクター効果で召喚されると+1/+1
             { const _grimalkin=G.allies.find(g=>g&&g.hp>0&&g.effect==='grimalkin_onsum'); const _gbv=(((_grimalkin&&_grimalkin._stackCount)||0)+1)+(G.hasGoldenDrop?1:0);
               G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==G.allies[_ggi]){ g.atk+=_gbv; g.baseAtk=(g.baseAtk||0)+_gbv; g.hp+=_gbv; g.maxHp+=_gbv; log(`${g.name}：仲間が召喚→+${_gbv}/+${_gbv}`,'good'); }}); }
+            // コカトリス：キャラクター効果で召喚された仲間が+2/+1を得る
+            { const _ggU=G.allies[_ggi]; const _gd=G.hasGoldenDrop?1:0;
+              G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_ggU){ const _cv=2+_gd,_ch=1+_gd; _ggU.atk+=_cv; _ggU.baseAtk=(_ggU.baseAtk||0)+_cv; _ggU.hp+=_ch; _ggU.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_ggU.name}が+${_cv}/+${_ch}`,'good'); } }); }
             checkSolitudeBuff();
           } }
         break;
@@ -1637,15 +1657,17 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
-  if(e.keywords&&e.keywords.includes('エリート')) G._eliteKilled=true;
+  // エリート判定：キーワードではなくインデックスで判定（ENEMY_POOLデータにエリートKWが混入しても誤発火しない）
+  const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
+  if(_isActualElite) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
   const _isArtifact=e.keywords&&e.keywords.includes('アーティファクト');
   const gold=_isArtifact?0:(G.baseIncome||1);
   if(gold>0){ log(`${e.name} 撃破！ソウル+${gold}`,'gold'); onGoldGained(gold); }
   else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
-  // エリート戦ではエリート本体が宝箱を確定ドロップ（他の敵は落とさない）
-  if(e.keywords&&e.keywords.includes('エリート')){
+  // エリート戦ではエリート本体（インデックス一致）が宝箱を確定ドロップ（他の敵は落とさない）
+  if(_isActualElite){
     G._pendingEliteChest=true;
     log(`📦 ${e.name}が宝箱を落とした！`,'gold');
   } else if(!G._pendingTreasure&&!G._retreated&&!G._isEliteFight){
@@ -1688,7 +1710,7 @@ function processEnemyDeath(e,eIdx){
     const _deadHp=e.maxHp!=null?e.maxHp:(7*_boneG);
     const _deadKws=[...(e.keywords||[])];
     const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
-    const _boneSlot=G.enemies.findIndex(f=>!f||f.hp<=0);
+    const _boneSlot=G.enemies.findIndex(f=>f===e);
     if(_boneSlot>=0){
       const _boneEnemy=makeUnitFromDef(_boneDef);
       _boneEnemy._skelAtk=_deadAtk; _boneEnemy._skelHp=_deadHp; _boneEnemy._skelKws=[..._deadKws];
