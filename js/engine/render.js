@@ -781,7 +781,9 @@ function renderEnemyHand(){
   if(!handEl) return;
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
-  const eHcols=isReward?5:isDynamic?3:8;
+  // 報酬フェイズはプレイヤーと同じ列数にしてカードサイズを揃える
+  const _pHcols=10-(G.ringSlots||2);
+  const eHcols=isReward?_pHcols:isDynamic?3:8;
   const activeHand=isReward?5:eHcols;
   handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
