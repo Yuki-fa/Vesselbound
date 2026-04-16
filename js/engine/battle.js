@@ -696,22 +696,18 @@ function _applyEnemyAttackEffects(enemy){
 function getAttackTarget(attacker, targets){
   const live=targets.filter(u=>u&&u.hp>0);
   if(!live.length) return null;
-  // 1. ヘイト（前衛）優先：ランダム
-  const hated=live.filter(u=>u.hate&&u.hateTurns>0&&!u.stealth);
-  if(hated.length) return randFrom(hated);
-  // 2. 狩人：最もHPの低い相手
+  // 前衛判定：hate=true または lane='front'
+  const isFront=u=>(u.hate&&u.hateTurns>0)||(u.lane||'front')==='front';
+  // 1. 前衛が存在する場合は前衛のみを対象にする
+  const frontLine=live.filter(u=>isFront(u)&&!u.stealth);
+  const pool=frontLine.length>0?frontLine:live.filter(u=>!u.stealth);
+  const finalPool=pool.length>0?pool:live;
+  // 2. 狩人：最もHPの低い相手（前衛優先の中で）
   if(attacker.keywords&&attacker.keywords.includes('狩人')){
-    const visible=live.filter(u=>!u.stealth);
-    const pool=visible.length?visible:live;
-    return pool.reduce((a,b)=>a.hp<b.hp?a:b);
+    return finalPool.reduce((a,b)=>a.hp<b.hp?a:b);
   }
-  // 3. 後退している敵（_visualShift）を優先：ランダム
-  const visible=live.filter(u=>!u.stealth);
-  const pool=visible.length?visible:live;
-  const shifted=pool.filter(u=>u._visualShift);
-  if(shifted.length) return randFrom(shifted);
-  // 4. 残りからランダム
-  return randFrom(pool);
+  // 3. ランダム
+  return randFrom(finalPool);
 }
 
 async function allyAttackAction(ally, allyIdx){

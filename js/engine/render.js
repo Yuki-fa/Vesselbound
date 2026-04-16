@@ -313,26 +313,27 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   const prioritySet=new Set();
   if(isEnemy){
-    // allyTarget 強制指定 → 後退敵（_visualShift）→ 全生存敵
+    // allyTarget 強制指定 → 前衛（lane='front'）→ 全生存敵
     const forced=liveUnits.filter(x=>x.u.allyTarget);
     if(forced.length){
       forced.forEach(x=>prioritySet.add(x.i));
     } else {
-      const shifted=liveUnits.filter(x=>x.u._visualShift);
-      (shifted.length?shifted:liveUnits).forEach(x=>prioritySet.add(x.i));
+      const front=liveUnits.filter(x=>(x.u.lane||'front')==='front');
+      (front.length?front:liveUnits).forEach(x=>prioritySet.add(x.i));
     }
   } else {
-    // 前衛（hate）→ 全生存味方
-    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0);
-    (hated.length?hated:liveUnits).forEach(x=>prioritySet.add(x.i));
+    // 前衛（hate または lane='front'）→ 全生存味方
+    const isFrontAlly=x=>(x.u.hate&&x.u.hateTurns>0)||(x.u.lane||'front')==='front';
+    const frontAllies=liveUnits.filter(x=>isFrontAlly(x)&&!x.u.stealth);
+    (frontAllies.length?frontAllies:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
   for(let i=0;i<6;i++){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    // 味方：hate=前衛（上シフト）。敵：hate=前衛（上シフト）、_visualShift=後衛（下シフト）
+    // 味方：hate=前衛（上シフト）。敵：lane='front'=前衛（上シフト）、lane='rear'=後衛（下シフト）
     if(u&&u.hp>0&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
-    if(u&&u.hp>0&&isEnemy&&u._visualShift) slot.classList.add('is-rear');
+    if(u&&u.hp>0&&isEnemy&&u.lane==='rear') slot.classList.add('is-rear');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
