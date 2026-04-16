@@ -352,17 +352,16 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
       (front.length?front:liveUnits).forEach(x=>prioritySet.add(x.i));
     }
   } else {
-    // 前衛（hate または lane='front'）→ 全生存味方
-    const isFrontAlly=x=>(x.u.hate&&x.u.hateTurns>0)||(x.u.lane||'front')==='front';
-    const frontAllies=liveUnits.filter(x=>isFrontAlly(x)&&!x.u.stealth);
-    (frontAllies.length?frontAllies:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
+    // hate（タウント）→ 全生存味方
+    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0);
+    (hated.length?hated:liveUnits).forEach(x=>prioritySet.add(x.i));
   }
   for(let i=0;i<6;i++){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0&&isEnemy&&(u.lane||'front')==='front') slot.classList.add('is-front');
-    if(u&&u.hp>0&&isEnemy&&u.lane==='rear') slot.classList.add('is-rear');
+    if(u&&u.hp>0&&isEnemy&&(u.lane||'front')==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
+    // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）

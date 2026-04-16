@@ -105,6 +105,7 @@ function generateEnemies(floor){
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
       const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       e._visualShift=Math.random()<0.5;
+      e.lane=Math.random()<0.6?'front':'rear';
       return e;
     });
   }
