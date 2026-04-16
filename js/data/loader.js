@@ -417,6 +417,10 @@ async function loadGameData() {
       if (!isNaN(cost)) unit.cost = cost;
       const desc = row['効果'];
       unit.desc = desc || '';
+      // 2枚重ね効果（stack1）と3枚重ね効果（stack2）を読み込む
+      if (row['強化'] !== undefined && row['強化'].trim()) unit.stackEnhDesc = row['強化'].trim();
+      else delete unit.stackEnhDesc;
+      // 後方互換：旧stackEffectも残す
       if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
       else delete unit.stackEffect;
       // キーワード列が存在する場合、unit.keywords を上書きし効果フラグも同期

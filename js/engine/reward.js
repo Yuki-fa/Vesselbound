@@ -836,6 +836,14 @@ function _renderFieldRow(el){
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
       div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+      // 継承ボタン（3枚重ね完了時のみ表示）
+      if(unit._canInherit){
+        const inheritBtn=document.createElement('button');
+        inheritBtn.className='inherit-btn';
+        inheritBtn.textContent='継承';
+        inheritBtn.onclick=ev=>{ ev.stopPropagation(); startInherit(i); };
+        div.appendChild(inheritBtn);
+      }
       // クリックでヘイト切り替え
       div.onclick=e=>{
         if(e.detail===0) return; // プログラム的クリックは無視
@@ -883,7 +891,7 @@ function _renderFieldRow(el){
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
           if(!rc?._isChar) return;
-          if(unit.name===rc.name&&(unit.grade||1)<6&&G.gold>=(rc._buyPrice??2)){
+          if(unit.name===rc.name&&(unit._stackCount||0)<2&&G.gold>=(rc._buyPrice??2)){
             e.preventDefault();
             _showStackPreviewOverlay(null,unit,rc,e.clientX,e.clientY);
           }
@@ -892,7 +900,7 @@ function _renderFieldRow(el){
           _lastDragX=e.clientX; _lastDragY=e.clientY;
           _moveStackPreview(e.clientX,e.clientY);
           const srcUnit=G.allies[_fieldDragSrc];
-          if(srcUnit&&unit.name===srcUnit.name&&(unit.grade||1)<6){
+          if(srcUnit&&unit.name===srcUnit.name&&(unit._stackCount||0)<2){
             if(_fieldMergeTarget!==i){
               _clearFieldMergeTimer();
               _fieldMergeTarget=i;
@@ -926,7 +934,7 @@ function _renderFieldRow(el){
         } else if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
-          if(rc?._isChar&&unit.name===rc.name&&(unit.grade||1)<6) _applyStack(i,src);
+          if(rc?._isChar&&unit.name===rc.name&&(unit._stackCount||0)<2) _applyStack(i,src);
         } else if(_fieldDragSrc>=0){
           _clearFieldDropHighlights();
           if(wasMergeReady){ _applyFieldMerge(_fieldDragSrc,i); }
@@ -994,6 +1002,7 @@ function _dropFieldUnit(destIdx){
 function _applyFieldMerge(srcIdx, dstIdx){
   const src=G.allies[srcIdx]; const dst=G.allies[dstIdx];
   if(!src||!dst) return;
+  if((dst._stackCount||0)>=2){ log(`${dst.name} はこれ以上重ねられません（最大3枚）`,'bad'); return; }
   const result=_computeStackResult(dst,src);
   dst.atk=result.atk; dst.baseAtk=result.atk;
   dst.hp=result.hp; dst.maxHp=result.hp;
@@ -1006,8 +1015,57 @@ function _applyFieldMerge(srcIdx, dstIdx){
   if(result.keywords.includes('反撃')) dst.counter=true;
   G.allies[srcIdx]=null;
   _fieldDragSrc=-1;
-  log(`${dst.name} を重ねた（盤面内）→ ${result.atk}/${result.hp} G${result.grade}`,'good');
+  log(`${dst.name} を重ねた（盤面内）→ ${result.atk}/${result.hp}`,'good');
+  // 3枚重ね（_stackCount=2）で継承可能フラグを立てる
+  if(dst._stackCount>=2){
+    dst._canInherit=true;
+    log(`${dst.name}：3枚重ね完了！継承が可能になった`,'gold');
+  }
   updateHUD(); renderRewCards(); renderFieldEditor(); renderGradeUpBtn();
+}
+
+// ── 継承システム ──────────────────────────────────
+
+// 継承モード：継承元スロットを記録
+let _inheritSrc=-1;
+
+function startInherit(fieldIdx){
+  _inheritSrc=fieldIdx;
+  const unit=G.allies[fieldIdx];
+  const liveOthers=G.allies.filter((a,i)=>a&&a.hp>0&&i!==fieldIdx);
+  if(!liveOthers.length){ log(`継承先のキャラクターがいません`,'bad'); _inheritSrc=-1; return; }
+  log(`${unit.name} から継承先を選んでください`,'gold');
+  // 継承先として選択可能なスロットをハイライト（継承元以外の生存キャラ）
+  _getAllyDomSlots().forEach((slotEl,i)=>{
+    if(i===fieldIdx) return;
+    const u=G.allies[i];
+    if(u&&u.hp>0){
+      slotEl.classList.add('selectable');
+      slotEl.onclick=()=>{ clearSelectable(); applyInherit(fieldIdx,i); };
+    }
+  });
+}
+
+function applyInherit(srcIdx, dstIdx){
+  const src=G.allies[srcIdx];
+  const dst=G.allies[dstIdx];
+  if(!src||!dst) return;
+  // ATKを継承
+  dst.atk+=src.atk; dst.baseAtk=(dst.baseAtk||0)+src.atk;
+  // キーワードを継承（重複除外）
+  const srcKws=(src.keywords||[]).filter(k=>!(dst.keywords||[]).includes(k));
+  if(srcKws.length>0){
+    dst.keywords=[...(dst.keywords||[]),...srcKws];
+    if(srcKws.includes('反撃')) dst.counter=true;
+  }
+  log(`${src.name} → ${dst.name} に継承！ATK+${src.atk}、キーワード：${srcKws.join('、')||'なし'}`,'gold');
+  // 継承元を還魂
+  G.allies[srcIdx]=null;
+  G.gold+=2; // 還魂ソウル
+  document.getElementById('rw-gold').textContent=G.gold;
+  _inheritSrc=-1;
+  updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
+  checkSolitudeBuff();
 }
 
 // ── 重ねシステム ヘルパー ──────────────────────────
@@ -1049,12 +1107,15 @@ function _computeStackResult(fieldUnit, srcUnit){
   const sSC=srcUnit._stackCount||0;
   const newStackCount=fSC+sSC+1;
   const baseGrade=fieldUnit._baseGrade||fieldUnit.grade||1;
-  const newGrade=Math.min(5,baseGrade+newStackCount);
+  // グレードアップしない（スタッツ合算のみ）
+  const newGrade=baseGrade;
   const baseDesc=fieldUnit._baseDesc!=null?fieldUnit._baseDesc:(fieldUnit.desc||'');
-  // 専用重ね効果があればそれを優先
+  // 重ね段階に応じた説明文を使用
   const def=UNIT_POOL.find(u=>u.id===(fieldUnit.defId||fieldUnit.id)||u.name===fieldUnit.name);
-  const stackEffect=def?.stackEffect||null;
-  const newDesc=stackEffect||_applyDescStack(baseDesc,newStackCount);
+  let newDesc=baseDesc;
+  if(newStackCount>=1&&def?.stackEnhDesc) newDesc=def.stackEnhDesc; // シートの「強化」列が優先
+  else if(def?.stackEffect) newDesc=def.stackEffect; // 後方互換（旧重ね効果列）
+  else newDesc=_applyDescStack(baseDesc,newStackCount); // 未設定時：従来通りカードテキストの値+1
   const newKws=_mergeKeywords(fieldUnit.keywords||[],srcUnit.keywords||[]);
   return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws,
     stackCount:newStackCount,baseGrade,baseDesc};
@@ -1067,7 +1128,7 @@ function _applyStack(fieldIdx, rewIdx){
   if(!rewCard||!fieldUnit) return;
   const cost=rewCard._buyPrice??2;
   if(G.gold<cost){ log('ソウルが不足しています','bad'); return; }
-  if((fieldUnit.grade||1)>=6){ log('グレード6には重ねられません','bad'); return; }
+  if((fieldUnit._stackCount||0)>=2){ log(`${fieldUnit.name} はこれ以上重ねられません（最大3枚）`,'bad'); return; }
   G.gold-=cost;
   const result=_computeStackResult(fieldUnit,rewCard);
   fieldUnit.atk=result.atk; fieldUnit.baseAtk=result.atk;
@@ -1119,6 +1180,11 @@ function _applyStack(fieldIdx, rewIdx){
     log(`${fieldUnit.name}：全仲間に「成長1」を付与`,'good');
   }
   fireTrigger('on_summon', null);
+  // 3枚重ね（_stackCount=2）で継承可能フラグを立てる
+  if(fieldUnit._stackCount>=2){
+    fieldUnit._canInherit=true;
+    log(`${fieldUnit.name}：3枚重ね完了！継承が可能になった`,'gold');
+  }
   _rewCards[rewIdx]=null;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
@@ -1133,7 +1199,7 @@ function _updateFieldDropHighlights(cardName, cost, isFieldDrag, excludeIdx){
     if(!unit||unit.hp<=0){
       if(canAfford){ slotEl.style.boxShadow='0 0 10px 2px var(--teal2)'; slotEl.style.outline='2px solid var(--teal2)'; }
     } else if(unit.name===cardName){
-      if((unit.grade||1)>=6){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
+      if((unit._stackCount||0)>=2){ slotEl.style.opacity='0.35'; slotEl.style.outline='2px solid #555'; }
       else if(canAfford){ slotEl.style.boxShadow='0 0 12px 2px var(--gold2)'; slotEl.style.outline='2px dashed var(--gold2)'; }
     }
   });
