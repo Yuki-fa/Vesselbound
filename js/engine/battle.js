@@ -402,7 +402,7 @@ function applyTurnStart(){
   // 脱力回復（プレイヤーフェーズ適用分のみ：敵フェーズ適用分はbattlePhase冒頭で解除）
   [...G.enemies,...G.allies].forEach(u=>{
     if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied!=='battle'){
-      u.atk=(u.atk||0)+u._weakenedSavedAtk;
+      u.atk=(u.atk||0)+u._weakenedSavedAtk; // 脱力中のバフ + 脱力前のATK
       log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
       delete u._weakenedSavedAtk;
       delete u._weakenPhaseApplied;
@@ -501,7 +501,7 @@ async function battlePhase(){
   // 脱力回復（前ターンの敵フェーズで適用された分をここで解除：プレイヤーフェーズ中ATK=0が見えた後）
   [...G.enemies,...G.allies].forEach(u=>{
     if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
-      u.atk=(u.atk||0)+u._weakenedSavedAtk;
+      u.atk=(u.atk||0)+u._weakenedSavedAtk; // 脱力中のバフ + 脱力前のATK
       log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
       delete u._weakenedSavedAtk;
       delete u._weakenPhaseApplied;
@@ -696,8 +696,9 @@ function _applyEnemyAttackEffects(enemy){
 function getAttackTarget(attacker, targets){
   const live=targets.filter(u=>u&&u.hp>0);
   if(!live.length) return null;
-  // 前衛判定：hate=true または lane='front'
-  const isFront=u=>(u.hate&&u.hateTurns>0)||(u.lane||'front')==='front';
+  // 前衛判定：hate=true（味方前衛）または lane==='front'（明示設定の敵前衛）
+  // ※ lane 未設定（undefined）の味方ユニットは前衛判定しない
+  const isFront=u=>(u.hate&&u.hateTurns>0)||u.lane==='front';
   // 1. 前衛が存在する場合は前衛のみを対象にする
   const frontLine=live.filter(u=>isFront(u)&&!u.stealth);
   const pool=frontLine.length>0?frontLine:live.filter(u=>!u.stealth);
@@ -1197,9 +1198,10 @@ function triggerInjury(unit, dmg=0){
       const _sbHp=_sbG;
       const _sbDmg=3*_sbG;
       const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
-      const _alpSlot=oppSide.findIndex(a=>!a||a.hp<=0);
+      const _alpSlot=oppSide.slice(0,6).findIndex(a=>!a||a.hp<=0);
       if(_alpSlot>=0) oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
-      else oppSide.push(makeUnitFromDef(_alpDef)); // 空きがなければ末尾に追加
+      else if(oppSide.length<6) oppSide.push(makeUnitFromDef(_alpDef));
+      else { log(`${unit.name}：負傷→相手陣が満杯のためソウルボム出現せず`,col); break; }
       log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を相手陣に召喚`,col);
       break;
     }

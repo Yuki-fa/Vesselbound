@@ -1052,13 +1052,15 @@ function applyInherit(srcIdx, dstIdx){
   if(!src||!dst) return;
   // ATKを継承
   dst.atk+=src.atk; dst.baseAtk=(dst.baseAtk||0)+src.atk;
+  // HPを継承
+  dst.hp+=src.hp; dst.maxHp=(dst.maxHp||0)+src.hp;
   // キーワードを継承（重複除外）
   const srcKws=(src.keywords||[]).filter(k=>!(dst.keywords||[]).includes(k));
   if(srcKws.length>0){
     dst.keywords=[...(dst.keywords||[]),...srcKws];
     if(srcKws.includes('反撃')) dst.counter=true;
   }
-  log(`${src.name} → ${dst.name} に継承！ATK+${src.atk}、キーワード：${srcKws.join('、')||'なし'}`,'gold');
+  log(`${src.name} → ${dst.name} に継承！ATK+${src.atk}、HP+${src.hp}、キーワード：${srcKws.join('、')||'なし'}`,'gold');
   // 継承元を還魂
   G.allies[srcIdx]=null;
   G.gold+=2; // 還魂ソウル
