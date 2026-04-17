@@ -370,6 +370,7 @@ async function loadGameData() {
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSV(ct);
+    const _sheetEnemyNames = new Set(); // シートに「敵専用」として登録されている敵名
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
@@ -381,6 +382,7 @@ async function loadGameData() {
         // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
         const ep = ENEMY_POOL.find(e => e.name === name);
         if (!ep) return;
+        _sheetEnemyNames.add(name); // シートに存在する敵として記録
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
         if (row['アイコン']) ep.icon = row['アイコン'];
@@ -436,8 +438,16 @@ async function loadGameData() {
       }
     });
 
+    // シートに「敵専用」行が存在する場合、ENEMY_POOL をシート登録済みの敵のみに限定する
+    // （シートにない敵定義が events.js から漏れ出すのを防ぐ）
+    if (_sheetEnemyNames.size > 0) {
+      for (let _ei = ENEMY_POOL.length - 1; _ei >= 0; _ei--) {
+        if (!_sheetEnemyNames.has(ENEMY_POOL[_ei].name)) ENEMY_POOL.splice(_ei, 1);
+      }
+    }
+
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件 敵:${ENEMY_POOL.length}件`
     );
     return true;
 
