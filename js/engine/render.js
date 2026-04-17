@@ -189,6 +189,8 @@ function _computeDeathRisk(){
         }
         if(!G.enemies.some(e=>e&&e.hp>0)) break;
       }
+      // 標的ターン消費（1ラウンド分）
+      G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 
       // 死亡カウントを加算
       G.allies.forEach((a,i)=>{
@@ -304,7 +306,7 @@ function _drSimEnemySlot(enemy,_enemyIdx){
       dealDmgToAlly(cur,atkVal,G.allies.indexOf(cur),enemy);
     }
   }
-  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+  // 標的ターン消費はシミュレーション1ラウンド分をbattlePhaseと同様に外で処理
 }
 
 // キーワードバッジで表示済みの文字列をdesc先頭から除去
@@ -343,18 +345,18 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   const prioritySet=new Set();
   if(isEnemy){
-    // allyTarget 強制指定 → 前衛（lane='front'）→ 全生存敵
+    // allyTarget 強制指定 → 前衛（lane==='front' or hate）→ 全生存敵
     const forced=liveUnits.filter(x=>x.u.allyTarget);
     if(forced.length){
       forced.forEach(x=>prioritySet.add(x.i));
     } else {
-      const front=liveUnits.filter(x=>(x.u.lane||'front')==='front');
+      const front=liveUnits.filter(x=>(x.u.lane==='front'||(x.u.hate&&x.u.hateTurns>0))&&!x.u.stealth);
       (front.length?front:liveUnits).forEach(x=>prioritySet.add(x.i));
     }
   } else {
-    // hate（タウント）→ 全生存味方
-    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0);
-    (hated.length?hated:liveUnits).forEach(x=>prioritySet.add(x.i));
+    // hate（前衛・タウント）→ 全生存味方（getAttackTargetと同じロジック）
+    const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0&&!x.u.stealth);
+    (hated.length?hated:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
   for(let i=0;i<6;i++){
     const u=units[i];

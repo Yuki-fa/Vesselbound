@@ -148,6 +148,7 @@ async function startBattle(){
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
+    if(a.hate) a.hateTurns=99; // 前衛設定を戦闘ごとにリセット
     delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
   });
 
@@ -523,6 +524,9 @@ async function battlePhase(){
     }
   }
 
+  // 標的ターン消費（1ラウンドに1回）
+  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+
   // 全攻撃後：勝敗判定
   if(G.enemies.filter(e=>e&&e.hp>0).length===0){
     _onAllEnemiesDefeated();
@@ -885,8 +889,7 @@ async function enemyAttackAction(enemy, enemyIdx){
     }
   }
 
-  // 標的ターン消費
-  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+  // 標的ターン消費はbattlePhaseで1ラウンドに1回行う
 
   // ドラウグ：攻撃した敵に毒3（受動効果：攻撃を行った敵が毒を受ける）
   if(enemy.hp>0&&G.allies.some(a=>a&&a.hp>0&&a.effect==='draug_attack')){
