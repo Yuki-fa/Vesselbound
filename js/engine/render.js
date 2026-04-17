@@ -423,9 +423,9 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         }
         // 優先ターゲットグループは赤枠
         if(prioritySet.has(i)) slot.classList.add('priority-target');
-        // 死亡予測：確実（全試行）→ 赤斜線、可能性あり（一部試行）→ 黄斜線
+        // 死亡予測：枠クラスをdeathProbの同じ閾値で決定（テキストラベルと一致させる）
         if(deathRisk.has(i)) slot.classList.add('will-die');
-        else if(warnRisk.has(i)) slot.classList.add('will-warn-'+warnRisk.get(i));
+        else { const _dp=deathProb.get(i); if(_dp!=null&&_dp>0) slot.classList.add('will-warn-'+(_dp<=20?'low':_dp<=79?'mid':'high')); }
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
       const _mvType=G.moveMasks[i];
