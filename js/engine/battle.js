@@ -707,6 +707,10 @@ function getAttackTarget(attacker, targets){
   const frontLine=live.filter(u=>isFront(u)&&!u.stealth);
   const pool=frontLine.length>0?frontLine:live.filter(u=>!u.stealth);
   const finalPool=pool.length>0?pool:live;
+  // デバッグ：敵が攻撃する際に前衛判定結果をコンソール出力
+  if(targets===G.allies){
+    console.log(`[前衛判定] 攻撃者:${attacker.name} | 生存:${live.map(u=>u.name+'(hate='+u.hate+',hT='+u.hateTurns+',lane='+u.lane+')').join(',')} | 前衛:${frontLine.map(u=>u.name).join(',')||'なし'} | pool:${finalPool.map(u=>u.name).join(',')}`);
+  }
   // 2. 狩人：最もHPの低い相手（前衛優先の中で）
   if(attacker.keywords&&attacker.keywords.includes('狩人')){
     return finalPool.reduce((a,b)=>a.hp<b.hp?a:b);
