@@ -6,6 +6,7 @@
 let _tgtCtx=null;
 let _swapFirst=-1;
 let _spreadTargetPending=false;
+let _spreadPick=null;
 
 function useSpell(idx){
   if(_spreadTargetPending) return; // 拡散の対象選択中は他の杖使用を禁止
@@ -250,7 +251,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   const cMult=(sp.type==='wand'&&catRingC)?2:1;
   const _inReward=G.phase==='reward';
   _spreadTargetPending=false;
-  let _spreadPick=null;
+  _spreadPick=null;
   // インキュバス：アイテム使用時、効果処理の前にナイトメアを召喚
   if(sp.type==='consumable'){
     G.allies.forEach(ic=>{
