@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════
 
 function renderMoveSelect(opts){
-  document.getElementById('mv-title').textContent=`行き先を選んでください（ライフ:${G.life}）`;
+  document.getElementById('mv-title').textContent=`行き先を選んでください`;
   document.getElementById('mv-hint').textContent=opts.length===1&&opts[0].nodeType==='battle'?'この道しかない…':'';
   const el=document.getElementById('mv-opts');
   el.innerHTML='';

@@ -53,7 +53,7 @@ function gradeStr(g){
 
 function initState(){
   G={
-    floor:1, life:20, gold:0,
+    floor:1, gold:0,
     // ── 盤面（6スロット固定・HP持続）──
     allies: Array(6).fill(null),
     enemies:[],

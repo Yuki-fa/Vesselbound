@@ -231,16 +231,14 @@ function _arcanaObserve(){
   log('👁️ 観察：次の戦闘で祭壇か休息所が確定で出現する','gold');
 }
 
-// 血盟：1ダメージを受け1ソウルを得る
+// 血盟：ソウルを1得る
 function _arcanaBlood(){
-  if(G.life<=1){ log('ライフが1以下のため血盟は使えない','bad'); return; }
-  G.life=Math.max(1,G.life-1);
   G.gold+=1;
   G.arcanaUsed=true;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards();
   _renderArcanaBtn();
-  log('🩸 血盟：ライフ-1、ソウル+1','gold');
+  log('🩸 血盟：ソウル+1','gold');
 }
 
 // ── ターゲット選択ヘルパー ─────────────────────────
