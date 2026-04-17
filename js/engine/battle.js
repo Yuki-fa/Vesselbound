@@ -1038,10 +1038,11 @@ function processAllyDeath(unit){
       }
     });
   }
-  // マミー：死亡時、1ソウルを得る
+  // マミー：死亡時、全ての仲間が+1/+3を得る
   if(unit.effect==='mummy_death'){
-    const _mv=1+(G.hasGoldenDrop?1:0); G.gold+=_mv;
-    log(`${unit.name}：死亡→ソウル+${_mv}`,'gold');
+    const _mgd=G.hasGoldenDrop?1:0;
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1+_mgd; a.baseAtk=(a.baseAtk||0)+1+_mgd; a.hp+=3+_mgd; a.maxHp+=3+_mgd; }});
+    log(`${unit.name}：死亡→全仲間+${1+_mgd}/+${3+_mgd}`,'good');
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath();
@@ -1061,10 +1062,11 @@ function _onAnyCharDeath(){
       a.atk+=gv; a.baseAtk=(a.baseAtk||0)+gv; a.hp+=gv; a.maxHp+=gv;
       log(`${a.name}：キャラ死亡→+${gv}/+${gv}`,'good');
     }
-    // レッサーデーモン：味方が死ぬたびにソウル1を得る
+    // レッサーデーモン：味方が死ぬたび、全ての敵に2ダメージ
     if(a&&a.hp>0&&a.effect==='lesser_demon_death'){
-      const _ldv=1+_gd0; G.gold+=_ldv;
-      log(`${a.name}：味方死亡→ソウル+${_ldv}`,'gold');
+      const _lddmg=2+_gd0;
+      G.enemies.forEach((f,fi)=>{ if(f&&f.hp>0) dealDmgToEnemy(f,_lddmg,fi,a); });
+      log(`${a.name}：味方死亡→全敵に${_lddmg}ダメージ`,'good');
     }
   });
   G.enemies.forEach(e=>{

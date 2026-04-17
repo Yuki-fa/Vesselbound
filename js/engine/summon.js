@@ -66,14 +66,6 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
-  // ジャッカロープ：召喚時、「治癒の薬」を1枚得る
-  if(unit.effect==='jackalope_summon'){
-    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-    if(_herb){
-      const _ei=G.spells.indexOf(null);
-      if(_ei>=0){ const _hc=clone(_herb); _hc.usesLeft=_hc._maxUses||1; G.spells[_ei]=_hc; log(`${unit.name}：治癒の薬を入手`,'good'); }
-    }
-  }
   // シルフ：召喚時、隣接する仲間が+1/+2を得る
   if(unit.effect==='sylph_summon'){
     const _si=G.allies.indexOf(unit); const _sv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);

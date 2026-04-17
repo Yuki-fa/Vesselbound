@@ -565,12 +565,13 @@ function applySpell(sp,idx,tgt,_noDecrement){
       else { G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); }
     break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
-    case 'big_rally':{ const rbonus=5*cMult; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus; a.hp+=rbonus; } }); log(`鼓舞の巻物：全仲間HP+${rbonus}！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'big_rally':{ const rbonus=5*cMult; const _jkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0; G.allies.forEach(a=>{ if(a&&a.hp>0){ a.maxHp+=rbonus+_jkb; a.hp+=rbonus+_jkb; } }); log(`鼓舞の巻物：全仲間HP+${rbonus+_jkb}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'reiki_herb':{
       const _ru=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
       if(_ru&&_ru.hp>0){
-        _ru.hp+=3; _ru.maxHp+=3;
-        log(`治癒の薬：${_ru.name}に±0/+3`,'good');
+        const _jkrb=(tgt.who==='ally'&&G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive'))?1+(G.hasGoldenDrop?1:0):0;
+        _ru.hp+=3+_jkrb; _ru.maxHp+=3+_jkrb;
+        log(`治癒の薬：${_ru.name}に±0/+${3+_jkrb}`,'good');
         if(!_inReward) triggerDryadBuff();
       }
     break;}
