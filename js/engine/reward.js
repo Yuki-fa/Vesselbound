@@ -699,10 +699,21 @@ function takeRewCard(i, targetSlot){
       else { G.magicLevel=(G.magicLevel||1)+_mv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
       log(`${unit.name}：使役→魔術レベル+${_mv}（Lv${G.magicLevel}）`,'good');
     }
-    // スリン：全仲間に「成長1」を付与
-    if(unit.effect==='slin_summon'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
-      log(`${unit.name}：全仲間に「成長1」を付与`,'good');
+    // ジャッカロープ：使役時、「治癒の薬」を1枚得る
+    if(unit.effect==='jackalope_summon'){
+      const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
+      if(_herb){ const _ei=G.spells.indexOf(null); if(_ei>=0){ const _hc=clone(_herb); _hc.usesLeft=_hc._maxUses||1; G.spells[_ei]=_hc; log(`${unit.name}：治癒の薬を入手`,'good'); }}
+    }
+    // シルフ：使役時、隣接する仲間が+1/+2を得る
+    if(unit.effect==='sylph_summon'){
+      const _sli=G.allies.indexOf(unit); const _slv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+      [G.allies[_sli-1],G.allies[_sli+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_slv; b.baseAtk=(b.baseAtk||0)+_slv; b.hp+=_slv*2; b.maxHp+=_slv*2; }});
+      log(`${unit.name}：隣接仲間に+${_slv}/+${_slv*2}`,'good');
+    }
+    // インプ：使役時、ランダムなG1アイテムを得る
+    if(unit.effect==='imp_summon'){
+      const _ei=G.spells.indexOf(null);
+      if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${unit.name}：G1アイテムを入手`,'good'); }}
     }
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
@@ -1167,9 +1178,12 @@ function _applyStack(fieldIdx, rewIdx){
     if(_pei>=0){
       G.allies[_pei]=_pelUnit;
       log(`${fieldUnit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
-      // コカトリス：カード効果召喚バフ
+      // グリマルキン（passive）・コカトリス：カード効果召喚バフ
       const _gd=G.hasGoldenDrop?1:0;
-      G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_pelUnit){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); } });
+      G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_pelUnit){
+        if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd; _pelUnit.atk+=_gbv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_gbv; _pelUnit.hp+=_gbv; _pelUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_pelUnit.name}+${_gbv}/+${_gbv}`,'good'); }
+        if(g.effect==='cocatrice_passive'){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); }
+      }});
     }
   }
   if(fieldUnit.effect==='kobold_summon'){
@@ -1177,10 +1191,7 @@ function _applyStack(fieldIdx, rewIdx){
     const _kcs=fieldUnit._stackCount||0; // 増分（新スタック数分）
     if(_kcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_kcs}`,'good'); }
   }
-  if(fieldUnit.effect==='slin_summon'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==fieldUnit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
-    log(`${fieldUnit.name}：全仲間に「成長1」を付与`,'good');
-  }
+  // slin_summon は削除済み（スリンの新効果は負傷）
   fireTrigger('on_summon', null);
   // 3枚重ね（_stackCount=2）で継承可能フラグを立てる
   if(fieldUnit._stackCount>=2){
@@ -1360,11 +1371,7 @@ function sellFieldUnit(idx){
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
     log(`${perytons.name}：以後のキャラクター効果召喚が+${_incr}/±0（累計+${G._grimalkinBonus}）`,'good');
   }
-  // インプ：仲間を還魂すると、ランダムなG1のアイテムを得る
-  G.allies.forEach(imp=>{ if(!imp||imp.hp<=0||imp.effect!=='imp_sell') return;
-    const _ei=G.spells.indexOf(null);
-    if(_ei>=0){ const _item=drawConsumable(1); if(_item){ G.spells[_ei]=_item; log(`${imp.name}：還魂→${_item.name}を入手`,'good'); }}
-  });
+  // imp_sell 削除済み（インプの新効果は使役時）
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderRewCards();

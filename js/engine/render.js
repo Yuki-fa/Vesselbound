@@ -251,7 +251,7 @@ function _drSimAllySlot(ally,allyIdx){
   if(ally.stealth) ally.stealth=false;
   // 攻撃時効果
   if(ally.hp>0){
-    if(ally.effect==='elf_attack'||ally.effect==='elf_shield'){ ally.atk+=1; ally.baseAtk+=1; }
+    // elf_attack/elf_shield は削除済み（エルフの新効果は常在：右隣の攻撃効果2回発動）
     if(ally.effect==='brownie_attack'){
       const _tb=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0); const _thp=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
       G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=_thp; a.maxHp+=_thp; }});
@@ -293,7 +293,7 @@ function _drSimEnemySlot(enemy,_enemyIdx){
   // 攻撃時効果
   if(atkVal>0&&enemy.hp>0){
     if(enemy.effect==='forniot'){ G.enemies.forEach(f=>{ if(f&&f.hp>0) f.atk+=1; }); }
-    if(enemy.effect==='elf_attack'||enemy.effect==='elf_shield'){ enemy.atk+=1; }
+    // elf_attack/elf_shield は削除済み
     if(enemy.effect==='brownie_attack'){ G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }}); }
   }
   const isGlobal=enemy.keywords&&enemy.keywords.includes('全体攻撃');

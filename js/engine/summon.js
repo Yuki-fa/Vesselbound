@@ -66,18 +66,32 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
-  // ジャッカロープ：開戦効果のため、召喚時トリガーは不要（battle.js で処理）
+  // ジャッカロープ：召喚時、「治癒の薬」を1枚得る
+  if(unit.effect==='jackalope_summon'){
+    const _herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
+    if(_herb){
+      const _ei=G.spells.indexOf(null);
+      if(_ei>=0){ const _hc=clone(_herb); _hc.usesLeft=_hc._maxUses||1; G.spells[_ei]=_hc; log(`${unit.name}：治癒の薬を入手`,'good'); }
+    }
+  }
+  // シルフ：召喚時、隣接する仲間が+1/+2を得る
+  if(unit.effect==='sylph_summon'){
+    const _si=G.allies.indexOf(unit); const _sv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+    [G.allies[_si-1],G.allies[_si+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_sv; b.baseAtk=(b.baseAtk||0)+_sv; b.hp+=_sv*2; b.maxHp+=_sv*2; }});
+    log(`${unit.name}：隣接仲間に+${_sv}/+${_sv*2}`,'good');
+  }
+  // インプ：召喚時、ランダムなG1のアイテムを得る
+  if(unit.effect==='imp_summon'){
+    const _ei=G.spells.indexOf(null);
+    if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${unit.name}：G1アイテムを入手`,'good'); }}
+  }
   // コボルド：召喚時、最も左の杖に充填数+(_stackCount+1)
   if(unit.effect==='kobold_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
     const _kc=(unit._stackCount||0)+1;
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_kc}`,'good'); }
   }
-  // スリン：召喚時、全仲間に「成長1」キーワードを付与
-  if(unit.effect==='slin_summon'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&a!==unit){ if(!a.keywords) a.keywords=[]; const _gi=a.keywords.findIndex(k=>/^成長\d+$/.test(k)); if(_gi>=0) a.keywords[_gi]='成長'+(parseInt(a.keywords[_gi].slice(2))+1); else a.keywords.push('成長1'); }});
-    log(`${unit.name}：全仲間に「成長1」を付与`,'good');
-  }
+  // スリン：旧効果（slin_summon）削除済み
   // キメラ：召喚時、ランダムなキーワード3つを得る
   if(unit.effect==='chimera_summon'){
     const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
@@ -111,25 +125,19 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
-  // グリマルキン：キャラクター効果で仲間が召喚された時、自身+1/+1
-  if(fromCharEffect){
-    const _gd=G.hasGoldenDrop?1:0;
-    G.allies.forEach(g=>{
-      if(g&&g.hp>0&&g.effect==='grimalkin_onsum'&&g!==unit){
-        const _gv=1+_gd;
-        g.atk+=_gv; g.baseAtk=(g.baseAtk||0)+_gv; g.hp+=_gv; g.maxHp+=_gv;
-        log(`${g.name}：仲間が召喚→+${_gv}/+${_gv}`,'good');
-      }
-    });
-  }
-  // コカトリス（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間が+2/+1を得る
+  // グリマルキン（passive）・コカトリス（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間にボーナス
   if(fromCharEffect || fromRingId){
     const _gd=G.hasGoldenDrop?1:0;
     G.allies.forEach(g=>{
-      if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==unit){
-        const _cv=2+_gd, _ch=1+_gd;
-        unit.atk+=_cv; unit.baseAtk=(unit.baseAtk||0)+_cv; unit.hp+=_ch; unit.maxHp+=_ch;
-        log(`${g.name}：カード効果召喚→${unit.name}が+${_cv}/+${_ch}`,'good');
+      if(g&&g.hp>0&&g!==unit){
+        if(g.effect==='grimalkin_passive'){
+          const _gv=1+_gd; unit.atk+=_gv; unit.baseAtk=(unit.baseAtk||0)+_gv; unit.hp+=_gv; unit.maxHp+=_gv;
+          log(`${g.name}：カード効果召喚→${unit.name}+${_gv}/+${_gv}`,'good');
+        }
+        if(g.effect==='cocatrice_passive'){
+          const _cv=2+_gd, _ch=1+_gd; unit.atk+=_cv; unit.baseAtk=(unit.baseAtk||0)+_cv; unit.hp+=_ch; unit.maxHp+=_ch;
+          log(`${g.name}：カード効果召喚→${unit.name}が+${_cv}/+${_ch}`,'good');
+        }
       }
     });
   }
