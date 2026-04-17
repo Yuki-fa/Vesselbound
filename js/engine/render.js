@@ -126,8 +126,8 @@ function hideAttackLine(){
 
 function renderAll(){
   const _drResult=G.phase==='player'?_computeDeathRisk():_emptyDR;
-  renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn);
-  renderField('f-enemy', G.enemies, true,  _drResult.enemyRisk, undefined, _drResult.enemyWarn);
+  renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn, _drResult.allyDeathProb);
+  renderField('f-enemy', G.enemies, true,  _drResult.enemyRisk, undefined, _drResult.enemyWarn, _drResult.enemyDeathProb);
   renderHand();
   renderControls();
   renderArcanaBar();
@@ -138,7 +138,7 @@ function renderAll(){
 
 // 戦闘フェイズ1ターン分をモンテカルロシミュレーション（N回）し死亡確率を集計する
 // 確実死（全N回）→ allyRisk/enemyRisk、可能性あり（1〜N-1回）→ allyWarn/enemyWarn
-const _emptyDR={allyRisk:new Set(),enemyRisk:new Set(),allyWarn:new Set(),enemyWarn:new Set()};
+const _emptyDR={allyRisk:new Set(),enemyRisk:new Set(),allyWarn:new Map(),enemyWarn:new Map(),allyDeathProb:new Map(),enemyDeathProb:new Map()};
 function _computeDeathRisk(){
   if(G.phase!=='player') return _emptyDR;
   if(!G.allies.some(a=>a&&a.hp>0)||!G.enemies.some(e=>e&&e.hp>0)) return _emptyDR;
@@ -203,24 +203,32 @@ function _computeDeathRisk(){
       });
     }
 
-    // ── 集計：確実（全回死亡）vs 可能性（一部死亡）──
-    // 閾値：80%以上=確実死(赤)、21-79%=可能性あり(黄)、20%以下=非表示
+    // ── 集計：確実死 / 警告3段階（high/mid/low）──
+    // 80%+→赤(will-die)、60-79%→高(will-warn-high)、40-59%→中(will-warn-mid)、21-39%→低(will-warn-low)
     const _riskThreshold=Math.ceil(N*0.80); // 16/20
-    const _warnThreshold=Math.ceil(N*0.21); // 5/20
-    const allyRisk=new Set(), allyWarn=new Set();
+    const _warnHigh    =Math.ceil(N*0.60); // 12/20
+    const _warnMid     =Math.ceil(N*0.40); //  8/20
+    const _warnThreshold=Math.ceil(N*0.21); //  5/20
+    const _warnLevel=count=>count>=_warnHigh?'high':count>=_warnMid?'mid':'low';
+    const allyRisk=new Set(), allyWarn=new Map(), allyDeathProb=new Map();
     allyDeathCount.forEach((count,i)=>{
       if(!origAliveIds[i]) return;
+      if(count>0) allyDeathProb.set(i, Math.round(count/N*100));
       if(count>=_riskThreshold) allyRisk.add(i);
-      else if(count>=_warnThreshold) allyWarn.add(i);
+      else if(count>=_warnThreshold) allyWarn.set(i,_warnLevel(count));
     });
-    const enemyRisk=new Set(), enemyWarn=new Set();
+    const enemyRisk=new Set(), enemyWarn=new Map(), enemyDeathProb=new Map();
     enemyDeathCount.forEach((count,i)=>{
       if(!origEnemyIds[i]) return;
+      if(count>0) enemyDeathProb.set(i, Math.round(count/N*100));
       if(count>=_riskThreshold) enemyRisk.add(i);
-      else if(count>=_warnThreshold) enemyWarn.add(i);
+      else if(count>=_warnThreshold) enemyWarn.set(i,_warnLevel(count));
     });
-    return {allyRisk, enemyRisk, allyWarn, enemyWarn};
+    return {allyRisk, enemyRisk, allyWarn, enemyWarn, allyDeathProb, enemyDeathProb};
 
+  } catch(e){
+    console.error('[DR] シミュレーションエラー:', e);
+    return _emptyDR;
   } finally {
     // ── 状態を完全復元 ──
     G.allies=_sA; G.enemies=_sE;
@@ -333,14 +341,15 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
-function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
+function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeathProb){
   const el=document.getElementById(id);
   el.innerHTML='';
   const deathRisk=_extDeathRisk!=null?_extDeathRisk:(()=>{
     const _dr=G.phase==='player'?_computeDeathRisk():_emptyDR;
     return isEnemy?_dr.enemyRisk:_dr.allyRisk;
   })();
-  const warnRisk=_extWarnRisk!=null?_extWarnRisk:new Set();
+  const warnRisk=_extWarnRisk!=null?_extWarnRisk:new Map();
+  const deathProb=_extDeathProb!=null?_extDeathProb:new Map();
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
   const prioritySet=new Set();
@@ -398,22 +407,25 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
+        const _probPct=deathProb.get(i);
+        const _zone=_probPct==null?null:_probPct>=100?{cls:'will-die',label:'💀',color:'#ff6060'}:_probPct<=20?{cls:'will-warn-low',label:'死亡確率・小',color:'#f0d000'}:_probPct<=79?{cls:'will-warn-mid',label:'死亡確率・中',color:'#f09000'}:{cls:'will-warn-high',label:'死亡確率・大',color:'#e04800'};
+        const _probTag=_zone!=null?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
         const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
-        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
+        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
         // 優先ターゲットグループは赤枠
         if(prioritySet.has(i)) slot.classList.add('priority-target');
         // 死亡予測：確実（全試行）→ 赤斜線、可能性あり（一部試行）→ 黄斜線
         if(deathRisk.has(i)) slot.classList.add('will-die');
-        else if(warnRisk.has(i)) slot.classList.add('will-warn');
+        else if(warnRisk.has(i)) slot.classList.add('will-warn-'+warnRisk.get(i));
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
       const _mvType=G.moveMasks[i];
