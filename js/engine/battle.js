@@ -1940,7 +1940,7 @@ function applyBossSpell(sp){
     }
     case 'golem':{
       const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:eml,hp:eml,maxHp:eml,baseAtk:eml,
-        grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:['アーティファクト'],powerBroken:false};
+        grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:['アーティファクト'],powerBroken:false,lane:'front'};
       const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
       if(ei>=0) G.enemies[ei]=ne;
       else if(G.enemies.length<6) G.enemies.push(ne);

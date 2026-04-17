@@ -362,7 +362,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk){
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0&&isEnemy&&(u.lane||'front')==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
+    if(u&&u.hp>0&&isEnemy&&u.lane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(u&&u.hp>0){
