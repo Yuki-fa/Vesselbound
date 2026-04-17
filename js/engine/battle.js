@@ -1454,8 +1454,9 @@ function onBattleEnd(){
   // ゾンビ：戦闘終了時、ライフが9になる
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const _prev=G.life; G.life=9;
-    log(`${a.name}：終戦→ライフが${_prev}→9になった`,'good');
+    const zv=9+(G.hasGoldenDrop?1:0);
+    a.hp=zv; a.maxHp=Math.max(a.maxHp,zv);
+    log(`${a.name}：終戦→ライフが${zv}になった`,'good');
   });
 
   // 絆の指輪：一時付与した「結束X」キーワードを削除
