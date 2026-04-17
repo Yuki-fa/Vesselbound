@@ -1203,6 +1203,17 @@ function triggerInjury(unit, dmg=0){
       const _sbHp=_sbG;
       const _sbDmg=3*_sbG;
       const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
+      if(G.phase==='reward'&&!isEnemy){
+        // 報酬フェイズ中の味方アルプ：提示カードにソウルボムを追加
+        const _sbCard=Object.assign({},makeUnitFromDef(_alpDef));
+        _sbCard._isChar=true; _sbCard._rewSummoned=true;
+        let _rslot=-1;
+        for(let _ri=0;_ri<6;_ri++){ if(!_rewCards[_ri]||!_rewCards[_ri]._isChar||_rewCards[_ri].hp<=0){ _rslot=_ri; break; } }
+        if(_rslot>=0) _rewCards[_rslot]=_sbCard; else _rewCards.push(_sbCard);
+        if(typeof renderRewCards==='function') renderRewCards();
+        log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を提示カードに召喚`,col);
+        break;
+      }
       const _alpSlot=oppSide.slice(0,6).findIndex(a=>!a||a.hp<=0);
       if(_alpSlot>=0) oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
       else if(oppSide.length<6) oppSide.push(makeUnitFromDef(_alpDef));
