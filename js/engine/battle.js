@@ -575,8 +575,8 @@ function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   applyVictoryBonuses();
-  G.phase='reward';
   updateHUD(); renderAll();
+  G.phase='reward';
   setTimeout(()=>_handleVictory(),600);
 }
 
