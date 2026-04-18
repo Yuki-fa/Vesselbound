@@ -365,6 +365,34 @@ function _triggerLindwormRew(){
 function _triggerRewCharInjury(unit, dmg=0){
   if(!unit||!unit.injury) return;
   switch(unit.injury){
+    case 'slin':{
+      const _slv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      unit.hp+=_slv; unit.maxHp+=_slv;
+      log(`${unit.name}：負傷→±0/+${_slv}`,'good');
+      _triggerLindwormRew();
+      break;
+    }
+    case 'worm':{
+      const _wv=((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit){ c.atk+=_wv; c.baseAtk=(c.baseAtk||0)+_wv; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.baseAtk=(a.baseAtk||0)+_wv; }});
+      log(`${unit.name}：負傷→全仲間+${_wv}/±0`,'good');
+      _triggerLindwormRew();
+      break;
+    }
+    case 'hydra':{
+      const _hdv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; unit.hp+=_hdv; unit.maxHp+=_hdv;
+      log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,'good');
+      _triggerLindwormRew();
+      break;
+    }
+    case 'limslus':{
+      // 商談フェイズでは敵がいないため効果なし
+      log(`${unit.name}：負傷→敵不在のため効果なし`,'good');
+      _triggerLindwormRew();
+      break;
+    }
     case 'mummy':{
       const mv=1+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
