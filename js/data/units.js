@@ -101,7 +101,7 @@ const UNIT_POOL = [
   {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'呪詛1　負傷：全ての敵に3ダメージを与える。', injury:'limslus', keywords:['呪詛1']},
 
   // ─── G3 通常 ───
-  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'常時：カードの効果で召喚された仲間が+2/+1を得る。', effect:'cocatrice_passive'},
+  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'誘発：他のキャラクターの効果でキャラクターが召喚されると+1/+1を得る。', effect:'cocatrice_passive'},
   {id:'c_phantom',    name:'ファントム',       race:'不死', grade:3, atk:11, hp:48, cost:7,  unique:false, icon:'👤', desc:'誘発：「アク」以外の仲間が死んだ時、0/1、不死の「アク」を召喚する。', effect:'phantom_onallydie'},
   {id:'c_salamander', name:'サラマンダー',     race:'竜',   grade:3, atk:16, hp:40, cost:7,  unique:false, icon:'🔥', desc:'成長4　開戦：全ての敵に4ダメージを与える。', effect:'salamander_start', keywords:['成長4']},
   {id:'c_vampire',    name:'ヴァンパイア',     race:'不死', grade:3, atk:13, hp:45, cost:7,  unique:false, icon:'🧛', desc:'攻撃：全ての仲間の「不死」が+2/+1を得る。', effect:'vampire_attack'},

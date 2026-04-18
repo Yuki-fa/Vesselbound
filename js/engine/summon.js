@@ -127,8 +127,8 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
           log(`${g.name}：カード効果召喚→${unit.name}+${_gv}/+${_gv}`,'good');
         }
         if(g.effect==='cocatrice_passive'){
-          const _cv=2+_gd, _ch=1+_gd; unit.atk+=_cv; unit.baseAtk=(unit.baseAtk||0)+_cv; unit.hp+=_ch; unit.maxHp+=_ch;
-          log(`${g.name}：カード効果召喚→${unit.name}が+${_cv}/+${_ch}`,'good');
+          const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv;
+          log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good');
         }
       }
     });

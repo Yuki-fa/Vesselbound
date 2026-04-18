@@ -266,7 +266,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         { const _gd0=G.hasGoldenDrop?1:0; const _nm2=G.allies[_ei];
           G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_nm2){
             if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd0; _nm2.atk+=_gbv; _nm2.baseAtk=(_nm2.baseAtk||0)+_gbv; _nm2.hp+=_gbv; _nm2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_nm2.name}+${_gbv}/+${_gbv}`,'good'); }
-            if(g.effect==='cocatrice_passive'){ const _cv=2+_gd0,_ch=1+_gd0; _nm2.atk+=_cv; _nm2.baseAtk=(_nm2.baseAtk||0)+_cv; _nm2.hp+=_ch; _nm2.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_nm2.name}+${_cv}/+${_ch}`,'good'); }
+            if(g.effect==='cocatrice_passive'){ const _cv=1+_gd0; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good'); }
           }});
         }
       }
