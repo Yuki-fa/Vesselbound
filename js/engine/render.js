@@ -185,6 +185,12 @@ function _computeDeathRisk(){
       // 標的ターン消費（1ラウンド分）
       G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 
+      // 毒ティック（ターン開始時：battlePhaseと同じ処理）
+      const _simCat=G.rings.find(r=>r&&r.unique==='catalyst');
+      const _simCatM=_simCat?(_simCat.grade||1)+1:1;
+      G.enemies.forEach(e=>{ if(e&&e.poison>0&&e.hp>0){ e.hp=Math.max(0,e.hp-e.poison*_simCatM); } });
+      G.allies.forEach(a=>{ if(a&&a.poison>0&&a.hp>0){ a.hp=Math.max(0,a.hp-a.poison); } });
+
       // 死亡カウントを加算
       G.allies.forEach((a,i)=>{
         if(!origAliveIds[i]) return;

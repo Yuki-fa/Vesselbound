@@ -168,10 +168,38 @@ async function startBattle(){
 
 // ── ターンループ ───────────────────────────────
 
+// ターン開始時の毒ダメージ処理。戦闘終了した場合 true を返す
+async function applyPoisonTick(){
+  const _catRing=G.rings.find(r=>r&&r.unique==='catalyst');
+  const _catMult=_catRing?(_catRing.grade||1)+1:1;
+  const _poisonedE=G.enemies.filter(e=>e&&e.poison>0&&e.hp>0);
+  if(_poisonedE.length){
+    _poisonedE.forEach(e=>{
+      const dmg=e.poison*_catMult;
+      e.hp=Math.max(0,e.hp-dmg);
+      log(`☠ ${e.name}が毒でHP-${dmg}${_catMult>1?'（触媒×'+_catMult+'）':''}（残HP:${e.hp}）`,'bad');
+      if(e.hp<=0) processEnemyDeath(e,G.enemies.indexOf(e));
+    });
+    if(G.enemies.filter(e=>e&&e.hp>0).length===0){ _onAllEnemiesDefeated(); return true; }
+    if(checkInstantVictory()) return true;
+  }
+  const _poisonedA=G.allies.filter(a=>a&&a.poison>0&&a.hp>0);
+  if(_poisonedA.length){
+    _poisonedA.forEach(a=>{
+      a.hp=Math.max(0,a.hp-a.poison);
+      log(`☠ ${a.name}が毒でHP-${a.poison}（残HP:${a.hp}）`,'bad');
+      if(a.hp<=0) processAllyDeath(a,G.allies.indexOf(a));
+    });
+    if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ await sleep(200); gameOver(); return true; }
+  }
+  return false;
+}
+
 async function nextTurn(){
   G.turn++;
   updateHUD();
   log(`── ターン ${G.turn} ──`,'sys');
+  if(await applyPoisonTick()) return;
   await commanderPhase(); // 敵オーナーが何も持っていなければ即return
   startPlayerPhase();
 }
@@ -535,27 +563,6 @@ async function battlePhase(){
   const liveA=G.allies.filter(a=>a&&(a.hp>0));
   if(!liveA.length){ await sleep(200); gameOver(); return; }
 
-  // 毒ティック（敵ターン終了時）
-  const catRing=G.rings.find(r=>r&&r.unique==='catalyst');
-  const catMult=catRing?(catRing.grade||1)+1:1;
-  G.enemies.forEach(e=>{
-    if(e&&e.poison>0&&e.hp>0){
-      const dmg=e.poison*catMult;
-      e.hp=Math.max(0,e.hp-dmg);
-      log(`☠ ${e.name}が毒でHP-${dmg}${catMult>1?'（触媒×'+catMult+'）':''}（残HP:${e.hp}）`,'bad');
-      if(e.hp<=0) processEnemyDeath(e,G.enemies.indexOf(e));
-    }
-  });
-  if(G.enemies.filter(e=>e&&e.hp>0).length===0){ _onAllEnemiesDefeated(); return; }
-  if(checkInstantVictory()) return;
-  G.allies.forEach(a=>{
-    if(a&&a.poison>0&&a.hp>0){
-      a.hp=Math.max(0,a.hp-a.poison);
-      log(`☠ ${a.name}が毒でHP-${a.poison}（残HP:${a.hp}）`,'bad');
-      if(a.hp<=0) processAllyDeath(a, G.allies.indexOf(a));
-    }
-  });
-  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ await sleep(200); gameOver(); return; }
   renderAll();
 
   await sleep(400);
