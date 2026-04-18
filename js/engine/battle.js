@@ -576,7 +576,7 @@ function _onAllEnemiesDefeated(){
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   applyVictoryBonuses();
   G.phase='reward';
-  updateHUD();
+  updateHUD(); renderAll();
   setTimeout(()=>_handleVictory(),600);
 }
 
@@ -1014,7 +1014,7 @@ function processAllyDeath(unit){
   }
   // ソウルボム（アルプ負傷）：死亡時、仲間全員にダメージ
   if(unit.effect==='soul_bomb_death'){
-    const _sbdmg=3*(unit.grade||1);
+    const _sbdmg=5*(unit.grade||1);
     const _sbCopy=[...G.allies];
     _sbCopy.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_sbdmg,ai,unit); });
     log(`${unit.name}：死亡→仲間全員に${_sbdmg}ダメ`,'bad');
@@ -1201,7 +1201,7 @@ function triggerInjury(unit, dmg=0){
       const _alpG=unit.grade||1;
       const _sbG=Math.max(1,_alpG-1); // G1→sbG=1, G2→sbG=1, G3→sbG=2, G4→sbG=3
       const _sbHp=_sbG;
-      const _sbDmg=3*_sbG;
+      const _sbDmg=5*_sbG;
       const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
       if(G.phase==='reward'&&!isEnemy){
         // 報酬フェイズ中の味方アルプ：提示カードにソウルボムを追加
@@ -1682,7 +1682,7 @@ function processEnemyDeath(e,eIdx){
   }
   // ソウルボム（アルプ負傷・敵陣）：死亡時、敵全員にダメージ（プレイヤーに有利）
   if(e.effect==='soul_bomb_death'){
-    const _sbdmg=3*(e.grade||1);
+    const _sbdmg=5*(e.grade||1);
     const _sbCopy=[...G.enemies];
     _sbCopy.forEach((f,fi)=>{ if(f&&f.hp>0&&f!==e) dealDmgToEnemy(f,_sbdmg,fi,e); });
     log(`${e.name}：死亡→敵全員に${_sbdmg}ダメ`,'good');

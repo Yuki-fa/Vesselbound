@@ -90,7 +90,7 @@ function goToReward(){
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
-    const treasureItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},maxGrade2);
+    const treasureItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},maxGrade2);
     if(treasureItem){
       _rewCards.push(treasureItem);
       log('📦 宝箱の中身が報酬欄に追加された！','gold');
@@ -419,7 +419,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       const _alpG=unit.grade||1;
       const _sbG=Math.max(1,_alpG-1);
       const _sbHp=_sbG;
-      const _sbDmg=3*_sbG;
+      const _sbDmg=5*_sbG;
       const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
       const _alpSlot=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_alpSlot>=0) G.allies[_alpSlot]=makeUnitFromDef(_alpDef);
@@ -681,9 +681,12 @@ function takeRewCard(i, targetSlot){
       if(_pei>=0){
         G.allies[_pei]=_pelUnit;
         log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
-        // コカトリス：カード効果召喚バフ
+        // グリマルキン・コカトリス：カード効果召喚バフ
         const _gd=G.hasGoldenDrop?1:0;
-        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_pelUnit){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); } });
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_pelUnit){
+          if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd; _pelUnit.atk+=_gbv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_gbv; _pelUnit.hp+=_gbv; _pelUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_pelUnit.name}+${_gbv}/+${_gbv}`,'good'); }
+          if(g.effect==='cocatrice_passive'){ const _cv=2+_gd,_ch=1+_gd; _pelUnit.atk+=_cv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_cv; _pelUnit.hp+=_ch; _pelUnit.maxHp+=_ch; log(`${g.name}：カード効果召喚→${_pelUnit.name}が+${_cv}/+${_ch}`,'good'); }
+        }});
       }
     }
     // コボルド：最も左の杖に充填数+(_stackCount+1)
@@ -818,9 +821,15 @@ function _renderFieldRow(el){
       const badges=[];
       const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
       // 標的バッジは非表示（is-front の視覚的シフトで代用）
+      if(unit.guardian)badges.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
       if(unit.shield>0)badges.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
+      if(unit.sealed>0)badges.push(`<span class="slot-badge b-seal"${_sd('封印')}>封印</span>`);
+      if(unit.instadead)badges.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
       if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
       if(unit.doomed>0)badges.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${unit.doomed}</span>`);
+      if(unit.regen)badges.push(`<span class="slot-badge b-regen"${_sd('再生')}>再生${unit.regen}</span>`);
+      if(unit.stealth)badges.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
+      if(unit.allyTarget)badges.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag=unit.grade?`<div class="slot-grade">${gradeStr(unit.grade)}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';

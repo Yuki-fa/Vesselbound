@@ -381,15 +381,15 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const bs=[];
         const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
         // 標的バッジは非表示（is-front の視覚的シフトで代用）
-        if(u.guardian) bs.push('<span class="slot-badge b-guard">守護</span>');
+        if(u.guardian) bs.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
         if(u.shield>0) bs.push(`<span class="slot-badge b-shield"${_sd('シールド')}>🛡</span>`);
-        if(u.sealed>0) bs.push('<span class="slot-badge b-seal">封印</span>');
-        if(u.instadead) bs.push('<span class="slot-badge b-dead">即死</span>');
+        if(u.sealed>0) bs.push(`<span class="slot-badge b-seal"${_sd('封印')}>封印</span>`);
+        if(u.instadead) bs.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
         if(u.poison>0) bs.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${u.poison}</span>`);
         if(u.doomed>0) bs.push(`<span class="slot-badge b-dead" data-kwdesc="破滅が10になると死亡する。">破滅${u.doomed}</span>`);
-        if(u.regen) bs.push(`<span class="slot-badge b-regen">再生${u.regen}</span>`);
-        if(u.stealth) bs.push('<span class="slot-badge b-stealth">隠密</span>');
-        if(u.allyTarget) bs.push('<span class="slot-badge b-hate">狙われ</span>');
+        if(u.regen) bs.push(`<span class="slot-badge b-regen"${_sd('再生')}>再生${u.regen}</span>`);
+        if(u.stealth) bs.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
+        if(u.allyTarget) bs.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
         const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
         // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
         // 反撃はキーワード欄に表示。エリート/ボスは他キーワードの1行上。
