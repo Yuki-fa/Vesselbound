@@ -173,20 +173,13 @@ function _computeDeathRisk(){
       G.moveMasks=[...(_sMM||[])];
       G._pendingTreasure=_sPT;
 
-      // 1ターン分シミュレーション（全生存ユニットが1回ずつ行動）
-      const _simEnemies=G.enemies.map((e,i)=>({u:e,i})).filter(({u})=>u&&u.hp>0);
-      const _simAllies =G.allies .map((a,i)=>({u:a,i})).filter(({u})=>u&&u.hp>0&&!u._isSoul);
-      const _simLen=Math.max(_simEnemies.length,_simAllies.length);
-      for(let _si=0;_si<_simLen;_si++){
-        if(_si<_simEnemies.length){
-          const {u:e,i:ei}=_simEnemies[_si];
-          if(e.hp>0) _drSimEnemySlot(e,ei);
-        }
+      // 1ターン分シミュレーション（battlePhaseと同じスロット順：スロットiの敵→味方）
+      for(let i=0;i<6;i++){
+        const e=G.enemies[i];
+        if(e&&e.hp>0) _drSimEnemySlot(e,i);
         if(!G.allies.some(a=>a&&a.hp>0)) break;
-        if(_si<_simAllies.length){
-          const {u:a,i:ai}=_simAllies[_si];
-          if(a.hp>0&&!a._isSoul) _drSimAllySlot(a,ai);
-        }
+        const a=G.allies[i];
+        if(a&&a.hp>0&&!a._isSoul) _drSimAllySlot(a,i);
         if(!G.enemies.some(e=>e&&e.hp>0)) break;
       }
       // 標的ターン消費（1ラウンド分）
