@@ -729,7 +729,8 @@ function renderEnemyHand(){
   if(!area) return;
   const isReward=G.phase==='reward';
   const hasEnemyItems=(G.bossRings&&G.bossRings.some(r=>r))||(G.bossHand&&G.bossHand.some(s=>s));
-  if(!hasEnemyItems&&!isReward){ area.style.display='none'; return; }
+  const keepForBoss=!isReward&&(typeof _isBossFight!=='undefined'&&_isBossFight);
+  if(!hasEnemyItems&&!isReward&&!keepForBoss){ area.style.display='none'; return; }
   area.style.display='';
 
   // 動的取得モード：指輪非表示・インベントリ3枠
