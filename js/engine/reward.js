@@ -639,7 +639,7 @@ function _mkRewDiv(card, onBuy){
   // アイテムカード（杖・消耗品）
   const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
   const t=card.type||'ring';
-  const tColor=t==='ring'?'purple2':t==='wand'?'blue2':'red2';
+  const tColor=t==='ring'?'purple2':t==='wand'&&card.subtype==='wand'?'blue2':t==='wand'?'blue':'red2';
   const g=card.grade||1;
   const gs=card.legend?'★':gradeStr(g);
   const rdesc=computeDesc(card);

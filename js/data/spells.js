@@ -20,40 +20,40 @@ const SPELL_POOL=[
    desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:5},
 
   // ── WANDS（通常報酬プール） ──
-  {id:'w_hate',       name:'撹乱の杖', type:'wand', cost:2,
+  {id:'w_hate',       name:'撹乱の短杖', type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターの隊列を変更する。（前衛なら後衛、後衛なら前衛にする）', effect:'change_formation', needsAny:true, baseUses:4},
 
   {id:'w_poison',     name:'毒の杖',    type:'wand', cost:2,
    desc:'対象のキャラクターに毒Xを与える。', effect:'poison_wand', needsAny:true, baseUses:4},
 
-  {id:'w_sacrifice',  name:'犠牲の杖',  type:'wand', cost:2,
+  {id:'w_sacrifice',  name:'犠牲の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象の仲間を破壊し、全ての敵にそのパワーに等しいダメージを与える。', effect:'sacrifice', needsAlly:true, baseUses:4},
 
   {id:'w_boost_atk',  name:'強化の杖',  type:'wand', cost:2,
    desc:'対象のキャラクターに+X/±0を与える。', effect:'boost_atk', needsAny:true, baseUses:3},
 
-  {id:'w_swap_pos',   name:'転移の杖',  type:'wand', cost:2,
+  {id:'w_swap_pos',   name:'転移の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクター2体の位置を入れ替える。（仲間と敵は不可）', effect:'swap_pos', baseUses:4},
 
-  {id:'w_weaken',     name:'脱力の杖',  type:'wand', cost:2,
+  {id:'w_weaken',     name:'脱力の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターのパワーを1ターンだけ0にする。', effect:'weaken', needsAny:true, baseUses:3},
 
   {id:'w_golem_pool', name:'岩の杖',    type:'wand', cost:2,
    desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:4},
 
-  {id:'w_spread',     name:'拡散の杖',  type:'wand', cost:2, unique:true,
+  {id:'w_spread',     name:'拡散の短杖',  type:'wand', subtype:'wand', cost:2, unique:true,
    desc:'右隣の杖の効果を使用する。', effect:'spread', baseUses:3},
 
   {id:'w_meteor',     name:'隕石の杖',  type:'wand', cost:2,
    desc:'ランダムな敵にXダメージをX回与える。', effect:'meteor_multi', baseUses:4},
 
-  {id:'w_shield_grant', name:'光輝の杖', type:'wand', cost:2,
+  {id:'w_shield_grant', name:'光輝の短杖', type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターにシールドを与える。', effect:'shield_wand', needsAny:true, baseUses:4},
 
   {id:'w_growth_grant', name:'成長の杖', type:'wand', cost:2,
    desc:'対象のキャラクターに成長Xを与える。', effect:'growth_wand', needsAny:true, baseUses:3},
 
-  {id:'w_flash_blade', name:'閃刃の杖', type:'wand', cost:2,
+  {id:'w_flash_blade', name:'閃刃の短杖', type:'wand', subtype:'wand', cost:2,
    desc:'全てのキャラクターに1ダメージを与える。', effect:'flash_blade', baseUses:4},
 
   {id:'w_charm',      name:'魅了の杖',  type:'wand', cost:2,
@@ -62,10 +62,10 @@ const SPELL_POOL=[
   {id:'w_doom',       name:'破滅の杖',  type:'wand', cost:2,
    desc:'全ての敵にXダメージを与える。', effect:'doom', baseUses:4},
 
-  {id:'w_possess',    name:'憑依の杖',  type:'wand', cost:2,
+  {id:'w_possess',    name:'憑依の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象の仲間と、最もパワーの低い敵の場所を入れ替える。', effect:'possess', needsAlly:true, baseUses:4},
 
-  {id:'w_confusion',  name:'混乱の杖',  type:'wand', cost:2,
+  {id:'w_confusion',  name:'混乱の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターのパワーとライフを入れ替える。', effect:'swap_stats', needsAny:true, baseUses:4},
 
   // ── CONSUMABLES ──

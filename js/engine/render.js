@@ -621,7 +621,7 @@ function computeDesc(card,_mlOverride){
   }
   if(gmBonus>0){
     // X は杖のみ魔術レベルで置換（それ以外はXのまま）
-    if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
+    if(card.type==='wand'&&!card.subtype) desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
     // 黄金の雫：残りの全ての数字に gmBonus を加算
     // 除外：①（）内の数値（上限説明）・G1/G2等グレード記号・span化済み
     desc=desc.replace(/（[^）]*）|G\d+|<span[^>]*>[\s\S]*?<\/span>|\d+/g,m=>{
@@ -629,7 +629,7 @@ function computeDesc(card,_mlOverride){
       return `<span style="color:var(--gold2);font-weight:700">${parseInt(m)+gmBonus}</span>`;
     });
   } else {
-    if(card.type==='wand') desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
+    if(card.type==='wand'&&!card.subtype) desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
   // タイミングキーワードを太字化（「開戦：」「終戦：」等）
   desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在|常時)：/g,'<strong>$1</strong>：');
@@ -657,9 +657,11 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
-  div.className=`card ${t}${card.legend?' legend-card':''}`;
+  const _isWandSub=t==='wand'&&card.subtype==='wand';
+  const _subtypeClass=_isWandSub?' wand-sub':'';
+  div.className=`card ${t}${_subtypeClass}${card.legend?' legend-card':''}`;
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=typeLabel[t]||'指輪';
+  const tpLabel=_isWandSub?'短杖':(typeLabel[t]||'指輪');
   const kindLabel='';
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
@@ -670,7 +672,8 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
     :null;
-  const chargeLabel=charges!==null?`<div class="card-charge">チャージ：${charges}</div>`:'';
+  const _chargeColorClass=_isWandSub?' wand-sub':'';
+  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">チャージ：${charges}</div>`:'';
   let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
@@ -681,7 +684,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     }
   }
   const dynDesc=computeDesc(card,_mlOverride);
-  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-tp ${t}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 

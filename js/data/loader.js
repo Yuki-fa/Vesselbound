@@ -333,6 +333,10 @@ async function loadGameData() {
         const nrv = row['報酬中使用不可'];
         if (nrv === 'TRUE' || nrv === '✓') spell.noRewardUse = true;
         else if (nrv === 'FALSE') delete spell.noRewardUse;
+        // 種別2：短杖フラグ
+        const _subtype2 = (row['種別2'] || '').trim();
+        if (_subtype2 === '短杖') spell.subtype = 'wand';
+        else delete spell.subtype;
         spell.desc = desc || '';
       });
     });
