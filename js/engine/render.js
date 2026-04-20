@@ -733,11 +733,10 @@ function renderEnemyHand(){
   const isReward=G.phase==='reward';
   const hasEnemyItems=(G.bossRings&&G.bossRings.some(r=>r))||(G.bossHand&&G.bossHand.some(s=>s));
   const keepForBoss=!isReward&&(typeof _isBossFight!=='undefined'&&_isBossFight);
-  if(!hasEnemyItems&&!isReward&&!keepForBoss){ area.style.display='none'; return; }
-  area.style.display='';
-
   // 動的取得モード：指輪非表示・インベントリ3枠
   const isDynamic=!isReward&&(G._enemyHandDynamic||false);
+  if(!hasEnemyItems&&!isReward&&(!keepForBoss||isDynamic)){ area.style.display='none'; return; }
+  area.style.display='';
 
   // 指輪パネル（動的取得モード・報酬フェイズは非表示。戦闘中通常は表示）
   const ringsPane=document.getElementById('enemy-rings-pane');

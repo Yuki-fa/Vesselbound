@@ -28,7 +28,7 @@ function chooseMove(nt){
     showScreen('battle'); startBattle();
   }
   else if(nt==='smithy'){
-    // 洞窟の奥へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity4アイテム1つ追加
+    // 洞窟の奥へ：戦力1.2倍の戦闘 + 報酬フェイズで1グレード高いキャラが提示される
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingCaveBonus=true;
@@ -36,7 +36,7 @@ function chooseMove(nt){
     showScreen('battle'); startBattle();
   }
   else if(nt==='rest'){
-    // 湖の畔へ：戦力1.2倍の戦闘 + 報酬フェイズでrarity2以下指輪2つ追加
+    // 湖の畔へ：戦力1.2倍の戦闘 + 敵が指輪を確定ドロップする
     if(G.arcana&&G.arcana.id==='強欲') G.arcanaCarryGold=Math.min(G.gold,3);
     G._extraBattleMult=1.2;
     G._pendingPondBonus=true;

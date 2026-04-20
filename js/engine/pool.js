@@ -221,19 +221,69 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  // キャラクター（初期3体、報酬グレードアップで増加）、杖、消耗品
-  const chars=drawCharacters(G.rewardCharCount||3);
-  const wand=_drawByType('wand',1)[0]||null;
-  const item=_drawByType('consumable',1)[0]||null;
-  const res=[...chars];
-  if(wand) res.push(wand);
-  if(item) res.push(item);
-  // 祭壇効果①：ユニークスロット
+
+  const floor=G.floor||1;
+  const isTown=!!(FLOOR_DATA[floor]&&FLOOR_DATA[floor].town);
+  const fd=FLOOR_DATA[floor]||{grade:1};
+  const currentGrade=G.rewardGrade||fd.grade||1;
+
+  // キャラ枚数：1-4階=3枚、6-9階=4枚、11-14階=5枚、16-19階=6枚
+  // 街（5,10,15,20階）は前セクション+1枚
+  let charCount;
+  if(isTown){
+    charCount=Math.min(6, Math.floor(floor/5)+3);
+  } else {
+    const section=Math.ceil(floor/5);
+    charCount=section+2;
+  }
+  charCount=Math.min(charCount, G.rewardCharCount||charCount);
+
+  // グレード確定枠（1-5階は確定枠なし）
+  const guaranteedGrade=floor>=6?currentGrade:0;
+
+  // キャラ抽選
+  let chars;
+  if(guaranteedGrade>0){
+    chars=drawCharacters(charCount-1);
+    const guaranteedChar=drawCharacterOfGrade(guaranteedGrade);
+    if(guaranteedChar) chars.push(guaranteedChar);
+    else chars=drawCharacters(charCount);
+  } else {
+    chars=drawCharacters(charCount);
+  }
+
+  // アイテム：街=杖1+消耗品1、通常=消耗品2
+  let items=[];
+  if(isTown){
+    const wand=_drawByType('wand',1)[0]||null;
+    const item=_drawByType('consumable',1)[0]||null;
+    if(wand) items.push(wand);
+    if(item) items.push(item);
+  } else {
+    const item1=_drawByType('consumable',1)[0]||null;
+    const item2=_drawByType('consumable',1)[0]||null;
+    if(item1) items.push(item1);
+    if(item2&&item2.id!==item1?.id) items.push(item2);
+  }
+
+  const res=[...chars,...items];
   if(G._nextRewardUniqueSlot){
     G._nextRewardUniqueSlot=false;
     _applyUniqueSlot(res);
   }
   return res;
+}
+
+// 指定グレードのキャラを1体抽選（グレード確定枠用）
+function drawCharacterOfGrade(grade){
+  const pool=UNIT_POOL.filter(u=>!u.starterOnly&&u.rarity!==-1&&u.id!=='c_golem'&&!u.unique&&(u.grade||1)===grade&&!(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)));
+  if(!pool.length) return null;
+  const def=randFrom(pool);
+  const c=clone(def);
+  c._isChar=true;
+  c._buyPrice=calcBuyPrice(c);
+  if(c.rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
+  return c;
 }
 
 // ── 消耗品のみ抽選（休息所・インプ用）──────────────

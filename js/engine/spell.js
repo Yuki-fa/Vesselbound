@@ -381,6 +381,10 @@ function applySpell(sp,idx,tgt,_noDecrement){
         const weakE=liveE.reduce((m,x)=>x.e.atk<m.e.atk?x:m,liveE[0]);
         const ei=weakE.i;
         // チーム間で入れ替え：味方→敵陣、敵→味方陣
+        // 憤激の指輪：味方が敵陣に移動→fury解除、敵が味方陣に移動→fury付与
+        if(pa._furyAtk){ pa.atk-=pa._furyAtk; pa.baseAtk-=pa._furyAtk; delete pa._furyAtk; }
+        const _possFuryR=G.rings&&G.rings.find(r=>r&&r.unique==='fury_start');
+        if(_possFuryR){ const _fb=3*(_possFuryR.grade||1); weakE.e.atk+=_fb; weakE.e.baseAtk=(weakE.e.baseAtk||0)+_fb; weakE.e._furyAtk=_fb; }
         G.allies[pi]=weakE.e;
         G.enemies[ei]=pa;
         log(`憑依：${pa.name}(${pi+1})⟺${weakE.e.name}(${ei+1})`,'good');
@@ -643,6 +647,9 @@ function applySpell(sp,idx,tgt,_noDecrement){
         if(!e||e.hp<=0) break;
         const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot<0){ log('魅了の杖：盤面が満杯','bad'); break; }
+        // 憤激の指輪：敵が仲間になったらfury付与
+        const _chFuryR=G.rings&&G.rings.find(r=>r&&r.unique==='fury_start');
+        if(_chFuryR){ const _fb=3*(_chFuryR.grade||1); e.atk+=_fb; e.baseAtk=(e.baseAtk||0)+_fb; e._furyAtk=_fb; }
         G.allies[emptySlot]=e;
         G.enemies[tgt.idx]=null;
         log(`✨ 魅了の杖：${e.name}(ATK${e.atk}≤${ml})を仲間にした！`,'good');
@@ -723,11 +730,9 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
   if(G.actionsLeft<=0&&!G._debugMode){
-    setHint('行動終了。自動でターンを終了します...');
-    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+    setHint('行動終了。移動先を選んで先へ進むか、ターン終了してください。');
   } else if(!hasUsable&&!G._debugMode){
-    setHint('使用できる魔法がありません。自動でターンを終了します...');
-    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+    setHint('使用できる魔法がありません。ターン終了してください。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

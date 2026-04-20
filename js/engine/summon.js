@@ -117,6 +117,11 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
   G.battleCounters.summons++;
+  // 憤激の指輪：戦闘中に召喚された仲間にもボーナスを即時適用
+  if(G.phase!=='reward'){
+    const _furyR=G.rings&&G.rings.find(r=>r&&r.unique==='fury_start');
+    if(_furyR){ const _fb=3*(_furyR.grade||1); unit.atk+=_fb; unit.baseAtk=(unit.baseAtk||0)+_fb; unit._furyAtk=(unit._furyAtk||0)+_fb; }
+  }
   // グリマルキン（passive）・コカトリス（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間にボーナス
   if(fromCharEffect || fromRingId){
     const _gd=G.hasGoldenDrop?1:0;

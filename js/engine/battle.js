@@ -5,6 +5,13 @@
 
 let _isBossFight = false;
 
+// 特殊オブジェクト定義（非ボス戦でランダム配置）
+const BATTLE_OBJECTS=[
+  {id:'rock',        name:'岩',   icon:'🪨', prob:0.15, hpMult:5, effect:null,          desc:'効果なし'},
+  {id:'barrel',      name:'樽',   icon:'🛢️', prob:0.10, hpMult:3, effect:'barrel',      desc:'宝箱(30%)または爆発(30%)'},
+  {id:'spirit_tree', name:'霊木', icon:'🌳', prob:0.05, hpMult:4, effect:'spirit_tree', desc:'破壊でソウル+1'},
+];
+
 // ドリアード：攻撃時にランダムな仲間2体+1/+1（旧バフ系トリガーは廃止）
 function triggerDryadBuff(){ /* 廃止済み - ドリアードは攻撃時効果に変更 */ }
 
@@ -44,9 +51,65 @@ function _handleVictory(){
   if(G.phase!=='reward') return;
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
     showScreen('clear');
+  } else if(G._pendingTreasure||G._barrelTreasure){
+    // 宝箱がある場合は即時公開モーダルを表示（You Winをスキップ）
+    _showTreasureModal(()=>goToReward());
   } else {
     showVictoryOverlay();
   }
+}
+
+// ── 宝箱即時公開モーダル ────────────────────────
+function _showTreasureModal(onDone){
+  const modal=document.getElementById('treasure-modal');
+  if(!modal){ onDone(); return; }
+  const grade=FLOOR_DATA[G.floor]?.grade||1;
+  const items=[];
+  if(G._barrelTreasure){ items.push(G._barrelTreasure); G._barrelTreasure=null; }
+  if(G._pendingTreasure){
+    G._pendingTreasure=false;
+    G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
+    G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
+    const item=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},Math.min(4,grade+1));
+    if(item) items.push(item);
+  }
+  if(!items.length){ onDone(); return; }
+  const container=document.getElementById('treasure-items');
+  if(!container){ onDone(); return; }
+  container.innerHTML='';
+  items.forEach((item)=>{
+    const div=mkCardEl(item,0,'spell-enemy');
+    div.style.cssText=(div.style.cssText||'')+';flex-shrink:0';
+    const takeBtn=document.createElement('button');
+    takeBtn.className='btn'; takeBtn.textContent='取得';
+    takeBtn.onclick=()=>{
+      if(takeBtn.disabled) return;
+      if(item.kind==='summon'||item.kind==='passive'||item.type==='ring'){
+        const _ri=G.rings.slice(0,G.ringSlots).indexOf(null);
+        if(_ri>=0){ const _rc=clone(item); delete _rc._buyPrice; G.rings[_ri]=_rc; log(`📦 宝箱：${item.name}を装備`,'gold'); }
+        else { G.spells.push(item); log(`📦 宝箱：${item.name}をインベントリへ`,'gold'); }
+      } else {
+        const _hi=G.spells.indexOf(null);
+        if(_hi>=0){ const _ic=clone(item); if(_ic.type==='wand'&&_ic.usesLeft===undefined){ _ic.usesLeft=_ic.baseUses||4; _ic._maxUses=_ic.usesLeft; } G.spells[_hi]=_ic; log(`📦 宝箱：${item.name}を取得`,'gold'); }
+        else { log(`📦 宝箱：${item.name}（インベントリ満杯・捨てた）`,'sys'); }
+      }
+      takeBtn.disabled=true; discardBtn.disabled=true; div.style.opacity='0.5';
+    };
+    const discardBtn=document.createElement('button');
+    discardBtn.className='btn'; discardBtn.textContent='捨てる';
+    discardBtn.style.color='var(--red2)';
+    discardBtn.onclick=()=>{ if(discardBtn.disabled) return; log(`📦 宝箱：${item.name}を捨てた`,'sys'); takeBtn.disabled=true; discardBtn.disabled=true; div.style.opacity='0.4'; };
+    const btnRow=document.createElement('div');
+    btnRow.style.cssText='display:flex;gap:6px;margin-top:6px;justify-content:center';
+    btnRow.appendChild(takeBtn); btnRow.appendChild(discardBtn);
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;flex-direction:column;align-items:center';
+    wrap.appendChild(div); wrap.appendChild(btnRow);
+    container.appendChild(wrap);
+  });
+  const doneBtn=document.getElementById('treasure-done-btn');
+  if(doneBtn){ doneBtn.onclick=()=>{ modal.style.display='none'; onDone(); }; }
+  modal.style.display='flex';
 }
 
 // ── リーダーボーナス（敵側）──────────────────────
@@ -128,6 +191,30 @@ async function startBattle(){
   G.battleCounters={damage:0,deaths:0};
 
   G.enemies=generateEnemies(G.floor);
+  // 特殊オブジェクトをランダム配置（ボス戦・エリート戦は除く）
+  if(!FLOOR_DATA[G.floor]?.boss){
+    const _objGrade=FLOOR_DATA[G.floor]?.grade||1;
+    for(let _oi=0;_oi<6;_oi++){
+      if(G.enemies[_oi]) continue;
+      const roll=Math.random();
+      let cumProb=0;
+      for(const obj of BATTLE_OBJECTS){
+        cumProb+=obj.prob;
+        if(roll<cumProb){
+          const hp=Math.ceil(_objGrade*obj.hpMult);
+          G.enemies[_oi]={
+            id:`obj_${obj.id}_${_oi}`,
+            name:obj.name, icon:obj.icon,
+            atk:0, hp, maxHp:hp,
+            race:'-', grade:0, keywords:[],
+            _isObject:true, _objectEffect:obj.effect,
+            lane:'front',
+          };
+          break;
+        }
+      }
+    }
+  }
   // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
   G.enemies.forEach(e=>{
     if(!e) return;
@@ -145,6 +232,8 @@ async function startBattle(){
   // ── 味方の戦闘状態をリセット（HP は保持）──
   G.allies.forEach(a=>{
     if(!a) return;
+    // 憤激の指輪ボーナスを前回分リセット（次の戦闘で再適用する）
+    if(a._furyAtk){ a.atk-=a._furyAtk; a.baseAtk-=a._furyAtk; delete a._furyAtk; }
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
@@ -570,7 +659,7 @@ async function battlePhase(){
 }
 
 function _checkBattleOver(){
-  if(G.enemies.filter(e=>e&&e.hp>0).length===0){
+  if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     _onAllEnemiesDefeated();
     return true;
   }
@@ -581,6 +670,15 @@ function _checkBattleOver(){
 function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
+  // 湖の畔ボーナス：指輪を確定ドロップ
+  if(G._pendingPondBonus){
+    const _pondPool=typeof getRingPool==='function'?getRingPool():[];
+    if(_pondPool.length){
+      const _pondRing=randFrom(_pondPool);
+      G._pondRingDrop=_pondRing;
+      log(`💧 湖：${_pondRing.name}をドロップ予定`,'gold');
+    }
+  }
   applyVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
@@ -701,7 +799,7 @@ function _applyEnemyAttackEffects(enemy){
 
 // 攻撃ターゲットを決定する
 function getAttackTarget(attacker, targets){
-  const live=targets.filter(u=>u&&u.hp>0);
+  const live=targets.filter(u=>u&&u.hp>0&&!u._isObject); // オブジェクトは攻撃対象から除外
   if(!live.length) return null;
   // 前衛判定：hate=true（味方前衛）または lane==='front'（明示設定の敵前衛）
   // ※ lane 未設定（undefined）の味方ユニットは前衛判定しない
@@ -1288,7 +1386,7 @@ function onBattleStart(){
   G.rings.forEach(r=>{
     if(r&&r.unique==='fury_start'){
       const fb=3*(r.grade||1);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; a._furyAtk=(a._furyAtk||0)+fb; }});
       log(`憤激の指輪：全仲間パワー+${fb}/±0`,'good');
       triggerDryadBuff();
     }
@@ -1525,7 +1623,7 @@ function applyVictoryBonuses(){
 // ── スペル使用後の勝利チェック ──────────────────
 
 function checkInstantVictory(){
-  if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0).length===0){
+  if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     applyVictoryBonuses();
     log('全敵撃破！','gold');
@@ -1658,6 +1756,34 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
+  // 特殊オブジェクトの破壊処理（通常の死亡処理をスキップ）
+  if(e._isObject){
+    if(e._objectEffect==='barrel'){
+      const _broll=Math.random();
+      if(_broll<0.30){
+        // 宝箱を生成
+        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
+        const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
+        if(_bItem){ G._barrelTreasure=_bItem; log(`🛢️ 樽：宝箱が出た！`,'gold'); }
+      } else if(_broll<0.60){
+        // 爆発：隣接する非オブジェクト敵にダメージ（味方には当たらない）
+        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
+        const _bdmg=Math.ceil(_bGrade*3);
+        [eIdx-1,eIdx+1].forEach(ni=>{
+          const ne=G.enemies[ni];
+          if(ne&&ne.hp>0&&!ne._isObject){ dealDmgToEnemy(ne,_bdmg,ni,null); log(`💥 樽爆発：${ne.name}に${_bdmg}ダメージ`,'bad'); }
+        });
+      } else {
+        log(`🛢️ 樽：何も起きなかった`,'sys');
+      }
+    } else if(e._objectEffect==='spirit_tree'){
+      onGoldGained(1);
+      log(`🌳 霊木破壊：ソウル+1`,'gold');
+    }
+    e.hp=0;
+    renderAll();
+    return;
+  }
   // エリート判定：キーワードではなくインデックスで判定（ENEMY_POOLデータにエリートKWが混入しても誤発火しない）
   const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
   if(_isActualElite) G._eliteKilled=true;
