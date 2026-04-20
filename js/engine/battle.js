@@ -134,6 +134,7 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
+  G._masterHandReady=false;
   G._retreated=false;
   G._retreatTargetNodeType=null;
   G._pendingSkelRevive=[];

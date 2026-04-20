@@ -152,6 +152,7 @@ function goToReward(){
   document.getElementById('ph-badge').className='ph-badge';
   document.getElementById('h-floor').textContent=G.floor+1;
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
+  G._masterHandReady=true; // ここから敵インベントリエリアを報酬UIとして使用
   _generateMasterHand(); // renderRewCards前に杖・アイテムを抽出してmasterHandへ
   renderRewCards();
   renderGradeUpBtn();
@@ -1481,36 +1482,31 @@ function renderHeRingSlots(){
   if(handPaneRe) handPaneRe.style.flex=10-R;
   const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
   const rm=document.getElementById('ring-max');   if(rm) rm.textContent=R;
-  const _isReadOnly=!G._isShop&&G.phase==='reward';
+  const _rewPhase=!G._isShop&&G.phase==='reward';
   for(let i=0;i<R;i++){
     const ring=G.rings[i];
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
-      if(_isReadOnly){
-        div.style.cssText='opacity:0.4;filter:grayscale(0.5);cursor:default;pointer-events:none';
-        div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>`;
-      } else {
-        div.draggable=true;
-        const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
-        div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
-        div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
-        div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
-        div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-        div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
-        div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
-        div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-        div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard('rings',i); });
-      }
+      div.draggable=true;
+      const _ringBtn=G._isShop
+        ?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`
+        :(!_rewPhase?`<button class="discard-btn" title="破棄">破棄</button>`:'');
+      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
+      if(_ringBtn) div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
+      div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
+      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
+      div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
+      div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard('rings',i); });
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty';
-      if(!_isReadOnly){
-        ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
-        ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
-        ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard('rings',i); });
-      }
+      ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
+      ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
+      ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard('rings',i); });
       el.appendChild(ph);
     }
   }
@@ -1539,6 +1535,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       div.className=`card ${t}`;
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
       div.draggable=true;
+      const _rewPhaseInv=!G._isShop&&G.phase==='reward';
+      if(_isRingInHand&&_rewPhaseInv) div.style.cssText=(div.style.cssText||'')+';opacity:0.45;filter:grayscale(0.45)';
       const _gradeEl=`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(card.grade||1)}</span>`;
       const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
