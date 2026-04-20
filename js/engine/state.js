@@ -102,6 +102,7 @@ function initState(){
     _extraBattleMult:1.0,  // 洞窟/池ノードで 1.2x
     _pendingCaveBonus:false,  // 洞窟：rarity4アイテム1つ追加
     _pendingPondBonus:false,  // 池：rarity≤2指輪2つ追加
+    _isTreasurePhase:false,   // 宝箱回収中フラグ（UI操作ロック用）
     _soulIncomeBonus:0,    // 魔神の秘薬：戦闘終了時ソウル追加
     // ── 敵オーナーシステム ──
     bossRings:[],         // 敵オーナーが装備している指輪

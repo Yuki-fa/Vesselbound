@@ -59,6 +59,12 @@ function _handleVictory(){
     setTimeout(()=>{
       if(ov) ov.style.display='none';
       if(btn) btn.style.display='';
+      G._isTreasurePhase=true;
+      // 宝箱フェイズ中は行動ボタンを隠す
+      const passBtn=document.getElementById('btn-pass');
+      if(passBtn) passBtn.style.display='none';
+      const logWrap=document.getElementById('log-wrap');
+      if(logWrap) logWrap.style.display='none';
       // 保留中の宝箱アイテムをフィールドに配置
       if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
         G._pendingTreasureItems.forEach(item=>{
@@ -144,6 +150,8 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
+  G._pendingPondBonus=false;
+  G._isTreasurePhase=false;
   G._masterHandReady=false;
   G._retreated=false;
   G._retreatTargetNodeType=null;
@@ -690,6 +698,7 @@ function _onAllEnemiesDefeated(){
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   // 湖の畔ボーナス：指輪を確定ドロップ
   if(G._pendingPondBonus){
+    G._pendingPondBonus=false;
     const _pondPool=typeof getRingPool==='function'?getRingPool():[];
     if(_pondPool.length){
       const _pondRing=randFrom(_pondPool);

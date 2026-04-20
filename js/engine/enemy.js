@@ -258,7 +258,13 @@ function generateMoveMasks(){
   if(isBoss){ masks[G._bossSlot||0]='battle'; return masks; }
 
   // ボス直前フロア：ボス戦マスのみ（鍛冶屋・休息所は出現しない）
-  if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[randi(0,2)]='boss'; return masks; }
+  // オブジェクトを除いた実際の敵スロットから選ぶ
+  if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){
+    const _preReal=G.enemies.map((e,i)=>(e&&!e._isObject&&!e._isTreasureItem?i:-1)).filter(i=>i>=0);
+    const _preSlot=_preReal.length>0?_preReal[Math.floor(Math.random()*_preReal.length)]:0;
+    masks[_preSlot]='boss';
+    return masks;
+  }
 
   // 通常戦：エリートのスロットは宝箱確定、候補から除外してランダム配置
   // null・オブジェクト・宝箱スロットを除き、実際の敵がいるスロットのみを候補にする

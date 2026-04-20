@@ -37,6 +37,7 @@ const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring')
 function goToReward(){
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
+  G._isTreasurePhase=false;
   _rewFreePickDone=false;
   const isTown=!!(FLOOR_DATA[G.floor]&&FLOOR_DATA[G.floor].town);
   G._isRewardTown=isTown;
@@ -143,7 +144,7 @@ function goToReward(){
 
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-count').textContent=5;
-  const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display='none'; }
 
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
@@ -880,7 +881,7 @@ function _renderFieldRow(el){
     const div=document.createElement('div');
     if(unit&&unit.hp>0){
       div.className='slot'+(unit.hate&&unit.hateTurns>0?' is-front':'');
-      div.draggable=true;
+      if(!G._isTreasurePhase) div.draggable=true;
       const badges=[];
       const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
       // 標的バッジは非表示（is-front の視覚的シフトで代用）
@@ -912,8 +913,10 @@ function _renderFieldRow(el){
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
-      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
-      div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+      const _returnBtnHtml=G._isTreasurePhase?'':'<button class="return-btn">還魂（ソウル+1）</button>';
+      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>${_returnBtnHtml}`;
+      const _rb=div.querySelector('.return-btn');
+      if(_rb) _rb.onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       // 継承ボタン（3枚重ね完了時のみ表示）
       if(unit._canInherit){
         const inheritBtn=document.createElement('button');
@@ -935,15 +938,15 @@ function _renderFieldRow(el){
         }
         updateHUD(); renderFieldEditor();
       };
-      div.addEventListener('dragstart',e=>{
+      if(!G._isTreasurePhase) div.addEventListener('dragstart',e=>{
         _fieldDragSrc=i; _fieldDragSrcEl=div; _fieldDragStartY=e.clientY;
         div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
         _createDragGhost(div);
       });
-      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      div.addEventListener('dragend',e=>{
+      if(!G._isTreasurePhase) div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      if(!G._isTreasurePhase) div.addEventListener('dragend',e=>{
         const srcIdx=_fieldDragSrc; // dropで既に-1になっていれば移動済み
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
