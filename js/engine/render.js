@@ -240,8 +240,8 @@ function _drSimAllySlot(ally,allyIdx){
   if(ally.hp>0){
     // elf_attack/elf_shield は削除済み（エルフの新効果は常在：右隣の攻撃効果2回発動）
     if(ally.effect==='brownie_attack'){
-      const _tb=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0); const _thp=1+(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_tb>0){a.atk+=_tb;a.baseAtk=(a.baseAtk||0)+_tb;} a.hp+=_thp; a.maxHp+=_thp; }});
+      const _thp=1+(G.hasGoldenDrop?1:0);
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_thp; a.maxHp+=_thp; }});
     }
     if(ally.effect==='forniot'){
       G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
@@ -338,7 +338,8 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
   const warnRisk=_extWarnRisk!=null?_extWarnRisk:new Map();
   const deathProb=_extDeathProb!=null?_extDeathProb:new Map();
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
-  const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0);
+  // _isObject のユニットは攻撃対象外なので除外
+  const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._isObject);
   const prioritySet=new Set();
   if(isEnemy){
     // allyTarget 強制指定 → 前衛（lane==='front' or hate）→ 全生存敵
@@ -419,7 +420,8 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
-        const _probPct=deathProb.get(i);
+        const _isObj=!!u._isObject;
+        const _probPct=_isObj?null:deathProb.get(i);
         const _zone=_probPct==null?null:_probPct>=100?{cls:'will-die',label:'💀',color:'#ff6060'}:_probPct<=20?{cls:'will-warn-low',label:'死亡確率・小',color:'#f0d000'}:_probPct<=79?{cls:'will-warn-mid',label:'死亡確率・中',color:'#f09000'}:{cls:'will-warn-high',label:'死亡確率・大',color:'#e04800'};
         const _probTag=_zone!=null?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
@@ -433,11 +435,12 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
           slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
-        // 優先ターゲットグループは赤枠
-        if(prioritySet.has(i)) slot.classList.add('priority-target');
-        // 死亡予測：枠クラスをdeathProbの同じ閾値で決定（テキストラベルと一致させる）
-        if(deathRisk.has(i)) slot.classList.add('will-die');
-        else { const _dp=deathProb.get(i); if(_dp!=null&&_dp>0) slot.classList.add('will-warn-'+(_dp<=20?'low':_dp<=79?'mid':'high')); }
+        // オブジェクトは攻撃対象外なので赤枠・死亡予測は表示しない
+        if(!_isObj){
+          if(prioritySet.has(i)) slot.classList.add('priority-target');
+          if(deathRisk.has(i)) slot.classList.add('will-die');
+          else { const _dp=deathProb.get(i); if(_dp!=null&&_dp>0) slot.classList.add('will-warn-'+(_dp<=20?'low':_dp<=79?'mid':'high')); }
+        }
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
       const _mvType=G.moveMasks[i];
@@ -623,8 +626,8 @@ function computeDesc(card,_mlOverride){
   // 黄金の雫：X表示と全ての残数値に gmBonus を加算
   // 両方ある場合：召喚スタッツは (gmBonus+grimBonus)、他の数値は gmBonus のみ
   if(grimBonus>0||gmBonus>0){
-    const summonAtkBonus=gmBonus+grimBonus; // ATK：黄金の雫＋ペリュトン
-    const summonHpBonus=gmBonus;            // HP：黄金の雫のみ（ペリュトンはATKのみ）
+    const summonAtkBonus=gmBonus;            // ATK：黄金の雫のみ（ペリュトンはHPのみ）
+    const summonHpBonus=gmBonus+grimBonus; // HP：黄金の雫＋ペリュトン
     if(summonAtkBonus>0||summonHpBonus>0){
       // 「数字/数字、」パターンのみを対象にする（±0/+1 や +X/+X などは絶対に対象外）
       desc=desc.replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>{

@@ -721,7 +721,7 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→全敵-${_gmv}/±0`,'good');
   }
   if(ally.effect==='jack_attack'){
-    const _jv=_sc+_gd; G._jackBonus=(G._jackBonus||0)+_jv;
+    const _jv=1+_gd; G._jackBonus=(G._jackBonus||0)+_jv;
     log(`${ally.name}：攻撃→今後のキャラ±0/+${_jv}（累計+${G._jackBonus}）`,'good');
   }
   if(ally.effect==='arachas_attack'){
@@ -751,6 +751,10 @@ function _applyAllyAttackEffects(ally){
     const _sv=_sc+_gd;
     G._specterBonus=(G._specterBonus||0)+_sv;
     log(`${ally.name}：攻撃→今後の「不死」に+${_sv}/+${_sv}（累計+${G._specterBonus}）`,'good');
+  }
+  if(ally.effect==='lesser_demon_attack'){
+    G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+1;
+    log(`${ally.name}：攻撃→次の購入アイテムが-1ソウル（累計-${G._lesserDemonDiscount}）`,'good');
   }
   // ドラウグは受動効果（攻撃時ではなく被攻撃時）のため、ここでは処理しない
   // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1（ウンディーネ自身も含む）
@@ -1123,7 +1127,7 @@ function processAllyDeath(unit){
       { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
       { const _gd=G.hasGoldenDrop?1:0;
-        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_boneUnit){ const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good'); } }); }
+        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_boneUnit){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
       checkSolitudeBuff();
     }
   }
@@ -1148,7 +1152,7 @@ function processAllyDeath(unit){
         { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
         { const _gd=G.hasGoldenDrop?1:0;
-          G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_akUnit){ const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good'); } }); }
+          G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_akUnit){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
         checkSolitudeBuff();
       }
     });
@@ -1171,17 +1175,11 @@ function _onAnyCharDeath(){
       a.atk+=nv; a.baseAtk=(a.baseAtk||0)+nv; a.hp+=nhv; a.maxHp+=nhv;
       log(`${a.name}：キャラ死亡→+${nv}/+${nhv}`,'good');
     }
-    // ゴースト：他のキャラクターが死亡するたびに+1/+1
+    // ゴースト：他のキャラクターが死亡するたびにHP+2
     if(a&&a.hp>0&&a.effect==='ghost_ondeath'){
-      const gv=((a._stackCount||0)+1)+_gd0;
-      a.atk+=gv; a.baseAtk=(a.baseAtk||0)+gv; a.hp+=gv; a.maxHp+=gv;
-      log(`${a.name}：キャラ死亡→+${gv}/+${gv}`,'good');
-    }
-    // レッサーデーモン：味方が死ぬたび、全ての敵に2ダメージ
-    if(a&&a.hp>0&&a.effect==='lesser_demon_death'){
-      const _lddmg=2+_gd0;
-      G.enemies.forEach((f,fi)=>{ if(f&&f.hp>0) dealDmgToEnemy(f,_lddmg,fi,a); });
-      log(`${a.name}：味方死亡→全敵に${_lddmg}ダメージ`,'good');
+      const _ghv=2+_gd0;
+      a.hp+=_ghv; a.maxHp+=_ghv;
+      log(`${a.name}：キャラ死亡→±0/+${_ghv}`,'good');
     }
   });
   G.enemies.forEach(e=>{
@@ -1343,6 +1341,22 @@ function triggerInjury(unit, dmg=0){
       log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,col);
       break;
     }
+    case 'shadow':{
+      // 正面のキャラクターに変身（スタッツは変わらない）
+      const _shadowIdx=ownSide.indexOf(unit);
+      const _frontOpp=oppSide[_shadowIdx];
+      if(_frontOpp&&_frontOpp.hp>0){
+        const _prevName=unit.name;
+        unit.name=_frontOpp.name; unit.icon=_frontOpp.icon; unit.race=_frontOpp.race||'-';
+        unit.keywords=_frontOpp.keywords&&_frontOpp.keywords.length?[..._frontOpp.keywords]:[];
+        unit.counter=_frontOpp.counter||false;
+        unit.effect=_frontOpp.effect||null;
+        unit.injury='shadow'; // 負傷は維持（再変身可能）
+        unit.desc=_frontOpp.desc||'';
+        log(`${_prevName}：負傷→${unit.name}に変身（${unit.atk}/${unit.hp}）`,col);
+      }
+      break;
+    }
   }
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
@@ -1462,22 +1476,6 @@ function onBattleStart(){
           G._gradeUpCostBonus=(G._gradeUpCostBonus||0)+_mg;
           log(`${a.name}：グレードアップコスト-${_mg}（累計-${G._gradeUpCostBonus}）`,'good'); }
         break;
-      case 'shadow_start':
-        { const _shadowIdx=G.allies.indexOf(a);
-          const _frontE=G.enemies[_shadowIdx];
-          if(_frontE&&_frontE.hp>0){
-            const _prevName=a.name;
-            a.name=_frontE.name; a.icon=_frontE.icon; a.race=_frontE.race||'-';
-            // ATK/HPは変更しない（シャドウ自身のスタッツを維持）
-            a.keywords=_frontE.keywords&&_frontE.keywords.length?[..._frontE.keywords]:[];
-            a.counter=_frontE.counter||false;
-            a.effect=_frontE.effect||null;
-            a.injury=_frontE.injury||null;
-            a.desc=_frontE.desc||'';
-            log(`${_prevName}：${a.name}に変身（${a.atk}/${a.hp}）`,'good');
-          } // 正面に敵なし：変身しない。シャドウ自身の状態は維持（次の戦闘でも変身可能）
-        }
-        break;
       case 'homunculus_start':
         { const _races=new Set(G.allies.filter(b=>b&&b.hp>0&&b!==a&&b.race&&b.race!=='-'&&b.race!=='全て').map(b=>b.race));
           const _hx=_races.size+1+(G.hasGoldenDrop?1:0); // +1 for ホムンクルス自身の種族（「全て」として1カウント）
@@ -1510,7 +1508,7 @@ function onBattleStart(){
             { const _gd0=G.hasGoldenDrop?1:0; const _ggU2=G.allies[_ggi]; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_ggU2){ const _gbv=1+_gd0; _ggU2.atk+=_gbv; _ggU2.baseAtk=(_ggU2.baseAtk||0)+_gbv; _ggU2.hp+=_gbv; _ggU2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_ggU2.name}+${_gbv}/+${_gbv}`,'good'); }}); }
             // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
             { const _ggU=G.allies[_ggi]; const _gd=G.hasGoldenDrop?1:0;
-              G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_ggU){ const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good'); } }); }
+              G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_ggU){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
             checkSolitudeBuff();
           } }
         break;
@@ -1877,10 +1875,10 @@ function onWandUsed(){
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     switch(a.effect){
-      case 'dwarf_wand':{
-        const _gainD=2+(G.hasGoldenDrop?1:0);
-        const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-        if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_gainD; log(`ドワーフ：杖使用→${G.spells[_wi].name}に充填+${_gainD}`,'good'); }
+      case 'kobold_wand':{
+        const _kwv=2+(G.hasGoldenDrop?1:0);
+        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.hp+=_kwv; b.maxHp+=_kwv; }});
+        log(`${a.name}：杖使用→全仲間HP+${_kwv}`,'good');
         break;}
 
       case 'gremlin_wand':

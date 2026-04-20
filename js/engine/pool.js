@@ -234,7 +234,7 @@ function drawRewards(n){
     charCount=Math.min(6, Math.floor(floor/5)+3);
   } else {
     const section=Math.ceil(floor/5);
-    charCount=section+2;
+    charCount=Math.max(4, section+2);
   }
 
   // グレード確定枠（1-5階は確定枠なし）

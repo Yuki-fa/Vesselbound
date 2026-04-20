@@ -7,7 +7,7 @@ const UNIT_POOL = [
   {id:'c_golem',      name:'守護者"アイギス"', race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
 
   // ─── G1 通常 ───
-  {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'開戦：魔術レベルが+1される。',             effect:'mermaid_start'},
+  {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'誘発：このキャラクターを還魂すると、魔術レベルが+1される。', effect:'mermaid_sell'},
   {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'誘発：このキャラクターが死亡した場合、0/4、種族なしの「骨」を召喚する。', effect:'skeleton_bone'},
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'終戦：ライフが9になる。',                      effect:'zombie_end'},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：最も左の空き地に1/2、獣の「ナイトキャット」を召喚する。', injury:'kettcat'},
@@ -16,7 +16,7 @@ const UNIT_POOL = [
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
-  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：杖を使うたび、最も左の杖に充填+2を得る。', effect:'dwarf_wand'},
+  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'使役：左端の杖に+2チャージする。', effect:'dwarf_summon'},
   {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'誘発：このキャラクターが死亡した場合、全ての仲間が+1/+3を得る。', effect:'mummy_death'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'攻撃：全ての敵が-1/±0を得る。', effect:'gremlin_attack'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：以後、商談フェイズに現れるキャラクターが±0/+1を得る。', effect:'jack_attack'},
@@ -28,7 +28,7 @@ const UNIT_POOL = [
   {id:'c_banshee',    name:'バンシー',         race:'不死', grade:1, atk:4,  hp:8,  cost:3,  unique:false, icon:'🙀', desc:'負傷：「バンシー」以外の全てのキャラクターに1ダメージを与える。', injury:'banshee'},
   {id:'c_sylph',      name:'シルフ',           race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🌬️', desc:'使役：隣接する仲間が+1/+2を得る。', effect:'sylph_summon'},
   {id:'c_incubus',    name:'インキュバス',     race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、最も左の空き地に3/1、悪魔の「ナイトメア」を召喚する。', effect:'incubus_spell'},
-  {id:'c_lesser_demon',name:'レッサーデーモン',race:'悪魔', grade:1, atk:5,  hp:10, cost:3,  unique:false, icon:'👿', desc:'誘発：味方が死ぬたび、全ての敵に2ダメージを与える。', effect:'lesser_demon_death', keywords:['成長2']},
+  {id:'c_lesser_demon',name:'レッサーデーモン',race:'悪魔', grade:1, atk:5,  hp:10, cost:3,  unique:false, icon:'👿', desc:'攻撃：次に購入するアイテムの価格が1下がる。', effect:'lesser_demon_attack'},
   {id:'c_arachas',    name:'アラッサス',       race:'亜人', grade:1, atk:4,  hp:9,  cost:3,  unique:false, icon:'🦂', desc:'攻撃：全ての敵に「毒牙1」を与える。', effect:'arachas_attack'},
   {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'負傷：±0/+2を得る。', injury:'slin'},
   {id:'c_goblin',     name:'ゴブリン',         race:'亜人', grade:1, atk:4,  hp:8,  cost:2,  unique:false, icon:'👺', desc:''},
@@ -60,18 +60,18 @@ const UNIT_POOL = [
   {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:8,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　誘発：魔術レベルが上がるたび、全ての仲間が+1/+2を得る。', effect:'harpy_magiclevel', counter:true, keywords:['反撃']},
   {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'誘発：死亡した場合、全ての仲間に攻撃力に等しいダメージを与える。', effect:'wraith_death'},
   {id:'c_draug',      name:'ドラウグ',         race:'不死', grade:2, atk:10, hp:22, cost:5,  unique:false, icon:'💀', desc:'誘発：攻撃を行った敵に「毒3」を与える。', effect:'draug_attack'},
-  {id:'c_shadow',     name:'シャドウ',         race:'不死', grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🌑', desc:'開戦：正面の敵に変身する。', effect:'shadow_start'},
+  {id:'c_shadow',     name:'シャドウ',         race:'不死', grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🌑', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツは変わらない）', injury:'shadow'},
   {id:'c_specter',    name:'スペクター',       race:'不死', grade:2, atk:9,  hp:23, cost:5,  unique:false, icon:'👤', desc:'攻撃：今後商談フェイズで現れる「不死」のキャラクターが+1/+1を得る。', effect:'specter_attack'},
-  {id:'c_ghost',      name:'ゴースト',         race:'不死', grade:2, atk:7,  hp:20, cost:5,  unique:false, icon:'👻', desc:'誘発：他のキャラクターが死亡するたび、このキャラクターは+1/+1を得る。', effect:'ghost_ondeath'},
+  {id:'c_ghost',      name:'ゴースト',         race:'不死', grade:2, atk:7,  hp:20, cost:5,  unique:false, icon:'👻', desc:'誘発：他のキャラクターが死亡するたび、このキャラクターは±0/+2を得る。', effect:'ghost_ondeath'},
   {id:'c_hellhound',  name:'ヘルハウンド',     race:'悪魔', grade:2, atk:11, hp:15, cost:5,  unique:false, icon:'🐕', desc:'誘発：アイテムを使用するたび、このキャラクターはランダムな敵を攻撃する。', effect:'hellhound_spell'},
   {id:'c_centaur',    name:'ケンタウロス',     race:'亜人', grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🏇', desc:'二段攻撃　開戦：オーナーの魔術レベルが+1される。',        effect:'centaur_start', keywords:['二段攻撃']},
   {id:'c_homunculus', name:'ホムンクルス',     race:'全て', grade:2, atk:7,  hp:23, cost:5,  unique:false, icon:'🧪', desc:'開戦：+X/+Xを得る。Xは仲間の種族の数に等しい。',   effect:'homunculus_start'},
   {id:'c_dryad',      name:'ドリアード',       race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'🌿', desc:'攻撃：ランダムな仲間2体が+1/+1を得る。', effect:'dryad_attack'},
   {id:'c_warg',       name:'ウォーグ',         race:'獣',   grade:2, atk:9,  hp:22, cost:5,  unique:false, icon:'🐺', desc:'負傷：全ての仲間の獣が+1/+1を得る。', injury:'warg'},
   {id:'c_pegasus',    name:'ペガサス',         race:'獣',   grade:2, atk:10, hp:20, cost:5,  unique:false, icon:'🦄', desc:'攻撃：右端のキャラクターが±0/+4を得る。', effect:'pegasus_attack'},
-  {id:'c_perytons',   name:'ペリュトン',       race:'獣',   grade:2, atk:8,  hp:24, cost:5,  unique:false, icon:'🦌', desc:'誘発：仲間を還魂すると、以後キャラクターの効果で召喚されるキャラクターが+1/±0される。', effect:'perytons_sell'},
+  {id:'c_perytons',   name:'ペリュトン',       race:'獣',   grade:2, atk:8,  hp:24, cost:5,  unique:false, icon:'🦌', desc:'誘発：仲間を還魂すると、以後キャラクターの効果で召喚されるキャラクターが±0/+1される。', effect:'perytons_sell'},
   {id:'c_golden_goose',name:'ゴールデン・グース',race:'獣', grade:2, atk:3,  hp:28, cost:5,  unique:false, icon:'🪿', desc:'開戦：最も左の空き地に0/1、獣の「ゴールデンエッグ」を召喚する。', effect:'golden_goose_start'},
-  {id:'c_kobold',     name:'コボルド',         race:'亜人', grade:2, atk:7,  hp:22, cost:5,  unique:false, icon:'🐊', desc:'使役：左端の杖に+1チャージする。', effect:'kobold_summon'},
+  {id:'c_kobold',     name:'コボルド',         race:'亜人', grade:2, atk:7,  hp:22, cost:5,  unique:false, icon:'🐊', desc:'誘発：杖を使うたび、全ての仲間のライフが+2される。', effect:'kobold_wand'},
   {id:'c_arachne',    name:'アラクネ',         race:'亜人', grade:2, atk:6,  hp:25, cost:5,  unique:false, icon:'🕷️', desc:'誘発：杖が壊れるたび、魔術レベルが+1される。', effect:'arachne_wand'},
   {id:'c_undine',     name:'ウンディーネ',     race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'💧', desc:'常時：攻撃した味方が+1/+1を得る。', effect:'undine_passive'},
   {id:'c_frost_sprite',name:'フロスト・スプライト',race:'精霊',grade:2,atk:7,hp:24, cost:5,  unique:false, icon:'❄️', desc:'開戦：正面の敵を1ターン行動不能にする。', effect:'frost_start'},
@@ -101,7 +101,7 @@ const UNIT_POOL = [
   {id:'c_limslus',    name:'凍てつく亡霊"リムスルス"',     race:'不死', grade:2, atk:10, hp:45, cost:12, unique:true, icon:'❄️', desc:'呪詛1　負傷：全ての敵に3ダメージを与える。', injury:'limslus', keywords:['呪詛1']},
 
   // ─── G3 通常 ───
-  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'誘発：他のキャラクターの効果でキャラクターが召喚されると+1/+1を得る。', effect:'cocatrice_passive'},
+  {id:'c_cocatrice',  name:'コカトリス',       race:'獣',   grade:3, atk:8,  hp:38, cost:7,  unique:false, icon:'🦅', desc:'誘発：他のキャラクターの効果でキャラクターが召喚されると±0/+2を得る。', effect:'cocatrice_passive'},
   {id:'c_phantom',    name:'ファントム',       race:'不死', grade:3, atk:11, hp:48, cost:7,  unique:false, icon:'👤', desc:'誘発：「アク」以外の仲間が死んだ時、0/1、不死の「アク」を召喚する。', effect:'phantom_onallydie'},
   {id:'c_salamander', name:'サラマンダー',     race:'竜',   grade:3, atk:16, hp:40, cost:7,  unique:false, icon:'🔥', desc:'成長4　開戦：全ての敵に4ダメージを与える。', effect:'salamander_start', keywords:['成長4']},
   {id:'c_vampire',    name:'ヴァンパイア',     race:'不死', grade:3, atk:13, hp:45, cost:7,  unique:false, icon:'🧛', desc:'攻撃：全ての仲間の「不死」が+2/+1を得る。', effect:'vampire_attack'},
@@ -202,15 +202,12 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     unit.hp     += G._specterBonus;
     unit.maxHp  += G._specterBonus;
   }
-  // ペリュトン(旧:グリマルキン)：キャラクター効果で召喚される場合にATKボーナス適用（購入時は対象外）
+  // ペリュトン：キャラクター効果で召喚される場合にHPボーナス適用（購入時は対象外）
   if(!skipSummonBonus && typeof G!=='undefined'){
-    const _totalBD=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
-    if(_totalBD>0){
-      unit.atk+=_totalBD; unit.baseAtk+=_totalBD;
-      // HPはhasGoldenDropのみ（_grimalkinBonusはATKのみ）
-      const _hpBonus=(G.hasGoldenDrop?1:0);
-      if(_hpBonus>0){ unit.hp+=_hpBonus; unit.maxHp+=_hpBonus; }
-    }
+    const _atkBonus=(G.hasGoldenDrop?1:0);
+    const _hpBonus=(G.hasGoldenDrop?1:0)+(G._grimalkinBonus||0);
+    if(_atkBonus>0){ unit.atk+=_atkBonus; unit.baseAtk+=_atkBonus; }
+    if(_hpBonus>0){ unit.hp+=_hpBonus; unit.maxHp+=_hpBonus; }
   }
   // ハーピー・ピグミー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
   if((unit.effect==='harpy_magiclevel'||unit.effect==='pigmy_magic')&&typeof G!=='undefined'){

@@ -132,6 +132,7 @@ function initState(){
     // ── 敵永続強化（魂喰X・マミー敵）──
     enemyPermanentBonus:{atk:0,hp:0},
     enemyUndeadAtkBonus:0,
+    _lesserDemonDiscount:0,
   };
 
   // 初期キャラクター：ゴーレム

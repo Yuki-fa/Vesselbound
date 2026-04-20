@@ -77,11 +77,11 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _ei=G.spells.indexOf(null);
     if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${unit.name}：G1アイテムを入手`,'good'); }}
   }
-  // コボルド：召喚時、最も左の杖に充填数+(_stackCount+1)
-  if(unit.effect==='kobold_summon'){
+  // ドワーフ：召喚時、最も左の杖に充填+2
+  if(unit.effect==='dwarf_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    const _kc=(unit._stackCount||0)+1;
-    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_kc}`,'good'); }
+    const _dc=2+(G.hasGoldenDrop?1:0);
+    if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
   // スリン：旧効果（slin_summon）削除済み
   // キメラ：召喚時、ランダムなキーワード3つを得る
@@ -132,8 +132,8 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
           log(`${g.name}：カード効果召喚→${unit.name}+${_gv}/+${_gv}`,'good');
         }
         if(g.effect==='cocatrice_passive'){
-          const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv;
-          log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good');
+          const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv;
+          log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good');
         }
       }
     });

@@ -540,8 +540,8 @@ function renderRewCards(){
       const dispAtk=card.atk;
       const dispHp=card.hp;
       // 仲間加入プレビュー（ペリュトン：キャラ効果召喚のスタッツ変動のみ表示）
-      const _sumBonusAtk=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-      const _sumBonusHp=(G.hasGoldenDrop?1:0);
+      const _sumBonusAtk=(G.hasGoldenDrop?1:0);
+      const _sumBonusHp=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
       const _hasSummonDesc=(_sumBonusAtk>0||_sumBonusHp>0)&&/\d+\/\d+、/.test(card.desc||'');
       let _previewStr='';
       if(_hasSummonDesc){
@@ -647,8 +647,8 @@ function _mkRewDiv(card, onBuy){
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
-    const _sumBonusCardAtk=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
-    const _sumBonusCardHp=(G.hasGoldenDrop?1:0);
+    const _sumBonusCardAtk=(G.hasGoldenDrop?1:0);
+    const _sumBonusCardHp=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
     const _hasSumDescCard=(_sumBonusCardAtk>0||_sumBonusCardHp>0)&&/\d+\/\d+、/.test(card.desc||'');
     if(_hasSumDescCard){
       const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCardAtk}/${parseInt(h)+_sumBonusCardHp}、`);
@@ -751,22 +751,15 @@ function takeRewCard(i, targetSlot){
         const _gd=G.hasGoldenDrop?1:0;
         G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_pelUnit){
           if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd; _pelUnit.atk+=_gbv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_gbv; _pelUnit.hp+=_gbv; _pelUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_pelUnit.name}+${_gbv}/+${_gbv}`,'good'); }
-          if(g.effect==='cocatrice_passive'){ const _cv=1+_gd; g.atk+=_cv; g.baseAtk=(g.baseAtk||0)+_cv; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→+${_cv}/+${_cv}`,'good'); }
+          if(g.effect==='cocatrice_passive'){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); }
         }});
       }
     }
-    // コボルド：最も左の杖に充填数+(_stackCount+1)
-    if(unit.effect==='kobold_summon'){
+    // ドワーフ：召喚時、最も左の杖に充填+2
+    if(unit.effect==='dwarf_summon'){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-      const _kc=(unit._stackCount||0)+1;
-      if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_kc}`,'good'); }
-    }
-    // マーメイド：使役時に魔術レベル+1
-    if(unit.effect==='mermaid_start'){
-      const _mv=1+(G.hasGoldenDrop?1:0);
-      if(typeof onMagicLevelUp==='function') onMagicLevelUp(_mv);
-      else { G.magicLevel=(G.magicLevel||1)+_mv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
-      log(`${unit.name}：使役→魔術レベル+${_mv}（Lv${G.magicLevel}）`,'good');
+      const _dc=2+(G.hasGoldenDrop?1:0);
+      if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
     }
     // シルフ：使役時、隣接する仲間が+1/+2を得る
     if(unit.effect==='sylph_summon'){
@@ -1265,10 +1258,10 @@ function _applyStack(fieldIdx, rewIdx){
       }});
     }
   }
-  if(fieldUnit.effect==='kobold_summon'){
+  if(fieldUnit.effect==='dwarf_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    const _kcs=fieldUnit._stackCount||0; // 増分（新スタック数分）
-    if(_kcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_kcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_kcs}`,'good'); }
+    const _dcs=2*(fieldUnit._stackCount||0); // 重ね増分（スタック1枚追加分×2）
+    if(_dcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_dcs}`,'good'); }
   }
   // slin_summon は削除済み（スリンの新効果は負傷）
   fireTrigger('on_summon', null);
@@ -1443,12 +1436,19 @@ function sellFieldUnit(idx){
       log(`レプラコーン：ソウル獲得→全仲間±0/+${_lv}`,'good');
     }
   }
-  // ペリュトン：フィールドに残っているときに別の仲間が還魂されたら以後のキャラ効果召喚ATK+1
+  // マーメイド：このキャラクターを還魂すると魔術レベル+1
+  if(unit.effect==='mermaid_sell'){
+    const _mv=1+(G.hasGoldenDrop?1:0);
+    if(typeof onMagicLevelUp==='function') onMagicLevelUp(_mv);
+    else { G.magicLevel=(G.magicLevel||1)+_mv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
+    log(`${unit.name}：還魂→魔術レベル+${_mv}（Lv${G.magicLevel}）`,'good');
+  }
+  // ペリュトン：フィールドに残っているときに別の仲間が還魂されたら以後のキャラ効果召喚HP+1
   const perytons=G.allies.find(a=>a&&a.effect==='perytons_sell');
   if(perytons){
     const _incr=1+(G.hasGoldenDrop?1:0);
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
-    log(`${perytons.name}：以後のキャラクター効果召喚が+${_incr}/±0（累計+${G._grimalkinBonus}）`,'good');
+    log(`${perytons.name}：以後のキャラクター効果召喚が±0/+${_incr}（累計+${G._grimalkinBonus}）`,'good');
   }
   // imp_sell 削除済み（インプの新効果は使役時）
   document.getElementById('rw-gold').textContent=G.gold;
@@ -1756,7 +1756,9 @@ function _generateMasterHand(){
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
-  const cost=sp._buyPrice??2;
+  const _ldDisc=G._lesserDemonDiscount>0?1:0;
+  const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
+  if(_ldDisc>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
   if(_isRingCard){
@@ -1825,7 +1827,9 @@ function buyMasterHandItem(idx){
 // マスター指輪を購入
 function buyMasterRingItem(idx){
   const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
-  const cost=ring._buyPrice??4;
+  const _ldDiscR=G._lesserDemonDiscount>0?1:0;
+  const cost=Math.max(0,(ring._buyPrice??4)-_ldDiscR);
+  if(_ldDiscR>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
   if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。破棄してください。`,'bad'); return; }
