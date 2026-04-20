@@ -49,19 +49,29 @@ function onGoldGained(amount){
 function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
-  // 保留中の宝箱アイテムをフィールドに配置
-  if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
-    G._pendingTreasureItems.forEach(item=>{
-      const slot=G.enemies.indexOf(null);
-      if(slot>=0) G.enemies[slot]={_isTreasureItem:true,_treasureItem:item,hp:0,atk:0,id:`treasure_${uid()}`};
-    });
-    G._pendingTreasureItems=[];
-    renderAll(); updateHUD();
-    if(typeof renderFieldEditor==='function') renderFieldEditor();
-  }
-  if(G.enemies.some(e=>e&&e._isTreasureItem)){
-    const ea=document.getElementById('enemy-area');
-    if(ea) ea.style.display='';
+  const hasTreasure=(G._pendingTreasureItems&&G._pendingTreasureItems.length>0)||G.enemies.some(e=>e&&e._isTreasureItem);
+  if(hasTreasure){
+    // You Win を短く表示してから宝箱UIを出す
+    const ov=document.getElementById('victory-overlay');
+    const btn=ov&&ov.querySelector('button');
+    if(btn) btn.style.display='none';
+    if(ov) ov.style.display='flex';
+    setTimeout(()=>{
+      if(ov) ov.style.display='none';
+      if(btn) btn.style.display='';
+      // 保留中の宝箱アイテムをフィールドに配置
+      if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
+        G._pendingTreasureItems.forEach(item=>{
+          const slot=G.enemies.findIndex((e,i)=>!e&&!G.moveMasks[i]);
+          if(slot>=0) G.enemies[slot]={_isTreasureItem:true,_treasureItem:item,hp:0,atk:0,id:`treasure_${uid()}`};
+        });
+        G._pendingTreasureItems=[];
+      }
+      renderAll(); updateHUD();
+      if(typeof renderFieldEditor==='function') renderFieldEditor();
+      const ea=document.getElementById('enemy-area');
+      if(ea) ea.style.display='';
+    }, 1500);
     return;
   }
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
@@ -76,22 +86,19 @@ function _takeFieldTreasure(slotIdx){
   const u=G.enemies[slotIdx];
   if(!u||!u._isTreasureItem) return;
   const item=u._treasureItem;
-  if(item.kind==='summon'||item.kind==='passive'||item.type==='ring'){
-    const ri=G.rings.slice(0,G.ringSlots).indexOf(null);
-    if(ri<0){ log(`📦 ${item.name}：指輪スロット満杯`,'bad'); return; }
-    const rc=clone(item); delete rc._buyPrice; G.rings[ri]=rc;
-    log(`📦 ${item.name} を取得`,'gold');
-  } else {
-    const hi=G.spells.indexOf(null);
-    if(hi<0){ log(`📦 ${item.name}：インベントリ満杯`,'bad'); return; }
-    const ic=clone(item);
-    if(ic.type==='wand'&&ic.usesLeft===undefined){ ic.usesLeft=ic.baseUses||4; ic._maxUses=ic.usesLeft; }
-    G.spells[hi]=ic;
-    log(`📦 ${item.name} を取得`,'gold');
-  }
+  // 指輪も含め、すべてアイテムスロットへ
+  const hi=G.spells.indexOf(null);
+  if(hi<0){ log(`📦 ${item.name}：インベントリ満杯`,'bad'); return; }
+  const ic=clone(item); delete ic._buyPrice;
+  if(ic.type==='wand'&&ic.usesLeft===undefined){ ic.usesLeft=ic.baseUses||4; ic._maxUses=ic.usesLeft; }
+  G.spells[hi]=ic;
+  log(`📦 ${item.name} を取得`,'gold');
   G.enemies[slotIdx]=null;
   renderAll(); updateHUD();
-  if(!G.enemies.some(e=>e&&e._isTreasureItem)) _handleVictory();
+  if(!G.enemies.some(e=>e&&e._isTreasureItem)){
+    if(_isBossFight&&G.floor===FLOOR_DATA.length-1) showScreen('clear');
+    else if(typeof goToReward==='function') goToReward();
+  }
 }
 function _discardFieldTreasure(slotIdx){
   const u=G.enemies[slotIdx];
@@ -99,7 +106,10 @@ function _discardFieldTreasure(slotIdx){
   log(`📦 ${u._treasureItem.name} を廃棄`,'sys');
   G.enemies[slotIdx]=null;
   renderAll(); updateHUD();
-  if(!G.enemies.some(e=>e&&e._isTreasureItem)) _handleVictory();
+  if(!G.enemies.some(e=>e&&e._isTreasureItem)){
+    if(_isBossFight&&G.floor===FLOOR_DATA.length-1) showScreen('clear');
+    else if(typeof goToReward==='function') goToReward();
+  }
 }
 
 // ── リーダーボーナス（敵側）──────────────────────
@@ -1805,7 +1815,7 @@ function processEnemyDeath(e,eIdx){
   if(_isActualElite){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
-    if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); log(`⭐ ${e.name}が宝箱を落とした！`,'gold'); }
+    if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); }
   } else if(!(G._pendingTreasureItems&&G._pendingTreasureItems.length>0)&&!G._retreated&&!G._isEliteFight){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
     // ノーム：1体=1.5倍（黄金の雫：2倍）、複数体は乗算
