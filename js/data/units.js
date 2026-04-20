@@ -16,7 +16,7 @@ const UNIT_POOL = [
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
-  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：杖を使うたび、隣接する仲間が±0/+1を得る。', effect:'dwarf_wand'},
+  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'誘発：杖を使うたび、最も左の杖に充填+2を得る。', effect:'dwarf_wand'},
   {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'誘発：このキャラクターが死亡した場合、全ての仲間が+1/+3を得る。', effect:'mummy_death'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'攻撃：全ての敵が-1/±0を得る。', effect:'gremlin_attack'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：以後、商談フェイズに現れるキャラクターが±0/+1を得る。', effect:'jack_attack'},

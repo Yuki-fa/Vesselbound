@@ -288,6 +288,8 @@ function rerollRewards(){
   if(G.gold<1) return;
   G.gold-=1;
   G.rerollCount=(G.rerollCount||0)+1;
+  // 非タウン：リロール時に無料取得権をリセット（新プールから1体無料）
+  if(!G._isRewardTown) _rewFreePickDone=false;
   // 召喚済みキャラも含め全リセット
   _rewCards=drawRewards();
   _padRewCharSlots();
@@ -501,6 +503,7 @@ function addRewChar(unit){
 function renderRewCards(){
   const el=document.getElementById('rw-cards');
   el.innerHTML='';
+  const isRewardLocked=!G._isRewardTown&&_rewFreePickDone;
 
   // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
   const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
@@ -530,7 +533,7 @@ function renderRewCards(){
       slot.className='slot is-rear';
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
-      const canBuy=G.gold>=cost;
+      const canBuy=!G._isRewardTown||G.gold>=cost;
       const hasSlot=G.allies.some(a=>!a||a.hp<=0)||G.allies.length<6;
       // マミーボーナスは drawCharacters で card.atk に反映済み（_bonusApplied フラグ）
       const dispAtk=card.atk;
@@ -554,7 +557,6 @@ function renderRewCards(){
       const costTag=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
 
       // 通常報酬で無料取得済みの場合はキャラスロットをロック
-      const isRewardLocked=!G._isRewardTown&&_rewFreePickDone;
       const shortBadge=isRewardLocked?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(80,80,80,.9);border:1px solid #888;border-radius:3px;padding:0 3px;font-size:.44rem;color:#ddd;font-weight:700;white-space:nowrap;z-index:10">取得済み</div>`:!canBuy?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
       const _stBadges=[];
       if(card.shield>0) _stBadges.push(`<span class="slot-badge b-shield">🛡${card.shield>1?'×'+card.shield:''}</span>`);
@@ -579,7 +581,7 @@ function renderRewCards(){
         _rewDragSrc=i; slot.classList.add('dragging');
         e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
-        _updateFieldDropHighlights(card.name,card.grade||1,false,-1);
+        _updateFieldDropHighlights(card.name,G._isRewardTown?card._buyPrice||1:0,false,-1);
         _createDragGhost(slot);
       });
       slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
@@ -624,7 +626,7 @@ function renderRewCards(){
 function _mkRewDiv(card, onBuy){
   const div=document.createElement('div');
   const cost=card._buyPrice??1;
-  const canBuy=cost===0||G.gold>=cost;
+  const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
   const isTreasure=!!card._isTreasure;
@@ -973,7 +975,7 @@ function _renderFieldRow(el){
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
           if(!rc?._isChar) return;
-          if(unit.name===rc.name&&(unit._stackCount||0)<2&&G.gold>=(rc._buyPrice??2)){
+          if(unit.name===rc.name&&(unit._stackCount||0)<2&&(!G._isRewardTown||G.gold>=(rc._buyPrice??2))){
             e.preventDefault();
             _showStackPreviewOverlay(null,unit,rc,e.clientX,e.clientY);
           }
@@ -1479,28 +1481,36 @@ function renderHeRingSlots(){
   if(handPaneRe) handPaneRe.style.flex=10-R;
   const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
   const rm=document.getElementById('ring-max');   if(rm) rm.textContent=R;
+  const _isReadOnly=!G._isShop&&G.phase==='reward';
   for(let i=0;i<R;i++){
     const ring=G.rings[i];
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
-      div.draggable=true;
-      const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
-      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
-      div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
-      div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
-      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
-      div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
-      div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard('rings',i); });
+      if(_isReadOnly){
+        div.style.cssText='opacity:0.4;filter:grayscale(0.5);cursor:default;pointer-events:none';
+        div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>`;
+      } else {
+        div.draggable=true;
+        const _ringBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
+        div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
+        div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
+        div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
+        div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+        div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
+        div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
+        div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+        div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard('rings',i); });
+      }
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty';
-      ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
-      ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
-      ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard('rings',i); });
+      if(!_isReadOnly){
+        ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
+        ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
+        ph.addEventListener('drop',e=>{ e.preventDefault(); ph.classList.remove('drag-over'); dropOnCard('rings',i); });
+      }
       el.appendChild(ph);
     }
   }
@@ -1562,6 +1572,11 @@ function dropOnCard(destArr,destIdx){
   if(!_dragSrc) return;
   const srcArr=_dragSrc.arr; const srcIdx=_dragSrc.idx;
   _dragSrc=null;
+  // 宝箱ドラッグ：インベントリ/指輪スロットへドロップで取得
+  if(srcArr==='treasure'){
+    if(typeof _takeFieldTreasure==='function') _takeFieldTreasure(srcIdx);
+    return;
+  }
   const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring');
   if(srcArr===destArr){
     // 同一配列内の入れ替え

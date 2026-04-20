@@ -261,9 +261,11 @@ function generateMoveMasks(){
   if(FLOOR_DATA[G.floor+1]&&FLOOR_DATA[G.floor+1].boss){ masks[randi(0,2)]='boss'; return masks; }
 
   // 通常戦：エリートのスロットは宝箱確定、候補から除外してランダム配置
+  // null・オブジェクト・宝箱スロットを除き、実際の敵がいるスロットのみを候補にする
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
   if(eliteSlot>=0) masks[eliteSlot]='chest';
-  let idxs=[...Array(slots).keys()].filter(i=>i!==eliteSlot);
+  const _realIdxs=G.enemies.map((e,i)=>(e&&!e._isObject&&!e._isTreasureItem?i:-1)).filter(i=>i>=0);
+  let idxs=_realIdxs.filter(i=>i!==eliteSlot);
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);

@@ -374,17 +374,25 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(isEnemy&&u&&u._isTreasureItem){
-      // 宝箱ドロップ：アイテムカードとして描画
+      // 宝箱ドロップ：インベントリカードと同サイズの小カードを中央配置
       const _ti=u._treasureItem;
       const _tLabel={ring:'指輪',wand:'杖',consumable:'アイテム'}[_ti.type||'ring']||'指輪';
       const _tClr=_ti.type==='ring'?'var(--purple2)':_ti.type==='wand'?'var(--blue2)':'var(--red2)';
       const _tGS=_ti.grade?gradeStr(_ti.grade):'';
       const _tDesc=computeDesc(_ti);
       slot.className='slot';
-      slot.style.cssText='cursor:pointer;background:var(--bg2);border:1px solid var(--gold);border-top:2px solid var(--gold)';
-      slot.innerHTML=`<div style="position:absolute;top:3px;left:3px;font-size:.6rem;color:var(--gold)">${_tGS}</div><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px 2px 28px;pointer-events:none"><div style="font-size:.5rem;color:${_tClr}">${_tLabel}</div><div class="slot-name" style="text-align:center">${_ti.name}</div><div class="slot-desc" style="text-align:center">${_tDesc}</div></div><div style="position:absolute;bottom:4px;left:0;right:0;text-align:center"><button class="btn tiny" style="color:var(--red2)">廃棄</button></div>`;
-      slot.querySelector('button').onclick=ev=>{ev.stopPropagation();_discardFieldTreasure(i);};
-      slot.onclick=()=>_takeFieldTreasure(i);
+      slot.style.cssText='background:var(--bg);display:flex;align-items:center;justify-content:center;position:relative';
+      const _tc=document.createElement('div');
+      _tc.className='rew-card treasure';
+      _tc.style.cssText='cursor:pointer;position:relative;width:72px;flex-shrink:0;user-select:none';
+      _tc.draggable=true;
+      _tc.innerHTML=`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${_tGS}</div><div style="margin-top:18px"><div class="rew-card-tp" style="color:${_tClr};text-align:center">${_tLabel}</div><div class="rew-card-name" style="text-align:center">${_ti.name}</div><div class="rew-card-desc">${_tDesc}</div></div><div class="rew-card-refund" style="color:var(--red2);cursor:pointer" data-discard>廃棄</div>`;
+      _tc.querySelector('[data-discard]').onclick=ev=>{ev.stopPropagation();_discardFieldTreasure(i);};
+      _tc.onclick=()=>_takeFieldTreasure(i);
+      _tc.addEventListener('dragstart',e=>{ _dragSrc={arr:'treasure',idx:i}; _tc.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(_tc); });
+      _tc.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      _tc.addEventListener('dragend',()=>{ _tc.classList.remove('dragging'); _removeDragGhost(); if(_dragSrc&&_dragSrc.arr==='treasure') _dragSrc=null; });
+      slot.appendChild(_tc);
     } else if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {

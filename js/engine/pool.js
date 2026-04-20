@@ -236,7 +236,6 @@ function drawRewards(n){
     const section=Math.ceil(floor/5);
     charCount=section+2;
   }
-  charCount=Math.min(charCount, G.rewardCharCount||charCount);
 
   // グレード確定枠（1-5階は確定枠なし）
   const guaranteedGrade=floor>=6?currentGrade:0;
