@@ -5,7 +5,6 @@
 
 let _rewCards=[];
 let _placingChar=null; // フィールド配置待ちのキャラカード
-let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 
 // 指輪を空き指輪スロットに直接装備する（成功→スロットindex、失敗→false）
 function _autoEquipRingInner(ring){
@@ -37,28 +36,15 @@ const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring')
 function goToReward(){
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
-  _rewFreePickDone=false;
-  const isTown=!!(FLOOR_DATA[G.floor]&&FLOOR_DATA[G.floor].town);
-  G._isRewardTown=isTown;
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
-
-  // 街フェイズ：グレード自動上昇
-  if(isTown){
-    const _newGrade=(FLOOR_DATA[G.floor]?.grade||1)+1;
-    if(_newGrade>(G.rewardGrade||1)){
-      G.rewardGrade=_newGrade;
-      log(`グレードが${_newGrade}に上昇！提示キャラがグレード${_newGrade}以下になります`,'gold');
-    }
-  }
-
   _rewCards=drawRewards();
   _padRewCharSlots(); // キャラ0-5・アイテム6+に整列
   G.phase='reward';
-  // 報酬フェイズ突入時に行動権を戦闘フェイズと同値にリセット
+  // 商談フェイズ突入時に行動権を戦闘フェイズと同値にリセット
   G.actionsPerTurn=calcActions();
   G.actionsLeft=G.actionsPerTurn;
-  G._familiarUsed=false; // ファミリア：報酬フェイズ開始時にリセット
+  G._familiarUsed=false; // ファミリア：商談フェイズ開始時にリセット
 
   // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
   if(G._pendingEliteChest){
@@ -73,33 +59,32 @@ function goToReward(){
     }
   }
 
-  // 洞窟ボーナス：1グレード高いキャラを報酬欄に追加
+  // 洞窟ボーナス：rarity4消耗品1つを報酬欄に追加（リロール消失）
   if(G._pendingCaveBonus){
     G._pendingCaveBonus=false;
-    const _caveGrade=Math.min(5,(G.rewardGrade||1)+1);
-    const _caveChar=drawCharacterOfGrade(_caveGrade);
-    if(_caveChar){
-      _caveChar._buyPrice=calcBuyPrice(_caveChar);
-      _caveChar._caveBonus=true;
-      _rewCards.push(_caveChar);
-      _padRewCharSlots();
-      log(`⛩️ 洞窟：G${_caveGrade}のキャラが提示に追加された`,'gold');
+    const _cavePool=SPELL_POOL.filter(s=>s.rarity===4&&s.type==='consumable');
+    if(_cavePool.length){
+      const _caveItem=clone(randFrom(_cavePool));
+      _caveItem._buyPrice=_caveItem.cost||calcBuyPrice(_caveItem); _caveItem._caveBonus=true; // リロール消失フラグ
+      _rewCards.push(_caveItem);
+      log('⛩️ 洞窟の秘宝：レアアイテムが出現！','gold');
     }
   }
 
-  // 湖ボーナス：敵全滅時に設定されたG._pondRingDropを報酬欄に追加
+  // 池ボーナス：rarity≤2の指輪2つを指輪スロットに直接装備（満杯なら報酬欄へ）
   if(G._pendingPondBonus){
     G._pendingPondBonus=false;
-    if(G._pondRingDrop){
-      const _pr=G._pondRingDrop;
-      G._pondRingDrop=null;
-      _pr._buyPrice=_pr.cost||4;
-      _rewCards.push(_pr);
-      log(`💧 湖：${_pr.name}をドロップ`,'gold');
+    const _pondPool=RING_POOL.filter(r=>(r.grade||1)<=2);
+    for(let _pi=0;_pi<2;_pi++){
+      if(!_pondPool.length) break;
+      const _pondRing=clone(randFrom(_pondPool));
+      _pondRing._buyPrice=_pondRing.cost||4; _pondRing._pondBonus=true;
+      _rewCards.push(_pondRing);
     }
+    log('💧 池の恵み：指輪2つが出現！','gold');
   }
 
-  // 宝箱：moveMasksからchestを除去し、中身を報酬欄へ
+  // 宝箱：moveMasksからchestを除去し、中身を指輪スロットまたは報酬欄へ
   if(G._pendingTreasure){
     G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
@@ -117,7 +102,7 @@ function goToReward(){
   const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea=document.getElementById('enemy-area');
-  if(eArea) eArea.style.display=G.enemies.some(e=>e&&e._isTreasureItem)?'':'none';
+  if(eArea) eArea.style.display='none';
   // 報酬フェイズでenemy-hand-areaを表示（renderEnemyHandが内容を制御）
   const eHandArea=document.getElementById('enemy-hand-area');
   if(eHandArea) eHandArea.style.display='';
@@ -148,7 +133,7 @@ function goToReward(){
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
-  document.getElementById('ph-badge').textContent=isTown?'街':'報酬フェイズ';
+  document.getElementById('ph-badge').textContent='商談フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
   document.getElementById('h-floor').textContent=G.floor+1;
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
@@ -551,11 +536,9 @@ function renderRewCards(){
       const _strippedDesc=_stripKeywordsFromDesc(_rawDesc,card);
       const descTag=_strippedDesc?`<div class="slot-desc">${_strippedDesc}</div>`:'';
       const gradeTag=card.grade?`<div class="slot-grade">${gradeStr(card.grade)}</div>`:'';
-      const costTag=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
+      const costTag=`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`;
 
-      // 通常報酬で無料取得済みの場合はキャラスロットをロック
-      const isRewardLocked=!G._isRewardTown&&_rewFreePickDone;
-      const shortBadge=isRewardLocked?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(80,80,80,.9);border:1px solid #888;border-radius:3px;padding:0 3px;font-size:.44rem;color:#ddd;font-weight:700;white-space:nowrap;z-index:10">取得済み</div>`:!canBuy?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
+      const shortBadge=!canBuy?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
       const _stBadges=[];
       if(card.shield>0) _stBadges.push(`<span class="slot-badge b-shield">🛡${card.shield>1?'×'+card.shield:''}</span>`);
       if(card.poison>0) _stBadges.push(`<span class="slot-badge b-psn">毒${card.poison}</span>`);
@@ -565,13 +548,12 @@ function renderRewCards(){
       if(!canBuy) slot.style.background='var(--bg)';
       if(_previewStr) slot.setAttribute('data-preview',_previewStr);
       slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
-      // クリックで購入（ロック中は不可）
-      if(!isRewardLocked && canBuy && hasSlot){
+      // クリックで購入
+      if(canBuy && hasSlot){
         slot.style.cursor='pointer';
         slot.onclick=()=>takeRewCard(i);
       } else {
         slot.style.cursor='default';
-        if(isRewardLocked) slot.style.opacity='0.5';
       }
       // ドラッグで移動・重ね・盤面配置
       slot.draggable=true;
@@ -612,12 +594,10 @@ function renderRewCards(){
   // ②アイテム・指輪は従来の小カードで描画（index 6以降）
   _rewCards.forEach((card,i)=>{
     if(i<6||!card||card._isChar) return;
-    const d=_mkRewDiv(card, ()=>takeRewCard(i));
-    if(isRewardLocked){ d.onclick=null; d.style.opacity='0.5'; d.style.cursor='default'; }
-    el.appendChild(d);
+    el.appendChild(_mkRewDiv(card, ()=>takeRewCard(i)));
   });
 
-  const rb=document.getElementById('rw-reroll'); if(rb){ const _rbDis=G.gold<1||(!G._isRewardTown&&_rewFreePickDone); rb.disabled=_rbDis; rb.style.opacity=_rbDis?'0.4':''; }
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
   requestAnimationFrame(fitCardDescs);
 }
 
@@ -639,7 +619,7 @@ function _mkRewDiv(card, onBuy){
     // マミーボーナスは drawCharacters で card.atk に反映済み
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
-    const costLine=G._isRewardTown?`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`:disabled?`<div class="rew-card-cost">（盤面満杯）</div>`:'';
+    const costLine=`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`;
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
@@ -671,8 +651,8 @@ function _mkRewDiv(card, onBuy){
   const tpLabel=typeLabel[t]||'指輪';
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
   const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
-  const priceTagItem=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
-  const shortBadgeItem=G._isRewardTown&&!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
+  const priceTagItem=`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`;
+  const shortBadgeItem=!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
   div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div style="margin-top:20px"><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
   if(canBuy) div.onclick=onBuy;
   return div;
@@ -682,22 +662,8 @@ function _mkRewDiv(card, onBuy){
 
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
-  const isTown=G._isRewardTown;
-
-  if(card._isChar){
-    // 通常報酬フェイズ：キャラ1枚のみ無料取得、以降はロック
-    if(!isTown){
-      if(_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
-    } else {
-      // 街：通常購入
-      const cost=card._buyPrice??1;
-      if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
-    }
-  } else {
-    // アイテム・指輪：通常購入
-    const cost=card._buyPrice??1;
-    if(G.gold<cost) return;
-  }
+  const cost=card._buyPrice??1;
+  if(G.gold<cost) return;
 
   if(card._isChar){
     // キャラクター：指定スロット or 最初の空きへ配置
@@ -712,8 +678,7 @@ function takeRewCard(i, targetSlot){
     // 購入前の盤面平均グレードを記録（リスNPC判定用）
     const _preAllyG=G.allies.filter(a=>a&&a.hp>0);
     const _preBuyAvgG=_preAllyG.length?_preAllyG.reduce((s,a)=>s+(a.grade||1),0)/_preAllyG.length:0;
-    // 通常報酬は無料取得、街は通常購入
-    if(isTown){ G.gold-=(card._buyPrice??1); } else { _rewFreePickDone=true; }
+    G.gold-=cost;
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
     G.allies[emptyIdx]=unit;
     // 提示カードから購入したキャラは後衛で配置
@@ -789,10 +754,9 @@ function takeRewCard(i, targetSlot){
 
   // 指輪
   if(card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
-    if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    if(isTown) G.gold-=cost;
+    G.gold-=cost;
     const rc=clone(card);
     delete rc._buyPrice;
     G.rings[ringIdx]=rc;
@@ -815,7 +779,6 @@ function takeRewCard(i, targetSlot){
       G.actionsPerTurn=calcActions();
       G.actionsLeft=G.actionsLeft+(G.actionsPerTurn-_oldPT);
     }
-    if(!isTown) _rewFreePickDone=true;
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
     // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（指輪の場合）
     if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
@@ -837,11 +800,10 @@ function takeRewCard(i, targetSlot){
   }
 
   // アイテム（杖・消耗品）
-  if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown) G.gold-=cost;
+  G.gold-=cost;
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
@@ -858,8 +820,7 @@ function takeRewCard(i, targetSlot){
     }
   }
 
-  if(!isTown) _rewFreePickDone=true;
-  log(card.name+(isTown?' を'+cost+'ソウルで':' を')+'取得','good');
+  log(card.name+' を'+cost+'ソウルで取得','good');
   _rewCards[i]=null;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
@@ -1043,7 +1004,7 @@ function _renderFieldRow(el){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
           if(rc&&rc._isChar){
-            if(!G._isRewardTown||G.gold>=(rc._buyPrice??2)){
+            if(G.gold>=(rc._buyPrice??2)){
               takeRewCard(src,i);
             } else {
               log('ソウルが不足しています','bad');
@@ -1210,15 +1171,10 @@ function _applyStack(fieldIdx, rewIdx){
   const rewCard=_rewCards[rewIdx];
   const fieldUnit=G.allies[fieldIdx];
   if(!rewCard||!fieldUnit) return;
+  const cost=rewCard._buyPrice??2;
+  if(G.gold<cost){ log('ソウルが不足しています','bad'); return; }
   if((fieldUnit._stackCount||0)>=2){ log(`${fieldUnit.name} はこれ以上重ねられません（最大3枚）`,'bad'); return; }
-  if(!G._isRewardTown){
-    if(_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
-    _rewFreePickDone=true;
-  } else {
-    const cost=rewCard._buyPrice??2;
-    if(G.gold<cost){ log('ソウルが不足しています','bad'); return; }
-    G.gold-=cost;
-  }
+  G.gold-=cost;
   const result=_computeStackResult(fieldUnit,rewCard);
   fieldUnit.atk=result.atk; fieldUnit.baseAtk=result.atk;
   fieldUnit.hp=result.hp; fieldUnit.maxHp=result.hp;
@@ -1623,9 +1579,45 @@ function discardRing(idx){
 // ── 報酬グレードアップUI ────────────────────────
 
 function renderGradeUpBtn(){
-  // 手動グレードアップは廃止（街フェイズで自動上昇）
-  const el=document.getElementById('rw-grade-up-btn');
-  if(el) el.style.display='none';
+  // reward-info-bar 内に grade-up ボタンを動的挿入
+  let el=document.getElementById('rw-grade-up-btn');
+  if(!el){
+    el=document.createElement('button');
+    el.id='rw-grade-up-btn';
+    el.className='btn tiny';
+    el.style='border-color:var(--gold);color:var(--gold2);margin-left:6px';
+    document.getElementById('reward-info-bar').appendChild(el);
+  }
+  const count=G.rewardGradeUpCount||0;
+  const maxGrade=5; // 最大G5まで（報酬グレードアップの上限）
+  if(count>=GRADE_UP_COSTS.length||(G.rewardGrade||1)>=maxGrade){
+    el.style.display='none'; return;
+  }
+  const cost=Math.max(0, GRADE_UP_COSTS[count]-(G._gradeUpCostBonus||0));
+  const canAfford=G.gold>=cost;
+  el.style.display='';
+  el.textContent=`報酬G${(G.rewardGrade||1)}→G${(G.rewardGrade||1)+1}（${cost}ソウル）`;
+  el.disabled=!canAfford;
+  el.style.opacity=canAfford?'':'0.4';
+  el.onclick=()=>{
+    if(G.gold<cost) return;
+    G.gold-=cost;
+    G.rewardGrade=(G.rewardGrade||1)+1;
+    G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
+    // 報酬キャラ出現数を+1（最大6）し、即座に1体追加
+    if((G.rewardCharCount||3)<6){
+      G.rewardCharCount=(G.rewardCharCount||3)+1;
+      const newChars=drawCharacters(1);
+      if(newChars.length){ _rewCards.push(newChars[0]); _padRewCharSlots(); }
+    }
+    log(`📈 報酬グレードアップ：G${G.rewardGrade}　報酬キャラ${G.rewardCharCount}体`,'gold');
+    squirrelSay('グレードを上げた時');
+    document.getElementById('rw-gold').textContent=G.gold;
+    updateHUD();
+    renderGradeUpBtn();
+    renderRewCards();
+    renderEnemyHand();
+  };
 }
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────

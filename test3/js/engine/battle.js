@@ -5,13 +5,6 @@
 
 let _isBossFight = false;
 
-// 特殊オブジェクト定義（非ボス戦でランダム配置）
-const BATTLE_OBJECTS=[
-  {id:'rock',        name:'岩',   icon:'🪨', prob:0.15, hpMult:5, effect:null,          desc:'効果なし'},
-  {id:'barrel',      name:'樽',   icon:'🛢️', prob:0.10, hpMult:3, effect:'barrel',      desc:'宝箱(30%)または爆発(30%)'},
-  {id:'spirit_tree', name:'霊木', icon:'🌳', prob:0.05, hpMult:4, effect:'spirit_tree', desc:'破壊でソウル+1'},
-];
-
 // ドリアード：攻撃時にランダムな仲間2体+1/+1（旧バフ系トリガーは廃止）
 function triggerDryadBuff(){ /* 廃止済み - ドリアードは攻撃時効果に変更 */ }
 
@@ -56,52 +49,15 @@ function _handleVictory(){
   }
 }
 
-// ── フィールド宝箱：取得・廃棄 ────────────────────
-function _takeFieldTreasure(slotIdx){
-  const u=G.enemies[slotIdx];
-  if(!u||!u._isTreasureItem) return;
-  const item=u._treasureItem;
-  if(item.kind==='summon'||item.kind==='passive'||item.type==='ring'){
-    const ri=G.rings.slice(0,G.ringSlots).indexOf(null);
-    if(ri<0){ log(`📦 ${item.name}：指輪スロット満杯`,'bad'); return; }
-    const rc=clone(item); delete rc._buyPrice; G.rings[ri]=rc;
-    log(`📦 ${item.name} を取得`,'gold');
-  } else {
-    const hi=G.spells.indexOf(null);
-    if(hi<0){ log(`📦 ${item.name}：インベントリ満杯`,'bad'); return; }
-    const ic=clone(item);
-    if(ic.type==='wand'&&ic.usesLeft===undefined){ ic.usesLeft=ic.baseUses||4; ic._maxUses=ic.usesLeft; }
-    G.spells[hi]=ic;
-    log(`📦 ${item.name} を取得`,'gold');
-  }
-  G.enemies[slotIdx]=null;
-  _hideEnemyAreaIfNoTreasures();
-  renderAll(); updateHUD();
-}
-function _discardFieldTreasure(slotIdx){
-  const u=G.enemies[slotIdx];
-  if(!u||!u._isTreasureItem) return;
-  log(`📦 ${u._treasureItem.name} を廃棄`,'sys');
-  G.enemies[slotIdx]=null;
-  _hideEnemyAreaIfNoTreasures();
-  renderAll();
-}
-function _hideEnemyAreaIfNoTreasures(){
-  if(G.phase!=='reward') return;
-  if(G.enemies.some(e=>e&&e._isTreasureItem)) return;
-  const ea=document.getElementById('enemy-area');
-  if(ea) ea.style.display='none';
-}
-
 // ── リーダーボーナス（敵側）──────────────────────
 
 function applyLeaderBonus(){
-  const leader=G.enemies.find(e=>e&&e.keywords&&e.keywords.includes('リーダー')&&e.hp>0);
+  const leader=G.enemies.find(e=>e.keywords&&e.keywords.includes('リーダー')&&e.hp>0);
   if(!leader) return;
   const bonus=Math.ceil(FLOOR_DATA[G.floor]?.grade||1);
   leader._leaderBonus=bonus;
   G.enemies.forEach(e=>{
-    if(e&&e.id!==leader.id&&e.hp>0){ e.atk+=bonus; e.hp+=bonus*2; e.maxHp+=bonus*2; }
+    if(e.id!==leader.id&&e.hp>0){ e.atk+=bonus; e.hp+=bonus*2; e.maxHp+=bonus*2; }
   });
   log(`👑 リーダー「${leader.name}」が他の敵を強化（+${bonus}/+${bonus*2}）`,'bad');
 }
@@ -109,7 +65,7 @@ function removeLeaderBonus(leader){
   if(!leader._leaderBonus) return;
   const bonus=leader._leaderBonus;
   G.enemies.forEach(e=>{
-    if(e&&e.id!==leader.id&&e.hp>0){ e.atk=Math.max(1,e.atk-bonus); e.hp=Math.max(1,e.hp-bonus*2); e.maxHp=Math.max(1,e.maxHp-bonus*2); }
+    if(e.id!==leader.id&&e.hp>0){ e.atk=Math.max(1,e.atk-bonus); e.hp=Math.max(1,e.hp-bonus*2); e.maxHp=Math.max(1,e.maxHp-bonus*2); }
   });
   log(`👑 リーダー死亡：強化が消えた`,'sys');
 }
@@ -172,46 +128,6 @@ async function startBattle(){
   G.battleCounters={damage:0,deaths:0};
 
   G.enemies=generateEnemies(G.floor);
-  // 特殊オブジェクトをランダム配置（ボス戦除く）
-  // 敵はslot 0を確保して残りslot 1-5にランダム分散、オブジェクトはslot 1-5の空きに配置
-  if(!FLOOR_DATA[G.floor]?.boss){
-    const _actualEnemies=G.enemies.filter(e=>e!==null);
-    const _newEnemies=new Array(6).fill(null);
-    if(_actualEnemies.length>0){
-      _newEnemies[0]=_actualEnemies[0];
-      const _restSlots=[1,2,3,4,5];
-      for(let _si=_restSlots.length-1;_si>0;_si--){
-        const _sj=Math.floor(Math.random()*(_si+1));
-        [_restSlots[_si],_restSlots[_sj]]=[_restSlots[_sj],_restSlots[_si]];
-      }
-      _actualEnemies.slice(1).forEach((e,_ei)=>{ _newEnemies[_restSlots[_ei]]=e; });
-    }
-    G.enemies=_newEnemies;
-    // エリートの位置を再特定（generateMoveMasks が参照するため）
-    if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
-    // slot 1-5の空きスロットにオブジェクトを確率配置
-    const _objGrade=FLOOR_DATA[G.floor]?.grade||1;
-    for(let _oi=1;_oi<6;_oi++){
-      if(G.enemies[_oi]) continue;
-      const roll=Math.random();
-      let cumProb=0;
-      for(const obj of BATTLE_OBJECTS){
-        cumProb+=obj.prob;
-        if(roll<cumProb){
-          const hp=Math.ceil(_objGrade*obj.hpMult);
-          G.enemies[_oi]={
-            id:`obj_${obj.id}_${_oi}`,
-            name:obj.name, icon:obj.icon,
-            atk:0, hp, maxHp:hp,
-            race:'-', grade:0, keywords:[],
-            _isObject:true, _objectEffect:obj.effect,
-            lane:'front',
-          };
-          break;
-        }
-      }
-    }
-  }
   // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
   G.enemies.forEach(e=>{
     if(!e) return;
@@ -656,7 +572,7 @@ async function battlePhase(){
 }
 
 function _checkBattleOver(){
-  if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
+  if(G.enemies.filter(e=>e&&e.hp>0).length===0){
     _onAllEnemiesDefeated();
     return true;
   }
@@ -667,17 +583,6 @@ function _checkBattleOver(){
 function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
-  // 湖の畔ボーナス：指輪を確定ドロップ
-  if(G._pendingPondBonus){
-    const _pondPool=typeof getRingPool==='function'?getRingPool():[];
-    if(_pondPool.length){
-      const _pondRing=randFrom(_pondPool);
-      const _pSlot=G.enemies.indexOf(null);
-      if(_pSlot>=0){ G.enemies[_pSlot]={_isTreasureItem:true,_treasureItem:clone(_pondRing),hp:0,atk:0,id:`treasure_pond`}; }
-      else { G._pondRingDrop=_pondRing; }
-      log(`💧 湖：${_pondRing.name}をドロップ`,'gold');
-    }
-  }
   applyVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
@@ -798,7 +703,7 @@ function _applyEnemyAttackEffects(enemy){
 
 // 攻撃ターゲットを決定する
 function getAttackTarget(attacker, targets){
-  const live=targets.filter(u=>u&&u.hp>0&&!u._isObject); // オブジェクトは攻撃対象から除外
+  const live=targets.filter(u=>u&&u.hp>0);
   if(!live.length) return null;
   // 前衛判定：hate=true（味方前衛）または lane==='front'（明示設定の敵前衛）
   // ※ lane 未設定（undefined）の味方ユニットは前衛判定しない
@@ -862,7 +767,7 @@ async function allyAttackAction(ally, allyIdx){
     const ti=G.enemies.indexOf(t);
     dealDmgToEnemy(t,ally.atk,ti,ally);
     // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ・攻撃効果も発動）
-    if(t.hp>0&&t.atk>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
+    if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
       _applyEnemyAttackEffects(t);
       dealDmgToAlly(ally,t.atk,allyIdx,t);
       log(`⚔ ${t.name}の反撃：${ally.name}に${t.atk}ダメ`,'bad');
@@ -903,7 +808,6 @@ async function allyAttackAction(ally, allyIdx){
 // ── 敵攻撃アクション ──────────────────────────
 
 async function enemyAttackAction(enemy, enemyIdx){
-  if(enemy.atk<=0) return; // ATK0は攻撃しない
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
 
@@ -1623,7 +1527,7 @@ function applyVictoryBonuses(){
 // ── スペル使用後の勝利チェック ──────────────────
 
 function checkInstantVictory(){
-  if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
+  if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0).length===0){
     G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     applyVictoryBonuses();
     log('全敵撃破！','gold');
@@ -1756,34 +1660,6 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
-  // 特殊オブジェクトの破壊処理（通常の死亡処理をスキップ）
-  if(e._isObject){
-    if(e._objectEffect==='barrel'){
-      const _broll=Math.random();
-      if(_broll<0.30){
-        // 宝箱を生成して元のスロットに直置き
-        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
-        const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
-        if(_bItem){ G.enemies[eIdx]={_isTreasureItem:true,_treasureItem:_bItem,hp:0,atk:0,id:`treasure_${eIdx}`}; log(`🛢️ 樽：宝箱が出た！`,'gold'); }
-      } else if(_broll<0.60){
-        // 爆発：隣接する非オブジェクト敵にダメージ（味方には当たらない）
-        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
-        const _bdmg=Math.ceil(_bGrade*3);
-        [eIdx-1,eIdx+1].forEach(ni=>{
-          const ne=G.enemies[ni];
-          if(ne&&ne.hp>0&&!ne._isObject){ dealDmgToEnemy(ne,_bdmg,ni,null); log(`💥 樽爆発：${ne.name}に${_bdmg}ダメージ`,'bad'); }
-        });
-      } else {
-        log(`🛢️ 樽：何も起きなかった`,'sys');
-      }
-    } else if(e._objectEffect==='spirit_tree'){
-      onGoldGained(1);
-      log(`🌳 霊木破壊：ソウル+1`,'gold');
-    }
-    e.hp=0;
-    renderAll();
-    return;
-  }
   // エリート判定：キーワードではなくインデックスで判定（ENEMY_POOLデータにエリートKWが混入しても誤発火しない）
   const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
   if(_isActualElite) G._eliteKilled=true;
@@ -1795,19 +1671,18 @@ function processEnemyDeath(e,eIdx){
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
   // エリート戦ではエリート本体（インデックス一致）が宝箱を確定ドロップ（他の敵は落とさない）
   if(_isActualElite){
-    const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
-    const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
-    if(_elItem){ G.enemies[eIdx]={_isTreasureItem:true,_treasureItem:_elItem,hp:0,atk:0,id:`treasure_elite_${eIdx}`}; log(`⭐ ${e.name}が宝箱を落とした！`,'gold'); }
-  } else if(!G.enemies.some(f=>f&&f._isTreasureItem)&&!G._retreated&&!G._isEliteFight){
+    G._pendingEliteChest=true;
+    log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+  } else if(!G._pendingTreasure&&!G._retreated&&!G._isEliteFight){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
     // ノーム：1体=1.5倍（黄金の雫：2倍）、複数体は乗算
     const gnomeCount=G.allies?G.allies.filter(a=>a&&a.hp>0&&a.effect==='gnome_treasure').length:0;
     const gnomeMult=gnomeCount===0?1:Math.pow(G.hasGoldenDrop?2:1.5,gnomeCount);
     const rate=(hasGreed?2:1)*gnomeMult*0.05;
     if(Math.random()<rate){
-      const _tGrade=FLOOR_DATA[G.floor]?.grade||1;
-      const _tItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_tGrade);
-      if(_tItem){ G.enemies[eIdx]={_isTreasureItem:true,_treasureItem:_tItem,hp:0,atk:0,id:`treasure_${eIdx}`}; log(`📦 ${e.name}が宝箱を落とした！`,'gold'); }
+      G._pendingTreasure=true;
+      G.moveMasks[eIdx]='chest';
+      log(`📦 ${e.name}が宝箱を落とした！`,'gold');
     }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){

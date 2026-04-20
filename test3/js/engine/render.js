@@ -373,19 +373,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     if(u&&u.hp>0&&isEnemy&&u.lane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
-    if(isEnemy&&u&&u._isTreasureItem){
-      // 宝箱ドロップ：アイテムカードとして描画
-      const _ti=u._treasureItem;
-      const _tLabel={ring:'指輪',wand:'杖',consumable:'アイテム'}[_ti.type||'ring']||'指輪';
-      const _tClr=_ti.type==='ring'?'var(--purple2)':_ti.type==='wand'?'var(--blue2)':'var(--red2)';
-      const _tGS=_ti.grade?gradeStr(_ti.grade):'';
-      const _tDesc=computeDesc(_ti);
-      slot.className='slot';
-      slot.style.cssText='cursor:pointer;background:var(--bg2);border:1px solid var(--gold);border-top:2px solid var(--gold)';
-      slot.innerHTML=`<div style="position:absolute;top:3px;left:3px;font-size:.6rem;color:var(--gold)">${_tGS}</div><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:2px 2px 28px;pointer-events:none"><div style="font-size:.5rem;color:${_tClr}">${_tLabel}</div><div class="slot-name" style="text-align:center">${_ti.name}</div><div class="slot-desc" style="text-align:center">${_tDesc}</div></div><div style="position:absolute;bottom:4px;left:0;right:0;text-align:center"><button class="btn tiny" style="color:var(--red2)">廃棄</button></div>`;
-      slot.querySelector('button').onclick=ev=>{ev.stopPropagation();_discardFieldTreasure(i);};
-      slot.onclick=()=>_takeFieldTreasure(i);
-    } else if(u&&u.hp>0){
+    if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
         // ── ステータスバッジ（右上固定：状態異常のみ）──

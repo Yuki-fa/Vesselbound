@@ -2,6 +2,16 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:yuki-fa.github.io)"
+      "Bash(git *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(diff *)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "MultiEdit(*)"
     ]
   }
 }
