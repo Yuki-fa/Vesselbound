@@ -151,6 +151,7 @@ function _computeDeathRisk(){
   const origAliveIds=_sA.map(a=>a&&a.hp>0?a.id:null);
   const origEnemyIds=_sE.map(e=>e&&e.hp>0?e.id:null);
 
+  G._isSimulating=true;
   try{
     for(let trial=0;trial<N;trial++){
       // ── 毎回クローンを差し込んでシミュレーション ──
@@ -217,6 +218,7 @@ function _computeDeathRisk(){
     console.error('[DR] シミュレーションエラー:', e);
     return _emptyDR;
   } finally {
+    G._isSimulating=false;
     // ── 状態を完全復元 ──
     G.allies=_sA; G.enemies=_sE;
     G.gold=_sGold; G.earnedGold=_sEarned;

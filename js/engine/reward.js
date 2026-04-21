@@ -54,7 +54,6 @@ function goToReward(){
   }
 
   _rewCards=drawRewards();
-  console.log('[DEBUG] drawRewards result:', _rewCards.length, _rewCards.map(c=>c?c.name+'('+c.type+')':'null'));
   _padRewCharSlots(); // キャラ0-5・アイテム6+に整列
   G.phase='reward';
   // 報酬フェイズ突入時に行動権を戦闘フェイズと同値にリセット
@@ -109,9 +108,7 @@ function goToReward(){
   }
 
   // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
-  console.log('[DEBUG] _pendingTreasureItems before push:', G._pendingTreasureItems?.length, G._pendingTreasureItems?.map(c=>c?c.name:'null'));
   if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
-    console.log('[DEBUG] Adding pendingTreasureItems to rewCards:', G._pendingTreasureItems.length, new Error().stack.split('\n').slice(0,3).join(' '));
     G._pendingTreasureItems.forEach(item=>{
       if(item._buyPrice==null) item._buyPrice=0;
       _rewCards.push(item);
@@ -161,8 +158,7 @@ function goToReward(){
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
   G._masterHandReady=true; // ここから敵インベントリエリアを報酬UIとして使用
   _generateMasterHand(); // renderRewCards前に杖・アイテムを抽出してmasterHandへ
-  console.log('[DEBUG] masterHand after generateMasterHand:', G.masterHand.length, G.masterHand.map(c=>c?c.name+'('+c.type+')':'null'));
-  console.log('[DEBUG] _rewCards after generateMasterHand:', _rewCards.filter(c=>c).length, _rewCards.filter(c=>c).map(c=>c.name));
+
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();

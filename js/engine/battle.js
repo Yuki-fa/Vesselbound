@@ -1733,7 +1733,7 @@ function processEnemyDeath(e,eIdx){
       // 樽は常にアイテムをドロップ（宝箱の数と一致）
       const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
       const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
-      if(_bItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_bItem); log(`🛢️ 樽：宝箱が出た！`,'gold'); }
+      if(_bItem&&!G._isSimulating){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_bItem); log(`🛢️ 樽：宝箱が出た！`,'gold'); }
     } else if(e._objectEffect==='spirit_tree'){
       onGoldGained(1);
       log(`🌳 霊木破壊：ソウル+1`,'gold');
@@ -1755,7 +1755,7 @@ function processEnemyDeath(e,eIdx){
   if(_isActualElite){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
-    if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); console.log('[DEBUG] elite push, total:', G._pendingTreasureItems.length, 'stack:', new Error().stack.split('\n').slice(1,4).join('|')); }
+    if(_elItem&&!G._isSimulating){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
