@@ -706,6 +706,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
+  // レッサーデーモンディスカウント（非キャラのみ）
+  const _ldDisc=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
+  const cost=card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)-_ldDisc);
 
   if(card._isChar){
     // 通常報酬フェイズ：キャラ1枚のみ無料取得、以降はロック
@@ -713,12 +716,10 @@ function takeRewCard(i, targetSlot){
       if(_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     } else {
       // 街：通常購入
-      const cost=card._buyPrice??1;
       if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
     }
   } else {
     // アイテム・指輪：通常購入
-    const cost=card._buyPrice??1;
     if(G.gold<cost) return;
   }
 
@@ -808,7 +809,7 @@ function takeRewCard(i, targetSlot){
     if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    if(isTown) G.gold-=cost;
+    if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
     const rc=clone(card);
     delete rc._buyPrice;
     G.rings[ringIdx]=rc;
@@ -857,7 +858,7 @@ function takeRewCard(i, targetSlot){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown) G.gold-=cost;
+  if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;

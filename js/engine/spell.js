@@ -465,7 +465,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'boost':{ const a=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx]; if(a&&a.hp>0){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); if(!_inReward) triggerDryadBuff(); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
-    case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.hp=a.maxHp; }); log('全仲間HP全回復','good'); break;}
+    case 'heal_ally':{ const _jkh=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0; G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_jkh){ a.maxHp+=_jkh; } a.hp=a.maxHp; } }); log('全仲間HP全回復'+(_jkh?'（ジャッカロープ：最大HP+'+_jkh+'）':''),'good'); break;}
     case 'seal':{
       if(tgt.who==='rew-char'){ const rc=_rewCards[tgt.idx]; if(rc) log(`${rc.name}：報酬フェイズ中は封印効果なし`,'sys'); }
       else { const su=G.enemies[tgt.idx]; if(su){ su.sealed=1; log(`${su.name} 封印1T`,'good'); } }

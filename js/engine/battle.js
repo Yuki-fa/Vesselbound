@@ -8,7 +8,7 @@ let _isBossFight = false;
 // 特殊オブジェクト定義（非ボス戦でランダム配置）
 const BATTLE_OBJECTS=[
   {id:'rock',        name:'岩',   icon:'🪨', prob:0.15, hpMult:5, effect:null,          desc:'効果なし'},
-  {id:'barrel',      name:'樽',   icon:'🛢️', prob:0.10, hpMult:3, effect:'barrel',      desc:'宝箱(30%)または爆発(30%)'},
+  {id:'barrel',      name:'樽',   icon:'🛢️', prob:0.10, hpMult:3, effect:'barrel',      desc:'破壊で宝箱を確定ドロップ'},
   {id:'spirit_tree', name:'霊木', icon:'🌳', prob:0.05, hpMult:4, effect:'spirit_tree', desc:'破壊でソウル+1'},
 ];
 
@@ -633,6 +633,7 @@ function _checkBattleOver(){
 }
 
 function _onAllEnemiesDefeated(){
+  if(G.phase==='reward') return; // 二重呼び出し防止
   log('全敵撃破！','gold');
   if(_isBossFight) G._bossJustDefeated=true;
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
@@ -660,7 +661,8 @@ function _applyAllyAttackEffects(ally){
   const _gd=G.hasGoldenDrop?1:0;
   const _sc=(ally._stackCount||0)+1; // 重ね倍率（G1=1, G2=2, ...）
   if(ally.effect==='brownie_attack'){
-    const _hpGain=_sc+_gd;
+    const _jkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+_gd:0;
+    const _hpGain=_sc+_gd+_jkb;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_hpGain; a.maxHp+=_hpGain; }});
     log(`${ally.name}：攻撃時→全仲間±0/+${_hpGain}`,'good');
   }
@@ -670,7 +672,8 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃時→全仲間+${v}/±0`,'good');
   }
   if(ally.effect==='vampire_attack'){
-    const va=2*_sc+_gd, vh=_sc+_gd;
+    const _jkbv=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+_gd:0;
+    const va=2*_sc+_gd, vh=_sc+_gd+_jkbv;
     G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
     log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
   }
@@ -1477,7 +1480,7 @@ function onBattleStart(){
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     const kw=(a.keywords||[]).find(k=>/^結束\d+$/.test(k));
-    if(kw){ const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x; b.maxHp+=x; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x}`,'good'); triggerDryadBuff(); }
+    if(kw){ const _jkbk=G.allies.some(b=>b&&b.hp>0&&b.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0; const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x+_jkbk; b.maxHp+=x+_jkbk; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x+_jkbk}`,'good'); triggerDryadBuff(); }
   });
   // harpy_magic：魔術レベルが確定した後にATKを同期
   syncHarpyAtk();
@@ -1552,9 +1555,10 @@ function onBattleEnd(){
     if(!a||a.hp<=0) return;
     const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
     if(!growKw) return;
+    const _jkbg=G.allies.some(b=>b&&b.hp>0&&b.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0;
     const x=parseInt(growKw.slice(2))+(G.hasGoldenDrop?1:0);
-    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x; a.maxHp+=x;
-    log(`🌱 ${a.name} 成長${x}：+${x}/+${x}`,'good');
+    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x+_jkbg; a.maxHp+=x+_jkbg;
+    log(`🌱 ${a.name} 成長${x}：+${x}/+${x+_jkbg}`,'good');
     triggerDryadBuff();
   });
 
@@ -1726,23 +1730,10 @@ function processEnemyDeath(e,eIdx){
   // 特殊オブジェクトの破壊処理（通常の死亡処理をスキップ）
   if(e._isObject){
     if(e._objectEffect==='barrel'){
-      const _broll=Math.random();
-      if(_broll<0.30){
-        // 宝箱を生成
-        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
-        const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
-        if(_bItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_bItem); log(`🛢️ 樽：宝箱が出た！`,'gold'); }
-      } else if(_broll<0.60){
-        // 爆発：隣接する非オブジェクト敵にダメージ（味方には当たらない）
-        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
-        const _bdmg=Math.ceil(_bGrade*3);
-        [eIdx-1,eIdx+1].forEach(ni=>{
-          const ne=G.enemies[ni];
-          if(ne&&ne.hp>0&&!ne._isObject){ dealDmgToEnemy(ne,_bdmg,ni,null); log(`💥 樽爆発：${ne.name}に${_bdmg}ダメージ`,'bad'); }
-        });
-      } else {
-        log(`🛢️ 樽：何も起きなかった`,'sys');
-      }
+      // 樽は常にアイテムをドロップ（宝箱の数と一致）
+      const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
+      const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
+      if(_bItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_bItem); log(`🛢️ 樽：宝箱が出た！`,'gold'); }
     } else if(e._objectEffect==='spirit_tree'){
       onGoldGained(1);
       log(`🌳 霊木破壊：ソウル+1`,'gold');
@@ -1760,8 +1751,7 @@ function processEnemyDeath(e,eIdx){
   const goldPerKill=_isArtifact?0:_isNamed?3:(G.baseIncome||1);
   if(goldPerKill>0){ log(`${e.name} 撃破！ソウル+${goldPerKill}`,'gold'); onGoldGained(goldPerKill); }
   else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
-  // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
-  // エリート戦ではエリート本体（インデックス一致）が宝箱を確定ドロップ（他の敵は落とさない）
+  // エリート本体（インデックス一致）が宝箱を確定ドロップ（他の敵は落とさない）
   if(_isActualElite){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
