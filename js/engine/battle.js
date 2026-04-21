@@ -999,7 +999,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(dmg<=0){
     if(unit.counter&&src&&unit.hp>0){
       const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+      if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI0=G.allies.indexOf(unit);if(_elfCI0>0){const _elfC0=G.allies[_elfCI0-1];if(_elfC0&&_elfC0.hp>0&&_elfC0.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
     }
     return false;
   }
@@ -1012,7 +1012,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     // 反撃：シールドで防いでも生き残っているので発動
     if(unit.counter&&src&&unit.hp>0){
       const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+      if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI1=G.allies.indexOf(unit);if(_elfCI1>0){const _elfC1=G.allies[_elfCI1-1];if(_elfC1&&_elfC1.hp>0&&_elfC1.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
     }
     return false; // ダメージをシールドで防いだ
   }
@@ -1032,7 +1032,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   // 反撃：ダメージを受けて生き残った場合のみ発動
   if(!willDie&&unit.counter&&src&&unit.hp>0){
     const srcIdx=G.enemies.indexOf(src);
-    if(srcIdx>=0){ _applyAllyAttackEffects(unit); dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
+    if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI2=G.allies.indexOf(unit);if(_elfCI2>0){const _elfC2=G.allies[_elfCI2-1];if(_elfC2&&_elfC2.hp>0&&_elfC2.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
   }
 
   // リリス・ヴェノム（敵側）：味方がダメージを受けた時、毒3を与える
