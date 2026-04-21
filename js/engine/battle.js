@@ -1728,7 +1728,7 @@ function processEnemyDeath(e,eIdx){
     if(e._objectEffect==='barrel'){
       const _broll=Math.random();
       if(_broll<0.30){
-        // 宝箱を生成して元のスロットに直置き
+        // 宝箱を生成
         const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
         const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
         if(_bItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_bItem); log(`🛢️ 樽：宝箱が出た！`,'gold'); }
@@ -1766,17 +1766,6 @@ function processEnemyDeath(e,eIdx){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
     if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); }
-  } else if(!(G._pendingTreasureItems&&G._pendingTreasureItems.length>0)&&!G._retreated&&!G._isEliteFight){
-    const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
-    // ノーム：1体=1.5倍（黄金の雫：2倍）、複数体は乗算
-    const gnomeCount=G.allies?G.allies.filter(a=>a&&a.hp>0&&a.effect==='gnome_treasure').length:0;
-    const gnomeMult=gnomeCount===0?1:Math.pow(G.hasGoldenDrop?2:1.5,gnomeCount);
-    const rate=(hasGreed?2:1)*gnomeMult*0.05;
-    if(Math.random()<rate){
-      const _tGrade=FLOOR_DATA[G.floor]?.grade||1;
-      const _tItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_tGrade);
-      if(_tItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_tItem); log(`📦 ${e.name}が宝箱を落とした！`,'gold'); }
-    }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);

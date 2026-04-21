@@ -151,7 +151,7 @@ function goToReward(){
 
   document.getElementById('rw-gold').textContent=G.gold;
   document.getElementById('rw-count').textContent=5;
-  const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display='none'; }
+  const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
 
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
@@ -629,7 +629,7 @@ function renderRewCards(){
   // ②アイテム・指輪は従来の小カードで描画（index 6以降）
   _rewCards.forEach((card,i)=>{
     if(i<6||!card||card._isChar) return;
-    const d=_mkRewDiv(card, ()=>takeRewCard(i));
+    const d=_mkRewDiv(card, ()=>takeRewCard(i), i);
     if(isRewardLocked){ d.onclick=null; d.style.opacity='0.5'; d.style.cursor='default'; }
     el.appendChild(d);
   });
@@ -638,7 +638,7 @@ function renderRewCards(){
   requestAnimationFrame(fitCardDescs);
 }
 
-function _mkRewDiv(card, onBuy){
+function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
   const cost=card._buyPrice??1;
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
@@ -692,6 +692,12 @@ function _mkRewDiv(card, onBuy){
   const shortBadgeItem=G._isRewardTown&&!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
   div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div style="margin-top:20px"><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
   if(canBuy) div.onclick=onBuy;
+  if(rewIdx!=null){
+    div.draggable=true;
+    div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rew',idx:rewIdx}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
+    div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+    div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); _dragSrc=null; });
+  }
   return div;
 }
 
@@ -1587,6 +1593,11 @@ function dropOnCard(destArr,destIdx){
   // 宝箱ドラッグ：インベントリ/指輪スロットへドロップで取得
   if(srcArr==='treasure'){
     if(typeof _takeFieldTreasure==='function') _takeFieldTreasure(srcIdx);
+    return;
+  }
+  // 報酬カード（杖・消耗品・指輪）のドロップ購入
+  if(srcArr==='rew'){
+    takeRewCard(srcIdx);
     return;
   }
   const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring');
