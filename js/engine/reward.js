@@ -58,17 +58,10 @@ function goToReward(){
   G.actionsLeft=G.actionsPerTurn;
   G._familiarUsed=false; // ファミリア：報酬フェイズ開始時にリセット
 
-  // エリート撃破ボーナス：高レアリティ宝箱を自動開封して報酬欄に追加
+  // エリート撃破ボーナスはbattle.jsの_pendingTreasureItemsで処理済み
   if(G._pendingEliteChest){
     G._pendingEliteChest=false;
     G._pendingTreasure=false;
-    const fd=FLOOR_DATA[G.floor];
-    const maxGrade=fd?(fd.grade||1):1;
-    const eliteItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},maxGrade);
-    if(eliteItem){
-      _rewCards.push(eliteItem);
-      log('⭐ エリート撃破：高レアリティ宝箱が出現！','gold');
-    }
   }
 
   // 洞窟ボーナス：1グレード高いキャラを報酬欄に追加
