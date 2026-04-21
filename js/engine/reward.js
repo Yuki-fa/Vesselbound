@@ -111,6 +111,16 @@ function goToReward(){
     G._pendingTreasure=false;
   }
 
+  // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
+  if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
+    G._pendingTreasureItems.forEach(item=>{
+      if(item._buyPrice==null) item._buyPrice=0;
+      _rewCards.push(item);
+      log(`📦 ${item.name} が報酬欄に追加された！`,'gold');
+    });
+    G._pendingTreasureItems=[];
+  }
+
   // 報酬フェイズUI
   const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
   document.getElementById('ally-section').style.display='';
@@ -884,7 +894,7 @@ function _renderFieldRow(el){
     const div=document.createElement('div');
     if(unit&&unit.hp>0){
       div.className='slot'+(unit.hate&&unit.hateTurns>0?' is-front':'');
-      if(!G._isTreasurePhase) div.draggable=true;
+      div.draggable=true;
       const badges=[];
       const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
       // 標的バッジは非表示（is-front の視覚的シフトで代用）
@@ -916,10 +926,8 @@ function _renderFieldRow(el){
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
-      const _returnBtnHtml=G._isTreasurePhase?'':'<button class="return-btn">還魂（ソウル+1）</button>';
-      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>${_returnBtnHtml}`;
-      const _rb=div.querySelector('.return-btn');
-      if(_rb) _rb.onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
+      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
+      div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       // 継承ボタン（3枚重ね完了時のみ表示）
       if(unit._canInherit){
         const inheritBtn=document.createElement('button');
@@ -941,15 +949,15 @@ function _renderFieldRow(el){
         }
         updateHUD(); renderFieldEditor();
       };
-      if(!G._isTreasurePhase) div.addEventListener('dragstart',e=>{
+      div.addEventListener('dragstart',e=>{
         _fieldDragSrc=i; _fieldDragSrcEl=div; _fieldDragStartY=e.clientY;
         div.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
         e.dataTransfer.setDragImage(_transparentDragImg,0,0);
         _updateFieldDropHighlights(unit.name,0,true,i);
         _createDragGhost(div);
       });
-      if(!G._isTreasurePhase) div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      if(!G._isTreasurePhase) div.addEventListener('dragend',e=>{
+      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+      div.addEventListener('dragend',e=>{
         const srcIdx=_fieldDragSrc; // dropで既に-1になっていれば移動済み
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;

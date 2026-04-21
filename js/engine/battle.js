@@ -49,72 +49,10 @@ function onGoldGained(amount){
 function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
-  const hasTreasure=(G._pendingTreasureItems&&G._pendingTreasureItems.length>0)||G.enemies.some(e=>e&&e._isTreasureItem);
-  if(hasTreasure){
-    // You Win を短く表示してから宝箱UIを出す
-    const ov=document.getElementById('victory-overlay');
-    const btn=ov&&ov.querySelector('button');
-    if(btn) btn.style.display='none';
-    if(ov) ov.style.display='flex';
-    setTimeout(()=>{
-      if(ov) ov.style.display='none';
-      if(btn) btn.style.display='';
-      G._isTreasurePhase=true;
-      // 宝箱フェイズ中は行動ボタンを隠す
-      const passBtn=document.getElementById('btn-pass');
-      if(passBtn) passBtn.style.display='none';
-      const logWrap=document.getElementById('log-wrap');
-      if(logWrap) logWrap.style.display='none';
-      // 保留中の宝箱アイテムをフィールドに配置
-      if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
-        G._pendingTreasureItems.forEach(item=>{
-          const slot=G.enemies.findIndex((e,i)=>!e&&!G.moveMasks[i]);
-          if(slot>=0) G.enemies[slot]={_isTreasureItem:true,_treasureItem:item,hp:0,atk:0,id:`treasure_${uid()}`,lane:G.moveMaskLanes?.[slot]||'front'};
-        });
-        G._pendingTreasureItems=[];
-      }
-      renderAll(); updateHUD();
-      if(typeof renderFieldEditor==='function') renderFieldEditor();
-      const ea=document.getElementById('enemy-area');
-      if(ea) ea.style.display='';
-    }, 1500);
-    return;
-  }
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
     showScreen('clear');
   } else {
     showVictoryOverlay();
-  }
-}
-
-// ── フィールド宝箱：取得・廃棄 ────────────────────
-function _takeFieldTreasure(slotIdx){
-  const u=G.enemies[slotIdx];
-  if(!u||!u._isTreasureItem) return;
-  const item=u._treasureItem;
-  // 指輪も含め、すべてアイテムスロットへ
-  const hi=G.spells.indexOf(null);
-  if(hi<0){ log(`📦 ${item.name}：インベントリ満杯`,'bad'); return; }
-  const ic=clone(item); delete ic._buyPrice;
-  if(ic.type==='wand'&&ic.usesLeft===undefined){ ic.usesLeft=ic.baseUses||4; ic._maxUses=ic.usesLeft; }
-  G.spells[hi]=ic;
-  log(`📦 ${item.name} を取得`,'gold');
-  G.enemies[slotIdx]=null;
-  renderAll(); updateHUD();
-  if(!G.enemies.some(e=>e&&e._isTreasureItem)){
-    if(_isBossFight&&G.floor===FLOOR_DATA.length-1) showScreen('clear');
-    else if(typeof goToReward==='function') goToReward();
-  }
-}
-function _discardFieldTreasure(slotIdx){
-  const u=G.enemies[slotIdx];
-  if(!u||!u._isTreasureItem) return;
-  log(`📦 ${u._treasureItem.name} を廃棄`,'sys');
-  G.enemies[slotIdx]=null;
-  renderAll(); updateHUD();
-  if(!G.enemies.some(e=>e&&e._isTreasureItem)){
-    if(_isBossFight&&G.floor===FLOOR_DATA.length-1) showScreen('clear');
-    else if(typeof goToReward==='function') goToReward();
   }
 }
 

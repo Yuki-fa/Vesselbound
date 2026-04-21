@@ -364,32 +364,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     if(isEnemy&&_slotLane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
-    if(isEnemy&&u&&u._isTreasureItem){
-      // 宝箱ドロップ：インベントリカードと全く同サイズのカードを中央配置
-      const _ti=u._treasureItem;
-      const _tt=_ti.type==='ring'?'ring':_ti.type==='wand'?'wand':'consumable';
-      const _tLabel=_tt==='ring'?'指輪':_tt==='wand'?'杖':'アイテム';
-      const _tGS=gradeStr(_ti.grade||1);
-      const _tDesc=computeDesc(_ti);
-      const _tCharge=_tt==='wand'&&_ti.usesLeft!=null?`<div class="card-charge">チャージ：${_ti.usesLeft}</div>`:'';
-      // インベントリカードと同じ幅を動的計測
-      const _hp=document.getElementById('hand-pane');
-      const _hcols=10-(G.ringSlots||2);
-      const _cw=_hp&&_hp.offsetWidth>0?Math.floor(_hp.offsetWidth/_hcols):90;
-      slot.className='slot'+(_slotLane==='front'?' is-rear':'');
-      slot.style.cssText='background:var(--bg);display:flex;align-items:center;justify-content:center';
-      const _tc=document.createElement('div');
-      _tc.className=`card ${_tt}`;
-      _tc.style.cssText=`cursor:pointer;width:${_cw}px;flex:none;padding-bottom:22px;user-select:none`;
-      _tc.draggable=true;
-      _tc.innerHTML=`<div class="card-grade">${_tGS}</div><div class="card-tp ${_tt}">${_tLabel}</div><div class="card-name">${_ti.name}</div><div class="card-desc">${_tDesc}</div>${_tCharge}<button class="discard-btn" title="廃棄">廃棄</button>`;
-      _tc.querySelector('.discard-btn').onclick=ev=>{ev.stopPropagation();_discardFieldTreasure(i);};
-      _tc.onclick=e=>{if(!e.target.classList.contains('discard-btn'))_takeFieldTreasure(i);};
-      _tc.addEventListener('dragstart',e=>{ _dragSrc={arr:'treasure',idx:i}; _tc.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(_tc); });
-      _tc.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      _tc.addEventListener('dragend',()=>{ _tc.classList.remove('dragging'); _removeDragGhost(); if(_dragSrc&&_dragSrc.arr==='treasure') _dragSrc=null; });
-      slot.appendChild(_tc);
-    } else if(u&&u.hp>0){
+    if(u&&u.hp>0){
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
         // ── ステータスバッジ（右上固定：状態異常のみ）──
