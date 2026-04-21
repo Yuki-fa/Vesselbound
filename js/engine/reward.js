@@ -51,6 +51,7 @@ function goToReward(){
   }
 
   _rewCards=drawRewards();
+  console.log('[DEBUG] drawRewards result:', _rewCards.length, _rewCards.map(c=>c?c.name+'('+c.type+')':'null'));
   _padRewCharSlots(); // キャラ0-5・アイテム6+に整列
   G.phase='reward';
   // 報酬フェイズ突入時に行動権を戦闘フェイズと同値にリセット
@@ -155,6 +156,8 @@ function goToReward(){
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
   G._masterHandReady=true; // ここから敵インベントリエリアを報酬UIとして使用
   _generateMasterHand(); // renderRewCards前に杖・アイテムを抽出してmasterHandへ
+  console.log('[DEBUG] masterHand after generateMasterHand:', G.masterHand.length, G.masterHand.map(c=>c?c.name+'('+c.type+')':'null'));
+  console.log('[DEBUG] _rewCards after generateMasterHand:', _rewCards.filter(c=>c).length, _rewCards.filter(c=>c).map(c=>c.name));
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();
