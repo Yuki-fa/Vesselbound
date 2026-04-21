@@ -106,6 +106,7 @@ function goToReward(){
   }
 
   // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
+  console.log('[DEBUG] _pendingTreasureItems before push:', G._pendingTreasureItems?.length, G._pendingTreasureItems?.map(c=>c?c.name:'null'));
   if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
     G._pendingTreasureItems.forEach(item=>{
       if(item._buyPrice==null) item._buyPrice=0;
