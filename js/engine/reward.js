@@ -39,6 +39,9 @@ function goToReward(){
   if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
   G._isTreasurePhase=false;
   G._isRewardTown=true; // 常に購入制モード（無料取得なし）
+  // 明示的リセット（前回の残留データを防ぐ）
+  G.masterHand=[];
+  G._pendingTreasureItems=G._pendingTreasureItems||[];
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
 
@@ -108,6 +111,7 @@ function goToReward(){
   // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
   console.log('[DEBUG] _pendingTreasureItems before push:', G._pendingTreasureItems?.length, G._pendingTreasureItems?.map(c=>c?c.name:'null'));
   if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
+    console.log('[DEBUG] Adding pendingTreasureItems to rewCards:', G._pendingTreasureItems.length, new Error().stack.split('\n').slice(0,3).join(' '));
     G._pendingTreasureItems.forEach(item=>{
       if(item._buyPrice==null) item._buyPrice=0;
       _rewCards.push(item);

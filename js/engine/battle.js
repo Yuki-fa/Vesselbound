@@ -1755,7 +1755,7 @@ function processEnemyDeath(e,eIdx){
   if(_isActualElite){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
-    if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); }
+    if(_elItem){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); console.log('[DEBUG] elite push, total:', G._pendingTreasureItems.length, 'stack:', new Error().stack.split('\n').slice(1,4).join('|')); }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
