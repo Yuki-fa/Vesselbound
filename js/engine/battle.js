@@ -77,6 +77,19 @@ function removeLeaderBonus(leader){
   log(`👑 リーダー死亡：強化が消えた`,'sys');
 }
 
+// ── HP増加共通関数（ジャッカロープボーナス自動付与）──────
+function addUnitHp(unit, amount, sideOverride){
+  if(!unit||amount<=0) return 0;
+  const onAllySide=sideOverride==='ally'||(!sideOverride&&G.allies.includes(unit));
+  const onEnemySide=sideOverride==='enemy'||(!sideOverride&&G.enemies.includes(unit));
+  const allyJkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive');
+  const enemyJkb=G.enemies.some(e=>e&&e.hp>0&&e.effect==='jackalope_passive');
+  const _jkb=((onAllySide&&allyJkb)||(onEnemySide&&enemyJkb))?1+(G.hasGoldenDrop?1:0):0;
+  const total=amount+_jkb;
+  unit.hp+=total; unit.maxHp+=total;
+  return total;
+}
+
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
@@ -661,9 +674,8 @@ function _applyAllyAttackEffects(ally){
   const _gd=G.hasGoldenDrop?1:0;
   const _sc=(ally._stackCount||0)+1; // 重ね倍率（G1=1, G2=2, ...）
   if(ally.effect==='brownie_attack'){
-    const _jkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+_gd:0;
-    const _hpGain=_sc+_gd+_jkb;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_hpGain; a.maxHp+=_hpGain; }});
+    const _base=_sc+_gd; let _hpGain=_base;
+    G.allies.forEach(a=>{ if(a&&a.hp>0) _hpGain=addUnitHp(a,_base); });
     log(`${ally.name}：攻撃時→全仲間±0/+${_hpGain}`,'good');
   }
   if(ally.effect==='forniot'){
@@ -672,10 +684,9 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃時→全仲間+${v}/±0`,'good');
   }
   if(ally.effect==='vampire_attack'){
-    const _jkbv=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+_gd:0;
-    const va=2*_sc+_gd, vh=_sc+_gd+_jkbv;
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; a.hp+=vh; a.maxHp+=vh; }});
-    log(`${ally.name}：攻撃→全不死+${va}/+${vh}`,'good');
+    const va=2*_sc+_gd; let _vh=_sc+_gd;
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; _vh=addUnitHp(a,_sc+_gd); }});
+    log(`${ally.name}：攻撃→全不死+${va}/+${_vh}`,'good');
   }
   if(ally.effect==='gremlin_attack'){
     const _gmv=_sc+_gd;
@@ -1480,7 +1491,7 @@ function onBattleStart(){
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     const kw=(a.keywords||[]).find(k=>/^結束\d+$/.test(k));
-    if(kw){ const _jkbk=G.allies.some(b=>b&&b.hp>0&&b.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0; const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; b.hp+=x+_jkbk; b.maxHp+=x+_jkbk; }}); log(`${a.name}：結束${x}→全味方+${x}/+${x+_jkbk}`,'good'); triggerDryadBuff(); }
+    if(kw){ const x=parseInt(kw.slice(2))+(G.hasGoldenDrop?1:0); let _xh=x; G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=x; _xh=addUnitHp(b,x); }}); log(`${a.name}：結束${x}→全味方+${x}/+${_xh}`,'good'); triggerDryadBuff(); }
   });
   // harpy_magic：魔術レベルが確定した後にATKを同期
   syncHarpyAtk();
@@ -1555,10 +1566,9 @@ function onBattleEnd(){
     if(!a||a.hp<=0) return;
     const growKw=a.keywords&&a.keywords.find(k=>/^成長\d+$/.test(k));
     if(!growKw) return;
-    const _jkbg=G.allies.some(b=>b&&b.hp>0&&b.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0;
     const x=parseInt(growKw.slice(2))+(G.hasGoldenDrop?1:0);
-    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; a.hp+=x+_jkbg; a.maxHp+=x+_jkbg;
-    log(`🌱 ${a.name} 成長${x}：+${x}/+${x+_jkbg}`,'good');
+    a.atk+=x; a.baseAtk=(a.baseAtk||0)+x; const _xhg=addUnitHp(a,x);
+    log(`🌱 ${a.name} 成長${x}：+${x}/+${_xhg}`,'good');
     triggerDryadBuff();
   });
 
@@ -1575,7 +1585,7 @@ function applyVictoryBonuses(){
   // 生命の指輪：全ての味方が±0/+1を得る
   G.rings.forEach(r=>{
     if(r&&r.unique==='life_reg'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=1; a.maxHp+=1; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0) addUnitHp(a,1); });
       log(`生命の指輪：全仲間ライフ+1`,'good');
       triggerDryadBuff();
     }

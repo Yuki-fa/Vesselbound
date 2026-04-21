@@ -396,8 +396,8 @@ function _triggerRewCharInjury(unit, dmg=0){
   switch(unit.injury){
     case 'slin':{
       const _slv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      unit.hp+=_slv; unit.maxHp+=_slv;
-      log(`${unit.name}：負傷→±0/+${_slv}`,'good');
+      const _slvh=addUnitHp(unit,_slv,'ally');
+      log(`${unit.name}：負傷→±0/+${_slvh}`,'good');
       _triggerLindwormRew();
       break;
     }
@@ -411,8 +411,8 @@ function _triggerRewCharInjury(unit, dmg=0){
     }
     case 'hydra':{
       const _hdv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; unit.hp+=_hdv; unit.maxHp+=_hdv;
-      log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,'good');
+      unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; const _hdvh=addUnitHp(unit,_hdv,'ally');
+      log(`${unit.name}：負傷→+${_hdv}/+${_hdvh}`,'good');
       _triggerLindwormRew();
       break;
     }
