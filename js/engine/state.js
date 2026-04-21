@@ -67,7 +67,7 @@ function initState(){
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
     turn:0, earnedGold:0,
-    moveMasks:[], visibleMoves:[],
+    moveMasks:[], moveMaskLanes:[], visibleMoves:[],
     fogNext:false, prevNodeType:'battle',
     spreadActive:false, spreadMult:0,
     _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false, _bossSlot:0,
@@ -119,6 +119,7 @@ function initState(){
     rewardGrade:1,
     rewardGradeUpCount:0,
     rewardCharCount:3,
+    _bossJustDefeated:false,
     // ── 報酬 ──
     rerollCount:0,
     // ── 秘術（互換性のため残す）──

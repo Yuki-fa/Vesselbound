@@ -359,7 +359,9 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    if(u&&u.hp>0&&isEnemy&&u.lane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
+    // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
+    const _slotLane=isEnemy?(u&&u.hp>0?u.lane:(G.moveMaskLanes?.[i]||'front')):'';
+    if(isEnemy&&_slotLane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(isEnemy&&u&&u._isTreasureItem){
@@ -374,7 +376,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       const _hp=document.getElementById('hand-pane');
       const _hcols=10-(G.ringSlots||2);
       const _cw=_hp&&_hp.offsetWidth>0?Math.floor(_hp.offsetWidth/_hcols):90;
-      slot.className='slot';
+      slot.className='slot'+(_slotLane==='front'?' is-rear':'');
       slot.style.cssText='background:var(--bg);display:flex;align-items:center;justify-content:center';
       const _tc=document.createElement('div');
       _tc.className=`card ${_tt}`;
@@ -442,7 +444,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
           else { const _dp=deathProb.get(i); if(_dp!=null&&_dp>0) slot.classList.add('will-warn-'+(_dp<=20?'low':_dp<=79?'mid':'high')); }
         }
       }
-    } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||(G.enemies[i]?.lane||'front')===_lane)){
+    } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
       const _mvType=G.moveMasks[i];
       const nt=NODE_TYPES[_mvType];
       slot.classList.add('has-move');

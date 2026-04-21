@@ -56,6 +56,7 @@ function _mkNamedEnemy(def,floor,extraMult,extraKws){
   e.injury =def.injury ||null;
   e.counter=def.counter||false;
   e.regen  =def.regen  ||0;
+  e._isNamed=true;
   return e;
 }
 

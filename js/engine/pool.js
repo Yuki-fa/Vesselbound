@@ -161,6 +161,7 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     c.grade=maxGrade;
+    c.type='ring';
   } else {
     const _mg=maxGrade||4;
     pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
@@ -221,51 +222,12 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-
-  const floor=G.floor||1;
-  const isTown=!!(FLOOR_DATA[floor]&&FLOOR_DATA[floor].town);
-  const fd=FLOOR_DATA[floor]||{grade:1};
-  const currentGrade=G.rewardGrade||fd.grade||1;
-
-  // キャラ枚数：1-4階=3枚、6-9階=4枚、11-14階=5枚、16-19階=6枚
-  // 街（5,10,15,20階）は前セクション+1枚
-  let charCount;
-  if(isTown){
-    charCount=Math.min(6, Math.floor(floor/5)+3);
-  } else {
-    const section=Math.ceil(floor/5);
-    charCount=Math.max(4, section+2);
-  }
-
-  // グレード確定枠（1-5階は確定枠なし）
-  const guaranteedGrade=floor>=6?currentGrade:0;
-
-  // キャラ抽選
-  let chars;
-  if(guaranteedGrade>0){
-    chars=drawCharacters(charCount-1);
-    const guaranteedChar=drawCharacterOfGrade(guaranteedGrade);
-    if(guaranteedChar) chars.push(guaranteedChar);
-    else chars=drawCharacters(charCount);
-  } else {
-    chars=drawCharacters(charCount);
-  }
-
-  // アイテム：街=杖1+消耗品1、通常=消耗品2
-  let items=[];
-  if(isTown){
-    const wand=_drawByType('wand',1)[0]||null;
-    const item=_drawByType('consumable',1)[0]||null;
-    if(wand) items.push(wand);
-    if(item) items.push(item);
-  } else {
-    const item1=_drawByType('consumable',1)[0]||null;
-    const item2=_drawByType('consumable',1)[0]||null;
-    if(item1) items.push(item1);
-    if(item2&&item2.id!==item1?.id) items.push(item2);
-  }
-
-  const res=[...chars,...items];
+  const chars=drawCharacters(G.rewardCharCount||3);
+  const wand=_drawByType('wand',1)[0]||null;
+  const item=_drawByType('consumable',1)[0]||null;
+  const res=[...chars];
+  if(wand) res.push(wand);
+  if(item) res.push(item);
   if(G._nextRewardUniqueSlot){
     G._nextRewardUniqueSlot=false;
     _applyUniqueSlot(res);

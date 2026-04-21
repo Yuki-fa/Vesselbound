@@ -69,7 +69,7 @@ function _handleVictory(){
       if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
         G._pendingTreasureItems.forEach(item=>{
           const slot=G.enemies.findIndex((e,i)=>!e&&!G.moveMasks[i]);
-          if(slot>=0) G.enemies[slot]={_isTreasureItem:true,_treasureItem:item,hp:0,atk:0,id:`treasure_${uid()}`};
+          if(slot>=0) G.enemies[slot]={_isTreasureItem:true,_treasureItem:item,hp:0,atk:0,id:`treasure_${uid()}`,lane:G.moveMaskLanes?.[slot]||'front'};
         });
         G._pendingTreasureItems=[];
       }
@@ -252,6 +252,7 @@ async function startBattle(){
     e.allyTarget=false;
   });
   G.moveMasks=generateMoveMasks();
+  G.moveMaskLanes=G.enemies.map(e=>e?(e.lane||'front'):'front');
   G.visibleMoves=[];
   G.fogNext=false;
 
@@ -695,6 +696,7 @@ function _checkBattleOver(){
 
 function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
+  if(_isBossFight) G._bossJustDefeated=true;
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
   // 湖の畔ボーナス：指輪を確定ドロップ
   if(G._pendingPondBonus){
@@ -1816,8 +1818,9 @@ function processEnemyDeath(e,eIdx){
   if(_isActualElite) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
   const _isArtifact=e.keywords&&e.keywords.includes('アーティファクト');
-  const gold=_isArtifact?0:(G.baseIncome||1);
-  if(gold>0){ log(`${e.name} 撃破！ソウル+${gold}`,'gold'); onGoldGained(gold); }
+  const _isNamed=!!(e.unique||e._isNamed);
+  const goldPerKill=_isArtifact?0:_isNamed?3:(G.baseIncome||1);
+  if(goldPerKill>0){ log(`${e.name} 撃破！ソウル+${goldPerKill}`,'gold'); onGoldGained(goldPerKill); }
   else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
   // 宝箱ドロップ（5%・1戦闘1個・撤退時は無効、強欲の指輪で2倍）
   // エリート戦ではエリート本体（インデックス一致）が宝箱を確定ドロップ（他の敵は落とさない）

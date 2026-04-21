@@ -38,19 +38,16 @@ function goToReward(){
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
   G._isTreasurePhase=false;
-  _rewFreePickDone=false;
-  const isTown=!!(FLOOR_DATA[G.floor]&&FLOOR_DATA[G.floor].town);
-  G._isRewardTown=isTown;
+  G._isRewardTown=true; // 常に購入制モード（無料取得なし）
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
 
-  // 街フェイズ：グレード自動上昇
-  if(isTown){
-    const _newGrade=(FLOOR_DATA[G.floor]?.grade||1)+1;
-    if(_newGrade>(G.rewardGrade||1)){
-      G.rewardGrade=_newGrade;
-      log(`グレードが${_newGrade}に上昇！提示キャラがグレード${_newGrade}以下になります`,'gold');
-    }
+  // ボス撃破後：提示キャラ+1・グレードアップ
+  if(G._bossJustDefeated){
+    G._bossJustDefeated=false;
+    G.rewardCharCount=(G.rewardCharCount||3)+1;
+    G.rewardGrade=(G.rewardGrade||1)+1;
+    log(`グレード${G.rewardGrade}に到達！提示キャラが${G.rewardCharCount}枚になった`,'gold');
   }
 
   _rewCards=drawRewards();
@@ -149,7 +146,7 @@ function goToReward(){
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   // renderAll→renderControls が textContent を上書きするので必ず後で設定する
-  document.getElementById('ph-badge').textContent=isTown?'街':'報酬フェイズ';
+  document.getElementById('ph-badge').textContent='商談フェイズ';
   document.getElementById('ph-badge').className='ph-badge';
   document.getElementById('h-floor').textContent=G.floor+1;
   const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='';
@@ -267,6 +264,13 @@ function chooseMoveInline(nt){
   G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
+  // ソウルを次の戦闘に繰り越さない
+  if(G.gold>0){
+    log(`ソウル${G.gold}が消えた（繰り越し不可）`,'sys');
+    G.gold=0;
+    document.getElementById('rw-gold').textContent=G.gold;
+    updateHUD();
+  }
   // 退店メッセージを読ませるため少し遅らせてから画面遷移
   setTimeout(()=>{
     squirrelHide();
@@ -291,7 +295,6 @@ function rerollRewards(){
   G.gold-=1;
   G.rerollCount=(G.rerollCount||0)+1;
   // 非タウン：リロール時に無料取得権をリセット（新プールから1体無料）
-  if(!G._isRewardTown) _rewFreePickDone=false;
   // 召喚済みキャラも含め全リセット
   _rewCards=drawRewards();
   _padRewCharSlots();
