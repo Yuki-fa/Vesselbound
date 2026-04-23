@@ -1806,10 +1806,14 @@ function processEnemyDeath(e,eIdx){
       : 1;
     const rate=(hasGreed?2:1)*gnomeMult*0.05;
     if(!G._pendingTreasure&&Math.random()<rate){
-      G._pendingTreasure=true;
-      G.moveMasks[eIdx]='chest';
-      if(!G.visibleMoves.includes(eIdx)) G.visibleMoves.push(eIdx);
-      log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+      // 既存のmoveMask（battle等）を上書きしないよう、空きスロットを探す
+      const _chestSlot=!G.moveMasks[eIdx]?eIdx:G.moveMasks.findIndex(m=>!m);
+      if(_chestSlot>=0){
+        G._pendingTreasure=true;
+        G.moveMasks[_chestSlot]='chest';
+        if(!G.visibleMoves.includes(_chestSlot)) G.visibleMoves.push(_chestSlot);
+        log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+      }
     }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){

@@ -12,7 +12,7 @@ const UNIT_POOL = [
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'終戦：ライフが9になる。',                      effect:'zombie_end'},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：最も左の空き地に1/2、獣の「ナイトキャット」を召喚する。', injury:'kettcat'},
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'常時：カードの効果で召喚された仲間が+1/+1を得る。', effect:'grimalkin_passive'},
-  {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'常在：右隣のキャラクターの攻撃効果は2回発動する。', effect:'elf_double_right'},
+  {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'常在：右隣のキャラクターの攻撃効果は1回追加で発動する。', effect:'elf_double_right'},
   {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間が±0/+1を得る。',       effect:'brownie_attack'},
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
