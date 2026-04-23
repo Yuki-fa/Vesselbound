@@ -1641,18 +1641,11 @@ function doGradeUp(){
   G.gold-=cost;
   G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
   G.rewardGrade=(G.rewardGrade||1)+1;
-  log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）`,'gold');
-  // リロールして新しいグレードのカードを表示
-  const chars=drawCharacters(G.rewardCharCount||3);
-  const wand=_drawByType('wand',1)[0]||null;
-  const item=_drawByType('consumable',1)[0]||null;
-  _rewCards=[...chars];
-  if(wand) _rewCards.push(wand);
-  if(item) _rewCards.push(item);
-  _padRewCharSlots();
-  _generateMasterHand();
+  // 次の商談フェイズから提示キャラ+1
+  G.rewardCharCount=(G.rewardCharCount||3)+1;
+  log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）次回から提示キャラが${G.rewardCharCount}枚に`,'gold');
   document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
+  updateHUD(); renderGradeUpBtn();
 }
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
