@@ -1106,8 +1106,7 @@ function processAllyDeath(unit){
       // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
       { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-      { const _gd=G.hasGoldenDrop?1:0;
-        if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
+      if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
       checkSolitudeBuff();
     }
   }
@@ -1131,8 +1130,7 @@ function processAllyDeath(unit){
         // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
         { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-        { const _gd=G.hasGoldenDrop?1:0;
-          if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
         checkSolitudeBuff();
       }
     });
