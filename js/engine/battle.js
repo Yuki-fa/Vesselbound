@@ -221,7 +221,7 @@ async function startBattle(){
 
   log(`── 階層 ${G.floor} ──`,'sys');
   if(_isBossFight) log('⚠ ボス戦！','bad');
-  log(`敵 ${G.enemies.length}体が現れた`,'em');
+  log(`敵 ${G.enemies.filter(e=>e&&!e._isObject).length}体が現れた`,'em');
   applyLeaderBonus();
 
   // 戦闘開始時キャラクター効果
@@ -229,6 +229,8 @@ async function startBattle(){
 
   updateHUD();
   renderAll();
+  // 開幕効果で全敵が倒された場合、勝利判定
+  if(checkInstantVictory()) return;
   requestAnimationFrame(_updateLaneOffset); // スロット描画後にオフセット再計算
   await nextTurn();
 }
@@ -623,7 +625,7 @@ async function battlePhase(){
   G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 
   // 全攻撃後：勝敗判定
-  if(G.enemies.filter(e=>e&&e.hp>0).length===0){
+  if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     _onAllEnemiesDefeated();
     return;
   }
@@ -1033,6 +1035,9 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   // 呪詛加算
   const actualDmg=Math.max(0, dmg - _gargoyleReduction)+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
+  if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
+    applyKeywordOnHit(src,unit);
+  }
 
   // 負傷トリガー：生き残った場合のみ発動
   const willDie=unit.hp<=0;
@@ -1606,6 +1611,7 @@ function applyVictoryBonuses(){
 function checkInstantVictory(){
   if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
+    if(_isBossFight) G._bossJustDefeated=true;
     applyVictoryBonuses();
     log('全敵撃破！','gold');
     updateHUD(); renderAll();
