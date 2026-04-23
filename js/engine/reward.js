@@ -268,13 +268,6 @@ function chooseMoveInline(nt){
   G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
-  // ソウルを次の戦闘に繰り越さない
-  if(G.gold>0){
-    log(`ソウル${G.gold}が消えた（繰り越し不可）`,'sys');
-    G.gold=0;
-    document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD();
-  }
   // 退店メッセージを読ませるため少し遅らせてから画面遷移
   setTimeout(()=>{
     squirrelHide();
@@ -420,7 +413,8 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'mummy':{
-      const mv=1+(G.hasGoldenDrop?1:0);
+      const _mmsc=(unit._stackCount||0)+1;
+      const mv=_mmsc+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
       // 既にフィールドにいる不死キャラにもボーナスを適用
       G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});

@@ -1138,8 +1138,9 @@ function processAllyDeath(unit){
   // マミー：死亡時、全ての仲間が+1/+3を得る
   if(unit.effect==='mummy_death'){
     const _mgd=G.hasGoldenDrop?1:0;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1+_mgd; a.baseAtk=(a.baseAtk||0)+1+_mgd; a.hp+=3+_mgd; a.maxHp+=3+_mgd; }});
-    log(`${unit.name}：死亡→全仲間+${1+_mgd}/+${3+_mgd}`,'good');
+    const _msc=(unit._stackCount||0)+1;
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_msc+_mgd; a.baseAtk=(a.baseAtk||0)+_msc+_mgd; a.hp+=3*_msc+_mgd; a.maxHp+=3*_msc+_mgd; }});
+    log(`${unit.name}：死亡→全仲間+${_msc+_mgd}/+${3*_msc+_mgd}`,'good');
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath();
@@ -1155,7 +1156,8 @@ function _onAnyCharDeath(){
     }
     // ゴースト：他のキャラクターが死亡するたびにHP+2
     if(a&&a.hp>0&&a.effect==='ghost_ondeath'){
-      const _ghv=2+_gd0;
+      const _ghsc=(a._stackCount||0)+1;
+      const _ghv=2*_ghsc+_gd0;
       a.hp+=_ghv; a.maxHp+=_ghv;
       log(`${a.name}：キャラ死亡→±0/+${_ghv}`,'good');
     }
@@ -1558,7 +1560,8 @@ function onBattleEnd(){
   // ゾンビ：戦闘終了時、ライフが9になる
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const zv=9+(G.hasGoldenDrop?1:0);
+    const _zsc=(a._stackCount||0)+1;
+    const zv=9*_zsc+(G.hasGoldenDrop?1:0);
     a.hp=zv; a.maxHp=Math.max(a.maxHp,zv);
     log(`${a.name}：終戦→ライフが${zv}になった`,'good');
   });
