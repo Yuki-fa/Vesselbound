@@ -447,15 +447,15 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'banshee':{
-      // 「バンシー」以外の全キャラに1ダメ
-      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,1,ai,null); });
-      _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,1); });
-      log(`${unit.name}：負傷→全キャラに1ダメ`,'good');
+      const _bnsc=(unit._stackCount||0)+1;
+      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_bnsc,ai,null); });
+      _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,_bnsc); });
+      log(`${unit.name}：負傷→全キャラに${_bnsc}ダメ`,'good');
       _triggerLindwormRew();
       break;
     }
     case 'warg':{
-      const _wgv=1+(G.hasGoldenDrop?1:0);
+      const _wgv=((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
       _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&(c.race==='獣'||c.race==='全て')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
       G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,'good');
@@ -1153,9 +1153,12 @@ function _computeStackResult(fieldUnit, srcUnit){
   // 重ね段階に応じた説明文を使用
   const def=UNIT_POOL.find(u=>u.id===(fieldUnit.defId||fieldUnit.id)||u.name===fieldUnit.name);
   let newDesc=baseDesc;
-  if(newStackCount>=1&&def?.stackEnhDesc) newDesc=def.stackEnhDesc; // シートの「強化」列が優先
-  else if(def?.stackEffect) newDesc=def.stackEffect; // 後方互換（旧重ね効果列）
-  else newDesc=_applyDescStack(baseDesc,newStackCount); // 未設定時：従来通りカードテキストの値+1
+  // 1進化・2進化列の優先順位：2進化 > 1進化 > 旧強化 > 自動変換
+  if(newStackCount>=2&&def?.stack2Desc) newDesc=def.stack2Desc;
+  else if(newStackCount>=1&&def?.stack1Desc) newDesc=def.stack1Desc;
+  else if(def?.stackEnhDesc) newDesc=def.stackEnhDesc; // 後方互換
+  else if(def?.stackEffect) newDesc=def.stackEffect;   // 後方互換（旧重ね効果列）
+  else newDesc=_applyDescStack(baseDesc,newStackCount); // 未設定時：数値を自動倍増
   const newKws=_mergeKeywords(fieldUnit.keywords||[],srcUnit.keywords||[]);
   return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws,
     stackCount:newStackCount,baseGrade,baseDesc};

@@ -424,6 +424,12 @@ async function loadGameData() {
       const desc = row['効果'];
       unit.desc = desc || '';
       // 2枚重ね効果（stack1）と3枚重ね効果（stack2）を読み込む
+      // 「強化」列を廃止し「1進化」「2進化」列に移行
+      if (row['1進化'] !== undefined && row['1進化'].trim()) unit.stack1Desc = row['1進化'].trim();
+      else delete unit.stack1Desc;
+      if (row['2進化'] !== undefined && row['2進化'].trim()) unit.stack2Desc = row['2進化'].trim();
+      else delete unit.stack2Desc;
+      // 後方互換：旧「強化」列も残す（移行期間中）
       if (row['強化'] !== undefined && row['強化'].trim()) unit.stackEnhDesc = row['強化'].trim();
       else delete unit.stackEnhDesc;
       // 後方互換：旧stackEffectも残す

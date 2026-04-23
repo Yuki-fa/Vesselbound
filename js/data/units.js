@@ -54,7 +54,7 @@ const UNIT_POOL = [
   {id:'c_darkone',    name:'ダークワン',       race:'悪魔', grade:2, atk:6,  hp:12, cost:5,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、全ての仲間の悪魔が+1/+1を得る。', effect:'darkone_spell'},
   {id:'c_drake',      name:'ドレイク',         race:'竜',   grade:2, atk:5,  hp:8,  cost:3,  unique:false, icon:'🐲', desc:'開戦：全てのキャラクターに1ダメージを与える。', effect:'drake_start'},
   {id:'c_lindworm',   name:'リンドヴルム',     race:'竜',   grade:2, atk:9,  hp:6,  cost:5,  unique:false, icon:'🐍', desc:'誘発：仲間の負傷効果が発動するたび、全ての仲間の竜が+1/+1を得る。', effect:'lindworm_injury'},
-  {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'常時：宝箱出現率が1.5倍になる。（宝箱は1戦闘に1個までしか出現しない）', effect:'gnome_treasure'},
+  {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'常時：宝箱出現率が1.5倍になる。（宝箱は1戦闘に1個までしか出現しない）', stackEnhDesc:'常時：宝箱出現率が2倍になる。（宝箱は1戦闘に1個までしか出現しない）', effect:'gnome_treasure'},
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　常時：味方が受けるダメージは-1される。', counter:true, effect:'gargoyle_shield', keywords:['反撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：グレードアップのコストが-1される。', effect:'minotaur_gradeup', keywords:['成長3']},
   {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:8,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　誘発：魔術レベルが上がるたび、全ての仲間が+1/+2を得る。', effect:'harpy_magiclevel', counter:true, keywords:['反撃']},

@@ -696,7 +696,7 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→全敵-${_gmv}/±0`,'good');
   }
   if(ally.effect==='jack_attack'){
-    const _jv=1+_gd; G._jackBonus=(G._jackBonus||0)+_jv;
+    const _jv=_sc+_gd; G._jackBonus=(G._jackBonus||0)+_jv;
     log(`${ally.name}：攻撃→今後のキャラ±0/+${_jv}（累計+${G._jackBonus}）`,'good');
   }
   if(ally.effect==='arachas_attack'){
@@ -728,8 +728,9 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→今後の「不死」に+${_sv}/+${_sv}（累計+${G._specterBonus}）`,'good');
   }
   if(ally.effect==='lesser_demon_attack'){
-    G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+1;
-    log(`${ally.name}：攻撃→次の購入アイテムが-1ソウル（累計-${G._lesserDemonDiscount}）`,'good');
+    const _ldsc=_sc;
+    G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+_ldsc;
+    log(`${ally.name}：攻撃→次の購入アイテムが-${_ldsc}ソウル（累計-${G._lesserDemonDiscount}）`,'good');
   }
   // ドラウグは受動効果（攻撃時ではなく被攻撃時）のため、ここでは処理しない
   // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1（ウンディーネ自身も含む）
@@ -1214,8 +1215,7 @@ function triggerInjury(unit, dmg=0){
       log(`${unit.name}：負傷→全仲間+${_wv}/±0`,col);
       if(!isEnemy){
         // リンドヴルム：仲間の負傷発動時、全仲間竜+1/+1
-        const _lv=1+(G.hasGoldenDrop?1:0);
-        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lv=((lw._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
         triggerDryadBuff();
       }
       break;
@@ -1341,7 +1341,7 @@ function triggerInjury(unit, dmg=0){
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
     const _lv=1+(G.hasGoldenDrop?1:0);
-    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lv=((lw._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
   }
 }
 
@@ -1544,7 +1544,8 @@ function onBattleEnd(){
     if(!a||a.hp<=0||a.effect!=='lamia_end') return;
     const _ml=G.magicLevel||1;
     if(_ml<=3){
-      const _lv=1+(G.hasGoldenDrop?1:0);
+      const _lasc=(a._stackCount||0)+1;
+      const _lv=_lasc+(G.hasGoldenDrop?1:0);
       if(typeof onMagicLevelUp==='function') onMagicLevelUp(_lv);
       else { G.magicLevel=_ml+_lv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
       log(`${a.name}：終戦→魔術レベル+${_lv}（Lv${G.magicLevel}）`,'good');
@@ -1775,6 +1776,24 @@ function processEnemyDeath(e,eIdx){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
     if(_elItem&&!G._isSimulating){ if(!G._pendingTreasureItems) G._pendingTreasureItems=[]; G._pendingTreasureItems.push(_elItem); }
+  }
+  // 通常敵：宝箱をランダムドロップ（エリート戦・撤退時・オブジェクトは除外）
+  if(!_isActualElite&&!G._retreated&&!G._isEliteFight&&!G._isSimulating){
+    const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
+    // ノーム：宝箱出現率を倍増
+    const gnomeUnit=G.allies&&G.allies.find(a=>a&&a.hp>0&&a.effect==='gnome_treasure');
+    const gnomeMult=gnomeUnit
+      ? (gnomeUnit._stackCount||0)>=2 ? 4
+        : (gnomeUnit._stackCount||0)>=1 ? 2
+        : 1.5
+      : 1;
+    const rate=(hasGreed?2:1)*gnomeMult*0.05;
+    if(!G._pendingTreasure&&Math.random()<rate){
+      G._pendingTreasure=true;
+      G.moveMasks[eIdx]='chest';
+      if(!G.visibleMoves.includes(eIdx)) G.visibleMoves.push(eIdx);
+      log(`📦 ${e.name}が宝箱を落とした！`,'gold');
+    }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
     G.visibleMoves.push(eIdx);
