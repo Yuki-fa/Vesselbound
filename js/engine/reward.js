@@ -413,8 +413,8 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'mummy':{
-      const _mmsc=(unit._stackCount||0)+1;
-      const mv=_mmsc+(G.hasGoldenDrop?1:0);
+      const _mmnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const mv=(_mmnums[0]||1)+(G.hasGoldenDrop?1:0);
       G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
       // 既にフィールドにいる不死キャラにもボーナスを適用
       G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
@@ -447,7 +447,8 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'banshee':{
-      const _bnsc=(unit._stackCount||0)+1;
+      const _bnnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _bnsc=(_bnnums[0]||1);
       G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_bnsc,ai,null); });
       _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,_bnsc); });
       log(`${unit.name}：負傷→全キャラに${_bnsc}ダメ`,'good');
@@ -455,7 +456,8 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'warg':{
-      const _wgv=((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      const _wgnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _wgv=(_wgnums[0]||1)+(G.hasGoldenDrop?1:0);
       _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&(c.race==='獣'||c.race==='全て')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
       G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,'good');
@@ -1112,6 +1114,7 @@ function _applyFieldMerge(srcIdx, dstIdx){
 
 // ベースdesc の各数値に n 回分の加算を適用（結果 = baseNum * (n+1)）
 function _applyDescStack(baseDesc, newStackCount){
+  // 後方互換用（直接呼び出し時）：×(stackCount+1)倍
   if(!baseDesc||newStackCount<=0) return baseDesc||'';
   const baseNums=[...baseDesc.matchAll(/\d+/g)].map(m=>parseInt(m[0]));
   if(!baseNums.length) return baseDesc;
@@ -1119,6 +1122,18 @@ function _applyDescStack(baseDesc, newStackCount){
   return baseDesc.replace(/\d+/g,()=>{
     const bNum=idx<baseNums.length?baseNums[idx++]:0;
     return String(bNum*(newStackCount+1));
+  });
+}
+
+// 2枚のdescの対応する数値を加算して新しいdescを生成
+function _mergeDescNums(descA, descB){
+  if(!descA) return descB||'';
+  const numsB=[...( descB||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+  let idx=0;
+  return descA.replace(/\d+/g,m=>{
+    const na=parseInt(m);
+    const nb=idx<numsB.length?numsB[idx++]:0;
+    return String(na+nb);
   });
 }
 
@@ -1150,15 +1165,15 @@ function _computeStackResult(fieldUnit, srcUnit){
   // 重ねるごとにグレード+1（最大G6）
   const newGrade=Math.min(6,(fieldUnit.grade||1)+1);
   const baseDesc=fieldUnit._baseDesc!=null?fieldUnit._baseDesc:(fieldUnit.desc||'');
-  // 重ね段階に応じた説明文を使用
+  const srcDesc=srcUnit._baseDesc!=null?srcUnit._baseDesc:(srcUnit.desc||'');
+  // 重ね後のdesc：1進化・2進化列が優先、なければ2枚のdescの数値を加算
   const def=UNIT_POOL.find(u=>u.id===(fieldUnit.defId||fieldUnit.id)||u.name===fieldUnit.name);
   let newDesc=baseDesc;
-  // 1進化・2進化列の優先順位：2進化 > 1進化 > 旧強化 > 自動変換
   if(newStackCount>=2&&def?.stack2Desc) newDesc=def.stack2Desc;
   else if(newStackCount>=1&&def?.stack1Desc) newDesc=def.stack1Desc;
   else if(def?.stackEnhDesc) newDesc=def.stackEnhDesc; // 後方互換
   else if(def?.stackEffect) newDesc=def.stackEffect;   // 後方互換（旧重ね効果列）
-  else newDesc=_applyDescStack(baseDesc,newStackCount); // 未設定時：数値を自動倍増
+  else newDesc=_mergeDescNums(fieldUnit.desc||'', srcUnit.desc||''); // 現在のdescの数値を加算
   const newKws=_mergeKeywords(fieldUnit.keywords||[],srcUnit.keywords||[]);
   return {atk:newAtk,hp:newHp,grade:newGrade,desc:newDesc,keywords:newKws,
     stackCount:newStackCount,baseGrade,baseDesc};
@@ -1452,7 +1467,7 @@ function renderHeRingSlots(){
       div.draggable=true;
       const _ringBtn=G._isShop
         ?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`
-        :(!_rewPhase?`<button class="discard-btn" title="破棄">破棄</button>`:'');
+        :`<button class="discard-btn" title="廃棄">廃棄</button>`;
       div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
       if(_ringBtn) div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });

@@ -696,7 +696,8 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→全敵-${_gmv}/±0`,'good');
   }
   if(ally.effect==='jack_attack'){
-    const _jv=_sc+_gd; G._jackBonus=(G._jackBonus||0)+_jv;
+    const _jnums=[...(ally.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const _jv=(_jnums[0]||1)*_sc+(G.hasGoldenDrop?1:0); G._jackBonus=(G._jackBonus||0)+_jv;
     log(`${ally.name}：攻撃→今後のキャラ±0/+${_jv}（累計+${G._jackBonus}）`,'good');
   }
   if(ally.effect==='arachas_attack'){
@@ -1139,9 +1140,10 @@ function processAllyDeath(unit){
   // マミー：死亡時、全ての仲間が+1/+3を得る
   if(unit.effect==='mummy_death'){
     const _mgd=G.hasGoldenDrop?1:0;
-    const _msc=(unit._stackCount||0)+1;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_msc+_mgd; a.baseAtk=(a.baseAtk||0)+_msc+_mgd; a.hp+=3*_msc+_mgd; a.maxHp+=3*_msc+_mgd; }});
-    log(`${unit.name}：死亡→全仲間+${_msc+_mgd}/+${3*_msc+_mgd}`,'good');
+    const _mnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const _mAtk=(_mnums[0]||1)+_mgd, _mHp=(_mnums[1]||3)+_mgd;
+    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_mAtk; a.baseAtk=(a.baseAtk||0)+_mAtk; a.hp+=_mHp; a.maxHp+=_mHp; }});
+    log(`${unit.name}：死亡→全仲間+${_mAtk}/+${_mHp}`,'good');
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath();
@@ -1151,14 +1153,15 @@ function _onAnyCharDeath(){
   const _gd0=G.hasGoldenDrop?1:0;
   G.allies.forEach(a=>{
     if(a&&a.hp>0&&a.effect==='naglfar_ondeath'){
-      const _sc_n=(a._stackCount||0)+1; const nv=2*_sc_n+_gd0, nhv=_sc_n+_gd0;
+      const _nnums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const nv=(_nnums[0]||2)+_gd0, nhv=(_nnums[1]||1)+_gd0;
       a.atk+=nv; a.baseAtk=(a.baseAtk||0)+nv; a.hp+=nhv; a.maxHp+=nhv;
       log(`${a.name}：キャラ死亡→+${nv}/+${nhv}`,'good');
     }
     // ゴースト：他のキャラクターが死亡するたびにHP+2
     if(a&&a.hp>0&&a.effect==='ghost_ondeath'){
-      const _ghsc=(a._stackCount||0)+1;
-      const _ghv=2*_ghsc+_gd0;
+      const _ghnums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _ghv=(_ghnums[0]||2)+_gd0;
       a.hp+=_ghv; a.maxHp+=_ghv;
       log(`${a.name}：キャラ死亡→±0/+${_ghv}`,'good');
     }
@@ -1186,7 +1189,8 @@ function triggerInjury(unit, dmg=0){
   const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
   switch(unit.injury){
     case 'slin':{
-      const _slv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      const _snums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _slv=(_snums[0]||2)+(G.hasGoldenDrop?1:0);
       unit.hp+=_slv; unit.maxHp+=_slv;
       log(`${unit.name}：負傷→±0/+${_slv}`,col);
       break;
@@ -1210,12 +1214,13 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'worm':{
-      const _wv=1*((unit._stackCount||0)+1)+(G.hasGoldenDrop&&!isEnemy?1:0);
+      const _wnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _wv=(_wnums[0]||1)+(G.hasGoldenDrop&&!isEnemy?1:0);
       ownSide.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.baseAtk=(a.baseAtk||0)+_wv; }});
       log(`${unit.name}：負傷→全仲間+${_wv}/±0`,col);
       if(!isEnemy){
         // リンドヴルム：仲間の負傷発動時、全仲間竜+1/+1
-        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lv=((lw._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
         triggerDryadBuff();
       }
       break;
@@ -1260,7 +1265,8 @@ function triggerInjury(unit, dmg=0){
     }
     case 'limslus':{
       // 負傷：敵（opposing side）全体に3ダメ＋呪詛などキーワード効果を適用
-      const _ldmg=3*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _lnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _ldmg=(_lnums[_lnums.length-1]||3)+(!isEnemy&&G.hasGoldenDrop?1:0);
       oppSide.forEach((u,ui)=>{
         if(!u||u.hp<=0) return;
         if(isEnemy) dealDmgToAlly(u,_ldmg,ui,unit);
@@ -1272,7 +1278,8 @@ function triggerInjury(unit, dmg=0){
     }
     case 'banshee':{
       // 「バンシー」以外の全キャラに1ダメ
-      const _bdmg=1*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _bnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _bdmg=(_bnums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       [...G.allies,...G.enemies].forEach(u=>{
         if(!u||u.hp<=0||u===unit) return;
         const _bi=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
@@ -1284,7 +1291,8 @@ function triggerInjury(unit, dmg=0){
     }
     case 'warg':{
       // 全ての仲間の獣が+1/+1
-      const _wgv=1*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _wgnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _wgv=(_wgnums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
       ownSide.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,col);
       break;
@@ -1316,7 +1324,8 @@ function triggerInjury(unit, dmg=0){
     }
     case 'hydra':{
       // 自身+2/+2（重ね倍率適用）
-      const _hdv=2*((unit._stackCount||0)+1)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _hdnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _hdv=(_hdnums[0]||2)+(!isEnemy&&G.hasGoldenDrop?1:0);
       unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; unit.hp+=_hdv; unit.maxHp+=_hdv;
       log(`${unit.name}：負傷→+${_hdv}/+${_hdv}`,col);
       break;
@@ -1341,7 +1350,7 @@ function triggerInjury(unit, dmg=0){
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
     const _lv=1+(G.hasGoldenDrop?1:0);
-    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lv=((lw._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
   }
 }
 
@@ -1539,13 +1548,16 @@ function onBattleEnd(){
     }
   });
 
-  // ラミア：戦闘終了時、魔術レベルが3以下の場合、魔術レベルが+1される
+  // ラミア：戦闘終了時、魔術レベルが(desc上限)以下の場合、魔術レベルが+(desc増加量)される
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='lamia_end') return;
     const _ml=G.magicLevel||1;
-    if(_ml<=3){
-      const _lasc=(a._stackCount||0)+1;
-      const _lv=_lasc+(G.hasGoldenDrop?1:0);
+    // descから数値を読み取る（例：「魔術レベルが6以下の場合、魔術レベルが+2される。」→[6,2]）
+    const _laNums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const _mlCap=_laNums[0]||3;
+    const _laGain=_laNums[1]||1;
+    if(_ml<=_mlCap){
+      const _lv=_laGain+(G.hasGoldenDrop?1:0);
       if(typeof onMagicLevelUp==='function') onMagicLevelUp(_lv);
       else { G.magicLevel=_ml+_lv; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); }
       log(`${a.name}：終戦→魔術レベル+${_lv}（Lv${G.magicLevel}）`,'good');
@@ -1561,8 +1573,8 @@ function onBattleEnd(){
   // ゾンビ：戦闘終了時、ライフが9になる
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const _zsc=(a._stackCount||0)+1;
-    const zv=9*_zsc+(G.hasGoldenDrop?1:0);
+    const _znums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const zv=(_znums[0]||9)+(G.hasGoldenDrop?1:0);
     a.hp=zv; a.maxHp=Math.max(a.maxHp,zv);
     log(`${a.name}：終戦→ライフが${zv}になった`,'good');
   });
