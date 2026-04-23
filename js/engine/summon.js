@@ -343,9 +343,22 @@ function syncWallAtk(){
 }
 
 // ハーピー・ピグミーのATKを現在の魔術レベルに同期する
+// _atkBonusに魔術レベル以外で増えたバフ分を保持し、同期時に加算する
+// 初回同期時は _lastSyncMl が未設定なので atk - ml をボーナスとして記録
 function syncHarpyAtk(){
   const ml=G.magicLevel||1;
-  G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.effect==='harpy_magiclevel'||a.effect==='harpy_magic'||a.effect==='pigmy_magic')){ a.atk=ml; a.baseAtk=ml; } });
+  G.allies.forEach(a=>{
+    if(!a||a.hp<=0) return;
+    if(a.effect==='harpy_magiclevel'||a.effect==='harpy_magic'||a.effect==='pigmy_magic'){
+      // 前回の同期済みATK（魔術レベル分）と現在のATKの差がバフ分
+      const _prevMlAtk=a._lastSyncMl!=null?a._lastSyncMl:ml;
+      const _bonus=Math.max(0,(a.atk||0)-_prevMlAtk);
+      a._atkBonus=_bonus;
+      a.atk=ml+_bonus;
+      a.baseAtk=ml+_bonus;
+      a._lastSyncMl=ml;
+    }
+  });
 }
 
 // 孤高の契約バフチェック（仲間数変化のたびに呼ぶ）

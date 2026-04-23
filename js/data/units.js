@@ -8,7 +8,7 @@ const UNIT_POOL = [
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'誘発：このキャラクターを還魂すると、魔術レベルが+1される。', effect:'mermaid_sell'},
-  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'誘発：このキャラクターが死亡した場合、0/4、種族なしの「骨」を召喚する。', effect:'skeleton_bone'},
+  {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'死亡：「スケルトン」以外の味方がいる場合、0/4、種族なしの「骨」を召喚する。', effect:'skeleton_bone'},
   {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'終戦：ライフが9になる。',                      effect:'zombie_end'},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：最も左の空き地に1/2、獣の「ナイトキャット」を召喚する。', injury:'kettcat'},
   {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'常時：カードの効果で召喚された仲間が+1/+1を得る。', effect:'grimalkin_passive'},
@@ -17,7 +17,7 @@ const UNIT_POOL = [
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'使役：左端の杖に+2チャージする。', effect:'dwarf_summon'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'誘発：このキャラクターが死亡した場合、全ての仲間が+1/+3を得る。', effect:'mummy_death'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'死亡：全ての仲間が+1/+3を得る。', effect:'mummy_death'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'攻撃：全ての敵が-1/±0を得る。', effect:'gremlin_attack'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：以後、商談フェイズに現れるキャラクターが±0/+1を得る。', effect:'jack_attack'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃　攻撃：+1/±0を得る。',             counter:true, effect:'lizardman_attack', keywords:['反撃']},
@@ -58,7 +58,7 @@ const UNIT_POOL = [
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　常時：味方が受けるダメージは-1される。', counter:true, effect:'gargoyle_shield', keywords:['反撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：グレードアップのコストが-1される。', effect:'minotaur_gradeup', keywords:['成長3']},
   {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:8,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　誘発：魔術レベルが上がるたび、全ての仲間が+1/+2を得る。', effect:'harpy_magiclevel', counter:true, keywords:['反撃']},
-  {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'誘発：死亡した場合、全ての仲間に攻撃力に等しいダメージを与える。', effect:'wraith_death'},
+  {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'死亡：全ての敵に攻撃力に等しいダメージを与える。', effect:'wraith_death'},
   {id:'c_draug',      name:'ドラウグ',         race:'不死', grade:2, atk:10, hp:22, cost:5,  unique:false, icon:'💀', desc:'誘発：攻撃を行った敵に「毒3」を与える。', effect:'draug_attack'},
   {id:'c_shadow',     name:'シャドウ',         race:'不死', grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🌑', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツは変わらない）', injury:'shadow'},
   {id:'c_specter',    name:'スペクター',       race:'不死', grade:2, atk:9,  hp:23, cost:5,  unique:false, icon:'👤', desc:'攻撃：今後商談フェイズで現れる「不死」のキャラクターが+1/+1を得る。', effect:'specter_attack'},
