@@ -122,7 +122,7 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
     const _furyR=G.rings&&G.rings.find(r=>r&&r.unique==='fury_start');
     if(_furyR){ const _fb=3*(_furyR.grade||1); unit.atk+=_fb; unit.baseAtk=(unit.baseAtk||0)+_fb; unit._furyAtk=(unit._furyAtk||0)+_fb; }
   }
-  // グリマルキン（passive）・コカトリス（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間にボーナス
+  // グリマルキン（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間にボーナス
   if(fromCharEffect || fromRingId){
     const _gd=G.hasGoldenDrop?1:0;
     G.allies.forEach(g=>{
@@ -131,12 +131,10 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
           const _gv=1+_gd; unit.atk+=_gv; unit.baseAtk=(unit.baseAtk||0)+_gv; unit.hp+=_gv; unit.maxHp+=_gv;
           log(`${g.name}：カード効果召喚→${unit.name}+${_gv}/+${_gv}`,'good');
         }
-        if(g.effect==='cocatrice_passive'){
-          const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv;
-          log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good');
-        }
       }
     });
+    // コカトリス：自陣・敵陣両方のコカトリスにトリガー（キャラ効果召喚時のみ）
+    if(fromCharEffect && typeof triggerCocatrice==='function') triggerCocatrice(unit);
   }
   applyUnitSummonEffect(unit, fromRingId);
   return true;
@@ -433,5 +431,20 @@ function onSpellUsed(){
   G.rings.forEach(ring=>{
     if(!ring||ring.trigger!=='on_spell') return;
     triggerSummon(ring);
+  });
+}
+
+// キャラクター効果でキャラが召喚された時のコカトリストリガー
+// summonedUnit: 召喚されたユニット（除外対象として使用）
+function triggerCocatrice(summonedUnit){
+  const _gd=G.hasGoldenDrop?1:0;
+  // 自陣・敵陣両方のコカトリスを確認
+  [...G.allies, ...G.enemies].forEach(g=>{
+    if(!g||g.hp<=0||g.effect!=='cocatrice_passive') return;
+    if(g===summonedUnit) return; // 召喚されたユニット自身は除外
+    const _cnums=[...(g.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const _cv=(_cnums[0]||2)+_gd;
+    g.hp+=_cv; g.maxHp+=_cv;
+    log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good');
   });
 }

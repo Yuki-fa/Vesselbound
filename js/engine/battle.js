@@ -1107,7 +1107,7 @@ function processAllyDeath(unit){
       { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
       { const _gd=G.hasGoldenDrop?1:0;
-        G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_boneUnit){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
       checkSolitudeBuff();
     }
   }
@@ -1132,7 +1132,7 @@ function processAllyDeath(unit){
         { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
         { const _gd=G.hasGoldenDrop?1:0;
-          G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_akUnit){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
+          if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
         checkSolitudeBuff();
       }
     });
@@ -1203,13 +1203,15 @@ function triggerInjury(unit, dmg=0){
       for(let _fsi=5;_fsi>=0;_fsi--){ if(!ownSide[_fsi]||ownSide[_fsi].hp<=0){_fSlot=_fsi;break;} }
       if(_fSlot>=0){
         const slot=_fSlot;
-        ownSide[slot]=makeUnitFromDef(scDef);
+        const _freyrUnit=makeUnitFromDef(scDef);
+        ownSide[slot]=_freyrUnit;
         log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
         if(!isEnemy){
           // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-          { const _gd0=G.hasGoldenDrop?1:0; const _freyrU=ownSide[slot]; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_freyrU){ const _gbv=1+_gd0; _freyrU.atk+=_gbv; _freyrU.baseAtk=(_freyrU.baseAtk||0)+_gbv; _freyrU.hp+=_gbv; _freyrU.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_freyrU.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+          { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_freyrUnit){ const _gbv=1+_gd0; _freyrUnit.atk+=_gbv; _freyrUnit.baseAtk=(_freyrUnit.baseAtk||0)+_gbv; _freyrUnit.hp+=_gbv; _freyrUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_freyrUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
           checkSolitudeBuff();
         }
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_freyrUnit);
       }
       break;
     }
@@ -1313,13 +1315,16 @@ function triggerInjury(unit, dmg=0){
         if(_rslot>=0) _rewCards[_rslot]=_sbCard; else _rewCards.push(_sbCard);
         if(typeof renderRewCards==='function') renderRewCards();
         log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を提示カードに召喚`,col);
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_sbCard);
         break;
       }
       const _alpSlot=oppSide.slice(0,6).findIndex(a=>!a||a.hp<=0);
-      if(_alpSlot>=0) oppSide[_alpSlot]=makeUnitFromDef(_alpDef);
-      else if(oppSide.length<6) oppSide.push(makeUnitFromDef(_alpDef));
+      const _sbUnit=makeUnitFromDef(_alpDef);
+      if(_alpSlot>=0) oppSide[_alpSlot]=_sbUnit;
+      else if(oppSide.length<6) oppSide.push(_sbUnit);
       else { log(`${unit.name}：負傷→相手陣が満杯のためソウルボム出現せず`,col); break; }
       log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を相手陣に召喚`,col);
+      if(typeof triggerCocatrice==='function') triggerCocatrice(_sbUnit);
       break;
     }
     case 'hydra':{
@@ -1491,13 +1496,15 @@ function onBattleStart(){
           const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ソウルを追加で${_ggG}得る。`,effect:'golden_egg_sell'};
           const _ggi=G.allies.findIndex(b=>!b||b.hp<=0);
           if(_ggi>=0){
-            G.allies[_ggi]=makeUnitFromDef(_ggDef);
+            const _ggUnit2=makeUnitFromDef(_ggDef);
+            G.allies[_ggi]=_ggUnit2;
             log(`${a.name}：ゴールデンエッグ(0/${_ggHp})を召喚`,'good');
             // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-            { const _gd0=G.hasGoldenDrop?1:0; const _ggU2=G.allies[_ggi]; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_ggU2){ const _gbv=1+_gd0; _ggU2.atk+=_gbv; _ggU2.baseAtk=(_ggU2.baseAtk||0)+_gbv; _ggU2.hp+=_gbv; _ggU2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_ggU2.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+            { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_ggUnit2){ const _gbv=1+_gd0; _ggUnit2.atk+=_gbv; _ggUnit2.baseAtk=(_ggUnit2.baseAtk||0)+_gbv; _ggUnit2.hp+=_gbv; _ggUnit2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_ggUnit2.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+            if(typeof triggerCocatrice==='function') triggerCocatrice(_ggUnit2);
             // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
             { const _ggU=G.allies[_ggi]; const _gd=G.hasGoldenDrop?1:0;
-              G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='cocatrice_passive'&&g!==_ggU){ const _cv=2+_gd; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); } }); }
+              if(typeof triggerCocatrice==='function') triggerCocatrice(_ggU); }
             checkSolitudeBuff();
           } }
         break;
@@ -1841,6 +1848,7 @@ function processEnemyDeath(e,eIdx){
       _boneEnemy._skelAtk=_deadAtk; _boneEnemy._skelHp=_deadHp; _boneEnemy._skelKws=[..._deadKws];
       G.enemies[_boneSlot]=_boneEnemy;
       log(`${e.name}：死亡→骨(0/${_boneHp})を召喚`,'bad');
+      if(typeof triggerCocatrice==='function') triggerCocatrice(_boneEnemy);
     }
   }
   // ファントム（敵）：仲間（敵）が死亡したとき、アクを召喚
@@ -1849,8 +1857,10 @@ function processEnemyDeath(e,eIdx){
     const akDef={id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''};
     const empty=G.enemies.findIndex(f=>!f||f.hp<=0);
     if(empty>=0){
-      G.enemies[empty]=makeUnitFromDef(akDef);
+      const _akEnemy=makeUnitFromDef(akDef);
+      G.enemies[empty]=_akEnemy;
       log(`${ph.name}：${e.name}の死→アク(0/1)を召喚`,'bad');
+      if(typeof triggerCocatrice==='function') triggerCocatrice(_akEnemy);
     }
   });
   // ナグルファル：敵死亡でも+2/+1
