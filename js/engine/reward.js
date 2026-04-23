@@ -45,12 +45,9 @@ function goToReward(){
   G.rings.forEach(r=>{ if(r) r._count=0; });
   arcanaPhaseStart();
 
-  // ボス撃破後：提示キャラ+1・グレードアップ
+  // ボス撃破フラグのリセット（グレードアップは手動）
   if(G._bossJustDefeated){
     G._bossJustDefeated=false;
-    G.rewardCharCount=(G.rewardCharCount||3)+1;
-    G.rewardGrade=(G.rewardGrade||1)+1;
-    log(`グレード${G.rewardGrade}に到達！提示キャラが${G.rewardCharCount}枚になった`,'gold');
   }
 
   _rewCards=drawRewards();
@@ -1608,9 +1605,42 @@ function discardRing(idx){
 // ── 報酬グレードアップUI ────────────────────────
 
 function renderGradeUpBtn(){
-  // 手動グレードアップは廃止（街フェイズで自動上昇）
   const el=document.getElementById('rw-grade-up-btn');
-  if(el) el.style.display='none';
+  if(!el) return;
+  const count=G.rewardGradeUpCount||0;
+  const cost=Math.max(0,(GRADE_UP_COSTS[count]||99)-(G._gradeUpCostBonus||0));
+  const maxGrade=4; // 報酬グレードの上限
+  if((G.rewardGrade||1)>=maxGrade){
+    el.style.display='none';
+    return;
+  }
+  el.style.display='';
+  el.textContent=`グレードアップ（${cost}ソウル）`;
+  el.disabled=G.gold<cost;
+  el.style.opacity=G.gold<cost?'0.4':'';
+}
+
+function doGradeUp(){
+  const count=G.rewardGradeUpCount||0;
+  const cost=Math.max(0,(GRADE_UP_COSTS[count]||99)-(G._gradeUpCostBonus||0));
+  const maxGrade=4;
+  if((G.rewardGrade||1)>=maxGrade){ log('これ以上グレードアップできません','bad'); return; }
+  if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
+  G.gold-=cost;
+  G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
+  G.rewardGrade=(G.rewardGrade||1)+1;
+  log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）`,'gold');
+  // リロールして新しいグレードのカードを表示
+  const chars=drawCharacters(G.rewardCharCount||3);
+  const wand=_drawByType('wand',1)[0]||null;
+  const item=_drawByType('consumable',1)[0]||null;
+  _rewCards=[...chars];
+  if(wand) _rewCards.push(wand);
+  if(item) _rewCards.push(item);
+  _padRewCharSlots();
+  _generateMasterHand();
+  document.getElementById('rw-gold').textContent=G.gold;
+  updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
 }
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
