@@ -101,7 +101,7 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
-  G._pendingPondBonus=false;
+  // 注：_pendingPondBonus / _pendingCaveBonus は move.js で戦闘直前に設定されるためリセットしない
   G._isTreasurePhase=false;
   G._masterHandReady=false;
   G._retreated=false;

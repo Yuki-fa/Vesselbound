@@ -1647,7 +1647,8 @@ function doGradeUp(){
   G.rewardCharCount=(G.rewardCharCount||3)+1;
   log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）次回から提示キャラが${G.rewardCharCount}枚に`,'gold');
   document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD(); renderGradeUpBtn();
+  // ソウル減少をカード表示（ソウル不足の暗転）に反映
+  updateHUD(); renderRewCards(); renderEnemyHand(); renderGradeUpBtn();
 }
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────

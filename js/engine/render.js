@@ -145,7 +145,7 @@ function _computeDeathRisk(){
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
   window.log=()=>{}; window.renderAll=()=>{}; window.updateHUD=()=>{}; window.renderControls=()=>{};
 
-  const N=20; // シミュレーション回数
+  const N=100; // シミュレーション回数（100回で1%刻みの精度）
   const allyDeathCount  =new Array(6).fill(0);
   const enemyDeathCount =new Array(6).fill(0);
   const origAliveIds=_sA.map(a=>a&&a.hp>0?a.id:null);
@@ -417,8 +417,8 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         // オブジェクトは攻撃対象外なので赤枠・死亡予測は表示しない
         if(!_isObj){
           if(prioritySet.has(i)) slot.classList.add('priority-target');
-          if(deathRisk.has(i)) slot.classList.add('will-die');
-          else { const _dp=deathProb.get(i); if(_dp!=null&&_dp>0) slot.classList.add('will-warn-'+(_dp<=20?'low':_dp<=79?'mid':'high')); }
+          // ラベルと同じ閾値で枠色を決定（100%=will-die / 80-99%=high / 21-79%=mid / 1-20%=low）
+          if(_zone) slot.classList.add(_zone.cls);
         }
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){

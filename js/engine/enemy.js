@@ -102,13 +102,15 @@ function generateEnemies(floor){
   if(floor===1&&!isBoss){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
     const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
-    return preset.map(p=>{
+    const _f1enemies=preset.map(p=>{
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
       const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       e._visualShift=Math.random()<0.5;
       e.lane=Math.random()<0.6?'front':'rear';
       return e;
     });
+    _enforceLaneRules(_f1enemies);
+    return _f1enemies;
   }
 
   if(isBoss){
@@ -151,6 +153,10 @@ function generateEnemies(floor){
       if(_bossShiftable.every(e=>e._visualShift)) randFrom(_bossShiftable)._visualShift=false;
       else if(_bossShiftable.every(e=>!e._visualShift)) randFrom(_bossShiftable)._visualShift=true;
     }
+    _enforceLaneRules(enemies);
+    // ボス位置が変わった場合はG._bossSlotを更新
+    const _newBossSlot=enemies.findIndex(e=>e&&e.boss);
+    if(_newBossSlot>=0) G._bossSlot=_newBossSlot;
     return enemies;
   }
 
@@ -235,14 +241,44 @@ function generateEnemies(floor){
     const _lanes=enemies.map(e=>e?(e.lane||'front'):'rear');
     const _leftBiased =_lanes.length>=2&&_lanes[0]==='front'&&_lanes[1]==='front';
     const _rightBiased=_lanes.length>=2&&_lanes[_lanes.length-1]==='front'&&_lanes[_lanes.length-2]==='front';
-    if(!_leftBiased&&!_rightBiased) break; // 偏りなし → 確定
-    // 偏りあり → 再シャッフル（最終試行はそのまま使う）
+    const _slot0Front=_lanes[0]==='front';
+    if(!_leftBiased&&!_rightBiased&&!_slot0Front) break; // 偏りなし → 確定
   }
+  _enforceLaneRules(enemies);
   // シャッフル後にエリートの実際の位置を更新（moveMasks生成前に必要）
   if(hasElite){
     G._eliteIdx=enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
   }
   return enemies;
+}
+
+// 配置ルール強制：
+// ・前衛・後衛が必ず混在する
+// ・左端（スロット0）は必ず後衛
+// ・ネームド（unique/boss/エリート）は必ず後衛
+function _enforceLaneRules(enemies){
+  if(!enemies||!enemies.length) return;
+  // ネームドは必ず後衛
+  enemies.forEach(e=>{
+    if(!e) return;
+    const isNamed=e.unique||e.boss||(e.keywords||[]).includes('エリート')||(e.keywords||[]).includes('ボス');
+    if(isNamed) e.lane='rear';
+  });
+  // 混在保証：全員同じレーンなら1体だけ反対に変える
+  const nonNamed=enemies.filter(e=>e&&!e.unique&&!e.boss&&!(e.keywords||[]).includes('エリート')&&!(e.keywords||[]).includes('ボス'));
+  const hasFront=enemies.some(e=>e&&(e.lane||'front')==='front');
+  const hasRear=enemies.some(e=>e&&(e.lane||'front')==='rear');
+  if(!hasFront&&nonNamed.length) randFrom(nonNamed).lane='front';
+  if(!hasRear&&nonNamed.length) randFrom(nonNamed).lane='rear';
+  // 左端（スロット0）は必ず後衛：前衛なら後衛キャラとスワップ
+  if(enemies[0]&&(enemies[0].lane||'front')==='front'){
+    const rearIdx=enemies.findIndex((e,i)=>i>0&&e&&(e.lane||'front')==='rear');
+    if(rearIdx>0){
+      const tmp=enemies[0]; enemies[0]=enemies[rearIdx]; enemies[rearIdx]=tmp;
+    } else {
+      enemies[0].lane='rear'; // fallback：強制後衛
+    }
+  }
 }
 
 // 敵スロットにマップノード（戦闘/鍛冶屋/休息所）を割り当て
