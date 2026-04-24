@@ -164,8 +164,8 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
     c.type='ring';
   } else {
     const _mg=maxGrade||4;
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.type===type&&(s.grade||1)<=_mg&&!(s.rarity===3&&_seen3.has(s.id)));
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&!(s.rarity===3&&_seen3.has(s.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }

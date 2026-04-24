@@ -83,13 +83,27 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _dc=2+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
-  // ドラウグ：召喚時、ランダムな別の仲間に「毒牙」を付与
+  // ドラウグ：召喚時、対象の別の仲間に「毒牙」を付与（プレイヤー選択）
   if(unit.effect==='draug_summon'){
-    const _draugTargets=G.allies.filter(a=>a&&a.hp>0&&a!==unit&&!(a.keywords||[]).includes('毒牙'));
-    if(_draugTargets.length){
-      const _draugTgt=_draugTargets[Math.floor(Math.random()*_draugTargets.length)];
-      _draugTgt.keywords=[...(_draugTgt.keywords||[]),'毒牙'];
-      log(`${unit.name}：${_draugTgt.name}に「毒牙」を付与`,'good');
+    const _draugCands=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.a!==unit&&!(x.a.keywords||[]).includes('毒牙'));
+    if(_draugCands.length){
+      setTimeout(()=>{
+        if(typeof clearSelectable==='function') clearSelectable();
+        if(typeof setHint==='function') setHint(`${unit.name}：毒牙を付与する仲間を選択（右クリックでキャンセル=ランダム）`);
+        const slots=typeof _getAllyDomSlots==='function'?_getAllyDomSlots():[];
+        slots.forEach((slot,i)=>{
+          const cand=_draugCands.find(x=>x.i===i);
+          if(cand&&slot){
+            slot.classList.add('selectable');
+            slot.onclick=()=>{
+              if(typeof clearSelectable==='function') clearSelectable();
+              cand.a.keywords=[...(cand.a.keywords||[]),'毒牙'];
+              log(`${unit.name}：${cand.a.name}に「毒牙」を付与`,'good');
+              if(typeof renderAll==='function') renderAll();
+            };
+          }
+        });
+      },50);
     }
   }
   // スリン：旧効果（slin_summon）削除済み

@@ -553,23 +553,38 @@ function applySpell(sp,idx,tgt,_noDecrement){
       }
     break;}
     case 'ritual_scroll':{
-      const srcU=tgt.who==='ally'?G.allies[tgt.idx]:null;
+      const srcIdx=tgt.idx;
+      const srcU=tgt.who==='ally'?G.allies[srcIdx]:null;
       if(!srcU||srcU.hp<=0){ log('儀式の巻物：対象が無効','bad'); break; }
-      // 別の仲間を選択→キーワード移譲
-      const candidates=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.i!==tgt.idx);
+      const candidates=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.i!==srcIdx);
       if(!candidates.length){ log('儀式の巻物：移譲先の仲間がいない','bad'); break; }
-      const pick=candidates[Math.floor(Math.random()*candidates.length)];
-      const _srcKws=[...(srcU.keywords||[])];
-      const _dstKws=pick.a.keywords||[];
-      const _newKws=[..._dstKws];
-      _srcKws.forEach(k=>{ if(!_newKws.includes(k)) _newKws.push(k); });
-      pick.a.keywords=_newKws;
-      if(_srcKws.includes('反撃')) pick.a.counter=true;
-      // srcU を破壊
-      srcU.hp=0;
-      if(typeof processAllyDeath==='function') processAllyDeath(srcU);
-      G.allies[tgt.idx]=null;
-      log(`儀式の巻物：${srcU.name}を破壊→${pick.a.name}にキーワード移譲（${_srcKws.join('、')||'なし'}）`,'good');
+      // 2段目ピッカーを renderAll 後に起動
+      _spreadPick=()=>{
+        _spreadPick=null;
+        clearSelectable();
+        setHint(`儀式の巻物：${srcU.name}のキーワード移譲先を選択（右クリックでキャンセル）`);
+        const slots=_getAllyDomSlots();
+        candidates.forEach(cand=>{
+          const slot=slots[cand.i];
+          if(!slot) return;
+          slot.classList.add('selectable');
+          slot.onclick=()=>{
+            clearSelectable();
+            const _srcKws=[...(srcU.keywords||[])];
+            const _dstKws=cand.a.keywords||[];
+            const _newKws=[..._dstKws];
+            _srcKws.forEach(k=>{ if(!_newKws.includes(k)) _newKws.push(k); });
+            cand.a.keywords=_newKws;
+            if(_srcKws.includes('反撃')) cand.a.counter=true;
+            srcU.hp=0;
+            if(typeof processAllyDeath==='function') processAllyDeath(srcU);
+            G.allies[srcIdx]=null;
+            log(`儀式の巻物：${srcU.name}を破壊→${cand.a.name}にキーワード移譲（${_srcKws.join('、')||'なし'}）`,'good');
+            renderAll();
+          };
+        });
+        _addCancelListeners();
+      };
     break;}
     case 'meteor':{
       if(_inReward){
