@@ -164,7 +164,57 @@ function goToReward(){
   renderEnemyHand();
   setHint('ソウルを支払ってキャラクターやアイテムを購入しましょう');
   updateHUD();
+  _previewNextEnemies();
+  _renderPowerRating();
   if(_isBossFight) _showBossRewardOverlay();
+}
+
+// 次戦の敵を副作用なくプレビュー生成（戦力評価用）
+function _previewNextEnemies(){
+  const _nextFloor=(G.floor||1)+1;
+  if(_nextFloor>(FLOOR_DATA.length-1)||typeof generateEnemies!=='function'){
+    G._previewEnemies=null;
+    return;
+  }
+  const _savedFloor=G.floor;
+  const _savedIsEliteFight=G._isEliteFight;
+  const _savedEliteIdx=G._eliteIdx;
+  const _savedBossSlot=G._bossSlot;
+  const _savedUsedNamed=new Set(G._usedNamedElite);
+  const _savedExtraMult=G._extraBattleMult;
+  try{
+    G.floor=_nextFloor;
+    G._previewEnemies=generateEnemies(_nextFloor);
+  } catch(e){
+    G._previewEnemies=null;
+  } finally {
+    G.floor=_savedFloor;
+    G._isEliteFight=_savedIsEliteFight;
+    G._eliteIdx=_savedEliteIdx;
+    G._bossSlot=_savedBossSlot;
+    G._usedNamedElite=_savedUsedNamed;
+    G._extraBattleMult=_savedExtraMult;
+  }
+}
+
+// 戦力評価表示（自軍 vs 次戦の敵軍）
+function _renderPowerRating(){
+  const el=document.getElementById('rw-power-rating');
+  if(!el) return;
+  if(typeof calcPartyScore!=='function'){ el.style.display='none'; return; }
+  const allyScore=calcPartyScore(G.allies);
+  const enemyUnits=G._previewEnemies||[];
+  const enemyScore=calcPartyScore(enemyUnits);
+  if(enemyScore<=0){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  const allyRank=scoreToRank(allyScore);
+  const enemyRank=scoreToRank(enemyScore);
+  const label=getMatchupLabel(allyScore,enemyScore);
+  const labelColor=label==='圧勝'?'var(--teal2)':
+    label==='有利'?'var(--green,#6d9)':
+    label==='互角'?'var(--gold2)':
+    label==='不利'?'var(--orange,#f90)':'var(--red2)';
+  el.innerHTML=`<span style="color:var(--fg2)">自軍</span> <strong style="color:var(--gold2)">${allyRank}</strong><span style="margin:0 8px;color:var(--fg3)">▶</span><span style="color:var(--fg2)">次戦</span> <strong style="color:var(--red2)">${enemyRank}</strong> <span style="color:${labelColor};font-weight:700;margin-left:6px">[${label}]</span>`;
 }
 
 // ── ボス報酬選択オーバーレイ ─────────────────────
@@ -884,6 +934,8 @@ function renderFieldEditor(){
   const fAlly=document.getElementById('f-ally');
   if(fAlly) _renderFieldRow(fAlly);
   renderHandEditor();
+  // 盤面変更のたびに戦力評価を更新
+  if(typeof _renderPowerRating==='function') _renderPowerRating();
 }
 
 function _renderFieldRow(el){
