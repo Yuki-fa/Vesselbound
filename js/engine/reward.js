@@ -940,6 +940,8 @@ function renderFieldEditor(){
   const fAlly=document.getElementById('f-ally');
   if(fAlly) _renderFieldRow(fAlly);
   renderHandEditor();
+  // 盤面変更のたびに戦力評価を更新
+  if(typeof _renderPowerRating==='function') _renderPowerRating();
 }
 
 function _renderFieldRow(el){
