@@ -83,6 +83,15 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _dc=2+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
+  // ドラウグ：召喚時、ランダムな別の仲間に「毒牙」を付与
+  if(unit.effect==='draug_summon'){
+    const _draugTargets=G.allies.filter(a=>a&&a.hp>0&&a!==unit&&!(a.keywords||[]).includes('毒牙'));
+    if(_draugTargets.length){
+      const _draugTgt=_draugTargets[Math.floor(Math.random()*_draugTargets.length)];
+      _draugTgt.keywords=[...(_draugTgt.keywords||[]),'毒牙'];
+      log(`${unit.name}：${_draugTgt.name}に「毒牙」を付与`,'good');
+    }
+  }
   // スリン：旧効果（slin_summon）削除済み
   // キメラ：召喚時、ランダムなキーワード3つを得る
   if(unit.effect==='chimera_summon'){

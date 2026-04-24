@@ -164,61 +164,7 @@ function goToReward(){
   renderEnemyHand();
   setHint('ソウルを支払ってキャラクターやアイテムを購入しましょう');
   updateHUD();
-  // 次戦の敵をプレビュー生成（副作用を退避・復元）
-  _previewNextEnemies();
-  _renderPowerRating();
   if(_isBossFight) _showBossRewardOverlay();
-}
-
-// 次戦の敵を副作用なくプレビュー生成（戦力評価用）
-function _previewNextEnemies(){
-  const _nextFloor=(G.floor||1)+1;
-  if(_nextFloor>(FLOOR_DATA.length-1)||typeof generateEnemies!=='function'){
-    G._previewEnemies=null;
-    return;
-  }
-  // generateEnemies が変更するグローバル状態を退避
-  const _savedFloor=G.floor;
-  const _savedIsEliteFight=G._isEliteFight;
-  const _savedEliteIdx=G._eliteIdx;
-  const _savedBossSlot=G._bossSlot;
-  const _savedUsedNamed=new Set(G._usedNamedElite);
-  const _savedExtraMult=G._extraBattleMult;
-  try{
-    G.floor=_nextFloor;
-    G._previewEnemies=generateEnemies(_nextFloor);
-  } catch(e){
-    G._previewEnemies=null;
-  } finally {
-    // 状態を完全復元
-    G.floor=_savedFloor;
-    G._isEliteFight=_savedIsEliteFight;
-    G._eliteIdx=_savedEliteIdx;
-    G._bossSlot=_savedBossSlot;
-    G._usedNamedElite=_savedUsedNamed;
-    G._extraBattleMult=_savedExtraMult;
-  }
-}
-
-// 戦力評価表示（自軍 vs 次戦の敵軍）
-function _renderPowerRating(){
-  const el=document.getElementById('rw-power-rating');
-  if(!el) return;
-  if(typeof calcPartyScore!=='function'){ el.style.display='none'; return; }
-  const allyScore=calcPartyScore(G.allies);
-  const enemyUnits=G._previewEnemies||[];
-  const enemyScore=calcPartyScore(enemyUnits);
-  // 次戦の敵が未設定（最終階層クリア後など）は非表示
-  if(enemyScore<=0){ el.style.display='none'; el.innerHTML=''; return; }
-  el.style.display='';
-  const allyRank=scoreToRank(allyScore);
-  const enemyRank=scoreToRank(enemyScore);
-  const label=getMatchupLabel(allyScore,enemyScore);
-  const labelColor=label==='圧勝'?'var(--teal2)':
-    label==='有利'?'var(--green,#6d9)':
-    label==='互角'?'var(--gold2)':
-    label==='不利'?'var(--orange,#f90)':'var(--red2)';
-  el.innerHTML=`<span style="color:var(--fg2)">自軍</span> <strong style="color:var(--gold2)">${allyRank}</strong><span style="margin:0 8px;color:var(--fg3)">▶</span><span style="color:var(--fg2)">次戦</span> <strong style="color:var(--red2)">${enemyRank}</strong> <span style="color:${labelColor};font-weight:700;margin-left:6px">[${label}]</span>`;
 }
 
 // ── ボス報酬選択オーバーレイ ─────────────────────
@@ -373,7 +319,6 @@ function rerollRewards(){
   renderRewCards();
   renderEnemyHand();
   renderGradeUpBtn();
-  _renderPowerRating();
 }
 
 // ── 報酬キャラクター：ダメージ・召喚・負傷トリガー ─────────
@@ -384,7 +329,7 @@ function dealDmgToRewChar(rewIdx, dmg){
   if(!c||!c._isChar||c.hp<=0) return;
   if(c.shield>0){ c.shield--; log(`${c.name}：シールドがダメージを防いだ`,'sys'); renderRewCards(); return; }
   // ガーゴイル：報酬キャラにガーゴイルがいる場合、受けるダメージを-1
-  const _grReduction=_rewCards.some(rc=>rc&&rc._isChar&&rc.hp>0&&rc.effect==='gargoyle_shield')?1:0;
+  const _grReduction=0; // gargoyle_shield廃止
   const actualRewDmg=Math.max(0,dmg-_grReduction);
   c.hp=Math.max(0,c.hp-actualRewDmg);
   if(c.hp<=0){
@@ -687,9 +632,7 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
-  // レッサーデーモン：消耗品のみに割引を表示反映（杖・指輪・キャラは対象外）
-  const _ldDiscCard=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
-  const cost=Math.max(0,(card._buyPrice??1)-_ldDiscCard);
+  const cost=card._buyPrice??1;
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
@@ -755,8 +698,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
-  // レッサーデーモンディスカウント（消耗品のみ対象・累積分を一括消費）
-  const _ldDisc=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  // レッサーデーモンディスカウント（非キャラのみ）
+  const _ldDisc=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
   const cost=card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)-_ldDisc);
 
   if(card._isChar){
@@ -858,7 +801,7 @@ function takeRewCard(i, targetSlot){
     if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    if(isTown){ G.gold-=cost; }
+    if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
     const rc=clone(card);
     delete rc._buyPrice;
     G.rings[ringIdx]=rc;
@@ -907,7 +850,7 @@ function takeRewCard(i, targetSlot){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown){ G.gold-=cost; if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; } }
+  if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
@@ -933,7 +876,6 @@ function takeRewCard(i, targetSlot){
   renderFieldEditor();
   renderEnemyHand();
   renderGradeUpBtn();
-  _renderPowerRating();
 }
 
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
@@ -942,8 +884,6 @@ function renderFieldEditor(){
   const fAlly=document.getElementById('f-ally');
   if(fAlly) _renderFieldRow(fAlly);
   renderHandEditor();
-  // 盤面変更のたびに戦力評価を更新
-  if(typeof _renderPowerRating==='function') _renderPowerRating();
 }
 
 function _renderFieldRow(el){
@@ -1495,7 +1435,6 @@ function sellFieldUnit(idx){
   renderEnemyHand();
   renderFieldEditor();
   renderGradeUpBtn();
-  _renderPowerRating();
 }
 
 // ── 手札エディタ（アイテム）──────────────────────
@@ -1704,12 +1643,18 @@ function doGradeUp(){
   G.gold-=cost;
   G.rewardGradeUpCount=(G.rewardGradeUpCount||0)+1;
   G.rewardGrade=(G.rewardGrade||1)+1;
-  // 次の商談フェイズから提示キャラ+1（自動リロールはしない）
-  G.rewardCharCount=(G.rewardCharCount||3)+1;
-  log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）次回から提示キャラが${G.rewardCharCount}枚に`,'gold');
+  log(`グレードが${G.rewardGrade}に上昇！（-${cost}ソウル）`,'gold');
+  // リロールして新しいグレードのカードを表示
+  const chars=drawCharacters(G.rewardCharCount||3);
+  const wand=_drawByType('wand',1)[0]||null;
+  const item=_drawByType('consumable',1)[0]||null;
+  _rewCards=[...chars];
+  if(wand) _rewCards.push(wand);
+  if(item) _rewCards.push(item);
+  _padRewCharSlots();
+  _generateMasterHand();
   document.getElementById('rw-gold').textContent=G.gold;
-  // ソウル減少をカード表示（ソウル不足の暗転）に反映
-  updateHUD(); renderRewCards(); renderEnemyHand(); renderGradeUpBtn();
+  updateHUD(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
 }
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
@@ -1827,11 +1772,10 @@ function _generateMasterHand(){
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
-  // レッサーデーモンディスカウント（消耗品のみ対象・累積分を一括消費）
-  const _ldDisc=(sp.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  const _ldDisc=G._lesserDemonDiscount>0?1:0;
   const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
+  if(_ldDisc>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
-  if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; }
   const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
   if(_isRingCard){
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
@@ -1899,8 +1843,9 @@ function buyMasterHandItem(idx){
 // マスター指輪を購入
 function buyMasterRingItem(idx){
   const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
-  // 指輪はレッサーデーモン割引の対象外
-  const cost=ring._buyPrice??4;
+  const _ldDiscR=G._lesserDemonDiscount>0?1:0;
+  const cost=Math.max(0,(ring._buyPrice??4)-_ldDiscR);
+  if(_ldDiscR>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
   if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。破棄してください。`,'bad'); return; }

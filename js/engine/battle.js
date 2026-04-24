@@ -39,7 +39,8 @@ function onGoldGained(amount){
   const hasLep=G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
   if(hasLep){
     const _lepUnit=G.allies.find(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
-    const _lv=(((_lepUnit&&_lepUnit._stackCount)||0)+1)+_gd;
+    const _lepNums=[...((_lepUnit&&_lepUnit.desc)||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+    const _lv=(_lepNums[0]||1)+_gd;
     G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_lv; a.maxHp+=_lv; }});
     G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.hp+=_lv; e.maxHp+=_lv; }});
     log(`レプラコーン：ソウル獲得→全キャラ±0/+${_lv}`,'good');
@@ -78,6 +79,16 @@ function removeLeaderBonus(leader){
 }
 
 // ── HP増加共通関数（ジャッカロープボーナス自動付与）──────
+// ATKを増加させる共通関数（ガーゴイル効果を自動適用）
+function addUnitAtk(unit, amount){
+  if(!unit||amount<=0) return 0;
+  const _gargAtk = unit.effect==='gargoyle_bonus' ? 1 : 0;
+  const total = amount + _gargAtk;
+  unit.atk += total;
+  unit.baseAtk = (unit.baseAtk||0) + total;
+  return total;
+}
+
 function addUnitHp(unit, amount, sideOverride){
   if(!unit||amount<=0) return 0;
   const onAllySide=sideOverride==='ally'||(!sideOverride&&G.allies.includes(unit));
@@ -85,71 +96,10 @@ function addUnitHp(unit, amount, sideOverride){
   const allyJkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive');
   const enemyJkb=G.enemies.some(e=>e&&e.hp>0&&e.effect==='jackalope_passive');
   const _jkb=((onAllySide&&allyJkb)||(onEnemySide&&enemyJkb))?1+(G.hasGoldenDrop?1:0):0;
-  const total=amount+_jkb;
+  const _gargHp=unit.effect==='gargoyle_bonus'?1:0;
+  const total=amount+_jkb+_gargHp;
   unit.hp+=total; unit.maxHp+=total;
   return total;
-}
-
-// ── 戦力スコア計算 ────────────────────────────
-// ユニットの戦力スコアを計算
-function calcUnitScore(unit){
-  if(!unit||unit.hp<=0) return 0;
-  const kws=unit.keywords||[];
-  // 毒牙：ATKへの加算（終盤の高ATKでも過剰にならないよう乗数ではなく加算）
-  const dok=kws.find(k=>/^毒牙\d+$/.test(k));
-  const dokBonus=dok?parseInt(dok.slice(2))*3:0;
-  const effectiveAtk=unit.atk+dokBonus;
-  let score=effectiveAtk*unit.hp;
-  if(kws.includes('即死'))       score*=3.0;
-  if(kws.includes('三段攻撃'))   score*=2.5;
-  if(kws.includes('二段攻撃'))   score*=1.8;
-  if(kws.includes('全体攻撃'))   score*=2.0;
-  if(kws.includes('三方向攻撃')) score*=1.5;
-  if(kws.includes('反撃'))       score*=1.4;
-  if(kws.includes('狩人'))       score*=1.2;
-  if(unit.shield>0)              score*=1.3; // 現在シールド状態のみ
-  // 呪詛：10以上は即死相当、それ未満は軽い補正
-  const juk=kws.find(k=>/^呪詛\d+$/.test(k));
-  if(juk){ const jv=parseInt(juk.slice(2)); score*=jv>=10?3.0:1+jv*0.05; }
-  const egk=kws.find(k=>/^邪眼\d+$/.test(k));
-  if(egk) score*=1+parseInt(egk.slice(2))*0.1;
-  const grk=kws.find(k=>/^成長\d+$/.test(k));
-  if(grk) score*=1.1;
-  return score;
-}
-
-// パーティ全体のスコアを計算
-function calcPartyScore(units){
-  const live=(units||[]).filter(u=>u&&u.hp>0);
-  let total=live.reduce((s,u)=>s+calcUnitScore(u),0);
-  // 先制：パーティに1人でもいれば×1.3（重複なし）
-  if(live.some(u=>(u.keywords||[]).includes('先制'))) total*=1.3;
-  return total;
-}
-
-// スコアをランク文字列に変換
-function scoreToRank(score){
-  const thr=[
-    [15000,'SSS'],[10000,'SS'],[7000,'S'],
-    [5000,'AAA'],[3500,'AA+'],[2500,'AA'],[1800,'AA-'],
-    [1300,'A+'],[900,'A'],[650,'A-'],
-    [450,'BBB'],[320,'BB+'],[220,'BB'],[150,'BB-'],
-    [100,'B+'],[70,'B'],[50,'B-'],
-    [30,'CCC'],[20,'CC'],[10,'C'],[5,'D'],[0,'E'],
-  ];
-  for(const [t,r] of thr){ if(score>=t) return r; }
-  return 'E-';
-}
-
-// 相対評価ラベル（自軍スコア vs 敵軍スコア）
-function getMatchupLabel(allyScore, enemyScore){
-  if(enemyScore<=0) return '圧勝';
-  const ratio=allyScore/enemyScore;
-  if(ratio>=2.0) return '圧勝';
-  if(ratio>=1.4) return '有利';
-  if(ratio>=0.75) return '互角';
-  if(ratio>=0.5) return '不利';
-  return '危険';
 }
 
 // ── 戦闘開始 ──────────────────────────────────
@@ -163,7 +113,7 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
-  // 注：_pendingPondBonus / _pendingCaveBonus は move.js で戦闘直前に設定されるためリセットしない
+  G._pendingPondBonus=false;
   G._isTreasurePhase=false;
   G._masterHandReady=false;
   G._retreated=false;
@@ -658,20 +608,6 @@ async function battlePhase(){
   G.phase='enemy';
   renderControls();
   log(`── T${G.turn} 戦闘フェイズ ──`,'sys');
-  // 味方がオブジェクトのみになった場合は敗北
-  if(!G.allies.some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)){
-    log('💀 仲間がいなくなった…','bad');
-    await sleep(200); gameOver();
-    return;
-  }
-  // Draw 判定：双方とも攻撃力0のキャラ（オブジェクト除く）だけになった場合は勝利扱いで先へ進む
-  const _hasAllyAtk=G.allies.some(a=>a&&a.hp>0&&a.atk>0&&!a._isSoul);
-  const _hasEnemyAtk=G.enemies.some(e=>e&&e.hp>0&&e.atk>0&&!e._isObject);
-  if(!_hasAllyAtk&&!_hasEnemyAtk){
-    log('⚖ Draw：両軍とも攻撃できないため戦闘終了','gold');
-    _onAllEnemiesDefeated();
-    return;
-  }
   // 脱力回復（前ターンの敵フェーズで適用された分をここで解除：プレイヤーフェーズ中ATK=0が見えた後）
   [...G.enemies,...G.allies].forEach(u=>{
     if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
@@ -719,8 +655,7 @@ function _checkBattleOver(){
     _onAllEnemiesDefeated();
     return true;
   }
-  // 非オブジェクト・非ソウルの味方が残っていない場合は敗北
-  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul).length){ setTimeout(()=>gameOver(),200); return true; }
+  if(!G.allies.filter(a=>a&&(a.hp>0)).length){ setTimeout(()=>gameOver(),200); return true; }
   return false;
 }
 
@@ -1109,10 +1044,8 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     return false; // ダメージをシールドで防いだ
   }
 
-  // ガーゴイル：味方全体のダメージを-1（ガーゴイル自身も含む）
-  const _gargoyleReduction=G.allies.some(a=>a&&a.hp>0&&a.effect==='gargoyle_shield')?1:0;
   // 呪詛加算
-  const actualDmg=Math.max(0, dmg - _gargoyleReduction)+(unit.curse||0);
+  const actualDmg=Math.max(0, dmg)+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
     applyKeywordOnHit(src,unit);
@@ -1169,7 +1102,7 @@ function processAllyDeath(unit){
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
   if(unit.effect==='skeleton_bone'){
     const _boneG=unit.grade||1;
-    const _boneHp=4*_boneG;
+    const _boneHp=1;
     const _deadAtk=unit.atk||0;
     const _deadHp=unit.maxHp!=null?unit.maxHp:(7*_boneG);
     const _deadKws=[...(unit.keywords||[])];
@@ -1183,7 +1116,8 @@ function processAllyDeath(unit){
       // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
       { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-      if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
+      { const _gd=G.hasGoldenDrop?1:0;
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
       checkSolitudeBuff();
     }
   }
@@ -1207,7 +1141,8 @@ function processAllyDeath(unit){
         // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
         { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-        if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
+        { const _gd=G.hasGoldenDrop?1:0;
+          if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
         checkSolitudeBuff();
       }
     });
@@ -1818,8 +1753,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     return;
   }
   // ガーゴイル：敵の場にガーゴイルがいる場合、敵が受けるダメージを-1
-  const _gargoyleEnemyReduction=G.enemies.some(en=>en&&en.hp>0&&en.effect==='gargoyle_shield')?1:0;
-  const actualDmgToEnemy=Math.max(0,dmg-_gargoyleEnemyReduction);
+  const actualDmgToEnemy=Math.max(0,dmg);
   e.hp=Math.max(0,e.hp-actualDmgToEnemy);
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
@@ -1883,14 +1817,10 @@ function processEnemyDeath(e,eIdx){
       : 1;
     const rate=(hasGreed?2:1)*gnomeMult*0.05;
     if(!G._pendingTreasure&&Math.random()<rate){
-      // 既存のmoveMask（battle等）を上書きしないよう、空きスロットを探す
-      const _chestSlot=!G.moveMasks[eIdx]?eIdx:G.moveMasks.findIndex(m=>!m);
-      if(_chestSlot>=0){
-        G._pendingTreasure=true;
-        G.moveMasks[_chestSlot]='chest';
-        if(!G.visibleMoves.includes(_chestSlot)) G.visibleMoves.push(_chestSlot);
-        log(`📦 ${e.name}が宝箱を落とした！`,'gold');
-      }
+      G._pendingTreasure=true;
+      G.moveMasks[eIdx]='chest';
+      if(!G.visibleMoves.includes(eIdx)) G.visibleMoves.push(eIdx);
+      log(`📦 ${e.name}が宝箱を落とした！`,'gold');
     }
   }
   if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)){
@@ -1916,7 +1846,7 @@ function processEnemyDeath(e,eIdx){
   // スケルトン（敵）：死亡時、骨を敵陣に召喚
   if(e.effect==='skeleton_bone'){
     const _boneG=e.grade||1;
-    const _boneHp=4*_boneG;
+    const _boneHp=1;
     const _deadAtk=e.atk||0;
     const _deadHp=e.maxHp!=null?e.maxHp:(7*_boneG);
     const _deadKws=[...(e.keywords||[])];

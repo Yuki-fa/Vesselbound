@@ -331,6 +331,15 @@ function applySpell(sp,idx,tgt,_noDecrement){
         log(`${wu.name} 脱力1T（ATK→0）`,'good');
       }
     break;}
+    case 'weaken_half':{
+      const wu=tgt.who==='ally'?G.allies[tgt.idx]:(tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null));
+      if(wu&&wu.hp>0){
+        const _halved=Math.floor((wu.atk||0)/2);
+        const _drop=(wu.atk||0)-_halved;
+        wu.atk=_halved; wu.baseAtk=Math.max(0,(wu.baseAtk||0)-_drop);
+        log(`${wu.name} のパワーが半減（ATK→${wu.atk}）`,'good');
+      }
+    break;}
     case 'stealth':{ const sa=G.allies[tgt.idx]; if(sa){ sa.stealth=true; log(`${sa.name}に隠密付与`,'good'); } break;}
     case 'poison_wand':{
       const pv=G.magicLevel||1;
@@ -511,14 +520,56 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(G.allies.filter(a=>a&&a.hp>0).length<6){
         const gl=G.magicLevel||1;
         const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gl,baseAtk:gl,hp:gl,maxHp:gl,
-          ringId:'w_golem',ringIdx:-1,hate:false,hateTurns:0,instadead:false,sealed:0,nullified:0,
+          ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
           enchants:[],regen:false,regenUsed:false,onDeath:undefined,onHit:undefined,
           taunt50:false,guardian:false,unique:undefined,keywords:['アーティファクト'],poison:0,shield:0,_dp:false};
         const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
         else if(G.allies.length<6) G.allies.push(golem);
-        log(`🗼 ゴーレム（${gl}/${gl}）を召喚`,'good');
+        log(`🗼 ゴーレム（${gl}/${gl}）を前衛に召喚`,'good');
       }
+    break;}
+    case 'heal_wand_all':{
+      const hv=(G.magicLevel||1);
+      let _hvShown=hv;
+      G.allies.forEach(a=>{ if(a&&a.hp>0){ _hvShown=addUnitHp(a,hv); }});
+      log(`回復の杖：全仲間ライフ+${_hvShown}`,'good');
+    break;}
+    case 'transform_wand':{
+      const tu=tgt.who==='ally'?G.allies[tgt.idx]:(tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null));
+      if(tu&&tu.hp>0){
+        const _tg=tu.grade||1;
+        const _tpool=(typeof UNIT_POOL!=='undefined'?UNIT_POOL:[]).filter(u=>u&&u.id&&!u.unique&&u.id!=='c_golem'&&(u.grade||1)===_tg&&u.rarity!==-1&&u.name!==tu.name);
+        if(_tpool.length){
+          const _tdef=_tpool[Math.floor(Math.random()*_tpool.length)];
+          const _newU=makeUnitFromDef(_tdef);
+          if(tgt.who==='ally') G.allies[tgt.idx]=_newU;
+          else if(tgt.who==='enemy') G.enemies[tgt.idx]=_newU;
+          else if(tgt.who==='rew-char'){ _newU._isChar=true; _newU._buyPrice=_tdef.cost||2; _rewCards[tgt.idx]=_newU; }
+          log(`変身の短杖：${tu.name} → ${_newU.name}（G${_tg}）`,'good');
+        } else {
+          log(`変身の短杖：同グレードのキャラが存在しない`,'sys');
+        }
+      }
+    break;}
+    case 'ritual_scroll':{
+      const srcU=tgt.who==='ally'?G.allies[tgt.idx]:null;
+      if(!srcU||srcU.hp<=0){ log('儀式の巻物：対象が無効','bad'); break; }
+      // 別の仲間を選択→キーワード移譲
+      const candidates=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.i!==tgt.idx);
+      if(!candidates.length){ log('儀式の巻物：移譲先の仲間がいない','bad'); break; }
+      const pick=candidates[Math.floor(Math.random()*candidates.length)];
+      const _srcKws=[...(srcU.keywords||[])];
+      const _dstKws=pick.a.keywords||[];
+      const _newKws=[..._dstKws];
+      _srcKws.forEach(k=>{ if(!_newKws.includes(k)) _newKws.push(k); });
+      pick.a.keywords=_newKws;
+      if(_srcKws.includes('反撃')) pick.a.counter=true;
+      // srcU を破壊
+      srcU.hp=0;
+      if(typeof processAllyDeath==='function') processAllyDeath(srcU);
+      G.allies[tgt.idx]=null;
+      log(`儀式の巻物：${srcU.name}を破壊→${pick.a.name}にキーワード移譲（${_srcKws.join('、')||'なし'}）`,'good');
     break;}
     case 'meteor':{
       if(_inReward){
@@ -570,12 +621,12 @@ function applySpell(sp,idx,tgt,_noDecrement){
       else { G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); }
     break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
-    case 'big_rally':{ const rbonus=5*cMult; let _rbShown=rbonus; G.allies.forEach(a=>{ if(a&&a.hp>0) _rbShown=addUnitHp(a,rbonus); }); log(`鼓舞の巻物：全仲間HP+${_rbShown}！`+(cMult>1?' [×2]':''),'good'); break;}
+    case 'big_rally':{ const rbonus=2*cMult; let _rbShown=rbonus; G.allies.forEach(a=>{ if(a&&a.hp>0) _rbShown=addUnitHp(a,rbonus); }); log(`鼓舞の巻物：全仲間HP+${_rbShown}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'reiki_herb':{
       const _ru=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);
       if(_ru&&_ru.hp>0){
         const _side=tgt.who==='rew-char'?'ally':undefined;
-        const _rv=addUnitHp(_ru,3,_side);
+        const _rv=addUnitHp(_ru,4,_side);
         log(`治癒の薬：${_ru.name}に±0/+${_rv}`,'good');
         if(!_inReward) triggerDryadBuff();
       }

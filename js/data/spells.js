@@ -17,7 +17,7 @@ const SPELL_POOL=[
    desc:'対象のキャラクターに+X/±0を与える。', effect:'boost', needsAny:true, baseUses:5},
 
   {id:'w_golem',      name:'岩の杖',    type:'wand', starterOnly:true,
-   desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:5},
+   desc:'前衛にX/Xのゴーレムを召喚する。', effect:'golem', baseUses:5},
 
   // ── WANDS（通常報酬プール） ──
   {id:'w_hate',       name:'撹乱の短杖', type:'wand', subtype:'wand', cost:2,
@@ -36,10 +36,10 @@ const SPELL_POOL=[
    desc:'対象のキャラクター2体の位置を入れ替える。（仲間と敵は不可）', effect:'swap_pos', baseUses:4},
 
   {id:'w_weaken',     name:'脱力の短杖',  type:'wand', subtype:'wand', cost:2,
-   desc:'対象のキャラクターのパワーを1ターンだけ0にする。', effect:'weaken', needsAny:true, baseUses:3},
+   desc:'対象のキャラクターのパワーを半分にする。', effect:'weaken_half', needsAny:true, baseUses:3},
 
   {id:'w_golem_pool', name:'岩の杖',    type:'wand', cost:2,
-   desc:'X/Xのゴーレムを召喚する。', effect:'golem', baseUses:4},
+   desc:'前衛にX/Xのゴーレムを召喚する。', effect:'golem', baseUses:4},
 
   {id:'w_spread',     name:'拡散の短杖',  type:'wand', subtype:'wand', cost:2, unique:true,
    desc:'右隣の杖の効果を使用する。', effect:'spread', baseUses:3},
@@ -88,14 +88,23 @@ const SPELL_POOL=[
    desc:'対象のキャラクターに即死を与える。', effect:'instakill', needsAny:true},
 
   {id:'c_rally',        name:'鼓舞の巻物', type:'consumable', cost:2,
-   desc:'全ての仲間に±0/+5を与える。', effect:'big_rally'},
+   desc:'全ての仲間に±0/+2を与える。', effect:'big_rally'},
+
+  {id:'c_ritual_scroll',name:'儀式の巻物', type:'consumable', cost:2,
+   desc:'対象の仲間を破壊し、そのキャラクターが持っていた全てのキーワード能力を対象の別のキャラクターに移す。', effect:'ritual_scroll', needsAlly:true},
 
   // ── 特殊消耗品（通常報酬には出ない） ──
   {id:'c_soul_dregs',  name:'魂の残滓', type:'consumable', starterOnly:true,
    desc:'契約を1つ選ぶ。そのグレードを次の戦闘終了まで+1する。', effect:'soul_dregs'},
 
   {id:'c_reiki_herb',  name:'治癒の薬',   type:'consumable', rarity:-1,
-   desc:'対象のキャラクターに±0/+3を与える。', effect:'reiki_herb', needsAny:true},
+   desc:'対象のキャラクターに±0/+4を与える。', effect:'reiki_herb', needsAny:true},
+
+  {id:'w_heal_all',    name:'回復の杖',  type:'wand', cost:2,
+   desc:'全ての仲間のライフを+Xする。', effect:'heal_wand_all', baseUses:4},
+
+  {id:'w_transform',   name:'変身の短杖', type:'wand', subtype:'wand', cost:2,
+   desc:'対象のキャラクターを、同じグレードのランダムなキャラクターに変化させる。（全ての状態異常やバフ、重ね状態はリセットされる）', effect:'transform_wand', needsAny:true, baseUses:3},
 
   // ── レアリティ4消耗品（洞窟ボーナス・特殊入手のみ） ──
   {id:'c_demon_herb',  name:'魔神の秘薬', type:'consumable', rarity:4,
