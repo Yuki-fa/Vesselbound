@@ -164,7 +164,29 @@ function goToReward(){
   renderEnemyHand();
   setHint('ソウルを支払ってキャラクターやアイテムを購入しましょう');
   updateHUD();
+  _renderPowerRating();
   if(_isBossFight) _showBossRewardOverlay();
+}
+
+// 戦力評価表示（自軍 vs 次戦の敵軍）
+function _renderPowerRating(){
+  const el=document.getElementById('rw-power-rating');
+  if(!el) return;
+  if(typeof calcPartyScore!=='function'){ el.style.display='none'; return; }
+  // 次戦の敵が未設定（敵全滅後）は非表示
+  const hasEnemy=(G.enemies||[]).some(e=>e&&e.hp>0);
+  if(!hasEnemy){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  const allyScore=calcPartyScore(G.allies);
+  const enemyScore=calcPartyScore(G.enemies);
+  const allyRank=scoreToRank(allyScore);
+  const enemyRank=scoreToRank(enemyScore);
+  const label=getMatchupLabel(allyScore,enemyScore);
+  const labelColor=label==='圧勝'?'var(--teal2)':
+    label==='有利'?'var(--green,#6d9)':
+    label==='互角'?'var(--gold2)':
+    label==='不利'?'var(--orange,#f90)':'var(--red2)';
+  el.innerHTML=`<span style="color:var(--fg2)">自軍</span> <strong style="color:var(--gold2)">${allyRank}</strong><span style="margin:0 8px;color:var(--fg3)">▶</span><span style="color:var(--fg2)">次戦</span> <strong style="color:var(--red2)">${enemyRank}</strong> <span style="color:${labelColor};font-weight:700;margin-left:6px">[${label}]</span>`;
 }
 
 // ── ボス報酬選択オーバーレイ ─────────────────────
@@ -319,6 +341,7 @@ function rerollRewards(){
   renderRewCards();
   renderEnemyHand();
   renderGradeUpBtn();
+  _renderPowerRating();
 }
 
 // ── 報酬キャラクター：ダメージ・召喚・負傷トリガー ─────────
@@ -876,6 +899,7 @@ function takeRewCard(i, targetSlot){
   renderFieldEditor();
   renderEnemyHand();
   renderGradeUpBtn();
+  _renderPowerRating();
 }
 
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
@@ -1435,6 +1459,7 @@ function sellFieldUnit(idx){
   renderEnemyHand();
   renderFieldEditor();
   renderGradeUpBtn();
+  _renderPowerRating();
 }
 
 // ── 手札エディタ（アイテム）──────────────────────

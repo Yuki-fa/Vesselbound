@@ -90,6 +90,68 @@ function addUnitHp(unit, amount, sideOverride){
   return total;
 }
 
+// ── 戦力スコア計算 ────────────────────────────
+// ユニットの戦力スコアを計算
+function calcUnitScore(unit){
+  if(!unit||unit.hp<=0) return 0;
+  const kws=unit.keywords||[];
+  // 毒牙：ATKへの加算（終盤の高ATKでも過剰にならないよう乗数ではなく加算）
+  const dok=kws.find(k=>/^毒牙\d+$/.test(k));
+  const dokBonus=dok?parseInt(dok.slice(2))*3:0;
+  const effectiveAtk=unit.atk+dokBonus;
+  let score=effectiveAtk*unit.hp;
+  if(kws.includes('即死'))       score*=3.0;
+  if(kws.includes('三段攻撃'))   score*=2.5;
+  if(kws.includes('二段攻撃'))   score*=1.8;
+  if(kws.includes('全体攻撃'))   score*=2.0;
+  if(kws.includes('三方向攻撃')) score*=1.5;
+  if(kws.includes('反撃'))       score*=1.4;
+  if(kws.includes('狩人'))       score*=1.2;
+  if(unit.shield>0)              score*=1.3; // 現在シールド状態のみ
+  // 呪詛：10以上は即死相当、それ未満は軽い補正
+  const juk=kws.find(k=>/^呪詛\d+$/.test(k));
+  if(juk){ const jv=parseInt(juk.slice(2)); score*=jv>=10?3.0:1+jv*0.05; }
+  const egk=kws.find(k=>/^邪眼\d+$/.test(k));
+  if(egk) score*=1+parseInt(egk.slice(2))*0.1;
+  const grk=kws.find(k=>/^成長\d+$/.test(k));
+  if(grk) score*=1.1;
+  return score;
+}
+
+// パーティ全体のスコアを計算
+function calcPartyScore(units){
+  const live=(units||[]).filter(u=>u&&u.hp>0);
+  let total=live.reduce((s,u)=>s+calcUnitScore(u),0);
+  // 先制：パーティに1人でもいれば×1.3（重複なし）
+  if(live.some(u=>(u.keywords||[]).includes('先制'))) total*=1.3;
+  return total;
+}
+
+// スコアをランク文字列に変換
+function scoreToRank(score){
+  const thr=[
+    [15000,'SSS'],[10000,'SS'],[7000,'S'],
+    [5000,'AAA'],[3500,'AA+'],[2500,'AA'],[1800,'AA-'],
+    [1300,'A+'],[900,'A'],[650,'A-'],
+    [450,'BBB'],[320,'BB+'],[220,'BB'],[150,'BB-'],
+    [100,'B+'],[70,'B'],[50,'B-'],
+    [30,'CCC'],[20,'CC'],[10,'C'],[5,'D'],[0,'E'],
+  ];
+  for(const [t,r] of thr){ if(score>=t) return r; }
+  return 'E-';
+}
+
+// 相対評価ラベル（自軍スコア vs 敵軍スコア）
+function getMatchupLabel(allyScore, enemyScore){
+  if(enemyScore<=0) return '圧勝';
+  const ratio=allyScore/enemyScore;
+  if(ratio>=2.0) return '圧勝';
+  if(ratio>=1.4) return '有利';
+  if(ratio>=0.75) return '互角';
+  if(ratio>=0.5) return '不利';
+  return '危険';
+}
+
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
