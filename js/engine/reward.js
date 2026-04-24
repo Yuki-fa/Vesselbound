@@ -687,7 +687,9 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
-  const cost=card._buyPrice??1;
+  // レッサーデーモン：非キャラに-1ソウル割引を表示反映
+  const _ldDiscCard=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
+  const cost=Math.max(0,(card._buyPrice??1)-_ldDiscCard);
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';

@@ -662,7 +662,10 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
   const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(_gradeNum)}</span>`:'';
-  const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
+  // レッサーデーモン：報酬フェイズの非キャラアイテムに-1ソウル割引を表示反映
+  const _ldDiscDisp=(G._lesserDemonDiscount>0&&G.phase==='reward'&&!card._isChar)?1:0;
+  const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
+  const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
   // 杖のチャージ表示（テキスト下）
   const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
@@ -809,7 +812,9 @@ function renderEnemyHand(){
       if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
         // 報酬フェイズ：クリックまたはドラッグで購入
-        const cost=sp._buyPrice??2;
+        // レッサーデーモン：-1ソウル割引を表示反映
+        const _ldDiscMH=G._lesserDemonDiscount>0?1:0;
+        const cost=Math.max(0,(sp._buyPrice??2)-_ldDiscMH);
         const canBuy=G.gold>=cost;
         if(canBuy){
           div.style.cursor='pointer';
