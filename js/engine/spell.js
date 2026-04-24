@@ -376,7 +376,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         applyUnitSummonEffect(newAlly, null);
         renderRewCards(); renderAll();
       } else {
-        const liveE=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0);
+        const liveE=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0&&!x.e._isObject);
         if(!liveE.length) break;
         const weakE=liveE.reduce((m,x)=>x.e.atk<m.e.atk?x:m,liveE[0]);
         const ei=weakE.i;

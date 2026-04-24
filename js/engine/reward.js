@@ -687,8 +687,8 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
-  // レッサーデーモン：非キャラに-1ソウル割引を表示反映
-  const _ldDiscCard=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
+  // レッサーデーモン：消耗品のみに割引を表示反映（杖・指輪・キャラは対象外）
+  const _ldDiscCard=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
   const cost=Math.max(0,(card._buyPrice??1)-_ldDiscCard);
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
@@ -755,8 +755,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
-  // レッサーデーモンディスカウント（非キャラのみ）
-  const _ldDisc=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
+  // レッサーデーモンディスカウント（消耗品のみ対象・累積分を一括消費）
+  const _ldDisc=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
   const cost=card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)-_ldDisc);
 
   if(card._isChar){
@@ -858,7 +858,7 @@ function takeRewCard(i, targetSlot){
     if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
+    if(isTown){ G.gold-=cost; }
     const rc=clone(card);
     delete rc._buyPrice;
     G.rings[ringIdx]=rc;
@@ -907,7 +907,7 @@ function takeRewCard(i, targetSlot){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
+  if(isTown){ G.gold-=cost; if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; } }
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
@@ -1827,10 +1827,11 @@ function _generateMasterHand(){
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
-  const _ldDisc=G._lesserDemonDiscount>0?1:0;
+  // レッサーデーモンディスカウント（消耗品のみ対象・累積分を一括消費）
+  const _ldDisc=(sp.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
   const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
-  if(_ldDisc>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
+  if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; }
   const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
   if(_isRingCard){
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
@@ -1898,9 +1899,8 @@ function buyMasterHandItem(idx){
 // マスター指輪を購入
 function buyMasterRingItem(idx){
   const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
-  const _ldDiscR=G._lesserDemonDiscount>0?1:0;
-  const cost=Math.max(0,(ring._buyPrice??4)-_ldDiscR);
-  if(_ldDiscR>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
+  // 指輪はレッサーデーモン割引の対象外
+  const cost=ring._buyPrice??4;
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
   if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。破棄してください。`,'bad'); return; }

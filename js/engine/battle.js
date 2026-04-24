@@ -658,6 +658,20 @@ async function battlePhase(){
   G.phase='enemy';
   renderControls();
   log(`── T${G.turn} 戦闘フェイズ ──`,'sys');
+  // 味方がオブジェクトのみになった場合は敗北
+  if(!G.allies.some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)){
+    log('💀 仲間がいなくなった…','bad');
+    await sleep(200); gameOver();
+    return;
+  }
+  // Draw 判定：双方とも攻撃力0のキャラ（オブジェクト除く）だけになった場合は勝利扱いで先へ進む
+  const _hasAllyAtk=G.allies.some(a=>a&&a.hp>0&&a.atk>0&&!a._isSoul);
+  const _hasEnemyAtk=G.enemies.some(e=>e&&e.hp>0&&e.atk>0&&!e._isObject);
+  if(!_hasAllyAtk&&!_hasEnemyAtk){
+    log('⚖ Draw：両軍とも攻撃できないため戦闘終了','gold');
+    _onAllEnemiesDefeated();
+    return;
+  }
   // 脱力回復（前ターンの敵フェーズで適用された分をここで解除：プレイヤーフェーズ中ATK=0が見えた後）
   [...G.enemies,...G.allies].forEach(u=>{
     if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
@@ -705,7 +719,8 @@ function _checkBattleOver(){
     _onAllEnemiesDefeated();
     return true;
   }
-  if(!G.allies.filter(a=>a&&(a.hp>0)).length){ setTimeout(()=>gameOver(),200); return true; }
+  // 非オブジェクト・非ソウルの味方が残っていない場合は敗北
+  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul).length){ setTimeout(()=>gameOver(),200); return true; }
   return false;
 }
 
