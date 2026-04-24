@@ -222,8 +222,7 @@ async function startBattle(){
   // ── 味方の戦闘状態をリセット（HP は保持）──
   G.allies.forEach(a=>{
     if(!a) return;
-    // 憤激の指輪ボーナスを前回分リセット（次の戦闘で再適用する）
-    if(a._furyAtk){ a.atk-=a._furyAtk; a.baseAtk-=a._furyAtk; delete a._furyAtk; }
+    // 憤激の指輪ボーナスは着脱時のみ変動（戦闘開始時のリセット・再適用は行わない）
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
@@ -1116,8 +1115,7 @@ function processAllyDeath(unit){
       // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
       { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-      { const _gd=G.hasGoldenDrop?1:0;
-        if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
+      if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
       checkSolitudeBuff();
     }
   }
@@ -1141,8 +1139,7 @@ function processAllyDeath(unit){
         // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
         { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-        { const _gd=G.hasGoldenDrop?1:0;
-          if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
         checkSolitudeBuff();
       }
     });
@@ -1410,15 +1407,18 @@ function onBattleStart(){
   // patience 指輪がない場合、battle_start 指輪トリガーを発火（召喚ユニット生成）
   const _hasPatience=G.rings&&G.rings.some(r=>r&&r.unique==='patience');
   if(!_hasPatience) fireTrigger('battle_start');
-  // 憤激の指輪：全召喚完了後に全仲間へ+3/±0（召喚ユニットにも適用）
-  G.rings.forEach(r=>{
-    if(r&&r.unique==='fury_start'){
-      const fb=3*(r.grade||1);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=fb; a.baseAtk+=fb; a._furyAtk=(a._furyAtk||0)+fb; }});
-      log(`憤激の指輪：全仲間パワー+${fb}/±0`,'good');
-      triggerDryadBuff();
-    }
-  });
+  // 憤激の指輪：戦闘中に召喚された仲間には summon.js 側で適用。
+  // 既存仲間へのボーナスは指輪装備時（reward.js）にのみ適用され、戦闘開始時には再適用しない。
+  // battle_start トリガーで召喚された仲間にボーナスを適用
+  const _furyR2=G.rings&&G.rings.find(r=>r&&r.unique==='fury_start');
+  if(_furyR2){
+    const fb=3*(_furyR2.grade||1);
+    G.allies.forEach(a=>{
+      if(a&&a.hp>0&&!a._furyAtk){
+        a.atk+=fb; a.baseAtk=(a.baseAtk||0)+fb; a._furyAtk=fb;
+      }
+    });
+  }
 
   // ③ 敵キャラクターの自動効果
   G.enemies.forEach(e=>{
