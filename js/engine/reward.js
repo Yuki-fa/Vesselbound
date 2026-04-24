@@ -164,8 +164,40 @@ function goToReward(){
   renderEnemyHand();
   setHint('ソウルを支払ってキャラクターやアイテムを購入しましょう');
   updateHUD();
+  // 次戦の敵をプレビュー生成（副作用を退避・復元）
+  _previewNextEnemies();
   _renderPowerRating();
   if(_isBossFight) _showBossRewardOverlay();
+}
+
+// 次戦の敵を副作用なくプレビュー生成（戦力評価用）
+function _previewNextEnemies(){
+  const _nextFloor=(G.floor||1)+1;
+  if(_nextFloor>(FLOOR_DATA.length-1)||typeof generateEnemies!=='function'){
+    G._previewEnemies=null;
+    return;
+  }
+  // generateEnemies が変更するグローバル状態を退避
+  const _savedFloor=G.floor;
+  const _savedIsEliteFight=G._isEliteFight;
+  const _savedEliteIdx=G._eliteIdx;
+  const _savedBossSlot=G._bossSlot;
+  const _savedUsedNamed=new Set(G._usedNamedElite);
+  const _savedExtraMult=G._extraBattleMult;
+  try{
+    G.floor=_nextFloor;
+    G._previewEnemies=generateEnemies(_nextFloor);
+  } catch(e){
+    G._previewEnemies=null;
+  } finally {
+    // 状態を完全復元
+    G.floor=_savedFloor;
+    G._isEliteFight=_savedIsEliteFight;
+    G._eliteIdx=_savedEliteIdx;
+    G._bossSlot=_savedBossSlot;
+    G._usedNamedElite=_savedUsedNamed;
+    G._extraBattleMult=_savedExtraMult;
+  }
 }
 
 // 戦力評価表示（自軍 vs 次戦の敵軍）
@@ -173,12 +205,12 @@ function _renderPowerRating(){
   const el=document.getElementById('rw-power-rating');
   if(!el) return;
   if(typeof calcPartyScore!=='function'){ el.style.display='none'; return; }
-  // 次戦の敵が未設定（敵全滅後）は非表示
-  const hasEnemy=(G.enemies||[]).some(e=>e&&e.hp>0);
-  if(!hasEnemy){ el.style.display='none'; el.innerHTML=''; return; }
-  el.style.display='';
   const allyScore=calcPartyScore(G.allies);
-  const enemyScore=calcPartyScore(G.enemies);
+  const enemyUnits=G._previewEnemies||[];
+  const enemyScore=calcPartyScore(enemyUnits);
+  // 次戦の敵が未設定（最終階層クリア後など）は非表示
+  if(enemyScore<=0){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
   const allyRank=scoreToRank(allyScore);
   const enemyRank=scoreToRank(enemyScore);
   const label=getMatchupLabel(allyScore,enemyScore);
