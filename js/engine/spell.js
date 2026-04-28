@@ -563,13 +563,19 @@ function applySpell(sp,idx,tgt,_noDecrement){
         _spreadPick=null;
         clearSelectable();
         setHint(`儀式の巻物：${srcU.name}のキーワード移譲先を選択（右クリックでキャンセル）`);
+        const _finishPick=()=>{
+          // 全ての選択状態とキャンセルリスナーを除去
+          clearSelectable();
+          document.removeEventListener('keydown',_cancelPickKD);
+          document.removeEventListener('contextmenu',_cancelPickCM);
+        };
         const slots=_getAllyDomSlots();
         candidates.forEach(cand=>{
           const slot=slots[cand.i];
           if(!slot) return;
           slot.classList.add('selectable');
           slot.onclick=()=>{
-            clearSelectable();
+            _finishPick();
             const _srcKws=[...(srcU.keywords||[])];
             const _dstKws=cand.a.keywords||[];
             const _newKws=[..._dstKws];
@@ -581,6 +587,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
             G.allies[srcIdx]=null;
             log(`儀式の巻物：${srcU.name}を破壊→${cand.a.name}にキーワード移譲（${_srcKws.join('、')||'なし'}）`,'good');
             renderAll();
+            setHint('行動を終えたらターン終了してください。');
           };
         });
         _addCancelListeners();
@@ -796,9 +803,11 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
   if(G.actionsLeft<=0&&!G._debugMode){
-    setHint('行動終了。移動先を選んで先へ進むか、ターン終了してください。');
+    setHint('行動終了。自動でターンを終了します...');
+    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else if(!hasUsable&&!G._debugMode){
-    setHint('使用できる魔法がありません。ターン終了してください。');
+    setHint('使用できる魔法がありません。自動でターンを終了します...');
+    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

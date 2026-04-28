@@ -307,8 +307,10 @@ function generateMoveMasks(){
   // null・オブジェクト・宝箱スロットを除き、実際の敵がいるスロットのみを候補にする
   const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
   if(eliteSlot>=0) masks[eliteSlot]='chest';
+  // 移動マスは「前衛レーン」の敵スロットにのみ配置（前衛が死ぬまで背後に隠れる）
   const _realIdxs=G.enemies.map((e,i)=>(e&&!e._isObject&&!e._isTreasureItem?i:-1)).filter(i=>i>=0);
-  let idxs=_realIdxs.filter(i=>i!==eliteSlot);
+  const _frontIdxs=_realIdxs.filter(i=>(G.enemies[i]?.lane||'front')==='front');
+  let idxs=(_frontIdxs.length?_frontIdxs:_realIdxs).filter(i=>i!==eliteSlot);
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);

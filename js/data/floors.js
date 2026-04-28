@@ -37,7 +37,10 @@ const NODE_TYPES={
   battle:{icon:'⚔️', label:'森の奥へ',   desc:'先へ進もう',                                          cls:'t-battle'},
   smithy:{icon:'⛩️', label:'洞窟の奥へ', desc:'敵が強化されるが、1グレード高いキャラが提示される',   cls:'t-smithy'},
   rest:  {icon:'💧', label:'湖の畔へ',   desc:'敵が強化されるが、敵が指輪を確定ドロップする',        cls:'t-rest'},
-  chest: {icon:'📦', label:'宝箱',       desc:'カードを1枚獲得',                                     cls:'t-chest'},
+  chest:        {icon:'📦', label:'宝箱',     desc:'?', cls:'t-chest'}, // 後方互換
+  chest_wand:   {icon:'🪄', label:'杖',       desc:'?', cls:'t-chest'},
+  chest_ring:   {icon:'💍', label:'指輪',     desc:'?', cls:'t-chest'},
+  chest_item:   {icon:'🧪', label:'アイテム', desc:'?', cls:'t-chest'},
   boss:  {icon:'💀', label:'ボス戦',     desc:'固定強敵との決戦',                                    cls:'t-boss'},
   shop:  {icon:'🛒', label:'行商',       desc:'指輪を購入できる',                                    cls:'t-shop'},
 };

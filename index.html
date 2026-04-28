@@ -90,6 +90,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .move-icon{font-size:.95rem;margin-bottom:1px}
 .move-lbl{font-size:.58rem;text-align:center;color:var(--gold);font-weight:500}
 .move-desc{font-size:.5rem;text-align:center;color:var(--text2);line-height:1.2;margin-top:1px}
+/* 戦場の宝・移動マスはインベントリカード相当のサイズで slot 上部に置き、前衛キャラの背後に隠れる */
+.slot.has-mini-card{border:none;background:transparent;animation:none;cursor:default;overflow:visible}
+.slot.has-mini-card.has-move{border:none;background:transparent}
+.mini-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:65%;aspect-ratio:63/88;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--bg3);border:1px solid var(--gold);border-radius:4px;cursor:pointer;padding:3px;box-sizing:border-box;z-index:1;animation:pgold .9s ease-in-out infinite alternate}
+.mini-card:hover{background:rgba(200,160,60,.2);transform:translate(-50%,calc(-50% - 2px))}
+.mini-card.ring{border-top:2px solid var(--purple2)}
+.mini-card.ring .mini-tp{color:var(--purple2)}
+.mini-card.wand{border-top:2px solid var(--blue2)}
+.mini-card.wand .mini-tp{color:var(--blue2)}
+.mini-card.consumable{border-top:2px solid var(--red2)}
+.mini-card.consumable .mini-tp{color:var(--red2)}
+.mini-tp{font-size:.55rem;color:var(--gold2);font-weight:500;margin-top:1px}
+.mini-q{font-size:1.4rem;color:var(--gold);line-height:1;margin:2px 0}
+.mini-hint{font-size:.45rem;color:var(--text2);text-align:center;line-height:1.1}
+.mini-icon{font-size:1.05rem;line-height:1}
+.mini-lbl{font-size:.55rem;color:var(--gold);font-weight:500;text-align:center;line-height:1.1}
 .rew-move-btn-desc{font-size:.65rem;color:var(--text2);margin-left:6px;opacity:.8}
 
 /* LOG */

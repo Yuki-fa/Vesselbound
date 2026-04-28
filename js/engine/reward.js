@@ -90,18 +90,44 @@ function goToReward(){
     }
   }
 
-  // 宝箱：moveMasksからchestを除去し、中身を報酬欄へ
-  if(G._pendingTreasure){
-    G.moveMasks=G.moveMasks.map(m=>m==='chest'?null:m);
+  // 宝箱：撤退でない場合のみ、未回収の宝マスを報酬欄へ
+  if(G._pendingTreasure&&!G._retreated){
+    // 未回収の chest 系マスを集計
+    const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')?{type:m,i}:null).filter(Boolean);
+    G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
+    // エリート/通常敵が確定済みアイテムを保持していれば優先採用
+    if(G._pendingEliteTreasureItem){
+      _rewCards.push(G._pendingEliteTreasureItem);
+      log(`📦 ${G._pendingEliteTreasureItem.name} が報酬欄に追加された！`,'gold');
+      G._pendingEliteTreasureItem=null;
+    }
+    if(G._barrelTreasure){
+      _rewCards.push(G._barrelTreasure);
+      log(`📦 ${G._barrelTreasure.name} が報酬欄に追加された！`,'gold');
+      G._barrelTreasure=null;
+    }
+    // 残りのマスは種別に応じて新規抽選
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
-    const treasureItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},maxGrade2);
-    if(treasureItem){
-      _rewCards.push(treasureItem);
-      log('📦 宝箱の中身が報酬欄に追加された！','gold');
-    }
+    _chestMasks.forEach(({type})=>{
+      // 既に上で消費したマス分はスキップしないが、簡易的に1マスにつき1枚抽選
+      const typeMap={'chest_wand':'wand','chest_ring':'ring','chest_item':'consumable'};
+      const forced=typeMap[type]||null;
+      const tw=forced?{wand:forced==='wand'?100:0,ring:forced==='ring'?100:0,consumable:forced==='consumable'?100:0}:{wand:40,consumable:40,ring:20};
+      const ti=drawTreasure({1:70,2:30},tw,maxGrade2);
+      if(ti){
+        _rewCards.push(ti);
+        log(`📦 ${ti.name} が報酬欄に追加された！`,'gold');
+      }
+    });
     G._pendingTreasure=false;
+  } else if(G._pendingTreasure&&G._retreated){
+    // 撤退時：未回収の宝は消失
+    G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
+    G._pendingTreasure=false;
+    G._pendingEliteTreasureItem=null;
+    G._barrelTreasure=null;
   }
 
   // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
@@ -202,9 +228,9 @@ function _renderPowerRating(){
   const el=document.getElementById('rw-power-rating');
   if(!el) return;
   if(typeof calcPartyScore!=='function'){ el.style.display='none'; return; }
-  const allyScore=calcPartyScore(G.allies);
   const enemyUnits=G._previewEnemies||[];
-  const enemyScore=calcPartyScore(enemyUnits);
+  const allyScore=calcPartyScore(G.allies, enemyUnits);
+  const enemyScore=calcPartyScore(enemyUnits, G.allies);
   if(enemyScore<=0){ el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='';
   const allyRank=scoreToRank(allyScore);
@@ -563,7 +589,7 @@ function renderRewCards(){
   const isRewardLocked=!G._isRewardTown&&_rewFreePickDone;
 
   // ①常に6枠のキャラクタースロットを描画（_rewCards[0-5]）
-  const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
+  const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','A・シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
   const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
   const charRow=document.createElement('div');
   charRow.className='field';
@@ -682,7 +708,9 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
-  const cost=card._buyPrice??1;
+  // レッサーデーモンディスカウント（消耗品のみ）を考慮した価格
+  const _ldDiscMR=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  const cost=Math.max(0,(card._buyPrice??1)-_ldDiscMR);
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
@@ -748,8 +776,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
-  // レッサーデーモンディスカウント（非キャラのみ）
-  const _ldDisc=(!card._isChar&&G._lesserDemonDiscount>0)?1:0;
+  // レッサーデーモンディスカウント（消耗品のみ・累積分を一括消費）
+  const _ldDisc=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
   const cost=card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)-_ldDisc);
 
   if(card._isChar){
@@ -851,7 +879,7 @@ function takeRewCard(i, targetSlot){
     if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
     if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。フィールドの指輪を破棄してください。`,'bad'); return; }
-    if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
+    if(isTown){ G.gold-=cost; }
     const rc=clone(card);
     delete rc._buyPrice;
     G.rings[ringIdx]=rc;
@@ -900,7 +928,7 @@ function takeRewCard(i, targetSlot){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown){ G.gold-=cost; if(_ldDisc>0){ G._lesserDemonDiscount--; log('レッサーデーモン：購入-1ソウル','good'); } }
+  if(isTown){ G.gold-=cost; if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; } }
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
@@ -965,7 +993,7 @@ function _renderFieldRow(el){
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(unit._dragonetBonus||0))-(unit._dragonetCount||0)}戦</div>`:'';
       const raceTag=unit.race&&unit.race!=='-'?`<div class="slot-race">${unit.race}</div>`:'';
-      const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
+      const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','A・シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       const _allKws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])];
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
@@ -1376,7 +1404,7 @@ function _buildStackPreviewEl(fieldUnit, srcUnit){
     box-shadow:0 4px 24px rgba(0,0,0,.7)`;
   const gradeColors=['','#aaa','#7cf','#fa0','#f60','#f0f','#fff'];  // G6=白金
   const gc=gradeColors[result.grade]||'#fff';
-  const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
+  const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','A・シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
   const _mkKw=k=>{const kb=k.replace(/\d+$/,'');const c=_kColorMap[k]||_kColorMap[kb]||'#888';return `<span style="font-size:.38rem;background:rgba(0,0,0,.4);color:${c};border:1px solid ${c};border-radius:2px;padding:0 2px">${k}</span>`;};
   const kwHtml=result.keywords.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px;padding:0 2px">${result.keywords.map(_mkKw).join('')}</div>`:'';
 
@@ -1817,10 +1845,11 @@ function _generateMasterHand(){
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
-  const _ldDisc=G._lesserDemonDiscount>0?1:0;
+  // レッサーデーモン：消耗品のみ・累積分一括消費
+  const _ldDisc=(sp.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
   const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
-  if(_ldDisc>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
+  if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; }
   const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
   if(_isRingCard){
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
@@ -1888,9 +1917,8 @@ function buyMasterHandItem(idx){
 // マスター指輪を購入
 function buyMasterRingItem(idx){
   const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
-  const _ldDiscR=G._lesserDemonDiscount>0?1:0;
-  const cost=Math.max(0,(ring._buyPrice??4)-_ldDiscR);
-  if(_ldDiscR>0){ G._lesserDemonDiscount--; log(`レッサーデーモン：アイテム購入-1ソウル`,'good'); }
+  // 指輪はレッサーデーモン割引対象外
+  const cost=ring._buyPrice??4;
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
   if(ringIdx<0){ log(`指輪スロット（${G.ringSlots}枠）が満杯です。破棄してください。`,'bad'); return; }

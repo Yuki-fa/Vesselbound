@@ -385,7 +385,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
         // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
         // 反撃はキーワード欄に表示。エリート/ボスは他キーワードの1行上。
-        const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
+        const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','A・シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090','アーティファクト':'#b0a080'};
         const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
         const _allKws=[...new Set([...(u.keywords||[]),...(u.counter?['反撃']:[])])];
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
@@ -424,9 +424,19 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
       const _mvType=G.moveMasks[i];
       const nt=NODE_TYPES[_mvType];
-      slot.classList.add('has-move');
-      slot.innerHTML=`<div class="move-icon">${nt.icon}</div><div class="move-lbl">${nt.label}</div>${nt.desc?`<div class="move-desc">${nt.desc}</div>`:''}` ;
-      if(_mvType!=='chest'){
+      // 宝・移動マスはインベントリカード相当のサイズで上部に表示（前衛キャラの背後に隠れる）
+      slot.classList.remove('is-rear');
+      slot.classList.add('has-mini-card');
+      const _isChestMask=String(_mvType).startsWith('chest');
+      if(_isChestMask){
+        const _ctp=_mvType==='chest_ring'?'ring':_mvType==='chest_wand'?'wand':_mvType==='chest_item'?'consumable':'wand';
+        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${nt.label}</div><div class="mini-q">？</div><div class="mini-hint">+1消費</div></div>`;
+        slot.title='クリックで取得（行動力-1）';
+        slot.onclick=()=>{
+          if(typeof onChestClick==='function') onChestClick(i);
+        };
+      } else {
+        slot.innerHTML=`<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`;
         slot.title='クリックで撤退';
         slot.onclick=()=>{
           if(G.phase!=='player') return;

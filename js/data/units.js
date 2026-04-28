@@ -38,12 +38,12 @@ const UNIT_POOL = [
   {id:'c_giant_rat',  name:'ジャイアントラット',race:'獣',  grade:1, atk:6,  hp:7,  cost:2,  unique:false, icon:'🐀', desc:''},
   {id:'c_madcat',     name:'マッドキャット',   race:'獣',   grade:1, atk:5,  hp:9,  cost:3,  unique:false, icon:'😾', desc:'', keywords:['狩人']},
   {id:'c_wisp',       name:'ウィスプ',         race:'精霊', grade:1, atk:2,  hp:9,  cost:2,  unique:false, icon:'🕯️', desc:''},
-  {id:'c_kobran',     name:'コブラン',         race:'亜人', grade:1, atk:4,  hp:10, cost:3,  unique:false, icon:'🐍', desc:'', shield:1, keywords:['シールド']},
+  {id:'c_kobran',     name:'コブラン',         race:'亜人', grade:1, atk:4,  hp:10, cost:3,  unique:false, icon:'🐍', desc:'', keywords:['A・シールド']},
   {id:'c_firebreath', name:'ファイアブレス',   race:'竜',   grade:1, atk:6,  hp:7,  cost:2,  unique:false, icon:'🔥', desc:''},
   {id:'c_poisonmist', name:'ポイズンミスト',   race:'亜人', grade:1, atk:3,  hp:9,  cost:2,  unique:false, icon:'🌫️', desc:'', keywords:['侵食1']},
 
   // ─── G1 ネームド（legend） ───
-  {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'常時：ターン開始時、一番右のキャラクターがシールドを得る。　誘発：仲間がシールドを失った時、+1/+1を得る。', shield:1, effect:'einsel', keywords:['シールド']},
+  {id:'c_einsel',     name:'惑わしの妖精"エインセル"',     race:'精霊', grade:1, atk:5,  hp:12, cost:8,  unique:true, icon:'🧚', desc:'常時：ターン開始時、「エインセル」以外のランダムな仲間がシールドを得る。　誘発：仲間がシールドを失った時、+1/+1を得る。', effect:'einsel', keywords:['A・シールド']},
   {id:'c_forniot',    name:'鉄の拳"フォルニョート"',       race:'亜人', grade:1, atk:6,  hp:18, cost:10, unique:true, icon:'👊', desc:'二段攻撃　攻撃：全ての仲間が+1/±0を得る。', effect:'forniot', keywords:['二段攻撃']},
   {id:'c_abadon',     name:'残響の魔導師"アバドン"',       race:'悪魔', grade:1, atk:3,  hp:16, cost:9,  unique:true, icon:'🔮', desc:'全体攻撃', keywords:['全体攻撃']},
   {id:'c_freyr',      name:'黄金の瞳"フレイ"',             race:'獣',   grade:1, atk:7,  hp:11, cost:10, unique:true, icon:'👁️', desc:'負傷：最も右の空き地に「反撃」を持つ4/6、種族なしの「ストーンキャット」を召喚する。', injury:'freyr'},
@@ -88,7 +88,7 @@ const UNIT_POOL = [
   {id:'c_dire_wolf',  name:'ダイアウルフ',     race:'獣',   grade:2, atk:14, hp:18, cost:5,  unique:false, icon:'🐺', desc:'', keywords:['二段攻撃']},
   {id:'c_hippogriff', name:'ヒポグリフ',       race:'獣',   grade:2, atk:9,  hp:24, cost:5,  unique:false, icon:'🦅', desc:''},
   {id:'c_kelpie',     name:'ケルピー',         race:'獣',   grade:2, atk:8,  hp:26, cost:5,  unique:false, icon:'🐴', desc:''},
-  {id:'c_spriggan',   name:'スプリガン',       race:'精霊', grade:2, atk:7,  hp:28, cost:5,  unique:false, icon:'🌱', desc:'', shield:1, keywords:['シールド']},
+  {id:'c_spriggan',   name:'スプリガン',       race:'精霊', grade:2, atk:7,  hp:28, cost:5,  unique:false, icon:'🌱', desc:'', keywords:['A・シールド']},
   {id:'c_zmei',       name:'ズメイ',           race:'竜',   grade:2, atk:9,  hp:22, cost:5,  unique:false, icon:'🐲', desc:'', keywords:['侵食3']},
   {id:'c_bloodlord',  name:'ブラッドロード',   race:'不死', grade:2, atk:14, hp:20, cost:5,  unique:false, icon:'🩸', desc:'', keywords:['邪眼5']},
 
