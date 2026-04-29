@@ -14,6 +14,7 @@ function useSpell(idx){
   if(!sp) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
   if(G.actionsLeft<=0&&!G._debugMode) return;
+  if(typeof playCardUseVfx==='function') playCardUseVfx(idx);
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
   if(sp.needsAlly) pickTarget('ally',idx);

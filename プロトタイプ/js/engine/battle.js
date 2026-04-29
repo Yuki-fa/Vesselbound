@@ -173,6 +173,7 @@ function getMatchupLabel(allyScore, enemyScore){
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
+  if(typeof setBattleStageBackground==='function') setBattleStageBackground();
   _updateLaneOffset();
   clearLog();
 
@@ -1249,6 +1250,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   // 呪詛加算
   const actualDmg=Math.max(0, dmg)+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
+  if(actualDmg>0&&typeof playHitVfx==='function') playHitVfx('ally',_fieldIdx);
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
     applyKeywordOnHit(src,unit,actualDmg);
   }
@@ -2008,6 +2010,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   // ガーゴイル：敵の場にガーゴイルがいる場合、敵が受けるダメージを-1
   const actualDmgToEnemy=Math.max(0,dmg);
   e.hp=Math.max(0,e.hp-actualDmgToEnemy);
+  if(actualDmgToEnemy>0&&typeof playHitVfx==='function') playHitVfx('enemy',eIdx);
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;

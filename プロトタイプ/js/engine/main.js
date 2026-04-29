@@ -6,7 +6,11 @@
 // ═══════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════
-function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('scr-'+id).classList.add('active'); }
+function showScreen(id){
+  if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('scr-'+id).classList.add('active');
+}
 function updateGoldenDrop(){
   G.hasGoldenDrop=!!(G.rings&&G.rings.some(r=>r&&r.unique==='great_mother'));
 }
@@ -84,6 +88,7 @@ function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });
 window.addEventListener('DOMContentLoaded', async () => {
+  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
   const msgEl = document.getElementById('load-msg');
   const ok = await loadGameData();
   if (msgEl) {

@@ -6,6 +6,7 @@
 let _shopRings=[];
 
 function doShop(){
+  if(typeof setBattleShopBackground==='function') setBattleShopBackground();
   const floorGrade=rollGrade(G.floor);
   // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
   const eligible=RING_POOL.filter(r=>{
@@ -109,6 +110,7 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
       const div=document.createElement('div');
       const t=card.type||'ring';
       div.className=`card ${t}`;
+      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
       div.draggable=true;
       div.dataset.arr=arrName; div.dataset.idx=i; div.dataset.ctx=ctx;
       const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
@@ -118,7 +120,7 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
       const isRingCard=t==='ring'||card.kind==='summon'||card.kind==='passive';
       const shBtnCls=isRingCard?'return-btn':'discard-btn';
       const shBtnTxt=isRingCard?'還魂':'破棄';
-      div.innerHTML=`<button class="${shBtnCls}">${shBtnTxt}</button><div class="card-tp ${t}">${typeLabel[t]||'契約'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
+      div.innerHTML=`<button class="${shBtnCls}">${shBtnTxt}</button><div class="card-art"></div><div class="card-tp ${t}">${typeLabel[t]||'契約'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
       div.querySelector('.'+shBtnCls).onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); if(ctx==='shop') renderShopHandEditor(); else renderHandEditor(); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0); });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));

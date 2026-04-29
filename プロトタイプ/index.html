@@ -21,9 +21,15 @@
 body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size:14px;height:100dvh;overflow:hidden}
 .screen{display:none}
 .screen.active{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+.screen.asset-backed{position:relative;background:#0d0f14}
+.screen.asset-backed::before{content:'';position:absolute;inset:0;background-image:var(--screen-bg-image);background-size:cover;background-position:center;opacity:.58;filter:saturate(.92) contrast(1.08);pointer-events:none}
+.screen.asset-backed::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,15,20,.36),rgba(13,15,20,.74));pointer-events:none}
+.screen.asset-backed>*{position:relative;z-index:1}
 
 /* TITLE */
 #scr-title{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#1a1030 0%,var(--bg) 70%)}
+#scr-title.asset-backed::before{opacity:.82;filter:saturate(1.02) contrast(1.08)}
+#scr-title.asset-backed::after{background:linear-gradient(180deg,rgba(13,15,20,.2),rgba(13,15,20,.62) 58%,rgba(13,15,20,.86))}
 #scr-title h1{font-family:var(--font-hd);font-size:clamp(2rem,6vw,4rem);letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 40px rgba(200,160,60,.5);margin-bottom:.3em}
 #scr-title .sub{color:var(--text2);letter-spacing:.1em;font-size:.9rem;margin-bottom:3rem}
 
@@ -141,7 +147,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .card-badge{position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1}
 .card-charge{font-size:.6rem;color:var(--blue);padding:1px 0;margin-top:3px;text-align:center}
 .card-charge.wand-sub{color:var(--blue2)}
-.card-tp{font-size:.62rem;letter-spacing:.05em;margin-top:14px;margin-bottom:2px;text-align:center}
+.card-art{height:28%;min-height:28px;border:1px solid rgba(240,208,128,.22);border-radius:4px;background-image:var(--card-art);background-size:cover;background-position:center;box-shadow:inset 0 0 18px rgba(0,0,0,.42);margin-bottom:3px}
+.card-tp{font-size:.62rem;letter-spacing:.05em;margin-top:2px;margin-bottom:2px;text-align:center}
 .card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue)}.card-tp.wand-sub{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
 .card-name{font-size:.82rem;font-weight:500;margin-bottom:2px;line-height:1.2;text-align:center}
 .card-desc{font-size:.7rem;color:var(--text2);line-height:1.3;text-align:left}
@@ -200,6 +207,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .rew-card{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:63/88;overflow:hidden;cursor:pointer;transition:all .18s;position:relative}
 .rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
 .rew-card.cant{cursor:default;pointer-events:none;background:var(--bg)}
+.rew-card-art{height:27%;min-height:30px;border:1px solid rgba(240,208,128,.22);border-radius:4px;background-image:var(--card-art);background-size:cover;background-position:center;box-shadow:inset 0 0 16px rgba(0,0,0,.45);margin-bottom:4px}
 .rew-card-tp{font-size:.56rem;letter-spacing:.05em;margin-bottom:2px}
 .rew-card-name{font-size:.74rem;font-weight:500;margin-bottom:2px}
 .rew-card-desc{font-size:.64rem;color:var(--text2);line-height:1.3}
@@ -250,6 +258,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
 .slot.drag-over{box-shadow:0 0 10px 2px var(--gold);outline:2px solid var(--gold)}
 .slot.merge-ready{outline:2px solid var(--gold2);animation:merge-pulse .6s ease-in-out infinite}
 @keyframes merge-pulse{0%,100%{box-shadow:0 0 8px 2px var(--gold2)}50%{box-shadow:0 0 20px 8px var(--gold2)}}
+
+/* VFX */
+.vfx{position:absolute;inset:0;z-index:20;pointer-events:none;background-image:var(--vfx-image);background-repeat:no-repeat;background-position:center;background-size:contain;mix-blend-mode:screen}
+.vfx-hit{animation:vfx-hit .36s ease-out forwards}
+.vfx-glow{animation:vfx-glow .48s ease-out forwards}
+.card-use-glow{box-shadow:0 0 0 1px var(--gold2),0 0 22px rgba(240,208,128,.65)!important}
+@keyframes vfx-hit{0%{opacity:0;transform:scale(.35) rotate(-12deg)}28%{opacity:1;transform:scale(1.08) rotate(8deg)}100%{opacity:0;transform:scale(1.55) rotate(18deg)}}
+@keyframes vfx-glow{0%{opacity:.95;transform:scale(.7)}100%{opacity:0;transform:scale(1.55)}}
 
 /* ENCHANT MODAL */
 #enc-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center}
@@ -677,6 +693,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
   <button class="btn" onclick="startGame()">もう一度</button>
 </div>
 
+<script src="assets.js"></script>
 <script src="js/engine/constants.js"></script>
 <script src="js/data/floors.js"></script>
 <script src="js/data/events.js"></script>

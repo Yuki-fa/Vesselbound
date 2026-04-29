@@ -665,6 +665,11 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const _isWandSub=t==='wand'&&card.subtype==='wand';
   const _subtypeClass=_isWandSub?' wand-sub':'';
   div.className=`card ${t}${_subtypeClass}${card.legend?' legend-card':''}`;
+  div.dataset.cardIdx=String(_idx);
+  div.dataset.cardCtx=_ctx||'';
+  if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
+    div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
+  }
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=_isWandSub?'短杖':(typeLabel[t]||'指輪');
   const kindLabel='';
@@ -692,7 +697,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     }
   }
   const dynDesc=computeDesc(card,_mlOverride);
-  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 

@@ -716,6 +716,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
   const isTreasure=!!card._isTreasure;
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
+  if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
+    div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
+  }
 
   if(card._isChar){
     // キャラクターカード
@@ -738,7 +741,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
       const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCardAtk}/${parseInt(h)+_sumBonusCardHp}、`);
       div.setAttribute('data-preview',`ペリュトン：${_modDescCard}`);
     }
-    div.innerHTML=`${shortBadge}${costLine}<div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
+    div.innerHTML=`${shortBadge}${costLine}<div class="rew-card-art"></div><div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
     return div;
   }
@@ -760,7 +763,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
   const priceTagItem=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
   const shortBadgeItem=G._isRewardTown&&!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
-  div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div style="margin-top:20px"><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
+  div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div class="rew-card-art"></div><div><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
   if(canBuy) div.onclick=onBuy;
   if(rewIdx!=null){
     div.draggable=true;
@@ -1546,11 +1549,12 @@ function renderHeRingSlots(){
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
+      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(ring)));
       div.draggable=true;
       const _ringBtn=G._isShop
         ?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`
         :`<button class="discard-btn" title="廃棄">廃棄</button>`;
-      div.innerHTML=`<div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
+      div.innerHTML=`<div class="card-art"></div><div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
       if(_ringBtn) div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
@@ -1591,6 +1595,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _isRingInHand=!card.type||(card.kind==='summon'||card.kind==='passive');
       const t=_isRingInHand?'ring':(card.type||'wand');
       div.className=`card ${t}`;
+      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
       div.draggable=true;
       const _rewPhaseInv=!G._isShop&&G.phase==='reward';
@@ -1599,7 +1604,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;
-      div.innerHTML=`${_gradeEl}<div class="card-tp ${t}">${t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
+      div.innerHTML=`${_gradeEl}<div class="card-art"></div><div class="card-tp ${t}">${t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardHeCard(arrName,i); };
       if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse){
         const _isWand=t==='wand';
