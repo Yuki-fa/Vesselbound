@@ -643,9 +643,9 @@ function applyTurnStart(){
   G.enemies.forEach(e=>{
     if(!e||e.hp<=0) return;
     if(e.effect==='einsel'||e.effect==='einsel_shieldlost'){
-      const liveIdxs=G.enemies.map((u,i)=>u&&u.hp>0?i:-1).filter(i=>i>=0);
-      if(liveIdxs.length){
-        const r=G.enemies[liveIdxs[liveIdxs.length-1]];
+      const _eCandsE=G.enemies.filter(u=>u&&u.hp>0&&!u._isObject&&u.name!=='惑わしの妖精"エインセル"'&&u.name!=='エインセル'&&u!==e);
+      if(_eCandsE.length){
+        const r=_eCandsE[Math.floor(Math.random()*_eCandsE.length)];
         if(!r.shield) r.shield=1;
         log(`${e.name}：${r.name}にシールド+1`,'bad');
       }
@@ -655,13 +655,13 @@ function applyTurnStart(){
       log(`${e.name}：全仲間+2/+2`,'bad');
     }
   });
-  // エインセル①・ヴィーザル：ターン開始時効果（味方）
+  // エインセル：ターン開始時、「エインセル」以外のランダムな仲間がシールドを得る
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
     if(a.effect==='einsel'||a.effect==='einsel_shieldlost'){
-      const liveIdxs=G.allies.map((u,i)=>u&&u.hp>0?i:-1).filter(i=>i>=0);
-      if(liveIdxs.length){
-        const r=G.allies[liveIdxs[liveIdxs.length-1]];
+      const _eCands=G.allies.filter(u=>u&&u.hp>0&&u.name!=='惑わしの妖精"エインセル"'&&u.name!=='エインセル'&&u!==a);
+      if(_eCands.length){
+        const r=_eCands[Math.floor(Math.random()*_eCands.length)];
         if(!r.shield) r.shield=1;
         log(`${a.name}：${r.name}にシールド+1`,'good');
       }
@@ -878,6 +878,18 @@ function _applyAllyAttackEffects(ally){
   if(!ally||ally.hp<=0) return;
   const _gd=G.hasGoldenDrop?1:0;
   const _sc=(ally._stackCount||0)+1; // 重ね倍率（G1=1, G2=2, ...）
+  // ケンタウロス：攻撃時、最もライフが低い敵に「炎の杖」を使用
+  if(ally.effect==='centaur_attack'){
+    const _liveEs=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0&&!x.e._isObject);
+    if(_liveEs.length>0){
+      const _lowest=_liveEs.reduce((a,b)=>a.e.hp<b.e.hp?a:b);
+      const _fireDmg=G.magicLevel||1;
+      dealDmgToEnemy(_lowest.e,_fireDmg,_lowest.i,ally);
+      log(`🐎 ${ally.name}：攻撃→${_lowest.e.name}に炎の杖(${_fireDmg}ダメ)を使用`,'good');
+      // 炎の杖トリガー（杖使用誘発：ヘルハウンド・コボルド・ダークワン等）
+      if(typeof onSpellUsed==='function') onSpellUsed();
+    }
+  }
   if(ally.effect==='brownie_attack'){
     const _base=_sc+_gd; let _hpGain=_base;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _hpGain=addUnitHp(a,_base); });
@@ -903,11 +915,7 @@ function _applyAllyAttackEffects(ally){
     const _jv=(_jnums[0]||1)*_sc+(G.hasGoldenDrop?1:0); G._jackBonus=(G._jackBonus||0)+_jv;
     log(`${ally.name}：攻撃→今後のキャラ±0/+${_jv}（累計+${G._jackBonus}）`,'good');
   }
-  if(ally.effect==='arachas_attack'){
-    const _av=_sc;
-    G.enemies.forEach(e=>{ if(e&&e.hp>0) e.poison=(e.poison||0)+_av; });
-    log(`${ally.name}：攻撃→全敵に毒牙${_av}`,'good');
-  }
+  // arachas_attack（旧効果）は廃止（新仕様：負傷時に敵後衛へ1ダメ）
   if(ally.effect==='dryad_attack'){
     const _liveA=G.allies.filter(a=>a&&a.hp>0&&a!==ally);
     const _dv=_sc+_gd;
@@ -958,10 +966,7 @@ function _applyEnemyAttackEffects(enemy){
     G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }});
     log(`${enemy.name}：攻撃時→全仲間±0/+1`,'bad');
   }
-  if(enemy.effect==='arachas_attack'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0) a.poison=(a.poison||0)+1; });
-    log(`${enemy.name}：攻撃→全仲間に毒牙1`,'bad');
-  }
+  // arachas_attack（旧効果）は廃止
   if(enemy.effect==='vampire_attack'){
     const va=2, vh=1;
     G.enemies.forEach(f=>{ if(f&&f.hp>0&&(f.race==='不死'||f.race==='全て')){ f.atk+=va; f.baseAtk=(f.baseAtk||0)+va; f.hp+=vh; f.maxHp+=vh; }});
@@ -1235,11 +1240,17 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     return false; // ダメージをシールドで防いだ
   }
 
+  // ドレイク（常時）：仲間がダメージを受ける時、その仲間のライフが+2される（ダメージ前処理）
+  if(dmg>0&&G.allies.some(a=>a&&a.hp>0&&a.effect==='drake_mitigate'&&a!==unit)){
+    const _drv=2;
+    unit.hp+=_drv; unit.maxHp+=_drv;
+    log(`🐲 ドレイク：${unit.name}のライフ+${_drv}（ダメージ前処理）`,'good');
+  }
   // 呪詛加算
   const actualDmg=Math.max(0, dmg)+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
-    applyKeywordOnHit(src,unit);
+    applyKeywordOnHit(src,unit,actualDmg);
   }
 
   // 負傷トリガー：生き残った場合のみ発動
@@ -1336,13 +1347,28 @@ function processAllyDeath(unit){
       }
     });
   }
-  // マミー：死亡時、全ての仲間が+1/+3を得る
-  if(unit.effect==='mummy_death'){
-    const _mgd=G.hasGoldenDrop?1:0;
-    const _mnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-    const _mAtk=(_mnums[0]||1)+_mgd, _mHp=(_mnums[1]||3)+_mgd;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_mAtk; a.baseAtk=(a.baseAtk||0)+_mAtk; a.hp+=_mHp; a.maxHp+=_mHp; }});
-    log(`${unit.name}：死亡→全仲間+${_mAtk}/+${_mHp}`,'good');
+  // マミー：死亡時、宝箱（杖かアイテム）を落とす
+  if(unit.effect==='mummy_death'&&!G._isSimulating){
+    const _mGrade=FLOOR_DATA[G.floor]?.grade||1;
+    // 杖50% / 消耗品50%（指輪は出ない）
+    const _mItem=drawTreasure({1:60,2:30,3:10},{wand:50,consumable:50,ring:0},_mGrade);
+    if(_mItem){
+      const _mType=_mItem.type==='wand'?'chest_wand':'chest_item';
+      // 自スロットに種別マスを置く（マミーは自陣・敵陣どちらでも自分のスロットに）
+      const _mSide=G.allies.indexOf(unit)>=0?'ally':(G.enemies.indexOf(unit)>=0?'enemy':null);
+      const _mIdx=_mSide==='ally'?G.allies.indexOf(unit):(_mSide==='enemy'?G.enemies.indexOf(unit):-1);
+      if(_mSide==='enemy'&&_mIdx>=0&&!G.moveMasks[_mIdx]){
+        G.moveMasks[_mIdx]=_mType;
+        G._pendingEliteTreasureItem=_mItem;
+        G._pendingTreasure=true;
+        log(`📦 ${unit.name}（敵）が宝箱（${NODE_TYPES[_mType]?.label||'?'}）を残した`,'gold');
+      } else {
+        // 仲間側 or マスが置けない場合は報酬欄に追加（仕様：仲間側にも落ちる）
+        if(!G._pendingTreasureItems) G._pendingTreasureItems=[];
+        G._pendingTreasureItems.push(_mItem);
+        log(`📦 ${unit.name}が宝箱（${_mItem.type==='wand'?'杖':'アイテム'}）を落とした！`,'gold');
+      }
+    }
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath();
@@ -1475,6 +1501,19 @@ function triggerInjury(unit, dmg=0){
         if(u.hp>0) applyKeywordOnHit(unit,u); // 呪詛・毒牙・邪眼等を付与
       });
       log(`${unit.name}：負傷→相手全体に${_ldmg}ダメ`,col);
+      break;
+    }
+    case 'arachas':{
+      // 全ての敵の後衛に1ダメージ
+      const _anums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+      const _admg=(_anums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      oppSide.forEach((u,i)=>{
+        if(!u||u.hp<=0||u._isObject) return;
+        if((u.lane||'front')!=='rear') return;
+        if(isEnemy) dealDmgToAlly(u,_admg,i,unit);
+        else dealDmgToEnemy(u,_admg,i,unit);
+      });
+      log(`${unit.name}：負傷→全ての敵後衛に${_admg}ダメ`,col);
       break;
     }
     case 'banshee':{
@@ -1659,11 +1698,7 @@ function onBattleStart(){
       case 'manigans_start':
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
-      case 'drake_start':
-        { const _dkdmg=((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-          [...G.allies,...G.enemies].forEach(u=>{ if(!u||u.hp<=0) return; const _ui=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u); if(G.allies.includes(u)) dealDmgToAlly(u,_dkdmg,_ui,a); else dealDmgToEnemy(u,_dkdmg,_ui,a); });
-          log(`${a.name}：開戦→全キャラに${_dkdmg}ダメ`,'good'); }
-        break;
+      // drake_start（旧効果）は廃止 → drake_mitigate（dealDmgToAlly内）
       case 'salamander_start':
         { const _sdmg=4*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
         break;
@@ -1683,15 +1718,13 @@ function onBattleStart(){
           if(_fe&&_fe.hp>0){ _fe.sealed=(_fe.sealed||0)+1; log(`${a.name}：正面の${_fe.name}を1T行動不能に`,'good'); } }
         break;
       case 'sea_serpent_start':
-        { const _sdmg2=2*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+        { // desc から数値を読む（重ね時に _mergeDescNums で増える）
+          const _ssnums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
+          const _sdmg2=(_ssnums[0]||3)+(G.hasGoldenDrop?1:0);
           G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg2,G.enemies.indexOf(e),a); });
           log(`${a.name}：開戦→全敵に${_sdmg2}ダメ`,'good'); }
         break;
-      case 'centaur_start':
-        { const _cv=1+(G.hasGoldenDrop?1:0);
-          onMagicLevelUp(_cv);
-          log(`${a.name}：開戦→魔術レベル+${_cv}（Lv${G.magicLevel}）`,'good'); }
-        break;
+      // centaur_start（旧効果）は廃止 → centaur_attack（_applyAllyAttackEffects内）
       case 'golden_goose_start':
         { const _ggG=Math.max(1,(a.grade||1)-1);
           const _ggHp=_ggG;
