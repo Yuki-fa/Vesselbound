@@ -166,19 +166,16 @@ function _computeDeathRisk(){
       for(let i=0;i<6;i++){
         const e=G.enemies[i];
         if(e&&e.hp>0) _drSimEnemySlot(e,i);
-        if(!G.allies.some(a=>a&&a.hp>0)) break;
+        if(!G.allies.some(a=>a&&a.hp>0&&!a._isSoul)||!G.enemies.some(e=>e&&e.hp>0&&!e._isObject)) break;
         const a=G.allies[i];
         if(a&&a.hp>0&&!a._isSoul) _drSimAllySlot(a,i);
-        if(!G.enemies.some(e=>e&&e.hp>0)) break;
+        if(!G.allies.some(a=>a&&a.hp>0&&!a._isSoul)||!G.enemies.some(e=>e&&e.hp>0&&!e._isObject)) break;
       }
       // 標的ターン消費（1ラウンド分）
       G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
 
-      // 毒ティック（ターン開始時：battlePhaseと同じ処理）
-      const _simCat=G.rings.find(r=>r&&r.unique==='catalyst');
-      const _simCatM=_simCat?(_simCat.grade||1)+1:1;
-      G.enemies.forEach(e=>{ if(e&&e.poison>0&&e.hp>0){ e.hp=Math.max(0,e.hp-e.poison*_simCatM); } });
-      G.allies.forEach(a=>{ if(a&&a.poison>0&&a.hp>0){ a.hp=Math.max(0,a.hp-a.poison); } });
+      // 死亡予測は「ターン終了後の戦闘フェイズ」で空になるかだけを見る。
+      // 次ターン開始時の毒・変身は、戦闘予測表示には含めない。
 
       // 死亡カウントを加算
       G.allies.forEach((a,i)=>{
@@ -237,34 +234,35 @@ function _drSimAllySlot(ally,allyIdx){
   if(ally.atk<=0) return;
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length) return;
-  if(ally.stealth) ally.stealth=false;
-  // 攻撃時効果
-  if(ally.hp>0){
-    // elf_attack/elf_shield は削除済み（エルフの新効果は常在：右隣の攻撃効果2回発動）
-    if(ally.effect==='brownie_attack'){
-      const _thp=1+(G.hasGoldenDrop?1:0);
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_thp; a.maxHp+=_thp; }});
-    }
-    if(ally.effect==='forniot'){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=1; a.baseAtk=(a.baseAtk||0)+1; }});
-    }
-  }
   const target=getAttackTarget(ally,G.enemies);
   if(!target) return;
+  const eIdx=G.enemies.indexOf(target);
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
-  const atkTargets=isGlobal?[...liveE]:[target];
+  const isTriDir=ally.keywords&&ally.keywords.includes('三方向攻撃');
+  if(ally.stealth) ally.stealth=false;
+  if(ally.hp>0) _applyAllyAttackEffects(ally);
+  if(ally.hp>0){
+    const _elfI=G.allies.indexOf(ally);
+    if(_elfI>0){
+      const _elf=G.allies[_elfI-1];
+      if(_elf&&_elf.hp>0&&_elf.effect==='elf_double_right') _applyAllyAttackEffects(ally);
+    }
+  }
+  const atkTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
   atkTargets.forEach(t=>{
     dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
     // 反撃キーワード：さらに追加ダメージ（生き残った場合のみ）
     if(t.hp>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
+      _applyEnemyAttackEffects(t);
       dealDmgToAlly(ally,t.atk,allyIdx,t);
     }
   });
-  if(ally.hp>0&&!isGlobal){
+  if(ally.hp>0&&!isGlobal&&!isTriDir){
     const extra=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
     let cur=target;
     for(let h=0;h<extra;h++){
       if(!cur||cur.hp<=0){ cur=getAttackTarget(ally,G.enemies); if(!cur) break; }
+      if(ally.hp>0) _applyAllyAttackEffects(ally);
       dealDmgToEnemy(cur,ally.atk,G.enemies.indexOf(cur),ally);
     }
   }
@@ -272,21 +270,31 @@ function _drSimAllySlot(ally,allyIdx){
 
 // シミュレーション用：enemyAttackActionの同期コア（アニメーション・sleep除去）
 function _drSimEnemySlot(enemy,_enemyIdx){
+  if(enemy.atk<=0) return;
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
+  if(enemy.sealed>0){
+    enemy.sealed--;
+    return;
+  }
   const primaryTarget=getAttackTarget(enemy,G.allies);
   if(!primaryTarget) return;
   const targets=[primaryTarget];
-  const atkVal=enemy.sealed>0?0:enemy.nullified>0?0:enemy.atk;
+  const primaryIdx=G.allies.indexOf(primaryTarget);
+  const atkVal=enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
   // 攻撃時効果
   if(atkVal>0&&enemy.hp>0){
-    if(enemy.effect==='forniot'){ G.enemies.forEach(f=>{ if(f&&f.hp>0) f.atk+=1; }); }
-    // elf_attack/elf_shield は削除済み
-    if(enemy.effect==='brownie_attack'){ G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }}); }
+    _applyEnemyAttackEffects(enemy);
+    const _elfEI=G.enemies.indexOf(enemy);
+    if(_elfEI>0){
+      const _elfE=G.enemies[_elfEI-1];
+      if(_elfE&&_elfE.hp>0&&_elfE.effect==='elf_double_right') _applyEnemyAttackEffects(enemy);
+    }
   }
   const isGlobal=enemy.keywords&&enemy.keywords.includes('全体攻撃');
-  const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):targets;
+  const isTriDir=enemy.keywords&&enemy.keywords.includes('三方向攻撃');
+  const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):isTriDir?([primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth).map(i=>G.allies[i])):targets;
   const hitSet=new Set();
   finalT.forEach(tgt=>{
     if(hitSet.has(tgt.id)) return;
@@ -294,13 +302,15 @@ function _drSimEnemySlot(enemy,_enemyIdx){
     hitSet.add(tgt.id);
     if(_passed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
   });
-  if(!isGlobal&&enemy.hp>0){
+  if(!isGlobal&&!isTriDir&&enemy.hp>0){
     const extra=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
     let cur=finalT[0];
     for(let h=0;h<extra;h++){
       if(!cur||cur.hp<=0){ cur=getAttackTarget(enemy,G.allies); if(!cur) break; }
       if(!cur||cur.hp<=0) break;
-      dealDmgToAlly(cur,atkVal,G.allies.indexOf(cur),enemy);
+      if(enemy.hp>0) _applyEnemyAttackEffects(enemy);
+      const _passed=dealDmgToAlly(cur,enemy.atk,G.allies.indexOf(cur),enemy);
+      if(_passed&&cur.hp>0) applyKeywordOnHit(enemy,cur);
     }
   }
   // 標的ターン消費はシミュレーション1ラウンド分をbattlePhaseと同様に外で処理
@@ -677,8 +687,8 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
   const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(_gradeNum)}</span>`:'';
-  // レッサーデーモン：報酬フェイズの消耗品のみに累積割引を表示反映（杖・指輪は対象外）
-  const _ldDiscDisp=(G._lesserDemonDiscount>0&&G.phase==='reward'&&card.type==='consumable')?G._lesserDemonDiscount:0;
+  // レッサーデーモン：報酬フェイズの次に購入する消耗品アイテムへ累積割引を表示反映
+  const _ldDiscDisp=(typeof _lesserDemonDiscountFor==='function'&&G.phase==='reward')?_lesserDemonDiscountFor(card):0;
   const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
   const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
   // 杖のチャージ表示（テキスト下）
@@ -827,8 +837,8 @@ function renderEnemyHand(){
       if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
         // 報酬フェイズ：クリックまたはドラッグで購入
-        // レッサーデーモン：消耗品のみに累積割引を表示反映
-        const _ldDiscMH=(sp.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+        // レッサーデーモン：次に購入する消耗品アイテムへ累積割引を表示反映
+        const _ldDiscMH=(typeof _lesserDemonDiscountFor==='function')?_lesserDemonDiscountFor(sp):0;
         const cost=Math.max(0,(sp._buyPrice??2)-_ldDiscMH);
         const canBuy=G.gold>=cost;
         if(canBuy){

@@ -39,6 +39,21 @@ function _markFreeShopTreasure(item){
   return item;
 }
 
+function _isLesserDemonDiscountTarget(card){
+  return !!(card && card.type === 'consumable');
+}
+
+function _lesserDemonDiscountFor(card){
+  return (_isLesserDemonDiscountTarget(card) && G._lesserDemonDiscount > 0) ? G._lesserDemonDiscount : 0;
+}
+
+function _consumeLesserDemonDiscount(discount){
+  if(discount > 0){
+    log(`レッサーデーモン：購入-${discount}ソウル`,'good');
+    G._lesserDemonDiscount=0;
+  }
+}
+
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
@@ -714,8 +729,8 @@ function renderRewCards(){
 
 function _mkRewDiv(card, onBuy, rewIdx){
   const div=document.createElement('div');
-  // レッサーデーモンディスカウント（消耗品のみ）を考慮した価格
-  const _ldDiscMR=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  // レッサーデーモンディスカウント（次に購入する消耗品アイテム）を考慮した価格
+  const _ldDiscMR=_lesserDemonDiscountFor(card);
   const cost=Math.max(0,(card._buyPrice??1)-_ldDiscMR);
   const canBuy=!G._isRewardTown||cost===0||G.gold>=cost;
   const isLegend=!!card._isLegend;
@@ -785,8 +800,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
 function takeRewCard(i, targetSlot){
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
-  // レッサーデーモンディスカウント（消耗品のみ・累積分を一括消費）
-  const _ldDisc=(card.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  // レッサーデーモンディスカウント（次に購入する消耗品アイテム・累積分を一括消費）
+  const _ldDisc=_lesserDemonDiscountFor(card);
   const cost=card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)-_ldDisc);
 
   if(card._isChar){
@@ -937,7 +952,7 @@ function takeRewCard(i, targetSlot){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
 
-  if(isTown){ G.gold-=cost; if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; } }
+  if(isTown){ G.gold-=cost; _consumeLesserDemonDiscount(_ldDisc); }
   const nc=clone(card);
   if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
@@ -1878,11 +1893,10 @@ function _generateMasterHand(){
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
   const sp=G.masterHand[idx]; if(!sp) return;
-  // レッサーデーモン：消耗品のみ・累積分一括消費
-  const _ldDisc=(sp.type==='consumable'&&G._lesserDemonDiscount>0)?G._lesserDemonDiscount:0;
+  // レッサーデーモン：次に購入する消耗品アイテムで累積分一括消費
+  const _ldDisc=_lesserDemonDiscountFor(sp);
   const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
-  if(_ldDisc>0){ log(`レッサーデーモン：購入-${_ldDisc}ソウル`,'good'); G._lesserDemonDiscount=0; }
   const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
   if(_isRingCard){
     const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
@@ -1891,12 +1905,14 @@ function buyMasterHandItem(idx){
       const spIdx=G.spells.indexOf(null);
       if(spIdx<0){ log(`スロットが満杯です`,'bad'); return; }
       G.gold-=cost;
+      _consumeLesserDemonDiscount(_ldDisc);
       const rc=clone(sp); delete rc._buyPrice;
       G.spells[spIdx]=rc;
       if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
       log(`${rc.name} を取得（インベントリへ、-${cost}ソウル）`,'good');
     } else {
       G.gold-=cost;
+      _consumeLesserDemonDiscount(_ldDisc);
       const rc=clone(sp); delete rc._buyPrice;
       G.rings[ringIdx]=rc;
       if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
@@ -1925,6 +1941,7 @@ function buyMasterHandItem(idx){
   const handIdx=G.spells.indexOf(null);
   if(handIdx<0){ log(`インベントリ（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
   G.gold-=cost;
+  _consumeLesserDemonDiscount(_ldDisc);
   delete sp._buyPrice;
   G.spells[handIdx]=sp;
   // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
@@ -1950,7 +1967,7 @@ function buyMasterHandItem(idx){
 // マスター指輪を購入
 function buyMasterRingItem(idx){
   const ring=G.masterRings&&G.masterRings[idx]; if(!ring) return;
-  // 指輪はレッサーデーモン割引対象外
+  // 杖・指輪はレッサーデーモン割引の対象外。割引も消費しない。
   const cost=ring._buyPrice??4;
   if(G.gold<cost){ log('ソウルが足りません','bad'); return; }
   const ringIdx=G.rings.slice(0,G.ringSlots).indexOf(null);
