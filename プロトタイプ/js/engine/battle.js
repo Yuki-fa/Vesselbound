@@ -293,6 +293,7 @@ async function startBattle(){
   G._openingChestIdx=-1;
   G._barrelTreasure=null;
   G._pendingEliteTreasureItem=null;
+  G._pendingTreasureBySlot={};
   if(!FLOOR_DATA[G.floor]?.boss){
     const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
     const gnomeUnit=G.allies&&G.allies.find(a=>a&&a.hp>0&&a.effect==='gnome_treasure');
@@ -815,8 +816,15 @@ function onChestClick(idx){
   if(!mask||!String(mask).startsWith('chest')) return;
   const grade=FLOOR_DATA[G.floor]?.grade||1;
   let item=null;
-  // エリート宝箱が事前に確定済みかつ種類一致なら採用
-  if(G._pendingEliteTreasureItem){
+  // スロットごとに確定済みの中身があれば最優先で採用
+  if(G._pendingTreasureBySlot&&G._pendingTreasureBySlot[idx]){
+    item=G._pendingTreasureBySlot[idx];
+    delete G._pendingTreasureBySlot[idx];
+    if(G._pendingEliteTreasureItem===item) G._pendingEliteTreasureItem=null;
+    if(G._barrelTreasure===item) G._barrelTreasure=null;
+  }
+  // 旧形式の保留データが残っている場合のフォールバック
+  if(!item&&G._pendingEliteTreasureItem){
     const _eli=G._pendingEliteTreasureItem;
     const _eliType=_eli.type==='ring'?'chest_ring':_eli.type==='wand'?'chest_wand':'chest_item';
     if(_eliType===mask){ item=_eli; G._pendingEliteTreasureItem=null; }
@@ -2043,6 +2051,8 @@ function processEnemyDeath(e,eIdx){
           // 樽自身のスロットに種別マスを配置
           G.moveMasks[eIdx]=_bType;
           G._barrelTreasure=_bItem;
+          G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
+          G._pendingTreasureBySlot[eIdx]=_bItem;
           G._pendingTreasure=true;
           _updateRearVisibility();
           log(`🛢️ 樽：宝箱（${NODE_TYPES[_bType]?.label||'?'}）が出現！`,'gold');
@@ -2086,6 +2096,8 @@ function processEnemyDeath(e,eIdx){
       const _elType=_elItem.type==='ring'?'chest_ring':_elItem.type==='wand'?'chest_wand':'chest_item';
       G.moveMasks[eIdx]=_elType;
       G._pendingEliteTreasureItem=_elItem;
+      G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
+      G._pendingTreasureBySlot[eIdx]=_elItem;
       G._pendingTreasure=true;
       log(`📦 エリートが宝箱（${NODE_TYPES[_elType]?.label||'?'}）を残した`,'gold');
     }
@@ -2102,6 +2114,8 @@ function processEnemyDeath(e,eIdx){
       if(_ndRear>=0){
         G.moveMasks[_ndRear]=_ndType;
         G._pendingEliteTreasureItem=_ndItem;
+        G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
+        G._pendingTreasureBySlot[_ndRear]=_ndItem;
         G._pendingTreasure=true;
         log(`📦 ${e.name}が宝箱（${NODE_TYPES[_ndType]?.label||'?'}）を落とした！`,'gold');
       } else {

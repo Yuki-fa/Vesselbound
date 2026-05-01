@@ -94,6 +94,7 @@ function initState(){
     _prevWasRest:0,     // 直前が湖の畔→次の2戦闘で湖の畔を非表示（カウントダウン）
     _prevWasSmithy:0,   // 直前が洞窟→次の2戦闘で洞窟を非表示（カウントダウン）
     _pendingTreasure:false,
+    _pendingTreasureBySlot:{},
     _pendingEliteChest:false,
     _retreated:false,
     _retreatTargetNodeType:null,

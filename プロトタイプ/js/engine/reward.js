@@ -101,26 +101,19 @@ function goToReward(){
   if(G._pendingTreasure&&!G._retreated){
     // 未回収の chest 系マスを集計
     const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')?{type:m,i}:null).filter(Boolean);
-    let _consumedFixedChestCount=0;
+    const _fixedBySlot=G._pendingTreasureBySlot||{};
     G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
-    // エリート/通常敵が確定済みアイテムを保持していれば優先採用
-    if(G._pendingEliteTreasureItem){
-      _rewCards.push(_markFreeShopTreasure(G._pendingEliteTreasureItem));
-      _consumedFixedChestCount++;
-      log(`📦 ${G._pendingEliteTreasureItem.name} が商談インベントリに追加された！（無料）`,'gold');
-      G._pendingEliteTreasureItem=null;
-    }
-    if(G._barrelTreasure){
-      _rewCards.push(_markFreeShopTreasure(G._barrelTreasure));
-      _consumedFixedChestCount++;
-      log(`📦 ${G._barrelTreasure.name} が商談インベントリに追加された！（無料）`,'gold');
-      G._barrelTreasure=null;
-    }
-    // 残りのマスは種別に応じて新規抽選
+    // スロットごとの確定中身があれば採用し、未確定マスだけ種別に応じて新規抽選
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
-    _chestMasks.slice(_consumedFixedChestCount).forEach(({type})=>{
+    _chestMasks.forEach(({type,i})=>{
+      const fixed=_fixedBySlot[i];
+      if(fixed){
+        _rewCards.push(_markFreeShopTreasure(fixed));
+        log(`📦 ${fixed.name} が商談インベントリに追加された！（無料）`,'gold');
+        return;
+      }
       const typeMap={'chest_wand':'wand','chest_ring':'ring','chest_item':'consumable'};
       const forced=typeMap[type]||null;
       const tw=forced?{wand:forced==='wand'?100:0,ring:forced==='ring'?100:0,consumable:forced==='consumable'?100:0}:{wand:40,consumable:40,ring:20};
@@ -131,12 +124,16 @@ function goToReward(){
       }
     });
     G._pendingTreasure=false;
+    G._pendingTreasureBySlot={};
+    G._pendingEliteTreasureItem=null;
+    G._barrelTreasure=null;
   } else if(G._pendingTreasure&&G._retreated){
     // 撤退時：未回収の宝は消失
     G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G._pendingTreasure=false;
     G._pendingEliteTreasureItem=null;
     G._barrelTreasure=null;
+    G._pendingTreasureBySlot={};
   }
 
   // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を商談インベントリに無料追加
