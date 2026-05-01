@@ -182,7 +182,6 @@ async function startBattle(){
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
-  G._pendingPondBonus=false;
   G._isTreasurePhase=false;
   G._masterHandReady=false;
   G._retreated=false;
@@ -864,21 +863,23 @@ function _onAllEnemiesDefeated(){
   log('全敵撃破！','gold');
   if(_isBossFight) G._bossJustDefeated=true;
   G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
-  // 湖の畔ボーナス：指輪を確定ドロップ
-  if(G._pendingPondBonus){
-    G._pendingPondBonus=false;
-    const _pondPool=typeof getRingPool==='function'?getRingPool():[];
-    if(_pondPool.length){
-      const _pondRing=randFrom(_pondPool);
-      if(!G._pendingTreasureItems) G._pendingTreasureItems=[];
-      G._pendingTreasureItems.push(clone(_pondRing));
-      log(`💧 湖：${_pondRing.name}をドロップ`,'gold');
-    }
-  }
+  _dropPondRingIfNeeded();
   applyVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
   setTimeout(()=>_handleVictory(),600);
+}
+
+function _dropPondRingIfNeeded(){
+  if(!G._pendingPondBonus) return;
+  G._pendingPondBonus=false;
+  const _pondPool=typeof getRingPool==='function'?getRingPool():[];
+  if(_pondPool.length){
+    const _pondRing=randFrom(_pondPool);
+    if(!G._pendingTreasureItems) G._pendingTreasureItems=[];
+    G._pendingTreasureItems.push(clone(_pondRing));
+    log(`💧 湖：${_pondRing.name}をドロップ`,'gold');
+  }
 }
 
 // ── 味方攻撃アクション ──────────────────────────
@@ -951,8 +952,10 @@ function _applyAllyAttackEffects(ally){
   }
   if(ally.effect==='lesser_demon_attack'){
     const _ldsc=_sc;
-    G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+_ldsc;
-    log(`${ally.name}：攻撃→次の購入アイテムが-${_ldsc}ソウル（累計-${G._lesserDemonDiscount}）`,'good');
+    if(!G._isSimulating){
+      G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+_ldsc;
+      log(`${ally.name}：攻撃→次の購入アイテムが-${_ldsc}ソウル（累計-${G._lesserDemonDiscount}）`,'good');
+    }
   }
   // ドラウグは受動効果（攻撃時ではなく被攻撃時）のため、ここでは処理しない
   // ウンディーネ：生存中の場合、攻撃した味方自身が+1/+1（ウンディーネ自身も含む）
@@ -1974,6 +1977,7 @@ function checkInstantVictory(){
   if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     if(_isBossFight) G._bossJustDefeated=true;
+    _dropPondRingIfNeeded();
     applyVictoryBonuses();
     log('全敵撃破！','gold');
     updateHUD(); renderAll();

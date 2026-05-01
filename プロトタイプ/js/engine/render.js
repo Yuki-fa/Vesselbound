@@ -140,6 +140,7 @@ function _computeDeathRisk(){
   const _sUndeadBonus=G._undeadHpBonus, _sEnemyUndeadAtk=G.enemyUndeadAtkBonus;
   const _sEnemyPermBonus=G.enemyPermanentBonus?{...G.enemyPermanentBonus}:null;
   const _sMagicLevel=G.magicLevel;
+  const _sLesserDemonDiscount=G._lesserDemonDiscount;
 
   // ログ・描画関数を無効化
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
@@ -225,6 +226,7 @@ function _computeDeathRisk(){
     G._undeadHpBonus=_sUndeadBonus; G.enemyUndeadAtkBonus=_sEnemyUndeadAtk;
     if(_sEnemyPermBonus) G.enemyPermanentBonus=_sEnemyPermBonus;
     G.magicLevel=_sMagicLevel;
+    G._lesserDemonDiscount=_sLesserDemonDiscount;
     window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
   }
 }

@@ -37,6 +37,16 @@ function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
     race:race||'-', lane:'front'};
 }
 
+function _applyEnemyDefAbilities(enemy, def){
+  if(!enemy||!def) return enemy;
+  enemy.desc=def.desc||enemy.desc||'';
+  enemy.effect=def.effect||null;
+  enemy.injury=def.injury||null;
+  enemy.counter=!!def.counter;
+  enemy.regen=def.regen||0;
+  return enemy;
+}
+
 // 階層からネームドキャラのグレード帯を決定（1-5:G1, 6-10:G2, 11-15:G3, 16-20:G4）
 function namedGradeForFloor(floor){
   if(floor<=5) return 1;
@@ -51,11 +61,7 @@ function _mkNamedEnemy(def,floor,extraMult,extraKws){
   const {atk,hp}=enemyStats(def,floor,extraMult||1.0);
   const kws=[...(def.keywords||[]),...(extraKws||[])];
   const e=_mkEnemy(atk,hp,def.name,def.icon,def.grade||1,_kwShield(def),kws,def.race||'-');
-  e.desc=def.desc||'';
-  e.effect =def.effect ||null;
-  e.injury =def.injury ||null;
-  e.counter=def.counter||false;
-  e.regen  =def.regen  ||0;
+  _applyEnemyDefAbilities(e, def);
   e._isNamed=true;
   return e;
 }
@@ -105,6 +111,7 @@ function generateEnemies(floor){
     const _f1enemies=preset.map(p=>{
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
       const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      _applyEnemyDefAbilities(e, def);
       e._visualShift=Math.random()<0.5;
       e.lane=Math.random()<0.6?'front':'rear';
       return e;
@@ -131,6 +138,7 @@ function generateEnemies(floor){
           const def=_pickEnemyDef(baseG);
           const {atk,hp}=enemyStats(def,floor,2.0);
           e=_mkEnemy(atk,hp,def.name,def.icon,baseG,0,[...(def.keywords||[])],def.race||'-');
+          _applyEnemyDefAbilities(e, def);
         }
         e.boss=true;
         e.lane='rear'; // ボスは後衛
@@ -138,6 +146,7 @@ function generateEnemies(floor){
         const def=_pickEnemyDef(baseG);
         const {atk,hp}=enemyStats(def,floor,1.0);
         e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+        _applyEnemyDefAbilities(e, def);
         e.lane=Math.random()<0.6?'front':'rear'; // 側近はランダム
         e._visualShift=Math.random()<0.5; // 側近はランダムで下にずらす
       }
@@ -193,6 +202,7 @@ function generateEnemies(floor){
         const {atk,hp}=enemyStats(def,floor,1.5);
         const eg=Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
         e=_mkEnemy(atk,hp,def.name,def.icon,eg,0,['エリート'],def.race||'-');
+        _applyEnemyDefAbilities(e, def);
       }
       e.lane='rear'; // エリートは後衛
     } else {
@@ -209,6 +219,7 @@ function generateEnemies(floor){
       const {atk,hp}=enemyStats(def,floor,_xm);
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
+      _applyEnemyDefAbilities(e, def);
       e.lane=Math.random()<0.6?'front':'rear'; // 通常敵はランダム（60%前衛）
       e._visualShift=Math.random()<0.5; // ボス・エリート以外はランダムで下にずらす
       if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
