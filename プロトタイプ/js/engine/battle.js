@@ -831,11 +831,11 @@ function onChestClick(idx){
   if(!item){
     const typeMap={'chest_wand':'wand','chest_ring':'ring','chest_item':'consumable'};
     const forced=typeMap[mask]||null;
-    const tw={
+    const tw=forced?{
       wand:forced==='wand'?100:0,
       ring:forced==='ring'?100:0,
       consumable:forced==='consumable'?100:0,
-    };
+    }:{wand:40,consumable:40,ring:20};
     item=drawTreasure({1:60,2:30,3:10},tw,grade+1);
   }
   if(item){
@@ -2178,6 +2178,7 @@ function processEnemyDeath(e,eIdx){
       G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
       G._pendingTreasureBySlot[eIdx]=_elItem;
       G._pendingTreasure=true;
+      if(!G.visibleMoves.includes(eIdx)) G.visibleMoves.push(eIdx);
       log(`📦 エリートが宝箱（${NODE_TYPES[_elType]?.label||'?'}）を残した`,'gold');
     }
   }

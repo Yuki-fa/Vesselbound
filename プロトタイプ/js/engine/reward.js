@@ -123,7 +123,9 @@ function goToReward(){
     // スロットごとの確定中身があれば採用し、未確定マスだけ種別に応じて新規抽選
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
+    const _handledTreasureSlots=new Set();
     _chestMasks.forEach(({type,i})=>{
+      _handledTreasureSlots.add(String(i));
       const fixed=_fixedBySlot[i];
       if(fixed){
         _rewCards.push(_markFreeShopTreasure(fixed));
@@ -139,11 +141,16 @@ function goToReward(){
         log(`📦 ${ti.name} が商談インベントリに追加された！（無料）`,'gold');
       }
     });
+    Object.entries(_fixedBySlot).forEach(([slot,item])=>{
+      if(_handledTreasureSlots.has(String(slot))||!item) return;
+      _rewCards.push(_markFreeShopTreasure(item));
+      log(`📦 ${item.name} が商談インベントリに追加された！（無料）`,'gold');
+    });
     G._pendingTreasure=false;
     G._pendingTreasureBySlot={};
     G._pendingEliteTreasureItem=null;
     G._barrelTreasure=null;
-  } else if(G._pendingTreasure&&G._retreated){
+  } else if((G._pendingTreasure||_hasPendingTreasureSlots)&&G._retreated){
     // 撤退時：未回収の宝は消失
     G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G._pendingTreasure=false;
