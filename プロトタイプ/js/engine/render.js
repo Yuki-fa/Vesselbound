@@ -141,6 +141,7 @@ function _computeDeathRisk(){
   const _sEnemyPermBonus=G.enemyPermanentBonus?{...G.enemyPermanentBonus}:null;
   const _sMagicLevel=G.magicLevel;
   const _sLesserDemonDiscount=G._lesserDemonDiscount;
+  const _sJackBonus=G._jackBonus, _sSpecterBonus=G._specterBonus;
 
   // ログ・描画関数を無効化
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
@@ -162,6 +163,9 @@ function _computeDeathRisk(){
       G.visibleMoves=[...(_sVM||[])];
       G.moveMasks=[...(_sMM||[])];
       G._pendingTreasure=_sPT;
+      G._jackBonus=_sJackBonus;
+      G._specterBonus=_sSpecterBonus;
+      G._lesserDemonDiscount=_sLesserDemonDiscount;
 
       // 1ターン分シミュレーション（battlePhaseと同じスロット順：スロットiの敵→味方）
       for(let i=0;i<6;i++){
@@ -227,6 +231,7 @@ function _computeDeathRisk(){
     if(_sEnemyPermBonus) G.enemyPermanentBonus=_sEnemyPermBonus;
     G.magicLevel=_sMagicLevel;
     G._lesserDemonDiscount=_sLesserDemonDiscount;
+    G._jackBonus=_sJackBonus; G._specterBonus=_sSpecterBonus;
     window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
   }
 }
