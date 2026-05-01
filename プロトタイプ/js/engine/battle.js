@@ -836,11 +836,11 @@ function onChestClick(idx){
     else { (G.spells||[]).push(item); }
     log(`📦 ${item.name}を取得！（行動力-1）`,'gold');
   }
-  G._pendingTreasure=false;
   // moveMask クリア
   G.moveMasks[idx]=null;
   const vi=G.visibleMoves.indexOf(idx);
   if(vi>=0) G.visibleMoves.splice(vi,1);
+  G._pendingTreasure=G.moveMasks.some(m=>String(m||'').startsWith('chest'));
   G.actionsLeft--;
   updateHUD();
   renderAll();

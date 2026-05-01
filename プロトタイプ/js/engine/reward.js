@@ -32,6 +32,13 @@ function _autoEquipRingInner(ring){
 }
 const _isRingCard=c=>c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring');
 
+function _markFreeShopTreasure(item){
+  if(!item) return item;
+  item._buyPrice=0;
+  item._freeTreasure=true;
+  return item;
+}
+
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
@@ -90,35 +97,37 @@ function goToReward(){
     }
   }
 
-  // 宝箱：撤退でない場合のみ、未回収の宝マスを報酬欄へ
+  // 宝箱：撤退でない場合のみ、未回収の宝マスを商談インベントリへ無料追加
   if(G._pendingTreasure&&!G._retreated){
     // 未回収の chest 系マスを集計
     const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')?{type:m,i}:null).filter(Boolean);
+    let _consumedFixedChestCount=0;
     G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
     // エリート/通常敵が確定済みアイテムを保持していれば優先採用
     if(G._pendingEliteTreasureItem){
-      _rewCards.push(G._pendingEliteTreasureItem);
-      log(`📦 ${G._pendingEliteTreasureItem.name} が報酬欄に追加された！`,'gold');
+      _rewCards.push(_markFreeShopTreasure(G._pendingEliteTreasureItem));
+      _consumedFixedChestCount++;
+      log(`📦 ${G._pendingEliteTreasureItem.name} が商談インベントリに追加された！（無料）`,'gold');
       G._pendingEliteTreasureItem=null;
     }
     if(G._barrelTreasure){
-      _rewCards.push(G._barrelTreasure);
-      log(`📦 ${G._barrelTreasure.name} が報酬欄に追加された！`,'gold');
+      _rewCards.push(_markFreeShopTreasure(G._barrelTreasure));
+      _consumedFixedChestCount++;
+      log(`📦 ${G._barrelTreasure.name} が商談インベントリに追加された！（無料）`,'gold');
       G._barrelTreasure=null;
     }
     // 残りのマスは種別に応じて新規抽選
     const fd2=FLOOR_DATA[G.floor];
     const maxGrade2=fd2?(fd2.grade||1):1;
-    _chestMasks.forEach(({type})=>{
-      // 既に上で消費したマス分はスキップしないが、簡易的に1マスにつき1枚抽選
+    _chestMasks.slice(_consumedFixedChestCount).forEach(({type})=>{
       const typeMap={'chest_wand':'wand','chest_ring':'ring','chest_item':'consumable'};
       const forced=typeMap[type]||null;
       const tw=forced?{wand:forced==='wand'?100:0,ring:forced==='ring'?100:0,consumable:forced==='consumable'?100:0}:{wand:40,consumable:40,ring:20};
       const ti=drawTreasure({1:70,2:30},tw,maxGrade2);
       if(ti){
-        _rewCards.push(ti);
-        log(`📦 ${ti.name} が報酬欄に追加された！`,'gold');
+        _rewCards.push(_markFreeShopTreasure(ti));
+        log(`📦 ${ti.name} が商談インベントリに追加された！（無料）`,'gold');
       }
     });
     G._pendingTreasure=false;
@@ -130,12 +139,11 @@ function goToReward(){
     G._barrelTreasure=null;
   }
 
-  // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を報酬欄に追加
+  // 保留中の宝箱アイテム（エリート・樽・湖ボーナス等）を商談インベントリに無料追加
   if(G._pendingTreasureItems&&G._pendingTreasureItems.length>0){
     G._pendingTreasureItems.forEach(item=>{
-      if(item._buyPrice==null) item._buyPrice=0;
-      _rewCards.push(item);
-      log(`📦 ${item.name} が報酬欄に追加された！`,'gold');
+      _rewCards.push(_markFreeShopTreasure(item));
+      log(`📦 ${item.name} が商談インベントリに追加された！（無料）`,'gold');
     });
     G._pendingTreasureItems=[];
   }
