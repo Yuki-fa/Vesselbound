@@ -98,7 +98,8 @@ function goToReward(){
   }
 
   // 宝箱：撤退でない場合のみ、未回収の宝マスを商談インベントリへ無料追加
-  if(G._pendingTreasure&&!G._retreated){
+  const _hasPendingTreasureSlots=G._pendingTreasureBySlot&&Object.keys(G._pendingTreasureBySlot).length>0;
+  if((G._pendingTreasure||_hasPendingTreasureSlots)&&!G._retreated){
     // 未回収の chest 系マスを集計
     const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')?{type:m,i}:null).filter(Boolean);
     const _fixedBySlot=G._pendingTreasureBySlot||{};
@@ -1515,6 +1516,28 @@ function sellFieldUnit(idx){
     const _incr=1+(G.hasGoldenDrop?1:0);
     G._grimalkinBonus=(G._grimalkinBonus||0)+_incr;
     log(`${perytons.name}：以後のキャラクター効果召喚が±0/+${_incr}（累計+${G._grimalkinBonus}）`,'good');
+  }
+  // サキュバス：仲間を還魂するとランダムなG1アイテムを得る
+  G.allies.forEach(succubus=>{
+    if(!succubus||succubus.hp<=0||succubus.effect!=='succubus_sell') return;
+    const _empty=G.spells.findIndex(s=>!s);
+    if(_empty<0){ log(`${succubus.name}：手札がいっぱいでアイテムを得られない`,'sys'); return; }
+    const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
+    if(_item){
+      G.spells[_empty]=_item;
+      log(`${succubus.name}：還魂誘発→G1アイテムを入手`,'good');
+    }
+  });
+  // マナガルム：仲間を還魂すると全ての仲間の獣が+1/+1
+  const managarm=G.allies.find(a=>a&&a.hp>0&&a.effect==='managarm_sell');
+  if(managarm){
+    const _mg=1+(G.hasGoldenDrop?1:0);
+    G.allies.forEach(a=>{
+      if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){
+        a.atk+=_mg; a.baseAtk=(a.baseAtk||0)+_mg; a.hp+=_mg; a.maxHp+=_mg;
+      }
+    });
+    log(`${managarm.name}：還魂誘発→全ての仲間の獣+${_mg}/+${_mg}`,'good');
   }
   // imp_sell 削除済み（インプの新効果は使役時）
   document.getElementById('rw-gold').textContent=G.gold;

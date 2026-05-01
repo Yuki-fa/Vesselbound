@@ -897,6 +897,7 @@ function _applyAllyAttackEffects(ally){
       log(`🐎 ${ally.name}：攻撃→${_lowest.e.name}に炎の杖(${_fireDmg}ダメ)を使用`,'good');
       // 炎の杖トリガー（杖使用誘発：ヘルハウンド・コボルド・ダークワン等）
       if(typeof onSpellUsed==='function') onSpellUsed();
+      if(typeof onWandUsed==='function') onWandUsed();
     }
   }
   if(ally.effect==='brownie_attack'){
@@ -1223,9 +1224,24 @@ async function enemyAttackAction(enemy, enemyIdx){
 
 // ── 味方へのダメージ処理 ─────────────────────────
 
+function _redirectToBodyguard(list, unit, tone) {
+  if (!unit || unit.effect === 'bodyguard') return unit;
+  const guard = (list || []).find(a => a && a.hp > 0 && a !== unit && a.effect === 'bodyguard');
+  if (!guard) return unit;
+  log(`${guard.name}：${unit.name}の身代わりになった`, tone || 'sys');
+  return guard;
+}
+
 // 戻り値：ダメージが通った(true) / 0ダメまたはシールドでブロック(false)
 function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   if(!unit||unit.hp<=0) return false;
+  if(dmg>0){
+    const redirected=_redirectToBodyguard(G.allies, unit, 'good');
+    if(redirected!==unit){
+      unit=redirected;
+      _fieldIdx=G.allies.indexOf(unit);
+    }
+  }
 
   // 0ダメ（封印・無効化）：反撃は攻撃行為に対して発動（生存確定なので発動OK）
   if(dmg<=0){
@@ -1634,6 +1650,44 @@ function onEnemyShieldLost(){
 
 // ── 戦闘開始時キャラクター効果 ───────────────────
 
+function _triggerScyllaStart(unit, isEnemySide) {
+  if (!unit || unit.hp <= 0) return;
+  const targets = (isEnemySide ? G.allies : G.enemies).filter(x => x && x.hp > 0);
+  if (!targets.length) return;
+  const target = randFrom(targets);
+  const uHp = unit.hp;
+  const tHp = target.hp;
+  unit.hp = tHp;
+  target.hp = uHp;
+  unit.maxHp = Math.max(unit.maxHp || unit.hp, unit.hp);
+  target.maxHp = Math.max(target.maxHp || target.hp, target.hp);
+  log(`${unit.name}：${target.name}とライフを入れ替え（${uHp}⇔${tHp}）`, isEnemySide ? 'bad' : 'good');
+}
+
+function _triggerMedusaDrain(unit, isEnemySide) {
+  if (!unit || unit.hp <= 0) return;
+  let gained = 0;
+  const targets = [];
+  G.allies.forEach((a, i) => { if (a && a.hp > 0 && a !== unit) targets.push({unit:a, side:'ally', idx:i}); });
+  G.enemies.forEach((e, i) => { if (e && e.hp > 0 && e !== unit) targets.push({unit:e, side:'enemy', idx:i}); });
+  targets.forEach(t => {
+    if (!t.unit || t.unit.hp <= 0) return;
+    const loss = Math.min(2, t.unit.hp);
+    if (loss <= 0) return;
+    t.unit.hp = Math.max(0, t.unit.hp - loss);
+    gained += loss;
+    if (t.unit.hp <= 0) {
+      if (t.side === 'ally') processAllyDeath(t.unit);
+      else processEnemyDeath(t.unit, t.idx);
+    }
+  });
+  if (gained > 0 && unit.hp > 0) {
+    unit.hp += gained;
+    unit.maxHp = (unit.maxHp || unit.hp) + gained;
+    log(`${unit.name}：全キャラクターからライフを奪い+0/+${gained}`, isEnemySide ? 'bad' : 'good');
+  }
+}
+
 function onBattleStart(){
   // ① 敵指輪の自動効果
   if(G.bossRings&&G.bossRings.length) fireBossRingTrigger('battle_start');
@@ -1682,6 +1736,12 @@ function onBattleStart(){
         }
         break;
       }
+      case 'scylla_start':
+        _triggerScyllaStart(e, true);
+        break;
+      case 'medusa_drain':
+        _triggerMedusaDrain(e, true);
+        break;
       case 'salamander_start':
         G.allies.forEach(a=>{ if(a&&a.hp>0) dealDmgToAlly(a,4,G.allies.indexOf(a),e); });
         log(`${e.name}：開幕全仲間に4ダメ`,'bad');
@@ -1708,6 +1768,12 @@ function onBattleStart(){
       case 'manigans_start':
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
+      case 'scylla_start':
+        _triggerScyllaStart(a, false);
+        break;
+      case 'medusa_drain':
+        _triggerMedusaDrain(a, false);
+        break;
       // drake_start（旧効果）は廃止 → drake_mitigate（dealDmgToAlly内）
       case 'salamander_start':
         { const _sdmg=4*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0); G.enemies.forEach(e=>{ if(e&&e.hp>0) dealDmgToEnemy(e,_sdmg,G.enemies.indexOf(e),a); }); log(`${a.name}：開幕全敵に${_sdmg}ダメ`,'good'); }
@@ -2009,6 +2075,14 @@ function applyPoisonOnDmg(e,srcUnit){
 }
 
 function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
+  if(!e||e.hp<=0) return;
+  if(dmg>0){
+    const redirected=_redirectToBodyguard(G.enemies, e, 'bad');
+    if(redirected!==e){
+      e=redirected;
+      eIdx=G.enemies.indexOf(e);
+    }
+  }
   if(e.shield>0&&dmg>0){
     e.shield--;
     log(`🛡 ${e.name}のシールドがダメージを防いだ（残${e.shield}）`,'sys');
@@ -2088,8 +2162,9 @@ function processEnemyDeath(e,eIdx){
   const goldPerKill=_isArtifact?0:_isNamed?3:(G.baseIncome||1);
   if(goldPerKill>0){ log(`${e.name} 撃破！ソウル+${goldPerKill}`,'gold'); onGoldGained(goldPerKill); }
   else { log(`${e.name} 撃破！（アーティファクト：ソウルを持たない）`,'silver'); }
-  // エリート本体：自スロットに既にマスがなければ宝箱を配置
-  if(_isActualElite&&!G._isSimulating&&!G.moveMasks[eIdx]){
+  // エリート本体：開戦時に自スロットへ generic chest が置かれているため、
+  // 撃破時に必ず中身を確定してスロットへ紐づける。
+  if(_isActualElite&&!G._isSimulating&&(!G._pendingTreasureBySlot||!G._pendingTreasureBySlot[eIdx])&&(!G.moveMasks[eIdx]||String(G.moveMasks[eIdx]).startsWith('chest'))){
     const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
     const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
     if(_elItem){

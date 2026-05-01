@@ -242,6 +242,9 @@ function clearSelectable(){
 
 function _addCoveringLaneDrop(slot,i,onclickFn){ /* no-op */ }
 
+function _isWandUseCard(sp){
+  return !!(sp && (sp.type === 'wand' || sp.subtype === 'wand'));
+}
 
 function applySpell(sp,idx,tgt,_noDecrement){
   clearSelectable();
@@ -249,7 +252,8 @@ function applySpell(sp,idx,tgt,_noDecrement){
 
   // 触媒の指輪：杖の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
-  const cMult=(sp.type==='wand'&&catRingC)?2:1;
+  const _isWandUse=_isWandUseCard(sp);
+  const cMult=(_isWandUse&&catRingC)?2:1;
   const _inReward=G.phase==='reward';
   _spreadTargetPending=false;
   _spreadPick=null;
@@ -734,7 +738,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(sp.type==='consumable') G.spells[idx]=null;
 
   // 杖使用トリガー
-  if(sp.type==='wand'){ onSpellUsed(); onWandUsed(); }
+  if(_isWandUse){ onSpellUsed(); onWandUsed(); }
 
   // 使用回数管理
   if(sp.type==='wand'){
