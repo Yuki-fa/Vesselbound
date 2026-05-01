@@ -862,7 +862,9 @@ function _onAllEnemiesDefeated(){
   if(G.phase==='reward') return; // 二重呼び出し防止
   log('全敵撃破！','gold');
   if(_isBossFight) G._bossJustDefeated=true;
-  G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
+  G.moveMasks.forEach((_,i)=>{
+    if(G.moveMasks[i]&&!String(G.moveMasks[i]).startsWith('chest')&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i);
+  });
   _dropPondRingIfNeeded();
   applyVictoryBonuses();
   updateHUD(); renderAll();

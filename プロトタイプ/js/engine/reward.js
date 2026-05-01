@@ -115,8 +115,9 @@ function goToReward(){
   // 宝箱：撤退でない場合のみ、未回収の宝マスを商談インベントリへ無料追加
   const _hasPendingTreasureSlots=G._pendingTreasureBySlot&&Object.keys(G._pendingTreasureBySlot).length>0;
   if((G._pendingTreasure||_hasPendingTreasureSlots)&&!G._retreated){
-    // 未回収の chest 系マスを集計
-    const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')?{type:m,i}:null).filter(Boolean);
+    // 未回収かつ戦闘中に表示済みの chest 系マスを集計
+    const _visibleSet=new Set(G.visibleMoves||[]);
+    const _chestMasks=G.moveMasks.map((m,i)=>String(m||'').startsWith('chest')&&_visibleSet.has(i)?{type:m,i}:null).filter(Boolean);
     const _fixedBySlot=G._pendingTreasureBySlot||{};
     G.moveMasks=G.moveMasks.map(m=>String(m||'').startsWith('chest')?null:m);
     G.visibleMoves=G.visibleMoves.filter(i=>G.moveMasks[i]);
@@ -142,7 +143,7 @@ function goToReward(){
       }
     });
     Object.entries(_fixedBySlot).forEach(([slot,item])=>{
-      if(_handledTreasureSlots.has(String(slot))||!item) return;
+      if(_handledTreasureSlots.has(String(slot))||!item||!_visibleSet.has(Number(slot))) return;
       _rewCards.push(_markFreeShopTreasure(item));
       log(`📦 ${item.name} が商談インベントリに追加された！（無料）`,'gold');
     });
