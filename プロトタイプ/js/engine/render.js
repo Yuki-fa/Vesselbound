@@ -142,6 +142,7 @@ function _computeDeathRisk(){
   const _sMagicLevel=G.magicLevel;
   const _sLesserDemonDiscount=G._lesserDemonDiscount;
   const _sJackBonus=G._jackBonus, _sSpecterBonus=G._specterBonus;
+  const _sRaceBuffs=G.raceBuffs?JSON.parse(JSON.stringify(G.raceBuffs)):null;
 
   // ログ・描画関数を無効化
   const _L=window.log,_R=window.renderAll,_U=window.updateHUD,_RC=window.renderControls;
@@ -165,6 +166,7 @@ function _computeDeathRisk(){
       G._pendingTreasure=_sPT;
       G._jackBonus=_sJackBonus;
       G._specterBonus=_sSpecterBonus;
+      G.raceBuffs=_sRaceBuffs?JSON.parse(JSON.stringify(_sRaceBuffs)):{};
       G._lesserDemonDiscount=_sLesserDemonDiscount;
 
       // 1ターン分シミュレーション（battlePhaseと同じスロット順：スロットiの敵→味方）
@@ -232,6 +234,7 @@ function _computeDeathRisk(){
     G.magicLevel=_sMagicLevel;
     G._lesserDemonDiscount=_sLesserDemonDiscount;
     G._jackBonus=_sJackBonus; G._specterBonus=_sSpecterBonus;
+    G.raceBuffs=_sRaceBuffs?JSON.parse(JSON.stringify(_sRaceBuffs)):{};
     window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
   }
 }

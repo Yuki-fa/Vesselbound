@@ -110,6 +110,7 @@ function _normCardName(s) {
   return String(s || '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
+    .replace(/小杖/g, '短杖')
     .replace(/\s+/g, '')
     .trim();
 }
@@ -127,7 +128,19 @@ function _filterBySheetName(list, name) {
 function _syncUnitEffectKeysFromSheet(unit) {
   if (!unit) return;
   const patches = {
-    'アラッサス': { effect: null, injury: 'arachas' },
+    'ゾンビ': { effect: 'zombie_death', injury: null, desc:'死亡：「不死」が+2/+1を得る。' },
+    'グリマルキン': { effect: 'grimalkin_passive', injury: null, desc:'使役：カードの効果で召喚される仲間のライフが+1される。' },
+    'ドワーフ': { effect: 'dwarf_summon', injury: null, desc:'使役：左端の杖に+3チャージする。' },
+    'マミー': { effect: 'mummy_death', injury: null, desc:'死亡：3ソウルを得る。' },
+    'バンシー': { effect: 'banshee_death_trigger', injury: null, desc:'誘発：死亡効果が発動すると「不死」のパワーが+2される。' },
+    'ブラウニー': { effect: 'brownie_attack', injury: null, desc:'攻撃：全ての仲間のライフが+2される。' },
+    'ジャック・オ・ランタン': { effect: 'jack_attack', injury: null, desc:'攻撃：「精霊」のライフが+1される。' },
+    'シルフ': { effect: 'sylph_summon', injury: null, desc:'使役：隣接するキャラクターの種族が+1/+1を得る。' },
+    'インプ': { effect: 'imp_summon', injury: null, desc:'開戦：ランダムなG1のアイテムを1枚得る。' },
+    'グレムリン': { effect: 'gremlin_attack', injury: 'gremlin', desc:'負傷：相手オーナーのインベントリのカードを破壊し、1ソウルを得る。' },
+    'アラッサス': { effect: null, injury: 'arachas', desc:'負傷：「アラッサス」以外の全てのキャラクターに1ダメージを与える。' },
+    'スリン': { effect: 'slin_injury_aura', injury: null, desc:'常在：負傷効果が発動すると「竜」のライフが+1される。' },
+    'リザードマン': { effect: 'lizardman_attack', injury: 'lizardman', desc:'反撃　負傷：「竜」のパワーが+1される。' },
     'ドレイク': { effect: 'drake_mitigate', injury: null },
     'ドラウグ': { effect: 'draug_summon', injury: null },
     'オーガ': { effect: 'bodyguard', injury: null },
@@ -135,6 +148,7 @@ function _syncUnitEffectKeysFromSheet(unit) {
     'メデューサ': { effect: 'medusa_drain', injury: null },
     'スキュラ': { effect: 'scylla_start', injury: null },
     'マナガルム': { effect: 'managarm_sell', injury: null },
+    '波の娘"ラン・ドーター"': { effect: null, injury: 'ran' },
   };
   const patch = patches[_normCardName(unit.name)];
   if (!patch) return;
@@ -146,6 +160,7 @@ function _syncUnitEffectKeysFromSheet(unit) {
     if (patch.injury) unit.injury = patch.injury;
     else delete unit.injury;
   }
+  if (patch.desc) unit.desc = patch.desc;
 }
 
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──

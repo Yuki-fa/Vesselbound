@@ -54,6 +54,54 @@ function _consumeLesserDemonDiscount(discount){
   }
 }
 
+function renderCardAppearanceModeDebugButton(){
+  const btn=document.getElementById('rw-appearance-mode');
+  if(!btn) return;
+  if(!G._debugMode){
+    btn.style.display='none';
+    return;
+  }
+  const mode=typeof CARD_APPEARANCE_MODE!=='undefined'?CARD_APPEARANCE_MODE:'NORMAL';
+  btn.style.display='';
+  btn.textContent=`出現率: ${mode}`;
+  const experimental=typeof CARD_APPEARANCE_MODES!=='undefined'&&mode===CARD_APPEARANCE_MODES.EXPERIMENTAL;
+  btn.style.borderColor=experimental?'var(--red)':'var(--purple)';
+  btn.style.color=experimental?'var(--red2)':'var(--purple2)';
+}
+
+function toggleCardAppearanceModeDebug(){
+  if(!G._debugMode) return;
+  if(typeof CARD_APPEARANCE_MODES==='undefined'||typeof CARD_APPEARANCE_MODE==='undefined') return;
+  CARD_APPEARANCE_MODE = CARD_APPEARANCE_MODE===CARD_APPEARANCE_MODES.EXPERIMENTAL
+    ? CARD_APPEARANCE_MODES.NORMAL
+    : CARD_APPEARANCE_MODES.EXPERIMENTAL;
+  log(`[DEBUG] カード出現率: ${CARD_APPEARANCE_MODE}`,'sys');
+  renderCardAppearanceModeDebugButton();
+  if(G.phase==='reward'&&!G._isShop){
+    const keepMaster=(G.masterHand||[]).filter(c=>c&&(c._freeTreasure||c._isTreasure||c._buyPrice===0));
+    _rewCards=drawRewards();
+    _padRewCharSlots();
+    _generateMasterHand();
+    if(keepMaster.length) G.masterHand=[...G.masterHand,...keepMaster];
+    const rwCount=document.getElementById('rw-count');
+    if(rwCount) rwCount.textContent=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
+    renderRewCards();
+    renderEnemyHand();
+    renderGradeUpBtn();
+  }
+}
+
+function renderRaceBuffSummary(){
+  const el=document.getElementById('rw-race-buffs');
+  if(!el) return;
+  const buffs=G.raceBuffs||{};
+  const rows=Object.entries(buffs)
+    .filter(([,b])=>(b.atk||0)!==0||(b.hp||0)!==0)
+    .map(([race,b])=>`${race}: ${(b.atk||0)>0?'+'+(b.atk||0):'±0'}/${(b.hp||0)>0?'+'+(b.hp||0):'±0'}`);
+  el.textContent=rows.length?rows.join('　'):'';
+  el.style.display=rows.length?'':'none';
+}
+
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
@@ -198,8 +246,9 @@ function goToReward(){
   }
 
   document.getElementById('rw-gold').textContent=G.gold;
-  document.getElementById('rw-count').textContent=5;
+  document.getElementById('rw-count').textContent=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display=''; rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
+  renderCardAppearanceModeDebugButton();
 
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
@@ -214,6 +263,7 @@ function goToReward(){
   renderRewCards();
   renderGradeUpBtn();
   renderArcanaInfo();
+  renderRaceBuffSummary();
   renderMoveSlotsInEnemy();
   renderFieldEditor();
   renderEnemyHand();
@@ -418,12 +468,15 @@ function rerollRewards(){
   }
 
   document.getElementById('rw-gold').textContent=G.gold;
+  document.getElementById('rw-count').textContent=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
   updateHUD();
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.disabled=G.gold<1; rb.style.opacity=G.gold<1?'0.4':''; }
+  renderCardAppearanceModeDebugButton();
   _generateMasterHand(); // renderRewCards前に再生成
   renderRewCards();
   renderEnemyHand();
   renderGradeUpBtn();
+  renderRaceBuffSummary();
 }
 
 // ── 報酬キャラクター：ダメージ・召喚・負傷トリガー ─────────
@@ -438,6 +491,16 @@ function dealDmgToRewChar(rewIdx, dmg){
   const actualRewDmg=Math.max(0,dmg-_grReduction);
   c.hp=Math.max(0,c.hp-actualRewDmg);
   if(c.hp<=0){
+    if(c.effect==='zombie_end'||c.effect==='zombie_death'){
+      addRaceBuff('不死',2+(G.hasGoldenDrop?1:0),1+(G.hasGoldenDrop?1:0),'ally',c.name);
+      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
+    }
+    if(c.effect==='mummy_death'){
+      const mv=3+(G.hasGoldenDrop?1:0);
+      onGoldGained(mv);
+      log(`${c.name}：死亡→ソウル+${mv}`,'gold');
+      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
+    }
     // スケルトン：死亡時に同スロットへ「骨」を残す
     if(c.effect==='skeleton_bone'){
       const _boneG=c.grade||1;
@@ -451,6 +514,7 @@ function dealDmgToRewChar(rewIdx, dmg){
       _boneCard._isChar=true; _boneCard._buyPrice=2; _boneCard._rewSummoned=true;
       _rewCards[rewIdx]=_boneCard;
       log(`${c.name}：死亡→骨(0/${_boneHp})を残した`,'good');
+      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
       renderRewCards();
       return;
     }
@@ -490,9 +554,7 @@ function _triggerRewCharInjury(unit, dmg=0){
   if(!unit||!unit.injury) return;
   switch(unit.injury){
     case 'slin':{
-      const _slv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      const _slvh=addUnitHp(unit,_slv,'ally');
-      log(`${unit.name}：負傷→±0/+${_slvh}`,'good');
+      // 新仕様では常在効果（slin_injury_aura）に移行
       _triggerLindwormRew();
       break;
     }
@@ -518,12 +580,9 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'mummy':{
-      const _mmnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const mv=(_mmnums[0]||1)+(G.hasGoldenDrop?1:0);
-      G._undeadHpBonus=(G._undeadHpBonus||0)+mv;
-      // 既にフィールドにいる不死キャラにもボーナスを適用
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=mv; a.baseAtk=(a.baseAtk||0)+mv; }});
-      log(`${unit.name}：不死が+${mv}/±0（累計+${G._undeadHpBonus}）`,'good');
+      const mv=3+(G.hasGoldenDrop?1:0);
+      onGoldGained(mv);
+      log(`${unit.name}：死亡→ソウル+${mv}`,'gold');
       _triggerLindwormRew();
       break;
     }
@@ -552,11 +611,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'banshee':{
-      const _bnnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const _bnsc=(_bnnums[0]||1);
-      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_bnsc,ai,null); });
-      _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(ri,_bnsc); });
-      log(`${unit.name}：負傷→全キャラに${_bnsc}ダメ`,'good');
+      // 新仕様では死亡効果誘発（banshee_death_trigger）に移行
       _triggerLindwormRew();
       break;
     }
@@ -585,6 +640,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
   }
+  if(typeof triggerInjuryEffectTriggered==='function') triggerInjuryEffectTriggered(unit);
 }
 
 // _rewCards を常に「キャラスロット0-5・アイテム6+」構造に整列する
@@ -871,30 +927,23 @@ function takeRewCard(i, targetSlot){
         G.allies[_pei]=_pelUnit;
         log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
         // グリマルキン・コカトリス：カード効果召喚バフ
-        const _gd=G.hasGoldenDrop?1:0;
-        G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_pelUnit){
-          if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd; _pelUnit.atk+=_gbv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_gbv; _pelUnit.hp+=_gbv; _pelUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_pelUnit.name}+${_gbv}/+${_gbv}`,'good'); }
-        }});
+        if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_pelUnit,G.allies);
         if(typeof triggerCocatrice==='function') triggerCocatrice(_pelUnit);
       }
     }
-    // ドワーフ：召喚時、最も左の杖に充填+2
+    // ドワーフ：使役時、最も左の杖に充填+3
     if(unit.effect==='dwarf_summon'){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-      const _dc=2+(G.hasGoldenDrop?1:0);
+      const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
       if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
     }
-    // シルフ：使役時、隣接する仲間が+1/+2を得る
+    // シルフ：使役時、隣接するキャラクターの種族が+1/+1を得る
     if(unit.effect==='sylph_summon'){
       const _sli=G.allies.indexOf(unit); const _slv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-      [G.allies[_sli-1],G.allies[_sli+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_slv; b.baseAtk=(b.baseAtk||0)+_slv; b.hp+=_slv*2; b.maxHp+=_slv*2; }});
-      log(`${unit.name}：隣接仲間に+${_slv}/+${_slv*2}`,'good');
+      const races=[...new Set([G.allies[_sli-1],G.allies[_sli+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
+      races.forEach(r=>addRaceBuff(r,_slv,_slv,'ally',unit.name));
     }
-    // インプ：使役時、ランダムなG1アイテムを得る
-    if(unit.effect==='imp_summon'){
-      const _ei=G.spells.indexOf(null);
-      if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${unit.name}：G1アイテムを入手`,'good'); }}
-    }
+    if(unit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(unit);
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
@@ -1346,18 +1395,16 @@ function _applyStack(fieldIdx, rewIdx){
       G.allies[_pei]=_pelUnit;
       log(`${fieldUnit.name}：ペリカン(${_pelG}/${3*_pelG})を盤面に召喚`,'good');
       // グリマルキン（passive）・コカトリス：カード効果召喚バフ
-      const _gd=G.hasGoldenDrop?1:0;
-      G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_pelUnit){
-        if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd; _pelUnit.atk+=_gbv; _pelUnit.baseAtk=(_pelUnit.baseAtk||0)+_gbv; _pelUnit.hp+=_gbv; _pelUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_pelUnit.name}+${_gbv}/+${_gbv}`,'good'); }
-      }});
+      if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_pelUnit,G.allies);
       if(typeof triggerCocatrice==='function') triggerCocatrice(_pelUnit);
     }
   }
   if(fieldUnit.effect==='dwarf_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    const _dcs=2*(fieldUnit._stackCount||0); // 重ね増分（スタック1枚追加分×2）
+    const _dcs=3*(fieldUnit._stackCount||0); // 重ね増分（スタック1枚追加分×3）
     if(_dcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_dcs}`,'good'); }
   }
+  if(fieldUnit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(fieldUnit);
   // slin_summon は削除済み（スリンの新効果は負傷）
   fireTrigger('on_summon', null);
   _rewCards[rewIdx]=null;
@@ -1758,6 +1805,10 @@ function discardRing(idx){
 function renderGradeUpBtn(){
   const el=document.getElementById('rw-grade-up-btn');
   if(!el) return;
+  if(isExperimentalAppearanceMode()){
+    el.style.display='none';
+    return;
+  }
   const count=G.rewardGradeUpCount||0;
   const cost=Math.max(0,(GRADE_UP_COSTS[count]||99)-(G._gradeUpCostBonus||0));
   const maxGrade=4; // 報酬グレードの上限
@@ -1772,6 +1823,11 @@ function renderGradeUpBtn(){
 }
 
 function doGradeUp(){
+  if(isExperimentalAppearanceMode()){
+    log('EXPERIMENTALモードではグレードアップできません','sys');
+    renderGradeUpBtn();
+    return;
+  }
   const count=G.rewardGradeUpCount||0;
   const cost=Math.max(0,(GRADE_UP_COSTS[count]||99)-(G._gradeUpCostBonus||0));
   const maxGrade=4;

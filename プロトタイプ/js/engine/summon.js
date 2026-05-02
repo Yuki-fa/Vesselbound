@@ -12,6 +12,29 @@ function calcActions(){
   return n;
 }
 
+function triggerDraugSummonChoice(unit){
+  if(!unit||unit.effect!=='draug_summon') return;
+  const _draugCands=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.a!==unit&&!(x.a.keywords||[]).includes('毒牙'));
+  if(!_draugCands.length) return;
+  setTimeout(()=>{
+    if(typeof clearSelectable==='function') clearSelectable();
+    if(typeof setHint==='function') setHint(`${unit.name}：毒牙を付与する仲間を選択（右クリックでキャンセル=ランダム）`);
+    const slots=typeof _getAllyDomSlots==='function'?_getAllyDomSlots():[];
+    slots.forEach((slot,i)=>{
+      const cand=_draugCands.find(x=>x.i===i);
+      if(cand&&slot){
+        slot.classList.add('selectable');
+        slot.onclick=()=>{
+          if(typeof clearSelectable==='function') clearSelectable();
+          cand.a.keywords=[...(cand.a.keywords||[]),'毒牙'];
+          log(`${unit.name}：${cand.a.name}に「毒牙」を付与`,'good');
+          if(typeof renderAll==='function') renderAll();
+        };
+      }
+    });
+  },50);
+}
+
 // 隣接する指輪を返す
 function adjacentRings(idx){
   const res=[];
@@ -66,45 +89,21 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef=makeSheetBackedUnitDef({id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''});
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
-  // シルフ：召喚時、隣接する仲間が+1/+2を得る
+  // シルフ：召喚時、隣接するキャラクターの種族が+1/+1を得る
   if(unit.effect==='sylph_summon'){
     const _si=G.allies.indexOf(unit); const _sv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-    [G.allies[_si-1],G.allies[_si+1]].forEach(b=>{ if(b&&b.hp>0){ b.atk+=_sv; b.baseAtk=(b.baseAtk||0)+_sv; b.hp+=_sv*2; b.maxHp+=_sv*2; }});
-    log(`${unit.name}：隣接仲間に+${_sv}/+${_sv*2}`,'good');
+    const races=[...new Set([G.allies[_si-1],G.allies[_si+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
+    races.forEach(r=>addRaceBuff(r,_sv,_sv,'ally',unit.name));
   }
-  // インプ：召喚時、ランダムなG1のアイテムを得る
-  if(unit.effect==='imp_summon'){
-    const _ei=G.spells.indexOf(null);
-    if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${unit.name}：G1アイテムを入手`,'good'); }}
-  }
-  // ドワーフ：召喚時、最も左の杖に充填+2
+  // ドワーフ：召喚時、最も左の杖に充填+3
   if(unit.effect==='dwarf_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    const _dc=2+(G.hasGoldenDrop?1:0);
+    const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
   // ドラウグ：召喚時、対象の別の仲間に「毒牙」を付与（プレイヤー選択）
   if(unit.effect==='draug_summon'){
-    const _draugCands=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&x.a!==unit&&!(x.a.keywords||[]).includes('毒牙'));
-    if(_draugCands.length){
-      setTimeout(()=>{
-        if(typeof clearSelectable==='function') clearSelectable();
-        if(typeof setHint==='function') setHint(`${unit.name}：毒牙を付与する仲間を選択（右クリックでキャンセル=ランダム）`);
-        const slots=typeof _getAllyDomSlots==='function'?_getAllyDomSlots():[];
-        slots.forEach((slot,i)=>{
-          const cand=_draugCands.find(x=>x.i===i);
-          if(cand&&slot){
-            slot.classList.add('selectable');
-            slot.onclick=()=>{
-              if(typeof clearSelectable==='function') clearSelectable();
-              cand.a.keywords=[...(cand.a.keywords||[]),'毒牙'];
-              log(`${unit.name}：${cand.a.name}に「毒牙」を付与`,'good');
-              if(typeof renderAll==='function') renderAll();
-            };
-          }
-        });
-      },50);
-    }
+    triggerDraugSummonChoice(unit);
   }
   // スリン：旧効果（slin_summon）削除済み
   // キメラ：召喚時、ランダムなキーワード3つを得る
@@ -132,6 +131,20 @@ function applyUnitSummonEffect(unit, fromRingId){
 
 // 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
 // fromCharEffect=true の場合はキャラクター効果による召喚（グリマルキン誘発対象）
+function applyGrimalkinSummonBonus(unit, sideUnits, logColor='good'){
+  if(!unit||!sideUnits) return 0;
+  let total=0;
+  sideUnits.forEach(g=>{
+    if(!g||g.hp<=0||g===unit||g.effect!=='grimalkin_passive') return;
+    const gv=(g._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+    unit.hp+=gv;
+    unit.maxHp+=gv;
+    total+=gv;
+    log(`${g.name}：カード効果召喚→${unit.name}±0/+${gv}`,logColor);
+  });
+  return total;
+}
+
 function addAlly(unit, fromRingId, fromCharEffect=false){
   // 報酬フェイズ中は報酬枠へ誘導
   if(G.phase==='reward'&&typeof addRewChar==='function'){ addRewChar(unit); return true; }
@@ -147,15 +160,7 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   }
   // グリマルキン（passive）：カード効果（指輪・キャラ効果どちらも）で召喚された仲間にボーナス
   if(fromCharEffect || fromRingId){
-    const _gd=G.hasGoldenDrop?1:0;
-    G.allies.forEach(g=>{
-      if(g&&g.hp>0&&g!==unit){
-        if(g.effect==='grimalkin_passive'){
-          const _gv=1+_gd; unit.atk+=_gv; unit.baseAtk=(unit.baseAtk||0)+_gv; unit.hp+=_gv; unit.maxHp+=_gv;
-          log(`${g.name}：カード効果召喚→${unit.name}+${_gv}/+${_gv}`,'good');
-        }
-      }
-    });
+    applyGrimalkinSummonBonus(unit,G.allies);
     // コカトリス：自陣・敵陣両方のコカトリスにトリガー（キャラ効果召喚時のみ）
     if(fromCharEffect && typeof triggerCocatrice==='function') triggerCocatrice(unit);
   }

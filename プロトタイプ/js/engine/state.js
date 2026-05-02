@@ -86,6 +86,8 @@ function initState(){
     _specterBonus:0,
     // ── ジャック・オ・ランタン効果：今後のキャラHP補正（累積） ──
     _jackBonus:0,
+    // ── 種族別の今後商談キャラ補正（{種族:{atk,hp}}） ──
+    raceBuffs:{},
     // ── ミノタウロス効果：グレードアップコスト削減（累積） ──
     _gradeUpCostBonus:0,
     // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──

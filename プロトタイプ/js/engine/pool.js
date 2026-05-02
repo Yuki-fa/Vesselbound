@@ -5,6 +5,68 @@
 
 function randUses(){ return 3+Math.floor(Math.random()*4); }
 
+function isExperimentalAppearanceMode(){
+  return typeof CARD_APPEARANCE_MODE!=='undefined'
+    && typeof CARD_APPEARANCE_MODES!=='undefined'
+    && CARD_APPEARANCE_MODE===CARD_APPEARANCE_MODES.EXPERIMENTAL;
+}
+
+function getExperimentalGradeWeights(floor){
+  const f=Math.max(1,Math.floor(floor||G.floor||1));
+  if(f>=15) return [...EXPERIMENTAL_GRADE_WEIGHTS_15_PLUS];
+  return [...(EXPERIMENTAL_GRADE_WEIGHTS[f]||EXPERIMENTAL_GRADE_WEIGHTS[1])];
+}
+
+function getExperimentalFloorGrade(floor){
+  const f=Math.max(1,Math.floor(floor||G.floor||1));
+  if(f<=4) return 1;
+  if(f<=9) return 2;
+  if(f<=14) return 3;
+  return 4;
+}
+
+function getExperimentalRewardCharCount(floor){
+  return 2+getExperimentalFloorGrade(floor);
+}
+
+function rollExperimentalAppearanceGrade(floor){
+  const weights=getExperimentalGradeWeights(floor);
+  const total=weights.reduce((s,w)=>s+w,0);
+  let roll=Math.random()*total;
+  for(let i=0;i<weights.length;i++){
+    roll-=weights[i];
+    if(roll<0) return i+1;
+  }
+  return weights.length;
+}
+
+function _drawExperimentalFromPool(source, n, makeCard){
+  const eligible=source.filter(Boolean);
+  const res=[];
+  const used=new Set();
+  let t=0;
+  while(res.length<n&&eligible.length>0&&t++<600){
+    const grade=rollExperimentalAppearanceGrade(G.floor);
+    let pool=eligible.filter(c=>(c.grade||1)===grade);
+    if(!pool.length) pool=eligible;
+    const def=randFrom(pool);
+    if(used.has(def.id)&&eligible.length>res.length) continue;
+    used.add(def.id);
+    res.push(makeCard(def));
+  }
+  return res;
+}
+
+function applyRaceBuffsToRewardCard(card){
+  if(!card||!card._isChar||!G.raceBuffs) return;
+  Object.entries(G.raceBuffs).forEach(([race,b])=>{
+    if(!(card.race===race||card.race==='全て')) return;
+    const atk=b.atk||0, hp=b.hp||0;
+    if(atk>0){ const _prevAtk=card.atk||0; card.atk=_prevAtk+atk; card.baseAtk=(card.baseAtk!=null?card.baseAtk:_prevAtk)+atk; }
+    if(hp>0){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=hp; card.maxHp=_baseMaxHp+hp; }
+  });
+}
+
 // キャラクターのグレードを階層に応じて決定
 function rollCharGrade(floor){
   if(floor<5)  return 1;
@@ -51,6 +113,31 @@ function getRingPool(){
 // ── キャラクタープールから N 体抽選 ────────────────
 
 function drawCharacters(n){
+  if(isExperimentalAppearanceMode()){
+    const pool=UNIT_POOL.filter(u=>{
+      if(!u.id||u.id==='c_golem') return false;
+      if(u.unique) return false;
+      if(u.rarity===-1) return false;
+      if((u.grade||1)>5) return false;
+      if(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)) return false;
+      return true;
+    });
+    const res=_drawExperimentalFromPool(pool,n,def=>{
+      const card=clone(def);
+      card._isChar=true;
+      card._buyPrice=calcBuyPrice(card);
+      // マミー効果：不死キャラの表示ATKにボーナスを反映（makeUnitFromDef での二重加算を防ぐため _bonusApplied フラグを付ける）
+      if((card.race==='不死'||card.race==='全て')&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
+      // スペクター効果：不死キャラの表示ATK/HPにボーナスを反映
+      if((card.race==='不死'||card.race==='全て')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
+      // ジャック・オ・ランタン効果：全キャラのHP+ボーナスを反映
+      if(G._jackBonus){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=G._jackBonus; card.maxHp=_baseMaxHp+G._jackBonus; }
+      applyRaceBuffsToRewardCard(card);
+      return card;
+    });
+    res.forEach(c=>{ if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
+    return res;
+  }
   // 報酬グレードと一致するグレードのみ出現（ネームドは除外）
   const targetGrade=G.rewardGrade||1;
   const pool=UNIT_POOL.filter(u=>{
@@ -78,6 +165,7 @@ function drawCharacters(n){
     if((card.race==='不死'||card.race==='全て')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
     // ジャック・オ・ランタン効果：全キャラのHP+ボーナスを反映
     if(G._jackBonus){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=G._jackBonus; card.maxHp=_baseMaxHp+G._jackBonus; }
+    applyRaceBuffsToRewardCard(card);
     res.push(card);
   }
   res.forEach(c=>{ if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
@@ -117,6 +205,26 @@ function drawItems(n, maxGrade){
 // ── 報酬 5 枚（キャラ3体 + 杖1 + アイテム1）──────
 
 function _drawByType(type, n, maxGrade){
+  if(isExperimentalAppearanceMode()&&maxGrade==null){
+    const pool=SPELL_POOL.filter(s=>{
+      if(!s.id||s.starterOnly) return false;
+      if(s.rarity===-1) return false;
+      if(s.rarity===4) return false; // rarity4は洞窟ボーナス専用
+      if(s.type!==type) return false;
+      if((s.grade||1)>5) return false;
+      if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return false;
+      if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return false;
+      return true;
+    });
+    const res=_drawExperimentalFromPool(pool,n,def=>{
+      const c=clone(def);
+      if(c.type==='wand'){ const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses()); c.usesLeft=uses; c._maxUses=uses; }
+      c._buyPrice=calcBuyPrice(c);
+      return c;
+    });
+    res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
+    return res;
+  }
   const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
   const pool=[];
   SPELL_POOL.forEach(s=>{
@@ -179,7 +287,7 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
 
 // 祭壇効果①：次の報酬に同種のユニークを1枚含める
 function _applyUniqueSlot(res){
-  const targetGrade=G.rewardGrade||1;
+  const targetGrade=isExperimentalAppearanceMode()?5:(G.rewardGrade||1);
   const allyIds=G.allies.filter(Boolean).map(a=>a.id);
   const uChars=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem'&&u.rarity!==-1&&(u.grade||1)<=targetGrade&&!allyIds.includes(u.id));
   const uWands=SPELL_POOL.filter(s=>s.type==='wand'&&s.unique&&!s.starterOnly&&s.rarity!==-1&&!(G.seenWands&&G.seenWands.includes(s.id)));
@@ -222,7 +330,8 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  const chars=drawCharacters(G.rewardCharCount||3);
+  const charCount=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
+  const chars=drawCharacters(charCount);
   const wand=_drawByType('wand',1)[0]||null;
   const item=_drawByType('consumable',1)[0]||null;
   const res=[...chars];
@@ -243,6 +352,7 @@ function drawCharacterOfGrade(grade){
   const c=clone(def);
   c._isChar=true;
   c._buyPrice=calcBuyPrice(c);
+  applyRaceBuffsToRewardCard(c);
   if(c.rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;
 }

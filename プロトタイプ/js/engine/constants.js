@@ -15,6 +15,34 @@ const MAX_GRADE=6;
 // 報酬カード枚数の上限（ユニーク指輪等で将来拡張できるよう定数で管理）
 const MAX_REWARD_CARDS=6;
 
+// カード出現率モード
+// NORMAL: 既存の報酬グレード上限を使用
+// EXPERIMENTAL: 階層別テーブルでG1〜G5を抽選
+const CARD_APPEARANCE_MODES={
+  NORMAL:'NORMAL',
+  EXPERIMENTAL:'EXPERIMENTAL',
+};
+let CARD_APPEARANCE_MODE=CARD_APPEARANCE_MODES.NORMAL;
+
+const EXPERIMENTAL_GRADE_WEIGHTS=[
+  null,
+  [97.45,0,2,0.5,0.05],
+  [97.45,0,2,0.5,0.05],
+  [50,47.4,2,0.5,0.1],
+  [50,47.35,2,0.5,0.15],
+  [48,49.3,2,0.5,0.2],
+  [45,52.25,2,0.5,0.25],
+  [32,32,35.4,0.5,0.1],
+  [32,32,35.3,0.5,0.2],
+  [30,30,38.75,1,0.25],
+  [28,29,41.65,1,0.35],
+  [24,24,24,27.5,0.5],
+  [23,23,23,30.25,0.75],
+  [22,22,22,32.75,1.25],
+  [21,21,21,34.5,2.5],
+];
+const EXPERIMENTAL_GRADE_WEIGHTS_15_PLUS=[23.75,23.75,23.75,23.75,5];
+
 // 報酬グレードアップ費用（loader.js でシートから上書き）
 const GRADE_UP_COSTS=[8,18,30,45,62];
 

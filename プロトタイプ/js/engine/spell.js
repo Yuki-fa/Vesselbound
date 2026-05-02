@@ -268,15 +268,15 @@ function applySpell(sp,idx,tgt,_noDecrement){
         G.allies[_ei]=_nm;
         log(`${ic.name}：ナイトメア(4/1)を召喚`,'good');
         // グリマルキン（passive）・コカトリス：カード効果召喚バフ
-        { const _gd0=G.hasGoldenDrop?1:0; const _nm2=G.allies[_ei];
-          G.allies.forEach(g=>{ if(g&&g.hp>0&&g!==_nm2){
-            if(g.effect==='grimalkin_passive'){ const _gbv=1+_gd0; _nm2.atk+=_gbv; _nm2.baseAtk=(_nm2.baseAtk||0)+_gbv; _nm2.hp+=_gbv; _nm2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_nm2.name}+${_gbv}/+${_gbv}`,'good'); }
-            if(g.effect==='cocatrice_passive'){ const _cv=2+_gd0; g.hp+=_cv; g.maxHp+=_cv; log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good'); }
-          }});
-        }
+        if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_nm,G.allies);
+        if(typeof triggerCocatrice==='function') triggerCocatrice(_nm);
       }
     });
   }
+
+  // 杖使用トリガーは杖本体の効果処理より先に発動する
+  if(_isWandUse){ onSpellUsed(); onWandUsed(); }
+
   switch(sp.effect){
     case 'fire':{
       const fd=G.magicLevel||1;
@@ -479,7 +479,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'boost':{ const a=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx]; if(a&&a.hp>0){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); if(!_inReward) triggerDryadBuff(); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
-    case 'heal_ally':{ const _jkh=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive')?1+(G.hasGoldenDrop?1:0):0; G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_jkh){ a.maxHp+=_jkh; } a.hp=a.maxHp; } }); log('全仲間HP全回復'+(_jkh?'（ジャッカロープ：最大HP+'+_jkh+'）':''),'good'); break;}
+    case 'heal_ally':{ const _jkh=typeof getJackalopeHpBonus==='function'?getJackalopeHpBonus('ally'):0; G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_jkh){ a.maxHp+=_jkh; } a.hp=a.maxHp; } }); log('全仲間HP全回復'+(_jkh?'（ジャッカロープ：最大HP+'+_jkh+'）':''),'good'); break;}
     case 'seal':{
       if(tgt.who==='rew-char'){ const rc=_rewCards[tgt.idx]; if(rc) log(`${rc.name}：報酬フェイズ中は封印効果なし`,'sys'); }
       else { const su=G.enemies[tgt.idx]; if(su){ su.sealed=1; log(`${su.name} 封印1T`,'good'); } }
@@ -742,9 +742,6 @@ function applySpell(sp,idx,tgt,_noDecrement){
   }
 
   if(sp.type==='consumable') G.spells[idx]=null;
-
-  // 杖使用トリガー
-  if(_isWandUse){ onSpellUsed(); onWandUsed(); }
 
   // 使用回数管理
   if(sp.type==='wand'){

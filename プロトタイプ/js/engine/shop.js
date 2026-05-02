@@ -59,6 +59,8 @@ function doShop(){
   if(bossNotice) bossNotice.style.display='none';
   document.getElementById('rw-gold').textContent=G.gold;
   const rb=document.getElementById('rw-reroll'); if(rb) rb.style.display='none';
+  if(typeof renderCardAppearanceModeDebugButton==='function') renderCardAppearanceModeDebugButton();
+  if(typeof renderRaceBuffSummary==='function') renderRaceBuffSummary();
 
   renderAll();
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定

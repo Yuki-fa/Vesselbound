@@ -95,12 +95,103 @@ function addUnitHp(unit, amount, sideOverride){
   if(!unit||amount<=0) return 0;
   const onAllySide=sideOverride==='ally'||(!sideOverride&&G.allies.includes(unit));
   const onEnemySide=sideOverride==='enemy'||(!sideOverride&&G.enemies.includes(unit));
-  const allyJkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive');
-  const enemyJkb=G.enemies.some(e=>e&&e.hp>0&&e.effect==='jackalope_passive');
-  const _jkb=((onAllySide&&allyJkb)||(onEnemySide&&enemyJkb))?1+(G.hasGoldenDrop?1:0):0;
+  const _jkb=onAllySide?getJackalopeHpBonus('ally'):onEnemySide?getJackalopeHpBonus('enemy'):0;
   const total=amount+_jkb;
   unit.hp+=total; unit.maxHp+=total;
   return total;
+}
+
+function getJackalopeHpBonus(side){
+  const units=side==='enemy'?G.enemies:G.allies;
+  const _gd=side==='ally'&&G.hasGoldenDrop?1:0;
+  return (units||[]).reduce((sum,u)=>{
+    if(!u||u.hp<=0||u.effect!=='jackalope_passive') return sum;
+    return sum+(u._stackCount||0)+1+_gd;
+  },0);
+}
+
+function unitMatchesRace(unit, race){
+  if(!unit||!race) return false;
+  return unit.race===race||unit.race==='全て';
+}
+
+function applyUnitBuff(unit, atk, hp, sideOverride){
+  if(!unit||unit.hp<=0) return {atk:0,hp:0};
+  if(atk>0){
+    unit.atk+=atk;
+    unit.baseAtk=(unit.baseAtk||0)+atk;
+  }
+  const hpDone=hp>0?addUnitHp(unit,hp,sideOverride):0;
+  return {atk:atk||0,hp:hpDone};
+}
+
+function addRaceBuff(race, atk, hp, side='ally', sourceName=''){
+  if(!race) return;
+  if(side==='ally'){
+    if(!G.raceBuffs) G.raceBuffs={};
+    if(!G.raceBuffs[race]) G.raceBuffs[race]={atk:0,hp:0};
+    G.raceBuffs[race].atk+=(atk||0);
+    G.raceBuffs[race].hp+=(hp||0);
+  }
+  const units=side==='enemy'?G.enemies:G.allies;
+  let shownHp=hp||0;
+  (units||[]).forEach(u=>{
+    if(u&&u.hp>0&&unitMatchesRace(u,race)){
+      const done=applyUnitBuff(u,atk||0,hp||0,side);
+      shownHp=done.hp;
+    }
+  });
+  if(side==='ally'&&typeof _rewCards!=='undefined'){
+    (_rewCards||[]).forEach(c=>{
+      if(c&&c._isChar&&c.hp>0&&unitMatchesRace(c,race)){
+        if(atk>0){ const _prevAtk=c.atk||0; c.atk=_prevAtk+atk; c.baseAtk=(c.baseAtk!=null?c.baseAtk:_prevAtk)+atk; }
+        if(hp>0){ const _cm=c.maxHp||c.hp; c.hp+=hp; c.maxHp=_cm+hp; }
+      }
+    });
+  }
+  const prefix=sourceName?`${sourceName}：`:'';
+  const col=side==='enemy'?'bad':'good';
+  log(`${prefix}${race}が+${atk||0}/+${shownHp}`,col);
+  if(typeof renderRaceBuffSummary==='function') renderRaceBuffSummary();
+}
+
+function applyRaceBuffsToUnit(unit, sideOverride){
+  if(!unit||!G.raceBuffs) return;
+  Object.entries(G.raceBuffs).forEach(([race,b])=>{
+    if(!unitMatchesRace(unit,race)) return;
+    applyUnitBuff(unit,b.atk||0,b.hp||0,sideOverride);
+  });
+}
+
+function triggerDeathEffectTriggered(sourceUnit){
+  const isEnemy=sourceUnit&&G.enemies.includes(sourceUnit);
+  const side=isEnemy?'enemy':'ally';
+  const units=isEnemy?G.enemies:G.allies;
+  const col=isEnemy?'bad':'good';
+  (units||[]).forEach(u=>{
+    if(!u||u.hp<=0||u.effect!=='banshee_death_trigger') return;
+    const v=(u._stackCount||0)+2+(!isEnemy&&G.hasGoldenDrop?1:0);
+    if(side==='ally') addRaceBuff('不死',v,0,'ally',u.name);
+    else {
+      (G.enemies||[]).forEach(e=>{ if(e&&e.hp>0&&unitMatchesRace(e,'不死')) applyUnitBuff(e,v,0,'enemy'); });
+      log(`${u.name}：死亡効果発動→敵の不死+${v}/±0`,col);
+    }
+  });
+}
+
+function triggerInjuryEffectTriggered(unit){
+  const isEnemy=unit&&G.enemies.includes(unit);
+  const side=isEnemy?'enemy':'ally';
+  const units=isEnemy?G.enemies:G.allies;
+  (units||[]).forEach(s=>{
+    if(!s||s.hp<=0||s.effect!=='slin_injury_aura') return;
+    const v=(s._stackCount||0)+1+(!isEnemy&&G.hasGoldenDrop?1:0);
+    if(side==='ally') addRaceBuff('竜',0,v,'ally',s.name);
+    else {
+      (G.enemies||[]).forEach(e=>{ if(e&&e.hp>0&&unitMatchesRace(e,'竜')) applyUnitBuff(e,0,v,'enemy'); });
+      log(`${s.name}：負傷効果発動→敵の竜±0/+${v}`,'bad');
+    }
+  });
 }
 
 // ── 戦力スコア計算 ────────────────────────────
@@ -897,15 +988,15 @@ function _applyAllyAttackEffects(ally){
     if(_liveEs.length>0){
       const _lowest=_liveEs.reduce((a,b)=>a.e.hp<b.e.hp?a:b);
       const _fireDmg=G.magicLevel||1;
-      dealDmgToEnemy(_lowest.e,_fireDmg,_lowest.i,ally);
-      log(`🐎 ${ally.name}：攻撃→${_lowest.e.name}に炎の杖(${_fireDmg}ダメ)を使用`,'good');
       // 炎の杖トリガー（杖使用誘発：ヘルハウンド・コボルド・ダークワン等）
       if(typeof onSpellUsed==='function') onSpellUsed();
       if(typeof onWandUsed==='function') onWandUsed();
+      dealDmgToEnemy(_lowest.e,_fireDmg,_lowest.i,ally);
+      log(`🐎 ${ally.name}：攻撃→${_lowest.e.name}に炎の杖(${_fireDmg}ダメ)を使用`,'good');
     }
   }
   if(ally.effect==='brownie_attack'){
-    const _base=_sc+_gd; let _hpGain=_base;
+    const _base=2*_sc+_gd; let _hpGain=_base;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _hpGain=addUnitHp(a,_base); });
     log(`${ally.name}：攻撃時→全仲間±0/+${_hpGain}`,'good');
   }
@@ -920,14 +1011,11 @@ function _applyAllyAttackEffects(ally){
     log(`${ally.name}：攻撃→全不死+${va}/+${_vh}`,'good');
   }
   if(ally.effect==='gremlin_attack'){
-    const _gmv=_sc+_gd;
-    G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk=Math.max(0,e.atk-_gmv); e.baseAtk=Math.max(0,(e.baseAtk||0)-_gmv); }});
-    log(`${ally.name}：攻撃→全敵-${_gmv}/±0`,'good');
+    // 新仕様では負傷効果
   }
   if(ally.effect==='jack_attack'){
-    const _jnums=[...(ally.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-    const _jv=(_jnums[0]||1)*_sc+(G.hasGoldenDrop?1:0); G._jackBonus=(G._jackBonus||0)+_jv;
-    log(`${ally.name}：攻撃→今後のキャラ±0/+${_jv}（累計+${G._jackBonus}）`,'good');
+    const _jv=_sc+(G.hasGoldenDrop?1:0);
+    addRaceBuff('精霊',0,_jv,'ally',ally.name);
   }
   // arachas_attack（旧効果）は廃止（新仕様：負傷時に敵後衛へ1ダメ）
   if(ally.effect==='dryad_attack'){
@@ -945,8 +1033,7 @@ function _applyAllyAttackEffects(ally){
     if(_rightmost){ const _pv=4*_sc+_gd; _rightmost.hp+=_pv; _rightmost.maxHp+=_pv; log(`${ally.name}：攻撃→右端の${_rightmost.name}に±0/+${_pv}`,'good'); }
   }
   if(ally.effect==='lizardman_attack'){
-    const _lv=_sc+_gd; ally.atk+=_lv; ally.baseAtk=(ally.baseAtk||0)+_lv;
-    log(`${ally.name}：攻撃時+${_lv}/±0`,'good');
+    // 新仕様では負傷効果
   }
   if(ally.effect==='specter_attack'){
     const _sv=_sc+_gd;
@@ -975,12 +1062,11 @@ function _applyEnemyAttackEffects(enemy){
     log(`${enemy.name}：攻撃時→全仲間+1/±0`,'bad');
   }
   if(enemy.effect==='gremlin_attack'){
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk=Math.max(0,a.atk-1); a.baseAtk=Math.max(0,(a.baseAtk||0)-1); }});
-    log(`${enemy.name}：攻撃→全仲間-1/±0`,'bad');
+    // 新仕様では負傷効果
   }
   if(enemy.effect==='brownie_attack'){
-    G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=1; f.maxHp+=1; }});
-    log(`${enemy.name}：攻撃時→全仲間±0/+1`,'bad');
+    G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=2; f.maxHp+=2; }});
+    log(`${enemy.name}：攻撃時→全仲間±0/+2`,'bad');
   }
   // arachas_attack（旧効果）は廃止
   if(enemy.effect==='vampire_attack'){
@@ -1002,8 +1088,7 @@ function _applyEnemyAttackEffects(enemy){
     if(_rightmost){ _rightmost.hp+=4; _rightmost.maxHp+=4; log(`${enemy.name}：攻撃→右端の${_rightmost.name}に±0/+4`,'bad'); }
   }
   if(enemy.effect==='lizardman_attack'){
-    enemy.atk+=1; enemy.baseAtk=(enemy.baseAtk||0)+1;
-    log(`${enemy.name}：攻撃時+1/±0`,'bad');
+    // 新仕様では負傷効果
   }
   if(enemy.effect==='specter_attack'){
     G._enemySpecterBonus=(G._enemySpecterBonus||0)+1;
@@ -1339,6 +1424,11 @@ function processAllyDeath(unit){
       _wrCopy.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,x,ei); });
       log(`${unit.name}：死亡→全ての敵に${x}ダメ`,'good');
     }
+    triggerDeathEffectTriggered(unit);
+  }
+  if(unit.effect==='zombie_end'||unit.effect==='zombie_death'){
+    addRaceBuff('不死',2+(G.hasGoldenDrop?1:0),1+(G.hasGoldenDrop?1:0),'ally',unit.name);
+    triggerDeathEffectTriggered(unit);
   }
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
   if(unit.effect==='skeleton_bone'){
@@ -1355,11 +1445,12 @@ function processAllyDeath(unit){
       G.allies[_boneSlot]=_boneUnit;
       log(`${unit.name}：死亡→骨(0/${_boneHp})を召喚`,'good');
       // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-      { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_boneUnit){ const _gbv=1+_gd0; _boneUnit.atk+=_gbv; _boneUnit.baseAtk=(_boneUnit.baseAtk||0)+_gbv; _boneUnit.hp+=_gbv; _boneUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_boneUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+      if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_boneUnit,G.allies);
       // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
       if(typeof triggerCocatrice==='function') triggerCocatrice(_boneUnit);
       checkSolitudeBuff();
     }
+    triggerDeathEffectTriggered(unit);
   }
   // ソウルボム（アルプ負傷）：死亡時、仲間全員にダメージ
   if(unit.effect==='soul_bomb_death'){
@@ -1367,6 +1458,7 @@ function processAllyDeath(unit){
     const _sbCopy=[...G.allies];
     _sbCopy.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,_sbdmg,ai,unit); });
     log(`${unit.name}：死亡→仲間全員に${_sbdmg}ダメ`,'bad');
+    triggerDeathEffectTriggered(unit);
   }
   // ファントム：アク以外の仲間が死んだ時、0/1不死の「アク」を召喚
   if(unit.name!=='アク'){
@@ -1379,35 +1471,19 @@ function processAllyDeath(unit){
         G.allies[empty]=_akUnit;
         log(`${ph.name}：${unit.name}の死→アク(0/1)を召喚`,'good');
         // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-        { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_akUnit){ const _gbv=1+_gd0; _akUnit.atk+=_gbv; _akUnit.baseAtk=(_akUnit.baseAtk||0)+_gbv; _akUnit.hp+=_gbv; _akUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_akUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+        if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_akUnit,G.allies);
         // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
         if(typeof triggerCocatrice==='function') triggerCocatrice(_akUnit);
         checkSolitudeBuff();
       }
     });
   }
-  // マミー：死亡時、宝箱（杖かアイテム）を落とす
+  // マミー：死亡時、3ソウルを得る
   if(unit.effect==='mummy_death'&&!G._isSimulating){
-    const _mGrade=FLOOR_DATA[G.floor]?.grade||1;
-    // 杖50% / 消耗品50%（指輪は出ない）
-    const _mItem=drawTreasure({1:60,2:30,3:10},{wand:50,consumable:50,ring:0},_mGrade);
-    if(_mItem){
-      const _mType=_mItem.type==='wand'?'chest_wand':'chest_item';
-      // 自スロットに種別マスを置く（マミーは自陣・敵陣どちらでも自分のスロットに）
-      const _mSide=G.allies.indexOf(unit)>=0?'ally':(G.enemies.indexOf(unit)>=0?'enemy':null);
-      const _mIdx=_mSide==='ally'?G.allies.indexOf(unit):(_mSide==='enemy'?G.enemies.indexOf(unit):-1);
-      if(_mSide==='enemy'&&_mIdx>=0&&!G.moveMasks[_mIdx]){
-        G.moveMasks[_mIdx]=_mType;
-        G._pendingEliteTreasureItem=_mItem;
-        G._pendingTreasure=true;
-        log(`📦 ${unit.name}（敵）が宝箱（${NODE_TYPES[_mType]?.label||'?'}）を残した`,'gold');
-      } else {
-        // 仲間側 or マスが置けない場合は報酬欄に追加（仕様：仲間側にも落ちる）
-        if(!G._pendingTreasureItems) G._pendingTreasureItems=[];
-        G._pendingTreasureItems.push(_mItem);
-        log(`📦 ${unit.name}が宝箱（${_mItem.type==='wand'?'杖':'アイテム'}）を落とした！`,'gold');
-      }
-    }
+    const mv=3+(G.hasGoldenDrop?1:0);
+    onGoldGained(mv);
+    log(`${unit.name}：死亡→ソウル+${mv}`,'gold');
+    triggerDeathEffectTriggered(unit);
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath();
@@ -1453,10 +1529,7 @@ function triggerInjury(unit, dmg=0){
   const rgDef=makeSheetBackedUnitDef({id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true});
   switch(unit.injury){
     case 'slin':{
-      const _snums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const _slv=(_snums[0]||2)+(G.hasGoldenDrop?1:0);
-      unit.hp+=_slv; unit.maxHp+=_slv;
-      log(`${unit.name}：負傷→±0/+${_slv}`,col);
+      // 新仕様では常在効果（slin_injury_aura）に移行
       break;
     }
     case 'freyr':{
@@ -1472,7 +1545,7 @@ function triggerInjury(unit, dmg=0){
         log(`${unit.name}：ストーンキャット(4/6+反撃)を召喚`,col);
         if(!isEnemy){
           // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-          { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_freyrUnit){ const _gbv=1+_gd0; _freyrUnit.atk+=_gbv; _freyrUnit.baseAtk=(_freyrUnit.baseAtk||0)+_gbv; _freyrUnit.hp+=_gbv; _freyrUnit.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_freyrUnit.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+          if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_freyrUnit,G.allies);
           checkSolitudeBuff();
         }
         if(typeof triggerCocatrice==='function') triggerCocatrice(_freyrUnit);
@@ -1511,12 +1584,17 @@ function triggerInjury(unit, dmg=0){
           G.allies[ei]=_nc;
           log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,'good');
           // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-          { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_nc){ const _gbv=1+_gd0; _nc.atk+=_gbv; _nc.baseAtk=(_nc.baseAtk||0)+_gbv; _nc.hp+=_gbv; _nc.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_nc.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+          if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_nc,G.allies);
           checkSolitudeBuff();
         }
       } else {
         const ei=ownSide.findIndex(a=>!a||a.hp<=0);
-        if(ei>=0){ ownSide[ei]=makeUnitFromDef(def); log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,col); }
+        if(ei>=0){
+          const _nc=makeUnitFromDef(def);
+          ownSide[ei]=_nc;
+          log(`${unit.name}：ナイトキャット(${_ncAtk}/${_ncHp})を召喚`,col);
+          if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_nc,ownSide,col);
+        }
       }
       break;
     }
@@ -1541,29 +1619,18 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'arachas':{
-      // 全ての敵の後衛に1ダメージ
-      const _anums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const _admg=(_anums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
-      oppSide.forEach((u,i)=>{
-        if(!u||u.hp<=0||u._isObject) return;
-        if((u.lane||'front')!=='rear') return;
-        if(isEnemy) dealDmgToAlly(u,_admg,i,unit);
+      const _admg=1+(!isEnemy&&G.hasGoldenDrop?1:0);
+      [...G.allies,...G.enemies].forEach(u=>{
+        if(!u||u.hp<=0||u._isObject||u===unit) return;
+        const i=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
+        if(G.allies.includes(u)) dealDmgToAlly(u,_admg,i,unit);
         else dealDmgToEnemy(u,_admg,i,unit);
       });
-      log(`${unit.name}：負傷→全ての敵後衛に${_admg}ダメ`,col);
+      log(`${unit.name}：負傷→自身以外の全キャラに${_admg}ダメ`,col);
       break;
     }
     case 'banshee':{
-      // 「バンシー」以外の全キャラに1ダメ
-      const _bnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const _bdmg=(_bnums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
-      [...G.allies,...G.enemies].forEach(u=>{
-        if(!u||u.hp<=0||u===unit) return;
-        const _bi=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
-        if(G.allies.includes(u)) dealDmgToAlly(u,_bdmg,_bi,unit);
-        else dealDmgToEnemy(u,_bdmg,_bi,unit);
-      });
-      log(`${unit.name}：負傷→全キャラに${_bdmg}ダメ`,col);
+      // 新仕様では死亡効果誘発（banshee_death_trigger）に移行
       break;
     }
     case 'warg':{
@@ -1628,6 +1695,27 @@ function triggerInjury(unit, dmg=0){
       break;
     }
   }
+  if(unit.effect==='gremlin_attack'){
+    const oppHand=isEnemy?G.spells:G.bossHand;
+    const oppRings=isEnemy?G.rings:G.bossRings;
+    const cards=[];
+    (oppHand||[]).forEach((c,i)=>{ if(c) cards.push({arr:oppHand,i,c}); });
+    (oppRings||[]).forEach((c,i)=>{ if(c) cards.push({arr:oppRings,i,c}); });
+    if(cards.length){
+      const pick=randFrom(cards);
+      pick.arr[pick.i]=null;
+      if(isEnemy) log(`${unit.name}：負傷→${pick.c.name}を破壊`,'bad');
+      else { onGoldGained(1); log(`${unit.name}：負傷→${pick.c.name}を破壊しソウル+1`,'good'); }
+    } else if(!isEnemy){ onGoldGained(1); log(`${unit.name}：負傷→破壊対象なし、ソウル+1`,'good'); }
+  }
+  if(unit.effect==='lizardman_attack'){
+    const v=(unit._stackCount||0)+1+(!isEnemy&&G.hasGoldenDrop?1:0);
+    if(isEnemy){
+      G.enemies.forEach(e=>{ if(e&&e.hp>0&&unitMatchesRace(e,'竜')) applyUnitBuff(e,v,0,'enemy'); });
+      log(`${unit.name}：負傷→敵の竜+${v}/±0`,'bad');
+    } else addRaceBuff('竜',v,0,'ally',unit.name);
+  }
+  triggerInjuryEffectTriggered(unit);
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
     const _lv=1+(G.hasGoldenDrop?1:0);
@@ -1764,6 +1852,13 @@ function onBattleStart(){
           log(`${e.name}：ボスと対戦→行動回数+1`,'bad');
         }
         break;
+      case 'imp_summon':{
+        const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
+        if(_item&&typeof addEnemyHandItem==='function'&&addEnemyHandItem(_item)){
+          log(`${e.name}：開戦→敵オーナーがG1アイテムを入手`,'bad');
+        }
+        break;
+      }
     }
   });
   // 結束X（敵側）
@@ -1795,6 +1890,10 @@ function onBattleStart(){
           G._gradeUpCostBonus=(G._gradeUpCostBonus||0)+_mg;
           log(`${a.name}：グレードアップコスト-${_mg}（累計-${G._gradeUpCostBonus}）`,'good'); }
         break;
+      case 'imp_summon':
+        { const _ei=G.spells.indexOf(null);
+          if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${a.name}：開戦→G1アイテムを入手`,'good'); } } }
+        break;
       case 'homunculus_start':
         { const _races=new Set(G.allies.filter(b=>b&&b.hp>0&&b!==a&&b.race&&b.race!=='-'&&b.race!=='全て').map(b=>b.race));
           const _hx=_races.size+1+(G.hasGoldenDrop?1:0); // +1 for ホムンクルス自身の種族（「全て」として1カウント）
@@ -1823,11 +1922,8 @@ function onBattleStart(){
             G.allies[_ggi]=_ggUnit2;
             log(`${a.name}：ゴールデンエッグ(0/${_ggHp})を召喚`,'good');
             // グリマルキン（passive）：カード効果で召喚された仲間が+1/+1
-            { const _gd0=G.hasGoldenDrop?1:0; G.allies.forEach(g=>{ if(g&&g.hp>0&&g.effect==='grimalkin_passive'&&g!==_ggUnit2){ const _gbv=1+_gd0; _ggUnit2.atk+=_gbv; _ggUnit2.baseAtk=(_ggUnit2.baseAtk||0)+_gbv; _ggUnit2.hp+=_gbv; _ggUnit2.maxHp+=_gbv; log(`${g.name}：カード効果召喚→${_ggUnit2.name}+${_gbv}/+${_gbv}`,'good'); }}); }
+            if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(_ggUnit2,G.allies);
             if(typeof triggerCocatrice==='function') triggerCocatrice(_ggUnit2);
-            // コカトリス：キャラクター効果で召喚されるとコカトリス自身が+1/+1を得る
-            { const _ggU=G.allies[_ggi]; const _gd=G.hasGoldenDrop?1:0;
-              if(typeof triggerCocatrice==='function') triggerCocatrice(_ggU); }
             checkSolitudeBuff();
           } }
         break;
@@ -1940,14 +2036,7 @@ function onBattleEnd(){
     const _gv=2+(G.hasGoldenDrop?1:0);
     G.gold+=_gv; log(`${a.name}：終戦→ソウル+${_gv}`,'gold');
   });
-  // ゾンビ：戦闘終了時、ライフが9になる
-  G.allies.forEach(a=>{
-    if(!a||a.hp<=0||a.effect!=='zombie_end') return;
-    const _znums=[...(a.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-    const zv=(_znums[0]||9)+(G.hasGoldenDrop?1:0);
-    a.hp=zv; a.maxHp=Math.max(a.maxHp,zv);
-    log(`${a.name}：終戦→ライフが${zv}になった`,'good');
-  });
+  // ゾンビの旧終戦効果は廃止（新仕様：死亡時に不死+2/+1）
 
   // 絆の指輪：一時付与した「結束X」キーワードを削除
   G.allies.forEach(a=>{ if(a&&a._bondKw){ a.keywords=(a.keywords||[]).filter(k=>k!==a._bondKw); delete a._bondKw; }});
@@ -2230,6 +2319,7 @@ function processEnemyDeath(e,eIdx){
     const _sbCopy=[...G.enemies];
     _sbCopy.forEach((f,fi)=>{ if(f&&f.hp>0&&f!==e) dealDmgToEnemy(f,_sbdmg,fi,e); });
     log(`${e.name}：死亡→敵全員に${_sbdmg}ダメ`,'good');
+    triggerDeathEffectTriggered(e);
   }
   // レイス（敵）：死亡時、全ての味方（プレイヤー側）にATKダメージを与える
   if(e.effect==='wraith_death'){
@@ -2239,6 +2329,16 @@ function processEnemyDeath(e,eIdx){
       _wrCopy.forEach((a,ai)=>{ if(a&&a.hp>0) dealDmgToAlly(a,x,ai,e); });
       log(`${e.name}：死亡→全ての味方に${x}ダメ`,'bad');
     }
+    triggerDeathEffectTriggered(e);
+  }
+  if(e.effect==='zombie_end'||e.effect==='zombie_death'){
+    G.enemies.forEach(f=>{ if(f&&f.hp>0&&unitMatchesRace(f,'不死')) applyUnitBuff(f,2,1,'enemy'); });
+    log(`${e.name}：死亡→敵の不死+2/+1`,'bad');
+    triggerDeathEffectTriggered(e);
+  }
+  if(e.effect==='mummy_death'){
+    log(`${e.name}：死亡→敵オーナーにソウル+3相当`,'bad');
+    triggerDeathEffectTriggered(e);
   }
   // スケルトン（敵）：死亡時、骨を敵陣に召喚
   if(e.effect==='skeleton_bone'){
@@ -2256,6 +2356,7 @@ function processEnemyDeath(e,eIdx){
       log(`${e.name}：死亡→骨(0/${_boneHp})を召喚`,'bad');
       if(typeof triggerCocatrice==='function') triggerCocatrice(_boneEnemy);
     }
+    triggerDeathEffectTriggered(e);
   }
   // ファントム（敵）：仲間（敵）が死亡したとき、アクを召喚
   G.enemies.forEach(ph=>{

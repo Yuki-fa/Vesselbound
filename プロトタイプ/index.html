@@ -512,8 +512,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-bd);font-size
     <div id="reward-info-bar" class="reward-info-bar" style="display:none">
       <span class="ri-soul">ソウル</span><span class="ri-val" id="rw-gold">0</span>
       <span class="ri-soul" style="margin-left:6px">報酬 <span id="rw-count">3</span>枚</span>
+      <span id="rw-race-buffs" style="margin-left:10px;font-size:.72rem;color:var(--teal2);white-space:nowrap"></span>
       <span id="rw-power-rating" style="margin-left:10px;font-size:.72rem;white-space:nowrap"></span>
       <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto;display:none">リロール（1ソウル）</button>
+      <button class="btn tiny" id="rw-appearance-mode" onclick="toggleCardAppearanceModeDebug()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">出現率: NORMAL</button>
       <button class="btn tiny" id="rw-grade-up-btn" onclick="doGradeUp()" style="display:none;border-color:var(--teal);color:var(--teal2);margin-left:4px">グレードアップ</button>
       <button class="btn tiny" id="arcana-btn" onclick="useArcana()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">秘術</button>
       <div id="arcana-passive-info" style="display:none;width:100%;margin-top:4px;font-size:.66rem;color:var(--teal2)"></div>

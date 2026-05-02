@@ -9,28 +9,28 @@ const UNIT_POOL = [
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'誘発：このキャラクターを還魂すると、魔術レベルが+1される。', effect:'mermaid_sell'},
   {id:'c_skeleton',   name:'スケルトン',       race:'不死', grade:1, atk:6,  hp:1,  cost:3,  unique:false, icon:'💀', desc:'誘発：このキャラクターが死亡した場合、0/4、種族なしの「骨」を召喚する。', effect:'skeleton_bone'},
-  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'終戦：ライフが9になる。',                      effect:'zombie_end'},
+  {id:'c_zombie',     name:'ゾンビ',           race:'不死', grade:1, atk:4,  hp:7,  cost:3,  unique:false, icon:'🧟', desc:'死亡：「不死」が+2/+1を得る。',                      effect:'zombie_death'},
   {id:'c_kettcat',    name:'ケットシー',       race:'獣',   grade:1, atk:3,  hp:6,  cost:3,  unique:false, icon:'🐱', desc:'負傷：最も左の空き地に1/2、獣の「ナイトキャット」を召喚する。', injury:'kettcat'},
-  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'常時：カードの効果で召喚された仲間が+1/+1を得る。', effect:'grimalkin_passive'},
+  {id:'c_grimalkin',  name:'グリマルキン',     race:'獣',   grade:1, atk:3,  hp:7,  cost:3,  unique:false, icon:'😼', desc:'使役：カードの効果で召喚される仲間のライフが+1される。', effect:'grimalkin_passive'},
   {id:'c_elf',        name:'エルフ',           race:'精霊', grade:1, atk:4,  hp:9,  cost:5,  unique:false, icon:'🧝', desc:'常在：右隣のキャラクターの攻撃効果は2回発動する。', effect:'elf_double_right'},
-  {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間が±0/+1を得る。',       effect:'brownie_attack'},
-  {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
+  {id:'c_brownie',    name:'ブラウニー',       race:'精霊', grade:1, atk:2,  hp:12, cost:4,  unique:false, icon:'🍄', desc:'攻撃：全ての仲間のライフが+2される。',       effect:'brownie_attack'},
+  {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'開戦：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
-  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'使役：左端の杖に+2チャージする。', effect:'dwarf_summon'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'死亡：宝箱を落とす。（この効果では仲間側にも落ちる）', effect:'mummy_death'},
-  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'攻撃：全ての敵が-1/±0を得る。', effect:'gremlin_attack'},
-  {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：以後、商談フェイズに現れるキャラクターが±0/+1を得る。', effect:'jack_attack'},
-  {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃　攻撃：+1/±0を得る。',             counter:true, effect:'lizardman_attack', keywords:['反撃']},
+  {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'使役：左端の杖に+3チャージする。', effect:'dwarf_summon'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'死亡：3ソウルを得る。', effect:'mummy_death'},
+  {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'負傷：相手オーナーのインベントリのカードを破壊し、1ソウルを得る。', effect:'gremlin_attack', injury:'gremlin'},
+  {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：「精霊」のライフが+1される。', effect:'jack_attack'},
+  {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'反撃　負傷：「竜」のパワーが+1される。',             counter:true, effect:'lizardman_attack', injury:'lizardman', keywords:['反撃']},
   {id:'c_lamia',      name:'ラミア',           race:'亜人', grade:1, atk:4,  hp:12, cost:4,  unique:false, icon:'🐍', desc:'終戦：魔術レベルが3以下の場合、魔術レベルが+1される。', effect:'lamia_end'},
   {id:'c_mitera',     name:'ミテーラ',         race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🦤', desc:'使役：最も左の空き地に1/3、獣の「ペリカン」を召喚する。', effect:'mitera_summon'},
-  {id:'c_jackalope',  name:'ジャッカロープ',   race:'獣',   grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'🐰', desc:'常在：味方が得るライフは+1される。', effect:'jackalope_passive'},
+  {id:'c_jackalope',  name:'ジャッカロープ',   race:'獣',   grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'🐰', desc:'常在：ライフへのバフは+1される。', effect:'jackalope_passive'},
   {id:'c_pigmy',      name:'ピグミー',         race:'亜人', grade:1, atk:1,  hp:8,  cost:3,  unique:false, icon:'🏹', desc:'常時：このキャラクターのパワーは魔術レベルに等しい。', effect:'pigmy_magic', counter:true, keywords:['反撃']},
-  {id:'c_banshee',    name:'バンシー',         race:'不死', grade:1, atk:4,  hp:8,  cost:3,  unique:false, icon:'🙀', desc:'負傷：「バンシー」以外の全てのキャラクターに1ダメージを与える。', injury:'banshee'},
-  {id:'c_sylph',      name:'シルフ',           race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🌬️', desc:'使役：隣接する仲間が+1/+2を得る。', effect:'sylph_summon'},
+  {id:'c_banshee',    name:'バンシー',         race:'不死', grade:1, atk:4,  hp:8,  cost:3,  unique:false, icon:'🙀', desc:'誘発：死亡効果が発動すると「不死」のパワーが+2される。', effect:'banshee_death_trigger'},
+  {id:'c_sylph',      name:'シルフ',           race:'精霊', grade:1, atk:3,  hp:9,  cost:3,  unique:false, icon:'🌬️', desc:'使役：隣接するキャラクターの種族が+1/+1を得る。', effect:'sylph_summon'},
   {id:'c_incubus',    name:'インキュバス',     race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'誘発：アイテムを使用するたび、最も左の空き地に3/1、悪魔の「ナイトメア」を召喚する。', effect:'incubus_spell'},
   {id:'c_lesser_demon',name:'レッサーデーモン',race:'悪魔', grade:1, atk:5,  hp:10, cost:3,  unique:false, icon:'👿', desc:'攻撃：次に購入するアイテムの価格が1下がる。', effect:'lesser_demon_attack'},
-  {id:'c_arachas',    name:'アラッサス',       race:'竜',   grade:1, atk:4,  hp:10, cost:3,  unique:false, icon:'🦂', desc:'負傷：全ての敵の後衛に1ダメージを与える。', injury:'arachas', keywords:['毒牙']},
-  {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'負傷：±0/+2を得る。', injury:'slin'},
+  {id:'c_arachas',    name:'アラッサス',       race:'竜',   grade:1, atk:4,  hp:10, cost:3,  unique:false, icon:'🦂', desc:'負傷：「アラッサス」以外の全てのキャラクターに1ダメージを与える。', injury:'arachas', keywords:['毒牙']},
+  {id:'c_slin',       name:'スリン',           race:'亜人', grade:1, atk:2,  hp:10, cost:4,  unique:false, icon:'🌿', desc:'常在：負傷効果が発動すると「竜」のライフが+1される。', effect:'slin_injury_aura'},
   {id:'c_goblin',     name:'ゴブリン',         race:'亜人', grade:1, atk:4,  hp:8,  cost:2,  unique:false, icon:'👺', desc:''},
   {id:'c_orc',        name:'オーク',           race:'亜人', grade:1, atk:5,  hp:12, cost:3,  unique:false, icon:'🪓', desc:'', counter:true, keywords:['反撃']},
   {id:'c_ghoul',      name:'グール',           race:'不死', grade:1, atk:5,  hp:9,  cost:2,  unique:false, icon:'🧟', desc:''},
@@ -165,6 +165,11 @@ function makeSheetBackedUnitDef(fallback){
   if(!sheet) return fb;
   const sheetCopy={...sheet};
   if(sheet.keywords) sheetCopy.keywords=[...sheet.keywords];
+  ['atk','hp'].forEach(k=>{
+    if((sheetCopy[k]===undefined||sheetCopy[k]===null||Number(sheetCopy[k])<=0)&&fb[k]!==undefined){
+      sheetCopy[k]=fb[k];
+    }
+  });
   const merged={...fb,...sheetCopy};
   // 内部処理に必要なキーは、シート側に未定義なら既定値を残す。
   ['effect','injury','counter','shield','hate','hateTurns','lane','onDeath'].forEach(k=>{
