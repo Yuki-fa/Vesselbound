@@ -41,9 +41,11 @@ function onGoldGained(amount){
     const _lepUnit=G.allies.find(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
     const _lepNums=[...((_lepUnit&&_lepUnit.desc)||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
     const _lv=(_lepNums[0]||1)+_gd;
-    G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_lv; a.maxHp+=_lv; }});
-    G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.hp+=_lv; e.maxHp+=_lv; }});
-    log(`レプラコーン：ソウル獲得→全キャラ±0/+${_lv}`,'good');
+    let _allyLv=_lv, _enemyLv=_lv;
+    G.allies.forEach(a=>{ if(a&&a.hp>0) _allyLv=addUnitHp(a,_lv,'ally'); });
+    G.enemies.forEach(e=>{ if(e&&e.hp>0) _enemyLv=addUnitHp(e,_lv,'enemy'); });
+    const _jkbNote=_allyLv!==_lv||_enemyLv!==_lv?`（味方+${_allyLv}/敵+${_enemyLv}）`:'';
+    log(`レプラコーン：ソウル獲得→全キャラ±0/+${_lv}${_jkbNote}`,'good');
   }
 }
 
@@ -96,8 +98,7 @@ function addUnitHp(unit, amount, sideOverride){
   const allyJkb=G.allies.some(a=>a&&a.hp>0&&a.effect==='jackalope_passive');
   const enemyJkb=G.enemies.some(e=>e&&e.hp>0&&e.effect==='jackalope_passive');
   const _jkb=((onAllySide&&allyJkb)||(onEnemySide&&enemyJkb))?1+(G.hasGoldenDrop?1:0):0;
-  const _gargHp=unit.effect==='gargoyle_bonus'?1:0;
-  const total=amount+_jkb+_gargHp;
+  const total=amount+_jkb;
   unit.hp+=total; unit.maxHp+=total;
   return total;
 }
@@ -1010,6 +1011,26 @@ function _applyEnemyAttackEffects(enemy){
   }
 }
 
+function _applyAllyAttackEffectsWithElf(ally){
+  if(!ally||ally.hp<=0) return;
+  _applyAllyAttackEffects(ally);
+  const idx=G.allies.indexOf(ally);
+  if(idx>0){
+    const elf=G.allies[idx-1];
+    if(elf&&elf.hp>0&&elf.effect==='elf_double_right') _applyAllyAttackEffects(ally);
+  }
+}
+
+function _applyEnemyAttackEffectsWithElf(enemy){
+  if(!enemy||enemy.hp<=0) return;
+  _applyEnemyAttackEffects(enemy);
+  const idx=G.enemies.indexOf(enemy);
+  if(idx>0){
+    const elf=G.enemies[idx-1];
+    if(elf&&elf.hp>0&&elf.effect==='elf_double_right') _applyEnemyAttackEffects(enemy);
+  }
+}
+
 // 攻撃ターゲットを決定する
 function getAttackTarget(attacker, targets){
   const live=targets.filter(u=>u&&u.hp>0&&!u._isObject); // オブジェクトは攻撃対象から除外
@@ -1062,12 +1083,7 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
 
   // 攻撃時効果（ダメージを与える前に発動）
-  if(ally.hp>0) _applyAllyAttackEffects(ally);
-  // エルフ（常在）：右隣キャラの攻撃効果を2回発動
-  if(ally.hp>0){
-    const _elfI=G.allies.indexOf(ally);
-    if(_elfI>0){const _elf=G.allies[_elfI-1];if(_elf&&_elf.hp>0&&_elf.effect==='elf_double_right') _applyAllyAttackEffects(ally);}
-  }
+  if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け
   const attackTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
@@ -1104,7 +1120,7 @@ async function allyAttackAction(ally, allyIdx){
       if(hitSlot) hitSlot.classList.remove('glow-red');
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
-      if(ally.hp>0) _applyAllyAttackEffects(ally);
+      if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
       dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
       log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
     }
@@ -1161,12 +1177,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(enemy.nullified>0) enemy.nullified--;
 
   // 攻撃時効果（フォルニョート等、敵陣営版）
-  if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffects(enemy);
-  // エルフ（常在・敵）：右隣敵の攻撃効果を2回発動
-  if(atkVal>0&&enemy.hp>0){
-    const _elfEI=G.enemies.indexOf(enemy);
-    if(_elfEI>0){const _elfE=G.enemies[_elfEI-1];if(_elfE&&_elfE.hp>0&&_elfE.effect==='elf_double_right') _applyEnemyAttackEffects(enemy);}
-  }
+  if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け（三方向攻撃：隣接3スロット、隠密は除外）
   const _triAIdxs=isTriDirAtk?[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth):[];
@@ -1178,10 +1189,8 @@ async function enemyAttackAction(enemy, enemyIdx){
   finalTargets.forEach(tgt=>{
     const aIdx=G.allies.indexOf(tgt);
     if(!hitSet.has(tgt.id)){
-      const _dmgPassed=dealDmgToAlly(tgt,atkVal,aIdx,enemy);
+      dealDmgToAlly(tgt,atkVal,aIdx,enemy);
       hitSet.add(tgt.id);
-      // キーワード効果：ダメージが通った場合のみ（シールドブロック時は発動しない）
-      if(_dmgPassed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
     }
     hitNames.push(tgt.name);
   });
@@ -1207,9 +1216,8 @@ async function enemyAttackAction(enemy, enemyIdx){
       if(reHitSlot) reHitSlot.classList.remove('glow-red');
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
-      if(enemy.hp>0) _applyEnemyAttackEffects(enemy);
-      const _dmgPassed2=dealDmgToAlly(reTgt,enemy.atk,G.allies.indexOf(reTgt),enemy);
-      if(_dmgPassed2&&reTgt.hp>0) applyKeywordOnHit(enemy,reTgt);
+      if(enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
+      dealDmgToAlly(reTgt,enemy.atk,G.allies.indexOf(reTgt),enemy);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
     }
   }
@@ -1339,7 +1347,7 @@ function processAllyDeath(unit){
     const _deadAtk=unit.atk||0;
     const _deadHp=unit.maxHp!=null?unit.maxHp:(7*_boneG);
     const _deadKws=[...(unit.keywords||[])];
-    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+    const _boneDef=makeSheetBackedUnitDef({id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'});
     const _boneSlot=G.allies.findIndex(a=>a===unit);
     if(_boneSlot>=0){
       const _boneUnit=makeUnitFromDef(_boneDef);
@@ -1364,7 +1372,7 @@ function processAllyDeath(unit){
   if(unit.name!=='アク'){
     G.allies.forEach(ph=>{
       if(!ph||ph.hp<=0||ph.effect!=='phantom_onallydie') return;
-      const akDef={id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''};
+      const akDef=makeSheetBackedUnitDef({id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''});
       const empty=G.allies.findIndex(s=>!s||s.hp<=0);
       if(empty>=0){
         const _akUnit=makeUnitFromDef(akDef);
@@ -1442,7 +1450,7 @@ function triggerInjury(unit, dmg=0){
   const ownSide =isEnemy?G.enemies:G.allies;
   const oppSide =isEnemy?G.allies :G.enemies;
   const col=isEnemy?'bad':'good';
-  const rgDef={id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true};
+  const rgDef=makeSheetBackedUnitDef({id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true});
   switch(unit.injury){
     case 'slin':{
       const _snums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
@@ -1453,7 +1461,7 @@ function triggerInjury(unit, dmg=0){
     }
     case 'freyr':{
       // 最も右の空きスロットにストーンキャットを召喚（自陣）
-      const scDef={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'',counter:true,keywords:['反撃','アーティファクト']};
+      const scDef=makeSheetBackedUnitDef({id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'',counter:true,keywords:['反撃','アーティファクト']});
       // 右（スロット5）から順に空きを探す（配列長に依存しない）
       let _fSlot=-1;
       for(let _fsi=5;_fsi>=0;_fsi--){ if(!ownSide[_fsi]||ownSide[_fsi].hp<=0){_fSlot=_fsi;break;} }
@@ -1496,7 +1504,7 @@ function triggerInjury(unit, dmg=0){
     }
     case 'kettcat':{
       const _ncG=unit.grade||1, _ncAtk=_ncG, _ncHp=2*_ncG;
-      const def={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncG,atk:_ncAtk,hp:_ncHp,cost:0,unique:false,icon:'🐱',desc:''};
+      const def=makeSheetBackedUnitDef({id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncG,atk:_ncAtk,hp:_ncHp,cost:0,unique:false,icon:'🐱',desc:''});
       if(!isEnemy){
         const _nc=makeUnitFromDef(def);
         const ei=G.allies.findIndex(a=>!a||a.hp<=0);
@@ -1516,7 +1524,7 @@ function triggerInjury(unit, dmg=0){
     case 'ran':{
       // 10/X（X=被ダメージ）の「海の眷属」を左端に召喚（自陣）
       const ranHp=Math.max(1,dmg);
-      const ranDef={id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''};
+      const ranDef=makeSheetBackedUnitDef({id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''});
       const ri=ownSide.findIndex(a=>!a||a.hp<=0);
       if(ri>=0){ ownSide[ri]=makeUnitFromDef(ranDef); log(`${unit.name}：海の眷属(10/${ranHp})を召喚`,col); if(!isEnemy) checkSolitudeBuff(); }
       break;
@@ -1574,7 +1582,7 @@ function triggerInjury(unit, dmg=0){
       const _sbG=Math.max(1,_alpG-1); // G1→sbG=1, G2→sbG=1, G3→sbG=2, G4→sbG=3
       const _sbHp=_sbG;
       const _sbDmg=5*_sbG;
-      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
+      const _alpDef=makeSheetBackedUnitDef({id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'});
       if(G.phase==='reward'&&!isEnemy){
         // 報酬フェイズ中の味方アルプ：提示カードにソウルボムを追加
         const _sbCard=Object.assign({},makeUnitFromDef(_alpDef));
@@ -1809,7 +1817,7 @@ function onBattleStart(){
       case 'golden_goose_start':
         { const _ggG=Math.max(1,(a.grade||1)-1);
           const _ggHp=_ggG;
-          const _ggDef={id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ソウルを追加で${_ggG}得る。`,effect:'golden_egg_sell'};
+          const _ggDef=makeSheetBackedUnitDef({id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ソウルを追加で${_ggG}得る。`,effect:'golden_egg_sell'});
           const _ggi=G.allies.findIndex(b=>!b||b.hp<=0);
           if(_ggi>=0){
             const _ggUnit2=makeUnitFromDef(_ggDef);
@@ -2236,7 +2244,7 @@ function processEnemyDeath(e,eIdx){
     const _deadAtk=e.atk||0;
     const _deadHp=e.maxHp!=null?e.maxHp:(7*_boneG);
     const _deadKws=[...(e.keywords||[])];
-    const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+    const _boneDef=makeSheetBackedUnitDef({id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'});
     const _boneSlot=G.enemies.findIndex(f=>f===e);
     if(_boneSlot>=0){
       const _boneEnemy=makeUnitFromDef(_boneDef);
@@ -2249,7 +2257,7 @@ function processEnemyDeath(e,eIdx){
   // ファントム（敵）：仲間（敵）が死亡したとき、アクを召喚
   G.enemies.forEach(ph=>{
     if(!ph||ph.hp<=0||ph.effect!=='phantom_onallydie'||ph===e) return;
-    const akDef={id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''};
+    const akDef=makeSheetBackedUnitDef({id:'c_aku',name:'アク',race:'不死',grade:ph.grade||1,atk:0,hp:1,cost:0,unique:false,icon:'🌑',desc:''});
     const empty=G.enemies.findIndex(f=>!f||f.hp<=0);
     if(empty>=0){
       const _akEnemy=makeUnitFromDef(akDef);
@@ -2271,8 +2279,9 @@ function onWandUsed(){
     switch(a.effect){
       case 'kobold_wand':{
         const _kwv=2+(G.hasGoldenDrop?1:0);
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.hp+=_kwv; b.maxHp+=_kwv; }});
-        log(`${a.name}：杖使用→全仲間HP+${_kwv}`,'good');
+        let _shownKw=_kwv;
+        G.allies.forEach(b=>{ if(b&&b.hp>0) _shownKw=addUnitHp(b,_kwv,'ally'); });
+        log(`${a.name}：杖使用→全仲間HP+${_shownKw}`,'good');
         break;}
 
       case 'gremlin_wand':
@@ -2468,8 +2477,9 @@ function applyBossSpell(sp){
       break;
     }
     case 'golem':{
-      const ne={id:uid(),name:'ゴーレム',icon:'🗿',atk:eml,hp:eml,maxHp:eml,baseAtk:eml,
-        grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:['アーティファクト'],powerBroken:false,lane:'front'};
+      const ne=makeUnitFromDef(makeSheetBackedUnitDef({id:'c_spell_golem',name:'ゴーレム',icon:'🗿',race:'-',atk:eml,hp:eml,
+        grade:1,cost:0,unique:false,keywords:['アーティファクト'],lane:'front'}), undefined, true);
+      ne.lane='front';
       const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
       if(ei>=0) G.enemies[ei]=ne;
       else if(G.enemies.length<6) G.enemies.push(ne);

@@ -133,11 +133,11 @@ function generateEnemies(floor){
       let e;
       if(i===0){
         if(pickedBoss){
-          e=_mkNamedEnemy(pickedBoss,floor,2.0,[]);
+          e=_mkNamedEnemy(pickedBoss,floor,1.5,['ボス']);
         } else {
           const def=_pickEnemyDef(baseG);
-          const {atk,hp}=enemyStats(def,floor,2.0);
-          e=_mkEnemy(atk,hp,def.name,def.icon,baseG,0,[...(def.keywords||[])],def.race||'-');
+          const {atk,hp}=enemyStats(def,floor,1.5);
+          e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[]),'ボス'],def.race||'-');
           _applyEnemyDefAbilities(e, def);
         }
         e.boss=true;
@@ -195,13 +195,13 @@ function generateEnemies(floor){
     let e;
     if(isElite){
       if(pickedElite){
-        e=_mkNamedEnemy(pickedElite,floor,1.5,['エリート']);
+        e=_mkNamedEnemy(pickedElite,floor,1.2,['エリート']);
       } else {
         const g=rollEnemyGrade(floor);
         const def=_pickEnemyDef(g);
-        const {atk,hp}=enemyStats(def,floor,1.5);
+        const {atk,hp}=enemyStats(def,floor,1.2);
         const eg=Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
-        e=_mkEnemy(atk,hp,def.name,def.icon,eg,0,['エリート'],def.race||'-');
+        e=_mkEnemy(atk,hp,def.name,def.icon,eg,_kwShield(def),[...(def.keywords||[]),'エリート'],def.race||'-');
         _applyEnemyDefAbilities(e, def);
       }
       e.lane='rear'; // エリートは後衛

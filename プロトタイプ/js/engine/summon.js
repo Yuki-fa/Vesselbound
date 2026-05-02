@@ -63,7 +63,7 @@ function applyUnitSummonEffect(unit, fromRingId){
   // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
     const _pelG=unit.grade||1;
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
+    const _pelDef=makeSheetBackedUnitDef({id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''});
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
   // シルフ：召喚時、隣接する仲間が+1/+2を得る
@@ -363,14 +363,14 @@ function syncWallAtk(){
   walls.forEach(u=>{ u.atk=maxAtk; u.baseAtk=maxAtk; });
 }
 
-// ハーピー・ピグミーのATKを現在の魔術レベルに同期する
+// ピグミーのATKを現在の魔術レベルに同期する
 // _atkBonusに魔術レベル以外で増えたバフ分を保持し、同期時に加算する
 // 初回同期時は _lastSyncMl が未設定なので atk - ml をボーナスとして記録
 function syncHarpyAtk(){
   const ml=G.magicLevel||1;
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
-    if(a.effect==='harpy_magiclevel'||a.effect==='harpy_magic'||a.effect==='pigmy_magic'){
+    if(a.effect==='pigmy_magic'){
       // 前回の同期済みATK（魔術レベル分）と現在のATKの差がバフ分
       const _prevMlAtk=a._lastSyncMl!=null?a._lastSyncMl:ml;
       const _bonus=Math.max(0,(a.atk||0)-_prevMlAtk);

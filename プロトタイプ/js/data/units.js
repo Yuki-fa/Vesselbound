@@ -57,7 +57,7 @@ const UNIT_POOL = [
   {id:'c_gnome',      name:'ノーム',           race:'精霊', grade:2, atk:10, hp:16, cost:5,  unique:false, icon:'🧌', desc:'常時：宝箱出現率が1.5倍になる。（宝箱は1戦闘に1個までしか出現しない）', effect:'gnome_treasure'},
   {id:'c_gargoyle',   name:'ガーゴイル',       race:'悪魔', grade:2, atk:7,  hp:25, cost:5,  unique:false, icon:'🗿', desc:'反撃　常時：味方が受けるダメージは-1される。', counter:true, effect:'gargoyle_bonus', keywords:['反撃']},
   {id:'c_minotaur',   name:'ミノタウロス',     race:'亜人', grade:2, atk:9,  hp:28, cost:5,  unique:false, icon:'🐂', desc:'成長3　開戦：グレードアップのコストが-1される。', effect:'minotaur_gradeup', keywords:['成長3']},
-  {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:8,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　誘発：魔術レベルが上がるたび、全ての仲間が+1/+2を得る。', effect:'harpy_magiclevel', counter:true, keywords:['反撃']},
+  {id:'c_harpy',      name:'ハーピー',         race:'亜人', grade:2, atk:3,  hp:21, cost:5,  unique:false, icon:'🦅', desc:'反撃　誘発：魔術レベルが上がるたび、全ての仲間が+1/+2を得る。', effect:'harpy_magiclevel', counter:true, keywords:['反撃']},
   {id:'c_wraith',     name:'レイス',           race:'不死', grade:2, atk:6,  hp:30, cost:5,  unique:false, icon:'👻', desc:'誘発：死亡した場合、全ての仲間に攻撃力に等しいダメージを与える。', effect:'wraith_death'},
   {id:'c_draug',      name:'ドラウグ',         race:'不死', grade:2, atk:10, hp:22, cost:5,  unique:false, icon:'💀', desc:'使役：対象のキャラクターに「毒牙」を与える。', effect:'draug_summon', keywords:['先制']},
   {id:'c_shadow',     name:'シャドウ',         race:'不死', grade:2, atk:8,  hp:20, cost:5,  unique:false, icon:'🌑', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツは変わらない）', injury:'shadow'},
@@ -149,6 +149,32 @@ const UNIT_POOL = [
   {id:'c_epitome',    name:'万象の揺り籠"エピトメ"',       race:'全て', grade:4, atk:40, hp:100, cost:18, unique:true, icon:'🌌', desc:''},
 ];
 
+function _unitSheetNameKey(name){
+  if(typeof _normCardName==='function') return _normCardName(name||'');
+  return String(name||'').replace(/[“”]/g,'"').replace(/[’‘]/g,"'").replace(/\s+/g,'').trim();
+}
+
+function findUnitDefByName(name){
+  const key=_unitSheetNameKey(name);
+  return (UNIT_POOL||[]).find(u=>u&&_unitSheetNameKey(u.name)===key)||null;
+}
+
+function makeSheetBackedUnitDef(fallback){
+  const fb={...(fallback||{})};
+  const sheet=fb.name?findUnitDefByName(fb.name):null;
+  if(!sheet) return fb;
+  const sheetCopy={...sheet};
+  if(sheet.keywords) sheetCopy.keywords=[...sheet.keywords];
+  const merged={...fb,...sheetCopy};
+  // 内部処理に必要なキーは、シート側に未定義なら既定値を残す。
+  ['effect','injury','counter','shield','hate','hateTurns','lane','onDeath'].forEach(k=>{
+    if(sheet[k]===undefined&&fb[k]!==undefined) merged[k]=fb[k];
+  });
+  if(sheet.keywords===undefined&&fb.keywords!==undefined) merged.keywords=[...fb.keywords];
+  if(sheet.desc===undefined&&fb.desc!==undefined) merged.desc=fb.desc;
+  return merged;
+}
+
 // 単体のユニットを定義IDから生成する
 function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
   const unit = {
@@ -209,8 +235,8 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     if(_atkBonus>0){ unit.atk+=_atkBonus; unit.baseAtk+=_atkBonus; }
     if(_hpBonus>0){ unit.hp+=_hpBonus; unit.maxHp+=_hpBonus; }
   }
-  // ハーピー・ピグミー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
-  if((unit.effect==='harpy_magiclevel'||unit.effect==='pigmy_magic')&&typeof G!=='undefined'){
+  // ピグミー：ATKは常時魔術レベルに等しい（ボーナス適用後も上書き）
+  if(unit.effect==='pigmy_magic'&&typeof G!=='undefined'){
     const _ml=G.magicLevel||1; unit.atk=_ml; unit.baseAtk=_ml;
   }
   return unit;

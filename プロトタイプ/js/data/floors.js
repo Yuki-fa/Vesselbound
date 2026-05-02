@@ -2,34 +2,35 @@
 // floors.js — 階層・マップノード定義
 // ═══════════════════════════════════════
 
-// ボス戦が発生する階層
+// ボス戦直前の階層（シート読込失敗時のフォールバック）
 const BOSS_FLOORS=[4,9,14,19];
 
 // 各階層の敵パワー・グレード設定（index=階層番号、0はnull）
 // enemyRings:  敵オーナーが所持する指輪（オブジェクト配列）
 // enemyHand:   敵オーナーが所持する杖・アイテム（オブジェクト配列）
 // magicLevel:  敵オーナーの魔術レベル（instakill等で参照）
-// mult: 階層補正値  通常敵ATK = round(rand(def.baseAtk)*mult)  エリート×1.5  ボス×2.0
+// mult: 階層補正値  通常敵ATK/HP = round(rand(base)*mult)  エリート×1.2  ボス本体×1.5
 const FLOOR_DATA=[null,
-  {grade:1,mult:1.0, magicLevel:3},        // 1
-  {grade:1,mult:1.1, magicLevel:3},        // 2
+  {grade:1,mult:1.0, magicLevel:1},        // 1
+  {grade:1,mult:1.0, magicLevel:2},        // 2
   {grade:1,mult:1.2, magicLevel:4},        // 3
-  {grade:1,mult:1.3, boss:true, magicLevel:5},  // 4★ボス
-  {grade:2,mult:2.0, magicLevel:6},        // 5
-  {grade:2,mult:2.1, magicLevel:6},        // 6
-  {grade:2,mult:2.4, magicLevel:7},        // 7
-  {grade:2,mult:2.7, magicLevel:7},        // 8
-  {grade:2,mult:3.0, boss:true, magicLevel:8},  // 9★ボス
-  {grade:3,mult:4.0, magicLevel:9},        // 10
-  {grade:3,mult:4.2, magicLevel:9},        // 11
-  {grade:3,mult:4.5, magicLevel:10},       // 12
-  {grade:3,mult:4.8, magicLevel:11},       // 13
-  {grade:3,mult:5.5, boss:true, magicLevel:12}, // 14★ボス
-  {grade:4,mult:8.0, magicLevel:13},       // 15
-  {grade:4,mult:8.5, magicLevel:14},       // 16
-  {grade:4,mult:9.0, magicLevel:15},       // 17
-  {grade:4,mult:9.5, magicLevel:16},       // 18
-  {grade:4,mult:10.0,boss:true, magicLevel:18}, // 19★ボス（最終）
+  {grade:1,mult:1.3, magicLevel:4},        // 4
+  {grade:1,mult:1.5, boss:true, magicLevel:5},  // 5★ボス
+  {grade:2,mult:1.0, magicLevel:6},        // 6
+  {grade:2,mult:1.2, magicLevel:7},        // 7
+  {grade:2,mult:1.3, magicLevel:8},        // 8
+  {grade:2,mult:1.5, magicLevel:9},        // 9
+  {grade:2,mult:1.8, boss:true, magicLevel:10}, // 10★ボス
+  {grade:3,mult:1.2, magicLevel:11},       // 11
+  {grade:3,mult:1.3, magicLevel:12},       // 12
+  {grade:3,mult:1.5, magicLevel:13},       // 13
+  {grade:3,mult:1.8, magicLevel:14},       // 14
+  {grade:3,mult:2.0, boss:true, magicLevel:15}, // 15★ボス
+  {grade:4,mult:1.3, magicLevel:16},       // 16
+  {grade:4,mult:1.5, magicLevel:17},       // 17
+  {grade:4,mult:1.8, magicLevel:18},       // 18
+  {grade:4,mult:2.0, magicLevel:19},       // 19
+  {grade:4,mult:2.2, boss:true, magicLevel:20}, // 20★ボス（最終）
 ];
 
 // マップノードの種類定義

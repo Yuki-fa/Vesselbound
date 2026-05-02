@@ -445,7 +445,7 @@ function dealDmgToRewChar(rewIdx, dmg){
       const _deadAtk=c.atk||0;
       const _deadHp=c.maxHp!=null?c.maxHp:(7*_boneG);
       const _deadKws=[...(c.keywords||[])];
-      const _boneDef={id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,maxHp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'};
+      const _boneDef=makeSheetBackedUnitDef({id:'c_bone',name:'骨',race:'不死',grade:_boneG,atk:0,hp:_boneHp,maxHp:_boneHp,cost:0,unique:false,icon:'🦴',desc:`誘発：ターン開始時、${_deadAtk}/${_deadHp}、不死の「スケルトン」に変身する。`,effect:'bone_transform'});
       const _boneCard=Object.assign({},makeUnitFromDef(_boneDef));
       _boneCard._skelAtk=_deadAtk; _boneCard._skelHp=_deadHp; _boneCard._skelKws=[..._deadKws];
       _boneCard._isChar=true; _boneCard._buyPrice=2; _boneCard._rewSummoned=true;
@@ -528,7 +528,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'freyr':{
-      const scDef2={id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']};
+      const scDef2=makeSheetBackedUnitDef({id:'c_stone_cat',name:'ストーンキャット',race:'-',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'🗿',desc:'反撃　アーティファクト',counter:true,keywords:['アーティファクト']});
       addRewChar(makeUnitFromDef(scDef2));
       log(`${unit.name}：負傷→ストーンキャットを報酬枠に召喚`,'good');
       _triggerLindwormRew();
@@ -536,7 +536,7 @@ function _triggerRewCharInjury(unit, dmg=0){
     }
     case 'kettcat':{
       const _ncRG=unit.grade||1, _ncRA=_ncRG, _ncRH=2*_ncRG;
-      const _ncDef={id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncRG,atk:_ncRA,hp:_ncRH,cost:0,unique:false,icon:'🐈‍⬛',desc:''};
+      const _ncDef=makeSheetBackedUnitDef({id:'c_nightcat',name:'ナイトキャット',race:'獣',grade:_ncRG,atk:_ncRA,hp:_ncRH,cost:0,unique:false,icon:'🐈‍⬛',desc:''});
       const _nc=makeUnitFromDef(_ncDef, undefined, true); // skipSummonBonus=true
       addRewChar(_nc);
       log(`${unit.name}：負傷→ナイトキャット(${_ncRA}/${_ncRH})を報酬枠に召喚`,'good');
@@ -545,7 +545,7 @@ function _triggerRewCharInjury(unit, dmg=0){
     }
     case 'ran':{
       const ranHp=Math.max(1,dmg);
-      const ranDef={id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''};
+      const ranDef=makeSheetBackedUnitDef({id:'c_ran_spawn',name:'海の眷属',race:'亜人',grade:unit.grade||1,atk:10,hp:ranHp,cost:0,unique:false,icon:'🐚',desc:''});
       addRewChar(makeUnitFromDef(ranDef));
       log(`${unit.name}：負傷→海の眷属(10/${ranHp})を報酬枠に召喚`,'good');
       _triggerLindwormRew();
@@ -575,7 +575,7 @@ function _triggerRewCharInjury(unit, dmg=0){
       const _sbG=Math.max(1,_alpG-1);
       const _sbHp=_sbG;
       const _sbDmg=5*_sbG;
-      const _alpDef={id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'};
+      const _alpDef=makeSheetBackedUnitDef({id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'});
       const _alpSlot=G.allies.findIndex(a=>!a||a.hp<=0);
       const _alpSbUnit=_alpSlot>=0?makeUnitFromDef(_alpDef):null;
       if(_alpSbUnit) G.allies[_alpSlot]=_alpSbUnit;
@@ -864,7 +864,7 @@ function takeRewCard(i, targetSlot){
     // ミテーラ：自分の場（G.allies）にペリカンを直接配置（グレードスケール）
     if(unit.effect==='mitera_summon'){
       const _pelG=unit.grade||1;
-      const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
+      const _pelDef=makeSheetBackedUnitDef({id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''});
       const _pelUnit=makeUnitFromDef(_pelDef);
       const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_pei>=0){
@@ -1339,7 +1339,7 @@ function _applyStack(fieldIdx, rewIdx){
   }
   if(fieldUnit.effect==='mitera_summon'){
     const _pelG=fieldUnit.grade||1;
-    const _pelDef={id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''};
+    const _pelDef=makeSheetBackedUnitDef({id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''});
     const _pelUnit=makeUnitFromDef(_pelDef);
     const _pei=G.allies.findIndex(a=>!a||a.hp<=0);
     if(_pei>=0){
@@ -1522,8 +1522,9 @@ function sellFieldUnit(idx){
   { const _gd=G.hasGoldenDrop?1:0; const _lv=1+_gd;
     const _hasLep=G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
     if(_hasLep){
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp+=_lv; a.maxHp+=_lv; }});
-      log(`レプラコーン：ソウル獲得→全仲間±0/+${_lv}`,'good');
+      let _shownLv=_lv;
+      G.allies.forEach(a=>{ if(a&&a.hp>0) _shownLv=addUnitHp(a,_lv,'ally'); });
+      log(`レプラコーン：ソウル獲得→全仲間±0/+${_shownLv}`,'good');
     }
   }
   // マーメイド：このキャラクターを還魂すると魔術レベル+1

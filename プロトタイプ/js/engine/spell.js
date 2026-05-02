@@ -261,7 +261,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   if(sp.type==='consumable'){
     G.allies.forEach(ic=>{
       if(!ic||ic.hp<=0||ic.effect!=='incubus_spell') return;
-      const _nmDef={id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:3,hp:1,cost:0,unique:false,icon:'😱',desc:''};
+      const _nmDef=makeSheetBackedUnitDef({id:'c_nightmare',name:'ナイトメア',race:'悪魔',grade:1,atk:3,hp:1,cost:0,unique:false,icon:'😱',desc:''});
       const _nm=makeUnitFromDef(_nmDef);
       const _ei=G.allies.findIndex(a=>!a||a.hp<=0);
       if(_ei>=0){
@@ -524,10 +524,10 @@ function applySpell(sp,idx,tgt,_noDecrement){
     case 'golem':{
       if(G.allies.filter(a=>a&&a.hp>0).length<6){
         const gl=G.magicLevel||1;
-        const golem={id:uid(),name:'ゴーレム',icon:'🗼',atk:gl,baseAtk:gl,hp:gl,maxHp:gl,
-          ringId:'w_golem',ringIdx:-1,hate:true,hateTurns:99,instadead:false,sealed:0,nullified:0,
-          enchants:[],regen:false,regenUsed:false,onDeath:undefined,onHit:undefined,
-          taunt50:false,guardian:false,unique:undefined,keywords:['アーティファクト'],poison:0,shield:0,_dp:false};
+        const golemDef=makeSheetBackedUnitDef({id:'c_spell_golem',name:'ゴーレム',icon:'🗼',race:'-',grade:1,atk:gl,hp:gl,
+          cost:0,unique:false,keywords:['アーティファクト']});
+        const golem=makeUnitFromDef(golemDef, undefined, true);
+        golem.ringId='w_golem'; golem.ringIdx=-1; golem.hate=true; golem.hateTurns=99;
         const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
         else if(G.allies.length<6) G.allies.push(golem);
@@ -698,11 +698,14 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
     case 'flash_blade':{
       // 全キャラに1ダメージ（報酬フェイズ：仲間＋報酬キャラ、戦闘：仲間＋全敵）
-      G.allies.forEach((a,ai)=>{ if(a&&a.hp>0) dealDmgToAlly(a,1,ai,null); });
+      const allyTargets=G.allies.map((a,ai)=>({a,ai})).filter(({a})=>a&&a.hp>0);
+      allyTargets.forEach(({a,ai})=>{ if(a&&a.hp>0) dealDmgToAlly(a,1,ai,null); });
       if(_inReward){
-        _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,1); });
+        const rewTargets=_rewCards.map((c,ri)=>({c,ri})).filter(({c})=>c&&c._isChar&&c.hp>0);
+        rewTargets.forEach(({c,ri})=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,1); });
       } else {
-        G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,ei); });
+        const enemyTargets=G.enemies.map((e,ei)=>({e,ei})).filter(({e})=>e&&e.hp>0);
+        enemyTargets.forEach(({e,ei})=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,ei); });
       }
       log('⚡ 閃刃の杖：全キャラに1ダメ','bad');
     break;}

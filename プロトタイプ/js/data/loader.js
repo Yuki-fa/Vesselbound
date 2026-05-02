@@ -453,8 +453,14 @@ async function loadGameData() {
         return;
       }
       // 通常キャラクター：UNIT_POOL を更新
-      const unit = _findBySheetName(UNIT_POOL, name);
-      if (!unit) return;
+      let unit = _findBySheetName(UNIT_POOL, name);
+      if (!unit) {
+        unit = _rowToUnit(row);
+        unit.id = 'sheet_' + _normCardName(name);
+        unit.rarity = -1;
+        unit.sheetOnly = true;
+        UNIT_POOL.push(unit);
+      }
       const nv = row['ネームド'] || row['ユニーク'];
       if (_truthySheet(nv)) unit.unique = true;
       else if (_falseySheet(nv)) unit.unique = false;
@@ -463,7 +469,7 @@ async function loadGameData() {
       { const rarStr=(row['レアリティ']||'').trim();
         const rarVal=parseInt(rarStr);
         if(rarStr==='-') unit.rarity=-1;
-        else if(!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
+        else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
       const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
       // atk/hp は味方スタッツとして更新のみ（baseAtk/baseHpは設定しない）

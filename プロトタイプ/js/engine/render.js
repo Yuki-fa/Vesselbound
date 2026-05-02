@@ -247,14 +247,7 @@ function _drSimAllySlot(ally,allyIdx){
   const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
   const isTriDir=ally.keywords&&ally.keywords.includes('三方向攻撃');
   if(ally.stealth) ally.stealth=false;
-  if(ally.hp>0) _applyAllyAttackEffects(ally);
-  if(ally.hp>0){
-    const _elfI=G.allies.indexOf(ally);
-    if(_elfI>0){
-      const _elf=G.allies[_elfI-1];
-      if(_elf&&_elf.hp>0&&_elf.effect==='elf_double_right') _applyAllyAttackEffects(ally);
-    }
-  }
+  if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
   const atkTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
   atkTargets.forEach(t=>{
     dealDmgToEnemy(t,ally.atk,G.enemies.indexOf(t),ally);
@@ -269,7 +262,7 @@ function _drSimAllySlot(ally,allyIdx){
     let cur=target;
     for(let h=0;h<extra;h++){
       if(!cur||cur.hp<=0){ cur=getAttackTarget(ally,G.enemies); if(!cur) break; }
-      if(ally.hp>0) _applyAllyAttackEffects(ally);
+      if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
       dealDmgToEnemy(cur,ally.atk,G.enemies.indexOf(cur),ally);
     }
   }
@@ -291,23 +284,15 @@ function _drSimEnemySlot(enemy,_enemyIdx){
   const atkVal=enemy.nullified>0?0:enemy.atk;
   if(enemy.nullified>0) enemy.nullified--;
   // 攻撃時効果
-  if(atkVal>0&&enemy.hp>0){
-    _applyEnemyAttackEffects(enemy);
-    const _elfEI=G.enemies.indexOf(enemy);
-    if(_elfEI>0){
-      const _elfE=G.enemies[_elfEI-1];
-      if(_elfE&&_elfE.hp>0&&_elfE.effect==='elf_double_right') _applyEnemyAttackEffects(enemy);
-    }
-  }
+  if(atkVal>0&&enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
   const isGlobal=enemy.keywords&&enemy.keywords.includes('全体攻撃');
   const isTriDir=enemy.keywords&&enemy.keywords.includes('三方向攻撃');
   const finalT=isGlobal?G.allies.filter(a=>a&&a.hp>0&&!a.stealth):isTriDir?([primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth).map(i=>G.allies[i])):targets;
   const hitSet=new Set();
   finalT.forEach(tgt=>{
     if(hitSet.has(tgt.id)) return;
-    const _passed=dealDmgToAlly(tgt,atkVal,G.allies.indexOf(tgt),enemy);
+    dealDmgToAlly(tgt,atkVal,G.allies.indexOf(tgt),enemy);
     hitSet.add(tgt.id);
-    if(_passed&&tgt.hp>0) applyKeywordOnHit(enemy,tgt);
   });
   if(!isGlobal&&!isTriDir&&enemy.hp>0){
     const extra=enemy.keywords&&enemy.keywords.includes('三段攻撃')?2:enemy.keywords&&enemy.keywords.includes('二段攻撃')?1:0;
@@ -315,9 +300,8 @@ function _drSimEnemySlot(enemy,_enemyIdx){
     for(let h=0;h<extra;h++){
       if(!cur||cur.hp<=0){ cur=getAttackTarget(enemy,G.allies); if(!cur) break; }
       if(!cur||cur.hp<=0) break;
-      if(enemy.hp>0) _applyEnemyAttackEffects(enemy);
-      const _passed=dealDmgToAlly(cur,enemy.atk,G.allies.indexOf(cur),enemy);
-      if(_passed&&cur.hp>0) applyKeywordOnHit(enemy,cur);
+      if(enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
+      dealDmgToAlly(cur,enemy.atk,G.allies.indexOf(cur),enemy);
     }
   }
   // 標的ターン消費はシミュレーション1ラウンド分をbattlePhaseと同様に外で処理
