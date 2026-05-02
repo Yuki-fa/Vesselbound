@@ -548,7 +548,10 @@ function applySpell(sp,idx,tgt,_noDecrement){
         if(_tpool.length){
           const _tdef=_tpool[Math.floor(Math.random()*_tpool.length)];
           const _newU=makeUnitFromDef(_tdef);
-          if(tgt.who==='ally') G.allies[tgt.idx]=_newU;
+          if(tgt.who==='ally'){
+            G.allies[tgt.idx]=_newU;
+            if(typeof checkSolitudeBuff==='function') checkSolitudeBuff();
+          }
           else if(tgt.who==='enemy') G.enemies[tgt.idx]=_newU;
           else if(tgt.who==='rew-char'){ _newU._isChar=true; _newU._buyPrice=_tdef.cost||2; _rewCards[tgt.idx]=_newU; }
           log(`変身の短杖：${tu.name} → ${_newU.name}（G${_tg}）`,'good');

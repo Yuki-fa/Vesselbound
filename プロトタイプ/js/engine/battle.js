@@ -1497,7 +1497,6 @@ function triggerInjury(unit, dmg=0){
         const mt=randFrom(mts);
         if(isEnemy) dealDmgToAlly(mt,unit.atk,G.allies.indexOf(mt),unit);
         else dealDmgToEnemy(mt,unit.atk,G.enemies.indexOf(mt),unit);
-        if(mt.hp>0) applyKeywordOnHit(unit,mt);
         log(`${unit.name}：負傷→ランダムな相手に攻撃`,col);
       }
       break;
@@ -1537,7 +1536,6 @@ function triggerInjury(unit, dmg=0){
         if(!u||u.hp<=0) return;
         if(isEnemy) dealDmgToAlly(u,_ldmg,ui,unit);
         else dealDmgToEnemy(u,_ldmg,ui,unit);
-        if(u.hp>0) applyKeywordOnHit(unit,u); // 呪詛・毒牙・邪眼等を付与
       });
       log(`${unit.name}：負傷→相手全体に${_ldmg}ダメ`,col);
       break;
@@ -1625,6 +1623,7 @@ function triggerInjury(unit, dmg=0){
         unit.injury='shadow'; // 負傷は維持（再変身可能）
         unit.desc=_frontOpp.desc||'';
         log(`${_prevName}：負傷→${unit.name}に変身（${unit.atk}/${unit.hp}）`,col);
+        if(!isEnemy) checkSolitudeBuff();
       }
       break;
     }
@@ -1803,7 +1802,7 @@ function onBattleStart(){
         break;
       case 'frost_start':
         { const _fsi=G.allies.indexOf(a);
-          const _fe=G.enemies[_fsi]||(G.enemies.find(e=>e&&e.hp>0));
+          const _fe=G.enemies[_fsi];
           if(_fe&&_fe.hp>0){ _fe.sealed=(_fe.sealed||0)+1; log(`${a.name}：正面の${_fe.name}を1T行動不能に`,'good'); } }
         break;
       case 'sea_serpent_start':
@@ -1897,6 +1896,7 @@ function onBattleEnd(){
 
 
   // ドラゴネット：3回目の戦闘終了時にランダムなG2竜へ変身
+  let _dragonetTransformed=false;
   G.allies.forEach((a,i)=>{
     if(!a||a.effect!=='dragonet_end') return;
     a._dragonetCount=(a._dragonetCount||0)+1;
@@ -1909,12 +1909,14 @@ function onBattleEnd(){
       if(_target){
         const w=makeUnitFromDef(_target); w._isChar=true;
         G.allies[i]=w;
+        _dragonetTransformed=true;
         log(`🐲 ドラゴネット：3戦目→${w.name}(G${_targetGrade})に変身！`,'gold');
       }
     } else {
       log(`🐲 ドラゴネット：変身まで${(3+(a._dragonetBonus||0))-a._dragonetCount}戦`,'sys');
     }
   });
+  if(_dragonetTransformed) checkSolitudeBuff();
 
   // ラミア：戦闘終了時、魔術レベルが(desc上限)以下の場合、魔術レベルが+(desc増加量)される
   G.allies.forEach(a=>{
@@ -2000,7 +2002,7 @@ function checkInstantVictory(){
 
 // ── キーワード効果 ─────────────────────────────
 
-function applyKeywordOnHit(attacker, target){
+function applyKeywordOnHit(attacker, target, damageDone){
   const kws=attacker.keywords||[];
   if(!kws.length||target.hp<=0) return;
   const _isPlayerAlly=G.allies.some(a=>a===attacker);
@@ -2008,8 +2010,9 @@ function applyKeywordOnHit(attacker, target){
   if(kws.includes('即死')){ target.hp=0; log(`💀 即死：${attacker.name}の攻撃で${target.name}が即死！`,'bad'); }
   // 毒牙X：命中時に毒Xを付与（加算）
   const erosionKw=kws.find(k=>/^毒牙\d+$/.test(k));
-  if(erosionKw&&target.hp>0){
-    const pv=parseInt(erosionKw.slice(2))+_gdKw;
+  if((erosionKw||kws.includes('毒牙'))&&target.hp>0){
+    const basePoison=erosionKw?parseInt(erosionKw.slice(2)):Math.max(0,Math.floor(damageDone??attacker.atk??0));
+    const pv=basePoison+_gdKw;
     target.poison=(target.poison||0)+pv;
     log(`☠ 毒牙${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
   }
@@ -2112,7 +2115,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
     applyPoisonOnDmg(e,srcUnit);
     if(srcUnit&&srcUnit.keywords&&srcUnit.keywords.length&&e.hp>0){
-      applyKeywordOnHit(srcUnit,e);
+      applyKeywordOnHit(srcUnit,e,actualDmgToEnemy);
     }
     // 負傷トリガー：生き残った場合のみ発動
     if(e.injury&&e.hp>0) triggerInjury(e, dmg);
