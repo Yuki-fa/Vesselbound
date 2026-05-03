@@ -98,7 +98,8 @@ function _parseIntRange(s, fallback) {
 
 function _truthySheet(v) {
   const s = String(v || '').trim();
-  return s === 'TRUE' || s === '✓' || s === '◯' || s === '○';
+  return s === 'TRUE' || s === 'true' || s === '1' || s === 'yes' || s === 'YES' ||
+    s === '✓' || s === '✔' || s === '◯' || s === '○' || s === '〇';
 }
 
 function _falseySheet(v) {
@@ -113,6 +114,21 @@ function _normCardName(s) {
     .replace(/小杖/g, '短杖')
     .replace(/\s+/g, '')
     .trim();
+}
+
+function _sheetValue(row, names) {
+  for (const name of names) {
+    if (row[name] !== undefined) return row[name];
+  }
+  const normalized = Object.keys(row).reduce((acc, key) => {
+    acc[_normCardName(key)] = row[key];
+    return acc;
+  }, {});
+  for (const name of names) {
+    const key = _normCardName(name);
+    if (normalized[key] !== undefined) return normalized[key];
+  }
+  return '';
 }
 
 function _findBySheetName(list, name) {
@@ -469,14 +485,17 @@ async function loadGameData() {
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const isEnemyOnly = _truthySheet(row['敵専用']);
+      const isEnemyOnly = _truthySheet(_sheetValue(row, ['敵専用', '敵専用？', '敵専用か', 'EnemyOnly', 'enemyOnly']));
       if (isEnemyOnly) {
         // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
         const upUnit = _findBySheetName(UNIT_POOL, name);
-        if (upUnit) { upUnit.rarity = -1; _syncUnitEffectKeysFromSheet(upUnit); }
+        if (upUnit) { upUnit.enemyOnly = true; upUnit.starterOnly = true; upUnit.rarity = -1; _syncUnitEffectKeysFromSheet(upUnit); }
         // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
-        const ep = _findBySheetName(ENEMY_POOL, name);
-        if (!ep) return;
+        let ep = _findBySheetName(ENEMY_POOL, name);
+        if (!ep) {
+          ep = { name, grade:1, icon:row['アイコン'] || '❓', keywords:[], race:'幻造' };
+          ENEMY_POOL.push(ep);
+        }
         _sheetEnemyNames.add(name); // シートに存在する敵として記録
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
