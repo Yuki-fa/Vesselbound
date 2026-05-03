@@ -131,6 +131,16 @@ function _sheetValue(row, names) {
   return '';
 }
 
+function _enemyOnlySheetValue(row) {
+  const direct = _sheetValue(row, ['敵専用', '敵専用？', '敵専用か', 'EnemyOnly', 'enemyOnly']);
+  if (direct !== '') return direct;
+  for (const key of Object.keys(row || {})) {
+    const nk = _normCardName(key).toLowerCase();
+    if (nk.includes('敵専用') || nk.includes('enemyonly')) return row[key];
+  }
+  return '';
+}
+
 function _findBySheetName(list, name) {
   const n = _normCardName(name);
   return (list || []).find(item => _normCardName(item && item.name) === n) || null;
@@ -482,10 +492,12 @@ async function loadGameData() {
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSV(ct);
     const _sheetEnemyNames = new Set(); // シートに「敵専用」として登録されている敵名
+    const _sheetPlayableNames = new Set(); // シートに通常カードとして登録されている名前
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const isEnemyOnly = _truthySheet(_sheetValue(row, ['敵専用', '敵専用？', '敵専用か', 'EnemyOnly', 'enemyOnly']));
+      const nameKey = _normCardName(name);
+      const isEnemyOnly = _truthySheet(_enemyOnlySheetValue(row));
       if (isEnemyOnly) {
         // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
         const upUnit = _findBySheetName(UNIT_POOL, name);
@@ -496,7 +508,7 @@ async function loadGameData() {
           ep = { name, grade:1, icon:row['アイコン'] || '❓', keywords:[], race:'幻造' };
           ENEMY_POOL.push(ep);
         }
-        _sheetEnemyNames.add(name); // シートに存在する敵として記録
+        _sheetEnemyNames.add(nameKey); // シートに存在する敵として記録
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
         if (row['アイコン']) ep.icon = row['アイコン'];
@@ -510,6 +522,7 @@ async function loadGameData() {
         if (kwStr) ep.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
         return;
       }
+      _sheetPlayableNames.add(nameKey);
       // 通常キャラクター：UNIT_POOL を更新
       let unit = _findBySheetName(UNIT_POOL, name);
       if (!unit) {
@@ -564,12 +577,26 @@ async function loadGameData() {
       }
       _syncUnitEffectKeysFromSheet(unit);
     });
+    if (charRows.length > 0) {
+      UNIT_POOL.forEach(unit => {
+        if (!unit || !unit.name || unit.id === 'c_golem') return;
+        const key = _normCardName(unit.name);
+        if (_sheetEnemyNames.has(key)) {
+          unit.enemyOnly = true;
+          unit.starterOnly = true;
+          unit.rarity = -1;
+        } else if (!_sheetPlayableNames.has(key) && !unit.sheetOnly) {
+          unit.notInSheet = true;
+          unit.rarity = -1;
+        }
+      });
+    }
 
     // シートに「敵専用」行が存在する場合、ENEMY_POOL をシート登録済みの敵のみに限定する
     // （シートにない敵定義が events.js から漏れ出すのを防ぐ）
     if (_sheetEnemyNames.size > 0) {
       for (let _ei = ENEMY_POOL.length - 1; _ei >= 0; _ei--) {
-        if (![..._sheetEnemyNames].some(n => _normCardName(n) === _normCardName(ENEMY_POOL[_ei].name))) ENEMY_POOL.splice(_ei, 1);
+        if (!_sheetEnemyNames.has(_normCardName(ENEMY_POOL[_ei].name))) ENEMY_POOL.splice(_ei, 1);
       }
     }
 

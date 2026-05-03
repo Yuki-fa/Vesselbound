@@ -117,6 +117,13 @@ const _FLOOR1_PRESETS=[
 // 1階出現敵（限定）
 const _FLOOR1_NAMES=new Set(['ゴブリン','グール','ジャイアントラット','ウィスプ']);
 
+function _getFloor1EnemyPool(){
+  const legacy=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
+  if(legacy.length) return legacy;
+  const grade1=ENEMY_POOL.filter(e=>e.grade===1);
+  return grade1.slice(0,4);
+}
+
 // 指定階層の敵グループを生成
 function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
@@ -126,7 +133,7 @@ function generateEnemies(floor){
   // 1階は固定敵パターンを使用（出現敵は限定リストから）
   if(floor===1&&!isBoss){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
-    const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
+    const floor1Pool=_getFloor1EnemyPool();
     const _f1enemies=preset.map(p=>{
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
       const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
