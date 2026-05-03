@@ -116,6 +116,7 @@ function drawCharacters(n){
   if(isExperimentalAppearanceMode()){
     const pool=UNIT_POOL.filter(u=>{
       if(!u.id||u.id==='c_golem') return false;
+      if(u.enemyOnly) return false;
       if(u.unique) return false;
       if(u.rarity===-1) return false;
       if((u.grade||1)>5) return false;
@@ -143,6 +144,7 @@ function drawCharacters(n){
   const targetGrade=G.rewardGrade||1;
   const pool=UNIT_POOL.filter(u=>{
     if(!u.id||u.id==='c_golem') return false;
+    if(u.enemyOnly) return false;
     if(u.unique) return false;
     if(u.rarity===-1) return false;
     if((u.grade||1)>targetGrade) return false;
@@ -291,7 +293,7 @@ function drawTreasure(rarityWeights, typeWeights, maxGrade){
 function _applyUniqueSlot(res){
   const targetGrade=isExperimentalAppearanceMode()?5:(G.rewardGrade||1);
   const allyIds=G.allies.filter(Boolean).map(a=>a.id);
-  const uChars=UNIT_POOL.filter(u=>u.unique&&u.id!=='c_golem'&&u.rarity!==-1&&(u.grade||1)<=targetGrade&&!allyIds.includes(u.id));
+  const uChars=UNIT_POOL.filter(u=>u.unique&&!u.enemyOnly&&u.id!=='c_golem'&&u.rarity!==-1&&(u.grade||1)<=targetGrade&&!allyIds.includes(u.id));
   const uWands=SPELL_POOL.filter(s=>s.type==='wand'&&s.unique&&!s.starterOnly&&s.rarity!==-1&&!(G.seenWands&&G.seenWands.includes(s.id)));
   const uCons=SPELL_POOL.filter(s=>s.type==='consumable'&&s.unique&&!s.starterOnly&&s.rarity!==-1);
 
@@ -348,7 +350,7 @@ function drawRewards(n){
 
 // 指定グレードのキャラを1体抽選（グレード確定枠用）
 function drawCharacterOfGrade(grade){
-  const pool=UNIT_POOL.filter(u=>!u.starterOnly&&u.rarity!==-1&&u.id!=='c_golem'&&!u.unique&&(u.grade||1)===grade&&!(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)));
+  const pool=UNIT_POOL.filter(u=>!u.starterOnly&&!u.enemyOnly&&u.rarity!==-1&&u.id!=='c_golem'&&!u.unique&&(u.grade||1)===grade&&!(u.rarity===3&&G._seenRarity3&&G._seenRarity3.has(u.id)));
   if(!pool.length) return null;
   const def=randFrom(pool);
   const c=clone(def);

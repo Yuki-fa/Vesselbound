@@ -478,11 +478,15 @@ async function loadGameData() {
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const isEnemyOnly = _truthySheet(row['敵専用']);
+      const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
       if (isEnemyOnly) {
         // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
         const upUnit = _findBySheetName(UNIT_POOL, name);
-        if (upUnit) { upUnit.rarity = -1; _syncUnitEffectKeysFromSheet(upUnit); }
+        if (upUnit) {
+          upUnit.rarity = -1;
+          upUnit.enemyOnly = true;
+          _syncUnitEffectKeysFromSheet(upUnit);
+        }
         // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
         const ep = _findBySheetName(ENEMY_POOL, name);
         if (!ep) return;
@@ -509,6 +513,7 @@ async function loadGameData() {
         unit.sheetOnly = true;
         UNIT_POOL.push(unit);
       }
+      delete unit.enemyOnly;
       const nv = row['ネームド'] || row['ユニーク'];
       if (_truthySheet(nv)) unit.unique = true;
       else if (_falseySheet(nv)) unit.unique = false;
