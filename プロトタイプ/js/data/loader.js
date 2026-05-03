@@ -191,7 +191,8 @@ function _syncUnitEffectKeysFromSheet(unit) {
     if (patch.injury) unit.injury = patch.injury;
     else delete unit.injury;
   }
-  if (patch.desc) unit.desc = patch.desc;
+  // 説明文はシートの「効果」列を正とする。patch.desc はシート未取得/空欄時の保険だけに使う。
+  if (patch.desc && !unit.desc) unit.desc = patch.desc;
   if (patch.keywords) unit.keywords = [...patch.keywords];
 }
 
