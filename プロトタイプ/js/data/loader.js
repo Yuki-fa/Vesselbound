@@ -137,11 +137,34 @@ function _syncUnitEffectKeysFromSheet(unit) {
     'ジャック・オ・ランタン': { effect: 'jack_attack', injury: null, desc:'攻撃：「精霊」のライフが+1される。' },
     'シルフ': { effect: 'sylph_summon', injury: null, desc:'使役：隣接するキャラクターの種族が+1/+1を得る。' },
     'インプ': { effect: 'imp_summon', injury: null, desc:'開戦：ランダムなG1のアイテムを1枚得る。' },
-    'グレムリン': { effect: 'gremlin_attack', injury: 'gremlin', desc:'負傷：相手オーナーのインベントリのカードを破壊し、1ソウルを得る。' },
+    'グレムリン': { effect: 'gremlin_start', injury: null, desc:'開戦：相手オーナーのインベントリのカードを破壊し、1ソウルを得る。' },
     'アラッサス': { effect: null, injury: 'arachas', desc:'負傷：「アラッサス」以外の全てのキャラクターに1ダメージを与える。' },
-    'スリン': { effect: 'slin_injury_aura', injury: null, desc:'常在：負傷効果が発動すると「竜」のライフが+1される。' },
+    'スリン': { effect: 'slin_injury_aura', injury: null, desc:'誘発：負傷効果が発動するたび、全ての「竜」のライフが+1される。' },
     'リザードマン': { effect: 'lizardman_attack', injury: 'lizardman', desc:'反撃　負傷：「竜」のパワーが+1される。' },
-    'ドレイク': { effect: 'drake_mitigate', injury: null },
+    'ウォーグ': { effect: null, injury: 'warg', desc:'負傷：全ての「獣」が+1/+1を得る。' },
+    'ペガサス': { effect: 'pegasus_attack', injury: null, desc:'攻撃：全ての前衛の味方のライフが+4される。' },
+    'ペリュトン': { effect: 'perytons_sell', injury: null, desc:'誘発：仲間を還魂すると、以後カードの効果で召喚される仲間のライフが+1される。' },
+    'コボルド': { effect: 'kobold_wand', injury: null, desc:'誘発：杖を使うたび、全ての仲間が+1/+2を得る。' },
+    'ハーピー': { effect: 'harpy_magiclevel', injury: null, desc:'反撃　誘発：魔術レベルが上がるたび、全ての「亜人」が+1/+2を得る。' },
+    'ケンタウロス': { effect: 'centaur_start', injury: null, desc:'二段攻撃　開戦：魔術レベルが+1される。' },
+    'シャドウ': { effect: null, injury: 'shadow', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツも含めて）' },
+    'スペクター': { effect: 'specter_start', injury: null, desc:'開戦：全ての敵に「死亡：隣接するキャラクターに3ダメージを与える。」を与える。' },
+    'ゴースト': { effect: 'ghost_ondeath', injury: null, desc:'誘発：他のキャラクターが死亡するたび、全ての「不死」のライフが+1される。' },
+    'ドリアード': { effect: 'dryad_attack', injury: null, desc:'攻撃：隣接するキャラクターの種族が+1/+1を得る。' },
+    'ウンディーネ': { effect: 'undine_passive', injury: null, desc:'常時：仲間の「精霊」が攻撃するたび、全ての「精霊」のライフが+1される。' },
+    'フロスト・スプライト': { effect: 'frost_start', injury: null, desc:'開戦：隣接するキャラクターに「シールド」を与える。' },
+    'レプラコーン': { effect: 'leprechaun_gold', injury: null, desc:'誘発：ソウルを得るたび、全ての「精霊」のライフが+1される。' },
+    'ガーゴイル': { effect: 'gargoyle_bonus', injury: null, desc:'反撃　常時：全ての「悪魔」へのバフは+1される。' },
+    'ダークワン': { effect: 'darkone_spell', injury: null, desc:'誘発：アイテムを使用するたび、全ての「悪魔」が+1/+1を得る。' },
+    'ワーム': { effect: null, injury: 'worm', desc:'反撃　負傷：全ての仲間が+3/+2を得る。' },
+    'リンドヴルム': { effect: 'lindworm_injury', injury: null, desc:'誘発：負傷効果が発動するたび、全ての「竜」のパワーが+2される。' },
+    '虚飾の歌姫"リリス・ヴェノム"': { effect: null, injury: null, desc:'全体攻撃　毒牙', keywords:['全体攻撃','毒牙'] },
+    'クロコッタ': { effect: 'crocutta_start', injury: null, desc:'開戦：ランダムな相手キャラクターに攻撃する。' },
+    'ルフ': { effect: 'rukh_summon', injury: null, desc:'使役：隣接する獣のグレードが1上がる。' },
+    'バンダースナッチ': { effect: 'bandersnatch_allydeath', injury: null, desc:'誘発：仲間が死ぬたび、全ての相手キャラクターに4ダメージを与える。' },
+    'ハイドラ': { effect: null, injury: 'hydra', desc:'負傷：ランダムな相手キャラクターを1ターン行動不能にする。' },
+    'ドレイク': { effect: 'drake_mitigate', injury: null, desc:'常時：仲間がダメージを受ける時、その仲間のライフが+3される。' },
+    'シーサーペント': { effect: null, injury: 'sea_serpent', desc:'毒牙　負傷：全ての相手キャラクターに4ダメージを与える。' },
     'ドラウグ': { effect: 'draug_summon', injury: null },
     'オーガ': { effect: 'bodyguard', injury: null },
     'サキュバス': { effect: 'succubus_sell', injury: null },
@@ -161,6 +184,7 @@ function _syncUnitEffectKeysFromSheet(unit) {
     else delete unit.injury;
   }
   if (patch.desc) unit.desc = patch.desc;
+  if (patch.keywords) unit.keywords = [...patch.keywords];
 }
 
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──

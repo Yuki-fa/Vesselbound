@@ -661,7 +661,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
         if(!_inReward) triggerDryadBuff();
       }
     break;}
-    case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
+    case 'gold_8':{ const gv=8*cMult; if(typeof onGoldGained==='function') onGoldGained(gv); else G.gold+=gv; log(`ソウル+${gv}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
       // G4以下の契約を1つ選んでグレードを次の戦闘終了まで+1
       const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
@@ -695,7 +695,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
       if(!_dwSrc.length){ log('破壊の巻物：敵の手札がない','sys'); break; }
       const dw=randFrom(_dwSrc);
       G.bossHand.splice(G.bossHand.indexOf(dw),1);
-      G.gold+=3; updateHUD();
+      if(typeof onGoldGained==='function') onGoldGained(3); else { G.gold+=3; updateHUD(); }
       const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
       log(`🔥 破壊の巻物：敵の「${dw.name}」を破壊してソウル+3`,'gold');
     break;}
@@ -782,18 +782,22 @@ function applySpell(sp,idx,tgt,_noDecrement){
         dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
         log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
       }
-      // ウンディーネ：ヘルハウンドの効果攻撃にも適用
+      // ウンディーネ：ヘルハウンドが精霊の場合のみ適用
       const _hhGd=G.hasGoldenDrop?1:0;
-      if(G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
-        const _uv=1+_hhGd; hh.atk+=_uv; hh.baseAtk=(hh.baseAtk||0)+_uv; hh.hp+=_uv; hh.maxHp+=_uv;
-        log(`ウンディーネ：${hh.name}が+${_uv}/+${_uv}`,'good');
+      if(typeof unitMatchesRace==='function'&&unitMatchesRace(hh,'精霊')){
+        G.allies.forEach(u=>{
+          if(!u||u.hp<=0||u.effect!=='undine_passive') return;
+          const _uv=(u._stackCount||0)+1+_hhGd;
+          if(typeof addRaceBuff==='function') addRaceBuff('精霊',0,_uv,'all',u.name);
+        });
       }
     });
-    // ダークワン：アイテム使用時、全仲間の悪魔+1/+1
+    // ダークワン：アイテム使用時、全ての「悪魔」+1/+1
     { const _dkv=1+(G.hasGoldenDrop?1:0);
-      let _dkTriggered=false;
-      G.allies.forEach(dk=>{ if(dk&&dk.hp>0&&dk.effect==='darkone_spell'){ _dkTriggered=true; }});
-      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='悪魔'||a.race==='全て')){ a.atk+=_dkv; a.baseAtk=(a.baseAtk||0)+_dkv; a.hp+=_dkv; a.maxHp+=_dkv; }}); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
+      G.allies.forEach(dk=>{
+        if(!dk||dk.hp<=0||dk.effect!=='darkone_spell') return;
+        if(typeof addRaceBuff==='function') addRaceBuff('悪魔',_dkv,_dkv,'all',dk.name);
+      });
     }
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新

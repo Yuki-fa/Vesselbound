@@ -35,6 +35,17 @@ function triggerDraugSummonChoice(unit){
   },50);
 }
 
+function triggerRukhSummon(unit){
+  if(!unit||unit.effect!=='rukh_summon') return;
+  const idx=G.allies.indexOf(unit);
+  [G.allies[idx-1],G.allies[idx+1]].forEach(t=>{
+    if(!t||t.hp<=0||!unitMatchesRace(t,'獣')) return;
+    const before=t.grade||1;
+    t.grade=Math.min(5,before+1);
+    log(`${unit.name}：${t.name}のグレード${before}→${t.grade}`,'good');
+  });
+}
+
 // 隣接する指輪を返す
 function adjacentRings(idx){
   const res=[];
@@ -92,7 +103,7 @@ function applyUnitSummonEffect(unit, fromRingId){
   // シルフ：召喚時、隣接するキャラクターの種族が+1/+1を得る
   if(unit.effect==='sylph_summon'){
     const _si=G.allies.indexOf(unit); const _sv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-    const races=[...new Set([G.allies[_si-1],G.allies[_si+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
+    const races=[G.allies[_si-1],G.allies[_si+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race);
     races.forEach(r=>addRaceBuff(r,_sv,_sv,'ally',unit.name));
   }
   // ドワーフ：召喚時、最も左の杖に充填+3
@@ -101,6 +112,7 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
+  triggerRukhSummon(unit);
   // ドラウグ：召喚時、対象の別の仲間に「毒牙」を付与（プレイヤー選択）
   if(unit.effect==='draug_summon'){
     triggerDraugSummonChoice(unit);

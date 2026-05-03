@@ -88,6 +88,8 @@ function initState(){
     _jackBonus:0,
     // ── 種族別の今後商談キャラ補正（{種族:{atk,hp}}） ──
     raceBuffs:{},
+    // ── 敵専用種族「幻造」など、以後出現する敵への種族別補正 ──
+    enemyRaceBuffs:{},
     // ── ミノタウロス効果：グレードアップコスト削減（累積） ──
     _gradeUpCostBonus:0,
     // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──

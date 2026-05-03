@@ -31,10 +31,29 @@ function enemyStats(def, floor, extraMult){
 
 // 敵ユニットを1体生成するヘルパー
 function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
-  return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
+  const enemy={id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
     sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
     shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false,
-    race:race||'-', lane:'front'};
+    race:'幻造', lane:'front'};
+  _applyEnemyRaceBuffs(enemy);
+  return enemy;
+}
+
+function _enemyMatchesRace(unit, race){
+  if(!unit||!race) return false;
+  if(race==='全て') return !!unit.race&&unit.race!=='-';
+  return unit.race===race||unit.race==='全て';
+}
+
+function _applyEnemyRaceBuffs(enemy){
+  if(!enemy||typeof G==='undefined'||!G.enemyRaceBuffs) return enemy;
+  Object.entries(G.enemyRaceBuffs).forEach(([race,b])=>{
+    if(!_enemyMatchesRace(enemy,race)) return;
+    const atk=b.atk||0, hp=b.hp||0;
+    if(atk>0){ enemy.atk+=atk; enemy.baseAtk=(enemy.baseAtk||0)+atk; }
+    if(hp>0){ enemy.hp+=hp; enemy.maxHp+=hp; }
+  });
+  return enemy;
 }
 
 function _applyEnemyDefAbilities(enemy, def){
@@ -79,7 +98,7 @@ const EFFECT_IDS=[];
 // ENEMY_POOL からグレードに合った敵定義を抽選
 function _pickEnemyDef(grade){
   const pool=ENEMY_POOL.filter(e=>e.grade===grade);
-  return pool.length?randFrom(pool):(ENEMY_POOL[0]||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'亜人'});
+  return pool.length?randFrom(pool):(ENEMY_POOL[0]||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'幻造'});
 }
 
 // 「シールド」キーワードの値を返す（シールド → 1、シールド2 → 2、なければ 0）
@@ -101,7 +120,7 @@ const _FLOOR1_NAMES=new Set(['ゴブリン','グール','ジャイアントラ�
 // 指定階層の敵グループを生成
 function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
-  if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [{id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'亜人'}]; }
+  if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [_applyEnemyRaceBuffs({id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'幻造'})]; }
   const isBoss=!!fd.boss;
 
   // 1階は固定敵パターンを使用（出現敵は限定リストから）

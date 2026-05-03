@@ -60,7 +60,8 @@ function _drawExperimentalFromPool(source, n, makeCard){
 function applyRaceBuffsToRewardCard(card){
   if(!card||!card._isChar||!G.raceBuffs) return;
   Object.entries(G.raceBuffs).forEach(([race,b])=>{
-    if(!(card.race===race||card.race==='全て')) return;
+    const matches=race==='全て'?(card.race&&card.race!=='-'):(card.race===race||card.race==='全て');
+    if(!matches) return;
     const atk=b.atk||0, hp=b.hp||0;
     if(atk>0){ const _prevAtk=card.atk||0; card.atk=_prevAtk+atk; card.baseAtk=(card.baseAtk!=null?card.baseAtk:_prevAtk)+atk; }
     if(hp>0){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=hp; card.maxHp=_baseMaxHp+hp; }

@@ -94,7 +94,12 @@ function toggleCardAppearanceModeDebug(){
 function renderRaceBuffSummary(){
   const el=document.getElementById('rw-race-buffs');
   if(!el) return;
-  const buffs=G.raceBuffs||{};
+  const buffs={...(G.raceBuffs||{})};
+  Object.entries(G.enemyRaceBuffs||{}).forEach(([race,b])=>{
+    if(!buffs[race]) buffs[race]={atk:0,hp:0};
+    buffs[race].atk+=(b.atk||0);
+    buffs[race].hp+=(b.hp||0);
+  });
   const rows=Object.entries(buffs)
     .filter(([,b])=>(b.atk||0)!==0||(b.hp||0)!==0)
     .map(([race,b])=>`${race}: ${(b.atk||0)>0?'+'+(b.atk||0):'±0'}/${(b.hp||0)>0?'+'+(b.hp||0):'±0'}`);
@@ -327,7 +332,7 @@ function _renderPowerRating(){
 const _BOSS_REWARD_OPTIONS=[
   {id:'ring_slot',   label:'指輪スロット拡張',     desc:'指輪を装備できるスロットが+1される。',     apply:()=>{ G.ringSlots++; log(`ボス報酬：指輪スロット+1（現在${G.ringSlots}枠）`,'gold'); }},
   {id:'wand_slot',   label:'杖・アイテムスロット拡張',desc:'杖・アイテムを持てるスロットが+1される。', apply:()=>{ G.handSlots=(G.handSlots||5)+1; G.spells.push(null); log(`ボス報酬：杖・アイテムスロット+1（現在${G.handSlots}枠）`,'gold'); }},
-  {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
+  {id:'magic',       label:'魔術レベル+3',          desc:'魔術レベルが3上昇する。',                  apply:()=>{ if(typeof onMagicLevelUp==='function') onMagicLevelUp(3); else { G.magicLevel=(G.magicLevel||1)+3; if(typeof syncHarpyAtk==='function') syncHarpyAtk(); } log(`ボス報酬：魔術レベル+3（現在${G.magicLevel}）`,'gold'); }},
   {id:'action',      label:'行動権永続+1',           desc:'永続的に行動回数が+1される。',             apply:()=>{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); G.actionsLeft=G.actionsPerTurn; updateHUD(); log(`ボス報酬：行動権永続+1（現在${G.actionsPerTurn}行動/ターン）`,'gold'); }},
   {id:'soul',        label:'ソウル+5',               desc:'ソウルを5獲得する。',                      apply:()=>{ G.gold+=5; updateHUD(); log(`ボス報酬：ソウル+5`,'gold'); }},
 ];
@@ -530,24 +535,8 @@ function dealDmgToRewChar(rewIdx, dmg){
   renderRewCards();
 }
 
-// 商談フェイズ：リンドヴルムの「仲間の負傷発動時、全仲間の竜+1/+1」トリガー
-function _triggerLindwormRew(){
-  const _lv=1+(G.hasGoldenDrop?1:0);
-  // 提示カードのリンドヴルム
-  _rewCards.forEach(lw=>{
-    if(!lw||!lw._isChar||lw.hp<=0||lw.effect!=='lindworm_injury') return;
-    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
-  });
-  // 盤面のリンドヴルム
-  G.allies.forEach(lw=>{
-    if(!lw||lw.hp<=0||lw.effect!=='lindworm_injury') return;
-    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
-  });
-}
+// 商談フェイズの負傷誘発は battle.js の triggerInjuryEffectTriggered に集約
+function _triggerLindwormRew(){ /* 互換用 no-op */ }
 
 // 報酬フェイズ中の負傷トリガー（開戦・終戦・攻撃・召喚は除く）
 function _triggerRewCharInjury(unit, dmg=0){
@@ -559,17 +548,15 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'worm':{
-      const _wv=((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit){ c.atk+=_wv; c.baseAtk=(c.baseAtk||0)+_wv; }});
-      G.allies.forEach(a=>{ if(a&&a.hp>0){ a.atk+=_wv; a.baseAtk=(a.baseAtk||0)+_wv; }});
-      log(`${unit.name}：負傷→全仲間+${_wv}/±0`,'good');
+      const _wa=3+(G.hasGoldenDrop?1:0), _wh=2+(G.hasGoldenDrop?1:0);
+      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0) { c.atk+=_wa; c.baseAtk=(c.baseAtk||0)+_wa; c.hp+=_wh; c.maxHp+=_wh; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0) applyUnitBuff(a,_wa,_wh,'ally'); });
+      log(`${unit.name}：負傷→全仲間+${_wa}/+${_wh}`,'good');
       _triggerLindwormRew();
       break;
     }
     case 'hydra':{
-      const _hdv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; const _hdvh=addUnitHp(unit,_hdv,'ally');
-      log(`${unit.name}：負傷→+${_hdv}/+${_hdvh}`,'good');
+      log(`${unit.name}：負傷→相手不在のため効果なし`,'good');
       _triggerLindwormRew();
       break;
     }
@@ -616,11 +603,8 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'warg':{
-      const _wgnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
-      const _wgv=(_wgnums[0]||1)+(G.hasGoldenDrop?1:0);
-      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&(c.race==='獣'||c.race==='全て')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
-      log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,'good');
+      const _wgv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+      if(typeof addRaceBuff==='function') addRaceBuff('獣',_wgv,_wgv,'all',unit.name);
       _triggerLindwormRew();
       break;
     }
@@ -940,9 +924,10 @@ function takeRewCard(i, targetSlot){
     // シルフ：使役時、隣接するキャラクターの種族が+1/+1を得る
     if(unit.effect==='sylph_summon'){
       const _sli=G.allies.indexOf(unit); const _slv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-      const races=[...new Set([G.allies[_sli-1],G.allies[_sli+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
+      const races=[G.allies[_sli-1],G.allies[_sli+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race);
       races.forEach(r=>addRaceBuff(r,_slv,_slv,'ally',unit.name));
     }
+    if(unit.effect==='rukh_summon'&&typeof triggerRukhSummon==='function') triggerRukhSummon(unit);
     if(unit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(unit);
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
@@ -1404,6 +1389,7 @@ function _applyStack(fieldIdx, rewIdx){
     const _dcs=3*(fieldUnit._stackCount||0); // 重ね増分（スタック1枚追加分×3）
     if(_dcs>0&&_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dcs; log(`${fieldUnit.name}：${G.spells[_wi].name}に充填+${_dcs}`,'good'); }
   }
+  if(fieldUnit.effect==='rukh_summon'&&typeof triggerRukhSummon==='function') triggerRukhSummon(fieldUnit);
   if(fieldUnit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(fieldUnit);
   // slin_summon は削除済み（スリンの新効果は負傷）
   fireTrigger('on_summon', null);
@@ -1565,14 +1551,12 @@ function sellFieldUnit(idx){
   if(_eggBonus>0) log(`${unit.name} を還魂（+${_totalGold}ソウル：ゴールデンエッグ+${_eggBonus}）`,'gold');
   else log(`${unit.name} を還魂（+1ソウル）`,'gold');
   squirrelSay('カードを売却した時');
-  // レプラコーン：ソウルを得るたびに全キャラ±0/+1
+  // レプラコーン：ソウルを得るたびに全ての「精霊」±0/+1
   { const _gd=G.hasGoldenDrop?1:0; const _lv=1+_gd;
-    const _hasLep=G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
-    if(_hasLep){
-      let _shownLv=_lv;
-      G.allies.forEach(a=>{ if(a&&a.hp>0) _shownLv=addUnitHp(a,_lv,'ally'); });
-      log(`レプラコーン：ソウル獲得→全仲間±0/+${_shownLv}`,'good');
-    }
+    G.allies.forEach(lep=>{
+      if(!lep||lep.hp<=0||lep.effect!=='leprechaun_gold') return;
+      if(typeof addRaceBuff==='function') addRaceBuff('精霊',0,(lep._stackCount||0)+1+_gd,'all',lep.name);
+    });
   }
   // マーメイド：このキャラクターを還魂すると魔術レベル+1
   if(unit.effect==='mermaid_sell'){
