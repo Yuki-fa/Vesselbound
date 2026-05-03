@@ -86,6 +86,12 @@ function initState(){
     _specterBonus:0,
     // ── ジャック・オ・ランタン効果：今後のキャラHP補正（累積） ──
     _jackBonus:0,
+    // ── バンシー効果：今後の全キャラATK補正（累積） ──
+    _futureCharAtkBonus:0,
+    // ── グレムリン効果：フェイズごとの無料アイテム使用 ──
+    _freeItemPhase:null,
+    _freeItemUsed:false,
+    _pendingFechtRevives:[],
     // ── 種族別の今後商談キャラ補正（{種族:{atk,hp}}） ──
     raceBuffs:{},
     // ── ミノタウロス効果：グレードアップコスト削減（累積） ──

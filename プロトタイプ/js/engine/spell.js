@@ -13,7 +13,7 @@ function useSpell(idx){
   const sp=G.spells[idx];
   if(!sp) return;
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(G.actionsLeft<=0&&!G._debugMode) return;
+  if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
   if(typeof playCardUseVfx==='function') playCardUseVfx(idx);
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
@@ -246,7 +246,7 @@ function _isWandUseCard(sp){
   return !!(sp && (sp.type === 'wand' || sp.subtype === 'wand'));
 }
 
-function applySpell(sp,idx,tgt,_noDecrement){
+function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   clearSelectable();
   log(`→ ${sp.name} を使用`,'em');
 
@@ -275,7 +275,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   }
 
   // 杖使用トリガーは杖本体の効果処理より先に発動する
-  if(_isWandUse){ onSpellUsed(); onWandUsed(); }
+  if(_isWandUse&&!_suppressWandTriggers){ onSpellUsed(); onWandUsed(); }
 
   switch(sp.effect){
     case 'fire':{
@@ -741,6 +741,11 @@ function applySpell(sp,idx,tgt,_noDecrement){
     break;}
   }
 
+  if(_isWandUse&&!_suppressWandTriggers&&G.allies.some(a=>a&&a.hp>0&&a.effect==='elvenmage_wand_double')){
+    log(`エルヴンメイジ：${sp.name}の効果をもう1回発動`,'good');
+    applySpell(sp,idx,tgt,true,true);
+  }
+
   if(sp.type==='consumable') G.spells[idx]=null;
 
   // 使用回数管理
@@ -763,7 +768,15 @@ function applySpell(sp,idx,tgt,_noDecrement){
     }
   }
 
-  if(!_spreadTargetPending){ G.actionsLeft--; if(G._debugMode) G.actionsLeft=G.actionsPerTurn; }
+  if(!_spreadTargetPending&&!_suppressWandTriggers){
+    if(sp.type==='consumable'&&canUseGremlinFreeItem(sp)){
+      G._freeItemUsed=true;
+      log('グレムリン：このフェイズ最初のアイテムは行動力を消費しない','good');
+    } else {
+      G.actionsLeft--;
+    }
+    if(G._debugMode) G.actionsLeft=G.actionsPerTurn;
+  }
   // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵/提示カードを攻撃（杖は対象外）
   if(sp.type==='consumable'){
     G.allies.forEach(hh=>{
@@ -810,7 +823,7 @@ function applySpell(sp,idx,tgt,_noDecrement){
   }
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
-  if(G.actionsLeft<=0&&!G._debugMode){
+  if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem()){
     setHint('行動終了。自動でターンを終了します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else if(!hasUsable&&!G._debugMode){
@@ -819,4 +832,16 @@ function applySpell(sp,idx,tgt,_noDecrement){
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }
+}
+
+function canUseGremlinFreeItem(sp){
+  const phase=G.phase==='reward'?'reward':'battle';
+  if(G._freeItemPhase!==phase){
+    G._freeItemPhase=phase;
+    G._freeItemUsed=false;
+  }
+  if(G._freeItemUsed) return false;
+  if(!G.allies.some(a=>a&&a.hp>0&&a.effect==='gremlin_free_item')) return false;
+  if(sp) return sp.type==='consumable';
+  return G.spells.some(s=>s&&s.type==='consumable');
 }

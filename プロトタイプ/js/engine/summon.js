@@ -35,6 +35,29 @@ function triggerDraugSummonChoice(unit){
   },50);
 }
 
+function triggerMedusaSummonChoice(unit){
+  if(!unit||unit.effect!=='medusa_summon') return;
+  const cands=G.allies.map((a,i)=>({a,i})).filter(x=>x.a&&x.a.hp>0&&!(x.a.keywords||[]).includes('二段攻撃'));
+  if(!cands.length) return;
+  setTimeout(()=>{
+    if(typeof clearSelectable==='function') clearSelectable();
+    if(typeof setHint==='function') setHint(`${unit.name}：二段攻撃を付与する仲間を選択（右クリックでキャンセル）`);
+    const slots=typeof _getAllyDomSlots==='function'?_getAllyDomSlots():[];
+    slots.forEach((slot,i)=>{
+      const cand=cands.find(x=>x.i===i);
+      if(cand&&slot){
+        slot.classList.add('selectable');
+        slot.onclick=()=>{
+          if(typeof clearSelectable==='function') clearSelectable();
+          cand.a.keywords=[...(cand.a.keywords||[]),'二段攻撃'];
+          log(`${unit.name}：${cand.a.name}に「二段攻撃」を付与`,'good');
+          if(typeof renderAll==='function') renderAll();
+        };
+      }
+    });
+  },50);
+}
+
 // 隣接する指輪を返す
 function adjacentRings(idx){
   const res=[];
@@ -82,6 +105,11 @@ function makeUnit(ring, overrideAtk, overrideHp, overrideName, overrideIcon){
 // ユニット召喚時の使役効果を適用（addAlly経由・直接追加どちらからも呼べる）
 function applyUnitSummonEffect(unit, fromRingId){
   if(!unit) return;
+  if(unit.effect==='grimalkin_summon'){
+    const v=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+    G._grimalkinBonus=(G._grimalkinBonus||0)+v;
+    log(`${unit.name}：以後のカード効果召喚が±0/+${v}（累計+${G._grimalkinBonus}）`,'good');
+  }
   // ケンタウロス：開戦時に魔術レベル+1（onBattleStartで処理）
   // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
@@ -100,6 +128,26 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
     const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
+  }
+  if(unit.effect==='rukh_summon'){
+    const ri=G.allies.indexOf(unit);
+    [ri-1,ri+1].forEach(i=>{
+      const a=G.allies[i];
+      if(a&&a.hp>0&&unitMatchesRace(a,'獣')){
+        a.grade=(a.grade||1)+1;
+        log(`${unit.name}：${a.name}のグレード+1（G${a.grade}）`,'good');
+      }
+    });
+  }
+  if(unit.effect==='medusa_summon'&&typeof triggerMedusaSummonChoice==='function'){
+    triggerMedusaSummonChoice(unit);
+  }
+  if(unit.effect==='ogre_summon'){
+    if((G.magicLevel||1)>=10){
+      unit.keywords=unit.keywords||[];
+      if(!unit.keywords.includes('三方向攻撃')) unit.keywords.push('三方向攻撃');
+      log(`${unit.name}：魔術Lv10以上→三方向攻撃を獲得`,'good');
+    }
   }
   // ドラウグ：召喚時、対象の別の仲間に「毒牙」を付与（プレイヤー選択）
   if(unit.effect==='draug_summon'){
@@ -132,17 +180,7 @@ function applyUnitSummonEffect(unit, fromRingId){
 // 盤面に仲間を1体追加。成功したら on_summon / on_full_board トリガーを発火
 // fromCharEffect=true の場合はキャラクター効果による召喚（グリマルキン誘発対象）
 function applyGrimalkinSummonBonus(unit, sideUnits, logColor='good'){
-  if(!unit||!sideUnits) return 0;
-  let total=0;
-  sideUnits.forEach(g=>{
-    if(!g||g.hp<=0||g===unit||g.effect!=='grimalkin_passive') return;
-    const gv=(g._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-    unit.hp+=gv;
-    unit.maxHp+=gv;
-    total+=gv;
-    log(`${g.name}：カード効果召喚→${unit.name}±0/+${gv}`,logColor);
-  });
-  return total;
+  return 0;
 }
 
 function addAlly(unit, fromRingId, fromCharEffect=false){
@@ -165,7 +203,19 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
     if(fromCharEffect && typeof triggerCocatrice==='function') triggerCocatrice(unit);
   }
   applyUnitSummonEffect(unit, fromRingId);
+  triggerCheshireSummon(unit,'ally');
   return true;
+}
+
+function triggerCheshireSummon(summonedUnit, side='ally'){
+  const units=side==='enemy'?G.enemies:G.allies;
+  const col=side==='enemy'?'bad':'good';
+  (units||[]).forEach(c=>{
+    if(!c||c.hp<=0||c.effect!=='cheshire_summon'||c===summonedUnit) return;
+    const v=(c._stackCount||0)+1+(side==='ally'&&G.hasGoldenDrop?1:0);
+    units.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'獣')) applyUnitBuff(a,v,v,side); });
+    log(`${c.name}：仲間召喚→全仲間の獣+${v}/+${v}`,col);
+  });
 }
 
 // 指定トリガーを持つ指輪をすべて発火

@@ -105,6 +105,8 @@ function renderRaceBuffSummary(){
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
+  G._freeItemPhase='reward';
+  G._freeItemUsed=false;
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy'||G.phase==='commander') return;
   G._isTreasurePhase=false;
@@ -491,14 +493,22 @@ function dealDmgToRewChar(rewIdx, dmg){
   const actualRewDmg=Math.max(0,dmg-_grReduction);
   c.hp=Math.max(0,c.hp-actualRewDmg);
   if(c.hp<=0){
-    if(c.effect==='zombie_end'||c.effect==='zombie_death'){
-      addRaceBuff('不死',2+(G.hasGoldenDrop?1:0),1+(G.hasGoldenDrop?1:0),'ally',c.name);
-      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
-    }
     if(c.effect==='mummy_death'){
       const mv=3+(G.hasGoldenDrop?1:0);
       onGoldGained(mv);
       log(`${c.name}：死亡→ソウル+${mv}`,'gold');
+      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
+    }
+    if(c.effect==='banshee_death'){
+      const v=2+(G.hasGoldenDrop?1:0);
+      G._futureCharAtkBonus=(G._futureCharAtkBonus||0)+v;
+      log(`${c.name}：死亡→以後の商談キャラATK+${v}`,'good');
+      if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
+    }
+    if(c.effect==='fecht_death'){
+      G._pendingFechtRevives=G._pendingFechtRevives||[];
+      G._pendingFechtRevives.push(clone(c));
+      log(`${c.name}：死亡→戦闘終了時に復活予約`,'good');
       if(typeof triggerDeathEffectTriggered==='function') triggerDeathEffectTriggered(c);
     }
     // スケルトン：死亡時に同スロットへ「骨」を残す
@@ -567,9 +577,15 @@ function _triggerRewCharInjury(unit, dmg=0){
       break;
     }
     case 'hydra':{
-      const _hdv=2*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
-      unit.atk+=_hdv; unit.baseAtk=(unit.baseAtk||0)+_hdv; const _hdvh=addUnitHp(unit,_hdv,'ally');
-      log(`${unit.name}：負傷→+${_hdv}/+${_hdvh}`,'good');
+      const cands=[...G.allies.filter(a=>a&&a.hp>0),..._rewCards.filter(c=>c&&c._isChar&&c.hp>0&&c!==unit)];
+      if(cands.length){ const t=randFrom(cands); t.sealed=(t.sealed||0)+1; log(`${unit.name}：負傷→${t.name}を1ターン行動不能にする`,'good'); }
+      _triggerLindwormRew();
+      break;
+    }
+    case 'sea_serpent':{
+      const dmg2=2+(G.hasGoldenDrop?1:0);
+      _rewCards.forEach((c,i)=>{ if(c&&c._isChar&&c.hp>0&&c!==unit) dealDmgToRewChar(i,dmg2); });
+      log(`${unit.name}：負傷→報酬キャラ全体に${dmg2}ダメ`,'good');
       _triggerLindwormRew();
       break;
     }
@@ -944,6 +960,7 @@ function takeRewCard(i, targetSlot){
       races.forEach(r=>addRaceBuff(r,_slv,_slv,'ally',unit.name));
     }
     if(unit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(unit);
+    if(['grimalkin_summon','rukh_summon','medusa_summon','ogre_summon'].includes(unit.effect)&&typeof applyUnitSummonEffect==='function') applyUnitSummonEffect(unit,null);
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
     _rewCards[i]=null;

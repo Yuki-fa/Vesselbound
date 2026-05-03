@@ -141,7 +141,8 @@ function _computeDeathRisk(){
   const _sEnemyPermBonus=G.enemyPermanentBonus?{...G.enemyPermanentBonus}:null;
   const _sMagicLevel=G.magicLevel;
   const _sLesserDemonDiscount=G._lesserDemonDiscount;
-  const _sJackBonus=G._jackBonus, _sSpecterBonus=G._specterBonus;
+  const _sJackBonus=G._jackBonus, _sSpecterBonus=G._specterBonus, _sFutureCharAtkBonus=G._futureCharAtkBonus;
+  const _sPendingFecht=G._pendingFechtRevives?JSON.parse(JSON.stringify(G._pendingFechtRevives)):[];
   const _sRaceBuffs=G.raceBuffs?JSON.parse(JSON.stringify(G.raceBuffs)):null;
 
   // ログ・描画関数を無効化
@@ -166,6 +167,8 @@ function _computeDeathRisk(){
       G._pendingTreasure=_sPT;
       G._jackBonus=_sJackBonus;
       G._specterBonus=_sSpecterBonus;
+      G._futureCharAtkBonus=_sFutureCharAtkBonus;
+      G._pendingFechtRevives=_sPendingFecht?JSON.parse(JSON.stringify(_sPendingFecht)):[];
       G.raceBuffs=_sRaceBuffs?JSON.parse(JSON.stringify(_sRaceBuffs)):{};
       G._lesserDemonDiscount=_sLesserDemonDiscount;
 
@@ -233,7 +236,8 @@ function _computeDeathRisk(){
     if(_sEnemyPermBonus) G.enemyPermanentBonus=_sEnemyPermBonus;
     G.magicLevel=_sMagicLevel;
     G._lesserDemonDiscount=_sLesserDemonDiscount;
-    G._jackBonus=_sJackBonus; G._specterBonus=_sSpecterBonus;
+    G._jackBonus=_sJackBonus; G._specterBonus=_sSpecterBonus; G._futureCharAtkBonus=_sFutureCharAtkBonus;
+    G._pendingFechtRevives=_sPendingFecht?JSON.parse(JSON.stringify(_sPendingFecht)):[];
     G.raceBuffs=_sRaceBuffs?JSON.parse(JSON.stringify(_sRaceBuffs)):{};
     window.log=_L; window.renderAll=_R; window.updateHUD=_U; window.renderControls=_RC;
   }
