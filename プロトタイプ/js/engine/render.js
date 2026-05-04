@@ -375,6 +375,10 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
     if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
     if(u&&u.hp>0){
+      if(isEnemy&&typeof getSheetRaceByName==='function'){
+        const _sheetRace=getSheetRaceByName(u.name);
+        if(_sheetRace) u.race=_sheetRace;
+      }
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
         // ── ステータスバッジ（右上固定：状態異常のみ）──

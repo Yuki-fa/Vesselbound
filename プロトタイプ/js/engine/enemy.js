@@ -31,14 +31,17 @@ function enemyStats(def, floor, extraMult){
 
 // 敵ユニットを1体生成するヘルパー
 function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
+  const sheetRace=typeof getSheetRaceByName==='function'?getSheetRaceByName(name):'';
   return {id:uid(),name,icon,atk,hp,maxHp:hp,baseAtk:atk,grade:grade||1,
     sealed:0,instadead:false,nullified:0,poison:0,_dp:false,
     shield:shield||0,keywords:kws||[],powerBreak:false,allyTarget:false,
-    race:race||'-', lane:'front'};
+    race:sheetRace||race||'-', lane:'front'};
 }
 
 function _applyEnemyDefAbilities(enemy, def){
   if(!enemy||!def) return enemy;
+  const sheetRace=typeof getSheetRaceByName==='function'?getSheetRaceByName(enemy.name):'';
+  if(sheetRace) enemy.race=sheetRace;
   enemy.desc=def.desc||enemy.desc||'';
   enemy.effect=def.effect||null;
   enemy.injury=def.injury||null;

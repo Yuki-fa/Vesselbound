@@ -22,6 +22,12 @@ const _SHEET_GIDS = {
   'リスNPC':     687265448,
 };
 
+const SHEET_RACE_BY_NAME = {};
+
+function getSheetRaceByName(name) {
+  return SHEET_RACE_BY_NAME[_normCardName(name)] || '';
+}
+
 // リスNPCメッセージ（シートから上書き）
 // キー: 条件列の値、値: メッセージ文字列の配列
 const SQUIRREL_MESSAGES = {
@@ -478,6 +484,7 @@ async function loadGameData() {
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
+      if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
       if (isEnemyOnly) {
         // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
@@ -488,8 +495,17 @@ async function loadGameData() {
           _syncUnitEffectKeysFromSheet(upUnit);
         }
         // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
-        const ep = _findBySheetName(ENEMY_POOL, name);
-        if (!ep) return;
+        let ep = _findBySheetName(ENEMY_POOL, name);
+        if (!ep) {
+          ep = {
+            name,
+            grade: parseInt(row['グレード']) || 1,
+            icon: row['アイコン'] || '❓',
+            keywords: [],
+            race: row['種族'] || '-',
+          };
+          ENEMY_POOL.push(ep);
+        }
         _sheetEnemyNames.add(name); // シートに存在する敵として記録
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
