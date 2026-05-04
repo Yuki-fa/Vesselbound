@@ -34,7 +34,7 @@ function onMagicLevelUp(amount){
 function onGoldGained(amount){
   G.gold+=amount; G.earnedGold+=amount;
   updateHUD();
-  // レプラコーン：ソウルを得るたびに全キャラ±0/+1
+  // レプラコーン：ソウルを得るたびに全仲間±0/+1
   const _gd=G.hasGoldenDrop?1:0;
   const hasLep=G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
   if(hasLep){
@@ -43,9 +43,8 @@ function onGoldGained(amount){
     const _lv=(_lepNums[0]||1)+_gd;
     let _allyLv=_lv, _enemyLv=_lv;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _allyLv=addUnitHp(a,_lv,'ally'); });
-    G.enemies.forEach(e=>{ if(e&&e.hp>0) _enemyLv=addUnitHp(e,_lv,'enemy'); });
-    const _jkbNote=_allyLv!==_lv||_enemyLv!==_lv?`（味方+${_allyLv}/敵+${_enemyLv}）`:'';
-    log(`レプラコーン：ソウル獲得→全キャラ±0/+${_lv}${_jkbNote}`,'good');
+    const _jkbNote=_allyLv!==_lv?`（実値+${_allyLv}）`:'';
+    log(`レプラコーン：ソウル獲得→全仲間±0/+${_lv}${_jkbNote}`,'good');
   }
 }
 
@@ -377,6 +376,7 @@ async function startBattle(){
   // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
   G.enemies.forEach(e=>{
     if(!e) return;
+    if(e._isObject) return;
     const pa=G.enemyPermanentBonus||{atk:0,hp:0};
     if(pa.atk){ e.atk+=pa.atk; e.baseAtk=(e.baseAtk||0)+pa.atk; }
     if(pa.hp){ e.hp+=pa.hp; e.maxHp+=pa.hp; }
@@ -853,7 +853,7 @@ async function battlePhase(){
   for(let i=0;i<6;i++){
     // 敵 i 番目の攻撃（前衛後衛問わず左から順に攻撃）
     const enemy=G.enemies[i];
-    if(enemy&&enemy.hp>0){
+    if(enemy&&enemy.hp>0&&!enemy._isObject){
       await enemyAttackAction(enemy,i);
       if(_checkBattleOver()) return;
     }
@@ -1012,21 +1012,15 @@ function _applyAllyAttackEffects(ally){
   if(!ally||ally.hp<=0) return;
   const _gd=G.hasGoldenDrop?1:0;
   const _sc=(ally._stackCount||0)+1; // 重ね倍率（G1=1, G2=2, ...）
-  // ケンタウロス：攻撃時、最もライフが低い敵に「炎の杖」を使用
+  // ケンタウロス：攻撃時、魔術レベル+1
   if(ally.effect==='centaur_attack'){
-    const _liveEs=G.enemies.map((e,i)=>({e,i})).filter(x=>x.e&&x.e.hp>0&&!x.e._isObject);
-    if(_liveEs.length>0){
-      const _lowest=_liveEs.reduce((a,b)=>a.e.hp<b.e.hp?a:b);
-      const _fireDmg=G.magicLevel||1;
-      // 炎の杖トリガー（杖使用誘発：ヘルハウンド・コボルド・ダークワン等）
-      if(typeof onSpellUsed==='function') onSpellUsed();
-      if(typeof onWandUsed==='function') onWandUsed();
-      dealDmgToEnemy(_lowest.e,_fireDmg,_lowest.i,ally);
-      log(`🐎 ${ally.name}：攻撃→${_lowest.e.name}に炎の杖(${_fireDmg}ダメ)を使用`,'good');
-    }
+    const v=_sc+_gd;
+    onMagicLevelUp(v);
+    log(`${ally.name}：攻撃→魔術レベル+${v}（Lv${G.magicLevel}）`,'good');
   }
   if(ally.effect==='brownie_attack'){
-    const _base=2*_sc+_gd; let _hpGain=_base;
+    const _nums=[...((ally.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
+    const _base=(_nums[0]||1)*_sc+_gd; let _hpGain=_base;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _hpGain=addUnitHp(a,_base); });
     log(`${ally.name}：攻撃時→全仲間±0/+${_hpGain}`,'good');
   }
@@ -1044,9 +1038,7 @@ function _applyAllyAttackEffects(ally){
     // 新仕様では負傷効果
   }
   if(ally.effect==='siren_attack'){
-    const v=_sc+_gd;
-    onMagicLevelUp(v);
-    log(`${ally.name}：攻撃→魔術レベル+${v}（Lv${G.magicLevel}）`,'good');
+    // 現行シートでは開戦効果。
   }
   if(ally.effect==='jack_attack'){
     const _jv=_sc+(G.hasGoldenDrop?1:0);
@@ -1073,7 +1065,9 @@ function _applyAllyAttackEffects(ally){
     }
   }
   if(ally.effect==='lizardman_attack'){
-    // 新仕様では負傷効果
+    const _lv=_sc+_gd;
+    addUnitAtk(ally,_lv);
+    log(`${ally.name}：攻撃→パワー+${_lv}`,'good');
   }
   if(ally.effect==='specter_attack'){
     const _sv=_sc+_gd;
@@ -1133,8 +1127,10 @@ function _applyEnemyAttackEffects(enemy){
     // 新仕様では負傷効果
   }
   if(enemy.effect==='brownie_attack'){
-    G.enemies.forEach(f=>{ if(f&&f.hp>0){ f.hp+=2; f.maxHp+=2; }});
-    log(`${enemy.name}：攻撃時→全仲間±0/+2`,'bad');
+    const _nums=[...((enemy.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
+    const _bv=_nums[0]||1;
+    G.enemies.forEach(f=>{ if(f&&f.hp>0) addUnitHp(f,_bv,'enemy'); });
+    log(`${enemy.name}：攻撃時→全仲間±0/+${_bv}`,'bad');
   }
   // arachas_attack（旧効果）は廃止
   if(enemy.effect==='vampire_attack'){
@@ -1151,15 +1147,15 @@ function _applyEnemyAttackEffects(enemy){
     if(_rightmost){ _rightmost.hp+=4; _rightmost.maxHp+=4; log(`${enemy.name}：攻撃→右端の${_rightmost.name}に±0/+4`,'bad'); }
   }
   if(enemy.effect==='lizardman_attack'){
-    // 新仕様では負傷効果
+    addUnitAtk(enemy,1);
+    log(`${enemy.name}：攻撃→パワー+1`,'bad');
   }
   if(enemy.effect==='specter_attack'){
     G._enemySpecterBonus=(G._enemySpecterBonus||0)+1;
     log(`${enemy.name}：攻撃→今後の「不死」に+1/+1蓄積`,'bad');
   }
   if(enemy.effect==='siren_attack'){
-    G.enemyMagicLevel=(G.enemyMagicLevel||0)+1;
-    log(`${enemy.name}：攻撃→敵魔術レベル+1`,'bad');
+    // 現行シートでは開戦効果。
   }
 }
 
@@ -1618,7 +1614,10 @@ function triggerInjury(unit, dmg=0){
   const rgDef=makeSheetBackedUnitDef({id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true});
   switch(unit.injury){
     case 'slin':{
-      // 新仕様では常在効果（slin_injury_aura）に移行
+      const _nums=[...((unit.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
+      const _sv=(_nums[0]||2)+(!isEnemy&&G.hasGoldenDrop?1:0);
+      const _done=addUnitHp(unit,_sv,isEnemy?'enemy':'ally');
+      log(`${unit.name}：負傷→ライフ+${_done}`,col);
       break;
     }
     case 'freyr':{
@@ -1811,11 +1810,7 @@ function triggerInjury(unit, dmg=0){
     } else if(!isEnemy){ onGoldGained(1); log(`${unit.name}：負傷→破壊対象なし、ソウル+1`,'good'); }
   }
   if(unit.effect==='lizardman_attack'){
-    const v=(unit._stackCount||0)+1+(!isEnemy&&G.hasGoldenDrop?1:0);
-    if(isEnemy){
-      G.enemies.forEach(e=>{ if(e&&e.hp>0&&unitMatchesRace(e,'竜')) applyUnitBuff(e,v,0,'enemy'); });
-      log(`${unit.name}：負傷→敵の竜+${v}/±0`,'bad');
-    } else addRaceBuff('竜',v,0,'ally',unit.name);
+    // 現行シートでは攻撃効果。旧セーブ互換で負傷側に残っていても何もしない。
   }
   triggerInjuryEffectTriggered(unit);
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
@@ -2008,15 +2003,10 @@ function onBattleStart(){
           log(`${e.name}：ボスと対戦→行動回数+1`,'bad');
         }
         break;
-      case 'imp_summon':{
-        const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
-        if(_item&&typeof addEnemyHandItem==='function'&&addEnemyHandItem(_item)){
-          log(`${e.name}：開戦→敵オーナーがG1アイテムを入手`,'bad');
-        }
+      case 'imp_summon':
         break;
-      }
-      case 'centaur_start':
-        G.enemyMagicLevel=(G.enemyMagicLevel||0)+1; log(`${e.name}：敵魔術レベル+1`,'bad'); break;
+      case 'siren_start':
+        G.enemyMagicLevel=(G.enemyMagicLevel||0)+1; log(`${e.name}：開戦→敵魔術レベル+1`,'bad'); break;
       case 'pegasus_start':
         G.enemies.forEach(f=>{ if(f&&f.hp>0&&(f.hate||f.lane==='front')) addUnitHp(f,4,'enemy'); });
         log(`${e.name}：開戦→前衛の仲間ライフ+4`,'bad'); break;
@@ -2064,10 +2054,8 @@ function onBattleStart(){
           log(`${a.name}：グレードアップコスト-${_mg}（累計-${G._gradeUpCostBonus}）`,'good'); }
         break;
       case 'imp_summon':
-        { const _ei=G.spells.indexOf(null);
-          if(_ei>=0){ const _item=typeof drawConsumable==='function'?drawConsumable(1):null; if(_item){ G.spells[_ei]=_item; log(`${a.name}：開戦→G1アイテムを入手`,'good'); } } }
         break;
-      case 'centaur_start':
+      case 'siren_start':
         { const v=(a._stackCount||0)+1+(G.hasGoldenDrop?1:0); onMagicLevelUp(v); log(`${a.name}：開戦→魔術レベル+${v}（Lv${G.magicLevel}）`,'good'); }
         break;
       case 'pegasus_start':
@@ -2601,11 +2589,10 @@ function onWandUsed(){
     if(!a||a.hp<=0) return;
     switch(a.effect){
       case 'kobold_wand':{
-        const _ka=(a._stackCount||0)+1+(G.hasGoldenDrop?1:0);
         const _kh=2*((a._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
         let _shownKh=_kh;
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=_ka; b.baseAtk=(b.baseAtk||0)+_ka; _shownKh=addUnitHp(b,_kh,'ally'); } });
-        log(`${a.name}：杖使用→全仲間+${_ka}/+${_shownKh}`,'good');
+        G.allies.forEach(b=>{ if(b&&b.hp>0) _shownKh=addUnitHp(b,_kh,'ally'); });
+        log(`${a.name}：杖効果発動→全仲間ライフ+${_shownKh}`,'good');
         break;}
       case 'faun_wand':{
         a._faunWandCount=(a._faunWandCount||0)+1;

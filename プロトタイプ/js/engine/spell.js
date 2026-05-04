@@ -741,9 +741,16 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     break;}
   }
 
-  if(_isWandUse&&!_suppressWandTriggers&&G.allies.some(a=>a&&a.hp>0&&a.effect==='elvenmage_wand_double')){
-    log(`エルヴンメイジ：${sp.name}の効果をもう1回発動`,'good');
-    applySpell(sp,idx,tgt,true,true);
+  if(_isWandUse&&!_suppressWandTriggers){
+    const extraCasts=(G.allies||[]).reduce((sum,a)=>{
+      if(!a||a.hp<=0||a.effect!=='elvenmage_wand_double') return sum;
+      return sum+(a._stackCount||0)+1+(G.hasGoldenDrop?1:0);
+    },0);
+    for(let i=0;i<extraCasts;i++){
+      log(`エルヴンメイジ：${sp.name}の効果を追加発動`,'good');
+      if(typeof onWandUsed==='function') onWandUsed();
+      applySpell(sp,idx,tgt,true,true);
+    }
   }
 
   if(sp.type==='consumable') G.spells[idx]=null;

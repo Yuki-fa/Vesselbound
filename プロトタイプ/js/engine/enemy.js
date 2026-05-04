@@ -73,6 +73,7 @@ function _mkNamedEnemy(def,floor,extraMult,extraKws){
 function _namedPool(grade){
   return UNIT_POOL.filter(u=>
     u.unique && (u.grade||1)===grade && u.id!=='c_golem' &&
+    !u._excludeFromNamedEnemy &&
     !G._usedNamedElite.has(u.id) && !(G._usedNamedRest&&G._usedNamedRest.has(u.id))
   );
 }
@@ -81,7 +82,7 @@ const EFFECT_IDS=[];
 
 // ENEMY_POOL からグレードに合った敵定義を抽選
 function _pickEnemyDef(grade){
-  const pool=ENEMY_POOL.filter(e=>e.grade===grade);
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade && !e.unique && !e._isNamed);
   return pool.length?randFrom(pool):(ENEMY_POOL[0]||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'亜人'});
 }
 

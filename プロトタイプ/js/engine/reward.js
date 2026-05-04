@@ -94,12 +94,8 @@ function toggleCardAppearanceModeDebug(){
 function renderRaceBuffSummary(){
   const el=document.getElementById('rw-race-buffs');
   if(!el) return;
-  const buffs=G.raceBuffs||{};
-  const rows=Object.entries(buffs)
-    .filter(([,b])=>(b.atk||0)!==0||(b.hp||0)!==0)
-    .map(([race,b])=>`${race}: ${(b.atk||0)>0?'+'+(b.atk||0):'±0'}/${(b.hp||0)>0?'+'+(b.hp||0):'±0'}`);
-  el.textContent=rows.length?rows.join('　'):'';
-  el.style.display=rows.length?'':'none';
+  el.textContent='';
+  el.style.display='none';
 }
 
 // ── 報酬フェイズ開始 ────────────────────────────
@@ -947,20 +943,21 @@ function takeRewCard(i, targetSlot){
         if(typeof triggerCocatrice==='function') triggerCocatrice(_pelUnit);
       }
     }
-    // ドワーフ：使役時、最も左の杖に充填+3
+    // ドワーフ：使役時、最も左の杖にシート記載値分チャージ
     if(unit.effect==='dwarf_summon'){
       const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-      const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+      const _nums=[...((unit.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
+      const _dc=(_nums[0]||2)*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
       if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
     }
-    // シルフ：使役時、隣接するキャラクターの種族が+1/+1を得る
+    // シルフ：使役時、隣接する仲間が+1/+2を得る
     if(unit.effect==='sylph_summon'){
       const _sli=G.allies.indexOf(unit); const _slv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-      const races=[...new Set([G.allies[_sli-1],G.allies[_sli+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
-      races.forEach(r=>addRaceBuff(r,_slv,_slv,'ally',unit.name));
+      [G.allies[_sli-1],G.allies[_sli+1]].forEach(b=>{ if(b&&b.hp>0) applyUnitBuff(b,_slv,2*_slv,'ally'); });
+      log(`${unit.name}：使役→隣接する仲間+${_slv}/+${2*_slv}`,'good');
     }
     if(unit.effect==='draug_summon'&&typeof triggerDraugSummonChoice==='function') triggerDraugSummonChoice(unit);
-    if(['grimalkin_summon','rukh_summon','medusa_summon','ogre_summon'].includes(unit.effect)&&typeof applyUnitSummonEffect==='function') applyUnitSummonEffect(unit,null);
+    if(['grimalkin_summon','imp_summon','rukh_summon','medusa_summon','ogre_summon'].includes(unit.effect)&&typeof applyUnitSummonEffect==='function') applyUnitSummonEffect(unit,null);
     // 指輪の on_summon トリガーを発火（報酬フェーズ中は addAlly → addRewChar へ誘導される）
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
@@ -1582,7 +1579,7 @@ function sellFieldUnit(idx){
   if(_eggBonus>0) log(`${unit.name} を還魂（+${_totalGold}ソウル：ゴールデンエッグ+${_eggBonus}）`,'gold');
   else log(`${unit.name} を還魂（+1ソウル）`,'gold');
   squirrelSay('カードを売却した時');
-  // レプラコーン：ソウルを得るたびに全キャラ±0/+1
+  // レプラコーン：ソウルを得るたびに全仲間±0/+1
   { const _gd=G.hasGoldenDrop?1:0; const _lv=1+_gd;
     const _hasLep=G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
     if(_hasLep){

@@ -110,6 +110,13 @@ function applyUnitSummonEffect(unit, fromRingId){
     G._grimalkinBonus=(G._grimalkinBonus||0)+v;
     log(`${unit.name}：以後のカード効果召喚が±0/+${v}（累計+${G._grimalkinBonus}）`,'good');
   }
+  if(unit.effect==='imp_summon'){
+    const _slot=G.spells.findIndex(s=>!s);
+    if(_slot>=0){
+      const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
+      if(_item){ G.spells[_slot]=_item; log(`${unit.name}：使役→G1アイテムを入手`,'good'); }
+    }
+  }
   // ケンタウロス：開戦時に魔術レベル+1（onBattleStartで処理）
   // ミテーラ：召喚時、最も左の空き地に1/3の「ペリカン」を召喚
   if(unit.effect==='mitera_summon'){
@@ -117,16 +124,17 @@ function applyUnitSummonEffect(unit, fromRingId){
     const _pelDef=makeSheetBackedUnitDef({id:'c_pelican',name:'ペリカン',race:'獣',grade:_pelG,atk:_pelG,hp:3*_pelG,cost:0,unique:false,icon:'🦤',desc:''});
     if(addAlly(makeUnitFromDef(_pelDef),null,true)) log(`${unit.name}：ペリカン(${_pelG}/${3*_pelG})を召喚`,'good');
   }
-  // シルフ：召喚時、隣接するキャラクターの種族が+1/+1を得る
+  // シルフ：召喚時、隣接する仲間が+1/+2を得る
   if(unit.effect==='sylph_summon'){
     const _si=G.allies.indexOf(unit); const _sv=(unit._stackCount||0)+1+(G.hasGoldenDrop?1:0);
-    const races=[...new Set([G.allies[_si-1],G.allies[_si+1]].filter(b=>b&&b.hp>0&&b.race&&b.race!=='-').map(b=>b.race))];
-    races.forEach(r=>addRaceBuff(r,_sv,_sv,'ally',unit.name));
+    [G.allies[_si-1],G.allies[_si+1]].forEach(b=>{ if(b&&b.hp>0) applyUnitBuff(b,_sv,2*_sv,'ally'); });
+    log(`${unit.name}：使役→隣接する仲間+${_sv}/+${2*_sv}`,'good');
   }
-  // ドワーフ：召喚時、最も左の杖に充填+3
+  // ドワーフ：召喚時、最も左の杖にシート記載値分チャージ
   if(unit.effect==='dwarf_summon'){
     const _wi=G.spells.findIndex(s=>s&&s.type==='wand');
-    const _dc=3*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
+    const _nums=[...((unit.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
+    const _dc=(_nums[0]||2)*((unit._stackCount||0)+1)+(G.hasGoldenDrop?1:0);
     if(_wi>=0){ G.spells[_wi].usesLeft=(G.spells[_wi].usesLeft||0)+_dc; log(`${unit.name}：${G.spells[_wi].name}に充填+${_dc}`,'good'); }
   }
   if(unit.effect==='rukh_summon'){

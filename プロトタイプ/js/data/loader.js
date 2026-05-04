@@ -136,21 +136,22 @@ function _syncUnitEffectKeysFromSheet(unit) {
   const patches = {
     'ゾンビ': { effect: 'zombie_end', injury: null, desc:'終戦：ライフが10になる。' },
     'グリマルキン': { effect: 'grimalkin_summon', injury: null, desc:'使役：以後、カードの効果で召喚される仲間のライフが+1される。' },
-    'ドワーフ': { effect: 'dwarf_summon', injury: null, desc:'使役：左端の杖に+3チャージする。' },
+    'ドワーフ': { effect: 'dwarf_summon', injury: null, desc:'使役：左端の杖に+2チャージする。' },
     'マミー': { effect: 'mummy_death', injury: null, desc:'死亡：3ソウルを得る。' },
     'バンシー': { effect: 'banshee_death', injury: null, desc:'死亡：以後、商談フェイズに現れるキャラクターのパワーが+2される。' },
-    'ブラウニー': { effect: 'brownie_attack', injury: null, desc:'攻撃：全ての仲間のライフが+2される。' },
+    'ブラウニー': { effect: 'brownie_attack', injury: null, desc:'攻撃：全ての仲間のライフが+1される。' },
     'ジャック・オ・ランタン': { effect: 'jack_attack', injury: null, desc:'攻撃：以後、商談フェイズに現れるキャラクターのライフが+1される。' },
-    'シルフ': { effect: 'sylph_summon', injury: null, desc:'使役：隣接するキャラクターの種族が+1/+1を得る。' },
-    'インプ': { effect: 'imp_summon', injury: null, desc:'開戦：ランダムなG1のアイテムを1枚得る。' },
+    'シルフ': { effect: 'sylph_summon', injury: null, desc:'使役：隣接する仲間が+1/+2を得る。' },
+    'インプ': { effect: 'imp_summon', injury: null, desc:'使役：ランダムなG1のアイテムを1枚得る。' },
     'グレムリン': { effect: 'gremlin_free_item', injury: null, desc:'常時：各フェイズで、最初に使用したアイテムは1回だけ行動力を使用しない。' },
     'アラッサス': { effect: null, injury: 'arachas', desc:'負傷：「アラッサス」以外の全てのキャラクターに1ダメージを与える。' },
-    'スリン': { effect: 'slin_injury_aura', injury: null, desc:'常在：負傷効果が発動すると「竜」のライフが+1される。' },
-    'リザードマン': { effect: 'lizardman_attack', injury: 'lizardman', desc:'反撃　負傷：「竜」のパワーが+1される。' },
+    'スリン': { effect: null, injury: 'slin', desc:'負傷：ライフが+2される。' },
+    'リザードマン': { effect: 'lizardman_attack', injury: null, desc:'攻撃：パワーが+1される。' },
     'ドレイク': { effect: 'drake_mitigate', injury: null },
     'ドラウグ': { effect: 'draug_summon', injury: null },
     'ペガサス': { effect: 'pegasus_start', injury: null, desc:'開戦：全ての前衛の味方のライフが+4される。' },
-    'ケンタウロス': { effect: 'centaur_start', injury: null, desc:'開戦：魔術レベルが+1される。' },
+    'コボルド': { effect: 'kobold_wand', injury: null, desc:'誘発：杖の効果が発動するたび、全ての仲間のライフが+2される。' },
+    'ケンタウロス': { effect: 'centaur_attack', injury: null, desc:'攻撃：オーナーの魔術レベルが+1される。', keywords:['二段攻撃'] },
     'シャドウ': { effect: null, injury: 'shadow', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツも含めて）' },
     'スペクター': { effect: 'specter_start', injury: null, desc:'開戦：ランダムな相手キャラクターに「死亡：全ての味方キャラクターに4ダメージを与える。」を与える。' },
     'ゴースト': { effect: 'ghost_death_effect', injury: null, desc:'誘発：死亡効果が発動するたび、以後、商談フェイズに現れる「不死」のキャラクターが+1/+1を得る。' },
@@ -171,14 +172,14 @@ function _syncUnitEffectKeysFromSheet(unit) {
     'メデューサ': { effect: 'medusa_summon', injury: null, desc:'使役：対象のキャラクターに「二段攻撃」を与える。' },
     'オーガ': { effect: 'ogre_summon', injury: null, desc:'使役：魔術レベルが10以上なら三方向攻撃を得る。' },
     'フォーン': { effect: 'faun_wand', injury: null, desc:'誘発：杖を7回使用するたび、オーナーの行動回数が+1される。' },
-    'サイレン': { effect: 'siren_attack', injury: null, desc:'攻撃：オーナーの魔術レベルが+1される。' },
+    'サイレン': { effect: 'siren_start', injury: null, desc:'開戦：オーナーの魔術レベルが+1される。' },
     'セルキー': { effect: 'selkie_start', injury: null, desc:'開戦：チャージ1のランダムな杖を得る。' },
     'ワーウルフ': { effect: 'werewolf_attack', injury: null, desc:'攻撃：このキャラクターと、以後、商談フェイズに現れる「亜人」のキャラクターのライフが+2される。' },
     'アルラウネ': { effect: 'alraune_attack', injury: null, desc:'攻撃：最も攻撃力が低い味方に「強化の杖」を使用する。' },
     'ファントム': { effect: 'phantom_attack', injury: null, desc:'攻撃：ランダムな味方に不死の種族を追加する。' },
     'フェクスト': { effect: 'fecht_death', injury: null, desc:'死亡：戦闘終了時に復活する。' },
     'エイドロン': { effect: 'eidolon_death', injury: null, desc:'死亡：全ての仲間の不死が+2/+1とシールドを得る。' },
-    'エルヴンメイジ': { effect: 'elvenmage_wand_double', injury: null, desc:'誘発：オーナーが使用した杖の効果は2回発動する。' },
+    'エルヴンメイジ': { effect: 'elvenmage_wand_double', injury: null, desc:'誘発：オーナーが使用した杖の効果は1回追加で発動する。' },
     'ニンフ': { effect: 'nymph_attack', injury: null, desc:'攻撃：隣接するキャラクターのライフが+6される。' },
     'シャナ': { effect: 'shana_shield_lost', injury: null, desc:'誘発：シールドを失うと後衛に下がる。' },
     'サキュバス': { effect: 'succubus_sell', injury: null },
@@ -480,19 +481,74 @@ async function loadGameData() {
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSV(ct);
-    const _sheetEnemyNames = new Set(); // シートに「敵専用」として登録されている敵名
+    const _sheetEnemyNames = new Set(); // シートに「敵専用」の通常敵として登録されている敵名
+    const _sheetUnitNames = new Set();  // シートに存在する通常/ネームドキャラクター名
+    const _syncUnitFromRow = (unit, row) => {
+      unit._sheetSeen = true;
+      const nv = row['ネームド'] || row['ユニーク'];
+      if (_truthySheet(nv)) unit.unique = true;
+      else if (_falseySheet(nv)) unit.unique = false;
+      const grade = parseInt(row['グレード']);
+      if (!isNaN(grade) && grade >= 1) unit.grade = grade;
+      { const rarStr=(row['レアリティ']||'').trim();
+        const rarVal=parseInt(rarStr);
+        if(rarStr==='-') unit.rarity=-1;
+        else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
+      const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
+      const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
+      if (atkP2.val > 0) unit.atk = atkP2.val;
+      if (hpP2.val  > 0) unit.hp  = hpP2.val;
+      if (row['種族']) unit.race = row['種族'];
+      const cost = parseInt(row['価格']);
+      if (!isNaN(cost)) unit.cost = cost;
+      const desc = row['効果'];
+      unit.desc = desc || '';
+      if (row['1進化'] !== undefined && row['1進化'].trim()) unit.stack1Desc = row['1進化'].trim();
+      else delete unit.stack1Desc;
+      if (row['2進化'] !== undefined && row['2進化'].trim()) unit.stack2Desc = row['2進化'].trim();
+      else delete unit.stack2Desc;
+      if (row['強化'] !== undefined && row['強化'].trim()) unit.stackEnhDesc = row['強化'].trim();
+      else delete unit.stackEnhDesc;
+      if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
+      else delete unit.stackEffect;
+      if (row['キーワード'] !== undefined) {
+        const kwStr = row['キーワード'].trim();
+        unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
+        unit.counter = unit.keywords.includes('反撃');
+        unit.shield  = unit.keywords.includes('シールド') ? (unit.shield || 1) : 0;
+        if (unit.keywords.includes('標的')) { unit.hate = true; unit.hateTurns = 99; }
+        else { unit.hate = false; unit.hateTurns = 0; }
+      }
+      _syncUnitEffectKeysFromSheet(unit);
+    };
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
       if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
+      const isNamed = _truthySheet(row['ネームド']) || _truthySheet(row['ユニーク']);
       if (isEnemyOnly) {
-        // 敵専用：UNIT_POOL に同名エントリがあれば報酬プールから除外
+        // 相手専用ネームドは通常敵プールには入れず、ボス/エリート候補としてのみ扱う。
         const upUnit = _findBySheetName(UNIT_POOL, name);
+        if (isNamed) {
+          let namedUnit = upUnit;
+          if (!namedUnit) {
+            namedUnit = _rowToUnit(row);
+            namedUnit.id = 'sheet_named_' + _normCardName(name);
+            namedUnit.sheetOnly = true;
+            UNIT_POOL.push(namedUnit);
+          }
+          _sheetUnitNames.add(_normCardName(name));
+          namedUnit.enemyOnly = true;
+          namedUnit.rarity = -1;
+          namedUnit.unique = true;
+          _syncUnitFromRow(namedUnit, row);
+          return;
+        }
         if (upUnit) {
           upUnit.rarity = -1;
           upUnit.enemyOnly = true;
-          _syncUnitEffectKeysFromSheet(upUnit);
+          upUnit._excludeFromNamedEnemy = true;
         }
         // ENEMY_POOL を更新（ATK/HPもシートから基礎レンジとして読み込み）
         let ep = _findBySheetName(ENEMY_POOL, name);
@@ -515,9 +571,9 @@ async function loadGameData() {
         const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  ep.hp  || 2);
         ep.atk = atkP.val; ep.baseAtk = atkP.range;
         ep.hp  = hpP.val;  ep.baseHp  = hpP.range;
-        // キーワード列（なければ効果列）をキーワード配列として解釈（スペース/読点区切り）
-        const kwStr = (row['キーワード'] || row['効果'] || '').trim();
-        if (kwStr) ep.keywords = kwStr.split(/[\s、,，]+/).filter(Boolean);
+        ep.desc = row['効果'] || '';
+        const kwStr = (row['キーワード'] || '').trim();
+        ep.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
         return;
       }
       // 通常キャラクター：UNIT_POOL を更新
@@ -530,50 +586,18 @@ async function loadGameData() {
         UNIT_POOL.push(unit);
       }
       delete unit.enemyOnly;
-      const nv = row['ネームド'] || row['ユニーク'];
-      if (_truthySheet(nv)) unit.unique = true;
-      else if (_falseySheet(nv)) unit.unique = false;
-      const grade = parseInt(row['グレード']);
-      if (!isNaN(grade) && grade >= 1) unit.grade = grade;
-      { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
-        if(rarStr==='-') unit.rarity=-1;
-        else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
-      const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
-      const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
-      // atk/hp は味方スタッツとして更新のみ（baseAtk/baseHpは設定しない）
-      // 敵として出現時の基礎レンジは enemy.js のグレード別デフォルトを使用
-      if (atkP2.val > 0) unit.atk = atkP2.val;
-      if (hpP2.val  > 0) unit.hp  = hpP2.val;
-      if (row['種族']) unit.race = row['種族'];
-      const cost = parseInt(row['価格']);
-      if (!isNaN(cost)) unit.cost = cost;
-      const desc = row['効果'];
-      unit.desc = desc || '';
-      // 2枚重ね効果（stack1）と3枚重ね効果（stack2）を読み込む
-      // 「強化」列を廃止し「1進化」「2進化」列に移行
-      if (row['1進化'] !== undefined && row['1進化'].trim()) unit.stack1Desc = row['1進化'].trim();
-      else delete unit.stack1Desc;
-      if (row['2進化'] !== undefined && row['2進化'].trim()) unit.stack2Desc = row['2進化'].trim();
-      else delete unit.stack2Desc;
-      // 後方互換：旧「強化」列も残す（移行期間中）
-      if (row['強化'] !== undefined && row['強化'].trim()) unit.stackEnhDesc = row['強化'].trim();
-      else delete unit.stackEnhDesc;
-      // 後方互換：旧stackEffectも残す
-      if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
-      else delete unit.stackEffect;
-      // キーワード列が存在する場合、unit.keywords を上書きし効果フラグも同期
-      // row['キーワード'] が undefined = 列なし（JS定義をそのまま使用）
-      if (row['キーワード'] !== undefined) {
-        const kwStr = row['キーワード'].trim();
-        unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
-        // キーワードから効果フラグを自動同期（シートが信源）
-        unit.counter = unit.keywords.includes('反撃');
-        unit.shield  = unit.keywords.includes('シールド') ? (unit.shield || 1) : 0;
-        if (unit.keywords.includes('標的')) { unit.hate = true; unit.hateTurns = 99; }
-        else { unit.hate = false; unit.hateTurns = 0; }
+      _sheetUnitNames.add(_normCardName(name));
+      _syncUnitFromRow(unit, row);
+    });
+
+    // シートに存在しない内蔵キャラクターは出現候補から外す。
+    // 旧データ（例：ヴァンパイア等）が報酬/ネームド敵に漏れるのを防ぐ。
+    UNIT_POOL.forEach(unit => {
+      if (!unit || unit.id === 'c_golem') return;
+      if (!_sheetUnitNames.has(_normCardName(unit.name))) {
+        unit.rarity = -1;
+        unit._excludeFromNamedEnemy = true;
       }
-      _syncUnitEffectKeysFromSheet(unit);
     });
 
     // シートに「敵専用」行が存在する場合、ENEMY_POOL をシート登録済みの敵のみに限定する

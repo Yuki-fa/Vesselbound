@@ -667,6 +667,10 @@ function computeDesc(card,_mlOverride){
     const prog=ringInst?ringInst._rerollProgress||0:0;
     desc+=`（あと${4-prog}回）`;
   }
+  if(card.effect==='faun_wand'&&typeof G!=='undefined'&&G.allies&&G.allies.indexOf(card)>=0){
+    const prog=card._faunWandCount||0;
+    desc+=`（あと${Math.max(0,7-prog)}回）`;
+  }
   return desc;
 }
 
