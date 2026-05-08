@@ -11,10 +11,23 @@ const Assets = {
     ring: 'assets/temp/cards/card_ring.svg',
     wand: 'assets/temp/cards/card_wand.svg',
     consumable: 'assets/temp/cards/card_item.svg',
+    characterFrame: 'assets/temp/cards/character_frame.png',
+    defenderFrame: 'assets/temp/cards/character_defender_frame.png',
+    ringFrame: 'assets/temp/cards/ring_frame.png',
+    wandFrame: 'assets/temp/cards/wand_frame.png',
+    itemFrame: 'assets/temp/cards/item_frame.png',
+    gradeStar: 'assets/temp/cards/grade_star.png',
+    characterMask: 'assets/temp/cards/ch_mask.png',
+    wandSheet: 'assets/temp/cards/wand_sheet.png',
+  },
+  characterSheets: {
+    set1: 'assets/temp/cards/characters/sheet_set1.png',
+    set2: 'assets/temp/cards/characters/sheet_set2.png',
+    set3: 'assets/temp/cards/characters/sheet_set3.png',
   },
   backgrounds: {
     title: 'assets/temp/backgrounds/title_road.svg',
-    stage1: 'assets/temp/backgrounds/grassland.svg',
+    stage1: 'assets/temp/backgrounds/back1.png',
     stage2: 'assets/temp/backgrounds/forest.svg',
     stage3: 'assets/temp/backgrounds/valley.svg',
     stage4: 'assets/temp/backgrounds/capital.svg',
@@ -26,7 +39,172 @@ const Assets = {
   },
   ui: {
     frame: 'assets/temp/ui/card_frame.svg',
+    turn: 'assets/temp/ui/turn.png',
+    turnFlow: 'assets/temp/ui/turn_flow.png',
+    log: 'assets/temp/ui/log.png',
+    option: 'assets/temp/ui/option.png',
   },
+};
+
+const SpellArtMap = {
+  '炎の杖': 'assets/temp/cards/wands/fire.png',
+  '毒の杖': 'assets/temp/cards/wands/poison.png',
+  '強化の杖': 'assets/temp/cards/wands/boost.png',
+  '岩の杖': 'assets/temp/cards/wands/rock.png',
+  '隕石の杖': 'assets/temp/cards/wands/meteor.png',
+  '破滅の杖': 'assets/temp/cards/wands/ruin.png',
+  '成長の杖': 'assets/temp/cards/wands/growth.png',
+  '魅了の杖': 'assets/temp/cards/wands/charm.png',
+  '回復の杖': 'assets/temp/cards/wands/recovery.png',
+  '撹乱の短杖': 'assets/temp/cards/wands/disruption.png',
+  '犠牲の短杖': 'assets/temp/cards/wands/sacrifice.png',
+  '転移の短杖': 'assets/temp/cards/wands/teleportation.png',
+};
+
+const CharacterArtOverrideMap = {
+  'ミテーラ': {path:'assets/temp/cards/characters/crops/mitera.png'},
+  'ジャッカロープ': {path:'assets/temp/cards/characters/crops/jackalope.png'},
+  'ケットシー': {path:'assets/temp/cards/characters/crops/ketshi.png'},
+  'グリマルキン': {path:'assets/temp/cards/characters/crops/grimalkin.png'},
+  'マーメイド': {path:'assets/temp/cards/characters/crops/mermaid.png'},
+  'ピグミー': {path:'assets/temp/cards/characters/crops/pygmy.png'},
+  'ドワーフ': {path:'assets/temp/cards/characters/crops/dwarf.png'},
+  'ラミア': {path:'assets/temp/cards/characters/crops/lamia.png'},
+  'スケルトン': {path:'assets/temp/cards/characters/crops/skeleton.png'},
+  'ゾンビ': {path:'assets/temp/cards/characters/crops/zombie.png'},
+  'マミー': {path:'assets/temp/cards/characters/crops/mummy.png'},
+  'バンシー': {path:'assets/temp/cards/characters/crops/banshee.png'},
+  'エルフ': {path:'assets/temp/cards/characters/crops/elf.png'},
+  'ブラウニー': {path:'assets/temp/cards/characters/crops/brownie.png'},
+  'ジャック・オ・ランタン': {path:'assets/temp/cards/characters/crops/jack_o_lantern.png'},
+  'シルフ': {path:'assets/temp/cards/characters/crops/sylph.png'},
+  'インプ': {path:'assets/temp/cards/characters/crops/imp.png'},
+  'グレムリン': {path:'assets/temp/cards/characters/crops/gremlin.png'},
+  'インキュバス': {path:'assets/temp/cards/characters/crops/incubus.png'},
+  'レッサーデーモン': {path:'assets/temp/cards/characters/crops/lesser_demon.png'},
+  'ドラゴネット': {path:'assets/temp/cards/characters/crops/dragonet.png'},
+  'アラッサス': {path:'assets/temp/cards/characters/crops/arassus.png'},
+  'スリン': {path:'assets/temp/cards/characters/crops/slinn.png'},
+  'リザードマン': {path:'assets/temp/cards/characters/crops/lizardman.png'},
+  'ゴブリン': {path:'assets/temp/cards/characters/crops/goblin.png'},
+  'オーク': {path:'assets/temp/cards/characters/crops/orc.png'},
+  'グール': {path:'assets/temp/cards/characters/crops/ghoul.png'},
+  'ポルターガイスト': {path:'assets/temp/cards/characters/crops/poltergeist.png'},
+  'ジャイアントラット': {path:'assets/temp/cards/characters/crops/giant_rat.png'},
+  'マッドキャット': {path:'assets/temp/cards/characters/crops/madcat.png'},
+  'ウィスプ': {path:'assets/temp/cards/characters/crops/wisp.png'},
+  'コブラン': {path:'assets/temp/cards/characters/crops/kobran.png'},
+  'ファイアブレス': {path:'assets/temp/cards/characters/crops/fire_breath.png'},
+  'ポイズンミスト': {path:'assets/temp/cards/characters/crops/poison_mist.png'},
+  '惑わしの妖精"エインセル"': {path:'assets/temp/cards/characters/crops/named_einsel.png'},
+  '惑わしの妖精“エインセル”': {path:'assets/temp/cards/characters/crops/named_einsel.png'},
+  '鉄の拳"フォルニョート"': {path:'assets/temp/cards/characters/crops/named_fornjotr.png'},
+  '鉄の拳“フォルニョート”': {path:'assets/temp/cards/characters/crops/named_fornjotr.png'},
+  '残響の魔導師"アバドン"': {path:'assets/temp/cards/characters/crops/named_abaddon.png'},
+  '残響の魔導師“アバドン”': {path:'assets/temp/cards/characters/crops/named_abaddon.png'},
+  '黄金の瞳"フレイ"': {path:'assets/temp/cards/characters/crops/named_freyr.png'},
+  '黄金の瞳“フレイ”': {path:'assets/temp/cards/characters/crops/named_freyr.png'},
+  '虚空の渡し守"ナグルファル"': {path:'assets/temp/cards/characters/crops/named_naglfar.png'},
+  '虚空の渡し守“ナグルファル”': {path:'assets/temp/cards/characters/crops/named_naglfar.png'},
+  'コカトリス': {path:'assets/temp/cards/characters/crops/named_cocatrice.png'},
+  'ウォーグ': {path:'assets/temp/cards/characters/crops/named_warg.png'},
+  'ペガサス': {path:'assets/temp/cards/characters/crops/named_pegasus.png'},
+  'ペリュトン': {path:'assets/temp/cards/characters/crops/named_peryton.png'},
+  'ゴールデン・グース': {path:'assets/temp/cards/characters/crops/named_golden_goose.png'},
+  'コボルド': {path:'assets/temp/cards/characters/crops/named_kobold.png'},
+  'アラクネ': {path:'assets/temp/cards/characters/crops/named_arachne.png'},
+  'ミノタウロス': {path:'assets/temp/cards/characters/crops/minotaur.png'},
+  'ハーピー': {path:'assets/temp/cards/characters/crops/harpy.png'},
+  'サイレン': {path:'assets/temp/cards/characters/crops/siren.png'},
+  'レイス': {path:'assets/temp/cards/characters/crops/wraith.png'},
+  'ドラウグ': {path:'assets/temp/cards/characters/crops/draugr.png'},
+  'シャドウ': {path:'assets/temp/cards/characters/crops/shadow.png'},
+  'スペクター': {path:'assets/temp/cards/characters/crops/spectre.png'},
+  'ゴースト': {path:'assets/temp/cards/characters/crops/ghost.png'},
+  'ノーム': {path:'assets/temp/cards/characters/crops/gnome.png'},
+  'ドリアード': {path:'assets/temp/cards/characters/crops/dryad.png'},
+  'ウンディーネ': {path:'assets/temp/cards/characters/crops/undine.png'},
+  'フロスト・スプライト': {path:'assets/temp/cards/characters/crops/frost_sprite.png'},
+  'フロストスプライト': {path:'assets/temp/cards/characters/crops/frost_sprite.png'},
+  'レプラコーン': {path:'assets/temp/cards/characters/crops/leprechaun.png'},
+  'ガーゴイル': {path:'assets/temp/cards/characters/crops/gargoyle.png'},
+  'ヘルハウンド': {path:'assets/temp/cards/characters/crops/hellhound.png'},
+  'アルプ': {path:'assets/temp/cards/characters/crops/alp.png'},
+  'ダークワン': {path:'assets/temp/cards/characters/crops/darkone.png'},
+  'ファミリア': {path:'assets/temp/cards/characters/crops/familiar.png'},
+  'ワーム': {path:'assets/temp/cards/characters/crops/worm.png'},
+  'リンドヴルム': {path:'assets/temp/cards/characters/crops/lindworm.png'},
+  'ハイドラ': {path:'assets/temp/cards/characters/crops/hydra.png'},
+  'ドレイク': {path:'assets/temp/cards/characters/crops/drake.png'},
+  'シーサーペント': {path:'assets/temp/cards/characters/crops/sea_serpent.png'},
+  'ホムンクルス': {path:'assets/temp/cards/characters/crops/homunculus.png'},
+  'サテュロス': {path:'assets/temp/cards/characters/crops/satyr.png'},
+  'ダークエルフ': {path:'assets/temp/cards/characters/crops/dark_elf.png'},
+  'カースドアーマー': {path:'assets/temp/cards/characters/crops/cursed_armor.png'},
+  'ボーンナイト': {path:'assets/temp/cards/characters/crops/bone_knight.png'},
+  'ダイアウルフ': {path:'assets/temp/cards/characters/crops/dire_wolf.png'},
+  'ヒポグリフ': {path:'assets/temp/cards/characters/crops/hippogriff.png'},
+  'ケルピー': {path:'assets/temp/cards/characters/crops/kelpie.png'},
+  'スプリガン': {path:'assets/temp/cards/characters/crops/spriggan.png'},
+  'ズメイ': {path:'assets/temp/cards/characters/crops/zmei.png'},
+  'ブラッドロード': {path:'assets/temp/cards/characters/crops/bloodlord.png'},
+  'クロコッタ': {path:'assets/temp/cards/characters/crops/crocutta.png'},
+  'ルフ': {path:'assets/temp/cards/characters/crops/rukh.png'},
+  'バンダースナッチ': {path:'assets/temp/cards/characters/crops/bandersnatch.png'},
+  'ナックラヴィー': {path:'assets/temp/cards/characters/crops/nuckelavee.png'},
+  'ヴァーチャー': {path:'assets/temp/cards/characters/crops/virtue.png'},
+  'エルヴンメイジ': {path:'assets/temp/cards/characters/crops/elven_mage.png'},
+  'メリュジーヌ': {path:'assets/temp/cards/characters/crops/melusine.png'},
+  'リアナンシー': {path:'assets/temp/cards/characters/crops/rhiannon.png'},
+};
+
+const CharacterArtMap = {
+  '惑わしの妖精"エインセル"': {path:'assets/temp/cards/characters/crops/named_einsel.png'},
+  '鉄の拳"フォルニョート"': {path:'assets/temp/cards/characters/crops/named_fornjotr.png'},
+  '残響の魔導師"アバドン"': {path:'assets/temp/cards/characters/crops/named_abaddon.png'},
+  '黄金の瞳"フレイ"': {path:'assets/temp/cards/characters/crops/named_freyr.png'},
+  '虚空の渡し守"ナグルファル"': {path:'assets/temp/cards/characters/crops/named_naglfar.png'},
+  'コカトリス': {path:'assets/temp/cards/characters/crops/named_cocatrice.png'},
+  'ウォーグ': {path:'assets/temp/cards/characters/crops/named_warg.png'},
+  'ペガサス': {path:'assets/temp/cards/characters/crops/named_pegasus.png'},
+  'ペリュトン': {path:'assets/temp/cards/characters/crops/named_peryton.png'},
+  'ゴールデン・グース': {path:'assets/temp/cards/characters/crops/named_golden_goose.png'},
+  'コボルド': {path:'assets/temp/cards/characters/crops/named_kobold.png'},
+  'アラクネ': {path:'assets/temp/cards/characters/crops/named_arachne.png'},
+  'ジャイアントラット': {sheet:'set1', cols:6, rows:2, col:0, row:0},
+  'マッドキャット': {sheet:'set1', cols:6, rows:2, col:1, row:0},
+  'ミテーラ': {sheet:'set1', cols:6, rows:2, col:2, row:0},
+  'ジャッカロープ': {sheet:'set1', cols:6, rows:2, col:3, row:0},
+  'ケットシー': {sheet:'set1', cols:6, rows:2, col:4, row:0},
+  'グリマルキン': {sheet:'set1', cols:6, rows:2, col:5, row:0},
+  'ゴブリン': {sheet:'set1', cols:6, rows:2, col:0, row:1},
+  'オーク': {sheet:'set1', cols:6, rows:2, col:1, row:1},
+  'マーメイド': {sheet:'set1', cols:6, rows:2, col:2, row:1},
+  'ピグミー': {sheet:'set1', cols:6, rows:2, col:3, row:1},
+  'ドワーフ': {sheet:'set1', cols:6, rows:2, col:4, row:1},
+  'ラミア': {sheet:'set1', cols:6, rows:2, col:5, row:1},
+  'グール': {sheet:'set2', cols:6, rows:2, col:0, row:0},
+  'ポルターガイスト': {sheet:'set2', cols:6, rows:2, col:1, row:0},
+  'スケルトン': {sheet:'set2', cols:6, rows:2, col:2, row:0},
+  'ゾンビ': {sheet:'set2', cols:6, rows:2, col:3, row:0},
+  'マミー': {sheet:'set2', cols:6, rows:2, col:4, row:0},
+  'バンシー': {sheet:'set2', cols:6, rows:2, col:5, row:0},
+  'ウィスプ': {sheet:'set2', cols:6, rows:2, col:0, row:1},
+  'コブラン': {sheet:'set2', cols:6, rows:2, col:1, row:1},
+  'エルフ': {sheet:'set2', cols:6, rows:2, col:2, row:1},
+  'ブラウニー': {sheet:'set2', cols:6, rows:2, col:3, row:1},
+  'ジャック・オ・ランタン': {sheet:'set2', cols:6, rows:2, col:4, row:1},
+  'シルフ': {sheet:'set2', cols:6, rows:2, col:5, row:1},
+  'ポイズンミスト': {sheet:'set3', cols:5, rows:2, col:0, row:0},
+  'インプ': {sheet:'set3', cols:5, rows:2, col:1, row:0},
+  'グレムリン': {sheet:'set3', cols:5, rows:2, col:2, row:0},
+  'インキュバス': {sheet:'set3', cols:5, rows:2, col:3, row:0},
+  'レッサーデーモン': {sheet:'set3', cols:5, rows:2, col:4, row:0},
+  'ファイアブレス': {sheet:'set3', cols:5, rows:2, col:0, row:1},
+  'ドラゴネット': {sheet:'set3', cols:5, rows:2, col:1, row:1},
+  'アラッサス': {sheet:'set3', cols:5, rows:2, col:2, row:1},
+  'スリン': {sheet:'set3', cols:5, rows:2, col:3, row:1},
+  'リザードマン': {sheet:'set3', cols:5, rows:2, col:4, row:1},
 };
 
 function assetUrl(path){
@@ -50,6 +228,71 @@ function getCardAsset(card){
   return Assets.cards.default;
 }
 
+function getCardFrameAsset(card){
+  if(!card) return Assets.cards.default;
+  if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
+  if(card.type==='wand') return Assets.cards.wandFrame;
+  if(card.type==='consumable') return Assets.cards.itemFrame;
+  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ringFrame;
+  return Assets.cards.itemFrame;
+}
+
+function _characterArtDef(cardOrName){
+  const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
+  if(!name) return null;
+  return CharacterArtOverrideMap[name]||CharacterArtMap[name]||null;
+}
+
+function applyCharacterArtVars(el, cardOrName, prefix){
+  if(!el) return false;
+  const def=_characterArtDef(cardOrName);
+  if(!def) return false;
+  const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
+  const sheet=def.path||`assets/temp/cards/characters/crops/${def.sheet}_${def.col}_${def.row}.png`;
+  const p=prefix||'--char';
+  el.style.setProperty(`${p}-art`, assetUrl(sheet));
+  el.style.setProperty(`${p}-art-size`, 'cover');
+  el.style.setProperty(`${p}-art-position`, name==='アラッサス'?'56% 58%':'center 58%');
+  return true;
+}
+
+function applySpellArtVars(el, card, prefix){
+  if(!el||!card||card.type!=='wand') return false;
+  const path=SpellArtMap[card.name];
+  if(!path) return false;
+  const p=prefix||'--card';
+  el.style.setProperty(`${p}-art`, assetUrl(path));
+  el.style.setProperty(`${p}-art-size`, 'cover');
+  el.style.setProperty(`${p}-art-position`, 'center top');
+  return true;
+}
+
+function applyCardVisual(el, card){
+  if(!el) return;
+  el.style.setProperty('--card-frame', assetUrl(getCardFrameAsset(card)));
+  if(!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
+    el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
+    el.style.removeProperty('--card-art-size');
+    el.style.removeProperty('--card-art-position');
+  }
+}
+
+function applyUnitVisual(el, unit){
+  if(!el) return;
+  const isDefender=!!(unit&&(unit.hate&&unit.hateTurns>0||unit.lane==='front'));
+  el.style.setProperty('--unit-frame', assetUrl(isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame));
+  if(!applyCharacterArtVars(el, unit, '--unit')){
+    el.style.setProperty('--unit-art', assetUrl(Assets.cards.character));
+    el.style.removeProperty('--unit-art-size');
+    el.style.removeProperty('--unit-art-position');
+  }
+}
+
+function gradeIconHtml(g){
+  const n=Math.min(Math.max(Number(g)||1,1),typeof MAX_GRADE!=='undefined'?MAX_GRADE:5);
+  return `<span class="grade-stars grade-stars-${n}" aria-label="G${n}">${Array.from({length:n},(_,i)=>`<span class="grade-star grade-star-${i+1}"></span>`).join('')}</span>`;
+}
+
 function setScreenAssetBackground(screenId, bgKey){
   const el=document.getElementById('scr-'+screenId);
   const path=Assets.backgrounds[bgKey];
@@ -65,6 +308,17 @@ function applyScreenAssetBackground(screenId){
     const key=(typeof G!=='undefined'&&G&&G._isShop)?'shop':getStageBackgroundKey(typeof G!=='undefined'?G.floor:1);
     setScreenAssetBackground('battle',key);
   }
+}
+
+function applyUiAssets(){
+  const root=document.documentElement;
+  if(!root) return;
+  root.style.setProperty('--turn-button-image', assetUrl(Assets.ui.turn));
+  root.style.setProperty('--turn-button-flow-image', assetUrl(Assets.ui.turnFlow));
+  root.style.setProperty('--grade-star-image', assetUrl(Assets.cards.gradeStar));
+  root.style.setProperty('--character-mask-image', assetUrl(Assets.cards.characterMask));
+  root.style.setProperty('--log-panel-image', assetUrl(Assets.ui.log));
+  root.style.setProperty('--option-button-image', assetUrl(Assets.ui.option));
 }
 
 function setBattleStageBackground(){
@@ -106,3 +360,12 @@ function playCardUseVfx(idx){
 }
 
 window.Assets=Assets;
+window.applyCardVisual=applyCardVisual;
+window.applyUnitVisual=applyUnitVisual;
+window.gradeIconHtml=gradeIconHtml;
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',applyUiAssets,{once:true});
+}else{
+  applyUiAssets();
+}

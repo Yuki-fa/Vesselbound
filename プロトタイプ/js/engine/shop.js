@@ -53,6 +53,8 @@ function doShop(){
   document.getElementById('reward-info-bar').style.display='';
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
+  const logWrap=document.getElementById('log-wrap');
+  if(logWrap) logWrap.style.display='';
   document.getElementById('ph-badge').innerHTML='<span style="font-size:.75em;opacity:.75">行商</span>';
   document.getElementById('ph-badge').className='ph-badge';
   const bossNotice=document.getElementById('boss-reward-notice');
@@ -112,7 +114,8 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
       const div=document.createElement('div');
       const t=card.type||'ring';
       div.className=`card ${t}`;
-      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
+      if(typeof applyCardVisual==='function') applyCardVisual(div,card);
+      else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
       div.draggable=true;
       div.dataset.arr=arrName; div.dataset.idx=i; div.dataset.ctx=ctx;
       const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
@@ -122,7 +125,7 @@ function renderHeRowIn(elId, arr, startIdx, count, arrName, ctx){
       const isRingCard=t==='ring'||card.kind==='summon'||card.kind==='passive';
       const shBtnCls=isRingCard?'return-btn':'discard-btn';
       const shBtnTxt=isRingCard?'還魂':'破棄';
-      div.innerHTML=`<button class="${shBtnCls}">${shBtnTxt}</button><div class="card-art"></div><div class="card-tp ${t}">${typeLabel[t]||'契約'}${kl}</div>${card.grade?`<div class="card-grade">G${card.grade}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
+      div.innerHTML=`<button class="${shBtnCls}">${shBtnTxt}</button><div class="card-art"></div><div class="card-tp ${t}">${typeLabel[t]||'契約'}${kl}</div>${card.grade?`<div class="card-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(card.grade):`G${card.grade}`}</div>`:''}<div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${enc}${shStats}`;
       div.querySelector('.'+shBtnCls).onclick=ev=>{ ev.stopPropagation(); discardHeCard(arrName,i); if(ctx==='shop') renderShopHandEditor(); else renderHandEditor(); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:arrName,idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0); });
       div.addEventListener('dragend',()=>div.classList.remove('dragging'));

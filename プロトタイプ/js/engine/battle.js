@@ -112,7 +112,17 @@ function getJackalopeHpBonus(side){
 
 function unitMatchesRace(unit, race){
   if(!unit||!race) return false;
-  return race==='全て'||unit.race===race||unit.race==='全て';
+  const races=String(unit.race||'').split(/[／/、,，\s]+/).filter(Boolean);
+  return race==='全て'||races.includes(race)||races.includes('全て');
+}
+
+function addUnitRace(unit, race){
+  if(!unit||!race||race==='-') return false;
+  const races=String(unit.race||'-').split(/[／/、,，\s]+/).filter(r=>r&&r!=='-');
+  if(races.includes('全て')||races.includes(race)) return false;
+  races.push(race);
+  unit.race=races.length?races.join('／'):race;
+  return true;
 }
 
 function applyUnitBuff(unit, atk, hp, sideOverride){
@@ -1031,7 +1041,7 @@ function _applyAllyAttackEffects(ally){
   }
   if(ally.effect==='vampire_attack'){
     const va=2*_sc+_gd; let _vh=_sc+_gd;
-    G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='不死'||a.race==='全て')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; _vh=addUnitHp(a,_sc+_gd); }});
+    G.allies.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'不死')){ a.atk+=va; a.baseAtk=(a.baseAtk||0)+va; _vh=addUnitHp(a,_sc+_gd); }});
     log(`${ally.name}：攻撃→全不死+${va}/+${_vh}`,'good');
   }
   if(ally.effect==='gremlin_attack'){
@@ -1092,8 +1102,8 @@ function _applyAllyAttackEffects(ally){
     const live=G.allies.filter(a=>a&&a.hp>0);
     if(live.length){
       const t=randFrom(live);
-      t.race='不死';
-      log(`${ally.name}：攻撃→${t.name}に不死の種族を追加`,'good');
+      const added=addUnitRace(t,'不死');
+      log(`${ally.name}：攻撃→${t.name}${added?'に不死の種族を追加':'は既に不死'}`,'good');
     }
   }
   if(ally.effect==='nymph_attack'){
@@ -1135,7 +1145,7 @@ function _applyEnemyAttackEffects(enemy){
   // arachas_attack（旧効果）は廃止
   if(enemy.effect==='vampire_attack'){
     const va=2, vh=1;
-    G.enemies.forEach(f=>{ if(f&&f.hp>0&&(f.race==='不死'||f.race==='全て')){ f.atk+=va; f.baseAtk=(f.baseAtk||0)+va; f.hp+=vh; f.maxHp+=vh; }});
+    G.enemies.forEach(f=>{ if(f&&f.hp>0&&unitMatchesRace(f,'不死')){ f.atk+=va; f.baseAtk=(f.baseAtk||0)+va; f.hp+=vh; f.maxHp+=vh; }});
     log(`${enemy.name}：攻撃→全不死+${va}/+${vh}`,'bad');
   }
   if(enemy.effect==='dryad_attack'){
@@ -1177,6 +1187,76 @@ function _applyEnemyAttackEffectsWithElf(enemy){
     const elf=G.enemies[idx-1];
     if(elf&&elf.hp>0&&elf.effect==='elf_double_right') _applyEnemyAttackEffects(enemy);
   }
+}
+
+function _attackRepeatCount(unit){
+  const kws=unit&&unit.keywords||[];
+  if(kws.includes('三段攻撃')) return 3;
+  if(kws.includes('二段攻撃')) return 2;
+  return 1;
+}
+
+function _applyAttackEffectsForSide(unit,isEnemySide){
+  if(isEnemySide) _applyEnemyAttackEffectsWithElf(unit);
+  else _applyAllyAttackEffectsWithElf(unit);
+}
+
+function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
+  if(isEnemySide){
+    let actualTarget=target;
+    let actualIdx=targetIdx;
+    if(damage>0){
+      actualTarget=_redirectToBodyguard(G.allies,target,'good');
+      actualIdx=G.allies.indexOf(actualTarget);
+    }
+    dealDmgToAlly(actualTarget,damage,actualIdx,attacker,true,true);
+    return actualTarget;
+  }
+  dealDmgToEnemy(target,damage,targetIdx,attacker);
+  return target;
+}
+
+function _maybeCounterAttack(defender,defenderIsAlly,attacker){
+  if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) return;
+  const hasCounter=defender.counter||(defender.keywords||[]).includes('反撃');
+  if(!hasCounter||defender.atk<=0) return;
+  const maxHits=_attackRepeatCount(defender);
+  for(let hi=0;hi<maxHits;hi++){
+    if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) break;
+    _applyAttackEffectsForSide(defender,!defenderIsAlly);
+    if(defenderIsAlly){
+      const srcIdx=G.enemies.indexOf(attacker);
+      if(srcIdx<0) break;
+      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'good');
+      dealDmgToEnemy(attacker,defender.atk,srcIdx,defender);
+    } else {
+      const srcIdx=G.allies.indexOf(attacker);
+      if(srcIdx<0) break;
+      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'bad');
+      _dealAttackDamage(defender,true,attacker,srcIdx,defender.atk);
+    }
+  }
+}
+
+function _effectAttackSequence(attacker,isEnemySide,forcedTarget,actionLabel='効果攻撃'){
+  if(!attacker||attacker.hp<=0||attacker.atk<=0) return false;
+  const opponents=isEnemySide?G.allies:G.enemies;
+  let target=forcedTarget&&forcedTarget.hp>0?forcedTarget:null;
+  const hits=_attackRepeatCount(attacker);
+  let didHit=false;
+  for(let hi=0;hi<hits;hi++){
+    if(!attacker||attacker.hp<=0) break;
+    if(!target||target.hp<=0||target._isObject) target=getAttackTarget(attacker,opponents);
+    if(!target||target.hp<=0) break;
+    const targetIdx=opponents.indexOf(target);
+    if(targetIdx<0) break;
+    _applyAttackEffectsForSide(attacker,isEnemySide);
+    log(`${attacker.name}：${actionLabel}${hi>0?`（${hi+1}段目）`:''}→${target.name}`,isEnemySide?'bad':'good');
+    const actualTarget=_dealAttackDamage(attacker,isEnemySide,target,targetIdx,attacker.atk);
+    _maybeCounterAttack(actualTarget||target,!isEnemySide,attacker);
+    didHit=true;
+  }
+  return didHit;
 }
 
 // 攻撃ターゲットを決定する
@@ -1235,20 +1315,15 @@ async function allyAttackAction(ally, allyIdx){
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け
   const attackTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
+  const _atkLabel=isGlobal?'全敵':isTriDir?`${target.name}周辺3体`:target.name;
+  log(`${ally.name}(${ally.atk})→${_atkLabel}`);
 
   attackTargets.forEach(t=>{
     const ti=G.enemies.indexOf(t);
     dealDmgToEnemy(t,ally.atk,ti,ally);
     // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ・攻撃効果も発動）
-    if(t.hp>0&&t.atk>0&&t.keywords&&t.keywords.includes('反撃')&&ally.hp>0){
-      _applyEnemyAttackEffects(t);
-      dealDmgToAlly(ally,t.atk,allyIdx,t);
-      log(`⚔ ${t.name}の反撃：${ally.name}に${t.atk}ダメ`,'bad');
-    }
+    _maybeCounterAttack(t,false,ally);
   });
-  const _atkLabel=isGlobal?'全敵':isTriDir?`${target.name}周辺3体`:target.name;
-  log(`${ally.name}(${ally.atk})→${_atkLabel}`);
-
   // 多段攻撃（三段=×2、二段=×1）：三方向攻撃とは併用しない
   if(ally.hp>0&&!isGlobal&&!isTriDir){
     const extraHits=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
@@ -1269,8 +1344,9 @@ async function allyAttackAction(ally, allyIdx){
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
-      dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
       log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
+      dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
+      _maybeCounterAttack(curTgt,false,ally);
     }
   }
 
@@ -1334,16 +1410,16 @@ async function enemyAttackAction(enemy, enemyIdx){
   // 全ターゲットを攻撃
   const hitNames=[];
   const hitSet=new Set();
+  finalTargets.forEach(tgt=>hitNames.push(tgt.name));
+  log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':isTriDirAtk?`${primaryTarget.name}周辺3体`:hitNames.join('・')}`);
   finalTargets.forEach(tgt=>{
     const aIdx=G.allies.indexOf(tgt);
     if(!hitSet.has(tgt.id)){
-      dealDmgToAlly(tgt,atkVal,aIdx,enemy);
+      const actualTarget=_dealAttackDamage(enemy,true,tgt,aIdx,atkVal);
+      _maybeCounterAttack(actualTarget||tgt,true,enemy);
       hitSet.add(tgt.id);
     }
-    hitNames.push(tgt.name);
   });
-
-  log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':isTriDirAtk?`${primaryTarget.name}周辺3体`:hitNames.join('・')}`);
 
   // 多段攻撃キーワード（三段=×2、二段=×1）：三方向攻撃とは併用しない
   if(!isGlobalAtk&&!isTriDirAtk&&enemy.hp>0){
@@ -1365,8 +1441,9 @@ async function enemyAttackAction(enemy, enemyIdx){
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
-      dealDmgToAlly(reTgt,enemy.atk,G.allies.indexOf(reTgt),enemy);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
+      const actualTarget=_dealAttackDamage(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
+      _maybeCounterAttack(actualTarget||reTgt,true,enemy);
     }
   }
 
@@ -1394,9 +1471,9 @@ function _redirectToBodyguard(list, unit, tone) {
 }
 
 // 戻り値：ダメージが通った(true) / 0ダメまたはシールドでブロック(false)
-function dealDmgToAlly(unit, dmg, _fieldIdx, src){
+function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirect){
   if(!unit||unit.hp<=0) return false;
-  if(dmg>0){
+  if(dmg>0&&!_skipRedirect){
     const redirected=_redirectToBodyguard(G.allies, unit, 'good');
     if(redirected!==unit){
       unit=redirected;
@@ -1406,10 +1483,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
 
   // 0ダメ（封印・無効化）：反撃は攻撃行為に対して発動（生存確定なので発動OK）
   if(dmg<=0){
-    if(unit.counter&&src&&unit.hp>0){
-      const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI0=G.allies.indexOf(unit);if(_elfCI0>0){const _elfC0=G.allies[_elfCI0-1];if(_elfC0&&_elfC0.hp>0&&_elfC0.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
-    }
+    if(!_suppressCounter) _maybeCounterAttack(unit,true,src);
     return false;
   }
 
@@ -1419,10 +1493,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
     log(`🛡 ${unit.name}のシールドがダメージを防いだ（残${unit.shield}）`,'sys');
     onAllyShieldLost(unit);
     // 反撃：シールドで防いでも生き残っているので発動
-    if(unit.counter&&src&&unit.hp>0){
-      const srcIdx=G.enemies.indexOf(src);
-      if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI1=G.allies.indexOf(unit);if(_elfCI1>0){const _elfC1=G.allies[_elfCI1-1];if(_elfC1&&_elfC1.hp>0&&_elfC1.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
-    }
+    if(!_suppressCounter) _maybeCounterAttack(unit,true,src);
     return false; // ダメージをシールドで防いだ
   }
 
@@ -1447,10 +1518,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src){
   }
 
   // 反撃：ダメージを受けて生き残った場合のみ発動
-  if(!willDie&&unit.counter&&src&&unit.hp>0){
-    const srcIdx=G.enemies.indexOf(src);
-    if(srcIdx>=0){ _applyAllyAttackEffects(unit); const _elfCI2=G.allies.indexOf(unit);if(_elfCI2>0){const _elfC2=G.allies[_elfCI2-1];if(_elfC2&&_elfC2.hp>0&&_elfC2.effect==='elf_double_right') _applyAllyAttackEffects(unit);} dealDmgToEnemy(src,unit.atk,srcIdx,unit); log(`⚔ ${unit.name}の反撃：${src.name}に${unit.atk}ダメ`,'good'); }
-  }
+  if(!willDie&&!_suppressCounter) _maybeCounterAttack(unit,true,src);
 
   // リリス・ヴェノム（敵側）：味方がダメージを受けた時、毒3を与える
   if(!willDie && actualDmg>0){
@@ -1647,7 +1715,7 @@ function triggerInjury(unit, dmg=0){
       log(`${unit.name}：負傷→全仲間+${_wv}/±0`,col);
       if(!isEnemy){
         // リンドヴルム：仲間の負傷発動時、全仲間竜+1/+1
-        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+        G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
         triggerDryadBuff();
       }
       break;
@@ -1725,7 +1793,7 @@ function triggerInjury(unit, dmg=0){
       // 全ての仲間の獣が+1/+1
       const _wgnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
       const _wgv=(_wgnums[0]||1)+(!isEnemy&&G.hasGoldenDrop?1:0);
-      ownSide.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
+      ownSide.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'獣')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,col);
       break;
     }
@@ -1816,7 +1884,7 @@ function triggerInjury(unit, dmg=0){
   // リンドヴルム：仲間の負傷発動時（worm以外）、全仲間竜+1/+1
   if(!isEnemy && unit.injury !== 'worm'){
     const _lv=1+(G.hasGoldenDrop?1:0);
-    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
+    G.allies.forEach(lw=>{ if(lw&&lw.hp>0&&lw.effect==='lindworm_injury'){ const _lwn=[...(lw.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0])); const _lv=(_lwn[0]||1)+(G.hasGoldenDrop?1:0); G.allies.forEach(d=>{ if(d&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }}); log(`${lw.name}：仲間負傷→全仲間の竜+${_lv}/+${_lv}`,'good'); }});
   }
 }
 
@@ -1904,9 +1972,7 @@ function _triggerCrocuttaAttack(unit, isEnemySide){
   const live=opp.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._isObject);
   if(!live.length) return;
   const t=randFrom(live);
-  if(isEnemySide) dealDmgToAlly(t.u,unit.atk||0,t.i,unit);
-  else dealDmgToEnemy(t.u,unit.atk||0,t.i,unit);
-  log(`${unit.name}：開戦→${t.u.name}に攻撃`,isEnemySide?'bad':'good');
+  _effectAttackSequence(unit,isEnemySide,t.u,'開戦');
 }
 
 function _triggerSeaBishopStart(unit, isEnemySide){

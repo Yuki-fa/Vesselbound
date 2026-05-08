@@ -29,6 +29,8 @@ function triggerDraugSummonChoice(unit){
           cand.a.keywords=[...(cand.a.keywords||[]),'毒牙'];
           log(`${unit.name}：${cand.a.name}に「毒牙」を付与`,'good');
           if(typeof renderAll==='function') renderAll();
+          if(typeof finishTargetSelection==='function') finishTargetSelection();
+          else if(typeof clearSelectable==='function') clearSelectable();
         };
       }
     });
@@ -52,6 +54,8 @@ function triggerMedusaSummonChoice(unit){
           cand.a.keywords=[...(cand.a.keywords||[]),'二段攻撃'];
           log(`${unit.name}：${cand.a.name}に「二段攻撃」を付与`,'good');
           if(typeof renderAll==='function') renderAll();
+          if(typeof finishTargetSelection==='function') finishTargetSelection();
+          else if(typeof clearSelectable==='function') clearSelectable();
         };
       }
     });

@@ -229,7 +229,7 @@ function goToReward(){
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
   const logWrap=document.getElementById('log-wrap');
-  if(logWrap) logWrap.style.display='none';
+  if(logWrap) logWrap.style.display='';
 
   // リスNPCを明示的に表示（squirrelSayが空メッセージの場合でも表示する）
   const _sqEl=document.getElementById('squirrel-npc');
@@ -542,15 +542,15 @@ function _triggerLindwormRew(){
   // 提示カードのリンドヴルム
   _rewCards.forEach(lw=>{
     if(!lw||!lw._isChar||lw.hp<=0||lw.effect!=='lindworm_injury') return;
-    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    G.allies.forEach(d=>{ if(d&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
     log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
   });
   // 盤面のリンドヴルム
   G.allies.forEach(lw=>{
     if(!lw||lw.hp<=0||lw.effect!=='lindworm_injury') return;
-    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
-    G.allies.forEach(d=>{ if(d&&d.hp>0&&(d.race==='竜'||d.race==='全て')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    _rewCards.forEach(d=>{ if(d&&d._isChar&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
+    G.allies.forEach(d=>{ if(d&&d.hp>0&&unitMatchesRace(d,'竜')){ d.atk+=_lv; d.baseAtk=(d.baseAtk||0)+_lv; d.hp+=_lv; d.maxHp+=_lv; }});
     log(`${lw.name}：仲間負傷→全竜+${_lv}/+${_lv}`,'good');
   });
 }
@@ -630,8 +630,8 @@ function _triggerRewCharInjury(unit, dmg=0){
     case 'warg':{
       const _wgnums=[...(unit.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
       const _wgv=(_wgnums[0]||1)+(G.hasGoldenDrop?1:0);
-      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&(c.race==='獣'||c.race==='全て')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
-      G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
+      _rewCards.forEach(c=>{ if(c&&c._isChar&&c.hp>0&&c!==unit&&unitMatchesRace(c,'獣')){ c.atk+=_wgv; c.baseAtk=(c.baseAtk||0)+_wgv; c.hp+=_wgv; c.maxHp+=_wgv; }});
+      G.allies.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'獣')){ a.atk+=_wgv; a.baseAtk=(a.baseAtk||0)+_wgv; a.hp+=_wgv; a.maxHp+=_wgv; }});
       log(`${unit.name}：負傷→全仲間の獣+${_wgv}/+${_wgv}`,'good');
       _triggerLindwormRew();
       break;
@@ -710,7 +710,8 @@ function renderRewCards(){
         }
       });
     } else {
-      slot.className='slot is-rear';
+      slot.className='slot is-rear unit-card';
+      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,card);
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
       const canBuy=!G._isRewardTown||G.gold>=cost;
@@ -733,7 +734,9 @@ function renderRewCards(){
       const _rawDesc=card.desc?computeDesc(card):'';
       const _strippedDesc=_stripKeywordsFromDesc(_rawDesc,card);
       const descTag=_strippedDesc?`<div class="slot-desc">${_strippedDesc}</div>`:'';
-      const gradeTag=card.grade?`<div class="slot-grade">${gradeStr(card.grade)}</div>`:'';
+      const _previewText=typeof _unitPreviewText==='function'?_unitPreviewText(card,_strippedDesc):_strippedDesc;
+      if(_previewText) slot.setAttribute('data-preview',_previewText);
+      const gradeTag=card.grade?`<div class="slot-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(card.grade):gradeStr(card.grade)}</div>`:'';
       const costTag=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
 
       // 通常報酬で無料取得済みの場合はキャラスロットをロック
@@ -745,8 +748,8 @@ function renderRewCards(){
       const statusBlock=_stBadges.length?`<div style="position:absolute;top:20px;left:0;right:0;display:flex;justify-content:center;flex-wrap:wrap;gap:2px;z-index:3">${_stBadges.join('')}</div>`:'';
       slot.style.borderTop='2px solid var(--teal2)';
       if(!canBuy) slot.style.background='var(--bg)';
-      if(_previewStr) slot.setAttribute('data-preview',_previewStr);
-      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none"><div style="font-size:1.1rem">${card.icon||'❓'}</div><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
+      if(_previewStr) slot.setAttribute('data-preview',typeof _unitPreviewText==='function'?_unitPreviewText(card,_previewStr):_previewStr);
+      slot.innerHTML=`${gradeTag}${costTag}${shortBadge}${statusBlock}<div class="unit-portrait"></div><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none"><div class="slot-name">${card.name}</div><div class="slot-race">${card.race||'-'}</div><div class="slot-stats"><span class="a">${dispAtk}</span><span class="s">/</span><span class="h">${dispHp}</span></div></div><div style="position:absolute;bottom:6px;left:0;right:0;display:flex;flex-direction:column;align-items:stretch;padding:0 2px">${kwBlock}${descTag}</div>`;
       // クリックで購入（ロック中は不可）
       if(!isRewardLocked && canBuy && hasSlot){
         slot.style.cursor='pointer';
@@ -813,7 +816,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const _isRingCard=card.kind==='summon'||card.kind==='passive'||card.type==='ring';
   const isTreasure=!!card._isTreasure;
   div.className='rew-card'+(canBuy?'':' cant')+(isLegend?' legend':'')+(isTreasure?' treasure':'');
-  if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
+  if(typeof applyCardVisual==='function'){
+    applyCardVisual(div,card);
+  } else if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
     div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
   }
 
@@ -821,22 +826,24 @@ function _mkRewDiv(card, onBuy, rewIdx){
     // キャラクターカード
     const hasSlot=G.allies.includes(null);
     const disabled=!hasSlot;
-    div.className='rew-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
+    div.className='rew-card character-card'+(canBuy&&!disabled?'':' cant')+(isLegend?' legend':'');
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
     // マミーボーナスは drawCharacters で card.atk に反映済み
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
     const costLine=G._isRewardTown?`<div class="rew-card-cost">${cost}ソウル${disabled?' （盤面満杯）':''}</div>`:disabled?`<div class="rew-card-cost">（盤面満杯）</div>`:'';
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-    const gradeTag=card.grade?` <span class="rew-grade">${gradeStr(card.grade)}</span>`:'';
+    const gradeTag=card.grade?` <span class="rew-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(card.grade):gradeStr(card.grade)}</span>`:'';
     const shortBadge=!canBuy&&!isTreasure?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 4px;font-size:.48rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
+    const _charPreview=typeof _unitPreviewText==='function'?_unitPreviewText(card,_rewCharDesc):_rewCharDesc;
+    if(_charPreview) div.setAttribute('data-preview',_charPreview);
     const _sumBonusCardAtk=(G.hasGoldenDrop?1:0);
     const _sumBonusCardHp=(G._grimalkinBonus||0)+(G.hasGoldenDrop?1:0);
     const _hasSumDescCard=(_sumBonusCardAtk>0||_sumBonusCardHp>0)&&/\d+\/\d+、/.test(card.desc||'');
     if(_hasSumDescCard){
       const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCardAtk}/${parseInt(h)+_sumBonusCardHp}、`);
-      div.setAttribute('data-preview',`ペリュトン：${_modDescCard}`);
+      div.setAttribute('data-preview',typeof _unitPreviewText==='function'?_unitPreviewText(card,`ペリュトン：${_modDescCard}`):`ペリュトン：${_modDescCard}`);
     }
     div.innerHTML=`${shortBadge}${costLine}<div class="rew-card-art"></div><div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set([...(card.keywords||[]),...(card.counter?['反撃']:[])])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     if(canBuy&&!disabled) div.onclick=onBuy;
@@ -857,7 +864,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     :refund>0?`<div class="rew-card-refund">還魂（ソウル+${refund}）</div>`:'';
   const tpLabel=typeLabel[t]||'指輪';
   const legendBadge=isLegend?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-  const gradeTagItem=gs?`<div style="position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700">${gs}</div>`:'';
+  const gradeTagItem=gs?`<div class="card-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(g):gs}</div>`:'';
   const priceTagItem=G._isRewardTown?`<div style="position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1">${_circleCost(cost)}</div>`:'';
   const shortBadgeItem=G._isRewardTown&&!canBuy&&!isTreasure?`<div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);background:rgba(180,40,40,.9);border:1px solid #e06060;border-radius:3px;padding:0 3px;font-size:.44rem;color:#fff;font-weight:700;white-space:nowrap;z-index:10">ソウル不足</div>`:'';
   div.innerHTML=`${gradeTagItem}${priceTagItem}${shortBadgeItem}<div class="rew-card-art"></div><div><div class="rew-card-tp" style="color:var(--${tColor});text-align:center">${tpLabel}</div><div class="rew-card-name" style="text-align:center">${card.name}</div><div class="rew-card-desc">${rdesc}</div>${refundTxt}${legendBadge}</div>`;
@@ -1067,7 +1074,8 @@ function _renderFieldRow(el){
     const unit=G.allies[i];
     const div=document.createElement('div');
     if(unit&&unit.hp>0){
-      div.className='slot'+(unit.hate&&unit.hateTurns>0?' is-front':'');
+      div.className='slot unit-card'+(unit.hate&&unit.hateTurns>0?' is-defender':'');
+      if(typeof applyUnitVisual==='function') applyUnitVisual(div,unit);
       div.draggable=true;
       const badges=[];
       const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
@@ -1082,10 +1090,12 @@ function _renderFieldRow(el){
       if(unit.stealth)badges.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
       if(unit.allyTarget)badges.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
-      const gradeTag=unit.grade?`<div class="slot-grade">${gradeStr(unit.grade)}</div>`:'';
+      const gradeTag=unit.grade?`<div class="slot-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(unit.grade):gradeStr(unit.grade)}</div>`:'';
       const _rawDesc=unit.desc?computeDesc(unit):'';
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
       const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
+      const _preview=typeof _unitPreviewText==='function'?_unitPreviewText(unit,_desc):_desc;
+      if(_preview) div.setAttribute('data-preview',_preview);
       const dragonetSub=unit.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(unit._dragonetBonus||0))-(unit._dragonetCount||0)}戦</div>`:'';
       const raceTag=unit.race&&unit.race!=='-'?`<div class="slot-race">${unit.race}</div>`:'';
       const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','狩人':'#d08040','魂喰らい':'#d060d0','結束':'#80d0d0','邪眼':'#c060c0','シールド':'#60a0e0','A・シールド':'#60a0e0','呪詛':'#8060d0','反撃':'#e0a060','標的':'#60c0c0','成長':'#60d090'};
@@ -1100,7 +1110,7 @@ function _renderFieldRow(el){
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
-      div.innerHTML=`${badgeBlock}${gradeTag}<div style="${_infoStyle}"><div style="font-size:1.1rem">${unit.icon||'❓'}</div><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
+      div.innerHTML=`${badgeBlock}${gradeTag}<div class="unit-portrait"></div><div style="${_infoStyle}"><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="h">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div><button class="return-btn">還魂（ソウル+1）</button>`;
       div.querySelector('.return-btn').onclick=ev=>{ ev.stopPropagation(); sellFieldUnit(i); };
       // 進化バッジ（重ね段階に応じて表示）
       if(unit._stackCount>=1){
@@ -1109,16 +1119,16 @@ function _renderFieldRow(el){
         evoBadge.textContent=unit._stackCount>=2?'2段進化':'1段進化';
         div.appendChild(evoBadge);
       }
-      // クリックでヘイト切り替え
+      // クリックでディフェンダー切り替え
       div.onclick=e=>{
         if(e.detail===0) return; // プログラム的クリックは無視
         const u=G.allies[i]; if(!u||u.hp<=0) return;
         if(u.hate&&u.hateTurns>0){
           u.hate=false; u.hateTurns=0;
-          log(`${u.name}が後衛に下がった`,'sys');
+          log(`${u.name}：ディフェンダーOFF`,'sys');
         } else {
           u.hate=true; u.hateTurns=99;
-          log(`${u.name}が前衛に出た`,'good');
+          log(`${u.name}：ディフェンダーON`,'good');
         }
         updateHUD(); renderFieldEditor();
       };
@@ -1135,18 +1145,18 @@ function _renderFieldRow(el){
         div.classList.remove('dragging'); _clearFieldMergeTimer(); _clearFieldDropHighlights();
         _removeDragGhost(); _removeStackPreviewOverlay(); _fieldDragSrcEl=null;
         _fieldDragSrc=-1;
-        // 移動・合体なしのドラッグ終了 → Y方向で前衛後衛切り替え
+        // 移動・合体なしのドラッグ終了 → Y方向でディフェンダー切り替え
         if(srcIdx>=0){
           const u=G.allies[srcIdx];
           if(u&&u.hp>0){
             const dy=e.clientY-_fieldDragStartY;
             if(dy < -30&&!(u.hate&&u.hateTurns>0)){
               u.hate=true; u.hateTurns=99;
-              log(`${u.name}が前衛に出た`,'good');
+              log(`${u.name}：ディフェンダーON`,'good');
               updateHUD(); renderFieldEditor();
             } else if(dy > 30&&(u.hate&&u.hateTurns>0)){
               u.hate=false; u.hateTurns=0;
-              log(`${u.name}が後衛に下がった`,'sys');
+              log(`${u.name}：ディフェンダーOFF`,'sys');
               updateHUD(); renderFieldEditor();
             }
           }
@@ -1464,12 +1474,20 @@ function _createDragGhost(srcEl){
   _removeDragGhost();
   const d=srcEl.cloneNode(true);
   d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
+  d.classList.remove('dragging','drag-over','selectable');
+  const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
   const W=srcEl.offsetWidth||80, H=srcEl.offsetHeight||80;
-  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:.82;visibility:hidden;`+
+  const visualW=W*scale*.95, visualH=H*scale*.95;
+  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:1;visibility:hidden;`+
     `width:${W}px;height:${H}px;`+
-    `transform:scale(.95);transition:none;left:0;top:0;`+
-    `border-radius:6px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
-  d._ghostW=W; d._ghostH=H;
+    `transform:scale(${scale*.95});transform-origin:top left;transition:none;left:0;top:0;`+
+    `border-radius:6px;overflow:visible;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
+  const cs=getComputedStyle(srcEl);
+  ['--card-frame','--card-art','--card-art-size','--card-art-position','--unit-frame','--unit-art','--unit-art-size','--unit-art-position'].forEach(k=>{
+    const v=cs.getPropertyValue(k);
+    if(v) d.style.setProperty(k,v);
+  });
+  d._ghostW=visualW; d._ghostH=visualH;
   document.body.appendChild(d);
   _dragGhostDiv=d;
 }
@@ -1618,7 +1636,7 @@ function sellFieldUnit(idx){
   if(managarm){
     const _mg=1+(G.hasGoldenDrop?1:0);
     G.allies.forEach(a=>{
-      if(a&&a.hp>0&&(a.race==='獣'||a.race==='全て')){
+      if(a&&a.hp>0&&unitMatchesRace(a,'獣')){
         a.atk+=_mg; a.baseAtk=(a.baseAtk||0)+_mg; a.hp+=_mg; a.maxHp+=_mg;
       }
     });
@@ -1662,12 +1680,13 @@ function renderHeRingSlots(){
     if(ring){
       const div=document.createElement('div');
       div.className='card ring';
-      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(ring)));
+      if(typeof applyCardVisual==='function') applyCardVisual(div,ring);
+      else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(ring)));
       div.draggable=true;
       const _ringBtn=G._isShop
         ?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`
         :`<button class="discard-btn" title="廃棄">廃棄</button>`;
-      div.innerHTML=`<div class="card-art"></div><div class="card-tp ring">指輪</div><div class="card-grade">${gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
+      div.innerHTML=`<div class="card-art"></div><div class="card-tp ring">指輪</div><div class="card-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(ring.grade||1):gradeStr(ring.grade||1)}</div><div class="card-name">${ring.name}</div><div class="card-desc">${computeDesc(ring)}</div>${_ringBtn}`;
       if(_ringBtn) div.querySelector('.discard-btn').onclick=ev=>{ ev.stopPropagation(); if(G._isShop){ G.rings[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(ring.name+' を売却（+1ソウル）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); } else discardRing(i); };
       div.addEventListener('dragstart',e=>{ _dragSrc={arr:'rings',idx:i}; div.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
@@ -1708,12 +1727,13 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _isRingInHand=!card.type||(card.kind==='summon'||card.kind==='passive');
       const t=_isRingInHand?'ring':(card.type||'wand');
       div.className=`card ${t}`;
-      if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
+      if(typeof applyCardVisual==='function') applyCardVisual(div,card);
+      else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
       div.draggable=true;
       const _rewPhaseInv=!G._isShop&&G.phase==='reward';
       if(_isRingInHand&&_rewPhaseInv) div.style.cssText=(div.style.cssText||'')+';opacity:0.45;filter:grayscale(0.45)';
-      const _gradeEl=`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(card.grade||1)}</span>`;
+      const _gradeEl=`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(card.grade||1):gradeStr(card.grade||1)}</span>`;
       const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">チャージ：${_charges}</div>`:'';
       const _spellBtn=G._isShop?`<button class="discard-btn" title="売却+1ソウル" style="color:var(--gold2)">売 +1</button>`:`<button class="discard-btn" title="破棄">破棄</button>`;

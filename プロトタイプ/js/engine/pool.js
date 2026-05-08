@@ -60,7 +60,7 @@ function _drawExperimentalFromPool(source, n, makeCard){
 function applyRaceBuffsToRewardCard(card){
   if(!card||!card._isChar||!G.raceBuffs) return;
   Object.entries(G.raceBuffs).forEach(([race,b])=>{
-    if(!(race==='全て'||card.race===race||card.race==='全て')) return;
+    if(!unitMatchesRace(card,race)) return;
     const atk=b.atk||0, hp=b.hp||0;
     if(atk>0){ const _prevAtk=card.atk||0; card.atk=_prevAtk+atk; card.baseAtk=(card.baseAtk!=null?card.baseAtk:_prevAtk)+atk; }
     if(hp>0){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=hp; card.maxHp=_baseMaxHp+hp; }
@@ -128,9 +128,9 @@ function drawCharacters(n){
       card._isChar=true;
       card._buyPrice=calcBuyPrice(card);
       // マミー効果：不死キャラの表示ATKにボーナスを反映（makeUnitFromDef での二重加算を防ぐため _bonusApplied フラグを付ける）
-      if((card.race==='不死'||card.race==='全て')&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
+      if(unitMatchesRace(card,'不死')&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
       // スペクター効果：不死キャラの表示ATK/HPにボーナスを反映
-      if((card.race==='不死'||card.race==='全て')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
+      if(unitMatchesRace(card,'不死')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
       // ジャック・オ・ランタン効果：全キャラのHP+ボーナスを反映
       if(G._futureCharAtkBonus){ const _prevAtk=card.atk||0; card.atk=_prevAtk+G._futureCharAtkBonus; card.baseAtk=(card.baseAtk!=null?card.baseAtk:_prevAtk)+G._futureCharAtkBonus; }
       if(G._jackBonus){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=G._jackBonus; card.maxHp=_baseMaxHp+G._jackBonus; }
@@ -163,9 +163,9 @@ function drawCharacters(n){
     card._isChar=true;
     card._buyPrice=calcBuyPrice(card);
     // マミー効果：不死キャラの表示ATKにボーナスを反映（makeUnitFromDef での二重加算を防ぐため _bonusApplied フラグを付ける）
-    if((card.race==='不死'||card.race==='全て')&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
+    if(unitMatchesRace(card,'不死')&&G._undeadHpBonus){ card.atk+=G._undeadHpBonus; card.baseAtk=(card.baseAtk||card.atk)+G._undeadHpBonus; card._bonusApplied=true; }
     // スペクター効果：不死キャラの表示ATK/HPにボーナスを反映
-    if((card.race==='不死'||card.race==='全て')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
+    if(unitMatchesRace(card,'不死')&&G._specterBonus){ card.atk+=G._specterBonus; card.baseAtk=(card.baseAtk||card.atk)+G._specterBonus; card.hp+=G._specterBonus; card.maxHp+=G._specterBonus; card._bonusApplied=true; }
     // ジャック・オ・ランタン効果：全キャラのHP+ボーナスを反映
     if(G._futureCharAtkBonus){ const _prevAtk=card.atk||0; card.atk=_prevAtk+G._futureCharAtkBonus; card.baseAtk=(card.baseAtk!=null?card.baseAtk:_prevAtk)+G._futureCharAtkBonus; }
     if(G._jackBonus){ const _baseMaxHp=card.maxHp||card.hp; card.hp+=G._jackBonus; card.maxHp=_baseMaxHp+G._jackBonus; }

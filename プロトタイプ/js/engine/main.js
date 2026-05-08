@@ -28,11 +28,17 @@ function log(msg,cls=''){
   const b=document.getElementById('log-box');
   const p=document.createElement('p');
   if(cls) p.className=cls;
+  if(/^──\s*(階層|ターン|T\d+)/.test(String(msg||''))) p.classList.add('log-heading');
   p.textContent=msg;
   b.appendChild(p);
   b.scrollTop=b.scrollHeight;
+  requestAnimationFrame(()=>{ b.scrollTop=b.scrollHeight; });
 }
-function clearLog(){ document.getElementById('log-box').innerHTML=''; }
+function clearLog(){
+  const b=document.getElementById('log-box');
+  b.innerHTML='';
+  b.scrollTop=0;
+}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 // ═══════════════════════════════════════

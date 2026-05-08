@@ -338,6 +338,17 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
+function _unitPreviewText(unit, desc){
+  if(!unit) return desc||'';
+  const lines=[];
+  if(unit.name) lines.push(unit.name);
+  if(unit.race&&unit.race!=='-') lines.push(`種族：${unit.race}`);
+  const kws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])].filter(Boolean);
+  if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
+  if(desc) lines.push(desc);
+  return lines.join('\n');
+}
+
 function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeathProb){
   const el=document.getElementById(id);
   el.innerHTML='';
@@ -371,10 +382,10 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     slot.className='slot'+(isEnemy?' enemy':'');
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(u&&u.hp>0?u.lane:(G.moveMaskLanes?.[i]||'front')):'';
-    if(isEnemy&&_slotLane==='front') slot.classList.add('is-rear'); // 前衛はプレイヤー側へシフト
-    // lane='rear' 敵はクラスなし（上部デフォルト位置に留まる）
-    if(u&&u.hp>0&&!isEnemy&&u.hate&&u.hateTurns>0) slot.classList.add('is-front');
+    if(u&&u.hp>0&&((isEnemy&&_slotLane==='front')||(!isEnemy&&u.hate&&u.hateTurns>0))) slot.classList.add('is-defender');
     if(u&&u.hp>0){
+      slot.classList.add('unit-card');
+      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(isEnemy&&typeof getSheetRaceByName==='function'){
         const _sheetRace=getSheetRaceByName(u.name);
         if(_sheetRace) u.race=_sheetRace;
@@ -406,25 +417,28 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
         if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
-        const gradeTag=u.grade?`<div class="slot-grade">${gradeStr(u.grade)}</div>`:'';
+        const gradeTag=u.grade?`<div class="slot-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(u.grade):gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
+        const _preview=_unitPreviewText(u,_desc);
+        if(_preview) slot.setAttribute('data-preview',_preview);
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         const _isObj=!!u._isObject;
         const _probPct=_isObj?null:deathProb.get(i);
         const _zone=_probPct==null?null:_probPct>=100?{cls:'will-die',label:'💀',color:'#ff6060'}:_probPct<=20?{cls:'will-warn-low',label:'死亡確率・小',color:'#f0d000'}:_probPct<=79?{cls:'will-warn-mid',label:'死亡確率・中',color:'#f09000'}:{cls:'will-warn-high',label:'死亡確率・大',color:'#e04800'};
-        const _probTag=_zone!=null?`<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
+        const _probTag=_zone!=null?`<div class="death-prob-label" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
+        const _riskTag=_zone!=null?'<div class="risk-particles"></div>':'';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
         const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}<div style="${_infoStyle}">${_topRow}<div style="font-size:1.1rem">${u.icon}</div><div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
         // オブジェクトは攻撃対象外なので赤枠・死亡予測は表示しない
         if(!_isObj){
@@ -432,6 +446,16 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
           // ラベルと同じ閾値で枠色を決定（100%=will-die / 80-99%=high / 21-79%=mid / 1-20%=low）
           if(_zone) slot.classList.add(_zone.cls);
         }
+      }
+      if(u&&u.hp>0&&!isEnemy){
+        slot.onclick=()=>{
+          if(G.phase!=='player') return;
+          u.hate=!(u.hate&&u.hateTurns>0);
+          u.hateTurns=u.hate?99:0;
+          log(`${u.name}：ディフェンダー${u.hate?'ON':'OFF'}`,u.hate?'good':'sys');
+          updateHUD();
+          renderAll();
+        };
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
       const _mvType=G.moveMasks[i];
@@ -533,7 +557,7 @@ function renderHandSlots(){
   if(!el) return;
   el.innerHTML='';
   const H=G.handSlots||5;
-  const Hcols=10-(G.ringSlots||2); // 常に合計10スロット幅
+  const Hcols=5; // 固定レイアウトでは一旦5枠を中央配置する
   el.style.gridTemplateColumns=`repeat(${Hcols},1fr)`;
   const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
   const hm=document.getElementById('hand-max');   if(hm) hm.textContent=H;
@@ -681,9 +705,12 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const _isWandSub=t==='wand'&&card.subtype==='wand';
   const _subtypeClass=_isWandSub?' wand-sub':'';
   div.className=`card ${t}${_subtypeClass}${card.legend?' legend-card':''}`;
+  if(card._isChar||(!card.type&&!card.kind)) div.classList.add('character-card');
   div.dataset.cardIdx=String(_idx);
   div.dataset.cardCtx=_ctx||'';
-  if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
+  if(typeof applyCardVisual==='function'){
+    applyCardVisual(div,card);
+  } else if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
     div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
   }
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
@@ -692,7 +719,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
   const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
-  const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${gradeStr(_gradeNum)}</span>`:'';
+  const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(_gradeNum):gradeStr(_gradeNum)}</span>`:'';
   // レッサーデーモン：報酬フェイズの次に購入する消耗品アイテムへ累積割引を表示反映
   const _ldDiscDisp=(typeof _lesserDemonDiscountFor==='function'&&G.phase==='reward')?_lesserDemonDiscountFor(card):0;
   const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
@@ -713,6 +740,10 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     }
   }
   const dynDesc=computeDesc(card,_mlOverride);
+  if(div.classList.contains('character-card')){
+    const _preview=_unitPreviewText(card,dynDesc);
+    if(_preview) div.setAttribute('data-preview',_preview);
+  }
   div.innerHTML=`${gradeEl}${badgeEl}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
@@ -760,11 +791,9 @@ function renderEnemyHand(){
   const area=document.getElementById('enemy-hand-area');
   if(!area) return;
   const isReward=G.phase==='reward'&&(G._masterHandReady||false);
-  const hasEnemyItems=(G.bossRings&&G.bossRings.some(r=>r))||(G.bossHand&&G.bossHand.some(s=>s));
-  const keepForBoss=!isReward&&(typeof _isBossFight!=='undefined'&&_isBossFight);
   // 動的取得モード：指輪非表示・インベントリ3枠
   const isDynamic=!isReward&&(G._enemyHandDynamic||false);
-  if(!hasEnemyItems&&!isReward&&(!keepForBoss||isDynamic)){ area.style.display='none'; return; }
+  if(!['player','enemy','reward'].includes(G.phase)){ area.style.display='none'; return; }
   area.style.display='';
 
   // 指輪パネル（動的取得モード・報酬フェイズは非表示。戦闘中通常は表示）
@@ -827,9 +856,8 @@ function renderEnemyHand(){
   handEl.innerHTML='';
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
   // 報酬フェイズはプレイヤーと同じ列数にしてカードサイズを揃える
-  const _pHcols=10-(G.ringSlots||2);
-  const eHcols=isReward?_pHcols:isDynamic?3:8;
-  const activeHand=isReward?5:eHcols;
+  const eHcols=5;
+  const activeHand=5;
   handEl.style.gridTemplateColumns=`repeat(${eHcols},1fr)`;
   if(handCountEl) handCountEl.textContent=hand.filter(s=>s).length;
   if(handMaxEl) handMaxEl.textContent=activeHand;

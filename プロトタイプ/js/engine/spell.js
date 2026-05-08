@@ -236,8 +236,22 @@ function _pickForSpread(rw,rightIdx){
 }
 
 function clearSelectable(){
+  document.removeEventListener('keydown',_cancelPickKD);
+  document.removeEventListener('contextmenu',_cancelPickCM);
+  document.removeEventListener('keydown',_cancelSpreadKD);
+  document.removeEventListener('contextmenu',_cancelSpreadCM);
   document.querySelectorAll('.selectable').forEach(s=>{ s.classList.remove('selectable'); s.onclick=null; });
   document.querySelectorAll('.bless-blocked').forEach(s=>s.classList.remove('bless-blocked'));
+}
+
+function finishTargetSelection(hintText){
+  clearSelectable();
+  _tgtCtx=null;
+  _swapFirst=-1;
+  _spreadTargetPending=false;
+  _spreadPick=null;
+  if(!hintText) hintText=G.phase==='reward'?'報酬を獲得してください':'行動を終えたらターン終了してください。';
+  if(typeof setHint==='function') setHint(hintText);
 }
 
 function _addCoveringLaneDrop(slot,i,onclickFn){ /* no-op */ }
@@ -286,7 +300,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       } else if(tgt.who==='rew-char'){
         const c=_rewCards[tgt.idx]; if(c){ log(`炎の杖：${c.name}に${fd}ダメ`,'good'); dealDmgToRewChar(tgt.idx,fd); }
       } else {
-        const e=G.enemies[tgt.idx]; dealDmgToEnemy(e,fd,tgt.idx); log(`炎の杖：${e.name}に${fd}ダメ`,'good');
+        const e=G.enemies[tgt.idx]; if(e){ log(`炎の杖：${e.name}に${fd}ダメ`,'good'); dealDmgToEnemy(e,fd,tgt.idx); }
       }
     break;}
     case 'hate':{
@@ -370,8 +384,8 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       log(`転移：${team==='enemy'?'敵':'味方'}スロット${idx1+1}↔${idx2+1}を入れ替え`,'good');
     break;}
     case 'doom':{ const dd=G.magicLevel||1;
-      if(_inReward){ _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,dd); }); log(`破滅の杖：全報酬キャラに${dd}ダメ`,'good'); }
-      else { G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); log(`破滅の杖：全敵に${dd}ダメ`,'good'); }
+      if(_inReward){ log(`破滅の杖：全報酬キャラに${dd}ダメ`,'good'); _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,dd); }); }
+      else { log(`破滅の杖：全敵に${dd}ダメ`,'good'); G.enemies.forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dd,ei); }); }
     break;}
     case 'possess':{
       const pi=tgt.idx;
@@ -421,7 +435,9 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         if(tgt.who==='enemy'){
           if(sdu.boss){ log('破壊の巻物：ボスには効果がない','sys'); break; }
           if(sdu.keywords&&sdu.keywords.includes('エリート')){ log('破壊の巻物：エリートには効果がない','sys'); break; }
+          log(`破壊の巻物：${sdu.name}を破壊`,'good');
           sdu.hp=0; processEnemyDeath(sdu,tgt.idx);
+          break;
         } else { sdu.hp=0; processAllyDeath(sdu); } // 死亡効果（レイス等）を発動させる
         log(`破壊の巻物：${sdu.name}を破壊`,'good');
       }
@@ -595,40 +611,40 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
             G.allies[srcIdx]=null;
             log(`儀式の巻物：${srcU.name}を破壊→${cand.a.name}にキーワード移譲（${_srcKws.join('、')||'なし'}）`,'good');
             renderAll();
-            setHint('行動を終えたらターン終了してください。');
+            finishTargetSelection();
           };
         });
         _addCancelListeners();
       };
     break;}
     case 'meteor':{
+      log('☄ 隕石の杖：全キャラに1ダメ','bad');
       if(_inReward){
         _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,1); });
       } else {
         G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,i); });
       }
       G.allies.forEach((a,ai)=>{ if(a&&a.hp>0) dealDmgToAlly(a,1,ai,null); });
-      log('☄ 隕石の杖：全キャラに1ダメ','bad');
     break;}
     case 'meteor_multi':{
       const ml=G.magicLevel||1;
       const _hits=ml*cMult;
       if(_inReward){
+        log(`☄ 隕石の杖：ランダムな報酬キャラに${ml}ダメ×${_hits}回`,'good');
         for(let _mi=0;_mi<_hits;_mi++){
           const liveR=_rewCards.map((c,ri)=>({c,ri})).filter(({c})=>c&&c._isChar&&c.hp>0);
           if(!liveR.length) break;
           const {ri}=randFrom(liveR);
           dealDmgToRewChar(ri,ml);
         }
-        log(`☄ 隕石の杖：ランダムな報酬キャラに${ml}ダメ×${_hits}回`,'good');
       } else {
+        log(`☄ 隕石の杖：ランダムな敵に${ml}ダメ×${_hits}回`,'good');
         for(let _mi=0;_mi<_hits;_mi++){
           const liveE=G.enemies.filter(e=>e&&e.hp>0);
           if(!liveE.length) break;
           const mt=randFrom(liveE);
           dealDmgToEnemy(mt,ml,G.enemies.indexOf(mt));
         }
-        log(`☄ 隕石の杖：ランダムな敵に${ml}ダメ×${_hits}回`,'good');
       }
     break;}
     case 'shield_wand':{
@@ -647,8 +663,8 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       }
     break;}
     case 'bomb':{ const dmg=(_inReward?(_rewCards.find(c=>c&&c._isChar)?.grade||1):(G.enemies[0]?.grade||1))*5*cMult;
-      if(_inReward){ _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,dmg); }); log(`全体爆弾 全報酬キャラに${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); }
-      else { G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); }
+      if(_inReward){ log(`全体爆弾 全報酬キャラに${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,dmg); }); }
+      else { log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); }
     break;}
     case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=2*cMult; let _rbShown=rbonus; G.allies.forEach(a=>{ if(a&&a.hp>0) _rbShown=addUnitHp(a,rbonus); }); log(`鼓舞の巻物：全仲間HP+${_rbShown}！`+(cMult>1?' [×2]':''),'good'); break;}
@@ -701,6 +717,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     break;}
     case 'flash_blade':{
       // 全キャラに1ダメージ（報酬フェイズ：仲間＋報酬キャラ、戦闘：仲間＋全敵）
+      log('⚡ 閃刃の杖：全キャラに1ダメ','bad');
       const allyTargets=G.allies.map((a,ai)=>({a,ai})).filter(({a})=>a&&a.hp>0);
       allyTargets.forEach(({a,ai})=>{ if(a&&a.hp>0) dealDmgToAlly(a,1,ai,null); });
       if(_inReward){
@@ -710,7 +727,6 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         const enemyTargets=G.enemies.map((e,ei)=>({e,ei})).filter(({e})=>e&&e.hp>0);
         enemyTargets.forEach(({e,ei})=>{ if(e&&e.hp>0) dealDmgToEnemy(e,1,ei); });
       }
-      log('⚡ 閃刃の杖：全キャラに1ダメ','bad');
     break;}
     case 'charm':{
       if(!tgt) break;
@@ -813,7 +829,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     { const _dkv=1+(G.hasGoldenDrop?1:0);
       let _dkTriggered=false;
       G.allies.forEach(dk=>{ if(dk&&dk.hp>0&&dk.effect==='darkone_spell'){ _dkTriggered=true; }});
-      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&(a.race==='悪魔'||a.race==='全て')){ a.atk+=_dkv; a.baseAtk=(a.baseAtk||0)+_dkv; a.hp+=_dkv; a.maxHp+=_dkv; }}); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
+      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'悪魔')){ a.atk+=_dkv; a.baseAtk=(a.baseAtk||0)+_dkv; a.hp+=_dkv; a.maxHp+=_dkv; }}); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
     }
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
