@@ -443,6 +443,7 @@ function chooseMoveInline(nt){
 function rerollRewards(){
   if(G.gold<1) return;
   G.gold-=1;
+  if(typeof playSfx==='function') playSfx('reroll',{group:'ui'});
   G.rerollCount=(G.rerollCount||0)+1;
   // 非タウン：リロール時に無料取得権をリセット（新プールから1体無料）
   // 召喚済みキャラも含め全リセット
@@ -921,6 +922,7 @@ function takeRewCard(i, targetSlot){
     unit.hate=false;
     unit.hateTurns=0;
     log(`${card.name} を獲得（盤面[${emptyIdx}]へ配置）`,'good');
+    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
     // 召喚時効果（addAlly と同じ処理を実行）
     if(unit.effect==='chimera_summon'){
       const _pool=['即死','毒牙5','狩人','標的','成長5','加護','反撃','二段攻撃'];
@@ -1006,6 +1008,7 @@ function takeRewCard(i, targetSlot){
     }
     if(!isTown) _rewFreePickDone=true;
     log(card.name+' を取得（指輪スロット['+ringIdx+']）','good');
+    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
     // ファミリア：商談フェイズで最初に購入したアイテムのコピーを得る（指輪の場合）
     if(G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
       G._familiarUsed=true;
@@ -1049,6 +1052,7 @@ function takeRewCard(i, targetSlot){
 
   if(!isTown) _rewFreePickDone=true;
   log(card.name+(isTown?' を'+cost+'ソウルで':' を')+'取得','good');
+  if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
   _rewCards[i]=null;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
@@ -2009,6 +2013,7 @@ function buyMasterHandItem(idx){
       G.spells[spIdx]=rc;
       if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
       log(`${rc.name} を取得（インベントリへ、-${cost}ソウル）`,'good');
+      if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
     } else {
       G.gold-=cost;
       _consumeLesserDemonDiscount(_ldDisc);
@@ -2027,6 +2032,7 @@ function buyMasterHandItem(idx){
         G.actionsLeft=G.actionsLeft+(G.actionsPerTurn-_oldPT);
       }
       log(`${rc.name} を装備（-${cost}ソウル）`,'good');
+      if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
     }
     G.masterHand[idx]=null;
     document.getElementById('rw-gold').textContent=G.gold;
@@ -2055,6 +2061,7 @@ function buyMasterHandItem(idx){
   }
   G.masterHand[idx]=null;
   log(`${sp.name} を取得（-${cost}ソウル）`,'good');
+  if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderFieldEditor();
@@ -2088,6 +2095,7 @@ function buyMasterRingItem(idx){
   }
   G.masterRings[idx]=null;
   log(`${rc.name} を装備（-${cost}ソウル）`,'good');
+  if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD();
   renderEnemyHand();

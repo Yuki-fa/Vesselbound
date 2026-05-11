@@ -88,7 +88,10 @@ function _debugRefillActions(){
   updateHUD();
 }
 function gameOver(){ G.rings.forEach(r=>{ if(r) r._count=0; }); document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
-function showVictoryOverlay(){ document.getElementById('victory-overlay').style.display='flex'; }
+function showVictoryOverlay(){
+  if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
+  document.getElementById('victory-overlay').style.display='flex';
+}
 function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
 
 // ── 起動時データ読み込み ─────────────────────────────

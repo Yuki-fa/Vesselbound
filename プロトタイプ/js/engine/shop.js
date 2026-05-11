@@ -86,6 +86,7 @@ function renderShop(){
       G.gold-=ring._buyPrice;
       takeCardToHand(ring);
       log(ring.name+'を購入','good');
+      if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
       _shopRings[i]=null;
       updateHUD(); renderShop(); renderShopHandEditor();
     }));

@@ -263,6 +263,7 @@ function _isWandUseCard(sp){
 function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   clearSelectable();
   log(`→ ${sp.name} を使用`,'em');
+  if(typeof playSpellSfx==='function') playSpellSfx(sp);
 
   // 触媒の指輪：杖の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');

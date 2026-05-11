@@ -33,6 +33,7 @@ function onMagicLevelUp(amount){
 // ゴールド獲得時の共通処理（レプラコーン誘発）
 function onGoldGained(amount){
   G.gold+=amount; G.earnedGold+=amount;
+  if(amount>0&&typeof playSfx==='function') playSfx('goldGain',{group:'reward'});
   updateHUD();
   // レプラコーン：ソウルを得るたびに全仲間±0/+1
   const _gd=G.hasGoldenDrop?1:0;
@@ -1202,6 +1203,9 @@ function _applyAttackEffectsForSide(unit,isEnemySide){
 }
 
 function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
+  if(damage>0&&typeof playSfx==='function'){
+    playSfx('attackLight',{group:'combat',guardKey:'combat:attack'});
+  }
   if(isEnemySide){
     let actualTarget=target;
     let actualIdx=targetIdx;
@@ -1507,6 +1511,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
   const actualDmg=Math.max(0, dmg)+(unit.curse||0);
   unit.hp=Math.max(0,unit.hp-actualDmg);
   if(actualDmg>0&&typeof playHitVfx==='function') playHitVfx('ally',_fieldIdx);
+  if(actualDmg>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
     applyKeywordOnHit(src,unit,actualDmg);
   }
@@ -1534,6 +1539,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
 function processAllyDeath(unit){
   if(unit.hp>0||unit._deathProcessed) return;
   unit._deathProcessed=true;
+  if(typeof playSfx==='function') playSfx('death',{group:'combat'});
 
   log(`${unit.name} が倒れた…`,'bad');
   G.battleCounters.deaths++;
@@ -2453,6 +2459,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   const actualDmgToEnemy=Math.max(0,dmg);
   e.hp=Math.max(0,e.hp-actualDmgToEnemy);
   if(actualDmgToEnemy>0&&typeof playHitVfx==='function') playHitVfx('enemy',eIdx);
+  if(actualDmgToEnemy>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
@@ -2473,6 +2480,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
   e._dp=true;
+  if(typeof playSfx==='function') playSfx('death',{group:'combat'});
   // 特殊オブジェクトの破壊処理（通常の死亡処理をスキップ）
   if(e._isObject){
     if(e._objectEffect==='barrel'){
@@ -3010,5 +3018,6 @@ function surrender(){
 
 function showVictoryOverlay(){
   const ov=document.getElementById('victory-overlay');
+  if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   if(ov) ov.style.display='flex';
 }

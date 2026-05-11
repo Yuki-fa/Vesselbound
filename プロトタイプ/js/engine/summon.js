@@ -202,6 +202,7 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   const empty=G.allies.findIndex(a=>!a||a.hp<=0);
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
+  if(typeof playSfx==='function') playSfx('summon',{group:'magic'});
   G.battleCounters.summons++;
   // 憤激の指輪：戦闘中に召喚された仲間にもボーナスを即時適用
   if(G.phase!=='reward'){
