@@ -178,8 +178,11 @@ function generateEnemies(floor){
 
   // エリート判定（30%の確率。S1-3および各セクション初回フロアは出現しない）
   const noEliteFloors=[1,2,5,6,10,11,15,16,20];
-  const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
+  const forceElite=!!G._mapForceElite;
+  const suppressRandomElite=G._mapNodeType==='mob';
+  const hasElite=forceElite||(!suppressRandomElite&&!noEliteFloors.includes(floor)&&Math.random()<0.30);
   if(hasElite) G._isEliteFight=true;
+  if(forceElite) G._mapForceElite=false;
   const eliteIdx=hasElite?randi(0,Math.min(2,count-1)):-1;
   G._eliteIdx=eliteIdx;
   const ng=namedGradeForFloor(floor);

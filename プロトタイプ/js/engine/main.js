@@ -16,7 +16,16 @@ function updateGoldenDrop(){
 }
 function updateHUD(){
   if(G.phase!=='reward'){
-    document.getElementById('h-floor').textContent=G.floor;
+    const floorEl=document.getElementById('h-floor');
+    if(floorEl){
+      if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap){
+        floorEl.textContent=`${G.mapTurn||1}/${G.mapTurnLimit||30}`;
+        floorEl.parentElement?.classList.toggle('danger',(G.mapTurn||1)>10);
+      } else {
+        floorEl.textContent=G.floor;
+        floorEl.parentElement?.classList.remove('danger');
+      }
+    }
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
   }
   document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
@@ -70,7 +79,12 @@ function startGame(debugMode){
     if(dbg) dbg.style.display='';
     log('[DEBUG] デバッグモード：ソウル999','sys');
   }
-  showScreen('battle'); startBattle();
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&typeof startWorldMapRun==='function'){
+    showScreen('battle');
+    startWorldMapRun();
+  } else {
+    showScreen('battle'); startBattle();
+  }
 }
 
 function debugKillAll(){
@@ -87,12 +101,29 @@ function _debugRefillActions(){
   G.actionsLeft=G.actionsPerTurn;
   updateHUD();
 }
-function gameOver(){ G.rings.forEach(r=>{ if(r) r._count=0; }); document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
+function gameOver(){
+  G.phase='gameover';
+  G.rings.forEach(r=>{ if(r) r._count=0; });
+  const sub=document.getElementById('go-sub');
+  if(sub){
+    sub.textContent=(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)
+      ?`マップ${G.mapIndex||1}で制限ターンを超過しました`
+      :`${G.floor}階で力尽きました`;
+  }
+  showScreen('gameover');
+}
 function showVictoryOverlay(){
   if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   document.getElementById('victory-overlay').style.display='flex';
 }
-function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
+function hideVictoryOverlay(){
+  document.getElementById('victory-overlay').style.display='none';
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType&&typeof completeWorldMapBattle==='function'){
+    completeWorldMapBattle();
+    return;
+  }
+  goToReward();
+}
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });

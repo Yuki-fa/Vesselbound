@@ -52,6 +52,10 @@ function onGoldGained(amount){
 function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType&&typeof completeWorldMapBattle==='function'){
+    completeWorldMapBattle();
+    return;
+  }
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
     showScreen('clear');
   } else {
@@ -342,10 +346,12 @@ async function startBattle(){
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
   G.battleCounters={damage:0,deaths:0};
+  G._battleAutoMode=false;
+  G._openingIntervention=false;
 
   G.enemies=generateEnemies(G.floor);
-  // 特殊オブジェクトをランダム配置（ボス戦除く）
-  // 敵はslot 0を確保して残りslot 1-5にランダム分散、オブジェクトはslot 1-5の空きに配置
+  // 敵はslot 0を確保して残りslot 1-5にランダム分散する。
+  // オブジェクトは現仕様では出現させない。
   if(!FLOOR_DATA[G.floor]?.boss){
     const _actualEnemies=G.enemies.filter(e=>e!==null);
     const _newEnemies=new Array(6).fill(null);
@@ -361,28 +367,6 @@ async function startBattle(){
     G.enemies=_newEnemies;
     // エリートの位置を再特定（generateMoveMasks が参照するため）
     if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
-    // slot 1-5の空きスロットにオブジェクトを確率配置
-    const _objGrade=FLOOR_DATA[G.floor]?.grade||1;
-    for(let _oi=1;_oi<6;_oi++){
-      if(G.enemies[_oi]) continue;
-      const roll=Math.random();
-      let cumProb=0;
-      for(const obj of BATTLE_OBJECTS){
-        cumProb+=obj.prob;
-        if(roll<cumProb){
-          const hp=Math.ceil(_objGrade*obj.hpMult);
-          G.enemies[_oi]={
-            id:`obj_${obj.id}_${_oi}`,
-            name:obj.name, icon:obj.icon,
-            atk:0, hp, maxHp:hp,
-            race:'-', grade:0, keywords:[],
-            _isObject:true, _objectEffect:obj.effect,
-            lane:'front',
-          };
-          break;
-        }
-      }
-    }
   }
   // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
   G.enemies.forEach(e=>{
@@ -504,7 +488,14 @@ async function nextTurn(){
   updateHUD();
   log(`── ターン ${G.turn} ──`,'sys');
   if(await applyPoisonTick()) return;
-  await commanderPhase(); // 敵オーナーが何も持っていなければ即return
+  const allowOpeningIntervention=G._battleAutoMode&&G._openingIntervention;
+  if(!G._battleAutoMode||allowOpeningIntervention){
+    await commanderPhase(); // 敵オーナーが何も持っていなければ即return
+  }
+  if(G._battleAutoMode&&!allowOpeningIntervention){
+    await battlePhase();
+    return;
+  }
   startPlayerPhase();
 }
 
@@ -708,16 +699,19 @@ async function commanderPhase(){
 
 function startPlayerPhase(){
   G.phase='player';
-  G.actionsPerTurn=calcActions();
-  G.actionsLeft=G.actionsPerTurn;
   G.spreadActive=false;
   applyTurnStart();
   if(G.phase!=='player') return; // 針の指輪等でターン開始時に勝利確定した場合は中断
   // 毒処理後も仲間が全滅していたらゲームオーバー
   if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
+  if(typeof startManualPlayerTurn==='function') startManualPlayerTurn();
+  else {
+    G.actionsPerTurn=calcActions();
+    G.actionsLeft=G.actionsPerTurn;
+  }
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
-  setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。');
+  setHint(liveA.length===0?'仲間がいない！':'未行動の仲間を選び、下部スロットから行動を選択してください。');
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -845,7 +839,7 @@ function applyTurnStart(){
   checkSolitudeBuff();
 }
 
-// ── 戦闘フェイズ（インターリーブ攻撃）─────────────
+// ── 敵フェイズ ─────────────────────────────
 
 async function battlePhase(){
   G.phase='enemy';
@@ -861,19 +855,11 @@ async function battlePhase(){
     }
   });
 
-  for(let i=0;i<6;i++){
-    // 敵 i 番目の攻撃（前衛後衛問わず左から順に攻撃）
+  for(let i=0;i<G.enemies.length;i++){
     const enemy=G.enemies[i];
-    if(enemy&&enemy.hp>0&&!enemy._isObject){
-      await enemyAttackAction(enemy,i);
-      if(_checkBattleOver()) return;
-    }
-    // 味方 i 番目の攻撃（前衛後衛問わず左から順に攻撃）
-    const ally=G.allies[i];
-    if(ally&&ally.hp>0&&!ally._isSoul){
-      await allyAttackAction(ally,i);
-      if(_checkBattleOver()) return;
-    }
+    if(!enemy||enemy.hp<=0||enemy._isObject) continue;
+    await enemyAttackAction(enemy,i);
+    if(_checkBattleOver()) return;
   }
 
   // 標的ターン消費（1ラウンドに1回）
@@ -1220,6 +1206,21 @@ function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
   return target;
 }
 
+function _mutualStrikeBack(attacker, attackerIsEnemySide, defender, retaliateDamage){
+  if(!attacker||!defender||attacker.hp<=0||defender.hp<=0) return;
+  if(attacker._isObject||defender._isObject) return;
+  const dmg=Math.max(0,retaliateDamage??defender.atk??0);
+  if(dmg<=0) return;
+  log(`${defender.name}の応戦→${attacker.name}に${dmg}ダメ`,attackerIsEnemySide?'good':'bad');
+  if(attackerIsEnemySide){
+    const idx=G.enemies.indexOf(attacker);
+    if(idx>=0) dealDmgToEnemy(attacker,dmg,idx,defender);
+  } else {
+    const idx=G.allies.indexOf(attacker);
+    if(idx>=0) dealDmgToAlly(attacker,dmg,idx,defender,true,true);
+  }
+}
+
 function _maybeCounterAttack(defender,defenderIsAlly,attacker){
   if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) return;
   const hasCounter=defender.counter||(defender.keywords||[]).includes('反撃');
@@ -1257,7 +1258,9 @@ function _effectAttackSequence(attacker,isEnemySide,forcedTarget,actionLabel='�
     _applyAttackEffectsForSide(attacker,isEnemySide);
     log(`${attacker.name}：${actionLabel}${hi>0?`（${hi+1}段目）`:''}→${target.name}`,isEnemySide?'bad':'good');
     const actualTarget=_dealAttackDamage(attacker,isEnemySide,target,targetIdx,attacker.atk);
-    _maybeCounterAttack(actualTarget||target,!isEnemySide,attacker);
+    const defender=actualTarget||target;
+    _mutualStrikeBack(attacker,isEnemySide,defender,defender?.atk||0);
+    _maybeCounterAttack(defender,!isEnemySide,attacker);
     didHit=true;
   }
   return didHit;
@@ -1324,9 +1327,11 @@ async function allyAttackAction(ally, allyIdx){
 
   attackTargets.forEach(t=>{
     const ti=G.enemies.indexOf(t);
-    dealDmgToEnemy(t,ally.atk,ti,ally);
+    const actualTarget=_dealAttackDamage(ally,false,t,ti,ally.atk);
+    const defender=actualTarget||t;
+    _mutualStrikeBack(ally,false,defender,defender?.atk||0);
     // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ・攻撃効果も発動）
-    _maybeCounterAttack(t,false,ally);
+    _maybeCounterAttack(defender,false,ally);
   });
   // 多段攻撃（三段=×2、二段=×1）：三方向攻撃とは併用しない
   if(ally.hp>0&&!isGlobal&&!isTriDir){
@@ -1349,8 +1354,10 @@ async function allyAttackAction(ally, allyIdx){
       // 攻撃時効果（各段攻撃ごとに発動）
       if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
       log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
-      dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
-      _maybeCounterAttack(curTgt,false,ally);
+      const actualTarget=_dealAttackDamage(ally,false,curTgt,G.enemies.indexOf(curTgt),ally.atk);
+      const defender=actualTarget||curTgt;
+      _mutualStrikeBack(ally,false,defender,defender?.atk||0);
+      _maybeCounterAttack(defender,false,ally);
     }
   }
 
@@ -1420,7 +1427,9 @@ async function enemyAttackAction(enemy, enemyIdx){
     const aIdx=G.allies.indexOf(tgt);
     if(!hitSet.has(tgt.id)){
       const actualTarget=_dealAttackDamage(enemy,true,tgt,aIdx,atkVal);
-      _maybeCounterAttack(actualTarget||tgt,true,enemy);
+      const defender=actualTarget||tgt;
+      _mutualStrikeBack(enemy,true,defender,defender?.atk||0);
+      _maybeCounterAttack(defender,true,enemy);
       hitSet.add(tgt.id);
     }
   });
@@ -1447,7 +1456,9 @@ async function enemyAttackAction(enemy, enemyIdx){
       if(enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
       const actualTarget=_dealAttackDamage(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
-      _maybeCounterAttack(actualTarget||reTgt,true,enemy);
+      const defender=actualTarget||reTgt;
+      _mutualStrikeBack(enemy,true,defender,defender?.atk||0);
+      _maybeCounterAttack(defender,true,enemy);
     }
   }
 
@@ -2694,6 +2705,14 @@ function onWandUsed(){
 
 async function playerPass(){
   if(G.phase!=='player') return;
+  G._openingIntervention=false;
+  if(typeof syncManualActionCounts==='function'){
+    syncManualActionCounts();
+    if(G.actionsLeft>0&&!G._debugMode){
+      setHint('未行動の仲間がいます。全員が1回ずつ行動すると敵ターンへ移行できます。');
+      return;
+    }
+  }
   document.getElementById('btn-pass').textContent='ターン終了';
   await battlePhase();
 }
