@@ -5,6 +5,8 @@
 const UNIT_POOL = [
   // ─── ゴーレム（初期キャラ・非売品） ───
   {id:'c_golem',      name:'守護者"アイギス"', race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
+  {id:'c_mira',       name:'ミラ',             race:'人間', grade:1, atk:4,  hp:10, cost:0,  unique:false, starterOnly:true, icon:'🛡️', desc:''},
+  {id:'c_adra',       name:'アドラ',           race:'人間', grade:1, atk:4,  hp:10, cost:0,  unique:false, starterOnly:true, icon:'🪓', desc:''},
 
   // ─── G1 通常 ───
   {id:'c_mermaid',    name:'マーメイド',       race:'亜人', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🧜', desc:'誘発：このキャラクターを還魂すると、魔術レベルが+1される。', effect:'mermaid_sell'},

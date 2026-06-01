@@ -695,36 +695,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   position:absolute;left:1920px;top:1655px;width:1320px;height:430px;transform:translateX(-50%);z-index:12
 }
 #hand-pane .hand-pane-label{display:none}
-#hand-slots{grid-template-columns:repeat(var(--unit-inventory-cols,5),1fr)!important;gap:18px;height:100%;align-items:start;justify-content:center}
+#hand-slots{grid-template-columns:repeat(5,1fr)!important;gap:18px;height:100%;align-items:start;justify-content:center}
 #hand-slots .card,#hand-slots .card-empty{height:auto;aspect-ratio:63/88;border-width:3px;border-radius:12px;padding:12px}
-#hand-slots .equip-slot-frame{position:relative!important;overflow:visible!important}
-#hand-slots .equip-slot-label{
-  position:absolute;
-  top:4px;
-  left:6px;
-  right:6px;
-  z-index:80;
-  pointer-events:none;
-  padding:2px 4px;
-  border:1px solid rgba(201,168,76,.75);
-  border-radius:4px;
-  background:rgba(8,10,12,.72);
-  color:#f4df9f;
-  font-size:.72rem;
-  line-height:1;
-  text-align:center;
-  font-weight:800;
-  text-shadow:0 1px 2px #000;
-}
-#hand-slots .card-empty.equip-slot-frame{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-#hand-slots .card-empty.equip-slot-frame .equip-slot-label{
-  position:static;
-  max-width:calc(100% - 12px);
-}
 #hand-slots .card-art{min-height:96px}
 #hand-slots .card-name{font-size:.78rem}
 #hand-slots .card-desc{font-size:.6rem;line-height:1.22}
@@ -748,8 +720,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .bhud-item:nth-child(3){right:600px;bottom:62px}
 .bhud-item:nth-child(4){right:336px;bottom:62px}
 .bhud-item:nth-child(5){right:72px;bottom:62px}
-body.world-map-active .bhud-item:nth-child(1){right:336px;top:auto;bottom:158px}
-body.world-map-active .bhud-item:nth-child(2){right:72px;top:auto;bottom:158px}
 .bhud-label{font-size:.6rem}
 .bhud-val{font-size:1.08rem}
 #arcana-bar{display:none!important}
@@ -863,10 +833,6 @@ body.world-map-active .bhud-item:nth-child(2){right:72px;top:auto;bottom:158px}
   text-align:center!important;
   bottom:0!important;
   color:#ffe8dd!important;
-}
-.slot.unit-card .slot-stats .h.damaged{
-  color:#ff3b2f!important;
-  text-shadow:0 3px 5px rgba(0,0,0,.95),0 0 10px rgba(255,0,0,.85)!important;
 }
 .slot.unit-card .slot-stats .s{display:none!important}
 .slot.unit-card .death-prob-label{display:none!important}
@@ -1798,19 +1764,6 @@ body.world-map-active .bhud-item:nth-child(2){right:72px;top:auto;bottom:158px}
   flex:0 0 260px!important;
   height:392px!important;
 }
-body.world-map-shop #reward-cards-section{
-  top:330px!important;
-  z-index:14!important;
-}
-body.world-map-shop #rw-cards{
-  row-gap:18px!important;
-}
-body.world-map-shop #rw-cards>.field{
-  order:2;
-}
-body.world-map-shop #rw-cards .rew-card{
-  order:1;
-}
 
 /* ログ本文位置とキャラクター絵の微調整 */
 .slot.unit-card .unit-portrait{
@@ -1943,52 +1896,6 @@ body.world-map-shop #rw-cards .rew-card{
 .slot.unit-card .risk-particles{
   z-index:1!important;
 }
-.slot.unit-card.noncombat-aura:hover::before,
-.slot.unit-card.noncombat-aura.selected-ally::before{
-  content:''!important;
-  display:block!important;
-  position:absolute!important;
-  inset:-36px -32px!important;
-  z-index:1!important;
-  pointer-events:none!important;
-  border-radius:50% 50% 14% 14%!important;
-  background:
-    radial-gradient(ellipse at 50% -8%,rgba(255,255,255,.54) 0 8%,rgba(255,255,255,.24) 20%,rgba(255,255,255,.08) 34%,transparent 52%),
-    radial-gradient(ellipse at 50% 108%,rgba(255,255,255,.50) 0 8%,rgba(255,255,255,.22) 20%,rgba(255,255,255,.07) 34%,transparent 52%),
-    radial-gradient(ellipse at -8% 52%,rgba(255,255,255,.62) 0 10%,rgba(255,255,255,.26) 22%,rgba(255,255,255,.08) 38%,transparent 56%),
-    radial-gradient(ellipse at 108% 52%,rgba(255,255,255,.62) 0 10%,rgba(255,255,255,.26) 22%,rgba(255,255,255,.08) 38%,transparent 56%),
-    radial-gradient(ellipse at 18% 18%,rgba(255,255,255,.24) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 20%,rgba(255,255,255,.22) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 18% 84%,rgba(255,255,255,.18) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 84%,rgba(255,255,255,.20) 0 6%,transparent 26%)!important;
-  -webkit-mask:none!important;
-  mask:none!important;
-  filter:blur(4px) drop-shadow(0 0 20px rgba(255,255,255,.92)) drop-shadow(0 0 34px rgba(255,255,255,.72))!important;
-  animation:select-particle-blink .72s ease-in-out infinite alternate!important;
-}
-.slot.unit-card .noncombat-aura-vfx{
-  display:none!important;
-  position:absolute!important;
-  inset:-36px -32px!important;
-  z-index:1!important;
-  pointer-events:none!important;
-  border-radius:50% 50% 14% 14%!important;
-  background:
-    radial-gradient(ellipse at 50% -8%,rgba(255,255,255,.54) 0 8%,rgba(255,255,255,.24) 20%,rgba(255,255,255,.08) 34%,transparent 52%),
-    radial-gradient(ellipse at 50% 108%,rgba(255,255,255,.50) 0 8%,rgba(255,255,255,.22) 20%,rgba(255,255,255,.07) 34%,transparent 52%),
-    radial-gradient(ellipse at -8% 52%,rgba(255,255,255,.62) 0 10%,rgba(255,255,255,.26) 22%,rgba(255,255,255,.08) 38%,transparent 56%),
-    radial-gradient(ellipse at 108% 52%,rgba(255,255,255,.62) 0 10%,rgba(255,255,255,.26) 22%,rgba(255,255,255,.08) 38%,transparent 56%),
-    radial-gradient(ellipse at 18% 18%,rgba(255,255,255,.24) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 20%,rgba(255,255,255,.22) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 18% 84%,rgba(255,255,255,.18) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 84%,rgba(255,255,255,.20) 0 6%,transparent 26%)!important;
-  filter:blur(4px) drop-shadow(0 0 20px rgba(255,255,255,.92)) drop-shadow(0 0 34px rgba(255,255,255,.72))!important;
-  animation:select-particle-blink .72s ease-in-out infinite alternate!important;
-}
-.slot.unit-card.noncombat-aura:hover>.noncombat-aura-vfx,
-.slot.unit-card.noncombat-aura.selected-ally>.noncombat-aura-vfx{
-  display:block!important;
-}
 .slot.unit-card .unit-portrait{
   z-index:2!important;
 }
@@ -2000,309 +1907,27 @@ body.world-map-shop #rw-cards .rew-card{
   z-index:8!important;
 }
 
-/* World map */
-#world-map-panel{
-  position:absolute;
-  left:64px;
-  right:64px;
-  top:64px;
-  height:1016px;
-  min-height:0;
-  margin:0;
-  padding:86px 146px;
-  box-sizing:border-box;
-  background:rgba(214,174,105,.18);
-  background-size:100% 100%;
-  background-repeat:no-repeat;
-  z-index:30;
-  transform:none;
-  transform-origin:50% 0;
-  transition:transform .55s ease, opacity .45s ease;
+/* 個別インベントリ操作の視認性 */
+#hand-slots{
+  grid-template-columns:repeat(var(--unit-inventory-cols,5),1fr)!important;
 }
-#world-map-panel.map-exit{
-  transform:translateY(-120%);
-  opacity:0;
-  pointer-events:none;
+.slot.unit-card.selected-ally::after{
+  filter:drop-shadow(0 0 10px rgba(255,245,180,.95)) drop-shadow(0 0 22px rgba(255,215,90,.72))!important;
 }
-#world-map-panel[hidden]{display:none!important}
-.map-turn-limit{
-  position:absolute;
-  right:86px;
-  top:34px;
-  min-width:96px;
-  padding:6px 12px;
-  border:1px solid rgba(104,80,51,.75);
-  background:rgba(24,20,16,.62);
-  color:#f0d08b;
-  font-family:var(--font-hd);
-  font-weight:700;
-  text-align:center;
-  letter-spacing:.04em;
-}
-.map-turn-limit.danger{
-  background:linear-gradient(135deg,rgba(38,4,4,.92),rgba(16,8,8,.78));
-  color:#ffb08a;
-  box-shadow:0 0 16px rgba(210,45,20,.35) inset,0 0 18px rgba(210,45,20,.2);
-}
-.bhud-item.danger{
-  background:linear-gradient(135deg,rgba(42,4,5,.78),rgba(14,8,8,.58))!important;
-  box-shadow:0 0 18px rgba(210,45,20,.28) inset,0 0 16px rgba(210,45,20,.18);
-}
-.bhud-item.danger .bhud-val{
-  color:#ffb08a!important;
-}
-.map-grid{
-  position:absolute;
-  left:300px;
-  top:14%;
-  width:2380px;
-  height:733px;
-  transform:none;
-}
-.map-edge-layer{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  overflow:hidden;
-}
-.map-node{
-  position:absolute;
-  width:54px;
-  height:54px;
-  transform:translate(-50%,-50%);
-  border:0;
-  padding:0;
-  background:transparent;
-  background-size:contain;
-  background-repeat:no-repeat;
-  background-position:center;
-  opacity:.95;
-  cursor:default;
-}
-.map-node.type-empty:not(.is-current){
-  width:18px;
-  height:18px;
-  opacity:.5;
-}
-.map-node.type-empty.is-moveable:not(.is-current){
-  width:26px;
-  height:26px;
-}
-.map-node.is-hidden{
-  opacity:.12;
-  filter:blur(1px);
-}
-.map-node.is-moveable{
-  cursor:pointer;
-  filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,255,255,.95));
-  animation:mapNodePulse 1.05s ease-in-out infinite alternate;
-}
-.map-node.is-current{
-  width:72px;
-  height:72px;
-  z-index:4;
-  filter:drop-shadow(0 0 12px rgba(70,180,255,.9));
-}
-.map-node.is-cleared{
+.slot.unit-card.acted-ally{
   opacity:.72;
 }
-.map-token{
+.slot.unit-card.acted-ally::before{
+  content:"";
   position:absolute;
-  width:78px;
-  height:78px;
-  transform:translate(-50%,-65%);
-  background-size:contain;
-  background-repeat:no-repeat;
-  background-position:center;
+  inset:10px;
+  border-radius:50%;
+  background:rgba(0,0,0,.28);
+  z-index:7;
   pointer-events:none;
-  z-index:8;
-  transition:left .32s ease, top .32s ease;
-  filter:drop-shadow(0 8px 8px rgba(0,0,0,.35));
 }
-.map-event-choice{
-  position:absolute;
-  left:50%;
-  top:52%;
-  transform:translate(-50%,-50%);
-  display:flex;
-  gap:18px;
-  z-index:12;
-  padding:20px 24px;
-  background:rgba(22,18,14,.72);
-  border:1px solid rgba(180,140,70,.55);
-  box-shadow:0 18px 40px rgba(0,0,0,.35);
-}
-.map-treasure-choice{
-  top:56%;
-  flex-direction:column;
-  align-items:center;
-}
-.map-choice-title{
-  font-family:var(--font-hd);
-  font-weight:700;
-  color:#f0d08b;
-  text-shadow:0 1px 2px rgba(0,0,0,.7);
-}
-.map-choice-cards{
-  display:flex;
-  gap:18px;
-  align-items:flex-start;
-  justify-content:center;
-}
-.map-choice-reward-card{
-  flex:0 0 auto;
-}
-.map-event-card{
-  width:138px;
-  min-height:180px;
-  border:1px solid rgba(196,155,78,.65);
-  background:rgba(14,16,24,.9);
-  color:#f4dca0;
-  font-family:var(--font-hd);
-  font-weight:700;
-  cursor:pointer;
-}
-.map-event-card:hover{
-  filter:drop-shadow(0 0 12px rgba(255,238,170,.75));
-}
-.map-event-card .icon{
-  font-size:2.4rem;
-  margin:18px 0 12px;
-}
-.map-event-card .name{
-  padding:0 10px;
-  line-height:1.25;
-}
-@keyframes mapNodePulse{
-  from{filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 10px rgba(255,255,255,.72))}
-  to{filter:drop-shadow(0 0 8px #fff) drop-shadow(0 0 22px rgba(255,255,255,1))}
-}
-
-/* カード枠はスロット数やテキスト量で縮ませない */
-#hand-pane{
-  width:1980px!important;
-  max-width:1980px!important;
-}
-#hand-slots{
-  grid-template-columns:repeat(var(--unit-inventory-cols,5),260px)!important;
-  justify-content:center!important;
-  align-items:start!important;
-  gap:18px!important;
-}
-#hand-slots .card,
-#hand-slots .card-empty{
-  width:260px!important;
-  height:auto!important;
-  aspect-ratio:569/907!important;
-  flex:0 0 260px!important;
-  box-sizing:border-box!important;
-  overflow:hidden!important;
-}
-#hand-slots .card .card-desc,
-#hand-slots .card .card-name{
-  overflow:hidden!important;
-}
-#hand-slots .card .card-desc{
-  max-height:34%!important;
-}
-
-/* 右端HUDは階層 / 魔術レベル / ソウルのみを縦並び表示 */
-.bottom-hud .bhud-item{
-  right:72px!important;
-  left:auto!important;
-  bottom:auto!important;
-  width:248px!important;
-  height:82px!important;
-}
-.bottom-hud .bhud-item:nth-child(1){top:128px!important}
-.bottom-hud .bhud-item:nth-child(2),
-.bottom-hud .bhud-item:nth-child(5){display:none!important}
-.bottom-hud .bhud-item:nth-child(3){top:226px!important}
-.bottom-hud .bhud-item:nth-child(4){top:324px!important}
-body.world-map-active .bottom-hud .bhud-item:nth-child(1),
-body.world-map-active .bottom-hud .bhud-item:nth-child(3),
-body.world-map-active .bottom-hud .bhud-item:nth-child(4){
-  right:72px!important;
-  bottom:auto!important;
-}
-body.world-map-active .bottom-hud .bhud-item:nth-child(1){top:128px!important}
-body.world-map-active .bottom-hud .bhud-item:nth-child(3){top:226px!important}
-body.world-map-active .bottom-hud .bhud-item:nth-child(4){top:324px!important}
-
-/* 今回の調整: hoverでカードを持ち上げず、文字を少し控えめにする */
-.card:hover:not(.inert),
-.rew-card:hover:not(.cant),
-#hand-slots .card:hover:not(.inert),
-#enemy-hand-area .card:hover:not(.inert),
-.map-event-card:hover{
+#log-wrap #btn-pass:active:not(:disabled){
   transform:none!important;
-}
-.card .card-grade,
-.rew-card .card-grade{
-  font-size:.82rem!important;
-}
-.card .card-name,
-#hand-slots .card .card-name,
-#enemy-hand-area .card .card-name{
-  font-size:1.28rem!important;
-  line-height:1.06!important;
-}
-.rew-card .rew-card-name{
-  font-size:1.16rem!important;
-  line-height:1.08!important;
-}
-.card .card-desc,
-#hand-slots .card .card-desc,
-#enemy-hand-area .card .card-desc{
-  font-size:.68rem!important;
-  line-height:1.14!important;
-}
-.rew-card .rew-card-desc{
-  font-size:.66rem!important;
-  line-height:1.14!important;
-}
-
-/* 右下HUD: 階層 / 魔術レベル / ソウルのみ */
-.bottom-hud{
-  position:absolute!important;
-  inset:auto 72px 64px auto!important;
-  width:248px!important;
-  height:auto!important;
-  min-height:0!important;
-  display:flex!important;
-  flex-direction:column!important;
-  gap:10px!important;
-  border:0!important;
-  background:transparent!important;
-  pointer-events:none!important;
-  z-index:40!important;
-}
-.bottom-hud .bhud-item{
-  position:relative!important;
-  top:auto!important;
-  right:auto!important;
-  bottom:auto!important;
-  left:auto!important;
-  width:248px!important;
-  height:72px!important;
-  display:flex!important;
-  pointer-events:none!important;
-}
-.bottom-hud .bhud-item:nth-child(2),
-.bottom-hud .bhud-item:nth-child(5){
-  display:none!important;
-}
-body.world-map-active .bottom-hud{
-  inset:auto 72px 64px auto!important;
-}
-body.world-map-active .bottom-hud .bhud-item:nth-child(1),
-body.world-map-active .bottom-hud .bhud-item:nth-child(3),
-body.world-map-active .bottom-hud .bhud-item:nth-child(4){
-  position:relative!important;
-  top:auto!important;
-  right:auto!important;
-  bottom:auto!important;
-  left:auto!important;
 }
 </style>
 </head>
@@ -2338,10 +1963,6 @@ body.world-map-active .bottom-hud .bhud-item:nth-child(4){
   </div>
   <div class="battle-scroll">
   <div class="battle-area">
-    <div id="world-map-panel" hidden>
-      <div class="map-turn-limit" id="map-turn-limit">1/30</div>
-      <div class="map-grid" id="world-map-grid"></div>
-    </div>
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
 
@@ -2450,7 +2071,7 @@ body.world-map-active .bottom-hud .bhud-item:nth-child(4){
       <span class="bhud-val life" id="h-reward-grade">1</span>
     </div>
     <div class="bhud-item">
-      <span class="bhud-label">魔術レベル</span>
+      <span class="bhud-label">魔術Lv</span>
       <span class="bhud-val turn" id="h-life">1</span>
     </div>
     <div class="bhud-item">
@@ -2597,9 +2218,9 @@ fitVesselboundViewport();
 <script src="js/data/events.js"></script>
 <script src="js/data/rings.js"></script>
 <script src="js/data/spells.js"></script>
-<script src="js/data/loadouts.js"></script>
 <script src="js/data/loader.js"></script>
 <script src="js/data/units.js"></script>
+<script src="js/data/loadouts.js"></script>
 <script src="js/engine/state.js"></script>
 <script src="js/engine/pool.js"></script>
 <script src="js/engine/enemy.js"></script>

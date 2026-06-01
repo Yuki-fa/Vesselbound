@@ -20,6 +20,8 @@ const _SHEET_GIDS = {
   'effect_id':    992952088,
   'グレードアップ費用': 1903359867,
   'リスNPC':     687265448,
+  '種族装備':     905675155,
+  '武器':         911517986,
 };
 
 const SHEET_RACE_BY_NAME = {};
@@ -266,6 +268,107 @@ function _rowToSpell(row) {
   return obj;
 }
 
+function _rarityFromSheet(v, fallback) {
+  const s = String(v || '').trim();
+  const n = parseInt(s);
+  if (!isNaN(n) && n >= 1) return n;
+  return ({
+    Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5,
+    common: 1, uncommon: 2, rare: 2, epic: 3, legendary: 3,
+  })[s] ?? fallback;
+}
+
+function _applySheetRarity(card, raw) {
+  if (!card) return;
+  const s = String(raw || '').trim();
+  delete card._sheetRarityBlank;
+  delete card.rarityLabel;
+  delete card.rarityTier;
+  if (!s) {
+    card._sheetRarityBlank = true;
+    return;
+  }
+  if (s === '-') {
+    card.rarity = -1;
+    return;
+  }
+  const tier = _rarityFromSheet(s, null);
+  card.rarityLabel = s;
+  if (tier != null) {
+    card.rarity = tier;
+    card.rarityTier = tier;
+  }
+}
+
+function _weaponIdFromName(name) {
+  return 'wp_' + _normCardName(name).toLowerCase()
+    .replace(/[^a-z0-9ぁ-んァ-ヶー一-龠]/g, '_');
+}
+
+function _applyRaceLoadoutsFromSheet(text) {
+  if (typeof RACE_LOADOUTS === 'undefined') return;
+  const rows = _parseCSV(text);
+  rows.forEach(row => {
+    const race = (row['種族'] || row[Object.keys(row)[0]] || '').trim();
+    if (!race) return;
+    const fixedName = String(row['固定装備'] || 'パンチ').replace(/[（）()]/g, '').trim() || 'パンチ';
+    const fixedPower = parseInt(String(row['固定装備 威力'] || row['固定装備威力'] || '0').replace(/[^\d-]/g, '')) || 0;
+    RACE_LOADOUTS[race] = {
+      totalSlots: parseInt(row['合計スロット']) || 0,
+      itemSlots: parseInt(row['アイテムスロット']) || 1,
+      ringSlots: parseInt(row['リングスロット']) || 0,
+      fixed: {
+        name: fixedName,
+        power: fixedPower,
+        melee: fixedName !== 'ブレス',
+      },
+    };
+  });
+}
+
+function _syncWeaponsFromSheet(text) {
+  const rows = _parseCSV(text);
+  rows.forEach(row => {
+    const name = row['名前'];
+    if (!name) return;
+    let weapon = _findBySheetName(SPELL_POOL, name);
+    if (!weapon) {
+      weapon = { id: _weaponIdFromName(name), name };
+      SPELL_POOL.push(weapon);
+    }
+    const effect = row['効果'] || '';
+    const powerRaw = String(row['パワー'] || '').trim();
+    weapon.type = 'weapon';
+    weapon.weaponClass = row['分類'] || '';
+    weapon.slotSize = parseInt(row['スロット']) || 1;
+    weapon.power = powerRaw === 'X' ? 'durability' : (parseInt(powerRaw) || 0);
+    weapon.baseUses = parseInt(row['基本使用回数']) || weapon.baseUses || 1;
+    weapon.cost = parseInt(row['価格']) || weapon.cost || 2;
+    _applySheetRarity(weapon, row['レアリティ']);
+    delete weapon.weaponMode;
+    delete weapon.weaponKeyword;
+    delete weapon.lethalEffect;
+    delete weapon.repeat;
+    delete weapon.needsEnemy;
+    if (effect.includes('ツイン')) weapon.weaponMode = 'twin';
+    if (effect.includes('トリプル')) weapon.weaponMode = 'triple';
+    if (effect.includes('オール')) weapon.weaponMode = 'all';
+    if (effect.includes('三段攻撃')) weapon.repeat = 3;
+    if (effect.includes('装甲8')) weapon.weaponKeyword = 'armor8';
+    if (effect.includes('生命吸収')) weapon.weaponKeyword = 'lifesteal';
+    if (effect.includes('即死')) weapon.weaponKeyword = 'instant';
+    if (effect.includes('ソウルを1得る')) weapon.lethalEffect = 'soul1';
+    if (effect.includes('耐久度が減らない')) weapon.lethalEffect = 'no_durability_loss';
+    if (weapon.weaponMode !== 'all') weapon.needsEnemy = true;
+
+    const powerText = weapon.power === 'durability' ? '耐久度' : weapon.power;
+    if (effect) weapon.desc = effect.includes('致命') || effect.includes('装甲') || effect.includes('生命吸収') || effect.includes('即死') || effect.includes('ツイン') || effect.includes('トリプル') || effect.includes('オール') || effect.includes('三段攻撃')
+      ? `対象にこのキャラクターのパワー+${powerText}ダメージを与える。${effect}`
+      : effect;
+    else weapon.desc = `対象にこのキャラクターのパワー+${powerText}ダメージを与える。`;
+  });
+}
+
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
@@ -319,6 +422,18 @@ async function loadGameData() {
         Object.assign(SQUIRREL_MESSAGES, _sqFromSheet);
       }
     } catch (_) { /* リスNPCデータなしで続行 */ }
+
+    // 種族別スロット / 固定装備 シート（任意）
+    try {
+      const raceRes = await fetch(_sheetUrl(_SHEET_GIDS['種族装備']));
+      if (raceRes.ok) _applyRaceLoadoutsFromSheet(await raceRes.text());
+    } catch (_) { /* 内蔵の種族装備設定を使用 */ }
+
+    // 武器シート（任意）
+    try {
+      const weaponRes = await fetch(_sheetUrl(_SHEET_GIDS['武器']));
+      if (weaponRes.ok) _syncWeaponsFromSheet(await weaponRes.text());
+    } catch (_) { /* 内蔵の武器設定を使用 */ }
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -419,8 +534,6 @@ async function loadGameData() {
       const grade = parseInt(row['グレード']);
       const usesStr = (row['基本使用回数'] || '').trim();
       const cost = parseInt(row['価格']);
-      const rarStr = (row['レアリティ'] || '').trim();
-      const rarVal = parseInt(rarStr);
       const sv = row['初期装備'];
       const desc = row['効果'] || row['説明文'];
       spells.forEach(spell => {
@@ -432,8 +545,7 @@ async function loadGameData() {
           else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
         }
         if (!isNaN(cost)) spell.cost = cost;
-        if (rarStr === '-') spell.rarity = -1;
-        else if (!isNaN(rarVal) && rarVal >= 1) spell.rarity = rarVal;
+        _applySheetRarity(spell, row['レアリティ']);
         if (_truthySheet(sv)) spell.starterOnly = true;
         else if (_falseySheet(sv)) delete spell.starterOnly;
         // 報酬中使用不可
@@ -466,10 +578,7 @@ async function loadGameData() {
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) ring.cost = cost;
       // レアリティ
-      { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
-        if(rarStr==='-') ring.rarity=-1;
-        else if(!isNaN(rarVal)&&rarVal>=1) ring.rarity=rarVal; }
+      _applySheetRarity(ring, row['レアリティ']);
       // 初期装備
       const sv = row['初期装備'];
       if (_truthySheet(sv)) ring.starterOnly = true;
@@ -491,9 +600,9 @@ async function loadGameData() {
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
       { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
+        const rarVal=_rarityFromSheet(rarStr,null);
         if(rarStr==='-') unit.rarity=-1;
-        else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
+        else if(!unit.sheetOnly&&rarVal!=null) unit.rarity=rarVal; }
       const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
       if (atkP2.val > 0) unit.atk = atkP2.val;

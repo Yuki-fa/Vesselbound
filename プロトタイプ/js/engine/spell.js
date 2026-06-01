@@ -13,80 +13,36 @@ function _selectedUnitCanAct(unit){
   return !!unit&&!unit._actedThisTurn;
 }
 
-function getUnitRings(unit){
-  if(!unit) return [];
-  if(typeof ensureUnitLoadout==='function') ensureUnitLoadout(unit);
-  if(typeof isHumanEquipmentMode==='function'&&isHumanEquipmentMode(unit)&&typeof getHumanEquippedRings==='function'){
-    return getHumanEquippedRings(unit);
-  }
-  return Array.isArray(unit.rings)?unit.rings:[];
+function _randInt(min,max){
+  return min+Math.floor(Math.random()*(max-min+1));
 }
 
-function unitHasRing(unit, unique){
-  return getUnitRings(unit).some(r=>r&&r.unique===unique);
+function _spellTargetUnit(tgt){
+  if(!tgt) return null;
+  if(tgt.who==='ally') return {unit:G.allies[tgt.idx],side:'ally',idx:tgt.idx};
+  if(tgt.who==='enemy') return {unit:G.enemies[tgt.idx],side:'enemy',idx:tgt.idx};
+  if(tgt.who==='rew-char'&&typeof _rewCards!=='undefined') return {unit:_rewCards[tgt.idx],side:'reward',idx:tgt.idx};
+  return null;
 }
 
-function manualAttackRepeats(unit){
-  let n=1;
-  if(unitHasRing(unit,'ring_rage')) n=Math.max(n,2);
-  const kws=unit&&unit.keywords||[];
-  if(kws.includes('三段攻撃')) n=Math.max(n,3);
-  if(kws.includes('二段攻撃')) n=Math.max(n,2);
-  return n;
-}
-
-function manualAttackTargetsAll(unit){
-  return unitHasRing(unit,'ring_madness')||unitHasRing(unit,'ring_storm');
-}
-
-function applyRingAttackAfterDamage(attacker,totalDealt,killedEnemy){
-  if(!attacker||attacker.hp<=0) return;
-  if(totalDealt>0&&unitHasRing(attacker,'ring_toughness')){
-    attacker.armor=(attacker.armor||0)+totalDealt;
-    log(`${attacker.name}：強靭の指輪→装甲+${totalDealt}`,'good');
-  }
-  if(killedEnemy&&unitHasRing(attacker,'ring_secret')){
-    if(typeof onGoldGained==='function') onGoldGained(1);
-    else G.gold=(G.gold||0)+1;
-    log(`${attacker.name}：秘紋の指輪→ソウル+1`,'gold');
-  }
-  if(unitHasRing(attacker,'ring_kishin')){
-    G.allies.forEach(a=>{
-      if(!a||a.hp<=0||a._isSoul||a._isObject) return;
-      a.atk=(a.atk||0)+8;
-      a.baseAtk=(a.baseAtk||0)+8;
-      a._kishinTempAtk=(a._kishinTempAtk||0)+8;
-    });
-    log(`${attacker.name}：鬼神の指輪→戦闘終了まで仲間パワー+8`,'good');
-  }
+function _damageTargetRef(ref,dmg,src){
+  if(!ref||!ref.unit||ref.unit.hp<=0||dmg<=0) return;
+  if(ref.side==='ally') dealDmgToAlly(ref.unit,dmg,ref.idx,src,true,true);
+  else if(ref.side==='enemy') dealDmgToEnemy(ref.unit,dmg,ref.idx,src);
+  else if(ref.side==='reward'&&typeof dealDmgToRewChar==='function') dealDmgToRewChar(ref.idx,dmg);
 }
 
 function useSpell(idx){
   if(_spreadTargetPending) return; // 拡散の対象選択中は他の杖使用を禁止
-  const owner=typeof syncSelectedUnitLoadout==='function'?syncSelectedUnitLoadout():null;
+  const owner=syncSelectedUnitLoadout();
+  if(G.phase==='player'&&(!owner||owner._actedThisTurn)) return;
+  if(G.phase==='battle_end'&&!owner) return;
   const sp=G.spells[idx];
-  if(!sp) return;
-  if(typeof isOccupiedSlot==='function'&&isOccupiedSlot(sp)) return;
-  const inMap=G.phase==='map';
-  const worldMapUseLocked=typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&(
-    G.phase==='reward'||G._mapChoiceOpen||G._worldMapFreeRecruit||G._fromWorldMapShop||G._isShop
-  );
-  if(worldMapUseLocked){
-    setHint('このフェイズでは杖・アイテムは使用できません');
-    return;
-  }
+  if(!sp||isOccupiedSlot(sp)) return;
   if((sp.type==='wand'||sp.type==='weapon')&&sp.usesLeft<=0) return;
-  if(G.phase==='player'&&owner&&!_selectedUnitCanAct(owner)&&!G._debugMode){
-    setHint('この仲間は行動済みです');
-    return;
-  }
-  if(inMap&&(sp.needsEnemy||sp.effect==='charm'||sp.effect==='swap_pos')){
-    setHint('マップ上では対象の敵がいません');
-    return;
-  }
-  if(G.actionsLeft<=0&&!inMap&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
+  if(G.phase!=='battle_end'&&G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
   if(typeof playCardUseVfx==='function') playCardUseVfx(idx);
-  if(G.phase==='player'&&owner&&sp.type==='weapon'){
+  if(sp.type==='weapon'){
     if(sp.weaponMode==='all') applyWeapon(sp,idx,null);
     else pickWeaponTarget(idx);
     return;
@@ -99,82 +55,73 @@ function useSpell(idx){
   else applySpell(sp,idx,null);
 }
 
-function useUnitInventoryCard(slotIdx){
-  const owner=typeof syncSelectedUnitLoadout==='function'?syncSelectedUnitLoadout():null;
-  if(!owner||owner.hp<=0) return;
-  if(!_selectedUnitCanAct(owner)&&!G._debugMode){
-    setHint('この仲間は行動済みです');
-    return;
-  }
-  if(typeof isHumanEquipmentMode==='function'&&isHumanEquipmentMode(owner)){
-    useSpell(slotIdx);
-    return;
-  }
-  if(slotIdx===0){
+function useUnitInventoryCard(invIdx){
+  const owner=syncSelectedUnitLoadout();
+  if(G.phase==='player'&&(!owner||owner._actedThisTurn)) return;
+  if(G.phase==='battle_end'&&!owner) return;
+  if(invIdx===0){
     pickPunchTarget();
     return;
   }
-  useSpell(slotIdx-1);
+  useSpell(invIdx-1);
 }
 
 function pickPunchTarget(){
   clearSelectable();
-  const owner=typeof getSelectedAlly==='function'?getSelectedAlly():syncSelectedUnitLoadout();
-  if(!owner||!_selectedUnitCanAct(owner)) return;
-  const action=typeof makePunchCard==='function'?makePunchCard(owner):{name:'パンチ'};
+  const attacker=getSelectedAlly();
+  if(!attacker||!_selectedUnitCanAct(attacker)) return;
+  const action=makePunchCard(attacker);
   setHint(`${action.name}の対象を選択（ESC or 右クリックでキャンセル）`);
   _getEnemyDomSlots().forEach((slot,i)=>{
-    const e=G.enemies[i];
-    if(e&&e.hp>0&&!slot.classList.contains('has-move')){
-      slot.classList.add('selectable');
-      slot.onclick=()=>{ clearSelectable(); applyPunch(i); };
-    }
+    const target=G.enemies[i];
+    if(!target||target.hp<=0||slot.classList.contains('has-move')) return;
+    slot.classList.add('selectable');
+    slot.onclick=()=>{ clearSelectable(); applyPunch(i); };
   });
   _addCancelListeners();
 }
 
 function applyPunch(enemyIdx){
-  const owner=typeof getSelectedAlly==='function'?getSelectedAlly():syncSelectedUnitLoadout();
-  const enemy=G.enemies[enemyIdx];
-  if(!owner||owner.hp<=0||!_selectedUnitCanAct(owner)||!enemy||enemy.hp<=0) return;
-  const action=typeof makePunchCard==='function'?makePunchCard(owner):{name:'パンチ',power:0};
-  const dmg=Math.max(0,(owner.atk||0)+(Number(action.power||0)||0));
-  const targets=manualAttackTargetsAll(owner)
+  const attacker=getSelectedAlly();
+  const target=G.enemies[enemyIdx];
+  if(!attacker||attacker.hp<=0||!_selectedUnitCanAct(attacker)||!target||target.hp<=0) return;
+  const action=makePunchCard(attacker);
+  const atkDmg=Math.max(0,(attacker.atk||0)+(Number(action.power||0)||0));
+  const targets=manualAttackTargetsAll(attacker)
     ?G.enemies.map((u,i)=>({u,i})).filter(ref=>ref.u&&ref.u.hp>0&&!ref.u._isObject)
-    :[{u:enemy,i:enemyIdx}];
-  const repeat=Math.max(1,manualAttackRepeats(owner));
+    :[{u:target,i:enemyIdx}];
+  const repeat=Math.max(1,manualAttackRepeats(attacker));
   let totalDealt=0;
   let killedEnemy=false;
   for(let r=0;r<repeat;r++){
     targets.forEach(ref=>{
-      if(owner.hp<=0||!ref.u||ref.u.hp<=0) return;
+      if(attacker.hp<=0||!ref.u||ref.u.hp<=0) return;
       const before=ref.u.hp;
-      log(`${owner.name}：${action.name}${r>0?` ${r+1}段目`:''}→${ref.u.name}`,'good');
-      dealDmgToEnemy(ref.u,dmg,ref.i,owner);
+      log(`${attacker.name}：${action.name}${r>0?` ${r+1}段目`:''}→${ref.u.name}`,'good');
+      dealDmgToEnemy(ref.u,atkDmg,ref.i,attacker);
       totalDealt+=Math.max(0,before-Math.max(0,ref.u?ref.u.hp:0));
       if(ref.u&&ref.u.hp<=0) killedEnemy=true;
     });
   }
-  applyRingAttackAfterDamage(owner,totalDealt,killedEnemy);
-  if(typeof finishSelectedAllyAction==='function') finishSelectedAllyAction();
+  applyRingAttackAfterDamage(attacker,totalDealt,killedEnemy);
+  finishSelectedAllyAction();
   renderAll();
   if(typeof checkInstantVictory==='function'&&checkInstantVictory()) return;
 }
 
 function pickWeaponTarget(idx){
   clearSelectable();
-  const owner=typeof getSelectedAlly==='function'?getSelectedAlly():syncSelectedUnitLoadout();
+  const attacker=getSelectedAlly();
   const sp=G.spells[idx];
-  if(!owner||!_selectedUnitCanAct(owner)||!sp||sp.usesLeft<=0) return;
-  const allowEmpty=sp.weaponMode==='twin';
+  if(!attacker||!_selectedUnitCanAct(attacker)||!sp||sp.usesLeft<=0) return;
   setHint(`${sp.name}の対象を選択（ESC or 右クリックでキャンセル）`);
+  const allowEmpty=sp.weaponMode==='twin';
   _getEnemyDomSlots().forEach((slot,i)=>{
-    const e=G.enemies[i];
+    const target=G.enemies[i];
     if(slot.classList.contains('has-move')) return;
-    if((e&&e.hp>0)||allowEmpty){
-      slot.classList.add('selectable');
-      slot.onclick=()=>{ clearSelectable(); applyWeapon(sp,idx,i); };
-    }
+    if((!target||target.hp<=0)&&!allowEmpty) return;
+    slot.classList.add('selectable');
+    slot.onclick=()=>{ clearSelectable(); applyWeapon(sp,idx,i); };
   });
   _addCancelListeners();
 }
@@ -220,47 +167,47 @@ function _damageWeaponTarget(ref,dmg,attacker,sp){
 }
 
 function applyWeapon(sp,idx,targetIdx){
-  const owner=typeof getSelectedAlly==='function'?getSelectedAlly():syncSelectedUnitLoadout();
-  if(!owner||owner.hp<=0||!_selectedUnitCanAct(owner)||!sp||sp.usesLeft<=0) return;
-  const targets=_weaponTargetRefs(sp,targetIdx,owner);
-  if(!targets.length){ setHint('対象がいません。'); return; }
-  const dmg=_weaponPower(sp,owner);
-  const repeat=Math.max(1,Number(sp.repeat||1)||1,manualAttackRepeats(owner));
+  const attacker=getSelectedAlly();
+  if(!attacker||attacker.hp<=0||!_selectedUnitCanAct(attacker)||!sp||sp.usesLeft<=0) return;
+  const refs=_weaponTargetRefs(sp,targetIdx,attacker);
+  if(!refs.length){ setHint('対象がいません。'); return; }
+  const dmg=_weaponPower(sp,attacker);
+  const repeat=Math.max(1,sp.repeat||1,manualAttackRepeats(attacker));
   let killedEnemy=false;
   let totalDealt=0;
-  log(`${owner.name}：${sp.name}（${dmg}ダメージ）`,'good');
+  log(`${attacker.name}：${sp.name}（${dmg}ダメージ）`,'good');
   if(sp.weaponKeyword==='armor8'){
-    owner.armor=(owner.armor||0)+8;
-    log(`${owner.name}：装甲8を得た（装甲${owner.armor}）`,'good');
+    attacker.armor=(attacker.armor||0)+8;
+    log(`${attacker.name}：装甲8を得た（装甲${attacker.armor}）`,'good');
   }
   for(let r=0;r<repeat;r++){
-    targets.forEach(ref=>{
-      if(owner.hp<=0||!ref.u||ref.u.hp<=0) return;
-      const result=_damageWeaponTarget(ref,dmg,owner,sp);
+    refs.forEach(ref=>{
+      if(attacker.hp<=0||!ref.u||ref.u.hp<=0) return;
+      const result=_damageWeaponTarget(ref,dmg,attacker,sp);
       totalDealt+=result.dealt||0;
       if(ref.side==='enemy'&&result.killed) killedEnemy=true;
     });
   }
-  if(sp.weaponKeyword==='lifesteal'&&totalDealt>0&&owner.hp>0){
-    owner.hp=Math.min(owner.maxHp||owner.hp,owner.hp+totalDealt);
-    log(`${owner.name}：生命吸収で${totalDealt}回復`,'good');
+  if(sp.weaponKeyword==='lifesteal'&&totalDealt>0&&attacker.hp>0){
+    attacker.hp=Math.min(attacker.maxHp||attacker.hp,attacker.hp+totalDealt);
+    log(`${attacker.name}：生命吸収で${totalDealt}回復`,'good');
   }
   if(sp.lethalEffect==='soul1'&&killedEnemy){
     if(typeof onGoldGained==='function') onGoldGained(1); else G.gold=(G.gold||0)+1;
     log(`${sp.name}：致命でソウル+1`,'good');
   }
-  applyRingAttackAfterDamage(owner,totalDealt,killedEnemy);
-  const skipDurability=sp.lethalEffect==='no_durability_loss'&&killedEnemy;
-  if(!skipDurability&&sp.usesLeft!==Infinity) sp.usesLeft=Math.max(0,(sp.usesLeft||0)-1);
-  else if(skipDurability) log(`${sp.name}：致命で耐久度が減らない`,'good');
+  applyRingAttackAfterDamage(attacker,totalDealt,killedEnemy);
+  const preserveDurability=sp.lethalEffect==='no_durability_loss'&&killedEnemy;
+  if(!preserveDurability) sp.usesLeft=Math.max(0,(sp.usesLeft||0)-1);
+  else log(`${sp.name}：致命で耐久度が減らない`,'good');
   if(sp.usesLeft<=0){
     log(`${sp.name}の耐久度が尽きた`,'sys');
     if(typeof removeInventoryCardAt==='function') removeInventoryCardAt(G.spells,idx);
     else G.spells[idx]=null;
   }
-  if(typeof finishSelectedAllyAction==='function') finishSelectedAllyAction();
+  finishSelectedAllyAction();
   renderAll();
-  if(typeof checkInstantVictory==='function'&&checkInstantVictory()) return;
+  if(typeof checkInstantVictory==='function') checkInstantVictory();
 }
 
 // 転移の杖：2体選択UI（味方-味方 または 敵-敵）
@@ -328,7 +275,7 @@ function pickTargetAny(idx){
       slot.classList.add('selectable');
       slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'rew-char',idx:ri}); };
     });
-  } else if(G.phase!=='map'){
+  } else {
     // 戦闘中：敵を選択肢に追加
     _getEnemyDomSlots().forEach((slot,i)=>{
       if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
@@ -344,10 +291,6 @@ function pickTarget(who,idx,checkBless){
   clearSelectable(); // 前の選択状態をリセット
   _tgtCtx={who,idx};
   setHint(`対象を選択（ESC or 右クリックでキャンセル）`);
-  if(G.phase==='map'&&who==='enemy'){
-    setHint('マップ上では対象の敵がいません');
-    return;
-  }
   // 報酬フェイズ中に「敵」を対象にする場合は報酬キャラクターをターゲットにする
   if(G.phase==='reward'&&who==='enemy'){
     document.querySelectorAll('[data-rew-idx]').forEach(slot=>{
@@ -382,10 +325,6 @@ function pickTargetCharm(idx){
   clearSelectable();
   _tgtCtx={who:'enemy',idx};
   setHint(`対象を選択（ESC or 右クリックでキャンセル）`);
-  if(G.phase==='map'){
-    setHint('マップ上では対象の敵がいません');
-    return;
-  }
   const ml=G.magicLevel||1;
   if(G.phase==='reward'){
     document.querySelectorAll('[data-rew-idx]').forEach(slot=>{
@@ -512,13 +451,14 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   clearSelectable();
   log(`→ ${sp.name} を使用`,'em');
   if(typeof playSpellSfx==='function') playSpellSfx(sp);
+  let shouldFinishPlayerAction=false;
 
   // 触媒の指輪：杖の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
   const _isWandUse=_isWandUseCard(sp);
   const cMult=(_isWandUse&&catRingC)?2:1;
   const _inReward=G.phase==='reward';
-  const _inMap=G.phase==='map';
+  const _inBattleEnd=G.phase==='battle_end';
   _spreadTargetPending=false;
   _spreadPick=null;
   // インキュバス：アイテム使用時、効果処理の前にナイトメアを召喚
@@ -745,7 +685,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     break;}
     case 'boost':{ const a=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='rew-char'?_rewCards[tgt.idx]:G.enemies[tgt.idx]; if(a&&a.hp>0){ const bv=(G.magicLevel||1)+(G.hasGoldenDrop?1:0); a.atk+=bv; a.baseAtk=(a.baseAtk||0)+bv; log(`${a.name}：ATK+${bv}`,'good'); if(!_inReward) triggerDryadBuff(); } break;}
     case 'rally':{ G.allies.forEach(a=>{ if(a&&a.hp>0) a.atk=Math.round(a.atk*1.2); }); log('全仲間ATK×1.2','good'); break;}
-    case 'heal_ally':{ const _jkh=typeof getJackalopeHpBonus==='function'?getJackalopeHpBonus('ally'):0; G.allies.forEach(a=>{ if(a&&a.hp>0){ if(_jkh){ a.maxHp+=_jkh; } a.hp=a.maxHp; } }); log('全仲間HP全回復'+(_jkh?'（ジャッカロープ：最大HP+'+_jkh+'）':''),'good'); break;}
+    case 'heal_ally':{ G.allies.forEach(a=>{ if(a&&a.hp>0){ a.hp=a.maxHp||a.hp; } }); log('全仲間HP全回復','good'); break;}
     case 'seal':{
       if(tgt.who==='rew-char'){ const rc=_rewCards[tgt.idx]; if(rc) log(`${rc.name}：報酬フェイズ中は封印効果なし`,'sys'); }
       else { const su=G.enemies[tgt.idx]; if(su){ su.sealed=1; log(`${su.name} 封印1T`,'good'); } }
@@ -927,6 +867,102 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         if(!_inReward) triggerDryadBuff();
       }
     break;}
+    case 'life_boost_random':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        const v=_randInt(1,4);
+        const shown=addUnitHp(ref.unit,v,ref.side==='reward'?'ally':ref.side);
+        log(`活力の水：${ref.unit.name}のライフ+${shown}`,'good');
+      }
+    break;}
+    case 'swift_water':{
+      const owner=syncSelectedUnitLoadout();
+      if(owner){
+        // 通常戦闘ではこのアイテム使用分の行動終了処理で1回消費されるため、実行動2回分を残す。
+        owner._extraManualActions=(owner._extraManualActions||0)+(G.phase==='player'?3:2);
+        log(`神速の水：${owner.name}はこの後2回続けて行動できる`,'good');
+      }
+    break;}
+    case 'life_heal_random':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        const v=_randInt(4,7);
+        const before=ref.unit.hp||0;
+        ref.unit.hp=Math.min(ref.unit.maxHp||ref.unit.hp||v,(ref.unit.hp||0)+v);
+        log(`生命の水：${ref.unit.name}を${Math.max(0,(ref.unit.hp||0)-before)}回復`,'good');
+      }
+    break;}
+    case 'full_heal':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        const before=ref.unit.hp||0;
+        ref.unit.hp=ref.unit.maxHp||ref.unit.hp||1;
+        log(`エリクサー：${ref.unit.name}を${Math.max(0,(ref.unit.hp||0)-before)}回復`,'good');
+      }
+    break;}
+    case 'power_boost_random':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        const v=_randInt(1,4);
+        ref.unit.atk=(ref.unit.atk||0)+v;
+        ref.unit.baseAtk=(ref.unit.baseAtk||0)+v;
+        log(`力の水：${ref.unit.name}のパワー+${v}`,'good');
+      }
+    break;}
+    case 'mighty_potion':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        ref.unit.atk=10;
+        ref.unit.baseAtk=10;
+        log(`怪力の薬：${ref.unit.name}のパワーが10になった`,'good');
+      }
+    break;}
+    case 'hero_potion':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        const u=ref.unit;
+        if(!u._heroPotionTemp) u._heroPotionTemp={atk:u.atk||0,baseAtk:u.baseAtk||0,hp:u.hp||0,maxHp:u.maxHp||u.hp||1};
+        u.atk=Math.max(0,(u.atk||0)*2);
+        u.baseAtk=Math.max(0,(u.baseAtk||0)*2);
+        u.maxHp=Math.max(1,(u.maxHp||u.hp||1)*2);
+        u.hp=Math.max(1,(u.hp||1)*2);
+        log(`英雄の薬：${u.name}のライフ/最大ライフ/パワーが2倍`,'good');
+      }
+    break;}
+    case 'witch_potion':{
+      const owner=syncSelectedUnitLoadout();
+      const ref=_spellTargetUnit(tgt);
+      if(owner&&ref&&ref.unit){
+        owner.atk=ref.unit.atk||0;
+        owner.baseAtk=owner.atk;
+        log(`魔女の秘薬：${owner.name}のパワーを${ref.unit.name}からコピー（${owner.atk}）`,'good');
+      }
+    break;}
+    case 'mist_potion':{
+      const ref=_spellTargetUnit(tgt);
+      if(ref&&ref.unit){
+        ref.unit._mistTurns=3;
+        log(`霧化の薬：${ref.unit.name}が3ターン受けるダメージ半減`,'good');
+      }
+    break;}
+    case 'fire_bottle':{
+      if(tgt){
+        const side=tgt.who==='ally'?'ally':'enemy';
+        [tgt.idx-1,tgt.idx,tgt.idx+1].forEach(i=>{ if(i>=0&&i<6) addBurningTile(side,i,3); });
+        log(`火炎瓶：${side==='ally'?'味方':'敵'}${tgt.idx+1}と隣接マスを炎上`,'good');
+      }
+    break;}
+    case 'acid_bottle':{
+      if(tgt){
+        const side=tgt.who==='ally'?'ally':'enemy';
+        [tgt.idx-1,tgt.idx,tgt.idx+1].forEach(i=>{
+          if(i<0||i>=6) return;
+          const ref={side,idx:i,unit:side==='ally'?G.allies[i]:G.enemies[i]};
+          if(ref.unit&&ref.unit.hp>0) _damageTargetRef(ref,5,syncSelectedUnitLoadout());
+        });
+        log(`硫酸瓶：対象と隣接した場所に5ダメージ`,'good');
+      }
+    break;}
     case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
       // G4以下の契約を1つ選んでグレードを次の戦闘終了まで+1
@@ -950,10 +986,10 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     case 'copy_scroll':{
       const _cwSrc=(G.bossHand||[]).filter(s=>s&&s.type==='wand');
       if(!_cwSrc.length){ log('複製の巻物：敵の手札に杖がない','sys'); break; }
-      if(G.spells.filter(s=>s).length>=(G.handSlots||5)){ log('手札が満杯','bad'); break; }
       const picked=randFrom(_cwSrc);
-      const pw=clone(picked); pw.usesLeft=pw.baseUses||3; pw._maxUses=pw.usesLeft;
-      for(let j=0;j<(G.handSlots||5);j++){ if(!G.spells[j]){ G.spells[j]=pw; break; } }
+      const pw=clone(picked);
+      if(typeof initializeUses==='function') initializeUses(pw);
+      if(typeof placeInventoryCard==='function'&&!placeInventoryCard(G.spells,pw)){ log('手札が満杯','bad'); break; }
       log(`📜 複製の巻物：${pw.name} を入手`,'good');
     break;}
     case 'destroy_scroll':{
@@ -1019,7 +1055,10 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     }
   }
 
-  if(sp.type==='consumable') G.spells[idx]=null;
+  if(sp.type==='consumable'){
+    if(typeof removeInventoryCardAt==='function') removeInventoryCardAt(G.spells,idx);
+    else G.spells[idx]=null;
+  }
 
   // 使用回数管理
   if(sp.type==='wand'){
@@ -1036,67 +1075,65 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         if(G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='arachne_wand')){
           if(typeof onMagicLevelUp==='function') onMagicLevelUp(1+(G.hasGoldenDrop?1:0));
         }
-        G.spells[idx]=null;
+        if(typeof removeInventoryCardAt==='function') removeInventoryCardAt(G.spells,idx);
+        else G.spells[idx]=null;
       }
     }
   }
 
   if(!_spreadTargetPending&&!_suppressWandTriggers){
-    if(_inMap){
-      if(typeof _consumeWorldMapTurn==='function'&&!_consumeWorldMapTurn()) return;
-    } else if(sp.type==='consumable'&&canUseGremlinFreeItem(sp)){
+    if(sp.type==='consumable'&&canUseGremlinFreeItem(sp)){
       G._freeItemUsed=true;
       log('グレムリン：このフェイズ最初のアイテムは行動力を消費しない','good');
+    } else if(G.phase==='battle_end'){
+      syncManualActionCounts();
+    } else if(G.phase==='player'){
+      shouldFinishPlayerAction=true;
     } else {
       G.actionsLeft--;
     }
     if(G._debugMode) G.actionsLeft=G.actionsPerTurn;
-    if(!_inMap&&!_inReward&&G.phase==='player'&&typeof finishSelectedAllyAction==='function'){
-      finishSelectedAllyAction();
-    }
   }
   // ヘルハウンド：アイテム（消耗品）使用時のみランダムな敵/提示カードを攻撃（杖は対象外）
   if(sp.type==='consumable'){
-    if(!_inMap){
-      G.allies.forEach(hh=>{
-        if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
-        if(_inReward){
-          // 報酬フェイズ：ランダムな提示キャラに攻撃
-          const _liveR=_rewCards.map((c,ri)=>({c,ri})).filter(({c})=>c&&c._isChar&&c.hp>0);
-          if(!_liveR.length) return;
-          const {c:_rht,ri:_rhi}=randFrom(_liveR);
-          dealDmgToRewChar(_rhi,hh.atk);
-          log(`${hh.name}：アイテム使用→${_rht.name}に${hh.atk}ダメ`,'good');
-        } else {
-          const _liveE=G.enemies.filter(e=>e&&e.hp>0);
-          if(!_liveE.length) return;
-          const _ht=randFrom(_liveE);
-          dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
-          log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
-        }
-        // ウンディーネ：ヘルハウンドの効果攻撃にも適用
-        const _hhGd=G.hasGoldenDrop?1:0;
-        if(G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
-          const _uv=1+_hhGd; hh.atk+=_uv; hh.baseAtk=(hh.baseAtk||0)+_uv; hh.hp+=_uv; hh.maxHp+=_uv;
-          log(`ウンディーネ：${hh.name}が+${_uv}/+${_uv}`,'good');
-        }
-      });
-    }
+    G.allies.forEach(hh=>{
+      if(!hh||hh.hp<=0||hh.effect!=='hellhound_spell') return;
+      if(_inReward){
+        // 報酬フェイズ：ランダムな提示キャラに攻撃
+        const _liveR=_rewCards.map((c,ri)=>({c,ri})).filter(({c})=>c&&c._isChar&&c.hp>0);
+        if(!_liveR.length) return;
+        const {c:_rht,ri:_rhi}=randFrom(_liveR);
+        dealDmgToRewChar(_rhi,hh.atk);
+        log(`${hh.name}：アイテム使用→${_rht.name}に${hh.atk}ダメ`,'good');
+      } else {
+        const _liveE=G.enemies.filter(e=>e&&e.hp>0);
+        if(!_liveE.length) return;
+        const _ht=randFrom(_liveE);
+        dealDmgToEnemy(_ht,hh.atk,G.enemies.indexOf(_ht),hh);
+        log(`${hh.name}：アイテム使用→${_ht.name}に${hh.atk}ダメ`,'good');
+      }
+      // ウンディーネ：ヘルハウンドの効果攻撃にも適用
+      const _hhGd=G.hasGoldenDrop?1:0;
+      if(G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
+        const _uv=1+_hhGd; applyUnitBuff(hh,_uv,_uv,'ally');
+        log(`ウンディーネ：${hh.name}が+${_uv}/+${_uv}`,'good');
+      }
+    });
     // ダークワン：アイテム使用時、全仲間の悪魔+1/+1
     { const _dkv=1+(G.hasGoldenDrop?1:0);
       let _dkTriggered=false;
       G.allies.forEach(dk=>{ if(dk&&dk.hp>0&&dk.effect==='darkone_spell'){ _dkTriggered=true; }});
-      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'悪魔')){ a.atk+=_dkv; a.baseAtk=(a.baseAtk||0)+_dkv; a.hp+=_dkv; a.maxHp+=_dkv; }}); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
+      if(_dkTriggered){ G.allies.forEach(a=>{ if(a&&a.hp>0&&unitMatchesRace(a,'悪魔')) applyUnitBuff(a,_dkv,_dkv,'ally'); }); log(`ダークワン：アイテム使用→全仲間の悪魔+${_dkv}/+${_dkv}`,'good'); }
     }
   }
+  if(shouldFinishPlayerAction) finishSelectedAllyAction();
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
-  if(_inMap){
-    if(typeof showWorldMap==='function') showWorldMap();
-    setHint('移動先を選択してください');
+  if(!_inReward&&!_inBattleEnd&&checkInstantVictory()) return;
+  if(_inBattleEnd){
+    setHint('戦闘終了フェイズ：選択中キャラクターで何度でも行動できます。');
     return;
   }
-  if(!_inReward&&checkInstantVictory()) return;
   if(_inReward){
     // 報酬フェイズ：renderAll()が上書きした各UIを復元してから、必要なら拡散ピッカーを起動
     setHint('報酬を獲得してください');
@@ -1107,13 +1144,12 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     return;
   }
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
-  const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||((s.type==='wand'||s.type==='weapon')&&(s.usesLeft===undefined||s.usesLeft>0))));
-  if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem()){
-    setHint('行動終了。自動でターンを終了します...');
+  const hasUsable=G.spells.some(s=>s&&!isOccupiedSlot(s)&&(s.type==='consumable'||((s.type==='wand'||s.type==='weapon')&&(s.usesLeft===undefined||s.usesLeft>0))));
+  if(G.phase==='player'&&G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem()){
+    setHint('全員が行動しました。敵ターンへ移行します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   } else if(!hasUsable&&!G._debugMode){
-    setHint('使用できる魔法がありません。自動でターンを終了します...');
-    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+    setHint('使用できるカードがありません。パンチを使用するか別の仲間を選択してください。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

@@ -58,8 +58,9 @@ function _startGameWithArcana(arcana, starterWand){
   // スターター杖をセット（炎の杖の代わりに選んだ杖）
   if(starterWand){
     const w=clone(starterWand);
-    w.usesLeft=w.baseUses||5; w._maxUses=w.usesLeft;
-    G.spells[0]=w;
+    if(typeof initializeUses==='function') initializeUses(w);
+    if(typeof placeInventoryCard==='function') placeInventoryCard(G.spells,w);
+    else G.spells[0]=w;
   }
   // パッシブ秘術の初期効果を適用
   if(arcana&&arcana.id==='熟練'){
@@ -100,7 +101,7 @@ function _arcanaFavor(){
   const isRing=!first.type||first.type==='ring'||first.kind==='summon'||first.kind==='passive';
   const alreadyOwned=isRing&&G.rings.findIndex(r=>r&&r.id===first.id)>=0;
   if(isRing&&!alreadyOwned&&G.rings.filter(r=>r).length>=G.ringSlots){ log('契約枠が満杯（寵愛は使用できない）','bad'); return; }
-  if((first.type==='wand'||first.type==='consumable')&&G.spells.filter(s=>s).length>=(G.handSlots||5)){ log('手札が満杯','bad'); return; }
+  if((first.type==='wand'||first.type==='weapon'||first.type==='consumable')&&typeof findInventorySpace==='function'&&findInventorySpace(G.spells,first)<0){ log('手札が満杯','bad'); return; }
   G.gold-=1;
   // 通常購入と同じ処理（コスト0で強制取得）
   const origPrice=first._buyPrice;

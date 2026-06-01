@@ -112,8 +112,6 @@ function initState(){
     _minotaurBonus:0,
     // ── 特殊マスボーナス ──
     _extraBattleMult:1.0,  // 洞窟/池ノードで 1.2x
-    _battleAutoMode:false,
-    _openingIntervention:false,
     _pendingCaveBonus:false,  // 洞窟：rarity4アイテム1つ追加
     _pendingPondBonus:false,  // 池：rarity≤2指輪2つ追加
     _isTreasurePhase:false,   // 宝箱回収中フラグ（UI操作ロック用）
@@ -149,37 +147,18 @@ function initState(){
     enemyPermanentBonus:{atk:0,hp:0},
     enemyUndeadAtkBonus:0,
     _lesserDemonDiscount:0,
-    // ── ワールドマップ進行 ──
-    worldMap:null,
-    mapIndex:1,
-    mapTurn:1,
-    mapTurnLimit:30,
-    mapPosition:null,
-    mapSeen:{},
-    _mapBattleCount:0,
-    _mapNodeType:null,
-    _mapForceElite:false,
-    _mapForceBoss:false,
-    _fromWorldMapShop:false,
-    _shopGradeWeights:[90,7,2.5,0.5],
-    _altarUsedCount:0,
-    mapInventory:[],
-    _mapInventoryOpen:false,
-    _hoverWeaponCard:null,
-    _selectedWeaponSlot:null,
   };
 
-  // 初期キャラクター：ミラ / アドラ（手動戦闘用）
-  const miraDef = UNIT_POOL.find(u=>u.id==='c_mira') || {id:'c_mira',name:'ミラ',race:'人間',grade:1,atk:4,hp:10,cost:0,unique:false,starterOnly:true,icon:'🛡️',desc:''};
-  const adraDef = UNIT_POOL.find(u=>u.id==='c_adra') || {id:'c_adra',name:'アドラ',race:'人間',grade:1,atk:4,hp:10,cost:0,unique:false,starterOnly:true,icon:'🪓',desc:''};
-  G.allies[0] = makeUnitFromDef(miraDef, undefined, true);
-  G.allies[1] = makeUnitFromDef(adraDef, undefined, true);
-
+  // 初期キャラクター：ミラ（ハルバード）/ アドラ（フランキスカ）
+  const miraDef = UNIT_POOL.find(u=>u.id==='c_mira');
+  const adraDef = UNIT_POOL.find(u=>u.id==='c_adra');
+  if(miraDef) G.allies[0] = makeUnitFromDef(miraDef, undefined, true);
+  if(adraDef) G.allies[1] = makeUnitFromDef(adraDef, undefined, true);
   initializeUnitLoadouts();
-  ensureUnitLoadout(G.allies[0]);
-  ensureUnitLoadout(G.allies[1]);
-  placeInventoryCard(G.allies[0].inventory, makeInventoryCardByName('ハルバード'));
-  placeInventoryCard(G.allies[1].inventory, makeInventoryCardByName('フランキスカ'));
+  if(G.allies[0]) ensureUnitLoadout(G.allies[0]);
+  if(G.allies[1]) ensureUnitLoadout(G.allies[1]);
+  if(G.allies[0]) placeInventoryCard(G.allies[0].inventory, makeInventoryCardByName('ハルバード'));
+  if(G.allies[1]) placeInventoryCard(G.allies[1].inventory, makeInventoryCardByName('フランキスカ'));
   selectAllyLoadout(0);
 }
 
@@ -196,23 +175,36 @@ const BASIC_PUNCH_CARD={
 };
 
 function getCardSlotSize(card){
-  return Math.max(1, Number(card?.slotSize||card?.slots||1)||1);
+  if(!card) return 1;
+  return Math.max(1,Number(card.slotSize||card.slots||card.slot||1)||1);
 }
-function isOccupiedSlot(card){ return !!(card&&card._occupied); }
+
+function isOccupiedSlot(card){
+  return !!(card&&card._occupied);
+}
+
 function initializeUses(card){
   if(!card) return card;
   if((card.type==='wand'||card.type==='weapon')&&card.usesLeft===undefined){
-    card.usesLeft=card.baseUses||1;
-    card._maxUses=card.baseUses||card.usesLeft;
+    const uses=card.baseUses||(card.baseUsesRange?randi(card.baseUsesRange[0],card.baseUsesRange[1]):randUses());
+    card.usesLeft=uses;
+    card._maxUses=uses;
+  } else if((card.type==='wand'||card.type==='weapon')&&card._maxUses===undefined){
+    card._maxUses=card.usesLeft;
   }
   return card;
 }
+
 function makeInventoryCardByName(name){
-  const def=SPELL_POOL.find(s=>s.name===name);
-  return def?initializeUses(clone(def)):null;
+  const def=(SPELL_POOL||[]).find(s=>s&&s.name===name);
+  if(!def) return null;
+  const card=initializeUses(clone(def));
+  delete card._buyPrice;
+  return card;
 }
+
 function findInventorySpace(inv,card){
-  if(!inv||!card) return -1;
+  if(!Array.isArray(inv)||!card) return -1;
   const size=getCardSlotSize(card);
   for(let i=0;i<=inv.length-size;i++){
     let ok=true;
@@ -223,161 +215,68 @@ function findInventorySpace(inv,card){
   }
   return -1;
 }
+
 function placeInventoryCard(inv,card){
-  if(!inv||!card) return false;
-  const idx=findInventorySpace(inv,card);
-  if(idx<0) return false;
-  inv[idx]=initializeUses(card);
+  if(!Array.isArray(inv)||!card) return false;
+  const start=findInventorySpace(inv,card);
+  if(start<0) return false;
+  inv[start]=card;
   const size=getCardSlotSize(card);
-  for(let j=1;j<size;j++) inv[idx+j]={_occupied:true,parent:idx};
+  for(let j=1;j<size;j++) inv[start+j]={_occupied:true,_occupiedBy:card.id||card.name};
   return true;
 }
+
 function removeInventoryCardAt(inv,idx){
-  if(!inv||!inv[idx]) return null;
-  if(isOccupiedSlot(inv[idx])) idx=inv[idx].parent;
+  if(!Array.isArray(inv)||idx<0||idx>=inv.length) return;
   const card=inv[idx];
+  if(!card||card._occupied) return;
   const size=getCardSlotSize(card);
   inv[idx]=null;
-  for(let j=1;j<size;j++){
-    if(inv[idx+j]&&inv[idx+j]._occupied&&inv[idx+j].parent===idx) inv[idx+j]=null;
+  for(let j=1;j<size&&idx+j<inv.length;j++){
+    if(inv[idx+j]&&inv[idx+j]._occupied) inv[idx+j]=null;
   }
-  return card;
 }
-const HUMAN_EQUIP_SLOTS=[
-  {id:'rightArm',label:'右腕',accept:['weapon']},
-  {id:'leftArm',label:'左腕',accept:['shield']},
-  {id:'body',label:'胴体',accept:['armor']},
-  {id:'ring1',label:'指輪1',accept:['ring']},
-  {id:'ring2',label:'指輪2',accept:['ring']},
-  {id:'amulet',label:'アミュレット',accept:['amulet']},
-  {id:'free',label:'フリー',accept:['weapon','item']},
-];
-function isHumanUnit(unit){
-  return !!unit&&String(unit.race||'').includes('人間');
-}
-function isHumanEquipmentMode(unit){
-  return isHumanUnit(unit);
-}
-function getHumanEquipSlotDefs(){
-  return HUMAN_EQUIP_SLOTS;
-}
-function getHumanSlotDef(slot){
-  if(typeof slot==='number') return HUMAN_EQUIP_SLOTS[slot]||null;
-  return HUMAN_EQUIP_SLOTS.find(s=>s.id===slot)||null;
-}
-function getCardEquipCategory(card){
-  if(!card) return null;
-  if(card.equipCategory) return card.equipCategory;
-  if(card.slotType) return card.slotType;
-  if(card.type==='weapon'||card.type==='wand') return 'weapon';
-  if(card.type==='shield'||card.kind==='shield') return 'shield';
-  if(card.type==='armor'||card.kind==='armor') return 'armor';
-  if(card.type==='amulet'||card.kind==='amulet') return 'amulet';
-  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return 'ring';
-  if(card.type==='consumable'||card.type==='item') return 'item';
-  return null;
-}
-function isTwoHandedWeapon(card){
-  if(!card) return false;
-  const text=[card.weaponClass,card.weaponType,card.subtype,card.category,card.equipType,card.name].filter(Boolean).join(' ');
-  return !!(card.twoHanded||card.hands===2||card.type==='wand'||/大剣|杖|弓/.test(text));
-}
-function canEquipToHumanSlot(unit,slotIdx,card,ignoreIdx){
-  if(!isHumanEquipmentMode(unit)||!card) return true;
-  const def=getHumanSlotDef(slotIdx);
-  if(!def) return false;
-  const cat=getCardEquipCategory(card);
-  if(!cat||!def.accept.includes(cat)) return false;
-  const eq=unit.equipment||unit.inventory||[];
-  const right=ignoreIdx===0?null:eq[0];
-  const left=ignoreIdx===1?null:eq[1];
-  if(def.id==='rightArm'&&isTwoHandedWeapon(card)&&left) return false;
-  if(def.id==='leftArm'&&right&&isTwoHandedWeapon(right)) return false;
-  if(def.id==='free'&&cat==='weapon'&&isTwoHandedWeapon(card)) return false;
-  return true;
-}
-function getHumanEquippedRings(unit){
-  if(!isHumanEquipmentMode(unit)) return [];
-  const eq=unit.equipment||unit.inventory||[];
-  return [eq[3],eq[4]].filter(Boolean);
-}
-function equipRingToSelectedHuman(card){
-  const unit=typeof getSelectedAlly==='function'?getSelectedAlly():null;
-  if(!isHumanEquipmentMode(unit)||!card) return -1;
-  ensureHumanEquipment(unit);
-  for(const idx of [3,4]){
-    if(!unit.equipment[idx]&&canEquipToHumanSlot(unit,idx,card)){
-      unit.equipment[idx]=initializeUses(card);
-      if(typeof syncSelectedUnitLoadout==='function') syncSelectedUnitLoadout();
-      return idx;
-    }
-  }
-  return -1;
-}
-function ensureHumanEquipment(unit){
-  if(!unit) return null;
-  if(!Array.isArray(unit.equipment)){
-    const oldItems=Array.isArray(unit.inventory)?unit.inventory.filter(c=>c&&!isOccupiedSlot(c)):[];
-    const oldRings=Array.isArray(unit.rings)?unit.rings.filter(Boolean):[];
-    unit.equipment=Array(HUMAN_EQUIP_SLOTS.length).fill(null);
-    [...oldItems,...oldRings].forEach(card=>{
-      const start=(getCardEquipCategory(card)==='ring')?3:0;
-      for(let i=0;i<unit.equipment.length;i++){
-        const idx=(start+i)%unit.equipment.length;
-        if(!unit.equipment[idx]&&canEquipToHumanSlot(unit,idx,card)){
-          unit.equipment[idx]=initializeUses(card);
-          break;
-        }
-      }
-    });
-  }
-  while(unit.equipment.length<HUMAN_EQUIP_SLOTS.length) unit.equipment.push(null);
-  if(unit.equipment.length>HUMAN_EQUIP_SLOTS.length) unit.equipment.length=HUMAN_EQUIP_SLOTS.length;
-  unit.equipment.forEach(c=>initializeUses(c));
-  unit.inventory=unit.equipment;
-  unit.inventorySlots=HUMAN_EQUIP_SLOTS.length;
-  unit.rings=[];
-  unit.ringSlots=0;
-  return unit;
-}
+
 function getUnitFixedAction(unit){
-  if(isHumanEquipmentMode(unit)) return null;
   const cfg=(typeof getRaceLoadout==='function')?getRaceLoadout(unit&&unit.race):null;
   return (cfg&&cfg.fixed)||BASIC_PUNCH_CARD;
 }
+
 function getUnitInventorySlots(unit){
-  if(isHumanEquipmentMode(unit)) return HUMAN_EQUIP_SLOTS.length;
   if(!unit) return Math.max(1,G.handSlots||5);
   if(unit.inventorySlots!=null) return Math.max(1,unit.inventorySlots);
   const cfg=(typeof getRaceLoadout==='function')?getRaceLoadout(unit.race):null;
   return Math.max(1,(cfg&&cfg.itemSlots)||unit.handSlots||5);
 }
+
 function getUnitItemSlots(unit){
-  if(isHumanEquipmentMode(unit)) return HUMAN_EQUIP_SLOTS.length;
   return Math.max(0,getUnitInventorySlots(unit)-1); // 左端のパンチを除く
 }
+
 function getUnitRingSlots(unit){
-  if(isHumanEquipmentMode(unit)) return 0;
   if(!unit) return Math.max(0,G.ringSlots||2);
   if(unit.ringSlots!=null) return Math.max(0,unit.ringSlots);
   const cfg=(typeof getRaceLoadout==='function')?getRaceLoadout(unit.race):null;
   return Math.max(0,(cfg&&cfg.ringSlots)||2);
 }
+
 function ensureUnitLoadout(unit){
   if(!unit) return null;
-  if(isHumanEquipmentMode(unit)) return ensureHumanEquipment(unit);
   const itemSlots=getUnitItemSlots(unit);
-  if(!Array.isArray(unit.inventory)) unit.inventory=Array(itemSlots).fill(null);
+  const ringSlots=getUnitRingSlots(unit);
+  if(!Array.isArray(unit.inventory)){
+    unit.inventory=Array(itemSlots).fill(null);
+  }
   while(unit.inventory.length<itemSlots) unit.inventory.push(null);
   if(unit.inventory.length>itemSlots) unit.inventory.length=itemSlots;
-  const ringSlots=getUnitRingSlots(unit);
-  if(!Array.isArray(unit.rings)) unit.rings=Array(ringSlots).fill(null);
+  if(!Array.isArray(unit.rings)){
+    unit.rings=Array(ringSlots).fill(null);
+  }
   while(unit.rings.length<ringSlots) unit.rings.push(null);
   if(unit.rings.length>ringSlots) unit.rings.length=ringSlots;
-  unit.inventory.forEach(c=>initializeUses(c));
-  unit.rings.forEach(c=>initializeUses(c));
   return unit;
 }
+
 function initializeUnitLoadouts(){
   const firstIdx=(G.allies||[]).findIndex(a=>a&&a.hp>0&&!a._isSoul);
   if(firstIdx<0) return;
@@ -390,11 +289,6 @@ function initializeUnitLoadouts(){
     first.rings=Array(getUnitRingSlots(first)).fill(null);
     items.forEach((c,i)=>{ first.inventory[i]=c||null; });
     rings.forEach((c,i)=>{ first.rings[i]=c||null; });
-    if(isHumanEquipmentMode(first)){
-      first.equipment=first.inventory;
-      first.rings=[];
-      first.ringSlots=0;
-    }
     G._unitLoadoutInitialized=true;
   }
   if(G.selectedAllyIdx==null||!G.allies[G.selectedAllyIdx]||G.allies[G.selectedAllyIdx].hp<=0){
@@ -402,80 +296,85 @@ function initializeUnitLoadouts(){
   }
   syncSelectedUnitLoadout();
 }
+
 function getSelectedAlly(){
   const idx=G.selectedAllyIdx;
-  if(G.allies[idx]&&G.allies[idx].hp>0&&!G.allies[idx]._isSoul) return G.allies[idx];
-  const next=G.allies.findIndex(a=>a&&a.hp>0&&!a._isSoul);
-  if(next>=0){
-    G.selectedAllyIdx=next;
-    return G.allies[next];
+  const u=(G.allies||[])[idx];
+  if(u&&u.hp>0&&!u._isSoul) return u;
+  const firstIdx=(G.allies||[]).findIndex(a=>a&&a.hp>0&&!a._isSoul);
+  if(firstIdx>=0){
+    G.selectedAllyIdx=firstIdx;
+    return G.allies[firstIdx];
   }
   return null;
 }
+
 function syncSelectedUnitLoadout(){
-  const u=getSelectedAlly();
-  if(!u) return null;
-  ensureUnitLoadout(u);
-  if(isHumanEquipmentMode(u)){
-    G.rings=[];
-    G.ringSlots=0;
-    G.spells=u.equipment;
-    G.handSlots=HUMAN_EQUIP_SLOTS.length;
-    return u;
-  }
-  G.rings=u.rings;
-  G.ringSlots=u.rings.length;
-  G.spells=u.inventory;
-  G.handSlots=getUnitItemSlots(u);
-  return u;
+  const unit=getSelectedAlly();
+  if(!unit) return null;
+  ensureUnitLoadout(unit);
+  G.spells=unit.inventory;
+  G.handSlots=getUnitItemSlots(unit);
+  G.rings=unit.rings;
+  G.ringSlots=getUnitRingSlots(unit);
+  return unit;
 }
+
 function selectAllyLoadout(idx){
-  if(!G.allies[idx]||G.allies[idx].hp<=0||G.allies[idx]._isSoul) return null;
+  const unit=(G.allies||[])[idx];
+  if(!unit||unit.hp<=0||unit._isSoul) return null;
+  ensureUnitLoadout(unit);
   G.selectedAllyIdx=idx;
-  return syncSelectedUnitLoadout();
+  syncSelectedUnitLoadout();
+  return unit;
 }
+
 function aliveActionAllies(){
-  return G.allies.filter(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
+  return (G.allies||[]).filter(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
 }
+
 function syncManualActionCounts(){
   if(G.phase==='battle_end'){
     G.actionsPerTurn=Infinity;
     G.actionsLeft=Infinity;
     return;
   }
-  const alive=aliveActionAllies();
-  G.actionsPerTurn=alive.length;
-  G.actionsLeft=alive.filter(a=>!a._actedThisTurn).length;
+  const live=aliveActionAllies();
+  G.actionsPerTurn=live.length;
+  G.actionsLeft=live.filter(a=>!a._actedThisTurn).length;
 }
+
 function startManualPlayerTurn(){
   initializeUnitLoadouts();
   aliveActionAllies().forEach(a=>{ a._actedThisTurn=false; });
-  const first=G.allies.findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
-  if(first>=0) selectAllyLoadout(first);
+  const firstIdx=(G.allies||[]).findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject&&!a._actedThisTurn);
+  if(firstIdx>=0) selectAllyLoadout(firstIdx);
   syncManualActionCounts();
 }
+
 function finishSelectedAllyAction(){
-  const u=getSelectedAlly();
+  const unit=getSelectedAlly();
   if(G.phase==='battle_end'){
     syncManualActionCounts();
     updateHUD();
     return;
   }
-  if(u&&u._extraManualActions>0){
-    u._extraManualActions--;
+  if(unit&&unit._extraManualActions>0){
+    unit._extraManualActions--;
     syncManualActionCounts();
     updateHUD();
     return;
   }
-  if(u) u._actedThisTurn=true;
+  if(unit) unit._actedThisTurn=true;
   syncManualActionCounts();
-  const next=G.allies.findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject&&!a._actedThisTurn);
-  if(next>=0) selectAllyLoadout(next);
+  const nextIdx=(G.allies||[]).findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject&&!a._actedThisTurn);
+  if(nextIdx>=0) selectAllyLoadout(nextIdx);
   if(G.actionsLeft<=0&&!G._debugMode&&G.phase==='player'){
     setHint('全員が行動しました。敵ターンへ移行します...');
     setTimeout(()=>{ if(G.phase==='player') playerPass(); },350);
   }
 }
+
 function makePunchCard(unit){
   const fixed=getUnitFixedAction(unit);
   const p=Object.assign(clone(BASIC_PUNCH_CARD),clone(fixed));

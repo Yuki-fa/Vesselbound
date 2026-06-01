@@ -68,7 +68,7 @@ const SPELL_POOL=[
   {id:'w_confusion',  name:'混乱の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターのパワーとライフを入れ替える。', effect:'swap_stats', needsAny:true, baseUses:4},
 
-  // ── WEAPONS（手動戦闘用） ──
+  // ── WEAPONS ──
   {id:'wp_hatchet', name:'ハチェット', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:3, baseUses:6,
    desc:'対象にこのキャラクターのパワー+3ダメージを与える。', needsEnemy:true},
   {id:'wp_longsword', name:'ロングソード', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:4, baseUses:5,
@@ -106,31 +106,40 @@ const SPELL_POOL=[
   {id:'wp_trident', name:'トライデント', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:12, baseUses:8, weaponMode:'triple',
    desc:'対象と隣接したキャラクターに、このキャラクターのパワー+12ダメージを与える。', needsEnemy:true},
 
-  // ── ITEMS（マップショップ用） ──
-  {id:'c_vital_water', name:'活力の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のライフを+1〜4する。', effect:'vital_water', needsAlly:true},
-  {id:'c_speed_water', name:'神速の水', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'この後、2回続けて行動する。', effect:'speed_water', needsAlly:true},
-  {id:'c_life_water', name:'生命の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のライフを4〜7回復する。', effect:'life_water', needsAlly:true},
-  {id:'c_elixir', name:'エリクサー', type:'consumable', cost:4, grade:3, rarity:3,
-   desc:'対象のライフを全回復する。', effect:'elixir', needsAlly:true},
-  {id:'c_power_water', name:'力の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のパワーを+1〜4する。', effect:'power_water', needsAlly:true},
-  {id:'c_might_potion', name:'怪力の薬', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象のパワーを10にする。', effect:'might_potion', needsAlly:true},
-  {id:'c_hero_potion', name:'英雄の薬', type:'consumable', cost:4, grade:3, rarity:3,
-   desc:'この戦闘の間、ライフと最大ライフとパワーを2倍にする。', effect:'hero_potion', needsAlly:true},
-  {id:'c_witch_elixir', name:'魔女の秘薬', type:'consumable', cost:4, grade:3, rarity:3,
-   desc:'対象のパワーをこのキャラクターにコピーする。', effect:'witch_elixir', needsAlly:true},
-  {id:'c_mist_potion', name:'霧化の薬', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'3ターンの間、対象が受けるダメージを半減する。', effect:'mist_potion', needsAlly:true},
-  {id:'c_fire_bottle', name:'火炎瓶', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象と、隣接した場所を炎上させる。（炎上はその上のカードに毎ターン開始時に10ダメージ。3ターン後に鎮火）', effect:'fire_bottle', needsAny:true},
-  {id:'c_acid_bottle', name:'硫酸瓶', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象と、隣接した場所のカードに5ダメージを与える。', effect:'acid_bottle', needsAny:true},
-
   // ── CONSUMABLES ──
+  {id:'c_vital_water', name:'活力の水', type:'consumable', cost:2, grade:1, rarity:1,
+   desc:'対象のライフを+1〜4する。', effect:'life_boost_random', needsAny:true},
+
+  {id:'c_swift_water', name:'神速の水', type:'consumable', cost:2, grade:1, rarity:1,
+   desc:'この後、2回続けて行動する。', effect:'swift_water'},
+
+  {id:'c_life_water', name:'生命の水', type:'consumable', cost:2, grade:1, rarity:1,
+   desc:'対象のライフを4〜7回復する。', effect:'life_heal_random', needsAny:true},
+
+  {id:'c_elixir', name:'エリクサー', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'対象のライフを全回復する。', effect:'full_heal', needsAny:true},
+
+  {id:'c_power_water', name:'力の水', type:'consumable', cost:2, grade:1, rarity:1,
+   desc:'対象のパワーを+1〜4する。', effect:'power_boost_random', needsAny:true},
+
+  {id:'c_mighty_potion', name:'怪力の薬', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'対象のパワーを10にする。', effect:'mighty_potion', needsAny:true},
+
+  {id:'c_hero_potion', name:'英雄の薬', type:'consumable', cost:4, grade:3, rarity:3,
+   desc:'この戦闘の間、ライフと最大ライフとパワーを2倍にする。', effect:'hero_potion', needsAny:true},
+
+  {id:'c_witch_potion', name:'魔女の秘薬', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'対象のパワーをこのキャラクターにコピーする。', effect:'witch_potion', needsAny:true},
+
+  {id:'c_mist_potion', name:'霧化の薬', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'3ターンの間、対象が受けるダメージを半減する。', effect:'mist_potion', needsAny:true},
+
+  {id:'c_fire_bottle', name:'火炎瓶', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'対象と、隣接した場所を炎上させる。', effect:'fire_bottle', needsEnemy:true},
+
+  {id:'c_acid_bottle', name:'硫酸瓶', type:'consumable', cost:3, grade:2, rarity:2,
+   desc:'対象と、隣接した場所のカードに5ダメージを与える。', effect:'acid_bottle', needsEnemy:true},
+
   {id:'c_battle_start', name:'栄光の巻物', type:'consumable', cost:2,
    desc:'全ての戦闘開始時の効果を発動する。', effect:'battle_start_book'},
 

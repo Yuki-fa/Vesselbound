@@ -113,7 +113,7 @@ function hideAttackLine(){
 }
 
 function renderAll(){
-  const _drResult=_emptyDR;
+  const _drResult=G.phase==='player'?_computeDeathRisk():_emptyDR;
   renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn, _drResult.allyDeathProb);
   renderField('f-enemy', G.enemies, true,  _drResult.enemyRisk, undefined, _drResult.enemyWarn, _drResult.enemyDeathProb);
   renderHand();
@@ -343,25 +343,21 @@ function _unitPreviewText(unit, desc){
   const lines=[];
   if(unit.name) lines.push(unit.name);
   if(unit.race&&unit.race!=='-') lines.push(`種族：${unit.race}`);
-  lines.push(`最大ライフ：${unit.maxHp||unit.hp||0}`);
   const kws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])].filter(Boolean);
   if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
   if(desc) lines.push(desc);
   return lines.join('\n');
 }
 
-let _allyDragSrc=-1;
-let _allyLastDropAt=0;
-
 function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeathProb){
   const el=document.getElementById(id);
   el.innerHTML='';
-  const deathRisk=_extDeathRisk!=null?_extDeathRisk:new Set();
+  const deathRisk=_extDeathRisk!=null?_extDeathRisk:(()=>{
+    const _dr=G.phase==='player'?_computeDeathRisk():_emptyDR;
+    return isEnemy?_dr.enemyRisk:_dr.allyRisk;
+  })();
   const warnRisk=_extWarnRisk!=null?_extWarnRisk:new Map();
   const deathProb=_extDeathProb!=null?_extDeathProb:new Map();
-  const _worldMapPanel=document.getElementById('world-map-panel');
-  const _worldMapVisible=!!(_worldMapPanel&&typeof getComputedStyle==='function'&&getComputedStyle(_worldMapPanel).display!=='none'&&_worldMapPanel.offsetWidth>0&&_worldMapPanel.offsetHeight>0);
-  const _nonCombatAuraPhase=G.phase!=='enemy'&&(G.phase!=='player'||_worldMapVisible||G._isShop||G._isRewardTown);
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
   // _isObject のユニットは攻撃対象外なので除外
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._isObject);
@@ -384,34 +380,12 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     const u=units[i];
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
-    const canReorderAllies=!isEnemy&&(G.phase==='player'||G.phase==='map');
-    if(canReorderAllies){
-      slot.addEventListener('dragover',e=>{
-        if(_allyDragSrc>=0){
-          e.preventDefault();
-          e.dataTransfer.dropEffect='move';
-        }
-      });
-      slot.addEventListener('drop',e=>{
-        if(_allyDragSrc<0||_allyDragSrc===i) return;
-        e.preventDefault();
-        const from=_allyDragSrc;
-        [G.allies[from],G.allies[i]]=[G.allies[i],G.allies[from]];
-        _allyDragSrc=-1;
-        _allyLastDropAt=Date.now();
-        log('仲間の位置を入れ替えた','sys');
-        updateHUD();
-        if(G.phase==='map'&&typeof showWorldMap==='function') showWorldMap();
-        else renderAll();
-      });
-    }
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(u&&u.hp>0?u.lane:(G.moveMaskLanes?.[i]||'front')):'';
     if(u&&u.hp>0&&((isEnemy&&_slotLane==='front')||(!isEnemy&&u.hate&&u.hateTurns>0))) slot.classList.add('is-defender');
     if(u&&u.hp>0){
       slot.classList.add('unit-card');
       if(!isEnemy&&i===G.selectedAllyIdx) slot.classList.add('selected-ally');
-      if(!isEnemy&&_nonCombatAuraPhase) slot.classList.add('noncombat-aura');
       if(!isEnemy&&u._actedThisTurn) slot.classList.add('acted-ally');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(isEnemy&&typeof getSheetRaceByName==='function'){
@@ -445,18 +419,15 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
         let kwBlock='';
         if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
-        const _auraTag=(!isEnemy&&_nonCombatAuraPhase)?'<div class="noncombat-aura-vfx"></div>':'';
         const gradeTag=u.grade?`<div class="slot-grade">${typeof gradeIconHtml==='function'?gradeIconHtml(u.grade):gradeStr(u.grade)}</div>`:'';
         const _rawDesc=u.desc?computeDesc(u):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_desc?`<div class="slot-desc">${_desc}</div>`:'';
         const _preview=_unitPreviewText(u,_desc);
         if(_preview) slot.setAttribute('data-preview',_preview);
-        const _maxHp=Math.max(u.maxHp||u.hp||0,u.hp||0);
-        const _hpClass=(u.hp||0)<_maxHp?'h damaged':'h';
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         const _isObj=!!u._isObject;
-        const _probPct=_isObj?null:deathProb.get(i);
+        const _probPct=(_isObj||isEnemy)?null:deathProb.get(i);
         const _zone=_probPct==null?null:_probPct>=100?{cls:'will-die',label:'💀',color:'#ff6060'}:_probPct<=20?{cls:'will-warn-low',label:'死亡確率・小',color:'#f0d000'}:_probPct<=79?{cls:'will-warn-mid',label:'死亡確率・中',color:'#f09000'}:{cls:'will-warn-high',label:'死亡確率・大',color:'#e04800'};
         const _probTag=_zone!=null?`<div class="death-prob-label" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
         const _riskTag=_zone!=null?'<div class="risk-particles"></div>':'';
@@ -466,10 +437,10 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${_auraTag}${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div><div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="h">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
         // オブジェクトは攻撃対象外なので赤枠・死亡予測は表示しない
         if(!_isObj){
@@ -479,27 +450,18 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         }
       }
       if(u&&u.hp>0&&!isEnemy){
-        if(canReorderAllies){
-          slot.draggable=true;
-          slot.addEventListener('dragstart',e=>{
-            _allyDragSrc=i;
-            e.dataTransfer.effectAllowed='move';
-            slot.classList.add('dragging');
-          });
-          slot.addEventListener('dragend',()=>{
-            _allyDragSrc=-1;
-            slot.classList.remove('dragging');
-          });
-        }
-        slot.onclick=()=>{
-          if(G.phase==='enemy') return;
-          if(Date.now()-_allyLastDropAt<120) return;
-          if(typeof selectAllyLoadout==='function') selectAllyLoadout(i);
-          renderHand();
-          renderField('f-ally',G.allies,false);
-          setHint(G.phase==='player'
-            ? (u._actedThisTurn?'この仲間は行動済みです。':'この仲間の行動を選択してください。')
-            : '仲間を選択しました。');
+        slot.onclick=(ev)=>{
+          if(G.phase!=='player') return;
+          if(ev.shiftKey){
+            u.hate=!(u.hate&&u.hateTurns>0);
+            u.hateTurns=u.hate?99:0;
+            log(`${u.name}：ディフェンダー${u.hate?'ON':'OFF'}`,u.hate?'good':'sys');
+          } else {
+            selectAllyLoadout(i);
+            setHint(u._actedThisTurn?`${u.name}はこのターン行動済みです。`:`${u.name}のインベントリを表示中。行動を選択してください。`);
+          }
+          updateHUD();
+          renderAll();
         };
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
@@ -509,16 +471,23 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       slot.classList.remove('is-rear');
       slot.classList.add('has-mini-card');
       const _isChestMask=String(_mvType).startsWith('chest');
+      const _revealed=G.phase==='battle_end'||G.phase==='reward';
       if(_isChestMask){
         const _ctp=_mvType==='chest_ring'?'ring':_mvType==='chest_wand'?'wand':_mvType==='chest_item'?'consumable':'wand';
-        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${nt.label}</div><div class="mini-q">？</div><div class="mini-hint">+1消費</div></div>`;
-        slot.title='クリックで取得（行動力-1）';
+        const _item=(_revealed&&typeof _ensureTreasureForSlot==='function')?_ensureTreasureForSlot(i):null;
+        const _label=_revealed?(_item?_item.name:(nt&&nt.label)||'宝箱'):'?';
+        const _hint=_revealed?(_item?'クリックで回収':'宝箱'):'+1消費';
+        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${_label}</div><div class="mini-q">${_revealed?'宝':'?'}</div><div class="mini-hint">${_hint}</div></div>`;
+        slot.title=_revealed?`${_label}を回収`:'?';
         slot.onclick=()=>{
-          if(typeof onChestClick==='function') onChestClick(i);
+          if(G.phase==='battle_end'&&typeof collectBattleEndChest==='function') collectBattleEndChest(i);
+          else if(typeof onChestClick==='function') onChestClick(i);
         };
       } else {
-        slot.innerHTML=`<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`;
-        slot.title='クリックで撤退';
+        slot.innerHTML=_revealed
+          ? `<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`
+          : `<div class="mini-card move-mini"><div class="mini-icon">?</div><div class="mini-lbl">?</div></div>`;
+        slot.title=_revealed?'移動先':'?';
         slot.onclick=()=>{
           if(G.phase!=='player') return;
           showRetreatConfirm(_mvType);
@@ -538,42 +507,22 @@ function renderHand(){
 
 let _selectedRingIdx=-1;
 
-function _hasExplicitSelectedAlly(){
-  return typeof G!=='undefined'
-    && G.selectedAllyIdx!=null
-    && G.selectedAllyIdx>=0
-    && G.allies
-    && G.allies[G.selectedAllyIdx]
-    && G.allies[G.selectedAllyIdx].hp>0
-    && !G.allies[G.selectedAllyIdx]._isSoul;
-}
-
-function clearAllyLoadoutSelection(){
-  if(typeof G==='undefined'||G.selectedAllyIdx==null||G.selectedAllyIdx<0) return;
-  G.selectedAllyIdx=-1;
-  _selectedRingIdx=-1;
-  renderHand();
-  renderField('f-ally',G.allies,false);
-}
-
 function renderRingSlots(){
   const el=document.getElementById('ring-slots');
   if(!el) return;
-  const owner=_hasExplicitSelectedAlly()&&typeof getSelectedAlly==='function'?getSelectedAlly():null;
-  const humanEquip=typeof isHumanEquipmentMode==='function'&&isHumanEquipmentMode(owner);
+  syncSelectedUnitLoadout();
   // 旧row2は非表示
   const extraRow=document.getElementById('ring-extra-row');
   if(extraRow) extraRow.style.display='none';
   el.innerHTML='';
-  const R=owner&&!humanEquip?(G.ringSlots||0):0;
+  const R=G.ringSlots;
   el.style.gridTemplateColumns=`repeat(${R},1fr)`;
   const ringPane=document.getElementById('ring-pane');
-  if(ringPane){ ringPane.style.flex=R; ringPane.style.display=R>0?'':'none'; }
+  if(ringPane) ringPane.style.flex=R;
   const handPane=document.getElementById('hand-pane');
-  if(handPane) handPane.style.flex=R>0?10-R:10;
+  if(handPane) handPane.style.flex=10-R;
   const rc=document.getElementById('ring-count'); if(rc) rc.textContent=G.rings.filter(r=>r).length;
   const rm=document.getElementById('ring-max');   if(rm) rm.textContent=R;
-  if(R<=0) return;
 
   for(let i=0;i<R;i++){
     const ring=G.rings[i];
@@ -617,36 +566,18 @@ function renderRingSlots(){
   }
 }
 
-function appendEquipSlotLabel(el,label){
-  if(!el||!label) return;
-  el.classList.add('equip-slot-frame');
-  const slotLabel=document.createElement('div');
-  slotLabel.className='equip-slot-label';
-  slotLabel.textContent=label;
-  el.appendChild(slotLabel);
-}
-
 // インベントリスロット（杖＋消耗品の混合 7 枠）
 function renderHandSlots(){
   const el=document.getElementById('hand-slots');
   if(!el) return;
-  const owner=_hasExplicitSelectedAlly()&&typeof syncSelectedUnitLoadout==='function'?syncSelectedUnitLoadout():null;
-  const humanEquip=typeof isHumanEquipmentMode==='function'&&isHumanEquipmentMode(owner);
-  const slotDefs=humanEquip&&typeof getHumanEquipSlotDefs==='function'?getHumanEquipSlotDefs():null;
+  const owner=syncSelectedUnitLoadout();
   el.innerHTML='';
-  if(!owner){
-    el.style.gridTemplateColumns='repeat(0,1fr)';
-    el.style.setProperty('--unit-inventory-cols',0);
-    const hc=document.getElementById('hand-count'); if(hc) hc.textContent=0;
-    const hm=document.getElementById('hand-max');   if(hm) hm.textContent=0;
-    return;
-  }
-  const H=humanEquip?slotDefs.length:(G.handSlots||5);
-  const totalSlots=humanEquip?H:H+1; // 通常時だけ左端は固定行動「パンチ」
-  const Hcols=Math.max(5,totalSlots);
+  const H=G.handSlots||4;
+  const totalSlots=Math.max(1,H+1);
+  const Hcols=Math.max(5,totalSlots); // 左端にパンチ、残りにキャラ個別インベントリ
   el.style.gridTemplateColumns=`repeat(${Hcols},1fr)`;
   el.style.setProperty('--unit-inventory-cols',Hcols);
-  const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s&&!(typeof isOccupiedSlot==='function'&&isOccupiedSlot(s))).length;
+  const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s&&!isOccupiedSlot(s)).length;
   const hm=document.getElementById('hand-max');   if(hm) hm.textContent=totalSlots;
 
   for(let i=0;i<Hcols;i++){
@@ -657,51 +588,38 @@ function renderHandSlots(){
       el.appendChild(ph);
       continue;
     }
-    if(!humanEquip&&i===0){
-      const punch=owner&&typeof makePunchCard==='function'?makePunchCard(owner):null;
-      if(punch){
-        const div=mkCardEl(punch,0,'spell-battle basic-action');
-        const canUse=owner&&(G.phase==='battle_end'||(G.phase==='player'&&!owner._actedThisTurn));
-        if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(0); }
-        else div.classList.add('inert');
-        el.appendChild(div);
-      } else {
-        const ph=document.createElement('div');
-        ph.className='card-empty spell';
-        el.appendChild(ph);
-      }
+    if(i===0&&owner){
+      const punch=makePunchCard(owner);
+      const div=mkCardEl(punch,0,'spell-battle');
+      const inBattleEnd=G.phase==='battle_end';
+      const canUse=owner.hp>0&&(inBattleEnd||(G.phase==='player'&&!owner._actedThisTurn));
+      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(0); }
+      else div.classList.add('inert');
+      el.appendChild(div);
       continue;
     }
-    const invIdx=humanEquip?i:i-1;
+    const invIdx=i-1;
     const sp=G.spells[invIdx];
-    if(sp&&typeof isOccupiedSlot==='function'&&isOccupiedSlot(sp)){
+    if(sp&&isOccupiedSlot(sp)){
       const ph=document.createElement('div');
-      ph.className='card-empty spell occupied-slot';
-      ph.style.opacity=slotDefs&&slotDefs[invIdx]?'1':'0.18';
-      if(slotDefs&&slotDefs[invIdx]) appendEquipSlotLabel(ph,slotDefs[invIdx].label);
+      ph.className='card-empty spell occupied';
+      ph.style.opacity='0.18';
       el.appendChild(ph);
-      continue;
-    }
-    if(sp){
+    } else if(sp){
       const div=mkCardEl(sp,invIdx,'spell-battle');
-      if(slotDefs&&slotDefs[invIdx]) appendEquipSlotLabel(div,slotDefs[invIdx].label);
       const isChargeCard=sp.type==='wand'||sp.type==='weapon';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
       const inReward=G.phase==='reward';
-      const inMap=G.phase==='map';
-      const isUsableEquip=sp.type==='wand'||sp.type==='weapon'||sp.type==='consumable'||sp.type==='item';
-      const worldMapUseLocked=typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&(
-        inReward||G._mapChoiceOpen||G._worldMapFreeRecruit||G._fromWorldMapShop||G._isShop
-      );
-      const canUseMap=inMap&&!worldMapUseLocked;
-      const canUse=(G.phase==='battle_end'||G.phase==='player'||canUseMap)&&owner&&(G.phase==='battle_end'||!owner._actedThisTurn)&&(isChargeCard?hasCharge:true)&&(!humanEquip||isUsableEquip);
-      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(humanEquip?invIdx:i); }
+      const inBattleEnd=G.phase==='battle_end';
+      const canUse=(G.phase==='player'||inReward||inBattleEnd)
+        &&(isChargeCard?((inReward||inBattleEnd)?hasCharge:G.actionsLeft>0&&hasCharge):(inReward||inBattleEnd||G.actionsLeft>0))
+        &&(!owner||!owner._actedThisTurn||inReward||inBattleEnd);
+      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(i); }
       else       { div.classList.add('inert'); }
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty spell';
-      if(slotDefs&&slotDefs[invIdx]) appendEquipSlotLabel(ph,slotDefs[invIdx].label);
       el.appendChild(ph);
     }
   }
@@ -818,7 +736,7 @@ function computeDesc(card,_mlOverride){
 }
 
 function mkCardEl(card,_idx,_ctx,_mlOverride){
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
+  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム',weapon:'武器',basic:'固定装備'};
   const div=document.createElement('div');
   const t=card.type||'ring';
   const _isWandSub=t==='wand'&&card.subtype==='wand';
@@ -837,18 +755,18 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const kindLabel='';
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
-  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
+  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable'||card.type==='weapon'||card.type==='basic')?1:0);
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(_gradeNum):gradeStr(_gradeNum)}</span>`:'';
   // レッサーデーモン：報酬フェイズの次に購入する消耗品アイテムへ累積割引を表示反映
   const _ldDiscDisp=(typeof _lesserDemonDiscountFor==='function'&&G.phase==='reward')?_lesserDemonDiscountFor(card):0;
   const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
   const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
-  // 杖のチャージ表示（テキスト下）
-  const charges=card.type==='wand'
+  // 杖・武器のチャージ/耐久度表示（テキスト下）
+  const charges=(card.type==='wand'||card.type==='weapon')
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
     :null;
   const _chargeColorClass=_isWandSub?' wand-sub':'';
-  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">チャージ：${charges}</div>`:'';
+  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${card.type==='weapon'?'耐久度':'チャージ'}：${charges}</div>`:'';
   let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
@@ -1066,17 +984,3 @@ function showRetreatConfirm(mv){
   ov.appendChild(row);
   document.body.appendChild(ov);
 }
-
-(function installClearAllySelectionOnOutsideClick(){
-  if(typeof window==='undefined'||window.__vbClearAllySelectionOnOutsideClick) return;
-  window.__vbClearAllySelectionOnOutsideClick=true;
-  document.addEventListener('click',e=>{
-    if(typeof G==='undefined'||!_hasExplicitSelectedAlly()) return;
-    const t=e.target;
-    if(!t||!t.closest) return;
-    if(t.closest('.unit-card')) return;
-    if(t.closest('#hand-slots')||t.closest('#ring-slots')||t.closest('#kw-tooltip')) return;
-    if(t.closest('button')||t.closest('.btn')||t.closest('.map-node')||t.closest('.card')) return;
-    clearAllyLoadoutSelection();
-  });
-})();
