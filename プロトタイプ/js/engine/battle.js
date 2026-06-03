@@ -363,7 +363,7 @@ async function startBattle(){
     if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
     // slot 1-5の空きスロットにオブジェクトを確率配置
     const _objGrade=FLOOR_DATA[G.floor]?.grade||1;
-    for(let _oi=1;_oi<6;_oi++){
+    for(let _oi=1;G.floor!==1&&_oi<6;_oi++){
       if(G.enemies[_oi]) continue;
       const roll=Math.random();
       let cumProb=0;

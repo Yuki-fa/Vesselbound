@@ -117,10 +117,9 @@ function generateEnemies(floor){
       const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       _applyEnemyDefAbilities(e, def);
       e._visualShift=Math.random()<0.5;
-      e.lane=Math.random()<0.6?'front':'rear';
+      e.lane='front';
       return e;
     });
-    _enforceLaneRules(_f1enemies);
     return _f1enemies;
   }
 
