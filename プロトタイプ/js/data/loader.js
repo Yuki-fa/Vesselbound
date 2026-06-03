@@ -332,11 +332,11 @@ async function loadGameData() {
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
     floorRows.forEach(row => {
-      const fl = parseInt(row['階層']);
+      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['floor']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓' || row['ボスかどうか'] === '✓' || row['ボス'] === 'TRUE';
       // 「敵手札」列（旧「行動」列）：カンマ区切りの杖/アイテム名 → SPELL_POOLから検索
-      const handStr = (row['敵手札'] || '').trim();
+      const handStr = (row['敵手札'] || row['相手キャラクター手札'] || '').trim();
       const enemyHand = handStr && !handStr.startsWith('なし')
         ? handStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
             .map(entry => {
@@ -354,7 +354,7 @@ async function loadGameData() {
             .filter(Boolean)
         : [];
       // 「敵指輪」列：カンマ区切りの指輪名 → RING_POOLから検索
-      const ringStr = (row['敵指輪'] || '').trim();
+      const ringStr = (row['敵指輪'] || row['相手キャラクター指輪'] || '').trim();
       const enemyRings = ringStr && !ringStr.startsWith('なし')
         ? ringStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
             .map(name => typeof RING_POOL!=='undefined' ? _findBySheetName(RING_POOL, name) : null)
