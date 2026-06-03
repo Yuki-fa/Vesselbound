@@ -68,78 +68,7 @@ const SPELL_POOL=[
   {id:'w_confusion',  name:'混乱の短杖',  type:'wand', subtype:'wand', cost:2,
    desc:'対象のキャラクターのパワーとライフを入れ替える。', effect:'swap_stats', needsAny:true, baseUses:4},
 
-  // ── WEAPONS ──
-  {id:'wp_hatchet', name:'ハチェット', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:3, baseUses:6,
-   desc:'対象にこのキャラクターのパワー+3ダメージを与える。', needsEnemy:true},
-  {id:'wp_longsword', name:'ロングソード', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:4, baseUses:5,
-   desc:'対象にこのキャラクターのパワー+4ダメージを与える。', needsEnemy:true},
-  {id:'wp_spear', name:'スピア', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:5, baseUses:3,
-   desc:'対象にこのキャラクターのパワー+5ダメージを与える。', needsEnemy:true},
-  {id:'wp_francisca', name:'フランキスカ', type:'weapon', cost:2, grade:1, rarity:1, slotSize:1, power:4, baseUses:6, weaponMode:'twin',
-   desc:'対象に隣接したキャラクターに、このキャラクターのパワー+4ダメージを与える。', needsEnemy:true},
-  {id:'wp_bastard_sword', name:'バスタードソード', type:'weapon', cost:3, grade:2, rarity:2, slotSize:1, power:5, baseUses:4, weaponKeyword:'armor8',
-   desc:'対象にこのキャラクターのパワー+5ダメージを与え、装甲8を得る。', needsEnemy:true},
-  {id:'wp_halberd', name:'ハルバード', type:'weapon', cost:3, grade:2, rarity:2, slotSize:1, power:6, baseUses:4,
-   desc:'対象にこのキャラクターのパワー+6ダメージを与える。', needsEnemy:true},
-  {id:'wp_battle_axe', name:'バトルアクス', type:'weapon', cost:3, grade:2, rarity:2, slotSize:1, power:8, baseUses:6,
-   desc:'対象にこのキャラクターのパワー+8ダメージを与える。', needsEnemy:true},
-  {id:'wp_claymore', name:'クレイモア', type:'weapon', cost:4, grade:3, rarity:2, slotSize:2, power:7, baseUses:5, weaponMode:'triple',
-   desc:'対象と隣接したキャラクターに、このキャラクターのパワー+7ダメージを与える。', needsEnemy:true},
-  {id:'wp_partisan', name:'パルチザン', type:'weapon', cost:4, grade:3, rarity:2, slotSize:1, power:9, baseUses:4,
-   desc:'対象にこのキャラクターのパワー+9ダメージを与える。', needsEnemy:true},
-  {id:'wp_fury_axe', name:'フューリーアクス', type:'weapon', cost:4, grade:3, rarity:3, slotSize:1, power:5, baseUses:15, weaponMode:'all',
-   desc:'味方を含む全てのキャラクターに、このキャラクターのパワー+5ダメージを与える。'},
-  {id:'wp_avenger', name:'アヴェンジャー', type:'weapon', cost:4, grade:3, rarity:3, slotSize:1, power:8, baseUses:9, weaponKeyword:'lifesteal',
-   desc:'対象にこのキャラクターのパワー+8ダメージを与え、与えたダメージ分ライフを回復する。', needsEnemy:true},
-  {id:'wp_rune_spear', name:'ルーンスピア', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:11, baseUses:3, lethalEffect:'soul1',
-   desc:'対象にこのキャラクターのパワー+11ダメージを与える。致命：ソウルを1得る。', needsEnemy:true},
-  {id:'wp_mjolnir', name:'ミョルニール', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:13, baseUses:9,
-   desc:'対象にこのキャラクターのパワー+13ダメージを与える。', needsEnemy:true},
-  {id:'wp_forseti', name:'フォルセティ', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:'durability', baseUses:20,
-   desc:'対象にこのキャラクターのパワー+耐久度ダメージを与える。', needsEnemy:true},
-  {id:'wp_stormbringer', name:'ストームブリンガー', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:8, baseUses:15, repeat:3,
-   desc:'対象にこのキャラクターのパワー+8ダメージを3回与える。', needsEnemy:true},
-  {id:'wp_mistilteinn', name:'ミストルティン', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:1, baseUses:3, weaponKeyword:'instant',
-   desc:'対象にこのキャラクターのパワー+1ダメージを与える。命中した対象は即死する。', needsEnemy:true},
-  {id:'wp_gungnir', name:'グングニル', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:15, baseUses:2, lethalEffect:'no_durability_loss',
-   desc:'対象にこのキャラクターのパワー+15ダメージを与える。致命：耐久度が減らない。', needsEnemy:true},
-  {id:'wp_trident', name:'トライデント', type:'weapon', cost:5, grade:4, rarity:3, slotSize:1, power:12, baseUses:8, weaponMode:'triple',
-   desc:'対象と隣接したキャラクターに、このキャラクターのパワー+12ダメージを与える。', needsEnemy:true},
-
   // ── CONSUMABLES ──
-  {id:'c_vital_water', name:'活力の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のライフを+1〜4する。', effect:'life_boost_random', needsAny:true},
-
-  {id:'c_swift_water', name:'神速の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'この後、2回続けて行動する。', effect:'swift_water'},
-
-  {id:'c_life_water', name:'生命の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のライフを4〜7回復する。', effect:'life_heal_random', needsAny:true},
-
-  {id:'c_elixir', name:'エリクサー', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象のライフを全回復する。', effect:'full_heal', needsAny:true},
-
-  {id:'c_power_water', name:'力の水', type:'consumable', cost:2, grade:1, rarity:1,
-   desc:'対象のパワーを+1〜4する。', effect:'power_boost_random', needsAny:true},
-
-  {id:'c_mighty_potion', name:'怪力の薬', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象のパワーを10にする。', effect:'mighty_potion', needsAny:true},
-
-  {id:'c_hero_potion', name:'英雄の薬', type:'consumable', cost:4, grade:3, rarity:3,
-   desc:'この戦闘の間、ライフと最大ライフとパワーを2倍にする。', effect:'hero_potion', needsAny:true},
-
-  {id:'c_witch_potion', name:'魔女の秘薬', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象のパワーをこのキャラクターにコピーする。', effect:'witch_potion', needsAny:true},
-
-  {id:'c_mist_potion', name:'霧化の薬', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'3ターンの間、対象が受けるダメージを半減する。', effect:'mist_potion', needsAny:true},
-
-  {id:'c_fire_bottle', name:'火炎瓶', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象と、隣接した場所を炎上させる。', effect:'fire_bottle', needsEnemy:true},
-
-  {id:'c_acid_bottle', name:'硫酸瓶', type:'consumable', cost:3, grade:2, rarity:2,
-   desc:'対象と、隣接した場所のカードに5ダメージを与える。', effect:'acid_bottle', needsEnemy:true},
-
   {id:'c_battle_start', name:'栄光の巻物', type:'consumable', cost:2,
    desc:'全ての戦闘開始時の効果を発動する。', effect:'battle_start_book'},
 

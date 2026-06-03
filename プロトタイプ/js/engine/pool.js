@@ -86,7 +86,7 @@ function calcBuyPrice(card){
     return card.cost||2;
   }
   if(card.type==='consumable') return card.cost||1;
-  if(card.type==='wand'||card.type==='weapon') return card.cost||2;
+  if(card.type==='wand') return card.cost||2;
   // 指輪
   return card.cost||4;
 }
@@ -115,7 +115,7 @@ function getRingPool(){
 function drawCharacters(n){
   if(isExperimentalAppearanceMode()){
     const pool=UNIT_POOL.filter(u=>{
-      if(!u.id||u.id==='c_golem'||u.starterOnly) return false;
+      if(!u.id||u.id==='c_golem') return false;
       if(u.enemyOnly) return false;
       if(u.unique) return false;
       if(u.rarity===-1) return false;
@@ -143,7 +143,7 @@ function drawCharacters(n){
   // 報酬グレードと一致するグレードのみ出現（ネームドは除外）
   const targetGrade=G.rewardGrade||1;
   const pool=UNIT_POOL.filter(u=>{
-    if(!u.id||u.id==='c_golem'||u.starterOnly) return false;
+    if(!u.id||u.id==='c_golem') return false;
     if(u.enemyOnly) return false;
     if(u.unique) return false;
     if(u.rarity===-1) return false;
@@ -189,7 +189,10 @@ function drawItems(n, maxGrade){
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);
-    if(typeof initializeUses==='function') initializeUses(c);
+    if(c.type==='wand'){
+      const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses());
+      c.usesLeft=uses; c._maxUses=uses;
+    }
     c._buyPrice=calcBuyPrice(c);
     pool.push(c);
   });
@@ -219,7 +222,7 @@ function _drawByType(type, n, maxGrade){
     });
     const res=_drawExperimentalFromPool(pool,n,def=>{
       const c=clone(def);
-      if(typeof initializeUses==='function') initializeUses(c);
+      if(c.type==='wand'){ const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses()); c.usesLeft=uses; c._maxUses=uses; }
       c._buyPrice=calcBuyPrice(c);
       return c;
     });
@@ -237,7 +240,7 @@ function _drawByType(type, n, maxGrade){
     if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
     if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
     const c=clone(s);
-    if(typeof initializeUses==='function') initializeUses(c);
+    if(c.type==='wand'){ const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses()); c.usesLeft=uses; c._maxUses=uses; }
     c._buyPrice=calcBuyPrice(c);
     pool.push(c);
   });
@@ -248,67 +251,41 @@ function _drawByType(type, n, maxGrade){
 }
 
 // ── 宝箱ドロップ抽選 ────────────────────────────
-const TREASURE_TYPE_WEIGHTS={weapon:30,wand:30,consumable:30,ring:10};
-const TREASURE_RARITY_WEIGHTS={1:40,2:30,3:20,4:7,5:3};
-
 function _rollRarity(weights){
   let roll=Math.random()*100, cum=0;
   for(const [r,w] of Object.entries(weights)){ cum+=parseFloat(w); if(roll<cum) return parseInt(r); }
   return parseInt(Object.keys(weights).pop());
 }
 
-function _treasureRarityTier(card){
-  if(!card) return null;
-  const raw=card.rarityTier??card.rarityLabel??card.rarityName??card.rarity;
-  if(raw==null||raw==='') return null;
-  if(raw===-1||raw==='-') return -1;
-  const s=String(raw).trim();
-  const n=parseInt(s);
-  if(!isNaN(n)&&n>=1) return n;
-  const map={Common:1,Uncommon:2,Rare:3,Epic:4,Legendary:5,common:1,uncommon:2,rare:3,epic:4,legendary:5};
-  return map[s]||null;
-}
-
-function _hasTreasureRarity(card){
-  const r=_treasureRarityTier(card);
-  return r!=null&&r!==-1;
-}
-
-function _rollTreasureType(weights){
-  const entries=Object.entries(weights||TREASURE_TYPE_WEIGHTS).filter(([,w])=>Number(w)>0);
-  const total=entries.reduce((s,[,w])=>s+Number(w),0)||1;
-  let roll=Math.random()*total;
-  for(const [type,w] of entries){ roll-=Number(w); if(roll<0) return type; }
-  return entries[entries.length-1]?.[0]||'consumable';
-}
-
-// rarityWeights: e.g. {1:60,2:30,3:10} / typeWeights: e.g. {wand:40,weapon:20,consumable:20,ring:20}
+// rarityWeights: e.g. {1:60,2:30,3:10} / typeWeights: e.g. {wand:40,consumable:40,ring:20}
 function drawTreasure(rarityWeights, typeWeights, maxGrade){
-  const rarity=_rollRarity(rarityWeights||TREASURE_RARITY_WEIGHTS);
-  const type=_rollTreasureType(typeWeights||TREASURE_TYPE_WEIGHTS);
+  const rarity=Math.min(_rollRarity(rarityWeights), maxGrade||4);
+  const wv=typeWeights.wand||0, cv=typeWeights.consumable||0;
+  const roll=Math.random()*100;
+  const type=roll<wv?'wand':roll<wv+cv?'consumable':'ring';
 
   const _seen3=G._seenRarity3||new Set();
   let pool, c;
   if(type==='ring'){
     const _mgr=maxGrade||4;
-    pool=RING_POOL.filter(r=>!r.starterOnly&&_hasTreasureRarity(r)&&(r.grade||1)<=_mgr&&_treasureRarityTier(r)===rarity&&!(_treasureRarityTier(r)===3&&_seen3.has(r.id)));
-    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&_hasTreasureRarity(r)&&(r.grade||1)<=_mgr&&!(_treasureRarityTier(r)===3&&_seen3.has(r.id)));
+    pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
+    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&!(r.rarity===3&&_seen3.has(r.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
     c.grade=maxGrade;
     c.type='ring';
   } else {
     const _mg=maxGrade||4;
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&_hasTreasureRarity(s)&&s.type===type&&(s.grade||1)<=_mg&&_treasureRarityTier(s)===rarity&&!(_treasureRarityTier(s)===3&&_seen3.has(s.id)));
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&_hasTreasureRarity(s)&&s.type===type&&(s.grade||1)<=_mg&&!(_treasureRarityTier(s)===3&&_seen3.has(s.id)));
+    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
+    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&!(s.rarity===3&&_seen3.has(s.id)));
     if(!pool.length) return null;
     c=clone(randFrom(pool));
-    if(typeof initializeUses==='function') initializeUses(c);
+    if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
   }
   c._rarity=rarity;
   c._buyPrice=0; // 宝箱の中身は全て無料（指輪含む）
   c._isTreasure=true;
-  if(_treasureRarityTier(c)===3&&G._seenRarity3) G._seenRarity3.add(c.id);
+  if(rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;
 }
 
@@ -318,18 +295,15 @@ function _applyUniqueSlot(res){
   const allyIds=G.allies.filter(Boolean).map(a=>a.id);
   const uChars=UNIT_POOL.filter(u=>u.unique&&!u.enemyOnly&&u.id!=='c_golem'&&u.rarity!==-1&&(u.grade||1)<=targetGrade&&!allyIds.includes(u.id));
   const uWands=SPELL_POOL.filter(s=>s.type==='wand'&&s.unique&&!s.starterOnly&&s.rarity!==-1&&!(G.seenWands&&G.seenWands.includes(s.id)));
-  const uWeapons=SPELL_POOL.filter(s=>s.type==='weapon'&&s.unique&&!s.starterOnly&&s.rarity!==-1&&!(G.seenWands&&G.seenWands.includes(s.id)));
   const uCons=SPELL_POOL.filter(s=>s.type==='consumable'&&s.unique&&!s.starterOnly&&s.rarity!==-1);
 
   const charSlots=res.map((c,i)=>({c,i})).filter(({c})=>c&&c._isChar);
   const wandSlot=res.findIndex(c=>c&&c.type==='wand');
-  const weaponSlot=res.findIndex(c=>c&&c.type==='weapon');
   const conSlot=res.findIndex(c=>c&&c.type==='consumable');
 
   const candidates=[];
   if(uChars.length&&charSlots.length) candidates.push('char');
   if(uWands.length&&wandSlot>=0) candidates.push('wand');
-  if(uWeapons.length&&weaponSlot>=0) candidates.push('weapon');
   if(uCons.length&&conSlot>=0) candidates.push('consumable');
   if(!candidates.length) return;
 
@@ -342,16 +316,10 @@ function _applyUniqueSlot(res){
   } else if(pick==='wand'){
     const def=randFrom(uWands);
     const card=clone(def);
-    if(typeof initializeUses==='function') initializeUses(card);
+    const uses=card.baseUses||4; card.usesLeft=uses; card._maxUses=uses;
     card._buyPrice=calcBuyPrice(card);
     if(!G.seenWands.includes(card.id)) G.seenWands.push(card.id);
     res[wandSlot]=card;
-  } else if(pick==='weapon'){
-    const card=clone(randFrom(uWeapons));
-    if(typeof initializeUses==='function') initializeUses(card);
-    card._buyPrice=calcBuyPrice(card);
-    if(!G.seenWands.includes(card.id)) G.seenWands.push(card.id);
-    res[weaponSlot]=card;
   } else {
     const card=clone(randFrom(uCons));
     card._buyPrice=calcBuyPrice(card);
@@ -369,8 +337,7 @@ function drawRewards(n){
   const charCount=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
   const chars=drawCharacters(charCount);
   const wand=_drawByType('wand',1)[0]||null;
-  const itemType=Math.random()<0.5?'consumable':'weapon';
-  const item=_drawByType(itemType,1)[0]||_drawByType(itemType==='weapon'?'consumable':'weapon',1)[0]||null;
+  const item=_drawByType('consumable',1)[0]||null;
   const res=[...chars];
   if(wand) res.push(wand);
   if(item) res.push(item);

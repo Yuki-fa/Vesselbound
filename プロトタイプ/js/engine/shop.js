@@ -6,7 +6,6 @@
 let _shopRings=[];
 
 function doShop(){
-  if(typeof syncSelectedUnitLoadout==='function') syncSelectedUnitLoadout();
   if(typeof setBattleShopBackground==='function') setBattleShopBackground();
   const floorGrade=rollGrade(G.floor);
   // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
@@ -101,7 +100,6 @@ function shopDone(){ G._isShop=false; renderMoveSelect([{nodeType:'battle',idx:-
 
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){
-  if(typeof syncSelectedUnitLoadout==='function') syncSelectedUnitLoadout();
   renderHeRowIn('sh-he-rings',  G.rings,  0, G.ringSlots,      'rings',  'shop');
   renderHeRowIn('sh-he-wands',  G.spells, 0, G.handSlots||5,   'spells', 'shop');
 }

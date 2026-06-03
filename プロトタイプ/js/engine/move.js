@@ -49,10 +49,10 @@ function chooseMove(nt){
 
 function takeCardToHand(card){
   if(!card) return;
-  if(typeof syncSelectedUnitLoadout==='function') syncSelectedUnitLoadout();
   const isRing=card.kind==='summon'||card.kind==='passive'||!card.type;
   const nc=clone(card);
-  if(typeof initializeUses==='function') initializeUses(nc);
+  if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
+  if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   if(isRing){
     delete nc._buyPrice;
     for(let i=0;i<G.ringSlots;i++){
@@ -65,11 +65,7 @@ function takeCardToHand(card){
       }
     }
   } else {
-    if(typeof placeInventoryCard==='function'){
-      placeInventoryCard(G.spells,nc);
-    } else {
-      const hi=G.spells.indexOf(null);
-      if(hi>=0) G.spells[hi]=nc;
-    }
+    const hi=G.spells.indexOf(null);
+    if(hi>=0) G.spells[hi]=nc;
   }
 }

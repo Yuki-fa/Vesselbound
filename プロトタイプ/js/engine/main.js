@@ -22,9 +22,7 @@ function updateHUD(){
   document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
-  const actLeft=Number.isFinite(G.actionsLeft)?G.actionsLeft:'∞';
-  const actMax=Number.isFinite(G.actionsPerTurn)?G.actionsPerTurn:'∞';
-  document.getElementById('h-act').textContent=actLeft+'/'+actMax;
+  document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');
@@ -94,11 +92,7 @@ function showVictoryOverlay(){
   if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   document.getElementById('victory-overlay').style.display='flex';
 }
-function hideVictoryOverlay(){
-  document.getElementById('victory-overlay').style.display='none';
-  if(G.phase==='battle_end'&&typeof goToBattleEnd==='function') goToBattleEnd();
-  else goToReward();
-}
+function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });

@@ -115,11 +115,10 @@ function applyUnitSummonEffect(unit, fromRingId){
     log(`${unit.name}：以後のカード効果召喚が±0/+${v}（累計+${G._grimalkinBonus}）`,'good');
   }
   if(unit.effect==='imp_summon'){
-    const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
-    if(_item&&typeof placeInventoryCard==='function'&&placeInventoryCard(G.spells,_item)){
-      log(`${unit.name}：使役→G1アイテムを入手`,'good');
-    } else {
-      log(`${unit.name}：手札がいっぱいでアイテムを得られない`,'sys');
+    const _slot=G.spells.findIndex(s=>!s);
+    if(_slot>=0){
+      const _item=typeof drawConsumable==='function'?drawConsumable(1):null;
+      if(_item){ G.spells[_slot]=_item; log(`${unit.name}：使役→G1アイテムを入手`,'good'); }
     }
   }
   // ケンタウロス：開戦時に魔術レベル+1（onBattleStartで処理）
@@ -203,7 +202,6 @@ function addAlly(unit, fromRingId, fromCharEffect=false){
   const empty=G.allies.findIndex(a=>!a||a.hp<=0);
   if(empty>=0) G.allies[empty]=unit;
   else G.allies.push(unit);
-  if(typeof ensureUnitLoadout==='function') ensureUnitLoadout(unit);
   if(typeof playSfx==='function') playSfx('summon',{group:'magic'});
   G.battleCounters.summons++;
   // 憤激の指輪：戦闘中に召喚された仲間にもボーナスを即時適用
@@ -415,7 +413,7 @@ function summonAllies(){
     G.allies.forEach(a=>{ if(a&&a.hp>0) names[a.name]=(names[a.name]||0)+1; });
     Object.entries(names).forEach(([nm,cnt])=>{
       if(cnt>=2){
-        G.allies.forEach(a=>{ if(a&&a.name===nm&&a.hp>0) applyUnitBuff(a,bonus,bonus,'ally'); });
+        G.allies.forEach(a=>{ if(a&&a.name===nm&&a.hp>0){ a.atk+=bonus; a.hp+=bonus; a.maxHp+=bonus; }});
         log(`共鳴：${nm}×${cnt}体にATK+${bonus}/HP+${bonus}`,'good');
       }
     });
@@ -537,7 +535,7 @@ function triggerCocatrice(summonedUnit){
     if(g===summonedUnit) return; // 召喚されたユニット自身は除外
     const _cnums=[...(g.desc||'').matchAll(/\d+/g)].map(m=>parseInt(m[0]));
     const _cv=(_cnums[0]||2)+_gd;
-    applyUnitBuff(g,0,_cv,G.enemies.includes(g)?'enemy':'ally');
+    g.hp+=_cv; g.maxHp+=_cv;
     log(`${g.name}：キャラ効果召喚→±0/+${_cv}`,'good');
   });
 }

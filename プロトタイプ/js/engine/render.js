@@ -385,8 +385,6 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     if(u&&u.hp>0&&((isEnemy&&_slotLane==='front')||(!isEnemy&&u.hate&&u.hateTurns>0))) slot.classList.add('is-defender');
     if(u&&u.hp>0){
       slot.classList.add('unit-card');
-      if(!isEnemy&&i===G.selectedAllyIdx) slot.classList.add('selected-ally');
-      if(!isEnemy&&u._actedThisTurn) slot.classList.add('acted-ally');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(isEnemy&&typeof getSheetRaceByName==='function'){
         const _sheetRace=getSheetRaceByName(u.name);
@@ -427,7 +425,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         if(_preview) slot.setAttribute('data-preview',_preview);
         const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
         const _isObj=!!u._isObject;
-        const _probPct=(_isObj||isEnemy)?null:deathProb.get(i);
+        const _probPct=_isObj?null:deathProb.get(i);
         const _zone=_probPct==null?null:_probPct>=100?{cls:'will-die',label:'💀',color:'#ff6060'}:_probPct<=20?{cls:'will-warn-low',label:'死亡確率・小',color:'#f0d000'}:_probPct<=79?{cls:'will-warn-mid',label:'死亡確率・中',color:'#f09000'}:{cls:'will-warn-high',label:'死亡確率・大',color:'#e04800'};
         const _probTag=_zone!=null?`<div class="death-prob-label" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
         const _riskTag=_zone!=null?'<div class="risk-particles"></div>':'';
@@ -450,16 +448,11 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         }
       }
       if(u&&u.hp>0&&!isEnemy){
-        slot.onclick=(ev)=>{
+        slot.onclick=()=>{
           if(G.phase!=='player') return;
-          if(ev.shiftKey){
-            u.hate=!(u.hate&&u.hateTurns>0);
-            u.hateTurns=u.hate?99:0;
-            log(`${u.name}：ディフェンダー${u.hate?'ON':'OFF'}`,u.hate?'good':'sys');
-          } else {
-            selectAllyLoadout(i);
-            setHint(u._actedThisTurn?`${u.name}はこのターン行動済みです。`:`${u.name}のインベントリを表示中。行動を選択してください。`);
-          }
+          u.hate=!(u.hate&&u.hateTurns>0);
+          u.hateTurns=u.hate?99:0;
+          log(`${u.name}：ディフェンダー${u.hate?'ON':'OFF'}`,u.hate?'good':'sys');
           updateHUD();
           renderAll();
         };
@@ -471,23 +464,16 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       slot.classList.remove('is-rear');
       slot.classList.add('has-mini-card');
       const _isChestMask=String(_mvType).startsWith('chest');
-      const _revealed=G.phase==='battle_end'||G.phase==='reward';
       if(_isChestMask){
         const _ctp=_mvType==='chest_ring'?'ring':_mvType==='chest_wand'?'wand':_mvType==='chest_item'?'consumable':'wand';
-        const _item=(_revealed&&typeof _ensureTreasureForSlot==='function')?_ensureTreasureForSlot(i):null;
-        const _label=_revealed?(_item?_item.name:(nt&&nt.label)||'宝箱'):'?';
-        const _hint=_revealed?(_item?'クリックで回収':'宝箱'):'+1消費';
-        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${_label}</div><div class="mini-q">${_revealed?'宝':'?'}</div><div class="mini-hint">${_hint}</div></div>`;
-        slot.title=_revealed?`${_label}を回収`:'?';
+        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${nt.label}</div><div class="mini-q">？</div><div class="mini-hint">+1消費</div></div>`;
+        slot.title='クリックで取得（行動力-1）';
         slot.onclick=()=>{
-          if(G.phase==='battle_end'&&typeof collectBattleEndChest==='function') collectBattleEndChest(i);
-          else if(typeof onChestClick==='function') onChestClick(i);
+          if(typeof onChestClick==='function') onChestClick(i);
         };
       } else {
-        slot.innerHTML=_revealed
-          ? `<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`
-          : `<div class="mini-card move-mini"><div class="mini-icon">?</div><div class="mini-lbl">?</div></div>`;
-        slot.title=_revealed?'移動先':'?';
+        slot.innerHTML=`<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`;
+        slot.title='クリックで撤退';
         slot.onclick=()=>{
           if(G.phase!=='player') return;
           showRetreatConfirm(_mvType);
@@ -510,7 +496,6 @@ let _selectedRingIdx=-1;
 function renderRingSlots(){
   const el=document.getElementById('ring-slots');
   if(!el) return;
-  syncSelectedUnitLoadout();
   // 旧row2は非表示
   const extraRow=document.getElementById('ring-extra-row');
   if(extraRow) extraRow.style.display='none';
@@ -570,51 +555,29 @@ function renderRingSlots(){
 function renderHandSlots(){
   const el=document.getElementById('hand-slots');
   if(!el) return;
-  const owner=syncSelectedUnitLoadout();
   el.innerHTML='';
-  const H=G.handSlots||4;
-  const totalSlots=Math.max(1,H+1);
-  const Hcols=Math.max(5,totalSlots); // 左端にパンチ、残りにキャラ個別インベントリ
+  const H=G.handSlots||5;
+  const Hcols=5; // 固定レイアウトでは一旦5枠を中央配置する
   el.style.gridTemplateColumns=`repeat(${Hcols},1fr)`;
-  el.style.setProperty('--unit-inventory-cols',Hcols);
-  const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s&&!isOccupiedSlot(s)).length;
-  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=totalSlots;
+  const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
+  const hm=document.getElementById('hand-max');   if(hm) hm.textContent=H;
 
   for(let i=0;i<Hcols;i++){
-    if(i>=totalSlots){
+    if(i>=H){
       // 未解放スロット：極めて薄い表示
       const ph=document.createElement('div');
       ph.className='card-empty spell'; ph.style.opacity='0.1';
       el.appendChild(ph);
       continue;
     }
-    if(i===0&&owner){
-      const punch=makePunchCard(owner);
-      const div=mkCardEl(punch,0,'spell-battle');
-      const inBattleEnd=G.phase==='battle_end';
-      const canUse=owner.hp>0&&(inBattleEnd||(G.phase==='player'&&!owner._actedThisTurn));
-      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(0); }
-      else div.classList.add('inert');
-      el.appendChild(div);
-      continue;
-    }
-    const invIdx=i-1;
-    const sp=G.spells[invIdx];
-    if(sp&&isOccupiedSlot(sp)){
-      const ph=document.createElement('div');
-      ph.className='card-empty spell occupied';
-      ph.style.opacity='0.18';
-      el.appendChild(ph);
-    } else if(sp){
-      const div=mkCardEl(sp,invIdx,'spell-battle');
-      const isChargeCard=sp.type==='wand'||sp.type==='weapon';
+    const sp=G.spells[i];
+    if(sp){
+      const div=mkCardEl(sp,i,'spell-battle');
+      const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
       const inReward=G.phase==='reward';
-      const inBattleEnd=G.phase==='battle_end';
-      const canUse=(G.phase==='player'||inReward||inBattleEnd)
-        &&(isChargeCard?((inReward||inBattleEnd)?hasCharge:G.actionsLeft>0&&hasCharge):(inReward||inBattleEnd||G.actionsLeft>0))
-        &&(!owner||!owner._actedThisTurn||inReward||inBattleEnd);
-      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useUnitInventoryCard(i); }
+      const canUse=(G.phase==='player'||inReward)&&(isWand?(inReward?hasCharge:G.actionsLeft>0&&hasCharge):(inReward||G.actionsLeft>0));
+      if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
       else       { div.classList.add('inert'); }
       el.appendChild(div);
     } else {
@@ -736,7 +699,7 @@ function computeDesc(card,_mlOverride){
 }
 
 function mkCardEl(card,_idx,_ctx,_mlOverride){
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム',weapon:'武器',basic:'固定装備'};
+  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
   const div=document.createElement('div');
   const t=card.type||'ring';
   const _isWandSub=t==='wand'&&card.subtype==='wand';
@@ -755,18 +718,18 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const kindLabel='';
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
   // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
-  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable'||card.type==='weapon'||card.type==='basic')?1:0);
+  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(_gradeNum):gradeStr(_gradeNum)}</span>`:'';
   // レッサーデーモン：報酬フェイズの次に購入する消耗品アイテムへ累積割引を表示反映
   const _ldDiscDisp=(typeof _lesserDemonDiscountFor==='function'&&G.phase==='reward')?_lesserDemonDiscountFor(card):0;
   const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
   const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
-  // 杖・武器のチャージ/耐久度表示（テキスト下）
-  const charges=(card.type==='wand'||card.type==='weapon')
+  // 杖のチャージ表示（テキスト下）
+  const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
     :null;
   const _chargeColorClass=_isWandSub?' wand-sub':'';
-  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${card.type==='weapon'?'耐久度':'チャージ'}：${charges}</div>`:'';
+  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">チャージ：${charges}</div>`:'';
   let atkLabel='', hpLabel='';
   if(card.kind==='summon'&&card.summon){
     const es=effectiveStats(card);
