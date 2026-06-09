@@ -84,7 +84,11 @@ function _parseCSV(text) {
     if (!line.trim()) return null;
     const vals = _csvRow(line);
     const obj = {};
-    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
+    headers.forEach((h, i) => {
+      const v = (vals[i] || '').trim();
+      obj[`__col${i}`] = v;
+      if (h) obj[h] = v;
+    });
     return obj;
   // 「名前」列があれば名前ベース、なければ先頭列ベースでフィルタ
   }).filter(row => row && (row['名前'] || row[headers[0]]));
@@ -129,6 +133,37 @@ function _findBySheetName(list, name) {
 function _filterBySheetName(list, name) {
   const n = _normCardName(name);
   return (list || []).filter(item => _normCardName(item && item.name) === n);
+}
+
+function _splitSheetList(s) {
+  return String(s || '').split(/[、,，/／・\s]+/).map(v=>v.trim()).filter(Boolean);
+}
+
+function _starterNameFromSheet(s) {
+  const n = _normCardName(s);
+  const map = {
+    '戦士':'戦士',
+    '魔術師':'魔術師',
+    '神官':'神官',
+    '盗賊':'盗賊',
+    '騎士':'騎士',
+    '屍術師':'屍術師',
+    'し術師':'屍術師',
+    '蛮族':'蛮族',
+    '狩人':'狩人',
+  };
+  return map[n] || '';
+}
+
+function _findStarterUnitBySheetName(name) {
+  const n = _starterNameFromSheet(name);
+  if (!n) return null;
+  return (UNIT_POOL || []).find(u => u && u.starterOnly && _normCardName(u.name) === _normCardName(n)) || null;
+}
+
+function _cardNameExists(name) {
+  return !!(_findBySheetName(typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : [], name)
+    || _findBySheetName(typeof RING_POOL !== 'undefined' ? RING_POOL : [], name));
 }
 
 function _syncUnitEffectKeysFromSheet(unit) {
@@ -450,10 +485,16 @@ async function loadGameData() {
 
     // ── 指輪プール（ユニーク・グレード・価格・初期装備・説明文）──
     const ringRows = _parseCSV(rt);
+    const ringNameSeen = {};
     ringRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
-      const ring = _findBySheetName(RING_POOL, name);
+      const rings = _filterBySheetName(RING_POOL, name);
+      if (!rings.length) return;
+      const key = _normCardName(name);
+      const seen = ringNameSeen[key] || 0;
+      ringNameSeen[key] = seen + 1;
+      const ring = rings[Math.min(seen, rings.length - 1)];
       if (!ring) return;
       // ユニーク（legend）
       const uv = row['ユニーク'];
@@ -465,6 +506,8 @@ async function loadGameData() {
       // 価格
       const cost = parseInt(row['価格']);
       if (!isNaN(cost)) ring.cost = cost;
+      const slot = parseInt(row['スロット']);
+      if (!isNaN(slot)) ring.slot = slot;
       // レアリティ
       { const rarStr=(row['レアリティ']||'').trim();
         const rarVal=parseInt(rarStr);
@@ -511,6 +554,13 @@ async function loadGameData() {
       else delete unit.stackEnhDesc;
       if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
       else delete unit.stackEffect;
+      const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || row['__col21'] || '';
+      const equipTypes = _splitSheetList(equipTypeStr);
+      if (equipTypes.length) unit.equipTypes = equipTypes;
+      const initialEqStr = row['初期装備'] || row['装備'] || '';
+      const initialEquipment = _splitSheetList(initialEqStr).filter(_cardNameExists);
+      if (initialEquipment.length) unit.initialEquipment = initialEquipment;
+      else if (initialEqStr) unit.initialEquipment = [];
       if (row['キーワード'] !== undefined) {
         const kwStr = row['キーワード'].trim();
         unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
@@ -521,9 +571,36 @@ async function loadGameData() {
       }
       _syncUnitEffectKeysFromSheet(unit);
     };
+    const _syncStarterFromRow = (unit, row) => {
+      if (!unit) return;
+      const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
+      const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
+      if (atkP2.val > 0) unit.atk = atkP2.val;
+      if (hpP2.val  > 0) unit.hp  = hpP2.val;
+      if (row['種族']) unit.race = row['種族'];
+      unit.grade = 1;
+      unit.cost = 0;
+      unit.unique = false;
+      unit.starterOnly = true;
+      unit.desc = row['効果'] || unit.desc || '';
+      const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || row['__col21'] || '';
+      const equipTypes = _splitSheetList(equipTypeStr);
+      if (equipTypes.length) unit.equipTypes = equipTypes;
+      const initialEqStr = row['初期装備'] || row['装備'] || '';
+      const initialEquipment = _splitSheetList(initialEqStr).filter(_cardNameExists);
+      if (initialEquipment.length) unit.initialEquipment = initialEquipment;
+      unit._sheetSeen = true;
+    };
     charRows.forEach(row => {
       const name = row['名前'];
       if (!name) return;
+      [row['初期キャラ'], row['初期キャラクター'], row['スターター'], row['__col19'], row['__col20']]
+        .map(_starterNameFromSheet)
+        .filter(Boolean)
+        .forEach(starterName => {
+          _sheetUnitNames.add(_normCardName(starterName));
+          _syncStarterFromRow(_findStarterUnitBySheetName(starterName), row);
+        });
       if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
       const isNamed = _truthySheet(row['ネームド']) || _truthySheet(row['ユニーク']);
