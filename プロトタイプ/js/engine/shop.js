@@ -7,37 +7,18 @@ let _shopRings=[];
 
 function doShop(){
   if(typeof setBattleShopBackground==='function') setBattleShopBackground();
-  const floorGrade=rollGrade(G.floor);
-  // 現在グレード以下の指輪を対象に（legend・rarity:-1・ban除外）
-  const eligible=RING_POOL.filter(r=>{
-    if(!r.id||r.rarity===-1||r.legend) return false;
-    if(r.rarity===3&&G._seenRarity3&&G._seenRarity3.has(r.id)) return false;
-    if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
-    if((r.grade||1)>floorGrade) return false;
-    return true;
-  });
-  const currentGrade=eligible.filter(r=>(r.grade||1)===floorGrade);
-  const picks=[];
-  const usedIds=new Set();
-  // 現在グレードを1枚保証
-  if(currentGrade.length>0){
-    const src=clone(currentGrade[Math.floor(Math.random()*currentGrade.length)]);
-    src._buyPrice=src.cost||4;
-    picks.push(src); usedIds.add(src.id);
-  }
-  // 残りをランダムに補充（重複なし、最大5枚）
-  const rest=eligible.filter(r=>!usedIds.has(r.id));
-  while(picks.length<5&&rest.length>0){
-    const idx=Math.floor(Math.random()*rest.length);
-    const src=clone(rest.splice(idx,1)[0]);
-    src._buyPrice=src.cost||4;
-    picks.push(src); usedIds.add(src.id);
-  }
-  // _rewCards: 0-5 = キャラスロット(null)、6+ = 指輪
-  _rewCards=[null,null,null,null,null,null,...picks];
-  _rewCards.forEach(r=>{ if(r&&r.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(r.id)) G._seenRarity3.add(r.id); });
+  const shopGrade=G.rewardGrade||rollGrade(G.floor)||1;
+  const equips=typeof drawEquipment==='function'?drawEquipment(7,shopGrade):[];
+  const wands=typeof _drawByType==='function'?_drawByType('wand',2,shopGrade):[];
+  const items=typeof _drawByType==='function'?_drawByType('consumable',3,shopGrade):[];
+  _rewCards=[...equips];
+  while(_rewCards.length<7) _rewCards.push(null);
+  G.masterHand=[null,null,wands[0]||null,wands[1]||null,items[0]||null,items[1]||null,items[2]||null,null,null];
+  G.masterRings=[];
+  G._masterHandReady=true;
 
   G._isShop=true;
+  G._isRewardTown=true;
   G._familiarUsed=false; // ファミリア：行商フェイズ開始時にリセット
   G._prevWasShop=true; // 行商直後の戦闘では商店マスを抑制
   G._retreated=false;  // 撤退フラグをクリア（撤退先が行商の場合、次の行き先判定が繰り返し行商を選ぶのを防ぐ）
@@ -68,9 +49,10 @@ function doShop(){
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
   renderRewCards();
   renderGradeUpBtn();
-  renderMoveSlotsInEnemy();
+  renderShopExitButton();
   renderFieldEditor();
-  setHint('行商でアイテムを購入してください。購入後は戦闘へ進んでください。');
+  if(typeof renderMapInventory==='function') renderMapInventory();
+  setHint('行商でアイテムを購入できます。終わったら店を去ってください。');
   updateHUD();
 }
 
@@ -96,7 +78,31 @@ function renderShop(){
 
 function buyItem(){ /* legacy stub — shop now uses ring-only via renderShop */ }
 
-function shopDone(){ G._isShop=false; renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
+function shopDone(){
+  G._isShop=false;
+  G._isRewardTown=false;
+  G.inventoryOpen=false;
+  if(typeof renderMapInventory==='function') renderMapInventory();
+  if(G.worldMap&&typeof showWorldMap==='function'){
+    showScreen('battle');
+    showWorldMap();
+    return;
+  }
+  renderMoveSelect([{nodeType:'battle',idx:-1}]);
+  showScreen('move');
+}
+
+function renderShopExitButton(){
+  const el=document.getElementById('reward-move-btns');
+  if(!el) return;
+  el.style.display='';
+  el.innerHTML='';
+  const btn=document.createElement('button');
+  btn.className='rew-move-btn';
+  btn.textContent='店を去る';
+  btn.onclick=shopDone;
+  el.appendChild(btn);
+}
 
 // ショップ専用手札エディタ（報酬画面と同じドラッグ機能）
 function renderShopHandEditor(){

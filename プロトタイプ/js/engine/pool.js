@@ -95,7 +95,7 @@ function calcBuyPrice(card){
 function cardRefund(card){
   if(!card) return 0;
   if(card._isChar) return 1;
-  return 0; // 指輪・杖・消耗品はすべてソウル還元なし
+  return 0; // 指輪・杖・消耗品はすべてゴールド還元なし
 }
 
 // 指輪プール（商店・イベント用）
@@ -108,6 +108,32 @@ function getRingPool(){
     if(G.bannedRings&&G.bannedRings.includes(r.id)) return false;
     return true;
   }).map(r=>{ const c=clone(r); c._buyPrice=c.cost||4; return c; });
+}
+
+function drawEquipment(n=1, maxGrade){
+  const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
+  const seen=G._seenRarity3||new Set();
+  const pool=RING_POOL.filter(r=>{
+    if(!r||!r.id||r.starterOnly) return false;
+    if(r.rarity===-1) return false;
+    if((r.grade||1)>targetGrade) return false;
+    if(r.legend&&G._seenLegendRings&&G._seenLegendRings.has(r.id)) return false;
+    if(r.rarity===3&&seen.has(r.id)) return false;
+    return true;
+  });
+  const res=[];
+  while(res.length<n&&pool.length>0){
+    const i=Math.floor(Math.random()*pool.length);
+    const c=clone(pool.splice(i,1)[0]);
+    c.type='ring';
+    c.kind='equipment';
+    c.equip=true;
+    c.noRewardUse=true;
+    c._buyPrice=calcBuyPrice(c);
+    if(c.rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
+    res.push(c);
+  }
+  return res;
 }
 
 // ── キャラクタープールから N 体抽選 ────────────────
@@ -334,11 +360,14 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  const charCount=isExperimentalAppearanceMode()?getExperimentalRewardCharCount(G.floor):(G.rewardCharCount||3);
-  const chars=drawCharacters(charCount);
-  const wand=_drawByType('wand',1)[0]||null;
+  const appraiser=G.allies&&G.allies.some(a=>a&&a.hp>0&&typeof unitHasEquip==='function'&&unitHasEquip(a,'equip_appraiser'));
+  const baseGrade=G.rewardGrade||1;
+  const boostGrade=Math.min(5,baseGrade+1);
+  const equip=drawEquipment(1)[0]||null;
+  const wand=_drawByType('wand',1,appraiser?boostGrade:undefined)[0]||null;
   const item=_drawByType('consumable',1)[0]||null;
-  const res=[...chars];
+  const res=[];
+  if(equip) res.push(equip);
   if(wand) res.push(wand);
   if(item) res.push(item);
   if(G._nextRewardUniqueSlot){
@@ -378,9 +407,9 @@ function drawUniqueRing(){
   const seen=G._seenLegendRings||new Set();
   const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
   if(!pool.length){
-    // ユニーク指輪が残っていない場合は5ソウル付与
+    // ユニーク指輪が残っていない場合は5ゴールド付与
     G.gold+=5; updateHUD();
-    log('ユニーク指輪が残っていません。ソウル+5','gold');
+    log('ユニーク指輪が残っていません。ゴールド+5','gold');
     return null;
   }
   const c=clone(randFrom(pool));

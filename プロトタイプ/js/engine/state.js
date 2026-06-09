@@ -31,11 +31,11 @@ const KW_DESC_MAP={
   '毒牙':     'このキャラクターからダメージを受けたキャラクターに毒Xを付与する。既に毒状態なら加算される。（ライフ-X/T）',
   '邪眼':     'このキャラクターからダメージを受けたキャラクターのパワーはX減少する。',
   '呪詛':     'このキャラクターからダメージを受けたキャラクターに破滅Xを付与する。既に破滅状態なら加算される。破滅10になると即死する。',
-  '魂喰':     '攻撃時、プレイヤーのソウルをX消費する。消費した場合、以後の全ての仲間が+X/+Xを得る。',
-  '魂喰らい': '攻撃時、Xソウルを消費して自身がATK/HP+Xを得る。',
+  '魂喰':     '攻撃時、プレイヤーのゴールドをX消費する。消費した場合、以後の全ての仲間が+X/+Xを得る。',
+  '魂喰らい': '攻撃時、Xゴールドを消費して自身がATK/HP+Xを得る。',
   'エリート': 'エリート敵。撃破時に追加報酬が得られる。',
   'ボス':     'ボス敵。',
-  'アーティファクト': 'このキャラクターはソウルを持たない。',
+  'アーティファクト': 'このキャラクターはゴールドを持たない。',
   'リーダー': '存在する間、他の仲間全員のATKとHPを強化する。',
   'パワーブレイク':'命中した相手のATKを大幅に下げる（1度のみ）。',
 };
@@ -61,9 +61,12 @@ function initState(){
     // ── プレイヤー装備 ──
     rings:   Array(4).fill(null), // 指輪スロット（初期2枠・最大4枠）
     ringSlots: 2,
-    // ── 手札（杖＋消耗品混合・最大7枠）──
-    spells:  Array(5).fill(null),
-    handSlots: 5,
+    // ── 手札（杖＋消耗品＋装備混合・7枠）──
+    spells:  Array(7).fill(null),
+    handSlots: 7,
+    // ── マップ用インベントリ（9×2）──
+    inventory: Array(18).fill(null),
+    inventoryOpen:false,
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
@@ -113,7 +116,7 @@ function initState(){
     _pendingCaveBonus:false,  // 洞窟：rarity4アイテム1つ追加
     _pendingPondBonus:false,  // 池：rarity≤2指輪2つ追加
     _isTreasurePhase:false,   // 宝箱回収中フラグ（UI操作ロック用）
-    _soulIncomeBonus:0,    // 魔神の秘薬：戦闘終了時ソウル追加
+    _soulIncomeBonus:0,    // 魔神の秘薬：戦闘終了時ゴールド追加
     // ── 敵オーナーシステム ──
     bossRings:[],         // 敵オーナーが装備している指輪
     bossHand:[],          // 敵オーナーの手札（杖・アイテム）
@@ -147,9 +150,20 @@ function initState(){
     _lesserDemonDiscount:0,
   };
 
-  // 初期キャラクター：ゴーレム
-  const golemDef = UNIT_POOL.find(u=>u.id==='c_golem');
-  if(golemDef) G.allies[0] = makeUnitFromDef(golemDef, undefined, true);
+  // 初期キャラクター：職業キャラからランダム3体
+  const starterDefs = UNIT_POOL.filter(u=>u&&u.starterOnly&&/^c_starter_/.test(u.id||''));
+  const pickedStarters = [...starterDefs].sort(()=>Math.random()-0.5).slice(0,3);
+  pickedStarters.forEach((def,i)=>{
+    const unit=makeUnitFromDef(def, undefined, true);
+    unit._isStarter=true;
+    G.allies[i]=unit;
+    unit.equipment=unit.equipment||[];
+    (def.initialEquipment||[]).forEach(eq=>{
+      const item=(SPELL_POOL||[]).find(s=>s&&s.name===eq);
+      const slot=G.spells.findIndex(s=>!s);
+      if(item&&slot>=0) G.spells[slot]=clone(item);
+    });
+  });
 
   // 初期杖：炎の杖
   const fireWand = SPELL_POOL.find(s=>s.id==='s_fire')||clone(SPELL_POOL[0]);

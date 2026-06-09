@@ -16,13 +16,15 @@ function updateGoldenDrop(){
 }
 function updateHUD(){
   if(G.phase!=='reward'){
-    document.getElementById('h-floor').textContent=G.floor;
+    document.getElementById('h-floor').textContent=(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)?(G.mapIndex||1):G.floor;
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
   }
   document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
   document.getElementById('h-life').textContent=G.magicLevel;
   document.getElementById('h-gold').textContent=G.gold;
-  document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
+  document.getElementById('h-act').textContent=(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap&&G.phase==='map')
+    ?`${G.mapTurn||1}/${G.mapTurnLimit||30}`
+    :G.actionsLeft+'/'+G.actionsPerTurn;
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');
@@ -68,9 +70,14 @@ function startGame(debugMode){
     G.gold=999;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='';
-    log('[DEBUG] デバッグモード：ソウル999','sys');
+    log('[DEBUG] デバッグモード：ゴールド999','sys');
   }
-  showScreen('battle'); startBattle();
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&typeof startWorldMapRun==='function'){
+    showScreen('battle');
+    startWorldMapRun();
+  } else {
+    showScreen('battle'); startBattle();
+  }
 }
 
 function debugKillAll(){
@@ -92,7 +99,14 @@ function showVictoryOverlay(){
   if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   document.getElementById('victory-overlay').style.display='flex';
 }
-function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
+function hideVictoryOverlay(){
+  document.getElementById('victory-overlay').style.display='none';
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType&&typeof showWorldMapPostBattleReward==='function'){
+    showWorldMapPostBattleReward('戦闘報酬');
+    return;
+  }
+  goToReward();
+}
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });

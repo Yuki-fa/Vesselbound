@@ -3,6 +3,16 @@
 // ═══════════════════════════════════════
 
 const UNIT_POOL = [
+  // ─── 初期キャラクター ───
+  {id:'c_starter_warrior', name:'戦士', race:'亜人', grade:1, atk:13, hp:46, cost:0, unique:false, starterOnly:true, icon:'⚔️', equipTypes:['剣','斧'], initialEquipment:[], desc:'負傷：+2/+2を得る。', injury:'starter_warrior'},
+  {id:'c_starter_mage', name:'魔術師', race:'亜人', grade:1, atk:3, hp:38, cost:0, unique:false, starterOnly:true, icon:'🧙', equipTypes:['短剣','杖'], initialEquipment:[], desc:'開戦：魔術レベルが+1される。', effect:'starter_mage_start'},
+  {id:'c_starter_priest', name:'神官', race:'亜人', grade:1, atk:11, hp:48, cost:0, unique:false, starterOnly:true, icon:'⛪', equipTypes:['斧','杖'], initialEquipment:[], desc:'攻撃：自身に「癒しの杖」を使用する。', effect:'starter_priest_attack'},
+  {id:'c_starter_thief', name:'盗賊', race:'亜人', grade:1, atk:5, hp:34, cost:0, unique:false, starterOnly:true, icon:'🗡️', equipTypes:['短剣','弓'], initialEquipment:[], desc:'終戦：ランダムなアイテムを1つ得る。', effect:'starter_thief_end'},
+  {id:'c_starter_knight', name:'騎士', race:'亜人', grade:1, atk:11, hp:50, cost:0, unique:false, starterOnly:true, icon:'🛡️', equipTypes:['剣','槍'], initialEquipment:[], desc:'開戦：全ての仲間のATKが+1される。', effect:'starter_knight_start'},
+  {id:'c_starter_necromancer', name:'屍術師', race:'亜人', grade:1, atk:7, hp:40, cost:0, unique:false, starterOnly:true, icon:'💀', equipTypes:['槍','杖'], initialEquipment:[], desc:'終戦：ヘイトを持つ10/10の「ゾンビ」を召喚する。', effect:'starter_necromancer_end'},
+  {id:'c_starter_barbarian', name:'蛮族', race:'亜人', grade:1, atk:15, hp:42, cost:0, unique:false, starterOnly:true, icon:'🪓', equipTypes:['剣','斧'], initialEquipment:[], desc:'自動：装備を1つ多く持つことができる。', effect:'starter_barbarian_auto'},
+  {id:'c_starter_hunter', name:'狩人', race:'亜人', grade:1, atk:9, hp:37, cost:0, unique:false, starterOnly:true, icon:'🏹', equipTypes:['短剣','弓'], initialEquipment:[], desc:'自動：各戦闘で最初の攻撃時は無敵を得る。', effect:'starter_hunter_auto'},
+
   // ─── ゴーレム（初期キャラ・非売品） ───
   {id:'c_golem',      name:'守護者"アイギス"', race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
 
@@ -17,7 +27,7 @@ const UNIT_POOL = [
   {id:'c_imp',        name:'インプ',           race:'悪魔', grade:1, atk:6,  hp:8,  cost:4,  unique:false, icon:'😈', desc:'使役：ランダムなG1のアイテムを1枚得る。', effect:'imp_summon'},
   {id:'c_dragonet',   name:'ドラゴネット',     race:'竜',   grade:1, atk:5,  hp:6,  cost:2,  unique:false, icon:'🐲', desc:'終戦：3回目の戦闘終了時、ランダムなG2の竜に変身する。', effect:'dragonet_end'},
   {id:'c_dwarf',      name:'ドワーフ',         race:'亜人', grade:1, atk:3,  hp:15, cost:5,  unique:false, icon:'⚒️', desc:'使役：左端の杖に+2チャージする。', effect:'dwarf_summon'},
-  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'死亡：3ソウルを得る。', effect:'mummy_death'},
+  {id:'c_mummy',      name:'マミー',           race:'不死', grade:1, atk:2,  hp:12, cost:3,  unique:false, icon:'🤕', desc:'死亡：3ゴールドを得る。', effect:'mummy_death'},
   {id:'c_gremlin',    name:'グレムリン',       race:'悪魔', grade:1, atk:4,  hp:8,  cost:4,  unique:false, icon:'👺', desc:'常時：各フェイズで、最初に使用したアイテムは1回だけ行動力を使用しない。', effect:'gremlin_free_item'},
   {id:'c_jack',       name:'ジャック・オ・ランタン', race:'精霊', grade:1, atk:3,  hp:12, cost:3,  unique:false, icon:'🎃', desc:'攻撃：以後、商談フェイズに現れるキャラクターのライフが+1される。', effect:'jack_attack'},
   {id:'c_lizardman',  name:'リザードマン',     race:'竜',   grade:1, atk:5,  hp:13, cost:4,  unique:false, icon:'🦎', desc:'攻撃：パワーが+1される。',             counter:true, effect:'lizardman_attack', keywords:['反撃']},
@@ -75,8 +85,8 @@ const UNIT_POOL = [
   {id:'c_arachne',    name:'アラクネ',         race:'亜人', grade:2, atk:6,  hp:25, cost:5,  unique:false, icon:'🕷️', desc:'誘発：杖が壊れるたび、魔術レベルが+1される。', effect:'arachne_wand'},
   {id:'c_undine',     name:'ウンディーネ',     race:'精霊', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'💧', desc:'常時：攻撃した味方が+1/+1を得る。', effect:'undine_passive'},
   {id:'c_frost_sprite',name:'フロスト・スプライト',race:'精霊',grade:2,atk:7,hp:24, cost:5,  unique:false, icon:'❄️', desc:'開戦：隣接するキャラクターに「シールド」を与える。', effect:'frost_start'},
-  {id:'c_leprechaun', name:'レプラコーン',     race:'精霊', grade:2, atk:5,  hp:28, cost:5,  unique:false, icon:'🍀', desc:'誘発：ソウルを得るたび、全てのキャラクターは±0/+1を得る。', effect:'leprechaun_gold'},
-  {id:'c_alp',        name:'アルプ',           race:'不死', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'😈', desc:'負傷：敵の場に0/1、精霊の「ソウルボム」を召喚する。', injury:'alp'},
+  {id:'c_leprechaun', name:'レプラコーン',     race:'精霊', grade:2, atk:5,  hp:28, cost:5,  unique:false, icon:'🍀', desc:'誘発：ゴールドを得るたび、全てのキャラクターは±0/+1を得る。', effect:'leprechaun_gold'},
+  {id:'c_alp',        name:'アルプ',           race:'不死', grade:2, atk:8,  hp:22, cost:5,  unique:false, icon:'😈', desc:'負傷：敵の場に0/1、精霊の「ゴールドボム」を召喚する。', injury:'alp'},
   {id:'c_familiar',   name:'ファミリア',       race:'悪魔', grade:2, atk:9,  hp:20, cost:5,  unique:false, icon:'🦇', desc:'常時：商談フェイズで最初に購入したアイテムのコピーを得る。', effect:'familiar_shop'},
   {id:'c_hydra',      name:'ハイドラ',         race:'獣',   grade:2, atk:8,  hp:26, cost:5,  unique:false, icon:'🐉', desc:'負傷：ランダムな相手キャラクターを1ターン行動不能にする。', injury:'hydra'},
   {id:'c_sea_serpent',name:'シーサーペント',   race:'獣',   grade:2, atk:10, hp:20, cost:5,  unique:false, icon:'🐍', desc:'毒牙　負傷：全ての相手キャラクターに2ダメージを与える。', injury:'sea_serpent', keywords:['毒牙']},
@@ -231,6 +241,8 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     injury:   def.injury  || null,
     counter:  def.counter || false,
     keywords: def.keywords ? [...def.keywords] : [],
+    equipTypes: def.equipTypes ? [...def.equipTypes] : [],
+    initialEquipment: def.initialEquipment ? [...def.initialEquipment] : [],
     // 重ねシステム
     _stackCount: 0,
     _baseDesc:   def.desc  || '',

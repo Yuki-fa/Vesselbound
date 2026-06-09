@@ -32,7 +32,6 @@ const Assets = {
     stage2: 'assets/temp/backgrounds/stage_forest.png',
     stage3: 'assets/temp/backgrounds/stage_valley.png',
     stage4: 'assets/temp/backgrounds/stage_capital.png',
-    shop: 'assets/temp/backgrounds/tent.svg',
   },
   vfx: {
     hit: 'assets/temp/vfx/hit.svg',
@@ -44,6 +43,21 @@ const Assets = {
     turnFlow: 'assets/temp/ui/turn_flow.png',
     log: 'assets/temp/ui/log.png',
     option: 'assets/temp/ui/option.png',
+  },
+  map: {
+    panel: 'assets/temp/ui/map/panel.png',
+    panel2: 'assets/temp/ui/map/panel2.png',
+    dashedLine: 'assets/temp/ui/map/dashed_line.png',
+    player: 'assets/temp/ui/map/player.png',
+    empty: 'assets/temp/ui/map/empty.png',
+    empty2: 'assets/temp/ui/map/empty2.png',
+    mob: 'assets/temp/ui/map/mob.png',
+    elite: 'assets/temp/ui/map/elite.png',
+    boss: 'assets/temp/ui/map/boss.png',
+    treasure: 'assets/temp/ui/map/treasure.png',
+    altar: 'assets/temp/ui/map/altar.png',
+    event: 'assets/temp/ui/map/event.png',
+    shop: 'assets/temp/ui/map/shop.png',
   },
   sfx: {
     uiConfirm: 'assets/temp/sfx/ui_confirm.wav',
@@ -79,6 +93,22 @@ const SpellArtMap = {
 };
 
 const CharacterArtOverrideMap = {
+  '戦士': {path:'assets/temp/cards/characters/crops/new_starters/starter_warrior.png'},
+  '魔術師': {path:'assets/temp/cards/characters/crops/new_starters/starter_mage.png'},
+  '神官': {path:'assets/temp/cards/characters/crops/new_starters/starter_priest.png'},
+  '盗賊': {path:'assets/temp/cards/characters/crops/new_starters/starter_thief.png'},
+  '騎士': {path:'assets/temp/cards/characters/crops/new_starters/starter_knight.png'},
+  '屍術師': {path:'assets/temp/cards/characters/crops/new_starters/starter_necromancer.png'},
+  '蛮族': {path:'assets/temp/cards/characters/crops/new_starters/starter_barbarian.png'},
+  '狩人': {path:'assets/temp/cards/characters/crops/new_starters/starter_hunter.png'},
+  '咬竜"グレイプニル"': {path:'assets/temp/cards/characters/crops/new_starters/named_graipnir.png'},
+  '咬竜“グレイプニル”': {path:'assets/temp/cards/characters/crops/new_starters/named_graipnir.png'},
+  '金床の賢者"シンドリ"': {path:'assets/temp/cards/characters/crops/new_starters/named_sindri.png'},
+  '金床の賢者“シンドリ”': {path:'assets/temp/cards/characters/crops/new_starters/named_sindri.png'},
+  '極光の女王"グンダ"': {path:'assets/temp/cards/characters/crops/new_starters/named_gunda.png'},
+  '極光の女王“グンダ”': {path:'assets/temp/cards/characters/crops/new_starters/named_gunda.png'},
+  '深淵の捕食者"エギル"': {path:'assets/temp/cards/characters/crops/new_starters/named_aegir.png'},
+  '深淵の捕食者“エギル”': {path:'assets/temp/cards/characters/crops/new_starters/named_aegir.png'},
   'ミテーラ': {path:'assets/temp/cards/characters/crops/mitera.png'},
   'ジャッカロープ': {path:'assets/temp/cards/characters/crops/jackalope.png'},
   'ケットシー': {path:'assets/temp/cards/characters/crops/ketshi.png'},
@@ -350,6 +380,7 @@ function applyUiAssets(){
   root.style.setProperty('--character-mask-image', assetUrl(Assets.cards.characterMask));
   root.style.setProperty('--log-panel-image', assetUrl(Assets.ui.log));
   root.style.setProperty('--option-button-image', assetUrl(Assets.ui.option));
+  if(Assets.map&&Assets.map.panel) root.style.setProperty('--world-map-panel-image', assetUrl(Assets.map.panel));
 }
 
 function setBattleStageBackground(){
@@ -357,7 +388,7 @@ function setBattleStageBackground(){
 }
 
 function setBattleShopBackground(){
-  setScreenAssetBackground('battle','shop');
+  setScreenAssetBackground('battle','camp');
 }
 
 function playVfxOnElement(type, el){

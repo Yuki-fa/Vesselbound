@@ -10,10 +10,17 @@ let _spreadPick=null;
 
 function useSpell(idx){
   if(_spreadTargetPending) return; // 拡散の対象選択中は他の杖使用を禁止
+  if(G._isShop){ setHint('ショップ内では使用できません'); return; }
   const sp=G.spells[idx];
   if(!sp) return;
+  const inMap=G.phase==='map';
+  const inReward=G.phase==='reward';
+  if(inMap&&(sp.needsEnemy||sp.effect==='charm'||sp.effect==='swap_pos')){
+    setHint('マップ上では対象の敵がいません');
+    return;
+  }
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
+  if(G.actionsLeft<=0&&!inMap&&!inReward&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
   if(typeof playCardUseVfx==='function') playCardUseVfx(idx);
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
@@ -164,8 +171,16 @@ function pickTargetCharm(idx){
 function _cancelPick(){
   document.removeEventListener('keydown',_cancelPickKD);
   document.removeEventListener('contextmenu',_cancelPickCM);
+  _tgtCtx=null;
+  _swapFirst=-1;
   clearSelectable();
-  if(G.phase==='reward'){ renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください'); }
+  if(G._inventorySpellRestore){
+    G.spells=G._inventorySpellRestore;
+    G._inventorySpellRestore=null;
+    if(typeof renderMapInventorySlots==='function') renderMapInventorySlots();
+    if(typeof renderHandEditor==='function') renderHandEditor();
+  }
+  if(G.phase==='reward'){ renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください'); }
   else { renderHand(); setHint('行動を終えたらターン終了してください。'); }
 }
 function _cancelPickKD(e){ if(e.key==='Escape') _cancelPick(); }
@@ -180,9 +195,9 @@ function _addCancelListeners(){
 function _cancelSpread(){
   document.removeEventListener('keydown',_cancelSpreadKD);
   document.removeEventListener('contextmenu',_cancelSpreadCM);
-  clearSelectable(); _spreadTargetPending=false;
+  clearSelectable(); _spreadTargetPending=false; _spreadPick=null;
   if(G.phase==='reward'){
-    renderRewCards(); renderFieldEditor(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください');
+    renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください');
   } else {
     renderHand(); setHint('行動を終えたらターン終了してください。');
   }
@@ -252,6 +267,12 @@ function finishTargetSelection(hintText){
   _spreadPick=null;
   if(!hintText) hintText=G.phase==='reward'?'報酬を獲得してください':'行動を終えたらターン終了してください。';
   if(typeof setHint==='function') setHint(hintText);
+  if(G._inventorySpellRestore){
+    G.spells=G._inventorySpellRestore;
+    G._inventorySpellRestore=null;
+    if(typeof renderMapInventorySlots==='function') renderMapInventorySlots();
+    if(typeof renderHandEditor==='function') renderHandEditor();
+  }
 }
 
 function _addCoveringLaneDrop(slot,i,onclickFn){ /* no-op */ }
@@ -270,6 +291,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   const _isWandUse=_isWandUseCard(sp);
   const cMult=(_isWandUse&&catRingC)?2:1;
   const _inReward=G.phase==='reward';
+  const _inMap=G.phase==='map';
   _spreadTargetPending=false;
   _spreadPick=null;
   // インキュバス：アイテム使用時、効果処理の前にナイトメアを召喚
@@ -678,7 +700,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         if(!_inReward) triggerDryadBuff();
       }
     break;}
-    case 'gold_8':{ G.gold+=8*cMult; log(`ソウル+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
+    case 'gold_8':{ G.gold+=8*cMult; log(`ゴールド+${8*cMult}`+(cMult>1?' [×2]':''),'gold'); break;}
     case 'soul_dregs':{
       // G4以下の契約を1つ選んでグレードを次の戦闘終了まで+1
       const eligible=G.rings.filter(r=>r&&(r.grade||1)<MAX_GRADE);
@@ -695,7 +717,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         });
       }
     break;}
-    case 'soul_income':{ G._soulIncomeBonus=(G._soulIncomeBonus||0)+1; log(`魔神の秘薬：戦闘終了時ソウル獲得+1（現在+${G._soulIncomeBonus}）`,'good'); break;}
+    case 'soul_income':{ G._soulIncomeBonus=(G._soulIncomeBonus||0)+1; log(`魔神の秘薬：戦闘終了時ゴールド獲得+1（現在+${G._soulIncomeBonus}）`,'good'); break;}
     case 'bonus_action_herb':{ G._bonusAction=(G._bonusAction||0)+1; G.actionsPerTurn=calcActions(); log(`聖王の秘薬：行動回数+1（現在${G.actionsPerTurn}行動/ターン）`,'good'); break;}
     case 'shield_ally':{ const a=G.allies[tgt.idx]; if(a){ if(!a.shield) a.shield=1; log(`🛡 ${a.name}にシールドを付与`,'good'); } break;}
     case 'copy_scroll':{
@@ -714,7 +736,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       G.bossHand.splice(G.bossHand.indexOf(dw),1);
       G.gold+=3; updateHUD();
       const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold;
-      log(`🔥 破壊の巻物：敵の「${dw.name}」を破壊してソウル+3`,'gold');
+      log(`🔥 破壊の巻物：敵の「${dw.name}」を破壊してゴールド+3`,'gold');
     break;}
     case 'flash_blade':{
       // 全キャラに1ダメージ（報酬フェイズ：仲間＋報酬キャラ、戦闘：仲間＋全敵）
@@ -793,7 +815,11 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   }
 
   if(!_spreadTargetPending&&!_suppressWandTriggers){
-    if(sp.type==='consumable'&&canUseGremlinFreeItem(sp)){
+    if(_inMap){
+      if(typeof _consumeWorldMapTurn==='function'&&!_consumeWorldMapTurn()) return;
+    } else if(_inReward){
+      // 非戦闘中のアイテム使用は行動力を消費しない
+    } else if(sp.type==='consumable'&&canUseGremlinFreeItem(sp)){
       G._freeItemUsed=true;
       log('グレムリン：このフェイズ最初のアイテムは行動力を消費しない','good');
     } else {
@@ -835,6 +861,16 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
+  if(_inMap){
+    if(G._inventorySpellRestore){
+      G.spells=G._inventorySpellRestore;
+      G._inventorySpellRestore=null;
+      if(typeof renderMapInventorySlots==='function') renderMapInventorySlots();
+      if(typeof renderHandEditor==='function') renderHandEditor();
+    }
+    if(typeof showWorldMap==='function') showWorldMap();
+    return;
+  }
   if(!_inReward&&checkInstantVictory()) return;
   if(_inReward){
     // 報酬フェイズ：renderAll()が上書きした各UIを復元してから、必要なら拡散ピッカーを起動
@@ -848,11 +884,9 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
   if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem()){
-    setHint('行動終了。自動でターンを終了します...');
-    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+    setHint('行動力を使い切りました。ターン終了を押すと自動戦闘に入ります。');
   } else if(!hasUsable&&!G._debugMode){
-    setHint('使用できる魔法がありません。自動でターンを終了します...');
-    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
+    setHint('使用できる魔法がありません。ターン終了を押すと自動戦闘に入ります。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

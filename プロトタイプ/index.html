@@ -17,6 +17,7 @@
   --border:rgba(100,110,140,0.25);--border2:rgba(180,190,220,0.15);
   --font-hd:'Cinzel',serif;--font-bd:'Noto Sans JP',sans-serif;
   --game-w:3840px;--game-h:2160px;--game-scale:1;--game-offset-x:0px;--game-offset-y:0px;
+  --unit-card-w:312px;--unit-card-h:470px;--item-card-w:374px;--item-card-h:564px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:28px}
@@ -123,6 +124,26 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .unit-card .slot-stats .s{display:none}
 .unit-card .slot-stats .a{position:absolute;left:16.5%;bottom:0;color:#e8ffe0}
 .unit-card .slot-stats .h{position:absolute;right:16.5%;bottom:0;color:#ffe8e0}
+.unit-card .slot-life-bar{
+  position:absolute;
+  left:13%;
+  right:13%;
+  bottom:-12px;
+  height:10px;
+  z-index:9;
+  border:2px solid rgba(24,16,12,.92);
+  border-radius:999px;
+  background:linear-gradient(90deg,rgba(218,54,46,.95),rgba(154,28,34,.95));
+  box-shadow:0 2px 5px rgba(0,0,0,.72),inset 0 1px 2px rgba(255,255,255,.12);
+  overflow:hidden;
+  pointer-events:none;
+}
+.unit-card .slot-life-fill{
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#49b65a 0%,#9edb57 68%,#f0d260 100%);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.32);
+}
 .unit-card .slot-desc,.unit-card .kw-badges{display:none!important}
 .unit-card .slot-badges{z-index:6}
 .unit-card .slot-grade{left:50%;top:-2.8%;transform:translateX(-50%);z-index:5}
@@ -639,9 +660,9 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #enemy-rings-pane{display:none!important}
 #enemy-hand-pane{flex:1 1 auto!important;width:100%;max-width:none!important}
 #enemy-ring-slots,#enemy-hand-slots{height:100%;gap:18px}
-#enemy-hand-slots{grid-template-columns:repeat(5,1fr)!important;align-items:start;justify-content:center}
+#enemy-hand-slots{align-items:start;justify-content:center}
 #enemy-hand-slots .card-empty:nth-child(n+6){display:none}
-#enemy-ring-slots .card,#enemy-ring-slots .card-empty,#enemy-hand-slots .card,#enemy-hand-slots .card-empty{
+#enemy-ring-slots .card,#enemy-ring-slots .card-empty{
   height:auto;aspect-ratio:63/88;padding:12px;border-radius:12px;border-width:3px
 }
 #enemy-hand-slots .card-art{min-height:96px}
@@ -650,14 +671,12 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #enemy-area{position:absolute;left:50%;top:600px;width:2440px;height:420px;transform:translateX(-50%);z-index:5}
 #ally-section{position:absolute;left:50%;top:1200px;width:2440px;height:420px;transform:translateX(-50%);z-index:5}
 #f-enemy,#f-ally{
-  grid-template-columns:repeat(6,260px)!important;justify-content:center;
+  justify-content:center;
   margin:0!important;gap:34px;overflow:visible
 }
 #f-enemy::after,#f-ally::before,#f-ally::after{display:none}
-#f-enemy .slot,#f-ally .slot{width:auto;min-width:0;border-width:3px;border-radius:12px}
+#f-enemy .slot,#f-ally .slot{border-width:3px;border-radius:12px}
 #f-enemy .slot.is-front,#f-enemy .slot.is-rear,#f-enemy .slot.enemy.is-front{transform:none!important}
-#f-enemy .slot{height:392px}
-#f-ally .slot{height:392px}
 #f-enemy .slot-name,#f-ally .slot-name{font-size:.9rem}
 #f-enemy .slot-stats,#f-ally .slot-stats{font-size:1.1rem}
 #f-enemy .slot-desc,#f-ally .slot-desc{font-size:.58rem;line-height:1.22}
@@ -665,9 +684,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   position:absolute;left:50%;top:600px;width:2440px;height:420px;transform:translateX(-50%);z-index:6
 }
 #rw-cards{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:26px}
-#rw-cards>.field{flex:0 0 100%;display:grid;grid-template-columns:repeat(6,260px)!important;justify-content:center;gap:34px!important}
-#rw-cards>.field .slot{height:392px}
-#rw-cards .rew-card{width:260px;flex:0 0 260px;height:392px}
+#rw-cards>.field{flex:0 0 100%;display:grid;justify-content:center}
 #reward-info-bar{
   position:absolute;left:2992px;top:230px;width:512px;height:174px;z-index:18;display:flex;flex-direction:column;
   align-items:stretch;justify-content:center;padding:12px;background:transparent;border:0;gap:10px
@@ -1304,8 +1321,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .rew-card,
 #enemy-ring-slots .card,
 #enemy-ring-slots .card-empty,
-#enemy-hand-slots .card,
-#enemy-hand-slots .card-empty,
 #ring-slots .card,
 #ring-slots .card-empty,
 #hand-slots .card,
@@ -1384,11 +1399,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   opacity:.35!important;
   transition:opacity .16s ease!important;
 }
-#f-enemy,
-#f-ally{
-  transform:scale(1.2)!important;
-  transform-origin:bottom center!important;
-}
 .slot.unit-card .unit-portrait{
   top:17.2%!important;
   height:68%!important;
@@ -1458,6 +1468,202 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #log-box p.log-heading:first-child{
   margin-top:0!important;
 }
+
+/* World map復元：既存画面上に最小表示 */
+#world-map-panel{
+  position:absolute!important;
+  left:64px!important;
+  right:64px!important;
+  top:64px!important;
+  height:1016px!important;
+  z-index:30!important;
+  box-sizing:border-box!important;
+  padding:86px 146px!important;
+  background:var(--world-map-panel-image) center/100% 100% no-repeat!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+#world-map-panel[hidden]{display:none!important}
+.map-grid{
+  position:absolute!important;
+  left:300px!important;
+  top:17%!important;
+  width:2142px!important;
+  height:660px!important;
+  right:auto!important;
+  bottom:auto!important;
+}
+.map-edge-layer{
+  position:absolute!important;
+  inset:0!important;
+  pointer-events:none!important;
+}
+.map-edge{
+  position:absolute!important;
+  height:8px!important;
+  transform-origin:0 50%!important;
+  background-repeat:repeat-x!important;
+  background-size:64px 8px!important;
+  opacity:.62!important;
+}
+.map-edge.preview{opacity:.36!important}
+.map-node{
+  position:absolute!important;
+  width:54px!important;
+  height:54px!important;
+  transform:translate(-50%,-50%)!important;
+  border:0!important;
+  padding:0!important;
+  border-radius:0!important;
+  background-color:transparent!important;
+  background-size:contain!important;
+  background-repeat:no-repeat!important;
+  background-position:center!important;
+  color:transparent!important;
+  font-size:0!important;
+  z-index:2!important;
+}
+.map-node.type-empty:not(.is-current){
+  width:18px!important;
+  height:18px!important;
+  opacity:.5!important;
+}
+.map-node.type-empty.is-moveable:not(.is-current){
+  width:26px!important;
+  height:26px!important;
+}
+.map-node.type-boss{
+  box-shadow:0 0 18px rgba(210,45,20,.36)!important;
+}
+.map-node.type-boss.boss-visible{
+  filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
+  animation:boss-map-pulse 1.1s ease-in-out infinite alternate!important;
+}
+@keyframes boss-map-pulse{
+  from{filter:drop-shadow(0 0 8px rgba(255,44,30,.85)) drop-shadow(0 0 18px rgba(255,166,58,.7))}
+  to{filter:drop-shadow(0 0 16px rgba(255,64,42,1)) drop-shadow(0 0 34px rgba(255,190,72,.95))}
+}
+.map-node.is-current{
+  width:72px!important;
+  height:72px!important;
+  z-index:4!important;
+  filter:drop-shadow(0 0 12px rgba(70,180,255,.9))!important;
+}
+.map-node.is-moveable{
+  cursor:pointer!important;
+  filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,255,255,.95))!important;
+}
+.map-node.type-boss.boss-visible,
+.map-node.type-boss.boss-visible.is-moveable{
+  filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
+}
+body.world-map-active #log-wrap{
+  display:block!important;
+  left:72px!important;
+  top:auto!important;
+  bottom:62px!important;
+  width:610px!important;
+  height:640px!important;
+  z-index:31!important;
+}
+body.world-map-active #log-box{
+  height:100%!important;
+}
+#log-wrap #btn-pass,
+#log-wrap #btn-pass:hover:not(:disabled),
+#log-wrap #btn-pass:focus-visible,
+#log-wrap #btn-pass:active:not(:disabled),
+#btn-pass:active:not(:disabled){
+  top:900px!important;
+  transform:none!important;
+}
+.bottom-hud .bhud-item,
+body.world-map-active .bottom-hud .bhud-item{
+  display:flex!important;
+  right:72px!important;
+  left:auto!important;
+  top:auto!important;
+  width:248px!important;
+  height:82px!important;
+}
+.bottom-hud .bhud-item:nth-child(1){bottom:438px!important}
+.bottom-hud .bhud-item:nth-child(2){bottom:344px!important}
+.bottom-hud .bhud-item:nth-child(3){bottom:250px!important}
+.bottom-hud .bhud-item:nth-child(4){bottom:156px!important}
+.bottom-hud .bhud-item:nth-child(5){bottom:62px!important}
+#ring-pane{
+  left:auto!important;
+  right:1720px!important;
+  bottom:64px!important;
+  width:360px!important;
+  height:430px!important;
+  padding:70px 0 34px!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+#ring-pane .hand-pane-label{
+  display:none!important;
+}
+#enemy-rings-pane{
+  display:block!important;
+  flex:0 0 360px!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  margin-right:28px!important;
+}
+#enemy-rings-pane .hand-pane-label{
+  display:none!important;
+}
+#reward-cards-section #rw-cards{
+  transform:none!important;
+}
+#hand-pane{
+  left:802px!important;
+  top:auto!important;
+  bottom:62px!important;
+  width:1572px!important;
+  height:478px!important;
+  transform:none!important;
+}
+#hand-slots{
+  grid-template-columns:repeat(5,300px)!important;
+  gap:18px!important;
+  height:478px!important;
+  align-items:start!important;
+  justify-content:start!important;
+}
+#hand-slots .card,
+#hand-slots .card-empty{
+  width:300px!important;
+  height:auto!important;
+  aspect-ratio:569/907!important;
+}
+#ring-pane{
+  left:2410px!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:62px!important;
+  width:628px!important;
+  height:478px!important;
+  padding:0!important;
+}
+#ring-slots{
+  grid-template-columns:repeat(2,300px)!important;
+  gap:28px!important;
+  height:478px!important;
+  align-items:start!important;
+  justify-content:start!important;
+}
+#ring-slots .card,
+#ring-slots .card-empty{
+  width:300px!important;
+  height:auto!important;
+  aspect-ratio:569/907!important;
+}
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before{
   content:''!important;
@@ -1490,7 +1696,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   display:block!important;
 }
 
-/* 最新調整: ディフェンダー枠、粒子レイヤー、カードサイズを最終上書き */
+/* 最新調整: ヘイト枠、粒子レイヤー、カードサイズを最終上書き */
 #scr-battle.asset-backed>.bctl-wrap,
 .bctl-wrap{
   display:none!important;
@@ -1600,27 +1806,12 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   opacity:.35!important;
   transition:opacity .16s ease!important;
 }
-#rw-cards>.field{
-  grid-template-columns:repeat(6,312px)!important;
-  gap:54px!important;
-}
-#rw-cards>.field .slot{
-  height:470px!important;
-}
-#rw-cards .rew-card{
-  width:312px!important;
-  flex:0 0 312px!important;
-  height:470px!important;
-}
 #enemy-hand-area{
   width:1980px!important;
 }
 #enemy-hand-slots{
-  grid-template-columns:repeat(5,1fr)!important;
   gap:18px!important;
 }
-#enemy-hand-slots .card,
-#enemy-hand-slots .card-empty,
 #enemy-ring-slots .card,
 #enemy-ring-slots .card-empty{
   height:auto!important;
@@ -1720,7 +1911,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #log-wrap #btn-pass:active:not(:disabled),
 #btn-pass:active:not(:disabled){
   left:3112px!important;
-  top:1570px!important;
+  top:900px!important;
   bottom:auto!important;
   right:auto!important;
   transform:none!important;
@@ -1742,27 +1933,73 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 }
 #reward-cards-section{
   left:50%!important;
-  top:600px!important;
+  top:522px!important;
   width:2440px!important;
   height:420px!important;
   transform:translateX(-50%)!important;
 }
 #reward-cards-section #rw-cards{
-  transform:scale(1.2)!important;
+  transform:none!important;
   transform-origin:top center!important;
   width:100%!important;
 }
-#rw-cards>.field{
-  grid-template-columns:repeat(6,260px)!important;
-  gap:64px!important;
+/* 報酬・ショップ・インベントリカードサイズ統一 */
+#hand-slots .card .card-name,
+#ring-slots .card .card-name,
+#hand-slots .card .rew-card-name,
+#ring-slots .card .rew-card-name{
+  font-size:.82rem!important;
+  line-height:1.08!important;
 }
-#rw-cards>.field .slot{
-  height:392px!important;
+#hand-slots .card .card-desc,
+#ring-slots .card .card-desc{
+  font-size:.68rem!important;
+  line-height:1.16!important;
 }
-#rw-cards .rew-card{
-  width:260px!important;
-  flex:0 0 260px!important;
-  height:392px!important;
+#hand-slots .card .card-tp,
+#ring-slots .card .card-tp,
+#hand-slots .card .card-charge,
+#ring-slots .card .card-charge{
+  font-size:.66rem!important;
+}
+#rw-cards .rew-card .rew-card-name{
+  font-size:.82rem!important;
+  line-height:1.08!important;
+}
+#rw-cards .rew-card .rew-card-desc{
+  font-size:.68rem!important;
+  line-height:1.16!important;
+}
+#rw-cards .rew-card .rew-card-tp,
+#rw-cards .rew-card .rew-card-cost,
+#rw-cards .rew-grade,
+#rw-cards .rew-merge{
+  font-size:.66rem!important;
+}
+body:not(.world-map-active) #log-wrap{
+  top:auto!important;
+  bottom:62px!important;
+}
+#hand-slots .card:hover:not(.inert),
+#ring-slots .card:hover:not(.inert),
+#rw-cards .rew-card:hover:not(.cant),
+#rw-cards .map-reward-unit:hover{
+  transform:none!important;
+  translate:0 0!important;
+  filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
+  box-shadow:none!important;
+  z-index:60!important;
+}
+#rw-cards .rew-card,
+#rw-cards .map-choice-reward-card,
+#rw-cards .map-reward-unit{
+  box-shadow:none!important;
+  animation:none!important;
+}
+#rw-cards .rew-card:not(:hover),
+#rw-cards .map-choice-reward-card:not(:hover),
+#rw-cards .map-reward-unit:not(:hover){
+  filter:none!important;
 }
 
 /* ログ本文位置とキャラクター絵の微調整 */
@@ -1906,6 +2143,860 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .slot.unit-card .slot-stats{
   z-index:8!important;
 }
+
+/* 最終上書き：報酬/ショップカードをインベントリ表示サイズへ統一 */
+#enemy-area{
+  top:522px!important;
+}
+#ally-section{
+  top:1090px!important;
+}
+#hand-pane{
+  left:802px!important;
+  bottom:62px!important;
+  width:2120px!important;
+  height:520px!important;
+  transform:none!important;
+  overflow:visible!important;
+  z-index:70!important;
+}
+#hand-slots{
+  display:grid!important;
+  grid-template-columns:repeat(7,280px)!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  gap:18px!important;
+  height:520px!important;
+  overflow:visible!important;
+}
+#rw-cards>.field{
+  grid-template-columns:repeat(6,var(--unit-card-w))!important;
+  gap:34px!important;
+}
+#f-ally,
+#f-enemy{
+  grid-template-columns:repeat(6,var(--unit-card-w))!important;
+}
+#f-ally .slot,
+#f-enemy .slot,
+#rw-cards>.field .slot,
+#rw-cards .map-reward-unit{
+  box-sizing:border-box!important;
+  width:var(--unit-card-w)!important;
+  flex:0 0 var(--unit-card-w)!important;
+  height:var(--unit-card-h)!important;
+  aspect-ratio:auto!important;
+  min-width:var(--unit-card-w)!important;
+  max-width:var(--unit-card-w)!important;
+  min-height:var(--unit-card-h)!important;
+  max-height:var(--unit-card-h)!important;
+  transform:none!important;
+  translate:0 0!important;
+}
+#hand-slots .card,
+#hand-slots .card-empty{
+  margin-left:0!important;
+  transform:none!important;
+  transform-origin:center!important;
+}
+#hand-slots .card:hover:not(.inert){
+  transform:none!important;
+  z-index:90!important;
+}
+#rw-cards .rew-card,
+#rw-cards .card,
+#rw-cards .map-choice-reward-card,
+#hand-slots .card,
+#hand-slots .card-empty,
+#enemy-hand-slots .card,
+#enemy-hand-slots .card-empty{
+  box-sizing:border-box!important;
+  width:280px!important;
+  flex:0 0 280px!important;
+  height:422px!important;
+  aspect-ratio:auto!important;
+  min-width:280px!important;
+  max-width:280px!important;
+  min-height:422px!important;
+  max-height:422px!important;
+}
+#rw-cards .rew-card,
+#rw-cards .card,
+#rw-cards .map-choice-reward-card,
+#enemy-hand-slots .card,
+#enemy-hand-slots .card-empty{
+  transform:none!important;
+  translate:0 0!important;
+}
+#hand-slots .card .card-charge,
+#ring-slots .card .card-charge,
+#enemy-hand-slots .card .card-charge,
+#rw-cards .card .card-charge{
+  position:absolute!important;
+  left:12%!important;
+  right:auto!important;
+  top:3.5%!important;
+  bottom:auto!important;
+  z-index:10!important;
+  display:block!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  font-family:var(--font-hd)!important;
+  font-size:2.55rem!important;
+  line-height:1!important;
+  font-weight:700!important;
+  width:64px!important;
+  text-align:center!important;
+  color:#e8ffe0!important;
+  -webkit-text-stroke:2px #050507!important;
+  paint-order:stroke fill!important;
+  text-shadow:0 3px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.9)!important;
+}
+#rw-cards .card-badge{
+  display:none!important;
+}
+#rw-cards .card.treasure,
+#rw-cards .rew-card.treasure{
+  border:0!important;
+  animation:none!important;
+  box-shadow:none!important;
+}
+#hand-slots .card .card-name,
+#ring-slots .card .card-name,
+#enemy-hand-slots .card .card-name,
+#rw-cards .rew-card .rew-card-name,
+#rw-cards .card .card-name{
+  font-size:.88rem!important;
+  transform:translateY(-19px)!important;
+}
+#hand-slots .card .card-desc,
+#ring-slots .card .card-desc,
+#enemy-hand-slots .card .card-desc,
+#rw-cards .rew-card .rew-card-desc,
+#rw-cards .card .card-desc{
+  font-size:.72rem!important;
+}
+#hand-slots .card .card-grade,
+#ring-slots .card .card-grade,
+#enemy-hand-slots .card .card-grade{
+  top:-4px!important;
+  font-size:1.52rem!important;
+}
+#rw-cards .rew-card .card-grade,
+#rw-cards .card .card-grade{
+  top:12px!important;
+  font-size:1.52rem!important;
+}
+.slot.unit-card .slot-grade,
+.slot.unit-card .card-grade{
+  top:18px!important;
+  font-size:1.52rem!important;
+}
+.slot.unit-card .slot-stats .h.hp-damaged,
+.slot-stats .h.hp-damaged{
+  color:#ff4a4a!important;
+  text-shadow:0 2px 4px rgba(0,0,0,.95),0 0 10px rgba(255,32,32,.85)!important;
+}
+#enemy-hand-slots{
+  grid-template-columns:repeat(5,var(--item-card-w))!important;
+}
+#enemy-hand-slots.shop-sale-hand{
+  grid-template-columns:repeat(9,280px)!important;
+  justify-content:center!important;
+  gap:18px!important;
+}
+#enemy-hand-slots.shop-sale-hand .card,
+#enemy-hand-slots.shop-sale-hand .card-empty{
+  width:280px!important;
+  min-width:280px!important;
+  max-width:280px!important;
+  height:422px!important;
+  min-height:422px!important;
+  max-height:422px!important;
+}
+.shop-equipment-row{
+  width:auto!important;
+  display:grid!important;
+  grid-template-columns:repeat(7,280px)!important;
+  justify-content:center!important;
+  align-items:start!important;
+  gap:18px!important;
+  margin:0 auto!important;
+}
+.shop-equipment-row .rew-card,
+.shop-equipment-row .card,
+.shop-equipment-row .card-empty{
+  width:280px!important;
+  min-width:280px!important;
+  max-width:280px!important;
+  height:422px!important;
+  min-height:422px!important;
+  max-height:422px!important;
+}
+#victory-overlay{
+  background:transparent!important;
+  top:112px!important;
+  bottom:auto!important;
+  height:190px!important;
+  z-index:80!important;
+  pointer-events:none!important;
+  left:0!important;
+  right:0!important;
+  width:100vw!important;
+  transform:none!important;
+}
+#victory-overlay .victory-title{
+  font-size:3.6rem!important;
+  text-align:center!important;
+  width:100%!important;
+}
+#victory-overlay .btn{
+  pointer-events:auto!important;
+}
+body.victory-reward-active #victory-overlay{
+  pointer-events:none!important;
+}
+body.victory-reward-active #scr-battle.asset-backed::before,
+#scr-battle.victory-reward-backdrop.asset-backed::before{
+  background-image:
+    linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.58)),
+    var(--screen-bg-image)!important;
+  background-size:cover,cover!important;
+  background-position:center,center!important;
+}
+body.victory-reward-active #scr-battle.asset-backed::after,
+#scr-battle.victory-reward-backdrop.asset-backed::after{
+  display:block!important;
+  z-index:0!important;
+  opacity:1!important;
+  background:
+    radial-gradient(circle at 9% 37%,rgba(142,190,255,.20) 0 2px,transparent 3px),
+    radial-gradient(circle at 92% 39%,rgba(255,224,138,.25) 0 2px,transparent 3px),
+    radial-gradient(circle at 57% 30%,rgba(235,248,255,.16) 0 2px,transparent 3px)!important;
+  background-size:620px 420px,570px 390px,410px 360px!important;
+}
+body.victory-reward-active #victory-overlay .btn{
+  display:none!important;
+}
+.return-btn,
+.discard-btn{
+  display:block!important;
+  z-index:30!important;
+  pointer-events:auto!important;
+}
+
+/* Final fixed inventory placement */
+:root{
+  --hand-card-w:300px;
+  --hand-card-h:452px;
+}
+body #hand-pane,
+body.world-map-active #hand-pane,
+body.victory-reward-active #hand-pane{
+  position:absolute!important;
+  left:742px!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:62px!important;
+  width:2208px!important;
+  height:452px!important;
+  transform:none!important;
+  overflow:visible!important;
+  z-index:70!important;
+}
+body #hand-slots,
+body.world-map-active #hand-slots,
+body.victory-reward-active #hand-slots{
+  display:grid!important;
+  grid-template-columns:repeat(7,var(--hand-card-w))!important;
+  justify-content:start!important;
+  align-items:start!important;
+  gap:14px!important;
+  height:var(--hand-card-h)!important;
+  overflow:visible!important;
+}
+body #hand-slots .card,
+body #hand-slots .card-empty{
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
+}
+body #hand-slots .card-empty.equip-empty{
+  opacity:1!important;
+  background:rgba(0,0,0,.36)!important;
+  border:4px solid rgba(0,0,0,.9)!important;
+  box-shadow:inset 0 0 0 2px rgba(210,180,110,.25),0 0 12px rgba(0,0,0,.45)!important;
+}
+body #hand-slots .card-empty.equip-empty.equip-slot-ring{
+  background:rgba(25,12,38,.62)!important;
+  border-color:rgba(70,40,104,.98)!important;
+  box-shadow:inset 0 0 0 2px rgba(168,112,214,.24),0 0 12px rgba(38,16,64,.55)!important;
+}
+body #hand-slots .card.equip-slot-hand{
+  border-color:rgba(0,0,0,.9)!important;
+}
+body #hand-slots .card.equip-slot-ring{
+  border-color:rgba(70,40,104,.98)!important;
+  box-shadow:inset 0 0 0 2px rgba(168,112,214,.18),0 0 10px rgba(38,16,64,.38)!important;
+}
+body #hand-slots .equip-slot-label{
+  position:absolute;
+  left:8px;
+  top:6px;
+  z-index:8;
+  color:rgba(244,226,174,.92);
+  font-size:.54rem;
+  font-weight:800;
+  text-shadow:0 1px 3px rgba(0,0,0,.9);
+  pointer-events:none;
+}
+body #hand-slots .card-empty.equip-empty{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  color:rgba(244,226,174,.72)!important;
+  font-size:.62rem!important;
+  font-weight:800!important;
+  text-shadow:0 1px 3px rgba(0,0,0,.9)!important;
+}
+body #hand-slots .card-empty.belt-empty{
+  opacity:1!important;
+  background:rgba(0,0,0,.28)!important;
+  border:4px solid rgba(0,0,0,.82)!important;
+  box-shadow:inset 0 0 0 2px rgba(85,130,170,.22),0 0 10px rgba(0,0,0,.38)!important;
+}
+body #hand-slots .card.equip-combat-dim{
+  opacity:.48!important;
+  filter:grayscale(.65) brightness(.72)!important;
+  cursor:default!important;
+}
+body #hand-slots .card.equip-combat-view .discard-btn{
+  opacity:.35!important;
+  pointer-events:none!important;
+}
+body #f-ally .slot.unit-card.selected{
+  box-shadow:none!important;
+  outline:0!important;
+  border-color:transparent!important;
+  filter:none!important;
+  z-index:9!important;
+}
+body .slot.unit-card:hover::before,
+body .slot.unit-card.selected::before{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:-12px -10px!important;
+  z-index:1!important;
+  pointer-events:none!important;
+  border-radius:46% 46% 10% 10%!important;
+  background:
+    radial-gradient(circle at 6% 44%,rgba(255,255,255,.95) 0 3px,transparent 4px),
+    radial-gradient(circle at 94% 42%,rgba(255,255,255,.88) 0 3px,transparent 4px),
+    radial-gradient(circle at 14% 82%,rgba(255,255,255,.72) 0 2px,transparent 3px),
+    radial-gradient(circle at 86% 80%,rgba(255,255,255,.76) 0 2px,transparent 3px)!important;
+  filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
+  opacity:1!important;
+  animation:select-particle-blink .75s ease-in-out infinite alternate!important;
+}
+body .slot.unit-card:hover::after,
+body .slot.unit-card.selected::after{
+  filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
+}
+body #enemy-area{
+  top:565px!important;
+}
+body:has(#enemy-hand-slots.shop-sale-hand) #enemy-hand-area{
+  left:50%!important;
+  top:250px!important;
+  width:2720px!important;
+  height:430px!important;
+  transform:translateX(-50%)!important;
+}
+body:has(#enemy-hand-slots.shop-sale-hand) #reward-cards-section{
+  top:650px!important;
+  width:2260px!important;
+}
+body #ally-section{
+  top:1125px!important;
+}
+body #f-enemy,
+body #f-ally{
+  gap:50px!important;
+}
+body .discard-btn,
+body .return-btn{
+  position:absolute!important;
+  top:10px!important;
+  right:10px!important;
+  left:auto!important;
+  bottom:auto!important;
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  border:3px solid #2b0505!important;
+  background:radial-gradient(circle at 35% 28%,#ff6969 0 14%,#c92222 46%,#6f0909 100%)!important;
+  color:#fff!important;
+  font-family:var(--font-hd)!important;
+  font-size:32px!important;
+  line-height:34px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  text-shadow:0 2px 3px rgba(0,0,0,.9)!important;
+  box-shadow:0 2px 6px rgba(0,0,0,.75),inset 0 1px 2px rgba(255,255,255,.28)!important;
+  z-index:40!important;
+  overflow:hidden!important;
+}
+body .discard-btn:hover,
+body .return-btn:hover{
+  filter:brightness(1.14)!important;
+}
+#kw-tooltip strong{
+  color:#fff2c8!important;
+  font-weight:800!important;
+}
+#kw-tooltip .preview-title{
+  display:block!important;
+  text-align:center!important;
+  font-size:1.12em!important;
+  margin-bottom:6px!important;
+}
+#map-inventory-toggle{
+  position:absolute!important;
+  right:72px!important;
+  bottom:536px!important;
+  width:248px!important;
+  height:72px!important;
+  z-index:80!important;
+}
+body.world-map-active #map-inventory-toggle{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body:not(.world-map-active) #map-inventory-toggle,
+body:not(.world-map-active) #map-inventory-panel,
+body:not(.world-map-active) #world-map-panel{
+  display:none!important;
+}
+#map-inventory-panel{
+  position:absolute!important;
+  left:300px!important;
+  top:14%!important;
+  width:2142px!important;
+  height:660px!important;
+  z-index:32!important;
+  display:grid!important;
+  align-content:center!important;
+  justify-content:center!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+#map-inventory-panel[hidden]{display:none!important}
+#map-inventory-slots{
+  display:grid!important;
+  grid-template-columns:repeat(9,var(--hand-card-w))!important;
+  grid-template-rows:repeat(2,var(--hand-card-h))!important;
+  gap:14px!important;
+  transform:scale(.62)!important;
+  transform-origin:center!important;
+}
+#map-inventory-slots .card,
+#map-inventory-slots .card-empty{
+  width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-width:var(--hand-card-w)!important;
+  min-height:var(--hand-card-h)!important;
+  max-width:var(--hand-card-w)!important;
+  max-height:var(--hand-card-h)!important;
+}
+
+/* 発光統一：hover/select/drag/死亡予測は同じ形、色だけ変更 */
+body .slot.unit-card.selectable,
+body .slot.unit-card.drag-over,
+body .slot.unit-card.will-die,
+body .slot.unit-card.will-warn-low,
+body .slot.unit-card.will-warn-mid,
+body .slot.unit-card.will-warn-high{
+  outline:0!important;
+  box-shadow:none!important;
+  border-color:transparent!important;
+}
+body .slot.unit-card.selectable::before,
+body .slot.unit-card.drag-over::before,
+body .slot.unit-card.will-die::before,
+body .slot.unit-card.will-warn-low::before,
+body .slot.unit-card.will-warn-mid::before,
+body .slot.unit-card.will-warn-high::before{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:-12px -10px!important;
+  z-index:20!important;
+  pointer-events:none!important;
+  border-radius:46% 46% 10% 10%!important;
+  background:
+    radial-gradient(circle at 6% 44%,var(--glow-core,rgba(255,255,255,.95)) 0 3px,transparent 4px),
+    radial-gradient(circle at 94% 42%,var(--glow-core,rgba(255,255,255,.88)) 0 3px,transparent 4px),
+    radial-gradient(circle at 14% 82%,var(--glow-soft,rgba(255,255,255,.72)) 0 2px,transparent 3px),
+    radial-gradient(circle at 86% 80%,var(--glow-soft,rgba(255,255,255,.76)) 0 2px,transparent 3px)!important;
+  filter:drop-shadow(0 0 12px var(--glow-shadow,rgba(255,255,255,.9))) drop-shadow(0 0 26px var(--glow-outer,rgba(255,234,170,.75)))!important;
+  opacity:1!important;
+  animation:select-particle-blink .75s ease-in-out infinite alternate!important;
+}
+body .slot.unit-card.selectable::after,
+body .slot.unit-card.drag-over::after,
+body .slot.unit-card.will-die::after,
+body .slot.unit-card.will-warn-low::after,
+body .slot.unit-card.will-warn-mid::after,
+body .slot.unit-card.will-warn-high::after{
+  background:transparent!important;
+  filter:drop-shadow(0 0 12px var(--glow-shadow,rgba(255,255,255,.9))) drop-shadow(0 0 26px var(--glow-outer,rgba(255,234,170,.75)))!important;
+  z-index:21!important;
+}
+body .slot.unit-card.will-warn-low{
+  --glow-core:rgba(255,245,80,.95);
+  --glow-soft:rgba(255,230,80,.7);
+  --glow-shadow:rgba(255,230,60,.9);
+  --glow-outer:rgba(255,210,50,.75);
+}
+body .slot.unit-card.will-warn-mid{
+  --glow-core:rgba(255,170,60,.95);
+  --glow-soft:rgba(255,150,50,.7);
+  --glow-shadow:rgba(255,142,44,.9);
+  --glow-outer:rgba(255,116,0,.75);
+}
+body .slot.unit-card.will-warn-high,
+body .slot.unit-card.will-die{
+  --glow-core:rgba(255,64,58,.95);
+  --glow-soft:rgba(255,52,46,.72);
+  --glow-shadow:rgba(255,44,40,.92);
+  --glow-outer:rgba(255,0,22,.78);
+}
+body .slot.unit-card .risk-particles{
+  display:none!important;
+}
+body .slot.unit-card.selectable,
+body .slot.unit-card.drag-over{
+  filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
+}
+body .slot.selectable:not(.unit-card){
+  outline:3px solid rgba(255,255,255,.82)!important;
+  outline-offset:-3px!important;
+  box-shadow:0 0 12px rgba(255,255,255,.9),0 0 26px rgba(255,234,170,.75)!important;
+  border-color:rgba(255,255,255,.85)!important;
+}
+body .slot.selectable:not(.unit-card)::after{
+  content:''!important;
+  position:absolute!important;
+  inset:-6px!important;
+  border-radius:inherit!important;
+  pointer-events:none!important;
+  box-shadow:0 0 12px rgba(255,255,255,.9),0 0 26px rgba(255,234,170,.75)!important;
+  animation:select-particle-blink .75s ease-in-out infinite alternate!important;
+}
+body #hand-slots .card .card-grade,
+body #ring-slots .card .card-grade,
+body #enemy-hand-slots .card .card-grade,
+body #map-inventory-slots .card .card-grade,
+body .card.drag-ghost .card-grade{
+  top:8px!important;
+  font-size:1.52rem!important;
+}
+body #hand-slots .card .card-charge,
+body #ring-slots .card .card-charge,
+body #enemy-hand-slots .card .card-charge,
+body #map-inventory-slots .card .card-charge,
+body #rw-cards .card .card-charge,
+body .card.drag-ghost .card-charge{
+  position:absolute!important;
+  left:5%!important;
+  right:auto!important;
+  top:3.5%!important;
+  bottom:auto!important;
+  z-index:10!important;
+  display:block!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  font-family:var(--font-hd)!important;
+  font-size:2.55rem!important;
+  line-height:1!important;
+  font-weight:700!important;
+  width:64px!important;
+  text-align:center!important;
+  color:#e8ffe0!important;
+  -webkit-text-stroke:2px #050507!important;
+  paint-order:stroke fill!important;
+  text-shadow:0 3px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.9)!important;
+}
+body #hand-slots .card .card-name,
+body #ring-slots .card .card-name,
+body #enemy-hand-slots .card .card-name,
+body #map-inventory-slots .card .card-name,
+body #rw-cards .rew-card .rew-card-name,
+body #rw-cards .card .card-name,
+body .card.drag-ghost .card-name{
+  transform:translateY(-23px)!important;
+  font-size:.88rem!important;
+}
+body .card.dragging{
+  opacity:1!important;
+  transform:none!important;
+}
+
+/* Final target glow / map inventory size override */
+body .slot.selectable,
+body .slot.unit-card.selectable,
+body .slot.unit-card.drag-over{
+  outline:0!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  filter:
+    drop-shadow(0 0 14px rgba(255,255,255,.96))
+    drop-shadow(0 0 34px rgba(255,234,170,.86))!important;
+  z-index:90!important;
+}
+body .slot.unit-card.selectable,
+body .slot.unit-card.drag-over{
+  border:0!important;
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+}
+body .slot.unit-card.enemy.selectable,
+body .slot.unit-card.enemy.drag-over{
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+}
+body .slot.unit-card.selectable::before,
+body .slot.unit-card.drag-over::before{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:-22px -20px!important;
+  z-index:1!important;
+  pointer-events:none!important;
+  border-radius:46% 46% 10% 10%!important;
+  background:
+    radial-gradient(circle at 6% 44%,rgba(255,255,255,1) 0 5px,transparent 6px),
+    radial-gradient(circle at 94% 42%,rgba(255,255,255,.96) 0 5px,transparent 6px),
+    radial-gradient(circle at 14% 82%,rgba(255,255,255,.82) 0 4px,transparent 5px),
+    radial-gradient(circle at 86% 80%,rgba(255,255,255,.86) 0 4px,transparent 5px)!important;
+  filter:
+    drop-shadow(0 0 14px rgba(255,255,255,1))
+    drop-shadow(0 0 34px rgba(255,234,170,.9))!important;
+  animation:select-particle-blink .75s ease-in-out infinite alternate!important;
+}
+body .slot.unit-card.selectable .unit-portrait,
+body .slot.unit-card.drag-over .unit-portrait{
+  filter:none!important;
+  z-index:2!important;
+}
+body .slot.unit-card.selectable::after,
+body .slot.unit-card.drag-over::after{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:4!important;
+  pointer-events:none!important;
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+  filter:none!important;
+}
+body .slot.unit-card.selectable .slot-grade,
+body .slot.unit-card.selectable .card-grade,
+body .slot.unit-card.selectable .slot-stats,
+body .slot.unit-card.drag-over .slot-grade,
+body .slot.unit-card.drag-over .card-grade,
+body .slot.unit-card.drag-over .slot-stats{
+  z-index:8!important;
+}
+body #map-inventory-panel{
+  left:420px!important;
+  width:3000px!important;
+  overflow:visible!important;
+}
+body #map-inventory-slots{
+  grid-template-columns:repeat(9,var(--hand-card-w))!important;
+  grid-template-rows:repeat(2,var(--hand-card-h))!important;
+  gap:14px!important;
+  transform:none!important;
+  transform-origin:center!important;
+}
+body #map-inventory-slots .card,
+body #map-inventory-slots .card-empty{
+  width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-width:var(--hand-card-w)!important;
+  min-height:var(--hand-card-h)!important;
+  max-width:var(--hand-card-w)!important;
+  max-height:var(--hand-card-h)!important;
+}
+body #map-inventory-slots .card:hover:not(.inert){
+  transform:none!important;
+  translate:0 0!important;
+  filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
+  box-shadow:none!important;
+  z-index:60!important;
+}
+body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-toggle{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel{
+  left:50%!important;
+  top:250px!important;
+  width:2142px!important;
+  height:660px!important;
+  transform:translateX(-50%)!important;
+  display:grid!important;
+}
+body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel[hidden]{
+  display:none!important;
+}
+body .card.dragging .card-name,
+body .card.drag-ghost .card-name{
+  transform:translateY(-23px)!important;
+  margin-top:58%!important;
+  font-size:.88rem!important;
+}
+body .card.dragging .card-desc,
+body .card.drag-ghost .card-desc{
+  margin-top:8%!important;
+  font-size:.72rem!important;
+  line-height:1.16!important;
+}
+body .slot.unit-card.dead-unit{
+  opacity:.42!important;
+  filter:grayscale(.75) brightness(.62)!important;
+}
+body .slot.unit-card .unit-portrait{
+  left:2.4%!important;
+  right:2.4%!important;
+  top:16.2%!important;
+  height:76.8%!important;
+  overflow:hidden!important;
+  clip-path:ellipse(47.5% 49.8% at 50% 49.5%)!important;
+  background-size:cover!important;
+  background-position:center 22%!important;
+}
+body #f-enemy .slot.unit-card,
+body #f-enemy .slot.unit-card.enemy{
+  border:0!important;
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+  overflow:visible!important;
+}
+body #f-enemy .slot.unit-card.is-defender{
+  background:transparent!important;
+}
+body #f-enemy .slot.unit-card::after,
+body #f-enemy .slot.unit-card.enemy::after,
+body .slot.unit-card.is-defender::after,
+body #f-enemy .slot.unit-card.is-defender::after{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  left:0!important;
+  right:0!important;
+  top:0!important;
+  bottom:0!important;
+  width:auto!important;
+  transform:none!important;
+  z-index:4!important;
+  pointer-events:none!important;
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+  filter:none!important;
+}
+body #f-enemy .slot.unit-card::after,
+body #f-enemy .slot.unit-card.enemy::after,
+body #f-enemy .slot.unit-card.is-defender::after{
+  left:0!important;
+  right:0!important;
+  width:auto!important;
+  transform:none!important;
+}
+body #f-enemy .slot.unit-card.is-defender::after{
+  inset:auto!important;
+  left:50%!important;
+  top:50%!important;
+  width:calc(var(--unit-card-h) * 450 / 605)!important;
+  height:100%!important;
+  transform:translate(-50%,-50%)!important;
+  transform-origin:center center!important;
+}
+body #f-ally .slot.unit-card.is-defender{
+  background:transparent!important;
+}
+body #f-ally .slot.unit-card.is-defender::after{
+  inset:auto!important;
+  left:50%!important;
+  top:50%!important;
+  width:calc(var(--unit-card-h) * 450 / 605)!important;
+  height:100%!important;
+  transform:translate(-50%,-50%)!important;
+  transform-origin:center center!important;
+}
+body .slot.unit-card.will-die::before,
+body .slot.unit-card.will-warn-low::before,
+body .slot.unit-card.will-warn-mid::before,
+body .slot.unit-card.will-warn-high::before,
+body .slot.unit-card .risk-particles{
+  z-index:3!important;
+}
+body .slot.unit-card.will-die .risk-particles,
+body .slot.unit-card.will-warn-low .risk-particles,
+body .slot.unit-card.will-warn-mid .risk-particles,
+body .slot.unit-card.will-warn-high .risk-particles{
+  display:none!important;
+}
+body .slot.unit-card.will-die,
+body .slot.unit-card.will-warn-low,
+body .slot.unit-card.will-warn-mid,
+body .slot.unit-card.will-warn-high{
+  filter:drop-shadow(0 0 12px var(--glow-shadow,rgba(255,255,255,.9))) drop-shadow(0 0 26px var(--glow-outer,rgba(255,234,170,.75)))!important;
+}
+body .slot.unit-card.will-die::after,
+body .slot.unit-card.will-warn-low::after,
+body .slot.unit-card.will-warn-mid::after,
+body .slot.unit-card.will-warn-high::after{
+  z-index:4!important;
+  filter:none!important;
+  background:var(--unit-frame) center/100% 100% no-repeat!important;
+}
+body .slot.unit-card.will-warn-low::before{
+  --glow-core:rgba(255,245,80,.95);
+  --glow-soft:rgba(255,230,80,.7);
+  --glow-shadow:rgba(255,230,60,.9);
+  --glow-outer:rgba(255,210,50,.75);
+}
+body .slot.unit-card.will-warn-mid::before{
+  --glow-core:rgba(255,170,60,.95);
+  --glow-soft:rgba(255,150,50,.7);
+  --glow-shadow:rgba(255,142,44,.9);
+  --glow-outer:rgba(255,116,0,.75);
+}
+body .slot.unit-card.will-warn-high::before,
+body .slot.unit-card.will-die::before{
+  --glow-core:rgba(255,64,58,.95);
+  --glow-soft:rgba(255,52,46,.72);
+  --glow-shadow:rgba(255,44,40,.92);
+  --glow-outer:rgba(255,0,22,.78);
+}
+body .slot.unit-card.drag-over,
+body .slot.unit-card.is-defender.drag-over{
+  transform:none!important;
+  translate:0 0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
 </style>
 </head>
 <body>
@@ -1940,6 +3031,13 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   </div>
   <div class="battle-scroll">
   <div class="battle-area">
+    <div id="world-map-panel" hidden>
+      <div class="map-grid" id="world-map-grid"></div>
+    </div>
+    <button id="map-inventory-toggle" class="btn small" onclick="toggleMapInventory()" style="display:none">インベントリ</button>
+    <div id="map-inventory-panel" hidden>
+      <div id="map-inventory-slots"></div>
+    </div>
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
 
@@ -1985,11 +3083,11 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 
     <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
     <div id="reward-info-bar" class="reward-info-bar" style="display:none">
-      <span class="ri-soul">ソウル</span><span class="ri-val" id="rw-gold">0</span>
+      <span class="ri-soul">ゴールド</span><span class="ri-val" id="rw-gold">0</span>
       <span class="ri-soul" style="margin-left:6px">報酬 <span id="rw-count">3</span>枚</span>
       <span id="rw-race-buffs" style="margin-left:10px;font-size:.72rem;color:var(--teal2);white-space:nowrap"></span>
       <span id="rw-power-rating" style="margin-left:10px;font-size:.72rem;white-space:nowrap"></span>
-      <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto;display:none">リロール（1ソウル）</button>
+      <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto;display:none">リロール（1ゴールド）</button>
       <button class="btn tiny" id="rw-appearance-mode" onclick="toggleCardAppearanceModeDebug()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">出現率: NORMAL</button>
       <button class="btn tiny" id="rw-grade-up-btn" onclick="doGradeUp()" style="display:none;border-color:var(--teal);color:var(--teal2);margin-left:4px">グレードアップ</button>
       <button class="btn tiny" id="arcana-btn" onclick="useArcana()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">秘術</button>
@@ -2052,7 +3150,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
       <span class="bhud-val turn" id="h-life">1</span>
     </div>
     <div class="bhud-item">
-      <span class="bhud-label">ソウル</span>
+      <span class="bhud-label">ゴールド</span>
       <span class="bhud-val soul" id="h-gold">0</span>
     </div>
     <div class="bhud-item">
@@ -2096,7 +3194,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 <div id="scr-shop" class="screen">
   <div class="shop-area">
     <div class="shop-title">商　人</div>
-    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持ソウル：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span></div>
+    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持ゴールド：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span></div>
     <div class="shop-grid" id="sh-grid"></div>
     <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
       <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
@@ -2188,7 +3286,7 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js"></script>
+<script src="assets.js?v=starterart1"></script>
 <script src="js/engine/audio.js"></script>
 <script src="js/engine/constants.js"></script>
 <script src="js/data/floors.js"></script>
@@ -2196,19 +3294,19 @@ fitVesselboundViewport();
 <script src="js/data/rings.js"></script>
 <script src="js/data/spells.js"></script>
 <script src="js/data/loader.js?v=877ca82"></script>
-<script src="js/data/units.js"></script>
-<script src="js/engine/state.js"></script>
-<script src="js/engine/pool.js"></script>
+<script src="js/data/units.js?v=starters1"></script>
+<script src="js/engine/state.js?v=starters1"></script>
+<script src="js/engine/pool.js?v=rewarditems2"></script>
 <script src="js/engine/enemy.js?v=a57ddc5"></script>
 <script src="js/engine/summon.js"></script>
-<script src="js/engine/battle.js?v=a57ddc5"></script>
-<script src="js/engine/render.js"></script>
-<script src="js/engine/spell.js"></script>
+<script src="js/engine/battle.js?v=mutualdmg1"></script>
+<script src="js/engine/render.js?v=hpdamaged1"></script>
+<script src="js/engine/spell.js?v=mapfix1"></script>
 <script src="js/engine/arcana.js"></script>
-<script src="js/engine/reward.js"></script>
-<script src="js/engine/shop.js"></script>
-<script src="js/engine/move.js"></script>
+<script src="js/engine/reward.js?v=hpdamaged1"></script>
+<script src="js/engine/shop.js?v=shopcamp1"></script>
+<script src="js/engine/move.js?v=victoryfix4"></script>
 <script src="js/engine/event.js"></script>
-<script src="js/engine/main.js"></script>
+<script src="js/engine/main.js?v=mapfix1"></script>
 </body>
 </html>

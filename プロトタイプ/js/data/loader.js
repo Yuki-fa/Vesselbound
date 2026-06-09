@@ -40,7 +40,7 @@ const SQUIRREL_MESSAGES = {
   '提示カードを死亡させた時': ['やりすぎよ！', 'ちょっと！？'],
   'グレードを上げた時': ['グレードアップ！さらに強くなるわよ！', 'いいね、どんどん行って！'],
   '退店時': ['またね！', 'がんばって！', 'いい戦いをしてね。'],
-  'カードを売却した時': ['思い切ったわね。', 'ソウルに変えたか。'],
+  'カードを売却した時': ['思い切ったわね。', 'ゴールドに変えたか。'],
 };
 
 // ── CSV パーサー ────────────────────────────────────
@@ -137,7 +137,7 @@ function _syncUnitEffectKeysFromSheet(unit) {
     'ゾンビ': { effect: 'zombie_end', injury: null, desc:'終戦：ライフが10になる。' },
     'グリマルキン': { effect: 'grimalkin_summon', injury: null, desc:'使役：以後、カードの効果で召喚される仲間のライフが+1される。' },
     'ドワーフ': { effect: 'dwarf_summon', injury: null, desc:'使役：左端の杖に+2チャージする。' },
-    'マミー': { effect: 'mummy_death', injury: null, desc:'死亡：3ソウルを得る。' },
+    'マミー': { effect: 'mummy_death', injury: null, desc:'死亡：3ゴールドを得る。' },
     'バンシー': { effect: 'banshee_death', injury: null, desc:'死亡：以後、商談フェイズに現れるキャラクターのパワーが+2される。' },
     'ブラウニー': { effect: 'brownie_attack', injury: null, desc:'攻撃：全ての仲間のライフが+1される。' },
     'ジャック・オ・ランタン': { effect: 'jack_attack', injury: null, desc:'攻撃：以後、商談フェイズに現れるキャラクターのライフが+1される。' },

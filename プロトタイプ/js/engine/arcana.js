@@ -39,7 +39,7 @@ function showArcanaSelect(){
         <div class="arcana-icon">${arc.icon}</div>
         <div class="arcana-name">${arc.id}</div>
         <div class="arcana-type-badge">${arc.type==='passive'?'パッシブ':'能動（1回/報酬）'}</div>
-        <div class="arcana-cost">${arc.cost>0?arc.cost+'ソウル':'無料'}</div>
+        <div class="arcana-cost">${arc.cost>0?arc.cost+'ゴールド':'無料'}</div>
         <div class="arcana-desc">${arc.desc}</div>
       </div>
     `;
@@ -91,7 +91,7 @@ function useArcana(){
 
 // 寵愛：一番左の報酬カードを無料獲得
 function _arcanaFavor(){
-  if(G.gold<1){ log('ソウルが足りない（寵愛：1ソウル）','bad'); return; }
+  if(G.gold<1){ log('ゴールドが足りない（寵愛：1ゴールド）','bad'); return; }
   // _rewCardsは reward.js のモジュール変数。直接アクセス不可なので公開関数を使う
   const first=_rewCards.find(c=>c);
   if(!first){ log('報酬カードがない','sys'); return; }
@@ -113,12 +113,12 @@ function _arcanaFavor(){
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards(); renderHandEditor();
   _renderArcanaBtn();
-  log(`💫 寵愛：${first.name} を1ソウルで獲得`,'gold');
+  log(`💫 寵愛：${first.name} を1ゴールドで獲得`,'gold');
 }
 
 // 祈祷：報酬中のランダムな契約グレード+1
 function _arcanaPray(){
-  if(G.gold<1){ log('ソウルが足りない（祈祷：1ソウル）','bad'); return; }
+  if(G.gold<1){ log('ゴールドが足りない（祈祷：1ゴールド）','bad'); return; }
   const rings=_rewCards.filter(c=>c&&(!c.type||c.type==='ring'||c.kind==='summon'||c.kind==='passive'));
   if(!rings.length){ log('報酬に契約カードがない','sys'); return; }
   G.gold-=1;
@@ -135,7 +135,7 @@ function _arcanaPray(){
 
 // 集中：報酬の契約カードを所持契約と同種に変化
 function _arcanaFocus(){
-  if(G.gold<1){ log('ソウルが足りない（集中：1ソウル）','bad'); return; }
+  if(G.gold<1){ log('ゴールドが足りない（集中：1ゴールド）','bad'); return; }
   const ownedRings=G.rings.filter(r=>r);
   if(!ownedRings.length){ log('所持している契約がない','sys'); return; }
   const rings=_rewCards.filter(c=>c&&(!c.type||c.type==='ring'||c.kind==='summon'||c.kind==='passive'));
@@ -160,7 +160,7 @@ function _arcanaFocus(){
 
 // 煉獄：報酬カードを抹消→魂の残滓に変換
 function _arcanaPurge(){
-  if(G.gold<1){ log('ソウルが足りない（煉獄：1ソウル）','bad'); return; }
+  if(G.gold<1){ log('ゴールドが足りない（煉獄：1ゴールド）','bad'); return; }
   const valid=_rewCards.filter(c=>c);
   if(!valid.length){ log('報酬カードがない','sys'); return; }
 
@@ -186,7 +186,7 @@ function _arcanaPurge(){
 
 // 信頼：召喚契約を選びバフ永続累積
 function _arcanaTrust(){
-  if(G.gold<2){ log('ソウルが足りない（信頼：2ソウル）','bad'); return; }
+  if(G.gold<2){ log('ゴールドが足りない（信頼：2ゴールド）','bad'); return; }
   const rings=G.rings.map((r,i)=>({r,i})).filter(x=>x.r&&x.r.kind==='summon');
   if(!rings.length){ log('召喚契約がない','sys'); return; }
   const bonus=G.arcanaTrustCount+1;
@@ -221,7 +221,7 @@ function _arcanaTrust(){
 
 // 観察：次の戦闘で祭壇/休息所が確定
 function _arcanaObserve(){
-  if(G.gold<1){ log('ソウルが足りない（観察：1ソウル）','bad'); return; }
+  if(G.gold<1){ log('ゴールドが足りない（観察：1ゴールド）','bad'); return; }
   G.gold-=1;
   G.arcanaForceNode=true;
   G.arcanaUsed=true;
@@ -231,14 +231,14 @@ function _arcanaObserve(){
   log('👁️ 観察：次の戦闘で祭壇か休息所が確定で出現する','gold');
 }
 
-// 血盟：ソウルを1得る
+// 血盟：ゴールドを1得る
 function _arcanaBlood(){
   G.gold+=1;
   G.arcanaUsed=true;
   document.getElementById('rw-gold').textContent=G.gold;
   updateHUD(); renderRewCards();
   _renderArcanaBtn();
-  log('🩸 血盟：ソウル+1','gold');
+  log('🩸 血盟：ゴールド+1','gold');
 }
 
 // ── ターゲット選択ヘルパー ─────────────────────────
@@ -278,7 +278,7 @@ function _renderArcanaBtn(){
   btn.style.display='';
   const canUse=!G.arcanaUsed&&G.gold>=arc.cost&&G.phase==='reward';
   btn.disabled=!canUse;
-  btn.textContent=`${arc.icon} ${arc.id}（${arc.cost>0?arc.cost+'ソウル':'無料'}）${G.arcanaUsed?'【使用済】':''}`;
+  btn.textContent=`${arc.icon} ${arc.id}（${arc.cost>0?arc.cost+'ゴールド':'無料'}）${G.arcanaUsed?'【使用済】':''}`;
   btn.className='btn small'+(canUse?'':' cant-arcana');
   // パッシブ表示（arcana-passive-info）
   const pi=document.getElementById('arcana-passive-info');
