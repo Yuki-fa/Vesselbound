@@ -7,6 +7,11 @@
 // HELPERS
 // ═══════════════════════════════════════
 function showScreen(id){
+  if(G&&G._pendingPanelPlacement&&G.phase==='reward'&&id!=='reward'){
+    log('パネルの配置先を選んでください','bad');
+    return;
+  }
+  if(G&&id!=='battle') G._selectedEquipCardIdx=null;
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');

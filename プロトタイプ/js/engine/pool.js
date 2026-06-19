@@ -87,8 +87,129 @@ function calcBuyPrice(card){
   }
   if(card.type==='consumable') return card.cost||1;
   if(card.type==='wand') return card.cost||2;
+  if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return card.cost||2;
   // 指輪
   return card.cost||4;
+}
+
+const PANEL_POOL=[
+  {id:'panel_vampire',name:'吸血',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_vampire',cost:0,desc:'自動：敵にダメージを与えた時に、与えたダメージの10%回復する。'},
+  {id:'panel_stealth',name:'隠密',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_stealth',cost:0,desc:'自動：攻撃してもヘイト状態にならない。'},
+  {id:'panel_counter',name:'反撃',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_counter',cost:0,desc:'自動：ダメージを受けると直ちに全ての敵に8ダメージを与える。'},
+  {id:'panel_grudge',name:'執念',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_grudge',cost:0,desc:'死亡：ランダムな敵に自身の最大HPに等しいダメージを与える。'},
+];
+
+function makePanel(idOrName){
+  const def=PANEL_POOL.find(p=>p.id===idOrName||p.name===idOrName);
+  if(!def) return null;
+  const c=clone(def);
+  c.equip=true;
+  c.noRewardUse=true;
+  c._buyPrice=calcBuyPrice(c);
+  return c;
+}
+
+function drawPanel(n=1, maxGrade){
+  const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
+  const pool=PANEL_POOL.filter(p=>p&&p.id&&(p.grade||1)<=targetGrade);
+  const res=[];
+  let t=0;
+  while(res.length<n&&pool.length>0&&t++<300){
+    const weighted=_applyGlobalKnowledgeWeight(pool).flatMap(p=>{
+      const w=Math.max(1,7-(p.rarity||1));
+      return Array.from({length:w},()=>p);
+    });
+    const picked=randFrom(weighted);
+    const card=makePanel(picked.id);
+    if(card) res.push(card);
+  }
+  return res;
+}
+
+const GLOBAL_PANEL_POOL=[
+  {id:'gp_martial_1',name:'武術の知識　Lv.1',rarity:1,grade:1,panelScope:'global',category:'全体／武術',desc:'自動：グレード2以下の武術が出現しやすくなる。'},
+  {id:'gp_martial_2',name:'武術の知識　Lv.2',rarity:2,grade:2,panelScope:'global',category:'全体／武術',requires:'gp_martial_1',desc:'自動：グレード3以下の武術が出現しやすくなる。'},
+  {id:'gp_martial_3',name:'武術の知識　Lv.3',rarity:3,grade:3,panelScope:'global',category:'全体／武術',requires:'gp_martial_2',desc:'自動：グレード4以下の武術が出現しやすくなる。'},
+  {id:'gp_martial_4',name:'武術の知識　Lv.4',rarity:4,grade:4,panelScope:'global',category:'全体／武術',requires:'gp_martial_3',desc:'自動：グレード5以下の武術が出現しやすくなる。'},
+  {id:'gp_martial_5',name:'武術の知識　Lv.5',rarity:5,grade:5,panelScope:'global',category:'全体／武術',requires:'gp_martial_4',desc:'自動：グレード6以下の武術が出現しやすくなる。'},
+  {id:'gp_magic_1',name:'魔術の知識　Lv.1',rarity:1,grade:1,panelScope:'global',category:'全体／魔術',desc:'自動：グレード2以下の魔術が出現しやすくなる。'},
+  {id:'gp_magic_2',name:'魔術の知識　Lv.2',rarity:2,grade:2,panelScope:'global',category:'全体／魔術',requires:'gp_magic_1',desc:'自動：グレード3以下の魔術が出現しやすくなる。'},
+  {id:'gp_magic_3',name:'魔術の知識　Lv.3',rarity:3,grade:3,panelScope:'global',category:'全体／魔術',requires:'gp_magic_2',desc:'自動：グレード4以下の魔術が出現しやすくなる。'},
+  {id:'gp_magic_4',name:'魔術の知識　Lv.4',rarity:4,grade:4,panelScope:'global',category:'全体／魔術',requires:'gp_magic_3',desc:'自動：グレード5以下の魔術が出現しやすくなる。'},
+  {id:'gp_magic_5',name:'魔術の知識　Lv.5',rarity:5,grade:5,panelScope:'global',category:'全体／魔術',requires:'gp_magic_4',desc:'自動：グレード6以下の魔術が出現しやすくなる。'},
+  {id:'gp_divine_1',name:'神術の知識　Lv.1',rarity:1,grade:1,panelScope:'global',category:'全体／神術',desc:'自動：グレード2以下の神術が出現しやすくなる。'},
+  {id:'gp_divine_2',name:'神術の知識　Lv.2',rarity:2,grade:2,panelScope:'global',category:'全体／神術',requires:'gp_divine_1',desc:'自動：グレード3以下の神術が出現しやすくなる。'},
+  {id:'gp_divine_3',name:'神術の知識　Lv.3',rarity:3,grade:3,panelScope:'global',category:'全体／神術',requires:'gp_divine_2',desc:'自動：グレード4以下の神術が出現しやすくなる。'},
+  {id:'gp_divine_4',name:'神術の知識　Lv.4',rarity:4,grade:4,panelScope:'global',category:'全体／神術',requires:'gp_divine_3',desc:'自動：グレード5以下の神術が出現しやすくなる。'},
+  {id:'gp_divine_5',name:'神術の知識　Lv.5',rarity:5,grade:5,panelScope:'global',category:'全体／神術',requires:'gp_divine_4',desc:'自動：グレード6以下の神術が出現しやすくなる。'},
+  {id:'gp_master',name:'戦技マスター',rarity:4,grade:4,panelScope:'global',category:'全体／魔術、武術、神術',desc:'自動：グレード4以下の武術、魔術、神術が出現しやすくなる。'},
+  {id:'gp_heal_1',name:'治療',rarity:1,grade:1,panelScope:'global',category:'全体／魔術',healPct:0.1,desc:'終戦：HPを10%回復する。'},
+  {id:'gp_training_1',name:'修練　Lv.1',rarity:1,grade:1,panelScope:'global',category:'全体／成長',training:1,desc:'終戦：+1/+1を得る。'},
+  {id:'gp_training_2',name:'修練　Lv.2',rarity:1,grade:2,panelScope:'global',category:'全体／成長',training:2,desc:'終戦：+2/+2を得る。'},
+  {id:'gp_training_3',name:'修練　Lv.3',rarity:2,grade:3,panelScope:'global',category:'全体／成長',training:3,desc:'終戦：+3/+3を得る。'},
+  {id:'gp_training_4',name:'修練　Lv.4',rarity:2,grade:4,panelScope:'global',category:'全体／成長',training:4,desc:'終戦：+4/+4を得る。'},
+  {id:'gp_training_5',name:'修練　Lv.5',rarity:3,grade:5,panelScope:'global',category:'全体／成長',training:5,desc:'終戦：+5/+5を得る。'},
+];
+
+function makeGlobalPanel(idOrName){
+  const def=GLOBAL_PANEL_POOL.find(p=>p.id===idOrName||p.name===idOrName);
+  if(!def) return null;
+  const c=clone(def);
+  c.type='global-panel';
+  c.kind='panel';
+  c.equip=true;
+  c.noRewardUse=true;
+  c._buyPrice=calcBuyPrice(c);
+  return c;
+}
+
+function hasGlobalPanel(id){
+  return !!(G.globalPanels||[]).some(p=>p&&p.id===id);
+}
+
+function drawGlobalPanel(){
+  const owned=new Set((G.globalPanels||[]).filter(Boolean).map(p=>p.id));
+  const pool=GLOBAL_PANEL_POOL.filter(p=>!owned.has(p.id)&&(!p.requires||owned.has(p.requires)||Math.random()<0.18));
+  if(!pool.length) return null;
+  const weighted=[];
+  pool.forEach(p=>{
+    let w=Math.max(1,7-(p.rarity||1));
+    if(p.requires&&!owned.has(p.requires)) w=1;
+    for(let i=0;i<w;i++) weighted.push(p);
+  });
+  return makeGlobalPanel(randFrom(weighted).id);
+}
+
+function _globalKnowledgeLevel(kind){
+  const panels=(G.globalPanels||[]).filter(Boolean);
+  const prefix=kind==='武術'?'gp_martial_':kind==='魔術'?'gp_magic_':kind==='神術'?'gp_divine_':'';
+  let lv=0;
+  panels.forEach(p=>{
+    if(prefix&&p.id&&p.id.startsWith(prefix)) lv=Math.max(lv,p.grade||1);
+    if(p.id==='gp_master'&&(kind==='武術'||kind==='魔術'||kind==='神術')) lv=Math.max(lv,4);
+  });
+  return lv;
+}
+
+function _panelDiscipline(card){
+  const s=String(card?.category||card?.classification||card?.discipline||card?.分類||'');
+  if(s.includes('武術')) return '武術';
+  if(s.includes('魔術')) return '魔術';
+  if(s.includes('神術')) return '神術';
+  return '';
+}
+
+function _applyGlobalKnowledgeWeight(pool){
+  const out=[];
+  pool.forEach(card=>{
+    out.push(card);
+    const kind=_panelDiscipline(card);
+    const lv=kind?_globalKnowledgeLevel(kind):0;
+    if(lv>0&&(card.grade||1)<=lv+1){
+      for(let i=0;i<lv;i++) out.push(card);
+    }
+  });
+  return out;
 }
 
 // 売却払い戻し
@@ -111,29 +232,7 @@ function getRingPool(){
 }
 
 function drawEquipment(n=1, maxGrade){
-  const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
-  const seen=G._seenRarity3||new Set();
-  const pool=RING_POOL.filter(r=>{
-    if(!r||!r.id||r.starterOnly) return false;
-    if(r.rarity===-1) return false;
-    if((r.grade||1)>targetGrade) return false;
-    if(r.legend&&G._seenLegendRings&&G._seenLegendRings.has(r.id)) return false;
-    if(r.rarity===3&&seen.has(r.id)) return false;
-    return true;
-  });
-  const res=[];
-  while(res.length<n&&pool.length>0){
-    const i=Math.floor(Math.random()*pool.length);
-    const c=clone(pool.splice(i,1)[0]);
-    c.type='ring';
-    c.kind='equipment';
-    c.equip=true;
-    c.noRewardUse=true;
-    c._buyPrice=calcBuyPrice(c);
-    if(c.rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
-    res.push(c);
-  }
-  return res;
+  return drawPanel(n, maxGrade);
 }
 
 // ── キャラクタープールから N 体抽選 ────────────────
@@ -205,36 +304,13 @@ function drawCharacters(n){
 // ── アイテムプールから N 個抽選 ─────────────────
 
 function drawItems(n, maxGrade){
-  const effectiveMax=maxGrade!=null?maxGrade:(G.rewardGrade||1);
-  const pool=[];
-  SPELL_POOL.forEach(s=>{
-    if(!s.id||s.starterOnly) return;
-    if(s.rarity===-1) return;
-    if(s.rarity===4) return; // rarity4は洞窟ボーナス専用
-    if((s.grade||1)>effectiveMax) return; // グレード上限フィルタ
-    if(s.unique&&G.seenWands&&G.seenWands.includes(s.id)) return;
-    if(s.rarity===3&&G._seenRarity3&&G._seenRarity3.has(s.id)) return;
-    const c=clone(s);
-    if(c.type==='wand'){
-      const uses=c.baseUses||(c.baseUsesRange?randi(c.baseUsesRange[0],c.baseUsesRange[1]):randUses());
-      c.usesLeft=uses; c._maxUses=uses;
-    }
-    c._buyPrice=calcBuyPrice(c);
-    pool.push(c);
-  });
-  const res=[];
-  let t=0;
-  while(res.length<n&&pool.length>0&&t++<300){
-    const i=Math.floor(Math.random()*pool.length);
-    res.push(pool.splice(i,1)[0]);
-  }
-  res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
-  return res;
+  return drawPanel(n, maxGrade);
 }
 
 // ── 報酬 5 枚（キャラ3体 + 杖1 + アイテム1）──────
 
 function _drawByType(type, n, maxGrade){
+  return drawPanel(n, maxGrade);
   if(isExperimentalAppearanceMode()&&maxGrade==null){
     const pool=SPELL_POOL.filter(s=>{
       if(!s.id||s.starterOnly) return false;
@@ -271,7 +347,12 @@ function _drawByType(type, n, maxGrade){
     pool.push(c);
   });
   const res=[];
-  while(res.length<n&&pool.length>0){ const i=Math.floor(Math.random()*pool.length); res.push(pool.splice(i,1)[0]); }
+  while(res.length<n&&pool.length>0){
+    const weighted=_applyGlobalKnowledgeWeight(pool);
+    const picked=randFrom(weighted);
+    const i=pool.indexOf(picked);
+    res.push(pool.splice(i>=0?i:Math.floor(Math.random()*pool.length),1)[0]);
+  }
   res.forEach(c=>{ if(c.unique&&!G.seenWands.includes(c.id)) G.seenWands.push(c.id); if(c.rarity===3&&G._seenRarity3&&!G._seenRarity3.has(c.id)) G._seenRarity3.add(c.id); });
   return res;
 }
@@ -285,33 +366,10 @@ function _rollRarity(weights){
 
 // rarityWeights: e.g. {1:60,2:30,3:10} / typeWeights: e.g. {wand:40,consumable:40,ring:20}
 function drawTreasure(rarityWeights, typeWeights, maxGrade){
-  const rarity=Math.min(_rollRarity(rarityWeights), maxGrade||4);
-  const wv=typeWeights.wand||0, cv=typeWeights.consumable||0;
-  const roll=Math.random()*100;
-  const type=roll<wv?'wand':roll<wv+cv?'consumable':'ring';
-
-  const _seen3=G._seenRarity3||new Set();
-  let pool, c;
-  if(type==='ring'){
-    const _mgr=maxGrade||4;
-    pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&(r.rarity||1)===rarity&&!(r.rarity===3&&_seen3.has(r.id)));
-    if(!pool.length) pool=RING_POOL.filter(r=>!r.starterOnly&&r.rarity!==-1&&(r.grade||1)<=_mgr&&!(r.rarity===3&&_seen3.has(r.id)));
-    if(!pool.length) return null;
-    c=clone(randFrom(pool));
-    c.grade=maxGrade;
-    c.type='ring';
-  } else {
-    const _mg=maxGrade||4;
-    pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&(s.rarity||1)===rarity&&!(s.rarity===3&&_seen3.has(s.id)));
-    if(!pool.length) pool=SPELL_POOL.filter(s=>!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&s.type===type&&(s.grade||1)<=_mg&&!(s.rarity===3&&_seen3.has(s.id)));
-    if(!pool.length) return null;
-    c=clone(randFrom(pool));
-    if(c.type==='wand'){ const uses=c.baseUses||4; c.usesLeft=uses; c._maxUses=uses; }
-  }
-  c._rarity=rarity;
-  c._buyPrice=0; // 宝箱の中身は全て無料（指輪含む）
+  const c=drawPanel(1, maxGrade||4)[0]||null;
+  if(!c) return null;
+  c._buyPrice=0;
   c._isTreasure=true;
-  if(rarity===3&&G._seenRarity3) G._seenRarity3.add(c.id);
   return c;
 }
 
@@ -363,16 +421,9 @@ function drawRewards(n){
   const appraiser=G.allies&&G.allies.some(a=>a&&a.hp>0&&typeof unitHasEquip==='function'&&unitHasEquip(a,'equip_appraiser'));
   const baseGrade=G.rewardGrade||1;
   const boostGrade=Math.min(5,baseGrade+1);
-  const equip=drawEquipment(1)[0]||null;
-  const wand=_drawByType('wand',1,appraiser?boostGrade:undefined)[0]||null;
-  const item=_drawByType('consumable',1)[0]||null;
-  const res=[];
-  if(equip) res.push(equip);
-  if(wand) res.push(wand);
-  if(item) res.push(item);
+  const res=drawPanel(3, appraiser?boostGrade:undefined);
   if(G._nextRewardUniqueSlot){
     G._nextRewardUniqueSlot=false;
-    _applyUniqueSlot(res);
   }
   return res;
 }
@@ -393,26 +444,11 @@ function drawCharacterOfGrade(grade){
 // ── 消耗品のみ抽選（休息所・インプ用）──────────────
 
 function drawConsumable(maxGrade){
-  const _mg=maxGrade!=null?maxGrade:99;
-  const pool=SPELL_POOL.filter(s=>s.type==='consumable'&&!s.starterOnly&&s.rarity!==-1&&s.rarity!==4&&(s.grade||1)<=_mg);
-  if(!pool.length) return null;
-  const c=clone(randFrom(pool));
-  c._buyPrice=calcBuyPrice(c);
-  return c;
+  return drawPanel(1, maxGrade!=null?maxGrade:99)[0]||null;
 }
 
 // ── ユニーク指輪（エリート撃破報酬）─────────────────
 
 function drawUniqueRing(){
-  const seen=G._seenLegendRings||new Set();
-  const pool=RING_POOL.filter(r=>r.legend&&!seen.has(r.id));
-  if(!pool.length){
-    // ユニーク指輪が残っていない場合は5ゴールド付与
-    G.gold+=5; updateHUD();
-    log('ユニーク指輪が残っていません。ゴールド+5','gold');
-    return null;
-  }
-  const c=clone(randFrom(pool));
-  c._buyPrice=0;
-  return c;
+  return typeof drawGlobalPanel==='function'?drawGlobalPanel():drawPanel(1,99)[0]||null;
 }

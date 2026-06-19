@@ -16,6 +16,7 @@ const Assets = {
     ringFrame: 'assets/temp/cards/ring_frame.png',
     wandFrame: 'assets/temp/cards/wand_frame.png',
     itemFrame: 'assets/temp/cards/item_frame.png',
+    weaponFrame: 'assets/temp/cards/weapon_frame.png',
     gradeStar: 'assets/temp/cards/grade_star.png',
     characterMask: 'assets/temp/cards/ch_mask.png',
     wandSheet: 'assets/temp/cards/wand_sheet.png',
@@ -92,7 +93,26 @@ const SpellArtMap = {
   '転移の短杖': 'assets/temp/cards/wands/teleportation.png',
 };
 
+const PanelArtMap = {
+  'ミラ': 'assets/temp/cards/panels/generated/mira.png',
+  'アトラ': 'assets/temp/cards/panels/generated/atora.png',
+  'アドラ': 'assets/temp/cards/panels/generated/atora.png',
+  '武術の知識': 'assets/temp/cards/panels/generated/martial_knowledge.png',
+  '魔術の知識': 'assets/temp/cards/panels/generated/magic_knowledge.png',
+  '神術の知識': 'assets/temp/cards/panels/generated/divine_knowledge.png',
+  '戦技マスター': 'assets/temp/cards/panels/generated/master_knowledge.png',
+  '修練': 'assets/temp/cards/panels/generated/training.png',
+  '吸血': 'assets/temp/cards/panels/generated/vampire.png',
+  '隠密': 'assets/temp/cards/panels/generated/stealth.png',
+  '反撃': 'assets/temp/cards/panels/generated/counter.png',
+  'パンチ': 'assets/temp/cards/panels/generated/punch.png',
+  '噛みつき': 'assets/temp/cards/panels/generated/bite.png',
+};
+
 const CharacterArtOverrideMap = {
+  'ミラ': {path:'assets/temp/cards/panels/generated/mira.png'},
+  'アトラ': {path:'assets/temp/cards/panels/generated/atora.png'},
+  'アドラ': {path:'assets/temp/cards/panels/generated/atora.png'},
   '戦士': {path:'assets/temp/cards/characters/crops/new_starters/starter_warrior.png'},
   '魔術師': {path:'assets/temp/cards/characters/crops/new_starters/starter_mage.png'},
   '神官': {path:'assets/temp/cards/characters/crops/new_starters/starter_priest.png'},
@@ -282,7 +302,10 @@ function getStageBackgroundKey(floor){
 
 function getCardAsset(card){
   if(!card) return Assets.cards.default;
+  const panelArt=getPanelArtPath(card);
+  if(panelArt) return panelArt;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.character;
+  if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return Assets.cards.consumable;
   if(card.type==='wand') return Assets.cards.wand;
   if(card.type==='consumable') return Assets.cards.consumable;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ring;
@@ -292,6 +315,11 @@ function getCardAsset(card){
 function getCardFrameAsset(card){
   if(!card) return Assets.cards.default;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
+  if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;
+  if(card.type==='panel'||card.kind==='panel'||card.panelScope){
+    return String(card.category||'').includes('パッシブ')?Assets.cards.ringFrame:(Assets.cards.weaponFrame||Assets.cards.itemFrame);
+  }
+  if(card.fixedAttack||card.fixedEquip) return Assets.cards.weaponFrame||Assets.cards.itemFrame;
   if(card.type==='wand') return Assets.cards.wandFrame;
   if(card.type==='consumable') return Assets.cards.itemFrame;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ringFrame;
@@ -324,6 +352,25 @@ function applySpellArtVars(el, card, prefix){
   const p=prefix||'--card';
   el.style.setProperty(`${p}-art`, assetUrl(path));
   el.style.setProperty(`${p}-art-size`, 'cover');
+  el.style.setProperty(`${p}-art-position`, 'center 58%');
+  return true;
+}
+
+function getPanelArtPath(card){
+  const name=card?.name||'';
+  if(!name) return '';
+  if(PanelArtMap[name]) return PanelArtMap[name];
+  const key=Object.keys(PanelArtMap).find(k=>name.includes(k));
+  return key?PanelArtMap[key]:'';
+}
+
+function applyPanelArtVars(el, card, prefix){
+  if(!el||!card) return false;
+  const path=getPanelArtPath(card);
+  if(!path) return false;
+  const p=prefix||'--card';
+  el.style.setProperty(`${p}-art`, assetUrl(path));
+  el.style.setProperty(`${p}-art-size`, 'cover');
   el.style.setProperty(`${p}-art-position`, 'center top');
   return true;
 }
@@ -331,7 +378,7 @@ function applySpellArtVars(el, card, prefix){
 function applyCardVisual(el, card){
   if(!el) return;
   el.style.setProperty('--card-frame', assetUrl(getCardFrameAsset(card)));
-  if(!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
+  if(!applyPanelArtVars(el, card, '--card')&&!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
     el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
     el.style.removeProperty('--card-art-size');
     el.style.removeProperty('--card-art-position');
@@ -350,7 +397,7 @@ function applyUnitVisual(el, unit){
 }
 
 function gradeIconHtml(g){
-  const n=Math.min(Math.max(Number(g)||1,1),typeof MAX_GRADE!=='undefined'?MAX_GRADE:5);
+  const n=1;
   return `<span class="grade-stars grade-stars-${n}" aria-label="G${n}">${Array.from({length:n},(_,i)=>`<span class="grade-star grade-star-${i+1}"></span>`).join('')}</span>`;
 }
 

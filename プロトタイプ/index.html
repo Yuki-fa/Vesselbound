@@ -2303,23 +2303,23 @@ body:not(.world-map-active) #log-wrap{
   grid-template-columns:repeat(5,var(--item-card-w))!important;
 }
 #enemy-hand-slots.shop-sale-hand{
-  grid-template-columns:repeat(9,280px)!important;
+  grid-template-columns:repeat(9,var(--hand-card-w))!important;
   justify-content:center!important;
   gap:18px!important;
 }
 #enemy-hand-slots.shop-sale-hand .card,
 #enemy-hand-slots.shop-sale-hand .card-empty{
-  width:280px!important;
-  min-width:280px!important;
-  max-width:280px!important;
-  height:422px!important;
-  min-height:422px!important;
-  max-height:422px!important;
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
 }
 .shop-equipment-row{
   width:auto!important;
   display:grid!important;
-  grid-template-columns:repeat(7,280px)!important;
+  grid-template-columns:repeat(7,var(--hand-card-w))!important;
   justify-content:center!important;
   align-items:start!important;
   gap:18px!important;
@@ -2328,12 +2328,12 @@ body:not(.world-map-active) #log-wrap{
 .shop-equipment-row .rew-card,
 .shop-equipment-row .card,
 .shop-equipment-row .card-empty{
-  width:280px!important;
-  min-width:280px!important;
-  max-width:280px!important;
-  height:422px!important;
-  min-height:422px!important;
-  max-height:422px!important;
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
 }
 #victory-overlay{
   background:transparent!important;
@@ -2396,13 +2396,13 @@ body #hand-pane,
 body.world-map-active #hand-pane,
 body.victory-reward-active #hand-pane{
   position:absolute!important;
-  left:742px!important;
+  left:50%!important;
   right:auto!important;
   top:auto!important;
   bottom:62px!important;
   width:2208px!important;
   height:452px!important;
-  transform:none!important;
+  transform:translateX(-50%)!important;
   overflow:visible!important;
   z-index:70!important;
 }
@@ -2411,7 +2411,7 @@ body.world-map-active #hand-slots,
 body.victory-reward-active #hand-slots{
   display:grid!important;
   grid-template-columns:repeat(7,var(--hand-card-w))!important;
-  justify-content:start!important;
+  justify-content:center!important;
   align-items:start!important;
   gap:14px!important;
   height:var(--hand-card-h)!important;
@@ -2426,6 +2426,23 @@ body #hand-slots .card-empty{
   min-height:var(--hand-card-h)!important;
   max-height:var(--hand-card-h)!important;
 }
+body #rw-cards .rew-card,
+body #rw-cards .card,
+body #rw-cards .map-choice-reward-card,
+body #enemy-hand-slots.shop-sale-hand .card,
+body #enemy-hand-slots.shop-sale-hand .card-empty,
+body .shop-equipment-row .rew-card,
+body .shop-equipment-row .card,
+body .shop-equipment-row .card-empty{
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
+  flex:0 0 var(--hand-card-w)!important;
+  aspect-ratio:auto!important;
+}
 body #hand-slots .card-empty.equip-empty{
   opacity:1!important;
   background:rgba(0,0,0,.36)!important;
@@ -2437,7 +2454,8 @@ body #hand-slots .card-empty.equip-empty.equip-slot-ring{
   border-color:rgba(70,40,104,.98)!important;
   box-shadow:inset 0 0 0 2px rgba(168,112,214,.24),0 0 12px rgba(38,16,64,.55)!important;
 }
-body #hand-slots .card.equip-slot-hand{
+body #hand-slots .card.equip-slot-fixed,
+body #hand-slots .card.equip-slot-item{
   border-color:rgba(0,0,0,.9)!important;
 }
 body #hand-slots .card.equip-slot-ring{
@@ -2864,12 +2882,13 @@ body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel[hidden]{
 }
 body .card.dragging .card-name,
 body .card.drag-ghost .card-name{
-  transform:translateY(-23px)!important;
+  transform:none!important;
   margin-top:58%!important;
   font-size:.88rem!important;
 }
 body .card.dragging .card-desc,
 body .card.drag-ghost .card-desc{
+  transform:none!important;
   margin-top:8%!important;
   font-size:.72rem!important;
   line-height:1.16!important;
@@ -2996,6 +3015,32 @@ body .slot.unit-card.is-defender.drag-over{
   translate:0 0!important;
   outline:0!important;
   box-shadow:none!important;
+}
+body.card-targeting-active #scr-battle.asset-backed .battle-area::after{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:1!important;
+  pointer-events:none!important;
+  background:rgba(0,0,0,.36)!important;
+}
+body.card-targeting-active #scr-battle.asset-backed #enemy-area,
+body.card-targeting-active #scr-battle.asset-backed #ally-section,
+body.card-targeting-active #scr-battle.asset-backed .hand-area,
+body.card-targeting-active #scr-battle.asset-backed #log-wrap,
+body.card-targeting-active #scr-battle.asset-backed #reward-cards-section{
+  z-index:12!important;
+}
+body #hand-slots .card.selected{
+  filter:drop-shadow(0 0 14px rgba(255,255,255,.92)) drop-shadow(0 0 28px rgba(255,232,170,.8))!important;
+  z-index:30!important;
+}
+body #rw-cards .pending-placement,
+body #enemy-hand-slots .pending-placement,
+body .shop-equipment-row .pending-placement{
+  filter:drop-shadow(0 0 14px rgba(255,255,255,.94)) drop-shadow(0 0 30px rgba(255,232,170,.86))!important;
+  outline:2px solid rgba(255,232,170,.9)!important;
+  z-index:40!important;
 }
 </style>
 </head>
@@ -3286,27 +3331,28 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=starterart1"></script>
+<script src="assets.js?v=panel-frame-cost1"></script>
 <script src="js/engine/audio.js"></script>
 <script src="js/engine/constants.js"></script>
 <script src="js/data/floors.js"></script>
 <script src="js/data/events.js"></script>
 <script src="js/data/rings.js"></script>
 <script src="js/data/spells.js"></script>
-<script src="js/data/loader.js?v=877ca82"></script>
-<script src="js/data/units.js?v=starters1"></script>
-<script src="js/engine/state.js?v=starters1"></script>
-<script src="js/engine/pool.js?v=rewarditems2"></script>
-<script src="js/engine/enemy.js?v=a57ddc5"></script>
-<script src="js/engine/summon.js"></script>
-<script src="js/engine/battle.js?v=mutualdmg1"></script>
-<script src="js/engine/render.js?v=hpdamaged1"></script>
-<script src="js/engine/spell.js?v=mapfix1"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="js/data/loader.js?v=sheet-battle1"></script>
+<script src="js/data/units.js?v=sheet-battle1"></script>
+<script src="js/engine/state.js?v=initial-heal-panel1"></script>
+<script src="js/engine/pool.js?v=initial-heal-panel1"></script>
+<script src="js/engine/enemy.js?v=sheet-battle1"></script>
+<script src="js/engine/summon.js?v=sheet-battle1"></script>
+<script src="js/engine/battle.js?v=initial-heal-panel1"></script>
+<script src="js/engine/render.js?v=panel-select-state1"></script>
+<script src="js/engine/spell.js?v=panel-select-state1"></script>
 <script src="js/engine/arcana.js"></script>
-<script src="js/engine/reward.js?v=hpdamaged1"></script>
-<script src="js/engine/shop.js?v=shopcamp1"></script>
-<script src="js/engine/move.js?v=victoryfix4"></script>
-<script src="js/engine/event.js"></script>
-<script src="js/engine/main.js?v=mapfix1"></script>
+<script src="js/engine/reward.js?v=panel-place-lock1"></script>
+<script src="js/engine/shop.js?v=panel-place-lock1"></script>
+<script src="js/engine/move.js?v=panel-select-state1"></script>
+<script src="js/engine/event.js?v=panel-place-lock1"></script>
+<script src="js/engine/main.js?v=panel-select-state1"></script>
 </body>
 </html>

@@ -11,7 +11,14 @@ function showEvent(name,desc,result){
   document.getElementById('ev-result').textContent=result;
   showScreen('event');
 }
-function eventDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
+function eventDone(){
+  if(G._pendingPanelPlacement){
+    log('パネルの配置先を選んでください','bad');
+    return;
+  }
+  renderMoveSelect([{nodeType:'battle',idx:-1}]);
+  showScreen('move');
+}
 
 // ── 祭壇（smithy）────────────────────────────────
 

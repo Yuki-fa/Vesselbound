@@ -107,6 +107,21 @@ function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
   if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [{id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'亜人'}]; }
   const isBoss=!!fd.boss;
+  const sheetPool=ENEMY_POOL.filter(e=>e&&e._sheetEnemy&&((e.spawnTurn||1)<=floor||e.spawnTurn===999&&isBoss));
+  if(sheetPool.length){
+    const count=Math.min(3, sheetPool.length);
+    const enemies=[];
+    for(let i=0;i<count;i++){
+      const def=sheetPool[i%sheetPool.length];
+      const atk=randi(def.baseAtk?.[0]||def.atk||1, def.baseAtk?.[1]||def.atk||1);
+      const hp=randi(def.baseHp?.[0]||def.hp||2, def.baseHp?.[1]||def.hp||2);
+      const e=_mkEnemy(atk,hp,def.name,def.icon||'❓',def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      _applyEnemyDefAbilities(e,def);
+      e.lane='front';
+      enemies.push(e);
+    }
+    return enemies;
+  }
 
   // 1階は固定敵パターンを使用（出現敵は限定リストから）
   if(floor===1&&!isBoss){

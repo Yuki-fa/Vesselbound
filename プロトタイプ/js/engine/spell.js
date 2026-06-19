@@ -8,6 +8,24 @@ let _swapFirst=-1;
 let _spreadTargetPending=false;
 let _spreadPick=null;
 
+function _setTargetOverlay(on){
+  document.body.classList.toggle('card-targeting-active',!!on);
+}
+function _clearSelectedEquipCard(){
+  G._selectedEquipCardIdx=null;
+}
+function _rearmSelectedEquipCard(){
+  if(G.phase!=='player') return false;
+  const idx=G._selectedEquipCardIdx;
+  if(idx==null||idx<0) return false;
+  const unit=G.allies?.[G._selectedEquipUnitIdx];
+  const card=unit&&unit.equipment&&unit.equipment[idx];
+  if(!unit||unit.hp<=0||!card) return false;
+  if(card.fixedAttack) return useFixedEquipCard(idx);
+  if(!card.fixedEquip&&!isEquipmentCard(card)) return useUnitEquipCard(idx);
+  return false;
+}
+
 function useSpell(idx){
   if(_spreadTargetPending) return; // 拡散の対象選択中は他の杖使用を禁止
   if(G._isShop){ setHint('ショップ内では使用できません'); return; }
@@ -15,12 +33,14 @@ function useSpell(idx){
   if(!sp) return;
   const inMap=G.phase==='map';
   const inReward=G.phase==='reward';
+  const actionCost=sp.actionCost==null?1:Math.max(0,sp.actionCost);
+  if(G.phase==='player'&&typeof canSelectedManualAllyAct==='function'&&!canSelectedManualAllyAct()) return;
   if(inMap&&(sp.needsEnemy||sp.effect==='charm'||sp.effect==='swap_pos')){
     setHint('マップ上では対象の敵がいません');
     return;
   }
   if(sp.type==='wand'&&sp.usesLeft<=0) return;
-  if(G.actionsLeft<=0&&!inMap&&!inReward&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
+  if(G.actionsLeft<actionCost&&!inMap&&!inReward&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return;
   if(typeof playCardUseVfx==='function') playCardUseVfx(idx);
   if(sp.effect==='swap_pos'){ startSwapPick(idx); return; }
   if(sp.effect==='charm'){ pickTargetCharm(idx); return; }
@@ -28,6 +48,69 @@ function useSpell(idx){
   else if(sp.needsEnemy) pickTarget('enemy',idx,true); // 加護チェックあり
   else if(sp.needsAny) pickTargetAny(idx);
   else applySpell(sp,idx,null);
+}
+
+function useDraggedSpellOnTarget(idx,who,targetIdx){
+  const sp=G.spells[idx];
+  if(!sp) return false;
+  const actionCost=sp.actionCost==null?1:Math.max(0,sp.actionCost);
+  if(G.phase==='player'&&typeof canSelectedManualAllyAct==='function'&&!canSelectedManualAllyAct()) return false;
+  if(G.phase==='player'&&G.actionsLeft<actionCost&&!G._debugMode&&!canUseGremlinFreeItem(sp)) return false;
+  if(sp.effect==='swap_pos'||sp.effect==='charm') return false;
+  if(sp.needsEnemy&&who!=='enemy') return false;
+  if(sp.needsAlly&&who!=='ally') return false;
+  if(sp.needsAny&&who!=='ally'&&who!=='enemy') return false;
+  if(!sp.needsEnemy&&!sp.needsAlly&&!sp.needsAny) return false;
+  const units=who==='ally'?G.allies:G.enemies;
+  const u=units[targetIdx];
+  if(!u||u.hp<=0) return false;
+  if(who==='enemy'&&sp.needsEnemy&&u.keywords&&u.keywords.includes('加護')) return false;
+  clearSelectable();
+  applySpell(sp,idx,{who,idx:targetIdx});
+  return true;
+}
+
+function _restoreUnitEquipSpellSource(){
+  if(G._unitEquipSpellRestore){
+    G.spells=G._unitEquipSpellRestore;
+    G._unitEquipSpellRestore=null;
+  }
+}
+function useUnitEquipCard(equipIdx){
+  const unit=G.allies?.[G._selectedEquipUnitIdx];
+  const card=unit&&unit.equipment&&unit.equipment[equipIdx];
+  if(!unit||unit.hp<=0||!card||card.fixedEquip||isEquipmentCard(card)) return false;
+  G._selectedEquipCardIdx=equipIdx;
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  const prev=G.spells;
+  G.spells=unit.equipment;
+  G._unitEquipSpellRestore=prev;
+  useSpell(equipIdx);
+  if(!_tgtCtx&&!_spreadTargetPending&&!document.querySelector('.selectable')) _restoreUnitEquipSpellSource();
+  return true;
+}
+function useFixedEquipCard(equipIdx){
+  const unitIdx=G._selectedEquipUnitIdx;
+  const unit=G.allies?.[unitIdx];
+  const card=unit&&unit.equipment&&unit.equipment[equipIdx];
+  if(G.phase!=='player'||!unit||unit.hp<=0||!card||!card.fixedAttack) return false;
+  if((G.actionsLeft||0)<1){ setHint('行動力が足りません'); return false; }
+  G._selectedEquipCardIdx=equipIdx;
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  clearSelectable();
+  setHint(`${unit.name}：対象を選択`);
+  _getEnemyDomSlots().forEach((slot,i)=>{
+    const enemy=G.enemies[i];
+    if(slot.classList.contains('has-move')) return;
+    if(!enemy||enemy.hp<=0) return;
+    slot.classList.add('selectable');
+    slot.onclick=()=>{
+      clearSelectable();
+      useFixedEquipOnEnemy(unitIdx,equipIdx,i);
+    };
+  });
+  _addCancelListeners();
+  return true;
 }
 
 // 転移の杖：2体選択UI（味方-味方 または 敵-敵）
@@ -98,10 +181,11 @@ function pickTargetAny(idx){
   } else {
     // 戦闘中：敵を選択肢に追加
     _getEnemyDomSlots().forEach((slot,i)=>{
-      if(G.enemies[i]&&G.enemies[i].hp>0&&!slot.classList.contains('has-move')){
-        slot.classList.add('selectable');
-        slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'enemy',idx:i}); };
-      }
+      if(slot.classList.contains('has-move')) return;
+      const u=G.enemies[i];
+      if(!u||u.hp<=0) return;
+      slot.classList.add('selectable');
+      slot.onclick=()=>{ clearSelectable(); applySpell(G.spells[idx],idx,{who:'enemy',idx:i}); };
     });
   }
   _addCancelListeners();
@@ -169,6 +253,7 @@ function pickTargetCharm(idx){
 }
 
 function _cancelPick(){
+  _clearSelectedEquipCard();
   document.removeEventListener('keydown',_cancelPickKD);
   document.removeEventListener('contextmenu',_cancelPickCM);
   _tgtCtx=null;
@@ -180,12 +265,14 @@ function _cancelPick(){
     if(typeof renderMapInventorySlots==='function') renderMapInventorySlots();
     if(typeof renderHandEditor==='function') renderHandEditor();
   }
+  _restoreUnitEquipSpellSource();
   if(G.phase==='reward'){ renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderMoveSlotsInEnemy(); setHint('報酬を獲得してください'); }
   else { renderHand(); setHint('行動を終えたらターン終了してください。'); }
 }
 function _cancelPickKD(e){ if(e.key==='Escape') _cancelPick(); }
 function _cancelPickCM(e){ e.preventDefault(); _cancelPick(); }
 function _addCancelListeners(){
+  _setTargetOverlay(true);
   document.removeEventListener('keydown',_cancelPickKD);
   document.removeEventListener('contextmenu',_cancelPickCM);
   document.addEventListener('keydown',_cancelPickKD);
@@ -193,6 +280,7 @@ function _addCancelListeners(){
 }
 // 拡散専用キャンセル（_spreadTargetPending もリセット）
 function _cancelSpread(){
+  _clearSelectedEquipCard();
   document.removeEventListener('keydown',_cancelSpreadKD);
   document.removeEventListener('contextmenu',_cancelSpreadCM);
   clearSelectable(); _spreadTargetPending=false; _spreadPick=null;
@@ -205,6 +293,7 @@ function _cancelSpread(){
 function _cancelSpreadKD(e){ if(e.key==='Escape') _cancelSpread(); }
 function _cancelSpreadCM(e){ e.preventDefault(); _cancelSpread(); }
 function _addSpreadCancelListeners(){
+  _setTargetOverlay(true);
   document.removeEventListener('keydown',_cancelSpreadKD);
   document.removeEventListener('contextmenu',_cancelSpreadCM);
   document.addEventListener('keydown',_cancelSpreadKD);
@@ -251,6 +340,7 @@ function _pickForSpread(rw,rightIdx){
 }
 
 function clearSelectable(){
+  _setTargetOverlay(false);
   document.removeEventListener('keydown',_cancelPickKD);
   document.removeEventListener('contextmenu',_cancelPickCM);
   document.removeEventListener('keydown',_cancelSpreadKD);
@@ -273,6 +363,7 @@ function finishTargetSelection(hintText){
     if(typeof renderMapInventorySlots==='function') renderMapInventorySlots();
     if(typeof renderHandEditor==='function') renderHandEditor();
   }
+  _restoreUnitEquipSpellSource();
 }
 
 function _addCoveringLaneDrop(slot,i,onclickFn){ /* no-op */ }
@@ -283,8 +374,13 @@ function _isWandUseCard(sp){
 
 function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   clearSelectable();
+  if(tgt&&tgt.who==='enemy'&&(!G.enemies[tgt.idx]||G.enemies[tgt.idx].hp<=0)){
+    finishTargetSelection('対象がありません');
+    return;
+  }
   log(`→ ${sp.name} を使用`,'em');
   if(typeof playSpellSfx==='function') playSpellSfx(sp);
+  const actionCost=sp.actionCost==null?1:Math.max(0,sp.actionCost);
 
   // 触媒の指輪：杖の効果が2倍
   const catRingC=G.rings.find(r=>r&&r.unique==='catalyst_ring');
@@ -823,7 +919,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       G._freeItemUsed=true;
       log('グレムリン：このフェイズ最初のアイテムは行動力を消費しない','good');
     } else {
-      G.actionsLeft--;
+      G.actionsLeft-=actionCost;
     }
     if(G._debugMode) G.actionsLeft=G.actionsPerTurn;
   }
@@ -861,6 +957,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
   }
   syncHarpyAtk(); // magic_book等で魔術レベルが変化した場合にATKを更新
   renderAll();
+  _restoreUnitEquipSpellSource();
   if(_inMap){
     if(G._inventorySpellRestore){
       G.spells=G._inventorySpellRestore;
@@ -882,11 +979,15 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
     return;
   }
   if(_spreadPick){ _spreadPick(); return; } // 拡散対象選択：renderAll後にピッカー起動
+  if(G.phase==='player'&&typeof markSelectedManualAllyActed==='function'&&!_suppressWandTriggers){
+    markSelectedManualAllyActed();
+    renderAll();
+  }
   const hasUsable=G.spells.some(s=>s&&(s.type==='consumable'||(s.type==='wand'&&(s.usesLeft===undefined||s.usesLeft>0))));
   if(G.actionsLeft<=0&&!G._debugMode&&!canUseGremlinFreeItem()){
-    setHint('行動力を使い切りました。ターン終了を押すと自動戦闘に入ります。');
+    setHint('行動力を使い切りました。ターン終了を押すと敵のターンに入ります。');
   } else if(!hasUsable&&!G._debugMode){
-    setHint('使用できる魔法がありません。ターン終了を押すと自動戦闘に入ります。');
+    setHint('使用できる魔法がありません。ターン終了を押すと敵のターンに入ります。');
   } else {
     setHint('あと'+G.actionsLeft+'回行動できます');
   }

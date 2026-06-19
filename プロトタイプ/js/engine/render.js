@@ -67,7 +67,12 @@ function effectiveStats(ring){
 
 // 味方・敵の全6スロット DOM 要素を配列で返す（lane 対応・ピッカー用）
 function _getAllyDomSlots(){
-  return [...(document.getElementById('f-ally')?.querySelectorAll('.slot')||[])];
+  const arr=[];
+  [...(document.getElementById('f-ally')?.querySelectorAll('.slot')||[])].forEach((slot,pos)=>{
+    const idx=slot.dataset&&slot.dataset.unitIdx!=null?parseInt(slot.dataset.unitIdx,10):pos;
+    arr[idx]=slot;
+  });
+  return arr;
 }
 function _getEnemyDomSlots(){
   return [...(document.getElementById('f-enemy')?.querySelectorAll('.slot')||[])];
@@ -129,11 +134,10 @@ function hideAttackLine(){
 }
 
 function renderAll(){
-  const _drResult=G.phase==='player'?_computeDeathRisk():_emptyDR;
+  const _drResult=_emptyDR;
   renderField('f-ally',  G.allies,  false, _drResult.allyRisk,  undefined, _drResult.allyWarn, _drResult.allyDeathProb);
   renderField('f-enemy', G.enemies, true,  _drResult.enemyRisk, undefined, _drResult.enemyWarn, _drResult.enemyDeathProb);
   renderHand();
-  if((G.phase==='player'||G.phase==='enemy')&&G._selectedEquipUnitIdx>=0&&typeof renderHandEditor==='function') renderHandEditor();
   renderControls();
   renderArcanaBar();
   renderEnemyHand();
@@ -438,10 +442,15 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0&&!x.u.stealth);
     (hated.length?hated:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
-  for(let i=0;i<6;i++){
-    const u=units[i];
+  const renderIndexes=isEnemy?[0,1,2,3,4,5]:units.map((u,i)=>({u,i})).filter(x=>x.u).map(x=>x.i);
+  el.style.setProperty('grid-template-columns',isEnemy?'repeat(6,var(--unit-card-w))':`repeat(${Math.max(1,renderIndexes.length)},var(--unit-card-w))`,'important');
+  el.style.setProperty('justify-content','center','important');
+  for(const i of renderIndexes){
+    const rawU=units[i];
+    const u=rawU;
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
+    slot.dataset.unitIdx=i;
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(u&&u.hp>0?u.lane:(G.moveMaskLanes?.[i]||'front')):'';
     if(u&&u.hp>0&&((isEnemy&&_slotLane==='front')||(!isEnemy&&u.hate&&u.hateTurns>0))) slot.classList.add('is-defender');
@@ -528,10 +537,66 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       if(u&&!isEnemy){
         slot.onclick=()=>{
           if(G.phase!=='player'&&G.phase!=='enemy') return;
+          if(G._selectedEquipUnitIdx!==i) G._selectedEquipCardIdx=null;
           G._selectedEquipUnitIdx=i;
+          G._showGlobalPanels=false;
           renderAll();
           if(typeof renderHandEditor==='function') renderHandEditor();
         };
+      }
+      if(u&&isEnemy&&u.hp>0&&G.phase==='player'){
+        slot.onclick=()=>{
+          const unitIdx=G._selectedEquipUnitIdx;
+          const equipIdx=G._selectedEquipCardIdx;
+          const ally=G.allies&&G.allies[unitIdx];
+          const card=ally&&ally.equipment&&ally.equipment[equipIdx];
+          if(!ally||ally.hp<=0||equipIdx==null||equipIdx<0||!card) return;
+          if(card.fixedAttack&&typeof useFixedEquipOnEnemy==='function'){
+            useFixedEquipOnEnemy(unitIdx,equipIdx,i);
+            return;
+          }
+          if(!card.fixedEquip&&typeof useDraggedSpellOnTarget==='function'){
+            const prev=G.spells;
+            G.spells=ally.equipment;
+            G._unitEquipSpellRestore=prev;
+            useDraggedSpellOnTarget(equipIdx,'enemy',i);
+            if(typeof _restoreUnitEquipSpellSource==='function') _restoreUnitEquipSpellSource();
+          }
+        };
+      }
+      if(u&&u.hp>0&&G.phase==='player'&&typeof useDraggedSpellOnTarget==='function'){
+        slot.addEventListener('dragover',e=>{
+          if(isEnemy&&window._fixedEquipDrag){
+            e.preventDefault();
+            slot.classList.add('drag-over');
+            return;
+          }
+          const si=window._spellDragIdx;
+          if(si==null) return;
+          const sp=G.spells&&G.spells[si];
+          const who=isEnemy?'enemy':'ally';
+          if(!sp) return;
+          if((sp.needsEnemy&&who!=='enemy')||(sp.needsAlly&&who!=='ally')) return;
+          if(!sp.needsEnemy&&!sp.needsAlly&&!sp.needsAny) return;
+          e.preventDefault();
+          slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+        slot.addEventListener('drop',e=>{
+          if(isEnemy&&window._fixedEquipDrag&&typeof useFixedEquipOnEnemy==='function'){
+            e.preventDefault();
+            slot.classList.remove('drag-over');
+            useFixedEquipOnEnemy(window._fixedEquipDrag.unitIdx, window._fixedEquipDrag.equipIdx, i);
+            window._fixedEquipDrag=null;
+            return;
+          }
+          const si=window._spellDragIdx;
+          if(si==null) return;
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          useDraggedSpellOnTarget(si,isEnemy?'enemy':'ally',i);
+          window._spellDragIdx=null;
+        });
       }
     } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
       const _mvType=G.moveMasks[i];
@@ -563,6 +628,10 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
 }
 
 function renderHand(){
+  if(typeof renderHandEditor==='function'){
+    renderHandEditor();
+    return;
+  }
   renderRingSlots();
   renderHandSlots();
 }
@@ -654,14 +723,15 @@ function renderHandSlots(){
     const sp=G.spells[i];
     if(sp){
       const div=mkCardEl(sp,i,'spell-battle');
-      if((G.phase==='player'||G.phase==='enemy')&&typeof isEquipmentCard==='function'&&isEquipmentCard(sp)) div.classList.add('equip-combat-dim');
       const isWand=sp.type==='wand';
       const hasCharge=sp.usesLeft===undefined||sp.usesLeft>0;
       const inReward=G.phase==='reward';
       const inMap=G.phase==='map';
-      const canUse=(G.phase==='player'||inReward||inMap)&&(isWand?(inReward||inMap?hasCharge:G.actionsLeft>0&&hasCharge):(inReward||inMap||G.actionsLeft>0));
+      const actionCost=sp.actionCost==null?1:Math.max(0,sp.actionCost);
+      const canUse=(G.phase==='player'||inReward||inMap)&&(isWand?(inReward||inMap?hasCharge:G.actionsLeft>=actionCost&&hasCharge):(inReward||inMap||G.actionsLeft>=actionCost));
       if(canUse){ div.classList.remove('inert'); div.onclick=()=>useSpell(i); }
       else       { div.classList.add('inert'); }
+      div.draggable=false;
       div.style.setProperty('--hand-i',i);
       div.style.setProperty('--hand-mid',handMid);
       div.style.setProperty('--hand-arc',handArc);
@@ -679,7 +749,7 @@ function renderHandSlots(){
 
 // グレード表示（G10=★）— reward.js でも参照
 function gradeStr(g){
-  const n=Math.min(Math.max(g||1,1),MAX_GRADE);
+  const n=1;
   return '★'.repeat(n);
 }
 function _circleCost(n){
@@ -788,7 +858,7 @@ function computeDesc(card,_mlOverride){
 }
 
 function mkCardEl(card,_idx,_ctx,_mlOverride){
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム'};
+  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム','global-panel':'全体'};
   const div=document.createElement('div');
   const t=card.type||'ring';
   const _isWandSub=t==='wand'&&card.subtype==='wand';
@@ -814,8 +884,11 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const _dispPrice=card._buyPrice!=null?Math.max(0,card._buyPrice-_ldDiscDisp):null;
   const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
   // 杖のチャージ表示（左上）
+  const isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
+  const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&card.panelScope!=='global'));
   const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
+    :isActionPanel?(card.cost>0?card.cost:1)
     :null;
   const _chargeColorClass=_isWandSub?' wand-sub':'';
   const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${charges}</div>`:'';
@@ -843,6 +916,7 @@ function renderControls(){
   const dbg=document.getElementById('btn-debug-kill');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
+    pp.textContent='ターン終了';
     pp.style.display='';
     if(dbg) dbg.style.display=G._debugMode?'':'none';
   } else if(G.phase==='commander'){
@@ -865,14 +939,8 @@ function setHint(t){ document.getElementById('hint-txt').textContent=t; }
 function renderCommanderWands(){
   const bar=document.getElementById('commander-wands-bar');
   if(!bar) return;
-  // ボス戦・報酬フェイズではenemy-hand-areaが代替表示するため非表示
-  if(typeof _isBossFight!=='undefined'&&_isBossFight){ bar.style.display='none'; return; }
-  if(G.phase==='reward'){ bar.style.display='none'; return; }
-  const wands=G.commanderWands||[];
-  if(!wands.length){ bar.style.display='none'; return; }
-  bar.style.display='';
-  bar.innerHTML='<span style="opacity:.6;font-size:.58rem;margin-right:4px">敵の杖：</span>'
-    +wands.map(w=>`<span style="background:rgba(80,120,200,.18);border:1px solid rgba(80,120,200,.35);border-radius:3px;padding:1px 6px;font-size:.6rem;margin-right:3px;color:var(--blue2)">${w.name}</span>`).join('');
+  bar.style.display='none';
+  bar.innerHTML='';
 }
 
 // 敵オーナーインベントリエリア（全階層・報酬フェイズ共通・プレイヤーインベントリと同形式）
@@ -880,6 +948,7 @@ function renderEnemyHand(){
   const area=document.getElementById('enemy-hand-area');
   if(!area) return;
   const isReward=G.phase==='reward'&&(G._masterHandReady||false);
+  if(!isReward){ area.style.display='none'; return; }
   // 動的取得モード：指輪非表示・インベントリ3枠
   const isDynamic=!isReward&&(G._enemyHandDynamic||false);
   if(!['player','enemy','reward'].includes(G.phase)){ area.style.display='none'; return; }
@@ -960,6 +1029,7 @@ function renderEnemyHand(){
     const sp=hand[i]||null;
     if(sp){
       const div=mkCardEl(sp,i,'spell-enemy',isReward?undefined:(G.enemyMagicLevel||G.magicLevel));
+      if(isReward&&G._pendingPanelPlacement&&G._pendingPanelPlacement.masterIdx===i) div.classList.add('pending-placement');
       if(sp._isTreasure) div.classList.add('treasure');
       if(isReward){
         // 報酬フェイズ：クリックまたはドラッグで購入

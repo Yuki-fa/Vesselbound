@@ -14,7 +14,9 @@ const BATTLE_OBJECTS=[
 
 function getUnitEquips(unit){
   if(!unit) return [];
-  const base=(unit.equipment||[]).filter(Boolean);
+  const base=typeof getUnitEffectiveEquips==='function'
+    ? getUnitEffectiveEquips(unit)
+    : (unit.equipment||[]).filter(Boolean);
   if(!base.length) return base;
   const withMirror=[...base];
   base.forEach((eq,idx)=>{
@@ -126,6 +128,28 @@ function _handleVictory(){
   } else {
     showVictoryOverlay();
   }
+}
+
+function applyGlobalPanelVictoryBonuses(){
+  const total=(G.globalPanels||[]).filter(p=>p&&p.training).reduce((s,p)=>s+(p.training||0),0);
+  const healPct=(G.globalPanels||[]).filter(p=>p&&p.healPct).reduce((s,p)=>s+(p.healPct||0),0);
+  if(total<=0&&healPct<=0) return;
+  let healed=false;
+  (G.allies||[]).forEach(a=>{
+    if(a&&a.hp>0&&!a._isObject&&!a._isSoul){
+      a.atk=(a.atk||0)+total;
+      a.baseAtk=(a.baseAtk||0)+total;
+      a.hp=(a.hp||0)+total;
+      a.maxHp=(a.maxHp||0)+total;
+      if(healPct>0&&a.hp<a.maxHp){
+        const heal=Math.ceil((a.maxHp||0)*healPct);
+        a.hp=Math.min(a.maxHp,a.hp+heal);
+        healed=true;
+      }
+    }
+  });
+  if(total>0) log(`全体パネル：修練→全仲間+${total}/+${total}`,'good');
+  if(healed) log('全体パネル：治療→全仲間のHPを10%回復','good');
 }
 
 // ── リーダーボーナス（敵側）──────────────────────
@@ -412,12 +436,13 @@ async function startBattle(){
 
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);
-  // 敵オーナー手札・指輪をすべての階層で読み込む（持ち物がなければ空配列）
-  G.bossHand=(fd?.enemyHand||[]).map(s=>Object.assign({},s));
-  G.bossRings=(fd?.enemyRings||[]).map(r=>Object.assign({},r));
-  G.enemyMagicLevel=fd?.magicLevel||0;
-  // 動的取得モード：戦闘開始時に持ち物がない場合、戦闘中取得は手札3・指輪非表示
-  G._enemyHandDynamic=G.bossHand.length===0&&G.bossRings.length===0;
+  // 敵司令官効果は廃止。敵オーナー手札・指輪は戦闘中に使わない。
+  G.bossHand=[];
+  G.bossRings=[];
+  G.enemyMagicLevel=0;
+  G._enemyHandDynamic=false;
+  G._selectedEquipCardIdx=null;
+  document.body.classList.remove('card-targeting-active');
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
@@ -584,7 +609,6 @@ async function nextTurn(){
   updateHUD();
   log(`── ターン ${G.turn} ──`,'sys');
   if(await applyPoisonTick()) return;
-  await commanderPhase(); // 敵オーナーが何も持っていなければ即return
   startPlayerPhase();
 }
 
@@ -741,55 +765,35 @@ function _chooseBestItem(hand, battleState, personality){
 // ── 敵オーナーフェイズ（全階層共通）────────────────
 
 async function commanderPhase(){
-  const _liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
-  if(!_liveHand.length&&!_isBossFight) return;
-
-  G.phase='commander';
-  renderControls();
-  log('👹 敵フェイズ','bad');
-  // ボス指輪：ターン開始トリガー（ボス戦のみ）
-  if(_isBossFight&&G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
-
-  // パーソナリティ・行動数を取得
-  const _fd = FLOOR_DATA[G.floor]||{};
-  const _personality = _fd.personality||'chaotic';
-  const _actionCount = _fd.actionCount||1;
-  const _usedEffects = [];
-
-  for(let _ai=0; _ai<_actionCount; _ai++){
-    const liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
-    if(!liveHand.length) break;
-
-    const _bs = _buildBattleState(_usedEffects);
-    const chosen = _chooseBestItem(liveHand, _bs, _personality);
-    if(!chosen) break;
-
-    applyBossSpell(chosen);
-    _usedEffects.push(chosen.effect);
-
-    if(chosen.type==='wand'){
-      chosen.usesLeft=(chosen.usesLeft??1)-1;
-      if(chosen.usesLeft<=0){
-        G.bossHand.splice(G.bossHand.indexOf(chosen),1);
-        log(`敵の「${chosen.name}」チャージが切れた`,'sys');
-      }
-    } else {
-      G.bossHand.splice(G.bossHand.indexOf(chosen),1);
-    }
-
-    if(_ai < _actionCount-1){ renderAll(); await sleep(400); }
-  }
-
-  renderAll();
-  await sleep(700);
+  return;
 }
 
 // ── プレイヤーフェイズ ────────────────────────
 
 function startPlayerPhase(){
+  G._selectedEquipCardIdx=null;
   G.phase='player';
   G.actionsPerTurn=calcActions();
   G.actionsLeft=G.actionsPerTurn;
+  G._manualActed={};
+  G.allies.forEach(a=>{
+    if(a){
+      delete a._manualHidden;
+      delete a._manualInactive;
+      delete a._manualActedThisTurn;
+      delete a._manualReadyBlink;
+      if(a._manualActionHate){
+        a.hate=false;
+        a.hateTurns=0;
+        delete a._manualActionHate;
+      }
+      if(a._manualStealth){ a.stealth=false; delete a._manualStealth; }
+    }
+  });
+  if(!G.allies[G._selectedEquipUnitIdx]||G.allies[G._selectedEquipUnitIdx].hp<=0){
+    G._selectedEquipUnitIdx=G.allies.findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
+  }
+  delete G._manualBattle;
   G.spreadActive=false;
   applyTurnStart();
   if(G.phase!=='player') return; // 針の指輪等でターン開始時に勝利確定した場合は中断
@@ -798,6 +802,65 @@ function startPlayerPhase(){
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
   setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。');
+}
+
+function _manualLiveAllies(){
+  return (G.allies||[]).map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._isSoul&&!x.u._isObject);
+}
+function _manualTargetableAlly(unit){
+  return !!(unit&&unit.hp>0);
+}
+
+function canSelectedManualAllyAct(){
+  if(G.phase!=='player') return true;
+  const idx=G._selectedEquipUnitIdx;
+  const ally=(G.allies||[])[idx];
+  if(idx==null||idx<0||!ally||ally.hp<=0){
+    setHint('行動するキャラクターを選択してください。');
+    return false;
+  }
+  if(G._manualActed&&G._manualActed[ally.id]){
+    return true;
+  }
+  return true;
+}
+
+function markSelectedManualAllyActed(){
+  if(G.phase!=='player') return;
+  const idx=G._selectedEquipUnitIdx;
+  const ally=(G.allies||[])[idx];
+  if(!ally) return;
+  if(!G._manualActed) G._manualActed={};
+  G._manualActed[ally.id]=true;
+  if(!(typeof unitEquipCount==='function'&&unitEquipCount(ally,'panel_stealth')>0)){
+    ally.hate=true;
+    ally.hateTurns=99;
+    ally._manualActionHate=true;
+  }
+  log(`${ally.name}：行動`,'sys');
+  if(typeof renderAll==='function') renderAll();
+}
+
+function useFixedEquipOnEnemy(unitIdx,equipIdx,targetIdx){
+  if(G.phase!=='player') return false;
+  const ally=G.allies&&G.allies[unitIdx];
+  const enemy=G.enemies&&G.enemies[targetIdx];
+  const eq=ally&&ally.equipment&&ally.equipment[equipIdx];
+  if(!ally||ally.hp<=0||!enemy||enemy.hp<=0||!eq||!eq.fixedAttack) return false;
+  G._selectedEquipUnitIdx=unitIdx;
+  if(!canSelectedManualAllyAct()) return false;
+  if((G.actionsLeft||0)<1){ setHint('行動力が足りません'); return false; }
+  const dmg=Math.max(0,ally.atk||0);
+  log(`${ally.name}：${eq.name} → ${enemy.name}に${dmg}ダメージ`,'good');
+  dealDmgToEnemy(enemy,dmg,targetIdx,ally);
+  if(_checkBattleOver()) return true;
+  G.actionsLeft--;
+  markSelectedManualAllyActed();
+  if(G._debugMode) G.actionsLeft=G.actionsPerTurn;
+  updateHUD();
+  renderAll();
+  if(G.actionsLeft<=0&&!G._debugMode) setHint('行動力を使い切りました。ターン終了で敵のターンに入ります。');
+  return true;
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -990,6 +1053,17 @@ async function battlePhase(){
   }
 }
 
+function _recoverBattleWeaken(){
+  [...G.enemies,...G.allies].forEach(u=>{
+    if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
+      u.atk=(u.atk||0)+u._weakenedSavedAtk;
+      log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
+      delete u._weakenedSavedAtk;
+      delete u._weakenPhaseApplied;
+    }
+  });
+}
+
 function _checkBattleOver(){
   if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     _onAllEnemiesDefeated();
@@ -1090,6 +1164,8 @@ function onChestClick(idx){
 function _onAllEnemiesDefeated(){
   if(G.phase==='reward') return; // 二重呼び出し防止
   log('全敵撃破！','gold');
+  clearBattleHateForReward();
+  if(_isBossFight||G._eliteKilled) G._pendingGlobalPanelReward=true;
   if(_isBossFight) G._bossJustDefeated=true;
   if(!(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType)){
     G.moveMasks.forEach((_,i)=>{
@@ -1098,9 +1174,27 @@ function _onAllEnemiesDefeated(){
   }
   _dropPondRingIfNeeded();
   applyVictoryBonuses();
+  applyGlobalPanelVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
   setTimeout(()=>_handleVictory(),600);
+}
+
+function _checkImmediateVictoryAfterEnemyDamage(){
+  if(G._isSimulating||G.phase==='reward') return false;
+  if(G.phase!=='player'&&G.phase!=='enemy') return false;
+  if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length>0) return false;
+  _onAllEnemiesDefeated();
+  return true;
+}
+
+function clearBattleHateForReward(){
+  (G.allies||[]).forEach(a=>{
+    if(!a) return;
+    a.hate=false;
+    a.hateTurns=0;
+    delete a._manualActionHate;
+  });
 }
 
 function _dropPondRingIfNeeded(){
@@ -1342,6 +1436,7 @@ function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
 
 function _dealMutualAttackDamage(attacker,isEnemySide,defender,defenderAtk){
   if(!attacker||!defender||attacker.hp<=0||(defenderAtk||0)<=0) return;
+  if(isEnemySide) return;
   if(isEnemySide){
     const eIdx=G.enemies.indexOf(attacker);
     if(eIdx<0) return;
@@ -1356,25 +1451,7 @@ function _dealMutualAttackDamage(attacker,isEnemySide,defender,defenderAtk){
 }
 
 function _maybeCounterAttack(defender,defenderIsAlly,attacker){
-  if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) return;
-  const hasCounter=defender.counter||(defender.keywords||[]).includes('反撃');
-  if(!hasCounter||defender.atk<=0) return;
-  const maxHits=_attackRepeatCount(defender);
-  for(let hi=0;hi<maxHits;hi++){
-    if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) break;
-    _applyAttackEffectsForSide(defender,!defenderIsAlly);
-    if(defenderIsAlly){
-      const srcIdx=G.enemies.indexOf(attacker);
-      if(srcIdx<0) break;
-      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'good');
-      dealDmgToEnemy(attacker,defender.atk,srcIdx,defender);
-    } else {
-      const srcIdx=G.allies.indexOf(attacker);
-      if(srcIdx<0) break;
-      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'bad');
-      _dealAttackDamage(defender,true,attacker,srcIdx,defender.atk);
-    }
-  }
+  return;
 }
 
 function _effectAttackSequence(attacker,isEnemySide,forcedTarget,actionLabel='効果攻撃'){
@@ -1663,6 +1740,12 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
   unit.hp=Math.max(0,unit.hp-actualDmg);
   if(actualDmg>0&&typeof playHitVfx==='function') playHitVfx('ally',_fieldIdx);
   if(actualDmg>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
+  const counterCount=typeof unitEquipCount==='function'?unitEquipCount(unit,'panel_counter'):0;
+  if(actualDmg>0&&counterCount>0){
+    const counterDmg=8*counterCount;
+    [...G.enemies].forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,counterDmg,ei,unit); });
+    log(`${unit.name}：反撃→全ての敵に${counterDmg}ダメージ`,'good');
+  }
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
     applyKeywordOnHit(src,unit,actualDmg);
   }
@@ -1690,7 +1773,8 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
 function processAllyDeath(unit){
   if(unit.hp>0||unit._deathProcessed) return;
   if(unitHasEquip(unit,'equip_revive')){
-    const idx=(unit.equipment||[]).findIndex(eq=>eq&&eq.unique==='equip_revive');
+    const effective=typeof getUnitEffectiveEquips==='function'?getUnitEffectiveEquips(unit):(unit.equipment||[]).filter(Boolean);
+    const idx=(unit.equipment||[]).findIndex(eq=>eq&&eq.unique==='equip_revive'&&effective.includes(eq));
     if(idx>=0) unit.equipment[idx]=null;
     unit.hp=unit.maxHp||1;
     log(`${unit.name}：再生の指輪→最大HPで復活`,'good');
@@ -1726,6 +1810,21 @@ function processAllyDeath(unit){
     G.allies.forEach((a,ai)=>{ if(a&&a.hp>0&&a!==unit) dealDmgToAlly(a,dmg,ai,unit); });
     log(`${unit.name}：死亡→全ての味方に${dmg}ダメ`,'bad');
     triggerDeathEffectTriggered(unit);
+  }
+  const grudgeCount=typeof unitEquipCount==='function'?unitEquipCount(unit,'panel_grudge'):0;
+  if(grudgeCount>0){
+    const targets=G.enemies.filter(e=>e&&e.hp>0);
+    const dmg=unit.maxHp||unit.hp||0;
+    if(targets.length&&dmg>0){
+      for(let i=0;i<grudgeCount;i++){
+        const live=G.enemies.filter(e=>e&&e.hp>0);
+        const target=live.length?randFrom(live):null;
+        if(!target) break;
+        dealDmgToEnemy(target,dmg,G.enemies.indexOf(target),unit);
+        log(`${unit.name}：執念→${target.name}に${dmg}ダメージ`,'good');
+        triggerDeathEffectTriggered(unit);
+      }
+    }
   }
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
   if(unit.effect==='skeleton_bone'){
@@ -2608,8 +2707,11 @@ function checkInstantVictory(){
       G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     }
     if(_isBossFight) G._bossJustDefeated=true;
+    if(_isBossFight||G._eliteKilled) G._pendingGlobalPanelReward=true;
+    clearBattleHateForReward();
     _dropPondRingIfNeeded();
     applyVictoryBonuses();
+    applyGlobalPanelVictoryBonuses();
     log('全敵撃破！','gold');
     updateHUD(); renderAll();
     G.phase='reward';
@@ -2730,6 +2832,13 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   e.hp=Math.max(0,e.hp-actualDmgToEnemy);
   if(actualDmgToEnemy>0&&typeof playHitVfx==='function') playHitVfx('enemy',eIdx);
   if(actualDmgToEnemy>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
+  const vampireCount=srcUnit&&G.allies&&G.allies.includes(srcUnit)&&typeof unitEquipCount==='function'?unitEquipCount(srcUnit,'panel_vampire'):0;
+  if(actualDmgToEnemy>0&&vampireCount>0){
+    const heal=Math.max(1,Math.floor(actualDmgToEnemy*0.1*vampireCount));
+    const before=srcUnit.hp||0;
+    srcUnit.hp=Math.min(srcUnit.maxHp||srcUnit.hp||1,before+heal);
+    if(srcUnit.hp>before) log(`${srcUnit.name}：吸血→ライフ+${srcUnit.hp-before}`,'good');
+  }
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
@@ -2745,6 +2854,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     }
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
+  _checkImmediateVictoryAfterEnemyDamage();
 }
 
 function processEnemyDeath(e,eIdx){
@@ -2962,10 +3072,31 @@ function onWandUsed(){
 
 // ── プレイヤーパス ────────────────────────────
 
+async function startEnemyAutoTurn(){
+  if(G.phase!=='player') return;
+  (G.allies||[]).forEach(a=>{
+    if(a) delete a._manualReadyBlink;
+  });
+  G.phase='enemy';
+  renderAll();
+  renderControls();
+  log('── 敵のターン ──','bad');
+  _recoverBattleWeaken();
+  for(let i=0;i<6;i++){
+    if(_checkBattleOver()) return;
+    const enemy=G.enemies[i];
+    if(enemy&&enemy.hp>0&&!enemy._isObject){
+      await enemyAttackAction(enemy,i);
+    }
+  }
+  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+  if(_checkBattleOver()) return;
+  await nextTurn();
+}
+
 async function playerPass(){
   if(G.phase!=='player') return;
-  document.getElementById('btn-pass').textContent='ターン終了';
-  await battlePhase();
+  await startEnemyAutoTurn();
 }
 
 // ── 撤退 ──────────────────────────────────────
@@ -3034,7 +3165,7 @@ function addEnemyHandItem(item){
 
 // 敵オーナーが手札から魔法を使用（敵側視点：「敵」=プレイヤー側、「味方」=敵側）
 function applyBossSpell(sp){
-  const liveA=G.allies.filter(a=>a&&a.hp>0);   // プレイヤー側（敵の「敵」）
+  const liveA=G.allies.filter(a=>_manualTargetableAlly(a));   // プレイヤー側（敵の「敵」）
   const liveE=G.enemies.filter(e=>e&&e.hp>0);  // 敵側（敵の「味方」）
   const grade=FLOOR_DATA[G.floor]?.grade||1;
   const eml=G.enemyMagicLevel||0;              // 敵オーナーの魔術レベル

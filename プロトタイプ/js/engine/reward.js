@@ -46,6 +46,98 @@ function _findMapInventoryEmptySlot(){
   }
   return -1;
 }
+function _ensureSelectedEquipUnitIdx(){
+  const cur=G.allies?.[G._selectedEquipUnitIdx];
+  if(cur&&cur.hp>0) return G._selectedEquipUnitIdx;
+  const idx=(G.allies||[]).findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
+  G._selectedEquipUnitIdx=idx;
+  return idx;
+}
+function giveCardToSelectedUnit(card, sourceName){
+  return startPanelPlacement(card, null, sourceName);
+}
+function _preparePanelCard(card){
+  if(!card) return false;
+  const nc=clone(card);
+  delete nc._buyPrice;
+  if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
+  if(nc.type==='wand') nc._maxUses=nc.usesLeft;
+  nc.noRewardUse=true;
+  return nc;
+}
+function startPanelPlacement(card, onPlaced, sourceName){
+  if(!card) return false;
+  const rewardIdx=G.phase==='reward'&&Array.isArray(_rewCards)?_rewCards.indexOf(card):-1;
+  if(card.panelScope==='global'){
+    G._pendingPanelPlacement={card:_preparePanelCard(card),onPlaced:onPlaced||null,sourceName:sourceName||'取得',rewardIdx};
+    G._showGlobalPanels=true;
+    log('配置先の全体パネル枠を選んでください','sys');
+    renderRewCards();
+    renderHandEditor();
+    renderMoveSlotsInEnemy();
+    return true;
+  }
+  const unitIdx=_ensureSelectedEquipUnitIdx();
+  const unit=G.allies?.[unitIdx];
+  if(!unit||unit.hp<=0){ log('取得先のキャラクターがいません','bad'); return false; }
+  G._pendingPanelPlacement={card:_preparePanelCard(card),onPlaced:onPlaced||null,sourceName:sourceName||'取得',rewardIdx};
+  G._showGlobalPanels=false;
+  log(`${unit.name} の配置先パネルを選んでください`,'sys');
+  renderRewCards();
+  renderHandEditor();
+  renderFieldEditor();
+  renderMoveSlotsInEnemy();
+  return true;
+}
+function placePendingPanelToGlobal(slotIdx){
+  const pending=G._pendingPanelPlacement;
+  if(!pending||!pending.card||pending.card.panelScope!=='global') return false;
+  G.globalPanels=G.globalPanels||new Array(7).fill(null);
+  if(slotIdx<0||slotIdx>=7) return false;
+  G.globalPanels[slotIdx]=clone(pending.card);
+  const done=pending.onPlaced;
+  const cardName=pending.card.name;
+  G._pendingPanelPlacement=null;
+  G._showGlobalPanels=true;
+  if(done) done();
+  log(`全体パネル${slotIdx+1}に ${cardName} を配置`,'good');
+  renderHandEditor();
+  renderFieldEditor();
+  renderMapInventorySlots();
+  renderMoveSlotsInEnemy();
+  return true;
+}
+function placePendingPanelToSelectedUnit(slotIdx){
+  const pending=G._pendingPanelPlacement;
+  if(!pending||!pending.card) return false;
+  if(pending.card.panelScope==='global'){
+    G._showGlobalPanels=true;
+    log('全体パネル枠を選んでください','bad');
+    renderHandEditor();
+    return false;
+  }
+  const unitIdx=_ensureSelectedEquipUnitIdx();
+  const unit=G.allies?.[unitIdx];
+  if(!unit||unit.hp<=0){ log('配置先のキャラクターがいません','bad'); return false; }
+  const equips=_normalizeUnitEquipment(unit);
+  if(slotIdx<0||slotIdx>=equips.length) return false;
+  if(equips[slotIdx]&&equips[slotIdx].fixedEquip){
+    log('固定装備は上書きできません','bad');
+    return false;
+  }
+  equips[slotIdx]=clone(pending.card);
+  if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+  const done=pending.onPlaced;
+  const cardName=pending.card.name;
+  G._pendingPanelPlacement=null;
+  if(done) done();
+  log(`${unit.name} のパネル${slotIdx+1}に ${cardName} を配置`,'good');
+  renderHandEditor();
+  renderFieldEditor();
+  renderMapInventorySlots();
+  renderMoveSlotsInEnemy();
+  return true;
+}
 function _canUseNonCombatCard(card){
   return !!(card&&!isEquipmentCard(card)&&(G.phase==='map'||G.phase==='reward'));
 }
@@ -301,6 +393,11 @@ function goToReward(){
     });
     G._pendingTreasureItems=[];
   }
+  if(G._pendingGlobalPanelReward&&typeof drawGlobalPanel==='function'){
+    G._pendingGlobalPanelReward=false;
+    const gp=drawGlobalPanel();
+    if(gp) _rewCards.push(gp);
+  }
 
   // 報酬フェイズUI
   const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
@@ -480,6 +577,7 @@ function renderMoveSlotsInEnemy(){
     skip.className='btn rew-move-btn';
     skip.textContent='報酬スキップ';
     skip.onclick=()=>{
+      if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; }
       _rewFreePickDone=true;
       log('報酬をスキップしました','sys');
       renderRewCards();
@@ -490,7 +588,7 @@ function renderMoveSlotsInEnemy(){
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.textContent='店を去る';
-    btn.onclick=()=>{ if(typeof shopDone==='function') shopDone(); };
+    btn.onclick=()=>{ if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; } if(typeof shopDone==='function') shopDone(); };
     el.appendChild(btn);
     return;
   }
@@ -518,17 +616,20 @@ function renderMoveSlotsInEnemy(){
     btn.className='btn rew-move-btn';
     btn.innerHTML=`<span style="font-size:1.1rem">${nt.icon}</span><span>${nt.label}</span>${nt.desc?`<span class="rew-move-btn-desc">${nt.desc}</span>`:''}`;
     btn.onclick=()=>chooseMoveInline(opt.nodeType);
+    if(G._pendingPanelPlacement){ btn.classList.add('disabled'); btn.disabled=true; }
     el.appendChild(btn);
   });
 }
 
 function chooseMoveInline(nt){
+  if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; }
   squirrelSay('退店時');
   G._isShop=false; // 行商モード解除
   // イベントアイテム受け取り中なら状態更新コールバックを先に実行
   if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); }
   // 退店メッセージを読ませるため少し遅らせてから画面遷移
   setTimeout(()=>{
+    if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; }
     squirrelHide();
     document.getElementById('reward-info-bar').style.display='none';
     document.getElementById('reward-cards-section').style.display='none';
@@ -547,6 +648,7 @@ function chooseMoveInline(nt){
 // ── リロール ──────────────────────────────────
 
 function rerollRewards(){
+  if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; }
   if(G.gold<1) return;
   G.gold-=1;
   if(typeof playSfx==='function') playSfx('reroll',{group:'ui'});
@@ -786,13 +888,16 @@ function renderRewCards(){
   const el=document.getElementById('rw-cards');
   el.innerHTML='';
   const isRewardLocked=!G._isRewardTown&&_rewFreePickDone;
+  const pendingRewardIdx=G._pendingPanelPlacement?G._pendingPanelPlacement.rewardIdx:-1;
   if(G._isShop){
     const shopRow=document.createElement('div');
     shopRow.className='shop-equipment-row';
     for(let i=0;i<7;i++){
       const card=_rewCards[i]||null;
       if(card){
-        shopRow.appendChild(_mkRewDiv(card,()=>takeRewCard(i),i));
+        const d=_mkRewDiv(card,()=>takeRewCard(i),i);
+        if(pendingRewardIdx===i) d.classList.add('pending-placement');
+        shopRow.appendChild(d);
       } else {
         const ph=document.createElement('div');
         ph.className='card-empty spell';
@@ -831,6 +936,7 @@ function renderRewCards(){
       });
     } else {
       slot.className='slot is-rear unit-card';
+      if(pendingRewardIdx===i) slot.classList.add('pending-placement');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,card);
       slot.dataset.rewIdx=String(i);
       const cost=card._buyPrice??2;
@@ -919,6 +1025,7 @@ function renderRewCards(){
   _rewCards.forEach((card,i)=>{
     if((hasRewardChars&&i<6)||!card||card._isChar) return;
     const d=_mkRewDiv(card, ()=>takeRewCard(i), i);
+    if(pendingRewardIdx===i) d.classList.add('pending-placement');
     if(isRewardLocked){ d.onclick=null; d.style.opacity='0.5'; d.style.cursor='default'; }
     el.appendChild(d);
   });
@@ -1002,6 +1109,10 @@ function _mkRewDiv(card, onBuy, rewIdx){
 // ── カード購入処理 ──────────────────────────────
 
 function takeRewCard(i, targetSlot){
+  if(G._pendingPanelPlacement){
+    log('パネルの配置先を選んでください','bad');
+    return;
+  }
   const card=_rewCards[i]; if(!card) return;
   const isTown=G._isRewardTown;
   // レッサーデーモンディスカウント（次に購入する消耗品アイテム・累積分を一括消費）
@@ -1101,57 +1212,45 @@ function takeRewCard(i, targetSlot){
   // 装備
   if(isEquipmentCard(card)||card.kind==='passive'||card.kind==='summon'||card.type==='ring'){
     if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
-    const handIdx=_findMapInventoryEmptySlot();
-    if(handIdx<0){ log('インベントリが満杯です。装備を整理してください。','bad'); return; }
-    if(isTown){ G.gold-=cost; }
-    const rc=clone(card);
-    delete rc._buyPrice;
-    rc.noRewardUse=true;
-    G.inventory[handIdx]=rc;
-    // ユニーク指輪取得時に再出現しないよう記録
-    if(card.legend||card._isLegend) G._seenLegendRings.add(card.id);
-    if(!isTown) _rewFreePickDone=true;
-    log(card.name+' を取得（インベントリ['+handIdx+']）','good');
-    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
-    _rewCards[i]=null;
-    document.getElementById('rw-gold').textContent=G.gold;
-    updateHUD(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderEnemyHand(); renderGradeUpBtn();
-    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
+    const finish=()=>{
+      if(isTown){ G.gold-=cost; }
+      // ユニーク指輪取得時に再出現しないよう記録
+      if(card.legend||card._isLegend) G._seenLegendRings.add(card.id);
+      if(!isTown) _rewFreePickDone=true;
+      if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
+      _rewCards[i]=null;
+      document.getElementById('rw-gold').textContent=G.gold;
+      updateHUD(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderEnemyHand(); renderGradeUpBtn();
+      if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
+    };
+    if(!startPanelPlacement(card,finish,'報酬')) return;
     return;
   }
 
   // アイテム（杖・消耗品）
   if(!isTown&&_rewFreePickDone){ log('無料取得は1枚のみです','bad'); return; }
-  const handIdx=_findInventoryEmptySlot();
-  if(handIdx<0){ log(`インベントリが満杯（${G.handSlots}枠）です。アイテムを捨ててください。`,'bad'); return; }
+  const finish=()=>{
+    if(isTown){ G.gold-=cost; _consumeLesserDemonDiscount(_ldDisc); }
 
-  if(isTown){ G.gold-=cost; _consumeLesserDemonDiscount(_ldDisc); }
-  const nc=clone(card);
-  if(nc.type==='wand'&&nc.usesLeft===undefined){ nc.usesLeft=nc.baseUses||randUses(); }
-  if(nc.type==='wand') nc._maxUses=nc.usesLeft;
-  G.spells[handIdx]=nc;
-
-  // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
-  if(nc.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
-    G._familiarUsed=true;
-    const _famHandIdx=_findInventoryEmptySlot();
-    if(_famHandIdx>=0){
-      const _famCopy=clone(nc);
-      G.spells[_famHandIdx]=_famCopy;
-      log(`ファミリア：${nc.name}のコピーを獲得`,'good');
+    // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
+    if(card.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
+      G._familiarUsed=true;
+      startPanelPlacement(card,null,'ファミリア');
     }
-  }
 
-  if(!isTown) _rewFreePickDone=true;
-  log(card.name+(isTown?' を'+cost+'ゴールドで':' を')+'取得','good');
-  if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
-  _rewCards[i]=null;
-  document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD();
-  renderRewCards();
-  renderFieldEditor();
-  renderEnemyHand();
-  renderGradeUpBtn();
+    if(!isTown) _rewFreePickDone=true;
+    log(card.name+(isTown?' を'+cost+'ゴールドで':' を')+'取得','good');
+    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
+    _rewCards[i]=null;
+    document.getElementById('rw-gold').textContent=G.gold;
+    updateHUD();
+    renderRewCards();
+    renderFieldEditor();
+    renderEnemyHand();
+    renderGradeUpBtn();
+    if(_eventItemDone){ const fn=_eventItemDone; _eventItemDone=null; fn(); renderMoveSlotsInEnemy(); }
+  };
+  if(!startPanelPlacement(card,finish,'報酬')) return;
 }
 
 // ── フィールドエディタ（報酬フェイズ中の配置変更・売却）──
@@ -1226,8 +1325,9 @@ function _renderFieldRow(el){
         e.stopPropagation();
         if(e.detail===0) return; // プログラム的クリックは無視
         const u=G.allies[i]; if(!u) return;
+        if(G._selectedEquipUnitIdx!==i) G._selectedEquipCardIdx=null;
         G._selectedEquipUnitIdx=i;
-        if(_isNonCombatEquipPhase()) G.inventoryOpen=true;
+        G._showGlobalPanels=false;
         if(typeof renderMapInventory==='function') renderMapInventory();
         renderHandEditor();
         renderFieldEditor();
@@ -1683,7 +1783,7 @@ function sellFieldUnit(idx){
   const unit=G.allies[idx]; if(!unit) return;
   if((G.allies||[]).filter(a=>a).length<=1) return;
   if(!window.confirm(`本当に${unit.name}を除名しますか？`)) return;
-  (unit.equipment||[]).filter(Boolean).forEach(eq=>{
+  (unit.equipment||[]).filter(eq=>eq&&!eq.fixedEquip).forEach(eq=>{
     const slot=_findMapInventoryEmptySlot();
     if(slot>=0) G.inventory[slot]=eq;
   });
@@ -1704,19 +1804,29 @@ function isEquipmentCard(card){
   return !!(card&&(card.equip||card.kind==='equipment'||card.type==='ring'));
 }
 const UNIT_EQUIP_SLOTS=[
-  {label:'右手', kind:'hand'},
-  {label:'左手', kind:'hand'},
-  {label:'指輪1', kind:'ring'},
-  {label:'指輪2', kind:'ring'},
+  {label:'パネル1', kind:'panel'},
+  {label:'パネル2', kind:'panel'},
+  {label:'パネル3', kind:'panel'},
+  {label:'パネル4', kind:'panel'},
+  {label:'パネル5', kind:'panel'},
+  {label:'パネル6', kind:'panel'},
+  {label:'パネル7', kind:'panel'},
 ];
 function _normalizeUnitEquipment(unit){
   if(!unit) return [];
   const old=Array.isArray(unit.equipment)?unit.equipment:[];
-  const next=new Array(getUnitEquipLimit(unit)).fill(null);
-  old.filter(Boolean).forEach(card=>{
-    const idx=_findEquipSlotForCard(unit,card,next);
-    if(idx>=0) next[idx]=card;
-  });
+  const slots=_getUnitEquipSlots(unit);
+  const next=new Array(slots.length).fill(null);
+  old.forEach((card,idx)=>{ if(idx<next.length) next[idx]=card||null; });
+  const fixedIdx=next.findIndex(card=>card&&card.fixedEquip);
+  if(fixedIdx<0&&!unit._fixedPanelInitialized){
+    const fixed=_makeUnitFixedEquip(unit);
+    if(fixed&&!next[0]) next[0]=fixed;
+    unit._fixedPanelInitialized=true;
+  } else if(fixedIdx>0&&!next[0]){
+    next[0]=next[fixedIdx];
+    next[fixedIdx]=null;
+  }
   unit.equipment=next;
   return unit.equipment;
 }
@@ -1729,30 +1839,44 @@ function _ensureUnitEquipmentSlots(unit){
   unit.equipment=arr;
   return unit.equipment;
 }
-function _equipSlotDef(idx){ return UNIT_EQUIP_SLOTS[idx]||{label:`装備${idx+1}`,kind:'hand'}; }
+function _fallbackEquipSlots(unit){
+  return UNIT_EQUIP_SLOTS;
+}
+function _getUnitEquipSlots(unit){ return _fallbackEquipSlots(unit); }
+function _equipSlotDef(idx,unit){
+  const slots=unit?_getUnitEquipSlots(unit):UNIT_EQUIP_SLOTS;
+  return slots[idx]||{label:`パネル${idx+1}`,kind:'panel'};
+}
+function _makeUnitFixedEquip(unit){
+  if(unit&&unit.fixedEquip) return clone(unit.fixedEquip);
+  const slot=Array.isArray(unit?.equipmentSlots)?unit.equipmentSlots.find(s=>s&&s.fixed):null;
+  const name=slot?.label||'固定装備';
+  return {id:'fixed_'+(unit?.defId||unit?.id||'unit'),name,type:'panel',kind:'panel',panelScope:'unit',equip:true,fixedEquip:true,fixedAttack:true,grade:1,rarity:-1,cost:1,desc:'固定装備。対象にこのキャラクターの攻撃力分のダメージを与える。'};
+}
 function _isRingEquip(card){ return !!(card&&card.type==='ring'); }
-function _canCardUseEquipSlot(card,idx){
-  const slot=_equipSlotDef(idx);
-  if(_isRingEquip(card)) return slot.kind==='ring';
-  return slot.kind==='hand';
+function _canCardUseEquipSlot(card,idx,unit){
+  return !!card&&idx>=0&&idx<getUnitEquipLimit(unit);
 }
 function _findEquipSlotForCard(unit,card,arr){
   const equips=arr||unit.equipment||[];
   const limit=getUnitEquipLimit(unit);
   for(let i=0;i<limit;i++){
-    if(!equips[i]&&_canCardUseEquipSlot(card,i)) return i;
+    if(!equips[i]) return i;
   }
   return -1;
 }
 function getUnitEquipLimit(unit){
-  return 4;
+  return _getUnitEquipSlots(unit).length;
+}
+function getUnitEffectiveEquips(unit){
+  const equips=unit&&unit.equipment?unit.equipment:[];
+  return equips.filter(eq=>eq);
 }
 function _isNonCombatEquipPhase(){
   return !(G.phase==='player'||G.phase==='enemy'||G.phase==='commander');
 }
 function _clearEquipSelection(){
-  if(G._selectedEquipUnitIdx==null||G._selectedEquipUnitIdx<0) return;
-  G._selectedEquipUnitIdx=-1;
+  _ensureSelectedEquipUnitIdx();
   if(G.phase==='player'||G.phase==='enemy'){
     if(typeof renderAll==='function') renderAll();
     else renderHandEditor();
@@ -1769,18 +1893,25 @@ if(!window._equipSelectionClearBound){
   window._equipSelectionClearBound=true;
   document.addEventListener('click',e=>{
     if(G.phase==='enemy'||G.phase==='commander') return;
+    if(G.phase==='reward') return;
     if(G._selectedEquipUnitIdx==null||G._selectedEquipUnitIdx<0) return;
     const t=e.target;
-    if(t&&t.closest&&t.closest('#hand-slots .card,#map-inventory-panel,.unit-card')) return;
+    if(t&&t.closest&&t.closest('#hand-slots .card,#hand-slots .card-empty,#map-inventory-panel,.unit-card')) return;
+    if(t&&t.closest&&t.closest('button,.map-node,#world-map-panel,#rw-cards,#reward-move-btns')) return;
+    G._showGlobalPanels=true;
+    renderHandEditor();
+    return;
     _clearEquipSelection();
   });
 }
 function equipInventoryCardToUnit(srcIdx, unitIdx, srcArrName='spells'){
+  log('パネルは取得時に配置してください','bad');
+  return false;
   if(!_isNonCombatEquipPhase()){ log('戦闘中は装備できません','bad'); return false; }
   const srcArr=srcArrName==='inventory'?G.inventory:G.spells;
   const card=srcArr[srcIdx];
   const unit=G.allies[unitIdx];
-  if(!card||!isEquipmentCard(card)||!unit||unit.hp<=0) return false;
+  if(!card||!unit||unit.hp<=0) return false;
   const equips=_normalizeUnitEquipment(unit);
   const slotIdx=_findEquipSlotForCard(unit,card,equips);
   if(slotIdx<0){ log(`${unit.name} に装備できる空き枠がありません`,'bad'); return false; }
@@ -1789,13 +1920,15 @@ function equipInventoryCardToUnit(srcIdx, unitIdx, srcArrName='spells'){
   G._selectedEquipUnitIdx=unitIdx;
   if(srcArrName==='inventory') G.inventoryOpen=true;
   if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-  log(`${unit.name} の${_equipSlotDef(slotIdx).label}に ${card.name} を装備`,'good');
+  log(`${unit.name} の${_equipSlotDef(slotIdx,unit).label}に ${card.name} を装備`,'good');
   renderHandEditor();
   renderFieldEditor();
   renderMapInventorySlots();
   return true;
 }
 function moveEquippedCardToUnit(equipIdx, srcUnitIdx, destUnitIdx){
+  log('一度セットしたパネルは移動できません','bad');
+  return false;
   if(!_isNonCombatEquipPhase()){ log('戦闘中は装備を移動できません','bad'); return false; }
   if(srcUnitIdx===destUnitIdx) return false;
   const srcUnit=G.allies[srcUnitIdx];
@@ -1809,14 +1942,17 @@ function moveEquippedCardToUnit(equipIdx, srcUnitIdx, destUnitIdx){
   destEquips[slotIdx]=card;
   G._selectedEquipUnitIdx=srcUnitIdx;
   if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-  log(`${card.name} を ${destUnit.name} の${_equipSlotDef(slotIdx).label}に移した`,'good');
+  log(`${card.name} を ${destUnit.name} の${_equipSlotDef(slotIdx,destUnit).label}に移した`,'good');
   renderHandEditor();
   renderFieldEditor();
   return true;
 }
 function unequipFromSelectedUnit(equipIdx){
+  log('一度セットしたパネルは外せません','bad');
+  return;
   const unit=G.allies[G._selectedEquipUnitIdx];
   if(!unit||!unit.equipment||!unit.equipment[equipIdx]) return;
+  if(_equipSlotDef(equipIdx,unit).fixed){ log('固定装備は外せません','bad'); return; }
   if(unit.hp<=0){ log('死亡中は装備を外せません','bad'); return; }
   const handIdx=_findMapInventoryEmptySlot();
   if(handIdx<0){ log('インベントリが満杯で外せません','bad'); return; }
@@ -1830,20 +1966,28 @@ function unequipFromSelectedUnit(equipIdx){
   renderMapInventorySlots();
 }
 function renderHandEditor(){
+  _ensureSelectedEquipUnitIdx();
+  if(G.phase!=='player') G._selectedEquipCardIdx=null;
   const selected=G.allies[G._selectedEquipUnitIdx];
   const ringPane=document.getElementById('ring-pane');
   if(ringPane) ringPane.style.display='none';
   const handMax=document.getElementById('hand-max');
   const handLabel=document.querySelector('#hand-pane .spell-label');
-  if(selected){
+  if(G._showGlobalPanels){
+    G._selectedEquipCardIdx=null;
+    G.globalPanels=G.globalPanels||new Array(7).fill(null);
+    renderHeRow('hand-slots', G.globalPanels, 0, 7, 'globalPanels');
+    const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.globalPanels.filter(Boolean).length;
+    if(handMax) handMax.textContent=7;
+    if(handLabel) handLabel.childNodes[0].nodeValue='全体パネル ';
+  } else if(selected){
     _normalizeUnitEquipment(selected);
     const limit=getUnitEquipLimit(selected);
     renderHeRow('hand-slots', selected.equipment, 0, limit, 'unitEquip');
     const hc=document.getElementById('hand-count'); if(hc) hc.textContent=selected.equipment.filter(Boolean).length;
     if(handMax) handMax.textContent=limit;
-    if(handLabel) handLabel.childNodes[0].nodeValue=`${selected.name}の装備 `;
+    if(handLabel) handLabel.childNodes[0].nodeValue=`${selected.name}のパネル `;
   } else {
-    G._selectedEquipUnitIdx=-1;
     renderHeRow('hand-slots', G.spells, 0, G.handSlots, 'spells');
     const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
     if(handMax) handMax.textContent=G.handSlots||7;
@@ -1899,7 +2043,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
   el.innerHTML='';
   const Hcols=count;
   el.style.setProperty('grid-template-columns',`repeat(${Hcols},var(--hand-card-w,300px))`,'important');
-  el.style.setProperty('justify-content','start','important');
+  el.style.setProperty('justify-content',(arrName==='unitEquip'||arrName==='globalPanels')?'center':'start','important');
   if(elId==='hand-slots'){
     const handPane=document.getElementById('hand-pane');
     if(handPane) handPane.style.flex=Hcols;
@@ -1908,7 +2052,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     const _handPos=i-startIdx;
     const _handMid=(Math.min(count,Hcols)-1)/2;
     const _handArc=Math.abs(_handPos-_handMid);
-    const _slotDef=arrName==='unitEquip'?_equipSlotDef(i):null;
+      const _slotUnit=arrName==='unitEquip'?G.allies[G._selectedEquipUnitIdx]:null;
+      const _slotDef=arrName==='unitEquip'?_equipSlotDef(i,_slotUnit):arrName==='globalPanels'?{label:`全体${i+1}`,kind:'global'}:null;
     if(i>=startIdx+count){
       // 未解放スロット
       const ph=document.createElement('div'); ph.className='card-empty spell'; ph.style.opacity='0.1';
@@ -1920,46 +2065,58 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     const card=arr[i];
     if(card){
       const div=document.createElement('div');
-      const _isRingInHand=!card.type||(card.kind==='summon'||card.kind==='passive'||isEquipmentCard(card));
+      const _isRingInHand=card.type==='ring'||!card.type||card.kind==='summon'||card.kind==='passive';
       const t=_isRingInHand?'ring':(card.type||'wand');
       div.className=`card ${t}`;
+      if(arrName==='unitEquip'&&G._selectedEquipCardIdx===i) div.classList.add('selected');
       if(_slotDef) div.classList.add(`equip-slot-${_slotDef.kind}`);
       const _selectedEquipDead=arrName==='unitEquip'&&G.allies?.[G._selectedEquipUnitIdx]?.hp<=0;
       const _combatEquipView=arrName==='unitEquip'&&(!_isNonCombatEquipPhase()||_selectedEquipDead);
       const _combatEquipInInventory=arrName==='spells'&&!_isNonCombatEquipPhase()&&isEquipmentCard(card);
       if(_combatEquipView) div.classList.add('equip-combat-view');
-      if(_combatEquipView||_combatEquipInInventory) div.classList.add('equip-combat-dim');
+      if(_combatEquipInInventory) div.classList.add('equip-combat-dim');
       if(typeof applyCardVisual==='function') applyCardVisual(div,card);
       else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
       div.style.paddingBottom='22px'; // 破棄ボタン分の余白確保
-      div.draggable=arrName!=='unitEquip'||_isNonCombatEquipPhase();
+      const _canFixedAttackDrag=false;
+      div.draggable=arrName!=='unitEquip';
       const _rewPhaseInv=!G._isShop&&G.phase==='reward';
       if(_isRingInHand&&_rewPhaseInv) div.style.cssText=(div.style.cssText||'')+';opacity:0.45;filter:grayscale(0.45)';
       div.style.setProperty('--hand-i',_handPos);
       div.style.setProperty('--hand-mid',_handMid);
       div.style.setProperty('--hand-arc',_handArc);
       const _gradeEl=`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(card.grade||1):gradeStr(card.grade||1)}</span>`;
-      const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):null;
+      const _isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
+      const _isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!_isPassivePanel&&card.panelScope!=='global'));
+      const _charges=t==='wand'?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?')):_isActionPanel?(card.cost>0?card.cost:1):null;
       const _chargeHtml=_charges!==null?`<div class="card-charge">${_charges}</div>`:'';
-      const _spellBtn=arrName==='unitEquip'
-        ?`<button class="discard-btn" title="${_combatEquipView?'戦闘中は外せません':'外す'}"${_combatEquipView?' disabled':''}>×</button>`
+      const _spellBtn=(arrName==='unitEquip'||arrName==='globalPanels')
+        ?`<button class="discard-btn" title="セット済み" disabled>×</button>`
         :G._isShop?`<button class="discard-btn" title="売却+1ゴールド" style="color:var(--gold2)">×</button>`:`<button class="discard-btn" title="破棄">×</button>`;
       const _slotLabel=_slotDef?`<div class="equip-slot-label">${_slotDef.label}</div>`:'';
-      div.innerHTML=`${_slotLabel}${_gradeEl}<div class="card-art"></div><div class="card-tp ${t}">${t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
+      div.innerHTML=`${_slotLabel}${_gradeEl}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
       div.querySelector('.discard-btn').onclick=ev=>{
         ev.stopPropagation();
-        if(_combatEquipView) return;
-        if(arrName==='unitEquip'){ unequipFromSelectedUnit(i); return; }
+        if(arrName==='unitEquip'||arrName==='globalPanels') return;
         if(G._isShop){ arr[i]=null; G.gold+=1; updateHUD(); const rwg=document.getElementById('rw-gold'); if(rwg) rwg.textContent=G.gold; log(card.name+' を売却（+1ゴールド）','gold'); squirrelSay('カードを売却した時'); renderHandEditor(); }
         else discardHeCard(arrName,i);
       };
-      if(arrName==='unitEquip') div.onclick=e=>{ e.stopPropagation(); unequipFromSelectedUnit(i); };
-      if((G.phase==='reward'||G.phase==='map')&&arrName==='spells'&&!card.noRewardUse&&!isEquipmentCard(card)){
+      if(arrName==='unitEquip') div.onclick=e=>{
+        e.stopPropagation();
+        if(G._pendingPanelPlacement){ placePendingPanelToSelectedUnit(i); return; }
+        if(G.phase==='player'&&card.fixedAttack&&typeof useFixedEquipCard==='function'){ useFixedEquipCard(i); return; }
+        if(G.phase==='player'&&!card.fixedEquip&&!isEquipmentCard(card)&&typeof useUnitEquipCard==='function'){ useUnitEquipCard(i); return; }
+      };
+      if(arrName==='globalPanels') div.onclick=e=>{
+        e.stopPropagation();
+        if(G._pendingPanelPlacement){ placePendingPanelToGlobal(i); return; }
+      };
+      if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse&&!isEquipmentCard(card)&&card.allowRewardUse){
         const _isWand=t==='wand';
         const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
         if(_hasCharge){ div.onclick=()=>useSpell(i); div.style.cursor='pointer'; }
       }
-      if(arrName!=='unitEquip'||_isNonCombatEquipPhase()){
+      if(arrName!=='unitEquip'&&arrName!=='globalPanels'){
         div.addEventListener('dragstart',e=>{
           if(arrName==='unitEquip'&&!_isNonCombatEquipPhase()){ e.preventDefault(); return; }
           _dragSrc=arrName==='unitEquip'?{arr:arrName,idx:i,unitIdx:G._selectedEquipUnitIdx}:{arr:arrName,idx:i};
@@ -1968,14 +2125,25 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
         div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); });
       }
+      if(_canFixedAttackDrag){
+        div.addEventListener('dragstart',e=>{
+          window._fixedEquipDrag={unitIdx:G._selectedEquipUnitIdx,equipIdx:i};
+          div.classList.add('dragging');
+          e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+          _createDragGhost(div);
+        });
+        div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+        div.addEventListener('dragend',()=>{ window._fixedEquipDrag=null; div.classList.remove('dragging'); _removeDragGhost(); });
+      }
       div.addEventListener('dragover',e=>{ e.preventDefault(); div.classList.add('drag-over'); });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
-      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); dropOnCard(arrName,i); });
+      div.addEventListener('drop',e=>{ e.preventDefault(); div.classList.remove('drag-over'); if(arrName!=='unitEquip'&&arrName!=='globalPanels') dropOnCard(arrName,i); });
       el.appendChild(div);
     } else {
       const ph=document.createElement('div');
       ph.className='card-empty spell';
-      if(arrName==='unitEquip'){
+      if(arrName==='unitEquip'||arrName==='globalPanels'){
         ph.classList.add('equip-empty',`equip-slot-${_slotDef.kind}`);
         ph.textContent=_slotDef.label;
       }
@@ -1983,14 +2151,15 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       ph.style.setProperty('--hand-i',_handPos);
       ph.style.setProperty('--hand-mid',_handMid);
       ph.style.setProperty('--hand-arc',_handArc);
-      ph.addEventListener('dragover',e=>{ e.preventDefault(); ph.classList.add('drag-over'); });
+      ph.addEventListener('dragover',e=>{ if(arrName==='unitEquip'||arrName==='globalPanels') return; e.preventDefault(); ph.classList.add('drag-over'); });
       ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
       ph.addEventListener('drop',e=>{
         e.preventDefault(); ph.classList.remove('drag-over');
+        if(arrName==='unitEquip'||arrName==='globalPanels') return;
         ph._skipNextClick=true;
         if(arrName==='unitEquip'&&_dragSrc){
           const srcCard=_dragSrc.arr==='inventory'?G.inventory[_dragSrc.idx]:_dragSrc.arr==='unitEquip'?(G.allies[_dragSrc.unitIdx]?.equipment||[])[_dragSrc.idx]:G.spells[_dragSrc.idx];
-          if(srcCard&&isEquipmentCard(srcCard)&&!_canCardUseEquipSlot(srcCard,i)){
+          if(srcCard&&!_canCardUseEquipSlot(srcCard,i,G.allies[G._selectedEquipUnitIdx])){
             log(`${srcCard.name} は${_slotDef.label}に装備できません`,'bad');
             _dragSrc=null;
             return;
@@ -2001,7 +2170,12 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='unitEquip') ph.onclick=e=>{
         e.stopPropagation();
         if(ph._skipNextClick){ ph._skipNextClick=false; return; }
-        _clearEquipSelection();
+        if(G._pendingPanelPlacement){ placePendingPanelToSelectedUnit(i); return; }
+      };
+      if(arrName==='globalPanels') ph.onclick=e=>{
+        e.stopPropagation();
+        if(ph._skipNextClick){ ph._skipNextClick=false; return; }
+        if(G._pendingPanelPlacement){ placePendingPanelToGlobal(i); return; }
       };
       el.appendChild(ph);
     }
@@ -2025,33 +2199,6 @@ function dropOnCard(destArr,destIdx){
   }
   const _arrOf=name=>name==='rings'?G.rings:name==='inventory'?G.inventory:G.spells;
   if(destArr==='unitEquip'){
-    const destUnit=G.allies[G._selectedEquipUnitIdx];
-    if(!destUnit||!_isNonCombatEquipPhase()) return;
-    const destEquips=_ensureUnitEquipmentSlots(destUnit);
-    const srcUnit=srcArr==='unitEquip'?G.allies[srcUnitIdx]:null;
-    const srcEquips=srcUnit?_ensureUnitEquipmentSlots(srcUnit):null;
-    const src=_arrOf(srcArr);
-    const card=srcArr==='unitEquip'?(srcEquips&&srcEquips[srcIdx]):src[srcIdx];
-    if(!card||!isEquipmentCard(card)||!_canCardUseEquipSlot(card,destIdx)){
-      if(card) log(`${card.name} は${_equipSlotDef(destIdx).label}に装備できません`,'bad');
-      return;
-    }
-    const destCard=destEquips[destIdx]||null;
-    if(srcArr==='unitEquip'){
-      if(!srcEquips) return;
-      if(destCard&&!_canCardUseEquipSlot(destCard,srcIdx)){
-        log(`${destCard.name} は${_equipSlotDef(srcIdx).label}に装備できません`,'bad');
-        return;
-      }
-      srcEquips[srcIdx]=destCard;
-    } else {
-      src[srcIdx]=destCard;
-    }
-    destEquips[destIdx]=card;
-    if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-    renderHandEditor();
-    renderFieldEditor();
-    renderMapInventorySlots();
     return;
   }
   const _isRingCard=c=>isEquipmentCard(c)||(c&&(c.kind==='summon'||c.kind==='passive'||c.type==='ring'));
@@ -2259,23 +2406,19 @@ function _generateMasterHand(){
 
 // マスター手札アイテムを購入（杖・消耗品・指輪）
 function buyMasterHandItem(idx){
+  if(G._pendingPanelPlacement){ log('パネルの配置先を選んでください','bad'); return; }
   const sp=G.masterHand[idx]; if(!sp) return;
   // レッサーデーモン：次に購入する消耗品アイテムで累積分一括消費
   const _ldDisc=_lesserDemonDiscountFor(sp);
   const cost=Math.max(0,(sp._buyPrice??2)-_ldDisc);
   if(G.gold<cost){ log('ゴールドが足りません','bad'); return; }
-  const _isRingCard=sp.kind==='summon'||sp.kind==='passive'||sp.type==='ring';
-  if(_isRingCard){
-    const invIdx=_findMapInventoryEmptySlot();
-    if(invIdx<0){ log('インベントリが満杯です。装備を整理してください。','bad'); return; }
+  const finish=()=>{
     G.gold-=cost;
     _consumeLesserDemonDiscount(_ldDisc);
-    const rc=clone(sp); delete rc._buyPrice; rc.noRewardUse=true;
-    G.inventory[invIdx]=rc;
-    if(rc.legend||rc._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(rc.id); }
-    log(`${rc.name} を取得（インベントリへ、-${cost}ゴールド）`,'good');
-    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
+    if(sp.legend||sp._isLegend){ G._seenLegendRings=G._seenLegendRings||new Set(); G._seenLegendRings.add(sp.id); }
     G.masterHand[idx]=null;
+    log(`${sp.name} を取得（-${cost}ゴールド）`,'good');
+    if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
     document.getElementById('rw-gold').textContent=G.gold;
     updateHUD();
     renderFieldEditor();
@@ -2283,33 +2426,11 @@ function buyMasterHandItem(idx){
     renderEnemyHand();
     renderRewCards();
     renderGradeUpBtn();
-    return;
+  };
+  if(startPanelPlacement(sp,finish,'報酬')){
+    if(G._pendingPanelPlacement) G._pendingPanelPlacement.masterIdx=idx;
+    renderEnemyHand();
   }
-  const handIdx=_findInventoryEmptySlot();
-  if(handIdx<0){ log(`インベントリ（${G.handSlots||5}枠）が満杯です`,'bad'); return; }
-  G.gold-=cost;
-  _consumeLesserDemonDiscount(_ldDisc);
-  delete sp._buyPrice;
-  G.spells[handIdx]=sp;
-  // ファミリア：商談フェイズで最初に購入した消耗品のコピーを得る（杖は対象外）
-  if(sp.type==='consumable'&&G.phase==='reward'&&!G._familiarUsed&&G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='familiar_shop')){
-    G._familiarUsed=true;
-    const _famHandIdx=_findInventoryEmptySlot();
-    if(_famHandIdx>=0){
-      const _famCopy=clone(sp);
-      G.spells[_famHandIdx]=_famCopy;
-      log(`ファミリア：${sp.name}のコピーを獲得`,'good');
-    }
-  }
-  G.masterHand[idx]=null;
-  log(`${sp.name} を取得（-${cost}ゴールド）`,'good');
-  if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
-  document.getElementById('rw-gold').textContent=G.gold;
-  updateHUD();
-  renderFieldEditor();
-  renderEnemyHand();
-  renderRewCards();
-  renderGradeUpBtn();
 }
 
 // マスター指輪を購入

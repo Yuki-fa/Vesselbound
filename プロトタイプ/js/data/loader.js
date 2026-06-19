@@ -24,6 +24,7 @@ const _SHEET_GIDS = {
 };
 
 const SHEET_RACE_BY_NAME = {};
+const SPECIES_EQUIP_CONFIG = {};
 
 function getSheetRaceByName(name) {
   return SHEET_RACE_BY_NAME[_normCardName(name)] || '';
@@ -95,9 +96,119 @@ function _parseCSV(text) {
   }).filter(row => row && (row['名前'] || row[headers[0]]));
 }
 
+function _parseCSVWithHeader(text, headerNames) {
+  const rows = [];
+  let row = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQ && text[i + 1] === '"') { row += '""'; i++; }
+      else { inQ = !inQ; row += c; }
+    } else if (c === '\r') {
+    } else if (c === '\n' && !inQ) {
+      rows.push(row); row = '';
+    } else row += c;
+  }
+  if (row.trim()) rows.push(row);
+  const wanted = headerNames || [];
+  let headerIdx = rows.findIndex(line => {
+    const cols = _csvRow(line).map(h => h.trim());
+    return wanted.some(h => cols.includes(h));
+  });
+  if (headerIdx < 0) return _parseCSV(text);
+  const headers = _csvRow(rows[headerIdx]).map(h => h.trim());
+  return rows.slice(headerIdx + 1).map(line => {
+    if (!line.trim()) return null;
+    const vals = _csvRow(line);
+    const obj = {};
+    headers.forEach((h, i) => {
+      const v = (vals[i] || '').trim();
+      obj[`__col${i}`] = v;
+      if (h) obj[h] = v;
+    });
+    return obj;
+  }).filter(row => row && (row['名前'] || row['カード名'] || row[headers[0]] || row['__col0']));
+}
+
+const _XLSX_PATH = './Vesselbound_data.xlsx';
+const _XLSX_SHEETS = {
+  floor: '階層データ',
+  grade: 'グレードアップ',
+  spell: '杖、アイテム',
+  ring: '指輪',
+  char: 'キャラクター',
+  enemy: '敵',
+  starter: '職種',
+  species: '種族',
+  keyword: 'キーワード',
+  squirrel: '商談メッセージ',
+};
+
+function _xlsxSheetToCSV(workbook, sheetName, required) {
+  const sheet = workbook && workbook.Sheets && workbook.Sheets[sheetName];
+  if (!sheet) {
+    if (required) throw new Error('xlsx sheet missing: ' + sheetName);
+    return '名前\n';
+  }
+  return XLSX.utils.sheet_to_csv(sheet);
+}
+
+async function _loadGameDataFromXlsx() {
+  if (typeof XLSX === 'undefined') throw new Error('SheetJS XLSX is not loaded');
+  const res = await fetch(_XLSX_PATH);
+  if (!res.ok) throw new Error('xlsx HTTP ' + res.status);
+  const buf = await res.arrayBuffer();
+  const workbook = XLSX.read(buf, { type: 'array' });
+  return {
+    source: 'xlsx',
+    ft: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.floor, true),
+    gt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.grade, true),
+    st: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, true),
+    rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, true),
+    ct: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.char, true),
+    et: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enemy, false),
+    starterText: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.starter, true),
+    speciesText: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.species, false),
+    kwt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.keyword, false),
+    sqt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.squirrel, false),
+  };
+}
+
+async function _loadGameDataFromGoogleCsv() {
+  const fetches = [
+    fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
+    fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
+    fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
+    fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
+    fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
+    fetch(_sheetUrl(_SHEET_GIDS['初期キャラクター'])),
+  ];
+  const responses = await Promise.all(fetches);
+  for (const r of responses) {
+    if (r && !r.ok) throw new Error('HTTP ' + r.status);
+  }
+  const [ft, gt, st, rt, ct, starterText] = await Promise.all(responses.map(r => r.text()));
+  let kwt = '名前\n';
+  let sqt = '名前\n';
+  try {
+    const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['敵キーワード']));
+    if (kwRes.ok) kwt = await kwRes.text();
+  } catch (_) { /* 任意シート */ }
+  try {
+    const sqRes = await fetch(_sheetUrl(_SHEET_GIDS['リスNPC']));
+    if (sqRes.ok) sqt = await sqRes.text();
+  } catch (_) { /* 任意シート */ }
+  return { source: 'csv', ft, gt, st, rt, ct, et: 'カード名\n', starterText, speciesText: '種族\n', kwt, sqt };
+}
+
 // ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
 function _parseIntRange(s, fallback) {
   if (!s || !String(s).trim()) return { val: fallback, range: [fallback, fallback] };
+  const slash = String(s).match(/(\d+)\s*\/\s*(\d+)/);
+  if (slash) {
+    const v = parseInt(slash[2]);
+    return { val: v, range: [v, v] };
+  }
   const m = String(s).match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
   if (m) {
     const lo = parseInt(m[1]), hi = parseInt(m[2]);
@@ -159,7 +270,9 @@ function _starterNameFromSheet(s) {
 function _findStarterUnitBySheetName(name) {
   const n = _starterNameFromSheet(name);
   if (!n) return null;
-  return (UNIT_POOL || []).find(u => u && u.starterOnly && _normCardName(u.name) === _normCardName(n)) || null;
+  return (UNIT_POOL || []).find(u => u && u.starterOnly && _normCardName(u.name) === _normCardName(n))
+    || _findBySheetName(typeof UNIT_POOL !== 'undefined' ? UNIT_POOL : [], n)
+    || null;
 }
 
 function _cardNameExists(name) {
@@ -169,6 +282,49 @@ function _cardNameExists(name) {
 
 function _sheetAbilityText(s) {
   return String(s || '').trim().replace(/^<([^>]+)>/, '$1：');
+}
+
+function _sheetNumber(v, fallback) {
+  const n = parseInt(String(v || '').trim(), 10);
+  return isNaN(n) ? fallback : n;
+}
+
+function _makeFixedEquipCard(name, desc) {
+  const nm = String(name || '固定装備').replace(/[（）]/g, '').trim() || '固定装備';
+  return {
+    id: 'fixed_' + _normCardName(nm),
+    name: nm,
+    type: 'consumable',
+    kind: 'equipment',
+    equip: true,
+    fixedEquip: true,
+    fixedAttack: true,
+    actionCost: 1,
+    needsEnemy: true,
+    grade: 1,
+    rarity: -1,
+    cost: 0,
+    desc: '固定装備。対象にこのキャラクターの攻撃力分のダメージを与える。',
+  };
+}
+
+function _syncSpeciesEquipConfig(text) {
+  Object.keys(SPECIES_EQUIP_CONFIG).forEach(k => delete SPECIES_EQUIP_CONFIG[k]);
+  const rows = _parseCSVWithHeader(text || '種族\n', ['種族', '固定装備']);
+  rows.forEach(row => {
+    const race = (row['種族'] || row['名前'] || row['__col0'] || '').trim();
+    if (!race || race === '種族' || race.includes('※')) return;
+    const itemSlots = _sheetNumber(row['アイテムスロット'] || row['__col5'], 3);
+    const ringSlots = _sheetNumber(row['リングスロット'] || row['指輪スロット'] || row['__col6'], 1);
+    const fixedName = (row['固定装備'] || row['__col7'] || '').trim();
+    const fixedDesc = (row['固定装備 性能'] || row['固定装備性能'] || row['__col8'] || '').trim();
+    SPECIES_EQUIP_CONFIG[_normCardName(race)] = {
+      race,
+      itemSlots: Math.max(0, itemSlots),
+      ringSlots: Math.max(0, ringSlots),
+      fixedEquip: fixedName ? _makeFixedEquipCard(fixedName, fixedDesc) : null,
+    };
+  });
 }
 
 function _syncUnitEffectKeysFromSheet(unit) {
@@ -245,13 +401,14 @@ function _syncUnitEffectKeysFromSheet(unit) {
 
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
 function _rowToUnit(row) {
-  const atkP = _parseIntRange(row['パワー'] || row['ATK'], 0);
+  const atkP = _parseIntRange(row['パワー'] || row['攻撃力'] || row['ATK'], 0);
   const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  0);
+  const name = row['名前'] || row['カード名'];
   return {
     id:      '',                               // JS定義から名前マッチで補完
-    name:    row['名前'],
+    name:    name,
     race:    row['種族']  || '-',
-    grade:   parseInt(row['グレード']) || 1,
+    grade:   parseInt(row['グレード'] || row['レベル']) || 1,
     atk:     atkP.val,
     hp:      hpP.val,
     baseAtk: atkP.range,
@@ -309,56 +466,46 @@ function _rowToSpell(row) {
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
-    // 全シートを並列取得（effect_id は任意）
-    const fetches = [
-      fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
-      fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
-      fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
-      fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
-      fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
-      fetch(_sheetUrl(_SHEET_GIDS['初期キャラクター'])),
-    ];
-    const responses = await Promise.all(fetches);
-    for (const r of responses) {
-      if (r && !r.ok) throw new Error('HTTP ' + r.status);
+    let loaded;
+    try {
+      loaded = await _loadGameDataFromXlsx();
+      console.log('[Vesselbound] XLSX loaded');
+    } catch (xlsxErr) {
+      console.warn('[Vesselbound] XLSX 読み込み失敗。Google Sheets CSVへフォールバック:', xlsxErr);
+      loaded = await _loadGameDataFromGoogleCsv();
+      console.log('[Vesselbound] CSV loaded');
     }
-    const [ft, gt, st, rt, ct, starterText] = await Promise.all(responses.map(r => r.text()));
+    const { source, ft, gt, st, rt, ct, et, starterText, speciesText, kwt, sqt } = loaded;
+
+    _syncSpeciesEquipConfig(speciesText);
 
     // 敵キーワード シート（任意）：失敗してもメイン読み込みには影響しない
     try {
-      const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['敵キーワード']));
-      if (kwRes.ok) {
-        const kwt = await kwRes.text();
-        const kwRows = _parseCSV(kwt);
-        kwRows.forEach(row => {
-          const name = (row['名前'] || row['キーワード'] || row[Object.keys(row)[0]] || '').trim();
-          const desc = (row['効果']||row['説明']||row['説明文']||'').trim();
-          if (!name || !desc) return;
-          KW_DESC_MAP[name] = desc;
-          // 「毒牙X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（毒牙1等）でも引けるよう登録
-          if (/X$/.test(name)) KW_DESC_MAP[name.slice(0,-1)] = desc;
-        });
-      }
+      const kwRows = _parseCSV(kwt || '名前\n');
+      kwRows.forEach(row => {
+        const name = (row['名前'] || row['キーワード'] || row[Object.keys(row)[0]] || '').trim();
+        const desc = (row['効果']||row['説明']||row['説明文']||'').trim();
+        if (!name || !desc) return;
+        KW_DESC_MAP[name] = desc;
+        // 「毒牙X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（毒牙1等）でも引けるよう登録
+        if (/X$/.test(name)) KW_DESC_MAP[name.slice(0,-1)] = desc;
+      });
     } catch (_) { /* キーワード説明文なしで続行 */ }
 
     // リスNPCメッセージ シート（任意）
     try {
-      const sqRes = await fetch(_sheetUrl(_SHEET_GIDS['リスNPC']));
-      if (sqRes.ok) {
-        const sqt = await sqRes.text();
-        const sqRows = _parseCSV(sqt);
-        // シートのデータでハードコード済みデフォルトを上書きする
-        const _sqFromSheet = {};
-        sqRows.forEach(row => {
-          const trigger = (row['条件'] || row['トリガー'] || row[Object.keys(row)[0]] || '').trim();
-          const msg = (row['セリフ'] || row['メッセージ'] || row['テキスト'] || row[Object.keys(row)[1]] || '').trim();
-          if (!trigger || !msg) return;
-          if (!_sqFromSheet[trigger]) _sqFromSheet[trigger] = [];
-          _sqFromSheet[trigger].push(msg);
-        });
-        // シートに存在するトリガーのみ上書き（シート読み込み失敗時はデフォルトを維持）
-        Object.assign(SQUIRREL_MESSAGES, _sqFromSheet);
-      }
+      const sqRows = _parseCSV(sqt || '名前\n');
+      // シートのデータでハードコード済みデフォルトを上書きする
+      const _sqFromSheet = {};
+      sqRows.forEach(row => {
+        const trigger = (row['条件'] || row['トリガー'] || row[Object.keys(row)[0]] || '').trim();
+        const msg = (row['セリフ'] || row['メッセージ'] || row['テキスト'] || row[Object.keys(row)[1]] || '').trim();
+        if (!trigger || !msg) return;
+        if (!_sqFromSheet[trigger]) _sqFromSheet[trigger] = [];
+        _sqFromSheet[trigger].push(msg);
+      });
+      // シートに存在するトリガーのみ上書き（シート読み込み失敗時はデフォルトを維持）
+      Object.assign(SQUIRREL_MESSAGES, _sqFromSheet);
     } catch (_) { /* リスNPCデータなしで続行 */ }
 
     // ── 階層データ ──
@@ -448,7 +595,7 @@ async function loadGameData() {
     // ── 魔法プール（種別・グレード・使用回数・価格・初期装備・説明文）──
     const spellRows = _parseCSV(st);
     spellRows.forEach(row => {
-      const name = row['名前'];
+      const name = row['名前'] || row['カード名'];
       if (!name) return;
       // 同名カードが複数ある場合（例：初期装備版と報酬プール版）は全件更新
       const spells = _filterBySheetName(SPELL_POOL, name);
@@ -457,9 +604,10 @@ async function loadGameData() {
       const _typeRaw = (row['種別1'] || row['種別'] || row['種別(wand/consumable)'] || '').trim();
       const _typeMap = {'杖':'wand','短杖':'wand','wand':'wand','消耗品':'consumable','アイテム':'consumable','consumable':'consumable'};
       const type = _typeMap[_typeRaw] || null;
-      const grade = parseInt(row['グレード']);
+      const grade = parseInt(row['グレード'] || row['レベル']);
       const usesStr = (row['基本使用回数'] || '').trim();
       const cost = parseInt(row['価格']);
+      const actionCost = parseInt(row['行動力'] || row['消費行動力']);
       const rarStr = (row['レアリティ'] || '').trim();
       const rarVal = parseInt(rarStr);
       const sv = row['初期装備'];
@@ -473,6 +621,7 @@ async function loadGameData() {
           else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
         }
         if (!isNaN(cost)) spell.cost = cost;
+        if (!isNaN(actionCost)) spell.actionCost = Math.max(0, actionCost);
         if (rarStr === '-') spell.rarity = -1;
         else if (!isNaN(rarVal) && rarVal >= 1) spell.rarity = rarVal;
         if (_truthySheet(sv)) spell.starterOnly = true;
@@ -507,7 +656,7 @@ async function loadGameData() {
       if (_truthySheet(uv)) ring.legend = true;
       else if (_falseySheet(uv)) delete ring.legend;
       // グレード
-      const grade = parseInt(row['グレード']);
+      const grade = parseInt(row['グレード'] || row['レベル']);
       if (!isNaN(grade) && grade >= 1) ring.grade = grade;
       // 価格
       const cost = parseInt(row['価格']);
@@ -529,7 +678,8 @@ async function loadGameData() {
     });
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
-    const charRows = _parseCSV(ct);
+    const charRows = _parseCSVWithHeader(ct, ['カード名', '名前']);
+    const enemyRows = _parseCSVWithHeader(et || 'カード名\n', ['カード名', 'ターン']);
     const _sheetEnemyNames = new Set(); // シートに「敵専用」の通常敵として登録されている敵名
     const _sheetUnitNames = new Set();  // シートに存在する通常/ネームドキャラクター名
     const _syncUnitFromRow = (unit, row) => {
@@ -537,13 +687,13 @@ async function loadGameData() {
       const nv = row['ネームド'] || row['ユニーク'];
       if (_truthySheet(nv)) unit.unique = true;
       else if (_falseySheet(nv)) unit.unique = false;
-      const grade = parseInt(row['グレード']);
+      const grade = parseInt(row['グレード'] || row['レベル']);
       if (!isNaN(grade) && grade >= 1) unit.grade = grade;
       { const rarStr=(row['レアリティ']||'').trim();
         const rarVal=parseInt(rarStr);
         if(rarStr==='-') unit.rarity=-1;
         else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
-      const atkP2 = _parseIntRange(row['パワー'] || row['ATK'], unit.atk || 0);
+      const atkP2 = _parseIntRange(row['パワー'] || row['攻撃力'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
       if (atkP2.val > 0) unit.atk = atkP2.val;
       if (hpP2.val  > 0) unit.hp  = hpP2.val;
@@ -563,7 +713,9 @@ async function loadGameData() {
       const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || '';
       const equipTypes = _splitSheetList(equipTypeStr);
       if (equipTypes.length) unit.equipTypes = equipTypes;
-      const initialEqStr = row['初期装備'] || row['装備'] || '';
+      const effectText = row['効果'] || '';
+      const inEffectEq = [...String(effectText).matchAll(/初期装備[：:]\s*「([^」]+)」/g)].map(m => m[1]).join('、');
+      const initialEqStr = row['初期装備'] || row['装備'] || inEffectEq || '';
       const initialEquipment = _splitSheetList(initialEqStr).filter(_cardNameExists);
       if (initialEquipment.length) unit.initialEquipment = initialEquipment;
       else if (initialEqStr) unit.initialEquipment = [];
@@ -578,16 +730,37 @@ async function loadGameData() {
       _syncUnitEffectKeysFromSheet(unit);
     };
     const _syncStarterFromRow = (unit, row) => {
+      const starterName = _starterNameFromSheet(row['名前']);
+      if (!unit && starterName) {
+        unit = {
+          id: 'c_starter_sheet_' + _normCardName(starterName),
+          name: starterName,
+          race: '亜人',
+          grade: 1,
+          atk: 1,
+          hp: 1,
+          cost: 0,
+          unique: false,
+          starterOnly: true,
+          icon: '❓',
+          initialEquipment: [],
+        };
+        UNIT_POOL.push(unit);
+      }
       if (!unit) return;
       const atkP2 = _parseIntRange(row['初期ATK'] || row['パワー'] || row['ATK'], unit.atk || 0);
       const hpP2  = _parseIntRange(row['初期HP']  || row['ライフ'] || row['HP'],  unit.hp  || 0);
       if (atkP2.val > 0) unit.atk = atkP2.val;
       if (hpP2.val  > 0) unit.hp  = hpP2.val;
+      unit.baseAtk = atkP2.range;
+      unit.baseHp = hpP2.range;
       if (row['種族']) unit.race = row['種族'];
       unit.grade = 1;
       unit.cost = 0;
       unit.unique = false;
       unit.starterOnly = true;
+      unit.enemyOnly = false;
+      unit.rarity = -1;
       unit.desc = _sheetAbilityText(row['固有能力1']) || row['効果'] || unit.desc || '';
       if (row['固有能力2']) unit.stack1Desc = _sheetAbilityText(row['固有能力2']);
       if (row['固有能力3']) unit.stack2Desc = _sheetAbilityText(row['固有能力3']);
@@ -603,7 +776,7 @@ async function loadGameData() {
       unit._sheetSeen = true;
     };
     charRows.forEach(row => {
-      const name = row['名前'];
+      const name = row['名前'] || row['カード名'];
       if (!name) return;
       if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
@@ -669,7 +842,43 @@ async function loadGameData() {
       delete unit.enemyOnly;
       _sheetUnitNames.add(_normCardName(name));
       _syncUnitFromRow(unit, row);
+      if (_normCardName(name) === _normCardName('ミラ') || _normCardName(name) === _normCardName('アドラ')) {
+        unit.starterOnly = true;
+        unit.initialParty = true;
+        unit.rarity = -1;
+      }
     });
+
+    if (enemyRows.length) {
+      ENEMY_POOL.length = 0;
+      enemyRows.forEach(row => {
+        const name = row['カード名'] || row['名前'];
+        if (!name) return;
+        const atkP = _parseIntRange(row['攻撃力'] || row['パワー'] || row['ATK'], 1);
+        const hpP = _parseIntRange(row['ライフ'] || row['HP'], 2);
+        const level = _parseIntRange(row['レベル'] || row['グレード'], 1).val;
+        const turnRaw = String(row['ターン'] || '1').trim();
+        const turn = turnRaw === '-' ? 999 : (parseInt(turnRaw) || 1);
+        const kws = (row['キーワード'] || '').split(/[\s、,，]+/).filter(Boolean);
+        const enemy = {
+          name,
+          grade: Math.max(1, Math.round(level || 1)),
+          icon: row['アイコン'] || '❓',
+          race: row['種族'] || '-',
+          atk: atkP.val,
+          hp: hpP.val,
+          baseAtk: atkP.range,
+          baseHp: hpP.range,
+          keywords: kws,
+          desc: row['備考'] || '',
+          equipmentText: row['装備'] || '',
+          spawnTurn: turn,
+          _sheetEnemy: true,
+        };
+        ENEMY_POOL.push(enemy);
+        _sheetEnemyNames.add(name);
+      });
+    }
 
     const starterRows = _parseCSV(starterText);
     starterRows.forEach(row => {

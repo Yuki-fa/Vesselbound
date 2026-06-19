@@ -19,6 +19,11 @@ function renderMoveSelect(opts){
 }
 
 function chooseMove(nt){
+  if(G._pendingPanelPlacement){
+    log('パネルの配置先を選んでください','bad');
+    return;
+  }
+  G._selectedEquipCardIdx=null;
   G.prevNodeType=nt;
   G.floor++;
   if(G.floor>20){ showScreen('clear'); return; }
@@ -49,6 +54,10 @@ function chooseMove(nt){
 
 function takeCardToHand(card){
   if(!card) return;
+  if(typeof giveCardToSelectedUnit==='function'){
+    giveCardToSelectedUnit(card,'取得');
+    return;
+  }
   const isEquip=card.equip||card.kind==='equipment'||card.type==='ring';
   const isRing=!isEquip&&(card.kind==='summon'||card.kind==='passive'||!card.type);
   const nc=clone(card);
@@ -203,6 +212,7 @@ function _generateWorldMap(){
   const firstStepIds=_worldMapNeighbors(startId).filter(id=>nodes[startId].links.includes(id));
   firstStepIds.forEach(id=>{ nodes[id].type='mob'; });
   const reserved=new Set([startId,...firstStepIds]);
+  nodes[startId].type='empty';
   nodes[startId].cleared=true;
   const allIds=Object.keys(nodes);
   const openIds=()=>allIds.filter(id=>!reserved.has(id));
@@ -274,10 +284,19 @@ function showWorldMap(){
   G.phase='map';
   G.floor=_worldMapBaseFloor(G.mapIndex||1);
   _setWorldMapUI(true);
+  const panel=document.getElementById('world-map-panel');
+  if(panel) panel.hidden=false;
   if(typeof renderAll==='function') renderAll();
   _setWorldMapUI(true);
+  if(panel) panel.hidden=false;
   if(typeof renderFieldEditor==='function') renderFieldEditor();
   updateHUD();
+  _drawWorldMapContents();
+  requestAnimationFrame(()=>{ if(G.phase==='map') _drawWorldMapContents(); });
+  if(typeof renderMapInventory==='function') renderMapInventory();
+}
+
+function _drawWorldMapContents(){
   const panel=document.getElementById('world-map-panel');
   const grid=document.getElementById('world-map-grid');
   if(!panel||!grid||!G.worldMap) return;
@@ -312,13 +331,12 @@ function showWorldMap(){
     if(n.cleared) btn.classList.add('is-cleared');
     btn.style.left=`${_worldMapNodeLeft(n.x)}%`;
     btn.style.top=`${_worldMapNodeTop(n.y)}%`;
-    btn.style.backgroundImage=assetUrl(_worldMapNodeImage(n.id===G.mapPosition?'player':n.type));
+    btn.style.backgroundImage=assetUrl(_worldMapNodeImage(n.id===G.worldMap.startId?'empty':n.id===G.mapPosition?'player':n.type));
     btn.textContent='';
     btn.title=n.id===G.mapPosition?'現在地':_worldMapLabel(n.type);
     btn.onclick=()=>{ if(movable) chooseWorldMapNode(n.id); else chooseWorldMapPath(n.id); };
     grid.appendChild(btn);
   });
-  if(typeof renderMapInventory==='function') renderMapInventory();
 }
 
 function _makeWorldMapEdge(a,b,preview){

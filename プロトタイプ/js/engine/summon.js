@@ -5,7 +5,7 @@
 
 // 行動の指輪・宿屋ボーナスによる行動回数を計算
 function calcActions(){
-  let n=1;
+  let n=3;
   G.rings.forEach(r=>{ if(r&&r.unique==='extra_action') n+=1; }); // 行動の指輪は常に+1（グレード無関係）
   if(G._bonusAction) n+=G._bonusAction; // 宿屋ボーナス（永続）
   if(G._minotaurBonus) n+=G._minotaurBonus; // ミノタウロス：ボス戦で+1

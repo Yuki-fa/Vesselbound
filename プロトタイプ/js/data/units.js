@@ -207,7 +207,50 @@ function makeSheetBackedUnitDef(fallback){
 }
 
 // 単体のユニットを定義IDから生成する
+function _speciesEquipConfigForUnit(def) {
+  if (typeof SPECIES_EQUIP_CONFIG === 'undefined') return null;
+  const race = def && def.race;
+  const keys = [race, race === '亜人' ? '人間' : '', race === '不死' ? '不死人' : '']
+    .filter(Boolean)
+    .map(v => typeof _normCardName === 'function' ? _normCardName(v) : String(v || '').trim());
+  for (const k of keys) {
+    if (SPECIES_EQUIP_CONFIG[k]) return SPECIES_EQUIP_CONFIG[k];
+  }
+  return null;
+}
+
+function _buildUnitEquipSlots(def) {
+  const cfg = _speciesEquipConfigForUnit(def);
+  if (!cfg) {
+    return [
+      { label: '固定装備', kind: 'fixed', fixed: true },
+      { label: 'アイテム1', kind: 'item' },
+      { label: '指輪1', kind: 'ring' },
+      { label: '指輪2', kind: 'ring' },
+    ];
+  }
+  const slots = [{ label: cfg.fixedEquip ? cfg.fixedEquip.name : '固定装備', kind: 'fixed', fixed: true }];
+  for (let i = 0; i < (cfg.itemSlots || 0); i++) slots.push({ label: `アイテム${i + 1}`, kind: 'item' });
+  for (let i = 0; i < (cfg.ringSlots || 0); i++) slots.push({ label: `指輪${i + 1}`, kind: 'ring' });
+  return slots;
+}
+
+function _buildUnitInitialEquipment(def, slots) {
+  const equips = new Array(slots.length).fill(null);
+  const cfg = _speciesEquipConfigForUnit(def);
+  if (slots[0] && slots[0].fixed) equips[0] = cfg && cfg.fixedEquip ? clone(cfg.fixedEquip) : null;
+  (def.initialEquipment || []).forEach(name => {
+    const card = (typeof _findBySheetName === 'function' && (_findBySheetName(SPELL_POOL, name) || _findBySheetName(RING_POOL, name))) || null;
+    if (!card) return;
+    const isRing = card.type === 'ring';
+    const idx = slots.findIndex((slot, i) => !equips[i] && (isRing ? slot.kind === 'ring' : slot.kind === 'item'));
+    if (idx >= 0) equips[idx] = clone(card);
+  });
+  return equips;
+}
+
 function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
+  const equipSlots = _buildUnitEquipSlots(def);
   const unit = {
     id:       uid(),
     defId:    def.id,
@@ -243,6 +286,8 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     keywords: def.keywords ? [...def.keywords] : [],
     equipTypes: def.equipTypes ? [...def.equipTypes] : [],
     initialEquipment: def.initialEquipment ? [...def.initialEquipment] : [],
+    equipmentSlots: equipSlots.map(s => ({ ...s })),
+    equipment: _buildUnitInitialEquipment(def, equipSlots),
     // 重ねシステム
     _stackCount: 0,
     _baseDesc:   def.desc  || '',

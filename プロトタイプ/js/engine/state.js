@@ -67,6 +67,8 @@ function initState(){
     // ── マップ用インベントリ（9×2）──
     inventory: Array(18).fill(null),
     inventoryOpen:false,
+    globalPanels:Array(7).fill(null),
+    _showGlobalPanels:false,
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
@@ -150,9 +152,11 @@ function initState(){
     _lesserDemonDiscount:0,
   };
 
-  // 初期キャラクター：職業キャラからランダム3体
-  const starterDefs = UNIT_POOL.filter(u=>u&&u.starterOnly&&/^c_starter_/.test(u.id||''));
-  const pickedStarters = [...starterDefs].sort(()=>Math.random()-0.5).slice(0,3);
+  // 初期キャラクター：シートの「ミラ」「アドラ」固定
+  const starterNames = ['ミラ', 'アドラ'];
+  const pickedStarters = starterNames
+    .map(name => UNIT_POOL.find(u => u && u.name === name))
+    .filter(Boolean);
   pickedStarters.forEach((def,i)=>{
     const unit=makeUnitFromDef(def, undefined, true);
     unit._isStarter=true;
@@ -164,6 +168,16 @@ function initState(){
       if(item&&slot>=0) G.spells[slot]=clone(item);
     });
   });
+
+  const addGlobal=name=>{
+    if(typeof makeGlobalPanel!=='function') return;
+    const card=makeGlobalPanel(name);
+    if(!card) return;
+    const slot=G.globalPanels.findIndex(p=>!p);
+    if(slot>=0) G.globalPanels[slot]=card;
+  };
+  if(pickedStarters.some(def=>def&&def.name==='ミラ')) addGlobal('治療');
+  if(pickedStarters.some(def=>def&&def.name==='アドラ')) addGlobal('武術の知識　Lv.1');
 
   // 初期杖：炎の杖
   const fireWand = SPELL_POOL.find(s=>s.id==='s_fire')||clone(SPELL_POOL[0]);

@@ -79,6 +79,10 @@ function renderShop(){
 function buyItem(){ /* legacy stub — shop now uses ring-only via renderShop */ }
 
 function shopDone(){
+  if(G._pendingPanelPlacement){
+    log('パネルの配置先を選んでください','bad');
+    return;
+  }
   G._isShop=false;
   G._isRewardTown=false;
   G.inventoryOpen=false;
