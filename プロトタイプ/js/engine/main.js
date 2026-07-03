@@ -7,11 +7,6 @@
 // HELPERS
 // ═══════════════════════════════════════
 function showScreen(id){
-  if(G&&G._pendingPanelPlacement&&G.phase==='reward'&&id!=='reward'){
-    log('パネルの配置先を選んでください','bad');
-    return;
-  }
-  if(G&&id!=='battle') G._selectedEquipCardIdx=null;
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');
@@ -21,15 +16,19 @@ function updateGoldenDrop(){
 }
 function updateHUD(){
   if(G.phase!=='reward'){
-    document.getElementById('h-floor').textContent=(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)?(G.mapIndex||1):G.floor;
+    document.getElementById('h-floor').textContent=G.floor;
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
   }
   document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
-  document.getElementById('h-life').textContent=G.magicLevel;
+  const magicEl=document.getElementById('h-magic');
+  if(magicEl) magicEl.textContent=G.magicLevel;
+  const lifeEl=document.getElementById('h-life');
+  if(lifeEl){
+    const life=Math.max(0,Math.min(3,G.life==null?3:G.life));
+    lifeEl.textContent='♥'.repeat(life)+'♡'.repeat(3-life);
+  }
   document.getElementById('h-gold').textContent=G.gold;
-  document.getElementById('h-act').textContent=(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap&&G.phase==='map')
-    ?`${G.mapTurn||1}/${G.mapTurnLimit||30}`
-    :G.actionsLeft+'/'+G.actionsPerTurn;
+  document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
 }
 function log(msg,cls=''){
   const b=document.getElementById('log-box');
@@ -70,19 +69,17 @@ function squirrelHide(){
 // ═══════════════════════════════════════
 function startGame(debugMode){
   initState();
+  window.__vesselboundRetryRewards=null;
+  clearLog();
   G._debugMode=!!debugMode;
   if(G._debugMode){
     G.gold=999;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='';
-    log('[DEBUG] デバッグモード：ゴールド999','sys');
+    log('[DEBUG] デバッグモード：ソウル999','sys');
   }
-  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&typeof startWorldMapRun==='function'){
-    showScreen('battle');
-    startWorldMapRun();
-  } else {
-    showScreen('battle'); startBattle();
-  }
+  showScreen('battle');
+  goToReward();
 }
 
 function debugKillAll(){
@@ -99,19 +96,26 @@ function _debugRefillActions(){
   G.actionsLeft=G.actionsPerTurn;
   updateHUD();
 }
-function gameOver(){ G.rings.forEach(r=>{ if(r) r._count=0; }); document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`; showScreen('gameover'); }
+function gameOver(){
+  G.rings.forEach(r=>{ if(r) r._count=0; });
+  const victory=document.getElementById('victory-overlay');
+  if(victory) victory.style.display='none';
+  ['rw-cards','reward-cards-section'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(id==='rw-cards') el.replaceChildren();
+    else el.style.display='none';
+  });
+  document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`;
+  showScreen('gameover');
+}
 function showVictoryOverlay(){
+  if(G._battleDefeatHandled) return;
+  if(!(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)) return;
   if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   document.getElementById('victory-overlay').style.display='flex';
 }
-function hideVictoryOverlay(){
-  document.getElementById('victory-overlay').style.display='none';
-  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType&&typeof showWorldMapPostBattleReward==='function'){
-    showWorldMapPostBattleReward('戦闘報酬');
-    return;
-  }
-  goToReward();
-}
+function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });

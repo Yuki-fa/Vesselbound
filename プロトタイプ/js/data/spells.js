@@ -108,7 +108,7 @@ const SPELL_POOL=[
 
   // ── レアリティ4消耗品（洞窟ボーナス・特殊入手のみ） ──
   {id:'c_demon_herb',  name:'魔神の秘薬', type:'consumable', rarity:4,
-   desc:'戦闘終了時に得るゴールドが永続で+1される。', effect:'soul_income'},
+   desc:'戦闘終了時に得るソウルが永続で+1される。', effect:'soul_income'},
 
   {id:'c_king_herb',   name:'聖王の秘薬', type:'consumable', rarity:4,
    desc:'行動回数が永続で+1される。', effect:'bonus_action_herb'},

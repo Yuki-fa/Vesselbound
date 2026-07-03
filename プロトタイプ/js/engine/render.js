@@ -93,7 +93,7 @@ function _updateLaneOffset(){
   }
   // フォールバック：max-width:1100px を考慮した計算
   const W=Math.min(document.documentElement.clientWidth,1100);
-  const slotH=(W-49)/6*88/63;
+  const slotH=(W-49)/7*88/63;
   document.documentElement.style.setProperty('--_slot-h',Math.round(slotH)+'px');
   document.documentElement.style.setProperty('--lane-rear-top',Math.round(slotH*0.67)+'px');
 }
@@ -131,6 +131,117 @@ function showAttackLine(fromEl, toEls, color){
 function hideAttackLine(){
   const svg=document.getElementById('atk-line-svg');
   if(svg) svg.innerHTML='';
+}
+
+function playAttackMotion(attacker,target,isEnemySide){
+  if(!attacker||!target||!document.body) return Promise.resolve();
+  const fromList=isEnemySide?G.enemies:G.allies;
+  const toList=isEnemySide?G.allies:G.enemies;
+  const fromIdx=fromList.indexOf(attacker);
+  const toIdx=toList.indexOf(target);
+  if(fromIdx<0||toIdx<0) return Promise.resolve();
+  const fromField=document.getElementById(isEnemySide?'f-enemy':'f-ally');
+  const toField=document.getElementById(isEnemySide?'f-ally':'f-enemy');
+  const fromEl=fromField?.querySelector(`.slot[data-unit-idx="${fromIdx}"]`);
+  const toEl=toField?.querySelector(`.slot[data-unit-idx="${toIdx}"]`);
+  if(!fromEl||!toEl||!fromEl.animate) return Promise.resolve();
+  const fr=fromEl.getBoundingClientRect();
+  const tr=toEl.getBoundingClientRect();
+  const dx=(tr.left+tr.width/2)-(fr.left+fr.width/2);
+  const dy=(tr.top+tr.height/2)-(fr.top+fr.height/2);
+  const dist=Math.hypot(dx,dy)||1;
+  const overlap=Math.min(fr.width,tr.width)*0.33;
+  const ratio=Math.max(0,dist-overlap)/dist;
+  const mx=dx*ratio;
+  const my=dy*ratio;
+  const tilt=dx===0?0:(dx>0?4:-4)*(isEnemySide?-1:1);
+  const clone=fromEl.cloneNode(true);
+  clone.classList.add('attack-motion-clone');
+  clone.classList.remove('dragging','drag-over','selected','selectable');
+  clone.style.setProperty('border','0','important');
+  clone.style.setProperty('border-top','0','important');
+  const cs=getComputedStyle(fromEl);
+  ['--new-card-art-left','--new-card-art-top','--new-card-art-h','--unit-art-size','--unit-art-position'].forEach(k=>{
+    const v=cs.getPropertyValue(k);
+    if(v) clone.style.setProperty(k,v);
+  });
+  clone.style.position='fixed';
+  clone.style.left=`${fr.left}px`;
+  clone.style.top=`${fr.top}px`;
+  clone.style.setProperty('width',`${fr.width}px`,'important');
+  clone.style.setProperty('min-width',`${fr.width}px`,'important');
+  clone.style.setProperty('max-width',`${fr.width}px`,'important');
+  clone.style.setProperty('height',`${fr.height}px`,'important');
+  clone.style.setProperty('min-height',`${fr.height}px`,'important');
+  clone.style.setProperty('max-height',`${fr.height}px`,'important');
+  clone.style.setProperty('--motion-card-w',`${fr.width}px`);
+  clone.style.setProperty('--motion-card-h',`${fr.height}px`);
+  clone.style.setProperty('aspect-ratio','auto','important');
+  const unitCardW=cs.getPropertyValue('--unit-card-w');
+  const unitCardH=cs.getPropertyValue('--unit-card-h');
+  if(unitCardW) clone.style.setProperty('--unit-card-w',unitCardW);
+  if(unitCardH) clone.style.setProperty('--unit-card-h',unitCardH);
+  const frameW=cs.getPropertyValue('--unit-frame-w');
+  const hateFrameW=cs.getPropertyValue('--unit-hate-frame-w');
+  if(frameW) clone.style.setProperty('--unit-frame-w',frameW);
+  if(hateFrameW) clone.style.setProperty('--unit-hate-frame-w',hateFrameW);
+  const frameLayer=fromEl.querySelector('.unit-frame-layer');
+  const frameRect=frameLayer?.getBoundingClientRect?.();
+  if(frameRect&&frameRect.width&&frameRect.height){
+    clone.style.setProperty('--unit-frame-w',`${frameRect.width}px`,'important');
+    clone.style.setProperty('--unit-hate-frame-w',`${frameRect.width}px`,'important');
+    const cloneFrame=clone.querySelector('.unit-frame-layer');
+    if(cloneFrame){
+      cloneFrame.style.setProperty('width',`${frameRect.width}px`,'important');
+      cloneFrame.style.setProperty('height',`${frameRect.height}px`,'important');
+      cloneFrame.style.setProperty('max-width',`${frameRect.width}px`,'important');
+      cloneFrame.style.setProperty('max-height',`${frameRect.height}px`,'important');
+      cloneFrame.style.setProperty('transform','translate(-50%,-50%)','important');
+    }
+  }
+  const stats=clone.querySelector('.slot-stats');
+  if(stats){
+    const srcStats=fromEl.querySelector('.slot-stats .a')||fromEl.querySelector('.slot-stats');
+    const statsSize=parseFloat(getComputedStyle(srcStats||fromEl).fontSize)||0;
+    if(statsSize){
+      clone.style.setProperty('--motion-stat-size',`${statsSize}px`);
+      stats.style.setProperty('font-size',`${statsSize}px`,'important');
+      stats.querySelectorAll('.a,.h').forEach(el=>el.style.setProperty('font-size',`${statsSize}px`,'important'));
+    }
+  }
+  clone.style.margin='0';
+  clone.style.zIndex='10000';
+  clone.style.pointerEvents='none';
+  clone.style.transform='translate(0,0)';
+  clone.style.transformOrigin='center center';
+  attacker._motionHidden=true;
+  fromEl.classList.add('motion-hidden');
+  fromEl.style.setProperty('visibility','hidden','important');
+  document.body.appendChild(clone);
+  clone.getBoundingClientRect();
+  const anim=clone.animate([
+    {transform:'translate(0,0) rotate(0deg)',offset:0},
+    {transform:`translate(${mx}px,${my}px) rotate(${tilt}deg)`,offset:.48},
+    {transform:`translate(${mx}px,${my}px) rotate(${tilt}deg)`,offset:.72},
+    {transform:'translate(0,0) rotate(0deg)',offset:1},
+  ],{duration:900,easing:'ease-in-out'});
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=()=>{
+      if(done) return;
+      done=true;
+      if(fromEl){
+        fromEl.classList.remove('motion-hidden');
+        fromEl.style.removeProperty('visibility');
+      }
+      attacker._motionHidden=false;
+      clone.remove();
+      resolve();
+    };
+    anim.addEventListener('finish',finish,{once:true});
+    anim.addEventListener('cancel',finish,{once:true});
+    setTimeout(finish,940);
+  });
 }
 
 function renderAll(){
@@ -171,8 +282,10 @@ function _computeDeathRisk(){
   window.log=()=>{}; window.renderAll=()=>{}; window.updateHUD=()=>{}; window.renderControls=()=>{};
 
   const N=100; // シミュレーション回数（100回で1%刻みの精度）
-  const allyDeathCount  =new Array(6).fill(0);
-  const enemyDeathCount =new Array(6).fill(0);
+  const maxAllies=MAX_ALLIES||5;
+  const maxEnemies=MAX_ENEMIES||8;
+  const allyDeathCount  =new Array(maxAllies).fill(0);
+  const enemyDeathCount =new Array(maxEnemies).fill(0);
   const origAliveIds=_sA.map(a=>a&&a.hp>0?a.id:null);
   const origEnemyIds=_sE.map(e=>e&&e.hp>0?e.id:null);
 
@@ -202,13 +315,13 @@ function _computeDeathRisk(){
         const ei=typeof _nextLiveIndex==='function'?_nextLiveIndex(G.enemies,nextEnemy,true):_drNextLiveIndex(G.enemies,nextEnemy,true);
         if(ai<0&&ei<0) break;
         if(ai>=0){
-          nextAlly=(ai+1)%6;
+          nextAlly=(ai+1)%maxAllies;
           const a=G.allies[ai];
           if(a&&a.hp>0&&!a._isSoul) _drSimAllySlot(a,ai);
           if(!G.allies.some(a=>a&&a.hp>0&&!a._isSoul)||!G.enemies.some(e=>e&&e.hp>0&&!e._isObject)) break;
         }
         if(ei>=0){
-          nextEnemy=(ei+1)%6;
+          nextEnemy=(ei+1)%maxEnemies;
           const e=G.enemies[ei];
           if(e&&e.hp>0&&!e._isObject) _drSimEnemySlot(e,ei);
           if(!G.allies.some(a=>a&&a.hp>0&&!a._isSoul)||!G.enemies.some(e=>e&&e.hp>0&&!e._isObject)) break;
@@ -277,8 +390,9 @@ function _computeDeathRisk(){
 }
 
 function _drNextLiveIndex(units,startIdx,skipObjects=false){
-  for(let off=0;off<6;off++){
-    const idx=(startIdx+off)%6;
+  const max=skipObjects?(MAX_ENEMIES||8):(MAX_ALLIES||5);
+  for(let off=0;off<max;off++){
+    const idx=(startIdx+off)%max;
     const u=units[idx];
     if(u&&u.hp>0&&(!skipObjects||!u._isObject)&&!u._isSoul) return idx;
   }
@@ -391,27 +505,80 @@ function _unitPreviewText(unit, desc){
   if(!unit) return desc||'';
   const lines=[];
   if(unit.name) lines.push(unit.name);
-  if(unit.race&&unit.race!=='-') lines.push(`種族：${unit.race}`);
-  if(unit.maxHp!=null) lines.push(`ライフ：${unit.hp}/${unit.maxHp}`);
-  const states=[];
-  if(unit.poison>0) states.push(`毒${unit.poison}`);
-  if(unit.doomed>0) states.push(`破滅${unit.doomed}`);
-  if(unit.sealed>0) states.push(`封印${unit.sealed}`);
-  if(unit.shield>0) states.push(`シールド${unit.shield}`);
-  if(unit.regen>0) states.push(`再生${unit.regen}`);
-  if(unit.instadead) states.push('即死');
-  if(unit.stealth) states.push('隠密');
-  if(unit.allyTarget) states.push('狙われ');
-  if(unit.hate&&unit.hateTurns>0) states.push('ヘイト');
-  if(states.length) lines.push(`状態：${states.join(' / ')}`);
-  const kws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])].filter(Boolean);
+  const kws=[...new Set([...(unit.keywords||[]),...(unit.counter?['反撃']:[])])]
+    .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
+    .filter(Boolean);
   if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
-  if(desc) lines.push(`効果：\n${desc}`);
-  const equips=(typeof getUnitEquips==='function'?getUnitEquips(unit):(unit.equipment||[])).filter(Boolean);
-  equips.forEach(eq=>{
-    const ed=typeof computeDesc==='function'?computeDesc(eq):(eq.desc||'');
-    lines.push(`装備：${eq.name}${ed?`\n効果：\n${ed}`:''}`);
+  if(desc) lines.push(desc);
+  const eq=Array.isArray(unit.equipment)?unit.equipment:[];
+  const keywordOnly=new Set(['守護','ヘイト','毒','再生','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄']);
+  const keywordDesc=k=>{
+    const s=String(k||'').trim();
+    if(!s) return '';
+    if(keywordOnly.has(s)) return s;
+    if(/^毒牙\d+$/.test(s)){
+      const v=s.replace('毒牙','');
+      return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
+    }
+    if(/^毒\d+$/.test(s)){
+      const v=s.replace('毒','');
+      return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
+    }
+    if(s==='内なる大力'||s==='力の契約') return '常時：+2/+1を得る。';
+    if(s==='大いなる守護') return '常時：HP+7を得る。';
+    if(s==='逆襲') return '死亡：全ての味方は+1/+1を得る。';
+    if(s==='闇の儀式') return '死亡：以後、召喚される同名のキャラクターを永久に+2/+2する。';
+    if(s==='闇の炎') return '死亡：全ての前衛キャラクターに1ダメージを与える。';
+    if(s==='竜の契約') return '常時：5回負傷した時、25/40のドラコニアンに変身する。';
+    if(s==='治癒能力') return '負傷：HP+2を得る。';
+    return s;
+  };
+  const effectTextForPanel=p=>{
+    if(!p) return '';
+    const fallback={
+      'ゾンビ':'ヘイト',
+      'スケルトン':'復活',
+      'スリープシープ':'召喚：もう2体召喚する。',
+      'ツインデビル':'召喚：もう1体召喚する。',
+      'アークデーモン':'常時：場の生贄が3体以上になった時、それらを破壊して召喚される。',
+      'スリン':'毒牙　常時：場の毒が10以上になった時、召喚される。',
+      '逆襲':'死亡：全ての味方は+1/+1を得る。',
+      '大いなる守護':'常時：HP+7を得る。',
+      '内なる大力':'常時：+2/+1を得る。',
+      '闇の儀式':'死亡：以後、召喚される同名のキャラクターを永久に+2/+2する。',
+      '闇の炎':'死亡：全ての前衛キャラクターに1ダメージを与える。',
+      '毒の刃':'毒牙3',
+      '竜の契約':'常時：5回負傷した時、25/40のドラコニアンに変身する。'
+    };
+    if(p.adjacentAtkBonus||p.adjacentHpBonus){
+      const a=p.adjacentAtkBonus||0, h=p.adjacentHpBonus||0;
+      return `常時：${a&&h?`+${a}/+${h}`:a?`ATK+${a}`:`HP+${h}`}を得る。`;
+    }
+    if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.length){
+      return p.adjacentKeywords.map(keywordDesc).filter(Boolean).join('\n');
+    }
+    return (typeof computeDesc==='function'?computeDesc(p):'')||p.desc||p.effectText||p.effect||fallback[p.name]||'';
+  };
+  const panelEffects=[];
+  const panels=typeof _collectEnhancementPanelsForSlot==='function'
+    ?_collectEnhancementPanelsForSlot(unit,0)
+    :eq.map((panel,idx)=>({panel,idx}));
+  panels.forEach(({panel:p,idx})=>{
+    if(!p||idx===0||!(String(p.category||'')==='強化'||String(p.category||'')==='エンチャント')) return;
+    if(typeof _collectEnhancementPanelsForSlot!=='function'){
+      if(typeof _isAdjacentPanelSlot==='function'&&!_isAdjacentPanelSlot(0,idx)) return;
+      const dir=typeof _directionFromPanelToSlot==='function'?_directionFromPanelToSlot(idx,0):'';
+      if(typeof _panelAllowsDirection==='function'&&!_panelAllowsDirection(p,dir)) return;
+    }
+    const kws=(p.adjacentKeywords||[]).map(k=>String(k||'').replace(/\d+.*/,'').trim()).filter(Boolean);
+    if(kws.length&&kws.every(k=>keywordOnly.has(k))){
+      panelEffects.push([...new Set(kws)].join(' / '));
+    } else {
+      const d=effectTextForPanel(p);
+      panelEffects.push(d?`${p.name}：${d}`:p.name);
+    }
   });
+  if(panelEffects.length) lines.push(`パネル：\n${panelEffects.join('\n')}`);
   return lines.join('\n');
 }
 
@@ -442,23 +609,81 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
     const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0&&!x.u.stealth);
     (hated.length?hated:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
-  const renderIndexes=isEnemy?[0,1,2,3,4,5]:units.map((u,i)=>({u,i})).filter(x=>x.u).map(x=>x.i);
-  el.style.setProperty('grid-template-columns',isEnemy?'repeat(6,var(--unit-card-w))':`repeat(${Math.max(1,renderIndexes.length)},var(--unit-card-w))`,'important');
+  const _isStarterRearUnit=u=>u&&!isEnemy&&(u._isStarter||u.initialPanelName==='魔術師'||((u.equipment||[])[0]?.fixedEquip&&(u.equipment||[])[0]?.name==='魔術師'));
+  const _soloAllyRear=!isEnemy&&liveUnits.length===1;
+  const _isRearUnit=x=>x.u&&x.u.hp>0&&(_soloAllyRear||_isStarterRearUnit(x.u)||(x.u.lane||'front')==='rear');
+  const _rearIndexes=units.map((u,i)=>({u,i})).filter(_isRearUnit).map(x=>x.i);
+  const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!_isRearUnit(x)).map(x=>x.i);
+  const renderIndexes=isEnemy
+    ?Array.from({length:MAX_ENEMIES||10},(_,idx)=>idx)
+    :Array.from({length:MAX_ALLIES||10},(_,idx)=>idx);
+  const frontSlots=ENEMY_FRONT_SLOTS||7;
+  el.style.setProperty('grid-template-columns',`repeat(${frontSlots},var(--unit-card-w))`,'important');
   el.style.setProperty('justify-content','center','important');
+  const _fieldW=`calc(var(--unit-card-w) * ${frontSlots} + var(--unit-field-gap) * ${frontSlots-1})`;
+  const _unitX=(count,pos)=>`calc((${_fieldW} - var(--unit-card-w)) / 2 + (${pos} - (${count} - 1) / 2) * (var(--unit-card-w) + var(--unit-field-gap)))`;
+  const _rearLeft=new Map(_rearIndexes.map((idx,pos)=>[idx,_unitX(_rearIndexes.length,pos)]));
+  const _frontLeft=new Map(_frontIndexes.map((idx,pos)=>[idx,_unitX(_frontIndexes.length,pos)]));
   for(const i of renderIndexes){
     const rawU=units[i];
     const u=rawU;
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
     slot.dataset.unitIdx=i;
+    slot.style.setProperty('width','var(--unit-card-w)','important');
+    slot.style.setProperty('min-width','var(--unit-card-w)','important');
+    slot.style.setProperty('max-width','var(--unit-card-w)','important');
+    slot.style.setProperty('height','var(--unit-card-h)','important');
+    slot.style.setProperty('min-height','var(--unit-card-h)','important');
+    slot.style.setProperty('max-height','var(--unit-card-h)','important');
+    slot.style.setProperty('aspect-ratio','450 / 605','important');
+    slot.style.setProperty('flex','0 0 var(--unit-card-w)','important');
+    slot.style.setProperty('pointer-events','auto','important');
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
-    const _slotLane=isEnemy?(u&&u.hp>0?u.lane:(G.moveMaskLanes?.[i]||'front')):'';
-    if(u&&u.hp>0&&((isEnemy&&_slotLane==='front')||(!isEnemy&&u.hate&&u.hateTurns>0))) slot.classList.add('is-defender');
+    const _slotLane=isEnemy?(u&&u.hp>0?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(u&&u.hp>0?((_soloAllyRear||_isStarterRearUnit(u))?'rear':(u.lane||(i>=frontSlots?'rear':'front'))):(i>=frontSlots?'rear':'front'));
+    if(!u||u.hp<=0){
+      slot.style.gridRow=_slotLane==='rear'?'1':'2';
+      slot.style.gridColumn=String((i%frontSlots)+1);
+    }
+    if(u&&u.hp>0){
+      const _row=_slotLane==='rear'?1:2;
+      slot.style.gridRow=String(_row);
+      slot.style.gridColumn='1';
+      slot.style.left=(_slotLane==='rear'?_rearLeft.get(i):_frontLeft.get(i))||`calc((var(--unit-card-w) + var(--unit-field-gap)) * ${(i%frontSlots)})`;
+      const _rearTop=isEnemy?'0':'calc(var(--unit-card-h) + var(--unit-field-gap))';
+      const _frontTop=isEnemy?'calc(var(--unit-card-h) + var(--unit-field-gap))':'0';
+      slot.style.top=_slotLane==='rear'?_rearTop:_frontTop;
+      slot.style.setProperty('position','absolute','important');
+      slot.style.setProperty('transform','none','important');
+    }
+    if(isEnemy&&_slotLane==='rear') slot.classList.add('is-rear');
+    if(isEnemy&&_slotLane!=='rear') slot.classList.add('is-front');
+    if(u&&u._motionHidden){ slot.classList.add('motion-hidden'); slot.style.visibility='hidden'; }
+    const _isPlayerHero=!!(u&&!isEnemy&&!u._panelSummoned);
+    const _hasGuardPanel=u&&!_isPlayerHero&&(((isEnemy||u._panelSummoned)&&u.guardian)||((u._panelSummoned||isEnemy)&&((u.keywords||[]).includes('守護')||(u.keywords||[]).includes('ヘイト'))));
+    if(u&&u.hp>0&&_hasGuardPanel) slot.classList.add('is-defender','uses-hate-frame');
+    if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('is-defender');
+    if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('uses-hate-frame');
+    if(_isPlayerHero) slot.classList.remove('is-defender','uses-hate-frame');
     if(u&&(!isEnemy||u.hp>0)){
       slot.classList.add('unit-card');
+      if(u.name==='石像') slot.classList.add('no-unit-shadow');
+      if(G.phase==='player'&&G._selectedBattleMagic){
+        const mn=G._selectedBattleMagic.name;
+        const canTarget=mn==='憑依' ? !isEnemy
+          : (mn==='破滅'||mn==='縮小化'||mn==='隕石') ? isEnemy
+          : true;
+        if(canTarget&&u.hp>0) slot.classList.add('magic-target');
+      }
       if(u.hp<=0) slot.classList.add('dead-unit','inert');
       if(!isEnemy&&G._selectedEquipUnitIdx===i) slot.classList.add('selected');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
+      if(_isPlayerHero){
+        slot.classList.remove('is-defender','uses-hate-frame');
+        if(typeof assetUrl==='function'&&typeof Assets!=='undefined'&&Assets.cards?.characterFrame){
+          slot.style.setProperty('--unit-frame',assetUrl(Assets.cards.characterFrame));
+        }
+      }
       if(isEnemy&&typeof getSheetRaceByName==='function'){
         const _sheetRace=getSheetRaceByName(u.name);
         if(_sheetRace) u.race=_sheetRace;
@@ -500,7 +725,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
         const _hpMax=Math.max(1,u.maxHp||u.hp||1);
         const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,u.hp||0)/_hpMax)*100)));
         const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,u.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
-        const raceTag=u.race&&u.race!=='-'?`<div class="slot-race">${u.race}</div>`:'';
+        const raceTag='';
         const _isObj=!!u._isObject;
         const _probPct=_isObj?null:deathProb.get(i);
         let _zone=null;
@@ -515,37 +740,102 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
           }
         }
         const _probTag=_zone!=null?`<div class="death-prob-label" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:.52rem;font-weight:700;z-index:3;white-space:nowrap;pointer-events:none;color:${_zone.color}">${_zone.label}</div>`:'';
-        const _riskTag=_zone!=null?'<div class="risk-particles"></div>':'';
+        const _riskTag='';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
         const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
         if(isEnemy){
-          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
           const dragonetSub=u.effect==='dragonet_end'?`<div style="font-size:.42rem;color:var(--gold)">あと${(3+(u._dragonetBonus||0))-(u._dragonetCount||0)}戦</div>`:'';
-          slot.innerHTML=`${badgeBlock}${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
+          slot.innerHTML=`${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}${_probTag}${_riskTag}<div class="unit-portrait"></div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${dragonetSub}${descTag}</div>`;
         }
+        const hitLayer=document.createElement('div');
+        hitLayer.className='unit-hit-layer';
+        if(_preview) hitLayer.setAttribute('data-preview',_preview);
+        hitLayer.addEventListener('click',e=>{
+          if(G.phase==='player'&&G._selectedBattleMagic&&typeof applySelectedBattleMagic==='function'){
+            e.preventDefault();
+            e.stopPropagation();
+            applySelectedBattleMagic(isEnemy?'enemy':'ally',i);
+          }
+        },true);
+        slot.appendChild(hitLayer);
+        slot._hitLayer=hitLayer;
         // オブジェクトは攻撃対象外なので赤枠・死亡予測は表示しない
         if(!_isObj){
-          if(prioritySet.has(i)) slot.classList.add('priority-target');
+          // 事前の攻撃対象予告は表示しない。発光は選択中キャラと攻撃演出中だけに限定する。
           // ラベルと同じ閾値で枠色を決定（100%=will-die / 80-99%=high / 21-79%=mid / 1-20%=low）
           if(_zone) slot.classList.add(_zone.cls);
         }
       }
       if(u&&!isEnemy){
+        const battleScreenActive=!!document.getElementById('scr-battle')?.classList.contains('active');
+        const canMoveUnit=!isEnemy&&(G.phase==='reward'||G.phase==='player'||(battleScreenActive&&G.phase!=='enemy'));
+        slot.draggable=canMoveUnit;
+        slot.addEventListener('dragstart',e=>{
+          if(!canMoveUnit) { e.preventDefault(); return; }
+          window._allySlotDragSrc=i;
+          e.dataTransfer.effectAllowed='move';
+          if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+          slot.classList.add('dragging');
+          if(typeof _createDragGhost==='function') _createDragGhost(slot);
+          if(typeof _moveDragGhost==='function') _moveDragGhost(e.clientX,e.clientY);
+        });
+        slot.addEventListener('drag',e=>{ if(typeof _moveDragGhost==='function'&&e.clientX&&e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+        slot.addEventListener('dragend',()=>{ window._allySlotDragSrc=null; slot.classList.remove('dragging'); if(typeof _removeDragGhost==='function') _removeDragGhost(); });
+        slot.addEventListener('dragover',e=>{
+          if(!canMoveUnit||window._allySlotDragSrc==null) return;
+          e.preventDefault();
+          slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+        slot.addEventListener('drop',e=>{
+          if(!canMoveUnit) return;
+          const src=window._allySlotDragSrc;
+          if(src==null) return;
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          if(src!==i){
+            const frontSlots=ENEMY_FRONT_SLOTS||7;
+            if((src>=frontSlots)!==(i>=frontSlots)){
+              log('前衛と後衛の間では移動できません','bad');
+              window._allySlotDragSrc=null;
+              renderAll();
+              return;
+            }
+            const tmp=G.allies[src];
+            G.allies[src]=G.allies[i];
+            G.allies[i]=tmp;
+            if(G.allies[i]) G.allies[i].lane=i>=frontSlots?'rear':'front';
+            if(G.allies[src]) G.allies[src].lane=src>=frontSlots?'rear':'front';
+            renderAll();
+          }
+          window._allySlotDragSrc=null;
+        });
         slot.onclick=()=>{
-          if(G.phase!=='player'&&G.phase!=='enemy') return;
+          if(G.phase==='player'&&G._selectedBattleMagic&&typeof applySelectedBattleMagic==='function'){
+            applySelectedBattleMagic('ally',i);
+            return;
+          }
+          if(G.phase==='player') return;
           if(G._selectedEquipUnitIdx!==i) G._selectedEquipCardIdx=null;
           G._selectedEquipUnitIdx=i;
           G._showGlobalPanels=false;
+          G._showPlayerHand=false;
           renderAll();
           if(typeof renderHandEditor==='function') renderHandEditor();
         };
+        if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
       }
       if(u&&isEnemy&&u.hp>0&&G.phase==='player'){
         slot.onclick=()=>{
+          if(G._selectedBattleMagic&&typeof applySelectedBattleMagic==='function'){
+            applySelectedBattleMagic('enemy',i);
+            return;
+          }
           const unitIdx=G._selectedEquipUnitIdx;
           const equipIdx=G._selectedEquipCardIdx;
           const ally=G.allies&&G.allies[unitIdx];
@@ -563,6 +853,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
             if(typeof _restoreUnitEquipSpellSource==='function') _restoreUnitEquipSpellSource();
           }
         };
+        if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
       }
       if(u&&u.hp>0&&G.phase==='player'&&typeof useDraggedSpellOnTarget==='function'){
         slot.addEventListener('dragover',e=>{
@@ -598,7 +889,7 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
           window._spellDragIdx=null;
         });
       }
-    } else if(isEnemy&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
+    } else if(isEnemy&&G.phase==='reward'&&G.visibleMoves.includes(i)&&G.moveMasks[i]&&(!u||u.hp<=0)&&(!_lane||_slotLane===_lane)){
       const _mvType=G.moveMasks[i];
       const nt=NODE_TYPES[_mvType];
       // 宝・移動マスはインベントリカード相当のサイズで上部に表示（前衛キャラの背後に隠れる）
@@ -607,13 +898,13 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       const _isChestMask=String(_mvType).startsWith('chest');
       if(_isChestMask){
         const _ctp=_mvType==='chest_ring'?'ring':_mvType==='chest_wand'?'wand':_mvType==='chest_item'?'consumable':'wand';
-        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp">${nt.label}</div><div class="mini-q">？</div><div class="mini-hint">+1消費</div></div>`;
+        slot.innerHTML=`<div class="mini-card chest-mini ${_ctp}"><div class="mini-tp"></div><div class="mini-q">？</div><div class="mini-hint">+1消費</div></div>`;
         slot.title='クリックで取得（行動力-1）';
         slot.onclick=()=>{
           if(typeof onChestClick==='function') onChestClick(i);
         };
       } else {
-        slot.innerHTML=`<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl">${nt.label}</div></div>`;
+        slot.innerHTML=`<div class="mini-card move-mini"><div class="mini-icon">${nt.icon}</div><div class="mini-lbl"></div></div>`;
         slot.title='クリックで撤退';
         slot.onclick=()=>{
           if(G.phase!=='player') return;
@@ -622,6 +913,36 @@ function renderField(id,units,isEnemy,_extDeathRisk,_lane,_extWarnRisk,_extDeath
       }
     } else {
       slot.classList.add('empty');
+      if(!isEnemy){
+        slot.addEventListener('dragover',e=>{
+          if(!(G.phase==='reward'||G.phase==='player')) return;
+          if(window._allySlotDragSrc==null) return;
+          e.preventDefault();
+          slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+        slot.addEventListener('drop',e=>{
+          if(!(G.phase==='reward'||G.phase==='player')) return;
+          const src=window._allySlotDragSrc;
+          if(src==null) return;
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          if(src!==i){
+            const frontSlots=ENEMY_FRONT_SLOTS||7;
+            if((src>=frontSlots)!==(i>=frontSlots)){
+              log('前衛と後衛の間では移動できません','bad');
+              window._allySlotDragSrc=null;
+              renderAll();
+              return;
+            }
+            G.allies[i]=G.allies[src];
+            G.allies[src]=null;
+            if(G.allies[i]) G.allies[i].lane=i>=frontSlots?'rear':'front';
+            renderAll();
+          }
+          window._allySlotDragSrc=null;
+        });
+      }
     }
     el.appendChild(slot);
   }
@@ -701,7 +1022,7 @@ function renderHandSlots(){
   const el=document.getElementById('hand-slots');
   if(!el) return;
   el.innerHTML='';
-  const H=G.handSlots||5;
+  const H=G.handSlots||7;
   const Hcols=H;
   el.style.gridTemplateColumns=`repeat(${Hcols},var(--hand-card-w,300px))`;
   const hc=document.getElementById('hand-count'); if(hc) hc.textContent=G.spells.filter(s=>s).length;
@@ -821,7 +1142,7 @@ function computeDesc(card,_mlOverride){
   }
   if(gmBonus>0){
     // X は杖のみ魔術レベルで置換（それ以外はXのまま）
-    if(card.type==='wand'&&!card.subtype) desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
+    if((card.type==='wand'&&!card.subtype)||card.magicPanel) desc=desc.replace(/X/g,`<span style="color:var(--gold2);font-weight:700">${ml}</span>`);
     // 黄金の雫：残りの全ての数字に gmBonus を加算
     // 除外：①（）内の数値（上限説明）・G1/G2等グレード記号・span化済み
     desc=desc.replace(/（[^）]*）|G\d+|<span[^>]*>[\s\S]*?<\/span>|\d+/g,m=>{
@@ -829,7 +1150,7 @@ function computeDesc(card,_mlOverride){
       return `<span style="color:var(--gold2);font-weight:700">${parseInt(m)+gmBonus}</span>`;
     });
   } else {
-    if(card.type==='wand'&&!card.subtype) desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
+    if((card.type==='wand'&&!card.subtype)||card.magicPanel) desc=desc.replace(/X/g,`<span style="color:#6dd;font-weight:700">${ml}</span>`);
   }
   // タイミングキーワードを太字化（「開戦：」「終戦：」等）
   desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在|常時)：/g,'<strong>$1</strong>：');
@@ -875,9 +1196,11 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
   const tpLabel=_isWandSub?'短杖':(typeLabel[t]||'指輪');
   const kindLabel='';
+  const _starCat=String(card.category||'');
+  const _usesRarityStars=(card.type==='panel'||card.kind==='panel'||card.panelScope)&&(_starCat==='キャラクター'||_starCat==='強化'||_starCat==='エンチャント');
   // グレード（左・絶対配置）・価格バッジ（右・絶対配置）
-  // 杖・消耗品は grade 未設定なので _rarity → rarity → 1 の順にフォールバック
-  const _gradeNum=card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0);
+  // 召喚/強化カードはレアリティ分の星を表示する。
+  const _gradeNum=_usesRarityStars?(Number(card.rarity)>0?Number(card.rarity):1):(card.grade||(card._rarity)||((card.rarity>0)?card.rarity:null)||((card.type==='wand'||card.type==='consumable')?1:0));
   const gradeEl=_gradeNum?`<span class="card-grade${card.legend?' legend-grade':''}">${typeof gradeIconHtml==='function'?gradeIconHtml(_gradeNum):gradeStr(_gradeNum)}</span>`:'';
   // レッサーデーモン：報酬フェイズの次に購入する消耗品アイテムへ累積割引を表示反映
   const _ldDiscDisp=(typeof _lesserDemonDiscountFor==='function'&&G.phase==='reward')?_lesserDemonDiscountFor(card):0;
@@ -885,10 +1208,14 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const badgeEl=(card._buyPrice!=null&&G.phase==='reward')?`<span class="card-badge">${_circleCost(_dispPrice)}</span>`:'';
   // 杖のチャージ表示（左上）
   const isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
-  const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&card.panelScope!=='global'));
+  const isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
+  const isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
+  const isPanelCharacter=isPanelCard&&String(card.category||'')==='キャラクター';
+  if(isPanelCharacter) div.classList.add('character-card','panel-character-card');
+  const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&!isCombatPowerPanel&&card.panelScope!=='global'));
   const charges=card.type==='wand'
     ?(card.usesLeft!==undefined?card.usesLeft:(card.baseUses||card._maxUses||'?'))
-    :isActionPanel?(card.cost>0?card.cost:1)
+    :(!isPanelCard&&isActionPanel)?(card.cost>0?card.cost:1)
     :null;
   const _chargeColorClass=_isWandSub?' wand-sub':'';
   const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${charges}</div>`:'';
@@ -906,7 +1233,23 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const _preview=_unitPreviewText(card,dynDesc);
     if(_preview) div.setAttribute('data-preview',_preview);
   }
-  div.innerHTML=`${gradeEl}${badgeEl}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  const dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card):'';
+  if(isPanelCharacter){
+    const pAtk=Number(card.power??card.atk??0);
+    const pHp=Number(card.life??card.hp??1);
+    const preview=[card.name,card.desc||''].filter(Boolean).join('\n');
+    if(preview) div.setAttribute('data-preview',preview);
+    div.innerHTML=`${gradeEl}${badgeEl}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
+    return div;
+  }
+  if(isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
+    div.classList.add('enchantment-card');
+    const preview=[card.name,dynDesc||card.desc||''].filter(Boolean).join('\n');
+    if(preview) div.setAttribute('data-preview',preview);
+    div.innerHTML=`${gradeEl}${badgeEl}${dirMarks}<div class="card-art"></div>`;
+    return div;
+  }
+  div.innerHTML=`${gradeEl}${badgeEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 
@@ -916,7 +1259,7 @@ function renderControls(){
   const dbg=document.getElementById('btn-debug-kill');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
-    pp.textContent='ターン終了';
+    pp.textContent='戦闘実行';
     pp.style.display='';
     if(dbg) dbg.style.display=G._debugMode?'':'none';
   } else if(G.phase==='commander'){
@@ -1014,6 +1357,15 @@ function renderEnemyHand(){
   const handMaxEl=document.getElementById('enemy-hand-max');
   if(!handEl) return;
   handEl.innerHTML='';
+  if(isReward&&!G._isShop&&typeof renderFacilitiesRow==='function'){
+    handEl.classList.remove('shop-sale-hand');
+    if(eHandPane) eHandPane.style.maxWidth='';
+    renderFacilitiesRow();
+    if(handCountEl) handCountEl.textContent='6';
+    if(handMaxEl) handMaxEl.textContent='6';
+    return;
+  }
+  handEl.classList.remove('facility-slots');
   handEl.classList.toggle('shop-sale-hand',!!G._isShop);
   const hand=isReward?(G.masterHand||[]):(G.bossHand||[]);
   // 報酬フェイズはプレイヤーと同じ列数にしてカードサイズを揃える

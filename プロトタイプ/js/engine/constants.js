@@ -12,6 +12,13 @@ const GRADE_COEFF=[0,1,3,6,14,30,60];
 // グレード上限（G6=★★★★★★）
 const MAX_GRADE=6;
 
+// 戦場スロット上限
+const MAX_ALLIES=14;
+const MAX_ENEMIES=14;
+const ENEMY_FRONT_SLOTS=7;
+const ENEMY_REAR_SLOTS=7;
+const MAX_UNITS=MAX_ENEMIES;
+
 // 報酬カード枚数の上限（ユニーク指輪等で将来拡張できるよう定数で管理）
 const MAX_REWARD_CARDS=6;
 

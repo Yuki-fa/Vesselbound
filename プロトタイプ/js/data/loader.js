@@ -10,12 +10,20 @@ const _EXPORT_BASE =
   '2PACX-1vRgSPXHfTa42bU5EZN9lvtFUeeYAapxMGp2RqdE1QNl_5W2PTEtBGvFcdaZf4SGDg' +
   '/pub?output=csv';
 function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
+const _STARTER_PUBHTML_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgSPXHfTa42bU5EZN9lvtFUeeYAapxMGp2RqdE1QNl_5W2PTEtBGvFcdaZf4SGDg/pubhtml?gid=266813898&single=true';
+function _starterSheetUrl(){
+  return _STARTER_PUBHTML_URL
+    .replace('/pubhtml?', '/pub?output=csv&')
+    .replace(/([?&])single=true/, '$1single=true')
+    + '&t=' + Date.now();
+}
 const _SHEET_GIDS = {
   'キャラクタープール': 848932419,
   '初期キャラクター': 266813898,
   '指輪プール':   1986592617,
   '魔法プール':  1367710240,
   '階層データ':   920830789,
+  '敵':          1498560754,
   'エンチャント':  320923773,
   '敵キーワード':  769775182,
   'effect_id':    992952088,
@@ -130,7 +138,7 @@ function _parseCSVWithHeader(text, headerNames) {
   }).filter(row => row && (row['名前'] || row['カード名'] || row[headers[0]] || row['__col0']));
 }
 
-const _XLSX_PATH = './Vesselbound_data.xlsx';
+const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx'];
 const _XLSX_SHEETS = {
   floor: '階層データ',
   grade: 'グレードアップ',
@@ -153,12 +161,43 @@ function _xlsxSheetToCSV(workbook, sheetName, required) {
   return XLSX.utils.sheet_to_csv(sheet);
 }
 
+async function _loadGameDataFromEmbeddedXlsx() {
+  const data = window.VESSELBOUND_LOCAL_XLSX_CSV;
+  if (!data) throw new Error('embedded xlsx data missing');
+  console.log('[Vesselbound] embedded XLSX data loaded');
+  return {
+    source: 'embedded-xlsx',
+    ft: data.floor || '名前\n',
+    gt: data.grade || '名前\n',
+    st: data.spell || '名前\n',
+    rt: data.ring || '名前\n',
+    ct: data.char || '名前\n',
+    et: data.enemy || '名前\n',
+    starterText: data.starter || '名前\n',
+    speciesText: data.species || '名前\n',
+    kwt: data.keyword || '名前\n',
+    sqt: data.squirrel || '名前\n',
+  };
+}
+
 async function _loadGameDataFromXlsx() {
   if (typeof XLSX === 'undefined') throw new Error('SheetJS XLSX is not loaded');
-  const res = await fetch(_XLSX_PATH);
-  if (!res.ok) throw new Error('xlsx HTTP ' + res.status);
+  let res = null;
+  let loadedPath = '';
+  for (const path of _XLSX_PATHS) {
+    try {
+      const trial = await fetch(path);
+      if (trial.ok) {
+        res = trial;
+        loadedPath = path;
+        break;
+      }
+    } catch (_) { /* 次の候補へ */ }
+  }
+  if (!res) throw new Error('xlsx not found: ' + _XLSX_PATHS.join(', '));
   const buf = await res.arrayBuffer();
   const workbook = XLSX.read(buf, { type: 'array' });
+  console.log('[Vesselbound] XLSX path:', loadedPath);
   return {
     source: 'xlsx',
     ft: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.floor, true),
@@ -181,13 +220,14 @@ async function _loadGameDataFromGoogleCsv() {
     fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
     fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
     fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
-    fetch(_sheetUrl(_SHEET_GIDS['初期キャラクター'])),
+    fetch(_sheetUrl(_SHEET_GIDS['敵'])),
+    fetch(_starterSheetUrl()),
   ];
   const responses = await Promise.all(fetches);
   for (const r of responses) {
     if (r && !r.ok) throw new Error('HTTP ' + r.status);
   }
-  const [ft, gt, st, rt, ct, starterText] = await Promise.all(responses.map(r => r.text()));
+  const [ft, gt, st, rt, ct, et, starterText] = await Promise.all(responses.map(r => r.text()));
   let kwt = '名前\n';
   let sqt = '名前\n';
   try {
@@ -198,7 +238,7 @@ async function _loadGameDataFromGoogleCsv() {
     const sqRes = await fetch(_sheetUrl(_SHEET_GIDS['リスNPC']));
     if (sqRes.ok) sqt = await sqRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, st, rt, ct, et: 'カード名\n', starterText, speciesText: '種族\n', kwt, sqt };
+  return { source: 'csv', ft, gt, st, rt, ct, et, starterText, speciesText: '種族\n', kwt, sqt };
 }
 
 // ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
@@ -216,6 +256,27 @@ function _parseIntRange(s, fallback) {
   }
   const v = parseInt(s);
   return isNaN(v) ? { val: fallback, range: [fallback, fallback] } : { val: v, range: [v, v] };
+}
+
+function _sheetArtCode(row, fallbackPrefix) {
+  if (!row) return '';
+  const raw = String(row['No.'] || row['No'] || row['NO'] || row['コード'] || row['画像No'] || row['画像番号'] || row['__col0'] || '').trim();
+  if (!raw) return '';
+  const prefixed = raw.match(/^([PEC])\s*0*(\d+)$/i);
+  if (prefixed) return prefixed[1].toUpperCase() + String(parseInt(prefixed[2], 10)).padStart(3, '0');
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) return raw;
+  return String(fallbackPrefix || '').toUpperCase() + String(n).padStart(3, '0');
+}
+
+function _assignSheetArtCode(obj, row, fallbackPrefix) {
+  const code = _sheetArtCode(row, fallbackPrefix);
+  if (!obj || !code) return;
+  obj['No.'] = code;
+  obj.No = code;
+  obj.no = code;
+  obj.imageNo = code;
+  obj.artCode = code;
 }
 
 function _truthySheet(v) {
@@ -261,7 +322,6 @@ function _starterNameFromSheet(s) {
     '騎士':'騎士',
     '屍術師':'屍術師',
     'し術師':'屍術師',
-    '蛮族':'蛮族',
     '狩人':'狩人',
   };
   return map[n] || '';
@@ -468,12 +528,16 @@ async function loadGameData() {
   try {
     let loaded;
     try {
-      loaded = await _loadGameDataFromXlsx();
-      console.log('[Vesselbound] XLSX loaded');
-    } catch (xlsxErr) {
-      console.warn('[Vesselbound] XLSX 読み込み失敗。Google Sheets CSVへフォールバック:', xlsxErr);
-      loaded = await _loadGameDataFromGoogleCsv();
-      console.log('[Vesselbound] CSV loaded');
+      loaded = await _loadGameDataFromEmbeddedXlsx();
+    } catch (embeddedErr) {
+      try {
+        loaded = await _loadGameDataFromXlsx();
+        console.log('[Vesselbound] XLSX loaded');
+      } catch (xlsxErr) {
+        console.warn('[Vesselbound] XLSX 読み込み失敗。Google Sheets CSVへフォールバック:', xlsxErr);
+        loaded = await _loadGameDataFromGoogleCsv();
+        console.log('[Vesselbound] CSV loaded');
+      }
     }
     const { source, ft, gt, st, rt, ct, et, starterText, speciesText, kwt, sqt } = loaded;
 
@@ -591,6 +655,44 @@ async function loadGameData() {
       GRADE_UP_COSTS.length = 0;
       newCosts.forEach(c => GRADE_UP_COSTS.push(c));
     }
+    const facilityKeyByName = {
+      '祭壇': 'altar',
+      '研究所': 'lab',
+      '市街': 'city',
+      '金庫': 'vault',
+      '図書館': 'library',
+      '大学': 'university',
+    };
+    window.FACILITY_UPGRADE_COSTS = window.FACILITY_UPGRADE_COSTS || {};
+    gradeRows.forEach(row => {
+      const rowGrade = parseInt(row['グレード'] || row['レベル'] || row['Lv'] || row['段階']);
+      if (!isNaN(rowGrade) && rowGrade >= 2 && rowGrade <= 7) {
+        Object.entries(facilityKeyByName).forEach(([label, key]) => {
+          const cost = parseInt(row[label]);
+          if (!isNaN(cost) && cost > 0) {
+            window.FACILITY_UPGRADE_COSTS[key] = window.FACILITY_UPGRADE_COSTS[key] || [];
+            window.FACILITY_UPGRADE_COSTS[key][rowGrade - 2] = cost;
+          }
+        });
+      }
+      const name = (row['設備'] || row['施設'] || row['項目'] || row['名前'] || '').trim();
+      const key = facilityKeyByName[name] || Object.values(facilityKeyByName).find(v => v === name);
+      if (!key) return;
+      const verticalLevel = parseInt(row['レベル'] || row['Lv'] || row['グレード'] || row['段階']);
+      const verticalCost = parseInt(row['費用'] || row['コスト'] || row['必要ゴールド'] || row['価格']);
+      if (!isNaN(verticalLevel) && verticalLevel >= 2 && verticalLevel <= 7 && !isNaN(verticalCost) && verticalCost > 0) {
+        window.FACILITY_UPGRADE_COSTS[key] = window.FACILITY_UPGRADE_COSTS[key] || [];
+        window.FACILITY_UPGRADE_COSTS[key][verticalLevel - 2] = verticalCost;
+        return;
+      }
+      const costs = [];
+      for (let level = 2; level <= 7; level++) {
+        const raw = row[`Lv${level}`] || row[`Lv.${level}`] || row[String(level)] || row[`費用${level}`];
+        const cost = parseInt(raw);
+        if (!isNaN(cost) && cost > 0) costs[level - 2] = cost;
+      }
+      if (costs.length) window.FACILITY_UPGRADE_COSTS[key] = costs;
+    });
 
     // ── 魔法プール（種別・グレード・使用回数・価格・初期装備・説明文）──
     const spellRows = _parseCSV(st);
@@ -684,6 +786,7 @@ async function loadGameData() {
     const _sheetUnitNames = new Set();  // シートに存在する通常/ネームドキャラクター名
     const _syncUnitFromRow = (unit, row) => {
       unit._sheetSeen = true;
+      _assignSheetArtCode(unit, row, 'P');
       const nv = row['ネームド'] || row['ユニーク'];
       if (_truthySheet(nv)) unit.unique = true;
       else if (_falseySheet(nv)) unit.unique = false;
@@ -748,12 +851,11 @@ async function loadGameData() {
         UNIT_POOL.push(unit);
       }
       if (!unit) return;
-      const atkP2 = _parseIntRange(row['初期ATK'] || row['パワー'] || row['ATK'], unit.atk || 0);
-      const hpP2  = _parseIntRange(row['初期HP']  || row['ライフ'] || row['HP'],  unit.hp  || 0);
-      if (atkP2.val > 0) unit.atk = atkP2.val;
-      if (hpP2.val  > 0) unit.hp  = hpP2.val;
-      unit.baseAtk = atkP2.range;
-      unit.baseHp = hpP2.range;
+      _assignSheetArtCode(unit, row, 'P');
+      unit.atk = 3;
+      unit.hp = 3;
+      unit.baseAtk = '3';
+      unit.baseHp = '3';
       if (row['種族']) unit.race = row['種族'];
       unit.grade = 1;
       unit.cost = 0;
@@ -761,18 +863,16 @@ async function loadGameData() {
       unit.starterOnly = true;
       unit.enemyOnly = false;
       unit.rarity = -1;
-      unit.desc = _sheetAbilityText(row['固有能力1']) || row['効果'] || unit.desc || '';
-      if (row['固有能力2']) unit.stack1Desc = _sheetAbilityText(row['固有能力2']);
-      if (row['固有能力3']) unit.stack2Desc = _sheetAbilityText(row['固有能力3']);
+      unit.desc = '';
+      unit.initialPanelName = String(row['初期パネル'] || unit.initialPanelName || '').trim();
+      unit.initialPanelDesc = String(row['初期パネルの効果'] || row['効果'] || unit.initialPanelDesc || '').trim();
+      delete unit.effect;
+      delete unit.injury;
+      unit.keywords = [];
       const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || '';
       const equipTypes = _splitSheetList(equipTypeStr);
       if (equipTypes.length) unit.equipTypes = equipTypes;
-      const initialEqStr = [row['初期装備1'], row['初期装備2'], row['初期装備'], row['装備']]
-        .filter(v => v && String(v).trim() && String(v).trim() !== '-')
-        .join('、');
-      const initialEquipment = _splitSheetList(initialEqStr).filter(_cardNameExists);
-      if (initialEquipment.length) unit.initialEquipment = initialEquipment;
-      else unit.initialEquipment = [];
+      unit.initialEquipment = [];
       unit._sheetSeen = true;
     };
     charRows.forEach(row => {
@@ -816,6 +916,7 @@ async function loadGameData() {
           };
           ENEMY_POOL.push(ep);
         }
+        _assignSheetArtCode(ep, row, 'E');
         _sheetEnemyNames.add(name); // シートに存在する敵として記録
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
@@ -860,6 +961,7 @@ async function loadGameData() {
         const turnRaw = String(row['ターン'] || '1').trim();
         const turn = turnRaw === '-' ? 999 : (parseInt(turnRaw) || 1);
         const kws = (row['キーワード'] || '').split(/[\s、,，]+/).filter(Boolean);
+        const isBossEnemy = _truthySheet(row['ボス']) || _truthySheet(row['Boss']) || _truthySheet(row['ボスかどうか']);
         const enemy = {
           name,
           grade: Math.max(1, Math.round(level || 1)),
@@ -870,11 +972,13 @@ async function loadGameData() {
           baseAtk: atkP.range,
           baseHp: hpP.range,
           keywords: kws,
-          desc: row['備考'] || '',
+          desc: row['効果'] || row['備考'] || '',
           equipmentText: row['装備'] || '',
           spawnTurn: turn,
+          bossOnly: isBossEnemy,
           _sheetEnemy: true,
         };
+        _assignSheetArtCode(enemy, row, 'E');
         ENEMY_POOL.push(enemy);
         _sheetEnemyNames.add(name);
       });

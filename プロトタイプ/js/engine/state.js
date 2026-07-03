@@ -54,9 +54,9 @@ function gradeStr(g){
 
 function initState(){
   G={
-    floor:1, gold:0,
+    floor:1, gold:0, life:3,
     // ── 盤面（6スロット固定・HP持続）──
-    allies: Array(6).fill(null),
+    allies: Array(MAX_ALLIES||5).fill(null),
     enemies:[],
     // ── プレイヤー装備 ──
     rings:   Array(4).fill(null), // 指輪スロット（初期2枠・最大4枠）
@@ -68,7 +68,8 @@ function initState(){
     inventory: Array(18).fill(null),
     inventoryOpen:false,
     globalPanels:Array(7).fill(null),
-    _showGlobalPanels:false,
+    _showGlobalPanels:true,
+    _showPlayerHand:false,
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
@@ -128,7 +129,10 @@ function initState(){
     masterHand:[],  // 報酬フェイズのマスター手札
     masterRings:[],  // 報酬フェイズの購入可能指輪
     hasGoldenDrop:false,
-    baseIncome:1,
+    baseIncome:0,
+    facilities:{altar:1,lab:1,city:1,vault:1,library:1,university:1},
+    facilityDiscounts:{},
+    _rewardIncomeGrantedFloor:null,
     _nextRewardUniqueSlot:false,
     // ── 報酬グレード ──
     rewardGrade:1,
@@ -137,6 +141,7 @@ function initState(){
     _bossJustDefeated:false,
     // ── 報酬 ──
     rerollCount:0,
+    rewardRerollsLeft:1,
     // ── 秘術（互換性のため残す）──
     arcana:null, arcanaUsed:false,
     arcanaCarryGold:0, arcanaForceNode:false, arcanaTrustCount:0,
@@ -152,16 +157,21 @@ function initState(){
     _lesserDemonDiscount:0,
   };
 
-  // 初期キャラクター：シートの「ミラ」「アドラ」固定
-  const starterNames = ['ミラ', 'アドラ'];
+  // 初期キャラクター：魔術師固定
+  const starterNames = ['魔術師'];
   const pickedStarters = starterNames
     .map(name => UNIT_POOL.find(u => u && u.name === name))
     .filter(Boolean);
   pickedStarters.forEach((def,i)=>{
     const unit=makeUnitFromDef(def, undefined, true);
     unit._isStarter=true;
-    G.allies[i]=unit;
+    unit.initialPanelName='魔術師';
+    unit.initialPanelDesc='';
     unit.equipment=unit.equipment||[];
+    if(typeof makeStarterInitialPanel==='function') unit.equipment[0]=makeStarterInitialPanel('魔術師','');
+    const rearCenter=(ENEMY_FRONT_SLOTS||7)+Math.floor((ENEMY_FRONT_SLOTS||7)/2);
+    unit.lane='rear';
+    G.allies[i===0?rearCenter:i]=unit;
     (def.initialEquipment||[]).forEach(eq=>{
       const item=(SPELL_POOL||[]).find(s=>s&&s.name===eq);
       const slot=G.spells.findIndex(s=>!s);
@@ -176,14 +186,4 @@ function initState(){
     const slot=G.globalPanels.findIndex(p=>!p);
     if(slot>=0) G.globalPanels[slot]=card;
   };
-  if(pickedStarters.some(def=>def&&def.name==='ミラ')) addGlobal('治療');
-  if(pickedStarters.some(def=>def&&def.name==='アドラ')) addGlobal('武術の知識　Lv.1');
-
-  // 初期杖：炎の杖
-  const fireWand = SPELL_POOL.find(s=>s.id==='s_fire')||clone(SPELL_POOL[0]);
-  if(fireWand){
-    const fw = clone(fireWand);
-    fw.usesLeft = 5; fw._maxUses = 5;
-    G.spells[0] = fw;
-  }
 }

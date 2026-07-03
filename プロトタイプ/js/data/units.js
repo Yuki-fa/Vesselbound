@@ -4,14 +4,13 @@
 
 const UNIT_POOL = [
   // ─── 初期キャラクター ───
-  {id:'c_starter_warrior', name:'戦士', race:'亜人', grade:1, atk:13, hp:46, cost:0, unique:false, starterOnly:true, icon:'⚔️', equipTypes:['剣','斧'], initialEquipment:[], desc:'負傷：+2/+2を得る。', injury:'starter_warrior'},
-  {id:'c_starter_mage', name:'魔術師', race:'亜人', grade:1, atk:3, hp:38, cost:0, unique:false, starterOnly:true, icon:'🧙', equipTypes:['短剣','杖'], initialEquipment:[], desc:'開戦：魔術レベルが+1される。', effect:'starter_mage_start'},
-  {id:'c_starter_priest', name:'神官', race:'亜人', grade:1, atk:11, hp:48, cost:0, unique:false, starterOnly:true, icon:'⛪', equipTypes:['斧','杖'], initialEquipment:[], desc:'攻撃：自身に「癒しの杖」を使用する。', effect:'starter_priest_attack'},
-  {id:'c_starter_thief', name:'盗賊', race:'亜人', grade:1, atk:5, hp:34, cost:0, unique:false, starterOnly:true, icon:'🗡️', equipTypes:['短剣','弓'], initialEquipment:[], desc:'終戦：ランダムなアイテムを1つ得る。', effect:'starter_thief_end'},
-  {id:'c_starter_knight', name:'騎士', race:'亜人', grade:1, atk:11, hp:50, cost:0, unique:false, starterOnly:true, icon:'🛡️', equipTypes:['剣','槍'], initialEquipment:[], desc:'開戦：全ての仲間のATKが+1される。', effect:'starter_knight_start'},
-  {id:'c_starter_necromancer', name:'屍術師', race:'亜人', grade:1, atk:7, hp:40, cost:0, unique:false, starterOnly:true, icon:'💀', equipTypes:['槍','杖'], initialEquipment:[], desc:'終戦：ヘイトを持つ10/10の「ゾンビ」を召喚する。', effect:'starter_necromancer_end'},
-  {id:'c_starter_barbarian', name:'蛮族', race:'亜人', grade:1, atk:15, hp:42, cost:0, unique:false, starterOnly:true, icon:'🪓', equipTypes:['剣','斧'], initialEquipment:[], desc:'自動：装備を1つ多く持つことができる。', effect:'starter_barbarian_auto'},
-  {id:'c_starter_hunter', name:'狩人', race:'亜人', grade:1, atk:9, hp:37, cost:0, unique:false, starterOnly:true, icon:'🏹', equipTypes:['短剣','弓'], initialEquipment:[], desc:'自動：各戦闘で最初の攻撃時は無敵を得る。', effect:'starter_hunter_auto'},
+  {id:'c_starter_warrior', name:'戦士', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'⚔️', initialPanelName:'守護', initialPanelDesc:'<自動>敵はこのキャラクターを優先して狙う。', initialEquipment:[], desc:''},
+  {id:'c_starter_mage', name:'魔術師', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'🧙', initialPanelName:'三方向攻撃', initialPanelDesc:'<自動>対象と、隣接するキャラクターにもダメージを与える。', initialEquipment:[], desc:''},
+  {id:'c_starter_priest', name:'神官', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'⛪', initialPanelName:'A・シールド', initialPanelDesc:'<自動>一度だけダメージを無効化する。', initialEquipment:[], desc:''},
+  {id:'c_starter_thief', name:'盗賊', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'🗡️', initialPanelName:'二段攻撃', initialPanelDesc:'<自動>二回攻撃する。', initialEquipment:[], desc:''},
+  {id:'c_starter_knight', name:'騎士', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'🛡️', initialPanelName:'貫通', initialPanelDesc:'<自動>後衛の敵にもダメージを与える。', initialEquipment:[], desc:''},
+  {id:'c_starter_necromancer', name:'屍術師', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'💀', initialPanelName:'再生', initialPanelDesc:'<自動>一度だけ復活する。', initialEquipment:[], desc:''},
+  {id:'c_starter_hunter', name:'狩人', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, icon:'🏹', initialPanelName:'狙撃', initialPanelDesc:'<自動>攻撃時に与えるダメージが1.5倍になる。', initialEquipment:[], desc:''},
 
   // ─── ゴーレム（初期キャラ・非売品） ───
   {id:'c_golem',      name:'守護者"アイギス"', race:'-',   grade:1, atk:5,  hp:10, cost:0,  unique:false, icon:'🪨', desc:'', keywords:['アーティファクト']},
@@ -220,30 +219,37 @@ function _speciesEquipConfigForUnit(def) {
 }
 
 function _buildUnitEquipSlots(def) {
-  const cfg = _speciesEquipConfigForUnit(def);
-  if (!cfg) {
-    return [
-      { label: '固定装備', kind: 'fixed', fixed: true },
-      { label: 'アイテム1', kind: 'item' },
-      { label: '指輪1', kind: 'ring' },
-      { label: '指輪2', kind: 'ring' },
-    ];
-  }
-  const slots = [{ label: cfg.fixedEquip ? cfg.fixedEquip.name : '固定装備', kind: 'fixed', fixed: true }];
-  for (let i = 0; i < (cfg.itemSlots || 0); i++) slots.push({ label: `アイテム${i + 1}`, kind: 'item' });
-  for (let i = 0; i < (cfg.ringSlots || 0); i++) slots.push({ label: `指輪${i + 1}`, kind: 'ring' });
-  return slots;
+  return Array.from({ length: 11 }, (_, i) => ({ label: `パネル${i + 1}`, kind: 'panel' }));
+}
+
+function makeStarterInitialPanel(name, desc) {
+  if (!name) return null;
+  return {
+    id: 'starter_panel_' + _unitSheetNameKey(name),
+    name,
+    type: 'panel',
+    kind: 'panel',
+    panelScope: 'unit',
+    category: 'パッシブ',
+    equip: true,
+    fixedEquip: true,
+    starterPanel: true,
+    grade: 1,
+    rarity: -1,
+    cost: 0,
+    keywords: [name],
+    desc: String(desc || '').replace(/^<自動>/, '自動：'),
+  };
 }
 
 function _buildUnitInitialEquipment(def, slots) {
   const equips = new Array(slots.length).fill(null);
-  const cfg = _speciesEquipConfigForUnit(def);
-  if (slots[0] && slots[0].fixed) equips[0] = cfg && cfg.fixedEquip ? clone(cfg.fixedEquip) : null;
+  const starterPanel = makeStarterInitialPanel(def.initialPanelName, def.initialPanelDesc);
+  if (starterPanel) equips[0] = starterPanel;
   (def.initialEquipment || []).forEach(name => {
     const card = (typeof _findBySheetName === 'function' && (_findBySheetName(SPELL_POOL, name) || _findBySheetName(RING_POOL, name))) || null;
     if (!card) return;
-    const isRing = card.type === 'ring';
-    const idx = slots.findIndex((slot, i) => !equips[i] && (isRing ? slot.kind === 'ring' : slot.kind === 'item'));
+    const idx = slots.findIndex((slot, i) => i > 0 && !equips[i]);
     if (idx >= 0) equips[idx] = clone(card);
   });
   return equips;
@@ -286,8 +292,17 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     keywords: def.keywords ? [...def.keywords] : [],
     equipTypes: def.equipTypes ? [...def.equipTypes] : [],
     initialEquipment: def.initialEquipment ? [...def.initialEquipment] : [],
+    initialPanelName: def.initialPanelName || '',
+    initialPanelDesc: def.initialPanelDesc || '',
     equipmentSlots: equipSlots.map(s => ({ ...s })),
     equipment: _buildUnitInitialEquipment(def, equipSlots),
+    No: def.No || def.no || def.code || def.artCode || def.imageNo || '',
+    no: def.no || def.No || def.code || def.artCode || def.imageNo || '',
+    code: def.code || def.artCode || def.No || def.no || def.imageNo || '',
+    artCode: def.artCode || def.code || def.No || def.no || def.imageNo || '',
+    imageNo: def.imageNo || def.artCode || def.code || def.No || def.no || '',
+    art: def.art || '',
+    image: def.image || '',
     // 重ねシステム
     _stackCount: 0,
     _baseDesc:   def.desc  || '',

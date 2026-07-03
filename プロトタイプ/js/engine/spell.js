@@ -657,7 +657,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       }
     break;}
     case 'golem':{
-      if(G.allies.filter(a=>a&&a.hp>0).length<6){
+      if(G.allies.filter(a=>a&&a.hp>0).length<(MAX_ALLIES||5)){
         const gl=G.magicLevel||1;
         const golemDef=makeSheetBackedUnitDef({id:'c_spell_golem',name:'ゴーレム',icon:'🗼',race:'-',grade:1,atk:gl,hp:gl,
           cost:0,unique:false,keywords:['アーティファクト']});
@@ -665,7 +665,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
         golem.ringId='w_golem'; golem.ringIdx=-1; golem.hate=true; golem.hateTurns=99;
         const emptySlot=G.allies.findIndex(a=>!a||a.hp<=0);
         if(emptySlot>=0) G.allies[emptySlot]=golem;
-        else if(G.allies.length<6) G.allies.push(golem);
+        else if(G.allies.length<(MAX_ALLIES||5)) G.allies.push(golem);
         log(`🗼 ゴーレム（${gl}/${gl}）を前衛に召喚`,'good');
       }
     break;}
@@ -785,7 +785,7 @@ function applySpell(sp,idx,tgt,_noDecrement,_suppressWandTriggers){
       if(_inReward){ log(`全体爆弾 全報酬キャラに${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); _rewCards.forEach((c,ri)=>{ if(c&&c._isChar&&c.hp>0) dealDmgToRewChar(ri,dmg); }); }
       else { log(`全体爆弾 全敵に${dmg}ダメ`+(cMult>1?' [×2]':''),'bad'); G.enemies.forEach((e,i)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,dmg,i); }); }
     break;}
-    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<6) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
+    case 'revive':{ if(G.lastDead){ const c=clone(G.lastDead); c.hp=Math.min(Math.floor(c.maxHp*.5*cMult),c.maxHp); c.id=uid(); const s=G.allies.findIndex(a=>!a||a.hp<=0); if(s>=0) G.allies[s]=c; else if(G.allies.length<(MAX_ALLIES||5)) G.allies.push(c); log(`${c.name} 復活！`+(cMult>1?' [HP×2]':''),'good'); } else log('復活対象なし'); break;}
     case 'big_rally':{ const rbonus=2*cMult; let _rbShown=rbonus; G.allies.forEach(a=>{ if(a&&a.hp>0) _rbShown=addUnitHp(a,rbonus); }); log(`鼓舞の巻物：全仲間HP+${_rbShown}！`+(cMult>1?' [×2]':''),'good'); break;}
     case 'reiki_herb':{
       const _ru=tgt.who==='ally'?G.allies[tgt.idx]:tgt.who==='enemy'?G.enemies[tgt.idx]:(tgt.who==='rew-char'?_rewCards[tgt.idx]:null);

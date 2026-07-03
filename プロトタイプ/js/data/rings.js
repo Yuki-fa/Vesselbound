@@ -1,56 +1,50 @@
 // ═══════════════════════════════════════
-// RING_POOL — 装備カード定義
-// 旧グローバル指輪システムは廃止し、キャラクター個別装備として扱う。
+// RING_POOL — 指輪カード定義
+// ※ 効果はスプレッドシートの「効果」列で上書き可能
 // ═══════════════════════════════════════
 const RING_POOL=[
-  {id:'eq_small_light', name:'小さな光の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_small_light',
-   desc:'常時：このキャラクターがライフを得る時、パワーも得る。'},
-  {id:'eq_nightcat', name:'猫の眷属の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_nightcat',
-   desc:'負傷：最も左の空き地に1/2、獣の「ナイトキャット」を召喚する。'},
-  {id:'eq_resonance', name:'呼応の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_resonance',
-   desc:'攻撃：以後、召喚される仲間のライフが+1される。'},
-  {id:'eq_magic_blade', name:'魔剣の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_magic_blade',
-   desc:'常時：ATK+魔術レベル'},
-  {id:'eq_null_magic', name:'絶魔の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_null_magic',
-   desc:'終戦：魔術レベルが5以下の場合、全ての仲間が+3/+3を得る。'},
-  {id:'eq_revive', name:'再生の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_revive',
-   desc:'死亡：最大HPで復活し、この指輪は壊れる。'},
-  {id:'eq_balance', name:'均衡の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_balance',
-   desc:'終戦：ライフが25になる。'},
-  {id:'eq_luck', name:'幸運の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_luck',
-   desc:'常時：3ターンごとに1金を得る。'},
-  {id:'eq_coordination', name:'連携の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_coordination',
-   desc:'常在：右隣のキャラクターの攻撃効果は1回追加で発動する。'},
-  {id:'eq_small_blessing', name:'小さな加護の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_small_blessing',
-   desc:'攻撃：全ての仲間のライフが+1される。'},
-  {id:'eq_inspire', name:'鼓舞の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_inspire',
-   desc:'攻撃：隣接する仲間が+1/+2を得る。'},
-  {id:'eq_thief', name:'盗賊の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_thief',
-   desc:'終戦：ランダムなアイテムを1つ得る。'},
-  {id:'eq_tactician', name:'参謀の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_tactician',
-   desc:'常時：各フェイズで、最初に使用したアイテムは1回だけ行動力を使用しない。'},
-  {id:'eq_nightmare', name:'夢魔の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_nightmare',
-   desc:'誘発：アイテムを使用するたび、最も左の空き地に3/1、悪魔の「ナイトメア」を召喚する。'},
-  {id:'eq_appraiser', name:'目利きの指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_appraiser',
-   desc:'自動：報酬のアイテムにグレードが1高いものが1つ含まれる。'},
-  {id:'eq_dragonkin', name:'竜人の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_dragonkin',
-   desc:'終戦：4回目の戦闘終了時、ランダムな竜に変身する。'},
-  {id:'eq_wrathscale', name:'逆鱗の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_wrathscale',
-   desc:'負傷：全てのキャラクターに1ダメージを与える。'},
-  {id:'eq_patience_hp', name:'我慢の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_patience_hp',
-   desc:'負傷：ライフが+2される。'},
-  {id:'eq_apothecary', name:'薬師の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_apothecary',
-   desc:'開戦：「治癒の薬」を1つ得る。'},
-  {id:'eq_poison_marsh', name:'毒沼の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:1, unique:'equip_poison_marsh',
-   desc:'毒牙'},
-  {id:'eq_mirror', name:'鏡の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:4, unique:'equip_mirror',
-   desc:'右隣の指輪と同じ効果を持つ。'},
-  {id:'eq_patience_shift', name:'我慢の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:4, unique:'equip_patience_shift',
-   desc:'「戦闘開始時」を「ターン開始時」に変更する。'},
-  {id:'eq_hate', name:'憎悪の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:4, unique:'equip_hate',
-   desc:'ヘイト'},
-  {id:'eq_gale', name:'疾風の指輪', type:'ring', kind:'equipment', equip:true, grade:1, rarity:1, cost:4, unique:'equip_gale',
-   desc:'二段攻撃'},
-  {id:'eq_golden_drop', name:'黄金の雫', type:'ring', kind:'equipment', equip:true, grade:1, rarity:3, cost:0, legend:true, unique:'equip_golden_drop',
-   desc:'このキャラクターの効果中の数値が全て+1される。'},
+
+  // ── 通常指輪 ──
+  {id:'r_needle',       name:'針の指輪',       kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'ターン開始時、全ての敵に現在のターン数分のダメージを与える。', unique:'needle'},
+
+  {id:'r_lifereg',      name:'生命の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'戦闘終了時、全ての味方に±0/+1を与える。', unique:'life_reg'},
+
+  {id:'r_fury',         name:'憤激の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'装備中のみ、すべての味方に+3/±0を与える。', unique:'fury_start'},
+
+  {id:'r_extra',        name:'行動の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'プレイヤーの行動回数が+1される。', unique:'extra_action'},
+
+  {id:'r_bond',         name:'絆の指輪',       kind:'passive', grade:4, rarity:3, cost:4,
+   desc:'装備中のみ、全ての味方に「絆」を与える。', unique:'bond'},
+
+  {id:'r_poison',       name:'毒沼の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'ダメージを受けた敵が毒を受けるようになる。', unique:'poison_aura'},
+
+  {id:'r_farsight',     name:'遠見の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'祭壇、商店、宿屋の出現率が2倍になる。', unique:'farsight'},
+
+  {id:'r_mana',         name:'魔導の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'各戦闘中、最初に使用した杖は1回だけチャージが減らない。', unique:'mana_cycle'},
+
+  {id:'r_catalyst',     name:'触媒の指輪',     kind:'passive', grade:4, rarity:3, cost:4,
+   desc:'杖の効果が2倍になる。', unique:'catalyst_ring'},
+
+  {id:'r_solitude',     name:'孤高の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'盤面に味方が1体だけの時、その味方のATKとHPを2倍にする。', unique:'solitude'},
+
+  {id:'r_greed',        name:'強欲の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'宝箱の出現率が2倍になる。', unique:'greed'},
+
+  {id:'r_mirror',       name:'鏡の指輪',       kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'右隣の指輪と同じ効果を持つ。', unique:'mirror'},
+
+  {id:'r_patience',     name:'我慢の指輪',     kind:'passive', grade:1, rarity:1, cost:4,
+   desc:'「戦闘開始時」を「ターン開始時」に変更する。', unique:'patience'},
+
+  // ── ネームド（legend）──
+  {id:'r_great_mother', name:'黄金の雫', kind:'passive', grade:1, rarity:3, legend:true,
+   desc:'味方のカード効果中の数値が全て+1される。', unique:'great_mother'},
 ];

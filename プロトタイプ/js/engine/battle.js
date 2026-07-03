@@ -9,70 +9,8 @@ let _isBossFight = false;
 const BATTLE_OBJECTS=[
   {id:'rock',        name:'岩',   icon:'🪨', prob:0.15, hpMult:5, effect:null,          desc:'効果なし'},
   {id:'barrel',      name:'樽',   icon:'🛢️', prob:0.10, hpMult:3, effect:'barrel',      desc:'破壊で宝箱30%／爆発20%／何も無し50%'},
-  {id:'spirit_tree', name:'霊木', icon:'🌳', prob:0.05, hpMult:4, effect:'spirit_tree', desc:'破壊でゴールド+1'},
+  {id:'spirit_tree', name:'霊木', icon:'🌳', prob:0.05, hpMult:4, effect:'spirit_tree', desc:'破壊でソウル+1'},
 ];
-
-function getUnitEquips(unit){
-  if(!unit) return [];
-  const base=typeof getUnitEffectiveEquips==='function'
-    ? getUnitEffectiveEquips(unit)
-    : (unit.equipment||[]).filter(Boolean);
-  if(!base.length) return base;
-  const withMirror=[...base];
-  base.forEach((eq,idx)=>{
-    if(eq&&eq.unique==='equip_mirror'){
-      const right=base[idx+1];
-      if(right) withMirror.push(right);
-    }
-  });
-  return withMirror;
-}
-function unitHasEquip(unit, unique){
-  return getUnitEquips(unit).some(eq=>eq&&eq.unique===unique);
-}
-function unitEquipCount(unit, unique){
-  return getUnitEquips(unit).filter(eq=>eq&&eq.unique===unique).length;
-}
-function syncEquipmentPassives(){
-  (G.allies||[]).forEach(unit=>{
-    if(!unit) return;
-    const magicBladeCount=unit.hp>0?unitEquipCount(unit,'equip_magic_blade'):0;
-    const desired=magicBladeCount*(G.magicLevel||1);
-    const current=unit._equipMagicBladeAtk||0;
-    const diff=desired-current;
-    if(diff){
-      unit.atk=(unit.atk||0)+diff;
-      unit.baseAtk=(unit.baseAtk||0)+diff;
-    }
-    if(desired) unit._equipMagicBladeAtk=desired;
-    else delete unit._equipMagicBladeAtk;
-    const wantsHate=unit.hp>0&&unitEquipCount(unit,'equip_hate')>0;
-    if(wantsHate){
-      unit.hate=true;
-      unit.hateTurns=99;
-      unit._equipHateApplied=true;
-    } else if(unit._equipHateApplied){
-      unit.hate=false;
-      unit.hateTurns=0;
-      delete unit._equipHateApplied;
-    }
-  });
-  try{ if(typeof renderFieldEditor==='function') renderFieldEditor(); }catch(e){}
-  try{ if(typeof renderAll==='function'&&(G.phase==='player'||G.phase==='enemy'||G.phase==='commander')) renderAll(); }catch(e){}
-}
-function addKeyword(unit, kw){
-  if(!unit||!kw) return;
-  unit.keywords=unit.keywords||[];
-  if(!unit.keywords.includes(kw)) unit.keywords.push(kw);
-}
-function _gainCardToInventory(card, sourceName){
-  const cap=G.handSlots||7;
-  let idx=-1;
-  for(let i=0;i<cap;i++){ if(!G.spells[i]){ idx=i; break; } }
-  if(idx<0){ log(`${sourceName||'装備'}：インベントリが満杯です`,'bad'); return false; }
-  G.spells[idx]=clone(card);
-  return true;
-}
 
 // ドリアード：攻撃時にランダムな仲間2体+1/+1（旧バフ系トリガーは廃止）
 function triggerDryadBuff(){ /* 廃止済み - ドリアードは攻撃時効果に変更 */ }
@@ -80,7 +18,6 @@ function triggerDryadBuff(){ /* 廃止済み - ドリアードは攻撃時効果
 // 魔術レベル上昇時の共通処理（ハーピー誘発等）
 function onMagicLevelUp(amount){
   G.magicLevel=(G.magicLevel||1)+amount;
-  syncEquipmentPassives();
   syncHarpyAtk();
   // ハーピー：魔術レベルが上がるたびに全仲間+1/+2
   const _gd=G.hasGoldenDrop?1:0;
@@ -98,7 +35,7 @@ function onGoldGained(amount){
   G.gold+=amount; G.earnedGold+=amount;
   if(amount>0&&typeof playSfx==='function') playSfx('goldGain',{group:'reward'});
   updateHUD();
-  // レプラコーン：ゴールドを得るたびに全仲間±0/+1
+  // レプラコーン：ソウルを得るたびに全仲間±0/+1
   const _gd=G.hasGoldenDrop?1:0;
   const hasLep=G.allies&&G.allies.some(a=>a&&a.hp>0&&a.effect==='leprechaun_gold');
   if(hasLep){
@@ -108,48 +45,26 @@ function onGoldGained(amount){
     let _allyLv=_lv, _enemyLv=_lv;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _allyLv=addUnitHp(a,_lv,'ally'); });
     const _jkbNote=_allyLv!==_lv?`（実値+${_allyLv}）`:'';
-    log(`レプラコーン：ゴールド獲得→全仲間±0/+${_lv}${_jkbNote}`,'good');
+    log(`レプラコーン：ソウル獲得→全仲間±0/+${_lv}${_jkbNote}`,'good');
   }
 }
 
 function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
-  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType&&typeof showWorldMapPostBattleReward==='function'){
-    showWorldMapPostBattleReward('戦闘報酬');
-    document.body.classList.add('victory-reward-active');
-    const ov=document.getElementById('victory-overlay');
-    if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
-    if(ov) ov.style.display='flex';
-    return;
-  }
+  if(G._battleDefeatHandled) return;
+  if(!(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)) return;
+  if(_checkRearCenterAllyGameOver()) return;
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
     showScreen('clear');
   } else {
     showVictoryOverlay();
+    setTimeout(()=>{
+      const ov=document.getElementById('victory-overlay');
+      if(ov) ov.style.display='none';
+      if(G.phase==='reward') goToReward();
+    },800);
   }
-}
-
-function applyGlobalPanelVictoryBonuses(){
-  const total=(G.globalPanels||[]).filter(p=>p&&p.training).reduce((s,p)=>s+(p.training||0),0);
-  const healPct=(G.globalPanels||[]).filter(p=>p&&p.healPct).reduce((s,p)=>s+(p.healPct||0),0);
-  if(total<=0&&healPct<=0) return;
-  let healed=false;
-  (G.allies||[]).forEach(a=>{
-    if(a&&a.hp>0&&!a._isObject&&!a._isSoul){
-      a.atk=(a.atk||0)+total;
-      a.baseAtk=(a.baseAtk||0)+total;
-      a.hp=(a.hp||0)+total;
-      a.maxHp=(a.maxHp||0)+total;
-      if(healPct>0&&a.hp<a.maxHp){
-        const heal=Math.ceil((a.maxHp||0)*healPct);
-        a.hp=Math.min(a.maxHp,a.hp+heal);
-        healed=true;
-      }
-    }
-  });
-  if(total>0) log(`全体パネル：修練→全仲間+${total}/+${total}`,'good');
-  if(healed) log('全体パネル：治療→全仲間のHPを10%回復','good');
 }
 
 // ── リーダーボーナス（敵側）──────────────────────
@@ -192,11 +107,172 @@ function addUnitHp(unit, amount, sideOverride){
   const _jkb=onAllySide?getJackalopeHpBonus('ally'):onEnemySide?getJackalopeHpBonus('enemy'):0;
   const total=amount+_jkb;
   unit.hp+=total; unit.maxHp+=total;
-  if(onAllySide&&unitHasEquip(unit,'equip_small_light')){
-    addUnitAtk(unit,total);
-    log(`${unit.name}：小さな光の指輪→パワー+${total}`,'good');
-  }
   return total;
+}
+
+function snapshotAlliesAtBattleStart(){
+  G._allyBattleStartSnapshot=(G.allies||[]).map(a=>a?clone(a):null);
+  G._rewardBattleStateRestored=false;
+}
+
+function _growthValueFromUnit(unit){
+  const kw=(unit&&unit.keywords||[]).find(k=>/^成長\d*$/.test(k));
+  if(!kw) return 0;
+  const n=parseInt(kw.slice(2));
+  return (isNaN(n)?1:n)+(G.hasGoldenDrop?1:0);
+}
+
+function restoreAlliesForRewardTransition(){
+  if(G._rewardBattleStateRestored) return;
+  const snap=G._allyBattleStartSnapshot;
+  if(!Array.isArray(snap)) return;
+  G.allies=snap.map(a=>a?clone(a):null);
+  G._rewardBattleStateRestored=true;
+  processRewardGrowthPanels();
+}
+
+function _unitPanels(unit){
+  return Array.isArray(unit&&unit.equipment)?unit.equipment.filter(Boolean):[];
+}
+
+function _removeUnitPanel(unit,panel){
+  if(!unit||!Array.isArray(unit.equipment)||!panel) return;
+  const idx=unit.equipment.indexOf(panel);
+  if(idx>=0) unit.equipment[idx]=null;
+}
+
+function _growthPanelTimes(){
+  const extra=(G.allies||[]).reduce((sum,u)=>sum+_unitPanels(u).filter(p=>p&&p.name==='大いなる成長').length,0);
+  return 1+extra;
+}
+
+function _randomGrowthCharacter(){
+  const pool=(typeof UNIT_POOL!=='undefined'?UNIT_POOL:[]).filter(u=>u&&u.name&&!u.enemy);
+  return pool.length?clone(randFrom(pool)):null;
+}
+
+function _randomDragonCharacter(){
+  const pool=(typeof UNIT_POOL!=='undefined'?UNIT_POOL:[]).filter(u=>u&&String(u.race||'').includes('竜'));
+  return pool.length?clone(randFrom(pool)):_randomGrowthCharacter();
+}
+
+function _transformUnitByDef(unit,def){
+  if(!unit||!def) return;
+  const keepEq=Array.isArray(unit.equipment)?unit.equipment:null;
+  unit.name=def.name||unit.name;
+  unit.race=def.race||unit.race;
+  unit.desc=def.desc||def.ability||unit.desc;
+  unit.art=def.art||def.img||unit.art;
+  unit.atk=def.atk||def.baseAtk||unit.atk||3;
+  unit.baseAtk=unit.atk;
+  unit.maxHp=def.hp||def.maxHp||unit.maxHp||3;
+  unit.hp=unit.maxHp;
+  if(keepEq) unit.equipment=keepEq;
+}
+
+function _processOneGrowthPanel(unit,panel){
+  if(!unit||!panel) return false;
+  const name=panel.name||'';
+  const train={1:1,2:2,3:4,4:8,5:12};
+  const m=name.match(/^修練　Lv\.(\d+)/);
+  if(m){
+    const x=train[Number(m[1])]||0;
+    if(x){
+      unit.atk=(unit.atk||0)+x;
+      unit.baseAtk=(unit.baseAtk||0)+x;
+      const hpGain=addUnitHp(unit,x,'ally');
+      log(`成長：${unit.name} ${name} +${x}/+${hpGain}`,'good');
+      return true;
+    }
+  }
+  if(name==='魔術の基礎'){
+    if((G.magicLevel||1)<=3){
+      G.magicLevel=(G.magicLevel||1)+1;
+      log(`成長：魔術の基礎→魔術Lv+1`,'good');
+      return true;
+    }
+    return false;
+  }
+  if(name==='魔術の応用'){
+    G.magicLevel=(G.magicLevel||1)+1;
+    log(`成長：魔術の応用→魔術Lv+1`,'good');
+    return true;
+  }
+  if(name==='小銭回収'||name==='へそくり'){
+    const gold=name==='小銭回収'?1:2;
+    G.gold=(G.gold||0)+gold;
+    log(`成長：${name}→${gold}ゴールド`,'gold');
+    return true;
+  }
+  if(name==='改修計画'){
+    const keys=Object.keys(G.facilities||{});
+    if(keys.length){
+      const key=randFrom(keys);
+      G.facilityDiscounts=G.facilityDiscounts||{};
+      G.facilityDiscounts[key]=(G.facilityDiscounts[key]||0)+1;
+      log(`成長：改修計画→設備コスト-1`,'gold');
+      return true;
+    }
+  }
+  if(name==='流布'){
+    const eq=unit.equipment||[];
+    const idx=eq.indexOf(panel);
+    const right=idx>=0?eq[idx+1]:null;
+    if(right&&typeof addPanelToSalePool==='function'){
+      addPanelToSalePool(right);
+      log(`成長：流布→${right.name}を販売プールへ追加`,'gold');
+      return true;
+    }
+  }
+  if(name==='暴食'){
+    const eq=unit.equipment||[];
+    const idx=eq.indexOf(panel);
+    const right=idx>=0?eq[idx+1]:null;
+    if(right){
+      const x=(right.grade||1)*3;
+      eq[idx+1]=null;
+      unit.atk=(unit.atk||0)+x;
+      unit.baseAtk=(unit.baseAtk||0)+x;
+      addUnitHp(unit,x,'ally');
+      log(`成長：暴食→${right.name}を破壊し+${x}/+${x}`,'good');
+    } else {
+      _removeUnitPanel(unit,panel);
+      log(`成長：暴食→右隣がないため破壊`,'bad');
+    }
+    return true;
+  }
+  if(name==='変身'){
+    _transformUnitByDef(unit,_randomGrowthCharacter());
+    log(`成長：変身→${unit.name}になった`,'gold');
+    return true;
+  }
+  if(name==='竜体化'){
+    panel._growthBattleCount=(panel._growthBattleCount||0)+1;
+    if(panel._growthBattleCount>=3){
+      _removeUnitPanel(unit,panel);
+      _transformUnitByDef(unit,_randomDragonCharacter());
+      log(`成長：竜体化→${unit.name}になった`,'gold');
+      return true;
+    }
+  }
+  return false;
+}
+
+function processRewardGrowthPanels(){
+  const times=_growthPanelTimes();
+  const allies=(G.allies||[]).filter(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
+  allies.forEach(unit=>{
+    const panels=_unitPanels(unit);
+    const basics=panels.filter(p=>p&&p.name==='魔術の基礎');
+    const apps=panels.filter(p=>p&&p.name==='魔術の応用');
+    const others=panels.filter(p=>p&&p.category==='成長'&&p.name!=='魔術の基礎'&&p.name!=='魔術の応用');
+    [...basics,...apps,...others].forEach(panel=>{
+      for(let i=0;i<times;i++){
+        if(!_processOneGrowthPanel(unit,panel)) break;
+      }
+    });
+  });
+  if(typeof syncUnitEquipmentStats==='function') allies.forEach(syncUnitEquipmentStats);
 }
 
 function getJackalopeHpBonus(side){
@@ -382,19 +458,21 @@ function getMatchupLabel(allyScore, enemyScore){
 // ── 戦闘開始 ──────────────────────────────────
 
 async function startBattle(){
-  if(typeof _setWorldMapUI==='function') _setWorldMapUI(false);
-  else {
-    document.body.classList.remove('world-map-active');
-    const mapPanel=document.getElementById('world-map-panel'); if(mapPanel) mapPanel.hidden=true;
-    const invPanel=document.getElementById('map-inventory-panel'); if(invPanel) invPanel.hidden=true;
-    const invBtn=document.getElementById('map-inventory-toggle'); if(invBtn) invBtn.style.display='none';
+  document.body.classList.remove('reward-screen-active');
+  if(Array.isArray(G.detachedPanels)&&G.detachedPanels.length){
+    log(`一時置き場のパネル${G.detachedPanels.length}枚を破棄`,'sys');
+    G.detachedPanels=[];
   }
+  (G.allies||[]).forEach(u=>{
+    (u?.equipment||[]).forEach(p=>{ if(p) delete p._rewardReturnCard; });
+  });
   if(typeof setBattleStageBackground==='function') setBattleStageBackground();
   _updateLaneOffset();
   clearLog();
 
   // 宝箱・撤退フラグをリセット（前の戦闘の状態を持ち越さない）
   updateGoldenDrop();
+  if(typeof syncUnitPanelStatBonuses==='function') G.allies.forEach(a=>syncUnitPanelStatBonuses(a));
   G._pendingTreasure=false;
   G._pendingEliteChest=false;
   G._pendingTreasureItems=[];
@@ -408,11 +486,18 @@ async function startBattle(){
   G.enemies.forEach(e=>{ if(e) delete e._deathProcessed; });
 
 
-  // ゴールド引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
+  // ソウル引き継ぎ（arcanaCarryGold は強欲アルカナ用のみ加算して消費）
   G.gold += G.arcanaCarryGold||0; G.arcanaCarryGold=0;
 
   // フェイズを先行設定（報酬フェイズから遷移時、addAlly/renderAll 等が reward UI を誤操作しないよう）
   G.phase='player';
+  G._showPlayerHand=false;
+  G._showGlobalPanels=true;
+  G._battleMagicPanels=typeof makeLearnedMagicPanels==='function'?makeLearnedMagicPanels():[];
+  G._selectedBattleMagic=null;
+  G._battleMagicUsed=false;
+  G._battleDefeatHandled=false;
+  G._selectedEquipUnitIdx=-1;
 
   // 報酬フェイズUI非表示
   const rInfo=document.getElementById('reward-info-bar');
@@ -436,58 +521,36 @@ async function startBattle(){
 
   const fd=FLOOR_DATA[G.floor];
   _isBossFight=!!(fd&&fd.boss);
-  // 敵司令官効果は廃止。敵オーナー手札・指輪は戦闘中に使わない。
-  G.bossHand=[];
-  G.bossRings=[];
-  G.enemyMagicLevel=0;
-  G._enemyHandDynamic=false;
-  G._selectedEquipCardIdx=null;
-  document.body.classList.remove('card-targeting-active');
+  // 敵オーナー手札・指輪をすべての階層で読み込む（持ち物がなければ空配列）
+  G.bossHand=(fd?.enemyHand||[]).map(s=>Object.assign({},s));
+  G.bossRings=(fd?.enemyRings||[]).map(r=>Object.assign({},r));
+  G.enemyMagicLevel=fd?.magicLevel||0;
+  // 動的取得モード：戦闘開始時に持ち物がない場合、戦闘中取得は手札3・指輪非表示
+  G._enemyHandDynamic=G.bossHand.length===0&&G.bossRings.length===0;
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
   G.battleCounters={damage:0,deaths:0};
 
   G.enemies=generateEnemies(G.floor);
-  // 特殊オブジェクトをランダム配置（ボス戦除く）
-  // 敵はslot 0を確保して残りslot 1-5にランダム分散、オブジェクトはslot 1-5の空きに配置
-  if(!FLOOR_DATA[G.floor]?.boss){
-    const _actualEnemies=G.enemies.filter(e=>e!==null);
-    const _newEnemies=new Array(6).fill(null);
-    if(_actualEnemies.length>0){
-      _newEnemies[0]=_actualEnemies[0];
-      const _restSlots=[1,2,3,4,5];
-      for(let _si=_restSlots.length-1;_si>0;_si--){
-        const _sj=Math.floor(Math.random()*(_si+1));
-        [_restSlots[_si],_restSlots[_sj]]=[_restSlots[_sj],_restSlots[_si]];
-      }
-      _actualEnemies.slice(1).forEach((e,_ei)=>{ _newEnemies[_restSlots[_ei]]=e; });
+  // 敵は前衛5体・後衛3体の最大8枠へ整列。オブジェクトは出現させない。
+  {
+    const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
+    while(_actualEnemies.length<4&&_actualEnemies.length>0){
+      const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
+      const extra=JSON.parse(JSON.stringify(base));
+      extra.id=uid();
+      extra.lane='front';
+      _actualEnemies.push(extra);
     }
+    const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
+    if(!_isBossFight) _layoutEnemyLanes(_actualEnemies);
+    _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
     G.enemies=_newEnemies;
+    compactBattleUnits();
+    if(_isBossFight) G._bossSlot=G.enemies.findIndex(e=>e&&(e.boss||(e.keywords||[]).includes('ボス')));
     // エリートの位置を再特定（generateMoveMasks が参照するため）
     if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
-    // slot 1-5の空きスロットにオブジェクトを確率配置
-    const _objGrade=FLOOR_DATA[G.floor]?.grade||1;
-    for(let _oi=1;G.floor!==1&&_oi<6;_oi++){
-      if(G.enemies[_oi]) continue;
-      const roll=Math.random();
-      let cumProb=0;
-      for(const obj of BATTLE_OBJECTS){
-        cumProb+=obj.prob;
-        if(roll<cumProb){
-          const hp=Math.ceil(_objGrade*obj.hpMult);
-          G.enemies[_oi]={
-            id:`obj_${obj.id}_${_oi}`,
-            name:obj.name, icon:obj.icon,
-            atk:0, hp, maxHp:hp,
-            race:'-', grade:0, keywords:[],
-            _isObject:true, _objectEffect:obj.effect,
-            lane:'front',
-          };
-          break;
-        }
-      }
-    }
   }
   // 永続敵強化（魂喰X・マミー敵）を新規敵に適用
   G.enemies.forEach(e=>{
@@ -505,48 +568,13 @@ async function startBattle(){
   G.visibleMoves=[];
   G.fogNext=false;
 
-  // 開戦時：宝ドロップ対象・樽効果・開戦配置宝を全て決定
+  // 開戦時：宝ドロップ対象を決定（オブジェクト・開戦配置宝は出さない）
   G._chestDropper=null;
   G._openingChestIdx=-1;
   G._barrelTreasure=null;
   G._pendingEliteTreasureItem=null;
   G._pendingTreasureBySlot={};
-  if(!FLOOR_DATA[G.floor]?.boss){
-    const hasGreed=G.rings&&G.rings.some(r=>r&&r.unique==='greed');
-    const gnomeUnit=G.allies&&G.allies.find(a=>a&&a.hp>0&&a.effect==='gnome_treasure');
-    const gnomeMult=gnomeUnit
-      ?(gnomeUnit._stackCount||0)>=2?4:(gnomeUnit._stackCount||0)>=1?2:1.5
-      :1;
-    const rate=Math.min(0.8,(hasGreed?2:1)*gnomeMult*0.05);
-    if(!G._isEliteFight){
-      const _dropCandidates=G.enemies.filter(e=>e&&e.hp>0&&!e._isObject&&!(e.keywords||[]).includes('エリート'));
-      if(_dropCandidates.length>0&&Math.random()<rate){
-        G._chestDropper=randFrom(_dropCandidates);
-        G._chestDropper._willDropChest=true;
-      }
-    }
-    // 樽の効果を開戦時に決定（chest 30% / explode 30% / null 40%）
-    G.enemies.forEach(e=>{
-      if(!e||!e._isObject||e._objectEffect!=='barrel') return;
-      const roll=Math.random();
-      e._barrelEffect=roll<0.30?'chest':roll<0.60?'explode':null;
-    });
-    // 開戦時から配置される宝（20%）：前衛レーン敵がいる列に配置（前衛が死ぬまで隠れる）
-    if(!G._isEliteFight&&Math.random()<0.20){
-      const _typeRoll=Math.random();
-      const _chestType=_typeRoll<0.4?'chest_wand':_typeRoll<0.7?'chest_ring':'chest_item';
-      const _frontSlots=[0,1,2,3,4,5].filter(i=>{
-        const e=G.enemies[i];
-        return !G.moveMasks[i]&&e&&e.lane==='front'&&!e._isObject;
-      });
-      if(_frontSlots.length>0){
-        const _ri=_frontSlots[Math.floor(Math.random()*_frontSlots.length)];
-        G.moveMasks[_ri]=_chestType;
-        G._openingChestIdx=_ri;
-        G._pendingTreasure=true;
-      }
-    }
-  }
+  // 現仕様では戦闘中の宝箱出現は行わない。
 
   // ── 味方の戦闘状態をリセット（HP は保持）──
   G.allies.forEach(a=>{
@@ -555,10 +583,12 @@ async function startBattle(){
     a.sealed=0; a._dp=false; a.powerBroken=false;
     a.nullified=0; a.instadead=false;
     a._battleStartHp=a.hp;
-    if(a.hate) a.hateTurns=99; // 前衛設定を戦闘ごとにリセット
+    const hasBattleHate=(a._panelSummoned&&a.guardian)||(a._panelSummoned&&((a.keywords||[]).includes('守護')||(a.keywords||[]).includes('ヘイト')));
+    if(hasBattleHate){ a.hate=true; a.hateTurns=99; }
+    else { a.hate=false; a.hateTurns=0; }
     delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
   });
-
+  snapshotAlliesAtBattleStart();
   log(`── 階層 ${G.floor} ──`,'sys');
   if(_isBossFight) log('⚠ ボス戦！','bad');
   log(`敵 ${G.enemies.filter(e=>e&&!e._isObject).length}体が現れた`,'em');
@@ -566,6 +596,7 @@ async function startBattle(){
 
   // 戦闘開始時キャラクター効果
   onBattleStart();
+  if(typeof applyNewPanelBattleStart==='function') applyNewPanelBattleStart();
 
   updateHUD();
   renderAll();
@@ -599,7 +630,7 @@ async function applyPoisonTick(){
       log(`☠ ${a.name}が毒でHP-${a.poison}（残HP:${a.hp}）`,'bad');
       if(a.hp<=0) processAllyDeath(a,G.allies.indexOf(a));
     });
-    if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ await sleep(200); gameOver(); return true; }
+    if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ await sleep(200); handleBattleDefeat(); return true; }
   }
   return false;
 }
@@ -607,8 +638,7 @@ async function applyPoisonTick(){
 async function nextTurn(){
   G.turn++;
   updateHUD();
-  log(`── ターン ${G.turn} ──`,'sys');
-  if(await applyPoisonTick()) return;
+  await commanderPhase(); // 敵オーナーが何も持っていなければ即return
   startPlayerPhase();
 }
 
@@ -765,102 +795,63 @@ function _chooseBestItem(hand, battleState, personality){
 // ── 敵オーナーフェイズ（全階層共通）────────────────
 
 async function commanderPhase(){
-  return;
+  const _liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
+  if(!_liveHand.length&&!_isBossFight) return;
+
+  G.phase='commander';
+  renderControls();
+  log('👹 敵フェイズ','bad');
+  // ボス指輪：ターン開始トリガー（ボス戦のみ）
+  if(_isBossFight&&G.bossRings&&G.bossRings.length) fireBossRingTrigger('turn_start');
+
+  // パーソナリティ・行動数を取得
+  const _fd = FLOOR_DATA[G.floor]||{};
+  const _personality = _fd.personality||'chaotic';
+  const _actionCount = _fd.actionCount||1;
+  const _usedEffects = [];
+
+  for(let _ai=0; _ai<_actionCount; _ai++){
+    const liveHand=(G.bossHand||[]).filter(s=>s&&(s.type!=='wand'||(s.usesLeft??1)>0));
+    if(!liveHand.length) break;
+
+    const _bs = _buildBattleState(_usedEffects);
+    const chosen = _chooseBestItem(liveHand, _bs, _personality);
+    if(!chosen) break;
+
+    applyBossSpell(chosen);
+    _usedEffects.push(chosen.effect);
+
+    if(chosen.type==='wand'){
+      chosen.usesLeft=(chosen.usesLeft??1)-1;
+      if(chosen.usesLeft<=0){
+        G.bossHand.splice(G.bossHand.indexOf(chosen),1);
+        log(`敵の「${chosen.name}」チャージが切れた`,'sys');
+      }
+    } else {
+      G.bossHand.splice(G.bossHand.indexOf(chosen),1);
+    }
+
+    if(_ai < _actionCount-1){ renderAll(); await sleep(400); }
+  }
+
+  renderAll();
+  await sleep(700);
 }
 
 // ── プレイヤーフェイズ ────────────────────────
 
 function startPlayerPhase(){
-  G._selectedEquipCardIdx=null;
   G.phase='player';
   G.actionsPerTurn=calcActions();
   G.actionsLeft=G.actionsPerTurn;
-  G._manualActed={};
-  G.allies.forEach(a=>{
-    if(a){
-      delete a._manualHidden;
-      delete a._manualInactive;
-      delete a._manualActedThisTurn;
-      delete a._manualReadyBlink;
-      if(a._manualActionHate){
-        a.hate=false;
-        a.hateTurns=0;
-        delete a._manualActionHate;
-      }
-      if(a._manualStealth){ a.stealth=false; delete a._manualStealth; }
-    }
-  });
-  if(!G.allies[G._selectedEquipUnitIdx]||G.allies[G._selectedEquipUnitIdx].hp<=0){
-    G._selectedEquipUnitIdx=G.allies.findIndex(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
-  }
-  delete G._manualBattle;
   G.spreadActive=false;
   applyTurnStart();
   if(G.phase!=='player') return; // 針の指輪等でターン開始時に勝利確定した場合は中断
   // 毒処理後も仲間が全滅していたらゲームオーバー
-  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>gameOver(),300); return; }
+  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){ setTimeout(()=>handleBattleDefeat(),300); return; }
   renderAll();
   const liveA=G.allies.filter(a=>a&&a.hp>0&&!a._isSoul);
   setHint(liveA.length===0?'仲間がいない！魔法で倒すか撤退を':'行動を終えたらターン終了してください。');
-}
-
-function _manualLiveAllies(){
-  return (G.allies||[]).map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._isSoul&&!x.u._isObject);
-}
-function _manualTargetableAlly(unit){
-  return !!(unit&&unit.hp>0);
-}
-
-function canSelectedManualAllyAct(){
-  if(G.phase!=='player') return true;
-  const idx=G._selectedEquipUnitIdx;
-  const ally=(G.allies||[])[idx];
-  if(idx==null||idx<0||!ally||ally.hp<=0){
-    setHint('行動するキャラクターを選択してください。');
-    return false;
-  }
-  if(G._manualActed&&G._manualActed[ally.id]){
-    return true;
-  }
-  return true;
-}
-
-function markSelectedManualAllyActed(){
-  if(G.phase!=='player') return;
-  const idx=G._selectedEquipUnitIdx;
-  const ally=(G.allies||[])[idx];
-  if(!ally) return;
-  if(!G._manualActed) G._manualActed={};
-  G._manualActed[ally.id]=true;
-  if(!(typeof unitEquipCount==='function'&&unitEquipCount(ally,'panel_stealth')>0)){
-    ally.hate=true;
-    ally.hateTurns=99;
-    ally._manualActionHate=true;
-  }
-  log(`${ally.name}：行動`,'sys');
-  if(typeof renderAll==='function') renderAll();
-}
-
-function useFixedEquipOnEnemy(unitIdx,equipIdx,targetIdx){
-  if(G.phase!=='player') return false;
-  const ally=G.allies&&G.allies[unitIdx];
-  const enemy=G.enemies&&G.enemies[targetIdx];
-  const eq=ally&&ally.equipment&&ally.equipment[equipIdx];
-  if(!ally||ally.hp<=0||!enemy||enemy.hp<=0||!eq||!eq.fixedAttack) return false;
-  G._selectedEquipUnitIdx=unitIdx;
-  if(!canSelectedManualAllyAct()) return false;
-  if((G.actionsLeft||0)<1){ setHint('行動力が足りません'); return false; }
-  const dmg=Math.max(0,ally.atk||0);
-  log(`${ally.name}：${eq.name} → ${enemy.name}に${dmg}ダメージ`,'good');
-  dealDmgToEnemy(enemy,dmg,targetIdx,ally);
-  if(_checkBattleOver()) return true;
-  G.actionsLeft--;
-  markSelectedManualAllyActed();
-  if(G._debugMode) G.actionsLeft=G.actionsPerTurn;
-  updateHUD();
-  renderAll();
-  if(G.actionsLeft<=0&&!G._debugMode) setHint('行動力を使い切りました。ターン終了で敵のターンに入ります。');
-  return true;
 }
 
 // ── ターン開始時効果 ───────────────────────────
@@ -884,15 +875,6 @@ function applyTurnStart(){
       delete u._weakenPhaseApplied;
     }
   });
-
-  if((G.turn||0)>0&&(G.turn||0)%3===0){
-    G.allies.forEach(a=>{
-      if(a&&a.hp>0&&unitHasEquip(a,'equip_luck')){
-        onGoldGained(1);
-        log(`${a.name}：幸運の指輪→ゴールド+1`,'gold');
-      }
-    });
-  }
 
   // 指輪パッシブ（針など）
   G.rings.forEach(ring=>{
@@ -999,15 +981,6 @@ function applyTurnStart(){
 
 // ── 戦闘フェイズ（インターリーブ攻撃）─────────────
 
-function _nextLiveIndex(units, startIdx, skipObjects=false){
-  for(let off=0;off<6;off++){
-    const idx=(startIdx+off)%6;
-    const u=units[idx];
-    if(u&&u.hp>0&&(!skipObjects||!u._isObject)&&!u._isSoul) return idx;
-  }
-  return -1;
-}
-
 async function battlePhase(){
   G.phase='enemy';
   renderControls();
@@ -1022,55 +995,206 @@ async function battlePhase(){
     }
   });
 
-  let nextAlly=0;
-  let nextEnemy=0;
   let safety=0;
+  let side='enemy';
+  let enemyCursor=0;
+  let allyCursor=0;
   while(!_checkBattleOver()&&safety++<500){
-    const ai=_nextLiveIndex(G.allies,nextAlly,false);
-    if(ai>=0){
-      nextAlly=(ai+1)%6;
-      const ally=G.allies[ai];
-      if(ally&&ally.hp>0&&!ally._isSoul){
-        await allyAttackAction(ally,ai);
-        if(_checkBattleOver()) return;
-      }
+    if(_nextLiveBattleIndex(G.enemies,0,true)<0&&_nextLiveBattleIndex(G.allies,0,false)<0){
+      G._battleDraw=true;
+      log('Draw','sys');
+      G.phase='reward';
+      renderAll();
+      setTimeout(()=>{ if(G.phase==='reward') goToReward(); },400);
+      return;
     }
-    const ei=_nextLiveIndex(G.enemies,nextEnemy,true);
-    if(ei>=0){
-      nextEnemy=(ei+1)%6;
+    if(side==='enemy'){
+      let ei=_nextLiveBattleIndex(G.enemies,enemyCursor,true);
+      if(ei<0){
+        side='ally';
+        continue;
+      }
       const enemy=G.enemies[ei];
-      if(enemy&&enemy.hp>0&&!enemy._isObject){
-        await enemyAttackAction(enemy,ei);
-        if(_checkBattleOver()) return;
+      await enemyAttackAction(enemy,ei);
+      compactBattleUnits();
+      const newEi=G.enemies.indexOf(enemy);
+      enemyCursor=newEi>=0?newEi+1:ei;
+      if(_checkBattleOver()) return;
+      side='ally';
+    } else {
+      let ai=_nextLiveBattleIndex(G.allies,allyCursor,false);
+      if(ai<0){
+        side='enemy';
+        continue;
       }
+      const ally=G.allies[ai];
+      await allyAttackAction(ally,ai);
+      compactBattleUnits();
+      const newAi=G.allies.indexOf(ally);
+      allyCursor=newAi>=0?newAi+1:ai;
+      if(_checkBattleOver()) return;
+      side='enemy';
+      G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
     }
-    if(ai<0&&ei<0) break;
-    G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
   }
   if(safety>=500){
-    log('戦闘が長引いたため一時停止しました','sys');
-    await nextTurn();
+    log('戦闘が長引いたため停止しました','sys');
   }
+  renderAll();
 }
 
-function _recoverBattleWeaken(){
-  [...G.enemies,...G.allies].forEach(u=>{
-    if(u&&u._weakenedSavedAtk!==undefined&&u._weakenPhaseApplied==='battle'){
-      u.atk=(u.atk||0)+u._weakenedSavedAtk;
-      log(`${u.name} の脱力が回復（ATK→${u.atk}）`,'sys');
-      delete u._weakenedSavedAtk;
-      delete u._weakenPhaseApplied;
-    }
+function _nextLiveBattleIndex(arr,start,isEnemy){
+  const max=isEnemy?(MAX_ENEMIES||8):(MAX_ALLIES||5);
+  const hasLiveFront=(arr||[]).some(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')==='front');
+  for(let step=0;step<max;step++){
+    const i=(start+step)%max;
+    const u=arr[i];
+    if(!u||u.hp<=0) continue;
+    if(isEnemy&&u._isObject) continue;
+    if(!isEnemy&&(u._isSoul||u._isObject)) continue;
+    if(hasLiveFront&&(u.lane||'front')==='rear') continue;
+    const atkVal=isEnemy?(u.nullified>0?0:(u.atk||0)):_attackDamageValue(u);
+    if((atkVal||0)<=0) continue;
+    return i;
+  }
+  return -1;
+}
+
+function clampUnitStats(unit){
+  if(!unit) return unit;
+  unit.atk=Math.max(0,Number(unit.atk)||0);
+  unit.baseAtk=Math.max(0,Number(unit.baseAtk??unit.atk)||0);
+  unit.maxHp=Math.max(1,Number(unit.maxHp??unit.hp)||1);
+  if(unit.hp>0) unit.hp=Math.max(1,Math.min(unit.maxHp,Number(unit.hp)||1));
+  return unit;
+}
+
+function _battleLogName(unit,list){
+  if(!unit) return '';
+  const name=unit.name||'';
+  const same=(list||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.name||'')===name);
+  if(same.length<=1) return name;
+  const idx=same.indexOf(unit);
+  const suffix=String.fromCharCode(65+Math.max(0,idx));
+  return `${name}${suffix}`;
+}
+
+function _layoutEnemyLanes(enemies){
+  const live=(enemies||[]).filter(e=>e&&e.hp>0&&!e._isObject);
+  if(!live.length) return enemies;
+  let rear=live.filter(e=>(e.lane||'front')==='rear');
+  let front=live.filter(e=>(e.lane||'front')!=='rear');
+  if(rear.length<1&&front.length>1) rear.push(front.pop());
+  while(front.length<Math.min(3,live.length-1)&&rear.length>1) front.push(rear.shift());
+  while(rear.length>(ENEMY_REAR_SLOTS||5)) front.push(rear.shift());
+  while(rear.length>front.length&&rear.length>1) front.push(rear.shift());
+  front=front.slice(0,ENEMY_FRONT_SLOTS||7);
+  rear=rear.slice(0,ENEMY_REAR_SLOTS||7);
+  if(front.length>0&&rear.length<1&&live.length>1) rear.push(front.pop());
+  while(front.length<Math.min(3,live.length-1)&&rear.length>1) front.push(rear.shift());
+  while(rear.length>front.length&&rear.length>1) front.push(rear.shift());
+  front.forEach(e=>{ e.lane='front'; });
+  rear.forEach(e=>{ e.lane='rear'; });
+  enemies.length=0;
+  front.forEach(e=>enemies.push(e));
+  rear.forEach(e=>enemies.push(e));
+  return enemies;
+}
+
+function compactBattleUnits(){
+  const maxA=MAX_ALLIES||10;
+  const frontSlots=ENEMY_FRONT_SLOTS||7;
+  const nextAllies=new Array(maxA).fill(null);
+  const liveAllies=(G.allies||[]).filter(a=>a&&a.hp>0&&!a._isSoul&&!a._isObject);
+  liveAllies.forEach(clampUnitStats);
+  const allyFront=liveAllies.filter(a=>(a.lane||'front')!=='rear');
+  const allyRear=liveAllies.filter(a=>(a.lane||'front')==='rear');
+  _placeCenteredRow(nextAllies,allyFront.slice(0,frontSlots),0,frontSlots,'front');
+  _placeCenteredRow(nextAllies,allyRear.slice(0,maxA-frontSlots),frontSlots,maxA-frontSlots,'rear');
+  G.allies=nextAllies;
+  const maxE=MAX_ENEMIES||10;
+  const nextEnemies=new Array(maxE).fill(null);
+  const liveEnemies=(G.enemies||[]).filter(e=>e&&e.hp>0&&!e._isObject);
+  liveEnemies.forEach(clampUnitStats);
+  const enemyFront=liveEnemies.filter(e=>(e.lane||'front')!=='rear');
+  const enemyRear=liveEnemies.filter(e=>(e.lane||'front')==='rear');
+  _placeCenteredRow(nextEnemies,enemyFront.slice(0,frontSlots),0,frontSlots,'front');
+  _placeCenteredRow(nextEnemies,enemyRear.slice(0,maxE-frontSlots),frontSlots,maxE-frontSlots,'rear');
+  G.enemies=nextEnemies;
+  G.moveMaskLanes=G.enemies.map(e=>e?(e.lane||'front'):'front');
+}
+
+function _placeCenteredRow(dest, units, offset, slots, lane){
+  const start=Math.max(0,Math.floor((slots-units.length)/2));
+  units.forEach((u,i)=>{
+    if(!u) return;
+    u.lane=lane;
+    dest[offset+start+i]=u;
   });
 }
 
+function compactBattleUnitsAfterDeath(){
+  if(G._isSimulating||G._compactingAfterDeath||G._deferBattleCompact) return;
+  G._compactingAfterDeath=true;
+  compactBattleUnits();
+  G._compactingAfterDeath=false;
+  if(typeof renderAll==='function') renderAll();
+  _checkRearCenterAllyGameOver();
+}
+
 function _checkBattleOver(){
+  if(_checkRearCenterAllyGameOver()) return true;
   if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
     _onAllEnemiesDefeated();
     return true;
   }
-  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul).length){ setTimeout(()=>gameOver(),200); return true; }
+  if(!G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul).length){ setTimeout(()=>handleBattleDefeat(),200); return true; }
   return false;
+}
+
+function handleBattleDefeat(){
+  if(G._battleDefeatHandled) return;
+  G._battleDefeatHandled=true;
+  gameOver();
+}
+
+function _checkRearCenterAllyGameOver(){
+  if(G._isSimulating||G._battleDefeatHandled) return false;
+  if(G.phase!=='player'&&G.phase!=='enemy') return false;
+  const hasRearAlly=(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&(a.lane||'front')==='rear');
+  if(hasRearAlly) return false;
+  log('後列中央が空になった','bad');
+  handleBattleDefeat();
+  return true;
+}
+
+function _ownedGlobalPanels(){
+  return [...(G.globalPanels||[]),...(G.spells||[])].filter(p=>p&&p.panelScope==='global');
+}
+
+function applyGlobalPanelVictoryBonuses(){
+  const panels=_ownedGlobalPanels();
+  const total=panels.filter(p=>p&&p.training).reduce((s,p)=>s+(p.training||0),0);
+  const healPct=panels.filter(p=>p&&p.healPct).reduce((s,p)=>s+(p.healPct||0),0);
+  if(total<=0&&healPct<=0) return;
+  let healed=false;
+  (G.allies||[]).forEach(a=>{
+    if(a&&a.hp>0&&!a._isObject&&!a._isSoul){
+      if(total>0){
+        a.atk=(a.atk||0)+total;
+        a.baseAtk=(a.baseAtk||0)+total;
+        a.hp=(a.hp||0)+total;
+        a.maxHp=(a.maxHp||0)+total;
+      }
+      if(healPct>0&&a.hp<a.maxHp){
+        const heal=Math.ceil((a.maxHp||0)*healPct);
+        a.hp=Math.min(a.maxHp,a.hp+heal);
+        healed=true;
+      }
+    }
+  });
+  if(total>0) log(`全体パネル：修練→全仲間+${total}/+${total}`,'good');
+  if(healed) log('全体パネル：治療→全仲間のHPを10%回復','good');
 }
 
 // 宝・移動マスを配置するスロットを探す
@@ -1086,7 +1210,7 @@ function _findRearSlot(sourceIdx){
   };
   const _isFrontLane=(i)=>(G.moveMaskLanes?.[i]||'front')==='front';
   // 1. 前衛レーンの空きスロットを優先
-  for(let i=0;i<6;i++){
+  for(let i=0;i<(MAX_ENEMIES||8);i++){
     if(_isFrontLane(i)&&_canPlace(i)) return i;
   }
   // 2. なければ source 自身（前衛レーンの場合のみ）
@@ -1098,7 +1222,6 @@ function _findRearSlot(sourceIdx){
 // 各マスは「同じスロットの敵が死亡/不在」になった時のみ表示する
 // （他のスロットの敵が死んでも自スロットのマスは表示されない）
 function _updateRearVisibility(){
-  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType) return;
   G.moveMasks.forEach((mask,i)=>{
     if(!mask) return;
     const e=G.enemies[i];
@@ -1156,45 +1279,31 @@ function onChestClick(idx){
   G.actionsLeft--;
   updateHUD();
   renderAll();
-  if(G.actionsLeft<=0&&!G._debugMode&&G.phase==='player'&&typeof setHint==='function'){
-    setHint('行動力を使い切りました。ターン終了を押すと自動戦闘に入ります。');
+  // 行動力0なら自動でターン終了
+  if(G.actionsLeft<=0&&!G._debugMode&&G.phase==='player'){
+    if(typeof setHint==='function') setHint('行動終了。自動でターンを終了します...');
+    setTimeout(()=>{ if(G.phase==='player') playerPass(); },500);
   }
 }
 
 function _onAllEnemiesDefeated(){
   if(G.phase==='reward') return; // 二重呼び出し防止
-  log('全敵撃破！','gold');
-  clearBattleHateForReward();
-  if(_isBossFight||G._eliteKilled) G._pendingGlobalPanelReward=true;
-  if(_isBossFight) G._bossJustDefeated=true;
-  if(!(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType)){
-    G.moveMasks.forEach((_,i)=>{
-      if(G.moveMasks[i]&&!String(G.moveMasks[i]).startsWith('chest')&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i);
-    });
+  if(!(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)){
+    handleBattleDefeat();
+    return;
   }
+  if(_checkRearCenterAllyGameOver()) return;
+  log('全敵撃破！','gold');
+  if(_isBossFight) G._bossJustDefeated=true;
+  G.moveMasks.forEach((_,i)=>{
+    if(G.moveMasks[i]&&!String(G.moveMasks[i]).startsWith('chest')&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i);
+  });
   _dropPondRingIfNeeded();
   applyVictoryBonuses();
   applyGlobalPanelVictoryBonuses();
   updateHUD(); renderAll();
   G.phase='reward';
   setTimeout(()=>_handleVictory(),600);
-}
-
-function _checkImmediateVictoryAfterEnemyDamage(){
-  if(G._isSimulating||G.phase==='reward') return false;
-  if(G.phase!=='player'&&G.phase!=='enemy') return false;
-  if(G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length>0) return false;
-  _onAllEnemiesDefeated();
-  return true;
-}
-
-function clearBattleHateForReward(){
-  (G.allies||[]).forEach(a=>{
-    if(!a) return;
-    a.hate=false;
-    a.hateTurns=0;
-    delete a._manualActionHate;
-  });
 }
 
 function _dropPondRingIfNeeded(){
@@ -1221,12 +1330,7 @@ function _applyAllyAttackEffects(ally){
     onMagicLevelUp(v);
     log(`${ally.name}：攻撃→魔術レベル+${v}（Lv${G.magicLevel}）`,'good');
   }
-  if(ally.effect==='starter_priest_attack'){
-    const v=G.magicLevel||1;
-    const shown=addUnitHp(ally,v,'ally');
-    log(`${ally.name}：攻撃→自身に癒しの杖（ライフ+${shown}）`,'good');
-  }
-  if(ally.effect==='brownie_attack'){
+  if(ally.effect==='brownie_attack'||ally.name==='ブラウニー'){
     const _nums=[...((ally.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
     const _base=(_nums[0]||1)*_sc+_gd; let _hpGain=_base;
     G.allies.forEach(a=>{ if(a&&a.hp>0) _hpGain=addUnitHp(a,_base); });
@@ -1314,7 +1418,7 @@ function _applyAllyAttackEffects(ally){
     const _ldsc=_sc;
     if(!G._isSimulating){
       G._lesserDemonDiscount=(G._lesserDemonDiscount||0)+_ldsc;
-      log(`${ally.name}：攻撃→次の購入アイテムが-${_ldsc}ゴールド（累計-${G._lesserDemonDiscount}）`,'good');
+      log(`${ally.name}：攻撃→次の購入アイテムが-${_ldsc}ソウル（累計-${G._lesserDemonDiscount}）`,'good');
     }
   }
   // ドラウグは受動効果（攻撃時ではなく被攻撃時）のため、ここでは処理しない
@@ -1322,22 +1426,6 @@ function _applyAllyAttackEffects(ally){
   if(ally!==null&&G.allies.some(a=>a&&a.hp>0&&a.effect==='undine_passive')){
     const _uv=1+_gd; ally.atk+=_uv; ally.baseAtk=(ally.baseAtk||0)+_uv; ally.hp+=_uv; ally.maxHp+=_uv;
     log(`ウンディーネ：${ally.name}が+${_uv}/+${_uv}`,'good');
-  }
-  const resonanceCount=unitEquipCount(ally,'equip_resonance');
-  if(resonanceCount){
-    G._grimalkinBonus=(G._grimalkinBonus||0)+resonanceCount;
-    log(`${ally.name}：呼応の指輪→以後の召喚仲間ライフ+${resonanceCount}`,'good');
-  }
-  const smallBlessingCount=unitEquipCount(ally,'equip_small_blessing');
-  if(smallBlessingCount){
-    G.allies.forEach(a=>{ if(a&&a.hp>0) addUnitHp(a,smallBlessingCount,'ally'); });
-    log(`${ally.name}：小さな加護の指輪→全仲間ライフ+${smallBlessingCount}`,'good');
-  }
-  const inspireCount=unitEquipCount(ally,'equip_inspire');
-  if(inspireCount){
-    const idx=G.allies.indexOf(ally);
-    [idx-1,idx+1].forEach(j=>{ const t=G.allies[j]; if(t&&t.hp>0) applyUnitBuff(t,inspireCount,2*inspireCount,'ally'); });
-    log(`${ally.name}：鼓舞の指輪→隣接仲間+${inspireCount}/+${2*inspireCount}`,'good');
   }
 }
 
@@ -1390,7 +1478,6 @@ function _applyAllyAttackEffectsWithElf(ally){
   if(idx>0){
     const elf=G.allies[idx-1];
     if(elf&&elf.hp>0&&elf.effect==='elf_double_right') _applyAllyAttackEffects(ally);
-    if(elf&&elf.hp>0&&unitHasEquip(elf,'equip_coordination')) _applyAllyAttackEffects(ally);
   }
 }
 
@@ -1405,10 +1492,31 @@ function _applyEnemyAttackEffectsWithElf(enemy){
 }
 
 function _attackRepeatCount(unit){
-  const kws=unit&&unit.keywords||[];
+  const kws=_unitPanelKeywords(unit);
   if(kws.includes('三段攻撃')) return 3;
   if(kws.includes('二段攻撃')) return 2;
   return 1;
+}
+
+function _unitPanelKeywords(unit){
+  const kws=[...(unit&&unit.keywords||[])];
+  (unit&&Array.isArray(unit.equipment)?unit.equipment:[]).forEach(p=>{
+    if(!p) return;
+    if(String(p.category||'')==='キャラクター') return;
+    const names=[p.name,...(p.keywords||[])].filter(Boolean);
+    names.forEach(n=>{ if(n&&!kws.includes(n)) kws.push(n); });
+  });
+  return kws;
+}
+
+function _unitHasKeyword(unit, kw){
+  return _unitPanelKeywords(unit).includes(kw);
+}
+
+function _attackDamageValue(unit){
+  let dmg=Math.max(0,unit&&unit.atk||0);
+  if(_unitHasKeyword(unit,'狙撃')) dmg=Math.ceil(dmg*1.5);
+  return dmg;
 }
 
 function _applyAttackEffectsForSide(unit,isEnemySide){
@@ -1416,7 +1524,7 @@ function _applyAttackEffectsForSide(unit,isEnemySide){
   else _applyAllyAttackEffectsWithElf(unit);
 }
 
-function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
+async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
   if(damage>0&&typeof playSfx==='function'){
     playSfx('attackLight',{group:'combat',guardKey:'combat:attack'});
   }
@@ -1427,31 +1535,156 @@ function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
       actualTarget=_redirectToBodyguard(G.allies,target,'good');
       actualIdx=G.allies.indexOf(actualTarget);
     }
-    dealDmgToAlly(actualTarget,damage,actualIdx,attacker,true,true);
+    if(damage>0&&typeof playAttackMotion==='function') await playAttackMotion(attacker,actualTarget,true);
+    dealDmgToAlly(actualTarget,damage,actualIdx,attacker,true,true,true);
     return actualTarget;
   }
+  if(damage>0&&typeof playAttackMotion==='function') await playAttackMotion(attacker,target,false);
   dealDmgToEnemy(target,damage,targetIdx,attacker);
   return target;
 }
 
-function _dealMutualAttackDamage(attacker,isEnemySide,defender,defenderAtk){
-  if(!attacker||!defender||attacker.hp<=0||(defenderAtk||0)<=0) return;
-  if(isEnemySide) return;
-  if(isEnemySide){
-    const eIdx=G.enemies.indexOf(attacker);
-    if(eIdx<0) return;
-    log(`${defender.name}(${defenderAtk})→${attacker.name}（相互）`,'good');
-    dealDmgToEnemy(attacker,defenderAtk,eIdx,defender);
-  } else {
-    const aIdx=G.allies.indexOf(attacker);
-    if(aIdx<0) return;
-    log(`${defender.name}(${defenderAtk})→${attacker.name}（相互）`,'bad');
-    dealDmgToAlly(attacker,defenderAtk,aIdx,defender,true);
+async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx,damage){
+  if(!attacker||!target) return null;
+  _applyPoisonBeforeAttack(attacker);
+  if(attacker.hp<=0) return null;
+  const actualTarget=await _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage);
+  const defender=actualTarget||target;
+  const backDmg=Math.max(0,defender?.atk||0);
+  if(backDmg>0&&attacker.hp>0){
+    if(isEnemySide){
+      dealDmgToEnemy(attacker,backDmg,G.enemies.indexOf(attacker),defender);
+    } else {
+      dealDmgToAlly(attacker,backDmg,G.allies.indexOf(attacker),defender,true,true);
+    }
+    const defenderList=isEnemySide?G.allies:G.enemies;
+    const attackerList=isEnemySide?G.enemies:G.allies;
+    log(`${_battleLogName(defender,defenderList)}(${backDmg})→${_battleLogName(attacker,attackerList)}`,isEnemySide?'good':'bad');
+  }
+  return actualTarget;
+}
+
+function _applyPoisonBeforeAttack(unit){
+  if(!unit||unit.hp<=0||!(unit.poison>0)) return;
+  const dmg=unit.poison;
+  unit.hp=Math.max(0,(unit.hp||0)-dmg);
+  log(`☠ ${unit.name}が毒でHP-${dmg}（攻撃前）`,G.enemies.includes(unit)?'bad':'good');
+  if(unit.hp<=0){
+    const eIdx=G.enemies.indexOf(unit);
+    if(eIdx>=0) processEnemyDeath(unit,eIdx);
+    else processAllyDeath(unit);
   }
 }
 
+function _targetsInSameAttackRow(target, list){
+  if(!target) return [];
+  const lane=(target.lane||'front')==='rear'?'rear':'front';
+  return (list||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')===lane);
+}
+
 function _maybeCounterAttack(defender,defenderIsAlly,attacker){
-  return;
+  if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) return;
+  const hasCounter=defender.counter||(defender.keywords||[]).includes('反撃');
+  if(!hasCounter||defender.atk<=0) return;
+  const maxHits=_attackRepeatCount(defender);
+  for(let hi=0;hi<maxHits;hi++){
+    if(!defender||!attacker||defender.hp<=0||attacker.hp<=0) break;
+    _applyAttackEffectsForSide(defender,!defenderIsAlly);
+    if(defenderIsAlly){
+      const srcIdx=G.enemies.indexOf(attacker);
+      if(srcIdx<0) break;
+      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'good');
+      dealDmgToEnemy(attacker,defender.atk,srcIdx,defender);
+    } else {
+      const srcIdx=G.allies.indexOf(attacker);
+      if(srcIdx<0) break;
+      log(`⚔ ${defender.name}の反撃${hi>0?`：${hi+1}段目`:''}：${attacker.name}に${defender.atk}ダメ`,'bad');
+      dealDmgToAlly(attacker,defender.atk,srcIdx,defender,true,true,true);
+    }
+  }
+}
+
+function _unitPanelCount(unit, unique){
+  if(!unit||!unique) return 0;
+  const equips=Array.isArray(unit.equipment)?unit.equipment.filter(Boolean):[];
+  const nameByUnique={
+    panel_counter:'反撃',
+    panel_vampire:'吸血',
+    panel_stealth:'隠密',
+    panel_grudge:'執念',
+  };
+  const panelCount=equips.filter(p=>p&&(
+    p.unique===unique||
+    p.id===unique||
+    String(p.name||'').trim()===nameByUnique[unique]
+  )).length;
+  if(unique==='panel_counter'){
+    const kws=unit.keywords||[];
+    return panelCount+((unit.counter||kws.includes('反撃'))?1:0);
+  }
+  return panelCount;
+}
+
+function _unitHasPanel(unit, unique){
+  return _unitPanelCount(unit, unique)>0;
+}
+
+function _applyVampirePanel(attacker, dealt){
+  const count=_unitPanelCount(attacker,'panel_vampire');
+  if(!attacker||count<=0||dealt<=0) return;
+  const heal=Math.ceil(dealt*0.1)*count;
+  const before=Math.max(0,attacker.hp||0);
+  attacker.hp=Math.min(attacker.maxHp||Math.max(1,before||1),before+heal);
+  const actual=Math.max(0,(attacker.hp||0)-before);
+  if(actual>0) log(`吸血：${attacker.name} が ${actual} 回復した`,'good');
+}
+
+function _triggerGrudgePanel(unit, unitIsEnemy){
+  const count=_unitPanelCount(unit,'panel_grudge');
+  if(!unit||count<=0) return;
+  for(let n=0;n<count;n++){
+    const targets=unitIsEnemy?G.allies:G.enemies;
+    const live=(targets||[]).filter(t=>t&&t.hp>0&&!t._isObject&&!t._isSoul);
+    if(!live.length) return;
+    const t=randFrom(live);
+    const dmg=unit.maxHp||unit.hp||0;
+    log(`執念：${unit.name} が ${t.name} に ${dmg} ダメージ`,'bad');
+    if(unitIsEnemy) dealDmgToAlly(t,dmg,targets.indexOf(t),unit);
+    else dealDmgToEnemy(t,dmg,targets.indexOf(t),unit);
+  }
+}
+
+function _triggerCounterPanels(unit, unitIsAlly){
+  const count=_unitPanelCount(unit,'panel_counter');
+  if(count<=0) return;
+  const targets=unitIsAlly?G.enemies:G.allies;
+  for(let n=0;n<count;n++){
+    const live=(targets||[]).filter(t=>t&&t.hp>0&&!t._isObject&&!t._isSoul);
+    let dealt=0;
+    G._deferBattleCompact=true;
+    live.forEach(t=>{
+      if(!t||t.hp<=0||t._isObject||t._isSoul) return;
+      const before=Math.max(0,t.hp||0);
+      if(unitIsAlly){
+        t.hp=Math.max(0,(t.hp||0)-8);
+        if(typeof playHitVfx==='function') playHitVfx('enemy',G.enemies.indexOf(t));
+      } else {
+        t.hp=Math.max(0,(t.hp||0)-8);
+        if(typeof playHitVfx==='function') playHitVfx('ally',G.allies.indexOf(t));
+      }
+      dealt+=Math.max(0,before-Math.max(0,t.hp||0));
+      if(before>Math.max(0,t.hp||0)&&typeof applyKeywordOnHit==='function') applyKeywordOnHit(unit,t,8);
+    });
+    if(dealt>0) log(`${unit.name}：反撃パネル→全敵に8ダメージ` ,unitIsAlly?'good':'bad');
+    if(dealt>0) _applyVampirePanel(unit,dealt);
+    live.forEach(t=>{
+      if(!t||t.hp>0) return;
+      if(unitIsAlly) processEnemyDeath(t,G.enemies.indexOf(t));
+      else processAllyDeath(t);
+    });
+    G._deferBattleCompact=false;
+    if(typeof compactBattleUnitsAfterDeath==='function') compactBattleUnitsAfterDeath();
+  }
 }
 
 function _effectAttackSequence(attacker,isEnemySide,forcedTarget,actionLabel='効果攻撃'){
@@ -1468,28 +1701,464 @@ function _effectAttackSequence(attacker,isEnemySide,forcedTarget,actionLabel='�
     if(targetIdx<0) break;
     _applyAttackEffectsForSide(attacker,isEnemySide);
     log(`${attacker.name}：${actionLabel}${hi>0?`（${hi+1}段目）`:''}→${target.name}`,isEnemySide?'bad':'good');
-    const defenderAtk=target.atk||0;
-    const actualTarget=_dealAttackDamage(attacker,isEnemySide,target,targetIdx,attacker.atk);
-    _dealMutualAttackDamage(attacker,isEnemySide,actualTarget||target,defenderAtk);
+    let actualTarget=target;
+    if(isEnemySide){
+      actualTarget=_redirectToBodyguard(G.allies,target,'good');
+      dealDmgToAlly(actualTarget,attacker.atk,G.allies.indexOf(actualTarget),attacker,true,true,true);
+    }else{
+      dealDmgToEnemy(target,attacker.atk,targetIdx,attacker);
+    }
     _maybeCounterAttack(actualTarget||target,!isEnemySide,attacker);
     didHit=true;
   }
   return didHit;
 }
 
+function _panelGridPos(idx){
+  if(idx===0) return {x:0,y:0};
+  if(idx>=1) return {x:((idx-1)%5)+1,y:Math.floor((idx-1)/5)};
+  return {x:0,y:0};
+}
+
+function _isAdjacentPanelSlot(a,b){
+  const pa=_panelGridPos(a), pb=_panelGridPos(b);
+  return Math.abs(pa.x-pb.x)+Math.abs(pa.y-pb.y)===1;
+}
+
+function _panelName(panel){ return String(panel?.name||'').trim(); }
+
+function _isEnhancementPanel(panel){
+  const c=String(panel?.category||'');
+  return c==='強化'||c==='エンチャント';
+}
+
+function _isCharacterPanel(panel){
+  return String(panel?.category||'')==='キャラクター';
+}
+
+function _directionFromPanelToSlot(panelIdx, targetIdx){
+  const p=_panelGridPos(panelIdx), t=_panelGridPos(targetIdx);
+  const dx=t.x-p.x, dy=t.y-p.y;
+  if(dx===0&&dy===-1) return 'up';
+  if(dx===1&&dy===0) return 'right';
+  if(dx===0&&dy===1) return 'down';
+  if(dx===-1&&dy===0) return 'left';
+  return '';
+}
+
+function _panelAllowsDirection(panel, dir){
+  if(!_isEnhancementPanel(panel)) return false;
+  if(!Array.isArray(panel.directions)||!panel.directions.length) return true;
+  return panel.directions.includes(dir);
+}
+
+function _forEachUnitPanel(unit, fn){
+  const eq=Array.isArray(unit?.equipment)?unit.equipment:[];
+  eq.forEach((panel,idx)=>{ if(panel) fn(panel,idx); });
+}
+
+function _collectAdjacentEnhancements(unit, slotIdx){
+  const enh={atk:0,hp:0,keywords:[]};
+  const panels=Array.isArray(unit?.equipment)?unit.equipment:[];
+  const seen=new Set();
+  const queue=[];
+  panels.forEach((panel,idx)=>{
+    if(idx===slotIdx||!panel||!_isEnhancementPanel(panel)) return;
+    if(!_isAdjacentPanelSlot(slotIdx,idx)) return;
+    if(!_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,slotIdx))) return;
+    queue.push(idx);
+  });
+  while(queue.length){
+    const idx=queue.shift();
+    if(seen.has(idx)) continue;
+    seen.add(idx);
+    const panel=panels[idx];
+    if(!panel||!_isEnhancementPanel(panel)) continue;
+    enh.atk+=panel.adjacentAtkBonus||0;
+    enh.hp+=panel.adjacentHpBonus||0;
+    (panel.adjacentKeywords||[]).forEach(k=>enh.keywords.push(k));
+    panels.forEach((next,nIdx)=>{
+      if(seen.has(nIdx)||!next||!_isEnhancementPanel(next)) return;
+      if(!_isAdjacentPanelSlot(idx,nIdx)) return;
+      const linked=_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,nIdx))||
+        _panelAllowsDirection(next,_directionFromPanelToSlot(nIdx,idx));
+      if(linked) queue.push(nIdx);
+    });
+  }
+  enh.keywords=[...new Set(enh.keywords)];
+  return enh;
+}
+
+function _collectEnhancementPanelsForSlot(unit, slotIdx){
+  const panels=Array.isArray(unit?.equipment)?unit.equipment:[];
+  const result=[];
+  const seen=new Set();
+  const queue=[];
+  panels.forEach((panel,idx)=>{
+    if(idx===slotIdx||!panel||!_isEnhancementPanel(panel)) return;
+    if(!_isAdjacentPanelSlot(slotIdx,idx)) return;
+    if(!_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,slotIdx))) return;
+    queue.push(idx);
+  });
+  while(queue.length){
+    const idx=queue.shift();
+    if(seen.has(idx)) continue;
+    seen.add(idx);
+    const panel=panels[idx];
+    if(!panel||!_isEnhancementPanel(panel)) continue;
+    result.push({panel,idx});
+    panels.forEach((next,nIdx)=>{
+      if(seen.has(nIdx)||!next||!_isEnhancementPanel(next)) return;
+      if(!_isAdjacentPanelSlot(idx,nIdx)) return;
+      const linked=_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,nIdx))||
+        _panelAllowsDirection(next,_directionFromPanelToSlot(nIdx,idx));
+      if(linked) queue.push(nIdx);
+    });
+  }
+  return result;
+}
+
+function refreshUnitPanelEffects(unit){
+  if(!unit||unit.hp<=0) return;
+  _applyAdjacentPanelEnhancements(unit,_collectAdjacentEnhancements(unit,0));
+}
+
+function _clearAdjacentPanelEnhancements(unit){
+  const prev=unit?._adjacentPanelEnhancements;
+  if(!unit||!prev) return;
+  if(prev.atk){
+    unit.atk=Math.max(0,(unit.atk||0)-prev.atk);
+    unit.baseAtk=Math.max(0,(unit.baseAtk||0)-prev.atk);
+  }
+  if(prev.hp){
+    unit.maxHp=Math.max(1,(unit.maxHp||1)-prev.hp);
+    unit.hp=Math.max(0,Math.min((unit.hp||0)-prev.hp,unit.maxHp));
+  }
+  if(prev.keywords&&prev.keywords.length){
+    const remove=new Set(prev.keywords);
+    unit.keywords=(unit.keywords||[]).filter(k=>!remove.has(k));
+  }
+  delete unit._adjacentPanelEnhancements;
+  delete unit._adjacentPanelSignature;
+}
+
+function _applyAdjacentPanelEnhancements(unit, enh){
+  if(!unit||!enh) return;
+  const sig=JSON.stringify({atk:enh.atk||0,hp:enh.hp||0,keywords:[...(enh.keywords||[])].sort()});
+  if(unit._adjacentPanelSignature===sig) return;
+  _clearAdjacentPanelEnhancements(unit);
+  unit._adjacentPanelSignature=sig;
+  unit._adjacentPanelEnhancements={atk:enh.atk||0,hp:enh.hp||0,keywords:[...(enh.keywords||[])]};
+  if(enh.atk){
+    unit.atk=(unit.atk||0)+enh.atk;
+    unit.baseAtk=(unit.baseAtk||0)+enh.atk;
+  }
+  if(enh.hp){
+    unit.hp=(unit.hp||0)+enh.hp;
+    unit.maxHp=(unit.maxHp||0)+enh.hp;
+  }
+  if(enh.keywords&&enh.keywords.length){
+    unit.keywords=[...new Set([...(unit.keywords||[]),...enh.keywords])];
+  }
+}
+
+function _makePanelSummonUnit(spec, keywords){
+  const atk=spec.atk||0, hp=spec.hp||1;
+  const mergedKeywords=[...(spec.keywords||[]),...(keywords||[])];
+  return {
+    id:uid(),
+    name:spec.name||'召喚',
+    icon:spec.icon||'',
+    race:spec.race||'召喚',
+    desc:spec.desc||'',
+    grade:1,
+    atk,
+    baseAtk:atk,
+    hp,
+    maxHp:hp,
+    keywords:[...new Set(mergedKeywords)],
+    equipment:[],
+    _panelSummoned:true,
+    _sourcePanelName:spec.panelName||spec.name||'',
+    art:spec.art||'',
+    lane:'front'
+  };
+}
+
+function _panelSummonSpec(panel){
+  if(!panel) return null;
+  if(panel.summonOnBattleStart) return panel.summonOnBattleStart;
+  if(_isCharacterPanel(panel)&&String(panel.subCategory||'')!=='特殊'){
+    return {
+      name:panel.name,
+      atk:Number(panel.power??panel.atk??0),
+      hp:Number(panel.life??panel.hp??1),
+      count:panel.summonCount||1,
+      race:panel.race||'',
+      desc:panel.desc||'',
+      keywords:panel.keywords||[],
+      art:typeof getPanelArtPath==='function'?getPanelArtPath(panel):(panel.art||''),
+      panelName:panel.name
+    };
+  }
+  return null;
+}
+
+function _summonPanelUnitToFront(unit, isEnemySide){
+  const arr=isEnemySide?G.enemies:G.allies;
+  const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
+  const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
+  for(let i=frontSlots-1;i>=0;i--){
+    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
+      unit.lane='front';
+      arr[i]=unit;
+      return i;
+    }
+  }
+  return -1;
+}
+
+function _ownerHasPanelNamed(name){
+  return (G.allies||[]).some(a=>{
+    if(!a||a.hp<=0) return false;
+    return (a.equipment||[]).some(p=>_panelName(p)===name);
+  });
+}
+function _findOwnerPanelNamed(name){
+  for(const owner of (G.allies||[])){
+    if(!owner||owner.hp<=0) continue;
+    const equips=owner.equipment||[];
+    for(let idx=0;idx<equips.length;idx++){
+      if(_panelName(equips[idx])===name) return {owner,idx,panel:equips[idx]};
+    }
+  }
+  return null;
+}
+function _findOwnerPanelsNamed(name){
+  const result=[];
+  (G.allies||[]).forEach(owner=>{
+    if(!owner||owner.hp<=0) return;
+    (owner.equipment||[]).forEach((panel,idx)=>{
+      if(_panelName(panel)===name) result.push({owner,idx,panel});
+    });
+  });
+  return result;
+}
+
+function applyNewPanelBattleStart(){
+  G._allyDeathsForBones=0;
+  G._allyDeathsForElf=0;
+  G._allyInjuryCountForArassas=0;
+  G._demonSummoned=false;
+  G._blackSerpentSummoned=false;
+  G._arassasSummoned=false;
+  (G.allies||[]).forEach(owner=>{
+    if(!owner) return;
+    _forEachUnitPanel(owner,panel=>{
+      if(panel&&String(panel.subCategory||'')==='特殊') panel._specialSummoned=false;
+    });
+  });
+  (G.allies||[]).forEach(unit=>{
+    if(!unit||unit.hp<=0) return;
+    _applyAdjacentPanelEnhancements(unit,_collectAdjacentEnhancements(unit,0));
+  });
+  (G.allies||[]).forEach(owner=>{
+    if(!owner||owner.hp<=0) return;
+    _forEachUnitPanel(owner,(panel,idx)=>{
+      if(idx===0) return;
+      const spec=_panelSummonSpec(panel);
+      if(!spec) return;
+      const enh=_collectAdjacentEnhancements(owner,idx);
+      for(let n=0;n<(spec.count||1);n++){
+        const summoned=_makePanelSummonUnit({...spec,panelName:panel.name},enh.keywords||[]);
+        _applyAdjacentPanelEnhancements(summoned,enh);
+        if(_summonPanelUnitToFront(summoned,false)>=0) log(`${panel.name}：${summoned.name}を召喚`,'good');
+      }
+    });
+  });
+  _checkDemonRitual();
+  _checkBlackSerpent();
+  compactBattleUnits();
+}
+
+function _summonSpecialCharacterPanel(name, logText){
+  const src=_findOwnerPanelNamed(name);
+  if(!src||src.panel._specialSummoned) return false;
+  const panel=src.panel;
+  const enh=_collectAdjacentEnhancements(src.owner,src.idx);
+  const unit=_makePanelSummonUnit({
+    name:panel.name,
+    atk:Number(panel.power??panel.atk??0),
+    hp:Number(panel.life??panel.hp??1),
+    race:panel.race||'',
+    desc:panel.desc||'',
+    keywords:panel.keywords||[],
+    panelName:panel.name
+  },enh.keywords||[]);
+  _applyAdjacentPanelEnhancements(unit,enh);
+  if(_summonPanelUnitToFront(unit,false)<0) return false;
+  panel._specialSummoned=true;
+  if(name==='アラッサス'){
+    (G.enemies||[]).forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,3,ei,unit); });
+  }
+  log(logText||`${name}：条件を満たして召喚`,'good');
+  return true;
+}
+
+function _refreshPermanentBuffedPanels(panelName){
+  if(!panelName||!G.panelPermanentBuffs||!G.panelPermanentBuffs[panelName]) return;
+  const buff=G.panelPermanentBuffs[panelName];
+  const visit=card=>{
+    if(!card||String(card.category||'')!=='キャラクター'||String(card.name||'')!==panelName) return;
+    if(card._permBasePower==null) card._permBasePower=Number(card.power??card.atk??0)-Number(card._permBuffAtkApplied||0);
+    if(card._permBaseLife==null) card._permBaseLife=Number(card.life??card.hp??1)-Number(card._permBuffHpApplied||0);
+    card._permBuffAtkApplied=Number(buff.atk||0);
+    card._permBuffHpApplied=Number(buff.hp||0);
+    card.power=card._permBasePower+card._permBuffAtkApplied;
+    card.life=card._permBaseLife+card._permBuffHpApplied;
+  };
+  (G.allies||[]).forEach(u=>(u?.equipment||[]).forEach(visit));
+  (G.detachedPanels||[]).forEach(visit);
+  if(typeof _rewCards!=='undefined') (_rewCards||[]).forEach(visit);
+}
+
+function _applyDeathKeywordEffects(unit, unitIsEnemy){
+  if(!unit) return;
+  const allies=unitIsEnemy?G.enemies:G.allies;
+  const foes=unitIsEnemy?G.allies:G.enemies;
+  const kws=unit.keywords||[];
+  if(kws.includes('逆襲')){
+    allies.forEach(a=>{ if(a&&a.hp>0){ a.atk=(a.atk||0)+1; a.baseAtk=(a.baseAtk||0)+1; a.hp=(a.hp||0)+1; a.maxHp=(a.maxHp||0)+1; }});
+    log(`${unit.name}：逆襲→全ての味方+1/+1`,unitIsEnemy?'bad':'good');
+  }
+  if(kws.includes('闇の儀式')){
+    const key=unit._sourcePanelName||unit.name;
+    G.panelPermanentBuffs=G.panelPermanentBuffs||{};
+    G.panelPermanentBuffs[key]=G.panelPermanentBuffs[key]||{atk:0,hp:0};
+    G.panelPermanentBuffs[key].atk+=2;
+    G.panelPermanentBuffs[key].hp+=2;
+    _refreshPermanentBuffedPanels(key);
+    log(`${unit.name}：闇の儀式→以後の${key}+2/+2`,'sys');
+  }
+  if(kws.includes('闇の炎')){
+    [...G.allies,...G.enemies].forEach((t,idx)=>{
+      if(t&&t.hp>0&&!t._isObject&&!t._isSoul&&(t.lane||'front')==='front'){
+        const allyIdx=G.allies.indexOf(t);
+        const enemyIdx=G.enemies.indexOf(t);
+        if(allyIdx>=0) dealDmgToAlly(t,1,allyIdx,unit,true,true,true);
+        else if(enemyIdx>=0) dealDmgToEnemy(t,1,enemyIdx,unit);
+      }
+    });
+    log(`${unit.name}：闇の炎→全ての前衛キャラクターに1ダメージ`,unitIsEnemy?'bad':'good');
+  }
+}
+
+function _checkDemonRitual(){
+  if(G._demonSummoned||!_ownerHasPanelNamed('アークデーモン')) return;
+  const sacrifices=(G.allies||[]).filter(a=>a&&a.hp>0&&_unitHasKeyword(a,'生贄'));
+  if(sacrifices.length<3) return;
+  G._demonSummoned=true;
+  sacrifices.slice(0,3).forEach(a=>{ a.hp=0; a._deathProcessed=true; });
+  const demon=_makePanelSummonUnit({name:'アークデーモン',atk:25,hp:20,race:'悪魔'},[]);
+  _summonPanelUnitToFront(demon,false);
+  log('アークデーモン：生贄を捧げて召喚','good');
+}
+
+function _checkBlackSerpent(){
+  if(G._blackSerpentSummoned||!_ownerHasPanelNamed('スリン')) return;
+  const total=[...(G.allies||[]),...(G.enemies||[])].reduce((s,u)=>s+(u&&u.hp>0?(u.poison||0):0),0);
+  if(total<10) return;
+  if(_summonSpecialCharacterPanel('スリン','スリン：毒に呼応して召喚')){
+    G._blackSerpentSummoned=true;
+  }
+}
+
+function _checkDragonContractInjury(unit){
+  if(!unit||unit.hp<=0||unit.name==='ドラコニアン'||!_unitHasKeyword(unit,'竜の契約')) return;
+  unit._dragonContractHits=(unit._dragonContractHits||0)+1;
+  if(unit._dragonContractHits<5) return;
+  unit.keywords=(unit.keywords||[]).filter(k=>k!=='竜の契約');
+  unit.name='ドラコニアン';
+  unit.race='竜';
+  delete unit._isObject;
+  delete unit._isSoul;
+  unit.lane=unit.lane||'front';
+  unit.atk=25;
+  unit.baseAtk=25;
+  unit.hp=40;
+  unit.maxHp=40;
+  log(`${unit.name}：竜の契約→25/40のドラコニアンに変身`,'good');
+}
+
+function _onEnemyDeathPanelSummons(deadEnemy){
+  // 腐敗の香りは削除済み
+}
+
+function _summonMataOnAllyInjury(injured){
+  if(!injured||injured.hp<=0||_unitHasKeyword(injured,'生贄')) return;
+  const sources=_findOwnerPanelsNamed('マータ');
+  sources.forEach(src=>{
+    const enh=_collectAdjacentEnhancements(src.owner,src.idx);
+    const unit=_makePanelSummonUnit({
+      name:'マータ',
+      atk:0,
+      hp:1,
+      race:'亜人',
+      desc:src.panel.desc||'',
+      keywords:['生贄'],
+      panelName:'マータ'
+    },enh.keywords||[]);
+    _applyAdjacentPanelEnhancements(unit,enh);
+    if(_summonPanelUnitToFront(unit,false)>=0) log('マータ：味方の負傷に応じて召喚','good');
+  });
+}
+
+function _onAllyInjuredByPanel(unit){
+  if(!unit||unit.hp<=0) return;
+  if(_unitHasKeyword(unit,'治癒能力')){
+    unit.hp+=2;
+    unit.maxHp=(unit.maxHp||0)+2;
+    log(`${unit.name}：治癒能力→HP+2`,'good');
+  }
+  _summonMataOnAllyInjury(unit);
+  G._allyInjuryCountForArassas=(G._allyInjuryCountForArassas||0)+1;
+  if(G._allyInjuryCountForArassas>=7){
+    _summonSpecialCharacterPanel('アラッサス','アラッサス：味方の負傷に応じて召喚');
+  }
+  _checkDemonRitual();
+  _checkBlackSerpent();
+}
+
+function _onAllyDeathPanelSummons(){
+  G._allyDeathsForElf=(G._allyDeathsForElf||0)+1;
+  if(G._allyDeathsForElf<2) return;
+  _summonSpecialCharacterPanel('エルフ','エルフ：味方の死に応じて召喚');
+}
+
 // 攻撃ターゲットを決定する
 function getAttackTarget(attacker, targets){
   const live=targets.filter(u=>u&&u.hp>0&&!u._isObject); // オブジェクトは攻撃対象から除外
   if(!live.length) return null;
-  // 前衛判定：hate=true（味方前衛）または lane==='front'（明示設定の敵前衛）
-  // ※ lane 未設定（undefined）の味方ユニットは前衛判定しない
-  const isFront=u=>(u.hate&&u.hateTurns>0)||u.lane==='front';
+  const isFront=u=>(u.lane||'front')==='front';
+  const isGuard=u=>{
+    const keywordGuard=(u.keywords||[]).includes('守護')||(u.keywords||[]).includes('ヘイト');
+    const canUseStaticGuard=(targets===G.enemies)||u._panelSummoned;
+    return (u.hate&&u.hateTurns>0)||(canUseStaticGuard&&(u.guardian||keywordGuard));
+  };
+  const isStealth=u=>u.stealth||_unitHasPanel(u,'panel_stealth');
+  if(_unitHasKeyword(attacker,'貫通')){
+    const piercePool=live.filter(u=>!isStealth(u));
+    return randFrom(piercePool.length?piercePool:live);
+  }
+  const laneLocked=live.some(isFront)?live.filter(isFront):live;
+  const visibleLane=laneLocked.filter(u=>!isStealth(u));
+  const guardLine=visibleLane.filter(isGuard);
+  if(guardLine.length) return randFrom(guardLine);
   // 1. 前衛が存在する場合は前衛のみを対象にする
-  const frontLine=live.filter(u=>isFront(u)&&!u.stealth);
-  const pool=frontLine.length>0?frontLine:live.filter(u=>!u.stealth);
+  const pool=visibleLane.length>0?visibleLane:laneLocked;
   const finalPool=pool.length>0?pool:live;
   // 2. 狩人：最もHPの低い相手（前衛優先の中で）
-  if(attacker.keywords&&attacker.keywords.includes('狩人')){
+  if(_unitHasKeyword(attacker,'狩人')){
     return finalPool.reduce((a,b)=>a.hp<b.hp?a:b);
   }
   // 3. ランダム
@@ -1497,83 +2166,48 @@ function getAttackTarget(attacker, targets){
 }
 
 async function allyAttackAction(ally, allyIdx){
-  if(ally.atk<=0) return; // ATK0は攻撃しない
+  const attackDmg=_attackDamageValue(ally);
+  if(attackDmg<=0) return; // ATK0は攻撃しない
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
   if(!liveE.length) return;
 
-  // アニメーション（攻撃ライン＋グロー）
   const target=getAttackTarget(ally,G.enemies);
   if(!target) return;
   const eIdx=G.enemies.indexOf(target);
-  const aSlot=document.getElementById('f-ally')?.querySelectorAll('.slot')[allyIdx];
-  const eAllSlots=document.getElementById('f-enemy')?.querySelectorAll('.slot');
-  const eSlot=eAllSlots?.[eIdx];
-  const isGlobal=ally.keywords&&ally.keywords.includes('全体攻撃');
-  const isTriDir=ally.keywords&&ally.keywords.includes('三方向攻撃');
-  if(aSlot) aSlot.classList.add('glow-blue');
-  if(eSlot) eSlot.classList.add('glow-red');
-  if(isGlobal){
-    const allTgtSlots=liveE.map(e=>eAllSlots?.[G.enemies.indexOf(e)]).filter(Boolean);
-    showAttackLine(aSlot,allTgtSlots,'#4080ff');
-  } else if(isTriDir){
-    const _tdIdxs=[eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length&&G.enemies[i]&&G.enemies[i].hp>0);
-    showAttackLine(aSlot,_tdIdxs.map(i=>eAllSlots?.[i]).filter(Boolean),'#4080ff');
-  } else {
-    showAttackLine(aSlot,eSlot?[eSlot]:[],'#4080ff');
-  }
-  await sleep(300);
-  if(aSlot) aSlot.classList.remove('glow-blue');
-  if(eSlot) eSlot.classList.remove('glow-red');
+  const isGlobal=_unitHasKeyword(ally,'全体攻撃');
+  const isTriDir=_unitHasKeyword(ally,'三方向攻撃');
   hideAttackLine();
 
   if(ally.stealth){ ally.stealth=false; log(`${ally.name}の隠密が解除された`,'sys'); }
-
-  if(ally.effect==='starter_hunter_auto'&&!ally._starterHunterUsed){
-    ally._starterHunterUsed=true;
-    if(!ally.shield) ally.shield=1;
-    log(`${ally.name}：最初の攻撃時→無敵を得る`,'good');
-  }
 
   // 攻撃時効果（ダメージを与える前に発動）
   if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け
-  const attackTargets=isGlobal?[...liveE]:isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
-  const _atkLabel=isGlobal?'全敵':isTriDir?`${target.name}周辺3体`:target.name;
-  log(`${ally.name}(${ally.atk})→${_atkLabel}`);
+  const attackTargets=isGlobal?_targetsInSameAttackRow(target,G.enemies):isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(e=>e&&e.hp>0)):[target];
+  const _atkLabel=isGlobal?'全敵':isTriDir?`${_battleLogName(target,G.enemies)}周辺3体`:_battleLogName(target,G.enemies);
+  log(`${_battleLogName(ally,G.allies)}(${attackDmg})→${_atkLabel}`);
 
-  attackTargets.forEach(t=>{
+  for(const t of attackTargets){
     const ti=G.enemies.indexOf(t);
-    const defenderAtk=t.atk||0;
-    dealDmgToEnemy(t,ally.atk,ti,ally);
-    _dealMutualAttackDamage(ally,false,t,defenderAtk);
+    await _dealAttackDamageWithMutual(ally,false,t,ti,attackDmg);
     // 反撃キーワード持ちはさらに追加ダメージ（生き残った場合のみ・攻撃効果も発動）
     _maybeCounterAttack(t,false,ally);
-  });
+  }
   // 多段攻撃（三段=×2、二段=×1）：三方向攻撃とは併用しない
   if(ally.hp>0&&!isGlobal&&!isTriDir){
-    const extraHits=ally.keywords&&ally.keywords.includes('三段攻撃')?2:ally.keywords&&ally.keywords.includes('二段攻撃')?1:0;
+    const extraHits=_unitHasKeyword(ally,'三段攻撃')?2:_unitHasKeyword(ally,'二段攻撃')?1:0;
     let curTgt=target;
     for(let hi=0;hi<extraHits;hi++){
       if(!curTgt||curTgt.hp<=0){
         curTgt=getAttackTarget(ally,G.enemies);
       }
       if(!curTgt||curTgt.hp<=0) break;
-      // 各段ごとにアニメーション
-      const hitSlot=eAllSlots?.[G.enemies.indexOf(curTgt)];
-      if(aSlot) aSlot.classList.add('glow-blue');
-      if(hitSlot) hitSlot.classList.add('glow-red');
-      showAttackLine(aSlot,hitSlot?[hitSlot]:[],'#4080ff');
-      await sleep(200);
-      if(aSlot) aSlot.classList.remove('glow-blue');
-      if(hitSlot) hitSlot.classList.remove('glow-red');
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(ally.hp>0) _applyAllyAttackEffectsWithElf(ally);
-      log(`${ally.name}：${hi+2}段目→${curTgt.name}`,'good');
-      const defenderAtk=curTgt.atk||0;
-      dealDmgToEnemy(curTgt,ally.atk,G.enemies.indexOf(curTgt),ally);
-      _dealMutualAttackDamage(ally,false,curTgt,defenderAtk);
+      log(`${_battleLogName(ally,G.allies)}：${hi+2}段目→${_battleLogName(curTgt,G.enemies)}`,'good');
+      await _dealAttackDamageWithMutual(ally,false,curTgt,G.enemies.indexOf(curTgt),attackDmg);
       _maybeCounterAttack(curTgt,false,ally);
     }
   }
@@ -1602,27 +2236,9 @@ async function enemyAttackAction(enemy, enemyIdx){
   const targets=[primaryTarget];
   const primaryIdx=G.allies.indexOf(primaryTarget);
 
-  // アニメーション（攻撃ライン＋グロー）
-  const eSlot=document.getElementById('f-enemy')?.querySelectorAll('.slot')[enemyIdx];
-  const aAllSlots=document.getElementById('f-ally')?.querySelectorAll('.slot');
-  const aSlot=aAllSlots?.[primaryIdx];
   const isGlobalAtk=enemy.keywords&&enemy.keywords.includes('全体攻撃');
   const isTriDirAtk=enemy.keywords&&enemy.keywords.includes('三方向攻撃');
-  const liveAllForGlobal=G.allies.filter(a=>a&&a.hp>0&&!a.stealth);
-  if(eSlot) eSlot.classList.add('glow-blue');
-  if(aSlot) aSlot.classList.add('glow-red');
-  if(isGlobalAtk){
-    const allTgtSlots=liveAllForGlobal.map(a=>aAllSlots?.[G.allies.indexOf(a)]).filter(Boolean);
-    showAttackLine(eSlot,allTgtSlots,'#ff4040');
-  } else if(isTriDirAtk){
-    const _tdAIdxs=[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&G.allies[i]&&G.allies[i].hp>0&&!G.allies[i].stealth);
-    showAttackLine(eSlot,_tdAIdxs.map(i=>aAllSlots?.[i]).filter(Boolean),'#ff4040');
-  } else {
-    showAttackLine(eSlot,aSlot?[aSlot]:[],'#ff4040');
-  }
-  await sleep(300);
-  if(eSlot) eSlot.classList.remove('glow-blue');
-  if(aSlot) aSlot.classList.remove('glow-red');
+  const liveAllForGlobal=_targetsInSameAttackRow(primaryTarget,G.allies).filter(a=>!a.stealth);
   hideAttackLine();
 
   const atkVal=enemy.nullified>0?0:enemy.atk;
@@ -1638,18 +2254,16 @@ async function enemyAttackAction(enemy, enemyIdx){
   // 全ターゲットを攻撃
   const hitNames=[];
   const hitSet=new Set();
-  finalTargets.forEach(tgt=>hitNames.push(tgt.name));
-  log(`${enemy.name}(${atkVal})→${isGlobalAtk?'全体':isTriDirAtk?`${primaryTarget.name}周辺3体`:hitNames.join('・')}`);
-  finalTargets.forEach(tgt=>{
+  finalTargets.forEach(tgt=>hitNames.push(_battleLogName(tgt,G.allies)));
+  log(`${_battleLogName(enemy,G.enemies)}(${atkVal})→${isGlobalAtk?'全体':isTriDirAtk?`${_battleLogName(primaryTarget,G.allies)}周辺3体`:hitNames.join('・')}`);
+  for(const tgt of finalTargets){
     const aIdx=G.allies.indexOf(tgt);
     if(!hitSet.has(tgt.id)){
-      const defenderAtk=tgt.atk||0;
-      const actualTarget=_dealAttackDamage(enemy,true,tgt,aIdx,atkVal);
-      _dealMutualAttackDamage(enemy,true,actualTarget||tgt,defenderAtk);
+      const actualTarget=await _dealAttackDamageWithMutual(enemy,true,tgt,aIdx,atkVal);
       _maybeCounterAttack(actualTarget||tgt,true,enemy);
       hitSet.add(tgt.id);
     }
-  });
+  }
 
   // 多段攻撃キーワード（三段=×2、二段=×1）：三方向攻撃とは併用しない
   if(!isGlobalAtk&&!isTriDirAtk&&enemy.hp>0){
@@ -1660,21 +2274,11 @@ async function enemyAttackAction(enemy, enemyIdx){
         reTgt=getAttackTarget(enemy,G.allies);
       }
       if(!reTgt||reTgt.hp<=0) break;
-      // 各段ごとにアニメーション
-      const reHitSlot=aAllSlots?.[G.allies.indexOf(reTgt)];
-      if(eSlot) eSlot.classList.add('glow-blue');
-      if(reHitSlot) reHitSlot.classList.add('glow-red');
-      showAttackLine(eSlot,reHitSlot?[reHitSlot]:[],'#ff4040');
-      await sleep(200);
-      if(eSlot) eSlot.classList.remove('glow-blue');
-      if(reHitSlot) reHitSlot.classList.remove('glow-red');
       hideAttackLine();
       // 攻撃時効果（各段攻撃ごとに発動）
       if(enemy.hp>0) _applyEnemyAttackEffectsWithElf(enemy);
       log(`${enemy.name}：${hi+2}段目→${reTgt.name}`,'bad');
-      const defenderAtk=reTgt.atk||0;
-      const actualTarget=_dealAttackDamage(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
-      _dealMutualAttackDamage(enemy,true,actualTarget||reTgt,defenderAtk);
+      const actualTarget=await _dealAttackDamageWithMutual(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
       _maybeCounterAttack(actualTarget||reTgt,true,enemy);
     }
   }
@@ -1703,7 +2307,7 @@ function _redirectToBodyguard(list, unit, tone) {
 }
 
 // 戻り値：ダメージが通った(true) / 0ダメまたはシールドでブロック(false)
-function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirect){
+function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirect, _skipPanelCounter){
   if(!unit||unit.hp<=0) return false;
   if(dmg>0&&!_skipRedirect){
     const redirected=_redirectToBodyguard(G.allies, unit, 'good');
@@ -1724,6 +2328,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
     unit.shield--;
     log(`🛡 ${unit.name}のシールドがダメージを防いだ（残${unit.shield}）`,'sys');
     onAllyShieldLost(unit);
+    if(!_skipPanelCounter) _triggerCounterPanels(unit,true);
     // 反撃：シールドで防いでも生き残っているので発動
     if(!_suppressCounter) _maybeCounterAttack(unit,true,src);
     return false; // ダメージをシールドで防いだ
@@ -1740,11 +2345,12 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
   unit.hp=Math.max(0,unit.hp-actualDmg);
   if(actualDmg>0&&typeof playHitVfx==='function') playHitVfx('ally',_fieldIdx);
   if(actualDmg>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
-  const counterCount=typeof unitEquipCount==='function'?unitEquipCount(unit,'panel_counter'):0;
-  if(actualDmg>0&&counterCount>0){
-    const counterDmg=8*counterCount;
-    [...G.enemies].forEach((e,ei)=>{ if(e&&e.hp>0) dealDmgToEnemy(e,counterDmg,ei,unit); });
-    log(`${unit.name}：反撃→全ての敵に${counterDmg}ダメージ`,'good');
+  if(actualDmg>0&&src) _applyVampirePanel(src,actualDmg);
+  const fromEnemy=src&&G.enemies&&G.enemies.includes(src);
+  if(actualDmg>0&&(!_skipPanelCounter||fromEnemy)) _triggerCounterPanels(unit,true);
+  if(actualDmg>0&&unit.hp>0){
+    _checkDragonContractInjury(unit);
+    _onAllyInjuredByPanel(unit);
   }
   if(dmg>0&&src&&src.keywords&&src.keywords.length&&unit.hp>0){
     applyKeywordOnHit(src,unit,actualDmg);
@@ -1772,16 +2378,32 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
 
 function processAllyDeath(unit){
   if(unit.hp>0||unit._deathProcessed) return;
-  if(unitHasEquip(unit,'equip_revive')){
-    const effective=typeof getUnitEffectiveEquips==='function'?getUnitEffectiveEquips(unit):(unit.equipment||[]).filter(Boolean);
-    const idx=(unit.equipment||[]).findIndex(eq=>eq&&eq.unique==='equip_revive'&&effective.includes(eq));
-    if(idx>=0) unit.equipment[idx]=null;
-    unit.hp=unit.maxHp||1;
-    log(`${unit.name}：再生の指輪→最大HPで復活`,'good');
+  const reviveKw=['再生','復活','根性'].find(k=>_unitHasKeyword(unit,k));
+  if(reviveKw&&!unit._starterRegenUsed){
+    _triggerGrudgePanel(unit,false);
+    _applyDeathKeywordEffects(unit,false);
+    _onAllyDeathPanelSummons();
+    G.battleCounters.deaths++;
+    if(typeof _onAnyCharDeath==='function') _onAnyCharDeath(unit);
+    checkSolitudeBuff();
+    unit._starterRegenUsed=true;
+    unit.keywords=(unit.keywords||[]).filter(k=>k!==reviveKw);
+    unit.hp=1;
+    if(reviveKw==='根性'){
+      unit.injury=(unit.injury||0)+1;
+      _checkDragonContractInjury(unit);
+      _onAllyInjuredByPanel(unit);
+      triggerInjury(unit,1);
+    }
+    log(`${unit.name}：${reviveKw}→復活`,'good');
+    renderAll();
     return;
   }
   unit._deathProcessed=true;
   if(typeof playSfx==='function') playSfx('death',{group:'combat'});
+  _triggerGrudgePanel(unit,false);
+  _applyDeathKeywordEffects(unit,false);
+  _onAllyDeathPanelSummons();
 
   log(`${unit.name} が倒れた…`,'bad');
   G.battleCounters.deaths++;
@@ -1811,21 +2433,6 @@ function processAllyDeath(unit){
     log(`${unit.name}：死亡→全ての味方に${dmg}ダメ`,'bad');
     triggerDeathEffectTriggered(unit);
   }
-  const grudgeCount=typeof unitEquipCount==='function'?unitEquipCount(unit,'panel_grudge'):0;
-  if(grudgeCount>0){
-    const targets=G.enemies.filter(e=>e&&e.hp>0);
-    const dmg=unit.maxHp||unit.hp||0;
-    if(targets.length&&dmg>0){
-      for(let i=0;i<grudgeCount;i++){
-        const live=G.enemies.filter(e=>e&&e.hp>0);
-        const target=live.length?randFrom(live):null;
-        if(!target) break;
-        dealDmgToEnemy(target,dmg,G.enemies.indexOf(target),unit);
-        log(`${unit.name}：執念→${target.name}に${dmg}ダメージ`,'good');
-        triggerDeathEffectTriggered(unit);
-      }
-    }
-  }
   // スケルトン：死亡時に0/4の「骨」を即座に召喚
   if(unit.effect==='skeleton_bone'){
     const _boneG=unit.grade||1;
@@ -1848,7 +2455,7 @@ function processAllyDeath(unit){
     }
     triggerDeathEffectTriggered(unit);
   }
-  // ゴールドボム（アルプ負傷）：死亡時、仲間全員にダメージ
+  // ソウルボム（アルプ負傷）：死亡時、仲間全員にダメージ
   if(unit.effect==='soul_bomb_death'){
     const _sbdmg=5*(unit.grade||1);
     const _sbCopy=[...G.allies];
@@ -1874,11 +2481,11 @@ function processAllyDeath(unit){
       }
     });
   }
-  // マミー：死亡時、3ゴールドを得る
+  // マミー：死亡時、3ソウルを得る
   if(unit.effect==='mummy_death'&&!G._isSimulating){
     const mv=3+(G.hasGoldenDrop?1:0);
     onGoldGained(mv);
-    log(`${unit.name}：死亡→ゴールド+${mv}`,'gold');
+    log(`${unit.name}：死亡→ソウル+${mv}`,'gold');
     triggerDeathEffectTriggered(unit);
   }
   if(unit.effect==='banshee_death'){
@@ -1906,6 +2513,7 @@ function processAllyDeath(unit){
   }
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath(unit);
+  compactBattleUnitsAfterDeath();
 }
 
 function _onAnyCharDeath(deadUnit){
@@ -1943,42 +2551,7 @@ function triggerInjury(unit, dmg=0){
   const oppSide =isEnemy?G.allies :G.enemies;
   const col=isEnemy?'bad':'good';
   const rgDef=makeSheetBackedUnitDef({id:'c_royal_guard',name:'ロイヤルガード',race:'獣',grade:1,atk:4,hp:6,cost:0,unique:false,icon:'💂',desc:'反撃',counter:true});
-  const nightcatCount=!isEnemy&&!G._equipWrathBusy?unitEquipCount(unit,'equip_nightcat'):0;
-  for(let i=0;i<nightcatCount;i++){
-    const def=makeSheetBackedUnitDef({id:'c_equip_nightcat',name:'ナイトキャット',race:'獣',grade:1,atk:1,hp:2,cost:0,unique:false,icon:'🐱',desc:''});
-    const slot=G.allies.findIndex(a=>!a||a.hp<=0);
-    if(slot>=0){
-      const nc=makeUnitFromDef(def);
-      G.allies[slot]=nc;
-      if(typeof applyGrimalkinSummonBonus==='function') applyGrimalkinSummonBonus(nc,G.allies);
-      log(`${unit.name}：猫の眷属の指輪→ナイトキャット(1/2)を召喚`,'good');
-    }
-  }
-  const patienceCount=!isEnemy&&!G._equipWrathBusy?unitEquipCount(unit,'equip_patience_hp'):0;
-  if(patienceCount){
-    addUnitHp(unit,2*patienceCount,'ally');
-    log(`${unit.name}：我慢の指輪→ライフ+${2*patienceCount}`,'good');
-  }
-  if(!isEnemy&&unitHasEquip(unit,'equip_wrathscale')&&!G._equipWrathBusy){
-    G._equipWrathBusy=true;
-    [...G.allies,...G.enemies].forEach(u=>{
-      if(!u||u.hp<=0) return;
-      const idx=G.allies.includes(u)?G.allies.indexOf(u):G.enemies.indexOf(u);
-      if(G.allies.includes(u)) dealDmgToAlly(u,1,idx,unit);
-      else dealDmgToEnemy(u,1,idx,unit);
-    });
-    G._equipWrathBusy=false;
-    log(`${unit.name}：逆鱗の指輪→全キャラクターに1ダメージ`,'good');
-  }
   switch(unit.injury){
-    case 'starter_warrior':{
-      unit.atk+=2;
-      unit.baseAtk=(unit.baseAtk||0)+2;
-      unit.hp+=2;
-      unit.maxHp+=2;
-      log(`${unit.name}：負傷→+2/+2`,col);
-      break;
-    }
     case 'slin':{
       const _nums=[...((unit.desc||'').matchAll(/\d+/g))].map(m=>parseInt(m[0]));
       const _sv=(_nums[0]||2)+(!isEnemy&&G.hasGoldenDrop?1:0);
@@ -2096,30 +2669,31 @@ function triggerInjury(unit, dmg=0){
       break;
     }
     case 'alp':{
-      // 相手の場に0/N「ゴールドボム」を召喚（死亡時、その仲間全員にダメージ）
+      // 相手の場に0/N「ソウルボム」を召喚（死亡時、その仲間全員にダメージ）
       const _alpG=unit.grade||1;
       const _sbG=Math.max(1,_alpG-1); // G1→sbG=1, G2→sbG=1, G3→sbG=2, G4→sbG=3
       const _sbHp=_sbG;
       const _sbDmg=5*_sbG;
-      const _alpDef=makeSheetBackedUnitDef({id:'c_soul_bomb',name:'ゴールドボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'});
+      const _alpDef=makeSheetBackedUnitDef({id:'c_soul_bomb',name:'ソウルボム',race:'精霊',grade:_sbG,atk:0,hp:_sbHp,cost:0,unique:false,icon:'💣',desc:`誘発：死亡した場合、すべての仲間に${_sbDmg}ダメージを与える。`,effect:'soul_bomb_death'});
       if(G.phase==='reward'&&!isEnemy){
-        // 報酬フェイズ中の味方アルプ：提示カードにゴールドボムを追加
+        // 報酬フェイズ中の味方アルプ：提示カードにソウルボムを追加
         const _sbCard=Object.assign({},makeUnitFromDef(_alpDef));
         _sbCard._isChar=true; _sbCard._rewSummoned=true;
         let _rslot=-1;
         for(let _ri=0;_ri<6;_ri++){ if(!_rewCards[_ri]||!_rewCards[_ri]._isChar||_rewCards[_ri].hp<=0){ _rslot=_ri; break; } }
         if(_rslot>=0) _rewCards[_rslot]=_sbCard; else _rewCards.push(_sbCard);
         if(typeof renderRewCards==='function') renderRewCards();
-        log(`${unit.name}：負傷→ゴールドボム(0/${_sbHp})を提示カードに召喚`,col);
+        log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を提示カードに召喚`,col);
         if(typeof triggerCocatrice==='function') triggerCocatrice(_sbCard);
         break;
       }
-      const _alpSlot=oppSide.slice(0,6).findIndex(a=>!a||a.hp<=0);
+      const _oppMax=isEnemy?(MAX_ALLIES||5):(MAX_ENEMIES||8);
+      const _alpSlot=oppSide.slice(0,_oppMax).findIndex(a=>!a||a.hp<=0);
       const _sbUnit=makeUnitFromDef(_alpDef);
       if(_alpSlot>=0) oppSide[_alpSlot]=_sbUnit;
-      else if(oppSide.length<6) oppSide.push(_sbUnit);
-      else { log(`${unit.name}：負傷→相手陣が満杯のためゴールドボム出現せず`,col); break; }
-      log(`${unit.name}：負傷→ゴールドボム(0/${_sbHp})を相手陣に召喚`,col);
+      else if(oppSide.length<_oppMax) oppSide.push(_sbUnit);
+      else { log(`${unit.name}：負傷→相手陣が満杯のためソウルボム出現せず`,col); break; }
+      log(`${unit.name}：負傷→ソウルボム(0/${_sbHp})を相手陣に召喚`,col);
       if(typeof triggerCocatrice==='function') triggerCocatrice(_sbUnit);
       break;
     }
@@ -2172,8 +2746,8 @@ function triggerInjury(unit, dmg=0){
       const pick=randFrom(cards);
       pick.arr[pick.i]=null;
       if(isEnemy) log(`${unit.name}：負傷→${pick.c.name}を破壊`,'bad');
-      else { onGoldGained(1); log(`${unit.name}：負傷→${pick.c.name}を破壊しゴールド+1`,'good'); }
-    } else if(!isEnemy){ onGoldGained(1); log(`${unit.name}：負傷→破壊対象なし、ゴールド+1`,'good'); }
+      else { onGoldGained(1); log(`${unit.name}：負傷→${pick.c.name}を破壊しソウル+1`,'good'); }
+    } else if(!isEnemy){ onGoldGained(1); log(`${unit.name}：負傷→破壊対象なし、ソウル+1`,'good'); }
   }
   if(unit.effect==='lizardman_attack'){
     // 現行シートでは攻撃効果。旧セーブ互換で負傷側に残っていても何もしない。
@@ -2295,40 +2869,15 @@ function _gainRandomWand(uses, isEnemySide, source){
   if(isEnemySide){
     if(typeof addEnemyHandItem==='function') addEnemyHandItem(w);
   } else {
-    const cap=G.handSlots||7;
-    let i=-1;
-    for(let si=0;si<cap;si++){ if(!G.spells[si]){ i=si; break; } }
+    const i=G.spells.findIndex(s=>!s);
     if(i>=0) G.spells[i]=w;
   }
   log(`${source.name}：チャージ${uses}の${w.name}を得た`,isEnemySide?'bad':'good');
 }
 
-function _gainRandomConsumableToHand(source){
-  const cap=G.handSlots||7;
-  let slot=-1;
-  for(let i=0;i<cap;i++){ if(!G.spells[i]){ slot=i; break; } }
-  if(slot<0){ log(`${source.name}：インベントリが満杯でアイテムを得られない`,'sys'); return; }
-  const item=typeof drawConsumable==='function'?drawConsumable(1):null;
-  if(!item) return;
-  G.spells[slot]=item;
-  log(`${source.name}：終戦→${item.name}を得た`,'good');
-}
-
-function _summonStarterZombie(source){
-  const slot=G.allies.findIndex(a=>!a||a.hp<=0);
-  if(slot<0){ log(`${source.name}：空き地がなくゾンビを召喚できない`,'sys'); return; }
-  const def=makeSheetBackedUnitDef({id:'c_starter_zombie',name:'ゾンビ',race:'不死',grade:1,atk:10,hp:10,cost:0,unique:false,icon:'🧟',desc:'ヘイト',hate:true});
-  const z=makeUnitFromDef(def,undefined,true);
-  z.hate=true;
-  z.hateTurns=99;
-  G.allies[slot]=z;
-  log(`${source.name}：終戦→ヘイトを持つゾンビ(10/10)を召喚`,'good');
-}
-
 function onBattleStart(){
   G._freeItemPhase='battle';
   G._freeItemUsed=false;
-  G.hasGoldenDrop=G.allies&&G.allies.some(a=>a&&a.hp>0&&unitHasEquip(a,'equip_golden_drop'));
   // ① 敵指輪の自動効果
   if(G.bossRings&&G.bossRings.length) fireBossRingTrigger('battle_start');
 
@@ -2423,31 +2972,7 @@ function onBattleStart(){
   // ④ プレイヤーキャラクターの自動効果
   G.allies.forEach((a)=>{
     if(!a||a.hp<=0) return;
-    if(a.effect==='starter_hunter_auto') a._starterHunterUsed=false;
-    const magicBladeCount=unitEquipCount(a,'equip_magic_blade');
-    if(magicBladeCount){
-      const v=(G.magicLevel||1)*magicBladeCount;
-      if(!a._equipMagicBladeAtk){ a.atk+=v; a.baseAtk=(a.baseAtk||0)+v; a._equipMagicBladeAtk=v; }
-      log(`${a.name}：魔剣の指輪→ATK+${v}`,'good');
-    }
-    const apothecaryCount=unitEquipCount(a,'equip_apothecary');
-    for(let i=0;i<apothecaryCount;i++){
-      const herb=SPELL_POOL.find(s=>s.id==='c_reiki_herb');
-      if(herb&&_gainCardToInventory(herb,a.name)) log(`${a.name}：薬師の指輪→治癒の薬を獲得`,'good');
-    }
-    if(unitHasEquip(a,'equip_hate')){ a.hate=true; a.hateTurns=99; }
-    if(unitHasEquip(a,'equip_gale')) addKeyword(a,'二段攻撃');
-    if(unitHasEquip(a,'equip_poison_marsh')) addKeyword(a,'毒牙');
-    if(unitHasEquip(a,'equip_golden_drop')) G.hasGoldenDrop=true;
     switch(a.effect){
-      case 'starter_mage_start':
-        onMagicLevelUp(1);
-        log(`${a.name}：開戦→魔術レベル+1（Lv${G.magicLevel}）`,'good');
-        break;
-      case 'starter_knight_start':
-        G.allies.forEach(b=>{ if(b&&b.hp>0){ b.atk+=1; b.baseAtk=(b.baseAtk||0)+1; }});
-        log(`${a.name}：開戦→全ての仲間ATK+1`,'good');
-        break;
       case 'manigans_start':
         G.allies.forEach(b=>{ if(b&&b.hp>0&&!b.shield) b.shield=1; });
         log(`${a.name}：全仲間にシールドを付与`,'good'); break;
@@ -2498,7 +3023,7 @@ function onBattleStart(){
       case 'golden_goose_start':
         { const _ggG=Math.max(1,(a.grade||1)-1);
           const _ggHp=_ggG;
-          const _ggDef=makeSheetBackedUnitDef({id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ゴールドを追加で${_ggG}得る。`,effect:'golden_egg_sell'});
+          const _ggDef=makeSheetBackedUnitDef({id:'c_golden_egg',name:'ゴールデンエッグ',race:'獣',grade:_ggG,atk:0,hp:_ggHp,cost:0,unique:false,icon:'🥚',desc:`誘発：このキャラクターを還魂した時、ソウルを追加で${_ggG}得る。`,effect:'golden_egg_sell'});
           const _ggi=G.allies.findIndex(b=>!b||b.hp<=0);
           if(_ggi>=0){
             const _ggUnit2=makeUnitFromDef(_ggDef);
@@ -2541,16 +3066,14 @@ function onBattleStart(){
   // A・シールド（旧シールド・キーワード）：戦闘開始時にダメージ無効化シールドを得る（重複しない）
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
-    const kws=a.keywords||[];
-    if((kws.includes('A・シールド')||kws.includes('シールド'))&&!a.shield){
+    if((_unitHasKeyword(a,'A・シールド')||_unitHasKeyword(a,'シールド'))&&!a.shield){
       a.shield=1;
       log(`🛡 ${a.name}：A・シールドでシールドを得た`,'good');
     }
   });
   G.enemies.forEach(e=>{
     if(!e||e.hp<=0) return;
-    const kws=e.keywords||[];
-    if((kws.includes('A・シールド')||kws.includes('シールド'))&&!e.shield){
+    if((_unitHasKeyword(e,'A・シールド')||_unitHasKeyword(e,'シールド'))&&!e.shield){
       e.shield=1;
       log(`🛡 ${e.name}：A・シールドでシールドを得た`,'bad');
     }
@@ -2562,6 +3085,8 @@ function onBattleStart(){
 // ── 戦闘終了時処理（勝利・撤退共通）────────────────
 
 function onBattleEnd(){
+  G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
+  G.enemies=(G.enemies||[]).map(u=>u&&u._panelSummoned?null:u);
   // 仲間になったエリート/ボスの属性を解除
   G.allies.forEach(a=>{
     if(!a||!a.keywords) return;
@@ -2573,36 +3098,6 @@ function onBattleEnd(){
     }
   });
 
-  G.allies.forEach(a=>{
-    if(!a||a.hp<=0) return;
-    if(a.effect==='starter_thief_end') _gainRandomConsumableToHand(a);
-    if(a.effect==='starter_necromancer_end') _summonStarterZombie(a);
-    const equipThiefCount=unitEquipCount(a,'equip_thief');
-    for(let i=0;i<equipThiefCount;i++) _gainRandomConsumableToHand(a);
-    if(unitHasEquip(a,'equip_null_magic')&&(G.magicLevel||1)<=5){
-      G.allies.forEach(b=>{ if(b&&b.hp>0) applyUnitBuff(b,3,3,'ally'); });
-      log(`${a.name}：絶魔の指輪→全仲間+3/+3`,'good');
-    }
-    if(unitHasEquip(a,'equip_balance')){
-      a.hp=25;
-      a.maxHp=Math.max(a.maxHp||25,25);
-      log(`${a.name}：均衡の指輪→ライフ25`,'good');
-    }
-    if(unitHasEquip(a,'equip_dragonkin')){
-      a._dragonkinCount=(a._dragonkinCount||0)+1;
-      if(a._dragonkinCount>=4){
-        const dragons=UNIT_POOL.filter(u=>u&&!u.enemyOnly&&u.race==='竜'&&u.id!=='c_golem');
-        const def=dragons.length?randFrom(dragons):null;
-        const idx=G.allies.indexOf(a);
-        if(def&&idx>=0){
-          G.allies[idx]=makeUnitFromDef(def,undefined,true);
-          log(`${a.name}：竜人の指輪→${G.allies[idx].name}に変身`,'gold');
-        }
-      } else {
-        log(`${a.name}：竜人の指輪→変身まで${4-a._dragonkinCount}戦`,'sys');
-      }
-    }
-  });
 
   // ドラゴネット：3回目の戦闘終了時にランダムなG2竜へ変身
   let _dragonetTransformed=false;
@@ -2643,11 +3138,11 @@ function onBattleEnd(){
     }
   });
 
-  // gnome_end（ホムンクルス等）：戦闘終了時、2ゴールド（黄金の雫：3）を得る
+  // gnome_end（ホムンクルス等）：戦闘終了時、2ソウル（黄金の雫：3）を得る
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='gnome_end') return;
     const _gv=2+(G.hasGoldenDrop?1:0);
-    G.gold+=_gv; log(`${a.name}：終戦→ゴールド+${_gv}`,'gold');
+    G.gold+=_gv; log(`${a.name}：終戦→ソウル+${_gv}`,'gold');
   });
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||a.effect!=='zombie_end') return;
@@ -2674,7 +3169,11 @@ function onBattleEnd(){
 
   // 成長X は戦闘開始時に適用（onBattleStart 側）
 
-  // 死亡ユニットは消さず、暗いカードとして残す
+  // 死亡ユニット（再生・復活で回復しなかった）をフィールドから除去
+  for(let i=0;i<G.allies.length;i++){
+    const a=G.allies[i];
+    if(a&&a.hp<=0) G.allies[i]=null;
+  }
 }
 
 // ── 勝利ボーナス ───────────────────────────────
@@ -2694,7 +3193,7 @@ function applyVictoryBonuses(){
   const _sib=G._soulIncomeBonus||0;
   const stageBonus=(fl>=16?4:fl>=11?3:fl>=6?2:1)+_sib;
   G.gold+=stageBonus; G.earnedGold+=stageBonus;
-  log(`ステージ突破ボーナス：${stageBonus}ゴールド`+(_sib>0?`（+${_sib}魔神）`:''),'gold');
+  log(`ステージ突破ボーナス：${stageBonus}ソウル`+(_sib>0?`（+${_sib}魔神）`:''),'gold');
 
   onBattleEnd();
 }
@@ -2703,15 +3202,11 @@ function applyVictoryBonuses(){
 
 function checkInstantVictory(){
   if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
-    if(!(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType)){
-      G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
-    }
+    if(_checkRearCenterAllyGameOver()) return true;
+    G.moveMasks.forEach((_,i)=>{ if(G.moveMasks[i]&&!G.visibleMoves.includes(i)) G.visibleMoves.push(i); });
     if(_isBossFight) G._bossJustDefeated=true;
-    if(_isBossFight||G._eliteKilled) G._pendingGlobalPanelReward=true;
-    clearBattleHateForReward();
     _dropPondRingIfNeeded();
     applyVictoryBonuses();
-    applyGlobalPanelVictoryBonuses();
     log('全敵撃破！','gold');
     updateHUD(); renderAll();
     G.phase='reward';
@@ -2736,6 +3231,7 @@ function applyKeywordOnHit(attacker, target, damageDone){
     const pv=basePoison+_gdKw;
     target.poison=(target.poison||0)+pv;
     log(`☠ 毒牙${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
+    if(typeof _checkBlackSerpent==='function') _checkBlackSerpent();
   }
   // 侵食X：命中時に毒Xを付与（毒牙と同様）
   const corrosionKw=kws.find(k=>/^侵食\d+$/.test(k));
@@ -2743,6 +3239,14 @@ function applyKeywordOnHit(attacker, target, damageDone){
     const cv2=parseInt(corrosionKw.slice(2))+_gdKw;
     target.poison=(target.poison||0)+cv2;
     log(`🌫 侵食${cv2}：${attacker.name}が${target.name}に毒+${cv2}`,'bad');
+    if(typeof _checkBlackSerpent==='function') _checkBlackSerpent();
+  }
+  const poisonBladeKw=kws.find(k=>/^毒\d+$/.test(k));
+  if(poisonBladeKw&&target.hp>0){
+    const pv=parseInt(poisonBladeKw.slice(1))+_gdKw;
+    target.poison=(target.poison||0)+pv;
+    log(`☠ 毒牙${pv}：${attacker.name}が${target.name}に毒+${pv}`,'bad');
+    if(typeof _checkBlackSerpent==='function') _checkBlackSerpent();
   }
   // 邪眼X：命中時にターゲットのATKをX減少
   const evilEyeKw=kws.find(k=>/^邪眼\d+$/.test(k));
@@ -2770,16 +3274,16 @@ function applyKeywordOnHit(attacker, target, damageDone){
     target.atk=Math.max(0,target.atk-pbX);
     log(`💢 パワーブレイク${pbX}：${attacker.name}が${target.name}のATK-${pbX}（${target._savedAtk}→${target.atk}）`,'bad');
   }
-  // 魂喰（味方専用）：攻撃時、1ゴールド消費→攻撃者にシールド+1
+  // 魂喰（味方専用）：攻撃時、1ソウル消費→攻撃者にシールド+1
   if(kws.includes('魂喰')&&target.hp>0){
     if(G.gold>=1){
       G.gold-=1;
       if(!attacker.shield) attacker.shield=1;
       updateHUD();
-      log(`💀 魂喰：1ゴールド消費→${attacker.name}にシールド+1`,'good');
+      log(`💀 魂喰：1ソウル消費→${attacker.name}にシールド+1`,'good');
     }
   }
-  // 魂喰X（敵専用）：攻撃時、Xゴールド消費→全敵に永続+X/+X
+  // 魂喰X（敵専用）：攻撃時、Xソウル消費→全敵に永続+X/+X
   const soulKwE=kws.find(k=>/^魂喰\d+$/.test(k));
   if(soulKwE&&target.hp>0){
     const x=parseInt(soulKwE.slice(2));
@@ -2791,7 +3295,7 @@ function applyKeywordOnHit(attacker, target, damageDone){
       G.enemyPermanentBonus.hp+=gain;
       G.enemies.forEach(e=>{ if(e&&e.hp>0){ e.atk+=gain; e.baseAtk=(e.baseAtk||0)+gain; e.hp+=gain; e.maxHp+=gain; }});
       updateHUD(); renderAll();
-      log(`💀 魂喰${x}：${x}ゴールド消費→全敵に永続+${gain}/+${gain}`,'bad');
+      log(`💀 魂喰${x}：${x}ソウル消費→全敵に永続+${gain}/+${gain}`,'bad');
     }
   }
 }
@@ -2825,6 +3329,7 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     e.shield--;
     log(`🛡 ${e.name}のシールドがダメージを防いだ（残${e.shield}）`,'sys');
     onEnemyShieldLost();
+    _triggerCounterPanels(e,false);
     return;
   }
   // ガーゴイル：敵の場にガーゴイルがいる場合、敵が受けるダメージを-1
@@ -2832,13 +3337,9 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   e.hp=Math.max(0,e.hp-actualDmgToEnemy);
   if(actualDmgToEnemy>0&&typeof playHitVfx==='function') playHitVfx('enemy',eIdx);
   if(actualDmgToEnemy>0&&typeof playSfx==='function') playSfx('hitLight',{group:'combat'});
-  const vampireCount=srcUnit&&G.allies&&G.allies.includes(srcUnit)&&typeof unitEquipCount==='function'?unitEquipCount(srcUnit,'panel_vampire'):0;
-  if(actualDmgToEnemy>0&&vampireCount>0){
-    const heal=Math.max(1,Math.floor(actualDmgToEnemy*0.1*vampireCount));
-    const before=srcUnit.hp||0;
-    srcUnit.hp=Math.min(srcUnit.maxHp||srcUnit.hp||1,before+heal);
-    if(srcUnit.hp>before) log(`${srcUnit.name}：吸血→ライフ+${srcUnit.hp-before}`,'good');
-  }
+  if(actualDmgToEnemy>0&&srcUnit) _applyVampirePanel(srcUnit,actualDmgToEnemy);
+  if(actualDmgToEnemy>0) _triggerCounterPanels(e,false);
+  if(actualDmgToEnemy>0&&e.hp>0) _checkDragonContractInjury(e);
   if(e.instadead&&dmg>0) e.hp=0;
   if(dmg>0){
     G.battleCounters.damage=(G.battleCounters.damage||0)+1;
@@ -2854,31 +3355,38 @@ function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
     }
   }
   if(e.hp<=0) processEnemyDeath(e,eIdx);
-  _checkImmediateVictoryAfterEnemyDamage();
 }
 
 function processEnemyDeath(e,eIdx){
   if(e._dp) return;
+  const reviveKw=['再生','復活','根性'].find(k=>_unitHasKeyword(e,k));
+  if(reviveKw&&!e._starterRegenUsed){
+    _triggerGrudgePanel(e,true);
+    _applyDeathKeywordEffects(e,true);
+    _onEnemyDeathPanelSummons(e);
+    _onAnyCharDeath(e);
+    e._starterRegenUsed=true;
+    e.keywords=(e.keywords||[]).filter(k=>k!==reviveKw);
+    e.hp=1;
+    if(reviveKw==='根性'){
+      e.injury=(e.injury||0)+1;
+      _checkDragonContractInjury(e);
+      triggerInjury(e,1);
+    }
+    log(`${e.name}：${reviveKw}→復活`,'bad');
+    renderAll();
+    return;
+  }
   e._dp=true;
   if(typeof playSfx==='function') playSfx('death',{group:'combat'});
+  _triggerGrudgePanel(e,true);
+  _applyDeathKeywordEffects(e,true);
   // 特殊オブジェクトの破壊処理（通常の死亡処理をスキップ）
   if(e._isObject){
     if(e._objectEffect==='barrel'){
       // 開戦時に決定済みの _barrelEffect を参照
-      if(e._barrelEffect==='chest'&&!G._isSimulating&&!G.moveMasks[eIdx]){
-        const _bGrade=FLOOR_DATA[G.floor]?.grade||1;
-        const _bItem=drawTreasure({1:70,2:30},{wand:40,consumable:40,ring:20},_bGrade);
-        if(_bItem){
-          const _bType=_bItem.type==='ring'?'chest_ring':_bItem.type==='wand'?'chest_wand':'chest_item';
-          // 樽自身のスロットに種別マスを配置
-          G.moveMasks[eIdx]=_bType;
-          G._barrelTreasure=_bItem;
-          G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
-          G._pendingTreasureBySlot[eIdx]=_bItem;
-          G._pendingTreasure=true;
-          _updateRearVisibility();
-          log(`🛢️ 樽：宝箱（${NODE_TYPES[_bType]?.label||'?'}）が出現！`,'gold');
-        }
+      if(e._barrelEffect==='chest'){
+        log(`🛢️ 樽：何も出なかった`,'sys');
       } else if(e._barrelEffect==='explode'){
         log(`💥 樽が爆発！`,'bad');
         [eIdx-1,eIdx+1].forEach(ni=>{
@@ -2895,7 +3403,7 @@ function processEnemyDeath(e,eIdx){
       }
     } else if(e._objectEffect==='spirit_tree'){
       onGoldGained(1);
-      log(`🌳 霊木破壊：ゴールド+1`,'gold');
+      log(`🌳 霊木破壊：ソウル+1`,'gold');
     }
     e.hp=0;
     renderAll();
@@ -2905,57 +3413,16 @@ function processEnemyDeath(e,eIdx){
   const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
   if(_isActualElite) G._eliteKilled=true;
   if(e.keywords&&e.keywords.includes('リーダー')) removeLeaderBonus(e);
-  const _isArtifact=e.keywords&&e.keywords.includes('アーティファクト');
-  const _isNamed=!!(e.unique||e._isNamed);
-  const goldPerKill=_isArtifact?0:_isNamed?3:(G.baseIncome||1);
-  if(goldPerKill>0){ log(`${e.name} 撃破！ゴールド+${goldPerKill}`,'gold'); onGoldGained(goldPerKill); }
-  else { log(`${e.name} 撃破！（アーティファクト：ゴールドを持たない）`,'silver'); }
-  // エリート本体：開戦時に自スロットへ generic chest が置かれているため、
-  // 撃破時に必ず中身を確定してスロットへ紐づける。
-  if(_isActualElite&&!G._isSimulating&&(!G._pendingTreasureBySlot||!G._pendingTreasureBySlot[eIdx])&&(!G.moveMasks[eIdx]||String(G.moveMasks[eIdx]).startsWith('chest'))){
-    const _elGrade=FLOOR_DATA[G.floor]?.grade||1;
-    const _elItem=drawTreasure({2:65,3:35},{wand:40,consumable:40,ring:20},_elGrade);
-    if(_elItem){
-      const _elType=_elItem.type==='ring'?'chest_ring':_elItem.type==='wand'?'chest_wand':'chest_item';
-      G.moveMasks[eIdx]=_elType;
-      G._pendingEliteTreasureItem=_elItem;
-      G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
-      G._pendingTreasureBySlot[eIdx]=_elItem;
-      G._pendingTreasure=true;
-      if(!G.visibleMoves.includes(eIdx)) G.visibleMoves.push(eIdx);
-      log(`📦 エリートが宝箱（${NODE_TYPES[_elType]?.label||'?'}）を残した`,'gold');
-    }
-  }
-  // 通常敵：開戦時に決定された _willDropChest フラグでのみドロップ
-  // ただし、その敵がいる列に既にマスがある場合はドロップしない
-  if(e._willDropChest&&!G._retreated&&!G._isSimulating&&!G.moveMasks[eIdx]){
-    const _ndGrade=FLOOR_DATA[G.floor]?.grade||1;
-    const _ndItem=drawTreasure({1:60,2:30,3:10},{wand:40,consumable:40,ring:20},_ndGrade+1);
-    if(_ndItem){
-      const _ndType=_ndItem.type==='ring'?'chest_ring':_ndItem.type==='wand'?'chest_wand':'chest_item';
-      // ドロップ位置は倒した敵のスロット（前衛レーン）に固定
-      const _ndRear=eIdx;
-      if(_ndRear>=0){
-        G.moveMasks[_ndRear]=_ndType;
-        G._pendingEliteTreasureItem=_ndItem;
-        G._pendingTreasureBySlot=G._pendingTreasureBySlot||{};
-        G._pendingTreasureBySlot[_ndRear]=_ndItem;
-        G._pendingTreasure=true;
-        log(`📦 ${e.name}が宝箱（${NODE_TYPES[_ndType]?.label||'?'}）を落とした！`,'gold');
-      } else {
-        if(!G._pendingTreasureItems) G._pendingTreasureItems=[];
-        G._pendingTreasureItems.push(_ndItem);
-      }
-    }
-  }
+  log(`${e.name} 撃破！`,'gold');
+  _onEnemyDeathPanelSummons(e);
+  // 現仕様ではエリート/通常敵撃破時の宝箱出現は行わない。
   // 通常移動マスの可視化（既存ロジック）
-  if(!(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G._mapNodeType)&&G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)&&!String(G.moveMasks[eIdx]).startsWith('chest')){
+  if(G.moveMasks[eIdx]&&!G.visibleMoves.includes(eIdx)&&!String(G.moveMasks[eIdx]).startsWith('chest')){
     G.visibleMoves.push(eIdx);
-    log(`移動マスが出現：${NODE_TYPES[G.moveMasks[eIdx]].label}`,'sys');
   }
   // 後衛の宝・移動マスの表示更新
   _updateRearVisibility();
-  // ゴールドボム（アルプ負傷・敵陣）：死亡時、敵全員にダメージ（プレイヤーに有利）
+  // ソウルボム（アルプ負傷・敵陣）：死亡時、敵全員にダメージ（プレイヤーに有利）
   if(e.effect==='soul_bomb_death'){
     const _sbdmg=5*(e.grade||1);
     const _sbCopy=[...G.enemies];
@@ -2980,7 +3447,7 @@ function processEnemyDeath(e,eIdx){
     triggerDeathEffectTriggered(e);
   }
   if(e.effect==='mummy_death'){
-    log(`${e.name}：死亡→敵オーナーにゴールド+3相当`,'bad');
+    log(`${e.name}：死亡→敵オーナーにソウル+3相当`,'bad');
     triggerDeathEffectTriggered(e);
   }
   if(e.effect==='banshee_death'){
@@ -3033,6 +3500,7 @@ function processEnemyDeath(e,eIdx){
   });
   // ナグルファル：敵死亡でも+2/+1
   _onAnyCharDeath(e);
+  compactBattleUnitsAfterDeath();
   updateHUD();
 }
 
@@ -3072,31 +3540,93 @@ function onWandUsed(){
 
 // ── プレイヤーパス ────────────────────────────
 
-async function startEnemyAutoTurn(){
-  if(G.phase!=='player') return;
-  (G.allies||[]).forEach(a=>{
-    if(a) delete a._manualReadyBlink;
-  });
-  G.phase='enemy';
-  renderAll();
-  renderControls();
-  log('── 敵のターン ──','bad');
-  _recoverBattleWeaken();
-  for(let i=0;i<6;i++){
-    if(_checkBattleOver()) return;
-    const enemy=G.enemies[i];
-    if(enemy&&enemy.hp>0&&!enemy._isObject){
-      await enemyAttackAction(enemy,i);
-    }
-  }
-  G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
-  if(_checkBattleOver()) return;
-  await nextTurn();
-}
-
 async function playerPass(){
   if(G.phase!=='player') return;
-  await startEnemyAutoTurn();
+  G._showGlobalPanels=false;
+  G._selectedBattleMagic=null;
+  document.body.classList.remove('magic-targeting');
+  const hp=document.getElementById('hand-pane');
+  const hs=document.getElementById('hand-slots');
+  if(hp) hp.style.display='none';
+  if(hs) hs.innerHTML='';
+  document.getElementById('btn-pass').textContent='戦闘実行';
+  await battlePhase();
+}
+
+function selectBattleMagicPanel(card){
+  if(G.phase!=='player'||!card||!card.magicPanel||G._battleMagicUsed) return;
+  G._selectedBattleMagic=card;
+  document.body.classList.add('magic-targeting');
+  log(`${card.name}：対象を選んでください`,'sys');
+  if(typeof renderAll==='function') renderAll();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+}
+
+document.addEventListener('contextmenu',e=>{
+  if(!G||G.phase!=='player'||!G._selectedBattleMagic) return;
+  e.preventDefault();
+  G._selectedBattleMagic=null;
+  document.body.classList.remove('magic-targeting');
+  log('魔法選択をキャンセルしました','sys');
+  if(typeof renderAll==='function') renderAll();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+});
+
+function applySelectedBattleMagic(side,idx){
+  const card=G._selectedBattleMagic;
+  if(G.phase!=='player'||!card||G._battleMagicUsed) return false;
+  const x=Math.max(1,G.magicLevel||1);
+  const arr=side==='enemy'?G.enemies:G.allies;
+  const target=arr&&arr[idx];
+  const dmgUnit=u=>{ if(u&&u.hp>0){ u.hp-=x; if(u.hp<0) u.hp=0; } };
+  if(card.name==='破滅'){
+    [...(G.allies||[]),...(G.enemies||[])].forEach(dmgUnit);
+    log(`魔法：破滅→全キャラクターに${x}ダメージ`,'bad');
+  } else if(card.name==='隕石'){
+    for(let i=0;i<x;i++){
+      const live=(G.enemies||[]).filter(e=>e&&e.hp>0);
+      if(!live.length) break;
+      dmgUnit(randFrom(live));
+    }
+    log(`魔法：隕石→ランダムな敵に${x}ダメージ×${x}`,'bad');
+  } else if(card.name==='縮小化'){
+    (G.enemies||[]).forEach(e=>{ if(e&&e.hp>0) e.atk=Math.max(0,(e.atk||0)-x); });
+    log(`魔法：縮小化→全ての敵のATK-${x}`,'bad');
+  } else if(!target||target.hp<=0){
+    return false;
+  } else if(card.name==='炎の矢'){
+    dmgUnit(target);
+    log(`魔法：炎の矢→${target.name}に${x}ダメージ`,'bad');
+  } else if(card.name==='大いなる恩寵'){
+    target.shield=(target.shield||0)+1;
+    log(`魔法：大いなる恩寵→${target.name}にシールド`,'good');
+  } else if(card.name==='巨大化'){
+    target.atk=Math.max(0,(target.atk||0)*2);
+    target.maxHp=Math.max(1,(target.maxHp||target.hp||1)*2);
+    target.hp=Math.max(1,(target.hp||1)*2);
+    log(`魔法：巨大化→${target.name}のATK/HPを2倍`,'good');
+  } else if(card.name==='憑依'){
+    if(side!=='ally') return false;
+    const prey=(G.enemies||[]).find(e=>e&&e.hp>0&&(e.atk||0)<=(target.atk||0));
+    if(!prey){ log('魔法：憑依→条件を満たす敵がいません','bad'); return false; }
+    target.hp=0;
+    const ally=clone(prey);
+    ally.lane=null;
+    const slot=(G.allies||[]).findIndex(a=>!a||a.hp<=0);
+    if(slot>=0) G.allies[slot]=ally;
+    prey.hp=0;
+    log(`魔法：憑依→${target.name}を破壊し、${ally.name}を仲間にした`,'good');
+  } else {
+    return false;
+  }
+  G._battleMagicUsed=true;
+  G._selectedBattleMagic=null;
+  document.body.classList.remove('magic-targeting');
+  if(typeof compactBattleUnitsAfterDeath==='function') compactBattleUnitsAfterDeath();
+  if(typeof renderAll==='function') renderAll();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if((G.enemies||[]).every(e=>!e||e.hp<=0)&&typeof winBattle==='function') winBattle();
+  return true;
 }
 
 // ── 撤退 ──────────────────────────────────────
@@ -3144,7 +3674,7 @@ function fireBossRingTrigger(trigger){
           grade:grade,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[...(s.keywords||[])],powerBroken:false};
         const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
         if(ei>=0) G.enemies[ei]=ne;
-        else if(G.enemies.length<6) G.enemies.push(ne);
+        else if(G.enemies.length<(MAX_ENEMIES||8)) G.enemies.push(ne);
         log(`👹 ボス指輪「${ring.name}」：${ne.name}(${ne.atk}/${ne.hp})を召喚`,'bad');
       }
     }
@@ -3165,7 +3695,7 @@ function addEnemyHandItem(item){
 
 // 敵オーナーが手札から魔法を使用（敵側視点：「敵」=プレイヤー側、「味方」=敵側）
 function applyBossSpell(sp){
-  const liveA=G.allies.filter(a=>_manualTargetableAlly(a));   // プレイヤー側（敵の「敵」）
+  const liveA=G.allies.filter(a=>a&&a.hp>0);   // プレイヤー側（敵の「敵」）
   const liveE=G.enemies.filter(e=>e&&e.hp>0);  // 敵側（敵の「味方」）
   const grade=FLOOR_DATA[G.floor]?.grade||1;
   const eml=G.enemyMagicLevel||0;              // 敵オーナーの魔術レベル
@@ -3276,7 +3806,7 @@ function applyBossSpell(sp){
       ne.lane='front';
       const ei=G.enemies.findIndex(e=>!e||e.hp<=0);
       if(ei>=0) G.enemies[ei]=ne;
-      else if(G.enemies.length<6) G.enemies.push(ne);
+      else if(G.enemies.length<(MAX_ENEMIES||8)) G.enemies.push(ne);
       log(`→ ゴーレム(${eml}/${eml})を召喚`,'bad');
       break;
     }
@@ -3411,13 +3941,15 @@ function applyBossSpell(sp){
 function surrender(){
   if(G.phase==='reward') return;
   log('降伏を選択','sys');
-  gameOver();
+  handleBattleDefeat();
 }
 
 
 // ── 勝利オーバーレイ ──────────────────────────
 
 function showVictoryOverlay(){
+  if(G._battleDefeatHandled) return;
+  if(!(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)) return;
   const ov=document.getElementById('victory-overlay');
   if(typeof playSfx==='function') playSfx('victory',{group:'ui'});
   if(ov) ov.style.display='flex';

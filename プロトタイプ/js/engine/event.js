@@ -11,14 +11,7 @@ function showEvent(name,desc,result){
   document.getElementById('ev-result').textContent=result;
   showScreen('event');
 }
-function eventDone(){
-  if(G._pendingPanelPlacement){
-    log('パネルの配置先を選んでください','bad');
-    return;
-  }
-  renderMoveSelect([{nodeType:'battle',idx:-1}]);
-  showScreen('move');
-}
+function eventDone(){ renderMoveSelect([{nodeType:'battle',idx:-1}]); showScreen('move'); }
 
 // ── 祭壇（smithy）────────────────────────────────
 
@@ -47,7 +40,7 @@ function doSmithy(regen=true){
   const doneIncome=_smithyChosen.has('income');
   const o2=document.createElement('div');
   o2.className='choice-opt'+(doneIncome?' done':'');
-  o2.innerHTML='<div class="choice-icon">💰</div><div class="choice-label">豊穣の祝福</div><div class="choice-desc">基礎収入が+1される（敵撃破時に得るゴールドが1増える）</div>';
+  o2.innerHTML='<div class="choice-icon">💰</div><div class="choice-label">豊穣の祝福</div><div class="choice-desc">基礎収入が+1される（敵撃破時に得るソウルが1増える）</div>';
   if(!doneIncome) o2.onclick=()=>{
     G.baseIncome=(G.baseIncome||1)+1; updateHUD();
     if(hasFarsight){ log(`基礎収入+1（現在${G.baseIncome}）`,'good'); _smithyChosen.add('income'); doSmithy(false); }

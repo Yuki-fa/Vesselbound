@@ -81,6 +81,7 @@ function rollGrade(floor){ return rollCharGrade(floor); }
 // 購入価格
 function calcBuyPrice(card){
   if(!card) return 1;
+  if(typeof G!=='undefined'&&G&&G._freeRewardPanelMode&&(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope)) return 0;
   // キャラクター
   if(card._isChar){
     return card.cost||2;
@@ -92,26 +93,88 @@ function calcBuyPrice(card){
   return card.cost||4;
 }
 
+function _normalizePanelRewardCost(def){
+  if(!def) return def;
+  if(def._baseCost==null) def._baseCost=def.cost||1;
+  def.cost=0;
+  return def;
+}
+
+function _rollPanelDirections(count=2){
+  const dirs=['up','right','down','left'];
+  const picks=[];
+  const need=Math.max(1,Math.min(4,count||2));
+  while(picks.length<need){
+    const d=dirs[Math.floor(Math.random()*dirs.length)];
+    if(!picks.includes(d)) picks.push(d);
+  }
+  return picks;
+}
+
 const PANEL_POOL=[
-  {id:'panel_vampire',name:'吸血',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_vampire',cost:0,desc:'自動：敵にダメージを与えた時に、与えたダメージの10%回復する。'},
-  {id:'panel_stealth',name:'隠密',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_stealth',cost:0,desc:'自動：攻撃してもヘイト状態にならない。'},
-  {id:'panel_counter',name:'反撃',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_counter',cost:0,desc:'自動：ダメージを受けると直ちに全ての敵に8ダメージを与える。'},
-  {id:'panel_grudge',name:'執念',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'パッシブ',unique:'panel_grudge',cost:0,desc:'死亡：ランダムな敵に自身の最大HPに等しいダメージを与える。'},
+  {id:'panel_gnome',no:'001',name:'ノーム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'亜人',power:2,life:3,desc:'攻撃：1マナを得る。'},
+  {id:'panel_mata',no:'002',name:'マータ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',subCategory:'特殊',cost:1,slot:1,race:'亜人',power:0,life:1,keywords:['生贄'],desc:'生贄　常時：「生贄」を持たない味方が負傷するたびに召喚される。'},
+  {id:'panel_zombie',no:'003',name:'ゾンビ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'不死',power:1,life:7,keywords:['ヘイト'],desc:'ヘイト'},
+  {id:'panel_skeleton',no:'004',name:'スケルトン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'不死',power:4,life:1,keywords:['復活'],desc:'復活'},
+  {id:'panel_dire_wolf',no:'005',name:'ダイアウルフ',rarity:1,displayRarity:'-',grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'獣',power:3,life:3,desc:''},
+  {id:'panel_sleep_sheep',no:'006',name:'スリープシープ',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'獣',power:0,life:1,summonCount:3,desc:'召喚：もう2体召喚する。'},
+  {id:'panel_brownie',no:'007',name:'ブラウニー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'精霊',power:1,life:4,desc:'攻撃：全ての仲間のHPが+1される。'},
+  {id:'panel_elf',no:'008',name:'エルフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',subCategory:'特殊',cost:1,slot:1,race:'精霊',power:5,life:3,keywords:['シールド'],desc:'シールド　常時：味方が2体死亡すると召喚される。'},
+  {id:'panel_twin_devil',no:'009',name:'ツインデビル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',cost:1,slot:1,race:'悪魔',power:2,life:1,summonCount:2,desc:'召喚：もう1体召喚する。'},
+  {id:'panel_archdemon',no:'010',name:'アークデーモン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',subCategory:'特殊',cost:1,slot:1,race:'悪魔',power:25,life:20,desc:'常時：場の生贄が3体以上になった時、それらを破壊して召喚される。'},
+  {id:'panel_arassas',no:'011',name:'アラッサス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',subCategory:'特殊',cost:1,slot:1,race:'竜',power:15,life:15,desc:'常時：味方が7回負傷した時、召喚される。召喚：全ての敵に3ダメージを与える。'},
+  {id:'panel_slin',no:'012',name:'スリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',subCategory:'特殊',cost:1,slot:1,race:'竜',power:10,life:35,keywords:['毒牙'],desc:'毒牙　常時：場の毒が10以上になった時、召喚される。'},
+  {id:'panel_counterattack_oath',no:'013',name:'逆襲',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆襲'],desc:'死亡：全ての味方は+1/+1を得る。'},
+  {id:'panel_great_guard',no:'014',name:'大いなる守護',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentHpBonus:7,desc:'常時：HP+7を得る。'},
+  {id:'panel_inner_might',no:'015',name:'内なる大力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:2,adjacentHpBonus:1,desc:'常時：+2/+1を得る。'},
+  {id:'panel_dark_ritual',no:'016',name:'闇の儀式',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の儀式'],desc:'死亡：以後、召喚される同名のキャラクターを永久に+2/+2する。'},
+  {id:'panel_persistent_flame',no:'017',name:'執念の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['根性'],desc:'根性（致死ダメージを受けた時、1度だけHP1で耐える）'},
+  {id:'panel_dark_flame',no:'018',name:'闇の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の炎'],desc:'死亡：全ての前衛キャラクターに1ダメージを与える。'},
+  {id:'panel_poison_blade',no:'019',name:'毒の刃',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['毒牙3'],desc:'毒牙3（攻撃時にダメージを受ける毒を付与）'},
+  {id:'panel_dragon_contract',no:'020',name:'竜の契約',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['竜の契約'],desc:'常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）'},
+  {id:'panel_fanaticism',no:'021',name:'狂信',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生贄'],desc:'生贄'},
+  {id:'panel_magic_circuit_a',no:'022',name:'魔導回路α',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:3,desc:'効果なし　三方向パネル'},
+  {id:'panel_magic_circuit_b',no:'023',name:'魔導回路β',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:4,adjacentAtkBonus:-2,adjacentHpBonus:-2,desc:'常時：-2/-2を得る。四方向パネル'},
+  {id:'panel_healing_trait',no:'024',name:'治癒能力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['治癒能力'],desc:'負傷：HP+2を得る。'},
 ];
 
 function makePanel(idOrName){
-  const def=PANEL_POOL.find(p=>p.id===idOrName||p.name===idOrName);
+  const aliases={
+    '狼の加護':'ダイアウルフ',
+    '守護像':'ゾンビ',
+    '彷徨う鼠':'スリープシープ',
+    '蘇る骸':'スケルトン',
+    '魔神降臨':'アークデーモン',
+    '黒い大蛇':'スリン',
+    '力の契約':'内なる大力'
+  };
+  const key=aliases[idOrName]||idOrName;
+  const def=PANEL_POOL.find(p=>p.id===key||p.name===key);
   if(!def) return null;
   const c=clone(def);
+  if(String(c.category||'')==='キャラクター'){
+    c._permBasePower=Number(c.power??c.atk??0);
+    c._permBaseLife=Number(c.life??c.hp??1);
+    const b=G&&G.panelPermanentBuffs&&G.panelPermanentBuffs[c.name];
+    if(b){
+      c._permBuffAtkApplied=Number(b.atk||0);
+      c._permBuffHpApplied=Number(b.hp||0);
+      c.power=c._permBasePower+c._permBuffAtkApplied;
+      c.life=c._permBaseLife+c._permBuffHpApplied;
+    }
+  }
+  _normalizePanelRewardCost(c);
   c.equip=true;
   c.noRewardUse=true;
+  if(['強化','エンチャント'].includes(String(c.category||''))) c.directions=_rollPanelDirections(c.directionCount||2);
   c._buyPrice=calcBuyPrice(c);
   return c;
 }
 
 function drawPanel(n=1, maxGrade){
+  ensurePanelSaleStock();
   const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
-  const pool=PANEL_POOL.filter(p=>p&&p.id&&(p.grade||1)<=targetGrade);
+  const pool=PANEL_POOL.filter(p=>p&&p.id&&p.name!=='ダイアウルフ'&&p.id!=='panel_dire_wolf'&&p.rarity!==-1&&(p.grade||1)<=targetGrade&&panelSaleStockCount(p)>0);
   const res=[];
   let t=0;
   while(res.length<n&&pool.length>0&&t++<300){
@@ -120,10 +183,45 @@ function drawPanel(n=1, maxGrade){
       return Array.from({length:w},()=>p);
     });
     const picked=randFrom(weighted);
+    consumePanelSaleStock(picked);
     const card=makePanel(picked.id);
     if(card) res.push(card);
   }
   return res;
+}
+
+function panelSaleStockKey(panel){
+  return panel&&(panel.id||panel.name);
+}
+
+function ensurePanelSaleStock(){
+  if(G.panelSaleStock) return;
+  G.panelSaleStock={};
+  (PANEL_POOL||[]).forEach(p=>{
+    if(!p||!p.id||p.rarity===-1) return;
+    G.panelSaleStock[panelSaleStockKey(p)]=Math.max(0,11-(p.grade||1));
+  });
+}
+
+function panelSaleStockCount(panel){
+  ensurePanelSaleStock();
+  return G.panelSaleStock[panelSaleStockKey(panel)]||0;
+}
+
+function consumePanelSaleStock(panel){
+  ensurePanelSaleStock();
+  const key=panelSaleStockKey(panel);
+  G.panelSaleStock[key]=Math.max(0,(G.panelSaleStock[key]||0)-1);
+}
+
+function returnPanelToSalePool(panel){
+  ensurePanelSaleStock();
+  const key=panelSaleStockKey(panel);
+  if(key) G.panelSaleStock[key]=(G.panelSaleStock[key]||0)+1;
+}
+
+function addPanelToSalePool(panel){
+  returnPanelToSalePool(panel);
 }
 
 const GLOBAL_PANEL_POOL=[
@@ -164,11 +262,11 @@ function makeGlobalPanel(idOrName){
 }
 
 function hasGlobalPanel(id){
-  return !!(G.globalPanels||[]).some(p=>p&&p.id===id);
+  return [...(G.globalPanels||[]),...(G.spells||[])].some(p=>p&&p.panelScope==='global'&&p.id===id);
 }
 
 function drawGlobalPanel(){
-  const owned=new Set((G.globalPanels||[]).filter(Boolean).map(p=>p.id));
+  const owned=new Set([...(G.globalPanels||[]),...(G.spells||[])].filter(p=>p&&p.panelScope==='global').map(p=>p.id));
   const pool=GLOBAL_PANEL_POOL.filter(p=>!owned.has(p.id)&&(!p.requires||owned.has(p.requires)||Math.random()<0.18));
   if(!pool.length) return null;
   const weighted=[];
@@ -181,7 +279,7 @@ function drawGlobalPanel(){
 }
 
 function _globalKnowledgeLevel(kind){
-  const panels=(G.globalPanels||[]).filter(Boolean);
+  const panels=[...(G.globalPanels||[]),...(G.spells||[])].filter(p=>p&&p.panelScope==='global');
   const prefix=kind==='武術'?'gp_martial_':kind==='魔術'?'gp_magic_':kind==='神術'?'gp_divine_':'';
   let lv=0;
   panels.forEach(p=>{
@@ -421,7 +519,33 @@ function drawRewards(n){
   const appraiser=G.allies&&G.allies.some(a=>a&&a.hp>0&&typeof unitHasEquip==='function'&&unitHasEquip(a,'equip_appraiser'));
   const baseGrade=G.rewardGrade||1;
   const boostGrade=Math.min(5,baseGrade+1);
-  const res=drawPanel(3, appraiser?boostGrade:undefined);
+  const targetGrade=appraiser?boostGrade:undefined;
+  const res=drawPanel(4, targetGrade);
+  const maxGrade=targetGrade!=null?targetGrade:(G.rewardGrade||1);
+  const pickGuaranteedPanel=(pred, used)=>{
+    ensurePanelSaleStock();
+    const candidates=PANEL_POOL.filter(p=>p&&p.id&&p.name!=='ダイアウルフ'&&p.id!=='panel_dire_wolf'&&p.rarity!==-1&&(p.grade||1)<=maxGrade&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
+    if(!candidates.length) return null;
+    const picked=randFrom(candidates);
+    consumePanelSaleStock(picked);
+    return makePanel(picked.id);
+  };
+  const used=new Set(res.filter(Boolean).map(c=>c.id));
+  const isNormalSummon=p=>String(p.category||'')==='キャラクター'&&String(p.subCategory||p.subcategory||p.sub||'')!=='特殊';
+  const isEnchant=p=>['エンチャント','強化'].includes(String(p.category||''));
+  if(!res.some(isNormalSummon)){
+    const c=pickGuaranteedPanel(isNormalSummon,used);
+    if(c){ if(res[0]) returnPanelToSalePool(res[0]); res[0]=c; used.add(c.id); }
+  }
+  if(!res.some(isEnchant)){
+    const c=pickGuaranteedPanel(isEnchant,used);
+    if(c){
+      const idx=res.some(isNormalSummon)?1:0;
+      if(res[idx]) returnPanelToSalePool(res[idx]);
+      res[idx]=c;
+      used.add(c.id);
+    }
+  }
   if(G._nextRewardUniqueSlot){
     G._nextRewardUniqueSlot=false;
   }

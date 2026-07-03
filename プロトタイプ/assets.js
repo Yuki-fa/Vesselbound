@@ -13,10 +13,18 @@ const Assets = {
     consumable: 'assets/temp/cards/card_item.svg',
     characterFrame: 'assets/temp/cards/character_frame.png',
     defenderFrame: 'assets/temp/cards/character_defender_frame.png',
+    enemyFrame: 'assets/temp/cards/enemy_frame.png',
     ringFrame: 'assets/temp/cards/ring_frame.png',
     wandFrame: 'assets/temp/cards/wand_frame.png',
     itemFrame: 'assets/temp/cards/item_frame.png',
     weaponFrame: 'assets/temp/cards/weapon_frame.png',
+    growthFrame: 'assets/temp/cards/growth_frame.png',
+    summonFrameGreen: 'assets/temp/cards/summon_frame1.png',
+    summonFrameBlue: 'assets/temp/cards/summon_frame2.png',
+    summonFrameRed: 'assets/temp/cards/summon_frame3.png',
+    summonFrameBrown: 'assets/temp/cards/summon_frame4.png',
+    summonFramePurple: 'assets/temp/cards/summon_frame5.png',
+    enchantmentFrame: 'assets/temp/cards/enchantment.png',
     gradeStar: 'assets/temp/cards/grade_star.png',
     characterMask: 'assets/temp/cards/ch_mask.png',
     wandSheet: 'assets/temp/cards/wand_sheet.png',
@@ -29,7 +37,7 @@ const Assets = {
   backgrounds: {
     title: 'assets/temp/backgrounds/title_castle.png',
     camp: 'assets/temp/backgrounds/camp.png',
-    stage1: 'assets/temp/backgrounds/stage_grassland.png',
+    stage1: 'assets/temp/backgrounds/stage1.jpg',
     stage2: 'assets/temp/backgrounds/stage_forest.png',
     stage3: 'assets/temp/backgrounds/stage_valley.png',
     stage4: 'assets/temp/backgrounds/stage_capital.png',
@@ -312,12 +320,49 @@ function getCardAsset(card){
   return Assets.cards.default;
 }
 
+const SummonColorByName = {
+  'ノーム':'茶',
+  'マータ':'紫',
+  'ゾンビ':'青',
+  'スケルトン':'青',
+  'ダイアウルフ':'緑',
+  'スリープシープ':'緑',
+  'ブラウニー':'茶',
+  'エルフ':'茶',
+  'ツインデビル':'紫',
+  'アークデーモン':'紫',
+  'アラッサス':'緑',
+  'スリン':'緑',
+};
+
+function _summonColor(card){
+  const direct=String(card?.color||card?.カラー||card?.colour||'').trim();
+  if(direct) return direct;
+  return SummonColorByName[String(card?.name||'').trim()]||'';
+}
+
+function _summonFrameByColor(color){
+  if(color==='緑') return Assets.cards.summonFrameGreen||Assets.cards.characterFrame;
+  if(color==='青') return Assets.cards.summonFrameBlue||Assets.cards.characterFrame;
+  if(color==='赤') return Assets.cards.summonFrameRed||Assets.cards.characterFrame;
+  if(color==='茶') return Assets.cards.summonFrameBrown||Assets.cards.characterFrame;
+  if(color==='紫') return Assets.cards.summonFramePurple||Assets.cards.characterFrame;
+  return Assets.cards.summonFrameGreen||Assets.cards.characterFrame;
+}
+
 function getCardFrameAsset(card){
   if(!card) return Assets.cards.default;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
+  if(card.magicPanel) return Assets.cards.wandFrame;
   if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;
   if(card.type==='panel'||card.kind==='panel'||card.panelScope){
-    return String(card.category||'').includes('パッシブ')?Assets.cards.ringFrame:(Assets.cards.weaponFrame||Assets.cards.itemFrame);
+    const cat=String(card.category||'');
+    if(cat.includes('キャラクター')||cat.includes('召喚')){
+      const color=_summonColor(card);
+      return color?_summonFrameByColor(color):Assets.cards.characterFrame;
+    }
+    if(cat.includes('強化')||cat.includes('エンチャント')) return Assets.cards.enchantmentFrame||Assets.cards.wandFrame;
+    return Assets.cards.growthFrame||Assets.cards.itemFrame;
   }
   if(card.fixedAttack||card.fixedEquip) return Assets.cards.weaponFrame||Assets.cards.itemFrame;
   if(card.type==='wand') return Assets.cards.wandFrame;
@@ -332,8 +377,60 @@ function _characterArtDef(cardOrName){
   return CharacterArtOverrideMap[name]||CharacterArtMap[name]||null;
 }
 
+function _assetCodeRaw(card){
+  if(!card||typeof card!=='object') return '';
+  return String(card.artCode??card.code??card['No.']??card.No??card.no??card['No']??card.imageNo??card.image_no??card.画像No??card.画像番号??'').trim();
+}
+
+function _normalizeAssetCode(raw, fallbackPrefix){
+  const text=String(raw||'').trim();
+  if(!text) return '';
+  const prefixed=text.match(/^([PEC])\s*0*(\d+)$/i);
+  if(prefixed) return prefixed[1].toUpperCase()+String(parseInt(prefixed[2],10)).padStart(3,'0');
+  const n=parseInt(text,10);
+  if(!Number.isFinite(n)||n<=0) return '';
+  return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
+}
+
+function getCharacterNoArtPath(card){
+  if(!card||typeof card!=='object') return '';
+  const raw=_assetCodeRaw(card);
+  if(!raw) return '';
+  const explicit=String(raw).trim().match(/^[PEC]/i);
+  let prefix=explicit?explicit[0].toUpperCase():'';
+  if(!prefix){
+    const cat=String(card.category||card.kind||card.type||'');
+    if(card._sheetEnemy||card.enemyOnly||card.side==='enemy'||card.isEnemy) prefix='E';
+    else if(card._isChar||card.starterOnly||card.initialParty) prefix='P';
+    else if(cat||card.panelScope||card.summon||card.magicPanel) prefix='C';
+    else prefix='C';
+  }
+  const code=_normalizeAssetCode(raw,prefix);
+  if(!code) return '';
+  if(code[0]==='P') return `assets/temp/cards/art/characters/${code}.jpg`;
+  if(code[0]==='E') return `assets/temp/cards/art/enemies/${code}.jpg`;
+  if(code[0]==='C') return `assets/temp/cards/art/cards/${code}.jpg`;
+  return '';
+}
+
 function applyCharacterArtVars(el, cardOrName, prefix){
   if(!el) return false;
+  const direct=typeof cardOrName==='object' ? (cardOrName.art||cardOrName.image||'') : '';
+  if(direct){
+    const p=prefix||'--char';
+    el.style.setProperty(`${p}-art`, assetUrl(direct));
+    el.style.setProperty(`${p}-art-size`, 'cover');
+    el.style.setProperty(`${p}-art-position`, 'center 58%');
+    return true;
+  }
+  const numbered=typeof cardOrName==='object' ? getCharacterNoArtPath(cardOrName) : '';
+  if(numbered){
+    const p=prefix||'--char';
+    el.style.setProperty(`${p}-art`, assetUrl(numbered));
+    el.style.setProperty(`${p}-art-size`, 'cover');
+    el.style.setProperty(`${p}-art-position`, 'center 58%');
+    return true;
+  }
   const def=_characterArtDef(cardOrName);
   if(!def) return false;
   const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
@@ -359,6 +456,9 @@ function applySpellArtVars(el, card, prefix){
 function getPanelArtPath(card){
   const name=card?.name||'';
   if(!name) return '';
+  if(card?.art||card?.image) return card.art||card.image;
+  const numbered=getCharacterNoArtPath(card);
+  if(numbered) return numbered;
   if(PanelArtMap[name]) return PanelArtMap[name];
   const key=Object.keys(PanelArtMap).find(k=>name.includes(k));
   return key?PanelArtMap[key]:'';
@@ -385,10 +485,27 @@ function applyCardVisual(el, card){
   }
 }
 
+function panelDirectionMarksHtml(card){
+  const cat=String(card?.category||'');
+  if(!card||!Array.isArray(card.directions)||!(cat==='強化'||cat==='エンチャント')) return '';
+  const mark={up:'▲',right:'▶',down:'▼',left:'◀'};
+  return card.directions.map(d=>`<span class="panel-dir panel-dir-${d}">${mark[d]||''}</span>`).join('');
+}
+
 function applyUnitVisual(el, unit){
   if(!el) return;
-  const isDefender=!!(unit&&(unit.hate&&unit.hateTurns>0||unit.lane==='front'));
-  el.style.setProperty('--unit-frame', assetUrl(isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame));
+  const isEnemyEl=el.classList.contains('enemy');
+  const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
+  const hasGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.equipment)&&unit.equipment.some(p=>p&&(p.name==='守護'||p.name==='ヘイト'||(p.keywords||[]).includes('守護')||(p.keywords||[]).includes('ヘイト'))));
+  const unitGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.keywords)&&(unit.keywords.includes('守護')||unit.keywords.includes('ヘイト')));
+  const classGuard=!isPlayerHero&&(el.classList.contains('is-defender')||el.classList.contains('uses-hate-frame'));
+  const isDefender=!!(unit&&!isPlayerHero&&(unit.hate&&unit.hateTurns>0||hasGuard||unitGuard))||classGuard;
+  const frame=isEnemyEl
+    ? Assets.cards.enemyFrame
+    : isPlayerHero
+      ? Assets.cards.characterFrame
+      : _summonFrameByColor(_summonColor(unit)) || (isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame);
+  el.style.setProperty('--unit-frame', assetUrl(frame));
   if(!applyCharacterArtVars(el, unit, '--unit')){
     el.style.setProperty('--unit-art', assetUrl(Assets.cards.character));
     el.style.removeProperty('--unit-art-size');
@@ -397,7 +514,7 @@ function applyUnitVisual(el, unit){
 }
 
 function gradeIconHtml(g){
-  const n=1;
+  const n=Math.max(1,Math.min(5,Number(g)||1));
   return `<span class="grade-stars grade-stars-${n}" aria-label="G${n}">${Array.from({length:n},(_,i)=>`<span class="grade-star grade-star-${i+1}"></span>`).join('')}</span>`;
 }
 

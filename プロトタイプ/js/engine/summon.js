@@ -280,7 +280,7 @@ function triggerSummon(ring){
   if(ring.unique==='djinn_replace'){
     const living=G.allies.filter(a=>a&&a.hp>0);
     const nonDjinn=living.filter(a=>a.name!=='魔神');
-    if(nonDjinn.length<6) return;
+    if(nonDjinn.length<(MAX_UNITS||7)) return;
     if(G._djinnActive) return; // 再帰防止
     G._djinnActive=true;
     log('👿 魔神降臨：魔神以外の全仲間を破壊！','bad');

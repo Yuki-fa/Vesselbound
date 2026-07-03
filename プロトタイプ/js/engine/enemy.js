@@ -5,6 +5,8 @@
 
 // セクション別グレード（1-5:G1, 6-10:G2, 11-15:G3, 16-20:G4）
 function rollEnemyGrade(floor){
+  const sheetGrade=FLOOR_DATA[floor]?.grade;
+  if(sheetGrade) return sheetGrade;
   if(floor<=5)  return 1;
   if(floor<=10) return 2;
   if(floor<=15) return 3;
@@ -42,6 +44,9 @@ function _applyEnemyDefAbilities(enemy, def){
   if(!enemy||!def) return enemy;
   const sheetRace=typeof getSheetRaceByName==='function'?getSheetRaceByName(enemy.name):'';
   if(sheetRace) enemy.race=sheetRace;
+  ['No','no','NO','code','artCode','imageNo','画像No','画像番号','art','image'].forEach(k=>{
+    if(def[k]!==undefined&&def[k]!==null&&def[k]!=='') enemy[k]=def[k];
+  });
   enemy.desc=def.desc||enemy.desc||'';
   enemy.effect=def.effect||null;
   enemy.injury=def.injury||null;
@@ -82,8 +87,31 @@ const EFFECT_IDS=[];
 
 // ENEMY_POOL からグレードに合った敵定義を抽選
 function _pickEnemyDef(grade){
-  const pool=ENEMY_POOL.filter(e=>e.grade===grade && !e.unique && !e._isNamed);
-  return pool.length?randFrom(pool):(ENEMY_POOL[0]||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'亜人'});
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade && !e.unique && !e._isNamed && !e.bossOnly);
+  const fallback=ENEMY_POOL.find(e=>!e.bossOnly)||ENEMY_POOL[0];
+  return pool.length?randFrom(pool):(fallback||{name:'ゴブリン',grade:1,icon:'👺',keywords:[],race:'亜人'});
+}
+
+function _pickBossEnemyDef(grade){
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly);
+  return pool.length?randFrom(pool):null;
+}
+
+function _sideBossDef(def, grade){
+  const same=ENEMY_POOL.find(e=>e!==def && !e.bossOnly && !e.unique && !e._isNamed && e.grade===grade && e.name===def.name);
+  if(same) return same;
+  const pool=ENEMY_POOL.filter(e=>!e.bossOnly && !e.unique && !e._isNamed && e.grade===grade);
+  return pool.length?randFrom(pool):_pickEnemyDef(grade);
+}
+
+function _bossFightNumber(floor){
+  return (FLOOR_DATA||[]).slice(0,(floor||0)+1).filter(f=>f&&f.boss).length||1;
+}
+
+function _pickNonBossEnemyDefDifferent(grade, bossName){
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade&&!e.bossOnly&&!e.unique&&!e._isNamed&&e.name!==bossName);
+  if(pool.length) return randFrom(pool);
+  return _pickEnemyDef(grade);
 }
 
 // 「シールド」キーワードの値を返す（シールド → 1、シールド2 → 2、なければ 0）
@@ -107,96 +135,68 @@ function generateEnemies(floor){
   const fd=FLOOR_DATA[floor];
   if(!fd){ console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義'); return [{id:uid(),name:'ゴブリン',icon:'👺',atk:3,hp:5,maxHp:5,baseAtk:3,grade:1,sealed:0,instadead:false,nullified:0,poison:0,_dp:false,shield:0,keywords:[],powerBroken:false,allyTarget:false,race:'亜人'}]; }
   const isBoss=!!fd.boss;
-  const sheetPool=ENEMY_POOL.filter(e=>e&&e._sheetEnemy&&((e.spawnTurn||1)<=floor||e.spawnTurn===999&&isBoss));
-  if(sheetPool.length){
-    const count=Math.min(3, sheetPool.length);
-    const enemies=[];
-    for(let i=0;i<count;i++){
-      const def=sheetPool[i%sheetPool.length];
-      const atk=randi(def.baseAtk?.[0]||def.atk||1, def.baseAtk?.[1]||def.atk||1);
-      const hp=randi(def.baseHp?.[0]||def.hp||2, def.baseHp?.[1]||def.hp||2);
-      const e=_mkEnemy(atk,hp,def.name,def.icon||'❓',def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
-      _applyEnemyDefAbilities(e,def);
-      e.lane='front';
-      enemies.push(e);
-    }
-    return enemies;
-  }
 
   // 1階は固定敵パターンを使用（出現敵は限定リストから）
   if(floor===1&&!isBoss){
     const preset=_FLOOR1_PRESETS[Math.random()<0.5?0:1];
-    const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&_FLOOR1_NAMES.has(e.name));
+    const floor1Pool=ENEMY_POOL.filter(e=>e.grade===1&&!e.unique&&!e._isNamed&&!e.bossOnly);
     const _f1enemies=preset.map(p=>{
       const def=floor1Pool.length?randFrom(floor1Pool):_pickEnemyDef(1);
-      const e=_mkEnemy(p.atk,p.hp,def.name,def.icon,1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      const st=enemyStats(def,floor,1.0);
+      const e=_mkEnemy(st.atk,st.hp,def.name,def.icon,def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
       _applyEnemyDefAbilities(e, def);
       e._visualShift=Math.random()<0.5;
-      e.lane='front';
+      e.lane=Math.random()<0.6?'front':'rear';
       return e;
     });
+    _enforceLaneRules(_f1enemies);
     return _f1enemies;
   }
 
   if(isBoss){
-    // ボス: 5体。ボス（1体目）はネームドキャラ、側近はベースgrade乱数
-    const ng=namedGradeForFloor(floor);
-    const baseG=FLOOR_DATA[floor]?.grade||1;
-    const pool=_namedPool(ng);
-    const pickedBoss=pool.length?randFrom(pool):null;
-    if(pickedBoss) G._usedNamedElite.add(pickedBoss.id);
-    const count=5;
+    const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
+    const bossDef=_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+    const make=(def,isCenter)=>{
+      const {atk,hp}=enemyStats(def,floor,1.5);
+      const kws=[...(def.keywords||[])];
+      if(isCenter&&!kws.includes('ボス')) kws.push('ボス');
+      const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
+      _applyEnemyDefAbilities(e,def);
+      e.lane='rear';
+      e._visualShift=false;
+      if(isCenter) e.boss=true;
+      return e;
+    };
+    const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,4+Math.max(0,_bossFightNumber(floor)-1));
     const enemies=[];
-    for(let i=0;i<count;i++){
-      let e;
-      if(i===0){
-        if(pickedBoss){
-          e=_mkNamedEnemy(pickedBoss,floor,1.5,['ボス']);
-        } else {
-          const def=_pickEnemyDef(baseG);
-          const {atk,hp}=enemyStats(def,floor,1.5);
-          e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[]),'ボス'],def.race||'-');
-          _applyEnemyDefAbilities(e, def);
-        }
-        e.boss=true;
-        e.lane='rear'; // ボスは後衛
-      } else {
-        const def=_pickEnemyDef(baseG);
-        const {atk,hp}=enemyStats(def,floor,1.0);
-        e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),[...(def.keywords||[])],def.race||'-');
-        _applyEnemyDefAbilities(e, def);
-        e.lane=Math.random()<0.6?'front':'rear'; // 側近はランダム
-        e._visualShift=Math.random()<0.5; // 側近はランダムで下にずらす
-      }
+    for(let i=0;i<frontCount;i++){
+      const def=_pickNonBossEnemyDefDifferent(baseG,bossDef.name);
+      const e=make(def,false);
+      e.lane='front';
       enemies.push(e);
     }
-    // ボスをスロット0〜2のランダムな位置に配置
-    const _bossSlot=randi(0,2);
-    if(_bossSlot!==0){ const tmp=enemies[0]; enemies[0]=enemies[_bossSlot]; enemies[_bossSlot]=tmp; }
-    G._bossSlot=_bossSlot;
-    // 側近が全員同じ配置にならないよう保証
-    const _bossShiftable=enemies.filter(e=>!e.boss);
-    if(_bossShiftable.length>=2){
-      if(_bossShiftable.every(e=>e._visualShift)) randFrom(_bossShiftable)._visualShift=false;
-      else if(_bossShiftable.every(e=>!e._visualShift)) randFrom(_bossShiftable)._visualShift=true;
-    }
-    _enforceLaneRules(enemies);
-    // ボス位置が変わった場合はG._bossSlotを更新
-    const _newBossSlot=enemies.findIndex(e=>e&&e.boss);
-    if(_newBossSlot>=0) G._bossSlot=_newBossSlot;
+    const sideDef=_sideBossDef(bossDef,baseG);
+    const left=make(sideDef,false);
+    const boss=make(bossDef,true);
+    const right=make(sideDef,false);
+    left.boss=right.boss=false;
+    left.keywords=(left.keywords||[]).filter(k=>k!=='ボス');
+    right.keywords=(right.keywords||[]).filter(k=>k!=='ボス');
+    left.lane=boss.lane=right.lane='rear';
+    enemies.push(left,boss,right);
+    G._bossSlot=frontCount+1;
     return enemies;
   }
 
   // 通常戦: S16-20は3-4体、それ以外は4-5体
   const count=floor>=16?randi(3,4):randi(4,5);
 
-  // エリート判定（30%の確率。S1-3および各セクション初回フロアは出現しない）
-  const noEliteFloors=[1,2,5,6,10,11,15,16,20];
-  const hasElite=!noEliteFloors.includes(floor)&&Math.random()<0.30;
-  if(hasElite) G._isEliteFight=true;
+  // エリートは現行仕様では出現させない。
+  const hasElite=false;
+  G._isEliteFight=false;
   const eliteIdx=hasElite?randi(0,Math.min(2,count-1)):-1;
   G._eliteIdx=eliteIdx;
-  const ng=namedGradeForFloor(floor);
+  const ng=FLOOR_DATA[floor]?.grade||namedGradeForFloor(floor);
 
   // エリート用ネームドを事前抽選
   let pickedElite=null;
@@ -228,7 +228,7 @@ function generateEnemies(floor){
       let def;
       if(!isBoss&&kwCount>=2){
         // キーワード持ちが既に2体いる場合はキーワードなしの敵を優先
-        const noKwPool=ENEMY_POOL.filter(ep=>ep.grade===g&&!(ep.keywords||[]).some(k=>k!=='エリート'&&k!=='ボス'));
+        const noKwPool=ENEMY_POOL.filter(ep=>ep.grade===g&&!ep.bossOnly&&!(ep.keywords||[]).some(k=>k!=='エリート'&&k!=='ボス'));
         def=noKwPool.length?randFrom(noKwPool):_pickEnemyDef(g);
       } else {
         def=_pickEnemyDef(g);
@@ -315,7 +315,7 @@ function _enforceLaneRules(enemies){
 function generateMoveMasks(){
   const slots=G.enemies.length;
   const isBoss=!!(FLOOR_DATA[G.floor]?.boss);
-  const masks=Array(6).fill(null);
+  const masks=Array(MAX_UNITS||7).fill(null);
 
   // 最終ボス戦（floor 20）：移動マスを置かない
   if(FLOOR_DATA[G.floor]?.boss && G.floor===FLOOR_DATA.length-1) return masks;
@@ -332,14 +332,11 @@ function generateMoveMasks(){
     return masks;
   }
 
-  // 通常戦：エリートのスロットは宝箱確定、候補から除外してランダム配置
-  // null・オブジェクト・宝箱スロットを除き、実際の敵がいるスロットのみを候補にする
-  const eliteSlot=G._eliteIdx>=0?G._eliteIdx:-1;
-  if(eliteSlot>=0) masks[eliteSlot]='chest';
+  // 通常戦：宝箱は出さず、実際の敵がいるスロットのみを候補にする
   // 移動マスは「前衛レーン」の敵スロットにのみ配置（前衛が死ぬまで背後に隠れる）
   const _realIdxs=G.enemies.map((e,i)=>(e&&!e._isObject&&!e._isTreasureItem?i:-1)).filter(i=>i>=0);
   const _frontIdxs=_realIdxs.filter(i=>(G.enemies[i]?.lane||'front')==='front');
-  let idxs=(_frontIdxs.length?_frontIdxs:_realIdxs).filter(i=>i!==eliteSlot);
+  let idxs=(_frontIdxs.length?_frontIdxs:_realIdxs);
   for(let i=idxs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
   const total=Math.min(3,idxs.length);
   const chosen=idxs.slice(0,total);
