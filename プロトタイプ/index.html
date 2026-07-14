@@ -75,11 +75,17 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .slot.bless-blocked{opacity:.3;pointer-events:none}
 .slot.priority-target{box-shadow:0 0 0 2px var(--red2),0 0 10px rgba(224,80,80,.45)!important;border-color:var(--red2)!important;z-index:1}
 .slot-desc{font-size:.7rem;color:var(--text2);text-align:left;line-height:1.3;padding:0 4px;overflow:hidden;align-self:stretch}
+.slot-desc-base{}
+.slot-desc-keywords{color:var(--text1,#fff);margin-bottom:2px}
+.slot-desc-sep{border-top:1px solid rgba(150,190,230,.4);margin:3px 0}
+.slot-desc-enchant{}
+.slot-desc-enchant-line{color:var(--blue2);}
 .slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:pointer;animation:pgold .9s ease-in-out infinite alternate}
 .slot.selectable{cursor:pointer;border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
 .slot.selectable:hover{background:rgba(200,160,60,.14)}
 @keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
+#hand-slots .card.glow-blue{border-radius:6px;z-index:2;position:relative}
 .slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
 @keyframes blink-death{0%,100%{opacity:1}50%{opacity:.08}}
 @keyframes blink-warn{0%,100%{opacity:.7}50%{opacity:.15}}
@@ -158,26 +164,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .b-counter{background:rgba(200,80,80,.2);color:#e07070;border:1px solid #c04040}
 .kw-badges{position:absolute;bottom:3px;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
 .b-shield{background:rgba(100,160,220,.2);color:var(--blue2);border:1px solid var(--blue)}
-.move-icon{font-size:.95rem;margin-bottom:1px}
-.move-lbl{font-size:.58rem;text-align:center;color:var(--gold);font-weight:500}
-.move-desc{font-size:.5rem;text-align:center;color:var(--text2);line-height:1.2;margin-top:1px}
-/* 戦場の宝・移動マスはインベントリカード相当のサイズで slot 上部に置き、前衛キャラの背後に隠れる */
-.slot.has-mini-card{border:none;background:transparent;animation:none;cursor:default;overflow:visible}
-.slot.has-mini-card.has-move{border:none;background:transparent}
-.mini-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:65%;aspect-ratio:63/88;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:var(--bg3);border:1px solid var(--gold);border-radius:4px;cursor:pointer;padding:3px;box-sizing:border-box;z-index:1;animation:pgold .9s ease-in-out infinite alternate}
-.mini-card:hover{background:rgba(200,160,60,.2);transform:translate(-50%,calc(-50% - 2px))}
-.mini-card.ring{border-top:2px solid var(--purple2)}
-.mini-card.ring .mini-tp{color:var(--purple2)}
-.mini-card.wand{border-top:2px solid var(--blue2)}
-.mini-card.wand .mini-tp{color:var(--blue2)}
-.mini-card.consumable{border-top:2px solid var(--red2)}
-.mini-card.consumable .mini-tp{color:var(--red2)}
-.mini-tp{font-size:.55rem;color:var(--gold2);font-weight:500;margin-top:1px}
-.mini-q{font-size:1.4rem;color:var(--gold);line-height:1;margin:2px 0}
-.mini-hint{font-size:.45rem;color:var(--text2);text-align:center;line-height:1.1}
-.mini-icon{font-size:1.05rem;line-height:1}
-.mini-lbl{font-size:.55rem;color:var(--gold);font-weight:500;text-align:center;line-height:1.1}
-.rew-move-btn-desc{font-size:.65rem;color:var(--text2);margin-left:6px;opacity:.8}
 
 /* LOG */
 #log-wrap{position:relative;flex-shrink:0}
@@ -189,6 +175,11 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #log-box p.bad{color:var(--red2)}
 #log-box p.gold{color:var(--gold2)}
 #log-box p.sys{color:var(--blue2)}
+.log-nm-ally{color:#5fe0e0!important}
+.log-nm-enemy{color:#ff6fb0!important}
+.log-fx-line .log-nm-ally{color:#5fe0e0!important}
+.log-fx-line .log-nm-enemy{color:#ff6fb0!important}
+#log-box p.log-scene-break{height:0.9em;margin:0}
 
 /* HAND AREA — 2 panes */
 .hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
@@ -224,8 +215,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .card.legend-card .card-grade,.legend-grade{color:var(--gold2);font-size:.68rem}
 .slot-race{font-size:.56rem;color:var(--text2);line-height:1}
 .slot-grade{position:absolute;top:3px;left:4px;font-size:.68rem;color:var(--gold);font-weight:700;z-index:3}
-/* 秘術バー */
-#arcana-bar{padding:3px 12px;background:rgba(106,58,154,.08);border-top:1px solid rgba(106,58,154,.18);font-size:.63rem;color:var(--purple2);flex-shrink:0}
 
 /* empty slot placeholder */
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
@@ -238,11 +227,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #reward-move-btns{display:flex;gap:6px;flex-shrink:0}
 
 /* リスNPC */
-#squirrel-npc{display:none;align-items:flex-end;gap:8px;padding:4px 0;flex-shrink:0}
-#squirrel-npc.visible{display:flex}
-.sq-icon{font-size:1.5rem;line-height:1;flex-shrink:0}
-.sq-bubble{position:relative;background:var(--bg3);border:1px solid var(--gold);border-radius:8px;padding:6px 10px;font-size:.74rem;color:var(--gold2);max-width:calc(100% - 46px);line-height:1.4}
-.sq-bubble::before{content:'';position:absolute;left:-7px;bottom:8px;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid var(--gold)}
 .rew-move-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;font-size:.84rem;font-weight:600;border-radius:5px;cursor:pointer}
 
 /* BATTLE CONTROLS */
@@ -288,20 +272,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .card.treasure{border:2px solid rgba(60,160,255,.9)!important;animation:pblue 1.3s ease-in-out infinite alternate}
 .rew-legend-badge{font-size:.54rem;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
 
-/* MOVE INLINE */
-.move-inline-area{flex-shrink:0;padding:4px 0}
-.move-inline-title{font-size:.7rem;color:var(--text2);margin-bottom:6px;text-align:center;letter-spacing:.05em}
-
-/* SMITHY / REST screens */
-#scr-smithy,#scr-rest{flex-direction:column;align-items:center;justify-content:center;padding:24px}
-.choice-wrap{max-width:480px;width:100%}
-.choice-title{font-family:var(--font-hd);font-size:.9rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:14px;text-align:center}
-.choice-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 14px;cursor:pointer;transition:all .18s;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
-.choice-opt:hover:not(.disabled){border-color:var(--gold);transform:translateX(3px);background:rgba(200,160,60,.06)}
-.choice-opt.disabled{opacity:.35;cursor:default;pointer-events:none}
-.choice-icon{font-size:1.3rem;flex-shrink:0}
-.choice-label{font-size:.78rem;font-weight:500;margin-bottom:2px}
-.choice-desc{font-size:.64rem;color:var(--text2)}
 
 /* HAND EDITOR */
 .hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:4px}
@@ -325,25 +295,74 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 
 /* VFX */
 .vfx{position:absolute;inset:0;z-index:20;pointer-events:none;background-image:var(--vfx-image);background-repeat:no-repeat;background-position:center;background-size:contain;mix-blend-mode:screen}
+.damage-vfx-host{
+  position:fixed;
+  z-index:10020;
+  pointer-events:none;
+  overflow:visible;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.damage-vfx-host .vfx-hit{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:180%;
+  height:180%;
+  z-index:1;
+  transform:translate(-50%,-50%);
+  background-image:var(--vfx-image);
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  mix-blend-mode:normal;
+  animation:hit-vfx-animation var(--hit-vfx-duration,420ms) ease-out forwards;
+}
+.damage-vfx-host .vfx-damage-label{
+  z-index:2;
+}
 .vfx-hit{animation:vfx-hit .36s ease-out forwards}
 .vfx-glow{animation:vfx-glow .48s ease-out forwards}
+.vfx-damage-label{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:2;
+  color:#fff;
+  font-family:var(--font-hd);
+  font-size:clamp(32px,4vw,60px);
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+  text-shadow:
+    -3px -3px 0 #000,
+     3px -3px 0 #000,
+    -3px  3px 0 #000,
+     3px  3px 0 #000,
+     0 6px 8px rgba(0,0,0,.9);
+  animation:damage-label-animation var(--damage-label-duration,850ms) ease-out forwards;
+  pointer-events:none;
+}
 .card-use-glow{box-shadow:0 0 0 1px var(--gold2),0 0 22px rgba(240,208,128,.65)!important}
+@keyframes hit-vfx-animation{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}
+  14%{opacity:1;transform:translate(-50%,-50%) scale(1.28)}
+  42%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.38)}
+}
+@keyframes damage-label-animation{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+  15%{opacity:1;transform:translate(-50%,-50%) scale(1.3)}
+  65%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(.95)}
+}
 @keyframes vfx-hit{0%{opacity:0;transform:scale(.35) rotate(-12deg)}28%{opacity:1;transform:scale(1.08) rotate(8deg)}100%{opacity:0;transform:scale(1.55) rotate(18deg)}}
 @keyframes vfx-glow{0%{opacity:.95;transform:scale(.7)}100%{opacity:0;transform:scale(1.55)}}
+@keyframes vfx-damage-label{0%{opacity:0;transform:translate(-50%,-20%) scale(.7)}25%{opacity:1;transform:translate(-50%,-55%) scale(1.08)}100%{opacity:0;transform:translate(-50%,-100%) scale(1)}}
 
-/* ENCHANT MODAL */
-#enc-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center}
-#enc-modal.open{display:flex}
-.enc-box{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:18px;max-width:400px;width:92%}
-.enc-box h3{font-family:var(--font-hd);font-size:.88rem;color:var(--gold2);margin-bottom:10px;letter-spacing:.08em}
-.enc-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
-.enc-item{padding:6px 10px;border:1px solid var(--border2);border-radius:4px;cursor:pointer;transition:all .14s;font-size:.73rem}
-.enc-item:hover{border-color:var(--gold);background:rgba(200,160,60,.07)}
-.enc-type-list{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-.enc-type{padding:4px 9px;border:1px solid var(--border2);border-radius:4px;cursor:pointer;transition:all .14s;font-size:.7rem}
-.enc-type:hover{border-color:var(--teal);color:var(--teal2)}
-
-/* MOVE / EVENT / SHOP */
+/* MOVE / EVENT */
 #scr-move{flex-direction:column;align-items:center;justify-content:center;background:var(--bg2)}
 .mv-wrap{max-width:520px;width:92%;text-align:center}
 .mv-title{font-family:var(--font-hd);font-size:.92rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
@@ -354,28 +373,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .mo-name{font-size:.8rem;font-weight:500;margin-bottom:3px}
 .mo-desc{font-size:.6rem;color:var(--text2)}
 .mv-opt.t-battle{border-top:2px solid var(--red)}
-.mv-opt.t-smithy{border-top:2px solid var(--gold)}
-.mv-opt.t-rest{border-top:2px solid var(--teal2)}
-.mv-opt.t-chest{border-top:2px solid #d0a040}
 .mv-opt.t-boss{border-top:2px solid var(--red2);animation:pred .8s ease-in-out infinite alternate}
 @keyframes pred{from{box-shadow:0 0 4px rgba(200,60,60,.2)}to{box-shadow:0 0 12px rgba(200,60,60,.5)}}
-
-#scr-event{flex-direction:column;align-items:center;justify-content:center;padding:24px}
-.ev-box{max-width:420px;width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:20px}
-.ev-name{font-family:var(--font-hd);font-size:.92rem;color:var(--gold2);margin-bottom:6px}
-.ev-desc{font-size:.8rem;color:var(--text);line-height:1.7;margin-bottom:14px}
-.ev-result{font-size:.76rem;color:var(--teal2);margin-bottom:12px;min-height:1.2em}
-
-#scr-shop{flex-direction:column}
-.shop-area{flex:1;padding:12px;max-width:660px;margin:0 auto;width:100%;overflow-y:auto}
-.shop-title{font-family:var(--font-hd);font-size:.92rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:10px}
-.shop-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.sh-item{border:1px solid var(--border2);border-radius:5px;background:var(--bg3);padding:8px;min-width:112px;max-width:140px;cursor:pointer;transition:all .18s}
-.sh-item:hover:not(.cant){border-color:var(--gold);transform:translateY(-2px)}
-.sh-item.cant{opacity:.38}
-.si-price{font-size:.66rem;color:var(--gold);font-weight:700;margin-bottom:2px}
-.si-name{font-size:.73rem;font-weight:500;margin-bottom:2px}
-.si-desc{font-size:.59rem;color:var(--text2)}
 
 #scr-gameover,#scr-clear{align-items:center;justify-content:center;flex-direction:column;gap:12px}
 .result-title{font-family:var(--font-hd);font-size:clamp(2rem,8vw,3.5rem);letter-spacing:.2em}
@@ -389,40 +388,12 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .return-btn:hover{background:rgba(64,192,160,.15)}
 #kw-tooltip{position:fixed;z-index:9999;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;font-size:.68rem;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
 
-/* ARCANA SELECT */
-#scr-arcana{flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px;background:radial-gradient(ellipse at 50% 20%,#1a0a2a 0%,var(--bg) 70%)}
-.arcana-title{font-family:var(--font-hd);font-size:1rem;letter-spacing:.15em;color:var(--gold2);text-shadow:0 0 20px rgba(200,160,60,.5);margin-bottom:4px;text-align:center}
-.arcana-sub{font-size:.72rem;color:var(--text2);margin-bottom:12px;text-align:center}
-.arcana-sets{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:900px}
-.arcana-set{border:1px solid var(--border2);border-radius:8px;background:var(--bg3);padding:14px;cursor:pointer;transition:all .2s;width:260px;display:flex;flex-direction:column;gap:8px}
-.arcana-set:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 6px 20px rgba(200,160,60,.2)}
-.arcana-wand{background:rgba(58,110,168,.12);border:1px solid rgba(58,110,168,.25);border-radius:6px;padding:8px 10px}
-.arcana-wand-icon{font-size:1.1rem;margin-bottom:2px}
-.arcana-wand-name{font-size:.78rem;font-weight:500;color:var(--blue2);margin-bottom:2px}
-.arcana-wand-desc{font-size:.62rem;color:var(--text2)}
-.arcana-plus{text-align:center;color:var(--text2);font-size:.9rem;line-height:1}
-.arcana-card{border-radius:6px;padding:8px 10px;flex:1}
-.arcana-card.active{background:rgba(150,96,192,.12);border:1px solid rgba(150,96,192,.25)}
-.arcana-card.passive{background:rgba(40,128,112,.12);border:1px solid rgba(40,128,112,.25)}
-.arcana-icon{font-size:1.3rem;margin-bottom:2px}
-.arcana-name{font-size:.82rem;font-weight:700;color:var(--gold2);margin-bottom:1px}
-.arcana-type-badge{font-size:.56rem;color:var(--text2);margin-bottom:2px}
-.arcana-cost{font-size:.64rem;color:var(--gold);font-weight:600;margin-bottom:3px}
-.arcana-desc{font-size:.63rem;color:var(--text);line-height:1.4}
-/* 秘術ボタン（報酬フェイズ） */
-#arcana-btn{border-color:var(--purple);color:var(--purple2)}
-#arcana-btn:hover:not(:disabled){background:rgba(106,58,154,.15)}
-#arcana-btn:disabled,.cant-arcana{opacity:.45;cursor:default;pointer-events:none}
-#arcana-passive-info{font-size:.66rem;color:var(--teal2);padding:4px 8px;background:rgba(40,128,112,.1);border:1px solid rgba(40,128,112,.3);border-radius:3px}
-/* ターゲット選択オーバーレイ */
-#arcana-pick-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:150;align-items:center;justify-content:center}
-.arcana-pick-box{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:18px;max-width:380px;width:92%;max-height:80vh;overflow-y:auto}
 /* VICTORY OVERLAY */
 #victory-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:28px}
 .victory-title{font-family:var(--font-hd);font-size:clamp(2.8rem,9vw,5rem);letter-spacing:.25em;color:var(--gold2);text-shadow:0 0 40px rgba(200,160,60,.8),0 0 80px rgba(200,160,60,.3);animation:vglow 1.6s ease-in-out infinite alternate}
 @keyframes vglow{from{text-shadow:0 0 30px rgba(200,160,60,.6)}to{text-shadow:0 0 60px rgba(200,160,60,1),0 0 100px rgba(200,160,60,.4)}}
 
-/* ── ヘイト（前衛）スロットのビジュアル ── */
+/* ── 守護（前衛）スロットのビジュアル ── */
 /* 味方前衛：上（敵側）へ */
 .slot.is-front{
   transform:translateY(-15%);
@@ -511,13 +482,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .slot-badges{top:7px;right:7px;gap:3px}
 .slot-badge{font-size:.62rem;padding:2px 7px;border-radius:4px}
 .kw-badges{bottom:8px;gap:3px;padding:0 6px}
-.move-icon{font-size:1.35rem}
-.move-lbl{font-size:.68rem}
-.move-desc{font-size:.58rem}
-.mini-card{border-radius:7px;padding:9px}
 #log-box{height:160px;padding:14px 260px 14px 18px;font-size:.78rem;line-height:1.45;border-radius:8px}
 #log-wrap #btn-pass{right:48px}
-#btn-debug-kill{right:220px!important;bottom:16px!important}
 .hand-area{gap:10px;padding:8px 0}
 .hand-row1{gap:18px!important}
 .hand-pane{gap:8px}
@@ -531,7 +497,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .card-tp{font-size:.66rem}
 .card-charge{font-size:.66rem}
 .discard-btn,.return-btn{bottom:10px;left:10px;right:10px;font-size:.66rem;padding:3px 6px;border-radius:5px}
-#arcana-bar{padding:8px 32px;font-size:.74rem}
 .bctl{max-width:3000px;padding:12px 32px;gap:14px}
 .ph-badge{font-size:.74rem}
 .hint{font-size:.74rem}
@@ -547,18 +512,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .rew-card-name{font-size:.82rem}
 .rew-card-desc{font-size:.68rem;line-height:1.24}
 .rew-card-cost,.rew-grade,.rew-merge{font-size:.68rem}
-.choice-wrap{max-width:960px}
-.choice-title,.shop-title,.mv-title{font-size:1.15rem}
-.choice-opt{padding:24px 28px;border-radius:10px;gap:18px}
-.choice-icon{font-size:1.8rem}
-.choice-label{font-size:.95rem}
-.choice-desc{font-size:.74rem}
-.shop-area{max-width:1800px;padding:32px}
-.shop-grid{gap:18px}
-.sh-item{min-width:240px;max-width:300px;padding:18px;border-radius:9px}
-.si-price{font-size:.78rem}
-.si-name{font-size:.9rem}
-.si-desc{font-size:.7rem}
+.mv-title{font-size:1.15rem}
 .hand-editor{padding:20px 24px;border-radius:10px}
 .hand-editor-title{font-size:.82rem}
 .he-row{gap:14px;margin-bottom:12px}
@@ -570,20 +524,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .mo-icon{font-size:2rem}
 .mo-name{font-size:.95rem}
 .mo-desc{font-size:.7rem}
-#scr-event,#scr-smithy,#scr-rest,#scr-arcana{font-size:28px}
-.ev-box{max-width:920px;padding:42px;border-radius:12px}
-.ev-name{font-size:1.2rem}
-.ev-desc{font-size:.95rem}
-.ev-result{font-size:.86rem}
-.arcana-sets{max-width:2100px;gap:24px}
-.arcana-set{width:520px;padding:28px;border-radius:12px}
-.arcana-title{font-size:1.4rem}
-.arcana-sub{font-size:.86rem}
-.arcana-wand,.arcana-card{padding:18px 20px;border-radius:10px}
-.arcana-name{font-size:.95rem}
-.arcana-desc,.arcana-wand-desc{font-size:.72rem}
 #kw-tooltip{font-size:calc(22px * var(--game-scale));max-width:calc(460px * var(--game-scale));padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));border-radius:calc(8px * var(--game-scale))}
-#enc-modal,#arcana-pick-overlay,#victory-overlay,#treasure-modal{
+#victory-overlay,#treasure-modal{
   left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;right:auto!important;bottom:auto!important;
   width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;font-size:28px;
 }
@@ -644,7 +586,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #log-wrap #btn-pass:active:not(:disabled){
   transform:translateY(2px)
 }
-#btn-debug-kill{position:fixed!important;left:3152px!important;top:1518px!important;right:auto!important;bottom:auto!important;width:280px;z-index:25}
 #enemy-hand-area{
   display:block;position:absolute;left:1920px;top:180px;width:1320px;height:430px;transform:translateX(-50%);z-index:8;padding:0
 }
@@ -683,7 +624,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   align-items:stretch;justify-content:center;padding:12px;background:transparent;border:0;gap:10px
 }
 #reward-info-bar .ri-soul,#reward-info-bar #rw-gold,#reward-info-bar #rw-count,#reward-info-bar #rw-race-buffs,#reward-info-bar #rw-power-rating,#reward-info-bar #boss-reward-notice{display:none!important}
-#rw-reroll,#rw-appearance-mode,#rw-grade-up-btn,#arcana-btn{
+#rw-reroll,#rw-grade-up-btn{
   width:248px;height:82px;margin:0!important;border-width:3px;background:rgba(13,15,20,.82);font-size:.62rem;padding:10px 8px
 }
 #rw-reroll{position:absolute;left:0;top:0}
@@ -710,8 +651,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #hand-slots .card-art{min-height:96px}
 #hand-slots .card-name{font-size:.78rem}
 #hand-slots .card-desc{font-size:.6rem;line-height:1.22}
-#ring-extra-row,#inline-hand-editor,#squirrel-npc,.move-inline-area{display:none!important}
-.rew-move-btn-desc{display:none}
+#inline-hand-editor{display:none!important}
 #reward-move-btns{
   position:absolute;left:72px;top:128px;width:780px;z-index:19;display:flex;gap:16px
 }
@@ -732,7 +672,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .bhud-item:nth-child(5){right:72px;bottom:62px}
 .bhud-label{font-size:.6rem}
 .bhud-val{font-size:1.08rem}
-#arcana-bar{display:none!important}
 
 /* ── 最終カードアートレイヤー調整：絵は下、枠は上。表示名・種族・キーワードはツールチップへ ── */
 .slot.unit-card,
@@ -1088,20 +1027,6 @@ html body .slot.dragging{
   color:#e8f6ff!important;
   border-color:rgba(150,210,255,.9);
   background:rgba(10,31,58,.9);
-}
-#scr-battle.asset-backed::after{
-  z-index:4!important;
-  background:
-    radial-gradient(circle at 9% 37%,rgba(142,190,255,.34) 0 2px,transparent 3px),
-    radial-gradient(circle at 92% 39%,rgba(255,224,138,.42) 0 2px,transparent 3px),
-    radial-gradient(circle at 57% 30%,rgba(235,248,255,.28) 0 2px,transparent 3px),
-    radial-gradient(circle at 64% 52%,rgba(255,249,214,.20) 0 1px,transparent 3px),
-    radial-gradient(circle at 41% 57%,rgba(255,249,214,.18) 0 1px,transparent 3px),
-    radial-gradient(circle at 77% 57%,rgba(255,249,214,.18) 0 1px,transparent 3px),
-    radial-gradient(circle at 26% 43%,rgba(210,232,255,.22) 0 1px,transparent 3px),
-    radial-gradient(circle at 72% 24%,rgba(255,239,186,.22) 0 1px,transparent 3px);
-  background-size:620px 420px,570px 390px,410px 360px,230px 210px,290px 260px,340px 300px,180px 170px,210px 190px;
-  opacity:.98!important;
 }
 #battle-options-btn{
   border:0!important;
@@ -1694,7 +1619,7 @@ body.world-map-active .bottom-hud .bhud-item{
   display:block!important;
 }
 
-/* 最新調整: ヘイト枠、粒子レイヤー、カードサイズを最終上書き */
+/* 最新調整: 守護枠、粒子レイヤー、カードサイズを最終上書き */
 #scr-battle.asset-backed>.bctl-wrap,
 .bctl-wrap{
   display:none!important;
@@ -3201,30 +3126,30 @@ body .slot.unit-card.priority-target .unit-frame-layer{
   filter:drop-shadow(0 0 10px rgba(255,214,120,.88)) drop-shadow(0 0 22px rgba(255,128,74,.62))!important;
 }
 body #rw-cards .reward-panel-row{
-  display:grid!important;
-  grid-template-columns:repeat(4,var(--hand-card-w))!important;
+  display:flex!important;
+  flex-wrap:nowrap!important;
   gap:var(--field-gap)!important;
-  justify-content:center!important;
+  justify-content:flex-start!important;
   align-items:start!important;
   width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  scrollbar-width:none!important;
 }
-body #rw-cards .card-badge{
-  display:grid!important;
-  place-items:center!important;
-  position:absolute!important;
-  top:-26px!important;
-  right:-20px!important;
-  width:72px!important;
-  height:72px!important;
-  border-radius:50%!important;
-  background:radial-gradient(circle,#fff0a8 0%,#d59a28 58%,#6b3510 100%)!important;
-  border:4px solid #3a1b08!important;
-  color:#251000!important;
-  font-size:1.48rem!important;
-  font-weight:900!important;
-  z-index:80!important;
-  text-shadow:0 1px 0 rgba(255,255,255,.7)!important;
-  box-shadow:0 4px 10px rgba(0,0,0,.75),0 0 14px rgba(255,218,102,.75)!important;
+body #rw-cards .reward-panel-row::-webkit-scrollbar{
+  display:none!important;
+}
+body #rw-cards .reward-panel-row .rew-card,
+body #rw-cards .reward-panel-row .card,
+body #rw-cards .reward-panel-row .card-empty{
+  flex:0 0 var(--hand-card-w)!important;
+}
+body #rw-cards .reward-panel-row.rw-centered{
+  justify-content:center!important;
+}
+body #rw-cards .reward-panel-row.rw-edge-fade{
+  -webkit-mask-image:linear-gradient(to right,transparent 0,black 80px,black calc(100% - 80px),transparent 100%)!important;
+  mask-image:linear-gradient(to right,transparent 0,black 80px,black calc(100% - 80px),transparent 100%)!important;
 }
 body #rw-reroll{
   z-index:1200!important;
@@ -3818,6 +3743,9 @@ body.reward-screen-active #log-wrap #btn-pass{
   visibility:hidden!important;
   pointer-events:none!important;
 }
+body.reward-screen-active #log-wrap{
+  display:none!important;
+}
 body #scr-battle .bottom-hud,
 body.reward-screen-active #scr-battle .bottom-hud{
   display:grid!important;
@@ -3839,38 +3767,6 @@ body.reward-screen-active #scr-battle .bottom-hud .bhud-item:has(#h-gold),
 body.reward-screen-active #scr-battle .bottom-hud .bhud-item:has(#h-reward-grade),
 body.reward-screen-active #scr-battle .bottom-hud .bhud-item:has(#h-act){
   display:none!important;
-}
-body.magic-targeting #reward-cards-section,
-body.magic-targeting #enemy-hand-area,
-body.magic-targeting #log-wrap,
-body.magic-targeting #reward-info-bar,
-body.magic-targeting .bottom-hud{
-  filter:brightness(.38)!important;
-  pointer-events:none!important;
-}
-body.magic-targeting #hand-pane,
-body.magic-targeting #f-ally,
-body.magic-targeting #f-enemy{
-  filter:none!important;
-  pointer-events:auto!important;
-}
-body.magic-targeting #hand-slots .card:not(.pending-placement){
-  filter:brightness(.38)!important;
-  pointer-events:none!important;
-}
-body.magic-targeting #hand-slots .pending-placement{
-  filter:brightness(1.25) drop-shadow(0 0 18px rgba(255,255,255,.96)) drop-shadow(0 0 34px rgba(255,255,255,.82))!important;
-  pointer-events:none!important;
-}
-body.magic-targeting #f-ally .slot.unit-card,
-body.magic-targeting #f-enemy .slot.unit-card{
-  filter:brightness(.38)!important;
-  pointer-events:none!important;
-}
-body.magic-targeting #f-ally .slot.unit-card.magic-target,
-body.magic-targeting #f-enemy .slot.unit-card.magic-target{
-  filter:brightness(1.08) drop-shadow(0 0 16px rgba(255,255,255,.9))!important;
-  pointer-events:auto!important;
 }
 /* 2026-06-28 targeting/layout fix */
 body #scr-battle.asset-backed > .bottom-hud{
@@ -3946,31 +3842,6 @@ body #enemy-area{
   pointer-events:auto!important;
   z-index:260!important;
 }
-body.magic-targeting #scr-battle.asset-backed::before{
-  background-image:
-    linear-gradient(rgba(0,0,0,.54),rgba(0,0,0,.54)),
-    var(--screen-bg-image)!important;
-  background-size:cover,cover!important;
-  background-position:center,center!important;
-}
-body.magic-targeting #enemy-area,
-body.magic-targeting #ally-section,
-body.magic-targeting #f-ally,
-body.magic-targeting #f-enemy{
-  pointer-events:auto!important;
-  filter:none!important;
-}
-body.magic-targeting #f-ally .slot.unit-card,
-body.magic-targeting #f-enemy .slot.unit-card{
-  filter:brightness(.45)!important;
-  pointer-events:none!important;
-}
-body.magic-targeting #f-ally .slot.unit-card.magic-target,
-body.magic-targeting #f-enemy .slot.unit-card.magic-target{
-  filter:brightness(1.1) drop-shadow(0 0 18px rgba(255,255,255,.94))!important;
-  pointer-events:auto!important;
-  cursor:pointer!important;
-}
 body:not(.reward-screen-active) #hand-pane{
   top:300px!important;
 }
@@ -4039,6 +3910,10 @@ body #f-enemy .slot.unit-card .unit-hit-layer{
 body #f-ally .slot.unit-card > .unit-hit-layer,
 body #f-enemy .slot.unit-card > .unit-hit-layer{
   pointer-events:auto!important;
+}
+body #f-ally .slot.unit-card .unit-hit-layer .vfx,
+body #f-enemy .slot.unit-card .unit-hit-layer .vfx{
+  z-index:2700!important;
 }
 body #hand-slots .card,
 body #hand-slots .card-empty{
@@ -4205,15 +4080,6 @@ body .card.dragging .card-desc,
 body .card.drag-ghost .card-desc{
   transform:none!important;
   margin-top:0!important;
-}
-body.magic-targeting #f-ally .slot.unit-card.magic-target .unit-hit-layer,
-body.magic-targeting #f-enemy .slot.unit-card.magic-target .unit-hit-layer{
-  z-index:5200!important;
-  pointer-events:auto!important;
-}
-body.magic-targeting #f-ally .slot.unit-card.magic-target,
-body.magic-targeting #f-enemy .slot.unit-card.magic-target{
-  pointer-events:auto!important;
 }
 /* 2026-06-29 front-7 / no-grid / compact HUD pass */
 body{
@@ -4499,17 +4365,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
   left:auto!important;
   top:auto!important;
 }
-body #hand-slots.unit-equip-slots > :nth-child(1){grid-column:1!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(2){grid-column:3!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(3){grid-column:4!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(4){grid-column:5!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(5){grid-column:6!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(6){grid-column:7!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(7){grid-column:3!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(8){grid-column:4!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(9){grid-column:5!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(10){grid-column:6!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(11){grid-column:7!important;grid-row:2!important}
 body #hand-slots.unit-equip-slots::before{
   content:''!important;
   position:absolute!important;
@@ -4570,23 +4425,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
   left:auto!important;
   top:auto!important;
 }
-body #hand-slots.unit-equip-slots > :nth-child(1){
-  position:absolute!important;
-  left:calc((var(--hand-card-w) + 26px) * -1)!important;
-  top:0!important;
-  grid-column:auto!important;
-  grid-row:auto!important;
-}
-body #hand-slots.unit-equip-slots > :nth-child(2){grid-column:1!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(3){grid-column:2!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(4){grid-column:3!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(5){grid-column:4!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(6){grid-column:5!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(7){grid-column:1!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(8){grid-column:2!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(9){grid-column:3!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(10){grid-column:4!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(11){grid-column:5!important;grid-row:2!important}
 body #hand-slots.unit-equip-slots::before{
   left:-16px!important;
 }
@@ -4677,17 +4515,6 @@ body #hand-slots.unit-equip-slots{
   width:calc(var(--hand-card-w) * 6 + var(--field-gap) * 5)!important;
   height:calc(var(--hand-card-h) * 2 + var(--field-gap))!important;
 }
-body #hand-slots.unit-equip-slots > :nth-child(1){grid-column:1!important;grid-row:1!important;position:relative!important;left:auto!important;top:auto!important}
-body #hand-slots.unit-equip-slots > :nth-child(2){grid-column:2!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(3){grid-column:3!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(4){grid-column:4!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(5){grid-column:5!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(6){grid-column:6!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(7){grid-column:2!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(8){grid-column:3!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(9){grid-column:4!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(10){grid-column:5!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(11){grid-column:6!important;grid-row:2!important}
 body #hand-slots.unit-equip-slots::before{
   left:calc(var(--hand-card-w) + var(--field-gap) / 2)!important;
 }
@@ -4749,17 +4576,32 @@ body:not(.reward-screen-active) #reward-info-bar #rw-gold{
 .panel-dir{
   position:absolute;
   z-index:18;
-  color:#ffd957;
-  font-size:30px;
-  font-weight:900;
-  line-height:1;
-  text-shadow:0 2px 3px rgba(0,0,0,.9),0 0 6px rgba(255,217,87,.8);
+  width:64px;
+  height:64px;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.9));
   pointer-events:none;
 }
-.panel-dir-up{top:3px;left:50%;transform:translateX(-50%)}
-.panel-dir-right{right:2px;top:50%;transform:translateY(-50%)}
-.panel-dir-down{bottom:3px;left:50%;transform:translateX(-50%)}
-.panel-dir-left{left:2px;top:50%;transform:translateY(-50%)}
+/* 方向ごとに向きの異なる専用画像を使うため回転はかけない。透過部分にかかって構わないサイズなので枠の外にはみ出す */
+.panel-dir-up{top:-6px;left:50%;transform:translateX(-50%);background-image:url("assets/temp/cards/arrow_u.png")}
+.panel-dir-right{right:-6px;top:50%;transform:translateY(-50%);background-image:url("assets/temp/cards/arrow_r.png")}
+.panel-dir-down{bottom:-6px;left:50%;transform:translateX(-50%);background-image:url("assets/temp/cards/arrow_d.png")}
+.panel-dir-left{left:-6px;top:50%;transform:translateY(-50%);background-image:url("assets/temp/cards/arrow_l.png")}
+/* 強化カード同士（または本体・召喚キャラクター）がつながった状態：矢印は消し、代わりに2枚のカードの
+   ちょうど中間に接続画像を1つだけ表示する（JS側の_renderPanelUniteMarkersが位置を計算して配置）。
+   縦のつながり(unite_a)はarrow_u/arrow_dと同じ横幅、横のつながり(unite_b)はarrow_r/arrow_lと同じ縦幅にし、
+   もう一方の辺は画像の縦横比に合わせて自動でサイズを決める */
+.panel-unite-link{
+  position:absolute;
+  z-index:120;
+  transform:translate(-50%,-50%);
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.9));
+  pointer-events:none;
+}
+.panel-unite-link.panel-unite-v{width:37px;height:auto}
+.panel-unite-link.panel-unite-h{height:37px;width:auto}
 body.reward-screen-active{
   --hand-card-w:var(--unit-card-w);
   --hand-card-h:var(--unit-card-h);
@@ -4792,22 +4634,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
   min-height:var(--hand-card-h)!important;
   max-height:var(--hand-card-h)!important;
 }
-body #hand-slots.unit-equip-slots > :nth-child(1){grid-column:1!important;grid-row:1!important;position:relative!important;left:auto!important;top:auto!important}
-body #hand-slots.unit-equip-slots > :nth-child(2){grid-column:2!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(3){grid-column:3!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(4){grid-column:4!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(5){grid-column:5!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(6){grid-column:6!important;grid-row:1!important}
-body #hand-slots.unit-equip-slots > :nth-child(7){grid-column:2!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(8){grid-column:3!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(9){grid-column:4!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(10){grid-column:5!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(11){grid-column:6!important;grid-row:2!important}
-body #hand-slots.unit-equip-slots > :nth-child(12){grid-column:2!important;grid-row:3!important}
-body #hand-slots.unit-equip-slots > :nth-child(13){grid-column:3!important;grid-row:3!important}
-body #hand-slots.unit-equip-slots > :nth-child(14){grid-column:4!important;grid-row:3!important}
-body #hand-slots.unit-equip-slots > :nth-child(15){grid-column:5!important;grid-row:3!important}
-body #hand-slots.unit-equip-slots > :nth-child(16){grid-column:6!important;grid-row:3!important}
 body #hand-slots.unit-equip-slots .equip-slot-label,
 body #hand-slots.unit-equip-slots .card-empty::before,
 body #hand-slots.unit-equip-slots .card-empty::after{
@@ -4867,10 +4693,10 @@ body #hand-pane:has(#hand-slots.unit-equip-slots){
   top:510px!important;
 }
 body #hand-slots.unit-equip-slots{
-  grid-template-columns:var(--unit-card-w) repeat(5,calc(var(--unit-card-h) * .6273))!important;
-  grid-template-rows:repeat(3,var(--unit-card-h))!important;
+  grid-template-columns:repeat(7,var(--hand-card-w))!important;
+  grid-template-rows:repeat(3,var(--hand-card-h))!important;
   gap:var(--field-gap)!important;
-  width:calc(var(--unit-card-w) + (var(--unit-card-h) * .6273) * 5 + var(--field-gap) * 5)!important;
+  width:calc(var(--hand-card-w) * 7 + var(--field-gap) * 6)!important;
 }
 body #hand-slots.unit-equip-slots > .card,
 body #hand-slots.unit-equip-slots > .card-empty{
@@ -4973,44 +4799,6 @@ body #rw-cards .rew-card.dragging .rew-card-desc,
 body #rw-cards .rew-card.drag-ghost .rew-card-desc{
   transform:translateY(-16px)!important;
 }
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone{
-  position:absolute!important;
-  left:calc(100% + 90px)!important;
-  top:0!important;
-  width:calc(var(--hand-card-w) * 2 + var(--field-gap))!important;
-  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
-  display:grid!important;
-  grid-template-columns:repeat(2,var(--hand-card-w))!important;
-  grid-template-rows:repeat(3,var(--hand-card-h))!important;
-  gap:var(--field-gap)!important;
-  z-index:20!important;
-}
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone.drag-over{
-  filter:drop-shadow(0 0 18px rgba(255,232,170,.8));
-}
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card,
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card-empty{
-  width:var(--hand-card-w)!important;
-  min-width:var(--hand-card-w)!important;
-  max-width:var(--hand-card-w)!important;
-  height:var(--hand-card-h)!important;
-  min-height:var(--hand-card-h)!important;
-  max-height:var(--hand-card-h)!important;
-}
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card-empty{
-  border:1px solid rgba(0,0,0,.76)!important;
-  background:rgba(0,0,0,.34)!important;
-}
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone .detached-empty::before{
-  content:"一時置き場";
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-  color:rgba(245,230,190,.55);
-  font-weight:700;
-  font-size:.82rem;
-}
 /* 2026-07-01 reward board final alignment / drag text lock */
 body.reward-screen-active #hand-pane,
 body #hand-pane:has(#hand-slots.unit-equip-slots){
@@ -5025,17 +4813,6 @@ body #hand-slots.unit-equip-slots{
 body #hand-slots.unit-equip-slots::before{
   content:none!important;
   display:none!important;
-}
-body #hand-slots.unit-equip-slots .unit-panel-detach-zone::before{
-  content:""!important;
-  position:absolute!important;
-  left:-46px!important;
-  top:0!important;
-  bottom:0!important;
-  width:3px!important;
-  background:rgba(0,0,0,.82)!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
 }
 body.reward-screen-active #reward-cards-section{
   left:50%!important;
@@ -5068,9 +4845,7 @@ html body .rew-card.drag-ghost:not(.character-card) .rew-card-desc{
   top:auto!important;
 }
 html body #hand-slots.unit-equip-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.drag-ghost:not(.character-card) .card-desc{
+html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc{
   transform:translateY(-22px)!important;
 }
 html body #reward-cards-section .card.dragging:not(.character-card) .card-desc,
@@ -5097,10 +4872,7 @@ html body .rew-card.drag-ghost:not(.character-card) .rew-card-name{
 }
 html body #hand-slots.unit-equip-slots .card:not(.character-card) .card-desc,
 html body #hand-slots.unit-equip-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.drag-ghost:not(.character-card) .card-desc{
+html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc{
   margin-top:0!important;
   top:auto!important;
   transform:translateY(-22px)!important;
@@ -5135,10 +4907,7 @@ html body .rew-card.drag-ghost:not(.character-card) .rew-card-name{
 }
 html body #hand-slots.unit-equip-slots .card:not(.character-card) .card-desc,
 html body #hand-slots.unit-equip-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone .card.drag-ghost:not(.character-card) .card-desc{
+html body #hand-slots.unit-equip-slots .card.drag-ghost:not(.character-card) .card-desc{
   margin-top:0!important;
   top:auto!important;
   transform:translateY(-34px)!important;
@@ -5193,7 +4962,7 @@ html body .card-empty{
 }
 html body #hand-slots.unit-equip-slots,
 html body.reward-screen-active #hand-slots.unit-equip-slots{
-  grid-template-columns:var(--unit-card-w) repeat(5,var(--hand-card-w))!important;
+  grid-template-columns:repeat(7,var(--hand-card-w))!important;
 }
 html body #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor),
 html body #hand-slots.unit-equip-slots > .card-empty,
@@ -5260,13 +5029,14 @@ html body .attack-motion-clone{
   max-height:none!important;
   aspect-ratio:auto!important;
 }
-html body #hand-slots.unit-equip-slots .panel-disabled-slot{
+html body #hand-slots.unit-equip-slots .deploy-slot{
+  position:relative!important;
   background:url("assets/temp/cards/card_back.png") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
   opacity:1!important;
 }
-html body #hand-slots.unit-equip-slots > .card-empty:not(.panel-disabled-slot):not(.detached-empty){
+html body #hand-slots.unit-equip-slots > .card-empty:not(.deploy-slot):not(.detached-empty){
   background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
@@ -5275,6 +5045,18 @@ html body #hand-slots.unit-equip-slots > .card-empty:not(.panel-disabled-slot):n
 html body #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor){
   border-color:transparent!important;
   box-shadow:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card.glow-blue:not(.reward-unit-anchor){
+  box-shadow:none!important;
+  filter:drop-shadow(0 0 9px rgba(80,144,208,.9)) drop-shadow(0 0 18px rgba(80,144,208,.65))!important;
+}
+html body #hand-slots.unit-equip-slots > .reward-unit-anchor.glow-blue{
+  box-shadow:none!important;
+  filter:drop-shadow(0 0 9px rgba(80,144,208,.9)) drop-shadow(0 0 18px rgba(80,144,208,.65))!important;
+}
+/* 強化カードが青発光している間（自分に効果を及ぼしているキャラをフロー中、または他の強化カードからのフロー中）は枠画像をhover用に差し替える */
+html body #hand-slots.unit-equip-slots > .enchantment-card.glow-blue::after{
+  background-image:url("assets/temp/cards/enchantment_hover.png")!important;
 }
 html body .slot.unit-card .slot-life-bar{
   display:none!important;
@@ -5361,9 +5143,16 @@ html body .rew-card .card-charge,
 html body #rw-cards .card .card-charge{
   display:none!important;
 }
-html body #scr-battle.asset-backed::after,
-html body.victory-reward-active #scr-battle.asset-backed::after,
-html body #scr-battle.victory-reward-backdrop.asset-backed::after,
+html body #log-box,
+html body #log-wrap::before{
+  display:none!important;
+}
+html body #log-wrap{
+  background:none!important;
+  border:none!important;
+  box-shadow:none!important;
+  padding:0!important;
+}
 html body .slot.unit-card .risk-particles,
 html body .slot.unit-card::before,
 html body .slot.unit-card::after,
@@ -5390,7 +5179,7 @@ html body .rew-card .card-summon-hp{
 html body .card.dragging,
 html body .rew-card.dragging,
 html body .slot.dragging{
-  opacity:0!important;
+  opacity:0.01!important;
   visibility:visible!important;
   transform:none!important;
   transition:none!important;
@@ -5410,7 +5199,8 @@ html body .rew-card:hover{
 }
 html body .card-empty.drag-over,
 html body #hand-slots.unit-equip-slots .card-empty.drag-over,
-html body #hand-slots.unit-equip-slots .unit-panel-detach-zone.drag-over{
+html body #spell-slot-pane .spell-slot-zone.drag-over,
+html body #rw-cards.drag-over{
   border-color:rgba(255,255,255,.95)!important;
   box-shadow:0 0 10px 2px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.5)!important;
   outline:2px solid rgba(255,255,255,.9)!important;
@@ -5468,7 +5258,7 @@ html body .drag-ghost{
 html body .drag-ghost .slot-stats,
 html body .drag-ghost .card-summon-atk,
 html body .drag-ghost .card-summon-hp{
-  font-size:var(--drag-stat-size,inherit)!important;
+  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .drag-ghost .card-summon-atk{
@@ -5588,11 +5378,17 @@ html body .slot.unit-card .slot-stats .a{
   left:var(--unit-stat-atk-left)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 html body .slot.unit-card .slot-stats .h{
   right:var(--unit-stat-hp-right)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-atk,
 html body #hand-slots.unit-equip-slots .card .card-summon-atk,
@@ -5600,11 +5396,16 @@ html body #rw-cards .panel-character-card .card-summon-atk,
 html body #rw-cards .card .card-summon-atk,
 html body #reward-cards-section .panel-character-card .card-summon-atk,
 html body #reward-cards-section .card .card-summon-atk,
-html body #reward-cards-section .rew-card .card-summon-atk{
+html body #reward-cards-section .rew-card .card-summon-atk,
+html body #battle-order-row .panel-character-card .card-summon-atk,
+html body #battle-order-row .card .card-summon-atk{
   left:var(--unit-stat-atk-left)!important;
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-hp,
 html body #hand-slots.unit-equip-slots .card .card-summon-hp,
@@ -5612,11 +5413,16 @@ html body #rw-cards .panel-character-card .card-summon-hp,
 html body #rw-cards .card .card-summon-hp,
 html body #reward-cards-section .panel-character-card .card-summon-hp,
 html body #reward-cards-section .card .card-summon-hp,
-html body #reward-cards-section .rew-card .card-summon-hp{
+html body #reward-cards-section .rew-card .card-summon-hp,
+html body #battle-order-row .panel-character-card .card-summon-hp,
+html body #battle-order-row .card .card-summon-hp{
   right:var(--unit-stat-hp-right)!important;
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
 }
 html body .drag-ghost .card-summon-atk{
   left:var(--unit-stat-atk-left)!important;
@@ -5624,7 +5430,7 @@ html body .drag-ghost .card-summon-atk{
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
-  font-size:var(--drag-stat-size,2.55rem)!important;
+  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .drag-ghost .card-summon-hp{
   right:var(--unit-stat-hp-right)!important;
@@ -5632,11 +5438,11 @@ html body .drag-ghost .card-summon-hp{
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
-  font-size:var(--drag-stat-size,2.55rem)!important;
+  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .slot.drag-ghost .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:2.55rem!important;
+  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .slot.drag-ghost .slot-stats .a{
@@ -5664,7 +5470,7 @@ html body #rw-cards .panel-character-card .card-grade,
 html body #rw-cards .enchantment-card .card-grade,
 html body #hand-slots.unit-equip-slots .panel-character-card .card-grade,
 html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
-  display:block!important;
+  display:none!important;
 }
 html body .panel-character-card .card-grade .grade-stars,
 html body .enchantment-card .card-grade .grade-stars{
@@ -5684,14 +5490,267 @@ html body #rw-cards .panel-character-card .card-grade,
 html body #rw-cards .enchantment-card .card-grade,
 html body #hand-slots.unit-equip-slots .panel-character-card .card-grade,
 html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
+  display:none!important;
   left:7%!important;
   top:5%!important;
   right:auto!important;
   transform:none!important;
 }
-html body .panel-dir{
-  color:#ff9a22!important;
-  text-shadow:0 1px 2px rgba(0,0,0,.85),0 0 6px rgba(255,130,20,.75)!important;
+.mana-cost-orbs{
+  position:absolute;
+  left:50%;
+  top:4.2%;
+  transform:translateX(-50%);
+  display:flex;
+  gap:3px;
+  z-index:35;
+  pointer-events:none;
+}
+.mana-cost-orbs img{
+  width:32px;
+  height:32px;
+  object-fit:contain;
+  /* 半透明にはせず、黒50%オーバーレイを重ねたのと等価な見た目にする（brightness(.5)は
+     全ピクセル値を半分にするため、不透明な黒レイヤーをnormal合成した場合と数学的に同じになる） */
+  filter:brightness(.5) drop-shadow(0 1px 2px rgba(0,0,0,.9));
+  transition:filter .2s;
+}
+.mana-cost-orbs img.mana-orb-lit{
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.9));
+}
+.mana-cost-orbs.mana-orbs-hidden{
+  display:none;
+}
+#mana-hud{
+  position:absolute;
+  right:4.7%;
+  top:6%;
+  z-index:80;
+  display:grid;
+  gap:6px;
+  pointer-events:none;
+}
+#mana-hud .mana-row{
+  min-width:74px;
+  padding:4px 8px;
+  border:1px solid rgba(230,210,150,.45);
+  background:rgba(5,7,10,.68);
+  color:#f3ead0;
+  font-size:13px;
+  font-weight:700;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+  text-shadow:0 1px 2px #000;
+}
+#mana-hud .mana-icon{
+  width:18px;
+  height:18px;
+  object-fit:contain;
+}
+body #spell-slot-pane{
+  position:absolute!important;
+  left:80px!important;
+  top:650px!important;
+  width:var(--hand-card-w)!important;
+  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  z-index:20!important;
+}
+body #spell-slot-pane .spell-slot-zone{
+  width:var(--hand-card-w)!important;
+  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  display:grid!important;
+  grid-template-columns:var(--hand-card-w)!important;
+  grid-template-rows:repeat(3,var(--hand-card-h))!important;
+  gap:var(--field-gap)!important;
+}
+body #spell-slot-pane .spell-slot-zone.drag-over{
+  filter:drop-shadow(0 0 18px rgba(255,232,170,.8));
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card,
+body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card{
+  position:relative;
+  cursor:grab;
+  transition:filter .25s;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
+  border:0!important;
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border-radius:6px;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card.spell-fired{
+  filter:brightness(0.3) saturate(0.35);
+  pointer-events:none;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging{
+  opacity:1!important;
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  filter:none!important;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging > *{
+  opacity:0!important;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging::after{
+  content:none!important;
+  display:none!important;
+}
+body #spell-slot-pane .spell-slot-zone .spell-slot-card.drag-over{
+  filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
+}
+/* 報酬置き場：スペル置き場と左右対称の横2×縦3マス固定グリッド */
+body #reward-cards-section.reward-grid-mode{
+  position:absolute!important;
+  left:80px!important;
+  top:650px!important;
+  width:calc(var(--hand-card-w) * 2 + var(--field-gap))!important;
+  height:auto!important;
+  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  transform:none!important;
+  z-index:20!important;
+}
+body #reward-cards-section.reward-grid-mode>.field-label{
+  display:none!important;
+}
+body #reward-cards-section.reward-grid-mode #rw-cards{
+  display:block!important;
+}
+body #rw-cards .reward-grid-zone{
+  width:calc(var(--hand-card-w) * 2 + var(--field-gap))!important;
+  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  display:grid!important;
+  grid-template-columns:repeat(2,var(--hand-card-w))!important;
+  grid-template-rows:repeat(3,var(--hand-card-h))!important;
+  gap:var(--field-gap)!important;
+}
+body #rw-cards .reward-grid-zone .rew-card,
+body #rw-cards .reward-grid-zone .card,
+body #rw-cards .reward-grid-zone .reward-grid-empty{
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
+}
+body #rw-cards .reward-grid-zone .reward-grid-empty{
+  border:0!important;
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border-radius:6px;
+}
+/* ドラッグ中は元の枠位置にcard_back_o.pngを表示する（他の置き場と同じ挙動） */
+body #rw-cards .reward-grid-zone .rew-card.dragging{
+  opacity:1!important;
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  filter:none!important;
+}
+body #rw-cards .reward-grid-zone .rew-card.dragging > *{
+  opacity:0!important;
+}
+body #rw-cards .reward-grid-zone .rew-card.dragging::after{
+  content:none!important;
+  display:none!important;
+}
+/* 戦闘順序：報酬カードが元々あった位置（同位置）に、魔術師以外のメイン置き場キャラを並べ替え可能な状態で表示する */
+body #battle-order-section{
+  position:absolute!important;
+  left:50%!important;
+  top:92px!important;
+  transform:translateX(-50%)!important;
+  z-index:6!important;
+}
+body #battle-order-row{
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  gap:26px!important;
+  max-width:min(96vw, calc(var(--hand-card-w) * 7 + 26px * 6 + 8px))!important;
+  overflow-x:visible!important;
+  overflow-y:visible!important;
+  padding:4px 2px 20px!important;
+}
+/* 強化カードを含む報酬置き場の全カードを、キャラクターカードと同じ固定サイズに統一する */
+body #battle-order-row > .card,
+body #battle-order-row > .rew-card{
+  width:var(--hand-card-w)!important;
+  min-width:var(--hand-card-w)!important;
+  max-width:var(--hand-card-w)!important;
+  height:var(--hand-card-h)!important;
+  min-height:var(--hand-card-h)!important;
+  max-height:var(--hand-card-h)!important;
+  flex:0 0 var(--hand-card-w)!important;
+  aspect-ratio:auto!important;
+  cursor:grab;
+}
+body #battle-order-row .card.dragging,
+body #battle-order-row .rew-card.dragging{
+  opacity:.4!important;
+}
+body #battle-order-row .card.drag-over,
+body #battle-order-row .rew-card.drag-over{
+  filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
+}
+body #hand-slots.unit-equip-slots .card.invalid-battle-position::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:rgba(0,0,0,.5);
+  pointer-events:none;
+  z-index:50;
+}
+body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-atk,
+body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp,
+body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
+body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp,
+body #hand-slots.unit-equip-slots .card.invalid-battle-position .discard-btn{
+  z-index:70!important;
+}
+/* レアリティ別カード名の色：1=白 2=青 3=紫 4=金 5=虹 */
+html body .card.rarity-1 .card-name,
+html body .rew-card.rarity-1 .rew-card-name{
+  color:#ffffff!important;
+}
+html body .card.rarity-2 .card-name,
+html body .rew-card.rarity-2 .rew-card-name{
+  color:#5ea6ff!important;
+}
+html body .card.rarity-3 .card-name,
+html body .rew-card.rarity-3 .rew-card-name{
+  color:#c07bff!important;
+}
+html body .card.rarity-4 .card-name,
+html body .rew-card.rarity-4 .rew-card-name{
+  color:#ffd93d!important;
+}
+html body .card.rarity-5 .card-name,
+html body .rew-card.rarity-5 .rew-card-name{
+  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
+  background-size:200% 100%!important;
+  -webkit-background-clip:text!important;
+  background-clip:text!important;
+  color:transparent!important;
+  animation:rarity5-shimmer 3s linear infinite!important;
+}
+@keyframes rarity5-shimmer{
+  from{background-position:0% 0}
+  to{background-position:200% 0}
+}
+html body .desc-mana-icon{
+  width:1em!important;
+  height:1em!important;
+  vertical-align:-0.15em!important;
+  margin:0 0.05em!important;
+  display:inline-block!important;
 }
 html body .attack-motion-clone{
   aspect-ratio:auto!important;
@@ -5715,12 +5774,12 @@ html body .attack-motion-clone.is-defender .unit-frame-layer{
 }
 html body .attack-motion-clone .slot-stats .a,
 html body .attack-motion-clone .slot-stats .h{
-  font-size:var(--motion-stat-size, inherit)!important;
+  font-size:var(--motion-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .attack-motion-clone .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:var(--motion-stat-size, inherit)!important;
+  font-size:var(--motion-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .attack-motion-clone .slot-stats .a{
@@ -5735,15 +5794,21 @@ html body .attack-motion-clone .slot-stats .h{
   width:var(--unit-stat-w)!important;
   text-align:center!important;
 }
+html body .attack-motion-clone .slot-stats,
+html body .attack-motion-clone .slot-stats .a,
+html body .attack-motion-clone .slot-stats .h{
+  font-size:var(--motion-stat-size,42px)!important;
+  line-height:1!important;
+}
 html body .card.dragging,
 html body .rew-card.dragging,
 html body .slot.dragging{
   transform:none!important;
-  opacity:0!important;
+  opacity:0.01!important;
 }
 html body .drag-ghost .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:var(--drag-stat-size,2.55rem)!important;
+  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .drag-ghost .slot-stats .a{
   left:var(--unit-stat-atk-left)!important;
@@ -5763,12 +5828,20 @@ html body .drag-ghost,
 html body .drag-ghost *{
   transform:none!important;
 }
+html body .drag-ghost .mana-cost-orbs{
+  transform:translateX(-50%)!important;
+}
+/* 上のtransform:none一括リセットで矢印の回転も消えてしまうため、方向ごとに復元する */
+html body .drag-ghost .panel-dir-up,
+html body .drag-ghost .panel-dir-right,
+html body .drag-ghost .panel-dir-down,
+html body .drag-ghost .panel-dir-left{transform:none!important}
 html body .drag-ghost .slot-stats,
 html body .drag-ghost .slot-stats .a,
 html body .drag-ghost .slot-stats .h,
 html body .drag-ghost .card-summon-atk,
 html body .drag-ghost .card-summon-hp{
-  font-size:var(--drag-stat-size,inherit)!important;
+  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
   text-align:center!important;
 }
@@ -5808,18 +5881,125 @@ html body .drag-ghost .card-summon-hp{
 }
 html body.dragging-in-battle .card.dragging,
 html body.dragging-in-battle .rew-card.dragging,
-html body.dragging-in-battle .slot.dragging,
-html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor){
-  opacity:0!important;
-  visibility:hidden!important;
+html body.dragging-in-battle .slot.dragging{
+  opacity:0.01!important;
+  visibility:visible!important;
   background:none!important;
+}
+html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor){
+  opacity:1!important;
+  visibility:visible!important;
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
 }
 html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor) > *{
   opacity:0!important;
 }
 #kw-tooltip .preview-title{
-  margin-bottom:4px!important;
-  padding-bottom:8px!important;
+  margin-bottom:6px!important;
+  padding-bottom:6px!important;
+}
+/* ツールチップ1行目（カード名）もレアリティに応じて色付けする */
+#kw-tooltip.rarity-1 .preview-title{color:#ffffff!important}
+#kw-tooltip.rarity-2 .preview-title{color:#5ea6ff!important}
+#kw-tooltip.rarity-3 .preview-title{color:#c07bff!important}
+#kw-tooltip.rarity-4 .preview-title{color:#ffd93d!important}
+#kw-tooltip.rarity-5 .preview-title{
+  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
+  background-size:200% 100%!important;
+  -webkit-background-clip:text!important;
+  background-clip:text!important;
+  color:transparent!important;
+  animation:rarity5-shimmer 3s linear infinite!important;
+}
+/* ドラッグ中、そのカードを置けない置き場を暗くする */
+html body #spell-slot-pane,
+html body #hand-slots.unit-equip-slots,
+html body #reward-cards-section,
+html body #battle-order-section{
+  transition:filter .15s ease!important;
+}
+html body.dragzone-battleorder #spell-slot-pane,
+html body.dragzone-battleorder #hand-slots.unit-equip-slots,
+html body.dragzone-battleorder #reward-cards-section,
+
+html body.dragzone-reward-spell #battle-order-section,
+html body.dragzone-reward-spell #hand-slots.unit-equip-slots,
+html body.dragzone-reward-spell #reward-cards-section,
+
+html body.dragzone-reward-nonspell #battle-order-section,
+html body.dragzone-reward-nonspell #spell-slot-pane,
+html body.dragzone-reward-nonspell #reward-cards-section,
+
+html body.dragzone-mainequip #battle-order-section,
+html body.dragzone-mainequip #spell-slot-pane,
+
+html body.dragzone-spellslot #battle-order-section,
+html body.dragzone-spellslot #hand-slots.unit-equip-slots{
+  filter:brightness(.4) saturate(.5)!important;
+}
+/* unite画像（強化カード同士のつながり表示）をJSで計算した座標に正しく配置するための基準位置 */
+html body #hand-slots.unit-equip-slots{
+  position:relative!important;
+}
+/* 報酬画面の背景動画：報酬フェイズ中のみ表示し、画面サイズいっぱいに合わせる */
+html body #reward-bg-video{
+  display:none!important;
+}
+html body.reward-screen-active #reward-bg-video{
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  z-index:-1!important;
+  pointer-events:none!important;
+}
+/* 配置順エリアのカードはホバーで浮き上がらせない（発光の同期表示位置とズレてしまうため） */
+html body #battle-order-row .card:hover:not(.inert){
+  transform:none!important;
+}
+html body #battle-order-row .card:hover,
+html body #battle-order-row .panel-character-card:hover,
+html body #battle-order-row .card.panel-character-card:hover{
+  top:auto!important;
+  margin-top:0!important;
+  transform:none!important;
+  translate:none!important;
+}
+/* シールド保持中のユニットは外周を発光させない。shield.pngの表示だけに留める。 */
+html body #f-ally .slot.unit-card.shield-active,
+html body #f-enemy .slot.unit-card.shield-active,
+html body #battle-order-row .card.panel-character-card.shield-active{
+  filter:none!important;
+}
+html body .slot.unit-card .unit-portrait .unit-shield-layer{
+  /* .unit-portraitの子として配置し、独立した%指定を持たずinset:0で親（イラスト領域）に
+     完全追従させる。attack-motion-clone生成時もportrait本体と同じCSS変数で位置決めされる
+     ため、二重管理によるズレ・変形が起こらない */
+  position:absolute!important;
+  inset:0!important;
+  transform:none!important;
+  z-index:1!important;
+  overflow:hidden!important;
+  background:url("assets/temp/vfx/shield.png") center center/cover no-repeat!important;
+  mix-blend-mode:screen!important;
+  pointer-events:none!important;
+  animation:shield-glow-pulse 1.8s ease-in-out infinite alternate!important;
+}
+html body #battle-order-row .card.panel-character-card.shield-active .card-art::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:3;
+  pointer-events:none;
+  background:url("assets/temp/vfx/shield.png") center center/cover no-repeat;
+  mix-blend-mode:screen;
+  animation:shield-glow-pulse 1.8s ease-in-out infinite alternate;
+}
+@keyframes shield-glow-pulse{
+  from{opacity:.58}
+  to{opacity:.88}
 }
 </style>
 </head>
@@ -5832,13 +6012,6 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
   <div id="load-msg" style="font-size:.78rem;color:var(--text2)">データを読み込み中...</div>
 </div>
 
-<!-- ARCANA SELECT -->
-<div id="scr-arcana" class="screen">
-  <div class="arcana-title">秘術を選んでください</div>
-  <div class="arcana-sub">初期杖と秘術（ヒーローパワー）のセットを1つ選びます</div>
-  <div class="arcana-sets" id="arcana-sets"></div>
-</div>
-
 <!-- TITLE -->
 <div id="scr-title" class="screen">
   <h1>Vesselbound</h1>
@@ -5849,6 +6022,7 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
 
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
+  <video id="reward-bg-video" src="assets/temp/backgrounds/back1.mp4" autoplay loop muted playsinline></video>
   <button id="battle-options-btn" title="オプション">⚙</button>
   <div style="text-align:center;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
     <span style="font-family:var(--font-hd);font-size:.85rem;letter-spacing:.18em;color:var(--gold2);text-shadow:0 0 12px rgba(200,160,60,.35)">Vesselbound</span>
@@ -5865,19 +6039,9 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
 
-    <!-- リスNPC吹き出し（報酬フェイズのみ表示） -->
-    <div id="squirrel-npc">
-      <div class="sq-icon">🐿️</div>
-      <div class="sq-bubble" id="squirrel-bubble"></div>
-    </div>
-
-    <!-- 敵オーナー手札エリア（ボス戦・報酬フェイズで表示、プレイヤー手札と対称） -->
+    <!-- 敵側インベントリエリア（報酬フェイズの施設アップグレード表示に使用） -->
     <div id="enemy-hand-area" class="hand-area" style="display:none">
       <div class="hand-row1" style="gap:8px">
-        <div id="enemy-rings-pane" class="hand-pane" style="flex:2;min-width:0">
-          <span class="hand-pane-label ring-label">指輪 <span id="enemy-ring-count">0</span>/<span id="enemy-ring-max">2</span></span>
-          <div id="enemy-ring-slots"></div>
-        </div>
         <div id="enemy-hand-pane" class="hand-pane" style="flex:7;min-width:0">
           <span class="hand-pane-label spell-label">インベントリ <span id="enemy-hand-count">0</span>/<span id="enemy-hand-max">5</span></span>
           <div id="enemy-hand-slots"></div>
@@ -5888,7 +6052,6 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
     <!-- 戦闘フェイズ：敵の盤面（戦闘中のみ表示） -->
     <div id="enemy-area">
       <div class="field-label" id="enemy-field-label">敵の盤面</div>
-      <div id="commander-wands-bar" style="display:none;padding:2px 0 3px;font-size:.6rem;color:var(--blue2)"></div>
       <div class="field" id="f-enemy"></div>
     </div>
 
@@ -5898,24 +6061,27 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
       <div class="rew-cards" id="rw-cards"></div>
     </div>
 
+    <!-- 戦闘順序（報酬中のみ表示・報酬カードが元々あった位置）：魔術師以外のメイン置き場キャラを並べ替えられる -->
+    <div id="battle-order-section" style="display:none">
+      <div id="battle-order-row"></div>
+    </div>
+
     <!-- ログ（ターン終了ボタン内包） -->
     <div id="log-wrap">
       <div id="log-box"></div>
       <button class="btn small" id="btn-pass" onclick="playerPass()">戦闘実行</button>
-      <button class="btn small" id="btn-debug-kill" onclick="debugKillAll()" style="display:none;position:absolute;bottom:6px;right:100px;font-size:.65rem;opacity:.7;background:rgba(200,50,50,.15);border-color:rgba(200,50,50,.5);color:#e87">全敵撃破</button>
     </div>
 
     <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
     <div id="reward-info-bar" class="reward-info-bar" style="display:none">
       <span class="ri-soul">ゴールド</span><span class="ri-val" id="rw-gold">0</span>
+      <button class="btn small" id="btn-debug-kill" onclick="debugKillAll()" style="display:none;position:absolute;opacity:.7;background:rgba(200,50,50,.15);border-color:rgba(200,50,50,.5);color:#e87;z-index:25">全敵撃破</button>
       <span class="ri-soul" style="margin-left:6px">報酬 <span id="rw-count">3</span>枚</span>
       <span id="rw-race-buffs" style="margin-left:10px;font-size:.72rem;color:var(--teal2);white-space:nowrap"></span>
       <span id="rw-power-rating" style="margin-left:10px;font-size:.72rem;white-space:nowrap"></span>
       <button class="btn tiny" id="rw-reroll" onclick="rerollRewards()" style="margin-left:auto;display:none">リロール（1ゴールド）</button>
-      <button class="btn tiny" id="rw-appearance-mode" onclick="toggleCardAppearanceModeDebug()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">出現率: NORMAL</button>
+      <button class="btn small" id="rw-appearance-mode" onclick="rerollRewards()" style="display:none;position:absolute;opacity:.7;border-color:var(--purple);color:var(--purple2);z-index:25">リロール</button>
       <button class="btn tiny" id="rw-grade-up-btn" onclick="doGradeUp()" style="display:none;border-color:var(--teal);color:var(--teal2);margin-left:4px">グレードアップ</button>
-      <button class="btn tiny" id="arcana-btn" onclick="useArcana()" style="display:none;border-color:var(--purple);color:var(--purple2);margin-left:4px">秘術</button>
-      <div id="arcana-passive-info" style="display:none;width:100%;margin-top:4px;font-size:.66rem;color:var(--teal2)"></div>
       <div id="boss-reward-notice" style="display:none;margin-top:4px;padding:4px 8px;background:rgba(200,160,60,.12);border:1px solid var(--gold);border-radius:3px;font-size:.74rem;color:var(--gold2);font-weight:500;width:100%"></div>
     </div>
 
@@ -5931,23 +6097,16 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
     <!-- 手札エリア（常時表示） -->
     <div class="hand-area">
       <div class="hand-row1" style="gap:8px">
-        <div id="ring-pane" class="hand-pane" style="flex:2;min-width:0">
-          <span class="hand-pane-label ring-label">指輪 <span id="ring-count">0</span>/<span id="ring-max">2</span></span>
-          <div id="ring-slots"></div>
-        </div>
         <div id="hand-pane" class="hand-pane" style="flex:5;min-width:0">
           <span class="hand-pane-label spell-label">インベントリ <span id="hand-count">0</span>/<span id="hand-max">5</span></span>
           <div id="hand-slots"></div>
         </div>
       </div>
-      <div id="ring-extra-row" style="display:none"></div>
+      <div id="spell-slot-pane"></div>
     </div>
 
   </div>
   </div><!-- /.battle-scroll -->
-
-  <!-- 秘術情報バー（常時表示） -->
-  <div id="arcana-bar" style="display:none"></div>
 
   <div class="bctl-wrap">
     <div class="bctl">
@@ -6008,76 +6167,6 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
   </div>
 </div>
 
-<!-- EVENT -->
-<div id="scr-event" class="screen">
-  <div class="ev-box">
-    <div class="ev-name" id="ev-name"></div>
-    <div class="ev-desc" id="ev-desc"></div>
-    <div class="ev-result" id="ev-result"></div>
-    <button class="btn small" onclick="eventDone()">続ける</button>
-  </div>
-</div>
-
-<!-- SHOP -->
-<div id="scr-shop" class="screen">
-  <div class="shop-area">
-    <div class="shop-title">商　人</div>
-    <div style="font-size:.73rem;color:var(--text2);margin-bottom:8px">所持ゴールド：<span id="sh-gold" style="color:var(--gold2);font-weight:700">0</span></div>
-    <div class="shop-grid" id="sh-grid"></div>
-    <div class="hand-editor" id="sh-hand-editor" style="margin-top:10px">
-      <div class="hand-editor-title">現在の装備 —— ドラッグで並べ替え　× で破棄　購入時に枠が満杯なら先に破棄してください</div>
-      <div class="he-row">
-        <span class="he-label he-ring">指輪枠</span>
-        <div class="he-slots" id="sh-he-rings"></div>
-      </div>
-      <div class="he-row">
-        <span class="he-label he-spell">インベントリ</span>
-        <div class="he-slots" id="sh-he-wands"></div>
-      </div>
-    </div>
-    <button class="btn small" onclick="shopDone()">立ち去る</button>
-  </div>
-</div>
-
-<!-- SMITHY (祭壇) -->
-<div id="scr-smithy" class="screen">
-  <div class="choice-wrap">
-    <div class="choice-title">⛩️ 祭壇</div>
-    <div id="smithy-opts"></div>
-  </div>
-</div>
-
-<!-- REST -->
-<div id="scr-rest" class="screen">
-  <div class="choice-wrap">
-    <div class="choice-title">🏕️ 休息所</div>
-    <div id="rest-opts"></div>
-  </div>
-</div>
-
-<!-- ENCHANT MODAL -->
-<div id="enc-modal">
-  <div class="enc-box">
-    <h3>エンチャント付与</h3>
-    <div id="enc-s1">
-      <div style="font-size:.72rem;color:var(--text2);margin-bottom:7px">対象の指輪を選択</div>
-      <div class="enc-list" id="enc-rings"></div>
-      <button class="btn tiny" onclick="closeEncModal()">キャンセル</button>
-    </div>
-    <div id="enc-s2" style="display:none">
-      <div style="font-size:.72rem;color:var(--text2);margin-bottom:7px">エンチャントを選択</div>
-      <div class="enc-type-list" id="enc-types"></div>
-      <button class="btn tiny" onclick="encBack()">戻る</button>
-      <button class="btn tiny" style="margin-left:5px" onclick="closeEncModal()">キャンセル</button>
-    </div>
-  </div>
-</div>
-
-<!-- ARCANA PICK OVERLAY -->
-<div id="arcana-pick-overlay">
-  <div class="arcana-pick-box" id="arcana-pick-list"></div>
-</div>
-
 <!-- VICTORY OVERLAY -->
 <div id="victory-overlay">
   <div class="victory-title">You Win</div>
@@ -6087,12 +6176,12 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
 <div id="scr-gameover" class="screen">
   <div class="result-title over">GAME OVER</div>
   <div class="result-sub" id="go-sub"></div>
-  <button class="btn" onclick="startGame()">もう一度</button>
+  <button class="btn" onclick="startGame(G._debugMode)">もう一度</button>
 </div>
 <div id="scr-clear" class="screen">
   <div class="result-title clear">DUNGEON CLEAR</div>
   <div class="result-sub">全20階を踏破しました</div>
-  <button class="btn" onclick="startGame()">もう一度</button>
+  <button class="btn" onclick="startGame(G._debugMode)">もう一度</button>
 </div>
 
 <script>
@@ -6113,29 +6202,22 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=art-folder1"></script>
+<script src="assets.js?v=hit-webp18"></script>
 <script src="js/engine/audio.js"></script>
-<script src="js/engine/constants.js?v=ally-slots7-1"></script>
-<script src="js/data/floors.js"></script>
-<script src="js/data/events.js"></script>
-<script src="js/data/rings.js"></script>
-<script src="js/data/spells.js"></script>
-<script src="js/data/local_xlsx_data.js?v=local-xlsx1"></script>
+<script src="js/engine/constants.js?v=cleanup122"></script>
+<script src="js/data/floors.js?v=cleanup122"></script>
+<script src="js/data/events.js?v=cleanup122"></script>
+<script src="js/data/local_xlsx_data.js?v=local-xlsx2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=art-code1"></script>
-<script src="js/data/units.js?v=unit-slots11-1"></script>
-<script src="js/engine/state.js?v=starter-rear-center1"></script>
-<script src="js/engine/pool.js?v=new-panel-free-dir1"></script>
-<script src="js/engine/enemy.js?v=boss-single1"></script>
-<script src="js/engine/summon.js?v=sheet-battle1"></script>
-<script src="js/engine/battle.js?v=attack-motion2"></script>
-<script src="js/engine/render.js?v=attack-motion7"></script>
-<script src="js/engine/spell.js?v=panel-select-state1"></script>
-<script src="js/engine/arcana.js"></script>
-<script src="js/engine/reward.js?v=reward-drag-lock7"></script>
-<script src="js/engine/shop.js?v=panel-place-lock1"></script>
-<script src="js/engine/move.js?v=panel-select-state1"></script>
-<script src="js/engine/event.js?v=panel-place-lock1"></script>
-<script src="js/engine/main.js?v=starter-reward-panels1"></script>
+<script src="js/data/loader.js?v=cleanup122"></script>
+<script src="js/data/units.js?v=cleanup122"></script>
+<script src="js/engine/state.js?v=cleanup122"></script>
+<script src="js/engine/pool.js?v=cleanup122"></script>
+<script src="js/engine/enemy.js?v=cleanup122"></script>
+<script src="js/engine/battle.js?v=cleanup122"></script>
+<script src="js/engine/render.js?v=hit-webp18"></script>
+<script src="js/engine/reward.js?v=cleanup122"></script>
+<script src="js/engine/move.js?v=cleanup122"></script>
+<script src="js/engine/main.js?v=cleanup122"></script>
 </body>
 </html>

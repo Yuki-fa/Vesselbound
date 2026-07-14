@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════
 // state.js — ゲーム状態とユーティリティ
-// 依存: constants.js, units.js, spells.js
+// 依存: constants.js, units.js
 // ═══════════════════════════════════════
 
 let G={};
@@ -9,35 +9,30 @@ let G={};
 // シート未読み込み時のフォールバック説明文
 // シート「敵キーワード」の説明文をフォールバックとして保持（loader.js で上書き）
 const KW_DESC_MAP={
-  '守護':     'このキャラクターが生存している間、仲間全員が加護状態になる。',
-  '封印':     '行動不能。このキャラクターはターンをスキップする。',
-  '再生':     'ターン終了時にライフをX回復する。',
-  '狩われ':   '敵が優先的にこのキャラクターを攻撃する。',
-  '侵食':     'このキャラクターからダメージを受けたキャラクターのHPを永続的に減少させる。',
-  '反撃':     'このキャラクターが攻撃を受けて生き残った場合、相手にこのキャラクターのパワーに等しいダメージを与える。',
-  '二段攻撃': '攻撃後、再攻撃する。一回目で対象が死んだ場合、他の敵に攻撃する。',
+  // 以下17件はExcel「キーワード」シートと一致（シートが正）
+  '守護':     'このキャラクターは優先的に攻撃される。',
+  '即死':     'このキャラクターからダメージを受けたキャラクターは即死する。（備考：シールドで防がれた場合は不発。）',
+  '復活':     '死亡時、一度だけHP1で復活する。',
+  '根性':     '死亡ダメージを受ける時、一度だけHP1で生き残る。',
+  '毒牙':     'このキャラクターからダメージを受けたキャラクターに、その値に等しい毒を付与する。既に毒状態なら加算される。（ライフ-X/T）（備考：シールドで防がれた場合は不発。）',
+  '狩人':     'このキャラクターは最後尾ではなく、常に最もライフの低いキャラクターを優先的に攻撃する。（備考：対象が複数いる場合は最もライフの低いキャラクターからランダム。）',
+  '成長':     '編成フェイズ開始時に起こる効果。',
+  'シールド': 'ダメージを一度だけ無効化する。',
+  '二段攻撃': '攻撃後、再攻撃する。（備考：一回目で対象が死んだ場合、他の相手キャラクターに攻撃する。）',
   '三段攻撃': '攻撃後、2回再攻撃する。',
-  '三方向攻撃': 'このキャラクターは隣接する3体を対象に攻撃する。それぞれの反撃を受ける。',
-  '全体攻撃': 'このキャラクターはすべての相手を対象に攻撃する。',
+  '全体攻撃': '攻撃対象だけでなく、前衛・後衛を問わず他の全ての相手キャラに同値のダメージを与える。',
+  '三方向攻撃': '攻撃対象の他、隣接する2キャラにも同値のダメージを与える。',
+  '邪眼':     'このキャラクターからダメージを受けたキャラクターのパワーはX減少する。（備考：相手キャラクター専用。）',
+  '弱体化':   '対象に弱体Xを付与する。',
+  '弱体':     'このキャラクターが受ける1以上のダメージはX増加する。',
+  '先制':     '敵に先にダメージを与える。（備考：先に相手を倒した場合、反撃ダメージを受けない。）',
+  'エリート': '戦闘開始時、ATK/HPに1.2倍の補正が入る。',
+  'ボス':     '戦闘開始時、ATK/HPに1.5倍の補正が入る。',
+  // 以下はシートには存在しないが、処理ロジックが現役のため説明文を維持
+  '再生':     'ターン終了時にライフをX回復する。',
   '加護':     'このキャラクターはいかなる敵の杖の効果も受けない。',
-  'シールド': 'ダメージを一度だけ無効化する。重複しない。',
-  'A・シールド': '戦闘開始時、ダメージを一度だけ無効化するシールドを得る。重複しない。',
-  '狩人':     'このキャラクターは最後尾ではなく、常に最もライフの低いキャラクターを優先的に攻撃する。',
-  '即死':     'このキャラクターからダメージを受けたキャラクターは即死する。',
   '標的':     'このキャラクターは最後尾のキャラクターよりも優先して攻撃目標になる。',
   '隠密':     '敵に狙われない。ただし加護持ちには無効。',
-  '成長':     '戦闘開始時、+X/+Xを得る。',
-  '結束':     '戦闘開始時、全ての仲間が+X/+Xを得る。',
-  '毒牙':     'このキャラクターからダメージを受けたキャラクターに毒Xを付与する。既に毒状態なら加算される。（ライフ-X/T）',
-  '邪眼':     'このキャラクターからダメージを受けたキャラクターのパワーはX減少する。',
-  '呪詛':     'このキャラクターからダメージを受けたキャラクターに破滅Xを付与する。既に破滅状態なら加算される。破滅10になると即死する。',
-  '魂喰':     '攻撃時、プレイヤーのゴールドをX消費する。消費した場合、以後の全ての仲間が+X/+Xを得る。',
-  '魂喰らい': '攻撃時、Xゴールドを消費して自身がATK/HP+Xを得る。',
-  'エリート': 'エリート敵。撃破時に追加報酬が得られる。',
-  'ボス':     'ボス敵。',
-  'アーティファクト': 'このキャラクターはゴールドを持たない。',
-  'リーダー': '存在する間、他の仲間全員のATKとHPを強化する。',
-  'パワーブレイク':'命中した相手のATKを大幅に下げる（1度のみ）。',
 };
 
 const uid      = ()    => '_'+Math.random().toString(36).slice(2,8);
@@ -47,92 +42,43 @@ const clone    = o     => JSON.parse(JSON.stringify(o));
 
 function rand(){ return Math.random(); }
 
-function gradeStr(g){
-  const n=Math.min(Math.max(g||1,1),MAX_GRADE);
-  return '★'.repeat(n);
-}
-
 function initState(){
   G={
-    floor:1, gold:0, life:3,
-    // ── 盤面（6スロット固定・HP持続）──
+    floor:0, gold:0, life:3,
+    // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),
     enemies:[],
-    // ── プレイヤー装備 ──
-    rings:   Array(4).fill(null), // 指輪スロット（初期2枠・最大4枠）
-    ringSlots: 2,
-    // ── 手札（杖＋消耗品＋装備混合・7枠）──
-    spells:  Array(7).fill(null),
-    handSlots: 7,
     // ── マップ用インベントリ（9×2）──
     inventory: Array(18).fill(null),
     inventoryOpen:false,
     globalPanels:Array(7).fill(null),
     _showGlobalPanels:true,
-    _showPlayerHand:false,
+    // ── スペル置き場（1×3・戦闘をまたいで保持）──
+    // ゲーム開始時から「炎の矢」を1枚所持する
+    spellSlots:(()=>{
+      const slots=Array(3).fill(null);
+      const fireArrow=typeof SPELL_POOL!=='undefined'?SPELL_POOL.find(s=>s&&s.name==='炎の矢'):null;
+      if(fireArrow) slots[0]=clone(fireArrow);
+      return slots;
+    })(),
+    // ── メイン置き場（7列×3行＝21枠。パーティ全体で共有する単一の配置グリッド）──
+    mainBoard:Array(21).fill(null),
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,
     turn:0, earnedGold:0,
-    moveMasks:[], moveMaskLanes:[], visibleMoves:[],
-    fogNext:false, prevNodeType:'battle',
+    moveMaskLanes:[],
     spreadActive:false, spreadMult:0,
     _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false, _bossSlot:0,
     _usedNamedElite:new Set(), _usedNamedRest:new Set(),
-    _seenLegendRings:new Set(),
     _retryFloor:false,
     battleCounters:{damage:0,deaths:0},
-    // ── 魔術レベル（亜人キャラ効果用）──
+    // ── 魔術レベル（大学施設の魔法パネル効果で参照。現在レベルアップ手段なし）──
     magicLevel:1,
-    // ── マミー効果：不死ATK補正（累積） ──
-    _undeadHpBonus:0,
-    // ── ペリュトン効果：キャラ効果召喚ユニットATK補正（累積） ──
-    _grimalkinBonus:0,  // 旧: グリマルキン / 現: ペリュトン 還魂トリガー
-    // ── スペクター効果：今後の不死キャラATK+HP補正（累積） ──
-    _specterBonus:0,
-    // ── ジャック・オ・ランタン効果：今後のキャラHP補正（累積） ──
-    _jackBonus:0,
-    // ── バンシー効果：今後の全キャラATK補正（累積） ──
-    _futureCharAtkBonus:0,
-    // ── グレムリン効果：フェイズごとの無料アイテム使用 ──
-    _freeItemPhase:null,
-    _freeItemUsed:false,
-    _pendingFechtRevives:[],
-    // ── 種族別の今後商談キャラ補正（{種族:{atk,hp}}） ──
-    raceBuffs:{},
-    // ── ミノタウロス効果：グレードアップコスト削減（累積） ──
-    _gradeUpCostBonus:0,
-    // ── ファミリア効果：今回の行商で最初の購入済みフラグ ──
-    _familiarUsed:false,
-    // ── 宝箱・撤退・特殊マス連続抑制 ──
-    _prevWasRest:0,     // 直前が湖の畔→次の2戦闘で湖の畔を非表示（カウントダウン）
-    _prevWasSmithy:0,   // 直前が洞窟→次の2戦闘で洞窟を非表示（カウントダウン）
-    _pendingTreasure:false,
-    _pendingTreasureBySlot:{},
-    _pendingEliteChest:false,
-    _retreated:false,
-    _retreatTargetNodeType:null,
-    _bonusAction:0,
-    _minotaurBonus:0,
-    // ── 特殊マスボーナス ──
-    _extraBattleMult:1.0,  // 洞窟/池ノードで 1.2x
-    _pendingCaveBonus:false,  // 洞窟：rarity4アイテム1つ追加
-    _pendingPondBonus:false,  // 池：rarity≤2指輪2つ追加
-    _isTreasurePhase:false,   // 宝箱回収中フラグ（UI操作ロック用）
-    _soulIncomeBonus:0,    // 魔神の秘薬：戦闘終了時ゴールド追加
-    // ── 敵オーナーシステム ──
-    bossRings:[],         // 敵オーナーが装備している指輪
-    bossHand:[],          // 敵オーナーの手札（杖・アイテム）
-    enemyMagicLevel:0,       // 敵オーナーの魔術レベル（FLOOR_DATA.magicLevel から設定）
-    _enemyHandDynamic:false, // true = 戦闘中に動的取得した手札（手札3・指輪非表示）
-    _enemySpreadActive:false,// 敵の spread 効果が有効中
-    masterHand:[],  // 報酬フェイズのマスター手札
-    masterRings:[],  // 報酬フェイズの購入可能指輪
     hasGoldenDrop:false,
     baseIncome:0,
     facilities:{altar:1,lab:1,city:1,vault:1,library:1,university:1},
     facilityDiscounts:{},
-    _rewardIncomeGrantedFloor:null,
     _nextRewardUniqueSlot:false,
     // ── 報酬グレード ──
     rewardGrade:1,
@@ -141,49 +87,9 @@ function initState(){
     _bossJustDefeated:false,
     // ── 報酬 ──
     rerollCount:0,
-    rewardRerollsLeft:1,
-    // ── 秘術（互換性のため残す）──
-    arcana:null, arcanaUsed:false,
-    arcanaCarryGold:0, arcanaForceNode:false, arcanaTrustCount:0,
-    seenWands:[],
     _seenRarity3:new Set(),
-    bannedRings:[],
     buffAdjBonuses:{},
     rewardCards:6,
     maxRewardCards:6,
-    // ── 敵永続強化（魂喰X・マミー敵）──
-    enemyPermanentBonus:{atk:0,hp:0},
-    enemyUndeadAtkBonus:0,
-    _lesserDemonDiscount:0,
-  };
-
-  // 初期キャラクター：魔術師固定
-  const starterNames = ['魔術師'];
-  const pickedStarters = starterNames
-    .map(name => UNIT_POOL.find(u => u && u.name === name))
-    .filter(Boolean);
-  pickedStarters.forEach((def,i)=>{
-    const unit=makeUnitFromDef(def, undefined, true);
-    unit._isStarter=true;
-    unit.initialPanelName='魔術師';
-    unit.initialPanelDesc='';
-    unit.equipment=unit.equipment||[];
-    if(typeof makeStarterInitialPanel==='function') unit.equipment[0]=makeStarterInitialPanel('魔術師','');
-    const rearCenter=(ENEMY_FRONT_SLOTS||7)+Math.floor((ENEMY_FRONT_SLOTS||7)/2);
-    unit.lane='rear';
-    G.allies[i===0?rearCenter:i]=unit;
-    (def.initialEquipment||[]).forEach(eq=>{
-      const item=(SPELL_POOL||[]).find(s=>s&&s.name===eq);
-      const slot=G.spells.findIndex(s=>!s);
-      if(item&&slot>=0) G.spells[slot]=clone(item);
-    });
-  });
-
-  const addGlobal=name=>{
-    if(typeof makeGlobalPanel!=='function') return;
-    const card=makeGlobalPanel(name);
-    if(!card) return;
-    const slot=G.globalPanels.findIndex(p=>!p);
-    if(slot>=0) G.globalPanels[slot]=card;
   };
 }

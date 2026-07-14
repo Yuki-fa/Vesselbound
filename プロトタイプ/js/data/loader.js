@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════
 // loader.js — Google Sheets データローダー
-// 起動時に CSV を fetch し RING_POOL / SPELL_POOL / FLOOR_DATA /
-// BOSS_FLOORS / ENCHANT_TYPES をインプレースで上書きする。
+// 起動時に CSV を fetch し UNIT_POOL / FLOOR_DATA /
+// BOSS_FLOORS / ENEMY_POOL をインプレースで上書きする。
 // fetch 失敗時は内蔵データ（他の data/*.js）をそのまま使用。
 // ═══════════════════════════════════════
 
@@ -10,48 +10,22 @@ const _EXPORT_BASE =
   '2PACX-1vRgSPXHfTa42bU5EZN9lvtFUeeYAapxMGp2RqdE1QNl_5W2PTEtBGvFcdaZf4SGDg' +
   '/pub?output=csv';
 function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
-const _STARTER_PUBHTML_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRgSPXHfTa42bU5EZN9lvtFUeeYAapxMGp2RqdE1QNl_5W2PTEtBGvFcdaZf4SGDg/pubhtml?gid=266813898&single=true';
-function _starterSheetUrl(){
-  return _STARTER_PUBHTML_URL
-    .replace('/pubhtml?', '/pub?output=csv&')
-    .replace(/([?&])single=true/, '$1single=true')
-    + '&t=' + Date.now();
-}
 const _SHEET_GIDS = {
-  'キャラクタープール': 848932419,
-  '初期キャラクター': 266813898,
-  '指輪プール':   1986592617,
-  '魔法プール':  1367710240,
+  'プレイヤー':   266813898,
   '階層データ':   920830789,
   '敵':          1498560754,
-  'エンチャント':  320923773,
-  '敵キーワード':  769775182,
-  'effect_id':    992952088,
+  'キャラクター': 639070265,
+  '強化':        269074289,
+  '魔法':        741521357,
+  'キーワード':  769775182,
   'グレードアップ費用': 1903359867,
-  'リスNPC':     687265448,
 };
 
 const SHEET_RACE_BY_NAME = {};
-const SPECIES_EQUIP_CONFIG = {};
 
 function getSheetRaceByName(name) {
   return SHEET_RACE_BY_NAME[_normCardName(name)] || '';
 }
-
-// リスNPCメッセージ（シートから上書き）
-// キー: 条件列の値、値: メッセージ文字列の配列
-const SQUIRREL_MESSAGES = {
-  '入店時': ['いらっしゃい！', 'ゆっくり選んでいって！', '今日は何を買う？'],
-  '現在グレードのキャラを購入時': ['なかなかの眼力ね。', 'いい選択だわ！', 'そのキャラ、強いわよ。'],
-  '現在グレード未満のキャラを購入時': ['なにか作戦がありそうね。', '訳アリ…？', 'うーん、その手があったか。'],
-  'カードを重ねた時': ['どんどん強くなるわね！', 'パワーアップ完了！'],
-  '提示カードのコントロールを得た時': ['うまくいったわね！', 'やるじゃない！'],
-  '提示カードにダメージを与えた時': ['あらあら…', 'えっ、なにしてるの！'],
-  '提示カードを死亡させた時': ['やりすぎよ！', 'ちょっと！？'],
-  'グレードを上げた時': ['グレードアップ！さらに強くなるわよ！', 'いいね、どんどん行って！'],
-  '退店時': ['またね！', 'がんばって！', 'いい戦いをしてね。'],
-  'カードを売却した時': ['思い切ったわね。', 'ゴールドに変えたか。'],
-};
 
 // ── CSV パーサー ────────────────────────────────────
 function _csvRow(line) {
@@ -142,14 +116,12 @@ const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx'];
 const _XLSX_SHEETS = {
   floor: '階層データ',
   grade: 'グレードアップ',
-  spell: '杖、アイテム',
-  ring: '指輪',
-  char: 'キャラクター',
+  char: 'プレイヤー',
   enemy: '敵',
-  starter: '職種',
-  species: '種族',
   keyword: 'キーワード',
-  squirrel: '商談メッセージ',
+  card: 'キャラクター',
+  enchant: '強化',
+  spell: '魔法',
 };
 
 function _xlsxSheetToCSV(workbook, sheetName, required) {
@@ -161,6 +133,17 @@ function _xlsxSheetToCSV(workbook, sheetName, required) {
   return XLSX.utils.sheet_to_csv(sheet);
 }
 
+function _xlsxSheetToCSVAny(workbook, sheetNames, required) {
+  const names = Array.isArray(sheetNames) ? sheetNames : [sheetNames];
+  for (const name of names) {
+    if (workbook && workbook.Sheets && workbook.Sheets[name]) {
+      return XLSX.utils.sheet_to_csv(workbook.Sheets[name]);
+    }
+  }
+  if (required) throw new Error('xlsx sheet missing: ' + names.join(' / '));
+  return '名前\n';
+}
+
 async function _loadGameDataFromEmbeddedXlsx() {
   const data = window.VESSELBOUND_LOCAL_XLSX_CSV;
   if (!data) throw new Error('embedded xlsx data missing');
@@ -169,14 +152,12 @@ async function _loadGameDataFromEmbeddedXlsx() {
     source: 'embedded-xlsx',
     ft: data.floor || '名前\n',
     gt: data.grade || '名前\n',
-    st: data.spell || '名前\n',
-    rt: data.ring || '名前\n',
     ct: data.char || '名前\n',
     et: data.enemy || '名前\n',
-    starterText: data.starter || '名前\n',
-    speciesText: data.species || '名前\n',
     kwt: data.keyword || '名前\n',
-    sqt: data.squirrel || '名前\n',
+    pt: data.card || data.panel || '名前\n',
+    ent: data.enchant || '名前\n',
+    spt: data.spell || '名前\n',
   };
 }
 
@@ -202,14 +183,12 @@ async function _loadGameDataFromXlsx() {
     source: 'xlsx',
     ft: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.floor, true),
     gt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.grade, true),
-    st: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, true),
-    rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, true),
     ct: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.char, true),
     et: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enemy, false),
-    starterText: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.starter, true),
-    speciesText: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.species, false),
     kwt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.keyword, false),
-    sqt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.squirrel, false),
+    pt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.card, 'カード'], false),
+    ent: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enchant, false),
+    spt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, false),
   };
 }
 
@@ -217,44 +196,50 @@ async function _loadGameDataFromGoogleCsv() {
   const fetches = [
     fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
     fetch(_sheetUrl(_SHEET_GIDS['グレードアップ費用'])),
-    fetch(_sheetUrl(_SHEET_GIDS['魔法プール'])),
-    fetch(_sheetUrl(_SHEET_GIDS['指輪プール'])),
-    fetch(_sheetUrl(_SHEET_GIDS['キャラクタープール'])),
+    fetch(_sheetUrl(_SHEET_GIDS['プレイヤー'])),
     fetch(_sheetUrl(_SHEET_GIDS['敵'])),
-    fetch(_starterSheetUrl()),
+    fetch(_sheetUrl(_SHEET_GIDS['キャラクター'])),
+    fetch(_sheetUrl(_SHEET_GIDS['強化'])),
+    fetch(_sheetUrl(_SHEET_GIDS['魔法'])),
   ];
   const responses = await Promise.all(fetches);
   for (const r of responses) {
     if (r && !r.ok) throw new Error('HTTP ' + r.status);
   }
-  const [ft, gt, st, rt, ct, et, starterText] = await Promise.all(responses.map(r => r.text()));
+  const [ft, gt, ct, et, pt, ent, spt] = await Promise.all(responses.map(r => r.text()));
   let kwt = '名前\n';
-  let sqt = '名前\n';
   try {
-    const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['敵キーワード']));
+    const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['キーワード']));
     if (kwRes.ok) kwt = await kwRes.text();
   } catch (_) { /* 任意シート */ }
-  try {
-    const sqRes = await fetch(_sheetUrl(_SHEET_GIDS['リスNPC']));
-    if (sqRes.ok) sqt = await sqRes.text();
-  } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, st, rt, ct, et, starterText, speciesText: '種族\n', kwt, sqt };
+  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt };
 }
 
 // ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
 function _parseIntRange(s, fallback) {
   if (!s || !String(s).trim()) return { val: fallback, range: [fallback, fallback] };
-  const slash = String(s).match(/(\d+)\s*\/\s*(\d+)/);
+  const raw = String(s).trim();
+  const dateLike = raw.match(/^20\d{2}[-\/](\d{1,2})[-\/](\d{1,2})(?:\s|$)/);
+  if (dateLike) {
+    const a = parseInt(dateLike[1], 10);
+    const b = parseInt(dateLike[2], 10);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      return { val: hi, range: [lo, hi] };
+    }
+  }
+  const slash = raw.match(/(\d+)\s*\/\s*(\d+)/);
   if (slash) {
     const v = parseInt(slash[2]);
     return { val: v, range: [v, v] };
   }
-  const m = String(s).match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
+  const m = raw.match(/^(\d+)\s*[-~〜]\s*(\d+)$/);
   if (m) {
     const lo = parseInt(m[1]), hi = parseInt(m[2]);
     return { val: hi, range: [lo, hi] };
   }
-  const v = parseInt(s);
+  const v = parseInt(raw);
   return isNaN(v) ? { val: fallback, range: [fallback, fallback] } : { val: v, range: [v, v] };
 }
 
@@ -262,16 +247,25 @@ function _sheetArtCode(row, fallbackPrefix) {
   if (!row) return '';
   const raw = String(row['No.'] || row['No'] || row['NO'] || row['コード'] || row['画像No'] || row['画像番号'] || row['__col0'] || '').trim();
   if (!raw) return '';
-  const prefixed = raw.match(/^([PEC])\s*0*(\d+)$/i);
-  if (prefixed) return prefixed[1].toUpperCase() + String(parseInt(prefixed[2], 10)).padStart(3, '0');
+  const prefixed = raw.match(/^(MC|EN|P|[ECS])\s*0*(\d+)$/i);
+  if (prefixed) {
+    let p = prefixed[1].toUpperCase();
+    if (p === 'P') p = 'MC';
+    return p + String(parseInt(prefixed[2], 10)).padStart(3, '0');
+  }
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n) || n <= 0) return raw;
   return String(fallbackPrefix || '').toUpperCase() + String(n).padStart(3, '0');
 }
 
-function _assignSheetArtCode(obj, row, fallbackPrefix) {
-  const code = _sheetArtCode(row, fallbackPrefix);
+function _assignSheetArtCode(obj, row, fallbackPrefix, isEnemy) {
+  let code = _sheetArtCode(row, fallbackPrefix);
   if (!obj || !code) return;
+  // 敵専用行はシート側のNo.が旧「E」表記のままでも、実ファイルが「EN」表記に改名されているため変換する。
+  if (isEnemy) {
+    const m = code.match(/^E(\d+)$/i);
+    if (m) code = 'EN' + m[1].padStart(3, '0');
+  }
   obj['No.'] = code;
   obj.No = code;
   obj.no = code;
@@ -321,7 +315,6 @@ function _starterNameFromSheet(s) {
     '盗賊':'盗賊',
     '騎士':'騎士',
     '屍術師':'屍術師',
-    'し術師':'屍術師',
     '狩人':'狩人',
   };
   return map[n] || '';
@@ -335,11 +328,6 @@ function _findStarterUnitBySheetName(name) {
     || null;
 }
 
-function _cardNameExists(name) {
-  return !!(_findBySheetName(typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : [], name)
-    || _findBySheetName(typeof RING_POOL !== 'undefined' ? RING_POOL : [], name));
-}
-
 function _sheetAbilityText(s) {
   return String(s || '').trim().replace(/^<([^>]+)>/, '$1：');
 }
@@ -347,116 +335,6 @@ function _sheetAbilityText(s) {
 function _sheetNumber(v, fallback) {
   const n = parseInt(String(v || '').trim(), 10);
   return isNaN(n) ? fallback : n;
-}
-
-function _makeFixedEquipCard(name, desc) {
-  const nm = String(name || '固定装備').replace(/[（）]/g, '').trim() || '固定装備';
-  return {
-    id: 'fixed_' + _normCardName(nm),
-    name: nm,
-    type: 'consumable',
-    kind: 'equipment',
-    equip: true,
-    fixedEquip: true,
-    fixedAttack: true,
-    actionCost: 1,
-    needsEnemy: true,
-    grade: 1,
-    rarity: -1,
-    cost: 0,
-    desc: '固定装備。対象にこのキャラクターの攻撃力分のダメージを与える。',
-  };
-}
-
-function _syncSpeciesEquipConfig(text) {
-  Object.keys(SPECIES_EQUIP_CONFIG).forEach(k => delete SPECIES_EQUIP_CONFIG[k]);
-  const rows = _parseCSVWithHeader(text || '種族\n', ['種族', '固定装備']);
-  rows.forEach(row => {
-    const race = (row['種族'] || row['名前'] || row['__col0'] || '').trim();
-    if (!race || race === '種族' || race.includes('※')) return;
-    const itemSlots = _sheetNumber(row['アイテムスロット'] || row['__col5'], 3);
-    const ringSlots = _sheetNumber(row['リングスロット'] || row['指輪スロット'] || row['__col6'], 1);
-    const fixedName = (row['固定装備'] || row['__col7'] || '').trim();
-    const fixedDesc = (row['固定装備 性能'] || row['固定装備性能'] || row['__col8'] || '').trim();
-    SPECIES_EQUIP_CONFIG[_normCardName(race)] = {
-      race,
-      itemSlots: Math.max(0, itemSlots),
-      ringSlots: Math.max(0, ringSlots),
-      fixedEquip: fixedName ? _makeFixedEquipCard(fixedName, fixedDesc) : null,
-    };
-  });
-}
-
-function _syncUnitEffectKeysFromSheet(unit) {
-  if (!unit) return;
-  const patches = {
-    'ゾンビ': { effect: 'zombie_end', injury: null, desc:'終戦：ライフが10になる。' },
-    'グリマルキン': { effect: 'grimalkin_summon', injury: null, desc:'使役：以後、カードの効果で召喚される仲間のライフが+1される。' },
-    'ドワーフ': { effect: 'dwarf_summon', injury: null, desc:'使役：左端の杖に+2チャージする。' },
-    'マミー': { effect: 'mummy_death', injury: null, desc:'死亡：3ゴールドを得る。' },
-    'バンシー': { effect: 'banshee_death', injury: null, desc:'死亡：以後、商談フェイズに現れるキャラクターのパワーが+2される。' },
-    'ブラウニー': { effect: 'brownie_attack', injury: null, desc:'攻撃：全ての仲間のライフが+1される。' },
-    'ジャック・オ・ランタン': { effect: 'jack_attack', injury: null, desc:'攻撃：以後、商談フェイズに現れるキャラクターのライフが+1される。' },
-    'シルフ': { effect: 'sylph_summon', injury: null, desc:'使役：隣接する仲間が+1/+2を得る。' },
-    'インプ': { effect: 'imp_summon', injury: null, desc:'使役：ランダムなG1のアイテムを1枚得る。' },
-    'グレムリン': { effect: 'gremlin_free_item', injury: null, desc:'常時：各フェイズで、最初に使用したアイテムは1回だけ行動力を使用しない。' },
-    'アラッサス': { effect: null, injury: 'arachas', desc:'負傷：「アラッサス」以外の全てのキャラクターに1ダメージを与える。' },
-    'スリン': { effect: null, injury: 'slin', desc:'負傷：ライフが+2される。' },
-    'リザードマン': { effect: 'lizardman_attack', injury: null, desc:'攻撃：パワーが+1される。' },
-    'ドレイク': { effect: 'drake_mitigate', injury: null },
-    'ドラウグ': { effect: 'draug_summon', injury: null },
-    'ペガサス': { effect: 'pegasus_start', injury: null, desc:'開戦：全ての前衛の味方のライフが+4される。' },
-    'コボルド': { effect: 'kobold_wand', injury: null, desc:'誘発：杖の効果が発動するたび、全ての仲間のライフが+2される。' },
-    'ケンタウロス': { effect: 'centaur_attack', injury: null, desc:'攻撃：オーナーの魔術レベルが+1される。', keywords:['二段攻撃'] },
-    'シャドウ': { effect: null, injury: 'shadow', desc:'負傷：正面にキャラクターがいる場合、そのキャラクターに変身する。（スタッツも含めて）' },
-    'スペクター': { effect: 'specter_start', injury: null, desc:'開戦：ランダムな相手キャラクターに「死亡：全ての味方キャラクターに4ダメージを与える。」を与える。' },
-    'ゴースト': { effect: 'ghost_death_effect', injury: null, desc:'誘発：死亡効果が発動するたび、以後、商談フェイズに現れる「不死」のキャラクターが+1/+1を得る。' },
-    'ドリアード': { effect: 'dryad_attack', injury: null, desc:'攻撃：全ての仲間の精霊が+1/+1を得る。' },
-    'フロスト・スプライト': { effect: 'frost_start', injury: null, desc:'開戦：隣接するキャラクターに「シールド」を与える。' },
-    'ガーゴイル': { effect: 'gargoyle_bonus', injury: null, desc:'常時：全ての悪魔へのバフは+1される。' },
-    'ハイドラ': { effect: null, injury: 'hydra', desc:'負傷：ランダムな相手キャラクターを1ターン行動不能にする。' },
-    'シーサーペント': { effect: null, injury: 'sea_serpent', desc:'負傷：全ての相手キャラクターに2ダメージを与える。' },
-    '虚飾の歌姫"リリス・ヴェノム"': { effect: null, injury: null, desc:'全体攻撃　毒牙', keywords:['全体攻撃','毒牙'] },
-    '虚飾の歌姫“リリス・ヴェノム”': { effect: null, injury: null, desc:'全体攻撃　毒牙', keywords:['全体攻撃','毒牙'] },
-    'クロコッタ': { effect: 'crocutta_start', injury: null, desc:'開戦：ランダムな相手キャラクターに攻撃する。' },
-    'ルフ': { effect: 'rukh_summon', injury: null, desc:'使役：隣接する獣のグレードが1上がる。' },
-    'バンダースナッチ': { effect: 'bandersnatch_ally_death', injury: null, desc:'誘発：仲間が死ぬたび、全ての相手キャラクターに4ダメージを与える。' },
-    'ナックラヴィー': { effect: 'nuckelavee_turn', injury: null, desc:'常時：ターン開始時、3/2、獣の「ホワイトハンド」を召喚する。' },
-    'シービショップ': { effect: 'sea_bishop_start', injury: null, desc:'開戦：他の全てのキャラクターからライフを2奪う。' },
-    'チェシャー': { effect: 'cheshire_summon', injury: null, desc:'誘発：仲間が召喚されるたび、全ての仲間の獣が+1/+1を得る。' },
-    'スキュラ': { effect: 'scylla_attack', injury: null, desc:'攻撃：最もパワーが低い味方のパワーを、このキャラクターのパワーと同じにする。' },
-    'メデューサ': { effect: 'medusa_summon', injury: null, desc:'使役：対象のキャラクターに「二段攻撃」を与える。' },
-    'オーガ': { effect: 'ogre_summon', injury: null, desc:'使役：魔術レベルが10以上なら三方向攻撃を得る。' },
-    'フォーン': { effect: 'faun_wand', injury: null, desc:'誘発：杖を7回使用するたび、オーナーの行動回数が+1される。' },
-    'サイレン': { effect: 'siren_start', injury: null, desc:'開戦：オーナーの魔術レベルが+1される。' },
-    'セルキー': { effect: 'selkie_start', injury: null, desc:'開戦：チャージ1のランダムな杖を得る。' },
-    'ワーウルフ': { effect: 'werewolf_attack', injury: null, desc:'攻撃：このキャラクターと、以後、商談フェイズに現れる「亜人」のキャラクターのライフが+2される。' },
-    'アルラウネ': { effect: 'alraune_attack', injury: null, desc:'攻撃：最も攻撃力が低い味方に「強化の杖」を使用する。' },
-    'ファントム': { effect: 'phantom_attack', injury: null, desc:'攻撃：ランダムな味方に不死の種族を追加する。' },
-    'フェクスト': { effect: 'fecht_death', injury: null, desc:'死亡：戦闘終了時に復活する。' },
-    'エイドロン': { effect: 'eidolon_death', injury: null, desc:'死亡：全ての仲間の不死が+2/+1とシールドを得る。' },
-    'エルヴンメイジ': { effect: 'elvenmage_wand_double', injury: null, desc:'誘発：オーナーが使用した杖の効果は1回追加で発動する。' },
-    'ニンフ': { effect: 'nymph_attack', injury: null, desc:'攻撃：隣接するキャラクターのライフが+6される。' },
-    'シャナ': { effect: 'shana_shield_lost', injury: null, desc:'誘発：シールドを失うと後衛に下がる。' },
-    'サキュバス': { effect: 'succubus_sell', injury: null },
-    'メデューサ': { effect: 'medusa_summon', injury: null, desc:'使役：対象のキャラクターに「二段攻撃」を与える。' },
-    'スキュラ': { effect: 'scylla_attack', injury: null, desc:'攻撃：最もパワーが低い味方のパワーを、このキャラクターのパワーと同じにする。' },
-    'マナガルム': { effect: 'managarm_sell', injury: null },
-    '波の娘"ラン・ドーター"': { effect: null, injury: 'ran' },
-  };
-  const patch = patches[_normCardName(unit.name)];
-  if (!patch) return;
-  if ('effect' in patch) {
-    if (patch.effect) unit.effect = patch.effect;
-    else delete unit.effect;
-  }
-  if ('injury' in patch) {
-    if (patch.injury) unit.injury = patch.injury;
-    else delete unit.injury;
-  }
-  // 説明文はシートの「効果」列を正とする。patch.desc はシート未取得/空欄時の保険だけに使う。
-  if (patch.desc && !unit.desc) unit.desc = patch.desc;
-  if (patch.keywords) unit.keywords = [...patch.keywords];
 }
 
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
@@ -476,74 +354,66 @@ function _rowToUnit(row) {
     cost:   parseInt(row['価格']) || 0,
     unique: _truthySheet(row['ネームド']) || _truthySheet(row['ユニーク']),
     desc:   row['効果']   || '',
-    icon:   row['アイコン'] || '❓',
   };
 }
 
-// ── 行 → 指輪オブジェクト ──────────────────────────
-function _rowToRing(row) {
-  const obj = {
-    id:    '',    // JS定義から補完
-    name:  row['名前'],
-    type:  'ring',
-    grade: 1,
-  };
-  // ユニーク・legend
-  if (_truthySheet(row['ユニーク'])) obj.legend = true;
-  // 価格
-  const cost = parseInt(row['価格']);
-  if (!isNaN(cost)) obj.cost = cost;
-  // 初期装備分類
-  if (_truthySheet(row['初期装備'])) obj.starterOnly = true;
-  obj.desc = row['効果'] || row['説明文'] || '';
-  return obj;
-}
+function _applySheetUnitFields(unit, row) {
+  if (!unit || !row) return;
+  const grade = parseInt(row['グレード'] || row['レベル']);
+  if (!isNaN(grade) && grade >= 1) unit.grade = grade;
 
-// ── 行 → 魔法オブジェクト ──────────────────────────
-function _rowToSpell(row) {
-  const obj = {
-    id:    '',    // JS定義から補完
-    name:  row['名前'],
-    type:  row['種別1'] || row['種別'] || row['種別(wand/consumable)'],
-    grade: 1,
-  };
-  // 基本使用回数（固定値 or "3-5" 形式のレンジ）
-  const usesStr = row['基本使用回数'] || '';
-  if (usesStr) {
-    const rng = usesStr.match(/^(\d+)-(\d+)$/);
-    if (rng) obj.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])];
-    else if (!usesStr.includes('-')) obj.baseUses = parseInt(usesStr) || undefined;
+  const rarityRaw = String(row['レアリティ'] || '').trim();
+  const rarity = parseInt(rarityRaw);
+  if (rarityRaw === '-') unit.rarity = -1;
+  else if (!isNaN(rarity) && rarity >= 1) unit.rarity = rarity;
+
+  const costRaw = String(row['コスト'] || row['価格'] || '').trim();
+  const cost = parseInt(costRaw);
+  if (costRaw && costRaw !== '-' && !isNaN(cost)) unit.cost = cost;
+
+  const priceRaw = String(row['価格'] || '').trim();
+  const price = parseInt(priceRaw);
+  if (priceRaw && priceRaw !== '-' && !isNaN(price)) unit.price = price;
+
+  const color = String(row['カラー'] || '').trim();
+  if (color) unit.color = color;
+  if (row['種族'] !== undefined) unit.race = row['種族'] || '-';
+
+  const atkRaw = String(row['パワー'] || row['攻撃力'] || row['ATK'] || row['初期ATK'] || '').trim();
+  if (atkRaw && atkRaw !== '-') {
+    const atkP = _parseIntRange(atkRaw, unit.atk || 0);
+    unit.atk = atkP.val;
+    unit.baseAtk = atkP.range;
   }
-  // 価格
-  const cost = parseInt(row['価格']);
-  if (!isNaN(cost)) obj.cost = cost;
-  // 初期装備分類
-  if (_truthySheet(row['初期装備'])) obj.starterOnly = true;
-  obj.desc = row['効果'] || row['説明文'] || '';
-  return obj;
+
+  const hpRaw = String(row['ライフ'] || row['HP'] || row['初期HP'] || '').trim();
+  if (hpRaw && hpRaw !== '-') {
+    const hpP = _parseIntRange(hpRaw, unit.hp || 0);
+    unit.hp = hpP.val;
+    unit.baseHp = hpP.range;
+  }
 }
+
 
 // ── メイン読み込み ──────────────────────────────────
 async function loadGameData() {
   try {
     let loaded;
     try {
-      loaded = await _loadGameDataFromEmbeddedXlsx();
-    } catch (embeddedErr) {
+      loaded = await _loadGameDataFromXlsx();
+      console.log('[Vesselbound] XLSX loaded');
+    } catch (xlsxErr) {
       try {
-        loaded = await _loadGameDataFromXlsx();
-        console.log('[Vesselbound] XLSX loaded');
-      } catch (xlsxErr) {
+        loaded = await _loadGameDataFromEmbeddedXlsx();
+      } catch (embeddedErr) {
         console.warn('[Vesselbound] XLSX 読み込み失敗。Google Sheets CSVへフォールバック:', xlsxErr);
         loaded = await _loadGameDataFromGoogleCsv();
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    const { source, ft, gt, st, rt, ct, et, starterText, speciesText, kwt, sqt } = loaded;
+    const { source, ft, gt, ct, et, kwt, pt, ent, spt } = loaded;
 
-    _syncSpeciesEquipConfig(speciesText);
-
-    // 敵キーワード シート（任意）：失敗してもメイン読み込みには影響しない
+    // キーワード シート（任意、キャラクター・敵共通のキーワード説明文）：失敗してもメイン読み込みには影響しない
     try {
       const kwRows = _parseCSV(kwt || '名前\n');
       kwRows.forEach(row => {
@@ -556,87 +426,24 @@ async function loadGameData() {
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
 
-    // リスNPCメッセージ シート（任意）
-    try {
-      const sqRows = _parseCSV(sqt || '名前\n');
-      // シートのデータでハードコード済みデフォルトを上書きする
-      const _sqFromSheet = {};
-      sqRows.forEach(row => {
-        const trigger = (row['条件'] || row['トリガー'] || row[Object.keys(row)[0]] || '').trim();
-        const msg = (row['セリフ'] || row['メッセージ'] || row['テキスト'] || row[Object.keys(row)[1]] || '').trim();
-        if (!trigger || !msg) return;
-        if (!_sqFromSheet[trigger]) _sqFromSheet[trigger] = [];
-        _sqFromSheet[trigger].push(msg);
-      });
-      // シートに存在するトリガーのみ上書き（シート読み込み失敗時はデフォルトを維持）
-      Object.assign(SQUIRREL_MESSAGES, _sqFromSheet);
-    } catch (_) { /* リスNPCデータなしで続行 */ }
-
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
     console.table(floorRows.slice(0, 5));
-    // floors.js のフォールバック wands を事前に退避
-    const _savedWands = FLOOR_DATA.map(fd => fd?.wands);
-    // 旧アクション文字列 → 杖ID のマッピング
-    const _actionToWandId = {'強化':'cw_buff','鼓舞':'cw_heal','召喚':'cw_summon','シールド':'cw_shield','標的':'cw_hate'};
-    const _validWandIds = new Set(['cw_buff','cw_heal','cw_summon','cw_shield','cw_hate']);
+    const validFloorRows = floorRows.filter(row => {
+      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['floor']);
+      return !!fl && !isNaN(fl);
+    });
+    if (validFloorRows.length) {
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
-    floorRows.forEach(row => {
+    validFloorRows.forEach(row => {
       const fl = parseInt(row['階層'] || row['戦闘回数'] || row['floor']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓' || row['ボスかどうか'] === '✓' || row['ボス'] === 'TRUE';
-      // 「敵手札」列（旧「行動」列）：カンマ区切りの杖/アイテム名 → SPELL_POOLから検索
-      const handStr = (row['敵手札'] || row['相手キャラクター手札'] || '').trim();
-      const enemyHand = handStr && !handStr.startsWith('なし')
-        ? handStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
-            .map(entry => {
-              // 「名前（N）」形式でチャージ数を上書き
-              const m = entry.match(/^(.+?)（(\d+)）$/);
-              const name = m ? m[1].trim() : entry;
-              const overrideUses = m ? parseInt(m[2]) : null;
-              const def = typeof SPELL_POOL!=='undefined' ? _findBySheetName(SPELL_POOL, name) : null;
-              if(!def) return null;
-              const c = Object.assign({}, def);
-              const uses = overrideUses!=null ? overrideUses : (c.baseUses || c.baseUsesRange ? (c.baseUsesRange?Math.round((c.baseUsesRange[0]+c.baseUsesRange[1])/2):c.baseUses) : 4);
-              c.usesLeft = uses; c._maxUses = uses;
-              return c;
-            })
-            .filter(Boolean)
-        : [];
-      // 「敵指輪」列：カンマ区切りの指輪名 → RING_POOLから検索
-      const ringStr = (row['敵指輪'] || row['相手キャラクター指輪'] || '').trim();
-      const enemyRings = ringStr && !ringStr.startsWith('なし')
-        ? ringStr.split(/[,、，]+/).map(n=>n.trim()).filter(Boolean)
-            .map(name => typeof RING_POOL!=='undefined' ? _findBySheetName(RING_POOL, name) : null)
-            .filter(Boolean)
-        : [];
-      // 旧「行動」列（後方互換：commanderWands用）
-      const actStr = (row['行動'] || row['杖'] || row['司令官行動'] || '').trim();
-      let wands;
-      if (!actStr) {
-        wands = _savedWands[fl] || [];
-      } else if (actStr.startsWith('なし')) {
-        wands = [];
-      } else {
-        wands = actStr.split(/[,、;；\s]+/)
-          .map(s => _actionToWandId[s.trim()] || s.trim())
-          .filter(s => _validWandIds.has(s));
-      }
-      const _mlVal = parseInt(row['魔術レベル'] || row['magicLevel']);
-      const _personalityMap = {'攻撃':'aggressive','防衛':'defensive','策士':'tactical','道化':'chaotic'};
-      const _persRaw = (row['パーソナリティ'] || row['personality'] || '').trim();
-      const _acVal = parseInt(row['行動数'] || row['actionCount']);
       FLOOR_DATA[fl] = {
         grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
-        wands: wands,
-        enemyHand: enemyHand,
-        enemyRings: enemyRings,
-        magicLevel: isNaN(_mlVal) ? 0 : _mlVal,
-        personality: _personalityMap[_persRaw] ?? 'chaotic',
-        actionCount: isNaN(_acVal) ? 1 : Math.max(1, _acVal),
       };
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
@@ -644,6 +451,9 @@ async function loadGameData() {
         BOSS_FLOORS.push(fl - 1);
       }
     });
+    } else {
+      console.warn('[Vesselbound] 階層データが空のため、既存のFLOOR_DATAを維持します');
+    }
 
     // ── グレードアップ費用 ──
     // シート列：グレード, 費用（グレード2以上の費用 = G1→G2, G2→G3, ...）
@@ -694,143 +504,27 @@ async function loadGameData() {
       if (costs.length) window.FACILITY_UPGRADE_COSTS[key] = costs;
     });
 
-    // ── 魔法プール（種別・グレード・使用回数・価格・初期装備・説明文）──
-    const spellRows = _parseCSV(st);
-    spellRows.forEach(row => {
-      const name = row['名前'] || row['カード名'];
-      if (!name) return;
-      // 同名カードが複数ある場合（例：初期装備版と報酬プール版）は全件更新
-      const spells = _filterBySheetName(SPELL_POOL, name);
-      if (!spells.length) return;
-      // 種別・グレード・使用回数・価格・レアリティ・初期装備・説明文を各フィールドに適用
-      const _typeRaw = (row['種別1'] || row['種別'] || row['種別(wand/consumable)'] || '').trim();
-      const _typeMap = {'杖':'wand','短杖':'wand','wand':'wand','消耗品':'consumable','アイテム':'consumable','consumable':'consumable'};
-      const type = _typeMap[_typeRaw] || null;
-      const grade = parseInt(row['グレード'] || row['レベル']);
-      const usesStr = (row['基本使用回数'] || '').trim();
-      const cost = parseInt(row['価格']);
-      const actionCost = parseInt(row['行動力'] || row['消費行動力']);
-      const rarStr = (row['レアリティ'] || '').trim();
-      const rarVal = parseInt(rarStr);
-      const sv = row['初期装備'];
-      const desc = row['効果'] || row['説明文'];
-      spells.forEach(spell => {
-        if (type && spell.id !== 'w_fire') spell.type = type;
-        if (!isNaN(grade) && grade >= 1) spell.grade = grade;
-        if (usesStr) {
-          const rng = usesStr.match(/^(\d+)-(\d+)$/);
-          if (rng) { spell.baseUsesRange = [parseInt(rng[1]), parseInt(rng[2])]; delete spell.baseUses; }
-          else if (!usesStr.includes('-')) { spell.baseUses = parseInt(usesStr) || undefined; delete spell.baseUsesRange; }
-        }
-        if (!isNaN(cost)) spell.cost = cost;
-        if (!isNaN(actionCost)) spell.actionCost = Math.max(0, actionCost);
-        if (rarStr === '-') spell.rarity = -1;
-        else if (!isNaN(rarVal) && rarVal >= 1) spell.rarity = rarVal;
-        if (_truthySheet(sv)) spell.starterOnly = true;
-        else if (_falseySheet(sv)) delete spell.starterOnly;
-        // 報酬中使用不可
-        const nrv = row['報酬中使用不可'];
-        if (_truthySheet(nrv)) spell.noRewardUse = true;
-        else if (_falseySheet(nrv)) delete spell.noRewardUse;
-        // 種別2：短杖フラグ
-        const _subtype2 = (row['種別2'] || '').trim();
-        if (_subtype2 === '短杖') spell.subtype = 'wand';
-        else delete spell.subtype;
-        spell.desc = desc || '';
-      });
-    });
-
-    // ── 指輪プール（ユニーク・グレード・価格・初期装備・説明文）──
-    const ringRows = _parseCSV(rt);
-    const ringNameSeen = {};
-    ringRows.forEach(row => {
-      const name = row['名前'];
-      if (!name) return;
-      const rings = _filterBySheetName(RING_POOL, name);
-      if (!rings.length) return;
-      const key = _normCardName(name);
-      const seen = ringNameSeen[key] || 0;
-      ringNameSeen[key] = seen + 1;
-      const ring = rings[Math.min(seen, rings.length - 1)];
-      if (!ring) return;
-      // ユニーク（legend）
-      const uv = row['ユニーク'];
-      if (_truthySheet(uv)) ring.legend = true;
-      else if (_falseySheet(uv)) delete ring.legend;
-      // グレード
-      const grade = parseInt(row['グレード'] || row['レベル']);
-      if (!isNaN(grade) && grade >= 1) ring.grade = grade;
-      // 価格
-      const cost = parseInt(row['価格']);
-      if (!isNaN(cost)) ring.cost = cost;
-      const slot = parseInt(row['スロット']);
-      if (!isNaN(slot)) ring.slot = slot;
-      // レアリティ
-      { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
-        if(rarStr==='-') ring.rarity=-1;
-        else if(!isNaN(rarVal)&&rarVal>=1) ring.rarity=rarVal; }
-      // 初期装備
-      const sv = row['初期装備'];
-      if (_truthySheet(sv)) ring.starterOnly = true;
-      else if (_falseySheet(sv)) delete ring.starterOnly;
-      // 説明文
-      const desc = row['効果'] || row['説明文'];
-      ring.desc = desc || '';
-    });
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSVWithHeader(ct, ['カード名', '名前']);
     const enemyRows = _parseCSVWithHeader(et || 'カード名\n', ['カード名', 'ターン']);
-    const _sheetEnemyNames = new Set(); // シートに「敵専用」の通常敵として登録されている敵名
     const _sheetUnitNames = new Set();  // シートに存在する通常/ネームドキャラクター名
     const _syncUnitFromRow = (unit, row) => {
       unit._sheetSeen = true;
-      _assignSheetArtCode(unit, row, 'P');
+      _assignSheetArtCode(unit, row, unit.enemyOnly ? 'EN' : 'MC', unit.enemyOnly);
       const nv = row['ネームド'] || row['ユニーク'];
       if (_truthySheet(nv)) unit.unique = true;
       else if (_falseySheet(nv)) unit.unique = false;
-      const grade = parseInt(row['グレード'] || row['レベル']);
-      if (!isNaN(grade) && grade >= 1) unit.grade = grade;
-      { const rarStr=(row['レアリティ']||'').trim();
-        const rarVal=parseInt(rarStr);
-        if(rarStr==='-') unit.rarity=-1;
-        else if(!unit.sheetOnly&&!isNaN(rarVal)&&rarVal>=1) unit.rarity=rarVal; }
-      const atkP2 = _parseIntRange(row['パワー'] || row['攻撃力'] || row['ATK'], unit.atk || 0);
-      const hpP2  = _parseIntRange(row['ライフ'] || row['HP'],  unit.hp  || 0);
-      if (atkP2.val > 0) unit.atk = atkP2.val;
-      if (hpP2.val  > 0) unit.hp  = hpP2.val;
-      if (row['種族']) unit.race = row['種族'];
-      const cost = parseInt(row['価格']);
-      if (!isNaN(cost)) unit.cost = cost;
+      _applySheetUnitFields(unit, row);
       const desc = row['効果'];
       unit.desc = desc || '';
-      if (row['1進化'] !== undefined && row['1進化'].trim()) unit.stack1Desc = row['1進化'].trim();
-      else delete unit.stack1Desc;
-      if (row['2進化'] !== undefined && row['2進化'].trim()) unit.stack2Desc = row['2進化'].trim();
-      else delete unit.stack2Desc;
-      if (row['強化'] !== undefined && row['強化'].trim()) unit.stackEnhDesc = row['強化'].trim();
-      else delete unit.stackEnhDesc;
-      if (row['重ね効果'] !== undefined && row['重ね効果'].trim()) unit.stackEffect = row['重ね効果'].trim();
-      else delete unit.stackEffect;
-      const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || '';
-      const equipTypes = _splitSheetList(equipTypeStr);
-      if (equipTypes.length) unit.equipTypes = equipTypes;
-      const effectText = row['効果'] || '';
-      const inEffectEq = [...String(effectText).matchAll(/初期装備[：:]\s*「([^」]+)」/g)].map(m => m[1]).join('、');
-      const initialEqStr = row['初期装備'] || row['装備'] || inEffectEq || '';
-      const initialEquipment = _splitSheetList(initialEqStr).filter(_cardNameExists);
-      if (initialEquipment.length) unit.initialEquipment = initialEquipment;
-      else if (initialEqStr) unit.initialEquipment = [];
       if (row['キーワード'] !== undefined) {
         const kwStr = row['キーワード'].trim();
         unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
-        unit.counter = unit.keywords.includes('反撃');
         unit.shield  = unit.keywords.includes('シールド') ? (unit.shield || 1) : 0;
         if (unit.keywords.includes('標的')) { unit.hate = true; unit.hateTurns = 99; }
         else { unit.hate = false; unit.hateTurns = 0; }
       }
-      _syncUnitEffectKeysFromSheet(unit);
     };
     const _syncStarterFromRow = (unit, row) => {
       const starterName = _starterNameFromSheet(row['名前']);
@@ -845,39 +539,240 @@ async function loadGameData() {
           cost: 0,
           unique: false,
           starterOnly: true,
-          icon: '❓',
           initialEquipment: [],
         };
         UNIT_POOL.push(unit);
       }
       if (!unit) return;
-      _assignSheetArtCode(unit, row, 'P');
-      unit.atk = 3;
-      unit.hp = 3;
-      unit.baseAtk = '3';
-      unit.baseHp = '3';
-      if (row['種族']) unit.race = row['種族'];
-      unit.grade = 1;
-      unit.cost = 0;
+      _assignSheetArtCode(unit, row, 'MC');
       unit.unique = false;
       unit.starterOnly = true;
       unit.enemyOnly = false;
-      unit.rarity = -1;
       unit.desc = '';
+      _applySheetUnitFields(unit, row);
+      if (unit.rarity === undefined) unit.rarity = -1;
       unit.initialPanelName = String(row['初期パネル'] || unit.initialPanelName || '').trim();
       unit.initialPanelDesc = String(row['初期パネルの効果'] || row['効果'] || unit.initialPanelDesc || '').trim();
       delete unit.effect;
       delete unit.injury;
       unit.keywords = [];
-      const equipTypeStr = row['装備可能武器'] || row['装備可能'] || row['武器'] || '';
-      const equipTypes = _splitSheetList(equipTypeStr);
-      if (equipTypes.length) unit.equipTypes = equipTypes;
       unit.initialEquipment = [];
       unit._sheetSeen = true;
     };
+    // ── 「キャラクター」「強化」「魔法」シート → PANEL_POOL/SPELL_POOL 同期 ──
+    // マナは色を持たない単一プールに統一されたため、カードの「色」は見た目・種族分類用のみに使う。
+    // 茶は廃止し黄に統一する（紫は既存の色として扱う）。
+    const _normalizeColorText = color => { const c = String(color || '').trim(); return c === '茶' ? '黄' : c; };
+    const _rowImplemented = row => {
+      if (!row || row['実装'] === undefined) return true;
+      return !_falseySheet(row['実装']);
+    };
+    // 「Xマナ：効果」形式の説明文から、Xマナ貯まった時点で即座に発動するコストを読み取る
+    // （キャラクター・強化パネル共通。スペルの「コスト」列とは別に、説明文自身がコストを兼ねる）
+    // 「Xマナ毎：効果」の場合はmanaRepeat=trueとし、Xマナ貯まるたびに繰り返し発動する
+    const _setManaThresholdFromDesc = panel => {
+      const desc = String(panel.desc || '');
+      const every = desc.match(/^(\d+)マナ毎[:：]/);
+      const once = !every && desc.match(/^(\d+)マナ[:：]/);
+      if (every) { panel.manaCost = parseInt(every[1], 10) || 0; panel.manaRepeat = true; }
+      else if (once) { panel.manaCost = parseInt(once[1], 10) || 0; panel.manaRepeat = false; }
+      else { delete panel.manaCost; delete panel.manaRepeat; }
+    };
+    const _splitSheetKeywords = value => String(value || '')
+      .split(/[\s、,，\n]+/)
+      .map(v => v.trim())
+      .filter(Boolean);
+    const _mergeUniqueKeywords = (base, add) => {
+      const out = Array.isArray(base) ? base.slice() : [];
+      (add || []).forEach(k => { if (k && !out.includes(k)) out.push(k); });
+      return out;
+    };
+    const _setPanelKeywordsFromDesc = panel => {
+      const desc = String(panel.desc || '');
+      const kws = [];
+      // 「復活を付与する」は自身ではなく他者に付与する効果のため、自身の復活キーワードとしては扱わない
+      if (/復活/.test(desc) && !/復活を付与する/.test(desc)) kws.push('復活');
+      if (/シールド/.test(desc)) kws.push('シールド');
+      if (/根性/.test(desc)) kws.push('根性');
+      if (/即死/.test(desc)) kws.push('即死');
+      const poison = desc.match(/毒牙\s*(\d*)/);
+      if (poison) kws.push('毒牙' + (poison[1] || '1'));
+      const strengthen = desc.match(/([赤青緑黄紫茶])強化/);
+      if (strengthen) kws.push(`${_normalizeColorText(strengthen[1])}強化`);
+      // 「死亡：全てのA色キャラクターは+atk/+hpを得る。」→ 内部集計用キーワードとして色・数値を埋め込む
+      const colorBuffAll = desc.match(/死亡：全ての([赤青緑黄紫茶])キャラクターは\+(\d+)\/\+(\d+)を得る/);
+      if (colorBuffAll) kws.push(`${_normalizeColorText(colorBuffAll[1])}全体強化${colorBuffAll[2]}_${colorBuffAll[3]}`);
+      panel.keywords = kws;
+
+      delete panel.summonCount;
+      delete panel.manaOnAttack;
+      delete panel.manaOnInjury;
+      delete panel.goldOnBattleEnd;
+      delete panel.goldOnDeath;
+      if (/コピーを1体召喚/.test(desc)) panel.summonCount = 2;
+      if (/コピーを2体召喚/.test(desc)) panel.summonCount = 3;
+      // マナは色を持たないため、直前に色文字が残っていても無視し、数字（省略時は1）だけを読み取る
+      const attackMana = desc.match(/攻撃：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
+      if (attackMana) panel.manaOnAttack = parseInt(attackMana[1], 10) || 1;
+      const injuryMana = desc.match(/負傷：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
+      if (injuryMana) panel.manaOnInjury = parseInt(injuryMana[1], 10) || 1;
+      const deathMana = desc.match(/死亡：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
+      if (deathMana) {
+        panel.manaOnDeath = parseInt(deathMana[1], 10) || 1;
+        if (!kws.includes('狂気')) kws.push('狂気');
+      } else {
+        delete panel.manaOnDeath;
+      }
+      const goldEnd = desc.match(/終戦：\s*(\d+)\s*ゴールドを?得る/);
+      if (goldEnd) panel.goldOnBattleEnd = parseInt(goldEnd[1], 10) || 0;
+      const goldDeath = desc.match(/死亡：\s*(\d+)\s*ゴールドを?得る/);
+      if (goldDeath) panel.goldOnDeath = parseInt(goldDeath[1], 10) || 0;
+      _setManaThresholdFromDesc(panel);
+    };
+    const _setEnchantFieldsFromDesc = panel => {
+      const desc = String(panel.desc || '');
+      panel.adjacentAtkBonus = 0;
+      panel.adjacentHpBonus = 0;
+      panel.adjacentKeywords = [];
+      let m = desc.match(/常時：\s*\+(\d+)\s*\/\s*\+(\d+)/);
+      if (m) {
+        panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
+        panel.adjacentHpBonus = parseInt(m[2], 10) || 0;
+      }
+      m = desc.match(/常時：\s*HP\+(\d+)/);
+      if (m) panel.adjacentHpBonus = parseInt(m[1], 10) || 0;
+      m = desc.match(/常時：\s*ATK\+(\d+)/);
+      if (m) panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
+      m = desc.match(/常時：\s*-(\d+)\s*\/\s*-(\d+)/);
+      if (m) {
+        panel.adjacentAtkBonus = -(parseInt(m[1], 10) || 0);
+        panel.adjacentHpBonus = -(parseInt(m[2], 10) || 0);
+      }
+      [
+        '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力',
+        '二段攻撃','三段攻撃','即死','三方向攻撃','先制','シールド','全体攻撃','生命吸収'
+      ].forEach(k=>{
+        if (desc.includes(k) || panel.name === k) panel.adjacentKeywords.push(k);
+      });
+      if (/死亡：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/.test(desc) && !panel.adjacentKeywords.includes('狂気')) {
+        panel.adjacentKeywords.push('狂気');
+      }
+      if (/開戦：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/.test(desc) && !panel.adjacentKeywords.includes('野生の力')) {
+        panel.adjacentKeywords.push('野生の力');
+      }
+      const evilEye = desc.match(/邪眼\s*(\d*)/);
+      if (evilEye) panel.adjacentKeywords.push('邪眼' + (evilEye[1] || '1'));
+      const weaken = desc.match(/弱体化\s*(\d*)/);
+      if (weaken) panel.adjacentKeywords.push('弱体化' + (weaken[1] || '1'));
+      const strengthen = desc.match(/([赤青緑黄紫茶])強化/);
+      if (strengthen) panel.adjacentKeywords.push(`${_normalizeColorText(strengthen[1])}強化`);
+      const poison = desc.match(/毒牙\s*(\d*)/);
+      if (poison) panel.adjacentKeywords.push('毒牙' + (poison[1] || '1'));
+      const colorMana = desc.match(/召喚：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/);
+      if (colorMana) panel.adjacentKeywords.push('マナ召喚');
+      if (/三方向/.test(desc)) panel.directionCount = 3;
+      else if (/四方向/.test(desc)) panel.directionCount = 4;
+      else panel.directionCount = panel.directionCount || 2;
+      _setManaThresholdFromDesc(panel);
+    };
+    const _syncPanelFromRow = (panel, row, forcedCategory) => {
+      if (!panel) return;
+      panel._sheetSeen = true;
+      const category = forcedCategory || (row['分類'] || '').trim() || panel.category || '';
+      const artFallback = category === 'スペル' ? 'S' : (category === '強化' || category === 'エンチャント') ? 'E' : 'C';
+      _assignSheetArtCode(panel, row, artFallback);
+      panel.category = category === '強化' ? 'エンチャント' : category;
+      delete panel.subCategory;
+      delete panel.manaCost;
+      delete panel.costMana;
+      const rarStr = (row['レアリティ'] || '').trim();
+      const rarVal = parseInt(rarStr);
+      if (rarStr === '-') panel.rarity = -1;
+      else if (!isNaN(rarVal) && rarVal >= 1) panel.rarity = rarVal;
+      const grade = parseInt(row['グレード']);
+      if (!isNaN(grade) && grade >= 1) panel.grade = grade;
+      // 「価格」列 = 購入価格。PANEL_POOL の cost フィールド（calcBuyPrice/makePanel が参照する購入コスト）に対応。
+      const priceStr = (row['価格'] || '').trim();
+      if (priceStr && priceStr !== '-') {
+        const priceVal = parseInt(priceStr);
+        if (!isNaN(priceVal)) panel.cost = priceVal;
+      }
+      // 「コスト」列は強化/キャラクターシートでは実カードほぼ全行が "-" で対応するフィールドがないため
+      // 同期対象外。スペルシートのみ発動に必要なマナ数として実際に使われているため manaCost に同期する。
+      if (category === 'スペル') {
+        const spellCostStr = (row['コスト'] || '').trim();
+        if (spellCostStr && spellCostStr !== '-') {
+          const spellCostVal = parseInt(spellCostStr);
+          if (!isNaN(spellCostVal)) panel.manaCost = spellCostVal;
+        }
+      }
+      const color = (row['カラー'] || '').trim();
+      if (color) {
+        panel.color = _normalizeColorText(color);
+      }
+      delete panel.manaColor;
+      // 種族列はキャラクター種以外（エンチャント等）では空欄が正常なため、値がある場合のみ上書き。
+      if (row['種族']) panel.race = row['種族'];
+      else if (panel.race === undefined) panel.race = '-';
+      // パワー/ライフはセルが空欄（非キャラクターカード等）の場合は上書きしない。
+      const powerStr = String(row['パワー'] || row['攻撃力'] || row['ATK'] || '').trim();
+      if (powerStr) {
+        const atkP = _parseIntRange(powerStr, panel.power != null ? panel.power : (panel.atk || 0));
+        panel.power = atkP.val;
+      }
+      const lifeStr = String(row['ライフ'] || row['HP'] || '').trim();
+      if (lifeStr) {
+        const hpP = _parseIntRange(lifeStr, panel.life != null ? panel.life : (panel.hp || 0));
+        panel.life = hpP.val;
+      }
+      if (row['効果'] !== undefined) panel.desc = String(row['効果'] || '').trim();
+      panel.characterDesc = String(row['キャラクター用説明文'] || '').trim();
+      const sheetKeywords = _splitSheetKeywords(row['キーワード']);
+      if (panel.category === 'キャラクター') {
+        _setPanelKeywordsFromDesc(panel);
+        panel.keywords = _mergeUniqueKeywords(panel.keywords, sheetKeywords);
+      }
+      if (panel.category === 'エンチャント') {
+        _setEnchantFieldsFromDesc(panel);
+        panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, sheetKeywords);
+        // 「ポート」列＝各強化カードの接続ポイントの数（シート上の表記ゆれで「ハブ」列名の場合も許容）
+        const portStr = String(row['ポート'] ?? row['ハブ'] ?? '').trim();
+        const portVal = parseInt(portStr, 10);
+        if (!isNaN(portVal) && portVal >= 1) panel.directionCount = portVal;
+      }
+    };
+    const cardRows = _parseCSVWithHeader(pt || '名前\n', ['No.', '名前']);
+    const enchantRows = _parseCSVWithHeader(ent || '名前\n', ['No.', '名前']);
+    const spellRows = _parseCSVWithHeader(spt || '名前\n', ['No.', '名前']);
+    const _seenPanelIds = new Set();
+    const _syncPanelRows = (rows, forcedCategory, targetPool) => rows.forEach(row => {
+      const name = row['名前'] || row['カード名'];
+      if (!name) return;
+      if (!_rowImplemented(row)) return;
+      if (forcedCategory === 'キャラクター') {
+        const hasStats = String(row['パワー'] || row['攻撃力'] || row['ATK'] || '').trim()
+          || String(row['ライフ'] || row['HP'] || '').trim();
+        if (!hasStats) return;
+      }
+      const pool = targetPool || PANEL_POOL;
+      const candidates = _filterBySheetName(pool, name);
+      if (!candidates.length) return; // PANEL_POOL/SPELL_POOLに存在しない新規カードは今回追加しない（スコープ外）
+      let panel = candidates.length === 1 ? candidates[0] : (
+        candidates.find(p => !_seenPanelIds.has(p.id) && String(p.category || '') === forcedCategory)
+        || candidates.find(p => !_seenPanelIds.has(p.id))
+        || candidates[0]
+      );
+      if (_seenPanelIds.has(panel.id)) return; // 既に別の行で同期済みのIDは再上書きしない（同名衝突対策）
+      _seenPanelIds.add(panel.id);
+      _syncPanelFromRow(panel, row, forcedCategory);
+    });
+    _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
+    _syncPanelRows(enchantRows, 'エンチャント', PANEL_POOL);
+    _syncPanelRows(spellRows, 'スペル', typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : []);
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;
+      if (!_rowImplemented(row)) return;
       if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
       const isNamed = _truthySheet(row['ネームド']) || _truthySheet(row['ユニーク']);
@@ -910,18 +805,15 @@ async function loadGameData() {
           ep = {
             name,
             grade: parseInt(row['グレード']) || 1,
-            icon: row['アイコン'] || '❓',
             keywords: [],
             race: row['種族'] || '-',
           };
           ENEMY_POOL.push(ep);
         }
-        _assignSheetArtCode(ep, row, 'E');
-        _sheetEnemyNames.add(name); // シートに存在する敵として記録
+        _assignSheetArtCode(ep, row, 'EN', true);
         const grade = parseInt(row['グレード']);
         if (!isNaN(grade) && grade >= 1) ep.grade = grade;
-        if (row['アイコン']) ep.icon = row['アイコン'];
-        if (row['種族']) ep.race = row['種族'];
+        ep.race = row['種族'] || '-';
         const atkP = _parseIntRange(row['パワー'] || row['ATK'], ep.atk || 1);
         const hpP  = _parseIntRange(row['ライフ'] || row['HP'],  ep.hp  || 2);
         ep.atk = atkP.val; ep.baseAtk = atkP.range;
@@ -953,11 +845,12 @@ async function loadGameData() {
     if (enemyRows.length) {
       ENEMY_POOL.length = 0;
       enemyRows.forEach(row => {
-        const name = row['カード名'] || row['名前'];
+        const name = row['カード名'] || row['名前'] || row['敵名'] || row['キャラクター名'];
         if (!name) return;
-        const atkP = _parseIntRange(row['攻撃力'] || row['パワー'] || row['ATK'], 1);
-        const hpP = _parseIntRange(row['ライフ'] || row['HP'], 2);
-        const level = _parseIntRange(row['レベル'] || row['グレード'], 1).val;
+        if (!_rowImplemented(row)) return;
+        const atkP = _parseIntRange(row['攻撃力'] || row['パワー'] || row['Power'] || row['ATK'] || row['初期ATK'] || row['atk'], 1);
+        const hpP = _parseIntRange(row['ライフ'] || row['Life'] || row['HP'] || row['初期HP'] || row['hp'], 2);
+        const level = _parseIntRange(row['レベル'] || row['グレード'] || row['grade'] || row['Grade'], 1).val;
         const turnRaw = String(row['ターン'] || '1').trim();
         const turn = turnRaw === '-' ? 999 : (parseInt(turnRaw) || 1);
         const kws = (row['キーワード'] || '').split(/[\s、,，]+/).filter(Boolean);
@@ -965,26 +858,25 @@ async function loadGameData() {
         const enemy = {
           name,
           grade: Math.max(1, Math.round(level || 1)),
-          icon: row['アイコン'] || '❓',
+          color: row['カラー'] || '',
           race: row['種族'] || '-',
           atk: atkP.val,
           hp: hpP.val,
           baseAtk: atkP.range,
           baseHp: hpP.range,
           keywords: kws,
-          desc: row['効果'] || row['備考'] || '',
+          desc: row['効果'] || '',
           equipmentText: row['装備'] || '',
           spawnTurn: turn,
           bossOnly: isBossEnemy,
           _sheetEnemy: true,
         };
-        _assignSheetArtCode(enemy, row, 'E');
+        _assignSheetArtCode(enemy, row, 'EN', true);
         ENEMY_POOL.push(enemy);
-        _sheetEnemyNames.add(name);
       });
     }
 
-    const starterRows = _parseCSV(starterText);
+    const starterRows = _parseCSV(ct);
     starterRows.forEach(row => {
       const starterName = _starterNameFromSheet(row['名前']);
       if (!starterName) return;
@@ -1002,16 +894,8 @@ async function loadGameData() {
       }
     });
 
-    // シートに「敵専用」行が存在する場合、ENEMY_POOL をシート登録済みの敵のみに限定する
-    // （シートにない敵定義が events.js から漏れ出すのを防ぐ）
-    if (_sheetEnemyNames.size > 0) {
-      for (let _ei = ENEMY_POOL.length - 1; _ei >= 0; _ei--) {
-        if (![..._sheetEnemyNames].some(n => _normCardName(n) === _normCardName(ENEMY_POOL[_ei].name))) ENEMY_POOL.splice(_ei, 1);
-      }
-    }
-
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件 敵:${ENEMY_POOL.length}件`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件 敵:${ENEMY_POOL.length}件 カード上書き:${_seenPanelIds.size}件`
     );
     return true;
 
