@@ -199,7 +199,9 @@ function placePendingPanelToSelectedUnit(slotIdx){
   if(!_canApplyUnitEquipChange(unit,nextEquips)) return false;
   if(oldCard&&!merged){
     _clearStarterPanelMarker(unit,slotIdx,oldCard);
-    if(_isCurrentRewardReturnCard(oldCard)&&!_pushToRewardArea(oldCard)) return false;
+    // 既存のカードは（このターンの報酬由来かどうかを問わず）報酬置き場の空きスロットへ退避する。
+    // 空きが無い場合は上書きで消えてしまわないよう、配置自体を中止する。
+    if(!_pushToRewardArea(oldCard)) return false;
   }
   const placed=merged||clone(pending.card);
   // このターンの報酬（_isOriginalReward）から取得した場合のみ「戻す」操作を無料取得フラグの解除に結び付ける。
@@ -802,7 +804,7 @@ function _renderFieldRow(el){
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
       // バッジ表示用の擬似キーワードとして合成する
-      const _allKws=[...(unit.weaken>0?[`弱体${unit.weaken}`]:[]),...new Set(unit.keywords||[])].filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
+      const _allKws=[...(unit.weaken>0?[`弱体${unit.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(unit.keywords||[]):[...new Set(unit.keywords||[])])].filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
       const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
       const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
@@ -973,7 +975,11 @@ document.addEventListener('dragend', ()=>{ _removeDragGhost(); _clearDragZoneCla
 document.addEventListener('drop', ()=>{ _clearDragZoneClass(); }, true);
 function _createDragGhost(srcEl){
   _removeDragGhost();
-  const isBattleDrag = !!(srcEl && (srcEl.closest('#f-ally,#f-enemy,#scr-battle') || (typeof G !== 'undefined' && G && G.phase !== 'reward')));
+  // #scr-battleはゲーム画面全体を包む唯一のscreen divのため、これをclosest()判定に含めると
+  // どのカードをドラッグしても常にtrueになってしまう（出撃枠のドラッグ時に誤ってcard_back_o.pngへ
+  // 切り替わるバグの原因だった）。実際に戦闘中のフィールド上ユニットをドラッグしている場合のみ、
+  // または報酬フェイズ以外でのドラッグの場合のみ「戦闘中のドラッグ」として扱う。
+  const isBattleDrag = !!(srcEl && (srcEl.closest('#f-ally,#f-enemy') || (typeof G !== 'undefined' && G && G.phase !== 'reward')));
   if(isBattleDrag) document.body.classList.add('dragging-in-battle');
   const d=srcEl.cloneNode(true);
   d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
@@ -1558,11 +1564,8 @@ function renderFacilitiesRow(){
 function renderHandEditor(){
   _syncRewardPanelPlacementOverlay();
   const handPaneRoot=document.getElementById('hand-pane');
-  // スペル置き場は自動戦闘解決中（G.phase==='enemy'）も含め、戦闘中・報酬フェイズを通して常に表示し続ける
-  if(typeof renderSpellSlotZone==='function'){
-    const spellPane=document.getElementById('spell-slot-pane');
-    if(spellPane){ spellPane.innerHTML=''; renderSpellSlotZone(spellPane); }
-  }
+  const spellPane=document.getElementById('spell-slot-pane');
+  if(spellPane){ spellPane.innerHTML=''; spellPane.style.setProperty('display','none','important'); }
   if(G.phase!=='player'&&G.phase!=='reward'){
     if(handPaneRoot) handPaneRoot.style.display='none';
     const slots=document.getElementById('hand-slots');

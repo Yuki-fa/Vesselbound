@@ -50,6 +50,7 @@ function logSceneBreak(){
 }
 let _lastLogPlainText=null;
 function log(msg,cls=''){
+  if(typeof G!=='undefined'&&(G._battlePhaseRunning||G.phase==='player'||G.phase==='enemy')) return;
   const b=document.getElementById('log-box');
   const plainMsg=String(msg||'').replace(/<[^>]*>/g,'');
   // 直前のログと異なる内容の場合は、その間に1行空ける（同じ内容の連続表示はそのまま詰める）
@@ -90,6 +91,8 @@ function _spawnLogFx(msg,sceneChanged){
   _pendingLogFxTimers.add(timerId);
 }
 function _doSpawnLogFx(msg,fastMode=_logFxFastMode){
+  // 戦闘中のログ表示（浮遊テキスト演出）は行わない
+  if(G.phase==='player'||G.phase==='enemy') return;
   if(document.body.classList.contains('reward-screen-active')) return;
   const scrBattle=document.getElementById('scr-battle');
   if(!scrBattle||!scrBattle.classList.contains('active')) return;
@@ -210,8 +213,45 @@ window.addEventListener('resize',()=>{
   _positionDebugRerollButton();
 });
 
+function _starterCardCandidates(category){
+  const cats=Array.isArray(category)?category:[category];
+  return (typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]).filter(p=>{
+    if(!p||!p.id||Number(p.rarity)!==1||p.rarity===-1||p.removed) return false;
+    if(p.name==='ダイアウルフ') return false;
+    if(p._sheetSeen===false) return false;
+    return cats.includes(String(p.category||''));
+  });
+}
+function _takeStarterPanel(category){
+  const pool=_starterCardCandidates(category).filter(p=>typeof panelSaleStockCount!=='function'||panelSaleStockCount(p)>0);
+  const def=pool.length?randFrom(pool):randFrom(_starterCardCandidates(category));
+  if(!def||typeof makePanel!=='function') return null;
+  if(typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
+  return makePanel(def.id);
+}
+function _giveInitialRandomBoardCards(){
+  if(!Array.isArray(G.mainBoard)) return;
+  const deploySlots=typeof MAIN_BOARD_DEPLOY_SLOTS!=='undefined'?MAIN_BOARD_DEPLOY_SLOTS:[0,2,4,6,15,17,19];
+  const charSlot=randFrom(deploySlots.filter(i=>i>=0&&i<G.mainBoard.length)) ?? deploySlots[0];
+  const charCard=_takeStarterPanel('キャラクター');
+  if(charCard&&charSlot!=null) G.mainBoard[charSlot]=charCard;
+  const deploySlotSet=new Set(deploySlots);
+  const enchantSlots=Array.from({length:G.mainBoard.length},(_,i)=>i).filter(i=>!deploySlotSet.has(i)&&!G.mainBoard[i]);
+  for(let i=0;i<2;i++){
+    const card=_takeStarterPanel(['エンチャント','強化']);
+    if(!card||!enchantSlots.length) break;
+    const pickIdx=Math.floor(rand()*enchantSlots.length);
+    const slot=enchantSlots.splice(pickIdx,1)[0];
+    G.mainBoard[slot]=card;
+  }
+  if(typeof _getPartyBoardUnit==='function'&&typeof _syncUnitPanelEffectsAfterMove==='function'){
+    _syncUnitPanelEffectsAfterMove(_getPartyBoardUnit());
+  }
+}
+
 function startGame(debugMode){
   initState();
+  _giveInitialRandomBoardCards();
   window.__vesselboundRetryRewards=null;
   clearLog();
   G._debugMode=!!debugMode;
@@ -244,6 +284,9 @@ function _debugRefillActions(){
   updateHUD();
 }
 function gameOver(){
+  document.body.classList.remove('battle-turn-active');
+  // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
+  if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
   const victory=document.getElementById('victory-overlay');
   if(victory) victory.style.display='none';
   ['rw-cards','reward-cards-section'].forEach(id=>{

@@ -528,6 +528,8 @@ function playArassusAttackMotion(attacker,target,isEnemySide,onStop){
 }
 
 function renderAll(){
+  // 戦闘中（player/enemyフェイズ）はログ表示（枠・見出し含む）を隠す
+  document.body.classList.toggle('battle-turn-active',G.phase==='player'||G.phase==='enemy');
   renderField('f-ally',  G.allies,  false);
   renderField('f-enemy', G.enemies, true);
   renderHand();
@@ -575,7 +577,7 @@ function _stripKeywordsFromDesc(desc, unit){
   return result.trim();
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['守護','毒','毒牙','再生','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','シールド','生命吸収']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['守護','毒','毒牙','邪眼','再生','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','シールド','生命吸収']);
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
@@ -783,14 +785,15 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // loader.jsのシート同期時にdescから内部集計用に自動生成されるショートハンド（battle.jsのcount()判定専用で、
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
-  const filtered=[...new Set(unit.keywords||[])]
+  const normalizedKws=(unit.keywords||[])
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
-    .filter(k=>{
-      if(!k) return false;
-      if(_isInternalOnlyKeyword(k)) return false;
-      if(!_ENCHANT_KEYWORD_ONLY.has(k)&&fullText.includes(k)) return false;
-      return true;
-    });
+    .filter(k=>k&&!_isInternalOnlyKeyword(k));
+  // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
+  const mergedKws=typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(normalizedKws):[...new Set(normalizedKws)];
+  const filtered=mergedKws.filter(k=>{
+    if(!_ENCHANT_KEYWORD_ONLY.has(k.replace(/\d+$/,''))&&fullText.includes(k)) return false;
+    return true;
+  });
   // 弱体X（弱体化Xにより付与された状態）はunit.keywordsではなくunit.weaken（数値、加算式）で
   // 管理しているため、ここで表示用の擬似キーワードとして先頭に合成する
   const weakenList=unit.weaken>0?[`弱体${unit.weaken}`]:[];
@@ -875,6 +878,19 @@ function renderField(id,units,isEnemy,_lane){
     if(!u||u.hp<=0){
       slot.style.gridRow=_slotLane==='rear'?'1':'2';
       slot.style.gridColumn=String((i%frontSlots)+1);
+      // #f-enemy/#f-ally は display:block で運用されておりgrid-row/columnは効かないため、
+      // 空き/死亡スロットも生存ユニットと同様に絶対座標で位置指定する
+      // （さもないと全ての空きスロットが同じ位置に重なり、特定スロットのホバー判定を塞いでしまう）
+      slot.style.left=_unitX(frontSlots,i%frontSlots);
+      const _emptyRearTop=isEnemy?'0':'calc(var(--unit-card-h) + var(--unit-field-gap))';
+      const _emptyFrontTop=isEnemy?'calc(var(--unit-card-h) + var(--unit-field-gap))':'0';
+      slot.style.top=_slotLane==='rear'?_emptyRearTop:_emptyFrontTop;
+      slot.style.setProperty('position','absolute','important');
+      slot.style.setProperty('transform','none','important');
+      // 生存数が7体未満だと生存ユニットは中央寄せで再配置されるため、空きスロットの位置と
+      // 重なることがある。重なった場合でも必ず生存ユニット側のhit-layerが優先されるよう、
+      // 空きスロットは常に低いz-indexにしておく
+      slot.style.setProperty('z-index','1','important');
     }
     if(u&&u.hp>0){
       const _row=_slotLane==='rear'?1:2;
@@ -934,7 +950,7 @@ function renderField(id,units,isEnemy,_lane){
         const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};font-weight:bold;cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
         // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
         // バッジ表示用の擬似キーワードとして合成する
-        const _allKws=[...(u.weaken>0?[`弱体${u.weaken}`]:[]),...new Set(u.keywords||[])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
+        const _allKws=[...(u.weaken>0?[`弱体${u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(u.keywords||[]):[...new Set(u.keywords||[])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
         const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';

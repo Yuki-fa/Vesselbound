@@ -167,7 +167,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 
 /* LOG */
 #log-wrap{position:relative;flex-shrink:0}
-#log-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 110px 6px 10px;height:80px;overflow-y:auto;font-size:.7rem;line-height:1.5}
+#log-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 110px 6px 10px;height:80px;overflow-y:auto;font-size:.7rem;line-height:1.5;display:none}
 #log-wrap #btn-pass{position:absolute;top:50%;right:24px;transform:translateY(-50%)}
 #log-box p{margin:0;color:var(--text2)}
 #log-box p.em{color:var(--text)}
@@ -1491,6 +1491,7 @@ body.world-map-active #log-wrap{
   z-index:31!important;
 }
 body.world-map-active #log-box{
+  display:block!important;
   height:100%!important;
 }
 #log-wrap #btn-pass,
@@ -5287,6 +5288,10 @@ html body #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor)
   background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
   filter:none!important;
 }
+/* 出撃枠①〜⑦（card_back.png）はドラッグ中も同じ枠画像のままにする（他の置き場のcard_back_o.pngにしない） */
+html body #hand-slots.unit-equip-slots > .card.deploy-slot.dragging:not(.reward-unit-anchor){
+  background:url("assets/temp/cards/card_back.png") center/100% 100% no-repeat!important;
+}
 html body #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor) > *{
   opacity:0!important;
 }
@@ -6001,6 +6006,19 @@ html body #battle-order-row .card.panel-character-card.shield-active .card-art::
   from{opacity:.58}
   to{opacity:.88}
 }
+/* 戦闘中（player/enemyフェイズ）はログ表示を完全に隠す。#log-box自体は既に非表示だが、
+   #log-wrapの枠（背景・枠線・box-shadow）と見出し（::before「戦闘ログ」）は別要素のため
+   個別に消す必要がある。#btn-pass（戦闘実行ボタン）は#log-wrapの子だが独自のposition:fixedで
+   配置されているため、#log-wrap自体はdisplay:noneにせずここでは見た目だけを消す。 */
+body.battle-turn-active #log-wrap{
+  border:0!important;
+  background:none!important;
+  box-shadow:none!important;
+}
+body.battle-turn-active #log-wrap::before{
+  content:none!important;
+  display:none!important;
+}
 </style>
 </head>
 <body>
@@ -6202,22 +6220,22 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=hit-webp18"></script>
+<script src="assets.js?v=hit-webp23"></script>
 <script src="js/engine/audio.js"></script>
-<script src="js/engine/constants.js?v=cleanup122"></script>
-<script src="js/data/floors.js?v=cleanup122"></script>
-<script src="js/data/events.js?v=cleanup122"></script>
+<script src="js/engine/constants.js?v=cleanup130"></script>
+<script src="js/data/floors.js?v=cleanup130"></script>
+<script src="js/data/events.js?v=cleanup130"></script>
 <script src="js/data/local_xlsx_data.js?v=local-xlsx2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=cleanup122"></script>
-<script src="js/data/units.js?v=cleanup122"></script>
-<script src="js/engine/state.js?v=cleanup122"></script>
-<script src="js/engine/pool.js?v=cleanup122"></script>
-<script src="js/engine/enemy.js?v=cleanup122"></script>
-<script src="js/engine/battle.js?v=cleanup122"></script>
-<script src="js/engine/render.js?v=hit-webp18"></script>
-<script src="js/engine/reward.js?v=cleanup122"></script>
-<script src="js/engine/move.js?v=cleanup122"></script>
-<script src="js/engine/main.js?v=cleanup122"></script>
+<script src="js/data/loader.js?v=cleanup130"></script>
+<script src="js/data/units.js?v=cleanup130"></script>
+<script src="js/engine/state.js?v=cleanup130"></script>
+<script src="js/engine/pool.js?v=cleanup130"></script>
+<script src="js/engine/enemy.js?v=cleanup130"></script>
+<script src="js/engine/battle.js?v=cleanup130"></script>
+<script src="js/engine/render.js?v=hit-webp23"></script>
+<script src="js/engine/reward.js?v=cleanup130"></script>
+<script src="js/engine/move.js?v=cleanup130"></script>
+<script src="js/engine/main.js?v=cleanup130"></script>
 </body>
 </html>

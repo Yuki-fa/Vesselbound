@@ -79,7 +79,7 @@ const PANEL_POOL=[
   {id:'panel_nosferatu',no:'030',name:'ノスフェラトゥ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,keywords:['生命吸収'],desc:''},
   {id:'panel_lemures',no:'031',name:'レムレース',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:1,life:4,desc:'負傷：このキャラクターをダメージを与えたキャラクターに変身する。'},
   {id:'panel_vrykolakas',no:'032',name:'ヴリコラカス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:6,life:3,manaCost:4,manaRepeat:true,desc:'4マナ毎：復活を得る。'},
-  {id:'panel_vampire_lord',no:'033',name:'ヴァンパイアロード',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：キャラクターが死亡するたび、全ての味方はHP+3を得る。'},
+  {id:'panel_vampire_lord',no:'033',name:'ヴァンパイアロード',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：キャラクターが死亡するたび、全ての味方はHP+1を得る。'},
   {id:'panel_eidolon',no:'034',name:'エイドロン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：味方が3体死亡するたび、1マナを得る。'},
   {id:'panel_death_knight',no:'035',name:'デスナイト',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:3,desc:'死亡：「青ゴースト」を召喚する。'},
   {id:'panel_revenant',no:'036',name:'レヴナント',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:4,desc:'常時：味方が死亡するたび、このキャラクターは+1/+1を得る。'},
@@ -178,28 +178,20 @@ function _panelColorBuffKey(color){
   return c;
 }
 
-// forceCategory：'キャラクター'を渡すと、カテゴリ抽選をせず常にキャラクターのみを引く
-// （最初の報酬フェイズ専用。drawRewards()側から明示的に渡された時のみ有効）
-function drawPanel(n=1, maxGrade, forceCategory){
+function drawPanel(n=1, maxGrade){
   ensurePanelSaleStock();
   const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
   const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&p._sheetSeen&&p.rarity!==-1&&p.name!=='ダイアウルフ'&&(p.grade||1)<=targetGrade&&panelSaleStockCount(p)>0);
-  const spellCandidates=(SPELL_POOL||[]).filter(p=>p&&p.id&&panelSaleStockCount(p)>0);
   const charCandidates=panelCandidates.filter(p=>String(p.category||'')==='キャラクター');
   const enchantCandidates=panelCandidates.filter(p=>['エンチャント','強化'].includes(String(p.category||'')));
-  const allPool=[...panelCandidates,...spellCandidates];
+  const allPool=[...panelCandidates];
   const res=[];
   const usedIds=new Set();
   let t=0;
   while(res.length<n&&allPool.length>0&&t++<300){
     // 出現率：キャラクター45%・強化45%・スペル10%（グレード等の絞り込みは各候補配列側で反映済み）
-    let pool;
-    if(forceCategory==='キャラクター'){
-      pool=charCandidates;
-    } else {
-      const r=rand();
-      pool=r<0.45?charCandidates:r<0.9?enchantCandidates:spellCandidates;
-    }
+    const r=rand();
+    let pool=r<0.5?charCandidates:enchantCandidates;
     let available=pool.filter(p=>!usedIds.has(p.id));
     if(!available.length){
       // 選んだカテゴリの在庫が尽きている場合は、全体プールから補う
@@ -213,7 +205,7 @@ function drawPanel(n=1, maxGrade, forceCategory){
     const picked=randFrom(weighted);
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
-    const card=picked.kind==='spell'?makeSpell(picked.id):makePanel(picked.id);
+    const card=makePanel(picked.id);
     if(card) res.push(card);
   }
   return res;
@@ -277,13 +269,13 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
+  // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）は報酬カードを提示しない
+  if(!(G.floor>0)) return [];
   const appraiser=G.allies&&G.allies.some(a=>a&&a.hp>0&&typeof unitHasEquip==='function'&&unitHasEquip(a,'equip_appraiser'));
   const baseGrade=G.rewardGrade||1;
   const boostGrade=Math.min(5,baseGrade+1);
   const targetGrade=appraiser?boostGrade:undefined;
-  // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）のみ、キャラクター5枚を提示する
-  const isFirstRewardPhase=!(G.floor>0);
-  const res=drawPanel(5, targetGrade, isFirstRewardPhase?'キャラクター':null);
+  const res=drawPanel(5, targetGrade);
   const maxGrade=targetGrade!=null?targetGrade:(G.rewardGrade||1);
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
@@ -296,20 +288,17 @@ function drawRewards(n){
   const used=new Set(res.filter(Boolean).map(c=>c.id));
   const isNormalSummon=p=>String(p.category||'')==='キャラクター';
   const isEnchant=p=>['エンチャント','強化'].includes(String(p.category||''));
-  // 最初の報酬フェイズはキャラクター5枚固定のため、強化カード保証枠は適用しない
-  if(!isFirstRewardPhase){
-    if(!res.some(isNormalSummon)){
-      const c=pickGuaranteedPanel(isNormalSummon,used);
-      if(c){ if(res[0]&&res[0].id) returnPanelToSalePool(res[0]); res[0]=c; used.add(c.id); }
-    }
-    if(!res.some(isEnchant)){
-      const c=pickGuaranteedPanel(isEnchant,used);
-      if(c){
-        const idx=res.some(isNormalSummon)?1:0;
-        if(res[idx]&&res[idx].id) returnPanelToSalePool(res[idx]);
-        res[idx]=c;
-        used.add(c.id);
-      }
+  if(!res.some(isNormalSummon)){
+    const c=pickGuaranteedPanel(isNormalSummon,used);
+    if(c){ if(res[0]&&res[0].id) returnPanelToSalePool(res[0]); res[0]=c; used.add(c.id); }
+  }
+  if(!res.some(isEnchant)){
+    const c=pickGuaranteedPanel(isEnchant,used);
+    if(c){
+      const idx=res.some(isNormalSummon)?1:0;
+      if(res[idx]&&res[idx].id) returnPanelToSalePool(res[idx]);
+      res[idx]=c;
+      used.add(c.id);
     }
   }
   if(G._nextRewardUniqueSlot){

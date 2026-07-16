@@ -35,6 +35,26 @@ const KW_DESC_MAP={
   '隠密':     '敵に狙われない。ただし加護持ちには無効。',
 };
 
+// 「邪眼X」「毒牙X」「成長X」等、末尾に数値を持つキーワードを同種でまとめてXを合算する。
+// （変数を持たないキーワードは重複所持しても1つにまとめるだけで、値は変化しない）
+function _mergeCountedKeywords(list){
+  const order=[];
+  const sums=new Map();
+  const isNum=new Map();
+  (list||[]).forEach(raw=>{
+    const s=String(raw||'').trim();
+    if(!s) return;
+    const m=/^(\D+?)(\d+)$/.exec(s);
+    if(m){
+      const base=m[1], num=parseInt(m[2],10)||0;
+      if(!sums.has(base)){ sums.set(base,0); isNum.set(base,true); order.push(base); }
+      sums.set(base,sums.get(base)+num);
+    } else if(!sums.has(s)){
+      sums.set(s,null); isNum.set(s,false); order.push(s);
+    }
+  });
+  return order.map(k=>isNum.get(k)?`${k}${sums.get(k)}`:k);
+}
 const uid      = ()    => '_'+Math.random().toString(36).slice(2,8);
 const randFrom = a     => a[Math.floor(Math.random()*a.length)];
 const randi    = (a,b) => a+Math.floor(Math.random()*(b-a+1));
@@ -53,14 +73,8 @@ function initState(){
     inventoryOpen:false,
     globalPanels:Array(7).fill(null),
     _showGlobalPanels:true,
-    // ── スペル置き場（1×3・戦闘をまたいで保持）──
-    // ゲーム開始時から「炎の矢」を1枚所持する
-    spellSlots:(()=>{
-      const slots=Array(3).fill(null);
-      const fireArrow=typeof SPELL_POOL!=='undefined'?SPELL_POOL.find(s=>s&&s.name==='炎の矢'):null;
-      if(fireArrow) slots[0]=clone(fireArrow);
-      return slots;
-    })(),
+    // ── スペル置き場（廃止。互換用に空配列だけ残す）──
+    spellSlots:Array(3).fill(null),
     // ── メイン置き場（7列×3行＝21枠。パーティ全体で共有する単一の配置グリッド）──
     mainBoard:Array(21).fill(null),
     // ── 状態 ──

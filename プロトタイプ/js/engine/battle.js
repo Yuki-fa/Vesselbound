@@ -237,6 +237,7 @@ function startPlayerPhase(){
 
 async function battlePhase(){
   G.phase='enemy';
+  document.body.classList.add('battle-turn-active');
   renderControls();
   log(`戦闘開始！`,'sys');
 
@@ -302,7 +303,8 @@ function _laneAttackCandidates(arr,isEnemy,lane){
     if(!isEnemy&&(u._isSoul||u._isObject)) continue;
     if((u.lane||'front')!==lane) continue;
     const atkVal=isEnemy?(u.nullified>0?0:(u.atk||0)):_attackDamageValue(u);
-    if((atkVal||0)<=0) continue;
+    // ATK0で攻撃自体はスキップされる場合でも、毒を持つキャラクターは毒ダメージ処理のために手番を得る
+    if((atkVal||0)<=0&&!(u.poison>0)) continue;
     result.push(i);
   }
   return result;
@@ -489,6 +491,7 @@ function finishBattleAsVictory(reason){
   applyVictoryBonuses();
   updateHUD();
   G.phase='reward';
+  document.body.classList.remove('battle-turn-active');
   setTimeout(()=>_handleVictory(),600);
 }
 
@@ -902,6 +905,9 @@ function _applyLamiaCaptureIfEligible(attacker,target){
   const ei=G.enemies.indexOf(target);
   G.enemies[ei]=null;
   target.lane='front';
+  // ラミアで仲間にしたキャラクターはメイン置き場由来ではない一時的な仲間のため、
+  // 報酬フェイズ突入時・敗北時に取り除く対象として印を付けておく
+  target._lamiaCaptured=true;
   const placed=_summonPanelUnitToFront(target,false)>=0||_summonPanelUnitToRear(target,false)>=0;
   if(placed){
     log(`${_lc(attacker.name,false)}の効果で${_lc(target.name,true)}を仲間にした。`,'good');
@@ -909,6 +915,11 @@ function _applyLamiaCaptureIfEligible(attacker,target){
   } else {
     G.enemies[ei]=target;
   }
+}
+// ラミアで一時的に仲間にしたキャラクターを、報酬フェイズ突入時・敗北時に取り除く
+function _removeLamiaCapturedUnits(){
+  if(!Array.isArray(G.allies)) return;
+  G.allies=G.allies.map(a=>a&&a._lamiaCaptured?null:a);
 }
 
 async function _dealCounterDamage(attacker,defender,isEnemySide,amount){
@@ -928,7 +939,6 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
   // 接触攻撃＋反撃を含む一連の演出が完全に終わるまで、盤面詰め直し・renderAll()を遅延させる
   beginBattleMotion();
   try{
-    await _applyPoisonBeforeAttack(attacker);
     if(attacker.hp<=0) return null;
     // 先制：相手（防御側）がこのキーワードを持つ場合、防御側の反撃を先に処理する。
     // これで攻撃側を倒せた場合、攻撃側の本来の攻撃は発生しない。
@@ -974,7 +984,6 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
   // 接触攻撃＋反撃を含む一連の演出が完全に終わるまで、盤面詰め直し・renderAll()を遅延させる
   beginBattleMotion();
   try{
-    await _applyPoisonBeforeAttack(attacker);
     if(attacker.hp<=0) return null;
     const defenderFirstStrike=_unitHasKeyword(primaryTarget,'先制')&&!_unitHasKeyword(attacker,'先制');
     if(defenderFirstStrike){
@@ -1016,16 +1025,13 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker}));
     result.contacted=damage>0&&entries.length>0;
 
-    // 反撃も「同じ接触で同時に成立する相互ダメージ」として扱う。各対象の反撃可否・値は
-    // ダメージ適用前にスナップショットし、このヒットで倒れたことを理由に反撃を取り消さない
-    // （先制で仕留めた対象のみ例外的にその対象分の反撃を免除する）。複数対象の反撃は
-    // 合計値として攻撃者へ1回にまとめて適用する。
+    // 反撃は本来の攻撃対象（primaryTarget）からのみ発生する。全体攻撃／三方向攻撃で追加ダメージを
+    // 受けた他のキャラクターは反撃しない。反撃可否・値はダメージ適用前にスナップショットし、
+    // このヒットで倒れたことを理由に反撃を取り消さない（先制で仕留めた場合のみ例外的に反撃を免除する）。
     const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制');
-    const counterContributors=defenderFirstStrike?[]:liveTargets.filter(t=>{
-      const lethalToThis=damage>0&&damage>=Math.max(0,t.hp||0);
-      return !(attackerHasFirstStrike&&lethalToThis);
-    });
-    const counterAmount=counterContributors.reduce((sum,t)=>sum+Math.max(0,t.atk||0),0);
+    const primaryLethal=damage>0&&damage>=Math.max(0,primaryTarget.hp||0);
+    const primaryCanCounter=!defenderFirstStrike&&liveTargets.includes(primaryTarget)&&!(attackerHasFirstStrike&&primaryLethal);
+    const counterAmount=primaryCanCounter?Math.max(0,primaryTarget.atk||0):0;
     const attackerSide=isEnemySide?'enemy':'ally';
     if(counterAmount>0){
       entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget});
@@ -1584,14 +1590,14 @@ function _summonPanelUnitToFront(unit, isEnemySide){
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
   const rearSlots=Math.min(ENEMY_REAR_SLOTS||3,Math.max(0,max-frontSlots));
   for(let i=frontSlots-1;i>=0;i--){
-    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
+    if(!arr[i]){
       unit.lane='front';
       arr[i]=unit;
       return i;
     }
   }
   for(let i=frontSlots+rearSlots-1;i>=frontSlots;i--){
-    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
+    if(!arr[i]){
       unit.lane='rear';
       arr[i]=unit;
       return i;
@@ -1606,7 +1612,7 @@ function _summonPanelUnitToRear(unit, isEnemySide){
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
   const rearSlots=Math.min(ENEMY_REAR_SLOTS||3,Math.max(0,max-frontSlots));
   for(let i=frontSlots+rearSlots-1;i>=frontSlots;i--){
-    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
+    if(!arr[i]){
       unit.lane='rear';
       arr[i]=unit;
       return i;
@@ -1775,8 +1781,8 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       log(`${_lc(unit.name,unitIsEnemy)}の効果で全ての敵に${dmgAmount}ダメージを与えた。`,unitIsEnemy?'bad':'good');
     }
   }
-  // スケルトンキング由来：死亡：「青スケルトン」（3/1）を召喚する。
-  if(unit._grantedDeathSummon){
+  // レイス由来：死亡：「青ゴースト」を召喚する。（逆襲・リッチ等の死亡効果複数回発動にも対応する）
+  for(let i=0;i<deathRepeats&&unit._grantedDeathSummon;i++){
     const spec=unit._grantedDeathSummon;
     log(`${_lc(unit.name,unitIsEnemy)}の効果で「${spec.name}」を召喚する。`,unitIsEnemy?'bad':'good');
     _spawnAdhocAllyUnit(spec.name,spec.atk,spec.hp,unitIsEnemy);
@@ -1909,6 +1915,10 @@ function getAttackTarget(attacker, targets){
 }
 
 async function allyAttackAction(ally, allyIdx){
+  // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
+  // ATK0で攻撃自体がスキップされる場合も先に処理する
+  await _applyPoisonBeforeAttack(ally);
+  if(!ally||ally.hp<=0) return;
   const attackDmg=_attackDamageValue(ally);
   if(attackDmg<=0) return; // ATK0は攻撃しない
   const liveE=G.enemies.filter(e=>e&&e.hp>0);
@@ -1984,6 +1994,10 @@ async function allyAttackAction(ally, allyIdx){
 // ── 敵攻撃アクション ──────────────────────────
 
 async function enemyAttackAction(enemy, enemyIdx){
+  // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
+  // ATK0で攻撃自体がスキップされる場合も先に処理する
+  await _applyPoisonBeforeAttack(enemy);
+  if(!enemy||enemy.hp<=0) return;
   if(enemy.atk<=0) return; // ATK0は攻撃しない
   const liveA=G.allies.filter(a=>a&&a.hp>0);
   if(!liveA.length) return;
@@ -2178,10 +2192,10 @@ function _onAnyCharDeath(deadUnit){
   };
   applyToSide(G.enemies,true);
   applyToSide(G.allies,false);
-  // ヴァンパイアロード：常時：キャラクターが死亡するたび、全ての味方はHP+3を得る。（陣営問わず発動）
+  // ヴァンパイアロード：常時：キャラクターが死亡するたび、全ての味方はHP+1を得る。（陣営問わず発動）
   if((G.allies||[]).some(u=>u&&u.hp>0&&u.name==='ヴァンパイアロード')){
-    (G.allies||[]).forEach(u=>{ if(u&&u.hp>0) addUnitHp(u,3,'ally'); });
-    log('ヴァンパイアロードの効果で全ての味方はHP+3を得た。','good');
+    (G.allies||[]).forEach(u=>{ if(u&&u.hp>0) addUnitHp(u,1,'ally'); });
+    log('ヴァンパイアロードの効果で全ての味方はHP+1を得た。','good');
   }
   if(!deadIsEnemy){
     // デュラハン：常時：味方が死亡するたび、ランダムな敵に4ダメージを与える。
@@ -2224,21 +2238,21 @@ function onBattleStart(){
   G._freeItemPhase='battle';
   G._freeItemUsed=false;
 
-  // 成長X：戦闘開始時、+X/+Xを得る（自身のみ・両陣営）
+  // 成長X：戦闘開始時、+X/+Xを得る（自身のみ・両陣営。同種の変数は合算する）
   G.allies.forEach(a=>{
     if(!a||a.hp<=0) return;
-    const growKw=(a.keywords||[]).find(k=>/^成長\d+$/.test(k));
-    if(!growKw) return;
-    const x=parseInt(growKw.slice(2))+(G.hasGoldenDrop?1:0);
+    const growSum=(a.keywords||[]).filter(k=>/^成長\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+    if(!growSum) return;
+    const x=growSum+(G.hasGoldenDrop?1:0);
     a.atk+=x; a.baseAtk=(a.baseAtk||0)+x;
     const _xhg=addUnitHp(a,x);
     log(`${_lc(a.name,false)}は成長し、+${x}/+${_xhg}を得た。`,'good');
   });
   G.enemies.forEach(e=>{
     if(!e||e.hp<=0) return;
-    const growKw=(e.keywords||[]).find(k=>/^成長\d+$/.test(k));
-    if(!growKw) return;
-    const x=parseInt(growKw.slice(2));
+    const growSum=(e.keywords||[]).filter(k=>/^成長\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+    if(!growSum) return;
+    const x=growSum;
     e.atk+=x; e.baseAtk=(e.baseAtk||0)+x;
     e.hp+=x; e.maxHp+=x;
     log(`${_lc(e.name,true)}は成長し、+${x}/+${x}を得た。`,'bad');
@@ -2272,6 +2286,8 @@ function onBattleEnd(){
   });
   G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
   G.enemies=(G.enemies||[]).map(u=>u&&u._panelSummoned?null:u);
+  // ラミアで一時的に仲間にしたキャラクターは、メイン置き場由来ではないため報酬フェイズへは持ち越さない
+  _removeLamiaCapturedUnits();
   // 仲間になったエリート/ボスの属性を解除
   G.allies.forEach(a=>{
     if(!a||!a.keywords) return;
@@ -2328,24 +2344,24 @@ function applyKeywordOnHit(attacker, target, damageDone, targetPreHp){
   }
   if(target.hp<=0) return;
   if(kws.includes('即死')){ target.hp=0; log(`${_lc(attacker.name,!_isPlayerAlly)} が${_lc(target.name,_isPlayerAlly)}を即死させた！`,'bad'); }
-  // 毒牙X：命中時に毒Xを付与（加算）
-  const erosionKw=kws.find(k=>/^毒牙\d+$/.test(k));
-  if((erosionKw||kws.includes('毒牙'))&&target.hp>0){
-    const basePoison=erosionKw?parseInt(erosionKw.slice(2)):Math.max(0,Math.floor(damageDone??attacker.atk??0));
+  // 毒牙X：命中時に毒Xを付与（加算）。同種の変数は合算する
+  const erosionSum=kws.filter(k=>/^毒牙\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+  if((erosionSum>0||kws.includes('毒牙'))&&target.hp>0){
+    const basePoison=erosionSum>0?erosionSum:Math.max(0,Math.floor(damageDone??attacker.atk??0));
     const pv=basePoison+_gdKw;
     target.poison=(target.poison||0)+pv;
     log(`${_lc(attacker.name,!_isPlayerAlly)} が${_lc(target.name,_isPlayerAlly)}に毒${pv}を与えた。`,'bad');
   }
-  const poisonBladeKw=kws.find(k=>/^毒\d+$/.test(k));
-  if(poisonBladeKw&&target.hp>0){
-    const pv=parseInt(poisonBladeKw.slice(1))+_gdKw;
+  const poisonBladeSum=kws.filter(k=>/^毒\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(1),10)||0),0);
+  if(poisonBladeSum>0&&target.hp>0){
+    const pv=poisonBladeSum+_gdKw;
     target.poison=(target.poison||0)+pv;
     log(`${_lc(attacker.name,!_isPlayerAlly)} が${_lc(target.name,_isPlayerAlly)}に毒${pv}を与えた。`,'bad');
   }
-  // 邪眼X：命中時にターゲットのATKをX減少
-  const evilEyeKw=kws.find(k=>/^邪眼\d+$/.test(k));
-  if(evilEyeKw&&target.hp>0){
-    const ev=parseInt(evilEyeKw.slice(2))+_gdKw;
+  // 邪眼X：命中時にターゲットのATKをX減少。同種の変数は合算する
+  const evilEyeSum=kws.filter(k=>/^邪眼\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+  if(evilEyeSum>0&&target.hp>0){
+    const ev=evilEyeSum+_gdKw;
     target.atk=Math.max(0,target.atk-ev);
     target.baseAtk=Math.max(0,(target.baseAtk||target.atk)-ev);
     log(`${_lc(attacker.name,!_isPlayerAlly)}が${_lc(target.name,_isPlayerAlly)}の攻撃力を${ev}減少させ、${target.atk}にした。`,'bad');
