@@ -1147,24 +1147,35 @@ let _dragSrc=null;
 function isEquipmentCard(card){
   return !!(card&&(card.equip||card.kind==='equipment'||card.type==='ring'||card.type==='panel'||card.kind==='panel'||card.panelScope==='unit'));
 }
-// メイン置き場：7列×3行＝21枠。所有者（ヒーロー）の概念は廃止し、パーティ全体で共有する単一のグリッド。
-// ①②③④⑤⑥⑦の位置に置いたキャラクターだけが戦闘フェイズで出撃する（①②③④→前衛、⑤⑥⑦→後衛）。
-// それ以外の枠（■）にもキャラクター・強化どちらも自由に置けるが、戦闘には出撃しない（隣接強化としては機能する）。
+// メイン置き場：5列×3行＝15枠。所有者（ヒーロー）の概念は廃止し、パーティ全体で共有する単一のグリッド。
+// ■の位置に置いたキャラクターだけが戦闘フェイズで出撃する（上段→前衛、下段→後衛）。
+// それ以外の枠（□）にもキャラクター・強化どちらも自由に置けるが、戦闘には出撃しない（隣接強化としては機能する）。
 // 最初からどの枠にも置くことができ、使用不能スロットは存在しない。
-//   ①■②■③■④
-//   ■■■■■■■
-//   ■⑤■⑥■⑦■
-const MAIN_BOARD_SIZE=21;
-const MAIN_BOARD_DEPLOY_SLOTS=[0,2,4,6,15,17,19];
-const MAIN_BOARD_FRONT_SLOTS=[0,2,4,6];
-const MAIN_BOARD_REAR_SLOTS=[15,17,19];
+//   ■□■□■
+//   □□□□□
+//   □■□■□
+const MAIN_BOARD_SIZE=15;
+const MAIN_BOARD_COLS=5;
+const MAIN_BOARD_ROWS=3;
+const MAIN_BOARD_DEPLOY_SLOTS=[0,2,4,11,13];
+const MAIN_BOARD_FRONT_SLOTS=[0,2,4];
+const MAIN_BOARD_REAR_SLOTS=[11,13];
 const UNIT_EQUIP_SLOTS=Array.from({length:MAIN_BOARD_SIZE},()=>({label:'',kind:'any'}));
 // 装備欄描画・編集ロジックを既存のまま使い回すための仮想「所有者」。
 // battle系のG.alliesには入れず、.equipmentは常にG.mainBoardそのものを参照する（書き込みが直接反映される）。
 function _getPartyBoardUnit(){
   if(!Array.isArray(G.mainBoard)||G.mainBoard.length!==MAIN_BOARD_SIZE){
     const next=new Array(MAIN_BOARD_SIZE).fill(null);
-    (G.mainBoard||[]).forEach((c,i)=>{ if(i<MAIN_BOARD_SIZE) next[i]=c||null; });
+    if(Array.isArray(G.mainBoard)&&G.mainBoard.length===21&&MAIN_BOARD_SIZE===15){
+      // 旧7列×3行から右2列を切り落とし、各行の左5列だけを新5列×3行へ移す。
+      [0,1,2].forEach(row=>{
+        for(let col=0;col<5;col++){
+          next[row*5+col]=G.mainBoard[row*7+col]||null;
+        }
+      });
+    }else{
+      (G.mainBoard||[]).forEach((c,i)=>{ if(i<MAIN_BOARD_SIZE) next[i]=c||null; });
+    }
     G.mainBoard=next;
   }
   if(!G._partyBoardUnit) G._partyBoardUnit={name:'',hp:1,maxHp:1};
@@ -1617,14 +1628,14 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
   const rewardUnitPanels=elId==='hand-slots'&&arrName==='unitEquip';
   el.classList.toggle('unit-equip-slots',elId==='hand-slots'&&arrName==='unitEquip');
   el.classList.toggle('battle-magic-slots',battleMagic);
-  el.style.setProperty('grid-template-columns',battleMagic?'repeat(2,var(--hand-card-w))':(rewardUnitPanels?'repeat(7,var(--hand-card-w))':`repeat(${Hcols},var(--hand-card-w,300px))`),'important');
+  el.style.setProperty('grid-template-columns',battleMagic?'repeat(2,var(--hand-card-w))':(rewardUnitPanels?'repeat(5,var(--hand-card-w))':`repeat(${Hcols},var(--hand-card-w,300px))`),'important');
   if(battleMagic) el.style.setProperty('grid-template-rows','repeat(3,var(--hand-card-h))','important');
   if(rewardUnitPanels) el.style.setProperty('grid-template-rows','repeat(3,var(--hand-card-h))','important');
   el.style.setProperty('justify-content',battleMagic?'start':(elId==='hand-slots'?'center':((arrName==='unitEquip'||arrName==='globalPanels')?'center':'start')),'important');
   if(elId==='hand-slots'){
     const handPane=document.getElementById('hand-pane');
     if(handPane){
-      const rewardUnitPanelW='calc(var(--hand-card-w) * 7 + var(--field-gap) * 6)';
+      const rewardUnitPanelW='calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)';
       const rewardUnitPanelH='calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)';
       handPane.style.setProperty('left',battleMagic?'var(--right-stack-left)':'50%','important');
       handPane.style.setProperty('right','auto','important');

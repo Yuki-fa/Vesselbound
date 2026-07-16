@@ -75,8 +75,8 @@ function initState(){
     _showGlobalPanels:true,
     // ── スペル置き場（廃止。互換用に空配列だけ残す）──
     spellSlots:Array(3).fill(null),
-    // ── メイン置き場（7列×3行＝21枠。パーティ全体で共有する単一の配置グリッド）──
-    mainBoard:Array(21).fill(null),
+    // ── メイン置き場（5列×3行＝15枠。パーティ全体で共有する単一の配置グリッド）──
+    mainBoard:Array(15).fill(null),
     // ── 状態 ──
     phase:'init',
     actionsPerTurn:1, actionsLeft:0,

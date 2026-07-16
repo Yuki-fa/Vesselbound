@@ -1063,7 +1063,8 @@ function _targetsInSameAttackRow(target, list){
 }
 
 function _panelGridPos(idx){
-  return {x:idx%7,y:Math.floor(idx/7)};
+  const cols=(typeof MAIN_BOARD_COLS!=='undefined'&&MAIN_BOARD_COLS)||5;
+  return {x:idx%cols,y:Math.floor(idx/cols)};
 }
 
 function _isAdjacentPanelSlot(a,b){

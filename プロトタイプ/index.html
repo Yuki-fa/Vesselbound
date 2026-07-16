@@ -4614,16 +4614,16 @@ body.reward-screen-active #hand-pane,
 body #hand-pane:has(#hand-slots.unit-equip-slots){
   top:470px!important;
   left:50%!important;
-  width:calc(var(--hand-card-w) * 6 + var(--field-gap) * 5)!important;
+  width:calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)!important;
   height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
   transform:translateX(-50%)!important;
 }
 body #hand-slots.unit-equip-slots{
   display:grid!important;
-  grid-template-columns:repeat(6,var(--hand-card-w))!important;
+  grid-template-columns:repeat(5,var(--hand-card-w))!important;
   grid-template-rows:repeat(3,var(--hand-card-h))!important;
   gap:var(--field-gap)!important;
-  width:calc(var(--hand-card-w) * 6 + var(--field-gap) * 5)!important;
+  width:calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)!important;
   height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
 }
 body #hand-slots.unit-equip-slots > .card,
@@ -6019,6 +6019,25 @@ body.battle-turn-active #log-wrap::before{
   content:none!important;
   display:none!important;
 }
+/* 2026-07-16: メイン置き場を右2列カットし、5列×3行で中央固定 */
+html body.reward-screen-active #hand-pane,
+html body #hand-pane:has(#hand-slots.unit-equip-slots){
+  left:50%!important;
+  width:calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)!important;
+  height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  transform:translateX(-50%)!important;
+}
+html body #hand-slots.unit-equip-slots,
+html body.reward-screen-active #hand-slots.unit-equip-slots{
+  display:grid!important;
+  grid-template-columns:repeat(5,var(--hand-card-w))!important;
+  grid-template-rows:repeat(3,var(--hand-card-h))!important;
+  width:calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)!important;
+  height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
+  justify-content:center!important;
+  align-items:start!important;
+  gap:var(--field-gap)!important;
+}
 </style>
 </head>
 <body>
@@ -6229,12 +6248,12 @@ fitVesselboundViewport();
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=cleanup130"></script>
 <script src="js/data/units.js?v=cleanup130"></script>
-<script src="js/engine/state.js?v=cleanup130"></script>
+<script src="js/engine/state.js?v=board5x3-1"></script>
 <script src="js/engine/pool.js?v=cleanup130"></script>
 <script src="js/engine/enemy.js?v=cleanup130"></script>
-<script src="js/engine/battle.js?v=cleanup130"></script>
+<script src="js/engine/battle.js?v=board5x3-1"></script>
 <script src="js/engine/render.js?v=hit-webp23"></script>
-<script src="js/engine/reward.js?v=cleanup130"></script>
+<script src="js/engine/reward.js?v=board5x3-1"></script>
 <script src="js/engine/move.js?v=cleanup130"></script>
 <script src="js/engine/main.js?v=cleanup130"></script>
 </body>
