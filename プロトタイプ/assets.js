@@ -13,10 +13,30 @@ const Assets = {
     consumable: 'assets/temp/cards/card_item.svg',
     characterFrame: 'assets/temp/cards/character_frame.png',
     defenderFrame: 'assets/temp/cards/character_defender_frame.png',
+    enemyFrame: 'assets/temp/cards/enemy_frame.png',
     ringFrame: 'assets/temp/cards/ring_frame.png',
     wandFrame: 'assets/temp/cards/wand_frame.png',
     itemFrame: 'assets/temp/cards/item_frame.png',
+    weaponFrame: 'assets/temp/cards/weapon_frame.png',
+    growthFrame: 'assets/temp/cards/growth_frame.png',
+    summonFrameGreen: 'assets/temp/cards/summon_frame1.png',
+    summonFrameBlue: 'assets/temp/cards/summon_frame2.png',
+    summonFrameRed: 'assets/temp/cards/summon_frame3.png',
+    summonFrameBrown: 'assets/temp/cards/summon_frame4.png',
+    summonFramePurple: 'assets/temp/cards/summon_frame5.png',
+    enchantmentFrame: 'assets/temp/cards/enchantment.png',
+    spell1: 'assets/temp/cards/spell_frame1.png',
+    spell2: 'assets/temp/cards/spell_frame2.png',
+    spell3: 'assets/temp/cards/spell_frame3.png',
+    spell4: 'assets/temp/cards/spell_frame4.png',
+    spell5: 'assets/temp/cards/spell_frame5.png',
     gradeStar: 'assets/temp/cards/grade_star.png',
+    redOrb: 'assets/temp/cards/red_orb.png',
+    blueOrb: 'assets/temp/cards/blue_orb.png',
+    greenOrb: 'assets/temp/cards/green.png',
+    yellowOrb: 'assets/temp/cards/yellow_orb.png',
+    purpleOrb: 'assets/temp/cards/purple_orb.png',
+    manaOrb: 'assets/temp/cards/mana_orb.png',
     characterMask: 'assets/temp/cards/ch_mask.png',
     wandSheet: 'assets/temp/cards/wand_sheet.png',
   },
@@ -32,11 +52,34 @@ const Assets = {
     stage2: 'assets/temp/backgrounds/stage_forest.png',
     stage3: 'assets/temp/backgrounds/stage_valley.png',
     stage4: 'assets/temp/backgrounds/stage_capital.png',
-    shop: 'assets/temp/backgrounds/tent.svg',
   },
   vfx: {
-    hit: 'assets/temp/vfx/hit.svg',
+    // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
+    // 検出した場合、canvasでのルミナンスキー処理を行わずimgでそのまま再生する。
+    hit: 'assets/temp/vfx/hit.webp',
     glow: 'assets/temp/vfx/glow.svg',
+    // キャラクターの効果（通常攻撃ではない）でダメージが発生した際、そのキャラクターの
+    // ナンバー（CXXX）に対応するWebPがあれば、通常のhit.webpの代わりに再生する。
+    // 存在するものだけをここに登録する（未登録＝通常のhit.webpを使用）。
+    characterEffect: {
+      'C043': 'assets/temp/vfx/C043.webp',
+    },
+    // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
+    // mp4ならcanvasでズーム・回転・再生速度をリアルタイム調整し、WebPならimgでそのまま再生する
+    // （characterEffectとは別管理。playHitVfxAtRect()側からは参照しない）。
+    characterSweep: {
+      'C043': 'assets/temp/vfx/C043.webp',
+    },
+    // 特殊演出シート（生贄破棄・封印解放等）専用のWebP。playSpecialProductionVfx()が使用する。
+    specialProduction: {
+      S002: 'assets/temp/vfx/S002.webp',
+      S003: 'assets/temp/vfx/S003.webp',
+    },
+    // キーワード発動（毒等）でダメージが発生した際、そのキーワードのナンバー（KXXX）に
+    // 対応するWebPがあれば、通常のhit.webpの代わりに再生する。存在するものだけをここに登録する。
+    keywordEffect: {
+      'K007': 'assets/temp/vfx/K007.webp', // 毒
+    },
   },
   ui: {
     frame: 'assets/temp/ui/card_frame.svg',
@@ -45,21 +88,59 @@ const Assets = {
     log: 'assets/temp/ui/log.png',
     option: 'assets/temp/ui/option.png',
   },
+  map: {
+    panel: 'assets/temp/ui/map/panel.png',
+    panel2: 'assets/temp/ui/map/panel2.png',
+    dashedLine: 'assets/temp/ui/map/dashed_line.png',
+    player: 'assets/temp/ui/map/player.png',
+    empty: 'assets/temp/ui/map/empty.png',
+    empty2: 'assets/temp/ui/map/empty2.png',
+    mob: 'assets/temp/ui/map/mob.png',
+    elite: 'assets/temp/ui/map/elite.png',
+    boss: 'assets/temp/ui/map/boss.png',
+    treasure: 'assets/temp/ui/map/treasure.png',
+    altar: 'assets/temp/ui/map/altar.png',
+    event: 'assets/temp/ui/map/event.png',
+    shop: 'assets/temp/ui/map/shop.png',
+  },
   sfx: {
     uiConfirm: 'assets/temp/sfx/ui_confirm.wav',
     uiError: 'assets/temp/sfx/ui_error.wav',
+    menuOpen: 'assets/temp/sfx/menu_open.wav',
+    menuClose: 'assets/temp/sfx/menu_close.wav',
+    select: 'assets/temp/sfx/select.wav',
+    fit: 'assets/temp/sfx/fit.wav',
+    'return': 'assets/temp/sfx/return.wav',
+    menu: 'assets/temp/sfx/menu.wav',
+    battle1: 'assets/temp/sfx/battle1.wav',
     reroll: 'assets/temp/sfx/reroll.wav',
     purchase: 'assets/temp/sfx/purchase.wav',
-    goldGain: 'assets/temp/sfx/gold_gain.wav',
-    attackLight: 'assets/temp/sfx/attack_light.wav',
-    hitLight: 'assets/temp/sfx/hit_light.wav',
+    attack: 'assets/temp/sfx/attack.wav',
+    shield: 'assets/temp/sfx/shield.wav',
+    poison: 'assets/temp/sfx/poison.wav',
+    fire: 'assets/temp/sfx/fire.wav',
+    superMagic: 'assets/temp/sfx/super_magic.wav',
+    sword1: 'assets/temp/sfx/sword1.wav',
+    sword2: 'assets/temp/sfx/sword2.wav',
+    sword3: 'assets/temp/sfx/sword3.wav',
+    axe1: 'assets/temp/sfx/axe1.wav',
+    axe2: 'assets/temp/sfx/axe2.wav',
+    axe3: 'assets/temp/sfx/axe3.wav',
+    punch1: 'assets/temp/sfx/punch1.wav',
+    punch2: 'assets/temp/sfx/punch2.wav',
+    punch3: 'assets/temp/sfx/punch3.wav',
+    kick1: 'assets/temp/sfx/kick1.wav',
+    kick2: 'assets/temp/sfx/kick2.wav',
+    kick3: 'assets/temp/sfx/kick3.wav',
     death: 'assets/temp/sfx/death.wav',
     spellCast: 'assets/temp/sfx/spell_cast.wav',
     spellFire: 'assets/temp/sfx/spell_fire.wav',
-    spellPoison: 'assets/temp/sfx/spell_poison.wav',
     spellHeal: 'assets/temp/sfx/spell_heal.wav',
     summon: 'assets/temp/sfx/summon.wav',
     victory: 'assets/temp/sfx/victory.wav',
+    bossVictory: 'assets/temp/sfx/boss_victory.wav',
+    S002: 'assets/temp/sfx/S002.wav',
+    S003: 'assets/temp/sfx/S003.wav',
   },
 };
 
@@ -78,7 +159,42 @@ const SpellArtMap = {
   '転移の短杖': 'assets/temp/cards/wands/teleportation.png',
 };
 
+const PanelArtMap = {
+  'ミラ': 'assets/temp/cards/panels/generated/mira.png',
+  'アトラ': 'assets/temp/cards/panels/generated/atora.png',
+  'アドラ': 'assets/temp/cards/panels/generated/atora.png',
+  '武術の知識': 'assets/temp/cards/panels/generated/martial_knowledge.png',
+  '魔術の知識': 'assets/temp/cards/panels/generated/magic_knowledge.png',
+  '神術の知識': 'assets/temp/cards/panels/generated/divine_knowledge.png',
+  '戦技マスター': 'assets/temp/cards/panels/generated/master_knowledge.png',
+  '修練': 'assets/temp/cards/panels/generated/training.png',
+  '吸血': 'assets/temp/cards/panels/generated/vampire.png',
+  '隠密': 'assets/temp/cards/panels/generated/stealth.png',
+  '反撃': 'assets/temp/cards/panels/generated/counter.png',
+  'パンチ': 'assets/temp/cards/panels/generated/punch.png',
+  '噛みつき': 'assets/temp/cards/panels/generated/bite.png',
+};
+
 const CharacterArtOverrideMap = {
+  'ミラ': {path:'assets/temp/cards/panels/generated/mira.png'},
+  'アトラ': {path:'assets/temp/cards/panels/generated/atora.png'},
+  'アドラ': {path:'assets/temp/cards/panels/generated/atora.png'},
+  '戦士': {path:'assets/temp/cards/characters/crops/new_starters/starter_warrior.png'},
+  '魔術師': {path:'assets/temp/cards/characters/crops/new_starters/starter_mage.png'},
+  '神官': {path:'assets/temp/cards/characters/crops/new_starters/starter_priest.png'},
+  '盗賊': {path:'assets/temp/cards/characters/crops/new_starters/starter_thief.png'},
+  '騎士': {path:'assets/temp/cards/characters/crops/new_starters/starter_knight.png'},
+  '屍術師': {path:'assets/temp/cards/characters/crops/new_starters/starter_necromancer.png'},
+  '蛮族': {path:'assets/temp/cards/characters/crops/new_starters/starter_barbarian.png'},
+  '狩人': {path:'assets/temp/cards/characters/crops/new_starters/starter_hunter.png'},
+  '咬竜"グレイプニル"': {path:'assets/temp/cards/characters/crops/new_starters/named_graipnir.png'},
+  '咬竜“グレイプニル”': {path:'assets/temp/cards/characters/crops/new_starters/named_graipnir.png'},
+  '金床の賢者"シンドリ"': {path:'assets/temp/cards/characters/crops/new_starters/named_sindri.png'},
+  '金床の賢者“シンドリ”': {path:'assets/temp/cards/characters/crops/new_starters/named_sindri.png'},
+  '極光の女王"グンダ"': {path:'assets/temp/cards/characters/crops/new_starters/named_gunda.png'},
+  '極光の女王“グンダ”': {path:'assets/temp/cards/characters/crops/new_starters/named_gunda.png'},
+  '深淵の捕食者"エギル"': {path:'assets/temp/cards/characters/crops/new_starters/named_aegir.png'},
+  '深淵の捕食者“エギル”': {path:'assets/temp/cards/characters/crops/new_starters/named_aegir.png'},
   'ミテーラ': {path:'assets/temp/cards/characters/crops/mitera.png'},
   'ジャッカロープ': {path:'assets/temp/cards/characters/crops/jackalope.png'},
   'ケットシー': {path:'assets/temp/cards/characters/crops/ketshi.png'},
@@ -91,11 +207,11 @@ const CharacterArtOverrideMap = {
   'ゾンビ': {path:'assets/temp/cards/characters/crops/zombie.png'},
   'マミー': {path:'assets/temp/cards/characters/crops/mummy.png'},
   'バンシー': {path:'assets/temp/cards/characters/crops/banshee.png'},
-  'エルフ': {path:'assets/temp/cards/characters/crops/elf.png'},
-  'ブラウニー': {path:'assets/temp/cards/characters/crops/brownie.png'},
+  'エルフ': {path:'assets/temp/cards/art/characters/C044.jpg'},
+  'ブラウニー': {path:'assets/temp/cards/art/characters/C043.jpg'},
   'ジャック・オ・ランタン': {path:'assets/temp/cards/characters/crops/jack_o_lantern.png'},
   'シルフ': {path:'assets/temp/cards/characters/crops/sylph.png'},
-  'インプ': {path:'assets/temp/cards/characters/crops/imp.png'},
+  'インプ': {path:'assets/temp/cards/art/characters/C061.jpg'},
   'グレムリン': {path:'assets/temp/cards/characters/crops/gremlin.png'},
   'インキュバス': {path:'assets/temp/cards/characters/crops/incubus.png'},
   'サキュバス': {path:'assets/temp/cards/characters/crops/succubus.png'},
@@ -108,8 +224,9 @@ const CharacterArtOverrideMap = {
   'カオスインプ': {path:'assets/temp/cards/characters/crops/chaos_imp.png'},
   'レッサーデーモン': {path:'assets/temp/cards/characters/crops/lesser_demon.png'},
   'ドラゴネット': {path:'assets/temp/cards/characters/crops/dragonet.png'},
-  'アラッサス': {path:'assets/temp/cards/characters/crops/arassus.png'},
-  'スリン': {path:'assets/temp/cards/characters/crops/slinn.png'},
+  'アークデーモン': {path:'assets/temp/cards/art/characters/C062.jpg'},
+  'アラッサス': {path:'assets/temp/cards/art/characters/C081.jpg'},
+  'スリン': {path:'assets/temp/cards/art/characters/C082.jpg'},
   'リザードマン': {path:'assets/temp/cards/characters/crops/lizardman.png'},
   'ゴブリン': {path:'assets/temp/cards/characters/crops/goblin.png'},
   'オーク': {path:'assets/temp/cards/characters/crops/orc.png'},
@@ -173,7 +290,8 @@ const CharacterArtOverrideMap = {
   'ダークエルフ': {path:'assets/temp/cards/characters/crops/dark_elf.png'},
   'カースドアーマー': {path:'assets/temp/cards/characters/crops/cursed_armor.png'},
   'ボーンナイト': {path:'assets/temp/cards/characters/crops/bone_knight.png'},
-  'ダイアウルフ': {path:'assets/temp/cards/characters/crops/dire_wolf.png'},
+  'ダイアウルフ': {path:'assets/temp/cards/art/characters/C041.jpg'},
+  'スリープシープ': {path:'assets/temp/cards/art/characters/C042.jpg'},
   'ヒポグリフ': {path:'assets/temp/cards/characters/crops/hippogriff.png'},
   'ケルピー': {path:'assets/temp/cards/characters/crops/kelpie.png'},
   'スプリガン': {path:'assets/temp/cards/characters/crops/spriggan.png'},
@@ -239,6 +357,9 @@ const CharacterArtMap = {
 };
 
 function assetUrl(path){
+  // pathが配列の場合、先頭から順に重ねて指定する。存在しない画像はそのレイヤーが
+  // 単に透過表示されるだけなので、下に重ねた候補（別拡張子）が透けて見える＝拡張子違いの自動フォールバックになる
+  if(Array.isArray(path)) return path.filter(Boolean).map(p=>`url("${p}")`).join(',');
   return `url("${path}")`;
 }
 
@@ -252,16 +373,72 @@ function getStageBackgroundKey(floor){
 
 function getCardAsset(card){
   if(!card) return Assets.cards.default;
+  const panelArt=getPanelArtPath(card);
+  if(panelArt) return panelArt;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.character;
+  if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return Assets.cards.consumable;
   if(card.type==='wand') return Assets.cards.wand;
   if(card.type==='consumable') return Assets.cards.consumable;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ring;
   return Assets.cards.default;
 }
 
+const SummonColorByName = {
+  'ノーム':'黄',
+  'マータ':'赤',
+  'ゾンビ':'青',
+  'スケルトン':'青',
+  'ダイアウルフ':'緑',
+  'スリープシープ':'緑',
+  'ブラウニー':'黄',
+  'エルフ':'黄',
+  'インプ':'赤',
+  'アークデーモン':'赤',
+  'アラッサス':'青',
+  'スリン':'緑',
+};
+
+function _summonColor(card){
+  const direct=String(card?.color||card?.カラー||card?.colour||'').trim();
+  if(direct) return direct;
+  return SummonColorByName[String(card?.name||'').trim()]||'';
+}
+
+function _summonFrameByColor(color){
+  if(color==='緑') return Assets.cards.summonFrameGreen||Assets.cards.characterFrame;
+  if(color==='青') return Assets.cards.summonFrameBlue||Assets.cards.characterFrame;
+  if(color==='赤') return Assets.cards.summonFrameRed||Assets.cards.characterFrame;
+  if(color==='茶'||color==='黄') return Assets.cards.summonFrameBrown||Assets.cards.characterFrame;
+  if(color==='紫') return Assets.cards.summonFramePurple||Assets.cards.characterFrame;
+  return Assets.cards.summonFrameGreen||Assets.cards.characterFrame;
+}
+
+function _spellFrameByColor(color){
+  const c=String(color||'').trim().toLowerCase();
+  if(c==='green'||c==='緑') return Assets.cards.spell1;
+  if(c==='blue'||c==='青') return Assets.cards.spell2;
+  if(c==='yellow'||c==='黄'||c==='茶') return Assets.cards.spell3;
+  if(c==='red'||c==='赤') return Assets.cards.spell4;
+  if(c==='purple'||c==='紫') return Assets.cards.spell5;
+  return Assets.cards.spell1;
+}
+
 function getCardFrameAsset(card){
   if(!card) return Assets.cards.default;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
+  if(card.magicPanel) return Assets.cards.wandFrame;
+  if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;
+  if(card.category==='スペル'||card.type==='spell'||card.kind==='spell') return _spellFrameByColor(card.color);
+  if(card.type==='panel'||card.kind==='panel'||card.panelScope){
+    const cat=String(card.category||'');
+    if(cat.includes('キャラクター')||cat.includes('召喚')){
+      const color=_summonColor(card);
+      return color?_summonFrameByColor(color):Assets.cards.characterFrame;
+    }
+    if(cat.includes('強化')||cat.includes('エンチャント')) return Assets.cards.enchantmentFrame||Assets.cards.wandFrame;
+    return Assets.cards.growthFrame||Assets.cards.itemFrame;
+  }
+  if(card.fixedAttack||card.fixedEquip) return Assets.cards.weaponFrame||Assets.cards.itemFrame;
   if(card.type==='wand') return Assets.cards.wandFrame;
   if(card.type==='consumable') return Assets.cards.itemFrame;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ringFrame;
@@ -274,8 +451,107 @@ function _characterArtDef(cardOrName){
   return CharacterArtOverrideMap[name]||CharacterArtMap[name]||null;
 }
 
+function _assetCodeRaw(card){
+  if(!card||typeof card!=='object') return '';
+  return String(card.artCode??card._artCode??card.code??card._code??card['No.']??card.No??card.no??card['No']??card.imageNo??card.image_no??card.画像No??card.画像番号??'').trim();
+}
+
+function _normalizeAssetCode(raw, fallbackPrefix){
+  const text=String(raw||'').trim();
+  if(!text) return '';
+  // 旧「P」表記（メインキャラクター）は新しい「MC」表記に読み替える
+  const prefixed=text.match(/^(MC|EN|P|[ECS])\s*0*(\d+)$/i);
+  if(prefixed){
+    let p=prefixed[1].toUpperCase();
+    if(p==='P') p='MC';
+    return p+String(parseInt(prefixed[2],10)).padStart(3,'0');
+  }
+  const n=parseInt(text,10);
+  if(!Number.isFinite(n)||n<=0) return '';
+  return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
+}
+
+function getCharacterNoArtPath(card){
+  if(!card||typeof card!=='object') return '';
+  const raw=_assetCodeRaw(card);
+  if(!raw) return '';
+  const isEnemyCard=!!(card._sheetEnemy||card.enemyOnly||card.side==='enemy'||card.isEnemy);
+  const explicit=String(raw).trim().match(/^(MC|EN|[ECS])/i);
+  let prefix=explicit?explicit[1].toUpperCase():'';
+  if(!prefix){
+    const cat=String(card.category||card.kind||card.type||'');
+    if(isEnemyCard) prefix='EN';
+    else if(card._isChar||card.starterOnly||card.initialParty) prefix='MC';
+    else if(cat==='スペル') prefix='S';
+    else if(cat==='強化'||cat==='エンチャント') prefix='E';
+    else if(cat||card.panelScope||card.summon||card.magicPanel) prefix='C';
+    else prefix='C';
+  }
+  let code=_normalizeAssetCode(raw,prefix);
+  if(!code) return '';
+  // 敵専用カードはシート側が旧「E」表記のままでも、実ファイルが「EN」表記のため補正する。
+  if(isEnemyCard){
+    const m=code.match(/^E(\d+)$/i);
+    if(m) code='EN'+m[1].padStart(3,'0');
+  }
+  let dir='';
+  if(code.startsWith('MC')) dir='assets/temp/cards/art/main_characters';
+  else if(code.startsWith('EN')) dir='assets/temp/cards/art/enemies';
+  else if(code[0]==='E') dir='assets/temp/cards/art/enchantment';
+  else if(code[0]==='C') dir='assets/temp/cards/art/characters';
+  else if(code[0]==='S') dir='assets/temp/cards/art/cards';
+  else return '';
+  // 拡張子はjpg/pngどちらで保存されているか分からないため両方を候補として返す（assetUrlが重ね合わせで解決する）
+  return [`${dir}/${code}.jpg`,`${dir}/${code}.png`];
+}
+
+// キャラクターの効果によるダメージ時、そのキャラクター専用の透過WebPが
+// 登録されていればそのパスを返す。登録が無ければ空文字（呼び出し側で通常のhit.webpを使う）。
+function getCharacterEffectVfxPath(unit){
+  const raw=_assetCodeRaw(unit);
+  if(!raw) return '';
+  const code=_normalizeAssetCode(raw,'C');
+  if(!code) return '';
+  return (Assets.vfx.characterEffect&&Assets.vfx.characterEffect[code])||'';
+}
+
+// C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画（mp4）のパスを返す。
+// canvasでのズーム・回転・再生速度調整をリアルタイムに行うため、こちらはWebP化しない。
+function getCharacterSweepVfxPath(unit){
+  const raw=_assetCodeRaw(unit);
+  if(!raw) return '';
+  const code=_normalizeAssetCode(raw,'C');
+  if(!code) return '';
+  return (Assets.vfx.characterSweep&&Assets.vfx.characterSweep[code])||'';
+}
+
+// キーワード（毒等）の発動によるダメージ時、そのキーワードのナンバー（KXXX、KW_NO_MAPで解決）に
+// 対応する動画が登録されていればそのパスを返す。登録が無ければ空文字。
+function getKeywordEffectVfxPath(keywordName){
+  if(!keywordName) return '';
+  const code=(typeof KW_NO_MAP!=='undefined'&&KW_NO_MAP[keywordName])||'';
+  if(!code) return '';
+  return (Assets.vfx.keywordEffect&&Assets.vfx.keywordEffect[code])||'';
+}
+
 function applyCharacterArtVars(el, cardOrName, prefix){
   if(!el) return false;
+  const direct=typeof cardOrName==='object' ? (cardOrName.art||cardOrName.image||'') : '';
+  if(direct){
+    const p=prefix||'--char';
+    el.style.setProperty(`${p}-art`, assetUrl(direct));
+    el.style.setProperty(`${p}-art-size`, 'cover');
+    el.style.setProperty(`${p}-art-position`, 'center 58%');
+    return true;
+  }
+  const numbered=typeof cardOrName==='object' ? getCharacterNoArtPath(cardOrName) : '';
+  if(numbered){
+    const p=prefix||'--char';
+    el.style.setProperty(`${p}-art`, assetUrl(numbered));
+    el.style.setProperty(`${p}-art-size`, 'cover');
+    el.style.setProperty(`${p}-art-position`, 'center 58%');
+    return true;
+  }
   const def=_characterArtDef(cardOrName);
   if(!def) return false;
   const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
@@ -294,6 +570,28 @@ function applySpellArtVars(el, card, prefix){
   const p=prefix||'--card';
   el.style.setProperty(`${p}-art`, assetUrl(path));
   el.style.setProperty(`${p}-art-size`, 'cover');
+  el.style.setProperty(`${p}-art-position`, 'center 58%');
+  return true;
+}
+
+function getPanelArtPath(card){
+  const name=card?.name||'';
+  if(!name) return '';
+  if(card?.art||card?.image) return card.art||card.image;
+  const numbered=getCharacterNoArtPath(card);
+  if(numbered) return numbered;
+  if(PanelArtMap[name]) return PanelArtMap[name];
+  const key=Object.keys(PanelArtMap).find(k=>name.includes(k));
+  return key?PanelArtMap[key]:'';
+}
+
+function applyPanelArtVars(el, card, prefix){
+  if(!el||!card) return false;
+  const path=getPanelArtPath(card);
+  if(!path) return false;
+  const p=prefix||'--card';
+  el.style.setProperty(`${p}-art`, assetUrl(path));
+  el.style.setProperty(`${p}-art-size`, 'cover');
   el.style.setProperty(`${p}-art-position`, 'center top');
   return true;
 }
@@ -301,17 +599,37 @@ function applySpellArtVars(el, card, prefix){
 function applyCardVisual(el, card){
   if(!el) return;
   el.style.setProperty('--card-frame', assetUrl(getCardFrameAsset(card)));
-  if(!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
+  if(!applyPanelArtVars(el, card, '--card')&&!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
     el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
     el.style.removeProperty('--card-art-size');
     el.style.removeProperty('--card-art-position');
   }
 }
 
+function panelDirectionMarksHtml(card, connectivity){
+  const cat=String(card?.category||'');
+  if(!card||!Array.isArray(card.directions)||!(cat==='強化'||cat==='エンチャント')) return '';
+  // つながっている方向は矢印自体を消す（代わりに_renderPanelUniteMarkersが2枚の中間にunite画像を1つだけ描画する）
+  return card.directions.map(d=>{
+    if(connectivity&&connectivity[d]==='connected') return '';
+    return `<span class="panel-dir panel-dir-${d}"></span>`;
+  }).join('');
+}
+
 function applyUnitVisual(el, unit){
   if(!el) return;
-  const isDefender=!!(unit&&(unit.hate&&unit.hateTurns>0||unit.lane==='front'));
-  el.style.setProperty('--unit-frame', assetUrl(isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame));
+  const isEnemyEl=el.classList.contains('enemy')||!!(unit&&unit._useEnemyVisualFrame);
+  const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
+  const hasGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.equipment)&&unit.equipment.some(p=>p&&(p.name==='守護'||p.name==='ヘイト'||(p.keywords||[]).includes('守護')||(p.keywords||[]).includes('ヘイト'))));
+  const unitGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.keywords)&&(unit.keywords.includes('守護')||unit.keywords.includes('ヘイト')));
+  const classGuard=!isPlayerHero&&(el.classList.contains('is-defender')||el.classList.contains('uses-hate-frame'));
+  const isDefender=!!(unit&&!isPlayerHero&&(unit.hate&&unit.hateTurns>0||hasGuard||unitGuard))||classGuard;
+  const frame=isEnemyEl
+    ? Assets.cards.enemyFrame
+    : isPlayerHero
+      ? Assets.cards.characterFrame
+      : _summonFrameByColor(_summonColor(unit)) || (isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame);
+  el.style.setProperty('--unit-frame', assetUrl(frame));
   if(!applyCharacterArtVars(el, unit, '--unit')){
     el.style.setProperty('--unit-art', assetUrl(Assets.cards.character));
     el.style.removeProperty('--unit-art-size');
@@ -320,7 +638,7 @@ function applyUnitVisual(el, unit){
 }
 
 function gradeIconHtml(g){
-  const n=Math.min(Math.max(Number(g)||1,1),typeof MAX_GRADE!=='undefined'?MAX_GRADE:5);
+  const n=Math.max(1,Math.min(5,Number(g)||1));
   return `<span class="grade-stars grade-stars-${n}" aria-label="G${n}">${Array.from({length:n},(_,i)=>`<span class="grade-star grade-star-${i+1}"></span>`).join('')}</span>`;
 }
 
@@ -350,6 +668,7 @@ function applyUiAssets(){
   root.style.setProperty('--character-mask-image', assetUrl(Assets.cards.characterMask));
   root.style.setProperty('--log-panel-image', assetUrl(Assets.ui.log));
   root.style.setProperty('--option-button-image', assetUrl(Assets.ui.option));
+  if(Assets.map&&Assets.map.panel) root.style.setProperty('--world-map-panel-image', assetUrl(Assets.map.panel));
 }
 
 function setBattleStageBackground(){
@@ -357,7 +676,7 @@ function setBattleStageBackground(){
 }
 
 function setBattleShopBackground(){
-  setScreenAssetBackground('battle','shop');
+  setScreenAssetBackground('battle','camp');
 }
 
 function playVfxOnElement(type, el){
@@ -371,11 +690,16 @@ function playVfxOnElement(type, el){
   fx.addEventListener('animationend',()=>fx.remove(),{once:true});
 }
 
-function playHitVfx(side, idx){
+function playHitVfx(side, idx, amount){
   if(typeof G!=='undefined'&&G._isSimulating) return;
   const draw=()=>{
     const id=side==='enemy'?'f-enemy':'f-ally';
-    const slot=document.getElementById(id)?.querySelectorAll('.slot')?.[idx];
+    const slot=document.getElementById(id)?.querySelector(`.slot[data-unit-idx="${idx}"]`)||
+      document.getElementById(id)?.querySelectorAll('.slot')?.[idx];
+    if(typeof window.playHitVfx==='function'&&window.playHitVfx!==playHitVfx){
+      window.playHitVfx(side,idx,amount);
+      return;
+    }
     playVfxOnElement('hit',slot);
   };
   requestAnimationFrame(()=>requestAnimationFrame(draw));
