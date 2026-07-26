@@ -58,24 +58,43 @@ function _injectManaIcons(escapedText){
       });
   }).join('');
 }
+function _stripStrongMarkupText(text){
+  return String(text||'')
+    .replace(/&lt;\s*\/?\s*strong\s*&gt;/gi,'')
+    .replace(/<\/\s*strong\s*>/gi,'')
+    .replace(/<\s*\/?\s*strong\s*>/gi,'')
+    .replace(/<\/\s*strong\s*/gi,'')
+    .replace(/<\s*strong\s*/gi,'');
+}
+function _boldKeywordsInHtml(html){
+  const variable='毒牙|邪眼|衝撃|強靭|結界|封印|弱体|毒';
+  const fixed='復活|根性|二段攻撃|三段攻撃|三方向攻撃|全体攻撃|生贄|即死|先制|狙撃|隠密|加護|貫通|生命吸収';
+  const re=new RegExp(`(${variable})\\d*|(${fixed})`,'g');
+  const normalized=_stripStrongMarkupText(html);
+  return normalized.split(/(<[^>]*>)/g).map(part=>{
+    if(part.startsWith('<')) return part;
+    return part.replace(re,m=>`<strong>${m}</strong>`);
+  }).join('');
+}
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
-  const clean=String(desc||'').replace(/<\/?strong>/gi,'').replace(/<[^>]*>/g,'');
+  const clean=_stripStrongMarkupText(desc).replace(/<[^>]*>/g,'');
   const lines=clean.split('\n').map((line,li)=>{
     if(li===0){
       const title=_escapePreviewHtml(line);
-      return `<strong class="preview-title">${plainTitle?title:_injectManaIcons(title)}</strong>`;
+      return `<strong class="preview-title">${plainTitle?title:_injectManaIcons(_boldKeywordsInHtml(title))}</strong>`;
     }
     const m=line.match(/^([^：:]+)([：:])(.*)$/);
-    if(!m) return _injectManaIcons(_escapePreviewHtml(line));
-    let body=_injectManaIcons(_escapePreviewHtml(m[3]));
+    if(!m) return _injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(line)));
     if(m[1]==='キーワード'){
       // 「キーワード：」というラベル自体は表示せず、キーワードそのものだけを太字で並べる
-      return body.split(/\s*\/\s*/).map(k=>k.trim()?`<strong>${k.trim()}</strong>`:'').filter(Boolean).join(' / ');
+      return _stripStrongMarkupText(m[3]).split(/\s*\/\s*/).map(k=>k.trim()).filter(Boolean)
+        .map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ');
     }
+    let body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[3])));
     // 「Xマナ：」「Xマナ毎：」ラベルはマナ数分のアイコンに変換する（他のタイミングラベルと違い文字列のまま太字にしない）
     if(/^\d+マナ毎?$/.test(m[1])){
-      return `<strong>${_injectManaIcons(_escapePreviewHtml(m[1]))}</strong>${_escapePreviewHtml(m[2])}${body}`;
+      return `<strong>${_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[1])))}</strong>${_escapePreviewHtml(m[2])}${body}`;
     }
     return `<strong>${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
   });
@@ -84,6 +103,11 @@ function _formatPreviewHtml(desc,opt){
 }
 function _previewRarityLine(card){
   return '';
+}
+function _plainEffectTextForPreview(card){
+  if(!card) return '';
+  const raw=(typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(card):String(card.desc||card.effectText||card.effect||''));
+  return _stripOwnNameFromEffectText(String(raw||'').replace(/<[^>]*>/g,''),card.name);
 }
 // マナは色を持たない単一プールのため、常に同じアイコンを返す
 function _manaOrbPath(){
@@ -104,6 +128,40 @@ function cardManaCostHtml(card){
   const path=n?_manaOrbPath():'';
   if(!n||!path) return '';
   return `<span class="mana-cost-orbs">${Array.from({length:n},()=>`<img src="${path}" alt="">`).join('')}</span>`;
+}
+function _sealCostValue(card){
+  if(!card) return 0;
+  const kws=[...(card.keywords||[])];
+  const kw=kws.find(k=>/^封印\s*\d+$/.test(String(k||'')));
+  if(kw) return Math.max(1,parseInt(String(kw).replace(/\D/g,''),10)||1);
+  if(card._sealValue>0||card._sealed===true) return Math.max(1,Number(card._sealValue)||1);
+  if(card._sealed===false) return 0;
+  if(typeof _sealValue==='function'){
+    const v=_sealValue(card);
+    if(v>0) return v;
+  }
+  const text=[card.desc,card.effectText,card.effect].filter(Boolean).join(' ');
+  const m=[...kws,String(text||'')].join(' ').match(/封印\s*(\d+)/);
+  return m?Math.max(1,parseInt(m[1],10)||1):0;
+}
+function _sealSacrificeCountForDisplay(){
+  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy');
+  if(!inBattle) return 0;
+  if(typeof _sacrificeCount==='function') return Math.max(0,Number(_sacrificeCount())||0);
+  const all=[...(G.allies||[]),...(G.enemies||[])];
+  return all.filter(u=>u&&u.hp>0&&!u._sealed&&typeof _unitHasSacrifice==='function'&&_unitHasSacrifice(u)).length;
+}
+function cardSealCostHtml(card){
+  if(card&&card._sealed===false&&!card._sealValue) return '';
+  const cost=_sealCostValue(card);
+  const path=Assets?.cards?.blood||'';
+  if(!cost||!path) return '';
+  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy');
+  const lit=inBattle?Math.max(0,Math.min(cost,_sealSacrificeCountForDisplay())):cost;
+  const ready=inBattle&&lit>=cost;
+  const cls=`seal-cost-badge${ready?' seal-cost-ready':''}${inBattle?' seal-cost-battle':''}`;
+  const icons=Array.from({length:cost},(_,i)=>`<img class="${i<lit?'seal-cost-lit':''}" src="${path}" alt="">`).join('');
+  return `<span class="${cls}">${icons}</span>`;
 }
 // entity（スペル/強化パネル/召喚済みユニット）が持つ manaCost/manaRepeat/_manaFireCount を見て、
 // div内の.mana-cost-orbsのアイコン点灯・非表示状態を反映する。マナは消費されない共有蓄積値のため、
@@ -413,6 +471,14 @@ function playHitVfx(side,idxOrUnit,amount,options){
   return playHitVfxOnSlot(getCurrentUnitSlot(side,idxOrUnit),amount,options);
 }
 
+function _battleBackgroundFrameRect(){
+  const scr=document.getElementById('scr-battle');
+  const r=scr?.getBoundingClientRect?.();
+  if(!r||!r.width||!r.height) return {left:0,top:0,width:window.innerWidth||3840,height:window.innerHeight||2160,scale:1};
+  const scale=r.width/3840;
+  return {left:r.left,top:r.top,width:r.width,height:r.height,scale};
+}
+
 // ── 特殊演出（生贄破棄・封印解放）── 「特殊演出」シートのS002/S003用の汎用再生関数。
 // 対象カードの上にWebPを表示してSFXを再生し、forwardMsが経過したらonMidpoint()を呼びつつ
 // （カードの消去・解封などの実処理はここで行う）、直近forwardMs分に実際に描画されたフレームを
@@ -428,21 +494,42 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   const rect=slot.getBoundingClientRect();
   if(!rect.width||!rect.height){ finishMidpoint(); return Promise.resolve(); }
   if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic'});
+  const clipRect=_battleBackgroundFrameRect();
+  const clip=document.createElement('div');
+  clip.className='special-vfx-clip';
+  Object.assign(clip.style,{
+    position:'fixed',
+    left:`${clipRect.left}px`,
+    top:`${clipRect.top}px`,
+    width:`${clipRect.width}px`,
+    height:`${clipRect.height}px`,
+    zIndex:opt.zIndex??10001,
+    pointerEvents:'none',
+    overflow:'hidden',
+  });
   const host=document.createElement('div');
   host.className='special-vfx-host';
+  const scale=Math.max(1,Number(opt.scale)||1);
+  const hostW=rect.width*scale, hostH=rect.height*scale;
+  const hostLeft=rect.left+(rect.width-hostW)/2;
+  const hostTop=opt.anchor==='bottom'
+    ? rect.top+rect.height-hostH*0.62
+    : rect.top+(rect.height-hostH)/2;
+  const offsetY=Number(opt.offsetY)||0;
   Object.assign(host.style,{
-    position:'fixed',left:`${rect.left}px`,top:`${rect.top}px`,
-    width:`${rect.width}px`,height:`${rect.height}px`,
-    zIndex:10001,pointerEvents:'none',overflow:'visible',
+    position:'absolute',left:`${hostLeft-clipRect.left}px`,top:`${hostTop+offsetY-clipRect.top}px`,
+    width:`${hostW}px`,height:`${hostH}px`,
+    pointerEvents:'none',overflow:'visible',
   });
-  document.body.appendChild(host);
+  clip.appendChild(host);
+  document.body.appendChild(clip);
   const img=document.createElement('img');
   img.className='special-vfx-img';
   img.alt='';
-  img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;';
+  img.style.cssText=`position:absolute;inset:0;width:100%;height:100%;object-fit:${opt.fit||'cover'};object-position:${opt.objectPosition||'center center'};`;
   img.src=vfxUrl+(vfxUrl.includes('?')?'&':'?')+'_r='+Math.random();
   host.appendChild(img);
-  const w=Math.max(1,Math.round(rect.width)), h=Math.max(1,Math.round(rect.height));
+  const w=Math.max(1,Math.round(hostW)), h=Math.max(1,Math.round(hostH));
   const frames=[];
   let capturing=true;
   const captureLoop=()=>{
@@ -467,56 +554,70 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
       host.appendChild(canvas);
       const ctx=canvas.getContext('2d');
       const seq=frames.slice().reverse();
-      const cleanup=()=>{ host.remove(); resolve(); };
+      const cleanup=()=>{ clip.remove(); resolve(); };
       if(!seq.length){ setTimeout(cleanup,reverseMs); return; }
-      const stepMs=Math.max(16,reverseMs/seq.length);
-      let i=0;
-      const step=()=>{
-        if(i>=seq.length){ cleanup(); return; }
+      const started=performance.now();
+      const step=now=>{
+        const elapsed=now-started;
+        if(elapsed>=reverseMs){ cleanup(); return; }
+        const progress=Math.max(0,Math.min(1,elapsed/reverseMs));
+        const i=Math.min(seq.length-1,Math.floor(progress*seq.length));
         ctx.clearRect(0,0,w,h);
         ctx.drawImage(seq[i],0,0);
-        i++;
-        setTimeout(step,stepMs);
+        requestAnimationFrame(step);
       };
-      step();
+      requestAnimationFrame(step);
     },forwardMs);
   });
 }
 
-// S002/S003は元動画が長尺（S002は約9秒、S003は約2.6秒）のため、forwardMsが短すぎると
-// 画像がまだほとんど育っていない（ごく小さい）フレームしか捕捉できず、逆再生してもほぼ何も
-// 見えないまま終わってしまう。0.75秒分は順再生させてから折り返し、完了まで計1.5秒程度かける。
+// S002/S003は元動画が長尺のため、順再生後に直近フレームを逆順に描画して折り返す。
 const _SPECIAL_VFX_TIMING={forwardMs:750,reverseMs:750};
+const _SEAL_RELEASE_VFX_TIMING={forwardMs:1750,reverseMs:1750};
 
 // 生贄キャラを1体、S003演出付きで破棄する（封印解放の生贄コスト用）
 function playSacrificeDestroyVfx(unit, side){
   const slot=getCurrentUnitSlot(side,unit);
   const url=Assets?.vfx?.specialProduction?.S003||'';
+  const slotH=slot?.getBoundingClientRect?.().height||0;
   return playSpecialProductionVfx(slot,'S003',url,()=>{
     unit.hp=0;
     unit._deathProcessed=true;
     unit._dp=true;
     unit._sacrificedForSeal=true;
-    if(slot) slot.style.setProperty('opacity','0','important');
-  },_SPECIAL_VFX_TIMING);
+    if(slot){
+      slot.style.setProperty('transition','none','important');
+      slot.style.setProperty('opacity','0','important');
+    }
+  },{..._SPECIAL_VFX_TIMING,scale:4,fit:'cover',offsetY:-slotH*0.15});
 }
 
 // 封印を1体、S002演出付きで解放する
 function playSealReleaseVfx(unit, side){
   const slot=getCurrentUnitSlot(side,unit);
   const url=Assets?.vfx?.specialProduction?.S002||'';
-  // S002の再生開始と同時に、暗い封印フィルターをフェードインで明るくし始める
-  // （演出全体（順再生+逆再生、計約1.5秒）とほぼ同じ尺で滑らかに解けていくようにする）。
+  const slotH=slot?.getBoundingClientRect?.().height||0;
+  const fadeMs=Math.max(0,_SEAL_RELEASE_VFX_TIMING.forwardMs+_SEAL_RELEASE_VFX_TIMING.reverseMs-250);
   if(slot){
+    slot.querySelectorAll('.seal-cost-badge').forEach(el=>{ el.style.display='none'; });
+    const fadeEls=[...slot.children].filter(el=>!el.classList.contains('seal-cost-badge')&&!el.classList.contains('unit-hit-layer'));
+    fadeEls.forEach(el=>{
+      el.style.setProperty('transition',`filter ${fadeMs}ms ease-out`,'important');
+      el.style.setProperty('filter','brightness(.45) saturate(.65)','important');
+    });
+    // CSSの.sealed-unit子要素暗転を外した後、次フレームでインラインfilterを解除し、
+    // S002の順再生+逆再生と同じ尺で明るくする。
     slot.classList.remove('sealed-unit');
-    slot.style.transition='filter .8s ease-out';
-    slot.style.filter='';
+    requestAnimationFrame(()=>fadeEls.forEach(el=>el.style.setProperty('filter','brightness(1) saturate(1)','important')));
+    setTimeout(()=>{
+      fadeEls.forEach(el=>el.style.removeProperty('transition'));
+      fadeEls.forEach(el=>el.style.removeProperty('filter'));
+    },fadeMs+40);
   }
   return playSpecialProductionVfx(slot,'S002',url,()=>{
     unit._sealed=false;
     delete unit._sealValue;
-    if(slot) slot.style.transition='';
-  },_SPECIAL_VFX_TIMING);
+  },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
 }
 
 // キャラクター専用エフェクトのうち、対象1体に重ねるのではなく、攻撃キャラクターを起点に
@@ -569,15 +670,31 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   const length=Math.max(80,maxDist*1.2)*2;
   const startAngle=midAngle-halfSpread, endAngle=midAngle+halfSpread;
 
+  const clipRect=_battleBackgroundFrameRect();
+  const clip=document.createElement('div');
+  clip.className='sweep-vfx-clip';
+  Object.assign(clip.style,{
+    position:'fixed',
+    left:`${clipRect.left}px`,
+    top:`${clipRect.top}px`,
+    width:`${clipRect.width}px`,
+    height:`${clipRect.height}px`,
+    zIndex:10021,
+    pointerEvents:'none',
+    overflow:'hidden',
+  });
   const host=document.createElement('div');
   host.className='sweep-vfx-host';
   Object.assign(host.style,{
-    left:`${originX}px`,
-    top:`${originY}px`,
+    position:'absolute',
+    left:`${originX-clipRect.left}px`,
+    top:`${originY-clipRect.top}px`,
     width:`${length}px`,
     height:`${length}px`,
+    zIndex:'auto',
   });
-  document.body.appendChild(host);
+  clip.appendChild(host);
+  document.body.appendChild(clip);
   const isWebp=/\.webp(\?|$)/i.test(videoUrl);
   let mediaEl,stop;
   if(isWebp){
@@ -640,7 +757,7 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   ],{duration:sweepDuration,easing:'ease-in-out',fill:'forwards'});
   return new Promise(resolve=>{
     let done=false;
-    const finish=()=>{ if(done) return; done=true; stop(); host.remove(); resolve(); };
+    const finish=()=>{ if(done) return; done=true; stop(); clip.remove(); resolve(); };
     anim.addEventListener('finish',finish,{once:true});
     setTimeout(finish,sweepDuration+400);
   });
@@ -899,13 +1016,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           {transform:atStop},
         ],opt.firstDuration||260);
         const pauseResult=await onImpactPause();
-        // グレムリン等、一時停止中にステータス変化（ATK/HP入れ替え等）を行う効果がある場合、
-        // 攻撃を再開する前に画面上の数値へ反映する。攻撃側は演出中クローンが表示を担うため
-        // クローン側の数値を、対象側は実スロットの数値を直接更新する（renderAll()は演出崩れの
-        // 原因になるため使わない）。
-        if(typeof updateUnitDamageUi==='function'){
-          updateUnitDamageUi(target,isEnemySide?'ally':'enemy');
-        }
+        // グレムリンやギガンテス等、一時停止中にステータス変化を行う効果がある場合、
+        // 攻撃を再開する前に背景側の実スロット全体も最新値へ同期する。
+        if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
         const cloneAtkEl=clone.querySelector('.slot-stats .a');
         if(cloneAtkEl) cloneAtkEl.textContent=Math.max(0,attacker.atk||0);
         const cloneHpEl=clone.querySelector('.slot-stats .h');
@@ -984,6 +1097,14 @@ function renderManaHud(){
   const n=Math.max(0,Number(G.mana)||0);
   const path=typeof _manaOrbPath==='function'?_manaOrbPath():'';
   hud.innerHTML=`<div class="mana-row">${path?`<img class="mana-icon" src="${path}" alt="マナ">`:''}<b>${n}</b></div>`;
+  const clip=_battleBackgroundFrameRect();
+  const padX=3840*.047*(clip.scale||1);
+  const padY=2160*.06*(clip.scale||1);
+  const rowWidth=Math.max(74*(clip.scale||1),hud.getBoundingClientRect().width||0);
+  hud.style.position='fixed';
+  hud.style.left=`${clip.left+clip.width-rowWidth-padX}px`;
+  hud.style.right='auto';
+  hud.style.top=`${clip.top+padY}px`;
 }
 
 // キーワードバッジで表示済みの文字列をdesc先頭から除去
@@ -1006,6 +1127,28 @@ function _stripKeywordsFromDesc(desc, unit){
     }
   }
   return result.trim();
+}
+
+function _stripBattleParentheticalText(text){
+  if(!text) return text;
+  return String(text)
+    .replace(/（[^）]*）/g,'')
+    .replace(/[ \t]*\n[ \t]*/g,'\n')
+    .replace(/\n{2,}/g,'\n')
+    .trim();
+}
+
+function _stripOwnNameFromEffectText(text, name){
+  let out=String(text||'').trim();
+  const n=String(name||'').trim();
+  if(!out||!n) return out;
+  const esc=n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  for(let i=0;i<4;i++){
+    const next=out.replace(new RegExp(`(?:[\\s　、,，。:：\\-]|<br\\s*/?>)*(?:「|『|【)?${esc}(?:」|』|】)?(?:[\\s　、,，。:：\\-]|<br\\s*/?>)*$`,'i'),'').trim();
+    if(next===out) break;
+    out=next;
+  }
+  return out;
 }
 
 const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','隠密','加護','貫通','結界','生命吸収','封印']);
@@ -1034,6 +1177,7 @@ function _enchantKeywordDesc(k){
   if(s==='治癒能力') return '負傷：HP+2を得る。';
   if(s==='狂気') return '死亡：1マナを得る。';
   if(s==='野生の力') return '開戦：2マナを得る。';
+  if(s==='マナ生成') return '攻撃：1マナを得る。';
   if(s==='生命吸収') return 'このキャラクターが与えたダメージ分、HPを増加する。';
   if(/^邪眼\d+$/.test(s)) return s;
   if(/^衝撃(\d+)$/.test(s)) return `攻撃/ダメージ効果で対象に弱体${s.replace('衝撃','')}を付与する。`;
@@ -1041,6 +1185,7 @@ function _enchantKeywordDesc(k){
 }
 function _enchantEffectTextForPanel(p){
   if(!p) return '';
+  if(p.manaOnAttack) return `攻撃：${Math.max(1,Number(p.manaOnAttack)||1)}マナを得る。`;
   if(p.adjacentAtkBonus||p.adjacentHpBonus){
     const a=p.adjacentAtkBonus||0, h=p.adjacentHpBonus||0;
     return `常時：${a&&h?`+${a}/+${h}`:a?`ATK+${a}`:`HP+${h}`}を得る。`;
@@ -1049,7 +1194,7 @@ function _enchantEffectTextForPanel(p){
   // _enchantKeywordDesc()の汎用（かつシート更新に追従しない恐れのある）ハードコード文言ではなく、
   // シート上の本文（authoritative）をそのまま使う
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.includes(p.name)&&(p.desc||p.effectText||p.effect)){
-    return p.desc||p.effectText||p.effect;
+    return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect,p.name);
   }
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.length){
     // 付与するキーワードが全て単純キーワード（_ENCHANT_KEYWORD_ONLY）の場合は、
@@ -1057,7 +1202,7 @@ function _enchantEffectTextForPanel(p){
     if(p.adjacentKeywords.every(k=>_ENCHANT_KEYWORD_ONLY.has(String(k||'').trim()))) return '';
     return p.adjacentKeywords.map(_enchantKeywordDesc).filter(Boolean).join('\n');
   }
-  return (typeof computeDesc==='function'?computeDesc(p):'')||p.desc||p.effectText||p.effect||'';
+  return _plainEffectTextForPreview(p)||'';
 }
 // unitに現在効果を及ぼしている強化(エンチャント)パネルの一覧と、その全文効果テキストを返す（カード名は含めない）
 // slotIdx：効果を受ける側のスロット番号（キャラクター本体は0、他の枠に召喚キャラクターパネルが
@@ -1129,17 +1274,21 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
 // キャラクターカードの説明欄HTML：本来の効果の下に線を引き、その下に強化カードが与えている効果の全文を並べる
 function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const battleNormalTexts=normalTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
+  const battleCharTexts=charTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
   const kws=typeof _unitDisplayKeywords==='function'?_unitDisplayKeywords(unit,baseDesc,slotIdx):[];
   const kwHtml=kws.length?`<div class="slot-desc-keywords"><strong>${kws.map(k=>typeof _escapePreviewHtml==='function'?_escapePreviewHtml(k):k).join(' / ')}</strong></div>`:'';
   const baseSafe=baseDesc&&(typeof _escapePreviewHtml==='function'?_escapePreviewHtml(baseDesc):baseDesc);
-  const baseHtml=baseSafe?`<div class="slot-desc-base">${typeof _injectManaIcons==='function'?_injectManaIcons(baseSafe):baseSafe}</div>`:'';
-  if(!normalTexts.length&&!charTexts.length) return (kwHtml||baseHtml)?`<div class="slot-desc">${kwHtml}${baseHtml}</div>`:'';
+  const baseDecorated=baseSafe?(_boldKeywordsInHtml(baseSafe)):'';
+  const baseHtml=baseDecorated?`<div class="slot-desc-base">${typeof _injectManaIcons==='function'?_injectManaIcons(baseDecorated):baseDecorated}</div>`:'';
+  if(!battleNormalTexts.length&&!battleCharTexts.length) return (kwHtml||baseHtml)?`<div class="slot-desc">${kwHtml}${baseHtml}</div>`:'';
   const toLineHtml=line=>{
     const safe=typeof _escapePreviewHtml==='function'?_escapePreviewHtml(line):line;
-    return `<div class="slot-desc-enchant-line">${typeof _injectManaIcons==='function'?_injectManaIcons(safe):safe}</div>`;
+    const decorated=_boldKeywordsInHtml(safe);
+    return `<div class="slot-desc-enchant-line">${typeof _injectManaIcons==='function'?_injectManaIcons(decorated):decorated}</div>`;
   };
-  const effectsHtml=normalTexts.map(toLineHtml).join('');
-  const charHtml=charTexts.map(toLineHtml).join('');
+  const effectsHtml=battleNormalTexts.map(toLineHtml).join('');
+  const charHtml=battleCharTexts.map(toLineHtml).join('');
   return `<div class="slot-desc">${kwHtml}${baseHtml}${effectsHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${effectsHtml}</div>`:''}${charHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${charHtml}</div>`:''}</div>`;
 }
 // キャラクターカードにホバーした時、効果を及ぼしている強化カード（装備欄側の表示）を青く発光させる
@@ -1211,7 +1360,7 @@ function _wireEnchantSelfHover(cardDiv,unit,enchantIdx){
 // 内部keywordとして使われるもの）。UI上はこれらを「キーワード」として表示しない。
 const _INTERNAL_ONLY_ENCHANT_NAMES=new Set([
   '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','治癒能力',
-  '逆上','剣技','怨念','錬成','起源の種'
+  '逆上','剣技','怨念','錬成','起源の種','竜の契約','恩寵','マナ生成'
 ]);
 // UI上に表示すべきキーワード一覧を算出する（強化パネル由来で既に効果文に出ているものや、
 // 内部集計専用のショートハンドは除外）。_unitPreviewText（ツールチップ）と
@@ -1219,7 +1368,7 @@ const _INTERNAL_ONLY_ENCHANT_NAMES=new Set([
 function _unitDisplayKeywords(unit, desc, slotIdx){
   if(!unit) return [];
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
-  const panelEffects=[...normalTexts,...charTexts];
+  const panelEffects=[...normalTexts,...charTexts].map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
   // シート上「キーワード」欄に単独で載っているキーワード（_ENCHANT_KEYWORD_ONLY）以外は、
   // 説明文や効果全文の中に同じ文字列がそのまま含まれていれば、そちらの文脈で既に表示されるため
   // キーワード欄には重複して出さない（例：ゾンビの説明文が「死亡：青強化」の場合、
@@ -1373,7 +1522,7 @@ function renderField(id,units,isEnemy,_lane){
       if(u.name==='石像') slot.classList.add('no-unit-shadow');
       if(u._sealed){
         slot.classList.add('sealed-unit');
-        slot.style.filter='brightness(.45) saturate(.65)';
+        slot.style.filter='';
       } else {
         slot.style.filter='';
       }
@@ -1418,13 +1567,13 @@ function renderField(id,units,isEnemy,_lane){
         let kwBlock='';
         if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
         const gradeTag='';
-        const _rawDesc=u.desc?_rawSubstitutedDesc(u):'';
+        const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
         const descTag=_unitCombinedDescHtml(u,_desc);
         // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
         // 既にアイコン化済みの_desc（<img alt="マナ">を含む）ではなくプレーンテキストを渡す
         // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
-        const _plainDesc=u.desc?_stripKeywordsFromDesc(_rawSubstitutedDesc(u),u):'';
+        const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
         const _preview=_unitPreviewText(u,_plainDesc);
         if(_preview) slot.setAttribute('data-preview',_preview);
         const _hpClass=(u.maxHp!=null&&u.hp<u.maxHp)?'h hp-damaged':'h';
@@ -1442,10 +1591,11 @@ function renderField(id,units,isEnemy,_lane){
         // (--new-card-art-left等)がそのまま効き、独立した%指定を並行して持つことによるズレ・変形を防ぐ
         const shieldLayer=u.shield>0?'<div class="unit-shield-layer"></div>':'';
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
+        const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         }
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
         const hitLayer=document.createElement('div');
@@ -1652,6 +1802,10 @@ function _rawSubstitutedDesc(card){
   if(!card||card.isEnchant) return card&&card.isEnchant?('契約に「'+card.enchantType+'」を付与する'):'';
   const g=card.grade||1;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
+  const ownName=String(card.name||'').trim();
+  if(ownName){
+    desc=_stripOwnNameFromEffectText(desc,ownName);
+  }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   return desc;
 }
@@ -1661,6 +1815,7 @@ function computeDesc(card,_mlOverride){
   // タイミングキーワードを太字化（「開戦：」「終戦：」等）
   desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在|常時)：/g,'<strong>$1</strong>：');
   // 説明文中の色名（青・赤・緑・黄）をマナアイコンに置き換える
+  desc=_boldKeywordsInHtml(desc);
   if(typeof _injectManaIcons==='function') desc=_injectManaIcons(desc);
   desc=desc.replace(/\n/g,'<br>');
   return desc;
@@ -1687,6 +1842,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const kindLabel='';
   const gradeEl='';
   const manaCostEl=cardManaCostHtml(card);
+  const sealCostEl=cardSealCostHtml(card);
   // 価格バッジはショップ（G._isShop）かつ実際に価格が1以上の場合のみ表示する。
   // 無料報酬（_buyPrice===0）ではバッジそのものを作らない（CSSでの後隠しはしない）。
   const showPriceBadge=G.phase==='reward'&&!!G._isShop&&Number(card._buyPrice)>0;
@@ -1717,7 +1873,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[card.name,card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -1729,12 +1885,17 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     // キーワードとして「キーワード：〇〇」行を合成する（敵/キャラクターと同じ表示規則）。
     // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
     // このカード自身のキーワード欄プレビューからも除外する
-    const _adjKws=[...new Set(card.adjacentKeywords||[])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
+    const _adjKws=[...new Set(card.adjacentKeywords||[])].filter(k=>{
+      const s=String(k||'').trim();
+      if(_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
+      if(s===String(card.name||'')&&!_ENCHANT_KEYWORD_ONLY.has(s)&&!/^結界\d+$/.test(s)&&!/^封印\d+$/.test(s)&&!/^毒牙?\d*$/.test(s)&&!/^邪眼\d*$/.test(s)&&!/^衝撃\d*$/.test(s)&&!/^強靭\d*$/.test(s)) return false;
+      return true;
+    });
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
-    const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':(card.desc||'');
+    const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card);
     const preview=[card.name,_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${badgeEl}${dirMarks}<div class="card-art"></div>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -1742,11 +1903,11 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     div.classList.add('spell-card');
     const preview=[card.name,_previewRarityLine(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${badgeEl}<div class="card-art"></div>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
-  div.innerHTML=`${gradeEl}${badgeEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 

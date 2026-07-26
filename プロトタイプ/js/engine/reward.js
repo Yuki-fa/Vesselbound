@@ -109,7 +109,7 @@ function _pushToRewardAreaAt(card,idx,allowSwap){
   return allowSwap?{ok:true,displaced}:true;
 }
 function _clearStarterPanelMarker(unit,idx,card){
-  if(!unit||idx!==0||!card) return;
+  if(!unit||!card) return;
   if(card.fixedEquip||card.starterPanel||card.name===unit.initialPanelName){
     unit.initialPanelName='';
     delete card.fixedEquip;
@@ -140,6 +140,9 @@ function _preparePanelCard(card){
   if(!card) return false;
   const nc=clone(card);
   delete nc._buyPrice;
+  // 旧「左上固定パネル」時代の印が残ったカードは、共有魔導板では通常カードとして扱う。
+  delete nc.fixedEquip;
+  delete nc.starterPanel;
   if(nc.type==='wand'&&nc.usesLeft===undefined) nc.usesLeft=nc.baseUses||randUses();
   if(nc.type==='wand') nc._maxUses=nc.usesLeft;
   nc.noRewardUse=true;
@@ -158,7 +161,7 @@ function startPanelPlacement(card, onPlaced, sourceName){
     return true;
   }
   const unit=_getPartyBoardUnit();
-  if(!unit||unit.hp<=0) return false;
+  if(!unit) return false;
   G._pendingPanelPlacement={card:_preparePanelCard(card),onPlaced:onPlaced||null,sourceName:sourceName||'取得',rewardIdx};
   G._showGlobalPanels=false;
   _syncRewardPanelPlacementOverlay();
@@ -195,7 +198,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
     return false;
   }
   const unit=_getPartyBoardUnit();
-  if(!unit||unit.hp<=0) return false;
+  if(!unit) return false;
   const equips=_normalizeUnitEquipment(unit);
   if(slotIdx<0||slotIdx>=equips.length) return false;
   const oldCard=equips[slotIdx]||null;
@@ -205,9 +208,15 @@ function placePendingPanelToSelectedUnit(slotIdx){
   if(!_canApplyUnitEquipChange(unit,nextEquips)) return false;
   if(oldCard&&!merged){
     _clearStarterPanelMarker(unit,slotIdx,oldCard);
-    // 既存のカードは（このターンの報酬由来かどうかを問わず）報酬置き場の空きスロットへ退避する。
-    // 空きが無い場合は上書きで消えてしまわないよう、配置自体を中止する。
-    if(!_pushToRewardArea(oldCard)) return false;
+    // 報酬カードを既存スロットへドラッグした場合は、元の報酬スロットを先に空けている。
+    // ここへ押し出されたカードを戻すことで、提示カードが満杯でも確実に入れ替えとして成立させる。
+    if(pending.rewardIdx>=0&&pending.rewardIdx<REWARD_GRID_CAPACITY&&!_rewCards[pending.rewardIdx]){
+      const pushed=_pushToRewardAreaAt(oldCard,pending.rewardIdx,true);
+      if(!pushed||!pushed.ok) return false;
+    }else{
+      // クリック取得など元スロットがまだ空いていない場合は、従来通り空きスロットへ退避する。
+      if(!_pushToRewardArea(oldCard)) return false;
+    }
   }
   const placed=merged||clone(pending.card);
   // このターンの報酬（_isOriginalReward）から取得した場合のみ「戻す」操作を無料取得フラグの解除に結び付ける。
@@ -768,7 +777,7 @@ function _rewardRingArtPath(ring){
   if(!code) return '';
   const m=code.match(/^R?\s*0*(\d+)$/i);
   if(m) code='R'+String(parseInt(m[1],10)).padStart(3,'0');
-  return `assets/temp/ring/${code}.jpg`;
+  return `assets/temp/art/ring/${code}.jpg`;
 }
 function _syncRewardProductionRings(){
   const slots=document.querySelectorAll('.reward-prod-ring .reward-prod-slots i');
@@ -956,7 +965,7 @@ function _renderRingOfferCards(el){
   (G._ringOffer||[]).forEach((ring,idx)=>{
     if(!ring) return;
     // 指輪置き場（.ring-visual）と同じ見た目（ring_slot.pngの枠＋指輪アート）で表示する。
-    // mkCardEl()の汎用カード絵柄解決はassets/temp/ring/のパス規則を知らないため使わない。
+    // mkCardEl()の汎用カード絵柄解決はassets/temp/art/ring/のパス規則を知らないため使わない。
     const div=document.createElement('div');
     div.classList.add('rew-card','ring-offer-card','ring-visual');
     if(ring.rarity>=1&&ring.rarity<=5) div.classList.add(`rarity-${ring.rarity}`);
@@ -1370,7 +1379,7 @@ function _renderFieldRow(el){
       if(unit.allyTarget)badges.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
       const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag='';
-      const _rawDesc=unit.desc?computeDesc(unit):'';
+      const _rawDesc=unit.desc&&typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(unit):(unit.desc||'');
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
       const descTag=typeof _unitCombinedDescHtml==='function'?_unitCombinedDescHtml(unit,_desc):(_desc?`<div class="slot-desc">${_desc}</div>`:'');
       // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
@@ -1544,14 +1553,14 @@ const _DRAG_ZONE_CLASSES=['dragzone-battleorder','dragzone-reward-spell','dragzo
 // のようにid2つ分の詳細度を持つ既存ルールが後方に存在し、クラスを重ねる程度のCSS詳細度上げでは
 // 勝てない場合があるため、確実に勝つインラインstyle（priority:important）で直接引き上げる。
 // 魔導板の枠画像（board.png＝#hand-pane-board-bg）はカードグリッド（#hand-pane）とは別要素なので
-// 両方を上げないと枠だけ暗いままになる。通常時の重なり順（board-bg:9 > hand-pane:2）を保つため、
-// board-bg側だけ1段高い値にする（同値にするとDOM順で#hand-paneが上になり、盤面装飾が隠れてしまう）。
+// 両方を上げる。ドラッグ中はカード・文字を含む#hand-paneをboard-bgより上にして、
+// 枠画像がカードや「魔導板」見出しを覆って暗く見える状態を避ける。
 const _DRAG_ZONE_RAISE_TARGETS={
   'dragzone-ring-slot':[['#reward-production-ui',9001]],
   'dragzone-ring-offer':[['#reward-production-ui',9001]],
-  'dragzone-mainequip':[['#hand-pane',9001],['#hand-pane-board-bg',9002],['#battle-order-section',9001]],
-  'dragzone-reward-spell':[['#hand-pane',9001],['#hand-pane-board-bg',9002],['#battle-order-section',9001]],
-  'dragzone-reward-nonspell':[['#hand-pane',9001],['#hand-pane-board-bg',9002],['#battle-order-section',9001]],
+  'dragzone-mainequip':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
+  'dragzone-reward-spell':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
+  'dragzone-reward-nonspell':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
 };
 function _applyDragZoneRaise(cls){
   (_DRAG_ZONE_RAISE_TARGETS[cls]||[]).forEach(([sel,z])=>{
@@ -1711,6 +1720,30 @@ function _createDragGhost(srcEl){
     dstImg.style.setProperty('width',`${sr.width}px`,'important');
     dstImg.style.setProperty('height',`${sr.height}px`,'important');
   });
+  const srcSeal=srcEl.querySelector('.seal-cost-badge');
+  const dstSeal=d.querySelector('.seal-cost-badge');
+  if(srcSeal&&dstSeal){
+    const sr=srcSeal.getBoundingClientRect();
+    const rr=srcEl.getBoundingClientRect();
+    const ss=getComputedStyle(srcSeal);
+    dstSeal.style.setProperty('left',`${sr.left-rr.left}px`,'important');
+    dstSeal.style.setProperty('top',`${sr.top-rr.top}px`,'important');
+    dstSeal.style.setProperty('right','auto','important');
+    dstSeal.style.setProperty('bottom','auto','important');
+    dstSeal.style.setProperty('width',`${sr.width}px`,'important');
+    dstSeal.style.setProperty('height',`${sr.height}px`,'important');
+    dstSeal.style.setProperty('font-size',ss.fontSize,'important');
+    dstSeal.style.setProperty('transform','none','important');
+    const srcSealImgs=srcSeal.querySelectorAll('img');
+    const dstSealImgs=dstSeal.querySelectorAll('img');
+    srcSealImgs.forEach((srcImg,i)=>{
+      const dstImg=dstSealImgs[i];
+      if(!dstImg) return;
+      const ir=srcImg.getBoundingClientRect();
+      dstImg.style.setProperty('width',`${ir.width}px`,'important');
+      dstImg.style.setProperty('height',`${ir.height}px`,'important');
+    });
+  }
   // 矢印は方向ごとに向きの異なる専用画像を使うため、ゴースト側では回転をかけず位置・サイズのみ合わせる
   const srcDirs=srcEl.querySelectorAll('.panel-dir');
   const dstDirs=d.querySelectorAll('.panel-dir');
@@ -1741,7 +1774,7 @@ function _moveDragGhost(clientX,clientY){
   const H=_dragGhostDiv._ghostH||_dragGhostDiv.offsetHeight||80;
   _dragGhostDiv.style.left=(clientX-W/2)+'px';
   _dragGhostDiv.style.top=(clientY-H/2)+'px';
-  _dragGhostDiv.style.visibility='visible';
+  _dragGhostDiv.style.setProperty('visibility','visible','important');
 }
 function _removeDragGhost(){
   document.body.classList.remove('dragging-in-battle');
@@ -1749,6 +1782,27 @@ function _removeDragGhost(){
   setTimeout(()=>{
     try{ document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true})); }catch(e){}
   },0);
+}
+function _hideDragSourceParts(el){
+  if(!el) return;
+  el.classList.add('drag-source-parts-hidden');
+  Array.from(el.children||[]).forEach(ch=>{
+    ch.dataset.dragSrcPrevOpacity=ch.style.getPropertyValue('opacity')||'';
+    ch.dataset.dragSrcPrevOpacityPriority=ch.style.getPropertyPriority('opacity')||'';
+    ch.style.setProperty('opacity','0','important');
+  });
+}
+function _restoreDragSourceParts(el){
+  if(!el) return;
+  el.classList.remove('drag-source-parts-hidden');
+  Array.from(el.children||[]).forEach(ch=>{
+    const prev=ch.dataset.dragSrcPrevOpacity||'';
+    const prio=ch.dataset.dragSrcPrevOpacityPriority||'';
+    if(prev) ch.style.setProperty('opacity',prev,prio);
+    else ch.style.removeProperty('opacity');
+    delete ch.dataset.dragSrcPrevOpacity;
+    delete ch.dataset.dragSrcPrevOpacityPriority;
+  });
 }
 
 // ── 手札エディタ（アイテム）──────────────────────
@@ -1868,11 +1922,6 @@ function syncUnitPanelStatBonuses(unit){
 function _syncUnitPanelEffectsAfterMove(unit){
   if(!unit) return;
   syncUnitPanelStatBonuses(unit);
-  if(typeof _applyAdjacentPanelEnhancements==='function'&&typeof _collectAdjacentEnhancements==='function'){
-    _applyAdjacentPanelEnhancements(unit,_collectAdjacentEnhancements(unit,0));
-  }else if(typeof refreshUnitPanelEffects==='function'){
-    refreshUnitPanelEffects(unit);
-  }
   if(typeof syncUnitPanelFlags==='function') syncUnitPanelFlags(unit);
 }
 function _panelCharacterPreviewStats(unit,idx,card){
@@ -1889,6 +1938,14 @@ function _panelCharacterPreviewStats(unit,idx,card){
   // HPを減少させる強化の合計がベースを上回っても、表示上のHPが負にならないようにする
   base.hp=Math.max(0,base.hp);
   return base;
+}
+function _panelIdxAtGridPos(pos){
+  if(!pos||typeof _panelGridPos!=='function') return -1;
+  for(let i=0;i<MAIN_BOARD_SIZE;i++){
+    const p=_panelGridPos(i);
+    if(p&&p.x===pos.x&&p.y===pos.y) return i;
+  }
+  return -1;
 }
 function _mergedPanelCard(a,b){
   if(!a||!b||typeof PANEL_POOL==='undefined'||typeof makePanel!=='function') return null;
@@ -2444,6 +2501,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(_isEnchantPanelForClass) div.classList.add('enchantment-card');
       const _gradeEl='';
       const _manaCostEl=typeof cardManaCostHtml==='function'?cardManaCostHtml(card):'';
+      const _sealCostEl=typeof cardSealCostHtml==='function'?cardSealCostHtml(card):'';
       const _isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
       const _isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
       const _isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!_isPassivePanel&&!_isCombatPowerPanel&&card.panelScope!=='global'));
@@ -2481,7 +2539,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _cardForPreview=_panelOwner?{...card,keywords:[...(card.keywords||[]),...(_enh.keywords||[])],equipment:_panelOwner.equipment}:card;
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,card.desc||'',i):(card.name+'\n'+(card.desc||''));
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(_panelOwner&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(div,_panelOwner,G._selectedEquipUnitIdx,i);
       }else if(_isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
@@ -2490,23 +2548,29 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // 除去されて色情報が消えてしまう。生のcard.descを渡す。
         // 本文に「効果なし」を含む場合は説明文を表示しない。シート「キーワード」列（adjacentKeywords）が
         // あれば「キーワード：〇〇」行として表示する（隣接キャラクターへ付与するキーワード）。
-        const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':(card.desc||'');
+        const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(card):(card.desc||''));
         // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
         // このカード自身のキーワード欄プレビューからも除外する
-        const _adjKws=[...new Set(card.adjacentKeywords||[])].filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
+        const _adjKws=[...new Set(card.adjacentKeywords||[])].filter(k=>{
+          const s=String(k||'').trim();
+          if(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
+          const isDisplayKeyword=(typeof _ENCHANT_KEYWORD_ONLY!=='undefined'&&_ENCHANT_KEYWORD_ONLY.has(s))||/^結界\d+$/.test(s)||/^封印\d+$/.test(s)||/^毒牙?\d*$/.test(s)||/^邪眼\d*$/.test(s)||/^衝撃\d*$/.test(s)||/^強靭\d*$/.test(s);
+          if(s===String(card.name||'')&&!isDisplayKeyword) return false;
+          return true;
+        });
         const preview=[card.name,_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(arrName==='unitEquip'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
       }else if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
         div.classList.add('spell-card');
         const preview=[card.name,typeof _previewRarityLine==='function'?_previewRarityLine(card):'',card.desc||''].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}<div class="card-art"></div>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
       }else{
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
         _pinPanelTextPosition(div,arrName==='unitEquip'?'unitEquip':'normal');
       }
       const discardBtn=div.querySelector('.discard-btn');
@@ -2584,10 +2648,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             _detachUnitEquipConnectionVisuals(i,div,card);
             _setDragZoneClass('dragzone-mainequip');
           }
-          e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); div.classList.add('dragging');
+          e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); _createDragGhost(div); div.classList.add('dragging'); _hideDragSourceParts(div);
         });
         div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-        div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); _dragSrc=null; if(arrName==='unitEquip') renderHandEditor(); });
+        div.addEventListener('dragend',()=>{ _restoreDragSourceParts(div); div.classList.remove('dragging'); _removeDragGhost(); _dragSrc=null; if(arrName==='unitEquip') renderHandEditor(); });
       }
       if(_canFixedAttackDrag){
         div.addEventListener('dragstart',e=>{
@@ -2676,6 +2740,9 @@ function _renderPanelUniteMarkers(host, unit){
   if(!unit||typeof _panelDirectionConnectivity!=='function'||typeof _panelGridPos!=='function') return;
   if(getComputedStyle(host).position==='static') host.style.position='relative';
   const eq=Array.isArray(unit.equipment)?unit.equipment:[];
+  // HP0のキャラクターパネルも接続表示の対象に含める（unite画像を描かずにいると
+  // arrow画像が出て接続が途切れて見えるため）。操作の妨げにならないよう、
+  // .panel-unite-linkはpointer-events:none、廃棄ボタンはより上のz-indexで維持する。
   const seen=new Set();
   const _DIR_DELTA={up:{dx:0,dy:-1},right:{dx:1,dy:0},down:{dx:0,dy:1},left:{dx:-1,dy:0}};
   const _OPPOSITE_DIR={up:'down',right:'left',down:'up',left:'right'};

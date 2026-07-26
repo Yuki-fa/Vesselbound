@@ -37,6 +37,7 @@ const Assets = {
     yellowOrb: 'assets/temp/cards/yellow_orb.png',
     purpleOrb: 'assets/temp/cards/purple_orb.png',
     manaOrb: 'assets/temp/cards/mana_orb.png',
+    blood: 'assets/temp/cards/blood.png',
     characterMask: 'assets/temp/cards/ch_mask.png',
     wandSheet: 'assets/temp/cards/wand_sheet.png',
   },
@@ -46,12 +47,12 @@ const Assets = {
     set3: 'assets/temp/cards/characters/sheet_set3.png',
   },
   backgrounds: {
-    title: 'assets/temp/backgrounds/title_castle.png',
-    camp: 'assets/temp/backgrounds/camp.png',
-    stage1: 'assets/temp/backgrounds/stage_grassland.png',
-    stage2: 'assets/temp/backgrounds/stage_forest.png',
-    stage3: 'assets/temp/backgrounds/stage_valley.png',
-    stage4: 'assets/temp/backgrounds/stage_capital.png',
+    title: 'assets/temp/art/backgrounds/title_castle.png',
+    camp: 'assets/temp/art/backgrounds/camp.png',
+    stage1: 'assets/temp/art/backgrounds/stage_grassland.png',
+    stage2: 'assets/temp/art/backgrounds/stage_forest.png',
+    stage3: 'assets/temp/art/backgrounds/stage_valley.png',
+    stage4: 'assets/temp/art/backgrounds/stage_capital.png',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -207,11 +208,11 @@ const CharacterArtOverrideMap = {
   'ゾンビ': {path:'assets/temp/cards/characters/crops/zombie.png'},
   'マミー': {path:'assets/temp/cards/characters/crops/mummy.png'},
   'バンシー': {path:'assets/temp/cards/characters/crops/banshee.png'},
-  'エルフ': {path:'assets/temp/cards/art/characters/C044.jpg'},
-  'ブラウニー': {path:'assets/temp/cards/art/characters/C043.jpg'},
+  'エルフ': {path:'assets/temp/art/characters/C044.jpg'},
+  'ブラウニー': {path:'assets/temp/art/characters/C043.jpg'},
   'ジャック・オ・ランタン': {path:'assets/temp/cards/characters/crops/jack_o_lantern.png'},
   'シルフ': {path:'assets/temp/cards/characters/crops/sylph.png'},
-  'インプ': {path:'assets/temp/cards/art/characters/C061.jpg'},
+  'インプ': {path:'assets/temp/art/characters/C061.jpg'},
   'グレムリン': {path:'assets/temp/cards/characters/crops/gremlin.png'},
   'インキュバス': {path:'assets/temp/cards/characters/crops/incubus.png'},
   'サキュバス': {path:'assets/temp/cards/characters/crops/succubus.png'},
@@ -224,9 +225,9 @@ const CharacterArtOverrideMap = {
   'カオスインプ': {path:'assets/temp/cards/characters/crops/chaos_imp.png'},
   'レッサーデーモン': {path:'assets/temp/cards/characters/crops/lesser_demon.png'},
   'ドラゴネット': {path:'assets/temp/cards/characters/crops/dragonet.png'},
-  'アークデーモン': {path:'assets/temp/cards/art/characters/C062.jpg'},
-  'アラッサス': {path:'assets/temp/cards/art/characters/C081.jpg'},
-  'スリン': {path:'assets/temp/cards/art/characters/C082.jpg'},
+  'アークデーモン': {path:'assets/temp/art/characters/C062.jpg'},
+  'アラッサス': {path:'assets/temp/art/characters/C081.jpg'},
+  'スリン': {path:'assets/temp/art/characters/C082.jpg'},
   'リザードマン': {path:'assets/temp/cards/characters/crops/lizardman.png'},
   'ゴブリン': {path:'assets/temp/cards/characters/crops/goblin.png'},
   'オーク': {path:'assets/temp/cards/characters/crops/orc.png'},
@@ -290,8 +291,8 @@ const CharacterArtOverrideMap = {
   'ダークエルフ': {path:'assets/temp/cards/characters/crops/dark_elf.png'},
   'カースドアーマー': {path:'assets/temp/cards/characters/crops/cursed_armor.png'},
   'ボーンナイト': {path:'assets/temp/cards/characters/crops/bone_knight.png'},
-  'ダイアウルフ': {path:'assets/temp/cards/art/characters/C041.jpg'},
-  'スリープシープ': {path:'assets/temp/cards/art/characters/C042.jpg'},
+  'ダイアウルフ': {path:'assets/temp/art/characters/C041.jpg'},
+  'スリープシープ': {path:'assets/temp/art/characters/C042.jpg'},
   'ヒポグリフ': {path:'assets/temp/cards/characters/crops/hippogriff.png'},
   'ケルピー': {path:'assets/temp/cards/characters/crops/kelpie.png'},
   'スプリガン': {path:'assets/temp/cards/characters/crops/spriggan.png'},
@@ -305,6 +306,7 @@ const CharacterArtOverrideMap = {
   'エルヴンメイジ': {path:'assets/temp/cards/characters/crops/elven_mage.png'},
   'メリュジーヌ': {path:'assets/temp/cards/characters/crops/melusine.png'},
   'リアナンシー': {path:'assets/temp/cards/characters/crops/rhiannon.png'},
+  'ファナティック': {path:'assets/temp/art/characters/C100.jpg'},
 };
 
 const CharacterArtMap = {
@@ -495,11 +497,11 @@ function getCharacterNoArtPath(card){
     if(m) code='EN'+m[1].padStart(3,'0');
   }
   let dir='';
-  if(code.startsWith('MC')) dir='assets/temp/cards/art/main_characters';
-  else if(code.startsWith('EN')) dir='assets/temp/cards/art/enemies';
-  else if(code[0]==='E') dir='assets/temp/cards/art/enchantment';
-  else if(code[0]==='C') dir='assets/temp/cards/art/characters';
-  else if(code[0]==='S') dir='assets/temp/cards/art/cards';
+  if(code.startsWith('MC')) dir='assets/temp/art/main_characters';
+  else if(code.startsWith('EN')) dir='assets/temp/art/enemies';
+  else if(code[0]==='E') dir='assets/temp/art/enchantment';
+  else if(code[0]==='C') dir='assets/temp/art/characters';
+  else if(code[0]==='S') dir='assets/temp/art/cards';
   else return '';
   // 拡張子はjpg/pngどちらで保存されているか分からないため両方を候補として返す（assetUrlが重ね合わせで解決する）
   return [`${dir}/${code}.jpg`,`${dir}/${code}.png`];

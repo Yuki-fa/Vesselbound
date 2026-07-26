@@ -656,6 +656,8 @@ async function loadGameData() {
       if (!row || row['実装'] === undefined) return true;
       return !_falseySheet(row['実装']);
     };
+    const _summonOnlyPanelNames = new Set(['シャドウ', 'ウルフ', 'ペリカン', 'ドラゴン', 'ナイトキャット'].map(_normCardName));
+    const _forcedPanelSyncNames = new Set([..._summonOnlyPanelNames, _normCardName('剣技')]);
     // 「Xマナ：効果」形式の説明文から、Xマナ貯まった時点で即座に発動するコストを読み取る
     // （キャラクター・強化パネル共通。スペルの「コスト」列とは別に、説明文自身がコストを兼ねる）
     // 「Xマナ毎：効果」の場合はmanaRepeat=trueとし、Xマナ貯まるたびに繰り返し発動する
@@ -671,6 +673,20 @@ async function loadGameData() {
       .split(/[\s、,，\n]+/)
       .map(v => v.trim())
       .filter(Boolean);
+    const _stripOwnNameFromDesc = (desc, name) => {
+      let out = String(desc || '').trim();
+      const n = String(name || '').trim();
+      if (!out || !n) return out;
+      const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      for (let i = 0; i < 4; i++) {
+        const next = out
+          .replace(new RegExp(`(?:[\\s　、,，。:：\\-]|<br\\s*/?>)*(?:「|『|【)?${esc}(?:」|』|】)?(?:[\\s　、,，。:：\\-]|<br\\s*/?>)*$`, 'i'), '')
+          .trim();
+        if (next === out) break;
+        out = next;
+      }
+      return out;
+    };
     const _mergeUniqueKeywords = (base, add) => {
       const out = Array.isArray(base) ? base.slice() : [];
       (add || []).forEach(k => { if (k && !out.includes(k)) out.push(k); });
@@ -683,7 +699,7 @@ async function loadGameData() {
       const kws = [];
       // 「復活を付与する」は自身ではなく他者に付与する効果のため、自身の復活キーワードとしては扱わない
       if (/復活/.test(ownPassiveDesc)) kws.push('復活');
-      const shield = ownPassiveDesc.match(/結界\s*(\d*)/);
+      const shield = ownPassiveDesc.match(/(?:^|\n)\s*結界\s*(\d*)/);
       if (shield) kws.push('結界' + (shield[1] || '1'));
       if (/根性/.test(ownPassiveDesc)) kws.push('根性');
       if (/即死/.test(ownPassiveDesc)) kws.push('即死');
@@ -757,9 +773,9 @@ async function loadGameData() {
         panel.adjacentHpBonus = -(parseInt(m[2], 10) || 0);
       }
       [
-        '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力',
+        '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力','マナ生成',
         '二段攻撃','三段攻撃','即死','三方向攻撃','先制','全体攻撃','生命吸収',
-        '逆上','剣技','怨念','錬成','起源の種','狙撃','隠密','加護','貫通'
+        '逆上','剣技','怨念','錬成','起源の種','恩寵','狙撃','隠密','加護','貫通'
       ].forEach(k=>{
         if (desc.includes(k) || panel.name === k) panel.adjacentKeywords.push(k);
       });
@@ -795,6 +811,7 @@ async function loadGameData() {
       const category = forcedCategory || (row['分類'] || '').trim() || panel.category || '';
       const artFallback = category === 'スペル' ? 'S' : (category === '強化' || category === 'エンチャント') ? 'E' : 'C';
       _assignSheetArtCode(panel, row, artFallback);
+      delete panel._rewardExcluded;
       panel.category = category === '強化' ? 'エンチャント' : category;
       delete panel.subCategory;
       delete panel.manaCost;
@@ -839,7 +856,7 @@ async function loadGameData() {
         const hpP = _parseIntRange(lifeStr, panel.life != null ? panel.life : (panel.hp || 0));
         panel.life = hpP.val;
       }
-      if (row['効果'] !== undefined) panel.desc = String(row['効果'] || '').trim();
+      if (row['効果'] !== undefined) panel.desc = _stripOwnNameFromDesc(String(row['効果'] || '').trim(), panel.name);
       if (panel.name === 'スリープシープ') panel.desc = '常時：このキャラクターは4つのポートを持つ。';
       if (panel.name === 'ツインデビル') panel.desc = '開戦：コピーを1体召喚する。';
       const sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
@@ -876,15 +893,27 @@ async function loadGameData() {
     _ensureNecromancerRingDef();
     const _seenPanelIds = new Set();
     const _syncPanelRows = (rows, forcedCategory, targetPool) => rows.forEach(row => {
-      const name = row['名前'] || row['カード名'];
+      let name = row['名前'] || row['カード名'];
       if (!name) return;
-      if (!_rowImplemented(row)) return;
+      const code = _sheetArtCode(row, forcedCategory === 'スペル' ? 'S' : (forcedCategory === 'エンチャント' ? 'E' : 'C'));
+      if (forcedCategory === 'キャラクター') {
+        if (code === 'C047') name = 'ユミル';
+        if (code === 'C048') name = 'マーメイド';
+      }
+      const forceSync = _forcedPanelSyncNames.has(_normCardName(name));
+      const implemented = _rowImplemented(row);
+      const pool = targetPool || PANEL_POOL;
+      if (!implemented && !forceSync) {
+        _filterBySheetName(pool, name).forEach(panel => {
+          if (panel) panel._rewardExcluded = true;
+        });
+        return;
+      }
       if (forcedCategory === 'キャラクター') {
         const hasStats = String(row['パワー'] || row['攻撃力'] || row['ATK'] || '').trim()
           || String(row['ライフ'] || row['HP'] || '').trim();
         if (!hasStats) return;
       }
-      const pool = targetPool || PANEL_POOL;
       const candidates = _filterBySheetName(pool, name);
       if (!candidates.length) return; // PANEL_POOL/SPELL_POOLに存在しない新規カードは今回追加しない（スコープ外）
       let panel = candidates.length === 1 ? candidates[0] : (
@@ -895,10 +924,107 @@ async function loadGameData() {
       if (_seenPanelIds.has(panel.id)) return; // 既に別の行で同期済みのIDは再上書きしない（同名衝突対策）
       _seenPanelIds.add(panel.id);
       _syncPanelFromRow(panel, row, forcedCategory);
+      if (!implemented) panel._rewardExcluded = true;
+      if (_summonOnlyPanelNames.has(_normCardName(name))) panel.rarity = -1;
     });
     _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
     _syncPanelRows(enchantRows, 'エンチャント', PANEL_POOL);
     _syncPanelRows(spellRows, 'スペル', typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : []);
+    const _requestedEffectOverrides = {
+      'ノーム': {desc:'終戦：5ゴールドを得る。'},
+      'ゴーレム': {desc:'負傷：このキャラクターは+2/+2を得る。'},
+      'ドワーフ': {desc:'2マナ毎：ランダムな赤キャラクターは+3/+2を得る。'},
+      'ラミア': {desc:'攻撃：このキャラクターは+2/+1を得る。対象が負傷している場合、もう一度繰り返す。'},
+      'アラクネ': {desc:'3マナ毎：全ての味方に+2/+2を与えた後、1ダメージを与える。'},
+      'ギガンテス': {desc:'負傷：全ての味方はATK+Xを得る。Xは受けたダメージに等しい。'},
+      'フォルモール': {desc:'負傷：このキャラクターは強靭1を得る。'},
+      'タイタン': {desc:'開戦：全ての敵に弱体1を与える。'},
+      'センチネル': {desc:'攻撃：「赤センチネル」以外のランダムな味方はHP+Xを得る。XはこのキャラクターのHPに等しい。'},
+      'スケルトン': {desc:'（他の効果で召喚される「青スケルトン」も同じ強化を得る）'},
+      'バンシー': {desc:'死亡：ランダムな敵にXダメージを与える。XはこのキャラクターのATKに等しい。'},
+      'レイス': {desc:'死亡：ランダムな味方の負傷効果を発動する。'},
+      'ノスフェラトゥ': {desc:'隠密', keywords:['隠密']},
+      'スケルトンキング': {desc:'攻撃：「青スケルトン」を召喚し、代わりに攻撃させる。'},
+      'ゴースト': {desc:'死亡：ランダムな青キャラクターは+2/+1を得る。'},
+      'ファントム': {desc:'死亡：「青シャドウ」を3体召喚する。'},
+      'レムレース': {desc:'死亡：このキャラクターを倒したキャラクターが報酬に出現する。'},
+      'デスナイト': {desc:'死亡：「青スケルトン」を召喚する。'},
+      'ボーンチャリオット': {desc:'死亡：ランダムな味方に「死亡：「青スケルトン」を召喚する。」を付与する。'},
+      'リッチ': {desc:'常時：味方が召喚された時、「青シャドウ」を1体召喚する。'},
+      'ダイアウルフ': {desc:'3マナ毎：「緑ウルフ」を召喚する。'},
+      'スリン': {desc:'攻撃：1マナを得る。'},
+      'ミテーラ': {desc:'開戦：「緑ペリカン」を3体召喚する。'},
+      'ユミル': {desc:'攻撃：+X/+Xを得る。Xはマナに等しい。'},
+      'マーメイド': {desc:'常時：緑のキャラクターから得るマナは+1される。'},
+      'グリムリーパー': {desc:'封印5　即死', keywords:['封印5','即死']},
+      'バンダースナッチ': {desc:'6マナ毎：ランダムな敵を「緑ウルフ」に変身させる。'},
+      'ハイドラ': {desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
+      'スキュラ': {desc:'3マナ毎：全ての敵に毒12を与える。'},
+      'ナーガ': {desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
+      'ブラウニー': {desc:'攻撃＆負傷：全ての仲間のHPが+2される。'},
+      'エルヴンメイジ': {desc:'攻撃：全ての黄キャラクターは+1/+1を得る。'},
+      'タイタニア': {desc:'常時：味方の攻撃回数は1回追加される。'},
+      'ケットシー': {desc:'負傷：「黄ナイトキャット」を召喚する。'},
+      'カーバンクル': {desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
+      'エレメンタル': {desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
+      'インプ': {desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。', keywords:['生贄']},
+      'ベヒーモス': {desc:'解放：マナを2倍にする。', keywords:['封印3']},
+      'エルフ': {desc:'結界1\n負傷：結界1を得る。', keywords:['結界1']},
+      'カオス・インプ': {desc:'負傷：全ての生贄を持つキャラクターはHP+1を得る。'},
+      'ナイトメア': {desc:'5マナ毎：ランダムな敵に生贄を付与する。'},
+      'ファナティック': {desc:'生贄', keywords:['生贄']},
+    };
+    Object.entries(_requestedEffectOverrides).forEach(([name, cfg]) => {
+      (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
+        panel.desc = _stripOwnNameFromDesc(cfg.desc, panel.name);
+        panel._sheetSeen = true;
+        panel._implemented = true;
+        _setPanelKeywordsFromDesc(panel);
+        if (cfg.keywords) panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
+      });
+    });
+    const _summonOnlyOverrides = {
+      'シャドウ': {desc:'（他の効果で召喚される「青シャドウ」も同じ強化を得る）', keywords:[]},
+      'ウルフ': {desc:'（他の効果で召喚される「緑ウルフ」も同じ強化を得る）', keywords:[]},
+      'ペリカン': {desc:'（他の効果で召喚される「緑ペリカン」も同じ強化を得る）', keywords:[]},
+      'ドラゴン': {desc:'全体攻撃\n（他の効果で召喚される「緑ドラゴン」も同じ強化を得る）', keywords:['全体攻撃']},
+      'ナイトキャット': {desc:'結界1\n（他の効果で召喚される「黄ナイトキャット」も同じ強化を得る）', keywords:['結界1']},
+    };
+    Object.entries(_summonOnlyOverrides).forEach(([name, cfg]) => {
+      (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
+        panel.desc = cfg.desc;
+        panel.rarity = -1;
+        panel._sheetSeen = true;
+        panel._implemented = true;
+        _setPanelKeywordsFromDesc(panel);
+        panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
+      });
+    });
+    (PANEL_POOL || []).filter(p => p && p.name === '剣技' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
+      panel.desc = '攻撃：ATK+3を得る。';
+      panel._sheetSeen = true;
+      panel._implemented = true;
+      _setEnchantFieldsFromDesc(panel);
+      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['剣技']);
+    });
+    (PANEL_POOL || []).filter(p => p && p.name === '恩寵' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
+      panel.desc = '常時：このキャラクターの開戦効果は1回追加で発動する。';
+      panel._sheetSeen = true;
+      panel._implemented = true;
+      _setEnchantFieldsFromDesc(panel);
+      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['恩寵']);
+    });
+    (PANEL_POOL || []).filter(p => p && p.name === '竜の契約' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
+      panel.no = '008';
+      panel.desc = _stripOwnNameFromDesc(panel.desc || '常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）', panel.name);
+      panel._sheetSeen = true;
+      panel._implemented = true;
+      _setEnchantFieldsFromDesc(panel);
+      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['竜の契約']);
+    });
+    (PANEL_POOL || []).forEach(panel => {
+      if(panel&&panel.name&&panel.desc) panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
+    });
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;

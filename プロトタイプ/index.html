@@ -35,7 +35,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   inset:0;
   z-index:0;
   pointer-events:none;
-  background:url("assets/temp/backgrounds/effect.png") center/cover no-repeat;
+  background:url("assets/temp/art/backgrounds/effect.png") center/cover no-repeat;
   opacity:1;
   mix-blend-mode:normal;
   animation:none;
@@ -339,6 +339,11 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   z-index:10021;
   pointer-events:none;
   overflow:visible;
+}
+.sweep-vfx-clip{
+  position:fixed;
+  pointer-events:none;
+  overflow:hidden;
 }
 .sweep-vfx-host .vfx-sweep-video{
   position:absolute;
@@ -2480,10 +2485,10 @@ body #f-ally .slot.unit-card.selected{
   filter:none!important;
   z-index:9!important;
 }
-body #f-ally .slot.unit-card.sealed-unit,
-body #f-enemy .slot.unit-card.sealed-unit,
-body #f-ally .slot.unit-card.sealed-unit.selected,
-body #f-enemy .slot.unit-card.sealed-unit.selected{
+body #f-ally .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer),
+body #f-enemy .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer),
+body #f-ally .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer),
+body #f-enemy .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer){
   filter:brightness(.45) saturate(.65)!important;
 }
 body .slot.unit-card:hover::before,
@@ -4641,7 +4646,7 @@ body:not(.reward-screen-active) #reward-info-bar #rw-gold{
    もう一方の辺は画像の縦横比に合わせて自動でサイズを決める */
 .panel-unite-link{
   position:absolute;
-  z-index:120;
+  z-index:140;
   transform:translate(-50%,-50%);
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.9));
   pointer-events:none;
@@ -5569,6 +5574,42 @@ html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
 .mana-cost-orbs.mana-orbs-hidden{
   display:none;
 }
+.seal-cost-badge{
+  position:absolute;
+  left:4.6%;
+  top:4.2%;
+  z-index:36;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.seal-cost-badge img{
+  width:32px;
+  height:32px;
+  object-fit:contain;
+  filter:brightness(.5) drop-shadow(0 1px 2px rgba(0,0,0,.9));
+  transition:filter .2s;
+}
+.seal-cost-badge img.seal-cost-lit{
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 6px rgba(255,230,210,.9));
+}
+.mana-cost-orbs + .seal-cost-badge{
+  left:15%;
+}
+html body .drag-ghost .seal-cost-badge{
+  left:4.6%!important;
+  top:4.2%!important;
+  transform:none!important;
+  gap:3px!important;
+}
+html body .drag-ghost .mana-cost-orbs + .seal-cost-badge{
+  left:15%!important;
+}
+html body .drag-ghost .seal-cost-badge img{
+  width:32px!important;
+  height:32px!important;
+}
 #mana-hud{
   position:absolute;
   right:4.7%;
@@ -5761,7 +5802,7 @@ body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .discard-btn{
-  z-index:70!important;
+  z-index:220!important;
 }
 /* レアリティ別カード名の色：1=白 2=青 3=紫 4=金 5=虹 */
 html body .card.rarity-1 .card-name,
@@ -5909,6 +5950,18 @@ html body .drag-ghost .slot-stats .h{
   left:auto!important;
   bottom:var(--drag-slot-hp-bottom,var(--unit-stat-bottom))!important;
   width:var(--drag-slot-hp-w,var(--unit-stat-w))!important;
+}
+html body .drag-ghost .seal-cost-badge{
+  left:4.6%!important;
+  top:4.2%!important;
+  gap:3px!important;
+}
+html body .drag-ghost .mana-cost-orbs + .seal-cost-badge{
+  left:15%!important;
+}
+html body .drag-ghost .seal-cost-badge img{
+  width:32px!important;
+  height:32px!important;
 }
 html body .drag-ghost .card-summon-atk{
   position:absolute!important;
@@ -6132,7 +6185,7 @@ html body.reward-screen-active{
   --unit-field-gap:var(--prod-card-gap)!important;
 }
 html body.reward-screen-active #scr-battle{
-  background:#08020f url("assets/temp/backgrounds/main.png") center/cover no-repeat!important;
+  background:#08020f url("assets/temp/art/backgrounds/main.png") center/cover no-repeat!important;
 }
 html body.reward-screen-active #scr-battle.asset-backed::before,
 html body.reward-screen-active #scr-battle.asset-backed::after{
@@ -6405,6 +6458,38 @@ html body.dragzone-reward-spell.dragzone-reward-spell #battle-order-section,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #hand-pane,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #battle-order-section{
   z-index:9001!important;
+}
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area{
+  position:absolute!important;
+  inset:0!important;
+  z-index:9001!important;
+  pointer-events:none!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane,
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane *,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane *,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane *,
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane::before,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane::before,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane::before{
+  pointer-events:auto!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #debug-card-palette,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #debug-card-palette,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #debug-card-palette,
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #spell-slot-pane,
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #spell-slot-pane,
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #spell-slot-pane{
+  filter:brightness(.5)!important;
+  opacity:1!important;
 }
 /* 魔導板の枠画像は通常時 z-index:9（#hand-pane:2 より上）なので、その上下関係を保ったまま引き上げる */
 html body.dragzone-mainequip.dragzone-mainequip #hand-pane-board-bg,
@@ -7127,10 +7212,10 @@ html body .log-fx-line *{
   visibility:hidden!important;
   pointer-events:none!important;
 }
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section *,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::before,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::after{
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section *,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::before,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::after{
   filter:none!important;
   opacity:1!important;
   mix-blend-mode:normal!important;
@@ -7234,12 +7319,64 @@ html body.reward-screen-active #hand-pane #hand-slots.unit-equip-slots{
   gap:28px!important;
   justify-content:start!important;
 }
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section *,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::before,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::after{
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section *,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::before,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::after{
   filter:none!important;
   opacity:1!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-pane,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane,
+html body.reward-screen-active.dragzone-mainequip #hand-pane::before,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane::before,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane::before,
+html body.reward-screen-active.dragzone-mainequip #hand-pane::after,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane::after,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane::after,
+html body.reward-screen-active.dragzone-mainequip #hand-pane-board-bg,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane-board-bg,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane-board-bg{
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-pane,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane{
+  position:absolute!important;
+  z-index:9001!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-pane-board-bg,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane-board-bg,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane-board-bg{
+  position:absolute!important;
+  z-index:9002!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-slots.unit-equip-slots > .card,
+html body.reward-screen-active.dragzone-reward-spell #hand-slots.unit-equip-slots > .card,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-slots.unit-equip-slots > .card,
+html body.reward-screen-active.dragzone-mainequip #hand-slots.unit-equip-slots > .card-empty,
+html body.reward-screen-active.dragzone-reward-spell #hand-slots.unit-equip-slots > .card-empty,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-slots.unit-equip-slots > .card-empty{
+  position:relative!important;
+  z-index:9003!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-slots.unit-equip-slots,
+html body.reward-screen-active.dragzone-reward-spell #hand-slots.unit-equip-slots,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-slots.unit-equip-slots{
+  z-index:9003!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .panel-unite-link{
+  z-index:9100!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .discard-btn{
+  z-index:9200!important;
 }
 html body.reward-screen-active #reward-info-bar .ri-soul:first-child,
 html body.reward-screen-active #reward-info-bar .ri-label,
@@ -7320,6 +7457,13 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .mana-cos
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-card .mana-cost-orbs{
   gap:2px!important;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-card .seal-cost-badge{
+  gap:2px!important;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-card .seal-cost-badge img{
+  width:22px!important;
+  height:22px!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .card .debug-board-discard{
   top:8px!important;
@@ -7536,10 +7680,10 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn{
   max-height:124px!important;
   font-size:var(--prod-panel-title-size)!important;
 }
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section *,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::before,
-html body.reward-screen-active[class*="dragzone-"] #battle-order-section::after{
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section *,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::before,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::after{
   opacity:1!important;
   filter:none!important;
 }
@@ -7605,6 +7749,148 @@ html body #f-enemy {
   backface-visibility: hidden !important;   /* 👈 ブラウザの再計算による一瞬の明滅を物理的にガード */
   will-change: transform;                   /* 👈 レイヤーのガタつきを事前に防止 */
 }
+/* 2026-07-26: 魔導板ドラッグ暗転とunite表示の最終上書き。
+   直前のGPU固定ルールがカード/空き枠に新しいスタッキングコンテキストを作るため、
+   unite画像と魔導板一式のz-indexをここで最後に確定させる。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots .panel-unite-link{
+  position:absolute!important;
+  z-index:9999!important;
+  pointer-events:none!important;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.9))!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .discard-btn{
+  position:absolute!important;
+  z-index:10000!important;
+}
+html body.reward-screen-active.dragzone-mainequip #hand-pane,
+html body.reward-screen-active.dragzone-reward-spell #hand-pane,
+html body.reward-screen-active.dragzone-reward-nonspell #hand-pane{
+  z-index:9001!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area{
+  position:absolute!important;
+  inset:0!important;
+  z-index:9001!important;
+  pointer-events:none!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #hand-pane,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #hand-pane::before{
+  pointer-events:auto!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #debug-card-palette,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #spell-slot-pane{
+  filter:brightness(.5)!important;
+  opacity:1!important;
+}
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane-board-bg{
+  z-index:9002!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane::before,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane::after,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-slots.unit-equip-slots,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-slots.unit-equip-slots::before,
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-slots.unit-equip-slots::after{
+  filter:none!important;
+  opacity:1!important;
+}
+/* ドラッグ中（body.dragzone-*）の「魔導板」暗転防止・残存防止・動作保証CSS */
+
+/* 1. 重なり順（z-index）と位置関係を確定 */
+html body[class*="dragzone-"] #main-hand-area {
+  position: relative !important;
+  z-index: 9001 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html body[class*="dragzone-"] #hand-pane-board-bg {
+  position: absolute !important;
+  z-index: 9002 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html body[class*="dragzone-"] #hand-pane {
+  position: absolute !important;
+  z-index: 9004 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* 2. 「魔導板」見出し文字を明るく保持 */
+html body[class*="dragzone-"] #hand-pane .spell-label,
+html body[class*="dragzone-"] .spell-label {
+  opacity: 1 !important;
+  filter: none !important;
+  color: #fff !important;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* 3. ドラッグ中でない他のカード・空枠・出撃枠のみ明るく表示 */
+html body[class*="dragzone-"] #hand-pane .card:not(.dragging),
+html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging),
+html body[class*="dragzone-"] #hand-pane .equip-empty:not(.dragging),
+html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging) {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging)::before,
+html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging)::after,
+html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging)::before,
+html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging)::after {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* 4. ドラッグ中のカード本体・子要素・疑似要素の透明化（ドラッグ動作を阻害しない） */
+html body .card.dragging,
+html body .card.dragging *,
+html body .slot.dragging,
+html body .slot.dragging *,
+html body[class*="dragzone-"] #hand-pane .card.dragging,
+html body[class*="dragzone-"] #hand-pane .card.dragging *,
+html body[class*="dragzone-"] #hand-pane .slot.dragging,
+html body[class*="dragzone-"] #hand-pane .slot.dragging * {
+  opacity: 0 !important;
+  visibility: visible !important;
+}
+
+html body[class*="dragzone-"] #hand-pane .card.dragging::before,
+html body[class*="dragzone-"] #hand-pane .card.dragging::after,
+html body[class*="dragzone-"] #hand-pane .slot.dragging::before,
+html body[class*="dragzone-"] #hand-pane .slot.dragging::after {
+  opacity: 0 !important;
+}
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor),
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.deploy-slot.dragging:not(.reward-unit-anchor),
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging > *,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor) > *{
+  opacity:0!important;
+  visibility:visible!important;
+}
+html body #hand-pane .card.drag-source-parts-hidden > *,
+html body #hand-pane .card.drag-source-parts-hidden::before,
+html body #hand-pane .card.drag-source-parts-hidden::after,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden > *,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden::before,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden::after{
+  opacity:0!important;
+  visibility:visible!important;
+}
+html body .drag-ghost{
+  opacity:1!important;
+}
 </style>
 </head>
 <body>
@@ -7626,7 +7912,7 @@ html body #f-enemy {
 
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
-  <video id="reward-bg-video" src="assets/temp/backgrounds/back1.mp4" autoplay loop muted playsinline></video>
+  <video id="reward-bg-video" src="assets/temp/art/backgrounds/back1.mp4" autoplay loop muted playsinline></video>
   <button id="battle-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">🔊</button>
@@ -7737,7 +8023,7 @@ html body #f-enemy {
     <div id="inline-hand-editor" style="display:none"></div>
 
     <!-- 手札エリア（常時表示） -->
-    <div class="hand-area">
+    <div id="main-hand-area" class="hand-area">
       <div class="hand-row1" style="gap:8px">
         <div id="hand-pane-board-bg" aria-hidden="true" style="display:none"></div>
         <div id="hand-pane" class="hand-pane" style="flex:5;min-width:0">
@@ -7852,21 +8138,21 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=coloricon1"></script>
+<script src="assets.js?v=artpath1"></script>
 <script src="js/engine/audio.js?v=specialfx1"></script>
 <script src="js/engine/constants.js?v=cleanup157"></script>
 <script src="js/data/floors.js?v=cleanup157"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=local-xlsx2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=cleanup157"></script>
+<script src="js/data/loader.js?v=rewardfalse1"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=ringresolved1"></script>
-<script src="js/engine/pool.js?v=cleanup157"></script>
+<script src="js/engine/pool.js?v=rewardfalse1"></script>
 <script src="js/engine/enemy.js?v=cleanup157"></script>
-<script src="js/engine/battle.js?v=sealdeploy1"></script>
-<script src="js/engine/render.js?v=sealfade1"></script>
-<script src="js/engine/reward.js?v=ringdim1"></script>
+<script src="js/engine/battle.js?v=gracewild1"></script>
+<script src="js/engine/render.js?v=keywordclean3"></script>
+<script src="js/engine/reward.js?v=boardslotfix1"></script>
 <script src="js/engine/move.js?v=cleanup157"></script>
 <script src="js/engine/main.js?v=startdeploy1"></script>
 </body>
