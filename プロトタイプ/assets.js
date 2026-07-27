@@ -49,6 +49,7 @@ const Assets = {
   backgrounds: {
     title: 'assets/temp/art/backgrounds/title_castle.png',
     camp: 'assets/temp/art/backgrounds/camp.png',
+    worldMap: 'assets/temp/art/backgrounds/world_map.png',
     stage1: 'assets/temp/art/backgrounds/stage_grassland.png',
     stage2: 'assets/temp/art/backgrounds/stage_forest.png',
     stage3: 'assets/temp/art/backgrounds/stage_valley.png',
@@ -90,19 +91,19 @@ const Assets = {
     option: 'assets/temp/ui/option.png',
   },
   map: {
-    panel: 'assets/temp/ui/map/panel.png',
-    panel2: 'assets/temp/ui/map/panel2.png',
-    dashedLine: 'assets/temp/ui/map/dashed_line.png',
-    player: 'assets/temp/ui/map/player.png',
-    empty: 'assets/temp/ui/map/empty.png',
-    empty2: 'assets/temp/ui/map/empty2.png',
-    mob: 'assets/temp/ui/map/mob.png',
-    elite: 'assets/temp/ui/map/elite.png',
-    boss: 'assets/temp/ui/map/boss.png',
-    treasure: 'assets/temp/ui/map/treasure.png',
-    altar: 'assets/temp/ui/map/altar.png',
-    event: 'assets/temp/ui/map/event.png',
-    shop: 'assets/temp/ui/map/shop.png',
+    panel: 'assets/temp/art/backgrounds/world_map.png',
+    panel2: 'assets/temp/art/backgrounds/world_map.png',
+    dashedLine: 'assets/temp/map/dashed_line.png',
+    player: 'assets/temp/map/player.png',
+    empty: 'assets/temp/map/empty.png',
+    empty2: 'assets/temp/map/empty2.png',
+    mob: 'assets/temp/map/mob.png',
+    elite: 'assets/temp/map/elite.png',
+    boss: 'assets/temp/map/boss.png',
+    treasure: 'assets/temp/map/treasure.png',
+    altar: 'assets/temp/map/altar.png',
+    event: 'assets/temp/map/event.png',
+    shop: 'assets/temp/map/shop.png',
   },
   sfx: {
     uiConfirm: 'assets/temp/sfx/ui_confirm.wav',
@@ -656,7 +657,8 @@ function applyScreenAssetBackground(screenId){
   if(screenId==='title'){ setScreenAssetBackground('title','title'); return; }
   if(screenId==='shop'){ setScreenAssetBackground('shop','shop'); return; }
   if(screenId==='battle'){
-    const key=(typeof G!=='undefined'&&G&&G._isShop)?'shop':getStageBackgroundKey(typeof G!=='undefined'?G.floor:1);
+    const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
+    const key=mapStage||((typeof G!=='undefined'&&G&&G._isShop)?'camp':getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
     setScreenAssetBackground('battle',key);
   }
 }
@@ -674,7 +676,8 @@ function applyUiAssets(){
 }
 
 function setBattleStageBackground(){
-  setScreenAssetBackground('battle',getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
+  const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
+  setScreenAssetBackground('battle',mapStage||getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
 }
 
 function setBattleShopBackground(){

@@ -85,6 +85,7 @@ const PANEL_POOL=[
   {id:'panel_ghost',no:'028',name:'ゴースト',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:2,desc:'死亡：ランダムな青キャラクターは+2/+1を得る。'},
   {id:'panel_phantom',no:'029',name:'ファントム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:3,desc:'死亡：「青シャドウ」を3体召喚する。'},
   {id:'panel_blue_shadow',name:'シャドウ',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:1,life:1,desc:'（他の効果で召喚される「青シャドウ」も同じ強化を得る）'},
+  {id:'panel_blue_wild_hunt',no:'EN038',name:'ワイルドハント',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'-',power:20,life:20,desc:'（他の効果で召喚される「青ワイルドハント」も同じ強化を得る）'},
   {id:'panel_nosferatu',no:'030',name:'ノスフェラトゥ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,keywords:['隠密'],desc:'隠密'},
   {id:'panel_lemures',no:'031',name:'レムレース',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:1,life:4,desc:'死亡：このキャラクターを倒したキャラクターが報酬に出現する。'},
   {id:'panel_vrykolakas',no:'032',name:'ヴリコラカス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:6,life:3,manaCost:4,manaRepeat:true,desc:'4マナ毎：ランダムな味方が復活を得る。'},
@@ -129,7 +130,7 @@ const PANEL_POOL=[
   {id:'panel_dark_flame',no:'018',name:'闇の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の炎'],desc:'死亡：全ての敵キャラクターに1ダメージを与える。'},
   {id:'panel_poison_blade',no:'019',name:'毒の刃',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['毒牙2'],desc:'毒牙2（攻撃時にダメージを受ける毒を付与）'},
   {id:'panel_dragon_contract',no:'008',name:'竜の契約',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['竜の契約'],desc:'常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）'},
-  {id:'panel_imp',no:'009',name:'インプ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,keywords:['生贄'],desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。'},
+  {id:'panel_imp',no:'009',name:'インプ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。'},
   {id:'panel_gremlin',name:'グレムリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'攻撃：このキャラクターのHPと対象のATKを入れ替える。'},
   {id:'panel_incubus',name:'インキュバス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'負傷：全ての敵はATK-1を得る。'},
   {id:'panel_gargoyle',name:'ガーゴイル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'開戦：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続している強化カードの数だけ繰り返す。'},
@@ -145,7 +146,7 @@ const PANEL_POOL=[
   {id:'panel_nightmare',name:'ナイトメア',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,manaCost:5,manaRepeat:true,desc:'5マナ毎：ランダムな敵に生贄を付与する。'},
   {id:'panel_behemoth',name:'ベヒーモス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['封印3'],desc:'解放：マナを2倍にする。'},
   {id:'panel_overlord',name:'オーバーロード',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['封印5'],desc:'封印5　解放：このキャラクターの戦闘力を2倍にする。'},
-  {id:'panel_abyss_baron',name:'アビス・バロン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['封印4'],desc:'封印4　解放：ランダムな敵に封印99を付与する。'},
+  {id:'panel_abyss_baron',name:'アビス・バロン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['封印4'],desc:'封印4　解放：ランダムな敵に封印∞を付与する。'},
   {id:'panel_fiend',name:'フィーンド',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['封印2'],desc:'封印2　解放：全ての敵に1ダメージを与える。このキャラクターに接続している強化カードの数だけ繰り返す。'},
   {id:'panel_fanatic',name:'ファナティック',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,keywords:['生贄'],desc:'生贄'},
   {id:'panel_madness',no:'021',name:'狂気',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['狂気'],desc:'死亡：青マナを得る。'},
@@ -182,8 +183,33 @@ const SPELL_POOL=[
   {id:'spell_fire_arrow',no:'001',name:'炎の矢',type:'spell',kind:'spell',category:'スペル',manaCost:1,color:'赤',effectKey:'fire_arrow',desc:'HPが最も低いランダムな敵に5ダメージを与える。'},
 ];
 
+const ITEM_POOL=[
+  {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/temp/art/item/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
+  {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/temp/art/item/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
+  {id:'item_shield_scroll',no:'003',name:'盾の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'shield_scroll',art:'assets/temp/art/item/I003.jpg',desc:'対象のキャラクターに結界1を永久付与する。'},
+  {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/temp/art/item/I004.jpg',desc:'最も近い村にワープする。'},
+  {id:'item_giant_scroll',no:'005',name:'巨大化の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'giant_scroll',art:'assets/temp/art/item/I005.jpg',desc:'対象のキャラクターに+5/+5を永久付与する。'},
+  {id:'item_meteor_scroll',no:'006',name:'隕石の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'meteor_scroll',art:'assets/temp/art/item/I006.jpg',desc:'対象のマスに隕石を落とす。敵なら戦力半減、それ以外なら空白マスになる。'},
+  {id:'item_sacrifice_doll',no:'007',name:'生贄人形',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'sacrifice_doll',art:'assets/temp/art/item/I007.jpg',desc:'キャラクターを1枚破壊し、別のキャラクターが持つ封印の値を永久に1減らす。'},
+  {id:'item_weakening_scroll',no:'008',name:'衰弱の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/temp/art/item/I008.jpg',desc:'キャラクターを1枚破壊し、ランダムな召喚の力マスを永劫の力マスに変化させる。'},
+  {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/temp/art/item/I009.jpg',desc:'マップ上で見えている任意の場所にワープする。ターンを消費しない。'},
+  {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/temp/art/item/I010.jpg',desc:'所持金を1.5倍にする。'},
+  {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/temp/art/item/I011.jpg',desc:'制限ターンを5増やす。'},
+  {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/temp/art/item/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
+];
+
 function makeSpell(idOrName){
   const def=SPELL_POOL.find(p=>p.id===idOrName||p.name===idOrName);
+  if(!def) return null;
+  const c=clone(def);
+  _normalizePanelRewardCost(c);
+  c.noRewardUse=true;
+  c._buyPrice=0;
+  return c;
+}
+
+function makeItem(idOrName){
+  const def=ITEM_POOL.find(p=>p.id===idOrName||p.name===idOrName);
   if(!def) return null;
   const c=clone(def);
   _normalizePanelRewardCost(c);
@@ -276,7 +302,7 @@ function ensurePanelSaleStock(){
   G.panelSaleStock={};
   (PANEL_POOL||[]).forEach(p=>{
     if(!p||!p.id||!_isImplementedPoolCard(p)||p._rewardExcluded||p.rarity===-1) return;
-    G.panelSaleStock[panelSaleStockKey(p)]=Math.max(0,11-(p.grade||1));
+    G.panelSaleStock[panelSaleStockKey(p)]=Math.max(0,9-(p.grade||1));
   });
   (SPELL_POOL||[]).forEach(p=>{
     if(!p||!p.id||!_isImplementedPoolCard(p)||p._rewardExcluded) return;
@@ -315,7 +341,19 @@ function cardRefund(card){
 // ── アイテムプールから N 個抽選 ─────────────────
 
 function drawItems(n, maxGrade){
-  return drawPanel(n, maxGrade);
+  const max=maxGrade!=null?maxGrade:5;
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&(p.rarity||1)<=max);
+  const res=[];
+  const used=new Set();
+  let t=0;
+  while(res.length<n&&pool.length&&t++<100){
+    const cand=randFrom(pool.filter(p=>!used.has(p.id)));
+    if(!cand) break;
+    used.add(cand.id);
+    const item=makeItem(cand.id);
+    if(item) res.push(item);
+  }
+  return res;
 }
 
 function drawRewards(n){

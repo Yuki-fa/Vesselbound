@@ -12,11 +12,14 @@ const _EXPORT_BASE =
 function _sheetUrl(gid){ return _EXPORT_BASE + '&gid=' + gid + '&single=true&t=' + Date.now(); }
 const _SHEET_GIDS = {
   '階層データ':   393537970,
+  '階層レベル':   708322601,
+  '深層レベル':   708322601,
   '敵':          724099278,
   'キャラクター': 220248720,
   '強化':        1557039430,
   '魔法':        19731435,
   '指輪':        1483863334,
+  '魔導板強化':  496120185,
   'キーワード':  371460212,
   'NPC':         1775007224,
 };
@@ -111,7 +114,7 @@ function _parseCSVWithHeader(text, headerNames) {
       if (h) obj[h] = v;
     });
     return obj;
-  }).filter(row => row && (row['名前'] || row['カード名'] || row[headers[0]] || row['__col0']));
+  }).filter(row => row && (row['名前'] || row['カード名'] || row[headers[0]] || row['__col0'] || Object.keys(row).some(k=>/^__col\d+$/.test(k)&&row[k])));
 }
 
 const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx'];
@@ -122,9 +125,11 @@ const _XLSX_SHEETS = {
   enemy: '敵',
   keyword: 'キーワード',
   card: 'キャラクター',
-  enchant: '強化',
+  enchant: 'エンチャント',
   spell: '魔法',
   ring: '指輪',
+  mapPanelPower: '魔導板強化',
+  deepLevel: '深層レベル',
 };
 
 function _xlsxSheetToCSV(workbook, sheetName, required) {
@@ -162,6 +167,8 @@ async function _loadGameDataFromEmbeddedXlsx() {
     ent: data.enchant || '名前\n',
     spt: data.spell || '名前\n',
     rt: data.ring || data.rings || '名前\n',
+    mpt: data.mapPanelPower || data.mapPanel || '名前\n',
+    dlt: data.deepLevel || data.floorLevel || '名前\n',
   };
 }
 
@@ -185,15 +192,17 @@ async function _loadGameDataFromXlsx() {
   console.log('[Vesselbound] XLSX path:', loadedPath);
   return {
     source: 'xlsx',
-    ft: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.floor, true),
+    ft: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.floor, '計算式'], false),
     gt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.grade, false),
     ct: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.char, 'プレイヤー'], false),
     et: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enemy, false),
     kwt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.keyword, false),
     pt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.card, 'カード'], false),
-    ent: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enchant, false),
+    ent: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.enchant, '強化'], false),
     spt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, false),
     rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, false),
+    mpt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.mapPanelPower, false),
+    dlt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.deepLevel, '深層レベル', '階層グレード'], false),
   };
 }
 
@@ -216,6 +225,8 @@ async function _loadGameDataFromGoogleCsv() {
   let kwt = '名前\n';
   let ct = '名前\n';
   let rt = '名前\n';
+  let mpt = '名前\n';
+  let dlt = '名前\n';
   try {
     const kwRes = await fetch(_sheetUrl(_SHEET_GIDS['キーワード']));
     if (kwRes.ok) kwt = await kwRes.text();
@@ -225,10 +236,38 @@ async function _loadGameDataFromGoogleCsv() {
     if (ringRes.ok) rt = await ringRes.text();
   } catch (_) { /* 任意シート */ }
   try {
+    const mapPowerRes = await fetch(_sheetUrl(_SHEET_GIDS['魔導板強化']));
+    if (mapPowerRes.ok) mpt = await mapPowerRes.text();
+  } catch (_) { /* 任意シート */ }
+  try {
+    const deepRes = await fetch(_sheetUrl(_SHEET_GIDS['階層レベル']));
+    if (deepRes.ok) dlt = await deepRes.text();
+  } catch (_) { /* 任意シート */ }
+  try {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, rt };
+  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, rt, mpt, dlt };
+}
+
+async function _ensureMapPanelPowerCsv(mpt) {
+  const rows = _parseCSVWithHeader(mpt || '名前\n', ['No.', '名前', '価格', '効果']);
+  if (rows.length) return mpt;
+  try {
+    const res = await fetch(_sheetUrl(_SHEET_GIDS['魔導板強化']));
+    if (res && res.ok) return await res.text();
+  } catch (_) { /* 任意シート */ }
+  return mpt || '名前\n';
+}
+
+async function _ensureDeepLevelCsv(dlt) {
+  const rows = _parseCSVWithHeader(dlt || '名前\n', ['マップ', '深層レベル', '補正', 'グレード']);
+  if (rows.length) return dlt;
+  try {
+    const res = await fetch(_sheetUrl(_SHEET_GIDS['階層レベル']));
+    if (res && res.ok) return await res.text();
+  } catch (_) { /* 任意シート */ }
+  return dlt || '名前\n';
 }
 
 // ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
@@ -490,7 +529,9 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    const { source, ft, gt, ct, et, kwt, pt, ent, spt, rt } = loaded;
+    let { source, ft, gt, ct, et, kwt, pt, ent, spt, rt, mpt, dlt } = loaded;
+    mpt = await _ensureMapPanelPowerCsv(mpt);
+    dlt = await _ensureDeepLevelCsv(dlt);
 
     // キーワード シート（任意、キャラクター・敵共通のキーワード説明文）：失敗してもメイン読み込みには影響しない
     try {
@@ -511,19 +552,64 @@ async function loadGameData() {
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
 
+    // 魔導板強化シート（任意）：鍛冶屋の魔導板パネル価格・説明文をシート駆動にする
+    try {
+      window.MAP_PANEL_POWER_SHEET_ROWS = _parseCSVWithHeader(mpt || '名前\n', ['No.', '名前', '価格', '効果']);
+    } catch (_) {
+      window.MAP_PANEL_POWER_SHEET_ROWS = [];
+    }
+
+    // ── 階層レベル/深層レベルデータ ──
+    // 新形式は「マップ」列（結合セルで空欄になる行あり）＋「深層レベル」列で管理する。
+    const deepRows = _parseCSVWithHeader(dlt || '名前\n', ['マップ', '深層レベル', '補正', 'グレード']);
+    const mapDeep = {};
+    let currentMapNo = 0;
+    deepRows.forEach(row => {
+      const mapRaw = String(row['マップ'] || row['map'] || row['Map'] || row['__col0'] || '').trim();
+      const parsedMap = parseInt(mapRaw, 10);
+      if (Number.isFinite(parsedMap) && parsedMap > 0) currentMapNo = parsedMap;
+      const deep = parseInt(row['深層レベル'] || row['戦闘回数'] || row['階層'] || row['level'] || row['__col1'], 10);
+      if (!currentMapNo || !Number.isFinite(deep) || deep <= 0) return;
+      const mult = parseFloat(row['補正'] || row['mult'] || row['倍率'] || row['__col2']);
+      const grade = parseInt(row['グレード'] || row['grade'] || row['__col3'], 10);
+      mapDeep[currentMapNo] = mapDeep[currentMapNo] || {};
+      mapDeep[currentMapNo][deep] = {
+        map: currentMapNo,
+        deepLevel: deep,
+        grade: Math.max(1, Number.isFinite(grade) ? grade : currentMapNo),
+        mult: Number.isFinite(mult) && mult > 0 ? mult : 1,
+      };
+    });
+    if (typeof window !== 'undefined') window.MAP_DEEP_LEVEL_DATA = mapDeep;
+
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
     console.table(floorRows.slice(0, 5));
     const validFloorRows = floorRows.filter(row => {
-      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['floor']);
+      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['深層レベル'] || row['floor']);
       return !!fl && !isNaN(fl);
     });
-    if (validFloorRows.length) {
+    if (Object.keys(mapDeep).length) {
+      FLOOR_DATA.length = 0;
+      FLOOR_DATA.push(null);
+      BOSS_FLOORS.length = 0;
+      const maxMap = Math.max(...Object.keys(mapDeep).map(n=>parseInt(n,10)).filter(Number.isFinite), 1);
+      const maxDeep = Math.max(1, ...Object.values(mapDeep).flatMap(levels=>Object.keys(levels).map(n=>parseInt(n,10)).filter(Number.isFinite)));
+      for (let mapNo = 1; mapNo <= maxMap; mapNo++) {
+        for (let deep = 1; deep <= maxDeep; deep++) {
+          const flat = (mapNo - 1) * maxDeep + deep;
+          const data = (mapDeep[mapNo] && mapDeep[mapNo][deep]) || (mapDeep[mapNo] && mapDeep[mapNo][maxDeep]) || null;
+          FLOOR_DATA[flat] = data ? { grade: data.grade, mult: data.mult, map: mapNo, deepLevel: deep } : { grade: mapNo, mult: 1, map: mapNo, deepLevel: deep };
+        }
+      }
+      FLOOR_DATA._deepLevelsPerMap = maxDeep;
+    } else if (validFloorRows.length) {
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
+    FLOOR_DATA._deepLevelsPerMap = 5;
     validFloorRows.forEach(row => {
-      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['floor']);
+      const fl = parseInt(row['階層'] || row['戦闘回数'] || row['深層レベル'] || row['floor']);
       if (!fl || isNaN(fl)) return;
       const isBoss = row['ボス'] === '✓' || row['ボスかどうか'] === '✓' || row['ボス'] === 'TRUE';
       FLOOR_DATA[fl] = {
@@ -703,7 +789,7 @@ async function loadGameData() {
       if (shield) kws.push('結界' + (shield[1] || '1'));
       if (/根性/.test(ownPassiveDesc)) kws.push('根性');
       if (/即死/.test(ownPassiveDesc)) kws.push('即死');
-      if (/生贄/.test(ownPassiveDesc) || panel.name === 'インプ') kws.push('生贄');
+      if (/(?:^|\n|\s)生贄(?:\s|。|\n|$)/.test(ownPassiveDesc)) kws.push('生贄');
       const seal = ownPassiveDesc.match(/封印\s*(\d+)/);
       if (seal) kws.push('封印' + (seal[1] || '1'));
       const poison = passiveDesc.match(/毒牙\s*(\d*)/);
@@ -967,7 +1053,7 @@ async function loadGameData() {
       'ケットシー': {desc:'負傷：「黄ナイトキャット」を召喚する。'},
       'カーバンクル': {desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
       'エレメンタル': {desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
-      'インプ': {desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。', keywords:['生贄']},
+      'インプ': {desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。'},
       'ベヒーモス': {desc:'解放：マナを2倍にする。', keywords:['封印3']},
       'エルフ': {desc:'結界1\n負傷：結界1を得る。', keywords:['結界1']},
       'カオス・インプ': {desc:'負傷：全ての生贄を持つキャラクターはHP+1を得る。'},

@@ -253,7 +253,39 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:0}
 .rew-card{border:0;border-radius:5px;background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat;padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:569/983;overflow:hidden;cursor:pointer;transition:all .18s;position:relative;filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))}
 .rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
-.rew-card.cant{cursor:default;pointer-events:none;background:var(--bg)}
+.rew-card.cant{cursor:default;pointer-events:none}
+.rew-card.cant::after,
+.character-card.cant::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:rgba(0,0,0,.48);
+  z-index:700;
+  pointer-events:none;
+}
+.rew-card.cant .shop-insufficient-badge,
+.character-card.cant .shop-insufficient-badge{
+  opacity:1!important;
+  z-index:999!important;
+}
+.shop-board-sell-value{
+  position:absolute;
+  right:2px;
+  top:30px;
+  min-width:30px;
+  padding:1px 3px;
+  border:1px solid rgba(230,210,150,.5);
+  background:rgba(5,7,10,.78);
+  color:var(--gold2);
+  font-size:11px;
+  line-height:1.1;
+  font-weight:800;
+  text-align:center;
+  text-shadow:0 1px 2px #000;
+  z-index:230;
+  pointer-events:none;
+}
 .rew-card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
 .rew-card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;font-size:.56rem;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
 .rew-card-name{position:relative;z-index:2;font-size:.72rem;font-weight:700;margin-top:58%;margin-bottom:2px;color:#f7ead0;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.9)}
@@ -1439,32 +1471,47 @@ html body .slot.dragging{
 /* World map復元：既存画面上に最小表示 */
 #world-map-panel{
   position:absolute!important;
-  left:64px!important;
-  right:64px!important;
-  top:64px!important;
-  height:1016px!important;
+  left:0!important;
+  right:0!important;
+  top:0!important;
+  bottom:0!important;
+  width:100%!important;
+  height:100%!important;
   z-index:30!important;
   box-sizing:border-box!important;
-  padding:86px 146px!important;
-  background:var(--world-map-panel-image) center/100% 100% no-repeat!important;
+  padding:0!important;
+  background:none!important;
   border:0!important;
   border-radius:0!important;
   box-shadow:none!important;
+  overflow:hidden!important;
 }
 #world-map-panel[hidden]{display:none!important}
 .map-grid{
   position:absolute!important;
-  left:300px!important;
-  top:17%!important;
-  width:2142px!important;
-  height:660px!important;
+  left:0!important;
+  top:0!important;
+  width:100%!important;
+  height:100%!important;
   right:auto!important;
   bottom:auto!important;
+  background:var(--world-map-panel-image) center/100% 100% no-repeat!important;
+  transition:transform .12s ease!important;
+  z-index:2!important;
+}
+.map-grid::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:url("assets/temp/art/backgrounds/effect.png") center/100% 100% no-repeat;
 }
 .map-edge-layer{
   position:absolute!important;
   inset:0!important;
   pointer-events:none!important;
+  z-index:2!important;
 }
 .map-edge{
   position:absolute!important;
@@ -1473,6 +1520,7 @@ html body .slot.dragging{
   background-repeat:repeat-x!important;
   background-size:64px 8px!important;
   opacity:.62!important;
+  z-index:2!important;
 }
 .map-edge.preview{opacity:.36!important}
 .map-node{
@@ -1489,7 +1537,7 @@ html body .slot.dragging{
   background-position:center!important;
   color:transparent!important;
   font-size:0!important;
-  z-index:2!important;
+  z-index:4!important;
 }
 .map-node.type-empty:not(.is-current){
   width:18px!important;
@@ -1526,17 +1574,97 @@ html body .slot.dragging{
   filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
 }
 body.world-map-active #log-wrap{
-  display:block!important;
-  left:72px!important;
-  top:auto!important;
-  bottom:62px!important;
-  width:610px!important;
-  height:640px!important;
-  z-index:31!important;
+  display:none!important;
+}
+body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-floor),
+body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-gold){
+  display:none!important;
+}
+body.world-map-active #mana-hud{
+  display:none!important;
+}
+body.world-map-render-pending .map-node,
+body.world-map-render-pending .map-edge-layer{
+  visibility:hidden!important;
+}
+#world-map-hud{
+  position:absolute;
+  left:54px;
+  top:44px;
+  z-index:8;
+  display:flex;
+  align-items:center;
+  gap:22px;
+  padding:16px 22px;
+  border:2px solid rgba(116,82,32,.72);
+  background:rgba(40,25,10,.72);
+  color:#f1d59b;
+  font-family:var(--font-hd);
+  font-size:28px;
+  letter-spacing:.04em;
+}
+#world-map-hud .btn{font-size:24px;padding:.42em 1.2em}
+body.world-map-active #enemy-area,
+body.world-map-active #ally-section,
+body.world-map-active #reward-cards-section,
+body.world-map-active #battle-order-section,
+body.world-map-active #main-hand-area,
+body.world-map-active #reward-info-bar,
+body.world-map-active #reward-move-btns,
+body.world-map-active #legacy-battle-header{
+  display:none!important;
+}
+body.battle-victory-pending #main-hand-area,
+body.battle-victory-pending #reward-cards-section,
+body.battle-victory-pending #battle-order-section,
+body.battle-victory-pending #reward-info-bar,
+body.battle-victory-pending #reward-move-btns,
+body.battle-victory-pending #enemy-hand-area{
+  display:none!important;
+}
+.map-village-card,
+.map-forge-card,
+.map-tavern-card{
+  width:300px;
+  height:420px;
+  padding:34px 24px;
+  border:2px solid var(--gold);
+  background:rgba(22,14,8,.86);
+  color:var(--gold2);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:22px;
+  text-align:center;
+  font-family:var(--font-bd);
+  cursor:pointer;
+}
+.map-village-card strong,.map-forge-card strong,.map-tavern-card strong{font-family:var(--font-hd);font-size:34px}
+.map-village-card span,.map-forge-card span,.map-tavern-card span{font-size:22px;line-height:1.45;color:#e5cfac}
+.map-forge-card em{font-size:26px;font-style:normal;color:var(--teal2)}
+.map-forge-card.selected{box-shadow:0 0 0 4px var(--teal2),0 0 24px rgba(64,176,144,.6)}
+.map-forge-card:disabled{opacity:.38;cursor:default}
+.equip-slot-label small{
+  display:block;
+  margin-top:3px;
+  font-size:13px;
+  color:#8ee8c8;
+  line-height:1.05;
+  white-space:nowrap;
+}
+body.reward-screen-active #hand-pane .deploy-slot .equip-slot-label small,
+body.reward-screen-active #hand-pane .equip-empty .equip-slot-label small{
+  font-size:22px;
 }
 body.world-map-active #log-box{
   display:block!important;
   height:100%!important;
+}
+body.world-map-active #map-inventory-toggle{
+  display:none!important;
+}
+body.world-map-active #map-inventory-panel{
+  z-index:31!important;
 }
 #log-wrap #btn-pass,
 #log-wrap #btn-pass:hover:not(:disabled),
@@ -2582,9 +2710,7 @@ body .return-btn:hover{
   z-index:80!important;
 }
 body.world-map-active #map-inventory-toggle{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
+  display:none!important;
 }
 body:not(.world-map-active) #map-inventory-toggle,
 body:not(.world-map-active) #map-inventory-panel,
@@ -2851,9 +2977,7 @@ body #map-inventory-slots .card:hover:not(.inert){
   z-index:60!important;
 }
 body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-toggle{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
+  display:none!important;
 }
 body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel{
   left:50%!important;
@@ -2864,6 +2988,14 @@ body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel{
   display:grid!important;
 }
 body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel[hidden]{
+  display:none!important;
+}
+#map-inventory-toggle,
+#map-inventory-panel,
+body.world-map-active #map-inventory-toggle,
+body.world-map-active #map-inventory-panel,
+body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-toggle,
+body:has(#enemy-hand-slots.shop-sale-hand) #map-inventory-panel{
   display:none!important;
 }
 body .card.dragging .card-name,
@@ -5594,6 +5726,32 @@ html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
 .seal-cost-badge img.seal-cost-lit{
   filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 6px rgba(255,230,210,.9));
 }
+.seal-cost-badge.seal-cost-infinite{
+  display:block;
+}
+.seal-infinity-icon{
+  position:relative;
+  display:block;
+  width:32px;
+  height:32px;
+}
+.seal-infinity-icon img{
+  width:32px;
+  height:32px;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 7px rgba(255,230,210,.72));
+}
+.seal-infinity-icon b{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff4e6;
+  font-size:20px;
+  line-height:1;
+  font-weight:900;
+  text-shadow:0 2px 3px #000,0 0 5px rgba(255,80,40,.95);
+}
 .mana-cost-orbs + .seal-cost-badge{
   left:15%;
 }
@@ -5694,6 +5852,31 @@ body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging::after{
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-card.drag-over{
   filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
+}
+html body.right-card-peek #hand-slots.unit-equip-slots .card{
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+  transform:none!important;
+}
+html body.right-card-peek #hand-slots.unit-equip-slots .card.deploy-slot{
+  background:url("assets/temp/cards/card_back.png") center/100% 100% no-repeat!important;
+}
+html body.right-card-peek #hand-slots.unit-equip-slots .card > *,
+html body.right-card-peek #hand-slots.unit-equip-slots .card .equip-slot-label,
+html body.right-card-peek #hand-slots.unit-equip-slots .card .equip-slot-label small{
+  opacity:0!important;
+  visibility:visible!important;
+}
+html body.right-card-peek #hand-slots.unit-equip-slots .card::before,
+html body.right-card-peek #hand-slots.unit-equip-slots .card::after{
+  opacity:0!important;
+}
+html body.right-card-peek #hand-slots.unit-equip-slots .panel-unite-link{
+  display:none!important;
+  opacity:0!important;
+  visibility:hidden!important;
 }
 /* 報酬置き場：スペル置き場と左右対称の横2×縦3マス固定グリッド */
 body #reward-cards-section.reward-grid-mode{
@@ -6339,6 +6522,8 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i{
   background:none!important;
   box-shadow:none!important;
   position:relative!important;
+  pointer-events:auto!important;
+  cursor:default;
 }
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before{
   content:"";
@@ -6347,6 +6532,39 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before{
   z-index:2;
   background:url("assets/temp/ui/item_slot.png") center/100% 100% no-repeat;
   pointer-events:none;
+}
+html body #battle-order-row > .rew-card.treasure-offer-card.item-visual::before,
+html body .drag-ghost.item-visual::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  background:url("assets/temp/ui/item_slot.png") center/100% 100% no-repeat;
+  pointer-events:none;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled,
+html body .drag-ghost.item-visual-filled{
+  cursor:grab;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled::after,
+html body #battle-order-row > .rew-card.treasure-offer-card.item-visual-filled::after,
+html body .drag-ghost.item-visual-filled::after{
+  content:"";
+  position:absolute;
+  inset:12%;
+  z-index:1;
+  background-image:var(--item-art);
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+  border-radius:8px;
+  pointer-events:none;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.drag-over{
+  filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.dragging::after{
+  opacity:0!important;
 }
 /* .ring-visual：指輪の見た目（ring_slot.pngの枠＋指輪アートの--ring-art）を、祖先要素に依存せず
    単独で成立するクラスとして定義する。指輪置き場のスロットと、栄光の力画面の提示カードの両方で
@@ -6497,7 +6715,8 @@ html body.dragzone-reward-spell.dragzone-reward-spell #hand-pane-board-bg,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #hand-pane-board-bg{
   z-index:9002!important;
 }
-html body.reward-screen-active #battle-options-btn{
+html body.reward-screen-active #battle-options-btn,
+html body.world-map-active #battle-options-btn{
   display:block!important;
   position:absolute!important;
   left:3666px!important;
@@ -6514,7 +6733,8 @@ html body.reward-screen-active #battle-options-btn{
   z-index:40!important;
   overflow:visible!important;
 }
-html body.reward-screen-active #battle-options-btn::after{
+html body.reward-screen-active #battle-options-btn::after,
+html body.world-map-active #battle-options-btn::after{
   content:''!important;
   position:absolute!important;
   left:-33px!important;
@@ -6525,7 +6745,8 @@ html body.reward-screen-active #battle-options-btn::after{
   z-index:2!important;
   pointer-events:none!important;
 }
-html body.reward-screen-active #battle-options-btn::before{
+html body.reward-screen-active #battle-options-btn::before,
+html body.world-map-active #battle-options-btn::before{
   content:''!important;
   position:absolute!important;
   left:-33px!important;
@@ -6537,7 +6758,8 @@ html body.reward-screen-active #battle-options-btn::before{
   z-index:1!important;
   pointer-events:none!important;
 }
-html body.reward-screen-active #battle-options-btn:hover::before{
+html body.reward-screen-active #battle-options-btn:hover::before,
+html body.world-map-active #battle-options-btn:hover::before{
   animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
 }
 html body.reward-screen-active .battle-scroll,
@@ -6598,6 +6820,23 @@ html body.reward-screen-active.ring-offer-phase #battle-order-section::after{
   text-shadow:0 2px 8px rgba(0,0,0,.85);
   pointer-events:none;
 }
+html body.reward-screen-active.treasure-offer-phase #battle-order-section::before{
+  content:"財宝";
+}
+html body.reward-screen-active.treasure-offer-phase #battle-order-section::after{
+  content:"魔力を秘めた宝だ";
+  position:absolute;
+  left:0;
+  right:0;
+  top:170px;
+  text-align:center;
+  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+  font-size:30px;
+  letter-spacing:.06em;
+  color:#8b7c67;
+  text-shadow:0 2px 8px rgba(0,0,0,.85);
+  pointer-events:none;
+}
 html body.reward-screen-active #battle-order-row{
   position:absolute!important;
   left:90px!important;
@@ -6631,6 +6870,19 @@ html body.reward-screen-active #battle-order-row > .rew-card.ring-offer-card{
   min-height:var(--prod-card-w)!important;
   max-height:var(--prod-card-w)!important;
   align-self:flex-end!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card{
+  height:var(--prod-card-w)!important;
+  min-height:var(--prod-card-w)!important;
+  max-height:var(--prod-card-w)!important;
+  align-self:flex-end!important;
+  border:0!important;
+  background:none!important;
+  box-shadow:none!important;
+  animation:none!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card > *{
+  display:none!important;
 }
 html body.reward-screen-active #hand-pane{
   display:block!important;
@@ -7680,6 +7932,24 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn{
   max-height:124px!important;
   font-size:var(--prod-panel-title-size)!important;
 }
+html body.reward-screen-active.debug-mode #btn-test-battle{
+  position:absolute!important;
+  left:2778px!important;
+  top:536px!important;
+  width:900px!important;
+  height:124px!important;
+  z-index:27!important;
+}
+html body.reward-screen-active #map-village-extra-btn{
+  display:none;
+  position:absolute!important;
+  left:2740px!important;
+  top:1808px!important;
+  width:1020px!important;
+  height:124px!important;
+  z-index:27!important;
+  font-size:var(--prod-panel-title-size,28px)!important;
+}
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section,
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section *,
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::before,
@@ -7757,6 +8027,26 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .panel-unite-link{
   z-index:9999!important;
   pointer-events:none!important;
   filter:drop-shadow(0 2px 3px rgba(0,0,0,.9))!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots .panel-unite-link{
+  display:none!important;
+  opacity:0!important;
+  visibility:hidden!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor){
+  background:url("assets/temp/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card.deploy-slot:not(.reward-unit-anchor){
+  background:url("assets/temp/cards/card_back.png") center/100% 100% no-repeat!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > *,
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor)::before,
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor)::after{
+  opacity:0!important;
+  visibility:visible!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .discard-btn{
   position:absolute!important;
@@ -7891,6 +8181,107 @@ html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden::after{
 html body .drag-ghost{
   opacity:1!important;
 }
+html body.world-map-active #scr-battle > .bottom-hud,
+html body.world-map-active #scr-battle .bottom-hud,
+html body.world-map-active #reward-info-bar,
+html body.world-map-active #reward-production-ui .reward-prod-money,
+html body.world-map-active #reward-production-ui .reward-prod-turn,
+html body.world-map-active #reward-production-ui .reward-prod-bottom{
+  display:none!important;
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  top:58px!important;
+  right:4px!important;
+  left:auto!important;
+  min-width:64px!important;
+  padding:3px 6px!important;
+  border:2px solid rgba(230,210,150,.75)!important;
+  border-radius:6px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font-family:var(--font-hd)!important;
+  font-size:20px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  text-align:center!important;
+  text-shadow:0 2px 3px #000!important;
+  z-index:10001!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.cant,
+html body.reward-screen-active #rw-cards .rew-card.cant,
+html body.reward-screen-active #battle-order-row > .character-card.cant,
+html body.reward-screen-active #rw-cards .character-card.cant{
+  background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat!important;
+  filter:grayscale(.45) brightness(.62) drop-shadow(0 5px 10px rgba(0,0,0,.42))!important;
+}
+html body.reward-screen-active .rew-card.cant .shop-insufficient-badge,
+html body.reward-screen-active .character-card.cant .shop-insufficient-badge{
+  z-index:10002!important;
+}
+#item-use-confirm{
+  position:fixed;
+  z-index:100200;
+  min-width:calc(320px * var(--game-scale));
+  padding:calc(18px * var(--game-scale));
+  border:calc(2px * var(--game-scale)) solid rgba(216,185,130,.8);
+  background:rgba(18,10,4,.94);
+  box-shadow:0 0 calc(28px * var(--game-scale)) rgba(0,0,0,.72);
+  color:var(--gold2);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:calc(12px * var(--game-scale));
+  transform-origin:0 0;
+}
+#item-use-confirm .item-use-title{
+  grid-column:1 / -1;
+  font-family:var(--font-hd);
+  font-size:calc(28px * var(--game-scale));
+  text-align:center;
+  color:#f2d9a0;
+}
+#item-use-confirm .btn{
+  font-size:calc(22px * var(--game-scale));
+  padding:.45em .9em;
+}
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #main-hand-area,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane-board-bg,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-slots.unit-equip-slots,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #debug-card-palette,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-ring,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-quest,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-bottom,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-move-btns{
+  filter:brightness(.4) saturate(.5)!important;
+  opacity:1!important;
+  z-index:auto!important;
+}
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item *,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section *,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section::before,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section::after{
+  filter:none!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+html body.forge-screen-active.dragzone-mainequip #battle-order-section,
+html body.forge-screen-active.dragzone-mainequip #battle-order-section *,
+html body.forge-screen-active.dragzone-mainequip #battle-order-section::before,
+html body.forge-screen-active.dragzone-mainequip #battle-order-section::after{
+  z-index:auto!important;
+  filter:brightness(.45) saturate(.65)!important;
+  opacity:1!important;
+}
 </style>
 </head>
 <body>
@@ -7946,7 +8337,7 @@ html body .drag-ghost{
       </div>
       <div class="reward-prod-tile reward-prod-turn">
         <h2>ターン</h2>
-        <strong class="reward-prod-turn-value">0 / 100</strong>
+        <strong class="reward-prod-turn-value">0 / 15</strong>
       </div>
     </div>
   </div>
@@ -7964,6 +8355,7 @@ html body .drag-ghost{
     </div>
     <!-- デバッグモード：演出確認用の試験戦闘ボタン（編成完了/元に戻すの上に表示） -->
     <button id="btn-test-battle" class="btn" data-sfx-silent="1" onclick="startTestBattle()" style="display:none;position:fixed;left:2740px;top:1808px;width:1020px;height:124px;font-size:var(--prod-panel-title-size,28px)">試験戦闘</button>
+    <button id="map-village-extra-btn" class="btn" data-sfx-silent="1" style="display:none">情報</button>
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
 
@@ -8138,22 +8530,23 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=artpath1"></script>
+<script src="assets.js?v=mapitems1"></script>
 <script src="js/engine/audio.js?v=specialfx1"></script>
 <script src="js/engine/constants.js?v=cleanup157"></script>
-<script src="js/data/floors.js?v=cleanup157"></script>
+<script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=local-xlsx2"></script>
+<script src="js/data/local_xlsx_data.js?v=local-xlsx3"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=rewardfalse1"></script>
+<script src="js/data/loader.js?v=sheetfix1"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=ringresolved1"></script>
-<script src="js/engine/pool.js?v=rewardfalse1"></script>
-<script src="js/engine/enemy.js?v=cleanup157"></script>
-<script src="js/engine/battle.js?v=gracewild1"></script>
-<script src="js/engine/render.js?v=keywordclean3"></script>
-<script src="js/engine/reward.js?v=boardslotfix1"></script>
-<script src="js/engine/move.js?v=cleanup157"></script>
-<script src="js/engine/main.js?v=startdeploy1"></script>
+<script src="js/engine/pool.js?v=formula1"></script>
+<script src="js/engine/enemy.js?v=formula1"></script>
+<script src="js/engine/battle.js?v=resonance2"></script>
+<script src="js/engine/render.js?v=resonance1"></script>
+<script src="js/engine/reward.js?v=formula1"></script>
+<script src="js/engine/map.js?v=elitefix1"></script>
+<script src="js/engine/move.js?v=worldmap3"></script>
+<script src="js/engine/main.js?v=formula1"></script>
 </body>
 </html>

@@ -15,10 +15,15 @@
   document.addEventListener('mousemove',e=>{
     if(_dragging){ tip.style.display='none'; return; }
     const tgt=e.target&&e.target.closest?e.target:null;
-    const el=tgt&&(tgt.closest('.slot-badge[data-kwdesc]')||tgt.closest('[data-preview]'));
+    const cardPreviewEl=tgt&&tgt.closest('[data-preview]');
+    const panelPreviewEl=tgt&&tgt.closest('[data-panel-power-preview]');
+    const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
+    const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'));
+    const el=(!isPanelPeek&&cardPreviewEl)||kwEl||panelPreviewEl||cardPreviewEl;
     if(!el){ tip.style.display='none'; return; }
     const isKeywordDesc=el.hasAttribute('data-kwdesc');
-    const desc=el.getAttribute('data-kwdesc')||el.getAttribute('data-preview')||'';
+    const desc=(!isPanelPeek&&el.getAttribute('data-preview'))
+      ||el.getAttribute('data-kwdesc')||el.getAttribute('data-panel-power-preview')||el.getAttribute('data-preview')||'';
     if(!desc){ tip.style.display='none'; return; }
     tip.innerHTML=_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc});
     tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
@@ -132,8 +137,10 @@ function cardManaCostHtml(card){
 function _sealCostValue(card){
   if(!card) return 0;
   const kws=[...(card.keywords||[])];
+  if(card._sealInfinity||kws.some(k=>/^封印\s*∞$/.test(String(k||'')))) return Infinity;
   const kw=kws.find(k=>/^封印\s*\d+$/.test(String(k||'')));
   if(kw) return Math.max(1,parseInt(String(kw).replace(/\D/g,''),10)||1);
+  if(card._sealValue===Infinity) return Infinity;
   if(card._sealValue>0||card._sealed===true) return Math.max(1,Number(card._sealValue)||1);
   if(card._sealed===false) return 0;
   if(typeof _sealValue==='function'){
@@ -145,7 +152,7 @@ function _sealCostValue(card){
   return m?Math.max(1,parseInt(m[1],10)||1):0;
 }
 function _sealSacrificeCountForDisplay(){
-  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy');
+  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy'||G._battleVictoryPending);
   if(!inBattle) return 0;
   if(typeof _sacrificeCount==='function') return Math.max(0,Number(_sacrificeCount())||0);
   const all=[...(G.allies||[]),...(G.enemies||[])];
@@ -156,7 +163,10 @@ function cardSealCostHtml(card){
   const cost=_sealCostValue(card);
   const path=Assets?.cards?.blood||'';
   if(!cost||!path) return '';
-  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy');
+  if(cost===Infinity){
+    return `<span class="seal-cost-badge seal-cost-infinite"><span class="seal-infinity-icon"><img src="${path}" alt=""><b>∞</b></span></span>`;
+  }
+  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy'||G._battleVictoryPending);
   const lit=inBattle?Math.max(0,Math.min(cost,_sealSacrificeCountForDisplay())):cost;
   const ready=inBattle&&lit>=cost;
   const cls=`seal-cost-badge${ready?' seal-cost-ready':''}${inBattle?' seal-cost-battle':''}`;
@@ -991,6 +1001,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       currentEl.style.removeProperty('visibility');
     }
     clone.remove();
+    if(typeof renderAll==='function'){
+      requestAnimationFrame(()=>{ if(attacker&&attacker.hp>0) renderAll(); });
+    }
   };
   const runSegment=(frames,duration)=>{
     const speed=typeof getBattleSpeedScale==='function'?getBattleSpeedScale():1;
@@ -1479,6 +1492,8 @@ function renderField(id,units,isEnemy,_lane){
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(u&&u.hp>0?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(u&&u.hp>0?(u.lane||'front'):(i>=frontSlots?'rear':'front'));
     if(!u||u.hp<=0){
+      slot.classList.add('empty','dead-empty');
+      slot.innerHTML='';
       slot.style.gridRow=_slotLane==='rear'?'1':'2';
       slot.style.gridColumn=String((i%frontSlots)+1);
       // #f-enemy/#f-ally は display:block で運用されておりgrid-row/columnは効かないため、
@@ -1606,8 +1621,7 @@ function renderField(id,units,isEnemy,_lane){
         if(!isEnemy&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(hitLayer,u,i);
       }
       if(u&&!isEnemy){
-        const battleScreenActive=!!document.getElementById('scr-battle')?.classList.contains('active');
-        const canMoveUnit=!isEnemy&&(G.phase==='reward'||G.phase==='player'||(battleScreenActive&&G.phase!=='enemy'));
+        const canMoveUnit=!isEnemy&&G.phase==='reward'&&!G._battlePhaseRunning&&!G._resolvingSeals&&!G._mapBattle;
         slot.draggable=canMoveUnit;
         slot.addEventListener('dragstart',e=>{
           if(!canMoveUnit) { e.preventDefault(); return; }

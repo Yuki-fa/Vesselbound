@@ -101,7 +101,9 @@ function _pickEnemyDef(grade){
 }
 
 function _pickBossEnemyDef(grade){
-  const pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly);
+  const used=new Set(G.worldMapRun&&Array.isArray(G.worldMapRun.usedBossEnemyNames)?G.worldMapRun.usedBossEnemyNames:[]);
+  let pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly && !used.has(e.name));
+  if(!pool.length) pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly);
   return pool.length?randFrom(pool):null;
 }
 
@@ -172,13 +174,17 @@ function generateEnemies(floor){
     e._artCode=def.artCode||def.No||def.no||def.imageNo||'';
     return [e];
   }
-  const isBoss=!!fd.boss;
+  const isBoss=G._mapBattle?!!(G._mapBattle.type==='boss'||G._mapBattle.forcedBoss):!!fd.boss;
 
   if(isBoss){
     const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
     const bossDef=_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+    if(G.worldMapRun&&bossDef){
+      G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
+      if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
+    }
     const make=(def,isCenter)=>{
-      const {atk,hp}=enemyStats(def,floor,1.5);
+      const {atk,hp}=enemyStats(def,floor,G._forceBossMult||1.5);
       const kws=[...(def.keywords||[])];
       if(isCenter&&!kws.includes('ボス')) kws.push('ボス');
       const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
@@ -302,6 +308,40 @@ function generateEnemies(floor){
   if(hasElite){
     G._eliteIdx=enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
   }
+  return enemies;
+}
+
+function generateEliteEnemies(floor){
+  const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
+  const bossDef=_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+  if(G.worldMapRun&&bossDef){
+    G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
+    if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
+  }
+  const make=(def,isCenter)=>{
+    const {atk,hp}=enemyStats(def,floor,(G._extraBattleMult||1.0));
+    const kws=[...(def.keywords||[])];
+    if(isCenter&&!kws.includes('エリート')) kws.push('エリート');
+    const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws.filter(k=>k!=='ボス'),def.race||'-');
+    _applyEnemyDefAbilities(e,def);
+    e.keywords=(e.keywords||[]).filter(k=>k!=='ボス');
+    e.lane=isCenter?'rear':'front';
+    e._visualShift=false;
+    if(isCenter) e.elite=true;
+    delete e.boss;
+    return e;
+  };
+  const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,3);
+  const enemies=[];
+  for(let i=0;i<frontCount;i++){
+    enemies.push(make(_pickNonBossEnemyDefDifferent(baseG,bossDef.name),false));
+  }
+  const sideDef=_sideBossDef(bossDef,baseG);
+  enemies.push(make(sideDef,false),make(bossDef,true),make(sideDef,false));
+  G._isEliteFight=true;
+  G._eliteIdx=frontCount+1;
+  G._extraBattleMult=1.0;
+  _enforceLaneRules(enemies);
   return enemies;
 }
 

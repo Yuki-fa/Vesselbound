@@ -12,7 +12,8 @@ function showScreen(id){
   document.getElementById('scr-'+id).classList.add('active');
   if(id==='battle'&&typeof _clearLogDom==='function') _clearLogDom();
   if(typeof playBgm==='function'){
-    if(id==='battle') playBgm('battle1',{fadeInMs:700,volume:.32});
+    const isMapScreen=typeof G!=='undefined'&&G&&G.phase==='map';
+    if(id==='battle') playBgm(isMapScreen?'menu':'battle1',{fadeInMs:700,volume:isMapScreen?undefined:.32});
     else stopBgm(350);
   }
 }
@@ -241,10 +242,12 @@ function _starterCardCandidates(category){
   const cats=Array.isArray(category)?category:[category];
   return (typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]).filter(p=>{
     if(!p||!p.id||Number(p.rarity)!==1||p.rarity===-1||p.removed) return false;
-    if(p.name==='ダイアウルフ') return false;
     if(typeof _isImplementedPoolCard==='function'&&!_isImplementedPoolCard(p)) return false;
     if(p._sheetSeen===false||p._implemented===false) return false;
-    if(String(p.category||'')==='キャラクター'&&((p.keywords||[]).some(k=>/^封印\d+$/.test(String(k||'')))||/封印\s*\d+/.test(String(p.desc||'')))) return false;
+    if(String(p.category||'')==='キャラクター'){
+      if((Number(p.power??p.atk??0)||0)<=0) return false;
+      if((p.keywords||[]).some(k=>/^封印\d+$/.test(String(k||'')))||/封印\s*\d+/.test(String(p.desc||''))) return false;
+    }
     return cats.includes(String(p.category||''));
   });
 }
@@ -364,8 +367,13 @@ function startGame(debugMode){
     const muteBtn=document.getElementById('battle-mute-btn');
     if(muteBtn) muteBtn.style.display='none';
   }
-  showScreen('battle');
-  goToReward();
+  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&typeof startWorldMapRun==='function'){
+    startWorldMapRun();
+    goToWorldMap();
+  } else {
+    showScreen('battle');
+    goToReward();
+  }
 }
 
 function debugKillAll(){

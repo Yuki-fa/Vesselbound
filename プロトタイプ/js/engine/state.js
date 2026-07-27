@@ -79,7 +79,7 @@ function rand(){ return Math.random(); }
 
 function initState(){
   G={
-    floor:0, gold:0, life:3,
+    floor:0, gold:100, life:3,
     // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),
     enemies:[],
