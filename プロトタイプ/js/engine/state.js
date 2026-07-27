@@ -127,5 +127,6 @@ function initState(){
     _ringOfferUnlocked:false,
     _ringOfferResolved:false,
     _boardDiscardCount:0,
+    _bossRingOfferSeen:[],
   };
 }

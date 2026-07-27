@@ -1498,16 +1498,19 @@ function _ringHasTag(ring,tag){
   if(!ring||!tag) return false;
   return String(ring.tag||'').split(/[&,、]/).map(s=>s.trim()).filter(Boolean).includes(tag);
 }
+function _ringTagText(ring){ return String(ring&&ring.tag||'').trim(); }
+function _ringHasNoTag(ring){
+  const tag=_ringTagText(ring);
+  return !tag||tag==='-'||tag==='ー';
+}
 // ボス撃破後、現在保持するカードに含まれる文字が多いタグを参照し、2枚は一致するタグ、
 // 1枚はタグなしの指輪を提示する。
 function _pickRingOffer(){
   const pool=(typeof RING_POOL!=='undefined'&&Array.isArray(RING_POOL))?RING_POOL:[];
   if(!pool.length) return [];
-  const owned=new Set((G.rings||[]).filter(Boolean).map(r=>r.id||r.name));
-  let available=pool.filter(r=>r&&!owned.has(r.id||r.name));
-  // 安全弁：周回等で未所有の指輪が3枚未満になった場合、指輪提示自体が消えてしまわないよう
-  // 所有済みも含めた全体プールから補う（重複所持は許容する）。
-  if(available.length<3) available=pool.slice();
+  G._bossRingOfferSeen=Array.isArray(G._bossRingOfferSeen)?G._bossRingOfferSeen:[];
+  const seen=new Set(G._bossRingOfferSeen.filter(Boolean));
+  const available=pool.filter(r=>r&&!seen.has(r.id||r.name));
   const topTag=_topHeldCardTag();
   const pickRandom=(arr,n,exclude)=>{
     const src=arr.filter(r=>!exclude.has(r));
@@ -1526,14 +1529,17 @@ function _pickRingOffer(){
   if(taggedPicks.length<2){
     pickRandom(available,2-taggedPicks.length,used).forEach(r=>{ used.add(r); taggedPicks.push(r); });
   }
-  const noTagPool=available.filter(r=>!String(r.tag||'').trim());
+  const noTagPool=available.filter(r=>_ringHasNoTag(r));
   let noTagPick=pickRandom(noTagPool,1,used);
   if(!noTagPick.length) noTagPick=pickRandom(available,1,used);
   const result=[...taggedPicks,...noTagPick].filter(Boolean);
-  // 最終安全弁：指輪プール自体が3種未満などの極端なケースでも3枚は必ず提示する（重複可）。
-  while(result.length<3&&pool.length){
-    result.push(pool[Math.floor(Math.random()*pool.length)]);
-  }
+  result.slice(0,3).forEach(r=>{
+    const key=r&& (r.id||r.name);
+    if(key&&!seen.has(key)){
+      seen.add(key);
+      G._bossRingOfferSeen.push(key);
+    }
+  });
   return result.slice(0,3).map(r=>clone(r));
 }
 // 「編成完了」ボタンから呼ばれる：通常の報酬カード取得後、ボス報酬の指輪提示があれば
@@ -2929,7 +2935,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         ?(G._isShop?`<button class="discard-btn shop-board-sell-btn" title="売却">×</button><span class="shop-board-sell-value">+${_shopSellGain}G</span>`:(_debugDiscard?`<button class="discard-btn debug-board-discard" title="廃棄">×</button>`:(_ringOfferDiscardable?`<button class="discard-btn ring-offer-discard-btn" title="廃棄（指輪解放）">×</button>`:(_isCurrentRewardReturnCard(card)?`<button class="discard-btn reward-return-btn" title="報酬に戻す">×</button>`:''))))
         :arrName==='globalPanels'
         ?''
-        :G._isShop?`<button class="discard-btn" title="売却+1ゴールド" style="color:var(--gold2)">×</button>`:`<button class="discard-btn" title="破棄">×</button>`;
+        :`<button class="discard-btn" title="破棄">×</button>`;
       const _powerId=_mapPowerId||(_deployNum>=0?'summon':'');
       const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;
       if(_powerDef){
@@ -3054,8 +3060,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           return;
         }
         if(arrName==='globalPanels') return;
-        if(G._isShop){ arr[i]=null; G.gold+=1; refreshRewardGoldUi(); log(card.name+' を売却（+1ゴールド）','gold'); renderHandEditor(); }
-        else discardHeCard(arrName,i);
+        discardHeCard(arrName,i);
       };
       }
       if(arrName==='unitEquip') div.onclick=e=>{

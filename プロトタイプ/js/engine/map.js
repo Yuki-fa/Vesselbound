@@ -835,7 +835,9 @@ function _mapPickSaleCard(pred, used){
   ensurePanelSaleStock();
   const pool=(PANEL_POOL||[]).filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
   if(!pool.length) return null;
-  const def=randFrom(pool);
+  const currentGrade=typeof _currentRewardMapGrade==='function'?_currentRewardMapGrade(G.rewardGrade||1):(G.rewardGrade||1);
+  const def=typeof _rewardWeightedPick==='function'?_rewardWeightedPick(pool,currentGrade,used):randFrom(pool);
+  if(!def) return null;
   consumePanelSaleStock(def);
   used.add(def.id);
   const card=makePanel(def.id);

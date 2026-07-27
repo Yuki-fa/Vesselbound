@@ -260,10 +260,35 @@ function _panelColorBuffKey(color){
   return c;
 }
 
+const _REWARD_RARITY_WEIGHTS={1:50,2:25,3:15,4:7,5:3};
+
+function _currentRewardMapGrade(fallback){
+  const mapNo=Number(G&&G.worldMapRun&&G.worldMapRun.index)||Number(G&&G.worldMap&&G.worldMap.index)||0;
+  const base=Number.isFinite(mapNo)&&mapNo>0?mapNo:Number(fallback||G&&G.rewardGrade||1);
+  return Math.max(1,Math.min(5,base||1));
+}
+
+function _rewardWeightedPick(defs,currentGrade,usedIds){
+  const available=(defs||[]).filter(p=>p&&(!usedIds||!usedIds.has(p.id)));
+  if(!available.length) return null;
+  const cur=Math.max(1,Math.min(5,Number(currentGrade)||1));
+  const low=available.filter(p=>(Number(p.grade)||1)<=cur);
+  const high=available.filter(p=>(Number(p.grade)||1)>cur);
+  const gradePool=(high.length&&(!low.length||rand()>=0.85))?high:low.length?low:high;
+  if(!gradePool.length) return null;
+  const weighted=[];
+  gradePool.forEach(p=>{
+    const rarity=Math.max(1,Math.min(5,Number(p.rarity)||1));
+    const w=_REWARD_RARITY_WEIGHTS[rarity]||1;
+    for(let i=0;i<w;i++) weighted.push(p);
+  });
+  return weighted.length?randFrom(weighted):randFrom(gradePool);
+}
+
 function drawPanel(n=1, maxGrade){
   ensurePanelSaleStock();
-  const targetGrade=maxGrade!=null?maxGrade:(G.rewardGrade||1);
-  const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&(p.grade||1)<=targetGrade&&panelSaleStockCount(p)>0);
+  const currentGrade=_currentRewardMapGrade(maxGrade);
+  const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0);
   const charCandidates=panelCandidates.filter(p=>String(p.category||'')==='キャラクター');
   const enchantCandidates=panelCandidates.filter(p=>['エンチャント','強化'].includes(String(p.category||'')));
   const allPool=[...panelCandidates];
@@ -280,11 +305,8 @@ function drawPanel(n=1, maxGrade){
       available=allPool.filter(p=>!usedIds.has(p.id));
     }
     if(!available.length) break;
-    const weighted=available.flatMap(p=>{
-      const w=Math.max(1,7-(p.rarity||1));
-      return Array.from({length:w},()=>p);
-    });
-    const picked=randFrom(weighted);
+    const picked=_rewardWeightedPick(available,currentGrade,usedIds);
+    if(!picked) break;
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
     const card=makePanel(picked.id);
@@ -331,23 +353,21 @@ function addPanelToSalePool(panel){
   returnPanelToSalePool(panel);
 }
 
-// 売却払い戻し
+// 通常廃棄は指定がない限りゴールドを増やさない。ショップ売却はreward/map側の販売価格表を使う。
 function cardRefund(card){
-  if(!card) return 0;
-  if(card._isChar) return 1;
   return 0; // 指輪・杖・消耗品はすべてゴールド還元なし
 }
 
 // ── アイテムプールから N 個抽選 ─────────────────
 
 function drawItems(n, maxGrade){
-  const max=maxGrade!=null?maxGrade:5;
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&(p.rarity||1)<=max);
+  const currentGrade=_currentRewardMapGrade(maxGrade);
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p._implemented!==false);
   const res=[];
   const used=new Set();
   let t=0;
   while(res.length<n&&pool.length&&t++<100){
-    const cand=randFrom(pool.filter(p=>!used.has(p.id)));
+    const cand=_rewardWeightedPick(pool,currentGrade,used);
     if(!cand) break;
     used.add(cand.id);
     const item=makeItem(cand.id);
@@ -365,17 +385,15 @@ function drawRewards(n){
   }
   // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）は報酬カードを提示しない
   if(!(G.floor>0)) return [];
-  const appraiser=G.allies&&G.allies.some(a=>a&&a.hp>0&&typeof unitHasEquip==='function'&&unitHasEquip(a,'equip_appraiser'));
   const baseGrade=G.rewardGrade||1;
-  const boostGrade=Math.min(5,baseGrade+1);
-  const targetGrade=appraiser?boostGrade:undefined;
-  const res=drawPanel(5, targetGrade);
-  const maxGrade=targetGrade!=null?targetGrade:(G.rewardGrade||1);
+  const res=drawPanel(5, baseGrade);
+  const maxGrade=_currentRewardMapGrade(baseGrade);
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
-    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&(p.grade||1)<=maxGrade&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
+    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
     if(!candidates.length) return null;
-    const picked=randFrom(candidates);
+    const picked=_rewardWeightedPick(candidates,maxGrade,used);
+    if(!picked) return null;
     consumePanelSaleStock(picked);
     return makePanel(picked.id);
   };
