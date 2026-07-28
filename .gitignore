@@ -1,13 +1,34 @@
-# Adobe
+# Ignore everything by default. This repository should only track:
+# - prototype/
+# - docs/
+# - AGENTS.md
+# - CLAUDE.md
+*
+
+# Keep Git metadata files visible locally.
+!.gitignore
+
+# Tracked project scope.
+!AGENTS.md
+!CLAUDE.md
+!docs/
+!docs/**
+!prototype/
+!prototype/**
+
+# Common generated/local files inside allowed folders.
+**/.DS_Store
+**/Icon?
+
+# Explicitly keep large/local material outside Git.
+old_build/
+Build/
+VFXmp4/
+VFXwebp/
+画像素材/
+資料/
+*.gsheet
+*.numbers
 *.psd
 *.ai
-
-# Unity Build
-Build/
-
-# macOS
-.DS_Store
-
-# Numbers / Office
-*.numbers
-*.xlsx
+*.tmp
