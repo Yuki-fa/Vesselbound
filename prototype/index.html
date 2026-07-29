@@ -1659,6 +1659,30 @@ body.map-forge-roll-hide-cards .map-forge-roll-card-fade .shop-board-sell-value{
   opacity:0!important;
   transition:opacity .45s ease;
 }
+body.map-forge-roll-hide-cards .map-forge-roll-card-fade{
+  --card-frame:none!important;
+  --unit-frame:none!important;
+  background:url("assets/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+body.map-forge-roll-hide-cards .map-forge-roll-card-fade.deploy-slot{
+  background:url("assets/cards/card_back.png") center/100% 100% no-repeat!important;
+}
+body.map-forge-roll-hide-cards .map-forge-roll-card-fade::before{
+  opacity:1!important;
+}
+body.map-forge-roll-hide-cards .map-forge-roll-card-fade::after{
+  opacity:0!important;
+}
+body.map-forge-roll-hide-cards #hand-slots.unit-equip-slots .panel-unite-link{
+  opacity:0!important;
+}
+body.map-forge-roll-hide-cards .map-forge-roll-candidate::after,
+body.map-forge-roll-hide-cards .map-forge-roll-highlight::after{
+  opacity:1!important;
+}
 .map-forge-roll-candidate{
   position:relative;
   outline:3px solid rgba(118,220,255,.35);
@@ -8279,6 +8303,78 @@ html body.reward-screen-active .rew-card.cant .shop-insufficient-badge,
 html body.reward-screen-active .character-card.cant .shop-insufficient-badge{
   z-index:10002!important;
 }
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade{
+  --card-frame:none!important;
+  --unit-frame:none!important;
+  background:url("assets/cards/card_back_o.png") center/100% 100% no-repeat!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade.deploy-slot{
+  background:url("assets/cards/card_back.png") center/100% 100% no-repeat!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade::before{
+  opacity:1!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade::after{
+  opacity:0!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade > *{
+  opacity:0!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade .panel-dir-mark,
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade .panel-dir,
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade .discard-btn{
+  opacity:0!important;
+  visibility:hidden!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots .panel-unite-link{
+  opacity:0!important;
+  visibility:hidden!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .map-forge-roll-candidate::after,
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .map-forge-roll-highlight::after{
+  opacity:1!important;
+  background:radial-gradient(circle, rgba(126,222,255,.34), rgba(255,225,132,.12) 48%, transparent 72%)!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .map-forge-roll-highlight::after{
+  background:radial-gradient(circle, rgba(255,245,180,.65), rgba(85,195,255,.32) 54%, transparent 78%)!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade.map-forge-roll-candidate::after,
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade.map-forge-roll-highlight::after{
+  opacity:1!important;
+  background:radial-gradient(circle, rgba(126,222,255,.34), rgba(255,225,132,.12) 48%, transparent 72%)!important;
+}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade.map-forge-roll-highlight::after{
+  background:radial-gradient(circle, rgba(255,245,180,.65), rgba(85,195,255,.32) 54%, transparent 78%)!important;
+}
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.dragging,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.dragging{
+  opacity:0!important;
+  visibility:visible!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.dragging > *,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.dragging > *,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.drag-source-parts-hidden > *,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.drag-source-parts-hidden > *{
+  opacity:0!important;
+  visibility:visible!important;
+}
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.dragging::before,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.dragging::after,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.dragging::before,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.dragging::after,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.drag-source-parts-hidden::before,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #battle-order-row > .rew-card.drag-source-parts-hidden::after,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.drag-source-parts-hidden::before,
+html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.drag-source-parts-hidden::after{
+  opacity:0!important;
+  background:none!important;
+}
 #item-use-confirm{
   position:fixed;
   z-index:100200;
@@ -8587,10 +8683,10 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=rewardformula2"></script>
 <script src="js/engine/enemy.js?v=formula1"></script>
-<script src="js/engine/battle.js?v=forgefix1"></script>
+<script src="js/engine/battle.js?v=terrainfix1"></script>
 <script src="js/engine/render.js?v=resonance1"></script>
-<script src="js/engine/reward.js?v=forgefix1"></script>
-<script src="js/engine/map.js?v=forgefix1"></script>
+<script src="js/engine/reward.js?v=terrainfix1"></script>
+<script src="js/engine/map.js?v=terrainfix1"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
 <script src="js/engine/main.js?v=mapforge1"></script>
 </body>

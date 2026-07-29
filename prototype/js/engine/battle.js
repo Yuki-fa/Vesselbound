@@ -593,6 +593,7 @@ async function startBattle(){
   // 戦闘開始時キャラクター効果
   onBattleStart();
   if(typeof applyNewPanelBattleStart==='function') await applyNewPanelBattleStart();
+  _applyTerrainReinforcements();
 
   updateHUD();
   renderAll();
@@ -2216,6 +2217,71 @@ function _makePanelSummonUnit(spec, keywords){
     no:spec.no||'',
     lane:'front'
   };
+}
+
+function _terrainNpcSpec(name, fallbackAtk, fallbackHp){
+  const base=(typeof UNIT_POOL!=='undefined'&&Array.isArray(UNIT_POOL))
+    ?UNIT_POOL.find(u=>u&&u.name===name)
+    :null;
+  const mapNo=Math.max(1,Number(G&&G._mapBattle&&G._mapBattle.mapIndex)||Number(G&&G.worldMap&&G.worldMap.index)||1);
+  const atk=Math.max(0,Math.round(Number(base&&base.atk)||Number(fallbackAtk)||0));
+  const hp=Math.max(1,Math.round(Number(base&&base.hp)||Number(fallbackHp)||1));
+  return {
+    name,
+    atk,
+    hp,
+    race:(base&&base.race)||'NPC',
+    desc:(base&&base.desc)||(name==='戦士'?'負傷：このキャラクターにダメージを与えた敵はHP-Xを得る。Xはこのキャラクターが受けたダメージに等しい。':'常時：全ての味方は+X/+Xを得る。（Xは現在のマップの2倍に等しい）'),
+    keywords:[...(base&&base.keywords||[])],
+    color:(base&&base.color)||'',
+    sfxType:(base&&base.sfxType)||'',
+    art:(base&&typeof getCardAsset==='function'?getCardAsset(base):'')||'',
+    no:(base&&(base.no||base.imageNo||base.artCode||base._artCode))||'',
+    panelName:name,
+    _terrainNpc:true,
+    _terrainMapNo:mapNo,
+  };
+}
+function _placeTerrainNpcAt(slotIdx, spec){
+  const max=MAX_ALLIES||14;
+  if(!Number.isInteger(slotIdx)||slotIdx<0||slotIdx>=max) return null;
+  G.allies=Array.isArray(G.allies)?G.allies:new Array(max).fill(null);
+  while(G.allies.length<max) G.allies.push(null);
+  if(G.allies[slotIdx]&&G.allies[slotIdx].hp>0&&!G.allies[slotIdx]._isObject&&!G.allies[slotIdx]._isSoul) return null;
+  const unit=_makePanelSummonUnit(spec,[]);
+  unit._terrainNpc=true;
+  unit._battleSlot=slotIdx;
+  const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
+  unit.lane=slotIdx<frontSlots?'front':'rear';
+  G.allies[slotIdx]=unit;
+  return unit;
+}
+function _applyTerrainReinforcements(){
+  const b=G&&G._mapBattle;
+  if(!b||b._terrainReinforcementsApplied) return;
+  b._terrainReinforcementsApplied=true;
+  const terrain=String(b.terrainType||'');
+  const max=MAX_ALLIES||14;
+  const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
+  const rearSlots=Math.min(ENEMY_REAR_SLOTS||3,Math.max(0,max-frontSlots));
+  const added=[];
+  if(terrain==='village'){
+    const spec=_terrainNpcSpec('戦士',0,1);
+    [0,frontSlots-1].forEach(slot=>{ const u=_placeTerrainNpcAt(slot,spec); if(u) added.push(u); });
+  }else if(terrain==='start'){
+    const spec=_terrainNpcSpec('魔術師',0,1);
+    [frontSlots,frontSlots+Math.max(0,rearSlots-1)].forEach(slot=>{ const u=_placeTerrainNpcAt(slot,spec); if(u) added.push(u); });
+    const buff=Math.max(0,(Number(b.mapIndex)||Number(G.worldMap&&G.worldMap.index)||1)*2);
+    if(buff>0){
+      (G.allies||[]).forEach(u=>{
+        if(!u||u.hp<=0||u._isObject||u._isSoul) return;
+        u.atk=Math.max(0,(u.atk||0)+buff);
+        u.baseAtk=Math.max(0,(u.baseAtk||0)+buff);
+        addUnitHp(u,buff,'ally');
+      });
+    }
+  }
+  if(added.length) log(`${terrain==='village'?'村':'初期地点'}の援軍が現れた。`,'good');
 }
 
 function _panelSummonSpec(panel){

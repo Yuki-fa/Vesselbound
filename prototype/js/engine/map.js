@@ -8,6 +8,13 @@ const WORLD_MAP_SIZE=7;
 const WORLD_MAP_MAX_INDEX=4;
 const WORLD_MAP_BASE_TURN_LIMIT=15;
 const WORLD_MAP_CENTER=3*WORLD_MAP_SIZE+3;
+function _pickWorldMapStartId(){
+  const candidates=[];
+  for(let y=2;y<=4;y++){
+    for(let x=2;x<=4;x++) candidates.push(_mapIdx(x,y));
+  }
+  return randFrom(candidates)||WORLD_MAP_CENTER;
+}
 const MAP_PANEL_POWERS=[
   {id:'summon',name:'召喚の力',price:200,desc:'置いたカードがキャラクターなら開戦時に場に出る。'},
   {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターならステータスを2倍にし、開戦時に場に出る。'},
@@ -103,6 +110,25 @@ function _mapEdgeAngleOk(from,to,edges,pointFor,minDeg){
     return _mapAngleBetween(nextAngle,angle)<minRad;
   });
 }
+function _mapOrientation(a,b,c){
+  return ((b.py-a.py)*(c.px-b.px))-((b.px-a.px)*(c.py-b.py));
+}
+function _mapSegmentsIntersect(a,b,c,d){
+  const o1=_mapOrientation(a,b,c);
+  const o2=_mapOrientation(a,b,d);
+  const o3=_mapOrientation(c,d,a);
+  const o4=_mapOrientation(c,d,b);
+  return (o1*o2<0)&&(o3*o4<0);
+}
+function _mapEdgeCrossesAny(from,to,edges,pointFor){
+  const a=pointFor(from);
+  const b=pointFor(to);
+  return (edges||[]).some(e=>{
+    const sharesEndpoint=e[0]===from||e[1]===from||e[0]===to||e[1]===to;
+    if(sharesEndpoint) return false;
+    return _mapSegmentsIntersect(a,b,pointFor(e[0]),pointFor(e[1]));
+  });
+}
 function _mapEdgeNeighbors(id,edges){
   const out=[];
   (edges||[]).forEach(e=>{
@@ -179,6 +205,7 @@ const _MAP_NON_BATTLE_TYPES=new Set(['empty','elite','boss','village','event','t
 const _MAP_SPACED_SAME_TYPES=new Set(['village','elite','treasure']);
 function _canAssignMapNodeType(node,type,nodes,edges){
   if(!node||type==='battle'||type==='start') return true;
+  if(type==='empty'&&_isMapEdgeCell(node)) return false;
   if(type==='elite'&&(Number(node.dist)||0)<4) return false;
   if(_MAP_NON_BATTLE_TYPES.has(type)){
     const adjacentNonBattle=(nodes||[]).some(n=>n&&n!==node&&_MAP_NON_BATTLE_TYPES.has(n.type)&&_mapGraphDistanceInEdges(node.id,n.id,nodes,edges)===1);
@@ -193,13 +220,16 @@ function _canAssignMapNodeType(node,type,nodes,edges){
 function _weightedMapNodeTypes(){
   return ['battle','battle','battle','event','event','treasure','empty','empty','empty'];
 }
-function _isStartNeighborNode(id,edges){
-  return _mapEdgeNeighbors(WORLD_MAP_CENTER,edges||G.worldMap?.edges).includes(id);
+function _isStartNeighborNode(id,edges,startIdOverride){
+  const m=G&&G.worldMap;
+  const sid=startIdOverride!=null?startIdOverride:(m&&m.startId!=null?m.startId:WORLD_MAP_CENTER);
+  return _mapEdgeNeighbors(sid,edges||m?.edges).includes(id);
 }
 function _unknownMapNodesAtDistanceFromCurrent(dist){
   const m=G.worldMap;
   if(!m) return [];
-  return (m.nodes||[]).filter(n=>n&&n.id!==m.current&&n.id!==WORLD_MAP_CENTER&&!m.revealed[n.id]&&_mapGraphDistance(m.current,n.id)===dist);
+  const sid=m.startId!=null?m.startId:WORLD_MAP_CENTER;
+  return (m.nodes||[]).filter(n=>n&&n.id!==m.current&&n.id!==sid&&!m.revealed[n.id]&&_mapGraphDistance(m.current,n.id)===dist);
 }
 function _placeDeferredVillages(){
   const m=G.worldMap;
@@ -218,7 +248,7 @@ function _placeDeferredVillages(){
   first.type='village';
   first.cleared=false;
   const rest=(m.nodes||[])
-    .filter(n=>n&&n!==first&&n.id!==m.current&&n.id!==WORLD_MAP_CENTER&&!m.revealed[n.id]&&!protectedTypes.has(n.type)&&!_isStartNeighborNode(n.id,m.edges))
+    .filter(n=>n&&n!==first&&n.id!==m.current&&n.id!==(m.startId!=null?m.startId:WORLD_MAP_CENTER)&&!m.revealed[n.id]&&!protectedTypes.has(n.type)&&!_isStartNeighborNode(n.id,m.edges))
     .sort(()=>Math.random()-.5);
   for(const n of rest){
     if((m.nodes||[]).filter(v=>v.type==='village').length>=desired) break;
@@ -255,9 +285,45 @@ function _relocateUndiscoveredBossIfNeeded(){
   return true;
 }
 function _applyWorldMapTurnEvents(){
-  const placed=_placeDeferredVillages();
-  const moved=_relocateUndiscoveredBossIfNeeded();
-  return placed||moved;
+  return !!_placeDeferredVillages();
+}
+function _triggerWorldMapDefeat(reason){
+  const m=G&&G.worldMap;
+  if(m) m.defeatedReason=reason||'map';
+  if(typeof gameOver==='function') gameOver();
+  else { G.phase='gameover'; showScreen('gameover'); }
+  return {type:'gameover',id:m&&m.current};
+}
+function _worldMapLimitReached(){
+  const m=G&&G.worldMap;
+  if(!m) return false;
+  return (Number(m.turn)||0)>=Number(m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT);
+}
+function _worldMapNextTurnWouldForceBoss(){
+  const m=G&&G.worldMap;
+  if(!m) return false;
+  return (Number(m.turn)||0)+1>=Number(m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT);
+}
+function _startForcedWorldMapBossBattle(){
+  const m=G&&G.worldMap;
+  if(!m) return false;
+  const boss=_mapNodeById(m.bossNodeId)||(m.nodes||[]).find(n=>n&&n.type==='boss');
+  if(!boss) return false;
+  boss.type='boss';
+  boss.cleared=false;
+  boss.visible=true;
+  m.revealed=m.revealed||{};
+  m.revealed[boss.id]=true;
+  m.forcedBoss=true;
+  m.turn=Math.max(Number(m.turn)||0,Number(m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT));
+  startMapBattle('boss',boss.id,true);
+  return true;
+}
+function _checkWorldMapTurnLimitDefeat(){
+  return false;
+}
+function _mapNodeForceIconVisible(n){
+  return !!(n&&n.type==='boss');
 }
 function getWorldMapStageBackgroundKey(){
   if(!G||!G.worldMapRun) return null;
@@ -329,6 +395,10 @@ function _revealAroundCurrentMapNode(){
   const visible=new Set([node.id,..._mapEdgeNeighbors(node.id,m.edges)]);
   m.nodes.forEach(n=>{
     if(visible.has(n.id)){
+      if(n.type==='elite'&&!m.revealed[n.id]){
+        n.visible=false;
+        return;
+      }
       n.visible=true;
       m.revealed[n.id]=true;
     } else if(m.revealed[n.id]){
@@ -338,7 +408,8 @@ function _revealAroundCurrentMapNode(){
 }
 function generateWorldMap(index){
   const target=randi(36,40);
-  const picked=new Set([WORLD_MAP_CENTER]);
+  const startId=_pickWorldMapStartId();
+  const picked=new Set([startId]);
   const edges=[];
   const pointCache=new Map();
   const pointFor=id=>{
@@ -348,7 +419,7 @@ function generateWorldMap(index){
   while(picked.size<target){
     const frontier=[];
     picked.forEach(id=>_mapNeighborsWide(id).forEach(nb=>{
-      if(!picked.has(nb)&&!_mapEdgesWouldCrossDiagonal(id,nb,edges)&&_mapEdgeAngleOk(id,nb,edges,pointFor,30)) frontier.push({from:id,to:nb});
+      if(!picked.has(nb)&&!_mapEdgesWouldCrossDiagonal(id,nb,edges)&&!_mapEdgeCrossesAny(id,nb,edges,pointFor)&&_mapEdgeAngleOk(id,nb,edges,pointFor,30)) frontier.push({from:id,to:nb});
     }));
     if(!frontier.length) break;
     const next=randFrom(frontier);
@@ -356,22 +427,27 @@ function generateWorldMap(index){
     edges.push([next.from,next.to]);
   }
   const nodes=[...picked].map(id=>_newMapNode(id,pointFor(id)));
-  _computeMapDistances(nodes,WORLD_MAP_CENTER,edges);
-  let bossCandidates=nodes.filter(n=>n.id!==WORLD_MAP_CENTER&&n.dist>=4);
-  if(!bossCandidates.length) bossCandidates=nodes.filter(n=>n.id!==WORLD_MAP_CENTER);
+  _computeMapDistances(nodes,startId,edges);
+  let bossCandidates=nodes.filter(n=>n.id!==startId&&n.dist>=7);
+  if(!bossCandidates.length&&(generateWorldMap._retry||0)<80){
+    generateWorldMap._retry=(generateWorldMap._retry||0)+1;
+    return generateWorldMap(index);
+  }
+  generateWorldMap._retry=0;
+  if(!bossCandidates.length) bossCandidates=nodes.filter(n=>n.id!==startId).sort((a,b)=>b.dist-a.dist).slice(0,8);
   const boss=randFrom(bossCandidates.sort((a,b)=>b.dist-a.dist).slice(0,8));
   nodes.forEach(n=>{
-    if(n.id===WORLD_MAP_CENTER){ n.type='start'; n.visited=true; n.cleared=true; return; }
+    if(n.id===startId){ n.type='start'; n.visited=true; n.cleared=true; return; }
     n.type='battle';
   });
   if(boss&&_canAssignMapNodeType(boss,'boss',nodes,edges)) boss.type='boss';
   else if(boss) boss.type='boss';
   const assignTargets=nodes
-    .filter(n=>n.id!==WORLD_MAP_CENTER&&n!==boss&&!_isStartNeighborNode(n.id,edges))
+    .filter(n=>n.id!==startId&&n!==boss&&!_isStartNeighborNode(n.id,edges,startId))
     .sort(()=>Math.random()-.5);
   assignTargets.forEach(n=>{
     const pool=_weightedMapNodeTypes().sort(()=>Math.random()-.5);
-    const picked=pool.find(t=>!(_isMapEdgeCell(n)&&t==='empty')&&_canAssignMapNodeType(n,t,nodes,edges));
+    const picked=pool.find(t=>_canAssignMapNodeType(n,t,nodes,edges));
     n.type=picked||'battle';
   });
   {
@@ -382,17 +458,19 @@ function generateWorldMap(index){
     index:index||1,
     turn:0,
     turnLimit:WORLD_MAP_BASE_TURN_LIMIT,
-    current:WORLD_MAP_CENTER,
+    current:startId,
+    startId,
     nodes,
-    revealed:{[WORLD_MAP_CENTER]:true},
+    revealed:{[startId]:true},
     revealedEdges:{},
     forcedBoss:false,
     bossNodeId:boss&&boss.id,
     villagesPlaced:false,
-    bossRelocated:false,
+    bossRelocated:true,
     zoom:1.8,
     edges,
   };
+  if(boss){ boss.visible=true; m.revealed[boss.id]=true; }
   G.worldMap=m;
   _revealAroundCurrentMapNode();
   return m;
@@ -451,12 +529,16 @@ function renderWorldMap(){
   const currentNode=_mapCurrentNode();
   const roadDepth=new Map();
   if(currentNode){
+    const canPeekNode=id=>{
+      const n=by.get(id);
+      return !!n&&!(n.type==='elite'&&!G.worldMap.revealed?.[n.id]);
+    };
     roadDepth.set(currentNode.id,0);
-    _mapEdgeNeighbors(currentNode.id,G.worldMap.edges).forEach(id=>roadDepth.set(id,1));
+    _mapEdgeNeighbors(currentNode.id,G.worldMap.edges).forEach(id=>{ if(canPeekNode(id)) roadDepth.set(id,1); });
     [...roadDepth.entries()].forEach(([id,d])=>{
       if(d>=1) return;
       _mapEdgeNeighbors(id,G.worldMap.edges).forEach(nb=>{
-        if(!roadDepth.has(nb)) roadDepth.set(nb,d+1);
+        if(canPeekNode(nb)&&!roadDepth.has(nb)) roadDepth.set(nb,d+1);
       });
     });
   }
@@ -465,9 +547,11 @@ function renderWorldMap(){
       const m=by.get(pair[1]);
       if(!n||!m) return;
       const bothVisible=n.visible&&m.visible;
-      const peekingRoad=(roadDepth.get(n.id)<=1)||(roadDepth.get(m.id)<=1);
       const edgeKey=_mapEdgeKey(n.id,m.id);
       const edgeRevealed=!!(G.worldMap.revealedEdges&&G.worldMap.revealedEdges[edgeKey]);
+      const hiddenEliteEndpoint=(n.type==='elite'&&!G.worldMap.revealed?.[n.id])||(m.type==='elite'&&!G.worldMap.revealed?.[m.id]);
+      const peekingRoad=!hiddenEliteEndpoint&&((roadDepth.get(n.id)<=1)||(roadDepth.get(m.id)<=1));
+      if(hiddenEliteEndpoint&&!edgeRevealed) return;
       if(!bothVisible&&!peekingRoad&&!edgeRevealed) return;
       if(bothVisible||peekingRoad) _markMapEdgeRevealed(n.id,m.id);
       const edge=document.createElement('div');
@@ -484,12 +568,13 @@ function renderWorldMap(){
   grid.appendChild(edgeLayer);
   const current=G.worldMap.current;
   const selectable=new Set(G.worldMap.nodes
-    .filter(n=>n&&n.visible&&n.id!==current&&_mapPathBetween(current,n.id).length>1)
+    .filter(n=>n&&(n.visible||_mapNodeForceIconVisible(n))&&n.id!==current&&_mapPathBetween(current,n.id).length>1)
     .map(n=>n.id));
   G.worldMap.nodes.forEach(n=>{
-    if(!n.visible) return;
+    const forceIcon=_mapNodeForceIconVisible(n);
+    if(!n.visible&&!forceIcon) return;
     const btn=document.createElement('button');
-    const type=n.id===current?'player':(n.cleared&&n.type!=='village'&&n.type!=='boss'?'empty':n.type);
+    const type=n.id===current?'player':(n.cleared&&n.type!=='village'&&n.type!=='boss'?(n._clearedEvent?'empty2':'empty'):n.type);
     btn.className=`map-node type-${n.type}`;
     btn.style.left=`${n.px}%`;
     btn.style.top=`${n.py}%`;
@@ -517,6 +602,7 @@ function _mapNodeIcon(type){
   if(type==='village') return Assets.map.shop;
   if(type==='event') return Assets.map.event;
   if(type==='treasure') return Assets.map.treasure;
+  if(type==='empty2') return Assets.map.empty2||Assets.map.empty;
   return Assets.map.empty;
 }
 function _mapNodeTitle(n){
@@ -553,9 +639,11 @@ function _renderMapHud(panel){
     panel.appendChild(hud);
   }
   const m=G.worldMap;
-  hud.innerHTML=`<div>ターン ${m.turn}/${m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT}</div><button type="button" class="btn small" id="map-open-board-btn">編成</button>`;
+  hud.innerHTML=`<div>ターン ${m.turn}/${m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT}</div><button type="button" class="btn small" id="map-open-board-btn">編成</button><button type="button" class="btn small" id="map-wait-turn-btn">待機</button>`;
   const btn=hud.querySelector('#map-open-board-btn');
   if(btn) btn.onclick=()=>openMapFormation();
+  const waitBtn=hud.querySelector('#map-wait-turn-btn');
+  if(waitBtn) waitBtn.onclick=()=>skipWorldMapTurn();
 }
 function _consumePendingMapItemUse(){
   const pending=G._pendingMapItemUse;
@@ -612,22 +700,20 @@ function warpToNearestVillage(){
 function _elitePriorityTarget(node){
   const m=G.worldMap;
   if(!m||!node) return null;
-  const targets=[];
-  const player=_mapNodeById(m.current);
-  if(player) targets.push({node:player,priority:0});
+  const detours=[];
   (m.nodes||[]).forEach(n=>{
     if(!n||n===node) return;
-    if(n.type==='village'||n.type==='treasure') targets.push({node:n,priority:1});
+    if(n.type==='village'||n.type==='treasure'){
+      const dist=_mapGraphDistance(node.id,n.id);
+      if(dist>0&&dist<=2) detours.push({node:n,dist});
+    }
   });
-  const near=targets
-    .map(t=>({...t,dist:_mapGraphDistance(node.id,t.node.id)}))
-    .filter(t=>t.dist>0&&t.dist<=2)
-    .sort((a,b)=>a.dist-b.dist||a.priority-b.priority);
-  if(!near.length) return null;
-  const bestDist=near[0].dist;
-  const bestPri=near[0].priority;
-  const best=near.filter(t=>t.dist===bestDist&&t.priority===bestPri);
-  return randFrom(best).node;
+  if(detours.length){
+    detours.sort((a,b)=>a.dist-b.dist||Math.random()-.5);
+    const bestDist=detours[0].dist;
+    return randFrom(detours.filter(t=>t.dist===bestDist)).node;
+  }
+  return _mapNodeById(G.worldMap.startId!=null?G.worldMap.startId:WORLD_MAP_CENTER);
 }
 function _eliteNextNode(node){
   const m=G.worldMap;
@@ -643,7 +729,10 @@ function _eliteNextNode(node){
   const candidates=_mapEdgeNeighbors(node.id,m.edges)
     .map(_mapNodeById)
     .filter(to=>to&&to.type!=='boss'&&to.type!=='elite');
-  return candidates.length?randFrom(candidates):null;
+  if(!candidates.length) return null;
+  const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
+  candidates.sort((a,b)=>_mapGraphDistance(a.id,startId)-_mapGraphDistance(b.id,startId)||Math.random()-.5);
+  return candidates[0];
 }
 function _moveMapElites(){
   const m=G.worldMap;
@@ -658,10 +747,12 @@ function _moveMapElites(){
     const to=_eliteNextNode(n);
     if(!to) return;
     const bonus=(Number(n._elitePowerMult)||1)*(to.type==='village'||to.type==='treasure'?1.2:1);
+    n._terrainType=n.type||n._terrainType||'empty';
     n.type='empty';
     n.cleared=true;
     delete n._eliteMoveClock;
     delete n._elitePowerMult;
+    to._terrainType=to.type||to._terrainType||'empty';
     to.type='elite';
     to.cleared=false;
     to._eliteMoveClock=0;
@@ -680,6 +771,8 @@ function _spawnUnknownElite(){
   n.cleared=false;
   n._eliteMoveClock=0;
   n._elitePowerMult=1;
+  n.visible=false;
+  delete m.revealed[n.id];
   return true;
 }
 function _mapTurnStrengthMult(){
@@ -687,15 +780,34 @@ function _mapTurnStrengthMult(){
   const turn=Math.max(0,Number(m&&m.turn)||0);
   return 1+turn*.05;
 }
+async function skipWorldMapTurn(){
+  const m=G.worldMap;
+  if(!m||G.phase!=='map'||G._mapAutoMoving) return false;
+  G._mapAutoMoving=true;
+  try{
+    if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
+    m.turn=(Number(m.turn)||0)+1;
+    _applyWorldMapTurnEvents();
+    const encounter=_moveMapElites();
+    _revealAroundCurrentMapNode();
+    renderWorldMap();
+    updateHUD();
+    await _mapDelay(180);
+    if(encounter){
+      startMapBattle('elite',encounter.id,false);
+      return true;
+    }
+    _spawnUnknownElite();
+    return false;
+  }finally{
+    G._mapAutoMoving=false;
+  }
+}
 async function _moveToAdjacentMapNode(id,options){
   const m=G.worldMap;
   if(!m||!_mapNodeById(id)) return false;
   if(!_mapEdgeNeighbors(m.current,m.edges).includes(id)) return false;
-  if((m.turn||0)>=m.turnLimit){
-    m.turn=m.turnLimit;
-    startMapBattle('boss',m.current,true);
-    return true;
-  }
+  if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
   m.current=id;
   m.turn++;
   _applyWorldMapTurnEvents();
@@ -728,13 +840,13 @@ async function _moveToAdjacentMapNode(id,options){
     return true;
   } else {
     if(!(options&&options.deferEliteMove)){
-      _spawnUnknownElite();
       const encounter=_moveMapElites();
       _revealAroundCurrentMapNode();
       if(encounter){
         startMapBattle('elite',encounter.id,false);
         return true;
       }
+      _spawnUnknownElite();
     }
     renderWorldMap();
     return false;
@@ -759,16 +871,23 @@ async function moveToMapNode(id){
     G._mapAutoMoving=false;
   }
   if(G.phase==='map'&&G.worldMap){
-    _spawnUnknownElite();
     const encounter=_moveMapElites();
     _revealAroundCurrentMapNode();
-    if(encounter) startMapBattle('elite',encounter.id,false);
-    else renderWorldMap();
+    if(encounter){
+      startMapBattle('elite',encounter.id,false);
+    }else{
+      _spawnUnknownElite();
+      if(_worldMapLimitReached()) _startForcedWorldMapBossBattle();
+      else renderWorldMap();
+    }
   }
 }
 function startMapBattle(type,nodeId,forced){
   const m=G.worldMap;
   const node=_mapNodeById(nodeId);
+  const currentNode=_mapNodeById(m&&m.current);
+  const terrainNode=currentNode||node;
+  const terrainType=(terrainNode&&(terrainNode._terrainType||terrainNode.type))||'';
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
@@ -789,7 +908,7 @@ function startMapBattle(type,nodeId,forced){
   }
   const elitePowerMult=type==='elite'?1.2*Math.max(1,Number(node&&node._elitePowerMult)||1):1;
   const meteorMult=Math.max(0.1,Number(node&&node._meteorDebuff)||1);
-  G._mapBattle={mapIndex:m.index,nodeId,type,forcedBoss:!!forced,floor,battleNo:m.battleCount,normalBattleNo,turn:Number(m.turn)||0,elitePowerMult,meteorMult};
+  G._mapBattle={mapIndex:m.index,nodeId,type,forcedBoss:!!forced,floor,battleNo:m.battleCount,normalBattleNo,turn:Number(m.turn)||0,elitePowerMult,meteorMult,terrainType,terrainNodeId:terrainNode&&terrainNode.id};
   G.floor=G._mapBattle.floor;
   const turnMult=_mapTurnStrengthMult();
   G._extraBattleMult=turnMult*elitePowerMult*meteorMult;
@@ -849,11 +968,26 @@ function advanceWorldMapAfterBoss(){
 function handleMapBattleDefeat(){
   const b=G._mapBattle;
   if(!b) return false;
-  if(b.type==='boss'||b.forcedBoss) return false;
+  if(b.type==='boss'||b.forcedBoss){
+    G._mapBattle=null;
+    G._mapEliteBattle=false;
+    G._forceBossMult=null;
+    _triggerWorldMapDefeat('boss_defeat');
+    return true;
+  }
   const alive=(G.enemies||[]).filter(e=>e&&e.hp>0&&!e._isObject).length;
   if(G.worldMap){
-    G.worldMap.turn=(G.worldMap.turn||0)+alive;
-    _applyWorldMapTurnEvents();
+    for(let i=0;i<alive;i++){
+      if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
+      G.worldMap.turn=(G.worldMap.turn||0)+1;
+      _applyWorldMapTurnEvents();
+      const encounter=_moveMapElites();
+      if(encounter){
+        startMapBattle('elite',encounter.id,false);
+        return true;
+      }
+      _spawnUnknownElite();
+    }
   }
   G._mapBattle=null;
   G._mapEliteBattle=false;
@@ -1052,15 +1186,25 @@ async function _playMapForgeSlotRoll(candidates,target){
   const ordered=[...candidates].sort((a,b)=>a-b);
   G._mapForgeAnimating=true;
   G._mapForgeCandidateSlots=ordered;
+  G._mapForgeHighlightSlot=null;
   document.body?.classList.remove('map-forge-roll-hide-cards');
   if(typeof renderHandEditor==='function') renderHandEditor();
-  await _mapDelay(80);
+  await _mapDelay(120);
   document.body?.classList.add('map-forge-roll-hide-cards');
-  await _mapDelay(520);
-  const steps=Math.max(24,ordered.length*8);
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(ordered.length<=1){
+    G._mapForgeHighlightSlot=target;
+    if(typeof renderHandEditor==='function') renderHandEditor();
+    await _mapDelay(260);
+    return;
+  }
+  await _mapDelay(260);
+  const targetPos=Math.max(0,ordered.indexOf(target));
+  const loops=4;
+  const steps=ordered.length*loops+targetPos+1;
   for(let s=0;s<steps;s++){
-    const t=s/(steps-1);
-    const delay=35+Math.pow(Math.abs(t-.42)*2,1.8)*170;
+    const t=steps<=1?1:s/(steps-1);
+    const delay=32+Math.pow(t,2.2)*150;
     G._mapForgeHighlightSlot=ordered[s%ordered.length];
     if(typeof renderHandEditor==='function') renderHandEditor();
     await _mapDelay(delay);
@@ -1081,6 +1225,7 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   G._pendingMapForgePower=power;
   G._mapForgeAnimating=true;
   G._mapForgeCandidateSlots=[...candidates].sort((a,b)=>a-b);
+  G._mapForgeHighlightSlot=null;
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   renderMapForgeOffers();
   await _playMapForgeSlotRoll(candidates,target);
@@ -1172,6 +1317,9 @@ function openMapTreasure(){
 }
 function resolveMapEvent(node){
   node.cleared=true;
+  node.type='empty';
+  node._clearedEvent=true;
+  delete node._terrainType;
   const r=Math.floor(Math.random()*3);
   if(r===0){
     const c=drawPanel(1,Math.min(5,G.rewardGrade||1))[0];

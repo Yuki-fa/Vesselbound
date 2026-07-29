@@ -1453,9 +1453,10 @@ function _mkRewDiv(card, onBuy, rewIdx){
         if(itemArt) _dragGhostDiv.style.setProperty('--item-art',itemArt);
       }
       div.classList.add('dragging');
+      _hideDragSourceParts(div);
     });
     div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-    div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
+    div.addEventListener('dragend',()=>{ _restoreDragSourceParts(div); div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
   }
   return div;
 }
@@ -3200,6 +3201,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
   }
   if(arrName==='unitEquip'){
     const _uniteOwner=_getPartyBoardUnit();
+    if(G&&G._mapForgeAnimating){
+      try{ el.querySelectorAll('.panel-unite-link').forEach(n=>n.remove()); }catch(e){}
+      return;
+    }
     // ここで例外が発生すると、呼び出し元のrenderHandEditor()がこの後に行う
     // hand-count/hand-max更新や、さらにその呼び出し元（配置・破棄処理）の後続処理まで
     // 中断されてしまい、「破棄ボタンが押せない」「新しいカードを配置できない」といった
