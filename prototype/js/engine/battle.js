@@ -1965,25 +1965,8 @@ function _mapPanelPowerAt(idx){
   return (typeof MAIN_BOARD_DEPLOY_SLOTS!=='undefined'&&MAIN_BOARD_DEPLOY_SLOTS.includes(idx))?'summon':'';
 }
 
-function _isResonanceEnhancementPanel(panel, idx){
-  return _isCharacterPanel(panel)&&_mapPanelPowerAt(idx)==='resonance';
-}
-
-function _isEnhancementConnectorPanel(panel, idx){
-  return _isEnhancementPanel(panel)||_isResonanceEnhancementPanel(panel,idx);
-}
-
-function _asEnhancementEffectPanel(panel, idx){
-  if(!_isResonanceEnhancementPanel(panel,idx)) return panel;
-  const p={...clone(panel)};
-  p.category='エンチャント';
-  p._resonanceCharacterEnhancement=true;
-  p._resonanceEffectName=panel.name||'';
-  p.characterDesc=String(panel.desc||panel.effectText||panel.effect||'').trim();
-  p.adjacentAtkBonus=0;
-  p.adjacentHpBonus=0;
-  p.adjacentKeywords=[...(panel.keywords||[])];
-  return p;
+function _isEnhancementConnectorPanel(panel){
+  return _isEnhancementPanel(panel);
 }
 
 function _directionFromPanelToSlot(panelIdx, targetIdx){
@@ -2053,26 +2036,26 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
   const seen=new Set();
   const queue=[];
   panels.forEach((panel,idx)=>{
-    if(idx===slotIdx||!panel||!_isEnhancementConnectorPanel(panel,idx)) return;
+    if(idx===slotIdx||!panel||!_isEnhancementConnectorPanel(panel)) return;
     if(!_isAdjacentPanelSlot(slotIdx,idx)) return;
     if(!_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,slotIdx))) return;
     if(!_panelAllowsDirection(panels[slotIdx],_directionFromPanelToSlot(slotIdx,idx))) return;
     seen.add(idx);
     queue.push(idx);
-    result.push({panel:_asEnhancementEffectPanel(panel,idx),idx});
+    result.push({panel,idx});
   });
   while(queue.length){
     const idx=queue.shift();
     const panel=panels[idx];
     panels.forEach((next,nIdx)=>{
-      if(seen.has(nIdx)||nIdx===slotIdx||!next||!_isEnhancementConnectorPanel(next,nIdx)) return;
+      if(seen.has(nIdx)||nIdx===slotIdx||!next||!_isEnhancementConnectorPanel(next)) return;
       if(!_isAdjacentPanelSlot(idx,nIdx)) return;
       const mutual=_panelAllowsDirection(panel,_directionFromPanelToSlot(idx,nIdx))&&
         _panelAllowsDirection(next,_directionFromPanelToSlot(nIdx,idx));
       if(!mutual) return;
       seen.add(nIdx);
       queue.push(nIdx);
-      result.push({panel:_asEnhancementEffectPanel(next,nIdx),idx:nIdx});
+      result.push({panel:next,idx:nIdx});
     });
   }
   return result;
@@ -2946,6 +2929,10 @@ function _battleSlotForMainBoardSlot(idx,toRear){
 async function applyNewPanelBattleStart(){
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
   const equip=board&&Array.isArray(board.equipment)?board.equipment:[];
+  // 共鳴の力：開戦時に場に出た同色の味方全員へ+3/+3を与える。対象キャラの出撃が全て終わった後に
+  // まとめて適用するため、該当パネルの色だけここに集めておく（deploySlotGroup内では未出撃の味方に
+  // 反映漏れが起きるため）。
+  const pendingResonanceColors=[];
   // メイン置き場①〜⑦の物理位置がそのまま出撃順を決める。前衛①②③④、後衛⑤⑥⑦。
   // _summonPanelUnitToFront/Rearは各レーンの右詰めで配置するため、並び順の先頭が左端に来るよう逆順で召喚する
   const deploySlotGroup=(slots,toRear)=>{
@@ -2964,10 +2951,10 @@ async function applyNewPanelBattleStart(){
         spec.hp=(Number(spec.hp)||0)+5;
       }
       if(panelPower==='life'){
-        spec.atk=Math.max(1,Math.round((Number(spec.atk)||1)*2));
         spec.hp=Math.max(1,Math.round((Number(spec.hp)||1)*2));
       }
       if(panelPower==='duplicate') spec.count=(spec.count||1)+1;
+      if(panelPower==='resonance') pendingResonanceColors.push(String(panel.color||''));
       const enh=_collectAdjacentEnhancements(board,idx);
       const contributingPanels=typeof _collectEnhancementPanelsForSlot==='function'?_collectEnhancementPanelsForSlot(board,idx):[];
       const openingCopyExtra=(spec.count||1)>1
@@ -2984,9 +2971,6 @@ async function applyNewPanelBattleStart(){
         // コピー召喚先にも強化カードの効果全文がフロー表示されるよう、寄与している強化パネルを複製して引き継ぐ
         if(contributingPanels.length){
           summoned.equipment=_panelSummonDisplayEquipment(panel,contributingPanels);
-        }
-        if(panelPower==='resonance'){
-          summoned.equipment=_panelSummonDisplayEquipment(panel,[panel,...contributingPanels]);
         }
         const placed=toRear?_summonPanelUnitToRear(summoned,false):_summonPanelUnitToFront(summoned,false);
         if(placed>=0){
@@ -3006,6 +2990,15 @@ async function applyNewPanelBattleStart(){
   deploySlotGroup(rearSlots,true);
   deploySlotGroup(poweredSlots.filter(idx=>idx<10),false);
   deploySlotGroup(poweredSlots.filter(idx=>idx>=10),true);
+  pendingResonanceColors.forEach(color=>{
+    if(!color) return;
+    (G.allies||[]).forEach(u=>{
+      if(!u||u.hp<=0||u.color!==color) return;
+      u.atk=Math.max(0,(u.atk||0)+3);
+      u.baseAtk=Math.max(0,(u.baseAtk||0)+3);
+      addUnitHp(u,3,'ally');
+    });
+  });
   (G.allies||[]).forEach(u=>{
     if(!u||u.hp<=0||!Number.isInteger(u._mainBoardSlot)) return;
     _applyAdjacentPanelEnhancements(u,_collectAdjacentEnhancements(board,u._mainBoardSlot));

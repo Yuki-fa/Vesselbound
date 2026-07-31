@@ -1569,6 +1569,15 @@ html body .slot.dragging{
   cursor:pointer!important;
   filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,255,255,.95))!important;
 }
+.map-node.map-node-midstep{
+  cursor:pointer!important;
+  filter:drop-shadow(0 0 6px rgba(255,90,90,.95)) drop-shadow(0 0 16px rgba(255,140,60,.8))!important;
+  animation:map-node-midstep-pulse 1s ease-in-out infinite alternate!important;
+}
+@keyframes map-node-midstep-pulse{
+  from{opacity:.75}
+  to{opacity:1}
+}
 .map-node.type-boss.boss-visible,
 .map-node.type-boss.boss-visible.is-moveable{
   filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
@@ -6480,6 +6489,21 @@ html body.reward-screen-active #reward-production-ui{
   z-index:2!important;
   pointer-events:none!important;
 }
+/* 所持金・ターン表示（枠込み）は編成画面専用UIの一部だが、マップ・戦闘画面でも同じ位置に表示する。
+   編成画面以外では#reward-production-ui内の他セクション（アイテム・指輪・クエスト等）は出さない。 */
+html body:not(.reward-screen-active) #reward-production-ui{
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:2!important;
+  pointer-events:none!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-title,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-item,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-ring,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-quest{
+  display:none!important;
+}
 html body.reward-screen-active .reward-prod-title{
   position:absolute;
   left:70px;
@@ -7981,6 +8005,93 @@ html body.reward-screen-active .reward-prod-turn strong{
   text-align:right!important;
   white-space:nowrap!important;
 }
+/* 所持金・ターン枠：編成画面以外（マップ・戦闘画面）でも編成画面と全く同じ位置・見た目で表示する。
+   既存の.reward-screen-active専用ルール群には手を加えず、並行する形で複製する。 */
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile h2::before,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile h2::after{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile h2,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile strong{
+  color:#c49a6c!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-bottom{
+  position:absolute!important;
+  left:70px!important;
+  top:1990px!important;
+  width:1020px!important;
+  height:183px!important;
+  pointer-events:auto!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile{
+  position:absolute!important;
+  top:0!important;
+  width:491.8px!important;
+  height:100px!important;
+  background:url("assets/ui/money_turn.png") center/100% 100% no-repeat!important;
+  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  pointer-events:auto!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-money{
+  left:0!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn{
+  left:528.2px!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-money h2{
+  position:absolute!important;
+  left:50px!important;
+  top:35px!important;
+  right:auto!important;
+  width:auto!important;
+  margin:0!important;
+  font-size:30px!important;
+  font-weight:700!important;
+  line-height:1!important;
+  text-align:left!important;
+  white-space:nowrap!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-money strong{
+  position:absolute!important;
+  left:0!important;
+  width:440px!important;
+  top:27px!important;
+  right:auto!important;
+  margin:0!important;
+  font-size:46px!important;
+  font-weight:800!important;
+  line-height:1!important;
+  text-align:right!important;
+  white-space:nowrap!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn h2{
+  position:absolute!important;
+  left:51px!important;
+  top:35px!important;
+  right:auto!important;
+  width:auto!important;
+  margin:0!important;
+  font-size:30px!important;
+  font-weight:700!important;
+  line-height:1!important;
+  text-align:left!important;
+  white-space:nowrap!important;
+}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn strong{
+  position:absolute!important;
+  left:0!important;
+  width:441px!important;
+  top:27px!important;
+  right:auto!important;
+  margin:0!important;
+  font-size:46px!important;
+  font-weight:800!important;
+  line-height:1!important;
+  text-align:right!important;
+  white-space:nowrap!important;
+}
 html body.reward-screen-active .reward-prod-spell .reward-prod-slots i{
   border:0!important;
   border-radius:0!important;
@@ -8260,10 +8371,7 @@ html body .drag-ghost{
 }
 html body.world-map-active #scr-battle > .bottom-hud,
 html body.world-map-active #scr-battle .bottom-hud,
-html body.world-map-active #reward-info-bar,
-html body.world-map-active #reward-production-ui .reward-prod-money,
-html body.world-map-active #reward-production-ui .reward-prod-turn,
-html body.world-map-active #reward-production-ui .reward-prod-bottom{
+html body.world-map-active #reward-info-bar{
   display:none!important;
   opacity:0!important;
   visibility:hidden!important;
@@ -8400,6 +8508,39 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
   font-size:calc(22px * var(--game-scale));
   padding:.45em .9em;
 }
+#map-confirm-dialog{
+  position:fixed;
+  inset:0;
+  z-index:100200;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.45);
+}
+#map-confirm-dialog .map-confirm-box{
+  min-width:calc(320px * var(--game-scale));
+  padding:calc(20px * var(--game-scale));
+  border:calc(2px * var(--game-scale)) solid rgba(216,185,130,.8);
+  background:rgba(18,10,4,.96);
+  box-shadow:0 0 calc(28px * var(--game-scale)) rgba(0,0,0,.72);
+  color:var(--gold2);
+  text-align:center;
+}
+#map-confirm-dialog .map-confirm-msg{
+  font-family:var(--font-hd);
+  font-size:calc(26px * var(--game-scale));
+  color:#f2d9a0;
+  margin-bottom:calc(16px * var(--game-scale));
+}
+#map-confirm-dialog .map-confirm-btns{
+  display:flex;
+  gap:calc(12px * var(--game-scale));
+  justify-content:center;
+}
+#map-confirm-dialog .btn{
+  font-size:calc(22px * var(--game-scale));
+  padding:.45em 1.2em;
+}
 html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #main-hand-area,
 html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane,
 html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane-board-bg,
@@ -8422,6 +8563,13 @@ html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #bat
   filter:none!important;
   opacity:1!important;
   visibility:visible!important;
+}
+/* 2026-07-29: カードドラッグ中に#battle-order-section内へfilter:none/opacity:1を強制する上記ルール群が、
+   栄光の力画面で未解放（暗転表示）の指輪提示カードまで明るくしてしまうのを防ぐ。
+   ドラッグ対象のカード種別に関わらず、未解放の指輪提示カードは常に暗転表示のままにする。 */
+html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot,.dragzone-reward-item,.dragzone-itemslot) #battle-order-section .ring-offer-card.ring-offer-locked{
+  opacity:0.42!important;
+  filter:grayscale(0.6) brightness(0.65)!important;
 }
 </style>
 </head>
@@ -8683,11 +8831,11 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=rewardformula2"></script>
 <script src="js/engine/enemy.js?v=formula1"></script>
-<script src="js/engine/battle.js?v=terrainfix1"></script>
+<script src="js/engine/battle.js?v=resonance2"></script>
 <script src="js/engine/render.js?v=resonance1"></script>
-<script src="js/engine/reward.js?v=terrainfix1"></script>
-<script src="js/engine/map.js?v=terrainfix1"></script>
+<script src="js/engine/reward.js?v=bondscroll1"></script>
+<script src="js/engine/map.js?v=eliteintercept2"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=mapforge1"></script>
+<script src="js/engine/main.js?v=moneyturn1"></script>
 </body>
 </html>

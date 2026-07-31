@@ -35,6 +35,9 @@ function updateHUD(){
   }
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
+  // 所持金・ターン枠（編成画面と同じ#reward-production-ui .reward-prod-bottom）は
+  // マップ・戦闘画面でも常時表示するため、reward.js側の描画を待たずここでも更新する。
+  if(typeof _syncMoneyTurnTile==='function') _syncMoneyTurnTile();
   if(G._debugMode){
     _positionDebugKillButton();
     _positionDebugMuteButton();

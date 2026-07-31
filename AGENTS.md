@@ -8,9 +8,11 @@
 
 ## 現在の状態（最新セッション終了時点）
 
-- 現在は `main` ブランチで未コミット変更あり。対象は `AGENTS.md`, `prototype/index.html`, `prototype/js/engine/battle.js`, `prototype/js/engine/map.js`, `prototype/js/engine/reward.js`。
-- 直近では、マップ端の通常空白禁止、イベント消化後の空白アイコン化、鍛冶屋抽選中のカード下地維持、村/初期地点での地形援軍出現を修正。
-- 動作確認は `node --check prototype/js/engine/map.js`, `node --check prototype/js/engine/battle.js` とNode VM簡易検査まで完了。実機目視は未実施。
+- 現在は `main` ブランチで未コミット変更あり。対象は `prototype/index.html`, `prototype/js/engine/battle.js`, `prototype/js/engine/main.js`, `prototype/js/engine/reward.js`, `prototype/js/engine/map.js`。
+- 生命の力（HPのみ2倍）・共鳴の力（同色の味方全員+3/+3）へ効果変更。ボス非配置化＋15ターン目到達時に現在地へ強制出現（14ターン目ではなく15ターン目の移動で発生するよう修正済み）。エリート4体開始配置＋2ターン移動＋探知2マスAIへ刷新（マップ構成比は全49マス固定）。
+- エリート迎撃機能を追加：1歩目は見た目上道の途中に表示（中間点描画）、道の途中のエリートをクリックで「ここで迎撃しますか？」、通常エリートマスへの移動先選択で「ここに移動すると戦闘になります」の確認ダイアログを表示（`_openMapConfirmDialog`）。敗北時は移動履歴を2歩後退、遡れなければ視認済みの村か初期地点の近い方へワープ（`_retreatWorldMapAfterDefeat`）。
+- 副次バグ修正：エリート撃破後に他のエリートが視認できなくなる不具合（`_revealAroundCurrentMapNode`の旧・隠れエリート分岐が新仕様と衝突していた）を修正。絆の巻物：キーワード合体（数値のみ加算、非数値は重複させない）と各種数値フィールド（マナ/ゴールド/召喚数）の合算が抜けていたのを追加。
+- 動作確認は `node --check` 一式に加え、実機（プレビューブラウザ・DEBUG MODE、console直叩き）でエリート迎撃フロー・移動確認・敗北後退・地形援軍（村/初期地点）・絆の巻物の合体結果まで確認済み。
 - 今後この節は古い履歴を保持せず、作業完了ごとに最新の3〜5行へ上書き更新する。
 
 ## 承認設定

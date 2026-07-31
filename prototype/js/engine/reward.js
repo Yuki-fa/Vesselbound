@@ -776,12 +776,27 @@ function _returnDragSrcToRewardArea(targetIdx){
 }
 // 報酬カード置き場：配置順（戦闘順序）置き場を廃止し、同じ画面位置（#battle-order-section）にそのまま
 // 報酬カードを横スクロール行として並べる。データ(_rewCards)自体は従来通り。
+// 所持金・ターン枠（#reward-production-ui .reward-prod-bottom）の表示更新。
+// 編成画面専用ではなく、マップ・戦闘画面でも同じ枠を常時表示するため、
+// 報酬フェイズ外からも（updateHUD経由で）呼べるよう独立させてある。
+function _syncMoneyTurnTile(){
+  const gold=document.querySelector('.reward-prod-money-value');
+  if(gold) gold.textContent=Number(G.gold||0).toLocaleString('ja-JP');
+  const turn=document.querySelector('.reward-prod-turn-value');
+  if(turn){
+    const map=G.worldMap||null;
+    const cur=map?Math.max(0,Number(map.turn)||0):Math.max(0,Number(G.floor)||0);
+    const limit=map?Math.max(1,Number(map.turnLimit)||15):100;
+    turn.textContent=`${cur} / ${limit}`;
+  }
+}
 function _syncRewardProductionUi(){
   const body=document.body;
   if(!body) return;
   if(!G||G.phase!=='reward'){
     body.classList.remove('reward-pick-finished','reward-return-open','reward-pick-taken','forge-screen-active','shop-screen-active');
     body.classList.remove('map-forge-roll-hide-cards');
+    _syncMoneyTurnTile();
     return;
   }
   body.classList.toggle('forge-screen-active',!!G._isForge);
@@ -793,17 +808,14 @@ function _syncRewardProductionUi(){
   body.classList.toggle('reward-pick-finished',finished);
   body.classList.toggle('reward-return-open',returned||returnDragging);
   // 編成完了ボタンのfix.png表示切り替え用：元々持っていたカードを報酬置き場に残していても
-  // （＝returnedがtrueでも）、無料ピックを取得済みならfix.png表示とする
-  body.classList.toggle('reward-pick-taken',!!(G._rewardOnePickMode&&_rewFreePickDone&&!G._pendingPanelPlacement&&!returnDragging));
-  const gold=document.querySelector('.reward-prod-money-value');
-  if(gold) gold.textContent=Number(G.gold||0).toLocaleString('ja-JP');
-  const turn=document.querySelector('.reward-prod-turn-value');
-  if(turn){
-    const map=G.worldMap||null;
-    const cur=map?Math.max(0,Number(map.turn)||0):Math.max(0,Number(G.floor)||0);
-    const limit=map?Math.max(1,Number(map.turnLimit)||15):100;
-    turn.textContent=`${cur} / ${limit}`;
-  }
+  // （＝returnedがtrueでも）、無料ピックを取得済みならfix.png表示とする。
+  // 栄光の力（指輪提示）画面中は「指輪を取らない」ラベルの間はfix.png/fix_backを出さず、
+  // 「決定」（指輪を取得済み＝G._ringOfferResolved）になって初めてfix表示にする。
+  const pickTaken=G._ringOfferPhase
+    ?!!G._ringOfferResolved
+    :!!(G._rewardOnePickMode&&_rewFreePickDone&&!G._pendingPanelPlacement&&!returnDragging);
+  body.classList.toggle('reward-pick-taken',pickTaken);
+  _syncMoneyTurnTile();
   _syncRewardProductionItems();
   _syncRewardProductionRings();
 }
@@ -948,6 +960,32 @@ function _consumeItemSlot(idx){
   renderRewCards();
   updateHUD();
 }
+// 絆の巻物：キーワードの合体ルール。「毒3」「封印2」等、末尾が数値のキーワードは数値同士を
+// 加算する。数値の無い単純なキーワード（先制・即死等）は重複させず1つのまま残す。
+function _mergeCardKeywordsForBond(baseKeywords,addKeywords){
+  const result=[...(Array.isArray(baseKeywords)?baseKeywords:[])];
+  (Array.isArray(addKeywords)?addKeywords:[]).forEach(k=>{
+    const raw=String(k||'').trim();
+    if(!raw) return;
+    const m=/^(.*?)(\d+)$/.exec(raw);
+    if(m){
+      const prefix=m[1],num=parseInt(m[2],10)||0;
+      const idx=result.findIndex(rk=>{
+        const rm=/^(.*?)(\d+)$/.exec(String(rk||''));
+        return rm&&rm[1]===prefix;
+      });
+      if(idx>=0){
+        const rm=/^(.*?)(\d+)$/.exec(String(result[idx]||''));
+        result[idx]=`${prefix}${(parseInt(rm[2],10)||0)+num}`;
+      }else{
+        result.push(raw);
+      }
+    }else if(!result.includes(raw)){
+      result.push(raw);
+    }
+  });
+  return result;
+}
 function _canUseItemNow(card){
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
@@ -1055,10 +1093,18 @@ function handlePendingItemBoardTarget(slotIdx){
     }
     first.power=(Number(first.power)||0)+(Number(card.power)||0);
     first.life=(Number(first.life)||0)+(Number(card.life)||0);
+    first.manaOnAttack=(Number(first.manaOnAttack)||0)+(Number(card.manaOnAttack)||0);
+    first.manaOnInjury=(Number(first.manaOnInjury)||0)+(Number(card.manaOnInjury)||0);
+    first.manaOnDeath=(Number(first.manaOnDeath)||0)+(Number(card.manaOnDeath)||0);
+    first.goldOnBattleEnd=(Number(first.goldOnBattleEnd)||0)+(Number(card.goldOnBattleEnd)||0);
+    first.goldOnDeath=(Number(first.goldOnDeath)||0)+(Number(card.goldOnDeath)||0);
+    first.summonCount=(Number(first.summonCount)||1)+(Number(card.summonCount)||1);
+    first.keywords=_mergeCardKeywordsForBond(first.keywords,card.keywords);
     first.rarity=Math.min(5,(Number(first.rarity)||1)+1);
     first.grade=Math.max(Number(first.grade)||1,first.rarity);
     first.directionCount=4;
     first._merged=true;
+    // 自身が持っていた効果（開戦・負傷・死亡等のトリガー効果）を2回分発動させる。
     first.effectRepeatBonus=(Number(first.effectRepeatBonus)||0)+1;
     equips[slotIdx]=null;
     G._pendingItemUse=null; _consumeItemSlot(pending.slotIdx); log(`${first.name}を合体した。`,'gold'); return true;

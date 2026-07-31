@@ -17,9 +17,9 @@ function _pickWorldMapStartId(){
 }
 const MAP_PANEL_POWERS=[
   {id:'summon',name:'召喚の力',price:200,desc:'置いたカードがキャラクターなら開戦時に場に出る。'},
-  {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターならステータスを2倍にし、開戦時に場に出る。'},
+  {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターなら、開戦時に場に出してHPを2倍にする。'},
   {id:'eternal',name:'永劫の力',price:600,desc:'置いたカードがキャラクターなら永久に+5/+5してから場に出る。'},
-  {id:'resonance',name:'共鳴の力',price:800,desc:'置いたカードがキャラクターなら、それは強化としても扱い、開戦時に場に出る。'},
+  {id:'resonance',name:'共鳴の力',price:800,desc:'置いたカードがキャラクターなら、開戦時に場に出して全ての同色の味方に+3/+3を与える。'},
   {id:'duplicate',name:'複製の力',price:1000,desc:'置いたカードがキャラクターなら、開戦時に場に出てコピーを1体生成する。'},
 ];
 window.MAP_PANEL_POWERS=MAP_PANEL_POWERS;
@@ -86,11 +86,14 @@ function _mapVisualPointFor(id){
   const stepY=(100-marginY*2)/(WORLD_MAP_SIZE-1);
   const rawX=marginX+x*stepX;
   const rawY=marginY+y*stepY;
+  // 全49マス（7x7グリッド全体）を使い切るため、圧縮率を上げて配置間隔を広く取り、
+  // ランダムなずれ幅も縮小する（そうしないと、無関係な道やアイコンが隣接マスの
+  // アイコンにめり込むほど接近してしまう）。
   return {
     x,
     y,
-    px:Math.max(22,Math.min(78,50+(rawX-50)*0.54+(Math.random()-.5)*7.5)),
-    py:Math.max(20,Math.min(80,50+(rawY-50)*0.54+(Math.random()-.5)*6.5)),
+    px:Math.max(22,Math.min(78,50+(rawX-50)*0.82+(Math.random()-.5)*2.5)),
+    py:Math.max(20,Math.min(80,50+(rawY-50)*0.82+(Math.random()-.5)*2)),
   };
 }
 function _mapAngleBetween(a,b){
@@ -128,6 +131,25 @@ function _mapEdgeCrossesAny(from,to,edges,pointFor){
     if(sharesEndpoint) return false;
     return _mapSegmentsIntersect(a,b,pointFor(e[0]),pointFor(e[1]));
   });
+}
+// 点pから線分abまでの最短距離（px/py座標系）。
+function _mapPointToSegmentDist(p,a,b){
+  const dx=b.px-a.px,dy=b.py-a.py;
+  const lenSq=dx*dx+dy*dy;
+  if(lenSq<=0) return Math.hypot(p.px-a.px,p.py-a.py);
+  const t=Math.max(0,Math.min(1,((p.px-a.px)*dx+(p.py-a.py)*dy)/lenSq));
+  return Math.hypot(p.px-(a.px+t*dx),p.py-(a.py+t*dy));
+}
+// 道（辺）が、その両端以外の既存マスのアイコンに近づきすぎないようにする
+// （無関係な道やアイコンとの重なり・過度な接近を避けるため）。
+const MAP_EDGE_NODE_CLEARANCE=4.5;
+function _mapEdgeStaysClearOfOtherNodes(from,to,pickedIds,pointFor){
+  const a=pointFor(from),b=pointFor(to);
+  for(const id of pickedIds){
+    if(id===from||id===to) continue;
+    if(_mapPointToSegmentDist(pointFor(id),a,b)<MAP_EDGE_NODE_CLEARANCE) return false;
+  }
+  return true;
 }
 function _mapEdgeNeighbors(id,edges){
   const out=[];
@@ -201,91 +223,45 @@ function _mapIsAdjacentCell(a,b){
   if(!a||!b||a===b) return false;
   return Math.max(Math.abs((a.x||0)-(b.x||0)),Math.abs((a.y||0)-(b.y||0)))<=1;
 }
-const _MAP_NON_BATTLE_TYPES=new Set(['empty','elite','boss','village','event','treasure']);
+// マップ構成比率：全49マス（初期位置1＋村4＋通常戦闘20＋エリート4＋イベント15＋宝箱5）。
+// ボスはマップ上に配置せず、ターン制限到達時にのみ出現する（_startForcedWorldMapBossBattle参照）。
+const WORLD_MAP_TOTAL_TILES=49;
+const WORLD_MAP_TILE_COUNTS={village:4,treasure:5,elite:4,event:15,battle:20};
 const _MAP_SPACED_SAME_TYPES=new Set(['village','elite','treasure']);
-function _canAssignMapNodeType(node,type,nodes,edges){
-  if(!node||type==='battle'||type==='start') return true;
-  if(type==='empty'&&_isMapEdgeCell(node)) return false;
-  if(type==='elite'&&(Number(node.dist)||0)<4) return false;
-  if(_MAP_NON_BATTLE_TYPES.has(type)){
-    const adjacentNonBattle=(nodes||[]).some(n=>n&&n!==node&&_MAP_NON_BATTLE_TYPES.has(n.type)&&_mapGraphDistanceInEdges(node.id,n.id,nodes,edges)===1);
-    if(adjacentNonBattle) return false;
-  }
-  if(_MAP_SPACED_SAME_TYPES.has(type)){
-    const sameTooClose=(nodes||[]).some(n=>n&&n!==node&&n.type===type&&_mapGraphDistanceInEdges(node.id,n.id,nodes,edges)<3);
-    if(sameTooClose) return false;
-  }
-  return true;
+function _mapSameTypeSpacingOk(node,type,nodes,edges,minDist){
+  if(!_MAP_SPACED_SAME_TYPES.has(type)) return true;
+  return !(nodes||[]).some(n=>n&&n!==node&&n.type===type&&_mapGraphDistanceInEdges(node.id,n.id,nodes,edges)<minDist);
 }
-function _weightedMapNodeTypes(){
-  return ['battle','battle','battle','event','event','treasure','empty','empty','empty'];
-}
-function _isStartNeighborNode(id,edges,startIdOverride){
-  const m=G&&G.worldMap;
-  const sid=startIdOverride!=null?startIdOverride:(m&&m.startId!=null?m.startId:WORLD_MAP_CENTER);
-  return _mapEdgeNeighbors(sid,edges||m?.edges).includes(id);
-}
-function _unknownMapNodesAtDistanceFromCurrent(dist){
-  const m=G.worldMap;
-  if(!m) return [];
-  const sid=m.startId!=null?m.startId:WORLD_MAP_CENTER;
-  return (m.nodes||[]).filter(n=>n&&n.id!==m.current&&n.id!==sid&&!m.revealed[n.id]&&_mapGraphDistance(m.current,n.id)===dist);
-}
-function _placeDeferredVillages(){
-  const m=G.worldMap;
-  if(!m||m.villagesPlaced) return false;
-  if((m.turn||0)<2) return false;
-  const desired=Math.max(1,Math.round(((m.nodes||[]).length-2)/10));
-  const protectedTypes=new Set(['start','boss','elite','treasure']);
-  let firstPool=_unknownMapNodesAtDistanceFromCurrent(2)
-    .filter(n=>!protectedTypes.has(n.type)&&!_isStartNeighborNode(n.id,m.edges)&&_canAssignMapNodeType(n,'village',m.nodes,m.edges));
-  if(!firstPool.length){
-    firstPool=_unknownMapNodesAtDistanceFromCurrent(2)
-      .filter(n=>!protectedTypes.has(n.type)&&!_isStartNeighborNode(n.id,m.edges));
+// 未確定（まだtype==='battle'のまま）のマスからランダムにcount個選び、指定typeへ変更する。
+// extraCheckがある場合はそれも満たすマスのみ対象（エリートの距離制約など）。
+// 条件を満たすマスが不足する場合は置ける分だけ配置し、残りは通常戦闘のまま残す。
+function _assignMapTypeBatch(nodes,edges,startId,type,count,extraCheck){
+  const pool=(nodes||[]).filter(n=>n&&n.id!==startId&&n.type==='battle').sort(()=>Math.random()-.5);
+  let placed=0;
+  for(const n of pool){
+    if(placed>=count) break;
+    if(!_mapSameTypeSpacingOk(n,type,nodes,edges,3)) continue;
+    if(extraCheck&&!extraCheck(n)) continue;
+    n.type=type;
+    placed++;
   }
-  if(!firstPool.length) return false;
-  const first=randFrom(firstPool);
-  first.type='village';
-  first.cleared=false;
-  const rest=(m.nodes||[])
-    .filter(n=>n&&n!==first&&n.id!==m.current&&n.id!==(m.startId!=null?m.startId:WORLD_MAP_CENTER)&&!m.revealed[n.id]&&!protectedTypes.has(n.type)&&!_isStartNeighborNode(n.id,m.edges))
-    .sort(()=>Math.random()-.5);
-  for(const n of rest){
-    if((m.nodes||[]).filter(v=>v.type==='village').length>=desired) break;
-    if(_canAssignMapNodeType(n,'village',m.nodes,m.edges)){
-      n.type='village';
-      n.cleared=false;
-    }
-  }
-  m.villagesPlaced=true;
-  return true;
+  return placed;
 }
-function _relocateUndiscoveredBossIfNeeded(){
-  const m=G.worldMap;
-  if(!m||m.bossRelocated||(m.turn||0)<10) return false;
-  const boss=(m.nodes||[]).find(n=>n&&n.type==='boss');
-  if(!boss||m.revealed[boss.id]){
-    m.bossRelocated=true;
-    return false;
-  }
-  const candidates=_unknownMapNodesAtDistanceFromCurrent(3)
-    .filter(n=>n!==boss&&!['start','village','treasure','elite'].includes(n.type)&&!_isStartNeighborNode(n.id,m.edges));
-  if(!candidates.length){
-    m.bossRelocated=true;
-    return false;
-  }
-  const target=randFrom(candidates);
-  const oldType=target.type&&target.type!=='boss'?target.type:'battle';
-  target.type='boss';
-  target.cleared=false;
-  boss.type=oldType;
-  boss.cleared=false;
-  m.bossRelocated=true;
-  m.bossNodeId=target.id;
-  return true;
+// 初期配置の比率をこの順で確定する：村→宝箱→エリート（村・宝箱からの距離制約があるため後に置く）→イベント→残りは通常戦闘。
+function _assignInitialMapNodeTypes(nodes,edges,startId){
+  nodes.forEach(n=>{ if(n&&n.id!==startId) n.type='battle'; });
+  _assignMapTypeBatch(nodes,edges,startId,'village',WORLD_MAP_TILE_COUNTS.village);
+  _assignMapTypeBatch(nodes,edges,startId,'treasure',WORLD_MAP_TILE_COUNTS.treasure);
+  _assignMapTypeBatch(nodes,edges,startId,'elite',WORLD_MAP_TILE_COUNTS.elite,n=>{
+    if((Number(n.dist)||0)<4) return false;
+    return !(nodes||[]).some(o=>o&&(o.type==='village'||o.type==='treasure')&&_mapGraphDistanceInEdges(n.id,o.id,nodes,edges)<2);
+  });
+  _assignMapTypeBatch(nodes,edges,startId,'event',WORLD_MAP_TILE_COUNTS.event);
+  // 残りは_newMapNode由来の初期値'battle'のまま（通常戦闘20マス相当）。
 }
+// ボスはマップ上に配置しないため、中盤での再配置処理は不要（過去のボスマス移設ロジックは廃止）。
 function _applyWorldMapTurnEvents(){
-  return !!_placeDeferredVillages();
+  return false;
 }
 function _triggerWorldMapDefeat(reason){
   const m=G&&G.worldMap;
@@ -302,12 +278,15 @@ function _worldMapLimitReached(){
 function _worldMapNextTurnWouldForceBoss(){
   const m=G&&G.worldMap;
   if(!m) return false;
-  return (Number(m.turn)||0)+1>=Number(m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT);
+  // 15ターン目（＝制限ターンちょうど）の移動でボス戦を強制する（1ターン遅らせた仕様）。
+  return (Number(m.turn)||0)>=Number(m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT);
 }
+// ボスはマップ上に配置しない。ターン制限（15ターン目）に到達する移動の時点で、
+// その時点のプレイヤーの現在地にボスが出現する。
 function _startForcedWorldMapBossBattle(){
   const m=G&&G.worldMap;
   if(!m) return false;
-  const boss=_mapNodeById(m.bossNodeId)||(m.nodes||[]).find(n=>n&&n.type==='boss');
+  const boss=_mapNodeById(m.current);
   if(!boss) return false;
   boss.type='boss';
   boss.cleared=false;
@@ -392,13 +371,11 @@ function _revealAroundCurrentMapNode(){
   if(!m) return;
   const node=_mapCurrentNode();
   if(!node) return;
+  // エリートは常時位置を開示する仕様のため、他タイプのように未発見時は隠す、という
+  // 分岐は行わない（エリートの可視化はここではなく配置・移動処理側で都度行う）。
   const visible=new Set([node.id,..._mapEdgeNeighbors(node.id,m.edges)]);
   m.nodes.forEach(n=>{
     if(visible.has(n.id)){
-      if(n.type==='elite'&&!m.revealed[n.id]){
-        n.visible=false;
-        return;
-      }
       n.visible=true;
       m.revealed[n.id]=true;
     } else if(m.revealed[n.id]){
@@ -407,7 +384,7 @@ function _revealAroundCurrentMapNode(){
   });
 }
 function generateWorldMap(index){
-  const target=randi(36,40);
+  const target=WORLD_MAP_TOTAL_TILES;
   const startId=_pickWorldMapStartId();
   const picked=new Set([startId]);
   const edges=[];
@@ -418,42 +395,45 @@ function generateWorldMap(index){
   };
   while(picked.size<target){
     const frontier=[];
+    const frontierLoose=[];
     picked.forEach(id=>_mapNeighborsWide(id).forEach(nb=>{
-      if(!picked.has(nb)&&!_mapEdgesWouldCrossDiagonal(id,nb,edges)&&!_mapEdgeCrossesAny(id,nb,edges,pointFor)&&_mapEdgeAngleOk(id,nb,edges,pointFor,30)) frontier.push({from:id,to:nb});
+      if(picked.has(nb)||_mapEdgesWouldCrossDiagonal(id,nb,edges)||_mapEdgeCrossesAny(id,nb,edges,pointFor)||!_mapEdgeAngleOk(id,nb,edges,pointFor,30)) return;
+      frontierLoose.push({from:id,to:nb});
+      // 無関係な道・アイコンへの接近を避けられる候補を優先する。全滅した場合のみ
+      // （マス全体を埋め切る都合上どうしても余白が取れない場合）frontierLooseで妥協する。
+      if(_mapEdgeStaysClearOfOtherNodes(id,nb,picked,pointFor)) frontier.push({from:id,to:nb});
     }));
-    if(!frontier.length) break;
-    const next=randFrom(frontier);
+    const pool=frontier.length?frontier:frontierLoose;
+    if(!pool.length) break;
+    const next=randFrom(pool);
     picked.add(next.to);
     edges.push([next.from,next.to]);
   }
-  const nodes=[...picked].map(id=>_newMapNode(id,pointFor(id)));
-  _computeMapDistances(nodes,startId,edges);
-  let bossCandidates=nodes.filter(n=>n.id!==startId&&n.dist>=7);
-  if(!bossCandidates.length&&(generateWorldMap._retry||0)<80){
+  // 全49マス（7x7グリッド全体）を使い切れなかった場合は作り直す（角度・交差制約で稀に埋まりきらないため）。
+  if(picked.size<target&&(generateWorldMap._retry||0)<80){
     generateWorldMap._retry=(generateWorldMap._retry||0)+1;
     return generateWorldMap(index);
   }
   generateWorldMap._retry=0;
-  if(!bossCandidates.length) bossCandidates=nodes.filter(n=>n.id!==startId).sort((a,b)=>b.dist-a.dist).slice(0,8);
-  const boss=randFrom(bossCandidates.sort((a,b)=>b.dist-a.dist).slice(0,8));
+  const nodes=[...picked].map(id=>_newMapNode(id,pointFor(id)));
+  _computeMapDistances(nodes,startId,edges);
   nodes.forEach(n=>{
     if(n.id===startId){ n.type='start'; n.visited=true; n.cleared=true; return; }
     n.type='battle';
   });
-  if(boss&&_canAssignMapNodeType(boss,'boss',nodes,edges)) boss.type='boss';
-  else if(boss) boss.type='boss';
-  const assignTargets=nodes
-    .filter(n=>n.id!==startId&&n!==boss&&!_isStartNeighborNode(n.id,edges,startId))
-    .sort(()=>Math.random()-.5);
-  assignTargets.forEach(n=>{
-    const pool=_weightedMapNodeTypes().sort(()=>Math.random()-.5);
-    const picked=pool.find(t=>_canAssignMapNodeType(n,t,nodes,edges));
-    n.type=picked||'battle';
+  // 比率通りに村・宝箱・エリート・イベントを配置（残りは通常戦闘のまま）。ボスはマップ上に配置しない。
+  _assignInitialMapNodeTypes(nodes,edges,startId);
+  const revealed={[startId]:true};
+  nodes.forEach(n=>{
+    if(n.type==='elite'){
+      // エリートは初期配置時点で位置を開示する。
+      n.visible=true;
+      n._eliteMoveClock=0;
+      n._elitePowerMult=1;
+      n._eliteFromId=null;
+      revealed[n.id]=true;
+    }
   });
-  {
-    const elites=nodes.filter(n=>n.type==='elite').sort(()=>Math.random()-.5);
-    elites.forEach((n,i)=>{ n._eliteMoveClock=i<Math.ceil(elites.length/2)?1:0; });
-  }
   const m={
     index:index||1,
     turn:0,
@@ -461,16 +441,15 @@ function generateWorldMap(index){
     current:startId,
     startId,
     nodes,
-    revealed:{[startId]:true},
+    revealed,
     revealedEdges:{},
     forcedBoss:false,
-    bossNodeId:boss&&boss.id,
-    villagesPlaced:false,
-    bossRelocated:true,
+    eliteBossBonusMult:1,
+    // 移動履歴（敗北時に2歩後退させるために使う。ワープ系は別途リセットする）。
+    moveHistory:[startId],
     zoom:1.8,
     edges,
   };
-  if(boss){ boss.visible=true; m.revealed[boss.id]=true; }
   G.worldMap=m;
   _revealAroundCurrentMapNode();
   return m;
@@ -576,17 +555,24 @@ function renderWorldMap(){
     const btn=document.createElement('button');
     const type=n.id===current?'player':(n.cleared&&n.type!=='village'&&n.type!=='boss'?(n._clearedEvent?'empty2':'empty'):n.type);
     btn.className=`map-node type-${n.type}`;
-    btn.style.left=`${n.px}%`;
-    btn.style.top=`${n.py}%`;
+    // エリートの1歩目：実際にはまだ移動していないが、道の途中（自分と目的地の中間点）に
+    // 見た目だけ表示する。ここをクリックすると「ここで迎撃しますか？」の確認を出す。
+    const midStepTarget=(n.type==='elite'&&n._eliteStepTargetId!=null)?by.get(n._eliteStepTargetId):null;
+    const px=midStepTarget?(n.px+midStepTarget.px)/2:n.px;
+    const py=midStepTarget?(n.py+midStepTarget.py)/2:n.py;
+    btn.style.left=`${px}%`;
+    btn.style.top=`${py}%`;
+    if(midStepTarget) btn.classList.add('map-node-midstep');
     btn.style.backgroundImage=`url("${_mapNodeIcon(type)}")`;
     if(n.id===current) btn.classList.add('is-current');
-    if(selectable.has(n.id)) btn.classList.add('is-moveable');
+    if(selectable.has(n.id)&&!midStepTarget) btn.classList.add('is-moveable');
     if(n.type==='boss') btn.classList.add('boss-visible');
     btn.title=_mapNodeTitle(n);
     const preview=_mapEnemyPreview(n);
     if(preview) btn.setAttribute('data-preview',preview);
     btn.onclick=()=>{
       if(G._pendingMapItemUse&&handlePendingMapItemNode(n.id)) return;
+      if(midStepTarget){ _confirmInterceptElite(n); return; }
       if(n.id===current&&n.type==='village') openMapVillage();
       else if(selectable.has(n.id)) moveToMapNode(n.id);
     };
@@ -657,6 +643,7 @@ function handlePendingMapItemNode(nodeId){
   if(!pending||!node||!node.visible) return false;
   if(pending.key==='portal_scroll'){
     G.worldMap.current=node.id;
+    G.worldMap.moveHistory=[node.id];
     node.visited=true;
     _consumePendingMapItemUse();
     _revealAroundCurrentMapNode();
@@ -697,83 +684,117 @@ function warpToNearestVillage(){
   goToWorldMap();
   return true;
 }
-function _elitePriorityTarget(node){
+// エリートの探知範囲（グラフ距離）：これ以内に初期位置・村・宝箱があれば最寄りを目指す。
+const ELITE_DETECTION_RANGE=2;
+// エリートが初期位置/村/宝箱に到達した際、自身とボスの戦力に1.2倍ボーナスを与える対象タイプ。
+// 通常戦闘マスは到達すると（次に移動して離れた時点で）空白化されるがボーナスは付与しない。
+const _ELITE_BONUS_TYPES=new Set(['start','village','treasure']);
+// 探知範囲内で最も近い初期位置/村/宝箱を探す。他のエリートが既に今回のターンで目指している
+// マス（claimedTargets）は除外し、複数のエリートが同じ場所を目指さないようにする。
+function _elitePriorityTarget(node,claimedTargetIds){
   const m=G.worldMap;
   if(!m||!node) return null;
-  const detours=[];
+  const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
+  const candidates=[];
   (m.nodes||[]).forEach(n=>{
     if(!n||n===node) return;
-    if(n.type==='village'||n.type==='treasure'){
-      const dist=_mapGraphDistance(node.id,n.id);
-      if(dist>0&&dist<=2) detours.push({node:n,dist});
-    }
+    if(!(n.id===startId||n.type==='village'||n.type==='treasure')) return;
+    if(claimedTargetIds&&claimedTargetIds.has(n.id)) return;
+    const dist=_mapGraphDistance(node.id,n.id);
+    if(dist>0&&dist<=ELITE_DETECTION_RANGE) candidates.push({node:n,dist});
   });
-  if(detours.length){
-    detours.sort((a,b)=>a.dist-b.dist||Math.random()-.5);
-    const bestDist=detours[0].dist;
-    return randFrom(detours.filter(t=>t.dist===bestDist)).node;
-  }
-  return _mapNodeById(G.worldMap.startId!=null?G.worldMap.startId:WORLD_MAP_CENTER);
+  if(!candidates.length) return null;
+  candidates.sort((a,b)=>a.dist-b.dist||Math.random()-.5);
+  const bestDist=candidates[0].dist;
+  return randFrom(candidates.filter(t=>t.dist===bestDist)).node;
 }
-function _eliteNextNode(node){
+// 次の1マス先を決める。他のエリートが現在占有中のマス（occupiedIds）と、直前にいたマス
+// （来た道）へは進まない。探知範囲内に目標が無ければ、進める隣接マスからランダムに選ぶ。
+function _eliteNextNode(node,occupiedIds,claimedTargetIds){
   const m=G.worldMap;
   if(!m||!node) return null;
-  const target=_elitePriorityTarget(node);
+  const blocked=new Set(occupiedIds||[]);
+  if(node._eliteFromId!=null) blocked.add(node._eliteFromId);
+  const target=_elitePriorityTarget(node,claimedTargetIds);
   if(target){
     const path=_mapPathBetween(node.id,target.id);
-    if(path.length>1){
-      const step=_mapNodeById(path[1]);
-      if(step&&step.type!=='boss'&&step.type!=='elite') return step;
+    if(path.length>1&&!blocked.has(path[1])){
+      return {node:_mapNodeById(path[1]),targetId:target.id};
     }
   }
   const candidates=_mapEdgeNeighbors(node.id,m.edges)
+    .filter(id=>!blocked.has(id))
     .map(_mapNodeById)
-    .filter(to=>to&&to.type!=='boss'&&to.type!=='elite');
+    .filter(Boolean);
   if(!candidates.length) return null;
-  const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
-  candidates.sort((a,b)=>_mapGraphDistance(a.id,startId)-_mapGraphDistance(b.id,startId)||Math.random()-.5);
-  return candidates[0];
+  return {node:randFrom(candidates),targetId:null};
 }
+// エリートを1体、1マス分だけ進める（2ターンに1回だけ実際に移動する）。
+// 到達したマスが初期位置/村/宝箱/通常戦闘であればそのマスを空白化し、
+// 初期位置/村/宝箱の場合はそのエリート自身とボスに戦力1.2倍ボーナスを与える（ボス分は蓄積）。
 function _moveMapElites(){
   const m=G.worldMap;
   if(!m) return null;
   const elites=(m.nodes||[]).filter(n=>n&&n.type==='elite');
   let encounter=null;
+  const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
+  const occupied=new Set(elites.map(n=>n.id));
+  // 既に1歩目を終えて2歩目待ちのエリートが目指している先も、今回新たに1歩目を計画する
+  // 別のエリートから見て「他エリートが目指している場所」として扱う。
+  const claimedTargets=new Set(elites.map(n=>n._eliteStepTargetId).filter(id=>id!=null));
   elites.forEach(n=>{
     if(n.type!=='elite') return;
     n._eliteMoveClock=(n._eliteMoveClock||0)+1;
+    if(n._eliteMoveClock===1){
+      // 1歩目：行き先だけを決める。実際の移動（マス種別の変更）は2歩目で行い、
+      // それまでの間は見た目上「道の途中」に表示する（renderWorldMap側で中間点に描画）。
+      occupied.delete(n.id);
+      const step=_eliteNextNode(n,occupied,claimedTargets);
+      occupied.add(n.id);
+      if(step&&step.node){
+        n._eliteStepTargetId=step.node.id;
+        if(step.targetId!=null) claimedTargets.add(step.targetId);
+      }else{
+        n._eliteStepTargetId=null;
+      }
+      return;
+    }
     if(n._eliteMoveClock<2) return;
     n._eliteMoveClock=0;
-    const to=_eliteNextNode(n);
-    if(!to) return;
-    const bonus=(Number(n._elitePowerMult)||1)*(to.type==='village'||to.type==='treasure'?1.2:1);
-    n._terrainType=n.type||n._terrainType||'empty';
+    const targetId=n._eliteStepTargetId;
+    n._eliteStepTargetId=null;
+    if(targetId==null) return;
+    const to=_mapNodeById(targetId);
+    // 計画から実行までの間に他エリートに先取りされていた場合は、今回の移動を諦める
+    // （次のサイクルで改めて行き先を選び直す）。
+    if(!to||occupied.has(to.id)||to.type==='elite') return;
+    occupied.delete(n.id);
+    const fromId=n.id;
+    const mult=Number(n._elitePowerMult)||1;
+    // 到達先が村/初期位置だった場合、それを踏み荒らしたエリートと戦う時も村/初期位置の
+    // 地形援軍が出るよう、元の地形種別を保持しておく（_applyTerrainReinforcements参照）。
+    const absorbedTerrain=(to.type==='village'||to.id===startId)?(to.id===startId?'start':'village'):'';
     n.type='empty';
     n.cleared=true;
-    delete n._eliteMoveClock;
     delete n._elitePowerMult;
-    to._terrainType=to.type||to._terrainType||'empty';
+    delete n._eliteFromId;
+    const grantsBonus=_ELITE_BONUS_TYPES.has(to.type)||to.id===startId;
     to.type='elite';
     to.cleared=false;
     to._eliteMoveClock=0;
-    to._elitePowerMult=bonus;
+    to._eliteStepTargetId=null;
+    to._eliteFromId=fromId;
+    to._elitePowerMult=grantsBonus?mult*1.2:mult;
+    if(absorbedTerrain) to._terrainType=absorbedTerrain;
+    if(grantsBonus) m.eliteBossBonusMult=(Number(m.eliteBossBonusMult)||1)*1.2;
+    // エリートは常時位置を開示する仕様のため、移動先も即座に可視化する。
+    to.visible=true;
+    m.revealed=m.revealed||{};
+    m.revealed[to.id]=true;
+    occupied.add(to.id);
     if(to.id===m.current) encounter=to;
   });
   return encounter;
-}
-function _spawnUnknownElite(){
-  const m=G.worldMap;
-  if(!m||!m.turn||m.turn%3!==0) return false;
-  const candidates=(m.nodes||[]).filter(n=>n&&n.id!==m.current&&['battle','empty','event'].includes(n.type)&&!m.revealed[n.id]&&(Number(n.dist)||0)>=4);
-  if(!candidates.length) return false;
-  const n=randFrom(candidates);
-  n.type='elite';
-  n.cleared=false;
-  n._eliteMoveClock=0;
-  n._elitePowerMult=1;
-  n.visible=false;
-  delete m.revealed[n.id];
-  return true;
 }
 function _mapTurnStrengthMult(){
   const m=G.worldMap;
@@ -797,7 +818,6 @@ async function skipWorldMapTurn(){
       startMapBattle('elite',encounter.id,false);
       return true;
     }
-    _spawnUnknownElite();
     return false;
   }finally{
     G._mapAutoMoving=false;
@@ -809,6 +829,9 @@ async function _moveToAdjacentMapNode(id,options){
   if(!_mapEdgeNeighbors(m.current,m.edges).includes(id)) return false;
   if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
   m.current=id;
+  m.moveHistory=Array.isArray(m.moveHistory)?m.moveHistory:[];
+  m.moveHistory.push(id);
+  if(m.moveHistory.length>30) m.moveHistory.shift();
   m.turn++;
   _applyWorldMapTurnEvents();
   const node=_mapNodeById(id);
@@ -846,13 +869,56 @@ async function _moveToAdjacentMapNode(id,options){
         startMapBattle('elite',encounter.id,false);
         return true;
       }
-      _spawnUnknownElite();
     }
     renderWorldMap();
     return false;
   }
 }
-async function moveToMapNode(id){
+// マップ上の確認ダイアログ（「はい/いいえ」形式）。中央固定オーバーレイとして表示する。
+function _openMapConfirmDialog(message,onYes){
+  _closeMapConfirmDialog();
+  const div=document.createElement('div');
+  div.id='map-confirm-dialog';
+  div.innerHTML=`<div class="map-confirm-box"><div class="map-confirm-msg">${message}</div><div class="map-confirm-btns"><button type="button" class="btn map-confirm-yes">はい</button><button type="button" class="btn map-confirm-no">いいえ</button></div></div>`;
+  document.body.appendChild(div);
+  div.querySelector('.map-confirm-yes').onclick=()=>{ _closeMapConfirmDialog(); if(typeof onYes==='function') onYes(); };
+  div.querySelector('.map-confirm-no').onclick=()=>{ _closeMapConfirmDialog(); };
+}
+function _closeMapConfirmDialog(){
+  const el=document.getElementById('map-confirm-dialog');
+  if(el) el.remove();
+}
+// 道の途中（1歩目）のエリートに対する「ここで迎撃しますか？」確認。
+function _confirmInterceptElite(node){
+  _openMapConfirmDialog('ここで迎撃しますか？',()=>_interceptElite(node));
+}
+async function _interceptElite(node){
+  const m=G.worldMap;
+  if(!m||G._mapAutoMoving||!node) return;
+  if(_worldMapNextTurnWouldForceBoss()){ _startForcedWorldMapBossBattle(); return; }
+  // このエリートは移動を中断してその場（プレイヤーの現在地）で迎撃される。
+  delete node._eliteStepTargetId;
+  m.turn=(Number(m.turn)||0)+1;
+  _applyWorldMapTurnEvents();
+  renderWorldMap();
+  updateHUD();
+  await _mapDelay(120);
+  startMapBattle('elite',node.id,false);
+}
+// 移動先（経路上のいずれかのマスを含む）がエリートの場合は、実行前に警告を挟む。
+function moveToMapNode(id){
+  const m=G.worldMap;
+  if(!m||!_mapNodeById(id)||id===m.current||G._mapAutoMoving) return;
+  const path=_mapPathBetween(m.current,id);
+  if(path.length<2) return;
+  const eliteAhead=path.slice(1).some(pid=>{ const pn=_mapNodeById(pid); return pn&&pn.type==='elite'; });
+  if(eliteAhead){
+    _openMapConfirmDialog('ここに移動すると戦闘になります',()=>_executeMoveToMapNode(id));
+    return;
+  }
+  _executeMoveToMapNode(id);
+}
+async function _executeMoveToMapNode(id){
   const m=G.worldMap;
   if(!m||!_mapNodeById(id)||id===m.current||G._mapAutoMoving) return;
   const path=_mapPathBetween(m.current,id);
@@ -876,7 +942,6 @@ async function moveToMapNode(id){
     if(encounter){
       startMapBattle('elite',encounter.id,false);
     }else{
-      _spawnUnknownElite();
       if(_worldMapLimitReached()) _startForcedWorldMapBossBattle();
       else renderWorldMap();
     }
@@ -912,7 +977,8 @@ function startMapBattle(type,nodeId,forced){
   G.floor=G._mapBattle.floor;
   const turnMult=_mapTurnStrengthMult();
   G._extraBattleMult=turnMult*elitePowerMult*meteorMult;
-  G._forceBossMult=type==='boss'?1.5*(forced?2:1)*turnMult*meteorMult:null;
+  const eliteBossBonusMult=Math.max(1,Number(m&&m.eliteBossBonusMult)||1);
+  G._forceBossMult=type==='boss'?1.5*(forced?2:1)*turnMult*meteorMult*eliteBossBonusMult:null;
   G._mapEliteBattle=type==='elite';
   G.phase='battle';
   document.body.classList.remove('world-map-active');
@@ -965,6 +1031,32 @@ function advanceWorldMapAfterBoss(){
   generateWorldMap(run.index);
   goToWorldMap();
 }
+// 通常戦闘・エリート戦敗北時：自分が移動してきた道を2歩遡る。遡れない場合は、
+// 視認できている村と初期地点のうち近い方へワープする。
+function _retreatWorldMapAfterDefeat(){
+  const m=G.worldMap;
+  if(!m) return;
+  const hist=Array.isArray(m.moveHistory)?m.moveHistory:[];
+  let idx=hist.length-1;
+  while(idx>=0&&hist[idx]!==m.current) idx--;
+  const backIdx=idx-2;
+  let targetId=(backIdx>=0&&_mapNodeById(hist[backIdx]))?hist[backIdx]:null;
+  if(targetId==null){
+    const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
+    let best=_mapNodeById(startId);
+    let bestDist=_mapGraphDistance(m.current,startId);
+    (m.nodes||[]).filter(n=>n&&n.type==='village'&&n.visible).forEach(v=>{
+      const d=_mapGraphDistance(m.current,v.id);
+      if(d<bestDist){ bestDist=d; best=v; }
+    });
+    targetId=best?best.id:startId;
+  }
+  m.current=targetId;
+  m.moveHistory=[targetId];
+  const node=_mapNodeById(targetId);
+  if(node) node.visited=true;
+  _revealAroundCurrentMapNode();
+}
 function handleMapBattleDefeat(){
   const b=G._mapBattle;
   if(!b) return false;
@@ -986,12 +1078,12 @@ function handleMapBattleDefeat(){
         startMapBattle('elite',encounter.id,false);
         return true;
       }
-      _spawnUnknownElite();
     }
   }
   G._mapBattle=null;
   G._mapEliteBattle=false;
   G._forceBossMult=null;
+  if(G.worldMap) _retreatWorldMapAfterDefeat();
   G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
   G.enemies=[];
   G.phase=null;
@@ -1271,15 +1363,15 @@ function openMapTavern(){
   goToReward();
   _rewCards=[];
   _rewFreePickDone=true;
-  const cur=_mapCurrentNode();
-  const boss=(G.worldMap?.nodes||[]).find(n=>n.type==='boss');
-  const dx=boss&&cur?boss.x-cur.x:0, dy=boss&&cur?boss.y-cur.y:0;
-  const dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'東':'西'):(dy>0?'南':'北');
+  // ボスはマップ上に配置されず、ターン制限到達時にのみ現在地へ現れるため、
+  // 方角ではなく残りターン数を伝える。
+  const m=G.worldMap;
+  const left=Math.max(0,Number(m&&m.turnLimit||WORLD_MAP_BASE_TURN_LIMIT)-Number(m&&m.turn||0));
   const section=document.getElementById('battle-order-section');
   const row=document.getElementById('battle-order-row');
   if(section&&row){
     section.style.display='';
-    row.innerHTML=`<div class="map-tavern-card"><strong>酒場の噂</strong><span>ボスはおおよそ${dir}の方角にいる。</span></div>`;
+    row.innerHTML=`<div class="map-tavern-card"><strong>酒場の噂</strong><span>ボスが現れるまで、あと${left}ターンだという。</span></div>`;
   }
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   renderMoveSlotsInEnemy();
