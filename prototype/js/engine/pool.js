@@ -124,12 +124,12 @@ const PANEL_POOL=[
   {id:'panel_elemental',no:'067',name:'エレメンタル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:5,life:5,desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
   {id:'panel_counterattack_oath',no:'013',name:'逆襲',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆襲'],desc:'死亡：全ての味方は+1/+1を得る。'},
   {id:'panel_great_guard',no:'014',name:'大いなる守護',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentHpBonus:7,desc:'常時：HP+7を得る。'},
-  {id:'panel_inner_might',no:'015',name:'内なる大力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:2,adjacentHpBonus:1,desc:'常時：+2/+1を得る。'},
+  {id:'panel_inner_might',no:'015',name:'内なる大力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:4,adjacentHpBonus:2,desc:'常時：+4/+2を得る。'},
   {id:'panel_dark_ritual',no:'016',name:'闇の儀式',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の儀式'],desc:'死亡：以後、召喚される同名のキャラクターを永久に+2/+2する。'},
   {id:'panel_persistent_flame',no:'017',name:'執念の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['根性'],desc:'根性（致死ダメージを受けた時、1度だけHP1で耐える）'},
   {id:'panel_dark_flame',no:'018',name:'闇の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の炎'],desc:'死亡：全ての敵キャラクターに1ダメージを与える。'},
   {id:'panel_poison_blade',no:'019',name:'毒の刃',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['毒牙2'],desc:'毒牙2（攻撃時にダメージを受ける毒を付与）'},
-  {id:'panel_dragon_contract',no:'008',name:'竜の契約',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['竜の契約'],desc:'常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）'},
+  {id:'panel_dragon_contract',no:'008',name:'竜の契約',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['竜の契約'],desc:'攻撃：ランダムな敵に5ダメージを与える。'},
   {id:'panel_imp',no:'009',name:'インプ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。'},
   {id:'panel_gremlin',name:'グレムリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'攻撃：このキャラクターのHPと対象のATKを入れ替える。'},
   {id:'panel_incubus',name:'インキュバス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'負傷：全ての敵はATK-1を得る。'},
@@ -154,12 +154,14 @@ const PANEL_POOL=[
   {id:'panel_magic_circuit_a',no:'022',name:'魔導回路',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:3,desc:'効果なし　三方向パネル'},
   {id:'panel_healing_trait',no:'024',name:'治癒能力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['治癒能力'],desc:'負傷：HP+2を得る。'},
   {id:'panel_legacy',name:'遺産',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'死亡：1ゴールドを得る。'},
-  {id:'panel_origin_seed',name:'起源の種',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：このキャラクターが本来持つ、キーワード以外の効果を得る。'},
+  {id:'panel_origin_seed',name:'マナの種',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：このキャラクターのマナ効果は1回追加で発動する。'},
+  {id:'panel_jade_vase',no:'013',name:'翡翠の壺',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:200,desc:'高く売れそうだ。（200Gで売れる。）'},
+  {id:'panel_golden_vase',no:'014',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:300,desc:'高く売れそうだ。（300Gで売れる。）'},
   {id:'panel_grace',name:'恩寵',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['恩寵'],desc:'常時：このキャラクターの開戦効果は1回追加で発動する。'},
   {id:'panel_copy',name:'複製',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：接続している強化カードに変化する。'},
   {id:'panel_alchemy',name:'錬成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：ランダムなアイテムを得る。'},
   {id:'panel_mana_generate',name:'マナ生成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,manaOnAttack:1,desc:'攻撃：1マナを得る。'},
-  {id:'panel_rage',name:'逆上',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆上'],desc:'負傷：全ての敵に8ダメージを与える。'},
+  {id:'panel_rage',name:'逆上',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆上'],desc:'負傷：ランダムな敵に3ダメージを与える。'},
   {id:'panel_sword_skill',name:'剣技',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['剣技'],desc:'攻撃：ATK+3を得る。'},
   {id:'panel_ferocious',name:'獰猛',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:12,adjacentHpBonus:-3,desc:'常時：+12/-3を得る。'},
   {id:'panel_grudge',name:'怨念',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['怨念'],desc:'死亡：ランダムな敵に自身の攻撃力に等しいダメージを与える。'},
@@ -176,6 +178,13 @@ const PANEL_POOL=[
   {id:'panel_shield',no:'021',name:'結界',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['結界']},
   {id:'panel_aoe_attack',no:'022',name:'全体攻撃',rarity:5,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['全体攻撃']},
   {id:'panel_lifesteal',no:'023',name:'生命吸収',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生命吸収']},
+  {id:'panel_pierce',name:'貫通',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['貫通']},
+  {id:'panel_bond',name:'奇妙な絆',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['奇妙な絆'],desc:'開戦：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。'},
+  {id:'panel_penitence',name:'懺悔',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['懺悔'],desc:'攻撃：このキャラクターは1ダメージを2回受ける。'},
+  {id:'panel_activation',name:'活性化',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['活性化'],desc:'1マナ：このキャラクターは+1/+1を得る。'},
+  {id:'panel_inheritance',name:'継承',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['継承'],desc:'死亡：このキャラクターのATKをランダムな味方に与える。'},
+  {id:'panel_roar',name:'咆哮',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['咆哮'],desc:'開戦：このキャラクターのATKを2倍にする。'},
+  {id:'panel_awe',name:'威光',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['威光'],desc:'開戦：このキャラクターのHPを2倍にする。'},
 ];
 
 // ── スペルカード：指定マナが貯まると自動で1回だけ発動するカード ──
@@ -210,7 +219,7 @@ function makeSpell(idOrName){
 
 function makeItem(idOrName){
   const def=ITEM_POOL.find(p=>p.id===idOrName||p.name===idOrName);
-  if(!def) return null;
+  if(!def||!def.name||String(def.name).trim().toLowerCase()==='false') return null;
   const c=clone(def);
   _normalizePanelRewardCost(c);
   c.noRewardUse=true;
@@ -245,7 +254,10 @@ function makePanel(idOrName){
   c.equip=true;
   c.noRewardUse=true;
   if(String(c.category||'')==='キャラクター') c.directions=_rollPanelDirections(c.directionCount||2,{avoidOpposite:true});
-  if(['強化','エンチャント'].includes(String(c.category||''))) c.directions=_rollPanelDirections(c.directionCount||2);
+  if(['強化','エンチャント'].includes(String(c.category||''))){
+    const directionCount=c.directionCount==null?2:Math.max(0,Number(c.directionCount)||0);
+    c.directions=directionCount>0?_rollPanelDirections(directionCount):[];
+  }
   c._buyPrice=calcBuyPrice(c);
   return c;
 }
@@ -261,6 +273,14 @@ function _panelColorBuffKey(color){
 }
 
 const _REWARD_RARITY_WEIGHTS={1:50,2:25,3:15,4:7,5:3};
+const _GOLDEN_RING_REWARD_RARITY_WEIGHTS={1:30,2:33,3:21,4:11,5:5};
+
+function _rewardRarityWeights(useGoldenRing){
+  if(useGoldenRing&&typeof _hasRingNamed==='function'&&_hasRingNamed('黄金の指輪')){
+    return _GOLDEN_RING_REWARD_RARITY_WEIGHTS;
+  }
+  return _REWARD_RARITY_WEIGHTS;
+}
 
 function _currentRewardMapGrade(fallback){
   const mapNo=Number(G&&G.worldMapRun&&G.worldMapRun.index)||Number(G&&G.worldMap&&G.worldMap.index)||0;
@@ -268,7 +288,7 @@ function _currentRewardMapGrade(fallback){
   return Math.max(1,Math.min(5,base||1));
 }
 
-function _rewardWeightedPick(defs,currentGrade,usedIds){
+function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing){
   const available=(defs||[]).filter(p=>p&&(!usedIds||!usedIds.has(p.id)));
   if(!available.length) return null;
   const cur=Math.max(1,Math.min(5,Number(currentGrade)||1));
@@ -279,7 +299,7 @@ function _rewardWeightedPick(defs,currentGrade,usedIds){
   const weighted=[];
   gradePool.forEach(p=>{
     const rarity=Math.max(1,Math.min(5,Number(p.rarity)||1));
-    const w=_REWARD_RARITY_WEIGHTS[rarity]||1;
+    const w=_rewardRarityWeights(useGoldenRing)[rarity]||1;
     for(let i=0;i<w;i++) weighted.push(p);
   });
   return weighted.length?randFrom(weighted):randFrom(gradePool);
@@ -288,7 +308,8 @@ function _rewardWeightedPick(defs,currentGrade,usedIds){
 function drawPanel(n=1, maxGrade){
   ensurePanelSaleStock();
   const currentGrade=_currentRewardMapGrade(maxGrade);
-  const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0);
+  const excluded=p=>G._isShop?p._shopExcluded:p._rewardExcluded;
+  const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0);
   const charCandidates=panelCandidates.filter(p=>String(p.category||'')==='キャラクター');
   const enchantCandidates=panelCandidates.filter(p=>['エンチャント','強化'].includes(String(p.category||'')));
   const allPool=[...panelCandidates];
@@ -305,7 +326,7 @@ function drawPanel(n=1, maxGrade){
       available=allPool.filter(p=>!usedIds.has(p.id));
     }
     if(!available.length) break;
-    const picked=_rewardWeightedPick(available,currentGrade,usedIds);
+    const picked=_rewardWeightedPick(available,currentGrade,usedIds,true);
     if(!picked) break;
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
@@ -323,11 +344,11 @@ function ensurePanelSaleStock(){
   if(G.panelSaleStock) return;
   G.panelSaleStock={};
   (PANEL_POOL||[]).forEach(p=>{
-    if(!p||!p.id||!_isImplementedPoolCard(p)||p._rewardExcluded||p.rarity===-1) return;
+    if(!p||!p.id||!_isImplementedPoolCard(p)||(p._rewardExcluded&&p._shopExcluded)||p.rarity===-1) return;
     G.panelSaleStock[panelSaleStockKey(p)]=Math.max(0,9-(p.grade||1));
   });
   (SPELL_POOL||[]).forEach(p=>{
-    if(!p||!p.id||!_isImplementedPoolCard(p)||p._rewardExcluded) return;
+    if(!p||!p.id||!_isImplementedPoolCard(p)||(p._rewardExcluded&&p._shopExcluded)) return;
     G.panelSaleStock[panelSaleStockKey(p)]=99;
   });
 }
@@ -362,7 +383,7 @@ function cardRefund(card){
 
 function drawItems(n, maxGrade){
   const currentGrade=_currentRewardMapGrade(maxGrade);
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p._implemented!==false);
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&p._rewardExcluded!==true);
   const res=[];
   const used=new Set();
   let t=0;
@@ -371,7 +392,7 @@ function drawItems(n, maxGrade){
     if(!cand) break;
     used.add(cand.id);
     const item=makeItem(cand.id);
-    if(item) res.push(item);
+    if(item&&item.name&&String(item.name).trim().toLowerCase()!=='false') res.push(item);
   }
   return res;
 }
@@ -383,16 +404,19 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）は報酬カードを提示しない
-  if(!(G.floor>0)) return [];
+  // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）は報酬カードを提示しない。
+  // ただしWave進行モードはwave1の1戦目（stage2）のフロアが0になるため、このガード対象から除外する
+  // （Wave進行モードの初期編成画面自体は_openWaveFormation()側で_rewCardsを空にするため問題ない）。
+  if(!G._waveLoopEnabled&&!(G.floor>0)) return [];
   const baseGrade=G.rewardGrade||1;
   const res=drawPanel(5, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
-    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
+    const excluded= p=>G._isShop?p._shopExcluded:p._rewardExcluded;
+    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
     if(!candidates.length) return null;
-    const picked=_rewardWeightedPick(candidates,maxGrade,used);
+    const picked=_rewardWeightedPick(candidates,maxGrade,used,true);
     if(!picked) return null;
     consumePanelSaleStock(picked);
     return makePanel(picked.id);

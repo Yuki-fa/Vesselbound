@@ -305,6 +305,10 @@ function _mapNodeForceIconVisible(n){
   return !!(n&&n.type==='boss');
 }
 function getWorldMapStageBackgroundKey(){
+  if(G&&G._waveLoopEnabled){
+    const wave=Math.max(1,Math.min(4,Number(G._wave)||1));
+    return `stage${wave}`;
+  }
   if(!G||!G.worldMapRun) return null;
   return ['stage1','stage2','stage3','stage4'][Math.max(0,Math.min(3,(G.worldMapRun.index||1)-1))];
 }
@@ -315,7 +319,7 @@ function _mapNodeById(id){
 function _mapCurrentNode(){ return _mapNodeById(G.worldMap&&G.worldMap.current); }
 function _mapCurrentVillageNode(){
   const node=_mapCurrentNode();
-  return node&&node.type==='village'?node:null;
+  return node&&['village','merchant','altar'].includes(node.type)?node:null;
 }
 function _mapDistanceFromStart(id){
   const n=_mapNodeById(id);
@@ -383,74 +387,44 @@ function _revealAroundCurrentMapNode(){
     }
   });
 }
+function _routeNodeType(routeType,step){
+  const layouts={battle:['battle','battle','event','elite'],explore:['battle','event','treasure','event'],supply:['battle',Math.random()<.5?'merchant':'altar','event','battle']};
+  return (layouts[routeType]||layouts.explore)[step]||'battle';
+}
+function _routeRating(type){ return ({battle:20,elite:40,event:10,treasure:20,merchant:30,altar:40}[type]||0); }
+function _makeRouteNode(id,type,stage,routeIndex,step,px,py,routeType){
+  const node=_newMapNode(id,{x:id,y:id,px,py});
+  Object.assign(node,{type,stage,routeIndex,routeType,routeStep:step,routeRating:_routeRating(type),visible:stage===0});
+  return node;
+}
 function generateWorldMap(index){
-  const target=WORLD_MAP_TOTAL_TILES;
-  const startId=_pickWorldMapStartId();
-  const picked=new Set([startId]);
-  const edges=[];
-  const pointCache=new Map();
-  const pointFor=id=>{
-    if(!pointCache.has(id)) pointCache.set(id,_mapVisualPointFor(id));
-    return pointCache.get(id);
-  };
-  while(picked.size<target){
-    const frontier=[];
-    const frontierLoose=[];
-    picked.forEach(id=>_mapNeighborsWide(id).forEach(nb=>{
-      if(picked.has(nb)||_mapEdgesWouldCrossDiagonal(id,nb,edges)||_mapEdgeCrossesAny(id,nb,edges,pointFor)||!_mapEdgeAngleOk(id,nb,edges,pointFor,30)) return;
-      frontierLoose.push({from:id,to:nb});
-      // 無関係な道・アイコンへの接近を避けられる候補を優先する。全滅した場合のみ
-      // （マス全体を埋め切る都合上どうしても余白が取れない場合）frontierLooseで妥協する。
-      if(_mapEdgeStaysClearOfOtherNodes(id,nb,picked,pointFor)) frontier.push({from:id,to:nb});
-    }));
-    const pool=frontier.length?frontier:frontierLoose;
-    if(!pool.length) break;
-    const next=randFrom(pool);
-    picked.add(next.to);
-    edges.push([next.from,next.to]);
-  }
-  // 全49マス（7x7グリッド全体）を使い切れなかった場合は作り直す（角度・交差制約で稀に埋まりきらないため）。
-  if(picked.size<target&&(generateWorldMap._retry||0)<80){
-    generateWorldMap._retry=(generateWorldMap._retry||0)+1;
-    return generateWorldMap(index);
-  }
-  generateWorldMap._retry=0;
-  const nodes=[...picked].map(id=>_newMapNode(id,pointFor(id)));
-  _computeMapDistances(nodes,startId,edges);
-  nodes.forEach(n=>{
-    if(n.id===startId){ n.type='start'; n.visited=true; n.cleared=true; return; }
-    n.type='battle';
-  });
-  // 比率通りに村・宝箱・エリート・イベントを配置（残りは通常戦闘のまま）。ボスはマップ上に配置しない。
-  _assignInitialMapNodeTypes(nodes,edges,startId);
-  const revealed={[startId]:true};
-  nodes.forEach(n=>{
-    if(n.type==='elite'){
-      // エリートは初期配置時点で位置を開示する。
-      n.visible=true;
-      n._eliteMoveClock=0;
-      n._elitePowerMult=1;
-      n._eliteFromId=null;
-      revealed[n.id]=true;
+  const nodes=[],edges=[],routeEdges={};
+  let nextId=0;
+  const start=_makeRouteNode(nextId++,'start',0,-1,0,18,50,'');
+  start.visited=true; start.cleared=true;
+  const village=_makeRouteNode(nextId++,'village',0,-1,5,50,50,'');
+  village._intermediate=true; village.visible=true;
+  const boss=_makeRouteNode(nextId++,'boss',1,-1,5,82,50,'');
+  boss.visible=true;
+  nodes.push(start,village,boss);
+  const routeTypes=['battle','explore','supply'].sort(()=>Math.random()-.5);
+  const firstY=[32,50,68],secondY=[38,50,62];
+  const makeRoute=(stage,routeIndex,routeType,from,to,ys)=>{
+    let previous=from;
+    for(let step=0;step<4;step++){
+      const x=stage===0?26+step*4.5:56+step*4.5;
+      const n=_makeRouteNode(nextId++,_routeNodeType(routeType,step),stage,routeIndex,step,x,ys[routeIndex],routeType);
+      nodes.push(n); edges.push([previous.id,n.id]);
+      routeEdges[_mapEdgeKey(previous.id,n.id)]={stage,routeIndex,routeType}; previous=n;
     }
-  });
-  const m={
-    index:index||1,
-    turn:0,
-    turnLimit:WORLD_MAP_BASE_TURN_LIMIT,
-    current:startId,
-    startId,
-    nodes,
-    revealed,
-    revealedEdges:{},
-    forcedBoss:false,
-    eliteBossBonusMult:1,
-    // 移動履歴（敗北時に2歩後退させるために使う。ワープ系は別途リセットする）。
-    moveHistory:[startId],
-    zoom:1.8,
-    edges,
+    edges.push([previous.id,to.id]); routeEdges[_mapEdgeKey(previous.id,to.id)]={stage,routeIndex,routeType};
   };
-  G.worldMap=m;
+  routeTypes.forEach((type,i)=>makeRoute(0,i,type,start,village,firstY));
+  routeTypes.forEach((type,i)=>makeRoute(1,i,type,village,boss,secondY));
+  const revealed={}; nodes.forEach(n=>{if(n.visible) revealed[n.id]=true;});
+  const m={index:index||1,turn:0,turnLimit:WORLD_MAP_BASE_TURN_LIMIT,current:start.id,startId:start.id,bossId:boss.id,intermediateVillageId:village.id,stage:0,selectedRoute:null,selectedRoutes:{},nodes,revealed,revealedEdges:{},routeEdges,forcedBoss:false,eliteBossBonusMult:1,moveHistory:[start.id],zoom:1.8,edges};
+  G.worldMap=m; _computeMapDistances(nodes,start.id,edges);
+  nodes.filter(n=>n.routeStep===3).forEach(n=>{n.routeRatingTotal=nodes.filter(x=>x.stage===n.stage&&x.routeIndex===n.routeIndex).reduce((sum,x)=>sum+(x.routeRating||0),0);});
   _revealAroundCurrentMapNode();
   return m;
 }
@@ -535,6 +509,9 @@ function renderWorldMap(){
       if(bothVisible||peekingRoad) _markMapEdgeRevealed(n.id,m.id);
       const edge=document.createElement('div');
       edge.className=`map-edge${bothVisible?'':' preview'}${edgeRevealed&&!bothVisible&&!peekingRoad?' remembered':''}`;
+      const routeInfo=G.worldMap.routeEdges&&G.worldMap.routeEdges[edgeKey];
+      const selectedEdgeRoute=_mapSelectedRouteForStage(routeInfo&&routeInfo.stage);
+      if(selectedEdgeRoute!=null&&routeInfo&&routeInfo.routeIndex!==selectedEdgeRoute) edge.classList.add('route-muted');
       const x1=n.px*gridW/100,y1=n.py*gridH/100,x2=m.px*gridW/100,y2=m.py*gridH/100;
       const dx=x2-x1,dy=y2-y1;
       edge.style.left=`${x1}px`;
@@ -546,15 +523,19 @@ function renderWorldMap(){
   });
   grid.appendChild(edgeLayer);
   const current=G.worldMap.current;
-  const selectable=new Set(G.worldMap.nodes
-    .filter(n=>n&&(n.visible||_mapNodeForceIconVisible(n))&&n.id!==current&&_mapPathBetween(current,n.id).length>1)
-    .map(n=>n.id));
+  const selectable=new Set(_mapEdgeNeighbors(current,G.worldMap.edges)
+    .map(id=>by.get(id)).filter(n=>{
+      const selectedRoute=_mapSelectedRouteForStage(n&&n.stage);
+      return n&&n.visible&&n.px>currentNode.px&&(n._intermediate||(selectedRoute==null||n.routeIndex===selectedRoute));
+    }).map(n=>n.id));
   G.worldMap.nodes.forEach(n=>{
     const forceIcon=_mapNodeForceIconVisible(n);
     if(!n.visible&&!forceIcon) return;
     const btn=document.createElement('button');
-    const type=n.id===current?'player':(n.cleared&&n.type!=='village'&&n.type!=='boss'?(n._clearedEvent?'empty2':'empty'):n.type);
+    const type=n.id===current?(n._intermediate?'empty2':'player'):(n.cleared&&!['village','merchant','altar','boss'].includes(n.type)?(n._clearedEvent?'empty2':'empty'):n.type);
     btn.className=`map-node type-${n.type}`;
+    const selectedNodeRoute=_mapSelectedRouteForStage(n.stage);
+    if(selectedNodeRoute!=null&&n.routeIndex>=0&&n.routeIndex!==selectedNodeRoute) btn.classList.add('route-muted');
     // エリートの1歩目：実際にはまだ移動していないが、道の途中（自分と目的地の中間点）に
     // 見た目だけ表示する。ここをクリックすると「ここで迎撃しますか？」の確認を出す。
     const midStepTarget=(n.type==='elite'&&n._eliteStepTargetId!=null)?by.get(n._eliteStepTargetId):null;
@@ -573,8 +554,16 @@ function renderWorldMap(){
     btn.onclick=()=>{
       if(G._pendingMapItemUse&&handlePendingMapItemNode(n.id)) return;
       if(midStepTarget){ _confirmInterceptElite(n); return; }
-      if(n.id===current&&n.type==='village') openMapVillage();
-      else if(selectable.has(n.id)) moveToMapNode(n.id);
+      if(n.id===current&&n.type==='village'&&!n._intermediate) openMapVillage();
+      else if(n._intermediate&&n.px>currentNode.px) moveToMapNode(n.id);
+      else if(selectable.has(n.id)){
+        if(n.routeStep===0){
+          G.worldMap.selectedRoute=n.routeIndex;
+          G.worldMap.selectedRoutes=G.worldMap.selectedRoutes||{};
+          G.worldMap.selectedRoutes[n.stage]=n.routeIndex;
+        }
+        moveToMapNode(n.id);
+      }
     };
     grid.appendChild(btn);
   });
@@ -585,14 +574,22 @@ function _mapNodeIcon(type){
   if(type==='battle') return Assets.map.mob;
   if(type==='elite') return Assets.map.elite;
   if(type==='boss') return Assets.map.boss;
-  if(type==='village') return Assets.map.shop;
+  if(type==='village') return Assets.map.empty2||Assets.map.empty;
+  if(type==='merchant') return Assets.map.shop;
+  if(type==='altar') return Assets.map.altar||Assets.map.shop;
   if(type==='event') return Assets.map.event;
   if(type==='treasure') return Assets.map.treasure;
   if(type==='empty2') return Assets.map.empty2||Assets.map.empty;
   return Assets.map.empty;
 }
+function _mapSelectedRouteForStage(stage){
+  const m=G&&G.worldMap;
+  if(!m) return null;
+  if(m.selectedRoutes&&Object.prototype.hasOwnProperty.call(m.selectedRoutes,stage)) return m.selectedRoutes[stage];
+  return stage===m.stage?m.selectedRoute:null;
+}
 function _mapNodeTitle(n){
-  const names={start:'開始地点',battle:'通常戦闘',elite:'エリート',boss:'ボス',village:'村',event:'イベント',treasure:'宝箱'};
+  const names={start:'開始地点',battle:'通常戦闘',elite:'エリート',boss:'ボス',village:'中間地点',merchant:'行商人',altar:'祭壇',event:'イベント',treasure:'宝箱'};
   return `${names[n.type]||n.type} / 距離${n.dist}`;
 }
 function _mapEnemyPowerRating(node){
@@ -809,15 +806,10 @@ async function skipWorldMapTurn(){
     if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
     m.turn=(Number(m.turn)||0)+1;
     _applyWorldMapTurnEvents();
-    const encounter=_moveMapElites();
     _revealAroundCurrentMapNode();
     renderWorldMap();
     updateHUD();
     await _mapDelay(180);
-    if(encounter){
-      startMapBattle('elite',encounter.id,false);
-      return true;
-    }
     return false;
   }finally{
     G._mapAutoMoving=false;
@@ -826,6 +818,8 @@ async function skipWorldMapTurn(){
 async function _moveToAdjacentMapNode(id,options){
   const m=G.worldMap;
   if(!m||!_mapNodeById(id)) return false;
+  const fromNode=_mapCurrentNode(), toNode=_mapNodeById(id);
+  if(fromNode&&toNode&&toNode.px<=fromNode.px) return false;
   if(!_mapEdgeNeighbors(m.current,m.edges).includes(id)) return false;
   if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
   m.current=id;
@@ -852,9 +846,22 @@ async function _moveToAdjacentMapNode(id,options){
     startMapBattle(node.type,id,false);
     return true;
   } else if(node.type==='village'){
+    if(node._intermediate){
+      node._asEmptyTransit=true;
+      m.stage=1; m.selectedRoute=null;
+      (m.nodes||[]).filter(n=>n.stage===1).forEach(n=>{n.visible=true; m.revealed[n.id]=true;});
+      renderWorldMap();
+      return false;
+    }
     if(options&&options.passThrough) renderWorldMap();
     else enterVillageNode(node);
     return !(options&&options.passThrough);
+  } else if(node.type==='merchant'){
+    openMapShop();
+    return true;
+  } else if(node.type==='altar'){
+    openMapForge();
+    return true;
   } else if(node.type==='event'){
     resolveMapEvent(node);
     return true;
@@ -862,14 +869,7 @@ async function _moveToAdjacentMapNode(id,options){
     enterTreasureNode(node);
     return true;
   } else {
-    if(!(options&&options.deferEliteMove)){
-      const encounter=_moveMapElites();
-      _revealAroundCurrentMapNode();
-      if(encounter){
-        startMapBattle('elite',encounter.id,false);
-        return true;
-      }
-    }
+    _revealAroundCurrentMapNode();
     renderWorldMap();
     return false;
   }
@@ -909,18 +909,17 @@ async function _interceptElite(node){
 function moveToMapNode(id){
   const m=G.worldMap;
   if(!m||!_mapNodeById(id)||id===m.current||G._mapAutoMoving) return;
+  const currentNode=_mapCurrentNode(), targetNode=_mapNodeById(id);
+  if(currentNode&&targetNode&&targetNode.px<=currentNode.px) return;
   const path=_mapPathBetween(m.current,id);
   if(path.length<2) return;
-  const eliteAhead=path.slice(1).some(pid=>{ const pn=_mapNodeById(pid); return pn&&pn.type==='elite'; });
-  if(eliteAhead){
-    _openMapConfirmDialog('ここに移動すると戦闘になります',()=>_executeMoveToMapNode(id));
-    return;
-  }
   _executeMoveToMapNode(id);
 }
 async function _executeMoveToMapNode(id){
   const m=G.worldMap;
   if(!m||!_mapNodeById(id)||id===m.current||G._mapAutoMoving) return;
+  const currentNode=_mapCurrentNode(), targetNode=_mapNodeById(id);
+  if(currentNode&&targetNode&&targetNode.px<=currentNode.px) return;
   const path=_mapPathBetween(m.current,id);
   if(path.length<2) return;
   G._mapAutoMoving=true;
@@ -937,14 +936,9 @@ async function _executeMoveToMapNode(id){
     G._mapAutoMoving=false;
   }
   if(G.phase==='map'&&G.worldMap){
-    const encounter=_moveMapElites();
     _revealAroundCurrentMapNode();
-    if(encounter){
-      startMapBattle('elite',encounter.id,false);
-    }else{
-      if(_worldMapLimitReached()) _startForcedWorldMapBossBattle();
-      else renderWorldMap();
-    }
+    if(_worldMapLimitReached()) _startForcedWorldMapBossBattle();
+    else renderWorldMap();
   }
 }
 function startMapBattle(type,nodeId,forced){
@@ -993,14 +987,7 @@ function finishMapBattleVictory(){
   if(node&&(node.type==='battle'||node.type==='elite')) node.type='empty';
   const wasBoss=b.type==='boss'||b.forcedBoss;
   if(b.type==='elite') G._eliteTreasureRewardPending=true;
-  if(wasBoss&&G.worldMap){
-    const left=Math.max(0,(G.worldMap.turnLimit||WORLD_MAP_BASE_TURN_LIMIT)-(G.worldMap.turn||0));
-    const bonus=left*left*10;
-    if(bonus>0){
-      G.gold=(G.gold||0)+bonus;
-      log(`ボス撃破ボーナス：${bonus}ゴールドを得た。`,'gold');
-    }
-  }
+  // ボス報酬ゴールドは廃止。
   G._mapBattle=null;
   G._mapEliteBattle=false;
   G._forceBossMult=null;
@@ -1067,23 +1054,9 @@ function handleMapBattleDefeat(){
     _triggerWorldMapDefeat('boss_defeat');
     return true;
   }
-  const alive=(G.enemies||[]).filter(e=>e&&e.hp>0&&!e._isObject).length;
-  if(G.worldMap){
-    for(let i=0;i<alive;i++){
-      if(_worldMapNextTurnWouldForceBoss()) return !!_startForcedWorldMapBossBattle();
-      G.worldMap.turn=(G.worldMap.turn||0)+1;
-      _applyWorldMapTurnEvents();
-      const encounter=_moveMapElites();
-      if(encounter){
-        startMapBattle('elite',encounter.id,false);
-        return true;
-      }
-    }
-  }
   G._mapBattle=null;
   G._mapEliteBattle=false;
   G._forceBossMult=null;
-  if(G.worldMap) _retreatWorldMapAfterDefeat();
   G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
   G.enemies=[];
   G.phase=null;
@@ -1109,6 +1082,12 @@ function openMapFormation(){
 }
 function shopDone(){
   if(G._pendingPanelPlacement) return;
+  if(G._waveLoopEnabled&&typeof _startWaveFlowNext==='function'){
+    if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
+    G._isShop=false; G._isForge=false; G._isVillageMenu=false; G._isTavern=false; G._isRingExchange=false;
+    _startWaveFlowNext();
+    return;
+  }
   if(G._eliteTreasureRewardPending){
     G._eliteTreasureRewardPending=false;
     openMapTreasure();
@@ -1130,12 +1109,17 @@ function enterVillageNode(node){
   openMapVillage();
 }
 function openMapVillage(){
+  if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
+  // 村メニューでは祭壇状態を必ず解除する。Scene遷移後や施設からの戻りで
+  // 前の祭壇フラグが残っても、村の選択肢が祭壇側へ分岐しないようにする。
+  G._isWaveAltar=false;
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=true;
   G._isTreasureMapReward=false;
+  G._isRingExchange=false;
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
@@ -1148,7 +1132,46 @@ function openMapVillage(){
     row.innerHTML='';
     [
       ['ショップ','販売カードを確認する',openMapShop],
+      ['クエスト受託','クエストを受ける（未実装）',()=>{ log('クエスト受託は未実装です。','sys'); }],
+    ].forEach(([name,desc,fn])=>{
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='map-village-card';
+      btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
+      btn.onclick=fn;
+      row.appendChild(btn);
+    });
+  }
+  renderMoveSlotsInEnemy();
+}
+// 祭壇（wave進行stage10）：鍛冶屋・指輪交換を選択できる村メニュー相当の画面。
+function _openWaveAltarMenu(){
+  if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
+  G._mapReturnAfterReward=true;
+  // 祭壇メニューでは村状態と混ざらないよう、入口で明示する。
+  G._isWaveAltar=true;
+  G._isShop=false;
+  G._isForge=false;
+  G._isTavern=false;
+  G._isVillageMenu=true;
+  G._isTreasureMapReward=false;
+  G._isRingExchange=false;
+  G.phase='reward';
+  document.body.classList.remove('world-map-active');
+  goToReward();
+  _rewCards=[];
+  _rewFreePickDone=true;
+  const section=document.getElementById('battle-order-section');
+  const row=document.getElementById('battle-order-row');
+  if(section&&row){
+    section.style.display='';
+    row.innerHTML='';
+    const _ringExchangeResolved=!!(G._waveRingExchange&&G._waveRingExchange[_waveFacilityCacheKey()]&&G._waveRingExchange[_waveFacilityCacheKey()].resolved);
+    [
       ['鍛冶屋','魔導板パネルを改良する',openMapForge],
+      // 指輪交換は1回の祭壇で1つまで（3枚の提示から1つ選んで取得済み＝resolved）なので、
+      // 取得済みなら選択肢自体を消す。
+      ...(_ringExchangeResolved?[]:[['指輪交換','カード3枚と引き換えに指輪1つを得る',openMapRingExchange]]),
     ].forEach(([name,desc,fn])=>{
       const btn=document.createElement('button');
       btn.type='button';
@@ -1189,8 +1212,11 @@ function openMapShop(){
   document.body.classList.remove('world-map-active');
   goToReward();
   const node=_mapCurrentVillageNode();
+  const waveKey=G._waveLoopEnabled?_waveFacilityCacheKey():null;
   if(node&&Array.isArray(node.shopStock)){
     _rewCards=clone(node.shopStock||[]);
+  }else if(waveKey!=null&&G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])){
+    _rewCards=clone(G._waveShopStock[waveKey]);
   }else{
     const used=new Set();
     _rewCards=[
@@ -1201,6 +1227,7 @@ function openMapShop(){
       _mapPickSaleCard(p=>Number(p.rarity)>=3,used),
     ];
     if(node) node.shopStock=clone(_rewCards);
+    if(waveKey!=null){ G._waveShopStock=G._waveShopStock||{}; G._waveShopStock[waveKey]=clone(_rewCards); }
   }
   G._isShop=true;
   G._freeRewardPanelMode=false;
@@ -1223,15 +1250,73 @@ function openMapForge(){
   _rewCards=[];
   _rewFreePickDone=true;
   const node=_mapCurrentVillageNode();
+  const waveKey=G._waveLoopEnabled?_waveFacilityCacheKey():null;
   if(node&&Array.isArray(node.forgeOffers)){
     G._mapForgeOffers=clone(node.forgeOffers||[]);
+  }else if(waveKey!=null&&G._waveForgeOffers&&Array.isArray(G._waveForgeOffers[waveKey])){
+    G._mapForgeOffers=clone(G._waveForgeOffers[waveKey]);
   }else{
     G._mapForgeOffers=_pickMapForgeOffers();
     if(node) node.forgeOffers=clone(G._mapForgeOffers||[]);
+    if(waveKey!=null){ G._waveForgeOffers=G._waveForgeOffers||{}; G._waveForgeOffers[waveKey]=clone(G._mapForgeOffers||[]); }
   }
   renderMapForgeOffers();
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   renderMoveSlotsInEnemy();
+}
+// wave進行中の村/祭壇施設（ショップ・鍛冶屋・指輪交換）は、同一waveの間は
+// 提示内容を再抽選しない（一度戻って再訪しても同じ内容を保つ）。waveごとにキャッシュする。
+function _waveFacilityCacheKey(){ return Math.max(1,Number(G._wave)||1); }
+function _syncWaveFacilityCache(){
+  if(!G._waveLoopEnabled) return;
+  const key=_waveFacilityCacheKey();
+  if(G._isShop){
+    G._waveShopStock=G._waveShopStock||{};
+    G._waveShopStock[key]=clone(_rewCards||[]);
+  }else if(G._isForge){
+    G._waveForgeOffers=G._waveForgeOffers||{};
+    G._waveForgeOffers[key]=clone(G._mapForgeOffers||[]);
+  }else if(G._isRingExchange){
+    G._waveRingExchange=G._waveRingExchange||{};
+    G._waveRingExchange[key]={
+      offer:clone(G._ringOffer||[]),
+      unlocked:!!G._ringOfferUnlocked,
+      resolved:!!G._ringOfferResolved,
+      discardCount:G._boardDiscardCount||0
+    };
+  }
+}
+// 祭壇の「指輪交換」：指輪3つを提示し、魔導板のカード3枚と引き換えに1つを選んで得る
+// （既存のボス撃破後「栄光の力」画面の仕組み＝_ringOfferPhase系をそのまま再利用する）。
+function openMapRingExchange(){
+  G._mapReturnAfterReward=true;
+  G._isShop=false;
+  G._isForge=false;
+  G._isTavern=false;
+  G._isVillageMenu=false;
+  G._isTreasureMapReward=false;
+  G._isRingExchange=true;
+  G.phase='reward';
+  document.body.classList.remove('world-map-active');
+  goToReward();
+  const waveKey=_waveFacilityCacheKey();
+  const cache=G._waveRingExchange&&G._waveRingExchange[waveKey];
+  if(cache){
+    G._ringOffer=clone(cache.offer||[]);
+    G._ringOfferUnlocked=!!cache.unlocked;
+    G._ringOfferResolved=!!cache.resolved;
+    G._boardDiscardCount=cache.discardCount||0;
+  }else{
+    G._ringOffer=typeof _pickRingOffer==='function'?_pickRingOffer():[];
+    G._waveRingExchange=G._waveRingExchange||{};
+    G._waveRingExchange[waveKey]={offer:clone(G._ringOffer||[]),unlocked:false,resolved:false,discardCount:0};
+  }
+  G._ringOfferPhase=true;
+  if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
+  renderRewCards();
+  renderMoveSlotsInEnemy();
+  renderHandEditor();
+  renderFieldEditor();
 }
 function _pickMapForgeOffers(){
   const pool=MAP_PANEL_POWERS.filter(p=>p.id!=='summon');
@@ -1270,7 +1355,9 @@ function _mapForgeCandidateSlots(power){
   if(!power) return [];
   const size=typeof MAIN_BOARD_SIZE!=='undefined'?MAIN_BOARD_SIZE:15;
   if(power.id==='summon'){
-    return [0,1,2,3,4].filter(i=>i<size&&_mapPanelPowerIdAtSafe(i)!=='summon');
+    // 召喚の力は、特殊マスではない上段・下段だけを対象にする。
+    // ■□■□■ / ■■■■■ / □■□■□
+    return [0,2,4,11,13].filter(i=>i<size&&!_mapPanelPowerIdAtSafe(i));
   }
   return Array.from({length:size},(_,i)=>i).filter(i=>_mapPanelPowerIdAtSafe(i)==='summon');
 }
@@ -1418,7 +1505,8 @@ function resolveMapEvent(node){
     const idx=(G.mainBoard||[]).findIndex(x=>!x);
     if(c&&idx>=0) G.mainBoard[idx]=c;
   } else if(r===1){
-    G.gold=(G.gold||0)+100;
+    if(typeof onGoldGained==='function') onGoldGained(100);
+    else G.gold=(G.gold||0)+100;
   } else {
     G.worldMap.turnLimit=(G.worldMap.turnLimit||WORLD_MAP_BASE_TURN_LIMIT)+3;
   }

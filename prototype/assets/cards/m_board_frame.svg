@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 261 395.61">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #c49a6c;
+        stroke-miterlimit: 10;
+      }
+    </style>
+  </defs>
+  <g id="_編成" data-name="編成">
+    <g id="_魔導板" data-name="魔導板">
+      <rect class="cls-1" x=".5" y=".5" width="260" height="394.61" rx="19" ry="19"/>
+    </g>
+  </g>
+</svg>

@@ -10,7 +10,7 @@ const UNIT_POOL = [
   {id:'c_starter_thief', name:'盗賊', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, initialPanelName:'二段攻撃', initialPanelDesc:'<自動>二回攻撃する。', initialEquipment:[], desc:''},
   {id:'c_starter_knight', name:'騎士', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, initialPanelName:'貫通', initialPanelDesc:'<自動>後衛の敵にもダメージを与える。', initialEquipment:[], desc:''},
   {id:'c_starter_necromancer', name:'屍術師', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, initialPanelName:'再生', initialPanelDesc:'<自動>一度だけ復活する。', initialEquipment:[], desc:''},
-  {id:'c_starter_hunter', name:'狩人', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, initialPanelName:'狙撃', initialPanelDesc:'<自動>反撃されず、反撃もできない。', initialEquipment:[], desc:''},
+  {id:'c_starter_hunter', name:'狩人', race:'亜人', grade:1, atk:3, hp:3, cost:0, unique:false, starterOnly:true, initialPanelName:'狙撃', initialPanelDesc:'このキャラクターから生じる、ランダムな敵を選ぶ効果が1人の敵だけを狙うようになる。', initialEquipment:[], desc:''},
 ];
 
 function _unitSheetNameKey(name){

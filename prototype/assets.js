@@ -105,6 +105,14 @@ const Assets = {
     event: 'assets/map/event.png',
     shop: 'assets/map/shop.png',
   },
+  mapBoard: {
+    summon: 'assets/cards/m_board1.svg',
+    life: 'assets/cards/m_board2.svg',
+    eternal: 'assets/cards/m_board3.svg',
+    resonance: 'assets/cards/m_board4.svg',
+    duplicate: 'assets/cards/m_board5.svg',
+    empty: 'assets/cards/m_board6.svg',
+  },
   sfx: {
     uiConfirm: 'assets/sfx/ui_confirm.wav',
     uiError: 'assets/sfx/ui_error.wav',

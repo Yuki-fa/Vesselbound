@@ -31,7 +31,7 @@ function updateHUD(){
   const lifeEl=document.getElementById('h-life');
   if(lifeEl){
     const life=Math.max(0,Math.min(3,G.life==null?3:G.life));
-    lifeEl.textContent='♥'.repeat(life)+'♡'.repeat(3-life);
+    lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(3-life)}</span><span class="life-full">${'♥'.repeat(life)}</span>`;
   }
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
@@ -244,7 +244,7 @@ window.addEventListener('resize',()=>{
 function _starterCardCandidates(category){
   const cats=Array.isArray(category)?category:[category];
   return (typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]).filter(p=>{
-    if(!p||!p.id||Number(p.rarity)!==1||p.rarity===-1||p.removed) return false;
+    if(!p||!p.id||p.initial!==true||p.removed) return false;
     if(typeof _isImplementedPoolCard==='function'&&!_isImplementedPoolCard(p)) return false;
     if(p._sheetSeen===false||p._implemented===false) return false;
     if(String(p.category||'')==='キャラクター'){
@@ -304,40 +304,57 @@ function _giveInitialRandomBoardCards(){
   for(let attempt=0;attempt<240&&!picked;attempt++){
     const charDef=_pickStarterPanelDef('キャラクター');
     const midDef=_pickStarterPanelDef(['エンチャント','強化']);
-    const endDef=_pickStarterPanelDef(['エンチャント','強化']);
     const charCard=_makeStarterPanelFromDef(charDef,false);
     const midCard=_makeStarterPanelFromDef(midDef,false);
-    const endCard=_makeStarterPanelFromDef(endDef,false);
-    if(!charCard||!midCard||!endCard) continue;
+    if(!charCard||!midCard) continue;
     const paths=starterPaths.filter(p=>
       (charCard.directions||[]).includes(p.charDir)&&
-      (midCard.directions||[]).includes(opposite[p.charDir])&&
-      (midCard.directions||[]).includes(p.midDir)&&
-      (endCard.directions||[]).includes(opposite[p.midDir])
+      (midCard.directions||[]).includes(opposite[p.charDir])
     );
     if(!paths.length) continue;
-    picked={path:randFrom(paths),defs:[charDef,midDef,endDef],cards:[charCard,midCard,endCard]};
+    picked={path:randFrom(paths),defs:[charDef,midDef],cards:[charCard,midCard]};
   }
   if(picked){
     picked.defs.forEach(def=>{ if(def&&typeof consumePanelSaleStock==='function') consumePanelSaleStock(def); });
-    const [charCard,midCard,endCard]=picked.cards;
+    const [charCard,midCard]=picked.cards;
     G.mainBoard[charSlot]=charCard;
     G.mainBoard[picked.path.midSlot]=midCard;
-    G.mainBoard[picked.path.endSlot]=endCard;
   } else {
     const charCard=_takeStarterPanel('キャラクター');
     if(charCard) G.mainBoard[charSlot]=charCard;
-    // charSlotがランダムになったため、置き場所も固定([6,5])ではなく
-    // そのキャラの隣接する空きスロット（出撃パネル以外）から詰める。
-    const nearby=[];
-    dirs.forEach(d=>{
-      const s=step(charSlot,d);
-      if(s!=null&&!deploySlotSet.has(s)&&!G.mainBoard[s]) nearby.push(s);
-    });
-    nearby.slice(0,2).forEach(slot=>{
-      const card=_takeStarterPanel(['エンチャント','強化']);
-      if(card) G.mainBoard[slot]=card;
-    });
+    // フォールバックでも強化カードは1枚だけ、必ずキャラクターに接続する。
+    if(charCard){
+      let placed=false;
+      for(const charDir of dirs){
+        const midSlot=step(charSlot,charDir);
+        if(midSlot==null||deploySlotSet.has(midSlot)||G.mainBoard[midSlot]) continue;
+        for(let attempt=0;attempt<60&&!placed;attempt++){
+          const def=_pickStarterPanelDef(['エンチャント','強化']);
+          const card=_makeStarterPanelFromDef(def,false);
+          if(!card) continue;
+          if((charCard.directions||[]).includes(charDir)&&(card.directions||[]).includes(opposite[charDir])){
+            if(typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
+            G.mainBoard[midSlot]=card;
+            placed=true;
+          }
+        }
+        if(placed) break;
+      }
+      if(!placed){
+        const charDir=dirs.find(d=>{
+          const slot=step(charSlot,d);
+          return slot!=null&&!deploySlotSet.has(slot)&&!G.mainBoard[slot]&&(charCard.directions||[]).includes(d);
+        });
+        if(charDir){
+          const slot=step(charSlot,charDir);
+          const card=_takeStarterPanel(['エンチャント','強化']);
+          if(card){
+            card.directions=Array.from(new Set([opposite[charDir],...(card.directions||[])]));
+            G.mainBoard[slot]=card;
+          }
+        }
+      }
+    }
   }
   if(!G.mainBoard[charSlot]){
     const fallbackSlot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
@@ -349,6 +366,229 @@ function _giveInitialRandomBoardCards(){
   }
 }
 
+// Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。
+const SCENE_FLOW_DATA={
+  standard:['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'],
+  final:['city','battle','elite','finalBoss'],
+};
+
+// Scene 1～4：通常戦×2→エリート→村→通常戦×4→ボス→祭壇。
+// Scene 5：村→通常戦→エリート→ラスボス。
+function _waveBattleType(stage){
+  if(Number(G&&G._wave)===5){
+    if(stage===3) return 'elite';
+    if(stage===4) return 'boss';
+    return 'battle';
+  }
+  if(stage===3) return 'elite';
+  if(stage===9) return 'boss';
+  return 'battle';
+}
+// 深層レベル＝そのwave内で何回目の通常戦闘か（1〜6）。エリート/ボスは固定値。
+function _waveDeepLevel(stage){
+  const table={1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
+  return table[stage]||1;
+}
+function _waveStageFloor(wave,stage){
+  const maxDeep=typeof _mapDeepLevelsPerMap==='function'?_mapDeepLevelsPerMap():6;
+  const deep=_waveDeepLevel(stage);
+  return Math.max(1,(Math.max(1,Number(wave)||1)-1)*maxDeep+deep);
+}
+function _openWaveFormation(){
+  showScreen('battle');
+  G.phase=null;
+  G._waveVillage=false;
+  G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false;
+  if(typeof goToReward==='function') goToReward();
+  _rewCards=[];
+  _rewFreePickDone=true;
+  G._waveRewardCount=null;
+  G._waveWithdraw=false;
+  const cards=document.getElementById('reward-cards-section');
+  if(cards) cards.style.display='none';
+  if(typeof renderRewCards==='function') renderRewCards();
+  if(cards) cards.style.display='none';
+  if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
+}
+function _grantWaveEliteItem(){
+  if(typeof drawItems!=='function'||typeof _ensureItemSlots!=='function') return;
+  const item=drawItems(1)[0];
+  if(!item) return;
+  const slots=_ensureItemSlots();
+  const idx=slots.findIndex(c=>!c);
+  if(idx<0) return;
+  slots[idx]=item;
+  log(`${item.name||'アイテム'}を獲得した。`,'gold');
+}
+// stage5：村（ショップ・クエスト受託）
+function _openWaveVillage(stage,eliteWon){
+  showScreen('battle');
+  G._waveStage=stage;
+  G._waveVillage=true;
+  G._waveEliteWon=!!eliteWon;
+  G._isWaveAltar=false;
+  G.phase=null;
+  if(typeof openMapVillage==='function') openMapVillage();
+}
+// stage10：祭壇（鍛冶・指輪交換）
+function _openWaveAltar(stage){
+  showScreen('battle');
+  G._waveStage=stage;
+  G._waveVillage=true;
+  G._isWaveAltar=true;
+  G.phase=null;
+  if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
+}
+function _startWaveBattle(stage){
+  const type=_waveBattleType(stage);
+  const wave=Math.max(1,Number(G._wave)||1);
+  // 敗北時、どの画面（村/祭壇/通常の報酬画面）の開始時点までやり直すかを記録しておく。
+  G._waveDefeatReturnTo=G._isWaveAltar?'altar':(G._waveVillage?'village':'reward');
+  G._waveVillage=false;
+  G._isWaveAltar=false;
+  // 戦闘開始時は村・祭壇・施設メニューを必ず閉じる。Scene 2以降の
+  // 村/祭壇からの遷移でも、前画面のフラグが次の報酬UIへ残らないようにする。
+  G._isShop=false;
+  G._isForge=false;
+  G._isTavern=false;
+  G._isVillageMenu=false;
+  G._isRingExchange=false;
+  G._waveStage=stage;
+  G._waveBattleType=type;
+  G._waveBattleWon=null;
+  G._waveRewardCount=null;
+  G._waveWithdraw=false;
+  // 強敵補正：通常戦=1、エリート=1.5、ボス（地域・ラスボス共通）=2
+  G._extraBattleMult=type==='elite'?1.5:(type==='boss'?2:1);
+  G._mapBattle={mapIndex:wave,nodeId:null,type,floor:_waveStageFloor(wave,stage),forcedBoss:false,normalBattleNo:stage===1?1:stage===2?2:0,turn:0};
+  G.floor=G._mapBattle.floor;
+  G.phase='battle';
+  document.body.classList.remove('world-map-active');
+  showScreen('battle');
+  startBattle();
+}
+function _startWaveFlowNext(){
+  if(!G._waveLoopEnabled) return false;
+  const stage=Number(G._waveStage)||1;
+  const wave=Math.max(1,Number(G._wave)||1);
+  if(wave===5){
+    if(stage===1){ _startWaveBattle(2); return true; }
+    if(stage===3){ _startWaveBattle(4); return true; }
+    _startWaveBattle(stage);
+    return true;
+  }
+  if(stage===4){ _startWaveBattle(5); return true; }
+  if(stage===10){
+    if(wave>=4){
+      G._wave=5;
+      _openWaveVillage(1,false);
+      return true;
+    }
+    G._wave=Math.min(4,wave+1);
+    _startWaveBattle(1);
+    return true;
+  }
+  _startWaveBattle(stage);
+  return true;
+}
+function finishWaveBattleVictory(){
+  if(!G._waveLoopEnabled||!G._waveBattleType) return false;
+  const type=G._waveBattleType;
+  const stage=Number(G._waveStage)||1;
+  const wave=Math.max(1,Number(G._wave)||1);
+  G._waveBattleWon=true;
+  if(type==='battle'){
+    G._waveStage=stage+1;
+    G._waveRewardCount=5;
+    G._waveWithdraw=false;
+    G._mapBattle=null;
+    G._waveBattleType=null;
+    return false;
+  }
+  if(type==='elite'){
+    // Scene 5のエリート勝利後は村を挟まずラスボスへ直行。
+    if(wave===5){
+      G._mapBattle=null;
+      G._waveBattleType=null;
+      if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+      G.enemies=[]; G.phase=null;
+      _startWaveBattle(4);
+      return true;
+    }
+    // Scene 1～4のエリート勝利後は村(stage4)へ直行。
+    _grantWaveEliteItem();
+    G._mapBattle=null;
+    G._waveBattleType=null;
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+    G.enemies=[]; G.phase=null;
+    _openWaveVillage(4,true);
+    return true;
+  }
+  if(type==='boss'&&wave===5&&stage===4){
+    // ラスボス撃破：ゲームクリア
+    G._mapBattle=null; G._waveBattleType=null;
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+    G.enemies=[]; G.phase='clear'; showScreen('clear');
+    return true;
+  }
+  if(type==='boss'){
+    // Scene 1～4のstage9（地域ボス）勝利：報酬なしで祭壇(stage10)へ直行
+    G._mapBattle=null; G._waveBattleType=null;
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+    G.enemies=[]; G.phase=null;
+    _openWaveAltar(10);
+    return true;
+  }
+  return false;
+}
+// 敗北は常にゲームオーバー（通常戦・エリート戦・ボス戦とも例外なし）。
+// 敵の種類に関わらず、敗北するとライフを1失う。3つとも失うとゲームオーバー。
+// ライフが残っていれば同じstageを最初からやり直す。
+function handleWaveBattleDefeat(){
+  if(!G._waveLoopEnabled||!G._waveBattleType) return false;
+  G._waveRetryEnemyKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
+  G._mapBattle=null; G._waveBattleType=null;
+  G._waveLife=Math.max(0,(G._waveLife==null?3:Number(G._waveLife))-1);
+  if(G._waveLife<=0){
+    G._battleDefeatHandled=true;
+    gameOver();
+    return true;
+  }
+  log(`敗北した。ライフを1失った（残り${G._waveLife}）。`,'bad');
+  // 直前の村/祭壇/報酬画面を開いた時点まで所持金・アイテム・指輪などを巻き戻す。
+  // 魔導板の配置は巻き戻さず、直前に取得した報酬カードを保持する。
+  // _rewardStartSnapshotはgoToReward()が村/祭壇/報酬いずれの画面でも共通で取得済みのものを流用する。
+  const snap=G._rewardStartSnapshot;
+  if(snap){
+    G.spellSlots=clone(snap.spellSlots||[]);
+    G.inventory=clone(snap.inventory||[]);
+    G.gold=Number(snap.gold)||0;
+    G.rings=clone(snap.rings||[]);
+    G.mapPanelPowers=clone(snap.mapPanelPowers||{});
+  }
+  if(typeof _removeAbsentKiemetsuCards==='function') _removeAbsentKiemetsuCards();
+  if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+  G.enemies=[];
+  G._battleDefeatHandled=false;
+  G._waveWithdraw=true;
+  // showVictoryOverlay()はG.phase==='reward'を要求するためここで先に立てるが、
+  // 実際の画面構築（村/祭壇/新規報酬5枚）は「Withdraw」が消えた後のコールバックで行う。
+  G.phase='reward';
+  if(typeof updateHUD==='function') updateHUD();
+  const returnTo=G._waveDefeatReturnTo||'reward';
+  showVictoryOverlay(()=>{
+    const ov=document.getElementById('victory-overlay');
+    if(ov) ov.style.display='none';
+    G._battleDefeatHandled=true;
+    G._waveWithdraw=false;
+    G._waveRewardCount=null;
+    G.phase=null;
+    if(returnTo==='altar'&&typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
+    else if(returnTo==='village'&&typeof openMapVillage==='function') openMapVillage();
+    else if(typeof goToReward==='function') goToReward();
+  });
+  return true;
+}
 function startGame(debugMode){
   initState();
   _giveInitialRandomBoardCards();
@@ -370,13 +610,13 @@ function startGame(debugMode){
     const muteBtn=document.getElementById('battle-mute-btn');
     if(muteBtn) muteBtn.style.display='none';
   }
-  if(typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&typeof startWorldMapRun==='function'){
-    startWorldMapRun();
-    goToWorldMap();
-  } else {
-    showScreen('battle');
-    goToReward();
-  }
+  G._waveLoopEnabled=true;
+  G._wave=1;
+  G._waveStage=1;
+  G._waveBattleType=null;
+  G._waveFinalVillage=false;
+  G._waveLife=3;
+  _openWaveFormation();
 }
 
 function debugKillAll(){
@@ -413,7 +653,7 @@ function gameOver(){
 // 詰まった際に「表示」と「非表示」のタイマーがほぼ同時に発火し、一瞬で消えてしまう競合が起きるため、
 // 表示が確定してから逆算する形でチェーンする。
 function showVictoryOverlay(onShown,shownDuration){
-  if(G._battleDefeatHandled) return;
+  if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
   // ここでの味方生存チェックは常にtrueとなり誤って早期returnしてしまう。勝利可否は呼び出し元で判定済み。
   // 「You Win」表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる
@@ -422,9 +662,9 @@ function showVictoryOverlay(onShown,shownDuration){
     if(G._battleDefeatHandled||G.phase!=='reward') return;
     const ov=document.getElementById('victory-overlay');
     const title=ov?ov.querySelector('.victory-title'):null;
-    const isDraw=!!G._battleDraw;
-    if(title) title.textContent=isDraw?'Draw':'You Win';
-    if(!isDraw&&typeof playSfx==='function') playSfx(G._bossJustDefeated?'bossVictory':'victory',{group:'ui'});
+    const isWithdraw=!!G._waveWithdraw;
+    if(title) title.textContent=isWithdraw?'Withdraw':'You Win';
+    if(!isWithdraw&&typeof playSfx==='function') playSfx(G._bossJustDefeated?'bossVictory':'victory',{group:'ui'});
     if(ov) ov.style.display='flex';
     if(typeof onShown==='function') setTimeout(onShown,shownDuration||680);
   },120);
@@ -498,6 +738,7 @@ window.addEventListener('keydown', async (e) => {
           card.adjacentAtkBonus = def.adjacentAtkBonus;
           card.adjacentHpBonus = def.adjacentHpBonus;
           card.directionCount = def.directionCount;
+          if(Number(def.directionCount)===0) card.directions=[];
           if (def.power !== undefined) card.power = def.power;
           if (def.life !== undefined) card.life = def.life;
         }

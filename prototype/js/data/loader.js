@@ -127,6 +127,7 @@ const _XLSX_SHEETS = {
   card: 'キャラクター',
   enchant: 'エンチャント',
   spell: '魔法',
+  item: 'アイテム',
   ring: '指輪',
   mapPanelPower: '魔導板強化',
   deepLevel: '深層レベル',
@@ -166,6 +167,7 @@ async function _loadGameDataFromEmbeddedXlsx() {
     pt: data.card || data.panel || '名前\n',
     ent: data.enchant || '名前\n',
     spt: data.spell || '名前\n',
+    it: data.item || data.items || '名前\n',
     rt: data.ring || data.rings || '名前\n',
     mpt: data.mapPanelPower || data.mapPanel || '名前\n',
     dlt: data.deepLevel || data.floorLevel || '名前\n',
@@ -200,6 +202,7 @@ async function _loadGameDataFromXlsx() {
     pt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.card, 'カード'], false),
     ent: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.enchant, '強化'], false),
     spt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, false),
+    it: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.item, 'アイテム', 'Item'], false),
     rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, false),
     mpt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.mapPanelPower, false),
     dlt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.deepLevel, '深層レベル', '階層グレード'], false),
@@ -247,7 +250,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, rt, mpt, dlt };
+  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, it: '名前\n', rt, mpt, dlt };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -529,7 +532,7 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, gt, ct, et, kwt, pt, ent, spt, rt, mpt, dlt } = loaded;
+    let { source, ft, gt, ct, et, kwt, pt, ent, spt, it, rt, mpt, dlt } = loaded;
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -788,6 +791,8 @@ async function loadGameData() {
       const shield = ownPassiveDesc.match(/(?:^|\n)\s*結界\s*(\d*)/);
       if (shield) kws.push('結界' + (shield[1] || '1'));
       if (/根性/.test(ownPassiveDesc)) kws.push('根性');
+      if (/強靭\s*\d*/.test(ownPassiveDesc)) kws.push('強靭' + ((ownPassiveDesc.match(/強靭\s*(\d*)/)||[])[1] || '1'));
+      if (/狙撃/.test(ownPassiveDesc)) kws.push('狙撃');
       if (/即死/.test(ownPassiveDesc)) kws.push('即死');
       if (/(?:^|\n|\s)生贄(?:\s|。|\n|$)/.test(ownPassiveDesc)) kws.push('生贄');
       const seal = ownPassiveDesc.match(/封印\s*(\d+)/);
@@ -861,7 +866,8 @@ async function loadGameData() {
       [
         '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力','マナ生成',
         '二段攻撃','三段攻撃','即死','三方向攻撃','先制','全体攻撃','生命吸収',
-        '逆上','剣技','怨念','錬成','起源の種','恩寵','狙撃','隠密','加護','貫通'
+        '逆上','剣技','怨念','錬成','マナの種','恩寵','狙撃','防戦','帰滅','隠密','加護','貫通',
+        '奇妙な絆','懺悔','活性化','継承','咆哮','威光','復活','根性','強靭'
       ].forEach(k=>{
         if (desc.includes(k) || panel.name === k) panel.adjacentKeywords.push(k);
       });
@@ -887,17 +893,28 @@ async function loadGameData() {
       if (colorMana) panel.adjacentKeywords.push('マナ召喚');
       if (/三方向/.test(desc)) panel.directionCount = 3;
       else if (/四方向/.test(desc)) panel.directionCount = 4;
-      else panel.directionCount = panel.directionCount || 2;
+      else if (panel.directionCount == null) panel.directionCount = 2;
       _setManaThresholdFromDesc(panel);
     };
     const _syncPanelFromRow = (panel, row, forcedCategory) => {
       if (!panel) return;
       panel._sheetSeen = true;
+      panel._sheetDescLoaded = Object.prototype.hasOwnProperty.call(row, '効果');
+      panel._sheetKeywordsLoaded = Object.prototype.hasOwnProperty.call(row, 'キーワード');
+      const hasRewardColumn=Object.prototype.hasOwnProperty.call(row,'報酬');
+      const hasShopColumn=Object.prototype.hasOwnProperty.call(row,'ショップ');
+      panel._rewardAvailable=hasRewardColumn?_truthySheet(row['報酬']):true;
+      panel._shopAvailable=hasShopColumn?_truthySheet(row['ショップ']):true;
+      // キャラクター／エンチャントシートの「初期」列を初期編成候補へ反映する。
+      if (Object.prototype.hasOwnProperty.call(row, '初期')) {
+        panel.initial = _truthySheet(row['初期']);
+      }
       delete panel.removed;
       const category = forcedCategory || (row['分類'] || '').trim() || panel.category || '';
       const artFallback = category === 'スペル' ? 'S' : (category === '強化' || category === 'エンチャント') ? 'E' : 'C';
       _assignSheetArtCode(panel, row, artFallback);
       delete panel._rewardExcluded;
+      delete panel._shopExcluded;
       panel.category = category === '強化' ? 'エンチャント' : category;
       delete panel.subCategory;
       delete panel.manaCost;
@@ -942,24 +959,27 @@ async function loadGameData() {
         const hpP = _parseIntRange(lifeStr, panel.life != null ? panel.life : (panel.hp || 0));
         panel.life = hpP.val;
       }
-      if (row['効果'] !== undefined) panel.desc = _stripOwnNameFromDesc(String(row['効果'] || '').trim(), panel.name);
-      if (panel.name === 'スリープシープ') panel.desc = '常時：このキャラクターは4つのポートを持つ。';
-      if (panel.name === 'ツインデビル') panel.desc = '開戦：コピーを1体召喚する。';
+      if (row['効果'] !== undefined) panel.desc = String(row['効果'] || '').trim();
+      if (!panel._sheetDescLoaded && panel.name === 'スリープシープ') panel.desc = '常時：このキャラクターは4つのポートを持つ。';
+      if (!panel._sheetDescLoaded && panel.name === 'ツインデビル') panel.desc = '開戦：コピーを1体召喚する。';
       const sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
       if (sfxType) panel.sfxType = sfxType;
       panel.characterDesc = String(row['キャラクター用説明文'] || '').trim();
-      const sheetKeywords = _splitSheetKeywords(row['キーワード']);
+      const sheetKeywords = _splitSheetKeywords(row['キーワード']).map(k=>{
+        const s=String(k||'').trim();
+        return s==='強靭'?'強靭1':s;
+      });
       if (panel.category === 'キャラクター') {
         _setPanelKeywordsFromDesc(panel);
         panel.keywords = _mergeUniqueKeywords(panel.keywords, sheetKeywords);
         if (panel.name !== 'スリープシープ' && panel.name !== 'ツインデビル') panel.directionCount = panel.directionCount || 2;
-        if (panel.name === 'スリープシープ') panel.directionCount = 4;
-        if (panel.name === 'ツインデビル') panel.directionCount = 2;
+        if (!panel._sheetDescLoaded && panel.name === 'スリープシープ') panel.directionCount = 4;
+        if (!panel._sheetDescLoaded && panel.name === 'ツインデビル') panel.directionCount = 2;
       }
       if (panel.category === 'エンチャント') {
         _setEnchantFieldsFromDesc(panel);
         panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, sheetKeywords);
-        // 「ポート」列＝各強化カードの接続ポイントの数（シート上の表記ゆれで「ハブ」列名の場合も許容）
+        // 「ポート」列＝各強化カードの接続ポイントの数（旧「ハブ」列も互換で許容）
         const portStr = String(row['ポート'] ?? row['ハブ'] ?? '').trim();
         const portVal = parseInt(portStr, 10);
         if (!isNaN(portVal) && portVal >= 1) panel.directionCount = portVal;
@@ -968,10 +988,26 @@ async function loadGameData() {
     const cardRows = _parseCSVWithHeader(pt || '名前\n', ['No.', '名前']);
     const enchantRows = _parseCSVWithHeader(ent || '名前\n', ['No.', '名前']);
     const spellRows = _parseCSVWithHeader(spt || '名前\n', ['No.', '名前']);
+    const itemRows = _parseCSVWithHeader(it || '名前\n', ['No.', '名前']);
     const ringRows = _parseCSVWithHeader(rt || '名前\n', ['No.', '名前']);
+    if(itemRows.some(row=>Object.prototype.hasOwnProperty.call(row,'実装'))){
+      itemRows.forEach(row=>{
+        const name=String(row['名前']||'').trim();
+        const no=String(row['No.']||row['No']||'').trim();
+        if(!name&&!no) return;
+        (ITEM_POOL||[]).filter(item=>(name&&String(item.name||'').trim()===name)||(no&&String(item.no||'').trim()===no))
+          .forEach(item=>{ item._implemented=_truthySheet(row['実装']); });
+      });
+    }
     // 指輪シートは「実装」列が明示的にTRUE/✓等の場合のみ採用する（空欄のドラフト行を
     // 「未指定＝実装済み」として拾ってしまう_rowImplementedの既定動作とは別扱いにする）。
-    const parsedRings = ringRows.filter(row => _truthySheet(row['実装'])).map(_rowToRing).filter(Boolean);
+    // 実装済みとして扱う指輪は、シート側の実装フラグが古い場合でも読み込む。
+    // R014/R025はコード側で実装するため、xlsx/local fallbackのfalseを許容する。
+    const _forcedRingNames = new Set(['黄金の指輪', '強欲の指輪']);
+    const parsedRings = ringRows
+      .filter(row => _truthySheet(row['実装']) || _forcedRingNames.has(String(row['名前'] || '').trim()))
+      .map(_rowToRing)
+      .filter(Boolean);
     if (parsedRings.length) {
       RING_POOL.length = 0;
       parsedRings.forEach(r => RING_POOL.push(r));
@@ -991,7 +1027,7 @@ async function loadGameData() {
       const pool = targetPool || PANEL_POOL;
       if (!implemented && !forceSync) {
         _filterBySheetName(pool, name).forEach(panel => {
-          if (panel) panel._rewardExcluded = true;
+          if (panel) { panel._rewardExcluded = true; panel._shopExcluded = true; }
         });
         return;
       }
@@ -1010,7 +1046,9 @@ async function loadGameData() {
       if (_seenPanelIds.has(panel.id)) return; // 既に別の行で同期済みのIDは再上書きしない（同名衝突対策）
       _seenPanelIds.add(panel.id);
       _syncPanelFromRow(panel, row, forcedCategory);
-      if (!implemented) panel._rewardExcluded = true;
+      if (!implemented) { panel._rewardExcluded = true; panel._shopExcluded = true; }
+      if (Object.prototype.hasOwnProperty.call(row,'報酬') && !_truthySheet(row['報酬'])) panel._rewardExcluded=true;
+      if (Object.prototype.hasOwnProperty.call(row,'ショップ') && !_truthySheet(row['ショップ'])) panel._shopExcluded=true;
       if (_summonOnlyPanelNames.has(_normCardName(name))) panel.rarity = -1;
     });
     _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
@@ -1043,7 +1081,6 @@ async function loadGameData() {
       'ユミル': {desc:'攻撃：+X/+Xを得る。Xはマナに等しい。'},
       'マーメイド': {desc:'常時：緑のキャラクターから得るマナは+1される。'},
       'グリムリーパー': {desc:'封印5　即死', keywords:['封印5','即死']},
-      'バンダースナッチ': {desc:'6マナ毎：ランダムな敵を「緑ウルフ」に変身させる。'},
       'ハイドラ': {desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
       'スキュラ': {desc:'3マナ毎：全ての敵に毒12を与える。'},
       'ナーガ': {desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
@@ -1062,6 +1099,7 @@ async function loadGameData() {
     };
     Object.entries(_requestedEffectOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
+        if (panel._sheetDescLoaded) return;
         panel.desc = _stripOwnNameFromDesc(cfg.desc, panel.name);
         panel._sheetSeen = true;
         panel._implemented = true;
@@ -1078,38 +1116,38 @@ async function loadGameData() {
     };
     Object.entries(_summonOnlyOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        panel.desc = cfg.desc;
+        if (!panel._sheetDescLoaded) panel.desc = cfg.desc;
         panel.rarity = -1;
         panel._sheetSeen = true;
         panel._implemented = true;
-        _setPanelKeywordsFromDesc(panel);
-        panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
+        if (!panel._sheetDescLoaded) _setPanelKeywordsFromDesc(panel);
+        if (!panel._sheetKeywordsLoaded) panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
       });
     });
     (PANEL_POOL || []).filter(p => p && p.name === '剣技' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
-      panel.desc = '攻撃：ATK+3を得る。';
+      if (!panel._sheetDescLoaded) panel.desc = '攻撃：ATK+3を得る。';
       panel._sheetSeen = true;
       panel._implemented = true;
-      _setEnchantFieldsFromDesc(panel);
-      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['剣技']);
+      if (!panel._sheetDescLoaded) _setEnchantFieldsFromDesc(panel);
+      if (!panel._sheetKeywordsLoaded) panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['剣技']);
     });
     (PANEL_POOL || []).filter(p => p && p.name === '恩寵' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
-      panel.desc = '常時：このキャラクターの開戦効果は1回追加で発動する。';
+      if (!panel._sheetDescLoaded) panel.desc = '常時：このキャラクターの開戦効果は1回追加で発動する。';
       panel._sheetSeen = true;
       panel._implemented = true;
-      _setEnchantFieldsFromDesc(panel);
-      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['恩寵']);
+      if (!panel._sheetDescLoaded) _setEnchantFieldsFromDesc(panel);
+      if (!panel._sheetKeywordsLoaded) panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['恩寵']);
     });
     (PANEL_POOL || []).filter(p => p && p.name === '竜の契約' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
       panel.no = '008';
-      panel.desc = _stripOwnNameFromDesc(panel.desc || '常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）', panel.name);
+      if (!panel._sheetDescLoaded) panel.desc = _stripOwnNameFromDesc(panel.desc || '常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）', panel.name);
       panel._sheetSeen = true;
       panel._implemented = true;
-      _setEnchantFieldsFromDesc(panel);
-      panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['竜の契約']);
+      if (!panel._sheetDescLoaded) _setEnchantFieldsFromDesc(panel);
+      if (!panel._sheetKeywordsLoaded) panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['竜の契約']);
     });
     (PANEL_POOL || []).forEach(panel => {
-      if(panel&&panel.name&&panel.desc) panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
+      if(panel&&panel.name&&panel.desc&&!panel._sheetDescLoaded) panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
     });
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];

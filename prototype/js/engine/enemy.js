@@ -184,7 +184,7 @@ function generateEnemies(floor){
       if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
     }
     const make=(def,isCenter)=>{
-      const {atk,hp}=enemyStats(def,floor,G._forceBossMult||1.5);
+      const {atk,hp}=enemyStats(def,floor,G._forceBossMult||G._extraBattleMult||1.5);
       const kws=[...(def.keywords||[])];
       if(isCenter&&!kws.includes('ボス')) kws.push('ボス');
       const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');

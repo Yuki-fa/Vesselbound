@@ -8,29 +8,65 @@
 (function _initKwTooltip(){
   const tip=document.getElementById('kw-tooltip');
   if(!tip) return;
+  const mapTip=()=>document.getElementById('map-power-tooltip');
+  const keywordTip=()=>document.getElementById('keyword-tooltip');
+  const hideTips=()=>{
+    tip.style.display='none';
+    const mt=mapTip(),kt=keywordTip();
+    if(mt) mt.style.display='none';
+    if(kt) kt.style.display='none';
+  };
   let _dragging=false;
-  document.addEventListener('dragstart',()=>{ _dragging=true; tip.style.display='none'; }, true);
+  document.addEventListener('dragstart',()=>{ _dragging=true; hideTips(); }, true);
   document.addEventListener('dragend',()=>{ _dragging=false; }, true);
   document.addEventListener('mouseup',()=>{ _dragging=false; }, true);
   document.addEventListener('mousemove',e=>{
-    if(_dragging){ tip.style.display='none'; return; }
+    if(_dragging){ hideTips(); return; }
     const tgt=e.target&&e.target.closest?e.target:null;
     const cardPreviewEl=tgt&&tgt.closest('[data-preview]');
     const panelPreviewEl=tgt&&tgt.closest('[data-panel-power-preview]');
     const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
+    const mapPreviewEl=tgt&&tgt.closest('[data-map-power-preview]');
+    const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
     const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'));
     const el=(!isPanelPeek&&cardPreviewEl)||kwEl||panelPreviewEl||cardPreviewEl;
-    if(!el){ tip.style.display='none'; return; }
-    const isKeywordDesc=el.hasAttribute('data-kwdesc');
-    const desc=(!isPanelPeek&&el.getAttribute('data-preview'))
-      ||el.getAttribute('data-kwdesc')||el.getAttribute('data-panel-power-preview')||el.getAttribute('data-preview')||'';
-    if(!desc){ tip.style.display='none'; return; }
-    tip.innerHTML=_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc});
-    tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
-    const rarityClass=[...el.classList].find(c=>/^rarity-[1-5]$/.test(c));
-    if(rarityClass) tip.classList.add(rarityClass);
-    tip.style.display='block';
-    _posKwTip(tip,e);
+    if(!el&&!mapPreviewEl&&!keywordPreviewEl){ hideTips(); return; }
+    const isKeywordDesc=!!(el&&el.hasAttribute('data-kwdesc'));
+    // 右クリックのぞき見中、マス自体（召喚の力など）の説明はdata-panel-power-previewから出す。
+    // このマスにレアリティはないため、上に置かれているカードのrarityクラスは適用しない。
+    const isPanelPowerDesc=isPanelPeek&&!isKeywordDesc&&!!(el&&el.hasAttribute('data-panel-power-preview'));
+    const isMapPowerDesc=isPanelPowerDesc||!!(el&&el.hasAttribute('data-panel-power-preview')&&!el.hasAttribute('data-preview'));
+    const desc=(el&&!isPanelPeek&&el.getAttribute('data-preview'))
+      ||(el&&el.getAttribute('data-kwdesc'))||(el&&el.getAttribute('data-panel-power-preview'))||(el&&el.getAttribute('data-preview'))||'';
+    if(desc){
+      tip.innerHTML=isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc});
+      tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
+      tip.classList.toggle('map-tooltip',isMapPowerDesc);
+      if(!isMapPowerDesc){
+        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-5]$/.test(c));
+        if(rarityClass) tip.classList.add(rarityClass);
+      }
+      tip.style.display='block';
+      _posKwTip(tip,e);
+    }else tip.style.display='none';
+
+    const formationOnly=typeof G!=='undefined'&&G.phase==='reward'&&
+      !G._isShop&&!G._isForge&&!G._isRingExchange&&!G._isVillageMenu&&
+      !G._isWaveAltar&&!G._isTreasureMapReward&&!G._isTreasurePhase;
+    const mt=mapTip();
+    if(mt&&formationOnly&&mapPreviewEl){
+      mt.innerHTML=_formatMapPowerHtml(mapPreviewEl.getAttribute('data-map-power-preview')||'');
+      mt.style.display='block';
+      if(tip.style.display==='block') _posTipRelative(mt,tip,'right');
+      else _posKwTip(mt,e);
+    }else if(mt) mt.style.display='none';
+    const kt=keywordTip();
+    if(kt&&keywordPreviewEl){
+      kt.innerHTML=_formatKeywordOnlyHtml(keywordPreviewEl.getAttribute('data-keyword-preview')||'');
+      kt.style.display='block';
+      if(tip.style.display==='block') _posTipRelative(kt,tip,'below');
+      else _posKwTip(kt,e);
+    }else if(kt) kt.style.display='none';
   });
 })();
 function _escapePreviewHtml(s){
@@ -105,6 +141,35 @@ function _formatPreviewHtml(desc,opt){
   });
   // .preview-title は display:block のため、直後に<br>を挟むと1行分余分な空白ができる
   return lines[0]+(lines.length>1?lines.slice(1).join('<br>'):'');
+}
+function _keywordOnlyPreviewText(card,desc,slotIdx){
+  const seen=new Set();
+  const sourceKws=slotIdx!=null&&typeof _unitDisplayKeywords==='function'
+    ?_unitDisplayKeywords(card,desc||'',slotIdx):(card&&card.keywords||[]);
+  return [...sourceKws].map(k=>String(k||'').trim()).filter(k=>{
+    if(!k||seen.has(k)) return false;
+    seen.add(k); return true;
+  }).filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)).map(k=>{
+    const base=k.replace(/\d+$/,'');
+    let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
+      (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
+    const value=(k.match(/(\d+)$/)||[])[1];
+    if(value) desc=String(desc||'').replace(/X/g,value);
+    return desc?`${k}：${desc}`:'';
+  }).filter(Boolean).join('\n');
+}
+function _formatKeywordOnlyHtml(text){
+  return String(text||'').split('\n').filter(Boolean).map(line=>{
+    const m=line.match(/^([^：:]+)[：:](.*)$/);
+    if(!m) return _injectManaIcons(_escapePreviewHtml(line));
+    return `<strong>${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`;
+  }).join('<br>');
+}
+function _formatMapPowerHtml(desc){
+  const lines=String(desc||'').split('\n');
+  const title=_escapePreviewHtml(lines.shift()||'');
+  const body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(lines.join('\n')))).replace(/\n/g,'<br>');
+  return `<strong class="preview-title">${title}</strong>${body}`;
 }
 function _previewRarityLine(card){
   return '';
@@ -200,11 +265,20 @@ function _applyManaOrbState(div,entity){
   const have=Math.max(0,(typeof _ensureMana==='function'?_ensureMana():Number(G.mana)||0)-cost*fired);
   orbImgs.forEach((img,i)=>{ if(i<have) img.classList.add('mana-orb-lit'); });
 }
-function _posKwTip(tip,e){
-  const x=e.clientX+12, y=e.clientY-8;
+function _posKwTip(tip,e,dx=0,dy=0){
+  const x=e.clientX+12+dx, y=e.clientY-8+dy;
   const tw=tip.offsetWidth, th=tip.offsetHeight;
   tip.style.left=Math.min(x,window.innerWidth-tw-8)+'px';
   tip.style.top=Math.max(4,(y-th>4?y-th:y+16))+'px';
+}
+function _posTipRelative(tip,anchor,side){
+  const ar=anchor.getBoundingClientRect();
+  const gap=8;
+  const x=side==='right'?ar.right+gap:ar.left;
+  const y=side==='below'?ar.bottom+gap:ar.top;
+  const tw=tip.offsetWidth,th=tip.offsetHeight;
+  tip.style.left=Math.max(4,Math.min(x,window.innerWidth-tw-8))+'px';
+  tip.style.top=Math.max(4,Math.min(y,window.innerHeight-th-8))+'px';
 }
 
 // 味方の全スロット（MAX_ALLIES件）DOM 要素を配列で返す（lane 対応・ピッカー用）
@@ -1164,7 +1238,7 @@ function _stripOwnNameFromEffectText(text, name){
   return out;
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','隠密','加護','貫通','結界','生命吸収','封印']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','防戦','帰滅','隠密','加護','貫通','結界','生命吸収','封印']);
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
@@ -1180,8 +1254,14 @@ function _enchantKeywordDesc(k){
     const v=s.replace('毒','');
     return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
   }
-  if(s==='内なる大力') return '常時：+2/+1を得る。';
+  if(s==='内なる大力') return '常時：+4/+2を得る。';
   if(s==='大いなる守護') return '常時：HP+7を得る。';
+  if(s==='奇妙な絆') return '開戦：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。';
+  if(s==='懺悔') return '攻撃：このキャラクターは1ダメージを2回受ける。';
+  if(s==='活性化') return '1マナ：このキャラクターは+1/+1を得る。';
+  if(s==='継承') return '死亡：このキャラクターのATKをランダムな味方に与える。';
+  if(s==='咆哮') return '開戦：このキャラクターのATKを2倍にする。';
+  if(s==='威光') return '開戦：このキャラクターのHPを2倍にする。';
   if(s==='逆襲') return '常時：このキャラクターの死亡効果は1回追加で発動する。';
   if(s==='闇の儀式') return '死亡：リーダーは+1/+1を得る。';
   if(s==='執念の炎') return '常時：このキャラクターの負傷効果は1回追加で発動する。';
@@ -1269,7 +1349,7 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
   const scaleNumbers=(text,count)=>String(text||'').replace(/\d+/g,n=>String((parseInt(n,10)||0)*count));
   const originBaseDesc=unit&&typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(unit):'';
   const normalTexts=normal.map(e=>{
-    if(e.panel&&e.panel.name==='起源の種'&&originBaseDesc) return originBaseDesc;
+    if(e.panel&&e.panel.name==='マナの種'&&originBaseDesc) return originBaseDesc;
     return e.text;
   });
   // 「キャラクター用説明文」列には既に「カード名」が本文の一部として書かれているため、
@@ -1373,7 +1453,7 @@ function _wireEnchantSelfHover(cardDiv,unit,enchantIdx){
 // 内部keywordとして使われるもの）。UI上はこれらを「キーワード」として表示しない。
 const _INTERNAL_ONLY_ENCHANT_NAMES=new Set([
   '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','治癒能力',
-  '逆上','剣技','怨念','錬成','起源の種','竜の契約','恩寵','マナ生成'
+  '逆上','剣技','怨念','錬成','マナの種','竜の契約','恩寵','マナ生成'
 ]);
 // UI上に表示すべきキーワード一覧を算出する（強化パネル由来で既に効果文に出ているものや、
 // 内部集計専用のショートハンドは除外）。_unitPreviewText（ツールチップ）と
@@ -1872,6 +1952,9 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${charges}</div>`:'';
   const atkLabel='', hpLabel='';
   const dynDesc=computeDesc(card,_mlOverride);
+  const _keywordPreviewCard={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[])]};
+  const _keywordPreviewAll=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_keywordPreviewCard):'';
+  if(_keywordPreviewAll) div.setAttribute('data-keyword-preview',_keywordPreviewAll);
   let _charPreview='';
   if(div.classList.contains('character-card')){
     // シート「キーワード」列由来のcard.keywordsは、敵ユニット同様に_unitPreviewText()で
@@ -1880,6 +1963,8 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     // プレーンテキストを渡す（さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
     _charPreview=_unitPreviewText(card,_rawSubstitutedDesc(card));
     if(_charPreview) div.setAttribute('data-preview',_charPreview);
+    const _keywordPreview=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(card):'';
+    if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
   }
   const dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card):'';
   if(isPanelCharacter){
