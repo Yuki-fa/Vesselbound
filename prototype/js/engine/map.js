@@ -306,6 +306,7 @@ function _mapNodeForceIconVisible(n){
 }
 function getWorldMapStageBackgroundKey(){
   if(G&&G._waveLoopEnabled){
+    if(Number(G._wave)===5) return 'stageEnd';
     const wave=Math.max(1,Math.min(4,Number(G._wave)||1));
     return `stage${wave}`;
   }

@@ -50,9 +50,9 @@
       _posKwTip(tip,e);
     }else tip.style.display='none';
 
-    const formationOnly=typeof G!=='undefined'&&G.phase==='reward'&&
-      !G._isShop&&!G._isForge&&!G._isRingExchange&&!G._isVillageMenu&&
-      !G._isWaveAltar&&!G._isTreasureMapReward&&!G._isTreasurePhase;
+    // 特殊マスの説明は編成画面だけでなく、ショップ・鍛冶屋などの
+    // 魔導板を表示している報酬フェイズでも表示する。
+    const formationOnly=typeof G!=='undefined'&&G.phase==='reward';
     const mt=mapTip();
     if(mt&&formationOnly&&mapPreviewEl){
       mt.innerHTML=_formatMapPowerHtml(mapPreviewEl.getAttribute('data-map-power-preview')||'');
@@ -153,6 +153,7 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
     const base=k.replace(/\d+$/,'');
     let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
       (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
+    if(!desc&&base==='マナ効果') desc='戦闘中、指定のマナが溜まると一度だけ発動する。（毎の場合は、指定のマナの倍数が溜まるごとに何度でも発動する）';
     const value=(k.match(/(\d+)$/)||[])[1];
     if(value) desc=String(desc||'').replace(/X/g,value);
     return desc?`${k}：${desc}`:'';
@@ -470,6 +471,9 @@ function playHitVfxAtRect(rect,amount,options){
   // キャラクター固有VFXが無い場合、毒等キーワード発動によるダメージならキーワード専用のVFXを探す。
   const keywordVfx=!charVfx&&opt.keywordEffect&&typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(opt.keywordEffect):'';
   const hitUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
+  const vfxScale=Number(opt.vfxScale)||1;
+  const spin=!!opt.spin;
+  const baseTransform=`translate(-50%,-50%) scale(${vfxScale})`;
   document.body.appendChild(host);
 
   const isWebp=/\.webp(\?|$)/i.test(hitUrl);
@@ -501,6 +505,7 @@ function playHitVfxAtRect(rect,amount,options){
     },{once:true});
     host.appendChild(mediaEl);
   }
+  mediaEl.style.transform=baseTransform;
   if(amount>0){
     const label=document.createElement('div');
     label.className='vfx-damage-label';
@@ -511,6 +516,11 @@ function playHitVfxAtRect(rect,amount,options){
   // 演出本体の後始末（フェードアウト→DOM除去）はgateMsとは無関係に、演出の実時間に沿って
   // バックグラウンドで進行させる。呼び出し元（戦闘ループ）はこれを待たない。
   let done=false;
+  let resolveComplete;
+  const completePromise=new Promise(resolve=>{ resolveComplete=resolve; });
+  const activeVfx=window.__activeVfxPromises||(window.__activeVfxPromises=new Set());
+  activeVfx.add(completePromise);
+  completePromise.finally(()=>activeVfx.delete(completePromise));
   const finish=()=>{
     if(done) return; done=true;
     stop();
@@ -520,7 +530,7 @@ function playHitVfxAtRect(rect,amount,options){
     // 一度スタイルを強制的に確定させてから変更することで、確実にフェードアニメーションとして扱わせる。
     void mediaEl.offsetWidth;
     mediaEl.style.opacity='0';
-    setTimeout(()=>{ host.remove(); },fadeDuration);
+    setTimeout(()=>{ host.remove(); resolveComplete(); },fadeDuration);
   };
   if(isWebp){
     // 素材自体の再生がhitDurationより先に終わり最後のコマで静止した後、finish()の
@@ -533,7 +543,7 @@ function playHitVfxAtRect(rect,amount,options){
       {opacity:1,offset:fadeStartRatio},
       {opacity:0,offset:1},
     ],{duration:hitDuration,easing:'ease-out',fill:'forwards'});
-    const finishWebp=()=>{ if(done) return; done=true; host.remove(); };
+    const finishWebp=()=>{ if(done) return; done=true; host.remove(); resolveComplete(); };
     anim.addEventListener('finish',finishWebp,{once:true});
     setTimeout(finishWebp,hitDuration+60);
   } else {
@@ -542,7 +552,14 @@ function playHitVfxAtRect(rect,amount,options){
     setTimeout(finish,opt.maxDuration||Math.max(1000,hitDuration+400));
   }
   // 呼び出し元への復帰はgateMsのみ待つ（次の攻撃・演出再開のテンポを演出の長さに引きずられないようにする）。
-  return new Promise(resolve=>setTimeout(resolve,gateMs));
+  if(spin){
+    mediaEl.animate([
+      {transform:`${baseTransform} rotate(0deg)`},
+      {transform:`${baseTransform} rotate(360deg)`},
+      {transform:`${baseTransform} rotate(1440deg)`},
+    ],{duration:hitDuration,easing:'linear',fill:'forwards'});
+  }
+  return opt.waitForFinish?completePromise:new Promise(resolve=>setTimeout(resolve,gateMs));
 }
 
 function playHitVfxOnSlot(slot,amount,options){
@@ -871,8 +888,9 @@ function updateUnitDamageUi(unit,side){
 // 例：アラクネの「負傷：全ての敵はATK-1を得る」等、ダメージを受けていないユニットの
 // ステータスも変化する効果がある場合、そのユニットの表示も同時に更新する必要があるため。
 function _refreshAllUnitStatsUi(){
-  (G.allies||[]).forEach(u=>{ if(u&&u.hp>0) updateUnitDamageUi(u,'ally'); });
-  (G.enemies||[]).forEach(u=>{ if(u&&u.hp>0) updateUnitDamageUi(u,'enemy'); });
+  // 死亡処理・盤面詰めより先にHP0を表示するため、死亡ユニットも更新する。
+  (G.allies||[]).forEach(u=>{ if(u) updateUnitDamageUi(u,'ally'); });
+  (G.enemies||[]).forEach(u=>{ if(u) updateUnitDamageUi(u,'enemy'); });
 }
 
 // シールド消費時、カードDOMを作り直さずshield-active/魔方陣レイヤーだけを即座に更新する
@@ -1178,7 +1196,10 @@ function renderManaHud(){
     hud.id='mana-hud';
     document.body.appendChild(hud);
   }
-  const show=G&&G.phase&&G.phase!=='reward'&&G.phase!=='gameover';
+  // 戦闘中は右下の専用カウンターを使う。旧HUDはbody直下に生成されるため、
+  // #scr-battle側のCSSだけでは右上のマナ表示を確実に隠せない。
+  const isBattleScreen=document.getElementById('scr-battle')?.classList.contains('active');
+  const show=!isBattleScreen&&G&&G.phase&&G.phase!=='reward'&&G.phase!=='gameover';
   hud.style.display=show?'grid':'none';
   if(!show) return;
   const n=Math.max(0,Number(G.mana)||0);
@@ -1238,10 +1259,14 @@ function _stripOwnNameFromEffectText(text, name){
   return out;
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','防戦','帰滅','隠密','加護','貫通','結界','生命吸収','封印']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','防戦','帰滅','隠密','貫通','結界','生命吸収','封印']);
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
+  if(/^加護\d*$/.test(s)){
+    const value=Math.max(1,parseInt(s.replace('加護',''),10)||1);
+    return `このキャラクターは敵から与えられる状態異常を${value}回無効化する。`;
+  }
   if(_ENCHANT_KEYWORD_ONLY.has(s)) return s;
   if(/^結界\d+$/.test(s)) return s;
   if(/^封印\d+$/.test(s)) return s;
@@ -1254,27 +1279,11 @@ function _enchantKeywordDesc(k){
     const v=s.replace('毒','');
     return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
   }
-  if(s==='内なる大力') return '常時：+4/+2を得る。';
-  if(s==='大いなる守護') return '常時：HP+7を得る。';
-  if(s==='奇妙な絆') return '開戦：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。';
-  if(s==='懺悔') return '攻撃：このキャラクターは1ダメージを2回受ける。';
-  if(s==='活性化') return '1マナ：このキャラクターは+1/+1を得る。';
-  if(s==='継承') return '死亡：このキャラクターのATKをランダムな味方に与える。';
-  if(s==='咆哮') return '開戦：このキャラクターのATKを2倍にする。';
-  if(s==='威光') return '開戦：このキャラクターのHPを2倍にする。';
-  if(s==='逆襲') return '常時：このキャラクターの死亡効果は1回追加で発動する。';
-  if(s==='闇の儀式') return '死亡：リーダーは+1/+1を得る。';
-  if(s==='執念の炎') return '常時：このキャラクターの負傷効果は1回追加で発動する。';
-  if(s==='闇の炎') return '死亡：全ての敵キャラクターに1ダメージを与える。';
-  if(s==='竜の契約') return '常時：5回負傷した時、25/40のドラコニアンに変身する。';
-  if(s==='治癒能力') return '負傷：HP+2を得る。';
-  if(s==='狂気') return '死亡：1マナを得る。';
-  if(s==='野生の力') return '開戦：2マナを得る。';
-  if(s==='マナ生成') return '攻撃：1マナを得る。';
   if(s==='生命吸収') return 'このキャラクターが与えたダメージ分、HPを増加する。';
   if(/^邪眼\d+$/.test(s)) return s;
   if(/^衝撃(\d+)$/.test(s)) return `攻撃/ダメージ効果で対象に弱体${s.replace('衝撃','')}を付与する。`;
-  return s;
+  // キーワードシートにない強化カード名や内部判定名は、キーワードとして表示しない。
+  return '';
 }
 function _enchantEffectTextForPanel(p){
   if(!p) return '';
@@ -1364,11 +1373,21 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
   });
   return {normalTexts,charTexts};
 }
+// 指輪シートの「キャラクター用説明文」は、装備中の指輪が味方キャラクターへ
+// 常時付与する説明として、キャラクター効果の末尾に表示する。
+function _ringCharacterDescriptionsForUnit(unit){
+  if(!unit||!Array.isArray(G?.rings)) return [];
+  // 敵キャラクターへプレイヤーの指輪説明を付けない。
+  if(Array.isArray(G.enemies)&&G.enemies.includes(unit)) return [];
+  const rings=typeof _effectiveRings==='function'?_effectiveRings():G.rings;
+  return (rings||[]).map(r=>String(r&&r.characterDesc||'').trim()).filter(Boolean);
+}
 // キャラクターカードの説明欄HTML：本来の効果の下に線を引き、その下に強化カードが与えている効果の全文を並べる
 function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const ringCharTexts=_ringCharacterDescriptionsForUnit(unit);
   const battleNormalTexts=normalTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
-  const battleCharTexts=charTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
+  const battleCharTexts=[...charTexts,...ringCharTexts].map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
   const kws=typeof _unitDisplayKeywords==='function'?_unitDisplayKeywords(unit,baseDesc,slotIdx):[];
   const kwHtml=kws.length?`<div class="slot-desc-keywords"><strong>${kws.map(k=>typeof _escapePreviewHtml==='function'?_escapePreviewHtml(k):k).join(' / ')}</strong></div>`:'';
   const baseSafe=baseDesc&&(typeof _escapePreviewHtml==='function'?_escapePreviewHtml(baseDesc):baseDesc);
@@ -1453,7 +1472,7 @@ function _wireEnchantSelfHover(cardDiv,unit,enchantIdx){
 // 内部keywordとして使われるもの）。UI上はこれらを「キーワード」として表示しない。
 const _INTERNAL_ONLY_ENCHANT_NAMES=new Set([
   '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','治癒能力',
-  '逆上','剣技','怨念','錬成','マナの種','竜の契約','恩寵','マナ生成'
+  '逆上','剣技','怨念','錬成','マナの種','奇妙な絆','竜の契約','恩寵','マナ生成'
 ]);
 // UI上に表示すべきキーワード一覧を算出する（強化パネル由来で既に効果文に出ているものや、
 // 内部集計専用のショートハンドは除外）。_unitPreviewText（ツールチップ）と
@@ -1476,6 +1495,7 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
   const dynamicKws=[];
+  if(Number(unit.manaCost)>0) dynamicKws.push('マナ効果');
   if(unit.shield>0) dynamicKws.push(`結界${unit.shield}`);
   // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
@@ -1499,7 +1519,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   const lines=[];
   if(unit.name) lines.push(unit.name);
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
-  const panelEffects=[...normalTexts,...charTexts];
+  const panelEffects=[...normalTexts,...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
   const kws=_unitDisplayKeywords(unit,desc,slotIdx);
   // 「キーワード：」というラベルは表示せず、キーワードそのものを太字で並べる
@@ -2029,9 +2049,9 @@ function renderControls(){
     if(dbg) dbg.style.display='none';
     if(testBtn) testBtn.style.display='none';
   }
-  // 戦闘開始ボタンは廃止した。試験戦闘中のみ「試験終了」として常時表示する。
+  // 戦闘開始ボタンは廃止した。試験戦闘中のみ「戦闘終了」として常時表示する。
   if(G._testBattleMode){
-    pp.textContent='試験終了';
+    pp.textContent='戦闘終了';
     pp.disabled=false;
     pp.style.display='';
   } else {

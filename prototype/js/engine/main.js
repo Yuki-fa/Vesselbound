@@ -10,10 +10,21 @@ function showScreen(id){
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');
+  const battleCounters=document.getElementById('battle-counters');
+  const battleStatus=document.getElementById('battle-status-hud');
+  const transitionFade=document.getElementById('battle-transition-fade');
+  if(id!=='battle'){
+    if(battleCounters) battleCounters.style.display='none';
+    if(battleStatus) battleStatus.style.display='none';
+    if(transitionFade) transitionFade.classList.remove('is-visible');
+    const endFade=document.getElementById('battle-end-fade');
+    if(endFade){ endFade.classList.remove('is-visible','is-final'); endFade.removeAttribute('style'); }
+  }
   if(id==='battle'&&typeof _clearLogDom==='function') _clearLogDom();
   if(typeof playBgm==='function'){
     const isMapScreen=typeof G!=='undefined'&&G&&G.phase==='map';
-    if(id==='battle') playBgm(isMapScreen?'menu':'battle1',{fadeInMs:700,volume:isMapScreen?undefined:.32});
+    const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
+    if(id==='battle') playBgm(isMapScreen?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700,volume:isMapScreen?undefined:.32});
     else stopBgm(350);
   }
 }
@@ -21,6 +32,9 @@ function updateGoldenDrop(){
   G.hasGoldenDrop=false;
 }
 function updateHUD(){
+  const displayLife=Math.max(0,Math.min(3,
+    G._waveLife!=null ? Number(G._waveLife) : (G.life==null?3:Number(G.life))
+  ));
   if(G.phase!=='reward'){
     document.getElementById('h-floor').textContent=G.floor;
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
@@ -30,14 +44,27 @@ function updateHUD(){
   if(magicEl) magicEl.textContent=G.magicLevel;
   const lifeEl=document.getElementById('h-life');
   if(lifeEl){
-    const life=Math.max(0,Math.min(3,G.life==null?3:G.life));
-    lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(3-life)}</span><span class="life-full">${'♥'.repeat(life)}</span>`;
+    const life=displayLife;
+    lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(3-life)}</span><span class="life-full">${Array.from({length:life},()=>'<span class="life-heart">♥</span>').join('')}</span>`;
   }
   document.getElementById('h-gold').textContent=G.gold;
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
+  const battleGold=document.getElementById('battle-gold-value');
+  if(battleGold) battleGold.textContent=String(G.gold);
+  const battleLife=document.getElementById('battle-life-value');
+  if(battleLife){
+    const life=displayLife;
+    // 3枠を常に保持し、減少分だけ輪郭（♡）にする。枠自体を減らすと残数に応じて
+    // 文字位置が詰まり、編成画面と異なる位置に見えるため。
+    battleLife.innerHTML=Array.from({length:3},(_,i)=>{
+      const filled=i>=3-life;
+      return `<span class="battle-life-heart ${filled?'battle-life-heart-filled':'battle-life-heart-empty'}">${filled?'♥':'♡'}</span>`;
+    }).join('');
+  }
   // 所持金・ターン枠（編成画面と同じ#reward-production-ui .reward-prod-bottom）は
   // マップ・戦闘画面でも常時表示するため、reward.js側の描画を待たずここでも更新する。
   if(typeof _syncMoneyTurnTile==='function') _syncMoneyTurnTile();
+  if(typeof renderBattleCounters==='function') renderBattleCounters();
   if(G._debugMode){
     _positionDebugKillButton();
     _positionDebugMuteButton();
@@ -366,6 +393,20 @@ function _giveInitialRandomBoardCards(){
   }
 }
 
+function _giveDebugGolem(){
+  if(!G._debugMode||!Array.isArray(G.mainBoard)||typeof makePanel!=='function') return;
+  const golem=makePanel('ゴーレム')||makePanel('panel_golem');
+  if(!golem) return;
+  golem.power=999; golem.life=999;
+  golem.atk=999; golem.hp=999; golem.maxHp=999;
+  golem._permBasePower=999; golem._permBaseLife=999;
+  const deploySlots=(typeof MAIN_BOARD_DEPLOY_SLOTS!=='undefined'?MAIN_BOARD_DEPLOY_SLOTS:[1,3,10,12,14]);
+  const slot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
+  const fallback=G.mainBoard.findIndex(c=>!c);
+  const idx=slot==null?fallback:slot;
+  if(idx>=0) G.mainBoard[idx]=golem;
+}
+
 // Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。
 const SCENE_FLOW_DATA={
   standard:['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'],
@@ -442,6 +483,13 @@ function _openWaveAltar(stage){
 function _startWaveBattle(stage){
   const type=_waveBattleType(stage);
   const wave=Math.max(1,Number(G._wave)||1);
+  // showScreen('battle') が描画される前に背景位置を確定する。
+  // 通常戦闘では、開幕演出側のクラス付与を待つと一瞬だけ既定位置（上寄り）が見える。
+  const battleHost=document.getElementById('scr-battle');
+  if(battleHost){
+    battleHost.classList.remove('battle-bg-normal','battle-bg-reveal','battle-bg-scroll-ready','battle-bg-scrolling');
+    battleHost.classList.add(type==='elite'||type==='boss'?'battle-bg-reveal':'battle-bg-normal');
+  }
   // 敗北時、どの画面（村/祭壇/通常の報酬画面）の開始時点までやり直すかを記録しておく。
   G._waveDefeatReturnTo=G._isWaveAltar?'altar':(G._waveVillage?'village':'reward');
   G._waveVillage=false;
@@ -491,11 +539,19 @@ function _startWaveFlowNext(){
   _startWaveBattle(stage);
   return true;
 }
-function finishWaveBattleVictory(){
+function finishWaveBattleVictory(showVictoryIntro){
   if(!G._waveLoopEnabled||!G._waveBattleType) return false;
   const type=G._waveBattleType;
   const stage=Number(G._waveStage)||1;
   const wave=Math.max(1,Number(G._wave)||1);
+  const runTransition=fn=>{
+    if(!showVictoryIntro){ fn(); return; }
+    showVictoryOverlay(()=>{
+      const ov=document.getElementById('victory-overlay');
+      if(ov) ov.style.display='none';
+      fn();
+    });
+  };
   G._waveBattleWon=true;
   if(type==='battle'){
     G._waveStage=stage+1;
@@ -508,35 +564,43 @@ function finishWaveBattleVictory(){
   if(type==='elite'){
     // Scene 5のエリート勝利後は村を挟まずラスボスへ直行。
     if(wave===5){
+      runTransition(()=>{
+        G._mapBattle=null;
+        G._waveBattleType=null;
+        if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+        G.enemies=[]; G.phase=null;
+        _startWaveBattle(4);
+      });
+      return true;
+    }
+    // Scene 1～4のエリート勝利後は村(stage4)へ直行。
+    runTransition(()=>{
+      _grantWaveEliteItem();
       G._mapBattle=null;
       G._waveBattleType=null;
       if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
       G.enemies=[]; G.phase=null;
-      _startWaveBattle(4);
-      return true;
-    }
-    // Scene 1～4のエリート勝利後は村(stage4)へ直行。
-    _grantWaveEliteItem();
-    G._mapBattle=null;
-    G._waveBattleType=null;
-    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
-    G.enemies=[]; G.phase=null;
-    _openWaveVillage(4,true);
+      _openWaveVillage(4,true);
+    });
     return true;
   }
   if(type==='boss'&&wave===5&&stage===4){
     // ラスボス撃破：ゲームクリア
-    G._mapBattle=null; G._waveBattleType=null;
-    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
-    G.enemies=[]; G.phase='clear'; showScreen('clear');
+    runTransition(()=>{
+      G._mapBattle=null; G._waveBattleType=null;
+      if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+      G.enemies=[]; G.phase='clear'; showScreen('clear');
+    });
     return true;
   }
   if(type==='boss'){
     // Scene 1～4のstage9（地域ボス）勝利：報酬なしで祭壇(stage10)へ直行
-    G._mapBattle=null; G._waveBattleType=null;
-    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
-    G.enemies=[]; G.phase=null;
-    _openWaveAltar(10);
+    runTransition(()=>{
+      G._mapBattle=null; G._waveBattleType=null;
+      if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+      G.enemies=[]; G.phase=null;
+      _openWaveAltar(10);
+    });
     return true;
   }
   return false;
@@ -596,6 +660,7 @@ function startGame(debugMode){
   clearLog();
   G._debugMode=!!debugMode;
   if(G._debugMode){
+    _giveDebugGolem();
     G.gold=999;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='';
@@ -652,6 +717,41 @@ function gameOver(){
 // 呼び出し側で独立したsetTimeoutを組むと、renderAll()等の重い同期処理でメインスレッドが
 // 詰まった際に「表示」と「非表示」のタイマーがほぼ同時に発火し、一瞬で消えてしまう競合が起きるため、
 // 表示が確定してから逆算する形でチェーンする。
+function _armBattleContinue(cutin,onShown){
+  if(!cutin){ if(typeof onShown==='function') onShown(); return; }
+  const panel=document.createElement('div');
+  panel.id='battle-continue-panel';
+  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" onclick="continueAfterBattleVictory()"><img src="assets/ui/not_fix.png" alt=""><span class="battle-continue-label">進む</span></button>';
+  cutin.appendChild(panel);
+  G._battleProceedAction=onShown;
+}
+function continueAfterBattleVictory(){
+  if(typeof G==='undefined'||!G||G._battleProceedBusy) return;
+  const action=G._battleProceedAction;
+  if(typeof action!=='function') return;
+  G._battleProceedBusy=true;
+  const panel=document.getElementById('battle-continue-panel');
+  if(panel) panel.style.pointerEvents='none';
+  const cutin=document.getElementById('battle-start-intro');
+  if(cutin) cutin.remove();
+  const fade=document.getElementById('battle-transition-fade');
+  if(fade) fade.classList.add('is-visible');
+  if(typeof stopBgm==='function') stopBgm(700);
+  window.setTimeout(()=>{
+    G._battleProceedAction=null;
+    G._battleProceedBusy=false;
+    action();
+    // 村・祭壇・報酬は同じ#scr-battle内で切り替わるため、showScreen()を通らない。
+    // 遷移後に両方の黒オーバーレイを確実に解除する。
+    const endFade=document.getElementById('battle-end-fade');
+    const transitionFade=document.getElementById('battle-transition-fade');
+    [endFade,transitionFade].forEach(el=>{
+      if(!el) return;
+      el.classList.remove('is-visible','is-final');
+      el.removeAttribute('style');
+    });
+  },720);
+}
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
@@ -660,16 +760,22 @@ function showVictoryOverlay(onShown,shownDuration){
   if(typeof _fastForwardLogFx==='function') _fastForwardLogFx();
   setTimeout(()=>{
     if(G._battleDefeatHandled||G.phase!=='reward') return;
-    const ov=document.getElementById('victory-overlay');
-    const title=ov?ov.querySelector('.victory-title'):null;
     const isWithdraw=!!G._waveWithdraw;
-    if(title) title.textContent=isWithdraw?'Withdraw':'You Win';
     if(!isWithdraw&&typeof playSfx==='function') playSfx(G._bossJustDefeated?'bossVictory':'victory',{group:'ui'});
-    if(ov) ov.style.display='flex';
-    if(typeof onShown==='function') setTimeout(onShown,shownDuration||680);
+    const cutin=(typeof showBattleCutin==='function')
+      ? showBattleCutin(isWithdraw?'retreat':'victory',{durationMs:Math.max(1800,Number(shownDuration)||2200)})
+      : Promise.resolve();
+    Promise.resolve(cutin).then(overlay=>{
+      // 勝利・撤退とも、結果表示を保持したまま「進む」入力を待つ。
+      _armBattleContinue(overlay,onShown);
+    });
   },120);
 }
-function hideVictoryOverlay(){ document.getElementById('victory-overlay').style.display='none'; goToReward(); }
+function hideVictoryOverlay(){
+  document.getElementById('victory-overlay').style.display='none';
+  if(typeof G!=='undefined'&&G._battleProceedAction) continueAfterBattleVictory();
+  else goToReward();
+}
 
 // ── 起動時データ読み込み ─────────────────────────────
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });

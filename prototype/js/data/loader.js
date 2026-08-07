@@ -443,6 +443,7 @@ function _rowToRing(row) {
     type: 'ring',
     desc: String(row['効果'] || row['説明'] || '').trim(),
     tag: String(row['タグ'] || '').trim(),
+    characterDesc: String(row['キャラクター用説明文'] || '').trim(),
   };
   if (!isNaN(rarity) && rarity >= 1) ring.rarity = Math.min(5, rarity);
   if (!isNaN(grade) && grade >= 1) ring.grade = grade;
@@ -867,7 +868,7 @@ async function loadGameData() {
         '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力','マナ生成',
         '二段攻撃','三段攻撃','即死','三方向攻撃','先制','全体攻撃','生命吸収',
         '逆上','剣技','怨念','錬成','マナの種','恩寵','狙撃','防戦','帰滅','隠密','加護','貫通',
-        '奇妙な絆','懺悔','活性化','継承','咆哮','威光','復活','根性','強靭'
+        '復活','根性','強靭'
       ].forEach(k=>{
         if (desc.includes(k) || panel.name === k) panel.adjacentKeywords.push(k);
       });
@@ -1003,7 +1004,7 @@ async function loadGameData() {
     // 「未指定＝実装済み」として拾ってしまう_rowImplementedの既定動作とは別扱いにする）。
     // 実装済みとして扱う指輪は、シート側の実装フラグが古い場合でも読み込む。
     // R014/R025はコード側で実装するため、xlsx/local fallbackのfalseを許容する。
-    const _forcedRingNames = new Set(['黄金の指輪', '強欲の指輪']);
+    const _forcedRingNames = new Set(['黄金の指輪', '強欲の指輪', '虹の瞳の指輪']);
     const parsedRings = ringRows
       .filter(row => _truthySheet(row['実装']) || _forcedRingNames.has(String(row['名前'] || '').trim()))
       .map(_rowToRing)
@@ -1144,7 +1145,6 @@ async function loadGameData() {
       panel._sheetSeen = true;
       panel._implemented = true;
       if (!panel._sheetDescLoaded) _setEnchantFieldsFromDesc(panel);
-      if (!panel._sheetKeywordsLoaded) panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['竜の契約']);
     });
     (PANEL_POOL || []).forEach(panel => {
       if(panel&&panel.name&&panel.desc&&!panel._sheetDescLoaded) panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);

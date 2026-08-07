@@ -26,6 +26,11 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .screen.active{display:flex;flex-direction:column;width:var(--game-w);height:var(--game-h);overflow:hidden;font-size:28px}
 .screen.asset-backed{background:#0d0f14}
 .screen.asset-backed::before{content:'';position:absolute;inset:0;z-index:-1;background-image:var(--screen-bg-image);background-size:cover;background-position:center;opacity:1;filter:none;pointer-events:none}
+.screen.asset-backed::before{transition:none}
+#scr-battle.battle-bg-normal.asset-backed::before{background-position:center bottom}
+#scr-battle.battle-bg-reveal.asset-backed::before{background-position:center top}
+#scr-battle.battle-bg-scroll-ready.asset-backed::before{transition:background-position 3s cubic-bezier(.42,0,.58,1)}
+#scr-battle.battle-bg-scrolling.asset-backed::before{background-position:center bottom;transition:background-position 3s cubic-bezier(.42,0,.58,1)}
 .screen.asset-backed::after{display:none}
 .screen.asset-backed>*{position:relative;z-index:1}
 #scr-battle.asset-backed::after{
@@ -35,13 +40,17 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   inset:0;
   z-index:0;
   pointer-events:none;
-  background:url("assets/art/backgrounds/effect.png") center/cover no-repeat;
+  background:url("assets/art/backgrounds/effect.webp") center/cover no-repeat;
   opacity:1;
   mix-blend-mode:normal;
   animation:none;
 }
 #scr-battle.battle-start-playing::after{
   animation:battle-start-effect-fade 2.16s ease-out forwards;
+}
+#scr-battle.battle-start-no-effect::after{
+  opacity:0!important;
+  animation:none!important;
 }
 @keyframes battle-start-effect-fade{0%,83%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
 #battle-start-intro{
@@ -82,7 +91,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   background-size:240% 100%;
   -webkit-background-clip:text;
   background-clip:text;
-  filter:drop-shadow(0 4px 3px rgba(20,10,0,.9)) drop-shadow(0 0 18px rgba(255,214,104,.48));
+  filter:drop-shadow(0 7px 7px rgba(12,5,0,.98)) drop-shadow(0 0 28px rgba(255,214,104,.72));
   animation:battle-start-title-in .3s ease-out both,battle-start-shine 1.05s .28s ease-in-out both;
 }
 .battle-start-subtitle{
@@ -93,17 +102,17 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   font-size:clamp(40px,2.5vw,70px)!important;
   letter-spacing:.12em!important;
   color:#f1d996!important;
-  text-shadow:0 3px 5px #160d03,0 0 12px rgba(255,212,106,.38)!important;
+  text-shadow:0 5px 7px #160d03,0 0 20px rgba(255,212,106,.62)!important;
 }
 .battle-start-icon{
   position:relative!important;
-  z-index:4!important;
-  width:clamp(160px,12vw,310px)!important;
-  height:clamp(160px,12vw,310px)!important;
+  z-index:2!important;
+  width:clamp(250px,18vw,470px)!important;
+  height:clamp(250px,18vw,470px)!important;
   object-fit:contain!important;
-  margin-bottom:-26px!important;
-  filter:drop-shadow(0 0 12px rgba(255,210,96,.55));
-  animation:battle-start-icon-pulse 1.2s ease-in-out infinite alternate;
+  margin-bottom:-120px!important;
+  filter:drop-shadow(0 8px 8px rgba(12,5,0,.95)) drop-shadow(0 0 26px rgba(255,210,96,.78));
+  animation:battle-start-icon-grow 4.5s linear both;
 }
 .battle-start-line{
   position:absolute!important;
@@ -116,12 +125,25 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 }
 .battle-start-line-left{right:calc(50% + clamp(310px,20vw,650px))!important;transform:translateY(-50%)!important}
 .battle-start-line-right{left:calc(50% + clamp(310px,20vw,650px))!important;transform:translateY(-50%) scaleX(-1)!important}
-@keyframes battle-start-in{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
-@keyframes battle-start-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.98)}}
+@keyframes battle-start-in{from{opacity:0}to{opacity:1}}
+@keyframes battle-start-out{from{opacity:1}to{opacity:0}}
 @keyframes battle-start-title-in{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
 @keyframes battle-start-shine{0%{background-position:100% 0}100%{background-position:-100% 0}}
 @keyframes battle-start-aura{from{opacity:.65;transform:scaleX(.92)}to{opacity:1;transform:scaleX(1.06)}}
-@keyframes battle-start-icon-pulse{from{opacity:.78;transform:scale(.98)}to{opacity:1;transform:scale(1.03)}}
+@keyframes battle-start-icon-grow{from{opacity:.86;transform:scale(1)}to{opacity:1;transform:scale(1.08)}}
+/* 開幕ウェーブ配置：横幅を変えず、開幕演出終了後に前衛→後衛で着地させる */
+#scr-battle.battle-opening-pending .unit-card{visibility:hidden!important;opacity:0!important;animation:none!important}
+#scr-battle.battle-opening-active .unit-card{visibility:hidden!important;opacity:0!important}
+#scr-battle.battle-opening-active .unit-card.battle-opening-card,
+#scr-battle.battle-opening-active .unit-card.battle-opening-done{visibility:visible!important;opacity:1!important}
+#scr-battle .battle-opening-card{will-change:opacity,translate,scale;}
+.battle-opening-appearance-vfx{
+  position:absolute!important;inset:-72%!important;z-index:0!important;pointer-events:none!important;
+  background:url("assets/vfx/appearance.webp") center/contain no-repeat!important;
+  opacity:1;transform:scale(1.08);filter:drop-shadow(0 0 28px rgba(255,216,116,.98));
+  transition:opacity .42s ease-out,transform .42s ease-out;
+}
+.battle-opening-appearance-vfx.is-fading{opacity:0;transform:scale(1.32)}
 @keyframes bg-dust-drift{
   from{background-position:0 0,0 0,0 0,0 0,0 0,0 0}
   to{background-position:32px -18px,-24px -12px,18px 24px,10px -30px,-16px 20px,22px 16px}
@@ -1587,7 +1609,7 @@ html body .slot.dragging{
   inset:0;
   z-index:1;
   pointer-events:none;
-  background:url("assets/art/backgrounds/effect.png") center/100% 100% no-repeat;
+  background:url("assets/art/backgrounds/effect.webp") center/100% 100% no-repeat;
 }
 .map-edge-layer{
   position:absolute!important;
@@ -1711,6 +1733,24 @@ body.battle-victory-pending #battle-order-section,
 body.battle-victory-pending #reward-info-bar,
 body.battle-victory-pending #reward-move-btns,
 body.battle-victory-pending #enemy-hand-area{
+  display:none!important;
+}
+/* 戦闘終了演出中はカードのhover・選択発光・ツールチップを停止する。 */
+body.battle-victory-pending .unit-card,
+body.battle-victory-pending .card,
+body.battle-victory-pending .slot.unit-card{
+  pointer-events:none!important;
+}
+body.battle-victory-pending .slot.unit-card:hover::before,
+body.battle-victory-pending .slot.unit-card.selectable::before,
+body.battle-victory-pending .slot.unit-card.drag-over::before{
+  display:none!important;
+  animation:none!important;
+  opacity:0!important;
+}
+body.battle-victory-pending #kw-tooltip,
+body.battle-victory-pending #map-power-tooltip,
+body.battle-victory-pending #keyword-tooltip{
   display:none!important;
 }
 .map-village-card,
@@ -6402,6 +6442,7 @@ html body.reward-screen-active #reward-bg-video{
   width:100%!important;
   height:100%!important;
   object-fit:cover!important;
+  filter:hue-rotate(245deg) saturate(1.35)!important;
   z-index:-1!important;
   pointer-events:none!important;
 }
@@ -6530,7 +6571,7 @@ html body.reward-screen-active{
   --unit-field-gap:var(--prod-card-gap)!important;
 }
 html body.reward-screen-active #scr-battle{
-  background:#08020f url("assets/art/backgrounds/main.png") center/cover no-repeat!important;
+  background:#08020f url("assets/art/backgrounds/main.webp") center/cover no-repeat!important;
 }
 html body.reward-screen-active #scr-battle.asset-backed::before,
 html body.reward-screen-active #scr-battle.asset-backed::after{
@@ -7709,7 +7750,7 @@ html body.reward-screen-active #reward-bg-video{
   height:100%!important;
   object-fit:cover!important;
   opacity:.48!important;
-  filter:brightness(1.35) saturate(1.12)!important;
+  filter:sepia(.38) hue-rotate(245deg) saturate(2.1) brightness(1.12)!important;
   mix-blend-mode:screen!important;
   z-index:1!important;
   pointer-events:none!important;
@@ -8023,7 +8064,7 @@ html body.reward-screen-active .reward-prod-tile{
   top:0!important;
   width:491.8px!important;
   height:100px!important;
-  background:url("assets/ui/money_turn.png") center/100% 100% no-repeat!important;
+  background:url("assets/ui/counter.svg") center/100% 100% no-repeat!important;
   font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
 }
 html body.reward-screen-active .reward-prod-money{
@@ -8116,7 +8157,7 @@ html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile{
   top:0!important;
   width:491.8px!important;
   height:100px!important;
-  background:url("assets/ui/money_turn.png") center/100% 100% no-repeat!important;
+  background:url("assets/ui/counter.svg") center/100% 100% no-repeat!important;
   font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
   pointer-events:auto!important;
 }
@@ -8743,7 +8784,7 @@ html body.reward-screen-active .reward-prod-ring,
 html body.reward-screen-active .reward-prod-relation,
 html body.reward-screen-active .reward-prod-quest{
   height:372px!important;
-  background-image:url("assets/ui/main_left.png")!important;
+  background-image:url("assets/ui/main_left.svg")!important;
   background-size:100% 100%!important;
 }
 html body.reward-screen-active .reward-prod-item{top:356px!important;}
@@ -8777,7 +8818,7 @@ html body.reward-screen-active .reward-prod-quest{
   top:1174px!important;
   width:1020px!important;
   height:289px!important;
-  background:url("assets/ui/quest.png") center/100% 100% no-repeat!important;
+  background:url("assets/ui/main_left.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active .reward-prod-quest .reward-prod-quest-body{
   top:120px!important;
@@ -8790,7 +8831,7 @@ html body.reward-screen-active .reward-prod-journey{
   top:1500px!important;
   width:1020px!important;
   height:455px!important;
-  background:url("assets/ui/journey.png") center/100% 100% no-repeat!important;
+  background:url("assets/ui/main_left.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #journey-progress-ui{
   position:absolute!important;
@@ -8876,6 +8917,14 @@ html body.reward-screen-active #journey-progress-ui{
   box-shadow:inset 0 0 0 6px #830ba0;
 }
 .journey-node.current img{position:relative;z-index:1;}
+.journey-node.next:not(.current){
+  box-shadow:0 0 8px 3px rgba(131,11,160,.9),0 0 18px 7px rgba(131,11,160,.48);
+  animation:journey-next-pulse 1.45s ease-in-out infinite;
+}
+@keyframes journey-next-pulse{
+  0%,100%{filter:drop-shadow(0 0 2px rgba(131,11,160,.65));}
+  50%{filter:drop-shadow(0 0 9px rgba(131,11,160,1));}
+}
 html body .life-empty{color:#c99049!important;}
 html body .life-full{color:#c49a6c!important;}
 /* 旅の進捗枠内に残り戦闘数を表示するため、旧右側カウントダウンは使わない。 */
@@ -9247,7 +9296,7 @@ html body #hand-slots.unit-equip-slots > .card .map-boundary-layer{
   inset:0!important;
   display:block!important;
   box-sizing:border-box!important;
-  border:3px solid #c49a6c!important;
+  border:5px solid #c49a6c!important;
   border-radius:19px!important;
   pointer-events:none!important;
   z-index:110!important;
@@ -9444,6 +9493,326 @@ html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging > .m
 html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging > .card-glow-layer{
   opacity:1!important;
 }
+
+/* 通常マスの外周は空枠と配置後で同じ1枚だけを描画する。
+   m_board6/m_board1のSVGに含まれるstrokeを基準にし、追加枠の二重描画を止める。 */
+html body #hand-slots.unit-equip-slots > .card-empty:not([data-map-board])::after{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]):not(.invalid-battle-position) > .board-frame-layer{
+  display:none!important;
+}
+
+/* 出撃不可キャラは内容だけ暗転させ、m_board_frameの1px外周を明るく残す。
+   背景SVGのstrokeを外して、独立フレームとの二重線を防ぐ。 */
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]):not(.deploy-slot){
+  background-image:none!important;
+  background-color:#160b03!important;
+}
+
+/* ショップのゴールド不足表示は暗転とカードフレームを別レイヤーにする。
+   ::afterを暗転にも使うと、カードフレームが上書きされるため使用しない。 */
+html body.reward-screen-active #rw-cards .rew-card.cant::before,
+html body.reward-screen-active #battle-order-row > .rew-card.cant::before,
+html body.reward-screen-active #rw-cards .character-card.cant::before,
+html body.reward-screen-active #battle-order-row > .character-card.cant::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  border-radius:inherit!important;
+  background:rgba(0,0,0,.48)!important;
+  z-index:5!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active #rw-cards .rew-card.cant::after,
+html body.reward-screen-active #battle-order-row > .rew-card.cant::after,
+html body.reward-screen-active #rw-cards .character-card.cant::after,
+html body.reward-screen-active #battle-order-row > .character-card.cant::after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  border-radius:inherit!important;
+  background:var(--unit-frame,var(--card-frame)) center/100% 100% no-repeat!important;
+  z-index:6!important;
+  pointer-events:none!important;
+}
+
+/* ショップ：一時退避カードの売却表示と、盤面カードの売却ボタン */
+html body.reward-screen-active .shop-pending-sale-ui{
+  position:absolute;
+  inset:0;
+  width:auto;
+  z-index:10010;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:3px;
+  pointer-events:auto;
+}
+html body.reward-screen-active .shop-buy-price,
+html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value,
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value{
+  position:absolute!important;
+  top:30px!important;
+  right:4px!important;
+  width:96px!important;
+  height:51px!important;
+  box-sizing:border-box!important;
+  min-width:96px!important;
+  padding:2px 4px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(230,210,150,.75)!important;
+  border-radius:4px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font-size:24px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px #000!important;
+  z-index:10011!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{
+  position:absolute!important;
+  top:30px!important;
+  right:4px!important;
+  width:96px!important;
+  height:51px!important;
+  min-width:96px!important;
+}
+html body.reward-screen-active .shop-pending-sell-btn,
+html body.reward-screen-active .shop-board-sell-btn{
+  position:absolute!important;
+  top:94px!important;
+  right:4px!important;
+  width:96px!important;
+  height:51px!important;
+  min-width:96px!important;
+  box-sizing:border-box!important;
+  padding:2px 4px!important;
+  border:1px solid rgba(230,210,150,.75)!important;
+  border-radius:4px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font:700 24px/1.1 var(--font-hd)!important;
+  cursor:pointer;
+  z-index:10012!important;
+}
+#shop-return-confirm{
+  position:fixed;
+  inset:0;
+  z-index:100200;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.45);
+}
+#shop-return-confirm .shop-return-confirm-box{
+  min-width:calc(320px * var(--game-scale));
+  padding:calc(20px * var(--game-scale));
+  border:calc(2px * var(--game-scale)) solid rgba(216,185,130,.8);
+  background:rgba(18,10,4,.96);
+  box-shadow:0 0 calc(28px * var(--game-scale)) rgba(0,0,0,.72);
+  color:var(--gold2);
+  text-align:center;
+}
+#shop-return-confirm .shop-return-confirm-msg{
+  font-family:var(--font-hd);
+  font-size:calc(26px * var(--game-scale));
+  color:#f2d9a0;
+  margin-bottom:calc(16px * var(--game-scale));
+}
+#shop-return-confirm .shop-return-confirm-btns{display:flex;gap:calc(12px * var(--game-scale));justify-content:center}
+#shop-return-confirm .btn{font-size:calc(22px * var(--game-scale));padding:.45em 1.2em}
+/* 戦闘画面の新カットイン／終了レイヤー／戦闘カウンター */
+#battle-end-fade{
+  position:absolute!important;inset:0!important;z-index:80!important;pointer-events:none!important;
+  background:#000;opacity:0;visibility:hidden;transition:opacity .72s ease,visibility 0s linear .72s;
+}
+#battle-end-fade.is-visible{opacity:.78;visibility:visible;transition:opacity .72s ease}
+#battle-end-fade.is-final{opacity:1;visibility:visible;transition:opacity .36s ease}
+#battle-transition-fade{position:absolute!important;inset:0!important;z-index:5000!important;background:#000;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .7s ease}
+#battle-transition-fade.is-visible{opacity:1;visibility:visible;pointer-events:auto}
+#battle-options-btn{z-index:4100!important}
+#battle-counters{
+  position:absolute!important;right:70px!important;bottom:70px!important;z-index:3200!important;
+  display:none;gap:36.4px;align-items:center;pointer-events:none!important;
+}
+.battle-counter{position:relative;width:280px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
+.battle-counter-bg{display:none}
+.battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-size:46px;font-weight:700;color:#f0d28b;text-shadow:0 3px 7px #080300}
+.battle-counter-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(112,206,255,.7))}
+#battle-sacrifice-value{min-width:48px;text-align:left}
+#battle-status-hud{position:absolute!important;left:70px!important;bottom:70px!important;z-index:3200!important;display:none;gap:36.4px;align-items:center;pointer-events:none!important}
+.battle-status-counter{position:relative;width:491.8px;height:100px;display:flex;align-items:center;justify-content:center;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;color:#c49a6c;text-shadow:0 3px 7px #080300}
+.battle-status-counter>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
+.battle-status-label{position:absolute;left:50px;top:35px;z-index:1;font-size:30px;font-weight:700;line-height:1;white-space:nowrap}
+.battle-status-counter strong{position:absolute;left:0;top:27px;width:440px;z-index:1;font-size:46px;font-weight:800;line-height:1;text-align:right;white-space:nowrap}
+.battle-life-heart{display:inline-block;width:1.05em;text-align:center;font-style:normal}
+.battle-life-heart-empty{color:#c99049}
+.battle-life-heart-filled{color:#c99049}
+body:not(.reward-screen-active) #scr-battle>.bottom-hud,
+body:not(.reward-screen-active) #scr-battle #reward-info-bar{display:none!important;visibility:hidden!important}
+body #scr-battle .bottom-hud .bhud-item:has(#h-floor),
+body #scr-battle .bottom-hud .bhud-item:has(#h-reward-grade),
+body #scr-battle .bottom-hud .bhud-item:has(#h-magic),
+body #scr-battle .bottom-hud .bhud-item:has(#h-gold),
+body #scr-battle .bottom-hud .bhud-item:has(#h-act){display:none!important}
+body #scr-battle .bottom-hud .bhud-item:has(#h-life){display:none!important}
+body #scr-battle #h-floor,body #scr-battle #h-reward-grade,body #scr-battle #h-magic,body #scr-battle #h-gold,body #scr-battle #h-act{display:none!important}
+body #scr-battle #mana-hud{display:none!important}
+/* 戦闘画面では旧HUDを使わず、右下の新カウンターだけを表示する。報酬フェイズ中も再表示させない。 */
+html body #scr-battle > .bottom-hud,
+html body #scr-battle #mana-hud{display:none!important;visibility:hidden!important}
+body.reward-screen-active #scr-battle #battle-counters,
+body.reward-screen-active #scr-battle #battle-status-hud,
+body.world-map-active #scr-battle #battle-counters,
+body.world-map-active #scr-battle #battle-status-hud{display:none!important}
+#scr-battle:not(.reward-screen-active) #battle-options-btn{width:104px!important;height:88.5px!important}
+html body #scr-battle #battle-options-btn{
+  left:3666px!important;right:auto!important;top:70px!important;width:104px!important;height:88.5px!important;
+  padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:transparent!important;
+  font-size:0!important;box-shadow:none!important;overflow:visible!important;
+}
+html body #scr-battle #battle-options-btn::after{
+  content:''!important;position:absolute!important;left:-33px!important;top:-33.155px!important;width:170px!important;height:155px!important;
+  background:url("assets/ui/option.png") center/100% 100% no-repeat!important;z-index:2!important;pointer-events:none!important;
+}
+html body #scr-battle #battle-options-btn::before{
+  content:''!important;position:absolute!important;left:-33px!important;top:-33.155px!important;width:170px!important;height:155px!important;
+  background:url("assets/ui/option_back.png") center/100% 100% no-repeat!important;opacity:0;z-index:1!important;pointer-events:none!important;
+}
+.life-lost-cutin{animation:life-lost-cutin .62s ease-out forwards!important}
+@keyframes life-lost-cutin{0%{opacity:1;filter:none;transform:scale(1)}45%{opacity:.2;filter:drop-shadow(0 0 18px rgba(255,80,50,.9));transform:scale(1.1)}100%{opacity:0;filter:none;transform:scale(.82)} }
+
+#battle-start-intro .battle-start-line{
+  left:50%!important;right:auto!important;top:56%!important;width:clamp(1100px,80vw,2800px)!important;
+  transform:translate(-50%,-50%)!important;opacity:.9!important;z-index:1!important;
+}
+#battle-start-intro .battle-start-icon{
+  width:clamp(430px,31vw,900px)!important;height:clamp(430px,31vw,900px)!important;
+  margin-bottom:-255px!important;z-index:2!important;
+  filter:drop-shadow(0 12px 11px rgba(8,3,0,.96)) drop-shadow(0 0 34px rgba(255,210,96,.82))!important;
+}
+#battle-start-intro .battle-start-icon-wrap{
+  position:relative!important;display:block!important;flex:0 0 auto!important;
+  width:clamp(430px,31vw,900px)!important;height:clamp(430px,31vw,900px)!important;
+  margin-bottom:-255px!important;z-index:2!important;
+}
+#battle-start-intro .battle-start-icon-wrap .battle-start-icon{
+  width:100%!important;height:100%!important;margin:0!important;
+}
+#battle-start-intro .battle-start-title{z-index:3!important;letter-spacing:.08em!important;filter:drop-shadow(0 6px 7px rgba(15,5,0,.88)) drop-shadow(0 0 18px rgba(255,214,104,.42))!important;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important}
+#battle-start-intro.battle-start-normal .battle-start-title,
+#battle-start-intro.battle-start-normal .battle-start-icon{filter:drop-shadow(0 4px 5px rgba(14,7,2,.72)) drop-shadow(0 0 12px rgba(255,214,104,.28))!important}
+#battle-start-intro.cutin-victory .battle-start-title{
+  background:linear-gradient(105deg,#f1c95b 0%,#fff7c7 24%,#dfad3d 47%,#fffef1 68%,#edc45b 100%)!important;
+  background-size:240% 100%!important;color:transparent!important;
+  -webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  filter:drop-shadow(0 7px 9px rgba(0,0,0,.98)) drop-shadow(0 0 32px rgba(255,255,220,.95))!important;
+}
+#battle-start-intro.cutin-victory .battle-start-aura{background:radial-gradient(ellipse at center,rgba(255,255,230,.95),rgba(255,210,80,.5) 38%,transparent 72%)}
+#battle-start-intro.cutin-retreat .battle-start-title{
+  background:linear-gradient(105deg,#ff9b9b 0%,#fff1ee 28%,#ff5365 52%,#ffd1c9 74%,#ff6e78 100%)!important;
+  background-size:240% 100%!important;color:transparent!important;
+  -webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;
+  filter:drop-shadow(0 7px 9px rgba(0,0,0,.98)) drop-shadow(0 0 20px rgba(255,70,85,.72))!important;
+}
+#battle-start-intro.cutin-retreat .battle-start-icon{filter:sepia(1) saturate(4) hue-rotate(300deg) drop-shadow(0 10px 12px rgba(0,0,0,.98)) drop-shadow(0 0 22px rgba(190,30,30,.72))!important}
+#battle-start-intro.cutin-retreat .battle-start-aura{background:radial-gradient(ellipse at center,rgba(160,18,25,.65),rgba(48,0,4,.48) 42%,transparent 74%)}
+#battle-start-intro.cutin-retreat .battle-start-line{filter:sepia(1) saturate(5) hue-rotate(300deg) drop-shadow(0 0 10px rgba(190,30,30,.7))!important}
+.battle-cut-in-particles{position:absolute;inset:28% 28%;z-index:1;pointer-events:none;background:radial-gradient(circle at 50% 100%,rgba(255,250,194,.95) 0 4px,transparent 6px),radial-gradient(circle at 42% 92%,rgba(255,220,120,.85) 0 3px,transparent 5px),radial-gradient(circle at 59% 88%,rgba(255,255,255,.9) 0 3px,transparent 5px);opacity:0}
+.cutin-victory .battle-cut-in-particles{display:none!important;opacity:0!important;animation:none!important}
+@keyframes victory-particles{0%{transform:translateY(60px) scale(.72);opacity:0}25%{opacity:1}100%{transform:translateY(-240px) scale(1.25);opacity:0}}
+.cutin-victory .battle-start-icon{animation:battle-start-icon-grow 3.2s linear both!important}
+.cutin-retreat .battle-start-icon-wrap::after{
+  content:"";position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important;
+  background:linear-gradient(to bottom,rgba(18,0,4,0) 28%,rgba(18,0,4,.22) 48%,rgba(8,0,2,.82) 78%,rgba(3,0,1,.98) 100%)!important;
+  mix-blend-mode:multiply!important;border-radius:50%!important;
+}
+#battle-start-intro.awaiting-continue{animation:none!important;opacity:1!important}
+#battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
+/* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
+#battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/fix_back.png") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#f3d58f;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:pointer}
+#battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
+#battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
+#battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
+#battle-continue-btn:hover{filter:brightness(1.12)}
+/* 戦闘中は旧式の「戦闘実行」ボタンを表示しない。 */
+html body #scr-battle.active #btn-pass{display:none!important;visibility:hidden!important;pointer-events:none!important}
+/* 結果カットインはサブテキストを表示しないが、開始時と同じ行高を保持する。 */
+#battle-start-intro.cutin-victory .battle-start-subtitle,
+#battle-start-intro.cutin-retreat .battle-start-subtitle{visibility:hidden!important;min-height:1em!important}
+/* 撤退時は明るい紋章が文字を潰さないよう、下半分を暗い赤黒へ落とす。 */
+#battle-start-intro.cutin-retreat .battle-start-icon{-webkit-mask-image:none;mask-image:none}
+/* 撤退時は紋章を強く暗くし、赤く明るい「撤退」文字の可読性を優先する。 */
+#battle-start-intro.cutin-retreat .battle-start-icon{
+  filter:brightness(.24) saturate(1.8) sepia(1) hue-rotate(300deg) drop-shadow(0 10px 12px rgba(0,0,0,.98)) drop-shadow(0 0 14px rgba(150,20,30,.38))!important;
+}
+/* 勝利時の後光と明滅は、文字の可読性を優先して控えめにする。 */
+#battle-start-intro.cutin-victory .battle-start-aura{
+  background:radial-gradient(ellipse at center,rgba(255,255,230,.48),rgba(255,210,80,.22) 38%,transparent 72%)!important;
+  filter:blur(26px)!important;
+  animation:victory-aura-soft 1.5s ease-in-out infinite alternate!important;
+}
+#battle-start-intro.cutin-victory .battle-start-icon{
+  filter:drop-shadow(0 8px 9px rgba(0,0,0,.92)) drop-shadow(0 0 18px rgba(255,245,190,.48))!important;
+}
+#battle-start-intro.cutin-victory .battle-start-title{
+  filter:drop-shadow(0 7px 9px rgba(0,0,0,.98)) drop-shadow(0 0 20px rgba(255,255,220,.52))!important;
+}
+@keyframes victory-aura-soft{
+  from{opacity:.28;transform:scaleX(.96)}
+  to{opacity:.52;transform:scaleX(1.02)}
+}
+/* 指輪交換中のカード操作は、ショップの売却ボタンと同じ枠付きボタンで表示する。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-btn{
+  position:absolute!important;
+  top:30px!important;
+  right:4px!important;
+  left:auto!important;
+  bottom:auto!important;
+  width:96px!important;
+  height:51px!important;
+  min-width:96px!important;
+  box-sizing:border-box!important;
+  padding:2px 4px!important;
+  border:1px solid rgba(230,210,150,.75)!important;
+  border-radius:4px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font:700 24px/1.1 var(--font-hd)!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px #000!important;
+  z-index:10012!important;
+  cursor:pointer!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-btn:hover{
+  background:rgba(35,24,10,.96)!important;
+  box-shadow:0 0 12px rgba(230,210,150,.58)!important;
+}
+/* 戦闘終了演出中は、カードのhover発光・浮上を完全に停止する。 */
+body.battle-victory-pending .card:hover,
+body.battle-victory-pending .unit-card:hover,
+body.battle-victory-pending .slot.unit-card:hover{
+  transform:none!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+body.battle-victory-pending .card:hover::before,
+body.battle-victory-pending .card:hover::after,
+body.battle-victory-pending .unit-card:hover::before,
+body.battle-victory-pending .unit-card:hover::after{
+  opacity:0!important;
+  box-shadow:none!important;
+  animation:none!important;
+}
 </style>
 </head>
 <body>
@@ -9469,6 +9838,28 @@ html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging > .c
 <div id="scr-battle" class="screen">
   <video id="reward-bg-video" src="assets/art/backgrounds/back1.webm" autoplay loop muted playsinline></video>
   <button id="battle-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+  <div id="battle-end-fade" aria-hidden="true"></div>
+  <div id="battle-transition-fade" aria-hidden="true"></div>
+  <div id="battle-counters" aria-label="戦闘カウンター">
+    <div class="battle-counter">
+      <img class="battle-counter-bg" src="assets/ui/counter.svg" alt="">
+      <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/mana_orb.png" alt=""><span id="battle-mana-value">0</span></div>
+    </div>
+    <div class="battle-counter">
+      <img class="battle-counter-bg" src="assets/ui/counter.svg" alt="">
+      <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/blood.png" alt=""><span id="battle-sacrifice-value">0</span></div>
+    </div>
+  </div>
+  <div id="battle-status-hud" aria-label="所持金とライフ">
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg" alt="">
+      <span class="battle-status-label">所持金</span><strong id="battle-gold-value">0</strong>
+    </div>
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg" alt="">
+      <span class="battle-status-label">ライフ</span><strong id="battle-life-value">♥♥♥</strong>
+    </div>
+  </div>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">🔊</button>
   <div id="reward-production-ui" aria-hidden="true">
@@ -9701,8 +10092,8 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=mapitems1"></script>
-<script src="js/engine/audio.js?v=specialfx1"></script>
+<script src="assets.js?v=bgmfolder1"></script>
+<script src="js/engine/audio.js?v=battle3bgm1"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -9718,6 +10109,6 @@ fitVesselboundViewport();
 <script src="js/engine/reward.js?v=vaseitems1"></script>
 <script src="js/engine/map.js?v=ringexchangehide1"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=withdrawflow1"></script>
+<script src="js/engine/main.js?v=bossbgm1"></script>
 </body>
 </html>

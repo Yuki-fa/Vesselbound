@@ -50,10 +50,11 @@ const Assets = {
     title: 'assets/art/backgrounds/title_castle.png',
     camp: 'assets/art/backgrounds/camp.png',
     worldMap: 'assets/art/backgrounds/world_map.png',
-    stage1: 'assets/art/backgrounds/stage_grassland.png',
-    stage2: 'assets/art/backgrounds/stage_forest.png',
-    stage3: 'assets/art/backgrounds/stage_valley.png',
-    stage4: 'assets/art/backgrounds/stage_capital.png',
+    stage1: 'assets/art/backgrounds/stage_grassland.webp',
+    stage2: 'assets/art/backgrounds/stage_forest.webp',
+    stage3: 'assets/art/backgrounds/stage_valley.webp',
+    stage4: 'assets/art/backgrounds/stage_capital.webp',
+    stageEnd: 'assets/art/backgrounds/stage_endworld.webp',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -64,6 +65,9 @@ const Assets = {
     // ナンバー（CXXX）に対応するWebPがあれば、通常のhit.webpの代わりに再生する。
     // 存在するものだけをここに登録する（未登録＝通常のhit.webpを使用）。
     characterEffect: {
+      'C001': 'assets/vfx/C001.webp',
+      'C002': 'assets/vfx/C002.webp',
+      'C003': 'assets/vfx/C003.webp',
       'C043': 'assets/vfx/C043.webp',
     },
     // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
@@ -81,6 +85,7 @@ const Assets = {
     // 対応するWebPがあれば、通常のhit.webpの代わりに再生する。存在するものだけをここに登録する。
     keywordEffect: {
       'K007': 'assets/vfx/K007.webp', // 毒
+      'K026': 'assets/vfx/K026.webp', // マナ効果
     },
   },
   ui: {
@@ -121,8 +126,9 @@ const Assets = {
     select: 'assets/sfx/select.wav',
     fit: 'assets/sfx/fit.wav',
     'return': 'assets/sfx/return.wav',
-    menu: 'assets/sfx/menu.wav',
-    battle1: 'assets/sfx/battle1.wav',
+    menu: 'assets/bgm/menu.wav',
+    battle1: 'assets/bgm/battle1.wav',
+    battle3: 'assets/bgm/battle3.wav',
     reroll: 'assets/sfx/reroll.wav',
     purchase: 'assets/sfx/purchase.wav',
     attack: 'assets/sfx/attack.wav',
@@ -143,12 +149,17 @@ const Assets = {
     kick2: 'assets/sfx/kick2.wav',
     kick3: 'assets/sfx/kick3.wav',
     death: 'assets/sfx/death.wav',
+    C001: 'assets/sfx/C001.wav',
+    C002: 'assets/sfx/C002.wav',
+    C003: 'assets/sfx/C003.wav',
+    K026: 'assets/sfx/K026.wav',
     spellCast: 'assets/sfx/spell_cast.wav',
     spellFire: 'assets/sfx/spell_fire.wav',
     spellHeal: 'assets/sfx/spell_heal.wav',
     summon: 'assets/sfx/summon.wav',
     victory: 'assets/sfx/victory.wav',
     bossVictory: 'assets/sfx/boss_victory.wav',
+    lifeLost: 'assets/sfx/life_lost.wav',
     S002: 'assets/sfx/S002.wav',
     S003: 'assets/sfx/S003.wav',
   },
@@ -541,6 +552,7 @@ function getCharacterSweepVfxPath(unit){
 function getKeywordEffectVfxPath(keywordName){
   if(!keywordName) return '';
   const code=(typeof KW_NO_MAP!=='undefined'&&KW_NO_MAP[keywordName])||'';
+  if(keywordName==='マナ効果'&&!code) return Assets.vfx.keywordEffect?.K026||'';
   if(!code) return '';
   return (Assets.vfx.keywordEffect&&Assets.vfx.keywordEffect[code])||'';
 }

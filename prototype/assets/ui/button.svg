@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 496 122">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #081e3d;
+      }
+
+      .cls-2 {
+        fill: none;
+        stroke: url(#_名称未設定グラデーション_182);
+        stroke-miterlimit: 10;
+        stroke-width: 2px;
+      }
+    </style>
+    <radialGradient id="_名称未設定グラデーション_182" data-name="名称未設定グラデーション 182" cx="248" cy="61" fx="248" fy="61" r="180.59" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bf9000"/>
+      <stop offset="1" stop-color="#3f2800"/>
+    </radialGradient>
+  </defs>
+  <g id="_編成" data-name="編成">
+    <g id="_編成完了" data-name="編成完了">
+      <path class="cls-1" d="M480,121H16c0-8.28-6.72-15-15-15V16c8.28,0,15-6.72,15-15h464c0,8.28,6.72,15,15,15v90c-8.28,0-15,6.72-15,15Z"/>
+      <path class="cls-2" d="M480,121H16c0-8.28-6.72-15-15-15V16c8.28,0,15-6.72,15-15h464c0,8.28,6.72,15,15,15v90c-8.28,0-15,6.72-15,15Z"/>
+    </g>
+  </g>
+</svg>

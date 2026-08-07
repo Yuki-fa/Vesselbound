@@ -100,6 +100,11 @@ function _pickEnemyDef(grade){
   return pool.length?randFrom(pool):(fallback||{name:'ゴブリン',grade:1,keywords:[],race:'亜人'});
 }
 
+function _fixedFinalEnemyDef(no){
+  const key=String(no||'').toUpperCase();
+  return ENEMY_POOL.find(e=>String(e.artCode||e._artCode||e.No||e.no||e['No.']||e.code||'').toUpperCase()===key)||null;
+}
+
 function _pickBossEnemyDef(grade){
   const used=new Set(G.worldMapRun&&Array.isArray(G.worldMapRun.usedBossEnemyNames)?G.worldMapRun.usedBossEnemyNames:[]);
   let pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly && !used.has(e.name));
@@ -178,7 +183,9 @@ function generateEnemies(floor){
 
   if(isBoss){
     const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
-    const bossDef=_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+    const fixedFinalBoss=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===4
+      ?_fixedFinalEnemyDef('EN075'):null;
+    const bossDef=fixedFinalBoss||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
     if(G.worldMapRun&&bossDef){
       G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
       if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
@@ -313,7 +320,9 @@ function generateEnemies(floor){
 
 function generateEliteEnemies(floor){
   const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
-  const bossDef=_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+  const fixedFinalElite=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===3
+    ?_fixedFinalEnemyDef('EN074'):null;
+  const bossDef=fixedFinalElite||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
   if(G.worldMapRun&&bossDef){
     G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
     if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);

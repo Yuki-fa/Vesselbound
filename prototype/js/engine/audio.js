@@ -98,6 +98,7 @@ let _bgmTargetVolume=.32*SFX_SETTINGS.masterVolume;
 const BGM_DEFAULT_VOLUMES={
   menu:.62,
   battle1:.32,
+  battle3:.32,
 };
 
 function _sfxPath(key){
