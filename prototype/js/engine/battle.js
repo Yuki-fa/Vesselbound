@@ -101,7 +101,7 @@ async function _playManaEffectCue(unit,isEnemySide){
     gateMs:200,
     hitDuration:900,
     fadeDuration:700,
-    vfxScale:1,
+    vfxScale:.5,
     spin:true,
   })).catch(()=>{});
 }
@@ -202,7 +202,7 @@ function _markBattleAttacked(unit){
 }
 
 function _hasRingEffect(key){
-  return (G.rings||[]).some(r=>r&&r.ringEffectKey===key);
+  return _effectiveRings().some(r=>r&&r.ringEffectKey===key);
 }
 
 // 装備中の指輪（4枠）から、効果判定に使う「実効指輪」一覧を返す。
@@ -211,10 +211,12 @@ function _hasRingEffect(key){
 function _effectiveRings(){
   const rings=Array.isArray(G.rings)?G.rings:[];
   return rings.map((r,i)=>{
+    if(!r||r._disabled) return null;
     let cur=r,idx=i,depth=0;
     while(cur&&cur.name==='鏡の指輪'&&depth<4){
       idx+=1;
       cur=rings[idx]||null;
+      if(cur&&cur._disabled) return null;
       depth++;
     }
     return cur;
@@ -241,10 +243,11 @@ function _isAilmentImmune(unit){
 
 function _tryNecromancerRingRevive(){
   if(G._necromancerRingUsed||!_hasRingEffect('necromancer_ghosts')) return false;
-  if(_liveBattleUnits(G.allies,false).length) return false;
+  const hasLivingFront=(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&!_isSealed(a)&&String(a.lane||'front')==='front');
+  if(hasLivingFront) return false;
   G._necromancerRingUsed=true;
-  for(let i=0;i<3;i++) _spawnAdhocAllyUnit('青ゴースト',5,2,false,{rightmost:true});
-  log('不死の指輪が発動し、青ゴーストを3体召喚した。','good');
+  for(let i=0;i<2;i++) void _spawnAdhocAllyUnit('青スケルトン',4,2,false,{rightmost:true});
+  log('不死の指輪が発動し、青スケルトンを2体召喚した。','good');
   renderAll();
   return true;
 }
@@ -965,6 +968,7 @@ async function startBattle(){
   }
 
   // カードの実体だけを先に構築し、開戦時効果は配置演出後まで保留する。
+  G._deferManaThresholdEffects=true;
   _initSealStates();
   if(typeof applyNewPanelBattleStart==='function') await applyNewPanelBattleStart({deferOpeningEffects:true});
   // 接続した強化カード由来の封印も含め、開幕演出の前に封印状態を再計算する。
@@ -979,7 +983,18 @@ async function startBattle(){
   renderAll();
   await playBattleOpeningSequence();
   onBattleStart();
-  await _finishNewPanelBattleStartEffects();
+  try{
+    await _finishNewPanelBattleStartEffects();
+  }finally{
+    // 開幕効果中に例外が起き、以降のマナ効果が永久に保留されるのを防ぐ。
+    G._deferManaThresholdEffects=false;
+  }
+  // 開戦効果と封印処理がすべて終わってから、そこで溜まったマナを一括判定する。
+  // 開戦処理の途中からマナ効果へ再入すると、同じPromiseを待つ経路ができて停止する。
+  await _checkManaThresholdUnitEffects();
+  _checkManaCostSpells();
+  _queueRingManaThresholdEffects();
+  await _flushRingManaThresholdEffects();
   renderAll();
   // 配置演出終了後、既存仕様の待機時間を経て攻撃を開始する。
   await sleep(introKind==='elite'?500:1000);
@@ -1299,6 +1314,7 @@ function _delayDeathCompact(ms){
 
 function _checkBattleOver(){
   if(_checkRearCenterAllyGameOver()) return true;
+  _tryNecromancerRingRevive();
   const liveEnemies=G.enemies.filter(e=>e&&e.hp>0&&!e._isObject&&!_isSealed(e));
   const liveAllies=G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&!_isSealed(a));
   if(liveEnemies.length===0){
@@ -1436,14 +1452,16 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
     log(`${_lc(unit.name,isEnemySide)}の効果で全ての前衛の味方に1ダメージを与えた。`,isEnemySide?'bad':'good');
   }
   // サイレン：攻撃：全てのキャラクターに1ダメージを与える。（両陣営とも対象）
-  if(/^攻撃：全てのキャラクターに1ダメージを与える。/.test(desc)){
+  const sirenAttack=String(desc||'').match(/^攻撃：全てのキャラクターに(\d+)ダメージを与える。/);
+  if(hasName('サイレン')||sirenAttack){
+    const damage=Math.max(1,Number(sirenAttack&&sirenAttack[1])||_unitEffectScale(unit,'サイレン'));
     const entries=[
-      ...allies.filter(_canReceiveBattleEffect).map(t=>({unit:t,side:isEnemySide?'enemy':'ally',amount:1,source:unit})),
-      ...foes.filter(_canReceiveBattleEffect).map(t=>({unit:t,side:isEnemySide?'ally':'enemy',amount:1,source:unit})),
+      ...allies.filter(_canReceiveBattleEffect).map(t=>({unit:t,side:isEnemySide?'enemy':'ally',amount:damage,source:unit})),
+      ...foes.filter(_canReceiveBattleEffect).map(t=>({unit:t,side:isEnemySide?'ally':'enemy',amount:damage,source:unit})),
     ];
     playDamageEffectSfx('all');
     await applyDamageBatch(entries,{source:unit,effect:true});
-    log(`${_lc(unit.name,isEnemySide)}の効果で全てのキャラクターに1ダメージを与えた。`,isEnemySide?'bad':'good');
+    log(`${_lc(unit.name,isEnemySide)}の効果で全てのキャラクターに${damage}ダメージを与えた。`,isEnemySide?'bad':'good');
   }
   // ケンタウロス：攻撃：ランダムな敵にXダメージを与える。Xはマナの数に等しい。
   if(/^攻撃：ランダムな敵にXダメージを与える。Xはマナの数に等しい。/.test(desc)){
@@ -1491,9 +1509,6 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
       addUnitHp(target,x,isEnemySide?'enemy':'ally');
       log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,isEnemySide)}はHP+${x}を得た。`,isEnemySide?'bad':'good');
     }
-  }
-  if(hasName('スリン')){
-    _gainMana(1,unit);
   }
   if(hasName('エルヴンメイジ')){
     allies.forEach(a=>{
@@ -1832,13 +1847,13 @@ function _unitEffectPanelCount(unit, kw){
   // 接続数のカウントはequipment配列の添字（盤面上の位置＝物理的に別々の接続）で数える。
   // p.id/p.uidは同じ強化カードを複数枚接続した場合でも同じ値（テンプレート由来）になるため、
   // これをキーにすると2枚目以降が「同一パネル」とみなされ重複発動しなくなるバグの原因だった。
-  const seen=new Set();
+  let count=0;
   (Array.isArray(unit.equipment)?unit.equipment:[]).forEach((p,i)=>{
     if(!p||String(p.category||'')==='キャラクター') return;
     const names=[p.name,...(p.keywords||[]),...(p.adjacentKeywords||[])].filter(Boolean);
-    if(names.includes(kw)) seen.add(i);
+    if(names.includes(kw)) count+=1+(Number(p._effectRepeatBonus||p.effectRepeatBonus)||0);
   });
-  return seen.size;
+  return count;
 }
 
 function _openingEffectRepeatCount(unit){
@@ -1847,14 +1862,17 @@ function _openingEffectRepeatCount(unit){
 }
 
 function _panelEffectKeywordCount(panels, kw){
-  const seen=new Set();
+  const seen=new Map();
   (panels||[]).forEach((entry,i)=>{
     const panel=entry&&entry.panel?entry.panel:entry;
     if(!panel||String(panel.category||'')==='キャラクター') return;
     const names=[panel.name,...(panel.keywords||[]),...(panel.adjacentKeywords||[])].filter(Boolean);
-    if(names.includes(kw)) seen.add(entry&&entry.idx!=null?entry.idx:i);
+    if(names.includes(kw)){
+      const key=entry&&entry.idx!=null?entry.idx:i;
+      seen.set(key,1+(Number(panel._effectRepeatBonus||panel.effectRepeatBonus)||0));
+    }
   });
-  return seen.size;
+  return [...seen.values()].reduce((sum,n)=>sum+n,0);
 }
 
 function _unitEffectNames(unit){
@@ -1869,6 +1887,13 @@ function _unitEffectNames(unit){
 
 function _unitHasEffectName(unit, name){
   return _unitEffectNames(unit).includes(name);
+}
+
+function _unitEffectScale(unit,name){
+  if(!unit||!name) return 1;
+  const own=unit._tripleMerged&&String(unit.name||'')===String(name)?2:1;
+  const connected=Math.max(1,Number(unit._resonanceEffectScales&&unit._resonanceEffectScales[name])||1);
+  return Math.max(own,connected);
 }
 
 function _attackDamageValue(unit){
@@ -2546,7 +2571,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
-  const enh={atk:0,hp:0,keywords:[],weakenOnHit:0,manaOnAttack:0,manaThresholds:[],effectNames:[]};
+  const enh={atk:0,hp:0,keywords:[],weakenOnHit:0,manaOnAttack:0,manaThresholds:[],effectNames:[],effectScales:{}};
   const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
   const effectivePanel=entry=>{
     const panel=entry.panel;
@@ -2561,8 +2586,12 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     if(panel.manaCost){
       enh.manaThresholds.push({cost:Number(panel.manaCost)||0,repeat:!!panel.manaRepeat,desc:String(panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
     }
-    if(panel._resonanceEffectName) enh.effectNames.push(panel._resonanceEffectName);
+    if(panel._resonanceEffectName){
+      enh.effectNames.push(panel._resonanceEffectName);
+      enh.effectScales[panel._resonanceEffectName]=Math.max(enh.effectScales[panel._resonanceEffectName]||1,panel._tripleMerged?2:1);
+    }
     (panel.adjacentKeywords||[]).forEach(k=>{
+      enh.effectScales[k]=Math.max(enh.effectScales[k]||1,panel._tripleMerged?2:1);
       // 衝撃X：このキャラクター自身が弱体化するのではなく、攻撃/ダメージ効果で
       // 対象に衝撃Xを付与する常時能力として扱う。表示上はキーワードとしても残す。
       const wm=/^衝撃(\d+)$/.exec(k);
@@ -2612,6 +2641,8 @@ function _clearAdjacentPanelEnhancements(unit){
   delete unit._adjacentPanelEnhancements;
   delete unit._adjacentPanelSignature;
   delete unit._resonanceEffectNames;
+  delete unit._resonanceEffectScales;
+  delete unit._extraManaCosts;
   if(prev.manaThresholdAdded){
     delete unit.manaCost;
     delete unit.manaRepeat;
@@ -2626,11 +2657,12 @@ function _applyAdjacentPanelEnhancements(unit, enh){
   const modifierBonus=_combatModifierBonus(unit,side==='enemy');
   const atkBonus=(enh.atk||0)+(enh.atk>0?modifierBonus:0);
   const hpBonus=(enh.hp||0)+(enh.hp>0?modifierBonus:0);
-  const sig=JSON.stringify({atk:atkBonus,hp:hpBonus,keywords:[...(enh.keywords||[])].sort(),weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholds:enh.manaThresholds||[],effectNames:[...(enh.effectNames||[])].sort()});
+  const sig=JSON.stringify({atk:atkBonus,hp:hpBonus,keywords:[...(enh.keywords||[])].sort(),weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholds:enh.manaThresholds||[],effectNames:[...(enh.effectNames||[])].sort(),effectScales:enh.effectScales||{}});
   if(unit._adjacentPanelSignature===sig) return;
   _clearAdjacentPanelEnhancements(unit);
   unit._adjacentPanelSignature=sig;
   unit._adjacentPanelEnhancements={atk:atkBonus,hp:hpBonus,keywords:[...(enh.keywords||[])],weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholdAdded:false};
+  const manaThresholds=Array.isArray(enh.manaThresholds)?enh.manaThresholds.filter(t=>Number(t&&t.cost)>0):[];
   if(enh.manaThresholds&&enh.manaThresholds.length&&!unit.manaCost){
     const first=enh.manaThresholds[0];
     unit.manaCost=first.cost;
@@ -2638,7 +2670,9 @@ function _applyAdjacentPanelEnhancements(unit, enh){
     unit._manaThresholdDesc=first.desc;
     unit._adjacentPanelEnhancements.manaThresholdAdded=true;
   }
+  unit._extraManaCosts=manaThresholds.slice(unit._adjacentPanelEnhancements.manaThresholdAdded?1:0).map(t=>Number(t.cost)||0).filter(Boolean);
   unit._resonanceEffectNames=[...(enh.effectNames||[])].filter(Boolean);
+  unit._resonanceEffectScales={...(enh.effectScales||{})};
   if(atkBonus){
     unit.atk=(unit.atk||0)+atkBonus;
     unit.baseAtk=(unit.baseAtk||0)+atkBonus;
@@ -2695,6 +2729,8 @@ function _makePanelSummonUnit(spec, keywords){
     goldOnBattleEnd:spec.goldOnBattleEnd||0,
     goldOnDeath:spec.goldOnDeath||0,
     _effectRepeatBonus:Number(spec.effectRepeatBonus||spec._effectRepeatBonus)||0,
+    _tripleMerged:!!spec._tripleMerged,
+    _tripleDescApplied:!!spec._tripleDescApplied,
     color:spec.color||'',
     art:spec.art||'',
     no:spec.no||'',
@@ -2789,6 +2825,8 @@ function _panelSummonSpec(panel){
       goldOnBattleEnd:panel.goldOnBattleEnd||0,
       goldOnDeath:panel.goldOnDeath||0,
       effectRepeatBonus:Number(panel.effectRepeatBonus||panel._effectRepeatBonus)||0,
+      _tripleMerged:!!panel._tripleMerged,
+      _tripleDescApplied:!!panel._tripleDescApplied,
       art:typeof getPanelArtPath==='function'?getPanelArtPath(panel):(panel.art||''),
       no:panel.no||panel.artCode||panel._artCode||panel['No.']||'',
       panelName:panel.name
@@ -2953,9 +2991,14 @@ function _gainMana(amount, source){
   G.mana=_ensureMana()+n;
   log(`${sourceName?_lc(sourceName,false):'マナ'}の効果でマナを${n}つ獲得した。`,'good');
   if(typeof renderManaHud==='function') renderManaHud();
-  _checkManaCostSpells();
-  void _checkManaThresholdUnitEffects();
-  _queueRingManaThresholdEffects();
+  if(!G._deferManaThresholdEffects){
+    _checkManaCostSpells();
+    // 同時に複数のマナ効果が予約されても、必ず盤面優先順で直列処理する。
+    G._manaUnitEffectQueue=(G._manaUnitEffectQueue||Promise.resolve())
+      .then(()=>_checkManaThresholdUnitEffects())
+      .catch(e=>console.error('[mana unit effects]',e));
+    _queueRingManaThresholdEffects();
+  }
   _recomputeDynamicPanelStats();
 }
 function _queueRingManaThresholdEffects(){
@@ -3076,7 +3119,7 @@ async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy){
     }
   }
   const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
-  if(wild) _gainMana(wild*2*_openingEffectRepeatCount(unit),unit);
+  if(!isInitialDeploy&&wild) _gainMana(wild*2*_openingEffectRepeatCount(unit),unit);
   // 開戦時の通常出撃（isInitialDeploy）では、まだ全キャラクターの配置・描画が完了していないため
   // ここではまだ封印解放を行わない（DOM未確定のままgetBoundingClientRect()すると位置がズレる／
   // 演出無しで即解封されてしまう）。applyNewPanelBattleStart()側で全員の配置・再描画完了後に
@@ -3243,7 +3286,7 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     const side=isEnemySide?G.enemies:G.allies;
     const candidates=(side||[]).filter(u=>_canReceiveBattleEffect(u)&&String(u.color||'')===_normalizeColorTextForBattle(buffColor));
     if(candidates.length){
-      const target=_pickRandomEnemyTargets(foes,unit)[0];
+      const target=candidates[Math.floor(Math.random()*candidates.length)];
       const bonus=_combatModifierBonus(unit,isEnemySide);
       const atk=(parseInt(atkStr,10)||0)+bonus, hp=(parseInt(hpStr,10)||0)+bonus;
       if(atk){ target.atk=(target.atk||0)+atk; target.baseAtk=(target.baseAtk||0)+atk; }
@@ -3305,14 +3348,19 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     log(`${_lc(unit.name,isEnemySide)}の効果で全ての敵に毒12を与えた。`,isEnemySide?'bad':'good');
     return;
   }
-  if(/^全ての味方に\+2\/\+2を与えた後、1ダメージを与える/.test(rawText)){
+  const arachneEffect=String(rawText||'').match(/^全ての味方に\+(\d+)\/\+(\d+)を与えた後、(\d+)ダメージを与える/);
+  if(unit.name==='アラクネ'||arachneEffect){
+    const effectScale=_unitEffectScale(unit,'アラクネ');
+    const atk=Math.max(1,Number(arachneEffect&&arachneEffect[1])||2*effectScale);
+    const hp=Math.max(1,Number(arachneEffect&&arachneEffect[2])||2*effectScale);
+    const damage=Math.max(1,Number(arachneEffect&&arachneEffect[3])||effectScale);
     const allies=isEnemySide?G.enemies:G.allies;
     const side=isEnemySide?'enemy':'ally';
     const targets=_livingCombatUnits(allies);
-    targets.forEach(t=>_addBattleStats(t,2,2,side));
-    const entries=targets.filter(t=>t.hp>0).map(t=>({unit:t,side,amount:1,source:unit}));
+    targets.forEach(t=>_addBattleStats(t,atk,hp,side));
+    const entries=targets.filter(t=>t.hp>0).map(t=>({unit:t,side,amount:damage,source:unit}));
     if(entries.length) await applyDamageBatch(entries,{source:unit,effect:true});
-    log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は+2/+2を得た後、1ダメージを受けた。`,isEnemySide?'bad':'good');
+    log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は+${atk}/+${hp}を得た後、${damage}ダメージを受けた。`,isEnemySide?'bad':'good');
     return;
   }
   const randAllyRevive=String(text||'').match(/^ランダムな味方が復活を得る/);
@@ -3364,7 +3412,10 @@ async function _checkManaThresholdUnitEffects(){
       if(!unit||unit.hp<=0||_isSealed(unit)||!unit.manaCost) return;
       if(isEnemySide&&_isUnitSilencedByScroll(unit)) return;
       let fired=false;
-      while(_manaShouldFireAgain(unit)){
+      // この走査開始時に到達済みの回数までだけ処理し、
+      // 効果自身が生んだマナによる同一走査内の無限再発動を防ぐ。
+      const fireLimit=unit.manaRepeat?_manaFireProgress(unit):1;
+      while(_manaShouldFireAgain(unit)&&(unit._manaFireCount||0)<fireLimit){
         unit._manaFireCount=(unit._manaFireCount||0)+1;
         const m=String(unit.desc||'').match(/^\d+マナ(?:毎)?[:：]\s*(.+)/);
         const effectText=unit._manaThresholdDesc|| (m?m[1]:'');
@@ -3499,7 +3550,7 @@ async function applyNewPanelBattleStart(options){
   const pendingResonanceColors=[];
   // メイン置き場①〜⑦の物理位置がそのまま出撃順を決める。前衛①②③④、後衛⑤⑥⑦。
   // _summonPanelUnitToFront/Rearは各レーンの右詰めで配置するため、並び順の先頭が左端に来るよう逆順で召喚する
-  const deploySlotGroup=(slots,toRear)=>{
+  const deploySlotGroup=async(slots,toRear)=>{
     for(let oi=slots.length-1;oi>=0;oi--){
       const idx=slots[oi];
       const panel=equip[idx];
@@ -3541,7 +3592,9 @@ async function applyNewPanelBattleStart(options){
         }
         const placed=toRear?_summonPanelUnitToRear(summoned,false):_summonPanelUnitToFront(summoned,false);
         if(placed>=0){
-          _afterPanelSummon(summoned,false,true); // 開戦時の通常出撃（ヘルナイトの生贄付与対象外）
+          // 1枚目は通常出撃、複製分は「戦闘中に召喚された」扱いにする。
+          // ツインデビル等のコピーでもリッチ等の召喚時効果を確実に完了させる。
+          await _afterPanelSummon(summoned,false,n===0);
           log(`${panel.name}が${_lc(summoned.name,false)}を召喚した。`,'good');
         }
       }
@@ -3553,10 +3606,10 @@ async function applyNewPanelBattleStart(options){
   const poweredSlots=Object.keys(G.mapPanelPowers||{})
     .map(n=>parseInt(n,10))
     .filter(idx=>Number.isInteger(idx)&&idx>=0&&idx<equip.length&&!baseDeploy.has(idx)&&_mapPanelPowerAt(idx));
-  deploySlotGroup(frontSlots,false);
-  deploySlotGroup(rearSlots,true);
-  deploySlotGroup(poweredSlots.filter(idx=>idx<10),false);
-  deploySlotGroup(poweredSlots.filter(idx=>idx>=10),true);
+  await deploySlotGroup(frontSlots,false);
+  await deploySlotGroup(rearSlots,true);
+  await deploySlotGroup(poweredSlots.filter(idx=>idx<10),false);
+  await deploySlotGroup(poweredSlots.filter(idx=>idx>=10),true);
   pendingResonanceColors.forEach(color=>{
     if(!color) return;
     (G.allies||[]).forEach(u=>{
@@ -3600,8 +3653,6 @@ async function _finishNewPanelBattleStartEffects(){
   await _applyNewOpeningEffects();
   await _applyRingBattleStartEffects();
   await _resolveSeals();
-  await _checkManaThresholdUnitEffects();
-  _checkManaCostSpells();
   _recomputeDynamicPanelStats();
 }
 
@@ -3746,6 +3797,8 @@ async function _applyNewOpeningEffects(){
     const hasName=name=>_unitHasEffectName(unit,name);
     for(let trigger=0;trigger<openingRepeats&&unit&&unit.hp>0&&!_isSealed(unit);trigger++){
       const side=isEnemySide?'enemy':'ally';
+      const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
+      if(wild) _gainMana(wild*2,unit);
       if(_unitHasKeyword(unit,'奇妙な絆')||_unitEffectPanelCount(unit,'奇妙な絆')>0){
         const allies=isEnemySide?G.enemies:G.allies;
         const x=allies.filter(a=>_canReceiveBattleEffect(a)&&(_unitHasKeyword(a,'奇妙な絆')||_unitEffectPanelCount(a,'奇妙な絆')>0)).length;
@@ -3979,9 +4032,10 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
   if(!unit||unit.hp<=0) return false;
   let fired=false;
   if(_unitHasKeyword(unit,'治癒能力')){
-    unit.hp+=2;
-    unit.maxHp=(unit.maxHp||0)+2;
-    log(`${_lc(unit.name,false)}の治癒能力が発動した。HP+2を得た。`,'good');
+    const heal=2*_unitEffectScale(unit,'治癒能力');
+    unit.hp+=heal;
+    unit.maxHp=(unit.maxHp||0)+heal;
+    log(`${_lc(unit.name,false)}の治癒能力が発動した。HP+${heal}を得た。`,'good');
     _playCardEffectSfx('C003');
     await _playCardEffectVfx('C003',[unit]);
     fired=true;
@@ -4175,7 +4229,7 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.hp>0) ally._attackEffectPending=true;
   // 闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（manaOnAttackも含む）
   if(ally.hp>0&&ally.manaOnAttack){
-    const _ritualExtra=_unitKeywordCount(ally,'闇の儀式');
+    const _ritualExtra=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
     for(let mi=0;mi<1+_ritualExtra;mi++) _gainMana(ally.manaOnAttack,ally);
     await _flushRingManaThresholdEffects();
     if(_checkBattleOver()) return;
@@ -4215,7 +4269,7 @@ async function allyAttackAction(ally, allyIdx){
       // 攻撃時効果はアニメーション途中で発動する
       if(ally.hp>0) ally._attackEffectPending=true;
       if(ally.hp>0&&ally.manaOnAttack){
-        const _ritualExtra2=_unitKeywordCount(ally,'闇の儀式');
+        const _ritualExtra2=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
         for(let mi=0;mi<1+_ritualExtra2;mi++) _gainMana(ally.manaOnAttack,ally);
         await _flushRingManaThresholdEffects();
         if(_checkBattleOver()) return;
@@ -4898,6 +4952,7 @@ function startTestBattle(){
   G._testBattleMode=true;
   G._testBattleAbort=false;
   G._testBattleSavedFloor=G.floor;
+  document.body.classList.add('test-battle-active');
   G.floor=19; // ステージ20（0-indexed）
   showScreen('battle');
   startBattle();
@@ -4915,6 +4970,7 @@ function _exitTestBattle(){
   G._testBattleAbort=false;
   if(G._testBattleSavedFloor!=null){ G.floor=G._testBattleSavedFloor; G._testBattleSavedFloor=null; }
   document.body.classList.remove('battle-turn-active');
+  document.body.classList.remove('test-battle-active');
   // 通常の戦闘終了時はonBattleEnd()がパネル召喚ユニット（＝現行仕様の全味方）をG.alliesから
   // 除去してから報酬/編成画面に戻るが、試験戦闘の中断はその経路を通らない。これを怠ると、
   // 次回の試験戦闘開始時にapplyNewPanelBattleStart()が現在の編成を「今回分」として追加召喚する際、

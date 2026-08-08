@@ -43,7 +43,7 @@
       tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
       tip.classList.toggle('map-tooltip',isMapPowerDesc);
       if(!isMapPowerDesc){
-        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-5]$/.test(c));
+        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
         if(rarityClass) tip.classList.add(rarityClass);
       }
       tip.style.display='block';
@@ -120,11 +120,13 @@ function _boldKeywordsInHtml(html){
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
   const clean=_stripStrongMarkupText(desc).replace(/<[^>]*>/g,'');
+  const sectionRule='<div class="preview-section-rule"></div>';
   const lines=clean.split('\n').map((line,li)=>{
     if(li===0){
       const title=_escapePreviewHtml(line);
       return `<strong class="preview-title">${plainTitle?title:_injectManaIcons(_boldKeywordsInHtml(title))}</strong>`;
     }
+    if(line==='__CHARACTER_DESC_SEPARATOR__') return sectionRule;
     const m=line.match(/^([^：:]+)([：:])(.*)$/);
     if(!m) return _injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(line)));
     if(m[1]==='キーワード'){
@@ -140,13 +142,30 @@ function _formatPreviewHtml(desc,opt){
     return `<strong>${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
   });
   // .preview-title は display:block のため、直後に<br>を挟むと1行分余分な空白ができる
-  return lines[0]+(lines.length>1?lines.slice(1).join('<br>'):'');
+  let body='';
+  lines.slice(1).forEach(part=>{
+    if(part===sectionRule){ body+=sectionRule; return; }
+    if(body&&!body.endsWith(sectionRule)) body+='<br>';
+    body+=part;
+  });
+  return lines[0]+body;
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
   const sourceKws=slotIdx!=null&&typeof _unitDisplayKeywords==='function'
     ?_unitDisplayKeywords(card,desc||'',slotIdx):(card&&card.keywords||[]);
-  return [...sourceKws].map(k=>String(k||'').trim()).filter(k=>{
+  // 「マナ効果」は説明専用の擬似キーワード。キャラクター本文のキーワード一覧には加えず、
+  // manaCostを持つキャラ、または接続強化を含む効果文に「Xマナ（毎）：」があるキャラの
+  // keyword-tooltipだけに追加する。
+  let manaEffectText=`${desc||''}\n${card&&card.desc||''}\n${card&&card._manaThresholdDesc||''}`;
+  if(card&&slotIdx!=null&&typeof _groupedEnchantEffectTexts==='function'){
+    const grouped=_groupedEnchantEffectTexts(card,slotIdx);
+    manaEffectText+=`\n${[...(grouped.normalTexts||[]),...(grouped.charTexts||[])].join('\n')}`;
+  }
+  const hasManaEffect=Number(card&&card.manaCost)>0||/^\s*\d+マナ(?:毎)?[：:]/m.test(manaEffectText);
+  const tooltipKws=[...sourceKws];
+  if(hasManaEffect) tooltipKws.push('マナ効果');
+  return tooltipKws.map(k=>String(k||'').trim()).filter(k=>{
     if(!k||seen.has(k)) return false;
     seen.add(k); return true;
   }).filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)).map(k=>{
@@ -195,10 +214,23 @@ function _colorIconPath(color){
   return '';
 }
 function cardManaCostHtml(card){
-  const n=Math.max(0,Number(card?.manaCost)||0);
-  const path=n?_manaOrbPath():'';
-  if(!n||!path) return '';
-  return `<span class="mana-cost-orbs">${Array.from({length:n},()=>`<img src="${path}" alt="">`).join('')}</span>`;
+  if(!card) return '';
+  const entries=[];
+  const seal=_sealCostValue(card);
+  const blood=Assets?.cards?.blood||'';
+  if(seal&&blood){
+    const value=seal===Infinity?'∞':seal;
+    entries.push(`<span class="activation-cost-entry seal-cost-entry"><img src="${blood}" alt=""><b>${value}</b></span>`);
+  }
+  const path=_manaOrbPath();
+  // 接続元のマナ効果（_extraManaCosts）はキャラクターにだけ表示する。
+  // 強化カード同士を接続しても、接続先の強化カードへアイコンを複製しない。
+  const extraCosts=String(card.category||'')==='キャラクター'&&Array.isArray(card._extraManaCosts)?card._extraManaCosts:[];
+  const costs=[Number(card.manaCost)||0,...extraCosts].filter(v=>v>0);
+  if(path) costs.forEach((cost,i)=>{
+    entries.push(`<span class="activation-cost-entry mana-cost-entry${i===0?' mana-primary':''}" data-mana-cost="${cost}"><img src="${path}" alt=""><b>${cost}</b></span>`);
+  });
+  return entries.length?`<span class="card-activation-costs mana-cost-orbs">${entries.join('')}</span>`:'';
 }
 function _sealCostValue(card){
   if(!card) return 0;
@@ -225,19 +257,7 @@ function _sealSacrificeCountForDisplay(){
   return all.filter(u=>u&&u.hp>0&&!u._sealed&&typeof _unitHasSacrifice==='function'&&_unitHasSacrifice(u)).length;
 }
 function cardSealCostHtml(card){
-  if(card&&card._sealed===false&&!card._sealValue) return '';
-  const cost=_sealCostValue(card);
-  const path=Assets?.cards?.blood||'';
-  if(!cost||!path) return '';
-  if(cost===Infinity){
-    return `<span class="seal-cost-badge seal-cost-infinite"><span class="seal-infinity-icon"><img src="${path}" alt=""><b>∞</b></span></span>`;
-  }
-  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy'||G._battleVictoryPending);
-  const lit=inBattle?Math.max(0,Math.min(cost,_sealSacrificeCountForDisplay())):cost;
-  const ready=inBattle&&lit>=cost;
-  const cls=`seal-cost-badge${ready?' seal-cost-ready':''}${inBattle?' seal-cost-battle':''}`;
-  const icons=Array.from({length:cost},(_,i)=>`<img class="${i<lit?'seal-cost-lit':''}" src="${path}" alt="">`).join('');
-  return `<span class="${cls}">${icons}</span>`;
+  return '';
 }
 // entity（スペル/強化パネル/召喚済みユニット）が持つ manaCost/manaRepeat/_manaFireCount を見て、
 // div内の.mana-cost-orbsのアイコン点灯・非表示状態を反映する。マナは消費されない共有蓄積値のため、
@@ -249,20 +269,21 @@ function _applyManaOrbState(div,entity){
   if(!wrap) return;
   const cost=Number(entity&&entity.manaCost)||0;
   if(!cost) return;
-  const orbImgs=wrap.querySelectorAll('img');
+  const primary=wrap.querySelector('.mana-primary');
+  const orbImgs=primary?primary.querySelectorAll('img'):[];
   const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy');
   if(!inBattle){
-    wrap.classList.remove('mana-orbs-hidden');
+    if(primary) primary.classList.remove('mana-primary-hidden');
     orbImgs.forEach(img=>img.classList.add('mana-orb-lit'));
     return;
   }
   const repeat=!!(entity&&entity.manaRepeat);
   const fired=(entity&&entity._manaFireCount)||0;
   if(fired>=1&&!repeat){
-    wrap.classList.add('mana-orbs-hidden');
+    if(primary) primary.classList.add('mana-primary-hidden');
     return;
   }
-  wrap.classList.remove('mana-orbs-hidden');
+  if(primary) primary.classList.remove('mana-primary-hidden');
   const have=Math.max(0,(typeof _ensureMana==='function'?_ensureMana():Number(G.mana)||0)-cost*fired);
   orbImgs.forEach((img,i)=>{ if(i<have) img.classList.add('mana-orb-lit'); });
 }
@@ -1495,7 +1516,6 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
   const dynamicKws=[];
-  if(Number(unit.manaCost)>0) dynamicKws.push('マナ効果');
   if(unit.shield>0) dynamicKws.push(`結界${unit.shield}`);
   // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
@@ -1519,7 +1539,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   const lines=[];
   if(unit.name) lines.push(unit.name);
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
-  const panelEffects=[...normalTexts,...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
+  const characterTexts=[...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
   const kws=_unitDisplayKeywords(unit,desc,slotIdx);
   // 「キーワード：」というラベルは表示せず、キーワードそのものを太字で並べる
@@ -1536,7 +1556,11 @@ function _unitPreviewText(unit, desc, slotIdx){
   // descはcomputeDesc()経由でマナアイコンが注入済みの場合があるため、data-preview行としては
   // 生の色文字に戻して格納する（ホバー時に_formatPreviewHtmlが改めてアイコン化するため）
   if(desc&&!descIsRedundant) lines.push(_stripIconsForMatch(desc));
-  if(panelEffects.length) lines.push(panelEffects.join('\n'));
+  if(normalTexts.length) lines.push(normalTexts.join('\n'));
+  if(characterTexts.length){
+    lines.push('__CHARACTER_DESC_SEPARATOR__');
+    lines.push(characterTexts.join('\n'));
+  }
   return lines.join('\n');
 }
 
@@ -1724,7 +1748,7 @@ function renderField(id,units,isEnemy,_lane){
         const canMoveUnit=!isEnemy&&G.phase==='reward'&&!G._battlePhaseRunning&&!G._resolvingSeals&&!G._mapBattle;
         slot.draggable=canMoveUnit;
         slot.addEventListener('dragstart',e=>{
-          if(!canMoveUnit) { e.preventDefault(); return; }
+          if(!canMoveUnit||document.body.classList.contains('right-card-peek')) { e.preventDefault(); return; }
           window._allySlotDragSrc=i;
           e.dataTransfer.effectAllowed='move';
           if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0);
@@ -1921,7 +1945,22 @@ function _rawSubstitutedDesc(card){
     desc=_stripOwnNameFromEffectText(desc,ownName);
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
+  if(card._tripleMerged&&!card._tripleDescApplied) desc=_doubleTripleMergedDesc(desc);
   return desc;
+}
+function _doubleTripleMergedDesc(desc){
+  return String(desc||'').split('\n').map(line=>{
+    const mana=[];
+    let text=line.replace(/^\s*\d+マナ(?:毎)?[:：]/,m=>{ mana.push(m); return `\u0000${mana.length-1}\u0000`; });
+    const xClause=text.search(/Xは/);
+    let head=xClause>=0?text.slice(0,xClause):text;
+    const tail=xClause>=0?text.slice(xClause):'';
+    head=head.replace(/\d+/g,n=>String(Number(n)*2)).replace(/(?<!\d)X/g,'2X');
+    // 合体後も固定仕様の「4方向ポート」は増やさない。
+    head=head.replace(/8\s*方向/g,'4方向').replace(/8\s*つのポート/g,'4つのポート');
+    head=head.replace(/\u0000(\d+)\u0000/g,(_,i)=>mana[Number(i)]||'');
+    return head+tail;
+  }).join('\n');
 }
 function computeDesc(card,_mlOverride){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
@@ -1943,7 +1982,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const _subtypeClass=_isWandSub?' wand-sub':'';
   div.className=`card ${t}${_subtypeClass}${card.legend?' legend-card':''}`;
   if(card._isChar||(!card.type&&!card.kind)) div.classList.add('character-card');
-  if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
+  if(card.rarity>=1&&card.rarity<=6) div.classList.add(`rarity-${card.rarity}`);
   div.dataset.cardIdx=String(_idx);
   div.dataset.cardCtx=_ctx||'';
   if(typeof applyCardVisual==='function'){
@@ -1961,6 +2000,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   // 無料報酬（_buyPrice===0）ではバッジそのものを作らない（CSSでの後隠しはしない）。
   const showPriceBadge=G.phase==='reward'&&!!G._isShop&&Number(card._buyPrice)>0;
   const badgeEl=showPriceBadge?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
+  const mergeStarEl=card._tripleMerged?'<span class="triple-merge-star" aria-label="3枚合体">★</span>':'';
   const isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
   const isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
   const isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
@@ -1992,7 +2032,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[card.name,card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -2014,7 +2054,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card);
     const preview=[card.name,_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -2026,7 +2066,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
-  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 

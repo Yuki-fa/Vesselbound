@@ -699,6 +699,11 @@ function _debugRefillActions(){
   updateHUD();
 }
 function gameOver(){
+  try{
+    const se=new Audio('assets/sfx/game_over.wav');
+    se.volume=.9;
+    void se.play();
+  }catch(_e){}
   document.body.classList.remove('battle-turn-active');
   // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
   if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
@@ -721,7 +726,7 @@ function _armBattleContinue(cutin,onShown){
   if(!cutin){ if(typeof onShown==='function') onShown(); return; }
   const panel=document.createElement('div');
   panel.id='battle-continue-panel';
-  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" onclick="continueAfterBattleVictory()"><img src="assets/ui/not_fix.png" alt=""><span class="battle-continue-label">進む</span></button>';
+  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" onclick="continueAfterBattleVictory()"><span class="battle-continue-label">進む</span></button>';
   cutin.appendChild(panel);
   G._battleProceedAction=onShown;
 }

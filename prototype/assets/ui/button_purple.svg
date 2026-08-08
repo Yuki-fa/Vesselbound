@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 122" preserveAspectRatio="none" overflow="visible">
+  <defs>
+    <radialGradient id="button-border-purple" cx="248" cy="61" r="180.59" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bf9000"/>
+      <stop offset="1" stop-color="#8a5c12"/>
+    </radialGradient>
+  </defs>
+  <path fill="#260311" d="M479,120H17c0-8.28-6.72-15-15-15V17c8.28,0,15-6.72,15-15h462c0,8.28,6.72,15,15,15v88c-8.28,0-15,6.72-15,15Z"/>
+  <path fill="none" stroke="url(#button-border-purple)" stroke-miterlimit="10" stroke-width="2" vector-effect="non-scaling-stroke" d="M479,120H17c0-8.28-6.72-15-15-15V17c8.28,0,15-6.72,15-15h462c0,8.28,6.72,15,15,15v88c-8.28,0-15,6.72-15,15Z"/>
+</svg>

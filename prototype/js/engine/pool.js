@@ -220,7 +220,7 @@ function makeSpell(idOrName){
 
 function makeItem(idOrName){
   const def=ITEM_POOL.find(p=>p.id===idOrName||p.name===idOrName);
-  if(!def||!def.name||String(def.name).trim().toLowerCase()==='false') return null;
+  if(!def||!def.name||def._implemented===false||String(def.name).trim().toLowerCase()==='false') return null;
   const c=clone(def);
   _normalizePanelRewardCost(c);
   c.noRewardUse=true;
