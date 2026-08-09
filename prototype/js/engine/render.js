@@ -561,9 +561,9 @@ function playHitVfxAtRect(rect,amount,options){
   const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
   // 撃破後の盤面詰めがVFX完了を待つようになったため、既定尺のままだと1体倒すごとに
   // 待ち時間が上乗せされてテンポが悪化する。表示・消失とも少し早める。
-  const hitDuration=(opt.hitDuration||600)/speedMul;
+  const hitDuration=(opt.hitDuration||800)/speedMul;
   const fadeDuration=(opt.fadeDuration||140)/speedMul;
-  const labelDuration=(opt.labelDuration||380)/speedMul;
+  const labelDuration=(opt.labelDuration||580)/speedMul;
   // 見た目の再生時間（hitDuration）と、次の行動に進むまで呼び出し元が待つ時間は切り離す。
   // hitDurationはあくまで演出を見やすくスローにするためのもので、これに比例して攻撃間の
   // テンポまで間延びしないよう、呼び出し元への復帰は短いgateMsだけ待てば十分とする。
@@ -1034,6 +1034,26 @@ function updateUnitShieldUi(unit,side){
 function _gameScale(){
   return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
 }
+function _getAttackTargetRect(slot){
+  const rect=slot?.getBoundingClientRect?.();
+  if(!rect) return rect;
+  // 詰めアニメーション中は現在のgetBoundingClientRect()が移動途中の値になる。
+  // inlineのleft/topは詰め後の終点を保持しているため、攻撃先だけ終点へ補正する。
+  const left=parseFloat(slot.style.left);
+  const top=parseFloat(slot.style.top);
+  const parent=slot.offsetParent;
+  if(!Number.isFinite(left)||!Number.isFinite(top)||!parent) return rect;
+  const parentRect=parent.getBoundingClientRect();
+  const scaleX=parent.offsetWidth?parentRect.width/parent.offsetWidth:1;
+  const scaleY=parent.offsetHeight?parentRect.height/parent.offsetHeight:1;
+  return {
+    left:parentRect.left+left*scaleX,
+    top:parentRect.top+top*scaleY,
+    width:rect.width,
+    height:rect.height,
+  };
+}
+
 function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options){
   if(!attacker||!target||!document.body) return Promise.resolve();
   const opt=options||{};
@@ -1050,7 +1070,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const toEl=toField?.querySelector(`.slot[data-unit-idx="${toIdx}"]`)||getCurrentUnitSlot(isEnemySide?'ally':'enemy',toIdx);
   if(!fromEl||!toEl||!fromEl.animate) return Promise.resolve();
   const fr=fromEl.getBoundingClientRect();
-  const tr=toEl.getBoundingClientRect();
+  const tr=_getAttackTargetRect(toEl);
   const dx=(tr.left+tr.width/2)-(fr.left+fr.width/2);
   const dy=(tr.top+tr.height/2)-(fr.top+fr.height/2);
   const dist=Math.hypot(dx,dy)||1;
@@ -1058,7 +1078,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const ratio=Math.max(0,dist-overlap)/dist;
   const mx=dx*ratio;
   const my=dy*ratio;
-  const tilt=dx===0?0:(dx>0?4:-4)*(isEnemySide?-1:1);
+  const tilt=Math.abs(dx)<Math.max(6,fr.width*0.15)?0:(dx>0?4:-4)*(isEnemySide?-1:1);
   const clone=fromEl.cloneNode(true);
   clone.classList.add('attack-motion-clone');
   clone.classList.remove('dragging','drag-over','selected','selectable');
@@ -1190,8 +1210,25 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   document.body.appendChild(clone);
   clone.getBoundingClientRect();
   const stopRatio=Number.isFinite(opt.stopRatio)?opt.stopRatio:1;
-  const atStop=`translate(${mx*stopRatio}px,${my*stopRatio}px) rotate(${tilt}deg)`;
-  const atHit=`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
+  const getCurrentTargetEl=()=>{
+    const side=isEnemySide?'ally':'enemy';
+    const current=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,target):null;
+    return current||(toEl?.isConnected?toEl:null);
+  };
+  const getTargetMotionTransform=(targetRatio)=>{
+    const currentTargetEl=getCurrentTargetEl();
+    const currentTargetRect=_getAttackTargetRect(currentTargetEl||toEl);
+    if(!currentTargetRect) return null;
+    const nextDx=(currentTargetRect.left+currentTargetRect.width/2)-(fr.left+fr.width/2);
+    const nextDy=(currentTargetRect.top+currentTargetRect.height/2)-(fr.top+fr.height/2);
+    const nextDist=Math.hypot(nextDx,nextDy)||1;
+    const nextOverlap=Math.min(fr.width,currentTargetRect.width)*0.33;
+    const nextRatio=Math.max(0,nextDist-nextOverlap)/nextDist;
+    const nextTilt=Math.abs(nextDx)<Math.max(6,fr.width*0.15)?0:(nextDx>0?4:-4)*(isEnemySide?-1:1);
+    return `translate(${nextDx*nextRatio*targetRatio}px,${nextDy*nextRatio*targetRatio}px) rotate(${nextTilt}deg)`;
+  };
+  const atStop=getTargetMotionTransform(stopRatio)||`translate(${mx*stopRatio}px,${my*stopRatio}px) rotate(${tilt}deg)`;
+  const atHit=getTargetMotionTransform(1)||`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
   const cleanup=()=>{
     if(fromEl){
       fromEl.classList.remove('motion-hidden');
@@ -1210,20 +1247,43 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       requestAnimationFrame(()=>{ if(attacker&&attacker.hp>0) renderAll(); });
     }
   };
-  const runSegment=(frames,duration)=>{
+  const runSegment=(frames,duration,dynamicEnd)=>{
     const speed=typeof getBattleSpeedScale==='function'?getBattleSpeedScale():1;
     const scaledDuration=Math.max(1,duration/Math.max(1,speed));
-    const anim=clone.animate(frames,{duration:scaledDuration,easing:'ease-in-out',fill:'forwards'});
+    const parseTransform=value=>{
+      const tm=String(value||'').match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
+      const rm=String(value||'').match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);
+      return {x:tm?Number(tm[1]):0,y:tm?Number(tm[2]):0,r:rm?Number(rm[1]):0};
+    };
+    const start= parseTransform(frames[0]?.transform);
+    const staticEnd=parseTransform(frames[frames.length-1]?.transform);
+    clone.style.setProperty('transition','none','important');
+    clone.style.transform=frames[0]?.transform||'translate(0,0) rotate(0deg)';
     return new Promise(resolve=>{
       let done=false;
+      const startedAt=performance.now();
       const finish=()=>{
         if(done) return;
         done=true;
+        const end=dynamicEnd?parseTransform(dynamicEnd()):staticEnd;
+        clone.style.transform=`translate(${end.x}px,${end.y}px) rotate(${end.r}deg)`;
         resolve();
       };
-      anim.addEventListener('finish',finish,{once:true});
-      anim.addEventListener('cancel',finish,{once:true});
-      setTimeout(finish,scaledDuration+60);
+      const tick=now=>{
+        if(done) return;
+        const p=Math.max(0,Math.min(1,(now-startedAt)/scaledDuration));
+        // 攻撃モーション本来の加速・減速を戻す。
+        const eased=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+        const end=dynamicEnd?parseTransform(dynamicEnd()):staticEnd;
+        const x=start.x+(end.x-start.x)*eased;
+        const y=start.y+(end.y-start.y)*eased;
+        const r=start.r+(end.r-start.r)*eased;
+        clone.style.transform=`translate(${x}px,${y}px) rotate(${r}deg)`;
+        if(p>=1){ finish(); return; }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      setTimeout(()=>{ if(!done) finish(); },scaledDuration+80);
     });
   };
   return (async()=>{
@@ -1232,7 +1292,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         await runSegment([
           {transform:'translate(0,0) rotate(0deg)'},
           {transform:atStop},
-        ],opt.firstDuration||260);
+        ],opt.firstDuration||260,stopRatio===1?()=>getTargetMotionTransform(1):()=>getTargetMotionTransform(stopRatio));
         const pauseResult=await onImpactPause();
         // グレムリンやギガンテス等、一時停止中にステータス変化を行う効果がある場合、
         // 攻撃を再開する前に背景側の実スロット全体も最新値へ同期する。
@@ -1256,12 +1316,12 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         await runSegment([
           {transform:atStop},
           {transform:atHit},
-        ],opt.secondDuration||360);
+        ],opt.secondDuration||360,()=>getTargetMotionTransform(1));
       } else {
         await runSegment([
           {transform:'translate(0,0) rotate(0deg)'},
           {transform:atHit},
-        ],opt.firstDuration||420);
+        ],opt.firstDuration||420,()=>getTargetMotionTransform(1));
       }
       await runSegment([
         {transform:atHit},
@@ -1273,8 +1333,8 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   })();
 }
 
-function playAttackMotion(attacker,target,isEnemySide){
-  return _playAttackMotionCore(attacker,target,isEnemySide,null,{
+function playAttackMotion(attacker,target,isEnemySide,onImpact){
+  return _playAttackMotionCore(attacker,target,isEnemySide,onImpact,{
     firstDuration:320,
     returnDuration:340,
   });
@@ -1668,6 +1728,12 @@ function _unitPreviewText(unit, desc, slotIdx){
 
 function renderField(id,units,isEnemy,_lane){
   const el=document.getElementById(id);
+  const previousRects=new Map();
+  {
+    for(const oldSlot of el.querySelectorAll('.slot[data-unit-id]')){
+      previousRects.set(oldSlot.dataset.unitId,oldSlot.getBoundingClientRect());
+    }
+  }
   el.innerHTML='';
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
   // _isObject のユニットは攻撃対象外なので除外
@@ -1706,6 +1772,7 @@ function renderField(id,units,isEnemy,_lane){
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
     slot.dataset.unitIdx=i;
+    if(u&&u.hp>0&&u.id!=null) slot.dataset.unitId=String(u.id);
     slot.style.setProperty('width','var(--unit-card-w)','important');
     slot.style.setProperty('min-width','var(--unit-card-w)','important');
     slot.style.setProperty('max-width','var(--unit-card-w)','important');
@@ -1988,6 +2055,39 @@ function renderField(id,units,isEnemy,_lane){
       }
     }
     el.appendChild(slot);
+  }
+  // renderFieldはスロットを再生成するため、通常のtransitionだけでは
+  // 移動前の位置を失ってしまう。FLIPで旧位置から新位置へ滑らかに移動させる。
+  if(G._animateBattleCompact&&previousRects.size){
+    requestAnimationFrame(()=>{
+      for(const slot of el.querySelectorAll('.slot[data-unit-id]')){
+        const oldRect=previousRects.get(slot.dataset.unitId);
+        if(!oldRect) continue;
+        const newRect=slot.getBoundingClientRect();
+        const dx=oldRect.left-newRect.left;
+        const dy=oldRect.top-newRect.top;
+        if(Math.abs(dx)<0.5&&Math.abs(dy)<0.5) continue;
+        const parentRect=el.getBoundingClientRect();
+        const scaleX=el.offsetWidth?parentRect.width/el.offsetWidth:1;
+        const scaleY=el.offsetHeight?parentRect.height/el.offsetHeight:1;
+        const oldLeft=(oldRect.left-parentRect.left)/scaleX;
+        const oldTop=(oldRect.top-parentRect.top)/scaleY;
+        const targetLeft=(newRect.left-parentRect.left)/scaleX;
+        const targetTop=(newRect.top-parentRect.top)/scaleY;
+        slot.style.setProperty('transition','none','important');
+        slot.style.setProperty('left',`${oldLeft}px`,'important');
+        slot.style.setProperty('top',`${oldTop}px`,'important');
+        void slot.offsetWidth;
+        // transformではなく座標そのものを直線補間し、指定位置を超えないようにする。
+        slot.style.setProperty('transition','left 200ms linear,top 200ms linear','important');
+        slot.style.setProperty('left',`${targetLeft}px`,'important');
+        slot.style.setProperty('top',`${targetTop}px`,'important');
+        window.setTimeout(()=>{
+          if(!slot.isConnected) return;
+          slot.style.removeProperty('transition');
+        },300);
+      }
+    });
   }
 }
 

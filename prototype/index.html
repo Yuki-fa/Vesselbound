@@ -7018,7 +7018,7 @@ html body.reward-screen-active #battle-order-section{
   transform:none!important;
   padding:0!important;
   margin:0!important;
-  background:url("assets/ui/reward.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/reward.svg?v=back50") center/100% 100% no-repeat!important;
   z-index:10!important;
   overflow:visible!important;
 }
@@ -7160,7 +7160,7 @@ html body.reward-screen-active #hand-pane-board-bg{
   background-image:
     url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),
     url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),
-    url("assets/ui/board.svg")!important;
+    url("assets/ui/board.svg?v=back50")!important;
   background-repeat:no-repeat!important;
   background-position:
     351px 520px,639px 520px,927px 520px,1215px 520px,
@@ -7301,12 +7301,14 @@ html body.reward-screen-active #debug-card-palette .debug-palette-rotate:hover{
   box-shadow:0 0 10px rgba(242,212,154,.32);
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-list{
-  height:1026px;
+  height:calc(100% - 98px);
+  min-height:0;
+  box-sizing:border-box;
   overflow:auto;
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:14px;
-  padding-right:8px;
+  padding:0 8px 28px 0;
   align-content:start;
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-item{
@@ -8115,7 +8117,7 @@ html body.reward-screen-active .reward-prod-tile{
   top:0!important;
   width:491.8px!important;
   height:100px!important;
-  background:url("assets/ui/counter.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/counter.svg?v=back50") center/100% 100% no-repeat!important;
   font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
 }
 html body.reward-screen-active .reward-prod-money{
@@ -8203,12 +8205,17 @@ html body:not(.reward-screen-active) #reward-production-ui .reward-prod-bottom{
   height:183px!important;
   pointer-events:auto!important;
 }
+/* 戦闘中は専用の#battle-status-hudを表示するため、旧所持金/ライフ枠を
+   重ねて表示しない。counter.svg自体の最背面(不透明度60%)を使用する。 */
+html body:not(.reward-screen-active) #scr-battle #reward-production-ui .reward-prod-bottom{
+  display:none!important;
+}
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile{
   position:absolute!important;
   top:0!important;
   width:491.8px!important;
   height:100px!important;
-  background:url("assets/ui/counter.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/counter.svg?v=back50") center/100% 100% no-repeat!important;
   font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
   pointer-events:auto!important;
 }
@@ -8839,7 +8846,7 @@ html body.reward-screen-active .reward-prod-relation,
 html body.reward-screen-active .reward-prod-quest{
   width:1020px!important;
   height:372px!important;
-  background-image:url("assets/ui/main_left.svg")!important;
+  background-image:url("assets/ui/main_left.svg?v=back50")!important;
   background-size:100% 100%!important;
 }
 html body.reward-screen-active .reward-prod-item{top:356px!important;}
@@ -8873,7 +8880,7 @@ html body.reward-screen-active .reward-prod-quest{
   top:1174px!important;
   width:1020px!important;
   height:289px!important;
-  background:url("assets/ui/main_left.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active .reward-prod-item h2,
 html body.reward-screen-active .reward-prod-ring h2,
@@ -8895,7 +8902,7 @@ html body.reward-screen-active .reward-prod-journey{
   top:1500px!important;
   width:1020px!important;
   height:455px!important;
-  background:url("assets/ui/main_left.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #journey-progress-ui{
   position:absolute!important;
@@ -9771,7 +9778,7 @@ html body.reward-screen-active .shop-board-sell-btn{
   position:absolute!important;right:70px!important;bottom:70px!important;z-index:3200!important;
   display:none;gap:36.4px;align-items:center;pointer-events:none!important;
 }
-.battle-counter{position:relative;width:280px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
+.battle-counter{position:relative;width:280px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg?v=back50");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-counter-bg{display:none}
 .battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-size:46px;font-weight:700;color:#f0d28b;text-shadow:0 3px 7px #080300}
 .battle-counter-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(112,206,255,.7))}
@@ -10005,7 +10012,7 @@ html body.reward-screen-active .reward-prod-item,
 html body.reward-screen-active .reward-prod-ring,
 html body.reward-screen-active .reward-prod-quest,
 html body.reward-screen-active .reward-prod-journey{
-  background:url("assets/ui/main_left.svg") top center/1020px 455px no-repeat!important;
+  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat!important;
   border:0!important;
   box-sizing:border-box!important;
 }
@@ -10028,13 +10035,30 @@ html body.reward-screen-active .reward-prod-journey::after{
   height:90px!important;
   z-index:0!important;
   pointer-events:none!important;
-  background:url("assets/ui/main_left.svg") bottom center/1020px 455px no-repeat!important;
+  background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat!important;
 }
 html body.reward-screen-active .reward-prod-item > *,
 html body.reward-screen-active .reward-prod-ring > *,
 html body.reward-screen-active .reward-prod-quest > *,
 html body.reward-screen-active .reward-prod-journey > *{
   z-index:1!important;
+}
+
+/* UI枠のSVGが持つ透過部分から、背景映像・背景画像を見せる。
+   background-imageは各SVGのフレーム描画に使うため消さず、塗りつぶし色だけを透明化する。 */
+html body:not(.reward-screen-active) #reward-production-ui,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-bottom,
+html body.reward-screen-active #reward-production-ui,
+html body.reward-screen-active #reward-production-ui .reward-prod-bottom,
+html body.reward-screen-active .reward-prod-panel,
+html body.reward-screen-active .reward-prod-tile{
+  background-color:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+}
+html body.reward-screen-active .reward-prod-slots i{
+  background-color:transparent!important;
+  box-shadow:none!important;
 }
 /* 色違いSVGはbutton.svgの#081e3dだけを置換したもの。枠形状と塗りを完全に一致させる。 */
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after,
@@ -10835,21 +10859,21 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
   <div id="battle-transition-fade" aria-hidden="true"></div>
   <div id="battle-counters" aria-label="戦闘カウンター">
     <div class="battle-counter">
-      <img class="battle-counter-bg" src="assets/ui/counter.svg" alt="">
+      <img class="battle-counter-bg" src="assets/ui/counter.svg?v=back50" alt="">
       <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/mana_orb.png" alt=""><span id="battle-mana-value">0</span></div>
     </div>
     <div class="battle-counter">
-      <img class="battle-counter-bg" src="assets/ui/counter.svg" alt="">
+      <img class="battle-counter-bg" src="assets/ui/counter.svg?v=back50" alt="">
       <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/blood.png" alt=""><span id="battle-sacrifice-value">0</span></div>
     </div>
   </div>
   <div id="battle-status-hud" aria-label="所持金とライフ">
     <div class="battle-status-counter">
-      <img src="assets/ui/counter.svg" alt="">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
       <span class="battle-status-label">所持金</span><strong id="battle-gold-value">0</strong>
     </div>
     <div class="battle-status-counter">
-      <img src="assets/ui/counter.svg" alt="">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
       <span class="battle-status-label">ライフ</span><strong id="battle-life-value">♥♥♥</strong>
     </div>
   </div>
@@ -11097,8 +11121,8 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=r10"></script>
-<script src="js/engine/render.js?v=r9"></script>
+<script src="js/engine/battle.js?v=enemy-reward-visual1"></script>
+<script src="js/engine/render.js?v=enemy-slide11"></script>
 <script src="js/engine/reward.js?v=r9"></script>
 <script src="js/engine/map.js?v=r7"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>

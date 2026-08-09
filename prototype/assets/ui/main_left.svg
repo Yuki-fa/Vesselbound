@@ -407,7 +407,8 @@
       }
 
       .cls-102 {
-        opacity: .8;
+        fill: #000;
+        opacity: .5;
       }
 
       .cls-103 {
