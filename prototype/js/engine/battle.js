@@ -20,12 +20,71 @@ function goldIncomeAmount(amount){
   return Math.floor(base*goldIncomeMultiplier());
 }
 
-function onGoldGained(amount){
+function onGoldGained(amount,options){
   const gained=goldIncomeAmount(amount);
-  G.gold=(G.gold||0)+gained;
-  G.earnedGold=(G.earnedGold||0)+gained;
+  const opt=options||{};
+  if(opt.deferUntilVfx){
+    return gained;
+  }
+  return _commitGoldGained(gained);
+}
+
+function _commitGoldGained(gained){
+  const amount=Math.max(0,Number(gained)||0);
+  if(!amount) return 0;
+  const before=Number(G.gold)||0;
+  G.gold=before+amount;
+  G.earnedGold=(G.earnedGold||0)+amount;
+  // 増加時は表示だけを高速に1Gずつ回す（実値G.goldは即時確定させ、
+  // 判定・購入可否などのロジックには一切影響させない）。
+  if(amount>0&&typeof startGoldCountUp==='function') startGoldCountUp(before,G.gold);
   updateHUD();
-  return gained;
+  return amount;
+}
+
+// ── 所持金カウントアップ演出 ────────────────────────────
+// G._goldDisplayに「今表示している金額」を持たせ、実値へ超高速で1Gずつ寄せる。
+// 表示用の値なので、参照側（updateHUD/refreshRewardGoldUi）だけがこれを見る。
+function goldDisplayValue(){
+  const real=Number(G.gold)||0;
+  // 演出中以外は常に実値を返す（購入等でゴールドが減った時に古い表示が残らないようにする）。
+  if(!G._goldCountUpTimer) return real;
+  const shown=Number(G._goldDisplay);
+  if(!Number.isFinite(shown)) return real;
+  return Math.min(shown,real);
+}
+// 演出の総尺（ms）。増加量に関わらずこの時間で必ず実値へ追いつかせる。
+const GOLD_COUNT_UP_MS=420;
+function startGoldCountUp(from,to){
+  const start=Number.isFinite(Number(G._goldDisplay))?Number(G._goldDisplay):(Number(from)||0);
+  const goal=Number(to)||0;
+  if(goal<=start){ G._goldDisplay=goal; return; }
+  G._goldDisplay=start;
+  // 増加が続く間は終了時刻を延長し、既存のカウントアップに合流させる。
+  G._goldCountUpEndAt=performance.now()+GOLD_COUNT_UP_MS;
+  if(G._goldCountUpTimer) return;
+  const step=()=>{
+    const target=Number(G.gold)||0;
+    const cur=Number(G._goldDisplay)||0;
+    if(cur>=target){
+      G._goldDisplay=target;
+      clearInterval(G._goldCountUpTimer);
+      G._goldCountUpTimer=null;
+      _refreshGoldDisplays();
+      return;
+    }
+    // 残り時間から逆算した1フレーム分だけ進める（終盤で失速せず、必ず時間内に終わる）。
+    const remainMs=Math.max(16,(Number(G._goldCountUpEndAt)||0)-performance.now());
+    const framesLeft=Math.max(1,Math.round(remainMs/16));
+    const inc=Math.max(1,Math.ceil((target-cur)/framesLeft));
+    G._goldDisplay=Math.min(target,cur+inc);
+    _refreshGoldDisplays();
+  };
+  G._goldCountUpTimer=setInterval(step,16);
+}
+function _refreshGoldDisplays(){
+  if(typeof updateHUD==='function') updateHUD();
+  if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
 }
 
 function _normalizeAttackSfxType(unit){
@@ -90,6 +149,34 @@ async function _waitForPendingVfx(){
   const active=window.__activeVfxPromises;
   if(!active||!active.size) return;
   await Promise.all([...active].map(p=>Promise.resolve(p).catch(()=>{})));
+}
+
+// ── マナ・負傷効果の演出ペース調整 ──────────────────────────
+// マナしきい値効果・負傷効果が短時間に大量発動する場合、1回ずつ等倍速の演出を
+// 直列再生すると長時間停止して見える。合計発動予定回数（マナ・負傷を合算）が
+// 30回以上なら3倍速、50回以上なら5倍速にする。残り発動回数が10回以下になったら
+// 残り5回になるまでの間に徐々に減速し、等倍へ戻す。発動回数が有限に定まらない
+// （Infinity/NaN等）場合は100回分発動したものとみなして扱う。
+// playHitVfxAtRect()（render.js）がG._effectVfxSpeedMultiplierを見て演出の
+// 尺（hitDuration/fadeDuration/gateMs）をこの倍率で短縮する。
+function _beginEffectPaceBurst(count){
+  const n=Number.isFinite(count)?Math.max(0,Math.min(100,count)):(count>0?100:0);
+  if(n<=0) return;
+  if(!G._effectPaceState) G._effectPaceState={total:0,done:0};
+  G._effectPaceState.total+=n;
+}
+function _stepEffectPace(){
+  const st=G._effectPaceState;
+  if(!st){ G._effectVfxSpeedMultiplier=1; return 1; }
+  const base=st.total>=50?5:(st.total>=30?3:1);
+  const remaining=st.total-st.done;
+  let mul=base;
+  if(remaining<=5) mul=1;
+  else if(remaining<=10) mul=1+(base-1)*((remaining-5)/5);
+  st.done++;
+  if(st.done>=st.total) G._effectPaceState=null;
+  G._effectVfxSpeedMultiplier=mul;
+  return mul;
 }
 async function _playManaEffectCue(unit,isEnemySide){
   if(!unit||typeof playSfx!=='function') return;
@@ -991,6 +1078,10 @@ async function startBattle(){
   }
   // 開戦効果と封印処理がすべて終わってから、そこで溜まったマナを一括判定する。
   // 開戦処理の途中からマナ効果へ再入すると、同じPromiseを待つ経路ができて停止する。
+  // 前戦闘や保留中判定の状態を持ち越さず、今回出撃した全キャラを現在マナから再評価する。
+  G._checkingManaUnitEffects=false;
+  delete G._manaUnitEffectsPromise;
+  [...(G.allies||[]),...(G.enemies||[])].forEach(unit=>{ if(unit) delete unit._manaFireCount; });
   await _checkManaThresholdUnitEffects();
   _checkManaCostSpells();
   _queueRingManaThresholdEffects();
@@ -1333,6 +1424,7 @@ function _checkBattleOver(){
 
 function handleBattleDefeat(){
   if(G._battleDefeatHandled) return;
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   if(G._testBattleMode){
     _exitTestBattle();
     return;
@@ -2026,12 +2118,16 @@ function _applyDamageState(unit, dmg, source, side){
 
 // ── 味方の負傷トリガー効果一式（マナ獲得＋名前別の負傷効果）。発動したら true を返す ──
 // 執念の炎：常時：このキャラクターの負傷効果は1回追加で発動する。
-async function _fireAllyInjuryEffects(unit, actualDmg){
-  let fired=false;
+function _injuryRepeatsFor(unit){
   // 激怒の指輪：常時：味方の負傷効果は1回追加で発動する。（陣営全体）
   // 起源の種：このキャラクター自身の負傷効果が1回追加で発動する。
-  const injuryRepeats=1+_unitKeywordCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
+  return 1+_unitKeywordCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
+}
+async function _fireAllyInjuryEffects(unit, actualDmg){
+  let fired=false;
+  const injuryRepeats=_injuryRepeatsFor(unit);
   for(let i=0;i<injuryRepeats;i++){
+    _stepEffectPace();
     if(unit.manaOnInjury){ _gainMana(unit.manaOnInjury,unit); fired=true; }
     // ミノタウロス等「直ちに攻撃する」負傷効果は、攻撃が完全に終わるまで他の処理より優先して
     // 待つ必要があるためawaitする（呼び出し元のapplyDamageBatch側も直列にawaitしている）。
@@ -2139,6 +2235,11 @@ async function applyDamageBatch(entries, options){
   await Promise.all(damaged.map(r=>{
     try{
       const vfxOptions={...(opt.vfxOptions||{}),effectSource:r.effectSource,keywordEffect:r.keywordEffect};
+      if(r.unit&&r.unit.hp<=0){
+        vfxOptions.hitDuration=300;
+        vfxOptions.labelDuration=240;
+        vfxOptions.fadeDuration=100;
+      }
       if(r.rect&&typeof playHitVfxAtRect==='function') return Promise.resolve(playHitVfxAtRect(r.rect,r.actualDmg,vfxOptions)).catch(()=>{});
       if(typeof playHitVfx==='function') return Promise.resolve(playHitVfx(r.side,r.unit,r.actualDmg,vfxOptions)).catch(()=>{});
     }catch(e){
@@ -2166,6 +2267,10 @@ async function applyDamageBatch(entries, options){
       }
     } finally {
       G._resolvingDamageBatchDeaths=Math.max(0,(G._resolvingDamageBatchDeaths||0)-1);
+      // ダメージ表示（-Nラベル込みのヒットVFX）が完全に消えてから盤面を詰める。
+      // playHitVfxAtRect()は短いgateMsで復帰し演出自体は裏で続くため、ここで
+      // 実際の演出完了（__activeVfxPromises）を待たないと数字が残ったまま詰まる。
+      try{ await _waitForPendingVfx(); }catch(_e){}
       _endDeathCompactDelay();
     }
   }
@@ -2174,6 +2279,11 @@ async function applyDamageBatch(entries, options){
   // 全て確定した後に対象ごとawaitしながら直列で発動する。呼び出し元（攻撃元の攻撃完了処理等）
   // に制御を戻す前に完全に終わらせることで、他のキャラクターの処理と競合しないようにする。
   const injuredAllies=results.filter(r=>r.needsAllyInjuryEffects&&r.unit&&r.unit.hp>0);
+  // 負傷効果の演出ペース調整：このバッチで発動する予定回数（マナ効果と合算されうる）を先に見積もる。
+  if(injuredAllies.length){
+    const injuryPaceEstimate=injuredAllies.reduce((s,r)=>s+_injuryRepeatsFor(r.unit),0);
+    if(injuryPaceEstimate>0) _beginEffectPaceBurst(injuryPaceEstimate);
+  }
   for(const r of injuredAllies){
     if(await _fireAllyInjuryEffects(r.unit,r.actualDmg)) _bumpEtinOnAllyInjuryEffect();
   }
@@ -2726,6 +2836,7 @@ function _makePanelSummonUnit(spec, keywords){
     manaOnDeath:spec.manaOnDeath||0,
     manaCost:spec.manaCost||0,
     manaRepeat:!!spec.manaRepeat,
+    _manaThresholdDesc:spec.manaThresholdDesc||'',
     goldOnBattleEnd:spec.goldOnBattleEnd||0,
     goldOnDeath:spec.goldOnDeath||0,
     _effectRepeatBonus:Number(spec.effectRepeatBonus||spec._effectRepeatBonus)||0,
@@ -2805,26 +2916,33 @@ function _applyTerrainReinforcements(){
 
 function _panelSummonSpec(panel){
   if(!panel) return null;
-  if(panel.summonOnBattleStart) return panel.summonOnBattleStart;
-  if(_isCharacterPanel(panel)){
+  const openingSpec=panel.summonOnBattleStart&&typeof panel.summonOnBattleStart==='object'
+    ?panel.summonOnBattleStart:null;
+  if(_isCharacterPanel(panel)||openingSpec){
+    // summonOnBattleStart 側は配置用の短い説明しか持たない場合がある。
+    // マナ条件を含むシート由来の本体説明文を常に優先する。
+    const desc=String(panel.desc||openingSpec&&openingSpec.desc||'');
+    const manaLine=desc.match(/(?:^|\n)\s*(\d+)マナ(毎)?[：:]\s*([^\n]*)/);
     return {
-      name:panel.name,
-      atk:Number(panel.power??panel.atk??0),
-      hp:Number(panel.life??panel.hp??1),
-      count:panel.summonCount||1,
-      race:panel.race||'',
-      desc:panel.desc||'',
-      keywords:panel.keywords||[],
-      color:panel.color||panel.カラー||'',
-      sfxType:panel.sfxType||panel.attackSfx||panel.soundType||'',
-      manaOnAttack:panel.manaOnAttack||0,
-      manaOnInjury:panel.manaOnInjury||0,
-      manaOnDeath:panel.manaOnDeath||0,
-      manaCost:Number(panel.manaCost||panel.costMana||0),
-      manaRepeat:!!panel.manaRepeat,
-      goldOnBattleEnd:panel.goldOnBattleEnd||0,
-      goldOnDeath:panel.goldOnDeath||0,
-      effectRepeatBonus:Number(panel.effectRepeatBonus||panel._effectRepeatBonus)||0,
+      ...(openingSpec||{}),
+      name:openingSpec&&openingSpec.name||panel.name,
+      atk:Number(openingSpec?.atk??panel.power??panel.atk??0),
+      hp:Number(openingSpec?.hp??panel.life??panel.hp??1),
+      count:openingSpec&&openingSpec.count||panel.summonCount||1,
+      race:openingSpec&&openingSpec.race||panel.race||'',
+      desc,
+      keywords:openingSpec&&openingSpec.keywords||panel.keywords||[],
+      color:openingSpec&&openingSpec.color||panel.color||panel.カラー||'',
+      sfxType:openingSpec&&openingSpec.sfxType||panel.sfxType||panel.attackSfx||panel.soundType||'',
+      manaOnAttack:openingSpec&&openingSpec.manaOnAttack||panel.manaOnAttack||0,
+      manaOnInjury:openingSpec&&openingSpec.manaOnInjury||panel.manaOnInjury||0,
+      manaOnDeath:openingSpec&&openingSpec.manaOnDeath||panel.manaOnDeath||0,
+      manaCost:Number(openingSpec&&openingSpec.manaCost||panel.manaCost||panel.costMana||(manaLine&&manaLine[1])||0),
+      manaRepeat:!!(openingSpec&&openingSpec.manaRepeat)||!!panel.manaRepeat||!!(manaLine&&manaLine[2]),
+      manaThresholdDesc:String(openingSpec&&(openingSpec.manaThresholdDesc||openingSpec._manaThresholdDesc)||(manaLine&&manaLine[3])||''),
+      goldOnBattleEnd:openingSpec&&openingSpec.goldOnBattleEnd||panel.goldOnBattleEnd||0,
+      goldOnDeath:openingSpec&&openingSpec.goldOnDeath||panel.goldOnDeath||0,
+      effectRepeatBonus:Number(openingSpec&&openingSpec.effectRepeatBonus||panel.effectRepeatBonus||panel._effectRepeatBonus)||0,
       _tripleMerged:!!panel._tripleMerged,
       _tripleDescApplied:!!panel._tripleDescApplied,
       art:typeof getPanelArtPath==='function'?getPanelArtPath(panel):(panel.art||''),
@@ -3118,8 +3236,13 @@ async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy){
       }
     }
   }
-  const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
-  if(!isInitialDeploy&&wild) _gainMana(wild*2*_openingEffectRepeatCount(unit),unit);
+  // 野生の力は「召喚」効果なので、戦闘中に召喚された場合はここでマナを得る。
+  // 開戦時の通常出撃（isInitialDeploy）は_applyNewOpeningEffects()側で
+  // 演出後に加算されるため、ここで加算すると二重発動（マナ2倍）になる。
+  if(!isInitialDeploy){
+    const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
+    if(wild) _gainMana(wild*2*_openingEffectRepeatCount(unit),unit);
+  }
   // 開戦時の通常出撃（isInitialDeploy）では、まだ全キャラクターの配置・描画が完了していないため
   // ここではまだ封印解放を行わない（DOM未確定のままgetBoundingClientRect()すると位置がズレる／
   // 演出無しで即解封されてしまう）。applyNewPanelBattleStart()側で全員の配置・再描画完了後に
@@ -3368,7 +3491,10 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     const allies=isEnemySide?G.enemies:G.allies;
     const candidates=_livingCombatUnits(allies);
     if(candidates.length){
-      const target=_pickRandomEnemyTargets(foes,unit)[0];
+      // 「ランダムな味方」が対象なので、直前に取得済みの候補（味方）から選ぶ。
+      // 未宣言の`foes`を参照していたバグ（ReferenceErrorでstartBattle()全体が
+      // 停止しフリーズしたように見える不具合）を修正。
+      const target=_pickRandomEnemyTargets(candidates,unit)[0];
       if(_isAilmentImmune(target)) return;
       if(!(target.keywords||[]).includes('復活')) target.keywords=[...(target.keywords||[]),'復活'];
       log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,isEnemySide)}は「復活」を得た。`,isEnemySide?'bad':'good');
@@ -3408,6 +3534,21 @@ async function _checkManaThresholdUnitEffects(){
   if(G._checkingManaUnitEffects) return;
   G._checkingManaUnitEffects=true;
   const run=(async()=>{
+    // マナ効果の演出ペース調整：これから発動する予定回数（味方・敵合算）を先に見積もる。
+    const estimateFires=(unit,isEnemySide)=>{
+      if(!unit||unit.hp<=0||_isSealed(unit)||!unit.manaCost) return 0;
+      if(isEnemySide&&_isUnitSilencedByScroll(unit)) return 0;
+      const fireLimit=unit.manaRepeat?_manaFireProgress(unit):1;
+      const remainLoops=Math.max(0,fireLimit-(unit._manaFireCount||0));
+      if(!remainLoops) return 0;
+      const repeatCount=1+(Number(unit._effectRepeatBonus)||0);
+      const ringExtra=!isEnemySide?_ringCount('賢者の指輪'):0;
+      return remainLoops*(repeatCount+ringExtra);
+    };
+    let paceEstimate=0;
+    for(const u of (G.allies||[])) paceEstimate+=estimateFires(u,false);
+    for(const u of (G.enemies||[])) paceEstimate+=estimateFires(u,true);
+    if(paceEstimate>0) _beginEffectPaceBurst(paceEstimate);
     const visit=async (unit,isEnemySide)=>{
       if(!unit||unit.hp<=0||_isSealed(unit)||!unit.manaCost) return;
       if(isEnemySide&&_isUnitSilencedByScroll(unit)) return;
@@ -3421,6 +3562,7 @@ async function _checkManaThresholdUnitEffects(){
         const effectText=unit._manaThresholdDesc|| (m?m[1]:'');
         const repeatCount=1+(Number(unit._effectRepeatBonus)||0);
         for(let repeat=0;repeat<repeatCount;repeat++){
+          _stepEffectPace();
           await _playManaEffectCue(unit,isEnemySide);
           await _applyManaThresholdEffectText(unit,effectText,isEnemySide);
         }
@@ -3429,6 +3571,7 @@ async function _checkManaThresholdUnitEffects(){
         if(!isEnemySide){
           const ringExtra=_ringCount('賢者の指輪');
           for(let i=0;i<ringExtra;i++){
+            _stepEffectPace();
             await _playManaEffectCue(unit,isEnemySide);
             await _applyManaThresholdEffectText(unit,effectText,isEnemySide);
           }
@@ -3945,8 +4088,8 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
   if(unit.goldOnDeath){
     const gold=unit.goldOnDeath*deathRepeats;
     _playCardEffectSfx('C001');
+    _commitGoldGained(goldIncomeAmount(gold));
     await _playCardEffectVfx('C001',[unit]);
-    onGoldGained(gold);
     log(`${_lc(unit.name,unitIsEnemy)}の効果で${gold}ゴールドを得た。`,unitIsEnemy?'bad':'good');
   }
   // レイス：死亡：ランダムな味方の負傷効果を発動する。
@@ -4109,11 +4252,15 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
   if(_unitHasKeyword(unit,'逆上')){
     const target=_pickRandomEnemyTargets(G.enemies,unit)[0];
     if(target){
+      // 逆上のダメージ量は説明文と違いカード固有プロパティを持たずハードコードのため、
+      // 3枚合体（_tripleMerged、説明文側は_doubleTripleMergedDescで「6ダメージ」に
+      // 書き換わる）でも実ダメージが2倍化されず表示と食い違っていたのを修正。
+      const dmg=unit._tripleMerged?6:3;
       playDamageEffectSfx('all');
       // 逆上はキーワード由来の効果でありカード固有の効果ではないため、
       // ダメージ源キャラクターの専用VFX（CXXX.mp4）は使わない（通常のhit.mp4を使う）。
-      await applyDamageBatch([{unit:target,side:'enemy',amount:3,source:unit}],{source:unit});
-      log(`${_lc(unit.name,false)}の逆上が発動した。ランダムな敵に3ダメージ。`,'good');
+      await applyDamageBatch([{unit:target,side:'enemy',amount:dmg,source:unit}],{source:unit});
+      log(`${_lc(unit.name,false)}の逆上が発動した。ランダムな敵に${dmg}ダメージ。`,'good');
       fired=true;
     }
   }
@@ -4125,7 +4272,8 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
     for(let hi=0;hi<=extraHits&&unit.hp>0;hi++){
       const alive=(G.enemies||[]).filter(e=>e&&e.hp>0);
       if(!alive.length) break;
-      const target=_pickRandomEnemyTargets(foes,unit)[0];
+      // 未宣言の`foes`を参照していたバグ（ReferenceErrorで発動が止まっていた）を修正。
+      const target=_pickRandomEnemyTargets(alive,unit)[0];
       log(`${_lc(unit.name,false)}が直ちに${_lc(target.name,true)}に攻撃した。`,'good');
       await _dealAttackDamageWithMutual(unit,false,target,G.enemies.indexOf(target),Math.max(0,unit.atk||0));
     }
@@ -4138,7 +4286,8 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
   if(hasName('メデューサ')){
     const alive=(G.enemies||[]).filter(_canReceiveBattleEffect);
     if(alive.length&&actualDmg>0){
-      const target=_pickRandomEnemyTargets(foes,unit)[0];
+      // 未宣言の`foes`を参照していたバグ（ReferenceErrorで発動が止まっていた）を修正。
+      const target=_pickRandomEnemyTargets(alive,unit)[0];
       log(`${_lc(unit.name,false)}の効果で${_lc(target.name,true)}に${actualDmg}ダメージを与えた。`,'good');
       playDamageEffectSfx('single');
       await applyDamageBatch([{unit:target,side:'enemy',amount:actualDmg,source:unit}],{source:unit,effect:true});
@@ -4647,9 +4796,8 @@ async function onBattleEnd(){
     if(a&&a.hp>0&&a.goldOnBattleEnd){
       const repeatCount=1+(Number(a._effectRepeatBonus)||0);
       for(let repeat=0;repeat<repeatCount;repeat++){
-        onGoldGained(a.goldOnBattleEnd);
+        goldEffectUnits.push({unit:a,amount:goldIncomeAmount(a.goldOnBattleEnd)});
         log(`${_lc(a.name,false)}の効果で${a.goldOnBattleEnd}ゴールドを得た。`,'good');
-        goldEffectUnits.push(a);
       }
     }
   }
@@ -4663,9 +4811,10 @@ async function onBattleEnd(){
   });
   // 終戦時のゴールド演出は、他の終戦時効果の処理・演出が終わってから開始する。
   await _waitForPendingVfx();
-  for(const a of goldEffectUnits){
+  for(const entry of goldEffectUnits){
+    _commitGoldGained(entry.amount);
     _playCardEffectSfx('C001');
-    await _playCardEffectVfx('C001',[a],{gateMs:1000,hitDuration:900,waitForFinish:true});
+    await _playCardEffectVfx('C001',[entry.unit],{gateMs:1000,hitDuration:900,waitForFinish:true});
   }
 }
 

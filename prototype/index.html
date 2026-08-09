@@ -566,7 +566,9 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .discard-btn:hover{background:rgba(192,64,64,.15)}
 .return-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:.6rem;padding:1px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:3px;cursor:pointer;background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .return-btn:hover{background:rgba(64,192,160,.15)}
-#kw-tooltip{position:fixed;z-index:9999;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;font-size:.68rem;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
+/* VFX（damage-vfx-host:10020 / sweep-vfx-host:10021 / special-vfx-clip既定10001）より
+   常に手前に出るよう、ホバー説明文のz-indexをVFX群の最大値より高くする。 */
+#kw-tooltip{position:fixed;z-index:10100;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;font-size:.68rem;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
 
 /* VICTORY OVERLAY */
 #victory-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:28px}
@@ -1853,6 +1855,17 @@ body.map-forge-roll-hide-cards .map-forge-roll-highlight::after{
   color:#8ee8c8;
   line-height:1.05;
   white-space:nowrap;
+}
+/* 魔導板パネルが特殊マスへ変化する演出（board_change1/2.webp）。カードのフェードアウト後、
+   画面中央に表示する。 */
+.map-board-change-vfx{
+  position:fixed;
+  left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  width:640px;
+  max-width:70vw;
+  pointer-events:none;
+  z-index:9500;
 }
 body.reward-screen-active #hand-pane .deploy-slot .equip-slot-label small,
 body.reward-screen-active #hand-pane .equip-empty .equip-slot-label small{
@@ -6061,6 +6074,7 @@ html body.right-card-peek #hand-slots.unit-equip-slots .card{
   box-shadow:none!important;
   filter:none!important;
   transform:none!important;
+  cursor:default!important;
 }
 html body.right-card-peek #hand-slots.unit-equip-slots .card.deploy-slot{
   background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
@@ -7227,6 +7241,27 @@ html body.reward-screen-active #debug-card-palette{
 html body.reward-screen-active.debug-mode #debug-card-palette{
   display:block;
 }
+html body.reward-screen-active #debug-card-palette .debug-palette-jump{
+  display:flex;
+  gap:8px;
+  margin:0 0 8px;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-jump-shop,
+html body.reward-screen-active #debug-card-palette .debug-palette-jump-forge{
+  flex:1;
+  height:34px;
+  border:1px solid rgba(183,143,82,.55);
+  background:rgba(20,10,30,.72);
+  color:#d7c0a0;
+  font-size:15px;
+  cursor:pointer;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-jump-shop:hover,
+html body.reward-screen-active #debug-card-palette .debug-palette-jump-forge:hover{
+  border-color:#f2d49a;
+  color:#f2d49a;
+  box-shadow:0 0 10px rgba(242,212,154,.32);
+}
 html body.reward-screen-active #debug-card-palette .debug-palette-head{
   height:42px;
   display:grid;
@@ -7607,8 +7642,12 @@ html body.reward-screen-active #hand-pane #hand-slots.unit-equip-slots{
   overflow:visible!important;
   transform:none!important;
 }
+/* 接続フラッシュ中だけoverflow:hiddenにすると、カード外へはみ出して配置されている
+   ATK/HPの3桁以上の数値や矢印(.panel-dir)の先端が一瞬切れてしまう。
+   走査光は::before側をclip-pathでカード内に収めることで、カード自体は
+   overflow:visibleのまま（＝はみ出し要素を切らずに）同じ見た目にする。 */
 html body.reward-screen-active #hand-slots.unit-equip-slots .card.panel-connect-flash{
-  overflow:hidden!important;
+  overflow:visible!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .card.panel-connect-flash::before{
   content:""!important;
@@ -7617,6 +7656,9 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .card.panel-connect-
   z-index:24!important;
   pointer-events:none!important;
   border-radius:inherit!important;
+  /* ::beforeはinset:-2pxでカードより2px外側まで広がるため、その分だけ内側へ切り戻して
+     カード枠内に収める（角丸は#hand-slots .cardのborder-radius:12pxに合わせる）。 */
+  clip-path:inset(2px round 12px)!important;
   background:linear-gradient(115deg,rgba(255,255,255,0) 0%,rgba(99,221,255,.8) 28%,rgba(255,229,124,.95) 50%,rgba(203,112,255,.82) 72%,rgba(255,255,255,0) 100%)!important;
   background-size:220% 100%!important;
   mix-blend-mode:screen!important;
@@ -7942,13 +7984,9 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .panel-di
 html body.reward-screen-active #debug-card-palette .debug-palette-card .panel-dir-left{
   left:-4px!important;
 }
-html body.reward-screen-active #debug-card-palette .debug-palette-card .mana-cost-orbs img{
-  width:22px!important;
-  height:22px!important;
-}
-html body.reward-screen-active #debug-card-palette .debug-palette-card .mana-cost-orbs{
-  gap:2px!important;
-}
+/* 旧.mana-cost-orbsクラス向けのサイズ固定(22px)は、現行の.card-activation-costs
+   システム（.activation-cost-entry/imgが40.96px等で統一）にも複合クラスのせいで
+   ID詳細度で勝って混入し、entry内でimgだけ小さく左上に偏って見える原因だったため削除。 */
 html body.reward-screen-active #debug-card-palette .debug-palette-card .seal-cost-badge{
   gap:2px!important;
 }
@@ -9060,6 +9098,55 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
   margin:6px 0!important;
   border-bottom:1px solid rgba(232,210,150,.45)!important;
 }
+/* 「旅の進捗」エリート/ボスホバー：タイトル（2行中央揃え）→カード→直線→効果テキストの並び。
+   カード本体は他のカードと同じmkCardEl()生成物（.card）をそのまま埋め込む。
+   カードは魔導板と同じ設計寸法(260x395)のまま描画し、ラッパー側のtransform:scaleで縮小する。
+   幅だけをツールチップに合わせて伸縮させると、内部のATK/HP等（設計px固定）だけが
+   取り残されてサイズ・位置が崩れるため、必ず要素ごと一括でscaleする。 */
+#kw-tooltip .preview-title{white-space:normal!important}
+#kw-tooltip .journey-card-wrap{
+  position:relative;
+  width:calc(260px * var(--game-scale));
+  height:calc(395px * var(--game-scale));
+  margin:6px auto 8px;
+  pointer-events:none;
+  overflow:visible;
+}
+#kw-tooltip .journey-card-wrap > .card{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  width:260px!important;
+  height:395px!important;
+  min-width:0!important;
+  max-width:none!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+  flex:none!important;
+  transform:scale(var(--game-scale))!important;
+  transform-origin:top left!important;
+  pointer-events:none!important;
+}
+/* ATK/HPの配置指定は #hand-slots / #rw-cards 等にスコープされているため、
+   ツールチップ内のカードにも魔導板カードと同一の値を明示的に与える。 */
+#kw-tooltip .journey-card-wrap > .card .card-summon-atk,
+#kw-tooltip .journey-card-wrap > .card .card-summon-hp{
+  bottom:var(--unit-stat-bottom)!important;
+  top:auto!important;
+  width:var(--unit-stat-w)!important;
+  text-align:center!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#kw-tooltip .journey-card-wrap > .card .card-summon-atk{
+  left:var(--unit-stat-atk-left)!important;
+  right:auto!important;
+}
+#kw-tooltip .journey-card-wrap > .card .card-summon-hp{
+  right:var(--unit-stat-hp-right)!important;
+  left:auto!important;
+}
 #map-power-tooltip .preview-title,
 #kw-tooltip.map-tooltip .preview-title{border-bottom-color:#4080b0!important}
 /* 特殊マスの境界線をカード・キャラクター描画より前面に固定 */
@@ -9535,6 +9622,15 @@ html body #hand-slots.unit-equip-slots > .card-empty:not([data-map-board])::afte
 }
 html body #hand-slots.unit-equip-slots > .card:not([data-map-board]):not(.invalid-battle-position) > .board-frame-layer{
   display:none!important;
+}
+/* 鍛冶屋のカードフェードアウト中は、カード自身の背景が空マス画像へ差し替わるため、
+   通常マス（特殊マス以外）にキャラが置かれていた場所の枠線が消えてしまう。
+   その間だけ独立フレーム（board-frame-layer）を出して枠線を維持する。 */
+html body.map-forge-roll-hide-cards #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade > .board-frame-layer{
+  display:block!important;
+  opacity:1!important;
+  visibility:visible!important;
+  filter:none!important;
 }
 
 /* 出撃不可キャラは内容だけ暗転させ、m_board_frameの1px外周を明るく残す。
@@ -10354,9 +10450,15 @@ html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .c
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board] > .map-boundary-layer{
   opacity:1!important;visibility:visible!important;display:block!important;
 }
-html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .character-frame-layer,
-html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .board-frame-layer{
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .character-frame-layer{
   opacity:0!important;visibility:hidden!important;display:none!important;filter:none!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .board-frame-layer{
+  opacity:1!important;visibility:visible!important;display:block!important;filter:none!important;
+}
+html body.right-card-peek.reward-screen-active #rw-cards,
+html body.right-card-peek.reward-screen-active #hand-slots{
+  user-select:none!important;
 }
 html body .triple-merge-dim{
   position:fixed;inset:0;z-index:19990;background:rgba(0,0,0,.72);opacity:0;
@@ -10389,16 +10491,41 @@ html body.test-battle-active #scr-battle.active #btn-pass{
   pointer-events:auto!important;
   position:fixed!important;
   left:auto!important;
-  right:86px!important;
+  /* 右端を編成画面「元に戻す」ボタンの右端に揃え、位置も少し上げる。 */
+  right:81px!important;
   top:auto!important;
-  bottom:152px!important;
+  bottom:206px!important;
   width:420px!important;
   height:104px!important;
   transform:none!important;
   z-index:1200!important;
   font-size:34px!important;
+  /* ラベルの縦位置をボタン枠の中でやや下へ寄せる（枠絵の窓位置に合わせる）。 */
+  line-height:122px!important;
+  padding:0!important;
   background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
   border:0!important;
+  /* ベースの#log-wrap #btn-pass{border-radius:50%}（丸いダイヤル型ボタン用）が
+     残ったままだと、横長のbutton_purple.svgが楕円にクリップされ形が崩れる。 */
+  border-radius:0!important;
+  /* 試験戦闘ボタンと同じ「ボタン輪郭そのもの」のホバー発光を出すための土台。 */
+  isolation:isolate!important;
+  overflow:visible!important;
+  filter:none!important;
+  text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
+}
+html body.test-battle-active #scr-battle.active #btn-pass::before{
+  content:""!important;display:block!important;position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;transform:none!important;
+  background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
+  opacity:0!important;pointer-events:none!important;z-index:-1!important;animation:none!important;
+}
+html body.test-battle-active #scr-battle.active #btn-pass:hover{
+  filter:none!important;
+}
+html body.test-battle-active #scr-battle.active #btn-pass:hover::before{
+  opacity:1!important;animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
 }
 
 /* 2026-08-08: ボタン本体と同じ輪郭を複製して発光させ、左右辺・斜め角まで均一に光らせる。 */
@@ -10439,6 +10566,10 @@ html body .card-activation-costs .activation-cost-entry{
   position:relative!important;display:block!important;width:51.2px!important;height:51.2px!important;
 }
 html body .card-activation-costs .activation-cost-entry img{
+  /* 既定はinline要素のためbaseline基準で行内配置され、親要素（.activation-cost-entry）
+     の左上を基準にした位置とズレて見える（画像が右・数字が相対的に下にずれる原因）。
+     数字用の<b>と同じくposition:absolute+inset:0で親いっぱいに正確に重ねる。 */
+  position:absolute!important;inset:0!important;display:block!important;
   width:51.2px!important;height:51.2px!important;object-fit:contain!important;
   filter:drop-shadow(0 1px 3px rgba(0,0,0,.95))!important;
 }
@@ -10514,6 +10645,166 @@ html body #battle-continue-btn#battle-continue-btn:hover::before{
 }
 html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:hover::after{
   background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+}
+
+/* 合体済みカードを盤面へ移した後は、戦闘終了の「進む」と同じ弱い待機発光にする。 */
+html body.reward-screen-active.reward-pick-taken #reward-move-btns#reward-move-btns .rew-move-btn::before{
+  opacity:.48!important;
+  animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
+}
+html body.reward-screen-active.reward-pick-taken #reward-move-btns#reward-move-btns .rew-move-btn:hover::before{
+  opacity:1!important;
+}
+
+/* 生贄／マナ表示は80%へ縮小し、3件ごとに次の列へ送る。 */
+html body .card-activation-costs{
+  grid-template-rows:repeat(3,40.96px)!important;
+  grid-auto-columns:40.96px!important;
+  gap:2.4px!important;
+}
+html body .card-activation-costs .activation-cost-entry,
+html body .card-activation-costs .activation-cost-entry img{
+  width:40.96px!important;
+  height:40.96px!important;
+}
+html body .card-activation-costs .activation-cost-entry b{
+  font-size:19.84px!important;
+}
+/* デバッグカードは通常カードと同じ左上基準に固定する。 */
+html body #debug-card-palette .card-activation-costs{
+  left:4.6%!important;
+  top:4.2%!important;
+}
+
+/* 右クリック透明化中は、カード種別に関係なくマス枠だけを最前面へ戻す。 */
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card > .character-frame-layer{
+  opacity:0!important;visibility:hidden!important;display:none!important;filter:none!important;
+}
+html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card > .board-frame-layer{
+  opacity:1!important;visibility:visible!important;display:block!important;filter:none!important;
+  position:absolute!important;inset:0!important;z-index:10050!important;
+  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+}
+/* ドラッグゴーストでは元カードからコピーした実寸を最優先し、★の明滅拡大も止める。 */
+html body .drag-ghost .triple-merge-star{
+  animation:none!important;
+  transform:none!important;
+}
+
+/* 合体時の白光は矩形ラッパーではなく、カードと同じ角丸の専用面で描画する。 */
+html body .triple-merge-white-flash{
+  animation:none!important;
+  filter:brightness(2.15) saturate(.25)!important;
+  box-shadow:none!important;
+}
+html body .triple-merge-white-flash::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:30000;
+  border-radius:19px;
+  background:#fff;
+  pointer-events:none;
+  animation:tripleMergeShapeFlash .76s ease-out both;
+}
+/* 発光後は演出完了（ghost自体の除去）まで真っ白なまま維持する。
+   ATK/HP・矢印など合体後カードの中身をゴースト側で個別に同期させる必要をなくすため、
+   発光した瞬間から完全不透明な白で覆い隠したままにする。 */
+@keyframes tripleMergeShapeFlash{
+  0%{opacity:0;box-shadow:none}
+  28%{opacity:1;box-shadow:0 0 44px 22px #fff,0 0 92px 38px rgba(255,246,190,.98)}
+  100%{opacity:1;box-shadow:0 0 10px 3px rgba(255,255,255,.35)}
+}
+/* ==========================================================================
+   通常時（1〜2桁）の配置位置を100%維持し、3桁以上の数値溢れのみ見切れ防止
+   ========================================================================== */
+
+/* 位置や幅(width/left/right)は一切触らず、文字のはみ出し表示のみ許可 */
+html body .card .card-summon-atk,
+html body .rew-card .card-summon-atk,
+html body .panel-character-card .card-summon-atk,
+html body #hand-slots.unit-equip-slots .card .card-summon-atk,
+html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-atk,
+html body .card .card-summon-hp,
+html body .rew-card .card-summon-hp,
+html body .panel-character-card .card-summon-hp,
+html body #hand-slots.unit-equip-slots .card .card-summon-hp,
+html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-hp,
+html body .slot-stats .a,
+html body .slot-stats .h {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  z-index: 300 !important;
+}
+
+/* ==========================================================================
+   通常時（1〜2桁）の位置を100%維持したまま、3桁数値のカード枠外切り落としを解消
+   ========================================================================== */
+
+/* 1. 親カード要素の切り落とし（overflow: hidden）を解除し、枠外への描画を許可 */
+html body .card,
+html body .rew-card,
+html body .panel-character-card,
+html body #hand-slots.unit-equip-slots > .card,
+html body #hand-slots.unit-equip-slots > .panel-character-card {
+  overflow: visible !important;
+}
+
+/* 2. カードイラスト画像のみ角丸内で切り抜き（イラストのはみ出しを防止） */
+html body .card .card-art,
+html body .rew-card .rew-card-art,
+html body .slot.unit-card .unit-portrait {
+  overflow: hidden !important;
+}
+
+/* 3. 数値要素の位置・幅(width/left/right)は一切変えず、折り返し防止と最前面描画のみ指定 */
+html body .card .card-summon-atk,
+html body .rew-card .card-summon-atk,
+html body .panel-character-card .card-summon-atk,
+html body #hand-slots.unit-equip-slots .card .card-summon-atk,
+html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-atk,
+html body .card .card-summon-hp,
+html body .rew-card .card-summon-hp,
+html body .panel-character-card .card-summon-hp,
+html body #hand-slots.unit-equip-slots .card .card-summon-hp,
+html body #hand-slots.unit-equip-slots .panel-character-card .card-summon-hp,
+html body .slot-stats .a,
+html body .slot-stats .h {
+  overflow: visible !important;
+  white-space: nowrap !important;
+  z-index: 300 !important;
+}
+
+/* 編成画面の操作ボタンのホバー反応。ボタン本体（::after＝枠絵）を明るくして
+   「色が変わる」ことをはっきり見せる（発光レイヤー::beforeは既存ルールのまま）。 */
+html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:hover::after{
+  filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important;
+}
+html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-reset-btn:hover::after{
+  filter:brightness(1.45)!important;
+}
+html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-reset-btn:hover::before{
+  opacity:.55!important;
+}
+
+/* 「戦闘開始」は連打防止のためクリック直後にdisabledにするだけなので、
+   .btn:disabled{opacity:.35} による半透明化を打ち消して見た目を保つ
+   （.disabledクラス＝配置待ち等の本当の無効状態は従来通り暗くする）。 */
+html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:disabled:not(.disabled){
+  opacity:1!important;
+  filter:none!important;
+}
+
+/* デバッグモード：旅の進捗のマスをクリックでそのstageへ移動できることを示す。 */
+html body.reward-screen-active #journey-progress-ui .journey-node:hover{
+  filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
+}
+html body.debug-mode #journey-progress-ui .journey-node-debug-jump{
+  cursor:pointer!important;
+  pointer-events:auto!important;
+}
+html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
+  filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
 }
 </style>
 </head>
@@ -10805,12 +11096,12 @@ fitVesselboundViewport();
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
-<script src="js/engine/enemy.js?v=wavepower1"></script>
-<script src="js/engine/battle.js?v=cardfixes1"></script>
-<script src="js/engine/render.js?v=panelpowercolor1"></script>
-<script src="js/engine/reward.js?v=vaseitems1"></script>
-<script src="js/engine/map.js?v=ringexchangehide1"></script>
+<script src="js/engine/enemy.js?v=bugfixround2"></script>
+<script src="js/engine/battle.js?v=r10"></script>
+<script src="js/engine/render.js?v=r9"></script>
+<script src="js/engine/reward.js?v=r9"></script>
+<script src="js/engine/map.js?v=r7"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=bossbgm1"></script>
+<script src="js/engine/main.js?v=r9"></script>
 </body>
 </html>

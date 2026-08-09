@@ -24,12 +24,20 @@
     if(_dragging){ hideTips(); return; }
     const tgt=e.target&&e.target.closest?e.target:null;
     const cardPreviewEl=tgt&&tgt.closest('[data-preview]');
+    const journeyEnemyEl=tgt&&tgt.closest('[data-journey-enemy]');
     const panelPreviewEl=tgt&&tgt.closest('[data-panel-power-preview]');
     const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
     const mapPreviewEl=tgt&&tgt.closest('[data-map-power-preview]');
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
-    const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'));
-    const el=(!isPanelPeek&&cardPreviewEl)||kwEl||panelPreviewEl||cardPreviewEl;
+    // 右クリックのぞき見（right-card-peek）は魔導板カードを透明化する機能なので、
+    // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
+    // body全体で判定すると、のぞき見中に報酬カード・デバッグカードへホバーしても
+    // data-previewが無視されて説明が消えてしまっていた。
+    const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'))
+      &&!!(tgt&&tgt.closest('#hand-slots.unit-equip-slots'));
+    // 右クリックのぞき見中は、透明化したカード自身の説明へフォールバックしない。
+    // 特殊マスがある場合だけ、そのマスの説明を表示する。
+    const el=isPanelPeek?panelPreviewEl:(cardPreviewEl||kwEl||panelPreviewEl);
     if(!el&&!mapPreviewEl&&!keywordPreviewEl){ hideTips(); return; }
     const isKeywordDesc=!!(el&&el.hasAttribute('data-kwdesc'));
     // 右クリックのぞき見中、マス自体（召喚の力など）の説明はdata-panel-power-previewから出す。
@@ -39,7 +47,9 @@
     const desc=(el&&!isPanelPeek&&el.getAttribute('data-preview'))
       ||(el&&el.getAttribute('data-kwdesc'))||(el&&el.getAttribute('data-panel-power-preview'))||(el&&el.getAttribute('data-preview'))||'';
     if(desc){
-      tip.innerHTML=isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc});
+      const journeyEnemyJson=(el&&el===journeyEnemyEl)?el.getAttribute('data-journey-enemy'):'';
+      tip.innerHTML=journeyEnemyJson?_formatJourneyEnemyHtml(desc,journeyEnemyJson)
+        :(isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc}));
       tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
       tip.classList.toggle('map-tooltip',isMapPowerDesc);
       if(!isMapPowerDesc){
@@ -54,7 +64,9 @@
     // 魔導板を表示している報酬フェイズでも表示する。
     const formationOnly=typeof G!=='undefined'&&G.phase==='reward';
     const mt=mapTip();
-    if(mt&&formationOnly&&mapPreviewEl){
+    // のぞき見中は#kw-tooltip側（tip）が既に同じ特殊マス説明を表示しているため、
+    // #map-power-tooltipに同一内容を重ねて2つ表示しないようにする。
+    if(mt&&formationOnly&&mapPreviewEl&&!isPanelPeek){
       mt.innerHTML=_formatMapPowerHtml(mapPreviewEl.getAttribute('data-map-power-preview')||'');
       mt.style.display='block';
       if(tip.style.display==='block') _posTipRelative(mt,tip,'right');
@@ -84,9 +96,16 @@ function _injectManaIcons(escapedText){
     const path=typeof _colorIconPath==='function'?_colorIconPath(m):'';
     return path?`<img class="desc-mana-icon" src="${path}" alt="${m}">`:m;
   };
+  const eyeNames=[];
+  const protectEyeNames=text=>String(text).replace(/[赤青緑黄紫]い瞳/g,name=>{
+    const token=`__EYE_NAME_${eyeNames.length}__`;
+    eyeNames.push(name);
+    return token;
+  });
+  const restoreEyeNames=text=>String(text).replace(/__EYE_NAME_(\d+)__/g,(_,i)=>eyeNames[Number(i)]||'');
   return String(escapedText||'').split(/(<[^>]*>)/g).map(part=>{
     if(part.startsWith('<')) return part;
-    return part
+    return restoreEyeNames(protectEyeNames(part)
       // 赤・青・緑・黄・紫は前後の単語を問わず、漢字1字だけで常にアイコン化する。
       // ただし「色（＋「の」）＋マナ」の並びは次のマナ用置換にまとめて任せる（二重変換で
       // <img alt="色">のalt属性内の文字を再度アイコン化してしまうのを防ぐため、先読みで除外する）。
@@ -96,7 +115,7 @@ function _injectManaIcons(escapedText){
       .replace(/([青赤緑黄紫茶])?(?:の)?(\d*)マナ/g,(_,c,n)=>{
         const icon=c?colorIcon(c):manaIcon();
         return icon.repeat(Math.max(1,parseInt(n,10)||1));
-      });
+      }));
   }).join('');
 }
 function _stripStrongMarkupText(text){
@@ -116,6 +135,62 @@ function _boldKeywordsInHtml(html){
     if(part.startsWith('<')) return part;
     return part.replace(re,m=>`<strong>${m}</strong>`);
   }).join('');
+}
+// 効果テキストを他のカード説明と同じ規則で整形する：効果ごとに「：」より前を太字にする。
+// シート上の効果区切りは実データでは改行ではなく全角スペースのため（例
+// 「常時：〜。　誘発：〜。」）、改行に加えて「全角スペース＋短いラベル＋：」も改行として扱う。
+function _formatJourneyEffectText(desc){
+  return String(desc||'').split(/\n|　(?=[^：:　]{1,12}[：:])/).map(line=>{
+    const text=String(line||'').trim();
+    if(!text) return '';
+    const m=text.match(/^([^：:]+)([：:])(.*)$/);
+    if(!m) return _injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(text)));
+    const body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[3])));
+    return `<strong>${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
+  }).filter(Boolean).join('<br>');
+}
+// 「旅の進捗」パネルのエリート/ボスホバー専用フォーマット。
+// タイトル（エリート／ボス＋カード名、2行中央揃え）→カード画像→直線→効果テキストの順に組み立てる。
+function _formatJourneyEnemyHtml(titleText,jsonStr){
+  const titleHtml=String(titleText||'').split('\n').map(l=>_escapePreviewHtml(l)).join('<br>');
+  const title=`<strong class="preview-title">${titleHtml}</strong>`;
+  let data=null;
+  try{ data=JSON.parse(jsonStr); }catch(_e){}
+  if(!data) return title;
+  // 他のカードと全く同じ生成経路（mkCardEl）でフレーム・絵柄・ATK/HPを1枚のカードとして
+  // 描画する（独自の簡易表示だと縦横比が崩れて潰れて見えるため）。
+  const pseudoCard={
+    id:'journey-enemy-preview',
+    name:data.name,
+    type:'panel',
+    kind:'panel',
+    panelScope:'unit',
+    category:'キャラクター',
+    power:Number(data.atk)||0,
+    atk:Number(data.atk)||0,
+    life:Number(data.hp)||0,
+    hp:Number(data.hp)||0,
+    color:data.color||'',
+    artCode:data.artCode||'',
+    _artCode:data.artCode||'',
+    _sheetEnemy:!!data._sheetEnemy,
+    directions:[],
+  };
+  const cardEl=typeof mkCardEl==='function'?mkCardEl(pseudoCard,-1,'journey-preview'):null;
+  // カードは魔導板と同じ設計寸法（260x395）のまま生成し、ラッパー側のtransform:scaleで
+  // 縮小表示する。幅だけをツールチップに合わせて伸縮させると、内部のATK/HP等（設計px固定）
+  // だけが取り残されてサイズ・位置が崩れるため。
+  const cardHtml=cardEl?`<div class="journey-card-wrap">${cardEl.outerHTML}</div>`:'';
+  const sectionRule='<div class="preview-section-rule"></div>';
+  // 通常カードと同じく、効果テキストの一番上にキーワードを「A / B」形式の太字で並べる
+  // （_formatPreviewHtmlの「キーワード：」行と同じ見せ方。ラベル自体は表示しない）。
+  const kws=Array.isArray(data.keywords)?data.keywords.filter(Boolean):[];
+  const kwHtml=kws.length
+    ?kws.map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ')
+    :'';
+  const descText=data.desc?_formatJourneyEffectText(data.desc):'';
+  const body=[kwHtml,descText].filter(Boolean).join('<br>');
+  return `${title}${cardHtml}${sectionRule}${body}`;
 }
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
@@ -203,6 +278,9 @@ function _plainEffectTextForPreview(card){
 function _manaOrbPath(){
   return Assets.cards.manaOrb;
 }
+function _cardUiName(card){
+  return String(card&&card._displayName||card&&card.name||'');
+}
 // 見た目・種族分類の色（強化キーワード等の表示用）。マナとは無関係
 function _colorIconPath(color){
   const c=String(color||'').toLowerCase();
@@ -226,7 +304,8 @@ function cardManaCostHtml(card){
   // 接続元のマナ効果（_extraManaCosts）はキャラクターにだけ表示する。
   // 強化カード同士を接続しても、接続先の強化カードへアイコンを複製しない。
   const extraCosts=String(card.category||'')==='キャラクター'&&Array.isArray(card._extraManaCosts)?card._extraManaCosts:[];
-  const costs=[Number(card.manaCost)||0,...extraCosts].filter(v=>v>0);
+  // 同じ必要マナの同一効果が複数接続されても、表示アイコンは1つだけにする。
+  const costs=[...new Set([Number(card.manaCost)||0,...extraCosts].filter(v=>v>0))];
   if(path) costs.forEach((cost,i)=>{
     entries.push(`<span class="activation-cost-entry mana-cost-entry${i===0?' mana-primary':''}" data-mana-cost="${cost}"><img src="${path}" alt=""><b>${cost}</b></span>`);
   });
@@ -466,17 +545,30 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
   return {video,canvas,stop};
 }
 
+// 勝利・敗北が確定した時点で、再生中の全VFX（ダメージ演出／特殊演出／薙ぎ払い演出）を
+// 即座に打ち切ってDOMから除去する。演出用の各hostは常にdocument.body直下へfixedで
+// 追加されるため、専用クラスで一括除去すればどの演出タイミングで戦闘が終わっても残らない。
+function _forceStopAllVfx(){
+  document.querySelectorAll('.damage-vfx-host,.special-vfx-clip,.sweep-vfx-clip').forEach(el=>el.remove());
+  if(window.__activeVfxPromises) window.__activeVfxPromises.clear();
+}
+
 function playHitVfxAtRect(rect,amount,options){
   if(!rect) return Promise.resolve();
   const opt=options||{};
-  const hitDuration=opt.hitDuration||900;
-  const fadeDuration=opt.fadeDuration||180;
-  const labelDuration=opt.labelDuration||550;
+  // マナ・負傷効果が短時間に大量発動する場面向けの演出高速化倍率（既定1＝通常速度）。
+  // _stepEffectPace()（battle.js）が発動のたびに更新する。
+  const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
+  // 撃破後の盤面詰めがVFX完了を待つようになったため、既定尺のままだと1体倒すごとに
+  // 待ち時間が上乗せされてテンポが悪化する。表示・消失とも少し早める。
+  const hitDuration=(opt.hitDuration||600)/speedMul;
+  const fadeDuration=(opt.fadeDuration||140)/speedMul;
+  const labelDuration=(opt.labelDuration||380)/speedMul;
   // 見た目の再生時間（hitDuration）と、次の行動に進むまで呼び出し元が待つ時間は切り離す。
   // hitDurationはあくまで演出を見やすくスローにするためのもので、これに比例して攻撃間の
   // テンポまで間延びしないよう、呼び出し元への復帰は短いgateMsだけ待てば十分とする。
   // 演出自体はgateMs経過後もバックグラウンドで最後まで再生・フェードアウトを続ける。
-  const gateMs=opt.gateMs??200;
+  const gateMs=(opt.gateMs??200)/speedMul;
   if(!rect.width||!rect.height) return Promise.resolve();
   const host=document.createElement('div');
   host.className='damage-vfx-host';
@@ -1370,27 +1462,27 @@ function _enchantmentEffectsList(unit,slotIdx){
 function _groupedEnchantEffectTexts(unit,slotIdx){
   const list=_enchantmentEffectsList(unit,slotIdx);
   const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc));
+  const normalMap=new Map();
+  normal.forEach(e=>{
+    const text=e.panel&&e.panel.name==='マナの種'&&unit&&typeof _rawSubstitutedDesc==='function'
+      ?_rawSubstitutedDesc(unit):e.text;
+    const identity=`${e.panel&&e.panel._tripleMerged?'merged':'base'}::${e.panel&&e.panel.name||''}::${text}`;
+    if(!normalMap.has(identity)) normalMap.set(identity,{text,count:0});
+    normalMap.get(identity).count++;
+  });
   const charDescMap=new Map();
   list.filter(e=>e.panel&&e.panel.characterDesc).forEach(e=>{
-    const key=`${e.panel.name}::${e.panel.characterDesc}`;
-    if(!charDescMap.has(key)) charDescMap.set(key,{name:e.panel.name,text:e.panel.characterDesc,count:0});
+    const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${e.panel.characterDesc}`;
+    if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text:e.panel.characterDesc,count:0});
     charDescMap.get(key).count++;
   });
-  const scaleNumbers=(text,count)=>String(text||'').replace(/\d+/g,n=>String((parseInt(n,10)||0)*count));
-  const originBaseDesc=unit&&typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(unit):'';
-  const normalTexts=normal.map(e=>{
-    if(e.panel&&e.panel.name==='マナの種'&&originBaseDesc) return originBaseDesc;
-    return e.text;
-  });
+  const normalTexts=[...normalMap.values()].map(g=>g.count>1?`${g.text}（×${g.count}）`:g.text);
   // 「キャラクター用説明文」列には既に「カード名」が本文の一部として書かれているため、
   // ここで別途ラベルを前置すると「カード名」が二重表示されてしまう。
   // 2枚以上接続時の（×N）は、本文中の既存の「カード名」表記の直後に挿入する。
   const charTexts=[...charDescMap.values()].map(g=>{
-    const scaled=scaleNumbers(g.text,g.count);
-    if(g.count<=1) return scaled;
-    const marker=`「${g.name}」`;
-    if(scaled.includes(marker)) return scaled.replace(marker,`${marker}（×${g.count}）`);
-    return `${marker}（×${g.count}）${scaled}`;
+    if(g.count<=1) return g.text;
+    return `${g.text}（×${g.count}）`;
   });
   return {normalTexts,charTexts};
 }
@@ -1400,8 +1492,18 @@ function _ringCharacterDescriptionsForUnit(unit){
   if(!unit||!Array.isArray(G?.rings)) return [];
   // 敵キャラクターへプレイヤーの指輪説明を付けない。
   if(Array.isArray(G.enemies)&&G.enemies.includes(unit)) return [];
+  // 戦闘中の味方、または所有中の魔導板カードだけを対象にする。
+  // 販売・報酬・デバッグカードには装備中の指輪説明を付けない。
+  const ownedBattleUnit=G.phase!=='reward'&&Array.isArray(G.allies)&&G.allies.includes(unit);
+  if(!ownedBattleUnit&&unit._ownedBoardPreview!==true) return [];
   const rings=typeof _effectiveRings==='function'?_effectiveRings():G.rings;
-  return (rings||[]).map(r=>String(r&&r.characterDesc||'').trim()).filter(Boolean);
+  const eyeColors={'赤い瞳の指輪':'赤','青い瞳の指輪':'青','緑の瞳の指輪':'緑','黄の瞳の指輪':'黄','紫の瞳の指輪':'紫'};
+  const colorMap={red:'赤',blue:'青',green:'緑',yellow:'黄',brown:'黄',purple:'紫',茶:'黄'};
+  const rawColor=String(unit.color||'').trim().toLowerCase();
+  const unitColor=colorMap[rawColor]||String(unit.color||'').trim();
+  return (rings||[])
+    .filter(r=>!eyeColors[r&&r.name]||eyeColors[r.name]===unitColor)
+    .map(r=>String(r&&r.characterDesc||'').trim()).filter(Boolean);
 }
 // キャラクターカードの説明欄HTML：本来の効果の下に線を引き、その下に強化カードが与えている効果の全文を並べる
 function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
@@ -1537,7 +1639,7 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
 function _unitPreviewText(unit, desc, slotIdx){
   if(!unit) return desc||'';
   const lines=[];
-  if(unit.name) lines.push(unit.name);
+  if(unit.name) lines.push(_cardUiName(unit));
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
   const characterTexts=[...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
@@ -1998,7 +2100,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const sealCostEl=cardSealCostHtml(card);
   // 価格バッジはショップ（G._isShop）かつ実際に価格が1以上の場合のみ表示する。
   // 無料報酬（_buyPrice===0）ではバッジそのものを作らない（CSSでの後隠しはしない）。
-  const showPriceBadge=G.phase==='reward'&&!!G._isShop&&Number(card._buyPrice)>0;
+  const showPriceBadge=G.phase==='reward'&&!!G._isShop&&Number(card._buyPrice)>0&&!card._debugInfiniteCard;
   const badgeEl=showPriceBadge?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
   const mergeStarEl=card._tripleMerged?'<span class="triple-merge-star" aria-label="3枚合体">★</span>':'';
   const isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
@@ -2030,7 +2132,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   if(isPanelCharacter){
     const pAtk=Number(card.power??card.atk??0);
     const pHp=Number(card.life??card.hp??1);
-    const preview=_charPreview||[card.name,card.desc||''].filter(Boolean).join('\n');
+    const preview=_charPreview||[_cardUiName(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
@@ -2052,7 +2154,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     });
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
     const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card);
-    const preview=[card.name,_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
+    const preview=[_cardUiName(card),_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
@@ -2060,13 +2162,13 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   }
   if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
     div.classList.add('spell-card');
-    const preview=[card.name,_previewRarityLine(card),card.desc||''].filter(Boolean).join('\n');
+    const preview=[_cardUiName(card),_previewRarityLine(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
-  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${card.name}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${_cardUiName(card)}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
   return div;
 }
 
