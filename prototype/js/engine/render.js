@@ -1333,10 +1333,11 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   })();
 }
 
-function playAttackMotion(attacker,target,isEnemySide,onImpact){
+function playAttackMotion(attacker,target,isEnemySide,onImpact,options){
   return _playAttackMotionCore(attacker,target,isEnemySide,onImpact,{
     firstDuration:320,
     returnDuration:340,
+    ...(options||{}),
   });
 }
 

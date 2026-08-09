@@ -1927,6 +1927,20 @@ async function _applyAttackEffectsForSide(unit,isEnemySide){
   else await _applyAllyAttackEffectsWithElf(unit);
 }
 
+function _hasAttackEffectsForPause(unit){
+  if(!unit||unit.hp<=0||_isSealed(unit)) return false;
+  const desc=String(unit.desc||unit.effectText||unit.effect||'');
+  const hasName=name=>_unitHasEffectName(unit,name);
+  if(_unitEffectPanelCount(unit,'懺悔')>0) return true;
+  if(hasName('ブラウニー')||hasName('ファミリア')||hasName('ユミル')||hasName('ラミア')||hasName('センチネル')||hasName('エルヴンメイジ')||hasName('インプ')) return true;
+  if(/^攻撃[:：]/.test(desc)||/^攻撃：/.test(desc)) return true;
+  if(/全ての仲間のHPが\+[12]/.test(desc)||hasName('サイレン')) return true;
+  if(/^攻撃：ランダムな敵にXダメージ/.test(desc)) return true;
+  if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0) return true;
+  if(_unitHasKeyword(unit,'剣技')) return true;
+  return false;
+}
+
 function _applyGremlinAttackSwap(attacker,target,isEnemySide){
   if(!attacker||!target||attacker.hp<=0||target.hp<=0||attacker.name!=='グレムリン') return;
   const nextHp=Math.max(1,Number(target.atk)||0);
@@ -2276,7 +2290,7 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
       const onImpact=attacker._attackEffectPending
         ?()=>_resolveAttackEffectsAtImpact(attacker,true,actualTarget,result)
         :null;
-      await playAttackMotion(attacker,actualTarget,true,onImpact);
+      await playAttackMotion(attacker,actualTarget,true,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
     } else {
       await _consumeAttackEffectPause(attacker,true,actualTarget);
     }
@@ -2306,7 +2320,7 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
     const onImpact=attacker._attackEffectPending
       ?()=>_resolveAttackEffectsAtImpact(attacker,false,target,result)
       :null;
-    await playAttackMotion(attacker,target,false,onImpact);
+    await playAttackMotion(attacker,target,false,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
   } else {
     await _consumeAttackEffectPause(attacker,false,target);
   }
@@ -2419,7 +2433,7 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
       const onImpact=attacker._attackEffectPending
         ?()=>_resolveAttackEffectsAtImpact(attacker,isEnemySide,primaryTarget,result)
         :null;
-      await playAttackMotion(attacker,primaryTarget,isEnemySide,onImpact);
+      await playAttackMotion(attacker,primaryTarget,isEnemySide,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
     } else {
       await _consumeAttackEffectPause(attacker,isEnemySide,primaryTarget);
     }
@@ -4272,7 +4286,7 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.stealth){ ally.stealth=false; log(`${_lc(ally.name,false)}の隠密が解除された。`,'sys'); }
 
   // 攻撃時効果はアニメーション途中で発動する
-  if(ally.hp>0) ally._attackEffectPending=true;
+  if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
   // 闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（manaOnAttackも含む）
   if(ally.hp>0&&ally.manaOnAttack){
     const _ritualExtra=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
@@ -4313,7 +4327,7 @@ async function allyAttackAction(ally, allyIdx){
       if(!curTgt||curTgt.hp<=0) break;
       hideAttackLine();
       // 攻撃時効果はアニメーション途中で発動する
-      if(ally.hp>0) ally._attackEffectPending=true;
+      if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
       if(ally.hp>0&&ally.manaOnAttack){
         const _ritualExtra2=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
         for(let mi=0;mi<1+_ritualExtra2;mi++) _gainMana(ally.manaOnAttack,ally);
@@ -4386,7 +4400,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(enemy.nullified>0) enemy.nullified--;
 
   // 攻撃時効果はアニメーション途中で発動する
-  if(atkVal>0&&enemy.hp>0) enemy._attackEffectPending=true;
+  if(atkVal>0&&enemy.hp>0&&_hasAttackEffectsForPause(enemy)) enemy._attackEffectPending=true;
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け（三方向攻撃：隣接3スロット、隠密は除外）
   const _triAIdxs=isTriDirAtk?[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&_canReceiveBattleEffect(G.allies[i])&&!G.allies[i].stealth):[];
@@ -4420,7 +4434,7 @@ async function enemyAttackAction(enemy, enemyIdx){
       if(!reTgt||reTgt.hp<=0) break;
       hideAttackLine();
       // 攻撃時効果はアニメーション途中で発動する
-      if(atkVal>0&&enemy.hp>0) enemy._attackEffectPending=true;
+      if(atkVal>0&&enemy.hp>0&&_hasAttackEffectsForPause(enemy)) enemy._attackEffectPending=true;
       log(`${_lc(enemy.name,true)}の${hi+2}段攻撃！ ${_lc(reTgt.name,false)}に${atkVal}ダメージを与えた。`,'bad');
       await _dealAttackDamageWithMutual(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
     }
