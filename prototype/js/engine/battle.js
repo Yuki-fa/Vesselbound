@@ -582,7 +582,7 @@ function showBattleCutin(type='start',options={}){
           overlay.classList.remove('battle-start-closing');
           overlay.classList.add('awaiting-continue');
           resolve(overlay);
-        },360);
+        },240);
       }else if(fade){
         fade.classList.add('is-final');
         window.setTimeout(()=>{
@@ -635,6 +635,35 @@ function _playBattleStartIntro(){
       window.setTimeout(closeIntro,3000);
     },1800);
   });
+}
+
+// 開戦演出中は編成画面の右クリック覗き見を受け付けない。
+// ここでright-card-peekが切り替わると、演出中のカードにも透明化CSSが適用され、
+// 演出終了時の再描画までカードが消えたように見える。
+if(!window._battleOpeningContextMenuGuardBound){
+  window._battleOpeningContextMenuGuardBound=true;
+  const isOpening=()=>{
+    const host=document.getElementById('scr-battle');
+    return !!(host&&(
+      host.classList.contains('battle-opening-pending')||
+      host.classList.contains('battle-opening-active')||
+      document.getElementById('battle-start-intro')
+    ));
+  };
+  document.addEventListener('contextmenu',e=>{
+    // 開戦演出中もオプション（およびデバッグ時のミュート）は操作可能にする。
+    if(e.target&&e.target.closest&&e.target.closest('#battle-options-btn,#battle-mute-btn')) return;
+    if(!isOpening()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  },true);
+  document.addEventListener('click',e=>{
+    // 場面外クリックでreward.jsの再描画処理が走ると、開戦演出中のカードが消えるため止める。
+    if(e.target&&e.target.closest&&e.target.closest('#battle-options-btn,#battle-mute-btn')) return;
+    if(!isOpening()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  },true);
 }
 
 function renderBattleCounters(){
@@ -793,6 +822,7 @@ async function playBattleOpeningSequence(){
 
 async function startBattle(){
   G._battleDraw=false;
+  document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
   document.body.classList.remove('reward-screen-active','ring-offer-phase');
   const pendingItems=[
@@ -1418,13 +1448,18 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
   const desc=String(unit.desc||'');
   const hasName=name=>_unitHasEffectName(unit,name);
   // 懺悔はキーワードではなく、接続された強化カード名で判定する。
-  if(_unitEffectPanelCount(unit,'懺悔')>0){
+  const penitenceCount=_unitEffectPanelCount(unit,'懺悔');
+  if(penitenceCount>0){
     const side=isEnemySide?'enemy':'ally';
-    await applyDamageBatch([
-      {unit,side,amount:1,source:unit},
-      {unit,side,amount:1,source:unit},
-    ],{source:unit,effect:true});
-    log(`${_lc(unit.name,isEnemySide)}の懺悔が発動した。1ダメージを2回受けた。`,isEnemySide?'bad':'good');
+    // 懺悔1枚につき「1ダメージを2回」。カードごと・ダメージごとに
+    // 直列処理することで、ケットシー等の負傷効果も各ダメージの直後に1回ずつ発動させる。
+    for(let i=0;i<penitenceCount&&unit.hp>0;i++){
+      for(let hit=0;hit<2&&unit.hp>0;hit++){
+        await applyDamageBatch([{unit,side,amount:1,source:unit}],{source:unit,effect:true});
+      }
+    }
+    log(`${_lc(unit.name,isEnemySide)}の懺悔${penitenceCount}枚が発動した。1ダメージを${penitenceCount*2}回受けた。`,isEnemySide?'bad':'good');
+    if(unit.hp<=0) return;
   }
   if(hasName('ブラウニー')||/全ての仲間のHPが\+2/.test(desc)){
     allies.forEach(a=>{
@@ -2066,7 +2101,7 @@ async function _fireAllyInjuryEffects(unit, actualDmg){
   let fired=false;
   // 激怒の指輪：常時：味方の負傷効果は1回追加で発動する。（陣営全体）
   // 起源の種：このキャラクター自身の負傷効果が1回追加で発動する。
-  const injuryRepeats=1+_unitKeywordCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
+  const injuryRepeats=1+_unitEffectPanelCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
   for(let i=0;i<injuryRepeats;i++){
     if(unit.manaOnInjury){ _gainMana(unit.manaOnInjury,unit); fired=true; }
     // ミノタウロス等「直ちに攻撃する」負傷効果は、攻撃が完全に終わるまで他の処理より優先して
@@ -2098,21 +2133,9 @@ function _splitEntriesForMata(entries){
     if(side==='ally'&&e.amount>=2&&e.unit.name!=='マータ'){
       const mata=(G.allies||[]).find(a=>a&&a.hp>0&&a.name==='マータ'&&a!==e.unit);
       if(mata&&!_isSealed(mata)&&e.unit.shield<=0){
-        const effectiveDamage=(unit,raw)=>{
-          let value=Math.max(0,Number(raw)||0);
-          if(unit.weaken>0) value+=Number(unit.weaken)||0;
-          const tough=(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k))
-            .reduce((sum,k)=>sum+(parseInt(k.slice(2),10)||0),0);
-          return Math.max(0,value-tough);
-        };
-        // 対象を生存させられる範囲で、マータが実際に受けられる最大量を探す。
-        let redirected=0;
-        for(let share=e.amount;share>=1;share--){
-          if(effectiveDamage(mata,share)>Math.max(0,mata.hp)) continue;
-          if(effectiveDamage(e.unit,e.amount-share)>=Math.max(1,e.unit.hp)) continue;
-          redirected=share;
-          break;
-        }
+        // マータが受けるのは「半分」だけ。対象を生存させるために
+        // 肩代わり量を最大化すると、2ダメージを全てマータが受けることがある。
+        const redirected=Math.floor((Number(e.amount)||0)/2);
         if(!redirected){
           out.push(e);
           return;
@@ -3154,6 +3177,10 @@ async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy){
   // 光の指輪：常時：戦闘中に召喚される味方は結界1を得る。（開戦時の通常出撃は対象外）
   if(!isInitialDeploy&&_hasRingNamed('光の指輪')){
     unit.keywords=[...(unit.keywords||[]),'結界1'];
+    // キーワードだけではダメージ判定に使う実シールド値へ反映されないため、
+    // 召喚直後に既存の結界と合算して実値も同期する。
+    unit.shield=Math.max(Number(unit.shield)||0,_unitShieldValue(unit));
+    if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(unit,'ally');
     log(`${_lc(unit.name,false)}は光の指輪の効果で結界1を得た。`,'good');
   }
   if(!isInitialDeploy){
@@ -3536,12 +3563,13 @@ function _summonMidBattleAllyFront(unit, isEnemySide, placement){
   const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
 
-  // キャラクター効果による召喚は、効果元の直後（右隣）へ挿入する。
-  // 既に右側にカードがある場合は、空き枠まで右へ詰めて隣接位置を確保する。
+  // 戦闘中の召喚は前衛へ置く。前衛の効果元だけは右隣への挿入を優先し、
+  // 後衛の効果元からの召喚は前衛右端へ回す（後衛には置かない）。
   const source=placement&&placement.rightOf;
   if(source){
     const sourceIdx=arr.indexOf(source);
-    if(sourceIdx>=0&&sourceIdx<frontSlots-1){
+    const sourceIsRear=(source.lane||'front')==='rear';
+    if(!sourceIsRear&&sourceIdx>=0&&sourceIdx<frontSlots-1){
       let empty=-1;
       for(let i=sourceIdx+1;i<frontSlots;i++){
         if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){ empty=i; break; }

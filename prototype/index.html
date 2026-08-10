@@ -10819,6 +10819,71 @@ html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:
   filter:none!important;
 }
 
+/* 勝利・撤退などの戦闘終了画面では、後段の共通hover発光より優先して
+   戦場キャラクターを完全に静止表示する。 */
+html body.battle-victory-pending #scr-battle .slot.unit-card:hover,
+html body.battle-victory-pending #scr-battle .slot.unit-card:hover::before,
+html body.battle-victory-pending #scr-battle .slot.unit-card:hover::after,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue{
+  transform:none!important;
+  filter:none!important;
+  box-shadow:none!important;
+  animation:none!important;
+  opacity:1!important;
+}
+html body.battle-victory-pending #scr-battle .slot.unit-card:hover::before,
+html body.battle-victory-pending #scr-battle .slot.unit-card:hover::after,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red::before,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red::after,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue::before,
+html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue::after{
+  display:none!important;
+  opacity:0!important;
+}
+html body.battle-victory-pending #scr-battle #f-ally *:hover,
+html body.battle-victory-pending #scr-battle #f-enemy *:hover{
+  filter:none!important;
+  box-shadow:none!important;
+  text-shadow:inherit!important;
+  cursor:default!important;
+}
+html body.battle-victory-pending #scr-battle #f-ally *,
+html body.battle-victory-pending #scr-battle #f-enemy *{
+  cursor:default!important;
+}
+/* 結果カットイン表示中は、状態クラスが遷移途中で外れても発光を止める。 */
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *,
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-enemy *,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-ally *,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-enemy *{
+  filter:none!important;
+  box-shadow:none!important;
+  cursor:default!important;
+}
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *::before,
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *::after,
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-enemy *::before,
+html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-enemy *::after,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-ally *::before,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-ally *::after,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-enemy *::before,
+html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-enemy *::after{
+  display:none!important;
+  opacity:0!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+html body.battle-victory-pending #scr-battle #f-ally *:hover::before,
+html body.battle-victory-pending #scr-battle #f-ally *:hover::after,
+html body.battle-victory-pending #scr-battle #f-enemy *:hover::before,
+html body.battle-victory-pending #scr-battle #f-enemy *:hover::after{
+  display:none!important;
+  opacity:0!important;
+  filter:none!important;
+  box-shadow:none!important;
+}
+
 /* デバッグモード：旅の進捗のマスをクリックでそのstageへ移動できることを示す。 */
 html body.reward-screen-active #journey-progress-ui .journey-node:hover{
   filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
@@ -11109,8 +11174,8 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=bgmfolder1"></script>
-<script src="js/engine/audio.js?v=battle3bgm1"></script>
+<script src="assets.js?v=facility-sfx1"></script>
+<script src="js/engine/audio.js?v=facility-sfx1"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11121,11 +11186,11 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=enemy-reward-visual1"></script>
+<script src="js/engine/battle.js?v=opening-click-summon-shop1"></script>
 <script src="js/engine/render.js?v=enemy-slide12"></script>
-<script src="js/engine/reward.js?v=r9"></script>
-<script src="js/engine/map.js?v=r7"></script>
+<script src="js/engine/reward.js?v=facility-sfx1"></script>
+<script src="js/engine/map.js?v=facility-sfx1"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=r9"></script>
+<script src="js/engine/main.js?v=battle-end-button1"></script>
 </body>
 </html>

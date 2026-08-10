@@ -92,7 +92,7 @@ function _pushToRewardArea(card){
   if(G._isShop){
     const compacted=_rewCards.filter(Boolean);
     if(compacted.length>=REWARD_GRID_CAPACITY) return false;
-    _rewCards=[returned,...compacted].slice(0,REWARD_GRID_CAPACITY);
+    _rewCards=[...compacted,returned].slice(0,REWARD_GRID_CAPACITY);
     return true;
   }
   let empty=_rewCards.findIndex(c=>!c);
@@ -543,6 +543,7 @@ function renderRaceBuffSummary(){
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
+  const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isTreasureMapReward);
   document.body.classList.remove('battle-victory-pending');
   G._freeItemPhase='reward';
   G._freeItemUsed=false;
@@ -580,7 +581,7 @@ function goToReward(){
   G.phase='reward';
   G._battlePhaseRunning=false;
   document.body.classList.add('reward-screen-active');
-  if(typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
+  if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
   if(typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
   if(typeof _clearAllLogFx==='function') _clearAllLogFx();
   const goldLabel=document.querySelector('#reward-info-bar .ri-soul');
@@ -731,16 +732,21 @@ function renderMoveSlotsInEnemy(){
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
-    const label=_waveFacilityReturn?(G._isWaveAltar?'祭壇に戻る':'村に戻る'):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
+    const label=_waveFacilityReturn?(G._isRingExchange?'祭壇から出る':'店を出る'):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
       if(!_waveFacilityReturn&&G._moveInlineLocked) return;
-      if(typeof playSfx==='function') playSfx(_waveFacilityReturn?'return':'menuClose',{group:'ui'});
+      if(!_waveFacilityReturn&&typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       if(_waveFacilityReturn){
         const goBack=()=>{
-          if(G._isWaveAltar&&typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
-          else if(typeof openMapVillage==='function') openMapVillage();
+          if(G._isRingExchange){
+            if(typeof playSfx==='function') playSfx('altarOut',{group:'ui'});
+            if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
+          }else{
+            if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
+            if(typeof openMapVillage==='function') openMapVillage();
+          }
         };
         if(G._isShop) _confirmShopReturnWithPendingSales(goBack);
         else if(G._isRingExchange) _confirmRingExchangeReturn(goBack);
@@ -2540,6 +2546,9 @@ function _createDragGhost(srcEl){
   if(isBattleDrag) document.body.classList.add('dragging-in-battle');
   const d=srcEl.cloneNode(true);
   d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
+  // 価格・売却UIは実カード上だけに表示し、ドラッグゴーストには複製しない。
+  // ゴーストへ固定pxの価格枠を持ち込むと、ショップカードと魔導板カードで位置・サイズが崩れる。
+  d.querySelectorAll('.shop-buy-price,.shop-board-sell-value,.shop-pending-sell-btn').forEach(el=>el.remove());
   d.classList.remove('dragging','drag-over','selectable');
   d.classList.add('drag-ghost');
   const scale=1;
@@ -3643,6 +3652,18 @@ function _debugMakePanelCard(id){
   if(card) card._debugInfiniteCard=true;
   return card;
 }
+function _debugPanelCode(def,kind,index){
+  const raw=String(def&&(
+    def.no??def.No??def['No.']??def.imageNo??def.artCode??''
+  )||'').trim();
+  if(raw) return raw.match(/^[A-Za-z]+\d+$/)?raw:`${kind==='enchant'?'E':kind==='character'?'C':''}${raw.padStart(3,'0')}`;
+  const prefix=kind==='enchant'?'E':kind==='character'?'C':'';
+  return prefix?`${prefix}${String(index+1).padStart(3,'0')}`:'';
+}
+function _debugPanelDisplayNo(code){
+  const m=String(code||'').match(/(\d+)$/);
+  return m?m[1]:String(code||'');
+}
 function _debugTakePanelCard(id){
   if(!G||!G._debugMode||G.phase!=='reward') return;
   const kind=String(G._debugPaletteKind||'character');
@@ -3688,17 +3709,23 @@ function renderDebugCardPalette(){
   const title={character:'DEBUG CARD',enchant:'DEBUG ENCHANT',item:'DEBUG ITEM',ring:'DEBUG RING'}[kind];
   host.innerHTML=`<div class="debug-palette-jump"><button type="button" class="debug-palette-jump-shop">ショップ呼び出し</button><button type="button" class="debug-palette-jump-forge">鍛冶屋呼び出し</button></div><div class="debug-palette-head"><div class="debug-palette-tabs">${tab('character','キャラ')}${tab('enchant','強化')}${tab('item','アイテム')}${tab('ring','指輪')}</div><div class="debug-palette-title">${title}</div><button type="button" class="debug-palette-rotate"${kind==='item'||kind==='ring'?' disabled':''}>回転</button></div><div class="debug-palette-list"></div>`;
   const shopJump=host.querySelector('.debug-palette-jump-shop');
-  if(shopJump) shopJump.onclick=e=>{
+  if(shopJump){
+    shopJump.dataset.sfxSilent='1';
+    shopJump.onclick=e=>{
     e.preventDefault();
     e.stopPropagation();
     if(typeof openMapShop==='function') openMapShop();
-  };
+    };
+  }
   const forgeJump=host.querySelector('.debug-palette-jump-forge');
-  if(forgeJump) forgeJump.onclick=e=>{
+  if(forgeJump){
+    forgeJump.dataset.sfxSilent='1';
+    forgeJump.onclick=e=>{
     e.preventDefault();
     e.stopPropagation();
     if(typeof openMapForge==='function') openMapForge();
-  };
+    };
+  }
   host.querySelectorAll('.debug-palette-kind').forEach(btn=>{
     btn.onclick=e=>{
       e.preventDefault();
@@ -3715,16 +3742,21 @@ function renderDebugCardPalette(){
     renderDebugCardPalette();
   };
   const list=host.querySelector('.debug-palette-list');
-  _debugImplementedPanelCards().forEach(def=>{
+  _debugImplementedPanelCards().forEach((def,debugIdx)=>{
     const card=_debugMakePanelCard(def.id);
     if(!card) return;
+    const debugCode=_debugPanelCode(def,kind,debugIdx);
+    if(debugCode){
+      if(!card.no&&!card.No&&!card['No.']&&!card.imageNo&&!card.artCode) card.no=debugCode;
+      if(!card.imageNo&&!card.artCode) card.artCode=debugCode;
+    }
     let suppressClick=false;
     const item=document.createElement('button');
     item.type='button';
     item.className='debug-palette-item'+(pendingId===def.id?' pending':'');
     const panelKind=kind==='character'||kind==='enchant';
     item.draggable=panelKind;
-    const no=String(def.no??def.No??def['No.']??'').trim();
+    const no=_debugPanelDisplayNo(debugCode);
     const cardWrap=document.createElement('div');
     cardWrap.className='debug-palette-card';
     let cardEl;

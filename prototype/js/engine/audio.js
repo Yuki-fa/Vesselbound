@@ -52,6 +52,10 @@ const SFX_SETTINGS={
     menuClose:  {group:'ui',     volume: 1.0},
     menu:       {group:'ui',     volume: 1.0}, // 💡 menu という名前で直接叩かれた場合も1.0固定
     select:     {group:'ui',     volume: 1.0}, 
+    shopIn:     {group:'ui',     volume: 1.0},
+    shopOut:    {group:'ui',     volume: 1.0},
+    altarIn:    {group:'ui',     volume: 1.0},
+    altarOut:   {group:'ui',     volume: 1.0},
     fit:        {group:'reward', volume: 1.0, guardMs:80}, 
     'return':   {group:'ui',     volume: 1.0}, 
     reroll:     {group:'ui',     volume: 1.0}, 

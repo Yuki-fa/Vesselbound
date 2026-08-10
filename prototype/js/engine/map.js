@@ -1133,11 +1133,13 @@ function openMapVillage(){
     row.innerHTML='';
     [
       ['ショップ','販売カードを確認する',openMapShop],
+      ['鍛冶屋','魔導板パネルを改良する',openMapForge],
       ['クエスト受託','クエストを受ける（未実装）',()=>{ log('クエスト受託は未実装です。','sys'); }],
     ].forEach(([name,desc,fn])=>{
       const btn=document.createElement('button');
       btn.type='button';
       btn.className='map-village-card';
+      btn.dataset.sfxSilent='1';
       btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
       btn.onclick=fn;
       row.appendChild(btn);
@@ -1145,7 +1147,7 @@ function openMapVillage(){
   }
   renderMoveSlotsInEnemy();
 }
-// 祭壇（wave進行stage10）：鍛冶屋・指輪交換を選択できる村メニュー相当の画面。
+// 祭壇（wave進行stage10）：指輪交換を選択できるメニュー。
 function _openWaveAltarMenu(){
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
@@ -1169,14 +1171,14 @@ function _openWaveAltarMenu(){
     row.innerHTML='';
     const _ringExchangeResolved=!!(G._waveRingExchange&&G._waveRingExchange[_waveFacilityCacheKey()]&&G._waveRingExchange[_waveFacilityCacheKey()].resolved);
     [
-      ['鍛冶屋','魔導板パネルを改良する',openMapForge],
       // 指輪交換は1回の祭壇で1つまで（3枚の提示から1つ選んで取得済み＝resolved）なので、
       // 取得済みなら選択肢自体を消す。
-      ...(_ringExchangeResolved?[]:[['指輪交換','カード3枚と引き換えに指輪1つを得る',openMapRingExchange]]),
+      ...(_ringExchangeResolved?[]:[['祭壇','カード3枚と引き換えに指輪1つを得る',openMapRingExchange]]),
     ].forEach(([name,desc,fn])=>{
       const btn=document.createElement('button');
       btn.type='button';
       btn.className='map-village-card';
+      btn.dataset.sfxSilent='1';
       btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
       btn.onclick=fn;
       row.appendChild(btn);
@@ -1190,7 +1192,7 @@ function _mapSalePrice(card){
 }
 function _mapPickSaleCard(pred, used){
   ensurePanelSaleStock();
-  const pool=(PANEL_POOL||[]).filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
+  const pool=(PANEL_POOL||[]).filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&!p._shopExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
   if(!pool.length) return null;
   const currentGrade=typeof _currentRewardMapGrade==='function'?_currentRewardMapGrade(G.rewardGrade||1):(G.rewardGrade||1);
   const def=typeof _rewardWeightedPick==='function'?_rewardWeightedPick(pool,currentGrade,used):randFrom(pool);
@@ -1212,12 +1214,18 @@ function openMapShop(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
+  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
   const node=_mapCurrentVillageNode();
   const waveKey=G._waveLoopEnabled?_waveFacilityCacheKey():null;
+  const shopAllowed=card=>{
+    if(!card) return false;
+    const def=(PANEL_POOL||[]).find(p=>p&&((card.id&&p.id===card.id)||(!card.id&&p.name===card.name)))||card;
+    return _isImplementedPoolCard(def)&&!def._shopExcluded&&!card._shopExcluded;
+  };
   if(node&&Array.isArray(node.shopStock)){
-    _rewCards=clone(node.shopStock||[]);
+    _rewCards=clone(node.shopStock||[]).filter(shopAllowed);
   }else if(waveKey!=null&&G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])){
-    _rewCards=clone(G._waveShopStock[waveKey]);
+    _rewCards=clone(G._waveShopStock[waveKey]).filter(shopAllowed);
   }else{
     const used=new Set();
     _rewCards=[
@@ -1229,6 +1237,22 @@ function openMapShop(){
     ];
     if(node) node.shopStock=clone(_rewCards);
     if(waveKey!=null){ G._waveShopStock=G._waveShopStock||{}; G._waveShopStock[waveKey]=clone(_rewCards); }
+  }
+  // 既存の村／waveキャッシュからショップ不可カードを除外した場合は、空いた枠を補充する。
+  if(_rewCards.length<5){
+    const used=new Set(_rewCards.filter(Boolean).map(c=>c.id||c.name));
+    const predicates=[
+      p=>Number(p.rarity)===1,
+      p=>Number(p.rarity)===1,
+      p=>Number(p.rarity)>=2,
+      p=>Number(p.rarity)>=2,
+      p=>Number(p.rarity)>=3,
+    ];
+    for(let i=_rewCards.length;i<5;i++){
+      const replacement=_mapPickSaleCard(predicates[i]||(()=>true),used);
+      if(!replacement) break;
+      _rewCards.push(replacement);
+    }
   }
   G._isShop=true;
   G._freeRewardPanelMode=false;
@@ -1248,6 +1272,7 @@ function openMapForge(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
+  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
   _rewCards=[];
   _rewFreePickDone=true;
   const node=_mapCurrentVillageNode();
@@ -1297,9 +1322,11 @@ function openMapRingExchange(){
   G._isVillageMenu=false;
   G._isTreasureMapReward=false;
   G._isRingExchange=true;
+  G._isWaveAltar=true;
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
+  if(typeof playSfx==='function') playSfx('altarIn',{group:'ui'});
   const waveKey=_waveFacilityCacheKey();
   const cache=G._waveRingExchange&&G._waveRingExchange[waveKey];
   if(cache){
@@ -1362,36 +1389,76 @@ function _mapForgeCandidateSlots(power){
   }
   return Array.from({length:size},(_,i)=>i).filter(i=>_mapPanelPowerIdAtSafe(i)==='summon');
 }
-async function _playMapForgeSlotRoll(candidates,target){
-  const ordered=[...candidates].sort((a,b)=>a-b);
+// カードのフェードアウト後の演出。召喚の力＝board_change1、それ以外＝board_change2の
+// webp＋SFXを再生する（旧ルーレット演出は廃止）。
+// targetSlotIdx：VFXを重ねる対象マス（実際に変化するマスと必ず一致させる）。
+// onMidpoint：VFX開始から0.5秒後に呼ばれる（マスの画像を変化後へ差し替えるため）。
+async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
+  const webpUrl=isSummon?'assets/vfx/board_change1.webp':'assets/vfx/board_change2.webp';
+  // board_change2.wavは未配置のため、召喚以外でも無音にならないようboard_change1.wavへ
+  // フォールバックする（専用音源が追加されたら下の候補順の先頭が自動的に使われる）。
+  const sfxCandidates=isSummon
+    ?['assets/sfx/board_change1.wav']
+    :['assets/sfx/board_change2.wav','assets/sfx/board_change1.wav'];
+  (function playFirstAvailable(i){
+    if(i>=sfxCandidates.length) return;
+    // errorイベントとplay()のreject（同じ読み込み失敗で両方起こりうる）で
+    // フォールバックが二重に走り音が重なるのを防ぐ。
+    let advanced=false;
+    const next=()=>{ if(advanced) return; advanced=true; playFirstAvailable(i+1); };
+    try{
+      const se=new Audio(sfxCandidates[i]);
+      se.volume=.85;
+      se.addEventListener('error',next,{once:true});
+      void Promise.resolve(se.play()).catch(next);
+    }catch(_e){ next(); }
+  })(0);
+  const slotEl=Number.isInteger(targetSlotIdx)
+    ?document.querySelector(`#hand-slots.unit-equip-slots > :nth-child(${targetSlotIdx+1})`):null;
+  const rect=slotEl&&slotEl.getBoundingClientRect?slotEl.getBoundingClientRect():null;
+  await new Promise(resolve=>{
+    const img=document.createElement('img');
+    img.className='map-board-change-vfx';
+    img.alt='';
+    // 対象マスの中心へ重ねる。
+    if(rect&&rect.width&&rect.height){
+      const size=Math.max(rect.width,rect.height)*2.6;
+      img.style.left=`${rect.left+rect.width/2}px`;
+      img.style.top=`${rect.top+rect.height*0.5}px`;
+      img.style.width=`${size}px`;
+      img.style.maxWidth='none';
+      img.style.height='auto';
+      img.style.transform='translate(-50%,-50%)';
+    }
+    img.src=webpUrl+(webpUrl.includes('?')?'&':'?')+'_r='+Math.random();
+    document.body.appendChild(img);
+    let done=false;
+    const finish=()=>{ if(done) return; done=true; img.remove(); resolve(); };
+    if(typeof onMidpoint==='function') setTimeout(()=>{ try{ onMidpoint(); }catch(_e){} },500);
+    // webpアニメーションは再生完了イベントを持たないため、固定尺で終える。
+    setTimeout(finish,1200);
+  });
+}
+async function _playMapForgeSlotRoll(candidates,target,power){
   G._mapForgeAnimating=true;
-  G._mapForgeCandidateSlots=ordered;
+  // 候補マスの一斉発光も、対象マスの白い枠発光も廃止。対象位置はVFX（webp）だけで示す。
+  G._mapForgeCandidateSlots=null;
   G._mapForgeHighlightSlot=null;
   document.body?.classList.remove('map-forge-roll-hide-cards');
+  // 先にカードへ .map-forge-roll-card-fade を付けた状態で描画しておく。
   if(typeof renderHandEditor==='function') renderHandEditor();
-  await _mapDelay(120);
+  await _mapDelay(60);
+  // ここではrenderHandEditor()を呼ばない。DOMを作り直すと新要素が最初からopacity:0で
+  // 生成されCSS transitionが走らず「急に消える」ため、クラス追加だけでフェードさせる。
   document.body?.classList.add('map-forge-roll-hide-cards');
-  if(typeof renderHandEditor==='function') renderHandEditor();
-  if(ordered.length<=1){
-    G._mapForgeHighlightSlot=target;
+  await _mapDelay(500);
+  await _playMapBoardChangeVfx(power&&power.id==='summon',target,()=>{
+    // VFX開始0.5秒後にマス画像を変化後のものへ差し替える。
+    G.mapPanelPowers=G.mapPanelPowers||{};
+    G.mapPanelPowers[target]=power.id;
     if(typeof renderHandEditor==='function') renderHandEditor();
-    await _mapDelay(260);
-    return;
-  }
-  await _mapDelay(260);
-  const targetPos=Math.max(0,ordered.indexOf(target));
-  const loops=4;
-  const steps=ordered.length*loops+targetPos+1;
-  for(let s=0;s<steps;s++){
-    const t=steps<=1?1:s/(steps-1);
-    const delay=32+Math.pow(t,2.2)*150;
-    G._mapForgeHighlightSlot=ordered[s%ordered.length];
-    if(typeof renderHandEditor==='function') renderHandEditor();
-    await _mapDelay(delay);
-  }
-  G._mapForgeHighlightSlot=target;
-  if(typeof renderHandEditor==='function') renderHandEditor();
-  await _mapDelay(420);
+  });
+  await _mapDelay(220);
 }
 async function applyPendingMapForgePower(powerOrSlotIdx){
   if(G._mapForgeAnimating) return false;
@@ -1404,11 +1471,12 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   G.gold-=power.price;
   G._pendingMapForgePower=power;
   G._mapForgeAnimating=true;
-  G._mapForgeCandidateSlots=[...candidates].sort((a,b)=>a-b);
+  // 候補マスの一斉発光は廃止（_playMapForgeSlotRoll側で対象1マスのみ光らせる）。
+  G._mapForgeCandidateSlots=null;
   G._mapForgeHighlightSlot=null;
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   renderMapForgeOffers();
-  await _playMapForgeSlotRoll(candidates,target);
+  await _playMapForgeSlotRoll(candidates,target,power);
   G.mapPanelPowers=G.mapPanelPowers||{};
   G.mapPanelPowers[target]=power.id;
   const offerIdx=(G._mapForgeOffers||[]).findIndex(p=>p&&p.id===power.id);

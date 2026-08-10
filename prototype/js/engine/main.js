@@ -47,10 +47,12 @@ function updateHUD(){
     const life=displayLife;
     lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(3-life)}</span><span class="life-full">${Array.from({length:life},()=>'<span class="life-heart">♥</span>').join('')}</span>`;
   }
-  document.getElementById('h-gold').textContent=G.gold;
+  // 所持金はカウントアップ演出中の表示値を使い、3桁区切りで表示する。
+  const _goldShown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
+  document.getElementById('h-gold').textContent=Number(_goldShown).toLocaleString('ja-JP');
   document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
   const battleGold=document.getElementById('battle-gold-value');
-  if(battleGold) battleGold.textContent=String(G.gold);
+  if(battleGold) battleGold.textContent=Number(_goldShown).toLocaleString('ja-JP');
   const battleLife=document.getElementById('battle-life-value');
   if(battleLife){
     const life=displayLife;
@@ -661,12 +663,12 @@ function startGame(debugMode){
   G._debugMode=!!debugMode;
   if(G._debugMode){
     _giveDebugGolem();
-    G.gold=999;
+    G.gold=100000;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='';
     const muteBtn=document.getElementById('battle-mute-btn');
     if(muteBtn) muteBtn.style.display='';
-    log('[DEBUG] デバッグモード：ソウル999','sys');
+    log('[DEBUG] デバッグモード：ソウル100000','sys');
     requestAnimationFrame(_positionDebugKillButton);
     requestAnimationFrame(_positionDebugMuteButton);
   } else {
@@ -759,6 +761,7 @@ function continueAfterBattleVictory(){
 }
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
   // ここでの味方生存チェックは常にtrueとなり誤って早期returnしてしまう。勝利可否は呼び出し元で判定済み。
   // 「You Win」表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる
@@ -768,7 +771,7 @@ function showVictoryOverlay(onShown,shownDuration){
     const isWithdraw=!!G._waveWithdraw;
     if(!isWithdraw&&typeof playSfx==='function') playSfx(G._bossJustDefeated?'bossVictory':'victory',{group:'ui'});
     const cutin=(typeof showBattleCutin==='function')
-      ? showBattleCutin(isWithdraw?'retreat':'victory',{durationMs:Math.max(1800,Number(shownDuration)||2200)})
+      ? showBattleCutin(isWithdraw?'retreat':'victory',{durationMs:Math.max(1500,Number(shownDuration)||1800)})
       : Promise.resolve();
     Promise.resolve(cutin).then(overlay=>{
       // 勝利・撤退とも、結果表示を保持したまま「進む」入力を待つ。

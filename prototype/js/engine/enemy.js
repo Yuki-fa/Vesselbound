@@ -112,6 +112,41 @@ function _pickBossEnemyDef(grade){
   return pool.length?randFrom(pool):null;
 }
 
+// 「旅の進捗」パネルでエリート/ボスの名前・効果・ステータスをホバー表示するため、
+// 実際の戦闘開始（generateEnemies/generateEliteEnemies）より前に個体・ATK/HPを1回だけ
+// 確定してG._waveEnemyPreviewへキャッシュする（先読み確定）。以降、そのwaveの実戦闘でも
+// このキャッシュをそのまま使うことで、表示内容と実際の戦闘結果を一致させる。
+function _ensureWaveEnemyPreview(wave,type){
+  if(!G._waveLoopEnabled) return null;
+  const w=Math.max(1,Number(wave)||1);
+  const key=`${w}:${type}`;
+  G._waveEnemyPreview=G._waveEnemyPreview||{};
+  if(G._waveEnemyPreview[key]) return G._waveEnemyPreview[key];
+  const stage=type==='boss'?(w===5?4:9):3;
+  const floor=typeof _waveStageFloor==='function'?_waveStageFloor(w,stage):1;
+  const baseG=(typeof FLOOR_DATA!=='undefined'&&FLOOR_DATA[floor]?.grade)||rollEnemyGrade(floor);
+  const fixedDef=w===5?_fixedFinalEnemyDef(type==='boss'?'EN075':'EN074'):null;
+  // 同一wave内でエリートとボスに同じ個体が重複して選ばれないよう、既に確定済みの
+  // 反対側（elite⇔boss）の名前は候補から除外する（_pickBossEnemyDefのused除外は
+  // wave-loopフローではG.worldMapRun未初期化のため機能していないための補完）。
+  const otherType=type==='boss'?'elite':'boss';
+  const otherPreview=G._waveEnemyPreview[`${w}:${otherType}`];
+  const excludeName=otherPreview&&otherPreview.def?otherPreview.def.name:null;
+  let def=fixedDef;
+  if(!def&&excludeName){
+    const pool=ENEMY_POOL.filter(e=>e.grade===baseG&&e.bossOnly&&e.name!==excludeName);
+    def=pool.length?randFrom(pool):null;
+  }
+  def=def||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+  if(!def) return null;
+  // _startWaveBattle()のG._extraBattleMult計算（main.js）と同じ倍率を使う。
+  const mult=type==='boss'?2:1.5;
+  const {atk,hp}=enemyStats(def,floor,mult);
+  const preview={def,atk,hp,floor,grade:baseG,wave:w,type};
+  G._waveEnemyPreview[key]=preview;
+  return preview;
+}
+
 function _sideBossDef(def, grade){
   const same=ENEMY_POOL.find(e=>e!==def && !e.bossOnly && !e.unique && !e._isNamed && e.grade===grade && e.name===def.name);
   if(same) return same;
@@ -183,15 +218,20 @@ function generateEnemies(floor){
 
   if(isBoss){
     const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
+    // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
+    const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
+      ?_ensureWaveEnemyPreview(G._wave,'boss'):null;
     const fixedFinalBoss=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===4
       ?_fixedFinalEnemyDef('EN075'):null;
-    const bossDef=fixedFinalBoss||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+    const bossDef=(preview&&preview.def)||fixedFinalBoss||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
     if(G.worldMapRun&&bossDef){
       G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
       if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
     }
     const make=(def,isCenter)=>{
-      const {atk,hp}=enemyStats(def,floor,G._forceBossMult||G._extraBattleMult||1.5);
+      const {atk,hp}=(isCenter&&preview&&preview.def===def)
+        ?{atk:preview.atk,hp:preview.hp}
+        :enemyStats(def,floor,G._forceBossMult||G._extraBattleMult||1.5);
       const kws=[...(def.keywords||[])];
       if(isCenter&&!kws.includes('ボス')) kws.push('ボス');
       const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
@@ -320,15 +360,20 @@ function generateEnemies(floor){
 
 function generateEliteEnemies(floor){
   const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
+  // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
+  const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
+    ?_ensureWaveEnemyPreview(G._wave,'elite'):null;
   const fixedFinalElite=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===3
     ?_fixedFinalEnemyDef('EN074'):null;
-  const bossDef=fixedFinalElite||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+  const bossDef=(preview&&preview.def)||fixedFinalElite||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
   if(G.worldMapRun&&bossDef){
     G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
     if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
   }
   const make=(def,isCenter)=>{
-    const {atk,hp}=enemyStats(def,floor,(G._extraBattleMult||1.0));
+    const {atk,hp}=(isCenter&&preview&&preview.def===def)
+      ?{atk:preview.atk,hp:preview.hp}
+      :enemyStats(def,floor,(G._extraBattleMult||1.0));
     const kws=[...(def.keywords||[])];
     if(isCenter&&!kws.includes('エリート')) kws.push('エリート');
     const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws.filter(k=>k!=='ボス'),def.race||'-');
