@@ -1750,9 +1750,9 @@ body.battle-victory-pending .slot.unit-card.drag-over::before{
   animation:none!important;
   opacity:0!important;
 }
-body.battle-victory-pending #kw-tooltip,
-body.battle-victory-pending #map-power-tooltip,
-body.battle-victory-pending #keyword-tooltip{
+body.battle-victory-pending:not(.gameover-active) #kw-tooltip,
+body.battle-victory-pending:not(.gameover-active) #map-power-tooltip,
+body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
   display:none!important;
 }
 .map-village-card,
@@ -7225,10 +7225,10 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card-empty{
 html body.reward-screen-active #debug-card-palette{
   display:none;
   position:absolute;
-  left:2778px;
+  left:2809.5px;
   top:684px;
   width:900px;
-  height:1128px;
+  height:1086px;
   z-index:24;
   pointer-events:auto;
   background:rgba(5,3,12,.72);
@@ -7240,27 +7240,6 @@ html body.reward-screen-active #debug-card-palette{
 }
 html body.reward-screen-active.debug-mode #debug-card-palette{
   display:block;
-}
-html body.reward-screen-active #debug-card-palette .debug-palette-jump{
-  display:flex;
-  gap:8px;
-  margin:0 0 8px;
-}
-html body.reward-screen-active #debug-card-palette .debug-palette-jump-shop,
-html body.reward-screen-active #debug-card-palette .debug-palette-jump-forge{
-  flex:1;
-  height:34px;
-  border:1px solid rgba(183,143,82,.55);
-  background:rgba(20,10,30,.72);
-  color:#d7c0a0;
-  font-size:15px;
-  cursor:pointer;
-}
-html body.reward-screen-active #debug-card-palette .debug-palette-jump-shop:hover,
-html body.reward-screen-active #debug-card-palette .debug-palette-jump-forge:hover{
-  border-color:#f2d49a;
-  color:#f2d49a;
-  box-shadow:0 0 10px rgba(242,212,154,.32);
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-head{
   height:42px;
@@ -7301,7 +7280,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-rotate:hover{
   box-shadow:0 0 10px rgba(242,212,154,.32);
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-list{
-  height:calc(100% - 98px);
+  height:calc(100% - 56px);
   min-height:0;
   box-sizing:border-box;
   overflow:auto;
@@ -9081,7 +9060,7 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
 #kw-tooltip.map-tooltip{
   background:#111c2a!important;border-color:#4080b0!important;color:#b8cce4!important;
   width:calc(460px * var(--game-scale))!important;max-width:calc(460px * var(--game-scale))!important;
-  box-sizing:border-box!important;
+  box-sizing:border-box!important;box-shadow:0 2px 8px rgba(0,0,0,.6)!important;
 }
 #kw-tooltip{
   width:calc(460px * var(--game-scale))!important;
@@ -9155,7 +9134,18 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
   left:auto!important;
 }
 #map-power-tooltip .preview-title,
-#kw-tooltip.map-tooltip .preview-title{border-bottom-color:#4080b0!important}
+#kw-tooltip.map-tooltip .preview-title{color:#fff2c8!important;border-bottom-color:#4080b0!important}
+#map-power-tooltip{
+  background:#111c2a!important;border-color:#4080b0!important;color:#b8cce4!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.6)!important;
+}
+#map-power-tooltip strong{color:#fff2c8!important}
+#keyword-tooltip{
+  background:rgba(35,19,10,.97)!important;border-color:#c49a6c!important;color:#f0dfc4!important;
+  box-shadow:0 0 18px rgba(196,154,108,.38),0 8px 24px rgba(0,0,0,.75)!important;
+}
+#keyword-tooltip strong{color:#f3d69a!important}
+#keyword-tooltip .preview-title{color:#f3d69a!important;border-bottom-color:rgba(196,154,108,.72)!important}
 /* 特殊マスの境界線をカード・キャラクター描画より前面に固定 */
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"],
 html body #hand-slots.unit-equip-slots > [data-map-board="life"],
@@ -10006,13 +9996,13 @@ html body #scr-battle #battle-options-btn::before{
   opacity:.72!important;
 }
 
-/* 左側パネルは元SVGを1020x455のまま上端から描画し、下端90pxだけを
-   元SVGの下端から重ねる。四隅と四辺を縮小せず、高さだけを詰める。 */
+/* 左側パネルは元SVGの上部と下端90pxを重ならない領域へ分けて描画する。
+   四隅と四辺を縮小せず、半透明の背面が下部だけ二重になることも防ぐ。 */
 html body.reward-screen-active .reward-prod-item,
 html body.reward-screen-active .reward-prod-ring,
 html body.reward-screen-active .reward-prod-quest,
 html body.reward-screen-active .reward-prod-journey{
-  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat!important;
+  background:none!important;
   border:0!important;
   box-sizing:border-box!important;
 }
@@ -10020,8 +10010,16 @@ html body.reward-screen-active .reward-prod-item::before,
 html body.reward-screen-active .reward-prod-ring::before,
 html body.reward-screen-active .reward-prod-quest::before,
 html body.reward-screen-active .reward-prod-journey::before{
-  content:none!important;
-  display:none!important;
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:0!important;
+  bottom:90px!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat!important;
 }
 html body.reward-screen-active .reward-prod-item::after,
 html body.reward-screen-active .reward-prod-ring::after,
@@ -10296,6 +10294,16 @@ html body #scr-battle #battle-options-btn:hover::before,
 html body.reward-screen-active #battle-options-btn:hover::before,
 html body.world-map-active #battle-options-btn:hover::before{
   opacity:.84!important;
+}
+html body #scr-battle #battle-options-btn::after,
+html body.reward-screen-active #battle-options-btn::after,
+html body.world-map-active #battle-options-btn::after{
+  transition:filter .15s ease!important;
+}
+html body #scr-battle #battle-options-btn:hover::after,
+html body.reward-screen-active #battle-options-btn:hover::after,
+html body.world-map-active #battle-options-btn:hover::after{
+  filter:grayscale(.65) brightness(1.35)!important;
 }
 
 /* 勝利／撤退画面の進むボタンは元に戻すと同じ横幅へ縮小する。 */
@@ -10895,6 +10903,242 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump{
 html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
   filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
 }
+
+/* ゲームオーバー：背景を残したまま結果と敗北時点の魔導板を表示する。 */
+#scr-gameover{display:none;overflow:hidden;background:#07100d url('assets/art/backgrounds/game_start.png') center/cover no-repeat;color:#eee}
+#scr-gameover.active{display:block}
+#scr-gameover::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.68);animation:gameoverDarken .4s ease-out both;pointer-events:none}
+#gameover-shell{position:absolute;left:7%;right:7%;top:10%;bottom:10%;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:5%;padding:70px 78px;border:3px solid rgba(194,145,34,.85);background:rgba(8,13,10,.48);box-shadow:inset 0 0 60px rgba(0,0,0,.35);animation:gameoverFrameIn .4s .4s ease-out both}
+#gameover-results{padding:20px 36px 0;min-width:0}
+#gameover-results h1{margin:0;text-align:center;font-family:var(--font-hd);font-size:clamp(42px,4.5vw,92px);letter-spacing:.18em;color:#f2eee4;text-shadow:0 0 16px rgba(255,255,255,.2);animation:gameoverRise .4s .45s both}
+.gameover-line{display:block;width:88%;height:auto;margin:26px auto 44px;opacity:.9;animation:gameoverLineFlash .55s .5s both}
+.gameover-rows{display:grid;gap:20px;font-family:var(--font-hd);font-size:clamp(18px,1.4vw,31px);color:#ddd0b3}
+.gameover-rows>div{display:grid;grid-template-columns:42% 58%;animation:gameoverRowIn .35s both}
+.gameover-rows>div:nth-child(1){animation-delay:1.45s}.gameover-rows>div:nth-child(2){animation-delay:1.55s}.gameover-rows>div:nth-child(3){animation-delay:1.65s}.gameover-rows>div:nth-child(4){animation-delay:1.75s}.gameover-rows>div:nth-child(5){animation-delay:1.85s}.gameover-rows>div:nth-child(6){animation-delay:1.95s}.gameover-rows>div:nth-child(7){animation-delay:2.05s}
+.gameover-rows span{color:#f0e9d8;text-shadow:0 0 8px rgba(255,220,160,.15)}
+#gameover-actions{display:flex;gap:24px;justify-content:center;margin-top:48px;animation:gameoverRowIn .4s 2.15s both}
+#gameover-actions .btn{min-width:310px;font-size:26px;padding:18px 28px}
+#gameover-board-panel{position:relative;min-width:0;padding:28px 24px 24px;border:3px solid rgba(194,145,34,.75);background:rgba(20,12,5,.54);box-shadow:inset 0 0 30px rgba(0,0,0,.38);animation:gameoverFrameIn .45s 1.45s both}
+.gameover-board-title{text-align:center;font-family:var(--font-hd);font-size:32px;color:#e8c976;letter-spacing:.15em;margin-bottom:24px}
+#gameover-board-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:10px;height:calc(100% - 74px);align-content:center;justify-items:center;overflow:visible}
+#gameover-board-grid>.card-empty{width:100%;height:100%;min-height:80px;border:2px solid rgba(190,140,55,.5);border-radius:10px;background:rgba(35,18,7,.5)}
+#gameover-board-grid>.card{position:relative!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;transform:none!important;cursor:default!important;pointer-events:auto!important}
+#gameover-board-grid .card:hover{filter:none!important}
+html body.right-card-peek #gameover-board-grid>.card{opacity:0!important;visibility:hidden!important}
+html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;visibility:visible!important}
+@keyframes gameoverDarken{from{opacity:0}to{opacity:1}}
+@keyframes gameoverFrameIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+@keyframes gameoverRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes gameoverLineFlash{0%{opacity:0;filter:brightness(2.5);transform:scaleX(.5)}45%{opacity:1;filter:brightness(2)}100%{opacity:.9;filter:none;transform:scaleX(1)}}
+@keyframes gameoverRowIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){#gameover-shell{left:3%;right:3%;padding:30px;gap:20px}.gameover-rows{gap:10px}#gameover-actions .btn{min-width:0;font-size:18px}}
+
+/* ゲームオーバー最終レイアウト：ゲーム画面を維持したまま、その上へgame_over.svgを重ねる。 */
+#scr-gameover.gameover-overlay-active{
+  display:block!important;position:fixed!important;inset:0!important;z-index:9000!important;
+  overflow:hidden!important;background:transparent!important;pointer-events:none!important;
+}
+#scr-gameover.gameover-overlay-active::before{display:none!important}
+#gameover-shell{
+  left:7.3%!important;top:15.5%!important;right:auto!important;bottom:auto!important;
+  width:85.4%!important;height:74.45%!important;aspect-ratio:3304.2/1608!important;
+  display:block!important;padding:0!important;border:0!important;background:transparent!important;
+  box-shadow:none!important;animation:none!important;
+}
+#gameover-frame{display:none!important}
+#gameover-results{position:absolute;left:3.3%;top:7%;width:43%;height:86%;padding:0!important;z-index:2}
+#gameover-results h1{font-size:140px!important;line-height:1!important;letter-spacing:.12em!important;margin:0 0 52px!important;font-weight:700!important;background:linear-gradient(115deg,#554b3e 0%,#d9d0bd 38%,#746653 64%,#312b24 100%);background-size:240% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:gameoverTitleGradient .9s .45s ease-out both!important}
+.gameover-line{width:84%!important;margin:0 auto 62px!important;height:auto!important;filter:brightness(.62) sepia(.3) saturate(.75)!important;animation:gameoverLineGradient .9s .5s ease-out both!important}
+#gameover-results h1,.gameover-line,#gameover-actions{transform:translateX(65px)!important}
+.gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:220px!important;row-gap:78px!important;justify-content:center!important;font-size:54px!important;line-height:1.15!important}
+.gameover-rows>div{display:contents!important}
+.gameover-rows b{font-weight:700!important;white-space:nowrap}
+.gameover-rows span{white-space:nowrap}
+#gameover-actions{gap:30px!important;margin-top:78px!important}
+#gameover-actions .btn{position:relative!important;min-width:0!important;width:496px!important;height:122px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent center/100% 100% no-repeat!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;line-height:normal!important;letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;overflow:visible!important;box-sizing:border-box!important}
+#gameover-actions .btn{isolation:isolate!important;background-color:transparent!important}
+#gameover-actions .btn{background:none!important}
+#gameover-actions .btn::after{content:""!important;position:absolute!important;inset:0!important;background:transparent center/100% 100% no-repeat!important;pointer-events:none!important;z-index:-1!important}
+#gameover-actions #gameover-retry-btn::after{background-image:url("assets/ui/button_retry.svg")!important}
+#gameover-actions #gameover-back-btn::after{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions .btn::before{content:""!important;position:absolute!important;inset:0!important;background:transparent center/100% 100% no-repeat!important;filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));opacity:0;pointer-events:none;z-index:-1}
+#gameover-actions #gameover-retry-btn::before{background-image:url("assets/ui/button_retry.svg")!important}
+#gameover-actions #gameover-back-btn::before{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions .btn:hover::before{opacity:1;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite}
+#gameover-actions #gameover-retry-btn:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+#gameover-actions #gameover-retry-btn:hover::before{opacity:.82!important}
+#gameover-actions #gameover-back-btn:hover::after{filter:brightness(1.45)!important}
+#gameover-actions #gameover-back-btn:hover::before{opacity:.55!important}
+#gameover-actions #gameover-retry-btn:hover,
+#gameover-actions #gameover-back-btn:hover{
+  box-shadow:none!important;outline:none!important;
+}
+#gameover-board-panel{position:absolute;left:48%;top:50%;width:1630.1997px;height:1407px;transform:translateY(-50%);padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;z-index:2;animation:gameoverBoardReveal .45s 1.45s both!important;overflow:visible!important}
+.gameover-board-title{display:none!important}
+#gameover-board-grid{position:absolute;inset:0!important;width:1630.1997px!important;height:1407px!important;display:block!important;overflow:visible!important}
+html body.gameover-active #gameover-board-grid>#hand-pane-board-bg{
+  display:block!important;position:absolute!important;left:0!important;top:0!important;
+  width:1630.1997px!important;height:1407px!important;
+  background-image:
+    url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),
+    url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),url("assets/ui/mark.svg"),
+    url("assets/ui/board.svg?v=back50")!important;
+  background-repeat:no-repeat!important;
+  background-position:
+    351px 520px,639px 520px,927px 520px,1215px 520px,
+    351px 943px,639px 943px,927px 943px,1215px 943px,center!important;
+  background-size:
+    28px 28px,28px 28px,28px 28px,28px 28px,
+    28px 28px,28px 28px,28px 28px,28px 28px,100% 100%!important;
+  z-index:9!important;pointer-events:none!important;
+}
+html body.gameover-active #gameover-board-grid>#hand-pane{
+  display:block!important;position:absolute!important;left:-20px!important;top:0!important;
+  width:1632px!important;height:1407px!important;min-width:1632px!important;max-width:1632px!important;
+  padding:0!important;margin:0!important;background:none!important;border:0!important;box-shadow:none!important;
+  z-index:10!important;overflow:visible!important;transform:none!important;
+}
+html body.gameover-active #gameover-board-grid>#hand-pane::before{
+  content:"魔導板";position:absolute;left:0;right:0;top:48px;z-index:4;display:block!important;
+  text-align:center;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;
+  color:var(--prod-gold);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;
+}
+html body.gameover-active #gameover-board-grid #hand-slots.unit-equip-slots{
+  position:absolute!important;left:110px!important;top:126px!important;width:1412px!important;height:1230px!important;
+  display:grid!important;grid-template-columns:repeat(5,var(--prod-card-w))!important;
+  grid-template-rows:repeat(3,var(--prod-card-h))!important;gap:var(--prod-card-gap)!important;
+  padding:0!important;margin:0!important;justify-content:center!important;align-content:start!important;
+  background:none!important;overflow:visible!important;
+}
+html body.gameover-active #gameover-board-grid #hand-slots.unit-equip-slots>.card,
+html body.gameover-active #gameover-board-grid #hand-slots.unit-equip-slots>.card-empty{
+  width:var(--prod-card-w)!important;min-width:var(--prod-card-w)!important;max-width:var(--prod-card-w)!important;
+  height:var(--prod-card-h)!important;min-height:var(--prod-card-h)!important;max-height:var(--prod-card-h)!important;
+}
+html body.gameover-active #kw-tooltip,
+html body.gameover-active #kw-tooltip *,
+html body.gameover-active #map-power-tooltip,
+html body.gameover-active #map-power-tooltip *,
+html body.gameover-active #keyword-tooltip,
+html body.gameover-active #keyword-tooltip *{
+  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+}
+#gameover-board-grid #hand-slots.unit-equip-slots>.card,
+#gameover-board-grid #hand-slots.unit-equip-slots>.card-empty{cursor:default!important;pointer-events:auto!important}
+#gameover-board-grid #hand-slots.unit-equip-slots>.card:hover{transform:none!important;filter:none!important}
+html body.gameover-active #gameover-board-grid .card{cursor:default!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card{opacity:0!important;visibility:hidden!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card-empty{opacity:1!important;visibility:visible!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .board-frame-layer,
+html body.gameover-active.right-card-peek #gameover-board-grid .map-boundary-layer{display:block!important;opacity:1!important;visibility:visible!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card{
+  opacity:1!important;visibility:visible!important;filter:none!important;
+}
+html body.gameover-active.right-card-peek #gameover-board-grid .card > *:not(.board-frame-layer):not(.map-boundary-layer){visibility:hidden!important;opacity:0!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="summon"]{background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="life"]{background:url("assets/cards/m_board2.svg") center/100% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="eternal"]{background:url("assets/cards/m_board3.svg") center/109.6% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="resonance"]{background:url("assets/cards/m_board4.svg") center/112.7% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="duplicate"]{background:url("assets/cards/m_board5.svg") center/105.5% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card > .board-frame-layer{display:block!important;visibility:visible!important;opacity:1!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board]) > .board-frame-layer{
+  display:block!important;visibility:visible!important;opacity:1!important;
+  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+}
+html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board]){
+  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  border:0!important;box-shadow:none!important;
+}
+html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board])::before,
+html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board])::after,
+html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board]) > .character-frame-layer{
+  display:none!important;visibility:hidden!important;opacity:0!important;background:none!important;
+}
+/* ゲームオーバー魔導板では、ドラッグ系クラスが付いても右クリック非表示を解除しない。 */
+html body.gameover-active.right-card-peek #gameover-board-grid .card.dragging > *:not(.board-frame-layer):not(.map-boundary-layer),
+html body.gameover-active.right-card-peek[class*="dragzone-"] #gameover-board-grid .card > *:not(.board-frame-layer):not(.map-boundary-layer),
+html body.gameover-active.right-card-peek.dragging-in-battle #gameover-board-grid .card > *:not(.board-frame-layer):not(.map-boundary-layer){
+  visibility:hidden!important;opacity:0!important;
+}
+html body.gameover-active.right-card-peek .drag-ghost{display:none!important}
+
+/* デバッグボタンは報酬カード枠の右側かつ、デバッグカード枠の外側上部に置く。 */
+html body.reward-screen-active.debug-mode #btn-test-battle,
+html body.reward-screen-active.debug-mode #btn-debug-gameover{
+  position:absolute!important;top:524.737px!important;width:492.972px!important;height:121.263px!important;
+  z-index:28!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;white-space:nowrap!important;opacity:1!important;border:0!important;border-radius:0!important;
+  background:transparent url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  color:var(--prod-gold)!important;display:block!important;overflow:visible!important;
+}
+html body.reward-screen-active.debug-mode #btn-test-battle{left:2749px!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover{left:3277.028px!important}
+html body.reward-screen-active.debug-mode #btn-test-battle::before,
+html body.reward-screen-active.debug-mode #btn-debug-gameover::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
+html body.reward-screen-active.debug-mode #btn-test-battle:hover::before,
+html body.reward-screen-active.debug-mode #btn-debug-gameover:hover::before{opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important}
+html body.reward-screen-active.debug-mode #btn-test-battle:hover,
+html body.reward-screen-active.debug-mode #btn-debug-gameover:hover{
+  box-shadow:none!important;outline:none!important;filter:none!important;
+}
+html body.reward-screen-active.debug-mode #btn-debug-gameover{font-size:30px!important}
+
+html body.gameover-active #scr-battle .battle-scroll,
+html body.gameover-active #scr-battle .bctl-wrap,
+html body.gameover-active #scr-battle .bottom-hud,
+html body.gameover-active #scr-battle #reward-production-ui,
+html body.gameover-active #scr-battle #enemy-area,
+html body.gameover-active #scr-battle #ally-section,
+html body.gameover-active #scr-battle #main-hand-area,
+html body.gameover-active #scr-battle #log-wrap,
+html body.gameover-active #scr-battle #reward-cards-section,
+html body.gameover-active #scr-battle #battle-order-section,
+html body.gameover-active #scr-battle #reward-move-btns{
+  visibility:hidden!important;pointer-events:none!important;
+}
+html body.gameover-active #scr-battle .card,
+html body.gameover-active #scr-battle .unit-card{visibility:hidden!important;pointer-events:none!important}
+html body.gameover-active #scr-battle #battle-options-btn,
+html body.gameover-active #scr-battle #battle-status-hud,
+html body.gameover-active #scr-battle #battle-counters{
+  visibility:visible!important;pointer-events:auto!important;z-index:10000!important;
+}
+html body.gameover-active #battle-end-fade{position:absolute!important;inset:0!important;z-index:69!important;visibility:visible!important;opacity:.78!important;pointer-events:none!important}
+html body.gameover-active #scr-battle #battle-options-btn{opacity:1!important;filter:none!important}
+html body.gameover-active #btn-test-battle,html body.gameover-active #btn-debug-gameover{display:none!important}
+@keyframes gameoverTitleGradient{0%{opacity:0;background-position:100% 0;filter:brightness(.28)}45%{opacity:1;filter:brightness(.55)}100%{opacity:1;background-position:0 0;filter:none}}
+@keyframes gameoverLineGradient{0%{opacity:0;filter:brightness(.12) sepia(.2) saturate(.35)}45%{opacity:.85;filter:brightness(.42) sepia(.25) saturate(.55)}100%{opacity:.9;filter:brightness(.62) sepia(.3) saturate(.75)}}
+@keyframes gameoverBoardReveal{from{opacity:0;transform:translateY(-50%) scale(.985)}to{opacity:1;transform:translateY(-50%) scale(1)}}
+html body.gameover-active #gameover-shell{pointer-events:auto!important}
+/* 戦闘画面内の従来オーバーレイ層で動画を表示し、HUDやオプションは手前に残す。 */
+#gameover-video{
+  position:absolute;inset:0;width:100%;height:100%;z-index:70;object-fit:cover;object-position:center center;
+  opacity:0;visibility:hidden;background:#000;pointer-events:none;
+  transition:opacity .9s ease,visibility 0s linear .9s;
+}
+html body.gameover-active #gameover-video{visibility:visible;transition:opacity .9s ease}
+html body.gameover-active #gameover-video.is-visible{opacity:1}
+#gameover-video-tint{
+  position:absolute;inset:0;z-index:71;background:#b3132f;mix-blend-mode:color;opacity:0;visibility:hidden;pointer-events:none;
+}
+html body.gameover-active #gameover-video-tint{visibility:visible}
+#gameover-video-shade{
+  position:absolute;inset:0;z-index:72;background:#000;opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity 1.2s ease-out,visibility 0s linear 1.2s;
+}
+html body.gameover-active #gameover-video-shade{
+  visibility:visible;opacity:.2;transition:opacity 1.2s ease-out;
+}
+html body.gameover-active #reward-bg-video{visibility:hidden!important;opacity:0!important}
+/* display:contentsの行親ではなく、実際の文字要素へ順番に出現演出を適用する。 */
+html body.gameover-active .gameover-rows>div>b,
+html body.gameover-active .gameover-rows>div>span{opacity:0;animation:gameoverRowIn .35s both}
+html body.gameover-active .gameover-rows>div:nth-child(1)>*{animation-delay:1.45s}
+html body.gameover-active .gameover-rows>div:nth-child(2)>*{animation-delay:1.55s}
+html body.gameover-active .gameover-rows>div:nth-child(3)>*{animation-delay:1.65s}
+html body.gameover-active .gameover-rows>div:nth-child(4)>*{animation-delay:1.75s}
+html body.gameover-active .gameover-rows>div:nth-child(5)>*{animation-delay:1.85s}
+html body.gameover-active .gameover-rows>div:nth-child(6)>*{animation-delay:1.95s}
+html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05s}
 </style>
 </head>
 <body>
@@ -10921,6 +11165,9 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
   <video id="reward-bg-video" src="assets/art/backgrounds/back1.webm" autoplay loop muted playsinline></video>
   <button id="battle-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
   <div id="battle-end-fade" aria-hidden="true"></div>
+  <video id="gameover-video" src="assets/art/backgrounds/game_over.webm" preload="auto" loop muted playsinline></video>
+  <div id="gameover-video-tint" aria-hidden="true"></div>
+  <div id="gameover-video-shade" aria-hidden="true"></div>
   <div id="battle-transition-fade" aria-hidden="true"></div>
   <div id="battle-counters" aria-label="戦闘カウンター">
     <div class="battle-counter">
@@ -10998,7 +11245,8 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
       <div id="map-inventory-slots"></div>
     </div>
     <!-- デバッグモード：演出確認用の試験戦闘ボタン（編成完了/元に戻すの上に表示） -->
-    <button id="btn-test-battle" class="btn" data-sfx-silent="1" onclick="startTestBattle()" style="display:none;position:fixed;left:2740px;top:1808px;width:1020px;height:124px;font-size:var(--prod-panel-title-size,28px)">試験戦闘</button>
+    <button id="btn-test-battle" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:test-battle'});startTestBattle()" style="display:none;position:fixed;left:2740px;top:1808px;width:1020px;height:124px;font-size:var(--prod-panel-title-size,28px)">試験戦闘</button>
+    <button id="btn-debug-gameover" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:debug-gameover'});debugGameOver()" style="display:none;position:fixed;left:2740px;top:1660px;width:1020px;height:110px;font-size:var(--prod-panel-title-size,28px);opacity:.85;background:rgba(80,20,30,.3);border-color:rgba(200,80,80,.65);color:#f99;z-index:25">ゲームオーバー確認</button>
     <button id="map-village-extra-btn" class="btn" data-sfx-silent="1" style="display:none">情報</button>
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
@@ -11146,9 +11394,23 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
 
 <!-- GAMEOVER / CLEAR -->
 <div id="scr-gameover" class="screen">
-  <div class="result-title over">GAME OVER</div>
-  <div class="result-sub" id="go-sub"></div>
-  <button class="btn" onclick="startGame(G._debugMode)">もう一度</button>
+  <div id="gameover-shell">
+    <img id="gameover-frame" src="assets/ui/game_over.svg" alt="">
+    <section id="gameover-results">
+      <h1>旅の終焉</h1><img src="assets/ui/battle_line.svg" alt="" class="gameover-line">
+      <div class="gameover-rows">
+        <div><b>到達地点</b><span id="go-area">—</span></div>
+        <div><b>最終戦闘</b><span id="go-final">—</span></div>
+        <div><b>味方死亡回数</b><span id="go-allyDeaths">0</span></div>
+        <div><b>敵撃破回数</b><span id="go-enemyKills">0</span></div>
+        <div><b>最大ダメージ</b><span id="go-damage">0 ダメージ</span></div>
+        <div><b>最大ステータス</b><span id="go-stats">0 / 0</span></div>
+        <div><b>プレイ時間</b><span id="go-time">0 : 00</span></div>
+      </div>
+      <div id="gameover-actions"><button class="btn" id="gameover-retry-btn" data-sfx-silent="1">再挑戦</button><button class="btn" id="gameover-back-btn" data-sfx-silent="1">タイトルに戻る</button></div>
+    </section>
+    <section id="gameover-board-panel"><div id="gameover-board-grid"></div></section>
+  </div>
 </div>
 <div id="scr-clear" class="screen">
   <div class="result-title clear">DUNGEON CLEAR</div>
@@ -11174,8 +11436,8 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=facility-sfx1"></script>
-<script src="js/engine/audio.js?v=facility-sfx1"></script>
+<script src="assets.js?v=confirm-sfx1"></script>
+<script src="js/engine/audio.js?v=confirm-sfx1"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11186,11 +11448,28 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=opening-click-summon-shop1"></script>
-<script src="js/engine/render.js?v=enemy-slide12"></script>
-<script src="js/engine/reward.js?v=facility-sfx1"></script>
-<script src="js/engine/map.js?v=facility-sfx1"></script>
+<script src="js/engine/battle.js?v=firststrike-triple2"></script>
+<script src="js/engine/render.js?v=damage-label-fit1"></script>
+<script src="js/engine/reward.js?v=debug-jump-remove1"></script>
+<script src="js/engine/map.js?v=quest-sfx2"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=battle-end-button1"></script>
+<script src="js/engine/main.js?v=confirm-sfx1"></script>
+<script>
+// 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
+document.addEventListener('click',function(ev){
+  const btn=ev.target&&ev.target.closest?ev.target.closest('#battle-continue-btn'):null;
+  if(!btn||typeof continueAfterBattleVictory!=='function') return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  continueAfterBattleVictory();
+},true);
+document.addEventListener('pointerdown',function(ev){
+  const btn=ev.target&&ev.target.closest?ev.target.closest('#battle-continue-btn'):null;
+  if(!btn||typeof continueAfterBattleVictory!=='function') return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  continueAfterBattleVictory();
+},true);
+</script>
 </body>
 </html>

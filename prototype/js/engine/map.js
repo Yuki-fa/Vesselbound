@@ -1139,7 +1139,8 @@ function openMapVillage(){
       const btn=document.createElement('button');
       btn.type='button';
       btn.className='map-village-card';
-      btn.dataset.sfxSilent='1';
+      // ショップ／鍛冶屋は専用入店音を使うが、クエスト受託は通常のselect.wavを残す。
+      if(name!=='クエスト受託') btn.dataset.sfxSilent='1';
       btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
       btn.onclick=fn;
       row.appendChild(btn);

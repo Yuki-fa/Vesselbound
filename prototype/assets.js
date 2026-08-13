@@ -127,6 +127,7 @@ const Assets = {
   },
   sfx: {
     uiConfirm: 'assets/sfx/ui_confirm.wav',
+    uiConfirmHeavy: 'assets/sfx/ui_confirm_heavy.wav',
     uiError: 'assets/sfx/ui_error.wav',
     menuOpen: 'assets/sfx/menu_open.wav',
     menuClose: 'assets/sfx/menu_close.wav',

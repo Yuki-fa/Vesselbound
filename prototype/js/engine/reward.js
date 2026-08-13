@@ -3221,7 +3221,8 @@ function _isNonCombatEquipPhase(){
 if(!window._equipSelectionClearBound){
   window._equipSelectionClearBound=true;
   document.addEventListener('contextmenu',e=>{
-    if(G.phase==='reward'){
+    const gameoverBoard=!!(e.target&&e.target.closest&&e.target.closest('#gameover-board-grid'));
+    if(G.phase==='reward'||(G.phase==='gameover'&&gameoverBoard)){
       e.preventDefault();
       const enabled=document.body.classList.toggle('right-card-peek');
       if(enabled){
@@ -3255,6 +3256,49 @@ if(!window._equipSelectionClearBound){
     else if(typeof renderAll==='function'&&G.phase==='player') renderAll();
     return;
   });
+}
+
+// 敗北時の魔導板表示。通常の編成描画を再利用して見た目・特殊マス・説明属性を揃え、
+// クローン側はイベントを持たないため配置変更だけを自然に無効化する。
+function renderGameOverBoard(){
+  const dst=document.getElementById('gameover-board-grid');
+  const src=document.getElementById('hand-slots');
+  const pane=document.getElementById('hand-pane');
+  const boardBg=document.getElementById('hand-pane-board-bg');
+  if(!dst||!src||!pane||!boardBg||!Array.isArray(G.mainBoard)) return;
+  const oldPhase=G.phase;
+  G.phase='reward';
+  try{
+    renderHeRow('hand-slots',G.mainBoard,0,G.mainBoard.length,'unitEquip');
+    const cloneBg=boardBg.cloneNode(true);
+    const clonePane=pane.cloneNode(true);
+    cloneBg.removeAttribute('style');
+    clonePane.removeAttribute('style');
+    dst.replaceChildren(cloneBg,clonePane);
+    clonePane.querySelectorAll('.card,.card *,[draggable],img,a').forEach(el=>{
+      // img等のブラウザ標準ドラッグも含め、ゲームオーバー魔導板では完全に無効化する。
+      el.setAttribute('draggable','false');
+      el.removeAttribute('ondragstart');
+      if(el.classList.contains('card')) el.removeAttribute('onclick');
+    });
+    clonePane.addEventListener('dragstart',e=>{
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      clonePane.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
+      if(typeof _removeDragGhost==='function') _removeDragGhost();
+    },true);
+    // 元の戦闘画面側で算出されたunite座標は、ゲームオーバー魔導板の座標系とは一致しない。
+    // gameover-active適用後の実寸で再計算し、カード間の正確な中央へ置き直す。
+    requestAnimationFrame(()=>{
+      const cloneSlots=clonePane.querySelector('.unit-equip-slots');
+      if(!cloneSlots||!document.body.classList.contains('gameover-active')) return;
+      try{
+        if(typeof _renderPanelUniteMarkers==='function') _renderPanelUniteMarkers(cloneSlots,_getPartyBoardUnit());
+      }catch(e){ console.error('[renderGameOverBoard:unite]',e); }
+    });
+  }finally{
+    G.phase=oldPhase;
+  }
 }
 function equipInventoryCardToUnit(srcIdx, unitIdx, srcArrName='inventory'){
   if(!_isNonCombatEquipPhase()) return false;
@@ -3707,25 +3751,7 @@ function renderDebugCardPalette(){
   const kind=G._debugPaletteKind;
   const tab=(key,label)=>`<button type="button" class="debug-palette-kind${kind===key?' active':''}" data-kind="${key}">${label}</button>`;
   const title={character:'DEBUG CARD',enchant:'DEBUG ENCHANT',item:'DEBUG ITEM',ring:'DEBUG RING'}[kind];
-  host.innerHTML=`<div class="debug-palette-jump"><button type="button" class="debug-palette-jump-shop">ショップ呼び出し</button><button type="button" class="debug-palette-jump-forge">鍛冶屋呼び出し</button></div><div class="debug-palette-head"><div class="debug-palette-tabs">${tab('character','キャラ')}${tab('enchant','強化')}${tab('item','アイテム')}${tab('ring','指輪')}</div><div class="debug-palette-title">${title}</div><button type="button" class="debug-palette-rotate"${kind==='item'||kind==='ring'?' disabled':''}>回転</button></div><div class="debug-palette-list"></div>`;
-  const shopJump=host.querySelector('.debug-palette-jump-shop');
-  if(shopJump){
-    shopJump.dataset.sfxSilent='1';
-    shopJump.onclick=e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(typeof openMapShop==='function') openMapShop();
-    };
-  }
-  const forgeJump=host.querySelector('.debug-palette-jump-forge');
-  if(forgeJump){
-    forgeJump.dataset.sfxSilent='1';
-    forgeJump.onclick=e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(typeof openMapForge==='function') openMapForge();
-    };
-  }
+  host.innerHTML=`<div class="debug-palette-head"><div class="debug-palette-tabs">${tab('character','キャラ')}${tab('enchant','強化')}${tab('item','アイテム')}${tab('ring','指輪')}</div><div class="debug-palette-title">${title}</div><button type="button" class="debug-palette-rotate"${kind==='item'||kind==='ring'?' disabled':''}>回転</button></div><div class="debug-palette-list"></div>`;
   host.querySelectorAll('.debug-palette-kind').forEach(btn=>{
     btn.onclick=e=>{
       e.preventDefault();

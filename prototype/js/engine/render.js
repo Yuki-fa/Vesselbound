@@ -33,8 +33,9 @@
     // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
     // body全体で判定すると、のぞき見中に報酬カード・デバッグカードへホバーしても
     // data-previewが無視されて説明が消えてしまっていた。
+    const isGameoverBoard=!!(tgt&&tgt.closest('#gameover-board-grid'));
     const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'))
-      &&!!(tgt&&tgt.closest('#hand-slots.unit-equip-slots'));
+      &&!!(tgt&&tgt.closest('#hand-slots.unit-equip-slots,#gameover-board-grid'));
     // 右クリックのぞき見中は、透明化したカード自身の説明へフォールバックしない。
     // 特殊マスがある場合だけ、そのマスの説明を表示する。
     const el=isPanelPeek?panelPreviewEl:(cardPreviewEl||kwEl||panelPreviewEl);
@@ -44,7 +45,8 @@
     // このマスにレアリティはないため、上に置かれているカードのrarityクラスは適用しない。
     const isPanelPowerDesc=isPanelPeek&&!isKeywordDesc&&!!(el&&el.hasAttribute('data-panel-power-preview'));
     const isMapPowerDesc=isPanelPowerDesc||!!(el&&el.hasAttribute('data-panel-power-preview')&&!el.hasAttribute('data-preview'));
-    const desc=(el&&!isPanelPeek&&el.getAttribute('data-preview'))
+    const desc=(isMapPowerDesc&&el&&el.getAttribute('data-panel-power-preview'))
+      ||(el&&!isPanelPeek&&el.getAttribute('data-preview'))
       ||(el&&el.getAttribute('data-kwdesc'))||(el&&el.getAttribute('data-panel-power-preview'))||(el&&el.getAttribute('data-preview'))||'';
     if(desc){
       const journeyEnemyJson=(el&&el===journeyEnemyEl)?el.getAttribute('data-journey-enemy'):'';
@@ -62,23 +64,33 @@
 
     // 特殊マスの説明は編成画面だけでなく、ショップ・鍛冶屋などの
     // 魔導板を表示している報酬フェイズでも表示する。
-    const formationOnly=typeof G!=='undefined'&&G.phase==='reward';
+    const formationOnly=typeof G!=='undefined'&&(G.phase==='reward'||G.phase==='gameover');
     const mt=mapTip();
     // のぞき見中は#kw-tooltip側（tip）が既に同じ特殊マス説明を表示しているため、
     // #map-power-tooltipに同一内容を重ねて2つ表示しないようにする。
     if(mt&&formationOnly&&mapPreviewEl&&!isPanelPeek){
       mt.innerHTML=_formatMapPowerHtml(mapPreviewEl.getAttribute('data-map-power-preview')||'');
       mt.style.display='block';
-      if(tip.style.display==='block') _posTipRelative(mt,tip,'right');
-      else _posKwTip(mt,e);
     }else if(mt) mt.style.display='none';
     const kt=keywordTip();
     if(kt&&keywordPreviewEl){
       kt.innerHTML=_formatKeywordOnlyHtml(keywordPreviewEl.getAttribute('data-keyword-preview')||'');
       kt.style.display='block';
-      if(tip.style.display==='block') _posTipRelative(kt,tip,'below');
-      else _posKwTip(kt,e);
     }else if(kt) kt.style.display='none';
+    // 常に「カード効果 → キーワード → 特殊マス」の順で縦に積む。
+    // 画面下端を越える場合は3枠をまとめて上へ戻し、各説明同士を重ねない。
+    let stackAnchor=tip.style.display==='block'?tip:null;
+    if(kt&&kt.style.display==='block'){
+      if(stackAnchor) _posTipRelative(kt,stackAnchor,'below',false);
+      else _posKwTip(kt,e);
+      stackAnchor=kt;
+    }
+    if(mt&&mt.style.display==='block'){
+      if(stackAnchor) _posTipRelative(mt,stackAnchor,'below',false);
+      else _posKwTip(mt,e);
+      stackAnchor=mt;
+    }
+    _fitTooltipStack([tip,kt,mt]);
   });
 })();
 function _escapePreviewHtml(s){
@@ -372,14 +384,27 @@ function _posKwTip(tip,e,dx=0,dy=0){
   tip.style.left=Math.min(x,window.innerWidth-tw-8)+'px';
   tip.style.top=Math.max(4,(y-th>4?y-th:y+16))+'px';
 }
-function _posTipRelative(tip,anchor,side){
+function _posTipRelative(tip,anchor,side,clampY=true){
   const ar=anchor.getBoundingClientRect();
   const gap=8;
-  const x=side==='right'?ar.right+gap:ar.left;
-  const y=side==='below'?ar.bottom+gap:ar.top;
   const tw=tip.offsetWidth,th=tip.offsetHeight;
+  const useBelow=side==='below'||(side==='right-or-below'&&ar.right+gap+tw>window.innerWidth-8);
+  const x=useBelow?ar.left:ar.right+gap;
+  const y=useBelow?ar.bottom+gap:ar.top;
   tip.style.left=Math.max(4,Math.min(x,window.innerWidth-tw-8))+'px';
-  tip.style.top=Math.max(4,Math.min(y,window.innerHeight-th-8))+'px';
+  tip.style.top=(clampY?Math.max(4,Math.min(y,window.innerHeight-th-8)):y)+'px';
+}
+function _fitTooltipStack(tips){
+  const shown=tips.filter(el=>el&&el.style.display==='block');
+  if(!shown.length) return;
+  const bottom=Math.max(...shown.map(el=>el.getBoundingClientRect().bottom));
+  const overflow=bottom-(window.innerHeight-8);
+  if(overflow>0){
+    shown.forEach(el=>{
+      const top=parseFloat(el.style.top)||el.getBoundingClientRect().top;
+      el.style.top=Math.max(4,top-overflow)+'px';
+    });
+  }
 }
 
 // 味方の全スロット（MAX_ALLIES件）DOM 要素を配列で返す（lane 対応・ピッカー用）
@@ -625,6 +650,19 @@ function playHitVfxAtRect(rect,amount,options){
     label.textContent=`-${amount}`;
     label.style.setProperty('--damage-label-duration',`${labelDuration}ms`);
     host.appendChild(label);
+    const damageDigits=String(Math.max(0,Math.floor(Math.abs(Number(amount)||0)))).length;
+    if(damageDigits>=3){
+      // 3桁から少しずつ縮小し、桁数が増え続けてもカード幅からはみ出さないようにする。
+      // damage-label-animationの最大scaleが1.3なので、通常幅をカード幅以下に収めれば
+      // アニメーション中もキャラクター画像幅の1.3倍を超えない。
+      const baseFontSize=parseFloat(getComputedStyle(label).fontSize)||60;
+      const digitScale=Math.pow(.9,damageDigits-2);
+      label.style.fontSize=`${baseFontSize*digitScale}px`;
+      const labelWidth=label.scrollWidth;
+      if(labelWidth>rect.width&&labelWidth>0){
+        label.style.fontSize=`${baseFontSize*digitScale*(rect.width/labelWidth)}px`;
+      }
+    }
   }
   // 演出本体の後始末（フェードアウト→DOM除去）はgateMsとは無関係に、演出の実時間に沿って
   // バックグラウンドで進行させる。呼び出し元（戦闘ループ）はこれを待たない。
@@ -1351,6 +1389,7 @@ function playArassusAttackMotion(attacker,target,isEnemySide,onStop){
 }
 
 function renderAll(){
+  if(typeof _recordRunStatsSnapshot==='function') _recordRunStatsSnapshot();
   // 戦闘中（player/enemyフェイズ）はログ表示（枠・見出し含む）を隠す
   document.body.classList.toggle('battle-turn-active',G.phase==='player'||G.phase==='enemy');
   renderField('f-ally',  G.allies,  false);
@@ -2278,18 +2317,23 @@ function renderControls(){
   const pp=document.getElementById('btn-pass');
   const dbg=document.getElementById('btn-debug-kill');
   const testBtn=document.getElementById('btn-test-battle');
+  const dbgOver=document.getElementById('btn-debug-gameover');
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
     if(dbg) dbg.style.display=G._debugMode?'':'none';
     if(testBtn) testBtn.style.display='none';
+    if(dbgOver) dbgOver.style.display='none';
   } else if(G.phase==='reward'){
     // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
     if(dbg) dbg.style.display='none';
+    if(dbgOver) dbgOver.style.display=G._debugMode?'':'none';
+    if(testBtn) testBtn.style.display=G._debugMode?'':'none';
     return;
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
     if(dbg) dbg.style.display='none';
+    if(dbgOver) dbgOver.style.display='none';
     if(testBtn) testBtn.style.display='none';
   }
   // 戦闘開始ボタンは廃止した。試験戦闘中のみ「戦闘終了」として常時表示する。

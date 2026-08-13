@@ -47,6 +47,7 @@ const SFX_SETTINGS={
   },
   sounds:{
     uiConfirm:  {group:'ui',     volume: 1.0}, 
+    uiConfirmHeavy:{group:'ui',  volume: 1.0},
     uiError:    {group:'ui',     volume: 1.0},
     menuOpen:   {group:'ui',     volume: 1.0},
     menuClose:  {group:'ui',     volume: 1.0},

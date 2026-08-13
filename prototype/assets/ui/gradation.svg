@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 889 70">
+  <defs>
+    <style>
+      .cls-1 {
+        mask: url(#mask);
+      }
+
+      .cls-2 {
+        mask: url(#mask-1);
+      }
+
+      .cls-3 {
+        filter: url(#luminosity-invert-noclip);
+      }
+
+      .cls-4 {
+        fill: url(#_名称未設定グラデーション_150);
+      }
+
+      .cls-5 {
+        fill: #160b03;
+        opacity: .9;
+      }
+    </style>
+    <filter id="luminosity-invert-noclip" x="0" y="0" width="889" height="70" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feColorMatrix result="cm" values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0"/>
+      <feFlood flood-color="#fff" result="bg"/>
+      <feBlend in="cm" in2="bg"/>
+    </filter>
+    <filter id="luminosity-noclip" x="0" y="-7643" width="889" height="32766" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-color="#fff" result="bg"/>
+      <feBlend in="SourceGraphic" in2="bg"/>
+    </filter>
+    <mask id="mask-1" x="0" y="-7643" width="889" height="32766" maskUnits="userSpaceOnUse"/>
+    <linearGradient id="_名称未設定グラデーション_150" data-name="名称未設定グラデーション 150" x1="2190.5" y1="420.18" x2="2708.79" y2="420.18" gradientTransform="translate(-3757.2916 -360.6468) scale(1.7153 .9416)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".02" stop-color="#dadada"/>
+      <stop offset=".04" stop-color="#a7a7a7"/>
+      <stop offset=".07" stop-color="#7a7a7a"/>
+      <stop offset=".09" stop-color="#545454"/>
+      <stop offset=".12" stop-color="#353535"/>
+      <stop offset=".15" stop-color="#1e1e1e"/>
+      <stop offset=".18" stop-color="#0d0d0d"/>
+      <stop offset=".21" stop-color="#030303"/>
+      <stop offset=".25" stop-color="#000"/>
+      <stop offset=".5" stop-color="#000"/>
+      <stop offset=".75" stop-color="#000"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="mask" x="0" y="0" width="889" height="70" maskUnits="userSpaceOnUse">
+      <g class="cls-3">
+        <g class="cls-2">
+          <rect class="cls-4" width="889" height="70"/>
+        </g>
+      </g>
+    </mask>
+  </defs>
+  <g id="_マップ" data-name="マップ">
+    <g class="cls-1">
+      <rect class="cls-5" width="889" height="70"/>
+    </g>
+  </g>
+</svg>

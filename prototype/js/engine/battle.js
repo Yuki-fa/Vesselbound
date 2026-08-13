@@ -952,6 +952,15 @@ async function startBattle(){
     // エリートの位置を再特定（撃破ボーナス判定で参照するため）
     if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
   }
+  if(G.runStats){
+    const kind=String(G._waveBattleType||G._mapBattle?.type||'');
+    const special=kind==='boss'||kind==='elite';
+    const leader=special
+      ? G.enemies.find(e=>e&&(e.boss||e.elite||(e.keywords||[]).includes(kind==='boss'?'ボス':'エリート')))
+      : (G.enemies[5]||G.enemies.find(e=>e));
+    G.runStats.finalBattle=leader?.name||'';
+    G.runStats.areaName=typeof _runStatsAreaName==='function'?_runStatsAreaName():G.runStats.areaName;
+  }
   if(waveEnemyKey){
     if(reuseWaveEnemies) G._waveRetryEnemyKey=null;
     else G._waveEnemySnapshot=clone(G.enemies);
@@ -1012,6 +1021,11 @@ async function startBattle(){
   updateHUD();
   renderAll();
   await playBattleOpeningSequence();
+  if(G._debugGameOver){
+    G._battleDefeatHandled=true;
+    gameOver();
+    return;
+  }
   onBattleStart();
   try{
     await _finishNewPanelBattleStartEffects();
@@ -1908,7 +1922,7 @@ function _unitEffectPanelCount(unit, kw){
   (Array.isArray(unit.equipment)?unit.equipment:[]).forEach((p,i)=>{
     if(!p||String(p.category||'')==='キャラクター') return;
     const names=[p.name,...(p.keywords||[]),...(p.adjacentKeywords||[])].filter(Boolean);
-    if(names.includes(kw)) count+=1+(Number(p._effectRepeatBonus||p.effectRepeatBonus)||0);
+    if(names.includes(kw)) count+=(p._tripleMerged?2:1)+(Number(p._effectRepeatBonus||p.effectRepeatBonus)||0);
   });
   return count;
 }
@@ -1926,7 +1940,7 @@ function _panelEffectKeywordCount(panels, kw){
     const names=[panel.name,...(panel.keywords||[]),...(panel.adjacentKeywords||[])].filter(Boolean);
     if(names.includes(kw)){
       const key=entry&&entry.idx!=null?entry.idx:i;
-      seen.set(key,1+(Number(panel._effectRepeatBonus||panel.effectRepeatBonus)||0));
+      seen.set(key,(panel._tripleMerged?2:1)+(Number(panel._effectRepeatBonus||panel.effectRepeatBonus)||0));
     }
   });
   return [...seen.values()].reduce((sum,n)=>sum+n,0);
@@ -2064,6 +2078,7 @@ function _applyDamageState(unit, dmg, source, side){
   if(toughSum>0) dmg-=toughSum;
   unit._lastDamageSource=source||unit._lastDamageSource||null;
   const actualDmg=Math.max(0,dmg);
+  if(typeof _recordRunStatsDamage==='function') _recordRunStatsDamage(actualDmg,source&&source._damageType||'');
   const _preHp=unit.hp||0;
   unit._preDeathSnapshot=_battleUnitSnapshot(unit,_preHp);
   unit.hp=Math.max(0,(unit.hp||0)-actualDmg);
@@ -2178,6 +2193,9 @@ async function applyDamageBatch(entries, options){
     effectVfxTarget:e._effectVfxTarget||null,
     effectVfxRect:e._effectVfxRect||null
   }));
+  if(opt.keywordEffect==='毒'&&typeof _recordRunStatsDamage==='function'){
+    results.forEach(r=>_recordRunStatsDamage(r.actualDmg,'毒'));
+  }
 
   // ダメージ確定直後にHP表示を更新する。VFXや死亡処理の完了を待たず、HP0を即時表示する。
   if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
@@ -2413,13 +2431,23 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     // 取り消さない。先制は攻撃側が相手を仕留めた場合のみ反撃を免除する（相手も先制を持つ場合は無効）。
     // 狙撃は反撃されず、反撃もできない。
     const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(defender,'先制');
-    const willKillDefender=damage>0&&damage>=Math.max(0,defender.hp||0);
-    const suppressCounterByFirstStrike=attackerHasFirstStrike&&willKillDefender;
     const suppressCounterBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(defender,'狙撃');
-    const suppressCounter=suppressCounterByFirstStrike||suppressCounterBySniper;
     const counterAmount=Math.max(0,defender.atk||0);
     const defenderSide=isEnemySide?'ally':'enemy';
     const attackerSide=isEnemySide?'enemy':'ally';
+    // 先制だけは実ダメージを先に確定し、結界・強靭等を通した後も生存していた時だけ反撃させる。
+    // これにより先制攻撃で倒した敵から同時ダメージを受けない。
+    if(attackerHasFirstStrike&&!suppressCounterBySniper){
+      await applyDamageBatch([{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}]);
+      if(defender.hp>0&&attacker.hp>0&&counterAmount>0){
+        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender}]);
+        const defenderList=isEnemySide?G.allies:G.enemies;
+        const attackerList=isEnemySide?G.enemies:G.allies;
+        log(`${_lc(_battleLogName(defender,defenderList),!isEnemySide)}が${_lc(_battleLogName(attacker,attackerList),isEnemySide)}に${counterAmount}ダメージを与えた。`,isEnemySide?'good':'bad');
+      }
+      return attackResult;
+    }
+    const suppressCounter=suppressCounterBySniper;
     const entries=[{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}];
     if(!suppressCounter&&counterAmount>0){
       entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender});
@@ -2483,9 +2511,20 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     // このヒットで倒れたことを理由に反撃を取り消さない。先制は攻撃側が相手を仕留めた場合のみ反撃を免除する
     // （相手も先制を持つ場合は無効）。狙撃は反撃されず、反撃もできない。
     const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(primaryTarget,'先制');
-    const primaryLethal=damage>0&&damage>=Math.max(0,primaryTarget.hp||0);
     const suppressBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(primaryTarget,'狙撃');
-    const primaryCanCounter=liveTargets.includes(primaryTarget)&&!(attackerHasFirstStrike&&primaryLethal)&&!suppressBySniper;
+    // 複数対象攻撃でも先制時は主対象への実ダメージ確定後にだけ反撃可否を判断する。
+    if(attackerHasFirstStrike&&!suppressBySniper){
+      await applyDamageBatch(entries);
+      const counterAmount=primaryTarget.hp>0&&attacker.hp>0?Math.max(0,primaryTarget.atk||0):0;
+      if(counterAmount>0){
+        const attackerSide=isEnemySide?'enemy':'ally';
+        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget}]);
+        const attackerList=isEnemySide?G.enemies:G.allies;
+        log(`反撃で${_lc(_battleLogName(attacker,attackerList),isEnemySide)}に${counterAmount}ダメージを与えた。`,isEnemySide?'good':'bad');
+      }
+      return result;
+    }
+    const primaryCanCounter=liveTargets.includes(primaryTarget)&&!suppressBySniper;
     const counterAmount=primaryCanCounter?Math.max(0,primaryTarget.atk||0):0;
     const attackerSide=isEnemySide?'enemy':'ally';
     if(counterAmount>0){
@@ -3891,7 +3930,8 @@ async function _applyNewOpeningEffects(){
         const x=allies.filter(a=>_canReceiveBattleEffect(a)&&(_unitHasKeyword(a,'奇妙な絆')||_unitEffectPanelCount(a,'奇妙な絆')>0)).length;
         if(x) _addBattleStats(unit,x,x,side);
       }
-      if(_unitEffectPanelCount(unit,'咆哮')>0){
+      const roarCount=_unitEffectPanelCount(unit,'咆哮');
+      for(let i=0;i<roarCount;i++){
         const atk=Math.max(0,Number(unit.atk)||0);
         if(atk) _addBattleStats(unit,atk,0,side);
       }
@@ -4167,14 +4207,15 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
     fired=true;
   }
   if(hasName('コボルド')){
+    const scale=_unitEffectScale(unit,'コボルド');
     const buffTargets=(G.allies||[]).filter(a=>a&&a.hp>0&&String(a.color||'')==='赤');
     buffTargets.forEach(a=>{
       if(a&&a.hp>0&&String(a.color||'')==='赤'){
-        a.atk=(a.atk||0)+1; a.baseAtk=(a.baseAtk||0)+1;
-        addUnitHp(a,1,'ally');
+        a.atk=(a.atk||0)+scale; a.baseAtk=(a.baseAtk||0)+scale;
+        addUnitHp(a,scale,'ally');
       }
     });
-    log(`${_lc(unit.name,false)}の効果で全ての赤キャラクターは+1/+1を得た。`,'good');
+    log(`${_lc(unit.name,false)}の効果で全ての赤キャラクターは+${scale}/+${scale}を得た。`,'good');
     _playCardEffectSfx('C003');
     await _playCardEffectVfx('C003',buffTargets);
     fired=true;
@@ -4610,6 +4651,7 @@ async function processAllyDeath(unit){
 
   log(`${_lc(unit.name,false)}が倒れた…`,'bad');
   G.battleCounters.deaths++;
+  if(G.runStats) G.runStats.allyDeaths=(G.runStats.allyDeaths||0)+1;
 
   // ナグルファル：キャラクター死亡ごとに+2/+1
   _onAnyCharDeath(unit);
@@ -4983,6 +5025,7 @@ async function processEnemyDeath(e,eIdx){
     if(manaRingCount) _gainMana(2*manaRingCount,'魔力の指輪');
   }
   G._enemyDeathsThisBattle=(G._enemyDeathsThisBattle||0)+1;
+  if(G.runStats) G.runStats.enemyKills=(G.runStats.enemyKills||0)+1;
   (G.allies||[]).filter(a=>a&&a.hp>0&&!_isSealed(a)&&a.name==='ヘルハウンド').forEach(h=>{
     _addBattleStats(h,G._enemyDeathsThisBattle,G._enemyDeathsThisBattle,'ally');
     log(`${_lc(h.name,false)}の効果で+${G._enemyDeathsThisBattle}/+${G._enemyDeathsThisBattle}を得た。`,'good');

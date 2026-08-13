@@ -443,6 +443,17 @@ function _openWaveFormation(){
   G._waveVillage=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false;
   if(typeof goToReward==='function') goToReward();
+  // ゲームオーバー中に停止した編成背景動画は、reward-screen-active適用後に明示的に再開する。
+  requestAnimationFrame(()=>{
+    const rewardBgVideo=document.getElementById('reward-bg-video');
+    if(!rewardBgVideo||!document.body.classList.contains('reward-screen-active')) return;
+    try{
+      rewardBgVideo.muted=true;
+      rewardBgVideo.loop=true;
+      const playResult=rewardBgVideo.play();
+      if(playResult&&typeof playResult.catch==='function') void playResult.catch(()=>{});
+    }catch(_e){}
+  });
   _rewCards=[];
   _rewFreePickDone=true;
   G._waveRewardCount=null;
@@ -657,6 +668,10 @@ function handleWaveBattleDefeat(){
 }
 function startGame(debugMode){
   initState();
+  G.runStats={
+    startedAt:performance.now(), areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
+    maxDamage:{amount:0,type:''}, maxAtk:0, maxHp:0
+  };
   _giveInitialRandomBoardCards();
   window.__vesselboundRetryRewards=null;
   clearLog();
@@ -686,6 +701,103 @@ function startGame(debugMode){
   _openWaveFormation();
 }
 
+function _runStatsAreaName(){
+  return String(G.worldMap?.areaName||G.areaName||G.mapAreaName||G.floorName||`${G.floor||1}階`);
+}
+function _recordRunStatsSnapshot(){
+  if(!G.runStats) return;
+  G.runStats.areaName=_runStatsAreaName();
+  [...(G.allies||[])].forEach(u=>{
+    if(!u||u._isObject||u._isSoul) return;
+    G.runStats.maxAtk=Math.max(G.runStats.maxAtk,Number(u.atk)||0);
+    G.runStats.maxHp=Math.max(G.runStats.maxHp,Number(u.maxHp??u.hp)||0);
+  });
+}
+function _recordRunStatsDamage(amount,type){
+  if(!G.runStats||!(Number(amount)>0)) return;
+  const n=Number(amount)||0;
+  if(n>(G.runStats.maxDamage?.amount||0)) G.runStats.maxDamage={amount:n,type:type==='毒'?'毒':''};
+}
+function _runStatsTimeText(){
+  const sec=Math.max(0,Math.floor(((performance.now()-(G.runStats?.startedAt||performance.now()))/1000)));
+  return `${Math.floor(sec/60)} : ${String(sec%60).padStart(2,'0')}`;
+}
+function _animateGameOverNumber(id,target,duration=650,formatter=n=>String(Math.floor(n)),delay=0){
+  const el=document.getElementById(id); if(!el) return;
+  const end=Math.max(0,Number(target)||0);
+  el.textContent=formatter(0);
+  window.setTimeout(()=>{
+    const started=performance.now();
+    const tick=now=>{
+      const p=Math.min(1,(now-started)/duration);
+      const eased=1-Math.pow(1-p,3);
+      el.textContent=formatter(end*eased);
+      if(p<1) requestAnimationFrame(tick); else el.textContent=formatter(end);
+    };
+    requestAnimationFrame(tick);
+  },Math.max(0,delay));
+}
+function _animateGameOverPair(id,a,b,duration=650,delay=0){
+  const aa=Math.max(0,Number(a)||0), bb=Math.max(0,Number(b)||0);
+  _animateGameOverNumber(id,aa,duration,n=>`${Math.floor(n)} / ${Math.floor(bb*Math.min(1,n/Math.max(1,aa)))}`,delay);
+  window.setTimeout(()=>{ const el=document.getElementById(id); if(el) el.textContent=`${aa} / ${bb}`; },Math.max(0,delay)+duration+20);
+}
+
+function debugGameOver(){
+  if(!G._debugMode||G.phase!=='reward') return;
+  G._debugGameOver=true;
+  G.allies=[];
+  if(typeof _startWaveBattle==='function') _startWaveBattle(1);
+}
+
+function returnFromDebugGameOver(){
+  closeGameOverOverlay();
+  G._debugGameOver=false;
+  G._battleDefeatHandled=false;
+  // 確認戦闘で魔導板から生成された一時ユニットを残すと、次の戦闘で同じカードから再生成されて二重になる。
+  if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+  G.allies=[];
+  G.enemies=[];
+  if(typeof _openWaveFormation==='function') _openWaveFormation();
+  else showScreen('battle');
+}
+
+function closeGameOverOverlay(){
+  document.body.classList.remove('gameover-active','battle-victory-pending','right-card-peek');
+  const video=document.getElementById('gameover-video');
+  const tint=document.getElementById('gameover-video-tint');
+  const rewardBgVideo=document.getElementById('reward-bg-video');
+  if(video){
+    if(video._gameOverFadeAnimation) video._gameOverFadeAnimation.cancel();
+    video.classList.remove('is-visible');
+    if(video._gameOverFadeFrame) cancelAnimationFrame(video._gameOverFadeFrame);
+    video.style.removeProperty('opacity');
+    video.style.removeProperty('visibility');
+    if(video._gameOverRateGuard){
+      video.removeEventListener('playing',video._gameOverRateGuard);
+      video.removeEventListener('ratechange',video._gameOverRateGuard);
+      video._gameOverRateGuard=null;
+    }
+    try{ video.pause(); video.currentTime=0; }catch(_e){}
+  }
+  if(tint){
+    if(tint._gameOverTintAnimation) tint._gameOverTintAnimation.cancel();
+    tint.style.removeProperty('opacity');
+    tint.style.removeProperty('visibility');
+  }
+  if(rewardBgVideo&&document.body.classList.contains('reward-screen-active')){
+    try{ void rewardBgVideo.play(); }catch(_e){}
+  }
+  ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.removeProperty('z-index');
+  });
+  const fade=document.getElementById('battle-end-fade');
+  if(fade){ fade.classList.remove('is-visible','is-final'); fade.style.opacity=''; fade.style.visibility=''; }
+  const el=document.getElementById('scr-gameover');
+  if(el) el.classList.remove('gameover-overlay-active');
+}
+
 function debugKillAll(){
   if(!G._debugMode||G.phase!=='player') return;
   const alive=G.enemies.filter(e=>e&&e.hp>0);
@@ -701,12 +813,21 @@ function _debugRefillActions(){
   updateHUD();
 }
 function gameOver(){
+  const isDebugGameOver=!!G._debugGameOver;
+  // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
+  if(!isDebugGameOver){
+    G._waveLife=0;
+    G.life=0;
+    if(typeof updateHUD==='function') updateHUD();
+  }
   try{
     const se=new Audio('assets/sfx/game_over.wav');
     se.volume=.9;
     void se.play();
   }catch(_e){}
   document.body.classList.remove('battle-turn-active');
+  if(typeof stopBgm==='function') stopBgm(900);
+  if(typeof _showBattleEndFade==='function') _showBattleEndFade();
   // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
   if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
   const victory=document.getElementById('victory-overlay');
@@ -717,8 +838,98 @@ function gameOver(){
     if(id==='rw-cards') el.replaceChildren();
     else el.style.display='none';
   });
-  document.getElementById('go-sub').textContent=`${G.floor}階で力尽きました`;
-  showScreen('gameover');
+  _recordRunStatsSnapshot();
+  G.runStats=G.runStats||{};
+  G.runStats.areaName=_runStatsAreaName();
+  G.runStats.playTime=_runStatsTimeText();
+  G._gameOverSpecialDebug=isDebugGameOver;
+  G._debugGameOver=false;
+  if(typeof renderGameOverBoard==='function') renderGameOverBoard();
+  document.getElementById('go-area').textContent=G.runStats.areaName;
+  document.getElementById('go-final').textContent=G.runStats.finalBattle||'—';
+  document.getElementById('go-time').textContent=G.runStats.playTime||'0 : 00';
+  _animateGameOverNumber('go-allyDeaths',G.runStats.allyDeaths,600,undefined,800);
+  _animateGameOverNumber('go-enemyKills',G.runStats.enemyKills,600,undefined,900);
+  _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
+  _animateGameOverPair('go-stats',G.runStats.maxAtk,G.runStats.maxHp,700,1100);
+  const back=document.getElementById('gameover-back-btn');
+  if(back){
+    back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':'タイトルに戻る';
+    back.onclick=()=>{
+      if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-back'});
+      if(G._gameOverSpecialDebug) returnFromDebugGameOver();
+      else{ closeGameOverOverlay(); showScreen('title'); }
+    };
+  }
+  const retry=document.getElementById('gameover-retry-btn');
+  if(retry) retry.onclick=()=>{
+    if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-retry'});
+    closeGameOverOverlay();
+    startGame(!!G._debugMode);
+  };
+  const go=document.getElementById('go-sub'); if(go) go.textContent=`${G.floor}階で力尽きました`;
+  G.phase='gameover';
+  document.body.classList.add('gameover-active','battle-victory-pending');
+  ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.setProperty('z-index','10001','important');
+  });
+  document.getElementById('scr-gameover')?.classList.add('gameover-overlay-active');
+  const video=document.getElementById('gameover-video');
+  const tint=document.getElementById('gameover-video-tint');
+  const rewardBgVideo=document.getElementById('reward-bg-video');
+  if(rewardBgVideo){ try{ rewardBgVideo.pause(); }catch(_e){} }
+  if(video){
+    if(video._gameOverFadeAnimation) video._gameOverFadeAnimation.cancel();
+    if(video._gameOverFadeFrame) cancelAnimationFrame(video._gameOverFadeFrame);
+    video.classList.remove('is-visible');
+    video.style.opacity='0';
+    video.style.visibility='visible';
+    if(tint){
+      if(tint._gameOverTintAnimation) tint._gameOverTintAnimation.cancel();
+      tint.style.opacity='0';
+      tint.style.visibility='visible';
+    }
+    try{
+      video.pause();
+      video.currentTime=0;
+      video.muted=true;
+      video.loop=true;
+      const applyGameOverRate=()=>{
+        video.defaultPlaybackRate=.7;
+        if(Math.abs(video.playbackRate-.7)>.001) video.playbackRate=.7;
+      };
+      if(video._gameOverRateGuard){
+        video.removeEventListener('playing',video._gameOverRateGuard);
+        video.removeEventListener('ratechange',video._gameOverRateGuard);
+      }
+      video._gameOverRateGuard=applyGameOverRate;
+      video.addEventListener('playing',applyGameOverRate);
+      video.addEventListener('ratechange',applyGameOverRate);
+      applyGameOverRate();
+      if(video.readyState<1) video.addEventListener('loadedmetadata',applyGameOverRate,{once:true});
+      const playResult=video.play();
+      if(playResult&&typeof playResult.then==='function') void playResult.then(applyGameOverRate).catch(()=>{});
+    }catch(_e){}
+    // CSSのdisplay/visibility切替と同時でも確実に0→1を描画するため、動画自身を直接アニメーションする。
+    void video.getBoundingClientRect();
+    video._gameOverFadeFrame=requestAnimationFrame(()=>{
+      if(typeof video.animate==='function'){
+        video._gameOverFadeAnimation=video.animate(
+          [{opacity:0},{opacity:1}],
+          {duration:1200,easing:'ease-out',fill:'forwards'}
+        );
+        if(tint) tint._gameOverTintAnimation=tint.animate(
+          [{opacity:0},{opacity:.78}],
+          {duration:1200,easing:'ease-out',fill:'forwards'}
+        );
+      }else{
+        video.style.removeProperty('opacity');
+        video.classList.add('is-visible');
+        if(tint) tint.style.opacity='.78';
+      }
+    });
+  }
 }
 // onShown：オーバーレイが実際に表示された後、指定ms後に呼ばれるコールバック（省略可）。
 // 呼び出し側で独立したsetTimeoutを組むと、renderAll()等の重い同期処理でメインスレッドが
@@ -726,9 +937,47 @@ function gameOver(){
 // 表示が確定してから逆算する形でチェーンする。
 function _armBattleContinue(cutin,onShown){
   if(!cutin){ if(typeof onShown==='function') onShown(); return; }
+  // 前回の勝利画面でクリック処理が残っていても、次の勝利・撤退画面では
+  // 必ず新しい進行処理を受け付ける。
+  G._battleProceedBusy=false;
+  G._battleProceedSfxPlayed=false;
+  // 画面全体のクリックSE用captureリスナーが先に動く環境でも、
+  // 「進む」だけは確実に本来の遷移処理へ到達させる。
+  if(!document.__battleContinueCaptureBound){
+    document.__battleContinueCaptureBound=true;
+    document.addEventListener('click',ev=>{
+      const btn=ev.target&&ev.target.closest?ev.target.closest('#battle-continue-btn'):null;
+      if(!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      continueAfterBattleVictory();
+    },true);
+  }
   const panel=document.createElement('div');
   panel.id='battle-continue-panel';
-  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" onclick="continueAfterBattleVictory()"><span class="battle-continue-label">進む</span></button>';
+  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" data-sfx-silent="1"><span class="battle-continue-label">進む</span></button>';
+  panel.style.pointerEvents='auto';
+  panel.style.zIndex='10001';
+  const btn=panel.querySelector('#battle-continue-btn');
+  if(btn){
+    btn.style.pointerEvents='auto';
+    btn.setAttribute('onclick','continueAfterBattleVictory()');
+    btn.onclick=ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      continueAfterBattleVictory();
+    };
+    btn.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      continueAfterBattleVictory();
+    },{once:true});
+    btn.addEventListener('click',ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      continueAfterBattleVictory();
+    });
+  }
   cutin.appendChild(panel);
   G._battleProceedAction=onShown;
 }
@@ -737,6 +986,10 @@ function continueAfterBattleVictory(){
   const action=G._battleProceedAction;
   if(typeof action!=='function') return;
   G._battleProceedBusy=true;
+  if(!G._battleProceedSfxPlayed){
+    G._battleProceedSfxPlayed=true;
+    if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
+  }
   const panel=document.getElementById('battle-continue-panel');
   if(panel) panel.style.pointerEvents='none';
   const cutin=document.getElementById('battle-start-intro');
