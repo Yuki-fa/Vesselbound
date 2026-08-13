@@ -50,11 +50,26 @@ const Assets = {
     title: 'assets/art/backgrounds/title_castle.png',
     camp: 'assets/art/backgrounds/camp.png',
     worldMap: 'assets/art/backgrounds/world_map.png',
-    stage1: 'assets/art/backgrounds/stage_grassland.webp',
-    stage2: 'assets/art/backgrounds/stage_forest.webp',
+    stage1: 'assets/art/backgrounds/stage_forest.webp',
+    stage2: 'assets/art/backgrounds/stage_grassland.webp',
     stage3: 'assets/art/backgrounds/stage_valley.webp',
     stage4: 'assets/art/backgrounds/stage_capital.webp',
     stageEnd: 'assets/art/backgrounds/stage_endworld.webp',
+    // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
+    village1: 'assets/art/backgrounds/village_forest.png',
+    village2: 'assets/art/backgrounds/village_grassland.png',
+    village3: 'assets/art/backgrounds/village_valley.png',
+    village4: 'assets/art/backgrounds/city_capital.png',
+    villageEnd: 'assets/art/backgrounds/village_endworld.png',
+    // ワールドマップ画面（出発時に数秒表示する）
+    map: 'assets/art/backgrounds/map.jpg',
+    // 街の施設ごとの背景（ステージ1・エルム）
+    itemShopForest: 'assets/art/backgrounds/item_shop_forest.png',
+    magicShopForest: 'assets/art/backgrounds/magic_shop_forest.png',
+    // 街の施設ごとの背景（ステージ2・ヴァルガ）
+    itemShopGrassland: 'assets/art/backgrounds/item_shop_grassland.png',
+    magicShopGrassland: 'assets/art/backgrounds/magic_shop_grassland.png',
+    blacksmithGrassland: 'assets/art/backgrounds/blacksmith_grassland.png',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -132,6 +147,8 @@ const Assets = {
     menuOpen: 'assets/sfx/menu_open.wav',
     menuClose: 'assets/sfx/menu_close.wav',
     select: 'assets/sfx/select.wav',
+    knock: 'assets/sfx/knock.wav',
+    boom: 'assets/sfx/boom.wav',
     shopIn: 'assets/sfx/shop_in.wav',
     shopOut: 'assets/sfx/shop_out.wav',
     altarIn: 'assets/sfx/altar_in.wav',
@@ -139,6 +156,7 @@ const Assets = {
     fit: 'assets/sfx/fit.wav',
     'return': 'assets/sfx/return.wav',
     menu: 'assets/bgm/menu.wav',
+    villageForest: 'assets/bgm/village_forest.wav',
     battle1: 'assets/bgm/battle1.wav',
     battle3: 'assets/bgm/battle3.wav',
     reroll: 'assets/sfx/reroll.wav',
@@ -688,6 +706,12 @@ function setScreenAssetBackground(screenId, bgKey){
 function applyScreenAssetBackground(screenId){
   if(screenId==='title'){ setScreenAssetBackground('title','title'); return; }
   if(screenId==='shop'){ setScreenAssetBackground('shop','shop'); return; }
+  if(screenId==='village'){
+    const key=(typeof getVillageBackgroundKey==='function')?getVillageBackgroundKey():'village1';
+    setScreenAssetBackground('village',key);
+    return;
+  }
+  if(screenId==='map'){ setScreenAssetBackground('map','map'); return; }
   if(screenId==='battle'){
     const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
     const key=mapStage||((typeof G!=='undefined'&&G&&G._isShop)?'camp':getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));

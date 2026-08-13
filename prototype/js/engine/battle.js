@@ -502,20 +502,29 @@ function applyUnitBuff(unit, atk, hp, sideOverride){
 
 // ── 戦闘開始 ──────────────────────────────────
 
+// 戦闘カットインのタイトル（固有名）。「地域情報」シートの
+// 「街までの名前」（街より前のstage1〜4）／「塔までの名前」（街より後のstage5〜）を使う。
+// シートに名前が無い場合は従来の「戦 闘 開 始」にフォールバックする。
+function _waveBattleRouteName(){
+  if(!G||!G._waveLoopEnabled) return '';
+  const info=typeof regionInfoForWave==='function'?regionInfoForWave(G._wave):null;
+  if(!info) return '';
+  const stage=Number(G._waveStage)||1;
+  const primary=stage>=5?info.toTowerName:info.toTownName;
+  const fallback=stage>=5?info.toTownName:info.toTowerName;
+  return String(primary||fallback||'').trim();
+}
 function _battleStartIntroText(){
   const mapBattle=G._mapBattle||null;
   const kind=String(G._waveBattleType||mapBattle?.type||'');
   const isBoss=kind==='boss'||_isBossFight||!!mapBattle?.forcedBoss;
   const isElite=kind==='elite'||!!G._isEliteFight;
-  if(isBoss){
-    const boss=G.enemies.find(e=>e&&e.boss)||G.enemies.find(e=>e&&e.keywords&&e.keywords.includes('ボス'))||G.enemies.find(e=>e);
-    return {subtitle:`${boss?.name||'ボス'}との戦い`,kind:'boss'};
-  }
-  if(isElite){
-    const elite=G.enemies.find(e=>e&&e.elite)||G.enemies.find(e=>e&&e.keywords&&e.keywords.includes('エリート'))||G.enemies.find(e=>e);
-    return {subtitle:`${elite?.name||'エリート'}との戦い`,kind:'elite'};
-  }
-  return {subtitle:'一般戦闘',kind:'normal'};
+  // 大きい文字（タイトル）は戦闘種別に関わらず「戦 闘 開 始」で統一し、
+  // 小さい文字（サブタイトル）に道中の固有名を出す。
+  const routeName=_waveBattleRouteName();
+  if(isBoss) return {title:'戦 闘 開 始',subtitle:routeName,kind:'boss'};
+  if(isElite) return {title:'戦 闘 開 始',subtitle:routeName,kind:'elite'};
+  return {title:'戦 闘 開 始',subtitle:routeName,kind:'normal'};
 }
 
 function _battleCutinHost(){
@@ -551,14 +560,14 @@ function showBattleCutin(type='start',options={}){
   const old=document.getElementById('battle-start-intro');
   if(old) old.remove();
   const info=options.info||_battleStartIntroText();
-  const title=mode==='victory'?'勝 利':mode==='retreat'?'撤 退':'戦 闘 開 始';
+  const title=mode==='victory'?'勝 利':mode==='retreat'?'撤 退':(String(options.title||info.title||'').trim()||'戦 闘 開 始');
   // 結果画面でも開始画面と同じ高さを確保する。空文字だけでは行ボックスが
   // 縮み、タイトルとラインが上へ再配置されるため、不可視の空白を残す。
-  const subtitle=mode==='victory'||mode==='retreat'?'\u00a0':'一般戦闘';
+  const subtitle=mode==='victory'||mode==='retreat'?'\u00a0':(String(info.subtitle||'').trim()||'\u00a0');
   const overlay=document.createElement('div');
   overlay.id='battle-start-intro';
   overlay.className=`battle-start-intro cutin-${mode} battle-start-${info.kind||'normal'}`;
-  overlay.innerHTML=`<div class="battle-start-aura"></div><div class="battle-cut-in-particles" aria-hidden="true"></div><img class="battle-start-line" src="assets/ui/battle_line.svg" alt=""><span class="battle-start-icon-wrap"><img class="battle-start-icon" src="assets/ui/main_icon.svg" alt=""></span><div class="battle-start-title">${title}</div><div class="battle-start-subtitle">${_escapePreviewHtml(options.subtitle||((mode==='start')?info.subtitle:subtitle))}</div>`;
+  overlay.innerHTML=`<div class="battle-start-aura"></div><div class="battle-cut-in-particles" aria-hidden="true"></div><img class="battle-start-line" src="assets/ui/battle_line.svg" alt=""><span class="battle-start-icon-wrap"><img class="battle-start-icon" src="assets/ui/main_icon.svg" alt=""></span><div class="battle-start-title">${_escapePreviewHtml(title)}</div><div class="battle-start-subtitle">${_escapePreviewHtml(options.subtitle||((mode==='start')?(String(info.subtitle||'').trim()||'\u00a0'):subtitle))}</div>`;
   host.appendChild(overlay);
   if(mode==='start') return overlay;
   // 勝利・撤退の結果表示中は、戦場カードを操作・ホバーできないようにする。

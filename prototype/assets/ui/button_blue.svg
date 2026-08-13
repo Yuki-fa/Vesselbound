@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- button_purple.svg と同一形状。枠を青系グラデーションに変え、背面（塗り）を半透明にしたもの。街（村）画面の施設ボタン用。 -->
+<svg id="_レイヤー_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 498 124">
+  <defs>
+    <style>
+      .st0 {
+        stroke: url(#_名称未設定グラデーション1);
+        stroke-width: 1.2px;
+      }
+
+      .st0, .st1 {
+        fill: none;
+        stroke-miterlimit: 10;
+      }
+
+      .st2 {
+        fill: #071b30;
+        fill-opacity: .55;
+      }
+
+      .st1 {
+        stroke: url(#_名称未設定グラデーション);
+        stroke-width: 2px;
+      }
+    </style>
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="250.1" cy="-1972" fx="250.1" fy="-1972" r="182.1" gradientTransform="translate(0 -1909.5) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#79b6e8"/>
+      <stop offset="1" stop-color="#1f5586"/>
+    </radialGradient>
+    <radialGradient id="_名称未設定グラデーション1" data-name="名称未設定グラデーション" cx="250.1" cy="61.6" fx="250.1" fy="61.6" r="177.4" gradientTransform="translate(2.3 .6)" xlink:href="#_名称未設定グラデーション"/>
+  </defs>
+  <path class="st2" d="M480,121H18c0-8.3-6.7-15-15-15V18c8.3,0,15-6.7,15-15h462c0,8.3,6.7,15,15,15v88c-8.3,0-15,6.7-15,15Z"/>
+  <path class="st1" d="M480.9,122H17.1c0-8.4-6.7-15.3-15.1-15.3V17.3c8.3,0,15.1-6.8,15.1-15.3h463.9c0,8.4,6.7,15.3,15.1,15.3v89.5c-8.3,0-15.1,6.8-15.1,15.3h-.1Z" vector-effect="non-scaling-stroke"/>
+  <path class="st0" d="M23,115c-2.2-6.7-7.4-11.9-14-14.2V23.2c6.6-2.2,11.8-7.5,14-14.2h452.1c2.2,6.7,7.4,11.9,14,14.2v77.8c-6.6,2.2-11.7,7.4-14,14.1H23Z"/>
+</svg>

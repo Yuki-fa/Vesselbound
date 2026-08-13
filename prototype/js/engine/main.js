@@ -10,6 +10,8 @@ function showScreen(id){
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');
+  // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
+  document.body.classList.toggle('village-screen-active',id==='village');
   const battleCounters=document.getElementById('battle-counters');
   const battleStatus=document.getElementById('battle-status-hud');
   const transitionFade=document.getElementById('battle-transition-fade');
@@ -21,10 +23,19 @@ function showScreen(id){
     if(endFade){ endFade.classList.remove('is-visible','is-final'); endFade.removeAttribute('style'); }
   }
   if(id==='battle'&&typeof _clearLogDom==='function') _clearLogDom();
-  if(typeof playBgm==='function'){
-    const isMapScreen=typeof G!=='undefined'&&G&&G.phase==='map';
+  // 街のBGMが鳴っている間（街画面／街の施設）はBGMを切り替えない。
+  if(typeof playBgm==='function'&&!(typeof G!=='undefined'&&G&&G._villageBgmActive)){
+    // 街（村）専用画面と、商談（報酬/編成）フェイズ中の戦闘画面はメニュー曲を使う。
+    const isMenuLike=typeof G!=='undefined'&&G&&(G.phase==='map'||G.phase==='reward');
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
-    if(id==='battle') playBgm(isMapScreen?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700,volume:isMapScreen?undefined:.32});
+    if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700,volume:isMenuLike?undefined:.32});
+    // 街は入場演出中はboom.wav後に演出側が鳴らすため何もしない。
+    else if(id==='village'){
+      if(!(typeof G!=='undefined'&&G&&G._villageIntroPlaying)){
+        if(typeof playVillageBgm==='function') playVillageBgm(700);
+        else playBgm('menu',{fadeInMs:700});
+      }
+    }
     else stopBgm(350);
   }
 }
@@ -441,7 +452,9 @@ function _openWaveFormation(){
   showScreen('battle');
   G.phase=null;
   G._waveVillage=false;
-  G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false;
+  G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._facilityLabel='';
+  G._villageBgmActive=false;
+  if(typeof _applyFacilityBackground==='function') _applyFacilityBackground(null);
   if(typeof goToReward==='function') goToReward();
   // ゲームオーバー中に停止した編成背景動画は、reward-screen-active適用後に明示的に再開する。
   requestAnimationFrame(()=>{
@@ -476,13 +489,14 @@ function _grantWaveEliteItem(){
 }
 // stage5：村（ショップ・クエスト受託）
 function _openWaveVillage(stage,eliteWon){
-  showScreen('battle');
+  // ここでshowScreen('battle')を呼ぶとG.phaseがまだ戦闘中の値のためbattle1.wavが再生されてしまう。
+  // 画面切り替えはopenMapVillage()（入場演出）側に任せる。
   G._waveStage=stage;
   G._waveVillage=true;
   G._waveEliteWon=!!eliteWon;
   G._isWaveAltar=false;
   G.phase=null;
-  if(typeof openMapVillage==='function') openMapVillage();
+  if(typeof openMapVillage==='function') openMapVillage({intro:true});
 }
 // stage10：祭壇（鍛冶・指輪交換）
 function _openWaveAltar(stage){
@@ -512,8 +526,13 @@ function _startWaveBattle(stage){
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
+  G._isItemShop=false;
   G._isVillageMenu=false;
   G._isRingExchange=false;
+  G._facilityLabel='';
+  // 街を出て戦闘へ入るのでBGMは通常制御へ戻す。
+  G._villageBgmActive=false;
+  if(typeof _applyFacilityBackground==='function') _applyFacilityBackground(null);
   G._waveStage=stage;
   G._waveBattleType=type;
   G._waveBattleWon=null;
@@ -661,7 +680,7 @@ function handleWaveBattleDefeat(){
     G._waveRewardCount=null;
     G.phase=null;
     if(returnTo==='altar'&&typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
-    else if(returnTo==='village'&&typeof openMapVillage==='function') openMapVillage();
+    else if(returnTo==='village'&&typeof openMapVillage==='function') openMapVillage({intro:true});
     else if(typeof goToReward==='function') goToReward();
   });
   return true;
@@ -702,6 +721,10 @@ function startGame(debugMode){
 }
 
 function _runStatsAreaName(){
+  // 到達地点は「地域情報」シートの道の名前。街より前なら「街までの名前」、
+  // 街を出た後（塔へ向かう区間）なら「塔までの名前」を使う（戦闘カットインの副題と同じ）。
+  const routeName=typeof _waveBattleRouteName==='function'?String(_waveBattleRouteName()||'').trim():'';
+  if(routeName) return routeName;
   return String(G.worldMap?.areaName||G.areaName||G.mapAreaName||G.floorName||`${G.floor||1}階`);
 }
 function _recordRunStatsSnapshot(){

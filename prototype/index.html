@@ -6587,6 +6587,14 @@ html body.reward-screen-active{
 html body.reward-screen-active #scr-battle{
   background:#08020f url("assets/art/backgrounds/main.webp") center/cover no-repeat!important;
 }
+/* 街の施設（魔導店／道具屋など）は編成画面の共通背景ではなく専用背景を使う。 */
+html body.reward-screen-active.facility-bg-active #scr-battle{
+  background:#08020f var(--facility-bg-image) center/cover no-repeat!important;
+}
+/* 施設専用背景の画面では、編成画面の背景動画（back1.webm）を重ねない。 */
+html body.reward-screen-active.facility-bg-active #reward-bg-video{
+  display:none!important;
+}
 html body.reward-screen-active #scr-battle.asset-backed::before,
 html body.reward-screen-active #scr-battle.asset-backed::after{
   content:none!important;
@@ -6663,6 +6671,8 @@ html body.reward-screen-active .reward-prod-title span{
   font-size:86px;
   font-weight:700;
   letter-spacing:.08em;
+  /* 施設名（ショップ／道具屋／鍛冶屋）は3文字以上になるため折り返さない */
+  white-space:nowrap;
   text-shadow:0 3px 10px rgba(0,0,0,.85),0 0 18px rgba(160,92,255,.45);
 }
 html body.reward-screen-active .reward-prod-panel{
@@ -7038,7 +7048,7 @@ html body.reward-screen-active #battle-order-section::before{
   pointer-events:none;
 }
 html body.reward-screen-active.shop-screen-active #battle-order-section::before{
-  content:"販売カード";
+  content:"商品";
 }
 html body.reward-screen-active.forge-screen-active #battle-order-section::before{
   content:"魔導板強化";
@@ -7806,7 +7816,8 @@ html body.reward-screen-active #hand-pane::before{
   display:block!important;
   position:absolute!important;
   left:50%!important;
-  top:38px!important;
+  /* ゲームオーバー画面（#gameover-board-grid>#hand-pane::before）と同じ48pxに揃える。 */
+  top:48px!important;
   transform:translateX(-50%)!important;
   width:auto!important;
   height:auto!important;
@@ -10903,6 +10914,14 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump{
 html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
   filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
 }
+/* デバッグ：Sceneマーク（「次の祭壇まであと〜」の上のアイコン列）もクリックでステージ移動できる。 */
+html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump{
+  cursor:pointer!important;
+  pointer-events:auto!important;
+}
+html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump:hover{
+  filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
+}
 
 /* ゲームオーバー：背景を残したまま結果と敗北時点の魔導板を表示する。 */
 #scr-gameover{display:none;overflow:hidden;background:#07100d url('assets/art/backgrounds/game_start.png') center/cover no-repeat;color:#eee}
@@ -10934,13 +10953,21 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 @media(max-width:1100px){#gameover-shell{left:3%;right:3%;padding:30px;gap:20px}.gameover-rows{gap:10px}#gameover-actions .btn{min-width:0;font-size:18px}}
 
 /* ゲームオーバー最終レイアウト：ゲーム画面を維持したまま、その上へgame_over.svgを重ねる。 */
+/* inset:0 だとビューポート左上に貼り付き、上下中央に置かれるゲームキャンバス（#scr-battle）と
+   位置がずれる（＝中身が画面上寄りに見える）。他の画面と同じキャンバス座標へ合わせる。 */
 #scr-gameover.gameover-overlay-active{
-  display:block!important;position:fixed!important;inset:0!important;z-index:9000!important;
+  display:block!important;position:fixed!important;
+  left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;
+  right:auto!important;bottom:auto!important;
+  width:var(--game-w)!important;height:var(--game-h)!important;
+  z-index:9000!important;
   overflow:hidden!important;background:transparent!important;pointer-events:none!important;
 }
 #scr-gameover.gameover-overlay-active::before{display:none!important}
 #gameover-shell{
-  left:7.3%!important;top:15.5%!important;right:auto!important;bottom:auto!important;
+  /* 「旅の終焉」〜魔導板のセットを画面の縦中央に揃える。 */
+  left:7.3%!important;top:50%!important;right:auto!important;bottom:auto!important;
+  transform:translateY(-50%)!important;
   width:85.4%!important;height:74.45%!important;aspect-ratio:3304.2/1608!important;
   display:block!important;padding:0!important;border:0!important;background:transparent!important;
   box-shadow:none!important;animation:none!important;
@@ -10950,7 +10977,9 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 #gameover-results h1{font-size:140px!important;line-height:1!important;letter-spacing:.12em!important;margin:0 0 52px!important;font-weight:700!important;background:linear-gradient(115deg,#554b3e 0%,#d9d0bd 38%,#746653 64%,#312b24 100%);background-size:240% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:gameoverTitleGradient .9s .45s ease-out both!important}
 .gameover-line{width:84%!important;margin:0 auto 62px!important;height:auto!important;filter:brightness(.62) sepia(.3) saturate(.75)!important;animation:gameoverLineGradient .9s .5s ease-out both!important}
 #gameover-results h1,.gameover-line,#gameover-actions{transform:translateX(65px)!important}
-.gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:220px!important;row-gap:78px!important;justify-content:center!important;font-size:54px!important;line-height:1.15!important}
+/* 項目行のグループは内容幅に応じて自動で中央寄せになる（justify-content:center）。
+   タイトル／ラインと同じ +65px を掛けて「旅の終焉」の中心と一致させる。 */
+.gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:220px!important;row-gap:78px!important;justify-content:center!important;font-size:54px!important;line-height:1.15!important;transform:translateX(65px)!important}
 .gameover-rows>div{display:contents!important}
 .gameover-rows b{font-weight:700!important;white-space:nowrap}
 .gameover-rows span{white-space:nowrap}
@@ -11139,6 +11168,992 @@ html body.gameover-active .gameover-rows>div:nth-child(4)>*{animation-delay:1.75
 html body.gameover-active .gameover-rows>div:nth-child(5)>*{animation-delay:1.85s}
 html body.gameover-active .gameover-rows>div:nth-child(6)>*{animation-delay:1.95s}
 html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05s}
+
+/* ══════════════════════════════════════════════════════════
+   街（村）専用画面 #scr-village
+   ══════════════════════════════════════════════════════════ */
+#scr-village.active{display:block!important;position:fixed!important;overflow:hidden!important}
+/* 左上の街名プレート：name_back.svgを背景に、街名の長さに応じて横幅が自動で伸びる。
+   帯の高さは200px（SVGのviewBox 1400x200と1:1）で、上辺は画面Y=100px。
+   街名は帯の中で上下中央（align-items:center、padding上下0）。
+   文字色は所持金/ライフ表示と同じ #c49a6c。 */
+#village-name-plate,
+#map-name-plate{
+  position:absolute!important;
+  left:0!important;
+  top:100px!important;
+  z-index:10!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:30px!important;
+  height:200px!important;
+  min-width:700px!important;
+  padding:0 190px 0 130px!important;
+  background:url("assets/ui/name_back.svg") left top/100% 100% no-repeat!important;
+  white-space:nowrap!important;
+  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  color:#c49a6c!important;
+  text-shadow:0 3px 7px #080300!important;
+  pointer-events:none!important;
+}
+/* 半角スペース前（地域名）は小さく、後（固有名）は大きく。縦の中心は揃える。 */
+#village-name-sub,
+#map-name-sub{font-size:38px!important;font-weight:700!important;letter-spacing:.06em!important;line-height:1!important}
+#village-name-main,
+#map-name-main{font-size:92px!important;font-weight:700!important;letter-spacing:.08em!important;line-height:1!important}
+#village-name-sub:empty,
+#map-name-sub:empty{display:none!important}
+/* 施設ボタン：button_blue.svg（button_purple.svgの青／半透明版）を元ファイル寸法（498×124）で使う。
+   ホバー発光は編成画面の操作ボタン（#reward-move-btns .rew-move-btn）と同じ方式に統一する。 */
+#village-facilities{position:absolute!important;inset:0!important;z-index:8!important;pointer-events:none!important}
+.village-facility{
+  position:absolute!important;
+  transform:translate(-50%,-50%)!important;
+  width:498px!important;
+  height:124px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:none!important;
+  box-shadow:none!important;
+  display:block!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+  isolation:isolate!important;
+  overflow:visible!important;
+  filter:none!important;
+}
+.village-facility::before{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:1!important;
+  background:url("assets/ui/button_blue.svg") center/100% 100% no-repeat!important;
+  transition:filter .16s ease-out!important;
+  pointer-events:none!important;
+}
+/* ホバーで少し明るくなるだけ（編成画面の派手な明滅発光は使わない） */
+.village-facility:hover::before{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6))!important}
+.village-facility:hover .village-facility-name{color:#fff6dc!important}
+.village-facility .village-facility-name{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  place-items:center!important;
+  z-index:3!important;
+  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-size:43.82px!important;
+  font-weight:700!important;
+  letter-spacing:.12em!important;
+  line-height:1!important;
+  color:#e9dcb4!important;
+  text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
+}
+/* 説明文：文字は小さく、背後のグラデーションはテキストより少し長めに取る。
+   ボタンにホバーしている間だけ表示する。 */
+.village-facility .village-facility-desc{
+  opacity:0!important;
+  transition:opacity .16s ease-out!important;
+  position:absolute!important;
+  left:50%!important;
+  top:calc(100% + 14px)!important;
+  transform:translateX(-50%)!important;
+  z-index:3!important;
+  white-space:nowrap!important;
+  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-size:28px!important;
+  font-weight:600!important;
+  letter-spacing:.04em!important;
+  line-height:1.2!important;
+  color:#efe4c6!important;
+  text-shadow:0 3px 7px #080300!important;
+  padding:7px 132px!important;
+  background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%)!important;
+}
+.village-facility:hover .village-facility-desc{opacity:1!important}
+/* px指定（左上合わせ）のボタンは中心合わせのtranslateを打ち消す。 */
+.village-facility.village-facility-topleft{transform:none!important}
+.village-facility.village-facility-disabled{cursor:default!important}
+.village-facility.village-facility-disabled::before{filter:grayscale(.7) brightness(.62)!important}
+.village-facility.village-facility-disabled:hover::before{filter:grayscale(.7) brightness(.62)!important}
+.village-facility.village-facility-disabled .village-facility-name{color:#8b8f9a!important}
+.village-facility.village-facility-disabled:hover .village-facility-name{color:#8b8f9a!important}
+/* 所持金／ライフ：戦闘画面の #battle-status-hud と同じ位置・同じ寸法（.battle-status-counter を共用） */
+#village-status,
+#map-status{
+  position:absolute!important;
+  left:70px!important;
+  bottom:70px!important;
+  z-index:3200!important;
+  display:flex!important;
+  gap:36.4px!important;
+  align-items:center!important;
+  pointer-events:none!important;
+}
+/* 「出発する」の位置・寸法・発光は #reward-move-btns の各ルールを
+   body.village-screen-active #village-move-btns へ丸ごと複製して共有している（末尾の自動複製ブロック）。 */
+
+/* ══════════════════════════════════════════════════════════
+   道具屋（アイテムショップ）：提示3枠＋手持ちアイテムの売却UI
+   ══════════════════════════════════════════════════════════ */
+/* 提示アイテムは宝箱枠（item_slot.svg）と同じ正方形。treasure-offer-cardは
+   子要素を全て隠すルールを持つため、価格バッジだけ復活させる。 */
+html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-buy-price,
+html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-insufficient-badge{
+  display:flex!important;
+}
+/* 手持ちアイテムを商品枠へ置いた場合の売却UIも表示する。 */
+html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-pending-sale-ui{
+  display:flex!important;
+}
+/* 3枠は上・下・上と互い違いに置き、行の上下に余白ができないようにする。 */
+html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-up{
+  align-self:flex-start!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-down{
+  align-self:flex-end!important;
+}
+/* 手持ちアイテム枠（189px正方形）用に、カード用の売却UIを縮小した寸法で適用する。
+   枠は<i>要素なのでfont-style:normalでイタリックを打ち消す。 */
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  position:absolute!important;
+  right:3px!important;
+  width:70px!important;
+  height:38px!important;
+  min-width:70px!important;
+  box-sizing:border-box!important;
+  padding:1px 3px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(230,210,150,.75)!important;
+  border-radius:4px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font-size:19px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  font-style:normal!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px #000!important;
+  z-index:10011!important;
+}
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
+  top:18px!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  top:60px!important;
+  font-family:var(--font-hd)!important;
+  font-style:normal!important;
+  cursor:pointer!important;
+  z-index:10012!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   自動複製：編成画面の「戦闘開始」ボタン（#reward-move-btns .rew-move-btn）の
+   全ルールを、街画面の「出発する」（#village-move-btns .rew-move-btn）へ
+   セレクタだけ差し替えて丸ごと複製したもの。見た目・寸法・位置・発光を完全に一致させる。
+   .reward-pick-taken 付きのルールは街では常に適用する（取得済みと同じ見た目にする）。
+   ══════════════════════════════════════════════════════════ */
+html body.village-screen-active #village-move-btns{display:flex;gap:6px;flex-shrink:0}
+html body.village-screen-active #village-move-btns{
+  position:absolute;left:72px;top:128px;width:780px;z-index:19;display:flex;gap:16px
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  flex:0 0 248px!important;width:248px;height:82px;margin:0;padding:8px 12px;border-width:3px;border-radius:8px;
+  background:rgba(13,15,20,.82);font-size:.68rem;display:flex;align-items:center;justify-content:center;gap:8px
+}
+body.village-screen-active #village-move-btns{
+  position:absolute!important;
+  left:72px!important;
+  top:150px!important;
+  width:464px!important;
+  min-height:74px!important;
+  display:flex!important;
+  gap:0!important;
+  z-index:1250!important;
+}
+body.village-screen-active #village-move-btns .rew-move-btn{
+  width:100%!important;
+  min-height:74px!important;
+  font-size:1.08rem!important;
+  justify-content:center!important;
+}
+body.village-screen-active #village-move-btns{
+  left:72px!important;
+  top:158px!important;
+  width:560px!important;
+  min-height:82px!important;
+}
+body.village-screen-active #village-move-btns .rew-move-btn{
+  min-height:82px!important;
+}
+body.village-screen-active #village-move-btns{
+  left:auto!important;
+  right:430px!important;
+  top:64px!important;
+  width:312px!important;
+  min-height:66px!important;
+  z-index:3700!important;
+}
+body.village-screen-active #village-move-btns .rew-move-btn{
+  min-height:66px!important;
+  height:66px!important;
+}
+body.village-screen-active #village-move-btns{
+  left:72px!important;
+  right:auto!important;
+  top:64px!important;
+  width:312px!important;
+  min-height:92px!important;
+  height:92px!important;
+  z-index:3700!important;
+}
+body.village-screen-active #village-move-btns .rew-move-btn{
+  min-height:92px!important;
+  height:92px!important;
+  width:312px!important;
+  font-size:.92rem!important;
+  line-height:1.15!important;
+}
+body.village-screen-active #village-move-btns{
+  left:72px!important;
+  right:auto!important;
+  top:64px!important;
+}
+html body.village-screen-active #village-move-btns{
+  display:flex!important;
+  position:absolute!important;
+  left:70px!important;
+  top:1968px!important;
+  width:1020px!important;
+  min-height:122px!important;
+  gap:31px!important;
+  padding:0!important;
+  margin:0!important;
+  /* コンテナごと魔導板(z-index:9〜10)より奥・背景動画(z-index:1〜2)より手前に沈める。
+     ボタンの文字・顔画像自体は魔導板と重ならないため、こうすることではみ出たグローが
+     クリップされずに全周フルサイズで描画され、魔導板と重なる左側だけが自然に
+     魔導板の裏へ回り込む */
+  z-index:3!important;
+  overflow:visible!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  position:relative!important;
+  width:497px!important;
+  min-width:497px!important;
+  max-width:497px!important;
+  height:123px!important;
+  min-height:123px!important;
+  max-height:123px!important;
+  flex:0 0 497px!important;
+  aspect-ratio:497 / 123!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  display:grid!important;
+  place-items:center!important;
+  font-size:42px!important;
+  line-height:1!important;
+  letter-spacing:.12em!important;
+  font-weight:700!important;
+  color:var(--prod-gold)!important;
+  text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  background:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-btn-label{
+  position:relative!important;
+  z-index:10!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before,
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  content:''!important;
+  position:absolute!important;
+  pointer-events:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before,
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  left:-45.5px!important;
+  top:-55px!important;
+  width:607px!important;
+  height:234px!important;
+  clip-path:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  left:0!important;
+  top:0!important;
+  width:497px!important;
+  height:123px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  z-index:1!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  z-index:2!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background-color:#260311!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after,
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
+  background-image:url("assets/ui/button.svg")!important;
+  background-color:#260311!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;
+  opacity:1;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:not(:hover)::before{
+  opacity:0!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
+  background-image:url("assets/ui/back_light.svg")!important;
+  animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn.disabled{
+  filter:grayscale(.6) brightness(.55)!important;
+  opacity:.75!important;
+}
+html body.village-screen-active #village-move-btns{
+  left:2740px!important;
+  top:1968px!important;
+  width:1020px!important;
+  height:124px!important;
+  gap:42px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  width:492px!important;
+  height:124px!important;
+  min-width:492px!important;
+  max-width:492px!important;
+  min-height:124px!important;
+  max-height:124px!important;
+  font-size:var(--prod-panel-title-size)!important;
+}
+html body.village-screen-active #village-move-btns{
+  overflow: visible !important;
+  clip-path: none !important;
+  z-index: 3 !important; 
+}
+html body.village-screen-active .dragzone-itemslot) #village-move-btns{
+  filter:brightness(.4) saturate(.5)!important;
+  opacity:1!important;
+  z-index:auto!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  display:none!important;
+  opacity:0!important;
+  animation:none!important;
+  background:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background-repeat:no-repeat!important;
+  background-position:center,center!important;
+  background-size:calc(100% - 20px) calc(100% - 12px),100% 100%!important;
+  border-radius:10px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover{
+  box-shadow:0 0 18px 4px rgba(255,218,125,.45)!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::after,
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background-size:100% 100%!important;
+  border-radius:0!important;
+  clip-path:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after,
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+}
+html body.village-screen-active #village-move-btns{
+  left:2749px!important;
+  right:auto!important;
+  top:1978px!important;
+  width:952px!important;
+  height:113.145px!important;
+  min-height:113.145px!important;
+  gap:32px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  width:460px!important;
+  min-width:460px!important;
+  max-width:460px!important;
+  height:113.145px!important;
+  min-height:113.145px!important;
+  max-height:113.145px!important;
+  flex:0 0 460px!important;
+  aspect-ratio:496 / 122!important;
+  font-size:40px!important;
+  box-shadow:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after,
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  left:0!important;
+  top:0!important;
+  width:460px!important;
+  height:113.145px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  display:block!important;
+  z-index:1!important;
+  opacity:0!important;
+  animation:none!important;
+  transform:scale(1.025)!important;
+  transition:opacity .15s ease,filter .15s ease!important;
+  filter:brightness(2.3) drop-shadow(0 0 10px rgba(255,231,164,1)) drop-shadow(0 0 22px rgba(255,194,70,.92))!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
+  opacity:1!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover{
+  box-shadow:none!important;
+}
+html body.village-screen-active #village-move-btns{
+  top:1962.661px!important;
+  width:1021px!important;
+  height:129.339px!important;
+  min-height:129.339px!important;
+  gap:35.056px!important;
+  align-items:flex-end!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  width:525.837px!important;
+  min-width:525.837px!important;
+  max-width:525.837px!important;
+  height:129.339px!important;
+  min-height:129.339px!important;
+  max-height:129.339px!important;
+  flex-basis:525.837px!important;
+  font-size:43.82px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before,
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  width:525.837px!important;
+  height:129.339px!important;
+}
+html body.village-screen-active #village-move-btns{
+  top:1970.737px!important;
+  width:1021px!important;
+  height:121.263px!important;
+  min-height:121.263px!important;
+  gap:35.056px!important;
+  align-items:flex-end!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{
+  width:492.972px!important;
+  min-width:492.972px!important;
+  max-width:492.972px!important;
+  height:121.263px!important;
+  min-height:121.263px!important;
+  max-height:121.263px!important;
+  flex:0 0 492.972px!important;
+  font-size:43.82px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before,
+html body.village-screen-active #village-move-btns .rew-move-btn::after{
+  left:0!important;
+  top:0!important;
+  width:492.972px!important;
+  height:121.263px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  transform:none!important;
+  transform-origin:center!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,231,164,.94)) drop-shadow(0 0 20px rgba(255,194,70,.82))!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  left:-8px!important;
+  width:508.972px!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  left:0!important;
+  width:492.972px!important;
+  transform:none!important;
+  background-image:url("assets/ui/button_purple.svg")!important;
+  opacity:0!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
+  opacity:.82!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  inset:0!important;width:auto!important;height:auto!important;
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
+  transform:none!important;opacity:0!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
+  opacity:.9!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn{isolation:isolate!important;overflow:visible!important;filter:none!important}
+html body.village-screen-active #village-move-btns .rew-move-btn::before{
+  content:""!important;display:block!important;position:absolute!important;inset:0!important;
+  width:auto!important;height:auto!important;transform:none!important;
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
+  opacity:0!important;pointer-events:none!important;z-index:-1!important;animation:none!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
+  opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
+}
+html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
+  background-image:url("assets/ui/button_brown.svg")!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn::before{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  transform:none!important;
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  z-index:1!important;
+  animation:none!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:hover::before{
+  opacity:1!important;
+  animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:hover::after{
+  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn::before{
+  opacity:.48!important;
+  animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:hover::before{
+  opacity:1!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:hover::after{
+  filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:disabled:not(.disabled){
+  opacity:1!important;
+  filter:none!important;
+}
+/* 街の背景（::before）より前面へ出す。位置・見た目は上の複製ルールのまま。 */
+/* 編成画面には `html body.reward-screen-active *` の明朝体指定があるため、
+   街画面も同じフォントに揃える（「出発する」の文字が Cinzel になり
+   「戦闘開始」と縦位置がずれていた原因）。 */
+html body.village-screen-active #scr-village,
+html body.village-screen-active #scr-village *{
+  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+}
+html body.village-screen-active #village-move-btns#village-move-btns{
+  z-index:3200!important;
+  /* Xは編成画面の「元に戻す」（2ボタン目）と同じ位置。コンテナ右端に寄せると一致する。 */
+  justify-content:flex-end!important;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   道具屋でアイテムをドラッグ中の暗転
+   指輪交換（.dragzone-ring-offer）と全く同じ方式＝#ring-drag-overlayによる
+   黒50%の全面オーバーレイを使い、明るく残す枠だけをアイテム枠（.reward-prod-item）に
+   入れ替える（＝指輪枠は暗くなる）。既存の panel 個別 filter:brightness(.4) は
+   二重暗転になるため、道具屋中は打ち消す。
+   ══════════════════════════════════════════════════════════ */
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #ring-drag-overlay{
+  display:block!important;
+}
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) .battle-scroll{
+  z-index:30!important;
+}
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot).item-shop-active #reward-production-ui{
+  z-index:9001!important;
+}
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > *:not(.reward-prod-item){
+  filter:brightness(.5)!important;
+}
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > .reward-prod-item,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > .reward-prod-item *{
+  filter:none!important;
+}
+/* ドラッグ元（提示アイテム）も指輪交換と同じく明るく残す。 */
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot).item-shop-active #battle-order-section{
+  z-index:9001!important;
+}
+/* 所持アイテムをドラッグ中は、売却価格と売却ボタンを隠す（ドラッグゴースト側も含む）。 */
+html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
+html body.item-shop-active .drag-ghost .shop-board-sell-value,
+html body.item-shop-active .drag-ghost .shop-board-sell-btn{
+  display:none!important;
+}
+/* 既存のパネル個別暗転（brightness(.4) saturate(.5)）を道具屋中は無効化する。 */
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #main-hand-area,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane-board-bg,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-slots.unit-equip-slots,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #debug-card-palette,
+html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-move-btns{
+  filter:none!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   街／マップ画面のオプションボタン（戦闘・編成画面の #battle-options-btn と同じ見た目）
+   ══════════════════════════════════════════════════════════ */
+/* 戦闘画面の #battle-options-btn（html body #scr-battle #battle-options-btn）と
+   完全に同じ宣言にする。font-size:0 が無いと「⚙」の文字ボックスでボタンが潰れて見える。 */
+html body .screen-options-btn{
+  display:block!important;
+  position:absolute!important;
+  left:3666px!important;
+  right:auto!important;
+  top:70px!important;
+  width:110px!important;
+  height:90px!important;
+  min-width:110px!important;
+  min-height:90px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  color:transparent!important;
+  font-size:0!important;
+  line-height:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  cursor:pointer!important;
+  z-index:4100!important;
+  background:none!important;
+}
+/* 顔は option.svg（アイコン）＋ button_option.svg（枠）の2枚重ね。戦闘画面と同一。 */
+html body .screen-options-btn::after{
+  content:''!important;position:absolute!important;left:0!important;top:0!important;
+  width:110px!important;height:90px!important;z-index:2!important;pointer-events:none!important;
+  box-sizing:border-box!important;
+  border:0!important;
+  background-image:url("assets/ui/option.svg"),url("assets/ui/button_option.svg")!important;
+  background-position:center,center!important;
+  background-size:42px 42px,100% 100%!important;
+  background-repeat:no-repeat,no-repeat!important;
+  transition:filter .15s ease!important;
+}
+html body .screen-options-btn::before{
+  content:''!important;position:absolute!important;left:0!important;top:0!important;
+  width:110px!important;height:90px!important;z-index:1!important;pointer-events:none!important;
+  background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;
+  opacity:0;
+  transform:scale(1.03)!important;
+  filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9)) drop-shadow(0 0 12px rgba(255,194,70,.78))!important;
+}
+html body .screen-options-btn:hover::before{opacity:.84!important}
+/* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x90）の直下。 */
+html body #village-mute-btn{
+  position:absolute!important;
+  left:3666px!important;
+  top:180px!important;
+  width:110px!important;
+  height:90px!important;
+  margin:0!important;
+  padding:0!important;
+  opacity:.7!important;
+  background:rgba(13,15,20,.82)!important;
+  border:1px solid rgba(201,168,76,.6)!important;
+  border-radius:6px!important;
+  color:var(--gold2)!important;
+  font-size:38px!important;
+  line-height:1!important;
+  z-index:4100!important;
+  cursor:pointer!important;
+}
+html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35)!important}
+
+/* ══════════════════════════════════════════════════════════
+   ワールドマップ画面 #scr-map
+   map.jpgを全面に敷き、ui/map_line/*.svg を指定座標（左上合わせ）へ並べる。
+   到達済みのラインは暗く、現在移動中のラインだけ進行方向へ光が流れる。
+   ══════════════════════════════════════════════════════════ */
+#scr-map.active{display:block!important;position:fixed!important;overflow:hidden!important}
+#map-lines{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important}
+/* 下地（::before）と光の帯（::after）を分ける。要素自体にopacityを掛けると
+   ::after の光まで一緒に薄くなってしまうため、下地側だけを薄くする。 */
+.map-line{
+  position:absolute!important;
+  background:none!important;
+  pointer-events:none!important;
+}
+.map-line::before{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  background:var(--map-line-img) left top/100% 100% no-repeat!important;
+  pointer-events:none!important;
+}
+/* 到達済み：暗く表示するだけ */
+.map-line.is-done::before{opacity:.5!important;filter:brightness(.8) drop-shadow(0 0 3px rgba(0,0,0,.9))!important}
+/* 移動中：暗めの下地の上を、進行方向へ強い光の帯が流れる（下地との差を大きくして目立たせる） */
+.map-line.is-active::before{opacity:.45!important;filter:drop-shadow(0 0 3px rgba(0,0,0,.9))!important}
+.map-line.is-active::after{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  background:var(--map-line-img) left top/100% 100% no-repeat!important;
+  filter:brightness(2.6) drop-shadow(0 0 6px rgba(255,255,255,1)) drop-shadow(0 0 16px rgba(255,246,214,1)) drop-shadow(0 0 34px rgba(255,214,104,1)) drop-shadow(0 0 60px rgba(255,190,60,.8))!important;
+  -webkit-mask-repeat:no-repeat!important;
+  mask-repeat:no-repeat!important;
+  pointer-events:none!important;
+}
+.map-line.is-active.dir-lr::after,
+.map-line.is-active.dir-rl::after{
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
+  mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
+  -webkit-mask-size:45% 100%!important;
+  mask-size:45% 100%!important;
+}
+.map-line.is-active.dir-bt::after,
+.map-line.is-active.dir-tb::after{
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
+  mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
+  -webkit-mask-size:100% 45%!important;
+  mask-size:100% 45%!important;
+}
+.map-line.is-active.dir-lr::after{animation:mapLineFlowLR 1.6s linear infinite!important}
+.map-line.is-active.dir-rl::after{animation:mapLineFlowRL 1.6s linear infinite!important}
+.map-line.is-active.dir-bt::after{animation:mapLineFlowBT 1.6s linear infinite!important}
+.map-line.is-active.dir-tb::after{animation:mapLineFlowTB 1.6s linear infinite!important}
+@keyframes mapLineFlowLR{
+  0%{-webkit-mask-position:-70% 50%;mask-position:-70% 50%;opacity:0}
+  8%,92%{opacity:1}
+  100%{-webkit-mask-position:170% 50%;mask-position:170% 50%;opacity:0}
+}
+@keyframes mapLineFlowRL{
+  0%{-webkit-mask-position:170% 50%;mask-position:170% 50%;opacity:0}
+  8%,92%{opacity:1}
+  100%{-webkit-mask-position:-70% 50%;mask-position:-70% 50%;opacity:0}
+}
+@keyframes mapLineFlowBT{
+  0%{-webkit-mask-position:50% 170%;mask-position:50% 170%;opacity:0}
+  8%,92%{opacity:1}
+  100%{-webkit-mask-position:50% -70%;mask-position:50% -70%;opacity:0}
+}
+@keyframes mapLineFlowTB{
+  0%{-webkit-mask-position:50% -70%;mask-position:50% -70%;opacity:0}
+  8%,92%{opacity:1}
+  100%{-webkit-mask-position:50% 170%;mask-position:50% 170%;opacity:0}
+}
+
+/* ══════════════════════════════════════════════════════════
+   ショップ／道具屋：購入済みの枠は詰めずに残し、中心に「売切」と表示する
+   ══════════════════════════════════════════════════════════ */
+html body.reward-screen-active #battle-order-row > .shop-sold-out{
+  position:relative!important;
+  flex:0 0 var(--prod-card-w)!important;
+  width:var(--prod-card-w)!important;
+  height:var(--prod-card-h)!important;
+  min-height:var(--prod-card-h)!important;
+  max-height:var(--prod-card-h)!important;
+  border:0!important;
+  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  box-shadow:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  pointer-events:none!important;
+}
+/* 道具屋の売切枠はアイテム枠（item_slot.svg）と同じ正方形にする。 */
+html body.reward-screen-active #battle-order-row > .shop-sold-out.shop-sold-out-item{
+  height:var(--prod-card-w)!important;
+  min-height:var(--prod-card-w)!important;
+  max-height:var(--prod-card-w)!important;
+  background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat!important;
+}
+html body.reward-screen-active #battle-order-row > .shop-sold-out.shop-sold-out-item.shop-sold-out-item-up{
+  align-self:flex-start!important;
+}
+html body.reward-screen-active #battle-order-row > .shop-sold-out.shop-sold-out-item.shop-sold-out-item-down{
+  align-self:flex-end!important;
+}
+html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out-label{
+  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-size:46px!important;
+  font-weight:700!important;
+  letter-spacing:.16em!important;
+  line-height:1!important;
+  color:rgba(224,206,168,.62)!important;
+  text-shadow:0 3px 8px rgba(0,0,0,.9)!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   街への入場演出
+   ①画面全体を黒へフェードアウト → ②村の背景だけを中央から円形にフェードイン
+   → ③途中から地域名＋下線（白一色＋ドロップシャドウ）をフェードイン
+   → ④地域名が消えきってから背景以外の要素をフェードイン
+   ══════════════════════════════════════════════════════════ */
+/* 背景の真上に重ねる効果動画。UI（z-index:1〜）より奥、背景画像（::before、z-index:-1）より手前。 */
+#village-bg-video{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  mix-blend-mode:screen!important;
+  opacity:.5!important;
+  display:none!important;
+}
+#village-bg-video.is-active{display:block!important}
+#village-enter-fade{
+  position:fixed;
+  inset:0;
+  z-index:99000;
+  background:#000;
+  opacity:0;
+  pointer-events:none;
+}
+/* 円形フェードイン中は下地を純黒にして、背景が中央から広がって見えるようにする。 */
+html body.village-intro-active #scr-village{background:#000!important}
+/* 中央からのフェードインは clip-path の硬い縁ではなく、放射グラデーションのマスクを
+   拡大していくことで縁を滑らかにする（mask-size はアニメーション可能）。 */
+html body.village-intro-circle #scr-village.asset-backed::before,
+html body.village-intro-circle #village-bg-video{
+  -webkit-mask-image:radial-gradient(closest-side ellipse,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 38%,
+    rgba(0,0,0,.92) 56%,
+    rgba(0,0,0,.68) 70%,
+    rgba(0,0,0,.36) 83%,
+    rgba(0,0,0,.12) 93%,
+    rgba(0,0,0,0) 100%)!important;
+  mask-image:radial-gradient(closest-side ellipse,
+    rgba(0,0,0,1) 0%,
+    rgba(0,0,0,1) 38%,
+    rgba(0,0,0,.92) 56%,
+    rgba(0,0,0,.68) 70%,
+    rgba(0,0,0,.36) 83%,
+    rgba(0,0,0,.12) 93%,
+    rgba(0,0,0,0) 100%)!important;
+  -webkit-mask-repeat:no-repeat!important;
+  mask-repeat:no-repeat!important;
+  -webkit-mask-position:50% 50%!important;
+  mask-position:50% 50%!important;
+  animation:villageIntroMaskIn 1.15s cubic-bezier(.24,.66,.24,1) both!important;
+}
+@keyframes villageIntroMaskIn{
+  0%{-webkit-mask-size:0% 0%;mask-size:0% 0%;opacity:0}
+  22%{opacity:1}
+  100%{-webkit-mask-size:420% 420%;mask-size:420% 420%;opacity:1}
+}
+/* 演出中は背景と効果動画以外（プレート・施設・所持金・出発する）を隠す。 */
+html body.village-intro-hide-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video){
+  opacity:0!important;
+  pointer-events:none!important;
+}
+/* 施設ボタンは .village-facility 側で pointer-events:auto を持つため、
+   親（#village-facilities）を none にしても押せてしまう。演出中は明示的に止める
+   （フェードイン中＝reveal-ui の間も、完全に見えるまでは押せないようにする）。 */
+html body.village-intro-active #scr-village,
+html body.village-intro-hide-ui .village-facility,
+html body.village-intro-reveal-ui .village-facility{
+  pointer-events:none!important;
+}
+html body.village-intro-reveal-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video){
+  animation:villageIntroUiIn .42s ease-out both!important;
+}
+@keyframes villageIntroUiIn{from{opacity:0}to{opacity:1}}
+/* 地域名＋下線：戦闘開始カットインと同じ配置。色は白一色＋ドロップシャドウ。 */
+#village-intro-title{
+  position:absolute!important;
+  inset:0!important;
+  z-index:10000!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  pointer-events:none!important;
+  opacity:0;
+  visibility:hidden;
+}
+#village-intro-title.is-visible{
+  opacity:1;
+  visibility:visible;
+  transition:opacity .5s ease-out;
+}
+#village-intro-title.is-hiding{
+  opacity:0;
+  visibility:visible;
+  transition:opacity .42s ease-in;
+}
+/* 入場演出の地域名は2段組み：半角スペースより前を小さく上に、後を大きく下に。 */
+#village-intro-title .village-intro-name{
+  position:relative!important;
+  z-index:3!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  gap:14px!important;
+  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-weight:700!important;
+  white-space:nowrap!important;
+  color:#fff!important;
+  filter:drop-shadow(0 8px 10px rgba(0,0,0,.95)) drop-shadow(0 0 26px rgba(0,0,0,.75))!important;
+}
+#village-intro-title .village-intro-name-sub{
+  font-size:80px!important;letter-spacing:.16em!important;line-height:1!important;
+}
+#village-intro-title .village-intro-name-sub:empty{display:none!important}
+#village-intro-title .village-intro-name-main{
+  font-size:180px!important;letter-spacing:.18em!important;line-height:1!important;
+}
+#village-intro-title .village-intro-line{
+  position:absolute!important;
+  left:50%!important;
+  top:58%!important;
+  width:2400px!important;
+  height:auto!important;
+  transform:translate(-50%,-50%)!important;
+  z-index:1!important;
+  /* battle_line.svg（金色）を白一色にしてドロップシャドウを付ける。 */
+  filter:brightness(0) invert(1) drop-shadow(0 5px 9px rgba(0,0,0,.9)) drop-shadow(0 0 18px rgba(0,0,0,.6))!important;
+}
+
+
+
+/* ══════════════════════════════════════════════════════════
+   街の施設（魔導店／道具屋／鍛冶屋）では、店の背景画の真上に black.svg を
+   乗算で重ねる。UI（z-index:1以上）より奥、背景（要素自身のbackground）より手前。
+   ══════════════════════════════════════════════════════════ */
+html body.reward-screen-active.facility-bg-active #scr-battle::before{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:0!important;
+  background:url("assets/art/backgrounds/black.svg") center/100% 100% no-repeat!important;
+  mix-blend-mode:multiply!important;
+  opacity:1!important;
+  filter:none!important;
+  pointer-events:none!important;
+}
+
 </style>
 </head>
 <body>
@@ -11378,6 +12393,60 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   </div>
 </div>
 
+<!-- VILLAGE（街）専用画面：背景＋左上の街名プレート＋施設ボタン -->
+<div id="scr-village" class="screen">
+  <div id="village-name-plate">
+    <span id="village-name-sub"></span><span id="village-name-main"></span>
+  </div>
+  <!-- 背景の真上に重ねる効果動画（ステージごと。無い場合は非表示） -->
+  <video id="village-bg-video" muted loop playsinline aria-hidden="true"></video>
+  <div id="village-facilities"></div>
+  <!-- 所持金／ライフは戦闘画面の #battle-status-hud と同じマークアップ・同じクラスを使う -->
+  <div id="village-status" aria-label="所持金とライフ">
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
+      <span class="battle-status-label">所持金</span><strong id="village-gold">0</strong>
+    </div>
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
+      <span class="battle-status-label">ライフ</span><strong id="village-life">♥♥♥</strong>
+    </div>
+  </div>
+  <!-- 入場演出：地域名＋下線（battle_line.svg）を画面中央に白一色で表示する -->
+  <div id="village-intro-title" aria-hidden="true">
+    <img class="village-intro-line" src="assets/ui/battle_line.svg" alt="">
+    <div class="village-intro-name">
+      <span class="village-intro-name-sub"></span><span class="village-intro-name-main"></span>
+    </div>
+  </div>
+  <!-- 「出発する」は編成画面の「戦闘開始」ボタン（#reward-move-btns .rew-move-btn）と同じ構造 -->
+  <div id="village-move-btns">
+    <button type="button" class="btn rew-move-btn" id="village-depart-btn" data-sfx-silent="1"><span class="rew-btn-label">出発する</span></button>
+  </div>
+  <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+  <!-- デバッグモードのみ表示。オプションボタンの直下に置く。 -->
+  <button class="btn small" id="village-mute-btn" title="ミュート" data-sfx-silent="1" style="display:none">🔊</button>
+</div>
+
+<!-- WORLD MAP（出発時に数秒表示してから戦闘へ移行する） -->
+<div id="scr-map" class="screen">
+  <div id="map-name-plate">
+    <span id="map-name-sub"></span><span id="map-name-main"></span>
+  </div>
+  <div id="map-lines" aria-hidden="true"></div>
+  <div id="map-status" aria-label="所持金とライフ">
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
+      <span class="battle-status-label">所持金</span><strong id="map-gold">0</strong>
+    </div>
+    <div class="battle-status-counter">
+      <img src="assets/ui/counter.svg?v=back50" alt="">
+      <span class="battle-status-label">ライフ</span><strong id="map-life">♥♥♥</strong>
+    </div>
+  </div>
+  <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+</div>
+
 <!-- MOVE SELECT (fallback / smithy-rest after) -->
 <div id="scr-move" class="screen">
   <div class="mv-wrap">
@@ -11436,24 +12505,24 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=confirm-sfx1"></script>
-<script src="js/engine/audio.js?v=confirm-sfx1"></script>
+<script src="assets.js?v=map17"></script>
+<script src="js/engine/audio.js?v=map17"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=local-xlsx3"></script>
+<script src="js/data/local_xlsx_data.js?v=map17"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=sheetfix1"></script>
+<script src="js/data/loader.js?v=map17"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=firststrike-triple2"></script>
-<script src="js/engine/render.js?v=damage-label-fit1"></script>
-<script src="js/engine/reward.js?v=debug-jump-remove1"></script>
-<script src="js/engine/map.js?v=quest-sfx2"></script>
+<script src="js/engine/battle.js?v=map17"></script>
+<script src="js/engine/render.js?v=map17"></script>
+<script src="js/engine/reward.js?v=map17"></script>
+<script src="js/engine/map.js?v=map17"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=confirm-sfx1"></script>
+<script src="js/engine/main.js?v=map17"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

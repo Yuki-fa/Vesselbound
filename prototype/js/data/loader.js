@@ -131,6 +131,8 @@ const _XLSX_SHEETS = {
   ring: '指輪',
   mapPanelPower: '魔導板強化',
   deepLevel: '深層レベル',
+  region: '地域情報',
+  textMessage: 'テキストメッセージ',
 };
 
 function _xlsxSheetToCSV(workbook, sheetName, required) {
@@ -171,6 +173,8 @@ async function _loadGameDataFromEmbeddedXlsx() {
     rt: data.ring || data.rings || '名前\n',
     mpt: data.mapPanelPower || data.mapPanel || '名前\n',
     dlt: data.deepLevel || data.floorLevel || '名前\n',
+    rgt: data.region || '名前\n',
+    tmt: data.textMessage || '名前\n',
   };
 }
 
@@ -206,6 +210,8 @@ async function _loadGameDataFromXlsx() {
     rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, false),
     mpt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.mapPanelPower, false),
     dlt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.deepLevel, '深層レベル', '階層グレード'], false),
+    rgt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.region, false),
+    tmt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.textMessage, false),
   };
 }
 
@@ -250,7 +256,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, it: '名前\n', rt, mpt, dlt };
+  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -533,7 +539,7 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, gt, ct, et, kwt, pt, ent, spt, it, rt, mpt, dlt } = loaded;
+    let { source, ft, gt, ct, et, kwt, pt, ent, spt, it, rt, mpt, dlt, rgt, tmt } = loaded;
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -555,6 +561,53 @@ async function loadGameData() {
         }
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
+
+    // 地域情報シート（任意）：街の名前・街の施設・戦闘（道中）の固有名をシート駆動にする。
+    // 「ステージ」列の値がG._wave（1〜5。0は開始地点）に対応する。
+    try {
+      const rgRows = _parseCSVWithHeader(rgt || '名前\n', ['ステージ', '街の名前', '街の施設', '街までの名前', '塔までの名前']);
+      const regionMap = {};
+      rgRows.forEach(row => {
+        const stage = parseInt(row['ステージ'] ?? row['__col0'], 10);
+        if (!Number.isFinite(stage)) return;
+        const pick = (...keys) => {
+          for (const k of keys) {
+            const v = String(row[k] ?? '').trim();
+            if (v && v !== '-') return v;
+          }
+          return '';
+        };
+        regionMap[stage] = {
+          stage,
+          toTownName:       pick('街までの名前'),
+          townName:         pick('街の名前'),
+          townFacilities:   pick('街の施設'),
+          quest:            pick('クエスト'),
+          toTowerName:      pick('塔までの名前'),
+          towerName:        pick('塔の名前'),
+          towerFacilities:  pick('塔の施設'),
+        };
+      });
+      window.REGION_INFO = regionMap;
+    } catch (_) {
+      window.REGION_INFO = window.REGION_INFO || {};
+    }
+
+    // テキストメッセージシート（任意）：「場面」→「テキスト」の対応表。
+    // 街の施設ボタン直下の説明文などUIの固定文言に使う。
+    try {
+      const tmRows = _parseCSVWithHeader(tmt || '名前\n', ['場面', 'テキスト']);
+      const messages = {};
+      tmRows.forEach(row => {
+        const scene = String(row['場面'] ?? row['__col0'] ?? '').trim();
+        const text = String(row['テキスト'] ?? row['__col1'] ?? '').trim();
+        if (!scene || !text) return;
+        messages[scene] = text;
+      });
+      window.TEXT_MESSAGES = messages;
+    } catch (_) {
+      window.TEXT_MESSAGES = window.TEXT_MESSAGES || {};
+    }
 
     // 魔導板強化シート（任意）：鍛冶屋の魔導板パネル価格・説明文をシート駆動にする
     try {

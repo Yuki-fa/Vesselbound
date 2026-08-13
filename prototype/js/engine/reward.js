@@ -75,6 +75,10 @@ function _rewardDragZoneForCard(card){
   if(_isItemCard(card)) return 'dragzone-reward-item';
   return _isSpellCard(card)?'dragzone-reward-spell':'dragzone-reward-nonspell';
 }
+// 提示枠の数。道具屋は3枠、それ以外（ショップ／通常報酬）は5枠。
+function _shopSlotCapacity(){
+  return G._isItemShop?3:REWARD_GRID_CAPACITY;
+}
 function _pushToRewardArea(card){
   if(!card) return true;
   if(_isCurrentRewardReturnCard(card)) return _restoreRewardReturnCard(card);
@@ -90,9 +94,13 @@ function _pushToRewardArea(card){
   }
   if(!Array.isArray(_rewCards)) _rewCards=[];
   if(G._isShop){
-    const compacted=_rewCards.filter(Boolean);
-    if(compacted.length>=REWARD_GRID_CAPACITY) return false;
-    _rewCards=[...compacted,returned].slice(0,REWARD_GRID_CAPACITY);
+    // ショップ／道具屋では枠を詰めない。「売切」になっている枠がある場合だけ、
+    // そのいちばん手前の枠へ置く（空きが無ければ受け付けない）。
+    const cap=_shopSlotCapacity();
+    while(_rewCards.length<cap) _rewCards.push(null);
+    const slot=_rewCards.findIndex((c,i)=>i<cap&&!c);
+    if(slot<0) return false;
+    _rewCards[slot]=returned;
     return true;
   }
   let empty=_rewCards.findIndex(c=>!c);
@@ -294,13 +302,14 @@ function placePendingPanelToSelectedUnit(slotIdx){
   if(oldCard&&!merged){
     _clearStarterPanelMarker(unit,slotIdx,oldCard);
     if(G._isShop){
-      // ショップでは押し出されたカードを提示エリアへ戻さず、自動的に売却する
-      // （売却ボタンと同じ換算：売値の1/4）。
-      const baseGain=_shopCardSellGain(oldCard);
-      const gain=typeof goldIncomeAmount==='function'?goldIncomeAmount(baseGain):baseGain;
-      if(typeof onGoldGained==='function') onGoldGained(baseGain); else G.gold=(G.gold||0)+gain;
-      log(`${oldCard.name}を売却した（+${gain}ゴールド）。`,'gold');
-      if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
+      // ショップでは押し出されたカードを売却しない。買ったカードが抜けた枠（無ければ売切枠）へ
+      // 移して「入れ替え」にする。商品側は通常どおり購入扱い（ゴールドを支払う）。
+      const swapIdx=(pending.rewardIdx>=0&&pending.rewardIdx<_shopSlotCapacity()&&!_rewCards[pending.rewardIdx])
+        ?pending.rewardIdx:-1;
+      const pushed=swapIdx>=0?_pushToRewardAreaAt(oldCard,swapIdx,true):null;
+      if(swapIdx<0||!pushed||!pushed.ok){
+        if(!_pushToRewardArea(oldCard)) return false;
+      }
     }else if(pending.rewardIdx>=0&&pending.rewardIdx<REWARD_GRID_CAPACITY&&!_rewCards[pending.rewardIdx]){
       // 報酬カードを既存スロットへドラッグした場合は、元の報酬スロットを先に空けている。
       // ここへ押し出されたカードを戻すことで、提示カードが満杯でも確実に入れ替えとして成立させる。
@@ -527,6 +536,8 @@ function renderDebugRewardRerollButton(){
 
 function _shopCardSellGain(card){
   if(!card) return 0;
+  // 道具屋の売値はレアリティ×45で統一する。
+  if(G._isItemShop&&typeof _itemShopSellPrice==='function') return _itemShopSellPrice(card);
   if(card.sellPrice!=null) return Math.max(0,Number(card.sellPrice)||0);
   if(card.sellValue!=null) return Math.max(0,Number(card.sellValue)||0);
   const base=typeof _mapSalePrice==='function'?_mapSalePrice(card):calcBuyPrice(card);
@@ -582,7 +593,8 @@ function goToReward(){
   G._battlePhaseRunning=false;
   document.body.classList.add('reward-screen-active');
   if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
-  if(typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
+  // 街のBGMが鳴っている間（＝街の施設に入っている間）はmenu.wavへ切り替えない。
+  if(!G._villageBgmActive&&typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
   if(typeof _clearAllLogFx==='function') _clearAllLogFx();
   const goldLabel=document.querySelector('#reward-info-bar .ri-soul');
   if(goldLabel) goldLabel.textContent='所持金';
@@ -945,8 +957,12 @@ function _journeyNodeClass(type){
   if(type==='elite'||type==='boss'||type==='finalBoss') return 'special';
   return '';
 }
-function _journeyNodeLabel(type){
-  return {battle:'通常戦',elite:'エリート',city:'村',boss:'ボス',altar:'祭壇',finalBoss:'ラスボス'}[type]||'';
+// 村／祭壇は「地域情報」シートの街の名前・塔の名前を表示する（sceneはステージ番号＝G._wave）。
+function _journeyNodeLabel(type,scene){
+  const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene??(G&&G._wave)):null;
+  if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
+  if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
+  return {battle:'通常戦',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
 }
 function _journeyDisplayPosition(route,stage,scene){
   const actual=Math.max(0,Math.min(route.length-1,stage-1));
@@ -983,19 +999,21 @@ function _syncRewardJourneyUi(){
     const n=idx+1;
     const state=n<scene?'passed':(n===scene?'current':'');
     const connector=idx<4?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
-    return `<span class="journey-scene-mark ${state}" title="Scene ${n}"></span>${connector}`;
+    // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
+    const jumpAttr=(G&&G._debugMode)?` data-journey-scene="${n}"`:'';
+    return `<span class="journey-scene-mark ${state}" title="Scene ${n}"${jumpAttr}></span>${connector}`;
   }).join('');
   const nodeMarks=route.map((type,idx)=>{
     const state=idx<current?'passed':(idx===current?'current':'');
     const nextClass=idx===next?'next':'';
     const icon=_journeyIconForNode(type);
-    const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type)}">`:'';
+    const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type,scene)}">`:'';
     const connector=idx<route.length-1?`<span class="journey-track-line ${idx<current?'passed':''}"></span>`:'';
     const iconClass=icon?'has-icon':'';
     const iconStyle=icon?` style="--journey-icon:url('assets/ui/${icon}')"`:'';
     // エリート/ボスは、実際に出現する個体を先読み確定した上で「エリート／カード名」＋効果＋
     // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
-    let previewText=_journeyNodeLabel(type);
+    let previewText=_journeyNodeLabel(type,scene);
     let enemyAttr='';
     if((type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
       const previewType=type==='elite'?'elite':'boss';
@@ -1021,15 +1039,41 @@ function _syncRewardJourneyUi(){
     const jumpAttr=(G&&G._debugMode)?` data-journey-jump="${idx+1}" data-journey-type="${type}"`:'';
     return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
   }).join('');
+  // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
+  const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
+  const towerName=String((_regionInfo&&_regionInfo.towerName)||'祭壇').trim()||'祭壇';
   const targetText=reached
-    ?(isFinalScene?'最終決戦':'祭壇に到達')
-    :(isFinalScene?'最終決戦まであと':'次の祭壇まであと');
+    ?(isFinalScene?'最終決戦':`${towerName}に到達`)
+    :(isFinalScene?'最終決戦まであと':`${towerName}まであと`);
   const countdown=reached?targetText:`${targetText} <strong>${remaining}</strong> 戦`;
   root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
   if(G&&G._debugMode) _bindDebugJourneyJump(root);
 }
+// デバッグ専用：旅の進捗のSceneマーク（countdownの上のアイコン列）をクリックして
+// そのステージ（=G._wave）へ移動する。移動後も編成画面のままにする。
+function _bindDebugSceneJump(root){
+  root.querySelectorAll('[data-journey-scene]').forEach(mark=>{
+    mark.classList.add('journey-scene-mark-debug-jump');
+    mark.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const wave=Math.max(1,Math.min(5,Number(mark.dataset.journeyScene)||1));
+      G._wave=wave;
+      G._waveStage=1;
+      G._waveBattleType=null;
+      G._mapBattle=null;
+      G._waveEliteWon=false;
+      G.floor=typeof _waveStageFloor==='function'?_waveStageFloor(wave,1):G.floor;
+      log(`[DEBUG] ステージ${wave}へ移動した。`,'sys');
+      // 編成画面のまま留まる（戦闘・村へは遷移しない）。
+      if(typeof _openWaveFormation==='function') _openWaveFormation();
+      else _syncRewardJourneyUi();
+    };
+  });
+}
 // デバッグ専用：旅の進捗のマスをクリックしてそのstageへ即移動する。
 function _bindDebugJourneyJump(root){
+  _bindDebugSceneJump(root);
   root.querySelectorAll('[data-journey-jump]').forEach(node=>{
     node.classList.add('journey-node-debug-jump');
     node.onclick=e=>{
@@ -1084,6 +1128,19 @@ function _syncMoneyTurnTile(){
     cd.classList.toggle('is-alert',remaining===0);
   }
 }
+// 編成画面の左上ラベル。施設から入った場合は「編成」ではなく施設名を出す。
+function _syncRewardTitleLabel(){
+  const el=document.querySelector('#reward-production-ui .reward-prod-title span');
+  if(!el) return;
+  // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
+  const fromVillage=(G._isItemShop||G._isForge||G._isShop)?String(G._facilityLabel||'').trim():'';
+  el.textContent=fromVillage
+    ||(G._isItemShop?'道具屋'
+    :G._isForge?'鍛治屋'
+    :G._isShop?'魔導店'
+    :G._isRingExchange?'祭壇'
+    :'編成');
+}
 function _syncRewardProductionUi(){
   const body=document.body;
   if(!body) return;
@@ -1096,6 +1153,8 @@ function _syncRewardProductionUi(){
   }
   body.classList.toggle('forge-screen-active',!!G._isForge);
   body.classList.toggle('shop-screen-active',!!G._isShop);
+  body.classList.toggle('item-shop-active',!!G._isItemShop);
+  _syncRewardTitleLabel();
   const dragging=Array.from(body.classList).some(c=>c.indexOf('dragzone-')===0);
   const returned=Array.isArray(_rewCards)&&_rewCards.some(c=>c&&c._temporaryRewardAreaCard);
   const returnDragging=dragging&&(G._isForge?_canReturnDragSrcToRewardArea():true);
@@ -1184,9 +1243,22 @@ function _syncRewardProductionItems(){
           const rewIdx=_dragSrc.idx;
           const card=_rewCards[rewIdx];
           if(!card||!_isItemCard(card)||slot._rewardItem) return;
+          // 道具屋の提示アイテムはドラッグで入れても購入扱い（クリック購入と同じくゴールドを徴収する）。
+          // ただし自分の手持ちを商品枠へ置いたもの（売却待ち）を戻す場合は徴収しない。
+          const buyCost=(G._isItemShop&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
+          if(buyCost>0&&(G.gold||0)<buyCost) return;
           e.preventDefault();
           _dragSrc=null;
+          if(buyCost>0){
+            G.gold-=buyCost;
+            if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
+            if(typeof playSfx==='function') playSfx('purchase',{group:'reward'});
+          }
           const placed=clone(card);
+          // 商品枠に置いていた自分のアイテムを戻す場合、売却待ちの印を消してから手持ちへ返す。
+          delete placed._shopSalePending;
+          delete placed._sellDisplayPrice;
+          delete placed._temporaryRewardAreaCard;
           if(card._isOriginalReward){
             placed._rewardReturnCard=clone(card);
             placed._rewardReturnIdx=rewIdx;
@@ -1195,7 +1267,9 @@ function _syncRewardProductionItems(){
           }
           if(card._isTreasure) _rewFreePickDone=true;
           items[idx]=placed;
-          _rewCards.splice(rewIdx,1);
+          if(G._isItemShop) _rewCards[rewIdx]=null;
+          else _rewCards.splice(rewIdx,1);
+          if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
           if(typeof _removeDragGhost==='function') _removeDragGhost();
           if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
           renderRewCards();
@@ -1205,11 +1279,43 @@ function _syncRewardProductionItems(){
         }
       });
     }
+    // 道具屋：手持ちアイテムに売却価格（レアリティ×45）と売却ボタンを重ねる。
+    slot.querySelector('.shop-board-sell-value')?.remove();
+    slot.querySelector('.shop-board-sell-btn')?.remove();
+    if(G._isItemShop&&item){
+      const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
+      const val=document.createElement('div');
+      val.className='shop-board-sell-value';
+      val.textContent=`+${price}G`;
+      slot.appendChild(val);
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='shop-board-sell-btn';
+      btn.dataset.sfxSilent='1';
+      btn.textContent='売却';
+      btn.onclick=ev=>{ ev.stopPropagation(); _sellHeldItem(idx); };
+      slot.appendChild(btn);
+    }
     slot.onclick=e=>{
       e.stopPropagation();
       if(slot._rewardItem) _openItemUseConfirm(idx,slot);
     };
   });
+}
+// 道具屋：手持ちアイテムを売却する（レアリティ×45ゴールド）。
+function _sellHeldItem(idx){
+  const items=_ensureItemSlots();
+  const card=items[idx];
+  if(!card) return;
+  const base=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(card):0;
+  items[idx]=null;
+  const gain=typeof onGoldGained==='function'?onGoldGained(base):(G.gold=(G.gold||0)+base,base);
+  log(`${card.name}を売却（+${gain}ゴールド）`,'gold');
+  try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=.85; void se.play(); }catch(_e){}
+  if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
+  _syncRewardProductionUi();
+  renderRewCards();
+  updateHUD();
 }
 function _closeItemUseConfirm(){
   const old=document.getElementById('item-use-confirm');
@@ -1765,10 +1871,29 @@ function renderRewCards(){
     requestAnimationFrame(fitCardDescs);
     return;
   }
+  // 道具屋：指輪交換と同じくitem_slot画像の枠でアイテムを3つ並べる（価格バッジは通常のショップと同形式）。
+  if(G._isItemShop){
+    Array.from({length:3},(_,i)=>_rewCards[i]||null).forEach((card,i)=>{
+      if(!card){ el.appendChild(_mkShopSoldOutDiv(i)); return; }
+      const d=_mkRewDiv(card,()=>takeRewCard(i),i);
+      d.classList.add('item-shop-card','treasure-offer-card','item-visual');
+      // 上・下・上と互い違いに置き、行の上下に余白を作らない。
+      d.classList.add(i%2===1?'item-shop-card-down':'item-shop-card-up');
+      // 商品枠に置いた自分のアイテム（売却待ち）は必ずドラッグで手持ちへ戻せるようにする。
+      if(card._shopSalePending){ d.draggable=true; d.classList.remove('reward-drag-locked'); }
+      d.classList.remove('treasure');
+      d.style.setProperty('--item-art',`url("${_rewardItemArtPath(card)}")`);
+      d.classList.add('item-visual-filled');
+      el.appendChild(d);
+    });
+    requestAnimationFrame(fitCardDescs);
+    return;
+  }
   if(G._isShop){
     for(let i=0;i<REWARD_GRID_CAPACITY;i++){
       const card=_rewCards[i]||null;
-      if(!card) continue;
+      // 購入済みの枠は詰めずに残し、中心に「売切」と表示する。
+      if(!card){ el.appendChild(_mkShopSoldOutDiv()); continue; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
       if(pendingRewardIdx===i) d.classList.add('pending-placement');
       el.appendChild(d);
@@ -1831,6 +1956,22 @@ function _renderRingOfferCards(el){
     }
     el.appendChild(div);
   });
+}
+
+// ショップ／道具屋で購入済みになった枠。詰めずに同じ位置へ残し、中心に「売切」と出す。
+// itemIdxを渡した場合は道具屋用（item_slot.svgの正方形＋上下互い違い配置）になる。
+function _mkShopSoldOutDiv(itemIdx){
+  const div=document.createElement('div');
+  div.className='shop-sold-out';
+  if(itemIdx!=null){
+    div.classList.add('shop-sold-out-item');
+    div.classList.add(itemIdx%2===1?'shop-sold-out-item-down':'shop-sold-out-item-up');
+  }
+  const label=document.createElement('span');
+  label.className='shop-sold-out-label';
+  label.textContent='売切';
+  div.appendChild(label);
+  return div;
 }
 
 function _mkRewDiv(card, onBuy, rewIdx){

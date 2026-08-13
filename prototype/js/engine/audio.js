@@ -53,6 +53,8 @@ const SFX_SETTINGS={
     menuClose:  {group:'ui',     volume: 1.0},
     menu:       {group:'ui',     volume: 1.0}, // 💡 menu という名前で直接叩かれた場合も1.0固定
     select:     {group:'ui',     volume: 1.0}, 
+    knock:      {group:'ui',     volume: 1.0},
+    boom:       {group:'ui',     volume: 1.0},
     shopIn:     {group:'ui',     volume: 1.0},
     shopOut:    {group:'ui',     volume: 1.0},
     altarIn:    {group:'ui',     volume: 1.0},
@@ -104,7 +106,25 @@ const BGM_DEFAULT_VOLUMES={
   menu:.62,
   battle1:.32,
   battle3:.32,
+  villageForest:.62,
 };
+// opts.startTimeで指定された再生開始位置（秒）。初回再生のみで、2周目以降は曲の頭から鳴らす。
+let _bgmStartTime=0;
+// 開始位置へシークしてからonReadyを呼ぶ。メタデータ未読込のまま尺を測ると
+// ループ予約のタイミングがずれて曲の終わりで音が途切れるため。
+function _applyBgmStartTime(audio,onReady){
+  const done=()=>{ if(typeof onReady==='function') onReady(); };
+  if(!audio){ done(); return; }
+  const seek=()=>{
+    if(_bgmStartTime>0){
+      try{ audio.currentTime=_bgmStartTime; }catch(e){}
+      _bgmStartTime=0; // 開始位置は初回のみ
+    }
+    done();
+  };
+  if(audio.readyState>=1) seek();
+  else audio.addEventListener('loadedmetadata',seek,{once:true});
+}
 
 function _sfxPath(key){
   return Assets&&Assets.sfx?Assets.sfx[key]:null;
@@ -187,6 +207,17 @@ function playSfx(key,opts={}){
   return true;
 }
 
+// playSfx()と同じ再生を行い、再生完了（見込み）までを待つPromiseを返す。
+// ミュート中／未解錠で鳴らせなかった場合は待たずに即resolveする。
+function playSfxAwait(key,opts={}){
+  const played=playSfx(key,opts);
+  if(!played) return Promise.resolve(false);
+  const base=_sfxAudio(key);
+  const dur=Number(base&&base.duration);
+  const waitMs=Number.isFinite(dur)&&dur>0?Math.min(4000,Math.round(dur*1000)+40):600;
+  return new Promise(resolve=>setTimeout(()=>resolve(true),waitMs));
+}
+
 function _fadeAudioVolume(audio, from, to, ms, onDone){
   if(!audio) return;
   if(_bgmFadeTimer) clearInterval(_bgmFadeTimer);
@@ -254,6 +285,7 @@ function playBgm(key,opts={}){
   if(_bgmKey===key&&_bgmAudio&&!_bgmAudio.paused) return true;
   stopBgm(0);
   _bgmKey=key;
+  _bgmStartTime=Math.max(0,Number(opts.startTime)||0);
   const audio=_makeBgmAudio(path);
   _bgmAudio=audio;
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.32;
@@ -262,8 +294,11 @@ function playBgm(key,opts={}){
   _bgmTargetVolume=targetVol;
   if(!_sfxUnlocked) return false;
   audio.play().then(()=>{
-    _fadeAudioVolume(audio,0,targetVol,opts.fadeInMs??700);
-    _scheduleBgmSeamlessLoop();
+    // シーク完了後に尺を測ってループを予約する（曲の終わりで途切れるのを防ぐ）。
+    _applyBgmStartTime(audio,()=>{
+      _fadeAudioVolume(audio,0,targetVol,opts.fadeInMs??700);
+      _scheduleBgmSeamlessLoop();
+    });
   }).catch(()=>{});
   return true;
 }
@@ -298,9 +333,13 @@ function toggleDebugMute(){
     _bgmTargetVolume=_bgmVolumeBeforeMute;
   }
   if(_bgmAudio) _bgmAudio.volume=_bgmTargetVolume;
-  const btn=document.getElementById('battle-mute-btn');
-  if(btn) btn.textContent=_debugMuted?'🔇':'🔊';
+  // 戦闘画面と街画面の両方のミュートボタンを同期する。
+  ['battle-mute-btn','village-mute-btn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.textContent=_debugMuted?'🔇':'🔊';
+  });
 }
+function isDebugMuted(){ return _debugMuted; }
 
 function playSpellSfx(sp,opts={}){
   const effect=sp&&sp.effect;

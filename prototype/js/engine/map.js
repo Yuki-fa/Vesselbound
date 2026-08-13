@@ -1069,6 +1069,7 @@ function openMapFormation(){
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
+  G._isItemShop=false;
   G._isVillageMenu=false;
   G._isTreasureMapReward=false;
   _rewCards=[];
@@ -1085,7 +1086,7 @@ function shopDone(){
   if(G._pendingPanelPlacement) return;
   if(G._waveLoopEnabled&&typeof _startWaveFlowNext==='function'){
     if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
-    G._isShop=false; G._isForge=false; G._isVillageMenu=false; G._isTavern=false; G._isRingExchange=false;
+    G._isShop=false; G._isForge=false; G._isVillageMenu=false; G._isTavern=false; G._isRingExchange=false; G._isItemShop=false;
     _startWaveFlowNext();
     return;
   }
@@ -1109,7 +1110,516 @@ function enterVillageNode(node){
   node.cleared=true;
   openMapVillage();
 }
-function openMapVillage(){
+// ══════════════════════════════════════════════════════════
+// 街（村）専用画面
+// ══════════════════════════════════════════════════════════
+// 「地域情報」シートの1行（ステージ番号＝G._waveに対応）を返す。
+function regionInfoForWave(wave){
+  const w=Math.max(0,Number(wave)||0);
+  const rows=(typeof window!=='undefined'&&window.REGION_INFO)||{};
+  return rows[w]||null;
+}
+// 街の背景キー（Assets.backgrounds）。ステージ番号に対応させる。
+function getVillageBackgroundKey(){
+  const wave=Math.max(1,Number(G&&G._wave)||1);
+  return wave>=5?'villageEnd':`village${Math.min(4,wave)}`;
+}
+// 街ごとに背景の真上へ重ねる効果動画（未定義のステージは動画なし）。
+const VILLAGE_BG_VIDEOS={
+  1:'assets/art/backgrounds/village_forest.webm',
+};
+// 街×施設ごとの背景（Assets.backgroundsのキー）。未定義ならステージ背景のまま。
+const VILLAGE_FACILITY_BG={
+  1:{item:'itemShopForest',shop:'magicShopForest'},
+  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland'},
+};
+// 施設画面（#scr-battle上の編成UI）の背景を、その街の施設専用画像へ差し替える。
+function _applyFacilityBackground(facKey){
+  const body=document.body;
+  if(!body) return;
+  const wave=Math.max(1,Number(G&&G._wave)||1);
+  const key=facKey?((VILLAGE_FACILITY_BG[wave]||{})[facKey]||null):null;
+  const path=key&&typeof Assets!=='undefined'&&Assets.backgrounds?Assets.backgrounds[key]:null;
+  if(!path){
+    body.classList.remove('facility-bg-active');
+    body.style.removeProperty('--facility-bg-image');
+    return;
+  }
+  // 編成画面は #scr-battle の background を丸ごと差し替えているため、
+  // --screen-bg-image ではなく専用の変数＋クラスで上書きする。
+  body.style.setProperty('--facility-bg-image',`url("${path}")`);
+  body.classList.add('facility-bg-active');
+}
+// 街ごとのBGM（Assets.sfxのキーと再生開始位置）。未定義のステージはメニュー曲のまま。
+const VILLAGE_BGM={
+  1:{key:'villageForest',startTime:81},
+};
+function _villageBgmSetting(){
+  const wave=Math.max(1,Number(G&&G._wave)||1);
+  return VILLAGE_BGM[wave]||null;
+}
+function _syncVillageBgVideo(){
+  const el=document.getElementById('village-bg-video');
+  if(!el) return;
+  const wave=Math.max(1,Number(G&&G._wave)||1);
+  const src=VILLAGE_BG_VIDEOS[wave]||'';
+  if(!src){
+    el.classList.remove('is-active');
+    try{ el.pause(); }catch(_e){}
+    el.removeAttribute('src');
+    return;
+  }
+  if(el.getAttribute('src')!==src){
+    el.setAttribute('src',src);
+    el.load();
+  }
+  el.classList.add('is-active');
+  el.muted=true;
+  el.loop=true;
+  el.playbackRate=0.3;
+  el.defaultPlaybackRate=0.3;
+  try{ void Promise.resolve(el.play()).catch(()=>{}); }catch(_e){}
+}
+// 街のBGM。ステージ専用曲があればその開始位置から、無ければメニュー曲。
+function playVillageBgm(fadeInMs){
+  if(typeof playBgm!=='function') return;
+  // 街のBGMは施設（ショップ／鍛治屋／道具屋）へ入っても止めず、menu.wavへも切り替えない。
+  // このフラグが立っている間、goToReward()／showScreen()はBGMを触らない。
+  G._villageBgmActive=true;
+  const cfg=_villageBgmSetting();
+  if(!cfg){ playBgm('menu',{fadeInMs:fadeInMs??700}); return; }
+  playBgm(cfg.key,{fadeInMs:fadeInMs??1400,startTime:cfg.startTime||0});
+}
+// シートの「街の施設」列に書かれる施設名 → 動作キー。
+// 「鍛冶屋」はシート上の表記が「鍛治屋」の場合もあるため両方を登録する。
+const VILLAGE_FACILITY_DEFS={
+  'ホーム':   {key:'shop'},
+  'ショップ': {key:'shop'},
+  '魔導店':   {key:'shop'},
+  '魔道店':   {key:'shop'},
+  '道具屋':   {key:'item'},
+  '鍛冶屋':   {key:'forge'},
+  '鍛治屋':   {key:'forge'},
+  '宿屋':     {key:'inn'},
+  '広場':     {key:'plaza'},
+  '酒場':     {key:'tavern'},
+};
+// 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
+function villageFacilityNameVariants(name){
+  const out=[String(name||'')];
+  const push=v=>{ if(v&&out.indexOf(v)<0) out.push(v); };
+  out.slice().forEach(v=>{
+    if(v.indexOf('鍛治')>=0) push(v.replace('鍛治','鍛冶'));
+    if(v.indexOf('鍛冶')>=0) push(v.replace('鍛冶','鍛治'));
+    if(v.indexOf('魔道')>=0) push(v.replace('魔道','魔導'));
+    if(v.indexOf('魔導')>=0) push(v.replace('魔導','魔道'));
+  });
+  // 「ショップ」は「魔導店」へ改称済み。どちらの表記でも引けるようにする。
+  if(out.some(v=>v==='魔導店'||v==='魔道店')) push('ショップ');
+  if(out.indexOf('ショップ')>=0){ push('魔導店'); push('魔道店'); }
+  return out;
+}
+// シートに行が無い施設用の予備テキスト（「テキストメッセージ」シートに
+// 「街「◯◯」直下」行を追加すればそちらが優先される）。
+const VILLAGE_FACILITY_FALLBACK_DESC={
+  '道具屋':'アイテムの売買ができる。',
+  '宿屋':'ライフを回復できる。',
+  '広場':'クエストを受けることができる。',
+  '闘技場':'腕試しができる。',
+};
+// 施設ボタン直下の説明文は「テキストメッセージ」シートの「街「◯◯」直下」行から引く。
+// シート内の表記揺れ（鍛冶屋／鍛治屋）に備えて両方の綴りで探す。
+function villageFacilityDescText(name){
+  const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
+  const variants=villageFacilityNameVariants(name);
+  for(const v of variants){
+    const hit=msgs[`街「${v}」直下`];
+    if(hit) return String(hit);
+  }
+  for(const v of variants){
+    if(VILLAGE_FACILITY_FALLBACK_DESC[v]) return VILLAGE_FACILITY_FALLBACK_DESC[v];
+  }
+  return '';
+}
+// 施設ボタンの表示位置。まず施設名ごとの指定位置を使い、指定が無いものは
+// 空いている汎用スロットへ順番に割り当てる。
+const VILLAGE_FACILITY_POS=[
+  {left:'20%',top:'58%'},
+  {left:'50%',top:'71%'},
+  {left:'79%',top:'58%'},
+  {left:'50%',top:'42%'},
+];
+const VILLAGE_FACILITY_POS_BY_NAME={
+};
+// 街（ステージ）ごとの個別配置。{x,y}はゲームキャンバス座標での**左上合わせ**のpx指定
+// （汎用スロットの{left,top}％指定は中心合わせ）。ここに書いた施設は共通指定より優先する。
+// 鍛冶／鍛治・魔導／魔道の表記揺れは _villageFacilityFixedPos() 側で吸収する。
+const VILLAGE_FACILITY_POS_BY_WAVE={
+  // エルム
+  1:{
+    '酒場':  {x:1770,y:516},
+    '魔導店':{x:267, y:814},
+    '道具屋':{x:3132,y:1020},
+  },
+  // ヴァルガ
+  2:{
+    '鍛冶屋':{x:3209,y:967},
+    '魔導店':{x:2352,y:967},
+    '道具屋':{x:756, y:1020},
+    '宿屋':  {x:1231,y:814},
+  },
+  // ギャラハ
+  3:{
+    '鍛冶屋':{x:2481,y:487},
+    '魔導店':{x:2826,y:899},
+    '広場':  {x:486, y:1481},
+  },
+  // ヴォルザーク
+  4:{
+    '酒場':  {x:2485,y:1698},
+    '魔導店':{x:3206,y:1100},
+    '鍛冶屋':{x:335, y:1096},
+  },
+  // フォルセティ
+  5:{
+    '魔導店':{x:485, y:910},
+    '宿屋':  {x:2723,y:839},
+    '道具屋':{x:1198,y:972},
+  },
+};
+// 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
+function _villageFacilityFixedPos(name){
+  const wave=Math.max(1,Number(G&&G._wave)||1);
+  const table=VILLAGE_FACILITY_POS_BY_WAVE[wave]||null;
+  const variants=villageFacilityNameVariants(name);
+  if(table){
+    for(const v of variants){ if(table[v]) return table[v]; }
+  }
+  for(const v of variants){ if(VILLAGE_FACILITY_POS_BY_NAME[v]) return VILLAGE_FACILITY_POS_BY_NAME[v]; }
+  return null;
+}
+// facs：villageFacilityList()の結果。戻り値は同じ順の座標配列。
+function _villageFacilityPositions(facs){
+  const used=new Set();
+  const fixed=facs.map(f=>{
+    const p=_villageFacilityFixedPos(f.name);
+    if(!p) return null;
+    // 汎用スロットと同じ座標なら、そのスロットを使用済みにする（%指定同士のみ比較）。
+    if(p.left!=null) VILLAGE_FACILITY_POS.forEach((q,i)=>{ if(q.left===p.left&&q.top===p.top) used.add(i); });
+    return p;
+  });
+  let cursor=0;
+  return fixed.map(p=>{
+    if(p) return p;
+    while(used.has(cursor)&&cursor<VILLAGE_FACILITY_POS.length) cursor++;
+    const slot=VILLAGE_FACILITY_POS[Math.min(cursor,VILLAGE_FACILITY_POS.length-1)];
+    used.add(cursor);
+    cursor++;
+    return slot;
+  });
+}
+function villageFacilityList(){
+  const info=regionInfoForWave(G&&G._wave);
+  const names=String((info&&info.townFacilities)||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
+  return (names.length?names:['ショップ']).map(name=>{
+    const def=VILLAGE_FACILITY_DEFS[name]||null;
+    return {name,key:def?def.key:'none',desc:villageFacilityDescText(name)};
+  });
+}
+function _villageInnUsed(){
+  const used=G._waveInnUsed||{};
+  return !!used[_waveFacilityCacheKey()];
+}
+function useVillageInn(){
+  const life=Math.max(0,Math.min(3,G._waveLife==null?3:Number(G._waveLife)));
+  if(_villageInnUsed()){ log('この街の宿屋はもう利用できない。','sys'); return; }
+  if(life>=3){ log('ライフは満タンだ。','sys'); return; }
+  if((G.gold||0)<500){ log('ゴールドが足りない。','bad'); return; }
+  G.gold-=500;
+  G._waveLife=life+1;
+  G._waveInnUsed=G._waveInnUsed||{};
+  G._waveInnUsed[_waveFacilityCacheKey()]=true;
+  // 押下時にshop_in.wavを鳴らしているので、ここでは購入音を重ねない。
+  log(`宿屋で休息した。ライフを1回復した（残り${G._waveLife}）。`,'good');
+  if(typeof updateHUD==='function') updateHUD();
+  renderVillageScreen();
+}
+// 宿屋は「ライフが減っている」「500G以上持っている」「この街で未利用」の全てを満たす時のみ押せる。
+function _villageFacilityDisabled(fac){
+  if(!fac) return true;
+  if(fac.key==='inn'){
+    const life=Math.max(0,Math.min(3,G._waveLife==null?3:Number(G._waveLife)));
+    return life>=3||_villageInnUsed()||(G.gold||0)<500;
+  }
+  return false;
+}
+// ショップ／鍛冶屋／道具屋／宿屋のみ、押下時にknock.wavを鳴らし切ってから
+// shop_in.wavの再生と画面遷移を行う。広場・酒場はどちらも鳴らさない。
+const _VILLAGE_KNOCK_KEYS=new Set(['shop','forge','item','inn']);
+async function _onVillageFacility(fac){
+  if(!fac||_villageFacilityDisabled(fac)) return;
+  // 入場演出中（ボタンがまだ見えていない間）は押せないようにする。
+  if(G._villageIntroPlaying) return;
+  if(G._villageFacilityBusy) return;
+  if(_VILLAGE_KNOCK_KEYS.has(fac.key)){
+    G._villageFacilityBusy=true;
+    try{
+      if(typeof playSfxAwait==='function') await playSfxAwait('knock',{group:'ui',guardMs:0});
+      else if(typeof playSfx==='function') playSfx('knock',{group:'ui',guardMs:0});
+    }finally{
+      G._villageFacilityBusy=false;
+    }
+  }
+  if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
+    // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
+    // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
+    // shop_in.wavは各open〜関数側で鳴らす。
+    G._facilityLabel=fac.name;
+    document.body.classList.remove('village-screen-active');
+    if(typeof showScreen==='function') showScreen('battle');
+    if(fac.key==='shop') openMapShop();
+    else if(fac.key==='forge') openMapForge();
+    else openMapItemShop();
+    // showScreen('battle')でステージ背景に戻るため、施設専用背景は入店処理の後に適用する。
+    _applyFacilityBackground(fac.key);
+    return;
+  }
+  if(fac.key==='inn'){
+    if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
+    useVillageInn();
+    return;
+  }
+  // 広場（クエスト受託相当）・酒場は表示のみ。SEも鳴らさない。
+  log(`${fac.name}は未実装です。`,'sys');
+}
+// ══════════════════════════════════════════════════════════
+// ワールドマップ画面（出発時に数秒だけ表示してから戦闘へ移行する）
+// ══════════════════════════════════════════════════════════
+// ui/map_line/N.svg の配置（左上合わせ・ゲームキャンバス座標）と、
+// 移動方向（lr=左から右／rl=右から左／bt=下から上／tb=上から下）。
+// w/h は各SVGのviewBox寸法。
+const WORLD_MAP_LINES=[
+  {n:1,x:1142,y:1424,w:616.28, h:281.81,dir:'rl'},
+  {n:2,x:618, y:1276,w:181.53, h:181.58,dir:'bt'},
+  {n:3,x:745, y:1020,w:894.21, h:166.96,dir:'lr'},
+  {n:4,x:1965,y:1292,w:1218.57,h:98.97, dir:'lr'},
+  {n:5,x:3219,y:990, w:270.39, h:286.18,dir:'bt'},
+  {n:6,x:2850,y:466, w:305.05, h:397.28,dir:'bt'},
+  {n:7,x:2385,y:470, w:658.46, h:261,   dir:'rl'},
+  {n:8,x:2059,y:488, w:292.25, h:165.67,dir:'rl'},
+];
+// 現在移動中のライン番号（1〜8）。0なら全て到達済み扱い。
+// ステージ（=G._wave）ごとに「村まで」「塔まで」の2本ずつ進む。
+// stageが5以上＝村を出て塔へ向かっている区間。
+function worldMapActiveLine(wave,stage){
+  const w=Math.max(1,Number(wave)||1);
+  if(w>=5) return 0;
+  const toTower=(Number(stage)||1)>=5;
+  return Math.min(8,(w-1)*2+(toTower?2:1));
+}
+function renderWorldMapScreen(activeOverride){
+  const info=regionInfoForWave(G&&G._wave);
+  const name=String((info&&info.townName)||'街');
+  const split=name.match(/^(.*?)[ 　]+(.+)$/);
+  const sub=document.getElementById('map-name-sub');
+  const main=document.getElementById('map-name-main');
+  if(sub) sub.textContent=split?split[1]:'';
+  if(main) main.textContent=split?split[2]:name;
+  const gold=document.getElementById('map-gold');
+  if(gold){
+    const shown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
+    gold.textContent=Number(shown).toLocaleString('ja-JP');
+  }
+  const lifeEl=document.getElementById('map-life');
+  if(lifeEl){
+    const life=Math.max(0,Math.min(3,G._waveLife==null?3:Number(G._waveLife)));
+    lifeEl.innerHTML=`${Array.from({length:3-life},()=>'<span class="battle-life-heart battle-life-heart-empty">♡</span>').join('')}${Array.from({length:life},()=>'<span class="battle-life-heart battle-life-heart-filled">♥</span>').join('')}`;
+  }
+  const host=document.getElementById('map-lines');
+  if(!host) return;
+  const active=Number.isInteger(activeOverride)?activeOverride:worldMapActiveLine(G&&G._wave,G&&G._waveStage);
+  host.innerHTML='';
+  WORLD_MAP_LINES.forEach(def=>{
+    // 現在地より先のラインはまだ描かない。
+    if(active>0&&def.n>active) return;
+    const el=document.createElement('div');
+    el.className=`map-line ${def.n===active?`is-active dir-${def.dir}`:'is-done'}`;
+    el.style.left=`${def.x}px`;
+    el.style.top=`${def.y}px`;
+    el.style.width=`${def.w}px`;
+    el.style.height=`${def.h}px`;
+    el.style.setProperty('--map-line-img',`url("assets/ui/map_line/${def.n}.svg")`);
+    host.appendChild(el);
+  });
+}
+// 街を出る → マップ画面を数秒表示 → フェードアウトして戦闘へ。
+async function _playWorldMapDeparture(done){
+  if(G._worldMapScreenPlaying){ done(); return; }
+  G._worldMapScreenPlaying=true;
+  const fade=_ensureVillageEnterFadeEl();
+  try{
+    fade.style.transition='opacity .34s ease';
+    fade.style.opacity='1';
+    await _mapDelay(360);
+    // マップは「これから向かう区間」を光らせる（村を出た直後＝塔へ向かう区間）。
+    const nextStage=(Number(G._waveStage)||1)===4?5:(Number(G._waveStage)||1);
+    renderWorldMapScreen(worldMapActiveLine(G&&G._wave,nextStage));
+    if(typeof showScreen==='function') showScreen('map');
+    fade.style.transition='opacity .5s ease';
+    fade.style.opacity='0';
+    await _mapDelay(3200);
+    fade.style.transition='opacity .5s ease';
+    fade.style.opacity='1';
+    await _mapDelay(520);
+  }finally{
+    G._worldMapScreenPlaying=false;
+  }
+  done();
+  await _mapDelay(80);
+  fade.style.transition='opacity .45s ease';
+  fade.style.opacity='0';
+}
+function villageDepart(){
+  if(G._pendingPanelPlacement) return;
+  if(G._villageIntroPlaying) return;
+  document.body.classList.remove('village-screen-active');
+  if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
+  // 押した時点で街のBGMをフェードアウトさせる。
+  G._villageBgmActive=false;
+  if(typeof stopBgm==='function') stopBgm(900);
+  void _playWorldMapDeparture(()=>{ if(typeof shopDone==='function') shopDone(); });
+}
+function renderVillageScreen(){
+  const info=regionInfoForWave(G&&G._wave);
+  const name=String((info&&info.townName)||'街');
+  // 「大樹の抱く集落 エルム」のように半角スペース区切りなら、前半（地域名）を小さく表示する。
+  const split=name.match(/^(.*?)[ 　]+(.+)$/);
+  const sub=document.getElementById('village-name-sub');
+  const main=document.getElementById('village-name-main');
+  if(sub) sub.textContent=split?split[1]:'';
+  if(main) main.textContent=split?split[2]:name;
+  // 所持金／ライフは戦闘画面の #battle-status-hud と同じ表記に合わせる。
+  const gold=document.getElementById('village-gold');
+  if(gold){
+    const shown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
+    gold.textContent=Number(shown).toLocaleString('ja-JP');
+  }
+  const lifeEl=document.getElementById('village-life');
+  if(lifeEl){
+    const life=Math.max(0,Math.min(3,G._waveLife==null?3:Number(G._waveLife)));
+    lifeEl.innerHTML=`${Array.from({length:3-life},()=>'<span class="battle-life-heart battle-life-heart-empty">♡</span>').join('')}${Array.from({length:life},()=>'<span class="battle-life-heart battle-life-heart-filled">♥</span>').join('')}`;
+  }
+  const host=document.getElementById('village-facilities');
+  if(host){
+    host.innerHTML='';
+    const facs=villageFacilityList();
+    const positions=_villageFacilityPositions(facs);
+    facs.forEach((fac,i)=>{
+      const pos=positions[i]||VILLAGE_FACILITY_POS[i%VILLAGE_FACILITY_POS.length];
+      const btn=document.createElement('button');
+      btn.type='button';
+      btn.className='village-facility';
+      btn.dataset.sfxSilent='1';
+      if(pos&&pos.x!=null){
+        // px指定は左上合わせ（中心合わせのtranslateを打ち消す）。
+        btn.classList.add('village-facility-topleft');
+        btn.style.left=`${pos.x}px`;
+        btn.style.top=`${pos.y}px`;
+      }else{
+        btn.style.left=pos.left;
+        btn.style.top=pos.top;
+      }
+      if(_villageFacilityDisabled(fac)) btn.classList.add('village-facility-disabled');
+      btn.innerHTML=`<span class="village-facility-name">${fac.name}</span>${fac.desc?`<span class="village-facility-desc">${fac.desc}</span>`:''}`;
+      btn.onclick=()=>_onVillageFacility(fac);
+      host.appendChild(btn);
+    });
+  }
+  const depart=document.getElementById('village-depart-btn');
+  if(depart) depart.onclick=villageDepart;
+  // デバッグモードでは街にもミュートボタンを出す（オプションボタンの直下）。
+  const mute=document.getElementById('village-mute-btn');
+  if(mute){
+    mute.style.display=(G&&G._debugMode)?'block':'none';
+    mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'🔇':'🔊';
+    mute.onclick=()=>{ if(typeof toggleDebugMute==='function') toggleDebugMute(); };
+  }
+  _syncVillageBgVideo();
+}
+// 街への入場演出。①画面を黒へフェードアウト → ②村の背景だけを中央から円形にフェードイン
+// → ③途中から地域名＋下線（白）をフェードイン → ④消えきってから背景以外の要素をフェードイン。
+function _ensureVillageEnterFadeEl(){
+  let el=document.getElementById('village-enter-fade');
+  if(!el){
+    el=document.createElement('div');
+    el.id='village-enter-fade';
+    el.setAttribute('aria-hidden','true');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+async function _playVillageEnterIntro(build){
+  if(G._villageIntroPlaying){ build(); return; }
+  G._villageIntroPlaying=true;
+  const body=document.body;
+  const fade=_ensureVillageEnterFadeEl();
+  try{
+    // ① いま表示している画面を黒へフェードアウト（BGMも一緒に落とす）
+    if(typeof stopBgm==='function') stopBgm(320);
+    fade.style.transition='opacity .34s ease';
+    fade.style.opacity='1';
+    await _mapDelay(360);
+    // ② 村画面へ切り替える（背景以外は隠したまま構築する）
+    body.classList.add('village-intro-active','village-intro-hide-ui');
+    build();
+    // ③ 黒は即座に外し、背景を中央から円形にフェードインさせる
+    fade.style.transition='none';
+    fade.style.opacity='0';
+    body.classList.remove('village-intro-circle');
+    void body.offsetWidth;
+    body.classList.add('village-intro-circle');
+    // ④ 円形フェードインの途中で地域名＋下線をフェードイン
+    await _mapDelay(340);
+    const title=document.getElementById('village-intro-title');
+    const info=regionInfoForWave(G&&G._wave);
+    const introName=String((info&&info.townName)||'街');
+    // 半角/全角スペースで分割し、前半（地域名）を小さく上に、後半（固有名）を大きく下に出す。
+    const introSplit=introName.match(/^(.*?)[ 　]+(.+)$/);
+    const subEl=title&&title.querySelector('.village-intro-name-sub');
+    const mainEl=title&&title.querySelector('.village-intro-name-main');
+    if(subEl) subEl.textContent=introSplit?introSplit[1]:'';
+    if(mainEl) mainEl.textContent=introSplit?introSplit[2]:introName;
+    if(title){
+      title.classList.remove('is-hiding');
+      title.classList.add('is-visible');
+    }
+    // 文字の表示と同時にboom.wavを鳴らし、その直後から街のBGMをフェードインさせる。
+    const boomDone=(typeof playSfxAwait==='function')
+      ?playSfxAwait('boom',{group:'ui',guardMs:0})
+      :Promise.resolve(typeof playSfx==='function'?playSfx('boom',{group:'ui',guardMs:0}):false);
+    void boomDone.then(()=>{ playVillageBgm(1600); });
+    await _mapDelay(500+800);
+    // ⑤ 地域名＋下線をフェードアウト
+    if(title){
+      title.classList.remove('is-visible');
+      title.classList.add('is-hiding');
+    }
+    await _mapDelay(440);
+    if(title) title.classList.remove('is-hiding');
+    // ⑥ 完全に消えたら背景以外の要素をフェードイン
+    body.classList.remove('village-intro-hide-ui');
+    body.classList.add('village-intro-reveal-ui');
+    await _mapDelay(440);
+  }finally{
+    body.classList.remove('village-intro-active','village-intro-circle','village-intro-hide-ui','village-intro-reveal-ui');
+    fade.style.transition='none';
+    fade.style.opacity='0';
+    G._villageIntroPlaying=false;
+  }
+}
+// options.intro：戦闘や別Sceneから新しく街へ入る場合はtrue（入場演出を再生する）。
+// 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
+function openMapVillage(options){
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
   // 村メニューでは祭壇状態を必ず解除する。Scene遷移後や施設からの戻りで
@@ -1118,34 +1628,63 @@ function openMapVillage(){
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
+  G._isItemShop=false;
   G._isVillageMenu=true;
   G._isTreasureMapReward=false;
   G._isRingExchange=false;
+  G._facilityLabel='';
+  G.phase='reward';
+  // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。
+  const build=()=>{
+    _applyFacilityBackground(null);
+    document.body.classList.remove('world-map-active','reward-screen-active','shop-screen-active','forge-screen-active','item-shop-active','ring-offer-phase','treasure-offer-phase');
+    document.body.classList.add('village-screen-active');
+    if(typeof showScreen==='function') showScreen('village');
+    renderVillageScreen();
+  };
+  if(options&&options.intro){ void _playVillageEnterIntro(build); return; }
+  build();
+}
+// 道具屋：アイテム3つを提示（価格＝レアリティ×180）。手持ちアイテムの売却も可能（レアリティ×45）。
+function _itemShopBuyPrice(card){
+  return Math.max(1,Math.min(5,Number(card&&card.rarity)||1))*180;
+}
+function _itemShopSellPrice(card){
+  return Math.max(1,Math.min(5,Number(card&&card.rarity)||1))*45;
+}
+function openMapItemShop(){
+  G._mapReturnAfterReward=true;
+  // 価格バッジ・購入処理はショップ機構をそのまま使うため_isShopも立てる。
+  G._isShop=true;
+  G._isItemShop=true;
+  G._isForge=false;
+  G._isTavern=false;
+  G._isVillageMenu=false;
+  G._isTreasureMapReward=false;
+  G._isRingExchange=false;
+  G._freeRewardPanelMode=false;
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
-  _rewCards=[];
-  _rewFreePickDone=true;
-  const section=document.getElementById('battle-order-section');
-  const row=document.getElementById('battle-order-row');
-  if(section&&row){
-    section.style.display='';
-    row.innerHTML='';
-    [
-      ['ショップ','販売カードを確認する',openMapShop],
-      ['鍛冶屋','魔導板パネルを改良する',openMapForge],
-      ['クエスト受託','クエストを受ける（未実装）',()=>{ log('クエスト受託は未実装です。','sys'); }],
-    ].forEach(([name,desc,fn])=>{
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='map-village-card';
-      // ショップ／鍛冶屋は専用入店音を使うが、クエスト受託は通常のselect.wavを残す。
-      if(name!=='クエスト受託') btn.dataset.sfxSilent='1';
-      btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
-      btn.onclick=fn;
-      row.appendChild(btn);
-    });
+  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
+  const waveKey=G._waveLoopEnabled?_waveFacilityCacheKey():null;
+  if(waveKey!=null&&G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])){
+    // 購入済みの枠はnullのまま「売切」として残す（詰めない・補充しない）。
+    _rewCards=clone(G._waveItemShopStock[waveKey]);
+  }else{
+    const items=(typeof drawItems==='function'?drawItems(3):[]).filter(Boolean);
+    items.forEach(it=>{ it._buyPrice=_itemShopBuyPrice(it); });
+    _rewCards=items;
+    if(waveKey!=null){ G._waveItemShopStock=G._waveItemShopStock||{}; G._waveItemShopStock[waveKey]=clone(_rewCards); }
   }
+  while(_rewCards.length<3) _rewCards.push(null);
+  G._isShop=true;
+  G._isItemShop=true;
+  G._freeRewardPanelMode=false;
+  _rewFreePickDone=false;
+  renderRewCards();
+  if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
+  renderHandEditor();
   renderMoveSlotsInEnemy();
 }
 // 祭壇（wave進行stage10）：指輪交換を選択できるメニュー。
@@ -1155,6 +1694,7 @@ function _openWaveAltarMenu(){
   // 祭壇メニューでは村状態と混ざらないよう、入口で明示する。
   G._isWaveAltar=true;
   G._isShop=false;
+  G._isItemShop=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=true;
@@ -1207,6 +1747,7 @@ function _mapPickSaleCard(pred, used){
 function openMapShop(){
   G._mapReturnAfterReward=true;
   G._isShop=true;
+  G._isItemShop=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;
@@ -1223,10 +1764,13 @@ function openMapShop(){
     const def=(PANEL_POOL||[]).find(p=>p&&((card.id&&p.id===card.id)||(!card.id&&p.name===card.name)))||card;
     return _isImplementedPoolCard(def)&&!def._shopExcluded&&!card._shopExcluded;
   };
+  // 購入済みの枠はnullのまま「売切」として残す（詰めない・補充しない）ため、
+  // filterで落とさずmapでnull化する（＝配列長と位置を保つ）。
+  const shopSlot=card=>(card&&shopAllowed(card))?card:null;
   if(node&&Array.isArray(node.shopStock)){
-    _rewCards=clone(node.shopStock||[]).filter(shopAllowed);
+    _rewCards=clone(node.shopStock||[]).map(shopSlot);
   }else if(waveKey!=null&&G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])){
-    _rewCards=clone(G._waveShopStock[waveKey]).filter(shopAllowed);
+    _rewCards=clone(G._waveShopStock[waveKey]).map(shopSlot);
   }else{
     const used=new Set();
     _rewCards=[
@@ -1239,22 +1783,8 @@ function openMapShop(){
     if(node) node.shopStock=clone(_rewCards);
     if(waveKey!=null){ G._waveShopStock=G._waveShopStock||{}; G._waveShopStock[waveKey]=clone(_rewCards); }
   }
-  // 既存の村／waveキャッシュからショップ不可カードを除外した場合は、空いた枠を補充する。
-  if(_rewCards.length<5){
-    const used=new Set(_rewCards.filter(Boolean).map(c=>c.id||c.name));
-    const predicates=[
-      p=>Number(p.rarity)===1,
-      p=>Number(p.rarity)===1,
-      p=>Number(p.rarity)>=2,
-      p=>Number(p.rarity)>=2,
-      p=>Number(p.rarity)>=3,
-    ];
-    for(let i=_rewCards.length;i<5;i++){
-      const replacement=_mapPickSaleCard(predicates[i]||(()=>true),used);
-      if(!replacement) break;
-      _rewCards.push(replacement);
-    }
-  }
+  // 一度売れた枠は補充しない（再入店しても同じ品揃え＝売切のまま）。
+  while(_rewCards.length<5) _rewCards.push(null);
   G._isShop=true;
   G._freeRewardPanelMode=false;
   _rewFreePickDone=false;
@@ -1266,6 +1796,7 @@ function openMapShop(){
 function openMapForge(){
   G._mapReturnAfterReward=true;
   G._isShop=false;
+  G._isItemShop=false;
   G._isForge=true;
   G._isTavern=false;
   G._isVillageMenu=false;
@@ -1297,7 +1828,10 @@ function _waveFacilityCacheKey(){ return Math.max(1,Number(G._wave)||1); }
 function _syncWaveFacilityCache(){
   if(!G._waveLoopEnabled) return;
   const key=_waveFacilityCacheKey();
-  if(G._isShop){
+  if(G._isItemShop){
+    G._waveItemShopStock=G._waveItemShopStock||{};
+    G._waveItemShopStock[key]=clone(_rewCards||[]);
+  }else if(G._isShop){
     G._waveShopStock=G._waveShopStock||{};
     G._waveShopStock[key]=clone(_rewCards||[]);
   }else if(G._isForge){
@@ -1318,6 +1852,7 @@ function _syncWaveFacilityCache(){
 function openMapRingExchange(){
   G._mapReturnAfterReward=true;
   G._isShop=false;
+  G._isItemShop=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;
@@ -1511,6 +2046,7 @@ function syncCurrentVillageFacilityStateFromReward(){
 function openMapTavern(){
   G._mapReturnAfterReward=true;
   G._isShop=false;
+  G._isItemShop=false;
   G._isTavern=true;
   G._isForge=false;
   G._isVillageMenu=false;
@@ -1543,6 +2079,7 @@ function enterTreasureNode(node){
 function openMapTreasure(){
   G._mapReturnAfterReward=true;
   G._isShop=false;
+  G._isItemShop=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;

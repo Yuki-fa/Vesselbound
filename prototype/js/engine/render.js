@@ -196,13 +196,45 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   const sectionRule='<div class="preview-section-rule"></div>';
   // 通常カードと同じく、効果テキストの一番上にキーワードを「A / B」形式の太字で並べる
   // （_formatPreviewHtmlの「キーワード：」行と同じ見せ方。ラベル自体は表示しない）。
-  const kws=Array.isArray(data.keywords)?data.keywords.filter(Boolean):[];
+  const kws=Array.isArray(data.keywords)?data.keywords.map(k=>String(k||'').trim()).filter(Boolean):[];
+  // _boldKeywordsInHtml()は固定のキーワード一覧しか太字にしないため、敵のキーワードには
+  // 当たらない。ここは「キーワードそのものを並べる」箇所なので無条件に太字にする。
   const kwHtml=kws.length
-    ?kws.map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ')
+    ?kws.map(k=>`<strong>${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ')
     :'';
+  // 効果テキスト中に登場するキーワード（例：マニガンスの「結界」）も説明の対象にする。
+  const descRaw=String(data.desc||'');
+  const hits=[];
+  if(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP){
+    Object.keys(KW_DESC_MAP).forEach(rawName=>{
+      // 「毒牙X」のようなX付きの見出しは、数字付き／無しの両方を本文から拾う。
+      const stem=String(rawName||'').trim().replace(/X$/,'');
+      if(!stem) return;
+      const re=new RegExp(stem.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\d*','g');
+      let m;
+      while((m=re.exec(descRaw))) hits.push({name:m[0],index:m.index});
+    });
+  }
+  hits.sort((a,b)=>a.index-b.index);
+  const textKws=[];
+  hits.forEach(h=>{ if(!textKws.includes(h.name)) textKws.push(h.name); });
+  // 他の検出語に含まれてしまう短い語（例：「毒牙2」に対する「毒」）は落とす。
+  const uniqueTextKws=textKws.filter(k=>!textKws.some(o=>o!==k&&o.includes(k)));
+  const allKws=[...kws];
+  uniqueTextKws.forEach(k=>{ if(!allKws.includes(k)) allKws.push(k); });
+  // キーワードの説明も併記する（通常カードのキーワード説明と同じ「名前：説明」形式）。
+  const kwDescHtml=allKws.map(k=>{
+    const base=k.replace(/\d+$/,'');
+    let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||'';
+    if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(k)||'';
+    const value=(k.match(/(\d+)$/)||[])[1];
+    if(value) d=String(d||'').replace(/X/g,value);
+    return d?`<strong>${_escapePreviewHtml(k)}</strong>：${_injectManaIcons(_escapePreviewHtml(d))}`:'';
+  }).filter(Boolean).join('<br>');
   const descText=data.desc?_formatJourneyEffectText(data.desc):'';
   const body=[kwHtml,descText].filter(Boolean).join('<br>');
-  return `${title}${cardHtml}${sectionRule}${body}`;
+  const kwSection=kwDescHtml?`${sectionRule}${kwDescHtml}`:'';
+  return `${title}${cardHtml}${sectionRule}${body}${kwSection}`;
 }
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
