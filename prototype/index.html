@@ -11857,15 +11857,17 @@ html body .screen-options-btn::after{
   background-repeat:no-repeat,no-repeat!important;
   transition:filter .15s ease!important;
 }
+/* 発光レイヤーは戦闘・編成画面と同じく、ボタンと同じ輪郭（button_option.svg）を
+   明るくしたもの。back_light.svgだと形が違って光り方が変わってしまう。 */
 html body .screen-options-btn::before{
-  content:''!important;position:absolute!important;left:0!important;top:0!important;
+  content:''!important;display:block!important;position:absolute!important;left:0!important;top:0!important;
   width:110px!important;height:90px!important;z-index:1!important;pointer-events:none!important;
-  background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat!important;
   opacity:0;
   transform:scale(1.03)!important;
   filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9)) drop-shadow(0 0 12px rgba(255,194,70,.78))!important;
 }
-html body .screen-options-btn:hover::before{opacity:.84!important}
+html body .screen-options-btn:hover::before{opacity:.84!important;animation:none!important}
 /* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x90）の直下。 */
 html body #village-mute-btn{
   position:absolute!important;
@@ -12505,24 +12507,24 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=map17"></script>
-<script src="js/engine/audio.js?v=map17"></script>
+<script src="assets.js?v=map20"></script>
+<script src="js/engine/audio.js?v=map20"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=map17"></script>
+<script src="js/data/local_xlsx_data.js?v=map20"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=map17"></script>
+<script src="js/data/loader.js?v=map20"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=map17"></script>
-<script src="js/engine/render.js?v=map17"></script>
-<script src="js/engine/reward.js?v=map17"></script>
-<script src="js/engine/map.js?v=map17"></script>
+<script src="js/engine/battle.js?v=map20"></script>
+<script src="js/engine/render.js?v=map20"></script>
+<script src="js/engine/reward.js?v=map20"></script>
+<script src="js/engine/map.js?v=map20"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=map17"></script>
+<script src="js/engine/main.js?v=map20"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
