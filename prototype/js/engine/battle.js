@@ -547,7 +547,8 @@ function _fadeBattleLife(){
   if(life) life.classList.add('life-lost-cutin');
   try{
     const src=(typeof Assets!=='undefined'&&Assets.sfx&&Assets.sfx.lifeLost)||'assets/sfx/life_lost.wav';
-    const audio=new Audio(src); audio.volume=.8; audio.play().catch(()=>{});
+    if(typeof playFileSfx==='function') playFileSfx(src);
+    else { const audio=new Audio(src); audio.volume=.8; audio.play().catch(()=>{}); }
   }catch(e){}
 }
 
@@ -693,6 +694,7 @@ function renderBattleCounters(){
 
 function _playBattleOpeningAppearanceSfx(){
   try{
+    if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/appearance.wav'); return; }
     const audio=new Audio('assets/sfx/appearance.wav');
     audio.preload='auto';
     audio.volume=.8;
@@ -833,7 +835,7 @@ async function startBattle(){
   G._battleDraw=false;
   document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
-  document.body.classList.remove('reward-screen-active','ring-offer-phase');
+  document.body.classList.remove('reward-screen-active','ring-offer-phase','ring-offer-resolved');
   const pendingItems=[
     ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
     ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])

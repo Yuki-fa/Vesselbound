@@ -117,7 +117,10 @@ function _parseCSVWithHeader(text, headerNames) {
   }).filter(row => row && (row['名前'] || row['カード名'] || row[headers[0]] || row['__col0'] || Object.keys(row).some(k=>/^__col\d+$/.test(k)&&row[k])));
 }
 
-const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx'];
+// ブラウザで再ダウンロードすると「Vesselbound_data (1).xlsx」のように連番が付くことがある。
+// 見つからないと内蔵CSV（local_xlsx_data.js）へ落ちてシートの編集が反映されないため、
+// よくある別名も候補に入れる（正規の名前が最優先）。
+const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx', './Vesselbound_data (1).xlsx'];
 const _XLSX_SHEETS = {
   floor: '階層データ',
   grade: 'グレードアップ',

@@ -28,11 +28,13 @@ function showScreen(id){
     // 街（村）専用画面と、商談（報酬/編成）フェイズ中の戦闘画面はメニュー曲を使う。
     const isMenuLike=typeof G!=='undefined'&&G&&(G.phase==='map'||G.phase==='reward');
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
-    if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700,volume:isMenuLike?undefined:.32});
+    // 音量は曲ごとにBGM_DEFAULT_VOLUMES（audio.js）で決める。ここで.32を渡すと
+    // 戦闘BGMだけが他より小さくなるため、指定せず既定値に任せる。
+    if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700});
     // 街は入場演出中はboom.wav後に演出側が鳴らすため何もしない。
     else if(id==='village'){
       if(!(typeof G!=='undefined'&&G&&G._villageIntroPlaying)){
-        if(typeof playVillageBgm==='function') playVillageBgm(700);
+        if(typeof playVillageBgm==='function') playVillageBgm(600);
         else playBgm('menu',{fadeInMs:700});
       }
     }
@@ -81,6 +83,7 @@ function updateHUD(){
   if(G._debugMode){
     _positionDebugKillButton();
     _positionDebugMuteButton();
+    _positionDebugFormationButton();
     if(typeof renderDebugRewardRerollButton==='function') renderDebugRewardRerollButton();
   }
 }
@@ -270,6 +273,25 @@ function _positionDebugMuteButton(){
   btn.style.width=opt.offsetWidth+'px';
   btn.style.height=opt.offsetHeight+'px';
 }
+// 編成画面ボタン（デバッグモード中のみ表示・ミュートボタンの直下に追従）
+function _positionDebugFormationButton(){
+  const btn=document.getElementById('battle-formation-btn');
+  const mute=document.getElementById('battle-mute-btn');
+  if(!btn||!mute||btn.style.display==='none') return;
+  if(mute.offsetWidth===0&&mute.offsetHeight===0) return;
+  btn.style.left=mute.offsetLeft+'px';
+  btn.style.top=(mute.offsetTop+mute.offsetHeight+20)+'px';
+  btn.style.width=mute.offsetWidth+'px';
+  btn.style.height=mute.offsetHeight+'px';
+  btn.style.fontSize=Math.round(mute.offsetHeight*0.34)+'px';
+}
+// デバッグ用：どの画面からでも編成画面を開く。
+function debugOpenFormation(){
+  if(typeof G==='undefined'||!G||!G._debugMode) return;
+  if(G._villageIntroPlaying||G._pendingPanelPlacement) return;
+  document.body.classList.remove('village-screen-active','world-map-active');
+  if(typeof _openWaveFormation==='function') _openWaveFormation();
+}
 // リロールボタン（デバッグモード・報酬フェイズ中のみ表示。全敵撃破と同じ枠を共有）
 function _positionDebugRerollButton(){
   _positionBelowGold(document.getElementById('rw-appearance-mode'));
@@ -279,6 +301,7 @@ window.addEventListener('resize',()=>{
   _positionDebugKillButton();
   _positionDebugRerollButton();
   _positionDebugMuteButton();
+  _positionDebugFormationButton();
 });
 
 function _starterCardCandidates(category){
@@ -500,12 +523,13 @@ function _openWaveVillage(stage,eliteWon){
 }
 // stage10：祭壇（鍛冶・指輪交換）
 function _openWaveAltar(stage){
-  showScreen('battle');
+  // 塔も村と全く同じ形式（#scr-village＋入場演出）。showScreen('battle')は呼ばない
+  // （呼ぶとG.phaseがまだ戦闘中の値のためbattle1/battle3が一瞬鳴ってしまう）。
   G._waveStage=stage;
   G._waveVillage=true;
   G._isWaveAltar=true;
   G.phase=null;
-  if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
+  if(typeof openMapVillage==='function') openMapVillage({intro:true,tower:true});
 }
 function _startWaveBattle(stage){
   const type=_waveBattleType(stage);
@@ -530,6 +554,8 @@ function _startWaveBattle(stage){
   G._isVillageMenu=false;
   G._isRingExchange=false;
   G._facilityLabel='';
+  // 施設を出たので、施設在庫の保存先キー（openMap*()で記録）も破棄する。
+  G._facilityCacheKey=null;
   // 街を出て戦闘へ入るのでBGMは通常制御へ戻す。
   G._villageBgmActive=false;
   if(typeof _applyFacilityBackground==='function') _applyFacilityBackground(null);
@@ -545,10 +571,15 @@ function _startWaveBattle(stage){
   G.phase='battle';
   document.body.classList.remove('world-map-active');
   showScreen('battle');
+  // ステージ持続環境音（ステージ4の雷はstage1＝最初の戦闘から）。
+  // showScreen()内のplayBgm()＝stopBgm()より後に呼ぶ。
+  if(typeof _syncStageAmbience==='function') _syncStageAmbience();
   startBattle();
 }
 function _startWaveFlowNext(){
   if(!G._waveLoopEnabled) return false;
+  // ステージ0＝リーゼ（ゲーム開始地点）。出発したらステージ1の最初の戦闘へ。
+  if(Number(G._wave)===0){ G._wave=1; _startWaveBattle(1); return true; }
   const stage=Number(G._waveStage)||1;
   const wave=Math.max(1,Number(G._wave)||1);
   if(wave===5){
@@ -686,6 +717,8 @@ function handleWaveBattleDefeat(){
   return true;
 }
 function startGame(debugMode){
+  // 前回のランのステージ持続環境音（雷雨など）を持ち越さない。
+  if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(0);
   initState();
   G.runStats={
     startedAt:performance.now(), areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
@@ -702,22 +735,31 @@ function startGame(debugMode){
     if(dbg) dbg.style.display='';
     const muteBtn=document.getElementById('battle-mute-btn');
     if(muteBtn) muteBtn.style.display='';
+    const formBtn=document.getElementById('battle-formation-btn');
+    if(formBtn) formBtn.style.display='';
     log('[DEBUG] デバッグモード：ソウル100000','sys');
     requestAnimationFrame(_positionDebugKillButton);
-    requestAnimationFrame(_positionDebugMuteButton);
+    requestAnimationFrame(()=>{ _positionDebugMuteButton(); _positionDebugFormationButton(); });
   } else {
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='none';
     const muteBtn=document.getElementById('battle-mute-btn');
     if(muteBtn) muteBtn.style.display='none';
+    const formBtn=document.getElementById('battle-formation-btn');
+    if(formBtn) formBtn.style.display='none';
   }
   G._waveLoopEnabled=true;
-  G._wave=1;
-  G._waveStage=1;
+  // ゲーム開始地点は「風止みの村 リーゼ」（地域情報シートのステージ0）。
+  // 普通の村と同じ#scr-village＋入場演出で開く。施設（ホーム・図書館）は未実装のため
+  // 暗く表示され、選べるのは「出発する」だけ。
+  G._wave=0;
+  G._waveStage=4;
+  // 前回のランのステージ持続演出（雷雨の動画・環境音）を持ち越さない。
+  if(typeof _syncStageAmbience==='function') _syncStageAmbience();
   G._waveBattleType=null;
   G._waveFinalVillage=false;
   G._waveLife=3;
-  _openWaveFormation();
+  _openWaveVillage(4,false);
 }
 
 function _runStatsAreaName(){
@@ -844,12 +886,13 @@ function gameOver(){
     if(typeof updateHUD==='function') updateHUD();
   }
   try{
-    const se=new Audio('assets/sfx/game_over.wav');
-    se.volume=.9;
-    void se.play();
+    if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
+    else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=.9; void se.play(); }
   }catch(_e){}
   document.body.classList.remove('battle-turn-active');
   if(typeof stopBgm==='function') stopBgm(900);
+  // ステージ持続環境音（雷雨など）はstopBgm()では止まらないため、ゲームオーバーでは明示的に落とす。
+  if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(900);
   if(typeof _showBattleEndFade==='function') _showBattleEndFade();
   // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
   if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
@@ -1024,7 +1067,11 @@ function continueAfterBattleVictory(){
     G._battleProceedAction=null;
     G._battleProceedBusy=false;
     action();
-    // 村・祭壇・報酬は同じ#scr-battle内で切り替わるため、showScreen()を通らない。
+    // 村・祭壇の入場演出へ入った場合は、暗転をそのまま演出側へ引き継ぐ
+    // （ここで外すと、演出の黒が乗るまでの間だけ盤面が見えてしまう。
+    //   _playVillageEnterIntro()が村画面を組み立てた時点で外す）。
+    if(typeof G!=='undefined'&&G&&G._villageIntroPlaying) return;
+    // 報酬は同じ#scr-battle内で切り替わるため、showScreen()を通らない。
     // 遷移後に両方の黒オーバーレイを確実に解除する。
     const endFade=document.getElementById('battle-end-fade');
     const transitionFade=document.getElementById('battle-transition-fade');

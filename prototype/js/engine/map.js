@@ -1121,48 +1121,141 @@ function regionInfoForWave(wave){
 }
 // 街の背景キー（Assets.backgrounds）。ステージ番号に対応させる。
 function getVillageBackgroundKey(){
-  const wave=Math.max(1,Number(G&&G._wave)||1);
+  // 塔（祭壇）は全ステージ共通でtower.png。
+  if(G&&G._isWaveAltar) return 'tower';
+  // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
+  const wave=Math.max(0,Number(G&&G._wave)||0);
   return wave>=5?'villageEnd':`village${Math.min(4,wave)}`;
 }
 // 街ごとに背景の真上へ重ねる効果動画（未定義のステージは動画なし）。
+// 値は文字列（既定レート0.3）または {src,rate}。
 const VILLAGE_BG_VIDEOS={
+  // 0（リーゼ）は動画なし。未定義のステージは_syncVillageBgVideo()が動画を止めて非表示にする。
   1:'assets/art/backgrounds/village_forest.webm',
+  3:'assets/art/backgrounds/village_valley.webm',
+  4:{src:'assets/art/backgrounds/city_capital.webm',rate:0.9}, // 雷は他の3倍速
 };
+// 塔（祭壇）は全ステージ共通。効果が薄いため layers:2 で同じ動画を2重に重ねる。
+const TOWER_BG_VIDEO={src:'assets/art/backgrounds/tower.webm',rate:0.3,layers:2};
 // 街×施設ごとの背景（Assets.backgroundsのキー）。未定義ならステージ背景のまま。
 const VILLAGE_FACILITY_BG={
   1:{item:'itemShopForest',shop:'magicShopForest'},
   2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland'},
+  3:{shop:'magicShopValley',forge:'blacksmithValley'},
 };
 // 施設画面（#scr-battle上の編成UI）の背景を、その街の施設専用画像へ差し替える。
-function _applyFacilityBackground(facKey){
+// 編成画面（#scr-battle）の背景を専用画像で上書きする。編成画面は #scr-battle の
+// background を丸ごと差し替えているため、--screen-bg-image ではなく専用の変数＋クラスを使う。
+// assetKey=null で解除。
+function _setOverrideBackground(assetKey){
   const body=document.body;
   if(!body) return;
-  const wave=Math.max(1,Number(G&&G._wave)||1);
-  const key=facKey?((VILLAGE_FACILITY_BG[wave]||{})[facKey]||null):null;
-  const path=key&&typeof Assets!=='undefined'&&Assets.backgrounds?Assets.backgrounds[key]:null;
+  const path=assetKey&&typeof Assets!=='undefined'&&Assets.backgrounds?Assets.backgrounds[assetKey]:null;
   if(!path){
     body.classList.remove('facility-bg-active');
     body.style.removeProperty('--facility-bg-image');
     return;
   }
-  // 編成画面は #scr-battle の background を丸ごと差し替えているため、
-  // --screen-bg-image ではなく専用の変数＋クラスで上書きする。
   body.style.setProperty('--facility-bg-image',`url("${path}")`);
   body.classList.add('facility-bg-active');
 }
-// 街ごとのBGM（Assets.sfxのキーと再生開始位置）。未定義のステージはメニュー曲のまま。
+function _applyFacilityBackground(facKey){
+  const wave=Math.max(0,Number(G&&G._wave)||0);
+  _setOverrideBackground(facKey?((VILLAGE_FACILITY_BG[wave]||{})[facKey]||null):null);
+}
+// 街ごとのBGM（Assets.sfxのキー・再生開始位置・重ねる環境音）。未定義のステージはメニュー曲のまま。
+// 開始位置は初回のみで、ループ2周目以降は曲の頭から鳴る。
 const VILLAGE_BGM={
-  1:{key:'villageForest',startTime:81},
+  0:{key:'villageStart',   startTime:83},  // リーゼ 1:23
+  1:{key:'villageForest',  startTime:81},  // エルム 1:21
+  2:{key:'villageGrassland',startTime:70}, // ヴァルガ 1:10
+  3:{key:'villageValley',  startTime:75},  // ギャラハ 1:15
+  4:{key:'cityCapital',    startTime:47}, // ヴォルザーク 0:47（雷＋雨はSTAGE_AMBIENCE側で持続再生）
+  5:{key:'villageEndworld',startTime:110,sub:'bug'},     // フォルセティ 1:50＋虫
 };
+// 塔（祭壇）のBGM。全ステージ共通で1:37から。
+const TOWER_BGM={key:'tower',startTime:97};
 function _villageBgmSetting(){
-  const wave=Math.max(1,Number(G&&G._wave)||1);
+  if(G&&G._isWaveAltar) return TOWER_BGM;
+  const wave=Math.max(0,Number(G&&G._wave)||0);
   return VILLAGE_BGM[wave]||null;
 }
-function _syncVillageBgVideo(){
-  const el=document.getElementById('village-bg-video');
+// 街の環境音（複数可）。ambient0〜2の固定チャンネルへ割り当て、余りは止める。
+const _AMBIENT_CHANNELS=['ambient0','ambient1','ambient2'];
+function _applyVillageAmbience(subs){
+  const list=Array.isArray(subs)?subs:(subs?[subs]:[]);
+  _AMBIENT_CHANNELS.forEach((ch,i)=>{
+    if(list[i]&&typeof playBgmLayer==='function') playBgmLayer(ch,list[i],{fadeInMs:1000});
+    else if(typeof stopBgmLayer==='function') stopBgmLayer(ch,400);
+  });
+}
+// ── ステージ持続環境音 ────────────────────────────────────
+// 街の中だけでなく、そのステージの戦闘・報酬画面をまたいで鳴らし続ける環境音。
+// stage0〜2の専用チャンネル（PERSISTENT_LAYER_CHANNELS）を使うため、
+// 戦闘BGMへの切り替え（stopBgm）では止まらない。塔（祭壇）へ入った時点で止める。
+//   fromStage … そのステージ番号（G._waveStage）以上で鳴らし始める。
+//               stage1＝そのステージ最初の戦闘、stage4＝街。
+const STAGE_AMBIENCE={
+  // ステージ4：雷は最初の戦闘から、雨はヴォルザークに入ってから、どちらも塔まで止めない。
+  4:[{key:'thunder',fromStage:1},{key:'rain',fromStage:4}],
+};
+// ステージ持続の効果動画。街だけでなく戦闘・報酬画面（#scr-battle）にも重ね続ける。
+// 塔（祭壇）へ入った時点で止める。街画面側は VILLAGE_BG_VIDEOS が同じ動画を出す。
+const STAGE_BG_VIDEOS={
+  // ステージ4：ヴォルザークに入ってから蝕界の塔まで、雷を戦闘中も重ね続ける。
+  4:{src:'assets/art/backgrounds/city_capital.webm',rate:0.9,fromStage:4},
+};
+function _stageAmbienceList(){
+  if(!G) return [];
+  if(G._isWaveAltar) return []; // 塔に入ったら止める
+  const wave=Math.max(0,Number(G._wave)||0);
+  const defs=STAGE_AMBIENCE[wave];
+  if(!defs) return [];
+  const stage=Math.max(1,Number(G._waveStage)||1);
+  return defs.filter(d=>stage>=(d.fromStage||1)).map(d=>d.key);
+}
+function _stageBgVideoSetting(){
+  if(!G||G._isWaveAltar) return null;
+  const def=STAGE_BG_VIDEOS[Math.max(0,Number(G._wave)||0)];
+  if(!def) return null;
+  return (Math.max(1,Number(G._waveStage)||1)>=(def.fromStage||1))?def:null;
+}
+// #scr-battle側のステージ持続動画を現在の進行度に合わせる（同じsrcなら再読み込みしない）。
+function _syncStageBgVideo(){
+  const el=document.getElementById('stage-bg-video');
   if(!el) return;
-  const wave=Math.max(1,Number(G&&G._wave)||1);
-  const src=VILLAGE_BG_VIDEOS[wave]||'';
+  const def=_stageBgVideoSetting();
+  if(!def){
+    el.classList.remove('is-active');
+    try{ el.pause(); }catch(_e){}
+    el.removeAttribute('src');
+    return;
+  }
+  if(el.getAttribute('src')!==def.src){
+    el.setAttribute('src',def.src);
+    el.load();
+  }
+  el.classList.add('is-active');
+  el.muted=true;
+  el.loop=true;
+  el.playbackRate=def.rate||0.3;
+  el.defaultPlaybackRate=def.rate||0.3;
+  try{ void Promise.resolve(el.play()).catch(()=>{}); }catch(_e){}
+}
+// 現在のステージ／進行度に合うステージ持続環境音を鳴らし、不要なものを止める。
+// 街・塔への入場と戦闘開始のたびに呼ぶ（すでに同じ音が鳴っていれば何もしない）。
+function _syncStageAmbience(){
+  _syncStageBgVideo();
+  const list=_stageAmbienceList();
+  const channels=(typeof PERSISTENT_LAYER_CHANNELS!=='undefined')?PERSISTENT_LAYER_CHANNELS:[];
+  channels.forEach((ch,i)=>{
+    if(list[i]&&typeof playBgmLayer==='function') playBgmLayer(ch,list[i],{fadeInMs:1200});
+    else if(typeof stopBgmLayer==='function') stopBgmLayer(ch,700);
+  });
+}
+// 動画1枚分の共通設定。同じsrcなら読み直さない（＝再生位置を維持する）。
+function _applyBgVideoEl(el,src,rate){
+  if(!el) return;
   if(!src){
     el.classList.remove('is-active');
     try{ el.pause(); }catch(_e){}
@@ -1176,24 +1269,76 @@ function _syncVillageBgVideo(){
   el.classList.add('is-active');
   el.muted=true;
   el.loop=true;
-  el.playbackRate=0.3;
-  el.defaultPlaybackRate=0.3;
+  el.playbackRate=rate;
+  el.defaultPlaybackRate=rate;
   try{ void Promise.resolve(el.play()).catch(()=>{}); }catch(_e){}
 }
+function _syncVillageBgVideo(){
+  const el=document.getElementById('village-bg-video');
+  const el2=document.getElementById('village-bg-video-2');
+  if(!el) return;
+  // ステージ0（リーゼ）は動画なし。Math.max(1,…)にするとステージ1の動画を拾ってしまう。
+  const wave=Math.max(0,Number(G&&G._wave)||0);
+  const def=(G&&G._isWaveAltar)?TOWER_BG_VIDEO:(VILLAGE_BG_VIDEOS[wave]||'');
+  const src=typeof def==='string'?def:(def&&def.src||'');
+  const rate=(def&&typeof def==='object'&&Number(def.rate))||0.3;
+  // layers:2 で同じ動画を2重に重ねる（screen合成が2回掛かり、薄い動画がはっきり見える）。
+  const layers=(def&&typeof def==='object'&&Number(def.layers))||1;
+  _applyBgVideoEl(el,src,rate);
+  _applyBgVideoEl(el2,(src&&layers>=2)?src:'',rate);
+  // 2枚目は1枚目と再生位置を合わせる（ずれると別々の明滅に見えて「2重」にならない）。
+  if(el2&&src&&layers>=2) _syncBgVideoLayerTime(el,el2);
+}
+// 2枚目の再生位置を1枚目へ合わせ続ける。読み込み直後と、ずれが目立つ時だけ補正する
+// （毎回代入するとシークが連続して再生がガタつくため）。
+function _syncBgVideoLayerTime(el,el2){
+  const align=()=>{
+    if(!el2.classList.contains('is-active')) return;
+    const d=Number(el.duration);
+    if(!Number.isFinite(d)||d<=0) return;
+    if(Math.abs(el2.currentTime-el.currentTime)>0.08){
+      try{ el2.currentTime=el.currentTime; }catch(_e){}
+    }
+  };
+  if(el2.readyState>=1) align();
+  else el2.addEventListener('loadedmetadata',align,{once:true});
+  if(_bgVideoLayerTimer) clearInterval(_bgVideoLayerTimer);
+  _bgVideoLayerTimer=setInterval(()=>{
+    if(!el2.classList.contains('is-active')){ clearInterval(_bgVideoLayerTimer); _bgVideoLayerTimer=null; return; }
+    align();
+  },2000);
+}
+let _bgVideoLayerTimer=null;
 // 街のBGM。ステージ専用曲があればその開始位置から、無ければメニュー曲。
 function playVillageBgm(fadeInMs){
   if(typeof playBgm!=='function') return;
   // 街のBGMは施設（ショップ／鍛治屋／道具屋）へ入っても止めず、menu.wavへも切り替えない。
   // このフラグが立っている間、goToReward()／showScreen()はBGMを触らない。
   G._villageBgmActive=true;
+  // ステージ持続環境音（ステージ4の雷雨など）は街／塔の別に合わせて更新する。
+  // 塔に入った場合は_stageAmbienceList()が空になり、ここで止まる。
+  _syncStageAmbience();
   const cfg=_villageBgmSetting();
-  if(!cfg){ playBgm('menu',{fadeInMs:fadeInMs??700}); return; }
-  playBgm(cfg.key,{fadeInMs:fadeInMs??1400,startTime:cfg.startTime||0});
+  if(!cfg){ playBgm('menu',{fadeInMs:fadeInMs??600}); return; }
+  playBgm(cfg.key,{fadeInMs:fadeInMs??600,startTime:cfg.startTime||0});
+  // 環境音（虫など）は曲の頭から重ねてループする（複数可）。
+  _applyVillageAmbience(cfg.sub);
 }
+// 施設内で重ねる環境音（施設キー → Assets.sfxのキー）。街の環境音とは別チャンネルなので、
+// ヴォルザークの雷などを止めずに上に重なる。
+const FACILITY_AMBIENCE={ forge:'blacksmith' };
+function _applyFacilityAmbience(facKey){
+  const key=facKey?FACILITY_AMBIENCE[facKey]:null;
+  if(!key){ if(typeof stopBgmLayer==='function') stopBgmLayer('facility',400); return; }
+  if(typeof playBgmLayer==='function') playBgmLayer('facility',key,{fadeInMs:600});
+}
+// 塔（祭壇）のBGM。_villageBgmSetting()がTOWER_BGMを返すため実体はplayVillageBgm。
+function playTowerBgm(fadeInMs){ playVillageBgm(fadeInMs); }
 // シートの「街の施設」列に書かれる施設名 → 動作キー。
 // 「鍛冶屋」はシート上の表記が「鍛治屋」の場合もあるため両方を登録する。
 const VILLAGE_FACILITY_DEFS={
-  'ホーム':   {key:'shop'},
+  'ホーム':   {key:'home'},
+  '図書館':   {key:'library'},
   'ショップ': {key:'shop'},
   '魔導店':   {key:'shop'},
   '魔道店':   {key:'shop'},
@@ -1203,6 +1348,9 @@ const VILLAGE_FACILITY_DEFS={
   '宿屋':     {key:'inn'},
   '広場':     {key:'plaza'},
   '酒場':     {key:'tavern'},
+  // 塔の施設
+  '祭壇':     {key:'ringExchange'},
+  '踊り場':   {key:'landing'},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
@@ -1226,15 +1374,22 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
   '宿屋':'ライフを回復できる。',
   '広場':'クエストを受けることができる。',
   '闘技場':'腕試しができる。',
+  // 塔（「テキストメッセージ」シートに塔「◯◯」直下の行が追加されればそちらが優先）
+  '祭壇':'カード3枚と引き換えに指輪1つを得る。',
+  '踊り場':'ひと息つける。',
 };
 // 施設ボタン直下の説明文は「テキストメッセージ」シートの「街「◯◯」直下」行から引く。
 // シート内の表記揺れ（鍛冶屋／鍛治屋）に備えて両方の綴りで探す。
 function villageFacilityDescText(name){
   const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
   const variants=villageFacilityNameVariants(name);
-  for(const v of variants){
-    const hit=msgs[`街「${v}」直下`];
-    if(hit) return String(hit);
+  // 塔の施設は「塔「◯◯」直下」、街の施設は「街「◯◯」直下」を参照する。
+  const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
+  for(const pre of prefixes){
+    for(const v of variants){
+      const hit=msgs[`${pre}「${v}」直下`];
+      if(hit) return String(hit);
+    }
   }
   for(const v of variants){
     if(VILLAGE_FACILITY_FALLBACK_DESC[v]) return VILLAGE_FACILITY_FALLBACK_DESC[v];
@@ -1255,6 +1410,11 @@ const VILLAGE_FACILITY_POS_BY_NAME={
 // （汎用スロットの{left,top}％指定は中心合わせ）。ここに書いた施設は共通指定より優先する。
 // 鍛冶／鍛治・魔導／魔道の表記揺れは _villageFacilityFixedPos() 側で吸収する。
 const VILLAGE_FACILITY_POS_BY_WAVE={
+  // リーゼ（ゲーム開始地点）
+  0:{
+    'ホーム':  {x:461, y:993},
+    '図書館':  {x:3237,y:993},
+  },
   // エルム
   1:{
     '酒場':  {x:1770,y:516},
@@ -1287,10 +1447,15 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
     '道具屋':{x:1198,y:972},
   },
 };
+// 塔の施設位置（全ステージ共通・左上合わせpx）。
+const TOWER_FACILITY_POS={
+  '祭壇':  {x:2260,y:246},
+  '踊り場':{x:1621,y:1402},
+};
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
-  const wave=Math.max(1,Number(G&&G._wave)||1);
-  const table=VILLAGE_FACILITY_POS_BY_WAVE[wave]||null;
+  const wave=Math.max(0,Number(G&&G._wave)||0);
+  const table=(G&&G._isWaveAltar)?TOWER_FACILITY_POS:(VILLAGE_FACILITY_POS_BY_WAVE[wave]||null);
   const variants=villageFacilityNameVariants(name);
   if(table){
     for(const v of variants){ if(table[v]) return table[v]; }
@@ -1320,7 +1485,9 @@ function _villageFacilityPositions(facs){
 }
 function villageFacilityList(){
   const info=regionInfoForWave(G&&G._wave);
-  const names=String((info&&info.townFacilities)||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
+  const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
+  const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
+  if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
   return (names.length?names:['ショップ']).map(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     return {name,key:def?def.key:'none',desc:villageFacilityDescText(name)};
@@ -1345,12 +1512,17 @@ function useVillageInn(){
   renderVillageScreen();
 }
 // 宿屋は「ライフが減っている」「500G以上持っている」「この街で未利用」の全てを満たす時のみ押せる。
+// 中身が未実装の施設。表示はするが選べない（暗くする）。
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','library']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
+  if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   if(fac.key==='inn'){
     const life=Math.max(0,Math.min(3,G._waveLife==null?3:Number(G._waveLife)));
     return life>=3||_villageInnUsed()||(G.gold||0)<500;
   }
+  // 祭壇は指輪取得後（resolved）も入場できる。中は指輪が消えて枠だけの状態になる
+  // （_renderRingOfferCards()／body.ring-offer-resolved）。
   return false;
 }
 // ショップ／鍛冶屋／道具屋／宿屋のみ、押下時にknock.wavを鳴らし切ってから
@@ -1382,6 +1554,17 @@ async function _onVillageFacility(fac){
     else openMapItemShop();
     // showScreen('battle')でステージ背景に戻るため、施設専用背景は入店処理の後に適用する。
     _applyFacilityBackground(fac.key);
+    _applyFacilityAmbience(fac.key);
+    return;
+  }
+  if(fac.key==='ringExchange'){
+    // 祭壇：既存の指輪交換画面（編成UI）へ。背景は塔のままtower.pngを維持する。
+    G._facilityLabel=fac.name;
+    document.body.classList.remove('village-screen-active');
+    if(typeof showScreen==='function') showScreen('battle');
+    openMapRingExchange();
+    _setOverrideBackground('tower');
+    _applyFacilityAmbience(null);
     return;
   }
   if(fac.key==='inn'){
@@ -1389,7 +1572,7 @@ async function _onVillageFacility(fac){
     useVillageInn();
     return;
   }
-  // 広場（クエスト受託相当）・酒場は表示のみ。SEも鳴らさない。
+  // 広場（クエスト受託相当）・酒場・踊り場は表示のみ。SEも鳴らさない。
   log(`${fac.name}は未実装です。`,'sys');
 }
 // ══════════════════════════════════════════════════════════
@@ -1408,6 +1591,20 @@ const WORLD_MAP_LINES=[
   {n:7,x:2385,y:470, w:658.46, h:261,   dir:'rl'},
   {n:8,x:2059,y:488, w:292.25, h:165.67,dir:'rl'},
 ];
+// 現在地マーク（ui/map_mark.svg、左上合わせのpx座標）。キーは worldMapActiveLine() の戻り値。
+// 2＝エルム後／3＝碧翠の塔後／4＝ヴァルガ後／5＝雷鳴の塔後／6＝ギャラハ後／
+// 7＝赤禍の塔後／8＝ヴォルザーク後／0＝蝕界の塔後（ラインのアニメーションは行わない）。
+const WORLD_MAP_MARK_W=50, WORLD_MAP_MARK_H=170.88;
+const WORLD_MAP_MARKS={
+  2:{x:666, y:847},
+  3:{x:1977,y:877},
+  4:{x:3189,y:897},
+  5:{x:2959,y:715},
+  6:{x:3030,y:72},
+  7:{x:2333,y:327},
+  8:{x:2048,y:293},
+  0:{x:559, y:321},
+};
 // 現在移動中のライン番号（1〜8）。0なら全て到達済み扱い。
 // ステージ（=G._wave）ごとに「村まで」「塔まで」の2本ずつ進む。
 // stageが5以上＝村を出て塔へ向かっている区間。
@@ -1451,6 +1648,17 @@ function renderWorldMapScreen(activeOverride){
     el.style.setProperty('--map-line-img',`url("assets/ui/map_line/${def.n}.svg")`);
     host.appendChild(el);
   });
+  // 現在地マーク：発光しながら上下に揺れる。
+  const mark=WORLD_MAP_MARKS[active];
+  if(mark){
+    const m=document.createElement('div');
+    m.className='map-mark';
+    m.style.left=`${mark.x}px`;
+    m.style.top=`${mark.y}px`;
+    m.style.width=`${WORLD_MAP_MARK_W}px`;
+    m.style.height=`${WORLD_MAP_MARK_H}px`;
+    host.appendChild(m);
+  }
 }
 // 街を出る → マップ画面を数秒表示 → フェードアウトして戦闘へ。
 async function _playWorldMapDeparture(done){
@@ -1461,9 +1669,15 @@ async function _playWorldMapDeparture(done){
     fade.style.transition='opacity .34s ease';
     fade.style.opacity='1';
     await _mapDelay(360);
-    // マップは「これから向かう区間」を光らせる（村を出た直後＝塔へ向かう区間）。
-    const nextStage=(Number(G._waveStage)||1)===4?5:(Number(G._waveStage)||1);
-    renderWorldMapScreen(worldMapActiveLine(G&&G._wave,nextStage));
+    // マップは「これから向かう区間」を光らせる。
+    // 村（stage4）を出た直後＝塔へ向かう区間、塔（stage10）を出た直後＝次のステージの街へ向かう区間。
+    let nextWave=Math.max(1,Number(G._wave)||1);
+    let nextStage=Number(G._waveStage)||1;
+    // リーゼ（ステージ0）を出た直後はステージ1の最初の戦闘へ向かう区間。
+    if(Number(G._wave)===0){ nextWave=1; nextStage=1; }
+    else if(nextStage===4) nextStage=5;
+    else if(nextStage===10){ nextWave=Math.min(5,nextWave+1); nextStage=1; }
+    renderWorldMapScreen(worldMapActiveLine(nextWave,nextStage));
     if(typeof showScreen==='function') showScreen('map');
     fade.style.transition='opacity .5s ease';
     fade.style.opacity='0';
@@ -1475,23 +1689,110 @@ async function _playWorldMapDeparture(done){
     G._worldMapScreenPlaying=false;
   }
   done();
+  // 村・塔の入場演出へ入った場合は暗転をそのまま演出側へ引き継ぐ。
+  // ここで明転すると、演出が黒を掛け直すまでの間だけマップがもう一度見えてしまう。
+  if(G._villageIntroPlaying) return;
   await _mapDelay(80);
   fade.style.transition='opacity .45s ease';
   fade.style.opacity='0';
+}
+// ── 出発時のムービー ─────────────────────────────────────
+// ワールドマップの代わりにムービーを流すステージ（キー＝G._wave。街のみ・塔は対象外）。
+const DEPARTURE_MOVIES={
+  5:'assets/movie/movie1.webm', // フォルセティ → 最終決戦へ
+};
+function _departureMovieSrc(){
+  if(!G||G._isWaveAltar) return '';
+  return DEPARTURE_MOVIES[Math.max(0,Number(G._wave)||0)]||'';
+}
+function _ensureCutsceneVideoEl(){
+  let el=document.getElementById('cutscene-video');
+  if(!el){
+    el=document.createElement('video');
+    el.id='cutscene-video';
+    el.setAttribute('playsinline','');
+    el.setAttribute('preload','auto');
+    el.setAttribute('aria-hidden','true');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+// 暗転 → ムービー全画面再生 → 再生完了で暗転 → done()（次の戦闘へ）→ 明転。
+// 再生できない／終わらない場合に進行が止まらないよう、安全弁のタイムアウトを必ず張る。
+async function _playDepartureMovie(src,done){
+  if(G._departureMoviePlaying){ done(); return; }
+  G._departureMoviePlaying=true;
+  const fade=_ensureVillageEnterFadeEl();
+  const video=_ensureCutsceneVideoEl();
+  try{
+    fade.style.transition='opacity .34s ease';
+    fade.style.opacity='1';
+    await _mapDelay(360);
+    if(video.getAttribute('src')!==src){
+      video.setAttribute('src',src);
+      video.load();
+    }
+    video.currentTime=0;
+    video.loop=false;
+    // デバッグミュート（SFX_SETTINGS.masterVolume=0）に追従する。
+    const master=(typeof SFX_SETTINGS!=='undefined'&&Number(SFX_SETTINGS.masterVolume));
+    video.muted=!(master>0);
+    video.volume=Math.max(0,Math.min(1,Number.isFinite(master)?master:1));
+    video.classList.add('is-active');
+    const ended=new Promise(resolve=>{
+      let settled=false;
+      const finish=()=>{ if(settled) return; settled=true; resolve(); };
+      video.addEventListener('ended',finish,{once:true});
+      video.addEventListener('error',finish,{once:true});
+      // 尺が分かり次第それに合わせ、分からない場合も30秒で必ず抜ける。
+      const guard=()=>{
+        const dur=Number(video.duration);
+        window.setTimeout(finish,Number.isFinite(dur)&&dur>0?dur*1000+1500:30000);
+      };
+      if(video.readyState>=1) guard();
+      else video.addEventListener('loadedmetadata',guard,{once:true});
+    });
+    try{ await Promise.resolve(video.play()); }catch(_e){}
+    fade.style.transition='opacity .5s ease';
+    fade.style.opacity='0';
+    await ended;
+    fade.style.transition='opacity .5s ease';
+    fade.style.opacity='1';
+    await _mapDelay(520);
+  }finally{
+    try{ video.pause(); }catch(_e){}
+    video.classList.remove('is-active');
+    G._departureMoviePlaying=false;
+  }
+  done();
+  // マップ側と同様、入場演出に入ったら暗転は演出側へ引き継ぐ。
+  if(G._villageIntroPlaying) return;
+  await _mapDelay(80);
+  fade.style.transition='opacity .45s ease';
+  fade.style.opacity='0';
+}
+// 街・塔の「出発する」共通処理。BGMを落としてマップ画面（またはムービー）を挟んでから次へ進む。
+function departWithWorldMap(){
+  if(G._pendingPanelPlacement) return;
+  G._villageBgmActive=false;
+  if(typeof stopBgm==='function') stopBgm(900);
+  const next=()=>{ if(typeof shopDone==='function') shopDone(); };
+  const movie=_departureMovieSrc();
+  if(movie){ void _playDepartureMovie(movie,next); return; }
+  void _playWorldMapDeparture(next);
 }
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
   document.body.classList.remove('village-screen-active');
   if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
-  // 押した時点で街のBGMをフェードアウトさせる。
-  G._villageBgmActive=false;
-  if(typeof stopBgm==='function') stopBgm(900);
-  void _playWorldMapDeparture(()=>{ if(typeof shopDone==='function') shopDone(); });
+  departWithWorldMap();
 }
 function renderVillageScreen(){
   const info=regionInfoForWave(G&&G._wave);
-  const name=String((info&&info.townName)||'街');
+  const name=(G&&G._isWaveAltar)
+    ?String((info&&info.towerName)||'塔')
+    :String((info&&info.townName)||'街');
   // 「大樹の抱く集落 エルム」のように半角スペース区切りなら、前半（地域名）を小さく表示する。
   const split=name.match(/^(.*?)[ 　]+(.+)$/);
   const sub=document.getElementById('village-name-sub');
@@ -1544,6 +1845,12 @@ function renderVillageScreen(){
     mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'🔇':'🔊';
     mute.onclick=()=>{ if(typeof toggleDebugMute==='function') toggleDebugMute(); };
   }
+  // デバッグモードでは、ミュートボタンの下に編成画面を開くボタンを出す。
+  const form=document.getElementById('village-formation-btn');
+  if(form){
+    form.style.display=(G&&G._debugMode)?'block':'none';
+    form.onclick=()=>{ if(typeof debugOpenFormation==='function') debugOpenFormation(); };
+  }
   _syncVillageBgVideo();
 }
 // 街への入場演出。①画面を黒へフェードアウト → ②村の背景だけを中央から円形にフェードイン
@@ -1563,15 +1870,32 @@ async function _playVillageEnterIntro(build){
   G._villageIntroPlaying=true;
   const body=document.body;
   const fade=_ensureVillageEnterFadeEl();
+  // エリート／ボス戦後などで既に画面が暗転している場合は、その暗転をそのまま引き継ぐ。
+  // ここで改めて自前の暗転をやり直すと、戦闘側の黒が外れてから村の黒が乗るまでの間に
+  // 一瞬だけ盤面が見えてしまう（continueAfterBattleVictory側も演出中は黒を外さない）。
+  const battleFades=['battle-end-fade','battle-transition-fade']
+    .map(id=>document.getElementById(id))
+    .filter(el=>el&&el.classList.contains('is-visible'));
+  // ワールドマップ／ムービーからの遷移では#village-enter-fade自体が既に真っ黒。
+  // これを見ずにopacity:0へ戻すと、マップが一瞬もう一度見えてしまう。
+  const fadeOpacity=Number(getComputedStyle(fade).opacity);
+  const alreadyBlack=battleFades.length>0||(Number.isFinite(fadeOpacity)&&fadeOpacity>=0.99);
   try{
     // ① いま表示している画面を黒へフェードアウト（BGMも一緒に落とす）
     if(typeof stopBgm==='function') stopBgm(320);
-    fade.style.transition='opacity .34s ease';
-    fade.style.opacity='1';
-    await _mapDelay(360);
+    fade.style.transition='none';
+    fade.style.opacity=alreadyBlack?'1':'0';
+    if(!alreadyBlack){
+      void fade.offsetWidth;
+      fade.style.transition='opacity .34s ease';
+      fade.style.opacity='1';
+      await _mapDelay(360);
+    }
     // ② 村画面へ切り替える（背景以外は隠したまま構築する）
     body.classList.add('village-intro-active','village-intro-hide-ui');
     build();
+    // 戦闘側の黒オーバーレイは、村の黒に置き換わったこの時点で外す。
+    battleFades.forEach(el=>{ el.classList.remove('is-visible','is-final'); el.removeAttribute('style'); });
     // ③ 黒は即座に外し、背景を中央から円形にフェードインさせる
     fade.style.transition='none';
     fade.style.opacity='0';
@@ -1582,7 +1906,9 @@ async function _playVillageEnterIntro(build){
     await _mapDelay(340);
     const title=document.getElementById('village-intro-title');
     const info=regionInfoForWave(G&&G._wave);
-    const introName=String((info&&info.townName)||'街');
+    const introName=(G&&G._isWaveAltar)
+      ?String((info&&info.towerName)||'塔')
+      :String((info&&info.townName)||'街');
     // 半角/全角スペースで分割し、前半（地域名）を小さく上に、後半（固有名）を大きく下に出す。
     const introSplit=introName.match(/^(.*?)[ 　]+(.+)$/);
     const subEl=title&&title.querySelector('.village-intro-name-sub');
@@ -1593,12 +1919,13 @@ async function _playVillageEnterIntro(build){
       title.classList.remove('is-hiding');
       title.classList.add('is-visible');
     }
-    // 文字の表示と同時にboom.wavを鳴らし、その直後から街のBGMをフェードインさせる。
-    const boomDone=(typeof playSfxAwait==='function')
-      ?playSfxAwait('boom',{group:'ui',guardMs:0})
-      :Promise.resolve(typeof playSfx==='function'?playSfx('boom',{group:'ui',guardMs:0}):false);
-    void boomDone.then(()=>{ playVillageBgm(1600); });
-    await _mapDelay(500+800);
+    // 文字の表示と同時にboom.wavを鳴らす。
+    if(typeof playSfx==='function') playSfx('boom',{group:'ui',guardMs:0});
+    // 地域名と下線が完全に表示された時点（#village-intro-title.is-visible の
+    // opacity transition = .5s の完了時）から街のBGMを鳴らし始める。
+    await _mapDelay(500);
+    playVillageBgm(600);
+    await _mapDelay(800);
     // ⑤ 地域名＋下線をフェードアウト
     if(title){
       title.classList.remove('is-visible');
@@ -1619,12 +1946,12 @@ async function _playVillageEnterIntro(build){
 }
 // options.intro：戦闘や別Sceneから新しく街へ入る場合はtrue（入場演出を再生する）。
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
+// options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
-  // 村メニューでは祭壇状態を必ず解除する。Scene遷移後や施設からの戻りで
-  // 前の祭壇フラグが残っても、村の選択肢が祭壇側へ分岐しないようにする。
-  G._isWaveAltar=false;
+  // 村メニューでは祭壇状態を必ず解除する（塔として開く場合のみ立てる）。
+  G._isWaveAltar=!!(options&&options.tower);
   G._isShop=false;
   G._isForge=false;
   G._isTavern=false;
@@ -1637,7 +1964,8 @@ function openMapVillage(options){
   // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。
   const build=()=>{
     _applyFacilityBackground(null);
-    document.body.classList.remove('world-map-active','reward-screen-active','shop-screen-active','forge-screen-active','item-shop-active','ring-offer-phase','treasure-offer-phase');
+    _applyFacilityAmbience(null);
+    document.body.classList.remove('world-map-active','reward-screen-active','shop-screen-active','forge-screen-active','item-shop-active','ring-offer-phase','ring-offer-resolved','treasure-offer-phase');
     document.body.classList.add('village-screen-active');
     if(typeof showScreen==='function') showScreen('village');
     renderVillageScreen();
@@ -1653,6 +1981,10 @@ function _itemShopSellPrice(card){
   return Math.max(1,Math.min(5,Number(card&&card.rarity)||1))*45;
 }
 function openMapItemShop(){
+  // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
+  // 保存時にG._waveを読むと、デバッグのステージジャンプのように
+  // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
+  G._facilityCacheKey=_waveFacilityCacheKey();
   G._mapReturnAfterReward=true;
   // 価格バッジ・購入処理はショップ機構をそのまま使うため_isShopも立てる。
   G._isShop=true;
@@ -1688,44 +2020,10 @@ function openMapItemShop(){
   renderMoveSlotsInEnemy();
 }
 // 祭壇（wave進行stage10）：指輪交換を選択できるメニュー。
+// 塔（祭壇）画面。村と全く同じ形式（#scr-village）で開く。
+// 指輪交換の「祭壇から出る」からもここへ戻ってくる。
 function _openWaveAltarMenu(){
-  if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
-  G._mapReturnAfterReward=true;
-  // 祭壇メニューでは村状態と混ざらないよう、入口で明示する。
-  G._isWaveAltar=true;
-  G._isShop=false;
-  G._isItemShop=false;
-  G._isForge=false;
-  G._isTavern=false;
-  G._isVillageMenu=true;
-  G._isTreasureMapReward=false;
-  G._isRingExchange=false;
-  G.phase='reward';
-  document.body.classList.remove('world-map-active');
-  goToReward();
-  _rewCards=[];
-  _rewFreePickDone=true;
-  const section=document.getElementById('battle-order-section');
-  const row=document.getElementById('battle-order-row');
-  if(section&&row){
-    section.style.display='';
-    row.innerHTML='';
-    const _ringExchangeResolved=!!(G._waveRingExchange&&G._waveRingExchange[_waveFacilityCacheKey()]&&G._waveRingExchange[_waveFacilityCacheKey()].resolved);
-    [
-      // 指輪交換は1回の祭壇で1つまで（3枚の提示から1つ選んで取得済み＝resolved）なので、
-      // 取得済みなら選択肢自体を消す。
-      ...(_ringExchangeResolved?[]:[['祭壇','カード3枚と引き換えに指輪1つを得る',openMapRingExchange]]),
-    ].forEach(([name,desc,fn])=>{
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='map-village-card';
-      btn.dataset.sfxSilent='1';
-      btn.innerHTML=`<strong>${name}</strong><span>${desc}</span>`;
-      btn.onclick=fn;
-      row.appendChild(btn);
-    });
-  }
-  renderMoveSlotsInEnemy();
+  openMapVillage({tower:true});
 }
 function _mapSalePrice(card){
   const r=Math.max(1,Math.min(5,Number(card&&card.rarity)||1));
@@ -1745,6 +2043,10 @@ function _mapPickSaleCard(pred, used){
   return card;
 }
 function openMapShop(){
+  // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
+  // 保存時にG._waveを読むと、デバッグのステージジャンプのように
+  // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
+  G._facilityCacheKey=_waveFacilityCacheKey();
   G._mapReturnAfterReward=true;
   G._isShop=true;
   G._isItemShop=false;
@@ -1794,6 +2096,10 @@ function openMapShop(){
   renderMoveSlotsInEnemy();
 }
 function openMapForge(){
+  // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
+  // 保存時にG._waveを読むと、デバッグのステージジャンプのように
+  // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
+  G._facilityCacheKey=_waveFacilityCacheKey();
   G._mapReturnAfterReward=true;
   G._isShop=false;
   G._isItemShop=false;
@@ -1824,10 +2130,11 @@ function openMapForge(){
 }
 // wave進行中の村/祭壇施設（ショップ・鍛冶屋・指輪交換）は、同一waveの間は
 // 提示内容を再抽選しない（一度戻って再訪しても同じ内容を保つ）。waveごとにキャッシュする。
-function _waveFacilityCacheKey(){ return Math.max(1,Number(G._wave)||1); }
+function _waveFacilityCacheKey(){ return Math.max(0,Number(G._wave)||0); }
 function _syncWaveFacilityCache(){
   if(!G._waveLoopEnabled) return;
-  const key=_waveFacilityCacheKey();
+  // 施設に入った時点のキー（G._facilityCacheKey）を優先する。理由はopenMap*()のコメント参照。
+  const key=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
   if(G._isItemShop){
     G._waveItemShopStock=G._waveItemShopStock||{};
     G._waveItemShopStock[key]=clone(_rewCards||[]);
@@ -1850,6 +2157,10 @@ function _syncWaveFacilityCache(){
 // 祭壇の「指輪交換」：指輪3つを提示し、魔導板のカード3枚と引き換えに1つを選んで得る
 // （既存のボス撃破後「栄光の力」画面の仕組み＝_ringOfferPhase系をそのまま再利用する）。
 function openMapRingExchange(){
+  // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
+  // 保存時にG._waveを読むと、デバッグのステージジャンプのように
+  // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
+  G._facilityCacheKey=_waveFacilityCacheKey();
   G._mapReturnAfterReward=true;
   G._isShop=false;
   G._isItemShop=false;
@@ -1872,6 +2183,13 @@ function openMapRingExchange(){
     G._boardDiscardCount=cache.discardCount||0;
   }else{
     G._ringOffer=typeof _pickRingOffer==='function'?_pickRingOffer():[];
+    // 初めて入る祭壇では解放状態を必ず初期化する。前の塔で指輪を取った
+    // （_ringOfferResolved=true）まま持ち越すと、新しい祭壇でも「取得済み」扱いになり
+    // 指輪が出ず空の枠だけが表示されてしまう。
+    G._ringOfferUnlocked=false;
+    G._ringOfferResolved=false;
+    G._ringOfferFadeOut=null;
+    G._boardDiscardCount=0;
     G._waveRingExchange=G._waveRingExchange||{};
     G._waveRingExchange[waveKey]={offer:clone(G._ringOffer||[]),unlocked:false,resolved:false,discardCount:0};
   }
@@ -1943,10 +2261,14 @@ async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
     let advanced=false;
     const next=()=>{ if(advanced) return; advanced=true; playFirstAvailable(i+1); };
     try{
-      const se=new Audio(sfxCandidates[i]);
-      se.volume=.85;
-      se.addEventListener('error',next,{once:true});
-      void Promise.resolve(se.play()).catch(next);
+      const se=(typeof playFileSfx==='function')?playFileSfx(sfxCandidates[i]):null;
+      if(se&&se.addEventListener){ se.addEventListener('error',next,{once:true}); }
+      else if(!se){
+        const fb=new Audio(sfxCandidates[i]);
+        fb.volume=.85;
+        fb.addEventListener('error',next,{once:true});
+        void Promise.resolve(fb.play()).catch(next);
+      }
     }catch(_e){ next(); }
   })(0);
   const slotEl=Number.isInteger(targetSlotIdx)

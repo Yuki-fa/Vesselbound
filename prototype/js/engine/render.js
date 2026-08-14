@@ -54,6 +54,9 @@
         :(isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc}));
       tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
       tip.classList.toggle('map-tooltip',isMapPowerDesc);
+      // data-preview-norule＝見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。
+      // 枠はカードと同じまま、見出し下の直線だけを消す。
+      tip.classList.toggle('no-title-rule',!!(el&&el.hasAttribute('data-preview-norule')));
       if(!isMapPowerDesc){
         const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
         if(rarityClass) tip.classList.add(rarityClass);

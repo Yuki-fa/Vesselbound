@@ -7074,6 +7074,26 @@ html body.reward-screen-active.ring-offer-phase #battle-order-section::after{
   text-shadow:0 2px 8px rgba(0,0,0,.85);
   pointer-events:none;
 }
+/* 指輪取得後に祭壇へ再入場した状態：説明文を差し替え、指輪は消えて空の枠だけが残る。
+   ::afterの他のプロパティ（位置・書体・色）はring-offer-phase側の指定をそのまま使う。 */
+html body.reward-screen-active.ring-offer-phase.ring-offer-resolved #battle-order-section::after{
+  content:"対価の力は与えられた";
+}
+/* 取得直後の1回だけ、残った指輪をその場でフェードアウトさせる。
+   フェードさせるのは指輪の絵（.ring-visual-filled::after）だけで、枠（::beforeのring_slot）は
+   そのまま残す。要素自体をフェードすると枠まで消えて枠が3つ残らなくなる。 */
+@keyframes ringOfferFadeOut{
+  from{opacity:1}
+  to{opacity:0}
+}
+html body.reward-screen-active.ring-offer-phase .ring-offer-card.ring-offer-fading::after{
+  animation:ringOfferFadeOut .85s ease forwards!important;
+}
+/* 空になった提示枠：枠（ring_slot）だけを見せる。ホバー・ドラッグは無効。 */
+html body.reward-screen-active.ring-offer-phase .ring-offer-card.ring-offer-spent{
+  pointer-events:none!important;
+  cursor:default!important;
+}
 html body.reward-screen-active.treasure-offer-phase #battle-order-section::before{
   content:"財宝";
 }
@@ -9088,6 +9108,17 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
   display:block!important;text-align:center!important;font-size:1.15em!important;
   margin:0 0 6px 0!important;padding-bottom:6px!important;
   border-bottom:1px solid rgba(232,210,150,.45)!important;line-height:1.1!important;
+}
+/* 見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。枠はカードと同じまま、
+   直線を消して横幅を固定（460px）から内容ぴったり＋左右パディング分だけに縮める。
+   このクラスが付くのはSceneマークのホバーだけなので、他のツールチップには影響しない。 */
+#kw-tooltip.no-title-rule{
+  width:auto!important;
+  max-width:calc(460px * var(--game-scale))!important;
+}
+#kw-tooltip.no-title-rule .preview-title{
+  border-bottom:none!important;padding-bottom:0!important;margin-bottom:0!important;
+  white-space:nowrap!important;
 }
 #kw-tooltip .preview-section-rule{
   display:block!important;
@@ -11174,7 +11205,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
    ══════════════════════════════════════════════════════════ */
 #scr-village.active{display:block!important;position:fixed!important;overflow:hidden!important}
 /* 左上の街名プレート：name_back.svgを背景に、街名の長さに応じて横幅が自動で伸びる。
-   帯の高さは200px（SVGのviewBox 1400x200と1:1）で、上辺は画面Y=100px。
+   帯の高さは180px（SVGのviewBox 1400x180と1:1）で、上辺は画面Y=100px。
    街名は帯の中で上下中央（align-items:center、padding上下0）。
    文字色は所持金/ライフ表示と同じ #c49a6c。 */
 #village-name-plate,
@@ -11186,10 +11217,10 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   display:inline-flex!important;
   align-items:center!important;
   gap:30px!important;
-  height:200px!important;
+  height:180px!important;
   min-width:700px!important;
   padding:0 190px 0 130px!important;
-  background:url("assets/ui/name_back.svg") left top/100% 100% no-repeat!important;
+  background:url("assets/ui/name_back.svg?v=h180") left top/100% 100% no-repeat!important;
   white-space:nowrap!important;
   font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
   color:#c49a6c!important;
@@ -11868,7 +11899,26 @@ html body .screen-options-btn::before{
   filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9)) drop-shadow(0 0 12px rgba(255,194,70,.78))!important;
 }
 html body .screen-options-btn:hover::before{opacity:.84!important;animation:none!important}
-/* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x90）の直下。 */
+/* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x90）の直下。
+   編成ボタンはさらにその直下（top:180+90+20=290px）。 */
+html body #village-formation-btn{
+  position:absolute!important;
+  left:3666px!important;
+  top:290px!important;
+  width:110px!important;
+  height:90px!important;
+  margin:0!important;
+  padding:0!important;
+  opacity:.7!important;
+  background:rgba(13,15,20,.82)!important;
+  border:1px solid rgba(201,168,76,.6)!important;
+  border-radius:6px!important;
+  color:var(--gold2)!important;
+  font-size:30px!important;
+  line-height:1!important;
+  z-index:4100!important;
+  cursor:pointer!important;
+}
 html body #village-mute-btn{
   position:absolute!important;
   left:3666px!important;
@@ -11957,6 +12007,34 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   8%,92%{opacity:1}
   100%{-webkit-mask-position:50% -70%;mask-position:50% -70%;opacity:0}
 }
+/* 現在地マーク：グラデーション発光しながら上下に揺れる。
+   本体（map_mark.svg）には矩形のPNG影が埋め込まれているため、そこへdrop-shadowを掛けると
+   発光が四角くなる。発光はピン形状だけを抜いた map_mark_glow.svg を::beforeに敷いて出す。 */
+.map-mark{
+  position:absolute!important;
+  background:url("assets/ui/map_mark.svg") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:2!important;
+  transform-origin:50% 100%!important;
+  animation:mapMarkBob 1.8s ease-in-out infinite!important;
+}
+.map-mark::before{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:-1!important;
+  background:url("assets/ui/map_mark_glow.svg") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  animation:mapMarkGlow 1.8s ease-in-out infinite!important;
+}
+@keyframes mapMarkBob{
+  0%,100%{transform:translateY(-14px)}
+  50%{transform:translateY(6px)}
+}
+@keyframes mapMarkGlow{
+  0%,100%{opacity:.5;filter:drop-shadow(0 0 6px rgba(255,246,214,.9)) drop-shadow(0 0 16px rgba(255,214,104,.6))}
+  50%{opacity:1;filter:drop-shadow(0 0 12px rgba(255,255,255,1)) drop-shadow(0 0 30px rgba(255,214,104,.95)) drop-shadow(0 0 54px rgba(255,190,60,.7))}
+}
 @keyframes mapLineFlowTB{
   0%{-webkit-mask-position:50% -70%;mask-position:50% -70%;opacity:0}
   8%,92%{opacity:1}
@@ -12011,7 +12089,10 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out
    → ④地域名が消えきってから背景以外の要素をフェードイン
    ══════════════════════════════════════════════════════════ */
 /* 背景の真上に重ねる効果動画。UI（z-index:1〜）より奥、背景画像（::before、z-index:-1）より手前。 */
-#village-bg-video{
+/* ステージ持続の効果動画（#scr-battle側）。ステージ背景（#scr-battle::before＝z-index:-1）より
+   手前、戦闘UI（.battle-scroll＝z-index:1）より奥に置く。見え方は#village-bg-videoと同じ
+   （screen合成・不透明度50%）。 */
+#stage-bg-video{
   position:absolute!important;
   inset:0!important;
   width:100%!important;
@@ -12023,7 +12104,25 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out
   opacity:.5!important;
   display:none!important;
 }
-#village-bg-video.is-active{display:block!important}
+#stage-bg-video.is-active{display:block!important}
+/* 編成画面・施設内では重ねない（専用背景の邪魔になるため）。
+   pauseはせず表示だけ止めるので、勝利・撤退の表示中や次の戦闘では途切れずに続く。 */
+html body.reward-screen-active #stage-bg-video{display:none!important}
+#village-bg-video,
+#village-bg-video-2{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  mix-blend-mode:screen!important;
+  opacity:.5!important;
+  display:none!important;
+}
+#village-bg-video.is-active,
+#village-bg-video-2.is-active{display:block!important}
 #village-enter-fade{
   position:fixed;
   inset:0;
@@ -12032,12 +12131,27 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out
   opacity:0;
   pointer-events:none;
 }
+/* 出発時のムービー。画面全体を黒地で覆う。暗転（#village-enter-fade＝z-index:99000）より
+   奥に置き、フェードイン／アウトはそちらに任せる。 */
+#cutscene-video{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  background:#000!important;
+  z-index:98000!important;
+  display:none!important;
+  pointer-events:none!important;
+}
+#cutscene-video.is-active{display:block!important}
 /* 円形フェードイン中は下地を純黒にして、背景が中央から広がって見えるようにする。 */
 html body.village-intro-active #scr-village{background:#000!important}
 /* 中央からのフェードインは clip-path の硬い縁ではなく、放射グラデーションのマスクを
    拡大していくことで縁を滑らかにする（mask-size はアニメーション可能）。 */
 html body.village-intro-circle #scr-village.asset-backed::before,
-html body.village-intro-circle #village-bg-video{
+html body.village-intro-circle #village-bg-video,
+html body.village-intro-circle #village-bg-video-2{
   -webkit-mask-image:radial-gradient(closest-side ellipse,
     rgba(0,0,0,1) 0%,
     rgba(0,0,0,1) 38%,
@@ -12066,7 +12180,7 @@ html body.village-intro-circle #village-bg-video{
   100%{-webkit-mask-size:420% 420%;mask-size:420% 420%;opacity:1}
 }
 /* 演出中は背景と効果動画以外（プレート・施設・所持金・出発する）を隠す。 */
-html body.village-intro-hide-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video){
+html body.village-intro-hide-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video):not(#village-bg-video-2){
   opacity:0!important;
   pointer-events:none!important;
 }
@@ -12078,7 +12192,7 @@ html body.village-intro-hide-ui .village-facility,
 html body.village-intro-reveal-ui .village-facility{
   pointer-events:none!important;
 }
-html body.village-intro-reveal-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video){
+html body.village-intro-reveal-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video):not(#village-bg-video-2){
   animation:villageIntroUiIn .42s ease-out both!important;
 }
 @keyframes villageIntroUiIn{from{opacity:0}to{opacity:1}}
@@ -12180,6 +12294,9 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
   <video id="reward-bg-video" src="assets/art/backgrounds/back1.webm" autoplay loop muted playsinline></video>
+  <!-- ステージ持続の効果動画（例：ステージ4のヴォルザーク〜蝕界の塔の雷）。街画面の
+       #village-bg-videoと同じ設定で、戦闘・報酬画面（#scr-battle）側に重ねる。 -->
+  <video id="stage-bg-video" muted loop playsinline aria-hidden="true"></video>
   <button id="battle-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
   <div id="battle-end-fade" aria-hidden="true"></div>
   <video id="gameover-video" src="assets/art/backgrounds/game_over.webm" preload="auto" loop muted playsinline></video>
@@ -12208,6 +12325,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   </div>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">🔊</button>
+  <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">編成</button>
   <div id="reward-production-ui" aria-hidden="true">
     <div class="reward-prod-title">
       <img src="assets/ui/main_icon.svg" alt="">
@@ -12402,6 +12520,8 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   </div>
   <!-- 背景の真上に重ねる効果動画（ステージごと。無い場合は非表示） -->
   <video id="village-bg-video" muted loop playsinline aria-hidden="true"></video>
+  <!-- 効果が薄い動画（塔のtower.webmなど）を2重に重ねるための2枚目。1枚目と同じ設定で同期再生する。 -->
+  <video id="village-bg-video-2" muted loop playsinline aria-hidden="true"></video>
   <div id="village-facilities"></div>
   <!-- 所持金／ライフは戦闘画面の #battle-status-hud と同じマークアップ・同じクラスを使う -->
   <div id="village-status" aria-label="所持金とライフ">
@@ -12428,6 +12548,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
   <!-- デバッグモードのみ表示。オプションボタンの直下に置く。 -->
   <button class="btn small" id="village-mute-btn" title="ミュート" data-sfx-silent="1" style="display:none">🔊</button>
+  <button class="btn small" id="village-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" style="display:none">編成</button>
 </div>
 
 <!-- WORLD MAP（出発時に数秒表示してから戦闘へ移行する） -->
@@ -12507,24 +12628,24 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=map20"></script>
-<script src="js/engine/audio.js?v=map20"></script>
+<script src="assets.js?v=tower28"></script>
+<script src="js/engine/audio.js?v=tower28"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=map20"></script>
+<script src="js/data/local_xlsx_data.js?v=tower28"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=map20"></script>
+<script src="js/data/loader.js?v=tower28"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=map20"></script>
-<script src="js/engine/render.js?v=map20"></script>
-<script src="js/engine/reward.js?v=map20"></script>
-<script src="js/engine/map.js?v=map20"></script>
+<script src="js/engine/battle.js?v=tower28"></script>
+<script src="js/engine/render.js?v=tower28"></script>
+<script src="js/engine/reward.js?v=tower28"></script>
+<script src="js/engine/map.js?v=tower28"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=map20"></script>
+<script src="js/engine/main.js?v=tower28"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

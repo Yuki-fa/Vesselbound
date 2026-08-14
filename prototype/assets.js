@@ -56,6 +56,8 @@ const Assets = {
     stage4: 'assets/art/backgrounds/stage_capital.webp',
     stageEnd: 'assets/art/backgrounds/stage_endworld.webp',
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
+    // village0＝ゲーム開始地点「風止みの村 リーゼ」。
+    village0: 'assets/art/backgrounds/village_start.png',
     village1: 'assets/art/backgrounds/village_forest.png',
     village2: 'assets/art/backgrounds/village_grassland.png',
     village3: 'assets/art/backgrounds/village_valley.png',
@@ -63,6 +65,8 @@ const Assets = {
     villageEnd: 'assets/art/backgrounds/village_endworld.png',
     // ワールドマップ画面（出発時に数秒表示する）
     map: 'assets/art/backgrounds/map.jpg',
+    // 塔（祭壇）画面の背景
+    tower: 'assets/art/backgrounds/tower.png',
     // 街の施設ごとの背景（ステージ1・エルム）
     itemShopForest: 'assets/art/backgrounds/item_shop_forest.png',
     magicShopForest: 'assets/art/backgrounds/magic_shop_forest.png',
@@ -70,6 +74,9 @@ const Assets = {
     itemShopGrassland: 'assets/art/backgrounds/item_shop_grassland.png',
     magicShopGrassland: 'assets/art/backgrounds/magic_shop_grassland.png',
     blacksmithGrassland: 'assets/art/backgrounds/blacksmith_grassland.png',
+    // 街の施設ごとの背景（ステージ3・ギャラハ）
+    magicShopValley: 'assets/art/backgrounds/magic_shop_valley.png',
+    blacksmithValley: 'assets/art/backgrounds/blacksmith_valley.png',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -157,6 +164,19 @@ const Assets = {
     'return': 'assets/sfx/return.wav',
     menu: 'assets/bgm/menu.wav',
     villageForest: 'assets/bgm/village_forest.wav',
+    villageGrassland: 'assets/bgm/village_grassland.wav',
+    villageValley: 'assets/bgm/village_valley.wav',
+    villageEndworld: 'assets/bgm/village_endworld.wav',
+    cityCapital: 'assets/bgm/city_capital.wav',
+    tower: 'assets/bgm/tower.wav',
+    gameStart: 'assets/bgm/game_start.wav',
+    villageStart: 'assets/bgm/village_start.wav', // リーゼ（ゲーム開始地点）
+    // 街BGMに重ねる環境音（サブBGMレイヤー）
+    thunder: 'assets/bgm/thunder.wav',
+    rain: 'assets/bgm/rain.wav',
+    bug: 'assets/bgm/bug.wav',
+    // 施設内で重ねる環境音
+    blacksmith: 'assets/bgm/blacksmith.wav',
     battle1: 'assets/bgm/battle1.wav',
     battle3: 'assets/bgm/battle3.wav',
     reroll: 'assets/sfx/reroll.wav',

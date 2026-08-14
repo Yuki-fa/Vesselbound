@@ -744,7 +744,7 @@ function renderMoveSlotsInEnemy(){
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
-    const label=_waveFacilityReturn?(G._isRingExchange?'祭壇から出る':'店を出る'):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
+    const label=_waveFacilityReturn?(G._isRingExchange?'祭壇を離れる':'店を出る'):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
@@ -765,6 +765,8 @@ function renderMoveSlotsInEnemy(){
         else goBack();
         return;
       }
+      // 塔（祭壇）の「出発する」も、街と同じくワールドマップ画面を挟んでから次へ進む。
+      if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap(); return; }
       if(G._isTreasureMapReward&&typeof returnToMapAfterTreasure==='function') returnToMapAfterTreasure(); else if(typeof shopDone==='function') shopDone();
     };
     el.appendChild(btn);
@@ -962,7 +964,14 @@ function _journeyNodeLabel(type,scene){
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene??(G&&G._wave)):null;
   if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
   if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
-  return {battle:'通常戦',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
+  return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
+}
+// 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。
+// ステージ5（最終ステージ）の行き先は伏せるため「???」固定。
+function _journeySceneTowerName(scene){
+  if(Number(scene)>=5) return '???';
+  const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
+  return String((info&&info.towerName)||'???').trim()||'???';
 }
 function _journeyDisplayPosition(route,stage,scene){
   const actual=Math.max(0,Math.min(route.length-1,stage-1));
@@ -1001,7 +1010,9 @@ function _syncRewardJourneyUi(){
     const connector=idx<4?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
     // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
     const jumpAttr=(G&&G._debugMode)?` data-journey-scene="${n}"`:'';
-    return `<span class="journey-scene-mark ${state}" title="Scene ${n}"${jumpAttr}></span>${connector}`;
+    // ホバー表示はブラウザ標準のtitleではなくカードと同じ枠（#kw-tooltip）で塔の名前を出す。
+    // 名前だけの1行表示なので、data-preview-norule で見出し下の直線を消す。
+    return `<span class="journey-scene-mark ${state}" data-preview="${_escapePreviewHtml(_journeySceneTowerName(n))}" data-preview-norule="1"${jumpAttr}></span>${connector}`;
   }).join('');
   const nodeMarks=route.map((type,idx)=>{
     const state=idx<current?'passed':(idx===current?'current':'');
@@ -1037,7 +1048,10 @@ function _syncRewardJourneyUi(){
     }
     // デバッグモードでは各マスをクリックしてそのstageへ直接ジャンプできるようにする。
     const jumpAttr=(G&&G._debugMode)?` data-journey-jump="${idx+1}" data-journey-type="${type}"`:'';
-    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
+    // エリート／ボス（カード付き）以外は名前だけの1行表示なので、Sceneマークと同じ枠にする
+    // （見出し下の直線なし・幅は文字なり）。
+    const noRuleAttr=enemyAttr?'':' data-preview-norule="1"';
+    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
   }).join('');
   // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
   const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
@@ -1311,7 +1325,8 @@ function _sellHeldItem(idx){
   items[idx]=null;
   const gain=typeof onGoldGained==='function'?onGoldGained(base):(G.gold=(G.gold||0)+base,base);
   log(`${card.name}を売却（+${gain}ゴールド）`,'gold');
-  try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=.85; void se.play(); }catch(_e){}
+  if(typeof playFileSfx==='function') playFileSfx('assets/sfx/sell.wav');
+  else try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=.85; void se.play(); }catch(_e){}
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   _syncRewardProductionUi();
   renderRewCards();
@@ -1744,9 +1759,10 @@ function _syncRewardProductionRings(){
           if(!offerRing) return;
           G.rings=Array.isArray(G.rings)?G.rings:[null,null,null,null];
           G.rings[idx]=clone(offerRing);
-          // 選んだ指輪だけを提示から取り除き、残りは（暗い＝取得不可の状態のまま）中央揃えで
-          // 引き続き表示しておく（全て消してしまわない）。指輪は1つだけ取得可能なので
-          // 再ロック状態にし、以後は_ringOfferResolvedで「取得済み」を判定する。
+          // 指輪は1つだけ取得可能。選んだ指輪を提示から取り除き、残りはフェードアウトで
+          // 消して空の枠3つだけを残す（_renderRingOfferCards()）。フェードアウトは取得直後の
+          // 1回だけなので、消える指輪と取得した位置を_ringOfferFadeOutに退避しておく。
+          G._ringOfferFadeOut={taken:offerIdx,offer:clone(G._ringOffer||[])};
           G._ringOffer.splice(offerIdx,1);
           G._ringOfferUnlocked=false;
           G._ringOfferResolved=true;
@@ -1826,6 +1842,8 @@ function renderRewCards(){
   _syncRewardPanelPlacementOverlay();
   _syncRewardProductionUi();
   document.body.classList.toggle('ring-offer-phase',!!(G&&G.phase==='reward'&&G._ringOfferPhase));
+  // 指輪取得後の祭壇：見出し下の説明文を「代償の対価たる力は与えられた」に差し替える。
+  document.body.classList.toggle('ring-offer-resolved',!!(G&&G.phase==='reward'&&G._ringOfferPhase&&G._ringOfferResolved));
   document.body.classList.toggle('treasure-offer-phase',!!(G&&G.phase==='reward'&&G._isTreasureMapReward));
   const section=document.getElementById('battle-order-section');
   const el=document.getElementById('battle-order-row');
@@ -1919,8 +1937,30 @@ function renderBattleOrderRow(show){
 
 // ── 指輪の提示（栄光の力）：通常の報酬カードと同じ場所（#battle-order-row）に表示する ──
 // 暗い（未解放）間はホバーで説明のみ表示、明るくなったらドラッグで指輪置き場へ持っていく。
+// 祭壇の提示枠の数（＝提示される指輪の数）。取得後に残す空枠の数もこれに合わせる。
+const RING_OFFER_SLOT_COUNT=3;
+// 指輪取得後の祭壇：他の指輪は消えて空の枠だけが残る。取得直後の1回だけ、
+// 残っていた指輪をその場でフェードアウトさせる（再入場時は最初から枠だけ）。
+function _renderRingOfferResolvedFrames(el){
+  const fade=G._ringOfferFadeOut;
+  G._ringOfferFadeOut=null;
+  for(let i=0;i<RING_OFFER_SLOT_COUNT;i++){
+    const div=document.createElement('div');
+    div.classList.add('rew-card','ring-offer-card','ring-visual','ring-offer-spent');
+    const fadingRing=fade&&i!==fade.taken?(fade.offer||[])[i]:null;
+    if(fadingRing){
+      const path=_rewardRingArtPath(fadingRing);
+      if(path){
+        div.classList.add('ring-visual-filled','ring-offer-fading');
+        div.style.setProperty('--ring-art',`url("${path}")`);
+      }
+    }
+    el.appendChild(div);
+  }
+}
 function _renderRingOfferCards(el){
   const unlocked=!!G._ringOfferUnlocked;
+  if(G._ringOfferResolved){ _renderRingOfferResolvedFrames(el); return; }
   (G._ringOffer||[]).forEach((ring,idx)=>{
     if(!ring) return;
     // 指輪置き場（.ring-visual）と同じ見た目（ring_slot.pngの枠＋指輪アート）で表示する。
@@ -2111,6 +2151,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
 // ── カード購入処理 ──────────────────────────────
 
 function _playRewardAcquireSfx(file){
+  // 音量はaudio.jsのFILE_SFX_VOLUMESで一元管理する（デバッグミュートにも従う）。
+  if(typeof playFileSfx==='function'){ playFileSfx(`assets/sfx/${file}`); return; }
   try{
     const se=new Audio(`assets/sfx/${file}`);
     se.volume=.85;
@@ -3335,7 +3377,8 @@ function _playTripleMergeAnimation(info){
       ],{duration:900,easing:'cubic-bezier(.55,.02,.2,1)',fill:'forwards'}).finished.catch(()=>{})));
       {
         const unionPlayed=typeof playSfx==='function'&&playSfx('union',{group:'magic',guardKey:`triple-union:${Date.now()}`,guardMs:0});
-        if(!unionPlayed){ try{ const se=new Audio('assets/sfx/union.wav'); se.volume=.8; void se.play(); }catch(_e){} }
+        if(!unionPlayed){ if(typeof playFileSfx==='function') playFileSfx('assets/sfx/union.wav');
+          else try{ const se=new Audio('assets/sfx/union.wav'); se.volume=.8; void se.play(); }catch(_e){} }
         ordered.filter(g=>g!==center).forEach(g=>g.ghost.remove());
         if(center) center.ghost.classList.add('triple-merge-white-flash');
         _flashConnectedBoardCards(info.targetIdx);
@@ -4211,6 +4254,12 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(discardBtn.classList.contains('ring-offer-discard-btn')) _playRewardAcquireSfx('ascension.wav');
         else if(G._isShop) _playRewardAcquireSfx('sell.wav');
         if(arrName==='unitEquip'){
+          // 指輪提示（還魂）中は最優先で廃棄カウントへ回す。デバッグモード分岐やショップ分岐が
+          // 先にreturnすると_boardDiscardCountが増えず、3枚還魂しても指輪が解放されない。
+          if(_ringOfferDiscardable){
+            _discardBoardCardForRingOffer(i,card);
+            return;
+          }
           if(G._isShop){
             const unit=_getPartyBoardUnit();
             if(unit){
@@ -4242,12 +4291,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             renderHandEditor();
             renderFieldEditor();
             renderMapInventorySlots();
-            return;
-          }
-          // 指輪提示中は「報酬に戻す」より「指輪解放のための廃棄」を優先する（判定順が逆だと
-          // 取得したばかりのカードを廃棄しても_boardDiscardCountが増えない）
-          if(_ringOfferDiscardable){
-            _discardBoardCardForRingOffer(i,card);
             return;
           }
           if(_isCurrentRewardReturnCard(card)){
