@@ -224,6 +224,27 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-menu-visible .tap-to-start{opacity:0;transition:opacity .25s ease}
 @keyframes tap-to-start-float{0%,100%{transform:translateX(-50%) translateY(-9px)}50%{transform:translateX(-50%) translateY(9px)}}
 .title-menu-item:hover{color:#fff!important;opacity:1!important}
+#title-menu #title-debug-button{
+  display:block;
+  position:relative;
+  width:900px;
+  height:64px;
+  border:0;
+  padding:0;
+  background:transparent;
+  color:rgba(180,184,190,.72);
+  font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;
+  font-size:30px;
+  letter-spacing:.12em;
+  text-shadow:0 2px 5px #090807;
+  cursor:pointer;
+  opacity:0;
+  transform:translateY(18px);
+  transition:opacity .55s ease,transform .55s ease,color .16s ease;
+  pointer-events:auto;
+}
+#scr-title.startup-menu-visible #title-debug-button{opacity:.72;transform:translateY(0);transition-delay:.23s}
+#title-menu #title-debug-button:hover{color:#d8d8d8;opacity:1}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 @keyframes title-start-glow{0%,100%{filter:brightness(1) drop-shadow(0 0 14px rgba(255,211,104,.75))}50%{filter:brightness(1.75) drop-shadow(0 0 34px rgba(255,224,135,1))}}
 .title-menu-label{position:relative;z-index:1;line-height:128px}
@@ -12412,13 +12433,13 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
     <button class="title-menu-item game-start" type="button" onclick="playSfx('gameStart',{guardKey:'ui:title-game-start'});startGame()"><span class="title-menu-label">ゲームスタート</span></button>
+    <button id="title-debug-button" type="button" onclick="startGame(true)">デバッグモード</button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">コンティニュー</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">終了</span></button>
   </div>
   <button id="title-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
-  <button id="title-debug-button" type="button" onclick="startGame(true)">DEBUG MODE</button>
 </div>
 
 <!-- BATTLE -->
