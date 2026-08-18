@@ -135,6 +135,7 @@ const BGM_DEFAULT_VOLUMES={
   cityCapital:1.0,
   tower:.55,
   gameStart:1.0,
+  gameTitle:1.0,
   villageStart:1.0, // 音源 -20.6dBFS（1.0でも目標-16に届かない＝音源側の対応が必要）
   // 街BGMに重ねる環境音（サブレイヤー）
   thunder:.5,
@@ -147,6 +148,7 @@ const BGM_DEFAULT_VOLUMES={
 const BGM_DEFAULT_START_TIMES={
   battle3:103,   // 1:43
   tower:97,      // 1:37
+  gameTitle:100, // 1:40
 };
 // opts.startTimeで指定された再生開始位置（秒）。初回再生のみで、2周目以降は曲の頭から鳴らす。
 let _bgmStartTime=0;

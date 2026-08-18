@@ -30,7 +30,8 @@ function showScreen(id){
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
     // 音量は曲ごとにBGM_DEFAULT_VOLUMES（audio.js）で決める。ここで.32を渡すと
     // 戦闘BGMだけが他より小さくなるため、指定せず既定値に任せる。
-    if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700});
+    if(id==='title') _startTitleBgm();
+    else if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700});
     // 街は入場演出中はboom.wav後に演出側が鳴らすため何もしない。
     else if(id==='village'){
       if(!(typeof G!=='undefined'&&G&&G._villageIntroPlaying)){
@@ -1154,6 +1155,9 @@ function hideVictoryOverlay(){
 // ── 起動時データ読み込み／ブランドロゴ → タイトル演出 ───────────
 let _startupIntroTimerIds=[];
 let _startupIntroSkipped=false;
+function _startTitleBgm(){
+  if(typeof playBgm==='function') playBgm('gameTitle',{fadeInMs:1200});
+}
 function _wireTitleSelectBack(){
   const menu=document.getElementById('title-menu');
   const back=document.getElementById('title-select-back');
@@ -1173,6 +1177,7 @@ function _finishStartupIntro(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible');
+  _startTitleBgm();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
   if(loading) loading.classList.add('startup-brand-out');
   window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
@@ -1187,6 +1192,7 @@ function _revealTitleMenu(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  _startTitleBgm();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
   if(loading) loading.classList.add('startup-brand-out');
   window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
@@ -1210,6 +1216,7 @@ function _beginStartupIntro(){
   window.addEventListener('pointerdown',_skipStartupIntro,true);
   _startupIntroTimerIds.push(setTimeout(()=>{
     title.classList.add('active','startup-title-visible');
+    _startTitleBgm();
     loading.classList.add('startup-brand-out');
   },1000));
 }
