@@ -1173,7 +1173,7 @@ function _wireTitleSelectBack(){
   if(!menu||!back||back.dataset.wired==='1') return;
   back.dataset.wired='1';
   const move=btn=>{ back.style.top=`${btn.offsetTop+12}px`; };
-  const items=menu.querySelectorAll('.title-menu-item');
+  const items=menu.querySelectorAll('.title-menu-item,#title-debug-button');
   items.forEach(btn=>btn.addEventListener('pointerenter',()=>move(btn)));
   if(items[0]) move(items[0]);
 }
