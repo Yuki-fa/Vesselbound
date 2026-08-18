@@ -160,6 +160,7 @@ const Assets = {
     menuOpen: 'assets/sfx/menu_open.wav',
     menuClose: 'assets/sfx/menu_close.wav',
     select: 'assets/sfx/select.wav',
+    gameStart: 'assets/sfx/game_start.wav',
     knock: 'assets/sfx/knock.wav',
     boom: 'assets/sfx/boom.wav',
     shopIn: 'assets/sfx/shop_in.wav',

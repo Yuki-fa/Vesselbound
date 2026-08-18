@@ -60,6 +60,7 @@ const SFX_SETTINGS={
     menuClose:  {group:'ui',     volume: .70},  // -8.9
     menu:       {group:'ui',     volume: 1.00},
     select:     {group:'ui',     volume: 1.00}, // -17.6
+    gameStart:  {group:'ui',     volume: 1.00},
     knock:      {group:'ui',     volume: 1.00}, // -15.0
     boom:       {group:'ui',     volume: .61},  // -7.7
     shopIn:     {group:'ui',     volume: .49},  // -5.8
@@ -538,4 +539,10 @@ document.addEventListener('click',ev=>{
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
   if(!btn||btn.disabled||btn.dataset.sfxSilent==='1') return;
   playSfx('uiConfirm',{guardKey:'ui:button'});
+},true);
+document.addEventListener('pointerover',ev=>{
+  const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
+  if(!btn||btn.disabled||btn.dataset.sfxSilent==='1') return;
+  if(ev.relatedTarget&&btn.contains(ev.relatedTarget)) return;
+  playSfx('select',{guardKey:`ui:hover:${btn.id||btn.className||'button'}`,guardMs:80});
 },true);
