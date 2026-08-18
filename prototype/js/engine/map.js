@@ -1932,11 +1932,8 @@ async function _playVillageEnterIntro(build){
     }
     // 文字の表示と同時にboom.wavを鳴らす。
     if(typeof playSfx==='function') playSfx('boom',{group:'ui',guardMs:0});
-    // 地域名と下線が完全に表示された時点（#village-intro-title.is-visible の
-    // opacity transition = .5s の完了時）から街のBGMを鳴らし始める。
-    await _mapDelay(500);
-    playVillageBgm(600);
-    await _mapDelay(800);
+    // 地域名と下線を表示してから、文字が焼失するようにフェードアウトする。
+    await _mapDelay(1300);
     // ⑤ 地域名＋下線をフェードアウト
     if(title){
       title.classList.remove('is-visible');
@@ -1944,6 +1941,8 @@ async function _playVillageEnterIntro(build){
     }
     await _mapDelay(440);
     if(title) title.classList.remove('is-hiding');
+    // 文字が完全に消えた直後から、街／祭壇のBGMを開始する。
+    playVillageBgm(600);
     // ⑥ 完全に消えたら背景以外の要素をフェードイン
     body.classList.remove('village-intro-hide-ui');
     body.classList.add('village-intro-reveal-ui');
