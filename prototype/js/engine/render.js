@@ -94,7 +94,7 @@
       mt.style.display='block';
     }else if(mt) mt.style.display='none';
     const kt=keywordTip();
-    if(kt&&keywordPreviewEl){
+    if(kt&&keywordPreviewEl&&!isPanelPeek){
       kt.innerHTML=_formatKeywordOnlyHtml(keywordPreviewEl.getAttribute('data-keyword-preview')||'');
       kt.style.display='block';
     }else if(kt) kt.style.display='none';
