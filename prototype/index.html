@@ -186,12 +186,12 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   mask-position:center;
   mask-size:100% 100%;
   mask-repeat:no-repeat;
-  animation:title-logo-texture-pulse 4.6s ease-in-out infinite;
+  animation:title-logo-texture-pulse 7.5s ease-in-out infinite;
   animation-play-state:paused;
   transition:transform .6s ease .48s;
 }
 #scr-title.startup-title.startup-title-visible .title-logo-texture{animation-play-state:running;transform:translateX(-50%) translateY(0)}
-@keyframes title-logo-texture-pulse{0%,100%{opacity:.3}50%{opacity:.7}}
+@keyframes title-logo-texture-pulse{0%,100%{opacity:.3}50%{opacity:.5}}
 #scr-title.startup-title #title-options-btn{opacity:0;pointer-events:none;transform:none!important}
 #scr-title.startup-title.startup-title-visible #title-options-btn{opacity:1;pointer-events:auto}
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
@@ -12759,7 +12759,7 @@ fitVesselboundViewport();
 <script src="js/engine/reward.js?v=tower46"></script>
 <script src="js/engine/map.js?v=tower45"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower49"></script>
+<script src="js/engine/main.js?v=tower50"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

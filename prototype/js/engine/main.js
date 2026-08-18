@@ -1156,6 +1156,7 @@ function hideVictoryOverlay(){
 let _startupIntroTimerIds=[];
 let _startupIntroSkipped=false;
 function _startTitleBgm(){
+  if(typeof unlockSfx==='function') unlockSfx();
   if(typeof playBgm==='function') playBgm('gameTitle',{fadeInMs:1200});
   if(!window._titleBgmRetryWired){
     window._titleBgmRetryWired=true;
