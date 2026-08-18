@@ -543,6 +543,8 @@ document.addEventListener('click',ev=>{
   playSfx('uiConfirm',{guardKey:'ui:button'});
 },true);
 document.addEventListener('pointerover',ev=>{
+  const title=document.getElementById('scr-title');
+  if(title&&title.classList.contains('startup-title')&&!title.classList.contains('startup-menu-visible')) return;
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
   if(!btn||btn.disabled) return;
   if(ev.relatedTarget&&btn.contains(ev.relatedTarget)) return;
