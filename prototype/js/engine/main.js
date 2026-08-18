@@ -1208,6 +1208,11 @@ function _revealTitleMenu(){
 }
 function _skipStartupIntro(e){
   if(e&&e.button!=null&&e.button!==0) return;
+  const title=document.getElementById('scr-title');
+  if(e&&title){
+    const rect=title.getBoundingClientRect();
+    if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom) return;
+  }
   if(!_startupIntroSkipped){
     if(e) e.preventDefault();
     _revealTitleMenu();
