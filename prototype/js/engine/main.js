@@ -1157,6 +1157,13 @@ let _startupIntroTimerIds=[];
 let _startupIntroSkipped=false;
 function _startTitleBgm(){
   if(typeof playBgm==='function') playBgm('gameTitle',{fadeInMs:1200});
+  if(!window._titleBgmRetryWired){
+    window._titleBgmRetryWired=true;
+    document.addEventListener('pointerdown',()=>{
+      const title=document.getElementById('scr-title');
+      if(title&&title.classList.contains('startup-title-visible')) _startTitleBgm();
+    },true);
+  }
 }
 function _wireTitleSelectBack(){
   const menu=document.getElementById('title-menu');
