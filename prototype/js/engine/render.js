@@ -16,11 +16,29 @@
     if(mt) mt.style.display='none';
     if(kt) kt.style.display='none';
   };
+  // ドラッグ中はホバー説明を出さない。ただしこのフラグが立ちっぱなしになると
+  // 以後ホバー説明が一切出なくなるため、解除の経路を多重化しておく。
+  // ※HTML5ドラッグ中はmouseupが発火しない。さらに、ドロップ成功で再描画が走り
+  //   ドラッグ元の要素がDOMから作り直されるとdragendも発火しないことがある
+  //   （reward.jsの指輪ドロップ等）。その場合フラグが戻らず、戦闘中にキャラへ
+  //   ホバーしても説明が出ない状態になる。
   let _dragging=false;
   document.addEventListener('dragstart',()=>{ _dragging=true; hideTips(); }, true);
   document.addEventListener('dragend',()=>{ _dragging=false; }, true);
+  document.addEventListener('drop',()=>{ _dragging=false; }, true);
+  // 同じ理由（ドロップ成功→再描画→dragendが来ない）で、カーソル追従の複製（.drag-ghost）が
+  // 画面に残り続けることがある。残ると「置いたカードがその場に貼り付いて動かない」ように見える
+  // （例：店の売切枠へ魔導板のカードを置いた直後）。ドロップ後に必ず片付ける。
+  // ※各ドロップ処理より後に走らせたいのでバブリング側で登録する。
+  document.addEventListener('drop',()=>{
+    if(typeof _removeDragGhost==='function') _removeDragGhost();
+    if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
+  });
   document.addEventListener('mouseup',()=>{ _dragging=false; }, true);
   document.addEventListener('mousemove',e=>{
+    // 保険：ボタンを押していないmousemoveが来た時点でドラッグは終わっている。
+    // HTML5ドラッグ中はmousemoveが発火しないので、これでドラッグを誤って打ち切ることはない。
+    if(_dragging&&e.buttons===0) _dragging=false;
     if(_dragging){ hideTips(); return; }
     const tgt=e.target&&e.target.closest?e.target:null;
     const cardPreviewEl=tgt&&tgt.closest('[data-preview]');

@@ -25,11 +25,11 @@ const Assets = {
     summonFrameBrown: 'assets/cards/summon_frame4.png',
     summonFramePurple: 'assets/cards/summon_frame5.png',
     enchantmentFrame: 'assets/cards/enchantment.png',
-    spell1: 'assets/cards/spell_frame1.png',
-    spell2: 'assets/cards/spell_frame2.png',
-    spell3: 'assets/cards/spell_frame3.png',
-    spell4: 'assets/cards/spell_frame4.png',
-    spell5: 'assets/cards/spell_frame5.png',
+    spell1: 'assets/cards/summon_frame1.png',
+    spell2: 'assets/cards/summon_frame2.png',
+    spell3: 'assets/cards/summon_frame4.png',
+    spell4: 'assets/cards/summon_frame3.png',
+    spell5: 'assets/cards/summon_frame5.png',
     gradeStar: 'assets/cards/grade_star.png',
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
@@ -77,6 +77,12 @@ const Assets = {
     // 街の施設ごとの背景（ステージ3・ギャラハ）
     magicShopValley: 'assets/art/backgrounds/magic_shop_valley.png',
     blacksmithValley: 'assets/art/backgrounds/blacksmith_valley.png',
+    // 街の施設ごとの背景（ステージ4・ヴォルザーク）
+    magicShopCapital: 'assets/art/backgrounds/magic_shop_capital.png',
+    blacksmithCapital: 'assets/art/backgrounds/blacksmith_capital.png',
+    // 街の施設ごとの背景（ステージ5・フォルセティ）
+    magicShopEndworld: 'assets/art/backgrounds/magic_shop_endworld.png',
+    itemShopEndworld: 'assets/art/backgrounds/item_shop_endworld.png',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを

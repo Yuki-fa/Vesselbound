@@ -451,18 +451,31 @@ const SCENE_FLOW_DATA={
 
 // Scene 1～4：通常戦×2→エリート→村→通常戦×4→ボス→祭壇。
 // Scene 5：村→通常戦→エリート→ラスボス。
+// そのステージ（wave）のマス構成。旅の進捗の表示と同じ配列を使う。
+function _waveRouteForWave(wave){
+  const scene=Math.max(1,Math.min(5,Number(wave)||1));
+  return (typeof _journeyRouteForScene==='function'?_journeyRouteForScene(scene):null)||[];
+}
+function _waveRouteNode(stage,wave){
+  const route=_waveRouteForWave(wave??(G&&G._wave));
+  return route[Math.max(0,(Number(stage)||1)-1)]||'battle';
+}
+// ステージ1は先頭が村でエリート・街が1つ後ろにずれるため、stage番号の決め打ちではなく
+// ルート（_journeyRouteForScene）から種別を引く。
 function _waveBattleType(stage){
-  if(Number(G&&G._wave)===5){
-    if(stage===3) return 'elite';
-    if(stage===4) return 'boss';
-    return 'battle';
-  }
-  if(stage===3) return 'elite';
-  if(stage===9) return 'boss';
+  const node=_waveRouteNode(stage);
+  if(node==='elite') return 'elite';
+  if(node==='boss'||node==='finalBoss') return 'boss';
   return 'battle';
 }
 // 深層レベル＝そのwave内で何回目の通常戦闘か（1〜6）。エリート/ボスは固定値。
 function _waveDeepLevel(stage){
+  // ステージ1はルートが1つ後ろにずれる（1=村/2,3=通常/4=エリート/5=街/6,7,8=通常/9=ボス）。
+  // 街の後の戦闘は3戦だが、ボス直前が最高難度になるよう深層レベルは4,5,6を割り当てる。
+  if(Number(G&&G._wave)===1){
+    const t1={2:1,3:2,4:2,6:4,7:5,8:6,9:6};
+    return t1[stage]||1;
+  }
   const table={1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
   return table[stage]||1;
 }
@@ -471,11 +484,32 @@ function _waveStageFloor(wave,stage){
   const deep=_waveDeepLevel(stage);
   return Math.max(1,(Math.max(1,Number(wave)||1)-1)*maxDeep+deep);
 }
+// 編成・報酬画面の背景動画（back1.webm）を再開する。
+// 街・施設・ワールドマップの間は#scr-battleごとdisplay:noneになるため、ブラウザが
+// 「表示されていないミュート動画」として自動的に一時停止する（＝村や店から戻ると
+// 静止画のまま止まって見える）。報酬画面へ入るたびに明示的に再生し直す。
+function _resumeRewardBgVideo(){
+  const video=document.getElementById('reward-bg-video');
+  if(!video||!document.body) return;
+  if(!document.body.classList.contains('reward-screen-active')) return;
+  if(document.body.classList.contains('gameover-active')) return; // ゲームオーバー中は意図的に止めている
+  try{
+    video.muted=true;
+    video.loop=true;
+    if(!video.paused) return;
+    const playResult=video.play();
+    if(playResult&&typeof playResult.catch==='function') void playResult.catch(()=>{});
+  }catch(_e){}
+}
 function _openWaveFormation(){
   showScreen('battle');
   G.phase=null;
   G._waveVillage=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._facilityLabel='';
+  // 祭壇（指輪交換）の状態も必ず解除する。残っていると次の報酬画面が
+  // 「栄光の力」（指輪提示）表示のままになる。
+  G._isRingExchange=false;
+  G._ringOfferPhase=false;
   G._villageBgmActive=false;
   if(typeof _applyFacilityBackground==='function') _applyFacilityBackground(null);
   if(typeof goToReward==='function') goToReward();
@@ -553,6 +587,8 @@ function _startWaveBattle(stage){
   G._isItemShop=false;
   G._isVillageMenu=false;
   G._isRingExchange=false;
+  // 指輪提示フェイズも解除する。残っていると戦闘後の報酬画面が指輪提示のままになる。
+  G._ringOfferPhase=false;
   G._facilityLabel='';
   // 施設を出たので、施設在庫の保存先キー（openMap*()で記録）も破棄する。
   G._facilityCacheKey=null;
@@ -579,17 +615,18 @@ function _startWaveBattle(stage){
 function _startWaveFlowNext(){
   if(!G._waveLoopEnabled) return false;
   // ステージ0＝リーゼ（ゲーム開始地点）。出発したらステージ1の最初の戦闘へ。
-  if(Number(G._wave)===0){ G._wave=1; _startWaveBattle(1); return true; }
+  // ステージ1のstage1は村（リーゼ）なので、出発したらstage2の通常戦闘から始まる。
+  if(Number(G._wave)===0){ G._wave=1; _startWaveBattle(2); return true; }
   const stage=Number(G._waveStage)||1;
   const wave=Math.max(1,Number(G._wave)||1);
-  if(wave===5){
-    if(stage===1){ _startWaveBattle(2); return true; }
-    if(stage===3){ _startWaveBattle(4); return true; }
-    _startWaveBattle(stage);
-    return true;
-  }
-  if(stage===4){ _startWaveBattle(5); return true; }
-  if(stage===10){
+  // ※以前はwave===5専用に「stage3ならstage4（ラスボス）へ」という決め打ちがあり、
+  //   stage2の通常戦闘に勝ってstage3（エリート）へ進んだ直後にそれが働いて
+  //   **エリートを飛ばしてラスボスへ**行っていた。エリート勝利後の遷移は
+  //   finishWaveBattleVictory()側が担当しているので、ここは他ステージと同じ
+  //   ルート基準の判定に統一する。
+  const node=_waveRouteNode(stage,wave);
+  if(node==='city'){ _startWaveBattle(stage+1); return true; }
+  if(node==='altar'){
     if(wave>=4){
       G._wave=5;
       _openWaveVillage(1,false);
@@ -636,14 +673,18 @@ function finishWaveBattleVictory(showVictoryIntro){
       });
       return true;
     }
-    // Scene 1～4のエリート勝利後は村(stage4)へ直行。
+    // Scene 1～4のエリート勝利後は村へ直行。stage番号はルートから求める
+    // （ステージ1は先頭が村な分ずれて stage5＝エルム になる）。
+    const route=_waveRouteForWave(wave);
+    let cityStage=route.indexOf('city',stage)+1;
+    if(cityStage<=0) cityStage=4;
     runTransition(()=>{
       _grantWaveEliteItem();
       G._mapBattle=null;
       G._waveBattleType=null;
       if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
       G.enemies=[]; G.phase=null;
-      _openWaveVillage(4,true);
+      _openWaveVillage(cityStage,true);
     });
     return true;
   }
@@ -753,13 +794,15 @@ function startGame(debugMode){
   // 普通の村と同じ#scr-village＋入場演出で開く。施設（ホーム・図書館）は未実装のため
   // 暗く表示され、選べるのは「出発する」だけ。
   G._wave=0;
-  G._waveStage=4;
+  // 旅の進捗の先頭マス（村＝リーゼ）に対応するstage1で開く。
+  // ※_openWaveVillage(stage)が G._waveStage を上書きするので、ここではなく引数で渡す。
+  G._waveStage=1;
   // 前回のランのステージ持続演出（雷雨の動画・環境音）を持ち越さない。
   if(typeof _syncStageAmbience==='function') _syncStageAmbience();
   G._waveBattleType=null;
   G._waveFinalVillage=false;
   G._waveLife=3;
-  _openWaveVillage(4,false);
+  _openWaveVillage(1,false);
 }
 
 function _runStatsAreaName(){
@@ -1108,10 +1151,58 @@ function hideVictoryOverlay(){
   else goToReward();
 }
 
-// ── 起動時データ読み込み ─────────────────────────────
+// ── 起動時データ読み込み／ブランドロゴ → タイトル演出 ───────────
+let _startupIntroTimerIds=[];
+let _startupIntroSkipped=false;
+function _wireTitleSelectBack(){
+  const menu=document.getElementById('title-menu');
+  const back=document.getElementById('title-select-back');
+  if(!menu||!back||back.dataset.wired==='1') return;
+  back.dataset.wired='1';
+  const move=btn=>{ back.style.top=`${btn.offsetTop+12}px`; };
+  const items=menu.querySelectorAll('.title-menu-item');
+  items.forEach(btn=>btn.addEventListener('pointerenter',()=>move(btn)));
+  if(items[0]) move(items[0]);
+}
+function _finishStartupIntro(){
+  if(_startupIntroSkipped) return;
+  _startupIntroSkipped=true;
+  _startupIntroTimerIds.forEach(id=>clearTimeout(id));
+  _startupIntroTimerIds=[];
+  const loading=document.getElementById('scr-loading');
+  const title=document.getElementById('scr-title');
+  if(!title) return;
+  title.classList.add('active','startup-title','startup-title-visible');
+  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
+  if(loading) loading.classList.add('startup-brand-out');
+  window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
+  window.removeEventListener('pointerdown',_skipStartupIntro,true);
+}
+function _skipStartupIntro(e){
+  if(e&&e.button!=null&&e.button!==0) return;
+  if(!_startupIntroSkipped){
+    if(e) e.preventDefault();
+    _finishStartupIntro();
+  }
+}
+function _beginStartupIntro(){
+  const loading=document.getElementById('scr-loading');
+  const title=document.getElementById('scr-title');
+  if(!loading||!title) return;
+  loading.classList.add('startup-splash');
+  title.classList.add('startup-title');
+  _wireTitleSelectBack();
+  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
+  window.addEventListener('pointerdown',_skipStartupIntro,true);
+  _startupIntroTimerIds.push(setTimeout(()=>{
+    title.classList.add('active','startup-title-visible');
+    loading.classList.add('startup-brand-out');
+  },1000));
+  _startupIntroTimerIds.push(setTimeout(_finishStartupIntro,3000));
+}
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });
 window.addEventListener('DOMContentLoaded', async () => {
-  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
+  _beginStartupIntro();
   const msgEl = document.getElementById('load-msg');
   const ok = await loadGameData();
   if (msgEl) {
@@ -1120,7 +1211,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       : '⚠ オフライン：内蔵データで起動します';
     msgEl.style.color = ok ? 'var(--teal2)' : 'var(--gold2)';
   }
-  setTimeout(() => showScreen('title'), ok ? 300 : 1500);
 });
 
 /* 🛠️ js/engine/main.js の一番最後へ追記（古いF4コードは消去） */

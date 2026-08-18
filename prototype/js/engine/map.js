@@ -1131,7 +1131,8 @@ function getVillageBackgroundKey(){
 // 値は文字列（既定レート0.3）または {src,rate}。
 const VILLAGE_BG_VIDEOS={
   // 0（リーゼ）は動画なし。未定義のステージは_syncVillageBgVideo()が動画を止めて非表示にする。
-  1:'assets/art/backgrounds/village_forest.webm',
+  // layer2Opacity：2枚目だけ不透明度を変える（未指定ならCSSの50%のまま＝塔と同じ濃さ）。
+  1:{src:'assets/art/backgrounds/village_forest.webm',rate:0.3,layers:2,layer2Opacity:0.25},
   3:'assets/art/backgrounds/village_valley.webm',
   4:{src:'assets/art/backgrounds/city_capital.webm',rate:0.9}, // 雷は他の3倍速
 };
@@ -1142,6 +1143,8 @@ const VILLAGE_FACILITY_BG={
   1:{item:'itemShopForest',shop:'magicShopForest'},
   2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland'},
   3:{shop:'magicShopValley',forge:'blacksmithValley'},
+  4:{shop:'magicShopCapital',forge:'blacksmithCapital'},
+  5:{shop:'magicShopEndworld',item:'itemShopEndworld'},
 };
 // 施設画面（#scr-battle上の編成UI）の背景を、その街の施設専用画像へ差し替える。
 // 編成画面（#scr-battle）の背景を専用画像で上書きする。編成画面は #scr-battle の
@@ -1286,6 +1289,12 @@ function _syncVillageBgVideo(){
   const layers=(def&&typeof def==='object'&&Number(def.layers))||1;
   _applyBgVideoEl(el,src,rate);
   _applyBgVideoEl(el2,(src&&layers>=2)?src:'',rate);
+  // 2枚目の濃さ。指定が無ければCSSの既定（50%）に戻す。
+  const layer2Opacity=(def&&typeof def==='object')?def.layer2Opacity:null;
+  if(el2){
+    if(src&&layers>=2&&layer2Opacity!=null) el2.style.setProperty('opacity',String(layer2Opacity),'important');
+    else el2.style.removeProperty('opacity');
+  }
   // 2枚目は1枚目と再生位置を合わせる（ずれると別々の明滅に見えて「2重」にならない）。
   if(el2&&src&&layers>=2) _syncBgVideoLayerTime(el,el2);
 }
@@ -1413,7 +1422,7 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
   // リーゼ（ゲーム開始地点）
   0:{
     'ホーム':  {x:461, y:993},
-    '図書館':  {x:3237,y:993},
+    '図書館':  {x:2351,y:865},
   },
   // エルム
   1:{
@@ -1512,8 +1521,10 @@ function useVillageInn(){
   renderVillageScreen();
 }
 // 宿屋は「ライフが減っている」「500G以上持っている」「この街で未利用」の全てを満たす時のみ押せる。
-// 中身が未実装の施設。表示はするが選べない（暗くする）。
-const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','library']);
+// 中身が未実装／現在は開放しない施設。表示はするが選べない（暗くする）。
+// inn（宿屋）は処理自体は実装済みだが、いまは押せないようにしている
+// （再開する時はこのSetから'inn'を外すだけでよい。下の条件判定はそのまま残してある）。
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','library','plaza','tavern','inn','landing']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
@@ -1614,9 +1625,9 @@ function worldMapActiveLine(wave,stage){
   const toTower=(Number(stage)||1)>=5;
   return Math.min(8,(w-1)*2+(toTower?2:1));
 }
-function renderWorldMapScreen(activeOverride){
-  const info=regionInfoForWave(G&&G._wave);
-  const name=String((info&&info.townName)||'街');
+function renderWorldMapScreen(activeOverride,targetWave,targetStage){
+  const info=regionInfoForWave(targetWave==null?(G&&G._wave):targetWave);
+  const name=String(((Number(targetStage==null?(G&&G._waveStage):targetStage)||1)>=5?info&&info.toTowerName:info&&info.toTownName)||'街');
   const split=name.match(/^(.*?)[ 　]+(.+)$/);
   const sub=document.getElementById('map-name-sub');
   const main=document.getElementById('map-name-main');
@@ -1674,10 +1685,10 @@ async function _playWorldMapDeparture(done){
     let nextWave=Math.max(1,Number(G._wave)||1);
     let nextStage=Number(G._waveStage)||1;
     // リーゼ（ステージ0）を出た直後はステージ1の最初の戦闘へ向かう区間。
-    if(Number(G._wave)===0){ nextWave=1; nextStage=1; }
+    if(Number(G._wave)===0){ nextWave=1; nextStage=2; }
     else if(nextStage===4) nextStage=5;
     else if(nextStage===10){ nextWave=Math.min(5,nextWave+1); nextStage=1; }
-    renderWorldMapScreen(worldMapActiveLine(nextWave,nextStage));
+    renderWorldMapScreen(worldMapActiveLine(nextWave,nextStage),nextWave,nextStage);
     if(typeof showScreen==='function') showScreen('map');
     fade.style.transition='opacity .5s ease';
     fade.style.opacity='0';
@@ -1959,6 +1970,7 @@ function openMapVillage(options){
   G._isVillageMenu=true;
   G._isTreasureMapReward=false;
   G._isRingExchange=false;
+  G._ringOfferPhase=false;
   G._facilityLabel='';
   G.phase='reward';
   // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。

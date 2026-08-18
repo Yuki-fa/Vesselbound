@@ -3613,31 +3613,63 @@ function _summonMidBattleAllyFront(unit, isEnemySide, placement){
   const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
 
+  // 空き扱いにできる枠（未使用・戦闘不能・オブジェクト・ソウル）。
+  const isFree=u=>!u||u.hp<=0||u._isObject||u._isSoul;
+  // 置いた位置を_battleSlotへ書き戻す。compactBattleUnits()は_battleSlotを持つユニットだけを
+  // その枠へ固定し、持たないユニットは行の中央へ寄せ直す。召喚したユニットに_battleSlotが
+  // 無いと、直後のrequestBattleCompact()で中央へ動かされ「効果元の左に出る」「戦闘中に
+  // 並び順が入れ替わる」ことになる。挿入で他のユニットもずれるため、前衛全体を振り直す。
+  const syncFrontSlots=()=>{
+    for(let i=0;i<frontSlots;i++){
+      const u=arr[i];
+      if(u&&!isFree(u)) u._battleSlot=i;
+    }
+  };
+
   // 戦闘中の召喚は前衛へ置く。前衛の効果元だけは右隣への挿入を優先し、
   // 後衛の効果元からの召喚は前衛右端へ回す（後衛には置かない）。
   const source=placement&&placement.rightOf;
   if(source){
     const sourceIdx=arr.indexOf(source);
     const sourceIsRear=(source.lane||'front')==='rear';
-    if(!sourceIsRear&&sourceIdx>=0&&sourceIdx<frontSlots-1){
+    if(!sourceIsRear&&sourceIdx>=0){
+      // ① 効果元より右に空きがあれば、間の味方を右へ1つずつ寄せて右隣へ挿入する。
       let empty=-1;
       for(let i=sourceIdx+1;i<frontSlots;i++){
-        if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){ empty=i; break; }
+        if(isFree(arr[i])){ empty=i; break; }
       }
       if(empty>=0){
         for(let i=empty;i>sourceIdx+1;i--) arr[i]=arr[i-1];
         unit.lane='front';
         arr[sourceIdx+1]=unit;
+        syncFrontSlots();
         return sourceIdx+1;
       }
+      // ② 右が埋まりきっている場合は、左の空きを使って効果元までを左へ1つ寄せ、
+      //    空いた効果元の位置へ置く（＝結果として効果元の右隣になる）。
+      //    ここで単に左の空き枠へ置くと「効果元の左に召喚される」「並び順が入れ替わる」ため。
+      let leftEmpty=-1;
+      for(let i=sourceIdx-1;i>=0;i--){
+        if(isFree(arr[i])){ leftEmpty=i; break; }
+      }
+      if(leftEmpty>=0){
+        for(let i=leftEmpty;i<sourceIdx;i++) arr[i]=arr[i+1];
+        unit.lane='front';
+        arr[sourceIdx]=unit;
+        syncFrontSlots();
+        return sourceIdx;
+      }
+      // 前衛に空きが1つも無ければ召喚しない（後衛へは溢れさせない）。
+      return -1;
     }
   }
 
   // 指輪など、効果元の位置を持たない召喚は一番右の空き枠へ置く。
   for(let i=frontSlots-1;i>=0;i--){
-    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
+    if(isFree(arr[i])){
       unit.lane='front';
       arr[i]=unit;
+      syncFrontSlots();
       return i;
     }
   }
@@ -4265,7 +4297,18 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
     for(let hi=0;hi<=extraHits&&unit.hp>0;hi++){
       const alive=(G.enemies||[]).filter(e=>e&&e.hp>0);
       if(!alive.length) break;
-      const target=_pickRandomEnemyTargets(alive,unit)[0];
+      let target=_pickRandomEnemyTargets(alive,unit)[0];
+      // 負傷で発生した攻撃でも通常攻撃と同じく攻撃時効果を発動させる
+      // （_dealAttackDamageWithMutual内の接触タイミングで_consumeAttackEffectPauseが解決する）。
+      if(_hasAttackEffectsForPause(unit)) unit._attackEffectPending=true;
+      if(unit.manaOnAttack){
+        const _ritualExtraInj=_unitKeywordCount(unit,'闇の儀式')+(Number(unit._effectRepeatBonus)||0);
+        for(let mi=0;mi<1+_ritualExtraInj;mi++) _gainMana(unit.manaOnAttack,unit);
+        await _flushRingManaThresholdEffects();
+        if(unit.hp<=0) break;
+        if(!target||target.hp<=0) target=getAttackTarget(unit,G.enemies);
+        if(!target||target.hp<=0) break;
+      }
       log(`${_lc(unit.name,false)}が直ちに${_lc(target.name,true)}に攻撃した。`,'good');
       await _dealAttackDamageWithMutual(unit,false,target,G.enemies.indexOf(target),Math.max(0,unit.atk||0));
     }

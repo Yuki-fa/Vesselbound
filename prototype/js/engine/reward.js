@@ -592,6 +592,8 @@ function goToReward(){
   G.phase='reward';
   G._battlePhaseRunning=false;
   document.body.classList.add('reward-screen-active');
+  // 街・施設で画面が隠れている間にブラウザが停止させた背景動画（back1.webm）を再開する。
+  if(typeof _resumeRewardBgVideo==='function') _resumeRewardBgVideo();
   if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
   // 街のBGMが鳴っている間（＝街の施設に入っている間）はmenu.wavへ切り替えない。
   if(!G._villageBgmActive&&typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
@@ -945,11 +947,15 @@ function _waveEffectiveBattleStage(stage){
   if(stage===10) return 1;
   return stage;
 }
+// ステージ1だけ先頭が村（リーゼ＝ゲーム開始地点）。その分、**エルムの後**の通常戦闘を1つ減らす
+// （通常の 5〜8＝4戦 → 6〜8＝3戦）。マス数は他ステージと同じ10で、ボス9・祭壇10も据え置き。
+// エリートと街の位置が1つ後ろへずれるため、_waveBattleType()等はこのルートから引く。
+const SCENE1_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','boss','altar'];
 function _journeyRouteForScene(scene){
   const data=typeof SCENE_FLOW_DATA!=='undefined'?SCENE_FLOW_DATA:null;
-  return scene===5
-    ?(data&&data.final||['city','battle','elite','finalBoss'])
-    :(data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar']);
+  if(scene===5) return data&&data.final||['city','battle','elite','finalBoss'];
+  if(scene===1) return (data&&data.scene1)||SCENE1_ROUTE;
+  return data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
 }
 function _journeyIconForNode(type){
   return {elite:'elite.svg',city:'city.svg',boss:'boss.svg',altar:'altar.svg',finalBoss:'boss.svg'}[type]||'';
@@ -960,8 +966,10 @@ function _journeyNodeClass(type){
   return '';
 }
 // 村／祭壇は「地域情報」シートの街の名前・塔の名前を表示する（sceneはステージ番号＝G._wave）。
-function _journeyNodeLabel(type,scene){
-  const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene??(G&&G._wave)):null;
+// ステージ1の先頭の村だけはリーゼ＝シートのステージ0を参照する（idx=マスの並び順）。
+function _journeyNodeLabel(type,scene,idx){
+  const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
+  const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
   if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
   if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
   return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
@@ -975,7 +983,8 @@ function _journeySceneTowerName(scene){
 }
 function _journeyDisplayPosition(route,stage,scene){
   const actual=Math.max(0,Math.min(route.length-1,stage-1));
-  if(scene===1&&stage===1) return -1;
+  // ステージ1のstage1は「リーゼ滞在中」なので、先頭の村マスを点灯させる
+  // （以前はゲーム開始前扱いで-1＝どこも点灯させていなかった）。
   if(actual===0) return 0;
   const special=type=>['elite','boss','finalBoss'].includes(type);
   // 次の戦闘が特殊戦の場合は、その一歩前を表示する。
@@ -1018,13 +1027,13 @@ function _syncRewardJourneyUi(){
     const state=idx<current?'passed':(idx===current?'current':'');
     const nextClass=idx===next?'next':'';
     const icon=_journeyIconForNode(type);
-    const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type,scene)}">`:'';
+    const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type,scene,idx)}">`:'';
     const connector=idx<route.length-1?`<span class="journey-track-line ${idx<current?'passed':''}"></span>`:'';
     const iconClass=icon?'has-icon':'';
     const iconStyle=icon?` style="--journey-icon:url('assets/ui/${icon}')"`:'';
     // エリート/ボスは、実際に出現する個体を先読み確定した上で「エリート／カード名」＋効果＋
     // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
-    let previewText=_journeyNodeLabel(type,scene);
+    let previewText=_journeyNodeLabel(type,scene,idx);
     let enemyAttr='';
     if((type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
       const previewType=type==='elite'?'elite':'boss';
@@ -1072,7 +1081,9 @@ function _bindDebugSceneJump(root){
       e.preventDefault();
       e.stopPropagation();
       const wave=Math.max(1,Math.min(5,Number(mark.dataset.journeyScene)||1));
-      G._wave=wave;
+      // ステージ1の先頭マスは村（リーゼ＝シートのステージ0）なので、G._waveは0で表す。
+      // 旅の進捗のscene計算はMath.max(1,G._wave)なので、0でもステージ1として表示される。
+      G._wave=wave===1?0:wave;
       G._waveStage=1;
       G._waveBattleType=null;
       G._mapBattle=null;
@@ -1095,6 +1106,12 @@ function _bindDebugJourneyJump(root){
       e.stopPropagation();
       const stage=Number(node.dataset.journeyJump)||1;
       const type=String(node.dataset.journeyType||'');
+      // マスは「いま表示しているステージ（scene）」のもの。G._waveをsceneへ合わせてから飛ぶ。
+      // これをしないと、リーゼ滞在中（G._wave=0）にエルムのマスを押した時に
+      // waveが0のまま=地域情報のステージ0＝リーゼが開いてしまう。
+      const scene=Math.max(1,Math.min(5,Number(G&&G._wave)||1));
+      // ステージ1の先頭マスだけはリーゼ（シートのステージ0）。
+      G._wave=(scene===1&&type==='city'&&stage===1)?0:scene;
       // 施設系は専用の開き方、戦闘系（通常/エリート/ボス/ラスボス）は_startWaveBattleで即開始。
       if(type==='city'){ if(typeof _openWaveVillage==='function') _openWaveVillage(stage,false); return; }
       if(type==='altar'){ if(typeof _openWaveAltar==='function') _openWaveAltar(stage); return; }
