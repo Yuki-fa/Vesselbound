@@ -320,7 +320,15 @@ function placePendingPanelToSelectedUnit(slotIdx){
       if(!_pushToRewardArea(oldCard)) return false;
     }
   }
+  const isPendingSale=!!pending.card._shopSalePending;
   const placed=merged||clone(pending.card);
+  // 売切れ枠へ一時退避した手持ちパネルを魔導板へ戻す場合は、
+  // 商品枠専用の売却待ち状態を持ち込まない（再度売却扱いになるのを防ぐ）。
+  if(isPendingSale){
+    delete placed._shopSalePending;
+    delete placed._sellDisplayPrice;
+    delete placed._temporaryRewardAreaCard;
+  }
   // このターンの報酬（_isOriginalReward）から取得した場合のみ「戻す」操作を無料取得フラグの解除に結び付ける。
   // 元々持っていた（報酬エリアに一時的に戻していただけの）カードを取り直しても無料取得権には影響しない。
   if(!merged&&pending.rewardIdx>=0&&pending.card._isOriginalReward){
@@ -341,7 +349,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
   // 3枚合体時は通常配置音を鳴らさず、1.5秒の吸い込み完了時にunion.wavだけを鳴らす。
   // ショップでの配置＝購入なので、通常の配置音ではなくbuy.wavを鳴らす。
   if(!tripleMerge){
-    if(G._isShop&&typeof _playRewardAcquireSfx==='function') _playRewardAcquireSfx('buy.wav');
+    if(G._isShop&&typeof _playRewardAcquireSfx==='function'&&!isPendingSale) _playRewardAcquireSfx('buy.wav');
     else if(typeof playSfx==='function') playSfx('fit',{group:'reward'});
   }
   renderHandEditor();
