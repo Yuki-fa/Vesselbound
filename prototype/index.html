@@ -195,6 +195,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-title #title-options-btn{opacity:0;pointer-events:none;transform:none!important}
 #scr-title.startup-title.startup-title-visible #title-options-btn{opacity:1;pointer-events:auto}
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
+#scr-title.startup-title:not(.startup-menu-visible) #title-menu{pointer-events:none}
 #scr-title.startup-menu-visible #title-menu{opacity:1}
 .title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .16s ease;pointer-events:auto}
 #scr-title.startup-menu-visible .title-menu-item{opacity:.82;transform:translateY(0)}
