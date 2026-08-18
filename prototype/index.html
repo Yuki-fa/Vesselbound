@@ -228,13 +228,14 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   display:block;
   position:relative;
   width:900px;
-  height:64px;
+  height:128px;
   border:0;
   padding:0;
   background:transparent;
   color:rgba(180,184,190,.72);
   font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;
-  font-size:30px;
+  font-size:60px;
+  line-height:128px;
   letter-spacing:.12em;
   text-shadow:0 2px 5px #090807;
   cursor:pointer;
@@ -244,7 +245,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   pointer-events:auto;
 }
 #scr-title.startup-menu-visible #title-debug-button{opacity:.72;transform:translateY(0);transition-delay:.23s}
-#title-menu #title-debug-button:hover{color:#d8d8d8;opacity:1}
+#title-menu #title-debug-button:hover{color:#d8d8d8;opacity:1;transform:translateY(0)}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 @keyframes title-start-glow{0%,100%{filter:brightness(1) drop-shadow(0 0 14px rgba(255,211,104,.75))}50%{filter:brightness(1.75) drop-shadow(0 0 34px rgba(255,224,135,1))}}
 .title-menu-label{position:relative;z-index:1;line-height:128px}
