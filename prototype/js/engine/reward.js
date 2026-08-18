@@ -2354,6 +2354,8 @@ function _discardBoardCardForRingOffer(idx,card){
   _syncUnitPanelEffectsAfterMove(unit);
   if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
   G._boardDiscardCount=(G._boardDiscardCount||0)+1;
+  const ringGetCount=Math.max(1,Math.min(3,G._boardDiscardCount-Number(G._ringPhaseStartSnapshot?.boardDiscardCount||0)));
+  _playRewardAcquireSfx(`ring_get${ringGetCount}.wav`);
   log(`${card.name}を廃棄した。（${Math.min(3,G._boardDiscardCount)}/3）`,'sys');
   // 3枚廃棄すると指輪を1つだけ得られるようになる（6枚廃棄しても2つにはならない：1度解放したら再度解放しない）
   if(G._boardDiscardCount>=3&&!G._ringOfferUnlocked){
@@ -4276,8 +4278,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         ev.stopPropagation();
         // SEはボタン種別で最初に決める。デバッグモード等の分岐が先にreturnしても
         // 「還魂＝ascension / 売却＝sell」が確実に鳴るようにする。
-        if(discardBtn.classList.contains('ring-offer-discard-btn')) _playRewardAcquireSfx('ascension.wav');
-        else if(G._isShop) _playRewardAcquireSfx('sell.wav');
+        if(!discardBtn.classList.contains('ring-offer-discard-btn')&&G._isShop) _playRewardAcquireSfx('sell.wav');
         if(arrName==='unitEquip'){
           // 指輪提示（還魂）中は最優先で廃棄カウントへ回す。デバッグモード分岐やショップ分岐が
           // 先にreturnすると_boardDiscardCountが増えず、3枚還魂しても指輪が解放されない。
