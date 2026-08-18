@@ -1169,7 +1169,7 @@ function _applyFacilityBackground(facKey){
 // 街ごとのBGM（Assets.sfxのキー・再生開始位置・重ねる環境音）。未定義のステージはメニュー曲のまま。
 // 開始位置は初回のみで、ループ2周目以降は曲の頭から鳴る。
 const VILLAGE_BGM={
-  0:{key:'villageStart',   startTime:83},  // リーゼ 1:23
+  0:{key:'villageStart',   startTime:100}, // リーゼ 1:40
   1:{key:'villageForest',  startTime:81},  // エルム 1:21
   2:{key:'villageGrassland',startTime:70}, // ヴァルガ 1:10
   3:{key:'villageValley',  startTime:75},  // ギャラハ 1:15
