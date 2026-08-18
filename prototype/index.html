@@ -170,14 +170,18 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title .startup-title-logo{top:565px;width:2500px;height:auto;transform:translateX(-50%) translateY(18px);transition:opacity .6s ease .48s,transform .6s ease .48s}
 #scr-title.startup-title-visible .startup-title-logo{opacity:1;transform:translateX(-50%) translateY(0)}
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
-#scr-title.startup-title-visible #title-menu{opacity:1}
+#scr-title.startup-menu-visible #title-menu{opacity:1}
 .title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .16s ease;pointer-events:auto}
-#scr-title.startup-title-visible .title-menu-item{opacity:.82;transform:translateY(0)}
-#scr-title.startup-title-visible .title-menu-item:nth-of-type(1){transition-delay:.1s}
-#scr-title.startup-title-visible .title-menu-item:nth-of-type(2){transition-delay:.23s}
-#scr-title.startup-title-visible .title-menu-item:nth-of-type(3){transition-delay:.36s}
-#scr-title.startup-title-visible .title-menu-item:nth-of-type(4){transition-delay:.49s}
-#scr-title.startup-title-visible .title-menu-item:nth-of-type(5){transition-delay:.62s}
+#scr-title.startup-menu-visible .title-menu-item{opacity:.82;transform:translateY(0)}
+#scr-title.startup-menu-visible .title-menu-item:nth-of-type(1){transition-delay:.1s}
+#scr-title.startup-menu-visible .title-menu-item:nth-of-type(2){transition-delay:.23s}
+#scr-title.startup-menu-visible .title-menu-item:nth-of-type(3){transition-delay:.36s}
+#scr-title.startup-menu-visible .title-menu-item:nth-of-type(4){transition-delay:.49s}
+#scr-title.startup-menu-visible .title-menu-item:nth-of-type(5){transition-delay:.62s}
+.tap-to-start{top:1260px;width:100%;font-family:'Cinzel',serif;font-size:42px;letter-spacing:.22em;color:rgba(245,236,218,.86);text-align:center;white-space:nowrap;animation:tap-to-start-float 1.7s ease-in-out infinite}
+#scr-title.startup-title-visible .tap-to-start{opacity:1}
+#scr-title.startup-menu-visible .tap-to-start{opacity:0;transition:opacity .25s ease}
+@keyframes tap-to-start-float{0%,100%{transform:translateX(-50%) translateY(-9px)}50%{transform:translateX(-50%) translateY(9px)}}
 .title-menu-item:hover{color:#fff!important;opacity:1!important}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 @keyframes title-start-glow{0%,100%{filter:brightness(1) drop-shadow(0 0 14px rgba(255,211,104,.75))}50%{filter:brightness(1.75) drop-shadow(0 0 34px rgba(255,224,135,1))}}
@@ -12362,6 +12366,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
 <!-- TITLE -->
 <div id="scr-title" class="screen startup-title">
   <img class="startup-title-logo" src="assets/ui/title_logo.svg" alt="Vesselbound">
+  <div class="tap-to-start">TAP TO START</div>
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
     <button class="title-menu-item game-start" type="button" onclick="playSfx('gameStart',{guardKey:'ui:title-game-start'});startGame()"><span class="title-menu-label">ゲームスタート</span></button>
@@ -12728,7 +12733,7 @@ fitVesselboundViewport();
 <script src="js/engine/reward.js?v=tower45"></script>
 <script src="js/engine/map.js?v=tower45"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower46"></script>
+<script src="js/engine/main.js?v=tower47"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

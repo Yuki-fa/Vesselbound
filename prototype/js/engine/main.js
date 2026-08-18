@@ -1178,11 +1178,25 @@ function _finishStartupIntro(){
   window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
   window.removeEventListener('pointerdown',_skipStartupIntro,true);
 }
+function _revealTitleMenu(){
+  if(_startupIntroSkipped) return;
+  _startupIntroSkipped=true;
+  _startupIntroTimerIds.forEach(id=>clearTimeout(id));
+  _startupIntroTimerIds=[];
+  const loading=document.getElementById('scr-loading');
+  const title=document.getElementById('scr-title');
+  if(!title) return;
+  title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
+  if(loading) loading.classList.add('startup-brand-out');
+  window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
+  window.removeEventListener('pointerdown',_skipStartupIntro,true);
+}
 function _skipStartupIntro(e){
   if(e&&e.button!=null&&e.button!==0) return;
   if(!_startupIntroSkipped){
     if(e) e.preventDefault();
-    _finishStartupIntro();
+    _revealTitleMenu();
   }
 }
 function _beginStartupIntro(){
@@ -1198,7 +1212,6 @@ function _beginStartupIntro(){
     title.classList.add('active','startup-title-visible');
     loading.classList.add('startup-brand-out');
   },1000));
-  _startupIntroTimerIds.push(setTimeout(_finishStartupIntro,3000));
 }
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });
 window.addEventListener('DOMContentLoaded', async () => {
