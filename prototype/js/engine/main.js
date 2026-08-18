@@ -1208,6 +1208,17 @@ function _revealTitleMenu(){
   window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
   window.removeEventListener('pointerdown',_skipStartupIntro,true);
 }
+function returnToTapStart(){
+  const title=document.getElementById('scr-title');
+  if(!title) return;
+  _startupIntroTimerIds.forEach(id=>clearTimeout(id));
+  _startupIntroTimerIds=[];
+  _startupIntroSkipped=false;
+  title.classList.remove('startup-menu-visible','startup-menu-ready');
+  title.classList.add('active','startup-title','startup-title-visible');
+  window.removeEventListener('pointerdown',_skipStartupIntro,true);
+  window.addEventListener('pointerdown',_skipStartupIntro,true);
+}
 function _skipStartupIntro(e){
   if(e&&e.button!=null&&e.button!==0) return;
   const title=document.getElementById('scr-title');

@@ -12438,7 +12438,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
     <button id="title-debug-button" type="button" onclick="startGame(true)">デバッグモード</button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">コンティニュー</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
-    <button class="title-menu-item" type="button"><span class="title-menu-label">終了</span></button>
+    <button class="title-menu-item" type="button" onclick="returnToTapStart()"><span class="title-menu-label">終了</span></button>
   </div>
   <button id="title-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
@@ -12798,7 +12798,7 @@ fitVesselboundViewport();
 <script src="js/engine/reward.js?v=tower46"></script>
 <script src="js/engine/map.js?v=tower47"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower54"></script>
+<script src="js/engine/main.js?v=tower55"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
