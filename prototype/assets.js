@@ -176,7 +176,7 @@ const Assets = {
     villageEndworld: 'assets/bgm/village_endworld.wav',
     cityCapital: 'assets/bgm/city_capital.wav',
     tower: 'assets/bgm/tower.wav',
-    gameStart: 'assets/bgm/game_start.wav',
+    gameStartBgm: 'assets/bgm/game_start.wav',
     villageStart: 'assets/bgm/village_start.wav', // リーゼ（ゲーム開始地点）
     // 街BGMに重ねる環境音（サブBGMレイヤー）
     thunder: 'assets/bgm/thunder.wav',
