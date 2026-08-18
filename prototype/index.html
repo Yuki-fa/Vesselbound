@@ -166,9 +166,53 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-title::before{opacity:0!important;transition:opacity .8s ease!important}
 #scr-title.startup-title.startup-title-visible{opacity:1;pointer-events:auto}
 #scr-title.startup-title.startup-title-visible::before{opacity:1!important}
+#scr-title.startup-title.asset-backed::before{
+  background-image:
+    linear-gradient(rgba(3,5,10,.52),rgba(3,5,10,.62)),
+    radial-gradient(ellipse at 50% 38%,rgba(190,164,119,.14) 0%,rgba(16,19,27,.08) 34%,rgba(0,0,0,.58) 100%),
+    var(--screen-bg-image)!important;
+  background-size:cover,cover,cover!important;
+  background-position:center,center,center!important;
+}
+#scr-title.startup-title::after{
+  content:'';
+  display:block;
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:0;
+  background:
+    radial-gradient(circle at 50% 31%,rgba(255,241,202,.18) 0 2px,transparent 4px),
+    radial-gradient(circle at 43% 34%,rgba(255,230,171,.13) 0 1px,transparent 3px),
+    radial-gradient(circle at 58% 29%,rgba(255,248,220,.14) 0 1px,transparent 3px),
+    radial-gradient(ellipse at 50% 34%,rgba(230,205,155,.12),transparent 35%);
+  background-size:760px 520px,520px 380px,680px 460px,100% 100%;
+  mix-blend-mode:screen;
+  transition:opacity .9s ease .35s;
+}
+#scr-title.startup-title.startup-title-visible::after{opacity:1}
 #scr-title.startup-title>*{position:absolute;left:50%;transform:translateX(-50%);margin:0;opacity:0;pointer-events:none}
 #scr-title .startup-title-logo{top:565px;width:2500px;height:auto;transform:translateX(-50%) translateY(18px);transition:opacity .6s ease .48s,transform .6s ease .48s}
 #scr-title.startup-title-visible .startup-title-logo{opacity:1;transform:translateX(-50%) translateY(0)}
+#scr-title .title-logo-effect{
+  top:485px;
+  width:2800px;
+  height:560px;
+  z-index:2;
+  background:
+    radial-gradient(ellipse at 50% 50%,rgba(255,239,194,.16) 0%,rgba(228,203,155,.08) 28%,transparent 63%),
+    radial-gradient(circle at 16% 47%,rgba(255,245,207,.32) 0 2px,transparent 5px),
+    radial-gradient(circle at 78% 39%,rgba(255,239,188,.25) 0 1px,transparent 4px),
+    radial-gradient(circle at 63% 70%,rgba(255,247,210,.18) 0 1px,transparent 3px);
+  background-size:100% 100%,580px 360px,720px 420px,460px 300px;
+  mix-blend-mode:screen;
+  filter:blur(.2px) drop-shadow(0 0 18px rgba(255,223,158,.4));
+  animation:title-logo-light 5.5s ease-in-out infinite;
+  transition:opacity .7s ease .55s;
+}
+#scr-title.startup-title.startup-title-visible .title-logo-effect{opacity:.9}
+@keyframes title-logo-light{0%,100%{filter:blur(.2px) brightness(.82) drop-shadow(0 0 14px rgba(255,223,158,.28));transform:translateX(-50%) scale(.99)}50%{filter:blur(.2px) brightness(1.2) drop-shadow(0 0 30px rgba(255,231,177,.62));transform:translateX(-50%) scale(1.01)}}
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
 #scr-title.startup-menu-visible #title-menu{opacity:1}
 .title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .16s ease;pointer-events:auto}
@@ -12366,6 +12410,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
 <!-- TITLE -->
 <div id="scr-title" class="screen startup-title">
   <img class="startup-title-logo" src="assets/ui/title_logo.svg" alt="Vesselbound">
+  <span class="title-logo-effect" aria-hidden="true"></span>
   <div class="tap-to-start">TAP TO START</div>
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
