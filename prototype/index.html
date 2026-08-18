@@ -12385,7 +12385,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <!-- ステージ持続の効果動画（例：ステージ4のヴォルザーク〜蝕界の塔の雷）。街画面の
        #village-bg-videoと同じ設定で、戦闘・報酬画面（#scr-battle）側に重ねる。 -->
   <video id="stage-bg-video" muted loop playsinline aria-hidden="true"></video>
-  <button id="battle-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+  <button id="battle-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div id="battle-end-fade" aria-hidden="true"></div>
   <video id="gameover-video" src="assets/art/backgrounds/game_over.webm" preload="auto" loop muted playsinline></video>
   <div id="gameover-video-tint" aria-hidden="true"></div>
@@ -12633,7 +12633,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <div id="village-move-btns">
     <button type="button" class="btn rew-move-btn" id="village-depart-btn" data-sfx-silent="1"><span class="rew-btn-label">出発する</span></button>
   </div>
-  <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+  <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <!-- デバッグモードのみ表示。オプションボタンの直下に置く。 -->
   <button class="btn small" id="village-mute-btn" title="ミュート" data-sfx-silent="1" style="display:none">🔊</button>
   <button class="btn small" id="village-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" style="display:none">編成</button>
@@ -12655,7 +12655,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
       <span class="battle-status-label">ライフ</span><strong id="map-life">♥♥♥</strong>
     </div>
   </div>
-  <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('select',{group:'ui'})">⚙</button>
+  <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
 </div>
 
 <!-- MOVE SELECT (fallback / smithy-rest after) -->
