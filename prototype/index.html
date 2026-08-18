@@ -184,6 +184,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .title-menu-label{position:relative;z-index:1;line-height:128px}
 #scr-title.startup-title #title-select-back{left:300px;top:12px;transform:none;margin:0;opacity:1}
 #title-debug-button{display:none}
+#scr-title .title-copyright{top:2050px;width:100%;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:28px;letter-spacing:.08em;color:rgba(245,236,218,.82);text-align:center;white-space:nowrap;transition:opacity .6s ease 1.05s}
+#scr-title.startup-title-visible .title-copyright{opacity:1}
 
 /* BUTTONS */
 .btn{cursor:pointer;border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:.85rem;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
@@ -12368,6 +12370,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
     <button class="title-menu-item" type="button"><span class="title-menu-label">オプション</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">終了</span></button>
   </div>
+  <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
   <button id="title-debug-button" type="button" onclick="startGame(true)">DEBUG MODE</button>
 </div>
 
@@ -12709,7 +12712,7 @@ window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
 <script src="assets.js?v=tower46"></script>
-<script src="js/engine/audio.js?v=tower45"></script>
+<script src="js/engine/audio.js?v=tower46"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>

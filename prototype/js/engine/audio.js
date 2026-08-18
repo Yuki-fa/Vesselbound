@@ -542,7 +542,7 @@ document.addEventListener('click',ev=>{
 },true);
 document.addEventListener('pointerover',ev=>{
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
-  if(!btn||btn.disabled||btn.dataset.sfxSilent==='1') return;
+  if(!btn||btn.disabled) return;
   if(ev.relatedTarget&&btn.contains(ev.relatedTarget)) return;
-  playSfx('select',{guardKey:`ui:hover:${btn.id||btn.className||'button'}`,guardMs:80});
+  playSfx('select',{guardKey:'ui:hover',guardMs:80});
 },true);
