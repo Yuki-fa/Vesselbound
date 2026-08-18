@@ -1160,9 +1160,10 @@ function _startTitleBgm(){
   if(typeof playBgm==='function') playBgm('gameTitle',{fadeInMs:1200});
   if(!window._titleBgmRetryWired){
     window._titleBgmRetryWired=true;
-    document.addEventListener('pointerdown',()=>{
+    document.addEventListener('pointerdown',e=>{
       const title=document.getElementById('scr-title');
-      if(title&&title.classList.contains('startup-title-visible')) _startTitleBgm();
+      if(e.target&&e.target.closest&&e.target.closest('#title-options-btn')) return;
+      if(title&&title.classList.contains('startup-title-visible')&&!title.classList.contains('startup-menu-visible')) _startTitleBgm();
     },true);
   }
 }
