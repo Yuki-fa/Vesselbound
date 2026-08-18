@@ -149,6 +149,7 @@ const BGM_DEFAULT_START_TIMES={
   battle3:103,   // 1:43
   tower:97,      // 1:37
   gameTitle:97, // 1:37
+  villageStart:100, // 1:40
 };
 // opts.startTimeで指定された再生開始位置（秒）。初回再生のみで、2周目以降は曲の頭から鳴らす。
 let _bgmStartTime=0;
