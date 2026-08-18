@@ -1201,6 +1201,7 @@ function _revealTitleMenu(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  _startupIntroTimerIds.push(setTimeout(()=>title.classList.add('startup-menu-ready'),1250));
   _startTitleBgm();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
   if(loading) loading.classList.add('startup-brand-out');
