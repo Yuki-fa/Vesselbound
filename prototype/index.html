@@ -12536,6 +12536,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">🔊</button>
   <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">編成</button>
+  <button class="btn small" id="battle-debug-map-btn" title="マップ無限再生（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">マップ</button>
   <div id="reward-production-ui" aria-hidden="true">
     <div class="reward-prod-title">
       <img src="assets/ui/main_icon.svg" alt="">
@@ -12778,6 +12779,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
     </div>
   </div>
   <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
+  <button class="btn small" id="map-debug-map-btn" title="マップ無限再生を終了（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;right:180px;top:160px;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">終了</button>
 </div>
 
 <!-- MOVE SELECT (fallback / smithy-rest after) -->
@@ -12853,9 +12855,9 @@ fitVesselboundViewport();
 <script src="js/engine/battle.js?v=tower56"></script>
 <script src="js/engine/render.js?v=tower48"></script>
 <script src="js/engine/reward.js?v=tower46"></script>
-<script src="js/engine/map.js?v=tower49"></script>
+<script src="js/engine/map.js?v=tower50"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower56"></script>
+<script src="js/engine/main.js?v=tower57"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

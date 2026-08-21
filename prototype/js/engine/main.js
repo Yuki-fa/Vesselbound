@@ -287,6 +287,46 @@ function _positionDebugFormationButton(){
   btn.style.height=mute.offsetHeight+'px';
   btn.style.fontSize=Math.round(mute.offsetHeight*0.34)+'px';
 }
+function _positionDebugMapButton(){
+  const btn=document.getElementById('battle-debug-map-btn');
+  const form=document.getElementById('battle-formation-btn');
+  if(!btn||!form||btn.style.display==='none') return;
+  if(form.offsetWidth===0&&form.offsetHeight===0) return;
+  btn.style.left=form.offsetLeft+'px';
+  btn.style.top=(form.offsetTop+form.offsetHeight+20)+'px';
+  btn.style.width=form.offsetWidth+'px';
+  btn.style.height=form.offsetHeight+'px';
+  btn.style.fontSize=Math.round(form.offsetHeight*0.34)+'px';
+}
+function _setDebugMapButtonVisible(visible){
+  ['battle-debug-map-btn','map-debug-map-btn'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.style.display=visible?'':'none';
+  });
+  if(visible) requestAnimationFrame(_positionDebugMapButton);
+}
+function debugToggleMapLoop(){
+  if(typeof G==='undefined'||!G||!G._debugMode) return;
+  if(G._debugMapLoopActive){
+    G._debugMapLoopActive=false;
+    document.body.classList.remove('world-map-active');
+    const mapScreen=document.getElementById('scr-map');
+    if(mapScreen) mapScreen.classList.remove('active');
+    showScreen(G._debugMapLoopReturnScreen||'battle');
+    _setDebugMapButtonVisible(true);
+    return;
+  }
+  G._debugMapLoopActive=true;
+  G._debugMapLoopReturnScreen=document.querySelector('.screen.active')?.id.replace(/^scr-/,'')||'battle';
+  if(typeof _ensureWorldMap==='function') _ensureWorldMap();
+  const wave=Math.max(1,Number(G._wave)||1);
+  const stage=Math.max(1,Number(G._waveStage)||1);
+  const line=typeof worldMapActiveLine==='function'?worldMapActiveLine(wave,stage):1;
+  renderWorldMapScreen(line||1,wave,stage);
+  document.body.classList.add('world-map-active');
+  showScreen('map');
+  _setDebugMapButtonVisible(true);
+}
 // デバッグ用：どの画面からでも編成画面を開く。
 function debugOpenFormation(){
   if(typeof G==='undefined'||!G||!G._debugMode) return;
@@ -304,6 +344,7 @@ window.addEventListener('resize',()=>{
   _positionDebugRerollButton();
   _positionDebugMuteButton();
   _positionDebugFormationButton();
+  _positionDebugMapButton();
 });
 
 function _starterCardCandidates(category){
@@ -780,6 +821,7 @@ function startGame(debugMode){
     if(muteBtn) muteBtn.style.display='';
     const formBtn=document.getElementById('battle-formation-btn');
     if(formBtn) formBtn.style.display='';
+    _setDebugMapButtonVisible(true);
     log('[DEBUG] デバッグモード：ソウル100000','sys');
     requestAnimationFrame(_positionDebugKillButton);
     requestAnimationFrame(()=>{ _positionDebugMuteButton(); _positionDebugFormationButton(); });
@@ -790,6 +832,7 @@ function startGame(debugMode){
     if(muteBtn) muteBtn.style.display='none';
     const formBtn=document.getElementById('battle-formation-btn');
     if(formBtn) formBtn.style.display='none';
+    _setDebugMapButtonVisible(false);
   }
   G._waveLoopEnabled=true;
   // ゲーム開始地点は「風止みの村 リーゼ」（地域情報シートのステージ0）。

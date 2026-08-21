@@ -1617,6 +1617,7 @@ const WORLD_MAP_MOTION_PATHS={
 // すべての区間で光の移動速度をそろえる。最長区間を1.6秒（従来の
 // 3200msから約2倍速）で1周する基準とし、短い区間は比例して短くする。
 const WORLD_MAP_LINE_MAX_DURATION=1600;
+const WORLD_MAP_LINE_END_HOLD=280;
 let _worldMapMotionMaxLength=0;
 function _worldMapMotionMaxPathLength(){
   if(_worldMapMotionMaxLength>0) return _worldMapMotionMaxLength;
@@ -1664,11 +1665,12 @@ function _animateWorldMapLineProgress(line,durationMs){
   if(line._progressRaf) cancelAnimationFrame(line._progressRaf);
   const start=performance.now();
   const duration=Math.max(1,Number(durationMs)||1);
+  const cycleDuration=duration+WORLD_MAP_LINE_END_HOLD;
   const tick=now=>{
     if(!line.isConnected) return;
     const elapsed=Math.max(0,now-start);
-    const cycle=elapsed%duration;
-    const t=cycle===0&&elapsed>0?1:cycle/duration;
+    const cycle=elapsed%cycleDuration;
+    const t=cycle>=duration?1:cycle/duration;
     setWorldMapLineProgress(t,Number(line.dataset.line));
     line._progressRaf=requestAnimationFrame(tick);
   };
