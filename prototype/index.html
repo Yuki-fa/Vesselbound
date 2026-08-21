@@ -12188,10 +12188,10 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   -webkit-mask-size:100% 45%!important;
   mask-size:100% 45%!important;
 }
-.map-line.is-active.dir-lr::after{animation:mapLineFlowLR 1.6s linear infinite!important}
-.map-line.is-active.dir-rl::after{animation:mapLineFlowRL 1.6s linear infinite!important}
-.map-line.is-active.dir-bt::after{animation:mapLineFlowBT 1.6s linear infinite!important}
-.map-line.is-active.dir-tb::after{animation:mapLineFlowTB 1.6s linear infinite!important}
+.map-line.is-active.dir-lr::after{animation:mapLineFlowLR var(--map-line-flow-duration,1600ms) linear infinite!important}
+.map-line.is-active.dir-rl::after{animation:mapLineFlowRL var(--map-line-flow-duration,1600ms) linear infinite!important}
+.map-line.is-active.dir-bt::after{animation:mapLineFlowBT var(--map-line-flow-duration,1600ms) linear infinite!important}
+.map-line.is-active.dir-tb::after{animation:mapLineFlowTB var(--map-line-flow-duration,1600ms) linear infinite!important}
 @keyframes mapLineFlowLR{
   0%{-webkit-mask-position:-70% 50%;mask-position:-70% 50%;opacity:0}
   8%,92%{opacity:1}

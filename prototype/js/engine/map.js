@@ -1614,6 +1614,30 @@ const WORLD_MAP_MOTION_PATHS={
   7:'M630.71,21.91c-177.6,107.76-226.81,135.1-326.08,192.26-19.72,11.35-125.05,55.96-165,43C75.72,236.44,30.07,135.68,15.44,81.88',
   8:'M269.47,83.46c-60.39,77.46-155.5,92.31-209.2,73.19C-11.74,131.02-2.76,68.75,10.81,23.52',
 };
+// すべての区間で光の移動速度をそろえる。最長区間を1.6秒（従来の
+// 3200msから約2倍速）で1周する基準とし、短い区間は比例して短くする。
+const WORLD_MAP_LINE_MAX_DURATION=1600;
+let _worldMapMotionMaxLength=0;
+function _worldMapMotionMaxPathLength(){
+  if(_worldMapMotionMaxLength>0) return _worldMapMotionMaxLength;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('aria-hidden','true');
+  svg.style.cssText='position:absolute;width:0;height:0;visibility:hidden;pointer-events:none';
+  document.body.appendChild(svg);
+  Object.values(WORLD_MAP_MOTION_PATHS).forEach(d=>{
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',d);
+    svg.appendChild(path);
+    _worldMapMotionMaxLength=Math.max(_worldMapMotionMaxLength,path.getTotalLength()||0);
+  });
+  svg.remove();
+  return _worldMapMotionMaxLength||1;
+}
+function _worldMapLineAnimationDuration(line){
+  const length=line&&line._motionPath&&typeof line._motionPath.getTotalLength==='function'
+    ?line._motionPath.getTotalLength():0;
+  return Math.max(1,Math.round(WORLD_MAP_LINE_MAX_DURATION*length/_worldMapMotionMaxPathLength()));
+}
 function _mapLineTravelerSetProgress(progress,lineNumber){
   const line=document.querySelector(`#map-lines .map-line.is-active${lineNumber?`[data-line="${lineNumber}"]`:''}`);
   if(!line) return;
@@ -1718,12 +1742,15 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
       el.append(svg,traveler);
       el._motionPath=path;
       el._traveler=traveler;
+      const motionDuration=_worldMapLineAnimationDuration(el);
+      el.style.setProperty('--map-line-flow-duration',`${motionDuration}ms`);
+      el.dataset.motionDuration=String(motionDuration);
     }
     host.appendChild(el);
     if(def.n===active){
       const saved=G&&G._mapLineProgress&&G._mapLineProgress.line===def.n?G._mapLineProgress.value:0;
       _mapLineTravelerSetProgress(saved,def.n);
-      if(saved===0) _animateWorldMapLineProgress(el,3200);
+      if(saved===0) _animateWorldMapLineProgress(el,Number(el.dataset.motionDuration)||WORLD_MAP_LINE_MAX_DURATION);
     }
   });
   // 現在地マーク：発光しながら上下に揺れる。
