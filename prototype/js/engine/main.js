@@ -86,6 +86,7 @@ function updateHUD(){
     _positionDebugKillButton();
     _positionDebugMuteButton();
     _positionDebugFormationButton();
+    _positionDebugMapButton();
     if(typeof renderDebugRewardRerollButton==='function') renderDebugRewardRerollButton();
   }
 }
