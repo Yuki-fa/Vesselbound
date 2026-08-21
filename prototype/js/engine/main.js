@@ -332,6 +332,15 @@ function debugToggleMapLoop(){
 function debugOpenFormation(){
   if(typeof G==='undefined'||!G||!G._debugMode) return;
   if(G._villageIntroPlaying||G._pendingPanelPlacement) return;
+  // 戦闘中の非同期攻撃ループを、編成画面へ切り替えた後まで走らせない。
+  if(['battle','player','enemy','commander'].includes(G.phase)){
+    G._debugFormationAbort=true;
+    // 戦闘中だけ存在する召喚ユニットを編成画面へ持ち越さない。
+    // 残すと次回の開戦時に同じパネルカードが重複召喚される。
+    G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
+    G.enemies=(G.enemies||[]).map(u=>u&&u._panelSummoned?null:u);
+    document.body.classList.remove('battle-turn-active');
+  }
   document.body.classList.remove('village-screen-active','world-map-active');
   if(typeof _openWaveFormation==='function') _openWaveFormation();
 }
@@ -548,6 +557,7 @@ function _resumeRewardBgVideo(){
 function _openWaveFormation(){
   showScreen('battle');
   G.phase=null;
+  G._showGlobalPanels=true;
   G._waveVillage=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._facilityLabel='';
   // 祭壇（指輪交換）の状態も必ず解除する。残っていると次の報酬画面が

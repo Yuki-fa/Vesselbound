@@ -12157,36 +12157,36 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   -webkit-mask-repeat:no-repeat!important;
   mask-repeat:no-repeat!important;
   pointer-events:none!important;
+  overflow:visible!important;
   opacity:0;
 }
 .map-motion-path{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:visible!important;visibility:hidden!important;pointer-events:none!important}
-.map-line-traveler{
-  position:absolute!important;
-  left:0;
-  top:0;
-  width:34px!important;
-  height:34px!important;
-  margin:0!important;
-  border-radius:50%!important;
-  background:radial-gradient(circle,#fff 0 12%,#fff5c7 25%,rgba(255,205,75,.95) 44%,rgba(255,172,35,.35) 65%,transparent 100%)!important;
-  filter:drop-shadow(0 0 5px #fff) drop-shadow(0 0 14px rgba(255,242,170,.95)) drop-shadow(0 0 30px rgba(255,180,40,.8))!important;
-  transform-origin:50% 50%!important;
-  z-index:4!important;
-  pointer-events:none!important;
+#map-lines,.map-line,.map-motion-path,.map-motion-path svg,.map-motion-path path{overflow:visible!important}
+#scr-map.active,
+#map-lines,
+.map-line,
+.map-line::before,
+.map-line::after,
+.map-motion-path,
+.map-motion-path svg,
+.map-motion-path path{
+  overflow:visible!important;
+  contain:none!important;
+  clip-path:none!important;
 }
 .map-line.is-active.dir-lr::after,
 .map-line.is-active.dir-rl::after{
   -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
   mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
-  -webkit-mask-size:45% 100%!important;
-  mask-size:45% 100%!important;
+  -webkit-mask-size:45% 45%!important;
+  mask-size:45% 45%!important;
 }
 .map-line.is-active.dir-bt::after,
 .map-line.is-active.dir-tb::after{
   -webkit-mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
   mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.18) 26%,#000 50%,rgba(0,0,0,.18) 74%,transparent 100%)!important;
-  -webkit-mask-size:100% 45%!important;
-  mask-size:100% 45%!important;
+  -webkit-mask-size:45% 45%!important;
+  mask-size:45% 45%!important;
 }
 .map-line.is-active.dir-lr::after{animation:mapLineFlowLR var(--map-line-flow-duration,1600ms) linear infinite!important}
 .map-line.is-active.dir-rl::after{animation:mapLineFlowRL var(--map-line-flow-duration,1600ms) linear infinite!important}
@@ -12217,6 +12217,9 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   z-index:2!important;
   transform-origin:50% 100%!important;
   animation:mapMarkBob 1.8s ease-in-out infinite!important;
+  /* map_mark.svgに埋め込まれた矩形影をピン形状のマスクで除外する。 */
+  -webkit-mask:url("assets/ui/map_mark_glow.svg") center/100% 100% no-repeat!important;
+  mask:url("assets/ui/map_mark_glow.svg") center/100% 100% no-repeat!important;
 }
 .map-mark::before{
   content:''!important;
@@ -12239,6 +12242,19 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   0%{-webkit-mask-position:50% -70%;mask-position:50% -70%;opacity:0}
   8%,92%{opacity:1}
   100%{-webkit-mask-position:50% 170%;mask-position:50% 170%;opacity:0}
+}
+
+/* パス形状に沿う発光帯だけを表示（矩形マスクは無効化） */
+.map-line.is-active::after{display:none!important}
+.map-motion-path{visibility:visible!important}
+.map-motion-path path{
+  fill:none!important;
+  stroke:rgba(255,246,214,.82)!important;
+  stroke-width:6px!important;
+  stroke-linecap:round!important;
+  stroke-linejoin:round!important;
+  filter:drop-shadow(0 0 3px rgba(255,255,255,.95)) drop-shadow(0 0 10px rgba(255,214,104,.65)) drop-shadow(0 0 20px rgba(255,190,60,.35))!important;
+  overflow:visible!important;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -12852,12 +12868,12 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=tower56"></script>
+<script src="js/engine/battle.js?v=tower57"></script>
 <script src="js/engine/render.js?v=tower48"></script>
 <script src="js/engine/reward.js?v=tower46"></script>
-<script src="js/engine/map.js?v=tower50"></script>
+<script src="js/engine/map.js?v=tower56"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower58"></script>
+<script src="js/engine/main.js?v=tower60"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

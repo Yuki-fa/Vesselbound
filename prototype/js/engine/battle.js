@@ -832,6 +832,7 @@ async function playBattleOpeningSequence(){
 }
 
 async function startBattle(){
+  G._debugFormationAbort=false;
   G._battleDraw=false;
   document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
@@ -1113,7 +1114,7 @@ async function battlePhase(){
   // レーン単位のサイクルを陣営ごとに管理する（前衛全滅を待つ旧仕様は廃止）
   const enemyLaneState={lane:'front',attacked:new Set()};
   const allyLaneState={lane:'front',attacked:new Set()};
-  while(!_checkBattleOver()&&safety++<500&&!G._testBattleAbort){
+  while(!_checkBattleOver()&&safety++<500&&!G._testBattleAbort&&!G._debugFormationAbort){
     updateBattleSpeedMode();
     if(!_pickLaneAttacker(G.enemies,true,enemyLaneState)&&!_pickLaneAttacker(G.allies,false,allyLaneState)){
       G._battleDraw=true;
@@ -1142,6 +1143,7 @@ async function battlePhase(){
         log('敵の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
       }
       compactBattleUnits();
+      if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
       side='ally';
@@ -1165,12 +1167,14 @@ async function battlePhase(){
         log('味方の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
       }
       compactBattleUnits();
+      if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
       side='enemy';
       G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
     }
   }
+  if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
   if(G._testBattleAbort){ _exitTestBattle(); return; }
   if(safety>=500){
     log('戦闘が長引いたため停止しました','sys');

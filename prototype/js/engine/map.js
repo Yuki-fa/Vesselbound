@@ -1614,9 +1614,9 @@ const WORLD_MAP_MOTION_PATHS={
   7:'M630.71,21.91c-177.6,107.76-226.81,135.1-326.08,192.26-19.72,11.35-125.05,55.96-165,43C75.72,236.44,30.07,135.68,15.44,81.88',
   8:'M269.47,83.46c-60.39,77.46-155.5,92.31-209.2,73.19C-11.74,131.02-2.76,68.75,10.81,23.52',
 };
-// すべての区間で光の移動速度をそろえる。最長区間を1.6秒（従来の
-// 3200msから約2倍速）で1周する基準とし、短い区間は比例して短くする。
-const WORLD_MAP_LINE_MAX_DURATION=1600;
+// すべての区間で光の移動速度をそろえる。従来基準の75%速度として、
+// 最長区間を約2.13秒で1周する。短い区間は比例して短くする。
+const WORLD_MAP_LINE_MAX_DURATION=Math.round(1600/0.75);
 const WORLD_MAP_LINE_END_HOLD=280;
 let _worldMapMotionMaxLength=0;
 function _worldMapMotionMaxPathLength(){
@@ -1646,13 +1646,16 @@ function _mapLineTravelerSetProgress(progress,lineNumber){
   const traveler=line._traveler;
   if(!path||!traveler) return;
   const t=Math.max(0,Math.min(1,Number(progress)||0));
-  const p=path.getPointAtLength(path.getTotalLength()*t);
-  const next=path.getPointAtLength(Math.min(path.getTotalLength(),path.getTotalLength()*t+2));
+  const total=path.getTotalLength();
+  const p0=path.getPointAtLength(total*t);
+  const prev=path.getPointAtLength(Math.max(0,total*t-2));
+  const p=p0;
   const scaleX=(line.clientWidth||1)/(Number(line.dataset.viewW)||1);
   const scaleY=(line.clientHeight||1)/(Number(line.dataset.viewH)||1);
   traveler.style.left=`${p.x*scaleX}px`;
   traveler.style.top=`${p.y*scaleY}px`;
-  traveler.style.transform=`translate(-50%,-50%) rotate(${Math.atan2(next.y-p.y,next.x-p.x)}rad)`;
+  // 光球は位置だけをパスへ追従させ、発光の尾は常に画面上方向へ伸ばす。
+  traveler.style.transform='translate(-50%,-50%)';
   line.dataset.progress=String(t);
 }
 function setWorldMapLineProgress(progress,lineNumber){
@@ -1734,28 +1737,39 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
     el.style.width=`${def.w}px`;
     el.style.height=`${def.h}px`;
     el.style.setProperty('--map-line-img',`url("assets/ui/map_line/${def.n}.svg")`);
-    if(def.n===active&&WORLD_MAP_MOTION_PATHS[def.n]){
-      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.setAttribute('viewBox',`0 0 ${def.w} ${def.h}`);
-      svg.setAttribute('aria-hidden','true');
-      svg.classList.add('map-motion-path');
-      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('d',WORLD_MAP_MOTION_PATHS[def.n]);
-      svg.appendChild(path);
-      const traveler=document.createElement('span');
-      traveler.className='map-line-traveler';
-      el.append(svg,traveler);
-      el._motionPath=path;
-      el._traveler=traveler;
-      const motionDuration=_worldMapLineAnimationDuration(el);
-      el.style.setProperty('--map-line-flow-duration',`${motionDuration}ms`);
-      el.dataset.motionDuration=String(motionDuration);
-    }
+if(def.n===active&&WORLD_MAP_MOTION_PATHS[def.n]){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox',`0 0 ${def.w} ${def.h}`);
+  svg.setAttribute('aria-hidden','true');
+  svg.classList.add('map-motion-path');
+  svg.style.overflow='visible';
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',WORLD_MAP_MOTION_PATHS[def.n]);
+  svg.appendChild(path);
+  el.append(svg);
+  el._motionPath=path;
+  const motionDuration=_worldMapLineAnimationDuration(el);
+  el.style.setProperty('--map-line-flow-duration',`${motionDuration+WORLD_MAP_LINE_END_HOLD}ms`);
+  el.dataset.motionDuration=String(motionDuration);
+  requestAnimationFrame(()=>{
+    if(!path.isConnected) return;
+    const total=path.getTotalLength()||1;
+    const dashLen=Math.max(40,Math.min(140,total*.18));
+    const gapLen=Math.max(1,total);
+    const reverse=def.dir==='rl'||def.dir==='bt';
+    const from=reverse ? 0 : total+dashLen;
+    const to=reverse ? total+dashLen : -(total+dashLen);
+    path.style.strokeDasharray=`${dashLen} ${gapLen}`;
+    path.style.strokeDashoffset=`${from}px`;
+    path._flowAnimation=path.animate(
+      [{strokeDashoffset:`${from}px`},{strokeDashoffset:`${to}px`}],
+      {duration:motionDuration,iterations:Infinity,easing:'linear'}
+    );
+  });
+}
     host.appendChild(el);
     if(def.n===active){
-      const saved=G&&G._mapLineProgress&&G._mapLineProgress.line===def.n?G._mapLineProgress.value:0;
-      _mapLineTravelerSetProgress(saved,def.n);
-      if(saved===0) _animateWorldMapLineProgress(el,Number(el.dataset.motionDuration)||WORLD_MAP_LINE_MAX_DURATION);
+      // 発光帯はCSSアニメーションで再生成時に自動的に先頭から走り始める。
     }
   });
   // 現在地マーク：発光しながら上下に揺れる。
@@ -1772,6 +1786,11 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
 }
 // 街を出る → マップ画面を数秒表示 → フェードアウトして戦闘へ。
 async function _playWorldMapDeparture(done){
+  if(G._debugMapLoopActive){
+    G._debugMapLoopActive=false;
+    document.body.classList.remove('world-map-active');
+    document.getElementById('scr-map')?.classList.remove('active');
+  }
   if(G._worldMapScreenPlaying){ done(); return; }
   G._worldMapScreenPlaying=true;
   const fade=_ensureVillageEnterFadeEl();
