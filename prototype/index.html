@@ -52,6 +52,16 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   opacity:0!important;
   animation:none!important;
 }
+@keyframes battle-screen-shake-fallback{
+  0%{transform:scale(var(--game-scale)) translate3d(0,0,0)}
+  4%{transform:scale(var(--game-scale)) translate3d(var(--battle-shake-initial-x, calc(var(--battle-shake-distance) * -1)),var(--battle-shake-initial-y, calc(var(--battle-shake-distance) * .62)),0)}
+  20%{transform:scale(var(--game-scale)) translate3d(var(--battle-shake-distance),calc(var(--battle-shake-distance) * -.52),0)}
+  42%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * -.52),calc(var(--battle-shake-distance) * .3),0)}
+  66%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * .25),calc(var(--battle-shake-distance) * -.14),0)}
+  84%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * -.1),calc(var(--battle-shake-distance) * .06),0)}
+  100%{transform:scale(var(--game-scale)) translate3d(0,0,0)}
+}
+#scr-battle.battle-screen-shake{animation:battle-screen-shake-fallback var(--battle-shake-duration,180ms) ease-out both;transform-origin:center}
 @keyframes battle-start-effect-fade{0%,83%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
 #battle-start-intro{
   position:absolute!important;
@@ -166,6 +176,20 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-title::before{opacity:0!important;transition:opacity .8s ease!important}
 #scr-title.startup-title.startup-title-visible{opacity:1;pointer-events:auto}
 #scr-title.startup-title.startup-title-visible::before{opacity:1!important}
+#scr-title.startup-title #title-bg-video{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  left:0!important;
+  top:0!important;
+  transform:none!important;
+  object-fit:cover;
+  z-index:0!important;
+  opacity:.5!important;
+  pointer-events:none!important;
+  margin:0!important;
+}
 #scr-title.startup-title::after{
   content:'';
   display:block!important;
@@ -224,7 +248,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-title-visible .tap-to-start{opacity:1}
 #scr-title.startup-menu-visible .tap-to-start{opacity:0;transition:opacity .25s ease}
 @keyframes tap-to-start-float{0%,100%{transform:translateX(-50%) translateY(-9px)}50%{transform:translateX(-50%) translateY(9px)}}
-.title-menu-item:hover{color:#fff!important;opacity:1!important}
+#scr-title.startup-menu-hover-ready .title-menu-item:hover{color:#fff!important;opacity:1!important}
 #title-menu #title-debug-button{
   display:block;
   position:relative;
@@ -246,7 +270,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   pointer-events:auto;
 }
 #scr-title.startup-menu-visible #title-debug-button{opacity:.72;transform:translateY(0);transition-delay:.23s}
-#title-menu #title-debug-button:hover{color:#d8d8d8;opacity:1;transform:translateY(0)}
+#scr-title.startup-menu-hover-ready #title-debug-button:hover{color:#d8d8d8;opacity:1;transform:translateY(0)}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 #scr-title.startup-title:not(.startup-menu-visible) #title-select-back,
 #scr-title.startup-menu-visible:not(.startup-menu-ready) #title-select-back{opacity:0}
@@ -9290,6 +9314,13 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
   display:flex!important;
   align-items:center!important;
   justify-content:center!important;
+  font-family:'Cinzel',serif!important;
+  font-synthesis:none!important;
+  font-size:2.55rem!important;
+  font-weight:700!important;
+  line-height:1!important;
+  -webkit-text-stroke:2px #050507!important;
+  paint-order:stroke fill!important;
 }
 #kw-tooltip .journey-card-wrap > .card .card-summon-atk{
   left:var(--unit-stat-atk-left)!important;
@@ -9298,6 +9329,11 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
 #kw-tooltip .journey-card-wrap > .card .card-summon-hp{
   right:var(--unit-stat-hp-right)!important;
   left:auto!important;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-card .card-summon-atk,
+html body.reward-screen-active #debug-card-palette .debug-palette-card .card-summon-hp{
+  font-family:'Cinzel',serif!important;
+  font-synthesis:none!important;
 }
 #map-power-tooltip .preview-title,
 #kw-tooltip.map-tooltip .preview-title{color:#fff2c8!important;border-bottom-color:#4080b0!important}
@@ -12092,13 +12128,14 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
    到達済みのラインは暗く、現在移動中のラインだけ進行方向へ光が流れる。
    ══════════════════════════════════════════════════════════ */
 #scr-map.active{display:block!important;position:fixed!important;overflow:hidden!important}
-#map-lines{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important}
+#map-lines{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important;overflow:visible!important}
 /* 下地（::before）と光の帯（::after）を分ける。要素自体にopacityを掛けると
    ::after の光まで一緒に薄くなってしまうため、下地側だけを薄くする。 */
 .map-line{
   position:absolute!important;
   background:none!important;
   pointer-events:none!important;
+  overflow:visible!important;
 }
 .map-line::before{
   content:''!important;
@@ -12119,6 +12156,22 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   filter:brightness(2.6) drop-shadow(0 0 6px rgba(255,255,255,1)) drop-shadow(0 0 16px rgba(255,246,214,1)) drop-shadow(0 0 34px rgba(255,214,104,1)) drop-shadow(0 0 60px rgba(255,190,60,.8))!important;
   -webkit-mask-repeat:no-repeat!important;
   mask-repeat:no-repeat!important;
+  pointer-events:none!important;
+  opacity:0!important;
+}
+.map-motion-path{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:visible!important;visibility:hidden!important;pointer-events:none!important}
+.map-line-traveler{
+  position:absolute!important;
+  left:0;
+  top:0;
+  width:34px!important;
+  height:34px!important;
+  margin:0!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle,#fff 0 12%,#fff5c7 25%,rgba(255,205,75,.95) 44%,rgba(255,172,35,.35) 65%,transparent 100%)!important;
+  filter:drop-shadow(0 0 5px #fff) drop-shadow(0 0 14px rgba(255,242,170,.95)) drop-shadow(0 0 30px rgba(255,180,40,.8))!important;
+  transform-origin:50% 50%!important;
+  z-index:4!important;
   pointer-events:none!important;
 }
 .map-line.is-active.dir-lr::after,
@@ -12432,6 +12485,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
 
 <!-- TITLE -->
 <div id="scr-title" class="screen startup-title">
+  <video id="title-bg-video" src="assets/art/backgrounds/game_title.webm" preload="auto" loop muted playsinline aria-hidden="true"></video>
   <img class="startup-title-logo" src="assets/ui/title_logo.svg" alt="Vesselbound">
   <span class="title-logo-texture" aria-hidden="true"></span>
   <div class="tap-to-start">TAP TO START</div>
@@ -12796,12 +12850,12 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=rewardformula2"></script>
 <script src="js/engine/pool.js?v=newenchants1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=tower45"></script>
-<script src="js/engine/render.js?v=tower46"></script>
+<script src="js/engine/battle.js?v=tower56"></script>
+<script src="js/engine/render.js?v=tower48"></script>
 <script src="js/engine/reward.js?v=tower46"></script>
-<script src="js/engine/map.js?v=tower47"></script>
+<script src="js/engine/map.js?v=tower48"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower55"></script>
+<script src="js/engine/main.js?v=tower56"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

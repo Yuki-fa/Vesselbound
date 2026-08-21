@@ -1602,6 +1602,51 @@ const WORLD_MAP_LINES=[
   {n:7,x:2385,y:470, w:658.46, h:261,   dir:'rl'},
   {n:8,x:2059,y:488, w:292.25, h:165.67,dir:'rl'},
 ];
+// 表示用SVGはそのまま使い、各SVGの中心線だけを光の移動用に参照する。
+// 座標系は各SVGのviewBoxと同じなので、表示サイズに比例して配置できる。
+const WORLD_MAP_MOTION_PATHS={
+  1:'M587.13,262.07c-34.66,12.78-94.86,32.04-150.97,3.23C362.16,227.3,325.16,28.3,232.16,6.3,146.86-13.88,93.24,33.5,22.66,75.75',
+  2:'M151.53,167.62C58.13,159.53,3.62,132.44,1.51,84.51c-.3-6.92,5.49-34.78,26.98-63.03',
+  3:'M12.26,154.57L27.52,145.16C119.69,88.45,351.17-47.62,622.88,19.86c106.14,26.36,189.61,71.94,249.34,113.04L882.03,139.75',
+  4:'M23.41,63.11c23.12,19.38,72.51,24.45,110.01,28.73,105,12,313,3,520-10,147.09-9.24,278.18-25.99,541.09-67.24',
+  5:'M71.33,269.61c139.35-33.63,223.83-151.44,190.17-197.26C219.34,14.98,139.14,12.04,24.27,12.69',
+  6:'M151.99,371.22c-10.37-11.77-22.75-25.13-37.05-42.54C34.77,231.16-3.03,198.21,1.93,173.69c12.56-62.02,286.15-21.95,301-85,5-21.22-21.17-46.75-52.98-69.47',
+  7:'M630.71,21.91c-177.6,107.76-226.81,135.1-326.08,192.26-19.72,11.35-125.05,55.96-165,43C75.72,236.44,30.07,135.68,15.44,81.88',
+  8:'M269.47,83.46c-60.39,77.46-155.5,92.31-209.2,73.19C-11.74,131.02-2.76,68.75,10.81,23.52',
+};
+function _mapLineTravelerSetProgress(progress,lineNumber){
+  const line=document.querySelector(`#map-lines .map-line.is-active${lineNumber?`[data-line="${lineNumber}"]`:''}`);
+  if(!line) return;
+  const path=line._motionPath;
+  const traveler=line._traveler;
+  if(!path||!traveler) return;
+  const t=Math.max(0,Math.min(1,Number(progress)||0));
+  const p=path.getPointAtLength(path.getTotalLength()*t);
+  const next=path.getPointAtLength(Math.min(path.getTotalLength(),path.getTotalLength()*t+2));
+  const scaleX=(line.clientWidth||1)/(Number(line.dataset.viewW)||1);
+  const scaleY=(line.clientHeight||1)/(Number(line.dataset.viewH)||1);
+  traveler.style.left=`${p.x*scaleX}px`;
+  traveler.style.top=`${p.y*scaleY}px`;
+  traveler.style.transform=`translate(-50%,-50%) rotate(${Math.atan2(next.y-p.y,next.x-p.x)}rad)`;
+  line.dataset.progress=String(t);
+}
+function setWorldMapLineProgress(progress,lineNumber){
+  const n=Number(lineNumber)||Number(document.querySelector('#map-lines .map-line.is-active')?.dataset.line)||0;
+  if(G) G._mapLineProgress={line:n,value:Math.max(0,Math.min(1,Number(progress)||0))};
+  _mapLineTravelerSetProgress(progress,n);
+}
+function _animateWorldMapLineProgress(line,durationMs){
+  if(!line) return;
+  if(line._progressRaf) cancelAnimationFrame(line._progressRaf);
+  const start=performance.now();
+  const duration=Math.max(1,Number(durationMs)||1);
+  const tick=now=>{
+    const t=Math.max(0,Math.min(1,(now-start)/duration));
+    setWorldMapLineProgress(t,Number(line.dataset.line));
+    if(t<1) line._progressRaf=requestAnimationFrame(tick);
+  };
+  line._progressRaf=requestAnimationFrame(tick);
+}
 // 現在地マーク（ui/map_mark.svg、左上合わせのpx座標）。キーは worldMapActiveLine() の戻り値。
 // 2＝エルム後／3＝碧翠の塔後／4＝ヴァルガ後／5＝雷鳴の塔後／6＝ギャラハ後／
 // 7＝赤禍の塔後／8＝ヴォルザーク後／0＝蝕界の塔後（ラインのアニメーションは行わない）。
@@ -1652,12 +1697,34 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
     if(active>0&&def.n>active) return;
     const el=document.createElement('div');
     el.className=`map-line ${def.n===active?`is-active dir-${def.dir}`:'is-done'}`;
+    el.dataset.line=String(def.n);
+    el.dataset.viewW=String(def.w);
+    el.dataset.viewH=String(def.h);
     el.style.left=`${def.x}px`;
     el.style.top=`${def.y}px`;
     el.style.width=`${def.w}px`;
     el.style.height=`${def.h}px`;
     el.style.setProperty('--map-line-img',`url("assets/ui/map_line/${def.n}.svg")`);
+    if(def.n===active&&WORLD_MAP_MOTION_PATHS[def.n]){
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('viewBox',`0 0 ${def.w} ${def.h}`);
+      svg.setAttribute('aria-hidden','true');
+      svg.classList.add('map-motion-path');
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',WORLD_MAP_MOTION_PATHS[def.n]);
+      svg.appendChild(path);
+      const traveler=document.createElement('span');
+      traveler.className='map-line-traveler';
+      el.append(svg,traveler);
+      el._motionPath=path;
+      el._traveler=traveler;
+    }
     host.appendChild(el);
+    if(def.n===active){
+      const saved=G&&G._mapLineProgress&&G._mapLineProgress.line===def.n?G._mapLineProgress.value:0;
+      _mapLineTravelerSetProgress(saved,def.n);
+      if(saved===0) _animateWorldMapLineProgress(el,3200);
+    }
   });
   // 現在地マーク：発光しながら上下に揺れる。
   const mark=WORLD_MAP_MARKS[active];

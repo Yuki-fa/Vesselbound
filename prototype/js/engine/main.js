@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════
 function showScreen(id){
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
+  if(id==='title') _startTitleBgVideo();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');
   // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
@@ -1172,10 +1173,32 @@ function _wireTitleSelectBack(){
   const back=document.getElementById('title-select-back');
   if(!menu||!back||back.dataset.wired==='1') return;
   back.dataset.wired='1';
-  const move=btn=>{ back.style.top=`${btn.offsetTop+12}px`; };
+  const title=document.getElementById('scr-title');
+  const move=btn=>{
+    if(!title||!title.classList.contains('startup-menu-hover-ready')) return;
+    back.style.top=`${btn.offsetTop+12}px`;
+  };
   const items=menu.querySelectorAll('.title-menu-item,#title-debug-button');
   items.forEach(btn=>btn.addEventListener('pointerenter',()=>move(btn)));
-  if(items[0]) move(items[0]);
+  if(items[0]) back.style.top=`${items[0].offsetTop+12}px`;
+  if(title&&title.dataset.titleHoverGateWired!=='1'){
+    title.dataset.titleHoverGateWired='1';
+    title.addEventListener('pointermove',e=>{
+      if(!title.classList.contains('startup-menu-ready')) return;
+      title.classList.add('startup-menu-hover-ready');
+      const hovered=document.elementFromPoint(e.clientX,e.clientY);
+      const item=hovered&&hovered.closest?hovered.closest('.title-menu-item,#title-debug-button'):null;
+      if(item&&menu.contains(item)) move(item);
+    },{passive:true});
+  }
+}
+function _startTitleBgVideo(){
+  const video=document.getElementById('title-bg-video');
+  if(!video) return;
+  video.muted=true;
+  video.playbackRate=.5;
+  const promise=video.play();
+  if(promise&&typeof promise.catch==='function') promise.catch(()=>{});
 }
 function _finishStartupIntro(){
   if(_startupIntroSkipped) return;
@@ -1186,6 +1209,7 @@ function _finishStartupIntro(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible');
+  _startTitleBgVideo();
   _startTitleBgm();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
   if(loading) loading.classList.add('startup-brand-out');
@@ -1201,6 +1225,7 @@ function _revealTitleMenu(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  _startTitleBgVideo();
   _startupIntroTimerIds.push(setTimeout(()=>title.classList.add('startup-menu-ready'),1250));
   _startTitleBgm();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
@@ -1214,7 +1239,7 @@ function returnToTapStart(){
   _startupIntroTimerIds.forEach(id=>clearTimeout(id));
   _startupIntroTimerIds=[];
   _startupIntroSkipped=false;
-  title.classList.remove('startup-menu-visible','startup-menu-ready');
+  title.classList.remove('startup-menu-visible','startup-menu-ready','startup-menu-hover-ready');
   title.classList.add('active','startup-title','startup-title-visible');
   window.removeEventListener('pointerdown',_skipStartupIntro,true);
   window.addEventListener('pointerdown',_skipStartupIntro,true);
@@ -1242,6 +1267,7 @@ function _beginStartupIntro(){
   window.addEventListener('pointerdown',_skipStartupIntro,true);
   _startupIntroTimerIds.push(setTimeout(()=>{
     title.classList.add('active','startup-title-visible');
+    _startTitleBgVideo();
     _startTitleBgm();
     loading.classList.add('startup-brand-out');
   },1000));

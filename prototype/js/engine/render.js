@@ -368,7 +368,10 @@ function cardManaCostHtml(card){
   const path=_manaOrbPath();
   // 接続元のマナ効果（_extraManaCosts）はキャラクターにだけ表示する。
   // 強化カード同士を接続しても、接続先の強化カードへアイコンを複製しない。
-  const extraCosts=String(card.category||'')==='キャラクター'&&Array.isArray(card._extraManaCosts)?card._extraManaCosts:[];
+  const extraCosts=String(card.category||'')==='キャラクター'
+    ?(Array.isArray(card._extraManaCosts)?card._extraManaCosts:
+      (Array.isArray(card._extraManaThresholds)?card._extraManaThresholds.map(t=>Number(t&&t.cost)||0):[]))
+    :[];
   // 同じ必要マナの同一効果が複数接続されても、表示アイコンは1つだけにする。
   const costs=[...new Set([Number(card.manaCost)||0,...extraCosts].filter(v=>v>0))];
   if(path) costs.forEach((cost,i)=>{
@@ -1271,6 +1274,35 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     dst.style.setProperty('width',`${sr.width}px`,'important');
     dst.style.setProperty('height',`${sr.height}px`,'important');
   });
+  // 攻撃クローンはbody直下へ移すため、マナ数値（.activation-cost-entry b）が
+  // カード側の相対レイアウトを失うと巨大化することがある。元カードの実寸・文字サイズを
+  // そのままクローンへコピーして、通常表示と同じ大きさを維持する。
+  const srcCosts=fromEl.querySelector('.card-activation-costs');
+  const dstCosts=clone.querySelector('.card-activation-costs');
+  if(srcCosts&&dstCosts){
+    const srcCostRect=srcCosts.getBoundingClientRect();
+    const cloneRect=clone.getBoundingClientRect();
+    dstCosts.style.setProperty('left',`${srcCostRect.left-fr.left}px`,'important');
+    dstCosts.style.setProperty('top',`${srcCostRect.top-fr.top}px`,'important');
+    dstCosts.style.setProperty('width',`${srcCostRect.width}px`,'important');
+    dstCosts.style.setProperty('height',`${srcCostRect.height}px`,'important');
+    dstCosts.querySelectorAll('.activation-cost-entry').forEach((srcEntry,i)=>{
+      const dstEntry=clone.querySelectorAll('.activation-cost-entry')[i];
+      if(!dstEntry) return;
+      const er=srcEntry.getBoundingClientRect();
+      const b=srcEntry.querySelector('b');
+      const dstB=dstEntry.querySelector('b');
+      dstEntry.style.setProperty('left',`${er.left-srcCostRect.left}px`,'important');
+      dstEntry.style.setProperty('top',`${er.top-srcCostRect.top}px`,'important');
+      dstEntry.style.setProperty('width',`${er.width}px`,'important');
+      dstEntry.style.setProperty('height',`${er.height}px`,'important');
+      if(b&&dstB){
+        const bs=getComputedStyle(b);
+        dstB.style.setProperty('font-size',`${parseFloat(bs.fontSize)||19.84}px`,'important');
+        dstB.style.setProperty('line-height',bs.lineHeight||'1','important');
+      }
+    });
+  }
   const rr0=fromEl.getBoundingClientRect();
   const srcDirs=fromEl.querySelectorAll('.panel-dir');
   const dstDirs=clone.querySelectorAll('.panel-dir');
@@ -2241,6 +2273,9 @@ function _rawSubstitutedDesc(card){
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   if(card._tripleMerged&&!card._tripleDescApplied) desc=_doubleTripleMergedDesc(desc);
+  // 絆の巻物による合体は同じ効果を2回発動するため、表示上の効果量も2倍にする。
+  // マナ閾値そのもの（例：3マナ毎）は変更しない。
+  if(card._merged&&!card._tripleMerged) desc=_doubleTripleMergedDesc(desc);
   return desc;
 }
 function _doubleTripleMergedDesc(desc){
