@@ -1665,9 +1665,12 @@ function _animateWorldMapLineProgress(line,durationMs){
   const start=performance.now();
   const duration=Math.max(1,Number(durationMs)||1);
   const tick=now=>{
-    const t=Math.max(0,Math.min(1,(now-start)/duration));
+    if(!line.isConnected) return;
+    const elapsed=Math.max(0,now-start);
+    const cycle=elapsed%duration;
+    const t=cycle===0&&elapsed>0?1:cycle/duration;
     setWorldMapLineProgress(t,Number(line.dataset.line));
-    if(t<1) line._progressRaf=requestAnimationFrame(tick);
+    line._progressRaf=requestAnimationFrame(tick);
   };
   line._progressRaf=requestAnimationFrame(tick);
 }

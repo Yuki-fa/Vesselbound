@@ -12127,7 +12127,7 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
    map.jpgを全面に敷き、ui/map_line/*.svg を指定座標（左上合わせ）へ並べる。
    到達済みのラインは暗く、現在移動中のラインだけ進行方向へ光が流れる。
    ══════════════════════════════════════════════════════════ */
-#scr-map.active{display:block!important;position:fixed!important;overflow:hidden!important}
+#scr-map.active{display:block!important;position:fixed!important;overflow:visible!important}
 #map-lines{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important;overflow:visible!important}
 /* 下地（::before）と光の帯（::after）を分ける。要素自体にopacityを掛けると
    ::after の光まで一緒に薄くなってしまうため、下地側だけを薄くする。 */
@@ -12853,7 +12853,7 @@ fitVesselboundViewport();
 <script src="js/engine/battle.js?v=tower56"></script>
 <script src="js/engine/render.js?v=tower48"></script>
 <script src="js/engine/reward.js?v=tower46"></script>
-<script src="js/engine/map.js?v=tower48"></script>
+<script src="js/engine/map.js?v=tower49"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
 <script src="js/engine/main.js?v=tower56"></script>
 <script>
