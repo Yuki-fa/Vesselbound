@@ -70,7 +70,8 @@ const SFX_SETTINGS={
     fit:        {group:'reward', volume: 1.00, guardMs:80}, // -19.7
     'return':   {group:'ui',     volume: 1.00}, // -12.2
     reroll:     {group:'ui',     volume: .79},  // -10.0
-    purchase:   {group:'reward', volume: .86},  // -10.7
+    buy1:       {group:'reward', volume: .86},  // 魔導店購入
+    buy2:       {group:'reward', volume: .86},  // 道具屋購入
     attack:     {group:'combat', volume: .46, guardMs:80},  // -4.3
     shield:     {group:'combat', volume: .63, guardMs:80},  // -7.0
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
@@ -149,7 +150,7 @@ const BGM_DEFAULT_START_TIMES={
   battle3:103,   // 1:43
   tower:97,      // 1:37
   gameTitle:97, // 1:37
-  villageStart:100, // 1:40
+  villageStart:92, // 1:32
 };
 // opts.startTimeで指定された再生開始位置（秒）。初回再生のみで、2周目以降は曲の頭から鳴らす。
 let _bgmStartTime=0;
@@ -255,7 +256,8 @@ function playSfx(key,opts={}){
 // デバッグミュート（SFX_SETTINGS.masterVolume=0）もプレビュー無音化も効かない。
 // 音量は実測ラウドネスに合わせてここで一括管理する（目標-12dBFS。1.0でも届かない音源はそのまま）。
 const FILE_SFX_VOLUMES={
-  'assets/sfx/buy.wav':        .55,  // 音源 -8.9dBFS
+  'assets/sfx/buy1.wav':       .55,
+  'assets/sfx/buy2.wav':       .86,
   'assets/sfx/sell.wav':       .53,  // -8.5
   'assets/sfx/ring_get.wav':  1.00,  // -16.1（これ以上上げられない）
   'assets/sfx/item_get.wav':  1.00,  // -22.1（同上）
@@ -548,6 +550,8 @@ document.addEventListener('pointerover',ev=>{
   if(title&&title.classList.contains('startup-title')&&!title.classList.contains('startup-menu-visible')) return;
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
   if(!btn||btn.disabled) return;
+  // デバッグカードは一覧上をなぞるだけで選択音を鳴らさない。
+  if(btn.closest('#debug-card-palette .debug-palette-item')) return;
   if(ev.relatedTarget&&btn.contains(ev.relatedTarget)) return;
   playSfx('select',{guardKey:'ui:hover',guardMs:80});
 },true);

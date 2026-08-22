@@ -116,9 +116,9 @@ const PANEL_POOL=[
   {id:'panel_hydra',no:'050',name:'ハイドラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'竜',power:7,life:7,desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
   {id:'panel_scylla',no:'051',name:'スキュラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:4,life:8,manaCost:3,manaRepeat:true,desc:'3マナ毎：全ての敵に毒12を与える。'},
   {id:'panel_naga',no:'052',name:'ナーガ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'竜',power:4,life:5,desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
-  {id:'panel_elven_mage',no:'063',name:'エルヴンメイジ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:2,life:4,desc:'攻撃：全ての黄キャラクターは+1/+1を得る。'},
+  {id:'panel_elven_mage',no:'065',name:'エルヴンメイジ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:2,life:4,desc:'攻撃：全ての黄キャラクターは+1/+1を得る。'},
   {id:'panel_titania',no:'064',name:'タイタニア',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:3,life:5,desc:'常時：味方の攻撃回数は1回追加される。'},
-  {id:'panel_ketshi',no:'065',name:'ケットシー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'獣',power:2,life:3,desc:'負傷：「黄ナイトキャット」を召喚する。'},
+  {id:'panel_ketshi',no:'074',name:'ケットシー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'獣',power:2,life:3,desc:'負傷：「黄ナイトキャット」を召喚する。'},
   {id:'panel_knight_cat',name:'ナイトキャット',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'獣',power:1,life:2,keywords:['結界1'],desc:'結界1\n（他の効果で召喚される「黄ナイトキャット」も同じ強化を得る）'},
   {id:'panel_carbuncle',no:'066',name:'カーバンクル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:1,life:5,desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
   {id:'panel_elemental',no:'067',name:'エレメンタル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:5,life:5,desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
@@ -155,8 +155,9 @@ const PANEL_POOL=[
   {id:'panel_healing_trait',no:'024',name:'治癒能力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['治癒能力'],desc:'負傷：HP+2を得る。'},
   {id:'panel_legacy',name:'遺産',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'死亡：1ゴールドを得る。'},
   {id:'panel_origin_seed',name:'マナの種',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：このキャラクターのマナ効果は1回追加で発動する。'},
-  {id:'panel_jade_vase',no:'013',name:'翡翠の壺',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:200,desc:'高く売れそうだ。（200Gで売れる。）'},
-  {id:'panel_golden_vase',no:'014',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:400,desc:'高く売れそうだ。（400Gで売れる。）'},
+  {id:'panel_jade_vase',no:'013',name:'翡翠の壺',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:200,keywords:['荷物'],desc:'荷物\n高く売れそうだ。（200Gで売れる。）'},
+  {id:'panel_golden_vase',no:'014',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:400,keywords:['荷物'],desc:'荷物\n高く売れそうだ。（400Gで売れる。）'},
+  {id:'panel_magic_mirror',name:'魔鏡',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,keywords:['荷物'],desc:'荷物\n荷物以外の全てのカードの3枚目として合体できる。'},
   {id:'panel_grace',name:'恩寵',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['恩寵'],desc:'常時：このキャラクターの開戦効果は1回追加で発動する。'},
   {id:'panel_copy',name:'複製',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：接続している強化カードに変化する。'},
   {id:'panel_alchemy',name:'錬成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：ランダムなアイテムを得る。'},
@@ -197,14 +198,14 @@ const ITEM_POOL=[
   {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/art/item/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
   {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/art/item/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
   {id:'item_shield_scroll',no:'003',name:'盾の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'shield_scroll',art:'assets/art/item/I003.jpg',desc:'対象のキャラクターに結界1を永久付与する。'},
-  {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/art/item/I004.jpg',desc:'最も近い村にワープする。'},
+  {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/art/item/I004.jpg',desc:'対象のキャラクターに復活を永久付与する。'},
   {id:'item_giant_scroll',no:'005',name:'巨大化の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'giant_scroll',art:'assets/art/item/I005.jpg',desc:'対象のキャラクターに+5/+5を永久付与する。'},
-  {id:'item_meteor_scroll',no:'006',name:'隕石の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'meteor_scroll',art:'assets/art/item/I006.jpg',desc:'対象のマスに隕石を落とす。敵なら戦力半減、それ以外なら空白マスになる。'},
+  {id:'item_meteor_scroll',no:'006',name:'隕石の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'meteor_scroll',art:'assets/art/item/I006.jpg',desc:'次の戦闘開始時、隕石を落とす。全ての敵にHPの半分のダメージを与える。重複不可。'},
   {id:'item_sacrifice_doll',no:'007',name:'生贄人形',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'sacrifice_doll',art:'assets/art/item/I007.jpg',desc:'キャラクターを1枚破壊し、別のキャラクターが持つ封印の値を永久に1減らす。'},
   {id:'item_weakening_scroll',no:'008',name:'衰弱の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/art/item/I008.jpg',desc:'キャラクターを1枚破壊し、ランダムな召喚の力マスを永劫の力マスに変化させる。'},
-  {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/art/item/I009.jpg',desc:'マップ上で見えている任意の場所にワープする。ターンを消費しない。'},
+  {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/art/item/I009.jpg',desc:'直前の村にワープする。再出発時は現在位置の次の場所に移動する。'},
   {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/art/item/I010.jpg',desc:'所持金を2倍にする。'},
-  {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/item/I011.jpg',desc:'制限ターンを5増やす。'},
+  {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/item/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。'},
   {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/item/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
 ];
 
@@ -403,7 +404,8 @@ function cardRefund(card){
 
 function drawItems(n, maxGrade){
   const currentGrade=_currentRewardMapGrade(maxGrade);
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&p._rewardExcluded!==true);
+  const excluded=G._isShop?p=>p._shopExcluded===true:p=>p._rewardExcluded===true;
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!excluded(p));
   const res=[];
   const used=new Set();
   let t=0;

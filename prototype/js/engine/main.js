@@ -83,10 +83,15 @@ function updateHUD(){
   if(typeof _syncMoneyTurnTile==='function') _syncMoneyTurnTile();
   if(typeof renderBattleCounters==='function') renderBattleCounters();
   if(G._debugMode){
-    _positionDebugKillButton();
-    _positionDebugMuteButton();
-    _positionDebugFormationButton();
-    _positionDebugMapButton();
+    // 画面切り替え直後はCSS適用前でoffsetが確定していないため、次フレームで位置を測る。
+    // ここで即時計測すると、編成画面へ入った直後にデバッグボタンが一度上へ跳ねる。
+    requestAnimationFrame(()=>{
+      if(typeof G==='undefined'||!G||!G._debugMode) return;
+      _positionDebugKillButton();
+      _positionDebugMuteButton();
+      _positionDebugFormationButton();
+      _positionDebugMapButton();
+    });
     if(typeof renderDebugRewardRerollButton==='function') renderDebugRewardRerollButton();
   }
 }
@@ -630,7 +635,9 @@ function _startWaveBattle(stage){
     battleHost.classList.add(type==='elite'||type==='boss'?'battle-bg-reveal':'battle-bg-normal');
   }
   // 敗北時、どの画面（村/祭壇/通常の報酬画面）の開始時点までやり直すかを記録しておく。
-  G._waveDefeatReturnTo=G._isWaveAltar?'altar':(G._waveVillage?'village':'reward');
+  // 村／祭壇を出た直後の戦闘で敗北した場合は、施設へ戻さず報酬付き編成画面へ送る。
+  // それ以外の敗北は従来どおり、直前の画面種別へ戻す。
+  G._waveDefeatReturnTo='reward';
   G._waveVillage=false;
   G._isWaveAltar=false;
   // 戦闘開始時は村・祭壇・施設メニューを必ず閉じる。Scene 2以降の
@@ -1279,6 +1286,9 @@ function _revealTitleMenu(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  // TAP TO STARTの同じ入力が、表示直後の先頭メニューへ誤って届かないよう短時間だけ入力を止める。
+  title.classList.add('startup-menu-input-locked');
+  window.setTimeout(()=>title.classList.remove('startup-menu-input-locked'),700);
   _startTitleBgVideo();
   _startupIntroTimerIds.push(setTimeout(()=>title.classList.add('startup-menu-ready'),1250));
   _startTitleBgm();
@@ -1293,6 +1303,7 @@ function returnToTapStart(){
   _startupIntroTimerIds.forEach(id=>clearTimeout(id));
   _startupIntroTimerIds=[];
   _startupIntroSkipped=false;
+  title.classList.remove('startup-menu-input-locked');
   title.classList.remove('startup-menu-visible','startup-menu-ready','startup-menu-hover-ready');
   title.classList.add('active','startup-title','startup-title-visible');
   window.removeEventListener('pointerdown',_skipStartupIntro,true);

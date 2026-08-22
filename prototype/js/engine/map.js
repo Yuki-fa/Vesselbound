@@ -18,7 +18,7 @@ function _pickWorldMapStartId(){
 const MAP_PANEL_POWERS=[
   {id:'summon',name:'召喚の力',price:200,desc:'置いたカードがキャラクターなら開戦時に場に出る。'},
   {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターなら、開戦時に場に出してHPを2倍にする。'},
-  {id:'eternal',name:'永劫の力',price:600,desc:'置いたカードがキャラクターなら永久に+5/+5してから場に出る。'},
+  {id:'eternal',name:'永劫の力',price:600,desc:'置いたカードがキャラクターなら、開戦時に場に出して永久に+1/+1を与える。'},
   {id:'resonance',name:'共鳴の力',price:800,desc:'置いたカードがキャラクターなら、開戦時に場に出して全ての同色の味方に+3/+3を与える。'},
   {id:'duplicate',name:'複製の力',price:1000,desc:'置いたカードがキャラクターなら、開戦時に場に出てコピーを1体生成する。'},
 ];
@@ -43,6 +43,8 @@ function _applyMapPanelPowerSheetRows(){
     const desc=String(row['効果']||row['説明']||row['説明文']||'').trim();
     if(desc) target.desc=desc;
   });
+  const eternal=MAP_PANEL_POWERS.find(p=>p.id==='eternal');
+  if(eternal) eternal.desc='置いたカードがキャラクターなら、開戦時に場に出して永久に+1/+1を与える。';
 }
 _applyMapPanelPowerSheetRows();
 
@@ -640,15 +642,7 @@ function handlePendingMapItemNode(nodeId){
   const node=_mapNodeById(nodeId);
   if(!pending||!node||!node.visible) return false;
   if(pending.key==='portal_scroll'){
-    G.worldMap.current=node.id;
-    G.worldMap.moveHistory=[node.id];
-    node.visited=true;
-    _consumePendingMapItemUse();
-    _revealAroundCurrentMapNode();
-    log('ポータルの巻物でワープした。','gold');
-    renderWorldMap();
-    updateHUD();
-    return true;
+    return warpToNearestVillage();
   }
   if(pending.key==='meteor_scroll'){
     if(['battle','elite','boss'].includes(node.type)){
@@ -669,16 +663,18 @@ function handlePendingMapItemNode(nodeId){
 function warpToNearestVillage(){
   const m=G.worldMap;
   if(!m) return false;
-  const villages=(m.nodes||[]).filter(n=>n&&n.type==='village');
-  if(!villages.length) return false;
-  const cur=m.current;
-  villages.sort((a,b)=>_mapGraphDistance(cur,a.id)-_mapGraphDistance(cur,b.id));
-  const target=villages[0];
+  const history=Array.isArray(m.moveHistory)?m.moveHistory:[];
+  const currentIndex=history.lastIndexOf(m.current);
+  const priorIds=history.slice(0,currentIndex<0?history.length:currentIndex).reverse();
+  const target=priorIds.map(id=>_mapNodeById(id)).find(n=>n&&n.type==='village')
+    ||(m.nodes||[]).find(n=>n&&n.type==='village'&&n.id===m.intermediateVillageId);
   if(!target) return false;
   m.current=target.id;
+  m.moveHistory=[target.id];
   target.visited=true;
   _revealAroundCurrentMapNode();
-  log('幻視の巻物で最も近い村へワープした。','gold');
+  _consumePendingMapItemUse();
+  log('幻視の巻物で直前の村へワープした。','gold');
   goToWorldMap();
   return true;
 }
@@ -1130,7 +1126,7 @@ function getVillageBackgroundKey(){
 // 街ごとに背景の真上へ重ねる効果動画（未定義のステージは動画なし）。
 // 値は文字列（既定レート0.3）または {src,rate}。
 const VILLAGE_BG_VIDEOS={
-  // 0（リーゼ）は動画なし。未定義のステージは_syncVillageBgVideo()が動画を止めて非表示にする。
+  // 0（リーゼ）は背景動画のみを表示する。
   // layer2Opacity：2枚目だけ不透明度を変える（未指定ならCSSの50%のまま＝塔と同じ濃さ）。
   1:{src:'assets/art/backgrounds/village_forest.webm',rate:0.3,layers:2,layer2Opacity:0.25},
   3:'assets/art/backgrounds/village_valley.webm',
@@ -1169,7 +1165,7 @@ function _applyFacilityBackground(facKey){
 // 街ごとのBGM（Assets.sfxのキー・再生開始位置・重ねる環境音）。未定義のステージはメニュー曲のまま。
 // 開始位置は初回のみで、ループ2周目以降は曲の頭から鳴る。
 const VILLAGE_BGM={
-  0:{key:'villageStart',   startTime:100}, // リーゼ 1:40
+  0:{key:'villageStart',   startTime:92}, // リーゼ 1:32
   1:{key:'villageForest',  startTime:81},  // エルム 1:21
   2:{key:'villageGrassland',startTime:70}, // ヴァルガ 1:10
   3:{key:'villageValley',  startTime:75},  // ギャラハ 1:15
@@ -1280,7 +1276,7 @@ function _syncVillageBgVideo(){
   const el=document.getElementById('village-bg-video');
   const el2=document.getElementById('village-bg-video-2');
   if(!el) return;
-  // ステージ0（リーゼ）は動画なし。Math.max(1,…)にするとステージ1の動画を拾ってしまう。
+  // ステージ0（リーゼ）は専用動画を使う。Math.max(1,…)にするとステージ1の動画を拾ってしまう。
   const wave=Math.max(0,Number(G&&G._wave)||0);
   const def=(G&&G._isWaveAltar)?TOWER_BG_VIDEO:(VILLAGE_BG_VIDEOS[wave]||'');
   const src=typeof def==='string'?def:(def&&def.src||'');
@@ -1289,6 +1285,11 @@ function _syncVillageBgVideo(){
   const layers=(def&&typeof def==='object'&&Number(def.layers))||1;
   _applyBgVideoEl(el,src,rate);
   _applyBgVideoEl(el2,(src&&layers>=2)?src:'',rate);
+  const isSoftlight=!!(def&&typeof def==='object'&&def.blend==='soft-light');
+  [el,el2].forEach(v=>{
+    if(!v) return;
+    v.classList.toggle('village-bg-softlight',isSoftlight);
+  });
   // 2枚目の濃さ。指定が無ければCSSの既定（50%）に戻す。
   const layer2Opacity=(def&&typeof def==='object')?def.layer2Opacity:null;
   if(el2){
@@ -1297,6 +1298,13 @@ function _syncVillageBgVideo(){
   }
   // 2枚目は1枚目と再生位置を合わせる（ずれると別々の明滅に見えて「2重」にならない）。
   if(el2&&src&&layers>=2) _syncBgVideoLayerTime(el,el2);
+  // 画面切り替え直後にChromeが非表示動画を一時停止することがあるため、表示後にも再生を再試行する。
+  const resume=()=>{
+    if(!el.classList.contains('is-active')) return;
+    try{ if(el.paused) void Promise.resolve(el.play()).catch(()=>{}); }catch(_e){}
+  };
+  if(typeof requestAnimationFrame==='function') requestAnimationFrame(resume);
+  setTimeout(resume,120);
 }
 // 2枚目の再生位置を1枚目へ合わせ続ける。読み込み直後と、ずれが目立つ時だけ補正する
 // （毎回代入するとシークが連続して再生がガタつくため）。
@@ -1593,26 +1601,26 @@ async function _onVillageFacility(fac){
 // 移動方向（lr=左から右／rl=右から左／bt=下から上／tb=上から下）。
 // w/h は各SVGのviewBox寸法。
 const WORLD_MAP_LINES=[
-  {n:1,x:1142,y:1424,w:616.28, h:281.81,dir:'rl'},
-  {n:2,x:618, y:1276,w:181.53, h:181.58,dir:'bt'},
-  {n:3,x:745, y:1020,w:894.21, h:166.96,dir:'lr'},
-  {n:4,x:1965,y:1292,w:1218.57,h:98.97, dir:'lr'},
-  {n:5,x:3219,y:990, w:270.39, h:286.18,dir:'bt'},
-  {n:6,x:2850,y:466, w:305.05, h:397.28,dir:'bt'},
-  {n:7,x:2385,y:470, w:658.46, h:261,   dir:'rl'},
-  {n:8,x:2059,y:488, w:292.25, h:165.67,dir:'rl'},
+  {n:1,x:1142,y:1424,w:621.3,  h:286.8, dir:'rl'},
+  {n:2,x:618, y:1276,w:186.5,  h:186.6, dir:'bt'},
+  {n:3,x:745, y:1020,w:899.2,  h:174,   dir:'lr'},
+  {n:4,x:1965,y:1292,w:1223.6, h:104,   dir:'lr'},
+  {n:5,x:3219,y:990, w:275.4,  h:291.2, dir:'bt'},
+  {n:6,x:2850,y:466, w:310,    h:402.3, dir:'bt'},
+  {n:7,x:2385,y:470, w:663.5,  h:264,   dir:'rl'},
+  {n:8,x:2059,y:488, w:297.2,  h:170.7, dir:'rl'},
 ];
 // 表示用SVGはそのまま使い、各SVGの中心線だけを光の移動用に参照する。
 // 座標系は各SVGのviewBoxと同じなので、表示サイズに比例して配置できる。
 const WORLD_MAP_MOTION_PATHS={
-  1:'M587.13,262.07c-34.66,12.78-94.86,32.04-150.97,3.23C362.16,227.3,325.16,28.3,232.16,6.3,146.86-13.88,93.24,33.5,22.66,75.75',
-  2:'M151.53,167.62C58.13,159.53,3.62,132.44,1.51,84.51c-.3-6.92,5.49-34.78,26.98-63.03',
-  3:'M12.26,154.57L27.52,145.16C119.69,88.45,351.17-47.62,622.88,19.86c106.14,26.36,189.61,71.94,249.34,113.04L882.03,139.75',
-  4:'M23.41,63.11c23.12,19.38,72.51,24.45,110.01,28.73,105,12,313,3,520-10,147.09-9.24,278.18-25.99,541.09-67.24',
-  5:'M71.33,269.61c139.35-33.63,223.83-151.44,190.17-197.26C219.34,14.98,139.14,12.04,24.27,12.69',
-  6:'M151.99,371.22c-10.37-11.77-22.75-25.13-37.05-42.54C34.77,231.16-3.03,198.21,1.93,173.69c12.56-62.02,286.15-21.95,301-85,5-21.22-21.17-46.75-52.98-69.47',
-  7:'M630.71,21.91c-177.6,107.76-226.81,135.1-326.08,192.26-19.72,11.35-125.05,55.96-165,43C75.72,236.44,30.07,135.68,15.44,81.88',
-  8:'M269.47,83.46c-60.39,77.46-155.5,92.31-209.2,73.19C-11.74,131.02-2.76,68.75,10.81,23.52',
+  1:'M589.6,264.6c-34.7,12.8-94.9,32-151,3.2C364.7,229.8,327.7,30.8,234.7,8.8,149.4-11.4,95.7,36,25.2,78.3',
+  2:'M154,170.1C60.6,162,6.1,134.9,4,87c-.3-6.9,5.5-34.8,27-63',
+  3:'M14.8,158.1c1.6-1,3.3-2.1,5.1-3.1L30,148.7C122.2,91.9,353.7-44.1,625.4,23.4c106.1,26.4,189.6,71.9,249.3,113',
+  4:'M25.9,65.6c23.1,19.4,72.5,24.4,110,28.7,105,12,313,3,520-10,147.1-9.2,278.2-26,541.1-67.2',
+  5:'M73.8,272.1c139.4-33.6,223.8-151.4,190.2-197.3C221.8,17.5,141.6,14.5,26.8,15.2',
+  6:'M154.5,373.7c-10.4-11.8-22.8-25.1-37.1-42.5C37.3,233.7-.5,200.7,4.4,176.2c12.6-62,286.1-21.9,301-85,5-21.2-21.2-46.8-53-69.5',
+  7:'M633.2,22.4c-177.6,107.8-226.8,135.1-326.1,192.3-19.7,11.4-125.1,56-165,43C78.2,237,28.6,136.3,14,82.5',
+  8:'M272,86c-60.4,77.5-155.5,92.3-209.2,73.2C-9.2,133.5-.3,71.3,13.3,26',
 };
 // すべての区間で光の移動速度をそろえる。従来基準の75%速度として、
 // 最長区間を約2.13秒で1周する。短い区間は比例して短くする。
@@ -1737,40 +1745,20 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
     el.style.width=`${def.w}px`;
     el.style.height=`${def.h}px`;
     el.style.setProperty('--map-line-img',`url("assets/ui/map_line/${def.n}.svg")`);
-if(def.n===active&&WORLD_MAP_MOTION_PATHS[def.n]){
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('viewBox',`0 0 ${def.w} ${def.h}`);
-  svg.setAttribute('aria-hidden','true');
-  svg.classList.add('map-motion-path');
-  svg.style.overflow='visible';
-  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d',WORLD_MAP_MOTION_PATHS[def.n]);
-  svg.appendChild(path);
-  el.append(svg);
-  el._motionPath=path;
-  const motionDuration=_worldMapLineAnimationDuration(el);
-  el.style.setProperty('--map-line-flow-duration',`${motionDuration+WORLD_MAP_LINE_END_HOLD}ms`);
-  el.dataset.motionDuration=String(motionDuration);
-  requestAnimationFrame(()=>{
-    if(!path.isConnected) return;
-    const total=path.getTotalLength()||1;
-    const dashLen=Math.max(40,Math.min(140,total*.18));
-    const gapLen=Math.max(1,total);
-    const reverse=def.dir==='rl'||def.dir==='bt';
-    const from=reverse ? 0 : total+dashLen;
-    const to=reverse ? total+dashLen : -(total+dashLen);
-    path.style.strokeDasharray=`${dashLen} ${gapLen}`;
-    path.style.strokeDashoffset=`${from}px`;
-    path._flowAnimation=path.animate(
-      [{strokeDashoffset:`${from}px`},{strokeDashoffset:`${to}px`}],
-      {duration:motionDuration,iterations:Infinity,easing:'linear'}
-    );
-  });
-}
-    host.appendChild(el);
-    if(def.n===active){
-      // 発光帯はCSSアニメーションで再生成時に自動的に先頭から走り始める。
+    if(def.n===active&&WORLD_MAP_MOTION_PATHS[def.n]){
+      // 表示用のSVG全体を重ねるため、光の速度だけ中心線の長さから算出する。
+      const measureSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      measureSvg.setAttribute('aria-hidden','true');
+      measureSvg.style.cssText='position:absolute;width:0;height:0;visibility:hidden;pointer-events:none';
+      const measurePath=document.createElementNS('http://www.w3.org/2000/svg','path');
+      measurePath.setAttribute('d',WORLD_MAP_MOTION_PATHS[def.n]);
+      measureSvg.appendChild(measurePath);
+      document.body.appendChild(measureSvg);
+      const motionDuration=_worldMapLineAnimationDuration({_motionPath:measurePath});
+      measureSvg.remove();
+      el.style.setProperty('--map-line-flow-duration',`${motionDuration+WORLD_MAP_LINE_END_HOLD}ms`);
     }
+    host.appendChild(el);
   });
   // 現在地マーク：発光しながら上下に揺れる。
   const mark=WORLD_MAP_MARKS[active];
@@ -2090,6 +2078,7 @@ function openMapVillage(options){
   G._ringOfferPhase=false;
   G._facilityLabel='';
   G.phase='reward';
+  // 入場フェード中から蝶のデコード・再生を始め、画面表示後の遅延をなくす。
   // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。
   const build=()=>{
     _applyFacilityBackground(null);

@@ -325,13 +325,20 @@ function _releaseRepeatCount(unit,isEnemySide){
   // 起源の種：開戦：このキャラクターが本来持つ、キーワード以外の効果を得る。（このキャラクター自身の
   // 解放効果が1回追加で発動する）
   const originSeedExtra=_unitEffectPanelCount(unit,'マナの種');
-  return 1+ringExtra+originSeedExtra+(Number(unit._effectRepeatBonus)||0);
+  return 1+ringExtra+originSeedExtra+_unitKeywordCount(unit,'禁断の力')+(Number(unit._effectRepeatBonus)||0);
 }
 
 async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
   if(!unit||unit.hp<=0) return;
   const hasName=name=>_unitHasEffectName(unit,name);
   const foes=isEnemySide?G.allies:G.enemies;
+  const releasePanel=(unit.equipment||[]).find(p=>p&&(p.releaseAtkBonus||p.releaseHpBonus));
+  const releaseAtk=Number(unit._releaseAtkBonus)||Number(releasePanel?.releaseAtkBonus)||0;
+  const releaseHp=Number(unit._releaseHpBonus)||Number(releasePanel?.releaseHpBonus)||0;
+  if(releaseAtk||releaseHp){
+    _addBattleStats(unit,releaseAtk,releaseHp,isEnemySide?'enemy':'ally');
+    log(`${_lc(unit.name,isEnemySide)}の解放効果で+${releaseAtk}/+${releaseHp}を得た。`,isEnemySide?'bad':'good');
+  }
   if(hasName('アークデーモン')){
     const atk=(sacrificed||[]).reduce((s,u)=>s+Math.max(0,Number(u.atk)||0),0);
     const hp=(sacrificed||[]).reduce((s,u)=>s+Math.max(0,Number(u.maxHp??u.hp)||0),0);
@@ -456,7 +463,7 @@ function _handleVictory(){
 // ATKを増加させる共通関数
 function addUnitAtk(unit, amount){
   if(!unit||amount<=0) return 0;
-  const total = amount;
+  const total = amount + (_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?1:0);
   unit.atk += total;
   unit.baseAtk = (unit.baseAtk||0) + total;
   return total;
@@ -464,9 +471,13 @@ function addUnitAtk(unit, amount){
 
 function addUnitHp(unit, amount, sideOverride){
   if(!unit||amount<=0) return 0;
-  const total=amount;
+  const total=amount+(_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?1:0);
   unit.hp+=total; unit.maxHp+=total;
   return total;
+}
+
+function _isBattleGainPhase(){
+  return !!(G&&['player','enemy','commander'].includes(G.phase));
 }
 
 function snapshotAlliesAtBattleStart(){
@@ -844,8 +855,10 @@ async function startBattle(){
   const seenItemKeys=new Set();
   G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
     if(!c) return false;
-    if(String(c.itemEffectKey||'')!=='silence_scroll') return false;
-    const key=c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||''));
+    if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
+    const key=String(c.itemEffectKey||'')==='meteor_scroll'
+      ?'meteor_scroll'
+      :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
     if(seenItemKeys.has(key)) return false;
     seenItemKeys.add(key);
     return true;
@@ -1133,8 +1146,9 @@ async function battlePhase(){
       const enemy=G.enemies[pick.idx];
       enemyLaneState.attacked.add(enemy.id);
       _markBattleAttacked(enemy);
+      let enemyActed=false;
       try{
-        await enemyAttackAction(enemy,pick.idx);
+        enemyActed=await enemyAttackAction(enemy,pick.idx);
         await _flushRingManaThresholdEffects();
         if(_checkBattleOver()) return;
         await _resolveSeals();
@@ -1146,7 +1160,7 @@ async function battlePhase(){
       if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
-      side='ally';
+      if(enemyActed) side='ally';
     } else {
       const pick=_pickLaneAttacker(G.allies,false,allyLaneState);
       if(!pick){
@@ -1157,8 +1171,9 @@ async function battlePhase(){
       const ally=G.allies[pick.idx];
       allyLaneState.attacked.add(ally.id);
       _markBattleAttacked(ally);
+      let allyActed=false;
       try{
-        await allyAttackAction(ally,pick.idx);
+        allyActed=await allyAttackAction(ally,pick.idx);
         await _flushRingManaThresholdEffects();
         if(_checkBattleOver()) return;
         await _resolveSeals();
@@ -1170,7 +1185,7 @@ async function battlePhase(){
       if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
-      side='enemy';
+      if(allyActed) side='enemy';
       G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
     }
   }
@@ -1487,6 +1502,14 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
   const foes=isEnemySide?G.allies:G.enemies;
   const desc=String(unit.desc||'');
   const hasName=name=>_unitHasEffectName(unit,name);
+  // 戦術：攻撃時に自身へ+1/+2。共振：同じ色の味方全員へ+1/+1。
+  if(_unitHasKeyword(unit,'戦術')) _addBattleStats(unit,1,2,isEnemySide?'enemy':'ally');
+  if(_unitHasKeyword(unit,'共振')){
+    const color=_normalizeColorTextForBattle(unit.color);
+    allies.filter(a=>_canReceiveBattleEffect(a)&&_normalizeColorTextForBattle(a.color)===color)
+      .forEach(a=>_addBattleStats(a,1,1,isEnemySide?'enemy':'ally'));
+    log(`${_lc(unit.name,isEnemySide)}の共振で同じ色の味方は+1/+1を得た。`,isEnemySide?'bad':'good');
+  }
   // 懺悔はキーワードではなく、接続された強化カード名で判定する。
   const penitenceCount=_unitEffectPanelCount(unit,'懺悔');
   if(penitenceCount>0){
@@ -1660,7 +1683,8 @@ function _attackRepeatCount(unit){
 }
 
 function _unitPanelKeywords(unit){
-  const kws=[...(unit&&unit.keywords||[])];
+  const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+  const kws=[...(unit&&unit.keywords||[])].filter(k=>!cardNames.has(String(k||'').trim()));
   const unitText=[unit&&unit.desc,unit&&unit.effectText,unit&&unit.effect].filter(Boolean).join(' ');
   const passiveText=unitText.replace(/(^|\n)\s*\d+マナ(?:毎)?[:：][^\n。]*(?:。|$)/g,' ');
   const ownPassiveText=passiveText.replace(/(?:ランダムな)?(?:味方|敵|キャラクター|.+?キャラクター)(?:に|が)[^。]*(?:結界|生贄|復活|封印\d*)を(?:付与する|得る)。?/g,' ');
@@ -1691,13 +1715,13 @@ function _unitPanelKeywords(unit){
 function _unitHasKeyword(unit, kw){
   if(kw==='結界') return _unitShieldValue(unit)>0;
   if(kw==='加護') return (_unitPanelKeywords(unit)||[]).some(k=>/^加護\d*$/.test(String(k||'')));
-  return _unitPanelKeywords(unit).includes(kw);
+  return _unitPanelKeywords(unit).includes(kw)||((unit&&unit._adjacentPanelAbilities)||[]).includes(kw);
 }
 
 function _unitKeywordCount(unit, kw){
   if(!kw) return 0;
   if(kw==='結界') return _unitShieldValue(unit)>0?1:0;
-  return _unitPanelKeywords(unit).filter(k=>k===kw).length;
+  return _unitPanelKeywords(unit).filter(k=>k===kw).length+(((unit&&unit._adjacentPanelAbilities)||[]).filter(k=>k===kw).length);
 }
 
 function _unitHasSacrifice(unit){
@@ -1734,8 +1758,9 @@ function _battleSideOfUnit(unit){
 function _addBattleStats(unit, atk, hp, side, includeSealed){
   if(!unit||unit.hp<=0||(!includeSealed&&_isSealed(unit))) return;
   if(atk){
-    unit.atk=Math.max(0,(unit.atk||0)+atk);
-    unit.baseAtk=Math.max(0,(unit.baseAtk||0)+atk);
+    const gain=atk>0&&_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?atk+1:atk;
+    unit.atk=Math.max(0,(unit.atk||0)+gain);
+    unit.baseAtk=Math.max(0,(unit.baseAtk||0)+gain);
   }
   if(hp) addUnitHp(unit,hp,side||_battleSideOfUnit(unit));
 }
@@ -2012,6 +2037,7 @@ function _hasAttackEffectsForPause(unit){
   if(/全ての仲間のHPが\+[12]/.test(desc)||hasName('サイレン')) return true;
   if(/^攻撃：ランダムな敵にXダメージ/.test(desc)) return true;
   if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0) return true;
+  if(_unitHasKeyword(unit,'共振')||_unitHasKeyword(unit,'戦術')) return true;
   if(_unitHasKeyword(unit,'剣技')) return true;
   return false;
 }
@@ -2108,7 +2134,7 @@ async function triggerBattleScreenShake(options){
   if(!host||!host.classList.contains('active')) return;
   const tier=_battleScreenShakeTier(cfg.damage);
   if(!tier) return;
-  if(tier.hitStop&&typeof sleep==='function') await sleep(tier.hitStop);
+  // ヒットストップを先に待つと、ダメージ表示より振動が遅れて見えるため、即時開始する。
   if(_battleScreenShakeAnimation&&typeof _battleScreenShakeAnimation.cancel==='function') _battleScreenShakeAnimation.cancel();
   const strength=Number.isFinite(Number(cfg.strength))?Math.max(0,Number(cfg.strength)):1;
   const amount=Math.max(0,tier.amplitude*strength);
@@ -2138,7 +2164,7 @@ async function triggerBattleScreenShake(options){
   host.classList.add('battle-screen-shake');
 }
 
-function _applyDamageState(unit, dmg, source, side){
+function _applyDamageState(unit, dmg, source, side, skipTough){
   if(!unit||unit.hp<=0||!(dmg>0)) return {unit,side,actualDmg:0,died:false,blocked:false};
   if(_isSealed(unit)) return {unit,side,actualDmg:0,died:false,blocked:true};
   if(unit.shield>0){
@@ -2152,9 +2178,23 @@ function _applyDamageState(unit, dmg, source, side){
   // 弱体X：このキャラクターが受ける1以上のダメージはX増加する（複数付与された場合は加算値で保持）
   if(unit.weaken>0) dmg+=unit.weaken;
   // 強靭X：このキャラクターが受けるダメージはX減少する（複数所持時は合算）
-  const toughSum=(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+  const toughSum=skipTough?0:(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
   if(toughSum>0) dmg-=toughSum;
   unit._lastDamageSource=source||unit._lastDamageSource||null;
+  // 武器破壊：HPの代わりにATKを削る。結界・弱体・強靭の処理は通常のダメージと同じ。
+  if(_unitHasKeyword(unit,'武器破壊')){
+    const actualDmg=Math.max(0,dmg);
+    const preAtk=Math.max(0,Number(unit.atk)||0);
+    const atkDmg=Math.min(preAtk,actualDmg);
+    const hpOverflow=Math.max(0,actualDmg-atkDmg);
+    unit.atk=Math.max(0,preAtk-atkDmg);
+    unit.baseAtk=Math.max(0,(Number(unit.baseAtk)||preAtk)-atkDmg);
+    if(hpOverflow>0) unit.hp=Math.max(0,(unit.hp||0)-hpOverflow);
+    if(actualDmg>0) _recordRunStatsDamage(actualDmg,source&&source._damageType||'');
+    const preHp=unit.hp||0;
+    if(actualDmg>0&&source) applyKeywordOnHit(source,unit,actualDmg,preHp,true);
+    return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain:null,needsAllyInjuryEffects:actualDmg>0&&side==='ally'};
+  }
   const actualDmg=Math.max(0,dmg);
   if(typeof _recordRunStatsDamage==='function') _recordRunStatsDamage(actualDmg,source&&source._damageType||'');
   const _preHp=unit.hp||0;
@@ -2186,6 +2226,37 @@ function _applyDamageState(unit, dmg, source, side){
   }
   if(side==='enemy'&&unit.instadead&&actualDmg>0) unit.hp=0;
   return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain,needsAllyInjuryEffects};
+}
+
+// 団結：同じ強化パネルに接続している味方へ、強靭適用後のダメージを分散する。
+function _splitEntriesForUnite(entries){
+  const out=[];
+  (entries||[]).forEach(entry=>{
+    if(!entry||entry._uniteSplit||entry.side!=='ally'||!(entry.amount>0)||!entry.unit){ out.push(entry); return; }
+    const target=entry.unit;
+    const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
+    const slot=Number.isInteger(target._mainBoardSlot)?target._mainBoardSlot:-1;
+    if(!board||slot<0||!Array.isArray(board.equipment)) { out.push(entry); return; }
+    const connected=_collectEnhancementPanelsForSlot(board,slot)
+      .filter(x=>x&&x.panel&&String(x.panel.name||'')==='団結');
+    if(!connected.length){ out.push(entry); return; }
+    const panelIdx=new Set(connected.map(x=>x.idx));
+    const members=(G.allies||[]).filter(u=>{
+      if(!u||u.hp<=0||u._isObject||u._isSoul||_isSealed(u)||!Number.isInteger(u._mainBoardSlot)) return false;
+      const links=_collectEnhancementPanelsForSlot(board,u._mainBoardSlot);
+      return links.some(x=>x&&panelIdx.has(x.idx)&&x.panel&&String(x.panel.name||'')==='団結');
+    });
+    if(members.length<2){ out.push(entry); return; }
+    const tough=(target.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+    const distributable=Math.max(0,(Number(entry.amount)||0)-tough);
+    const share=Math.floor(distributable/members.length);
+    let remainder=distributable-share*members.length;
+    members.forEach(member=>{
+      const amount=share+(remainder-->0?1:0);
+      if(amount>0) out.push({...entry,unit:member,amount,_uniteSplit:true,_skipTough:member===target});
+    });
+  });
+  return out;
 }
 
 // ── 味方の負傷トリガー効果一式（マナ獲得＋名前別の負傷効果）。発動したら true を返す ──
@@ -2247,7 +2318,7 @@ function _splitEntriesForMata(entries){
 }
 async function applyDamageBatch(entries, options){
   const opt=options||{};
-  const prepared=_splitEntriesForMata(entries)
+  const prepared=_splitEntriesForUnite(_splitEntriesForMata(entries))
     .filter(e=>e&&e.unit&&e.unit.hp>0&&!_isSealed(e.unit)&&e.amount>0)
     .map(e=>{
       const side=e.side||_damageSideOf(e.unit);
@@ -2258,7 +2329,7 @@ async function applyDamageBatch(entries, options){
 
   // 全対象のHP減少を先に確定する（この時点ではまだ死亡処理・盤面詰め直しを行わない）
   const results=prepared.map(e=>({
-    ..._applyDamageState(e.unit,e.amount,e.source||opt.source,e.side),
+    ..._applyDamageState(e.unit,e.amount,e.source||opt.source,e.side,e._skipTough),
     rect:e.rect,
     attackSfxSource:e.attackSfxSource||opt.attackSfxSource||null,
     // opt.effect：通常攻撃ではなくキャラクター固有の効果によるダメージであることを示す。
@@ -2269,24 +2340,27 @@ async function applyDamageBatch(entries, options){
     keywordEffect:opt.keywordEffect||null,
     effectVfxCode:e._effectVfxCode||null,
     effectVfxTarget:e._effectVfxTarget||null,
-    effectVfxRect:e._effectVfxRect||null
+    effectVfxRect:e._effectVfxRect||null,
+    counterDamage:e._counterDamage===true
   }));
   if(opt.keywordEffect==='毒'&&typeof _recordRunStatsDamage==='function'){
     results.forEach(r=>_recordRunStatsDamage(r.actualDmg,'毒'));
   }
 
-  // ダメージ確定直後にHP表示を更新する。VFXや死亡処理の完了を待たず、HP0を即時表示する。
-  if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
   // 通常攻撃の各ダメージ単位ごとに、軽減後の実ダメージで判定する。
   // バッチ内に50以上が1件でもあれば1回だけ揺らす（多段攻撃の合計では判定しない）。
   if(opt.normalAttack){
     // 各ヒットを個別に判定し、合計値ではなく最大の最終ダメージを揺れ強度へ反映する。
     const shakeDamage=results.reduce((max,r)=>{
+      if(r.counterDamage) return max;
       const damage=Number(r.actualDmg)||0;
       return damage>=50?Math.max(max,damage):max;
     },0);
-    if(shakeDamage>=50) await triggerBattleScreenShake({damage:shakeDamage});
+    if(shakeDamage>=50) triggerBattleScreenShake({damage:shakeDamage});
   }
+  // 振動を先に開始し、重いステータス再描画による体感遅延を避ける。
+  // ダメージ値は確定済みなので、表示更新は直後に行う。
+  if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
 
   // 生命吸収はバッチ内の全ダメージ（反撃等、攻撃者自身が受ける分も含む）が確定した後に処理する。
   // 攻撃者がこのバッチの中で同時に死亡していた場合は回復しない。
@@ -2494,9 +2568,9 @@ function _removeLamiaCapturedUnits(){
 async function _dealCounterDamage(attacker,defender,isEnemySide,amount){
   if(!(amount>0)) return;
   if(isEnemySide){
-    await applyDamageBatch([{unit:attacker,side:'enemy',amount,source:defender,attackSfxSource:defender}],{normalAttack:true});
+    await applyDamageBatch([{unit:attacker,side:'enemy',amount,source:defender,attackSfxSource:defender,_counterDamage:true}],{normalAttack:true});
   } else {
-    await applyDamageBatch([{unit:attacker,side:'ally',amount,source:defender,attackSfxSource:defender}],{normalAttack:true});
+    await applyDamageBatch([{unit:attacker,side:'ally',amount,source:defender,attackSfxSource:defender,_counterDamage:true}],{normalAttack:true});
   }
   const defenderList=isEnemySide?G.allies:G.enemies;
   const attackerList=isEnemySide?G.enemies:G.allies;
@@ -2520,7 +2594,8 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     // 狙撃は反撃されず、反撃もできない。
     const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(defender,'先制');
     const suppressCounterBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(defender,'狙撃');
-    const counterAmount=Math.max(0,defender.atk||0);
+    const counterAmount=(_unitHasKeyword(attacker,'大盾')&&(Number(defender.atk)||0)<(Number(attacker.atk)||0))
+      ?0:Math.max(0,defender.atk||0);
     const defenderSide=isEnemySide?'ally':'enemy';
     const attackerSide=isEnemySide?'enemy':'ally';
     // 先制だけは実ダメージを先に確定し、結界・強靭等を通した後も生存していた時だけ反撃させる。
@@ -2528,7 +2603,7 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     if(attackerHasFirstStrike&&!suppressCounterBySniper){
       await applyDamageBatch([{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}],{normalAttack:true});
       if(defender.hp>0&&attacker.hp>0&&counterAmount>0){
-        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender}],{normalAttack:true});
+        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender,_counterDamage:true}],{normalAttack:true});
         const defenderList=isEnemySide?G.allies:G.enemies;
         const attackerList=isEnemySide?G.enemies:G.allies;
         log(`${_lc(_battleLogName(defender,defenderList),!isEnemySide)}が${_lc(_battleLogName(attacker,attackerList),isEnemySide)}に${counterAmount}ダメージを与えた。`,isEnemySide?'good':'bad');
@@ -2538,7 +2613,7 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     const suppressCounter=suppressCounterBySniper;
     const entries=[{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}];
     if(!suppressCounter&&counterAmount>0){
-      entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender});
+      entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender,_counterDamage:true});
     }
     await applyDamageBatch(entries,{normalAttack:true});
     if(!suppressCounter&&counterAmount>0){
@@ -2603,20 +2678,23 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     // 複数対象攻撃でも先制時は主対象への実ダメージ確定後にだけ反撃可否を判断する。
     if(attackerHasFirstStrike&&!suppressBySniper){
       await applyDamageBatch(entries,{normalAttack:true});
-      const counterAmount=primaryTarget.hp>0&&attacker.hp>0?Math.max(0,primaryTarget.atk||0):0;
+      const counterAmount=primaryTarget.hp>0&&attacker.hp>0&&!(
+        _unitHasKeyword(attacker,'大盾')&&(Number(primaryTarget.atk)||0)<(Number(attacker.atk)||0)
+      )?Math.max(0,primaryTarget.atk||0):0;
       if(counterAmount>0){
         const attackerSide=isEnemySide?'enemy':'ally';
-        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget}],{normalAttack:true});
+        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget,_counterDamage:true}],{normalAttack:true});
         const attackerList=isEnemySide?G.enemies:G.allies;
         log(`反撃で${_lc(_battleLogName(attacker,attackerList),isEnemySide)}に${counterAmount}ダメージを与えた。`,isEnemySide?'good':'bad');
       }
       return result;
     }
     const primaryCanCounter=liveTargets.includes(primaryTarget)&&!suppressBySniper;
-    const counterAmount=primaryCanCounter?Math.max(0,primaryTarget.atk||0):0;
+    const counterAmount=primaryCanCounter&&(!(_unitHasKeyword(attacker,'大盾')&&(Number(primaryTarget.atk)||0)<(Number(attacker.atk)||0)))
+      ?Math.max(0,primaryTarget.atk||0):0;
     const attackerSide=isEnemySide?'enemy':'ally';
     if(counterAmount>0){
-      entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget});
+      entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget,_counterDamage:true});
     }
     await applyDamageBatch(entries,{normalAttack:true});
     if(counterAmount>0){
@@ -2770,7 +2848,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
-  const enh={atk:0,hp:0,keywords:[],weakenOnHit:0,manaOnAttack:0,manaThresholds:[],effectNames:[],effectScales:{}};
+  const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,weakenOnHit:0,manaOnAttack:0,manaThresholds:[],effectNames:[],effectScales:{},releaseAtkBonus:0,releaseHpBonus:0};
   const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
   const effectivePanel=entry=>{
     const panel=entry.panel;
@@ -2779,17 +2857,25 @@ function _collectAdjacentEnhancements(unit, slotIdx){
   };
   panels.forEach(entry=>{
     const panel=effectivePanel(entry);
+    if(!panel) return;
     enh.atk+=panel.adjacentAtkBonus||0;
     enh.hp+=panel.adjacentHpBonus||0;
+    enh.releaseAtkBonus=Math.max(enh.releaseAtkBonus,Number(panel.releaseAtkBonus)||0);
+    enh.releaseHpBonus=Math.max(enh.releaseHpBonus,Number(panel.releaseHpBonus)||0);
     enh.manaOnAttack+=panel.manaOnAttack||0;
     if(panel.manaCost){
-      enh.manaThresholds.push({cost:Number(panel.manaCost)||0,repeat:!!panel.manaRepeat,desc:String(panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
+      enh.manaThresholds.push({cost:Number(panel.manaCost)||0,repeat:!!panel.manaRepeat,desc:String(panel._manaThresholdDesc||panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
     }
     if(panel._resonanceEffectName){
       enh.effectNames.push(panel._resonanceEffectName);
       enh.effectScales[panel._resonanceEffectName]=Math.max(enh.effectScales[panel._resonanceEffectName]||1,panel._tripleMerged?2:1);
     }
-    (panel.adjacentKeywords||[]).forEach(k=>{
+    const keywordPanels=new Set(['防戦','熟練','遺志','共振','団結','禁断の力','武器破壊','戦術','大盾','策士']);
+    const panelKeywords=[...(panel.adjacentKeywords||[])];
+    if(keywordPanels.has(String(panel.name||''))&&!enh.abilities.includes(panel.name)) enh.abilities.push(panel.name);
+    if(panel.name==='策士') enh.strategyCount+=(panel._tripleMerged?2:1);
+    if(panel.name==='封印されしもの'&&!panelKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) panelKeywords.push('封印1');
+    panelKeywords.forEach(k=>{
       enh.effectScales[k]=Math.max(enh.effectScales[k]||1,panel._tripleMerged?2:1);
       // 衝撃X：このキャラクター自身が弱体化するのではなく、攻撃/ダメージ効果で
       // 対象に衝撃Xを付与する常時能力として扱う。表示上はキーワードとしても残す。
@@ -2802,6 +2888,15 @@ function _collectAdjacentEnhancements(unit, slotIdx){
       enh.keywords.push(k);
     });
   });
+  // 策士：所持キーワード1つにつき+2/+2。合体済みは1枚で2枚分として扱う。
+  if(enh.strategyCount>0){
+    const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+    const keywordCount=new Set([...(typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):unit.keywords||[]),...(enh.keywords||[])]
+      .map(k=>String(k||'').trim().replace(/\d+$/,''))
+      .filter(k=>k&&!cardNames.has(k))).size;
+    enh.atk+=keywordCount*2*enh.strategyCount;
+    enh.hp+=keywordCount*2*enh.strategyCount;
+  }
   return enh;
 }
 
@@ -2837,7 +2932,11 @@ function _clearAdjacentPanelEnhancements(unit){
   if(prev.manaOnAttack){
     unit.manaOnAttack=Math.max(0,(unit.manaOnAttack||0)-prev.manaOnAttack);
   }
+  unit._releaseAtkBonus=0;
+  unit._releaseHpBonus=0;
   delete unit._adjacentPanelEnhancements;
+  delete unit._adjacentPanelAbilities;
+  delete unit._adjacentPanelStrategyCount;
   delete unit._adjacentPanelSignature;
   delete unit._resonanceEffectNames;
   delete unit._resonanceEffectScales;
@@ -2853,15 +2952,31 @@ function _clearAdjacentPanelEnhancements(unit){
 
 function _applyAdjacentPanelEnhancements(unit, enh){
   if(!unit||!enh) return;
+  const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+  // 旧バージョンで混入したカード名キーワードも、再計算の有無にかかわらず除去する。
+  unit.keywords=(unit.keywords||[]).filter(k=>!cardNames.has(String(k||'').trim()));
   const side=_battleSideOfUnit(unit);
   const modifierBonus=_combatModifierBonus(unit,side==='enemy');
-  const atkBonus=(enh.atk||0)+(enh.atk>0?modifierBonus:0);
-  const hpBonus=(enh.hp||0)+(enh.hp>0?modifierBonus:0);
-  const sig=JSON.stringify({atk:atkBonus,hp:hpBonus,keywords:[...(enh.keywords||[])].sort(),weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholds:enh.manaThresholds||[],effectNames:[...(enh.effectNames||[])].sort(),effectScales:enh.effectScales||{}});
+  const hasSkill=(_unitPanelKeywords(unit)||[]).includes('熟練')||(enh.keywords||[]).includes('熟練')||(enh.abilities||[]).includes('熟練');
+  const atkBonus=(enh.atk||0)+(enh.atk>0?modifierBonus:0)+(hasSkill&&_isBattleGainPhase()&&enh.atk>0?1:0);
+  const hpBonus=(enh.hp||0)+(enh.hp>0?modifierBonus:0)+(hasSkill&&_isBattleGainPhase()&&enh.hp>0?1:0);
+  const releaseAtkBonus=Number(enh.releaseAtkBonus)||0;
+  const releaseHpBonus=Number(enh.releaseHpBonus)||0;
+  const enhancementKeywords=[...(enh.keywords||[])];
+  if(releaseAtkBonus||releaseHpBonus){
+    if(!enhancementKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) enhancementKeywords.push('封印1');
+  }
+  const abilities=[...(enh.abilities||[])];
+  const strategyCount=Number(enh.strategyCount)||0;
+  const sig=JSON.stringify({atk:atkBonus,hp:hpBonus,keywords:[...enhancementKeywords].sort(),abilities:[...abilities].sort(),strategyCount,releaseAtkBonus,releaseHpBonus,weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholds:enh.manaThresholds||[],effectNames:[...(enh.effectNames||[])].sort(),effectScales:enh.effectScales||{}});
   if(unit._adjacentPanelSignature===sig) return;
   _clearAdjacentPanelEnhancements(unit);
   unit._adjacentPanelSignature=sig;
-  unit._adjacentPanelEnhancements={atk:atkBonus,hp:hpBonus,keywords:[...(enh.keywords||[])],weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholdAdded:false};
+  unit._adjacentPanelEnhancements={atk:atkBonus,hp:hpBonus,keywords:[...enhancementKeywords],releaseAtkBonus,releaseHpBonus,weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaThresholdAdded:false};
+  unit._adjacentPanelAbilities=abilities;
+  unit._adjacentPanelStrategyCount=strategyCount;
+  unit._releaseAtkBonus=releaseAtkBonus;
+  unit._releaseHpBonus=releaseHpBonus;
   const manaThresholds=Array.isArray(enh.manaThresholds)?enh.manaThresholds.filter(t=>Number(t&&t.cost)>0):[];
   if(enh.manaThresholds&&enh.manaThresholds.length&&!unit.manaCost){
     const first=enh.manaThresholds[0];
@@ -2885,8 +3000,8 @@ function _applyAdjacentPanelEnhancements(unit, enh){
     unit.hp=Math.max(0,Math.min((unit.hp||0)+hpBonus,nextMaxHp));
     unit.maxHp=nextMaxHp;
   }
-  if(enh.keywords&&enh.keywords.length){
-    unit.keywords=[...(unit.keywords||[]),...enh.keywords];
+  if(enhancementKeywords.length){
+  unit.keywords=[...(unit.keywords||[]),...enhancementKeywords].filter(k=>!cardNames.has(String(k||'').trim()));
   }
   if(enh.weakenOnHit){
     unit.weakenOnHit=(unit.weakenOnHit||0)+enh.weakenOnHit;
@@ -2931,6 +3046,7 @@ function _makePanelSummonUnit(spec, keywords){
     _manaThresholdDesc:spec.manaThresholdDesc||'',
     goldOnBattleEnd:spec.goldOnBattleEnd||0,
     goldOnDeath:spec.goldOnDeath||0,
+    randomItemOnBattleEnd:!!spec.randomItemOnBattleEnd,
     _effectRepeatBonus:Number(spec.effectRepeatBonus||spec._effectRepeatBonus)||0,
     _merged:!!spec._merged,
     _tripleMerged:!!spec._tripleMerged,
@@ -3033,6 +3149,7 @@ function _panelSummonSpec(panel){
       manaThresholdDesc:String(openingSpec&&(openingSpec.manaThresholdDesc||openingSpec._manaThresholdDesc)||(manaLine&&manaLine[3])||''),
       goldOnBattleEnd:openingSpec&&openingSpec.goldOnBattleEnd||panel.goldOnBattleEnd||0,
       goldOnDeath:openingSpec&&openingSpec.goldOnDeath||panel.goldOnDeath||0,
+      randomItemOnBattleEnd:!!(openingSpec&&openingSpec.randomItemOnBattleEnd)||!!panel.randomItemOnBattleEnd,
       effectRepeatBonus:Number(openingSpec&&openingSpec.effectRepeatBonus||panel.effectRepeatBonus||panel._effectRepeatBonus)||0,
       _merged:!!panel._merged,
       _tripleMerged:!!panel._tripleMerged,
@@ -3424,16 +3541,12 @@ async function _applyOpeningItemEffects(){
         log(`巨大化の巻物の効果で${_lc(target.name,false)}のATKとHPが2倍になった。`,'good');
       }
     }else if(key==='meteor_scroll'){
-      const limit=G.worldMap?.turnLimit||(typeof WORLD_MAP_BASE_TURN_LIMIT!=='undefined'?WORLD_MAP_BASE_TURN_LIMIT:20);
-      const turn=G.worldMap?.turn||0;
-      const x=Math.max(0,limit-turn);
-      for(let i=0;i<x;i++){
-        const target=_randomLiving(G.enemies);
-        if(!target) break;
+      const entries=(G.enemies||[]).filter(e=>e&&e.hp>0).map(e=>({unit:e,side:'enemy',amount:Math.max(1,Math.ceil((Number(e.hp)||0)/2)),source:null}));
+      if(entries.length){
         playDamageEffectSfx('single');
-        await applyDamageBatch([{unit:target,side:'enemy',amount:x,source:null}],{effect:true});
+        await applyDamageBatch(entries,{effect:true});
+        log('隕石の巻物の効果で全ての敵にHPの半分のダメージを与えた。','good');
       }
-      if(x>0) log(`隕石の巻物の効果でランダムな敵に${x}ダメージを${x}回与えた。`,'good');
     }else if(key==='sacrifice_doll'){
       const targets=(G.allies||[]).filter(u=>u&&u.hp>0&&_isSealed(u));
       const target=targets.length?targets[Math.floor(Math.random()*targets.length)]:null;
@@ -3499,6 +3612,18 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     if(n) _gainMana(n,unit.name);
     return;
   }
+  const fireArrow=String(text||'').match(/^ランダムな敵に(\d+)ダメージを与える/);
+  if(fireArrow){
+    const foes=isEnemySide?G.allies:G.enemies;
+    const target=_pickRandomEnemyTargets(foes,unit)[0];
+    if(target){
+      const dmg=parseInt(fireArrow[1],10)||0;
+      playDamageEffectSfx('single');
+      await applyDamageBatch([{unit:target,side:isEnemySide?'ally':'enemy',amount:dmg,source:unit}],{source:unit,effect:true});
+      log(`${_lc(unit.name,isEnemySide)}の炎の矢が${_lc(target.name,!isEnemySide)}に${dmg}ダメージを与えた。`,isEnemySide?'bad':'good');
+    }
+    return;
+  }
   // ドワーフ・ダークワン等：ランダムなA色（の）キャラクターは+X/+Yを得る。
   const randColorBuff=String(text||'').match(/^ランダムな([赤青緑黄紫])の?キャラクターは\+(\d+)\/\+(\d+)を得る/);
   if(randColorBuff){
@@ -3562,10 +3687,21 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     }
     return;
   }
-  if(/^全ての敵に毒12を与える/.test(rawText)){
+  const allEnemyPoison=String(rawText||'').match(/^全ての敵に毒(\d+)を与える/);
+  if(allEnemyPoison){
+    const poison=Math.max(1,parseInt(allEnemyPoison[1],10)||1);
     const foes=isEnemySide?G.allies:G.enemies;
-    _livingCombatUnits(foes).forEach(t=>{ if(!_isAilmentImmune(t)) t.poison=(t.poison||0)+12; });
-    log(`${_lc(unit.name,isEnemySide)}の効果で全ての敵に毒12を与えた。`,isEnemySide?'bad':'good');
+    _livingCombatUnits(foes).forEach(t=>{ if(!_isAilmentImmune(t)) t.poison=(t.poison||0)+poison; });
+    log(`${_lc(unit.name,isEnemySide)}の効果で全ての敵に毒${poison}を与えた。`,isEnemySide?'bad':'good');
+    return;
+  }
+  if(/^ランダムな敵に防戦を与える/.test(rawText)){
+    const foes=isEnemySide?G.allies:G.enemies;
+    const target=_pickRandomEnemyTargets(foes,unit)[0];
+    if(target&&!_isAilmentImmune(target)){
+      if(!(target.keywords||[]).includes('防戦')) target.keywords=[...(target.keywords||[]),'防戦'];
+      log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,!isEnemySide)}に防戦を与えた。`,isEnemySide?'bad':'good');
+    }
     return;
   }
   const arachneEffect=String(rawText||'').match(/^全ての味方に\+(\d+)\/\+(\d+)を与えた後、(\d+)ダメージを与える/);
@@ -3835,10 +3971,10 @@ async function applyNewPanelBattleStart(options){
       if(!spec) continue;
       const panelPower=_mapPanelPowerAt(idx);
       if(panelPower==='eternal'){
-        // 永劫の力は、戦闘開始のたびにカード本体へ+5/+5を永久付与する。
+        // 永劫の力は、戦闘開始のたびにカード本体へ+1/+1を永久付与する。
         // 基礎値から再構成せず、現在のカード値へ累積することで次戦闘以降にも残す。
-        panel.power=(Number(panel.power??panel.atk??0)||0)+5;
-        panel.life=(Number(panel.life??panel.hp??1)||1)+5;
+        panel.power=(Number(panel.power??panel.atk??0)||0)+1;
+        panel.life=(Number(panel.life??panel.hp??1)||1)+1;
         if(panel.atk!=null) panel.atk=panel.power;
         if(panel.hp!=null) panel.hp=panel.life;
         spec.atk=panel.power;
@@ -4041,7 +4177,8 @@ function _buffAllBattleColor(color, atk, hp, sourceName, unitIsEnemy, includeSea
   log(`${_lc(sourceName||c,unitIsEnemy)}の効果で全ての${c}キャラクターは+${atk}/+${hp}を得た。`,unitIsEnemy?'bad':'good');
 }
 
-function _grantRandomItem(sourceName){
+function _grantRandomItem(sourceName, options){
+  const free=!!(options&&options.free);
   const arr=G.spellSlots=Array.isArray(G.spellSlots)?G.spellSlots:new Array(4).fill(null);
   while(arr.length<4) arr.push(null);
   const idx=arr.findIndex(c=>!c);
@@ -4054,11 +4191,11 @@ function _grantRandomItem(sourceName){
   // 錬成はアイテムを購入して得る扱い。通常の報酬カードは _buyPrice=0 なので、
   // その場合も最低1Gを消費し、複数枚で所持金不足になった時点で停止する。
   const price=Math.max(1,Number(card._buyPrice|| (typeof calcBuyPrice==='function'?calcBuyPrice(card):1)));
-  if(Number(G.gold||0)<price){
+  if(!free&&Number(G.gold||0)<price){
     log(`${_lc(sourceName||'錬成',false)}は所持金不足のため発動しなかった。`,'sys');
     return false;
   }
-  G.gold=Number(G.gold||0)-price;
+  if(!free) G.gold=Number(G.gold||0)-price;
   arr[idx]=card;
   if(typeof updateHUD==='function') updateHUD();
   log(`${_lc(sourceName||'錬成',false)}の効果で${card.name}を得た。`,'good');
@@ -4186,6 +4323,13 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
   const originDeathExtra=unitIsEnemy?0:_unitEffectPanelCount(unit,'マナの種');
   const deathRepeats=1+count('逆襲')+_ringDeathExtra+originDeathExtra+(Number(unit._effectRepeatBonus)||0);
   const hasName=name=>_unitHasEffectName(unit,name);
+  if(_unitHasKeyword(unit,'遺志')){
+    const target=_randomLiving(allies,a=>a!==unit);
+    if(target){
+      _addBattleStats(target,3,2,unitIsEnemy?'enemy':'ally');
+      log(`${_lc(unit.name,unitIsEnemy)}の遺志で${_lc(target.name,unitIsEnemy)}は+3/+2を得た。`,unitIsEnemy?'bad':'good');
+    }
+  }
   if(_unitEffectPanelCount(unit,'継承')>0){
     const target=_randomLiving(allies,a=>a!==unit);
     const atk=Math.max(0,Number(unit.atk)||0);
@@ -4494,15 +4638,15 @@ async function allyAttackAction(ally, allyIdx){
   // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
   // ATK0で攻撃自体がスキップされる場合も先に処理する
   await _applyPoisonBeforeAttack(ally);
-  if(!ally||ally.hp<=0||_isSealed(ally)) return;
-  if(_unitHasKeyword(ally,'防戦')) return;
+  if(!ally||ally.hp<=0||_isSealed(ally)) return false;
+  if(_unitHasKeyword(ally,'防戦')) return false;
   const attackDmg=_attackDamageValue(ally);
-  if(attackDmg<=0) return; // ATK0は攻撃しない
+  if(attackDmg<=0) return false; // ATK0は攻撃しない
   const liveE=G.enemies.filter(_canReceiveBattleEffect);
-  if(!liveE.length) return;
+  if(!liveE.length) return false;
 
   let target=getAttackTarget(ally,G.enemies);
-  if(!target) return;
+  if(!target) return false;
   if(ally.name==='スケルトンキング'){
     if(ally.stealth){ ally.stealth=false; log(`${_lc(ally.name,false)}の隠密が解除された。`,'sys'); }
     const skel=await _spawnAdhocAllyUnit('青スケルトン',4,2,false,{rightOf:ally});
@@ -4513,7 +4657,7 @@ async function allyAttackAction(ally, allyIdx){
     }
     renderAll();
     await battleSleep(180);
-    return;
+    return true;
   }
   const isGlobal=_unitHasKeyword(ally,'全体攻撃');
   const isTriDir=_unitHasKeyword(ally,'三方向攻撃');
@@ -4528,9 +4672,9 @@ async function allyAttackAction(ally, allyIdx){
     const _ritualExtra=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
     for(let mi=0;mi<1+_ritualExtra;mi++) _gainMana(ally.manaOnAttack,ally);
     await _flushRingManaThresholdEffects();
-    if(_checkBattleOver()) return;
+    if(_checkBattleOver()) return true;
     if(!target||target.hp<=0) target=getAttackTarget(ally,G.enemies);
-    if(!target) return;
+    if(!target) return false;
   }
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け
@@ -4568,7 +4712,7 @@ async function allyAttackAction(ally, allyIdx){
         const _ritualExtra2=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
         for(let mi=0;mi<1+_ritualExtra2;mi++) _gainMana(ally.manaOnAttack,ally);
         await _flushRingManaThresholdEffects();
-        if(_checkBattleOver()) return;
+        if(_checkBattleOver()) return true;
         if(!curTgt||curTgt.hp<=0) curTgt=getAttackTarget(ally,G.enemies);
         if(!curTgt||curTgt.hp<=0) break;
       }
@@ -4593,6 +4737,7 @@ async function allyAttackAction(ally, allyIdx){
 
   renderAll();
   await battleSleep(180);
+  return true;
 }
 
 // ── 敵攻撃アクション ──────────────────────────
@@ -4601,15 +4746,15 @@ async function enemyAttackAction(enemy, enemyIdx){
   // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
   // ATK0で攻撃自体がスキップされる場合も先に処理する
   await _applyPoisonBeforeAttack(enemy);
-  if(!enemy||enemy.hp<=0||_isSealed(enemy)) return;
-  if(_unitHasKeyword(enemy,'防戦')) return;
-  if(enemy.atk<=0) return; // ATK0は攻撃しない
+  if(!enemy||enemy.hp<=0||_isSealed(enemy)) return false;
+  if(_unitHasKeyword(enemy,'防戦')) return false;
+  if(enemy.atk<=0) return false; // ATK0は攻撃しない
   const liveA=G.allies.filter(_canReceiveBattleEffect);
-  if(!liveA.length) return;
+  if(!liveA.length) return false;
 
   // ターゲット選択（前衛後衛ルール）
   const primaryTarget=getAttackTarget(enemy,G.allies);
-  if(!primaryTarget) return;
+  if(!primaryTarget) return false;
   if(enemy.name==='スケルトンキング'){
     if(enemy.stealth){ enemy.stealth=false; log(`${_lc(enemy.name,true)}の隠密が解除された。`,'sys'); }
     const skel=await _spawnAdhocAllyUnit('青スケルトン',4,2,true,{rightOf:enemy});
@@ -4620,7 +4765,7 @@ async function enemyAttackAction(enemy, enemyIdx){
     }
     renderAll();
     await battleSleep(180);
-    return;
+    return true;
   }
   const targets=[primaryTarget];
   const primaryIdx=G.allies.indexOf(primaryTarget);
@@ -4684,6 +4829,7 @@ async function enemyAttackAction(enemy, enemyIdx){
 
   renderAll();
   await battleSleep(180);
+  return true;
 }
 
 // ── 味方へのダメージ処理 ─────────────────────────
@@ -4944,10 +5090,15 @@ async function onBattleEnd(){
     if(a&&a.hp>0&&a.goldOnBattleEnd){
       const repeatCount=1+(Number(a._effectRepeatBonus)||0);
       for(let repeat=0;repeat<repeatCount;repeat++){
-        onGoldGained(a.goldOnBattleEnd);
-        log(`${_lc(a.name,false)}の効果で${a.goldOnBattleEnd}ゴールドを得た。`,'good');
-        goldEffectUnits.push(a);
+        goldEffectUnits.push({unit:a,amount:a.goldOnBattleEnd});
       }
+    }
+  }
+  const randomItemEffectUnits=[];
+  for(const a of (G.allies||[])){
+    if(a&&a.hp>0&&a.randomItemOnBattleEnd){
+      const repeatCount=1+(Number(a._effectRepeatBonus)||0);
+      for(let repeat=0;repeat<repeatCount;repeat++) randomItemEffectUnits.push(a);
     }
   }
   (G.allies||[]).filter(a=>a&&a.hp>0&&a.name==='ハイドラ').forEach(h=>{
@@ -4960,10 +5111,15 @@ async function onBattleEnd(){
   });
   // 終戦時のゴールド演出は、他の終戦時効果の処理・演出が終わってから開始する。
   await _waitForPendingVfx();
-  for(const a of goldEffectUnits){
+  for(const {unit:a,amount} of goldEffectUnits){
     _playCardEffectSfx('C001');
-    await _playCardEffectVfx('C001',[a],{gateMs:1000,hitDuration:900,waitForFinish:true});
+    // VFXのDOM生成直後に加算し、画面上の獲得演出と所持金表示を同時に開始する。
+    const vfx=_playCardEffectVfx('C001',[a],{gateMs:0,hitDuration:900,waitForFinish:true});
+    onGoldGained(amount);
+    log(`${_lc(a.name,false)}の効果で${amount}ゴールドを得た。`,'good');
+    await vfx;
   }
+  for(const a of randomItemEffectUnits) _grantRandomItem(a.name,{free:true});
 }
 
 function _removeAbsentKiemetsuCards(){
@@ -5261,9 +5417,15 @@ function startTestBattle(){
 function stopTestBattle(){
   if(!G._testBattleMode) return;
   G._testBattleAbort=true;
+  // 長い攻撃演出やVFXの待機中でも、ボタン操作を即時反映して編成画面へ戻す。
+  if(G._battlePhaseRunning){
+    G._battlePhaseRunning=false;
+    _exitTestBattle();
+  }
 }
 
 function _exitTestBattle(){
+  if(!G._testBattleMode&&G.phase==='reward') return;
   G._testBattleMode=false;
   G._testBattleAbort=false;
   if(G._testBattleSavedFloor!=null){ G.floor=G._testBattleSavedFloor; G._testBattleSavedFloor=null; }

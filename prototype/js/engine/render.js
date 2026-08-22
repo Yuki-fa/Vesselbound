@@ -359,7 +359,9 @@ function _colorIconPath(color){
 function cardManaCostHtml(card){
   if(!card) return '';
   const entries=[];
-  const seal=_sealCostValue(card);
+  const isEnchant=String(card.category||'')==='強化'||String(card.category||'')==='エンチャント';
+  // 封印されしもの本体には封印コストを表示するが、他の強化カードへ封印を波及させない。
+  const seal=isEnchant&&card.name!=='封印されしもの'?0:_sealCostValue(card);
   const blood=Assets?.cards?.blood||'';
   if(seal&&blood){
     const value=seal===Infinity?'∞':seal;
@@ -381,7 +383,7 @@ function cardManaCostHtml(card){
 }
 function _sealCostValue(card){
   if(!card) return 0;
-  const kws=[...(card.keywords||[])];
+  const kws=[...(card.keywords||[]),...(card.adjacentKeywords||[])];
   if(card._sealInfinity||kws.some(k=>/^封印\s*∞$/.test(String(k||'')))) return Infinity;
   const kw=kws.find(k=>/^封印\s*\d+$/.test(String(k||'')));
   if(kw) return Math.max(1,parseInt(String(kw).replace(/\D/g,''),10)||1);
@@ -630,7 +632,7 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
 // 即座に打ち切ってDOMから除去する。演出用の各hostは常にdocument.body直下へfixedで
 // 追加されるため、専用クラスで一括除去すればどの演出タイミングで戦闘が終わっても残らない。
 function _forceStopAllVfx(){
-  document.querySelectorAll('.damage-vfx-host,.special-vfx-clip,.sweep-vfx-clip').forEach(el=>el.remove());
+  document.querySelectorAll('.damage-vfx-host,.special-vfx-clip,.sweep-vfx-clip,.attack-motion-clone').forEach(el=>el.remove());
   if(window.__activeVfxPromises) window.__activeVfxPromises.clear();
 }
 
@@ -1175,7 +1177,8 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const tilt=Math.abs(dx)<Math.max(6,fr.width*0.15)?0:(dx>0?4:-4)*(isEnemySide?-1:1);
   const clone=fromEl.cloneNode(true);
   clone.classList.add('attack-motion-clone');
-  clone.classList.remove('dragging','drag-over','selected','selectable');
+  // 直前の攻撃が中断された場合でも、複製側へ非表示状態を引き継がない。
+  clone.classList.remove('dragging','drag-over','selected','selectable','motion-hidden');
   clone.style.setProperty('border','0','important');
   clone.style.setProperty('border-top','0','important');
   const cs=getComputedStyle(fromEl);
@@ -1327,6 +1330,10 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   clone.style.pointerEvents='none';
   clone.style.transform='translate(0,0)';
   clone.style.transformOrigin='center center';
+  // body直下のfixed要素にビューポート座標のinsetを指定すると、カード自身の領域を
+  // 切り抜いてしまい、攻撃者が「消えた」ように見える。背景外への移動は各モーションの
+  // 距離内に収まるため、複製カードは常にそのまま描画する。
+  clone.style.clipPath='none';
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
   fromEl.style.setProperty('visibility','hidden','important');
@@ -1371,8 +1378,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     }
   };
   const runSegment=(frames,duration,dynamicEnd)=>{
-    const speed=typeof getBattleSpeedScale==='function'?getBattleSpeedScale():1;
-    const scaledDuration=Math.max(1,duration/Math.max(1,speed));
+    // 戦闘全体の自動高速化で攻撃モーションまで短縮すると、接触前に
+    // カードが瞬間移動したように見える。攻撃演出は常に指定尺で再生する。
+    const scaledDuration=Math.max(180,duration);
     const parseTransform=value=>{
       const tm=String(value||'').match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
       const rm=String(value||'').match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);
@@ -1557,7 +1565,7 @@ function _stripOwnNameFromEffectText(text, name){
   return out;
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','防戦','帰滅','隠密','貫通','結界','生命吸収','封印']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','強靭','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','生贄','即死','先制','狙撃','防戦','帰滅','隠密','貫通','結界','生命吸収','封印','荷物']);
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
@@ -1585,6 +1593,10 @@ function _enchantKeywordDesc(k){
 }
 function _enchantEffectTextForPanel(p){
   if(!p) return '';
+  if(p.name==='封印されしもの'){
+    return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect||'','封印されしもの')
+      .replace(/^封印\d+\s*/,'').trim();
+  }
   if(p.manaOnAttack) return `攻撃：${Math.max(1,Number(p.manaOnAttack)||1)}マナを得る。`;
   if(p.adjacentAtkBonus||p.adjacentHpBonus){
     const a=p.adjacentAtkBonus||0, h=p.adjacentHpBonus||0;
@@ -1625,7 +1637,10 @@ function _enchantmentEffectsList(unit,slotIdx){
     const rawKws=(p.adjacentKeywords||[]).map(k=>String(k||'').trim()).filter(Boolean);
     const baseKws=rawKws.map(k=>k.replace(/\d+.*/,'').trim());
     let text;
-    if(rawKws.length&&baseKws.every(k=>_ENCHANT_KEYWORD_ONLY.has(k))){
+    if(p.name==='封印されしもの'){
+      // 封印1はキーワード欄に残しつつ、接続先には解放効果も表示する。
+      text=_enchantEffectTextForPanel(p);
+    } else if(rawKws.length&&baseKws.every(k=>_ENCHANT_KEYWORD_ONLY.has(k))){
       // 単純キーワード（生命吸収・二段攻撃・毒牙2等、数値の有無を問わない）は、キャラクター側の
       // 太字キーワード欄に既に表示されるため、効果文としては重複表示しない
       text='';
@@ -1646,7 +1661,8 @@ function _enchantmentEffectsList(unit,slotIdx){
 // （_unitPreviewText）の両方から共通して使う。
 function _groupedEnchantEffectTexts(unit,slotIdx){
   const list=_enchantmentEffectsList(unit,slotIdx);
-  const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc));
+  const strategyPanels=list.filter(e=>e.panel&&e.panel.name==='策士');
+  const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc)&&!(e.panel&&e.panel.name==='策士'));
   const normalMap=new Map();
   normal.forEach(e=>{
     const text=e.panel&&e.panel.name==='マナの種'&&unit&&typeof _rawSubstitutedDesc==='function'
@@ -1656,7 +1672,7 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     normalMap.get(identity).count++;
   });
   const charDescMap=new Map();
-  list.filter(e=>e.panel&&e.panel.characterDesc).forEach(e=>{
+  list.filter(e=>e.panel&&e.panel.characterDesc&&e.panel.name!=='策士').forEach(e=>{
     const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${e.panel.characterDesc}`;
     if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text:e.panel.characterDesc,count:0});
     charDescMap.get(key).count++;
@@ -1669,6 +1685,13 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     if(g.count<=1) return g.text;
     return `${g.text}（×${g.count}）`;
   });
+  if(strategyPanels.length){
+    const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+    const baseKeywords=typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):(unit.keywords||[]);
+    const keywordNames=new Set([...baseKeywords,...strategyPanels.flatMap(e=>e.panel.adjacentKeywords||[])].map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(k=>k&&!cardNames.has(k)));
+    const amount=keywordNames.size*2*strategyPanels.reduce((sum,e)=>sum+(e.panel._tripleMerged?2:1),0);
+    if(amount>0) charTexts.unshift(`「策士」の効果で+${amount}/+${amount}されている。`);
+  }
   return {normalTexts,charTexts};
 }
 // 指輪シートの「キャラクター用説明文」は、装備中の指輪が味方キャラクターへ
@@ -1807,7 +1830,8 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
   // 1エントリだけを正とする（両方を残すと_mergeCountedKeywordsで合算され「結界2」等に二重計上される）。
-  const normalizedKws=[...(unit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())),...dynamicKws]
+  const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+  const normalizedKws=[...(unit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())&&!cardNames.has(String(k||'').trim())),...dynamicKws]
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
     .filter(k=>k&&!_isInternalOnlyKeyword(k));
   // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
@@ -2002,12 +2026,12 @@ function renderField(id,units,isEnemy,_lane){
         const gradeTag='';
         const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
-        const descTag=_unitCombinedDescHtml(u,_desc);
+        const descTag=_unitCombinedDescHtml(u,_desc,Number.isInteger(u._mainBoardSlot)?u._mainBoardSlot:i);
         // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
         // 既にアイコン化済みの_desc（<img alt="マナ">を含む）ではなくプレーンテキストを渡す
         // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
         const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
-        const _preview=_unitPreviewText(u,_plainDesc);
+        const _preview=_unitPreviewText(u,_plainDesc,Number.isInteger(u._mainBoardSlot)?u._mainBoardSlot:i);
         if(_preview) slot.setAttribute('data-preview',_preview);
         const _hpClass=(u.maxHp!=null&&u.hp<u.maxHp)?'h hp-damaged':'h';
         const _hpMax=Math.max(1,u.maxHp||u.hp||1);
@@ -2374,15 +2398,17 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     // キーワードとして「キーワード：〇〇」行を合成する（敵/キャラクターと同じ表示規則）。
     // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
     // このカード自身のキーワード欄プレビューからも除外する
-    const _adjKws=[...new Set(card.adjacentKeywords||[])].filter(k=>{
+    const _adjKws=[...new Set([...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),...(card.adjacentKeywords||[])])].filter(k=>{
       const s=String(k||'').trim();
       if(_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
       if(s===String(card.name||'')&&!_ENCHANT_KEYWORD_ONLY.has(s)&&!/^結界\d+$/.test(s)&&!/^封印\d+$/.test(s)&&!/^毒牙?\d*$/.test(s)&&!/^邪眼\d*$/.test(s)&&!/^衝撃\d*$/.test(s)&&!/^強靭\d*$/.test(s)) return false;
       return true;
     });
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
-    const _panelDescForPreview=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card);
-    const preview=[_cardUiName(card),_panelDescForPreview,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:''].filter(Boolean).join('\n');
+    const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card).replace(/^荷物\s*/,'');
+    const _panelDescForPreview=card.name==='封印されしもの'
+      ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
+    const preview=[_cardUiName(card),_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);

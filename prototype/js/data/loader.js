@@ -373,6 +373,22 @@ function _filterBySheetName(list, name) {
   return (list || []).filter(item => _normCardName(item && item.name) === n);
 }
 
+// ExcelのNo.（C043/E028/Sxxx）を、コード側のno/artCode（043/C043）に照合する。
+// 同名カードが存在する場合でも、シートの番号を優先して正しいカードへ同期する。
+function _filterBySheetCode(list, code, category) {
+  const c = String(code || '').trim().toUpperCase();
+  if (!c) return [];
+  const m = c.match(/^[A-Z]+(\d+)$/);
+  const num = m ? String(parseInt(m[1], 10)).padStart(3, '0') : '';
+  const prefix = m ? m[0].slice(0, -m[1].length) : '';
+  return (list || []).filter(item => {
+    if (category && String(item && item.category || '') !== String(category)) return false;
+    const values = [item && item.no, item && item.No, item && item['No.'], item && item.artCode, item && item.imageNo]
+      .map(v => String(v || '').trim().toUpperCase()).filter(Boolean);
+    return values.some(v => v === c || v === num || (prefix && v === prefix + num));
+  });
+}
+
 function _splitSheetList(s) {
   return String(s || '').split(/[、,，/／・\s]+/).map(v=>v.trim()).filter(Boolean);
 }
@@ -564,6 +580,7 @@ async function loadGameData() {
         }
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
+    if(!KW_DESC_MAP['荷物']) KW_DESC_MAP['荷物']='合体できない。';
 
     // 地域情報シート（任意）：街の名前・街の施設・戦闘（道中）の固有名をシート駆動にする。
     // 「ステージ」列の値がG._wave（1〜5。0は開始地点）に対応する。
@@ -868,6 +885,7 @@ async function loadGameData() {
       delete panel.manaOnInjury;
       delete panel.goldOnBattleEnd;
       delete panel.goldOnDeath;
+      delete panel.randomItemOnBattleEnd;
       if (/コピーを1体召喚/.test(desc)) panel.summonCount = 2;
       if (/コピーを2体召喚/.test(desc)) panel.summonCount = 3;
       if (panel.name === 'スリープシープ') {
@@ -894,6 +912,7 @@ async function loadGameData() {
       if (goldEnd) panel.goldOnBattleEnd = parseInt(goldEnd[1], 10) || 0;
       const goldDeath = desc.match(/死亡：\s*(\d+)\s*ゴールドを?得る/);
       if (goldDeath) panel.goldOnDeath = parseInt(goldDeath[1], 10) || 0;
+      if (/終戦：\s*ランダムなアイテムを得る/.test(desc)) panel.randomItemOnBattleEnd = true;
       _setManaThresholdFromDesc(panel);
     };
     const _setEnchantFieldsFromDesc = panel => {
@@ -901,21 +920,22 @@ async function loadGameData() {
       panel.adjacentAtkBonus = 0;
       panel.adjacentHpBonus = 0;
       panel.adjacentKeywords = [];
-      let m = desc.match(/常時：\s*\+(\d+)\s*\/\s*\+(\d+)/);
+      const selfTarget = '(?:このキャラクターは\\s*)?';
+      let m = desc.match(new RegExp(`常時：\\s*${selfTarget}\\+(\\d+)\\s*\\/\\s*\\+(\\d+)`));
       if (m) {
         panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
         panel.adjacentHpBonus = parseInt(m[2], 10) || 0;
       }
-      m = desc.match(/常時：\s*\+(\d+)\s*\/\s*-(\d+)/);
+      m = desc.match(new RegExp(`常時：\\s*${selfTarget}\\+(\\d+)\\s*\\/\\s*-(\\d+)`));
       if (m) {
         panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
         panel.adjacentHpBonus = -(parseInt(m[2], 10) || 0);
       }
-      m = desc.match(/常時：\s*HP\+(\d+)/);
+      m = desc.match(/常時：\s*(?:このキャラクターは\s*)?HP\+(\d+)/);
       if (m) panel.adjacentHpBonus = parseInt(m[1], 10) || 0;
-      m = desc.match(/常時：\s*ATK\+(\d+)/);
+      m = desc.match(/常時：\s*(?:このキャラクターは\s*)?ATK\+(\d+)/);
       if (m) panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
-      m = desc.match(/常時：\s*-(\d+)\s*\/\s*-(\d+)/);
+      m = desc.match(new RegExp(`常時：\\s*${selfTarget}-(\\d+)\\s*\\/\\s*-(\\d+)`));
       if (m) {
         panel.adjacentAtkBonus = -(parseInt(m[1], 10) || 0);
         panel.adjacentHpBonus = -(parseInt(m[2], 10) || 0);
@@ -924,14 +944,30 @@ async function loadGameData() {
         '逆襲','闇の儀式','執念の炎','闇の炎','狂気','野生の力','根性','生贄','治癒能力','マナ生成',
         '二段攻撃','三段攻撃','即死','三方向攻撃','先制','全体攻撃','生命吸収',
         '逆上','剣技','怨念','錬成','マナの種','恩寵','狙撃','防戦','帰滅','隠密','加護','貫通',
-        '復活','根性','強靭'
+        '復活','根性','強靭','熟練','遺志','共振','団結','封印されしもの','禁断の力','武器破壊','戦術','大盾','策士'
       ].forEach(k=>{
-        if (desc.includes(k) || panel.name === k) panel.adjacentKeywords.push(k);
+        // カード名そのものはキーワードではない。説明文またはシートのキーワード欄に
+        // 明記された場合だけ採用し、末尾に残ったカード名を誤ってキーワード化しない。
+        if (desc.includes(k)) panel.adjacentKeywords.push(k);
       });
+      // 新エンチャントの固有処理用フィールド（説明文が未同期でも名前で認識する）。
+      if(panel.name==='封印されしもの'){
+        // カード名は表示名であり、接続先へ付与するキーワードではない。
+        if(!panel.adjacentKeywords.some(k=>/^封印\d+$/.test(k))) panel.adjacentKeywords.push('封印1');
+        panel.releaseAtkBonus=20; panel.releaseHpBonus=20;
+      }
+      if(panel.name==='炎の矢'){
+        panel.manaCost=1; panel.manaRepeat=true;
+        panel._manaThresholdDesc='ランダムな敵に4ダメージを与える。';
+      }
+      const releaseBuff=desc.match(/解放[:：]\s*\+(\d+)\s*\/\s*\+(\d+)/);
+      if(releaseBuff){ panel.releaseAtkBonus=parseInt(releaseBuff[1],10)||0; panel.releaseHpBonus=parseInt(releaseBuff[2],10)||0; }
       const attackMana = desc.match(/攻撃：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
       if (attackMana) panel.manaOnAttack = parseInt(attackMana[1], 10) || 1;
       const shield = `${desc} ${panel.name || ''}`.match(/結界\s*(\d*)/);
       if (shield) panel.adjacentKeywords.push('結界' + (shield[1] || '1'));
+      const seal = desc.match(/封印\s*(\d+)/);
+      if (seal) panel.adjacentKeywords.push('封印' + (seal[1] || '1'));
       if (/死亡：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/.test(desc) && !panel.adjacentKeywords.includes('狂気')) {
         panel.adjacentKeywords.push('狂気');
       }
@@ -952,6 +988,10 @@ async function loadGameData() {
       else if (/四方向/.test(desc)) panel.directionCount = 4;
       else if (panel.directionCount == null) panel.directionCount = 2;
       _setManaThresholdFromDesc(panel);
+      if(panel.name==='炎の矢'){
+        panel.manaCost=1; panel.manaRepeat=true;
+        panel._manaThresholdDesc='ランダムな敵に4ダメージを与える。';
+      }
     };
     const _syncPanelFromRow = (panel, row, forcedCategory) => {
       if (!panel) return;
@@ -1017,6 +1057,8 @@ async function loadGameData() {
         panel.life = hpP.val;
       }
       if (row['効果'] !== undefined) panel.desc = String(row['効果'] || '').trim();
+      // Excelの効果欄末尾にカード名が付くことがあるが、表示・キーワード解析から除去する。
+      if (panel.category === 'エンチャント') panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
       if (!panel._sheetDescLoaded && panel.name === 'スリープシープ') panel.desc = '常時：このキャラクターは4つのポートを持つ。';
       if (!panel._sheetDescLoaded && panel.name === 'ツインデビル') panel.desc = '開戦：コピーを1体召喚する。';
       const sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
@@ -1036,6 +1078,10 @@ async function loadGameData() {
       if (panel.category === 'エンチャント') {
         _setEnchantFieldsFromDesc(panel);
         panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, sheetKeywords);
+        // 強化カード名は表示名であり、接続先へ付与するキーワードではない。
+        // シート側に誤って残っている場合もここで除去し、データ追加時の再発を防ぐ。
+        const enchantCardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+        panel.adjacentKeywords=panel.adjacentKeywords.filter(k=>!enchantCardNames.has(String(k||'').trim()));
         // 「ポート」列＝各強化カードの接続ポイントの数（旧「ハブ」列も互換で許容）
         const portStr = String(row['ポート'] ?? row['ハブ'] ?? '').trim();
         const portVal = parseInt(portStr, 10);
@@ -1047,14 +1093,25 @@ async function loadGameData() {
     const spellRows = _parseCSVWithHeader(spt || '名前\n', ['No.', '名前']);
     const itemRows = _parseCSVWithHeader(it || '名前\n', ['No.', '名前']);
     const ringRows = _parseCSVWithHeader(rt || '名前\n', ['No.', '名前']);
-    if(itemRows.some(row=>Object.prototype.hasOwnProperty.call(row,'実装'))){
+    if(itemRows.length){
       itemRows.forEach(row=>{
         const name=String(row['名前']||'').trim();
         const no=String(row['No.']||row['No']||'').trim();
         if(!name&&!no) return;
         (ITEM_POOL||[]).filter(item=>(name&&String(item.name||'').trim()===name)||(no&&String(item.no||'').trim()===no))
-          .forEach(item=>{ item._implemented=_truthySheet(row['実装']); });
+          .forEach(item=>{
+            if(Object.prototype.hasOwnProperty.call(row,'実装')) item._implemented=_truthySheet(row['実装']);
+            if(Object.prototype.hasOwnProperty.call(row,'ショップ')) {
+              item._shopAvailable=_truthySheet(row['ショップ']);
+              if(item._shopAvailable) delete item._shopExcluded;
+            }
+            if(Object.prototype.hasOwnProperty.call(row,'効果')) item.desc=String(row['効果']||'').trim();
+            if(Object.prototype.hasOwnProperty.call(row,'ショップ')&&!_truthySheet(row['ショップ'])) item._shopExcluded=true;
+          });
       });
+      // ゲーム仕様では黄金の巻物は所持金を2倍にする（シート側の旧1.5倍表記を補正）。
+      const goldenScroll=(ITEM_POOL||[]).find(item=>item&&item.name==='黄金の巻物');
+      if(goldenScroll) goldenScroll.desc='所持金を2倍にする。';
     }
     // 指輪シートは「実装」列が明示的にTRUE/✓等の場合のみ採用する（空欄のドラフト行を
     // 「未指定＝実装済み」として拾ってしまう_rowImplementedの既定動作とは別扱いにする）。
@@ -1083,7 +1140,10 @@ async function loadGameData() {
       const implemented = _rowImplemented(row);
       const pool = targetPool || PANEL_POOL;
       if (!implemented && !forceSync) {
-        _filterBySheetName(pool, name).forEach(panel => {
+        const excluded = _filterBySheetCode(pool, code, forcedCategory);
+        const exactExcluded = excluded.filter(panel => [panel && panel.no, panel && panel.No, panel && panel['No.'], panel && panel.artCode]
+          .some(v => String(v || '').trim().toUpperCase() === String(code || '').trim().toUpperCase()));
+        ((exactExcluded.length || excluded.length === 1) ? (exactExcluded.length ? exactExcluded : excluded) : _filterBySheetName(pool, name)).forEach(panel => {
           if (panel) { panel._rewardExcluded = true; panel._shopExcluded = true; }
         });
         return;
@@ -1093,8 +1153,31 @@ async function loadGameData() {
           || String(row['ライフ'] || row['HP'] || '').trim();
         if (!hasStats) return;
       }
-      const candidates = _filterBySheetName(pool, name);
-      if (!candidates.length) return; // PANEL_POOL/SPELL_POOLに存在しない新規カードは今回追加しない（スコープ外）
+      // 既存名とNo.の両方を照合し、名前一致を優先して旧番号のずれを吸収する。
+      const candidatesByCode = _filterBySheetCode(pool, code, forcedCategory);
+      const candidatesByName = _filterBySheetName(pool, name);
+      const exactCodeCandidates = candidatesByCode.filter(panel => [panel && panel.no, panel && panel.No, panel && panel['No.'], panel && panel.artCode]
+        .some(v => String(v || '').trim().toUpperCase() === String(code || '').trim().toUpperCase()));
+      // 既存カード名が一致する場合は名前を優先する。旧コード側の裸No.が別カードに
+      // 残っていても、Excelの名前と画像No.を正しいカードへ同期できる。
+      let candidates = candidatesByName.length ? candidatesByName
+        : (exactCodeCandidates.length ? exactCodeCandidates : candidatesByCode.length === 1 ? candidatesByCode : []);
+      // Excelで実装TRUEになっている強化／魔法がコード側に未登録でも、
+      // シート行から最小限のカード定義を生成して報酬・ショップへ反映する。
+      if (!candidates.length && implemented && (forcedCategory === 'エンチャント' || forcedCategory === 'スペル')) {
+        const safeCode = String(code || '').replace(/[^A-Z0-9_-]/gi, '_');
+        const generated = {
+          id: `panel_sheet_${safeCode || _normCardName(name)}`,
+          no: code || '', name: String(name).trim(), rarity: 1, grade: 1,
+          type: forcedCategory === 'スペル' ? 'spell' : 'panel',
+          kind: forcedCategory === 'スペル' ? 'spell' : 'panel',
+          panelScope: 'unit', category: forcedCategory, cost: 1, slot: 1,
+          desc: String(row['効果'] || '').trim()
+        };
+        pool.push(generated);
+        candidates = [generated];
+      }
+      if (!candidates.length) return;
       let panel = candidates.length === 1 ? candidates[0] : (
         candidates.find(p => !_seenPanelIds.has(p.id) && String(p.category || '') === forcedCategory)
         || candidates.find(p => !_seenPanelIds.has(p.id))
@@ -1111,6 +1194,16 @@ async function loadGameData() {
     _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
     _syncPanelRows(enchantRows, 'エンチャント', PANEL_POOL);
     _syncPanelRows(spellRows, 'スペル', typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : []);
+    // 荷物はカード自身が持つキーワードで、接続先へは付与しない。
+    // シート側の更新前でも壺・魔鏡の合体不可ルールを一貫して適用する。
+    const _luggagePanelNames=new Set(['翡翠の壺','黄金の壺','魔鏡']);
+    (PANEL_POOL||[]).forEach(panel=>{
+      if(!_luggagePanelNames.has(String(panel&&panel.name||'').trim())) return;
+      panel.keywords=_mergeUniqueKeywords(panel.keywords,['荷物']);
+      panel.adjacentKeywords=(panel.adjacentKeywords||[]).filter(k=>String(k||'').trim()!=='荷物');
+    });
+    // 旧試作版の内部カード「複製」は現行シートに存在しないため、報酬・デバッグ一覧から除外する。
+    for(let i=PANEL_POOL.length-1;i>=0;i--) if(PANEL_POOL[i]&&PANEL_POOL[i].name==='複製') PANEL_POOL.splice(i,1);
     const _requestedEffectOverrides = {
       'ノーム': {desc:'終戦：5ゴールドを得る。'},
       'ゴーレム': {desc:'負傷：このキャラクターは+2/+2を得る。'},
@@ -1139,7 +1232,9 @@ async function loadGameData() {
       'マーメイド': {desc:'常時：緑のキャラクターから得るマナは+1される。'},
       'グリムリーパー': {desc:'封印5　即死', keywords:['封印5','即死']},
       'ハイドラ': {desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
-      'スキュラ': {desc:'3マナ毎：全ての敵に毒12を与える。'},
+      'コカトリス': {desc:'4マナ毎：ランダムな敵に防戦を与える。'},
+      'スキュラ': {desc:'2マナ毎：全ての敵に毒1を与える。'},
+      'レプラコーン': {desc:'終戦：ランダムなアイテムを得る。'},
       'ナーガ': {desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
       'ブラウニー': {desc:'攻撃＆負傷：全ての仲間のHPが+2される。'},
       'エルヴンメイジ': {desc:'攻撃：全ての黄キャラクターは+1/+1を得る。'},
@@ -1156,7 +1251,8 @@ async function loadGameData() {
     };
     Object.entries(_requestedEffectOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        if (panel._sheetDescLoaded) return;
+        const forceEffectOverride = ['コカトリス','スキュラ','レプラコーン'].includes(name);
+        if (panel._sheetDescLoaded && !forceEffectOverride) return;
         panel.desc = _stripOwnNameFromDesc(cfg.desc, panel.name);
         panel._sheetSeen = true;
         panel._implemented = true;
