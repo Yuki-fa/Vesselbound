@@ -1454,6 +1454,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           {transform:atHit},
         ],opt.firstDuration||420,()=>getTargetMotionTransform(1));
       }
+      // 接触した瞬間のフック。戻りモーション（returnDuration）を待つと画面揺れが
+      // 体感で1テンポ遅れるため、ここで呼ぶ。
+      if(typeof opt.onHit==='function'){ try{ opt.onHit(); }catch(e){ console.error('[attackMotion onHit]',e); } }
       await runSegment([
         {transform:atHit},
         {transform:'translate(0,0) rotate(0deg)'},
@@ -1845,6 +1848,17 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   const weakenList=unit.weaken>0?[`弱体${unit.weaken}`]:[];
   return [...weakenList,...filtered];
 }
+// 戦闘中のユニットは _panelSummonDisplayEquipment() が作る
+// 「index0＝本体、以降＝接続中の強化カード」という平坦な配列を equipment に持つ。
+// これを盤面のスロット番号（_mainBoardSlot）で引くと _collectEnhancementPanelsForSlot() の
+// 隣接判定がどれも成立せず、強化カードの効果文が丸ごと消えて編成画面と食い違う。
+// 平坦配列を持つユニットは本体の位置＝0 で引く。
+function _unitDescSlotIdx(unit, fallbackIdx){
+  const eq=Array.isArray(unit&&unit.equipment)?unit.equipment:null;
+  if(eq&&eq.length&&eq[0]&&String(eq[0].category||'')==='キャラクター') return 0;
+  return Number.isInteger(unit&&unit._mainBoardSlot)?unit._mainBoardSlot:fallbackIdx;
+}
+
 function _unitPreviewText(unit, desc, slotIdx){
   if(!unit) return desc||'';
   const lines=[];
@@ -2026,12 +2040,13 @@ function renderField(id,units,isEnemy,_lane){
         const gradeTag='';
         const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
-        const descTag=_unitCombinedDescHtml(u,_desc,Number.isInteger(u._mainBoardSlot)?u._mainBoardSlot:i);
+        const _descSlot=_unitDescSlotIdx(u,i);
+        const descTag=_unitCombinedDescHtml(u,_desc,_descSlot);
         // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
         // 既にアイコン化済みの_desc（<img alt="マナ">を含む）ではなくプレーンテキストを渡す
         // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
         const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
-        const _preview=_unitPreviewText(u,_plainDesc,Number.isInteger(u._mainBoardSlot)?u._mainBoardSlot:i);
+        const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
         if(_preview) slot.setAttribute('data-preview',_preview);
         const _hpClass=(u.maxHp!=null&&u.hp<u.maxHp)?'h hp-damaged':'h';
         const _hpMax=Math.max(1,u.maxHp||u.hp||1);

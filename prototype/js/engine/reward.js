@@ -544,8 +544,12 @@ function renderDebugRewardRerollButton(){
 
 function _shopCardSellGain(card){
   if(!card) return 0;
-  // 道具屋の売値はレアリティ×45で統一する。
-  if(G._isItemShop&&typeof _itemShopSellPrice==='function') return _itemShopSellPrice(card);
+  // 売値は「どの店にいるか」ではなく「何を売るか」で決める（全店共通）。
+  //   アイテム   → 道具屋準拠（レアリティ×45）
+  //   その他カード → 魔導店準拠（_mapSalePrice の4分の1）
+  // 以前は道具屋にいる限り全カードがアイテム価格になり、キャラクター／強化カードが
+  // 魔導店より高く売れていた。
+  if(_isItemCard(card)&&typeof _itemShopSellPrice==='function') return _itemShopSellPrice(card);
   if(card.sellPrice!=null) return Math.max(0,Number(card.sellPrice)||0);
   if(card.sellValue!=null) return Math.max(0,Number(card.sellValue)||0);
   const base=typeof _mapSalePrice==='function'?_mapSalePrice(card):calcBuyPrice(card);
@@ -1337,10 +1341,11 @@ function _syncRewardProductionItems(){
         }
       });
     }
-    // 道具屋：手持ちアイテムに売却価格（レアリティ×45）と売却ボタンを重ねる。
+    // 店（道具屋・魔導店・鍛冶屋）では手持ちアイテムに売却価格と売却ボタンを重ねる。
+    // 価格はアイテムなので全店共通で道具屋準拠（レアリティ×45）。
     slot.querySelector('.shop-board-sell-value')?.remove();
     slot.querySelector('.shop-board-sell-btn')?.remove();
-    if(G._isItemShop&&item){
+    if((G._isShop||G._isForge)&&item){
       const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
       const val=document.createElement('div');
       val.className='shop-board-sell-value';
@@ -2356,7 +2361,6 @@ function _pickRingOffer(){
   G._bossRingOfferSeen=Array.isArray(G._bossRingOfferSeen)?G._bossRingOfferSeen:[];
   const seen=new Set(G._bossRingOfferSeen.filter(Boolean));
   const available=pool.filter(r=>r&&!seen.has(r.id||r.name));
-  const topTag=_topHeldCardTag();
   const pickRandom=(arr,n,exclude)=>{
     const src=arr.filter(r=>!exclude.has(r));
     const picked=[];
@@ -2367,10 +2371,20 @@ function _pickRingOffer(){
     return picked;
   };
   const used=new Set();
-  const tagged=topTag?available.filter(r=>_ringHasTag(r,topTag)):[];
-  const taggedPicks=pickRandom(tagged,2,used);
-  taggedPicks.forEach(r=>used.add(r));
-  // タグ一致が2枚に満たない場合は、提示自体が減らないよう他の指輪で補う
+  // 色タグ（赤/青/緑/黄/紫）の指輪は各色1枚しか存在しないため、最多タグだけでは
+  // 2枚に届かないのが通常。足りない分は「次に多いタグ」で補う。
+  // 以前はここを完全ランダムで埋めていたため、味方が黄一色でも赤い瞳や屍術師が出ていた。
+  const tagRanking=Object.entries(_countHeldCardTags())
+    .filter(([,n])=>n>0)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([t])=>t);
+  const taggedPicks=[];
+  tagRanking.forEach(tag=>{
+    if(taggedPicks.length>=2) return;
+    const matches=available.filter(r=>_ringHasTag(r,tag));
+    pickRandom(matches,2-taggedPicks.length,used).forEach(r=>{ used.add(r); taggedPicks.push(r); });
+  });
+  // 所持カードに対応するタグ付き指輪が尽きた場合だけ、提示枚数を保つためランダムで補う。
   if(taggedPicks.length<2){
     pickRandom(available,2-taggedPicks.length,used).forEach(r=>{ used.add(r); taggedPicks.push(r); });
   }
@@ -3459,6 +3473,11 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     const rect=el.getBoundingClientRect();
     const cloneEl=el.cloneNode(true);
     cloneEl.querySelectorAll('button').forEach(btn=>btn.remove());
+    // 盤面上のカードは「つながっている方向の矢印」を消し、代わりに#hand-slots側へ
+    // .panel-unite-linkを描いている（_renderPanelUniteMarkers）。ゴーストはカード要素だけを
+    // body直下へ複製するためunite画像が付いてこず、矢印が欠けたカードに見えてしまう。
+    // 単独のカードとして本来の向きを全て表示し直す。
+    _restorePanelDirectionDom(cloneEl,unit.equipment[idx]);
     const baseWidth=el.offsetWidth||260, baseHeight=el.offsetHeight||395;
     _freezeTripleCloneOverlayGeometry(el,cloneEl,rect,baseWidth,baseHeight);
     return {idx,rect,cloneEl,baseWidth,baseHeight};

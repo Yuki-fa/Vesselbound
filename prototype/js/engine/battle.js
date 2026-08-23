@@ -464,7 +464,7 @@ function _handleVictory(){
 function addUnitAtk(unit, amount){
   if(!unit||amount<=0) return 0;
   const total = amount + (_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?1:0);
-  unit.atk += total;
+  unit.atk = (unit.atk||0) + total;
   unit.baseAtk = (unit.baseAtk||0) + total;
   return total;
 }
@@ -501,14 +501,11 @@ function unitMatchesRace(unit, race){
 
 function applyUnitBuff(unit, atk, hp, sideOverride){
   if(!unit||unit.hp<=0) return {atk:0,hp:0};
-  const doneAtk=atk>0?atk:0;
   const doneHp=hp>0?hp:0;
-  if(atk>0){
-    unit.atk+=doneAtk;
-    unit.baseAtk=(unit.baseAtk||0)+doneAtk;
-  }
+  // ATKもHPと同じく熟練（+1）を通す。直接代入していたため熟練が乗らなかった。
+  const atkDone=atk>0?addUnitAtk(unit,atk):0;
   const hpDone=doneHp>0?addUnitHp(unit,doneHp,sideOverride):0;
-  return {atk:doneAtk,hp:hpDone};
+  return {atk:atkDone,hp:hpDone};
 }
 
 // ── 戦闘開始 ──────────────────────────────────
@@ -1503,12 +1500,14 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
   const desc=String(unit.desc||'');
   const hasName=name=>_unitHasEffectName(unit,name);
   // 戦術：攻撃時に自身へ+1/+2。共振：同じ色の味方全員へ+1/+1。
-  if(_unitHasKeyword(unit,'戦術')) _addBattleStats(unit,1,2,isEnemySide?'enemy':'ally');
-  if(_unitHasKeyword(unit,'共振')){
+  const tacticsCount=Math.max(_unitKeywordCount(unit,'戦術'),_unitEffectPanelCount(unit,'戦術'));
+  for(let i=0;i<tacticsCount;i++) _addBattleStats(unit,1,2,isEnemySide?'enemy':'ally');
+  const resonanceCount=Math.max(_unitKeywordCount(unit,'共振'),_unitEffectPanelCount(unit,'共振'));
+  if(resonanceCount>0){
     const color=_normalizeColorTextForBattle(unit.color);
-    allies.filter(a=>_canReceiveBattleEffect(a)&&_normalizeColorTextForBattle(a.color)===color)
-      .forEach(a=>_addBattleStats(a,1,1,isEnemySide?'enemy':'ally'));
-    log(`${_lc(unit.name,isEnemySide)}の共振で同じ色の味方は+1/+1を得た。`,isEnemySide?'bad':'good');
+    const targets=allies.filter(a=>_canReceiveBattleEffect(a)&&_normalizeColorTextForBattle(a.color)===color);
+    for(let i=0;i<resonanceCount;i++) targets.forEach(a=>_addBattleStats(a,1,1,isEnemySide?'enemy':'ally'));
+    log(`${_lc(unit.name,isEnemySide)}の共振で同じ色の味方は+${resonanceCount}/+${resonanceCount}を得た。`,isEnemySide?'bad':'good');
   }
   // 懺悔はキーワードではなく、接続された強化カード名で判定する。
   const penitenceCount=_unitEffectPanelCount(unit,'懺悔');
@@ -1586,16 +1585,19 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
     }
   }
   // 竜の契約：攻撃：ランダムな敵に5ダメージを与える。
-  if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0){
+  // 接続枚数だけ繰り返す（咆哮・懺悔と同じ数え方）。以前は枚数を見ずに1回だけ発動していた。
+  const dragonCount=Math.max(_unitKeywordCount(unit,'竜の契約'),_unitEffectPanelCount(unit,'竜の契約'));
+  for(let i=0;i<dragonCount;i++){
+    // 1回目で相手が倒れることがあるため、対象は毎回選び直す。
     const alive=foes.filter(_canReceiveBattleEffect);
-    if(alive.length){
-      const target=_pickRandomEnemyTargets(foes,unit)[0];
-      playDamageEffectSfx('single');
-      // 竜の契約はキーワード由来の効果でありカード固有の効果ではないため、
-      // ダメージ源キャラクターの専用VFX（CXXX.mp4）は使わない（通常のhit.mp4を使う）。
-      await applyDamageBatch([{unit:target,side:isEnemySide?'ally':'enemy',amount:5,source:unit}],{source:unit});
-      log(`${_lc(unit.name,isEnemySide)}の竜の契約が発動した。${_lc(target.name,!isEnemySide)}に5ダメージを与えた。`,isEnemySide?'bad':'good');
-    }
+    if(!alive.length) break;
+    const target=_pickRandomEnemyTargets(foes,unit)[0];
+    if(!target) break;
+    playDamageEffectSfx('single');
+    // 竜の契約はキーワード由来の効果でありカード固有の効果ではないため、
+    // ダメージ源キャラクターの専用VFX（CXXX.mp4）は使わない（通常のhit.mp4を使う）。
+    await applyDamageBatch([{unit:target,side:isEnemySide?'ally':'enemy',amount:5,source:unit}],{source:unit});
+    log(`${_lc(unit.name,isEnemySide)}の竜の契約が発動した。${_lc(target.name,!isEnemySide)}に5ダメージを与えた。`,isEnemySide?'bad':'good');
   }
   if(hasName('ファミリア')){
     const n=_sacrificeCount();
@@ -1639,7 +1641,8 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
       log(`${_lc(unit.name,isEnemySide)}の効果で生贄を持つキャラクターからATKを${stolen}奪った。`,isEnemySide?'bad':'good');
     }
   }
-  if(_unitHasKeyword(unit,'剣技')){
+  const bladeCount=_enhancementCount(unit,'剣技');
+  for(let i=0;i<bladeCount;i++){
     const atk=3+_combatModifierBonus(unit,isEnemySide);
     _addBattleStats(unit,atk,0,isEnemySide?'enemy':'ally');
     log(`${_lc(unit.name,isEnemySide)}の剣技が発動した。ATK+${atk}`,'good');
@@ -1651,7 +1654,7 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
 async function _applyAllyAttackEffects(ally){
   await _applyUnitAttackEffects(ally,false);
   // 起源の種：このキャラクター自身の攻撃効果が1回追加で発動する。
-  const extra=_unitKeywordCount(ally,'闇の儀式')+_ringCount('狂戦士の指輪')+_unitEffectPanelCount(ally,'マナの種')+(Number(ally._effectRepeatBonus)||0);
+  const extra=_enhancementCount(ally,'闇の儀式')+_ringCount('狂戦士の指輪')+_unitEffectPanelCount(ally,'マナの種')+(Number(ally._effectRepeatBonus)||0);
   for(let i=0;i<extra&&ally&&ally.hp>0;i++){
     await _applyUnitAttackEffects(ally,false);
   }
@@ -1659,7 +1662,7 @@ async function _applyAllyAttackEffects(ally){
 
 async function _applyEnemyAttackEffects(enemy){
   await _applyUnitAttackEffects(enemy,true);
-  const extra=_unitKeywordCount(enemy,'闇の儀式');
+  const extra=_enhancementCount(enemy,'闇の儀式');
   for(let i=0;i<extra&&enemy&&enemy.hp>0;i++){
     await _applyUnitAttackEffects(enemy,true);
   }
@@ -1958,6 +1961,15 @@ function _unitShieldValue(unit){
   return kws.reduce((sum,k)=>sum+_shieldValueFromKeyword(k),0);
 }
 
+// 強化カード由来の効果は「キーワードとして持っている数」と「接続している同名パネルの枚数」の
+// 大きい方で数える（錬成・野生の力と同じ数え方）。
+// シートの「キーワード」列が空の強化カードは _unitHasKeyword() では絶対に拾えない
+// （_adjacentPanelAbilities に載るのは keywordPanels のハードコード集合だけ）ため、
+// 強化カード名で判定する箇所は必ずこれを使うこと。
+function _enhancementCount(unit, name){
+  return Math.max(_unitKeywordCount(unit,name),_unitEffectPanelCount(unit,name));
+}
+
 function _unitEffectPanelCount(unit, kw){
   if(!unit||!kw) return 0;
   if(Number.isInteger(unit._mainBoardSlot)&&typeof _getPartyBoardUnit==='function'&&typeof _collectEnhancementPanelsForSlot==='function'){
@@ -2038,7 +2050,7 @@ function _hasAttackEffectsForPause(unit){
   if(/^攻撃：ランダムな敵にXダメージ/.test(desc)) return true;
   if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0) return true;
   if(_unitHasKeyword(unit,'共振')||_unitHasKeyword(unit,'戦術')) return true;
-  if(_unitHasKeyword(unit,'剣技')) return true;
+  if(_enhancementCount(unit,'剣技')>0) return true;
   return false;
 }
 
@@ -2164,6 +2176,27 @@ async function triggerBattleScreenShake(options){
   host.classList.add('battle-screen-shake');
 }
 
+// 画面揺れを「ぶつかった瞬間」に鳴らすため、_applyDamageState() と同じ規則で
+// 最終ダメージだけを先読みする。状態は一切変更しない（結界も減らさない）。
+function _predictFinalDamage(unit, dmg, skipTough){
+  if(!unit||unit.hp<=0||!(dmg>0)) return 0;
+  if(_isSealed(unit)) return 0;
+  if(unit.shield>0) return 0;
+  let v=dmg;
+  if(unit.weaken>0) v+=unit.weaken;
+  const toughSum=skipTough?0:(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
+  if(toughSum>0) v-=toughSum;
+  return Math.max(0,v);
+}
+
+// 接触時に画面揺れを開始する。applyDamageBatch()側は二重に揺らさないよう、このフラグを消費する。
+function _shakeOnAttackContact(target, damage){
+  const predicted=_predictFinalDamage(target,damage);
+  if(predicted<50) return;
+  G._contactShakeFired=true;
+  triggerBattleScreenShake({damage:predicted});
+}
+
 function _applyDamageState(unit, dmg, source, side, skipTough){
   if(!unit||unit.hp<=0||!(dmg>0)) return {unit,side,actualDmg:0,died:false,blocked:false};
   if(_isSealed(unit)) return {unit,side,actualDmg:0,died:false,blocked:true};
@@ -2181,8 +2214,11 @@ function _applyDamageState(unit, dmg, source, side, skipTough){
   const toughSum=skipTough?0:(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
   if(toughSum>0) dmg-=toughSum;
   unit._lastDamageSource=source||unit._lastDamageSource||null;
-  // 武器破壊：HPの代わりにATKを削る。結界・弱体・強靭の処理は通常のダメージと同じ。
-  if(_unitHasKeyword(unit,'武器破壊')){
+  // 武器破壊：「このキャラクターはHPではなくATKにダメージを与える」＝
+  // 武器破壊を持つのは**ダメージを与える側**であり、削られるのは対象のATK。
+  // 以前はダメージを受ける側（unit）を見ていたため、武器破壊持ち自身のATKが削られていた。
+  // 結界・弱体・強靭の処理は通常のダメージと同じ。
+  if(source&&source!==unit&&_enhancementCount(source,'武器破壊')>0){
     const actualDmg=Math.max(0,dmg);
     const preAtk=Math.max(0,Number(unit.atk)||0);
     const atkDmg=Math.min(preAtk,actualDmg);
@@ -2261,28 +2297,39 @@ function _splitEntriesForUnite(entries){
 
 // ── 味方の負傷トリガー効果一式（マナ獲得＋名前別の負傷効果）。発動したら true を返す ──
 // 執念の炎：常時：このキャラクターの負傷効果は1回追加で発動する。
+// 戻り値は「発動したか」ではなく「実際に発動した回数」。
+// エティンのような「負傷効果が発動するたび」の効果は、執念の炎・激怒の指輪等で
+// 発動回数が増えた分だけ繰り返す必要があるため、回数を呼び出し元へ返す。
 async function _fireAllyInjuryEffects(unit, actualDmg){
-  let fired=false;
+  let firedCount=0;
   // 激怒の指輪：常時：味方の負傷効果は1回追加で発動する。（陣営全体）
   // 起源の種：このキャラクター自身の負傷効果が1回追加で発動する。
   const injuryRepeats=1+_unitEffectPanelCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
   for(let i=0;i<injuryRepeats;i++){
-    if(unit.manaOnInjury){ _gainMana(unit.manaOnInjury,unit); fired=true; }
+    let firedThisRound=false;
+    if(unit.manaOnInjury){ _gainMana(unit.manaOnInjury,unit); firedThisRound=true; }
     // ミノタウロス等「直ちに攻撃する」負傷効果は、攻撃が完全に終わるまで他の処理より優先して
     // 待つ必要があるためawaitする（呼び出し元のapplyDamageBatch側も直列にawaitしている）。
-    if(await _onAllyInjuredByPanel(unit,actualDmg)) fired=true;
+    if(await _onAllyInjuredByPanel(unit,actualDmg)) firedThisRound=true;
+    if(firedThisRound) firedCount++;
   }
-  return fired;
+  return firedCount;
 }
 
 // エティン：常時：味方の負傷効果が発動するたび、このキャラクターは+2/+1を得る。
-function _bumpEtinOnAllyInjuryEffect(){
+// times＝負傷効果が発動した回数。執念の炎等で2回発動したなら2回分得る。
+function _bumpEtinOnAllyInjuryEffect(times){
+  const n=Math.max(0,Number(times)||0);
+  if(!n) return;
   (G.allies||[]).forEach(u=>{
     if(!u||u.hp<=0) return;
     if(!/常時：味方の負傷効果が発動するたび、このキャラクターは\+2\/\+1を得る。/.test(String(u.desc||''))) return;
-    u.atk=(u.atk||0)+2; u.baseAtk=(u.baseAtk||0)+2;
-    addUnitHp(u,1,'ally');
-    log(`${_lc(u.name,false)}の効果が発動した。+2/+1を得た。`,'good');
+    let atkSum=0, hpSum=0;
+    for(let i=0;i<n;i++){
+      atkSum+=addUnitAtk(u,2);
+      hpSum+=addUnitHp(u,1,'ally');
+    }
+    log(`${_lc(u.name,false)}の効果が${n}回発動した。+${atkSum}/+${hpSum}を得た。`,'good');
   });
 }
 
@@ -2356,7 +2403,10 @@ async function applyDamageBatch(entries, options){
       const damage=Number(r.actualDmg)||0;
       return damage>=50?Math.max(max,damage):max;
     },0);
-    if(shakeDamage>=50) triggerBattleScreenShake({damage:shakeDamage});
+    // 通常攻撃は接触時（_shakeOnAttackContact）に既に揺らしているため、ここでは揺らさない。
+    // 接触モーションを伴わない経路（効果ダメージ等）だけがここで揺れる。
+    if(G._contactShakeFired) G._contactShakeFired=false;
+    else if(shakeDamage>=50) triggerBattleScreenShake({damage:shakeDamage});
   }
   // 振動を先に開始し、重いステータス再描画による体感遅延を避ける。
   // ダメージ値は確定済みなので、表示更新は直後に行う。
@@ -2414,7 +2464,7 @@ async function applyDamageBatch(entries, options){
   // に制御を戻す前に完全に終わらせることで、他のキャラクターの処理と競合しないようにする。
   const injuredAllies=results.filter(r=>r.needsAllyInjuryEffects&&r.unit&&r.unit.hp>0);
   for(const r of injuredAllies){
-    if(await _fireAllyInjuryEffects(r.unit,r.actualDmg)) _bumpEtinOnAllyInjuryEffect();
+    _bumpEtinOnAllyInjuryEffect(await _fireAllyInjuryEffects(r.unit,r.actualDmg));
   }
   if(injuredAllies.length&&typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
   return results;
@@ -2456,6 +2506,8 @@ function _isArassusPreDamageAttack(unit){
 }
 
 async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
+  // 前の攻撃で接触揺れフラグが消費されずに残ると、次の揺れが抑制されてしまうため毎回落とす。
+  G._contactShakeFired=false;
   const result={
     contacted:false,
     targetDiedBeforeContact:false,
@@ -2493,7 +2545,8 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
       const onImpact=attacker._attackEffectPending
         ?()=>_resolveAttackEffectsAtImpact(attacker,true,actualTarget,result)
         :null;
-      await playAttackMotion(attacker,actualTarget,true,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
+      await playAttackMotion(attacker,actualTarget,true,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+        onHit:()=>_shakeOnAttackContact(actualTarget,damage)});
     } else {
       await _consumeAttackEffectPause(attacker,true,actualTarget);
     }
@@ -2523,7 +2576,8 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage){
     const onImpact=attacker._attackEffectPending
       ?()=>_resolveAttackEffectsAtImpact(attacker,false,target,result)
       :null;
-    await playAttackMotion(attacker,target,false,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
+    await playAttackMotion(attacker,target,false,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+      onHit:()=>_shakeOnAttackContact(target,damage)});
   } else {
     await _consumeAttackEffectPause(attacker,false,target);
   }
@@ -3592,9 +3646,9 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
   const buff=String(text||'').match(/^(?:このキャラクターは)?\s*\+(\d+)\s*\/\s*\+(\d+)を得る/);
   if(buff){
     const atk=parseInt(buff[1],10)||0, hp=parseInt(buff[2],10)||0;
-    if(atk){ unit.atk=(unit.atk||0)+atk; unit.baseAtk=(unit.baseAtk||0)+atk; }
-    if(hp) addUnitHp(unit,hp,isEnemySide?'enemy':'ally');
-    log(`${_lc(unit.name,isEnemySide)}の効果が発動した。+${atk}/+${hp}を得た。`,isEnemySide?'bad':'good');
+    const gAtk=atk?addUnitAtk(unit,atk):0;
+    const gHp=hp?addUnitHp(unit,hp,isEnemySide?'enemy':'ally'):0;
+    log(`${_lc(unit.name,isEnemySide)}の効果が発動した。+${gAtk}/+${gHp}を得た。`,isEnemySide?'bad':'good');
     return;
   }
   // センチネル等：「〇〇」（atk/hp）を召喚する。
@@ -3634,9 +3688,9 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
       const target=candidates[Math.floor(Math.random()*candidates.length)];
       const bonus=_combatModifierBonus(unit,isEnemySide);
       const atk=(parseInt(atkStr,10)||0)+bonus, hp=(parseInt(hpStr,10)||0)+bonus;
-      if(atk){ target.atk=(target.atk||0)+atk; target.baseAtk=(target.baseAtk||0)+atk; }
-      if(hp) addUnitHp(target,hp,isEnemySide?'enemy':'ally');
-      log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,isEnemySide)}は+${atk}/+${hp}を得た。`,isEnemySide?'bad':'good');
+      const gAtk=atk?addUnitAtk(target,atk):0;
+      const gHp=hp?addUnitHp(target,hp,isEnemySide?'enemy':'ally'):0;
+      log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,isEnemySide)}は+${gAtk}/+${gHp}を得た。`,isEnemySide?'bad':'good');
     }
     return;
   }
@@ -3739,7 +3793,7 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     const side=isEnemySide?G.enemies:G.allies;
     (side||[]).forEach(u=>{
       if(u&&u.hp>0&&String(u.color||'')===_normalizeColorTextForBattle(buffColor)&&atk){
-        u.atk=(u.atk||0)+atk; u.baseAtk=(u.baseAtk||0)+atk;
+        addUnitAtk(u,atk);
       }
     });
     log(`${_lc(unit.name,isEnemySide)}の効果で全ての${buffColor}キャラクターはATK+${atk}を得た。`,isEnemySide?'bad':'good');
@@ -4224,7 +4278,9 @@ async function _applyNewOpeningEffects(){
         const atk=Math.max(0,Number(unit.atk)||0);
         if(atk) _addBattleStats(unit,atk,0,side);
       }
-      if(_unitEffectPanelCount(unit,'威光')>0){
+      const majestyCount=_unitEffectPanelCount(unit,'威光');
+      for(let i=0;i<majestyCount;i++){
+        // 「HPを2倍」を枚数分繰り返す（2枚なら4倍）。毎回その時点のmaxHpを足す。
         const hp=Math.max(0,Number(unit.maxHp)||0);
         if(hp) addUnitHp(unit,hp,side);
       }
@@ -4299,7 +4355,7 @@ async function _applyNewOpeningEffects(){
 // _applyDeathKeywordEffects()が実際に何か処理する条件と対応させている。
 function _hasAnyDeathKeywordEffect(unit){
   if(!unit) return false;
-  const count=kw=>_unitKeywordCount(unit,kw);
+  const count=kw=>_enhancementCount(unit,kw);
   if(count('闇の炎')>0) return true;
   const rawDeathMana=unit.manaOnDeath?(parseInt(unit.manaOnDeath,10)||0):count('狂気');
   if(rawDeathMana>0) return true;
@@ -4307,7 +4363,7 @@ function _hasAnyDeathKeywordEffect(unit){
   if(unit.goldOnDeath) return true;
   if(['レイス','デスナイト','ゴースト','ファントム','レムレース','ボーンチャリオット'].some(n=>_unitHasEffectName(unit,n))) return true;
   if(_unitHasEffectName(unit,'バンシー')&&(unit.atk||0)>0) return true;
-  if(_unitHasKeyword(unit,'怨念')&&(unit.atk||0)>0) return true;
+  if(_enhancementCount(unit,'怨念')>0&&(unit.atk||0)>0) return true;
   if(unit._grantedDeathSummon) return true;
   return false;
 }
@@ -4317,26 +4373,27 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
   if(unitIsEnemy&&_isUnitSilencedByScroll(unit)) return;
   const allies=unitIsEnemy?G.enemies:G.allies;
   const foes=unitIsEnemy?G.allies:G.enemies;
-  const count=kw=>_unitKeywordCount(unit,kw);
+  const count=kw=>_enhancementCount(unit,kw);
   // 屍術師の指輪：常時：味方の死亡効果は1回追加で発動する。（プレイヤー側のみ）
   const _ringDeathExtra=unitIsEnemy?0:_ringCount('屍術師の指輪');
   const originDeathExtra=unitIsEnemy?0:_unitEffectPanelCount(unit,'マナの種');
   const deathRepeats=1+count('逆襲')+_ringDeathExtra+originDeathExtra+(Number(unit._effectRepeatBonus)||0);
   const hasName=name=>_unitHasEffectName(unit,name);
-  if(_unitHasKeyword(unit,'遺志')){
+  const willCount=Math.max(_unitKeywordCount(unit,'遺志'),_unitEffectPanelCount(unit,'遺志'));
+  for(let i=0;i<willCount;i++){
+    // 対象は毎回選び直す（1枚ごとに別の味方へ配られる）。
     const target=_randomLiving(allies,a=>a!==unit);
-    if(target){
-      _addBattleStats(target,3,2,unitIsEnemy?'enemy':'ally');
-      log(`${_lc(unit.name,unitIsEnemy)}の遺志で${_lc(target.name,unitIsEnemy)}は+3/+2を得た。`,unitIsEnemy?'bad':'good');
-    }
+    if(!target) break;
+    _addBattleStats(target,3,2,unitIsEnemy?'enemy':'ally');
+    log(`${_lc(unit.name,unitIsEnemy)}の遺志で${_lc(target.name,unitIsEnemy)}は+3/+2を得た。`,unitIsEnemy?'bad':'good');
   }
-  if(_unitEffectPanelCount(unit,'継承')>0){
+  const inheritCount=_unitEffectPanelCount(unit,'継承');
+  const inheritAtk=Math.max(0,Number(unit.atk)||0);
+  for(let i=0;i<inheritCount&&inheritAtk;i++){
     const target=_randomLiving(allies,a=>a!==unit);
-    const atk=Math.max(0,Number(unit.atk)||0);
-    if(target&&atk){
-      _addBattleStats(target,atk,0,unitIsEnemy?'enemy':'ally');
-      log(`${_lc(unit.name,unitIsEnemy)}の継承で${_lc(target.name,unitIsEnemy)}はATK+${atk}を得た。`,unitIsEnemy?'bad':'good');
-    }
+    if(!target) break;
+    _addBattleStats(target,inheritAtk,0,unitIsEnemy?'enemy':'ally');
+    log(`${_lc(unit.name,unitIsEnemy)}の継承で${_lc(target.name,unitIsEnemy)}はATK+${inheritAtk}を得た。`,unitIsEnemy?'bad':'good');
   }
   const darkFlame=count('闇の炎')*deathRepeats;
   for(let i=0;i<darkFlame;i++){
@@ -4361,7 +4418,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       const buffAtk=parseInt(buffAtkStr,10)||0, buffHp=parseInt(buffHpStr,10)||0;
       allies.forEach(a=>{
         if(a&&a.hp>0&&String(a.color||'')===buffColor){
-          if(buffAtk){ a.atk=(a.atk||0)+buffAtk; a.baseAtk=(a.baseAtk||0)+buffAtk; }
+          if(buffAtk) addUnitAtk(a,buffAtk);
           if(buffHp) addUnitHp(a,buffHp,unitIsEnemy?'enemy':'ally');
         }
       });
@@ -4385,7 +4442,9 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       // 敵側の負傷効果は個別実装が薄いため、プレイヤー側と同じ関数を使える範囲に限定する。
       if(target.manaOnInjury) _gainMana(target.manaOnInjury,target);
     }else{
-      await _fireAllyInjuryEffects(target,0);
+      // レイスが起こした負傷効果も「味方の負傷効果が発動した」ことに変わりないため、
+      // エティンを発動回数分だけ反応させる。
+      _bumpEtinOnAllyInjuryEffect(await _fireAllyInjuryEffects(target,0));
     }
     log(`${_lc(unit.name,unitIsEnemy)}の効果で${_lc(target.name,unitIsEnemy)}の負傷効果を発動した。`,unitIsEnemy?'bad':'good');
   }
@@ -4432,8 +4491,9 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     target._grantedDeathSummon={name:'青スケルトン',atk:4,hp:2};
     log(`${_lc(unit.name,unitIsEnemy)}の効果で${_lc(target.name,unitIsEnemy)}に「死亡：「青スケルトン」を召喚する。」を付与した。`,unitIsEnemy?'bad':'good');
   }
-  if(_unitHasKeyword(unit,'怨念')&&(unit.atk||0)>0){
-    for(let i=0;i<deathRepeats;i++){
+  const grudgeCount=_enhancementCount(unit,'怨念');
+  if(grudgeCount>0&&(unit.atk||0)>0){
+    for(let i=0;i<deathRepeats*grudgeCount;i++){
       const candidates=_livingCombatUnits(foes);
       if(!candidates.length) break;
       const target=candidates[Math.floor(Math.random()*candidates.length)];
@@ -4458,8 +4518,9 @@ function _onEnemyDeathPanelSummons(deadEnemy){
 async function _onAllyInjuredByPanel(unit,actualDmg){
   if(!unit||unit.hp<=0) return false;
   let fired=false;
-  if(_unitHasKeyword(unit,'治癒能力')){
-    const heal=2*_unitEffectScale(unit,'治癒能力');
+  const healCount=_enhancementCount(unit,'治癒能力');
+  if(healCount>0){
+    const heal=2*_unitEffectScale(unit,'治癒能力')*healCount;
     unit.hp+=heal;
     unit.maxHp=(unit.maxHp||0)+heal;
     log(`${_lc(unit.name,false)}の治癒能力が発動した。HP+${heal}を得た。`,'good');
@@ -4511,7 +4572,7 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
     const buffTargets=(G.allies||[]).filter(a=>a&&a.hp>0&&String(a.color||'')==='赤');
     buffTargets.forEach(a=>{
       if(a&&a.hp>0&&String(a.color||'')==='赤'){
-        a.atk=(a.atk||0)+scale; a.baseAtk=(a.baseAtk||0)+scale;
+        addUnitAtk(a,scale);
         addUnitHp(a,scale,'ally');
       }
     });
@@ -4534,7 +4595,8 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
     log(`${_lc(unit.name,false)}の効果で生贄を持つキャラクターはHP+1を得た。`,'good');
     fired=true;
   }
-  if(_unitHasKeyword(unit,'逆上')){
+  const furyCount=_enhancementCount(unit,'逆上');
+  for(let f=0;f<furyCount;f++){
     const target=_pickRandomEnemyTargets(G.enemies,unit)[0];
     if(target){
       playDamageEffectSfx('all');
@@ -4559,7 +4621,7 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
       // （_dealAttackDamageWithMutual内の接触タイミングで_consumeAttackEffectPauseが解決する）。
       if(_hasAttackEffectsForPause(unit)) unit._attackEffectPending=true;
       if(unit.manaOnAttack){
-        const _ritualExtraInj=_unitKeywordCount(unit,'闇の儀式')+(Number(unit._effectRepeatBonus)||0);
+        const _ritualExtraInj=_enhancementCount(unit,'闇の儀式')+(Number(unit._effectRepeatBonus)||0);
         for(let mi=0;mi<1+_ritualExtraInj;mi++) _gainMana(unit.manaOnAttack,unit);
         await _flushRingManaThresholdEffects();
         if(unit.hp<=0) break;
@@ -4669,7 +4731,7 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
   // 闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（manaOnAttackも含む）
   if(ally.hp>0&&ally.manaOnAttack){
-    const _ritualExtra=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
+    const _ritualExtra=_enhancementCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
     for(let mi=0;mi<1+_ritualExtra;mi++) _gainMana(ally.manaOnAttack,ally);
     await _flushRingManaThresholdEffects();
     if(_checkBattleOver()) return true;
@@ -4709,7 +4771,7 @@ async function allyAttackAction(ally, allyIdx){
       // 攻撃時効果はアニメーション途中で発動する
       if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
       if(ally.hp>0&&ally.manaOnAttack){
-        const _ritualExtra2=_unitKeywordCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
+        const _ritualExtra2=_enhancementCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
         for(let mi=0;mi<1+_ritualExtra2;mi++) _gainMana(ally.manaOnAttack,ally);
         await _flushRingManaThresholdEffects();
         if(_checkBattleOver()) return true;
@@ -4951,7 +5013,7 @@ async function processAllyDeath(unit){
     // 根性は「致死ダメージを受けてもHP1で耐える」効果のため、HPが一瞬0になったことで
     // 通常のダメージ処理内（hp>0判定）ではスキップされてしまう負傷トリガーをここで代わりに発動する
     if(reviveKw==='根性'){
-      if(await _fireAllyInjuryEffects(unit,0)) _bumpEtinOnAllyInjuryEffect();
+      _bumpEtinOnAllyInjuryEffect(await _fireAllyInjuryEffects(unit,0));
     }
     log(reviveKw==='復活'?`${_lc(unit.name,false)}が復活の効果で召喚された。`:`${_lc(unit.name,false)}が${reviveKw}の効果で蘇った。`,'good');
     requestBattleCompact();
@@ -5006,9 +5068,9 @@ function _onAnyCharDeath(deadUnit){
     });
     // レヴナント：常時：味方が死亡するたび、このキャラクターは+1/+1を得る。
     (G.allies||[]).filter(u=>u&&u.hp>0&&u.name==='レヴナント').forEach(rv=>{
-      rv.atk=(rv.atk||0)+1; rv.baseAtk=(rv.baseAtk||0)+1;
-      addUnitHp(rv,1,'ally');
-      log(`${_lc(rv.name,false)}の効果で+1/+1を得た。`,'good');
+      const gAtk=addUnitAtk(rv,1);
+      const gHp=addUnitHp(rv,1,'ally');
+      log(`${_lc(rv.name,false)}の効果で+${gAtk}/+${gHp}を得た。`,'good');
     });
     // エイドロン：常時：味方が3体死亡するたび、1マナを得る。
     if((G.allies||[]).some(u=>u&&u.hp>0&&u.name==='エイドロン')){

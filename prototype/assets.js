@@ -176,7 +176,6 @@ const Assets = {
     villageEndworld: 'assets/bgm/village_endworld.wav',
     cityCapital: 'assets/bgm/city_capital.wav',
     tower: 'assets/bgm/tower.wav',
-    gameStartBgm: 'assets/bgm/game_start.wav',
     gameTitle: 'assets/bgm/game_title.wav',
     villageStart: 'assets/bgm/village_start.wav', // リーゼ（ゲーム開始地点）
     // 街BGMに重ねる環境音（サブBGMレイヤー）
@@ -187,7 +186,6 @@ const Assets = {
     blacksmith: 'assets/bgm/blacksmith.wav',
     battle1: 'assets/bgm/battle1.wav',
     battle3: 'assets/bgm/battle3.wav',
-    reroll: 'assets/sfx/reroll.wav',
     buy1: 'assets/sfx/buy1.wav',
     buy2: 'assets/sfx/buy2.wav',
     attack: 'assets/sfx/attack.wav',
@@ -212,10 +210,6 @@ const Assets = {
     C002: 'assets/sfx/C002.wav',
     C003: 'assets/sfx/C003.wav',
     K026: 'assets/sfx/K026.wav',
-    spellCast: 'assets/sfx/spell_cast.wav',
-    spellFire: 'assets/sfx/spell_fire.wav',
-    spellHeal: 'assets/sfx/spell_heal.wav',
-    summon: 'assets/sfx/summon.wav',
     victory: 'assets/sfx/victory.wav',
     bossVictory: 'assets/sfx/boss_victory.wav',
     lifeLost: 'assets/sfx/life_lost.wav',
@@ -224,217 +218,19 @@ const Assets = {
   },
 };
 
-const SpellArtMap = {
-  '炎の杖': 'assets/cards/wands/fire.png',
-  '毒の杖': 'assets/cards/wands/poison.png',
-  '強化の杖': 'assets/cards/wands/boost.png',
-  '岩の杖': 'assets/cards/wands/rock.png',
-  '隕石の杖': 'assets/cards/wands/meteor.png',
-  '破滅の杖': 'assets/cards/wands/ruin.png',
-  '成長の杖': 'assets/cards/wands/growth.png',
-  '魅了の杖': 'assets/cards/wands/charm.png',
-  '回復の杖': 'assets/cards/wands/recovery.png',
-  '撹乱の短杖': 'assets/cards/wands/disruption.png',
-  '犠牲の短杖': 'assets/cards/wands/sacrifice.png',
-  '転移の短杖': 'assets/cards/wands/teleportation.png',
-};
-
-const PanelArtMap = {
-  'ミラ': 'assets/cards/panels/generated/mira.png',
-  'アトラ': 'assets/cards/panels/generated/atora.png',
-  'アドラ': 'assets/cards/panels/generated/atora.png',
-  '武術の知識': 'assets/cards/panels/generated/martial_knowledge.png',
-  '魔術の知識': 'assets/cards/panels/generated/magic_knowledge.png',
-  '神術の知識': 'assets/cards/panels/generated/divine_knowledge.png',
-  '戦技マスター': 'assets/cards/panels/generated/master_knowledge.png',
-  '修練': 'assets/cards/panels/generated/training.png',
-  '吸血': 'assets/cards/panels/generated/vampire.png',
-  '隠密': 'assets/cards/panels/generated/stealth.png',
-  '反撃': 'assets/cards/panels/generated/counter.png',
-  'パンチ': 'assets/cards/panels/generated/punch.png',
-  '噛みつき': 'assets/cards/panels/generated/bite.png',
-};
-
 const CharacterArtOverrideMap = {
-  'ミラ': {path:'assets/cards/panels/generated/mira.png'},
-  'アトラ': {path:'assets/cards/panels/generated/atora.png'},
-  'アドラ': {path:'assets/cards/panels/generated/atora.png'},
-  '戦士': {path:'assets/cards/characters/crops/new_starters/starter_warrior.png'},
-  '魔術師': {path:'assets/cards/characters/crops/new_starters/starter_mage.png'},
-  '神官': {path:'assets/cards/characters/crops/new_starters/starter_priest.png'},
-  '盗賊': {path:'assets/cards/characters/crops/new_starters/starter_thief.png'},
-  '騎士': {path:'assets/cards/characters/crops/new_starters/starter_knight.png'},
-  '屍術師': {path:'assets/cards/characters/crops/new_starters/starter_necromancer.png'},
-  '蛮族': {path:'assets/cards/characters/crops/new_starters/starter_barbarian.png'},
-  '狩人': {path:'assets/cards/characters/crops/new_starters/starter_hunter.png'},
-  '咬竜"グレイプニル"': {path:'assets/cards/characters/crops/new_starters/named_graipnir.png'},
-  '咬竜“グレイプニル”': {path:'assets/cards/characters/crops/new_starters/named_graipnir.png'},
-  '金床の賢者"シンドリ"': {path:'assets/cards/characters/crops/new_starters/named_sindri.png'},
-  '金床の賢者“シンドリ”': {path:'assets/cards/characters/crops/new_starters/named_sindri.png'},
-  '極光の女王"グンダ"': {path:'assets/cards/characters/crops/new_starters/named_gunda.png'},
-  '極光の女王“グンダ”': {path:'assets/cards/characters/crops/new_starters/named_gunda.png'},
-  '深淵の捕食者"エギル"': {path:'assets/cards/characters/crops/new_starters/named_aegir.png'},
-  '深淵の捕食者“エギル”': {path:'assets/cards/characters/crops/new_starters/named_aegir.png'},
-  'ミテーラ': {path:'assets/cards/characters/crops/mitera.png'},
-  'ジャッカロープ': {path:'assets/cards/characters/crops/jackalope.png'},
-  'ケットシー': {path:'assets/cards/characters/crops/ketshi.png'},
-  'グリマルキン': {path:'assets/cards/characters/crops/grimalkin.png'},
-  'マーメイド': {path:'assets/cards/characters/crops/mermaid.png'},
-  'ピグミー': {path:'assets/cards/characters/crops/pygmy.png'},
-  'ドワーフ': {path:'assets/cards/characters/crops/dwarf.png'},
-  'ラミア': {path:'assets/cards/characters/crops/lamia.png'},
-  'スケルトン': {path:'assets/cards/characters/crops/skeleton.png'},
-  'ゾンビ': {path:'assets/cards/characters/crops/zombie.png'},
-  'マミー': {path:'assets/cards/characters/crops/mummy.png'},
-  'バンシー': {path:'assets/cards/characters/crops/banshee.png'},
+  // カード名でアート番号を上書きする例外表。原則は「No.」列（C###/E###/EN###/NPC###）から
+  // assets/art/ 以下を自動解決する（getCharacterNoArtPath）ので、ここに足すのは番号と絵が
+  // 一致しないカードだけにすること。
   'エルフ': {path:'assets/art/characters/C044.jpg'},
   'ブラウニー': {path:'assets/art/characters/C043.jpg'},
-  'ジャック・オ・ランタン': {path:'assets/cards/characters/crops/jack_o_lantern.png'},
-  'シルフ': {path:'assets/cards/characters/crops/sylph.png'},
   'インプ': {path:'assets/art/characters/C061.jpg'},
-  'グレムリン': {path:'assets/cards/characters/crops/gremlin.png'},
-  'インキュバス': {path:'assets/cards/characters/crops/incubus.png'},
-  'サキュバス': {path:'assets/cards/characters/crops/succubus.png'},
-  'ヘルナイト': {path:'assets/cards/characters/crops/hell_knight.png'},
-  'デーモン': {path:'assets/cards/characters/crops/demon.png'},
-  'ウェンディゴ': {path:'assets/cards/characters/crops/wendigo.png'},
-  'ヴォイド・ウォーカー': {path:'assets/cards/characters/crops/void_walker.png'},
-  'ヴォイドウォーカー': {path:'assets/cards/characters/crops/void_walker.png'},
-  'カオス・インプ': {path:'assets/cards/characters/crops/chaos_imp.png'},
-  'カオスインプ': {path:'assets/cards/characters/crops/chaos_imp.png'},
-  'レッサーデーモン': {path:'assets/cards/characters/crops/lesser_demon.png'},
-  'ドラゴネット': {path:'assets/cards/characters/crops/dragonet.png'},
   'アークデーモン': {path:'assets/art/characters/C062.jpg'},
   'アラッサス': {path:'assets/art/characters/C081.jpg'},
   'スリン': {path:'assets/art/characters/C082.jpg'},
-  'リザードマン': {path:'assets/cards/characters/crops/lizardman.png'},
-  'ゴブリン': {path:'assets/cards/characters/crops/goblin.png'},
-  'オーク': {path:'assets/cards/characters/crops/orc.png'},
-  'グール': {path:'assets/cards/characters/crops/ghoul.png'},
-  'ポルターガイスト': {path:'assets/cards/characters/crops/poltergeist.png'},
-  'ジャイアントラット': {path:'assets/cards/characters/crops/giant_rat.png'},
-  'マッドキャット': {path:'assets/cards/characters/crops/madcat.png'},
-  'ウィスプ': {path:'assets/cards/characters/crops/wisp.png'},
-  'コブラン': {path:'assets/cards/characters/crops/kobran.png'},
-  'ファイアブレス': {path:'assets/cards/characters/crops/fire_breath.png'},
-  'ポイズンミスト': {path:'assets/cards/characters/crops/poison_mist.png'},
-  '惑わしの妖精"エインセル"': {path:'assets/cards/characters/crops/named_einsel.png'},
-  '惑わしの妖精“エインセル”': {path:'assets/cards/characters/crops/named_einsel.png'},
-  '鉄の拳"フォルニョート"': {path:'assets/cards/characters/crops/named_fornjotr.png'},
-  '鉄の拳“フォルニョート”': {path:'assets/cards/characters/crops/named_fornjotr.png'},
-  '残響の魔導師"アバドン"': {path:'assets/cards/characters/crops/named_abaddon.png'},
-  '残響の魔導師“アバドン”': {path:'assets/cards/characters/crops/named_abaddon.png'},
-  '黄金の瞳"フレイ"': {path:'assets/cards/characters/crops/named_freyr.png'},
-  '黄金の瞳“フレイ”': {path:'assets/cards/characters/crops/named_freyr.png'},
-  '虚空の渡し守"ナグルファル"': {path:'assets/cards/characters/crops/named_naglfar.png'},
-  '虚空の渡し守“ナグルファル”': {path:'assets/cards/characters/crops/named_naglfar.png'},
-  'コカトリス': {path:'assets/cards/characters/crops/named_cocatrice.png'},
-  'ウォーグ': {path:'assets/cards/characters/crops/named_warg.png'},
-  'ペガサス': {path:'assets/cards/characters/crops/named_pegasus.png'},
-  'ペリュトン': {path:'assets/cards/characters/crops/named_peryton.png'},
-  'ゴールデン・グース': {path:'assets/cards/characters/crops/named_golden_goose.png'},
-  'コボルド': {path:'assets/cards/characters/crops/named_kobold.png'},
-  'アラクネ': {path:'assets/cards/characters/crops/named_arachne.png'},
-  'ミノタウロス': {path:'assets/cards/characters/crops/minotaur.png'},
-  'ハーピー': {path:'assets/cards/characters/crops/harpy.png'},
-  'サイレン': {path:'assets/cards/characters/crops/siren.png'},
-  'レイス': {path:'assets/cards/characters/crops/wraith.png'},
-  'ドラウグ': {path:'assets/cards/characters/crops/draugr.png'},
-  'シャドウ': {path:'assets/cards/characters/crops/shadow.png'},
-  'スペクター': {path:'assets/cards/characters/crops/spectre.png'},
-  'ゴースト': {path:'assets/cards/characters/crops/ghost.png'},
-  'ノーム': {path:'assets/cards/characters/crops/gnome.png'},
-  'ドリアード': {path:'assets/cards/characters/crops/dryad.png'},
-  'ウンディーネ': {path:'assets/cards/characters/crops/undine.png'},
-  'フロスト・スプライト': {path:'assets/cards/characters/crops/frost_sprite.png'},
-  'フロストスプライト': {path:'assets/cards/characters/crops/frost_sprite.png'},
-  'レプラコーン': {path:'assets/cards/characters/crops/leprechaun.png'},
-  'ガーゴイル': {path:'assets/cards/characters/crops/gargoyle.png'},
-  'ヘルハウンド': {path:'assets/cards/characters/crops/hellhound.png'},
-  'アルプ': {path:'assets/cards/characters/crops/alp.png'},
-  'ダークワン': {path:'assets/cards/characters/crops/darkone.png'},
-  'ファミリア': {path:'assets/cards/characters/crops/familiar.png'},
-  'ワーム': {path:'assets/cards/characters/crops/worm.png'},
-  'リンドヴルム': {path:'assets/cards/characters/crops/lindworm.png'},
-  'ハイドラ': {path:'assets/cards/characters/crops/hydra.png'},
-  'ドレイク': {path:'assets/cards/characters/crops/drake.png'},
-  'シーサーペント': {path:'assets/cards/characters/crops/sea_serpent.png'},
-  'サラマンダー': {path:'assets/cards/characters/crops/salamander.png'},
-  'ワイバーン': {path:'assets/cards/characters/crops/wyvern.png'},
-  'ナーガ': {path:'assets/cards/characters/crops/naga.png'},
-  'ケートス': {path:'assets/cards/characters/crops/cetus.png'},
-  'ヴィブリア': {path:'assets/cards/characters/crops/viburia.png'},
-  'バジリスク': {path:'assets/cards/characters/crops/basilisk.png'},
-  'ホムンクルス': {path:'assets/cards/characters/crops/homunculus.png'},
-  'サテュロス': {path:'assets/cards/characters/crops/satyr.png'},
-  'ダークエルフ': {path:'assets/cards/characters/crops/dark_elf.png'},
-  'カースドアーマー': {path:'assets/cards/characters/crops/cursed_armor.png'},
-  'ボーンナイト': {path:'assets/cards/characters/crops/bone_knight.png'},
   'ダイアウルフ': {path:'assets/art/characters/C041.jpg'},
   'スリープシープ': {path:'assets/art/characters/C042.jpg'},
-  'ヒポグリフ': {path:'assets/cards/characters/crops/hippogriff.png'},
-  'ケルピー': {path:'assets/cards/characters/crops/kelpie.png'},
-  'スプリガン': {path:'assets/cards/characters/crops/spriggan.png'},
-  'ズメイ': {path:'assets/cards/characters/crops/zmei.png'},
-  'ブラッドロード': {path:'assets/cards/characters/crops/bloodlord.png'},
-  'クロコッタ': {path:'assets/cards/characters/crops/crocutta.png'},
-  'ルフ': {path:'assets/cards/characters/crops/rukh.png'},
-  'バンダースナッチ': {path:'assets/cards/characters/crops/bandersnatch.png'},
-  'ナックラヴィー': {path:'assets/cards/characters/crops/nuckelavee.png'},
-  'ヴァーチャー': {path:'assets/cards/characters/crops/virtue.png'},
-  'エルヴンメイジ': {path:'assets/cards/characters/crops/elven_mage.png'},
-  'メリュジーヌ': {path:'assets/cards/characters/crops/melusine.png'},
-  'リアナンシー': {path:'assets/cards/characters/crops/rhiannon.png'},
   'ファナティック': {path:'assets/art/characters/C100.jpg'},
-};
-
-const CharacterArtMap = {
-  '惑わしの妖精"エインセル"': {path:'assets/cards/characters/crops/named_einsel.png'},
-  '鉄の拳"フォルニョート"': {path:'assets/cards/characters/crops/named_fornjotr.png'},
-  '残響の魔導師"アバドン"': {path:'assets/cards/characters/crops/named_abaddon.png'},
-  '黄金の瞳"フレイ"': {path:'assets/cards/characters/crops/named_freyr.png'},
-  '虚空の渡し守"ナグルファル"': {path:'assets/cards/characters/crops/named_naglfar.png'},
-  'コカトリス': {path:'assets/cards/characters/crops/named_cocatrice.png'},
-  'ウォーグ': {path:'assets/cards/characters/crops/named_warg.png'},
-  'ペガサス': {path:'assets/cards/characters/crops/named_pegasus.png'},
-  'ペリュトン': {path:'assets/cards/characters/crops/named_peryton.png'},
-  'ゴールデン・グース': {path:'assets/cards/characters/crops/named_golden_goose.png'},
-  'コボルド': {path:'assets/cards/characters/crops/named_kobold.png'},
-  'アラクネ': {path:'assets/cards/characters/crops/named_arachne.png'},
-  'ジャイアントラット': {sheet:'set1', cols:6, rows:2, col:0, row:0},
-  'マッドキャット': {sheet:'set1', cols:6, rows:2, col:1, row:0},
-  'ミテーラ': {sheet:'set1', cols:6, rows:2, col:2, row:0},
-  'ジャッカロープ': {sheet:'set1', cols:6, rows:2, col:3, row:0},
-  'ケットシー': {sheet:'set1', cols:6, rows:2, col:4, row:0},
-  'グリマルキン': {sheet:'set1', cols:6, rows:2, col:5, row:0},
-  'ゴブリン': {sheet:'set1', cols:6, rows:2, col:0, row:1},
-  'オーク': {sheet:'set1', cols:6, rows:2, col:1, row:1},
-  'マーメイド': {sheet:'set1', cols:6, rows:2, col:2, row:1},
-  'ピグミー': {sheet:'set1', cols:6, rows:2, col:3, row:1},
-  'ドワーフ': {sheet:'set1', cols:6, rows:2, col:4, row:1},
-  'ラミア': {sheet:'set1', cols:6, rows:2, col:5, row:1},
-  'グール': {sheet:'set2', cols:6, rows:2, col:0, row:0},
-  'ポルターガイスト': {sheet:'set2', cols:6, rows:2, col:1, row:0},
-  'スケルトン': {sheet:'set2', cols:6, rows:2, col:2, row:0},
-  'ゾンビ': {sheet:'set2', cols:6, rows:2, col:3, row:0},
-  'マミー': {sheet:'set2', cols:6, rows:2, col:4, row:0},
-  'バンシー': {sheet:'set2', cols:6, rows:2, col:5, row:0},
-  'ウィスプ': {sheet:'set2', cols:6, rows:2, col:0, row:1},
-  'コブラン': {sheet:'set2', cols:6, rows:2, col:1, row:1},
-  'エルフ': {sheet:'set2', cols:6, rows:2, col:2, row:1},
-  'ブラウニー': {sheet:'set2', cols:6, rows:2, col:3, row:1},
-  'ジャック・オ・ランタン': {sheet:'set2', cols:6, rows:2, col:4, row:1},
-  'シルフ': {sheet:'set2', cols:6, rows:2, col:5, row:1},
-  'ポイズンミスト': {sheet:'set3', cols:5, rows:2, col:0, row:0},
-  'インプ': {sheet:'set3', cols:5, rows:2, col:1, row:0},
-  'グレムリン': {sheet:'set3', cols:5, rows:2, col:2, row:0},
-  'インキュバス': {sheet:'set3', cols:5, rows:2, col:3, row:0},
-  'レッサーデーモン': {sheet:'set3', cols:5, rows:2, col:4, row:0},
-  'ファイアブレス': {sheet:'set3', cols:5, rows:2, col:0, row:1},
-  'ドラゴネット': {sheet:'set3', cols:5, rows:2, col:1, row:1},
-  'アラッサス': {sheet:'set3', cols:5, rows:2, col:2, row:1},
-  'スリン': {sheet:'set3', cols:5, rows:2, col:3, row:1},
-  'リザードマン': {sheet:'set3', cols:5, rows:2, col:4, row:1},
 };
 
 function assetUrl(path){
@@ -529,7 +325,7 @@ function getCardFrameAsset(card){
 function _characterArtDef(cardOrName){
   const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
   if(!name) return null;
-  return CharacterArtOverrideMap[name]||CharacterArtMap[name]||null;
+  return CharacterArtOverrideMap[name]||null;
 }
 
 function _assetCodeRaw(card){
@@ -541,7 +337,9 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   const text=String(raw||'').trim();
   if(!text) return '';
   // 旧「P」表記（メインキャラクター）は新しい「MC」表記に読み替える
-  const prefixed=text.match(/^(MC|EN|P|[ECS])\s*0*(\d+)$/i);
+  // NPCは「char（NPC）」シートの初期キャラクター。MCより先に判定しないと
+  // 「NPC001」がどの分岐にも当たらず空文字になり、絵が出ない。
+  const prefixed=text.match(/^(NPC|MC|EN|P|[ECS])\s*0*(\d+)$/i);
   if(prefixed){
     let p=prefixed[1].toUpperCase();
     if(p==='P') p='MC';
@@ -575,8 +373,11 @@ function getCharacterNoArtPath(card){
     const m=code.match(/^E(\d+)$/i);
     if(m) code='EN'+m[1].padStart(3,'0');
   }
+  // 「MC」は char（NPC）シートのNo.列が裸の数値だった場合のフォールバック接頭辞
+  // （loader.js の _assignSheetArtCode）。実ファイルは NPC### 表記なので読み替える。
+  if(code.startsWith('MC')) code='NPC'+code.slice(2);
   let dir='';
-  if(code.startsWith('MC')) dir='assets/art/main_characters';
+  if(code.startsWith('NPC')) dir='assets/art/NPC';
   else if(code.startsWith('EN')) dir='assets/art/enemies';
   else if(code[0]==='E') dir='assets/art/enchantment';
   else if(code[0]==='C') dir='assets/art/characters';
@@ -637,22 +438,11 @@ function applyCharacterArtVars(el, cardOrName, prefix){
   const def=_characterArtDef(cardOrName);
   if(!def) return false;
   const name=typeof cardOrName==='string'?cardOrName:cardOrName?.name;
-  const sheet=def.path||`assets/cards/characters/crops/${def.sheet}_${def.col}_${def.row}.png`;
+  if(!def.path) return false;
   const p=prefix||'--char';
-  el.style.setProperty(`${p}-art`, assetUrl(sheet));
+  el.style.setProperty(`${p}-art`, assetUrl(def.path));
   el.style.setProperty(`${p}-art-size`, 'cover');
   el.style.setProperty(`${p}-art-position`, name==='アラッサス'?'56% 58%':'center 58%');
-  return true;
-}
-
-function applySpellArtVars(el, card, prefix){
-  if(!el||!card||card.type!=='wand') return false;
-  const path=SpellArtMap[card.name];
-  if(!path) return false;
-  const p=prefix||'--card';
-  el.style.setProperty(`${p}-art`, assetUrl(path));
-  el.style.setProperty(`${p}-art-size`, 'cover');
-  el.style.setProperty(`${p}-art-position`, 'center 58%');
   return true;
 }
 
@@ -662,9 +452,7 @@ function getPanelArtPath(card){
   if(card?.art||card?.image) return card.art||card.image;
   const numbered=getCharacterNoArtPath(card);
   if(numbered) return numbered;
-  if(PanelArtMap[name]) return PanelArtMap[name];
-  const key=Object.keys(PanelArtMap).find(k=>name.includes(k));
-  return key?PanelArtMap[key]:'';
+  return '';
 }
 
 function applyPanelArtVars(el, card, prefix){
@@ -681,7 +469,7 @@ function applyPanelArtVars(el, card, prefix){
 function applyCardVisual(el, card){
   if(!el) return;
   el.style.setProperty('--card-frame', assetUrl(getCardFrameAsset(card)));
-  if(!applyPanelArtVars(el, card, '--card')&&!applySpellArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
+  if(!applyPanelArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
     el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
     el.style.removeProperty('--card-art-size');
     el.style.removeProperty('--card-art-position');

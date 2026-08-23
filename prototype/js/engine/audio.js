@@ -18,7 +18,7 @@
         // ようにする。そうしないとデバッグミュート（masterVolume=0）がこれらの音声だけ貫通してしまう。
         // dataset.bgm/dataset.sfx が付いた音声＝このファイルが意図的に音量を決めているものは
         // 対象外にする。ここで1.0へ上書きすると SFX_SETTINGS.sounds の個別音量が効かなくなる。
-        if (val > 0 && this.dataset?.bgm !== '1' && this.dataset?.sfx !== '1' && (src.includes('menu') || src.includes('ui') || src.includes('click') || src.includes('confirm') || src.includes('purchase') || src.includes('reroll'))) {
+        if (val > 0 && this.dataset?.bgm !== '1' && this.dataset?.sfx !== '1' && (src.includes('menu') || src.includes('ui') || src.includes('click') || src.includes('confirm') || src.includes('purchase'))) {
           descriptor.set.call(this, 1.0);
         } else {
           descriptor.set.call(this, val);
@@ -69,7 +69,6 @@ const SFX_SETTINGS={
     altarOut:   {group:'ui',     volume: .39},  // -3.9
     fit:        {group:'reward', volume: 1.00, guardMs:80}, // -19.7
     'return':   {group:'ui',     volume: 1.00}, // -12.2
-    reroll:     {group:'ui',     volume: .79},  // -10.0
     buy1:       {group:'reward', volume: .86},  // 魔導店購入
     buy2:       {group:'reward', volume: .86},  // 道具屋購入
     attack:     {group:'combat', volume: .46, guardMs:80},  // -4.3
@@ -91,10 +90,6 @@ const SFX_SETTINGS={
     kick2:      {group:'combat', volume: .82, guardMs:40},  // -10.8
     kick3:      {group:'combat', volume: .94, guardMs:40},  // -9.5
     death:      {group:'combat', volume: .72, guardMs:300}, // -8.1
-    spellCast:  {group:'magic',  volume: .65},  // 音源未配置
-    spellFire:  {group:'magic',  volume: .75},  // 音源未配置
-    spellHeal:  {group:'magic',  volume: .68},  // 音源未配置
-    summon:     {group:'magic',  volume: .70, guardMs:300}, // 音源未配置
     victory:    {group:'ui',     volume: .82, guardMs:1200}, // -10.3
     bossVictory:{group:'ui',     volume: .80, guardMs:1200}, // -10.1
     lifeLost:   {group:'ui',     volume: 1.00}, // -20.5
@@ -122,8 +117,8 @@ let _bgmTargetVolume=.32*SFX_SETTINGS.masterVolume;
 // （実測RMS[dBFS] → 再生時の実効値[dBFS]。目標は-16前後）
 //   battle1 -10.8 / battle3 -12.2 / village_forest -12.7 / village_grassland -11.1
 //   village_valley -13.0 / tower -10.8 / city_capital -17.2 / village_endworld -19.4
-//   game_start -18.9 / village_start -20.6 / menu -32.3
-// city_capital・village_endworld・game_start・village_start・menuは音源が小さく、1.0でも目標に届かない
+//   village_start -20.6 / menu -32.3
+// city_capital・village_endworld・village_start・menuは音源が小さく、1.0でも目標に届かない
 // （これ以上はHTMLAudioの音量上限のため、音源側の作り直しが必要）。
 const BGM_DEFAULT_VOLUMES={
   menu:1.0,
@@ -135,7 +130,6 @@ const BGM_DEFAULT_VOLUMES={
   villageEndworld:1.0,
   cityCapital:1.0,
   tower:.55,
-  gameStart:1.0,
   gameTitle:1.0,
   villageStart:1.0, // 音源 -20.6dBFS（1.0でも目標-16に届かない＝音源側の対応が必要）
   // 街BGMに重ねる環境音（サブレイヤー）
@@ -262,7 +256,6 @@ const FILE_SFX_VOLUMES={
   'assets/sfx/ring_get.wav':  1.00,  // -16.1（これ以上上げられない）
   'assets/sfx/item_get.wav':  1.00,  // -22.1（同上）
   'assets/sfx/union.wav':      .79,  // -10.0
-  'assets/sfx/ascension.wav':  .68,  // -9.2
   'assets/sfx/board_change1.wav':.79,// -10.0
   'assets/sfx/board_change2.wav':.72,// -8.7
   'assets/sfx/appearance.wav': 1.00, // -12.2
@@ -528,14 +521,6 @@ function toggleDebugMute(){
   });
 }
 function isDebugMuted(){ return _debugMuted; }
-
-function playSpellSfx(sp,opts={}){
-  const effect=sp&&sp.effect;
-  if(['fire','meteor','bomb'].includes(effect)) return playSfx('fire',opts);
-  if(['poison','seal','instakill'].includes(effect)) return playSfx('poison',opts);
-  if(['heal_ally','rally','boost','big_rally','revive','double_hp'].includes(effect)) return playSfx('spellHeal',opts);
-  return playSfx('spellCast',opts);
-}
 
 window.addEventListener('pointerdown',unlockSfx,{once:true,capture:true});
 window.addEventListener('keydown',unlockSfx,{once:true,capture:true});

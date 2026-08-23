@@ -13,20 +13,78 @@
 - 直前の履歴を記述したのが自分（今回の会話セッション）でない場合、今回の作業完了後に履歴を全て消し、新規に1件から書き始める。
 - 直前の履歴を記述したのが自分（今回の会話セッション）である場合、履歴は消さずに書き足す（目安3〜5行を維持）。
 - 「自分が書いたか」は会話セッション内の記憶で判断する。内容に見覚えがなければ他セッション／ユーザー本人による記述とみなす。
-
-- 【今回：道具屋でゴールド不足だとアイテム画像が消える】道具屋の商品は`.item-visual`の**::before＝item_slot.svgの枠／::after＝`--item-art`のアイテム絵**で描いているが、ショップ共通のゴールド不足表示（`.cant`）が同じ`::before`＝暗転／`::after`＝カードフレームを`!important`で上書きしていたため、枠も絵も消えて黒い箱になっていた（index.html）。`.cant.item-visual`／`.cant.item-visual-filled`用の指定を追加し、枠はitem_slot.svgのまま、絵は`linear-gradient`の半透明黒を重ねて暗くする形に戻した（「ゴールド不足」バッジは子要素なので暗くならない）。
-- 【今回：編成画面の背景動画（back1.webm）が止まる】街・施設・ワールドマップの間は`#scr-battle`ごと`display:none`になるため、**Chromeが「表示されていないミュート動画」として`#reward-bg-video`を自動停止する**（実測：村へ入った時点で`paused=true`。pause()呼び出しは無く`pause`イベントだけが来る）。再生し直していたのは`_openWaveFormation()`のrequestAnimationFrameだけで、**戦闘勝利→報酬画面の通常経路（`goToReward()`）には無かった**ため、店に入った後の編成画面が静止画のままになっていた。main.jsに`_resumeRewardBgVideo()`を追加し、`goToReward()`の`reward-screen-active`付与直後に呼ぶようにした（ゲームオーバー中は意図的に止めているので除外）。
-- 【今回：ミノタウロスの負傷攻撃で攻撃効果が出ない】`_fireAllyInjuryEffects()`（battle.js）のミノタウロス分岐は`_dealAttackDamageWithMutual()`を直接呼ぶだけで、通常攻撃（`allyAttackAction()`）が攻撃前に立てている`_attackEffectPending`（＝接触時に`_consumeAttackEffectPause()`が攻撃時効果を解決する仕組み）と`manaOnAttack`の処理が抜けていた。両方を負傷攻撃側にも入れた。試験戦闘で検証：ミノタウロス＋ラミア（攻撃：+2/+1、対象が負傷ならもう一度）で負傷を起こすとATK 3→7になり攻撃効果が発動することを確認。
-- 【今回：店の売切枠に置いたカードが動かせない】原因は**カーソル追従の複製（`.drag-ghost`）が画面に残る**こと。ドロップ成功→`renderRewCards()`/`renderHandEditor()`でドラッグ元要素が作り直されると`dragend`が発火せず、`_removeDragGhost()`が呼ばれないまま複製が最後の位置＝置いた枠の上に貼り付く（`pointer-events:none`なので掴めず、「置いたカードが動かない」ように見える）。render.jsの`_initKwTooltip`内にある既存の解除多重化（`drop`でホバーフラグを戻す処理）の隣に、**バブリング側の`drop`で`_removeDragGhost()`＋`_clearDragZoneClass()`を呼ぶ**リスナーを追加した。カード自体のdraggable／ドロップ受け入れ判定は元から正常（実測）で、商品行は`_canReturnDragSrcToRewardArea()`が盤面・手持ちからの返却のみ受け付ける仕様なので、**売切枠から別の売切枠への移動はできない（ユーザー確認済み・対応不要）**。
-- 【今回：JSのキャッシュ】index.htmlの`?v=tower44`→`tower45`へ更新。**JSを直しても`?v=`を上げないとブラウザが古いJSを実行し続ける**（今回これで修正が効かず一度ハマった）。
-- 【未対応・申し送り】ホーム・酒場・広場は表示のみ（中身は未実装）。祭壇（塔側の`_openWaveAltarMenu`）は従来の編成画面ベースのまま。街の効果動画・専用BGMはステージ1のみ、施設背景`VILLAGE_FACILITY_BG`はステージ1〜5すべて定義済み。「キーワード」シートに`シールド`の行が無いためステージ3ボスの説明が出ない。`assets/sfx/board_change2.wav`は未配置（board_change1.wavへフォールバック中）。シートを更新したら`python3 tools/update_local_xlsx_data.py textMessage region`で内蔵CSV（`js/data/local_xlsx_data.js`）の再生成が必要（file://運用ではxlsxのfetchが失敗し内蔵CSVが使われるため）。
+- 【今回：アセット参照とロゴ】シートのNo.列（`NPC/C/E/EN`）から`assets/art/`配下を自動解決する形に一本化し、実体の無い`assets/cards/`を指していた`SpellArtMap`/`PanelArtMap`/`CharacterArtMap`を削除（初期キャラ7体は`assets/art/NPC/NPC00X.jpg`）。404だったSE・`game_over.svg`も削除し、**404は`favicon.ico`のみ**に。タイトルロゴ差し替えでviewBox幅が変わったため、`mask-size:100% 100%`の`.title-logo-texture`を`height:425px`（2500×452/2659.13）へ。**SVGを差し替えたら要再計算**。
+- 【今回：強化カードの判定経路】シートの「キーワード」列が空の強化カードは`_unitHasKeyword()`では**絶対に拾えない**（`_adjacentPanelAbilities`に載るのは`keywordPanels`のハードコード集合だけ）。剣技・治癒能力・逆上・怨念・闇の炎・逆襲・闇の儀式の7枚が無反応だったため、`_enhancementCount(unit,name)=Math.max(_unitKeywordCount,_unitEffectPanelCount)`を追加して統一。**強化カード名で判定する箇所は必ずこれを使うこと**。狂気はローダーがdescから`狂気`キーワードを注入しているため元から正常。
+- 【今回：回数・枚数の反映漏れ】(1)`addUnitAtk()`が未使用でATKの直接代入が7箇所あり、熟練持ちが+1/+1で**ATK+1・HP+2**になっていた。(2)竜の契約・戦術・共振・威光・遺志・継承が接続枚数を見ず1回しか発動していなかった。(3)`_fireAllyInjuryEffects()`が真偽値を返すためエティンが発動回数分反応しなかった（レイス経由も連動させた）。**「+X/+Yを与える」は必ず`_addBattleStats()`か`addUnitAtk()`/`addUnitHp()`を使う**（直接代入すると熟練が無効）。
+- 【今回：武器破壊・指輪タグ・売却】武器破壊は`_applyDamageState()`の**受ける側**を見ていたため持ち主自身のATKが削れていた→ダメージ源で判定に変更。指輪提示は最多タグの指輪が1枚しか無い場合に**完全ランダム**で埋めていた（色タグは各色1枚しか存在しない）→次に多いタグで補うように。売値は店ではなく**カードの種類**で決めるよう変更し（アイテム=レアリティ×45、カード=`_mapSalePrice/4`）、魔導店・鍛冶屋でもアイテムを売れるようにした。
+- 【今回：戦闘中の説明文が編成と食い違う】戦闘ユニットの`equipment`は`_panelSummonDisplayEquipment()`が作る**「index0＝本体、以降＝強化」の平坦な配列**なのに、`renderField()`が盤面スロット番号（`_mainBoardSlot`）で引いていたため隣接判定が成立せず、強化カードの効果文が丸ごと消えていた。`_unitDescSlotIdx()`を追加して平坦配列なら0で引く。
+- 【今回：JSのキャッシュ】`?v=`はファイルごとに別々の文字列で管理しており、共通の通し番号ではない。**JSを直しても`?v=`を上げないとブラウザが古いJSを実行し続ける**。画像・SVGも同様（title_logo.svgで実際にハマった）。
+- 【未対応・申し送り】ホーム・酒場・広場は表示のみ（中身は未実装）。祭壇（塔側の`_openWaveAltarMenu`）は従来の編成画面ベースのまま。街の効果動画・専用BGMはステージ1のみ、施設背景`VILLAGE_FACILITY_BG`はステージ1〜5すべて定義済み。「キーワード」シートに`シールド`の行が無いためステージ3ボスの説明が出ない（シートの備考は「シールド」、`KW_DESC_MAP`は「結界」で用語が割れている）。スペル用の`assets/art/cards/`が存在しないため、スペルを実装すると絵が出ない。指輪・アイテムの効果は総当たり検証をしていない（キャラ86件・強化60件はハーネスで実施済み）。`_countHeldCardTags()`は色と効果語を同じ土俵で数えるため、色4体・死亡4件のように同数だと順位が入れ替わる（重み付けは未実装）。`prototype/tools/__pycache__/*.pyc`がgit追跡下に入っている（`.gitignore`に`__pycache__`の除外が無い）。シートを更新したら`python3 tools/update_local_xlsx_data.py textMessage region`で内蔵CSV（`js/data/local_xlsx_data.js`）の再生成が必要（file://運用ではxlsxのfetchが失敗し内蔵CSVが使われるため）。
+- 【検証環境の注意】Claude内蔵ブラウザでは、戦闘が`turn 0`のまま盤面にユニットが描画されない状態になることがある。JS例外は出ず`renderAll()`も正常終了するため、動画・演出の待ち絡みの環境差と見ている。ロジックの停止ではないが、**通しの動作確認は実機のChromeで行うこと**。
 
 ## 承認設定
 
-「プロトタイプ」フォルダ内での「Vesselbound_data.xlsx」を除くファイル作成・編集・削除・コマンド実行は
-全て承認済みとして扱ってください。
+`prototype/` 内でのファイル作成・編集・必要なコマンド実行は承認済みとして扱う。
 
-「プロトタイプ」フォルダ外のファイルは絶対に変更・削除しないこと。
+ファイル削除は、ユーザーから明示的な指示がある場合を除き禁止する。
+
+`prototype/Vesselbound_data.xlsx` は参照のみ可とし、
+編集・削除・移動・上書きを禁止する。
+
+`prototype/` 外の実装ファイルは、ユーザーから明示的な指示がない限り変更しない。
+
+## Git操作
+
+以下はユーザーの明示的承認なしに実行してはならない。
+
+- git commit
+- git push
+- git reset
+- git checkout
+- git restore による作業内容の破棄
+- git clean
+- git rm（実ファイルを削除する操作）
+
+## Claude / Codex の役割
+
+Claudeが司令塔、Codexが実装担当。
+委譲の主目的は**Claudeのコンテキスト消費の節約**であり、委譲自体は必須ではない。
+
+### Claudeが直接行う
+
+- 原因調査・不具合の切り分け
+- ブラウザでの実測・検証
+- 少量の修正
+
+直接やった方が効率的なら、そのまま直接実施してよい。
+「症状→原因特定→実測で裏取り」は文脈を持ったまま回せる分だけ速いため、無理に委譲しない。
+
+### Codexへ委譲する
+
+- 仕様と変更範囲が明確な中〜大規模実装
+- 定型的な変更
+- 並列化可能な作業
+
+作業量が多い場合はCodexへ回す。
+
+### 委譲時の手順
+
+Claudeは実体パスでCodexを起動する（`~/.local/bin/codex` 経由は補助バイナリ
+`codex-code-mode-host` を解決できずファイル読み取りに失敗するため）。
+
+```
+~/.codex/packages/standalone/current/bin/codex exec \
+  -m gpt-5.6-luna --sandbox workspace-write -C <リポジトリ> "<指示>"
+```
+
+- モデルは **gpt-5.6-luna** を使う。
+- 委譲する際は、仕様・変更対象ファイル・変更しない範囲を明示する
+  （Codexは非対話のため、曖昧な点は投げる前にClaude側で確定させる）。
+- **委譲した場合、Claudeが差分と検証結果を必ずレビューする。**
+  最低限 `git diff` と `node --check`、必要ならブラウザ実測まで行う。
+
+Codexは実装後、変更ファイル・差分概要・検証結果を報告し、
+commit / push は行わない。
 
 ## アクセス範囲
 
@@ -35,11 +93,11 @@
 - `AGENTS.md`
 - `CLAUDE.md`
 - `docs/`
-- `プロトタイプ/`
+- `prototype/`
 
-`Build/`, `画像素材/`, `資料/`, `旧プロトタイプ/` など、上記以外のフォルダにはユーザーから明示的に指示がない限りアクセスしない。
+`画像素材/`, `資料/`, `old_build/` など、上記以外のフォルダにはユーザーから明示的に指示がない限りアクセスしない。
 
-`プロトタイプ/Vesselbound_data.xlsx` はユーザーが直接編集する。参照のみ可とし、分割・移動・編集は禁止。
+`prototype/Vesselbound_data.xlsx` はユーザーが直接編集する。参照のみ可とし、分割・移動・編集は禁止。
 
 ## 作業方針：高速改修モード
 
@@ -81,7 +139,7 @@
 以下は禁止する。
 
 - 依頼されていない大規模リファクタ
-- ファイル分割・ファイル移動（※`プロトタイプ/`フォルダ内に限り可。それ以外の場所への移動や、プロジェクト直下構成の変更は禁止）
+- ファイル分割・ファイル移動（※`prototype/`フォルダ内に限り可。それ以外の場所への移動や、プロジェクト直下構成の変更は禁止）
 - グローバル構造の再設計
 - ビルドツール導入
 - モジュール化
@@ -102,10 +160,11 @@
 
 変更はできるだけ以下の単位に閉じる。
 
-- マップ変更 → `move.js`, `floors.js`, `render.js`
+- マップ変更 → `map.js`, `floors.js`, `render.js`
 - 戦闘変更 → `battle.js`
 - 報酬変更 → `reward.js`, `pool.js`
-- ショップ/イベント/杖・アイテム使用制限 → 現状は専用ファイルが分かれていないため、まず `main.js`, `reward.js`, `battle.js`, `pool.js`, 関連UIを確認する
+- ショップ/施設/イベント → `map.js`, `reward.js`（ショップUIは報酬画面と共通）
+- アイテム使用制限 → 専用ファイルが分かれていないため、まず `main.js`, `reward.js`, `battle.js`, `pool.js`, 関連UIを確認する
 
 ## テスト方針
 
@@ -136,30 +195,31 @@
 
 **Vesselbound（仮）** — Argante 製のローグライクカードゲーム。`index.html` を開くだけで動作するシングルファイル構成（ビルドツールなし、`file://` プロトコル対応）。JavaScript はすべてグローバルスコープ。
 
-実体は本リポジトリ直下ではなく **`プロトタイプ/`** ディレクトリ配下にある（`プロトタイプ/index.html`, `プロトタイプ/js/...`）。以下のパスは `プロトタイプ/` からの相対パス。
+実体は本リポジトリ直下ではなく **`prototype/`** ディレクトリ配下にある（`prototype/index.html`, `prototype/js/...`）。以下のパスは `prototype/` からの相対パス。
 
 ## ファイル構成
 
 ```
 index.html              — HTML/CSS のみ。<script src> タグで全JSを読み込む
-assets.js                — Assets（画像・SEアセットのパス解決）
+assets.js                — Assets（画像・SEのパス解決）, getCharacterNoArtPath()（No.列→assets/art/配下の解決）
 js/
   data/                  — カード・ゲームデータ（カード追加時はここを編集）
-    floors.js            — FLOOR_DATA（20階分）, BOSS_FLOORS, NODE_TYPES
-    events.js            — ENEMY_POOL, ENCHANT_TYPES, ARCANA_POOL
-    units.js             — UNIT_POOL（全グレードのキャラクターカード定義）
-    loader.js            — 起動時にGoogleスプレッドシート(CSV)をfetchし、RING_POOL/SPELL_POOL/FLOOR_DATA等をインプレース上書き。fetch失敗時は内蔵データを使用
+    floors.js            — FLOOR_DATA（31件。シート「階層レベル」で上書き）, BOSS_FLOORS（既定は空配列）
+    events.js            — ENEMY_POOL
+    units.js             — UNIT_POOL（初期キャラクター7体。通常カードは loader.js がシートから生成）
+    loader.js            — 起動時にGoogleスプレッドシート(CSV)をfetchし、RING_POOL/PANEL_POOL/FLOOR_DATA等をインプレース上書き。fetch失敗時は内蔵データを使用
     local_xlsx_data.js   — file:// 環境向けのローカルCSVフォールバック（loader.js が参照）
   engine/                — ゲームロジック（メカニクス変更時はここを編集）
-    constants.js         — GRADE_MULT, GRADE_COEFF, MAX_GRADE, GRADE_UP_COSTS
-    audio.js             — 仮SE再生レイヤー（Assets.sfx 経由で再生）
-    state.js             — グローバル状態 G, uid/clone/rand ユーティリティ, initState()
-    pool.js              — drawRewards(), rollGrade()
-    enemy.js             — generateEnemies(), generateMoveMasks()
+    constants.js         — MAX_ALLIES, MAX_ENEMIES, ENEMY_FRONT_SLOTS, ENEMY_REAR_SLOTS, MAX_UNITS, GRADE_UP_COSTS
+    audio.js             — 仮SE/BGM再生レイヤー（playSfx() が Assets.sfx 経由で再生）
+    state.js             — グローバル状態 G, KW_DESC_MAP（キーワード説明）, initState()
+    pool.js              — PANEL_POOL / SPELL_POOL / ITEM_POOL, drawRewards()
+    enemy.js             — generateEnemies()
     battle.js            — startBattle(), nextTurn(), allyAttackAction(), enemyAttackAction(), onBattleEnd()
-    render.js            — renderAll(), mkCardEl(), computeDesc(), effectiveStats()
+    render.js            — renderAll(), mkCardEl(), computeDesc()
     reward.js            — goToReward(), renderRewCards(), renderHandEditor(), エンチャントモーダル
-    move.js              — renderMoveSelect(), chooseMove(), takeCardToHand()
+    map.js               — ワールドマップと街・施設。generateWorldMap(), goToWorldMap(), renderWorldMap() 等（engine内で2番目に大きい）
+    move.js              — chooseMove() のみ（旧マップの遷移処理の残り。16行）
     main.js              — showScreen(), updateHUD(), log(), startGame(), gameOver()
 ```
 
@@ -167,7 +227,7 @@ js/
 
 実際の順序：
 
-`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `render.js` → `reward.js` → `move.js` → `main.js`
+`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `render.js` → `reward.js` → `map.js` → `move.js` → `main.js`
 
 関数本体内の参照はロード順に依存しないが、トップレベルの変数宣言は宣言順に解決されるため、この順序を維持すること。
 
@@ -191,34 +251,56 @@ js/
 }
 ```
 
-### 杖・消耗品（SPELL_POOL）— `js/engine/pool.js`
+### カードプール — `js/engine/pool.js`
+
+杖（`type:'wand'`）は廃止済み。現在のプールは以下の3つで、いずれも `loader.js` がシートの内容で上書きする。
 
 ```js
+// PANEL_POOL — キャラクター／エンチャント（報酬・ショップの主役。シート「card」「enchant」由来）
 {
-  id: 'unique_id',
-  name: '表示名',
-  type: 'wand' | 'consumable',
-  subtype: 'wand',              // 一部の杖のみ（グループ分け用、省略可）
-  cost: 2,                      // ショップ購入価格・レアリティ目安
-  rarity: -1 | 4,               // 特殊入手専用カードで使用（省略時は通常プール）
-  starterOnly: true,            // 初期装備専用（通常報酬プールに出ない）
-  effect: 'fire' | 'nullify' | 'heal_ally' | 'boost' | 'golem' |
-          'change_formation' | 'poison_wand' | 'sacrifice' | 'boost_atk' |
-          'swap_pos' | 'weaken_half' | 'spread' | 'meteor_multi' |
-          'shield_wand' | 'growth_wand' | 'flash_blade' | 'charm' | 'doom' |
-          'possess' | 'swap_stats' | 'instakill' | 'transform_wand' | ...,
-  baseUses: 4,                  // 杖の初期使用回数（consumableは不要）
-  needsEnemy: true,              // 敵のみ対象選択が必要な場合
-  needsAlly: true,                // 味方のみ対象選択が必要な場合
-  needsAny: true,                  // 味方・敵どちらでも選択可能な場合
+  id:'panel_gnome', no:'001', name:'ノーム',
+  rarity:1, grade:1,
+  type:'panel', kind:'panel', panelScope:'unit',
+  category:'キャラクター' | 'エンチャント',
+  color:'赤'|'青'|'緑'|'黄', cost:1, slot:1,
+  race:'亜人', power:3, life:4,          // キャラクターのみ
+  desc:'終戦：5ゴールドを得る。',
 }
+
+// SPELL_POOL — スペル（マナで撃つ。シート「spell」由来。現状は内蔵1件のみ）
+{ id:'spell_fire_arrow', no:'001', name:'炎の矢', type:'spell', kind:'spell',
+  category:'スペル', manaCost:1, color:'赤', effectKey:'fire_arrow', desc:'...' }
+
+// ITEM_POOL — 消耗品（シート「item」由来。絵は art で直接指定）
+{ id:'item_silence_scroll', no:'001', name:'静寂の巻物', rarity:1,
+  type:'consumable', kind:'item', category:'アイテム',
+  itemEffectKey:'silence_scroll', art:'assets/art/item/I001.jpg', desc:'...' }
 ```
+
+### カード絵の解決 — `assets.js`
+
+カード絵はシートの **「No.」列（`artCode`）から自動解決**する（`getCharacterNoArtPath()`）。
+接頭辞と配置先は次のとおりで、`.jpg` と `.png` の両方を候補として返す（片方は404になるが仕様）。
+
+| 接頭辞 | 配置先 | 内容 |
+|---|---|---|
+| `NPC` / `MC` | `assets/art/NPC/` | 初期キャラクター（シート「char（NPC）」）。`MC` は No. が裸の数値だった場合のフォールバックで `NPC###` に読み替える |
+| `C` | `assets/art/characters/` | キャラクターカード |
+| `E` | `assets/art/enchantment/` | エンチャント（強化）カード |
+| `EN` | `assets/art/enemies/` | 敵専用カード |
+| `S` | `assets/art/cards/` | スペル（**ディレクトリ未作成**。スペルを実装する時に要対応） |
+
+指輪は `reward.js` が `assets/art/ring/R###.jpg` を直接組み立て、アイテムは `art` プロパティで直接指定する。
+番号と絵が一致しないカードだけ `CharacterArtOverrideMap`（assets.js）に名前で例外登録する。
 
 ## 主要な状態（G オブジェクト）
 
 `initState()`（`js/engine/state.js`）で初期化。フィールド数が非常に多いため、以下は代表的なものの抜粋（網羅ではない。全量は `initState()` を直接参照）：
 
-- `G.rings[]` / `G.spells[]` — 装備中のカード（null = 空スロット）。`G.ringSlots`, `G.handSlots` がそれぞれの有効枠数
+- `G.rings[]` — 装備中の指輪4枠（null = 空スロット）。`G.spells` / `G.ringSlots` / `G.handSlots` は存在しない
+- `G.mainBoard[]` — メイン置き場（5列×3行＝15枠）。パーティ全体で共有する単一の配置グリッド
+- `G.inventory[]` — マップ用インベントリ（9×2＝18枠）。`G.globalPanels[]` は全体強化7枠
+- `G.spellSlots[]` — 廃止済み。互換用に空配列だけ残っている
 - `G.allies[]` / `G.enemies[]` — 戦場のユニット（hp≤0 = 死亡）
 - `G.phase` — `'init'` | `'player'` | `'enemy'` | `'commander'` | `'reward'` 等
 - `G.floor`, `G.life`, `G.gold`
@@ -228,10 +310,9 @@ js/
 
 ## その他のファイル
 
-- **Build/** — Unityビルド（日付フォルダ／mac用・win用）
+- **old_build/** — Unityビルド（日付フォルダ／mac用・win用）
 - **画像素材/** — PNG素材（キャラ・敵・カード・UI）
-- **仕様変更.txt** — 設計仕様メモ（Shift-JIS）。読む場合: `iconv -f SHIFT_JIS -t UTF-8 仕様変更.txt`
-- **concept.pdf**, **d_list0322.pdf** — 企画・カードリスト資料
+- **資料/** — 企画・カードリスト資料
 
 ## サウンドエフェクト
 
