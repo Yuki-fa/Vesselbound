@@ -370,7 +370,13 @@ function cardManaCostHtml(card){
   const path=_manaOrbPath();
   // 接続元のマナ効果（_extraManaCosts）はキャラクターにだけ表示する。
   // 強化カード同士を接続しても、接続先の強化カードへアイコンを複製しない。
-  const extraCosts=String(card.category||'')==='キャラクター'
+  // 戦闘中のユニットはcategoryを持たない（編成カードから作られる際に引き継がれない）ため、
+  // categoryが空のものも強化カードでなければキャラクター扱いにする。
+  // これを見落とすと、元からマナ効果を持つキャラが強化カードで2つ目のマナ効果を得ても
+  // 戦闘中だけアイコンが1つしか出ない。
+  const _cat=String(card.category||'');
+  const _isCharacterLike=_cat==='キャラクター'||(!_cat&&!isEnchant);
+  const extraCosts=_isCharacterLike
     ?(Array.isArray(card._extraManaCosts)?card._extraManaCosts:
       (Array.isArray(card._extraManaThresholds)?card._extraManaThresholds.map(t=>Number(t&&t.cost)||0):[]))
     :[];
@@ -628,6 +634,13 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
   return {video,canvas,stop};
 }
 
+// 演出用ホストの追加先。#vfx-clip-rootはビューポート全体を覆いつつ、clip-pathで
+// ゲーム背景の矩形に切り取られる層。ここへ入れることで、body直下へfixedで置かれる演出が
+// レターボックスの黒帯（背景外）へはみ出して見えることを防ぐ。層が無い場合はbody直下へ戻す。
+function _vfxHostParent(){
+  return document.getElementById('vfx-clip-root')||document.body;
+}
+
 // 勝利・敗北が確定した時点で、再生中の全VFX（ダメージ演出／特殊演出／薙ぎ払い演出）を
 // 即座に打ち切ってDOMから除去する。演出用の各hostは常にdocument.body直下へfixedで
 // 追加されるため、専用クラスで一括除去すればどの演出タイミングで戦闘が終わっても残らない。
@@ -670,7 +683,7 @@ function playHitVfxAtRect(rect,amount,options){
   const vfxScale=Number(opt.vfxScale)||1;
   const spin=!!opt.spin;
   const baseTransform=`translate(-50%,-50%) scale(${vfxScale})`;
-  document.body.appendChild(host);
+  _vfxHostParent().appendChild(host);
 
   const isWebp=/\.webp(\?|$)/i.test(hitUrl);
   let mediaEl,stop,videoRef=null;
@@ -832,7 +845,7 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
     pointerEvents:'none',overflow:'visible',
   });
   clip.appendChild(host);
-  document.body.appendChild(clip);
+  _vfxHostParent().appendChild(clip);
   const img=document.createElement('img');
   img.className='special-vfx-img';
   img.alt='';
@@ -1004,7 +1017,7 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
     zIndex:'auto',
   });
   clip.appendChild(host);
-  document.body.appendChild(clip);
+  _vfxHostParent().appendChild(clip);
   const isWebp=/\.webp(\?|$)/i.test(videoUrl);
   let mediaEl,stop;
   if(isWebp){
@@ -1331,13 +1344,14 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   clone.style.transform='translate(0,0)';
   clone.style.transformOrigin='center center';
   // body直下のfixed要素にビューポート座標のinsetを指定すると、カード自身の領域を
-  // 切り抜いてしまい、攻撃者が「消えた」ように見える。背景外への移動は各モーションの
-  // 距離内に収まるため、複製カードは常にそのまま描画する。
+  // 切り抜いてしまい、攻撃者が「消えた」ように見える。そのため複製カード自身のクリップは
+  // 常に解除する（元スロットのclip-pathを引き継がせない）。背景外へのはみ出しは、
+  // 追加先である#vfx-clip-root側のclip-pathでまとめて切るため、これで二重に困ることはない。
   clone.style.clipPath='none';
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
   fromEl.style.setProperty('visibility','hidden','important');
-  document.body.appendChild(clone);
+  _vfxHostParent().appendChild(clone);
   clone.getBoundingClientRect();
   const stopRatio=Number.isFinite(opt.stopRatio)?opt.stopRatio:1;
   const getCurrentTargetEl=()=>{

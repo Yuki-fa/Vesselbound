@@ -1162,9 +1162,12 @@ async function loadGameData() {
       // 残っていても、Excelの名前と画像No.を正しいカードへ同期できる。
       let candidates = candidatesByName.length ? candidatesByName
         : (exactCodeCandidates.length ? exactCodeCandidates : candidatesByCode.length === 1 ? candidatesByCode : []);
-      // Excelで実装TRUEになっている強化／魔法がコード側に未登録でも、
+      // Excelで実装TRUEになっているカードがコード側に未登録でも、
       // シート行から最小限のカード定義を生成して報酬・ショップへ反映する。
-      if (!candidates.length && implemented && (forcedCategory === 'エンチャント' || forcedCategory === 'スペル')) {
+      // キャラクターも対象にする（パワー／ライフが無い行は上の hasStats チェックで既に弾いている）。
+      // 生成後に _syncPanelFromRow() が色・種族・パワー・ライフ・キーワード・方向数まで埋める。
+      if (!candidates.length && implemented
+          && (forcedCategory === 'エンチャント' || forcedCategory === 'スペル' || forcedCategory === 'キャラクター')) {
         const safeCode = String(code || '').replace(/[^A-Z0-9_-]/gi, '_');
         const generated = {
           id: `panel_sheet_${safeCode || _normCardName(name)}`,

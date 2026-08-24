@@ -1816,7 +1816,7 @@ async function _playWorldMapDeparture(done){
 // ── 出発時のムービー ─────────────────────────────────────
 // ワールドマップの代わりにムービーを流すステージ（キー＝G._wave。街のみ・塔は対象外）。
 const DEPARTURE_MOVIES={
-  5:'assets/movie/movie1.webm', // フォルセティ → 最終決戦へ
+  5:'assets/movie/movie2.webm', // 断罪と記憶の村 フォルセティ → 最終決戦へ
 };
 function _departureMovieSrc(){
   if(!G||G._isWaveAltar) return '';
@@ -1901,6 +1901,10 @@ function departWithWorldMap(){
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
+  // village-screen-active を外すと「出発する」ボタンのスコープCSS（位置・寸法）が
+  // 一斉に消え、既定スタイルに戻ったラベルが画面左上へ飛んで縮みながら消えて見える。
+  // 先に入場演出と同じ非表示クラスでUIを消してから、クラスを外す。
+  document.body.classList.add('village-departing');
   document.body.classList.remove('village-screen-active');
   if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
   departWithWorldMap();

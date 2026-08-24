@@ -518,8 +518,16 @@ function _waveBattleRouteName(){
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(G._wave):null;
   if(!info) return '';
   const stage=Number(G._waveStage)||1;
-  const primary=stage>=5?info.toTowerName:info.toTownName;
-  const fallback=stage>=5?info.toTownName:info.toTowerName;
+  // 街を過ぎていれば「塔までの名前」、それ以前は「街までの名前」。
+  // 街のstage番号はwaveごとに違う（wave1は5、wave2〜4は4、wave5は1が街）ため、
+  // stage番号の決め打ちではなくルートから街の位置を引いて判定する。
+  // ※以前は stage>=5 固定で、街が先頭にあるwave5だけ判定が反転していた
+  //   （フォルセティ出発後に「塔までの名前」ではなく「街までの名前」を拾っていた）。
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(G._wave):null;
+  const cityIdx=Array.isArray(route)?route.lastIndexOf('city'):-1;
+  const afterCity=cityIdx>=0?stage>cityIdx+1:stage>=5;
+  const primary=afterCity?info.toTowerName:info.toTownName;
+  const fallback=afterCity?info.toTownName:info.toTowerName;
   return String(primary||fallback||'').trim();
 }
 function _battleStartIntroText(){
@@ -844,7 +852,11 @@ async function startBattle(){
   G._battleDraw=false;
   document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
-  document.body.classList.remove('reward-screen-active','ring-offer-phase','ring-offer-resolved');
+  // battle-victory-pending は #kw-tooltip 等を display:none で隠すクラス。
+  // 解除が goToReward() 側にしか無いため、報酬画面を挟まない遷移
+  // （ステージ5のエリート勝利→ラスボス直行など）では付いたまま次の戦闘に入り、
+  // その戦闘中ずっとホバー説明が出なくなる。戦闘開始時に必ず落とす。
+  document.body.classList.remove('reward-screen-active','ring-offer-phase','ring-offer-resolved','battle-victory-pending');
   const pendingItems=[
     ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
     ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
@@ -1068,7 +1080,13 @@ async function startBattle(){
   renderAll();
   // 配置演出終了後、既存仕様の待機時間を経て攻撃を開始する。
   await sleep(introKind==='elite'?500:1000);
-  // 開幕効果で全敵が倒された場合、勝利判定
+  // 開幕効果で全敵が倒された場合、勝利判定。
+  // 開戦効果（マナ効果・アイテム・死亡効果等）で敵が全滅すると、この行に来る前に
+  // finishBattleAsVictory()がG.phaseを'reward'にしていることがある。その場合
+  // checkInstantVictory()はG.phase==='player'の条件に掛からずfalseを返すため、
+  // ここで打ち切らないとnextTurn()→battlePhase()へ進んでG.phaseが'enemy'へ上書きされ、
+  // 以後_battleVictoryPendingが立ったままで勝利処理が二度と走らなくなる（戦闘が停止する）。
+  if(G.phase==='reward'||G._battleVictoryPending) return;
   if(checkInstantVictory()) return;
   requestAnimationFrame(_updateLaneOffset); // スロット描画後にオフセット再計算
   await nextTurn();
@@ -1424,6 +1442,19 @@ function _checkBattleOver(){
 
 function handleBattleDefeat(){
   if(G._battleDefeatHandled) return;
+  // 最後の味方が倒れた時、その死亡効果（闇の炎・怨念等）がまだ解決中のことがある。
+  // 先にゲームオーバーへ進むと効果が画面に出ないまま終わるため、終わるまで待つ。
+  if((G._pendingDeathEffects||0)>0){
+    G._defeatWaitTicks=(G._defeatWaitTicks||0)+1;
+    if(G._defeatWaitTicks<=40){ setTimeout(()=>handleBattleDefeat(),100); return; }
+  }
+  G._defeatWaitTicks=0;
+  // 死亡効果で敵が全滅した場合は敗北ではなく勝利として扱う。
+  if(typeof _livingCombatUnits==='function'&&!_livingCombatUnits(G.enemies).length
+     &&typeof _onAllEnemiesDefeated==='function'){
+    _onAllEnemiesDefeated();
+    return;
+  }
   if(G._testBattleMode){
     _exitTestBattle();
     return;
@@ -2152,7 +2183,11 @@ async function triggerBattleScreenShake(options){
   const amount=Math.max(0,tier.amplitude*strength);
   const duration=tier.duration;
   const first=tier.heavy?1.18:1;
-  const transform=(x,y)=>`scale(var(--game-scale)) translate3d(${x}px,${y}px,0)`;
+  // キーフレームに var(--game-scale) を残すと毎フレーム変数解決が必要になり、
+  // アニメーションがコンポジタへ乗らず本スレッドで処理されて一瞬固まる。
+  // 開始時点の値を数値として焼き込む（振動中に画面サイズが変わることは無い）。
+  const gameScale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
+  const transform=(x,y)=>`scale(${gameScale}) translate3d(${x}px,${y}px,0)`;
   if(typeof host.animate==='function'){
     const animation=host.animate([
       {transform:transform(0,0)},
@@ -2190,11 +2225,22 @@ function _predictFinalDamage(unit, dmg, skipTough){
 }
 
 // 接触時に画面揺れを開始する。applyDamageBatch()側は二重に揺らさないよう、このフラグを消費する。
+// 接触フック（onHit）は攻撃モーションの接近区間が終わった時点で呼ばれる。
+// そこから実際にカードがぶつかって見えるまでにわずかな間があるため、
+// この分だけ振動を遅らせて衝突の瞬間に合わせる。速すぎ／遅すぎる場合はここを調整する。
+// 現在値はダメージVFXの再生開始に合わせてある（接触フックからVFXまでの実測は435-441ms／17回）。
+const BATTLE_SHAKE_CONTACT_DELAY_MS=440;
 function _shakeOnAttackContact(target, damage){
   const predicted=_predictFinalDamage(target,damage);
   if(predicted<50) return;
+  // フラグは即座に立てる。applyDamageBatch()側が「接触で揺らし済み」と判断できるよう、
+  // 実際の振動開始（setTimeout）を待たない。
   G._contactShakeFired=true;
-  triggerBattleScreenShake({damage:predicted});
+  if(BATTLE_SHAKE_CONTACT_DELAY_MS>0){
+    window.setTimeout(()=>triggerBattleScreenShake({damage:predicted}),BATTLE_SHAKE_CONTACT_DELAY_MS);
+  }else{
+    triggerBattleScreenShake({damage:predicted});
+  }
 }
 
 function _applyDamageState(unit, dmg, source, side, skipTough){
@@ -3530,8 +3576,11 @@ const SPELL_EFFECTS={
     dealDmgToEnemy(target,5,G.enemies.indexOf(target),null);
   },
 };
+// 戦闘に持ち込まれたアイテム。以前は静寂の巻物だけを返していたため、
+// _applyOpeningItemEffects() の隕石の巻物などの分岐が一度も実行されなかった。
+// activeBattleItems へ入る時点（startBattle）で対象キーは既に絞られているので、ここでは絞らない。
 function _battleItemCards(){
-  return (G.activeBattleItems||[]).filter(c=>c&&(c.type==='consumable'||c.kind==='item'||c.category==='アイテム')&&(c.itemEffectKey==='silence_scroll'||c.name==='静寂の巻物'));
+  return (G.activeBattleItems||[]).filter(c=>c&&(c.type==='consumable'||c.kind==='item'||c.category==='アイテム'));
 }
 function _itemBondScrollCount(){
   return _battleItemCards().filter(c=>c.itemEffectKey==='bond_scroll'||c.name==='絆の巻物').length;
@@ -4034,9 +4083,6 @@ async function applyNewPanelBattleStart(options){
         spec.atk=panel.power;
         spec.hp=panel.life;
       }
-      if(panelPower==='life'){
-        spec.hp=Math.max(1,Math.round((Number(spec.hp)||1)*2));
-      }
       if(panelPower==='duplicate') spec.count=(spec.count||1)+1;
       if(panelPower==='resonance') pendingResonanceColors.push(String(panel.color||''));
       const enh=_collectAdjacentEnhancements(board,idx);
@@ -4117,7 +4163,11 @@ async function _finishNewPanelBattleStartEffects(){
   }
   _initSealStates();
   await _applyOpeningItemEffects();
-  await _applyNewOpeningEffects();
+  // 戦闘力の足し算・引き算 → 掛け算・割り算 → 生命の力マス → それ以外の開戦効果
+  await _applyNewOpeningEffects('add');
+  await _applyNewOpeningEffects('mul');
+  _applyLifePanelPowerHpDouble();
+  await _applyNewOpeningEffects('other');
   await _applyRingBattleStartEffects();
   await _resolveSeals();
   _recomputeDynamicPanelStats();
@@ -4256,7 +4306,13 @@ function _grantRandomItem(sourceName, options){
   return true;
 }
 
-async function _applyNewOpeningEffects(){
+// 開戦効果は次の順で処理する（stageで段階を指定する。未指定なら全部）。
+//   'add'   … 戦闘力の足し算・引き算
+//   'mul'   … 戦闘力の掛け算・割り算
+//   （この間に生命の力マスのHP2倍が入る＝_applyLifePanelPowerHpDouble）
+//   'other' … それ以外の開戦効果
+async function _applyNewOpeningEffects(stage){
+  const want=s=>!stage||stage===s;
   let alchemyBlocked=false;
   for(const unit of _orderedBattleCharacters()){
     if(!_canReceiveBattleEffect(unit)) continue;
@@ -4267,30 +4323,30 @@ async function _applyNewOpeningEffects(){
     for(let trigger=0;trigger<openingRepeats&&unit&&unit.hp>0&&!_isSealed(unit);trigger++){
       const side=isEnemySide?'enemy':'ally';
       const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
-      if(wild&&!unit._openingDuplicate&&trigger===0) _gainMana(wild*2,unit);
-      if(_unitHasKeyword(unit,'奇妙な絆')||_unitEffectPanelCount(unit,'奇妙な絆')>0){
+      if(want('other')&&wild&&!unit._openingDuplicate&&trigger===0) _gainMana(wild*2,unit);
+      if(want('add')&&(_unitHasKeyword(unit,'奇妙な絆')||_unitEffectPanelCount(unit,'奇妙な絆')>0)){
         const allies=isEnemySide?G.enemies:G.allies;
         const x=allies.filter(a=>_canReceiveBattleEffect(a)&&(_unitHasKeyword(a,'奇妙な絆')||_unitEffectPanelCount(a,'奇妙な絆')>0)).length;
         if(x) _addBattleStats(unit,x,x,side);
       }
-      const roarCount=_unitEffectPanelCount(unit,'咆哮');
+      const roarCount=want('mul')?_unitEffectPanelCount(unit,'咆哮'):0;
       for(let i=0;i<roarCount;i++){
         const atk=Math.max(0,Number(unit.atk)||0);
         if(atk) _addBattleStats(unit,atk,0,side);
       }
-      const majestyCount=_unitEffectPanelCount(unit,'威光');
+      const majestyCount=want('mul')?_unitEffectPanelCount(unit,'威光'):0;
       for(let i=0;i<majestyCount;i++){
         // 「HPを2倍」を枚数分繰り返す（2枚なら4倍）。毎回その時点のmaxHpを足す。
         const hp=Math.max(0,Number(unit.maxHp)||0);
         if(hp) addUnitHp(unit,hp,side);
       }
-      if(hasName('ガーゴイル')){
+      if(want('add')&&hasName('ガーゴイル')){
         // 「全ての紫キャラに+1/+1」の基本発動1回＋接続している強化カードの数だけ追加で繰り返す
         const repeat=1+_connectedEnhancementCount(unit);
         const bonus=_combatModifierBonus(unit,isEnemySide);
         for(let i=0;i<repeat;i++) _buffAllBattleColor('紫',1+bonus,1+bonus,unit.name,isEnemySide);
       }
-      if(hasName('ウェンディゴ')){
+      if(want('add')&&hasName('ウェンディゴ')){
         const repeat=Math.max(1,Math.floor((unit.maxHp||unit.hp||0)/10));
         const foes=isEnemySide?G.allies:G.enemies;
         for(let i=0;i<repeat;i++){
@@ -4298,7 +4354,7 @@ async function _applyNewOpeningEffects(){
         }
         log(`${_lc(unit.name,isEnemySide)}の効果で全ての敵は-${repeat}/-${repeat}を得た。`,isEnemySide?'bad':'good');
       }
-      if(hasName('リリス')){
+      if(want('other')&&hasName('リリス')){
         const allies=isEnemySide?G.enemies:G.allies;
         const repeat=Math.max(1,Math.floor((unit.atk||0)/10));
         for(let i=0;i<repeat;i++){
@@ -4309,19 +4365,19 @@ async function _applyNewOpeningEffects(){
         }
         log(`${_lc(unit.name,isEnemySide)}の効果でランダムな味方に結界を付与した。`,isEnemySide?'bad':'good');
       }
-      if(hasName('ミテーラ')){
+      if(want('other')&&hasName('ミテーラ')){
         // 3体を個別に詰め直すと、各FLIPアニメーションの途中で次のカードが追加され、
         // 前衛の既存カード上に召喚カードが重なって見える。配置を確定してから一度だけ描画する。
         for(let i=0;i<3;i++) await _spawnAdhocAllyUnit('緑ペリカン',1,1,isEnemySide,{rightOf:unit,deferCompact:true});
         requestBattleCompact();
         log(`${_lc(unit.name,isEnemySide)}の効果で「緑ペリカン」を3体召喚した。`,isEnemySide?'bad':'good');
       }
-      if(hasName('ジャッカロープ')){
+      if(want('other')&&hasName('ジャッカロープ')){
         const allies=isEnemySide?G.enemies:G.allies;
         const x=(allies||[]).filter(a=>_canReceiveBattleEffect(a)&&String(a.color||'')==='緑').length;
         if(x>0) _gainMana(x,unit);
       }
-      if(hasName('エレメンタル')){
+      if(want('other')&&hasName('エレメンタル')){
         const allies=isEnemySide?G.enemies:G.allies;
         // 条件判定は「効果を受けられるか」ではなく、場に生存している
         // 味方キャラクターの色で行う。封印中のキャラも色の存在として数え、
@@ -4338,16 +4394,32 @@ async function _applyNewOpeningEffects(){
           log(`${_lc(unit.name,isEnemySide)}は生命吸収を得た。`,isEnemySide?'bad':'good');
         }
       }
-      if(unit._releaseConvertedToOpening){
+      if(want('other')&&unit._releaseConvertedToOpening){
         await _applyReleaseEffect(unit,isEnemySide,[]);
       }
-      const alchemyCount=Math.max(_unitKeywordCount(unit,'錬成'),_unitEffectPanelCount(unit,'錬成'));
+      const alchemyCount=want('other')?Math.max(_unitKeywordCount(unit,'錬成'),_unitEffectPanelCount(unit,'錬成')):0;
       for(let i=0;i<alchemyCount&&!alchemyBlocked;i++){
         if(!_grantRandomItem(unit.name)) alchemyBlocked=true;
       }
     }
   }
-  await _resolveSeals();
+  if(want('other')) await _resolveSeals();
+}
+
+// 生命の力マス：置いたキャラクターのHPを2倍にする。
+// 開戦の戦闘修正（足し引き → 掛け割り）が全て終わった後に適用することで、
+// 修正後の最終HPが2倍になる（基礎値を2倍してから加算されるのではない）。
+function _applyLifePanelPowerHpDouble(){
+  if(typeof _mapPanelPowerAt!=='function') return;
+  (G.allies||[]).forEach(u=>{
+    if(!u||u.hp<=0||u._isObject||u._isSoul) return;
+    if(!Number.isInteger(u._mainBoardSlot)) return;
+    if(_mapPanelPowerAt(u._mainBoardSlot)!=='life') return;
+    if(u._lifePanelDoubled) return;   // 同一戦闘での二重適用を防ぐ
+    u._lifePanelDoubled=true;
+    const add=Math.max(0,Number(u.maxHp)||0);
+    if(add) addUnitHp(u,add,'ally');
+  });
 }
 
 // ボーンチャリオット等、攻撃前に隣接キャラクターの死亡効果を発動する能力を持つユニットについて、
@@ -4977,7 +5049,16 @@ function _applyLemuresInjuryTransform(unit){
 
 // ── 味方の死亡処理 ──────────────────────────────
 
+// 死亡処理は非同期（死亡効果がapplyDamageBatchをawaitする）だが、dealDmgToAlly()等の
+// 同期経路からはfire-and-forgetで呼ばれる。最後の味方が倒れた時、解決を待たずに
+// ゲームオーバーへ進むと闇の炎などの死亡効果が画面に出ないまま終わるため、
+// 解決中の件数を数えてhandleBattleDefeat()側で待てるようにする。
 async function processAllyDeath(unit){
+  G._pendingDeathEffects=(G._pendingDeathEffects||0)+1;
+  try{ return await _processAllyDeathInner(unit); }
+  finally{ G._pendingDeathEffects=Math.max(0,(G._pendingDeathEffects||0)-1); }
+}
+async function _processAllyDeathInner(unit){
   // 同じ死亡が複数の経路から重複して届く場合、復活処理中の二重復帰を防ぐ。
   if(unit.hp>0||unit._deathProcessed||unit._deathProcessing) return;
   unit._deathProcessing=true;
@@ -5387,6 +5468,11 @@ async function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
 }
 
 async function processEnemyDeath(e,eIdx){
+  G._pendingDeathEffects=(G._pendingDeathEffects||0)+1;
+  try{ return await _processEnemyDeathInner(e,eIdx); }
+  finally{ G._pendingDeathEffects=Math.max(0,(G._pendingDeathEffects||0)-1); }
+}
+async function _processEnemyDeathInner(e,eIdx){
   if(e._dp) return;
   const reviveKw=['復活','根性'].find(k=>_unitHasKeyword(e,k));
   if(reviveKw&&!e._starterRegenUsed){

@@ -13,6 +13,8 @@ function showScreen(id){
   document.getElementById('scr-'+id).classList.add('active');
   // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
   document.body.classList.toggle('village-screen-active',id==='village');
+  // 出発時の一時非表示は、次に村を開いた時点で必ず解除する。
+  if(id==='village') document.body.classList.remove('village-departing');
   const battleCounters=document.getElementById('battle-counters');
   const battleStatus=document.getElementById('battle-status-hud');
   const transitionFade=document.getElementById('battle-transition-fade');
@@ -111,24 +113,9 @@ function logSceneBreak(){
   }
 }
 let _lastLogPlainText=null;
-function log(msg,cls=''){
-  return;
-  if(typeof G!=='undefined'&&(G._battlePhaseRunning||G.phase==='player'||G.phase==='enemy')) return;
-  const b=document.getElementById('log-box');
-  const plainMsg=String(msg||'').replace(/<[^>]*>/g,'');
-  // 直前のログと異なる内容の場合は、その間に1行空ける（同じ内容の連続表示はそのまま詰める）
-  const sceneChanged=!!(b&&b.lastElementChild&&plainMsg&&plainMsg!==_lastLogPlainText);
-  if(sceneChanged) logSceneBreak();
-  if(plainMsg) _lastLogPlainText=plainMsg;
-  const p=document.createElement('p');
-  if(cls) p.className=cls;
-  if(/^──\s*(階層|ターン|T\d+)/.test(String(msg||''))) p.classList.add('log-heading');
-  p.innerHTML=msg;
-  b.appendChild(p);
-  b.scrollTop=b.scrollHeight;
-  requestAnimationFrame(()=>{ b.scrollTop=b.scrollHeight; });
-  _spawnLogFx(msg,sceneChanged);
-}
+// 戦闘ログ機能は廃止済み。呼び出し箇所が多数残っているため、
+// 受け口だけを残して何もしない（削除するとそれら全てが例外になる）。
+function log(){ }
 // 戦闘画面：敵前衛の少し上から敵後衛の半分あたりまで白文字でフェードしながら浮遊する演出
 // 全ログを常に同一軌道・同一速度(px/ms)で動かし、後発のログが先行ログに追いつかないようにする
 const _LOG_FX_SPEED=0.04; // px/ms
@@ -818,6 +805,113 @@ function handleWaveBattleDefeat(){
   });
   return true;
 }
+// ── オープニングムービー ─────────────────────────────────────
+// タイトルで「初めて」ゲームスタートを押した時だけ流す。
+// ゲームオーバー等で一度タイトルへ戻った後は、再度押しても流さない。
+// G は startGame() の initState() で作り直されるため、再生済みフラグはモジュール変数で持つ。
+let _openingMovieShown = false;
+const OPENING_MOVIE_SRC = 'assets/movie/movie1.webm';
+const OPENING_MOVIE_FADE_START = 7;    // 秒。ここからフェードアウトを開始する
+const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前までに真っ黒にするか
+
+// 暗転 → 全画面再生 → 7秒からフェードアウト → 完全暗転。左クリックでいつでもスキップ。
+// 再生できない／終わらない場合でも必ず抜けるよう安全弁を張る（出発ムービーと同じ方針）。
+async function _playOpeningMovie(){
+  const fade  = typeof _ensureVillageEnterFadeEl === 'function' ? _ensureVillageEnterFadeEl() : null;
+  const video = typeof _ensureCutsceneVideoEl === 'function' ? _ensureCutsceneVideoEl() : null;
+  if(!fade || !video) return;
+  const wait = ms => new Promise(r => window.setTimeout(r, ms));
+  const timers = [];
+  let skipHandler = null;
+  try{
+    // タイトルBGMを落としてから暗転する。
+    if(typeof stopBgm === 'function') stopBgm(600);
+    fade.style.transition = 'opacity .34s ease';
+    fade.style.opacity = '1';
+    await wait(360);
+
+    if(video.getAttribute('src') !== OPENING_MOVIE_SRC){
+      video.setAttribute('src', OPENING_MOVIE_SRC);
+      video.load();
+    }
+    video.currentTime = 0;
+    video.loop = false;
+    // デバッグミュート（SFX_SETTINGS.masterVolume=0）に追従する。
+    const master = (typeof SFX_SETTINGS !== 'undefined' && Number(SFX_SETTINGS.masterVolume));
+    video.muted  = !(master > 0);
+    video.volume = Math.max(0, Math.min(1, Number.isFinite(master) ? master : 1));
+    video.classList.add('is-active');
+
+    await new Promise(resolve => {
+      let settled = false;
+      const finish = () => { if(settled) return; settled = true; resolve(); };
+
+      // 左クリックでスキップ。タイトルの「ゲームスタート」が黒幕の下に居るため、
+      // captureで捕まえて伝播を止めないと二重にstartGame()が走る。
+      skipHandler = ev => {
+        if(ev.button !== undefined && ev.button !== 0) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        fade.style.transition = 'opacity .22s ease';
+        fade.style.opacity = '1';
+        window.setTimeout(finish, 230);
+      };
+      window.addEventListener('pointerdown', skipHandler, true);
+
+      video.addEventListener('ended', finish, { once:true });
+      video.addEventListener('error', finish, { once:true });
+
+      // 尺が分かり次第、7秒からのフェードアウトと安全弁を仕込む。
+      const schedule = () => {
+        const dur = Number(video.duration);
+        if(Number.isFinite(dur) && dur > 0){
+          // 動画が終わる OPENING_MOVIE_TAIL_MARGIN ms 前までに暗転を完了させる。
+          const fadeMs = Math.max(300, (dur - OPENING_MOVIE_FADE_START) * 1000 - OPENING_MOVIE_TAIL_MARGIN);
+          const delay  = Math.max(0, OPENING_MOVIE_FADE_START * 1000 - video.currentTime * 1000);
+          timers.push(window.setTimeout(() => {
+            fade.style.transition = `opacity ${fadeMs}ms linear`;
+            fade.style.opacity = '1';
+          }, delay));
+          timers.push(window.setTimeout(finish, dur * 1000 + 1500));
+        }else{
+          timers.push(window.setTimeout(finish, 30000));
+        }
+      };
+      if(video.readyState >= 1) schedule();
+      else video.addEventListener('loadedmetadata', schedule, { once:true });
+
+      // 再生開始と同時に明転する（暗転はフェードアウト側で掛け直す）。
+      Promise.resolve(video.play()).catch(() => {}).then(() => {
+        fade.style.transition = 'opacity .5s ease';
+        fade.style.opacity = '0';
+      });
+    });
+
+    // ここに来た時点で必ず真っ黒にしておく（スキップ・エラー経路も含む）。
+    fade.style.transition = 'opacity .2s ease';
+    fade.style.opacity = '1';
+    await wait(210);
+  }finally{
+    timers.forEach(t => window.clearTimeout(t));
+    if(skipHandler) window.removeEventListener('pointerdown', skipHandler, true);
+    try{ video.pause(); }catch(_e){}
+    video.classList.remove('is-active');
+  }
+}
+
+// タイトルの「ゲームスタート」から呼ぶ。初回だけオープニングを挟んでからゲームを始める。
+// 開始SEもここで鳴らす（ボタン側のonclickで鳴らすと、ムービー終了直後の
+// クリックが黒幕の下のボタンに届いてSEが二重に鳴り、ゲームも再開始されてしまう）。
+let _startingFromTitle = false;
+function startGameFromTitle(){
+  if(_startingFromTitle) return;
+  _startingFromTitle = true;
+  if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-game-start' });
+  if(_openingMovieShown){ startGame(); _startingFromTitle = false; return; }
+  _openingMovieShown = true;
+  void _playOpeningMovie().then(() => { startGame(); _startingFromTitle = false; });
+}
+
 function startGame(debugMode){
   // 前回のランのステージ持続環境音（雷雨など）を持ち越さない。
   if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(0);
@@ -1198,7 +1292,11 @@ function showVictoryOverlay(onShown,shownDuration){
   setTimeout(()=>{
     if(G._battleDefeatHandled||G.phase!=='reward') return;
     const isWithdraw=!!G._waveWithdraw;
-    if(!isWithdraw&&typeof playSfx==='function') playSfx(G._bossJustDefeated?'bossVictory':'victory',{group:'ui'});
+    // ボス勝利音の判定。この時点では既に goToReward() が走っていて
+    // G._bossJustDefeated はクリア済みのことがある（クリア前に控えを取っている
+    // G._isBossRewardCycle も併せて見る）。片方でも立っていればボス勝利音にする。
+    const _wasBossWin=!!(G._bossJustDefeated||G._isBossRewardCycle);
+    if(!isWithdraw&&typeof playSfx==='function') playSfx(_wasBossWin?'bossVictory':'victory',{group:'ui'});
     const cutin=(typeof showBattleCutin==='function')
       ? showBattleCutin(isWithdraw?'retreat':'victory',{durationMs:Math.max(1500,Number(shownDuration)||1800)})
       : Promise.resolve();

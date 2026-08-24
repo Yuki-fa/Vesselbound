@@ -1361,6 +1361,8 @@ function _syncRewardProductionItems(){
     }
     slot.onclick=e=>{
       e.stopPropagation();
+      // 対象選択中に、選択中のアイテム自身を押したら中断する。
+      if(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx){ _cancelPendingItemUse(); return; }
       if(slot._rewardItem) _openItemUseConfirm(idx,slot);
     };
   });
@@ -1510,6 +1512,14 @@ function _mergeCardKeywordsForBond(baseKeywords,addKeywords){
   });
   return result;
 }
+// 街（村本体・その施設・祭壇）にいるか。ポータルの巻物の使用可否判定に使う。
+function _isInVillageScene(){
+  if(G._isShop||G._isItemShop||G._isForge||G._isTavern||G._isRingExchange||G._isVillageMenu||G._isWaveAltar) return true;
+  // ワールドマップ上の現在地が村マスなら街の中とみなす。
+  // ※#scr-village の .active は街を出た後（報酬フェイズ等）も残ることがあるため判定に使わない。
+  return !!(typeof _mapCurrentVillageNode==='function'&&_mapCurrentVillageNode());
+}
+
 function _canUseItemNow(card){
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
@@ -1522,13 +1532,83 @@ function _canUseItemNow(card){
   if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardHasSeal(x.card));
   if(key==='weakening_scroll') return chars.length>0;
   if(key==='meteor_scroll') return true;
-  if(key==='portal_scroll') return !!G.worldMap;
+  // ポータルの巻物は「直前の村へワープする」アイテムなので、街（村・その施設）にいる間は使えない。
+  if(key==='portal_scroll') return !!G.worldMap && !_isInVillageScene();
   if(key==='vision_scroll') return chars.length>0;
   return true;
 }
+// 魔力の巻物が減らせるマナ効果の項目。
+const _MANA_SCROLL_FIELDS=['manaCost','manaOnAttack','manaOnInjury','manaOnDeath'];
+// 最低値1のため、2以上の項目が1つでもあれば減らせる。
+function _manaScrollReducible(card){
+  return _MANA_SCROLL_FIELDS.some(f=>Object.prototype.hasOwnProperty.call(card||{},f)&&(Number(card[f])||0)>1);
+}
+// アイテム使用中、そのスロットが対象になり得るか。
+// アイテム未使用時は常にtrue（通常操作を妨げない）。
+function _isItemUseTargetSlot(slotIdx){
+  const pending=G._pendingItemUse;
+  if(!pending) return true;
+  const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
+  const card=equips[slotIdx];
+  if(!_isBoardCharacterCard(card)) return false;
+  const key=pending.key;
+  if(key==='bond_scroll'){
+    if(card._merged) return false;
+    if(!Number.isInteger(pending.firstIdx)){
+      // 1枚目：同名かつ未合体の相方が別スロットに要る
+      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&!c._merged&&c.name===card.name);
+    }
+    // 2枚目：1枚目と同名の別スロット
+    return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
+  }
+  if(key==='mana_scroll') return _manaScrollReducible(card);
+  if(key==='sacrifice_doll'){
+    // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
+    if(!Number.isInteger(pending.destroyIdx)){
+      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardHasSeal(c));
+    }
+    return slotIdx!==pending.destroyIdx&&_cardHasSeal(card);
+  }
+  return true;
+}
+
+// アイテムの対象選択を中断する。生贄人形のように途中で盤面を書き換える
+// アイテムがあるため、開始時のスナップショットへ戻してから解除する。
+function _cancelPendingItemUse(silent){
+  const pending=G._pendingItemUse;
+  if(!pending) return false;
+  if(pending.sealConversionConfirming) return false;   // 確認ダイアログ表示中は触らない
+  if(Array.isArray(pending.boardSnapshot)){
+    const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():null;
+    if(equips) pending.boardSnapshot.forEach((c,i)=>{ equips[i]=c?clone(c):null; });
+  }
+  G._pendingItemUse=null;
+  if(!silent) log(`${pending.card&&pending.card.name||'アイテム'}の使用をやめた。`,'sys');
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof updateHUD==='function') updateHUD();
+  return true;
+}
+
+// 右クリック／Escでも対象選択を中断できるようにする（1度だけ登録）。
+if(!window._itemUseCancelBound){
+  window._itemUseCancelBound=true;
+  document.addEventListener('contextmenu',e=>{
+    if(!G||!G._pendingItemUse) return;
+    e.preventDefault();
+    _cancelPendingItemUse();
+  },true);
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape'||!G||!G._pendingItemUse) return;
+    e.preventDefault();
+    _cancelPendingItemUse();
+  },true);
+}
+
 function _beginBoardItemUse(idx,card){
   const key=_itemEffectKey(card);
-  G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0};
+  const equipsNow=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
+  G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
+    boardSnapshot:(equipsNow||[]).map(c=>c?clone(c):null)};
   const msg={
     bond_scroll:'合体する1枚目の同名キャラクターを選んでください。',
     shield_scroll:'結界1を永久付与するキャラクターを選んでください。',
@@ -1540,6 +1620,8 @@ function _beginBoardItemUse(idx,card){
     mana_scroll:'マナ効果を1減らすキャラクターを選んでください。',
   }[key]||'対象を選んでください。';
   log(msg,'gold');
+  // 対象外カードの暗転を反映するため描き直す。
+  if(typeof renderHandEditor==='function') renderHandEditor();
 }
 function _useImmediateItem(idx,card){
   const key=_itemEffectKey(card);
@@ -1636,14 +1718,15 @@ function handlePendingItemBoardTarget(slotIdx){
     G._pendingItemUse=null; _consumeItemSlot(pending.slotIdx); log(`${card.name}に復活を永久付与した。`,'gold'); return true;
   }
   if(key==='mana_scroll'){
-    const fields=['manaCost','manaOnAttack','manaOnInjury','manaOnDeath'];
+    const fields=_MANA_SCROLL_FIELDS;
     let changed=false;
     fields.forEach(field=>{
-      if(Object.prototype.hasOwnProperty.call(card,field)){
-        const next=Math.max(0,(Number(card[field])||0)-1);
-        if(next!==Number(card[field])) changed=true;
-        card[field]=next;
-      }
+      if(!Object.prototype.hasOwnProperty.call(card,field)) return;
+      const cur=Number(card[field])||0;
+      // 最低値は1。1以下（＝効果を持たない／既に最小）は減らさない。
+      if(cur<=1) return;
+      card[field]=cur-1;
+      changed=true;
     });
     if(!changed){ log(`${card.name}は減らせるマナ効果がありません。`,'bad'); return true; }
     // 永久減少後の内部値と、カードに表示する効果文の数値を同期する。
@@ -1668,6 +1751,7 @@ function handlePendingItemBoardTarget(slotIdx){
       pending.firstIdx=slotIdx;
       pending.firstName=card.name;
       log('合体する2枚目の同名キャラクターを選んでください。','gold');
+      renderHandEditor();
       return true;
     }
     const first=equips[pending.firstIdx];
@@ -1767,8 +1851,17 @@ function _openItemUseConfirm(idx,anchor){
     pop.style.left=`${rect.right+14*scale}px`;
     pop.style.top=`${rect.top+18*scale}px`;
   }
-  pop.querySelector('.item-use-do').onclick=e=>{
+  const useBtn=pop.querySelector('.item-use-do');
+  // 使用条件を満たさないアイテムは「使う」を押せなくする
+  // （例：ポータルの巻物は街にいる間は使えない）。
+  if(!_canUseItemNow(card)){
+    useBtn.disabled=true;
+    useBtn.classList.add('item-use-unavailable');
+    useBtn.title='ここでは使用できません';
+  }
+  useBtn.onclick=e=>{
     e.stopPropagation();
+    if(useBtn.disabled) return;
     _useImmediateItem(idx,card);
   };
   pop.querySelector('.item-use-discard').onclick=e=>{
@@ -1778,7 +1871,12 @@ function _openItemUseConfirm(idx,anchor){
     _closeItemUseConfirm();
     renderHandEditor(); updateHUD();
   };
-  pop.querySelector('.item-use-cancel').onclick=e=>{ e.stopPropagation(); _closeItemUseConfirm(); };
+  pop.querySelector('.item-use-cancel').onclick=e=>{
+    e.stopPropagation();
+    _closeItemUseConfirm();
+    // 対象選択中に開いた場合は、選択そのものを取りやめる。
+    _cancelPendingItemUse();
+  };
 }
 function _rewardRingArtPath(ring){
   if(!ring) return '';
@@ -4527,8 +4625,15 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         discardHeCard(arrName,i);
       };
       }
+      // アイテム使用中は、対象になり得ないカードを暗くして選択不能にする。
+      if(arrName==='unitEquip'&&G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'){
+        if(_isItemUseTargetSlot(i)) div.classList.add('item-target-ok');
+        else div.classList.add('item-target-disabled');
+      }
       if(arrName==='unitEquip') div.onclick=e=>{
         e.stopPropagation();
+        // 対象外スロットは何も起こさない（アイテムを無駄に消費させない）。
+        if(G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'&&!_isItemUseTargetSlot(i)) return;
         if(typeof handlePendingItemBoardTarget==='function'&&handlePendingItemBoardTarget(i)) return;
         if(G._isForge&&typeof _isMapForgeBlockedSlot==='function'&&_isMapForgeBlockedSlot(i)) return;
         if(G._isForge&&typeof applyPendingMapForgePower==='function'&&applyPendingMapForgePower(i)) return;

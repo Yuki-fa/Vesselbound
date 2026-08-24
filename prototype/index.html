@@ -23,6 +23,10 @@
 html{font-size:28px}
 body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:14px;width:100vw;height:100dvh;overflow:hidden;user-select:none;-webkit-user-select:none}
 .screen{display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left}
+/* 大ダメージ時の画面振動は #scr-battle の transform を動かす。合成レイヤーが無いと
+   振動開始のフレームでレイヤー生成と全面再描画が走り、一瞬固まって見える。
+   戦闘画面だけあらかじめ昇格させておく。 */
+#scr-battle{will-change:transform;backface-visibility:hidden}
 .screen.active{display:flex;flex-direction:column;width:var(--game-w);height:var(--game-h);overflow:hidden;font-size:28px}
 .screen.asset-backed{background:#0d0f14}
 .screen.asset-backed::before{content:'';position:absolute;inset:0;z-index:-1;background-image:var(--screen-bg-image);background-size:cover;background-position:center;opacity:1;filter:none;pointer-events:none}
@@ -564,6 +568,20 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 
 /* VFX */
 .vfx{position:absolute;inset:0;z-index:20;pointer-events:none;background-image:var(--vfx-image);background-repeat:no-repeat;background-position:center;background-size:contain;mix-blend-mode:screen}
+/* 演出クリップ層：document.body直下へfixedで追加される演出（ダメージ演出・特殊演出・
+   薙ぎ払い・攻撃モーションの複製カード）を、ゲーム背景の矩形で切り取る。
+   この層はビューポート全体を覆うため、中に置く要素のビューポート座標はそのまま使える
+   （transformにより子孫のposition:fixedはこの層を基準にする）。
+   z-indexは演出の最大値(10021)に合わせてあり、同時に出ないショップUI(10010-10012)より上になる。 */
+#vfx-clip-root{
+  position:fixed;
+  inset:0;
+  overflow:visible;
+  pointer-events:none;
+  transform:translateZ(0);
+  z-index:10021;
+  clip-path:inset(var(--stage-clip-top,0px) var(--stage-clip-right,0px) var(--stage-clip-bottom,0px) var(--stage-clip-left,0px));
+}
 .damage-vfx-host{
   position:fixed;
   z-index:10020;
@@ -1935,6 +1953,17 @@ body.map-forge-roll-hide-cards .map-forge-roll-card-fade{
 }
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade.deploy-slot{
   background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+}
+/* マス目変更演出中はカードが透明になり、下のマス目が見える。
+   マス目の太い縁（5px）は空きマス側にしかインラインで付いていないため、
+   キャラクターが乗っているマスだけ縁が細く見えてしまう。演出中は同じ縁を足して揃える。
+   （data-map-board が付いているのは強化済みのマスだけ＝通常のマスには影響しない） */
+/* 既存の「html body #hand-slots.unit-equip-slots > [data-map-board]{outline:0}」より
+   優先度を上げる必要がある（あちらはID込みのため）。 */
+html body.map-forge-roll-hide-cards #hand-slots.unit-equip-slots > .map-forge-roll-card-fade[data-map-board]{
+  outline:5px solid #c49a6c!important;
+  outline-offset:-5px!important;
+  box-shadow:inset 0 0 0 5px #c49a6c!important;
 }
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade::before{
   opacity:1!important;
@@ -7530,6 +7559,22 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .panel-di
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card .panel-dir{
   z-index:28!important;
 }
+/* アイテム使用中：そのアイテムの対象になり得ないカードは暗くして選択不能にする。 */
+html body #hand-slots.unit-equip-slots > .item-target-disabled{
+  filter:grayscale(.85) brightness(.42)!important;
+  pointer-events:none!important;
+  cursor:default!important;
+}
+html body #hand-slots.unit-equip-slots > .item-target-disabled *{pointer-events:none!important}
+/* 対象になり得るカードは通常表示のまま（暗転しないことで選べると分かる）。 */
+html body #hand-slots.unit-equip-slots > .item-target-ok{cursor:pointer}
+/* 使用条件を満たさないアイテムの「使う」ボタン。 */
+html body #item-use-confirm .item-use-unavailable{
+  opacity:.38!important;
+  filter:grayscale(.7)!important;
+  cursor:default!important;
+  pointer-events:none!important;
+}
 html body.reward-screen-active #reward-info-bar{
   display:block!important;
   position:absolute!important;
@@ -12411,6 +12456,12 @@ html body.village-intro-circle #village-bg-video-2{
   22%{opacity:1}
   100%{-webkit-mask-size:420% 420%;mask-size:420% 420%;opacity:1}
 }
+/* 出発時：village-screen-active を外すとボタンのスコープCSSが消えて
+   ラベルが左上へ飛ぶため、クラスを外す前にUIを消す。 */
+html body.village-departing #scr-village > *:not(#village-bg-video):not(#village-bg-video-2){
+  opacity:0!important;
+  pointer-events:none!important;
+}
 /* 演出中は背景と効果動画以外（プレート・施設・所持金・出発する）を隠す。 */
 html body.village-intro-hide-ui #scr-village > *:not(#village-intro-title):not(#village-bg-video):not(#village-bg-video-2){
   opacity:0!important;
@@ -12523,7 +12574,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <div class="tap-to-start">TAP TO START</div>
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
-    <button class="title-menu-item game-start" type="button" onclick="playSfx('gameStart',{guardKey:'ui:title-game-start'});startGame()"><span class="title-menu-label">ゲームスタート</span></button>
+    <button class="title-menu-item game-start" type="button" onclick="startGameFromTitle()" data-sfx-silent="1"><span class="title-menu-label">ゲームスタート</span></button>
     <button id="title-debug-button" type="button" onclick="startGame(true)">デバッグモード</button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">コンティニュー</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
@@ -12866,6 +12917,13 @@ function fitVesselboundViewport(){
   root.style.setProperty('--game-scale',String(scale));
   root.style.setProperty('--game-offset-x',`${ox}px`);
   root.style.setProperty('--game-offset-y',`${oy}px`);
+  // ゲーム背景の実表示矩形（ビューポート座標）を、演出クリップ層#vfx-clip-root用に書き出す。
+  // .screenは自身のoverflow:hiddenで内部要素を切るが、document.body直下へfixedで追加される
+  // 演出はその外にあるため、この値でclip-pathを掛けて背景外へ出ないようにする。
+  root.style.setProperty('--stage-clip-top',`${oy}px`);
+  root.style.setProperty('--stage-clip-right',`${Math.max(0,vw-(ox+baseW*scale))}px`);
+  root.style.setProperty('--stage-clip-bottom',`${Math.max(0,vh-(oy+baseH*scale))}px`);
+  root.style.setProperty('--stage-clip-left',`${ox}px`);
 }
 window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
@@ -12878,17 +12936,17 @@ fitVesselboundViewport();
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=tower46"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=tower60"></script>
+<script src="js/data/loader.js?v=autogen1"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <script src="js/engine/state.js?v=wbreak1"></script>
-<script src="js/engine/pool.js?v=itemshop4"></script>
+<script src="js/engine/pool.js?v=artno1"></script>
 <script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=etin2"></script>
-<script src="js/engine/render.js?v=desc1"></script>
-<script src="js/engine/reward.js?v=sell1"></script>
-<script src="js/engine/map.js?v=liese-bg15"></script>
+<script src="js/engine/battle.js?v=shake440"></script>
+<script src="js/engine/render.js?v=clip1"></script>
+<script src="js/engine/reward.js?v=item6"></script>
+<script src="js/engine/map.js?v=fix2"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=tower63"></script>
+<script src="js/engine/main.js?v=fix1"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -12906,5 +12964,7 @@ document.addEventListener('pointerdown',function(ev){
   continueAfterBattleVictory();
 },true);
 </script>
+<!-- 演出クリップ層。body直下へfixedで追加される演出はこの中に入れ、ゲーム背景の外へ出さない。 -->
+<div id="vfx-clip-root"></div>
 </body>
 </html>
