@@ -8,6 +8,73 @@ let _placingChar=null; // フィールド配置待ちのキャラカード
 let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを戻せるよう識別する
 const REWARD_GRID_CAPACITY=5; // 報酬置き場：最大5枚
+function _libraryTutorialMoveContext(){
+  if(!G||!G._libraryTutorialActive) return null;
+  if(G._libraryTutorialStep===4) return {name:'リザードマン',index:12};
+  if(G._libraryTutorialStep===6) return {name:'野生の力',index:11};
+  return null;
+}
+function _libraryTutorialIsMoveStep(){ return !!_libraryTutorialMoveContext(); }
+function _libraryTutorialAllowsMove(card,destIdx){
+  const ctx=_libraryTutorialMoveContext();
+  if(!ctx) return true;
+  if(destIdx==null) return !!(card&&card.name===ctx.name);
+  return !!(card&&card.name===ctx.name&&Number(destIdx)===ctx.index);
+}
+function _syncBoardCardVisibilityToggle(){
+  const active=document.body.classList.contains('right-card-peek');
+  const btn=document.getElementById('board-card-visibility-btn');
+  // ゲームオーバー魔導板には同じボタンの複製（id重複を避けてクラス版）が置かれる。
+  // 表示状態は共通なのでラベルも必ず両方そろえる。
+  document.querySelectorAll('#board-card-visibility-btn,.board-card-visibility-btn').forEach(b=>{
+    // ラベルはspanで包む（ホバー発光の::beforeが文字を覆わないようにするため）。
+    const label=b.querySelector('.bcv-label')||b;
+    label.textContent=active?'カード表示':'カード非表示';
+    b.setAttribute('aria-pressed',active?'true':'false');
+  });
+  const align=()=>{
+    const pane=document.getElementById('hand-pane');
+    const slots=document.querySelector('#hand-slots.unit-equip-slots');
+    if(!btn||!pane||!slots||!slots.children.length) return;
+    // 行によってマスの並びが異なるため、lastElementChild が右端列とは限らない。
+    // 全マスから「最も右」と「最も下」を実測して基準にする。
+    const cells=Array.from(slots.children).map(c=>c.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+    if(!cells.length) return;
+    const paneRect=pane.getBoundingClientRect();
+    const cardRect={right:Math.max.apply(null,cells.map(r=>r.right)),
+                    bottom:Math.max.apply(null,cells.map(r=>r.bottom))};
+    const scaleX=pane.offsetWidth?paneRect.width/pane.offsetWidth:1;
+    const scaleY=pane.offsetHeight?paneRect.height/pane.offsetHeight:1;
+    // ボタンの右端を最右カードの右端へ合わせ、最下段カードの直下へ置く。
+    // getBoundingClientRect()は画面上の実寸、style値は親要素内の座標なので拡大率で戻す。
+    btn.style.right=`${Math.max(0,(paneRect.right-cardRect.right)/scaleX)}px`;
+    // 縦位置は設計座標(3840x2160)のY=752に固定する。
+    // 親(#hand-pane)基準のstyle値へ直すため、親の設計座標上の位置を引く。
+    const rootStyle=getComputedStyle(document.documentElement);
+    const gScale=parseFloat(rootStyle.getPropertyValue('--game-scale'))||1;
+    const offY=parseFloat(rootStyle.getPropertyValue('--game-offset-y'))||0;
+    const paneTopDesign=(paneRect.top-offY)/gScale;
+    btn.style.top=`${Math.round(722-paneTopDesign)}px`;
+  };
+  align();
+  requestAnimationFrame(align);
+}
+function toggleBoardCardVisibility(){
+  // 右クリック（contextmenuハンドラ）とまったく同じ動作にする。
+  // 別クラスで独自に隠すと、右クリックで見える状態と食い違ってしまう。
+  // ゲームオーバー画面／ゲームクリア画面の魔導板でも同じボタンを出すため、
+  // それぞれの位相（'gameover' / 'clear'）も許可する。
+  if(!G||(G.phase!=='reward'&&G.phase!=='gameover'&&G.phase!=='clear')) return;
+  const enabled=document.body.classList.toggle('right-card-peek');
+  if(enabled){
+    _dragSrc=null;
+    window._allySlotDragSrc=null;
+    if(typeof _removeDragGhost==='function') _removeDragGhost();
+    if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
+    document.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
+  }
+  _syncBoardCardVisibilityToggle();
+}
 function _findEmptyRewardSlot(){
   for(let i=0;i<REWARD_GRID_CAPACITY;i++){ if(!_rewCards[i]) return i; }
   return -1;
@@ -285,6 +352,7 @@ function placePendingPanelToGlobal(slotIdx){
 function placePendingPanelToSelectedUnit(slotIdx){
   const pending=G._pendingPanelPlacement;
   if(!pending||!pending.card) return false;
+  if(!_libraryTutorialAllowsMove(pending.card,slotIdx)) return false;
   if(pending.card.panelScope==='global'){
     G._showGlobalPanels=true;
     renderHandEditor();
@@ -421,10 +489,19 @@ function _flashConnectedBoardCards(startIdx){
       const el=host.querySelector(`[data-equip-idx="${idx}"]`);
       if(!el) return;
       hit++;
+      // 走査光は「静止したクリップ枠 + その中を走るbeam」の2枚構成。
+      // 1枚でclip-path+transformを併用すると、切り抜いた形ごとカード外へ出る（はみ出しの原因）。
       el.classList.remove('panel-connect-flash');
+      el.querySelectorAll(':scope > .panel-connect-flash-clip').forEach(n=>n.remove());
       void el.offsetWidth;
+      const clip=document.createElement('div');
+      clip.className='panel-connect-flash-clip';
+      const beam=document.createElement('div');
+      beam.className='panel-connect-flash-beam';
+      clip.appendChild(beam);
+      el.appendChild(clip);
       el.classList.add('panel-connect-flash');
-      setTimeout(()=>el.classList.remove('panel-connect-flash'),760);
+      setTimeout(()=>{ el.classList.remove('panel-connect-flash'); clip.remove(); },760);
     });
     if(!hit&&tries++<6) requestAnimationFrame(run);
   };
@@ -542,6 +619,11 @@ function renderDebugRewardRerollButton(){
   btn.disabled=true;
 }
 
+// 魔導板上のカードを売却できる施設か。魔導店（_isShop）に加え、鍛冶屋（_isForge）でも売却できる。
+function _boardCardSellEnabled(){
+  return !!(G&&(G._isShop||G._isForge));
+}
+
 function _shopCardSellGain(card){
   if(!card) return 0;
   // 売値は「どの店にいるか」ではなく「何を売るか」で決める（全店共通）。
@@ -566,7 +648,7 @@ function renderRaceBuffSummary(){
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(){
-  const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isTreasureMapReward);
+  const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isTreasureMapReward||G._isLibrary);
   document.body.classList.remove('battle-victory-pending');
   G._freeItemPhase='reward';
   G._freeItemUsed=false;
@@ -641,7 +723,10 @@ function goToReward(){
   if(bossNotice) bossNotice.style.display='none';
 
   refreshRewardGoldUi();
-  document.getElementById('rw-count').textContent=G.rewardCharCount||3;
+  const rewardCount=document.getElementById('rw-count');
+  if(rewardCount) rewardCount.textContent=G._isLibrary?5:(G.rewardCharCount||3);
+  const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(el=>el.querySelector('#rw-count'));
+  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary?'貸出カード':'報酬'} `;
   const rb=document.getElementById('rw-reroll'); if(rb){ rb.style.display='none'; rb.disabled=true; }
   renderDebugRewardRerollButton();
 
@@ -710,6 +795,13 @@ function resetRewardToStart(options){
   G._mapForgeOffers=_forgePlacementOnly?_forgeOffers:clone(s.mapForgeOffers||[]);
   G._pendingMapForgePower=_forgePlacementOnly?G._pendingMapForgePower:(s.pendingMapForgePower?clone(s.pendingMapForgePower):null);
   G._pendingPanelPlacement=null;
+  // アイテムの対象選択中（生贄人形などの1枚目を選んだ状態）に「元に戻す」を押すと、
+  // G._pendingItemUse がリセット前の盤面スナップショットを抱えたまま残る。
+  // その後に右クリック等で選択が中断されると、そのスナップショットが盤面へ書き戻され、
+  // 報酬カードが「盤面」と「報酬枠」の両方に存在してしまう（同じカードを何度でも入手できる）。
+  // リセット時点で選択そのものを破棄する（スナップショットの復元は行わない）。
+  G._pendingItemUse=null;
+  if(typeof _closeItemUseConfirm==='function') _closeItemUseConfirm();
   G._showGlobalPanels=false;
   _dragSrc=null;
   if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
@@ -736,6 +828,32 @@ function renderMoveSlotsInEnemy(){
   // デバッグモード：演出確認用の試験戦闘ボタン（報酬/編成フェイズ中のみ表示）
   const testBtn=document.getElementById('btn-test-battle');
   if(testBtn) testBtn.style.display=(G._debugMode&&G.phase==='reward')?'':'none';
+  if(G._isLibrary){
+    const test=document.createElement('button');
+    test.className='btn rew-move-btn library-test-btn';
+    test.dataset.sfxSilent='1';
+    test.innerHTML='<span class="rew-btn-label">試験戦闘</span>';
+    test.onclick=()=>{ if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'}); startTestBattle(); };
+    const restore=document.createElement('button');
+    restore.className='btn rew-reset-btn';
+    restore.dataset.sfxSilent='1';
+    restore.innerHTML='<span class="rew-btn-label">元に戻す</span>';
+    restore.onclick=()=>{
+      if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+      if(typeof resetLibraryLoanFormation==='function') resetLibraryLoanFormation();
+    };
+    const quit=document.createElement('button');
+    quit.className='btn rew-reset-btn library-quit-btn';
+    quit.dataset.sfxSilent='1';
+    quit.innerHTML='<span class="rew-btn-label">読書をやめる</span>';
+    quit.onclick=()=>{
+      if(typeof closeMapLibraryFormation==='function') closeMapLibraryFormation();
+    };
+    el.appendChild(quit);
+    el.appendChild(restore);
+    el.appendChild(test);
+    return;
+  }
   const villageExtraBtn=document.getElementById('map-village-extra-btn');
   if(villageExtraBtn){
     villageExtraBtn.style.setProperty('display','none','important');
@@ -751,14 +869,14 @@ function renderMoveSlotsInEnemy(){
   }
   const _hasPendingRingOffer=G._isBossRewardCycle&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0;
   const _isMapBossRewardPending=!!G._mapBossRewardPendingAdvance;
-  if(G._isShop||G._isForge||G._isTavern||G._isVillageMenu||G._isTreasureMapReward||G._isRingExchange||((typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)&&!_hasPendingRingOffer&&!_isMapBossRewardPending&&!G._ringOfferPhase)){
+  if(G._isShop||G._isForge||G._isTavern||G._isVillageMenu||G._isTreasureMapReward||G._isRingExchange||G._isLibrary||((typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)&&!_hasPendingRingOffer&&!_isMapBossRewardPending&&!G._ringOfferPhase)){
     // Wave進行中のショップ/鍛冶屋/指輪交換は、村/祭壇の施設なのでボタンを押しても次stageへは進めず、
     // 項目選択（村/祭壇メニュー）へ戻るだけにする。
-    const _waveFacilityReturn=G._waveLoopEnabled&&(G._isShop||G._isForge||G._isRingExchange);
+    const _waveFacilityReturn=G._isLibrary||G._waveLoopEnabled&&(G._isShop||G._isForge||G._isRingExchange);
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
-    const label=_waveFacilityReturn?(G._isRingExchange?'祭壇を離れる':'店を出る'):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
+    const label=_waveFacilityReturn?(G._isLibrary?'図書館を出る':(G._isRingExchange?'祭壇を離れる':'店を出る')):(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始');
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
@@ -769,6 +887,9 @@ function renderMoveSlotsInEnemy(){
           if(G._isRingExchange){
             if(typeof playSfx==='function') playSfx('altarOut',{group:'ui'});
             if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
+          }else if(G._isLibrary){
+            if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+            if(typeof openMapVillage==='function') openMapVillage();
           }else{
             if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
             if(typeof openMapVillage==='function') openMapVillage();
@@ -786,7 +907,7 @@ function renderMoveSlotsInEnemy(){
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
-    const canResetMapReward=!G._isVillageMenu&&!G._isTavern&&!G._isTreasureMapReward
+    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isTavern&&!G._isTreasureMapReward
       &&(!G._isForge||!!G._debugMode);
     if(canResetMapReward){
       const reset=document.createElement('button');
@@ -901,7 +1022,11 @@ function _canReturnDragSrcToRewardArea(){
   // ここで都度チェックする必要がある）。
   if(G._ringOfferPhase) return false;
   if(G._isForge) return false;
-  return !!_dragSrc&&['unitEquip','spellSlots','inventory'].includes(_dragSrc.arr);
+  if(!_dragSrc||!['unitEquip','spellSlots','inventory'].includes(_dragSrc.arr)) return false;
+  // 図書館の貸出カード枠には、貸出カード（_libraryLoan）しか戻せない。
+  // 自前の所持カードを置けてしまうと、図書館を出た時点でそのカードを失う。
+  if(G._isLibrary){ const c=_dragSrcCard(); if(!c||!c._libraryLoan) return false; }
+  return true;
 }
 function _isShopSoldOutDropBlocked(target){
   const hasDragSource=!!_dragSrc||(_fieldDragSrc>=0)||(_rewDragSrc>=0);
@@ -984,7 +1109,7 @@ function _waveEffectiveBattleStage(stage){
 const SCENE1_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','boss','altar'];
 function _journeyRouteForScene(scene){
   const data=typeof SCENE_FLOW_DATA!=='undefined'?SCENE_FLOW_DATA:null;
-  if(scene===5) return data&&data.final||['city','battle','elite','finalBoss'];
+  if(scene===5) return data&&data.final||['city','battle','battle','boss'];
   if(scene===1) return (data&&data.scene1)||SCENE1_ROUTE;
   return data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
 }
@@ -1006,9 +1131,8 @@ function _journeyNodeLabel(type,scene,idx){
   return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
 }
 // 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。
-// ステージ5（最終ステージ）の行き先は伏せるため「???」固定。
+// ステージ5のマークはそこへ到達するまで表示自体を出さないため、名前も伏せない。
 function _journeySceneTowerName(scene){
-  if(Number(scene)>=5) return '???';
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
   return String((info&&info.towerName)||'???').trim()||'???';
 }
@@ -1038,16 +1162,21 @@ function _syncRewardJourneyUi(){
   const current=_journeyDisplayPosition(route,stage,scene);
   const currentType=route[actual];
   const isFinalScene=scene===5;
-  const reached=isFinalScene?currentType==='finalBoss':currentType==='altar';
+  const reached=isFinalScene?currentType==='boss':currentType==='altar';
   const remaining=route.slice(actual).filter(type=>['battle','elite','boss','finalBoss'].includes(type)).length;
   // 現在位置の次に進むノードを強調する。ゲーム開始前は先頭ノードを対象にし、
   // 祭壇（または最終決戦）へ到達済みのときは次ノードを発光させない。
   const next=(reached||current>=route.length-1)?-1:(current<0?0:current+1);
 
-  const sceneMarks=Array.from({length:5},(_,idx)=>{
+  // ステージ4まではScene1〜4だけを並べ、ステージ5へ到達した時点で末尾にScene5を足す。
+  // （最終ステージの存在自体を、到達するまで伏せておくため）
+  // ただしデバッグモードでは、どのステージにいてもScene5マークを出す
+  // （Sceneマークを押してステージ移動できるようにするため）。
+  const sceneCount=(scene>=5||(G&&G._debugMode))?5:4;
+  const sceneMarks=Array.from({length:sceneCount},(_,idx)=>{
     const n=idx+1;
     const state=n<scene?'passed':(n===scene?'current':'');
-    const connector=idx<4?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
+    const connector=idx<sceneCount-1?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
     // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
     const jumpAttr=(G&&G._debugMode)?` data-journey-scene="${n}"`:'';
     // ホバー表示はブラウザ標準のtitleではなくカードと同じ枠（#kw-tooltip）で塔の名前を出す。
@@ -1082,6 +1211,8 @@ function _syncRewardJourneyUi(){
           artCode:def.artCode||def._artCode||def.No||def['No.']||def.no||def.imageNo||'',
           color:def.color||'',
           _sheetEnemy:!!def._sheetEnemy,
+          // 旅の進捗のホバー表示でも、エリート／ボスは character_frame.png を使う。
+          _isEliteOrBoss:true,
         };
         enemyAttr=` data-journey-enemy="${_escapePreviewHtml(JSON.stringify(payload))}"`;
       }
@@ -1195,13 +1326,15 @@ function _syncRewardTitleLabel(){
   const el=document.querySelector('#reward-production-ui .reward-prod-title span');
   if(!el) return;
   // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
-  const fromVillage=(G._isItemShop||G._isForge||G._isShop)?String(G._facilityLabel||'').trim():'';
+  const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary)?String(G._facilityLabel||'').trim():'';
   el.textContent=fromVillage
     ||(G._isItemShop?'道具屋'
     :G._isForge?'鍛治屋'
     :G._isShop?'魔導店'
     :G._isRingExchange?'祭壇'
     :'編成');
+  const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(node=>node.querySelector('#rw-count'));
+  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary?'貸出カード':'報酬'} `;
 }
 function _syncRewardProductionUi(){
   const body=document.body;
@@ -1329,7 +1462,7 @@ function _syncRewardProductionItems(){
           }
           if(card._isTreasure) _rewFreePickDone=true;
           items[idx]=placed;
-          if(G._isItemShop) _rewCards[rewIdx]=null;
+          if(G._isItemShop||G._isLibrary) _rewCards[rewIdx]=null;
           else _rewCards.splice(rewIdx,1);
           if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
           if(typeof _removeDragGhost==='function') _removeDragGhost();
@@ -1444,6 +1577,13 @@ function _cardSealKeywordIndex(card){
   return kws.findIndex(k=>/^封印(?:\d+|∞)$/.test(String(k||'')));
 }
 function _cardHasSeal(card){ return _cardSealKeywordIndex(card)>=0; }
+// 生贄人形で実際に1減らせる封印かどうか。封印∞は_reduceCardSeal()がfalseを返すため、
+// 対象に選べてしまうと「破壊だけ実行され、アイテムは消費されない」状態で止まる。
+function _cardSealReducible(card){
+  const idx=_cardSealKeywordIndex(card);
+  if(idx<0) return false;
+  return !/∞/.test(String(card.keywords[idx]||''));
+}
 function _reduceCardSeal(card){
   const idx=_cardSealKeywordIndex(card);
   if(idx<0) return false;
@@ -1514,7 +1654,7 @@ function _mergeCardKeywordsForBond(baseKeywords,addKeywords){
 }
 // 街（村本体・その施設・祭壇）にいるか。ポータルの巻物の使用可否判定に使う。
 function _isInVillageScene(){
-  if(G._isShop||G._isItemShop||G._isForge||G._isTavern||G._isRingExchange||G._isVillageMenu||G._isWaveAltar) return true;
+  if(G._isShop||G._isItemShop||G._isForge||G._isTavern||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isLibrary) return true;
   // ワールドマップ上の現在地が村マスなら街の中とみなす。
   // ※#scr-village の .active は街を出た後（報酬フェイズ等）も残ることがあるため判定に使わない。
   return !!(typeof _mapCurrentVillageNode==='function'&&_mapCurrentVillageNode());
@@ -1529,7 +1669,7 @@ function _canUseItemNow(card){
     chars.forEach(({card})=>{ if(!card._merged) counts[card.name]=(counts[card.name]||0)+1; });
     return Object.values(counts).some(n=>n>=2);
   }
-  if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardHasSeal(x.card));
+  if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardSealReducible(x.card));
   if(key==='weakening_scroll') return chars.length>0;
   if(key==='meteor_scroll') return true;
   // ポータルの巻物は「直前の村へワープする」アイテムなので、街（村・その施設）にいる間は使えない。
@@ -1565,9 +1705,9 @@ function _isItemUseTargetSlot(slotIdx){
   if(key==='sacrifice_doll'){
     // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
     if(!Number.isInteger(pending.destroyIdx)){
-      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardHasSeal(c));
+      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardSealReducible(c));
     }
-    return slotIdx!==pending.destroyIdx&&_cardHasSeal(card);
+    return slotIdx!==pending.destroyIdx&&_cardSealReducible(card);
   }
   return true;
 }
@@ -1788,7 +1928,7 @@ function handlePendingItemBoardTarget(slotIdx){
       log('封印を減らす別のキャラクターを選んでください。','gold');
       return true;
     }
-    if(slotIdx===pending.destroyIdx||!_cardHasSeal(card)){ log('封印を持つ別のキャラクターを選んでください。','bad'); return true; }
+    if(slotIdx===pending.destroyIdx||!_cardSealReducible(card)){ log('封印を1減らせる別のキャラクターを選んでください。','bad'); return true; }
     const sealIdx=_cardSealKeywordIndex(card);
     const isSealOne=sealIdx>=0&&String(card.keywords[sealIdx])==='封印1';
     const apply=()=>{
@@ -2055,6 +2195,8 @@ function renderRewCards(){
   const section=document.getElementById('battle-order-section');
   const el=document.getElementById('battle-order-row');
   if(!section||!el) return;
+  const rewardSectionLabel=document.querySelector('#reward-cards-section .field-label');
+  if(rewardSectionLabel) rewardSectionLabel.textContent=G._isLibrary?'貸出カード':'提示カード';
   if(G.phase!=='reward'){ section.style.display='none'; el.innerHTML=''; _syncRewardProductionUi(); return; }
   // 村/祭壇メニューと鍛冶屋は同じ行を独自の選択肢で使用するため、
   // カード移動後の再描画で提示内容を消さない。
@@ -2080,11 +2222,35 @@ function renderRewCards(){
       if(_isShopSoldOutDropBlocked(e.target)) return;
       e.preventDefault(); el.classList.remove('drag-over');
       if(!_canReturnDragSrcToRewardArea()) return;
-      _returnDragSrcToRewardArea();
+      // 図書館の貸出枠は「落とした枠」へそのまま戻す（左詰めにしない）。
+      let dropIdx=-1;
+      if(G._isLibrary&&e.target&&e.target.closest){
+        const slot=e.target.closest('[data-rew-idx],[data-card-idx]');
+        if(slot){
+          const raw=slot.dataset.rewIdx!=null?slot.dataset.rewIdx:slot.dataset.cardIdx;
+          const n=Number(raw);
+          if(Number.isInteger(n)&&n>=0) dropIdx=n;
+        }
+      }
+      _returnDragSrcToRewardArea(dropIdx>=0?dropIdx:undefined);
     });
   }
   const _rewardPickUsed=!!(G._rewardOnePickMode&&_rewFreePickDone);
   const pendingRewardIdx=G._pendingPanelPlacement?G._pendingPanelPlacement.rewardIdx:-1;
+  if(G._isLibrary){
+    for(let i=0;i<REWARD_GRID_CAPACITY;i++){
+      const card=_rewCards[i]||null;
+      if(card){
+        const d=_mkRewDiv(card,()=>takeRewCard(i),i);
+        if(pendingRewardIdx===i) d.classList.add('pending-placement');
+        el.appendChild(d);
+      }else{
+        el.appendChild(_mkLibraryLoanedOutDiv(i));
+      }
+    }
+    requestAnimationFrame(fitCardDescs);
+    return;
+  }
   if(G._isTreasureMapReward){
     _rewCards.slice(0,1).forEach((card,i)=>{
       if(!card) return;
@@ -2104,8 +2270,8 @@ function renderRewCards(){
       if(!card){ el.appendChild(_mkShopSoldOutDiv(i)); return; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
       d.classList.add('item-shop-card','treasure-offer-card','item-visual');
-      // 上・下・上と互い違いに置き、行の上下に余白を作らない。
-      d.classList.add(i%2===1?'item-shop-card-down':'item-shop-card-up');
+      // 下・上・下と互い違いに置き、行の上下に余白を作らない。
+      d.classList.add(i%2===1?'item-shop-card-up':'item-shop-card-down');
       // 商品枠に置いた自分のアイテム（売却待ち）は必ずドラッグで手持ちへ戻せるようにする。
       if(card._shopSalePending){ d.draggable=true; d.classList.remove('reward-drag-locked'); }
       d.classList.remove('treasure');
@@ -2229,6 +2395,18 @@ function _mkShopSoldOutDiv(itemIdx){
   return div;
 }
 
+function _mkLibraryLoanedOutDiv(itemIdx){
+  const div=document.createElement('div');
+  div.className='shop-sold-out library-loaned-out';
+  // ドロップ先の枠番号。貸出カードは掴んだ場所ではなく「落とした枠」へ戻す。
+  if(Number.isInteger(itemIdx)) div.dataset.rewIdx=String(itemIdx);
+  const label=document.createElement('span');
+  label.className='shop-sold-out-label';
+  label.textContent='貸出中';
+  div.appendChild(label);
+  return div;
+}
+
 function _mkRewDiv(card, onBuy, rewIdx){
   const isPendingSale=!!card._shopSalePending;
   const cost=Math.max(0,(card._buyPrice??1));
@@ -2294,6 +2472,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
       div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
     }else if(canBuy&&!disabled) div.onclick=onBuy;
+    _appendLibraryLoanBadge(div);
     return div;
   }
 
@@ -2330,6 +2509,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
   }else if(canBuy&&G._isShop) div.onclick=onBuy;
+  _appendLibraryLoanBadge(div);
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
     // 自分のカードなので魔導板へ戻せる必要がある。ショップの購入不可ロックから除外する。
@@ -2341,6 +2521,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
         e.preventDefault();
         return;
       }
+      if(_libraryTutorialIsMoveStep()&&!_libraryTutorialAllowsMove(card,null)){ e.preventDefault(); return; }
       _dragSrc={arr:'rew',idx:rewIdx};
       _pinPanelTextPosition(div,'reward');
       e.dataTransfer.effectAllowed='move';
@@ -2362,6 +2543,15 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.addEventListener('dragend',()=>{ _restoreDragSourceParts(div); div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
   }
   return div;
+}
+
+function _appendLibraryLoanBadge(div){
+  if(!div||!G||!G._isLibrary) return;
+  div.querySelectorAll('.shop-board-sell-value,.shop-pending-sell-btn,.shop-pending-sale-ui').forEach(el=>el.remove());
+  const badge=document.createElement('div');
+  badge.className='shop-board-sell-value library-loan-badge';
+  badge.textContent='貸出';
+  div.appendChild(badge);
 }
 
 // ── カード購入処理 ──────────────────────────────
@@ -2572,6 +2762,7 @@ function _discardBoardCardForRingOffer(idx,card){
 function takeRewCard(i, targetSlot){
   if(G._pendingPanelPlacement) return;
   const card=_rewCards[i]; if(!card) return;
+  if(!_libraryTutorialAllowsMove(card,targetSlot)) return;
   // 売却待ち（魔導板から販売枠へ戻した自分のカード）は購入ではなく「戻す」操作なので、
   // 街扱いのゴールド徴収・購入可否判定の対象外にする。
   const isPendingSale=!!card._shopSalePending;
@@ -2662,7 +2853,7 @@ function takeRewCard(i, targetSlot){
       // ドラッグで魔導板の埋まっているスロットへ直接入れ替えた場合、押し出されたカードが
       // 既にこのスロット（_rewCards[i]）へ入っているため、その場合はここで消してしまわない
       if(_rewCards[i]===card){
-        if(G._isShop) _rewCards[i]=null;
+        if(G._isShop||G._isLibrary) _rewCards[i]=null;
         else _rewCards.splice(i,1);
       }
       if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
@@ -2910,9 +3101,13 @@ const _DRAG_ZONE_CLASSES=['dragzone-battleorder','dragzone-reward-spell','dragzo
 const _DRAG_ZONE_RAISE_TARGETS={
   'dragzone-ring-slot':[['#reward-production-ui',9001]],
   'dragzone-ring-offer':[['#reward-production-ui',9001]],
-  'dragzone-mainequip':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
-  'dragzone-reward-spell':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
-  'dragzone-reward-nonspell':[['#main-hand-area',9001],['#hand-pane-board-bg',9002],['#hand-pane',9004],['#battle-order-section',9001]],
+  // 魔導板・報酬カードのドラッグ中の暗転オーバーレイは廃止したため、
+  // それより上へ出すためのz-index引き上げも行わない。
+  // 引き上げると魔導板のカードが#hand-paneの装飾レイヤーより前面に出て、
+  // 枠線が明るく浮き上がる（＝所持カードが光って見える）。
+  'dragzone-mainequip':[],
+  'dragzone-reward-spell':[],
+  'dragzone-reward-nonspell':[],
   'dragzone-reward-item':[['#reward-production-ui',9001],['#battle-order-section',9001]],
   'dragzone-itemslot':[['#reward-production-ui',9001],['#battle-order-section',9001]],
 };
@@ -2932,6 +3127,10 @@ function _clearDragZoneRaise(){
 function _setDragZoneClass(cls){
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
+  // dragzone-* はドラッグ中の明暗演出だけでなく、
+  //  ・ドラッグ元カードを透明にする（.rew-card.dragging{opacity:0}）
+  //  ・魔導板/報酬枠をオーバーレイより上へ出す z-index 引き上げ
+  // も担っている。付与をやめるとドラッグ元のカード枠と発光が残るため、必ず付与する。
   if(cls){ document.body.classList.add(cls); _applyDragZoneRaise(cls); }
   _syncRewardProductionUi();
 }
@@ -3713,8 +3912,11 @@ function _isNonCombatEquipPhase(){
 if(!window._equipSelectionClearBound){
   window._equipSelectionClearBound=true;
   document.addEventListener('contextmenu',e=>{
+    // ゲームオーバー画面とゲームクリア画面は同じ#gameover-board-gridを使う。
     const gameoverBoard=!!(e.target&&e.target.closest&&e.target.closest('#gameover-board-grid'));
-    if(G.phase==='reward'||(G.phase==='gameover'&&gameoverBoard)){
+    // 図書館の「魔導板の使い方」中は、右クリックによるカード非表示も無効にする。
+    if(G&&G._libraryTutorialActive){ e.preventDefault(); return; }
+    if(G.phase==='reward'||((G.phase==='gameover'||G.phase==='clear')&&gameoverBoard)){
       e.preventDefault();
       const enabled=document.body.classList.toggle('right-card-peek');
       if(enabled){
@@ -3724,6 +3926,8 @@ if(!window._equipSelectionClearBound){
         if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
         document.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
       }
+      // 右クリックで切り替えたときもボタンのラベルを合わせる（同じ機能なので表示がずれてはいけない）
+      if(typeof _syncBoardCardVisibilityToggle==='function') _syncBoardCardVisibilityToggle();
     }
     if(G.phase==='reward'&&G._pendingPanelPlacement){
       cancelPendingPanelPlacement();
@@ -3750,6 +3954,24 @@ if(!window._equipSelectionClearBound){
   });
 }
 
+// ゲームオーバー魔導板のカード非表示ボタンの右端を、一番右のカード枠の右端へ合わせる。
+// 複製元（編成画面）の right 値をそのまま使うと、ゲームオーバー側は #hand-pane の
+// 実寸が異なるためわずかに左へずれる。複製側の実寸で計算し直す。
+function _alignGameOverVisibilityBtn(clonePane){
+  if(!clonePane) return;
+  try{
+    const btn=clonePane.querySelector('#board-card-visibility-btn');
+    const slots=clonePane.querySelector('.unit-equip-slots');
+    if(!btn||!slots) return;
+    const cells=Array.from(slots.children).map(c=>c.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+    if(!cells.length) return;
+    const paneRect=clonePane.getBoundingClientRect();
+    if(!(paneRect.width>0)) return;
+    const scaleX=clonePane.offsetWidth?paneRect.width/clonePane.offsetWidth:1;
+    const cardRight=Math.max.apply(null,cells.map(r=>r.right));
+    btn.style.right=`${Math.max(0,(paneRect.right-cardRight)/(scaleX||1))}px`;
+  }catch(e){ console.error('[gameover:visibilityBtn]',e); }
+}
 // 敗北時の魔導板表示。通常の編成描画を再利用して見た目・特殊マス・説明属性を揃え、
 // クローン側はイベントを持たないため配置変更だけを自然に無効化する。
 function renderGameOverBoard(){
@@ -3766,7 +3988,19 @@ function renderGameOverBoard(){
     const clonePane=pane.cloneNode(true);
     cloneBg.removeAttribute('style');
     clonePane.removeAttribute('style');
+    // カード非表示ボタンは#hand-pane内にあるため複製にも含まれる。id重複を避けてクラス版にし、
+    // 位置（right/top のインラインstyle）は複製元のまま＝編成画面と全く同じ位置に置く。
+    clonePane.querySelectorAll('#board-card-visibility-btn').forEach(b=>{
+      // idはそのまま残す（id指定の見た目・位置のCSSをまるごと共有するため）。
+      // 重複idになるがquerySelectorAllは両方を拾うので、ラベル同期も両方に効く。
+      b.classList.add('board-card-visibility-btn');
+      b.setAttribute('draggable','false');
+      b.onclick=()=>{ if(typeof toggleBoardCardVisibility==='function') toggleBoardCardVisibility(); };
+    });
     dst.replaceChildren(cloneBg,clonePane);
+    // 位置合わせはレイアウト確定後にも必要だが、rAFが走らない状況（非表示タブ等）でも
+    // 最低限合うよう、貼り付け直後にも一度実行する。
+    _alignGameOverVisibilityBtn(clonePane);
     clonePane.querySelectorAll('.card,.card *,[draggable],img,a').forEach(el=>{
       // img等のブラウザ標準ドラッグも含め、ゲームオーバー魔導板では完全に無効化する。
       el.setAttribute('draggable','false');
@@ -3787,6 +4021,7 @@ function renderGameOverBoard(){
       try{
         if(typeof _renderPanelUniteMarkers==='function') _renderPanelUniteMarkers(cloneSlots,_getPartyBoardUnit());
       }catch(e){ console.error('[renderGameOverBoard:unite]',e); }
+      _alignGameOverVisibilityBtn(clonePane);
     });
   }finally{
     G.phase=oldPhase;
@@ -4068,6 +4303,7 @@ function renderFacilitiesRow(){
 }
 
 function renderHandEditor(){
+  _syncBoardCardVisibilityToggle();
   _syncRewardPanelPlacementOverlay();
   if(G.phase!=='reward'&&document.body) document.body.classList.remove('right-card-peek');
   const handPaneRoot=document.getElementById('hand-pane');
@@ -4211,14 +4447,16 @@ function _debugTakePanelCard(id){
     if(!card||idx<0){ log('アイテム枠が満杯です。','bad'); return; }
     G.spellSlots[idx]=card;
     _playRewardAcquireSfx('item_get.wav');
-    renderHandEditor(); updateHUD();
+    // アイテム枠・指輪枠の絵は_syncRewardProductionUi()が描くので、
+    // renderHandEditor()だけでは反映されない（カード配置等で他の経路が走るまで出ない）。
+    renderHandEditor(); _syncRewardProductionUi(); updateHUD();
     return;
   }
   if(kind==='ring'){
     const card=_debugMakePanelCard(id);
     if(!card||!_takeRingCard(card)){ log('指輪枠が満杯です。','bad'); return; }
     if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-    renderHandEditor(); updateHUD();
+    renderHandEditor(); _syncRewardProductionUi(); updateHUD();
     return;
   }
   if(typeof makePanel!=='function') return;
@@ -4355,11 +4593,11 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const rewardUnitPanelW='calc(var(--hand-card-w) * 5 + var(--field-gap) * 4)';
       const rewardUnitPanelH='calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)';
       const prodRewardBoard=rewardUnitPanels&&document.body&&document.body.classList.contains('reward-screen-active');
-      // 報酬カード（#battle-order-section、left:1124px/width:1592px、画面中心=1920pxで中央揃え）と
-      // X軸を一致させるため、魔導板（幅1632px）も中心が1920pxになるleft:1104pxを使う
-      handPane.style.setProperty('left',battleMagic?'var(--right-stack-left)':(prodRewardBoard?'1104px':'50%'),'important');
+      // 報酬カード枠（#battle-order-section、left:1125px）と魔導板枠（#hand-pane-board-bg、left:1125px/top:683px）
+      // に合わせる。魔導板のグリッド(#hand-pane)は枠より20px左から始まるため left:1105px。
+      handPane.style.setProperty('left',battleMagic?'var(--right-stack-left)':(prodRewardBoard?'1105px':'50%'),'important');
       handPane.style.setProperty('right','auto','important');
-      handPane.style.setProperty('top',battleMagic?'250px':(rewardUnitPanels?(prodRewardBoard?'684px':'650px'):'auto'),'important');
+      handPane.style.setProperty('top',battleMagic?'250px':(rewardUnitPanels?(prodRewardBoard?'683px':'650px'):'auto'),'important');
       handPane.style.setProperty('bottom',(battleMagic||rewardUnitPanels)?'auto':'62px','important');
       handPane.style.setProperty('width',battleMagic?'var(--right-stack-w)':(rewardUnitPanels?(prodRewardBoard?'1632px':rewardUnitPanelW):'2440px'),'important');
       handPane.style.setProperty('height',battleMagic?'calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)':(rewardUnitPanels?(prodRewardBoard?'1407px':rewardUnitPanelH):'var(--hand-card-h)'),'important');
@@ -4454,11 +4692,14 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       // 以前は_isCurrentRewardReturnCardを除外していたため、そのカードの×が「報酬に戻す」として
       // 処理されて_boardDiscardCountが増えず、3枚のはずが4枚廃棄しないと解放されない不具合があった。
       const _ringOfferDiscardable=arrName==='unitEquip'&&G&&G._ringOfferPhase&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0&&!G._ringOfferUnlocked&&!G._ringOfferResolved;
-      const _shopSellBaseGain=G._isShop?_shopCardSellGain(card):0;
-      const _shopSellGain=G._isShop?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
+      const _boardSellable=_boardCardSellEnabled();
+      const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
+      const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
       const _spellBtn=arrName==='unitEquip'
-        ?(G._isShop?`<span class="shop-board-sell-value">+${_shopSellGain}G</span><button class="discard-btn shop-board-sell-btn" data-sfx-silent="1">売却</button>`:(_ringOfferDiscardable?`<button class="discard-btn shop-board-sell-btn ring-offer-discard-btn" data-sfx-silent="1">還魂</button>`:''))
+        ?(_boardSellable?`<span class="shop-board-sell-value">+${_shopSellGain}G</span><button class="discard-btn shop-board-sell-btn" data-sfx-silent="1">売却</button>`:(_ringOfferDiscardable?`<button class="discard-btn shop-board-sell-btn ring-offer-discard-btn" data-sfx-silent="1">還魂</button>`:''))
         :'';
+      const _libraryLoanBadge=arrName==='unitEquip'&&card._libraryLoan
+        ?'<span class="shop-board-sell-value library-loan-badge">貸出</span>':'';
       const _powerId=_mapPowerId;
       const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;
       if(_powerDef){
@@ -4497,7 +4738,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         ].filter(Boolean).join('\n'));
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,card.desc||'',i):(card.name+'\n'+(card.desc||''));
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatDigitClass(pAtk)}">${pAtk}</span><span class="card-summon-hp${_cardStatDigitClass(pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(_panelOwner&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(div,_panelOwner,G._selectedEquipUnitIdx,i);
       }else if(_isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
@@ -4520,17 +4761,17 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         });
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(arrName==='unitEquip'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
       }else if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
         div.classList.add('spell-card');
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,typeof _previewRarityLine==='function'?_previewRarityLine(card):'',card.desc||''].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
       }else{
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_chargeHtml}${_spellBtn}${_libraryLoanBadge}`;
         _pinPanelTextPosition(div,arrName==='unitEquip'?'unitEquip':'normal');
       }
       // 魔導板枠はカード固有の::after（キャラ枠）と競合しない独立レイヤーとして常設する。
@@ -4562,9 +4803,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         discardBtn.onmousedown=ev=>{ ev.stopPropagation(); };
         discardBtn.onclick=ev=>{
         ev.stopPropagation();
+        if(_libraryTutorialIsMoveStep()) return;
         // SEはボタン種別で最初に決める。デバッグモード等の分岐が先にreturnしても
         // 「還魂＝ascension / 売却＝sell」が確実に鳴るようにする。
-        if(!discardBtn.classList.contains('ring-offer-discard-btn')&&G._isShop) _playRewardAcquireSfx('sell.wav');
+        if(!discardBtn.classList.contains('ring-offer-discard-btn')&&_boardCardSellEnabled()) _playRewardAcquireSfx('sell.wav');
         if(arrName==='unitEquip'){
           // 指輪提示（還魂）中は最優先で廃棄カウントへ回す。デバッグモード分岐やショップ分岐が
           // 先にreturnすると_boardDiscardCountが増えず、3枚還魂しても指輪が解放されない。
@@ -4572,7 +4814,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             _discardBoardCardForRingOffer(i,card);
             return;
           }
-          if(G._isShop){
+          if(_boardCardSellEnabled()){
             const unit=_getPartyBoardUnit();
             if(unit){
               const equips=_normalizeUnitEquipment(unit);
@@ -4655,6 +4897,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       }
       if(arrName!=='globalPanels'){
         div.addEventListener('dragstart',e=>{
+          if(arrName==='unitEquip'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
           _dragSrc=arrName==='unitEquip'?{arr:arrName,idx:i,unitIdx:G._selectedEquipUnitIdx}:{arr:arrName,idx:i};
           _pinPanelTextPosition(div,arrName==='unitEquip'?'unitEquip':'normal');
           if(arrName==='unitEquip'){
@@ -4723,6 +4966,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       ph.addEventListener('dragover',e=>{
         if(arrName==='globalPanels') return;
         if(arrName==='unitEquip'&&_dragSrc&&_dragSrc.arr==='rew'&&_isItemCard(_rewCards[_dragSrc.idx])) return;
+        if(arrName==='unitEquip'&&_dragSrc){
+          const c=_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:_dragSrc.arr==='inventory'?G.inventory[_dragSrc.idx]:_dragSrc.arr==='unitEquip'?(_getPartyBoardUnit()?.equipment||[])[_dragSrc.idx]:_dragSrc.card;
+          if(!_libraryTutorialAllowsMove(c,i)) return;
+        }
         e.preventDefault(); ph.classList.add('drag-over');
       });
       ph.addEventListener('dragleave',()=>ph.classList.remove('drag-over'));
@@ -4730,6 +4977,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         e.preventDefault(); ph.classList.remove('drag-over');
         if(arrName==='globalPanels') return;
         ph._skipNextClick=true;
+        if(arrName==='unitEquip'&&_dragSrc){
+          const c=_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:_dragSrc.arr==='inventory'?G.inventory[_dragSrc.idx]:_dragSrc.arr==='unitEquip'?(_getPartyBoardUnit()?.equipment||[])[_dragSrc.idx]:_dragSrc.card;
+          if(!_libraryTutorialAllowsMove(c,i)){ _dragSrc=null; return; }
+        }
         if(arrName==='unitEquip'&&_dragSrc){
           if(_dragSrc.arr==='spellSlots'){
             _dragSrc=null;
@@ -4860,6 +5111,16 @@ function dropOnCard(destArr,destIdx){
   const srcArr=_dragSrc.arr; const srcIdx=_dragSrc.idx;
   const srcUnitIdx=_dragSrc.unitIdx;
   const debugCard=_dragSrc.card||null;
+  const srcCard=srcArr==='debugPanel'?debugCard
+    :srcArr==='rew'?_rewCards[srcIdx]
+    :srcArr==='inventory'?G.inventory[srcIdx]
+    :srcArr==='unitEquip'?(_getPartyBoardUnit()?.equipment||[])[srcIdx]
+    :null;
+  if(destArr==='unitEquip'&&!_libraryTutorialAllowsMove(srcCard,destIdx)){
+    _dragSrc=null;
+    if(typeof _removeDragGhost==='function') _removeDragGhost();
+    return;
+  }
   _dragSrc=null;
   if(srcArr==='debugPanel'){
     if(destArr!=='unitEquip'||!debugCard) return;

@@ -13,6 +13,7 @@ function showScreen(id){
   document.getElementById('scr-'+id).classList.add('active');
   // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
   document.body.classList.toggle('village-screen-active',id==='village');
+  document.body.classList.toggle('library-screen-active',id==='village'&&!!(G&&G._isLibraryMenu));
   // 出発時の一時非表示は、次に村を開いた時点で必ず解除する。
   if(id==='village') document.body.classList.remove('village-departing');
   const battleCounters=document.getElementById('battle-counters');
@@ -31,10 +32,12 @@ function showScreen(id){
     // 街（村）専用画面と、商談（報酬/編成）フェイズ中の戦闘画面はメニュー曲を使う。
     const isMenuLike=typeof G!=='undefined'&&G&&(G.phase==='map'||G.phase==='reward');
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
+    // ラスボス戦だけは専用BGM（battle4.wav、1:17から）を使う。
+    const isFinalBoss=typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow();
     // 音量は曲ごとにBGM_DEFAULT_VOLUMES（audio.js）で決める。ここで.32を渡すと
     // 戦闘BGMだけが他より小さくなるため、指定せず既定値に任せる。
     if(id==='title') _startTitleBgm();
-    else if(id==='battle') playBgm(isMenuLike?'menu':(isBossBattle?'battle3':'battle1'),{fadeInMs:700});
+    else if(id==='battle') playBgm(isMenuLike?'menu':(isFinalBoss?'battle4':(isBossBattle?'battle3':'battle1')),{fadeInMs:700});
     // 街は入場演出中はboom.wav後に演出側が鳴らすため何もしない。
     else if(id==='village'){
       if(!(typeof G!=='undefined'&&G&&G._villageIntroPlaying)){
@@ -324,14 +327,24 @@ function debugToggleMapLoop(){
 function debugOpenFormation(){
   if(typeof G==='undefined'||!G||!G._debugMode) return;
   if(G._villageIntroPlaying||G._pendingPanelPlacement) return;
+  // 結果・クリア画面から開く場合は、先にゲームオーバー演出を閉じてから編成へ移る。
+  if(document.body.classList.contains('gameover-active')){
+    if(typeof returnFromDebugGameOver==='function'){ returnFromDebugGameOver(); return; }
+    if(typeof closeGameOverOverlay==='function') closeGameOverOverlay();
+  }
   // 戦闘中の非同期攻撃ループを、編成画面へ切り替えた後まで走らせない。
+  // フラグだけでは次のstartBattle()で解除された瞬間に前の戦闘が再開してしまうため、
+  // abortBattleForDebug()が世代番号を進めて古いループを完全に無効化する。
   if(['battle','player','enemy','commander'].includes(G.phase)){
-    G._debugFormationAbort=true;
+    if(typeof abortBattleForDebug==='function') abortBattleForDebug();
+    else { G._debugFormationAbort=true; document.body.classList.remove('battle-turn-active'); }
     // 戦闘中だけ存在する召喚ユニットを編成画面へ持ち越さない。
     // 残すと次回の開戦時に同じパネルカードが重複召喚される。
     G.allies=(G.allies||[]).map(u=>u&&u._panelSummoned?null:u);
     G.enemies=(G.enemies||[]).map(u=>u&&u._panelSummoned?null:u);
-    document.body.classList.remove('battle-turn-active');
+    // 戦闘中の敵は編成画面・次の移動先へ持ち越さない（前の戦闘の続きが起きる原因）。
+    G.enemies=new Array((typeof MAX_ENEMIES!=='undefined'&&MAX_ENEMIES)||14).fill(null);
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
   }
   document.body.classList.remove('village-screen-active','world-map-active');
   if(typeof _openWaveFormation==='function') _openWaveFormation();
@@ -381,10 +394,10 @@ function _makeStarterPanelFromDef(def,consume){
 function _giveInitialRandomBoardCards(){
   if(!Array.isArray(G.mainBoard)) return;
   const cols=typeof MAIN_BOARD_COLS!=='undefined'?MAIN_BOARD_COLS:5;
-  const deploySlots=(typeof MAIN_BOARD_DEPLOY_SLOTS!=='undefined'?MAIN_BOARD_DEPLOY_SLOTS:[1,3,10,12,14])
+  const deploySlots=(typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'?MAIN_BOARD_FRONT_SLOTS:[1,3])
     .filter(i=>i>=0&&i<G.mainBoard.length);
   const deploySlotSet=new Set(deploySlots);
-  // 初期キャラクターは出撃パネル（MAIN_BOARD_DEPLOY_SLOTS）のいずれかにランダム配置する。
+  // 初期キャラクターは前衛の出撃パネル（MAIN_BOARD_FRONT_SLOTS）のいずれかに配置する。
   // 従来は固定でスロット7（非出撃スロット）に置いていたため、開始時から出撃不可の見た目になっていた。
   const charSlot=deploySlots.length?randFrom(deploySlots):7;
   const opposite={up:'down',right:'left',down:'up',left:'right'};
@@ -478,24 +491,25 @@ function _giveDebugGolem(){
   if(!G._debugMode||!Array.isArray(G.mainBoard)||typeof makePanel!=='function') return;
   const golem=makePanel('ゴーレム')||makePanel('panel_golem');
   if(!golem) return;
-  golem.power=999; golem.life=999;
-  golem.atk=999; golem.hp=999; golem.maxHp=999;
-  golem._permBasePower=999; golem._permBaseLife=999;
-  const deploySlots=(typeof MAIN_BOARD_DEPLOY_SLOTS!=='undefined'?MAIN_BOARD_DEPLOY_SLOTS:[1,3,10,12,14]);
+  golem.power=9999; golem.life=9999;
+  golem.atk=9999; golem.hp=9999; golem.maxHp=9999;
+  golem._permBasePower=9999; golem._permBaseLife=9999;
+  const deploySlots=(typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'?MAIN_BOARD_FRONT_SLOTS:[1,3]);
   const slot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
-  const fallback=G.mainBoard.findIndex(c=>!c);
-  const idx=slot==null?fallback:slot;
-  if(idx>=0) G.mainBoard[idx]=golem;
+  if(slot!=null) G.mainBoard[slot]=golem;
 }
 
 // Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。
 const SCENE_FLOW_DATA={
   standard:['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'],
-  final:['city','battle','elite','finalBoss'],
+  // Scene 5は「村→通常戦→通常戦→ボス（万象の揺り籠“エピトメ”）」。
+  // エピトメ撃破後に続くラスボス（刻を織る者“ウルズ・ラグナ”＝stage5）は
+  // ルートに載せず、プレイヤーからは見えないようにする。
+  final:['city','battle','battle','boss'],
 };
 
 // Scene 1～4：通常戦×2→エリート→村→通常戦×4→ボス→祭壇。
-// Scene 5：村→通常戦→エリート→ラスボス。
+// Scene 5：村→通常戦×2→ボス（＋伏せられたラスボス）。
 // そのステージ（wave）のマス構成。旅の進捗の表示と同じ配列を使う。
 function _waveRouteForWave(wave){
   const scene=Math.max(1,Math.min(5,Number(wave)||1));
@@ -508,6 +522,8 @@ function _waveRouteNode(stage,wave){
 // ステージ1は先頭が村でエリート・街が1つ後ろにずれるため、stage番号の決め打ちではなく
 // ルート（_journeyRouteForScene）から種別を引く。
 function _waveBattleType(stage){
+  // Scene 5のstage5はルートに載せていない伏せられたラスボス戦。
+  if(Number(G&&G._wave)===5&&Number(stage)===5) return 'boss';
   const node=_waveRouteNode(stage);
   if(node==='elite') return 'elite';
   if(node==='boss'||node==='finalBoss') return 'boss';
@@ -612,6 +628,13 @@ function _openWaveAltar(stage){
   if(typeof openMapVillage==='function') openMapVillage({intro:true,tower:true});
 }
 function _startWaveBattle(stage){
+  // 試験戦闘の終了操作と通常の戦闘開始が近接しても、試験用の敵・終了処理を
+  // 次の通常戦闘へ持ち越さない。通常開始側を最終的なフラグ境界にする。
+  G._testBattleMode=false;
+  G._testBattleAbort=false;
+  G._testBattleSavedFloor=null;
+  G._libraryTestBattleMode=false;
+  document.body.classList.remove('test-battle-active');
   const type=_waveBattleType(stage);
   const wave=Math.max(1,Number(G._wave)||1);
   // showScreen('battle') が描画される前に背景位置を確定する。
@@ -650,6 +673,8 @@ function _startWaveBattle(stage){
   G._waveWithdraw=false;
   // 強敵補正：通常戦=1、エリート=1.5、ボス（地域・ラスボス共通）=2
   G._extraBattleMult=type==='elite'?1.5:(type==='boss'?2:1);
+  // _extraBattleMultは敵生成直後に1.0へリセットされるため、戦闘中に参照する用の控えを残す。
+  G._battleBossMult=G._extraBattleMult;
   G._mapBattle={mapIndex:wave,nodeId:null,type,floor:_waveStageFloor(wave,stage),forcedBoss:false,normalBattleNo:stage===1?1:stage===2?2:0,turn:0};
   G.floor=G._mapBattle.floor;
   G.phase='battle';
@@ -710,17 +735,6 @@ function finishWaveBattleVictory(showVictoryIntro){
     return false;
   }
   if(type==='elite'){
-    // Scene 5のエリート勝利後は村を挟まずラスボスへ直行。
-    if(wave===5){
-      runTransition(()=>{
-        G._mapBattle=null;
-        G._waveBattleType=null;
-        if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
-        G.enemies=[]; G.phase=null;
-        _startWaveBattle(4);
-      });
-      return true;
-    }
     // Scene 1～4のエリート勝利後は村へ直行。stage番号はルートから求める
     // （ステージ1は先頭が村な分ずれて stage5＝エルム になる）。
     const route=_waveRouteForWave(wave);
@@ -737,6 +751,12 @@ function finishWaveBattleVictory(showVictoryIntro){
     return true;
   }
   if(type==='boss'&&wave===5&&stage===4){
+    // Scene 5のボス（エピトメ）撃破：勝利演出は出さず、movie3 → 伏せられたラスボス戦へ。
+    // 通常はfinishBattleAsVictory()側で先に分岐するため、ここは保険。
+    void startFinalBossIntroSequence();
+    return true;
+  }
+  if(type==='boss'&&wave===5&&stage===5){
     // ラスボス撃破：ゲームクリア
     runTransition(()=>{
       G._mapBattle=null; G._waveBattleType=null;
@@ -813,6 +833,26 @@ let _openingMovieShown = false;
 const OPENING_MOVIE_SRC = 'assets/movie/movie1.webm';
 const OPENING_MOVIE_FADE_START = 7;    // 秒。ここからフェードアウトを開始する
 const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前までに真っ黒にするか
+const FINAL_BOSS_MOVIE_SRC = 'assets/movie/movie3.webm';
+const GAME_CLEAR_MOVIE_SRC = 'assets/art/backgrounds/game_clear.webm';
+const FINAL_CLEAR_MOVIE_SRC = 'assets/movie/movie4.webm'; // ラスボス撃破後のエンディング動画
+
+// カットシーン動画の音声を、映像のフェードアウトと同じ時間で絞る。
+// 映像だけ暗転して音が鳴りっぱなしのまま切れると不自然なため、両方を同時に落とす。
+// 非表示タブでも進むよう rAF ではなく setInterval で刻む。戻り値は中断用の関数。
+function _fadeCutsceneAudio(video, ms){
+  if(!video) return null;
+  const from = Math.max(0, Math.min(1, Number(video.volume)));
+  const dur = Math.max(1, Number(ms) || 0);
+  if(!(from > 0)) return null;
+  const start = Date.now();
+  const id = window.setInterval(() => {
+    const t = Math.min(1, (Date.now() - start) / dur);
+    try{ video.volume = Math.max(0, from * (1 - t)); }catch(_e){}
+    if(t >= 1) window.clearInterval(id);
+  }, 40);
+  return () => window.clearInterval(id);
+}
 
 // 暗転 → 全画面再生 → 7秒からフェードアウト → 完全暗転。左クリックでいつでもスキップ。
 // 再生できない／終わらない場合でも必ず抜けるよう安全弁を張る（出発ムービーと同じ方針）。
@@ -823,6 +863,7 @@ async function _playOpeningMovie(){
   const wait = ms => new Promise(r => window.setTimeout(r, ms));
   const timers = [];
   let skipHandler = null;
+  let stopAudioFade = null;
   try{
     // タイトルBGMを落としてから暗転する。
     if(typeof stopBgm === 'function') stopBgm(600);
@@ -854,6 +895,7 @@ async function _playOpeningMovie(){
         ev.stopPropagation();
         fade.style.transition = 'opacity .22s ease';
         fade.style.opacity = '1';
+        stopAudioFade = _fadeCutsceneAudio(video, 220) || stopAudioFade;
         window.setTimeout(finish, 230);
       };
       window.addEventListener('pointerdown', skipHandler, true);
@@ -871,6 +913,8 @@ async function _playOpeningMovie(){
           timers.push(window.setTimeout(() => {
             fade.style.transition = `opacity ${fadeMs}ms linear`;
             fade.style.opacity = '1';
+            // 映像のフェードアウトと同じ長さで音声も絞る。
+            stopAudioFade = _fadeCutsceneAudio(video, fadeMs) || stopAudioFade;
           }, delay));
           timers.push(window.setTimeout(finish, dur * 1000 + 1500));
         }else{
@@ -890,12 +934,193 @@ async function _playOpeningMovie(){
     // ここに来た時点で必ず真っ黒にしておく（スキップ・エラー経路も含む）。
     fade.style.transition = 'opacity .2s ease';
     fade.style.opacity = '1';
+    stopAudioFade = _fadeCutsceneAudio(video, 200) || stopAudioFade;
     await wait(210);
   }finally{
     timers.forEach(t => window.clearTimeout(t));
+    if(typeof stopAudioFade === 'function') stopAudioFade();
     if(skipHandler) window.removeEventListener('pointerdown', skipHandler, true);
     try{ video.pause(); }catch(_e){}
     video.classList.remove('is-active');
+  }
+}
+
+// いま進行中の戦闘がScene 5のボス戦（万象の揺り籠“エピトメ”＝stage4）かどうか。
+// 勝利時は通常の勝利演出・報酬を挟まず、movie3 → 伏せられたラスボス戦へ直行する。
+function isEpitomeVictoryBattle(){
+  return !!(G&&G._waveLoopEnabled&&String(G._waveBattleType||'')==='boss'
+    &&Number(G._wave)===5&&Number(G._waveStage)===4);
+}
+// いま進行中の戦闘が伏せられたラスボス戦（Scene 5 / stage5 / boss）かどうか。
+// 戦闘開始演出の省略と、登場演出のフェードイン化に使う。
+function isFinalBossBattleNow(){
+  return !!(G&&G._waveLoopEnabled&&String(G._waveBattleType||'')==='boss'
+    &&Number(G._wave)===5&&Number(G._waveStage)===5);
+}
+function isFinalBossVictoryBattle(){
+  return isFinalBossBattleNow();
+}
+
+// 戦闘画面を黒へフェードしてからmovie3を表示し、動画末尾も黒へフェードする。
+// movie3が7秒より短い場合もあるため、末尾フェードは尺に合わせて開始位置を前倒しする。
+async function _playFinalBossMovieToBlack(){
+  return _playCutsceneMovieToBlack(FINAL_BOSS_MOVIE_SRC);
+}
+// 画面を黒へフェードしてから指定の動画を全画面再生し、動画末尾も黒へフェードする。
+// 7秒より短い動画でも、末尾約1.6秒を使って必ずフェードアウトする。
+async function _playCutsceneMovieToBlack(src){
+  const fade=typeof _ensureVillageEnterFadeEl==='function'?_ensureVillageEnterFadeEl():null;
+  const video=typeof _ensureCutsceneVideoEl==='function'?_ensureCutsceneVideoEl():null;
+  if(!fade||!video) return;
+  const wait=ms=>new Promise(resolve=>window.setTimeout(resolve,ms));
+  const timers=[];
+  let stopAudioFade=null;
+  try{
+    const currentFadeOpacity=parseFloat(getComputedStyle(fade).opacity);
+    if(!(Number.isFinite(currentFadeOpacity)&&currentFadeOpacity>=.99)){
+      fade.style.transition='none';
+      fade.style.opacity=String(Number.isFinite(currentFadeOpacity)?currentFadeOpacity:0);
+      void fade.offsetWidth;
+      fade.style.transition='opacity .6s ease';
+      fade.style.opacity='1';
+      await wait(630);
+    }
+
+    if(video.getAttribute('src')!==src){
+      video.setAttribute('src',src);
+      video.load();
+    }
+    video.currentTime=0;
+    video.loop=false;
+    const master=(typeof SFX_SETTINGS!=='undefined'&&Number(SFX_SETTINGS.masterVolume));
+    video.muted=!(master>0);
+    video.volume=Math.max(0,Math.min(1,Number.isFinite(master)?master:1));
+    video.classList.add('is-active');
+
+    await new Promise(resolve=>{
+      let settled=false;
+      const finish=()=>{ if(settled) return; settled=true; resolve(); };
+      video.addEventListener('ended',finish,{once:true});
+      video.addEventListener('error',finish,{once:true});
+      const schedule=()=>{
+        const dur=Number(video.duration);
+        if(Number.isFinite(dur)&&dur>0){
+          // 7秒より短い動画でも、末尾約1.6秒を使って必ずフェードアウトする。
+          const fadeStart=Math.min(OPENING_MOVIE_FADE_START,Math.max(0,dur-1.6));
+          const fadeMs=Math.max(500,(dur-fadeStart)*1000-200);
+          const delay=Math.max(0,fadeStart*1000-video.currentTime*1000);
+          timers.push(window.setTimeout(()=>{
+            fade.style.transition=`opacity ${fadeMs}ms linear`;
+            fade.style.opacity='1';
+            // 映像のフェードアウトと同じ長さで音声も絞る。
+            stopAudioFade=_fadeCutsceneAudio(video,fadeMs)||stopAudioFade;
+          },delay));
+          timers.push(window.setTimeout(finish,dur*1000+1500));
+        }else timers.push(window.setTimeout(finish,30000));
+      };
+      if(video.readyState>=1) schedule();
+      else video.addEventListener('loadedmetadata',schedule,{once:true});
+      let revealed=false;
+      const reveal=()=>{
+        if(revealed) return;
+        revealed=true;
+        const show=()=>{
+          fade.style.transition='opacity .5s ease';
+          fade.style.opacity='0';
+        };
+        // play()の完了だけでは最初の映像フレームが未描画の場合がある。
+        if(typeof video.requestVideoFrameCallback==='function') video.requestVideoFrameCallback(show);
+        else requestAnimationFrame(show);
+      };
+      video.addEventListener('playing',reveal,{once:true});
+      Promise.resolve(video.play()).catch(()=>{});
+    });
+
+    fade.style.transition='opacity .2s ease';
+    fade.style.opacity='1';
+    stopAudioFade=_fadeCutsceneAudio(video,200)||stopAudioFade;
+    await wait(210);
+  }finally{
+    timers.forEach(timer=>window.clearTimeout(timer));
+    if(typeof stopAudioFade==='function') stopAudioFade();
+    try{ video.pause(); }catch(_e){}
+    video.classList.remove('is-active');
+  }
+}
+
+// 最終エリート撃破後の導入。movie3を最後まで（フェードアウト込みで）流し、
+// 暗転のまま2秒待ってからラスボス戦を開始し、last_battle.webmを明転させる。
+const FINAL_BOSS_INTRO_PRE_WAIT_MS=2000;   // エリート撃破からmovie3を始めるまでの待ち
+const FINAL_BOSS_INTRO_BLACK_WAIT_MS=2000; // movie3のフェードアウト完了後に待つ時間
+const FINAL_BOSS_INTRO_REVEAL_MS=1200;     // last_battle.webmをフェードインさせる時間
+const FINAL_CLEAR_PRE_WAIT_MS=2000; // ラスボス撃破からmovie4を始めるまでの待ち
+// ラスボス撃破後、クリア画面へ渡す前の暗転だけを行う（現在は未使用。手動テスト用に残す）。
+async function _fadeToBlackForFinalClear(){
+  const fade=typeof _ensureVillageEnterFadeEl==='function'?_ensureVillageEnterFadeEl():null;
+  if(!fade) return;
+  const current=parseFloat(getComputedStyle(fade).opacity);
+  if(Number.isFinite(current)&&current>=.99) return;
+  fade.style.transition='none';
+  fade.style.opacity=String(Number.isFinite(current)?current:0);
+  void fade.offsetWidth;
+  fade.style.transition='opacity .8s ease';
+  fade.style.opacity='1';
+  await new Promise(resolve=>window.setTimeout(resolve,830));
+}
+
+async function startFinalBossIntroSequence(){
+  if(G._finalBossIntroRunning) return;
+  G._finalBossIntroRunning=true;
+  try{
+    if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+    if(typeof stopBgm==='function') stopBgm(600);
+    if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(600);
+    // 撃破の余韻を残してから動画へ入る。
+    await new Promise(resolve=>window.setTimeout(resolve,FINAL_BOSS_INTRO_PRE_WAIT_MS));
+    await _playFinalBossMovieToBlack();
+    // movie3は完全暗転で終わる。その黒幕を保ったまま2秒待つ。
+    await new Promise(resolve=>window.setTimeout(resolve,FINAL_BOSS_INTRO_BLACK_WAIT_MS));
+    G._mapBattle=null;
+    G._waveBattleType=null;
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+    G.enemies=[];
+    G.phase=null;
+    // 伏せられたラスボス戦（stage5）を開始する。_stageBgVideoSetting()が
+    // last_battle.webmを返すため、画面構築と同時に背景動画が入る。
+    _startWaveBattle(5);
+    // 黒幕を外して last_battle.webm を明転させる（＝フェードイン）。
+    const fade=typeof _ensureVillageEnterFadeEl==='function'?_ensureVillageEnterFadeEl():null;
+    if(fade){
+      await new Promise(resolve=>window.setTimeout(resolve,120));
+      fade.style.transition=`opacity ${FINAL_BOSS_INTRO_REVEAL_MS}ms ease`;
+      fade.style.opacity='0';
+    }
+  }finally{
+    G._finalBossIntroRunning=false;
+  }
+}
+
+async function startFinalBossClearSequence(){
+  if(G._finalClearSequenceRunning) return;
+  G._finalClearSequenceRunning=true;
+  try{
+    if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+    if(typeof stopBgm==='function') stopBgm(600);
+    if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(600);
+    // 撃破の余韻を残してからエンディングへ入る。
+    await new Promise(resolve=>window.setTimeout(resolve,FINAL_CLEAR_PRE_WAIT_MS));
+    // movie4とgame_clear.wavを同時に始める。BGMはクリア画面まで鳴り続ける
+    // （gameOver()はisClearのときstopBgm()しない）。
+    if(typeof playBgm==='function') playBgm('gameClear',{fadeInMs:0});
+    // movie3と同じく、末尾は黒へフェードアウトして終わる。
+    await _playCutsceneMovieToBlack(FINAL_CLEAR_MOVIE_SRC);
+    G._mapBattle=null;
+    G._waveBattleType=null;
+    if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
+    G.enemies=[];
+    gameOver({clear:true});
+  }finally{
+    G._finalClearSequenceRunning=false;
   }
 }
 
@@ -920,7 +1145,8 @@ function startGame(debugMode){
     startedAt:performance.now(), areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
     maxDamage:{amount:0,type:''}, maxAtk:0, maxHp:0
   };
-  _giveInitialRandomBoardCards();
+  // デバッグモードでは初期カードを配らず、9999のゴーレムだけを置く。
+  if(!debugMode) _giveInitialRandomBoardCards();
   window.__vesselboundRetryRewards=null;
   clearLog();
   G._debugMode=!!debugMode;
@@ -1016,6 +1242,11 @@ function debugGameOver(){
 }
 
 function returnFromDebugGameOver(){
+  if(G&&G._libraryTestBattleMode&&typeof _exitTestBattle==='function'){
+    closeGameOverOverlay();
+    _exitTestBattle();
+    return;
+  }
   closeGameOverOverlay();
   G._debugGameOver=false;
   G._battleDefeatHandled=false;
@@ -1028,7 +1259,7 @@ function returnFromDebugGameOver(){
 }
 
 function closeGameOverOverlay(){
-  document.body.classList.remove('gameover-active','battle-victory-pending','right-card-peek');
+  document.body.classList.remove('gameover-active','game-clear-active','gameover-ui-pending','battle-victory-pending','right-card-peek');
   const video=document.getElementById('gameover-video');
   const tint=document.getElementById('gameover-video-tint');
   const rewardBgVideo=document.getElementById('reward-bg-video');
@@ -1077,22 +1308,35 @@ function _debugRefillActions(){
   G.actionsLeft=G.actionsPerTurn;
   updateHUD();
 }
-function gameOver(){
+function gameOver(options){
+  const isLibraryTestBattle=!!(G&&G._libraryTestBattleMode);
+  // 敗北・踏破の結果画面へ移る前に、戦闘中の一時VFXを必ず破棄する。
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  const opt=options||{};
+  const isClear=opt.clear===true;
   const isDebugGameOver=!!G._debugGameOver;
+  let beginVideoFade=null;
   // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
-  if(!isDebugGameOver){
+  if(!isLibraryTestBattle&&!isDebugGameOver&&!isClear){
     G._waveLife=0;
     G.life=0;
     if(typeof updateHUD==='function') updateHUD();
   }
-  try{
-    if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
-    else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=.9; void se.play(); }
-  }catch(_e){}
+  if(!isClear&&!isLibraryTestBattle){
+    try{
+      if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
+      else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=.9; void se.play(); }
+    }catch(_e){}
+  }
   document.body.classList.remove('battle-turn-active');
-  if(typeof stopBgm==='function') stopBgm(900);
-  // ステージ持続環境音（雷雨など）はstopBgm()では止まらないため、ゲームオーバーでは明示的に落とす。
-  if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(900);
+  // 図書館の試験戦闘は練習用で、図書館のBGMを鳴らしたまま戦闘・結果画面へ進む。
+  // ここで止めると編成画面へ戻った後も無音のままになる（showScreen()は
+  // G._villageBgmActive中はBGMを鳴らし直さないため、二度と復帰しない）。
+  if(!isLibraryTestBattle){
+    if(typeof stopBgm==='function') stopBgm(900);
+    // ステージ持続環境音（雷雨など）はstopBgm()では止まらないため、ゲームオーバーでは明示的に落とす。
+    if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(900);
+  }
   if(typeof _showBattleEndFade==='function') _showBattleEndFade();
   // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
   if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
@@ -1108,7 +1352,8 @@ function gameOver(){
   G.runStats=G.runStats||{};
   G.runStats.areaName=_runStatsAreaName();
   G.runStats.playTime=_runStatsTimeText();
-  G._gameOverSpecialDebug=isDebugGameOver;
+  G._gameOverSpecialDebug=isDebugGameOver||isLibraryTestBattle;
+  G._gameOverClear=isClear;
   G._debugGameOver=false;
   if(typeof renderGameOverBoard==='function') renderGameOverBoard();
   document.getElementById('go-area').textContent=G.runStats.areaName;
@@ -1118,6 +1363,8 @@ function gameOver(){
   _animateGameOverNumber('go-enemyKills',G.runStats.enemyKills,600,undefined,900);
   _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
   _animateGameOverPair('go-stats',G.runStats.maxAtk,G.runStats.maxHp,700,1100);
+  const resultTitle=document.querySelector('#gameover-results h1');
+  if(resultTitle) resultTitle.textContent=isClear?'踏破':'旅の終焉';
   const back=document.getElementById('gameover-back-btn');
   if(back){
     back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':'タイトルに戻る';
@@ -1133,8 +1380,16 @@ function gameOver(){
     closeGameOverOverlay();
     startGame(!!G._debugMode);
   };
+  const continueBtn=document.getElementById('gameover-continue-btn');
+  if(continueBtn) continueBtn.onclick=()=>{
+    if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-continue'});
+    closeGameOverOverlay();
+    showScreen('title');
+  };
   const go=document.getElementById('go-sub'); if(go) go.textContent=`${G.floor}階で力尽きました`;
-  G.phase='gameover';
+  G.phase=isClear?'clear':'gameover';
+  document.body.classList.toggle('game-clear-active',isClear);
+  document.body.classList.toggle('gameover-ui-pending',isClear);
   document.body.classList.add('gameover-active','battle-victory-pending');
   ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
     const el=document.getElementById(id);
@@ -1151,6 +1406,11 @@ function gameOver(){
     video.classList.remove('is-visible');
     video.style.opacity='0';
     video.style.visibility='visible';
+    const desiredSrc=isClear?GAME_CLEAR_MOVIE_SRC:'assets/art/backgrounds/game_over.webm';
+    if(video.getAttribute('src')!==desiredSrc){
+      video.setAttribute('src',desiredSrc);
+      video.load();
+    }
     if(tint){
       if(tint._gameOverTintAnimation) tint._gameOverTintAnimation.cancel();
       tint.style.opacity='0';
@@ -1162,6 +1422,7 @@ function gameOver(){
       video.muted=true;
       video.loop=true;
       const applyGameOverRate=()=>{
+        if(isClear) return;
         video.defaultPlaybackRate=.7;
         if(Math.abs(video.playbackRate-.7)>.001) video.playbackRate=.7;
       };
@@ -1169,32 +1430,61 @@ function gameOver(){
         video.removeEventListener('playing',video._gameOverRateGuard);
         video.removeEventListener('ratechange',video._gameOverRateGuard);
       }
-      video._gameOverRateGuard=applyGameOverRate;
-      video.addEventListener('playing',applyGameOverRate);
-      video.addEventListener('ratechange',applyGameOverRate);
+      video._gameOverRateGuard=isClear?null:applyGameOverRate;
+      if(!isClear){
+        video.addEventListener('playing',applyGameOverRate);
+        video.addEventListener('ratechange',applyGameOverRate);
+      }
       applyGameOverRate();
-      if(video.readyState<1) video.addEventListener('loadedmetadata',applyGameOverRate,{once:true});
+      if(!isClear&&video.readyState<1) video.addEventListener('loadedmetadata',applyGameOverRate,{once:true});
       const playResult=video.play();
-      if(playResult&&typeof playResult.then==='function') void playResult.then(applyGameOverRate).catch(()=>{});
+      if(playResult&&typeof playResult.then==='function') void playResult.then(()=>{
+        applyGameOverRate();
+        if(isClear&&beginVideoFade){
+          let firstFrameHandled=false;
+          const afterFirstFrame=()=>{
+            if(firstFrameHandled) return;
+            firstFrameHandled=true;
+            beginVideoFade();
+          };
+          // 黒幕はgame_clearの最初の映像フレームが描画可能になるまで保持する。
+          if(typeof video.requestVideoFrameCallback==='function') video.requestVideoFrameCallback(afterFirstFrame);
+          else requestAnimationFrame(afterFirstFrame);
+          window.setTimeout(afterFirstFrame,1200);
+        }
+      }).catch(()=>{ if(isClear&&beginVideoFade) beginVideoFade(); });
     }catch(_e){}
     // CSSのdisplay/visibility切替と同時でも確実に0→1を描画するため、動画自身を直接アニメーションする。
     void video.getBoundingClientRect();
-    video._gameOverFadeFrame=requestAnimationFrame(()=>{
-      if(typeof video.animate==='function'){
-        video._gameOverFadeAnimation=video.animate(
-          [{opacity:0},{opacity:1}],
-          {duration:1200,easing:'ease-out',fill:'forwards'}
-        );
-        if(tint) tint._gameOverTintAnimation=tint.animate(
-          [{opacity:0},{opacity:.78}],
-          {duration:1200,easing:'ease-out',fill:'forwards'}
-        );
-      }else{
-        video.style.removeProperty('opacity');
-        video.classList.add('is-visible');
-        if(tint) tint.style.opacity='.78';
-      }
-    });
+    let videoFadeStarted=false;
+    beginVideoFade=()=>{
+      if(videoFadeStarted) return;
+      videoFadeStarted=true;
+      video._gameOverFadeFrame=requestAnimationFrame(()=>{
+        const sceneFade=isClear?document.getElementById('village-enter-fade'):null;
+        if(typeof video.animate==='function'){
+          video._gameOverFadeAnimation=video.animate(
+            [{opacity:0},{opacity:1}],
+            {duration:1200,easing:'ease-out',fill:'forwards'}
+          );
+          if(tint&&!isClear) tint._gameOverTintAnimation=tint.animate(
+            [{opacity:0},{opacity:.78}],
+            {duration:1200,easing:'ease-out',fill:'forwards'}
+          );
+        }else{
+          video.style.removeProperty('opacity');
+          video.classList.add('is-visible');
+          if(tint) tint.style.opacity='.78';
+        }
+        // movie3終了時の完全暗転を保持したまま、game_clearと同期して黒幕を外す。
+        if(sceneFade){
+          sceneFade.style.transition='opacity 1.2s ease-out';
+          sceneFade.style.opacity='0';
+        }
+        if(isClear) window.setTimeout(()=>document.body.classList.remove('gameover-ui-pending'),1250);
+      });
+    };
+    if(!isClear) beginVideoFade();
   }
 }
 // onShown：オーバーレイが実際に表示された後、指定ms後に呼ばれるコールバック（省略可）。
@@ -1262,7 +1552,8 @@ function continueAfterBattleVictory(){
   if(cutin) cutin.remove();
   const fade=document.getElementById('battle-transition-fade');
   if(fade) fade.classList.add('is-visible');
-  if(typeof stopBgm==='function') stopBgm(700);
+  // 図書館の試験戦闘は図書館のBGMを鳴らしたまま編成画面へ戻す。
+  if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
   window.setTimeout(()=>{
     G._battleProceedAction=null;
     G._battleProceedBusy=false;

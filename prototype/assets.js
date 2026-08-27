@@ -33,9 +33,10 @@ const Assets = {
     gradeStar: 'assets/cards/grade_star.png',
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
-    greenOrb: 'assets/cards/green.png',
+    greenOrb: 'assets/cards/green_orb.png',
     yellowOrb: 'assets/cards/yellow_orb.png',
     purpleOrb: 'assets/cards/purple_orb.png',
+    blackOrb: 'assets/cards/black_orb.png',
     manaOrb: 'assets/cards/mana_orb.png',
     blood: 'assets/cards/blood.png',
     characterMask: 'assets/cards/ch_mask.png',
@@ -67,6 +68,8 @@ const Assets = {
     map: 'assets/art/backgrounds/map.jpg',
     // 塔（祭壇）画面の背景
     tower: 'assets/art/backgrounds/tower.png',
+    // 図書館画面の背景
+    library: 'assets/art/backgrounds/library.png',
     // 街の施設ごとの背景（ステージ1・エルム）
     itemShopForest: 'assets/art/backgrounds/item_shop_forest.png',
     magicShopForest: 'assets/art/backgrounds/magic_shop_forest.png',
@@ -122,7 +125,7 @@ const Assets = {
     turnFlow: 'assets/ui/turn_flow.png',
     log: 'assets/ui/log.png',
     option: 'assets/ui/option.svg',
-    button: 'assets/ui/button.svg',
+    button: 'assets/ui/button_blue1.svg',
     backLight: 'assets/ui/back_light.svg',
     board: 'assets/ui/board.svg',
     itemSlot: 'assets/ui/item_slot.svg',
@@ -165,6 +168,8 @@ const Assets = {
     boom: 'assets/sfx/boom.wav',
     shopIn: 'assets/sfx/shop_in.wav',
     shopOut: 'assets/sfx/shop_out.wav',
+    bookOpening: 'assets/sfx/book_opening.wav',
+    bookClosing: 'assets/sfx/book_closing.wav',
     altarIn: 'assets/sfx/altar_in.wav',
     altarOut: 'assets/sfx/altar_out.wav',
     fit: 'assets/sfx/fit.wav',
@@ -186,6 +191,8 @@ const Assets = {
     blacksmith: 'assets/bgm/blacksmith.wav',
     battle1: 'assets/bgm/battle1.wav',
     battle3: 'assets/bgm/battle3.wav',
+    battle4: 'assets/bgm/battle4.wav', // ラスボス戦
+    gameClear: 'assets/bgm/game_clear.wav', // エンディング（movie4と同時再生）
     buy1: 'assets/sfx/buy1.wav',
     buy2: 'assets/sfx/buy2.wav',
     attack: 'assets/sfx/attack.wav',
@@ -300,8 +307,17 @@ function _spellFrameByColor(color){
   return Assets.cards.spell1;
 }
 
+// エリート／ボスの敵はカード枠・戦闘スロットとも character_frame.png を使う。
+// （通常の敵枠や色別の召喚枠ではなく、特別な相手であることを枠で示す）
+function _isEliteOrBossCard(card){
+  if(!card) return false;
+  if(card.boss||card.elite||card.bossOnly||card._isEliteOrBoss) return true;
+  const kws=Array.isArray(card.keywords)?card.keywords:[];
+  return kws.includes('ボス')||kws.includes('エリート');
+}
 function getCardFrameAsset(card){
   if(!card) return Assets.cards.default;
+  if(_isEliteOrBossCard(card)) return Assets.cards.characterFrame;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
   if(card.magicPanel) return Assets.cards.wandFrame;
   if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;
@@ -339,11 +355,13 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   // 旧「P」表記（メインキャラクター）は新しい「MC」表記に読み替える
   // NPCは「char（NPC）」シートの初期キャラクター。MCより先に判定しないと
   // 「NPC001」がどの分岐にも当たらず空文字になり、絵が出ない。
-  const prefixed=text.match(/^(NPC|MC|EN|P|[ECS])\s*0*(\d+)$/i);
+  // 「EN075_1」のような枝番付きのNo.も受け付ける（ラスボス戦の後衛3体など、
+  // 同じ番号で複数の個体が並ぶケース）。枝番はそのままファイル名へ残す。
+  const prefixed=text.match(/^(NPC|MC|EN|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
   if(prefixed){
     let p=prefixed[1].toUpperCase();
     if(p==='P') p='MC';
-    return p+String(parseInt(prefixed[2],10)).padStart(3,'0');
+    return p+String(parseInt(prefixed[2],10)).padStart(3,'0')+(prefixed[3]||'');
   }
   const n=parseInt(text,10);
   if(!Number.isFinite(n)||n<=0) return '';
@@ -494,7 +512,9 @@ function applyUnitVisual(el, unit){
   const unitGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.keywords)&&(unit.keywords.includes('守護')||unit.keywords.includes('ヘイト')));
   const classGuard=!isPlayerHero&&(el.classList.contains('is-defender')||el.classList.contains('uses-hate-frame'));
   const isDefender=!!(unit&&!isPlayerHero&&(unit.hate&&unit.hateTurns>0||hasGuard||unitGuard))||classGuard;
-  const frame=isEnemyEl
+  const frame=(isEnemyEl&&_isEliteOrBossCard(unit))
+    ? Assets.cards.characterFrame
+    : isEnemyEl
     ? Assets.cards.enemyFrame
     : isPlayerHero
       ? Assets.cards.characterFrame

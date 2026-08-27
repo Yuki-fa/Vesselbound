@@ -631,10 +631,13 @@ async function loadGameData() {
 
     // 魔導板強化シート（任意）：鍛冶屋の魔導板パネル価格・説明文をシート駆動にする
     try {
-      window.MAP_PANEL_POWER_SHEET_ROWS = _parseCSVWithHeader(mpt || '名前\n', ['No.', '名前', '価格', '効果']);
+      window.MAP_PANEL_POWER_SHEET_ROWS = _parseCSVWithHeader(mpt || '名前\n', ['No.', '名前', '価格', '効果', '鍛冶屋説明文']);
     } catch (_) {
       window.MAP_PANEL_POWER_SHEET_ROWS = [];
     }
+    // map.js の _applyMapPanelPowerSheetRows() は読み込み時に一度走るだけで、
+    // その時点ではまだこの行データが無い。データが揃ったここで必ず適用し直す。
+    try { if (typeof _applyMapPanelPowerSheetRows === 'function') _applyMapPanelPowerSheetRows(); } catch (_) {}
 
     // ── 階層レベル/深層レベルデータ ──
     // 新形式は「マップ」列（結合セルで空欄になる行あり）＋「深層レベル」列で管理する。
@@ -1356,6 +1359,7 @@ async function loadGameData() {
         ep.hp  = hpP.val;  ep.baseHp  = hpP.range;
         ep.goldRange = goldP.range;
         ep.desc = row['効果'] || '';
+        ep.lines = ['台詞1','台詞2','台詞3'].map(k=>String(row[k]||'').trim()).filter(Boolean);
         const epSfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
         if (epSfxType) ep.sfxType = epSfxType;
         const kwStr = (row['キーワード'] || '').trim();
@@ -1411,6 +1415,8 @@ async function loadGameData() {
           equipmentText: row['装備'] || '',
           spawnTurn: turn,
           bossOnly: isBossEnemy,
+          // 「台詞1〜3」列：戦闘開始時に吹き出しで順に表示する台詞。
+          lines: ['台詞1','台詞2','台詞3'].map(k=>String(row[k]||'').trim()).filter(Boolean),
           _sheetEnemy: true,
         };
         _assignSheetArtCode(enemy, row, 'EN', true);

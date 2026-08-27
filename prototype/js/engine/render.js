@@ -47,6 +47,8 @@
     const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
     const mapPreviewEl=tgt&&tgt.closest('[data-map-power-preview]');
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
+    // 鍛冶屋・道具屋のメニュー、指輪交換の指輪、所持アイテム・所持指輪はカーソルの右下に出す。
+    const _tipBelow=_tipBelowCursorTarget(tgt);
     // 右クリックのぞき見（right-card-peek）は魔導板カードを透明化する機能なので、
     // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
     // body全体で判定すると、のぞき見中に報酬カード・デバッグカードへホバーしても
@@ -80,7 +82,7 @@
         if(rarityClass) tip.classList.add(rarityClass);
       }
       tip.style.display='block';
-      _posKwTip(tip,e);
+      _posKwTip(tip,e,0,0,_tipBelow);
     }else tip.style.display='none';
 
     // 特殊マスの説明は編成画面だけでなく、ショップ・鍛冶屋などの
@@ -103,12 +105,12 @@
     let stackAnchor=tip.style.display==='block'?tip:null;
     if(kt&&kt.style.display==='block'){
       if(stackAnchor) _posTipRelative(kt,stackAnchor,'below',false);
-      else _posKwTip(kt,e);
+      else _posKwTip(kt,e,0,0,_tipBelow);
       stackAnchor=kt;
     }
     if(mt&&mt.style.display==='block'){
       if(stackAnchor) _posTipRelative(mt,stackAnchor,'below',false);
-      else _posKwTip(mt,e);
+      else _posKwTip(mt,e,0,0,_tipBelow);
       stackAnchor=mt;
     }
     _fitTooltipStack([tip,kt,mt]);
@@ -142,10 +144,10 @@ function _injectManaIcons(escapedText){
       // 赤・青・緑・黄・紫は前後の単語を問わず、漢字1字だけで常にアイコン化する。
       // ただし「色（＋「の」）＋マナ」の並びは次のマナ用置換にまとめて任せる（二重変換で
       // <img alt="色">のalt属性内の文字を再度アイコン化してしまうのを防ぐため、先読みで除外する）。
-      .replace(/[青赤緑黄紫](?!(?:の)?\d*マナ)/g,m=>colorIcon(m))
+      .replace(/[青赤緑黄紫黒](?!(?:の)?\d*マナ)/g,m=>colorIcon(m))
       // 「赤の3マナ」「2マナ」のように、色（省略可）＋「の」（省略可）＋数字（省略可）＋「マナ」を
       // まとめてマナの数だけアイコン化する。色が付かない場合（例：「2マナを得る」）にも対応する。
-      .replace(/([青赤緑黄紫茶])?(?:の)?(\d*)マナ/g,(_,c,n)=>{
+      .replace(/([青赤緑黄紫茶黒])?(?:の)?(\d*)マナ/g,(_,c,n)=>{
         const icon=c?colorIcon(c):manaIcon();
         return icon.repeat(Math.max(1,parseInt(n,10)||1));
       }));
@@ -207,6 +209,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
     artCode:data.artCode||'',
     _artCode:data.artCode||'',
     _sheetEnemy:!!data._sheetEnemy,
+    _isEliteOrBoss:!!data._isEliteOrBoss,
     directions:[],
   };
   const cardEl=typeof mkCardEl==='function'?mkCardEl(pseudoCard,-1,'journey-preview'):null;
@@ -354,6 +357,7 @@ function _colorIconPath(color){
   if(c==='green'||c==='緑') return Assets.cards.greenOrb;
   if(c==='yellow'||c==='黄'||c==='茶') return Assets.cards.yellowOrb;
   if(c==='purple'||c==='紫') return Assets.cards.purpleOrb;
+  if(c==='black'||c==='黒') return Assets.cards.blackOrb;
   return '';
 }
 function cardManaCostHtml(card){
@@ -442,11 +446,35 @@ function _applyManaOrbState(div,entity){
   const have=Math.max(0,(typeof _ensureMana==='function'?_ensureMana():Number(G.mana)||0)-cost*fired);
   orbImgs.forEach((img,i)=>{ if(i<have) img.classList.add('mana-orb-lit'); });
 }
-function _posKwTip(tip,e,dx=0,dy=0){
-  const x=e.clientX+12+dx, y=e.clientY-8+dy;
+// 説明枠をカーソルの右下に出す対象（鍛冶屋のメニュー・指輪交換の指輪・道具屋のメニュー・
+// 所持アイテム・所持指輪）。いずれも .item-visual / .ring-visual を持つ枠。
+const TIP_BELOW_CURSOR_SELECTOR='.item-visual,.ring-visual,[data-tip-below]';
+function _tipBelowCursorTarget(target){
+  return !!(target&&target.closest&&target.closest(TIP_BELOW_CURSOR_SELECTOR));
+}
+// 説明枠を収める下端。ゲーム描画領域（背景）の底辺で切れてしまうため、
+// ウィンドウ下端ではなく背景の下端を上限にする。
+function _tooltipAreaBottom(){
+  const rs=getComputedStyle(document.documentElement);
+  const scale=parseFloat(rs.getPropertyValue('--game-scale'))||0;
+  const offY=parseFloat(rs.getPropertyValue('--game-offset-y'))||0;
+  const gameBottom=scale>0?offY+2160*scale:window.innerHeight;
+  return Math.min(window.innerHeight,gameBottom)-8;
+}
+function _posKwTip(tip,e,dx=0,dy=0,below=false){
   const tw=tip.offsetWidth, th=tip.offsetHeight;
+  const bottomLimit=_tooltipAreaBottom();
+  if(below){
+    // カーソルの右下に出す。画面外へ出る場合だけ内側へ寄せる。
+    const x=e.clientX+18+dx, y=e.clientY+18+dy;
+    tip.style.left=Math.max(4,Math.min(x,window.innerWidth-tw-8))+'px';
+    tip.style.top=Math.max(4,Math.min(y,bottomLimit-th))+'px';
+    return;
+  }
+  const x=e.clientX+12+dx, y=e.clientY-8+dy;
   tip.style.left=Math.min(x,window.innerWidth-tw-8)+'px';
-  tip.style.top=Math.max(4,(y-th>4?y-th:y+16))+'px';
+  // カーソルの上に出せるならそちら、無理なら下。どちらでも背景の下端からはみ出さないよう戻す。
+  tip.style.top=Math.max(4,Math.min((y-th>4?y-th:y+16),bottomLimit-th))+'px';
 }
 function _posTipRelative(tip,anchor,side,clampY=true){
   const ar=anchor.getBoundingClientRect();
@@ -462,7 +490,7 @@ function _fitTooltipStack(tips){
   const shown=tips.filter(el=>el&&el.style.display==='block');
   if(!shown.length) return;
   const bottom=Math.max(...shown.map(el=>el.getBoundingClientRect().bottom));
-  const overflow=bottom-(window.innerHeight-8);
+  const overflow=bottom-_tooltipAreaBottom();
   if(overflow>0){
     shown.forEach(el=>{
       const top=parseFloat(el.style.top)||el.getBoundingClientRect().top;
@@ -634,6 +662,181 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
   return {video,canvas,stop};
 }
 
+// ── 死亡演出：白くボケてから燃えて崩れる ─────────────────────
+// カードが盤面から消える直前の見た目をそのまま複製し、#vfx-clip-rootの中で焼き落とす。
+// 実スロットは従来どおり即座に空にするため、盤面の詰め直しや当たり判定には影響しない。
+const DEATH_BURN_MS=900;
+const DEATH_BURN_HOLES=9;      // 焼け穴の数
+const DEATH_BURN_SPREAD=78;    // 穴を散らす範囲（大きいほど全面へ広がる）
+const DEATH_BURN_EDGE='6%';    // 焼け縁のぼかし幅
+const DEATH_BURN_EMBER='9%';   // 火種の帯の太さ
+const DEATH_BURN_ROUGH=34;     // 輪郭の歪み量（0で正円のまま）
+const DEATH_BURN_FREQ=0.013;   // 歪みの細かさ
+const DEATH_BURN_CR_START=-10.9; // 開始時に穴を完全に塞ぐための負のマージン
+const DEATH_BURN_CR_END=115;
+
+function _deathBurnRnd(seed){ const x=Math.sin(seed)*10000; return x-Math.floor(x); }
+
+// 穴の配置・大きさ・広がる速さを毎回引き直す。これで同じ崩れ方は二度と起きない。
+function _buildDeathBurnPattern(host,seed){
+  const masks=[],embers=[];
+  for(let i=0;i<DEATH_BURN_HOLES;i++){
+    const cx=50+(_deathBurnRnd(seed+i*3.11)-.5)*DEATH_BURN_SPREAD;
+    const cy=44+(_deathBurnRnd(seed+i*7.77)-.5)*DEATH_BURN_SPREAD*0.92;
+    // 穴ごとに広がる速さを変える（0.55〜1.35倍）。これが虫食いのばらつきになる。
+    const k=(0.55+_deathBurnRnd(seed+i*5.31)*0.8).toFixed(2);
+    const R='calc(var(--death-cr) * '+k+')';
+    const shape='circle at '+cx.toFixed(1)+'% '+cy.toFixed(1)+'%';
+    masks.push('radial-gradient('+shape+', transparent '+R+', #000 calc('+R+' + '+DEATH_BURN_EDGE+'))');
+    embers.push('radial-gradient('+shape+','
+      +' rgba(255,250,225,1) '+R+','
+      +' rgba(255,186,64,.95) calc('+R+' + '+DEATH_BURN_EMBER+' * .38),'
+      +' rgba(226,86,14,.6) calc('+R+' + '+DEATH_BURN_EMBER+' * .72),'
+      +' rgba(120,30,0,0) calc('+R+' + '+DEATH_BURN_EMBER+'))');
+  }
+  host.style.setProperty('--death-mask',masks.join(','));
+  host.style.setProperty('--death-ember',embers.join(','));
+}
+
+// 穴の縁を円のままにすると形が幾何学的に見えるため、feDisplacementMapで輪郭を歪ませる。
+// CSSではfilterがmaskより先に適用されるので、マスクを掛けた要素を包む親へ当てる。
+function _makeDeathBurnFilter(seed){
+  const svg=document.getElementById('death-burn-filters');
+  if(!svg) return null;
+  const id='death-burn-rough-'+Math.round(Math.abs(seed)*97)+'-'+Math.round(Math.random()*100000);
+  const NS='http://www.w3.org/2000/svg';
+  const f=document.createElementNS(NS,'filter');
+  f.setAttribute('id',id);
+  f.setAttribute('x','-25%'); f.setAttribute('y','-25%');
+  f.setAttribute('width','150%'); f.setAttribute('height','150%');
+  f.setAttribute('color-interpolation-filters','sRGB');
+  const t=document.createElementNS(NS,'feTurbulence');
+  t.setAttribute('type','fractalNoise'); t.setAttribute('numOctaves','4');
+  t.setAttribute('baseFrequency',String(DEATH_BURN_FREQ));
+  t.setAttribute('seed',String(Math.round(Math.abs(seed)*13)%97)); t.setAttribute('result','n');
+  const d=document.createElementNS(NS,'feDisplacementMap');
+  d.setAttribute('in','SourceGraphic'); d.setAttribute('in2','n');
+  d.setAttribute('scale','0');
+  d.setAttribute('xChannelSelector','R'); d.setAttribute('yChannelSelector','G');
+  f.appendChild(t); f.appendChild(d); svg.appendChild(f);
+  return {id,filter:f,disp:d};
+}
+
+// slotNode は再描画前に控えた複製、rect はそのときの画面上の位置。
+function playCardBurnAway(slotNode,rect,sourceSize){
+  try{
+    if(!slotNode||!rect) return;
+    if(!(rect.width>0&&rect.height>0)) return;
+    const parent=typeof _vfxHostParent==='function'?_vfxHostParent():document.body;
+    const seed=Math.random()*1000+1;
+
+    const host=document.createElement('div');
+    host.className='death-burn-clone';
+    Object.assign(host.style,{
+      left:rect.left+'px', top:rect.top+'px',
+      width:rect.width+'px', height:rect.height+'px',
+    });
+    _buildDeathBurnPattern(host,seed);
+
+    // カード本体（マスクで食われる）
+    const card=slotNode.cloneNode(true);
+    card.className='death-burn-card '+slotNode.className;
+    card.removeAttribute('id');
+    card.style.cssText='';
+    // 前衛スロットの位置識別クラス（.is-front）が持つ赤いborder-topを、
+    // body直下へ移した死亡演出クローンには引き継がない。
+    card.style.setProperty('border','0','important');
+    card.style.setProperty('border-top','0','important');
+    card.style.setProperty('outline','0','important');
+    card.style.setProperty('box-shadow','none','important');
+    // 戦闘画面は3840x2160の内部座標を親要素で縮小している。クローンをbody直下へ
+    // 移すと親の縮小が外れ、カード内部だけが巨大化するため、元のレイアウト寸法で複製して
+    // getBoundingClientRect()の表示寸法までクローン全体を縮小する。
+    const sourceW=Math.max(1,Number(sourceSize?.width)||Number(slotNode.dataset?.deathSourceWidth)||rect.width);
+    const sourceH=Math.max(1,Number(sourceSize?.height)||Number(slotNode.dataset?.deathSourceHeight)||rect.height);
+    card.style.setProperty('position','absolute','important');
+    card.style.setProperty('left','0','important');
+    card.style.setProperty('top','0','important');
+    card.style.setProperty('width',sourceW+'px','important');
+    card.style.setProperty('min-width',sourceW+'px','important');
+    card.style.setProperty('max-width',sourceW+'px','important');
+    card.style.setProperty('height',sourceH+'px','important');
+    card.style.setProperty('min-height',sourceH+'px','important');
+    card.style.setProperty('max-height',sourceH+'px','important');
+    card.style.setProperty('aspect-ratio','auto','important');
+    card.style.setProperty('transform-origin','0 0','important');
+    card.style.setProperty('transform',`scale(${rect.width/sourceW},${rect.height/sourceH})`,'important');
+    const flash=document.createElement('div');
+    flash.className='death-burn-flash';
+    card.appendChild(flash);
+
+    const warpCard=document.createElement('div');
+    warpCard.className='death-burn-warp';
+    warpCard.appendChild(card);
+
+    // 焼け縁の火（本体とは別要素。カードが欠けても火は残す）
+    const ember=document.createElement('div');
+    ember.className='death-burn-ember';
+    const warpEmber=document.createElement('div');
+    warpEmber.className='death-burn-warp';
+    warpEmber.appendChild(ember);
+
+    host.appendChild(warpCard);
+    host.appendChild(warpEmber);
+    parent.appendChild(host);
+
+    // 輪郭の歪みはSVG属性なのでCSSアニメーションで動かせない。進行度を読んで書き換える。
+    const fx=_makeDeathBurnFilter(seed);
+    if(fx){
+      warpCard.style.filter='url(#'+fx.id+')';
+      warpEmber.style.filter='url(#'+fx.id+')';
+    }
+    const span=DEATH_BURN_CR_END-DEATH_BURN_CR_START;
+    const timer=window.setInterval(()=>{
+      if(!host.isConnected){ window.clearInterval(timer); return; }
+      if(!fx) return;
+      const cr=parseFloat(getComputedStyle(host).getPropertyValue('--death-cr'))||DEATH_BURN_CR_START;
+      const t=Math.max(0,Math.min(1,(cr-DEATH_BURN_CR_START)/span));
+      // 燃え始めた瞬間から縁は乱れていてほしい。進行度に素直に比例させると
+      // 穴が小さいうちは歪みも小さく、正円のリングに見えてしまう。
+      const w=t>0.004?(0.6+0.4*Math.pow(t,0.7)):0;
+      fx.disp.setAttribute('scale',(DEATH_BURN_ROUGH*w).toFixed(1));
+    },33);
+
+    // 後片付けは「実際にアニメーションが終わったとき」に行う。固定時間で消すと、
+    // 重い処理でアニメーションの開始が遅れた場合に再生途中で消えてしまう。
+    let cleaned=false;
+    const cleanup=()=>{
+      if(cleaned) return; cleaned=true;
+      window.clearInterval(timer);
+      window.clearTimeout(fallback);
+      host.remove();
+      if(fx&&fx.filter&&fx.filter.parentNode) fx.filter.parentNode.removeChild(fx.filter);
+    };
+    host.addEventListener('animationend',ev=>{
+      if(ev.target===host&&ev.animationName==='death-burn') cleanup();
+    });
+    // animationendが来ない環境・中断された場合の保険（十分に長く取る）
+    const fallback=window.setTimeout(cleanup,DEATH_BURN_MS+4000);
+  }catch(e){ console.error('[playCardBurnAway]',e); }
+}
+
+// 死亡効果の解決を待たず、死亡が確定した瞬間のカードから演出を開始する。
+// これにより、闇の炎など非同期の死亡効果がある場合も演出が遅れず、攻撃モーション後の
+// 盤面詰めで死亡ユニットが配列から除かれる前に確実に複製元を確保できる。
+function playUnitDeathBurn(unit,side){
+  if(!unit||unit.hp>0||unit._deathFxDone) return false;
+  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+  if(!slot) return false;
+  const rect=slot.getBoundingClientRect();
+  if(!(rect.width>0&&rect.height>0)) return false;
+  const clone=slot.cloneNode(true);
+  unit._deathFxDone=true;
+  slot.style.setProperty('visibility','hidden','important');
+  playCardBurnAway(clone,rect,{width:slot.offsetWidth,height:slot.offsetHeight});
+  return true;
+}
+
 // 演出用ホストの追加先。#vfx-clip-rootはビューポート全体を覆いつつ、clip-pathで
 // ゲーム背景の矩形に切り取られる層。ここへ入れることで、body直下へfixedで置かれる演出が
 // レターボックスの黒帯（背景外）へはみ出して見えることを防ぐ。層が無い場合はbody直下へ戻す。
@@ -645,7 +848,15 @@ function _vfxHostParent(){
 // 即座に打ち切ってDOMから除去する。演出用の各hostは常にdocument.body直下へfixedで
 // 追加されるため、専用クラスで一括除去すればどの演出タイミングで戦闘が終わっても残らない。
 function _forceStopAllVfx(){
-  document.querySelectorAll('.damage-vfx-host,.special-vfx-clip,.sweep-vfx-clip,.attack-motion-clone').forEach(el=>el.remove());
+  // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に
+  // 生成されるため、戦闘終了時は一時要素を種類を問わずまとめて除去する。
+  document.querySelectorAll(
+    '.damage-vfx-host,.special-vfx-clip,.special-vfx-host,.sweep-vfx-clip,.sweep-vfx-host,'+
+    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,#battle-start-intro'
+  ).forEach(el=>el.remove());
+  // 死亡演出のSVGフィルタ定義も次の画面へ持ち越さない。
+  const deathFilters=document.getElementById('death-burn-filters');
+  if(deathFilters) deathFilters.replaceChildren();
   if(window.__activeVfxPromises) window.__activeVfxPromises.clear();
 }
 
@@ -1092,10 +1303,10 @@ function updateUnitDamageUi(unit,side){
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
   const atkEl=slot.querySelector('.slot-stats .a');
-  if(atkEl) atkEl.textContent=Math.max(0,unit.atk||0);
+  _setUnitStatText(atkEl,Math.max(0,unit.atk||0));
   const hpEl=slot.querySelector('.slot-stats .h');
   if(hpEl){
-    hpEl.textContent=Math.max(0,unit.hp||0);
+    _setUnitStatText(hpEl,Math.max(0,unit.hp||0));
     hpEl.classList.toggle('hp-damaged',unit.maxHp!=null&&unit.hp<unit.maxHp);
   }
   const maxHp=Math.max(1,Number(unit.maxHp)||Number(unit.hp)||1);
@@ -1443,9 +1654,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         // 攻撃を再開する前に背景側の実スロット全体も最新値へ同期する。
         if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
         const cloneAtkEl=clone.querySelector('.slot-stats .a');
-        if(cloneAtkEl) cloneAtkEl.textContent=Math.max(0,attacker.atk||0);
+        _setUnitStatText(cloneAtkEl,Math.max(0,attacker.atk||0));
         const cloneHpEl=clone.querySelector('.slot-stats .h');
-        if(cloneHpEl) cloneHpEl.textContent=Math.max(0,attacker.hp||0);
+        _setUnitStatText(cloneHpEl,Math.max(0,attacker.hp||0));
         const cloneLifeFill=clone.querySelector('.slot-life-fill');
         if(cloneLifeFill){
           const cloneMaxHp=Math.max(1,Number(attacker.maxHp)||Number(attacker.hp)||1);
@@ -1906,9 +2117,20 @@ function _unitPreviewText(unit, desc, slotIdx){
 function renderField(id,units,isEnemy,_lane){
   const el=document.getElementById(id);
   const previousRects=new Map();
+  // 死亡演出の複製元。スロットは毎回createElementで作り直されるため、
+  // 消える前のDOMをここで控えておかないと「生きていたときの見た目」が取れない。
+  // 全スロットを複製すると無駄なので、今回死んだユニットの分だけに絞る。
+  const dyingIds=new Set((units||[]).filter(x=>x&&x.hp<=0&&!x._deathFxDone&&x.id!=null).map(x=>String(x.id)));
+  const previousSlots=new Map();
   {
     for(const oldSlot of el.querySelectorAll('.slot[data-unit-id]')){
       previousRects.set(oldSlot.dataset.unitId,oldSlot.getBoundingClientRect());
+      if(dyingIds.has(oldSlot.dataset.unitId)&&oldSlot.childElementCount>0){
+        const clone=oldSlot.cloneNode(true);
+        clone.dataset.deathSourceWidth=String(oldSlot.offsetWidth||0);
+        clone.dataset.deathSourceHeight=String(oldSlot.offsetHeight||0);
+        previousSlots.set(oldSlot.dataset.unitId,clone);
+      }
     }
   }
   el.innerHTML='';
@@ -1962,6 +2184,16 @@ function renderField(id,units,isEnemy,_lane){
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(u&&u.hp>0?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(u&&u.hp>0?(u.lane||'front'):(i>=frontSlots?'rear':'front'));
     if(!u||u.hp<=0){
+      // 消える直前のカードを焼き落とす。実スロットは従来どおり即座に空にするため、
+      // 盤面の詰め直しや当たり判定には影響しない。_deathFxDoneで一度だけ発火させる。
+      if(u&&u.hp<=0&&!u._deathFxDone&&u.id!=null&&typeof playCardBurnAway==='function'){
+        const _prevNode=previousSlots.get(String(u.id));
+        const _prevRect=previousRects.get(String(u.id));
+        if(_prevNode&&_prevRect&&_prevRect.width>0){
+          u._deathFxDone=true;
+          playCardBurnAway(_prevNode,_prevRect);
+        }
+      }
       slot.classList.add('empty','dead-empty');
       slot.innerHTML='';
       slot.style.gridRow=_slotLane==='rear'?'1':'2';
@@ -2079,9 +2311,9 @@ function renderField(id,units,isEnemy,_lane){
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_cardStatDigitClass(u.atk)}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_cardStatDigitClass(u.hp)}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a">${u.atk}</span><span class="s">/</span><span class="${_hpClass}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_cardStatDigitClass(u.atk)}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_cardStatDigitClass(u.hp)}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         }
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
         const hitLayer=document.createElement('div');
@@ -2096,6 +2328,7 @@ function renderField(id,units,isEnemy,_lane){
         slot.draggable=canMoveUnit;
         slot.addEventListener('dragstart',e=>{
           if(!canMoveUnit||document.body.classList.contains('right-card-peek')) { e.preventDefault(); return; }
+          if(typeof _libraryTutorialIsMoveStep==='function'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
           window._allySlotDragSrc=i;
           e.dataTransfer.effectAllowed='move';
           if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0);
@@ -2115,6 +2348,7 @@ function renderField(id,units,isEnemy,_lane){
           if(!canMoveUnit) return;
           const src=window._allySlotDragSrc;
           if(src==null) return;
+          if(typeof _libraryTutorialAllowsMove==='function'&&!_libraryTutorialAllowsMove(G.allies[src],i)) { window._allySlotDragSrc=null; return; }
           e.preventDefault();
           slot.classList.remove('drag-over');
           if(src!==i){
@@ -2213,6 +2447,7 @@ function renderField(id,units,isEnemy,_lane){
           if(!(G.phase==='reward'||G.phase==='player')) return;
           const src=window._allySlotDragSrc;
           if(src==null) return;
+          if(typeof _libraryTutorialAllowsMove==='function'&&!_libraryTutorialAllowsMove(G.allies[src],i)) { window._allySlotDragSrc=null; return; }
           e.preventDefault();
           slot.classList.remove('drag-over');
           if(src!==i){
@@ -2357,6 +2592,29 @@ function computeDesc(card,_mlOverride){
   return desc;
 }
 
+// ATK/HPの桁数が増えた時、カード中央下の矢印（.panel-dir-down）にぶつからない大きさへ縮める。
+// 数字は幅72pxのボックスに中央揃えで置かれ、桁が増えると左右へはみ出す。
+// 中心を軸にscaleすれば位置はそのままで、はみ出し量だけが比例して小さくなる。
+// 実測（設計座標・カード幅260）：ボックス中心 x=49 / 矢印の左端 x=98。
+// 65.52pxでの文字幅は 1桁36.3 / 2桁82.5 / 3桁123.8 / 4桁165 / 5桁206.3。
+// 右端を x=94（矢印の手前4px）までに収めるため、許容幅は90px。
+function _cardStatDigitClass(value){
+  const digits=String(value==null?'':value).replace(/[^0-9]/g,'').length;
+  if(digits>=5) return ' stat-d5';
+  if(digits===4) return ' stat-d4';
+  if(digits===3) return ' stat-d3';
+  return '';
+}
+// 戦闘中のユニットカードのATK/HP（.slot-stats .a/.h）にも、桁数に応じた縮小クラスを当てる。
+// 数値を入れ替えるだけの軽量更新経路が複数あるため、テキストとクラスを必ず一緒に更新する。
+function _setUnitStatText(el,value){
+  if(!el) return;
+  el.textContent=value;
+  el.classList.remove('stat-d3','stat-d4','stat-d5');
+  const cls=_cardStatDigitClass(value).trim();
+  if(cls) el.classList.add(cls);
+}
+
 function mkCardEl(card,_idx,_ctx,_mlOverride){
   const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム','global-panel':'全体'};
   const div=document.createElement('div');
@@ -2415,7 +2673,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[_cardUiName(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk">${pAtk}</span><span class="card-summon-hp">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatDigitClass(pAtk)}">${pAtk}</span><span class="card-summon-hp${_cardStatDigitClass(pHp)}">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -2480,7 +2738,8 @@ function renderControls(){
     if(testBtn) testBtn.style.display='none';
   }
   // 戦闘開始ボタンは廃止した。試験戦闘中のみ「戦闘終了」として常時表示する。
-  if(G._testBattleMode){
+  // ただし図書館の試験戦闘は勝敗が付くまで行うため、中断ボタンは出さない。
+  if(G._testBattleMode&&!G._libraryTestBattleMode){
     pp.textContent='戦闘終了';
     pp.disabled=false;
     pp.style.display='';

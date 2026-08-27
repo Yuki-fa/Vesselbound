@@ -240,9 +240,19 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-title #title-options-btn{opacity:0;pointer-events:none;transform:none!important}
 #scr-title.startup-title.startup-title-visible #title-options-btn{opacity:1;pointer-events:auto}
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
-#scr-title.startup-title:not(.startup-menu-visible) #title-menu{pointer-events:none}
-#scr-title.startup-menu-visible:not(.startup-menu-ready) #title-menu{pointer-events:none}
-#scr-title.startup-menu-input-locked #title-menu{pointer-events:none!important}
+/* メニューの入力ロックは、親(#title-menu)だけに掛けても効かない。
+   pointer-eventsは親がnoneでも子がautoならその子はクリックを受け取るため、
+   .title-menu-item / #title-debug-button（いずれもpointer-events:auto）まで含めて止める。
+   これを漏らすと、TAP TO STARTを押した同じ操作でメニュー項目が選ばれてしまう。 */
+#scr-title.startup-title:not(.startup-menu-visible) #title-menu,
+#scr-title.startup-title:not(.startup-menu-visible) #title-menu button,
+#scr-title.startup-title:not(.startup-menu-visible) #title-menu *{pointer-events:none}
+#scr-title.startup-menu-visible:not(.startup-menu-ready) #title-menu,
+#scr-title.startup-menu-visible:not(.startup-menu-ready) #title-menu button,
+#scr-title.startup-menu-visible:not(.startup-menu-ready) #title-menu *{pointer-events:none}
+#scr-title.startup-menu-input-locked #title-menu,
+#scr-title.startup-menu-input-locked #title-menu button,
+#scr-title.startup-menu-input-locked #title-menu *{pointer-events:none!important}
 #scr-title.startup-title:not(.startup-menu-visible) button{cursor:default!important}
 #scr-title.startup-menu-visible #title-menu{opacity:1}
 .title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .08s ease;pointer-events:auto}
@@ -573,6 +583,72 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
    この層はビューポート全体を覆うため、中に置く要素のビューポート座標はそのまま使える
    （transformにより子孫のposition:fixedはこの層を基準にする）。
    z-indexは演出の最大値(10021)に合わせてあり、同時に出ないショップUI(10010-10012)より上になる。 */
+/* ── 死亡演出：白くボケてから燃えて崩れる ─────────────────
+   カードが消える直前の見た目を複製し、#vfx-clip-rootの中で焼き落とす。
+   進行度(--death-cr)は穴の半径、--death-softは燃える前のぼかし量。
+   @propertyで型を宣言しないと、maskのradial-gradientもblurも補間されない。 */
+@property --death-cr{syntax:'<percentage>';inherits:true;initial-value:-10.9%}
+@property --death-soft{syntax:'<length>';inherits:true;initial-value:0px}
+
+.death-burn-clone{
+  position:fixed;
+  z-index:10019;
+  pointer-events:none;
+  overflow:hidden;
+  --death-cr:-10.9%;
+  --death-soft:0px;
+  animation:death-burn 900ms forwards;
+}
+.death-burn-warp{position:absolute;inset:0}
+.death-burn-card{position:absolute;inset:0;filter:blur(var(--death-soft))}
+/* 穴のパターン（--death-mask）はカードごとにJSで作る。intersectで穴の和集合が抜ける。 */
+.death-burn-card{
+  -webkit-mask-image:var(--death-mask);
+  mask-image:var(--death-mask);
+  -webkit-mask-composite:source-in;
+  mask-composite:intersect;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+}
+/* 白ボケ用。暗い絵柄はbrightnessだけでは白く飛ばないため白を重ねる。 */
+.death-burn-flash{
+  position:absolute;left:50%;top:50%;
+  width:var(--unit-frame-w);height:var(--unit-card-h);
+  transform:translate(-50%,-50%);
+  background:#fff;mix-blend-mode:screen;
+  border-radius:calc(var(--unit-card-w) * .1);
+  opacity:0;pointer-events:none;z-index:60;
+  animation:death-burn-flash 900ms ease-out forwards;
+}
+/* 焼け縁の火。カード本体と同じマスクを掛けることで、既に焼け落ちた内側からは火が消える。 */
+.death-burn-ember{
+  position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:var(--death-ember);
+  mix-blend-mode:screen;
+  filter:blur(1.1px) saturate(1.15);
+  -webkit-mask-image:var(--death-mask);
+  mask-image:var(--death-mask);
+  -webkit-mask-composite:source-in;
+  mask-composite:intersect;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  animation:death-burn-ember 900ms linear forwards;
+}
+@keyframes death-burn{
+  /* 前半（白ボケ）は滑らかに、後半（崩壊）は等速。後半にイージングを掛けると、
+     穴を隠すための負のマージンを抜けるまで見た目が変化せず、途中で止まって見える。 */
+  0%   {--death-cr:-10.9%; --death-soft:0px; opacity:1; animation-timing-function:cubic-bezier(.33,0,.5,1)}
+  30%  {--death-cr:-10.9%; --death-soft:4px; opacity:1; animation-timing-function:linear}
+  78%  {opacity:.9; animation-timing-function:cubic-bezier(.4,0,.9,.6)}
+  100% {--death-cr:115%; --death-soft:1.4px; opacity:0}
+}
+@keyframes death-burn-flash{
+  0%{opacity:0} 30%{opacity:.72} 64%{opacity:.25} 100%{opacity:0}
+}
+@keyframes death-burn-ember{
+  0%{opacity:0} 30%{opacity:0} 40%{opacity:1} 84%{opacity:1} 100%{opacity:0}
+}
+
 #vfx-clip-root{
   position:fixed;
   inset:0;
@@ -7166,7 +7242,7 @@ html body.world-map-active #battle-options-btn::after{
   top:0!important;
   width:110px!important;
   height:90px!important;
-  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   z-index:2!important;
   pointer-events:none!important;
 }
@@ -7230,6 +7306,9 @@ html body.reward-screen-active #battle-order-section::before{
 }
 html body.reward-screen-active.shop-screen-active #battle-order-section::before{
   content:"商品";
+}
+html body.reward-screen-active.library-formation-active #battle-order-section::before{
+  content:"貸出カード";
 }
 html body.reward-screen-active.forge-screen-active #battle-order-section::before{
   content:"魔導板強化";
@@ -7319,12 +7398,12 @@ html body.reward-screen-active #battle-order-row > .card-empty{
   flex:0 0 var(--prod-card-w)!important;
 }
 /* 提示指輪の枠：横幅はそのまま、元ファイル（ring_slot.png）と同じ正方形にし、
-   底辺の位置は変えずに（#battle-order-rowの下端に揃えて）上端だけ詰める */
+   行の上端に揃える（鍛冶屋・道具屋を下始まりにしたのに合わせ、祭壇は上に置く）。 */
 html body.reward-screen-active #battle-order-row > .rew-card.ring-offer-card{
   height:var(--prod-card-w)!important;
   min-height:var(--prod-card-w)!important;
   max-height:var(--prod-card-w)!important;
-  align-self:flex-end!important;
+  align-self:flex-start!important;
 }
 html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card{
   height:var(--prod-card-w)!important;
@@ -7679,6 +7758,11 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn{
   overflow:visible!important;
   background:none!important;
 }
+html body.reward-screen-active.library-formation-active #reward-move-btns .library-test-btn{
+  position:absolute!important;
+  left:calc(50% - 248.5px)!important;
+  top:-146px!important;
+}
 html body.reward-screen-active #reward-move-btns .rew-btn-label{
   position:relative!important;
   z-index:10!important;
@@ -7729,12 +7813,12 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
    通常時（not_fix.png表示中）はfix_back_2.pngを常時表示、ホバー時はfix_back.pngに切り替えて明滅させる。
    全レイヤーとも同一ボックス（w607×h234、左上がボタン左上から-45.5px,-55px）に統一。 */
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after{
-  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   background-color:#260311!important;
 }
 html body.reward-screen-active.reward-pick-taken #reward-move-btns .rew-move-btn::after,
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::after{
-  background-image:url("assets/ui/button.svg")!important;
+  background-image:url("assets/ui/button_blue1.svg")!important;
   background-color:#260311!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn::before{
@@ -7751,7 +7835,7 @@ html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::before{
 /* 元に戻す：顔は常にreturn.png。ホバー時のみ背後にfix_back.pngを明滅表示する。
    全レイヤーとも同一ボックス（w607×h234、左上がボタン左上から-54.5px,-55px）に統一。 */
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
-  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::before{
   background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;
@@ -7852,24 +7936,35 @@ html body.reward-screen-active #hand-pane #hand-slots.unit-equip-slots{
 }
 /* 接続フラッシュ中だけoverflow:hiddenにすると、カード外へはみ出して配置されている
    ATK/HPの3桁以上の数値や矢印(.panel-dir)の先端が一瞬切れてしまう。
-   走査光は::before側をclip-pathでカード内に収めることで、カード自体は
-   overflow:visibleのまま（＝はみ出し要素を切らずに）同じ見た目にする。 */
+   そこで走査光だけを2枚に分ける：
+     .panel-connect-flash-clip … 動かさないクリップ枠（overflow:hiddenでカード内に収める）
+     .panel-connect-flash-beam … その中でtransformにより走る光そのもの
+   clip-path/overflowは要素のローカル座標に適用されてからtransformで移動するため、
+   同じ要素に両方を掛けると「切り抜いた形ごと」カード外へ出てしまう（＝はみ出しの原因）。
+   静止した親でクリップすれば、光り方（グラデーション・skew・移動量）は従来のまま
+   カード枠内にきちんと収まる。
+   mix-blend-mode:screenはクリップ枠側に置く。beam側に置くと、z-indexで積層コンテキストを
+   作るクリップ枠の内側で合成が完結してしまい、カードと混ざらなくなる。 */
 html body.reward-screen-active #hand-slots.unit-equip-slots .card.panel-connect-flash{
   overflow:visible!important;
 }
-html body.reward-screen-active #hand-slots.unit-equip-slots .card.panel-connect-flash::before{
-  content:""!important;
+html body.reward-screen-active #hand-slots.unit-equip-slots .card > .panel-connect-flash-clip{
   position:absolute!important;
-  inset:-2px!important;
-  z-index:24!important;
+  inset:0!important;
+  /* カード内のレイヤー：絵1／キャラ枠90／盤面枠100／境界110／ホバーグロー120／矢印150／ATK・HP300。
+     枠まで光らせたいので枠(90〜110)より手前、矢印とATK/HPは光らせないのでそれより奥に置く。 */
+  z-index:130!important;
   pointer-events:none!important;
   border-radius:inherit!important;
-  /* ::beforeはinset:-2pxでカードより2px外側まで広がるため、その分だけ内側へ切り戻して
-     カード枠内に収める（角丸は#hand-slots .cardのborder-radius:12pxに合わせる）。 */
-  clip-path:inset(2px round 12px)!important;
+  overflow:hidden!important;
+  mix-blend-mode:screen!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .card > .panel-connect-flash-clip > .panel-connect-flash-beam{
+  position:absolute!important;
+  inset:-2px!important;
+  border-radius:inherit!important;
   background:linear-gradient(115deg,rgba(255,255,255,0) 0%,rgba(99,221,255,.8) 28%,rgba(255,229,124,.95) 50%,rgba(203,112,255,.82) 72%,rgba(255,255,255,0) 100%)!important;
   background-size:220% 100%!important;
-  mix-blend-mode:screen!important;
   animation:panelConnectFlash .72s ease-out 1 both!important;
 }
 @keyframes panelConnectFlash{
@@ -9953,6 +10048,7 @@ html body.reward-screen-active .shop-pending-sale-ui{
 }
 html body.reward-screen-active .shop-buy-price,
 html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value,
+html body.reward-screen-active .library-loan-badge,
 html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value{
   position:absolute!important;
   top:30px!important;
@@ -10081,7 +10177,7 @@ html body #scr-battle #battle-options-btn{
 }
 html body #scr-battle #battle-options-btn::after{
   content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:90px!important;
-  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;z-index:2!important;pointer-events:none!important;
+  background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;z-index:2!important;pointer-events:none!important;
 }
 html body #scr-battle #battle-options-btn::before{
   content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:90px!important;
@@ -10151,7 +10247,7 @@ html body #scr-battle #battle-options-btn{
 html body #battle-continue-btn{
   background:
     linear-gradient(#3d220b,#3d220b) center/100% calc(100% - 12px) no-repeat,
-    url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+    url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   box-shadow:0 0 14px 2px rgba(255,218,125,.32)!important;
 }
 html body #battle-continue-btn:hover{
@@ -10245,10 +10341,10 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
   border-radius:10px!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after{
-  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button_blue1.svg")!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
-  background-image:linear-gradient(#260311,#260311),url("assets/ui/button.svg")!important;
+  background-image:linear-gradient(#260311,#260311),url("assets/ui/button_blue1.svg")!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover,
 html body.reward-screen-active #reward-move-btns .rew-reset-btn:hover{
@@ -10256,7 +10352,7 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn:hover{
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::after,
 html body.reward-screen-active.reward-pick-taken #reward-move-btns .rew-move-btn::after{
-  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button_blue1.svg")!important;
 }
 html body.reward-screen-active #battle-options-btn,
 html body.world-map-active #battle-options-btn,
@@ -10343,13 +10439,13 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after,
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::after,
 html body.reward-screen-active.reward-pick-taken #reward-move-btns .rew-move-btn::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::after{
-  background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
 }
 html body #battle-continue-btn{
-  background:url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   clip-path:none!important;
 }
 
@@ -10407,10 +10503,10 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn::before{
 /* 未取得時は元の紺色。報酬取得後だけ茶色へ切り替える。 */
 html body.reward-screen-active:not(.reward-pick-taken) #reward-move-btns .rew-move-btn::after,
 html body.reward-screen-active:not(.reward-pick-taken) #reward-move-btns .rew-move-btn:hover::after{
-  background:transparent url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active.reward-pick-taken #reward-move-btns .rew-move-btn::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 /* 矩形box-shadowではなく、透明角を持つSVG自体をぼかして四隅の下まで発光させる。 */
 html body.reward-screen-active #reward-move-btns .rew-move-btn::before,
@@ -10424,10 +10520,10 @@ html body.reward-screen-active #reward-move-btns .rew-reset-btn::before{
   filter:brightness(2.3) drop-shadow(0 0 10px rgba(255,231,164,1)) drop-shadow(0 0 22px rgba(255,194,70,.92))!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn::before{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::before{
-  background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::before,
 html body.reward-screen-active #reward-move-btns .rew-reset-btn:hover::before{
@@ -10468,7 +10564,7 @@ html body #battle-continue-panel{
 html body #battle-continue-btn{
   width:460px!important;
   height:113.145px!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   box-shadow:none!important;
   font-size:46px!important;
 }
@@ -10480,7 +10576,7 @@ html body #battle-continue-panel .battle-continue-back{
   inset:0!important;
   width:460px!important;
   height:113.145px!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   opacity:.68!important;
   transform:scale(1.025)!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,231,164,.96)) drop-shadow(0 0 20px rgba(255,194,70,.88))!important;
@@ -10688,7 +10784,7 @@ html body.reward-screen-active #reward-move-btns .rew-move-btn::before{
   left:0!important;
   width:492.972px!important;
   transform:none!important;
-  background-image:url("assets/ui/button_purple.svg")!important;
+  background-image:url("assets/ui/button_brown2.svg")!important;
   opacity:0!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-reset-btn::before{
@@ -10723,7 +10819,7 @@ html body.reward-screen-active.debug-mode #btn-test-battle{
   height:121.263px!important;
   z-index:28!important;
   font-size:43.82px!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   border:0!important;
 }
 
@@ -10791,6 +10887,14 @@ html body .triple-merge-white-flash{
   100%{filter:brightness(1);box-shadow:none}
 }
 
+/* 図書館の試験戦闘は勝敗が付くまで行うため、「戦闘終了」ボタンを出さない。 */
+html body.test-battle-active.library-test-battle-active #scr-battle.active #btn-pass,
+html body.test-battle-active.library-test-battle-active #scr-battle.active #btn-pass::before,
+html body.test-battle-active.library-test-battle-active #scr-battle.active #btn-pass::after{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
 /* 試験戦闘中だけ、旧戦闘実行ボタンを「戦闘終了」として復帰させる。 */
 html body.test-battle-active #scr-battle.active #btn-pass{
   display:block!important;
@@ -10810,7 +10914,7 @@ html body.test-battle-active #scr-battle.active #btn-pass{
   /* ラベルの縦位置をボタン枠の中でやや下へ寄せる（枠絵の窓位置に合わせる）。 */
   line-height:122px!important;
   padding:0!important;
-  background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
   border:0!important;
   /* ベースの#log-wrap #btn-pass{border-radius:50%}（丸いダイヤル型ボタン用）が
      残ったままだと、横長のbutton_purple.svgが楕円にクリップされ形が崩れる。 */
@@ -10824,7 +10928,7 @@ html body.test-battle-active #scr-battle.active #btn-pass{
 html body.test-battle-active #scr-battle.active #btn-pass::before{
   content:""!important;display:block!important;position:absolute!important;inset:0!important;
   width:100%!important;height:100%!important;transform:none!important;
-  background:transparent url("assets/ui/button_purple.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;pointer-events:none!important;z-index:-1!important;animation:none!important;
 }
@@ -10838,7 +10942,7 @@ html body.test-battle-active #scr-battle.active #btn-pass:hover::before{
 /* 2026-08-08: ボタン本体と同じ輪郭を複製して発光させ、左右辺・斜め角まで均一に光らせる。 */
 html body.reward-screen-active #reward-move-btns .rew-move-btn::before{
   inset:0!important;width:auto!important;height:auto!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   transform:none!important;opacity:0!important;
 }
@@ -10851,7 +10955,7 @@ html body.reward-screen-active.debug-mode #btn-test-battle{
 }
 html body.reward-screen-active.debug-mode #btn-test-battle::before{
   content:""!important;display:block!important;position:absolute!important;inset:0!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;pointer-events:none!important;z-index:-1!important;
 }
@@ -10904,7 +11008,7 @@ html body.reward-screen-active #reward-move-btns .rew-move-btn::before,
 html body #battle-continue-btn::before{
   content:""!important;display:block!important;position:absolute!important;inset:0!important;
   width:auto!important;height:auto!important;transform:none!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;pointer-events:none!important;z-index:-1!important;animation:none!important;
 }
@@ -10913,7 +11017,7 @@ html body #battle-continue-btn:hover::before{
   opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn:hover::after{
-  background-image:url("assets/ui/button_brown.svg")!important;
+  background-image:url("assets/ui/button_brown1.svg")!important;
 }
 html body #battle-continue-btn .battle-continue-back{display:none!important}
 
@@ -10940,7 +11044,7 @@ html body #battle-continue-btn#battle-continue-btn::before{
   width:100%!important;
   height:100%!important;
   transform:none!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;
   pointer-events:none!important;
@@ -10953,7 +11057,7 @@ html body #battle-continue-btn#battle-continue-btn:hover::before{
   animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
 }
 html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:hover::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 
 /* 合体済みカードを盤面へ移した後は、戦闘終了の「進む」と同じ弱い待機発光にする。 */
@@ -11253,20 +11357,32 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 #gameover-actions .btn{isolation:isolate!important;background-color:transparent!important}
 #gameover-actions .btn{background:none!important}
 #gameover-actions .btn::after{content:""!important;position:absolute!important;inset:0!important;background:transparent center/100% 100% no-repeat!important;pointer-events:none!important;z-index:-1!important}
-#gameover-actions #gameover-retry-btn::after{background-image:url("assets/ui/button_retry.svg")!important}
-#gameover-actions #gameover-back-btn::after{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions #gameover-retry-btn::after{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions #gameover-back-btn::after{background-image:url("assets/ui/button_brown2.svg")!important}
+#gameover-actions #gameover-continue-btn::after{background-image:url("assets/ui/button_brown1.svg")!important}
 #gameover-actions .btn::before{content:""!important;position:absolute!important;inset:0!important;background:transparent center/100% 100% no-repeat!important;filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));opacity:0;pointer-events:none;z-index:-1}
-#gameover-actions #gameover-retry-btn::before{background-image:url("assets/ui/button_retry.svg")!important}
-#gameover-actions #gameover-back-btn::before{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions #gameover-retry-btn::before{background-image:url("assets/ui/button_purple.svg")!important}
+#gameover-actions #gameover-back-btn::before{background-image:url("assets/ui/button_brown2.svg")!important}
+#gameover-actions #gameover-continue-btn::before{background-image:url("assets/ui/button_brown1.svg")!important}
 #gameover-actions .btn:hover::before{opacity:1;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite}
 #gameover-actions #gameover-retry-btn:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
 #gameover-actions #gameover-retry-btn:hover::before{opacity:.82!important}
 #gameover-actions #gameover-back-btn:hover::after{filter:brightness(1.45)!important}
 #gameover-actions #gameover-back-btn:hover::before{opacity:.55!important}
+#gameover-actions #gameover-continue-btn:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+#gameover-actions #gameover-continue-btn:hover::before{opacity:1!important}
 #gameover-actions #gameover-retry-btn:hover,
 #gameover-actions #gameover-back-btn:hover{
   box-shadow:none!important;outline:none!important;
 }
+#gameover-actions #gameover-continue-btn{display:none!important}
+html body.game-clear-active #gameover-actions #gameover-continue-btn{display:flex!important}
+html body.game-clear-active #gameover-retry-btn,
+html body.game-clear-active #gameover-back-btn{display:none!important}
+html body.game-clear-active #gameover-actions{justify-content:center!important}
+html body.gameover-ui-pending #scr-gameover.gameover-overlay-active{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+html body.game-clear-active #gameover-video-tint,
+html body.game-clear-active #gameover-video-shade{display:none!important}
 #gameover-board-panel{position:absolute;left:48%;top:50%;width:1630.1997px;height:1407px;transform:translateY(-50%);padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;z-index:2;animation:gameoverBoardReveal .45s 1.45s both!important;overflow:visible!important}
 .gameover-board-title{display:none!important}
 #gameover-board-grid{position:absolute;inset:0!important;width:1630.1997px!important;height:1407px!important;display:block!important;overflow:visible!important}
@@ -11361,13 +11477,21 @@ html body.reward-screen-active.debug-mode #btn-test-battle,
 html body.reward-screen-active.debug-mode #btn-debug-gameover{
   position:absolute!important;top:524.737px!important;width:492.972px!important;height:121.263px!important;
   z-index:28!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;white-space:nowrap!important;opacity:1!important;border:0!important;border-radius:0!important;
-  background:transparent url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   color:var(--prod-gold)!important;display:block!important;overflow:visible!important;
 }
 html body.reward-screen-active.debug-mode #btn-test-battle{left:2749px!important}
+/* .btn は transition:all .2s を持つため、編成画面を開いた瞬間に top が
+   1660px台→524px台へ変わる分がアニメーションし、2つのボタンが上へスライドして見える。
+   位置は即座に確定させ、色・不透明度など見た目の変化だけ遷移させる。 */
+html body #btn-test-battle,
+html body #btn-debug-gameover{
+  transition-property:color,background-color,border-color,opacity,filter,box-shadow,text-shadow!important;
+  transition-duration:.2s!important;
+}
 html body.reward-screen-active.debug-mode #btn-debug-gameover{left:3277.028px!important}
 html body.reward-screen-active.debug-mode #btn-test-battle::before,
-html body.reward-screen-active.debug-mode #btn-debug-gameover::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover::before,
 html body.reward-screen-active.debug-mode #btn-debug-gameover:hover::before{opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover,
@@ -11397,6 +11521,27 @@ html body.gameover-active #scr-battle #battle-counters{
   visibility:visible!important;pointer-events:auto!important;z-index:10000!important;
 }
 html body.gameover-active #battle-end-fade{position:absolute!important;inset:0!important;z-index:69!important;visibility:visible!important;opacity:.78!important;pointer-events:none!important}
+/* ゲームクリアでは戦闘画面を完全に隠す。movie4の暗転→game_clear.webmは1.2秒の
+   クロスフェードで入れ替わるため、下地が.78のままだとその間だけ戦闘画面が透けて見える。 */
+html body.gameover-active.game-clear-active #battle-end-fade{opacity:1!important;transition:none!important}
+/* デバッグ用のミュート／編成ボタンの既定の見た目。opacity/z-indexをインラインに置くと
+   ゲームオーバー時の上書きが効かないため、こちらのCSSで持つ（display:noneはJSが切り替える）。 */
+html body #battle-mute-btn,
+html body #battle-formation-btn{
+  opacity:.7;
+  z-index:25;
+}
+/* デバッグ用のミュート／編成ボタン（通常はz-index:25）は、そのままだと戦闘画面の
+   暗幕(z-index:69)やクリア演出に隠れて「見えないのに押せる」状態になる。
+   結果・クリア画面でも操作できるよう、暗幕より手前へ出して有効なままにする
+   （編成ボタン側はゲームオーバー演出を閉じてから編成画面へ移る）。 */
+html body.gameover-active #battle-mute-btn,
+html body.gameover-active #battle-formation-btn{
+  z-index:10001!important;
+  visibility:visible!important;
+  opacity:.85!important;
+  pointer-events:auto!important;
+}
 html body.gameover-active #scr-battle #battle-options-btn{opacity:1!important;filter:none!important}
 html body.gameover-active #btn-test-battle,html body.gameover-active #btn-debug-gameover{display:none!important}
 @keyframes gameoverTitleGradient{0%{opacity:0;background-position:100% 0;filter:brightness(.28)}45%{opacity:1;filter:brightness(.55)}100%{opacity:1;background-position:0 0;filter:none}}
@@ -11468,7 +11613,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
 #map-name-main{font-size:92px!important;font-weight:700!important;letter-spacing:.08em!important;line-height:1!important}
 #village-name-sub:empty,
 #map-name-sub:empty{display:none!important}
-/* 施設ボタン：button_blue.svg（button_purple.svgの青／半透明版）を元ファイル寸法（498×124）で使う。
+/* 施設ボタン：button_blue2.svg（button_brown2.svgの青／半透明版）を元ファイル寸法（498×124）で使う。
    ホバー発光は編成画面の操作ボタン（#reward-move-btns .rew-move-btn）と同じ方式に統一する。 */
 #village-facilities{position:absolute!important;inset:0!important;z-index:8!important;pointer-events:none!important}
 .village-facility{
@@ -11494,7 +11639,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   position:absolute!important;
   inset:0!important;
   z-index:1!important;
-  background:url("assets/ui/button_blue.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_blue2.svg") center/100% 100% no-repeat!important;
   transition:filter .16s ease-out!important;
   pointer-events:none!important;
 }
@@ -11579,24 +11724,25 @@ html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .s
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-pending-sale-ui{
   display:flex!important;
 }
-/* 3枠は上・下・上と互い違いに置き、行の上下に余白ができないようにする。 */
+/* 3枠は下・上・下と互い違いに置き、行の上下に余白ができないようにする。 */
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-up{
   align-self:flex-start!important;
 }
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-down{
   align-self:flex-end!important;
 }
-/* 手持ちアイテム枠（189px正方形）用に、カード用の売却UIを縮小した寸法で適用する。
+/* 手持ちアイテム枠の売却UIは、カード上の売却UI（.shop-board-sell-value/.shop-board-sell-btn）と
+   同じ寸法・同じ間隔にする（幅96×高さ51、右端4px、価格top:30・ボタンtop:94＝間隔13px、24px）。
    枠は<i>要素なのでfont-style:normalでイタリックを打ち消す。 */
 html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
 html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
   position:absolute!important;
-  right:3px!important;
-  width:70px!important;
-  height:38px!important;
-  min-width:70px!important;
+  right:4px!important;
+  width:96px!important;
+  height:51px!important;
+  min-width:96px!important;
   box-sizing:border-box!important;
-  padding:1px 3px!important;
+  padding:2px 4px!important;
   display:flex!important;
   align-items:center!important;
   justify-content:center!important;
@@ -11604,7 +11750,7 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
   border-radius:4px!important;
   background:rgba(5,7,10,.9)!important;
   color:var(--gold2)!important;
-  font-size:19px!important;
+  font-size:24px!important;
   line-height:1.1!important;
   font-weight:800!important;
   font-style:normal!important;
@@ -11613,11 +11759,11 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
   z-index:10011!important;
 }
 html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
-  top:18px!important;
+  top:30px!important;
   pointer-events:none!important;
 }
 html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  top:60px!important;
+  top:94px!important;
   font-family:var(--font-hd)!important;
   font-style:normal!important;
   cursor:pointer!important;
@@ -11770,12 +11916,12 @@ html body.village-screen-active #village-move-btns .rew-move-btn::after{
   z-index:2!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
-  background:url("assets/ui/button.svg") center/100% 100% no-repeat!important;
+  background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   background-color:#260311!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after,
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
-  background-image:url("assets/ui/button.svg")!important;
+  background-image:url("assets/ui/button_blue1.svg")!important;
   background-color:#260311!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::before{
@@ -11832,14 +11978,14 @@ html body.village-screen-active #village-move-btns .rew-move-btn::after{
   border-radius:10px!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
-  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button_blue1.svg")!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn:hover{
   box-shadow:0 0 18px 4px rgba(255,218,125,.45)!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::after,
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
-  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button.svg")!important;
+  background-image:linear-gradient(#3d220b,#3d220b),url("assets/ui/button_blue1.svg")!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
   background-size:100% 100%!important;
@@ -11848,7 +11994,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn::after{
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after,
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.village-screen-active #village-move-btns{
   left:2749px!important;
@@ -11879,7 +12025,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn::before{
   height:113.145px!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::before{
   display:block!important;
@@ -11891,7 +12037,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn::before{
   filter:brightness(2.3) drop-shadow(0 0 10px rgba(255,231,164,1)) drop-shadow(0 0 22px rgba(255,194,70,.92))!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::before{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
   opacity:1!important;
@@ -11962,7 +12108,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn::before{
   left:0!important;
   width:492.972px!important;
   transform:none!important;
-  background-image:url("assets/ui/button_purple.svg")!important;
+  background-image:url("assets/ui/button_brown2.svg")!important;
   opacity:0!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
@@ -11970,7 +12116,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::before{
   inset:0!important;width:auto!important;height:auto!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   transform:none!important;opacity:0!important;
 }
@@ -11981,7 +12127,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn{isolation:isola
 html body.village-screen-active #village-move-btns .rew-move-btn::before{
   content:""!important;display:block!important;position:absolute!important;inset:0!important;
   width:auto!important;height:auto!important;transform:none!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;pointer-events:none!important;z-index:-1!important;animation:none!important;
 }
@@ -11989,7 +12135,7 @@ html body.village-screen-active #village-move-btns .rew-move-btn:hover::before{
   opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn:hover::after{
-  background-image:url("assets/ui/button_brown.svg")!important;
+  background-image:url("assets/ui/button_brown1.svg")!important;
 }
 html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn::before{
   content:""!important;
@@ -11999,7 +12145,7 @@ html body.village-screen-active #village-move-btns#village-move-btns .rew-move-b
   width:100%!important;
   height:100%!important;
   transform:none!important;
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88))!important;
   opacity:0!important;
   pointer-events:none!important;
@@ -12011,7 +12157,7 @@ html body.village-screen-active #village-move-btns#village-move-btns .rew-move-b
   animation:unifiedActionButtonGlow 1.1s ease-in-out infinite!important;
 }
 html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn:hover::after{
-  background:transparent url("assets/ui/button_brown.svg") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
 }
 html body.village-screen-active #village-move-btns#village-move-btns .rew-move-btn::before{
   opacity:.48!important;
@@ -12370,6 +12516,12 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out
   display:none!important;
 }
 #stage-bg-video.is-active{display:block!important}
+/* ラスボス戦のlast_battle.webmは背景そのものとして全面に出す。
+   （通常のステージ環境動画のような screen合成・半透明では使わない） */
+html body.final-battle-bg #stage-bg-video.is-active{
+  opacity:1!important;
+  mix-blend-mode:normal!important;
+}
 /* 編成画面・施設内では重ねない（専用背景の邪魔になるため）。
    pauseはせず表示だけ止めるので、勝利・撤退の表示中や次の戦闘では途切れずに続く。 */
 html body.reward-screen-active #stage-bg-video{display:none!important}
@@ -12537,7 +12689,7 @@ html body.village-intro-reveal-ui #scr-village > *:not(#village-intro-title):not
 
 
 /* ══════════════════════════════════════════════════════════
-   街の施設（魔導店／道具屋／鍛冶屋）では、店の背景画の真上に black.svg を
+   街の施設（魔導店／道具屋／鍛冶屋）では、店の背景画の真上に black1.svg を
    乗算で重ねる。UI（z-index:1以上）より奥、背景（要素自身のbackground）より手前。
    ══════════════════════════════════════════════════════════ */
 html body.reward-screen-active.facility-bg-active #scr-battle::before{
@@ -12546,12 +12698,473 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   position:absolute!important;
   inset:0!important;
   z-index:0!important;
-  background:url("assets/art/backgrounds/black.svg") center/100% 100% no-repeat!important;
+  background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
   mix-blend-mode:multiply!important;
   opacity:1!important;
   filter:none!important;
   pointer-events:none!important;
 }
+
+html body.library-screen-active #scr-village.asset-backed::after{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:0!important;
+  background:url("assets/art/backgrounds/black2.svg") center/100% 100% no-repeat!important;
+  mix-blend-mode:multiply!important;
+  opacity:1!important;
+  pointer-events:none!important;
+}
+html body.library-formation-active.reward-screen-active #scr-battle::before{
+  background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
+}
+html body.library-formation-active #scr-battle{
+  background:#08020f url("assets/art/backgrounds/library.png") center/cover no-repeat!important;
+}
+html body.library-screen-active #village-name-plate,
+html body.library-screen-active #scr-village #village-move-btns #village-depart-btn,
+html body.library-screen-active #village-intro-title{display:none!important}
+html body:not(.library-screen-active) #scr-village #library-exit-btn{display:none!important}
+#library-title{
+  position:absolute!important;left:70px!important;top:70px!important;width:520px!important;height:237px!important;
+  display:none;align-items:center;gap:42px;color:var(--prod-gold);z-index:10!important;pointer-events:none;
+}
+#library-title img{width:225px;height:237px;object-fit:contain}
+#library-title span{font-size:86px;font-weight:700;letter-spacing:.08em;white-space:nowrap;text-shadow:0 3px 10px rgba(0,0,0,.85),0 0 18px rgba(160,92,255,.45)}
+#library-actions{position:absolute;inset:0;display:none;z-index:8;pointer-events:none}
+#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
+#library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff6dc}
+#library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
+#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#8c5c2d;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
+html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
+/* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
+   位置は複製元のインラインstyle（right/top）をそのまま引き継ぐため編成画面と完全に一致する。 */
+html body.gameover-active #gameover-board-grid #board-card-visibility-btn{display:inline-flex}
+#board-card-visibility-btn::before{content:'';position:absolute;inset:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;opacity:0;pointer-events:none;filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9));transition:opacity .12s ease}
+#board-card-visibility-btn:hover::before{opacity:.84}
+/* 手持ちアイテムの売却UIは道具屋以外（カード屋・鍛冶屋）にも表示されるが、
+   スタイルが .item-shop-active 前提だったため、そこでは<i>要素の既定スタイル
+   （11px・イタリック）のまま表示されていた。道具屋と同じ体裁を全画面に適用する。
+   寸法・間隔はカード上の売却UIと同一（96×51／価格top:30・ボタンtop:94／24px）。 */
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  position:absolute!important;
+  right:4px!important;
+  width:96px!important;
+  height:51px!important;
+  min-width:96px!important;
+  box-sizing:border-box!important;
+  padding:2px 4px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border:1px solid rgba(230,210,150,.75)!important;
+  border-radius:4px!important;
+  background:rgba(5,7,10,.9)!important;
+  color:var(--gold2)!important;
+  font-size:24px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  font-style:normal!important;
+  text-align:center!important;
+  text-shadow:0 1px 2px #000!important;
+  z-index:10011!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
+  top:30px!important;
+  pointer-events:none!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  top:94px!important;
+  font-family:var(--font-hd)!important;
+  font-style:normal!important;
+  cursor:pointer!important;
+  z-index:10012!important;
+}
+/* ══════════════════════════════════════════════════════════
+   ドラッグ中の「#main-hand-area #hand-pane *{filter:none!important;opacity:1!important}」は
+   暗転オーバーレイより上で盤面を明るく保つための指定だった（オーバーレイは廃止済み）。
+   この * 指定が、ホバー時だけ光るはずの .card-glow-layer（通常 opacity:0／
+   border 2px + 白いグロー）を魔導板の全カードで点灯させてしまい、
+   「ドラッグすると所持カードが光る」状態になっていた。
+   ドラッグ元（.dragging）とホバー中のカードは従来どおり光らせ、
+   それ以外のカードだけ元の値へ戻す。カードの影と出撃不可の減光も同様に戻す。
+   ══════════════════════════════════════════════════════════ */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots > .card:not(:hover):not(.drag-over):not(.dragging) > .card-glow-layer,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card:not(:hover):not(.drag-over):not(.dragging) > .card-glow-layer{
+  opacity:0!important;
+}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots > .card:not(:hover):not(.drag-over):not(.dragging),
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card:not(:hover):not(.drag-over):not(.dragging){
+  filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))!important;
+}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots > .card.invalid-battle-position > .character-frame-layer,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots > .card.invalid-battle-position > .board-frame-layer,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.invalid-battle-position > .character-frame-layer,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.invalid-battle-position > .board-frame-layer{
+  filter:brightness(.5) saturate(.5)!important;
+}
+/* 図書館の「魔導板の使い方」中は、旅の進捗枠内のアイコンのホバー反応も無効にする。 */
+html body.library-tutorial-active #reward-production-ui .reward-prod-journey,
+html body.library-tutorial-active #reward-production-ui .reward-prod-journey *{
+  pointer-events:none!important;
+}
+/* 図書館の「魔導板の使い方」中は、チュートリアルで指定したカード・マス以外を光らせない。
+   ドラッグ中にカードの上を通ると .drag-over が付いたり外れたりして
+   .card-glow-layer（opacity 0⇔1／transition .12s）が点いたり消えたりし、
+   所持カードが点滅して見えるため。 */
+html body.library-tutorial-active #hand-pane #hand-slots.unit-equip-slots > *:not(.library-tutorial-glow) > .card-glow-layer,
+html body.library-tutorial-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > *:not(.library-tutorial-glow) > .card-glow-layer{
+  opacity:0!important;
+  transition:none!important;
+}
+html body.library-tutorial-active #hand-slots.unit-equip-slots > *:not(.library-tutorial-glow).drag-over,
+html body.library-tutorial-active #hand-slots.unit-equip-slots > *:not(.library-tutorial-glow):hover,
+html body.library-tutorial-active #battle-order-row > *:not(.library-tutorial-glow).drag-over,
+html body.library-tutorial-active #battle-order-row > *:not(.library-tutorial-glow):hover{
+  box-shadow:none!important;
+  outline:none!important;
+  filter:none!important;
+}
+/* マス・カードの明滅は図書館の「魔導板の使い方」中だけに限定する。
+   通常のホバー／ドロップ先の発光は明滅させない（map.js 側のタイマーで
+   .library-tutorial-glow のインライン box-shadow だけを明滅させている）。 */
+/* ══════════════════════════════════════════════════════════
+   編成画面のレイアウト再調整（ゲームキャンバス座標 3840×2160）。
+   アイテム X70/Y362 H372 ／ 指輪 X70/Y769 H372 ／ クエスト X70/Y1176 H289
+   ／ 旅の進捗 X70/Y1500 ／ 所持金 X70/Y1990 ／ ライフ X597.5/Y1990
+   ／ 報酬カード X1125/Y70 ／ 魔導板 X1125/Y683
+   ══════════════════════════════════════════════════════════ */
+html body.reward-screen-active .reward-prod-item{left:70px!important;top:362px!important;height:372px!important}
+html body.reward-screen-active .reward-prod-ring{left:70px!important;top:769px!important;height:372px!important}
+html body.reward-screen-active .reward-prod-quest{left:70px!important;top:1176px!important;height:289px!important}
+html body.reward-screen-active .reward-prod-journey{left:70px!important;top:1500px!important}
+/* 所持金・ライフのタイルは .reward-prod-bottom（キャンバス座標 X70/Y1990）の中に置かれるため、
+   left はコンテナ内の相対値で指定する。所持金は左端(0)＝X70でそのまま、ライフは X597.5 相当の 527.5px。 */
+html body.reward-screen-active #reward-production-ui .reward-prod-turn{left:527.5px!important}
+html body.reward-screen-active #battle-order-section{left:1125px!important;top:70px!important}
+html body.reward-screen-active #hand-pane-board-bg{left:1125px!important;top:683px!important}
+html body.reward-screen-active #hand-pane:has(#hand-slots.unit-equip-slots),
+html body.reward-screen-active #hand-pane{left:1105px!important;top:683px!important}
+/* ATK/HPの桁数が増えた時、カード中央下の矢印（.panel-dir-down）にぶつからないよう縮める。
+   数字はボックスに中央揃えなので、中心を軸にscaleすれば位置は保ったまま
+   左右へのはみ出しだけが小さくなる。倍率は実測値から算出（詳細は render.js の
+   _cardStatDigitClass のコメント）。 */
+/* 戦闘中のユニットカードのATK/HP（.slot-stats .a/.h）も、魔導板のカードと同じ
+   72px幅・65.52pxの数字ボックスなので同じ縮小率を当てる。 */
+html body .card-summon-atk.stat-d3,
+html body .card-summon-hp.stat-d3,
+html body .slot-stats .a.stat-d3,
+html body .slot-stats .h.stat-d3{transform:scale(.72)!important;transform-origin:center center!important}
+html body .card-summon-atk.stat-d4,
+html body .card-summon-hp.stat-d4,
+html body .slot-stats .a.stat-d4,
+html body .slot-stats .h.stat-d4{transform:scale(.54)!important;transform-origin:center center!important}
+html body .card-summon-atk.stat-d5,
+html body .card-summon-hp.stat-d5,
+html body .slot-stats .a.stat-d5,
+html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin:center center!important}
+/* ══════════════════════════════════════════════════════════
+   戦闘開始時の台詞（敵シートの「台詞1〜3」列）。
+   #battle-line-stage を設計座標（3840x2160）のまま扱えるよう、
+   JS側が --game-scale をそのまま transform:scale() で掛ける。
+   ══════════════════════════════════════════════════════════ */
+#battle-line-layer{
+  position:fixed!important;
+  inset:0!important;
+  z-index:98500!important;   /* カットシーン動画(98000)より上、暗転(99000)より下 */
+  /* 会話中もカードのホバー説明を見られるよう、レイヤーはクリックを受けない。
+     台詞送りのクリックはJS側がdocumentのキャプチャ段階で拾う。 */
+  pointer-events:none!important;
+}
+#battle-line-stage{
+  position:absolute!important;
+  width:3840px!important;
+  height:2160px!important;
+  transform-origin:0 0!important;
+  pointer-events:none!important;
+}
+/* 枠はJS側で <polygon> の頂点を計算して描く（SVG動的描画）。
+   border-imageのスライスでは「斜辺の角度」と「線の太さ」を同時に固定できない
+   （伸ばす向きに応じてどちらかが必ず変わる）ため、形そのものを都度組み立てる。
+   ・viewBoxを 0 0 幅 高さ にして 1ユニット＝設計座標1px にするので、
+     stroke-width:5 は枠の大小に関係なく常に5px（＝元SVGと同じ太さ）になる。
+     ゲーム全体の拡大率（--game-scale）には#battle-line-stage側で追従する。
+   ・斜辺の横オフセットCを高さに比例させる（C = 2.89 + (H/2-2.62)×0.57731）ので、
+     元SVG（1091.39x194.88／頂点 57.7,2.62 → 2.89,97.56）と角度が完全に一致する。 */
+#battle-line-bubble{
+  position:absolute!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:0!important;
+  background:none!important;
+  border:0!important;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.55))!important;
+  z-index:1!important;
+  pointer-events:none!important;
+}
+#battle-line-bubble-shape{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  width:100%!important;
+  height:100%!important;
+  overflow:visible!important;
+  pointer-events:none!important;
+}
+#battle-line-text{
+  position:relative!important;
+  z-index:1!important;
+  white-space:pre!important;
+  text-align:left!important;
+  color:#2b1a0c!important;
+  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-size:60px!important;
+  font-weight:700!important;
+  line-height:1.45!important;
+  letter-spacing:.04em!important;
+  font-feature-settings:"palt" 1!important;
+}
+/* 尻尾は枠より上のレイヤーに置く（付け根の継ぎ目を尻尾側で隠すため） */
+#battle-line-tail{
+  position:absolute!important;
+  background-color:transparent!important;
+  background-position:center!important;
+  background-size:100% 100%!important;
+  background-repeat:no-repeat!important;
+  transform-origin:center center!important;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,.45))!important;
+  z-index:2!important;
+  pointer-events:none!important;
+}
+/* ラスボス戦とScene 4（黄昏の回廊〜謁見の黒影道）だけ暗色（speechbubble3/4）。 */
+#battle-line-layer.is-dark #battle-line-text{
+  color:#fff!important;
+  text-shadow:0 2px 6px rgba(0,0,0,.9)!important;
+}
+/* 会話中もカードのホバー説明を最前面に出す（台詞枠 z-index:98500 より上）。 */
+html body.battle-line-active #kw-tooltip{z-index:98600!important}
+/* ラスボス戦とScene 4（黄昏の回廊〜謁見の黒影道）だけ暗色にする。 */
+#battle-line-layer.is-dark #battle-line-text{
+  color:#fff!important;
+  text-shadow:0 2px 6px rgba(0,0,0,.9)!important;
+}
+/* ══════════════════════════════════════════════════════════
+   鍛冶屋のメニュー。道具屋（.item-shop-card）と同じ並び・同じ価格バッジで、
+   カードの絵だけ b_board1〜5.svg に差し替える。
+   ══════════════════════════════════════════════════════════ */
+html body #battle-order-row > .rew-card.forge-card{
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+  cursor:pointer!important;
+}
+html body #battle-order-row > .rew-card.forge-card.item-visual::before{
+  background:var(--forge-art) center/100% 100% no-repeat!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-buy-price{
+  display:flex!important;
+}
+/* 購入できない選択肢は暗くし、価格に斜線を引く。 */
+html body #battle-order-row > .rew-card.forge-card.cant{
+  filter:brightness(.42) saturate(.55)!important;
+  cursor:default!important;
+}
+html body #battle-order-row > .rew-card.forge-card.cant > .shop-buy-price{
+  text-decoration:line-through!important;
+  text-decoration-thickness:3px!important;
+  color:#c8b48a!important;
+}
+/* 本文テキストはプロポーショナル字送りにする（和文の約物・仮名のアキを詰める）。
+   クエスト枠・旅の進捗枠・会話文（施設説明／チュートリアルのボックス）が対象。 */
+html body .reward-prod-quest-body,
+html body .reward-prod-quest-body *,
+html body .reward-prod-journey,
+html body .reward-prod-journey *,
+html body #library-howto-desc,
+html body .village-facility-desc,
+html body .facility-desc,
+html body .library-tutorial-box{
+  font-feature-settings:"palt" 1!important;
+  font-kerning:normal!important;
+}
+/* palt でアキが詰まる分、字送りを +0.04em 足して読みやすさを戻す。
+   既に .04em が入っている施設説明だけは .08em（＝現状 +0.04em）にする。 */
+html body .reward-prod-quest-body,
+html body .reward-prod-quest-body *,
+html body .reward-prod-journey,
+html body .reward-prod-journey *,
+html body .facility-desc,
+html body .library-tutorial-box{
+  letter-spacing:.04em!important;
+}
+html body #library-howto-desc,
+html body .village-facility-desc{
+  letter-spacing:.08em!important;
+}
+/* 「貸出」バッジ・「売却」ボタン・売却価格の右端を、カード／アイテムの右端にぴったり揃える
+   （従来は right:3〜4px 分だけ内側にズレていた）。 */
+html body.reward-screen-active .library-loan-badge,
+html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value,
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value,
+html body.reward-screen-active .shop-pending-sell-btn,
+html body.reward-screen-active .shop-board-sell-btn,
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  right:0!important;
+  left:auto!important;
+}
+/* ══════════════════════════════════════════════════════════
+   ホバー時の明滅を SVG の形そのものでマスクする。
+   button_invisible.svg / button_option.svg は内側が半透明の塗り（opacity .5）で、
+   drop-shadow のぼかしがその内側にも回り込むため枠内が光って見えていた。
+   発光レイヤーを同じSVGでマスクし、形の外へ出る光を完全に切り落とす。
+   （枠自体は brightness で明るくなるだけで、にじむ発光は出さない）
+   ══════════════════════════════════════════════════════════ */
+html body #board-card-visibility-btn::before{
+  left:0!important;
+  top:0!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:100%!important;
+  height:100%!important;
+  /* button_invisible.svg は「外周の線」「内側の細い装飾線」「半透明の塗り」で構成される。
+     そのまま発光させると内側の線からも光ってしまうため、発光レイヤーの絵は
+     外周の線だけを取り出したもの（同じviewBox・同じパス）に差し替える。 */
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 262 62'%3E%3Cpath d='M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+  /* SVGフィルタでアルファを二値化してからぼかす。外周線の周囲だけがふわりと光る。 */
+  /* オプションボタンと同じ強さにする。あちらは枠画像(::after)が発光レイヤーの上に
+     重なるため、見えるのは外周のにじみだけ。こちらは枠画像が上に無いので、
+     枠の絵を重ねない「発光のみ」のフィルタを使う。 */
+  filter:url(#ui-btn-outer-glow-only)!important;
+  -webkit-mask-image:none!important;
+  mask-image:none!important;
+  overflow:visible!important;
+}
+html body #board-card-visibility-btn:hover::before{opacity:.84!important}
+/* オプションボタン：back_light.svg の層はアイコンより前面にあり、枠内を光らせるうえ
+   アイコンの色まで変えてしまう。枠画像(button_option.svg)の複製を同じSVGでマスクした
+   レイヤーへ置き換える。アイコン(option.svg)は ::after 側にあり触らない。 */
+html body.reward-screen-active #battle-options-btn::before,
+html body.world-map-active #battle-options-btn::before,
+html body #scr-battle #battle-options-btn::before{
+  left:0!important;
+  top:0!important;
+  width:110px!important;
+  height:90px!important;
+  background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat!important;
+  opacity:0!important;
+  animation:none!important;
+  z-index:1!important;
+  transform:none!important;
+  filter:brightness(1.9) url(#ui-btn-outer-glow)!important;
+  -webkit-mask-image:none!important;
+  mask-image:none!important;
+  overflow:visible!important;
+}
+html body.reward-screen-active #battle-options-btn:hover::before,
+html body.world-map-active #battle-options-btn:hover::before,
+html body #scr-battle #battle-options-btn:hover::before{opacity:.84!important}
+/* 枠画像そのものには発光を掛けない（内側へ回り込むため）。 */
+html body.reward-screen-active #battle-options-btn:hover::after,
+html body.world-map-active #battle-options-btn:hover::after,
+html body #scr-battle #battle-options-btn:hover::after{filter:none!important}
+/* ホバーで光るのは枠だけ。文字色は変えない。 */
+html body #board-card-visibility-btn,
+html body #board-card-visibility-btn:hover,
+html body #board-card-visibility-btn:focus,
+html body #board-card-visibility-btn:active,
+html body #board-card-visibility-btn .bcv-label,
+html body #board-card-visibility-btn:hover .bcv-label,
+html body #board-card-visibility-btn:focus .bcv-label,
+html body #board-card-visibility-btn:active .bcv-label{color:#8c5c2d!important;text-shadow:none!important;filter:none!important}
+/* ::before のホバー発光レイヤーは絶対配置のため、文字より後に描画されて文字を覆う
+   （＝文字色が変わって見える）。ラベルをspanで包んで発光レイヤーより前面に出す。 */
+html body #board-card-visibility-btn .bcv-label{position:relative;z-index:1}
+/* カード非表示：マスの右クリック挙動を確認するための機能なので、カードの中身も枠も完全に隠す。
+   枠レイヤーを除外に残すとカードの輪郭だけが残ってしまう。マス自体はクリックできるよう要素は残す。 */
+html body.board-cards-hidden #hand-slots.unit-equip-slots > .card > *{visibility:hidden!important}
+html body.board-cards-hidden #hand-slots.unit-equip-slots > .card{
+  background:transparent!important;border-color:transparent!important;box-shadow:none!important;outline:0!important}
+#library-board-tutorial{position:fixed;inset:0;z-index:10000;pointer-events:auto}
+.library-tutorial-dims{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease}
+.library-tutorial-dim{position:fixed;background:rgba(0,0,0,.5);pointer-events:none}
+.library-tutorial-active .library-tutorial-dims{opacity:1}
+.library-tutorial-box{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(1160px * var(--game-scale));height:calc(320px * var(--game-scale));padding:calc(34px * var(--game-scale)) calc(46px * var(--game-scale));box-sizing:border-box;background:rgba(24,14,8,.96);border:calc(3px * var(--game-scale)) solid #c49a6c;border-radius:calc(12px * var(--game-scale));color:#f4e7c8;font-family:var(--font-jp),serif;font-size:calc(35px * var(--game-scale));line-height:1.55;text-align:left;box-shadow:0 0 calc(24px * var(--game-scale)) rgba(0,0,0,.8);pointer-events:none;z-index:10002}
+body.library-tutorial-lock.library-tutorial-moving #battle-order-row .rew-card.library-tutorial-glow,
+body.library-tutorial-lock.library-tutorial-moving #debug-card-palette .library-tutorial-glow{box-shadow:none!important}
+.library-tutorial-box-hidden{visibility:hidden;pointer-events:none}
+.library-tutorial-intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff3d3;font-family:var(--font-jp),serif;font-size:calc(104px * var(--game-scale));font-weight:700;letter-spacing:.08em;text-shadow:0 4px 20px #000;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.library-tutorial-intro-active .library-tutorial-intro{opacity:1}
+.library-tutorial-intro-active .library-tutorial-box{opacity:0;pointer-events:none}
+.library-tutorial-allowed{position:relative!important;z-index:10002!important;filter:none!important}
+.library-tutorial-glow{position:relative!important;z-index:10003!important;filter:none!important;box-shadow:0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important}
+/* 魔導板のマスには「html body #hand-slots.unit-equip-slots > [data-map-board="summon"]{box-shadow:...!important}」等、
+   クラス1つ（詳細度0,1,0）の .library-tutorial-glow より詳細度が高い!importantルールが存在する。
+   そのままでは移動先マスの発光が枠線に上書きされて光らないため、
+   クラスを二重指定＋id付きセレクタで確実に勝たせる。マスの枠線は内側に残す。 */
+html body .library-tutorial-glow.library-tutorial-glow,
+html body #hand-slots.unit-equip-slots > .library-tutorial-glow.library-tutorial-glow,
+html body #battle-order-row .library-tutorial-glow.library-tutorial-glow{
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
+}
+/* 魔導板の枠画像(#hand-pane-board-bg)は通常 z-index:9 で #hand-pane(10) の下にある。
+   .library-tutorial-allowed の z-index:10002 は board-bg には効くが、
+   #hand-pane 側には詳細度の高い既存ルール（z-index:2/10）が勝って効かないため、
+   枠画像がカードと「魔導板」見出しの上に来て枠内が暗く見える。元の重なり順に戻す。 */
+/* ══════════════════════════════════════════════════════════
+   カードのドラッグ中に魔導板・報酬枠を暗転オーバーレイより上へ出す
+   z-index引き上げを打ち消す。オーバーレイ自体を廃止したため引き上げは不要で、
+   引き上げると魔導板のカードが#hand-paneの装飾レイヤーより前面に出て
+   枠線が明るく浮き上がる（＝所持カードが光って見える）。
+   既存ルールは「.dragzone-x.dragzone-x」や body[class*=] で詳細度を上げているため、
+   :is()を三重に重ねて確実に勝たせ、ドラッグしていない時と同じ値へ戻す。
+   ══════════════════════════════════════════════════════════ */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area{position:static!important;inset:auto!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;pointer-events:auto!important}
+/* dragzone-* 側の「html body.dragzone-x.dragzone-x #main-hand-area #hand-pane *{filter:none!important}」は、
+   矢印マーク（.panel-dir）と合体リンク（.panel-unite-link）の影まで消してしまう。
+   影が消えた分だけ盤面のカードが明るくなり「所持カードが光る」ように見えるため、元の影へ戻す。
+   相手ルールは id2 + class2 なので、id2 + class4 で確実に勝たせる。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots .panel-dir,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane #hand-slots.unit-equip-slots .panel-unite-link,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots .panel-dir,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots .panel-unite-link,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section #battle-order-row .panel-dir,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section #battle-order-row .panel-unite-link{filter:drop-shadow(rgba(0,0,0,.9) 0 2px 3px)!important}
+/* .battle-scroll の引き上げ（z-index:1→30）も暗転オーバーレイを届かせるためのもの。
+   引き上げると盤面全体が上位の暗いレイヤーより前面に出て明るく光って見える。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) .battle-scroll{z-index:1!important}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane-board-bg{z-index:9!important}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane{z-index:10!important}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section{z-index:2!important}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots{z-index:auto!important}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots > .card,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots > .card-empty{position:relative!important;z-index:auto!important}
+/* カードのドラッグ中に魔導板・報酬枠以外を50%黒で暗くする演出は廃止する。
+   周囲が暗くなる分、魔導板の所持カードが光って見えるため。
+   z-index引き上げとドラッグ元の透明化(.dragging)はそのまま残す。 */
+html body #mainequip-drag-overlay{display:none!important}
+/* 既存の暗転ルールは「.dragzone-x.dragzone-x」とクラスを二重指定して詳細度を上げているため、
+   打ち消す側も :is() を三重に重ねて確実に勝たせる。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #debug-card-palette,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #spell-slot-pane{filter:none!important}
+html body #hand-pane-board-bg.library-tutorial-allowed,
+html body.library-tutorial-lock #scr-battle #hand-pane-board-bg.library-tutorial-allowed{z-index:9!important}
+body.library-tutorial-lock #scr-battle *{pointer-events:none!important}
+body.library-tutorial-lock #library-board-tutorial,
+body.library-tutorial-lock #library-board-tutorial *{pointer-events:none!important}
+body.library-tutorial-lock #scr-battle .library-tutorial-allowed{pointer-events:auto!important;z-index:10002!important}
+/* ボックスはクリックを受け取らない。document側でクリックを拾って次へ進めるため、
+   ここをautoにすると4-2・5-2でカードを掴む操作の邪魔になる。 */
+body.library-tutorial-lock #library-board-tutorial .library-tutorial-box{pointer-events:none!important}
+body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .library-tutorial-box{pointer-events:auto!important;cursor:pointer}
+#library-howto-btn:hover + #library-howto-desc{opacity:1}
+.library-loan-badge{top:30px!important;right:4px!important;left:auto!important;bottom:auto!important;width:96px!important;height:51px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:96px;text-align:center}
 
 </style>
 </head>
@@ -12617,8 +13230,8 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
     </div>
   </div>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
-  <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">🔊</button>
-  <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">編成</button>
+  <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">🔊</button>
+  <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">編成</button>
   <button class="btn small" id="battle-debug-map-btn" title="マップ無限再生（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">マップ</button>
   <div id="reward-production-ui" aria-hidden="true">
     <div class="reward-prod-title">
@@ -12741,6 +13354,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
         <div id="hand-pane-board-bg" aria-hidden="true" style="display:none"></div>
         <div id="hand-pane" class="hand-pane" style="flex:5;min-width:0">
           <span class="hand-pane-label spell-label">インベントリ <span id="hand-count">0</span>/<span id="hand-max">5</span></span>
+          <button id="board-card-visibility-btn" type="button" onclick="toggleBoardCardVisibility()"><span class="bcv-label">カード非表示</span></button>
           <div id="hand-slots"></div>
         </div>
         <div id="debug-card-palette" aria-label="デバッグカード一覧"></div>
@@ -12817,6 +13431,8 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <!-- 効果が薄い動画（塔のtower.webmなど）を2重に重ねるための2枚目。1枚目と同じ設定で同期再生する。 -->
   <video id="village-bg-video-2" muted loop playsinline aria-hidden="true"></video>
   <div id="village-facilities"></div>
+  <div id="library-title"><img src="assets/ui/main_icon.svg" alt=""><span>図書館</span></div>
+  <div id="library-actions"><button type="button" id="library-howto-btn" data-sfx-silent="1">魔導板の使い方</button><span id="library-howto-desc"></span></div>
   <!-- 所持金／ライフは戦闘画面の #battle-status-hud と同じマークアップ・同じクラスを使う -->
   <div id="village-status" aria-label="所持金とライフ">
     <div class="battle-status-counter">
@@ -12838,6 +13454,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
   <!-- 「出発する」は編成画面の「戦闘開始」ボタン（#reward-move-btns .rew-move-btn）と同じ構造 -->
   <div id="village-move-btns">
     <button type="button" class="btn rew-move-btn" id="village-depart-btn" data-sfx-silent="1"><span class="rew-btn-label">出発する</span></button>
+    <button type="button" class="btn rew-move-btn" id="library-exit-btn" data-sfx-silent="1" style="display:none"><span class="rew-btn-label">図書館から出る</span></button>
   </div>
   <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <!-- デバッグモードのみ表示。オプションボタンの直下に置く。 -->
@@ -12893,7 +13510,7 @@ html body.reward-screen-active.facility-bg-active #scr-battle::before{
         <div><b>最大ステータス</b><span id="go-stats">0 / 0</span></div>
         <div><b>プレイ時間</b><span id="go-time">0 : 00</span></div>
       </div>
-      <div id="gameover-actions"><button class="btn" id="gameover-retry-btn" data-sfx-silent="1">再挑戦</button><button class="btn" id="gameover-back-btn" data-sfx-silent="1">タイトルに戻る</button></div>
+      <div id="gameover-actions"><button class="btn" id="gameover-retry-btn" data-sfx-silent="1">再挑戦</button><button class="btn" id="gameover-continue-btn" data-sfx-silent="1">続ける</button><button class="btn" id="gameover-back-btn" data-sfx-silent="1">タイトルに戻る</button></div>
     </section>
     <section id="gameover-board-panel"><div id="gameover-board-grid"></div></section>
   </div>
@@ -12929,24 +13546,24 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=artfix2"></script>
-<script src="js/engine/audio.js?v=artfix1"></script>
+<script src="assets.js?v=orb1"></script>
+<script src="js/engine/audio.js?v=loop2"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=tower46"></script>
+<script src="js/data/local_xlsx_data.js?v=sheet0827"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=autogen1"></script>
+<script src="js/data/loader.js?v=forge3"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
-<script src="js/engine/state.js?v=wbreak1"></script>
-<script src="js/engine/pool.js?v=artno1"></script>
-<script src="js/engine/enemy.js?v=bugfixround2"></script>
-<script src="js/engine/battle.js?v=shake440"></script>
-<script src="js/engine/render.js?v=clip1"></script>
-<script src="js/engine/reward.js?v=item6"></script>
-<script src="js/engine/map.js?v=fix2"></script>
+<script src="js/engine/state.js?v=wbreak2"></script>
+<script src="js/engine/pool.js?v=artno2"></script>
+<script src="js/engine/enemy.js?v=count4"></script>
+<script src="js/engine/battle.js?v=bubblesvg1"></script>
+<script src="js/engine/render.js?v=line-fix2"></script>
+<script src="js/engine/reward.js?v=shopui3"></script>
+<script src="js/engine/map.js?v=shopui1"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=fix1"></script>
+<script src="js/engine/main.js?v=dbgform1"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -12965,6 +13582,43 @@ document.addEventListener('pointerdown',function(ev){
 },true);
 </script>
 <!-- 演出クリップ層。body直下へfixedで追加される演出はこの中に入れ、ゲーム背景の外へ出さない。 -->
+<!-- 死亡演出で焼け穴の輪郭を歪ませるフィルタの置き場。カードごとにJSが追加する。 -->
+<!-- UIボタンの外周発光。button_invisible.svg / button_option.svg は内側が半透明の塗り
+     （opacity .5）を持つため、素の drop-shadow では塗り全体から影が出て枠内まで光ってしまう。
+     feFuncA でアルファを二値化し、線画（アルファ1）だけを発光源にする。 -->
+<svg id="ui-btn-glow-filters" width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <filter id="ui-btn-outer-glow" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feComponentTransfer in="SourceAlpha" result="hard">
+        <feFuncA type="linear" slope="12" intercept="-8"/>
+      </feComponentTransfer>
+      <feGaussianBlur in="hard" stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#ffe7a4" flood-opacity="0.95" result="col"/>
+      <feComposite in="col" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- 発光だけを出す版（枠の絵は重ねない）。オプションボタンは枠画像(::after)が
+         発光レイヤーの上に重なって絵の分が隠れるため、枠画像が上に無いボタンでは
+         こちらを使わないと枠が二重に描かれて強く光って見える。 -->
+    <filter id="ui-btn-outer-glow-only" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feComponentTransfer in="SourceAlpha" result="hard">
+        <feFuncA type="linear" slope="12" intercept="-8"/>
+      </feComponentTransfer>
+      <feGaussianBlur in="hard" stdDeviation="4" result="blur"/>
+      <feFlood flood-color="#ffe7a4" flood-opacity="0.95" result="col"/>
+      <feComposite in="col" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="glow"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
+<svg id="death-burn-filters" width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"></svg>
 <div id="vfx-clip-root"></div>
 </body>
 </html>

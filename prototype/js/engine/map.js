@@ -42,6 +42,9 @@ function _applyMapPanelPowerSheetRows(){
     if(priceRaw&&!isNaN(price)) target.price=price;
     const desc=String(row['効果']||row['説明']||row['説明文']||'').trim();
     if(desc) target.desc=desc;
+    // 鍛冶屋のホバー説明。列が未追加の場合は「効果」を流用する。
+    const forgeDesc=String(row['鍛冶屋説明文']||'').trim();
+    if(forgeDesc) target.forgeDesc=forgeDesc;
   });
   const eternal=MAP_PANEL_POWERS.find(p=>p.id==='eternal');
   if(eternal) eternal.desc='置いたカードがキャラクターなら、開戦時に場に出して永久に+1/+1を与える。';
@@ -970,6 +973,8 @@ function startMapBattle(type,nodeId,forced){
   G._extraBattleMult=turnMult*elitePowerMult*meteorMult;
   const eliteBossBonusMult=Math.max(1,Number(m&&m.eliteBossBonusMult)||1);
   G._forceBossMult=type==='boss'?1.5*(forced?2:1)*turnMult*meteorMult*eliteBossBonusMult:null;
+  // 戦闘中の召喚（エピトメのボス召喚など）用にボス補正を控える。
+  G._battleBossMult=G._forceBossMult||G._extraBattleMult||1;
   G._mapEliteBattle=type==='elite';
   G.phase='battle';
   document.body.classList.remove('world-map-active');
@@ -1117,6 +1122,7 @@ function regionInfoForWave(wave){
 }
 // 街の背景キー（Assets.backgrounds）。ステージ番号に対応させる。
 function getVillageBackgroundKey(){
+  if(G&&G._isLibraryMenu) return 'library';
   // 塔（祭壇）は全ステージ共通でtower.png。
   if(G&&G._isWaveAltar) return 'tower';
   // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
@@ -1167,10 +1173,10 @@ function _applyFacilityBackground(facKey){
 const VILLAGE_BGM={
   0:{key:'villageStart',   startTime:92}, // リーゼ 1:32
   1:{key:'villageForest',  startTime:81},  // エルム 1:21
-  2:{key:'villageGrassland',startTime:70}, // ヴァルガ 1:10
-  3:{key:'villageValley',  startTime:75},  // ギャラハ 1:15
-  4:{key:'cityCapital',    startTime:47}, // ヴォルザーク 0:47（雷＋雨はSTAGE_AMBIENCE側で持続再生）
-  5:{key:'villageEndworld',startTime:110,sub:'bug'},     // フォルセティ 1:50＋虫
+  2:{key:'villageGrassland',startTime:72}, // ヴァルガ 1:12
+  3:{key:'villageValley',  startTime:77},  // ギャラハ 1:17
+  4:{key:'cityCapital',    startTime:48}, // ヴォルザーク 0:48（雷＋雨はSTAGE_AMBIENCE側で持続再生）
+  5:{key:'villageEndworld',startTime:110},     // フォルセティ 1:50（虫はSTAGE_AMBIENCE側でステージ1に移設）
 };
 // 塔（祭壇）のBGM。全ステージ共通で1:37から。
 const TOWER_BGM={key:'tower',startTime:97};
@@ -1195,6 +1201,9 @@ function _applyVillageAmbience(subs){
 //   fromStage … そのステージ番号（G._waveStage）以上で鳴らし始める。
 //               stage1＝そのステージ最初の戦闘、stage4＝街。
 const STAGE_AMBIENCE={
+  // ステージ1：虫の音を「木漏れ日の古道」（最初の戦闘）から「大樹の抱く集落 エルム」を経て
+  // 「深緑の迷い路」まで鳴らし続ける。碧翠の塔に入った時点で止まる（ヴォルザークの雷と同じ扱い）。
+  1:[{key:'bug',fromStage:1}],
   // ステージ4：雷は最初の戦闘から、雨はヴォルザークに入ってから、どちらも塔まで止めない。
   4:[{key:'thunder',fromStage:1},{key:'rain',fromStage:4}],
 };
@@ -1213,8 +1222,11 @@ function _stageAmbienceList(){
   const stage=Math.max(1,Number(G._waveStage)||1);
   return defs.filter(d=>stage>=(d.fromStage||1)).map(d=>d.key);
 }
+// ラスボス戦専用の背景動画。エリート勝利→movie3→2秒待機→この動画をフェードインさせる。
+const FINAL_BATTLE_BG_VIDEO={src:'assets/art/backgrounds/last_battle.webm',rate:1,fromStage:4};
 function _stageBgVideoSetting(){
   if(!G||G._isWaveAltar) return null;
+  if(typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()) return FINAL_BATTLE_BG_VIDEO;
   const def=STAGE_BG_VIDEOS[Math.max(0,Number(G._wave)||0)];
   if(!def) return null;
   return (Math.max(1,Number(G._waveStage)||1)>=(def.fromStage||1))?def:null;
@@ -1224,6 +1236,9 @@ function _syncStageBgVideo(){
   const el=document.getElementById('stage-bg-video');
   if(!el) return;
   const def=_stageBgVideoSetting();
+  // ラスボス戦のlast_battle.webmは「重ねる環境エフェクト」ではなく背景そのもの。
+  // 通常のstage-bg-video（screen合成・opacity .5）とは別の見え方にする。
+  document.body.classList.toggle('final-battle-bg',def===FINAL_BATTLE_BG_VIDEO);
   if(!def){
     el.classList.remove('is-active');
     try{ el.pause(); }catch(_e){}
@@ -1532,7 +1547,7 @@ function useVillageInn(){
 // 中身が未実装／現在は開放しない施設。表示はするが選べない（暗くする）。
 // inn（宿屋）は処理自体は実装済みだが、いまは押せないようにしている
 // （再開する時はこのSetから'inn'を外すだけでよい。下の条件判定はそのまま残してある）。
-const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','library','plaza','tavern','inn','landing']);
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','tavern','inn','landing']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
@@ -1544,23 +1559,11 @@ function _villageFacilityDisabled(fac){
   // （_renderRingOfferCards()／body.ring-offer-resolved）。
   return false;
 }
-// ショップ／鍛冶屋／道具屋／宿屋のみ、押下時にknock.wavを鳴らし切ってから
-// shop_in.wavの再生と画面遷移を行う。広場・酒場はどちらも鳴らさない。
-const _VILLAGE_KNOCK_KEYS=new Set(['shop','forge','item','inn']);
 async function _onVillageFacility(fac){
   if(!fac||_villageFacilityDisabled(fac)) return;
   // 入場演出中（ボタンがまだ見えていない間）は押せないようにする。
   if(G._villageIntroPlaying) return;
   if(G._villageFacilityBusy) return;
-  if(_VILLAGE_KNOCK_KEYS.has(fac.key)){
-    G._villageFacilityBusy=true;
-    try{
-      if(typeof playSfxAwait==='function') await playSfxAwait('knock',{group:'ui',guardMs:0});
-      else if(typeof playSfx==='function') playSfx('knock',{group:'ui',guardMs:0});
-    }finally{
-      G._villageFacilityBusy=false;
-    }
-  }
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -1584,6 +1587,11 @@ async function _onVillageFacility(fac){
     openMapRingExchange();
     _setOverrideBackground('tower');
     _applyFacilityAmbience(null);
+    return;
+  }
+  if(fac.key==='library'){
+    if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
+    openMapLibraryMenu();
     return;
   }
   if(fac.key==='inn'){
@@ -1910,6 +1918,52 @@ function villageDepart(){
   departWithWorldMap();
 }
 function renderVillageScreen(){
+  if(G&&G._isLibraryMenu){
+    const facilities=document.getElementById('village-facilities');
+    if(facilities) facilities.style.display='none';
+    const plate=document.getElementById('village-name-plate');
+    if(plate) plate.style.display='none';
+    const intro=document.getElementById('village-intro-title');
+    if(intro) intro.style.display='none';
+    const move=document.getElementById('village-move-btns');
+    if(move) move.style.display='flex';
+    const depart=document.getElementById('village-depart-btn');
+    if(depart) depart.style.display='none';
+    const exit=document.getElementById('library-exit-btn');
+    if(exit){
+      exit.style.display='grid';
+      exit.onclick=()=>{
+        if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
+        leaveMapLibrary();
+      };
+    }
+    const title=document.getElementById('library-title');
+    if(title) title.style.display='flex';
+    const actions=document.getElementById('library-actions');
+    if(actions) actions.style.display='block';
+    const btn=document.getElementById('library-howto-btn');
+    if(btn) btn.onclick=()=>{
+      if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
+      openMapLibraryFormation();
+      if(!window._libraryBoardTutorialPlayed) _waitLibraryUIReady(()=>startLibraryBoardTutorial());
+    };
+    const desc=document.getElementById('library-howto-desc');
+    if(desc){
+      const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
+      desc.textContent=String(msgs['図書館「魔導板の使い方」直下']||'魔導板の使い方を確認する。');
+    }
+    return;
+  }
+  const libraryTitle=document.getElementById('library-title');
+  if(libraryTitle) libraryTitle.style.display='none';
+  const libraryActions=document.getElementById('library-actions');
+  if(libraryActions) libraryActions.style.display='none';
+  const facilities=document.getElementById('village-facilities');
+  if(facilities) facilities.style.display='';
+  const exit=document.getElementById('library-exit-btn');
+  if(exit){ exit.style.display='none'; exit.onclick=null; }
+  const departReset=document.getElementById('village-depart-btn');
+  if(departReset) departReset.style.display='';
   const info=regionInfoForWave(G&&G._wave);
   const name=(G&&G._isWaveAltar)
     ?String((info&&info.towerName)||'塔')
@@ -2077,6 +2131,8 @@ function openMapVillage(options){
   G._isTavern=false;
   G._isItemShop=false;
   G._isVillageMenu=true;
+  G._isLibraryMenu=false;
+  G._isLibrary=false;
   G._isTreasureMapReward=false;
   G._isRingExchange=false;
   G._ringOfferPhase=false;
@@ -2087,13 +2143,393 @@ function openMapVillage(options){
   const build=()=>{
     _applyFacilityBackground(null);
     _applyFacilityAmbience(null);
-    document.body.classList.remove('world-map-active','reward-screen-active','shop-screen-active','forge-screen-active','item-shop-active','ring-offer-phase','ring-offer-resolved','treasure-offer-phase');
+  document.body.classList.remove('world-map-active','reward-screen-active','shop-screen-active','forge-screen-active','item-shop-active','ring-offer-phase','ring-offer-resolved','treasure-offer-phase','library-formation-active');
     document.body.classList.add('village-screen-active');
     if(typeof showScreen==='function') showScreen('village');
     renderVillageScreen();
   };
   if(options&&options.intro){ void _playVillageEnterIntro(build); return; }
   build();
+}
+
+// 図書館メニュー。街と同じ画面構造を使い、背景だけlibrary.pngへ差し替える。
+function openMapLibraryMenu(){
+  G._isLibraryMenu=true;
+  G._isLibrary=false;
+  G._isShop=false; G._isForge=false; G._isTavern=false; G._isItemShop=false;
+  G._isVillageMenu=false; G._isRingExchange=false; G._isTreasureMapReward=false;
+  G._facilityLabel='図書館';
+  G.phase='reward';
+  G._villageBgmActive=true;
+  _applyFacilityBackground(null);
+  document.body.classList.remove('world-map-active','reward-screen-active','library-formation-active');
+  if(typeof showScreen==='function') showScreen('village');
+  renderVillageScreen();
+}
+
+// 図書館の編成画面から「読書をやめる」で、説明を開く前の図書館メニューへ戻る。
+function closeMapLibraryFormation(){
+  if(typeof playSfx==='function') playSfx('bookClosing',{group:'ui'});
+  G._libraryLoanCardsState=typeof clone==='function'?clone(_rewCards||[]):(_rewCards||[]).slice();
+  openMapLibraryMenu();
+}
+
+function leaveMapLibrary(){
+  const snap=G._libraryLoanSnapshot;
+  if(snap){
+    const copy=typeof clone==='function'?clone:(v=>v);
+    G.mainBoard=copy(snap.mainBoard||[]);
+    G.inventory=copy(snap.inventory||[]);
+    G.globalPanels=copy(snap.globalPanels||[]);
+    if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+  }
+  _rewCards=[];
+  G._libraryLoanSnapshot=null;
+  G._libraryLoanCardsState=null;
+  G._libraryLoanInitialCards=null;
+  openMapVillage();
+}
+
+function _libraryLoanCards(){
+  const loanNames=['リザードマン','フィーンド','野生の力','生贄','逆上'];
+  const source=typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[];
+  return loanNames.map(name=>{
+    const card=source.find(c=>c&&String(c.name||'')===name);
+    if(!card) return null;
+    const loan=typeof makePanel==='function' ? makePanel(card.id) : (typeof clone==='function'?clone(card):Object.assign({},card));
+    if(!loan) return null;
+    loan._libraryLoan=true;
+    loan._isOriginalReward=false;
+    // チュートリアルで使う2枚は矢印を固定する。生成時に決めておかないと、
+    // 該当ステップに到達するまでランダムな向きのまま表示されてしまう。
+    if(name==='リザードマン') loan.directions=['up','left'];
+    if(name==='野生の力') loan.directions=['up','left','right'];
+    return loan;
+  }).filter(Boolean);
+}
+
+function resetLibraryLoanFormation(){
+  const snap=G._libraryLoanSnapshot;
+  if(!snap) return;
+  const copy=typeof clone==='function'?clone:(v=>v);
+  G.mainBoard=copy(snap.mainBoard||[]);
+  G.inventory=copy(snap.inventory||[]);
+  G.globalPanels=copy(snap.globalPanels||[]);
+  G._pendingPanelPlacement=null;
+  // 「元に戻す」でアイテムの対象選択を持ち越すと、中断時に古い盤面が書き戻されて
+  // 貸出カードが二重に存在してしまう。選択そのものを破棄する。
+  G._pendingItemUse=null;
+  if(typeof _closeItemUseConfirm==='function') _closeItemUseConfirm();
+  _rewCards=Array.isArray(G._libraryLoanInitialCards)
+    ? (typeof clone==='function'?clone(G._libraryLoanInitialCards):G._libraryLoanInitialCards.slice())
+    : _libraryLoanCards();
+  if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderRewCards==='function') renderRewCards();
+  if(typeof updateHUD==='function') updateHUD();
+}
+
+// 図書館の編成UI。背景はlibrary.pngのまま、black1.svgを乗算で重ねる。
+function openMapLibraryFormation(){
+  G._isLibraryMenu=false;
+  G._isLibrary=true;
+  G._isShop=false; G._isForge=false; G._isTavern=false; G._isItemShop=false;
+  G._isVillageMenu=false; G._isRingExchange=false; G._isTreasureMapReward=false;
+  G._facilityLabel='図書館';
+  G.phase='reward';
+  document.body.classList.remove('village-screen-active','library-screen-active','world-map-active');
+  if(typeof showScreen==='function') showScreen('battle');
+  if(typeof goToReward==='function') goToReward();
+  _setOverrideBackground('library');
+  document.body.classList.add('library-formation-active');
+  if(!G._libraryLoanSnapshot){
+    G._libraryLoanSnapshot=typeof clone==='function'?{
+      mainBoard:clone(G.mainBoard||[]),
+      inventory:clone(G.inventory||[]),
+      globalPanels:clone(G.globalPanels||[])
+    }:{mainBoard:G.mainBoard||[],inventory:G.inventory||[],globalPanels:G.globalPanels||[]};
+  }
+  _rewCards=Array.isArray(G._libraryLoanCardsState)
+    ? (typeof clone==='function'?clone(G._libraryLoanCardsState):G._libraryLoanCardsState.slice())
+    : (Array.isArray(G._libraryLoanInitialCards)
+      ? (typeof clone==='function'?clone(G._libraryLoanInitialCards):G._libraryLoanInitialCards.slice())
+      : _libraryLoanCards());
+  G._libraryLoanCardsState=null;
+  if(!Array.isArray(G._libraryLoanInitialCards)){
+    G._libraryLoanInitialCards=typeof clone==='function'?clone(_rewCards):_rewCards.slice();
+  }
+  _rewFreePickDone=true;
+  if(typeof renderRewCards==='function') renderRewCards();
+  if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
+}
+
+// 図書館の「魔導板の使い方」。フラグは実行中だけ保持し、セーブには含めない。
+function _libraryTutorialText(key,fallback){
+  const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
+  return String(msgs[`「魔導板の使い方」${key}`]||fallback);
+}
+function _libraryTutorialState(){
+  const b=Array.isArray(G&&G.mainBoard)?G.mainBoard:[];
+  const rearCenter=(typeof MAIN_BOARD_COLS==='number' ? (MAIN_BOARD_ROWS-1)*MAIN_BOARD_COLS+2 : 12);
+  const rearSecond=(typeof MAIN_BOARD_COLS==='number' ? (MAIN_BOARD_ROWS-1)*MAIN_BOARD_COLS+1 : 11);
+  return {arachneAtRear:!!(b[rearCenter]&&b[rearCenter].name==='リザードマン'),wildAtRear:!!(b[rearSecond]&&b[rearSecond].name==='野生の力')};
+}
+// 編成UIの描画とレイアウトが終わるまで待ってからチュートリアルを開始する。
+// openMapLibraryFormation()の1フレーム後に始めると矩形がまだ確定しておらず、
+// 暗転の穴（getBoundingClientRect）も発光対象も操作許可も取れないまま進んでしまう。
+function _waitLibraryUIReady(fn,tries){
+  tries=tries||0;
+  const slots=document.querySelector('#hand-slots.unit-equip-slots');
+  const card=document.querySelector('#battle-order-row .rew-card');
+  const ok=!!(slots&&card
+    &&slots.getBoundingClientRect().width>0&&slots.getBoundingClientRect().height>0
+    &&card.getBoundingClientRect().width>0
+    &&slots.children.length>0);
+  if(ok||tries>90){ fn(); return; }
+  requestAnimationFrame(()=>_waitLibraryUIReady(fn,tries+1));
+}
+function startLibraryBoardTutorial(){
+  if(window._libraryBoardTutorialPlayed||!G||!G._isLibrary) return;
+  window._libraryBoardTutorialPlayed=true; G._libraryTutorialActive=true;
+  const scr=document.getElementById('scr-battle'); if(!scr) return;
+  const root=document.createElement('div'); root.id='library-board-tutorial';
+  // #scr-battle は transform:scale() でスタッキングコンテキストになるため、
+  // チュートリアルの暗転は body 直下に置き、fixed のビューポート座標で描画する。
+  root.innerHTML='<div class="library-tutorial-dims" aria-hidden="true"></div><div class="library-tutorial-intro">魔導板の使い方</div><div class="library-tutorial-box"></div>';
+  document.body.appendChild(root);
+  const dims=root.querySelector('.library-tutorial-dims');
+  let dimsObserver=null, dimsRecalcFrame=0;
+  let revealTargets=false;
+  const recalcDims=()=>{
+    if(!dims) return;
+    const excluded=[];
+    const boardHoleRects=[];
+    if(revealTargets) document.querySelectorAll('#battle-order-row .rew-card').forEach(el=>excluded.push(el.getBoundingClientRect()));
+    // 魔導板は枠画像・盤面コンテナ・実スロットが別要素。枠全体を覆う矩形も必ず穴に含める。
+    if(revealTargets) ['#battle-order-section','#battle-order-row','#hand-pane-board-bg','#hand-pane','#hand-slots.unit-equip-slots','#board-card-visibility-btn','#battle-options-btn'].forEach(sel=>{
+      const el=document.querySelector(sel); if(el){ const rect=el.getBoundingClientRect(); excluded.push(rect); if(sel==='#hand-slots.unit-equip-slots') boardHoleRects.push(rect); }
+    });
+    // 魔導板のマスは枠の矩形だけでは取りこぼすことがあるため、1マスずつ穴に含める。
+    if(revealTargets) document.querySelectorAll('#hand-slots.unit-equip-slots > *').forEach(el=>{ const rect=el.getBoundingClientRect(); excluded.push(rect); boardHoleRects.push(rect); });
+    // innerWidth/Height が取れない状況（描画前・非表示タブ等）では暗転を作れないため、
+    // documentElement のサイズで補う。0のまま計算すると矩形が1枚も生成されない。
+    const vw=window.innerWidth||document.documentElement.clientWidth||0;
+    const vh=window.innerHeight||document.documentElement.clientHeight||0;
+    if(vw<=0||vh<=0) return;
+    // 魔導板本体と全15マスを除外矩形へ入れたことを毎回検証する。
+    // 再描画でDOMが差し替わっても、次の計算でこの判定を更新する。
+    const board=document.querySelector('#hand-slots.unit-equip-slots');
+    const boardRect=board&&board.getBoundingClientRect();
+    G._libraryTutorialBoardHoleVerified=!!(revealTargets&&boardRect&&boardRect.width>0&&boardRect.height>0
+      &&boardHoleRects.some(rect=>rect.left<=boardRect.left+0.5&&rect.top<=boardRect.top+0.5
+        &&rect.right>=boardRect.right-0.5&&rect.bottom>=boardRect.bottom-0.5));
+    const xs=[0,vw]; excluded.forEach(r=>{if(r.width>0&&r.height>0){xs.push(Math.max(0,Math.min(vw,r.left)),Math.max(0,Math.min(vw,r.right)));}});
+    xs.sort((a,b)=>a-b);
+    const bounds=[]; xs.forEach(x=>{if(!bounds.length||Math.abs(bounds[bounds.length-1]-x)>0.5) bounds.push(x);});
+    dims.replaceChildren();
+    const add=(left,top,width,height)=>{
+      if(width<=0.5||height<=0.5)return;
+      const d=document.createElement('div'); d.className='library-tutorial-dim';
+      d.style.left=`${left}px`; d.style.top=`${top}px`; d.style.width=`${width}px`; d.style.height=`${height}px`;
+      dims.appendChild(d);
+    };
+    for(let i=0;i<bounds.length-1;i++){
+      const left=bounds[i], right=bounds[i+1], mid=(left+right)/2;
+      const holes=excluded.filter(r=>r.right>left&&r.left<right)
+        .map(r=>({top:Math.max(0,r.top),bottom:Math.min(vh,r.bottom)}))
+        .filter(r=>r.bottom>r.top).sort((a,b)=>a.top-b.top);
+      const merged=[]; holes.forEach(r=>{
+        const last=merged[merged.length-1];
+        if(last&&r.top<=last.bottom) last.bottom=Math.max(last.bottom,r.bottom); else merged.push(r);
+      });
+      let y=0; merged.forEach(r=>{add(left,y,right-left,r.top-y);y=r.bottom;}); add(left,y,right-left,vh-y);
+    }
+  };
+  window.addEventListener('resize',recalcDims);
+  window.addEventListener('orientationchange',recalcDims);
+  const scheduleRecalc=()=>{
+    if(dimsRecalcFrame) return;
+    dimsRecalcFrame=requestAnimationFrame(()=>{ dimsRecalcFrame=0; recalcDims(); });
+  };
+  const observeBoard=()=>{
+    if(typeof MutationObserver!=='function') return;
+    const host=document.getElementById('scr-battle');
+    if(!host) return;
+    dimsObserver=new MutationObserver(records=>{
+      if(records.some(record=>!root.contains(record.target))) scheduleRecalc();
+    });
+    // renderHandEditor()は盤面コンテナ自体の中身を再生成するため、盤面要素ではなく
+    // 安定した #scr-battle を監視する。これでステップ遷移・配置・再描画を全て拾う。
+    dimsObserver.observe(host,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+  };
+  observeBoard();
+  requestAnimationFrame(recalcDims);
+  const box=root.querySelector('.library-tutorial-box');
+  // 魔導板のマスは renderHandEditor() が box-shadow をインラインの !important で直接書き込む
+  // （outline:5px と同じ枠線）。インライン!importantはCSSのどんなセレクタよりも強いため、
+  // .library-tutorial-glow のクラス指定では移動先のマスが絶対に光らない。
+  // そこで発光もインライン!importantで上書きし、解除時に元の値へ戻す。
+  const GLOW_SHADOW='inset 0 0 0 5px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)';
+  const applyGlowShadow=el=>{
+    if(!el||!el.style) return;
+    if(el.dataset.libTutShadow==null) el.dataset.libTutShadow=el.style.getPropertyValue('box-shadow')||'';
+    el.style.setProperty('box-shadow',GLOW_SHADOW,'important');
+  };
+  const clearGlowShadow=el=>{
+    if(!el||!el.style||el.dataset.libTutShadow==null) return;
+    const prev=el.dataset.libTutShadow;
+    delete el.dataset.libTutShadow;
+    if(prev) el.style.setProperty('box-shadow',prev,'important');
+    else el.style.removeProperty('box-shadow');
+  };
+  const glow=(target)=>{
+    const t=typeof target==='function'?target():target;
+    const els=typeof t==='string'?Array.from(document.querySelectorAll(t)):(t instanceof Element?[t]:Array.from(t||[]));
+    els.forEach(el=>{ if(el&&el.classList){ el.classList.add('library-tutorial-glow'); applyGlowShadow(el); } }); return els;
+  };
+  const clear=()=>document.querySelectorAll('.library-tutorial-glow').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
+  // 発光はインラインstyleの!importantで塗るため、CSSアニメーション（!importantに負ける）では
+  // 明滅させられない。同じインライン値を周期的に書き換えて明滅させる。
+  const glowPulseTimer=setInterval(()=>{
+    if(!G||!G._libraryTutorialActive) return;
+    const k=0.5-0.5*Math.cos((Date.now()%1100)/1100*Math.PI*2); // 0〜1
+    const blur1=Math.round(6+16*k), sp1=Math.round(1+5*k), a1=(0.3+0.65*k).toFixed(2);
+    const blur2=Math.round(14+28*k), sp2=Math.round(3+9*k), a2=(0.18+0.52*k).toFixed(2);
+    document.querySelectorAll('.library-tutorial-glow').forEach(el=>{
+      if(!el.style||el.dataset.libTutShadow==null) return;
+      el.style.setProperty('box-shadow',
+        `inset 0 0 0 5px #c49a6c,0 0 ${blur1}px ${sp1}px rgba(255,255,255,${a1}),0 0 ${blur2}px ${sp2}px rgba(255,234,170,${a2})`,'important');
+    });
+  },60);
+  const boardSlot=(row,col)=>`#hand-slots.unit-equip-slots > :nth-child(${row*MAIN_BOARD_COLS+col+1})`;
+  // 貸出カードのDOMにはカード名のテキストが無い（ATK/HPと「貸出」バッジのみ）。
+  // dataset.cardIdx と実データ(_rewCards)を突き合わせて1枚だけ特定する。
+  const cardByName=name=>Array.from(document.querySelectorAll('#battle-order-row .rew-card')).find(el=>{
+    const i=Number(el.dataset&&el.dataset.cardIdx);
+    const c=(typeof _rewCards!=='undefined'&&Array.isArray(_rewCards))?_rewCards[i]:null;
+    return !!(c&&c.name===name);
+  });
+  let tutorialDragging=false;
+  let highlightSyncFrame=0;
+  // renderHandEditor() は盤面の子要素を全て作り直すため、発光対象をDOM参照で保持しない。
+  // 現在のステップとカード名から毎回引き直し、再描画後にも同じ実DOMへ付け直す。
+  const syncMovingHighlights=()=>{
+    if(highlightSyncFrame) return;
+    highlightSyncFrame=requestAnimationFrame(()=>{
+      highlightSyncFrame=0;
+      if(!G._libraryTutorialActive||tutorialDragging) return;
+      const st=steps[idx];
+      if(!st||!st[3]) return;
+      clear(); clearAllowed(); allowBase(true);
+      const source=cardByName(st[3]);
+      if(source){ source.classList.add('library-tutorial-allowed'); glow(source); }
+      const target=st[1]?(glow(st[1])):[];
+      target.forEach(el=>el.classList.add('library-tutorial-allowed'));
+    });
+  };
+  const highlightObserver=typeof MutationObserver==='function'?new MutationObserver(records=>{
+    if(records.some(r=>r.type==='childList')) syncMovingHighlights();
+  }):null;
+  const steps=[
+    ['1',null,'カードは魔導板に置くことで所持できます。多くのカードは、魔導板に置かれているだけで効果を発揮します。'],
+    ['2',null,'ここ、図書館ではカードを借りて戦闘の練習を行うことができます。これから上の貸出カードを使って、実際に編成してみましょう。'],
+    ['3',()=>cardByName('リザードマン'),'下部に数字が書かれたカードは「キャラクターカード」です。左下の数字がATK（攻撃力）、右下の数字がHP（体力）を表します。'],
+    ['4-1',boardSlot(2,2),'キャラクターカードは「召喚の力」のマスに置くことで戦闘に参加します。上段の「召喚の力」に置いたキャラクターは前衛、下段に置いたキャラクターは後衛になります。'],
+    ['4-2',boardSlot(2,2),'貸出キャラクターの「リザードマン」を「召喚の力」のマスに置いてみましょう。','リザードマン'],
+    ['5-1',()=>cardByName('野生の力'),'それ以外のカードは「エンチャントカード」です。エンチャントカードとキャラクターカードの矢印を向かい合わせると、そのキャラクターにエンチャントの効果を与えられます。'],
+    ['5-2',boardSlot(2,1),'貸出エンチャントの「野生の力」を魔導板に置き、先ほど配置したキャラクターと矢印を向かい合わせてみましょう。','野生の力'],
+    ['5-3',null,'エンチャントカード同士の矢印を向かい合わせると、その繋がりを通してキャラクターに効果を与えられます。ただし、キャラクターカードは効果を通さないため、キャラクター同士を繋いでも効果はありません。'],
+    ['6',null,'戦闘ではキャラクターが多い陣営が先攻となり、前衛の左端から敵味方が交互に行動します。攻撃対象はランダムな敵前衛となり、前衛がいない場合はランダムな後衛を攻撃します。'],
+    ['7',null,'相手を全滅させれば勝利です。敗北するとライフを1つ失い、ライフがなくなるとゲームオーバーです。それでは、試験戦闘を行ってみましょう。']
+  ];
+  let idx=-1, dropCheck=null, progressTimer=null;
+  const clearAllowed=()=>document.querySelectorAll('.library-tutorial-allowed').forEach(el=>el.classList.remove('library-tutorial-allowed'));
+  // 移動ステップ(4-2/5-2)では魔導板全体を操作可能にしない。
+  // #hand-slots を許可すると全てのマスにドロップできてしまい、指定外へ置いて詰む。
+  // 移動中は「移動元カード」と「対象マス」だけを個別に許可する（下の moving 分岐）。
+  const allowBase=(moving)=>{
+    const sels=moving
+      ? ['#battle-options-btn']
+      : ['#hand-pane-board-bg','#hand-pane','#hand-slots.unit-equip-slots','#battle-order-section','#battle-options-btn'];
+    sels.forEach(sel=>{const el=document.querySelector(sel);if(el)el.classList.add('library-tutorial-allowed');});
+  };
+  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('drop',tutorialDragEnd,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();};
+  const next=()=>{
+    if(!G._libraryTutorialActive)return;
+    if(idx>=0&&steps[idx][3]){const s=_libraryTutorialState();if((steps[idx][3]==='リザードマン'&&!s.arachneAtRear)||(steps[idx][3]==='野生の力'&&!s.wildAtRear))return;}
+    idx++; if(idx>=steps.length){finish();return;}
+    clear();clearAllowed();
+    const st=steps[idx];
+    allowBase(!!st[3]);
+    const target=st[1]?(glow(typeof st[1]==='function'?st[1]():st[1])):[]; G._libraryTutorialStep=idx;
+    if(st[0]==='3'){const c=(_rewCards||[]).find(x=>x&&x.name==='リザードマン');if(c)c.directions=['up','left'];if(typeof renderRewCards==='function')renderRewCards();if(st[0]==='3')glow(st[1]);}
+    if(st[0]==='5-1'){const c=(_rewCards||[]).find(x=>x&&x.name==='野生の力');if(c)c.directions=['up','left','right'];if(typeof renderRewCards==='function')renderRewCards();glow(st[1]);}
+    const moving=!!st[3]; document.body.classList.add('library-tutorial-lock');
+    root.classList.toggle('library-tutorial-moving',moving);
+    if(moving){
+      // カードのtextContentにはカード名が入らない（ATK/HPと「貸出」バッジのみ）ため、
+      // 実データと突き合わせるcardByName()で移動元カードを特定する。
+      const source=cardByName(st[3]);
+      if(source){source.classList.add('library-tutorial-allowed');glow(source);} target.forEach(el=>el.classList.add('library-tutorial-allowed'));
+      const moved=()=>{const s=_libraryTutorialState();return (st[3]==='リザードマン'&&s.arachneAtRear)||(st[3]==='野生の力'&&s.wildAtRear);};
+      let moveAdvanced=false;
+      // 盤面はrenderHandEditor()でDOMごと作り直されるため、発光クラスは何度でも剥がれる。
+      // MutationObserverでは取りこぼしたので、進行監視と同じ間隔で毎回付け直す。
+      const keepGlow=()=>{
+        if(moveAdvanced||!G._libraryTutorialActive) return;
+        // ドラッグ中に移動元カードへ発光を付け直すと、掴んで持ち上げた後も
+        // 元の位置に光った枠が residual として残って見える。掴んでいる間は付けない。
+        if(!tutorialDragging){
+          const src=cardByName(st[3]);
+          if(src&&!src.classList.contains('library-tutorial-glow')){
+            src.classList.add('library-tutorial-glow','library-tutorial-allowed');
+            applyGlowShadow(src);
+          }
+        }
+        const cells=document.querySelectorAll('#hand-slots.unit-equip-slots > *');
+        const dest=cells[st[0]==='4-2'?12:11];
+        if(dest){
+          dest.classList.add('library-tutorial-glow','library-tutorial-allowed');
+          // 発光値の書き込みは明滅タイマーが担当する。ここで毎回 applyGlowShadow() を
+          // 呼ぶと、100msごとに静止値で上書きしてしまい発光がチラつく。
+          // 再描画で作り直された（＝元のインライン値を未保存の）マスにだけ適用する。
+          if(dest.dataset.libTutShadow==null) applyGlowShadow(dest);
+        }
+      };
+      const advanceAfterMove=()=>{keepGlow();if(moveAdvanced||!moved())return;moveAdvanced=true;if(dropCheck){document.removeEventListener('drop',dropCheck,true);dropCheck=null;}if(progressTimer){clearInterval(progressTimer);progressTimer=null;}setTimeout(next,180);};
+      dropCheck=()=>setTimeout(()=>{ advanceAfterMove(); scheduleRecalc(); },0);
+      document.addEventListener('drop',dropCheck,true);
+      // dropイベントがブラウザ側で抑止された場合も、実際の盤面状態を監視して進行する。
+      progressTimer=setInterval(()=>{ advanceAfterMove(); scheduleRecalc(); },100);
+      syncMovingHighlights();
+    }
+    box.textContent=_libraryTutorialText(st[0],st[2]);
+    box.classList.remove('library-tutorial-box-hidden');
+    scheduleRecalc();
+  };
+  const isMoving=()=>G._libraryTutorialStep===4||G._libraryTutorialStep===6;
+  const block=(e)=>{if(!G._libraryTutorialActive)return;if(isMoving()&&!root.classList.contains('library-tutorial-intro-active')) box.classList.add('library-tutorial-box-hidden');if(e.target&&e.target.closest&&e.target.closest('.library-tutorial-allowed,.library-tutorial-box'))return;e.preventDefault();e.stopPropagation();};
+  const tutorialDragStart=(e)=>{if(!G._libraryTutorialActive||!isMoving())return;tutorialDragging=true;document.querySelectorAll('#battle-order-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});};
+  const tutorialDragEnd=()=>{if(!tutorialDragging)return;tutorialDragging=false;syncMovingHighlights();};
+  // 画面のどこをクリックしても次へ進む。ボックスの上だけに限定すると、
+  // 暗い部分を押しても反応せず「進めない」と受け取られる。
+  // 4-2・5-2（isMoving）は移動完了でのみ進むため、ここでは進めない。
+  const advanceClick=(e)=>{
+    if(!G._libraryTutorialActive||root.classList.contains('library-tutorial-intro-active')) return;
+    if(isMoving()){
+      e.preventDefault();e.stopImmediatePropagation();box.classList.add('library-tutorial-box-hidden');
+      return;
+    }
+    e.preventDefault();e.stopImmediatePropagation();next();
+  };
+  allowBase(false);
+  document.body.classList.add('library-tutorial-active','library-tutorial-lock');
+  document.addEventListener('pointerdown',block,true); document.addEventListener('click',advanceClick,true); document.addEventListener('dragstart',tutorialDragStart,true); document.addEventListener('dragend',tutorialDragEnd,true); document.addEventListener('drop',tutorialDragEnd,true);
+  if(highlightObserver) highlightObserver.observe(document.getElementById('scr-battle'),{childList:true,subtree:true});
+  // 文字表示中は除外なし＝画面全体を暗くする。ここで一度計算しないと暗転が1枚も出ない。
+  recalcDims();
+  const intro=()=>{root.classList.add('library-tutorial-intro-active');setTimeout(()=>{root.classList.remove('library-tutorial-intro-active');revealTargets=true;recalcDims();setTimeout(next,600);},1700);};
+  intro();
 }
 // 道具屋：アイテム3つを提示（価格＝レアリティ×180）。手持ちアイテムの売却も可能（レアリティ×45）。
 function _itemShopBuyPrice(card){
@@ -2322,29 +2758,59 @@ function openMapRingExchange(){
   renderHandEditor();
   renderFieldEditor();
 }
+// 鍛冶屋の品揃えは「召喚の力」確定＋残りからランダム2種の計3枠。
+// 買った枠は道具屋と同じく「売切」で残す。
 function _pickMapForgeOffers(){
   const pool=MAP_PANEL_POWERS.filter(p=>p.id!=='summon');
-  const picks=[MAP_PANEL_POWERS[0]];
+  const picks=[{...MAP_PANEL_POWERS[0]}];
   while(picks.length<3&&pool.length){
-    picks.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+    picks.push({...pool.splice(Math.floor(Math.random()*pool.length),1)[0]});
   }
   return picks;
 }
+// 鍛冶屋メニューの画像。並び順＝MAP_PANEL_POWERSの順。
+const MAP_FORGE_ART_BY_ID={summon:'b_board1.svg',life:'b_board2.svg',eternal:'b_board3.svg',resonance:'b_board4.svg',duplicate:'b_board5.svg'};
 function renderMapForgeOffers(){
   const section=document.getElementById('battle-order-section');
   const row=document.getElementById('battle-order-row');
   if(!section||!row) return;
   section.style.display='';
   row.innerHTML='';
-  (G._mapForgeOffers||[]).forEach(power=>{
-    if(!power) return;
+  // シート（価格・効果・鍛冶屋説明文）が後から読み込まれる場合に備えて、開くたびに反映し直す。
+  _applyMapPanelPowerSheetRows();
+  const offers=G._mapForgeOffers||[];
+  offers.forEach((power,i)=>{
+    // 購入済み（null）の枠は道具屋と同じく「売切」表示で残す。
+    if(!power){
+      if(typeof _mkShopSoldOutDiv==='function') row.appendChild(_mkShopSoldOutDiv(i));
+      return;
+    }
+    // 品揃えは複製して保持しているため、シート由来の文言は都度取り直す。
+    const master=MAP_PANEL_POWERS.find(p=>p&&p.id===power.id)||power;
+    const art=MAP_FORGE_ART_BY_ID[power.id]||'b_board1.svg';
+    // 変化させられるマスが無い場合は購入不可（召喚の力＝上下段の通常マスが無い、
+    // それ以外＝盤面に「召喚の力」が無い）。所持金不足も同様に不可。
+    const noTarget=!_mapForgeCandidateSlots(power).length;
+    const poor=(G.gold||0)<power.price;
+    const disabled=!!G._mapForgeAnimating||noTarget||poor;
     const btn=document.createElement('button');
     btn.type='button';
-    btn.className='map-forge-card';
-    btn.innerHTML=`<strong>${power.name}</strong><span>${power.desc}</span><em>${power.price}ゴールド</em>`;
-    btn.disabled=!!G._mapForgeAnimating||(G.gold||0)<power.price||!_mapForgeCandidateSlots(power).length;
+    btn.className='rew-card forge-card treasure-offer-card item-visual item-visual-filled';
+    // 下・上・下と互い違いに置く（道具屋と同じ並び）。
+    btn.classList.add(i%2===1?'item-shop-card-up':'item-shop-card-down');
+    if(disabled) btn.classList.add('cant');
+    if(noTarget) btn.classList.add('forge-no-target');
+    btn.style.setProperty('--forge-art',`url("assets/ui/${art}")`);
+    // ホバー説明：上段＝改造「◯◯」＋鍛冶屋説明文、下段＝マス名＋マスの効果（青系）。
+    const forgeDesc=String(master.forgeDesc||power.forgeDesc||'').trim()
+      ||`最上段、最下段のランダムな1マスを「${power.name}」に変化させる。`;
+    const powerDesc=String(master.desc||power.desc||'').trim();
+    btn.setAttribute('data-preview',`改造「${power.name}」\n${forgeDesc}`);
+    // マスの説明は、盤面のカードにホバーした時と同じく別ボックス（#map-power-tooltip）へ出す。
+    btn.setAttribute('data-map-power-preview',[power.name,powerDesc].filter(Boolean).join('\n'));
+    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`;
     btn.onclick=async()=>{
-      if(btn.disabled) return;
+      if(disabled) return;
       await applyPendingMapForgePower(power);
     };
     row.appendChild(btn);
@@ -2463,6 +2929,12 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   if(offerIdx>=0) G._mapForgeOffers[offerIdx]=null;
   const node=_mapCurrentVillageNode();
   if(node) node.forgeOffers=clone(G._mapForgeOffers||[]);
+  // 同じwave内で再訪しても「売切」が保たれるよう、waveキャッシュにも書き戻す。
+  if(G._waveLoopEnabled){
+    const wk=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
+    G._waveForgeOffers=G._waveForgeOffers||{};
+    G._waveForgeOffers[wk]=clone(G._mapForgeOffers||[]);
+  }
   G._pendingMapForgePower=null;
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   else {

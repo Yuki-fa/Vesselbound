@@ -21,6 +21,9 @@ function goldIncomeAmount(amount){
 }
 
 function onGoldGained(amount){
+  // 図書館の試験戦闘は練習用。敵を倒してもゴールドは入らない。
+  // 個々の獲得経路（撃破報酬・効果・指輪）を全て塞ぐより入口で止める方が漏れがない。
+  if(G&&G._testBattleMode) return 0;
   const gained=goldIncomeAmount(amount);
   G.gold=(G.gold||0)+gained;
   G.earnedGold=(G.earnedGold||0)+gained;
@@ -87,6 +90,8 @@ function _playCardEffectVfx(code,targets,options){
   }));
 }
 async function _waitForPendingVfx(){
+  // 通常戦闘の終了処理でも呼ばれるため、ここでは「今再生中のVFX」のスナップショットだけを待つ。
+  // 新たに始まった演出まで待ち続けると、勝利処理が演出の連鎖に引きずられて遅れる。
   const active=window.__activeVfxPromises;
   if(!active||!active.size) return;
   await Promise.all([...active].map(p=>Promise.resolve(p).catch(()=>{})));
@@ -282,7 +287,9 @@ async function _sacrificeUnitsForSeal(requiredCount){
   if(!_livingCombatUnits(G.enemies).length) return [];
   const available=_allBattleCharacters().filter(u=>!_isSealed(u)&&_unitHasSacrifice(u));
   if(Number.isFinite(requiredCount)&&available.length<requiredCount) return [];
-  const sacrificed=Number.isFinite(requiredCount)?available.slice(0,Math.max(0,requiredCount)):available;
+  // 必要数以上の生贄が揃った場合は、盤面上の生贄持ちを全て破壊する。
+  // 例：封印1に生贄3体なら、1体ではなく3体とも犠牲にする。
+  const sacrificed=available;
   if(!sacrificed.length) return [];
   const snap=sacrificed.map(u=>clone(u));
   const ordered=[...sacrificed].sort((a,b)=>_fieldOrderOfUnit(a)-_fieldOrderOfUnit(b));
@@ -416,6 +423,9 @@ async function _resolveSeals(){
       }
       delete unit._sealReady;
       log(`${_lc(unit.name,isEnemySide)}の封印が解放された。`,'gold');
+      // 封印から解放されたキャラクターは「戦闘中に召喚された」扱いにする
+      // （ナーガ・ヘルナイト・光の指輪・リッチ等の召喚時効果の対象になる）。
+      await _afterPanelSummon(unit,isEnemySide);
       const repeats=_releaseRepeatCount(unit,isEnemySide);
       for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,sacrificed);
       // 呼応の指輪：常時：味方が解放された時、そのコピーを召喚する。
@@ -439,6 +449,7 @@ function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
   if(G._battleDefeatHandled) return;
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   if(typeof finishWaveBattleVictory==='function'&&finishWaveBattleVictory(true)) return;
   if(typeof finishMapBattleVictory==='function'&&finishMapBattleVictory()) return;
   if(_isBossFight && G.floor===FLOOR_DATA.length-1){
@@ -454,6 +465,10 @@ function _handleVictory(){
       const ov=document.getElementById('victory-overlay');
       if(ov) ov.style.display='none';
       _cleanupBattleEndTransientUnits();
+      if(G._libraryTestBattleMode){
+        _exitTestBattle();
+        return;
+      }
       if(G.phase==='reward') goToReward();
     });
   }
@@ -531,6 +546,7 @@ function _waveBattleRouteName(){
   return String(primary||fallback||'').trim();
 }
 function _battleStartIntroText(){
+  if(G&&G._libraryTestBattleMode) return {title:'戦 闘 開 始',subtitle:'試験戦闘',kind:'normal'};
   const mapBattle=G._mapBattle||null;
   const kind=String(G._waveBattleType||mapBattle?.type||'');
   const isBoss=kind==='boss'||_isBossFight||!!mapBattle?.forcedBoss;
@@ -558,6 +574,8 @@ function _showBattleEndFade(){
 }
 
 function _fadeBattleLife(){
+  // 試験戦闘は練習用でライフを失わないため、演出もSEも出さない。
+  if(G&&G._testBattleMode) return;
   // 戦闘中は左から空になるため、現在表示されている左端のハートを対象にする。
   const life=document.querySelector('#battle-life-value .battle-life-heart-filled:first-of-type')||document.querySelector('#h-life .life-heart:last-child')||document.querySelector('#h-life .life-full');
   if(life) life.classList.add('life-lost-cutin');
@@ -591,7 +609,7 @@ function showBattleCutin(type='start',options={}){
   // 勝利時はfinishBattleAsVictory()で既に付与済みだが、撤退時も同じロックを使う。
   document.body.classList.add('battle-victory-pending');
   _showBattleEndFade();
-  if(typeof stopBgm==='function') stopBgm(700);
+  if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
   if(mode==='retreat') window.setTimeout(_fadeBattleLife,520);
   return new Promise(resolve=>{
     // 勝利は表示位置を保持したまま待機する。退場アニメーションを挟むと
@@ -637,6 +655,12 @@ function _playBattleStartIntro(){
   void host.offsetWidth;
   const old=document.getElementById('battle-start-intro');
   if(old) old.remove();
+  // ラスボス戦は戦闘開始演出（カットイン・背景スクロール）を行わない。
+  // movie3 → last_battle.webm のフェードインから途切れずに戦闘へ入るため。
+  if(typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
+    host.classList.add('battle-bg-reveal');
+    return Promise.resolve('boss');
+  }
   const info=_battleStartIntroText();
   const needsScroll=info.kind==='elite'||info.kind==='boss';
   host.classList.add(needsScroll?'battle-bg-reveal':'battle-bg-normal');
@@ -828,6 +852,222 @@ async function _fadeInBattleOpeningSealedSlots(slots){
   });
 }
 
+// ── 戦闘開始時の台詞（敵シートの「台詞1〜3」列）───────────────
+// 全員が場に出撃した後、台詞を持つキャラクターの分だけ順に吹き出しを出す。
+// 尻尾の先端をそのキャラクターの中心X・下記のYへ合わせ、敵は上向き／味方は下向き。
+const BATTLE_LINE_TAIL_Y={enemyRear:435,enemyFront:854,allyFront:1542,allyRear:1969};
+// 枠と尻尾はSVGをそのまま貼る。淡色＝speechbubble1/2、暗色＝speechbubble3/4。
+// 枠は元SVG（speechbubble1/3.svg、1091.39x194.88）と同じ六角形をJS側で組み立てる。
+// 元の頂点：(1033.69,2.62)(57.7,2.62)(2.89,97.56)(57.7,192.5)(1033.69,192.5)(1088.51,97.56)
+// ・線の内側オフセット：上下2.62 / 左右2.89（stroke-width 5 の半分ぶん）
+// ・斜辺の傾き：横54.81 ÷ 縦94.94 → 高さの半分あたり 0.57731 だけ横へ寄る
+// これらを保ったまま幅と高さだけ変えるので、斜辺の角度は常に元SVGと同一になる。
+// 線の太さは viewBox を実寸（1ユニット＝設計座標1px）にすることで常に5pxで一定。
+const BATTLE_LINE_FRAME_INSET_Y=2.62;
+const BATTLE_LINE_FRAME_INSET_X=2.89;
+const BATTLE_LINE_FRAME_SLOPE=54.81/94.94;  // ≒0.57731
+const BATTLE_LINE_FRAME_STROKE=5;
+const BATTLE_LINE_FRAME_FILL_DARK='#1b130b';
+const BATTLE_LINE_FRAME_FILL_LIGHT='#e2cdba';
+const BATTLE_LINE_FRAME_STROKE_COLOR='#8c5c2d';
+// 高さから斜辺の横オフセット（左右の「キャップ幅」）を求める。
+function _battleLineCapW(h){
+  return BATTLE_LINE_FRAME_INSET_X+Math.max(0,h/2-BATTLE_LINE_FRAME_INSET_Y)*BATTLE_LINE_FRAME_SLOPE;
+}
+// 尻尾(viewBox 237x170)は尖端が左下(0,170)、付け根が上辺 x100.1〜237。
+// 敵は180度回転（尖端＝右上／付け根＝下辺 0〜57.76%）、味方は左右反転（尖端＝右下／付け根＝上辺）。
+const BATTLE_LINE_TAIL_W=180;
+const BATTLE_LINE_TAIL_H=129;
+const BATTLE_LINE_TAIL_BASE_X=0.5776;
+// 尻尾の茶色い線（cls-2）の付け根は y=25.16 で、そこから先（暗色のcls-1）は枠の内側へ潜り込む
+// はみ出し分。枠の線と尻尾の線をきれいに繋ぐには、枠の辺をこの位置に合わせる必要がある。
+const BATTLE_LINE_TAIL_BASE_INSET=BATTLE_LINE_TAIL_H*(25.16/170);
+// 枠SVGの上下の線は画像の端から2.62px内側にある（9スライスで等倍描画するのでこの値のまま）。
+// 尻尾の線と枠の線をぴったり合わせるには、枠の要素をこの分だけ外側へずらす必要がある。
+const BATTLE_LINE_FRAME_EDGE=2.62;
+const BATTLE_LINE_BUBBLE_MARGIN=24;   // 付け根から枠の斜辺までの余白
+// 枠の寸法。高さは行数から決め打ちにする（実測だとフォント読み込みの前後で
+// 同じ行数でも高さが変わってしまうため）。
+const BATTLE_LINE_FONT=60;
+const BATTLE_LINE_LINE_H=1.45;
+const BATTLE_LINE_PAD_X=96;
+const BATTLE_LINE_PAD_Y=44;
+const BATTLE_LINE_MIN_W=520;
+function _battleLineLayer(){
+  let layer=document.getElementById('battle-line-layer');
+  if(!layer){
+    layer=document.createElement('div');
+    layer.id='battle-line-layer';
+    layer.innerHTML='<div id="battle-line-stage">'
+      +'<div id="battle-line-bubble">'
+      +'<svg id="battle-line-bubble-shape" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">'
+      +'<polygon id="battle-line-bubble-poly"></polygon></svg>'
+      +'<div id="battle-line-text"></div></div>'
+      +'<div id="battle-line-tail"></div>'
+      +'</div>';
+    document.body.appendChild(layer);
+  }
+  _syncBattleLineStage();
+  // 会話中はカードのホバー説明（#kw-tooltip）が台詞枠より前面に出るようにする。
+  document.body.classList.add('battle-line-active');
+  return layer;
+}
+// 設計座標(3840x2160)のまま子要素を置けるよう、画面の拡大率・オフセットを反映する。
+// 台詞表示中にウィンドウサイズが変わると倍率とオフセットがずれ、枠と尻尾だけが
+// キャラクターから離れてしまうため、リサイズのたびに貼り直す。
+function _syncBattleLineStage(){
+  const stage=document.getElementById('battle-line-stage');
+  if(!stage) return;
+  const rootStyle=getComputedStyle(document.documentElement);
+  const scale=parseFloat(rootStyle.getPropertyValue('--game-scale'))||1;
+  const offX=parseFloat(rootStyle.getPropertyValue('--game-offset-x'))||0;
+  const offY=parseFloat(rootStyle.getPropertyValue('--game-offset-y'))||0;
+  stage.style.left=`${offX}px`;
+  stage.style.top=`${offY}px`;
+  stage.style.transform=`scale(${scale})`;
+}
+window.addEventListener('resize',()=>{
+  // fitVesselboundViewport()が--game-scale等を更新した後に反映されるよう次フレームで実行する。
+  requestAnimationFrame(_syncBattleLineStage);
+});
+function _removeBattleLineLayer(){
+  const layer=document.getElementById('battle-line-layer');
+  if(layer) layer.remove();
+  document.body.classList.remove('battle-line-active');
+}
+// ユニットのスロット要素から、設計座標での中心Xを求める。
+function _battleLineUnitCenterX(unit,isEnemySide){
+  const root=document.querySelector(isEnemySide?'#f-enemy':'#f-ally');
+  const list=isEnemySide?G.enemies:G.allies;
+  const idx=(list||[]).indexOf(unit);
+  const slot=root&&idx>=0?root.querySelector(`.unit-card[data-unit-idx="${idx}"]`):null;
+  const rootStyle=getComputedStyle(document.documentElement);
+  const scale=parseFloat(rootStyle.getPropertyValue('--game-scale'))||1;
+  const offX=parseFloat(rootStyle.getPropertyValue('--game-offset-x'))||0;
+  if(!slot) return 1920;
+  const r=slot.getBoundingClientRect();
+  return ((r.left+r.width/2)-offX)/(scale||1);
+}
+function _battleLineTailY(isEnemySide,isRear){
+  if(isEnemySide) return isRear?BATTLE_LINE_TAIL_Y.enemyRear:BATTLE_LINE_TAIL_Y.enemyFront;
+  return isRear?BATTLE_LINE_TAIL_Y.allyRear:BATTLE_LINE_TAIL_Y.allyFront;
+}
+// 枠（六角形）を実寸で組み立てる。viewBoxを 0 0 w h にすることで
+// 1ユニット＝設計座標1pxとなり、stroke-widthが枠の大小に影響されない。
+function _drawBattleLineFrame(layer,w,h,dark){
+  const svg=layer.querySelector('#battle-line-bubble-shape');
+  const poly=layer.querySelector('#battle-line-bubble-poly');
+  if(!svg||!poly) return;
+  const insetY=BATTLE_LINE_FRAME_INSET_Y;
+  const insetX=BATTLE_LINE_FRAME_INSET_X;
+  const cap=_battleLineCapW(h);
+  const midY=h/2;
+  const r=n=>Math.round(n*100)/100;
+  const pts=[
+    [w-cap,insetY],[cap,insetY],[insetX,midY],
+    [cap,h-insetY],[w-cap,h-insetY],[w-insetX,midY],
+  ].map(([x,y])=>`${r(x)},${r(y)}`).join(' ');
+  svg.setAttribute('viewBox',`0 0 ${r(w)} ${r(h)}`);
+  svg.setAttribute('width',`${r(w)}`);
+  svg.setAttribute('height',`${r(h)}`);
+  poly.setAttribute('points',pts);
+  poly.setAttribute('fill',dark?BATTLE_LINE_FRAME_FILL_DARK:BATTLE_LINE_FRAME_FILL_LIGHT);
+  poly.setAttribute('stroke',BATTLE_LINE_FRAME_STROKE_COLOR);
+  poly.setAttribute('stroke-width',String(BATTLE_LINE_FRAME_STROKE));
+  poly.setAttribute('stroke-miterlimit','10');
+}
+// 1つの台詞を表示し、左クリックされるまで待つ。
+function _showBattleLine(text,centerX,tailY,isEnemySide){
+  const layer=_battleLineLayer();
+  const tail=layer.querySelector('#battle-line-tail');
+  const bubble=layer.querySelector('#battle-line-bubble');
+  const textEl=layer.querySelector('#battle-line-text');
+  const raw=String(text||'');
+  textEl.textContent=raw;
+  // 高さは行数から決め打ちにする（offsetHeightを使うと、Webフォントの読み込み前後で
+  // 同じ行数でも高さが変わってしまう）。幅は一番長い行をcanvasで測って決める。
+  const rows=raw.split('\n');
+  const h=BATTLE_LINE_PAD_Y*2+rows.length*Math.round(BATTLE_LINE_FONT*BATTLE_LINE_LINE_H);
+  const cs=getComputedStyle(textEl);
+  const ctx=(_showBattleLine._ctx||(_showBattleLine._ctx=document.createElement('canvas').getContext('2d')));
+  ctx.font=`${cs.fontWeight} ${BATTLE_LINE_FONT}px ${cs.fontFamily}`;
+  const letter=parseFloat(cs.letterSpacing)||0;
+  const textW=Math.max.apply(null,rows.map(t=>ctx.measureText(t).width+letter*t.length));
+  // 斜辺の横オフセットは高さから決まる。テキスト幅＋左右パディングに、その分を足す。
+  const cap=_battleLineCapW(h);
+  const w=Math.max(BATTLE_LINE_MIN_W,Math.ceil(textW)+BATTLE_LINE_PAD_X*2+Math.ceil(cap*2));
+  bubble.style.width=`${w}px`;
+  bubble.style.height=`${h}px`;
+  // 敵の台詞は暗色（speechbubble3/4）、味方の台詞は淡色（speechbubble1/2）。
+  const dark=isEnemySide;
+  layer.classList.toggle('is-dark',dark);
+  _drawBattleLineFrame(layer,w,h,dark);
+  tail.style.setProperty('background-image',`url("assets/ui/speechbubble${dark?4:2}.svg")`,'important');
+  // 尻尾：敵は180度回転（尖端＝右上）、味方は左右反転（尖端＝右下）。
+  tail.style.width=`${BATTLE_LINE_TAIL_W}px`;
+  tail.style.height=`${BATTLE_LINE_TAIL_H}px`;
+  tail.style.transform=isEnemySide?'rotate(180deg)':'scaleX(-1)';
+  const tailLeft=centerX-BATTLE_LINE_TAIL_W;      // 尖端の相対Xは1.0（右端）
+  const tailTop=isEnemySide?tailY:(tailY-BATTLE_LINE_TAIL_H);
+  tail.style.left=`${tailLeft}px`;
+  tail.style.top=`${tailTop}px`;
+  // 枠は、尻尾の付け根が「キャップより内側の平らな辺」に載るよう右端を決める。
+  const bubbleRight=tailLeft+BATTLE_LINE_TAIL_BASE_X*BATTLE_LINE_TAIL_W+BATTLE_LINE_BUBBLE_MARGIN+cap;
+  bubble.style.left=`${Math.max(20,bubbleRight-w)}px`;
+  // 枠の線が尻尾の茶色い線の付け根と重なるように置く（敵＝尻尾の下側、味方＝尻尾の上側）。
+  const tailLineY=isEnemySide
+    ?tailTop+BATTLE_LINE_TAIL_H-BATTLE_LINE_TAIL_BASE_INSET
+    :tailTop+BATTLE_LINE_TAIL_BASE_INSET;
+  bubble.style.top=isEnemySide
+    ?`${Math.round(tailLineY-BATTLE_LINE_FRAME_EDGE)}px`
+    :`${Math.round(tailLineY+BATTLE_LINE_FRAME_EDGE-h)}px`;
+  layer.classList.add('is-visible');
+  return new Promise(resolve=>{
+    // 会話中もカードのホバー説明を見られるよう、レイヤー自体はpointer-events:noneにし、
+    // クリックだけをdocumentのキャプチャ段階で拾う（カード側のクリック処理には渡さない）。
+    const onClick=e=>{
+      if(e.button!==undefined&&e.button!==0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      document.removeEventListener('pointerdown',onClick,true);
+      resolve();
+    };
+    document.addEventListener('pointerdown',onClick,true);
+  });
+}
+// 台詞を持つキャラクターを、盤面の並び順で集める。
+function _battleStartLineSpeakers(){
+  const out=[];
+  (typeof _orderedBattleCharacters==='function'?_orderedBattleCharacters():[]).forEach(unit=>{
+    if(!unit||unit.hp<=0) return;
+    const lines=Array.isArray(unit.battleLines)?unit.battleLines.filter(t=>String(t||'').trim()):[];
+    if(!lines.length) return;
+    const isEnemySide=(G.enemies||[]).includes(unit);
+    out.push({unit,isEnemySide,isRear:String(unit.lane||'front')==='rear',lines});
+  });
+  return out;
+}
+// 開幕演出（全員の出撃）後に呼ぶ。台詞が無ければ何もしない。
+async function playBattleStartLines(){
+  const speakers=_battleStartLineSpeakers();
+  if(!speakers.length) return;
+  // Webフォントの読み込み前に幅を測ると、台詞ごとに枠の長さがばらつく。
+  try{ if(document.fonts&&document.fonts.ready) await document.fonts.ready; }catch(_e){}
+  try{
+    for(const sp of speakers){
+      const centerX=_battleLineUnitCenterX(sp.unit,sp.isEnemySide);
+      const tailY=_battleLineTailY(sp.isEnemySide,sp.isRear);
+      for(const line of sp.lines){
+        await _showBattleLine(line,centerX,tailY,sp.isEnemySide);
+      }
+    }
+  }finally{
+    _removeBattleLineLayer();
+  }
+  // 全ての台詞を終えたら1秒待ってから通常通り戦闘を開始する。
+  await sleep(1000);
+}
+
 async function playBattleOpeningSequence(){
   const host=document.getElementById('scr-battle');
   if(!host) return;
@@ -841,15 +1081,51 @@ async function playBattleOpeningSequence(){
     ..._battleOpeningSealedSlotList('#f-enemy',true),
     ..._battleOpeningSealedSlotList('#f-ally',false)
   ];
+  // ラスボス戦は通常の登場演出（落下＋着地VFX）を使わず、
+  // 封印キャラも含めて全員を同時にフェードインで出す。
+  if(typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
+    await _fadeInBattleOpeningSealedSlots([...enemyFront,...allyFront,...enemyRear,...allyRear,...sealed]);
+    host.classList.remove('battle-opening-active');
+    return;
+  }
   await _playBattleOpeningLaneStep([enemyFront,allyFront]);
   await _playBattleOpeningLaneStep([enemyRear,allyRear]);
   await _fadeInBattleOpeningSealedSlots(sealed);
   host.classList.remove('battle-opening-active');
 }
 
+// デバッグモードで戦闘中に編成画面を開いたとき、走っている非同期の戦闘処理を
+// その場で無効化するための世代番号。_debugFormationAbortだけだと、次の戦闘の
+// startBattle()でフラグが落ちた瞬間に前の戦闘のループが再開し、二重に進行してしまう
+// （＝「編成画面にしても戦闘が続く」「次の移動先で前の戦闘が続く」の原因）。
+function _bumpBattleRunId(){
+  G._battleRunId=(Number(G._battleRunId)||0)+1;
+  return G._battleRunId;
+}
+function _battleRunStale(runId){
+  return !!G._debugFormationAbort||Number(G._battleRunId)!==Number(runId);
+}
+// デバッグ用：走っている戦闘を即座に打ち切り、持ち越すと次の戦闘を壊す状態を落とす。
+function abortBattleForDebug(){
+  G._debugFormationAbort=true;
+  _bumpBattleRunId();
+  G._battlePhaseRunning=false;
+  G._battleVictoryPending=false;
+  G._battleDraw=false;
+  G._checkingManaUnitEffects=false;
+  delete G._manaUnitEffectsPromise;
+  document.body.classList.remove('battle-turn-active','battle-victory-pending','right-card-peek');
+}
+
 async function startBattle(){
   G._debugFormationAbort=false;
+  const _runId=_bumpBattleRunId();
   G._battleDraw=false;
+  // 勝利SEは goToReward() より前に鳴るため、_bossJustDefeated が既に消えている場合に備えて
+  // _isBossRewardCycle も参照している（main.js の _wasBossWin）。ただしこのフラグは
+  // 次に goToReward() が走るまで前回のボス報酬サイクルの値を保持し続けるため、
+  // 塔や施設を挟んだ次の通常戦闘の勝利までボス勝利SEが鳴ってしまう。戦闘開始時に必ず落とす。
+  G._isBossRewardCycle=false;
   document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
   // battle-victory-pending は #kw-tooltip 等を display:none で隠すクラス。
@@ -961,16 +1237,33 @@ async function startBattle(){
     :((mapBattle&&mapBattle.type==='elite'&&typeof generateEliteEnemies==='function')
       ?generateEliteEnemies(battleFloor)
       :generateEnemies(battleFloor));
+  if(G._libraryTestBattleMode){
+    const _testEnemy=(atk,hp,name)=>{
+      const e=_mkEnemy(atk,hp,name,null,1,0,[], '亜人');
+      const def=typeof ENEMY_POOL!=='undefined'?(ENEMY_POOL||[]).find(x=>x&&x.name===name):null;
+      if(def&&typeof _applyEnemyDefAbilities==='function') _applyEnemyDefAbilities(e,def);
+      return e;
+    };
+    const goblin1=_testEnemy(1,2,'ゴブリン');
+    const goblin2=_testEnemy(1,2,'ゴブリン');
+    const orc=_testEnemy(2,2,'オーク');
+    goblin1.lane='front'; goblin2.lane='front'; orc.lane='rear';
+    G.enemies=[goblin1,goblin2,orc];
+  }
   // 敵は前衛5体・後衛3体の最大8枠へ整列。オブジェクトは出現させない。
   {
+    // ステージごとの明示指定（_sceneEnemyCount）で数と前後衛が確定している場合は、
+    // 序盤の間引き・水増し・自動レーン配置をすべて行わない。
+    const _laneFixed=!!G._enemyLaneFixed;
+    G._enemyLaneFixed=false;
     const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
     const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
     const _mapNormalBattleNo=mapBattle&&mapBattle.type==='battle'&&Number(mapBattle.mapIndex)===1&&Number(mapBattle.turn)<=4?Number(mapBattle.normalBattleNo)||0:0;
-    const _earlyBattleCount=!_isBossFight?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
+    const _earlyBattleCount=(!_isBossFight&&!_laneFixed)?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
     if(_earlyBattleCount>0&&_actualEnemies.length>_earlyBattleCount){
       _actualEnemies.splice(_earlyBattleCount);
     }
-    while(!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
+    while(!_laneFixed&&!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
       const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
       const extra=JSON.parse(JSON.stringify(base));
       extra.id=uid();
@@ -978,7 +1271,7 @@ async function startBattle(){
       _actualEnemies.push(extra);
     }
     const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
-    if(!_isBossFight&&!_scriptedOpening) _layoutEnemyLanes(_actualEnemies);
+    if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
     _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
     G.enemies=_newEnemies;
     compactBattleUnits();
@@ -1005,7 +1298,7 @@ async function startBattle(){
     e.allyTarget=false;
   });
   // 演出確認用の試験戦闘：全敵のATKを3、HPを500に上書きする。
-  if(G._testBattleMode){
+  if(G._testBattleMode&&!G._libraryTestBattleMode){
     G.enemies.forEach(e=>{
       if(!e||e._isObject) return;
       e.atk=3; e.baseAtk=3;
@@ -1050,11 +1343,17 @@ async function startBattle(){
 
   // 通常・エリート・ボスを問わず、開幕演出が終わるまでカードは非表示にする。
   renderAll();
+  if(_battleRunStale(_runId)) return;
   const introKind=await _playBattleStartIntro();
+  if(_battleRunStale(_runId)) return;
 
   updateHUD();
   renderAll();
   await playBattleOpeningSequence();
+  if(_battleRunStale(_runId)) return;
+  // 全員が出撃した後、台詞を持つキャラクターがいれば吹き出しで順に出す。
+  await playBattleStartLines();
+  if(_battleRunStale(_runId)) return;
   if(G._debugGameOver){
     G._battleDefeatHandled=true;
     gameOver();
@@ -1080,6 +1379,7 @@ async function startBattle(){
   renderAll();
   // 配置演出終了後、既存仕様の待機時間を経て攻撃を開始する。
   await sleep(introKind==='elite'?500:1000);
+  if(_battleRunStale(_runId)) return;
   // 開幕効果で全敵が倒された場合、勝利判定。
   // 開戦効果（マナ効果・アイテム・死亡効果等）で敵が全滅すると、この行に来る前に
   // finishBattleAsVictory()がG.phaseを'reward'にしていることがある。その場合
@@ -1118,7 +1418,7 @@ function startPlayerPhase(){
   }
   renderAll();
   if(G._testBattleMode){
-    setHint('試験戦闘中：「戦闘終了」でいつでも編成画面に戻れます。');
+    setHint(G._libraryTestBattleMode?'試験戦闘中：勝敗が付くまで戦います。':'試験戦闘中：「戦闘終了」でいつでも編成画面に戻れます。');
   }
   // 戦闘開始ボタンは廃止し、間を置かず自動で戦闘フェイズへ進む
   _advanceToBattlePhase();
@@ -1127,6 +1427,7 @@ function startPlayerPhase(){
 // ── 戦闘フェイズ（インターリーブ攻撃）─────────────
 
 async function battlePhase(){
+  const _runId=Number(G._battleRunId)||0;
   G.phase='enemy';
   document.body.classList.add('battle-turn-active');
   renderControls();
@@ -1142,7 +1443,7 @@ async function battlePhase(){
   // レーン単位のサイクルを陣営ごとに管理する（前衛全滅を待つ旧仕様は廃止）
   const enemyLaneState={lane:'front',attacked:new Set()};
   const allyLaneState={lane:'front',attacked:new Set()};
-  while(!_checkBattleOver()&&safety++<500&&!G._testBattleAbort&&!G._debugFormationAbort){
+  while(!_checkBattleOver()&&safety++<500&&!G._testBattleAbort&&!_battleRunStale(_runId)){
     updateBattleSpeedMode();
     if(!_pickLaneAttacker(G.enemies,true,enemyLaneState)&&!_pickLaneAttacker(G.allies,false,allyLaneState)){
       G._battleDraw=true;
@@ -1172,7 +1473,7 @@ async function battlePhase(){
         log('敵の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
       }
       compactBattleUnits();
-      if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
+      if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
       if(enemyActed) side='ally';
@@ -1197,14 +1498,14 @@ async function battlePhase(){
         log('味方の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
       }
       compactBattleUnits();
-      if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
+      if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
       if(allyActed) side='enemy';
       G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
     }
   }
-  if(G._debugFormationAbort){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
+  if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
   if(G._testBattleAbort){ _exitTestBattle(); return; }
   if(safety>=500){
     log('戦闘が長引いたため停止しました','sys');
@@ -1455,7 +1756,7 @@ function handleBattleDefeat(){
     _onAllEnemiesDefeated();
     return;
   }
-  if(G._testBattleMode){
+  if(G._testBattleMode&&!G._libraryTestBattleMode){
     _exitTestBattle();
     return;
   }
@@ -1481,14 +1782,48 @@ async function finishBattleAsVictory(reason){
     G._pendingVictoryReason=reason||'敵を全滅させた！';
     return;
   }
+  // 試験戦闘は敵を全滅しても通常の勝利・報酬フローへ入れない。
+  // ここで専用終了しないと _testBattleMode が残り、次の「戦闘開始」も試験戦闘になる。
+  if(G._testBattleMode&&!G._libraryTestBattleMode){
+    _exitTestBattle();
+    return;
+  }
   // 敵全滅を理由にする場合は、召喚済みの敵を含めて最後に再確認する。
   if(reason==='敵を全滅させた！'&&_livingCombatUnits(G.enemies).length) return;
+  // Scene 5のボス（万象の揺り籠“エピトメ”）は勝利演出・報酬を通さず、
+  // 全敵撃破が確定したこの時点から movie3 → 伏せられたラスボス戦の導入へ入る。
+  if(typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle()){
+    G._battleVictoryPending=true;
+    G._battlePhaseRunning=false;
+    G.phase='clear-cutscene';
+    document.body.classList.add('battle-victory-pending');
+    document.body.classList.remove('battle-turn-active');
+    if(reason) log(reason,'gold');
+    updateHUD();
+    if(typeof startFinalBossIntroSequence==='function') void startFinalBossIntroSequence();
+    return;
+  }
+  // Scene 5のラスボスは通常の勝利カットイン・終戦効果・報酬を通さず、
+  // 全敵撃破が確定したこの時点から専用エンディング動画へ入る。
+  if(typeof isFinalBossVictoryBattle==='function'&&isFinalBossVictoryBattle()){
+    G._battleVictoryPending=true;
+    G._battlePhaseRunning=false;
+    G.phase='clear-cutscene';
+    document.body.classList.add('battle-victory-pending');
+    document.body.classList.remove('battle-turn-active');
+    if(reason) log(reason,'gold');
+    updateHUD();
+    if(typeof startFinalBossClearSequence==='function') void startFinalBossClearSequence();
+    return;
+  }
   G._battleVictoryPending=true;
   // 引き分け等、_onAllEnemiesDefeated()/checkInstantVictory()を経由しない勝利確定ルートでも、
   // ボス戦であれば必ずボス撃破フラグを立てる（指輪報酬フェイズの判定に使うため）。
   if(_isBossFight) G._bossJustDefeated=true;
   if(reason) log(reason,'gold');
   await applyVictoryBonuses();
+  // 終戦効果の完了後、報酬・勝利演出へ進む前に残存VFXを掃除する。
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   updateHUD();
   G.phase='reward';
   G._battlePhaseRunning=false;
@@ -1671,6 +2006,13 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
       _addBattleStats(unit,stolen,0,isEnemySide?'enemy':'ally');
       log(`${_lc(unit.name,isEnemySide)}の効果で生贄を持つキャラクターからATKを${stolen}奪った。`,isEnemySide?'bad':'good');
     }
+  }
+  if(isEnemySide&&hasName('黄金の瞳"フレイ"')){
+    await _spawnEnemyUnitByName('黒マッドキャット',1,2,true,unit);
+    log(`${_lc(unit.name,true)}の攻撃で「黒マッドキャット」を召喚した。`,'bad');
+  }
+  if(isEnemySide&&hasName('万象の揺り籠"エピトメ"')){
+    await _spawnRandomEnemyBoss(unit);
   }
   const bladeCount=_enhancementCount(unit,'剣技');
   for(let i=0;i<bladeCount;i++){
@@ -1958,6 +2300,17 @@ function _orderedBattleCharacters(){
   return [...orderSide(G.allies),...orderSide(G.enemies)];
 }
 
+function _openingBattleCharacters(){
+  // 開戦効果だけは敵陣営を先に解決する。通常の同時効果の順序は変更しない。
+  const order=arr=>(arr||[]).map((unit,index)=>({unit,index})).filter(x=>x.unit&&x.unit.hp>0&&!x.unit._isObject&&!x.unit._isSoul)
+    .sort((a,b)=>{
+      const laneA=(a.unit.lane||'front')==='rear'?1:0;
+      const laneB=(b.unit.lane||'front')==='rear'?1:0;
+      return laneA-laneB||a.index-b.index;
+    }).map(x=>x.unit);
+  return [...order(G.enemies),...order(G.allies)];
+}
+
 function _sacrificeCount(){
   return _allBattleCharacters().filter(u=>!_isSealed(u)&&_unitHasSacrifice(u)).length;
 }
@@ -2051,7 +2404,9 @@ function _unitEffectNames(unit){
 }
 
 function _unitHasEffectName(unit, name){
-  return _unitEffectNames(unit).includes(name);
+  const normalize=s=>String(s||'').replace(/[“”]/g,'"').trim();
+  const target=normalize(name);
+  return _unitEffectNames(unit).some(n=>normalize(n)===target);
 }
 
 function _unitEffectScale(unit,name){
@@ -2075,13 +2430,14 @@ function _hasAttackEffectsForPause(unit){
   const desc=String(unit.desc||unit.effectText||unit.effect||'');
   const hasName=name=>_unitHasEffectName(unit,name);
   if(_unitEffectPanelCount(unit,'懺悔')>0) return true;
-  if(hasName('ブラウニー')||hasName('ファミリア')||hasName('ユミル')||hasName('ラミア')||hasName('センチネル')||hasName('エルヴンメイジ')||hasName('インプ')) return true;
+  if(hasName('ブラウニー')||hasName('ファミリア')||hasName('ユミル')||hasName('ラミア')||hasName('センチネル')||hasName('エルヴンメイジ')||hasName('インプ')||hasName('黄金の瞳"フレイ"')||hasName('万象の揺り籠"エピトメ"')) return true;
   if(/^攻撃[:：]/.test(desc)||/^攻撃：/.test(desc)) return true;
   if(/全ての仲間のHPが\+[12]/.test(desc)||hasName('サイレン')) return true;
   if(/^攻撃：ランダムな敵にXダメージ/.test(desc)) return true;
   if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0) return true;
   if(_unitHasKeyword(unit,'共振')||_unitHasKeyword(unit,'戦術')) return true;
   if(_enhancementCount(unit,'剣技')>0) return true;
+  if(hasName('日刻の巫女"ルミア"')) return true;
   return false;
 }
 
@@ -2237,13 +2593,22 @@ function _shakeOnAttackContact(target, damage){
   // 実際の振動開始（setTimeout）を待たない。
   G._contactShakeFired=true;
   if(BATTLE_SHAKE_CONTACT_DELAY_MS>0){
-    window.setTimeout(()=>triggerBattleScreenShake({damage:predicted}),BATTLE_SHAKE_CONTACT_DELAY_MS);
+    const active=window.__activeBattleVfxPromises||(window.__activeBattleVfxPromises=new Set());
+    let resolveDelay;
+    const delayPromise=new Promise(resolve=>{ resolveDelay=resolve; });
+    active.add(delayPromise);
+    window.setTimeout(()=>{
+      Promise.resolve(triggerBattleScreenShake({damage:predicted})).finally(()=>{
+        resolveDelay();
+        active.delete(delayPromise);
+      });
+    },BATTLE_SHAKE_CONTACT_DELAY_MS);
   }else{
     triggerBattleScreenShake({damage:predicted});
   }
 }
 
-function _applyDamageState(unit, dmg, source, side, skipTough){
+function _applyDamageState(unit, dmg, source, side, skipTough, isAttackDamage){
   if(!unit||unit.hp<=0||!(dmg>0)) return {unit,side,actualDmg:0,died:false,blocked:false};
   if(_isSealed(unit)) return {unit,side,actualDmg:0,died:false,blocked:true};
   if(unit.shield>0){
@@ -2260,11 +2625,12 @@ function _applyDamageState(unit, dmg, source, side, skipTough){
   const toughSum=skipTough?0:(unit.keywords||[]).filter(k=>/^強靭\d+$/.test(k)).reduce((s,k)=>s+(parseInt(k.slice(2),10)||0),0);
   if(toughSum>0) dmg-=toughSum;
   unit._lastDamageSource=source||unit._lastDamageSource||null;
-  // 武器破壊：「このキャラクターはHPではなくATKにダメージを与える」＝
+  // 武器破壊：「攻撃：このキャラクターの攻撃はHPではなくATKにダメージを与える。」
   // 武器破壊を持つのは**ダメージを与える側**であり、削られるのは対象のATK。
-  // 以前はダメージを受ける側（unit）を見ていたため、武器破壊持ち自身のATKが削られていた。
+  // 発動するのは通常攻撃のダメージのみ。効果ダメージ（開戦効果・毒等）と
+  // 反撃ダメージ（_counterDamage）では発動しない。
   // 結界・弱体・強靭の処理は通常のダメージと同じ。
-  if(source&&source!==unit&&_enhancementCount(source,'武器破壊')>0){
+  if(isAttackDamage&&source&&source!==unit&&_enhancementCount(source,'武器破壊')>0){
     const actualDmg=Math.max(0,dmg);
     const preAtk=Math.max(0,Number(unit.atk)||0);
     const atkDmg=Math.min(preAtk,actualDmg);
@@ -2275,7 +2641,7 @@ function _applyDamageState(unit, dmg, source, side, skipTough){
     if(actualDmg>0) _recordRunStatsDamage(actualDmg,source&&source._damageType||'');
     const preHp=unit.hp||0;
     if(actualDmg>0&&source) applyKeywordOnHit(source,unit,actualDmg,preHp,true);
-    return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain:null,needsAllyInjuryEffects:actualDmg>0&&side==='ally'};
+    return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain:null,needsAllyInjuryEffects:actualDmg>0&&side==='ally',needsEnemyInjuryEffects:actualDmg>0&&side==='enemy'};
   }
   const actualDmg=Math.max(0,dmg);
   if(typeof _recordRunStatsDamage==='function') _recordRunStatsDamage(actualDmg,source&&source._damageType||'');
@@ -2290,9 +2656,11 @@ function _applyDamageState(unit, dmg, source, side, skipTough){
   // 「発動が必要」というフラグだけを立て、applyDamageBatch側でバッチ全体の演出・死亡処理が
   // 確定した後にawaitして直列に（＝他の処理を止めて優先的に）発動させる。
   let needsAllyInjuryEffects=false;
+  let needsEnemyInjuryEffects=false;
   if(actualDmg>0&&unit.hp>0&&side==='ally'){
     needsAllyInjuryEffects=true;
   }
+  if(actualDmg>0&&unit.hp>0&&side==='enemy') needsEnemyInjuryEffects=true;
   // 生命吸収等は対象を倒した場合も発動するため、unit.hp>0では絞り込まない
   // （生命吸収自体はここでは発動させない。反撃等で攻撃者自身も同じバッチ内で同時にダメージを
   // 受ける可能性があるため、applyDamageBatch側でバッチ内の全ダメージ確定後にまとめて処理する）
@@ -2307,7 +2675,7 @@ function _applyDamageState(unit, dmg, source, side, skipTough){
     }
   }
   if(side==='enemy'&&unit.instadead&&actualDmg>0) unit.hp=0;
-  return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain,needsAllyInjuryEffects};
+  return {unit,side,actualDmg,died:unit.hp<=0,blocked:false,lifeDrain,needsAllyInjuryEffects,needsEnemyInjuryEffects};
 }
 
 // 団結：同じ強化パネルに接続している味方へ、強靭適用後のダメージを分散する。
@@ -2360,6 +2728,47 @@ async function _fireAllyInjuryEffects(unit, actualDmg){
     if(firedThisRound) firedCount++;
   }
   return firedCount;
+}
+
+// 敵側の負傷効果。味方側の負傷フックとは別経路で処理し、敵の効果だけを追加する。
+async function _fireEnemyInjuryEffects(unit, actualDmg){
+  if(!unit||unit.hp<=0) return 0;
+  const hasName=name=>_unitHasEffectName(unit,name);
+  let fired=0;
+  if(hasName('鉄の拳"フォルニョート"')){
+    _addBattleStats(unit,3,1,'enemy');
+    log(`${_lc(unit.name,true)}の負傷効果で+3/+1を得た。`,'bad');
+    fired++;
+  }
+  if(hasName('残響の魔導師"アバドン"')){
+    const target=_pickRandomEnemyTargets(G.allies,unit)[0];
+    if(target){
+      playDamageEffectSfx('single');
+      await applyDamageBatch([{unit:target,side:'ally',amount:3,source:unit}],{source:unit,effect:true});
+      log(`${_lc(unit.name,true)}の負傷効果で${_lc(target.name,false)}に3ダメージを与えた。`,'bad');
+    }
+    fired++;
+  }
+  if(hasName('波の娘"ラン・ドーター"')){
+    for(let i=0;i<2;i++) await _spawnEnemyUnitByName('黒ケルピー',1,3,true,unit);
+    log(`${_lc(unit.name,true)}の負傷効果で「黒ケルピー」を2体召喚した。`,'bad');
+    fired++;
+  }
+  if(hasName('咬竜"グレイプニル"')){
+    const target=_pickRandomEnemyTargets(G.allies,unit)[0];
+    if(target&&unit.hp>0){
+      if(_hasAttackEffectsForPause(unit)) unit._attackEffectPending=true;
+      await _dealAttackDamageWithMutual(unit,true,target,G.allies.indexOf(target),Math.max(0,unit.atk||0));
+      log(`${_lc(unit.name,true)}の負傷効果で直ちに攻撃した。`,'bad');
+    }
+    fired++;
+  }
+  if(hasName('夜刻の巫女"ウムブラ"')){
+    (G.enemies||[]).filter(_canReceiveBattleEffect).forEach(a=>_addBattleStats(a,8,8,'enemy'));
+    log(`${_lc(unit.name,true)}の効果で全ての味方は+8/+8を得た。`,'bad');
+    fired++;
+  }
+  return fired;
 }
 
 // エティン：常時：味方の負傷効果が発動するたび、このキャラクターは+2/+1を得る。
@@ -2422,7 +2831,8 @@ async function applyDamageBatch(entries, options){
 
   // 全対象のHP減少を先に確定する（この時点ではまだ死亡処理・盤面詰め直しを行わない）
   const results=prepared.map(e=>({
-    ..._applyDamageState(e.unit,e.amount,e.source||opt.source,e.side,e._skipTough),
+    // 武器破壊は「攻撃」でのみ発動する。反撃（_counterDamage）は攻撃に含めない。
+    ..._applyDamageState(e.unit,e.amount,e.source||opt.source,e.side,e._skipTough,!!opt.normalAttack&&!e._counterDamage),
     rect:e.rect,
     attackSfxSource:e.attackSfxSource||opt.attackSfxSource||null,
     // opt.effect：通常攻撃ではなくキャラクター固有の効果によるダメージであることを示す。
@@ -2513,6 +2923,9 @@ async function applyDamageBatch(entries, options){
     _bumpEtinOnAllyInjuryEffect(await _fireAllyInjuryEffects(r.unit,r.actualDmg));
   }
   if(injuredAllies.length&&typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
+  const injuredEnemies=results.filter(r=>r.needsEnemyInjuryEffects&&r.unit&&r.unit.hp>0);
+  for(const r of injuredEnemies) await _fireEnemyInjuryEffects(r.unit,r.actualDmg);
+  if(injuredEnemies.length&&typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
   return results;
 }
 
@@ -2688,6 +3101,7 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     if(!attackResult?.contacted||attacker.hp<=0||!defender||defender.hp<=0){
       return attackResult;
     }
+    if(isEnemySide) await _onEnemySideAttack(attacker);
     // 攻撃・反撃を「同じ接触で同時に成立する相互ダメージ」として扱う。反撃の可否・値は
     // ダメージ適用前（接触直前）の状態でスナップショットし、攻撃で倒れたことを理由に反撃を
     // 取り消さない。先制は攻撃側が相手を仕留めた場合のみ反撃を免除する（相手も先制を持つ場合は無効）。
@@ -2768,6 +3182,7 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
       .map(t=>{ seen.add(t.id); return t; });
     const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker}));
     result.contacted=damage>0&&entries.length>0;
+    if(isEnemySide&&result.contacted) await _onEnemySideAttack(attacker);
 
     // 反撃は本来の攻撃対象（primaryTarget）からのみ発生する。全体攻撃／三方向攻撃で追加ダメージを
     // 受けた他のキャラクターは反撃しない。反撃可否・値はダメージ適用前にスナップショットし、
@@ -3137,6 +3552,9 @@ function _makePanelSummonUnit(spec, keywords){
     sfxType:spec.sfxType||'',
     equipment:[],
     _panelSummoned:true,
+    // 生贄人形で封印を完全に消したキャラクターは、解放効果を開戦効果として発動する。
+    // カード側のフラグをユニットへ引き継がないと、開戦時に判定できない。
+    _releaseConvertedToOpening:!!spec._releaseConvertedToOpening,
     _sourcePanelName:spec.panelName||spec.name||'',
     manaOnAttack:spec.manaOnAttack||0,
     manaOnInjury:spec.manaOnInjury||0,
@@ -3254,6 +3672,8 @@ function _panelSummonSpec(panel){
       _merged:!!panel._merged,
       _tripleMerged:!!panel._tripleMerged,
       _tripleDescApplied:!!panel._tripleDescApplied,
+      // 生贄人形で封印を完全に消したキャラクターは、解放効果を開戦効果として発動する。
+      _releaseConvertedToOpening:!!panel._releaseConvertedToOpening,
       art:typeof getPanelArtPath==='function'?getPanelArtPath(panel):(panel.art||''),
       no:panel.no||panel.artCode||panel._artCode||panel['No.']||'',
       panelName:panel.name
@@ -3343,6 +3763,9 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
     :null;
   let finalAtk=Number(basePanel?.power??atk)||Number(atk)||0;
   let finalHp=Math.max(1,Number(basePanel?.life??hp)||Number(hp)||1);
+  // 戦闘中に敵が召喚したキャラクターは、召喚元（エリート・ボス）自身のステータスの80%。
+  const _enemyScaled=isEnemySide?_enemySummonStats(placement&&placement.rightOf):null;
+  if(_enemyScaled){ finalAtk=_enemyScaled.atk; finalHp=_enemyScaled.hp; }
   if(color){
     const key=_colorKey(color);
     const cb=G&&G.panelColorPermanentBuffs&&G.panelColorPermanentBuffs[key];
@@ -3376,6 +3799,49 @@ function _panelSummonDisplayEquipment(sourcePanel, contributingPanels){
   return [center,...panels];
 }
 
+// 「黒マッドキャット」のように敵シートのキャラクターを戦闘中に召喚する。
+// _spawnAdhocAllyUnit()はプレイヤー側のPANEL_POOLを引くため、敵専用カード（マッドキャット等）は
+// 名前だけのユニットになり絵も効果も付かない。こちらは敵シート定義（ENEMY_POOL）から生成する。
+// 「黒」は敵カードの色（シートの色列）なので、名前解決の際は取り除く。
+async function _spawnEnemyUnitByName(name, atk, hp, isEnemySide, source, placement){
+  const norm=s=>String(s||'').replace(/[\u201c\u201d]/g,'"').trim();
+  const baseName=norm(name).replace(/^\u9ed2/,'');
+  const pool=(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL))?ENEMY_POOL:[];
+  const def=pool.find(d=>d&&norm(d.name)===baseName)||null;
+  // 敵側の召喚は召喚元（エリート・ボス）自身のステータスの80%。
+  const scaled=isEnemySide?_enemySummonStats(source):null;
+  const finalAtk=scaled?scaled.atk:Math.max(0,Number(atk)||0);
+  const finalHp=scaled?scaled.hp:Math.max(1,Number(hp)||1);
+  const e=_mkEnemy(finalAtk,finalHp,def?def.name:baseName,def&&def.icon,(def&&def.grade)||1,
+    def?_kwShield(def):0,[...((def&&def.keywords)||[])],(def&&def.race)||'-');
+  if(def) _applyEnemyDefAbilities(e,def);
+  e.lane='front';
+  const idx=_summonMidBattleAllyFront(e,!!isEnemySide,placement||(source?{rightOf:source}:undefined));
+  if(idx<0) return null;
+  await _afterPanelSummon(e,!!isEnemySide);
+  requestBattleCompact();
+  return e;
+}
+
+async function _spawnRandomEnemyBoss(source){
+  const excluded=['万象の揺り籠','刻を織る者','日刻の巫女','夜刻の巫女'];
+  const candidates=(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[]).filter(def=>def&&def.bossOnly&&!excluded.some(n=>String(def.name||'').includes(n)));
+  const def=randFrom(candidates);
+  if(!def) return null;
+  const floor=Number(G._mapBattle?.floor??G.floor)||1;
+  // 召喚されるボスのステータスは召喚元（エピトメ）自身の80%。深層レベル・ボス補正は
+  // 召喚元のステータスに既に乗っているため、ここで改めて掛ける必要はない。
+  const st=_enemySummonStats(source)||enemyStats({...def,baseAtk:[17,20],baseHp:[34,40]},floor,
+    Number(G._battleBossMult)||Number(G._forceBossMult)||Number(G._extraBattleMult)||1.5);
+  const e=_mkEnemy(st.atk,st.hp,def.name,def.icon,def.grade||1,_kwShield(def),[...(def.keywords||[]),'ボス'],def.race||'-');
+  _applyEnemyDefAbilities(e,def); e.boss=true; e.lane='front';
+  const idx=_summonMidBattleAllyFront(e,true,{rightOf:source});
+  if(idx<0) return null;
+  await _afterPanelSummon(e,true); requestBattleCompact();
+  log(`${_lc(source.name,true)}の効果で「${e.name}」を召喚した。`,'bad');
+  return e;
+}
+
 // ── 動的に再計算が必要な「常時」パッシブ（マナ数依存・リーダー依存）を反映する ──
 // マナ・リーダーのステータスは増加方向にのみ追従する（減少時に強制的にHPを削らないための簡易措置）
 function _recomputeDynamicPanelStats(){
@@ -3401,6 +3867,13 @@ function _recomputeDynamicPanelStats(){
       u.maxHp=targetHp;
       u.hp=hpDiff>0?(u.hp||0)+hpDiff:Math.min(u.hp||0,u.maxHp);
     }
+  });
+  (G.enemies||[]).forEach(u=>{
+    if(!u||u.hp<=0||!_unitHasEffectName(u,'蝕の翼"スコル・ハティ"')) return;
+    const prev=u._manaScaleApplied||0;
+    const target=manaCount*4;
+    const delta=target-prev;
+    if(delta>0){ _addBattleStats(u,delta,delta,'enemy'); u._manaScaleApplied=target; }
   });
 }
 function _ensureMana(){
@@ -3477,6 +3950,8 @@ function _manaShouldFireAgain(entity){
 // 復活：死亡時、ATK/HPを半分にして「召喚」する（召喚トリガーを発動させる）。
 function _reviveWithHalvedStats(unit,isEnemySide){
   if(!unit) return;
+  // 蘇生したら死亡演出のフラグを戻す。残したままだと、次に倒れたとき演出が出ない。
+  delete unit._deathFxDone;
   const baseAtk=Math.max(0,Number(unit.baseAtk??unit.atk)||0);
   const baseHp=Math.max(1,Number(unit.maxHp??unit.baseHp??unit.hp)||1);
   const nextAtk=Math.max(0,Math.floor(baseAtk/2));
@@ -3606,6 +4081,8 @@ async function _releaseSealWithoutSacrifice(unit,isEnemySide){
   delete unit._sealValue;
   delete unit._sealReady;
   log(`${_lc(unit.name,isEnemySide)}の封印が生贄なしで解放された。`,'gold');
+  // 封印から解放されたキャラクターは「戦闘中に召喚された」扱いにする。
+  await _afterPanelSummon(unit,isEnemySide);
   const repeats=_releaseRepeatCount(unit,isEnemySide);
   for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,[]);
   requestBattleCompact();
@@ -3727,20 +4204,26 @@ async function _applyManaThresholdEffectText(unit,text,isEnemySide){
     }
     return;
   }
-  // ドワーフ・ダークワン等：ランダムなA色（の）キャラクターは+X/+Yを得る。
-  const randColorBuff=String(text||'').match(/^ランダムな([赤青緑黄紫])の?キャラクターは\+(\d+)\/\+(\d+)を得る/);
+  // ドワーフ・ダークワン等：ランダムなA色（の）キャラクター（N体）は+X/+Yを得る。
+  // 「2体」のように体数が付く場合は、その数だけ重複なしで対象を選ぶ（足りなければいる分だけ）。
+  const randColorBuff=String(text||'').match(/^ランダムな([赤青緑黄紫])の?キャラクター(?:(\d+)体)?は\+(\d+)\/\+(\d+)を得る/);
   if(randColorBuff){
-    const [,buffColor,atkStr,hpStr]=randColorBuff;
+    const [,buffColor,countStr,atkStr,hpStr]=randColorBuff;
     const side=isEnemySide?G.enemies:G.allies;
     const candidates=(side||[]).filter(u=>_canReceiveBattleEffect(u)&&String(u.color||'')===_normalizeColorTextForBattle(buffColor));
-    if(candidates.length){
-      const target=candidates[Math.floor(Math.random()*candidates.length)];
-      const bonus=_combatModifierBonus(unit,isEnemySide);
-      const atk=(parseInt(atkStr,10)||0)+bonus, hp=(parseInt(hpStr,10)||0)+bonus;
+    const want=Math.max(1,parseInt(countStr,10)||1);
+    const pool=candidates.slice();
+    const targets=[];
+    while(targets.length<want&&pool.length){
+      targets.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+    }
+    const bonus=_combatModifierBonus(unit,isEnemySide);
+    const atk=(parseInt(atkStr,10)||0)+bonus, hp=(parseInt(hpStr,10)||0)+bonus;
+    targets.forEach(target=>{
       const gAtk=atk?addUnitAtk(target,atk):0;
       const gHp=hp?addUnitHp(target,hp,isEnemySide?'enemy':'ally'):0;
       log(`${_lc(unit.name,isEnemySide)}の効果で${_lc(target.name,isEnemySide)}は+${gAtk}/+${gHp}を得た。`,isEnemySide?'bad':'good');
-    }
+    });
     return;
   }
   const randEnemySac=String(text||'').match(/^ランダムな敵に生贄を付与する/);
@@ -3954,7 +4437,49 @@ function _summonPanelUnitToFront(unit, isEnemySide){
 // 開戦時のパネル出撃（isInitialDeploy）とは異なり、戦闘中に実際に発生した召喚
 // （効果による召喚・仲間化・蘇生等）は必ず前衛に置く。後衛には絶対に溢れさせない
 // （前衛が満杯なら召喚自体を諦める）。
+// 戦闘中に敵（エリート・ボス）がキャラクターを召喚する場合、召喚されたキャラクターの
+// ATK/HPは召喚元自身のステータスの80%とする。HPは被ダメージで揺れないよう最大HPを基準にする。
+const ENEMY_SUMMON_STAT_RATIO=0.8;
+function _enemySummonStats(source){
+  if(!source) return null;
+  const baseHp=Number(source.maxHp)||Number(source.hp)||0;
+  return {
+    atk:Math.max(0,Math.round((Number(source.atk)||0)*ENEMY_SUMMON_STAT_RATIO)),
+    hp:Math.max(1,Math.round(baseHp*ENEMY_SUMMON_STAT_RATIO)),
+  };
+}
+
+// 前衛の左端／右端へ召喚する（リムスルスの「黒ボーンナイト」等）。
+// 端が埋まっている場合は前衛全体を反対側へ1つ寄せて端を空ける。
+function _summonMidBattleFrontEdge(unit, isEnemySide, edge){
+  const arr=isEnemySide?G.enemies:G.allies;
+  const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
+  const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
+  const isFree=u=>!u||u.hp<=0||u._isObject||u._isSoul;
+  const sync=()=>{ for(let i=0;i<frontSlots;i++){ const u=arr[i]; if(u&&!isFree(u)) u._battleSlot=i; } };
+  const place=idx=>{ unit.lane='front'; arr[idx]=unit; sync(); return idx; };
+  let first=-1,last=-1;
+  for(let i=0;i<frontSlots;i++){ if(!isFree(arr[i])){ if(first<0) first=i; last=i; } }
+  if(first<0) return place(edge==='left'?0:frontSlots-1);
+  if(edge==='left'){
+    if(first>0) return place(first-1);
+    let f=-1;
+    for(let i=last+1;i<frontSlots;i++){ if(isFree(arr[i])){ f=i; break; } }
+    if(f<0) return -1;
+    for(let i=f;i>0;i--) arr[i]=arr[i-1];
+    return place(0);
+  }
+  if(last<frontSlots-1) return place(last+1);
+  let f=-1;
+  for(let i=first-1;i>=0;i--){ if(isFree(arr[i])){ f=i; break; } }
+  if(f<0) return -1;
+  for(let i=f;i<frontSlots-1;i++) arr[i]=arr[i+1];
+  return place(frontSlots-1);
+}
+
 function _summonMidBattleAllyFront(unit, isEnemySide, placement){
+  // 「前衛の両端へ」のように置き場所が決まっている召喚は専用の配置に回す。
+  if(placement&&placement.frontEdge) return _summonMidBattleFrontEdge(unit,isEnemySide,placement.frontEdge);
   const arr=isEnemySide?G.enemies:G.allies;
   const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
@@ -4314,7 +4839,7 @@ function _grantRandomItem(sourceName, options){
 async function _applyNewOpeningEffects(stage){
   const want=s=>!stage||stage===s;
   let alchemyBlocked=false;
-  for(const unit of _orderedBattleCharacters()){
+  for(const unit of _openingBattleCharacters()){
     if(!_canReceiveBattleEffect(unit)) continue;
     const isEnemySide=(G.enemies||[]).includes(unit);
     if(isEnemySide&&_isUnitSilencedByScroll(unit)) continue;
@@ -4324,6 +4849,9 @@ async function _applyNewOpeningEffects(stage){
       const side=isEnemySide?'enemy':'ally';
       const wild=Math.max(_unitEffectPanelCount(unit,'野生の力'),_unitKeywordCount(unit,'野生の力'));
       if(want('other')&&wild&&!unit._openingDuplicate&&trigger===0) _gainMana(wild*2,unit);
+      // 生贄人形で封印を消したキャラクターは封印解放が起きないため、
+      // 解放効果をここで開戦効果として発動する。
+      if(want('other')&&unit._releaseConvertedToOpening) await _applyReleaseEffect(unit,isEnemySide,[]);
       if(want('add')&&(_unitHasKeyword(unit,'奇妙な絆')||_unitEffectPanelCount(unit,'奇妙な絆')>0)){
         const allies=isEnemySide?G.enemies:G.allies;
         const x=allies.filter(a=>_canReceiveBattleEffect(a)&&(_unitHasKeyword(a,'奇妙な絆')||_unitEffectPanelCount(a,'奇妙な絆')>0)).length;
@@ -4394,6 +4922,40 @@ async function _applyNewOpeningEffects(stage){
           log(`${_lc(unit.name,isEnemySide)}は生命吸収を得た。`,isEnemySide?'bad':'good');
         }
       }
+      if(want('add')&&hasName('緑域の隠者"ヴィーザル"')){
+        const allies=isEnemySide?G.enemies:G.allies;
+        allies.filter(_canReceiveBattleEffect).forEach(a=>_addBattleStats(a,4,4,side));
+        log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は+4/+4を得た。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('凍てつく亡霊"リムスルス"')){
+        // 「黒ボーンナイト」は前衛の両端に置く。
+        for(const edge of ['left','right']) await _spawnEnemyUnitByName('黒ボーンナイト',1,3,isEnemySide,unit,{frontEdge:edge});
+        log(`${_lc(unit.name,isEnemySide)}の効果で「黒ボーンナイト」を2体召喚した。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('金床の賢者"シンドリ"')){
+        (isEnemySide?G.enemies:G.allies).filter(_canReceiveBattleEffect).forEach(a=>_grantUnitKeyword(a,'貫通'));
+        log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は貫通を得た。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('反逆の熾火"ヘイズ"')){
+        (isEnemySide?G.enemies:G.allies).filter(_canReceiveBattleEffect).forEach(a=>_grantUnitKeyword(a,'強靭1'));
+        log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は強靭1を得た。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('原初の大蛇"エイトルヴォルム"')){
+        const foes=isEnemySide?G.allies:G.enemies;
+        foes.filter(_canReceiveBattleEffect).forEach(a=>{if(!_isAilmentImmune(a)) a.poison=(a.poison||0)+12;});
+        log(`${_lc(unit.name,isEnemySide)}の効果で全ての敵に毒12を与えた。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('古王"フォルセティ"')){
+        (isEnemySide?G.enemies:G.allies).filter(_canReceiveBattleEffect).forEach(a=>{a.shield=(a.shield||0)+1;});
+        log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は結界1を得た。`,isEnemySide?'bad':'good');
+      }
+      if(want('other')&&hasName('刻を織る者"ウルズ・ラグナ"')){
+        if(G._waveLife!=null) G._waveLife=1;
+        G.life=1;
+        _fadeBattleLife();
+        if(typeof updateHUD==='function') updateHUD();
+        log(`${_lc(unit.name,true)}の効果でプレイヤーのライフが1になった。`,'bad');
+      }
       if(want('other')&&unit._releaseConvertedToOpening){
         await _applyReleaseEffect(unit,isEnemySide,[]);
       }
@@ -4437,6 +4999,7 @@ function _hasAnyDeathKeywordEffect(unit){
   if(_unitHasEffectName(unit,'バンシー')&&(unit.atk||0)>0) return true;
   if(_enhancementCount(unit,'怨念')>0&&(unit.atk||0)>0) return true;
   if(unit._grantedDeathSummon) return true;
+  if(_unitHasEffectName(unit,'深藍の魔女"ティアマリス"')) return true;
   return false;
 }
 
@@ -4534,6 +5097,14 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       playDamageEffectSfx('single');
       await applyDamageBatch([{unit:target,side:(G.allies||[]).includes(target)?'ally':'enemy',amount:dmgAmount,source:unit}],{source:unit,effect:true});
       log(`${_lc(unit.name,unitIsEnemy)}の効果で${_lc(target.name,!unitIsEnemy)}に${dmgAmount}ダメージを与えた。`,unitIsEnemy?'bad':'good');
+    }
+  }
+  if(unitIsEnemy&&hasName('深藍の魔女"ティアマリス"')){
+    const target=_pickRandomEnemyTargets(G.allies,unit)[0];
+    if(target){
+      target.hp=0;
+      await processAllyDeath(target);
+      log(`${_lc(unit.name,true)}の効果で${_lc(target.name,false)}を即死させた。`,'bad');
     }
   }
   // ゴースト：死亡：ランダムな青キャラクターは+2/+1を得る。
@@ -5087,6 +5658,7 @@ async function _processAllyDeathInner(unit){
     G.battleCounters.deaths++;
     if(typeof _onAnyCharDeath==='function') _onAnyCharDeath(unit);
     unit._starterRegenUsed=true;
+    delete unit._deathFxDone;
     unit.keywords=(unit.keywords||[]).filter(k=>k!==reviveKw);
     if(reviveKw==='復活') _reviveWithHalvedStats(unit,false);
     else unit.hp=1;
@@ -5102,6 +5674,7 @@ async function _processAllyDeathInner(unit){
   }
   unit._deathProcessed=true;
   if(typeof playSfx==='function') playSfx('death',{group:'combat'});
+  if(typeof playUnitDeathBurn==='function') playUnitDeathBurn(unit,'ally');
   await _applyDeathKeywordEffects(unit,false);
   _onAllyDeathPanelSummons();
 
@@ -5174,6 +5747,34 @@ function _onAnyCharDeath(deadUnit){
     addUnitHp(holder,count,isEnemyHolder?'enemy':'ally');
     log(`${_lc(holder.name,isEnemyHolder)}の屍術で+${count}/+${count}を得た。`,isEnemyHolder?'bad':'good');
   });
+  (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'虚空の渡し守"ナグルファル"')).forEach(u=>{
+    _addBattleStats(u,3,1,'enemy');
+    log(`${_lc(u.name,true)}の効果で+3/+1を得た。`,'bad');
+  });
+  if(!deadIsEnemy){
+    (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'忘却の骸"ゲルミール"')).forEach(u=>{
+      (G.enemies||[]).filter(_canReceiveBattleEffect).forEach(e=>_addBattleStats(e,4,3,'enemy'));
+      log(`${_lc(u.name,true)}の効果で全ての味方は+4/+3を得た。`,'bad');
+    });
+  }
+}
+
+async function _onEnemySideAttack(attacker){
+  if(!attacker||attacker.hp<=0) return;
+  (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'隻眼の魔狼"ガルム・グリーム"')).forEach(g=>{
+    (G.enemies||[]).filter(_canReceiveBattleEffect).forEach(e=>_addBattleStats(e,1,1,'enemy'));
+    log(`${_lc(g.name,true)}の効果で全ての味方は+1/+1を得た。`,'bad');
+  });
+  for(const g of (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'極光の女王"グンダ"'))){
+    const entries=(G.allies||[]).filter(_canReceiveBattleEffect).map(a=>({unit:a,side:'ally',amount:1,source:g}));
+    if(entries.length) await applyDamageBatch(entries,{source:g,effect:true});
+    log(`${_lc(g.name,true)}の効果で全ての敵に1ダメージを与えた。`,'bad');
+  }
+  for(const l of (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'日刻の巫女"ルミア"'))){
+    const entries=(G.allies||[]).filter(_canReceiveBattleEffect).map(a=>({unit:a,side:'ally',amount:8,source:l}));
+    if(entries.length) await applyDamageBatch(entries,{source:l,effect:true});
+    log(`${_lc(l.name,true)}の効果で全ての敵に8ダメージを与えた。`,'bad');
+  }
 }
 
 
@@ -5192,6 +5793,10 @@ function onAllyShieldLost(lostUnit){
 
 function onEnemyShieldLost(lostUnit){
   if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(lostUnit,'enemy');
+  (G.enemies||[]).filter(u=>u&&u===lostUnit&&u.hp>0&&!_isSealed(u)&&_unitHasEffectName(u,'惑わしの妖精"エインセル"')).forEach(a=>{
+    (G.enemies||[]).filter(_canReceiveBattleEffect).forEach(e=>_addBattleStats(e,2,2,'enemy'));
+    log(`${_lc(a.name,true)}の効果で全ての味方は+2/+2を得た。`,'bad');
+  });
   (G.enemies||[]).filter(u=>u&&u.hp>0&&!_isSealed(u)&&u.name==='カーバンクル').forEach(c=>{
     const entries=_livingCombatUnits(G.allies).map(a=>({unit:a,side:'ally',amount:1,source:c}));
     if(!entries.length) return;
@@ -5480,15 +6085,18 @@ async function _processEnemyDeathInner(e,eIdx){
     _onEnemyDeathPanelSummons(e);
     _onAnyCharDeath(e);
     e._starterRegenUsed=true;
+    delete e._deathFxDone;
     e.keywords=(e.keywords||[]).filter(k=>k!==reviveKw);
     if(reviveKw==='復活') _reviveWithHalvedStats(e,true);
     else e.hp=1;
+    if(reviveKw==='根性') await _fireEnemyInjuryEffects(e,0);
     log(reviveKw==='復活'?`${_lc(e.name,true)}が復活の効果で召喚された。`:`${_lc(e.name,true)}が${reviveKw}の効果で蘇った。`,'bad');
     requestBattleCompact();
     return;
   }
   e._dp=true;
   if(typeof playSfx==='function') playSfx('death',{group:'combat'});
+  if(typeof playUnitDeathBurn==='function') playUnitDeathBurn(e,'enemy');
   _summonSuccubusVictimIfNeeded(e);
   // 魔力の指輪：常時：敵が死亡するたびに2マナを得る。
   {
@@ -5552,9 +6160,19 @@ async function playerPass(){
 function startTestBattle(){
   if(!G._debugMode||G.phase!=='reward') return;
   G._testBattleMode=true;
+  G._testBattleExitPending=false;
+  G._libraryTestBattleMode=!!G._isLibrary;
+  if(G._libraryTestBattleMode){
+    G._libraryLoanCardsState=typeof clone==='function'?clone(_rewCards||[]):(_rewCards||[]).slice();
+    document.body.classList.remove('library-formation-active');
+    if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
+  }
   G._testBattleAbort=false;
   G._testBattleSavedFloor=G.floor;
   document.body.classList.add('test-battle-active');
+  // 図書館の試験戦闘は勝敗が付くまで行うため「戦闘終了」ボタンを出さない。
+  // ボタンの表示はCSS（body.test-battle-active）が担うので、専用クラスで打ち消す。
+  document.body.classList.toggle('library-test-battle-active',!!G._libraryTestBattleMode);
   G.floor=19; // ステージ20（0-indexed）
   showScreen('battle');
   startBattle();
@@ -5565,20 +6183,29 @@ function startTestBattle(){
 function stopTestBattle(){
   if(!G._testBattleMode) return;
   G._testBattleAbort=true;
-  // 長い攻撃演出やVFXの待機中でも、ボタン操作を即時反映して編成画面へ戻す。
-  if(G._battlePhaseRunning){
-    G._battlePhaseRunning=false;
-    _exitTestBattle();
-  }
+  // 攻撃演出やVFXの待機中は戦闘ループが安全に抜けるのを待つ。
+  // ここで画面を切り替えると、進行中の複製カード・死亡演出が編成画面へ残る。
+  if(!G._battlePhaseRunning) void _exitTestBattle();
 }
 
-function _exitTestBattle(){
+async function _exitTestBattle(){
+  if(G._testBattleExitPending) return;
   if(!G._testBattleMode&&G.phase==='reward') return;
+  G._testBattleExitPending=true;
+  // 決着後の遷移が長くなりすぎたため、全演出の終了待ちは行わない。
+  // 残っている演出は直後の _forceStopAllVfx() で打ち切る。
+  const returnToLibrary=!!G._libraryTestBattleMode;
   G._testBattleMode=false;
+  G._libraryTestBattleMode=false;
   G._testBattleAbort=false;
   if(G._testBattleSavedFloor!=null){ G.floor=G._testBattleSavedFloor; G._testBattleSavedFloor=null; }
   document.body.classList.remove('battle-turn-active');
   document.body.classList.remove('test-battle-active');
+  document.body.classList.remove('library-test-battle-active');
+  document.body.classList.remove('battle-opening-active','battle-start-playing','battle-start-no-effect','battle-start-units-collapsed','battle-start-units-revealing','battle-victory-pending','gameover-active','game-clear-active');
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  if(typeof hideAttackLine==='function') hideAttackLine();
+  if(typeof _clearAllLogFx==='function') _clearAllLogFx();
   // 通常の戦闘終了時はonBattleEnd()がパネル召喚ユニット（＝現行仕様の全味方）をG.alliesから
   // 除去してから報酬/編成画面に戻るが、試験戦闘の中断はその経路を通らない。これを怠ると、
   // 次回の試験戦闘開始時にapplyNewPanelBattleStart()が現在の編成を「今回分」として追加召喚する際、
@@ -5588,7 +6215,13 @@ function _exitTestBattle(){
   // goToReward()はG.phaseが'player'/'enemy'の間は何もしないガードを持つため、
   // 戦闘フェイズの残留状態のまま呼んでも遷移しないよう先に外しておく。
   G.phase=null;
+  if(returnToLibrary&&typeof openMapLibraryFormation==='function'){
+    openMapLibraryFormation();
+    G._testBattleExitPending=false;
+    return;
+  }
   if(typeof goToReward==='function') goToReward();
+  G._testBattleExitPending=false;
 }
 
 // showVictoryOverlay()はmain.jsで定義（スクリプト読み込み順の都合上こちらは重複のため削除済み）

@@ -42,6 +42,8 @@ function _mkEnemy(atk,hp,name,icon,grade,shield,kws,race){
 
 function _applyEnemyDefAbilities(enemy, def){
   if(!enemy||!def) return enemy;
+  // 「台詞1〜3」列。戦闘開始時に吹き出しで順に出す。
+  if(Array.isArray(def.lines)&&def.lines.length) enemy.battleLines=def.lines.slice();
   const sheetRace=typeof getSheetRaceByName==='function'?getSheetRaceByName(enemy.name):'';
   if(sheetRace) enemy.race=sheetRace;
   ['No','no','NO','code','artCode','imageNo','画像No','画像番号','art','image'].forEach(k=>{
@@ -100,6 +102,32 @@ function _pickEnemyDef(grade){
   return pool.length?randFrom(pool):(fallback||{name:'ゴブリン',grade:1,keywords:[],race:'亜人'});
 }
 
+// 最終ステージ（Scene 5）の固定敵。
+// stage4＝ルート上のボス（エピトメ）、stage5＝ルートに載せない伏せられたラスボス。
+const SCENE5_BOSS_ENEMY_NO='EN074';         // 万象の揺り籠“エピトメ”（stage4のボス）
+// ラスボス戦の後衛3体は固定編成にする（左・中央・右）。
+const FINAL_BOSS_ENEMY_NO='EN075_1';        // 刻を織る者“ウルズ・ラグナ”（後衛中央＝ボス）
+const FINAL_BOSS_LEFT_ENEMY_NO='EN075_2';   // 日刻の巫女“ルミア”（後衛左）
+const FINAL_BOSS_RIGHT_ENEMY_NO='EN075_3';  // 夜刻の巫女“ウムブラ”（後衛右）
+// ── 敵の数（ステージ＝Scene番号ごとに明示指定）────────────────
+// [総数, 後衛の数]。前衛＝総数−後衛。
+const ENEMY_COUNT_BY_SCENE={
+  battle:{1:[4,1],2:[4,1],3:[5,1],4:[5,1],5:[6,1]},
+  elite: {1:[5,1],2:[5,1],3:[7,3],4:[7,3]},
+  boss:  {1:[7,3],2:[7,3],3:[8,3],4:[8,3],5:[9,3]},
+};
+const FINAL_BOSS_ENEMY_COUNT=[10,3]; // 伏せられたラスボス戦
+function _sceneEnemyCount(type){
+  if(!G||!G._waveLoopEnabled) return null;
+  // Scene 1の最初の2戦（stage2・stage3）は従来どおり1体・2体の導入戦にする。
+  if(type==='battle'&&Number(G._wave)===1&&(Number(G._waveStage)===2||Number(G._waveStage)===3)) return null;
+  if(type==='boss'&&typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
+    return FINAL_BOSS_ENEMY_COUNT.slice();
+  }
+  const table=ENEMY_COUNT_BY_SCENE[type];
+  const v=table&&table[Math.max(1,Number(G._wave)||1)];
+  return v?v.slice():null;
+}
 function _fixedFinalEnemyDef(no){
   const key=String(no||'').toUpperCase();
   return ENEMY_POOL.find(e=>String(e.artCode||e._artCode||e.No||e.no||e['No.']||e.code||'').toUpperCase()===key)||null;
@@ -125,7 +153,8 @@ function _ensureWaveEnemyPreview(wave,type){
   const stage=type==='boss'?(w===5?4:9):3;
   const floor=typeof _waveStageFloor==='function'?_waveStageFloor(w,stage):1;
   const baseG=(typeof FLOOR_DATA!=='undefined'&&FLOOR_DATA[floor]?.grade)||rollEnemyGrade(floor);
-  const fixedDef=w===5?_fixedFinalEnemyDef(type==='boss'?'EN075':'EN074'):null;
+  // Scene 5のルート上のボスはエピトメ。伏せられたラスボスは進捗パネルに出さない。
+  const fixedDef=w===5&&type==='boss'?_fixedFinalEnemyDef(SCENE5_BOSS_ENEMY_NO):null;
   // 同一wave内でエリートとボスに同じ個体が重複して選ばれないよう、既に確定済みの
   // 反対側（elite⇔boss）の名前は候補から除外する（_pickBossEnemyDefのused除外は
   // wave-loopフローではG.worldMapRun未初期化のため機能していないための補完）。
@@ -221,9 +250,15 @@ function generateEnemies(floor){
     // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
     const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
       ?_ensureWaveEnemyPreview(G._wave,'boss'):null;
-    const fixedFinalBoss=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===4
-      ?_fixedFinalEnemyDef('EN075'):null;
-    const bossDef=(preview&&preview.def)||fixedFinalBoss||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+    // Scene 5：stage4＝エピトメ（ルート上のボス）、stage5＝ウルズ・ラグナ（伏せられたラスボス）。
+    const isScene5=!!(G._waveLoopEnabled&&Number(G._wave)===5);
+    const isFinalBossFight=!!(isScene5&&Number(G._waveStage)===5);
+    const isScene5BossFight=!!(isScene5&&Number(G._waveStage)===4);
+    const fixedFinalBoss=isFinalBossFight?_fixedFinalEnemyDef(FINAL_BOSS_ENEMY_NO)
+      :(isScene5BossFight?_fixedFinalEnemyDef(SCENE5_BOSS_ENEMY_NO):null);
+    // Scene 5の固定敵は先読みプレビューより優先する。プレビューは "5:boss" の1件しか
+    // 持たないため、これを先に見るとstage5（ウルズ・ラグナ）でもstage4のエピトメが選ばれてしまう。
+    const bossDef=fixedFinalBoss||(preview&&preview.def)||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
     if(G.worldMapRun&&bossDef){
       G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
       if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
@@ -241,7 +276,10 @@ function generateEnemies(floor){
       if(isCenter) e.boss=true;
       return e;
     };
-    const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,4+Math.max(0,_bossFightNumber(floor)-1));
+    // ボス戦は後衛3体（側近・ボス・側近）固定。前衛＝総数−3。
+    const _fixedBoss=_sceneEnemyCount('boss');
+    const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,
+      _fixedBoss?Math.max(0,_fixedBoss[0]-3):(4+Math.max(0,_bossFightNumber(floor)-1)));
     const enemies=[];
     for(let i=0;i<frontCount;i++){
       const def=_pickNonBossEnemyDefDifferent(baseG,bossDef.name);
@@ -250,20 +288,26 @@ function generateEnemies(floor){
       enemies.push(e);
     }
     const sideDef=_sideBossDef(bossDef,baseG);
-    const left=make(sideDef,false);
+    // ラスボス戦の後衛だけは、左＝日刻の巫女“ルミア”／右＝夜刻の巫女“ウムブラ”で固定する。
+    const leftDef=(isFinalBossFight&&_fixedFinalEnemyDef(FINAL_BOSS_LEFT_ENEMY_NO))||sideDef;
+    const rightDef=(isFinalBossFight&&_fixedFinalEnemyDef(FINAL_BOSS_RIGHT_ENEMY_NO))||sideDef;
+    const left=make(leftDef,false);
     const boss=make(bossDef,true);
-    const right=make(sideDef,false);
+    const right=make(rightDef,false);
     left.boss=right.boss=false;
     left.keywords=(left.keywords||[]).filter(k=>k!=='ボス');
     right.keywords=(right.keywords||[]).filter(k=>k!=='ボス');
     left.lane=boss.lane=right.lane='rear';
     enemies.push(left,boss,right);
     G._bossSlot=frontCount+1;
+    G._enemyLaneFixed=true;
     return enemies;
   }
 
-  // 通常戦: S16-20は3-4体、それ以外は4-5体
-  const count=floor>=16?randi(3,4):randi(4,5);
+  // 通常戦の数。ステージ（Scene）ごとの明示指定があればそれに従う。
+  const _fixedCount=_sceneEnemyCount('battle');
+  // 明示指定が無い場合の従来ルール: S16-20は3-4体、それ以外は4-5体
+  const count=_fixedCount?_fixedCount[0]:(floor>=16?randi(3,4):randi(4,5));
 
   // エリートは現行仕様では出現させない。
   const hasElite=false;
@@ -319,8 +363,16 @@ function generateEnemies(floor){
     enemies.push(e);
   }
   G._extraBattleMult=1.0; // 使い捨てリセット
-  if(usesOpeningBattleEnemyFormation(floor)){
+  // 明示指定がある場合は、開幕戦の固定編成よりそちらを優先する。
+  if(!_fixedCount&&usesOpeningBattleEnemyFormation(floor)){
     return _applyOpeningBattleEnemyFormation(enemies,floor);
+  }
+  // 明示指定がある場合は前衛・後衛の数もそのとおりに割り振り、以降の自動配置を行わない。
+  if(_fixedCount){
+    const rearN=Math.max(0,Math.min(enemies.length,_fixedCount[1]));
+    enemies.forEach((e,i)=>{ if(e) e.lane=(i>=enemies.length-rearN)?'rear':'front'; });
+    G._enemyLaneFixed=true;
+    return enemies;
   }
   // 前衛が0体の場合は最初の非エリート・非ボスを前衛にする
   const hasFront=enemies.some(e=>e&&(e.lane||'front')==='front');
@@ -363,9 +415,7 @@ function generateEliteEnemies(floor){
   // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
   const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
     ?_ensureWaveEnemyPreview(G._wave,'elite'):null;
-  const fixedFinalElite=G._waveLoopEnabled&&Number(G._wave)===5&&Number(G._waveStage)===3
-    ?_fixedFinalEnemyDef('EN074'):null;
-  const bossDef=(preview&&preview.def)||fixedFinalElite||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
+  const bossDef=(preview&&preview.def)||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
   if(G.worldMapRun&&bossDef){
     G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
     if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
@@ -385,17 +435,30 @@ function generateEliteEnemies(floor){
     delete e.boss;
     return e;
   };
-  const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,3);
+  // エリート戦の数。後衛は1（エリート単独）か3（側近・エリート・側近）。
+  const _fixedElite=_sceneEnemyCount('elite');
+  const rearN=_fixedElite?Math.max(1,Math.min(3,_fixedElite[1])):3;
+  const frontCount=Math.min(ENEMY_FRONT_SLOTS||7,
+    _fixedElite?Math.max(0,_fixedElite[0]-rearN):3);
   const enemies=[];
   for(let i=0;i<frontCount;i++){
     enemies.push(make(_pickNonBossEnemyDefDifferent(baseG,bossDef.name),false));
   }
   const sideDef=_sideBossDef(bossDef,baseG);
-  enemies.push(make(sideDef,false),make(bossDef,true),make(sideDef,false));
+  if(rearN>=3){
+    // make()は中央以外をfrontにするため、側近2体は明示的に後衛へ置き直す。
+    const left=make(sideDef,false),center=make(bossDef,true),right=make(sideDef,false);
+    left.lane=center.lane=right.lane='rear';
+    enemies.push(left,center,right);
+  }else{
+    enemies.push(make(bossDef,true));
+  }
   G._isEliteFight=true;
-  G._eliteIdx=frontCount+1;
+  G._eliteIdx=frontCount+(rearN>=3?1:0);
+  G._enemyLaneFixed=true;
   G._extraBattleMult=1.0;
-  _enforceLaneRules(enemies);
+  // 明示指定がある場合は前衛・後衛の数をそのまま保つ（_enforceLaneRulesは混在を強制する）。
+  if(!_fixedElite) _enforceLaneRules(enemies);
   return enemies;
 }
 

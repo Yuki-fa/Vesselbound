@@ -65,6 +65,8 @@ const SFX_SETTINGS={
     boom:       {group:'ui',     volume: .61},  // -7.7
     shopIn:     {group:'ui',     volume: .49},  // -5.8
     shopOut:    {group:'ui',     volume: .70},  // -8.9
+    bookOpening:{group:'ui',     volume: 1.00},
+    bookClosing:{group:'ui',     volume: 1.00},
     altarIn:    {group:'ui',     volume: .28},  // -1.0（突出して大きかった）
     altarOut:   {group:'ui',     volume: .39},  // -3.9
     fit:        {group:'reward', volume: 1.00, guardMs:80}, // -19.7
@@ -124,6 +126,8 @@ const BGM_DEFAULT_VOLUMES={
   menu:1.0,
   battle1:.55,
   battle3:.65,
+  battle4:.65,
+  gameClear:.65,
   villageForest:.68,
   villageGrassland:.57,
   villageValley:.71,
@@ -142,6 +146,7 @@ const BGM_DEFAULT_VOLUMES={
 // 2周目以降は曲の頭から鳴る（_applyBgmStartTimeが初回のみ適用する）。
 const BGM_DEFAULT_START_TIMES={
   battle3:103,   // 1:43
+  battle4:79,    // 1:19（ラスボス戦）
   tower:97,      // 1:37
   gameTitle:97, // 1:37
   villageStart:92, // 1:32
@@ -330,9 +335,12 @@ function _makeBgmAudio(path){
   return audio;
 }
 
+let _bgmLoopPrepTimer=null;
 function _clearBgmLoopTimer(){
   if(_bgmLoopTimer) clearTimeout(_bgmLoopTimer);
   _bgmLoopTimer=null;
+  if(_bgmLoopPrepTimer) clearTimeout(_bgmLoopPrepTimer);
+  _bgmLoopPrepTimer=null;
 }
 
 function _scheduleBgmSeamlessLoop(){
@@ -347,11 +355,26 @@ function _scheduleBgmSeamlessLoop(){
   }
   const lead=Math.min(.18,Math.max(.04,dur*.04));
   const delay=Math.max(50,(dur-audio.currentTime-lead)*1000);
+  // 切り替えの瞬間に新しいAudioを作ると、大きいWAV（battle4は約25MB）では
+  // デコードが間に合わず一瞬音が途切れる。8秒前に用意して読み込ませておく。
+  const prepAhead=8000;
+  const prepDelay=Math.max(0,delay-prepAhead);
+  _bgmLoopPrepTimer=setTimeout(()=>{
+    if(_bgmAudio!==audio||_bgmKey!==key) return;
+    const path=_sfxPath(key);
+    if(!path) return;
+    const prepared=_makeBgmAudio(path);
+    prepared.dataset.bgmLoopKey=key;
+    _bgmNextAudio=prepared;
+    try{ prepared.load(); }catch(e){}
+  },prepDelay);
   _bgmLoopTimer=setTimeout(()=>{
     if(_bgmAudio!==audio||_bgmKey!==key) return;
     const path=_sfxPath(key);
     if(!path) return;
-    const next=_makeBgmAudio(path);
+    // 事前に用意したものがあればそれを使う（読み込み済みなので途切れない）。
+    const prepared=(_bgmNextAudio&&_bgmNextAudio.dataset&&_bgmNextAudio.dataset.bgmLoopKey===key)?_bgmNextAudio:null;
+    const next=prepared||_makeBgmAudio(path);
     _bgmNextAudio=next;
     next.volume=_bgmTargetVolume;
     next.play().then(()=>{
@@ -359,7 +382,16 @@ function _scheduleBgmSeamlessLoop(){
       const old=audio;
       _bgmAudio=next;
       _bgmNextAudio=null;
-      _fadeAudioVolume(old,old.volume,0,120,()=>{ try{ old.pause(); old.currentTime=0; }catch(e){} });
+      _fadeAudioVolume(old,old.volume,0,120,()=>{
+        try{
+          old.pause();
+          old.currentTime=0;
+          // 大きいWAV（30MB前後）のデコード済みバッファを抱えたままだと、
+          // 次のループやSFXの再生で音が途切れやすい。参照を切って解放させる。
+          old.removeAttribute('src');
+          old.load();
+        }catch(e){}
+      });
       _scheduleBgmSeamlessLoop();
     }).catch(()=>{ _scheduleBgmSeamlessLoop(); });
   },delay);

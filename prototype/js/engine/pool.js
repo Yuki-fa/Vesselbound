@@ -59,7 +59,7 @@ const PANEL_POOL=[
   {id:'panel_mata',no:'002',name:'マータ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:0,life:7,desc:'常時：味方が受ける2以上のダメージの半分を代わりに受ける。'},
   {id:'panel_golem',no:'003',name:'ゴーレム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'アーティファクト',power:3,life:3,desc:'負傷：このキャラクターは+2/+2を得る。'},
   {id:'panel_satyr',no:'004',name:'サテュロス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:4,life:3,manaCost:1,desc:'1マナ：3マナを得る。'},
-  {id:'panel_dwarf',no:'005',name:'ドワーフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:3,life:5,manaCost:2,manaRepeat:true,desc:'2マナ毎：ランダムな赤キャラクターは+3/+2を得る。'},
+  {id:'panel_dwarf',no:'005',name:'ドワーフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:3,life:5,manaCost:2,manaRepeat:true,desc:'2マナ毎：ランダムな赤キャラクター2体は+3/+2を得る。'},
   {id:'panel_lamia',no:'006',name:'ラミア',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:3,life:6,desc:'攻撃：このキャラクターは+2/+1を得る。対象が負傷している場合、もう一度繰り返す。'},
   {id:'panel_kobold',no:'007',name:'コボルド',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:2,life:4,desc:'負傷：全ての赤キャラクターは+1/+1を得る。'},
   {id:'panel_arachne',no:'008',name:'アラクネ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:2,life:6,manaCost:3,manaRepeat:true,desc:'3マナ毎：全ての味方に+2/+2を与えた後、1ダメージを与える。'},

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 262 62">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: url(#_名称未設定グラデーション_5);
+        stroke-width: 2px;
+      }
+
+      .cls-1, .cls-2 {
+        fill: none;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-3 {
+        opacity: .5;
+      }
+
+      .cls-2 {
+        stroke: url(#_名称未設定グラデーション_5-2);
+        stroke-width: 1.2px;
+      }
+    </style>
+    <radialGradient id="_名称未設定グラデーション_5" data-name="名称未設定グラデーション 5" cx="131" cy="13137.4" fx="131" fy="13137.4" r="132.6" gradientTransform="translate(0 13168.4046) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bf9000"/>
+      <stop offset="1" stop-color="#8a5c12"/>
+    </radialGradient>
+    <radialGradient id="_名称未設定グラデーション_5-2" data-name="名称未設定グラデーション 5" cy="31" fy="31" r="125.37" gradientTransform="matrix(1,0,0,1,0,0)" xlink:href="#_名称未設定グラデーション_5"/>
+  </defs>
+  <g id="_編成" data-name="編成">
+    <g id="_カード非表示" data-name="カード非表示">
+      <g>
+        <path class="cls-3" d="M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z"/>
+        <path class="cls-1" d="M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z" vector-effect="non-scaling-stroke"/>
+        <path class="cls-1" d="M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z" vector-effect="non-scaling-stroke"/>
+        <path class="cls-2" d="M20.96,55c-2.25-6.69-7.55-11.98-14.23-14.23v-19.53c6.69-2.25,11.98-7.55,14.23-14.23h220.07c2.25,6.69,7.55,11.98,14.23,14.23v19.53c-6.69,2.25-11.98,7.55-14.23,14.23H20.96Z"/>
+      </g>
+    </g>
+  </g>
+</svg>
