@@ -552,6 +552,14 @@ function toggleDebugMute(){
     if(btn) btn.textContent=_debugMuted?'🔇':'🔊';
   });
 }
+// playSfx()を経由せず new Audio() で直接鳴らすフォールバック用の音量。
+// 素の音量をそのまま入れるとデバッグミュート（masterVolume=0）を素通りしてしまうため、
+// 必ずこれを通して masterVolume を掛ける。
+function sfxFallbackVolume(base){
+  const master=Number(SFX_SETTINGS&&SFX_SETTINGS.masterVolume);
+  const m=Number.isFinite(master)?master:1;
+  return Math.max(0,Math.min(1,(Number(base)||0)*m));
+}
 function isDebugMuted(){ return _debugMuted; }
 
 window.addEventListener('pointerdown',unlockSfx,{once:true,capture:true});

@@ -1893,8 +1893,10 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
   const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc)&&!(e.panel&&e.panel.name==='策士'));
   const normalMap=new Map();
   normal.forEach(e=>{
-    const text=e.panel&&e.panel.name==='マナの種'&&unit&&typeof _rawSubstitutedDesc==='function'
-      ?_rawSubstitutedDesc(unit):e.text;
+    // 以前の「マナの種」は“キャラクター自身の効果を複製する”仕様で、説明文もキャラの効果文へ
+    // 差し替えていた。現行仕様は「このキャラクターのマナ効果は1回追加で発動する。」なので、
+    // カード自身の説明文をそのまま出す（差し替えるとキャラの効果が二重表示になる）。
+    const text=e.text;
     const identity=`${e.panel&&e.panel._tripleMerged?'merged':'base'}::${e.panel&&e.panel.name||''}::${text}`;
     if(!normalMap.has(identity)) normalMap.set(identity,{text,count:0});
     normalMap.get(identity).count++;

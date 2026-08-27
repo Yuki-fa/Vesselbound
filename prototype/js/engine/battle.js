@@ -329,10 +329,7 @@ function _releaseRepeatCount(unit,isEnemySide){
   const side=isEnemySide?G.enemies:G.allies;
   // 秘紋の指輪：常時：味方の解放効果は1回追加で発動する。（敵側のunitには適用しない）
   const ringExtra=isEnemySide?0:_ringCount('秘紋の指輪');
-  // 起源の種：開戦：このキャラクターが本来持つ、キーワード以外の効果を得る。（このキャラクター自身の
-  // 解放効果が1回追加で発動する）
-  const originSeedExtra=_unitEffectPanelCount(unit,'マナの種');
-  return 1+ringExtra+originSeedExtra+_unitKeywordCount(unit,'禁断の力')+(Number(unit._effectRepeatBonus)||0);
+  return 1+ringExtra+_unitKeywordCount(unit,'禁断の力')+(Number(unit._effectRepeatBonus)||0);
 }
 
 async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
@@ -538,9 +535,9 @@ function _waveBattleRouteName(){
   // stage番号の決め打ちではなくルートから街の位置を引いて判定する。
   // ※以前は stage>=5 固定で、街が先頭にあるwave5だけ判定が反転していた
   //   （フォルセティ出発後に「塔までの名前」ではなく「街までの名前」を拾っていた）。
-  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(G._wave):null;
-  const cityIdx=Array.isArray(route)?route.lastIndexOf('city'):-1;
-  const afterCity=cityIdx>=0?stage>cityIdx+1:stage>=5;
+  const afterCity=typeof waveStageIsAfterCity==='function'
+    ?waveStageIsAfterCity(G._wave,stage)
+    :stage>=5;
   const primary=afterCity?info.toTowerName:info.toTownName;
   const fallback=afterCity?info.toTownName:info.toTowerName;
   return String(primary||fallback||'').trim();
@@ -582,7 +579,7 @@ function _fadeBattleLife(){
   try{
     const src=(typeof Assets!=='undefined'&&Assets.sfx&&Assets.sfx.lifeLost)||'assets/sfx/life_lost.wav';
     if(typeof playFileSfx==='function') playFileSfx(src);
-    else { const audio=new Audio(src); audio.volume=.8; audio.play().catch(()=>{}); }
+    else { const audio=new Audio(src); audio.volume=sfxFallbackVolume(.8); audio.play().catch(()=>{}); }
   }catch(e){}
 }
 
@@ -737,7 +734,7 @@ function _playBattleOpeningAppearanceSfx(){
     if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/appearance.wav'); return; }
     const audio=new Audio('assets/sfx/appearance.wav');
     audio.preload='auto';
-    audio.volume=.8;
+    audio.volume=sfxFallbackVolume(.8);
     audio.play().catch(()=>{});
   }catch(e){}
 }
@@ -1003,17 +1000,28 @@ function _showBattleLine(text,centerX,tailY,isEnemySide){
   layer.classList.toggle('is-dark',dark);
   _drawBattleLineFrame(layer,w,h,dark);
   tail.style.setProperty('background-image',`url("assets/ui/speechbubble${dark?4:2}.svg")`,'important');
-  // 尻尾：敵は180度回転（尖端＝右上）、味方は左右反転（尖端＝右下）。
+  // 敵は話し手の右側、味方は左側に出す。
+  // 元SVGは尖端が左下(0,170)・付け根が上辺 x100.1〜237。
+  //   敵（右側）  ：上下反転（尖端＝左上／付け根＝下辺 x100.1〜237＝42.24%〜100%）
+  //   味方（左側）：左右反転（尖端＝右下／付け根＝上辺 x0〜136.9＝0%〜57.76%）
   tail.style.width=`${BATTLE_LINE_TAIL_W}px`;
   tail.style.height=`${BATTLE_LINE_TAIL_H}px`;
-  tail.style.transform=isEnemySide?'rotate(180deg)':'scaleX(-1)';
-  const tailLeft=centerX-BATTLE_LINE_TAIL_W;      // 尖端の相対Xは1.0（右端）
+  tail.style.transform=isEnemySide?'scaleY(-1)':'scaleX(-1)';
+  // 尖端のXは、敵＝箱の左端／味方＝箱の右端。どちらも話し手の中心に合わせる。
+  const tailLeft=isEnemySide?centerX:(centerX-BATTLE_LINE_TAIL_W);
   const tailTop=isEnemySide?tailY:(tailY-BATTLE_LINE_TAIL_H);
   tail.style.left=`${tailLeft}px`;
   tail.style.top=`${tailTop}px`;
-  // 枠は、尻尾の付け根が「キャップより内側の平らな辺」に載るよう右端を決める。
-  const bubbleRight=tailLeft+BATTLE_LINE_TAIL_BASE_X*BATTLE_LINE_TAIL_W+BATTLE_LINE_BUBBLE_MARGIN+cap;
-  bubble.style.left=`${Math.max(20,bubbleRight-w)}px`;
+  // 枠は、尻尾の付け根が「キャップより内側の平らな辺」に載るように寄せる。
+  if(isEnemySide){
+    // 付け根の左端＝tailLeft+(1-0.5776)×180。そこからマージンとキャップ分だけ外側へ。
+    const baseLeft=tailLeft+(1-BATTLE_LINE_TAIL_BASE_X)*BATTLE_LINE_TAIL_W;
+    const bubbleLeft=baseLeft-BATTLE_LINE_BUBBLE_MARGIN-cap;
+    bubble.style.left=`${Math.max(20,Math.min(bubbleLeft,3840-20-w))}px`;
+  }else{
+    const bubbleRight=tailLeft+BATTLE_LINE_TAIL_BASE_X*BATTLE_LINE_TAIL_W+BATTLE_LINE_BUBBLE_MARGIN+cap;
+    bubble.style.left=`${Math.max(20,bubbleRight-w)}px`;
+  }
   // 枠の線が尻尾の茶色い線の付け根と重なるように置く（敵＝尻尾の下側、味方＝尻尾の上側）。
   const tailLineY=isEnemySide
     ?tailTop+BATTLE_LINE_TAIL_H-BATTLE_LINE_TAIL_BASE_INSET
@@ -2024,10 +2032,17 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
 
 // 闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（接続枚数分繰り返す）
 // 狂戦士の指輪：常時：味方の攻撃効果は1回追加で発動する。（陣営全体）
+// 味方の攻撃効果の追加発動回数。
+//   闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（接続枚数分）
+//   狂戦士の指輪：常時：味方の攻撃効果は1回追加で発動する。（陣営全体）
+// 「攻撃：◯マナを得る」（マナ生成）も攻撃効果なので、同じ回数だけ繰り返す。
+function _allyAttackEffectExtra(ally){
+  if(!ally) return 0;
+  return _enhancementCount(ally,'闇の儀式')+_ringCount('狂戦士の指輪')+(Number(ally._effectRepeatBonus)||0);
+}
 async function _applyAllyAttackEffects(ally){
   await _applyUnitAttackEffects(ally,false);
-  // 起源の種：このキャラクター自身の攻撃効果が1回追加で発動する。
-  const extra=_enhancementCount(ally,'闇の儀式')+_ringCount('狂戦士の指輪')+_unitEffectPanelCount(ally,'マナの種')+(Number(ally._effectRepeatBonus)||0);
+  const extra=_allyAttackEffectExtra(ally);
   for(let i=0;i<extra&&ally&&ally.hp>0;i++){
     await _applyUnitAttackEffects(ally,false);
   }
@@ -2376,7 +2391,7 @@ function _unitEffectPanelCount(unit, kw){
 
 function _openingEffectRepeatCount(unit){
   if(!unit) return 1;
-  return 1+Math.max(_unitKeywordCount(unit,'恩寵'),_unitEffectPanelCount(unit,'恩寵'))+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
+  return 1+Math.max(_unitKeywordCount(unit,'恩寵'),_unitEffectPanelCount(unit,'恩寵'))+(Number(unit._effectRepeatBonus)||0);
 }
 
 function _panelEffectKeywordCount(panels, kw){
@@ -2717,8 +2732,7 @@ function _splitEntriesForUnite(entries){
 async function _fireAllyInjuryEffects(unit, actualDmg){
   let firedCount=0;
   // 激怒の指輪：常時：味方の負傷効果は1回追加で発動する。（陣営全体）
-  // 起源の種：このキャラクター自身の負傷効果が1回追加で発動する。
-  const injuryRepeats=1+_unitEffectPanelCount(unit,'執念の炎')+_ringCount('激怒の指輪')+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
+  const injuryRepeats=1+_unitEffectPanelCount(unit,'執念の炎')+_ringCount('激怒の指輪')+(Number(unit._effectRepeatBonus)||0);
   for(let i=0;i<injuryRepeats;i++){
     let firedThisRound=false;
     if(unit.manaOnInjury){ _gainMana(unit.manaOnInjury,unit); firedThisRound=true; }
@@ -4377,7 +4391,8 @@ async function _checkManaThresholdUnitEffects(){
         const fireLimit=threshold.repeat?progress:1;
         while(progress>(owner._manaFireCount||0)&&(owner._manaFireCount||0)<fireLimit){
           owner._manaFireCount=(owner._manaFireCount||0)+1;
-          const repeatCount=1+(Number(unit._effectRepeatBonus)||0);
+          // マナの種：常時：このキャラクターのマナ効果は1回追加で発動する。
+          const repeatCount=1+_unitEffectPanelCount(unit,'マナの種')+(Number(unit._effectRepeatBonus)||0);
           for(let repeat=0;repeat<repeatCount;repeat++){
             await _playManaEffectCue(unit,isEnemySide);
             await _applyManaThresholdEffectText(unit,threshold.desc,isEnemySide);
@@ -4449,7 +4464,7 @@ function _enemySummonStats(source){
   };
 }
 
-// 前衛の左端／右端へ召喚する（リムスルスの「黒ボーンナイト」等）。
+// 前衛の左端／右端へ召喚する（placement:{frontEdge:'left'|'right'}）。
 // 端が埋まっている場合は前衛全体を反対側へ1つ寄せて端を空ける。
 function _summonMidBattleFrontEdge(unit, isEnemySide, edge){
   const arr=isEnemySide?G.enemies:G.allies;
@@ -4613,7 +4628,7 @@ async function applyNewPanelBattleStart(options){
       const enh=_collectAdjacentEnhancements(board,idx);
       const contributingPanels=typeof _collectEnhancementPanelsForSlot==='function'?_collectEnhancementPanelsForSlot(board,idx):[];
       const openingCopyExtra=(spec.count||1)>1
-        ?_panelEffectKeywordCount(contributingPanels,'恩寵')+_panelEffectKeywordCount(contributingPanels,'マナの種')
+        ?_panelEffectKeywordCount(contributingPanels,'恩寵')
         :0;
       for(let n=0;n<(spec.count||1)+openingCopyExtra;n++){
         // enh.keywordsは直後のapplyAdjacentPanelEnhancements()側で付与するため、ここでは渡さない
@@ -4927,11 +4942,6 @@ async function _applyNewOpeningEffects(stage){
         allies.filter(_canReceiveBattleEffect).forEach(a=>_addBattleStats(a,4,4,side));
         log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は+4/+4を得た。`,isEnemySide?'bad':'good');
       }
-      if(want('other')&&hasName('凍てつく亡霊"リムスルス"')){
-        // 「黒ボーンナイト」は前衛の両端に置く。
-        for(const edge of ['left','right']) await _spawnEnemyUnitByName('黒ボーンナイト',1,3,isEnemySide,unit,{frontEdge:edge});
-        log(`${_lc(unit.name,isEnemySide)}の効果で「黒ボーンナイト」を2体召喚した。`,isEnemySide?'bad':'good');
-      }
       if(want('other')&&hasName('金床の賢者"シンドリ"')){
         (isEnemySide?G.enemies:G.allies).filter(_canReceiveBattleEffect).forEach(a=>_grantUnitKeyword(a,'貫通'));
         log(`${_lc(unit.name,isEnemySide)}の効果で全ての味方は貫通を得た。`,isEnemySide?'bad':'good');
@@ -5011,8 +5021,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
   const count=kw=>_enhancementCount(unit,kw);
   // 屍術師の指輪：常時：味方の死亡効果は1回追加で発動する。（プレイヤー側のみ）
   const _ringDeathExtra=unitIsEnemy?0:_ringCount('屍術師の指輪');
-  const originDeathExtra=unitIsEnemy?0:_unitEffectPanelCount(unit,'マナの種');
-  const deathRepeats=1+count('逆襲')+_ringDeathExtra+originDeathExtra+(Number(unit._effectRepeatBonus)||0);
+  const deathRepeats=1+count('逆襲')+_ringDeathExtra+(Number(unit._effectRepeatBonus)||0);
   const hasName=name=>_unitHasEffectName(unit,name);
   const willCount=Math.max(_unitKeywordCount(unit,'遺志'),_unitEffectPanelCount(unit,'遺志'));
   for(let i=0;i<willCount;i++){
@@ -5264,7 +5273,7 @@ async function _onAllyInjuredByPanel(unit,actualDmg){
       // （_dealAttackDamageWithMutual内の接触タイミングで_consumeAttackEffectPauseが解決する）。
       if(_hasAttackEffectsForPause(unit)) unit._attackEffectPending=true;
       if(unit.manaOnAttack){
-        const _ritualExtraInj=_enhancementCount(unit,'闇の儀式')+(Number(unit._effectRepeatBonus)||0);
+        const _ritualExtraInj=_allyAttackEffectExtra(unit);
         for(let mi=0;mi<1+_ritualExtraInj;mi++) _gainMana(unit.manaOnAttack,unit);
         await _flushRingManaThresholdEffects();
         if(unit.hp<=0) break;
@@ -5372,9 +5381,9 @@ async function allyAttackAction(ally, allyIdx){
 
   // 攻撃時効果はアニメーション途中で発動する
   if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
-  // 闇の儀式：常時：このキャラクターの攻撃効果は1回追加で発動する。（manaOnAttackも含む）
+  // 闇の儀式・狂戦士の指輪の追加発動は「攻撃：◯マナを得る」（マナ生成）にも掛かる。
   if(ally.hp>0&&ally.manaOnAttack){
-    const _ritualExtra=_enhancementCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
+    const _ritualExtra=_allyAttackEffectExtra(ally);
     for(let mi=0;mi<1+_ritualExtra;mi++) _gainMana(ally.manaOnAttack,ally);
     await _flushRingManaThresholdEffects();
     if(_checkBattleOver()) return true;
@@ -5414,7 +5423,7 @@ async function allyAttackAction(ally, allyIdx){
       // 攻撃時効果はアニメーション途中で発動する
       if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
       if(ally.hp>0&&ally.manaOnAttack){
-        const _ritualExtra2=_enhancementCount(ally,'闇の儀式')+(Number(ally._effectRepeatBonus)||0);
+        const _ritualExtra2=_allyAttackEffectExtra(ally);
         for(let mi=0;mi<1+_ritualExtra2;mi++) _gainMana(ally.manaOnAttack,ally);
         await _flushRingManaThresholdEffects();
         if(_checkBattleOver()) return true;
@@ -6158,7 +6167,10 @@ async function playerPass(){
 // ステージ20の敵構成を使うが、全敵のATKを0・HPを500に上書きし、被弾せず何度でも
 // キャラクターの効果・演出を試せるようにする。
 function startTestBattle(){
-  if(!G._debugMode||G.phase!=='reward') return;
+  if(!G||G.phase!=='reward') return;
+  // 図書館の「試験戦闘」は通常プレイの機能なので、デバッグモードでなくても開始できる。
+  // デバッグ用の試験戦闘ボタン（#btn-test-battle）はデバッグモード中しか表示されない。
+  if(!G._debugMode&&!G._isLibrary) return;
   G._testBattleMode=true;
   G._testBattleExitPending=false;
   G._libraryTestBattleMode=!!G._isLibrary;

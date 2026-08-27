@@ -1510,7 +1510,7 @@ function _sellHeldItem(idx){
   const gain=typeof onGoldGained==='function'?onGoldGained(base):(G.gold=(G.gold||0)+base,base);
   log(`${card.name}を売却（+${gain}ゴールド）`,'gold');
   if(typeof playFileSfx==='function') playFileSfx('assets/sfx/sell.wav');
-  else try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=.85; void se.play(); }catch(_e){}
+  else try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=sfxFallbackVolume(.85); void se.play(); }catch(_e){}
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   _syncRewardProductionUi();
   renderRewCards();
@@ -2561,7 +2561,7 @@ function _playRewardAcquireSfx(file){
   if(typeof playFileSfx==='function'){ playFileSfx(`assets/sfx/${file}`); return; }
   try{
     const se=new Audio(`assets/sfx/${file}`);
-    se.volume=.85;
+    se.volume=sfxFallbackVolume(.85);
     void se.play();
   }catch(_e){}
 }
@@ -3885,7 +3885,7 @@ function _playTripleMergeAnimation(info){
       {
         const unionPlayed=typeof playSfx==='function'&&playSfx('union',{group:'magic',guardKey:`triple-union:${Date.now()}`,guardMs:0});
         if(!unionPlayed){ if(typeof playFileSfx==='function') playFileSfx('assets/sfx/union.wav');
-          else try{ const se=new Audio('assets/sfx/union.wav'); se.volume=.8; void se.play(); }catch(_e){} }
+          else try{ const se=new Audio('assets/sfx/union.wav'); se.volume=sfxFallbackVolume(.8); void se.play(); }catch(_e){} }
         ordered.filter(g=>g!==center).forEach(g=>g.ghost.remove());
         if(center) center.ghost.classList.add('triple-merge-white-flash');
         _flashConnectedBoardCards(info.targetIdx);
@@ -3932,6 +3932,14 @@ if(!window._equipSelectionClearBound){
     if(G.phase==='reward'&&G._pendingPanelPlacement){
       cancelPendingPanelPlacement();
     }
+  });
+  // ゲームオーバー画面・クリア画面では、どこを左クリックしてもカードの表示／非表示を切り替える。
+  // ボタンやリンクの上は本来の操作を優先する（「カード非表示」ボタン自身の二重切り替えも防ぐ）。
+  document.addEventListener('click',e=>{
+    if(!G||(G.phase!=='gameover'&&G.phase!=='clear')) return;
+    if(e.button!==undefined&&e.button!==0) return;
+    if(e.target&&e.target.closest&&e.target.closest('button,a,input,select,textarea,label,[role="button"]')) return;
+    toggleBoardCardVisibility();
   });
   document.addEventListener('click',e=>{
     if(G.phase==='enemy') return;
@@ -4305,7 +4313,11 @@ function renderFacilitiesRow(){
 function renderHandEditor(){
   _syncBoardCardVisibilityToggle();
   _syncRewardPanelPlacementOverlay();
-  if(G.phase!=='reward'&&document.body) document.body.classList.remove('right-card-peek');
+  // ゲームオーバー画面・クリア画面でも魔導板のカード表示／非表示を切り替えられるので、
+  // その2フェイズでは解除しない（解除すると切り替えた直後の再描画で元に戻ってしまう）。
+  if(G.phase!=='reward'&&G.phase!=='gameover'&&G.phase!=='clear'&&document.body){
+    document.body.classList.remove('right-card-peek');
+  }
   const handPaneRoot=document.getElementById('hand-pane');
   const spellPane=document.getElementById('spell-slot-pane');
   if(spellPane){ spellPane.innerHTML=''; spellPane.style.setProperty('display','none','important'); }

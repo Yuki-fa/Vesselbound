@@ -54,7 +54,10 @@ const Assets = {
     stage1: 'assets/art/backgrounds/stage_forest.webp',
     stage2: 'assets/art/backgrounds/stage_grassland.webp',
     stage3: 'assets/art/backgrounds/stage_valley.webp',
-    stage4: 'assets/art/backgrounds/stage_capital.webp',
+    // ステージ4は街の前後で背景を分ける。
+    // stage4＝「黄昏の回廊」（街の手前）／stage4Tower＝「謁見の黒影道」（街を出た後）。
+    stage4: 'assets/art/backgrounds/stage_capital1.webp',
+    stage4Tower: 'assets/art/backgrounds/stage_capital2.webp',
     stageEnd: 'assets/art/backgrounds/stage_endworld.webp',
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。

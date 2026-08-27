@@ -1325,7 +1325,7 @@ function gameOver(options){
   if(!isClear&&!isLibraryTestBattle){
     try{
       if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
-      else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=.9; void se.play(); }
+      else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=sfxFallbackVolume(.9); void se.play(); }
     }catch(_e){}
   }
   document.body.classList.remove('battle-turn-active');

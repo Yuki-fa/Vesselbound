@@ -309,10 +309,30 @@ function _checkWorldMapTurnLimitDefeat(){
 function _mapNodeForceIconVisible(n){
   return !!(n&&n.type==='boss');
 }
+// そのstageが街を過ぎているか（＝「塔までの名前」の区間か）。
+// 街のstage番号はwaveごとに違う（wave1は5、wave2〜4は4、wave5は1が街）ため、
+// stage番号の決め打ちではなくルート配列から街の位置を引いて判定する。
+function waveStageIsAfterCity(wave,stage){
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(wave):null;
+  const cityIdx=Array.isArray(route)?route.lastIndexOf('city'):-1;
+  return cityIdx>=0?(Number(stage)||1)>cityIdx+1:(Number(stage)||1)>=5;
+}
+// そのstageのマス種別（route配列の要素）。範囲外はnull。
+function waveStageRouteType(wave,stage){
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(wave):null;
+  if(!Array.isArray(route)) return null;
+  return route[(Number(stage)||1)-1]||null;
+}
 function getWorldMapStageBackgroundKey(){
   if(G&&G._waveLoopEnabled){
     if(Number(G._wave)===5) return 'stageEnd';
     const wave=Math.max(1,Math.min(4,Number(G._wave)||1));
+    // ステージ4だけ街の前後で背景が変わる。
+    // 黄昏の回廊＝stage_capital1／謁見の黒影道＝stage_capital2。
+    // 区間の終点である塔（祭壇＝蝕界の塔）は元の背景（stage_capital1）のままにする。
+    const stage=G._waveStage;
+    const isTower=(G&&G._isWaveAltar)||waveStageRouteType(wave,stage)==='altar';
+    if(wave===4&&!isTower&&waveStageIsAfterCity(wave,stage)) return 'stage4Tower';
     return `stage${wave}`;
   }
   if(!G||!G.worldMapRun) return null;
@@ -2798,8 +2818,12 @@ function renderMapForgeOffers(){
     btn.className='rew-card forge-card treasure-offer-card item-visual item-visual-filled';
     // 下・上・下と互い違いに置く（道具屋と同じ並び）。
     btn.classList.add(i%2===1?'item-shop-card-up':'item-shop-card-down');
-    if(disabled) btn.classList.add('cant');
+    // 暗転＋価格の斜線は「変化させられるマスが無い」場合だけ。
+    // 所持金不足は暗転も斜線もせず、カードと同じ「ゴールド不足」バッジを出す。
+    // ※汎用の .cant は #battle-order-row のカード用スタイル（background差し替え・::before暗転）が
+    //   まとめて掛かり、鍛冶屋の絵（--forge-art を ::before に敷いている）が消えるため使わない。
     if(noTarget) btn.classList.add('forge-no-target');
+    if(disabled) btn.classList.add('forge-disabled');
     btn.style.setProperty('--forge-art',`url("assets/ui/${art}")`);
     // ホバー説明：上段＝改造「◯◯」＋鍛冶屋説明文、下段＝マス名＋マスの効果（青系）。
     const forgeDesc=String(master.forgeDesc||power.forgeDesc||'').trim()
@@ -2808,7 +2832,8 @@ function renderMapForgeOffers(){
     btn.setAttribute('data-preview',`改造「${power.name}」\n${forgeDesc}`);
     // マスの説明は、盤面のカードにホバーした時と同じく別ボックス（#map-power-tooltip）へ出す。
     btn.setAttribute('data-map-power-preview',[power.name,powerDesc].filter(Boolean).join('\n'));
-    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`;
+    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`
+      +((poor&&!noTarget)?'<div class="shop-insufficient-badge">ゴールド不足</div>':'');
     btn.onclick=async()=>{
       if(disabled) return;
       await applyPendingMapForgePower(power);
@@ -2853,7 +2878,7 @@ async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
       if(se&&se.addEventListener){ se.addEventListener('error',next,{once:true}); }
       else if(!se){
         const fb=new Audio(sfxCandidates[i]);
-        fb.volume=.85;
+        fb.volume=sfxFallbackVolume(.85);
         fb.addEventListener('error',next,{once:true});
         void Promise.resolve(fb.play()).catch(next);
       }

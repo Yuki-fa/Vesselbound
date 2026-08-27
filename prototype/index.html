@@ -7398,12 +7398,13 @@ html body.reward-screen-active #battle-order-row > .card-empty{
   flex:0 0 var(--prod-card-w)!important;
 }
 /* 提示指輪の枠：横幅はそのまま、元ファイル（ring_slot.png）と同じ正方形にし、
-   行の上端に揃える（鍛冶屋・道具屋を下始まりにしたのに合わせ、祭壇は上に置く）。 */
+   底辺の位置は変えずに（#battle-order-rowの下端に揃えて）上端だけ詰める。
+   ＝道具屋・鍛冶屋の「下」のカードと同じ高さに並ぶ。 */
 html body.reward-screen-active #battle-order-row > .rew-card.ring-offer-card{
   height:var(--prod-card-w)!important;
   min-height:var(--prod-card-w)!important;
   max-height:var(--prod-card-w)!important;
-  align-self:flex-start!important;
+  align-self:flex-end!important;
 }
 html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card{
   height:var(--prod-card-w)!important;
@@ -8727,6 +8728,15 @@ html body .rew-card {
 }
 
 /* ④ チラつきやバグの原因だった filter を全廃し、隠し壁を突き抜ける美しい box-shadow に統一 */
+/* 戦闘中のユニットカードの角丸を、カード枠の実際のR（＝魔導板カードと同じ19px）に合わせる。
+   .slot の既定値8pxのままだと、ホバー発光（box-shadowは要素のborder-radiusに沿う）の角が
+   カード枠の角丸からはみ出して四角く見える。 */
+html body .slot.unit-card,
+html body #f-ally .slot.unit-card,
+html body #f-enemy .slot.unit-card,
+html body .attack-motion-clone.slot.unit-card{
+  border-radius:19px!important;
+}
 html body .slot.unit-card:hover,
 html body #f-ally .slot.unit-card:hover,
 html body #f-enemy .slot.unit-card:hover,
@@ -12968,15 +12978,44 @@ html body #battle-order-row > .rew-card.forge-card.item-visual::before{
 html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-buy-price{
   display:flex!important;
 }
-/* 購入できない選択肢は暗くし、価格に斜線を引く。 */
-html body #battle-order-row > .rew-card.forge-card.cant{
+/* 変化させられるマスが無い選択肢だけ暗くし、価格に斜線を引く。 */
+html body #battle-order-row > .rew-card.forge-card.forge-no-target{
   filter:brightness(.42) saturate(.55)!important;
-  cursor:default!important;
 }
-html body #battle-order-row > .rew-card.forge-card.cant > .shop-buy-price{
+html body #battle-order-row > .rew-card.forge-card.forge-no-target > .shop-buy-price{
   text-decoration:line-through!important;
   text-decoration-thickness:3px!important;
   color:#c8b48a!important;
+}
+/* 購入できない選択肢（マス無し・所持金不足・演出中）はクリックできない。
+   所持金不足では暗転も斜線もせず、絵はそのまま出す。 */
+html body #battle-order-row > .rew-card.forge-card.forge-disabled{
+  cursor:default!important;
+}
+html body #battle-order-row > .rew-card.forge-card.forge-disabled:hover{
+  transform:none!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+/* 所持金不足の表示。カード（.shop-insufficient-badge）と同じ体裁で上部中央に置く。 */
+html body #battle-order-row > .rew-card.forge-card > .shop-insufficient-badge{
+  position:absolute!important;
+  top:14px!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  background:rgba(180,40,40,.92)!important;
+  border:2px solid #e06060!important;
+  border-radius:6px!important;
+  padding:2px 12px!important;
+  font-size:24px!important;
+  line-height:1.25!important;
+  font-weight:700!important;
+  color:#fff!important;
+  white-space:nowrap!important;
+  text-shadow:0 2px 3px #000!important;
+  opacity:1!important;
+  z-index:10012!important;
+  pointer-events:none!important;
 }
 /* 本文テキストはプロポーショナル字送りにする（和文の約物・仮名のアキを詰める）。
    クエスト枠・旅の進捗枠・会話文（施設説明／チュートリアルのボックス）が対象。 */
@@ -13546,8 +13585,8 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=orb1"></script>
-<script src="js/engine/audio.js?v=loop2"></script>
+<script src="assets.js?v=capital2"></script>
+<script src="js/engine/audio.js?v=libtest1"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -13558,12 +13597,12 @@ fitVesselboundViewport();
 <script src="js/engine/state.js?v=wbreak2"></script>
 <script src="js/engine/pool.js?v=artno2"></script>
 <script src="js/engine/enemy.js?v=count4"></script>
-<script src="js/engine/battle.js?v=bubblesvg1"></script>
-<script src="js/engine/render.js?v=line-fix2"></script>
-<script src="js/engine/reward.js?v=shopui3"></script>
-<script src="js/engine/map.js?v=shopui1"></script>
+<script src="js/engine/battle.js?v=libtest1"></script>
+<script src="js/engine/render.js?v=manaseed1"></script>
+<script src="js/engine/reward.js?v=libtest2"></script>
+<script src="js/engine/map.js?v=libtest1"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=dbgform1"></script>
+<script src="js/engine/main.js?v=libtest1"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
