@@ -118,7 +118,6 @@ const ENEMY_COUNT_BY_SCENE={
 };
 const FINAL_BOSS_ENEMY_COUNT=[10,3]; // 伏せられたラスボス戦
 function _sceneEnemyCount(type){
-  if(!G||!G._waveLoopEnabled) return null;
   // Scene 1の最初の2戦（stage2・stage3）は従来どおり1体・2体の導入戦にする。
   if(type==='battle'&&Number(G._wave)===1&&(Number(G._waveStage)===2||Number(G._waveStage)===3)) return null;
   if(type==='boss'&&typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
@@ -134,9 +133,7 @@ function _fixedFinalEnemyDef(no){
 }
 
 function _pickBossEnemyDef(grade){
-  const used=new Set(G.worldMapRun&&Array.isArray(G.worldMapRun.usedBossEnemyNames)?G.worldMapRun.usedBossEnemyNames:[]);
-  let pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly && !used.has(e.name));
-  if(!pool.length) pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly);
+  const pool=ENEMY_POOL.filter(e=>e.grade===grade && e.bossOnly);
   return pool.length?randFrom(pool):null;
 }
 
@@ -145,7 +142,6 @@ function _pickBossEnemyDef(grade){
 // 確定してG._waveEnemyPreviewへキャッシュする（先読み確定）。以降、そのwaveの実戦闘でも
 // このキャッシュをそのまま使うことで、表示内容と実際の戦闘結果を一致させる。
 function _ensureWaveEnemyPreview(wave,type){
-  if(!G._waveLoopEnabled) return null;
   const w=Math.max(1,Number(wave)||1);
   const key=`${w}:${type}`;
   G._waveEnemyPreview=G._waveEnemyPreview||{};
@@ -156,8 +152,7 @@ function _ensureWaveEnemyPreview(wave,type){
   // Scene 5のルート上のボスはエピトメ。伏せられたラスボスは進捗パネルに出さない。
   const fixedDef=w===5&&type==='boss'?_fixedFinalEnemyDef(SCENE5_BOSS_ENEMY_NO):null;
   // 同一wave内でエリートとボスに同じ個体が重複して選ばれないよう、既に確定済みの
-  // 反対側（elite⇔boss）の名前は候補から除外する（_pickBossEnemyDefのused除外は
-  // wave-loopフローではG.worldMapRun未初期化のため機能していないための補完）。
+  // 反対側（elite⇔boss）の名前は候補から除外する。
   const otherType=type==='boss'?'elite':'boss';
   const otherPreview=G._waveEnemyPreview[`${w}:${otherType}`];
   const excludeName=otherPreview&&otherPreview.def?otherPreview.def.name:null;
@@ -248,10 +243,10 @@ function generateEnemies(floor){
   if(isBoss){
     const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
     // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
-    const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
+    const preview=typeof _ensureWaveEnemyPreview==='function'
       ?_ensureWaveEnemyPreview(G._wave,'boss'):null;
     // Scene 5：stage4＝エピトメ（ルート上のボス）、stage5＝ウルズ・ラグナ（伏せられたラスボス）。
-    const isScene5=!!(G._waveLoopEnabled&&Number(G._wave)===5);
+    const isScene5=Number(G._wave)===5;
     const isFinalBossFight=!!(isScene5&&Number(G._waveStage)===5);
     const isScene5BossFight=!!(isScene5&&Number(G._waveStage)===4);
     const fixedFinalBoss=isFinalBossFight?_fixedFinalEnemyDef(FINAL_BOSS_ENEMY_NO)
@@ -259,10 +254,6 @@ function generateEnemies(floor){
     // Scene 5の固定敵は先読みプレビューより優先する。プレビューは "5:boss" の1件しか
     // 持たないため、これを先に見るとstage5（ウルズ・ラグナ）でもstage4のエピトメが選ばれてしまう。
     const bossDef=fixedFinalBoss||(preview&&preview.def)||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
-    if(G.worldMapRun&&bossDef){
-      G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
-      if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
-    }
     const make=(def,isCenter)=>{
       const {atk,hp}=(isCenter&&preview&&preview.def===def)
         ?{atk:preview.atk,hp:preview.hp}
@@ -413,13 +404,9 @@ function generateEnemies(floor){
 function generateEliteEnemies(floor){
   const baseG=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
   // 「旅の進捗」パネルで先読み済みなら、その個体・ATK/HPをそのまま使い表示と一致させる。
-  const preview=(G._waveLoopEnabled&&typeof _ensureWaveEnemyPreview==='function')
+  const preview=typeof _ensureWaveEnemyPreview==='function'
     ?_ensureWaveEnemyPreview(G._wave,'elite'):null;
   const bossDef=(preview&&preview.def)||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
-  if(G.worldMapRun&&bossDef){
-    G.worldMapRun.usedBossEnemyNames=G.worldMapRun.usedBossEnemyNames||[];
-    if(!G.worldMapRun.usedBossEnemyNames.includes(bossDef.name)) G.worldMapRun.usedBossEnemyNames.push(bossDef.name);
-  }
   const make=(def,isCenter)=>{
     const {atk,hp}=(isCenter&&preview&&preview.def===def)
       ?{atk:preview.atk,hp:preview.hp}

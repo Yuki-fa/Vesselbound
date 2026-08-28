@@ -17,7 +17,6 @@ const _SHEET_GIDS = {
   '敵':          724099278,
   'キャラクター': 220248720,
   '強化':        1557039430,
-  '魔法':        19731435,
   '指輪':        1483863334,
   '魔導板強化':  496120185,
   'キーワード':  371460212,
@@ -129,7 +128,6 @@ const _XLSX_SHEETS = {
   keyword: 'キーワード',
   card: 'キャラクター',
   enchant: 'エンチャント',
-  spell: '魔法',
   item: 'アイテム',
   ring: '指輪',
   mapPanelPower: '魔導板強化',
@@ -171,7 +169,6 @@ async function _loadGameDataFromEmbeddedXlsx() {
     kwt: data.keyword || '名前\n',
     pt: data.card || data.panel || '名前\n',
     ent: data.enchant || '名前\n',
-    spt: data.spell || '名前\n',
     it: data.item || data.items || '名前\n',
     rt: data.ring || data.rings || '名前\n',
     mpt: data.mapPanelPower || data.mapPanel || '名前\n',
@@ -208,7 +205,6 @@ async function _loadGameDataFromXlsx() {
     kwt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.keyword, false),
     pt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.card, 'カード'], false),
     ent: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.enchant, '強化'], false),
-    spt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.spell, false),
     it: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.item, 'アイテム', 'Item'], false),
     rt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.ring, false),
     mpt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.mapPanelPower, false),
@@ -219,19 +215,18 @@ async function _loadGameDataFromXlsx() {
 }
 
 async function _loadGameDataFromGoogleCsv() {
-  // 必須シート：階層データ・敵・キャラクター・強化・魔法
+  // 必須シート：階層データ・敵・キャラクター・強化
   const fetches = [
     fetch(_sheetUrl(_SHEET_GIDS['階層データ'])),
     fetch(_sheetUrl(_SHEET_GIDS['敵'])),
     fetch(_sheetUrl(_SHEET_GIDS['キャラクター'])),
     fetch(_sheetUrl(_SHEET_GIDS['強化'])),
-    fetch(_sheetUrl(_SHEET_GIDS['魔法'])),
   ];
   const responses = await Promise.all(fetches);
   for (const r of responses) {
     if (r && !r.ok) throw new Error('HTTP ' + r.status);
   }
-  const [ft, et, pt, ent, spt] = await Promise.all(responses.map(r => r.text()));
+  const [ft, et, pt, ent] = await Promise.all(responses.map(r => r.text()));
   // 任意シート：グレードアップ・NPC・キーワード・指輪（未使用/欠落時は内蔵デフォルトを維持）
   let gt = '名前\n';
   let kwt = '名前\n';
@@ -259,7 +254,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, spt, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
+  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -283,9 +278,14 @@ async function _ensureDeepLevelCsv(dlt) {
 }
 
 // ── "1-3" または "3" 形式の文字列を {val, range:[min,max]} にパース ──
+// シートで「∞」「♾️」と書かれたパワー／ライフは、実質無限として扱う大きな数に読み替える。
+const SHEET_INFINITY_VALUE = 99999;
 function _parseIntRange(s, fallback) {
   if (!s || !String(s).trim()) return { val: fallback, range: [fallback, fallback] };
   const raw = String(s).trim();
+  if (/^(?:∞|♾️?|inf(?:inity)?)$/i.test(raw)) {
+    return { val: SHEET_INFINITY_VALUE, range: [SHEET_INFINITY_VALUE, SHEET_INFINITY_VALUE] };
+  }
   const dateLike = raw.match(/^20\d{2}[-\/](\d{1,2})[-\/](\d{1,2})(?:\s|$)/);
   if (dateLike) {
     const a = parseInt(dateLike[1], 10);
@@ -389,9 +389,6 @@ function _filterBySheetCode(list, code, category) {
   });
 }
 
-function _splitSheetList(s) {
-  return String(s || '').split(/[、,，/／・\s]+/).map(v=>v.trim()).filter(Boolean);
-}
 
 function _starterNameFromSheet(s) {
   const n = _normCardName(s);
@@ -415,14 +412,6 @@ function _findStarterUnitBySheetName(name) {
     || null;
 }
 
-function _sheetAbilityText(s) {
-  return String(s || '').trim().replace(/^<([^>]+)>/, '$1：');
-}
-
-function _sheetNumber(v, fallback) {
-  const n = parseInt(String(v || '').trim(), 10);
-  return isNaN(n) ? fallback : n;
-}
 
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
 function _rowToUnit(row) {
@@ -558,7 +547,7 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, gt, ct, et, kwt, pt, ent, spt, it, rt, mpt, dlt, rgt, tmt } = loaded;
+    let { source, ft, gt, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt } = loaded;
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -814,7 +803,7 @@ async function loadGameData() {
       unit.initialEquipment = [];
       unit._sheetSeen = true;
     };
-    // ── 「キャラクター」「強化」「魔法」シート → PANEL_POOL/SPELL_POOL 同期 ──
+    // ── 「キャラクター」「強化」シート → PANEL_POOL 同期 ──
     // マナは色を持たない単一プールに統一されたため、カードの「色」は見た目・種族分類用のみに使う。
     // 茶は廃止し黄に統一する（紫は既存の色として扱う）。
     const _normalizeColorText = color => { const c = String(color || '').trim(); return c === '茶' ? '黄' : c; };
@@ -822,7 +811,7 @@ async function loadGameData() {
       if (!row || row['実装'] === undefined) return true;
       return !_falseySheet(row['実装']);
     };
-    const _summonOnlyPanelNames = new Set(['シャドウ', 'ウルフ', 'ペリカン', 'ドラゴン', 'ナイトキャット'].map(_normCardName));
+    const _summonOnlyPanelNames = new Set(['シャドウ', 'ウルフ', 'ペリカン', 'ドラゴン', 'ナイトキャット', 'イフリート'].map(_normCardName));
     const _forcedPanelSyncNames = new Set([..._summonOnlyPanelNames, _normCardName('剣技')]);
     // 「Xマナ：効果」形式の説明文から、Xマナ貯まった時点で即座に発動するコストを読み取る
     // （キャラクター・強化パネル共通。スペルの「コスト」列とは別に、説明文自身がコストを兼ねる）
@@ -1011,7 +1000,7 @@ async function loadGameData() {
       }
       delete panel.removed;
       const category = forcedCategory || (row['分類'] || '').trim() || panel.category || '';
-      const artFallback = category === 'スペル' ? 'S' : (category === '強化' || category === 'エンチャント') ? 'E' : 'C';
+      const artFallback = (category === '強化' || category === 'エンチャント') ? 'E' : 'C';
       _assignSheetArtCode(panel, row, artFallback);
       delete panel._rewardExcluded;
       delete panel._shopExcluded;
@@ -1030,15 +1019,6 @@ async function loadGameData() {
       if (priceStr && priceStr !== '-') {
         const priceVal = parseInt(priceStr);
         if (!isNaN(priceVal)) panel.cost = priceVal;
-      }
-      // 「コスト」列は強化/キャラクターシートでは実カードほぼ全行が "-" で対応するフィールドがないため
-      // 同期対象外。スペルシートのみ発動に必要なマナ数として実際に使われているため manaCost に同期する。
-      if (category === 'スペル') {
-        const spellCostStr = (row['コスト'] || '').trim();
-        if (spellCostStr && spellCostStr !== '-') {
-          const spellCostVal = parseInt(spellCostStr);
-          if (!isNaN(spellCostVal)) panel.manaCost = spellCostVal;
-        }
       }
       const color = (row['カラー'] || '').trim();
       if (color) {
@@ -1093,7 +1073,6 @@ async function loadGameData() {
     };
     const cardRows = _parseCSVWithHeader(pt || '名前\n', ['No.', '名前']);
     const enchantRows = _parseCSVWithHeader(ent || '名前\n', ['No.', '名前']);
-    const spellRows = _parseCSVWithHeader(spt || '名前\n', ['No.', '名前']);
     const itemRows = _parseCSVWithHeader(it || '名前\n', ['No.', '名前']);
     const ringRows = _parseCSVWithHeader(rt || '名前\n', ['No.', '名前']);
     if(itemRows.length){
@@ -1199,7 +1178,6 @@ async function loadGameData() {
     });
     _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
     _syncPanelRows(enchantRows, 'エンチャント', PANEL_POOL);
-    _syncPanelRows(spellRows, 'スペル', typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : []);
     // 荷物はカード自身が持つキーワードで、接続先へは付与しない。
     // シート側の更新前でも壺・魔鏡の合体不可ルールを一貫して適用する。
     const _luggagePanelNames=new Set(['翡翠の壺','黄金の壺','魔鏡']);
@@ -1272,6 +1250,7 @@ async function loadGameData() {
       'ペリカン': {desc:'（他の効果で召喚される「緑ペリカン」も同じ強化を得る）', keywords:[]},
       'ドラゴン': {desc:'全体攻撃\n（他の効果で召喚される「緑ドラゴン」も同じ強化を得る）', keywords:['全体攻撃']},
       'ナイトキャット': {desc:'結界1\n（他の効果で召喚される「黄ナイトキャット」も同じ強化を得る）', keywords:['結界1']},
+      'イフリート': {desc:'（他の効果で召喚される「赤イフリート」も同じ強化を得る）', keywords:[]},
     };
     Object.entries(_summonOnlyOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {

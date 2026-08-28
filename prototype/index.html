@@ -7224,7 +7224,7 @@ html body.world-map-active #battle-options-btn{
   right:auto!important;
   top:70px!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   padding:0!important;
   border:0!important;
   border-radius:0!important;
@@ -7241,7 +7241,7 @@ html body.world-map-active #battle-options-btn::after{
   left:0!important;
   top:0!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   z-index:2!important;
   pointer-events:none!important;
@@ -7253,7 +7253,7 @@ html body.world-map-active #battle-options-btn::before{
   left:0!important;
   top:0!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;
   opacity:0;
   z-index:1!important;
@@ -8430,6 +8430,22 @@ html body.reward-screen-active .reward-prod-money{
    .reward-prod-bottomの幅(1020px)からタイル幅(491.8px)を引いた位置に配置する */
 html body.reward-screen-active .reward-prod-turn{
   left:528.2px!important;
+}
+/* ライフ枠の位置は、村・戦闘画面（#village-status／#battle-status-hud）と
+   ぴったり同じにする。別々に微調整した値が残っていると、店に入った時だけ
+   ライフの枠と数値がわずかにずれる。 */
+html body.reward-screen-active .reward-prod-turn,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn{
+  left:528.2px!important;
+}
+html body.reward-screen-active .reward-prod-turn strong,
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn strong{
+  width:440.8px!important;
+}
+html body #village-status .battle-status-counter:nth-of-type(2) strong,
+html body #map-status .battle-status-counter:nth-of-type(2) strong,
+html body #battle-status-hud .battle-status-counter:nth-of-type(2) strong{
+  width:440.8px!important;
 }
 /* 「所持金」x:120px・「ターン」x:649px・金額右端510px・0/100右端1039px・
    Y軸は全て1999px（いずれもキャンバス座標）。.reward-prod-bottomの原点(70,1907)を
@@ -10145,11 +10161,14 @@ html body.reward-screen-active .shop-board-sell-btn{
 #battle-transition-fade{position:absolute!important;inset:0!important;z-index:5000!important;background:#000;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .7s ease}
 #battle-transition-fade.is-visible{opacity:1;visibility:visible;pointer-events:auto}
 #battle-options-btn{z-index:4100!important}
+/* マナ枠 X3235 / 生贄枠 X3520、どちらも Y1990・幅250・高さ100（所持金枠と同じ高さ）。
+   2枠の間隔は 3520-(3235+250)=35px。 */
 #battle-counters{
-  position:absolute!important;right:70px!important;bottom:70px!important;z-index:3200!important;
-  display:none;gap:36.4px;align-items:center;pointer-events:none!important;
+  position:absolute!important;left:3235px!important;top:1990px!important;
+  right:auto!important;bottom:auto!important;z-index:3200!important;
+  display:none;gap:35px;align-items:center;pointer-events:none!important;
 }
-.battle-counter{position:relative;width:280px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg?v=back50");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
+.battle-counter{position:relative;width:250px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg?v=back50");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-counter-bg{display:none}
 .battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-size:46px;font-weight:700;color:#f0d28b;text-shadow:0 3px 7px #080300}
 .battle-counter-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(112,206,255,.7))}
@@ -10179,22 +10198,22 @@ body.reward-screen-active #scr-battle #battle-counters,
 body.reward-screen-active #scr-battle #battle-status-hud,
 body.world-map-active #scr-battle #battle-counters,
 body.world-map-active #scr-battle #battle-status-hud{display:none!important}
-#scr-battle:not(.reward-screen-active) #battle-options-btn{width:110px!important;height:90px!important}
+#scr-battle:not(.reward-screen-active) #battle-options-btn{width:110px!important;height:102px!important}
 html body #scr-battle #battle-options-btn{
-  left:3666px!important;right:auto!important;top:70px!important;width:110px!important;height:90px!important;
+  left:3666px!important;right:auto!important;top:70px!important;width:110px!important;height:102px!important;
   padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:transparent!important;
   font-size:0!important;box-shadow:none!important;overflow:visible!important;
 }
 html body #scr-battle #battle-options-btn::after{
-  content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:90px!important;
+  content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:102px!important;
   background:url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;z-index:2!important;pointer-events:none!important;
 }
 html body #scr-battle #battle-options-btn::before{
-  content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:90px!important;
+  content:''!important;position:absolute!important;left:0!important;top:0!important;width:110px!important;height:102px!important;
   background:url("assets/ui/back_light.svg") center/100% 100% no-repeat!important;opacity:0;z-index:1!important;pointer-events:none!important;
 }
 html body #scr-battle #battle-options-btn{
-  width:110px!important;height:90px!important;
+  width:110px!important;height:102px!important;
   background:url("assets/ui/option.svg") center/42px 42px no-repeat!important;
 }
 .life-lost-cutin{animation:life-lost-cutin .62s ease-out forwards!important}
@@ -10368,7 +10387,7 @@ html body.reward-screen-active #battle-options-btn,
 html body.world-map-active #battle-options-btn,
 html body #scr-battle #battle-options-btn{
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   box-sizing:border-box!important;
 }
 html body.reward-screen-active #battle-options-btn::before,
@@ -10552,7 +10571,7 @@ html body.world-map-active #battle-options-btn::before{
   left:0!important;
   top:0!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat!important;
   opacity:0!important;
   transform:scale(1.08)!important;
@@ -12254,9 +12273,9 @@ html body .screen-options-btn{
   right:auto!important;
   top:70px!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   min-width:110px!important;
-  min-height:90px!important;
+  min-height:102px!important;
   padding:0!important;
   margin:0!important;
   border:0!important;
@@ -12273,7 +12292,7 @@ html body .screen-options-btn{
 /* 顔は option.svg（アイコン）＋ button_option.svg（枠）の2枚重ね。戦闘画面と同一。 */
 html body .screen-options-btn::after{
   content:''!important;position:absolute!important;left:0!important;top:0!important;
-  width:110px!important;height:90px!important;z-index:2!important;pointer-events:none!important;
+  width:110px!important;height:102px!important;z-index:2!important;pointer-events:none!important;
   box-sizing:border-box!important;
   border:0!important;
   background-image:url("assets/ui/option.svg"),url("assets/ui/button_option.svg")!important;
@@ -12286,7 +12305,7 @@ html body .screen-options-btn::after{
    明るくしたもの。back_light.svgだと形が違って光り方が変わってしまう。 */
 html body .screen-options-btn::before{
   content:''!important;display:block!important;position:absolute!important;left:0!important;top:0!important;
-  width:110px!important;height:90px!important;z-index:1!important;pointer-events:none!important;
+  width:110px!important;height:102px!important;z-index:1!important;pointer-events:none!important;
   background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat!important;
   opacity:0;
   transform:scale(1.03)!important;
@@ -12746,7 +12765,7 @@ html body:not(.library-screen-active) #scr-village #library-exit-btn{display:non
 #library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
 #library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff6dc}
 #library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
-#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#8c5c2d;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
+#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#c49a6c;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
 html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
 /* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
    位置は複製元のインラインstyle（right/top）をそのまま引き継ぐため編成画面と完全に一致する。 */
@@ -12851,8 +12870,10 @@ html body.reward-screen-active .reward-prod-ring{left:70px!important;top:769px!i
 html body.reward-screen-active .reward-prod-quest{left:70px!important;top:1176px!important;height:289px!important}
 html body.reward-screen-active .reward-prod-journey{left:70px!important;top:1500px!important}
 /* 所持金・ライフのタイルは .reward-prod-bottom（キャンバス座標 X70/Y1990）の中に置かれるため、
-   left はコンテナ内の相対値で指定する。所持金は左端(0)＝X70でそのまま、ライフは X597.5 相当の 527.5px。 */
-html body.reward-screen-active #reward-production-ui .reward-prod-turn{left:527.5px!important}
+   left はコンテナ内の相対値で指定する。所持金は左端(0)＝X70でそのまま、
+   ライフは村・戦闘画面（#village-status / #battle-status-hud）と同じ X598.2 相当の 528.2px。
+   ここだけ 527.5px にすると、店に入った時にライフの枠がわずかにずれる。 */
+html body.reward-screen-active #reward-production-ui .reward-prod-turn{left:528.2px!important}
 html body.reward-screen-active #battle-order-section{left:1125px!important;top:70px!important}
 html body.reward-screen-active #hand-pane-board-bg{left:1125px!important;top:683px!important}
 html body.reward-screen-active #hand-pane:has(#hand-slots.unit-equip-slots),
@@ -12962,6 +12983,151 @@ html body.battle-line-active #kw-tooltip{z-index:98600!important}
   color:#fff!important;
   text-shadow:0 2px 6px rgba(0,0,0,.9)!important;
 }
+/* 「戦闘待機中」＝準備完了を送った後。オプションボタン以外は操作できないようにする。 */
+html body.online-waiting #scr-battle *,
+html body.online-waiting #scr-village *{pointer-events:none!important}
+html body.online-waiting #battle-options-btn,
+html body.online-waiting #title-options-btn,
+html body.online-waiting .screen-options-btn{pointer-events:auto!important}
+html body.online-waiting #reward-move-btns .rew-move-btn,
+html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;cursor:default!important}
+/* マッチング待機オーバーレイ。参加者リストはサーバーの値をそのまま出す。
+   「タイトルに戻る」はゲームオーバー画面と同じ見た目（button_brown2.svg・496x122）にする。 */
+#online-matching-overlay{
+  position:fixed!important;
+  left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;
+  width:var(--game-w)!important;height:var(--game-h)!important;
+  transform:scale(var(--game-scale))!important;transform-origin:top left!important;
+  z-index:9000!important;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(4,5,8,.88)!important;
+  opacity:1;transition:opacity .9s ease;
+  font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif!important;
+  color:#eadfca!important;pointer-events:auto!important;
+}
+#online-matching-overlay.is-visible{display:flex!important}
+#online-matching-overlay.is-fading{opacity:0!important}
+/* 文字・ボタンは設計座標で固定配置する。参加者が増えてもボタンは動かさない。 */
+#online-matching-overlay .omo-inner{position:absolute!important;inset:0!important}
+#online-matching-overlay .omo-title{
+  position:absolute!important;left:0!important;right:0!important;top:760px!important;text-align:center!important;
+  font-size:96px!important;letter-spacing:.06em!important;text-shadow:0 4px 10px #000!important;
+}
+#online-matching-overlay .omo-players{
+  position:absolute!important;left:0!important;right:0!important;top:920px!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;gap:14px!important;
+}
+#online-matching-overlay .omo-player{
+  font-size:56px!important;letter-spacing:.08em!important;opacity:.72!important;text-shadow:0 3px 7px #000!important;
+}
+#online-matching-overlay .omo-player.is-self{opacity:1;color:#f7ead0}
+/* ゲームオーバーの「タイトルに戻る」と同じ体裁 */
+#online-matching-overlay .omo-back{
+  position:absolute!important;left:50%!important;top:1560px!important;transform:translateX(-50%)!important;margin:0!important;
+  width:496px!important;height:122px!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:none!important;
+  font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;
+  line-height:normal!important;letter-spacing:.12em!important;text-indent:.12em!important;
+  color:var(--prod-gold)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  cursor:pointer!important;overflow:visible!important;box-sizing:border-box!important;isolation:isolate!important;
+}
+#online-matching-overlay .omo-back::after{
+  content:""!important;position:absolute!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
+}
+#online-matching-overlay .omo-back::before{
+  content:""!important;position:absolute!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));
+  opacity:0;
+}
+#online-matching-overlay .omo-back:hover::after{filter:brightness(1.45)!important}
+#online-matching-overlay .omo-back:hover::before{opacity:.55!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite}
+/* 対戦相手の枠（幅269・高さ100＝マナ枠と同じ）。X2750/3054/3358, Y70。
+   表示するのはサーバーが返した players の値だけ。 */
+#online-rival-hud{
+  display:none!important;position:fixed!important;
+  left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;
+  width:var(--game-w)!important;height:var(--game-h)!important;
+  transform:scale(var(--game-scale))!important;transform-origin:top left!important;
+  pointer-events:none!important;z-index:8000!important;
+}
+#online-rival-hud.is-visible{display:block!important}
+/* 残り時間：所持金枠（.battle-status-counter）を中身ごとそのまま使う。
+   枠画像・ラベル位置・数値位置は共有クラス側の定義に任せ、ここでは置き場所だけを指定する。 */
+#online-rival-hud .orh-timer{
+  position:absolute!important;left:3277.5px!important;top:1835px!important;
+  pointer-events:none!important;
+}
+#online-rival-hud .orh-slot{
+  position:absolute!important;width:269px!important;height:100px!important;
+  box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important;
+  font-size:30px!important;font-weight:700!important;color:#f0d28b!important;
+  text-shadow:0 3px 7px #080300!important;white-space:nowrap!important;
+  z-index:8000!important;
+  /* ホバーでライフを出すため、枠だけは入力を拾う（HUD全体は pointer-events:none のまま）。 */
+  pointer-events:auto!important;
+}
+/* 枠そのもの。発光レイヤー(::before)より後に描くことで、枠の内側を必ず塗りつぶす。
+   枠を要素の背景として持たせると発光レイヤーを隠せず、拡大分ずれた内枠が見えてしまう。 */
+#online-rival-hud .orh-slot::after{
+  content:""!important;position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;
+  border:25px solid transparent!important;
+  border-image-source:url("assets/ui/counter.svg?v=back50")!important;
+  border-image-slice:12 fill!important;border-image-width:25px!important;border-image-repeat:stretch!important;
+  filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))!important;
+}
+#online-rival-hud .orh-id{position:relative;z-index:1}
+/* ホバー時だけライフを出す。 */
+#online-rival-hud .orh-life{display:none;position:relative;z-index:1;font-size:30px}
+#online-rival-hud .orh-slot:hover .orh-id{display:none}
+#online-rival-hud .orh-slot:hover .orh-life{display:inline}
+/* 次に戦う相手の枠は発光する。 */
+/* 次に戦う相手の枠は発光する。光り方は「元に戻す」ボタンのホバーと同じ
+   （枠画像と同じ形の複製レイヤーを重ね、brightness＋drop-shadowで輪郭を光らせる）。
+   枠自体にfilterを掛けると内側の塗りまで光ってしまうため、複製レイヤーで行う。 */
+#online-rival-hud .orh-slot.is-next::before{
+  content:""!important;position:absolute!important;inset:0!important;z-index:0!important;pointer-events:none!important;
+  border:25px solid transparent!important;
+  border-image-source:url("assets/ui/counter.svg?v=back50")!important;
+  border-image-slice:12 fill!important;border-image-width:25px!important;border-image-repeat:stretch!important;
+  transform:scale(1.012)!important;
+  filter:brightness(2.05) drop-shadow(0 0 7px rgba(255,231,164,.9)) drop-shadow(0 0 14px rgba(255,194,70,.76))!important;
+  animation:onlineRivalNextBlink 1.7s ease-in-out infinite!important;
+}
+/* 明滅の幅は控えめに。opacityを!importantで固定するとアニメーションが負けるため、
+   ここでは静的なopacityを指定しない。 */
+@keyframes onlineRivalNextBlink{
+  0%,100%{opacity:.55}
+  50%{opacity:.92}
+}
+/* 敗北したプレイヤーは暗くし、IDに斜線を引く。 */
+#online-rival-hud .orh-slot.is-defeated{opacity:.45!important;animation:none!important}
+#online-rival-hud .orh-slot.is-defeated .orh-id{
+  text-decoration:line-through!important;text-decoration-thickness:4px!important;color:#9a8f7c!important;
+}
+/* 自分が敗北している間だけ、他プレイヤーの枠を押して観戦できる。 */
+#online-rival-hud.can-spectate .orh-slot{cursor:pointer!important}
+/* ══════════════════════════════════════════════════════════
+   オンライン対戦マスの戦闘中。盤面の描画は通常戦闘（#f-ally / #f-enemy）を
+   そのまま使い、編成画面用のUIだけをこのクラスで隠す。
+   個々の要素の display をJSで書き換えると編成画面へ戻す時に食い違うため、
+   表示の切り替えはこのブロックに閉じる。
+   ══════════════════════════════════════════════════════════ */
+html body.online-versus-active #reward-info-bar,
+html body.online-versus-active #reward-cards-section,
+html body.online-versus-active #reward-move-btns,
+html body.online-versus-active #battle-order-section,
+html body.online-versus-active #enemy-hand-area,
+html body.online-versus-active #main-hand-area,
+html body.online-versus-active #hand-pane,
+html body.online-versus-active #btn-pass{display:none!important}
+html body.online-versus-active #enemy-area,
+html body.online-versus-active #ally-section{display:block!important}
+/* 対戦マスに制限時間は無い。次のマスの持ち時間は再生が終わってから始まる。 */
+html body.online-versus-active #online-rival-hud .orh-timer{display:none!important}
 /* ══════════════════════════════════════════════════════════
    鍛冶屋のメニュー。道具屋（.item-shop-card）と同じ並び・同じ価格バッジで、
    カードの絵だけ b_board1〜5.svg に差し替える。
@@ -12977,6 +13143,13 @@ html body #battle-order-row > .rew-card.forge-card.item-visual::before{
 }
 html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-buy-price{
   display:flex!important;
+}
+/* 鍛冶屋のカードは .treasure-offer-card を共有しており、その
+   「> *{display:none}」で子要素がまとめて隠れる。価格と同じく、
+   「ゴールド不足」バッジも明示的に出し直す。 */
+html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-insufficient-badge,
+html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card > .shop-insufficient-badge{
+  display:block!important;
 }
 /* 変化させられるマスが無い選択肢だけ暗くし、価格に斜線を引く。 */
 html body #battle-order-row > .rew-card.forge-card.forge-no-target{
@@ -12997,12 +13170,18 @@ html body #battle-order-row > .rew-card.forge-card.forge-disabled:hover{
   border-color:transparent!important;
   box-shadow:none!important;
 }
-/* 所持金不足の表示。カード（.shop-insufficient-badge）と同じ体裁で上部中央に置く。 */
+/* 所持金不足の表示。全ての店（報酬カード・道具屋・鍛冶屋・指輪交換）で
+   同じ大きさ・カードの中央に置く。個別のインライン指定は使わない。 */
+html body #battle-order-row > .rew-card > .shop-insufficient-badge,
+html body #battle-order-row > .character-card > .shop-insufficient-badge,
+html body #rw-cards > .rew-card > .shop-insufficient-badge,
+html body #rw-cards > .character-card > .shop-insufficient-badge,
 html body #battle-order-row > .rew-card.forge-card > .shop-insufficient-badge{
   position:absolute!important;
-  top:14px!important;
+  top:50%!important;
+  bottom:auto!important;
   left:50%!important;
-  transform:translateX(-50%)!important;
+  transform:translate(-50%,-50%)!important;
   background:rgba(180,40,40,.92)!important;
   border:2px solid #e06060!important;
   border-radius:6px!important;
@@ -13095,7 +13274,7 @@ html body #scr-battle #battle-options-btn::before{
   left:0!important;
   top:0!important;
   width:110px!important;
-  height:90px!important;
+  height:102px!important;
   background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat!important;
   opacity:0!important;
   animation:none!important;
@@ -13121,7 +13300,7 @@ html body #board-card-visibility-btn:active,
 html body #board-card-visibility-btn .bcv-label,
 html body #board-card-visibility-btn:hover .bcv-label,
 html body #board-card-visibility-btn:focus .bcv-label,
-html body #board-card-visibility-btn:active .bcv-label{color:#8c5c2d!important;text-shadow:none!important;filter:none!important}
+html body #board-card-visibility-btn:active .bcv-label{color:#c49a6c!important;text-shadow:none!important;filter:none!important}
 /* ::before のホバー発光レイヤーは絶対配置のため、文字より後に描画されて文字を覆う
    （＝文字色が変わって見える）。ラベルをspanで包んで発光レイヤーより前面に出す。 */
 html body #board-card-visibility-btn .bcv-label{position:relative;z-index:1}
@@ -13227,8 +13406,8 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
     <button class="title-menu-item game-start" type="button" onclick="startGameFromTitle()" data-sfx-silent="1"><span class="title-menu-label">ゲームスタート</span></button>
-    <button id="title-debug-button" type="button" onclick="startGame(true)">デバッグモード</button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">コンティニュー</span></button>
+    <button class="title-menu-item online-battle" type="button" onclick="startOnlineMatchFromTitle()" data-sfx-silent="1"><span class="title-menu-label">オンライン対戦</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
     <button class="title-menu-item" type="button" onclick="returnToTapStart()"><span class="title-menu-label">終了</span></button>
   </div>
@@ -13585,24 +13764,37 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=capital2"></script>
-<script src="js/engine/audio.js?v=libtest1"></script>
+<script src="assets.js?v=camp1"></script>
+<script src="js/engine/audio.js?v=cleanup158"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=sheet0827"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=forge3"></script>
+<script src="js/data/loader.js?v=cleanup158"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
-<script src="js/engine/state.js?v=wbreak2"></script>
-<script src="js/engine/pool.js?v=artno2"></script>
-<script src="js/engine/enemy.js?v=count4"></script>
-<script src="js/engine/battle.js?v=libtest1"></script>
-<script src="js/engine/render.js?v=manaseed1"></script>
-<script src="js/engine/reward.js?v=libtest2"></script>
-<script src="js/engine/map.js?v=libtest1"></script>
+<!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
+<script src="js/battle/core.js?v=core5"></script>
+<!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
+<script src="js/online/protocol.js?v=core4"></script>
+<script src="js/online/sim.js?v=online1"></script>
+<script src="js/online/server_local.js?v=online15"></script>
+<script src="js/online/match.js?v=online13"></script>
+<script src="js/online/playback.js?v=core4"></script>
+<script src="js/online/matching.js?v=online15"></script>
+<script src="js/online/board.js?v=core6"></script>
+<script src="js/online/versus.js?v=online16"></script>
+<script src="js/online/flow.js?v=online16"></script>
+<script src="js/online/hud.js?v=core6"></script>
+<script src="js/engine/state.js?v=cleanup159"></script>
+<script src="js/engine/pool.js?v=cleanup159"></script>
+<script src="js/engine/enemy.js?v=count5"></script>
+<script src="js/engine/battle.js?v=cleanup164"></script>
+<script src="js/engine/render.js?v=cleanup158"></script>
+<script src="js/engine/reward.js?v=core6"></script>
+<script src="js/engine/map.js?v=online5"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=libtest1"></script>
+<script src="js/engine/main.js?v=online15"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

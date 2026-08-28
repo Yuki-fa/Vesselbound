@@ -4,7 +4,7 @@
   <defs>
     <style>
       .st0 {
-        stroke: url(#_名称未設定グラデーション_7);
+        stroke: url(#_名称未設定グラデーション_2);
       }
 
       .st0, .st1 {
@@ -20,20 +20,23 @@
       }
 
       .st1 {
-        stroke: url(#_名称未設定グラデーション_71);
+        stroke: url(#_名称未設定グラデーション);
       }
     </style>
-    <radialGradient id="_名称未設定グラデーション_7" data-name="名称未設定グラデーション 7" cx="248.3" cy="4130" fx="248.3" fy="4130" r="181.5" gradientTransform="translate(0 -4069.5)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="248.3" cy="-4006" fx="248.3" fy="-4006" r="181.5" gradientTransform="translate(0 -3945.5) scale(1 -1)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#79b6e8"/>
       <stop offset="1" stop-color="#1f5586"/>
     </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_71" data-name="名称未設定グラデーション 7" cx="211.9" cy="2046.3" fx="211.9" fy="2046.3" r="175.5" gradientTransform="translate(36.5 -1985.7)" xlink:href="#_名称未設定グラデーション_7"/>
+    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="211.9" cy="-1922.3" fx="211.9" fy="-1922.3" r="175.5" gradientTransform="translate(36.5 -1861.7) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#79b6e8"/>
+      <stop offset="1" stop-color="#1f5586"/>
+    </radialGradient>
   </defs>
   <g id="_編成">
     <g id="_元に戻す">
       <path class="st2" d="M478,120.9H16c0-8.3-6.7-15-15-15l.4-89.9c8.3,0,15-6.7,15-15h462c0,8.3,6.7,15,15,15l-.4,89.9c-8.3,0-15,6.7-15,15h0Z"/>
-      <path class="st0" d="M16.1,120.9c0-8.4-6.7-15.3-15.1-15.3l.4-89.3c8.3,0,15.1-6.8,15.1-15.3h461.9c0,8.4,6.7,15.3,15.1,15.3l-.4,89.4c-8.3,0-15.1,6.8-15.1,15.3H16.1Z" vector-effect="non-scaling-stroke"/>
-      <path class="st1" d="M22,113.9c-2.2-6.7-7.4-11.9-14-14.2l.4-77.6c6.6-2.2,11.8-7.5,14-14.1h450.2c2.2,6.6,7.4,11.9,14,14.1l-.4,77.7c-6.5,2.2-11.8,7.4-14,14.1H22Z"/>
+      <path class="st1" d="M16.1,120.9c0-8.4-6.7-15.3-15.1-15.3l.4-89.3c8.3,0,15.1-6.8,15.1-15.3h461.9c0,8.4,6.7,15.3,15.1,15.3l-.4,89.4c-8.3,0-15.1,6.8-15.1,15.3H16.1Z" vector-effect="non-scaling-stroke"/>
+      <path class="st0" d="M22,113.9c-2.2-6.7-7.4-11.9-14-14.2l.4-77.6c6.6-2.2,11.8-7.5,14-14.1h450.2c2.2,6.6,7.4,11.9,14,14.1l-.4,77.7c-6.5,2.2-11.8,7.4-14,14.1H22Z"/>
     </g>
   </g>
 </svg>

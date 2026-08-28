@@ -408,13 +408,6 @@ function _sealCostValue(card){
   const m=[...kws,String(text||'')].join(' ').match(/封印\s*(\d+)/);
   return m?Math.max(1,parseInt(m[1],10)||1):0;
 }
-function _sealSacrificeCountForDisplay(){
-  const inBattle=typeof G!=='undefined'&&(G.phase==='player'||G.phase==='enemy'||G._battleVictoryPending);
-  if(!inBattle) return 0;
-  if(typeof _sacrificeCount==='function') return Math.max(0,Number(_sacrificeCount())||0);
-  const all=[...(G.allies||[]),...(G.enemies||[])];
-  return all.filter(u=>u&&u.hp>0&&!u._sealed&&typeof _unitHasSacrifice==='function'&&_unitHasSacrifice(u)).length;
-}
 function cardSealCostHtml(card){
   return '';
 }
@@ -508,9 +501,6 @@ function _getAllyDomSlots(){
   });
   return arr;
 }
-function _getEnemyDomSlots(){
-  return [...(document.getElementById('f-enemy')?.querySelectorAll('.slot')||[])];
-}
 
 // スロット高さをCSSカスタムプロパティに反映（リサイズ対応）
 function _updateLaneOffset(){
@@ -541,26 +531,6 @@ function _updateLaneOffset(){
   document.body.appendChild(svg);
 })();
 
-function showAttackLine(fromEl, toEls, color){
-  const svg=document.getElementById('atk-line-svg');
-  if(!svg||!fromEl||!toEls||!toEls.length) return;
-  svg.innerHTML='';
-  const fr=fromEl.getBoundingClientRect();
-  const fx=fr.left+fr.width/2, fy=fr.top+fr.height/2;
-  toEls.forEach(toEl=>{
-    if(!toEl) return;
-    const tr=toEl.getBoundingClientRect();
-    const tx=tr.left+tr.width/2, ty=tr.top+tr.height/2;
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',fx); line.setAttribute('y1',fy);
-    line.setAttribute('x2',tx); line.setAttribute('y2',ty);
-    line.setAttribute('stroke',color||'#fff');
-    line.setAttribute('stroke-width','2');
-    line.setAttribute('stroke-opacity','0.85');
-    line.setAttribute('stroke-linecap','round');
-    svg.appendChild(line);
-  });
-}
 
 function hideAttackLine(){
   const svg=document.getElementById('atk-line-svg');
@@ -1302,11 +1272,12 @@ function updateUnitDamageUi(unit,side){
   if(!unit) return;
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
+  const _atkVal=Math.max(0,unit.atk||0), _hpVal=Math.max(0,unit.hp||0);
   const atkEl=slot.querySelector('.slot-stats .a');
-  _setUnitStatText(atkEl,Math.max(0,unit.atk||0));
+  _setUnitStatText(atkEl,_atkVal,_hpVal);
   const hpEl=slot.querySelector('.slot-stats .h');
   if(hpEl){
-    _setUnitStatText(hpEl,Math.max(0,unit.hp||0));
+    _setUnitStatText(hpEl,_hpVal,_atkVal);
     hpEl.classList.toggle('hp-damaged',unit.maxHp!=null&&unit.hp<unit.maxHp);
   }
   const maxHp=Math.max(1,Number(unit.maxHp)||Number(unit.hp)||1);
@@ -1653,10 +1624,11 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         // グレムリンやギガンテス等、一時停止中にステータス変化を行う効果がある場合、
         // 攻撃を再開する前に背景側の実スロット全体も最新値へ同期する。
         if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
+        const _cAtk=Math.max(0,attacker.atk||0), _cHp=Math.max(0,attacker.hp||0);
         const cloneAtkEl=clone.querySelector('.slot-stats .a');
-        _setUnitStatText(cloneAtkEl,Math.max(0,attacker.atk||0));
+        _setUnitStatText(cloneAtkEl,_cAtk,_cHp);
         const cloneHpEl=clone.querySelector('.slot-stats .h');
-        _setUnitStatText(cloneHpEl,Math.max(0,attacker.hp||0));
+        _setUnitStatText(cloneHpEl,_cHp,_cAtk);
         const cloneLifeFill=clone.querySelector('.slot-life-fill');
         if(cloneLifeFill){
           const cloneMaxHp=Math.max(1,Number(attacker.maxHp)||Number(attacker.hp)||1);
@@ -2297,6 +2269,8 @@ function renderField(id,units,isEnemy,_lane){
         const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
         if(_preview) slot.setAttribute('data-preview',_preview);
         const _hpClass=(u.maxHp!=null&&u.hp<u.maxHp)?'h hp-damaged':'h';
+        // ATK/HPで縮小率が食い違わないよう、桁数の多い方に合わせた同じクラスを両方へ当てる。
+        const _statPairCls=_cardStatPairDigitClass(u.atk,u.hp);
         const _hpMax=Math.max(1,u.maxHp||u.hp||1);
         const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,u.hp||0)/_hpMax)*100)));
         const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,u.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
@@ -2313,9 +2287,9 @@ function renderField(id,units,isEnemy,_lane){
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_cardStatDigitClass(u.atk)}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_cardStatDigitClass(u.hp)}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_cardStatDigitClass(u.atk)}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_cardStatDigitClass(u.hp)}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${u.name}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         }
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
         const hitLayer=document.createElement('div');
@@ -2600,6 +2574,12 @@ function computeDesc(card,_mlOverride){
 // 実測（設計座標・カード幅260）：ボックス中心 x=49 / 矢印の左端 x=98。
 // 65.52pxでの文字幅は 1桁36.3 / 2桁82.5 / 3桁123.8 / 4桁165 / 5桁206.3。
 // 右端を x=94（矢印の手前4px）までに収めるため、許容幅は90px。
+// ATKとHPで縮小率が食い違わないよう、両方の桁数のうち多い方でクラスを決める。
+// （片方だけ小さくなると同じキャラの数値でサイズが揃わない）
+function _cardStatPairDigitClass(atk,hp){
+  const d=v=>String(v==null?'':v).replace(/[^0-9]/g,'').length;
+  return _cardStatDigitClass('0'.repeat(Math.max(d(atk),d(hp))||1));
+}
 function _cardStatDigitClass(value){
   const digits=String(value==null?'':value).replace(/[^0-9]/g,'').length;
   if(digits>=5) return ' stat-d5';
@@ -2609,11 +2589,12 @@ function _cardStatDigitClass(value){
 }
 // 戦闘中のユニットカードのATK/HP（.slot-stats .a/.h）にも、桁数に応じた縮小クラスを当てる。
 // 数値を入れ替えるだけの軽量更新経路が複数あるため、テキストとクラスを必ず一緒に更新する。
-function _setUnitStatText(el,value){
+function _setUnitStatText(el,value,pairValue){
   if(!el) return;
   el.textContent=value;
   el.classList.remove('stat-d3','stat-d4','stat-d5');
-  const cls=_cardStatDigitClass(value).trim();
+  // pairValueを渡すと、ATK/HPのうち桁数が多い方に合わせた同じクラスになる。
+  const cls=(pairValue===undefined?_cardStatDigitClass(value):_cardStatPairDigitClass(value,pairValue)).trim();
   if(cls) el.classList.add(cls);
 }
 
@@ -2675,7 +2656,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[_cardUiName(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatDigitClass(pAtk)}">${pAtk}</span><span class="card-summon-hp${_cardStatDigitClass(pHp)}">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }

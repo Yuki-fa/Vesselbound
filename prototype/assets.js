@@ -40,17 +40,9 @@ const Assets = {
     manaOrb: 'assets/cards/mana_orb.png',
     blood: 'assets/cards/blood.png',
     characterMask: 'assets/cards/ch_mask.png',
-    wandSheet: 'assets/cards/wand_sheet.png',
-  },
-  characterSheets: {
-    set1: 'assets/cards/characters/sheet_set1.png',
-    set2: 'assets/cards/characters/sheet_set2.png',
-    set3: 'assets/cards/characters/sheet_set3.png',
   },
   backgrounds: {
     title: 'assets/art/backgrounds/title_castle.png',
-    camp: 'assets/art/backgrounds/camp.png',
-    worldMap: 'assets/art/backgrounds/world_map.png',
     stage1: 'assets/art/backgrounds/stage_forest.webp',
     stage2: 'assets/art/backgrounds/stage_grassland.webp',
     stage3: 'assets/art/backgrounds/stage_valley.webp',
@@ -123,7 +115,6 @@ const Assets = {
     },
   },
   ui: {
-    frame: 'assets/ui/card_frame.svg',
     turn: 'assets/ui/turn.png',
     turnFlow: 'assets/ui/turn_flow.png',
     log: 'assets/ui/log.png',
@@ -138,7 +129,6 @@ const Assets = {
   },
   map: {
     panel: 'assets/art/backgrounds/world_map.png',
-    panel2: 'assets/art/backgrounds/world_map.png',
     dashedLine: 'assets/map/dashed_line.png',
     player: 'assets/map/player.png',
     empty: 'assets/map/empty.png',
@@ -554,7 +544,9 @@ function applyScreenAssetBackground(screenId){
   if(screenId==='map'){ setScreenAssetBackground('map','map'); return; }
   if(screenId==='battle'){
     const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
-    const key=mapStage||((typeof G!=='undefined'&&G&&G._isShop)?'camp':getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
+    // ショップ用の'camp'背景は画像ごと廃止済み。施設の背景は_setOverrideBackground()の
+    // --facility-bg-image（.facility-bg-active）が上から出すので、ここではステージ背景だけを敷く。
+    const key=mapStage||getStageBackgroundKey(typeof G!=='undefined'?G.floor:1);
     setScreenAssetBackground('battle',key);
   }
 }
@@ -574,10 +566,6 @@ function applyUiAssets(){
 function setBattleStageBackground(){
   const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
   setScreenAssetBackground('battle',mapStage||getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
-}
-
-function setBattleShopBackground(){
-  setScreenAssetBackground('battle','camp');
 }
 
 function playVfxOnElement(type, el){
@@ -604,15 +592,6 @@ function playHitVfx(side, idx, amount){
     playVfxOnElement('hit',slot);
   };
   requestAnimationFrame(()=>requestAnimationFrame(draw));
-}
-
-function playCardUseVfx(idx){
-  const el=document.querySelector(`[data-card-ctx="spell-battle"][data-card-idx="${idx}"]`);
-  if(el){
-    el.classList.add('card-use-glow');
-    playVfxOnElement('glow',el);
-    setTimeout(()=>el.classList.remove('card-use-glow'),420);
-  }
 }
 
 window.Assets=Assets;

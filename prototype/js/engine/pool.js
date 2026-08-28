@@ -6,12 +6,6 @@
 function randUses(){ return 3+Math.floor(Math.random()*4); }
 
 // キャラクターのグレードを階層に応じて決定
-function rollCharGrade(floor){
-  if(floor<5)  return 1;
-  if(floor<10) return 2;
-  if(floor<15) return 3;
-  return 4;
-}
 
 // 購入価格
 function calcBuyPrice(card){
@@ -120,6 +114,7 @@ const PANEL_POOL=[
   {id:'panel_titania',no:'C073',name:'タイタニア',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:3,life:5,desc:'常時：味方の攻撃回数は1回追加される。'},
   {id:'panel_ketshi',no:'074',name:'ケットシー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'獣',power:2,life:3,desc:'負傷：「黄ナイトキャット」を召喚する。'},
   {id:'panel_knight_cat',name:'ナイトキャット',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'獣',power:1,life:2,keywords:['結界1'],desc:'結界1\n（他の効果で召喚される「黄ナイトキャット」も同じ強化を得る）'},
+  {id:'panel_summon_ifrit',no:'C106',name:'イフリート',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,power:99999,life:1,keywords:[],desc:'（他の効果で召喚される「赤イフリート」も同じ強化を得る）'},
   {id:'panel_carbuncle',no:'C077',name:'カーバンクル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:1,life:5,desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
   {id:'panel_elemental',no:'C080',name:'エレメンタル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:5,life:5,desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
   {id:'panel_counterattack_oath',no:'E001',name:'逆襲',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆襲'],desc:'死亡：全ての味方は+1/+1を得る。'},
@@ -189,11 +184,6 @@ const PANEL_POOL=[
   {id:'panel_awe',name:'威光',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：このキャラクターのHPを2倍にする。'},
 ];
 
-// ── スペルカード：指定マナが貯まると自動で1回だけ発動するカード ──
-const SPELL_POOL=[
-  {id:'spell_fire_arrow',no:'E058',name:'炎の矢',type:'spell',kind:'spell',category:'スペル',manaCost:1,color:'赤',effectKey:'fire_arrow',desc:'HPが最も低いランダムな敵に5ダメージを与える。'},
-];
-
 const ITEM_POOL=[
   {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/art/item/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
   {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/art/item/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
@@ -208,16 +198,6 @@ const ITEM_POOL=[
   {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/item/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。（但し、最低値は1）'},
   {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/item/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
 ];
-
-function makeSpell(idOrName){
-  const def=SPELL_POOL.find(p=>p.id===idOrName||p.name===idOrName);
-  if(!def) return null;
-  const c=clone(def);
-  _normalizePanelRewardCost(c);
-  c.noRewardUse=true;
-  c._buyPrice=0;
-  return c;
-}
 
 function makeItem(idOrName){
   const def=ITEM_POOL.find(p=>p.id===idOrName||p.name===idOrName);
@@ -279,9 +259,7 @@ const _NON_BATTLE_REWARD_RARITY_WEIGHTS={1:50,2:25,3:15,4:7,5:3};
 const _GOLDEN_RING_REWARD_RARITY_WEIGHTS={1:30,2:33,3:21,4:11,5:5};
 
 function _currentRewardMapNumber(){
-  const mapNo=G&&G._waveLoopEnabled
-    ?Number(G._wave)
-    :Number(G&&G.worldMapRun&&G.worldMapRun.index)||Number(G&&G.worldMap&&G.worldMap.index)||Number(G&&G.rewardGrade)||1;
+  const mapNo=Number(G&&G._wave);
   return Math.max(1,Math.min(5,mapNo||1));
 }
 
@@ -304,7 +282,7 @@ function _rewardRarityWeights(useGoldenRing,useMapProgress){
 }
 
 function _currentRewardMapGrade(fallback){
-  const mapNo=Number(G&&G.worldMapRun&&G.worldMapRun.index)||Number(G&&G.worldMap&&G.worldMap.index)||0;
+  const mapNo=Number(G&&G.worldMap&&G.worldMap.index)||0;
   const base=Number.isFinite(mapNo)&&mapNo>0?mapNo:Number(fallback||G&&G.rewardGrade||1);
   return Math.max(1,Math.min(5,base||1));
 }
@@ -368,10 +346,6 @@ function ensurePanelSaleStock(){
     if(!p||!p.id||!_isImplementedPoolCard(p)||(p._rewardExcluded&&p._shopExcluded)||p.rarity===-1) return;
     G.panelSaleStock[panelSaleStockKey(p)]=Math.max(0,9-(p.grade||1));
   });
-  (SPELL_POOL||[]).forEach(p=>{
-    if(!p||!p.id||!_isImplementedPoolCard(p)||(p._rewardExcluded&&p._shopExcluded)) return;
-    G.panelSaleStock[panelSaleStockKey(p)]=99;
-  });
 }
 
 function panelSaleStockCount(panel){
@@ -391,9 +365,6 @@ function returnPanelToSalePool(panel){
   if(key) G.panelSaleStock[key]=(G.panelSaleStock[key]||0)+1;
 }
 
-function addPanelToSalePool(panel){
-  returnPanelToSalePool(panel);
-}
 
 // 通常廃棄は指定がない限りゴールドを増やさない。ショップ売却はreward/map側の販売価格表を使う。
 function cardRefund(card){
@@ -426,10 +397,6 @@ function drawRewards(n){
     const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
     return drawItems(n, maxGrade);
   }
-  // 最初の報酬フェイズ（戦闘0回目、G.floorがまだ0）は報酬カードを提示しない。
-  // ただしWave進行モードはwave1の1戦目（stage2）のフロアが0になるため、このガード対象から除外する
-  // （Wave進行モードの初期編成画面自体は_openWaveFormation()側で_rewCardsを空にするため問題ない）。
-  if(!G._waveLoopEnabled&&!(G.floor>0)) return [];
   const baseGrade=G.rewardGrade||1;
   const res=drawPanel(5, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);

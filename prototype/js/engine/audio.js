@@ -137,7 +137,7 @@ const BGM_DEFAULT_VOLUMES={
   gameTitle:1.0,
   villageStart:1.0, // 音源 -20.6dBFS（1.0でも目標-16に届かない＝音源側の対応が必要）
   // 街BGMに重ねる環境音（サブレイヤー）
-  thunder:.5,
+  thunder:.8,
   rain:.5,
   bug:.5,
   blacksmith:.5,
@@ -287,14 +287,6 @@ function playFileSfx(path,volume){
 
 // playSfx()と同じ再生を行い、再生完了（見込み）までを待つPromiseを返す。
 // ミュート中／未解錠で鳴らせなかった場合は待たずに即resolveする。
-function playSfxAwait(key,opts={}){
-  const played=playSfx(key,opts);
-  if(!played) return Promise.resolve(false);
-  const base=_sfxAudio(key);
-  const dur=Number(base&&base.duration);
-  const waitMs=Number.isFinite(dur)&&dur>0?Math.min(4000,Math.round(dur*1000)+40):600;
-  return new Promise(resolve=>setTimeout(()=>resolve(true),waitMs));
-}
 
 // フェードは音声ごとに独立したタイマーで行う。
 // ※以前はモジュール変数1本（_bgmFadeTimer）を使い回していたため、BGMと環境音のように
@@ -492,8 +484,6 @@ function stopBgmLayer(channel,fadeOutMs=350){
   delete _bgmLayers[channel];
 }
 // 既存呼び出し互換：街の環境音チャンネル
-function playBgmSub(key,opts={}){ return playBgmLayer('ambient',key,opts); }
-function stopBgmSub(fadeOutMs=350){ stopBgmLayer('ambient',fadeOutMs); }
 // ステージ単位で鳴らし続ける環境音（例：ステージ4の雷雨）のチャンネル。
 // 街→戦闘→街とBGMが切り替わっても止めないため、stopBgm()／stopAllBgmLayers()の
 // 対象から外し、_syncStageAmbience()だけが開始／停止を管理する。

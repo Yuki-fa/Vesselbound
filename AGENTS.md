@@ -13,7 +13,10 @@
 - 直前の履歴を記述したのが自分（今回の会話セッション）でない場合、今回の作業完了後に履歴を全て消し、新規に1件から書き始める。
 - 直前の履歴を記述したのが自分（今回の会話セッション）である場合、履歴は消さずに書き足す（目安3〜5行を維持）。
 - 「自分が書いたか」は会話セッション内の記憶で判断する。内容に見覚えがなければ他セッション／ユーザー本人による記述とみなす。
-- 【今回：ドラッグ発光・図書館試験戦闘】`dragzone-*`のbody付与を停止し、実ドロップ後の魔導板暗転再計算と4-2/5-2移動先発光を再付与。図書館試験戦闘の勝利BGM維持・開始字幕を修正。構文チェック・差分空白チェックは通過、実機ブラウザ確認は未実施。
+- 【オンライン対戦の実装】3層構造（sim / match / playback）＋ `server_local.js`（サーバー権威のスタブ）を新規作成。マッチング（4人）・編成×3→対戦→街→編成×3→塔のステージ進行・制限時間・ライフ・報酬100Gをサーバー側が決め、クライアントは追従するだけの構成。対戦の盤面と演出はPvEと同じ `renderField()` / 攻撃モーション / カットインを使う。
+- 【戦闘コアへの移行 段階1〜4】`js/battle/core.js` を戦闘ルールの唯一の実装場所にした。キーワード判定・攻撃対象の決定・貫通・ダメージ確定（封印/結界/弱体/強靭）・加護・封印と生贄・数値付きキーワードの合算・追加攻撃回数/攻撃範囲を移し、`battle.js` 側は1行委譲に置き換え済み（二重管理なし）。**トリガ効果・固有効果・召喚/変身・指輪/アイテム/マナは未移行**。詳細と次の手順は「戦闘ルールの置き場」節を参照。
+- 【UIの不整合修正】店に入った時のライフ表示（ハートの幅と色が村・戦闘画面と別実装だった）、全ての店の「ゴールド不足」バッジ（大きさ統一・カード中央）、売切れ枠の上下（生きたカードと逆だった）を修正。
+- ブラウザ確認：PvE通し（村→戦闘→勝利→報酬）とオンライン通し（マッチング→編成→対戦→街）をそれぞれ複数回。JSエラーなし。commit・pushは未実施。
 
 ## 承認設定
 
@@ -234,6 +237,18 @@ js/
     units.js             — UNIT_POOL（初期キャラクター7体。通常カードは loader.js がシートから生成）
     loader.js            — 起動時にGoogleスプレッドシート(CSV)をfetchし、RING_POOL/PANEL_POOL/FLOOR_DATA等をインプレース上書き。fetch失敗時は内蔵データを使用
     local_xlsx_data.js   — file:// 環境向けのローカルCSVフォールバック（loader.js が参照）
+  battle/
+    core.js              — 共通戦闘コア。PvE(battle.js) と PvP(online/sim.js) が使う**唯一の**戦闘ルール置き場
+  online/                — オンライン対戦（3層＋ローカルサーバースタブ）
+    protocol.js          — イベント種別・終了理由・seed付き乱数（mulberry32）
+    sim.js               — 層1。コアを呼ぶだけの薄いアダプタ。ルールは持たない
+    server_local.js      — サーバー権威のスタブ。マッチング/ライフ/制限時間/ステージ進行/勝敗/報酬を決める
+    match.js             — 層2。サーバー状態を保持して中継するだけ。判定・計算をしない
+    playback.js          — 層3。イベント列を順に再生する。値も勝敗も計算しない
+    board.js             — 対戦盤面の描画。PvEと同じ renderField() / 演出関数を使う
+    versus.js            — 対戦マスの入口。編成の写し取り（_panelSummonSpec を共用）
+    flow.js              — サーバー状態に追従する画面遷移
+    hud.js / matching.js — 対戦相手の枠・残り時間・マッチング待機
   engine/                — ゲームロジック（メカニクス変更時はここを編集）
     constants.js         — MAX_ALLIES, MAX_ENEMIES, ENEMY_FRONT_SLOTS, ENEMY_REAR_SLOTS, MAX_UNITS, GRADE_UP_COSTS
     audio.js             — 仮SE/BGM再生レイヤー（playSfx() が Assets.sfx 経由で再生）
@@ -252,9 +267,77 @@ js/
 
 実際の順序：
 
-`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `render.js` → `reward.js` → `map.js` → `move.js` → `main.js`
+`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `battle/core.js` → `online/*.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `render.js` → `reward.js` → `map.js` → `move.js` → `main.js`
 
 関数本体内の参照はロード順に依存しないが、トップレベルの変数宣言は宣言順に解決されるため、この順序を維持すること。
+
+## 戦闘ルールの置き場（重要）
+
+**戦闘ルールは `js/battle/core.js` にのみ書く。** PvE（`js/engine/battle.js`）とPvP（`js/online/sim.js`）は
+どちらもこのコアを呼ぶ。同じルールを2箇所に書くと、片方だけ直す事故が必ず起きる。
+
+コアの制約（サーバーでもそのまま動かすため）：
+- DOM を触らない / `G` を触らない / `Math.random`・`Date.now` を使わない（乱数は引数の rng だけ）
+- 同期のみ。演出の待ちは呼び出し側がイベントを見て行う
+
+`battle.js` に残っている同名関数（`_unitHasKeyword` / `getAttackTarget` / `_sealValue` 等）は
+**コアへの1行委譲**であり、実装ではない。ここに条件を書き足さないこと。
+
+### 移行済み（コアが唯一の実装）
+| ルール | コアのAPI |
+|---|---|
+| キーワード判定（キーワード列＋効果文からの導出） | `coreUnitKeywords` `coreUnitHasKeyword` `coreUnitKeywordCount` |
+| 数値付きキーワードの合算（毒牙3・邪眼2 等） | `coreKeywordSum` |
+| 結界の値 | `coreUnitShieldValue` `coreShieldValueFromKeyword` |
+| 生存・行動可否・攻撃力 | `coreIsSealed` `coreCanAct` `coreAttackDamage` |
+| 攻撃対象の決定（守護・隠密・狩人・前衛優先） | `coreSelectAttackTarget` |
+| 貫通の後衛巻き込み | `corePierceRearTargets` |
+| 受けるダメージの確定（封印・結界・弱体・強靭） | `coreResolveIncomingDamage` `coreToughValue` |
+| 加護Xの残り回数 | `coreConsumeWardCharge` |
+| 封印と生贄（誰が封印されるか・何体必要か・誰を捧げるか） | `coreSealValue` `coreInitSealStates` `coreSacrificeUnits` `coreSealRelease` |
+| 追加攻撃回数・攻撃範囲（二段/三段/全体/三方向） | `coreExtraAttackCount` `coreAttackSpread` |
+
+### 未移行（`battle.js` にのみ実装。PvPでは発動しない）
+- トリガ効果本体：開戦・攻撃・負傷・死亡・解放・マナ（約99箇所）
+- 個別カード名で分岐する固有効果と、それに紐づく固有VFX/SE
+- 召喚・変身・盤面の詰め直し
+- 指輪・アイテム・マナプール
+
+そのため現状、**カードを追加するとデータ（絵・数値・キーワード）はオンラインにも自動で乗るが、
+効果文で動く固有効果は乗らない**。上の順で移行を進めること。
+
+### 次の作業（Codexへの引き継ぎ手順）
+
+移行の1ステップは必ず次の3つで1セット。**「コアに実装する」だけで終わらせない。**
+
+1. `js/battle/core.js` にルールを追加する（DOM・G・Math.random を使わない。乱数は引数の rng）
+2. `js/engine/battle.js` の該当実装を**削除**し、コア呼び出しの1行委譲に置き換える
+3. `js/battle/core.js` の `runBattleCore()` からも同じ関数を呼び、PvPでも効くようにする
+
+そのうえで毎回：
+- `node --check` を全JSに通す
+- `index.html` の該当 `<script src=...?v=>` を上げる
+- ブラウザでPvE通し（タイトル→リーゼ→出発する→戦闘→勝利→報酬）とオンライン通し
+  （タイトル→オンライン対戦→編成完了1/3〜3/3→対戦→街）を実行し、JSエラーが無いことを確認する
+- 二重管理が残っていないか grep で確認する（例：`grep -n '強靭\\d+' js/engine/battle.js` が0件）
+
+推奨する順序（上から）：
+1. **トリガ効果の共通部分** — `manaOnAttack` / `manaOnInjury` / `manaOnDeath` / `goldOnBattleEnd` /
+   `goldOnDeath` のような**データ駆動の効果**。カード名で分岐しないので移しやすく、
+   「カードを追加したらオンラインにも乗る」効果が最も大きい
+2. **`applyKeywordOnHit` の数値ルール** — 即死・毒牙・毒・邪眼・衝撃・弱体・生命吸収。
+   ログ・指輪・死亡処理はG依存なので残し、「いくつ付与するか」だけをコアへ移す
+3. **毒のターン処理** — `_applyPoisonBeforeAttack` 相当をコアのループへ
+4. **召喚・変身** — 盤面を変えるので最後。コアに「盤面へ追加/置換」のイベントを足す必要がある
+
+カード名で分岐する固有効果（`hasName('鉄の拳"フォルニョート"')` 等）は最後でよい。
+数が多く、1枚ずつ移せるため、上の4つが終わってから着手すること。
+
+### 既存の食い違い（移行時に要判断・勝手に揃えないこと）
+- 追加攻撃回数と攻撃範囲：味方側は効果文からも拾うが、敵側はキーワード列だけを見る
+  （`coreExtraAttackCount(unit,{fromKeywordsOnly:true})` で従来の挙動を保持している）
+- 弱体：`_applyDamageState` は加算するが `dealDmgToEnemy` は加算しない
+  （`coreResolveIncomingDamage(...,{skipWeaken:true})` で従来の挙動を保持している）
 
 ## カードデータの構造
 

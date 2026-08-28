@@ -5,6 +5,15 @@
 
 let G={};
 
+// ライフ枠の最大数。通常は3、オンライン対戦は5（サーバーの ONLINE_START_LIFE と同値）。
+// 表示・回復上限の両方でこの値を使う。ゲームオーバー判定（0以下）は変わらない。
+function waveLifeMax(){
+  if(typeof G!=='undefined'&&G&&G._onlineMode){
+    return (typeof ONLINE_START_LIFE!=='undefined'?Number(ONLINE_START_LIFE):5)||5;
+  }
+  return 3;
+}
+
 // キーワード説明文マップ（loader.js で effect_id シートから上書き可）
 // シート未読み込み時のフォールバック説明文
 // シート「敵キーワード」の説明文をフォールバックとして保持（loader.js で上書き）
@@ -112,7 +121,6 @@ function initState(){
     _isEliteFight:false, _eliteIdx:-1, _eliteKilled:false, _bossSlot:0,
     _usedNamedElite:new Set(), _usedNamedRest:new Set(),
     _retryFloor:false,
-    _waveLoopEnabled:false,
     _wave:1,
     _waveStage:1,
     _waveBattleType:null,

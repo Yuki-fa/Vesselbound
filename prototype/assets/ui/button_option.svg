@@ -1,49 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_レイヤー_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 110 90">
-  <!-- Generator: Adobe Illustrator 30.7.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 114)  -->
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 110 102">
   <defs>
     <style>
-      .st0 {
-        stroke: url(#_名称未設定グラデーション_2);
+      .cls-1 {
+        stroke: url(#_名称未設定グラデーション_5);
+        stroke-width: 2px;
       }
 
-      .st0, .st1, .st2 {
+      .cls-1, .cls-2 {
         fill: none;
         stroke-miterlimit: 10;
       }
 
-      .st0, .st2 {
-        stroke-width: 2px;
-      }
-
-      .st1 {
-        stroke: url(#_名称未設定グラデーション_3);
-        stroke-width: 1.2px;
-      }
-
-      .st3 {
+      .cls-3 {
         opacity: .5;
       }
 
-      .st2 {
-        stroke: url(#_名称未設定グラデーション);
+      .cls-2 {
+        stroke: url(#_名称未設定グラデーション_5-2);
+        stroke-width: 1.2px;
       }
     </style>
-    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="55" cy="2113" fx="55" fy="2113" r="70" gradientTransform="translate(0 -2068)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション_5" data-name="名称未設定グラデーション 5" cx="55" cy="14421" fx="55" fy="14421" r="73.88" gradientTransform="translate(0 14472) scale(1 -1)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#8a5c12"/>
     </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="55" cy="2113" fx="55" fy="2113" r="70" gradientTransform="translate(0 -2068)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#bf9000"/>
-      <stop offset="1" stop-color="#8a5c12"/>
-    </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_3" data-name="名称未設定グラデーション 3" cx="55" cy="47" fx="55" fy="47" r="61.3" gradientTransform="translate(0 92) scale(1 -1)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#bf9000"/>
-      <stop offset="1" stop-color="#8a5c12"/>
-    </radialGradient>
+    <radialGradient id="_名称未設定グラデーション_5-2" data-name="名称未設定グラデーション 5" cy="51" fy="51" r="65.17" gradientTransform="matrix(1,0,0,1,0,0)" xlink:href="#_名称未設定グラデーション_5"/>
   </defs>
-  <path class="st3" d="M94,89H16c0-8.3-6.7-15-15-15V16c8.3,0,15-6.7,15-15h78c0,8.3,6.7,15,15,15v58c-8.3,0-15,6.7-15,15Z"/>
-  <path class="st2" d="M94,89H16c0-8.3-6.7-15-15-15V16c8.3,0,15-6.7,15-15h78c0,8.3,6.7,15,15,15v58c-8.3,0-15,6.7-15,15Z" vector-effect="non-scaling-stroke"/>
-  <path class="st0" d="M94,89H16c0-8.3-6.7-15-15-15V16c8.3,0,15-6.7,15-15h78c0,8.3,6.7,15,15,15v58c-8.3,0-15,6.7-15,15Z" vector-effect="non-scaling-stroke"/>
-  <path class="st1" d="M21,83c-2.2-6.7-7.5-12-14.2-14.2V21.2c6.7-2.2,12-7.5,14.2-14.2h68.1c2.2,6.7,7.5,12,14.2,14.2v47.5c-6.7,2.2-12,7.5-14.2,14.2H21Z"/>
+  <g id="_街" data-name="街">
+    <g id="_オプション" data-name="オプション">
+      <g>
+        <path class="cls-3" d="M94,101H16c0-8.28-6.72-15-15-15V16c8.28,0,15-6.72,15-15h78c0,8.28,6.72,15,15,15v70c-8.28,0-15,6.72-15,15Z"/>
+        <path class="cls-1" d="M94,101H16c0-8.28-6.72-15-15-15V16c8.28,0,15-6.72,15-15h78c0,8.28,6.72,15,15,15v70c-8.28,0-15,6.72-15,15Z" vector-effect="non-scaling-stroke"/>
+        <path class="cls-1" d="M94,101H16c0-8.28-6.72-15-15-15V16c8.28,0,15-6.72,15-15h78c0,8.28,6.72,15,15,15v70c-8.28,0-15,6.72-15,15Z" vector-effect="non-scaling-stroke"/>
+        <path class="cls-2" d="M20.96,95c-2.25-6.69-7.55-11.98-14.23-14.23V21.23c6.69-2.25,11.98-7.55,14.23-14.23h68.07c2.25,6.69,7.55,11.98,14.23,14.23v59.53c-6.69,2.25-11.98,7.55-14.23,14.23H20.96Z"/>
+      </g>
+    </g>
+  </g>
 </svg>

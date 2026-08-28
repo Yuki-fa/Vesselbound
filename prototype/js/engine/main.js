@@ -52,7 +52,8 @@ function updateGoldenDrop(){
   G.hasGoldenDrop=false;
 }
 function updateHUD(){
-  const displayLife=Math.max(0,Math.min(3,
+  const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
+  const displayLife=Math.max(0,Math.min(_lifeMax,
     G._waveLife!=null ? Number(G._waveLife) : (G.life==null?3:Number(G.life))
   ));
   if(G.phase!=='reward'){
@@ -65,7 +66,7 @@ function updateHUD(){
   const lifeEl=document.getElementById('h-life');
   if(lifeEl){
     const life=displayLife;
-    lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(3-life)}</span><span class="life-full">${Array.from({length:life},()=>'<span class="life-heart">♥</span>').join('')}</span>`;
+    lifeEl.innerHTML=`<span class="life-empty">${'♡'.repeat(Math.max(0,_lifeMax-life))}</span><span class="life-full">${Array.from({length:life},()=>'<span class="life-heart">♥</span>').join('')}</span>`;
   }
   // 所持金はカウントアップ演出中の表示値を使い、3桁区切りで表示する。
   const _goldShown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
@@ -76,10 +77,10 @@ function updateHUD(){
   const battleLife=document.getElementById('battle-life-value');
   if(battleLife){
     const life=displayLife;
-    // 3枠を常に保持し、減少分だけ輪郭（♡）にする。枠自体を減らすと残数に応じて
-    // 文字位置が詰まり、編成画面と異なる位置に見えるため。
-    battleLife.innerHTML=Array.from({length:3},(_,i)=>{
-      const filled=i>=3-life;
+    // 枠数（通常3／オンライン対戦5）を常に保持し、減少分だけ輪郭（♡）にする。
+    // 枠自体を減らすと残数に応じて文字位置が詰まり、編成画面と異なる位置に見えるため。
+    battleLife.innerHTML=Array.from({length:_lifeMax},(_,i)=>{
+      const filled=i>=_lifeMax-life;
       return `<span class="battle-life-heart ${filled?'battle-life-heart-filled':'battle-life-heart-empty'}">${filled?'♥':'♡'}</span>`;
     }).join('');
   }
@@ -105,16 +106,6 @@ function _lc(name,isEnemy){
   return name?`<span class="${isEnemy?'log-nm-enemy':'log-nm-ally'}">${name}</span>`:'';
 }
 // ログ履歴に場面の区切り（空行）を1本入れる
-function logSceneBreak(){
-  return;
-  const b=document.getElementById('log-box');
-  if(!b) return;
-  if(!b.lastElementChild||!b.lastElementChild.classList.contains('log-scene-break')){
-    const p=document.createElement('p');
-    p.className='log-scene-break';
-    b.appendChild(p);
-  }
-}
 let _lastLogPlainText=null;
 // 戦闘ログ機能は廃止済み。呼び出し箇所が多数残っているため、
 // 受け口だけを残して何もしない（削除するとそれら全てが例外になる）。
@@ -131,19 +122,6 @@ let _logFxFastMode=false;
 // spawn待ち（setTimeoutでスケジュール済みだがまだ発生していない）浮遊ログのタイマーID。
 // 戦闘終了・リトライ時にキャンセルしないと、次の戦闘画面で前回のログが遅れて流れてくる原因になる。
 const _pendingLogFxTimers=new Set();
-function _spawnLogFx(msg,sceneChanged){
-  return;
-  if(!msg) return;
-  if(/を召喚/.test(msg)) return;
-  const now=performance.now();
-  let spawnAt=Math.max(now,_logFxNextSpawnAt);
-  if(sceneChanged) spawnAt+=_LOG_FX_SCENE_GAP;
-  _logFxNextSpawnAt=spawnAt+_LOG_FX_MIN_GAP;
-  const delay=spawnAt-now;
-  if(delay<=0){ _doSpawnLogFx(msg,_logFxFastMode); return; }
-  const timerId=setTimeout(()=>{ _pendingLogFxTimers.delete(timerId); _doSpawnLogFx(msg,_logFxFastMode); },delay);
-  _pendingLogFxTimers.add(timerId);
-}
 function _doSpawnLogFx(msg,fastMode=_logFxFastMode){
   return;
   // 戦闘中のログ表示（浮遊テキスト演出）は行わない
@@ -686,7 +664,28 @@ function _startWaveBattle(stage){
   startBattle();
 }
 function _startWaveFlowNext(){
-  if(!G._waveLoopEnabled) return false;
+  // オンライン対戦：次のマスへ進むかどうかはサーバーが決める。
+  // ここでは準備完了を通知するだけで、画面の切り替えは flow.js がサーバー状態を見て行う。
+  // （双方が準備完了、または制限時間の締め切りでサーバーが step を進める）
+  if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch&&OnlineMatch.isActive()){
+    const formation=typeof buildOnlineSelfFormation==='function'?buildOnlineSelfFormation():null;
+    // 押した時点で報酬カードを消す（次の編成画面で引き直す）。
+    if(typeof _rewCards!=='undefined'){ _rewCards=[]; }
+    if(typeof renderRewCards==='function') renderRewCards();
+    // 「戦闘待機中」にするのは対戦の直前だけ。編成1/3・2/3は次の編成画面へ進むだけなので、
+    // 待機表示も操作ロックもしない（サーバー側も相手を待たずに進める）。
+    const _st=OnlineMatch.getState();
+    const _isLastFormation=!!(_st&&_st.nodeType==='formation'
+      &&(Number(_st.formationIndex)||0)>=(Number(_st.formationTotal)||3));
+    if(_isLastFormation){
+      // 解除は次のマスへ進んだ時（flow.js）に行う。
+      G._onlineWaiting=true;
+      document.body.classList.add('online-waiting');
+    }
+    if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
+    if(typeof onlineNotifyReady==='function') void onlineNotifyReady(formation);
+    return true;
+  }
   // ステージ0＝リーゼ（ゲーム開始地点）。出発したらステージ1の最初の戦闘へ。
   // ステージ1のstage1は村（リーゼ）なので、出発したらstage2の通常戦闘から始まる。
   if(Number(G._wave)===0){ G._wave=1; _startWaveBattle(2); return true; }
@@ -713,7 +712,7 @@ function _startWaveFlowNext(){
   return true;
 }
 function finishWaveBattleVictory(showVictoryIntro){
-  if(!G._waveLoopEnabled||!G._waveBattleType) return false;
+  if(!G._waveBattleType) return false;
   const type=G._waveBattleType;
   const stage=Number(G._waveStage)||1;
   const wave=Math.max(1,Number(G._wave)||1);
@@ -781,12 +780,17 @@ function finishWaveBattleVictory(showVictoryIntro){
 // 敵の種類に関わらず、敗北するとライフを1失う。3つとも失うとゲームオーバー。
 // ライフが残っていれば同じstageを最初からやり直す。
 function handleWaveBattleDefeat(){
-  if(!G._waveLoopEnabled||!G._waveBattleType) return false;
+  if(!G._waveBattleType) return false;
   G._waveRetryEnemyKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
   G._mapBattle=null; G._waveBattleType=null;
-  G._waveLife=Math.max(0,(G._waveLife==null?3:Number(G._waveLife))-1);
+  G._waveLife=Math.max(0,(G._waveLife==null?(typeof waveLifeMax==='function'?waveLifeMax():3):Number(G._waveLife))-1);
   if(G._waveLife<=0){
     G._battleDefeatHandled=true;
+    // オンライン対戦：CPU戦でのゲームオーバーもサーバーへ通知する（相手には通知されない仕様）。
+    if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch&&OnlineMatch.isActive()){
+      G._onlinePerfectWin=false;
+      void OnlineMatch.reportGameOver();
+    }
     gameOver();
     return true;
   }
@@ -948,13 +952,13 @@ async function _playOpeningMovie(){
 // いま進行中の戦闘がScene 5のボス戦（万象の揺り籠“エピトメ”＝stage4）かどうか。
 // 勝利時は通常の勝利演出・報酬を挟まず、movie3 → 伏せられたラスボス戦へ直行する。
 function isEpitomeVictoryBattle(){
-  return !!(G&&G._waveLoopEnabled&&String(G._waveBattleType||'')==='boss'
+  return !!(G&&String(G._waveBattleType||'')==='boss'
     &&Number(G._wave)===5&&Number(G._waveStage)===4);
 }
 // いま進行中の戦闘が伏せられたラスボス戦（Scene 5 / stage5 / boss）かどうか。
 // 戦闘開始演出の省略と、登場演出のフェードイン化に使う。
 function isFinalBossBattleNow(){
-  return !!(G&&G._waveLoopEnabled&&String(G._waveBattleType||'')==='boss'
+  return !!(G&&String(G._waveBattleType||'')==='boss'
     &&Number(G._wave)===5&&Number(G._waveStage)===5);
 }
 function isFinalBossVictoryBattle(){
@@ -1055,18 +1059,6 @@ const FINAL_BOSS_INTRO_BLACK_WAIT_MS=2000; // movie3のフェードアウト完�
 const FINAL_BOSS_INTRO_REVEAL_MS=1200;     // last_battle.webmをフェードインさせる時間
 const FINAL_CLEAR_PRE_WAIT_MS=2000; // ラスボス撃破からmovie4を始めるまでの待ち
 // ラスボス撃破後、クリア画面へ渡す前の暗転だけを行う（現在は未使用。手動テスト用に残す）。
-async function _fadeToBlackForFinalClear(){
-  const fade=typeof _ensureVillageEnterFadeEl==='function'?_ensureVillageEnterFadeEl():null;
-  if(!fade) return;
-  const current=parseFloat(getComputedStyle(fade).opacity);
-  if(Number.isFinite(current)&&current>=.99) return;
-  fade.style.transition='none';
-  fade.style.opacity=String(Number.isFinite(current)?current:0);
-  void fade.offsetWidth;
-  fade.style.transition='opacity .8s ease';
-  fade.style.opacity='1';
-  await new Promise(resolve=>window.setTimeout(resolve,830));
-}
 
 async function startFinalBossIntroSequence(){
   if(G._finalBossIntroRunning) return;
@@ -1128,8 +1120,53 @@ async function startFinalBossClearSequence(){
 // 開始SEもここで鳴らす（ボタン側のonclickで鳴らすと、ムービー終了直後の
 // クリックが黒幕の下のボタンに届いてSEが二重に鳴り、ゲームも再開始されてしまう）。
 let _startingFromTitle = false;
+// タイトルでCtrl（またはmacのCommand）を押している間だけ
+// 「ゲームスタート」を「デバッグモード」に差し替える。
+// （メニューから常設のデバッグ項目を無くしたため、こちらが唯一の入口）
+let _titleCtrlHeld = false;
+const TITLE_START_LABEL='ゲームスタート';
+const TITLE_DEBUG_LABEL='デバッグモード';
+function _syncTitleStartLabel(){
+  const title=document.getElementById('scr-title');
+  if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
+  const label=document.querySelector('#title-menu .title-menu-item.game-start .title-menu-label');
+  if(label) label.textContent=_titleCtrlHeld?TITLE_DEBUG_LABEL:TITLE_START_LABEL;
+}
+function _setTitleCtrlHeld(on){
+  const title=document.getElementById('scr-title');
+  const active=!!(title&&title.classList.contains('active'));
+  const next=!!on&&active;
+  if(_titleCtrlHeld===next) return;
+  _titleCtrlHeld=next;
+  _syncTitleStartLabel();
+}
+const _isTitleDebugModifier=e=>!!(e&&(e.key==='Control'||e.key==='Meta'||e.ctrlKey||e.metaKey));
+document.addEventListener('keydown',e=>{ if(_isTitleDebugModifier(e)) _setTitleCtrlHeld(true); });
+document.addEventListener('keyup',e=>{ if(!e.ctrlKey&&!e.metaKey) _setTitleCtrlHeld(false); });
+window.addEventListener('blur',()=>_setTitleCtrlHeld(false));
+
+// タイトルの「オンライン対戦」。ライフ5で通常のウェーブ進行と同じ画面を使い、
+// 進行・ライフ・勝敗の権威は OnlineServer（将来は本番サーバー）が持つ。
+// マッチングはリーゼで「出発する」を押した時点で行う（仕様）ため、ここでは開始だけ。
+function startOnlineMatchFromTitle(){
+  if(_startingFromTitle) return;
+  _startingFromTitle = true;
+  _titleCtrlHeld = false;
+  if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-online' });
+  startGame(false, true);
+  _startingFromTitle = false;
+}
+
 function startGameFromTitle(){
   if(_startingFromTitle) return;
+  // Ctrl／Command押下中はデバッグモードで開始する（オープニングムービーは挟まない）。
+  // ここでラベルを戻すと、タイトルが消える前に一瞬「ゲームスタート」に見えるため戻さない。
+  // 表示はタイトルへ戻った時（returnToTapStart）に既定へ復帰させる。
+  if(_titleCtrlHeld){
+    _titleCtrlHeld=false;
+    startGame(true);
+    return;
+  }
   _startingFromTitle = true;
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-game-start' });
   if(_openingMovieShown){ startGame(); _startingFromTitle = false; return; }
@@ -1137,7 +1174,7 @@ function startGameFromTitle(){
   void _playOpeningMovie().then(() => { startGame(); _startingFromTitle = false; });
 }
 
-function startGame(debugMode){
+function startGame(debugMode,onlineMode){
   // 前回のランのステージ持続環境音（雷雨など）を持ち越さない。
   if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(0);
   initState();
@@ -1172,7 +1209,12 @@ function startGame(debugMode){
     if(formBtn) formBtn.style.display='none';
     _setDebugMapButtonVisible(false);
   }
-  G._waveLoopEnabled=true;
+  // オンライン対戦モード。ライフ5・ステージ構成・制限時間はすべてサーバー権威なので、
+  // ここではフラグを立てるだけ。マッチングはリーゼの「出発する」で行う。
+  G._onlineMode=!!onlineMode;
+  if(typeof OnlineMatch!=='undefined'&&OnlineMatch&&typeof OnlineMatch.reset==='function') OnlineMatch.reset();
+  if(typeof resetOnlineFlow==='function') resetOnlineFlow();
+  document.body.classList.toggle('online-mode-active',!!onlineMode);
   // ゲーム開始地点は「風止みの村 リーゼ」（地域情報シートのステージ0）。
   // 普通の村と同じ#scr-village＋入場演出で開く。施設（ホーム・図書館）は未実装のため
   // 暗く表示され、選べるのは「出発する」だけ。
@@ -1184,7 +1226,20 @@ function startGame(debugMode){
   if(typeof _syncStageAmbience==='function') _syncStageAmbience();
   G._waveBattleType=null;
   G._waveFinalVillage=false;
-  G._waveLife=3;
+  // オンライン対戦はライフ5から始まる（サーバー側の初期値 ONLINE_START_LIFE と合わせる）。
+  // マッチ開始後は OnlineMatch が持つサーバーの値が正になる。
+  G._waveLife=G._onlineMode?(typeof ONLINE_START_LIFE!=='undefined'?ONLINE_START_LIFE:5):3;
+  if(G._onlineMode){
+    // 仕様：マッチングが成立するまではタイトル画面のまま待つ（画面を切り替えない）。
+    // 4人揃った後の進行（編成画面へ）は flow.js がサーバー状態を見て行うので、
+    // ここで primeOnlineFlow() は呼ばない（呼ぶと成立後の遷移が飛ぶ）。
+    G._wave=1; G._waveStage=1;
+    if(typeof OnlineMatch!=='undefined'&&OnlineMatch){
+      void OnlineMatch.start({seedSource:`vb-${Date.now()}`,selfId:(G._onlineSelfId||'あなた')});
+    }
+    if(typeof showOnlineMatching==='function') showOnlineMatching();
+    return;
+  }
   _openWaveVillage(1,false);
 }
 
@@ -1303,11 +1358,6 @@ function debugKillAll(){
   if(G.enemies.filter(e=>e&&e.hp>0).length===0) _onAllEnemiesDefeated();
 }
 
-function _debugRefillActions(){
-  if(!G._debugMode) return;
-  G.actionsLeft=G.actionsPerTurn;
-  updateHUD();
-}
 function gameOver(options){
   const isLibraryTestBattle=!!(G&&G._libraryTestBattleMode);
   // 敗北・踏破の結果画面へ移る前に、戦闘中の一時VFXを必ず破棄する。
@@ -1364,7 +1414,9 @@ function gameOver(options){
   _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
   _animateGameOverPair('go-stats',G.runStats.maxAtk,G.runStats.maxHp,700,1100);
   const resultTitle=document.querySelector('#gameover-results h1');
-  if(resultTitle) resultTitle.textContent=isClear?'踏破':'旅の終焉';
+  // オンライン対戦で相手のライフを0にした場合は「踏破」ではなく「完全勝利」と表示する。
+  const _perfect=!!(G&&G._onlineMode&&G._onlinePerfectWin);
+  if(resultTitle) resultTitle.textContent=isClear?(_perfect?'完全勝利':'踏破'):'旅の終焉';
   const back=document.getElementById('gameover-back-btn');
   if(back){
     back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':'タイトルに戻る';
@@ -1650,22 +1702,6 @@ function _startTitleBgVideo(){
   const promise=video.play();
   if(promise&&typeof promise.catch==='function') promise.catch(()=>{});
 }
-function _finishStartupIntro(){
-  if(_startupIntroSkipped) return;
-  _startupIntroSkipped=true;
-  _startupIntroTimerIds.forEach(id=>clearTimeout(id));
-  _startupIntroTimerIds=[];
-  const loading=document.getElementById('scr-loading');
-  const title=document.getElementById('scr-title');
-  if(!title) return;
-  title.classList.add('active','startup-title','startup-title-visible');
-  _startTitleBgVideo();
-  _startTitleBgm();
-  if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
-  if(loading) loading.classList.add('startup-brand-out');
-  window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
-  window.removeEventListener('pointerdown',_skipStartupIntro,true);
-}
 function _revealTitleMenu(){
   if(_startupIntroSkipped) return;
   _startupIntroSkipped=true;
@@ -1689,6 +1725,8 @@ function _revealTitleMenu(){
 function returnToTapStart(){
   const title=document.getElementById('scr-title');
   if(!title) return;
+  _titleCtrlHeld=false;
+  _syncTitleStartLabel();
   _startupIntroTimerIds.forEach(id=>clearTimeout(id));
   _startupIntroTimerIds=[];
   _startupIntroSkipped=false;
@@ -1776,12 +1814,6 @@ window.addEventListener('keydown', async (e) => {
       // 💡【罠2対策】現在展開されている「配置済みカードオブジェクト」の中身を、最新の設計図から逆引きして直接上書きリフレッシュする
       const refreshCardObject = (card) => {
         if (!card) return;
-        // スペルカードの場合
-        if (card.category === 'スペル' || card.type === 'spell' || card.kind === 'spell') {
-          const def = (typeof SPELL_POOL !== 'undefined' ? SPELL_POOL : []).find(p => p.id === card.id || p.name === card.name);
-          if (def) { card.desc = def.desc; card.manaCost = def.manaCost; }
-          return;
-        }
         // キャラクター / 強化パネルの場合
         const def = (typeof PANEL_POOL !== 'undefined' ? PANEL_POOL : []).find(p => p.id === card.id || p.name === card.name);
         if (def) {
