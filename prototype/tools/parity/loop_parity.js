@@ -111,6 +111,12 @@ const CASE_SRC = ci => `
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const bs=document.getElementById('scr-battle'); if(bs) bs.classList.add('active');
   const realRandom=Math.random; Math.random=()=>R;
+  // **PvEの開戦処理を先に走らせる。** battlePhase() は開戦済みを前提に
+  // skipOpening で始まるため、これを飛ばすと結界・開戦効果の分だけ core とずれる
+  // （検査側の不備であり、製品の不具合ではない）。
+  if(typeof _finishNewPanelBattleStartEffects==='function'){
+    try{ await _finishNewPanelBattleStartEffects(); }catch(e){ /* 開戦効果なしで続行 */ }
+  }
   // battlePhase() は攻撃1回分の例外を握りつぶして手番を進めないため、
   // console.error を拾わないと「ルールの差」に見えてしまう。必ず失敗させる。
   const caught=[]; const origErr=console.error;
@@ -125,10 +131,14 @@ const CASE_SRC = ci => `
              : (alive(G.allies)===0?'p2':'unfinished');
 
   // ── B: コアの runBattleCore() ──
+  // **PvEと同じ入力を与えること。** 召喚定義を渡さないと core だけ召喚できず、
+  // 検査側の都合で勝敗が変わる（製品の不具合ではない）。
   const state=createBattleState({
     resources:{p1:{mana:0,gold:0},p2:{mana:0,gold:0}},
     rings:{p1:[],p2:[]}, items:{p1:[],p2:[]},
     sides:{p1:{units:clone(A)}, p2:{units:clone(B)}},
+    summonDefs:[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[])],
+    itemDefs:typeof ITEM_POOL!=='undefined'?ITEM_POOL:[],
   });
   state.life={p1:20,p2:20};
   let coreErr=null, coreRes=null;

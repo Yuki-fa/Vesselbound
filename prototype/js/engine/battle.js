@@ -482,6 +482,9 @@ function _isAilmentImmune(unit){
 }
 
 function _tryNecromancerRingRevive(){
+  // コア駆動の戦闘では復活（指輪・キーワード）は coreTryRevive() が解決する。
+  // ここで別の復活を足すと、コアが知らない蘇生が起きて盤面が食い違う。
+  if(G._coreDrivenBattle) return false;
   if(G._necromancerRingUsed||!_hasRingEffect('necromancer_ghosts')) return false;
   const hasLivingFront=(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&!_isSealed(a)&&String(a.lane||'front')==='front');
   if(hasLivingFront) return false;
@@ -667,6 +670,9 @@ function _awaitFrame(timeoutMs=400){
 }
 
 async function _resolveSeals(){
+  // コア駆動の戦闘では coreBattleStep() が毎接触ごとに封印を再判定している。
+  // ここで再度回すと生贄が二重に消費され、解放の回数が食い違う。
+  if(G._coreDrivenBattle) return false;
   if(_battleVictoryAlreadyPending()) return false;
   if(!_livingCombatUnits(G.enemies).length) return false;
   if(G._resolvingSeals) return false;
@@ -1736,6 +1742,38 @@ function startPlayerPhase(){
 
 // ── 戦闘フェイズ（インターリーブ攻撃）─────────────
 
+// 戦闘中ずっと使い回すコア状態。**盤面配列はGと共有する**（同じ実体を指す）。
+// コアは side/slot を見て判定するため、戦闘中は付け替えたままにし、終了時に戻す。
+function _createPveCoreState(){
+  const state={
+    units:{p1:G.allies||[],p2:G.enemies||[]},
+    summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],
+    itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
+    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
+    items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
+    resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    life:{p1:_currentBattleLife(),p2:0},
+    maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
+    blood:{p1:Math.max(0,Number(G._blood)||0),p2:Math.max(0,Number(G._enemyBlood)||0)},
+    // createBattleState() が用意する足場。ここはユニットを複製できないため
+    // 手で組むが、**欠けると coreBattleStep() が落ちる**ので必ず揃えること。
+    mapIndex:Math.max(1,Number(G.floor)||1),
+    turn:0,
+    lane:{p1:{lane:'front',attacked:new Set()},p2:{lane:'front',attacked:new Set()}},
+    deadUnits:[],
+    maxUnits:{p1:(typeof MAX_ALLIES==='number'&&MAX_ALLIES)||14,
+      p2:(typeof MAX_ENEMIES==='number'&&MAX_ENEMIES)||14},
+    frontSlots:(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7,
+  };
+  return state;
+}
+// コアが判定に使う side/slot を盤面へ焼き付ける。戦闘中は付けたままにする。
+function _stampCoreSideSlots(state){
+  ['p1','p2'].forEach(side=>{
+    (state.units[side]||[]).forEach((u,i)=>{ if(!u) return; u.side=side; u.slot=i; });
+  });
+}
+
 async function battlePhase(){
   const _runId=Number(G._battleRunId)||0;
   G.phase='enemy';
@@ -1743,98 +1781,51 @@ async function battlePhase(){
   renderControls();
   log(`戦闘開始！`,'sys');
 
-  let safety=0;
-  // 数が多い陣営が先攻（前衛・後衛を問わず生存キャラクター数で比較）
-  // 先攻の判定は corePickFirstSide() が唯一の実装。同数なら乱数で決める。
-  // 神速・疾風の指輪の先攻もその中で処理される。ここへ書き戻さないこと。
-  const _firstSideState={
-    units:{p1:G.allies||[],p2:G.enemies||[]},
-    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
+  // ── 戦闘の進め方はコアが唯一の実装 ──────────────────────────
+  // 攻撃順・対象選択・効果の解決・終了判定はすべて coreBattleStep() が決める。
+  // PvEは1手進めるごとに、その手番で出たイベントだけを演出へ流す。
+  // **ここに独自のターン処理を書き戻さないこと。** オンラインと結果が食い違う。
+  const state=_createPveCoreState();
+  _stampCoreSideSlots(state);
+  const events=[];
+  const emit=ev=>{
+    events.push(ev);
+    if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
-  let side=(typeof corePickFirstSide==='function'
-    ?corePickFirstSide(_firstSideState,coreMathRng):'p1')==='p2'?'enemy':'ally';
-  // 前衛が全員攻撃し終えたら後衛、後衛が全員攻撃し終えたら再度前衛の左端から、という
-  // レーン単位のサイクルを陣営ごとに管理する（前衛全滅を待つ旧仕様は廃止）
-  const enemyLaneState={lane:'front',attacked:new Set()};
-  const allyLaneState={lane:'front',attacked:new Set()};
-  // 打ち切りターン数はコアと同じ定数を使う（片方だけ変えると引き分け成立が食い違う）。
+  // 開戦処理は startBattle() 側で済んでいるので飛ばす。
+  const runner=createBattleRunner(state,coreMathRng,emit,{skipOpening:true});
+  G._coreDrivenBattle=true;
+  const beforeUnits=new Set([...(state.units.p1||[]),...(state.units.p2||[])].filter(Boolean));
   const _turnLimit=(typeof BATTLE_CORE_TURN_LIMIT==='number'&&BATTLE_CORE_TURN_LIMIT)||500;
-  while(!_checkBattleOver()&&safety++<_turnLimit&&!G._testBattleAbort&&!_battleRunStale(_runId)){
-    G._coreTurn=(G._coreTurn||0)+1;
-    if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push({type:'turn_begin',turn:G._coreTurn});
-    updateBattleSpeedMode();
-    if(!_pickLaneAttacker(G.enemies,true,enemyLaneState)&&!_pickLaneAttacker(G.allies,false,allyLaneState)){
-      G._battleDraw=true;
-      // 盤面に生存中の敵が残っていても報酬フェイズへ安全に移行できるようクリアする
-      G.enemies=new Array(MAX_ENEMIES||14).fill(null);
-      finishBattleAsVictory('Draw');
-      return;
-    }
-    if(side==='enemy'){
-      const pick=_pickLaneAttacker(G.enemies,true,enemyLaneState);
-      if(!pick){
-        side='ally';
-        continue;
-      }
-      if(pick.switched){ enemyLaneState.lane=pick.lane; enemyLaneState.attacked=new Set(); }
-      const enemy=G.enemies[pick.idx];
-      enemyLaneState.attacked.add(enemy.id);
-      _markBattleAttacked(enemy);
-      let enemyActed=false;
-      try{
-        enemyActed=await enemyAttackAction(enemy,pick.idx);
-        await _flushRingManaThresholdEffects();
-        if(_checkBattleOver()) return;
-        await _resolveSeals();
-      }catch(e){
-        console.error('[enemyAttackAction]',e);
-        log('敵の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
-        // 例外は「行動しなかった」ではなく「行動を試みた」として扱う（味方側と同じ理由）。
-        enemyActed=true;
-      }
+  let guard=0;
+  try{
+    while(!runner.result&&guard++<_turnLimit&&!G._testBattleAbort&&!_battleRunStale(_runId)){
+      const from=events.length;
+      let stop=false;
+      try{ stop=runner.step(); }
+      catch(e){ console.error('[coreBattleStep]',e); break; }
+      // この手番で出たぶんだけを再生する。
+      await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
+      _syncCoreResourcesToG(state);
+      if(typeof _syncCoreBloodToG==='function') _syncCoreBloodToG(state);
+      if(typeof renderManaHud==='function') renderManaHud();
       requestBattleCompact();
+      _stampCoreSideSlots(state);
       if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
-      if(enemyActed) side='ally';
-    } else {
-      const pick=_pickLaneAttacker(G.allies,false,allyLaneState);
-      if(!pick){
-        side='enemy';
-        continue;
-      }
-      if(pick.switched){ allyLaneState.lane=pick.lane; allyLaneState.attacked=new Set(); }
-      const ally=G.allies[pick.idx];
-      allyLaneState.attacked.add(ally.id);
-      _markBattleAttacked(ally);
-      let allyActed=false;
-      try{
-        allyActed=await allyAttackAction(ally,pick.idx);
-        await _flushRingManaThresholdEffects();
-        if(_checkBattleOver()) return;
-        await _resolveSeals();
-      }catch(e){
-        console.error('[allyAttackAction]',e);
-        log('味方の攻撃処理でエラーが発生したため、その攻撃をスキップしました。','sys');
-        // 戻り値false（防戦・ATK0等の「行動しなかった」）と例外を区別する。
-        // 例外で false のままにすると手番が相手へ渡らず、同じ陣営が連続で
-        // 攻撃し続ける（邪眼の疎配列クラッシュで実際に起きていた）。
-        allyActed=true;
-      }
-      requestBattleCompact();
-      if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
-      if(G._testBattleAbort){ _exitTestBattle(); return; }
-      if(_checkBattleOver()) return;
-      if(allyActed) side='enemy';
-      G.allies.forEach(a=>{ if(a&&a.hate&&a.hateTurns>0){ a.hateTurns--; if(a.hateTurns<=0) a.hate=false; } });
+      if(stop) break;
     }
+  } finally {
+    G._coreDrivenBattle=false;
   }
   if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
   if(G._testBattleAbort){ _exitTestBattle(); return; }
-  if(safety>=_turnLimit){
+  if(guard>=_turnLimit){
     log('戦闘が長引いたため停止しました','sys');
   }
   renderAll();
+  _checkBattleOver();
 }
 
 // 指定レーン内の攻撃可能ユニットのスロット添字を左（若い添字）から順に列挙する
@@ -2381,9 +2372,32 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   // 効果の解決順・タイミングは変わらない。
   const manaCueGate=presentCreateOnceGate();
   for(const [eventIndex,e] of eventList.entries()){
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||(e.type==='attack'&&e.immediate))) continue;
-    if(e.type==='attack'&&e.immediate) manaCueGate.reset();
-    if(e.type==='attack'&&e.immediate){
+    // コア駆動の戦闘では、通常の攻撃もこの経路で描く（PvE専用の攻撃アクションは通らない）。
+    const _isPlayableAttack=e.type==='attack'&&(e.immediate||G._coreDrivenBattle);
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='death'||e.type==='shield_lost'||_isPlayableAttack)) continue;
+    if(_isPlayableAttack) manaCueGate.reset();
+    if(e.type==='shield_lost'){
+      // 結界が割れた時のSEと表示更新。コアが結界喪失効果そのものは解決済みなので、
+      // ここでは見た目と音だけを担当する。
+      const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(u){
+        log(`${_lc(u.name,e.side==='p2')}の結界がダメージを防いだ。`,'sys');
+        if(typeof playSfx==='function') playSfx('shield',{group:'combat'});
+        if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(u,e.side==='p1'?'ally':'enemy');
+      }
+      continue;
+    }
+    if(e.type==='death'&&G._coreDrivenBattle){
+      // 死亡はコアが確定済み。演出だけをここで流す（PvEの死亡処理と同じ入口）。
+      const dead=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(dead&&dead.hp<=0&&!deaths.has(`${e.side}:${e.unitId}`)){
+        deaths.add(`${e.side}:${e.unitId}`);
+        if(e.side==='p1') await processAllyDeath(dead);
+        else await processEnemyDeath(dead,(G.enemies||[]).indexOf(dead));
+      }
+      continue;
+    }
+    if(_isPlayableAttack){
       // ミノタウロス等の負傷誘発攻撃はコアで命中結果だけを確定するが、
       // 通常攻撃と同じ接触モーションをここで再生する。これを省くと
       // 「いきなり被ダメージ」になり、攻撃者と表示上の攻撃がずれる。
@@ -2587,7 +2601,11 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
       // 通常召喚と同じ前衛配置へ通す。
       const existingIndex=list.findIndex(u=>u&&u.id===e.unit.id);
       const existing=existingIndex>=0?list[existingIndex]:null;
-      if(existingIndex>=0) list.splice(existingIndex,1);
+      // コア駆動の戦闘では、盤面配列のどこへ入れるかは coreInsertSummonedUnit() が
+      // 既に決めている。ここで抜いて置き直すと配列の順序がコアと食い違い、
+      // 前衛優先・三方向の隣接・ランダム対象の結果がオンラインとずれる。
+      const keepCorePlacement=!!G._coreDrivenBattle&&existingIndex>=0;
+      if(existingIndex>=0&&!keepCorePlacement) list.splice(existingIndex,1);
       const pending=pendingSummons.get(String(e.unit.id));
       const unit=existing||pending||{...e.unit, keywords:Array.isArray(e.unit.keywords)?e.unit.keywords.slice():[],
         effectData:e.unit.effectData?{...e.unit.effectData}: {}};
@@ -2615,8 +2633,10 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
         :e.placement==='rightOfTarget'&&placementTarget?{rightOf:placementTarget}
         :e.placement==='leftOfTarget'&&placementTarget?{leftOf:placementTarget}
         :e.placement==='rightEdge'?{frontEdge:'right'}:null;
-      let placed=typeof _summonMidBattleAllyFront==='function'
-        ?_summonMidBattleAllyFront(unit,e.side==='p2',placement):-1;
+      let placed=keepCorePlacement
+        ? (unit.lane='front', unit._battleSlot=list.indexOf(unit), list.indexOf(unit))
+        : (typeof _summonMidBattleAllyFront==='function'
+          ?_summonMidBattleAllyFront(unit,e.side==='p2',placement):-1);
       // 戦闘中の召喚は前衛の右端にだけ出す。後衛へ逃がさない。
       // 以前は前衛が満杯なら後衛へ収めていたが、それだと陣営の上限を超えたり、
       // 編成していない後衛枠にキャラクターが現れたりする。
@@ -5958,6 +5978,10 @@ function _applyLifePanelPowerHpDouble(){
 // _applyDeathKeywordEffects()が実際に何か処理する条件と対応させている。
 
 async function _applyDeathKeywordEffects(unit, unitIsEnemy){
+  // コア駆動の戦闘では coreBattleStep() が死亡トリガ（死亡効果・観測・復活）を
+  // 既に解決している。ここで再度呼ぶと死亡効果が二重に発動する。
+  // 演出は死亡イベントの再生側が担当する。
+  if(G._coreDrivenBattle) return;
   if(!unit) return;
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},
@@ -6554,6 +6578,9 @@ async function _runCoreLiveAttackRing(isEnemySide){
 
 async function _applyCoreShieldLostEffectsLive(lostUnit){
   if(!lostUnit||typeof coreApplyShieldLostEffects!=='function') return;
+  // コア駆動の戦闘では coreResolveHit() が既に結界喪失効果を解決している。
+  // ここで再度呼ぶと、カーバンクル・グリマルキン等が二重に発動する。
+  if(G._coreDrivenBattle) return;
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]}, rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],

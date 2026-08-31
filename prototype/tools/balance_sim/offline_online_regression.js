@@ -86,8 +86,12 @@ function main() {
   const coreSrc = fs.readFileSync(require.resolve('../../js/battle/core.js'), 'utf8');
   assert.match(coreSrc, /^function coreBattleStep\(ctx\) \{/m,
     '1ターン進行が coreBattleStep() として切り出されていない');
-  assert.match(coreSrc, /const next = coreBattleStep\(stepState\);/,
+  // 進め方は runBattleCore の中の runner が唯一の実装。
+  // PvEも createBattleRunner() 経由で同じ step() を呼ぶ。
+  assert.match(coreSrc, /const next = coreBattleStep\(\{ units, state, rng, emit, applyHit, resolveSeals, decided, side, result \}\);/,
     'runBattleCore が coreBattleStep() を呼んでいない');
+  assert.match(coreSrc, /function createBattleRunner\(state, rng, emit, opts\) \{/,
+    'PvEが1手ずつ進めるための入口が無い');
   assert.equal(typeof core.coreBattleStep, 'function',
     'coreBattleStep が公開されていない（PvEから呼べない）');
   // 攻撃者の選択規則もコアが唯一の実装。PvEは写し取るだけであること。

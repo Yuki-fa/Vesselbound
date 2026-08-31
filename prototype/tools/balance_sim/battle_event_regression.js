@@ -358,12 +358,27 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\(state\.units\[attacker\.side\] \|\| \[\]\)\.some\(x => x && x\.hp > 0/,
     'コアが疎配列のnullをガードしていない');
-  assert.match(currentBattle, /allyActed=true;\n\s*\}/,
-    '例外時に手番が渡らない（同じ陣営が連続で攻撃する）');
+  // 戦闘の進め方はコアが唯一の実装。PvEは1手ずつ step() を呼ぶだけにする。
+  assert.match(currentBattle, /const runner=createBattleRunner\(state,coreMathRng,emit,\{skipOpening:true\}\);/,
+    'PvEがコアの進行（createBattleRunner）を使っていない');
+  assert.match(currentBattle, /try\{ stop=runner\.step\(\); \}/,
+    'PvEが1手ずつ coreBattleStep() を呼んでいない');
+  assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
+    'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
+  // 同じ効果を二重に解決しないための歯止め。
+  ['_applyDeathKeywordEffects', '_resolveSeals', '_tryNecromancerRingRevive',
+    '_applyCoreShieldLostEffectsLive'].forEach(fn => {
+    assert.match(currentBattle, new RegExp(`function ${fn}\\(|async function ${fn}\\(`),
+      `${fn} が見つからない`);
+  });
+  assert.equal((currentBattle.match(/if\(G\._coreDrivenBattle\) return/g) || []).length >= 4, true,
+    'コア駆動時にPvE側の重複解決を止めていない（効果が二重に発動する）');
   // 先攻は同数なら乱数。PvEとオンラインで唯一意図的に食い違っていたが揃えた。
   assert.match(read('js/battle/core.js'), /function corePickFirstSide\(state, rng\) \{/,
     '先攻の判定が共通実装になっていない');
-  assert.match(currentBattle, /corePickFirstSide\(_firstSideState,coreMathRng\)/,
+  // 先攻の判定も createBattleRunner() の中（corePickFirstSide）が決める。
+  // PvE側に判定を書き戻さないこと。
+  assert.doesNotMatch(currentBattle, /corePickFirstSide\(/,
     'PvEが先攻判定を自前で持っている（同数時にオンラインと食い違う）');
   // カード固有VFXは本来の効果のときだけ。強化で得た効果に使うと別物の演出が出る。
   assert.match(currentBattle, /function _characterVfxAllowedForDamage\(unit\)\{/,

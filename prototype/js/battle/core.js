@@ -964,6 +964,30 @@ function coreConnectedEnhancementCount(unit) {
 function coreRingCount(state, side, name) {
   return (state && state.rings && state.rings[side] || []).filter(x => x && String(x.name || x) === String(name || '')).length;
 }
+// 召喚体を盤面配列のどこへ入れるかを決める。**位置の決定はここが唯一の実装。**
+// 末尾へ push すると、表示のために前衛右端へ並べ替えるPvEと配列の順序が食い違い、
+// 前衛優先・隣接（三方向）・ランダム対象の結果がオンラインとずれる。
+// 規則：効果元の右隣が指定されていればその直後、無ければ前衛ブロックの右端。
+function coreInsertSummonedUnit(list, child, spec, frontSlots) {
+  const limit = Math.max(1, Number(frontSlots) || 7);
+  const occupied = u => u && u.hp > 0 && !u._isObject && !u._isSoul;
+  const frontIndexes = [];
+  for (let i = 0; i < list.length && frontIndexes.length < limit; i++) {
+    const u = list[i];
+    if (occupied(u) && (u.lane || 'front') !== 'rear') frontIndexes.push(i);
+  }
+  child.lane = 'front';
+  let at = frontIndexes.length ? frontIndexes[frontIndexes.length - 1] + 1 : 0;
+  const wantsRightOfSource = spec && (spec.placement === 'rightOfSource' || spec.placementTargetId != null);
+  if (wantsRightOfSource) {
+    const targetId = spec.placementTargetId != null ? String(spec.placementTargetId) : null;
+    const si = targetId != null ? list.findIndex(u => u && String(u.id) === targetId) : -1;
+    if (si >= 0) at = si + 1;
+  }
+  list.splice(at, 0, child);
+  return at;
+}
+
 function coreSummonUnit(state, side, spec, emit, sourceId) {
   const list = state.units[side] || (state.units[side] = []);
   // 召喚上限は配列長ではなく、生存中の実ユニット数で判定する。
@@ -1082,7 +1106,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     const wild = coreEffectCount(child, '野生の力');
     if (wild) coreGainResource(state, side, 'mana', wild * 2, child, emit, 'wild_power_summon');
   }
-  list.push(child);
+  coreInsertSummonedUnit(list, child, spec, frontSlots);
   state._summonCount[side] = summonCount + 1;
   coreApplyWargThreshold(state, side, emit);
   emit({ type: 'summon', side, sourceId, placement: spec && spec.placement || '',
@@ -3153,7 +3177,27 @@ function coreBattleStep(ctx) {
 
     side = foeSide;
     result = decided();
+    // 死亡したユニットを配列から取り除く。**PvEは手番ごとに詰めている**ため、
+    // ここで詰めないと配列の位置がずれ、前衛優先・三方向の隣接・ランダム対象の
+    // 結果がオンラインとPvEで食い違う。死亡・復活はこの時点で解決済み。
+    coreCompactUnits(state);
   return { side, result, stop: false };
+}
+
+// 死亡ユニットを盤面配列から外す。復活・死亡効果はこれより前に解決しておくこと。
+// 位置の詰め方はPvEの compactBattleUnits() と同じ「生存を左詰め」。
+function coreCompactUnits(state) {
+  ['p1', 'p2'].forEach(side => {
+    const list = state.units[side];
+    if (!Array.isArray(list)) return;
+    // 生存している体だけを残す。_corePendingSummon は「PvEがまだ描画していない」
+    // という再生側の印であり、盤面の存在とは無関係。ここで残すと
+    // オンラインでは誰も外さないため、死んだ召喚体が配列に残り続けて位置がずれる。
+    const kept = list.filter(u => u && u.hp > 0);
+    if (kept.length !== list.filter(Boolean).length) {
+      list.splice(0, list.length, ...kept);
+    }
+  });
 }
 
 // 先攻の決定。生存数が多い側が先攻。**同数なら乱数で決める。**
@@ -3305,6 +3349,10 @@ function runBattleCore(state, rng, opts) {
       }
     }
   };
+  // PvEは startBattle() の中で既に開戦処理を済ませてから1手ずつ進める。
+  // ここで二度目を走らせると開戦効果が二重に乗るため、その場合は飛ばす。
+  const skipOpening = !!(opts && opts.skipOpening);
+  if (!skipOpening) {
   // 開始時の盤面（封印されたまま）を先に見せてから、解放を演出として流す。
   emit({ type: 'battle_start', sides: { p1: units.p1.map(coreUnitSnapshot), p2: units.p2.map(coreUnitSnapshot) } });
   resolveSeals();
@@ -3338,9 +3386,10 @@ function runBattleCore(state, rng, opts) {
   // シャドウが次のトリガまで遅延する。
   coreFlushPendingLichSummons(state, emit);
   state._openingPhase = false;
+  }
 
   // 先攻：生存数が多い側。同数なら rng で決める（呼び出し側では決めない）。
-  let side = corePickFirstSide(state, rng);
+  let side = state._coreFirstSide || corePickFirstSide(state, rng);
 
   const decided = () => {
     const a1 = coreLivingUnits(units.p1).length, a2 = coreLivingUnits(units.p2).length;
@@ -3350,20 +3399,41 @@ function runBattleCore(state, rng, opts) {
   };
 
   let result = decided();
-  // 1ターン分の進行は coreBattleStep() が唯一の実装。PvEも同じ関数を1手ずつ呼ぶ。
-  let stepState = { units, state, rng, emit, applyHit, resolveSeals, decided, side, result };
-  while (!stepState.result && state.turn < turnLimit) {
-    const next = coreBattleStep(stepState);
-    stepState = { ...stepState, side: next.side, result: next.result };
-    if (next.stop) break;
-  }
-  side = stepState.side;
-  result = stepState.result;
+  // 1ターン分の進行は coreBattleStep() が唯一の実装。
+  // PvEも同じ足場（下の runner）を使って1手ずつ呼ぶ。
+  const runner = {
+    get side() { return side; },
+    get result() { return result; },
+    applyHit, resolveSeals, decided,
+    // 1手進める。戻り値 true なら打ち切り。
+    step() {
+      const next = coreBattleStep({ units, state, rng, emit, applyHit, resolveSeals, decided, side, result });
+      side = next.side;
+      result = next.result;
+      return !!next.stop;
+    },
+    // 決着を確定して battle_end を出す。PvEもこれを通す。
+    finish() {
+      if (!result) result = { outcome: 'draw', reason: 'turn_limit' };
+      coreTriggerBattleEnd(state, emit, rng);
+      emit({ type: 'battle_end', outcome: result.outcome, reason: result.reason });
+      return { outcome: result.outcome, endReason: result.reason, turns: state.turn };
+    },
+  };
+  state._coreRunner = runner;
+  if (opts && opts.stepwise) return runner;
 
-  if (!result) result = { outcome: 'draw', reason: 'turn_limit' };
-  coreTriggerBattleEnd(state, emit, rng);
-  emit({ type: 'battle_end', outcome: result.outcome, reason: result.reason });
-  return { outcome: result.outcome, endReason: result.reason, turns: state.turn };
+  while (!runner.result && state.turn < turnLimit) {
+    if (runner.step()) break;
+  }
+  return runner.finish();
+}
+
+// PvEが1手ずつ進めるための入口。開戦処理まで済ませた足場を返す。
+// **戦闘の進め方は runBattleCore() の中の runner が唯一の実装。**
+// PvEはこれを使い、step() の合間に演出を挟む。
+function createBattleRunner(state, rng, emit, opts) {
+  return runBattleCore(state, rng, { ...(opts || {}), onEvent: emit, stepwise: true });
 }
 
 // 最終状態の書き出し（保存・照合用）
@@ -3381,6 +3451,7 @@ if (typeof window !== 'undefined') {
   window.createBattleState = createBattleState;
   window.runBattleCore = runBattleCore;
   window.coreBattleStep = coreBattleStep;
+  window.createBattleRunner = createBattleRunner;
   window.coreLaneAttackCandidates = coreLaneAttackCandidates;
   window.coreExtraAttackTotal = coreExtraAttackTotal;
   window.corePickAttacker = corePickAttacker;
@@ -3458,7 +3529,8 @@ if (typeof module !== 'undefined' && module.exports) {
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
     coreSummonUnit, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
-    corePickFirstSide, coreManaThresholdDescFromText,
+    corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
+    coreCompactUnits,
     coreSnapshotDeferredState,
     coreSelectAttackTarget, corePierceRearTargets,
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
