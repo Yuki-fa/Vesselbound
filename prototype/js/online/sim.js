@@ -21,7 +21,14 @@
 function simulateOnlineBattle(setup) {
   const seed = Number(setup && setup.seed) || 1;
   const rng = createSeededRng(seed);
-  const state = createBattleState({ sides: (setup && setup.sides) || {} });
+  const state = createBattleState({
+    sides: (setup && setup.sides) || {},
+    resources: (setup && setup.resources) || {},
+    rings: (setup && setup.rings) || {},
+    items: (setup && setup.items) || {},
+    summonDefs: (setup && setup.summonDefs) || [],
+    itemDefs: (setup && setup.itemDefs) || [],
+  });
 
   const events = [];
   const result = runBattleCore(state, rng, {

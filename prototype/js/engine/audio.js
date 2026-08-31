@@ -37,7 +37,8 @@ const _IS_CLAUDE_BROWSER_PREVIEW=/\bClaude\//.test(navigator.userAgent||'');
 
 const SFX_SETTINGS={
   masterVolume: 1.0, 
-  maxVoices:8,
+  // 長い攻撃音・死亡音が多数重なっても、魔法／毒／カード効果音を拒否しない。
+  maxVoices:24,
   groups:{
     ui:    {guardMs:120, volume: 1.0}, 
     // maxPlayMs：戦闘中は短時間に大量の攻撃音が重なるため、原音が長い（attack.wavは3秒超）
@@ -112,6 +113,10 @@ let _sfxActiveVoices=0;
 let _bgmAudio=null;
 let _bgmNextAudio=null;
 let _bgmKey='';
+let _bgmStartToken=0;
+let _bgmStartingKey='';
+// 自動再生ポリシーで拒否されても、最初の実ユーザー操作で同じ要求を再試行する。
+let _bgmPendingRequest=null;
 let _bgmLoopTimer=null;
 let _bgmTargetVolume=.32*SFX_SETTINGS.masterVolume;
 // 曲ごとの音量。音源のマスター音量が曲ごとに最大8dB以上違うため、
@@ -151,22 +156,45 @@ const BGM_DEFAULT_START_TIMES={
   gameTitle:97, // 1:37
   villageStart:92, // 1:32
 };
-// opts.startTimeで指定された再生開始位置（秒）。初回再生のみで、2周目以降は曲の頭から鳴らす。
-let _bgmStartTime=0;
 // 開始位置へシークしてからonReadyを呼ぶ。メタデータ未読込のまま尺を測ると
 // ループ予約のタイミングがずれて曲の終わりで音が途切れるため。
 function _applyBgmStartTime(audio,onReady){
   const done=()=>{ if(typeof onReady==='function') onReady(); };
   if(!audio){ done(); return; }
-  const seek=()=>{
-    if(_bgmStartTime>0){
-      try{ audio.currentTime=_bgmStartTime; }catch(e){}
-      _bgmStartTime=0; // 開始位置は初回のみ
-    }
+  const startTime=Math.max(0,Number(audio.dataset.startTime)||0);
+  if(startTime<=0){ done(); return; }
+  // readyState>=1（メタデータのみ）でも seekable がまだ空／開始位置を含まないことがあり、
+  // その状態で currentTime へ代入しても位置は 0 のまま戻る＝曲の頭から鳴ってしまう。
+  // 実際に到達できたことを確認してから onReady（フェードイン）へ進める。
+  let settled=false;
+  let pollTimer=null;
+  let giveUpTimer=null;
+  const EVENTS=['loadedmetadata','loadeddata','canplay','canplaythrough','progress','seeked'];
+  const finish=()=>{
+    if(settled) return;
+    settled=true;
+    EVENTS.forEach(t=>audio.removeEventListener(t,attempt));
+    if(pollTimer) clearInterval(pollTimer);
+    if(giveUpTimer) clearTimeout(giveUpTimer);
     done();
   };
-  if(audio.readyState>=1) seek();
-  else audio.addEventListener('loadedmetadata',seek,{once:true});
+  const attempt=()=>{
+    if(settled) return;
+    try{
+      const ranges=audio.seekable;
+      const covered=!!(ranges&&ranges.length&&startTime<=ranges.end(ranges.length-1));
+      if(!covered&&audio.readyState<3) return;
+      audio.currentTime=startTime;
+    }catch(e){ return; }
+    if(Math.abs((Number(audio.currentTime)||0)-startTime)<=1) finish();
+  };
+  EVENTS.forEach(t=>audio.addEventListener(t,attempt));
+  pollTimer=setInterval(attempt,120);
+  // 到達できないまま無音が続くより、頭から鳴らしてフェードインへ進める方がまし。
+  // Rangeに対応したサーバーならメタデータ取得直後にseekableが全体を覆うため、
+  // 通常はここへ来ない。来る場合（Range非対応など）は待たせすぎない。
+  giveUpTimer=setTimeout(finish,1500);
+  attempt();
 }
 
 function _sfxPath(key){
@@ -192,18 +220,34 @@ function preloadSfx(){
 }
 
 function unlockSfx(){
-  if(_sfxUnlocked) return;
   _sfxUnlocked=true;
   preloadSfx();
+  // 既存のaudioが自動再生拒否で捨てられている場合は、保留要求から作り直す。
+  // audioが残っていないと下の再開ブロックが働かず、BGMが永久に鳴らない。
+  if(!_bgmAudio&&_bgmPendingRequest){
+    const req=_bgmPendingRequest;
+    _bgmPendingRequest=null;
+    playBgm(req.key,{startTime:req.startTime,fadeInMs:req.fadeInMs});
+    return;
+  }
+  // ミュート起動でここまで無音だったBGMは、実操作の時点で解除するだけで鳴り始める。
+  if(_bgmAudio&&_bgmAudio.muted){
+    _bgmAudio.muted=false;
+    if(!_bgmAudio.paused) return;
+  }
   if(_bgmAudio&&_bgmAudio.paused){
     const audio=_bgmAudio;
     const key=_bgmKey;
     const fadeInMs=Number(audio.dataset.fadeInMs)||700;
+    // ここも play() を先に呼ぶ。実操作直後の許可を逃さないため。
     audio.play().then(()=>{
-      if(_bgmAudio===audio&&_bgmKey===key){
+      if(_bgmAudio!==audio||_bgmKey!==key) return;
+      _applyBgmStartTime(audio,()=>{
+        if(_bgmAudio!==audio||_bgmKey!==key) return;
+        audio.dataset.startTime='0';
         _fadeAudioVolume(audio,0,_bgmTargetVolume,fadeInMs);
         _scheduleBgmSeamlessLoop();
-      }
+      });
     }).catch(()=>{});
   }
 }
@@ -230,12 +274,22 @@ function playSfx(key,opts={}){
   _sfxLastPlayed[guardKey]=now;
 
   const a=base.cloneNode();
+  // iOS/Safari等では、DOMから外れたAudio複製が再生開始前に回収されることがある。
+  // 再生中だけ非表示要素として保持し、個別SEの再生終了後に除去する。
+  a.setAttribute('aria-hidden','true');
+  a.style.display='none';
+  (document.body||document.documentElement).appendChild(a);
   const speed=(typeof getBattleSpeedScale==='function'&&typeof G!=='undefined'&&(G.phase==='enemy'||G._battlePhaseRunning))?getBattleSpeedScale():1;
   a.playbackRate=Math.max(.5,Math.min(2,speed));
   a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.masterVolume));
   _sfxActiveVoices++;
   let released=false;
-  const release=()=>{ if(released) return; released=true; _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1); };
+  const release=()=>{
+    if(released) return;
+    released=true;
+    _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
+    if(a.parentNode) a.parentNode.removeChild(a);
+  };
   a.addEventListener('ended',release,{once:true});
   a.addEventListener('error',release,{once:true});
   const maxPlayMs=opts.maxPlayMs??soundCfg.maxPlayMs??groupCfg.maxPlayMs;
@@ -393,25 +447,74 @@ function playBgm(key,opts={}){
   if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
   const path=_sfxPath(key);
   if(!path) return false;
-  if(_bgmKey===key&&_bgmAudio&&!_bgmAudio.paused) return true;
+  if(_bgmKey===key&&(_bgmStartingKey===key||(_bgmAudio&&!_bgmAudio.paused))) return true;
   stopBgm(0);
+  const startToken=++_bgmStartToken;
+  _bgmStartingKey=key;
   _bgmKey=key;
-  _bgmStartTime=Math.max(0,Number(opts.startTime??BGM_DEFAULT_START_TIMES[key])||0);
   const audio=_makeBgmAudio(path);
   _bgmAudio=audio;
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.32;
   const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.masterVolume));
   audio.dataset.fadeInMs=String(opts.fadeInMs??700);
+  audio.dataset.startTime=String(Math.max(0,Number(opts.startTime??BGM_DEFAULT_START_TIMES[key])||0));
   _bgmTargetVolume=targetVol;
+  _bgmPendingRequest={
+    key,
+    startTime:Number(audio.dataset.startTime)||0,
+    fadeInMs:Number(audio.dataset.fadeInMs)||0,
+    volume:targetVol,
+  };
   if(!_sfxUnlocked) return false;
-  audio.play().then(()=>{
-    // シーク完了後に尺を測ってループを予約する（曲の終わりで途切れるのを防ぐ）。
+  // play() は「その場で」呼ぶこと。メタデータ待ちで遅らせると自動再生の許可判定を
+  // 逃し、操作するまで鳴らなくなる（オンライン化前は同期呼び出しで鳴っていた）。
+  // 曲の頭は聞こえない：audioのvolumeは0で作られ、シーク完了後にフェードインする。
+  const stillCurrent=()=>startToken===_bgmStartToken&&_bgmAudio===audio&&_bgmKey===key;
+  const onStarted=()=>{
+    if(!stillCurrent()){
+      try{ audio.pause(); audio.currentTime=0; audio.removeAttribute('src'); audio.load(); }catch(e){}
+      return;
+    }
+    if(_bgmPendingRequest&&_bgmPendingRequest.key===key) _bgmPendingRequest=null;
+    if(_bgmStartingKey===key) _bgmStartingKey=''; // 開始完了。以後の再要求は下の重複ガードで弾く
     _applyBgmStartTime(audio,()=>{
+      if(!stillCurrent()) return;
+      audio.dataset.startTime='0'; // 実際に再生が始まった後だけ消費する
       _fadeAudioVolume(audio,0,targetVol,opts.fadeInMs??700);
       _scheduleBgmSeamlessLoop();
     });
-  }).catch(()=>{});
+  };
+  audio.play().then(onStarted).catch(()=>{
+    // 自動再生拒否は失敗扱いにせず、実ユーザー操作から同じ要求を再試行する。
+    // ここで_bgmStartingKeyを残すと playBgm() 冒頭の重複ガードに永久に引っかかり、
+    // タイトル導入1秒後の再試行も「操作時の再試行」も全て無視される（BGMが鳴らない）。
+    if(!stillCurrent()) return;
+    _bgmStartingKey='';
+    // ミュート再生は自動再生ポリシーで常に許可される。無音でも曲を進めておけば、
+    // 最初の操作でミュートを外すだけで「頭から」ではなく正しい位置から聞こえる。
+    // ミュート解除が操作前でも許可されるブラウザでは、この時点から実際に鳴る。
+    audio.muted=true;
+    audio.play().then(()=>{
+      if(!stillCurrent()){ audio.muted=false; return; }
+      onStarted();
+      _tryUnmuteBgm(audio);
+    }).catch(()=>{ audio.muted=false; });
+  });
   return true;
+}
+
+// ミュート起動したBGMのミュートを外す。解除が拒否されて停止するブラウザでは
+// 元のミュート再生へ戻し、最初のユーザー操作（unlockSfx）での解除に委ねる。
+function _tryUnmuteBgm(audio){
+  if(!audio||!audio.muted) return;
+  audio.muted=false;
+  setTimeout(()=>{
+    if(_bgmAudio!==audio) return;
+    if(audio.paused){
+      audio.muted=true;
+      audio.play().catch(()=>{});
+    }
+  },250);
 }
 
 // ── サブBGM（メインBGMに重ねる環境音）──────────────────────
@@ -498,6 +601,8 @@ function stopAllBgmLayers(fadeOutMs=350,includePersistent=false){
 function stopEveryBgmLayer(fadeOutMs=350){ stopAllBgmLayers(fadeOutMs,true); }
 
 function stopBgm(fadeOutMs=350){
+  _bgmStartToken++;
+  _bgmStartingKey='';
   stopAllBgmLayers(fadeOutMs);
   if(!_bgmAudio) return;
   _clearBgmLoopTimer();
@@ -513,6 +618,7 @@ function stopBgm(fadeOutMs=350){
   _bgmAudio=null;
   _bgmNextAudio=null;
   _bgmKey='';
+  _bgmPendingRequest=null;
 }
 
 // デバッグモード：ミュートボタンで全音声（BGM/SE）をON/OFFする
@@ -552,8 +658,21 @@ function sfxFallbackVolume(base){
 }
 function isDebugMuted(){ return _debugMuted; }
 
-window.addEventListener('pointerdown',unlockSfx,{once:true,capture:true});
-window.addEventListener('keydown',unlockSfx,{once:true,capture:true});
+function _handleFirstUserGesture(){
+  unlockSfx();
+  // 1回で解除してはいけない。最初の操作の play() が自動再生ポリシーで拒否されると
+  // 再試行の機会が二度と来ず、BGMが鳴らないままになる。
+  // 実際に鳴り始めた（BGM要求が無く、再生中）ことを確認してから解除する。
+  const started=!_bgmPendingRequest&&_bgmAudio&&!_bgmAudio.paused;
+  if(!started) return;
+  document.removeEventListener('pointerdown',_handleFirstUserGesture,true);
+  document.removeEventListener('keydown',_handleFirstUserGesture,true);
+  document.removeEventListener('click',_handleFirstUserGesture,true);
+}
+// BGMの再開条件をタイトル画面のクラス状態に依存させず、最初の実操作で解禁する。
+document.addEventListener('pointerdown',_handleFirstUserGesture,true);
+document.addEventListener('keydown',_handleFirstUserGesture,true);
+document.addEventListener('click',_handleFirstUserGesture,true);
 window.addEventListener('DOMContentLoaded',preloadSfx);
 document.addEventListener('click',ev=>{
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
@@ -562,7 +681,7 @@ document.addEventListener('click',ev=>{
 },true);
 document.addEventListener('pointerover',ev=>{
   const title=document.getElementById('scr-title');
-  if(title&&title.classList.contains('startup-title')&&!title.classList.contains('startup-menu-visible')) return;
+  if(title&&title.classList.contains('active')&&title.classList.contains('startup-title')&&!title.classList.contains('startup-menu-visible')) return;
   const btn=ev.target&&ev.target.closest?ev.target.closest('button,.btn'):null;
   if(!btn||btn.disabled) return;
   // デバッグカードは一覧上をなぞるだけで選択音を鳴らさない。

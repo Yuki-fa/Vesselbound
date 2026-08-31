@@ -1,0 +1,131 @@
+// ═══════════════════════════════════════
+// battle/present.js — 再生層の「方針」を1箇所に集める層。
+//
+// PvE（js/engine/battle.js）とオンライン（js/online/board.js）は、DOMの触り方も
+// ユニットの引き方も違うため、描画そのものを1つの関数に統合するのは現実的でない。
+// しかし**「どういう規則で見せるか」**は両方で同じでなければならない。実際に食い違って
+// バグになったのは毎回この「規則」の側だった（召喚のスロット選択・ダメージ数値の重なり・
+// マナ効果VFXの間引き・固有VFXの重複）。
+//
+// そこで、DOMを一切触らない「方針」だけをここへ集め、両方から呼ぶ。
+//   ・ここでは **G を参照しない／DOMを触らない／数値や勝敗を計算しない**。
+//   ・規則を変えるときは必ずここを直す。呼び出し側へ書き戻した時点で二重実装に逆戻りする。
+// ═══════════════════════════════════════
+
+// 盤面スロットの既定値。renderField が描画する範囲と一致させること。
+const PRESENT_FRONT_SLOTS = 7;
+const PRESENT_MAX_SLOTS = 14;
+
+// 命中してから、その結果（負傷効果など）を見せ始めるまでの間（ms）。
+// 0にするとダメージ数値より先に負傷効果が動いて見える（ミノタウロスの「直ちに攻撃する」等）。
+// PvEは負傷効果の発火前に、オンラインは damage イベントの後にこの間を取る。**同じ値を使うこと。**
+// 長くすると戦闘全体が間延びするので、数値が視認できる最小限にとどめる。
+const PRESENT_HIT_BEAT_MS = 260;
+
+// マナ解決の「ひと続き」とみなすイベント種別。
+// ここに無い種別（attack / death など）が来たら、別の発動機会として数え直す。
+// damage はマナ閾値効果自身（アラクネ等）も出すため継続扱いにする。
+const PRESENT_MANA_RUN_TYPES = new Set([
+  'mana_threshold', 'mana_gain', 'gold_gain', 'mana_set',
+  'stat_change', 'keyword_effect', 'item_reward', 'summon', 'transform', 'seal_apply', 'damage',
+]);
+
+// ── 召喚のスロット選択 ────────────────────────────────
+// 盤面配列は renderField が index 0..MAX-1 しか描画しない固定長のスロット配列。
+// 末尾へ push すると描画対象外へ入り、DOMスロットが作られないため
+// 「内部では攻撃しているのに画面上は何も起きない」状態になる（オンラインで実際に発生）。
+// 必ずレーン範囲内の空きスロット番号を返すこと。空きが無ければ -1。
+function presentChooseSummonSlot(list, unit, placement, sourceIndex, opts) {
+  if (!Array.isArray(list)) return -1;
+  const maxSlots = (opts && opts.maxSlots) || PRESENT_MAX_SLOTS;
+  const frontSlots = (opts && opts.frontSlots) || PRESENT_FRONT_SLOTS;
+  while (list.length < maxSlots) list[list.length] = null;
+  const rear = !!(unit && unit.lane === 'rear');
+  const from = rear ? frontSlots : 0;
+  const to = rear ? maxSlots : frontSlots;
+  const relative = (placement === 'leftOfSource' || placement === 'rightOfSource')
+    && sourceIndex >= from && sourceIndex < to;
+  if (relative) {
+    const start = placement === 'leftOfSource' ? sourceIndex : sourceIndex + 1;
+    for (let i = start; i < to; i++) if (!list[i]) return i;
+  }
+  for (let i = from; i < to; i++) if (!list[i]) return i;
+  return -1;
+}
+
+// ── ダメージ数値の順番待ち ──────────────────────────────
+// 同じキャラクターが1回の解決で複数回ダメージを受けると、数値が同じ位置に重なって読めない。
+// 対象ごとに「前の数値が消える時刻」を覚えておき、次はそれまで待ってから出す。
+// 対象が違う場合は待たない（別のカードの上なので重ならない）。
+// 同じキャラクターへ数値が続けて出る時の間隔（ms）。
+// 前の数値が消えるまで待つ（＝ラベルの表示時間ぶん待つ）と、闇の炎やラミアで
+// 効果ダメージが大量に出る場面が極端に間延びする。読める最小限だけずらして
+// 「-1 -1 -1」とパパパッと連続表示する。
+// 連続する数値は同じ値であることが多く、一つ一つ読ませる必要はない。
+const PRESENT_DAMAGE_STAGGER_MS = 75;
+
+// 数値の重なりを防ぐ順番待ち。
+// **待ち時刻は呼び出しをまたいで共有する。** 1回のダメージ処理ごとに別の表で
+// 管理すると、同じキャラクターへ別経路（applyDamageBatch とイベント再生など）から
+// 同時にダメージが入った時に互いを知らず、数値が重なって読めなくなる。
+const _presentDamageReadyAt = new Map();
+function presentDamageNow() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()); }
+function presentCreateDamageGate(labelDurationMs) {
+  const stagger = () => {
+    const v = (typeof labelDurationMs === 'function' ? labelDurationMs() : labelDurationMs);
+    // 明示的に間隔を渡された場合だけそれに従う（既定は共通のスタッガー）。
+    return Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : PRESENT_DAMAGE_STAGGER_MS;
+  };
+  return {
+    // 次にこの対象へ数値を出すまで待つべきms（0以下なら待たない）
+    waitMsFor(key) { return (Number(_presentDamageReadyAt.get(key)) || 0) - presentDamageNow(); },
+    // 数値を出した直後に呼ぶ
+    noteShown(key) { _presentDamageReadyAt.set(key, presentDamageNow() + stagger()); },
+    // 表示枠を1つ予約し、この数値を出すまでの待ちmsを返す。
+    // waitMsFor＋noteShown を別々に呼ぶと、待っている間に別経路が同じ時刻を
+    // 取ってしまい数値が重なる。連続表示はこちらを使うこと。
+    reserve(key) {
+      const now = presentDamageNow();
+      const at = Math.max(now, Number(_presentDamageReadyAt.get(key)) || 0);
+      _presentDamageReadyAt.set(key, at + stagger());
+      return at - now;
+    },
+    // 戦闘や処理の切れ目で待ち時刻を捨てる。共有表なのでキー単位では消さない。
+    reset() { _presentDamageReadyAt.clear(); },
+  };
+}
+
+// ── 「1回だけ見せる」ゲート ─────────────────────────────
+// マナ効果VFX（キャラクターごとに1回）と、固有VFXの重複（発生元・効果・対象ごとに1回）に使う。
+function presentCreateOnceGate() {
+  const seen = new Set();
+  return {
+    shouldPlay(key) { if (seen.has(key)) return false; seen.add(key); return true; },
+    has(key) { return seen.has(key); },
+    reset() { seen.clear(); },
+  };
+}
+
+// マナ解決のひと続きが途切れたか（＝間引きを数え直すか）
+function presentBreaksManaRun(ev) {
+  return !ev || !PRESENT_MANA_RUN_TYPES.has(ev.type);
+}
+
+if (typeof window !== 'undefined') {
+  window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
+  window.PRESENT_FRONT_SLOTS = PRESENT_FRONT_SLOTS;
+  window.PRESENT_MAX_SLOTS = PRESENT_MAX_SLOTS;
+  window.PRESENT_MANA_RUN_TYPES = PRESENT_MANA_RUN_TYPES;
+  window.presentChooseSummonSlot = presentChooseSummonSlot;
+  window.presentCreateDamageGate = presentCreateDamageGate;
+  window.PRESENT_DAMAGE_STAGGER_MS = PRESENT_DAMAGE_STAGGER_MS;
+  window.presentCreateOnceGate = presentCreateOnceGate;
+  window.presentBreaksManaRun = presentBreaksManaRun;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    PRESENT_HIT_BEAT_MS, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
+    presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
+    PRESENT_DAMAGE_STAGGER_MS,
+  };
+}

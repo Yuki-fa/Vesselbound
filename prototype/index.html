@@ -31,6 +31,13 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .screen.asset-backed{background:#0d0f14}
 .screen.asset-backed::before{content:'';position:absolute;inset:0;z-index:-1;background-image:var(--screen-bg-image);background-size:cover;background-position:center;opacity:1;filter:none;pointer-events:none}
 .screen.asset-backed::before{transition:none}
+/* 戦闘画面の背景は既定で下端合わせにする。ステージ画は縦長（例：stage_grassland.webp は
+   6144x12288＝アスペクト0.5）で、background-size:cover だと 3840x2160 の画面に対して
+   7680px の高さで描かれる。既定の background-position:center のままだと画像の中ほどが出て、
+   地面が画面下辺まで届かない見た目になる。状態クラス（battle-bg-*）が付く前の一瞬や、
+   クラスが欠けた経路でも下端が一致するよう、ここで既定を上書きしておく。
+   スライド演出用の battle-bg-reveal は id+2クラスでこの規則に勝つため影響しない。 */
+#scr-battle.asset-backed::before{background-position:center bottom}
 #scr-battle.battle-bg-normal.asset-backed::before{background-position:center bottom}
 #scr-battle.battle-bg-reveal.asset-backed::before{background-position:center top}
 #scr-battle.battle-bg-scroll-ready.asset-backed::before{transition:background-position 3s cubic-bezier(.42,0,.58,1)}
@@ -242,7 +249,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #title-menu{top:1350px;width:1500px;display:flex;flex-direction:column;align-items:center;gap:0;transform:translateX(-50%);pointer-events:auto;position:relative}
 /* メニューの入力ロックは、親(#title-menu)だけに掛けても効かない。
    pointer-eventsは親がnoneでも子がautoならその子はクリックを受け取るため、
-   .title-menu-item / #title-debug-button（いずれもpointer-events:auto）まで含めて止める。
+   .title-menu-item（pointer-events:auto）まで含めて止める。
    これを漏らすと、TAP TO STARTを押した同じ操作でメニュー項目が選ばれてしまう。 */
 #scr-title.startup-title:not(.startup-menu-visible) #title-menu,
 #scr-title.startup-title:not(.startup-menu-visible) #title-menu button,
@@ -267,28 +274,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-menu-visible .tap-to-start{opacity:0;transition:opacity .25s ease}
 @keyframes tap-to-start-float{0%,100%{transform:translateX(-50%) translateY(-9px)}50%{transform:translateX(-50%) translateY(9px)}}
 #scr-title.startup-menu-hover-ready .title-menu-item:hover{color:#fff!important;opacity:1!important}
-#title-menu #title-debug-button{
-  display:block;
-  position:relative;
-  width:900px;
-  height:128px;
-  border:0;
-  padding:0;
-  background:transparent;
-  color:rgba(180,184,190,.72);
-  font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;
-  font-size:60px;
-  line-height:128px;
-  letter-spacing:.12em;
-  text-shadow:0 2px 5px #090807;
-  cursor:pointer;
-  opacity:0;
-  transform:translateY(18px);
-  transition:opacity .55s ease,transform .55s ease,color .08s ease;
-  pointer-events:auto;
-}
-#scr-title.startup-menu-visible #title-debug-button{opacity:.72;transform:translateY(0);transition-delay:.23s}
-#scr-title.startup-menu-hover-ready #title-debug-button:hover{color:#d8d8d8;opacity:1;transform:translateY(0)}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 #scr-title.startup-title:not(.startup-menu-visible) #title-select-back,
 #scr-title.startup-menu-visible:not(.startup-menu-ready) #title-select-back{opacity:0}
@@ -296,7 +281,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 @keyframes title-start-glow{0%,100%{filter:brightness(1) drop-shadow(0 0 14px rgba(255,211,104,.75))}50%{filter:brightness(1.75) drop-shadow(0 0 34px rgba(255,224,135,1))}}
 .title-menu-label{position:relative;z-index:1;line-height:128px}
 #scr-title.startup-title #title-select-back{left:300px;top:12px;transform:none;margin:0;opacity:1}
-#title-debug-button{display:none}
 #scr-title .title-copyright{top:2050px;width:100%;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:28px;letter-spacing:.08em;color:rgba(245,236,218,.82);text-align:center;white-space:nowrap;transition:opacity .6s ease 1.05s}
 #scr-title.startup-title-visible .title-copyright{opacity:1}
 
@@ -696,6 +680,15 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 }
 .damage-vfx-host .vfx-damage-label{
   z-index:2;
+}
+.damage-label-host{
+  position:fixed;
+  z-index:10030;
+  pointer-events:none;
+  overflow:visible;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .sweep-vfx-host{
   position:fixed;
@@ -3072,6 +3065,12 @@ body #f-ally .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.
 body #f-enemy .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer){
   filter:brightness(.45) saturate(.65)!important;
 }
+/* 封印中はATK/HPの数値も暗くする。祖先のfilterは効いているが、
+   数値は白文字＋黒縁＋強い影のため、それだけでは明るいままに見える。 */
+body #f-ally .slot.unit-card.sealed-unit .slot-stats,
+body #f-enemy .slot.unit-card.sealed-unit .slot-stats{
+  opacity:.5!important;
+}
 body .slot.unit-card:hover::before,
 body .slot.unit-card.selected::before{
   content:none!important;
@@ -4819,30 +4818,19 @@ body.reward-screen-active #reward-info-bar #rw-gold{
   top:25px!important;
   font-size:1.22rem!important;
 }
+/* 編成画面以外（戦闘・マップ・村）では所持金の情報バーを出さない。
+   ここで display:block!important を当てると、基底の非表示を打ち消して
+   「所持金」と金額が旅の進捗の背後へ大きく重なって出る。
+   これらの画面には専用の所持金表示（#battle-status-hud / .reward-prod-money）が別にある。
+   **この規則を display:block へ戻さないこと。** 同じ症状が再発する。 */
 body:not(.reward-screen-active) #reward-info-bar{
-  display:block!important;
-  position:absolute!important;
-  left:auto!important;
-  right:168px!important;
-  top:64px!important;
-  width:172px!important;
-  height:66px!important;
-  padding:0!important;
-  background:rgba(0,0,0,.68)!important;
-  border:2px solid rgba(201,168,76,.78)!important;
-  border-radius:8px!important;
-  z-index:3600!important;
+  display:none!important;
 }
-body:not(.reward-screen-active) #reward-info-bar .ri-soul:first-child,
-body:not(.reward-screen-active) #reward-info-bar #rw-gold{
-  display:block!important;
-  position:absolute!important;
-  left:0!important;
-  right:0!important;
-  text-align:center!important;
-}
-body:not(.reward-screen-active) #reward-info-bar .ri-soul:first-child{top:7px!important;font-size:.58rem!important}
-body:not(.reward-screen-active) #reward-info-bar #rw-gold{top:25px!important;font-size:1.22rem!important}
+/* 編成画面以外（戦闘・マップ・村）では所持金の情報バーを出さない。
+   ここで display:block!important を当てると、基底の
+   「#reward-info-bar .ri-soul,#rw-gold{display:none!important}」を打ち消してしまい、
+   戦闘中やマップ上に「所持金」と金額が重なって出る（試験戦闘の中断後に旅の進捗へ被る症状の原因）。
+   これらの画面には専用の所持金表示（#battle-status-hud / .reward-prod-money）が別にある。 */
 body #scr-battle > .bottom-hud .bhud-item:has(#h-magic),
 body #scr-battle > .bottom-hud .bhud-item:has(#h-life),
 body #scr-battle > .bottom-hud .bhud-item:has(#h-gold),
@@ -5840,6 +5828,12 @@ html body #rw-cards.drag-over{
 html body .slot.motion-hidden{
   opacity:0!important;
   visibility:hidden!important;
+  /* .slot は transition:all .18s を持つ。visibility も transition の対象なので、
+     hidden にしても 180ms は表示されたままになり、その間だけ
+     「飛んでいる複製カード」と「元位置の実カード」が同時に見える（＝カードが2枚に見える）。
+     モーション中の実スロットは見せないので、ここだけ遷移を切る。
+     実ブラウザ計測：この指定が無いと複製生成から167ms間ずっと実カードが見えていた。 */
+  transition:none!important;
 }
 html body .attack-motion-clone{
   transform-origin:center center!important;
@@ -6474,6 +6468,8 @@ html body .rew-card.rarity-5 .rew-card-name{
 html body .desc-mana-icon{
   width:1em!important;
   height:1em!important;
+  object-fit:contain!important;
+  aspect-ratio:auto!important;
   vertical-align:-0.15em!important;
   margin:0 0.05em!important;
   display:inline-block!important;
@@ -8245,11 +8241,14 @@ html body .rew-card .card-summon-atk,
 html body .rew-card .card-summon-hp{
   font-size:2.34rem!important;
 }
+/* 戦闘中のATK／HPは魔導板（#hand-slots）と同じ位置に置く。
+   ここに固定値（旧：左6.6% 右2.6%）を書くと、魔導板側が使う
+   --unit-stat-* とずれ、戦闘中だけHPが右へ寄って見える。 */
 html body .slot.unit-card .slot-stats .a{
-  left:6.6%!important;
+  left:var(--unit-stat-atk-left)!important;
 }
 html body .slot.unit-card .slot-stats .h{
-  right:2.6%!important;
+  right:var(--unit-stat-hp-right)!important;
 }
 html body .panel-character-card .card-summon-atk,
 html body .card .card-summon-atk,
@@ -8452,7 +8451,8 @@ html body #battle-status-hud .battle-status-counter:nth-of-type(2) strong{
    引いた相対値で配置する */
 html body.reward-screen-active .reward-prod-money h2{
   position:absolute!important;
-  left:50px!important;
+  /* 「ライフ」見出し（.reward-prod-turn h2）と枠内の左位置を揃える。 */
+  left:51px!important;
   top:35px!important;
   right:auto!important;
   width:auto!important;
@@ -10775,11 +10775,9 @@ html body .card .triple-merge-star{
   display:block!important;visibility:visible!important;opacity:1!important;
   color:#ffe45c;font-size:24px;line-height:1;
   text-shadow:0 0 4px #fff7b0,0 0 10px #ffc928;
-  pointer-events:none;animation:tripleMergeStarShimmer 2.4s ease-in-out infinite;
-}
-@keyframes tripleMergeStarShimmer{
-  0%,72%,100%{filter:brightness(1);transform:scale(1)}
-  82%{filter:brightness(1.8);transform:scale(1.14)}
+  /* 周期的に一瞬だけ強く光る演出（tripleMergeStarShimmer）は外し、
+     text-shadowによる一定の淡い発光だけにする。 */
+  pointer-events:none;
 }
 html body .triple-merge-ghost{
   position:fixed!important;margin:0!important;z-index:20000!important;
@@ -13079,10 +13077,16 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   border-image-slice:12 fill!important;border-image-width:25px!important;border-image-repeat:stretch!important;
   filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))!important;
 }
-#online-rival-hud .orh-id{position:relative;z-index:1}
+#online-rival-hud .orh-id{
+  position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;
+  height:100%!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  line-height:30px!important;text-align:center!important;transform:none!important;box-sizing:border-box!important;
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important;
+  font-size:30px!important;font-weight:700!important;color:#f0d28b!important;text-shadow:0 3px 7px #080300!important;
+}
 /* ホバー時だけライフを出す。 */
 #online-rival-hud .orh-life{display:none;position:relative;z-index:1;font-size:30px}
-#online-rival-hud .orh-slot:hover .orh-id{display:none}
+#online-rival-hud .orh-slot:hover .orh-id{display:none!important}
 #online-rival-hud .orh-slot:hover .orh-life{display:inline}
 /* 次に戦う相手の枠は発光する。 */
 /* 次に戦う相手の枠は発光する。光り方は「元に戻す」ボタンのホバーと同じ
@@ -13214,10 +13218,16 @@ html body .library-tutorial-box{
 html body .reward-prod-quest-body,
 html body .reward-prod-quest-body *,
 html body .reward-prod-journey,
-html body .reward-prod-journey *,
+/* 見出し(h2)は他のパネル見出しと同じ字送り(.18em)のまま残す。ここを * にすると
+   「旅の進捗」の見出しだけ .04em へ上書きされ、字間が他の枠と食い違う。 */
+html body .reward-prod-journey *:not(h2),
 html body .facility-desc,
 html body .library-tutorial-box{
   letter-spacing:.04em!important;
+}
+/* 上の .reward-prod-journey（枠自身）からの継承も見出しには効かせない。 */
+html body.reward-screen-active .reward-prod-journey h2{
+  letter-spacing:.18em!important;
 }
 html body #library-howto-desc,
 html body .village-facility-desc{
@@ -13764,37 +13774,39 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=camp1"></script>
-<script src="js/engine/audio.js?v=cleanup158"></script>
+<script src="assets.js?v=kwVfxRenum01"></script>
+<script src="js/engine/audio.js?v=titleBgmAutoplay04"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=sheet0827"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=cleanup158"></script>
+<script src="js/data/loader.js?v=keywordFix02"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-<script src="js/battle/core.js?v=core5"></script>
+<script src="js/battle/core.js?v=openingIsBattle01"></script>
+<script src="js/battle/formation.js?v=formationShared01"></script>
+<script src="js/battle/present.js?v=dmgStagger02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
-<script src="js/online/sim.js?v=online1"></script>
-<script src="js/online/server_local.js?v=online15"></script>
+<script src="js/online/sim.js?v=online6"></script>
+<script src="js/online/server_local.js?v=ringPayload01"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=core4"></script>
+<script src="js/online/playback.js?v=tempoAlign01"></script>
 <script src="js/online/matching.js?v=online15"></script>
-<script src="js/online/board.js?v=core6"></script>
-<script src="js/online/versus.js?v=online16"></script>
+<script src="js/online/board.js?v=bloodReset01"></script>
+<script src="js/online/versus.js?v=tripleMerged01"></script>
 <script src="js/online/flow.js?v=online16"></script>
-<script src="js/online/hud.js?v=core6"></script>
+<script src="js/online/hud.js?v=core7"></script>
 <script src="js/engine/state.js?v=cleanup159"></script>
 <script src="js/engine/pool.js?v=cleanup159"></script>
 <script src="js/engine/enemy.js?v=count5"></script>
-<script src="js/engine/battle.js?v=cleanup164"></script>
-<script src="js/engine/render.js?v=cleanup158"></script>
-<script src="js/engine/reward.js?v=core6"></script>
-<script src="js/engine/map.js?v=online5"></script>
+<script src="js/engine/battle.js?v=fledVfx01"></script>
+<script src="js/engine/render.js?v=fledVfx01"></script>
+<script src="js/engine/reward.js?v=ringTags01"></script>
+<script src="js/engine/map.js?v=online6"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-<script src="js/engine/main.js?v=online15"></script>
+  <script src="js/engine/main.js?v=titleReturn01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13851,5 +13863,58 @@ document.addEventListener('pointerdown',function(ev){
 </svg>
 <svg id="death-burn-filters" width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"></svg>
 <div id="vfx-clip-root"></div>
+<style>
+/* 勝利／敗北カットイン中はデバッグ用の補助ボタンを表示しない。 */
+html body.battle-victory-pending #btn-test-battle,
+html body.battle-victory-pending #btn-debug-gameover,
+html body:has(#battle-start-intro) #btn-test-battle,
+html body:has(#battle-start-intro) #btn-debug-gameover{
+  display:none!important;
+}
+
+/* ── FLED（ATKが0になったキャラクターの逃走表示）──────────────────
+   白文字＋黒縁で、カード中央へ1文字ずつ落ちてくる。
+   カードのフェードアウトより前に消すため、表示はJS側で先に取り除く。
+   カード幅からはみ出さないよう、文字サイズはカード幅から算出する。 */
+.fled-label{
+  position:absolute!important;
+  left:0!important; right:0!important;
+  top:50%!important;
+  transform:translateY(-58%)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:.02em!important;
+  z-index:320!important;
+  pointer-events:none!important;
+  font-family:var(--font-hd)!important;
+  font-weight:700!important;
+  font-size:min(2.1rem,26cqw)!important;
+  line-height:1!important;
+  letter-spacing:.02em!important;
+  white-space:nowrap!important;
+  color:#fff!important;
+  -webkit-text-stroke:3px #050507;
+  paint-order:stroke fill;
+  text-shadow:0 2px 6px rgba(0,0,0,.9)!important;
+}
+.fled-label > span{
+  display:inline-block!important;
+  opacity:0;
+  transform:translateY(-70%);
+  animation:fledDrop .26s cubic-bezier(.28,.9,.36,1) forwards;
+}
+@keyframes fledDrop{
+  0%{ opacity:0; transform:translateY(-70%) scale(1.25); }
+  70%{ opacity:1; transform:translateY(6%) scale(1); }
+  100%{ opacity:1; transform:translateY(0) scale(1); }
+}
+/* 逃走したカードは暗くフェードアウトする。FLEDの文字はその前にJSが外す。 */
+.slot.unit-card.fled-unit{
+  transition:opacity .42s ease,filter .42s ease!important;
+  opacity:0!important;
+  filter:brightness(.35) saturate(.5)!important;
+}
+</style>
 </body>
 </html>

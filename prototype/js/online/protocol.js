@@ -29,6 +29,7 @@ const ONLINE_EVENT = {
   TURN_BEGIN:   'turn_begin',   // {turn}
   ATTACK:       'attack',       // {side,attackerId,targetId,damage,counterDamage}
   DAMAGE:       'damage',       // {side,unitId,amount,hpAfter}
+  FLED: 'fled',
   DEATH:        'death',        // {side,unitId}
   SACRIFICE:    'sacrifice',    // {side,unitId} 封印の解放で捧げられて破棄された
   SEAL_RELEASE: 'seal_release', // {side,unitId,required} 封印が解放されて場に出た

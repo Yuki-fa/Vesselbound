@@ -38,6 +38,14 @@ const ONLINE_TIME_LIMIT_MS = {
 };
 // 編成の持ち時間（ステージ別）。ステージ1=90秒、2=120秒、3=150秒、4以降=180秒。
 const ONLINE_FORMATION_TIME_MS = [90, 120, 150, 180].map(sec => sec * 1000);
+// 編成データの rings/items は、配列でも {p1:[…],p2:[]} の形でも渡ってくる。
+// どちらでも「その陣営の配列」を取り出す。形の取り違えで丸ごと失うのを防ぐ。
+function _sideList(value, side){
+  if (Array.isArray(value)) return value;
+  if (value && Array.isArray(value[side])) return value[side];
+  if (value && Array.isArray(value.p1)) return value.p1;
+  return [];
+}
 function onlineFormationTimeMs(stage) {
   const i = Math.max(1, Number(stage) || 1) - 1;
   return ONLINE_FORMATION_TIME_MS[Math.min(i, ONLINE_FORMATION_TIME_MS.length - 1)];
@@ -95,19 +103,47 @@ const ONLINE_VERSUS_GOLD = 100;
     const units = [];
     for (let i = 0; i < size; i++) {
       const def = pool.length ? pool[rng.int(0, pool.length - 1)] : null;
+      const spec = def && typeof _panelSummonSpec === 'function' ? _panelSummonSpec(def) : null;
+      const source = spec || def || {};
+      const preview = source && typeof _makePanelSummonUnit === 'function'
+        ? _makePanelSummonUnit({ ...source, panelName: def && def.name }, []) : null;
+      const unit = preview || source;
       units.push({
         id: `cpu-${stage}-${i}`,
-        no: def ? String(def.no || '') : '',
-        name: def ? String(def.name || '') : `対戦相手${i + 1}`,
-        atk: Math.max(0, Number(def ? def.power : 0) || 0) + bonus,
-        hp: Math.max(1, Number(def ? def.life : 0) || 1) + bonus,
+        no: def ? String(def.no || source.no || '') : '',
+        name: def ? String(unit.name || def.name || '') : `対戦相手${i + 1}`,
+        atk: Math.max(0, Number(unit.atk ?? def.power) || 0) + bonus,
+        hp: Math.max(1, Number(unit.hp ?? def.life) || 1) + bonus,
         lane: i < Math.ceil(size * 0.6) ? 'front' : 'rear',
-        color: def ? String(def.color || '') : '',
-        race: def ? String(def.race || '') : '',
+        color: def ? String(unit.color || def.color || '') : '',
+        race: def ? String(unit.race || def.race || '') : '',
         grade: def ? (Number(def.grade) || 1) : 1,
-        desc: def ? String(def.desc || '') : '',
-        sfxType: def ? String(def.sfxType || '') : '',
-        keywords: Array.isArray(def && def.keywords) ? def.keywords.slice() : [],
+        desc: def ? String(unit.desc || def.desc || '') : '',
+        sfxType: def ? String(unit.sfxType || def.sfxType || '') : '',
+        keywords: Array.isArray(unit.keywords) ? unit.keywords.slice() : (Array.isArray(def && def.keywords) ? def.keywords.slice() : []),
+        poison: Number(unit.poison ?? def.poison) || 0,
+        weakenOnHit: Number(unit.weakenOnHit ?? def.weakenOnHit) || 0,
+        manaOnAttack: Number(unit.manaOnAttack ?? def.manaOnAttack) || 0,
+        manaOnInjury: Number(unit.manaOnInjury ?? def.manaOnInjury) || 0,
+        manaOnDeath: Number(unit.manaOnDeath ?? def.manaOnDeath) || 0,
+        goldOnBattleEnd: Number(unit.goldOnBattleEnd ?? def.goldOnBattleEnd) || 0,
+        goldOnDeath: Number(unit.goldOnDeath ?? def.goldOnDeath) || 0,
+        randomItemOnBattleEnd: !!(unit.randomItemOnBattleEnd ?? def.randomItemOnBattleEnd),
+        randomItemCost: Number(unit.randomItemCost ?? def.randomItemCost) || 0,
+        manaCost: Number(unit.manaCost ?? def.manaCost ?? def.costMana) || 0,
+        manaRepeat: !!(unit.manaRepeat ?? def.manaRepeat),
+        manaThresholdDesc: String(unit.manaThresholdDesc ?? unit._manaThresholdDesc ?? def.manaThresholdDesc ?? def._manaThresholdDesc ?? ''),
+        extraManaThresholds: Array.isArray(unit.extraManaThresholds)
+          ? unit.extraManaThresholds.map(x => ({ ...x }))
+          : (Array.isArray(def.extraManaThresholds) ? def.extraManaThresholds.map(x => ({ ...x })) : []),
+        _adjacentPanelAbilities: Array.isArray(unit._adjacentPanelAbilities) ? unit._adjacentPanelAbilities.slice() : [],
+        _releaseAtkBonus: Number(unit._releaseAtkBonus ?? def._releaseAtkBonus ?? def.releaseAtkBonus) || 0,
+        _releaseHpBonus: Number(unit._releaseHpBonus ?? def._releaseHpBonus ?? def.releaseHpBonus) || 0,
+        equipment: Array.isArray(unit.equipment) ? unit.equipment.map(x => ({ ...x })) : [],
+        effectData: {
+          ...(def && def.effectData && typeof def.effectData === 'object' ? def.effectData : {}),
+          ...(unit.effectData && typeof unit.effectData === 'object' ? unit.effectData : {}),
+        },
       });
     }
     return { units };
@@ -201,7 +237,8 @@ const ONLINE_VERSUS_GOLD = 100;
     const nextNode = _stageFlow(m.stage)[m.step];
     m.phase = _phaseForNode(nextNode);
     _updateFormationIndex(m);
-    _updateNextOpponent(m);
+    // 対戦相手は編成3回の途中では固定し、対戦マスへ入る時だけ更新する。
+    if (nextNode === 'versus') _updateNextOpponent(m);
     // 編成→編成は同じ持ち時間の続き。ここで締め切りを引き直すと
     // 1マスごとに90秒与えることになってしまう。
     if (nextNode === 'formation' && prevNode === 'formation' && m.deadlineAt) {
@@ -304,6 +341,25 @@ const ONLINE_VERSUS_GOLD = 100;
           p1: { units: (selfFormation && selfFormation.units) || [] },
           p2: opponent,
         },
+        resources: selfFormation && selfFormation.resources,
+        // buildSelfFormation() は rings/items を {p1:[…],p2:[]} の形で返す。
+        // そのまま p1 へ入れると配列ではなくなり、createBattleState() の
+        // Array.isArray 判定で弾かれて**指輪もアイテムも全て失われる**
+        // （オンラインで光の指輪などが効かない原因だった）。
+        // 配列でも {p1:[…]} でも受けられるようにして取り違えを防ぐ。
+        rings: {
+          p1: _sideList(selfFormation && selfFormation.rings, 'p1'),
+          p2: _sideList(opponent && opponent.rings, 'p2'),
+        },
+        items: {
+          p1: _sideList(selfFormation && selfFormation.items, 'p1'),
+          p2: _sideList(opponent && opponent.items, 'p2'),
+        },
+        summonDefs: [
+          ...(typeof PANEL_POOL !== 'undefined' && Array.isArray(PANEL_POOL) ? PANEL_POOL : []),
+          ...(typeof ENEMY_POOL !== 'undefined' && Array.isArray(ENEMY_POOL) ? ENEMY_POOL : []),
+        ],
+        itemDefs: typeof ITEM_POOL !== 'undefined' && Array.isArray(ITEM_POOL) ? ITEM_POOL : [],
       });
       // ライフの増減もサーバーが決める。引き分けは双方ライフを失わない。
       const selfP = m.players.find(p => p.self);

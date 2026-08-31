@@ -390,6 +390,13 @@ function placePendingPanelToSelectedUnit(slotIdx){
   }
   const isPendingSale=!!pending.card._shopSalePending;
   const placed=merged||clone(pending.card);
+  // デバッグ配置では、パレットで選択した回転方向を配置後も保持する。
+  // makePanel()／同期処理が通常カード用の方向を再生成しても、検証用カードの
+  // 接続条件が初期方向へ戻らないよう、DEBUGカードだけ明示的に復元する。
+  if(pending.sourceName==='DEBUG'&&Array.isArray(pending.card._debugDirections)){
+    placed.directions=pending.card._debugDirections.slice();
+    placed._debugDirections=pending.card._debugDirections.slice();
+  }
   // 売切れ枠へ一時退避した手持ちパネルを魔導板へ戻す場合は、
   // 商品枠専用の売却待ち状態を持ち込まない（再度売却扱いになるのを防ぐ）。
   if(isPendingSale){
@@ -407,7 +414,9 @@ function placePendingPanelToSelectedUnit(slotIdx){
   equips[slotIdx]=placed;
   // 合体前の3枚をDOM上に残した状態でスナップショットを取れるよう、先に一度描画する。
   renderHandEditor();
-  const tripleMerge=_tryTripleMergeOnBoard(unit,slotIdx);
+  // デバッグ配置では同一カードを複数スロットへ置いて、召喚上限や誘発回数を
+  // 検証できるようにする。通常の取得・配置では従来どおり3枚合体を行う。
+  const tripleMerge=pending.sourceName==='DEBUG'?null:_tryTripleMergeOnBoard(unit,slotIdx);
   _syncUnitPanelEffectsAfterMove(unit);
   if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
   const done=pending.onPlaced;
@@ -884,7 +893,7 @@ function renderMoveSlotsInEnemy(){
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
       if(st.nodeType!=='formation') return '戦闘待機中';
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
-      return `編成完了 ${i}/${n}`;
+      return `選択完了 ${i}/${n}`;
     })();
     const label=_waveFacilityReturn?(G._isLibrary?'図書館を出る':(G._isRingExchange?'祭壇を離れる':'店を出る')):(_onlineLabel||(G._isTreasureMapReward?'戦闘開始':(G._isShop||G._isForge)?'戦闘開始':G._isWaveAltar?'出発する':(G._isTavern||G._isVillageMenu)?'村を出る':'戦闘開始'));
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
@@ -962,7 +971,7 @@ function renderMoveSlotsInEnemy(){
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
       if(st.nodeType!=='formation') return '戦闘待機中';
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
-      return `編成完了 ${i}/${n}`;
+      return `選択完了 ${i}/${n}`;
     })();
     const label=G._ringOfferPhase?(G._ringOfferResolved?'決定':'指輪を取らない'):(_onlineFormLabel||'戦闘開始');
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
@@ -1132,7 +1141,17 @@ function _journeyRouteForScene(scene){
   // オンライン対戦のステージ構成はサーバーが配る。クライアントで組み立てない。
   if(typeof G!=='undefined'&&G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
     const st=OnlineMatch.getState();
-    if(st&&Array.isArray(st.stageFlow)&&st.stageFlow.length) return st.stageFlow.slice();
+    if(st&&Array.isArray(st.stageFlow)&&st.stageFlow.length){
+      // 3回のカード選択は、旅の進捗では1つの一般戦闘マスにまとめる。
+      // 実際の進行（formation×3→versus）はサーバー状態をそのまま使う。
+      const displayRoute=[];
+      st.stageFlow.forEach(type=>{
+        const displayType=type==='formation'?'battle':(type==='versus'?'elite':type);
+        if(displayType==='battle'&&displayRoute[displayRoute.length-1]==='battle') return;
+        displayRoute.push(displayType);
+      });
+      return displayRoute;
+    }
   }
   const data=typeof SCENE_FLOW_DATA!=='undefined'?SCENE_FLOW_DATA:null;
   if(scene===5) return data&&data.final||['city','battle','battle','boss'];
@@ -1151,6 +1170,10 @@ function _journeyNodeClass(type){
 // 村／祭壇は「地域情報」シートの街の名前・塔の名前を表示する（sceneはステージ番号＝G._wave）。
 // ステージ1の先頭の村だけはリーゼ＝シートのステージ0を参照する（idx=マスの並び順）。
 function _journeyNodeLabel(type,scene,idx){
+  if(typeof G!=='undefined'&&G&&G._onlineMode){
+    if(type==='battle') return '編成';
+    if(type==='elite'||type==='boss'||type==='finalBoss') return '戦闘';
+  }
   const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
   if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
@@ -1184,7 +1207,24 @@ function _syncRewardJourneyUi(){
   if(!root||!G) return;
   const scene=Math.max(1,Math.min(5,Number(G._wave)||1));
   const route=_journeyRouteForScene(scene);
-  const stage=Math.max(1,Math.min(route.length,Number(G._waveStage)||1));
+  let stage=Math.max(1,Math.min(route.length,Number(G._waveStage)||1));
+  // オンラインのサーバー上は formation が3マス分あるが、表示上は1マスに集約する。
+  // その間は一般戦闘マスを現在位置として維持し、マス自体を進めない。
+  if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
+      const st=OnlineMatch.getState();
+    if(st&&Array.isArray(st.stageFlow)&&st.stageFlow.length){
+      const rawStep=Math.max(0,Math.min(st.stageFlow.length-1,(Number(G._waveStage)||1)-1));
+      let displayIdx=-1;
+      let previousType=null;
+      st.stageFlow.forEach((type,idx)=>{
+        if(idx>rawStep) return;
+        const displayType=type==='formation'?'battle':(type==='versus'?'elite':type);
+        if(displayType!==previousType) displayIdx++;
+        previousType=displayType;
+      });
+      if(displayIdx>=0) stage=displayIdx+1;
+    }
+  }
   const actual=stage-1;
   const current=_journeyDisplayPosition(route,stage,scene);
   const currentType=route[actual];
@@ -1222,7 +1262,7 @@ function _syncRewardJourneyUi(){
     // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
     let previewText=_journeyNodeLabel(type,scene,idx);
     let enemyAttr='';
-    if((type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
+    if(!(G&&G._onlineMode)&&(type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
       const previewType=type==='elite'?'elite':'boss';
       const enemyPreview=_ensureWaveEnemyPreview(scene,previewType);
       if(enemyPreview&&enemyPreview.def){
@@ -1254,10 +1294,17 @@ function _syncRewardJourneyUi(){
   // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
   const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
   const towerName=String((_regionInfo&&_regionInfo.towerName)||'祭壇').trim()||'祭壇';
-  const targetText=reached
-    ?(isFinalScene?'最終決戦':`${towerName}に到達`)
-    :(isFinalScene?'最終決戦まであと':`${towerName}まであと`);
-  const countdown=reached?targetText:`${targetText} <strong>${remaining}</strong> 戦`;
+  const onlineState=(G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch)
+    ?OnlineMatch.getState():null;
+  const onlineOpponent=onlineState&&onlineState.nextOpponentId?String(onlineState.nextOpponentId):'';
+  const countdown=onlineOpponent
+    ?`次の対戦相手は${_escapePreviewHtml(onlineOpponent)}`
+    :(()=>{
+      const targetText=reached
+        ?(isFinalScene?'最終決戦':`${towerName}に到達`)
+        :(isFinalScene?'最終決戦まであと':`${towerName}まであと`);
+      return reached?targetText:`${targetText} <strong>${remaining}</strong> 戦`;
+    })();
   root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
   if(G&&G._debugMode) _bindDebugJourneyJump(root);
 }
@@ -2607,7 +2654,6 @@ function _takeRingCard(card){
 // 現在保持するカード（魔導板上のカード）から、色タグ／効果カテゴリタグの出現数を数える。
 function _countHeldCardTags(){
   const counts={};
-  const bump=t=>{ if(!t) return; counts[t]=(counts[t]||0)+1; };
   const normalizeColor=color=>{
     const c=String(color||'').trim();
     return c==='茶'?'黄':c;
@@ -2619,24 +2665,17 @@ function _countHeldCardTags(){
     const m=String(card.name||'').trim().match(/^([赤青緑黄紫])/);
     return m?m[1]:'';
   };
+  const characters=[];
   const boardCharacterSlots=new Set();
+  const effectiveText=card=>[card?.desc,card?.effect,card?.effectText,card?.characterDesc,
+    ...(card?._adjacentPanelEffectTexts||[]),...(card?._adjacentPanelEffects||[])].filter(Boolean)
+    .map(x=>typeof x==='string'?x:(x.desc||x.effectText||'')).join(' ');
   (G.mainBoard||[]).forEach((card,idx)=>{
     if(!card) return;
     if(_isBoardCharacterCard(card)){
       boardCharacterSlots.add(idx);
-      const color=cardColor(card);
-      if(color) bump(color);
-    }else if(card.color){
-      // 色タグはキャラクター色を対象にする。強化カードの色は効果タグに混ぜない。
+      characters.push({card,color:cardColor(card),text:effectiveText(card)});
     }
-    const text=String(card.desc||card.effect||'');
-    if(/攻撃[:：]/.test(text)) bump('攻撃');
-    if(/死亡[:：]/.test(text)) bump('死亡');
-    if(/負傷[:：]/.test(text)) bump('負傷');
-    if(/解放/.test(text)) bump('解放');
-    if(/マナ/.test(text)) bump('マナ');
-    if(/毒/.test(text)) bump('毒');
-    if(/召喚/.test(text)) bump('召喚');
   });
   // 戦闘後にG.mainBoard側のキャラクター色が欠落している場合でも、
   // 実際の味方ユニットが保持しているカラーをタグ判定へ反映する。
@@ -2646,8 +2685,24 @@ function _countHeldCardTags(){
     const slot=Number.isInteger(unit._mainBoardSlot)?unit._mainBoardSlot:-1;
     if(slot>=0&&boardCharacterSlots.has(slot)) return;
     const color=normalizeColor(unit.color||String(unit.name||'').match(/^([赤青緑黄紫])/)?.[1]||'');
-    if(color) bump(color);
+    if(color) characters.push({card:unit,color,text:effectiveText(unit)});
   });
+  const eligible=(tag,n)=>{ if(n>0) counts[tag]=n; };
+  ['赤','青','緑','黄','紫'].forEach(color=>eligible(color,characters.filter(x=>x.color===color).length>=3?characters.filter(x=>x.color===color).length:0));
+  const distinctColors=new Set(characters.map(x=>x.color).filter(Boolean)).size;
+  eligible('多色',distinctColors>=3?distinctColors:0);
+  ['攻撃','死亡','負傷'].forEach(trigger=>eligible(trigger,characters.filter(x=>new RegExp(`${trigger}\\s*[：:]`).test(x.text)).length>=3
+    ?characters.filter(x=>new RegExp(`${trigger}\\s*[：:]`).test(x.text)).length:0));
+  eligible('解放',characters.some(x=>/解放/.test(x.text))?1:0);
+  const mana=characters.filter(x=>/マナ(?:\\s*[：:]|毎|を得る)/.test(x.text)).length;
+  eligible('マナ',mana>=3?mana:0);
+  const large=characters.filter(x=>!/呪われた壺/.test(String(x.card?.name||''))
+    && (/咆哮|威光|キャラクター用説明文|characterDesc/.test(x.text)||x.card?.characterDesc)).length;
+  eligible('大型',large>=3?large:0);
+  const poison=characters.filter(x=>/毒牙|毒/.test(`${x.text} ${String(x.card?.keywords||'')}`)).length;
+  eligible('毒',poison>=2?poison:0);
+  const summon=characters.filter(x=>/召喚/.test(x.text)).length;
+  eligible('召喚',summon>=2?summon:0);
   return counts;
 }
 function _ringHasTag(ring,tag){
@@ -2953,13 +3008,13 @@ function _renderFieldRow(el){
       const _preview=typeof _unitPreviewText==='function'?_unitPreviewText(unit,_plainDesc):_plainDesc;
       if(_preview) div.setAttribute('data-preview',_preview);
       const raceTag='';
-      const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','三方向攻撃':'#e04040','貫通':'#e08040','狩人':'#d08040','狙撃':'#d08040','結束':'#80d0d0','邪眼':'#c060c0','弱体':'#c08040','衝撃':'#c08040','強靭':'#60c090','結界':'#60a0e0','隠密':'#8080c0'};
+      const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','毒':'#a060d0','加護':'#60b0e0','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','三方向攻撃':'#e04040','貫通':'#e08040','結束':'#80d0d0','邪眼':'#c060c0','弱体':'#c08040','衝撃':'#c08040','結界':'#60a0e0','隠密':'#8080c0','攻防一体':'#60c090'};
       const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
       // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
       // バッジ表示用の擬似キーワードとして合成する
       const _allKws=[...(unit.weaken>0?[`弱体${unit.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(unit.keywords||[]):[...new Set(unit.keywords||[])])].filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
       const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
-      const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
+      const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス'&&k!=='生贄'&&k!=='狩人'&&k!=='狙撃'&&k!=='強靭');
       const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
       const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
       let kwBlock='';
@@ -4267,6 +4322,12 @@ function _debugRotatedDirections(def){
   const cat=String(def&&def.category||'');
   const count=_debugPanelDirectionCount(def);
   if(count===0) return [];
+  // デバッグ配置では、回転4/5を相互接続用のプリセットにする。
+  // キャラクターと強化を同じ回転で置いても、通常の連続2方向
+  // （up+right 等）だけでは隣接方向が噛み合わず、効果検証自体が
+  // できない。回転4=縦、回転5=横なら双方が相手方向を持つ。
+  if(count===2&&((G&&G._debugDirRotation)||0)%6===4) return ['up','down'];
+  if(count===2&&((G&&G._debugDirRotation)||0)%6===5) return ['left','right'];
   if(count===2&&cat!=='キャラクター'){
     const patterns=[['up','right'],['right','down'],['down','left'],['left','up'],['up','down'],['left','right']];
     return patterns[((G&&G._debugDirRotation)||0)%patterns.length].slice();
@@ -4294,7 +4355,10 @@ function _debugMakePanelCard(id){
   }
   const def=typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL.find(p=>p&&p.id===id):null;
   const card=typeof makePanel==='function'?makePanel(id):(def?clone(def):null);
-  if(card&&def) card.directions=_debugRotatedDirections(def);
+  if(card&&def){
+    card.directions=_debugRotatedDirections(def);
+    card._debugDirections=card.directions.slice();
+  }
   if(card) card._debugInfiniteCard=true;
   return card;
 }
@@ -4346,6 +4410,7 @@ function renderDebugCardPalette(){
   document.body.classList.toggle('debug-mode',!!(G&&G._debugMode));
   if(!G||!G._debugMode||G.phase!=='reward'){
     host.innerHTML='';
+    document.body.classList.remove('debug-mode');
     return;
   }
   if(!['character','enchant','item','ring'].includes(G._debugPaletteKind)) G._debugPaletteKind='character';
@@ -4629,7 +4694,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _adjKws=[...new Set([...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),...(card.adjacentKeywords||[])])].filter(k=>{
           const s=String(k||'').trim();
           if(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
-          const isDisplayKeyword=(typeof _ENCHANT_KEYWORD_ONLY!=='undefined'&&_ENCHANT_KEYWORD_ONLY.has(s))||/^結界\d+$/.test(s)||/^封印\d+$/.test(s)||/^毒牙?\d*$/.test(s)||/^邪眼\d*$/.test(s)||/^衝撃\d*$/.test(s)||/^強靭\d*$/.test(s);
+          const isDisplayKeyword=(typeof _ENCHANT_KEYWORD_ONLY!=='undefined'&&_ENCHANT_KEYWORD_ONLY.has(s))||/^結界\d+$/.test(s)||/^封印\d+$/.test(s)||/^毒牙?\d*$/.test(s)||/^邪眼\d*$/.test(s)||/^衝撃\d*$/.test(s);
           if(s===String(card.name||'')&&!isDisplayKeyword) return false;
           return true;
         });

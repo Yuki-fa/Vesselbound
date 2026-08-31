@@ -109,9 +109,15 @@ const Assets = {
     },
     // キーワード発動（毒等）でダメージが発生した際、そのキーワードのナンバー（KXXX）に
     // 対応するWebPがあれば、通常のhit.webpの代わりに再生する。存在するものだけをここに登録する。
+    // キーワード発動時の専用VFX。キーワードシートのNo.（KXXX）で引く。
+    // **シートのNo.を振り直したら、素材ファイル名もここも必ず一緒に直すこと。**
+    // 2026-08-31にNo.が「マナ効果 K026→K023」「毒 K007→K017」「貫通 K023→K007」と
+    // 振り直された際、素材が旧名のままだったため、マナ効果と毒は登録が外れて
+    // 通常の被弾VFX（hit.webp）に化け、貫通が毒のVFXを拾っていた。
+    // ずれていないかは tools/parity/anim_check.js が検査する。
     keywordEffect: {
-      'K007': 'assets/vfx/K007.webp', // 毒
-      'K026': 'assets/vfx/K026.webp', // マナ効果
+      'K017': 'assets/vfx/K017.webp', // 毒
+      'K023': 'assets/vfx/K023.webp', // マナ効果
     },
   },
   ui: {
@@ -423,7 +429,6 @@ function getCharacterSweepVfxPath(unit){
 function getKeywordEffectVfxPath(keywordName){
   if(!keywordName) return '';
   const code=(typeof KW_NO_MAP!=='undefined'&&KW_NO_MAP[keywordName])||'';
-  if(keywordName==='マナ効果'&&!code) return Assets.vfx.keywordEffect?.K026||'';
   if(!code) return '';
   return (Assets.vfx.keywordEffect&&Assets.vfx.keywordEffect[code])||'';
 }

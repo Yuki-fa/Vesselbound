@@ -1725,6 +1725,12 @@ function departWithWorldMap(){
   G._villageBgmActive=false;
   if(typeof stopBgm==='function') stopBgm(900);
   const next=()=>{ if(typeof shopDone==='function') shopDone(); };
+  // オンライン対戦はサーバー状態の次マスへ flow.js が直接遷移するため、
+  // 街・塔からワールドマップ画面を挟まない。
+  if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch&&OnlineMatch.isActive()){
+    next();
+    return;
+  }
   const movie=_departureMovieSrc();
   if(movie){ void _playDepartureMovie(movie,next); return; }
   void _playWorldMapDeparture(next);

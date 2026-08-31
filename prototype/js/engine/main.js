@@ -14,8 +14,35 @@ function showScreen(id){
   // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
   document.body.classList.toggle('village-screen-active',id==='village');
   document.body.classList.toggle('library-screen-active',id==='village'&&!!(G&&G._isLibraryMenu));
+  if(id!=='reward'){
+    document.body.classList.remove('debug-mode');
+    ['btn-debug-gameover','btn-test-battle'].forEach(debugId=>{
+      const debugEl=document.getElementById(debugId);
+      if(debugEl) debugEl.style.display='none';
+    });
+  }
+  const battleCutin=document.getElementById('battle-start-intro');
+  const hideDebugCutin=!!(battleCutin||document.body.classList.contains('battle-victory-pending'));
+  ['btn-debug-gameover','btn-test-battle'].forEach(debugId=>{
+    const debugEl=document.getElementById(debugId);
+    if(debugEl&&hideDebugCutin) debugEl.style.display='none';
+  });
   // 出発時の一時非表示は、次に村を開いた時点で必ず解除する。
   if(id==='village') document.body.classList.remove('village-departing');
+  // startGame() は導入演出用のクラス（startup-title-visible 等）をタイトルから外す。
+  // #scr-title.startup-title はそのクラスが無いと opacity:0 なので、
+  // ゲームオーバーから「タイトルに戻る」と画面が真っ暗になっていた。
+  // 導入は既に見終えているので、メニューを出した状態へ戻す。
+  if(id==='title'){
+    const titleEl=document.getElementById('scr-title');
+    if(titleEl&&titleEl.classList.contains('startup-title')
+      &&!titleEl.classList.contains('startup-title-visible')){
+      titleEl.classList.add('startup-title-visible','startup-menu-visible');
+    }
+    // 戦闘・村で付いた一時クラスを持ち越すと、タイトルの上に暗転が残る。
+    document.body.classList.remove('battle-victory-pending','village-departing',
+      'gameover-active','game-clear-active','gameover-ui-pending');
+  }
   const battleCounters=document.getElementById('battle-counters');
   const battleStatus=document.getElementById('battle-status-hud');
   const transitionFade=document.getElementById('battle-transition-fade');
@@ -1120,10 +1147,12 @@ async function startFinalBossClearSequence(){
 // 開始SEもここで鳴らす（ボタン側のonclickで鳴らすと、ムービー終了直後の
 // クリックが黒幕の下のボタンに届いてSEが二重に鳴り、ゲームも再開始されてしまう）。
 let _startingFromTitle = false;
+let _titleStartToken = 0;
 // タイトルでCtrl（またはmacのCommand）を押している間だけ
 // 「ゲームスタート」を「デバッグモード」に差し替える。
 // （メニューから常設のデバッグ項目を無くしたため、こちらが唯一の入口）
 let _titleCtrlHeld = false;
+let _titleMenuClickBlockedUntil = 0;
 const TITLE_START_LABEL='ゲームスタート';
 const TITLE_DEBUG_LABEL='デバッグモード';
 function _syncTitleStartLabel(){
@@ -1150,6 +1179,7 @@ window.addEventListener('blur',()=>_setTitleCtrlHeld(false));
 // マッチングはリーゼで「出発する」を押した時点で行う（仕様）ため、ここでは開始だけ。
 function startOnlineMatchFromTitle(){
   if(_startingFromTitle) return;
+  _titleStartToken++;
   _startingFromTitle = true;
   _titleCtrlHeld = false;
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-online' });
@@ -1168,13 +1198,26 @@ function startGameFromTitle(){
     return;
   }
   _startingFromTitle = true;
+  const startToken=++_titleStartToken;
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-game-start' });
   if(_openingMovieShown){ startGame(); _startingFromTitle = false; return; }
   _openingMovieShown = true;
-  void _playOpeningMovie().then(() => { startGame(); _startingFromTitle = false; });
+  void _playOpeningMovie().then(() => {
+    if(startToken!==_titleStartToken) return;
+    startGame(); _startingFromTitle = false;
+  });
 }
 
 function startGame(debugMode,onlineMode){
+  // タイトルの初回入力が導入演出のハンドラで消費された場合でも、
+  // ゲーム開始操作そのものをユーザー操作としてSE再生の解禁に使う。
+  if(typeof unlockSfx==='function') unlockSfx();
+  // タイトルの導入用オーバーレイは、通常／デバッグ開始後に残さない。
+  // オンラインはマッチング成立までタイトルを表示する仕様のため除外する。
+  if(!onlineMode){
+    const title=document.getElementById('scr-title');
+    if(title) title.classList.remove('active','startup-title-visible','startup-menu-visible','startup-menu-ready','startup-menu-hover-ready');
+  }
   // 前回のランのステージ持続環境音（雷雨など）を持ち越さない。
   if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(0);
   initState();
@@ -1188,6 +1231,8 @@ function startGame(debugMode,onlineMode){
   clearLog();
   G._debugMode=!!debugMode;
   if(G._debugMode){
+    // デバッグ試験戦闘の実機計測専用。通常モードでは公開しない。
+    window.__vesselboundDebugState=G;
     _giveDebugGolem();
     G.gold=100000;
     const dbg=document.getElementById('btn-debug-kill');
@@ -1201,6 +1246,7 @@ function startGame(debugMode,onlineMode){
     requestAnimationFrame(_positionDebugKillButton);
     requestAnimationFrame(()=>{ _positionDebugMuteButton(); _positionDebugFormationButton(); });
   } else {
+    window.__vesselboundDebugState=null;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='none';
     const muteBtn=document.getElementById('battle-mute-btn');
@@ -1353,7 +1399,7 @@ function debugKillAll(){
   if(!G._debugMode||G.phase!=='player') return;
   const alive=G.enemies.filter(e=>e&&e.hp>0);
   if(!alive.length) return;
-  alive.forEach((e,_)=>{ e.hp=0; processEnemyDeath(e,G.enemies.indexOf(e)); });
+  alive.forEach(e=>{ e.hp=0; processEnemyDeath(e,G.enemies.indexOf(e)); });
   log('[DEBUG] 全敵を撃破','sys');
   if(G.enemies.filter(e=>e&&e.hp>0).length===0) _onAllEnemiesDefeated();
 }
@@ -1365,6 +1411,11 @@ function gameOver(options){
   const opt=options||{};
   const isClear=opt.clear===true;
   const isDebugGameOver=!!G._debugGameOver;
+  document.body.classList.remove('debug-mode');
+  ['btn-debug-gameover','btn-test-battle'].forEach(debugId=>{
+    const debugEl=document.getElementById(debugId);
+    if(debugEl) debugEl.style.display='none';
+  });
   let beginVideoFade=null;
   // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
   if(!isLibraryTestBattle&&!isDebugGameOver&&!isClear){
@@ -1627,7 +1678,11 @@ function continueAfterBattleVictory(){
 }
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
+  ['btn-debug-gameover','btn-test-battle'].forEach(debugId=>{
+    const debugEl=document.getElementById(debugId);
+    if(debugEl) debugEl.style.display='none';
+  });
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
   // ここでの味方生存チェックは常にtrueとなり誤って早期returnしてしまう。勝利可否は呼び出し元で判定済み。
   // 「You Win」表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる
@@ -1680,7 +1735,7 @@ function _wireTitleSelectBack(){
     if(!title||!title.classList.contains('startup-menu-hover-ready')) return;
     back.style.top=`${btn.offsetTop+12}px`;
   };
-  const items=menu.querySelectorAll('.title-menu-item,#title-debug-button');
+  const items=menu.querySelectorAll('.title-menu-item');
   items.forEach(btn=>btn.addEventListener('pointerenter',()=>move(btn)));
   if(items[0]) back.style.top=`${items[0].offsetTop+12}px`;
   if(title&&title.dataset.titleHoverGateWired!=='1'){
@@ -1689,7 +1744,7 @@ function _wireTitleSelectBack(){
       if(!title.classList.contains('startup-menu-ready')) return;
       title.classList.add('startup-menu-hover-ready');
       const hovered=document.elementFromPoint(e.clientX,e.clientY);
-      const item=hovered&&hovered.closest?hovered.closest('.title-menu-item,#title-debug-button'):null;
+      const item=hovered&&hovered.closest?hovered.closest('.title-menu-item'):null;
       if(item&&menu.contains(item)) move(item);
     },{passive:true});
   }
@@ -1711,6 +1766,11 @@ function _revealTitleMenu(){
   const title=document.getElementById('scr-title');
   if(!title) return;
   title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible');
+  // TAPのpointerdownでメニューを表示した直後、同じ入力のpointerup/clickが
+  // 表示途中のオンライン項目へ流れると、デバッグ入口を押したつもりでも
+  // オンライン待機へ遷移する。CSSのpointer-eventsだけではブラウザ実機の
+  // 合成入力を完全に止められないため、次のclickを時間で明示的に捨てる。
+  _titleMenuClickBlockedUntil=performance.now()+900;
   // TAP TO STARTの同じ入力が、表示直後の先頭メニューへ誤って届かないよう短時間だけ入力を止める。
   title.classList.add('startup-menu-input-locked');
   window.setTimeout(()=>title.classList.remove('startup-menu-input-locked'),700);
@@ -1722,6 +1782,13 @@ function _revealTitleMenu(){
   window.setTimeout(()=>loading&&loading.classList.remove('active'),800);
   window.removeEventListener('pointerdown',_skipStartupIntro,true);
 }
+document.addEventListener('click',e=>{
+  if(performance.now()>=_titleMenuClickBlockedUntil) return;
+  const target=e.target&&e.target.closest?e.target.closest('#title-menu'):null;
+  if(!target) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+},true);
 function returnToTapStart(){
   const title=document.getElementById('scr-title');
   if(!title) return;
@@ -1756,6 +1823,9 @@ function _beginStartupIntro(){
   title.classList.add('startup-title');
   _wireTitleSelectBack();
   if(typeof setScreenAssetBackground==='function') setScreenAssetBackground('title','title');
+  // TAP TO STARTの表示待ちではなく、タイトル導入が始まった時点で再生要求を出す。
+  // 自動再生で拒否された場合はaudio.jsの保留要求が最初の操作で再試行する。
+  _startTitleBgm();
   window.addEventListener('pointerdown',_skipStartupIntro,true);
   _startupIntroTimerIds.push(setTimeout(()=>{
     title.classList.add('active','startup-title-visible');

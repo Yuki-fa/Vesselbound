@@ -479,13 +479,16 @@ function _ensureNecromancerRingDef() {
       name: '不死の指輪',
       kind: 'passive',
       type: 'ring',
-      desc: '味方が全滅した時、「青ゴースト」を3体召喚する。',
+      desc: '常時：前衛の味方が全滅した時、一度だけ「青スケルトン」を3体召喚する。',
       no: 'R017',
       No: 'R017',
       artCode: 'R017',
       ringEffectKey: 'necromancer_ghosts',
     };
     RING_POOL.push(ring);
+  }
+  if (_normCardName(ring.name) === _normCardName('不死の指輪')) {
+    ring.desc = '常時：前衛の味方が全滅した時、一度だけ「青スケルトン」を3体召喚する。';
   }
   if (!ring.ringEffectKey) ring.ringEffectKey = 'necromancer_ghosts';
   return ring;
@@ -569,6 +572,9 @@ async function loadGameData() {
         }
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
+    KW_DESC_MAP['封印']='このキャラクターは攻撃できず、いかなる効果も受けない。味方の死亡数がX以上になると、その数をX減らして解放される。';
+    KW_DESC_MAP['隠密']='このキャラクターは「隠密」を持たない味方がいる限り、敵の攻撃の対象にならない。';
+    ['生贄','狩人','狙撃','強靭','エリート','ボス'].forEach(k => { delete KW_DESC_MAP[k]; delete KW_NO_MAP[k]; });
     if(!KW_DESC_MAP['荷物']) KW_DESC_MAP['荷物']='合体できない。';
 
     // 地域情報シート（任意）：街の名前・街の施設・戦闘（道中）の固有名をシート駆動にする。
@@ -859,7 +865,9 @@ async function loadGameData() {
       if (/根性/.test(ownPassiveDesc)) kws.push('根性');
       if (/強靭\s*\d*/.test(ownPassiveDesc)) kws.push('強靭' + ((ownPassiveDesc.match(/強靭\s*(\d*)/)||[])[1] || '1'));
       if (/狙撃/.test(ownPassiveDesc)) kws.push('狙撃');
-      if (/即死/.test(ownPassiveDesc)) kws.push('即死');
+      // 「確率で即死する」などの効果文はキーワードではない。
+      // 即死キーワードは「封印5　即死」のように単独指定された場合だけ採用する。
+      if (/即死/.test(ownPassiveDesc) && !/確率で即死/.test(ownPassiveDesc)) kws.push('即死');
       if (/(?:^|\n|\s)生贄(?:\s|。|\n|$)/.test(ownPassiveDesc)) kws.push('生贄');
       const seal = ownPassiveDesc.match(/封印\s*(\d+)/);
       if (seal) kws.push('封印' + (seal[1] || '1'));
@@ -885,14 +893,17 @@ async function loadGameData() {
         panel.directionCount = 4;
       }
       if (panel.name === 'ツインデビル') {
-        panel.summonCount = 2;
+        // 初期出撃は本体1体。2体目は「開戦：コピーを1体召喚する」で
+        // coreApplyOpeningEffects が生成するため、配置数へ含めない。
+        panel.summonCount = 1;
         panel.directionCount = 2;
       }
       // マナは色を持たないため、直前に色文字が残っていても無視し、数字（省略時は1）だけを読み取る
       const attackMana = desc.match(/攻撃：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
       if (attackMana) panel.manaOnAttack = parseInt(attackMana[1], 10) || 1;
       const injuryMana = desc.match(/負傷：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
-      if (injuryMana) panel.manaOnInjury = parseInt(injuryMana[1], 10) || 1;
+      if (injuryMana && !/%の確率/.test(desc)) panel.manaOnInjury = parseInt(injuryMana[1], 10) || 1;
+      else delete panel.manaOnInjury;
       const deathMana = desc.match(/死亡：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
       if (deathMana) {
         panel.manaOnDeath = parseInt(deathMana[1], 10) || 1;
@@ -1189,28 +1200,30 @@ async function loadGameData() {
     // 旧試作版の内部カード「複製」は現行シートに存在しないため、報酬・デバッグ一覧から除外する。
     for(let i=PANEL_POOL.length-1;i>=0;i--) if(PANEL_POOL[i]&&PANEL_POOL[i].name==='複製') PANEL_POOL.splice(i,1);
     const _requestedEffectOverrides = {
-      'ノーム': {desc:'終戦：5ゴールドを得る。'},
+      'ノーム': {desc:'終戦：20ゴールドを得る。'},
       'ゴーレム': {desc:'負傷：このキャラクターは+2/+2を得る。'},
       'ドワーフ': {desc:'2マナ毎：ランダムな赤キャラクターは+3/+2を得る。'},
       'ラミア': {desc:'攻撃：このキャラクターは+2/+1を得る。対象が負傷している場合、もう一度繰り返す。'},
       'アラクネ': {desc:'3マナ毎：全ての味方に+2/+2を与えた後、1ダメージを与える。'},
       'ギガンテス': {desc:'負傷：全ての味方はATK+Xを得る。Xは受けたダメージに等しい。'},
-      'フォルモール': {desc:'負傷：このキャラクターは強靭1を得る。'},
+      'フォルモール': {desc:'負傷：ランダムな赤、青、緑キャラクター1体ずつは+2/+2を得る。'},
       'タイタン': {desc:'開戦：全ての敵に弱体1を与える。'},
       'センチネル': {desc:'攻撃：「赤センチネル」以外のランダムな味方はHP+Xを得る。XはこのキャラクターのHPに等しい。'},
-      'スケルトン': {desc:'（他の効果で召喚される「青スケルトン」も同じ強化を得る）'},
+      'ハーピー': {desc:'衝撃3', keywords:['衝撃3']},
+      'ヘカトンケイル': {desc:'負傷：10%の確率で1マナを得る。'},
+      'マミー': {desc:'死亡：10ゴールドを得る。'},
+      'スケルトン': {desc:''},
       'バンシー': {desc:'死亡：ランダムな敵にXダメージを与える。XはこのキャラクターのATKに等しい。'},
       'レイス': {desc:'死亡：ランダムな味方の負傷効果を発動する。'},
-      'ノスフェラトゥ': {desc:'隠密', keywords:['隠密']},
       'スケルトンキング': {desc:'攻撃：「青スケルトン」を召喚し、代わりに攻撃させる。'},
       'ゴースト': {desc:'死亡：ランダムな青キャラクターは+2/+1を得る。'},
       'ファントム': {desc:'死亡：「青シャドウ」を3体召喚する。'},
-      'レムレース': {desc:'死亡：このキャラクターを倒したキャラクターが報酬に出現する。'},
+      'レムレース': {desc:'死亡：「青レムレース」以外の、この戦闘で死亡したランダムなキャラクターをATKとHPを半分にして召喚する。'},
       'デスナイト': {desc:'死亡：「青スケルトン」を召喚する。'},
       'ボーンチャリオット': {desc:'死亡：ランダムな味方に「死亡：「青スケルトン」を召喚する。」を付与する。'},
       'リッチ': {desc:'常時：味方が召喚された時、「青シャドウ」を1体召喚する。'},
       'ダイアウルフ': {desc:'3マナ毎：「緑ウルフ」を召喚する。'},
-      'スリン': {desc:'攻撃：1マナを得る。'},
+      'スリン': {desc:'毒牙3　邪眼3', keywords:['毒牙3','邪眼3']},
       'ミテーラ': {desc:'開戦：「緑ペリカン」を3体召喚する。'},
       'ユミル': {desc:'攻撃：+X/+Xを得る。Xはマナに等しい。'},
       'マーメイド': {desc:'常時：緑のキャラクターから得るマナは+1される。'},
@@ -1226,16 +1239,35 @@ async function loadGameData() {
       'ケットシー': {desc:'負傷：「黄ナイトキャット」を召喚する。'},
       'カーバンクル': {desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
       'エレメンタル': {desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
-      'インプ': {desc:'攻撃：全ての生贄を持つキャラクターからATKを1奪う。'},
-      'ベヒーモス': {desc:'解放：マナを2倍にする。', keywords:['封印3']},
+      'ウォーグ': {desc:'常時：味方が7体以上になるたび、すべての味方は+5/+5を得る。', keywords:['先制']},
+      'ワーム': {desc:'攻撃：対象の両隣に「黒ナイト」を召喚する。', keywords:['三方向攻撃']},
+      'ワイバーン': {desc:'常時：このキャラクターがATKを得るたび、ランダムな敵に2ダメージを与える。'},
+      'バジリスク': {desc:'常時：このキャラクターからダメージを受けた敵は、1%の確率で即死する。'},
+      'ジャック・オ・ランタン': {desc:'開戦：全ての味方は+X/+Xを得る。Xは失っているライフの5倍に等しい。'},
+      'メリュジーヌ': {desc:'攻撃：全ての敵の毒を2倍にする。'},
+      'リアナンシー': {desc:'攻撃：ランダムな異なる色の味方1体ずつは+2/+2を得る。'},
+      'ニンフ': {desc:'開戦：Xマナを得る。Xは味方の色の数に等しい。'},
+      'シャナ': {desc:'常時：キャラクターがダメージを受けるたび、このキャラクターは+1/+1を得る。'},
+      'シルフ': {desc:'攻撃：1マナを得る。'},
+      'ウンディーネ': {desc:'3マナ毎：全ての敵に弱体1を与える。'},
+      'フロスト・スプライト': {desc:'常時：味方の攻撃効果が発動するたび、ランダムな敵3体に1ダメージを与える。'},
+      'グリマルキン': {desc:'常時：味方が結界を失うたび、このキャラクターは+3/+2を得る。', keywords:['加護1']},
+      'ペガサス': {desc:'攻撃：ランダムな味方のマナ効果を発動する。'},
+      'ピクシー': {desc:'攻撃：ランダムな敵を操り、代わりに攻撃させる。'},
+      'スプリガン': {desc:'4マナ毎：ランダムな味方は結界1を得る。'},
+      'インプ': {desc:'攻撃：全てのキャラクターからATKを1奪う。'},
       'エルフ': {desc:'結界1\n負傷：結界1を得る。', keywords:['結界1']},
-      'カオス・インプ': {desc:'負傷：全ての生贄を持つキャラクターはHP+1を得る。'},
-      'ナイトメア': {desc:'5マナ毎：ランダムな敵に生贄を付与する。'},
-      'ファナティック': {desc:'生贄', keywords:['生贄']},
+      'カオス・インプ': {desc:'常時：味方が解放された時、ランダムな味方の開戦効果を発動する。'},
+      'ナイトメア': {desc:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。'},
+      'ファナティック': {desc:'常時：味方が解放された時、このキャラクターは+X/+Xと結界を得る。Xは血に等しい。'},
     };
     Object.entries(_requestedEffectOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        const forceEffectOverride = ['コカトリス','スキュラ','レプラコーン'].includes(name);
+        const forceEffectOverride = ['コカトリス','スキュラ','レプラコーン',
+          'ノーム','ハーピー','フォルモール','ヘカトンケイル','マミー','スケルトン','レムレース','スリン',
+          'ウォーグ','ワーム','ワイバーン','バジリスク','ジャック・オ・ランタン','メリュジーヌ','リアナンシー',
+          'ニンフ','シャナ','シルフ','ウンディーネ','フロスト・スプライト','グリマルキン','ペガサス','ピクシー',
+          'スプリガン','インプ','カオス・インプ','ナイトメア','ファナティック'].includes(name);
         if (panel._sheetDescLoaded && !forceEffectOverride) return;
         panel.desc = _stripOwnNameFromDesc(cfg.desc, panel.name);
         panel._sheetSeen = true;
@@ -1244,22 +1276,54 @@ async function loadGameData() {
         if (cfg.keywords) panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
       });
     });
+    const _requestedCardUpdates = {
+      'E046': { name: '攻防一体', desc: '常時：このキャラクターのATKは常にHPに等しい。' },
+      'E047': { desc: '常時：このキャラクターの攻撃、及び効果ダメージは前衛か後衛かに関わらず最もHPの低い敵を対象にする。' },
+      'E057': { desc: '封印9　解放：このキャラクターは+20/+20を得る。', adjacentKeywords: ['封印9'] },
+      'C013': { desc: '負傷：ランダムな赤、青、緑キャラクター1体ずつは+2/+2を得る。' },
+      'C060': { desc: '解放：マナを2倍にする。', keywords: ['封印10'] },
+      'C081': { desc: '攻撃：全てのキャラクターからATKを1奪う。' },
+      'C082': { desc: '解放：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続しているエンチャントの数だけ繰り返す。', keywords: ['封印12'] },
+      'C085': { desc: '開戦：ランダムな黄、緑、紫キャラクター1体ずつは+5/+5を得る。' },
+      'C089': { desc: '攻撃：血が5以上なら2マナ得る。' },
+      'C091': { desc: '攻撃：このキャラクターは+X/+Xを得る。Xは血に等しい。' },
+      'C094': { desc: '常時：味方が解放された時、ランダムな味方の開戦効果を発動する。' },
+      'C096': { desc: '死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。' },
+      'C100': { desc: '常時：味方が解放された時、このキャラクターは+X/+Xと結界を得る。Xは血に等しい。' },
+    };
+    Object.entries(_requestedCardUpdates).forEach(([code, cfg]) => {
+      const hit = _filterBySheetCode(PANEL_POOL, code).concat(_filterBySheetCode(PANEL_POOL, code.slice(0, 1) + String(parseInt(code.slice(1), 10)).padStart(3, '0')));
+      [...new Set(hit)].forEach(panel => {
+        if (!panel) return;
+        if (cfg.name) panel.name = cfg.name;
+        if (cfg.desc != null) panel.desc = cfg.desc;
+        if (cfg.keywords) panel.keywords = cfg.keywords.slice();
+        if (cfg.adjacentKeywords) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
+        if (code === 'C089') delete panel.manaOnAttack;
+        if (panel.category === 'キャラクター') _setPanelKeywordsFromDesc(panel);
+        else _setEnchantFieldsFromDesc(panel);
+        if (cfg.keywords) panel.keywords = cfg.keywords.slice();
+        if (cfg.adjacentKeywords) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
+      });
+    });
+    const strongRing = (RING_POOL || []).find(r => r && r.name === '強靭の指輪');
+    if (strongRing) strongRing.desc = '開戦：全ての味方は「負傷：全ての味方はHP+1を得る。」を得る。';
     const _summonOnlyOverrides = {
-      'シャドウ': {desc:'（他の効果で召喚される「青シャドウ」も同じ強化を得る）', keywords:[]},
-      'ウルフ': {desc:'（他の効果で召喚される「緑ウルフ」も同じ強化を得る）', keywords:[]},
-      'ペリカン': {desc:'（他の効果で召喚される「緑ペリカン」も同じ強化を得る）', keywords:[]},
-      'ドラゴン': {desc:'全体攻撃\n（他の効果で召喚される「緑ドラゴン」も同じ強化を得る）', keywords:['全体攻撃']},
-      'ナイトキャット': {desc:'結界1\n（他の効果で召喚される「黄ナイトキャット」も同じ強化を得る）', keywords:['結界1']},
-      'イフリート': {desc:'（他の効果で召喚される「赤イフリート」も同じ強化を得る）', keywords:[]},
+      'シャドウ': {desc:'', keywords:[]},
+      'ウルフ': {desc:'', keywords:[]},
+      'ペリカン': {desc:'', keywords:[]},
+      'ドラゴン': {desc:'全体攻撃', keywords:['全体攻撃']},
+      'ナイトキャット': {desc:'結界1', keywords:['結界1']},
+      'イフリート': {desc:'', keywords:[]},
     };
     Object.entries(_summonOnlyOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        if (!panel._sheetDescLoaded) panel.desc = cfg.desc;
+        panel.desc = cfg.desc;
         panel.rarity = -1;
         panel._sheetSeen = true;
         panel._implemented = true;
-        if (!panel._sheetDescLoaded) _setPanelKeywordsFromDesc(panel);
-        if (!panel._sheetKeywordsLoaded) panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
+        _setPanelKeywordsFromDesc(panel);
+        panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
       });
     });
     (PANEL_POOL || []).filter(p => p && p.name === '剣技' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
