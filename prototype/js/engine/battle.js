@@ -2362,11 +2362,21 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 接触まで進める。止める仕組みは _playAttackMotionCore の onImpactPause。
   // **PvEとオンラインで同じ扱いにすること。**
   const _preAttackList=(events||[]).filter(Boolean);
-  const _preAttackIndex=_preAttackList.findIndex(e=>e&&e.type==='attack');
+  // 効果の発生元＝この手番で動いているキャラクター。
+  // **最初のattackを掴んではいけない。** ミノタウロスの「負傷：直ちに攻撃する」のように
+  // 効果の途中で別のキャラクターが割り込んで攻撃することがあり、それを先出しすると
+  // 割り込んだ側が動いている間に、動いていないキャラクターの効果が出てしまう。
+  const _preAttackEffect=_preAttackList.find(e=>e&&e.type!=='attack'
+    &&((e.type==='damage'&&e.sourceId!=null)||(e.type==='stat_change'&&e.sourceId!=null)
+      ||(e.type==='sweep_vfx'&&e.unitId!=null)||(e.type==='summon'&&e.sourceId!=null)));
+  const _preAttackActorId=_preAttackEffect
+    ?String(_preAttackEffect.type==='sweep_vfx'?_preAttackEffect.unitId:_preAttackEffect.sourceId):null;
+  const _preAttackIndex=_preAttackActorId==null?-1
+    :_preAttackList.findIndex(e=>e&&e.type==='attack'&&String(e.attackerId)===_preAttackActorId);
   const _preAttackEvent=_preAttackIndex>=0?_preAttackList[_preAttackIndex]:null;
-  // 攻撃より前に「見せるべき効果」があるときだけ先出しする。
+  // その攻撃より前に、その本人が起こした効果があるときだけ先出しする。
   const _preAttackHasEffects=!!_preAttackEvent&&_preAttackList.slice(0,_preAttackIndex)
-    .some(e=>e&&(e.type==='damage'||e.type==='sweep_vfx'||e.type==='stat_change'||e.type==='summon'));
+    .some(e=>e&&e!==_preAttackEvent&&(e.type==='damage'||e.type==='sweep_vfx'||e.type==='stat_change'||e.type==='summon'));
   let _preAttackMotion=null,_releasePreAttackStop=null;
   if(_preAttackEvent&&_preAttackHasEffects&&typeof playAttackMotion==='function'){
     const _side=_preAttackEvent.side==='p2'?'p2':'p1';

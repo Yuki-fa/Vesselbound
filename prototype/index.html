@@ -5829,6 +5829,20 @@ html body #rw-cards.drag-over{
    ID指定を含むぶん詳細度が高く、`html body .slot.motion-hidden` では負けるため、
    **敵の攻撃モーション中は実カードが一度も隠れていなかった**（＝飛んでいる複製と
    元位置のカードが常に二重に見える）。ここも同じ強さのID指定で書く。 */
+/* デバッグの編成・マップボタンは戦闘中に出さない。
+   戦闘の途中で編成画面へ入ると、盤面の状態（コアと表示の対応）が壊れる。
+   開戦演出中も同じ扱いにする。 */
+body.battle-turn-active #battle-formation-btn,
+body.battle-turn-active #battle-debug-map-btn,
+#scr-battle.battle-opening-pending #battle-formation-btn,
+#scr-battle.battle-opening-pending #battle-debug-map-btn,
+#scr-battle.battle-opening-active #battle-formation-btn,
+#scr-battle.battle-opening-active #battle-debug-map-btn,
+#scr-battle.battle-start-playing #battle-formation-btn,
+#scr-battle.battle-start-playing #battle-debug-map-btn{
+  display:none!important;
+  pointer-events:none!important;
+}
 html body #f-ally .slot.motion-hidden,
 html body #f-enemy .slot.motion-hidden,
 html body .slot.motion-hidden{
@@ -13781,7 +13795,7 @@ window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
 <script src="assets.js?v=kwVfxRenum01"></script>
-<script src="js/engine/audio.js?v=sfxVoice01"></script>
+<script src="js/engine/audio.js?v=sirenSelf01"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -13790,9 +13804,9 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=keywordFix02"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-<script src="js/battle/core.js?v=sfxVoice01"></script>
+<script src="js/battle/core.js?v=sirenSelf01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-<script src="js/battle/present.js?v=sfxVoice01"></script>
+<script src="js/battle/present.js?v=sirenSelf01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
@@ -13800,15 +13814,15 @@ fitVesselboundViewport();
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=tempoAlign01"></script>
 <script src="js/online/matching.js?v=online15"></script>
-<script src="js/online/board.js?v=sfxVoice01"></script>
+<script src="js/online/board.js?v=sirenSelf01"></script>
 <script src="js/online/versus.js?v=tripleMerged01"></script>
 <script src="js/online/flow.js?v=online16"></script>
 <script src="js/online/hud.js?v=core7"></script>
 <script src="js/engine/state.js?v=cleanup159"></script>
 <script src="js/engine/pool.js?v=cleanup159"></script>
 <script src="js/engine/enemy.js?v=count5"></script>
-<script src="js/engine/battle.js?v=sfxVoice01"></script>
-<script src="js/engine/render.js?v=sfxVoice01"></script>
+<script src="js/engine/battle.js?v=sirenSelf01"></script>
+<script src="js/engine/render.js?v=sirenSelf01"></script>
 <script src="js/engine/reward.js?v=ringTags01"></script>
 <script src="js/engine/map.js?v=online6"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>

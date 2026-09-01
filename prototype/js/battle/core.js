@@ -1645,7 +1645,10 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
   const allDamage = desc.match(/^攻撃：全てのキャラクターに(\d+)ダメージを与える。/);
   if (coreHasEffect(unit, 'サイレン') || allDamage) {
     const amount = Math.max(1, Number(allDamage && allDamage[1]) || 1);
-    [...allies, ...foes].filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, amount));
+    // 「全てのキャラクター」に**自分自身は含めない**。
+    // 含めると、攻撃するたびに自分を削って想定より早く倒れる（サイレン）。
+    [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x))
+      .forEach(x => applyHit(unit, x, amount));
   }
   const enemyDamage = attackText.match(/全ての敵に(\d+)ダメージ/);
   if (enemyDamage && !coreHasEffect(unit, 'サイレン')) {

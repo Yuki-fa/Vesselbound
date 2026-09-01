@@ -621,6 +621,15 @@ function main() {
     'PvEが攻撃効果を攻撃モーションより先に出したままになっている');
   assert.match(read('js/online/board.js'), /_preAttack = _startAttackMotion\(atkEv, ctx, true\)/,
     'オンラインが攻撃効果を攻撃モーションより先に出したままになっている');
+  // 先出しモーションは「効果を起こした本人」の攻撃を掴む。最初のattackを掴むと、
+  // ミノタウロスの割り込み攻撃を先出ししてしまう。
+  assert.match(currentBattle, /const _preAttackActorId=/,
+    'PvEの先出しモーションが効果の発生元を見ていない');
+  assert.match(read('js/online/board.js'), /if \(actorId != null && String\(n\.attackerId\) === actorId\)/,
+    'オンラインの先出しモーションが効果の発生元を見ていない');
+  // 「全てのキャラクター」に自分自身は含めない。
+  assert.match(read('js/battle/core.js'), /\[\.\.\.allies, \.\.\.foes\]\.filter\(x => x !== unit && x\.hp > 0/,
+    '全体ダメージが自分自身も対象にしている');
   // 解放演出はコア駆動でも必ず出す（_resolveSeals は通らない）。
   assert.match(currentBattle, /if\(e\.type==='seal_release'\)\{/,
     'PvEが封印の解放演出を出していない');

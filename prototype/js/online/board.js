@@ -353,15 +353,27 @@
         // （アラッサスの薙ぎ払い、サイレンの全体ダメージ）。
         const evs = (ctx && ctx.events) || [];
         const from = Number(ctx && ctx.eventIndex);
-        let atkEv = null, hasEffects = false;
+        // 効果の発生元＝この手番で動いているキャラクター。
+        // **最初のATTACKを掴んではいけない。** ミノタウロスの「負傷：直ちに攻撃する」の
+        // ように効果の途中で別のキャラクターが割り込んで攻撃することがあり、それを
+        // 先出しすると、動いていないキャラクターの効果が割り込み側の動きの上に出る。
+        let atkEv = null, hasEffects = false, actorId = null;
         if (Number.isInteger(from)) {
           for (let i = from + 1; i < evs.length; i++) {
             const n = evs[i];
             if (!n) continue;
             if (n.type === ONLINE_EVENT.TURN_BEGIN || n.type === ONLINE_EVENT.BATTLE_END) break;
-            if (n.type === ONLINE_EVENT.ATTACK) { atkEv = n; break; }
+            if (n.type === ONLINE_EVENT.ATTACK) {
+              if (actorId != null && String(n.attackerId) === actorId) { atkEv = n; break; }
+              continue;
+            }
+            const src = n.type === 'sweep_vfx' ? n.unitId : n.sourceId;
+            if (src == null) continue;
             if (n.type === ONLINE_EVENT.DAMAGE || n.type === 'sweep_vfx'
-              || n.type === 'stat_change' || n.type === 'summon') hasEffects = true;
+              || n.type === 'stat_change' || n.type === 'summon') {
+              if (actorId == null) actorId = String(src);
+              if (String(src) === actorId) hasEffects = true;
+            }
           }
         }
         if (atkEv && hasEffects) _preAttack = _startAttackMotion(atkEv, ctx, true);
