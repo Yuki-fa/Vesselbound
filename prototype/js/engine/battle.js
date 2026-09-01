@@ -2055,10 +2055,6 @@ function beginBattleMotion(){
 
 function endBattleMotion(){
   G._battleMotionDepth=Math.max(0,(G._battleMotionDepth||0)-1);
-  // 演出の再生中はここで詰めない。詰めると倒れた体が配列から消え、そのあとに続く
-  // ダメージイベントが「対象が見つからない」で読み飛ばされる（＝とどめの数値が出ない）。
-  // 保留したままにして、再生が終わってからまとめて詰める。
-  if(typeof presentIsPlaying==='function'&&presentIsPlaying()) return;
   if(!G._battleMotionDepth&&G._pendingBattleCompact){
     _recordBattleTrace('battle_compact_flush_after_motion',{reason:'motion_end'});
     G._pendingBattleCompact=false;
@@ -2440,9 +2436,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       dead._deathFxReady=true;
       if(e.side==='p1') await processAllyDeath(dead);
       else await processEnemyDeath(dead,(state.units.p2||[]).indexOf(dead));
-      // 死亡は「数値を出し終えた後」なので、再生中でも詰めてよい（オンラインと同じ）。
-      // ここで詰めないと、倒れたカードが再生の終わりまで残り続ける。
-      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
+      // 数値を出し終えているので詰めてよいが、**攻撃モーションの完了は待つ**。
+      // 飛行中に盤面を詰めると、複製の戻り先が動いて元のカードが二重に見える。
+      // 保留分は endBattleMotion() がモーション終了時に流す。
+      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
       continue;
     }
     if(_isPlayableAttack){

@@ -438,6 +438,12 @@ function main() {
     // 死亡演出に入るまでは暗くしない。暗くすると「死体が場に残る」ように見える。
     assert.match(read('js/engine/render.js'), /if\(u\.hp<=0&&!_pendingDeath\) slot\.classList\.add\('dead-unit'\);/,
       '数値を出し切る間の体まで暗くしている');
+    // 攻撃モーション中は実スロットを必ず隠す。敵スロットには
+    // `body #f-enemy .slot{visibility:visible!important}` が当たっており、
+    // ID指定を含まない motion-hidden の指定では詳細度で負ける。
+    assert.match(read('index.html'),
+      /html body #f-ally \.slot\.motion-hidden,\s*\n\s*html body #f-enemy \.slot\.motion-hidden,/,
+      '攻撃モーション中の非表示指定が敵スロットの visible!important に負ける');
     // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
     assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
       '薙ぎ払いの共通実装が render.js に無い');
@@ -751,12 +757,16 @@ function main() {
   assert.doesNotMatch(board, /\blist\.push\(summoned\)/,
     'オンライン召喚がスロット配列の末尾へpushしている');
   // 召喚は「その場で姿が出る」演出。保留すると次の死亡まで画面に出ない。
-  assert.match(board, /layoutChanged&&typeof requestBattleCompact==='function'\) requestBattleCompact\(\{forceRender:true,forceDuringMotion:true\}\)/,
-    'オンライン召喚後にFLIP詰め処理を実行していない');
-  // 死亡は「数値を出し終えた後」なので、再生中でも詰めてよい（forceDuringMotion）。
-  // 逆にイベントごとに詰めてはいけない。出したばかりの数値が行き場を失う。
-  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]*requestBattleCompact\(\{forceRender:true,forceDuringMotion:true\}\)/,
+  // ただし常に割り込むと、飛行中の複製の戻り先が動いてカードが二重に見える。
+  // DOMがまだ無い召喚体のときだけ割り込む（PvEと同じ規則）。
+  assert.match(board, /_summonHasDom\?\{forceRender:true\}:\{forceRender:true,forceDuringMotion:true\}/,
+    'オンライン召喚後のFLIP詰め処理がPvEと同じ規則になっていない');
+  // 死亡の詰めは攻撃モーションの完了を待つ（飛行中に詰めると戻り先が動く）。
+  // イベントごとに詰めてもいけない。出したばかりの数値が行き場を失う。
+  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]*requestBattleCompact\(\{forceRender:true\}\)/,
     'オンライン死亡後にFLIP詰め処理を実行していない');
+  assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
+    'モーション終了時の保留分を再生中に流せないままになっている');
   assert.match(board, /case 'mana_threshold':[\s\S]*await _awaitManaReverseStart\(source, ev\.side === 'p2'\)/,
     'オンラインのマナ閾値効果がVFX逆再生開始を待っていない');
   assert.match(board, /async function _awaitManaReverseStart\(unit, isEnemy\)/,

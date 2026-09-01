@@ -96,7 +96,7 @@ const SCENARIOS = [
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [] };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [] };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -144,6 +144,24 @@ const WATCHER = `
     const ids = f => [...document.querySelectorAll('#' + f + ' .slot[data-unit-id]')]
       .map(s => ({ x: s.getBoundingClientRect().left, id: s.dataset.unitId }))
       .sort((a, b) => a.x - b.x).map(o => o.id).join(',');
+    // 「攻撃時に元のカードが残る／戻る位置がずれる」の検出。
+    // 攻撃モーションは複製カードを飛ばし、実スロットは隠す約束になっている。
+    // 複製が生きている間に実スロットも見えていたら、カードが二重に見えている。
+    document.querySelectorAll('.attack-motion-clone[data-unit-id]').forEach(clone => {
+      const id = clone.dataset.unitId;
+      const cr = clone.getBoundingClientRect();
+      if (!(cr.width > 0)) return;
+      [...document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id]')]
+        .filter(s2 => s2.dataset.unitId === id)
+        .forEach(s2 => {
+          const st = getComputedStyle(s2);
+          if (st.visibility === 'hidden' || st.display === 'none' || Number(st.opacity) === 0) return;
+          const r = s2.getBoundingClientRect();
+          if (!(r.width > 0)) return;
+          const key = id + '（実スロットが見えたまま複製が飛んでいる）';
+          if (!window.__watch.overlap.includes(key)) window.__watch.overlap.push(key);
+        });
+    });
     const line = ids('f-ally') + ' / ' + ids('f-enemy');
     if (window.__watch.board[window.__watch.board.length - 1] !== line) window.__watch.board.push(line);
     requestAnimationFrame(w);
@@ -156,6 +174,7 @@ const COLLECT = `
     vfx: window.__watch.vfx.slice().sort(),
     calls: window.__watch.calls.slice(),
     board: window.__watch.board.slice(),
+    overlap: window.__watch.overlap.slice(),
     onCard: window.__watch.onCard.length,
     // 一度でもカードの上に出た数値は、対象が消えた後の残り姿を数えない。
     offCard: window.__watch.offCard.filter(k => !window.__watch.onCard.includes(k)),
@@ -235,7 +254,7 @@ const pveScript = sc => `
       new Promise(r => setTimeout(() => r(0), 90000)),
     ]);
   } catch (e) { window.__watching = false; return { エラー: String(e && e.message || e) }; }
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 1200));
   window.__watching = false;
   window.__coreEvents = G._battleCoreEvents || [];
   return (${COLLECT});
@@ -278,7 +297,7 @@ const onlineScript = sc => `
       new Promise(r => setTimeout(() => r(0), 90000)),
     ]);
   } finally {
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 1200));
   }
   window.__watching = false;
   window.__coreEvents = out.events || [];
@@ -364,6 +383,9 @@ const onlineScript = sc => `
       check(`${tag}数値がカード外に出ない`,
         (pve.offCard || []).length === 0 && (online.offCard || []).length === 0,
         `PvE=${(pve.offCard || []).join(' / ') || 'なし'} オンライン=${(online.offCard || []).join(' / ') || 'なし'}`);
+      check(`${tag}攻撃中に元のカードが残らない`,
+        (pve.overlap || []).length === 0 && (online.overlap || []).length === 0,
+        `PvE=${(pve.overlap || []).join(' / ') || 'なし'} オンライン=${(online.overlap || []).join(' / ') || 'なし'}`);
       check(`${tag}カードの複製が残らない`,
         pve.leftovers.attackClone === 0 && pve.leftovers.motionHidden === 0
         && online.leftovers.attackClone === 0 && online.leftovers.motionHidden === 0,

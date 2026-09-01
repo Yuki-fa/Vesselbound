@@ -585,9 +585,13 @@
         if (ev.sourceId && typeof log === 'function') log(`${_effectSourceName(ev, ctx)}の効果で${ev.unit.name || 'ユニット'}を召喚。`, ev.side === 'p1' ? 'good' : 'bad');
         // 人数変化はPvEと同じ共通FLIP経路へ通す。単純なrenderField()では
         // 新しい中央寄せ位置へ瞬間移動し、オンラインだけ詰め移動が失われる。
-        // 召喚は「その場で姿が出る」演出なので、再生中でも即座に反映する
-        // （保留すると、次に死亡イベントが来るまで召喚体が画面に現れない）。
-        if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
+        // 召喚体にまだDOMが無い場合だけ、攻撃モーション中でも描画を進める（PvEと同じ規則）。
+        // 保留したままだと、次に死亡イベントが来るまで召喚体が画面に現れない。
+        // 逆に常に割り込むと、飛行中の複製の戻り先が動いてカードが二重に見える。
+        const _summonHasDom = !!(ev.unit && ev.unit.id != null && document.querySelector(
+          `#${ev.side === 'p2' ? 'f-enemy' : 'f-ally'} .slot[data-unit-id="${String(ev.unit.id).replace(/"/g, '\\"')}"]`));
+        if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact(
+          _summonHasDom?{forceRender:true}:{forceRender:true,forceDuringMotion:true});
         else _render();
         break;
       }
@@ -712,9 +716,9 @@
 
         // 死亡で人数が変わった場合も、単純再描画ではなくPvEと同じ
         // compactBattleUnits + FLIP経路を通して残存キャラを詰める。
-        // ここは「数値を出し終えた後」なので、再生中でも詰めてよい。
-        // 逆に、イベントごとに詰めてはいけない（出したばかりの数値が行き場を失う）。
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
+        // 数値を出し終えているので詰めてよいが、**攻撃モーションの完了は待つ**。
+        // 飛行中に盤面を詰めると、複製の戻り先が動いて元のカードが二重に見える。
+        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
         else _render();
         break;
       }
