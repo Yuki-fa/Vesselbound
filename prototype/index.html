@@ -3066,10 +3066,14 @@ body #f-enemy .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(
   filter:brightness(.45) saturate(.65)!important;
 }
 /* 封印中はATK/HPの数値も暗くする。祖先のfilterは効いているが、
-   数値は白文字＋黒縁＋強い影のため、それだけでは明るいままに見える。 */
+   数値は白文字＋黒縁＋強い影のため、それだけでは明るいままに見える。
+   **ただし読めなくしてはいけない。** 祖先の brightness(.45) に opacity:.5 を
+   重ねると実効2割程度になり、暗いカードの上では数値が消えて見えた。
+   暗くするのは祖先のfilterに任せ、ここではわずかに落とすだけにする。 */
 body #f-ally .slot.unit-card.sealed-unit .slot-stats,
 body #f-enemy .slot.unit-card.sealed-unit .slot-stats{
-  opacity:.5!important;
+  opacity:.92!important;
+  filter:brightness(1.9)!important;
 }
 body .slot.unit-card:hover::before,
 body .slot.unit-card.selected::before{
@@ -13795,7 +13799,7 @@ window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
 <script src="assets.js?v=kwVfxRenum01"></script>
-<script src="js/engine/audio.js?v=sirenSelf01"></script>
+<script src="js/engine/audio.js?v=shownStats01"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -13804,9 +13808,9 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=keywordFix02"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-<script src="js/battle/core.js?v=sirenSelf01"></script>
+<script src="js/battle/core.js?v=shownStats01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-<script src="js/battle/present.js?v=sirenSelf01"></script>
+<script src="js/battle/present.js?v=shownStats01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
@@ -13814,15 +13818,15 @@ fitVesselboundViewport();
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=tempoAlign01"></script>
 <script src="js/online/matching.js?v=online15"></script>
-<script src="js/online/board.js?v=sirenSelf01"></script>
+<script src="js/online/board.js?v=shownStats01"></script>
 <script src="js/online/versus.js?v=tripleMerged01"></script>
 <script src="js/online/flow.js?v=online16"></script>
 <script src="js/online/hud.js?v=core7"></script>
 <script src="js/engine/state.js?v=cleanup159"></script>
 <script src="js/engine/pool.js?v=cleanup159"></script>
 <script src="js/engine/enemy.js?v=count5"></script>
-<script src="js/engine/battle.js?v=sirenSelf01"></script>
-<script src="js/engine/render.js?v=sirenSelf01"></script>
+<script src="js/engine/battle.js?v=shownStats01"></script>
+<script src="js/engine/render.js?v=shownStats01"></script>
 <script src="js/engine/reward.js?v=ringTags01"></script>
 <script src="js/engine/map.js?v=online6"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>

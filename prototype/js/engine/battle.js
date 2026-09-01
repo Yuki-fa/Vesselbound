@@ -1824,12 +1824,21 @@ async function battlePhase(){
       // 死亡した体が「空きスロット（7枠等間隔）」へ描き直され、そのあとに出る
       // ダメージ数値や個別VFXが何もない場所へ出てしまう。
       presentBeginPlayback();
+      // 画面に出すATK/HPは「この手番が始まる前」の値で据え置く。
+      // コアは1手番ぶんを先に解決するため、据え置かないと数値・VFXが出る前に
+      // HP/ATKだけが変わって見える。進めるのは演出を出す瞬間（_flushCorePveHitEvents）。
+      const _shownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
+        .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1]);
       let stepped=false;
       try{
         try{ stop=runner.step({deferCompact:true}); stepped=true; }
         catch(e){ console.error('[coreBattleStep]',e); }
         // この手番で出たぶんだけを再生する。
-        if(stepped) await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
+        if(stepped){
+          _shownBefore.forEach(([u,atk,hp,maxHp])=>presentHoldShown(u,atk,hp,maxHp));
+          try{ await _flushCorePveHitEvents(state,events.slice(from),beforeUnits); }
+          finally{ _shownBefore.forEach(([u])=>presentReleaseShown(u)); }
+        }
       } finally {
         presentEndPlayback();
       }
@@ -2418,7 +2427,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     // 見せ方は presentSweepAttack() が唯一の実装（オンラインと同じ）。
     await presentSweepAttack(source,e.side==='p2',targets,
       target=>damageEventByTarget.get(`${targetSide}:${target.id}`),
-      (target,ev)=>{ if(ev) sweepShownEvents.add(ev); });
+      (target,ev)=>{
+        if(ev) sweepShownEvents.add(ev);
+        if(ev&&typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:ev.hpAfter});
+      });
   }
   const effectDamageSources=new Set();
   // stat_change は対象ごとに生成されるが、カード効果の固有SEは効果1回につき
@@ -2633,6 +2645,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(target){
         if(e.unit) Object.assign(target,e.unit);
         else _setBattleUnitForm(target,e.name,e.atk,e.maxHp,target.color);
+        // 変身はその場で姿と数値が入れ替わる演出。据え置いた表示値もここで進める。
+        if(typeof presentAdvanceShown==='function'){
+          presentAdvanceShown(target,{atk:target.atk,hp:target.hp,maxHp:target.maxHp});
+        }
         if(typeof renderAll==='function') renderAll();
       }
       continue;
@@ -2665,6 +2681,16 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         ?findLiveUnit('p1',e.sourceId,findUnit('p1',e.sourceId))||findLiveUnit('p2',e.sourceId,findUnit('p2',e.sourceId))
         :null;
       const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
+      // 進め方はオンラインの stat_change 受け口と同じ（hpの増減はmaxHpにも効く）。
+      if(target&&typeof presentAdvanceShown==='function'){
+        presentAdvanceShown(target,{
+          atk:Math.max(0,presentShownAtk(target)+(Number(e.atk)||0)),
+          hp:Math.max(0,presentShownHp(target)+(Number(e.hp)||0)),
+          maxHp:Math.max(1,presentShownMaxHp(target)+(Number(e.hp)||0)),
+        });
+        if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,e.side==='p1'?'ally':'enemy');
+      }
       if(source&&target&&typeof _playCardEffectVfx==='function'){
         const code=_effectPresentationCode(source);
         if(/^C\d{3}$/i.test(code)){
@@ -2815,6 +2841,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const waitMs=damageGate.reserve(`u:${target.id}`);
       if(waitMs>0) await sleep(waitMs);
     }
+    // 数値を出す瞬間に、画面に出すHPもここまで進める。
+    if(typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:e.hpAfter});
     if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,e.side==='p1'?'ally':'enemy');
     const source=e.sourceId?findLiveUnit('p1',e.sourceId,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===e.sourceId))||findLiveUnit('p2',e.sourceId,null):null;
     if(e.effect&&source&&!sweepSources.has(source.id)){

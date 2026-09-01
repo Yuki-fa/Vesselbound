@@ -1504,7 +1504,8 @@ function updateUnitDamageUi(unit,side){
   if(!unit) return;
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
-  const _atkVal=Math.max(0,unit.atk||0), _hpVal=Math.max(0,unit.hp||0);
+  const _atkVal=Math.max(0,typeof presentShownAtk==='function'?presentShownAtk(unit):(unit.atk||0));
+  const _hpVal=Math.max(0,typeof presentShownHp==='function'?presentShownHp(unit):(unit.hp||0));
   // 倒れた瞬間は桁数が減る（例：9999→0）。ここで作り直すと、消える直前に
   // 数字だけ大きくなって目立つので、大きさは据え置く。
   const _keepSize=_hpVal<=0;
@@ -1513,14 +1514,14 @@ function updateUnitDamageUi(unit,side){
   const hpEl=slot.querySelector('.slot-stats .h');
   if(hpEl){
     _setUnitStatText(hpEl,_hpVal,_atkVal,_keepSize);
-    hpEl.classList.toggle('hp-damaged',unit.maxHp!=null&&unit.hp<unit.maxHp);
+    hpEl.classList.toggle('hp-damaged',_hpVal<(typeof presentShownMaxHp==='function'?presentShownMaxHp(unit):Math.max(1,unit.maxHp||unit.hp||1)));
   }
-  const maxHp=Math.max(1,Number(unit.maxHp)||Number(unit.hp)||1);
-  const rate=Math.max(0,Math.min(1,(unit.hp||0)/maxHp));
+  const maxHp=typeof presentShownMaxHp==='function'?presentShownMaxHp(unit):Math.max(1,Number(unit.maxHp)||Number(unit.hp)||1);
+  const rate=Math.max(0,Math.min(1,_hpVal/maxHp));
   const fill=slot.querySelector('.slot-life-fill');
   if(fill) fill.style.width=`${rate*100}%`;
   const bar=slot.querySelector('.slot-life-bar');
-  if(bar) bar.title=`ライフ ${Math.max(0,unit.hp||0)}/${maxHp}`;
+  if(bar) bar.title=`ライフ ${_hpVal}/${maxHp}`;
 }
 // 戦闘中、ATK/HPを変化させる効果が発動するたびに呼び出し、両陣営の生存ユニット全員の
 // 外観の数値（ATK/HP）を即座に更新する（renderAll()のようなカード再構築は行わない軽量版）。
@@ -2694,12 +2695,17 @@ function renderField(id,units,isEnemy,_lane){
         const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
         const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
         if(_preview) slot.setAttribute('data-preview',_preview);
-        const _hpClass=(u.maxHp!=null&&u.hp<u.maxHp)?'h hp-damaged':'h';
+        // 画面に出す値は present.js が唯一の実装。演出の再生中は
+        // 「まだ見せていない変化」を反映しない（数値が出る前にHPが減らない）。
+        const _shownAtk=typeof presentShownAtk==='function'?presentShownAtk(u):(u.atk||0);
+        const _shownHp=typeof presentShownHp==='function'?presentShownHp(u):(u.hp||0);
+        const _shownMaxHp=typeof presentShownMaxHp==='function'?presentShownMaxHp(u):Math.max(1,u.maxHp||u.hp||1);
+        const _hpClass=(_shownHp<_shownMaxHp)?'h hp-damaged':'h';
         // ATK/HPで縮小率が食い違わないよう、桁数の多い方に合わせた同じクラスを両方へ当てる。
-        const _statPairCls=_cardStatPairDigitClass(u.atk,u.hp);
-        const _hpMax=Math.max(1,u.maxHp||u.hp||1);
-        const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,u.hp||0)/_hpMax)*100)));
-        const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,u.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
+        const _statPairCls=_cardStatPairDigitClass(_shownAtk,_shownHp);
+        const _hpMax=_shownMaxHp;
+        const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,_shownHp)/_hpMax)*100)));
+        const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,_shownHp)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
         const raceTag='';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
@@ -2713,9 +2719,9 @@ function renderField(id,units,isEnemy,_lane){
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${u.atk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${u.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         }
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
         const hitLayer=document.createElement('div');

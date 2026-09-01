@@ -367,8 +367,22 @@ function main() {
     'PvEが1手ずつ coreBattleStep() を呼んでいない、または詰め処理を演出前に行っている');
   // 演出フラグは step() の前から立てる。step()でHPが0になった直後に再描画が挟まると、
   // 死亡した体が空きスロットへ描き直され、あとから出る数値・VFXが何もない場所へ出る。
-  assert.match(currentBattle, /presentBeginPlayback\(\);\s*\n\s*let stepped=false;/,
+  assert.match(currentBattle, /presentBeginPlayback\(\);[\s\S]{0,600}?\n\s*let stepped=false;/,
     'step()の前に演出フラグを立てていない（死亡直後の再描画で数値位置がずれる）');
+  // 画面のATK/HPは「まだ見せていない変化」を反映しない。コアは1手番ぶんを先に
+  // 解決するため、据え置かないと数値・VFXより先にHP/ATKだけが変わって見える。
+  assert.match(read('js/battle/present.js'), /function presentShownHp\(unit\)/,
+    '画面に出すHPの規則が present.js に無い');
+  assert.match(read('js/engine/render.js'), /const _shownHp=typeof presentShownHp==='function'/,
+    'カードのHP表示が据え置き値を見ていない');
+  assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp\)/,
+    'PvEが手番の頭で表示値を据え置いていない');
+  assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
+    'PvEが数値を出す瞬間に表示HPを進めていない');
+  // 封印中のATK/HPは暗くしても読めること（filterとopacityの二重掛けで消えていた）。
+  assert.doesNotMatch(read('index.html'),
+    /sealed-unit \.slot-stats,\n[^}]*\n\s*opacity:\.5!important;/,
+    '封印中のATK/HPが読めない濃さになっている');
   assert.match(currentBattle, /if\(typeof runner\.compact==='function'\) runner\.compact\(\);/,
     '演出の後に盤面を詰めていない（コアと配列の並びが食い違う）');
   {

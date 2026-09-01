@@ -107,7 +107,7 @@ const SCENARIOS = [
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [] };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [] };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -159,6 +159,28 @@ const WATCHER = `
       const list = on ? window.__watch.onCard : window.__watch.offCard;
       if (!list.includes(key)) list.push(key);
     });
+    // HPは「数値が出た時」に減ること。コアは1手番ぶんを先に解決するため、
+    // 据え置きを忘れると数値より先にHPだけが減る（実際に起きた）。
+    document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id]').forEach(s2 => {
+      const id = s2.dataset.unitId;
+      const hpEl = s2.querySelector('.slot-stats .h');
+      if (!hpEl) return;
+      const hp = Number(hpEl.textContent);
+      if (!Number.isFinite(hp)) return;
+      const prev = window.__watch.hp[id];
+      window.__watch.hp[id] = hp;
+      if (prev == null || hp >= prev) return;
+      // 変身はその場で数値が入れ替わる演出。決着後の同期も対象外。
+      const last = String(window.__lastEvent || '');
+      if (last.startsWith('transform') || last.startsWith('battle_end')) return;
+      // 減った。その瞬間、そのキャラの上に数値が出ているか。
+      const shown = [...document.querySelectorAll('.damage-label-host')]
+        .some(h => String(h.dataset.damageLabelKey || '') === 'u:' + id);
+      if (!shown) {
+        const key = id + '（' + prev + '→' + hp + '）直前=' + (window.__lastEvent || '?');
+        if (!window.__watch.hpEarly.includes(key)) window.__watch.hpEarly.push(key);
+      }
+    });
     // 盤面の並び（左から順のID）。変わった時だけ記録する。
     // 召喚の位置・順番・詰め直しが食い違うと、この列が食い違う。
     const ids = f => [...document.querySelectorAll('#' + f + ' .slot[data-unit-id]')]
@@ -195,6 +217,7 @@ const COLLECT = `
     calls: window.__watch.calls.slice(),
     board: window.__watch.board.slice(),
     overlap: window.__watch.overlap.slice(),
+    hpEarly: window.__watch.hpEarly.slice(),
     onCard: window.__watch.onCard.length,
     // 一度でもカードの上に出た数値は、対象が消えた後の残り姿を数えない。
     offCard: window.__watch.offCard.filter(k => !window.__watch.onCard.includes(k)),
@@ -312,6 +335,7 @@ const onlineScript = sc => `
     await Promise.race([
       playOnlineBattleEvents(out, { onEvent: (ev, ctx) => {
         if (!__started && ev && ev.type === ONLINE_EVENT.TURN_BEGIN) { __started = true; __resetWatch(); }
+        window.__lastEvent = (ev && ev.type) + ':' + ((ev && (ev.unitId || ev.attackerId)) || '');
         return renderOnlineVersusBoard(ev, ctx);
       } }).then(() => { window.__playbackEnded = true; }),
       new Promise(r => setTimeout(() => r(0), 90000)),
@@ -403,6 +427,9 @@ const onlineScript = sc => `
       check(`${tag}数値がカード外に出ない`,
         (pve.offCard || []).length === 0 && (online.offCard || []).length === 0,
         `PvE=${(pve.offCard || []).join(' / ') || 'なし'} オンライン=${(online.offCard || []).join(' / ') || 'なし'}`);
+      check(`${tag}HPが数値より先に減らない`,
+        (pve.hpEarly || []).length === 0 && (online.hpEarly || []).length === 0,
+        `PvE=${(pve.hpEarly || []).join(' / ') || 'なし'} オンライン=${(online.hpEarly || []).join(' / ') || 'なし'}`);
       check(`${tag}攻撃中に元のカードが残らない`,
         (pve.overlap || []).length === 0 && (online.overlap || []).length === 0,
         `PvE=${(pve.overlap || []).join(' / ') || 'なし'} オンライン=${(online.overlap || []).join(' / ') || 'なし'}`);

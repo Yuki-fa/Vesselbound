@@ -174,6 +174,46 @@ function presentCharacterVfxScale(code) {
   return PRESENT_HALF_SCALE_VFX.has(String(code || '').toUpperCase()) ? 0.5 : 1;
 }
 
+// ── 画面に出すATK/HP ────────────────────────────────
+// コアは1手番ぶんを先に解決してから演出を渡すため、演出を再生し始めた時点で
+// 実体のATK/HPは**もう変わっている**。そのまま描くと、ダメージ数値が出るより先に
+// HPが減って見える（フィーンドの解放効果などで顕著）。
+// そこで「まだ見せていない変化」を反映しない表示専用の値を持ち、
+// 数値・VFXを出す瞬間に進める。**規則はここが唯一の実装。**
+function presentShownAtk(unit) {
+  if (!unit) return 0;
+  return unit._displayAtk != null ? unit._displayAtk : (Number(unit.atk) || 0);
+}
+function presentShownHp(unit) {
+  if (!unit) return 0;
+  return unit._displayHp != null ? unit._displayHp : (Number(unit.hp) || 0);
+}
+function presentShownMaxHp(unit) {
+  if (!unit) return 1;
+  return Math.max(1, unit._displayMaxHp != null ? unit._displayMaxHp : (Number(unit.maxHp) || Number(unit.hp) || 1));
+}
+// 表示値を「この手番が始まる前」に戻す（再生の頭で呼ぶ）。
+function presentHoldShown(unit, atk, hp, maxHp) {
+  if (!unit) return;
+  unit._displayAtk = Number(atk) || 0;
+  unit._displayHp = Number(hp) || 0;
+  unit._displayMaxHp = Math.max(1, Number(maxHp) || Number(hp) || 1);
+}
+// 表示値を進める（数値・VFXを出す瞬間に呼ぶ）。
+function presentAdvanceShown(unit, next) {
+  if (!unit || !next) return;
+  if (next.atk != null) unit._displayAtk = Math.max(0, Number(next.atk) || 0);
+  if (next.hp != null) unit._displayHp = Math.max(0, Number(next.hp) || 0);
+  if (next.maxHp != null) unit._displayMaxHp = Math.max(1, Number(next.maxHp) || 1);
+}
+// 表示値の据え置きをやめて実体へ戻す（再生の終わりで呼ぶ）。
+function presentReleaseShown(unit) {
+  if (!unit) return;
+  delete unit._displayAtk;
+  delete unit._displayHp;
+  delete unit._displayMaxHp;
+}
+
 // 倒れた体を盤面に残しておくか。
 // 再生中で、まだ死亡演出を始めていない体は残す。ここで先に配列から外すと、
 // あとから来るダメージイベントが「対象が見つからない」で読み飛ばされ、
@@ -212,6 +252,12 @@ if (typeof window !== 'undefined') {
   window.presentEndPlayback = presentEndPlayback;
   window.presentIsPlaying = presentIsPlaying;
   window.presentKeepsOnBoard = presentKeepsOnBoard;
+  window.presentShownAtk = presentShownAtk;
+  window.presentShownHp = presentShownHp;
+  window.presentShownMaxHp = presentShownMaxHp;
+  window.presentHoldShown = presentHoldShown;
+  window.presentAdvanceShown = presentAdvanceShown;
+  window.presentReleaseShown = presentReleaseShown;
   window.presentCharacterVfxScale = presentCharacterVfxScale;
   window.presentResetPlayback = presentResetPlayback;
   window.presentDamageVfxSource = presentDamageVfxSource;
@@ -225,6 +271,8 @@ if (typeof module !== 'undefined' && module.exports) {
     PRESENT_DAMAGE_STAGGER_MS, presentDamageVfxSource, presentStatChangeVfxAllowed,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,
     presentKeepsOnBoard, presentCharacterVfxScale,
+    presentShownAtk, presentShownHp, presentShownMaxHp,
+    presentHoldShown, presentAdvanceShown, presentReleaseShown,
     PRESENT_STAT_CHANGE_VFX_REASONS,
   };
 }
