@@ -161,6 +161,8 @@
   let _damageSfxDone = new Set();
   // 攻撃効果より前に始めておく攻撃モーション（25%地点で停止して待つ）。
   let _preAttack = null;
+  // 手番の間を置くのは2手番目以降（戦闘の頭では待たない）。
+  let _turnPlayed = false;
   let _effectStatCueKeys = new Set();
   let _effectStatVfxGate = presentCreateOnceGate();
   // 既定の間隔（PRESENT_DAMAGE_STAGGER_MS）で連続表示する。PvEと同じ規則。
@@ -319,6 +321,7 @@
       _effectStatCueKeys = new Set();
       _effectStatVfxGate = presentCreateOnceGate();
       _damageSfxDone = new Set();
+      if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
     }
 
     switch (ev.type) {
@@ -346,6 +349,15 @@
         break;
       }
       case ONLINE_EVENT.TURN_BEGIN: {
+        // 前の手番で保留していた盤面の詰めを、ここでまとめて流す。
+        // これをしないと倒れた体が次の手番まで居座り、PvE（手番の終わりに詰める）と
+        // 盤面の見え方が食い違う。手番の頭なので、出したばかりの数値を奪うこともない。
+        if (G._pendingBattleCompact && typeof requestBattleCompact === 'function') {
+          requestBattleCompact({ forceRender: true, forceDuringMotion: true });
+        }
+        // 1体の行動が終わってから次が動き出すまで、少し間を置く（PvEと同じ定数）。
+        if (_turnPlayed) await _sleep(PRESENT_TURN_GAP_MS);
+        _turnPlayed = true;
         // ── 攻撃効果は「少し動き出した時点」で見せる（PvEと同じ扱い）──
         // コアは攻撃効果を接触より先に解決するため、イベント列では
         //   [攻撃効果…] → attack → 接触ダメージ の順に並ぶ。

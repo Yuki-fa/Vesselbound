@@ -22,6 +22,11 @@ const PRESENT_MAX_SLOTS = 14;
 // 長くすると戦闘全体が間延びするので、数値が視認できる最小限にとどめる。
 const PRESENT_HIT_BEAT_MS = 260;
 
+// キャラクターが1体行動し終えてから、次のキャラクターが動き出すまでの間（ms）。
+// 0にすると攻撃が途切れなく続き、何が起きているか追えない。
+// **PvEとオンラインで同じ値を使うこと。**
+const PRESENT_TURN_GAP_MS = 240;
+
 // マナ解決の「ひと続き」とみなすイベント種別。
 // ここに無い種別（attack / death など）が来たら、別の発動機会として数え直す。
 // damage はマナ閾値効果自身（アラクネ等）も出すため継続扱いにする。
@@ -240,6 +245,7 @@ function presentBreaksManaRun(ev) {
 
 if (typeof window !== 'undefined') {
   window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
+  window.PRESENT_TURN_GAP_MS = PRESENT_TURN_GAP_MS;
   window.PRESENT_FRONT_SLOTS = PRESENT_FRONT_SLOTS;
   window.PRESENT_MAX_SLOTS = PRESENT_MAX_SLOTS;
   window.PRESENT_MANA_RUN_TYPES = PRESENT_MANA_RUN_TYPES;
@@ -266,7 +272,7 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    PRESENT_HIT_BEAT_MS, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
+    PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     PRESENT_DAMAGE_STAGGER_MS, presentDamageVfxSource, presentStatChangeVfxAllowed,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,

@@ -379,6 +379,21 @@ function main() {
     'PvEが手番の頭で表示値を据え置いていない');
   assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
+  // 1体の行動と次の行動の間には必ず「間」を置く（途切れなく続くと追えない）。
+  assert.match(read('js/battle/present.js'), /const PRESENT_TURN_GAP_MS = /,
+    '手番の間の長さが present.js に無い');
+  [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
+    assert.match(src, /PRESENT_TURN_GAP_MS/, `${name}が手番の間を置いていない`);
+  });
+  // VFXのURLは毎回乱数で崩さない。崩すと命中のたびに画像を読み直し、
+  // 同時に出るはずの数値が1体だけ先に出る／音がずれる。
+  assert.doesNotMatch(read('js/engine/render.js'), /hitUrl\.includes\('\?'\)\?'&':'\?'\)\+'_r='\+Math\.random\(\)/,
+    '命中VFXのURLを毎回乱数にしている（画像の読み直しで表示・音がずれる）');
+  assert.match(read('js/engine/render.js'), /function _vfxVariantIndex\(\)/,
+    'VFXのURLの印が使い回しになっていない');
+  // 飛んでいる複製の数値も据え置き値を使う（止まった瞬間に反撃ダメージが入って見えた）。
+  assert.match(read('js/engine/render.js'), /presentShownAtk\(attacker\)/,
+    '攻撃モーションの複製が実体のATK/HPを直に読んでいる');
   // 封印中のATK/HPは暗くしても読めること（filterとopacityの二重掛けで消えていた）。
   assert.doesNotMatch(read('index.html'),
     /sealed-unit \.slot-stats,\n[^}]*\n\s*opacity:\.5!important;/,

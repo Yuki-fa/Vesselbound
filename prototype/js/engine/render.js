@@ -862,6 +862,15 @@ function damageLabelDurationMs(labelDuration){
   return Math.max(600,(Number(labelDuration)||950)/speedMul);
 }
 
+// 同一URLの<img>を短時間に連続生成すると、ブラウザによっては再生状態が共有され
+// ループ位置がずれて見える。それを避けるためURLへ印を付けるが、**毎回乱数にすると
+// 常にキャッシュを外れ、命中のたびに画像を読み直して主スレッドが数百ms止まる。**
+// （同じ瞬間に出るはずの数値が1体だけ先に出る／命中音がずれる原因になっていた）
+// 少数の決まった印を順に使い回し、2回目以降はキャッシュから読ませる。
+const VFX_VARIANT_COUNT=6;
+let _vfxVariantSeq=0;
+function _vfxVariantIndex(){ _vfxVariantSeq=(_vfxVariantSeq+1)%VFX_VARIANT_COUNT; return _vfxVariantSeq; }
+
 function playHitVfxAtRect(rect,amount,options){
   if(!rect) return Promise.resolve();
   const opt=options||{};
@@ -924,7 +933,7 @@ function playHitVfxAtRect(rect,amount,options){
     // 同一URLの<img>を短時間に連続生成すると、ブラウザによっては再生状態が共有され
     // ループ位置がずれて見えることがあるため、インスタンスごとに独立した画像として
     // 扱わせるためのダミークエリを付与する。
-    mediaEl.src=hitUrl+(hitUrl.includes('?')?'&':'?')+'_r='+Math.random();
+    mediaEl.src=hitUrl+(hitUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
     host.appendChild(mediaEl);
     stop=()=>{};
   } else {
@@ -1229,7 +1238,7 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   img.className='special-vfx-img';
   img.alt='';
   img.style.cssText=`position:absolute;inset:0;width:100%;height:100%;object-fit:${opt.fit||'cover'};object-position:${opt.objectPosition||'center center'};`;
-  img.src=vfxUrl+(vfxUrl.includes('?')?'&':'?')+'_r='+Math.random();
+  img.src=vfxUrl+(vfxUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
   host.appendChild(img);
   const w=Math.max(1,Math.round(hostW)), h=Math.max(1,Math.round(hostH));
   const frames=[];
@@ -1927,15 +1936,19 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         // グレムリンやギガンテス等、一時停止中にステータス変化を行う効果がある場合、
         // 攻撃を再開する前に背景側の実スロット全体も最新値へ同期する。
         if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
-        const _cAtk=Math.max(0,attacker.atk||0), _cHp=Math.max(0,attacker.hp||0);
+        // 飛んでいる複製の数値も**画面に出してよい値**を使う。実体を直に読むと、
+        // まだ見せていない反撃ダメージが、止まった瞬間に攻撃者のHPへ入って見える。
+        const _cAtk=Math.max(0,typeof presentShownAtk==='function'?presentShownAtk(attacker):(attacker.atk||0));
+        const _cHp=Math.max(0,typeof presentShownHp==='function'?presentShownHp(attacker):(attacker.hp||0));
         const cloneAtkEl=clone.querySelector('.slot-stats .a');
         _setUnitStatText(cloneAtkEl,_cAtk,_cHp);
         const cloneHpEl=clone.querySelector('.slot-stats .h');
         _setUnitStatText(cloneHpEl,_cHp,_cAtk);
         const cloneLifeFill=clone.querySelector('.slot-life-fill');
         if(cloneLifeFill){
-          const cloneMaxHp=Math.max(1,Number(attacker.maxHp)||Number(attacker.hp)||1);
-          cloneLifeFill.style.width=`${Math.max(0,Math.min(1,(attacker.hp||0)/cloneMaxHp))*100}%`;
+          const cloneMaxHp=typeof presentShownMaxHp==='function'?presentShownMaxHp(attacker)
+            :Math.max(1,Number(attacker.maxHp)||Number(attacker.hp)||1);
+          cloneLifeFill.style.width=`${Math.max(0,Math.min(1,_cHp/cloneMaxHp))*100}%`;
         }
         if(pauseResult&&pauseResult.abort){
           await runSegment([

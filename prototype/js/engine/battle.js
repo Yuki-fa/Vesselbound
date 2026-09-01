@@ -1849,6 +1849,11 @@ async function battlePhase(){
       if(typeof renderManaHud==='function') renderManaHud();
       requestBattleCompact();
       _stampCoreSideSlots(state);
+      // 1体の行動が終わってから次が動き出すまで、少し間を置く。
+      // 途切れなく続くと何が起きているか追えない。値は present.js が唯一の定義。
+      // **盤面を詰め終えてから待つ**（オンラインは次の手番の頭で待つため、
+      // ここで詰める前に待つと、途中の並びだけが片側に増えて食い違う）。
+      if(events.length>from) await sleep(PRESENT_TURN_GAP_MS);
       if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
