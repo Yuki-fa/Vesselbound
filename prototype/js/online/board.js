@@ -201,17 +201,23 @@
   // 勝利・撤退のカットイン。PvEと同じ showBattleCutin を使う。
   // 「進む」ボタンは付けない（次のマスへ進む時刻はサーバーが持つため）。
   async function _playResultCutin(outcome) {
-    if (typeof showBattleCutin !== 'function') return;
     if (outcome !== 'p1' && outcome !== 'p2' && outcome !== 'draw') return;
+    // 「いつ・どのSEで・どの尺で出すか」は present_events.js が唯一の実装（PvEと同じ）。
     // オンラインの引き分け（相打ち）は、PvEの引き分け勝利ルートと同じ勝利演出を出す。
-    const win = outcome !== 'p2';
-    if (win && typeof playSfx === 'function') playSfx('victory', { group: 'ui' });
-    const overlay = await showBattleCutin(win ? 'victory' : 'retreat', { durationMs: 1800 });
-    await _sleep(1500);
-    if (overlay && overlay.remove) overlay.remove();
-    document.body.classList.remove('battle-victory-pending');
-    const fade = document.getElementById('battle-end-fade');
-    if (fade) { fade.classList.remove('is-visible', 'is-final'); fade.removeAttribute('style'); }
+    await presentBattleResultCutin({
+      win: outcome !== 'p2',
+      // ボス撃破の概念はオンラインには無い。
+      bossWin: false,
+      withdraw: false,
+      // オンラインは「進む」入力を待たない。次のマスへ移る時刻はサーバーが持つ。
+      afterShown: async overlay => {
+        await _sleep(1500);
+        if (overlay && overlay.remove) overlay.remove();
+        document.body.classList.remove('battle-victory-pending');
+        const fade = document.getElementById('battle-end-fade');
+        if (fade) { fade.classList.remove('is-visible', 'is-final'); fade.removeAttribute('style'); }
+      },
+    });
   }
 
   // ── 通常の戦闘画面へ入る／戻る ────────────────────────

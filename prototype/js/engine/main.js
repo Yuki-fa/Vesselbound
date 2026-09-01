@@ -1694,14 +1694,16 @@ function showVictoryOverlay(onShown,shownDuration){
     // G._bossJustDefeated はクリア済みのことがある（クリア前に控えを取っている
     // G._isBossRewardCycle も併せて見る）。片方でも立っていればボス勝利音にする。
     const _wasBossWin=!!(G._bossJustDefeated||G._isBossRewardCycle);
-    if(!isWithdraw&&typeof playSfx==='function') playSfx(_wasBossWin?'bossVictory':'victory',{group:'ui'});
-    const cutin=(typeof showBattleCutin==='function')
-      ? showBattleCutin(isWithdraw?'retreat':'victory',{durationMs:Math.max(1500,Number(shownDuration)||1800)})
-      : Promise.resolve();
-    Promise.resolve(cutin).then(overlay=>{
-      // 勝利・撤退とも、結果表示を保持したまま「進む」入力を待つ。
-      _armBattleContinue(overlay,onShown);
-    });
+    // 「いつ・どのSEで・どの尺で出すか」は present_events.js が唯一の実装
+    // （オンラインと同じ）。ここでは側ごとの違いだけを渡す。
+    Promise.resolve(presentBattleResultCutin({
+      win:!isWithdraw,
+      bossWin:_wasBossWin,
+      withdraw:isWithdraw,
+      durationMs:Number(shownDuration)||undefined,
+      // 勝利・撤退とも、結果表示を保持したまま「進む」入力を待つ（PvEのみ）。
+      afterShown:overlay=>{ _armBattleContinue(overlay,onShown); },
+    }));
   },120);
 }
 function hideVictoryOverlay(){

@@ -291,6 +291,36 @@ async function presentFledEvent(ev, api) {
   return true;
 }
 
+// ── 決着のカットイン ────────────────────────────
+// カットインの**描画**（showBattleCutin）は元から共通。ここで揃えるのは
+// 「いつ・どのSEで・どの尺で出すか」。以前はPvEとオンラインで別々に書かれており、
+// 片方の調整がもう片方に反映されなかった。
+//
+// **片側だけの演出を足したい時は、共通部分を書き換えず `extra()` に足す。**
+// そうすれば、あとから共通部分を調整したときも必ず両方に効く。
+//
+// api:
+//   win        … 勝ち（引き分けも勝ち扱い）
+//   bossWin    … ボス撃破（勝利音を変える）
+//   withdraw   … 撤退（SEを鳴らさない）
+//   durationMs … カットインの尺（省略時は既定）
+//   extra(overlay) … その側だけの追加演出。**共通部分の置き換えには使わない。**
+//   afterShown(overlay) … 表示後の扱い（PvEは入力待ち、オンラインは自動で閉じる）
+const PRESENT_RESULT_CUTIN_MS = 1800;
+async function presentBattleResultCutin(api) {
+  if (!api || typeof showBattleCutin !== 'function') return null;
+  const win = !!api.win;
+  const withdraw = !!api.withdraw;
+  if (win && !withdraw && typeof playSfx === 'function') {
+    playSfx(api.bossWin ? 'bossVictory' : 'victory', { group: 'ui' });
+  }
+  const durationMs = Math.max(1500, Number(api.durationMs) || PRESENT_RESULT_CUTIN_MS);
+  const overlay = await showBattleCutin(withdraw || !win ? 'retreat' : 'victory', { durationMs });
+  if (typeof api.extra === 'function') await api.extra(overlay);
+  if (typeof api.afterShown === 'function') await api.afterShown(overlay);
+  return overlay;
+}
+
 if (typeof window !== 'undefined') {
   window.presentDamageEvent = presentDamageEvent;
   window.presentShieldLostEvent = presentShieldLostEvent;
@@ -301,11 +331,14 @@ if (typeof window !== 'undefined') {
   window.presentDeathEvent = presentDeathEvent;
   window.presentManaThresholdEvent = presentManaThresholdEvent;
   window.presentSummonPlacement = presentSummonPlacement;
+  window.presentBattleResultCutin = presentBattleResultCutin;
+  window.PRESENT_RESULT_CUTIN_MS = PRESENT_RESULT_CUTIN_MS;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     presentDamageEvent, presentShieldLostEvent, presentFledEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentManaThresholdEvent, presentSummonPlacement,
+    presentBattleResultCutin, PRESENT_RESULT_CUTIN_MS,
   };
 }
