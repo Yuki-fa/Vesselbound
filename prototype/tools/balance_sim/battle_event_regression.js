@@ -496,8 +496,16 @@ function main() {
   assert.doesNotMatch(currentBattle, /const damageDisplayQueues=new Map\(\);/,
     'バッチ内だけの順番待ちが残っている（別経路と重なる）');
   // オンライン側
-  assert.match(board, /presentChooseSummonSlot\(list, summoned, placement, sourceIndex/,
-    'オンラインの召喚スロット選択が共通実装を使っていない');
+  // 召喚の位置決めはコアが唯一の実装（戦闘中の召喚は前衛の右端）。
+  // 以前はオンラインだけ「左から最初の空き枠」を使っており、
+  // 前の召喚体が倒れた後の召喚が味方の左側へ出ていた。
+  assert.match(board, /coreInsertSummonedUnit\(list, summoned, spec \|\| \{\}, FRONT_SLOTS\);/,
+    'オンラインの召喚位置がコアの共通実装を使っていない');
+  assert.doesNotMatch(board, /presentChooseSummonSlot\(/,
+    'オンラインが古い空き枠探しを使っている（PvEと配置が食い違う）');
+  // 盤面配列の持ち方もPvE（コア）と同じ「左詰め＋laneで前後」にする。
+  assert.doesNotMatch(board, /let f = 0, r = FRONT_SLOTS;/,
+    'オンラインが前衛0..6／後衛7..13の固定枠のまま（PvEと配置規則が食い違う）');
   assert.match(board, /_manaCueGate = presentCreateOnceGate\(\);/,
     'オンラインのマナ効果VFX間引きが共通ゲートを使っていない');
   assert.match(board, /const waitMs = _damageGate\.reserve\(`u:\$\{u\.id\}`\);/,
@@ -720,7 +728,8 @@ function main() {
   // DOMスロットが作られず「攻撃しているのに画面上は何も起きない」状態になる。
   assert.doesNotMatch(board, /\blist\.push\(summoned\)/,
     'オンライン召喚がスロット配列の末尾へpushしている');
-  assert.match(board, /layoutChanged&&typeof requestBattleCompact==='function'\) requestBattleCompact\(\{forceRender:true\}\)/,
+  // 召喚は「その場で姿が出る」演出。保留すると次の死亡まで画面に出ない。
+  assert.match(board, /layoutChanged&&typeof requestBattleCompact==='function'\) requestBattleCompact\(\{forceRender:true,forceDuringMotion:true\}\)/,
     'オンライン召喚後にFLIP詰め処理を実行していない');
   // 死亡は「数値を出し終えた後」なので、再生中でも詰めてよい（forceDuringMotion）。
   // 逆にイベントごとに詰めてはいけない。出したばかりの数値が行き場を失う。

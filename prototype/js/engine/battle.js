@@ -1969,7 +1969,8 @@ function compactBattleUnits(){
   // renderField() は生存ユニットの「順序」から位置を決めるため、
   // 左詰めにしても見た目（中央寄せ）は変わらない。
   if(G._coreDrivenBattle&&typeof coreCompactUnits==='function'){
-    coreCompactUnits({units:{p1:G.allies,p2:G.enemies}});
+    // 「まだ外さない体」の判定は present.js が唯一の実装（描画側と同じ規則）。
+    coreCompactUnits({units:{p1:G.allies,p2:G.enemies}},presentKeepsOnBoard);
   } else {
   if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...nextAllies);
   else G.allies=nextAllies;

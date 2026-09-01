@@ -3187,14 +3187,18 @@ function coreBattleStep(ctx) {
 
 // 死亡ユニットを盤面配列から外す。復活・死亡効果はこれより前に解決しておくこと。
 // 位置の詰め方はPvEの compactBattleUnits() と同じ「生存を左詰め」。
-function coreCompactUnits(state) {
+// keepOnBoard：再生側だけが渡す「この体はまだ盤面から外さない」判定。
+// ルール上は死んでいても、ダメージ数値や個別VFXを出し終えるまでは枠を残したい。
+// コア自身は演出を知らないので、判定そのものは呼び出し側（present.js）が持つ。
+function coreCompactUnits(state, keepOnBoard) {
   ['p1', 'p2'].forEach(side => {
     const list = state.units[side];
     if (!Array.isArray(list)) return;
     // 生存している体だけを残す。_corePendingSummon は「PvEがまだ描画していない」
     // という再生側の印であり、盤面の存在とは無関係。ここで残すと
     // オンラインでは誰も外さないため、死んだ召喚体が配列に残り続けて位置がずれる。
-    const kept = list.filter(u => u && u.hp > 0);
+    const kept = list.filter(u => u && (u.hp > 0
+      || (typeof keepOnBoard === 'function' && keepOnBoard(u))));
     if (kept.length !== list.filter(Boolean).length) {
       list.splice(0, list.length, ...kept);
     }

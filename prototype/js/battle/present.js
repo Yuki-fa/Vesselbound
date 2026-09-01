@@ -165,6 +165,14 @@ function presentIsPlaying() { return _presentPlaybackDepth > 0; }
 // 戦闘の切れ目で必ず0へ戻す。例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。
 function presentResetPlayback() { _presentPlaybackDepth = 0; }
 
+// 倒れた体を盤面に残しておくか。
+// 再生中で、まだ死亡演出を始めていない体は残す。ここで先に配列から外すと、
+// あとから来るダメージイベントが「対象が見つからない」で読み飛ばされ、
+// とどめの数値が一度も出ない（PvEで実際に起きていた）。
+function presentKeepsOnBoard(unit) {
+  return !!unit && presentIsPlaying() && !unit._deathFxReady;
+}
+
 // ── 「1回だけ見せる」ゲート ─────────────────────────────
 // マナ効果VFX（キャラクターごとに1回）と、固有VFXの重複（発生元・効果・対象ごとに1回）に使う。
 function presentCreateOnceGate() {
@@ -194,6 +202,7 @@ if (typeof window !== 'undefined') {
   window.presentBeginPlayback = presentBeginPlayback;
   window.presentEndPlayback = presentEndPlayback;
   window.presentIsPlaying = presentIsPlaying;
+  window.presentKeepsOnBoard = presentKeepsOnBoard;
   window.presentResetPlayback = presentResetPlayback;
   window.presentDamageVfxSource = presentDamageVfxSource;
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
@@ -205,6 +214,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     PRESENT_DAMAGE_STAGGER_MS, presentDamageVfxSource, presentStatChangeVfxAllowed,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,
+    presentKeepsOnBoard,
     PRESENT_STAT_CHANGE_VFX_REASONS,
   };
 }

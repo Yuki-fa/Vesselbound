@@ -83,14 +83,19 @@
   }
 
   // 前衛・後衛をPvEと同じスロット位置へ並べる。
+  // 盤面配列の持ち方は**PvE（コア）と同じ**にする。
+  // すなわち「生きている体を左詰めで並べ、前衛／後衛は lane で区別する」。
+  // 以前は前衛=0..6／後衛=7..13 の固定枠にしていたため、召喚の挿入位置も
+  // 詰め直しもPvEと別の実装になり、戦闘中の召喚がA0の左へ出るなどの
+  // 食い違いが出ていた。
   function _toField(units, side) {
-    const arr = new Array(MAX_SLOTS).fill(null);
-    let f = 0, r = FRONT_SLOTS;
+    const front = [], rear = [];
     (units || []).forEach(u => {
       const cell = _fieldUnit(u, side);
-      if (cell.lane === 'rear') { if (r < MAX_SLOTS) arr[r++] = cell; }
-      else if (f < FRONT_SLOTS) arr[f++] = cell;
+      (cell.lane === 'rear' ? rear : front).push(cell);
     });
+    const arr = front.slice(0, FRONT_SLOTS).concat(rear).slice(0, MAX_SLOTS);
+    while (arr.length < MAX_SLOTS) arr.push(null);
     return arr;
   }
 
@@ -163,12 +168,15 @@
   // playAttackMotion() が fromEl を取れずに即returnするため、内部では攻撃しているのに
   // 画面上は何も起きず、「ずっと相手だけが攻撃している」ように見える。
   // 必ずレーン範囲内の空きスロットへ入れる（PvEの_summonPanelUnitToFrontと同じ考え方）。
-  function _placeSummonedUnit(list, summoned, placement, sourceIndex) {
-    // スロットの決め方は present.js が唯一の実装（末尾pushで描画対象外へ入る事故を防ぐ）。
-    const slot = presentChooseSummonSlot(list, summoned, placement, sourceIndex,
-      { frontSlots: FRONT_SLOTS, maxSlots: MAX_SLOTS });
-    if (slot < 0) return false;
-    list[slot] = summoned;
+  // 召喚体をどこへ入れるかは coreInsertSummonedUnit() が唯一の実装（PvEと同じ）。
+  // 戦闘中の召喚は前衛の右端。対象指定がある場合だけその左右へ入れる。
+  function _placeSummonedUnit(list, summoned, spec) {
+    const live = list.filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul).length;
+    if (live >= MAX_SLOTS) return false;
+    coreInsertSummonedUnit(list, summoned, spec || {}, FRONT_SLOTS);
+    // 配列は固定長で扱う（renderField が index 0..MAX_SLOTS-1 を描く）。
+    while (list.length > MAX_SLOTS) list.pop();
+    while (list.length < MAX_SLOTS) list.push(null);
     return true;
   }
 
@@ -219,6 +227,9 @@
       host.classList.remove('battle-bg-reveal', 'battle-bg-scroll-ready', 'battle-bg-scrolling');
       host.classList.add('battle-bg-normal');
     }
+    // 盤面の詰め直し・召喚の配置をPvEと同じコアの実装へ通すための印。
+    // オンラインはサーバー（コア）が全て確定済みなので、再生側の旧経路は使わない。
+    G._coreDrivenBattle = true;
     if (typeof showScreen === 'function') showScreen('battle');
     // オンライン対戦は通常の startBattle() を通らないため、戦闘用カウンターを
     // 画面へ入った直後に初期描画する（所持金・ライフ・マナ・生贄）。
@@ -236,6 +247,7 @@
     const host = document.getElementById('scr-battle');
     if (host) host.classList.remove('battle-opening-pending', 'battle-opening-active', 'battle-start-playing', 'battle-start-no-effect');
     if (typeof G === 'undefined' || !G || !_saved) return;
+    G._coreDrivenBattle = false;
     G.allies = _saved.allies;
     G.enemies = _saved.enemies;
     G.phase = _saved.phase;
@@ -558,25 +570,22 @@
             // 余分なユニットをDOMへ入れて一時的に左端へ出さない。
             if (liveCount < MAX_SLOTS) {
               const summoned = { ...ev.unit };
-              const sourceIndex = ev.sourceId == null ? -1
-                : list.findIndex(x => x && String(x.id) === String(ev.sourceId));
               const frontCount = list.filter(x => x && x.hp > 0 && x.lane !== 'rear' && !x._isObject && !x._isSoul).length;
-              // 前衛7枠が埋まっても陣営上限14体までは後衛へ送る。前衛の配列へ
-              // そのまま追加すると _toField() が落とし、表示だけ遅れて消える。
+              // 前衛7枠が埋まっても陣営上限14体までは後衛へ送る。
               if (frontCount >= FRONT_SLOTS) summoned.lane = 'rear';
-              const targetIndex = ev.placementTargetId == null ? -1
-                : list.findIndex(x => x && String(x.id) === String(ev.placementTargetId));
-              const placement = ev.placement === 'leftOfTarget' && targetIndex >= 0 ? 'leftOfSource'
-                : ev.placement === 'rightOfTarget' && targetIndex >= 0 ? 'rightOfSource' : ev.placement;
-              const anchorIndex = targetIndex >= 0 ? targetIndex : sourceIndex;
-              if (_placeSummonedUnit(list, summoned, placement, anchorIndex)) layoutChanged = true;
+              // 位置指定はイベントの値をそのまま渡す。左右の解釈はコアが持つ。
+              const spec = { placement: ev.placement || '', placementTargetId: ev.placementTargetId != null
+                ? ev.placementTargetId : (ev.placement ? ev.sourceId : null) };
+              if (_placeSummonedUnit(list, summoned, spec)) layoutChanged = true;
             }
           }
         }
         if (ev.sourceId && typeof log === 'function') log(`${_effectSourceName(ev, ctx)}の効果で${ev.unit.name || 'ユニット'}を召喚。`, ev.side === 'p1' ? 'good' : 'bad');
         // 人数変化はPvEと同じ共通FLIP経路へ通す。単純なrenderField()では
         // 新しい中央寄せ位置へ瞬間移動し、オンラインだけ詰め移動が失われる。
-        if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+        // 召喚は「その場で姿が出る」演出なので、再生中でも即座に反映する
+        // （保留すると、次に死亡イベントが来るまで召喚体が画面に現れない）。
+        if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
         else _render();
         break;
       }
