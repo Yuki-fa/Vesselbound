@@ -1505,11 +1505,14 @@ function updateUnitDamageUi(unit,side){
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
   const _atkVal=Math.max(0,unit.atk||0), _hpVal=Math.max(0,unit.hp||0);
+  // 倒れた瞬間は桁数が減る（例：9999→0）。ここで作り直すと、消える直前に
+  // 数字だけ大きくなって目立つので、大きさは据え置く。
+  const _keepSize=_hpVal<=0;
   const atkEl=slot.querySelector('.slot-stats .a');
-  _setUnitStatText(atkEl,_atkVal,_hpVal);
+  _setUnitStatText(atkEl,_atkVal,_hpVal,_keepSize);
   const hpEl=slot.querySelector('.slot-stats .h');
   if(hpEl){
-    _setUnitStatText(hpEl,_hpVal,_atkVal);
+    _setUnitStatText(hpEl,_hpVal,_atkVal,_keepSize);
     hpEl.classList.toggle('hp-damaged',unit.maxHp!=null&&unit.hp<unit.maxHp);
   }
   const maxHp=Math.max(1,Number(unit.maxHp)||Number(unit.hp)||1);
@@ -3043,9 +3046,13 @@ function _cardStatDigitClass(value){
 }
 // 戦闘中のユニットカードのATK/HP（.slot-stats .a/.h）にも、桁数に応じた縮小クラスを当てる。
 // 数値を入れ替えるだけの軽量更新経路が複数あるため、テキストとクラスを必ず一緒に更新する。
-function _setUnitStatText(el,value,pairValue){
+// keepSize：桁数が変わっても文字の大きさを変えない。
+// death の瞬間はHPが0（1桁）になるため、そのまま作り直すと消える直前に
+// 数字だけ大きくなって目立つ。死亡演出中は大きさを据え置く。
+function _setUnitStatText(el,value,pairValue,keepSize){
   if(!el) return;
   el.textContent=value;
+  if(keepSize) return;
   el.classList.remove('stat-d3','stat-d4','stat-d5');
   // pairValueを渡すと、ATK/HPのうち桁数が多い方に合わせた同じクラスになる。
   const cls=(pairValue===undefined?_cardStatDigitClass(value):_cardStatPairDigitClass(value,pairValue)).trim();

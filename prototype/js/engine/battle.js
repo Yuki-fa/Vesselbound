@@ -2747,6 +2747,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
     }
     if(sweepShownEvents.has(e)) continue;
+    // 命中音はオンラインと同じ関数・同じ引数で鳴らす。これが無いとPvEでは
+    // 攻撃開始のattack.wavだけになり、命中の手応えが無くなる。
+    if(typeof playAttackDamageSfx==='function') playAttackDamageSfx(source,Number(e.amount)||0);
     // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
     const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
     if(typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,

@@ -444,6 +444,15 @@ function main() {
     assert.match(read('index.html'),
       /html body #f-ally \.slot\.motion-hidden,\s*\n\s*html body #f-enemy \.slot\.motion-hidden,/,
       '攻撃モーション中の非表示指定が敵スロットの visible!important に負ける');
+    // 効果ダメージかどうかは呼び出し側が決める。ここで決め打ちすると、
+    // 通常攻撃まで効果扱いになり、攻撃するたびに攻撃者の固有VFX・固有SEが出る。
+    assert.match(read('js/battle/core.js'),
+      /effect: \(opts && opts\.effect !== undefined\) \? !!opts\.effect/,
+      'コアが effect を上書きしている（通常攻撃で固有VFX・固有SEが出る）');
+    // 命中音は両方で同じ関数を使う。PvEに無いと攻撃開始音だけになる。
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /playAttackDamageSfx\(/, `${name}が命中音を鳴らしていない`);
+    });
     // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
     assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
       '薙ぎ払いの共通実装が render.js に無い');

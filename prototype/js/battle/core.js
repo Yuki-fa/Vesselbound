@@ -699,8 +699,13 @@ function coreApplyDamage(target, amount, emit, opts) {
     keywordEffect: opts && opts.keywordEffect || null,
     redirectedFrom: opts && opts.redirectedFrom || null,
     // 通常攻撃は runBattleCore が _coreAttackContact を立てる。その他の命中は
-    // キャラクター効果由来として、PvE側が専用VFX/SEを選べるように明示する。
-    effect: !!(opts && opts.effect) || !!(opts && opts.sourceId && !opts.counter),
+    // キャラクター効果由来として、再生側が専用VFX/SEを選べるように明示する。
+    // **呼び出し側が明示した値を上書きしないこと。** 以前はここで
+    // 「発生元があって反撃でない＝効果」と決め打ちしていたため、
+    // coreResolveHit が false を渡していても通常攻撃が効果扱いになり、
+    // 攻撃するたびに攻撃者の固有VFX・固有SEが出ていた（アラッサス／ゴーレム）。
+    effect: (opts && opts.effect !== undefined) ? !!opts.effect
+      : !!(opts && opts.sourceId && !opts.counter),
   });
   if (target.hp <= 0) {
     emit({ type: 'death', side: target.side, unitId: target.id });
