@@ -1410,6 +1410,8 @@ function abortBattleForDebug(){
 
 async function startBattle(){
   G._debugFormationAbort=false;
+  // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
+  presentResetPlayback();
   G._battleCoreEvents=[];
   G._coreConsumedItemEvents=new Set();
   G._injuryDispatchSequence=0;
@@ -1808,7 +1810,7 @@ async function battlePhase(){
       // 演出フラグはstep()の前から立てておく。ここが0のまま再描画が挟まると、
       // 死亡した体が「空きスロット（7枠等間隔）」へ描き直され、そのあとに出る
       // ダメージ数値や個別VFXが何もない場所へ出てしまう。
-      G._flushingCoreEvents=(Number(G._flushingCoreEvents)||0)+1;
+      presentBeginPlayback();
       let stepped=false;
       try{
         try{ stop=runner.step({deferCompact:true}); stepped=true; }
@@ -1816,7 +1818,7 @@ async function battlePhase(){
         // この手番で出たぶんだけを再生する。
         if(stepped) await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
       } finally {
-        G._flushingCoreEvents=Math.max(0,(Number(G._flushingCoreEvents)||0)-1);
+        presentEndPlayback();
       }
       if(!stepped) break;
       if(typeof runner.compact==='function') runner.compact();
@@ -2051,6 +2053,10 @@ function beginBattleMotion(){
 
 function endBattleMotion(){
   G._battleMotionDepth=Math.max(0,(G._battleMotionDepth||0)-1);
+  // 演出の再生中はここで詰めない。詰めると倒れた体が配列から消え、そのあとに続く
+  // ダメージイベントが「対象が見つからない」で読み飛ばされる（＝とどめの数値が出ない）。
+  // 保留したままにして、再生が終わってからまとめて詰める。
+  if(typeof presentIsPlaying==='function'&&presentIsPlaying()) return;
   if(!G._battleMotionDepth&&G._pendingBattleCompact){
     _recordBattleTrace('battle_compact_flush_after_motion',{reason:'motion_end'});
     G._pendingBattleCompact=false;
@@ -2086,7 +2092,7 @@ function requestBattleCompact(options){
   // イベントを再生している最中は盤面を詰めない。詰めると死亡したキャラクターの
   // カードが先に消え、そのあとに来るダメージ数値・VFXが行き場を失って
   // 何もない場所へ出る。再生が終わってから battlePhase() 側でまとめて詰める。
-  if(G._flushingCoreEvents>0&&!forceDuringMotion){
+  if(presentIsPlaying()&&!forceDuringMotion){
     G._pendingBattleCompact=true;
     G._pendingBattleRender=true;
     return;
@@ -2291,9 +2297,9 @@ function _onAllEnemiesDefeated(){
 // 共通コアが即時確定した二次ヒットを、PvEの既存演出・死亡処理へ接続する。
 // 数値・対象・死亡判定は coreResolveHit() が確定済みであり、ここでは再計算しない。
 async function _flushCorePveHitEvents(state, events, beforeUnits){
-  G._flushingCoreEvents=(Number(G._flushingCoreEvents)||0)+1;
+  presentBeginPlayback();
   try{ return await _flushCorePveHitEventsInner(state,events,beforeUnits); }
-  finally{ G._flushingCoreEvents=Math.max(0,(Number(G._flushingCoreEvents)||1)-1); }
+  finally{ presentEndPlayback(); }
 }
 async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // コアがライフを変えた場合（我慢の指輪・負傷:ライフが+Nされる 等）の唯一の反映点。
@@ -2569,42 +2575,13 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // このイベント種別を読み飛ばしていたため、バフ系の固有VFXだけが
       // 結界以外すべて欠落していた。発生元IDと対象IDをそのまま使い、
       // 数値や効果判定を再計算せず、カード固有VFXだけを非同期で開始する。
-      // 通常の盤面初期化・指輪の常時補正は演出対象にしない。
-      const effectReasons=new Set([
-        'golem','gigantes','kobold','incubus','chaos_imp','healing','fornjot','umbra',
-        'lamia','ymir','elven_mage','imp_steal','imp_gain','brownie','brownie_attack',
-        'tactics','resonance','sword_skill','attack_self_buff','attack_self_atk_buff',
-        'attack_allies_buff','attack_color_buff','attack_same_color_buff','attack_mana_buff',
-        'injury_self_buff','injury_allies_atk','injury_color_buff','injury_sacrifice_hp',
-        'injury_allies_hp','injury_enemy_atk_down','injury_allies_fixed_buff',
-        'gargoyle','hellhound','opening_team_buff','opening_color_buff','opening_hp_scaled_debuff',
-        'attack_swap','different_color_attack','sacrifice_atk_steal','sacrifice_atk_gain',
-        'death_color_buff','will','inherit','ally_death_buff','ally_death_self_buff',
-        'character_death_self_buff','vampire_lord','character_death_team_hp','revenant',
-        'necromancy','naglfar','gellmir','arch_demon','release_sacrifice_power','release_power_double',
-        'release_enemy_damage','overload','opening_atk_double','opening_hp_double',
-        'mana_threshold','mana_threshold_arachne_buff','mana_threshold_random_color',
-        'mana_threshold_random_color_count','mana_threshold_random_ally','mana_threshold_color',
-        'mana_threshold_color_all','mana_threshold_color_atk','mana_threshold_random_purple',
-        'mana_threshold_hp_double','opening_atk_double','opening_hp_double','release_bonus',
-        'release_self_buff','death_random_blue_buff','death_random_ally_buff','ghost'
-      ]);
-      if(!effectReasons.has(String(e.reason||''))) continue;
+      // どの理由で固有VFXを出すかは present.js が唯一の実装（オンラインと同じ規則）。
+      if(!presentStatChangeVfxAllowed(e)) continue;
       const source=e.sourceId
         ?findLiveUnit('p1',e.sourceId,findUnit('p1',e.sourceId))||findLiveUnit('p2',e.sourceId,findUnit('p2',e.sourceId))
         :null;
       const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      // ゴーレム／コボルドの負傷効果は負傷ディスパッチ側で専用VFXを再生する。
-      // それ以外の自己強化も、発生元と対象が同一だからという理由で捨てない。
-      // コア駆動では負傷効果もコアが解決するため、攻撃時の負傷ディスパッチ
-      // （_applyUnitAttackEffects内）は通らない。ここで抑制すると、被弾して
-      // 負傷効果が乗ったときのC003が一度も再生されない。
-      const handledByInjuryCue=!G._coreDrivenBattle&&source&&target&&source.id===target.id
-        && (String(e.reason||'')==='golem'||String(e.reason||'')==='kobold');
-      // ガーゴイル／剣技は正のステータス変化だけを表示する効果。
-      // 被弾VFX経路へ流すと、バフ対象自身が攻撃を受けたように見える。
-      const statOnlyBuff=String(e.reason||'')==='gargoyle'||String(e.reason||'')==='sword_skill';
-      if(source&&target&&!handledByInjuryCue&&!statOnlyBuff&&typeof _playCardEffectVfx==='function'){
+      if(source&&target&&typeof _playCardEffectVfx==='function'){
         const code=_effectPresentationCode(source);
         if(/^C\d{3}$/i.test(code)){
           const cueKey=`${source.id}:${String(e.reason||'')}`;
@@ -2761,11 +2738,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
     }
     if(sweepShownLabels.has(`${e.side}:${target.id}`)) continue;
-    // 肩代わり（マータ等）で受けたぶんは、攻撃した側ではなく肩代わりした本人の
-    // 効果である。攻撃者を発生元にすると、その本人の個別VFXが一度も出ない。
-    const vfxSource=e.redirectedFrom?target:source;
+    // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
+    const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
     if(!sweepSources.has(source&&source.id)&&typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
-      { ...((e.effect||e.redirectedFrom)&&vfxSource&&_characterVfxAllowedForDamage(vfxSource)?{effectSource:vfxSource}:{}),
+      { ...(vfxSource?{effectSource:vfxSource}:{}),
         keywordEffect:e.keywordEffect||undefined });
   }
   effectDamageSources.forEach(id=>{

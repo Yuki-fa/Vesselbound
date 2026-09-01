@@ -2449,7 +2449,7 @@ function renderField(id,units,isEnemy,_lane){
   // HPが0になっても、死亡演出が終わるまでは盤面の枠を確保しておく。
   // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
   // （＝何もない場所）へ出てしまう。
-  const _keepDying=(Number(G&&G._flushingCoreEvents)||0)>0;
+  const _keepDying=typeof presentIsPlaying==='function'&&presentIsPlaying();
   const _onBoard=x=>!!x.u&&(x.u.hp>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
   const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
   const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
@@ -2480,7 +2480,7 @@ function renderField(id,units,isEnemy,_lane){
     // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
     // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
     const _pendingDeath=!!(u&&u.hp<=0&&u.id!=null&&!u._deathFxReady&&dyingIds.has(String(u.id))
-      &&(Number(G&&G._flushingCoreEvents)||0)>0);
+      &&_keepDying);
     const _alive=!!u&&(u.hp>0||_pendingDeath);
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
@@ -2504,7 +2504,7 @@ function renderField(id,units,isEnemy,_lane){
       // イベント再生中は焼き落とさない。ここで消すと、まだ出ていないダメージ数値や
       // 個別VFXが「カードのない空きスロット」へ出てしまう。死亡演出は再生の最後に
       // まとめて行う（battle.js の death ループ）。
-      const _flushing=(Number(G&&G._flushingCoreEvents)||0)>0&&!(u&&u._deathFxReady);
+      const _flushing=_keepDying&&!(u&&u._deathFxReady);
       if(!_flushing&&u&&u.hp<=0&&!u._deathFxDone&&u.id!=null&&typeof playCardBurnAway==='function'){
         const _prevNode=previousSlots.get(String(u.id));
         const _prevRect=previousRects.get(String(u.id));

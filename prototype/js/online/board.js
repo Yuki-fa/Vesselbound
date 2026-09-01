@@ -148,6 +148,12 @@
   //   ・マナ効果VFXはキャラクターごとに1回だけ（別キャラの同時発動はそれぞれ再生する）
   //   ・同じキャラへの連続ダメージは数値が重ならないよう順番待ちにする
   let _manaCueGate = presentCreateOnceGate();
+  // 能力変化の固有SE・固有VFXの重複単位。PvEの _flushCorePveHitEvents と同じ持ち方にする。
+  //   ・SEは「発生元＋効果」につき1回
+  //   ・VFXは「発生元＋効果＋対象」につき1回
+  // PvEは1手ぶんの再生ごとに作り直すので、こちらもターンの頭で作り直す。
+  let _effectStatCueKeys = new Set();
+  let _effectStatVfxGate = presentCreateOnceGate();
   // 既定の間隔（PRESENT_DAMAGE_STAGGER_MS）で連続表示する。PvEと同じ規則。
   const _damageGate = presentCreateDamageGate();
 
@@ -244,8 +250,23 @@
   // ダメージ値・死亡・勝敗はイベントに書かれた値をそのまま使い、ここでは判定しない。
   async function renderOnlineVersusBoard(ev, ctx) {
     if (typeof G === 'undefined' || !G) return;
+    // 演出の再生中は盤面を詰めない・倒れたカードを消さない。
+    // 規則も、そのフラグ自体も present.js が唯一の実装（PvEと同じものを使う）。
+    presentBeginPlayback();
+    try {
+      await _renderOnlineVersusEvent(ev, ctx);
+    } finally {
+      presentEndPlayback();
+    }
+  }
+
+  async function _renderOnlineVersusEvent(ev, ctx) {
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
     if (presentBreaksManaRun(ev)) _manaCueGate = presentCreateOnceGate();
+    if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
+      _effectStatCueKeys = new Set();
+      _effectStatVfxGate = presentCreateOnceGate();
+    }
 
     switch (ev.type) {
       case ONLINE_EVENT.BATTLE_START: {
@@ -258,6 +279,9 @@
         if (typeof renderBattleCounters === 'function') renderBattleCounters();
         // 数値の順番待ちも戦闘をまたいで持ち越さない。
         if (_damageGate && typeof _damageGate.reset === 'function') _damageGate.reset();
+        // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
+        presentResetPlayback();
+        presentBeginPlayback();
         _render();
         // 開戦カットイン → 登場演出。PvEの startBattle() と同じ順番。
         if (typeof _playBattleStartIntro === 'function') {
@@ -283,35 +307,12 @@
         _motion = playAttackMotion(attacker, target, ev.side === 'p2', null, {
           stopRatio: .25, firstDuration: 260, secondDuration: 360, returnDuration: 420,
           onHit: () => {
+            // 接触の揺れだけをここで出す。
+            // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
+            // PvEは攻撃モーションを最後まで待ってから、コアのイベント列を順に再生する。
+            // ここで先取りして出すと、間に挟まる能力変化（負傷など）の演出だけが
+            // あとへ回り、同じ盤面でも演出の並びがPvEと食い違う。
             if (typeof _shakeOnAttackContact === 'function') _shakeOnAttackContact(target, dmg);
-            // ダメージ値は後続DAMAGEイベントのhpAfterを先読みして、接触時にVFX/SEと同時に表示する。
-            // 値そのものはサーバー確定イベントからのみ取得し、ここでは再計算しない。
-            const primary = ((ctx && ctx.attackDamageEvents) || []).find(d => !d.counter
-              && String(d.unitId) === String(target.id));
-            if (primary) {
-              target.hp = Math.max(0, Number(primary.hpAfter) || 0);
-              if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, _fxSide(primary.side));
-            }
-            if (dmg > 0 && typeof playAttackDamageSfx === 'function') {
-              playAttackDamageSfx(attacker, dmg);
-            }
-            if (dmg > 0 && typeof playHitVfx === 'function') {
-              playHitVfx(ev.side === 'p1' ? 'enemy' : 'ally', target, dmg, { keywordEffect: ev.keywordEffect || undefined });
-            }
-            if (primary && ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(primary);
-            // 反撃は別のDAMAGEイベントだが、表示時刻は攻撃対象への命中と同じ接触瞬間に揃える。
-            const counter = ((ctx && ctx.attackDamageEvents) || []).find(d => d.counter && Number(d.amount) > 0);
-            if (counter) {
-              const counterTarget = _find(counter.side, counter.unitId);
-              const counterSource = _find(counter.side === 'p1' ? 'p2' : 'p1', counter.sourceId);
-              if (counterTarget) {
-                counterTarget.hp = Math.max(0, Number(counter.hpAfter) || 0);
-                if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(counterTarget, _fxSide(counter.side));
-              }
-              if (typeof playAttackDamageSfx === 'function') playAttackDamageSfx(counterSource, counter.amount);
-              if (typeof playHitVfx === 'function') playHitVfx(_fxSide(counter.side), counterTarget, counter.amount);
-              if (ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(counter);
-            }
           },
         });
         // PvEは攻撃モーションが完全に終わってから applyDamageBatch()＝ヒットSE・
@@ -338,16 +339,14 @@
         u.hp = Math.max(0, Number(ev.hpAfter) || 0);
         // 通常攻撃の対象側はATTACKの接触時に演出を開始済み。反撃は独立したDAMAGE
         // イベントなので、攻撃した側にも同じ命中SE・VFX・ダメージ値を出す。
-        // キャラクター固有VFXの発生元はPvEと同じ規則で決める。
-        // 肩代わり（マータ等）で受けたぶんは、攻撃した側ではなく肩代わりした本人の効果。
+        // 固有VFXを誰の効果として出すかは present.js が唯一の実装（PvEと同じ規則）。
         const _dmgSourceSide = ev.side === 'p1' ? 'p2' : 'p1';
         const _dmgSource = ev.sourceId ? (_find(_dmgSourceSide, ev.sourceId) || _find(ev.side, ev.sourceId)) : null;
-        const _vfxSource = ev.redirectedFrom ? u : _dmgSource;
+        const _vfxSource = presentDamageVfxSource(ev, u, _dmgSource,
+          typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null);
         const _vfxOpt = {
           keywordEffect: ev.keywordEffect || undefined,
-          ...((ev.effect || ev.redirectedFrom) && _vfxSource
-            && typeof _characterVfxAllowedForDamage === 'function'
-            && _characterVfxAllowedForDamage(_vfxSource) ? { effectSource: _vfxSource } : {}),
+          ...(_vfxSource ? { effectSource: _vfxSource } : {}),
         };
         if (ev.counter && Number(ev.amount) > 0
           && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))) {
@@ -401,13 +400,21 @@
           const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
           log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`, ev.side === 'p1' ? 'good' : 'bad');
         }
-        // 負傷などの能力変化にも、発生元カードの固有VFXを出す（PvEと同じ）。
-        if (ev.sourceId && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
+        // 負傷などの能力変化にも、発生元カードの固有VFXを出す。
+        // どの理由で出すか・何回出すかは present.js が唯一の実装（PvEと同じ規則）。
+        if (presentStatChangeVfxAllowed(ev)
+          && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
           const src = _find('p1', ev.sourceId) || _find('p2', ev.sourceId);
           const code = src ? String(_effectPresentationCode(src) || '') : '';
           if (/^C\d{3}$/i.test(code)) {
-            if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
-            void _playCardEffectVfx(code, [u], { gateMs: 0, hitDuration: 700, waitForFinish: false });
+            const cueKey = `${src.id}:${String(ev.reason || '')}`;
+            if (!_effectStatCueKeys.has(cueKey)) {
+              _effectStatCueKeys.add(cueKey);
+              if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+            }
+            if (_effectStatVfxGate.shouldPlay(`${cueKey}:${u.id}`)) {
+              await _playCardEffectVfx(code, [u], { gateMs: 0, hitDuration: 700 });
+            }
           }
         }
         _render();
@@ -650,12 +657,24 @@
             if (next.type === ONLINE_EVENT.DEATH) deaths.push(next);
           }
         }
-        deaths.forEach(d => { const unit = _find(d.side, d.unitId); if (unit) unit.hp = 0; });
+        // ここまでで数値・VFXは出し終えている。カードを残す理由がないので、
+        // 再生中でも焼き落としを始めてよい印を付ける（PvEの死亡ループと同じ）。
+        deaths.forEach(d => {
+          const unit = _find(d.side, d.unitId);
+          if (unit) { unit.hp = 0; unit._deathFxReady = true; }
+        });
         // 焼失演出は renderField が死亡ユニットに対して自分で流す。
         await _awaitMotion();
+        // 直前に出したダメージ数値が読める間を取ってから消す。PvEは死亡演出の前に
+        // 数値を出し切ってから死亡処理へ入るため、ここで待たないとオンラインだけ
+        // 「数値が出た瞬間にカードが消え、数値が空白の上に残る」見え方になる。
+        // 待ち時間は present.js が唯一の実装（PvEと同じ定数）。
+        await _sleep(PRESENT_HIT_BEAT_MS);
         // 死亡で人数が変わった場合も、単純再描画ではなくPvEと同じ
         // compactBattleUnits + FLIP経路を通して残存キャラを詰める。
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+        // ここは「数値を出し終えた後」なので、再生中でも詰めてよい。
+        // 逆に、イベントごとに詰めてはいけない（出したばかりの数値が行き場を失う）。
+        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
         else _render();
         break;
       }

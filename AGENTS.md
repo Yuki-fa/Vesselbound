@@ -115,6 +115,40 @@ cd prototype && node tools/parity/anim_check.js
 cd prototype && node tools/parity/loop_parity.js
 ```
 
+**演出（見せ方）に触ったときは必ず：**
+
+```bash
+cd prototype && node tools/parity/present_parity.js
+```
+
+同じ盤面・同じ乱数種でPvEとオンラインを実際に再生し、
+「コアのイベント列」「演出の呼び出し（対象・量・順番）」「数値が対象カードの上に出るか」
+「カードの複製が残らないか」を突き合わせる。**オンラインだけ固有VFXが一つも出ない、
+とどめの数値が出ない、といった片側だけの不具合はこれでしか捕まらない。**
+
+### 演出の規則は `js/battle/present.js` が唯一の実装
+
+PvE（`js/engine/battle.js`）とオンライン（`js/online/board.js`）はDOMの触り方が違うため、
+描画関数そのものは分かれている。**しかし「どういう規則で見せるか」は必ず present.js に置き、
+両方から呼ぶこと。** 呼び出し側へ規則を書き戻した時点で二重実装に戻る（実際に何度も戻った）。
+
+present.js が持つ規則：
+
+| 関数 | 決めていること |
+| --- | --- |
+| `presentDamageVfxSource()` | キャラクター固有VFXを「誰の効果」として出すか（肩代わりは肩代わりした本人） |
+| `presentStatChangeVfxAllowed()` | 能力変化のどの理由で固有VFXを出すか |
+| `presentIsPlaying()` ほか | 演出の再生中フラグ（再生中は盤面を詰めない・倒れたカードを消さない） |
+| `presentCreateDamageGate()` | 同じ体へ数値が続くときの間隔 |
+| `presentChooseSummonSlot()` | 召喚のスロット選択 |
+| `PRESENT_HIT_BEAT_MS` | 命中から結果を見せ始めるまでの間 |
+
+守るべき順番（両方で同じ）：
+
+1. コアが確定した**イベントの順番どおり**に演出を出す。先取り・後回しをしない。
+2. 数値・VFXを出し終えるまで、倒れたカードを消さない・盤面を詰めない。
+3. 詰めてよいのは死亡イベントを処理する時だけ（`_deathFxReady` を立ててから）。
+
 **自動テストの通過を「直った」と書かないこと。** 実機で見ていない項目は「未確認」と明記する。
 
 ## 現在の状態（core移行：完了）

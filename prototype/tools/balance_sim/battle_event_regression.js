@@ -367,8 +367,7 @@ function main() {
     'PvEが1手ずつ coreBattleStep() を呼んでいない、または詰め処理を演出前に行っている');
   // 演出フラグは step() の前から立てる。step()でHPが0になった直後に再描画が挟まると、
   // 死亡した体が空きスロットへ描き直され、あとから出る数値・VFXが何もない場所へ出る。
-  assert.match(currentBattle,
-    /G\._flushingCoreEvents=\(Number\(G\._flushingCoreEvents\)\|\|0\)\+1;\s*\n\s*let stepped=false;/,
+  assert.match(currentBattle, /presentBeginPlayback\(\);\s*\n\s*let stepped=false;/,
     'step()の前に演出フラグを立てていない（死亡直後の再描画で数値位置がずれる）');
   assert.match(currentBattle, /if\(typeof runner\.compact==='function'\) runner\.compact\(\);/,
     '演出の後に盤面を詰めていない（コアと配列の並びが食い違う）');
@@ -390,19 +389,46 @@ function main() {
       'VFX・ダメージ数値が対象カードへ追従していない');
   }
   {
-    // キャラクター固有VFXの発生元の決め方を、PvEとオンラインで揃える。
+    // キャラクター固有VFXの「見せ方の規則」は present.js が唯一の実装。
+    // PvE・オンラインの双方が同じ関数を呼び、判断を自前で持たないこと。
     const board = read('js/online/board.js');
-    assert.match(currentBattle, /const vfxSource=e\.redirectedFrom\?target:source;/,
-      'PvEが肩代わりダメージの発生元を肩代わりした本人にしていない');
-    assert.match(board, /const _vfxSource = ev\.redirectedFrom \? u : _dmgSource;/,
-      'オンラインが肩代わりダメージの発生元を肩代わりした本人にしていない');
-    assert.match(board, /_characterVfxAllowedForDamage\(_vfxSource\)/,
-      'オンラインの被弾演出にキャラクター固有VFXの発生元が渡っていない');
-    assert.match(board, /void _playCardEffectVfx\(code, \[u\], \{ gateMs: 0, hitDuration: 700, waitForFinish: false \}\);/,
-      'オンラインの能力変化でキャラクター固有VFXを再生していない');
-    // コア駆動では負傷もコアが解決するため、攻撃時の負傷ディスパッチは通らない。
-    assert.match(currentBattle, /const handledByInjuryCue=!G\._coreDrivenBattle&&source&&target/,
-      '被弾による負傷のキャラクター固有VFXが抑制されたままになっている');
+    const present = read('js/battle/present.js');
+    assert.match(present, /function presentDamageVfxSource\(/,
+      '被弾時の固有VFX発生元の規則が present.js に無い');
+    assert.match(present, /function presentStatChangeVfxAllowed\(/,
+      '能力変化の固有VFX可否の規則が present.js に無い');
+    assert.match(present, /const PRESENT_STAT_CHANGE_VFX_REASONS = new Set\(\[/,
+      '固有VFXを出す効果の一覧が present.js に無い');
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /presentDamageVfxSource\(/,
+        `${name}が被弾時の固有VFX発生元を present.js に委ねていない`);
+      assert.match(src, /presentStatChangeVfxAllowed\(/,
+        `${name}が能力変化の固有VFX可否を present.js に委ねていない`);
+      // 規則を呼び出し側へ書き戻すと、また片側だけ直る状態に戻る。
+      assert.doesNotMatch(src, /redirectedFrom\s*[?]/,
+        `${name}が肩代わりの判断を自前で持っている（present.jsへ戻すこと）`);
+      assert.doesNotMatch(src, /'mana_threshold_arachne_buff'/,
+        `${name}が固有VFXを出す効果の一覧を自前で持っている（present.jsへ戻すこと）`);
+    });
+    // 「演出の再生中」フラグも present.js が唯一の実装。片側だけが立てると、
+    // 同じ不具合（数値が何もない場所へ出る／倒れたカードが残る）がもう片方で再発する。
+    assert.match(present, /function presentIsPlaying\(\)/,
+      '再生中フラグが present.js に無い');
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /presentBeginPlayback\(\)/, `${name}が再生中フラグを立てていない`);
+      assert.match(src, /presentEndPlayback\(\)/, `${name}が再生中フラグを下ろしていない`);
+      assert.doesNotMatch(src, /_flushingCoreEvents/,
+        `${name}が独自の再生中フラグを持っている（present.jsへ戻すこと）`);
+      // 数値を出し終えた印。これが無いと倒れたカードが再生の終わりまで残る。
+      assert.match(src, /_deathFxReady\s*=\s*true/, `${name}が死亡演出の開始印を付けていない`);
+    });
+    assert.doesNotMatch(read('js/engine/render.js'), /_flushingCoreEvents/,
+      '描画が独自の再生中フラグを見ている（present.jsへ戻すこと）');
+    // 重複の数え方（SEは発生元＋効果、VFXは＋対象）も両側で同じにする。
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /\$\{cueKey\}:\$\{(target|u)\.id\}/,
+        `${name}の能力変化VFXが対象ごとの重複ゲートを通っていない`);
+    });
   }
   assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
     'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
@@ -696,7 +722,9 @@ function main() {
     'オンライン召喚がスロット配列の末尾へpushしている');
   assert.match(board, /layoutChanged&&typeof requestBattleCompact==='function'\) requestBattleCompact\(\{forceRender:true\}\)/,
     'オンライン召喚後にFLIP詰め処理を実行していない');
-  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]*requestBattleCompact\(\{forceRender:true\}\)/,
+  // 死亡は「数値を出し終えた後」なので、再生中でも詰めてよい（forceDuringMotion）。
+  // 逆にイベントごとに詰めてはいけない。出したばかりの数値が行き場を失う。
+  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]*requestBattleCompact\(\{forceRender:true,forceDuringMotion:true\}\)/,
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.match(board, /case 'mana_threshold':[\s\S]*await _awaitManaReverseStart\(source, ev\.side === 'p2'\)/,
     'オンラインのマナ閾値効果がVFX逆再生開始を待っていない');
