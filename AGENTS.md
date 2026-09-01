@@ -163,6 +163,35 @@ cd prototype && node tools/parity/present_parity.js
 尺・間合いの数値は `present.js`（`PRESENT_ATTACK_MOTION` / `PRESENT_TURN_GAP_MS` /
 `PRESENT_HIT_BEAT_MS` / `PRESENT_DAMAGE_STAGGER_MS`）が唯一の定義。
 
+### カード個別のVFXを足す時（アラッサスの薙ぎ払いのようなもの）
+
+**既存のイベント種別で表せるなら、受け口を足す必要は無い。** 「+2/+2する」
+「Nダメージ与える」といった効果は `stat_change` / `damage` で足りる。
+足りないのは「その効果**専用の見せ方**」が要る時だけ（薙ぎ払いは、炎が対象を
+順になぎ払うという指示が既存の種別で表せなかったので `sweep_vfx` を足した）。
+
+手順は3つ。**この順で足せば両方に同じ形で入る。**
+
+1. **コアに演出指示のイベントを足す**（`js/battle/core.js`）。
+   DOMには触れず、再生側が同じ対象・同じ順で表示できる情報だけを出す。
+   例：`emit({ type:'sweep_vfx', side, unitId, targetIds:[...] })`
+2. **見せ方を1回だけ書く**。DOMを触る本体は `render.js`（例 `presentSweepAttack`）、
+   イベント1件の扱いは `present_events.js`。**どちらも実装は1つだけ。**
+3. **両方の受け口から2を呼ぶ**（`battle.js` と `board.js`）。違いはアダプタで渡す。
+
+足し忘れは機械的に落ちる：
+
+| 検査 | 落ちる条件 |
+| --- | --- |
+| `online_receivers.js` | コアが出しているのに受け口が無い種別がある |
+| `present_parity.js` | 同じ盤面で演出の呼び出し・盤面・数値・HPが食い違う |
+| `battle_event_regression.js` | 規則を呼び出し側へ書き戻した |
+
+**新しいカードのVFXを足したら、`present_parity.js` の `SCENARIOS` へそのカードを
+使うシナリオを1つ足すこと。** 追加したVFXが両方で同じに出ることを、以後ずっと
+機械的に確認できるようになる（`requires` にその効果のイベント種別を書いておくと、
+盤面の組み方を間違えて空振りした時も検出できる）。
+
 ### 片側だけの演出を作りたい時（オンライン専用の特別演出など）
 
 **共通部分を書き換えて分岐させてはいけない。** 分岐させた瞬間、そのあと共通部分を

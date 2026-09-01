@@ -330,8 +330,12 @@ function main() {
     '盤面詰め時にG.enemiesの配列参照を差し替えている');
   assert.match(currentBattle, /const rearSlots=Math\.max\(0,maxA-frontSlots\)/,
     '盤面詰め処理が後衛を3枠に固定し、14体上限まで保持していない');
-  assert.match(currentBattle, /if\(typeof requestBattleCompact==='function'\) requestBattleCompact\(_summonHasDom\?undefined:\{forceDuringMotion:true\}\);/,
+  assert.match(currentBattle,
+    /requestBattleCompact\(\s*\(_summonHasDom&&!_openingSummon\)\?undefined:\{forceDuringMotion:true\}\);/,
     '召喚後に人数変化用の詰めアニメーションを実行していない');
+  // 開戦の召喚も1体ずつ姿が出るようにする（オンラインと同じ見え方）。
+  assert.match(currentBattle, /const _openingSummon=!G\._battlePhaseRunning;/,
+    '開戦の召喚をまとめて出している（オンラインと見え方が食い違う）');
   // 召喚体にDOMが無いまま攻撃モーション完了を待つと、画面に出ないのに攻撃・被弾が進み、
   // 攻撃モーションが再生されずダメージ数値だけが左端へ出る。DOM無しの時だけ強制描画する。
   assert.match(currentBattle, /const _summonHasDom=!!document\.querySelector\(/,

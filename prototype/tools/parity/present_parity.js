@@ -283,14 +283,15 @@ const pveScript = sc => `
   if (typeof presentResetPlayback === 'function') presentResetPlayback();
   renderAll();
   await new Promise(r => requestAnimationFrame(r));
+  // **開戦効果の演出も比較する。** 見張りを開戦処理の前から始める。
+  // 登場演出・開戦カットインは startBattle() 側（両者とも同じ関数）なので対象外。
+  ${WATCHER}
   // 開戦処理はオンライン側（sim）も必ず通る。ここで通しておかないと、
   // 開戦で解決されるはずのマナ閾値などが戦闘ループへずれ込み、比較にならない。
   if (typeof _finishNewPanelBattleStartEffects === 'function') {
     try { await _finishNewPanelBattleStartEffects(); } catch (e) { /* 開戦効果が無い盤面 */ }
   }
   await new Promise(r => requestAnimationFrame(r));
-  // 見張りは開戦が済んでから始める（登場演出は比較の対象外）。
-  ${WATCHER}
   try {
     await Promise.race([
       battlePhase().then(() => { window.__playbackEnded = true; }),
@@ -323,8 +324,8 @@ const onlineScript = sc => `
   await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => requestAnimationFrame(r));
   ${WATCHER}
-  // PvE側は開戦を済ませてから見張りを始める。オンラインも同じ土俵にするため、
-  // 最初のturn_beginが来た時点で記録をやり直す（登場演出は比較の対象外）。
+  // PvE側は開戦処理の直前から見張る。オンラインも同じ土俵にするため、
+  // battle_start（登場演出・カットイン）を終えた時点で記録をやり直す。
   let __started = false;
   const __resetWatch = () => {
     window.__watch.vfx.length = 0; window.__watch.calls.length = 0;
@@ -334,7 +335,7 @@ const onlineScript = sc => `
   try {
     await Promise.race([
       playOnlineBattleEvents(out, { onEvent: (ev, ctx) => {
-        if (!__started && ev && ev.type === ONLINE_EVENT.TURN_BEGIN) { __started = true; __resetWatch(); }
+        if (!__started && ev && ev.type !== ONLINE_EVENT.BATTLE_START) { __started = true; __resetWatch(); }
         window.__lastEvent = (ev && ev.type) + ':' + ((ev && (ev.unitId || ev.attackerId)) || '');
         return renderOnlineVersusBoard(ev, ctx);
       } }).then(() => { window.__playbackEnded = true; }),
@@ -370,14 +371,12 @@ const onlineScript = sc => `
       });
       return list => (list || []).map(fix);
     };
-    // PvEの検査は戦闘ループだけを回す（開戦はstartBattle側で済ませる前提の関数のため）。
-    // オンラインは開戦から流れてくるので、最初のturn_beginより前と決着後を落として揃える。
+    // **開戦効果から決着直前までを比べる。** battle_start は再生の開始そのもので
+    // PvE側のイベント列には無いため落とす。決着後は片側だけの後始末が入るので落とす。
     const battleLoopOnly = list => {
-      const arr = (list || []);
-      const from = arr.findIndex(e => String(e).startsWith('turn_begin'));
-      const sliced = from >= 0 ? arr.slice(from) : arr;
-      const end = sliced.findIndex(e => String(e).startsWith('battle_end'));
-      return end >= 0 ? sliced.slice(0, end) : sliced;
+      const arr = (list || []).filter(e => !String(e).startsWith('battle_start'));
+      const end = arr.findIndex(e => String(e).startsWith('battle_end'));
+      return end >= 0 ? arr.slice(0, end) : arr;
     };
 
     for (const sc of SCENARIOS) {
@@ -418,11 +417,24 @@ const onlineScript = sc => `
         pveCalls === onCalls ? `${(pve.calls || []).length}回`
           : `PvE=${pveCalls || 'なし'}\n\tオンライン=${onCalls || 'なし'}`);
 
-      const pveBoard = (pve.board || []).join(' ⇒ ');
-      const onBoard = (online.board || []).join(' ⇒ ');
-      check(`${tag}盤面の並びの変化が一致する`, pveBoard === onBoard,
-        pveBoard === onBoard ? `${(pve.board || []).length}段階`
-          : `PvE=${pveBoard || 'なし'}\n\tオンライン=${onBoard || 'なし'}`);
+      // 盤面の並びは「見えた状態の並び」で比べる。ただし**1フレーム未満で通過した
+      // 状態は見えない**ので、片方だけが拾った中間状態は差とみなさない。
+      // （開戦の連続召喚では、PvEは同じフレーム内で2体出るため中間が記録されない。
+      //   DOM上は1体ずつ出ており、見え方は同じ。）
+      // 並び・最初・最後が食い違えば、部分列にならないので必ず落ちる。
+      const isSubsequence = (small, big) => {
+        let i = 0;
+        for (const x of big) { if (i < small.length && small[i] === x) i++; }
+        return i === small.length;
+      };
+      const pveB = pve.board || [], onB = online.board || [];
+      const sameEnds = pveB.length && onB.length
+        && pveB[0] === onB[0] && pveB[pveB.length - 1] === onB[onB.length - 1];
+      const boardOk = pveB.join(' ⇒ ') === onB.join(' ⇒ ')
+        || (sameEnds && (isSubsequence(pveB, onB) || isSubsequence(onB, pveB)));
+      check(`${tag}盤面の並びの変化が一致する`, boardOk,
+        boardOk ? `${pveB.length}段階／${onB.length}段階`
+          : `PvE=${pveB.join(' ⇒ ') || 'なし'}\n\tオンライン=${onB.join(' ⇒ ') || 'なし'}`);
 
       check(`${tag}数値がカード外に出ない`,
         (pve.offCard || []).length === 0 && (online.offCard || []).length === 0,

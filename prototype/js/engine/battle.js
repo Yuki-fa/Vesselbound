@@ -2806,7 +2806,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const _summonFieldId=e.side==='p2'?'f-enemy':'f-ally';
       const _summonHasDom=!!document.querySelector(
         `#${_summonFieldId} .slot[data-unit-id="${String(unit.id).replace(/"/g,'\\"')}"]`);
-      if(typeof requestBattleCompact==='function') requestBattleCompact(_summonHasDom?undefined:{forceDuringMotion:true});
+      // 開戦の召喚も**1体ずつ姿が出る**ようにする（オンラインと同じ見え方）。
+      // 開戦では体が先に配列とDOMへ入るため _summonHasDom が真になり、
+      // 保留のまま最後にまとめて出ていた。戦闘ループが始まる前は必ず即時描画する。
+      const _openingSummon=!G._battlePhaseRunning;
+      if(typeof requestBattleCompact==='function') requestBattleCompact(
+        (_summonHasDom&&!_openingSummon)?undefined:{forceDuringMotion:true});
       if(typeof requestBattleCompact!=='function'&&typeof renderAll==='function') renderAll();
       const readyArr=e.side==='p2'?G.enemies:G.allies;
       // renderAll() は同期的にスロットを作るため、召喚イベントごとのDOM待ちは行わない。
