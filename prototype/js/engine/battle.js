@@ -1409,8 +1409,20 @@ function abortBattleForDebug(){
   document.body.classList.remove('battle-turn-active','battle-victory-pending','right-card-peek');
 }
 
+// 命中音は「同じ瞬間に複数鳴る」ことが多い（攻撃と反撃、全体攻撃）。
+// 音源の読み込みが済んでいないと鳴り始めが1回ごとにばらつき、ずれて聞こえる。
+// 戦闘の頭で、使う可能性のある命中音を鳴らせる状態にしておく。
+function _warmBattleHitSfx(){
+  if(typeof warmSfxVoices!=='function') return;
+  const keys=[];
+  ['sword','axe','punch','kick'].forEach(t=>{ for(let lv=1;lv<=3;lv++) keys.push(`${t}${lv}`); });
+  keys.push('attack','hit','death','shield');
+  warmSfxVoices(keys);
+}
+
 async function startBattle(){
   G._debugFormationAbort=false;
+  _warmBattleHitSfx();
   // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
   presentResetPlayback();
   G._battleCoreEvents=[];

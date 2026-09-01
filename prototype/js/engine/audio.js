@@ -214,6 +214,48 @@ function _sfxAudio(key){
   return _sfxCache[key];
 }
 
+// ── 再生用の複製プール ────────────────────────────────
+// 鍵ごとに読み込み済みの複製を持ち回る。毎回 cloneNode() すると複製は
+// 読み込みからやり直しになり、鳴り始めるまでの時間が1回ごとにばらつく。
+// （同じ瞬間に鳴らした攻撃と反撃の音がずれて聞こえる原因）
+const _sfxVoicePool={};
+const SFX_VOICE_POOL_MAX=4;
+function _makeSfxVoice(base){
+  const a=base.cloneNode();
+  a.preload='auto';
+  // iOS/Safari等では、DOMから外れたAudio複製が再生開始前に回収されることがある。
+  // 再生中だけ非表示要素として保持する。
+  a.setAttribute('aria-hidden','true');
+  a.style.display='none';
+  (document.body||document.documentElement).appendChild(a);
+  try{ a.load(); }catch(e){ /* 読み込みは再生時に行われる */ }
+  return a;
+}
+function _takeSfxVoice(key,base){
+  const pool=_sfxVoicePool[key]||(_sfxVoicePool[key]=[]);
+  const a=pool.pop()||_makeSfxVoice(base);
+  try{ a.pause(); a.currentTime=0; }catch(e){ /* 巻き戻せない状態でも再生は試みる */ }
+  return a;
+}
+function _freeSfxVoice(key,a){
+  if(!a) return;
+  try{ a.pause(); a.currentTime=0; }catch(e){}
+  const pool=_sfxVoicePool[key]||(_sfxVoicePool[key]=[]);
+  if(pool.length<SFX_VOICE_POOL_MAX&&a.isConnected){ pool.push(a); return; }
+  if(a.parentNode) a.parentNode.removeChild(a);
+}
+
+// 使う音を先に1つずつ鳴らせる状態にしておく。戦闘の最初の一撃だけ
+// 鳴り始めが遅れるのを防ぐ。
+function warmSfxVoices(keys){
+  (keys||[]).forEach(key=>{
+    const base=_sfxAudio(key);
+    if(!base) return;
+    const pool=_sfxVoicePool[key]||(_sfxVoicePool[key]=[]);
+    while(pool.length<2) pool.push(_makeSfxVoice(base));
+  });
+}
+
 function preloadSfx(){
   if(!Assets||!Assets.sfx) return;
   Object.keys(Assets.sfx).forEach(k=>_sfxAudio(k));
@@ -273,12 +315,12 @@ function playSfx(key,opts={}){
   if(_sfxActiveVoices>=SFX_SETTINGS.maxVoices) return false;
   _sfxLastPlayed[guardKey]=now;
 
-  const a=base.cloneNode();
-  // iOS/Safari等では、DOMから外れたAudio複製が再生開始前に回収されることがある。
-  // 再生中だけ非表示要素として保持し、個別SEの再生終了後に除去する。
-  a.setAttribute('aria-hidden','true');
-  a.style.display='none';
-  (document.body||document.documentElement).appendChild(a);
+  // **複製を使い回す。** cloneNode()で毎回作り直すと、その複製は読み込みからやり直しになり、
+  // play()が実際に鳴り始めるまでの時間が1回ごとにばらつく。攻撃と反撃のように同じ瞬間に
+  // 2つ鳴らすと、この差がそのまま「音がずれて聞こえる」原因になる。
+  // 一度読み込んだ複製を鍵ごとに持ち回り、currentTime=0 で鳴らし直す。
+  const a=_takeSfxVoice(key,base);
+  if(!a) return false;
   const speed=(typeof getBattleSpeedScale==='function'&&typeof G!=='undefined'&&(G.phase==='enemy'||G._battlePhaseRunning))?getBattleSpeedScale():1;
   a.playbackRate=Math.max(.5,Math.min(2,speed));
   a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.masterVolume));
@@ -288,7 +330,7 @@ function playSfx(key,opts={}){
     if(released) return;
     released=true;
     _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
-    if(a.parentNode) a.parentNode.removeChild(a);
+    _freeSfxVoice(key,a);
   };
   a.addEventListener('ended',release,{once:true});
   a.addEventListener('error',release,{once:true});

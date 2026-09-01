@@ -335,6 +335,8 @@
         // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
         presentResetPlayback();
         presentBeginPlayback();
+        // 命中音の鳴り始めを揃える（PvEの startBattle と同じ）。
+        if (typeof _warmBattleHitSfx === 'function') _warmBattleHitSfx();
         _render();
         // 開戦カットイン → 登場演出。PvEの startBattle() と同じ順番。
         if (typeof _playBattleStartIntro === 'function') {

@@ -624,6 +624,12 @@ function main() {
   // 解放演出はコア駆動でも必ず出す（_resolveSeals は通らない）。
   assert.match(currentBattle, /if\(e\.type==='seal_release'\)\{/,
     'PvEが封印の解放演出を出していない');
+  // 音源は使い回す。毎回cloneNode()すると読み込みからやり直しになり、
+  // 鳴り始めが1回ごとにばらついて「同じ瞬間の音がずれて聞こえる」。
+  assert.match(read('js/engine/audio.js'), /function _takeSfxVoice\(key, ?base\)/,
+    'SEの複製を使い回していない（鳴り始めがばらつく）');
+  assert.doesNotMatch(read('js/engine/audio.js'), /const a=base\.cloneNode\(\);\n {2}\/\/ iOS/,
+    'playSfxが毎回cloneNodeしている（プールを経由すること）');
   // 連続する命中音はまとめて鳴らす（VFXのデコードで音がずれるため）。
   [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
     assert.match(src, /damageSfxDone|_damageSfxDone/i, `${name}が命中音をまとめて鳴らしていない`);
