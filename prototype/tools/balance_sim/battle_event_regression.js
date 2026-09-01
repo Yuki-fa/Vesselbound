@@ -377,7 +377,7 @@ function main() {
     'カードのHP表示が据え置き値を見ていない');
   assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp\)/,
     'PvEが手番の頭で表示値を据え置いていない');
-  assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
+  assert.match(currentBattle, /applyHp:\(unit,hpAfter\)=>\{ if\(typeof presentAdvanceShown==='function'\) presentAdvanceShown\(unit,\{hp:hpAfter\}\); \}/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
   // 据え置いていない時に差分を足すと二重に効く（開戦の効果でATKが1多く見えた）。
   assert.match(read('js/battle/present.js'),
@@ -411,11 +411,9 @@ function main() {
     '反撃が誘発を先に起こしている');
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
-  assert.match(currentBattle,
-    /if\(vfxSource&&!sweepSources\.has\(vfxSource\.id\)\) effectDamageSources\.add\(vfxSource\.id\);/,
+  assert.match(read('js/battle/present_events.js'),
+    /if \(vfxSource && typeof api\.noteEffectSource === 'function'\) api\.noteEffectSource\(vfxSource\);/,
     '固有SEの発生元がVFXと別の規則になっている');
-  assert.doesNotMatch(currentBattle, /if\(e\.effect&&source&&!sweepSources\.has\(source\.id\)\)\{\n\s*effectDamageSources\.add/,
-    '固有SEを効果ダメージなら無条件に鳴らしている');
   // 1体の行動と次の行動の間には必ず「間」を置く（途切れなく続くと追えない）。
   assert.match(read('js/battle/present.js'), /const PRESENT_TURN_GAP_MS = /,
     '手番の間の長さが present.js に無い');
@@ -465,9 +463,10 @@ function main() {
       '能力変化の固有VFX可否の規則が present.js に無い');
     assert.match(present, /const PRESENT_STAT_CHANGE_VFX_REASONS = new Set\(\[/,
       '固有VFXを出す効果の一覧が present.js に無い');
+    // 被弾時の固有VFX発生元は present_events.js（共通の受け口）が present.js へ委ねる。
+    assert.match(read('js/battle/present_events.js'), /presentDamageVfxSource\(ev, target, source, api\.ownEffectText\)/,
+      'ダメージ演出の共通実装が固有VFX発生元を present.js に委ねていない');
     [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
-      assert.match(src, /presentDamageVfxSource\(/,
-        `${name}が被弾時の固有VFX発生元を present.js に委ねていない`);
       assert.match(src, /presentStatChangeVfxAllowed\(/,
         `${name}が能力変化の固有VFX可否を present.js に委ねていない`);
       // 規則を呼び出し側へ書き戻すと、また片側だけ直る状態に戻る。
@@ -515,10 +514,9 @@ function main() {
     assert.match(read('js/battle/core.js'),
       /effect: \(opts && opts\.effect !== undefined\) \? !!opts\.effect/,
       'コアが effect を上書きしている（通常攻撃で固有VFX・固有SEが出る）');
-    // 命中音は両方で同じ関数を使う。PvEに無いと攻撃開始音だけになる。
-    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
-      assert.match(src, /playAttackDamageSfx\(/, `${name}が命中音を鳴らしていない`);
-    });
+    // 命中音は共通の受け口（present_events.js）が鳴らす。
+    assert.match(read('js/battle/present_events.js'), /playAttackDamageSfx\(src, Math\.max\(0, Number\(d\.amount\) \|\| 0\)\);/,
+      'ダメージ演出の共通実装が命中音を鳴らしていない');
     // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
     assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
       '薙ぎ払いの共通実装が render.js に無い');
@@ -594,7 +592,7 @@ function main() {
     'applyDamageBatchが共通のダメージ表示ゲートを使っていない');
   assert.match(currentBattle, /damageLabelGate\?Math\.max\(0,damageLabelGate\.reserve\(key\)\):0/,
     'applyDamageBatchのダメージ表示を予約制にしていない（数値が重なる）');
-  assert.match(currentBattle, /const waitMs=damageGate\.reserve\(`u:\$\{target\.id\}`\);/,
+  assert.match(currentBattle, /gate:damageGate,/,
     'イベント再生のダメージ表示が同じ予約表を使っていない');
   assert.doesNotMatch(currentBattle, /const damageDisplayQueues=new Map\(\);/,
     'バッチ内だけの順番待ちが残っている（別経路と重なる）');
@@ -611,7 +609,7 @@ function main() {
     'オンラインが前衛0..6／後衛7..13の固定枠のまま（PvEと配置規則が食い違う）');
   assert.match(board, /_manaCueGate = presentCreateOnceGate\(\);/,
     'オンラインのマナ効果VFX間引きが共通ゲートを使っていない');
-  assert.match(board, /const waitMs = _damageGate\.reserve\(`u:\$\{u\.id\}`\);/,
+  assert.match(board, /gate: _damageGate,/,
     'オンラインのダメージ表示が順番待ちになっていない（PvEと食い違う）');
   assert.doesNotMatch(board, /const MANA_CUE_RUN_TYPES = new Set/,
     'オンラインにマナ解決の継続種別の独自定義が残っている（present.jsとの二重実装）');
@@ -633,8 +631,9 @@ function main() {
   // している種別へ足すと、PvEには無い分だけオンラインだけ間延びする。
   assert.match(playback, /\n  damage: 0,\n  death: 0,\n  sacrifice: 0,\n  seal_release: 0,/,
     '既に待っている種別に固定待ちを足している（オンラインだけ動きが重くなる）');
-  assert.match(board, /const waitMs = _damageGate\.reserve\(`u:\$\{u\.id\}`\);/,
-    'オンラインのダメージ表示が共通の順番待ちを使っていない');
+  assert.match(read('js/battle/present_events.js'),
+    /const waitMs = api\.gate\.reserve\(`u:\$\{target\.id\}`\);/,
+    'ダメージ演出の共通実装が順番待ちを通していない');
   // 待ちを入れるのは「同じキャラクターへ数値が重なって出る」場合だけ。
   // 1発だけのダメージでも毎回待つと、命中してから戻るまでが常に一拍長くなる。
   assert.match(currentBattle, /const _needsInjuryBeat=\[\.\.\.injuredAllies,\.\.\.injuredEnemies\]\.some\(r=>r&&damageOverlapUnits\.has\(r\.unit\)\);/,
@@ -706,8 +705,12 @@ function main() {
   assert.doesNotMatch(read('js/engine/audio.js'), /const a=base\.cloneNode\(\);\n {2}\/\/ iOS/,
     'playSfxが毎回cloneNodeしている（プールを経由すること）');
   // 連続する命中音はまとめて鳴らす（VFXのデコードで音がずれるため）。
+  // ダメージ1件の見せ方は present_events.js が唯一の実装。両方がそれを呼ぶこと。
+  assert.match(read('js/battle/present_events.js'), /async function presentDamageEvent\(ev, api\)/,
+    'ダメージ演出の共通実装が無い');
   [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
-    assert.match(src, /damageSfxDone|_damageSfxDone/i, `${name}が命中音をまとめて鳴らしていない`);
+    assert.match(src, /presentDamageEvent\(/, `${name}がダメージ演出の共通実装を呼んでいない`);
+    assert.match(src, /sfxDone: ?_?damageSfxDone/, `${name}が命中音をまとめて鳴らしていない`);
   });
   assert.match(currentBattle,
     /if\(attacker&&target&&typeof playAttackMotion==='function'\)\{[\s\S]*beginBattleMotion\(\);[\s\S]*try\{[\s\S]*await playAttackMotion\([\s\S]*finally \{[\s\S]*endBattleMotion\(\);/,
@@ -832,7 +835,9 @@ function main() {
   const vfxChecks = {
     characterVfxResolver: /getCharacterEffectVfxPath\(/.test(render),
     keywordVfxResolver: /getKeywordEffectVfxPath\(/.test(render),
-    onlineVfxOption: /keywordEffect:\s*ev\.keywordEffect/.test(board),
+    // キーワードVFXの受け渡しは共通の受け口（present_events.js）が行う。
+    onlineVfxOption: /keywordEffect:\s*ev\.keywordEffect/.test(board)
+      || /keywordEffect: ev\.keywordEffect \|\| undefined/.test(read('js/battle/present_events.js')),
     asyncPlayback: /await\s+_onlineSleep\(/.test(playback),
   };
   assert.ok(vfxChecks.characterVfxResolver && vfxChecks.keywordVfxResolver, 'VFX解決器が存在しない');

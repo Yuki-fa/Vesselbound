@@ -404,54 +404,35 @@
         break;
       }
       case ONLINE_EVENT.DAMAGE: {
-        // 表示はイベントの hpAfter をそのまま反映（自前で引き算しない）
-        const u = _find(ev.side, ev.unitId);
-        if (!u) break;
-        const side = _fxSide(ev.side);
-        // 同じキャラへ続けてダメージが来たときは、前の数値が消えてから次を出す。
-        // 規則は present.js が唯一の実装（PvEと同じ）。対象が違えば待たない。
-        if (Number(ev.amount) > 0) {
-          // 予約はPvEと同じ表（present.js が共有）。鍵はユニットIDで揃える。
-          const waitMs = _damageGate.reserve(`u:${u.id}`);
-          if (waitMs > 0) await _sleep(waitMs);
-        }
-        u.hp = Math.max(0, Number(ev.hpAfter) || 0);
-        // 通常攻撃の対象側はATTACKの接触時に演出を開始済み。反撃は独立したDAMAGE
-        // イベントなので、攻撃した側にも同じ命中SE・VFX・ダメージ値を出す。
-        // 固有VFXを誰の効果として出すかは present.js が唯一の実装（PvEと同じ規則）。
-        const _dmgSourceSide = ev.side === 'p1' ? 'p2' : 'p1';
-        const _dmgSource = ev.sourceId ? (_find(_dmgSourceSide, ev.sourceId) || _find(ev.side, ev.sourceId)) : null;
-        const _vfxSource = presentDamageVfxSource(ev, u, _dmgSource,
-          typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null);
-        const _vfxOpt = {
-          keywordEffect: ev.keywordEffect || undefined,
-          ...(_vfxSource ? { effectSource: _vfxSource } : {}),
-        };
-        // **ひとまとまりの命中音は同時に鳴らす（PvEと同じ）。**
-        // 攻撃と反撃のように続けて起きる命中を1件ずつ鳴らすと、間に挟まるVFXの
-        // 画像デコード（数百ms主スレッドが止まる）で音がずれて聞こえる。
-        // 連続するDAMAGEの音は、最初の1件を出す時にまとめて鳴らす。
-        if (Number(ev.amount) > 0 && !_damageSfxDone.has(ev) && typeof playAttackDamageSfx === 'function') {
-          const evs = (ctx && ctx.events) || [];
-          const from = Number(ctx && ctx.eventIndex);
-          for (let i = Number.isInteger(from) ? from : evs.indexOf(ev); i >= 0 && i < evs.length; i++) {
-            const d = evs[i];
-            if (!d || d.type !== ONLINE_EVENT.DAMAGE || !(Number(d.amount) > 0)) break;
-            if (_damageSfxDone.has(d)) continue;
-            _damageSfxDone.add(d);
-            const src = d.sourceId
-              ? (_find(d.side === 'p1' ? 'p2' : 'p1', d.sourceId) || _find(d.side, d.sourceId)) : null;
-            playAttackDamageSfx(src, d.amount);
-          }
-        }
-        if (Number(ev.amount) > 0
-          && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))
-          && typeof playHitVfx === 'function') {
-          playHitVfx(side, u, ev.amount, _vfxOpt);
-        }
-        if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(u, side);
-        if (ev.effect && typeof log === 'function') {
-          log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}に${Number(ev.amount) || 0}ダメージ。`, ev.side === 'p1' ? 'bad' : 'good');
+        // 1件のダメージをどう見せるかは present_events.js が唯一の実装（PvEと同じ）。
+        // ここでの違い（ユニットの引き方・HPの反映・先読みするイベント列）だけを渡す。
+        // 表示はイベントの hpAfter をそのまま反映する（自前で引き算しない）。
+        const shown = await presentDamageEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          findAnyUnit: id => _find('p1', id) || _find('p2', id),
+          applyHp: (unit, hpAfter) => { unit.hp = Math.max(0, Number(hpAfter) || 0); },
+          gate: _damageGate,
+          sleep: _sleep,
+          ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
+          sfxDone: _damageSfxDone,
+          // 連続するDAMAGEイベントが「同じ瞬間の命中」。ここまでをまとめて鳴らす。
+          sfxBatch: e0 => {
+            const evs = (ctx && ctx.events) || [];
+            const from = Number(ctx && ctx.eventIndex);
+            const out = [];
+            for (let i = Number.isInteger(from) ? from : evs.indexOf(e0); i >= 0 && i < evs.length; i++) {
+              const d = evs[i];
+              if (!d || d.type !== ONLINE_EVENT.DAMAGE || !(Number(d.amount) > 0)) break;
+              out.push(d);
+            }
+            return out;
+          },
+          alreadyShown: e0 => !!(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(e0)),
+        });
+        if (shown && ev.effect && typeof log === 'function') {
+          const u = _find(ev.side, ev.unitId);
+          log(`${_effectSourceName(ev, ctx)}の効果で${(u && u.name) || '対象'}に${Number(ev.amount) || 0}ダメージ。`,
+            ev.side === 'p1' ? 'bad' : 'good');
         }
         break;
       }

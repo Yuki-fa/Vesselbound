@@ -131,6 +131,21 @@ cd prototype && node tools/parity/present_parity.js
 **なぜそのカードなのかを一行で書く**こと（固有VFX＝ゴーレム／マータ、戦闘中の召喚＝
 スケルトンキング、マナ効果＝ダイアウルフ、薙ぎ払い＝アラッサス）。
 
+### 演出の層と、それぞれの唯一の実装
+
+| 層 | 唯一の実装 | 片方を直すと |
+| --- | --- | --- |
+| ルール（戦闘の結果） | `js/battle/core.js` | 両方に効く |
+| 見せ方の規則 | `js/battle/present.js` | 両方に効く |
+| 描画そのもの | `js/engine/render.js` | 両方に効く |
+| イベント1件の見せ方 | `js/battle/present_events.js` | 両方に効く |
+| イベントの受け口（switch） | PvEとオンラインで別 | **反映されない** |
+
+**受け口に手を入れる時は必ず両方に入れる。** 新しい演出を足すなら、まず
+`present_events.js` に「1件のイベントをどう見せるか」を書き、両方の受け口から
+そこを呼ぶ形にする。違い（ユニットの引き方・HPの反映・先読みするイベント列）は
+アダプタで吸収する。ダメージ演出（`presentDamageEvent`）がその形。
+
 ### 演出の規則は `js/battle/present.js` が唯一の実装
 
 PvE（`js/engine/battle.js`）とオンライン（`js/online/board.js`）はDOMの触り方が違うため、

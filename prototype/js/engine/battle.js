@@ -2835,52 +2835,33 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type!=='damage'||!(Number(e.amount)>0)) continue;
-    const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-    if(!target) continue;
-    // 同じキャラクターが同じ処理内で複数回ダメージを受けると、ダメージ数値が
-    // 重なって読めなくなる。対象ごとに前の数値が消えるまで待ってから次を出す。
-    // 対象が違う場合は待たない（別のカードの上なので重ならない）。
-    {
-      // 予約は applyDamageBatch と同じ表を使う（present.js が共有）。
-      // 別々に持つと、同じキャラクターへ両経路から同時に数値が出て重なる。
-      const waitMs=damageGate.reserve(`u:${target.id}`);
-      if(waitMs>0) await sleep(waitMs);
-    }
-    // 数値を出す瞬間に、画面に出すHPもここまで進める。
-    if(typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:e.hpAfter});
-    if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,e.side==='p1'?'ally':'enemy');
-    const source=e.sourceId?findLiveUnit('p1',e.sourceId,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===e.sourceId))||findLiveUnit('p2',e.sourceId,null):null;
-    // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
-    const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
-    if(e.effect&&source&&!sweepSources.has(source.id)){
-      if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
-    }
-    // **固有SEもVFXと同じ規則で選ぶ。** カード自身の効果文がダメージに触れていない
-    // 場合は鳴らさない。これが無いと、強化カードで得た効果（ノームに闇の炎を付けた
-    // 場合の死亡ダメージ等）で、そのキャラクター本人の固有SEが鳴る。
-    if(vfxSource&&!sweepSources.has(vfxSource.id)) effectDamageSources.add(vfxSource.id);
-    if(sweepShownEvents.has(e)) continue;
-    // 命中音はオンラインと同じ関数・同じ引数で鳴らす。これが無いとPvEでは
-    // 攻撃開始のattack.wavだけになり、命中の手応えが無くなる。
-    // **ひとまとまりの命中音は同時に鳴らす。** 攻撃と反撃のように続けて起きる命中を
-    // 1件ずつ鳴らすと、間に挟まるVFXの画像デコード（数百ms主スレッドが止まる）で
-    // 音がずれて聞こえる。連続するdamageの音は最初の1件を出す時にまとめて鳴らす。
-    if(!damageSfxDone.has(e)&&typeof playAttackDamageSfx==='function'){
-      for(let j=Math.max(0,eventList.indexOf(e));j<eventList.length;j++){
-        const d=eventList[j];
-        if(!d||d.type!=='damage'||!(Number(d.amount)>0)) break;
-        if(damageSfxDone.has(d)) continue;
-        damageSfxDone.add(d);
-        const dSrc=d.sourceId
-          ?findLiveUnit('p1',d.sourceId,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===d.sourceId))
-            ||findLiveUnit('p2',d.sourceId,null)
-          :null;
-        playAttackDamageSfx(dSrc,Number(d.amount)||0);
-      }
-    }
-    if(typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
-      { ...(vfxSource?{effectSource:vfxSource}:{}),
-        keywordEffect:e.keywordEffect||undefined });
+    // 1件のダメージをどう見せるかは present_events.js が唯一の実装（オンラインと同じ）。
+    // ここでの違い（ユニットの引き方・HPの進め方・先読みするイベント列）だけを渡す。
+    await presentDamageEvent(e,{
+      findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+      findAnyUnit:id=>findLiveUnit('p1',id,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id))
+        ||findLiveUnit('p2',id,null),
+      applyHp:(unit,hpAfter)=>{ if(typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{hp:hpAfter}); },
+      gate:damageGate,
+      sleep,
+      ownEffectText:_ownCardEffectText,
+      sfxDone:damageSfxDone,
+      // 連続するdamageイベントが「同じ瞬間の命中」。ここまでをまとめて鳴らす。
+      sfxBatch:ev=>{
+        const out=[];
+        for(let j=Math.max(0,eventList.indexOf(ev));j<eventList.length;j++){
+          const d=eventList[j];
+          if(!d||d.type!=='damage'||!(Number(d.amount)>0)) break;
+          out.push(d);
+        }
+        return out;
+      },
+      alreadyShown:ev=>sweepShownEvents.has(ev),
+      noteEffectSource:unit=>{ if(!sweepSources.has(unit.id)) effectDamageSources.add(unit.id); },
+      onEffectDamage:(ev,src)=>{
+        if(!sweepSources.has(src.id)&&typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
+      },
+    });
   }
   // 先出ししたモーションが解放されないまま残らないようにする
   // （attackイベントに到達せず抜けた場合の保険）。
