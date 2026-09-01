@@ -389,6 +389,21 @@ function main() {
     assert.match(render, /if\(typeof opt\.getRect==='function'\)\{/,
       'VFX・ダメージ数値が対象カードへ追従していない');
   }
+  {
+    // キャラクター固有VFXの発生元の決め方を、PvEとオンラインで揃える。
+    const board = read('js/online/board.js');
+    assert.match(currentBattle, /const vfxSource=e\.redirectedFrom\?target:source;/,
+      'PvEが肩代わりダメージの発生元を肩代わりした本人にしていない');
+    assert.match(board, /const _vfxSource = ev\.redirectedFrom \? u : _dmgSource;/,
+      'オンラインが肩代わりダメージの発生元を肩代わりした本人にしていない');
+    assert.match(board, /_characterVfxAllowedForDamage\(_vfxSource\)/,
+      'オンラインの被弾演出にキャラクター固有VFXの発生元が渡っていない');
+    assert.match(board, /void _playCardEffectVfx\(code, \[u\], \{ gateMs: 0, hitDuration: 700, waitForFinish: false \}\);/,
+      'オンラインの能力変化でキャラクター固有VFXを再生していない');
+    // コア駆動では負傷もコアが解決するため、攻撃時の負傷ディスパッチは通らない。
+    assert.match(currentBattle, /const handledByInjuryCue=!G\._coreDrivenBattle&&source&&target/,
+      '被弾による負傷のキャラクター固有VFXが抑制されたままになっている');
+  }
   assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
     'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
   // 同じ効果を二重に解決しないための歯止め。

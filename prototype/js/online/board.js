@@ -338,17 +338,26 @@
         u.hp = Math.max(0, Number(ev.hpAfter) || 0);
         // 通常攻撃の対象側はATTACKの接触時に演出を開始済み。反撃は独立したDAMAGE
         // イベントなので、攻撃した側にも同じ命中SE・VFX・ダメージ値を出す。
+        // キャラクター固有VFXの発生元はPvEと同じ規則で決める。
+        // 肩代わり（マータ等）で受けたぶんは、攻撃した側ではなく肩代わりした本人の効果。
+        const _dmgSourceSide = ev.side === 'p1' ? 'p2' : 'p1';
+        const _dmgSource = ev.sourceId ? (_find(_dmgSourceSide, ev.sourceId) || _find(ev.side, ev.sourceId)) : null;
+        const _vfxSource = ev.redirectedFrom ? u : _dmgSource;
+        const _vfxOpt = {
+          keywordEffect: ev.keywordEffect || undefined,
+          ...((ev.effect || ev.redirectedFrom) && _vfxSource
+            && typeof _characterVfxAllowedForDamage === 'function'
+            && _characterVfxAllowedForDamage(_vfxSource) ? { effectSource: _vfxSource } : {}),
+        };
         if (ev.counter && Number(ev.amount) > 0
           && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))) {
-          const sourceSide = ev.side === 'p1' ? 'p2' : 'p1';
-          const source = _find(sourceSide, ev.sourceId);
-          if (typeof playAttackDamageSfx === 'function') playAttackDamageSfx(source, ev.amount);
-          if (typeof playHitVfx === 'function') playHitVfx(side, u, ev.amount, { keywordEffect: ev.keywordEffect || undefined });
+          if (typeof playAttackDamageSfx === 'function') playAttackDamageSfx(_dmgSource, ev.amount);
+          if (typeof playHitVfx === 'function') playHitVfx(side, u, ev.amount, _vfxOpt);
         }
         if (!ev.counter && Number(ev.amount) > 0
           && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))
           && typeof playHitVfx === 'function') {
-          playHitVfx(side, u, ev.amount, { keywordEffect: ev.keywordEffect || undefined });
+          playHitVfx(side, u, ev.amount, _vfxOpt);
         }
         if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(u, side);
         if (ev.effect && typeof log === 'function') {
@@ -391,6 +400,15 @@
         if (ev.sourceId && typeof log === 'function') {
           const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
           log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`, ev.side === 'p1' ? 'good' : 'bad');
+        }
+        // 負傷などの能力変化にも、発生元カードの固有VFXを出す（PvEと同じ）。
+        if (ev.sourceId && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
+          const src = _find('p1', ev.sourceId) || _find('p2', ev.sourceId);
+          const code = src ? String(_effectPresentationCode(src) || '') : '';
+          if (/^C\d{3}$/i.test(code)) {
+            if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+            void _playCardEffectVfx(code, [u], { gateMs: 0, hitDuration: 700, waitForFinish: false });
+          }
         }
         _render();
         break;

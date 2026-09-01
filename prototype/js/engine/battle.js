@@ -2596,7 +2596,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       // ゴーレム／コボルドの負傷効果は負傷ディスパッチ側で専用VFXを再生する。
       // それ以外の自己強化も、発生元と対象が同一だからという理由で捨てない。
-      const handledByInjuryCue=source&&target&&source.id===target.id
+      // コア駆動では負傷効果もコアが解決するため、攻撃時の負傷ディスパッチ
+      // （_applyUnitAttackEffects内）は通らない。ここで抑制すると、被弾して
+      // 負傷効果が乗ったときのC003が一度も再生されない。
+      const handledByInjuryCue=!G._coreDrivenBattle&&source&&target&&source.id===target.id
         && (String(e.reason||'')==='golem'||String(e.reason||'')==='kobold');
       // ガーゴイル／剣技は正のステータス変化だけを表示する効果。
       // 被弾VFX経路へ流すと、バフ対象自身が攻撃を受けたように見える。
@@ -2758,8 +2761,11 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
     }
     if(sweepShownLabels.has(`${e.side}:${target.id}`)) continue;
+    // 肩代わり（マータ等）で受けたぶんは、攻撃した側ではなく肩代わりした本人の
+    // 効果である。攻撃者を発生元にすると、その本人の個別VFXが一度も出ない。
+    const vfxSource=e.redirectedFrom?target:source;
     if(!sweepSources.has(source&&source.id)&&typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
-      { ...(e.effect&&source&&_characterVfxAllowedForDamage(source)?{effectSource:source}:{}),
+      { ...((e.effect||e.redirectedFrom)&&vfxSource&&_characterVfxAllowedForDamage(vfxSource)?{effectSource:vfxSource}:{}),
         keywordEffect:e.keywordEffect||undefined });
   }
   effectDamageSources.forEach(id=>{
@@ -2772,6 +2778,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
     if(!target||target.hp>0) continue;
     deaths.add(`${e.side}:${e.unitId}`);
+    // ここまでで数値・VFXは出し終えている。以降はカードを残す理由がないので、
+    // 再生中でも死亡演出（焼き落とし）を始めてよい印を付ける。
+    // これが無いと、再生が終わるまで倒れたカードが暗いまま盤面に残り続ける。
+    target._deathFxReady=true;
     if(e.side==='p1') await processAllyDeath(target);
     else await processEnemyDeath(target,(state.units.p2||[]).indexOf(target));
   }
@@ -5050,6 +5060,7 @@ function _reviveWithHalvedStats(unit,isEnemySide){
   _syncCoreLifeToG(state);
   if(state._revivalRingUsed) G._revivalRingUsed=true;
   delete unit._deathFxDone;
+  delete unit._deathFxReady;
   if(reason==='復活'){
     unit._panelSummoned=true;
     _afterPanelSummon(unit,isEnemySide);

@@ -977,14 +977,21 @@ function playHitVfxAtRect(rect,amount,options){
   // 盤面の詰め直し（FLIP）でカードは演出中にも動く。位置を出した時のまま固定すると、
   // 数値やVFXが「何もない場所」に取り残される。対象カードの現在位置へ毎フレーム追従させる。
   if(typeof opt.getRect==='function'){
+    let hadRect=false,missed=0;
     const follow=()=>{
       if(done) return;
       let r=null;
       try{ r=opt.getRect(); }catch(e){ r=null; }
       if(r&&r.width>0&&r.height>0){
+        hadRect=true; missed=0;
         const box={left:`${r.left}px`,top:`${r.top}px`,width:`${r.width}px`,height:`${r.height}px`};
         Object.assign(host.style,box);
         if(labelHost) Object.assign(labelHost.style,box);
+      } else if(hadRect&&++missed>6){
+        // 対象カードが盤面から消えた。数値だけが空白の上に残ると
+        // 「何もない場所に数値が出ている」ように見えるため、ここで畳む。
+        finish();
+        return;
       }
       requestAnimationFrame(follow);
     };
@@ -2443,7 +2450,7 @@ function renderField(id,units,isEnemy,_lane){
   // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
   // （＝何もない場所）へ出てしまう。
   const _keepDying=(Number(G&&G._flushingCoreEvents)||0)>0;
-  const _onBoard=x=>!!x.u&&(x.u.hp>0||(_keepDying&&x.u.id!=null&&dyingIds.has(String(x.u.id))));
+  const _onBoard=x=>!!x.u&&(x.u.hp>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
   const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
   const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
   const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
@@ -2472,7 +2479,7 @@ function renderField(id,units,isEnemy,_lane){
     // イベント再生中にHPが0になった体は、死亡演出を行うまでカードを残す。
     // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
     // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
-    const _pendingDeath=!!(u&&u.hp<=0&&u.id!=null&&dyingIds.has(String(u.id))
+    const _pendingDeath=!!(u&&u.hp<=0&&u.id!=null&&!u._deathFxReady&&dyingIds.has(String(u.id))
       &&(Number(G&&G._flushingCoreEvents)||0)>0);
     const _alive=!!u&&(u.hp>0||_pendingDeath);
     const slot=document.createElement('div');
@@ -2497,7 +2504,7 @@ function renderField(id,units,isEnemy,_lane){
       // イベント再生中は焼き落とさない。ここで消すと、まだ出ていないダメージ数値や
       // 個別VFXが「カードのない空きスロット」へ出てしまう。死亡演出は再生の最後に
       // まとめて行う（battle.js の death ループ）。
-      const _flushing=(Number(G&&G._flushingCoreEvents)||0)>0;
+      const _flushing=(Number(G&&G._flushingCoreEvents)||0)>0&&!(u&&u._deathFxReady);
       if(!_flushing&&u&&u.hp<=0&&!u._deathFxDone&&u.id!=null&&typeof playCardBurnAway==='function'){
         const _prevNode=previousSlots.get(String(u.id));
         const _prevRect=previousRects.get(String(u.id));
