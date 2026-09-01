@@ -3209,10 +3209,19 @@ function coreBattleStep(ctx) {
       const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(victim, '先制');
       const counter = coreCounterDamage(attacker, victim);
       emit({ type: 'attack', side, attackerId: attacker.id, targetId: victim.id, damage, counterDamage: counter });
+      // **攻撃と反撃はひと続きの打ち合い。** 先に両方のダメージを確定させてから、
+      // 誘発（死亡効果・負傷効果）をまとめて解決する。1発ずつ誘発まで解決すると、
+      // 倒れた側の死亡効果（闇の炎の1ダメージ等）が反撃より先に起きる。
+      const pending = [];
+      const hitOpts = { deferTriggers: true, collect: pending };
       attacker._coreAttackContact = true;
-      const targetResult = applyHit(attacker, victim, damage);
+      const targetResult = applyHit(attacker, victim, damage, false, false, false, hitOpts);
       delete attacker._coreAttackContact;
-      if (allowCounter && !(attackerFirst && targetResult.died)) applyHit(victim, attacker, counter, true);
+      if (allowCounter && !(attackerFirst && targetResult.died)) {
+        applyHit(victim, attacker, counter, true, false, false, hitOpts);
+      }
+      pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
+        h.counter, rng, emit, applyHit, h.opt));
     };
     attackTargets().forEach(victim => hit(victim, victim === target));
     const extra = coreAttackSpread(attacker) ? 0

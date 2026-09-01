@@ -386,6 +386,15 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\{ deferTriggers: true, collect: pending \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
+  // 攻撃と反撃はひと続きの打ち合い。両方のダメージを確定させてから誘発する。
+  // 1発ずつ誘発まで解決すると、倒れた側の死亡効果（闇の炎の1ダメージ等）が
+  // 反撃より先に起きる。
+  assert.match(read('js/battle/core.js'),
+    /const targetResult = applyHit\(attacker, victim, damage, false, false, false, hitOpts\);/,
+    '攻撃と反撃を1発ずつ誘発まで解決している');
+  assert.match(read('js/battle/core.js'),
+    /if \(allowCounter && !\(attackerFirst && targetResult\.died\)\) \{\n\s*applyHit\(victim, attacker, counter, true, false, false, hitOpts\);/,
+    '反撃が誘発を先に起こしている');
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
   assert.match(currentBattle,
