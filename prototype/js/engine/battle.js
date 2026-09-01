@@ -854,17 +854,22 @@ function _fadeBattleLife(){
 function showBattleCutin(type='start',options={}){
   const host=_battleCutinHost();
   if(!host) return Promise.resolve(null);
-  const mode=['start','victory','retreat'].includes(type)?type:'start';
+  // defeat：オンラインの敗北。見せ方は撤退と同じで、文字だけ「敗 北」にする。
+  const mode=['start','victory','retreat','defeat'].includes(type)?type:'start';
+  // 結果表示（勝利・撤退・敗北）は同じ扱い。分岐を書き足す時はここを1箇所で見ること。
+  const isResult=mode==='victory'||mode==='retreat'||mode==='defeat';
   const old=document.getElementById('battle-start-intro');
   if(old) old.remove();
   const info=options.info||_battleStartIntroText();
-  const title=mode==='victory'?'勝 利':mode==='retreat'?'撤 退':(String(options.title||info.title||'').trim()||'戦 闘 開 始');
+  const title=mode==='victory'?'勝 利':mode==='retreat'?'撤 退':mode==='defeat'?'敗 北'
+    :(String(options.title||info.title||'').trim()||'戦 闘 開 始');
   // 結果画面でも開始画面と同じ高さを確保する。空文字だけでは行ボックスが
   // 縮み、タイトルとラインが上へ再配置されるため、不可視の空白を残す。
-  const subtitle=mode==='victory'||mode==='retreat'?'\u00a0':(String(info.subtitle||'').trim()||'\u00a0');
+  const subtitle=isResult?'\u00a0':(String(info.subtitle||'').trim()||'\u00a0');
   const overlay=document.createElement('div');
   overlay.id='battle-start-intro';
-  overlay.className=`battle-start-intro cutin-${mode} battle-start-${info.kind||'normal'}`;
+  // 敗北は撤退と同じ装いにする（文字だけ違う）。
+  overlay.className=`battle-start-intro cutin-${mode==='defeat'?'retreat':mode} battle-start-${info.kind||'normal'}`;
   overlay.innerHTML=`<div class="battle-start-aura"></div><div class="battle-cut-in-particles" aria-hidden="true"></div><img class="battle-start-line" src="assets/ui/battle_line.svg" alt=""><span class="battle-start-icon-wrap"><img class="battle-start-icon" src="assets/ui/main_icon.svg" alt=""></span><div class="battle-start-title">${_escapePreviewHtml(title)}</div><div class="battle-start-subtitle">${_escapePreviewHtml(options.subtitle||((mode==='start')?(String(info.subtitle||'').trim()||'\u00a0'):subtitle))}</div>`;
   host.appendChild(overlay);
   if(mode==='start') return overlay;
@@ -877,12 +882,12 @@ function showBattleCutin(type='start',options={}){
   return new Promise(resolve=>{
     // 勝利は表示位置を保持したまま待機する。退場アニメーションを挟むと
     // 「勝利」が一度消え、flex再配置によってラインと本文も移動してしまう。
-    if(mode!=='victory'&&mode!=='retreat'){
+    if(!isResult){
       window.setTimeout(()=>overlay.classList.add('battle-start-closing'),Math.max(900,Number(options.holdMs)||1200));
     }
     window.setTimeout(()=>{
       const fade=document.getElementById('battle-end-fade');
-      if(fade && (mode==='victory'||mode==='retreat')){
+      if(fade && isResult){
         // 結果表示後は背景を保持した暗転状態で停止する。進むボタン押下時だけ
         // battle-transition-fade を使って完全に暗転し、次画面へ遷移する。
         window.setTimeout(()=>{
@@ -898,7 +903,7 @@ function showBattleCutin(type='start',options={}){
           overlay.remove();
           resolve(null);
         },360);
-      } else if(mode==='victory'||mode==='retreat'){
+      } else if(isResult){
         overlay.classList.remove('battle-start-closing');
         overlay.classList.add('awaiting-continue');
         resolve(overlay);

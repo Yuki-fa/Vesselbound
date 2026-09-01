@@ -1594,7 +1594,13 @@ function gameOver(options){
 // 呼び出し側で独立したsetTimeoutを組むと、renderAll()等の重い同期処理でメインスレッドが
 // 詰まった際に「表示」と「非表示」のタイマーがほぼ同時に発火し、一瞬で消えてしまう競合が起きるため、
 // 表示が確定してから逆算する形でチェーンする。
-function _armBattleContinue(cutin,onShown){
+// opts.withButton=false … 「進む」ボタンを出さない（オンラインの敗北など）
+// opts.autoMs           … その時間後に、ボタンを押したのと**同じ経路**で自動的に進む
+//                          （フェードも尺も遷移も押した時と同一にするため、
+//                            continueAfterBattleVictory() をそのまま使う）
+function _armBattleContinue(cutin,onShown,opts){
+  const withButton=!(opts&&opts.withButton===false);
+  const autoMs=Number(opts&&opts.autoMs)||0;
   if(!cutin){ if(typeof onShown==='function') onShown(); return; }
   // 前回の勝利画面でクリック処理が残っていても、次の勝利・撤退画面では
   // 必ず新しい進行処理を受け付ける。
@@ -1611,6 +1617,12 @@ function _armBattleContinue(cutin,onShown){
       ev.stopPropagation();
       continueAfterBattleVictory();
     },true);
+  }
+  if(!withButton){
+    // ボタンを出さない場合でも、進行処理だけは同じものを仕込む。
+    G._battleProceedAction=onShown;
+    if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(),autoMs);
+    return;
   }
   const panel=document.createElement('div');
   panel.id='battle-continue-panel';
@@ -1639,6 +1651,7 @@ function _armBattleContinue(cutin,onShown){
   }
   cutin.appendChild(panel);
   G._battleProceedAction=onShown;
+  if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(),autoMs);
 }
 function continueAfterBattleVictory(){
   if(typeof G==='undefined'||!G||G._battleProceedBusy) return;

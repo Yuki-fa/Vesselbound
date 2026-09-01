@@ -208,15 +208,18 @@
       win: outcome !== 'p2',
       // ボス撃破の概念はオンラインには無い。
       bossWin: false,
+      // オンラインに撤退は無い。負けは「敗北」と出す。
       withdraw: false,
-      // オンラインは「進む」入力を待たない。次のマスへ移る時刻はサーバーが持つ。
-      afterShown: async overlay => {
-        await _sleep(1500);
-        if (overlay && overlay.remove) overlay.remove();
-        document.body.classList.remove('battle-victory-pending');
-        const fade = document.getElementById('battle-end-fade');
-        if (fade) { fade.classList.remove('is-visible', 'is-final'); fade.removeAttribute('style'); }
-      },
+      defeatLabel: '敗北',
+      // 「進む」ボタンは出さず、本来ボタンが出る時刻の1秒後に、
+      // **ボタンを押したのと同じ経路**で自動的に進む（フェードも尺も同一）。
+      afterShown: overlay => new Promise(resolve => {
+        if (typeof _armBattleContinue !== 'function') { resolve(); return; }
+        _armBattleContinue(overlay, () => {
+          document.body.classList.remove('battle-victory-pending');
+          resolve();
+        }, { withButton: false, autoMs: PRESENT_RESULT_AUTO_CONTINUE_MS });
+      }),
     });
   }
 
