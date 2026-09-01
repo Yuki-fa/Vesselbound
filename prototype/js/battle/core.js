@@ -978,11 +978,16 @@ function coreInsertSummonedUnit(list, child, spec, frontSlots) {
   }
   child.lane = 'front';
   let at = frontIndexes.length ? frontIndexes[frontIndexes.length - 1] + 1 : 0;
-  const wantsRightOfSource = spec && (spec.placement === 'rightOfSource' || spec.placementTargetId != null);
-  if (wantsRightOfSource) {
-    const targetId = spec.placementTargetId != null ? String(spec.placementTargetId) : null;
+  // 位置指定がある場合は基準ユニットの左右へ入れる。
+  // 「両隣へ2体」（ワーム）は leftOfTarget と rightOfTarget で区別する。
+  // どちらも右隣として扱うと、2体目が1体目を押し出して並びが入れ替わり、
+  // 以後の対象選択がPvEとオンラインで食い違う。
+  const place = spec && spec.placement;
+  const targetId = spec && spec.placementTargetId != null ? String(spec.placementTargetId) : null;
+  if (place === 'leftOfSource' || place === 'leftOfTarget'
+    || place === 'rightOfSource' || place === 'rightOfTarget' || targetId != null) {
     const si = targetId != null ? list.findIndex(u => u && String(u.id) === targetId) : -1;
-    if (si >= 0) at = si + 1;
+    if (si >= 0) at = (place === 'leftOfSource' || place === 'leftOfTarget') ? si : si + 1;
   }
   list.splice(at, 0, child);
   return at;
@@ -3177,10 +3182,6 @@ function coreBattleStep(ctx) {
 
     side = foeSide;
     result = decided();
-    // 死亡したユニットを配列から取り除く。**PvEは手番ごとに詰めている**ため、
-    // ここで詰めないと配列の位置がずれ、前衛優先・三方向の隣接・ランダム対象の
-    // 結果がオンラインとPvEで食い違う。死亡・復活はこの時点で解決済み。
-    coreCompactUnits(state);
   return { side, result, stop: false };
 }
 
@@ -3209,6 +3210,47 @@ function corePickFirstSide(state, rng) {
   const n1 = coreLivingUnits(units.p1).length, n2 = coreLivingUnits(units.p2).length;
   if (n1 !== n2) return n1 > n2 ? 'p1' : 'p2';
   return (rng && typeof rng.next === 'function' ? rng.next() : Math.random()) < 0.5 ? 'p1' : 'p2';
+}
+
+// 開戦処理。**PvEもオンラインもここだけを通すこと。**
+// 以前はPvE（_finishNewPanelBattleStartEffects）とオンライン（runBattleCore）で
+// 同じ手順が別々に書かれており、「生命の力」のHP2倍のように片方にしか無い工程があった。
+function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
+  const units = state.units;
+  const allUnits = () => [...(units.p1 || []), ...(units.p2 || [])].filter(Boolean);
+  // 開始時の盤面（封印されたまま）を先に見せてから、解放を演出として流す。
+  emit({ type: 'battle_start', sides: { p1: (units.p1 || []).filter(Boolean).map(coreUnitSnapshot), p2: (units.p2 || []).filter(Boolean).map(coreUnitSnapshot) } });
+  coreInitSealStates(allUnits(), u => (u.side === 'p1' ? u.slot : 100 + u.slot));
+  resolveSeals();
+  state._openingPhase = true;
+  try {
+    coreApplyMapPanelOpeningEffects(state, emit);
+    coreApplyOpeningRings(state, emit, applyHit);
+    coreApplyOpeningItems(state, rng, emit, applyHit);
+    allUnits().filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
+      const shield = coreUnitShieldValue(u);
+      if (shield > 0) { u.shield = Math.max(Number(u.shield) || 0, shield); emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: shield }); }
+      const repeats = 1 + coreEffectCount(u, '恩寵') + Math.max(0, Number(u._effectRepeatBonus) || 0);
+      for (let i = 0; i < repeats && u.hp > 0 && !coreIsSealed(u); i++) {
+        // 同一state内の再入防止用インデックスを反復ごとに変える。
+        coreApplyOpeningEffects(u, state, rng, emit, applyHit, i);
+      }
+    });
+    // 生命の力：開戦効果・魔導板強化の足し引きが済んだ後にHPを2倍にする。
+    // _mapPanelPower は編成側（formation.js）が入れる値。
+    allUnits().filter(u => u.hp > 0 && !coreIsSealed(u) && u._mapPanelPower === 'life').forEach(u => {
+      if (u._lifePanelDoubled) return;
+      const hp = Math.max(0, Number(u.maxHp) || 0);
+      u.maxHp += hp; u.hp += hp; u._lifePanelDoubled = true;
+      emit({ type: 'stat_change', side: u.side, unitId: u.id, atk: 0, hp, reason: 'life_panel_double' });
+    });
+    coreApplyManaThresholdEffects(state, rng, emit, applyHit);
+    coreApplyRingManaEffects(state, rng, emit, applyHit);
+    // 開戦時のマナ閾値召喚も、召喚本体の直後にリッチ誘発を確定する。
+    coreFlushPendingLichSummons(state, emit);
+  } finally {
+    state._openingPhase = false;
+  }
 }
 
 function runBattleCore(state, rng, opts) {
@@ -3352,41 +3394,7 @@ function runBattleCore(state, rng, opts) {
   // PvEは startBattle() の中で既に開戦処理を済ませてから1手ずつ進める。
   // ここで二度目を走らせると開戦効果が二重に乗るため、その場合は飛ばす。
   const skipOpening = !!(opts && opts.skipOpening);
-  if (!skipOpening) {
-  // 開始時の盤面（封印されたまま）を先に見せてから、解放を演出として流す。
-  emit({ type: 'battle_start', sides: { p1: units.p1.map(coreUnitSnapshot), p2: units.p2.map(coreUnitSnapshot) } });
-  resolveSeals();
-  state._openingPhase = true;
-  coreApplyMapPanelOpeningEffects(state, emit);
-  coreApplyOpeningRings(state, emit, applyHit);
-  coreApplyOpeningItems(state, rng, emit, applyHit);
-  allUnits().filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
-    const shield = coreUnitShieldValue(u);
-    if (shield > 0) { u.shield = Math.max(Number(u.shield) || 0, shield); emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: shield }); }
-    const repeats = 1 + coreEffectCount(u, '恩寵') + Math.max(0, Number(u._effectRepeatBonus) || 0);
-    for (let i = 0; i < repeats && u.hp > 0 && !coreIsSealed(u); i++) {
-      // 同一state内の再入防止用インデックスを反復ごとに変える。
-      // PvEアダプタは既にこの値を渡しており、オンラインのrunBattleCoreだけ
-      // 既定値(0)だったため、恩寵等の正規反復が1回に潰れていた。
-      coreApplyOpeningEffects(u, state, rng, emit, applyHit, i);
-    }
-  });
-  // 生命の力：開戦効果・魔導板強化の足し引きが済んだ後にHPを2倍にする。
-  // _mapPanelPowerは編成側が作る入力値であり、PvE/PvPとも同じコア処理を通る。
-  allUnits().filter(u => u.hp > 0 && !coreIsSealed(u) && u._mapPanelPower === 'life').forEach(u => {
-    if (u._lifePanelDoubled) return;
-    const hp = Math.max(0, Number(u.maxHp) || 0);
-    u.maxHp += hp; u.hp += hp; u._lifePanelDoubled = true;
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk: 0, hp, reason: 'life_panel_double' });
-  });
-  coreApplyManaThresholdEffects(state, rng, emit, applyHit);
-  coreApplyRingManaEffects(state, rng, emit, applyHit);
-  // 開戦時のマナ閾値召喚も、召喚本体の直後にリッチ誘発を確定する。
-  // 攻撃後だけ排出すると、開戦時に既に閾値へ到達しているダイアウルフ等で
-  // シャドウが次のトリガまで遅延する。
-  coreFlushPendingLichSummons(state, emit);
-  state._openingPhase = false;
-  }
+  if (!skipOpening) coreRunOpening(state, rng, emit, applyHit, resolveSeals);
 
   // 先攻：生存数が多い側。同数なら rng で決める（呼び出し側では決めない）。
   let side = state._coreFirstSide || corePickFirstSide(state, rng);
@@ -3406,12 +3414,18 @@ function runBattleCore(state, rng, opts) {
     get result() { return result; },
     applyHit, resolveSeals, decided,
     // 1手進める。戻り値 true なら打ち切り。
-    step() {
+    // **詰め処理（死亡ユニットの除去）は演出の後に回せるようにする。**
+    // 先に詰めると、PvEが演出を再生する時に攻撃対象が盤面から消えており、
+    // 攻撃モーションが対象を見つけられずに全て飛ぶ。
+    step(stepOpts) {
       const next = coreBattleStep({ units, state, rng, emit, applyHit, resolveSeals, decided, side, result });
       side = next.side;
       result = next.result;
+      if (!(stepOpts && stepOpts.deferCompact)) coreCompactUnits(state);
       return !!next.stop;
     },
+    // 演出を再生し終えてから詰める時に呼ぶ。
+    compact() { coreCompactUnits(state); },
     // 決着を確定して battle_end を出す。PvEもこれを通す。
     finish() {
       if (!result) result = { outcome: 'draw', reason: 'turn_limit' };
@@ -3452,6 +3466,7 @@ if (typeof window !== 'undefined') {
   window.runBattleCore = runBattleCore;
   window.coreBattleStep = coreBattleStep;
   window.createBattleRunner = createBattleRunner;
+  window.coreRunOpening = coreRunOpening;
   window.coreLaneAttackCandidates = coreLaneAttackCandidates;
   window.coreExtraAttackTotal = coreExtraAttackTotal;
   window.corePickAttacker = corePickAttacker;
@@ -3530,6 +3545,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
     coreSummonUnit, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
     corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
+    coreRunOpening,
     coreCompactUnits,
     coreSnapshotDeferredState,
     coreSelectAttackTarget, corePierceRearTargets,

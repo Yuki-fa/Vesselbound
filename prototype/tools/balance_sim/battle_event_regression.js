@@ -361,8 +361,12 @@ function main() {
   // 戦闘の進め方はコアが唯一の実装。PvEは1手ずつ step() を呼ぶだけにする。
   assert.match(currentBattle, /const runner=createBattleRunner\(state,coreMathRng,emit,\{skipOpening:true\}\);/,
     'PvEがコアの進行（createBattleRunner）を使っていない');
-  assert.match(currentBattle, /try\{ stop=runner\.step\(\); \}/,
-    'PvEが1手ずつ coreBattleStep() を呼んでいない');
+  // 詰め処理は演出の後。先に詰めると再生時に攻撃対象が盤面から消え、
+  // 攻撃モーションが出せなくなる（アニメーションが全て飛ぶ）。
+  assert.match(currentBattle, /try\{ stop=runner\.step\(\{deferCompact:true\}\); \}/,
+    'PvEが1手ずつ coreBattleStep() を呼んでいない、または詰め処理を演出前に行っている');
+  assert.match(currentBattle, /if\(typeof runner\.compact==='function'\) runner\.compact\(\);/,
+    '演出の後に盤面を詰めていない（コアと配列の並びが食い違う）');
   assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
     'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
   // 同じ効果を二重に解決しないための歯止め。

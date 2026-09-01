@@ -1802,10 +1802,13 @@ async function battlePhase(){
     while(!runner.result&&guard++<_turnLimit&&!G._testBattleAbort&&!_battleRunStale(_runId)){
       const from=events.length;
       let stop=false;
-      try{ stop=runner.step(); }
+      // 詰め処理は演出の後に回す。先に詰めると、再生時に攻撃対象が
+      // 盤面から消えていてモーションが出せない。
+      try{ stop=runner.step({deferCompact:true}); }
       catch(e){ console.error('[coreBattleStep]',e); break; }
       // この手番で出たぶんだけを再生する。
       await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
+      if(typeof runner.compact==='function') runner.compact();
       _syncCoreResourcesToG(state);
       if(typeof _syncCoreBloodToG==='function') _syncCoreBloodToG(state);
       if(typeof renderManaHud==='function') renderManaHud();
@@ -1947,6 +1950,14 @@ function compactBattleUnits(){
     let pos=old>=0&&old<nextAllies.length&&!nextAllies[old]?old:nextAllies.findIndex(x=>!x);
     if(pos>=0) nextAllies[pos]=u;
   });
+  // コア駆動の戦闘では、盤面配列の並びをコアと同じ「生存を左詰め」に保つ。
+  // 表示用の並び（_battleSlot基準の疎配列）へ組み替えると、コアの配列と
+  // 順序が食い違い、全体ダメージの対象順・三方向の隣接・ランダム対象の結果がずれる。
+  // renderField() は生存ユニットの「順序」から位置を決めるため、
+  // 左詰めにしても見た目（中央寄せ）は変わらない。
+  if(G._coreDrivenBattle&&typeof coreCompactUnits==='function'){
+    coreCompactUnits({units:{p1:G.allies,p2:G.enemies}});
+  } else {
   if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...nextAllies);
   else G.allies=nextAllies;
   const maxE=MAX_ENEMIES||10;
@@ -1966,6 +1977,7 @@ function compactBattleUnits(){
   });
   if(Array.isArray(G.enemies)) G.enemies.splice(0,G.enemies.length,...nextEnemies);
   else G.enemies=nextEnemies;
+  }
   G.moveMaskLanes=G.enemies.map(e=>e?(e.lane||'front'):'front');
   G._compactRecenterOnNext=false;
 }
@@ -2633,10 +2645,22 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
         :e.placement==='rightOfTarget'&&placementTarget?{rightOf:placementTarget}
         :e.placement==='leftOfTarget'&&placementTarget?{leftOf:placementTarget}
         :e.placement==='rightEdge'?{frontEdge:'right'}:null;
-      let placed=keepCorePlacement
-        ? (unit.lane='front', unit._battleSlot=list.indexOf(unit), list.indexOf(unit))
-        : (typeof _summonMidBattleAllyFront==='function'
-          ?_summonMidBattleAllyFront(unit,e.side==='p2',placement):-1);
+      // 位置の決定は coreInsertSummonedUnit() が唯一の実装。
+      // コア駆動では、既に配列にあるならその位置を使い、無ければ同じ関数で入れ直す。
+      // ここでPvE独自の配置へ落とすと、コアと配列の並びが食い違い、
+      // 全体ダメージの対象順・三方向の隣接・ランダム対象の結果がずれる。
+      let placed;
+      if(G._coreDrivenBattle&&typeof coreInsertSummonedUnit==='function'){
+        if(!list.includes(unit)){
+          coreInsertSummonedUnit(list,unit,e,(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7);
+        }
+        unit.lane='front';
+        unit._battleSlot=list.indexOf(unit);
+        placed=list.indexOf(unit);
+      } else {
+        placed=typeof _summonMidBattleAllyFront==='function'
+          ?_summonMidBattleAllyFront(unit,e.side==='p2',placement):-1;
+      }
       // 戦闘中の召喚は前衛の右端にだけ出す。後衛へ逃がさない。
       // 以前は前衛が満杯なら後衛へ収めていたが、それだと陣営の上限を超えたり、
       // 編成していない後衛枠にキャラクターが現れたりする。
@@ -5654,34 +5678,15 @@ async function _finishNewPanelBattleStartEffects(){
     return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
   };
   try{
-    coreInitSealStates([...state.units.p1,...state.units.p2],u=>(u.side==='p1'?u.slot:100+u.slot));
-    state._openingPhase=true;
-    coreApplyMapPanelOpeningEffects(state,emit);
-    coreApplyOpeningRings(state,emit,applyHit);
-    coreApplyOpeningItems(state,coreMathRng,emit,applyHit);
-    [...state.units.p1,...state.units.p2].filter(u=>u&&u.hp>0&&!coreIsSealed(u)).forEach(u=>{
-      const shield=coreUnitShieldValue(u);
-      if(shield>0){ u.shield=Math.max(Number(u.shield)||0,shield); }
-      const repeats=1+coreEffectCount(u,'恩寵')+Math.max(0,Number(u._effectRepeatBonus)||0);
-      for(let i=0;i<repeats&&u.hp>0&&!coreIsSealed(u);i++){
-        coreApplyOpeningEffects(u,state,coreMathRng,emit,applyHit,i);
-      }
-    });
-    // 開戦効果の直後の値を残す。ライフ参照（ジャック・オ・ランタン等）が
-    // 効いていないという報告の切り分け用。開戦で乗ったはずのバフが、
-    // このあとのマナ閾値の巻き戻しで消えていないかをここと後段で比べられる。
+    // 開戦処理は coreRunOpening() が唯一の実装。**ここへ手順を書き戻さないこと。**
+    // 以前はPvEとオンラインで同じ手順が別々に書かれており、
+    // 「生命の力」のHP2倍のようにPvEにしか無い／コアにしか無い工程があった。
+    const _openingResolveSeals=()=>{ /* PvEの封印解放は演出付きで後段の _resolveSeals() が行う */ };
+    coreRunOpening(state,coreMathRng,emit,applyHit,_openingResolveSeals);
     _recordBattleTrace('opening_effects_done',{life:_currentBattleLife(),
       stateLife:Number(state.life&&state.life.p1)||0,
       味方:(state.units.p1||[]).filter(Boolean).filter(u=>u.hp>0)
         .map(u=>`${u.name}:${u.atk}/${u.hp}`).join(' ')});
-    _recordBattleTrace('mana_threshold_scan',{phase:'opening',mana:Number(state.resources.p1?.mana)||0});
-    coreApplyManaThresholdEffects(state,coreMathRng,emit,applyHit);
-    coreApplyRingManaEffects(state,coreMathRng,emit,applyHit);
-    _recordBattleTrace('opening_mana_scan_done',{
-      味方:(state.units.p1||[]).filter(Boolean).filter(u=>u.hp>0)
-        .map(u=>`${u.name}:${u.atk}/${u.hp}`).join(' ')});
-    if(typeof coreFlushPendingLichSummons==='function') coreFlushPendingLichSummons(state,emit);
-    state._openingPhase=false;
     _syncCoreResourcesToG(state);
   }finally{
     state._openingPhase=false;
@@ -5708,7 +5713,8 @@ async function _finishNewPanelBattleStartEffects(){
   }
   _recordBattleTrace('opening_core_events',{count:localEvents.length,types:localEvents.map(e=>e&&e.type).filter(Boolean)});
   await _flushCorePveHitEvents(state,localEvents,before);
-  if(typeof _applyLifePanelPowerHpDouble==='function') _applyLifePanelPowerHpDouble();
+  // 生命の力のHP2倍は coreRunOpening() の中で解決済み。
+  // ここで再度呼ぶと2回適用され、オンラインと食い違う。
   if(typeof renderAll==='function') renderAll();
   await _resolveSeals();
   _recomputeDynamicPanelStats();
@@ -5960,7 +5966,10 @@ async function _applyNewOpeningEffects(stage){
 // 生命の力マス：置いたキャラクターのHPを2倍にする。
 // 開戦の戦闘修正（足し引き → 掛け割り）が全て終わった後に適用することで、
 // 修正後の最終HPが2倍になる（基礎値を2倍してから加算されるのではない）。
+// 旧PvE専用の実装。coreRunOpening() へ移したため呼び出し元は無い。
+// **復活させないこと。** コアと二重に適用される。
 function _applyLifePanelPowerHpDouble(){
+  return;
   if(typeof _mapPanelPowerAt!=='function') return;
   (G.allies||[]).forEach(u=>{
     if(!u||u.hp<=0||u._isObject||u._isSoul) return;

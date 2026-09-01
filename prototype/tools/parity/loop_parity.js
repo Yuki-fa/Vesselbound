@@ -38,7 +38,11 @@ const CASE_SRC = ci => `
   window.renderAll=noop; window.renderField=noop; window.renderControls=noop;
   window.updateUnitDamageUi=noop; window.showDamageLabel=aNoop;
 
-  const NG=/開戦|終戦|封印|解放|生贄/;
+  // 開戦処理は coreRunOpening() へ一本化したので、開戦・終戦・解放を持つカードも
+  // 比較できる。**除外を戻さないこと**（カードの2割が検査されなくなる）。
+  // 封印・生贄だけは、PvEが演出付きで解放する経路（_resolveSeals）が
+  // コアの即時解放と手順が違うため、当面は除外する。
+  const NG=/封印|生贄/;
   const pool=PANEL_POOL.filter(c=>c&&c.category==='キャラクター'
     &&Number(c.power)>0&&Number(c.life)>0
     &&!NG.test(String(c.desc||''))&&!NG.test(String((c.keywords||[]).join(' '))));
@@ -93,7 +97,9 @@ const CASE_SRC = ci => `
   // startBattle() が戦闘前に初期化するフィールドを同じように用意する。
   // 1つでも欠けると battlePhase() の中で例外が出て、その手番が飛び、
   // 「PvEとコアがずれている」ように見えてしまう（実際は検証側の不備）。
-  G.phase='battle'; G.life=20; G.mana=0; G.gold=0; G.rings=[]; G.activeBattleItems=[];
+  // ライフはPvEもコアも同じ値にする。ジャック・オ・ランタンのように
+  // 「失っているライフ」を参照する効果があるため、揃えないと検査側の都合で差が出る。
+  G.phase='battle'; G.life=3; G._waveLife=3; G.mana=0; G.gold=0; G.rings=[]; G.activeBattleItems=[];
   G.battleCounters={damage:0,deaths:0};
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._battleRunId=1; G._debugFormationAbort=false; G._testBattleAbort=false;
@@ -140,6 +146,8 @@ const CASE_SRC = ci => `
     summonDefs:[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[])],
     itemDefs:typeof ITEM_POOL!=='undefined'?ITEM_POOL:[],
   });
+  state.life={p1:3,p2:3};
+  state.maxLife={p1:3,p2:3};
   state.life={p1:20,p2:20};
   let coreErr=null, coreRes=null;
   try{ coreRes=runBattleCore(state,rngObj,{}); }catch(e){ coreErr=String(e&&e.message||e); }
