@@ -379,6 +379,10 @@ function main() {
     'PvEが手番の頭で表示値を据え置いていない');
   assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
+  // 据え置いていない時に差分を足すと二重に効く（開戦の効果でATKが1多く見えた）。
+  assert.match(read('js/battle/present.js'),
+    /if \(unit\._displayAtk == null && unit\._displayHp == null\) return;/,
+    '据え置いていない状態でも表示値を進めている（値が二重に足される）');
   // 全体ダメージは「全員に入れてから、まとめて誘発」。1体ずつ誘発まで解決すると、
   // 割り込み攻撃（ミノタウロス）が残りの対象へのダメージより先に起きる。
   assert.match(read('js/battle/core.js'), /function coreApplyHitTriggers\(/,

@@ -205,8 +205,11 @@ function presentHoldShown(unit, atk, hp, maxHp) {
   unit._displayMaxHp = Math.max(1, Number(maxHp) || Number(hp) || 1);
 }
 // 表示値を進める（数値・VFXを出す瞬間に呼ぶ）。
+// **据え置いていない時は何もしない。** 据え置いていなければ実体の値がそのまま
+// 画面の値なので、ここで差分を足すと二重に効く（開戦の効果でATKが1多く見えた）。
 function presentAdvanceShown(unit, next) {
   if (!unit || !next) return;
+  if (unit._displayAtk == null && unit._displayHp == null) return;
   if (next.atk != null) unit._displayAtk = Math.max(0, Number(next.atk) || 0);
   if (next.hp != null) unit._displayHp = Math.max(0, Number(next.hp) || 0);
   if (next.maxHp != null) unit._displayMaxHp = Math.max(1, Number(next.maxHp) || 1);
