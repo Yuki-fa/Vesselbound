@@ -698,6 +698,9 @@ function coreApplyDamage(target, amount, emit, opts) {
     sourceId: opts && opts.sourceId, counter: !!(opts && opts.counter),
     keywordEffect: opts && opts.keywordEffect || null,
     redirectedFrom: opts && opts.redirectedFrom || null,
+    // 同じ効果で同時に入ったダメージの印。再生側はこれが同じものを**同時に**見せる。
+    // 1体ずつ順に解決していても、見せ方は「一度に起きたこと」に揃えるため。
+    batch: (opts && opts.batch) || null,
     // 通常攻撃は runBattleCore が _coreAttackContact を立てる。その他の命中は
     // キャラクター効果由来として、再生側が専用VFX/SEを選べるように明示する。
     // **呼び出し側が明示した値を上書きしないこと。** 以前はここで
@@ -775,6 +778,20 @@ function coreApplyLuckyRing(target, damageDone, state, emit) {
 // applyHitは二次効果から再帰的に呼ばれるため、反撃・死亡効果・召喚も同じ順序で処理される。
 // options.deferTriggers=true の場合は、ダメージの確定と分散だけを行い、
 // 負傷・死亡・命中キーワード・マナ等のトリガは一切発火しない。
+// 同じ効果で同時に入るダメージへ、ひとまとまりの印を付ける。
+// **これはルールを変えない。** 解決の順番・結果はそのままで、再生側が
+// 「同時に起きたこと」として見せられるようにするための目印だけを足す。
+// 入れ子になっても最初の印を保つ（誘発の中の別効果まで同じ束にしない）。
+function coreBeginDamageBatch(state) {
+  if (!state || state._coreDamageBatch) return false;
+  state._coreDamageBatchSeq = (Number(state._coreDamageBatchSeq) || 0) + 1;
+  state._coreDamageBatch = 'b' + state._coreDamageBatchSeq;
+  return true;
+}
+function coreEndDamageBatch(state) {
+  if (state) state._coreDamageBatch = null;
+}
+
 function coreResolveHit(state, source, target, amount, counter, rng, emit, options) {
   if (!state || !target || target.hp <= 0 || !(amount > 0)) return { amount: 0, died: false };
   const opt = options || {};
@@ -782,7 +799,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   const applyHit = (nextSource, nextTarget, nextAmount, nextCounter, skipSourceEffects, skipTough) =>
     coreResolveHit(state, nextSource, nextTarget, nextAmount, nextCounter, rng, emit, {
       skipSourceEffects: !!skipSourceEffects, skipTough: !!skipTough,
-      deferTriggers: !!opt.deferTriggers,
+      deferTriggers: !!opt.deferTriggers, collect: opt.collect,
     });
   if (source) target._lastDamageSource = source;
   target._lastDamageWasCounter = !!counter;
@@ -816,9 +833,9 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     if (mata) {
       const redirected = Math.floor(Number(amount) / 2);
       const primary = coreResolveHit(state, source, target, Number(amount) - redirected, counter, rng, emit,
-        { skipSourceEffects: true, deferTriggers: !!opt.deferTriggers });
+        { skipSourceEffects: true, deferTriggers: !!opt.deferTriggers, collect: opt.collect });
       const shared = coreResolveHit(state, source, mata, redirected, counter, rng, emit,
-        { deferTriggers: !!opt.deferTriggers, redirectedFrom: target.id });
+        { deferTriggers: !!opt.deferTriggers, collect: opt.collect, redirectedFrom: target.id });
       return { amount: primary.amount || 0, died: !!(primary.died || shared.died) };
     }
   }
@@ -841,11 +858,9 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   const result = coreApplyDamage(target, amount, emit, {
     sourceId: source && source.id, counter: !!counter, skipTough: !!opt.skipTough,
     redirectedFrom: opt.redirectedFrom || null,
+    batch: state._coreDamageBatch || null,
     effect: !!opt.effect || !!(source && !source._coreAttackContact && !counter),
   });
-  if (result.blocked && result.reason === 'shield' && !opt.deferTriggers) {
-    coreApplyShieldLostEffects(target, state, rng, emit, applyHit);
-  }
   if (result.amount > 0) {
     // シャナ：陣営を問わず、キャラクターがダメージを受けるたびに強化する。
     [...(state.units.p1 || []), ...(state.units.p2 || [])].filter(x => x && x.hp > 0 && coreHasEffect(x, 'シャナ'))
@@ -853,8 +868,30 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
         x.atk = Math.max(0, x.atk + 1); x.maxHp = Math.max(1, x.maxHp + 1); x.hp += 1;
         emit({ type: 'stat_change', side: x.side, unitId: x.id, atk: 1, hp: 1, reason: 'shana_damage' });
       });
-    if (!opt.deferTriggers) coreApplyLuckyRing(target, result.amount, state, emit);
-    if (source && !opt.skipSourceEffects && !opt.deferTriggers) {
+  }
+  // 誘発（結界喪失・命中キーワード・負傷・死亡）はここから。
+  // deferTriggers が立っている場合は今は発火させず、collect に積んで
+  // 呼び出し側が「全員にダメージを入れ終えてから」まとめて解決する。
+  if (opt.deferTriggers) {
+    if (Array.isArray(opt.collect)) opt.collect.push({ source, target, result, before, counter: !!counter, opt });
+    return result;
+  }
+  coreApplyHitTriggers(state, source, target, result, before, counter, rng, emit, applyHit, opt);
+  return result;
+}
+
+// 1回の命中の後に起きること。coreResolveHit から切り出したもの。
+// 「全員にダメージを入れてから、まとめて誘発」を実現するために、
+// ダメージの確定（coreResolveHit）と誘発（ここ）を分けられるようにしている。
+function coreApplyHitTriggers(state, source, target, result, before, counter, rng, emit, applyHit, options) {
+  const opt = options || {};
+  if (!state || !target || !result) return;
+  if (result.blocked && result.reason === 'shield') {
+    coreApplyShieldLostEffects(target, state, rng, emit, applyHit);
+  }
+  if (result.amount > 0) {
+    coreApplyLuckyRing(target, result.amount, state, emit);
+    if (source && !opt.skipSourceEffects) {
       const keywordResult = coreApplyKeywordOnHit(source, target, result.amount, before, state, emit);
       if (keywordResult && keywordResult.killed) emit({ type: 'death', side: target.side, unitId: target.id });
       if (keywordResult && keywordResult.cursed && source.hp <= 0) {
@@ -863,8 +900,8 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
         coreTryRevive(source, state, emit);
       }
     }
-    if (target.hp > 0 && !opt.deferTriggers) coreTriggerManaOnInjury(target, state, emit);
-      if (target.hp > 0 && !opt.deferTriggers) {
+    if (target.hp > 0) coreTriggerManaOnInjury(target, state, emit);
+      if (target.hp > 0) {
       const repeats = 1 + coreRingCount(state, target.side, '激怒の指輪')
         + coreEffectCount(target, '執念の炎')
         // 反復ボーナスは createCoreUnit() が _effectRepeatBonus へ正規化するため、
@@ -874,7 +911,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
         const injuryEventSeq = state._coreInjuryEventSeq = (Number(state._coreInjuryEventSeq) || 0) + 1;
         coreApplyInjuryEffects(target, result.amount, state, rng, emit, applyHit, source, `${injuryEventSeq}:${i}`);
       }
-      if (!opt.deferTriggers && source && coreHasEffect(source, 'バジリスク')
+      if (source && coreHasEffect(source, 'バジリスク')
         && rng && typeof rng.next === 'function' && rng.next() < 0.01 && target.hp > 0) {
         target.hp = 0;
         emit({ type: 'instant_death', side: target.side, unitId: target.id, sourceId: source.id, reason: 'basilisk' });
@@ -885,13 +922,12 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
       }
     }
   }
-  if (target.hp <= 0 && !opt.deferTriggers) {
+  if (target.hp <= 0) {
     coreTriggerDeath(target, state, emit);
     coreApplyDeathEffects(target, state, rng, emit, applyHit);
     coreApplyDeathObservers(target, state, rng, emit, applyHit);
     coreTryRevive(target, state, emit);
   }
-  return result;
 }
 
 // 命中時キーワードの数値部分。加護・指輪・ログ・死亡処理は呼び出し側に残し、
@@ -1647,8 +1683,20 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     const amount = Math.max(1, Number(allDamage && allDamage[1]) || 1);
     // 「全てのキャラクター」に**自分自身は含めない**。
     // 含めると、攻撃するたびに自分を削って想定より早く倒れる（サイレン）。
-    [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x))
-      .forEach(x => applyHit(unit, x, amount));
+    // 解決は1体ずつだが、**見せ方は一度に起きたこととして揃える**ため印を付ける。
+    // **全員にダメージを入れてから、まとめて誘発する。**
+    // 1体ずつ「ダメージ→その体の誘発」を解決すると、誘発（ミノタウロスの
+    // 割り込み攻撃など）が残りの対象へのダメージより先に起き、順番が実際の
+    // ルール（同時に受ける）と食い違う。誘発の順番は対象の並び順のまま。
+    const batched = coreBeginDamageBatch(state);
+    const pending = [];
+    try {
+      [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x))
+        .forEach(x => applyHit(unit, x, amount, false, false, false,
+          { deferTriggers: true, collect: pending }));
+    } finally { if (batched) coreEndDamageBatch(state); }
+    pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
+      h.counter, rng, emit, applyHit, h.opt));
   }
   const enemyDamage = attackText.match(/全ての敵に(\d+)ダメージ/);
   if (enemyDamage && !coreHasEffect(unit, 'サイレン')) {
@@ -3369,9 +3417,12 @@ function runBattleCore(state, rng, opts) {
     return result;
   };
   // 実際の戦闘ループは共通の即時解決入口を使用する。
-  const applyHit = (source, target, amount, counter, skipSourceEffects, skipTough) =>
+  // extra：deferTriggers / collect を渡すための追加指定。
+  // 「全員にダメージを入れてから、まとめて誘発」する効果がこれを使う。
+  const applyHit = (source, target, amount, counter, skipSourceEffects, skipTough, extra) =>
     coreResolveHit(state, source, target, amount, counter, rng, emit, {
       skipSourceEffects: !!skipSourceEffects, skipTough: !!skipTough,
+      ...(extra || {}),
     });
 
   // 封印X：戦闘開始時は場に出ていない。判定・順序はコアの共通ルール。
@@ -3546,6 +3597,9 @@ if (typeof window !== 'undefined') {
   window.coreTriggerBattleEnd = coreTriggerBattleEnd;
   window.coreApplyLuckyRing = coreApplyLuckyRing;
   window.coreResolveHit = coreResolveHit;
+  window.coreApplyHitTriggers = coreApplyHitTriggers;
+  window.coreBeginDamageBatch = coreBeginDamageBatch;
+  window.coreEndDamageBatch = coreEndDamageBatch;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -3582,6 +3636,6 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyOpeningRings,
     coreTriggerManaOnAttack, coreTriggerManaOnInjury,
     coreTriggerDeath, coreTriggerBattleEnd, coreTryRevive, coreApplyLuckyRing,
-    coreResolveHit,
+    coreResolveHit, coreApplyHitTriggers, coreBeginDamageBatch, coreEndDamageBatch,
   };
 }

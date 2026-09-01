@@ -379,6 +379,13 @@ function main() {
     'PvEが手番の頭で表示値を据え置いていない');
   assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
+  // 全体ダメージは「全員に入れてから、まとめて誘発」。1体ずつ誘発まで解決すると、
+  // 割り込み攻撃（ミノタウロス）が残りの対象へのダメージより先に起きる。
+  assert.match(read('js/battle/core.js'), /function coreApplyHitTriggers\(/,
+    '命中後の誘発が切り出されていない（全員にダメージ→まとめて誘発ができない）');
+  assert.match(read('js/battle/core.js'),
+    /\{ deferTriggers: true, collect: pending \}\)\);/,
+    '全体ダメージが1体ずつ誘発まで解決している');
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
   assert.match(currentBattle,
