@@ -148,6 +148,111 @@ async function presentStatChangeEvent(ev, api) {
   return true;
 }
 
+// ── 召喚 ────────────────────────────────────
+// 盤面のどこへ入れるか（前衛の右端／対象の左右）は coreInsertSummonedUnit が
+// 唯一の実装。ここはその共通の入口と「いつ描くか」を1回だけ書く。
+//
+// 描画の契機：**まだDOMに姿が無い召喚体だけ、攻撃モーション中でも描画を進める。**
+// 保留したままだと次の死亡イベントまで画面に現れず、逆に常に割り込むと
+// 飛行中の複製の戻り先が動いてカードが二重に見える。
+// api:
+//   list(side)                … その陣営の盤面配列
+//   hasUnit(list, id)         … 既に盤面にいるか
+//   place(list, unit, spec)   … coreInsertSummonedUnit を通した配置（成否を返す）
+//   hasDom(unit, side)        … その召喚体のDOMが既にあるか
+//   compact(force)            … 盤面の詰め直し
+//   render()                  … 単純な描き直し
+//   logLine(unit)             … ログ文（不要なら省略）
+function presentSummonPlacement(ev, api) {
+  if (!ev || !api || !ev.unit) return false;
+  const list = typeof api.list === 'function' ? api.list(ev.side) : null;
+  let layoutChanged = false;
+  if (list && !(typeof api.hasUnit === 'function' && api.hasUnit(list, ev.unit.id))) {
+    const live = list.filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul).length;
+    // 上限超過のイベントが混ざっても、余分な体をDOMへ入れて左端へ出さない。
+    if (live < (PRESENT_MAX_SLOTS || 14)) {
+      const summoned = { ...ev.unit };
+      const front = list.filter(x => x && x.hp > 0 && x.lane !== 'rear' && !x._isObject && !x._isSoul).length;
+      // 前衛が埋まっても陣営上限までは後衛へ送る。
+      if (front >= (PRESENT_FRONT_SLOTS || 7)) summoned.lane = 'rear';
+      // 位置指定はイベントの値を**そのまま**渡す。左右の解釈はコアが持つ。
+      // 発生元IDで補ってはいけない（同時召喚の並びが逆になる）。
+      const spec = {
+        placement: ev.placement || '',
+        placementTargetId: ev.placementTargetId != null ? ev.placementTargetId : null,
+      };
+      if (typeof api.place === 'function' && api.place(list, summoned, spec)) layoutChanged = true;
+    }
+  }
+  if (ev.sourceId != null && typeof api.logLine === 'function' && typeof log === 'function') {
+    const line = api.logLine(ev.unit);
+    if (line) log(line, ev.side === 'p1' ? 'good' : 'bad');
+  }
+  const hasDom = typeof api.hasDom === 'function' ? api.hasDom(ev.unit, ev.side) : true;
+  if (layoutChanged && typeof api.compact === 'function') api.compact(!hasDom);
+  else if (typeof api.render === 'function') api.render();
+  return layoutChanged;
+}
+
+// ── マナ効果（Nマナ毎の発動）────────────────────────
+// 同時に発動した複数の閾値効果では、マナ効果VFXをキャラクターごとに1回だけ出す。
+// 「Xマナ毎」が到達回数ぶん発動すると、同じ演出が同じカードへ何重にも重なるため。
+// 間引きの単位（陣営＋キャラクター）は両方で同じでなければならない。
+// api: findUnit(side,id) / gate / playCue(unit, isEnemySide) / onSkipped()
+async function presentManaThresholdEvent(ev, api) {
+  if (!ev || !api) return false;
+  const source = api.findUnit(ev.side, ev.unitId);
+  if (!api.gate || !api.gate.shouldPlay(`${ev.side}:${ev.unitId}`)) {
+    if (typeof api.onSkipped === 'function') await api.onSkipped(source);
+    return false;
+  }
+  if (typeof api.playCue === 'function') await api.playCue(source, ev.side === 'p2');
+  return true;
+}
+
+// ── 死亡 ────────────────────────────────────
+// 数値・VFXを出し終えてから、カードを焼き落として盤面から外す。
+// api:
+//   findUnit(side,id)
+//   isDone(ev) / markDone(ev) … 同じ死亡を二重に演出しないための記録
+//   beat()                    … 直前の数値が読める間だけ待つ
+//   processDeath(unit, side)  … 陣営ごとの後始末（ログ・報酬・カウンタ）。PvEのみ
+//   compact()                 … 盤面の詰め直し（攻撃モーションの完了を待つ）
+async function presentDeathEvent(ev, api) {
+  if (!ev || !api || !ev.unitId) return false;
+  if (typeof api.isDone === 'function' && api.isDone(ev)) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (!unit) return false;
+  // 既に生き返っている（復活）場合はここでは演出しない。
+  if (Number(unit.hp) > 0) return false;
+  if (typeof api.markDone === 'function') api.markDone(ev);
+  // 直前に出した数値が読める間だけ待ってから消す。
+  // この間、カードは**暗くせず**生きている見た目のまま残す（renderField 側）。
+  // 暗くすると「死体が場に残っている」ように見え、待たないと数値が空白の上に残る。
+  if (typeof api.beat === 'function') await api.beat();
+  // ここまでで数値・VFXは出し終えている。再生中でも焼き落としを始めてよい印。
+  unit._deathFxReady = true;
+  if (typeof api.processDeath === 'function') await api.processDeath(unit, ev.side);
+  // 詰めてよいが、**攻撃モーションの完了は待つ**。飛行中に盤面を詰めると、
+  // 複製の戻り先が動いて元のカードが二重に見える。
+  if (typeof api.compact === 'function') api.compact();
+  return true;
+}
+
+// ── 変身 ────────────────────────────────────
+// その場で姿と数値が入れ替わる演出。据え置いている表示値もここで進める。
+// api: findUnit(side,id) / setForm(unit, ev) / advanceShown(unit) / render()
+function presentTransformEvent(ev, api) {
+  if (!ev || !api) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (!unit) return false;
+  if (ev.unit) Object.assign(unit, ev.unit);
+  else if (typeof api.setForm === 'function') api.setForm(unit, ev);
+  if (typeof api.advanceShown === 'function') api.advanceShown(unit);
+  if (typeof api.render === 'function') api.render();
+  return true;
+}
+
 // ── 封印の解放 ────────────────────────────────
 // api: findUnit(side,id) / compact() / logLine(unit)
 async function presentSealReleaseEvent(ev, api) {
@@ -192,10 +297,15 @@ if (typeof window !== 'undefined') {
   window.presentFledEvent = presentFledEvent;
   window.presentStatChangeEvent = presentStatChangeEvent;
   window.presentSealReleaseEvent = presentSealReleaseEvent;
+  window.presentTransformEvent = presentTransformEvent;
+  window.presentDeathEvent = presentDeathEvent;
+  window.presentManaThresholdEvent = presentManaThresholdEvent;
+  window.presentSummonPlacement = presentSummonPlacement;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     presentDamageEvent, presentShieldLostEvent, presentFledEvent,
-    presentStatChangeEvent, presentSealReleaseEvent,
+    presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
+    presentDeathEvent, presentManaThresholdEvent, presentSummonPlacement,
   };
 }

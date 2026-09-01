@@ -2404,7 +2404,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       _preAttackMotion=(async()=>{
         try{
           await playAttackMotion(_attacker,_target,_side==='p2',()=>_stopped,
-            {stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+            {...PRESENT_ATTACK_MOTION,
              targetRect:_target._lastVisualRect||null});
         } finally { endBattleMotion(); }
       })();
@@ -2506,22 +2506,20 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     // 食い違っていた。「数値を出し終えるまでカードを消さない」は
     // presentKeepsOnBoard（present.js）が受け持つので、ここで後回しにする必要はない。
     if(e.type==='death'){
-      if(!e.unitId||deaths.has(`${e.side}:${e.unitId}`)) continue;
-      const dead=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(!dead||dead.hp>0) continue;
-      deaths.add(`${e.side}:${e.unitId}`);
-      // 直前に出した数値が読める間だけ待ってから消す。待ち時間は present.js が唯一の実装。
-      // この間、カードは**暗くせず**生きている見た目のまま残す（renderField側）。
-      // 暗くすると「死体が場に残っている」ように見え、待たないと数値が空白の上に残る。
-      await sleep(PRESENT_HIT_BEAT_MS);
-      // ここまでで数値・VFXは出し終えている。再生中でも死亡演出を始めてよい。
-      dead._deathFxReady=true;
-      if(e.side==='p1') await processAllyDeath(dead);
-      else await processEnemyDeath(dead,(state.units.p2||[]).indexOf(dead));
-      // 数値を出し終えているので詰めてよいが、**攻撃モーションの完了は待つ**。
-      // 飛行中に盤面を詰めると、複製の戻り先が動いて元のカードが二重に見える。
-      // 保留分は endBattleMotion() がモーション終了時に流す。
-      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      await presentDeathEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        isDone:ev=>deaths.has(`${ev.side}:${ev.unitId}`),
+        markDone:ev=>deaths.add(`${ev.side}:${ev.unitId}`),
+        beat:()=>sleep(PRESENT_HIT_BEAT_MS),
+        // 陣営ごとの後始末（ログ・報酬・撃破数）はPvEだけが行う。
+        // オンラインはサーバーが確定済みなので何もしない。
+        processDeath:async(unit,side)=>{
+          if(side==='p1') await processAllyDeath(unit);
+          else await processEnemyDeath(unit,(state.units.p2||[]).indexOf(unit));
+        },
+        compact:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true}); },
+      });
       continue;
     }
     if(_isPlayableAttack){
@@ -2551,7 +2549,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if(typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:effect-attack:${uid()}`,guardMs:0});
         beginBattleMotion();
         try{
-          await playAttackMotion(attacker,target,attackSide==='p2',null,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+          await playAttackMotion(attacker,target,attackSide==='p2',null,{...PRESENT_ATTACK_MOTION,
             targetRect:target._lastVisualRect||null});
         } finally {
           endBattleMotion();
@@ -2568,10 +2566,13 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     if(e.type==='mana_threshold'){
       _recordBattleTrace('mana_state_restore_start',{unitId:e.unitId});
-      const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(source&&manaCueGate.shouldPlay(`${e.side}:${e.unitId}`)){
-        void _playManaEffectCue(source,e.side==='p2');
-      }
+      // 間引きの規則は present_events.js が唯一の実装（オンラインと同じ）。
+      // PvEはここで待たない（効果の解決はVFXの逆再生開始に合わせて別途行う）。
+      await presentManaThresholdEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        gate:manaCueGate,
+        playCue:(unit,isEnemySide)=>{ if(unit) void _playManaEffectCue(unit,isEnemySide); },
+      });
       if(e.deferred&&e.deferredAfter&&typeof coreRestoreDeferredState==='function'){
         coreRestoreDeferredState(state,e.deferredAfter);
         G.mana=Math.max(0,Number(state.resources.p1?.mana)||0);
@@ -2641,16 +2642,17 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='transform'){
-      const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(target){
-        if(e.unit) Object.assign(target,e.unit);
-        else _setBattleUnitForm(target,e.name,e.atk,e.maxHp,target.color);
-        // 変身はその場で姿と数値が入れ替わる演出。据え置いた表示値もここで進める。
-        if(typeof presentAdvanceShown==='function'){
-          presentAdvanceShown(target,{atk:target.atk,hp:target.hp,maxHp:target.maxHp});
-        }
-        if(typeof renderAll==='function') renderAll();
-      }
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      presentTransformEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        setForm:(unit,ev)=>_setBattleUnitForm(unit,ev.name,ev.atk,ev.maxHp,unit.color),
+        advanceShown:unit=>{
+          if(typeof presentAdvanceShown==='function'){
+            presentAdvanceShown(unit,{atk:unit.atk,hp:unit.hp,maxHp:unit.maxHp});
+          }
+        },
+        render:()=>{ if(typeof renderAll==='function') renderAll(); },
+      });
       continue;
     }
     if(e.type==='fled'){
@@ -4001,7 +4003,7 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage,on
       const onImpact=attacker._attackEffectPending
         ?()=>_resolveAttackEffectsAtImpact(attacker,true,actualTarget,result)
         :null;
-      await playAttackMotion(attacker,actualTarget,true,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+      await playAttackMotion(attacker,actualTarget,true,onImpact,{...PRESENT_ATTACK_MOTION,
         onHit:()=>_shakeOnAttackContact(actualTarget,damage),
         onContact:async()=>{ if(typeof onContact==='function') await onContact(result); }});
     } else {
@@ -4038,7 +4040,7 @@ async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage,on
     const onImpact=attacker._attackEffectPending
       ?()=>_resolveAttackEffectsAtImpact(attacker,false,target,result)
       :null;
-    await playAttackMotion(attacker,target,false,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+    await playAttackMotion(attacker,target,false,onImpact,{...PRESENT_ATTACK_MOTION,
       onHit:()=>_shakeOnAttackContact(target,damage),
       onContact:async()=>{ if(typeof onContact==='function') await onContact(result); }});
   } else {
@@ -4221,7 +4223,7 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
       const onImpact=attacker._attackEffectPending
         ?()=>_resolveAttackEffectsAtImpact(attacker,isEnemySide,primaryTarget,result)
         :null;
-      await playAttackMotion(attacker,primaryTarget,isEnemySide,onImpact,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+      await playAttackMotion(attacker,primaryTarget,isEnemySide,onImpact,{...PRESENT_ATTACK_MOTION,
         onContact:applyMultiContactDamage});
     } else {
       await _consumeAttackEffectPause(attacker,isEnemySide,primaryTarget);

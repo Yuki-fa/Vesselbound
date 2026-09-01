@@ -139,12 +139,29 @@ cd prototype && node tools/parity/present_parity.js
 | 見せ方の規則 | `js/battle/present.js` | 両方に効く |
 | 描画そのもの | `js/engine/render.js` | 両方に効く |
 | イベント1件の見せ方 | `js/battle/present_events.js` | 両方に効く |
-| イベントの受け口（switch） | PvEとオンラインで別 | **反映されない** |
+| イベントの受け口（switch） | 呼び出しだけ。中身は present_events.js | 両方に効く |
 
-**受け口に手を入れる時は必ず両方に入れる。** 新しい演出を足すなら、まず
-`present_events.js` に「1件のイベントをどう見せるか」を書き、両方の受け口から
-そこを呼ぶ形にする。違い（ユニットの引き方・HPの反映・先読みするイベント列）は
-アダプタで吸収する。ダメージ演出（`presentDamageEvent`）がその形。
+**新しい演出を足す時は、まず `present_events.js` に「1件のイベントをどう見せるか」を
+書き、両方の受け口からそこを呼ぶ。** 違い（ユニットの引き方・HPの反映・先読みする
+イベント列・陣営ごとの後始末）はアダプタ（api）で吸収する。
+
+現在 `present_events.js` にあるもの：
+
+| 関数 | 対象 |
+| --- | --- |
+| `presentDamageEvent` | 被弾（順番待ち・命中音のまとめ鳴らし・固有VFX/SEの発生元・表示HPの前進） |
+| `presentDeathEvent` | 死亡（数値が読める間・焼き落としの開始印・詰め直し） |
+| `presentStatChangeEvent` | 能力変化（固有VFX/SEの重複単位・表示ATK/HPの前進） |
+| `presentSummonPlacement` | 召喚（上限・後衛送り・位置指定・描画の契機） |
+| `presentManaThresholdEvent` | マナ効果（キャラクターごとの間引き） |
+| `presentSealReleaseEvent` | 封印の解放 |
+| `presentShieldLostEvent` | 結界喪失（SE・ログ・結界表示） |
+| `presentTransformEvent` | 変身 |
+| `presentFledEvent` | 逃走 |
+| `presentSweepAttack`（render.js） | 薙ぎ払い |
+
+尺・間合いの数値は `present.js`（`PRESENT_ATTACK_MOTION` / `PRESENT_TURN_GAP_MS` /
+`PRESENT_HIT_BEAT_MS` / `PRESENT_DAMAGE_STAGGER_MS`）が唯一の定義。
 
 ### 演出の規則は `js/battle/present.js` が唯一の実装
 

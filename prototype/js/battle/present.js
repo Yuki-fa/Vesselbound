@@ -22,6 +22,13 @@ const PRESENT_MAX_SLOTS = 14;
 // 長くすると戦闘全体が間延びするので、数値が視認できる最小限にとどめる。
 const PRESENT_HIT_BEAT_MS = 260;
 
+// 通常攻撃のモーションの尺。**PvEとオンラインで同じ値を使うこと。**
+// stopRatio：踏み込みで止める位置（攻撃効果はこの時点で見せる）。
+// firstDuration：踏み込み、secondDuration：残りの間合い、returnDuration：戻り。
+const PRESENT_ATTACK_MOTION = {
+  stopRatio: .25, firstDuration: 260, secondDuration: 360, returnDuration: 420,
+};
+
 // キャラクターが1体行動し終えてから、次のキャラクターが動き出すまでの間（ms）。
 // 0にすると攻撃が途切れなく続き、何が起きているか追えない。
 // **PvEとオンラインで同じ値を使うこと。**
@@ -249,6 +256,7 @@ function presentBreaksManaRun(ev) {
 if (typeof window !== 'undefined') {
   window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
   window.PRESENT_TURN_GAP_MS = PRESENT_TURN_GAP_MS;
+  window.PRESENT_ATTACK_MOTION = PRESENT_ATTACK_MOTION;
   window.PRESENT_FRONT_SLOTS = PRESENT_FRONT_SLOTS;
   window.PRESENT_MAX_SLOTS = PRESENT_MAX_SLOTS;
   window.PRESENT_MANA_RUN_TYPES = PRESENT_MANA_RUN_TYPES;
@@ -275,7 +283,7 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
+    PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_ATTACK_MOTION, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     PRESENT_DAMAGE_STAGGER_MS, presentDamageVfxSource, presentStatChangeVfxAllowed,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,

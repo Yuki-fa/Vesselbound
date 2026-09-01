@@ -159,6 +159,8 @@
   // PvEは1手ぶんの再生ごとに作り直すので、こちらもターンの頭で作り直す。
   // 命中音を二重に鳴らさないための印（まとめ鳴らし用）。
   let _damageSfxDone = new Set();
+  // 同じ死亡を二重に演出しないための記録（PvEの deaths と同じ役目）。
+  let _deathsDone = new Set();
   // 攻撃効果より前に始めておく攻撃モーション（25%地点で停止して待つ）。
   let _preAttack = null;
   // 手番の間を置くのは2手番目以降（戦闘の頭では待たない）。
@@ -281,7 +283,7 @@
     if (motionDepthStarted) beginBattleMotion();
     // PvEの通常攻撃と同じ尺・同じ接触揺れ。
     _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => held) : null, {
-      stopRatio: .25, firstDuration: 260, secondDuration: 360, returnDuration: 420,
+      ...PRESENT_ATTACK_MOTION,
       onHit: () => {
         // 接触の揺れだけをここで出す。
         // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
@@ -321,6 +323,7 @@
       _effectStatCueKeys = new Set();
       _effectStatVfxGate = presentCreateOnceGate();
       _damageSfxDone = new Set();
+      _deathsDone = new Set();
       if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
     }
 
@@ -509,9 +512,14 @@
         break;
       }
       case 'mana_threshold': {
-        const source = _find(ev.side, ev.unitId);
-        if (!_manaCueGate.shouldPlay(`${ev.side}:${ev.unitId}`)) { await _sleep(60); _render(); break; }
-        await _awaitManaReverseStart(source, ev.side === 'p2');
+        // 間引きの規則は present_events.js が唯一の実装（PvEと同じ）。
+        // オンラインはVFXの逆再生開始まで待ってから次のイベントへ進む。
+        await presentManaThresholdEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          gate: _manaCueGate,
+          playCue: (unit, isEnemySide) => _awaitManaReverseStart(unit, isEnemySide),
+          onSkipped: () => _sleep(60),
+        });
         _render();
         break;
       }
@@ -617,38 +625,20 @@
         break;
       }
       case 'summon': {
-        let layoutChanged=false;
-        if (ev.unit) {
-          const list = ev.side === 'p1' ? G.allies : G.enemies;
-          if (list && !list.some(x => x && String(x.id) === String(ev.unit.id))) {
-            const liveCount = list.filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul).length;
-            // サーバーイベントに誤って上限超過が含まれても、表示アダプタが
-            // 余分なユニットをDOMへ入れて一時的に左端へ出さない。
-            if (liveCount < MAX_SLOTS) {
-              const summoned = { ...ev.unit };
-              const frontCount = list.filter(x => x && x.hp > 0 && x.lane !== 'rear' && !x._isObject && !x._isSoul).length;
-              // 前衛7枠が埋まっても陣営上限14体までは後衛へ送る。
-              if (frontCount >= FRONT_SLOTS) summoned.lane = 'rear';
-              // 位置指定はイベントの値を**そのまま**渡す。左右の解釈はコアが持つ。
-              // 発生元IDで補ってはいけない。コアは placementTargetId が無ければ
-              // 前衛の右端へ入れる規則で、補うと同時召喚の並びが逆になる。
-              const spec = { placement: ev.placement || '',
-                placementTargetId: ev.placementTargetId != null ? ev.placementTargetId : null };
-              if (_placeSummonedUnit(list, summoned, spec)) layoutChanged = true;
-            }
-          }
-        }
-        if (ev.sourceId && typeof log === 'function') log(`${_effectSourceName(ev, ctx)}の効果で${ev.unit.name || 'ユニット'}を召喚。`, ev.side === 'p1' ? 'good' : 'bad');
-        // 人数変化はPvEと同じ共通FLIP経路へ通す。単純なrenderField()では
-        // 新しい中央寄せ位置へ瞬間移動し、オンラインだけ詰め移動が失われる。
-        // 召喚体にまだDOMが無い場合だけ、攻撃モーション中でも描画を進める（PvEと同じ規則）。
-        // 保留したままだと、次に死亡イベントが来るまで召喚体が画面に現れない。
-        // 逆に常に割り込むと、飛行中の複製の戻り先が動いてカードが二重に見える。
-        const _summonHasDom = !!(ev.unit && ev.unit.id != null && document.querySelector(
-          `#${ev.side === 'p2' ? 'f-enemy' : 'f-ally'} .slot[data-unit-id="${String(ev.unit.id).replace(/"/g, '\\"')}"]`));
-        if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact(
-          _summonHasDom?{forceRender:true}:{forceRender:true,forceDuringMotion:true});
-        else _render();
+        // 配置と描画の契機は present_events.js が唯一の実装（PvEと同じ規則）。
+        presentSummonPlacement(ev, {
+          list: side => (side === 'p1' ? G.allies : G.enemies),
+          hasUnit: (list, id) => list.some(x => x && String(x.id) === String(id)),
+          place: (list, unit, spec) => _placeSummonedUnit(list, unit, spec),
+          hasDom: (unit, side) => !!(unit && unit.id != null && document.querySelector(
+            `#${side === 'p2' ? 'f-enemy' : 'f-ally'} .slot[data-unit-id="${String(unit.id).replace(/"/g, '\\"')}"]`)),
+          compact: force => {
+            if (typeof requestBattleCompact !== 'function') { _render(); return; }
+            requestBattleCompact(force ? { forceRender: true, forceDuringMotion: true } : { forceRender: true });
+          },
+          render: _render,
+          logLine: unit => `${_effectSourceName(ev, ctx)}の効果で${(unit && unit.name) || 'ユニット'}を召喚。`,
+        });
         break;
       }
       case 'sweep_vfx': {
@@ -683,14 +673,17 @@
         break;
       }
       case 'transform': {
-        const u = _find(ev.side, ev.unitId);
-        if (!u) break;
-        if (ev.unit) Object.assign(u, ev.unit);
-        else {
-          u.name = ev.name || u.name; u.atk = Number(ev.atk) || u.atk;
-          u.maxHp = Number(ev.maxHp) || u.maxHp; u.hp = Number(ev.hp) || u.hp;
-        }
-        _render();
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
+        presentTransformEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          setForm: (unit, e0) => {
+            unit.name = e0.name || unit.name;
+            unit.atk = Number(e0.atk) || unit.atk;
+            unit.maxHp = Number(e0.maxHp) || unit.maxHp;
+            unit.hp = Number(e0.hp) || unit.hp;
+          },
+          render: _render,
+        });
         break;
       }
       case ONLINE_EVENT.SACRIFICE: {
@@ -743,37 +736,20 @@
         break;
       }
       case ONLINE_EVENT.DEATH: {
-        // 同じ接触で発生した死亡イベントは、次の攻撃／ターンへ進む前にまとめて
-        // HP0へしてから一度だけ再描画する。これで相打ち時も両者の死亡演出が同時に始まる。
-        const deaths = [ev];
-        const events = (ctx && ctx.events) || [];
-        const start = Number(ctx && ctx.eventIndex);
-        if (Number.isInteger(start)) {
-          for (let i = start + 1; i < events.length; i++) {
-            const next = events[i];
-            if (next.type === ONLINE_EVENT.ATTACK || next.type === ONLINE_EVENT.TURN_BEGIN
-              || next.type === ONLINE_EVENT.BATTLE_END) break;
-            if (next.type !== ONLINE_EVENT.DAMAGE && next.type !== ONLINE_EVENT.DEATH) break;
-            if (next.type === ONLINE_EVENT.DEATH) deaths.push(next);
-          }
-        }
-        // ここまでで数値・VFXは出し終えている。カードを残す理由がないので、
-        // 再生中でも焼き落としを始めてよい印を付ける（PvEの死亡ループと同じ）。
-        deaths.forEach(d => {
-          const unit = _find(d.side, d.unitId);
-          if (unit) { unit.hp = 0; unit._deathFxReady = true; }
-        });
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         // 焼失演出は renderField が死亡ユニットに対して自分で流す。
         await _awaitMotion();
-        // 直前に出した数値が読める間だけ待つ（PvEと同じ定数・同じ意図）。
-        await _sleep(PRESENT_HIT_BEAT_MS);
-
-        // 死亡で人数が変わった場合も、単純再描画ではなくPvEと同じ
-        // compactBattleUnits + FLIP経路を通して残存キャラを詰める。
-        // 数値を出し終えているので詰めてよいが、**攻撃モーションの完了は待つ**。
-        // 飛行中に盤面を詰めると、複製の戻り先が動いて元のカードが二重に見える。
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
-        else _render();
+        await presentDeathEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          isDone: e0 => _deathsDone.has(`${e0.side}:${e0.unitId}`),
+          markDone: e0 => _deathsDone.add(`${e0.side}:${e0.unitId}`),
+          beat: () => _sleep(PRESENT_HIT_BEAT_MS),
+          // 陣営ごとの後始末はサーバーが確定済み。オンラインでは何もしない。
+          compact: () => {
+            if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
+            else _render();
+          },
+        });
         break;
       }
       case ONLINE_EVENT.BATTLE_END:

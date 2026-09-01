@@ -487,13 +487,29 @@ function main() {
       assert.match(src, /presentEndPlayback\(\)/, `${name}が再生中フラグを下ろしていない`);
       assert.doesNotMatch(src, /_flushingCoreEvents/,
         `${name}が独自の再生中フラグを持っている（present.jsへ戻すこと）`);
-      // 数値を出し終えた印。これが無いと倒れたカードが再生の終わりまで残る。
-      assert.match(src, /_deathFxReady\s*=\s*true/, `${name}が死亡演出の開始印を付けていない`);
+    });
+    // 数値を出し終えた印は共通実装が付ける。無いと倒れたカードが再生の終わりまで残る。
+    assert.match(read('js/battle/present_events.js'), /unit\._deathFxReady = true;/,
+      '死亡演出の共通実装が開始印を付けていない');
+    assert.match(read('js/battle/present_events.js'), /async function presentDeathEvent\(ev, api\)/,
+      '死亡演出の共通実装が無い');
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /presentDeathEvent\(/, `${name}が死亡演出の共通実装を呼んでいない`);
+      assert.match(src, /presentTransformEvent\(/, `${name}が変身演出の共通実装を呼んでいない`);
+      assert.match(src, /presentManaThresholdEvent\(/, `${name}がマナ効果の共通実装を呼んでいない`);
     });
     // 死亡もコアが出したイベントの順番のまま処理する。まとめて後回しにすると、
     // 同じ盤面でもオンラインと「消える順番」が食い違う。
     assert.match(currentBattle, /if\(e\.type==='death'\)\{/,
       'PvEが死亡をイベントの順番で処理していない');
+    // 攻撃モーションの尺は present.js が唯一の定義。片側だけ変えるとテンポがずれる。
+    assert.match(read('js/battle/present.js'), /const PRESENT_ATTACK_MOTION = \{/,
+      '攻撃モーションの尺が present.js に無い');
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /PRESENT_ATTACK_MOTION/, `${name}が攻撃モーションの共通の尺を使っていない`);
+      assert.doesNotMatch(src, /stopRatio:\s*\.25,\s*firstDuration:\s*260/,
+        `${name}が攻撃モーションの尺を自前で持っている（present.jsへ戻すこと）`);
+    });
     assert.doesNotMatch(currentBattle, /if\(e\.type==='death'\) continue;/,
       'PvEが死亡を末尾へ後回ししている（オンラインと消える順番が食い違う）');
     // 固有VFXの大きさも present.js が唯一の実装。呼び出し側が持つと片方だけ巨大に出る。
@@ -564,13 +580,13 @@ function main() {
     '表示済み召喚体を保留表から消費していない');
   assert.match(currentBattle, /filter\(u=>u&&!before\.has\(u\)&&!u\._corePendingSummon\)/,
     'コア保留召喚を演出前にG配列へ先行接続している');
-  assert.match(currentBattle, /if\(e\.type==='transform'\)[\s\S]*Object\.assign\(target,e\.unit\)/,
+  assert.match(read('js/battle/present_events.js'), /if \(ev\.unit\) Object\.assign\(unit, ev\.unit\);/,
     '戦闘中の変身イベントで画像・枠を含むスナップショットを表示へ反映していない');
   assert.match(currentBattle, /if\(spawnedUnit\._corePendingSummon\) continue/,
     '配置失敗した保留召喚をフラッシュ後段で上限超過追加している');
   assert.match(currentBattle, /_battleCompactAnimatingUntil/,
     '連続召喚で前の詰め移動がDOM再構築により中断される');
-  assert.match(currentBattle, /void _playManaEffectCue\(source,e\.side==='p2'\);[\s\S]*_recordBattleTrace\('mana_state_apply'/,
+  assert.match(currentBattle, /playCue:\(unit,isEnemySide\)=>\{ if\(unit\) void _playManaEffectCue\(unit,isEnemySide\); \}/,
     '攻撃中のマナ効果演出を待機せず並行再生していない');
   // 同時に発動した複数のマナ閾値効果でマナ効果VFXが重ならないこと。
   // 「どういう規則で見せるか」は battle/present.js が唯一の実装。PvEもオンラインもそこを呼ぶ。
@@ -603,6 +619,8 @@ function main() {
   // 前の召喚体が倒れた後の召喚が味方の左側へ出ていた。
   assert.match(board, /coreInsertSummonedUnit\(list, summoned, spec \|\| \{\}, FRONT_SLOTS\);/,
     'オンラインの召喚位置がコアの共通実装を使っていない');
+  assert.match(read('js/battle/present_events.js'), /placementTargetId: ev\.placementTargetId != null \? ev\.placementTargetId : null,/,
+    '召喚の位置指定を発生元IDで補っている（同時召喚の並びが逆になる）');
   assert.doesNotMatch(board, /presentChooseSummonSlot\(/,
     'オンラインが古い空き枠探しを使っている（PvEと配置が食い違う）');
   // 盤面配列の持ち方もPvE（コア）と同じ「左詰め＋laneで前後」にする。
@@ -873,22 +891,29 @@ function main() {
   // 召喚は「その場で姿が出る」演出。保留すると次の死亡まで画面に出ない。
   // ただし常に割り込むと、飛行中の複製の戻り先が動いてカードが二重に見える。
   // DOMがまだ無い召喚体のときだけ割り込む（PvEと同じ規則）。
-  assert.match(board, /_summonHasDom\?\{forceRender:true\}:\{forceRender:true,forceDuringMotion:true\}/,
-    'オンライン召喚後のFLIP詰め処理がPvEと同じ規則になっていない');
+  // 召喚の配置と描画の契機は present_events.js が唯一の実装。
+  assert.match(read('js/battle/present_events.js'), /function presentSummonPlacement\(ev, api\)/,
+    '召喚の配置・描画契機の共通実装が無い');
+  assert.match(board, /presentSummonPlacement\(ev, \{/,
+    'オンラインが召喚の共通実装を呼んでいない');
   // 死亡の詰めは攻撃モーションの完了を待つ（飛行中に詰めると戻り先が動く）。
   // イベントごとに詰めてもいけない。出したばかりの数値が行き場を失う。
-  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]*requestBattleCompact\(\{forceRender:true\}\)/,
+  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]{0,900}requestBattleCompact\(\{ forceRender: true \}\)/,
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
     'モーション終了時の保留分を再生中に流せないままになっている');
-  assert.match(board, /case 'mana_threshold':[\s\S]*await _awaitManaReverseStart\(source, ev\.side === 'p2'\)/,
+  assert.match(board, /playCue: \(unit, isEnemySide\) => _awaitManaReverseStart\(unit, isEnemySide\),/,
     'オンラインのマナ閾値効果がVFX逆再生開始を待っていない');
   assert.match(board, /async function _awaitManaReverseStart\(unit, isEnemy\)/,
     'オンラインのマナ閾値VFX境界処理がない');
-  assert.match(board, /liveCount < MAX_SLOTS/, 'オンライン召喚が盤面上限を拒否していない');
-  assert.match(board, /const frontCount = list\.filter[\s\S]*summoned\.lane = 'rear'/,
-    'オンライン前衛満杯時に召喚体を後衛へ表示できない');
-  assert.match(board, /String\(x\.id\) === String\(ev\.unit\.id\)/, 'オンライン召喚のID型違い重複を防止していない');
+  // 上限・前衛満杯時の後衛送り・ID重複の防止は共通実装（present_events.js）が持つ。
+  {
+    const pe = read('js/battle/present_events.js');
+    assert.match(pe, /live < \(PRESENT_MAX_SLOTS \|\| 14\)/, '召喚が盤面上限を拒否していない');
+    assert.match(pe, /if \(front >= \(PRESENT_FRONT_SLOTS \|\| 7\)\) summoned\.lane = 'rear';/,
+      '前衛満杯時に召喚体を後衛へ表示できない');
+    assert.match(board, /String\(x\.id\) === String\(id\)/, 'オンライン召喚のID型違い重複を防止していない');
+  }
 
   const twin = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
