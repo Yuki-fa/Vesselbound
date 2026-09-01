@@ -157,6 +157,10 @@
   //   ・SEは「発生元＋効果」につき1回
   //   ・VFXは「発生元＋効果＋対象」につき1回
   // PvEは1手ぶんの再生ごとに作り直すので、こちらもターンの頭で作り直す。
+  // 命中音を二重に鳴らさないための印（まとめ鳴らし用）。
+  let _damageSfxDone = new Set();
+  // 攻撃効果より前に始めておく攻撃モーション（25%地点で停止して待つ）。
+  let _preAttack = null;
   let _effectStatCueKeys = new Set();
   let _effectStatVfxGate = presentCreateOnceGate();
   // 既定の間隔（PRESENT_DAMAGE_STAGGER_MS）で連続表示する。PvEと同じ規則。
@@ -257,6 +261,42 @@
     _saved = null;
   }
 
+  // 攻撃モーションを開始する。paused=true なら25%地点で止め、release() で接触まで進める。
+  // 攻撃効果を「少し動き出した時点」で見せるための仕組み（PvEと同じ扱い）。
+  function _startAttackMotion(ev, ctx, paused) {
+    const attacker = _find(ev.side, ev.attackerId);
+    const target = _find(ev.side === 'p1' ? 'p2' : 'p1', ev.targetId);
+    _lastAttacker = attacker;
+    if (!attacker || !target || typeof playAttackMotion !== 'function') return null;
+    const dmg = Math.max(0, Number(ev.damage) || 0);
+    // attack.wav は従来どおり攻撃開始時に鳴らす。オンライン固有のタイミング変更はしない。
+    if (dmg > 0 && typeof playSfx === 'function') {
+      playSfx('attack', { group: 'combat', guardKey: 'combat:attack' });
+    }
+    let release = () => {};
+    const held = paused ? new Promise(resolve => { release = resolve; }) : null;
+    const motionDepthStarted = typeof beginBattleMotion === 'function';
+    if (motionDepthStarted) beginBattleMotion();
+    // PvEの通常攻撃と同じ尺・同じ接触揺れ。
+    _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => held) : null, {
+      stopRatio: .25, firstDuration: 260, secondDuration: 360, returnDuration: 420,
+      onHit: () => {
+        // 接触の揺れだけをここで出す。
+        // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
+        // ここで先取りして出すと、間に挟まる能力変化（負傷など）の演出だけがあとへ回り、
+        // 同じ盤面でも演出の並びがPvEと食い違う。
+        if (typeof _shakeOnAttackContact === 'function') _shakeOnAttackContact(target, dmg);
+      },
+    });
+    // PvEは攻撃モーションが完全に終わってからヒットSE・ダメージVFX・数値表示を出す。
+    // 同じ契機にするため、呼び出し側はこの Promise を待つ。
+    const motion = (async () => {
+      try { await _awaitMotion(); }
+      finally { if (motionDepthStarted) endBattleMotion(); }
+    })();
+    return { ev, motion, release };
+  }
+
   // playback.js から呼ばれる。ctx.board は再生用の表示盤面（イベントで更新済み）。
   // 演出（モーション・VFX・SE・カットイン）はPvEと同じ関数を呼ぶ。
   // ダメージ値・死亡・勝敗はイベントに書かれた値をそのまま使い、ここでは判定しない。
@@ -278,6 +318,7 @@
     if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
       _effectStatCueKeys = new Set();
       _effectStatVfxGate = presentCreateOnceGate();
+      _damageSfxDone = new Set();
     }
 
     switch (ev.type) {
@@ -302,38 +343,38 @@
         if (typeof playBattleOpeningSequence === 'function') await playBattleOpeningSequence();
         break;
       }
+      case ONLINE_EVENT.TURN_BEGIN: {
+        // ── 攻撃効果は「少し動き出した時点」で見せる（PvEと同じ扱い）──
+        // コアは攻撃効果を接触より先に解決するため、イベント列では
+        //   [攻撃効果…] → attack → 接触ダメージ の順に並ぶ。
+        // そのまま順に再生すると攻撃者が動く前に効果だけが出る
+        // （アラッサスの薙ぎ払い、サイレンの全体ダメージ）。
+        const evs = (ctx && ctx.events) || [];
+        const from = Number(ctx && ctx.eventIndex);
+        let atkEv = null, hasEffects = false;
+        if (Number.isInteger(from)) {
+          for (let i = from + 1; i < evs.length; i++) {
+            const n = evs[i];
+            if (!n) continue;
+            if (n.type === ONLINE_EVENT.TURN_BEGIN || n.type === ONLINE_EVENT.BATTLE_END) break;
+            if (n.type === ONLINE_EVENT.ATTACK) { atkEv = n; break; }
+            if (n.type === ONLINE_EVENT.DAMAGE || n.type === 'sweep_vfx'
+              || n.type === 'stat_change' || n.type === 'summon') hasEffects = true;
+          }
+        }
+        if (atkEv && hasEffects) _preAttack = _startAttackMotion(atkEv, ctx, true);
+        break;
+      }
       case ONLINE_EVENT.ATTACK: {
-        const attacker = _find(ev.side, ev.attackerId);
-        const target = _find(ev.side === 'p1' ? 'p2' : 'p1', ev.targetId);
-        _lastAttacker = attacker;
-        if (!attacker || !target || typeof playAttackMotion !== 'function') break;
-        const dmg = Math.max(0, Number(ev.damage) || 0);
-        // attack.wav は従来どおり攻撃開始時に鳴らす。オンライン固有のタイミング変更はしない。
-        if (dmg > 0 && typeof playSfx === 'function') {
-          playSfx('attack', { group: 'combat', guardKey: 'combat:attack' });
+        if (_preAttack && _preAttack.ev === ev) {
+          // 効果より前に始めておいたモーション。ここで接触まで進める。
+          const held = _preAttack; _preAttack = null;
+          held.release();
+          await held.motion;
+          break;
         }
-        // PvEの通常攻撃と同じ尺・同じ接触揺れ。
-        const motionDepthStarted = typeof beginBattleMotion === 'function';
-        if (motionDepthStarted) beginBattleMotion();
-        try {
-        _motion = playAttackMotion(attacker, target, ev.side === 'p2', null, {
-          stopRatio: .25, firstDuration: 260, secondDuration: 360, returnDuration: 420,
-          onHit: () => {
-            // 接触の揺れだけをここで出す。
-            // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
-            // PvEは攻撃モーションを最後まで待ってから、コアのイベント列を順に再生する。
-            // ここで先取りして出すと、間に挟まる能力変化（負傷など）の演出だけが
-            // あとへ回り、同じ盤面でも演出の並びがPvEと食い違う。
-            if (typeof _shakeOnAttackContact === 'function') _shakeOnAttackContact(target, dmg);
-          },
-        });
-        // PvEは攻撃モーションが完全に終わってから applyDamageBatch()＝ヒットSE・
-        // ダメージVFX・数値表示を出す。同じ契機にするため、ここでモーションの完了を待つ。
-        // （接触の瞬間に出すと、PvEより約440ms早く鳴って音がずれる）
-        await _awaitMotion();
-        } finally {
-          if (motionDepthStarted) endBattleMotion();
-        }
+        const started = _startAttackMotion(ev, ctx, false);
+        if (started) await started.motion;
         break;
       }
       case ONLINE_EVENT.DAMAGE: {
@@ -360,12 +401,24 @@
           keywordEffect: ev.keywordEffect || undefined,
           ...(_vfxSource ? { effectSource: _vfxSource } : {}),
         };
-        if (ev.counter && Number(ev.amount) > 0
-          && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))) {
-          if (typeof playAttackDamageSfx === 'function') playAttackDamageSfx(_dmgSource, ev.amount);
-          if (typeof playHitVfx === 'function') playHitVfx(side, u, ev.amount, _vfxOpt);
+        // **ひとまとまりの命中音は同時に鳴らす（PvEと同じ）。**
+        // 攻撃と反撃のように続けて起きる命中を1件ずつ鳴らすと、間に挟まるVFXの
+        // 画像デコード（数百ms主スレッドが止まる）で音がずれて聞こえる。
+        // 連続するDAMAGEの音は、最初の1件を出す時にまとめて鳴らす。
+        if (Number(ev.amount) > 0 && !_damageSfxDone.has(ev) && typeof playAttackDamageSfx === 'function') {
+          const evs = (ctx && ctx.events) || [];
+          const from = Number(ctx && ctx.eventIndex);
+          for (let i = Number.isInteger(from) ? from : evs.indexOf(ev); i >= 0 && i < evs.length; i++) {
+            const d = evs[i];
+            if (!d || d.type !== ONLINE_EVENT.DAMAGE || !(Number(d.amount) > 0)) break;
+            if (_damageSfxDone.has(d)) continue;
+            _damageSfxDone.add(d);
+            const src = d.sourceId
+              ? (_find(d.side === 'p1' ? 'p2' : 'p1', d.sourceId) || _find(d.side, d.sourceId)) : null;
+            playAttackDamageSfx(src, d.amount);
+          }
         }
-        if (!ev.counter && Number(ev.amount) > 0
+        if (Number(ev.amount) > 0
           && !(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(ev))
           && typeof playHitVfx === 'function') {
           playHitVfx(side, u, ev.amount, _vfxOpt);

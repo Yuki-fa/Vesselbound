@@ -611,15 +611,28 @@ function main() {
     'コアが前衛の空きを見ずに召喚している（PvEだけ拒否すると内部と画面がずれる）');
   assert.doesNotMatch(currentBattle, /e\.atk=3; e\.baseAtk=3;[\s\S]*e\.maxHp=500; e\.hp=500;/,
     'デバッグ試験戦闘で敵ステータスを上書きしている');
-  assert.match(currentBattle, /if\(attacker&&target&&typeof playAttackMotion==='function'\)/,
+  assert.match(currentBattle, /\} else if\(attacker&&target&&typeof playAttackMotion==='function'\)/,
     '即時攻撃イベントを対象のHP0判定で演出ごとスキップしている');
-  assert.equal(count(currentBattle, /await playAttackMotion\(/g), 4,
+  assert.equal(count(currentBattle, /await playAttackMotion\(/g), 5,
     'PvEのplayAttackMotion呼び出し数が想定外に変化している');
+  // 攻撃効果は「少し動き出した時点」で見せる。攻撃より前に効果があるときは、
+  // 先にモーションを始めて25%地点で止め、効果を見せてから接触まで進める。
+  assert.match(currentBattle, /const _preAttackHasEffects=/,
+    'PvEが攻撃効果を攻撃モーションより先に出したままになっている');
+  assert.match(read('js/online/board.js'), /_preAttack = _startAttackMotion\(atkEv, ctx, true\)/,
+    'オンラインが攻撃効果を攻撃モーションより先に出したままになっている');
+  // 解放演出はコア駆動でも必ず出す（_resolveSeals は通らない）。
+  assert.match(currentBattle, /if\(e\.type==='seal_release'\)\{/,
+    'PvEが封印の解放演出を出していない');
+  // 連続する命中音はまとめて鳴らす（VFXのデコードで音がずれるため）。
+  [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
+    assert.match(src, /damageSfxDone|_damageSfxDone/i, `${name}が命中音をまとめて鳴らしていない`);
+  });
   assert.match(currentBattle,
     /if\(attacker&&target&&typeof playAttackMotion==='function'\)\{[\s\S]*beginBattleMotion\(\);[\s\S]*try\{[\s\S]*await playAttackMotion\([\s\S]*finally \{[\s\S]*endBattleMotion\(\);/,
     'PvEのコア効果由来playAttackMotionがbeginBattleMotionで保護されていない');
   assert.match(board,
-    /const motionDepthStarted = typeof beginBattleMotion === 'function';[\s\S]*if \(motionDepthStarted\) beginBattleMotion\(\);[\s\S]*try \{[\s\S]*_motion = playAttackMotion\([\s\S]*await _awaitMotion\(\);[\s\S]*finally \{[\s\S]*if \(motionDepthStarted\) endBattleMotion\(\);/,
+    /const motionDepthStarted = typeof beginBattleMotion === 'function';[\s\S]*if \(motionDepthStarted\) beginBattleMotion\(\);[\s\S]*_motion = playAttackMotion\([\s\S]*await _awaitMotion\(\); \}[\s\S]*finally \{ if \(motionDepthStarted\) endBattleMotion\(\); \}/,
     'オンラインのplayAttackMotionが完了待ちを含むbegin/endBattleMotionで保護されていない');
   assert.match(render, /targetRectOverride=opt\.targetRect[\s\S]*!toEl&&!targetRectOverride/,
     '即時攻撃の対象DOMが死亡後に消えた場合の攻撃モーション矩形フォールバックがない');

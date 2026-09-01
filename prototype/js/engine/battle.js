@@ -2341,6 +2341,41 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     const idx=slots.findIndex(x=>!x);
     if(idx>=0){ slots[idx]=clone(e.item); log(`${e.item.name||'アイテム'}を得た。`,'good'); }
   });
+  // ── 攻撃効果は「少し動き出した時点」で見せる ───────────────
+  // コアは攻撃効果を接触より先に解決するため、イベント列では
+  //   [攻撃効果…] → attack → 接触ダメージ
+  // の順に並ぶ。そのまま順に再生すると、攻撃者が動く前に効果だけが出る
+  // （アラッサスの薙ぎ払い、サイレンの全体ダメージ）。
+  // そこで、効果より前に攻撃モーションを始めて25%地点で止め、効果を見せてから
+  // 接触まで進める。止める仕組みは _playAttackMotionCore の onImpactPause。
+  // **PvEとオンラインで同じ扱いにすること。**
+  const _preAttackList=(events||[]).filter(Boolean);
+  const _preAttackIndex=_preAttackList.findIndex(e=>e&&e.type==='attack');
+  const _preAttackEvent=_preAttackIndex>=0?_preAttackList[_preAttackIndex]:null;
+  // 攻撃より前に「見せるべき効果」があるときだけ先出しする。
+  const _preAttackHasEffects=!!_preAttackEvent&&_preAttackList.slice(0,_preAttackIndex)
+    .some(e=>e&&(e.type==='damage'||e.type==='sweep_vfx'||e.type==='stat_change'||e.type==='summon'));
+  let _preAttackMotion=null,_releasePreAttackStop=null;
+  if(_preAttackEvent&&_preAttackHasEffects&&typeof playAttackMotion==='function'){
+    const _side=_preAttackEvent.side==='p2'?'p2':'p1';
+    const _foe=_side==='p1'?'p2':'p1';
+    const _attacker=findLiveUnit(_side,_preAttackEvent.attackerId,findUnit(_side,_preAttackEvent.attackerId));
+    const _target=findLiveUnit(_foe,_preAttackEvent.targetId,findUnit(_foe,_preAttackEvent.targetId));
+    if(_attacker&&_target){
+      const _stopped=new Promise(resolve=>{ _releasePreAttackStop=resolve; });
+      if(typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:effect-attack:${uid()}`,guardMs:0});
+      beginBattleMotion();
+      _preAttackMotion=(async()=>{
+        try{
+          await playAttackMotion(_attacker,_target,_side==='p2',()=>_stopped,
+            {stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420,
+             targetRect:_target._lastVisualRect||null});
+        } finally { endBattleMotion(); }
+      })();
+    }
+  }
+  // 命中音を二重に鳴らさないための印（まとめ鳴らし用）。
+  const damageSfxDone=new Set();
   const sweepSources=new Set();
   // 薙ぎ払い（アラッサス）は対象ごとの命中VFXを出さない代わりに、
   // 炎が当たった瞬間にダメージ数値だけを出す。ここで出さないと数値がまったく出ない。
@@ -2406,7 +2441,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   for(const [eventIndex,e] of eventList.entries()){
     // コア駆動の戦闘では、通常の攻撃もこの経路で描く（PvE専用の攻撃アクションは通らない）。
     const _isPlayableAttack=e.type==='attack'&&(e.immediate||G._coreDrivenBattle);
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='death'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='death'||e.type==='seal_release'||_isPlayableAttack)) continue;
     if(_isPlayableAttack) manaCueGate.reset();
     if(e.type==='shield_lost'){
       // 結界が割れた時のSEと表示更新。コアが結界喪失効果そのものは解決済みなので、
@@ -2417,6 +2452,19 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if(typeof playSfx==='function') playSfx('shield',{group:'combat'});
         if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(u,e.side==='p1'?'ally':'enemy');
       }
+      continue;
+    }
+    if(e.type==='seal_release'){
+      // 封印の解放。コア駆動では _resolveSeals() を通らないため、ここで演出する。
+      // これが無いと解放VFX・SEが一度も出ない。手順はオンラインの受け口と同じ。
+      const unit=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(!unit) continue;
+      unit._sealed=false;
+      delete unit._sealValue;
+      if(typeof playSealReleaseVfx==='function') await playSealReleaseVfx(unit,e.side==='p2'?'enemy':'ally');
+      delete unit._sealReady;
+      log(`${_lc(unit.name,e.side==='p2')}の封印が解放された。`,'gold');
+      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
       continue;
     }
     // 死亡も**コアが出したイベントの順番のまま**処理する（オンラインと同じ）。
@@ -2460,7 +2508,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           attackerFound:!!attacker,targetFound:!!target,
           盤面:_arr.filter(Boolean).map(u=>String(u.id)+(u._corePendingSummon?'(保留)':'')).join(',')});
       }
-      if(attacker&&target&&typeof playAttackMotion==='function'){
+      if(e===_preAttackEvent&&_preAttackMotion){
+        // 効果より前に始めておいたモーション。ここで接触まで進める。
+        if(typeof _releasePreAttackStop==='function') _releasePreAttackStop();
+        await _preAttackMotion;
+        _preAttackMotion=null;
+      } else if(attacker&&target&&typeof playAttackMotion==='function'){
         if(typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:effect-attack:${uid()}`,guardMs:0});
         beginBattleMotion();
         try{
@@ -2749,12 +2802,34 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     if(sweepShownEvents.has(e)) continue;
     // 命中音はオンラインと同じ関数・同じ引数で鳴らす。これが無いとPvEでは
     // 攻撃開始のattack.wavだけになり、命中の手応えが無くなる。
-    if(typeof playAttackDamageSfx==='function') playAttackDamageSfx(source,Number(e.amount)||0);
+    // **ひとまとまりの命中音は同時に鳴らす。** 攻撃と反撃のように続けて起きる命中を
+    // 1件ずつ鳴らすと、間に挟まるVFXの画像デコード（数百ms主スレッドが止まる）で
+    // 音がずれて聞こえる。連続するdamageの音は最初の1件を出す時にまとめて鳴らす。
+    if(!damageSfxDone.has(e)&&typeof playAttackDamageSfx==='function'){
+      for(let j=Math.max(0,eventList.indexOf(e));j<eventList.length;j++){
+        const d=eventList[j];
+        if(!d||d.type!=='damage'||!(Number(d.amount)>0)) break;
+        if(damageSfxDone.has(d)) continue;
+        damageSfxDone.add(d);
+        const dSrc=d.sourceId
+          ?findLiveUnit('p1',d.sourceId,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===d.sourceId))
+            ||findLiveUnit('p2',d.sourceId,null)
+          :null;
+        playAttackDamageSfx(dSrc,Number(d.amount)||0);
+      }
+    }
     // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
     const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
     if(typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
       { ...(vfxSource?{effectSource:vfxSource}:{}),
         keywordEffect:e.keywordEffect||undefined });
+  }
+  // 先出ししたモーションが解放されないまま残らないようにする
+  // （attackイベントに到達せず抜けた場合の保険）。
+  if(_preAttackMotion){
+    if(typeof _releasePreAttackStop==='function') _releasePreAttackStop();
+    try{ await _preAttackMotion; }catch(err){ /* 演出の失敗で再生を止めない */ }
+    _preAttackMotion=null;
   }
   effectDamageSources.forEach(id=>{
     const source=(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id);

@@ -110,6 +110,15 @@ const WATCHER = `
         return origEffect.apply(this, arguments);
       };
     }
+    // 解放演出も比べる（片側だけ出ない状態が実際にあった）。
+    ['playSealReleaseVfx', 'playCharacterSweepVfx'].forEach(name => {
+      const fn = window[name];
+      if (typeof fn !== 'function') return;
+      window[name] = function (u) {
+        try { window.__watch.calls.push(name + '→' + ((u && u.id) || '?')); } catch (e) {}
+        return fn.apply(this, arguments);
+      };
+    });
     const orig = window.playHitVfx;
     window.playHitVfx = function (side, unit, amount, opt) {
       try {
