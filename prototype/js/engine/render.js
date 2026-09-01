@@ -896,7 +896,11 @@ function playHitVfxAtRect(rect,amount,options){
   // 薙ぎ払い（アラッサス）のように演出を別で持つ効果で、数値まで消さないために使う。
   const labelOnly=!!opt.labelOnly;
   const hitUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
-  const vfxScale=Number(opt.vfxScale)||1;
+  // キャラクター固有VFXの大きさは present.js が唯一の実装。
+  // 明示指定が無いときは素材の番号から決める（指定しないと等倍で巨大に出る）。
+  const charVfxCode=charVfx?((String(charVfx).match(/([A-Za-z]\d{3})\.[a-z0-9]+$/)||[])[1]||''):'';
+  const vfxScale=Number(opt.vfxScale)
+    ||(charVfxCode&&typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(charVfxCode):1);
   const spin=!!opt.spin;
   const baseTransform=`translate(-50%,-50%) scale(${vfxScale})`;
   _vfxHostParent().appendChild(host);
@@ -2633,7 +2637,10 @@ function renderField(id,units,isEnemy,_lane){
       } else {
         slot.style.filter='';
       }
-      if(u.hp<=0) slot.classList.add('dead-unit','inert');
+      // 死亡演出を始めるまでは暗くしない。数値を出し切るための短い間だけ枠を
+      // 残しているので、ここで暗い見た目にすると「死体が場に残っている」ように見える。
+      if(u.hp<=0) slot.classList.add('inert');
+      if(u.hp<=0&&!_pendingDeath) slot.classList.add('dead-unit');
       if(!isEnemy&&G._selectedEquipUnitIdx===i) slot.classList.add('selected');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(_isPlayerHero){

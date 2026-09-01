@@ -35,6 +35,7 @@ const SCENARIOS = [
     // C003ゴーレム（負傷で+2/+2）とC002マータ（ダメージの半分を肩代わり）。
     // 個別VFXを持つ4枚のうちの2枚。発生元の決め方が食い違うと即座に出なくなる。
     seed: 4242,
+    requires: ['stat_change'],
     p1: [['ゴーレム', 'A0', { atk: 40, hp: 60, maxHp: 60 }], ['マータ', 'A1', { atk: 2, hp: 40, maxHp: 40 }]],
     p2: [['ゴブリン', 'E0', { atk: 6, hp: 30, maxHp: 30 }], ['オーク', 'E1', { atk: 6, hp: 30, maxHp: 30 }]],
   },
@@ -43,6 +44,7 @@ const SCENARIOS = [
     // スケルトンキングは攻撃時に召喚する＝戦闘中の召喚。
     // 配置（前衛の右端）と、召喚体が割り込んで攻撃する順番を見る。
     seed: 777,
+    requires: ['summon'],
     p1: [['スケルトンキング', 'A0', { hp: 40, maxHp: 40 }]],
     p2: [['ゴブリン', 'E0', { atk: 5, hp: 40, maxHp: 40 }]],
   },
@@ -51,15 +53,40 @@ const SCENARIOS = [
     // ダイアウルフは「Nマナ毎」の効果を持つ。マナ効果VFXの間引き規則が
     // 食い違うと、片側だけVFXが出ない／出過ぎる。
     seed: 31337,
+    requires: ['mana_threshold'],
     mana: { p1: 6, p2: 0 },
     p1: [['ダイアウルフ', 'A0', { hp: 30, maxHp: 30 }]],
     p2: [['ゴブリン', 'E0', { atk: 5, hp: 40, maxHp: 40 }]],
+  },
+  {
+    name: '封印と解放',
+    // アークデーモン（C082）は封印付きで場に出て、条件を満たすと解放される。
+    // 封印の見た目・解放演出・解放後の効果は経路が別なので食い違いやすい。
+    seed: 5150,
+    requires: ['seal_release'],
+    mana: { p1: 9, p2: 0 },
+    // 封印Xは編成で付く値なので、盤面を組む側で明示する（マスタのキーワードには無い）。
+    // 血が貯まると解放される。小さい値にして戦闘中に必ず解放されるようにする。
+    p1: [['アークデーモン', 'A0', { hp: 30, maxHp: 30, keywords: ['封印1'] }],
+         ['ゴブリン', 'A1', { atk: 4, hp: 6, maxHp: 6 }]],
+    p2: [['ゴブリン', 'E0', { atk: 6, hp: 60, maxHp: 60 }]],
+  },
+  {
+    name: '変身',
+    // ドラゴネット（C049）は6マナで「緑ドラゴン」に変身する。
+    // 変身はカードの見た目そのものが入れ替わるため、片側だけ絵が変わらないと分かりにくい。
+    seed: 2468,
+    requires: ['transform'],
+    mana: { p1: 9, p2: 0 },
+    p1: [['ドラゴネット', 'A0', { hp: 40, maxHp: 40 }]],
+    p2: [['ゴブリン', 'E0', { atk: 3, hp: 60, maxHp: 60 }]],
   },
   {
     name: '薙ぎ払い',
     // アラッサス（C043）は全体攻撃で、炎が通過した瞬間に対象ごとの数値を出す。
     // 通常の被弾演出とは別経路なので、片側だけ数値が重なる／出ないが起きやすい。
     seed: 909,
+    requires: ['sweep_vfx'],
     p1: [['アラッサス', 'A0', { hp: 40, maxHp: 40 }]],
     p2: [['ゴブリン', 'E0', { atk: 2, hp: 8, maxHp: 8 }],
          ['オーク', 'E1', { atk: 2, hp: 8, maxHp: 8 }],
@@ -297,7 +324,9 @@ const onlineScript = sc => `
         if (!r || r.エラー) return;
         // 番号はイベント列に現れた順で決める。演出・盤面もその対応で読み替える。
         const norm = makeNormalizer();
-        r.events = battleLoopOnly(norm(r.events));
+        // 開戦で発動する効果もあるので、空振り検査は切り取る前の列で見る。
+        r.eventsRaw = norm(r.events);
+        r.events = battleLoopOnly(r.eventsRaw);
         r.calls = norm(r.calls);
         r.board = norm(r.board).filter(x => String(x).replace(/[\s/]/g, '') !== '');
       });
@@ -305,6 +334,11 @@ const onlineScript = sc => `
       if (!pve || pve.エラー) { check(`${tag}PvEの再生が動く`, false, (pve && pve.エラー) || '結果が返らない'); continue; }
       if (!online || online.エラー) { check(`${tag}オンラインの再生が動く`, false, (online && online.エラー) || '結果が返らない'); continue; }
 
+      // 盤面の作り方を間違えると、その機能を一度も通らないまま「一致」してしまう。
+      const need = sc.requires || [];
+      const missing = need.filter(t => !(pve.eventsRaw || []).some(e => String(e).startsWith(t + ':')));
+      check(`${tag}検査したい効果が実際に発動している`, missing.length === 0,
+        missing.length ? `発動していない：${missing.join(', ')}` : need.join(', ') || '（指定なし）');
       check(`${tag}最後まで再生できた`, pve.ended && online.ended,
         `PvE=${pve.ended ? '完走' : '打ち切り'} オンライン=${online.ended ? '完走' : '打ち切り'}`);
       const pveEv = (pve.events || []).join('|');

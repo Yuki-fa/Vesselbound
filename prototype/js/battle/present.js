@@ -165,6 +165,15 @@ function presentIsPlaying() { return _presentPlaybackDepth > 0; }
 // 戦闘の切れ目で必ず0へ戻す。例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。
 function presentResetPlayback() { _presentPlaybackDepth = 0; }
 
+// ── キャラクター固有VFXの大きさ ────────────────────────
+// 素材によって絵の占める割合が違うため、「この番号は半分で出す」という対応を
+// ここに集約する。効果としての再生（_playCardEffectVfx）と、被弾演出としての
+// 再生（playHitVfx）で別々に持つと、片方だけ巨大に出る（実際にマータで起きた）。
+const PRESENT_HALF_SCALE_VFX = new Set(['C001', 'C002', 'C003']);
+function presentCharacterVfxScale(code) {
+  return PRESENT_HALF_SCALE_VFX.has(String(code || '').toUpperCase()) ? 0.5 : 1;
+}
+
 // 倒れた体を盤面に残しておくか。
 // 再生中で、まだ死亡演出を始めていない体は残す。ここで先に配列から外すと、
 // あとから来るダメージイベントが「対象が見つからない」で読み飛ばされ、
@@ -203,6 +212,7 @@ if (typeof window !== 'undefined') {
   window.presentEndPlayback = presentEndPlayback;
   window.presentIsPlaying = presentIsPlaying;
   window.presentKeepsOnBoard = presentKeepsOnBoard;
+  window.presentCharacterVfxScale = presentCharacterVfxScale;
   window.presentResetPlayback = presentResetPlayback;
   window.presentDamageVfxSource = presentDamageVfxSource;
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
@@ -214,7 +224,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     PRESENT_DAMAGE_STAGGER_MS, presentDamageVfxSource, presentStatChangeVfxAllowed,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,
-    presentKeepsOnBoard,
+    presentKeepsOnBoard, presentCharacterVfxScale,
     PRESENT_STAT_CHANGE_VFX_REASONS,
   };
 }

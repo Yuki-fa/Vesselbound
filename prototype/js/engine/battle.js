@@ -249,7 +249,8 @@ function _playCardEffectVfx(code,targets,options){
       waitForFinish:!!opt.waitForFinish,
       getRect,
       onFadeStart:opt.onFadeStart,
-      vfxScale:opt.vfxScale??((code==='C001'||code==='C002'||code==='C003')?.5:1),
+      // 大きさは playHitVfxAtRect が present.js の規則で決める（ここには書かない）。
+      vfxScale:opt.vfxScale,
     })).catch(()=>{});
     const rect=getRect();
     if(rect&&rect.width>0&&rect.height>0) return play(rect);
@@ -2431,7 +2432,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const dead=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       if(!dead||dead.hp>0) continue;
       deaths.add(`${e.side}:${e.unitId}`);
-      // 直前に出した数値が読める間を取ってから消す。待ち時間は present.js が唯一の実装。
+      // 直前に出した数値が読める間だけ待ってから消す。待ち時間は present.js が唯一の実装。
+      // この間、カードは**暗くせず**生きている見た目のまま残す（renderField側）。
+      // 暗くすると「死体が場に残っている」ように見え、待たないと数値が空白の上に残る。
       await sleep(PRESENT_HIT_BEAT_MS);
       // ここまでで数値・VFXは出し終えている。再生中でも死亡演出を始めてよい。
       dead._deathFxReady=true;

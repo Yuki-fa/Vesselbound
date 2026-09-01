@@ -428,6 +428,16 @@ function main() {
       'PvEが死亡をイベントの順番で処理していない');
     assert.doesNotMatch(currentBattle, /if\(e\.type==='death'\) continue;/,
       'PvEが死亡を末尾へ後回ししている（オンラインと消える順番が食い違う）');
+    // 固有VFXの大きさも present.js が唯一の実装。呼び出し側が持つと片方だけ巨大に出る。
+    assert.match(present, /function presentCharacterVfxScale\(/,
+      '固有VFXの大きさの規則が present.js に無い');
+    assert.match(read('js/engine/render.js'), /presentCharacterVfxScale\(charVfxCode\)/,
+      '被弾演出が固有VFXの大きさを present.js に委ねていない（マータ等が巨大に出る）');
+    assert.doesNotMatch(currentBattle, /code==='C001'\|\|code==='C002'\|\|code==='C003'/,
+      '固有VFXの大きさの一覧を呼び出し側が持っている（present.jsへ戻すこと）');
+    // 死亡演出に入るまでは暗くしない。暗くすると「死体が場に残る」ように見える。
+    assert.match(read('js/engine/render.js'), /if\(u\.hp<=0&&!_pendingDeath\) slot\.classList\.add\('dead-unit'\);/,
+      '数値を出し切る間の体まで暗くしている');
     // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
     assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
       '薙ぎ払いの共通実装が render.js に無い');
