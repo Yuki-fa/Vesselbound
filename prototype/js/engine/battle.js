@@ -2850,10 +2850,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     if(typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:e.hpAfter});
     if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,e.side==='p1'?'ally':'enemy');
     const source=e.sourceId?findLiveUnit('p1',e.sourceId,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===e.sourceId))||findLiveUnit('p2',e.sourceId,null):null;
+    // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
+    const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
     if(e.effect&&source&&!sweepSources.has(source.id)){
-      effectDamageSources.add(source.id);
       if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
     }
+    // **固有SEもVFXと同じ規則で選ぶ。** カード自身の効果文がダメージに触れていない
+    // 場合は鳴らさない。これが無いと、強化カードで得た効果（ノームに闇の炎を付けた
+    // 場合の死亡ダメージ等）で、そのキャラクター本人の固有SEが鳴る。
+    if(vfxSource&&!sweepSources.has(vfxSource.id)) effectDamageSources.add(vfxSource.id);
     if(sweepShownEvents.has(e)) continue;
     // 命中音はオンラインと同じ関数・同じ引数で鳴らす。これが無いとPvEでは
     // 攻撃開始のattack.wavだけになり、命中の手応えが無くなる。
@@ -2873,8 +2878,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         playAttackDamageSfx(dSrc,Number(d.amount)||0);
       }
     }
-    // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
-    const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
     if(typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
       { ...(vfxSource?{effectSource:vfxSource}:{}),
         keywordEffect:e.keywordEffect||undefined });

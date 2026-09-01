@@ -379,6 +379,13 @@ function main() {
     'PvEが手番の頭で表示値を据え置いていない');
   assert.match(currentBattle, /presentAdvanceShown\(target,\{hp:e\.hpAfter\}\)/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
+  // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
+  // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
+  assert.match(currentBattle,
+    /if\(vfxSource&&!sweepSources\.has\(vfxSource\.id\)\) effectDamageSources\.add\(vfxSource\.id\);/,
+    '固有SEの発生元がVFXと別の規則になっている');
+  assert.doesNotMatch(currentBattle, /if\(e\.effect&&source&&!sweepSources\.has\(source\.id\)\)\{\n\s*effectDamageSources\.add/,
+    '固有SEを効果ダメージなら無条件に鳴らしている');
   // 1体の行動と次の行動の間には必ず「間」を置く（途切れなく続くと追えない）。
   assert.match(read('js/battle/present.js'), /const PRESENT_TURN_GAP_MS = /,
     '手番の間の長さが present.js に無い');
