@@ -1804,10 +1804,21 @@ async function battlePhase(){
       let stop=false;
       // 詰め処理は演出の後に回す。先に詰めると、再生時に攻撃対象が
       // 盤面から消えていてモーションが出せない。
-      try{ stop=runner.step({deferCompact:true}); }
-      catch(e){ console.error('[coreBattleStep]',e); break; }
-      // この手番で出たぶんだけを再生する。
-      await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
+      // コアは同期的にHPを減らすので、step()の時点で盤面のHPは0になっている。
+      // 演出フラグはstep()の前から立てておく。ここが0のまま再描画が挟まると、
+      // 死亡した体が「空きスロット（7枠等間隔）」へ描き直され、そのあとに出る
+      // ダメージ数値や個別VFXが何もない場所へ出てしまう。
+      G._flushingCoreEvents=(Number(G._flushingCoreEvents)||0)+1;
+      let stepped=false;
+      try{
+        try{ stop=runner.step({deferCompact:true}); stepped=true; }
+        catch(e){ console.error('[coreBattleStep]',e); }
+        // この手番で出たぶんだけを再生する。
+        if(stepped) await _flushCorePveHitEvents(state,events.slice(from),beforeUnits);
+      } finally {
+        G._flushingCoreEvents=Math.max(0,(Number(G._flushingCoreEvents)||0)-1);
+      }
+      if(!stepped) break;
       if(typeof runner.compact==='function') runner.compact();
       _syncCoreResourcesToG(state);
       if(typeof _syncCoreBloodToG==='function') _syncCoreBloodToG(state);
@@ -2072,6 +2083,14 @@ function _renderAfterBattleCompact(){
 
 function requestBattleCompact(options){
   const forceDuringMotion=!!(options&&options.forceDuringMotion)||!!G._forceBattleCompactDuringMotion;
+  // イベントを再生している最中は盤面を詰めない。詰めると死亡したキャラクターの
+  // カードが先に消え、そのあとに来るダメージ数値・VFXが行き場を失って
+  // 何もない場所へ出る。再生が終わってから battlePhase() 側でまとめて詰める。
+  if(G._flushingCoreEvents>0&&!forceDuringMotion){
+    G._pendingBattleCompact=true;
+    G._pendingBattleRender=true;
+    return;
+  }
   _recordBattleTrace('battle_compact_request',{reason:'request',motionDepth:G._battleMotionDepth||0,pending:!!G._pendingBattleCompact});
   // 死亡バッチ中は死亡ユニットの旧DOMをFLIPの移動元として保持する。
   // ここで死亡効果内の召喚・変身が先にrenderAll()すると、死亡ユニットがDOMから
@@ -2272,6 +2291,11 @@ function _onAllEnemiesDefeated(){
 // 共通コアが即時確定した二次ヒットを、PvEの既存演出・死亡処理へ接続する。
 // 数値・対象・死亡判定は coreResolveHit() が確定済みであり、ここでは再計算しない。
 async function _flushCorePveHitEvents(state, events, beforeUnits){
+  G._flushingCoreEvents=(Number(G._flushingCoreEvents)||0)+1;
+  try{ return await _flushCorePveHitEventsInner(state,events,beforeUnits); }
+  finally{ G._flushingCoreEvents=Math.max(0,(Number(G._flushingCoreEvents)||1)-1); }
+}
+async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // コアがライフを変えた場合（我慢の指輪・負傷:ライフが+Nされる 等）の唯一の反映点。
   _syncCoreLifeToG(state);
   // 血は死亡イベントの発行時点でコア側へ加算される。マナ・ゴールドの表示反映を
@@ -2386,7 +2410,7 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   for(const [eventIndex,e] of eventList.entries()){
     // コア駆動の戦闘では、通常の攻撃もこの経路で描く（PvE専用の攻撃アクションは通らない）。
     const _isPlayableAttack=e.type==='attack'&&(e.immediate||G._coreDrivenBattle);
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='death'||e.type==='shield_lost'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||_isPlayableAttack)) continue;
     if(_isPlayableAttack) manaCueGate.reset();
     if(e.type==='shield_lost'){
       // 結界が割れた時のSEと表示更新。コアが結界喪失効果そのものは解決済みなので、
@@ -2399,16 +2423,10 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
       }
       continue;
     }
-    if(e.type==='death'&&G._coreDrivenBattle){
-      // 死亡はコアが確定済み。演出だけをここで流す（PvEの死亡処理と同じ入口）。
-      const dead=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(dead&&dead.hp<=0&&!deaths.has(`${e.side}:${e.unitId}`)){
-        deaths.add(`${e.side}:${e.unitId}`);
-        if(e.side==='p1') await processAllyDeath(dead);
-        else await processEnemyDeath(dead,(G.enemies||[]).indexOf(dead));
-      }
-      continue;
-    }
+    // 死亡の演出はこのループでは行わない。**必ず末尾のdeathループでまとめて処理する。**
+    // 途中で死亡演出を挟むと盤面が中央へ寄り直し、そのあとに来るダメージ数値・VFXが
+    // 移動前の位置（＝何もない場所）へ出る。数値を全部見せてから死亡させること。
+    if(e.type==='death') continue;
     if(_isPlayableAttack){
       // ミノタウロス等の負傷誘発攻撃はコアで命中結果だけを確定するが、
       // 通常攻撃と同じ接触モーションをここで再生する。これを省くと

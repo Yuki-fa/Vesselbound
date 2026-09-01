@@ -561,9 +561,14 @@ function getCurrentUnitSlot(side,idxOrUnit){
   }
   const idx=typeof idxOrUnit==='number'?idxOrUnit:list.indexOf(idxOrUnit);
   if(idx<0) return null;
-  return field.querySelector(`.slot[data-unit-idx="${idx}"]`)||
+  const found=field.querySelector(`.slot[data-unit-idx="${idx}"]`)||
     field.querySelectorAll('.slot')[idx]||
     null;
+  // 死亡後の空きスロットは7枠等間隔の位置にあり、生存時の中央寄せとは別の場所にある。
+  // ここを「そのキャラの居場所」として返すと、数値・VFX・攻撃モーションが
+  // 何もない場所へ出る。キャラ指定での解決では空きスロットを返さない。
+  if(found&&typeof idxOrUnit==='object'&&found.classList&&found.classList.contains('dead-empty')) return null;
+  return found;
 }
 
 // VFX動画は背景黒で書き出されている。<video>要素はブラウザによってはCSSの
@@ -969,6 +974,22 @@ function playHitVfxAtRect(rect,amount,options){
   // バックグラウンドで進行させる。呼び出し元（戦闘ループ）はこれを待たない。
   let done=false;
   let fadeStarted=false;
+  // 盤面の詰め直し（FLIP）でカードは演出中にも動く。位置を出した時のまま固定すると、
+  // 数値やVFXが「何もない場所」に取り残される。対象カードの現在位置へ毎フレーム追従させる。
+  if(typeof opt.getRect==='function'){
+    const follow=()=>{
+      if(done) return;
+      let r=null;
+      try{ r=opt.getRect(); }catch(e){ r=null; }
+      if(r&&r.width>0&&r.height>0){
+        const box={left:`${r.left}px`,top:`${r.top}px`,width:`${r.width}px`,height:`${r.height}px`};
+        Object.assign(host.style,box);
+        if(labelHost) Object.assign(labelHost.style,box);
+      }
+      requestAnimationFrame(follow);
+    };
+    requestAnimationFrame(follow);
+  }
   const notifyFadeStart=()=>{
     if(fadeStarted) return;
     fadeStarted=true;
@@ -1092,8 +1113,26 @@ function playHitVfx(side,idxOrUnit,amount,options){
   // 同じキャラクターへ続けて数値が出る時、前の数値を消してから次を出せるよう
   // 対象を識別する鍵を渡す（渡さないと座標で判定するため、盤面が動くと重なる）。
   const unitId=idxOrUnit&&typeof idxOrUnit==='object'?idxOrUnit.id:idxOrUnit;
-  const opt=unitId!=null?{...(options||{}),labelKey:`u:${unitId}`}:options;
-  return playHitVfxOnSlot(getCurrentUnitSlot(side,idxOrUnit),amount,opt);
+  const liveRect=()=>{
+    const s=getCurrentUnitSlot(side,idxOrUnit);
+    if(s&&!(s.classList&&s.classList.contains('dead-empty'))){
+      const r=s.getBoundingClientRect();
+      if(r&&r.width>0&&r.height>0) return r;
+    }
+    return (idxOrUnit&&typeof idxOrUnit==='object'?idxOrUnit._lastVisualRect:null)||null;
+  };
+  const opt={...(options||{}),getRect:(options&&options.getRect)||liveRect,
+    ...(unitId!=null?{labelKey:`u:${unitId}`}:{})};
+  const slot=getCurrentUnitSlot(side,idxOrUnit);
+  // 空きスロット（死亡後の枠）は7枠等間隔の位置にあり、生存時の中央寄せとは別物。
+  // そこへ数値を出すと「何もない場所」に見えるので、直前のカード位置を使う。
+  const dead=!slot||(slot.classList&&slot.classList.contains('dead-empty'));
+  if(dead){
+    const last=idxOrUnit&&typeof idxOrUnit==='object'?idxOrUnit._lastVisualRect:null;
+    if(last&&last.width>0&&last.height>0) return playHitVfxAtRect(last,amount,opt);
+    if(!slot) return Promise.resolve();
+  }
+  return playHitVfxOnSlot(slot,amount,opt);
 }
 
 function _battleBackgroundFrameRect(){
@@ -2345,7 +2384,17 @@ function renderField(id,units,isEnemy,_lane){
   // 死亡演出の複製元。スロットは毎回createElementで作り直されるため、
   // 消える前のDOMをここで控えておかないと「生きていたときの見た目」が取れない。
   // 全スロットを複製すると無駄なので、今回死んだユニットの分だけに絞る。
-  const dyingIds=new Set((units||[]).filter(x=>x&&x.hp<=0&&!x._deathFxDone&&x.id!=null).map(x=>String(x.id)));
+  // 再生中に位置を据え置くため、今画面にあるカードの left を控える。
+  const previousLefts=new Map();
+  for(const oldSlot of el.querySelectorAll('.slot[data-unit-id]')){
+    const left=oldSlot.style&&oldSlot.style.left;
+    if(left) previousLefts.set(String(oldSlot.dataset.unitId||''),left);
+  }
+  // 「直前までカードが出ていた」体だけを対象にする。配列には前の波の死体など
+  // 一度も描かれていない体が残っていることがあり、それらまで数えると生存数が
+  // 水増しされて、盤面全体の中央寄せ位置がずれる。
+  const dyingIds=new Set((units||[]).filter(x=>x&&x.hp<=0&&!x._deathFxDone&&x.id!=null
+    &&previousLefts.has(String(x.id))).map(x=>String(x.id)));
   const previousSlots=new Map();
   {
     for(const oldSlot of el.querySelectorAll('.slot[data-unit-id]')){
@@ -2390,9 +2439,14 @@ function renderField(id,units,isEnemy,_lane){
     const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0&&!x.u.stealth);
     (hated.length?hated:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }
-  const _isRearUnit=x=>x.u&&x.u.hp>0&&(x.u.lane||'front')==='rear';
-  const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
-  const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
+  // HPが0になっても、死亡演出が終わるまでは盤面の枠を確保しておく。
+  // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
+  // （＝何もない場所）へ出てしまう。
+  const _keepDying=(Number(G&&G._flushingCoreEvents)||0)>0;
+  const _onBoard=x=>!!x.u&&(x.u.hp>0||(_keepDying&&x.u.id!=null&&dyingIds.has(String(x.u.id))));
+  const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
+  const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
+  const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
   const renderIndexes=isEnemy
     ?Array.from({length:MAX_ENEMIES||10},(_,idx)=>idx)
     :Array.from({length:MAX_ALLIES||10},(_,idx)=>idx);
@@ -2415,10 +2469,17 @@ function renderField(id,units,isEnemy,_lane){
       _recordBattleTrace('render_skip_pending',{unitId:rawU.id,name:rawU.name,side:isEnemy?'p2':'p1',index:i});
     }
     const u=rawU&&rawU._corePendingSummon?null:rawU;
+    // イベント再生中にHPが0になった体は、死亡演出を行うまでカードを残す。
+    // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
+    // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
+    const _pendingDeath=!!(u&&u.hp<=0&&u.id!=null&&dyingIds.has(String(u.id))
+      &&(Number(G&&G._flushingCoreEvents)||0)>0);
+    const _alive=!!u&&(u.hp>0||_pendingDeath);
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
     slot.dataset.unitIdx=i;
-    if(u&&u.hp>0&&u.id!=null) slot.dataset.unitId=String(u.id);
+    // 空スロットにIDを残すと、数値やモーションが「カードのない枠」に吸い寄せられる。
+    if(_alive&&u.id!=null) slot.dataset.unitId=String(u.id);
     slot.style.setProperty('width','var(--unit-card-w)','important');
     slot.style.setProperty('min-width','var(--unit-card-w)','important');
     slot.style.setProperty('max-width','var(--unit-card-w)','important');
@@ -2429,11 +2490,15 @@ function renderField(id,units,isEnemy,_lane){
     slot.style.setProperty('flex','0 0 var(--unit-card-w)','important');
     slot.style.setProperty('pointer-events','auto','important');
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
-    const _slotLane=isEnemy?(u&&u.hp>0?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(u&&u.hp>0?(u.lane||'front'):(i>=frontSlots?'rear':'front'));
-    if(!u||u.hp<=0){
+    const _slotLane=isEnemy?(_alive?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(_alive?(u.lane||'front'):(i>=frontSlots?'rear':'front'));
+    if(!_alive){
       // 消える直前のカードを焼き落とす。実スロットは従来どおり即座に空にするため、
       // 盤面の詰め直しや当たり判定には影響しない。_deathFxDoneで一度だけ発火させる。
-      if(u&&u.hp<=0&&!u._deathFxDone&&u.id!=null&&typeof playCardBurnAway==='function'){
+      // イベント再生中は焼き落とさない。ここで消すと、まだ出ていないダメージ数値や
+      // 個別VFXが「カードのない空きスロット」へ出てしまう。死亡演出は再生の最後に
+      // まとめて行う（battle.js の death ループ）。
+      const _flushing=(Number(G&&G._flushingCoreEvents)||0)>0;
+      if(!_flushing&&u&&u.hp<=0&&!u._deathFxDone&&u.id!=null&&typeof playCardBurnAway==='function'){
         const _prevNode=previousSlots.get(String(u.id));
         const _prevRect=previousRects.get(String(u.id));
         if(_prevNode&&_prevRect&&_prevRect.width>0){
@@ -2459,7 +2524,9 @@ function renderField(id,units,isEnemy,_lane){
       // 空きスロットは常に低いz-indexにしておく
       slot.style.setProperty('z-index','1','important');
     }
-    if(u&&u.hp>0){
+    // 再生中に倒れた体もカードとして描く（_alive）。ここをhp>0にすると、
+    // 数値やVFXが出る前にカードが消え、位置指定のない空枠へ吸い寄せられる。
+    if(_alive){
       const _row=_slotLane==='rear'?1:2;
       slot.style.gridRow=String(_row);
       slot.style.gridColumn='1';
@@ -2522,7 +2589,8 @@ function renderField(id,units,isEnemy,_lane){
     if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('is-defender');
     if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('uses-hate-frame');
     if(_isPlayerHero) slot.classList.remove('is-defender','uses-hate-frame');
-    if(u&&(!isEnemy||u.hp>0)){
+    // 敵も、再生中に倒れた体は死亡演出まで中身を描く（味方と同じ扱い）。
+    if(u&&(!isEnemy||_alive)){
       slot.classList.add('unit-card');
       if(u.name==='石像') slot.classList.add('no-unit-shadow');
       if(u._sealed){

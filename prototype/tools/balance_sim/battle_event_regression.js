@@ -363,10 +363,32 @@ function main() {
     'PvEがコアの進行（createBattleRunner）を使っていない');
   // 詰め処理は演出の後。先に詰めると再生時に攻撃対象が盤面から消え、
   // 攻撃モーションが出せなくなる（アニメーションが全て飛ぶ）。
-  assert.match(currentBattle, /try\{ stop=runner\.step\(\{deferCompact:true\}\); \}/,
+  assert.match(currentBattle, /stop=runner\.step\(\{deferCompact:true\}\);/,
     'PvEが1手ずつ coreBattleStep() を呼んでいない、または詰め処理を演出前に行っている');
+  // 演出フラグは step() の前から立てる。step()でHPが0になった直後に再描画が挟まると、
+  // 死亡した体が空きスロットへ描き直され、あとから出る数値・VFXが何もない場所へ出る。
+  assert.match(currentBattle,
+    /G\._flushingCoreEvents=\(Number\(G\._flushingCoreEvents\)\|\|0\)\+1;\s*\n\s*let stepped=false;/,
+    'step()の前に演出フラグを立てていない（死亡直後の再描画で数値位置がずれる）');
   assert.match(currentBattle, /if\(typeof runner\.compact==='function'\) runner\.compact\(\);/,
     '演出の後に盤面を詰めていない（コアと配列の並びが食い違う）');
+  {
+    const render = read('js/engine/render.js');
+    // 再生中に倒れた体はカードを残す。ここをhp>0に戻すと、数値・個別VFXが
+    // 位置指定のない空枠へ吸い寄せられ「何もない場所」に出る。
+    assert.match(render, /const _alive=!!u&&\(u\.hp>0\|\|_pendingDeath\);/,
+      '描画が死亡直後の体を保持していない');
+    assert.match(render, /\n    if\(_alive\)\{/,
+      'カード本体の描画条件が hp>0 のまま（死亡直後に数値の行き先が消える）');
+    assert.match(render, /if\(u&&\(!isEnemy\|\|_alive\)\)\{/,
+      '敵カードの中身の描画条件が hp>0 のまま');
+    // 空きスロットは7枠等間隔の位置にあり、生存時の中央寄せとは別の場所にある。
+    assert.match(render, /if\(found&&typeof idxOrUnit==='object'&&found\.classList&&found\.classList\.contains\('dead-empty'\)\) return null;/,
+      'キャラ指定の解決が空きスロットを返しうる（数値・VFXが何もない場所へ出る）');
+    // 盤面はFLIPで動くため、演出は対象カードへ追従させる。
+    assert.match(render, /if\(typeof opt\.getRect==='function'\)\{/,
+      'VFX・ダメージ数値が対象カードへ追従していない');
+  }
   assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
     'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
   // 同じ効果を二重に解決しないための歯止め。
