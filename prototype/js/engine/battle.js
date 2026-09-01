@@ -878,7 +878,8 @@ function showBattleCutin(type='start',options={}){
   document.body.classList.add('battle-victory-pending');
   _showBattleEndFade();
   if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
-  if(mode==='retreat') window.setTimeout(_fadeBattleLife,520);
+  // 敗北（オンライン）も撤退と同じくライフを失う演出・SEを出す。
+  if(mode==='retreat'||mode==='defeat') window.setTimeout(_fadeBattleLife,520);
   return new Promise(resolve=>{
     // 勝利は表示位置を保持したまま待機する。退場アニメーションを挟むと
     // 「勝利」が一度消え、flex再配置によってラインと本文も移動してしまう。

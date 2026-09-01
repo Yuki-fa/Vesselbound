@@ -59,6 +59,20 @@ const SCENARIOS = [
     p2: [['ゴブリン', 'E0', { atk: 5, hp: 40, maxHp: 40 }]],
   },
   {
+    name: '複数キャラのマナ効果',
+    // 「活性化」（1マナ毎：このキャラクターは+1/+1）を複数のキャラクターへ付けた盤面。
+    // 実機で「5キャラが持っているのに1体しか発動しない」「1体ずつゆっくり上がる」
+    // という報告があったため、複数体が同時に閾値へ達する形を検査に入れる。
+    seed: 8181,
+    requires: ['mana_threshold'],
+    mana: { p1: 4, p2: 0 },
+    p1: [['ゴブリン', 'A0', { hp: 40, maxHp: 40, enh: ['活性化'] }],
+         ['ゴブリン', 'A1', { hp: 40, maxHp: 40, enh: ['活性化'] }],
+         ['ゴブリン', 'A2', { hp: 40, maxHp: 40, enh: ['活性化'] }],
+         ['サテュロス', 'A3', { hp: 40, maxHp: 40 }]],
+    p2: [['ゴブリン', 'E0', { atk: 2, hp: 80, maxHp: 80 }]],
+  },
+  {
     name: '封印と解放',
     // アークデーモン（C082）は封印付きで場に出て、条件を満たすと解放される。
     // 封印の見た目・解放演出・解放後の効果は経路が別なので食い違いやすい。
@@ -236,7 +250,7 @@ const SETUP = `
   const pick = n => PANEL_POOL.find(x => x && x.name === n);
   const unit = (n, id, side, slot, over) => {
     const c = pick(n);
-    return Object.assign({
+    const u0 = Object.assign({
       id, name: n, lane: 'front', slot, side,
       no: c && c.no, artCode: c && c.artCode,
       atk: Number(c && c.power) || 3, hp: Number(c && c.life) || 6,
@@ -246,6 +260,26 @@ const SETUP = `
       manaCost: Number(c && c.manaCost) || 0, manaRepeat: !!(c && c.manaRepeat),
       _manaThresholdDesc: String((c && c._manaThresholdDesc) || ''),
     }, over || {});
+    // enh：強化カード名の配列。付けた効果はPvE・オンラインとも同じ経路で渡す。
+    if (Array.isArray(u0.enh) && u0.enh.length) {
+      const names = u0.enh.slice();
+      delete u0.enh;
+      u0._adjacentPanelAbilities = names.slice();
+      // 強化カードのマナ閾値は _extraManaThresholds で運ぶ（PvEの強化適用と同じ形）。
+      // PvEの _applyAdjacentPanelEnhancements と同じ形にする。
+      // 1つ目は本体の manaCost へ入り、接頭辞（「1マナ毎：」）を落とした本文が説明になる。
+      const extra = names.map(n => pick(n)).filter(Boolean)
+        .filter(c2 => Number(c2.manaCost) > 0)
+        .map(c2 => ({ cost: Number(c2.manaCost) || 0, repeat: !!c2.manaRepeat,
+          desc: String(c2._manaThresholdDesc || c2.desc || '').replace(/^\d+マナ(?:毎)?[:：]\s*/, '') }));
+      if (extra.length && !u0.manaCost) {
+        u0.manaCost = extra[0].cost; u0.manaRepeat = extra[0].repeat;
+        u0._manaThresholdDesc = extra[0].desc;
+        if (extra.length > 1) u0._extraManaThresholds = extra.slice(1);
+      } else if (extra.length) u0._extraManaThresholds = extra;
+      u0._adjacentPanelEffectTexts = names.map(n => String((pick(n) || {}).desc || '')).filter(Boolean);
+    }
+    return u0;
   };
   // オンラインへ渡す形（versus.js が送るのと同じ項目だけ）。
   const wire = (n, id, over) => {
@@ -254,9 +288,14 @@ const SETUP = `
     return { id, name: n, atk: u.atk, hp: u.hp, maxHp: u.maxHp, color: u.color,
       keywords: u.keywords, desc: u.desc, no: c && c.no, art: c && c.artCode,
       manaCost: u.manaCost, manaRepeat: u.manaRepeat,
+      // **強化由来のマナ効果は effectData だけで運ぶ**（versus.js が送るのと同じ形）。
+      // 本体側に _manaThresholdDesc を付けて渡すと、実機で起きた
+      // 「閾値は発火するのに効果が何も起きない」不具合を検査が素通りする。
       effectData: { manaCost: u.manaCost, manaRepeat: u.manaRepeat,
-        manaThresholdDesc: u._manaThresholdDesc, extraManaThresholds: [],
-        effectNames: [], effectTexts: [] } };
+        manaThresholdDesc: u._manaThresholdDesc,
+        extraManaThresholds: (u._extraManaThresholds || []).map(x => ({ ...x })),
+        adjacentAbilities: (u._adjacentPanelAbilities || []).slice(),
+        effectNames: [], effectTexts: (u._adjacentPanelEffectTexts || []).slice() } };
   };
 `;
 

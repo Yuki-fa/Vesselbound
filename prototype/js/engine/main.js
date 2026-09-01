@@ -1621,7 +1621,8 @@ function _armBattleContinue(cutin,onShown,opts){
   if(!withButton){
     // ボタンを出さない場合でも、進行処理だけは同じものを仕込む。
     G._battleProceedAction=onShown;
-    if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(),autoMs);
+    // 自動進行はボタンを押していないので確定音は鳴らさない。
+    if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(true),autoMs);
     return;
   }
   const panel=document.createElement('div');
@@ -1651,13 +1652,15 @@ function _armBattleContinue(cutin,onShown,opts){
   }
   cutin.appendChild(panel);
   G._battleProceedAction=onShown;
-  if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(),autoMs);
+  if(autoMs>0) window.setTimeout(()=>continueAfterBattleVictory(true),autoMs);
 }
-function continueAfterBattleVictory(){
+// silent=true … ボタンを押していない自動進行。確定音を鳴らさない。
+function continueAfterBattleVictory(silent){
   if(typeof G==='undefined'||!G||G._battleProceedBusy) return;
   const action=G._battleProceedAction;
   if(typeof action!=='function') return;
   G._battleProceedBusy=true;
+  if(silent===true) G._battleProceedSfxPlayed=true;
   if(!G._battleProceedSfxPlayed){
     G._battleProceedSfxPlayed=true;
     if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});

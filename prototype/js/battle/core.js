@@ -417,9 +417,14 @@ function createCoreUnit(raw, side, index) {
     goldOnDeath: Math.max(0, Number(raw && raw.goldOnDeath) || 0),
     randomItemOnBattleEnd: !!(raw && raw.randomItemOnBattleEnd),
     randomItemCost: Math.max(0, Number(raw && raw.randomItemCost) || 0),
-    manaCost: Math.max(0, Number(raw && raw.manaCost) || 0),
-    manaRepeat: !!(raw && raw.manaRepeat),
-    manaThresholdDesc: String(raw && (raw.manaThresholdDesc || raw._manaThresholdDesc) || ''),
+    manaCost: Math.max(0, Number(raw && (raw.manaCost
+      || (raw.effectData && raw.effectData.manaCost))) || 0),
+    manaRepeat: !!(raw && (raw.manaRepeat || (raw.effectData && raw.effectData.manaRepeat))),
+    // **effectData も見ること。** 強化カード（活性化など）由来のマナ効果は、
+    // オンラインでは effectData.manaThresholdDesc に入って届く。ここを見ないと
+    // 効果文が空のまま閾値だけ発火し、「発動しているのに何も起きない」状態になる。
+    manaThresholdDesc: String(raw && (raw.manaThresholdDesc || raw._manaThresholdDesc
+      || (raw.effectData && raw.effectData.manaThresholdDesc)) || ''),
     extraManaThresholds: Array.isArray(raw && raw.extraManaThresholds)
       ? raw.extraManaThresholds.map(x => ({ ...x }))
       : (Array.isArray(raw && raw._extraManaThresholds) ? raw._extraManaThresholds.map(x => ({ ...x })) : []),
@@ -2830,6 +2835,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
       if (unit.manaCost > 0) {
         addThreshold(unit, unit.manaCost, unit.manaRepeat,
           unit.manaThresholdDesc || unit._manaThresholdDesc
+          || (unit.effectData && unit.effectData.manaThresholdDesc)
           || coreManaThresholdDescFromText(unit.desc));
       }
       [...(unit.extraManaThresholds || []), ...(unit._extraManaThresholds || []), ...(unit.effectData && unit.effectData.extraManaThresholds || [])].forEach(t => {

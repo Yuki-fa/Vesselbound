@@ -394,6 +394,17 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\{ deferTriggers: true, collect: pending \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
+  // 強化カード由来のマナ効果は effectData で届く。ここを見ないと、閾値だけ発火して
+  // 効果が何も起きない（オンラインで活性化などが無反応になっていた）。
+  {
+    const core = read('js/battle/core.js');
+    assert.match(core, /\|\| \(raw\.effectData && raw\.effectData\.manaThresholdDesc\)\) \|\| ''\)/,
+      'コアが effectData のマナ効果文を読んでいない');
+    assert.match(core, /\|\| \(unit\.effectData && unit\.effectData\.manaThresholdDesc\)/,
+      'マナ閾値の効果文導出が effectData を見ていない');
+    assert.match(core, /raw\.manaCost\n?\s*\|\| \(raw\.effectData && raw\.effectData\.manaCost\)/,
+      'コアが effectData のマナコストを読んでいない');
+  }
   // 複数対象への同時ダメージは共通の入口を通す。個別に書くと、書き忘れた効果だけが
   // 「1体ずつ誘発まで解決」に戻り、対象の並び順で結果が変わる（アラクネ＋ギガンテス）。
   {
