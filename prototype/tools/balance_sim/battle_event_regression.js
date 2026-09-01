@@ -466,9 +466,12 @@ function main() {
     // 被弾時の固有VFX発生元は present_events.js（共通の受け口）が present.js へ委ねる。
     assert.match(read('js/battle/present_events.js'), /presentDamageVfxSource\(ev, target, source, api\.ownEffectText\)/,
       'ダメージ演出の共通実装が固有VFX発生元を present.js に委ねていない');
+    // 能力変化の固有VFX可否は present_events.js（共通の受け口）が present.js へ委ねる。
+    assert.match(read('js/battle/present_events.js'), /presentStatChangeVfxAllowed\(ev\)/,
+      '能力変化演出の共通実装が固有VFX可否を present.js に委ねていない');
     [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
-      assert.match(src, /presentStatChangeVfxAllowed\(/,
-        `${name}が能力変化の固有VFX可否を present.js に委ねていない`);
+      assert.match(src, /presentStatChangeEvent\(/,
+        `${name}が能力変化演出の共通実装を呼んでいない`);
       // 規則を呼び出し側へ書き戻すと、また片側だけ直る状態に戻る。
       assert.doesNotMatch(src, /redirectedFrom\s*[?]/,
         `${name}が肩代わりの判断を自前で持っている（present.jsへ戻すこと）`);
@@ -525,11 +528,9 @@ function main() {
     });
     assert.doesNotMatch(read('js/engine/render.js'), /_flushingCoreEvents/,
       '描画が独自の再生中フラグを見ている（present.jsへ戻すこと）');
-    // 重複の数え方（SEは発生元＋効果、VFXは＋対象）も両側で同じにする。
-    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
-      assert.match(src, /\$\{cueKey\}:\$\{(target|u)\.id\}/,
-        `${name}の能力変化VFXが対象ごとの重複ゲートを通っていない`);
-    });
+    // 重複の数え方（SEは発生元＋効果、VFXは＋対象）は共通実装が持つ。
+    assert.match(read('js/battle/present_events.js'), /api\.vfxGate\.shouldPlay\(`\$\{cueKey\}:\$\{target\.id\}`\)/,
+      '能力変化VFXが対象ごとの重複ゲートを通っていない');
   }
   assert.doesNotMatch(currentBattle, /let side=\(typeof corePickFirstSide/,
     'PvEに独自のターンループが残っている（オンラインと結果が食い違う）');
@@ -695,9 +696,14 @@ function main() {
   // 「全てのキャラクター」に自分自身は含めない。
   assert.match(read('js/battle/core.js'), /\[\.\.\.allies, \.\.\.foes\]\.filter\(x => x !== unit && x\.hp > 0/,
     '全体ダメージが自分自身も対象にしている');
-  // 解放演出はコア駆動でも必ず出す（_resolveSeals は通らない）。
-  assert.match(currentBattle, /if\(e\.type==='seal_release'\)\{/,
-    'PvEが封印の解放演出を出していない');
+  // 解放演出はコア駆動でも必ず出す（_resolveSeals は通らない）。両方が共通実装を呼ぶ。
+  assert.match(read('js/battle/present_events.js'), /async function presentSealReleaseEvent\(ev, api\)/,
+    '封印解放演出の共通実装が無い');
+  [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
+    assert.match(src, /presentSealReleaseEvent\(/, `${name}が封印解放演出の共通実装を呼んでいない`);
+    assert.match(src, /presentFledEvent\(/, `${name}が逃走演出の共通実装を呼んでいない`);
+    assert.match(src, /presentShieldLostEvent\(/, `${name}が結界喪失演出の共通実装を呼んでいない`);
+  });
   // 音源は使い回す。毎回cloneNode()すると読み込みからやり直しになり、
   // 鳴り始めが1回ごとにばらついて「同じ瞬間の音がずれて聞こえる」。
   assert.match(read('js/engine/audio.js'), /function _takeSfxVoice\(key, ?base\)/,

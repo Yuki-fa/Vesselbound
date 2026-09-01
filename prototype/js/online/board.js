@@ -463,33 +463,24 @@
         break;
       }
       case 'stat_change': {
-        const u = _find(ev.side, ev.unitId);
-        if (!u) break;
-        u.atk = Math.max(0, (Number(u.atk) || 0) + (Number(ev.atk) || 0));
-        u.maxHp = Math.max(1, (Number(u.maxHp || u.hp) || 1) + (Number(ev.hp) || 0));
-        u.hp = Math.max(0, (Number(u.hp) || 0) + (Number(ev.hp) || 0));
-        if (ev.sourceId && typeof log === 'function') {
-          const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
-          log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`, ev.side === 'p1' ? 'good' : 'bad');
-        }
-        // 負傷などの能力変化にも、発生元カードの固有VFXを出す。
-        // どの理由で出すか・何回出すかは present.js が唯一の実装（PvEと同じ規則）。
-        if (presentStatChangeVfxAllowed(ev)
-          && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
-          const src = _find('p1', ev.sourceId) || _find('p2', ev.sourceId);
-          const code = src ? String(_effectPresentationCode(src) || '') : '';
-          if (/^C\d{3}$/i.test(code)) {
-            const cueKey = `${src.id}:${String(ev.reason || '')}`;
-            if (!_effectStatCueKeys.has(cueKey)) {
-              _effectStatCueKeys.add(cueKey);
-              if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
-            }
-            if (_effectStatVfxGate.shouldPlay(`${cueKey}:${u.id}`)) {
-              await _playCardEffectVfx(code, [u], { gateMs: 0, hitDuration: 700 });
-            }
-          }
-        }
-        _render();
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
+        // オンラインは実体の値がそのまま画面の値なので、ここで直接進める。
+        await presentStatChangeEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          findAnyUnit: id => _find('p1', id) || _find('p2', id),
+          applyStats: (unit, e0) => {
+            unit.atk = Math.max(0, (Number(unit.atk) || 0) + (Number(e0.atk) || 0));
+            unit.maxHp = Math.max(1, (Number(unit.maxHp || unit.hp) || 1) + (Number(e0.hp) || 0));
+            unit.hp = Math.max(0, (Number(unit.hp) || 0) + (Number(e0.hp) || 0));
+          },
+          cueKeys: _effectStatCueKeys,
+          vfxGate: _effectStatVfxGate,
+          logLine: (unit) => {
+            const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
+            return `${_effectSourceName(ev, ctx)}の効果で${unit.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`;
+          },
+          render: _render,
+        });
         break;
       }
       case 'keyword_effect': {
@@ -568,8 +559,13 @@
         break;
       }
       case 'shield_lost': {
-        // 結界消失後の追加効果はコアが既に解決済み。ここではPvEと同じ最新盤面を描く。
-        _render();
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
+        // 以前はここで再描画するだけで、SEもログも出ていなかった。
+        presentShieldLostEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          logLine: u => `${u.name || '対象'}の結界がダメージを防いだ。`,
+          render: _render,
+        });
         break;
       }
       case 'ring_effect': {
@@ -718,34 +714,32 @@
         break;
       }
       case ONLINE_EVENT.SEAL_RELEASE: {
-        // 封印の解放。PvEと同じ解放演出を使う。
-        const u = _find(ev.side, ev.unitId);
-        if (!u) break;
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         await _awaitMotion();
-        u._sealed = false;
-        if (typeof playSealReleaseVfx === 'function') {
-          await playSealReleaseVfx(u, _fxSide(ev.side));
-        }
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
-        else _render();
+        await presentSealReleaseEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          logLine: u => `${u.name || '対象'}の封印が解放された。`,
+          compact: () => {
+            if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
+            else _render();
+          },
+        });
         break;
       }
       case ONLINE_EVENT.FLED: {
-        // ATKが0になったキャラクターの逃走。死亡ではないので死亡効果は出ない。
-        // 演出はPvEと同じ playFledVfx()（FLEDを1文字ずつ落として消えてから退場）。
-        const unit = _find(ev.side, ev.unitId);
-        if (unit) {
-          unit._fled = true;
-          if (typeof playFledVfx === 'function') {
-            try { await playFledVfx(ev.side === 'p1' ? 'ally' : 'enemy', unit); }
-            catch (err) { console.error('[online fled vfx]', err); }
-          }
-          const list = ev.side === 'p1' ? G.allies : G.enemies;
-          const index = (list || []).indexOf(unit);
-          if (index >= 0) list[index] = null;
-          if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
-          else _render();
-        }
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
+        await presentFledEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          removeFromBoard: (unit, side) => {
+            const list = side === 'p1' ? G.allies : G.enemies;
+            const index = (list || []).indexOf(unit);
+            if (index >= 0) list[index] = null;
+          },
+          compact: () => {
+            if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
+            else _render();
+          },
+        });
         break;
       }
       case ONLINE_EVENT.DEATH: {

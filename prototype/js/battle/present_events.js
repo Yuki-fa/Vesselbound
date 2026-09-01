@@ -80,9 +80,122 @@ async function presentDamageEvent(ev, api) {
   return true;
 }
 
+// ── 結界が割れた ────────────────────────────────
+// api: findUnit(side,id) / render() / logLine(unit) … ログ文（不要なら省略）
+function presentShieldLostEvent(ev, api) {
+  if (!ev || !api) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
+  if (unit) {
+    if (typeof api.logLine === 'function' && typeof log === 'function') {
+      const line = api.logLine(unit);
+      if (line) log(line, 'sys');
+    }
+    if (typeof playSfx === 'function') playSfx('shield', { group: 'combat' });
+    if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
+  }
+  // 結界のエフェクトを消すため、盤面も描き直す。
+  if (typeof api.render === 'function') api.render();
+  return !!unit;
+}
+
+// ── 能力変化（バフ・負傷効果など）────────────────────
+// api:
+//   findUnit(side,id) / findAnyUnit(id)
+//   applyStats(unit, ev)  … 画面に出すATK/HPをここまで進める（PvEは据え置き値、
+//                            オンラインは実体そのもの。hpの増減はmaxHpにも効く）
+//   cueKeys               … 固有SEを鳴らし終えた「発生元＋効果」の記録（Set）
+//   vfxGate               … 固有VFXを出し終えた「発生元＋効果＋対象」のゲート
+//   logLine(unit, source) … ログ文（不要なら省略）
+//   render()              … 盤面の描き直し（不要なら省略）
+//   trace(info)           … 記録（不要なら省略）
+async function presentStatChangeEvent(ev, api) {
+  if (!ev || !api) return false;
+  const target = api.findUnit(ev.side, ev.unitId);
+  if (!target) return false;
+  const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
+  // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
+  if (typeof api.applyStats === 'function') api.applyStats(target, ev);
+  if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
+  const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
+    ? api.findAnyUnit(ev.sourceId) : null;
+  if (source && typeof api.logLine === 'function' && typeof log === 'function') {
+    const line = api.logLine(target, source);
+    if (line) log(line, ev.side === 'p1' ? 'good' : 'bad');
+  }
+  // どの理由で固有VFXを出すかは present.js が唯一の実装。
+  if (source && typeof presentStatChangeVfxAllowed === 'function' && presentStatChangeVfxAllowed(ev)
+    && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
+    const code = String(_effectPresentationCode(source) || '');
+    if (/^C\d{3}$/i.test(code)) {
+      const cueKey = `${source.id}:${String(ev.reason || '')}`;
+      // 固有SEは効果1回につき1回。VFXは対象ごとに1回。重複の単位を分ける。
+      if (api.cueKeys && !api.cueKeys.has(cueKey)) {
+        api.cueKeys.add(cueKey);
+        if (typeof api.trace === 'function') {
+          api.trace({ sourceId: source.id, targetId: target.id, reason: String(ev.reason || ''), code: code.toUpperCase() });
+        }
+        if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+      }
+      // 開始しただけで次のイベントへ進むと、連続効果中に再描画・召喚・攻撃モーションが
+      // 重なってVFXが欠ける。同じ効果の表示完了を待ってから次へ進める。
+      if (api.vfxGate && api.vfxGate.shouldPlay(`${cueKey}:${target.id}`)) {
+        await _playCardEffectVfx(code, [target], { gateMs: 0, hitDuration: 700 });
+      }
+    }
+  }
+  if (typeof api.render === 'function') api.render();
+  return true;
+}
+
+// ── 封印の解放 ────────────────────────────────
+// api: findUnit(side,id) / compact() / logLine(unit)
+async function presentSealReleaseEvent(ev, api) {
+  if (!ev || !api) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (!unit) return false;
+  unit._sealed = false;
+  delete unit._sealValue;
+  if (typeof playSealReleaseVfx === 'function') {
+    await playSealReleaseVfx(unit, ev.side === 'p2' ? 'enemy' : 'ally');
+  }
+  delete unit._sealReady;
+  if (typeof api.logLine === 'function' && typeof log === 'function') {
+    const line = api.logLine(unit);
+    if (line) log(line, 'gold');
+  }
+  if (typeof api.compact === 'function') api.compact();
+  return true;
+}
+
+// ── 逃走（ATKが0になって場を去る）────────────────────
+// 死亡ではないので死亡効果は出ない。演出を見せてから盤面から外す。
+// 先に外すとカードが一瞬で消え、何が起きたのか分からない。
+// api: findUnit(side,id) / removeFromBoard(unit, side) / compact()
+async function presentFledEvent(ev, api) {
+  if (!ev || !api) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (!unit) return false;
+  unit._fled = true;
+  if (typeof playFledVfx === 'function') {
+    try { await playFledVfx(ev.side === 'p1' ? 'ally' : 'enemy', unit); }
+    catch (err) { console.error('[fled vfx]', err); }
+  }
+  if (typeof api.removeFromBoard === 'function') api.removeFromBoard(unit, ev.side);
+  if (typeof api.compact === 'function') api.compact();
+  return true;
+}
+
 if (typeof window !== 'undefined') {
   window.presentDamageEvent = presentDamageEvent;
+  window.presentShieldLostEvent = presentShieldLostEvent;
+  window.presentFledEvent = presentFledEvent;
+  window.presentStatChangeEvent = presentStatChangeEvent;
+  window.presentSealReleaseEvent = presentSealReleaseEvent;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { presentDamageEvent };
+  module.exports = {
+    presentDamageEvent, presentShieldLostEvent, presentFledEvent,
+    presentStatChangeEvent, presentSealReleaseEvent,
+  };
 }

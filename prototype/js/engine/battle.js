@@ -2483,27 +2483,22 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='death'||e.type==='seal_release'||_isPlayableAttack)) continue;
     if(_isPlayableAttack) manaCueGate.reset();
     if(e.type==='shield_lost'){
-      // 結界が割れた時のSEと表示更新。コアが結界喪失効果そのものは解決済みなので、
-      // ここでは見た目と音だけを担当する。
-      const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(u){
-        log(`${_lc(u.name,e.side==='p2')}の結界がダメージを防いだ。`,'sys');
-        if(typeof playSfx==='function') playSfx('shield',{group:'combat'});
-        if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(u,e.side==='p1'?'ally':'enemy');
-      }
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      // コアが結界喪失効果そのものは解決済みなので、ここでは見た目と音だけ。
+      presentShieldLostEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        logLine:u=>`${_lc(u.name,e.side==='p2')}の結界がダメージを防いだ。`,
+      });
       continue;
     }
     if(e.type==='seal_release'){
-      // 封印の解放。コア駆動では _resolveSeals() を通らないため、ここで演出する。
-      // これが無いと解放VFX・SEが一度も出ない。手順はオンラインの受け口と同じ。
-      const unit=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(!unit) continue;
-      unit._sealed=false;
-      delete unit._sealValue;
-      if(typeof playSealReleaseVfx==='function') await playSealReleaseVfx(unit,e.side==='p2'?'enemy':'ally');
-      delete unit._sealReady;
-      log(`${_lc(unit.name,e.side==='p2')}の封印が解放された。`,'gold');
-      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      // コア駆動では _resolveSeals() を通らないため、ここで演出する。
+      await presentSealReleaseEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        logLine:u=>`${_lc(u.name,e.side==='p2')}の封印が解放された。`,
+        compact:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true}); },
+      });
       continue;
     }
     // 死亡も**コアが出したイベントの順番のまま**処理する（オンラインと同じ）。
@@ -2659,61 +2654,49 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='fled'){
-      const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(target){
-        target._fled=true;
-        // 逃走の演出を先に見せてから盤面から外す。先に外すとカードが
-        // 一瞬で消え、何が起きたのか分からない。
-        if(typeof playFledVfx==='function'){
-          try{ await playFledVfx(e.side==='p1'?'ally':'enemy',target); }
-          catch(err){ console.error('[fled vfx]',err); }
-        }
-        const list=e.side==='p1'?G.allies:G.enemies;
-        const index=list.indexOf(target);
-        if(index>=0) list[index]=null;
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true});
-      }
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      await presentFledEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        removeFromBoard:(unit,side)=>{
+          const list=side==='p1'?G.allies:G.enemies;
+          const index=list.indexOf(unit);
+          if(index>=0) list[index]=null;
+        },
+        compact:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true}); },
+      });
       continue;
     }
     if(e.type==='stat_change'){
-      // コアのカード効果は数値をstat_changeへ確定する。旧PvE再生側が
-      // このイベント種別を読み飛ばしていたため、バフ系の固有VFXだけが
-      // 結界以外すべて欠落していた。発生元IDと対象IDをそのまま使い、
-      // 数値や効果判定を再計算せず、カード固有VFXだけを非同期で開始する。
-      // どの理由で固有VFXを出すかは present.js が唯一の実装（オンラインと同じ規則）。
-      if(!presentStatChangeVfxAllowed(e)) continue;
-      const source=e.sourceId
-        ?findLiveUnit('p1',e.sourceId,findUnit('p1',e.sourceId))||findLiveUnit('p2',e.sourceId,findUnit('p2',e.sourceId))
-        :null;
-      const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
-      // 進め方はオンラインの stat_change 受け口と同じ（hpの増減はmaxHpにも効く）。
-      if(target&&typeof presentAdvanceShown==='function'){
-        presentAdvanceShown(target,{
-          atk:Math.max(0,presentShownAtk(target)+(Number(e.atk)||0)),
-          hp:Math.max(0,presentShownHp(target)+(Number(e.hp)||0)),
-          maxHp:Math.max(1,presentShownMaxHp(target)+(Number(e.hp)||0)),
-        });
-        if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,e.side==='p1'?'ally':'enemy');
-      }
-      if(source&&target&&typeof _playCardEffectVfx==='function'){
-        const code=_effectPresentationCode(source);
-        if(/^C\d{3}$/i.test(code)){
-          const cueKey=`${source.id}:${String(e.reason||'')}`;
-          if(!effectStatCueKeys.has(cueKey)){
-            effectStatCueKeys.add(cueKey);
-            _recordBattleTrace('stat_change_effect_cue',{sourceId:source.id,targetId:target.id,
-              reason:String(e.reason||''),code:code.toUpperCase()});
-            if(typeof _playCardEffectSfx==='function') _playCardEffectSfx(code.toUpperCase());
-          }
-          // 効果VFXを開始しただけで次のコアイベントへ進むと、連続効果中に
-          // renderAll・召喚・攻撃モーションが重なり、VFXの欠落と処理落ちが起きる。
-          // イベント列の順序を保ったまま、同じ効果の表示完了を待って次へ進める。
-          if(effectStatVfxGate.shouldPlay(`${cueKey}:${target.id}`)){
-            await _playCardEffectVfx(code,[target],{gateMs:0,hitDuration:700});
-          }
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      // どの理由で固有VFXを出すかは present.js。ここへ規則を書き戻さないこと。
+      if(!presentStatChangeVfxAllowed(e)){
+        // 演出しない変化でも、画面に出すATK/HPだけは進めておく。
+        const only=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+        if(only&&typeof presentAdvanceShown==='function'){
+          presentAdvanceShown(only,{
+            atk:Math.max(0,presentShownAtk(only)+(Number(e.atk)||0)),
+            hp:Math.max(0,presentShownHp(only)+(Number(e.hp)||0)),
+            maxHp:Math.max(1,presentShownMaxHp(only)+(Number(e.hp)||0)),
+          });
+          if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(only,e.side==='p1'?'ally':'enemy');
         }
+        continue;
       }
+      await presentStatChangeEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        findAnyUnit:id=>findLiveUnit('p1',id,findUnit('p1',id))||findLiveUnit('p2',id,findUnit('p2',id)),
+        applyStats:(unit,ev)=>{
+          if(typeof presentAdvanceShown!=='function') return;
+          presentAdvanceShown(unit,{
+            atk:Math.max(0,presentShownAtk(unit)+(Number(ev.atk)||0)),
+            hp:Math.max(0,presentShownHp(unit)+(Number(ev.hp)||0)),
+            maxHp:Math.max(1,presentShownMaxHp(unit)+(Number(ev.hp)||0)),
+          });
+        },
+        cueKeys:effectStatCueKeys,
+        vfxGate:effectStatVfxGate,
+        trace:info=>_recordBattleTrace('stat_change_effect_cue',info),
+      });
       continue;
     }
     if(e.type==='summon'&&e.unit){
