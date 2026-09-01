@@ -43,7 +43,6 @@ const NO_RECEIVER_NEEDED = {
   battle_end: '勝敗は outcome を見る',
   turn_begin: '手番の区切り。演出は無い',
   summon_rejected: '上限拒否の記録用。画面には出さない',
-  sweep_vfx: '薙ぎ払いはPvE専用の演出指示',
   bonus_reward: '報酬画面で処理する',
   item_reward: '報酬画面で処理する',
   gold_spend: 'ゴールドはHUDが state から読む',

@@ -271,13 +271,14 @@ const onlineScript = sc => `
     // ── 比べる前の正規化 ────────────────────────
     // 召喚体のIDは実行ごとに通し番号が進むため、そのままでは必ず食い違う。
     // 「その実行の中で何番目に出てきた召喚体か」へ置き換えて比べる。
-    const normalizeIds = list => {
+    // 同じ実行の中では**同じ番号**を使う（イベント列・演出・盤面で対応が取れるように）。
+    const makeNormalizer = () => {
       const map = new Map();
       const fix = s => String(s).replace(/-summon-\d+/g, m => {
         if (!map.has(m)) map.set(m, '-召喚' + (map.size + 1));
         return map.get(m);
       });
-      return (list || []).map(fix);
+      return list => (list || []).map(fix);
     };
     // PvEの検査は戦闘ループだけを回す（開戦はstartBattle側で済ませる前提の関数のため）。
     // オンラインは開戦から流れてくるので、最初のturn_beginより前と決着後を落として揃える。
@@ -294,9 +295,11 @@ const onlineScript = sc => `
       const online = await b.eval(onlineScript(sc));
       [pve, online].forEach(r => {
         if (!r || r.エラー) return;
-        r.events = battleLoopOnly(normalizeIds(r.events));
-        r.calls = normalizeIds(r.calls);
-        r.board = normalizeIds(r.board).filter(x => String(x).replace(/[\s/]/g, '') !== '');
+        // 番号はイベント列に現れた順で決める。演出・盤面もその対応で読み替える。
+        const norm = makeNormalizer();
+        r.events = battleLoopOnly(norm(r.events));
+        r.calls = norm(r.calls);
+        r.board = norm(r.board).filter(x => String(x).replace(/[\s/]/g, '') !== '');
       });
       const tag = `【${sc.name}】`;
       if (!pve || pve.エラー) { check(`${tag}PvEの再生が動く`, false, (pve && pve.エラー) || '結果が返らない'); continue; }

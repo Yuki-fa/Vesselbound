@@ -987,7 +987,7 @@ function playHitVfxAtRect(rect,amount,options){
         const box={left:`${r.left}px`,top:`${r.top}px`,width:`${r.width}px`,height:`${r.height}px`};
         Object.assign(host.style,box);
         if(labelHost) Object.assign(labelHost.style,box);
-      } else if(hadRect&&++missed>6){
+      } else if(hadRect&&++missed>2){
         // 対象カードが盤面から消えた。数値だけが空白の上に残ると
         // 「何もない場所に数値が出ている」ように見えるため、ここで畳む。
         finish();
@@ -1115,6 +1115,33 @@ async function playFledVfx(side, unit){
   await new Promise(r=>setTimeout(r,460));
 }
 if(typeof window!=='undefined') window.playFledVfx=playFledVfx;
+
+// ── 薙ぎ払いの見せ方（PvEとオンラインで唯一の実装）──────────────
+// 対象ごとの命中VFXを出す代わりに、攻撃者から炎が薙ぎ払い、当たった瞬間に
+// その対象のダメージ数値を出す。片側だけ別実装にすると、オンラインだけ
+// 対象ごとに固有VFXが3回出る、といった食い違いになる。
+//   damageOf(target) … その対象のダメージイベント（{amount, keywordEffect}）を返す
+//   onShown(target, ev) … 数値を出した対象を呼び出し側へ知らせる（二重表示の抑止用）
+async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown){
+  if(!source||!targets||!targets.length) return false;
+  const url=typeof getCharacterSweepVfxPath==='function'?getCharacterSweepVfxPath(source):'';
+  if(!url||typeof playCharacterSweepVfx!=='function') return false;
+  const targetSide=isEnemySide?'ally':'enemy';
+  await playCharacterSweepVfx(source,isEnemySide,targets,url,{
+    onTargetHit:target=>{
+      if(!target) return;
+      const ev=typeof damageOf==='function'?damageOf(target):null;
+      const amount=Math.max(0,Number(ev&&ev.amount)||0);
+      if(!(amount>0)) return;
+      if(typeof onShown==='function') onShown(target,ev);
+      if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,targetSide);
+      // 命中VFXと数値の両方を、炎が当たった瞬間に出す。
+      if(typeof playHitVfx==='function') playHitVfx(targetSide,target,amount,
+        {...(ev&&ev.keywordEffect?{keywordEffect:ev.keywordEffect}:{})});
+    },
+  });
+  return true;
+}
 
 function playHitVfx(side,idxOrUnit,amount,options){
   // 同じキャラクターへ続けて数値が出る時、前の数値を消してから次を出せるよう

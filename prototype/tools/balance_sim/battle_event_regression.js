@@ -422,6 +422,18 @@ function main() {
       // 数値を出し終えた印。これが無いと倒れたカードが再生の終わりまで残る。
       assert.match(src, /_deathFxReady\s*=\s*true/, `${name}が死亡演出の開始印を付けていない`);
     });
+    // 死亡もコアが出したイベントの順番のまま処理する。まとめて後回しにすると、
+    // 同じ盤面でもオンラインと「消える順番」が食い違う。
+    assert.match(currentBattle, /if\(e\.type==='death'\)\{/,
+      'PvEが死亡をイベントの順番で処理していない');
+    assert.doesNotMatch(currentBattle, /if\(e\.type==='death'\) continue;/,
+      'PvEが死亡を末尾へ後回ししている（オンラインと消える順番が食い違う）');
+    // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
+    assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
+      '薙ぎ払いの共通実装が render.js に無い');
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /presentSweepAttack\(/, `${name}が薙ぎ払いの共通実装を呼んでいない`);
+    });
     assert.doesNotMatch(read('js/engine/render.js'), /_flushingCoreEvents/,
       '描画が独自の再生中フラグを見ている（present.jsへ戻すこと）');
     // 重複の数え方（SEは発生元＋効果、VFXは＋対象）も両側で同じにする。

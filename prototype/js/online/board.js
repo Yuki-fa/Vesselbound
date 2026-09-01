@@ -573,9 +573,11 @@
               const frontCount = list.filter(x => x && x.hp > 0 && x.lane !== 'rear' && !x._isObject && !x._isSoul).length;
               // 前衛7枠が埋まっても陣営上限14体までは後衛へ送る。
               if (frontCount >= FRONT_SLOTS) summoned.lane = 'rear';
-              // 位置指定はイベントの値をそのまま渡す。左右の解釈はコアが持つ。
-              const spec = { placement: ev.placement || '', placementTargetId: ev.placementTargetId != null
-                ? ev.placementTargetId : (ev.placement ? ev.sourceId : null) };
+              // 位置指定はイベントの値を**そのまま**渡す。左右の解釈はコアが持つ。
+              // 発生元IDで補ってはいけない。コアは placementTargetId が無ければ
+              // 前衛の右端へ入れる規則で、補うと同時召喚の並びが逆になる。
+              const spec = { placement: ev.placement || '',
+                placementTargetId: ev.placementTargetId != null ? ev.placementTargetId : null };
               if (_placeSummonedUnit(list, summoned, spec)) layoutChanged = true;
             }
           }
@@ -587,6 +589,37 @@
         // （保留すると、次に死亡イベントが来るまで召喚体が画面に現れない）。
         if(layoutChanged&&typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
         else _render();
+        break;
+      }
+      case 'sweep_vfx': {
+        // 薙ぎ払い（アラッサス）。見せ方は presentSweepAttack() が唯一の実装（PvEと同じ）。
+        // このイベントの直後に、対象ごとのDAMAGEが並ぶ。炎が当たった瞬間に
+        // その対象の数値を出し、通常の被弾演出では出し直さない。
+        const source = _find(ev.side, ev.unitId);
+        const targetSide = ev.side === 'p1' ? 'p2' : 'p1';
+        const targets = (ev.targetIds || []).map(id => _find(targetSide, id)).filter(Boolean);
+        if (!source || !targets.length || typeof presentSweepAttack !== 'function') break;
+        const events = (ctx && ctx.events) || [];
+        const start = Number(ctx && ctx.eventIndex);
+        const byTarget = new Map();
+        if (Number.isInteger(start)) {
+          for (let i = start + 1; i < events.length; i++) {
+            const next = events[i];
+            if (!next || next.type === ONLINE_EVENT.ATTACK || next.type === ONLINE_EVENT.TURN_BEGIN
+              || next.type === ONLINE_EVENT.BATTLE_END) break;
+            if (next.type !== ONLINE_EVENT.DAMAGE) continue;
+            const key = `${next.side}:${next.unitId}`;
+            if (!byTarget.has(key)) byTarget.set(key, next);
+          }
+        }
+        await presentSweepAttack(source, ev.side === 'p2', targets,
+          target => byTarget.get(`${targetSide}:${target.id}`),
+          (target, d) => {
+            if (!d) return;
+            const hurt = _find(d.side, d.unitId);
+            if (hurt) hurt.hp = Math.max(0, Number(d.hpAfter) || 0);
+            if (ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(d);
+          });
         break;
       }
       case 'transform': {

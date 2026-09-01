@@ -2347,7 +2347,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   const sweepSources=new Set();
   // 薙ぎ払い（アラッサス）は対象ごとの命中VFXを出さない代わりに、
   // 炎が当たった瞬間にダメージ数値だけを出す。ここで出さないと数値がまったく出ない。
-  const sweepShownLabels=new Set();
+  // **イベント単位で覚える。** 対象単位で覚えると、同じ相手への通常攻撃の数値まで
+  // 「薙ぎ払いで表示済み」と誤判定され、以後その相手のダメージ数値が出なくなる。
+  const sweepShownEvents=new Set();
   const damageEventByTarget=new Map();
   (events||[]).filter(x=>x&&x.type==='damage'&&Number(x.amount)>0).forEach(x=>{
     const key=`${x.side}:${x.unitId}`;
@@ -2359,20 +2361,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     const targets=(e.targetIds||[]).map(id=>findLiveUnit(targetSide,id,findUnit(targetSide,id))).filter(Boolean);
     if(!source||!targets.length) continue;
     sweepSources.add(source.id);
-    const url=typeof getCharacterSweepVfxPath==='function'?getCharacterSweepVfxPath(source):'';
-    if(url&&typeof playCharacterSweepVfx==='function') await playCharacterSweepVfx(source,e.side==='p2',targets,url,{
-      onTargetHit:(target)=>{
-        if(!target) return;
-        const dmg=damageEventByTarget.get(`${targetSide}:${target.id}`);
-        const amount=Number(dmg&&dmg.amount)||0;
-        if(!(amount>0)) return;
-        sweepShownLabels.add(`${targetSide}:${target.id}`);
-        if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,targetSide==='p1'?'ally':'enemy');
-        // 命中VFXと数値の両方を、炎が当たった瞬間に出す。
-        if(typeof playHitVfx==='function') playHitVfx(targetSide==='p1'?'ally':'enemy',target,amount,
-          {...(dmg&&dmg.keywordEffect?{keywordEffect:dmg.keywordEffect}:{})});
-      },
-    });
+    // 見せ方は presentSweepAttack() が唯一の実装（オンラインと同じ）。
+    await presentSweepAttack(source,e.side==='p2',targets,
+      target=>damageEventByTarget.get(`${targetSide}:${target.id}`),
+      (target,ev)=>{ if(ev) sweepShownEvents.add(ev); });
   }
   const effectDamageSources=new Set();
   // stat_change は対象ごとに生成されるが、カード効果の固有SEは効果1回につき
@@ -2417,7 +2409,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   for(const [eventIndex,e] of eventList.entries()){
     // コア駆動の戦闘では、通常の攻撃もこの経路で描く（PvE専用の攻撃アクションは通らない）。
     const _isPlayableAttack=e.type==='attack'&&(e.immediate||G._coreDrivenBattle);
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='death'||_isPlayableAttack)) continue;
     if(_isPlayableAttack) manaCueGate.reset();
     if(e.type==='shield_lost'){
       // 結界が割れた時のSEと表示更新。コアが結界喪失効果そのものは解決済みなので、
@@ -2430,10 +2422,26 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       }
       continue;
     }
-    // 死亡の演出はこのループでは行わない。**必ず末尾のdeathループでまとめて処理する。**
-    // 途中で死亡演出を挟むと盤面が中央へ寄り直し、そのあとに来るダメージ数値・VFXが
-    // 移動前の位置（＝何もない場所）へ出る。数値を全部見せてから死亡させること。
-    if(e.type==='death') continue;
+    // 死亡も**コアが出したイベントの順番のまま**処理する（オンラインと同じ）。
+    // 以前は末尾でまとめて処理していたため、同じ盤面でもオンラインと消える順番が
+    // 食い違っていた。「数値を出し終えるまでカードを消さない」は
+    // presentKeepsOnBoard（present.js）が受け持つので、ここで後回しにする必要はない。
+    if(e.type==='death'){
+      if(!e.unitId||deaths.has(`${e.side}:${e.unitId}`)) continue;
+      const dead=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(!dead||dead.hp>0) continue;
+      deaths.add(`${e.side}:${e.unitId}`);
+      // 直前に出した数値が読める間を取ってから消す。待ち時間は present.js が唯一の実装。
+      await sleep(PRESENT_HIT_BEAT_MS);
+      // ここまでで数値・VFXは出し終えている。再生中でも死亡演出を始めてよい。
+      dead._deathFxReady=true;
+      if(e.side==='p1') await processAllyDeath(dead);
+      else await processEnemyDeath(dead,(state.units.p2||[]).indexOf(dead));
+      // 死亡は「数値を出し終えた後」なので、再生中でも詰めてよい（オンラインと同じ）。
+      // ここで詰めないと、倒れたカードが再生の終わりまで残り続ける。
+      if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true,forceDuringMotion:true});
+      continue;
+    }
     if(_isPlayableAttack){
       // ミノタウロス等の負傷誘発攻撃はコアで命中結果だけを確定するが、
       // 通常攻撃と同じ接触モーションをここで再生する。これを省くと
@@ -2738,10 +2746,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       effectDamageSources.add(source.id);
       if(typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
     }
-    if(sweepShownLabels.has(`${e.side}:${target.id}`)) continue;
+    if(sweepShownEvents.has(e)) continue;
     // 固有VFXを誰の効果として出すかは present.js が唯一の実装（オンラインと同じ規則）。
     const vfxSource=presentDamageVfxSource(e,target,source,_ownCardEffectText);
-    if(!sweepSources.has(source&&source.id)&&typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
+    if(typeof playHitVfx==='function') playHitVfx(e.side==='p1'?'ally':'enemy',target,Number(e.amount)||0,
       { ...(vfxSource?{effectSource:vfxSource}:{}),
         keywordEffect:e.keywordEffect||undefined });
   }
@@ -2750,18 +2758,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     const code=source&&_effectPresentationCode(source).match(/^C\d{3}$/i);
     if(code&&typeof _playCardEffectSfx==='function') _playCardEffectSfx(code[0].toUpperCase());
   });
-  for(const e of (events||[])){
-    if(!e||e.type!=='death'||!e.unitId||deaths.has(`${e.side}:${e.unitId}`)) continue;
-    const target=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-    if(!target||target.hp>0) continue;
-    deaths.add(`${e.side}:${e.unitId}`);
-    // ここまでで数値・VFXは出し終えている。以降はカードを残す理由がないので、
-    // 再生中でも死亡演出（焼き落とし）を始めてよい印を付ける。
-    // これが無いと、再生が終わるまで倒れたカードが暗いまま盤面に残り続ける。
-    target._deathFxReady=true;
-    if(e.side==='p1') await processAllyDeath(target);
-    else await processEnemyDeath(target,(state.units.p2||[]).indexOf(target));
-  }
   const spawned=[...(state.units.p1||[]),...(state.units.p2||[])].filter(u=>u&&!(beforeUnits||new Set()).has(u));
   for(const spawnedUnit of spawned){
     // coreSummonUnit() の保留召喚は、上のイベント逐次処理で配置できたものだけを
