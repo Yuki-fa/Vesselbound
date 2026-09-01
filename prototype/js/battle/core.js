@@ -792,6 +792,23 @@ function coreEndDamageBatch(state) {
   if (state) state._coreDamageBatch = null;
 }
 
+// 複数の対象へ同時に作用するダメージ。**全員に入れてから、対象の並び順で誘発する。**
+// 1体ずつ「ダメージ→その体の誘発」を解決すると、割り込み攻撃（ミノタウロス）や
+// 負傷効果（ギガンテス）が残りの対象へのダメージより先に起き、
+// 並び順によって結果が変わってしまう。
+function coreHitAll(state, rng, emit, applyHit, source, targets, amount) {
+  const list = (targets || []).filter(Boolean);
+  if (!list.length || !(amount > 0)) return;
+  const batched = coreBeginDamageBatch(state);
+  const pending = [];
+  try {
+    list.forEach(t => applyHit(source, t, amount, false, false, false,
+      { deferTriggers: true, collect: pending }));
+  } finally { if (batched) coreEndDamageBatch(state); }
+  pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
+    h.counter, rng, emit, applyHit, h.opt));
+}
+
 function coreResolveHit(state, source, target, amount, counter, rng, emit, options) {
   if (!state || !target || target.hp <= 0 || !(amount > 0)) return { amount: 0, died: false };
   const opt = options || {};
@@ -1688,15 +1705,8 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     // 1体ずつ「ダメージ→その体の誘発」を解決すると、誘発（ミノタウロスの
     // 割り込み攻撃など）が残りの対象へのダメージより先に起き、順番が実際の
     // ルール（同時に受ける）と食い違う。誘発の順番は対象の並び順のまま。
-    const batched = coreBeginDamageBatch(state);
-    const pending = [];
-    try {
-      [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x))
-        .forEach(x => applyHit(unit, x, amount, false, false, false,
-          { deferTriggers: true, collect: pending }));
-    } finally { if (batched) coreEndDamageBatch(state); }
-    pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
-      h.counter, rng, emit, applyHit, h.opt));
+    coreHitAll(state, rng, emit, applyHit, unit,
+      [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), amount);
   }
   const enemyDamage = attackText.match(/全ての敵に(\d+)ダメージ/);
   if (enemyDamage && !coreHasEffect(unit, 'サイレン')) {
@@ -1707,7 +1717,7 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
       emit({ type: 'sweep_vfx', side: unit.side, unitId: unit.id,
         targetIds: foes.filter(x => x.hp > 0 && !coreIsSealed(x)).map(x => x.id) });
     }
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, amount));
+    coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
   }
   const attackAlliesBuff = attackText.match(/全ての味方(?:は|に)\+([0-9]+)\/\+([0-9]+)を(?:得る|与える)/);
   if (attackAlliesBuff) {
@@ -2874,7 +2884,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
               target.atk += atk; target.maxHp += hp; target.hp += hp;
               emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_arachne_buff' });
             });
-            allies.forEach(target => applyHit(unit, target, Number(arachne[3]) || 0));
+            coreHitAll(state, rng, emit, applyHit, unit, allies, Number(arachne[3]) || 0);
           }
         }
         const damage = text.match(/^ランダムな敵に(\d+)ダメージを与える/);
@@ -3607,6 +3617,7 @@ if (typeof window !== 'undefined') {
   window.coreApplyLuckyRing = coreApplyLuckyRing;
   window.coreResolveHit = coreResolveHit;
   window.coreApplyHitTriggers = coreApplyHitTriggers;
+  window.coreHitAll = coreHitAll;
   window.coreBeginDamageBatch = coreBeginDamageBatch;
   window.coreEndDamageBatch = coreEndDamageBatch;
 }
@@ -3645,6 +3656,6 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyOpeningRings,
     coreTriggerManaOnAttack, coreTriggerManaOnInjury,
     coreTriggerDeath, coreTriggerBattleEnd, coreTryRevive, coreApplyLuckyRing,
-    coreResolveHit, coreApplyHitTriggers, coreBeginDamageBatch, coreEndDamageBatch,
+    coreResolveHit, coreApplyHitTriggers, coreHitAll, coreBeginDamageBatch, coreEndDamageBatch,
   };
 }

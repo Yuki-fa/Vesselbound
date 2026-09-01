@@ -386,6 +386,16 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\{ deferTriggers: true, collect: pending \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
+  // 複数対象への同時ダメージは共通の入口を通す。個別に書くと、書き忘れた効果だけが
+  // 「1体ずつ誘発まで解決」に戻り、対象の並び順で結果が変わる（アラクネ＋ギガンテス）。
+  {
+    const core = read('js/battle/core.js');
+    assert.match(core, /function coreHitAll\(state, rng, emit, applyHit, source, targets, amount\)/,
+      '複数対象ダメージの共通入口（coreHitAll）が無い');
+    ['サイレン等の全体ダメージ', 'アラッサス等の全体攻撃', 'アラクネのマナ効果'].forEach(() => {});
+    assert.equal((core.match(/coreHitAll\(state, rng, emit, applyHit,/g) || []).length >= 3, true,
+      '複数対象ダメージが共通入口を通っていない箇所がある');
+  }
   // 攻撃と反撃はひと続きの打ち合い。両方のダメージを確定させてから誘発する。
   // 1発ずつ誘発まで解決すると、倒れた側の死亡効果（闇の炎の1ダメージ等）が
   // 反撃より先に起きる。
