@@ -215,6 +215,9 @@
       // **ボタンを押したのと同じ経路**で自動的に進む（フェードも尺も同一）。
       afterShown: overlay => new Promise(resolve => {
         if (typeof _armBattleContinue !== 'function') { resolve(); return; }
+        // 暗転はこちらで保つ。進行処理側で外すと、画面が切り替わる前に
+        // 盤面が一瞬明るく見える。切り替えが済んでから外す。
+        G._battleFadeHeldByCaller = true;
         _armBattleContinue(overlay, () => {
           document.body.classList.remove('battle-victory-pending');
           resolve();
@@ -259,11 +262,26 @@
     document.body.classList.remove('online-versus-active', 'battle-victory-pending');
     const introEl = document.getElementById('battle-start-intro');
     if (introEl) introEl.remove();
-    const fade = document.getElementById('battle-end-fade');
-    if (fade) { fade.classList.remove('is-visible', 'is-final'); fade.removeAttribute('style'); }
+    // 暗転は「画面が切り替わった後」に外す。ここで即座に外すと、盤面が
+    // まだ見えている状態で明るくなってしまう（決着後に一瞬明るくなる原因）。
+    const _clearFades = () => {
+      ['battle-end-fade', 'battle-transition-fade'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('is-visible', 'is-final');
+        el.removeAttribute('style');
+      });
+      if (typeof G !== 'undefined' && G) G._battleFadeHeldByCaller = false;
+    };
     const host = document.getElementById('scr-battle');
     if (host) host.classList.remove('battle-opening-pending', 'battle-opening-active', 'battle-start-playing', 'battle-start-no-effect');
-    if (typeof G === 'undefined' || !G || !_saved) return;
+    // 盤面を戻し終えてから暗転を外す。次のマスの入場演出が暗転を引き継ぐ場合は
+    // そちらに任せる（村・祭壇へ入る時）。**どの経路で抜けても必ず外す。**
+    const _scheduleClear = () => requestAnimationFrame(() => {
+      if (typeof G !== 'undefined' && G && G._villageIntroPlaying) return;
+      _clearFades();
+    });
+    if (typeof G === 'undefined' || !G || !_saved) { _scheduleClear(); return; }
     G._coreDrivenBattle = false;
     G.allies = _saved.allies;
     G.enemies = _saved.enemies;
@@ -272,6 +290,7 @@
     // 編成画面が一瞬見える。次の遷移側（goToReward / _openWaveVillage）が必ず設定する。
     document.body.classList.toggle('battle-turn-active', _saved.turnActive);
     _saved = null;
+    _scheduleClear();
   }
 
   // 攻撃モーションを開始する。paused=true なら25%地点で止め、release() で接触まで進める。

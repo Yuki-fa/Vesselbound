@@ -1681,6 +1681,9 @@ function continueAfterBattleVictory(silent){
     // （ここで外すと、演出の黒が乗るまでの間だけ盤面が見えてしまう。
     //   _playVillageEnterIntro()が村画面を組み立てた時点で外す）。
     if(typeof G!=='undefined'&&G&&G._villageIntroPlaying) return;
+    // 呼び出し側が画面を切り替えるまで暗転を保つ場合も同じ（オンライン対戦の決着）。
+    // ここで外すと、切り替わる前に盤面が一瞬明るく見えてしまう。
+    if(typeof G!=='undefined'&&G&&G._battleFadeHeldByCaller) return;
     // 報酬は同じ#scr-battle内で切り替わるため、showScreen()を通らない。
     // 遷移後に両方の黒オーバーレイを確実に解除する。
     const endFade=document.getElementById('battle-end-fade');

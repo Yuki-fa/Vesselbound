@@ -394,6 +394,14 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\{ deferTriggers: true, collect: pending \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
+  // 決着後の暗転は、画面が切り替わってから外す。進行処理側で外すと、
+  // 切り替わる前に盤面が一瞬明るく見える。
+  assert.match(read('js/engine/main.js'), /if\(typeof G!=='undefined'&&G&&G\._battleFadeHeldByCaller\) return;/,
+    '決着後の暗転を呼び出し側で保てない（切り替え前に明るくなる）');
+  assert.match(read('js/online/board.js'), /G\._battleFadeHeldByCaller = true;/,
+    'オンラインが決着後の暗転を保っていない');
+  assert.match(read('js/online/board.js'), /_scheduleClear\(\); return; \}/,
+    'オンラインが途中で抜けた時に暗転を外していない（画面が暗いままになる）');
   // 身代わり攻撃でも手番は消費される。渡さないと同じ側が行動し続け、
   // 相手の攻撃ターンが一度も来ない（味方がスケルトンキングだけの時に無限化した）。
   assert.match(read('js/battle/core.js'),
