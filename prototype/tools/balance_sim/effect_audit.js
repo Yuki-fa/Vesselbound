@@ -1125,6 +1125,101 @@ function audit() {
   console.log(`マナ閾値遅延回帰\tdeferred=${!!deferredGain?.deferredAppliedByThreshold}\t復元=${deferredState.resources.p1.mana}\t${deferredOk ? 'OK' : 'NG'}`);
   console.log(`マナ連鎖回帰\t非遅延=${chainPlain.fires}回 ${chainPlain.a} ${chainPlain.b} mana=${chainPlain.mana}\t遅延=${chainDefer.fires}回 ${chainDefer.a} ${chainDefer.b} mana=${chainDefer.mana}\t${chainOk ? 'OK' : 'NG'}`);
   console.log(`個別修正回帰\t${directResults.slice(-4).join('\t')}`);
+  // ── 未監査だったキーワードの回帰（実機報告から追加）──────────────
+  // 二段／三段攻撃・熟練・攻防一体・屍術・マナの種は、これまで監査に無かった。
+  // 屍術（名前と効果文の二重発動）とマナの種（効果の種類によって反復しない）が
+  // 実際に残っていたため、ここで固定する。
+  {
+    const sd = sheetData;
+    const all = [...sd.characterCards(), ...sd.enchantCards()];
+    const P = n => all.find(c => c && c.name === n) || {};
+    const strip = t => String(t || '').replace(/^\d+マナ(?:毎)?[:：]\s*/, '');
+    const mk = (n, id, over, enh) => {
+      const d = P(n);
+      const u = Object.assign({ id, name: n, atk: Number(d.power) || 2,
+        hp: Number(d.life) || 20, maxHp: Number(d.life) || 20,
+        color: d.color || '青', keywords: (d.keywords || []).slice(),
+        desc: String(d.desc || ''),
+        manaCost: Number(d.manaCost) || 0, manaRepeat: !!d.manaRepeat,
+        effectData: { effectNames: [], effectTexts: [], adjacentAbilities: [], extraManaThresholds: [] },
+      }, over || {});
+      (enh || []).forEach(en => {
+        const e = P(en); if (!e.name) return;
+        u.effectData.adjacentAbilities.push(en);
+        u.effectData.effectNames.push(en);
+        u.effectData.effectTexts.push(String(e.desc || ''));
+        if (Number(e.manaCost) > 0 && !u.manaCost) {
+          u.manaCost = Number(e.manaCost); u.manaRepeat = !!e.manaRepeat;
+          u.effectData.manaCost = u.manaCost; u.effectData.manaRepeat = u.manaRepeat;
+          u.effectData.manaThresholdDesc = strip(e._manaThresholdDesc || e.desc);
+        }
+      });
+      return u;
+    };
+    const foe = (id, over) => Object.assign({ id, name: '敵', atk: 1, hp: 300, maxHp: 300,
+      color: '黒', keywords: [], desc: '' }, over || {});
+    const play = (p1, p2, mana, turns) => {
+      const evs = [];
+      const st = core.createBattleState({ sides: { p1: { units: p1 }, p2: { units: p2 } },
+        resources: { p1: { mana: mana || 0, gold: 0 }, p2: { mana: 0, gold: 0 } },
+        summonDefs: all });
+      core.runBattleCore(st, createSeededRng(11), { onEvent: e => evs.push(e), turnLimit: turns || 6 });
+      return evs;
+    };
+    const opening = ev => { const i = ev.findIndex(e => e.type === 'turn_begin'); return ev.slice(0, i < 0 ? ev.length : i); };
+    const firstTurnAttacks = (ev, id) => { const t = []; let cur = null;
+      ev.forEach(e => { if (e.type === 'turn_begin') { if (cur !== null) t.push(cur); cur = 0; }
+        else if (e.type === 'attack' && e.attackerId === id && cur !== null) cur++; });
+      if (cur !== null) t.push(cur);
+      return t.filter(n => n > 0)[0] || 0; };
+    const rows = [];
+    // 二段／三段攻撃は「追加攻撃数」を直接見る。戦闘を1本流すと、先攻の抽選や
+    // 反撃死などで回数が揺れて判定が不安定になるため。
+    ['二段攻撃', '三段攻撃'].forEach((k, i) => {
+      // 強化カードは「名前」で能力を運ぶ（keywords も desc も空のカードがある）。
+      // 強化名は effectData.adjacentAbilities で届く。ここを見落とすと、
+      // オンラインでキーワード付与型の強化がすべて無効になる。
+      const raw = { id: 'A', name: 'ゴブリン', atk: 3, hp: 60, maxHp: 60, color: '青', keywords: [], desc: '',
+        effectData: { adjacentAbilities: [k], effectNames: [k], effectTexts: [], extraManaThresholds: [] } };
+      const st = core.createBattleState({ sides: { p1: { units: [raw] }, p2: { units: [foe('E')] } },
+        resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } }, summonDefs: all });
+      const n = core.coreExtraAttackCount ? core.coreExtraAttackCount(st.units.p1[0]) : -1;
+      rows.push([k, `追加攻撃=${n}`, n === i + 1]);
+    });
+    {
+      const atk = (play([mk('ゴーレム', 'G', { atk: 2, hp: 40, maxHp: 40 }, ['熟練'])], [foe('E', { atk: 3 })], 0)
+        .find(e => e.type === 'stat_change' && e.unitId === 'G') || {}).atk;
+      rows.push(['熟練', `負傷バフ=+${atk}`, atk === 3]);
+    }
+    {
+      const d = play([mk('ゴブリン', 'A', { atk: 1, hp: 9, maxHp: 9 }, ['攻防一体'])], [foe('E')], 0)
+        .find(e => e.type === 'damage' && e.unitId === 'E');
+      rows.push(['攻防一体', `一撃=${d && d.amount}`, !!d && d.amount === 9]);
+    }
+    {
+      const ev = play([mk('ゴブリン', 'A', { atk: 9, hp: 60, maxHp: 60 }, ['屍術'])],
+        [foe('E1', { hp: 1, maxHp: 1 }), foe('E2', { hp: 1, maxHp: 1 }), foe('E3')], 0);
+      const deaths = ev.filter(e => e.type === 'death').length;
+      const buffs = ev.filter(e => e.type === 'stat_change' && e.unitId === 'A' && e.reason === 'necromancy').length
+        + ev.filter(e => e.type === 'stat_change' && e.unitId === 'A' && e.reason === 'character_death_self_buff').length;
+      rows.push(['屍術', `死亡=${deaths} バフ=${buffs}`, deaths > 0 && deaths === buffs]);
+    }
+    {
+      // マナ閾値は loader.js が計算する manaCost に依存し、sheetData には無い。
+      // ここでは「マナの種が効果の種類を問わず反復する」ことをコアの反復数で見る。
+      const seeded = mk('ゴブリン', 'S', { hp: 60, maxHp: 60 }, ['マナの種']);
+      const plainU = mk('ゴブリン', 'P', { hp: 60, maxHp: 60 });
+      const st = core.createBattleState({ sides: { p1: { units: [seeded, plainU] }, p2: { units: [foe('E')] } },
+        resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } }, summonDefs: all });
+      const c1 = core.coreEffectCount ? core.coreEffectCount(st.units.p1[0], 'マナの種') : -1;
+      const c0 = core.coreEffectCount ? core.coreEffectCount(st.units.p1[1], 'マナの種') : -1;
+      rows.push(['マナの種', `反復数=${c0}→${c1}`, c0 === 0 && c1 === 1]);
+    }
+    const bad = rows.filter(r => !r[2]);
+    console.log('未監査キーワード回帰\t' + rows.map(r => `${r[0]}=${r[1]}`).join('\t')
+      + '\t' + (bad.length ? 'NG:' + bad.map(r => r[0]).join(',') : 'OK'));
+    if (bad.length) ng += bad.length;
+  }
   console.log(`監査結果: ${ng === 0 ? 'NG 0' : `NG ${ng}`}`);
   return ng;
 }

@@ -2522,7 +2522,12 @@ function coreApplyDeathObservers(dead, state, rng, emit, applyHit) {
   all.filter(u => u.hp > 0 && u.side === dead.side && coreHasEffect(u, 'レヴナント')
     && !/味方が死亡するたび、このキャラクターは\+1\/\+1を得る/.test(coreUnitEffectText(u)))
     .forEach(u => addStats(u, 1, 1, 'revenant'));
-  all.filter(u => u.hp > 0 && coreHasEffect(u, '屍術')).forEach(u => addStats(u, 1, 1, 'necromancy'));
+  // 屍術の効果文は「キャラクターが死亡するたび、+1/+1を得る」。すぐ上の
+  // 効果文による判定と**同じ条件**なので、名前でも数えると2回乗る。
+  // レヴナントと同じく、効果文で既に処理された体はここでは数えない。
+  all.filter(u => u.hp > 0 && coreHasEffect(u, '屍術')
+    && !/キャラクターが死亡するたび、\+1\/\+1を得る/.test(coreUnitEffectText(u)))
+    .forEach(u => addStats(u, 1, 1, 'necromancy'));
   all.filter(u => u.hp > 0 && u.side === 'p2' && coreHasEffect(u, '虚空の渡し守"ナグルファル"')).forEach(u => addStats(u, 3, 1, 'naglfar'));
   if (dead.side === 'p1') all.filter(u => u.hp > 0 && u.side === 'p2' && coreHasEffect(u, '忘却の骸"ゲルミール"')).forEach(u => {
     (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 3, 'gellmir'));
@@ -2909,7 +2914,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
           emit({ type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(poison[1]) });
         });
         const randomColor = text.match(/^ランダムな([赤青緑黄紫茶])の?キャラクター(?:(\d+)体)?は\+([0-9]+)\/\+([0-9]+)を得る/);
-        if (randomColor && !/^ランダムな紫のキャラクターは\+/.test(text)) {
+        if (randomColor && !/^ランダムな紫のキャラクターは\+/.test(text)) for (let repeat = 0; repeat < repeatCount; repeat++) {
           const color = randomColor[1] === '茶' ? '黄' : randomColor[1];
           const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === color);
           const count = Math.max(1, Number(randomColor[2]) || 1);
@@ -3033,7 +3038,10 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
           emit({ type: 'keyword_effect', effect: 'poison', side: target.side, unitId: target.id, amount, sourceId: unit.id });
         });
         const randomPurpleBuff = text.match(/^ランダムな紫のキャラクターは\+([0-9]+)\/\+([0-9]+)を得る/);
-        if (randomPurpleBuff) {
+        // マナの種・賢者の指輪の反復は**効果の種類を問わず**効かせる。
+        // 自己バフ型だけ反復していたため、対象がランダムな効果や召喚では
+        // マナの種が何も足していなかった。
+        if (randomPurpleBuff) for (let repeat = 0; repeat < repeatCount; repeat++) {
           const target = rng.pick((state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === '紫'));
           if (target) addStatsForManaThreshold(target, Number(randomPurpleBuff[1]), Number(randomPurpleBuff[2]), 'mana_threshold_random_purple');
         }
@@ -3046,7 +3054,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
           }
         }
         const summonWolf = text.match(/^「緑ウルフ」を召喚する/);
-        if (summonWolf) coreSummonUnit(state, side, {
+        if (summonWolf) for (let repeat = 0; repeat < repeatCount; repeat++) coreSummonUnit(state, side, {
           name: '緑ウルフ', color: '緑', placement: 'rightEdge'
         }, emit, unit.id);
         const randomTransform = text.match(/^ランダムな敵を「([^」]+)」に変身させる/);
