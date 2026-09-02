@@ -3171,7 +3171,14 @@ function coreBattleStep(ctx) {
     if (silenced) delete attacker._silenced;
     delete attacker._currentAttackTarget;
     delete attacker._attackTargetWasWounded;
-    if (attackEffectResult.skipAttack) { result = decided(); return { side, result, stop: false }; }
+    // 身代わり攻撃（スケルトンキングの召喚体・操作した敵）で本人が攻撃しない場合も、
+    // **その手番は消費されている**。ここで手番を渡さないと同じ側が延々と行動し続け、
+    // 相手の攻撃ターンが一度も来ない（味方がスケルトンキングだけの時に無限化した）。
+    if (attackEffectResult.skipAttack) {
+      result = decided();
+      side = foeSide;
+      return { side, result, stop: false };
+    }
     coreApplyManaThresholdEffects(state, rng, emit, applyHit);
     coreApplyRingManaEffects(state, rng, emit, applyHit);
     // マナ閾値効果で召喚された本体に対するリッチ誘発は、同じ閾値処理の

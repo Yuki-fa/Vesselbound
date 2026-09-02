@@ -394,6 +394,11 @@ function main() {
   assert.match(read('js/battle/core.js'),
     /\{ deferTriggers: true, collect: pending \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
+  // 身代わり攻撃でも手番は消費される。渡さないと同じ側が行動し続け、
+  // 相手の攻撃ターンが一度も来ない（味方がスケルトンキングだけの時に無限化した）。
+  assert.match(read('js/battle/core.js'),
+    /if \(attackEffectResult\.skipAttack\) \{\n\s*result = decided\(\);\n\s*side = foeSide;/,
+    '身代わり攻撃のあと手番を渡していない（相手のターンが来なくなる）');
   // 強化カード由来のマナ効果は effectData で届く。ここを見ないと、閾値だけ発火して
   // 効果が何も起きない（オンラインで活性化などが無反応になっていた）。
   {
