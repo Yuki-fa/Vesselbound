@@ -30,6 +30,14 @@ function loadCards() {
   return { cards: [...cards, ...enchants], enemies };
 }
 
+// loader.js が「説明文に名前が出たらキーワードとして付与する」名前の一覧。
+// ここに載る名前のうち、効果文を持つ強化カードは CORE_EFFECT_CARD_NAMES 側にも要る。
+const LOADER_IDENTIFIER_KEYWORDS = new Set([
+  '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '根性', '生贄', '治癒能力', 'マナ生成',
+  '二段攻撃', '三段攻撃', '即死', '三方向攻撃', '先制', '全体攻撃', '生命吸収',
+  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃', '防戦', '帰滅', '隠密', '加護', '貫通',
+  '復活', '強靭', '熟練', '遺志', '共振', '団結', '封印されしもの', '禁断の力', '武器破壊', '戦術', '大盾', '策士']);
+
 const TRIGGERS = [
   ['開戦', /^開戦\s*[：:]/], ['攻撃', /^攻撃(?:[＆&]負傷)?\s*[：:]/],
   ['負傷', /^(?:負傷|攻撃[＆&]負傷)\s*[：:]/], ['死亡', /^死亡\s*[：:]/],
@@ -729,14 +737,17 @@ function audit() {
       `毒=${foe.poison}/ATK=${foe.atk}`);
   }
   {
+    // ワーム：攻撃：全ての敵の毒を発動させる。**毒を持つ敵だけ**がその値ぶん減る。
     const worm = makeDirectUnit('ワーム', 'p1', { id: 'worm' });
-    const foe = { id: 'worm-foe', name: '敵', side: 'p2', atk: 1, hp: 20, maxHp: 20, keywords: [], desc: '' };
-    const s = makeDirectState([worm], [foe], undefined, [{ name: '黒ナイト', color: '黒', power: 1, life: 1 }]);
-    const es = []; worm._currentAttackTarget = foe;
-    core.coreApplyAttackEffects(worm, s, createSeededRng(78), e => es.push(e), () => ({ amount: 0, died: false }));
-    const summons = es.filter(e => e.type === 'summon');
-    recordDirect('ワーム', summons.length === 2 && summons.every(e => e.side === 'p2' && e.placementTargetId === 'worm-foe'),
-      `召喚=${summons.map(e => `${e.side}/${e.placement}`).join(',')}`);
+    const foe = { id: 'worm-foe', name: '敵', side: 'p2', atk: 1, hp: 20, maxHp: 20, keywords: [], desc: '', poison: 3 };
+    const clean = { id: 'worm-foe2', name: '毒なし', side: 'p2', atk: 1, hp: 20, maxHp: 20, keywords: [], desc: '' };
+    const s = makeDirectState([worm], [foe, clean]);
+    // createBattleState() はユニットを複製するので、**状態側の体**を見ること。
+    const sWorm = s.units.p1[0], sFoe = s.units.p2[0], sClean = s.units.p2[1];
+    const es = []; sWorm._currentAttackTarget = sFoe;
+    core.coreApplyAttackEffects(sWorm, s, createSeededRng(78), e => es.push(e), () => ({ amount: 0, died: false }));
+    recordDirect('ワーム', sFoe.hp === 17 && sClean.hp === 20,
+      `毒発動=${20 - sFoe.hp}/毒なし=${20 - sClean.hp}`);
   }
   {
     const wyvern = makeDirectUnit('ワイバーン', 'p1', { id: 'wyvern' });
@@ -949,6 +960,19 @@ function audit() {
     recordDirect('スプリガン', !!stateAlly && es.some(e => e.type === 'keyword_effect' && e.effect === 'shield'), `結界=${stateAlly && stateAlly.shield || 0}`);
   }
   {
+    // エレメンタル：全ての色の味方がそろえばATKとHPが2倍になる。
+    const elemental = makeDirectUnit('エレメンタル', 'p1', { id: 'elemental-full' });
+    const colors = ['赤', '青', '緑', '黄', '紫'].map((color, i) => plainDirectUnit(`elemental-full-${i}`, 'p1', { color }));
+    const s = makeDirectState([elemental, ...colors], []);
+    const sElemental = s.units.p1[0];
+    const baseAtk = sElemental.atk, baseHp = sElemental.maxHp;
+    const es = [];
+    core.coreApplyOpeningEffects(sElemental, s, createSeededRng(105), e => es.push(e), () => {});
+    recordDirect('エレメンタル全色2倍', sElemental.atk === baseAtk * 2 && sElemental.maxHp === baseHp * 2
+      && es.some(e => e.type === 'stat_change' && e.reason === 'opening_all_color_double'),
+      `ATK/HP=${sElemental.atk}/${sElemental.maxHp}`);
+  }
+  {
     const nymph = makeDirectUnit('ニンフ', 'p1', { id: 'nymph' });
     const sealedPurple = makeDirectUnit('封印されしもの', 'p1', { id: 'sealed-purple', color: '紫', _sealed: true });
     const s = makeDirectState([nymph, sealedPurple], [], { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } });
@@ -960,8 +984,13 @@ function audit() {
     const colors = ['赤', '青', '緑', '黄'].map((color, i) => plainDirectUnit(`elemental-${i}`, 'p1', { color }));
     colors.push(makeDirectUnit('封印されしもの', 'p1', { id: 'elemental-sealed', color: '紫', _sealed: true }));
     const s = makeDirectState([elemental, ...colors], []); const es = [];
-    core.coreApplyOpeningEffects(elemental, s, createSeededRng(104), e => es.push(e), () => {});
-    recordDirect('エレメンタル封印色除外', !elemental.keywords.includes('生命吸収'), `生命吸収=${elemental.keywords.includes('生命吸収')}`);
+    // createBattleState() はユニットを複製するので、**状態側の体**を見ること。
+    const sElemental = s.units.p1[0];
+    const baseAtk = sElemental.atk, baseHp = sElemental.maxHp;
+    core.coreApplyOpeningEffects(sElemental, s, createSeededRng(104), e => es.push(e), () => {});
+    // 封印された紫は色に数えないので、全色そろわず2倍にならない。
+    recordDirect('エレメンタル封印色除外', sElemental.atk === baseAtk && sElemental.maxHp === baseHp,
+      `ATK/HP=${sElemental.atk}/${sElemental.maxHp}`);
   }
   {
     const pegasus = makeDirectUnit('ペガサス', 'p1', { id: 'pegasus' });
@@ -1214,6 +1243,16 @@ function audit() {
       const c1 = core.coreEffectCount ? core.coreEffectCount(st.units.p1[0], 'マナの種') : -1;
       const c0 = core.coreEffectCount ? core.coreEffectCount(st.units.p1[1], 'マナの種') : -1;
       rows.push(['マナの種', `反復数=${c0}→${c1}`, c0 === 0 && c1 === 1]);
+    }
+    {
+      // 効果文を持つ強化カードの「名前」は効果の識別子であってキーワードではない。
+      // これを CORE_EFFECT_CARD_NAMES に入れ忘れると、策士がカード名をキーワードとして
+      // 数えて+2/+2ずつ過剰に加算する（野生の力で発覚）。カード追加時の追随漏れをここで落とす。
+      const named = sheetData.enchantCards().map(c => c.name).filter(Boolean);
+      const missing = named.filter(n => !core.CORE_EFFECT_CARD_NAMES.has(n)
+        && LOADER_IDENTIFIER_KEYWORDS.has(n));
+      rows.push(['強化カード名の非キーワード化', `効果文あり=${named.length} 漏れ=${missing.join(',') || 'なし'}`,
+        missing.length === 0]);
     }
     const bad = rows.filter(r => !r[2]);
     console.log('未監査キーワード回帰\t' + rows.map(r => `${r[0]}=${r[1]}`).join('\t')

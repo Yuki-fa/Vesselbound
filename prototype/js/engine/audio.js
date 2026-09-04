@@ -39,6 +39,8 @@ const SFX_SETTINGS={
   masterVolume: 1.0, 
   // 長い攻撃音・死亡音が多数重なっても、魔法／毒／カード効果音を拒否しない。
   maxVoices:24,
+  // **同じ音を同時に鳴らす上限。** 同じ波形が重なると振幅が足し算になり音が割れる。
+  maxSameSound:2,
   groups:{
     ui:    {guardMs:120, volume: 1.0}, 
     // maxPlayMs：戦闘中は短時間に大量の攻撃音が重なるため、原音が長い（attack.wavは3秒超）
@@ -96,13 +98,37 @@ const SFX_SETTINGS={
     victory:    {group:'ui',     volume: .82, guardMs:1200}, // -10.3
     bossVictory:{group:'ui',     volume: .80, guardMs:1200}, // -10.1
     lifeLost:   {group:'ui',     volume: 1.00}, // -20.5
-    S002:       {group:'magic',  volume: .46, guardMs:80}, // 特殊演出：封印解放 -4.2
-    S003:       {group:'magic',  volume: 1.00, guardMs:80}, // 特殊演出：生贄破棄 -12.8
+    K019:       {group:'magic',  volume: 0.40}, // 封印解放（旧S002）（実測-3.0dBFS）
+    S001:       {group:'magic',  volume: 0.92}, // 特殊演出：戦闘中の召喚（実測-10.3dBFS）
+    S005:       {group:'magic',  volume: 1.00}, // 特殊演出：攻撃時のバフ効果（実測-11.2dBFS）
+    S007:       {group:'magic',  volume: 0.63}, // 特殊演出（シート指定）（実測-7.0dBFS）
+    C008:       {group:'magic',  volume: 0.42}, // アラクネ（実測-3.5dBFS）
+    C011:       {group:'magic',  volume: 0.67}, // サイレン（実測-7.9dBFS）
+    C017:       {group:'magic',  volume: 0.56}, // メデューサ（実測-6.0dBFS）
+    C019:       {group:'magic',  volume: 1.00}, // ケンタウロス発射（実測-12.0dBFS）
+    C019_HIT:   {group:'magic',  volume: 0.43}, // ケンタウロス着弾（実測-3.7dBFS）
+    K020:       {group:'magic',  volume: 0.39}, // 復活（実測-2.9dBFS）
+    S004:       {group:'magic',  volume: 1.00}, // 特殊演出：マナ増加（実測-20.9dBFS）
+    // シートの「VFX/SE」列に書ける番号は、ここにも必ず登録すること。
+    // 登録が無いと playSfx() が鳴らず、絵だけ出て音が出ない。
+    S003:       {group:'magic',  volume: 0.83}, // 特殊演出：金貨（旧C001）（実測-9.5dBFS）
+    S006:       {group:'magic',  volume: 0.53}, // 特殊演出：負傷効果（旧C003）（実測-5.4dBFS）
+    S008:       {group:'magic',  volume: 0.89}, // 特殊演出：活性化（旧E045）（実測-10.0dBFS）
+    S009:       {group:'magic',  volume: 0.77}, // 特殊演出：バフ（常時）（実測-8.8dBFS）
+    K007:       {group:'combat',  volume: 0.50}, // 貫通（実測-4.9dBFS）
+    K008:       {group:'combat',  volume: 0.53}, // 三方向攻撃（実測-5.4dBFS）
+    K009:       {group:'combat',  volume: 0.40}, // 全体攻撃（実測-2.9dBFS）
     // キャラクター固有ボイス（グループはuiのまま＝combatのmaxPlayMs打ち切りを受けない）
     C001:       {group:'ui',     volume: .97}, // -10.7
     C002:       {group:'ui',     volume: .55}, // -5.8
     C003:       {group:'ui',     volume: .73}, // -8.3
-    K026:       {group:'ui',     volume: 1.00}, // -19.2
+    K023:       {group:'magic',  volume: 1.00}, // マナ効果（旧K026）（実測-17.3dBFS）
+    // 強化カードの効果SE（カードNo.で引く）
+    E045:       {group:'ui',     volume: 1.00},
+    E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）
+    E058_HIT:   {group:'magic',  volume: 0.42}, // 炎の矢（着弾）（実測-3.5dBFS）
+    K003:       {group:'combat',  volume: 0.47}, // 毒牙（毒のデバフを受けた瞬間）（実測-4.5dBFS）
+    K017:       {group:'combat',  volume: 1.00}, // 毒（毒でダメージを受けた瞬間）（実測-19.5dBFS）
   },
 };
 
@@ -110,6 +136,8 @@ const _sfxCache={};
 const _sfxLastPlayed={};
 let _sfxUnlocked=false;
 let _sfxActiveVoices=0;
+// 鳴っている本数を音ごとに数える（同じ波形の重ねすぎ＝音割れを防ぐ）。
+const _sfxPlayingByKey=Object.create(null);
 let _bgmAudio=null;
 let _bgmNextAudio=null;
 let _bgmKey='';
@@ -223,6 +251,8 @@ const SFX_VOICE_POOL_MAX=4;
 function _makeSfxVoice(base){
   const a=base.cloneNode();
   a.preload='auto';
+  // 鳴っている効果音をまとめて止められるようにする目印（stopAllSfx）。
+  a.dataset.sfxVoice='1';
   // iOS/Safari等では、DOMから外れたAudio複製が再生開始前に回収されることがある。
   // 再生中だけ非表示要素として保持する。
   a.setAttribute('aria-hidden','true');
@@ -245,14 +275,29 @@ function _freeSfxVoice(key,a){
   if(a.parentNode) a.parentNode.removeChild(a);
 }
 
-// 使う音を先に1つずつ鳴らせる状態にしておく。戦闘の最初の一撃だけ
-// 鳴り始めが遅れるのを防ぐ。
+// ── 鳴っている効果音を全部止める ────────────────────────────
+// 戦闘そのものが中断された時（試験戦闘の終了など）に使う。
+// 効果のSEには長いものがあり、止めないと画面を移った後も鳴り続ける。
+// BGMは対象外（別経路で管理している）。
+function stopAllSfx(){
+  if(typeof document==='undefined') return;
+  document.querySelectorAll('audio[data-sfx-voice]').forEach(a=>{
+    try{ a.pause(); a.currentTime=0; }catch(e){}
+  });
+  _sfxActiveVoices=0;
+  Object.keys(_sfxPlayingByKey).forEach(k=>{ _sfxPlayingByKey[k]=0; });
+}
+
+// 使う音を先に鳴らせる状態にしておく。戦闘の最初の一撃だけ鳴り始めが遅れるのを防ぐ。
+// **プールの上限まで暖めること。** 暖機が2本だと、前のターンの音がまだ鳴り終わって
+// いない間に次のターンの同じ音が来た時点で、読み込み前の複製を作ることになり、
+// その1回だけ鳴り始めが遅れる（「たまにヒット音がずれる」原因）。
 function warmSfxVoices(keys){
   (keys||[]).forEach(key=>{
     const base=_sfxAudio(key);
     if(!base) return;
     const pool=_sfxVoicePool[key]||(_sfxVoicePool[key]=[]);
-    while(pool.length<2) pool.push(_makeSfxVoice(base));
+    while(pool.length<SFX_VOICE_POOL_MAX) pool.push(_makeSfxVoice(base));
   });
 }
 
@@ -313,6 +358,10 @@ function playSfx(key,opts={}){
   const now=performance.now();
   if(now-(_sfxLastPlayed[guardKey]||0)<guardMs) return false;
   if(_sfxActiveVoices>=SFX_SETTINGS.maxVoices) return false;
+  // **同じ音を同時に何本も重ねない。** 同じ波形が重なると振幅がそのまま足し算に
+  // なり、1本では割れない音でも簡単に振り切れる（矢を4本同時に撃つ等）。
+  // guardMs=0 で意図的に連射している呼び出しがあるので、ここは本数で止める。
+  if((_sfxPlayingByKey[key]||0)>=SFX_SETTINGS.maxSameSound) return false;
   _sfxLastPlayed[guardKey]=now;
 
   // **複製を使い回す。** cloneNode()で毎回作り直すと、その複製は読み込みからやり直しになり、
@@ -325,11 +374,13 @@ function playSfx(key,opts={}){
   a.playbackRate=Math.max(.5,Math.min(2,speed));
   a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.masterVolume));
   _sfxActiveVoices++;
+  _sfxPlayingByKey[key]=(_sfxPlayingByKey[key]||0)+1;
   let released=false;
   const release=()=>{
     if(released) return;
     released=true;
     _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
+    _sfxPlayingByKey[key]=Math.max(0,(_sfxPlayingByKey[key]||0)-1);
     _freeSfxVoice(key,a);
   };
   a.addEventListener('ended',release,{once:true});

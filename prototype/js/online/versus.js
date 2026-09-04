@@ -90,6 +90,13 @@
           manaCost: Number(u.manaCost) || 0,
           manaRepeat: !!u.manaRepeat,
           manaThresholdDesc: String(u._manaThresholdDesc || ''),
+          // 効果固有VFXを引くカードNo.（活性化＝E045）。演出の引き当てに要る。
+          manaThresholdNo: String(u._manaThresholdNo || ''),
+          // マナ順位（発動順）。落とすとオンラインだけ順序が変わる。
+          manaThresholdOrder: u._manaThresholdOrder,
+          manaOrder: u.manaOrder,
+          // シートの「VFX/SE」列。落とすとオンラインだけ演出が別素材になる。
+          fxCode: String(u.fxCode || ''),
           extraManaThresholds: Array.isArray(u._extraManaThresholds)
             ? u._extraManaThresholds.map(x => ({ ...x })) : [],
           adjacentAbilities: Array.isArray(u._adjacentPanelAbilities) ? u._adjacentPanelAbilities.slice() : [],
@@ -118,9 +125,15 @@
       },
       resources: {
         p1: {
-          mana: typeof _ensureMana === 'function' ? Number(_ensureMana()) || 0 : 0,
+          // マナは戦闘ごとの資源で、開戦時は必ず0から始まる。
+          // オフラインは startBattle() が開戦時に G.mana=0 へ戻すため、ここで G.mana を
+          // 読むと「リセット前の持ち越しマナ」を初期値として送ってしまい、開戦した瞬間に
+          // 大量のマナがある状態になる（活性化などの「Nマナ毎」が一気に何度も発動する）。
+          mana: 0,
           gold: typeof G !== 'undefined' && G ? Number(G.gold) || 0 : 0,
         },
+        // 相手側も同じく0から。片側だけ初期マナを持つと開幕から有利不利がつく。
+        p2: { mana: 0, gold: 0 },
       },
     };
   }

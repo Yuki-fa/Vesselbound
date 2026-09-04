@@ -45,25 +45,73 @@ const coreMathRng = {
 // ══════════════════════════════════════════
 
 // キーワードとしてではなく強化カード名として書かれているものは、キーワード扱いしない。
+// この一覧の名前は unit.keywords からも取り除かれる（_applyAdjacentPanelEnhancements）。
 const CORE_KEYWORD_CARD_NAMES = new Set(
   ['封印されしもの', '禁断の力', '武器破壊', '団結', '共振', '遺志', '熟練', '戦術', '大盾', '策士', '攻防一体']);
+
+// 効果文（desc）を持つ強化カードの名前は「効果の識別子」であってキーワードではない。
+// キーワード数を数える側（策士）とキーワード表示だけがこれを見る。
+// CORE_KEYWORD_CARD_NAMES と違い unit.keywords からは取り除かない：
+// 逆襲・恩寵・錬成などは keywords の個数で発動回数を数えているため、消すと効果が消える。
+// descが空の強化カード（即死・貫通・先制・毒の刃など）は本物のキーワードなので、ここには入れない。
+// 新しい強化カードを足した時の追随漏れは tools/balance_sim/effect_audit.js が検出する。
+const CORE_EFFECT_CARD_NAMES = new Set([...CORE_KEYWORD_CARD_NAMES,
+  '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '治癒能力', 'マナ生成',
+  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃']);
 // 効果文に書かれていれば自身が持つものとして扱うキーワード。
 const CORE_TEXT_KEYWORDS = ['復活', '根性', 'ヘイト', '二段攻撃', '三段攻撃', '三方向攻撃', '全体攻撃', '先制', '隠密'];
 const CORE_REMOVED_KEYWORDS = new Set(['生贄', '狩人', '狙撃', '強靭', 'エリート', 'ボス']);
 
+// ウォーグ：常時：味方が7体以上になるたび、すべての味方は+5/+5を得る。
+//
+// **数えるのは「効果1回」。** 1回の効果で複数体が召喚されて7体以上になっても発動は1回、
+// 既に7体以上の時にさらに召喚されても、その効果につき1回だけ全員へ乗る。
+//   例）6体の時に3体召喚＝1回／9体の時に1体召喚＝1回／9体の時に3体召喚＝1回
+// 召喚は1体ずつ解決されるため、コア側で「効果のまとまり」を作る必要がある。
+// 効果の入口（開戦・攻撃・負傷・死亡・マナ効果など）で coreBeginSummonBatch()／
+// coreEndSummonBatch() を掛け、その間の増加はまとめて1回として扱う。
+function coreBeginSummonBatch(state) {
+  if (!state) return;
+  state._wargBatchDepth = (Number(state._wargBatchDepth) || 0) + 1;
+}
+function coreEndSummonBatch(state, emit) {
+  if (!state) return;
+  state._wargBatchDepth = Math.max(0, (Number(state._wargBatchDepth) || 1) - 1);
+  if (state._wargBatchDepth > 0) return;
+  const pending = state._wargPending;
+  state._wargPending = null;
+  if (!pending) return;
+  ['p1', 'p2'].forEach(side => { if (pending[side]) coreFireWargThreshold(state, side, emit); });
+}
 function coreApplyWargThreshold(state, side, emit) {
-  const units = (state.units && state.units[side] || []).filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul);
-  const count = units.length;
-  const previous = Number(state._wargLiveCount && state._wargLiveCount[side]) || 0;
+  const count = ((state.units && state.units[side]) || [])
+    .filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul).length;
   state._wargLiveCount = state._wargLiveCount || { p1: 0, p2: 0 };
+  const previous = Number(state._wargLiveCount[side]) || 0;
   state._wargLiveCount[side] = count;
-  if (count < 7 || previous >= 7) return;
+  if (count <= previous) return;   // 減った・変わらない（開戦の走査や死亡）＝何も起きない
+  if (Number(state._wargBatchDepth) > 0) {
+    // 効果の終わりにまとめて1回だけ判定する。
+    state._wargPending = state._wargPending || {};
+    state._wargPending[side] = true;
+    return;
+  }
+  coreFireWargThreshold(state, side, emit);
+}
+function coreFireWargThreshold(state, side, emit) {
+  const units = ((state.units && state.units[side]) || [])
+    .filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul);
+  if (units.length < 7) return;
   units.filter(x => coreHasEffect(x, 'ウォーグ') && !coreIsSealed(x)).forEach(source => {
     units.filter(x => !coreIsSealed(x)).forEach(target => {
-      target.atk += coreStatBonus(target, 5);
-      target.maxHp += coreStatBonus(target, 5);
-      target.hp += coreStatBonus(target, 5);
-      emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: 5, hp: 5, reason: 'warg_count_buff', sourceId: source.id });
+      // **加算した値をそのままイベントへ載せる。** +5固定で載せていた頃は、
+      // 紫修正などの補正が乗る編成で表示上のATK/HPと実際の値がずれていた。
+      const atk = coreStatBonus(target, 5);
+      const hp = coreStatBonus(target, 5);
+      target.atk += atk;
+      target.maxHp += hp;
+      target.hp += hp;
+      emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'warg_count_buff', sourceId: source.id });
     });
   });
 }
@@ -206,8 +254,22 @@ function coreAttackSpread(unit, opts) {
   const raw = !!(opts && opts.fromKeywordsOnly);
   const has = kw => raw ? (unit && unit.keywords || []).includes(kw) : coreUnitHasKeyword(unit, kw);
   if (has('全体攻撃')) return 'all';
+  // 三方向攻撃と貫通を同時に持つ場合は、三方向攻撃を優先し、貫通を無効にする。
   if (has('三方向攻撃')) return 'tri';
   return '';
+}
+
+// 三方向攻撃の対象は、対象と同じ前後列の左右隣接スロットだけ。
+// 固定長の盤面配列を使うため、空きスロットや後衛を詰めて隣扱いしない。
+function coreTriDirectionTargets(target, list) {
+  if (!target) return [];
+  const arr = Array.isArray(list) ? list : [];
+  const lane = target.lane || 'front';
+  const sameRow = arr.filter(u => u && (u.lane || 'front') === lane);
+  const idx = sameRow.indexOf(target);
+  if (idx < 0) return [];
+  return [idx - 1, idx, idx + 1].map(i => sameRow[i]).filter(u =>
+    u && u.hp > 0 && !coreIsSealed(u) && !u._isObject && !u._isSoul);
 }
 
 // ══════════════════════════════════════════
@@ -341,6 +403,12 @@ function coreSelectAttackTarget(attacker, defenders, rng, opts) {
 
 // 貫通：前衛キャラクターへの攻撃時、その後ろに位置する後衛キャラクター（最大3人）にも同じダメージを与える。
 // 前衛F人・後衛R人の場合、後衛R人をF分割し、front側の位置indexに対応する区画を「真後ろ」とみなす。
+// 貫通で巻き込む後衛＝**その前衛カードの真後ろに重なって見える後衛**（最大3体）。
+// 前衛・後衛はどちらも同じ幅のカードを中央寄せで並べるので、
+// 「中央からの位置（カード何枚分か）」の差が1枚未満なら重なって見える。
+// 以前は後衛を前衛の人数で等分する近似だったため、
+// **画面では貫通の線上にいない後衛にダメージが入っていた**（利用者報告）。
+const CORE_PIERCE_MAX_REAR = 3;
 function corePierceRearTargets(target, list) {
   if (!target || (target.lane || 'front') === 'rear') return [];
   const live = (list || []).filter(u => u && u.hp > 0 && !u._isObject && !coreIsSealed(u));
@@ -349,10 +417,14 @@ function corePierceRearTargets(target, list) {
   const idx = front.indexOf(target);
   if (idx < 0 || !rear.length) return [];
   const F = front.length, R = rear.length;
-  const start = Math.round(idx * R / F);
-  const end = Math.round((idx + 1) * R / F) - 1;
-  if (end < start) return [];
-  return rear.slice(start, end + 1);
+  // 中央を0としたカード枚数単位の位置。
+  const frontPos = idx - (F - 1) / 2;
+  return rear
+    .map((u, j) => ({ u, gap: Math.abs((j - (R - 1) / 2) - frontPos) }))
+    .filter(x => x.gap < 1)
+    .sort((a, b) => a.gap - b.gap)
+    .slice(0, CORE_PIERCE_MAX_REAR)
+    .map(x => x.u);
 }
 
 // 決着がつかない場合の打ち切り。到達したら引き分け扱い。
@@ -365,6 +437,20 @@ const BATTLE_CORE_SIDES = ['p1', 'p2'];
 
 // 「熟練」は戦闘中に得る正のATK/HP修正へ一律に+1する魔導板効果。
 // 個別効果側で加算すると、将来追加される効果だけ漏れるため、コアの変更入口で処理する。
+// ヴォイド・ウォーカーの紫修正（`_voidWalkerBonus`）を盤面から作り直す。
+// **キャッシュを1箇所で作り直すこと。** 召喚・死亡・仲間化で盤面が変わるたびに
+// ずれるため、状態を作った時・召喚した時・手番の頭で必ず通す。
+// （初期化を忘れた経路があると、その体だけ紫修正が乗らない＝ツインデビルの
+//   本体とコピーで +1/+1 と +2/+2 が食い違っていた。）
+function coreRefreshVoidWalkerBonus(state) {
+  if (!state || !state.units) return;
+  ['p1', 'p2'].forEach(side => {
+    const list = (state.units[side] || []).filter(Boolean);
+    const hasVoidWalker = list.some(u => u.hp > 0 && coreHasEffect(u, 'ヴォイド・ウォーカー'));
+    list.forEach(u => { u._voidWalkerBonus = hasVoidWalker && u.color === '紫' ? 1 : 0; });
+  });
+}
+
 function coreStatBonus(target, value) {
   const n = Number(value) || 0;
   if (n <= 0) return n;
@@ -425,6 +511,17 @@ function createCoreUnit(raw, side, index) {
     // 効果文が空のまま閾値だけ発火し、「発動しているのに何も起きない」状態になる。
     manaThresholdDesc: String(raw && (raw.manaThresholdDesc || raw._manaThresholdDesc
       || (raw.effectData && raw.effectData.manaThresholdDesc)) || ''),
+    // その効果の固有VFXを引くためのカードNo.（活性化＝E045等）。
+    // 効果文と同じ経路で運ぶ。落とすと演出側が「どの効果か」を知れない。
+    manaThresholdNo: String(raw && (raw.manaThresholdNo || raw._manaThresholdNo
+      || (raw.effectData && raw.effectData.manaThresholdNo)) || ''),
+    // シートの「VFX/SE」列。そのカードの効果で使う演出の番号（No.とは別に指定できる）。
+    fxCode: String(raw && raw.fxCode || ''),
+    // シートの「マナ順位」。小さいほど先に処理する。空欄なら未設定のまま。
+    manaOrder: Number(raw && raw.manaOrder),
+    manaThresholdOrder: Number(raw && (raw.manaThresholdOrder != null ? raw.manaThresholdOrder
+      : (raw._manaThresholdOrder != null ? raw._manaThresholdOrder
+        : (raw.effectData && raw.effectData.manaThresholdOrder)))),
     extraManaThresholds: Array.isArray(raw && raw.extraManaThresholds)
       ? raw.extraManaThresholds.map(x => ({ ...x }))
       : (Array.isArray(raw && raw._extraManaThresholds) ? raw._extraManaThresholds.map(x => ({ ...x })) : []),
@@ -483,11 +580,11 @@ function createCoreUnit(raw, side, index) {
 // 召喚経路ごとの引き継ぎ漏れを作らないよう、両経路でこの一覧を共有する。
 const CORE_UNIT_EFFECT_STATE_FIELDS = [
   'manaOnAttack', 'manaOnInjury', 'manaOnDeath', 'goldOnBattleEnd', 'goldOnDeath',
-  'randomItemOnBattleEnd', 'randomItemCost', 'manaCost', 'manaRepeat', 'manaThresholdDesc',
+  'randomItemOnBattleEnd', 'randomItemCost', 'manaCost', 'manaRepeat', 'manaThresholdDesc', 'manaThresholdNo', 'manaOrder', 'manaThresholdOrder', 'fxCode',
   'extraManaThresholds', 'weakenOnHit', 'effectRepeatBonus', '_effectRepeatBonus',
   '_adjacentPanelEffectTexts', '_resonanceEffectNames', '_resonanceEffectScales',
   '_adjacentPanelAbilities', '_adjacentPanelStrategyCount', '_uniteGroups',
-  '_manaThresholdDesc', '_extraManaThresholds',
+  '_manaThresholdDesc', '_manaThresholdNo', '_manaThresholdOrder', '_extraManaThresholds',
 ];
 
 function coreCopyUnitEffectState(target, source, { resetMissing = false } = {}) {
@@ -499,6 +596,8 @@ function coreCopyUnitEffectState(target, source, { resetMissing = false } = {}) 
     if (value === undefined && key === '_resonanceEffectNames') value = source.effectData && source.effectData.effectNames;
     if (value === undefined && key === '_resonanceEffectScales') value = source.effectData && source.effectData.effectScales;
     if (value === undefined && key === 'manaThresholdDesc') value = source._manaThresholdDesc;
+    if (value === undefined && key === 'manaThresholdNo') value = source._manaThresholdNo;
+    if (value === undefined && key === 'manaThresholdOrder') value = source._manaThresholdOrder;
     if (value === undefined && key === 'extraManaThresholds') value = source._extraManaThresholds;
     if (value === undefined && key === 'effectRepeatBonus') value = source._effectRepeatBonus;
     if (value === undefined && key === '_effectRepeatBonus') value = source.effectRepeatBonus;
@@ -542,6 +641,10 @@ function coreUnitSnapshot(u) {
     manaCost: Math.max(0, Number(u.manaCost) || 0),
     manaRepeat: !!u.manaRepeat,
     manaThresholdDesc: String(u.manaThresholdDesc || u._manaThresholdDesc || ''),
+    manaThresholdNo: String(u.manaThresholdNo || u._manaThresholdNo || ''),
+    fxCode: String(u.fxCode || ''),
+    manaOrder: Number(u.manaOrder),
+    manaThresholdOrder: Number(u.manaThresholdOrder != null ? u.manaThresholdOrder : u._manaThresholdOrder),
     extraManaThresholds: Array.isArray(u.extraManaThresholds) ? u.extraManaThresholds.map(x => ({ ...x })) : [],
     weakenOnHit: Math.max(0, Number(u.weakenOnHit) || 0),
     ringInjuryHp: Math.max(0, Number(u.ringInjuryHp) || 0),
@@ -596,9 +699,8 @@ function createBattleState(setup) {
       if (!u) return null;
       return createCoreUnit(u, side, i);
     }).filter(Boolean);
-    const hasVoidWalker = units[side].some(u => coreHasEffect(u, 'ヴォイド・ウォーカー'));
-    units[side].forEach(u => { u._voidWalkerBonus = hasVoidWalker && u.color === '紫' ? 1 : 0; });
   });
+  coreRefreshVoidWalkerBonus({ units });
   return {
     units,
     summonDefs: Array.isArray(setup && setup.summonDefs) ? setup.summonDefs.map(x => ({ ...x })) : [],
@@ -692,6 +794,8 @@ function coreApplyDamage(target, amount, emit, opts) {
     emit({ type: 'damage', side: target.side, unitId: target.id, amount: 0, hpAfter: target.hp,
       blockedBy: res.reason, sourceId: opts && opts.sourceId, counter: !!(opts && opts.counter),
       keywordEffect: opts && opts.keywordEffect || null,
+      suppressAttackHitSfx: !!(opts && opts.suppressAttackHitSfx),
+      damageKind: (opts && opts.damageKind) || 'other',
       redirectedFrom: opts && opts.redirectedFrom || null });
     if (res.reason === 'shield') emit({ type: 'shield_lost', side: target.side, unitId: target.id });
     return { blocked: true, amount: 0, died: false, reason: res.reason };
@@ -703,6 +807,10 @@ function coreApplyDamage(target, amount, emit, opts) {
     sourceId: opts && opts.sourceId, counter: !!(opts && opts.counter),
     keywordEffect: opts && opts.keywordEffect || null,
     redirectedFrom: opts && opts.redirectedFrom || null,
+    // ダメージの種別。再生側はこれが変わったら別の束として順に見せる。
+    damageKind: (opts && opts.damageKind) || 'other',
+    // このダメージを起こした効果のカードNo.（炎の矢＝E058）。専用の命中演出に使う。
+    effectNo: (opts && opts.effectNo) || null,
     // 同じ効果で同時に入ったダメージの印。再生側はこれが同じものを**同時に**見せる。
     // 1体ずつ順に解決していても、見せ方は「一度に起きたこと」に揃えるため。
     batch: (opts && opts.batch) || null,
@@ -714,6 +822,7 @@ function coreApplyDamage(target, amount, emit, opts) {
     // 攻撃するたびに攻撃者の固有VFX・固有SEが出ていた（アラッサス／ゴーレム）。
     effect: (opts && opts.effect !== undefined) ? !!opts.effect
       : !!(opts && opts.sourceId && !opts.counter),
+    suppressAttackHitSfx: !!(opts && opts.suppressAttackHitSfx),
   });
   if (target.hp <= 0) {
     emit({ type: 'death', side: target.side, unitId: target.id });
@@ -728,6 +837,10 @@ function coreManaEffectRepeat(unit) {
 }
 function coreGainResource(state, side, kind, amount, unit, emit, reason, options) {
   let value = Math.max(0, Number(amount) || 0);
+  // **元の量が0なら何も起きない。** 攻撃・負傷のたびに「0マナ得る」で呼ばれるため、
+  // ここで抜けないと下の加算（マーメイドの+1）が0を1に変え、
+  // マナ効果を持たないキャラクターが攻撃・負傷するたびにマナが増えていた。
+  if (!value) return 0;
   if (kind === 'mana' && unit && !(options && options.skipManaRepeat)) value *= coreManaEffectRepeat(unit);
   // マーメイドの効果文と名前／強化データは同じ効果を別表現で保持する。
   // 表現ごとに加算すると、緑キャラクターからのマナだけが二重になる。
@@ -770,6 +883,16 @@ function coreGainResource(state, side, kind, amount, unit, emit, reason, options
   return value;
 }
 
+// 編成データに manaOnAttack が残らない経路でも、攻撃効果の本文から同じ値を
+// 解決する。呼び出し側で別実装を持たず、オンラインとPvEで共通の値にする。
+function coreManaOnAttackValue(unit) {
+  const explicit = Math.max(0, Number(unit && unit.manaOnAttack) || 0);
+  if (explicit) return explicit;
+  const text = coreUnitTriggerText(unit, '攻撃');
+  const match = String(text || '').match(/(?:^|[：:]\s*)(\d+)マナを得る/);
+  return match ? Math.max(0, Number(match[1]) || 0) : 0;
+}
+
 // 幸運の指輪：ダメージ確定後の対象HPが7/77/777になった時、同じゴールドイベントを出す。
 function coreApplyLuckyRing(target, damageDone, state, emit) {
   const hp = Number(target && target.hp) || 0;
@@ -787,14 +910,52 @@ function coreApplyLuckyRing(target, damageDone, state, emit) {
 // **これはルールを変えない。** 解決の順番・結果はそのままで、再生側が
 // 「同時に起きたこと」として見せられるようにするための目印だけを足す。
 // 入れ子になっても最初の印を保つ（誘発の中の別効果まで同じ束にしない）。
+// ダメージの種別。**処理も表示も、この順で1種類ずつ片付ける。**
+// 戦闘ダメージの最中に死亡効果のダメージを出す、といった混在をしないための印。
+// 数字が並ぶ順は再生側が決めるが、「どれが同じ種類か」はここが唯一の正。
+const CORE_DAMAGE_KIND_ORDER = [
+  'attack_effect',           // 攻撃効果で発生するダメージ（アラッサス等）
+  'attack_effect_triggered', // 攻撃効果で誘発するダメージ（ペガサス／マナ生成からの炎の矢等）
+  'combat',                  // 戦闘ダメージ（攻撃と反撃）
+  'injury_effect',           // 負傷効果で発生するダメージ（メデューサ等）
+  'death_effect',            // 死亡効果で発生するダメージ（闇の炎等）
+  'other',                   // 上のどれでもないもの（毒・開戦効果・アイテム等）
+];
+
+// 種別を切り替えて中身を実行する。**内側が勝つ**（戦闘ダメージの誘発で起きた
+// 死亡効果は death_effect）。入れ子から抜けたら必ず元へ戻す。
+function coreWithDamageKind(state, kind, fn) {
+  if (!state) return fn();
+  const prev = state._coreDamageKind;
+  state._coreDamageKind = kind;
+  try { return fn(); } finally { state._coreDamageKind = prev; }
+}
+function coreDamageKind(state) {
+  const kind = state && state._coreDamageKind;
+  return CORE_DAMAGE_KIND_ORDER.includes(kind) ? kind : 'other';
+}
+
+// 同時に見せるダメージの束。**種別が変わったら必ず別の束にする。**
+// 入れ子（戦闘ダメージの束の中で死亡効果が起きる等）があるので積んで持つ。
+// 種別を見ずに「既に束があるなら使い回す」とすると、闇の炎のダメージが
+// 戦闘ダメージと同じ束になり、再生側が同時に出してしまう。
 function coreBeginDamageBatch(state) {
-  if (!state || state._coreDamageBatch) return false;
+  if (!state) return false;
+  const kind = coreDamageKind(state);
+  if (state._coreDamageBatch && state._coreDamageBatchKind === kind) return false;
+  const stack = state._coreDamageBatchStack || (state._coreDamageBatchStack = []);
+  stack.push({ id: state._coreDamageBatch || null, kind: state._coreDamageBatchKind || null });
   state._coreDamageBatchSeq = (Number(state._coreDamageBatchSeq) || 0) + 1;
   state._coreDamageBatch = 'b' + state._coreDamageBatchSeq;
+  state._coreDamageBatchKind = kind;
   return true;
 }
 function coreEndDamageBatch(state) {
-  if (state) state._coreDamageBatch = null;
+  if (!state) return;
+  const stack = state._coreDamageBatchStack || [];
+  const prev = stack.pop() || { id: null, kind: null };
+  state._coreDamageBatch = prev.id;
+  state._coreDamageBatchKind = prev.kind;
 }
 
 // 複数の対象へ同時に作用するダメージ。**全員に入れてから、対象の並び順で誘発する。**
@@ -811,7 +972,7 @@ function coreHitAll(state, rng, emit, applyHit, source, targets, amount) {
       { deferTriggers: true, collect: pending }));
   } finally { if (batched) coreEndDamageBatch(state); }
   pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
-    h.counter, rng, emit, applyHit, h.opt));
+    h.counter, rng, emit, applyHit, h.damageKind ? { ...h.opt, damageKind: h.damageKind } : h.opt));
 }
 
 function coreResolveHit(state, source, target, amount, counter, rng, emit, options) {
@@ -873,6 +1034,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: -damage, hp: 0, reason: 'attack_to_atk' });
     emit({ type: 'damage', side: target.side, unitId: target.id, amount: damage, hpAfter: target.hp,
       sourceId: source.id, counter: false, damageTo: 'atk', effect: false,
+      damageKind: coreDamageKind(state), batch: state._coreDamageBatch || null,
       redirectedFrom: opt.redirectedFrom || null });
     return { blocked: false, amount: damage, died: false, fled: !!target._fled };
   }
@@ -881,21 +1043,31 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     sourceId: source && source.id, counter: !!counter, skipTough: !!opt.skipTough,
     redirectedFrom: opt.redirectedFrom || null,
     batch: state._coreDamageBatch || null,
+    damageKind: coreDamageKind(state),
+    // effectNo：このダメージを起こした効果のカードNo.（炎の矢＝E058）。
+    // 再生側が「対象に当たった瞬間」の専用演出を選ぶために使う。
+    effectNo: coreDamageEffectNo(state, source),
     effect: !!opt.effect || !!(source && !source._coreAttackContact && !counter),
+    suppressAttackHitSfx: !!opt.suppressAttackHitSfx,
   });
   if (result.amount > 0) {
     // シャナ：陣営を問わず、キャラクターがダメージを受けるたびに強化する。
     [...(state.units.p1 || []), ...(state.units.p2 || [])].filter(x => x && x.hp > 0 && coreHasEffect(x, 'シャナ'))
       .forEach(x => {
         x.atk = Math.max(0, x.atk + 1); x.maxHp = Math.max(1, x.maxHp + 1); x.hp += 1;
-        emit({ type: 'stat_change', side: x.side, unitId: x.id, atk: 1, hp: 1, reason: 'shana_damage' });
+        coreEmitPassiveFlash(emit, x);
+        // sourceId＝その常時効果の持ち主。演出側が「誰の効果か」を決めるのに要る。
+        emit({ type: 'stat_change', side: x.side, unitId: x.id, atk: 1, hp: 1, reason: 'shana_damage', sourceId: x.id });
       });
   }
   // 誘発（結界喪失・命中キーワード・負傷・死亡）はここから。
   // deferTriggers が立っている場合は今は発火させず、collect に積んで
   // 呼び出し側が「全員にダメージを入れ終えてから」まとめて解決する。
   if (opt.deferTriggers) {
-    if (Array.isArray(opt.collect)) opt.collect.push({ source, target, result, before, counter: !!counter, opt });
+    // 誘発を後でまとめて解決する時、**原因が戦闘ダメージだったか効果ダメージだったか**は
+    // その場でしか分からない（解決時は既に別の種別に切り替わっている）。ここで控える。
+    if (Array.isArray(opt.collect)) opt.collect.push({ source, target, result, before, counter: !!counter, opt,
+      damageKind: coreDamageKind(state) });
     return result;
   }
   coreApplyHitTriggers(state, source, target, result, before, counter, rng, emit, applyHit, opt);
@@ -931,7 +1103,8 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
         + Math.max(0, Number(target._effectRepeatBonus) || Number(target.effectData && target.effectData.effectRepeatBonus) || 0);
       for (let i = 0; i < repeats && target.hp > 0; i++) {
         const injuryEventSeq = state._coreInjuryEventSeq = (Number(state._coreInjuryEventSeq) || 0) + 1;
-        coreApplyInjuryEffects(target, result.amount, state, rng, emit, applyHit, source, `${injuryEventSeq}:${i}`);
+        coreApplyInjuryEffects(target, result.amount, state, rng, emit, applyHit, source, `${injuryEventSeq}:${i}`,
+          opt.damageKind || coreDamageKind(state));
       }
       if (source && coreHasEffect(source, 'バジリスク')
         && rng && typeof rng.next === 'function' && rng.next() < 0.01 && target.hp > 0) {
@@ -980,6 +1153,7 @@ function coreTriggerAtkGainEffects(target, amount, state, rng, emit, applyHit) {
   if (!foe) return;
   target._coreAtkGainEffectDepth = true;
   try {
+    coreEmitPassiveFlash(emit, target);
     applyHit(target, foe, 2);
   } finally {
     delete target._coreAtkGainEffectDepth;
@@ -1056,6 +1230,24 @@ function coreInsertSummonedUnit(list, child, spec, frontSlots) {
   return at;
 }
 
+// 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）。
+// **陣営ごとに戦闘中ずっと積み上がる。** 以後に召喚された体へ、召喚時に加算する。
+function coreAddSummonBuff(state, side, atk, hp, emit, sourceId) {
+  if (!state || !side || (!atk && !hp)) return;
+  state._summonBuff = state._summonBuff || { p1: { atk: 0, hp: 0 }, p2: { atk: 0, hp: 0 } };
+  const cur = state._summonBuff[side] || (state._summonBuff[side] = { atk: 0, hp: 0 });
+  cur.atk = Math.max(0, (Number(cur.atk) || 0) + (Number(atk) || 0));
+  cur.hp = Math.max(0, (Number(cur.hp) || 0) + (Number(hp) || 0));
+  if (typeof emit === 'function') {
+    emit({ type: 'summon_buff', side, atk: Number(atk) || 0, hp: Number(hp) || 0,
+      totalAtk: cur.atk, totalHp: cur.hp, sourceId: sourceId || null });
+  }
+}
+function coreSummonBuffOf(state, side) {
+  const b = state && state._summonBuff && state._summonBuff[side];
+  return { atk: Math.max(0, Number(b && b.atk) || 0), hp: Math.max(0, Number(b && b.hp) || 0) };
+}
+
 function coreSummonUnit(state, side, spec, emit, sourceId) {
   const list = state.units[side] || (state.units[side] = []);
   // 召喚上限は配列長ではなく、生存中の実ユニット数で判定する。
@@ -1126,6 +1318,10 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     manaOnAttack: source.manaOnAttack, manaOnInjury: source.manaOnInjury, manaOnDeath: source.manaOnDeath,
     goldOnBattleEnd: source.goldOnBattleEnd, goldOnDeath: source.goldOnDeath,
     manaCost: source.manaCost, manaRepeat: source.manaRepeat, manaThresholdDesc: source.manaThresholdDesc || source._manaThresholdDesc,
+    manaThresholdNo: source.manaThresholdNo || source._manaThresholdNo,
+    fxCode: source.fxCode,
+    manaOrder: source.manaOrder,
+    manaThresholdOrder: source.manaThresholdOrder != null ? source.manaThresholdOrder : source._manaThresholdOrder,
     extraManaThresholds: source.extraManaThresholds, weakenOnHit: source.weakenOnHit,
     equipment: source.equipment, _adjacentPanelAbilities: source._adjacentPanelAbilities,
     _resonanceEffectNames: source._resonanceEffectNames,
@@ -1142,6 +1338,14 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   // PvE描画側がイベントを再生するまでは盤面スロットを占有させてはいけない。
   // フラッシュ側でイベント順に退避・再配置するための内部印。
   child._corePendingSummon = true;
+  // **戦闘中に召喚された体のマナ効果は、召喚されてから得たマナだけで発動する。**
+  // 印を付けないと、その時点で溜まっているマナぶん（「3マナ毎」なら現在マナ÷3回）を
+  // いきなり撃ち切る。開戦の召喚は盤面の初期配置と同じ扱いなので印を付けない。
+  if (!state._openingPhase) {
+    child._manaThresholdBaseline = Math.max(0, Number(state.resources
+      && state.resources[side] && state.resources[side].mana) || 0);
+  }
+  // 紫修正は盤面ぜんぶを作り直す（召喚された体にも、既にいる体にも同じ値が乗る）。
   child._voidWalkerBonus = (state.units[side] || []).some(x => x && coreHasEffect(x, 'ヴォイド・ウォーカー'))
     && child.color === '紫' ? 1 : 0;
   // 召喚時の共通受動効果。カード名ではなく、現在の戦闘状態に存在する効果を参照する。
@@ -1166,6 +1370,10 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   sideUnits.filter(x => !coreHasEffect(x, 'ナーガ')
     && /戦闘中に召喚される味方は\+1\/\+1を得る/.test(coreUnitEffectText(x)))
     .forEach(() => addStats(child, summonCount + 1, summonCount + 1, 'summon_scaling_buff'));
+  // 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）。
+  // **効果が発動した後に召喚された体だけ**が受け取る（積み上がった合計を1回で足す）。
+  const summonBuff = coreSummonBuffOf(state, side);
+  if (summonBuff.atk || summonBuff.hp) addStats(child, summonBuff.atk, summonBuff.hp, 'summon_buff');
   if (coreRingCount(state, side, '光の指輪')) {
     child.shield = (Number(child.shield) || 0) + 1;
     emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount: 1, reason: 'light_ring' });
@@ -1175,6 +1383,8 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     if (wild) coreGainResource(state, side, 'mana', wild * 2, child, emit, 'wild_power_summon');
   }
   coreInsertSummonedUnit(list, child, spec, frontSlots);
+  // 召喚でヴォイド・ウォーカー自身が現れることもあるので、盤面全体を作り直す。
+  coreRefreshVoidWalkerBonus(state);
   state._summonCount[side] = summonCount + 1;
   coreApplyWargThreshold(state, side, emit);
   emit({ type: 'summon', side, sourceId, placement: spec && spec.placement || '',
@@ -1204,6 +1414,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
 
 // 複数体召喚を1つの効果として扱う場合、リッチの誘発は本体列の後ろへまとめる。
 function coreFlushPendingLichSummons(state, emit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!state || !Array.isArray(state._pendingLichSummons) || state._flushingLichSummons) return;
   state._flushingLichSummons = true;
   try {
@@ -1218,6 +1431,7 @@ function coreFlushPendingLichSummons(state, emit) {
   } finally {
     state._flushingLichSummons = false;
   }
+  } finally { coreEndSummonBatch(state, emit); }
 }
 // 変身は表示名だけでなく、変身先カードの戦闘データ全体を置き換える。
 function coreTransformUnit(state, target, name, emit, overrides) {
@@ -1261,6 +1475,9 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   return true;
 }
 function coreApplyOpeningItems(state, rng, emit, applyHit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   ['p1', 'p2'].forEach(side => (state.items && state.items[side] || []).forEach(item => {
     const key = String(item && (item.itemEffectKey || item.key || '') || '');
     const allies = (state.units[side] || []).filter(Boolean);
@@ -1316,8 +1533,12 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
       }, emit, item.id);
     }
   }));
+  } finally { coreEndSummonBatch(state, emit); }
 }
 function coreApplyOpeningRings(state, emit, applyHit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   const rings = state.rings || {};
   const colors = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
   ['p1', 'p2'].forEach(side => (rings[side] || []).forEach(ring => {
@@ -1338,7 +1559,7 @@ function coreApplyOpeningRings(state, emit, applyHit) {
     });
   }
   const pain = coreRingCount(state, 'p1', '苦行の指輪');
-  for (let i = 0; i < pain; i++) p1.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(null, x, 1));
+  for (let i = 0; i < pain; i++) coreHitAll(state, rng, emit, applyHit, null, p1.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
   if (coreRingCount(state, 'p1', '強靭の指輪')) p1.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
     x.ringInjuryHp = (Number(x.ringInjuryHp) || 0) + 1;
     emit({ type: 'keyword_effect', effect: 'injury_grant', side: 'p1', unitId: x.id, keyword: '負傷：全ての味方はHP+1を得る。' });
@@ -1355,6 +1576,7 @@ function coreApplyOpeningRings(state, emit, applyHit) {
     const hp = x.maxHp; x.maxHp *= 2; x.hp *= 2;
     emit({ type: 'stat_change', side: 'p1', unitId: x.id, atk: 0, hp, reason: 'paladin_ring' });
   });
+  } finally { coreEndSummonBatch(state, emit); }
 }
 
 // 開戦時のデータ駆動効果。カード名分岐ではなく、キーワード／効果文／強化データを入力にする。
@@ -1370,7 +1592,50 @@ function coreStateToken(state) {
   return state._coreStateToken;
 }
 
+// 効果発動時の発光を再生側へ伝える。色・尺は共通プレゼンテーション層が決める。
+// 「常時：〜たび」のように**誘発する**常時効果が発動した合図（白く光る）。
+// 「常時：緑のキャラクターから得るマナは+1される」のような受動的な補正は
+// そもそもイベントを出さないので光らない（呼ばない）。
+// このダメージへ載せる「効果のカードNo.」。**その効果の持ち主が与えたダメージにだけ載せる。**
+// 効果の解決中に誘発で割り込んだ別のキャラクターのダメージ（メデューサの負傷＝
+// 「受けたダメージぶんをランダムな敵へ」）まで同じ番号を載せると、再生側が
+// 「その効果の演出で見せるダメージ」と判断し、**そのキャラクター自身の
+// 固有VFX/SEが一切出なくなる**（presentDamageVfxSource）。
+// 「Xマナ毎」の到達回数。**戦闘中に召喚された体は、召喚されてから得たマナだけを数える**
+// （`_manaThresholdBaseline`＝召喚された瞬間のマナ）。印が無い体は従来どおり全マナで数える。
+// unit：その効果を持つキャラクター。強化カード由来の効果は owner が効果そのものなので、
+// 印はキャラクター側にしか無い（両方を見る）。
+function coreManaThresholdProgress(state, side, t, unit) {
+  const mana = Math.max(0, Number(state && state.resources && state.resources[side]
+    && state.resources[side].mana) || 0);
+  const baseline = Math.max(
+    Number(t && t.owner && t.owner._manaThresholdBaseline) || 0,
+    Number(unit && unit._manaThresholdBaseline) || 0, 0);
+  const cost = Math.max(1, Number(t && t.cost) || 1);
+  return Math.floor(Math.max(0, mana - baseline) / cost);
+}
+
+function coreDamageEffectNo(state, source) {
+  if (!state || !state._coreEffectNo) return null;
+  const owner = state._coreEffectOwnerId;
+  if (owner != null && (!source || source.id !== owner)) return null;
+  return state._coreEffectNo;
+}
+
+function coreEmitPassiveFlash(emit, unit) {
+  coreEmitEffectFlash(emit, unit, 'passive');
+}
+
+function coreEmitEffectFlash(emit, unit, trigger, count) {
+  if (typeof emit !== 'function' || !unit || !unit.id) return;
+  emit({ type: 'effect_flash', side: unit.side, unitId: unit.id, trigger,
+    count: Math.max(1, Number(count) || 1) });
+}
+
 function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
   // 同一コア状態・同一トリガ番号の再入だけを拒否する。恩寵などの正規の
   // 反復発動は triggerIndex が変わるため維持し、PvE/PvP接続側の同一処理
@@ -1383,6 +1648,7 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   const allies = (state.units[unit.side] || []).filter(Boolean);
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const desc = coreUnitTriggerText(unit, '開戦');
+  if (String(desc || '').trim()) coreEmitEffectFlash(emit, unit, 'opening');
   if (unit._releaseConvertedToOpening && !unit._openingReleaseFired) {
     unit._openingReleaseFired = true;
     coreApplyReleaseEffects(unit, [], state, rng, emit, applyHit);
@@ -1509,13 +1775,13 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   if (openingAtkDouble && !coreHasEffect(unit, '咆哮')) {
     const atk = Math.max(0, Number(unit.atk) || 0);
     unit.atk += atk;
-    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp: 0, reason: 'opening_atk_double' });
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp: 0, reason: 'opening_atk_double', sourceId: unit.id });
   }
   const openingHpDouble = /^このキャラクターのHPを2倍にする/.test(openingText);
   if (openingHpDouble && !coreHasEffect(unit, '威光')) {
     const hp = Math.max(0, Number(unit.maxHp) || 0);
     unit.maxHp += hp; unit.hp += hp;
-    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0, hp, reason: 'opening_hp_double' });
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0, hp, reason: 'opening_hp_double', sourceId: unit.id });
   }
   const openingEnemyDebuff = openingText.match(/^全ての敵は-([0-9]+)\/-([0-9]+)を得る。この効果は、このキャラクターのHP(\d+)につき1回発生する/);
   if (openingEnemyDebuff && !coreHasEffect(unit, 'ウェンディゴ')) {
@@ -1549,12 +1815,28 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
     coreCopyUnitEffectState(copySpec, unit);
     coreSummonUnit(state, unit.side, copySpec, emit, unit.id);
   }
-  if (coreHasEffect(unit, 'エレメンタル')) {
+  // 開戦：全ての色の味方がいる場合、〜（エレメンタル）
+  // 本文が「生命吸収を得る」か「ATKとHPを2倍にする」かで分かれる。
+  const openingAllColors = () => {
     const colors = new Set(allies.filter(x => x.hp > 0 && !coreIsSealed(x)).map(x => x.color).filter(Boolean));
-    if (['赤', '青', '緑', '黄', '紫'].every(c => colors.has(c))) {
+    return ['赤', '青', '緑', '黄', '紫'].every(c => colors.has(c));
+  };
+  // ※ desc は「開戦：」の接頭辞を含んだまま返る（coreUnitTriggerText）。
+  if (/開戦\s*[：:]\s*全ての色の味方がいる場合、生命吸収を得る/.test(desc)
+    || (coreHasEffect(unit, 'エレメンタル') && !/ATKとHPを2倍/.test(desc))) {
+    if (openingAllColors()) {
       unit.keywords = coreUnitKeywords(unit).concat(['生命吸収']);
       emit({ type: 'keyword_effect', effect: 'keyword_gain', side: unit.side, unitId: unit.id, keyword: '生命吸収', sourceId: unit.id });
     }
+  }
+  if (/開戦\s*[：:]\s*全ての色の味方がいる場合、このキャラクターのATKとHPを2倍にする/.test(desc) && openingAllColors()) {
+    const addAtk = Math.max(0, Number(unit.atk) || 0);
+    const addHp = Math.max(0, Number(unit.maxHp) || 0);
+    unit.atk = Math.max(0, unit.atk + addAtk);
+    unit.maxHp = Math.max(1, unit.maxHp + addHp);
+    unit.hp = Math.max(0, unit.hp + addHp);
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: addAtk, hp: addHp,
+      reason: 'opening_all_color_double', sourceId: unit.id });
   }
   coreApplyWargThreshold(state, unit.side, emit);
   if (coreHasEffect(unit, '刻を織る者"ウルズ・ラグナ"')) {
@@ -1580,6 +1862,7 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
       emit({ type: 'item_reward', side: unit.side, unitId: unit.id, reason: 'alchemy', item: item ? { ...item } : null });
     }
   }
+  } finally { coreEndSummonBatch(state, emit); }
 }
 
 // 魔導板パワー由来の開戦処理。PvEはrunBattleCoreを通らず個別APIを呼ぶため、
@@ -1599,7 +1882,15 @@ function coreApplyMapPanelOpeningEffects(state, emit) {
 }
 
 // データ／強化カード由来の攻撃時効果。演出・ログはイベント再生側、数値変更はここで共通化する。
+// ダメージ種別を attack_effect に固定して実行する（再生側が種類ごとにまとめて見せるため）。
 function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) {
+  return coreWithDamageKind(state, 'attack_effect', () => coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIndex));
+}
+
+function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIndex) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return { skipAttack: false };
   // 同じ攻撃イベントが接触コールバックとフォールバック経路から二度届いても、
   // 正規の追加発動（triggerIndexが異なる）だけは維持して一度だけ解決する。
@@ -1614,6 +1905,7 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const desc = coreUnitTriggerText(unit, '攻撃');
   const attackText = desc.replace(/^攻撃(?:[＆&]負傷)?\s*[：:]\s*/, '');
+  if (String(desc || '').trim()) coreEmitEffectFlash(emit, unit, 'attack');
   const addStats = (target, atk, hp, reason) => {
     if (!target || target.hp <= 0 || coreIsSealed(target)) return;
     atk = coreStatBonus(target, atk); hp = coreStatBonus(target, hp);
@@ -1623,6 +1915,25 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
     coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
+  const coreBloodOf = side => Math.max(0, Number(state.blood && state.blood[side]) || 0);
+  // 攻撃：血がN以上なら全ての味方は+X/+Yを得る（シャドウ）
+  const attackBloodTeamBuff = attackText.match(/^血が(\d+)以上なら全ての味方は\+(\d+)\/\+(\d+)を得る/);
+  if (attackBloodTeamBuff && coreBloodOf(unit.side) >= Number(attackBloodTeamBuff[1])) {
+    allies.filter(x => x.hp > 0 && !coreIsSealed(x))
+      .forEach(x => addStats(x, Number(attackBloodTeamBuff[2]), Number(attackBloodTeamBuff[3]), 'attack_blood_team_buff'));
+  }
+  // 攻撃：ランダムな敵にXダメージを与える。Xは血に等しい（デュラハン）
+  if (/^ランダムな敵にXダメージを与える。\s*Xは血に等しい/.test(attackText)) {
+    const amount = coreBloodOf(unit.side);
+    const target = amount > 0 ? rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x))) : null;
+    if (target) applyHit(unit, target, amount);
+  }
+  // 攻撃：全ての敵の毒を発動させる（ワーム）
+  if (/^全ての敵の毒を発動させる/.test(attackText)) {
+    // 「毒のターン処理」と同じ入口を使う。ここで独自にHPを削らないこと。
+    foes.filter(x => x.hp > 0 && !coreIsSealed(x) && Number(x.poison) > 0)
+      .forEach(x => coreApplyPoisonBeforeTurn(x, emit));
+  }
   // グレムリン：攻撃前に自身のHPと対象のATKを入れ替える。
   // 旧PvE側の接触フックではなく、オンライン／オフライン共通の攻撃効果として解決する。
   const gremlinTarget = unit._currentAttackTarget;
@@ -1635,9 +1946,9 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     unit.maxHp = Math.max(Number(unit.maxHp) || 1, unit.hp);
     gremlinTarget.atk = nextAtk;
     emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0,
-      hp: unit.hp - oldUnitHp, reason: 'gremlin_swap' });
+      hp: unit.hp - oldUnitHp, reason: 'gremlin_swap', sourceId: unit.id });
     emit({ type: 'stat_change', side: gremlinTarget.side, unitId: gremlinTarget.id,
-      atk: nextAtk - oldTargetAtk, hp: 0, reason: 'gremlin_swap' });
+      atk: nextAtk - oldTargetAtk, hp: 0, reason: 'gremlin_swap', sourceId: unit.id });
   }
   for (let i = 0; i < coreEffectCount(unit, '戦術'); i++) addStats(unit, 1, 2, 'tactics');
   if (coreEffectCount(unit, '共振')) {
@@ -1699,7 +2010,7 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 0, 2, 'brownie_attack'));
   }
   const frontDamage = desc.match(/^攻撃：全ての前衛の味方に(\d+)ダメージ/);
-  if (frontDamage) allies.filter(x => x.hp > 0 && x.lane !== 'rear' && !coreIsSealed(x)).forEach(x => applyHit(unit, x, Number(frontDamage[1])));
+  if (frontDamage) coreHitAll(state, rng, emit, applyHit, unit, allies.filter(x => x.hp > 0 && x.lane !== 'rear' && !coreIsSealed(x)), Number(frontDamage[1]));
   const allDamage = desc.match(/^攻撃：全てのキャラクターに(\d+)ダメージを与える。/);
   if (coreHasEffect(unit, 'サイレン') || allDamage) {
     const amount = Math.max(1, Number(allDamage && allDamage[1]) || 1);
@@ -1710,8 +2021,13 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     // 1体ずつ「ダメージ→その体の誘発」を解決すると、誘発（ミノタウロスの
     // 割り込み攻撃など）が残りの対象へのダメージより先に起き、順番が実際の
     // ルール（同時に受ける）と食い違う。誘発の順番は対象の並び順のまま。
-    coreHitAll(state, rng, emit, applyHit, unit,
-      [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), amount);
+    const victims = [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x));
+    // 発生源から広がる演出（サイレン）。**どう見せるかは決めない。**
+    // 誰に・どの順で当たるかだけを渡し、絵の選び方は present.js が決める。
+    if (victims.length) {
+      emit({ type: 'sweep_vfx', side: unit.side, unitId: unit.id, targetIds: victims.map(x => x.id) });
+    }
+    coreHitAll(state, rng, emit, applyHit, unit, victims, amount);
   }
   const enemyDamage = attackText.match(/全ての敵に(\d+)ダメージ/);
   if (enemyDamage && !coreHasEffect(unit, 'サイレン')) {
@@ -1725,7 +2041,8 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
   }
   const attackAlliesBuff = attackText.match(/全ての味方(?:は|に)\+([0-9]+)\/\+([0-9]+)を(?:得る|与える)/);
-  if (attackAlliesBuff) {
+  // 「血がN以上なら」の条件付きは上で解決済み。ここで無条件に足すと二重になる。
+  if (attackAlliesBuff && !attackBloodTeamBuff) {
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, Number(attackAlliesBuff[1]), Number(attackAlliesBuff[2]), 'attack_allies_buff'));
   }
   const attackColorBuff = attackText.match(/全ての([赤青緑黄紫茶])(?:の)?キャラクターは\+([0-9]+)\/\+([0-9]+)を得る/);
@@ -1752,7 +2069,7 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
   }
   const fixedMana = attackText.match(/^(\d+)マナを得る/);
   // loader の manaOnAttack と同じ効果を効果文からも拾うため、データ駆動値がある場合は二重加算しない。
-  if (fixedMana && !Number(unit.manaOnAttack)) coreGainResource(state, unit.side, 'mana', Number(fixedMana[1]), unit, emit, 'attack_mana');
+  if (fixedMana && !coreManaOnAttackValue(unit)) coreGainResource(state, unit.side, 'mana', Number(fixedMana[1]), unit, emit, 'attack_mana');
   const manaBuff = attackText.match(/このキャラクターは\+X\/\+Xを得る。Xはマナに等しい/);
   // ユミルの固有処理が同じ「Xはマナに等しい」本文をすでに解決する。
   // 固有分岐と汎用本文パーサーを両方通すと、攻撃1回で+X/+Xが二重になる。
@@ -1832,8 +2149,8 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
       const oldHp = unit.hp, oldAtk = target.atk;
       unit.hp = Math.max(0, oldHp - oldHp + oldAtk);
       target.atk = Math.max(0, oldAtk - oldAtk + oldHp);
-      emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0, hp: oldAtk - oldHp, reason: 'attack_swap' });
-      emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: oldHp - oldAtk, hp: 0, reason: 'attack_swap' });
+      emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0, hp: oldAtk - oldHp, reason: 'attack_swap', sourceId: unit.id });
+      emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: oldHp - oldAtk, hp: 0, reason: 'attack_swap', sourceId: unit.id });
     }
   }
   const steal = attackText.match(/全ての生贄を持つキャラクターからATKを(\d+)奪う/);
@@ -1868,7 +2185,8 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     }
   }
   if (coreHasEffect(unit, 'ピクシー')) {
-    const controlled = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
+    // 操るのは**前衛の敵だけ**（攻撃：ランダムな前衛の敵を操り、代わりに攻撃させる）。
+    const controlled = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x) && (x.lane || 'front') !== 'rear'));
     const target = rng.pick(foes.filter(x => x !== controlled && x.hp > 0 && !coreIsSealed(x)));
     if (controlled && target) {
       const damage = coreAttackDamage(controlled);
@@ -1880,7 +2198,8 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
       result.skipAttack = true;
     }
   }
-  if (coreHasEffect(unit, 'ワーム')) {
+  // 新しい本文（攻撃：全ての敵の毒を発動させる）へ差し替わったら、この旧効果は動かさない。
+  if (coreHasEffect(unit, 'ワーム') && !/全ての敵の毒を発動させる/.test(attackText)) {
     const target = unit._currentAttackTarget && unit._currentAttackTarget.hp > 0
       ? unit._currentAttackTarget : rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
@@ -1897,9 +2216,10 @@ function coreApplyAttackEffects(unit, state, rng, emit, applyHit, triggerIndex) 
     coreSummonUnit(state, unit.side, { name: summon[1], atk: 1, hp: 1, color: summon[1].startsWith('黒') ? '黒' : unit.color }, emit, unit.id);
   }
   return result;
+  } finally { coreEndSummonBatch(state, emit); }
 }
 
-function coreApplyInjuryEffects(unit, actualDamage, state, rng, emit, applyHit, source, triggerIndex) {
+function coreApplyInjuryEffects(unit, actualDamage, state, rng, emit, applyHit, source, triggerIndex, causeKind) {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
   // 負傷イベントの再入を共通コアで遮断する。執念の炎・激怒の指輪などの
   // 正規の反復はtriggerIndexを変えて呼び出すため、必要な回数は失わない。
@@ -1919,13 +2239,23 @@ function coreApplyInjuryEffects(unit, actualDamage, state, rng, emit, applyHit, 
   if (unit._coreInjuryReentry) return;
   unit._coreInjuryReentry = true;
   try {
-    coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyHit, source);
+    // **確率つきの効果は、成功したときだけ光らせる**（ヘカトンケイルの「10%の確率で」）。
+    // 失敗しても光ると「発動したのに何も起きない」ように見える。
+    // 成功時の発光は効果を解決する側（coreApplyInjuryEffectsBody）が出す。
+    const _injuryText = String(coreUnitTriggerText(unit, '負傷') || '').trim();
+    if (_injuryText && !/^\d+%の確率で/.test(_injuryText)) coreEmitEffectFlash(emit, unit, 'injury');
+    coreWithDamageKind(state, 'injury_effect',
+      () => coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyHit, source,
+        causeKind || 'other'));
   } finally {
     delete unit._coreInjuryReentry;
   }
 }
 
-function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyHit, source) {
+function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyHit, source, causeKind) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   const allies = (state.units[unit.side] || []).filter(Boolean);
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const addStats = (target, atk, hp, reason) => {
@@ -1943,7 +2273,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     && hasInjuryEffect(unit)
     && (coreHasEffect(x, 'エティン')
       || /味方の負傷効果が発動するたび、このキャラクターは\+2\/\+1を得る/.test(coreUnitEffectText(x))))
-    .forEach(x => addStats(x, 2, 1, 'ettin'));
+    .forEach(x => { coreEmitPassiveFlash(emit, x); addStats(x, 2, 1, 'ettin'); });
   if (unit.side === 'p1' && coreRingCount(state, 'p1', '我慢の指輪') && actualDamage > 0) {
     state.life = state.life || { p1: 0, p2: 0 };
     state.life.p1 = (Number(state.life.p1) || 0) + 2;
@@ -1952,7 +2282,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   if (coreRingCount(state, unit.side, '逆鱗の指輪') && actualDamage > 0 && !state._scalesRingResolving) {
     state._scalesRingResolving = true;
     try {
-      [...allies, ...foes].filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, 1));
+      coreHitAll(state, rng, emit, applyHit, unit, [...allies, ...foes].filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
     } finally { state._scalesRingResolving = false; }
     emit({ type: 'ring_effect', ring: '逆鱗の指輪', side: unit.side, amount: 1 });
   }
@@ -1968,7 +2298,12 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   }
   const redBonus = coreEffectCount(unit, 'コボルド');
   for (let i = 0; i < redBonus; i++) allies.filter(x => x.hp > 0 && x.color === '赤').forEach(x => addStats(x, 1, 1, 'kobold'));
-  for (let i = 0; i < coreEffectCount(unit, 'インキュバス'); i++) foes.filter(x => x.hp > 0).forEach(x => addStats(x, -1, 0, 'incubus'));
+  // 旧本文（負傷：全ての敵はATK-1）の時だけ。本文が変われば下の汎用処理へ移る。
+  // **`injuryText` はこの下で宣言されるので、ここでは触らない**（TDZで参照エラーになる）。
+  // 新しい本文（常時：敵を倒した時に血）へ差し替わったら、この旧効果は動かさない。
+  if (!/敵を倒した時、血を/.test(coreUnitEffectText(unit))) {
+    for (let i = 0; i < coreEffectCount(unit, 'インキュバス'); i++) foes.filter(x => x.hp > 0).forEach(x => addStats(x, -1, 0, 'incubus'));
+  }
   for (let i = 0; i < coreEffectCount(unit, 'カオス・インプ'); i++) allies.filter(x => x.hp > 0 && coreUnitHasSacrifice(x)).forEach(x => addStats(x, 0, 1, 'chaos_imp'));
   for (let i = 0; i < coreEffectCount(unit, '逆上'); i++) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
@@ -1993,7 +2328,10 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     if (target) applyHit(unit, target, 3);
   }
   for (let i = 0; i < coreEffectCount(unit, '夜刻の巫女"ウムブラ"'); i++) allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 8, 8, 'umbra'));
-  for (let i = 0; i < coreEffectCount(unit, 'ミノタウロス'); i++) {
+  // ミノタウロス：負傷：**効果ダメージを受けた場合**、ランダムな敵に攻撃する。
+  // 戦闘ダメージ（攻撃・反撃）では発動しない。毒やカード効果のダメージでは発動する。
+  const injuredByEffectDamage = (causeKind || 'other') !== 'combat';
+  for (let i = 0; injuredByEffectDamage && i < coreEffectCount(unit, 'ミノタウロス'); i++) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       unit._currentAttackTarget = target;
@@ -2078,10 +2416,27 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) applyHit(unit, target, actualDamage);
   }
+  // 負傷：この戦闘中、召喚された味方はATK+Xを得る（エイドロン）
+  const injurySummonAtk = injuryText.match(/^この戦闘中、召喚された味方はATK\+(\d+)を得る/);
+  if (injurySummonAtk) coreAddSummonBuff(state, unit.side, Number(injurySummonAtk[1]) || 0, 0, emit, unit.id);
+  // 負傷：ランダムな味方に「死亡：「X」を召喚する。」を付与する（ボーンチャリオット）
+  const injuryGrantDeathSummon = injuryText.match(/^ランダムな味方に「死亡：「(.+?)」を召喚する。」を付与する/);
+  if (injuryGrantDeathSummon) {
+    const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)));
+    if (target) {
+      const name = String(injuryGrantDeathSummon[1] || '');
+      const color = (name.match(/^([赤青緑黄紫茶黒白])/) || [])[1] || '';
+      target.effectData = { ...(target.effectData || {}), grantedDeathSummon: { name, color } };
+      emit({ type: 'death_summon_grant', side: target.side, unitId: target.id, sourceId: unit.id,
+        summon: target.effectData.grantedDeathSummon });
+    }
+  }
   const injuryMana = injuryText.match(/^(\d+)マナを得る/);
   if (injuryMana && !Number(unit.manaOnInjury)) coreGainResource(state, unit.side, 'mana', Number(injuryMana[1]), unit, emit, 'injury_mana');
   const injuryChanceMana = injuryText.match(/^(\d+)%の確率で(\d+)マナを得る/);
   if (injuryChanceMana && rng && typeof rng.next === 'function' && rng.next() < Number(injuryChanceMana[1]) / 100) {
+    // 確率に当たった時だけ光らせる（外れた時は何も出さない）。
+    coreEmitEffectFlash(emit, unit, 'injury');
     coreGainResource(state, unit.side, 'mana', Number(injuryChanceMana[2]), unit, emit, 'injury_chance_mana');
   }
   const injuryEnemyAtkDown = injuryText.match(/全ての敵はATK-([0-9]+)を得る/);
@@ -2101,12 +2456,15 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   const allInjury = injuryText.match(/全てのキャラクターに(\d+)ダメージ/);
   if (allInjury) {
     const amount = Math.max(1, Number(allInjury[1]) || 1);
-    [...allies, ...foes].filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, amount));
+    coreHitAll(state, rng, emit, applyHit, unit, [...allies, ...foes].filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
   }
+  } finally { coreEndSummonBatch(state, emit); }
 }
 
 function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
   if (!unit || unit.hp <= 0) return;
+  // 解放効果が発動した合図（紫）。効果文を持つ時だけ光らせる。
+  if (String(coreUnitTriggerText(unit, '解放') || '').trim()) coreEmitEffectFlash(emit, unit, 'release');
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const addStats = (atk, hp, reason) => {
     atk = coreStatBonus(unit, atk); hp = coreStatBonus(unit, hp);
@@ -2151,7 +2509,7 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
   const releaseEnemyDamage = releaseText.match(/全ての敵に(\d+)ダメージ/);
   if (releaseEnemyDamage && !coreHasEffect(unit, 'フィーンド')) {
     const repeats = Math.max(1, Number(unit._adjacentPanelEffectTexts && unit._adjacentPanelEffectTexts.length) || 1);
-    for (let i = 0; i < repeats; i++) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, Number(releaseEnemyDamage[1]) || 0));
+    for (let i = 0; i < repeats; i++) coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), Number(releaseEnemyDamage[1]) || 0);
   }
   if (coreHasEffect(unit, 'アークデーモン')) {
     addStats((sacrificed || []).reduce((n, x) => n + Math.max(0, Number(x.atk) || 0), 0),
@@ -2161,7 +2519,7 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
   if (coreHasEffect(unit, 'フィーンド')) {
     const count = 1 + coreConnectedEnhancementCount(unit);
     for (let i = 0; i < count; i++) {
-      foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, 1));
+      coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
     }
   }
   if (coreHasEffect(unit, 'ベヒーモス')) {
@@ -2256,7 +2614,7 @@ function coreApplyPoisonBeforeTurn(unit, emit) {
 }
 
 function coreTriggerManaOnAttack(unit, state, emit) {
-  return coreGainResource(state, unit && unit.side, 'mana', unit && unit.manaOnAttack, unit, emit, 'manaOnAttack');
+  return coreGainResource(state, unit && unit.side, 'mana', coreManaOnAttackValue(unit), unit, emit, 'manaOnAttack');
 }
 function coreTriggerManaOnInjury(unit, state, emit) {
   return coreGainResource(state, unit && unit.side, 'mana', unit && unit.manaOnInjury, unit, emit, 'manaOnInjury');
@@ -2271,8 +2629,19 @@ function coreTriggerDeath(unit, state, emit) {
   state.deadUnits.push(coreUnitSnapshot(unit));
   coreGainResource(state, unit.side, 'mana', unit.manaOnDeath, unit, emit, 'manaOnDeath');
   coreGainResource(state, unit.side, 'gold', unit.goldOnDeath, unit, emit, 'goldOnDeath');
+  // 人数が減ったことを記録しておく（減った時は何も起きない）。記録を減らさないと、
+  // 後から召喚し直しても「増えて7体以上になった」と判定できず、ウォーグが発動しない。
+  coreApplyWargThreshold(state, unit.side, emit);
 }
+// ダメージ種別を death_effect に固定して実行する（再生側が種類ごとにまとめて見せるため）。
 function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
+  return coreWithDamageKind(state, 'death_effect', () => coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit));
+}
+
+function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!unit || unit._coreDeathEffectsTriggered) return;
   unit._coreDeathEffectsTriggered = true;
   if (coreUnitIsSilenced(unit)) return;
@@ -2287,6 +2656,7 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const repeats = 1 + coreUnitKeywordCount(unit, '逆襲') + coreRingCount(state, unit.side, '屍術師の指輪')
     + Math.max(0, Number(unit._effectRepeatBonus) || Number(unit.effectData && unit.effectData.effectRepeatBonus) || 0);
+  if (String(coreUnitTriggerText(unit, '死亡') || '').trim()) coreEmitEffectFlash(emit, unit, 'death', repeats);
   // 基本の死亡トリガは coreTriggerDeath() が1回処理済み。追加発動分だけここで加算する。
   const extraTriggerCount = Math.max(0, repeats - 1);
   if (extraTriggerCount) {
@@ -2302,7 +2672,7 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
     coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
   for (let i = 0; i < repeats && coreHasEffect(unit, '闇の炎'); i++) {
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, 1));
+    coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
   }
   for (let i = 0; i < repeats; i++) {
     coreUnitKeywords(unit).forEach(keyword => {
@@ -2362,6 +2732,20 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
       && !!coreUnitTriggerText(x, '負傷')));
     if (target) coreApplyInjuryEffects(target, 0, state, rng, emit, applyHit);
   }
+  // 常時：このキャラクターが敵を倒した時、血をN得る（インキュバス）。
+  // **倒した側の常時効果**なので、倒された体ではなくダメージ源を見る。
+  {
+    const killer = unit._lastDamageSource;
+    const killText = killer ? coreUnitEffectText(killer) : '';
+    const killBlood = killText && killText.match(/このキャラクターが敵を倒した時、血を(\d+)得る/);
+    if (killer && killer.hp > 0 && killer.side && killer.side !== unit.side && killBlood) {
+      state.blood = state.blood || { p1: 0, p2: 0 };
+      const gain = Number(killBlood[1]) || 0;
+      state.blood[killer.side] = Math.max(0, Number(state.blood[killer.side]) || 0) + gain;
+      coreEmitPassiveFlash(emit, killer);
+      emit({ type: 'blood_set', side: killer.side, amount: state.blood[killer.side], gained: gain, sourceId: killer.id });
+    }
+  }
   // サキュバス：この攻撃で倒した敵の状態を味方として召喚する。
   const lastSource = unit._lastDamageSource;
   // サキュバスは「通常攻撃で倒した敵」だけを仲間にする。最後のダメージ源
@@ -2369,7 +2753,8 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
   // 反撃時の誤発動や同じ敵の二重捕獲につながる。
   if (unit.side === 'p2' && !unit._lastDamageWasCounter && lastSource && lastSource !== unit
     && lastSource._coreAttackContact === true
-    && lastSource.side === 'p1' && coreHasEffect(lastSource, 'サキュバス')) {
+    && lastSource.side === 'p1' && coreHasEffect(lastSource, 'サキュバス')
+    && !/ランダムな前衛の敵を奪う/.test(coreUnitEffectText(lastSource))) {
     coreSummonUnit(state, 'p1', {
       name: unit.name,
       atk: Math.max(0, Number(unit.atk) || 0),
@@ -2382,7 +2767,9 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
       _useEnemyVisualFrame: true, _summonedBySuccubus: true,
     }, emit, lastSource.id);
   }
-  if (coreHasEffect(unit, 'ボーンチャリオット')) {
+  // 新しい本文では負傷トリガへ移る。負傷側に書かれていたら死亡側では動かさない。
+  if (coreHasEffect(unit, 'ボーンチャリオット')
+    && !/ランダムな味方に「死亡：/.test(coreUnitTriggerText(unit, '負傷'))) {
     const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       target.effectData = { ...(target.effectData || {}), grantedDeathSummon: { name: '青スケルトン', color: '青' } };
@@ -2402,13 +2789,52 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
       coreTryRevive(target, state, emit);
     }
   }
-  for (let i = 0; i < repeats && coreHasEffect(unit, 'ファントム'); i++) {
+  // 旧本文の時だけ。**`deathText` はこの下で宣言されるので触らない**（TDZ）。
+  // 新しい本文（死亡：召喚された味方は+X/+Y）へ差し替わったら、この旧効果は動かさない。
+  const _phantomOldText = !/召喚された味方は\+/.test(coreUnitTriggerText(unit, '死亡'));
+  for (let i = 0; i < repeats && _phantomOldText && coreHasEffect(unit, 'ファントム'); i++) {
     for (let j = 0; j < 3; j++) coreSummonUnit(state, unit.side, { name: '青シャドウ', atk: 1, hp: 1 }, emit, unit.id);
   }
   for (let i = 0; i < repeats && coreHasEffect(unit, 'デスナイト'); i++) {
     coreSummonUnit(state, unit.side, { name: '青スケルトン', color: '青' }, emit, unit.id);
   }
   const deathText = coreUnitTriggerText(unit, '死亡').replace(/^死亡\s*[：:]/, '');
+  // 死亡：この戦闘中、召喚された味方は+X/+Yを得る（ファントム）
+  const deathSummonBuff = deathText.match(/^この戦闘中、召喚された味方は\+(\d+)\/\+(\d+)を得る/);
+  if (deathSummonBuff) {
+    coreAddSummonBuff(state, unit.side, Number(deathSummonBuff[1]) || 0, Number(deathSummonBuff[2]) || 0, emit, unit.id);
+  }
+  // 死亡：血をN得る（スリープシープ）
+  const deathBlood = deathText.match(/^血を(\d+)得る/);
+  if (deathBlood) {
+    state.blood = state.blood || { p1: 0, p2: 0 };
+    const gain = Number(deathBlood[1]) || 0;
+    state.blood[unit.side] = Math.max(0, Number(state.blood[unit.side]) || 0) + gain;
+    emit({ type: 'blood_set', side: unit.side, amount: state.blood[unit.side], gained: gain, sourceId: unit.id });
+  }
+  // 死亡：ランダムな前衛の敵を奪う（サキュバス）
+  if (/^ランダムな前衛の敵を奪う/.test(deathText)) {
+    const stolen = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)
+      && (x.lane || 'front') !== 'rear' && !x._isObject && !x._isSoul));
+    if (stolen) {
+      // 奪った体は元の盤面から居なくなり、味方として召喚し直す（サキュバスの捕獲と同じ形）。
+      // **配列から null で抜かないこと。** 盤面配列は「生きている体を左詰め」で持つ決まりで、
+      // 穴を開けると最終盤面の書き出し（battleCoreFinalState）が null を踏む。
+      // 死亡と同じくHPを0にして、詰め直しに任せる（死亡効果は発動させない）。
+      stolen.hp = 0;
+      stolen._stolen = true;
+      emit({ type: 'unit_stolen', side: stolen.side, unitId: stolen.id, sourceId: unit.id, toSide: unit.side });
+      coreSummonUnit(state, unit.side, {
+        name: stolen.name,
+        atk: Math.max(0, Number(stolen.atk) || 0),
+        hp: Math.max(1, Number(stolen.maxHp) || 1),
+        maxHp: Math.max(1, Number(stolen.maxHp) || 1),
+        color: stolen.color, race: stolen.race, keywords: [...(stolen.keywords || [])],
+        desc: stolen.desc, art: stolen.art, no: stolen.no,
+        _useEnemyVisualFrame: true, _summonedBySuccubus: true,
+      }, emit, unit.id);
+    }
+  }
   const deathMana = deathText.match(/^(\d+)マナを得る/);
   if (deathMana && !unit.manaOnDeath) coreGainResource(state, unit.side, 'mana', Number(deathMana[1]) * repeats, unit, emit, 'death_text_mana');
   const deathGold = deathText.match(/^(\d+)ゴールドを得る/);
@@ -2452,7 +2878,7 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
   const deathAll = deathText.match(/全ての敵キャラクターに(\d+)ダメージ/);
   if (deathAll && unit.name !== '闇の炎' && !coreHasEffect(unit, '闇の炎')) {
     const amount = Math.max(1, Number(deathAll[1]) || 1);
-    for (let i = 0; i < repeats; i++) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(unit, x, amount));
+    for (let i = 0; i < repeats; i++) coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
   }
   const deathInstant = /ランダムな敵を即死させる/.test(deathText);
   if (deathInstant && !coreHasEffect(unit, '深藍の魔女"ティアマリス"')) {
@@ -2475,8 +2901,14 @@ function coreApplyDeathEffects(unit, state, rng, emit, applyHit) {
     && !coreHasEffect(unit, 'ボーンチャリオット')) {
     for (let i = 0; i < repeats; i++) coreSummonUnit(state, unit.side, { name: deathSummon[1], color: unit.color }, emit, unit.id);
   }
+  } finally { coreEndSummonBatch(state, emit); }
 }
+// ダメージ種別を death_effect に固定して実行する（再生側が種類ごとにまとめて見せるため）。
 function coreApplyDeathObservers(dead, state, rng, emit, applyHit) {
+  return coreWithDamageKind(state, 'death_effect', () => coreApplyDeathObserversInner(dead, state, rng, emit, applyHit));
+}
+
+function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
   if (!dead || dead._coreDeathObserved) return;
   dead._coreDeathObserved = true;
   const allies = (state.units[dead.side] || []).filter(Boolean);
@@ -2489,6 +2921,8 @@ function coreApplyDeathObservers(dead, state, rng, emit, applyHit) {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     atk = coreStatBonus(u, atk); hp = coreStatBonus(u, hp);
     u.atk = Math.max(0, u.atk + atk); u.maxHp = Math.max(1, u.maxHp + hp); u.hp += hp;
+    // 「味方が死亡するたび」等の常時効果が発動した合図（白）。
+    coreEmitPassiveFlash(emit, u);
     emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
     coreTriggerAtkGainEffects(u, atk, state, rng, emit, applyHit);
   };
@@ -2536,7 +2970,10 @@ function coreApplyDeathObservers(dead, state, rng, emit, applyHit) {
   // p2側のエイドロンが不発し、観測者が複数いると発動回数を奪い合っていた。
   const deadSide = dead.side === 'p2' ? 'p2' : 'p1';
   const observers = (state.units[deadSide] || []).filter(u => u && u.hp > 0 && !coreIsSealed(u));
-  observers.filter(u => coreHasEffect(u, 'エイドロン')).forEach(u => {
+  // 旧本文（味方が3体死亡するたび1マナ）の時だけ。本文が変われば新しい効果へ移る。
+  // 新しい本文（負傷：召喚された味方はATK+X）へ差し替わったら、この旧効果は動かさない。
+  observers.filter(u => coreHasEffect(u, 'エイドロン')
+    && !/召喚された味方はATK\+/.test(coreUnitEffectText(u))).forEach(u => {
     u._coreObservedAllyDeaths = (Number(u._coreObservedAllyDeaths) || 0) + 1;
     if (u._coreObservedAllyDeaths >= 3) {
       u._coreObservedAllyDeaths = 0;
@@ -2558,7 +2995,10 @@ function coreApplyDeathObservers(dead, state, rng, emit, applyHit) {
     });
   // デュラハンは「観測者と同じ陣営のキャラクター死亡」のみを観測する。
   // named処理を正とし、上の汎用本文処理とは相互排他にする。
-  const dullahan = all.find(u => u.hp > 0 && coreHasEffect(u, 'デュラハン') && u.side === dead.side);
+  // 旧本文（味方が死亡するたび4ダメージ）の時だけ。本文が変われば汎用処理／新効果へ移る。
+  // 新しい本文（攻撃：Xは血に等しい）へ差し替わったら、この旧効果は動かさない。
+  const dullahan = all.find(u => u.hp > 0 && coreHasEffect(u, 'デュラハン') && u.side === dead.side
+    && !/Xは血に等しい/.test(coreUnitEffectText(u)));
   if (dullahan) {
     const target = rng.pick((state.units[dullahan.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) applyHit(dullahan, target, 4);
@@ -2584,16 +3024,18 @@ function coreApplyAttackObservers(attacker, state, rng, emit, applyHit) {
   const addStats = (u, atk, hp, reason) => {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     u.atk = Math.max(0, u.atk + atk); u.maxHp = Math.max(1, u.maxHp + hp); u.hp += hp;
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason });
+    coreEmitPassiveFlash(emit, u);
+    // sourceId が無いと演出側が「効果による変化」と判断できず、VFXが出ない。
+    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
   };
   all.filter(u => u.hp > 0 && u.side === attacker.side && coreHasEffect(u, '隻眼の魔狼"ガルム・グリーム"')).forEach(u => {
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'garm'));
   });
   all.filter(u => u.hp > 0 && u.side === attacker.side && coreHasEffect(u, '極光の女王"グンダ"')).forEach(u => {
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(u, x, 1));
+    coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
   });
   all.filter(u => u.hp > 0 && u.side === attacker.side && coreHasEffect(u, '日刻の巫女"ルミア"')).forEach(u => {
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(u, x, 8));
+    coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 8);
   });
   all.filter(u => u.hp > 0 && u.side === attacker.side).forEach(u => {
     const text = coreUnitEffectText(u);
@@ -2601,12 +3043,12 @@ function coreApplyAttackObservers(attacker, state, rng, emit, applyHit) {
       allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'attack_observer_team_buff'));
     }
     const damage = text.match(/味方が攻撃するたび、全ての敵に(\d+)ダメージを与える/);
-    if (damage && !coreHasEffect(u, '極光の女王"グンダ"') && !coreHasEffect(u, '日刻の巫女"ルミア"')) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(u, x, Number(damage[1]) || 0));
+    if (damage && !coreHasEffect(u, '極光の女王"グンダ"') && !coreHasEffect(u, '日刻の巫女"ルミア"')) coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), Number(damage[1]) || 0);
     if (coreHasEffect(u, 'フロスト・スプライト')) {
       const pool = foes.filter(x => x.hp > 0 && !coreIsSealed(x));
       const targets = [];
       while (targets.length < 3 && pool.length) targets.push(pool.splice(rng.int(0, pool.length - 1), 1)[0]);
-      targets.forEach(x => applyHit(u, x, 1));
+      coreHitAll(state, rng, emit, applyHit, u, targets, 1);
     }
   });
 }
@@ -2628,6 +3070,9 @@ function coreApplyAttackRing(state, side, rng, emit, applyHit) {
   return efreet;
 }
 function coreApplyShieldLostEffects(target, state, rng, emit, applyHit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!target) return;
   const allies = (state.units[target.side] || []).filter(Boolean);
   const foes = (state.units[target.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
@@ -2635,20 +3080,22 @@ function coreApplyShieldLostEffects(target, state, rng, emit, applyHit) {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     atk = coreStatBonus(u, atk); hp = coreStatBonus(u, hp);
     u.atk += atk; u.maxHp += hp; u.hp += hp;
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason });
+    coreEmitPassiveFlash(emit, u);
+    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
   };
   if (target.side === 'p2') allies.filter(u => u.hp > 0 && coreHasEffect(u, '惑わしの妖精"エインセル"')).forEach(u => {
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 2, 2, 'ainsel'));
   });
   allies.filter(u => u.hp > 0 && coreHasEffect(u, 'カーバンクル')).forEach(u => {
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(u, x, 1));
+    coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
   });
   allies.filter(u => u.hp > 0 && !coreHasEffect(u, 'カーバンクル')
     && /味方が結界を失うたび、全ての敵に1ダメージ/.test(coreUnitEffectText(u))).forEach(u => {
     const repeat = /1ダメージを2回/.test(coreUnitEffectText(u)) ? 2 : 1;
-    for (let i = 0; i < repeat; i++) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(u, x, 1));
+    for (let i = 0; i < repeat; i++) coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
   });
   allies.filter(u => u.hp > 0 && coreHasEffect(u, 'グリマルキン')).forEach(u => addStats(u, 3, 2, 'grimalkin'));
+  } finally { coreEndSummonBatch(state, emit); }
 }
 function coreApplyRingManaEffects(state, rng, emit, applyHit) {
   const count = coreRingCount(state, 'p1', '嵐の指輪');
@@ -2657,11 +3104,14 @@ function coreApplyRingManaEffects(state, rng, emit, applyHit) {
   while ((state._stormRingFireCount || 0) < progress) {
     state._stormRingFireCount = (state._stormRingFireCount || 0) + 1;
     const amount = (Number(state.resources.p1.mana) || 0) * 5;
-    (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => applyHit(null, x, amount));
+    coreHitAll(state, rng, emit, applyHit, null, (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
     emit({ type: 'ring_effect', ring: '嵐の指輪', side: 'p1', amount });
   }
 }
 function coreTryRevive(unit, state, emit) {
+  // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
+  coreBeginSummonBatch(state);
+  try {
   if (!unit || unit.hp > 0 || unit._starterRegenUsed) return false;
   const ring = unit.side === 'p1' && !state._revivalRingUsed && coreRingCount(state, 'p1', '復活の指輪') > 0;
   const keyword = coreUnitKeywords(unit).find(x => x === '復活' || x === '根性');
@@ -2682,17 +3132,34 @@ function coreTryRevive(unit, state, emit) {
     unit.hp = 1;
   }
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
+  // **復活＝再召喚。** 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）は
+  // 効果が発動した後に**召喚された**体へ乗るので、復活した体にも乗せる。
+  // revive イベントより先に乗せて、イベントに載る値も加算後にする
+  // （受け口はイベントの値で表示を進めるため、後から足すと表示だけずれる）。
+  const reviveSummonBuff = coreSummonBuffOf(state, unit.side);
+  if (reviveSummonBuff.atk || reviveSummonBuff.hp) {
+    const atk = coreStatBonus(unit, reviveSummonBuff.atk);
+    const hp = coreStatBonus(unit, reviveSummonBuff.hp);
+    unit.atk += atk;
+    unit.maxHp += hp;
+    unit.hp += hp;
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp, reason: 'summon_buff', sourceId: unit.id });
+  }
   emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk, reason: ring ? 'revival_ring' : keyword });
   // 復活後は次の死亡を新しい1回として扱う。
   delete unit._coreDeathTriggered;
   delete unit._coreDeathEffectsTriggered;
   delete unit._coreDeathObserved;
   return true;
+  } finally { coreEndSummonBatch(state, emit); }
 }
 function coreTriggerBattleEnd(state, emit, rng) {
   ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     if (unit.hp > 0 && !coreIsSealed(unit)) {
       const repeats = 1 + Math.max(0, Number(unit._effectRepeatBonus) || 0);
+      if ((Number(unit.goldOnBattleEnd) || 0) > 0 || unit.randomItemOnBattleEnd) {
+        coreEmitEffectFlash(emit, unit, 'battle_end', repeats);
+      }
       coreGainResource(state, side, 'gold', unit.goldOnBattleEnd * repeats, unit, emit, 'goldOnBattleEnd');
       if (unit.randomItemOnBattleEnd) {
         for (let i = 0; i < repeats; i++) {
@@ -2797,7 +3264,20 @@ function coreManaThresholdDescFromText(text) {
   return String(text || '').replace(/^\s*\d+マナ(?:毎)?\s*[:：]\s*/, '').trim();
 }
 
+// マナ効果。攻撃効果の中から誘発した場合（ペガサス・マナ生成→炎の矢など）は、
+// 攻撃効果そのもののダメージとは別の束として見せるため種別を分ける。
 function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
+  const cur = coreDamageKind(state);
+  const kind = (cur === 'attack_effect' || cur === 'attack_effect_triggered')
+    ? 'attack_effect_triggered' : cur;
+  return coreWithDamageKind(state, kind,
+    () => coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options));
+}
+
+// シートの「マナ順位」が空欄のマナ効果を最後に回すための値。
+const CORE_MANA_ORDER_LAST = 9999;
+
+function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options) {
   // 遅延モード（PvEの開戦演出）では、走査中は状態を進めたまま各発動の
   // before/afterスナップショットを累積で記録し、走査の最後に一度だけ
   // 走査前の盤面へ戻す。1発動ごとに巻き戻すと、
@@ -2811,26 +3291,52 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
   const deferAll = !!state.deferManaThresholdEffects;
   const forcedUnitId = options && options.force ? String(options.onlyUnitId || '') : '';
   let forcedTriggered = false;
+  // **どちらかの陣営が全滅していたら、もう何も発動させない。**
+  // 勝敗が付いた後もマナ効果が走ると、開戦で敵が全滅したのに炎の矢が飛び続け、
+  // 誰もいない所へ向かった演出が画面に残る（利用者報告）。
+  // 「そもそも居ない」（最小シナリオ・片側だけの検証）と「全滅した」は別物。
+  // 全滅＝体はあるのに生きているものが1つも無い時だけ止める。
+  const coreSideWipedOut = side => {
+    const arr = (state.units[side] || []).filter(u => u && !u._isObject && !u._isSoul);
+    return arr.length > 0 && !arr.some(u => u.hp > 0);
+  };
+  if (coreSideWipedOut('p1') || coreSideWipedOut('p2')) return;
   const scanBaseline = deferAll ? coreSnapshotDeferredState(state) : null;
   let changed = true;
   // 1パスで発動するのは (ユニット×閾値) ごとに1回のため、
   // 「1マナ毎」に高マナで到達している場合は到達回数分のパスが要る。
-  for (let pass = 0; pass < 100 && changed; pass++) {
+  // 上限を大きめに取る。**1パスで撃つのは「一番上の順位の効果」だけ**なので、
+  // 効果の数×発動回数ぶんパスが要る（以前は1パスで全効果を1回ずつ撃っていた）。
+  for (let pass = 0; pass < 400 && changed; pass++) {
     changed = false;
-    ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
+    // 発動回（wave）。**同じ発動回＝同じ瞬間**。再生側はこれを見て、
+    // 同じ効果を持つ複数のキャラクターを1体ずつ順にではなく同時に見せる。
+    // 通し番号は戦闘全体で増やす。パス番号のままだと、攻撃・負傷など別の機会に
+    // 起きた発動が同じ番号になり、再生側が「同じ瞬間」と誤認する。
+    state._coreManaWaveSeq = (Number(state._coreManaWaveSeq) || 0) + 1;
+    const wave = state._coreManaWaveSeq;
+    // ── 発動順 ──────────────────────────────────────
+    // **シートの「マナ順位」が小さいものから処理する。**
+    // 同率なら前衛の左から右、続いて後衛の左から右（＝盤面配列の並び）。
+    // 陣営はp1→p2の順に見る（マナは陣営ごとの資源なので、跨いで混ぜない）。
+    // ここで並べてから発動させること。ユニットの並び順のまま撃つと、
+    // 順位を付けても効かない。
+    const fireQueue = [];
+    ['p1', 'p2'].forEach(side => (state.units[side] || []).forEach((unit, slotIndex) => {
+      if (!unit) return;
       if (forcedUnitId && String(unit.id) !== forcedUnitId) return;
-      if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
+      if (unit.hp <= 0 || coreIsSealed(unit)) return;
       const thresholds = [];
-      const thresholdKeys = new Set();
-      const addThreshold = (owner, cost, repeat, desc) => {
+      const addThreshold = (owner, cost, repeat, desc, no, order) => {
         const normalizedDesc = String(desc || '').trim();
         const key = `${Number(cost) || 0}|${repeat ? 1 : 0}|${normalizedDesc}`;
-        // 本体のmanaCost、隣接強化のextra配列、effectDataは同じ効果を
-        // 別の保持先へ複製することがある。保持先ごとに発火数を持つと、
-        // 1つの「2マナ毎」効果が同じ閾値で複数回解決されるため、ここで統合する。
-        if (!Number(cost) || thresholdKeys.has(key)) return;
-        thresholdKeys.add(key);
-        thresholds.push({ owner, cost: Number(cost), repeat: !!repeat, desc: normalizedDesc, key });
+        if (!Number(cost)) return;
+        // no：その効果の固有VFXを引くカードNo.（活性化＝E045等）。演出側が使う。
+        // order：シートの「マナ順位」。空欄は最後に回す。
+        const n = Number(order);
+        thresholds.push({ owner, cost: Number(cost), repeat: !!repeat, desc: normalizedDesc, key,
+          no: String(no || '').toUpperCase(),
+          order: Number.isFinite(n) ? n : CORE_MANA_ORDER_LAST });
       };
       // マナ効果の効果文は、専用フィールドが無ければカード本文から導出する。
       // 「Nマナ毎：」「Nマナ：」の接頭辞を外した残りが効果の中身。
@@ -2841,13 +3347,74 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
         addThreshold(unit, unit.manaCost, unit.manaRepeat,
           unit.manaThresholdDesc || unit._manaThresholdDesc
           || (unit.effectData && unit.effectData.manaThresholdDesc)
-          || coreManaThresholdDescFromText(unit.desc));
+          || coreManaThresholdDescFromText(unit.desc),
+          // 強化カード由来なら _manaThresholdNo が入る。無ければカード自身のNo.。
+          unit.manaThresholdNo || unit._manaThresholdNo
+          || (unit.effectData && unit.effectData.manaThresholdNo)
+          || unit.no || unit.artCode,
+          // 強化カード由来なら _manaThresholdOrder が入る。無ければカード自身のマナ順位。
+          unit.manaThresholdOrder != null ? unit.manaThresholdOrder
+            : (unit._manaThresholdOrder != null ? unit._manaThresholdOrder
+              : (unit.effectData && unit.effectData.manaThresholdOrder != null
+                ? unit.effectData.manaThresholdOrder : unit.manaOrder)));
       }
-      [...(unit.extraManaThresholds || []), ...(unit._extraManaThresholds || []), ...(unit.effectData && unit.effectData.extraManaThresholds || [])].forEach(t => {
-        if (Number(t && t.cost) > 0) addThreshold(t, t.cost, t.repeat, t.desc);
+      // **同じ効果を複数枚持っていたら、枚数ぶん発動する。**（炎の矢×2 など）
+      // ただし本体のextra配列・別名フィールド・effectDataは**同じ配列を別の保持先へ
+      // 複製している**ことがある。足し合わせると1枚が2回撃つので、
+      // **保持先ごとに数えて、一番多い保持先だけを採る。**
+      const extraSources = [unit.extraManaThresholds, unit._extraManaThresholds,
+        unit.effectData && unit.effectData.extraManaThresholds];
+      const extraByKey = new Map();
+      extraSources.forEach(list => {
+        const perSource = new Map();
+        (Array.isArray(list) ? list : []).forEach(t => {
+          if (!(Number(t && t.cost) > 0)) return;
+          const k = `${Number(t.cost) || 0}|${t.repeat ? 1 : 0}|${String(t.desc || '').trim()}`;
+          if (!perSource.has(k)) perSource.set(k, []);
+          perSource.get(k).push(t);
+        });
+        perSource.forEach((entries, k) => {
+          const cur = extraByKey.get(k);
+          if (!cur || entries.length > cur.length) extraByKey.set(k, entries);
+        });
       });
+      extraByKey.forEach(entries => entries.forEach(t => {
+        addThreshold(t, t.cost, t.repeat, t.desc, t.no, t.order);
+      }));
+      // 前衛が先、後衛が後。同じレーンの中は盤面配列の並び（左から右）。
+      const laneRank = unit.lane === 'rear' ? 1 : 0;
       thresholds.forEach(t => {
-        const progress = Math.floor((state.resources[side].mana || 0) / t.cost);
+        // **撃ち切った効果は列から外す。** 外さないと「一番上の順位」が
+        // 撃ち切った効果のまま居座り、次の効果へ進めない（changedが立たず走査が終わる）。
+        const forcedHere = !!(forcedUnitId && String(unit.id) === forcedUnitId);
+        if (!forcedHere) {
+          const progress = coreManaThresholdProgress(state, side, t, unit);
+          const limit = t.repeat ? progress : Math.min(1, progress);
+          const counts = t.owner._manaFireCounts;
+          if ((Number(counts && counts[t.key]) || 0) >= limit) return;
+        }
+        fireQueue.push({ side, unit, t, laneRank, slotIndex });
+      });
+    }));
+    // **全く同じ効果は、順位に関係なく必ずひとかたまりにする。**
+    // 効果ごとに「一番小さい順位」を代表値にして並べる。キャラクターごとの
+    // 順位で散らすと、同じ活性化でも1体ずつ順に発動して見える。
+    const orderByEffect = new Map();
+    fireQueue.forEach(({ t }) => {
+      const cur = orderByEffect.get(t.key);
+      if (cur == null || t.order < cur) orderByEffect.set(t.key, t.order);
+    });
+    fireQueue.sort((a, b) => (orderByEffect.get(a.t.key) - orderByEffect.get(b.t.key))
+      || (a.t.key < b.t.key ? -1 : a.t.key > b.t.key ? 1 : 0)
+      || (a.laneRank - b.laneRank) || (a.slotIndex - b.slotIndex));
+    // **順位が上の効果を、発動回数ぶん全部片付けてから次の効果へ移る。**
+    // 1パスで全効果を1回ずつ撃つと、活性化と炎の矢が交互に発動し、
+    // 演出も交互に出て重なって見える（「上位の演出が全部終わるまで下位を出さない」が守れない）。
+    const topKey = fireQueue.length ? fireQueue[0].t.key : null;
+    fireQueue.filter(x => x.t.key === topKey).forEach(({ side, unit, t }) => {
+      if (unit.hp <= 0 || coreIsSealed(unit)) return;
+      {
+        const progress = coreManaThresholdProgress(state, side, t, unit);
         const limit = t.repeat ? progress : Math.min(1, progress);
         // ユニット本体に単一のカウンタを置くと、同じコストで異なる
         // マナ効果を2つ持つ場合に片方が抑制される。効果ごとに独立して
@@ -2864,7 +3431,18 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
         const text = t.desc;
         const deferred = !!state.deferManaThresholdEffects;
         const deferredBefore = deferred ? coreSnapshotDeferredState(state) : null;
-        const thresholdEvent = { type: 'mana_threshold', side, unitId: unit.id, cost: t.cost, desc: text, deferred };
+        // このマナ効果の解決中に出るダメージへ、効果のカードNo.を載せる。
+        // 対象に当たった瞬間の演出（炎の矢＝E058_2）を再生側が選ぶために要る。
+        state._coreEffectNo = t.no || null;
+        // **その効果の持ち主。** 誘発で割り込んだ別のキャラクターのダメージへ
+        // 同じ番号を載せないための印（下の coreDamageEffectNo）。
+        state._coreEffectOwnerId = t.no ? unit.id : null;
+        const thresholdEvent = { type: 'mana_threshold', side, unitId: unit.id, cost: t.cost, desc: text, deferred,
+          // effectNo：その効果の固有VFXを引くカードNo.（活性化＝E045）。
+          // 演出側はこれを見て「どの効果が発動したか」を決める。
+          effectNo: t.no || '',
+          // wave：同じ番号なら同じ瞬間の発動。再生側が同時に見せるための印。
+          wave };
         // PvEではこのイベントを先に出し、演出アダプタが逆再生開始時に
         // deferredAfterを復元する。コア内の計算順は維持する。
         emit(thresholdEvent);
@@ -2874,7 +3452,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
           if (!target || target.hp <= 0 || coreIsSealed(target)) return;
           atk = coreStatBonus(target, atk); hp = coreStatBonus(target, hp);
           target.atk += atk; target.maxHp += hp; target.hp += hp;
-          emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason });
+          emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason });
         };
         const buff = text.match(/^(?:このキャラクターは\s*)?\+(\d+)\s*\/\s*\+(\d+)を得る/);
         if (buff) {
@@ -2882,7 +3460,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             let atk = Number(buff[1]), hp = Number(buff[2]);
             atk = coreStatBonus(unit, atk); hp = coreStatBonus(unit, hp);
             unit.atk += atk; unit.maxHp += hp; unit.hp += hp;
-            emit({ type: 'stat_change', side, unitId: unit.id, atk, hp, reason: 'mana_threshold' });
+            emit({ type: 'stat_change', sourceId: unit.id, side, unitId: unit.id, atk, hp, reason: 'mana_threshold' });
           }
         }
         const arachne = text.match(/^全ての味方に\+(\d+)\s*\/\s*\+(\d+)を与えた後、(\d+)ダメージを与える/);
@@ -2893,16 +3471,28 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
               const atk = coreStatBonus(target, Number(arachne[1]) || 0);
               const hp = coreStatBonus(target, Number(arachne[2]) || 0);
               target.atk += atk; target.maxHp += hp; target.hp += hp;
-              emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_arachne_buff' });
+              emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_arachne_buff' });
             });
             coreHitAll(state, rng, emit, applyHit, unit, allies, Number(arachne[3]) || 0);
           }
         }
         const damage = text.match(/^ランダムな敵に(\d+)ダメージを与える/);
         if (damage) {
-          const foes = (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
-          const target = rng.pick(foes);
-          if (target) for (let i = 0; i < repeatCount; i++) applyHit(unit, target, Number(damage[1]));
+          // 賢者の指輪・マナの種などで同じ効果が複数回発動する時は、対象を発動ごとに
+          // 再抽選するだけでなく、**この一続きで既に狙った敵を除いて**選ぶ。
+          // 除かないと2本とも同じ敵へ飛び、片方が無駄撃ちに見える。
+          // 残りがいなくなったら、また全員から選び直す。
+          const aimed = new Set();
+          for (let i = 0; i < repeatCount; i++) {
+            const alive = (state.units[side === 'p1' ? 'p2' : 'p1'] || [])
+              .filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
+            let foes = alive.filter(x => !aimed.has(x.id));
+            if (!foes.length) { aimed.clear(); foes = alive; }
+            const target = rng.pick(foes);
+            if (!target) break;
+            aimed.add(target.id);
+            applyHit(unit, target, Number(damage[1]));
+          }
         }
         const mana = text.match(/^(\d+)マナを?得る/);
           if (mana) coreGainResource(state, side, 'mana', Number(mana[1]) * repeatCount, unit, emit, 'mana_threshold', {
@@ -2923,7 +3513,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             const atk = coreStatBonus(target, Number(randomColor[3]) || 0);
             const hp = coreStatBonus(target, Number(randomColor[4]) || 0);
             target.atk += atk; target.maxHp += hp; target.hp += hp;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_color' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_color' });
           }
         }
         const randomAlly = text.match(/^ランダムな味方に\+([0-9]+)\/(?:\+)?([0-9]+)を(?:与える|得る)/);
@@ -2934,7 +3524,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             const atk = coreStatBonus(target, Number(randomAlly[1]) || 0);
             const hp = coreStatBonus(target, Number(randomAlly[2]) || 0);
             target.atk += atk; target.maxHp += hp; target.hp += hp;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_ally' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_ally' });
           }
         }
         if (/^ランダムな味方(?:は|に)結界(?:1)?を(?:付与|与える|得る)/.test(text)) {
@@ -2966,7 +3556,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
         if (allHpDouble) (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(target => {
           const hp = target.maxHp;
           target.maxHp *= 2; target.hp *= 2;
-          emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: 0, hp, reason: 'mana_threshold_hp_double' });
+          emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk: 0, hp, reason: 'mana_threshold_hp_double' });
         });
         if (/^ランダムな味方の負傷効果を発動する/.test(text)) {
           const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
@@ -2988,7 +3578,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             let atk = Number(colorBuff[3]) || 0, hp = Number(colorBuff[4]) || 0;
             atk = coreStatBonus(target, atk); hp = coreStatBonus(target, hp);
             target.atk += atk; target.maxHp += hp; target.hp += hp;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_color' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_color' });
           }
         }
         const allColorBuff = text.match(/^全ての([赤青緑黄紫茶])(?:の)?キャラクターは\+([0-9]+)\/\+([0-9]+)を得る/);
@@ -2998,7 +3588,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             const atk = coreStatBonus(target, Number(allColorBuff[2]) || 0);
             const hp = coreStatBonus(target, Number(allColorBuff[3]) || 0);
             target.atk += atk; target.maxHp += hp; target.hp += hp;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_color_all' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_color_all' });
           });
         }
         const randomColorCountBuff = text.match(/^ランダムな([赤青緑黄紫茶])キャラクター(\d+)体は\+([0-9]+)\/(?:\+)?([0-9]+)を得る/);
@@ -3011,7 +3601,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
             const atk = coreStatBonus(target, Number(randomColorCountBuff[3]) || 0);
             const hp = coreStatBonus(target, Number(randomColorCountBuff[4]) || 0);
             target.atk += atk; target.maxHp += hp; target.hp += hp;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_color_count' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp, reason: 'mana_threshold_random_color_count' });
           }
         }
         const allColorAtk = text.match(/^全ての([赤青緑黄紫茶])キャラクターはATK\+([0-9]+)を得る/);
@@ -3020,7 +3610,7 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
           (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === color).forEach(target => {
             const atk = coreStatBonus(target, Number(allColorAtk[2]) || 0);
             target.atk += atk;
-            emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp: 0, reason: 'mana_threshold_color_atk' });
+            emit({ type: 'stat_change', sourceId: unit.id, side: target.side, unitId: target.id, atk, hp: 0, reason: 'mana_threshold_color_atk' });
           });
         }
         const randomEnemyWeaken = text.match(/^ランダムな敵(?:を|に)防戦(?:にする|を与える)/);
@@ -3095,8 +3685,10 @@ function coreApplyManaThresholdEffects(state, rng, emit, applyHit, options) {
         if (!state._openingPhase && typeof coreFlushPendingLichSummons === 'function') {
           coreFlushPendingLichSummons(state, emit);
         }
-      });
-    }));
+        state._coreEffectNo = null;
+        state._coreEffectOwnerId = null;
+      }
+    });
   }
   // 演出側が deferredAfter を順に復元して盤面を進めるため、コアは走査前の状態へ戻す。
   if (deferAll && scanBaseline) coreRestoreDeferredState(state, scanBaseline);
@@ -3118,6 +3710,8 @@ function coreBattleStep(ctx) {
   let side = ctx.side;
   let result = ctx.result;
     state.turn++;
+    // 盤面が変わっているかもしれないので、紫修正を作り直してから手番を始める。
+    coreRefreshVoidWalkerBonus(state);
     emit({ type: 'turn_begin', turn: state.turn });
 
     const foeSide = side === 'p1' ? 'p2' : 'p1';
@@ -3166,9 +3760,13 @@ function coreBattleStep(ctx) {
     attacker._currentAttackTarget = plannedTarget;
     attacker._attackTargetWasWounded = !!(plannedTarget.hp > 0 && plannedTarget.hp < plannedTarget.maxHp);
     const silenced = !!attacker._silenced;
+    // 反復ボーナス（絆の巻物で合体したカード等）は**他のトリガと同じ引き方**にする。
+    // ここだけ effectData しか見ていなかったため、合体したカードの
+    // **攻撃効果だけ2回目が発動しなかった**（効果の数値が増えないように見える）。
     const attackEffectRepeats = 1 + coreRingCount(state, side, '狂戦士の指輪')
       + coreEffectCount(attacker, '闇の儀式')
-      + Math.max(0, Number(attacker.effectData && attacker.effectData.effectRepeatBonus) || 0);
+      + Math.max(0, Number(attacker._effectRepeatBonus)
+        || Number(attacker.effectData && attacker.effectData.effectRepeatBonus) || 0);
     let attackEffectResult = { skipAttack: false };
     if (!silenced) for (let i = 0; i < attackEffectRepeats && attacker.hp > 0; i++) {
       coreTriggerManaOnAttack(attacker, state, emit);
@@ -3224,43 +3822,105 @@ function coreBattleStep(ctx) {
         // 三方向は「盤面配列の隣接スロット」で左右を選ぶ。PvEは空きスロットを含む
         // 固定長配列のindexで [idx-1, idx, idx+1] を取るため、生存者だけに詰めた
         // 配列のindexで取ると対象が変わる。PvEに合わせる。
-        const idx = arr.indexOf(target);
-        return [idx - 1, idx, idx + 1].filter(i => i >= 0 && i < arr.length).map(i => arr[i]).filter(alive);
+        return coreTriDirectionTargets(target, arr);
       }
-      const list = [target];
-      if (coreUnitHasKeyword(attacker, '貫通')) list.push(...corePierceRearTargets(target, live));
-      return list.filter((u, i, a) => u && a.indexOf(u) === i && u.hp > 0);
+      // **貫通の巻き込みはここで足さない。** withPierce() が唯一の実装
+      // （ここでも足していた頃は、withPierce 側が「もう入っている」と判断して
+      //   巻き込んだ相手を控えず、貫通の演出が出なくなった）。
+      return [target].filter(u => u && u.hp > 0);
+    };
+    // 貫通は範囲攻撃と**併用できる**。三方向攻撃・全体攻撃で当たった前衛それぞれの
+    // 真後ろも巻き込む（貫通の効果文どおり）。片方だけを見て切り替えていた頃は、
+    // 三方向攻撃を持つキャラクターの貫通が効果もVFXも丸ごと消えていた。
+    // 貫通で巻き込む後衛。**範囲攻撃の対象とは別に持つ**（三方向攻撃のVFXが
+    // 後衛にまで出てしまうため、演出へ同じ配列を渡してはいけない）。
+    const pierceVictimIds = new Set();
+    const withPierce = (victims) => {
+      if (!coreUnitHasKeyword(attacker, '貫通')) return victims;
+      const alive = u => u && u.hp > 0 && !coreIsSealed(u) && !u._isObject && !u._isSoul;
+      const live = (units[foeSide] || []).filter(alive);
+      const out = victims.slice();
+      victims.filter(u => u && (u.lane || 'front') !== 'rear')
+        .forEach(u => corePierceRearTargets(u, live).forEach(rear => {
+          if (!rear) return;
+          // **控えるのは「もう対象に入っているか」と関係なく行う。**
+          // 演出はこの控えを見て貫通を出すか決める。
+          pierceVictimIds.add(rear.id);
+          if (!out.includes(rear)) out.push(rear);
+        }));
+      return out.filter((u, i, a) => u && a.indexOf(u) === i && u.hp > 0);
     };
     // allowCounter：反撃を受けるかどうか。全体／三方向／貫通の1回の攻撃で反撃を受けるのは
     // **主対象の1体だけ**（PvEの _dealAttackDamage は entries に反撃を1件しか積まない）。
     // 対象ごとに反撃させると、全体攻撃で対象3体なら反撃も3回になりPvEと食い違う。
     // 二段／三段の追加攻撃は1回ずつ別の攻撃なので、そちらは毎回反撃を受ける。
-    const hit = (victim, allowCounter) => {
-      if (!victim || victim.hp <= 0) return;
-      const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(victim, '先制');
-      const counter = coreCounterDamage(attacker, victim);
-      emit({ type: 'attack', side, attackerId: attacker.id, targetId: victim.id, damage, counterDamage: counter });
-      // **攻撃と反撃はひと続きの打ち合い。** 先に両方のダメージを確定させてから、
-      // 誘発（死亡効果・負傷効果）をまとめて解決する。1発ずつ誘発まで解決すると、
-      // 倒れた側の死亡効果（闇の炎の1ダメージ等）が反撃より先に起きる。
+    // **一撃（1回の攻撃）＝ひとまとまり。** 全体攻撃・三方向攻撃・貫通で複数体へ当たる場合も、
+    // 当たるのは同じ瞬間なので、全員へダメージを入れてから誘発（負傷・死亡効果）をまとめて解決する。
+    // 攻撃と反撃も同じひと続きの打ち合いとして先に両方を確定させる。1発ずつ誘発まで解決すると、
+    // 倒れた側の死亡効果（闇の炎の1ダメージ等）が反撃や他の対象へのダメージより先に起きる。
+    // primary：この一撃の主対象（反撃を受ける相手・モーションを出す相手）。
+    // **追加攻撃（二段・三段・疾風の指輪）では対象が変わる。** 省略して外側の target を
+    // 見ていた頃は、2回目以降の attack イベントが attackVisual:false になり、
+    // 再生側が攻撃モーションを飛ばしていた。
+    const strike = (victims, primaryTarget) => {
+      const strikeTarget = primaryTarget || target;
       const pending = [];
-      const hitOpts = { deferTriggers: true, collect: pending };
-      attacker._coreAttackContact = true;
-      const targetResult = applyHit(attacker, victim, damage, false, false, false, hitOpts);
-      delete attacker._coreAttackContact;
-      if (allowCounter && !(attackerFirst && targetResult.died)) {
-        applyHit(victim, attacker, counter, true, false, false, hitOpts);
-      }
+      const spread = coreAttackSpread(attacker);
+      // 接触演出は複数同時に出る（三方向攻撃＋貫通など）。**片方で上書きしないこと。**
+      const contactModes = [];
+      if (spread) contactModes.push(spread);
+      // **貫く相手がいない時は、貫通の演出も出さない**（利用者指定）。
+      if (coreUnitHasKeyword(attacker, '貫通') && pierceVictimIds.size) contactModes.push('pierce');
+      const hitOpts = { deferTriggers: true, collect: pending,
+        suppressAttackHitSfx: contactModes.length > 0 };
+      coreWithDamageKind(state, 'combat', () => {
+        const batched = coreBeginDamageBatch(state);
+        try {
+          const targetIds = victims.map(x => x && x.victim && x.victim.id).filter(Boolean);
+          const primary = victims.find(x => x && x.victim === strikeTarget);
+          // **接触VFXは attack イベントより先に出す。** 再生側はこれを持っておき、
+          // 攻撃モーションが対象へ接触した瞬間に鳴らす。あとに置いていた頃は、
+          // 攻撃モーションを再生し終えた（＝キャラクターが戻った）後に出ていた。
+          if (contactModes.length && primary) {
+            // targetIds＝範囲攻撃（三方向・全体）の対象。pierceTargetIds＝貫通が
+            // 貫く順（手前から奥へ）。混ぜると三方向攻撃のVFXが後衛に出る。
+            emit({ type: 'attack_contact_vfx', side, attackerId: attacker.id,
+              mode: contactModes[0], modes: contactModes.slice(),
+              primaryTargetId: strikeTarget.id,
+              targetIds: targetIds.filter(id => !pierceVictimIds.has(id)),
+              pierceTargetIds: [strikeTarget.id, ...targetIds.filter(id => pierceVictimIds.has(id))] });
+          }
+          victims.forEach(({ victim, allowCounter }) => {
+            if (!victim || victim.hp <= 0) return;
+            const counter = coreCounterDamage(attacker, victim);
+            emit({ type: 'attack', side, attackerId: attacker.id, targetId: victim.id, damage, counterDamage: counter,
+              attackVisual: victim === strikeTarget });
+          });
+          victims.forEach(({ victim, allowCounter }) => {
+            if (!victim || victim.hp <= 0) return;
+            const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(victim, '先制');
+            const counter = coreCounterDamage(attacker, victim);
+            attacker._coreAttackContact = true;
+            const targetResult = applyHit(attacker, victim, damage, false, false, false, hitOpts);
+            delete attacker._coreAttackContact;
+            if (allowCounter && !(attackerFirst && targetResult.died)) {
+              applyHit(victim, attacker, counter, true, false, false, hitOpts);
+            }
+          });
+        } finally { if (batched) coreEndDamageBatch(state); }
+      });
+      // 誘発は戦闘ダメージの束の外で解決する（負傷効果・死亡効果はそれぞれ別の種別になる）。
       pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
-        h.counter, rng, emit, applyHit, h.opt));
+        h.counter, rng, emit, applyHit, h.damageKind ? { ...h.opt, damageKind: h.damageKind } : h.opt));
     };
-    attackTargets().forEach(victim => hit(victim, victim === target));
+    strike(withPierce(attackTargets()).map(victim => ({ victim, allowCounter: victim === target })));
     const extra = coreAttackSpread(attacker) ? 0
       : coreExtraAttackTotal(attacker, units[side], coreRingCount(state, side, '疾風の指輪'));
     for (let i = 0; i < extra && attacker.hp > 0; i++) {
       const nextTarget = coreSelectAttackTarget(attacker, units[foeSide], rng, { defendersAreEnemies: foeSide === 'p2' });
       if (!nextTarget) break;
-      hit(nextTarget, true);
+      // 二段攻撃等の追加攻撃は「別の一撃」。前の一撃と同じ束にはしない。
+      strike([{ victim: nextTarget, allowCounter: true }], nextTarget);
     }
     // 死亡で生贄が減る／増えることがあるので、毎接触の後に封印を再判定する（PvEと同じ）。
     resolveSeals();
@@ -3306,7 +3966,10 @@ function coreCompactUnits(state, keepOnBoard) {
 // 2026-09-01のユーザー指示でPvEも乱数へ揃えた。両方がここだけを呼ぶこと。
 function corePickFirstSide(state, rng) {
   const units = state.units || { p1: [], p2: [] };
-  if (coreRingCount(state, 'p1', '神速の指輪') || coreRingCount(state, 'p1', '疾風の指輪')) return 'p1';
+  // **先攻になるのは神速の指輪だけ**（開戦：左端のATKを2倍にし、先攻になる）。
+  // 疾風の指輪は「常時：味方の攻撃回数は1回追加される」で、先攻とは関係がない。
+  // 一緒に扱っていた頃は、疾風の指輪を持っているだけで敵の方が多くても先攻になっていた。
+  if (coreRingCount(state, 'p1', '神速の指輪')) return 'p1';
   const n1 = coreLivingUnits(units.p1).length, n2 = coreLivingUnits(units.p2).length;
   if (n1 !== n2) return n1 > n2 ? 'p1' : 'p2';
   return (rng && typeof rng.next === 'function' ? rng.next() : Math.random()) < 0.5 ? 'p1' : 'p2';
@@ -3577,6 +4240,7 @@ if (typeof window !== 'undefined') {
   window.coreUnitSnapshot = coreUnitSnapshot;
   window.coreMathRng = coreMathRng;
   window.CORE_KEYWORD_CARD_NAMES = CORE_KEYWORD_CARD_NAMES;
+  window.CORE_EFFECT_CARD_NAMES = CORE_EFFECT_CARD_NAMES;
   window.coreUnitKeywords = coreUnitKeywords;
   window.coreUnitEffectText = coreUnitEffectText;
   window.coreUnitTriggerText = coreUnitTriggerText;
@@ -3647,19 +4311,20 @@ if (typeof module !== 'undefined' && module.exports) {
     BATTLE_CORE_TURN_LIMIT, createBattleState, runBattleCore, coreBattleStep,
     coreLaneAttackCandidates, corePickAttacker, coreExtraAttackTotal,
     battleCoreFinalState, coreUnitSnapshot, createCoreUnit,
-    coreMathRng, CORE_KEYWORD_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced,
+    coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
     coreSummonUnit, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
+    coreBeginSummonBatch, coreEndSummonBatch, coreApplyWargThreshold,
     corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
     coreRunOpening,
     coreCompactUnits,
     coreSnapshotDeferredState,
-    coreSelectAttackTarget, corePierceRearTargets,
+    coreSelectAttackTarget, corePierceRearTargets, coreTriDirectionTargets,
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
     coreUnitHasSacrifice, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
-    coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus,
+    coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus, coreRefreshVoidWalkerBonus,
     coreApplyKeywordOnHit, coreApplyPoisonBeforeTurn,
     coreKeywordHitAmounts,
     coreTriggerAtkGainEffects,

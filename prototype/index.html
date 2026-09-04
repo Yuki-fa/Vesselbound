@@ -320,6 +320,13 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
 #hand-slots .card.glow-blue{border-radius:6px;z-index:2;position:relative}
 .slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
+.slot.unit-card.effect-flash{box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;border-color:var(--effect-flash-core)!important;z-index:3;animation:none}
+.slot.unit-card.effect-flash[data-effect-flash-color="yellow"]{--effect-flash-core:#ffe34d;--effect-flash-glow:rgba(255,214,45,.78)}
+.slot.unit-card.effect-flash[data-effect-flash-color="red"]{--effect-flash-core:#ff5b5b;--effect-flash-glow:rgba(255,60,60,.78)}
+.slot.unit-card.effect-flash[data-effect-flash-color="blue"]{--effect-flash-core:#66aaff;--effect-flash-glow:rgba(65,135,255,.78)}
+.slot.unit-card.effect-flash[data-effect-flash-color="green"]{--effect-flash-core:#69e18a;--effect-flash-glow:rgba(50,220,105,.78)}
+.slot.unit-card.effect-flash[data-effect-flash-color="white"]{--effect-flash-core:#fff;--effect-flash-glow:rgba(255,255,255,.82)}
+.slot.unit-card.effect-flash[data-effect-flash-color="purple"]{--effect-flash-core:#c77dff;--effect-flash-glow:rgba(170,90,255,.80)}
 @keyframes blink-death{0%,100%{opacity:1}50%{opacity:.08}}
 @keyframes blink-warn{0%,100%{opacity:.7}50%{opacity:.15}}
 /* 確実死：密な赤斜線＋赤枠＋速い点滅 */
@@ -680,6 +687,26 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 }
 .damage-vfx-host .vfx-damage-label{
   z-index:2;
+}
+/* 効果が続いている間ずっと出し続けるVFX（マナ効果の活性化など）。
+   命中VFXより下に敷き、数値やヒット演出を隠さない。 */
+.effect-sustain-host{
+  position:fixed;
+  z-index:10019;
+  pointer-events:none;
+  overflow:visible;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.effect-sustain-host .vfx-hit-video{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:460%;
+  height:auto;
+  z-index:1;
+  pointer-events:none;
 }
 .damage-label-host{
   position:fixed;
@@ -1970,7 +1997,9 @@ body.battle-victory-pending .slot.unit-card.drag-over::before{
   animation:none!important;
   opacity:0!important;
 }
-body.battle-victory-pending:not(.gameover-active) #kw-tooltip,
+/* 勝利・撤退の結果表示中はカードの説明を出さない。
+   ただし所持金・ライフ・マナ・血の説明（#kw-tooltip.status-tip）はそのまま出す。 */
+body.battle-victory-pending:not(.gameover-active) #kw-tooltip:not(.status-tip),
 body.battle-victory-pending:not(.gameover-active) #map-power-tooltip,
 body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
   display:none!important;
@@ -9467,6 +9496,11 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
   border-bottom:none!important;padding-bottom:0!important;margin-bottom:0!important;
   white-space:nowrap!important;
 }
+/* 見出しの下に本文が続く場合（所持金・ライフ・マナ・血の説明）は、
+   直線は消したまま行間だけ空ける。見出しだけの表示（旅の進捗）は0のまま。 */
+#kw-tooltip.no-title-rule .preview-title:not(:only-child){
+  margin-bottom:6px!important;
+}
 #kw-tooltip .preview-section-rule{
   display:block!important;
   height:0!important;
@@ -10202,6 +10236,13 @@ html body.reward-screen-active .shop-board-sell-btn{
 .battle-status-counter>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-status-label{position:absolute;left:50px;top:35px;z-index:1;font-size:30px;font-weight:700;line-height:1;white-space:nowrap}
 .battle-status-counter strong{position:absolute;left:0;top:27px;width:440px;z-index:1;font-size:46px;font-weight:800;line-height:1;text-align:right;white-space:nowrap}
+/* 所持金・ライフ・マナ・血の枠は、説明のホバー（data-preview）を受けるため枠自体だけ当たり判定を持つ。
+   親（#battle-status-hud / #battle-counters / #village-status / #map-status）はpointer-events:noneのままなので、
+   枠の外や枠同士の隙間はこれまで通り素通りする。戦闘・村・マップ・ゲームオーバー／クリアのどの画面でも同じ。 */
+html body #battle-status-hud .battle-status-counter,
+html body #village-status .battle-status-counter,
+html body #map-status .battle-status-counter,
+html body #battle-counters .battle-counter{pointer-events:auto!important}
 .battle-life-heart{display:inline-block;width:1.05em;text-align:center;font-style:normal}
 .battle-life-heart-empty{color:#c99049}
 .battle-life-heart-filled{color:#c99049}
@@ -13798,40 +13839,40 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=kwVfxRenum01"></script>
-<script src="js/engine/audio.js?v=necroSeed01"></script>
+    <script src="assets.js?v=contact31"></script>
+<script src="js/engine/audio.js?v=contact31"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=sheet0827"></script>
+<script src="js/data/local_xlsx_data.js?v=sheet0904f"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=keywordFix02"></script>
+<script src="js/data/loader.js?v=contact31"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-<script src="js/battle/core.js?v=necroSeed01"></script>
+    <script src="js/battle/core.js?v=contact31"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-<script src="js/battle/present.js?v=necroSeed01"></script>
-<script src="js/battle/present_events.js?v=necroSeed01"></script>
+    <script src="js/battle/present.js?v=contact31"></script>
+    <script src="js/battle/present_events.js?v=contact31"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=ringPayload01"></script>
+<script src="js/online/server_local.js?v=asset0903"></script>
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=tempoAlign01"></script>
 <script src="js/online/matching.js?v=online15"></script>
-<script src="js/online/board.js?v=necroSeed01"></script>
-<script src="js/online/versus.js?v=tripleMerged01"></script>
+    <script src="js/online/board.js?v=contact31"></script>
+<script src="js/online/versus.js?v=asset0903"></script>
 <script src="js/online/flow.js?v=online16"></script>
 <script src="js/online/hud.js?v=core7"></script>
-<script src="js/engine/state.js?v=cleanup159"></script>
-<script src="js/engine/pool.js?v=cleanup159"></script>
+<script src="js/engine/state.js?v=contact31"></script>
+<script src="js/engine/pool.js?v=contact31"></script>
 <script src="js/engine/enemy.js?v=count5"></script>
-<script src="js/engine/battle.js?v=necroSeed01"></script>
-<script src="js/engine/render.js?v=necroSeed01"></script>
-<script src="js/engine/reward.js?v=ringTags01"></script>
+    <script src="js/engine/battle.js?v=contact31"></script>
+    <script src="js/engine/render.js?v=contact31"></script>
+<script src="js/engine/reward.js?v=contact31"></script>
 <script src="js/engine/map.js?v=online6"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-  <script src="js/engine/main.js?v=necroSeed01"></script>
+  <script src="js/engine/main.js?v=contact31"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13939,6 +13980,20 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
   transition:opacity .42s ease,filter .42s ease!important;
   opacity:0!important;
   filter:brightness(.35) saturate(.5)!important;
+}
+
+/* 効果発生元の発光はカードの外周だけ。後続の盤面共通ルールより優先する。 */
+html body #scr-battle .slot.unit-card.effect-flash{
+  box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
+  border-color:var(--effect-flash-core)!important;
+  filter:none!important;
+  z-index:999!important;
+}
+html body .attack-motion-clone.effect-flash{
+  box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
+  border-color:var(--effect-flash-core)!important;
+  filter:none!important;
+  z-index:999!important;
 }
 </style>
 </body>

@@ -133,6 +133,10 @@ const ONLINE_VERSUS_GOLD = 100;
         manaCost: Number(unit.manaCost ?? def.manaCost ?? def.costMana) || 0,
         manaRepeat: !!(unit.manaRepeat ?? def.manaRepeat),
         manaThresholdDesc: String(unit.manaThresholdDesc ?? unit._manaThresholdDesc ?? def.manaThresholdDesc ?? def._manaThresholdDesc ?? ''),
+        manaThresholdNo: String(unit.manaThresholdNo ?? unit._manaThresholdNo ?? def.manaThresholdNo ?? def._manaThresholdNo ?? ''),
+        manaThresholdOrder: unit.manaThresholdOrder ?? unit._manaThresholdOrder ?? def.manaThresholdOrder ?? def._manaThresholdOrder,
+        manaOrder: unit.manaOrder ?? def.manaOrder,
+        fxCode: String(unit.fxCode ?? def.fxCode ?? ''),
         extraManaThresholds: Array.isArray(unit.extraManaThresholds)
           ? unit.extraManaThresholds.map(x => ({ ...x }))
           : (Array.isArray(def.extraManaThresholds) ? def.extraManaThresholds.map(x => ({ ...x })) : []),

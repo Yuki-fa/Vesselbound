@@ -629,8 +629,10 @@ function renderDebugRewardRerollButton(){
 }
 
 // 魔導板上のカードを売却できる施設か。魔導店（_isShop）に加え、鍛冶屋（_isForge）でも売却できる。
+// **デバッグモードの編成画面でも魔導店と同じ売却ボタンを出す**（利用者指定）。
+// 以前はデバッグモードだけボタンが出ず、×の経路でゴールドも入らずに消えていた。
 function _boardCardSellEnabled(){
-  return !!(G&&(G._isShop||G._isForge));
+  return !!(G&&(G._isShop||G._isForge||(G._debugMode&&G.phase==='reward')));
 }
 
 function _shopCardSellGain(card){
@@ -1982,6 +1984,9 @@ function handlePendingItemBoardTarget(slotIdx){
     first.keywords=_mergeCardKeywordsForBond(first.keywords,card.keywords);
     first.rarity=Math.min(5,(Number(first.rarity)||1)+1);
     first.grade=Math.max(Number(first.grade)||1,first.rarity);
+    // **矢印は directions（配列）で描く。** directionCount だけ4にしても
+    // 見た目は元の2方向のままになる（3枚合体は両方を設定している）。
+    first.directions=['up','right','down','left'];
     first.directionCount=4;
     first._merged=true;
     // 自身が持っていた効果（開戦・負傷・死亡等のトリガー効果）だけを2回分発動させる。
@@ -2687,22 +2692,23 @@ function _countHeldCardTags(){
     const color=normalizeColor(unit.color||String(unit.name||'').match(/^([赤青緑黄紫])/)?.[1]||'');
     if(color) characters.push({card:unit,color,text:effectiveText(unit)});
   });
+  // **「所持カード内に最も多く含まれるタグ」を数えるだけ。**（計算式シートの定義）
+  // 以前はタグごとに「3枚以上」「2枚以上」という独自の下限を置いていたため、
+  // 魔導板のキャラクターが3枚しかいない編成では**どのタグも成立せず**、
+  // 提示が丸ごとランダムへ落ちていた（紫だけの編成なのに他色の瞳の指輪が出る）。
   const eligible=(tag,n)=>{ if(n>0) counts[tag]=n; };
-  ['赤','青','緑','黄','紫'].forEach(color=>eligible(color,characters.filter(x=>x.color===color).length>=3?characters.filter(x=>x.color===color).length:0));
+  ['赤','青','緑','黄','紫'].forEach(color=>eligible(color,characters.filter(x=>x.color===color).length));
   const distinctColors=new Set(characters.map(x=>x.color).filter(Boolean)).size;
+  // 多色は「色が3種類以上あるとき」だけ意味を持つタグなので、ここだけ下限を残す。
   eligible('多色',distinctColors>=3?distinctColors:0);
-  ['攻撃','死亡','負傷'].forEach(trigger=>eligible(trigger,characters.filter(x=>new RegExp(`${trigger}\\s*[：:]`).test(x.text)).length>=3
-    ?characters.filter(x=>new RegExp(`${trigger}\\s*[：:]`).test(x.text)).length:0));
-  eligible('解放',characters.some(x=>/解放/.test(x.text))?1:0);
-  const mana=characters.filter(x=>/マナ(?:\\s*[：:]|毎|を得る)/.test(x.text)).length;
-  eligible('マナ',mana>=3?mana:0);
-  const large=characters.filter(x=>!/呪われた壺/.test(String(x.card?.name||''))
-    && (/咆哮|威光|キャラクター用説明文|characterDesc/.test(x.text)||x.card?.characterDesc)).length;
-  eligible('大型',large>=3?large:0);
-  const poison=characters.filter(x=>/毒牙|毒/.test(`${x.text} ${String(x.card?.keywords||'')}`)).length;
-  eligible('毒',poison>=2?poison:0);
-  const summon=characters.filter(x=>/召喚/.test(x.text)).length;
-  eligible('召喚',summon>=2?summon:0);
+  ['攻撃','死亡','負傷'].forEach(trigger=>eligible(trigger,
+    characters.filter(x=>new RegExp(`${trigger}\\s*[：:]`).test(x.text)).length));
+  eligible('解放',characters.filter(x=>/解放/.test(x.text)).length);
+  eligible('マナ',characters.filter(x=>/マナ(?:\s*[：:]|毎|を得る)/.test(x.text)).length);
+  eligible('大型',characters.filter(x=>!/呪われた壺/.test(String(x.card?.name||''))
+    && (/咆哮|威光|キャラクター用説明文|characterDesc/.test(x.text)||x.card?.characterDesc)).length);
+  eligible('毒',characters.filter(x=>/毒牙|毒/.test(`${x.text} ${String(x.card?.keywords||'')}`)).length);
+  eligible('召喚',characters.filter(x=>/召喚/.test(x.text)).length);
   return counts;
 }
 function _ringHasTag(ring,tag){
@@ -3967,11 +3973,11 @@ function _isNonCombatEquipPhase(){
 if(!window._equipSelectionClearBound){
   window._equipSelectionClearBound=true;
   document.addEventListener('contextmenu',e=>{
-    // ゲームオーバー画面とゲームクリア画面は同じ#gameover-board-gridを使う。
-    const gameoverBoard=!!(e.target&&e.target.closest&&e.target.closest('#gameover-board-grid'));
     // 図書館の「魔導板の使い方」中は、右クリックによるカード非表示も無効にする。
     if(G&&G._libraryTutorialActive){ e.preventDefault(); return; }
-    if(G.phase==='reward'||((G.phase==='gameover'||G.phase==='clear')&&gameoverBoard)){
+    // **ゲームオーバー・クリア画面でも、魔導板の外を右クリックして切り替えられる**
+    // （編成画面と同じ扱い）。以前は #gameover-board-grid の上だけだった。
+    if(G.phase==='reward'||G.phase==='gameover'||G.phase==='clear'){
       e.preventDefault();
       const enabled=document.body.classList.toggle('right-card-peek');
       if(enabled){

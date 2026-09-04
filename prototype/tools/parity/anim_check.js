@@ -98,15 +98,20 @@ const SETUP = `
       const state={units:{p1:G.allies,p2:G.enemies},resources:{p1:{mana:0,gold:0},p2:{mana:0,gold:0}},rings:{p1:[],p2:[]},items:{p1:[],p2:[]}};
       const evs=[{type:'damage',side:'p2',unitId:'E1',amount:3,effect:true,sourceId:'A1'},
                  {type:'damage',side:'p2',unitId:'E1',amount:4,effect:true,sourceId:'A1'}];
-      const t0=performance.now(); const counts=[];
+      const t0=performance.now(); const counts=[]; const labels=[];
       const p=_flushCorePveHitEvents(state,evs,new Set([G.allies[0],G.enemies[0]]));
       while(performance.now()-t0<2200){ await new Promise(r=>requestAnimationFrame(r));
-        counts.push(document.querySelectorAll('.damage-vfx-host').length); }
+        counts.push(document.querySelectorAll('.damage-vfx-host').length);
+        labels.push(document.querySelectorAll('.damage-label-host').length); }
       await p;
-      return { 同時最大:Math.max(...counts), 表示された合計フレーム:counts.filter(n=>n>0).length };
+      return { 同時最大:Math.max(...counts), 数値の同時最大:Math.max(...labels),
+        表示された合計フレーム:counts.filter(n=>n>0).length };
     `);
-    check('同じキャラへの連続ダメージで数値が重ならない', dmg.同時最大 <= 1,
-      `同時最大=${dmg.同時最大}件`);
+    // 見るのは**数値**が重なっていないこと。同じ種類のダメージは畳みかけて出すため、
+    // 命中VFX（.damage-vfx-host）は前の1枚が薄れている間に次が乗る＝重なって当然。
+    // 以前はVFXの枚数を数えており、規則どおりの連続再生でも落ちていた。
+    check('同じキャラへの連続ダメージで数値が重ならない', dmg.数値の同時最大 <= 1,
+      `数値の同時最大=${dmg.数値の同時最大}件（命中VFX=${dmg.同時最大}件）`);
     check('ダメージ数値が実際に表示される', dmg.表示された合計フレーム > 10,
       `表示フレーム=${dmg.表示された合計フレーム}`);
 
@@ -171,6 +176,47 @@ const SETUP = `
 
     check('マナ効果VFXがキャラクターごとに1つ', mana.同時に出たVFXの最大 <= 2,
       `同時最大=${mana.同時に出たVFXの最大}件（対象2キャラなので2以下が正しい）`);
+
+    // ── 2d. 効果そのもののVFX（活性化＝E045）が出せること ──
+    // マナ効果VFX（K023）の逆再生開始から、その効果自身のVFXへ引き継ぐ。
+    // 命中VFXの経路（characterEffect＝CXXXのみ）では強化カードの素材を引けない。
+    const sustain = await b.eval(SETUP + `
+      const handle=typeof playEffectVfxOnUnit==='function'
+        ?playEffectVfxOnUnit(G.allies[0],'ally','E045',{}):null;
+      if(!handle) return {開始:false,見えたフレーム:0,最大幅:0,素材:'',停止後:-1,素材無しでnull:false};
+      let 見えたフレーム=0,最大幅=0,素材='';
+      const t0=performance.now();
+      while(performance.now()-t0<1800){
+        await new Promise(r=>requestAnimationFrame(r));
+        const img=document.querySelector('.effect-sustain-host img');
+        if(!img) continue;
+        素材=String(img.currentSrc||img.src||'').split('/').pop();
+        const rr=img.getBoundingClientRect();
+        const op=Number(getComputedStyle(img).opacity);
+        if(rr.width>4&&rr.height>4&&op>0.05&&img.naturalWidth>0){
+          見えたフレーム++; 最大幅=Math.max(最大幅,Math.round(rr.width));
+        }
+      }
+      await handle.stop();
+      await new Promise(r=>setTimeout(r,120));
+      // 素材が登録されていない効果では何も出さない（通常の被弾VFXへ化けないこと）。
+      const 素材無し=playEffectVfxOnUnit(G.allies[0],'ally','C012',{});
+      return {開始:true,見えたフレーム,最大幅,素材,
+        // 期待するファイル名は assets.js の登録から引く。**ここに素材名を直接書かない**
+        // （素材名が変わるたびに検査が落ちる。実際にE045.webp→S008.webpで落ちた）。
+        期待素材:String(getEffectVfxPath('E045')||'').split('/').pop(),
+        停止後:document.querySelectorAll('.effect-sustain-host').length,
+        素材無しでnull:素材無し===null};
+    `);
+    check('効果固有VFXが実際に見えている',
+      sustain.開始 && sustain.見えたフレーム >= 30 && sustain.最大幅 > 20
+      && !!sustain.期待素材 && String(sustain.素材).startsWith(sustain.期待素材),
+      `見えたフレーム=${sustain.見えたフレーム} 最大幅=${sustain.最大幅}px `
+      + `素材=${sustain.素材 || '(なし)'} 期待=${sustain.期待素材 || '(未登録)'}`);
+    check('効果固有VFXが停止で必ず消える', sustain.停止後 === 0,
+      `停止後の残り=${sustain.停止後}件`);
+    check('素材の無い効果では固有VFXを出さない', sustain.素材無しでnull === true,
+      `C012（ギガンテス）=${sustain.素材無しでnull ? '出さない' : '出してしまう'}`);
 
     // ── 3. コンソールに例外が出ていないこと（404は素材未配置なので除外） ──
     const errs = b.consoleErrors().filter(x => !/404|Failed to load resource/.test(x));

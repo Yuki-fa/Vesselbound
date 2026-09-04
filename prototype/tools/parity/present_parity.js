@@ -63,13 +63,16 @@ const SCENARIOS = [
     // 「活性化」（1マナ毎：このキャラクターは+1/+1）を複数のキャラクターへ付けた盤面。
     // 実機で「5キャラが持っているのに1体しか発動しない」「1体ずつゆっくり上がる」
     // という報告があったため、複数体が同時に閾値へ達する形を検査に入れる。
+    // サテュロスにも付けるのは、**自前のマナ効果を持つキャラクターの2つ目の効果**を
+    // 通すため。効果ではなくキャラクター単位で区切っていた頃は、2つ目の効果が
+    // 「繰り返し」と誤判定され、固有VFX（E045）が一度も出なかった。
     seed: 8181,
     requires: ['mana_threshold'],
     mana: { p1: 4, p2: 0 },
     p1: [['ゴブリン', 'A0', { hp: 40, maxHp: 40, enh: ['活性化'] }],
          ['ゴブリン', 'A1', { hp: 40, maxHp: 40, enh: ['活性化'] }],
          ['ゴブリン', 'A2', { hp: 40, maxHp: 40, enh: ['活性化'] }],
-         ['サテュロス', 'A3', { hp: 40, maxHp: 40 }]],
+         ['サテュロス', 'A3', { hp: 40, maxHp: 40, enh: ['活性化'] }]],
     p2: [['ゴブリン', 'E0', { atk: 2, hp: 80, maxHp: 80 }]],
   },
   {
@@ -271,10 +274,13 @@ const SETUP = `
       const extra = names.map(n => pick(n)).filter(Boolean)
         .filter(c2 => Number(c2.manaCost) > 0)
         .map(c2 => ({ cost: Number(c2.manaCost) || 0, repeat: !!c2.manaRepeat,
+          // no：その効果の固有VFXを引くカードNo.（活性化＝E045）。実機と同じ形で運ぶ。
+          no: String(c2.no || c2.artCode || '').toUpperCase(),
           desc: String(c2._manaThresholdDesc || c2.desc || '').replace(/^\d+マナ(?:毎)?[:：]\s*/, '') }));
       if (extra.length && !u0.manaCost) {
         u0.manaCost = extra[0].cost; u0.manaRepeat = extra[0].repeat;
         u0._manaThresholdDesc = extra[0].desc;
+        u0._manaThresholdNo = extra[0].no;
         if (extra.length > 1) u0._extraManaThresholds = extra.slice(1);
       } else if (extra.length) u0._extraManaThresholds = extra;
       u0._adjacentPanelEffectTexts = names.map(n => String((pick(n) || {}).desc || '')).filter(Boolean);
@@ -293,6 +299,7 @@ const SETUP = `
       // 「閾値は発火するのに効果が何も起きない」不具合を検査が素通りする。
       effectData: { manaCost: u.manaCost, manaRepeat: u.manaRepeat,
         manaThresholdDesc: u._manaThresholdDesc,
+        manaThresholdNo: u._manaThresholdNo,
         extraManaThresholds: (u._extraManaThresholds || []).map(x => ({ ...x })),
         adjacentAbilities: (u._adjacentPanelAbilities || []).slice(),
         effectNames: [], effectTexts: (u._adjacentPanelEffectTexts || []).slice() } };
@@ -418,7 +425,10 @@ const onlineScript = sc => `
       return end >= 0 ? arr.slice(0, end) : arr;
     };
 
-    for (const sc of SCENARIOS) {
+    // VB_ONLY=部分一致 で1シナリオだけ回せる（調査用。既定は全件）。
+    const only = String(process.env.VB_ONLY || '');
+    const wanted = only ? only.split('|') : [];
+    for (const sc of SCENARIOS.filter(x => !wanted.length || wanted.some(w => x.name.includes(w)))) {
       const pve = await b.eval(pveScript(sc));
       const online = await b.eval(onlineScript(sc));
       [pve, online].forEach(r => {

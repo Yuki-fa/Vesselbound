@@ -35,6 +35,10 @@ function _syncCoreResourcesToG(state){
   if(state.life&&state.life.p1!=null) G.life=Math.max(0,Number(state.life.p1)||0);
   if(state.blood){ G._blood=Math.max(0,Number(state.blood.p1)||0); G._enemyBlood=Math.max(0,Number(state.blood.p2)||0); }
 }
+function _syncCoreManaToG(state){
+  if(!state||!state.resources||!state.resources.p1) return;
+  G.mana=Math.max(0,Number(state.resources.p1.mana)||0);
+}
 function _syncCoreBloodToG(state){
   if(!state||!state.blood) return;
   G._blood=Math.max(0,Number(state.blood.p1)||0);
@@ -187,13 +191,20 @@ function _attackSfxLevel(amount){
   return 0;
 }
 
-function playAttackDamageSfx(attacker,amount){
-  if(typeof playSfx!=='function') return false;
+// 命中音の鍵（武器種別＋威力段階）。同じ瞬間に鳴る命中を1本にまとめる判定に使う。
+function _attackDamageSfxKey(attacker,amount){
   const type=_normalizeAttackSfxType(attacker);
   const lv=_attackSfxLevel(amount);
   // attack.wavは攻撃開始時、武器種別SEは命中時に鳴らす旧来の2段構成へ戻す。
-  if(!type||!lv) return false;
-  return playSfx(`${type}${lv}`,{group:'combat',guardKey:`combat:${type}${lv}:${uid()}`,guardMs:0});
+  if(!type||!lv) return '';
+  return `${type}${lv}`;
+}
+
+function playAttackDamageSfx(attacker,amount){
+  if(typeof playSfx!=='function') return false;
+  const key=_attackDamageSfxKey(attacker,amount);
+  if(!key) return false;
+  return playSfx(key,{group:'combat',guardKey:`combat:${key}:${uid()}`,guardMs:0});
 }
 
 function playDamageEffectSfx(kind){
@@ -211,9 +222,41 @@ function _effectVfxSource(code){
   return {artCode:code,no:code,_code:code};
 }
 
+// シートの「VFX/SE」列に書かれた番号（改行・カンマ区切りで複数可）。
+// ブラウニーのように攻撃と負傷で別の演出を持つカードがあるため、全部返す。
+function _effectPresentationCodes(unit){
+  return String(unit?.fxCode||'').split(/[\s,、\/]+/).map(x=>x.trim().toUpperCase())
+    .filter(Boolean).map(x=>/^\d{3}$/.test(x)?`C${x}`:x);
+}
+
+// その強化カードのVFX/SE列（シートで指定された演出の番号）。
+// **カード名から推測せず、読み込んだカードデータを引く。**
+function _enchantFxCode(name){
+  const key=String(name||'').trim();
+  if(!key||typeof PANEL_POOL==='undefined'||!Array.isArray(PANEL_POOL)) return '';
+  const panel=PANEL_POOL.find(p=>p&&String(p.name||'').trim()===key);
+  return panel?(_effectPresentationCodes(panel)[0]||''):'';
+}
+
+// 効果のカードNo.（コアが載せる effectNo）→ そのカードのVFX/SE列の番号。
+// **effectNo は効果の識別子なので置き換えない。** 素材を引く時だけこちらを使う。
+// 指定が無ければ effectNo をそのまま使う（従来どおり）。
+function _effectFxCodeByNo(no){
+  const key=String(no||'').trim().toUpperCase();
+  if(!key||typeof PANEL_POOL==='undefined'||!Array.isArray(PANEL_POOL)) return key;
+  const panel=PANEL_POOL.find(p=>p&&String(p.no||p.artCode||'').trim().toUpperCase()===key);
+  const fx=panel?(_effectPresentationCodes(panel)[0]||''):'';
+  return fx||key;
+}
+
 function _effectPresentationCode(unit){
-  const code=String(unit?.no||unit?.artCode||'').toUpperCase();
-  // コボルドの効果演出・SEはカード固有素材ではなくC003を共用する。
+  // **シートの「VFX/SE」列（fxCode）が最優先。** 空欄ならカード自身のNo.を使う。
+  // 複数指定されている時は先頭を既定にする（どれを使うかは present.js が決める）。
+  const fx=_effectPresentationCodes(unit)[0]||'';
+  if(fx) return fx;
+  const rawCode=String(unit?.no||unit?.artCode||'').toUpperCase();
+  const code=/^\d{3}$/.test(rawCode)?`C${rawCode}`:rawCode;
+  // コボルドの効果演出・SEはカード固有素材ではなくC003を共用する（シート未指定時の従来動作）。
   return code==='C007'?'C003':code;
 }
 
@@ -237,11 +280,23 @@ function _characterVfxAllowedForDamage(unit){
 
 function _playCardEffectVfx(code,targets,options){
   const list=[...(targets||[])].filter(Boolean);
-  if(!list.length||typeof playHitVfxAtRect!=='function') return Promise.resolve();
   const opt=options||{};
+  if(!list.length||typeof playHitVfxAtRect!=='function') return Promise.resolve();
+  // **固有VFXの素材が無いカードはここを通さない。** playHitVfxAtRect() は
+  // 固有VFXが引けないと通常の被弾VFX（hit.webp）へ落ちるため、
+  // 素材の無いカードの効果を演出すると、強化された味方が「殴られた」ように見える
+  // （ギガンテスの負傷効果で味方全員にヒットエフェクトが出ていた）。
+  if(typeof getCharacterEffectVfxPath==='function'
+    &&!getCharacterEffectVfxPath(_effectVfxSource(code))) return Promise.resolve();
+  // アラクネはマナ効果の発生元カードとして、通常の対象矩形上へ確実に出す。
+  // 画面固定VFX経路へ戻すと、ダメージ表示や勝利時の停止処理と競合する。
   return Promise.all(list.map(target=>{
     const side=(G.enemies||[]).includes(target)?'enemy':'ally';
-    const getRect=()=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(target,side):null;
+    // **効果は「今そのキャラクターが見えている位置」から出す。**
+    // 攻撃で動いている最中に発動した効果が盤面の定位置から出ると、別人のように見える。
+    const getRect=()=>typeof _captureUnitEffectRect==='function'
+      ?_captureUnitEffectRect(target,side)
+      :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(target,side):null);
     const play=rect=>Promise.resolve(playHitVfxAtRect(rect,0,{
       effectSource:_effectVfxSource(code),
       gateMs:opt.gateMs??180,
@@ -272,75 +327,214 @@ async function _waitForPendingVfx(){
   if(!active||!active.size) return;
   await Promise.all([...active].map(p=>Promise.resolve(p).catch(()=>{})));
 }
-async function _playManaEffectCue(unit,isEnemySide){
-  if(!unit) return;
-  _recordBattleTrace('mana_vfx_start',{unitId:unit.id});
-  if(typeof playSfx==='function') playSfx('K026',{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
-  let rect=null;
+// マナ効果VFXの尺。**PvEとオンラインで同じ値を使うこと。**
+const MANA_CUE_VFX_MS=720;
+// ひと続きのマナ効果で走っている演出。**同時に1組だけ。**
+//   _manaEffectVfx  … 効果固有VFX（活性化＝E045）。処理が終わるまで出し続ける
+//                      （同じ効果が同時に乗る全員ぶん）
+//   _manaEffectCueDone … マナ効果VFX（K023）の完了
+let _manaEffectVfx=[];
+let _manaEffectCueDone=null;
+// いま演出を出している効果の番号。**別の効果はこれが終わるまで始めない。**
+let _manaEffectCurrentCode='';
+function _manaEffectRunning(){ return _manaEffectVfx.length>0||!!_manaEffectCueDone; }
+// ひと続きのマナ効果の演出を終わらせる。**次の効果はこれを終えてから始める。**
+// 呼ぶ場所：別の効果のマナ効果を始める前／マナ解決が途切れた時／再生の終わり。
+async function _endManaEffectRun(){
+  const vfx=_manaEffectVfx; _manaEffectVfx=[];
+  const cueDone=_manaEffectCueDone; _manaEffectCueDone=null;
+  _manaEffectCurrentCode='';
+  if(vfx.length) await Promise.all(vfx.map(v=>v.stop()));
+  if(cueDone) await Promise.race([cueDone,new Promise(resolve=>setTimeout(resolve,MANA_CUE_VFX_MS+700))]);
+}
+
+// 戦闘そのものが中断された時の後始末。**待たずに捨てる。**
+// 中断（試験戦闘の終了など）では再生の終わりを通らないため、ここを呼ばないと
+// 効果固有VFXがループしたまま次の戦闘へ持ち越され、
+// 「一度発動した効果のVFX・SEが、以後関係ない場面で出る」状態になる。
+function _resetManaEffectRun(){
+  const vfx=_manaEffectVfx;
+  _manaEffectVfx=[]; _manaEffectCueDone=null; _manaEffectCurrentCode='';
+  vfx.forEach(v=>{ try{ v.stop(); }catch(e){} });
+}
+// 効果1回ぶんの合図。**SEは発動回数ぶん鳴らす**（活性化＝E045.wav）。
+// **VFXはひと続きの処理が終わるまで出し続ける**ので、最初の1回でだけ始める
+// （止めるのは `_endManaEffectRun()`）。1回ずつ出し直すと連続再生に見えてしまう。
+// **固有の素材が無い効果では何も鳴らさない・出さない。**
+// マナ効果SE（K023）で代用すると、発動のたびにマナ効果SEが鳴る
+// （マナ効果VFX・SEはひと続きにつき1回だけ、が規則）。
+// **SEは同じ瞬間に1本だけ。** 人数ぶん重ねると鳴り始めがばらついて濁る。
+function _playManaEffectPulse(list,effectNo){
+  // バフの演出（S005〜S009）は**能力変化を受けた対象の上**に出す（present.js が唯一の規則）。
+  // ここで出すと発生元の上になり、対象に選ばれていない本人だけが光る（ドワーフで発覚）。
+  if(typeof presentIsBuffVfxCode==='function'&&presentIsBuffVfxCode(effectNo)) return;
+  const sfxKey=(typeof getEffectSfxKey==='function'&&getEffectSfxKey(effectNo))||'';
+  if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
+  if(_manaEffectVfx.length||!effectNo||typeof playEffectVfxOnUnit!=='function') return;
+  list.forEach(({unit,isEnemySide,rect})=>{
+    // **合図（K023）と同じ位置から出す。** ここは合図の逆再生開始後に呼ばれるため、
+    // 攻撃モーションの複製カードが既に消えていることがある。掴み直すと
+    // 合図だけ動いた位置・固有VFXは盤面の定位置、とズレる。
+    const v=playEffectVfxOnUnit(unit,isEnemySide?'enemy':'ally',effectNo,
+      {rect,minDurationMs:(typeof PRESENT_EFFECT_VFX_MIN_MS==='number'&&PRESENT_EFFECT_VFX_MIN_MS)||900});
+    if(v) _manaEffectVfx.push(v);
+  });
+}
+// 発生元から対象へ飛ぶ効果（炎の矢）の1回ぶん。**発射は少しずつずらす。**
+// 着弾した矢から順に、着弾VFX・着弾SE・ダメージ数値を出す
+// （数値は発射順ではなく**その矢が消えた時刻**に出る）。
+// 見せ方は playProjectileEffectVfx（render.js）が唯一の実装。
+async function _playManaEffectProjectiles(list,effectNo,opt){
+  const stagger=(typeof PRESENT_PROJECTILE_STAGGER_MS==='number'&&PRESENT_PROJECTILE_STAGGER_MS)||90;
+  const sfxKey=(typeof getEffectSfxKey==='function'&&getEffectSfxKey(effectNo))||'';
+  const shots=[];
+  list.forEach(({unit,isEnemySide,targets})=>{
+    (targets||[]).forEach(t=>shots.push({from:unit,fromSide:isEnemySide?'enemy':'ally',
+      to:t.unit,toSide:t.isEnemySide?'enemy':'ally',ev:t.ev,keywordEvents:t.keywordEvents||[]}));
+  });
+  if(!shots.length){ _playManaEffectPulse(list,effectNo); return; }
+  await Promise.all(shots.map(async (shot,i)=>{
+    if(i) await new Promise(resolve=>setTimeout(resolve,stagger*i));
+    // 発射のSEは矢ごとに1本（発射がずれるので重ならない）。
+    if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
+    // ダメージ数値はこの矢の着弾で出すので、通常のダメージ演出には出させない。
+    if(opt&&typeof opt.markShown==='function') opt.markShown(shot.ev);
+    // 毒牙などのキーワード演出も、この矢の着弾で1回ずつ出す。
+    // イベント順のまま出すと、矢が飛んでいる間にまとめて出てしまい
+    // 「何発撃っても演出は1回」に見える。
+    (shot.keywordEvents||[]).forEach(kw=>{ if(opt&&typeof opt.markKeywordShown==='function') opt.markKeywordShown(kw); });
+    await playProjectileEffectVfx(shot.from,shot.fromSide,shot.to,shot.toSide,effectNo,{
+      amount:Math.max(0,Number(shot.ev&&shot.ev.amount)||0),
+      onImpact:()=>{
+        if(opt&&typeof opt.onImpact==='function') opt.onImpact(shot.to,shot.ev);
+        (shot.keywordEvents||[]).forEach(kw=>{
+          if(opt&&typeof opt.playKeyword==='function') opt.playKeyword(kw);
+        });
+      },
+    });
+  }));
+}
+// units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。
+// **1体ずつ順に見せない。** 順に見せると「片方が先に強くなる」ように見える。
+// opt.repeat：同じ効果の2回目以降の発動。**間引かず高速で繰り返す。**
+//
+// 見せ方：**マナ効果VFX（K023）とSE（K023）はその効果につき最初の1回だけ。**
+// その逆再生開始から先は、効果固有のVFXを**処理が終わるまで出し続け**、
+// 効果固有のSEを**発動回数ぶん**鳴らす。
+async function _playManaEffectCue(units,opt){
+  const list=(Array.isArray(units)?units:[]).filter(x=>x&&x.unit);
+  if(!list.length) return;
+  const repeat=!!(opt&&opt.repeat);
+  const effectNo=String((opt&&opt.effectNo)||'');
+  // **素材はシートの「VFX/SE」列で引く。** effectNo（効果の識別子）は演出の
+  // 区切り（今どの効果を出しているか）に使い、素材の番号とは分けて持つ。
+  const fxCode=typeof _effectFxCodeByNo==='function'?_effectFxCodeByNo(effectNo):effectNo;
+  const gap=(typeof PRESENT_MANA_RUN_GAP_MS==='number'&&PRESENT_MANA_RUN_GAP_MS)||150;
+  // 発生元から対象へ飛ぶ効果は、飛ばして着弾まで見せる（発射はずらす）。
+  const projectile=typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(effectNo);
+  // **別の効果の演出が出ている間は、VFXもSEも始めない。**
+  // 繰り返し（repeat）の経路でもここを通すこと。通していなかった頃は、
+  // 活性化の演出が出ている最中に炎の矢の演出が重なった。
+  if(_manaEffectRunning()&&_manaEffectCurrentCode!==effectNo) await _endManaEffectRun();
+  if(repeat){
+    _manaEffectCurrentCode=effectNo;
+    _recordBattleTrace('mana_effect_pulse',{unitId:list[0].unit.id,effectNo,人数:list.length});
+    if(projectile) await _playManaEffectProjectiles(list,fxCode,opt);
+    else _playManaEffectPulse(list,fxCode);
+    await new Promise(resolve=>setTimeout(resolve,gap));
+    return;
+  }
+  // 直前の効果の演出（固有VFX・マナ効果VFX）を終わらせてから始める。
+  // 異なる効果を同じ画面に重ねない。
+  await _endManaEffectRun();
+  // **`_endManaEffectRun()` は「今出している効果」の印を消す。** 印を付けるのはこの後。
+  // 先に付けると1回目で消され、2回目が「別の効果」と誤判定されて
+  // マナ効果VFXの完了（約1秒）を待ってしまう（1回目と2回目の間だけ不自然に空いた）。
+  _manaEffectCurrentCode=effectNo;
+  _recordBattleTrace('mana_vfx_start',{unitId:list[0].unit.id,effectNo,人数:list.length});
+  // マナ効果SEはひと続きにつき1回だけ。
+  if(typeof playSfx==='function') playSfx('K023',{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
+  // 逆再生開始で効果固有の演出へ引き継ぐ（1回目の発動ぶん）。
+  let pulsed=false;
+  let pulsedAt=0;
+  let projectileDone=null;
+  // 合図（K023）を出した位置。**効果固有のVFXも同じ位置から出す。**
+  // ここで揃えないと、合図は動いた位置・固有VFXは盤面の定位置、とズレる
+  // （固有VFXは合図の逆再生開始後に出るので、その頃には複製カードが消えている）。
+  let cueTargets=null;
+  const startPulse=()=>{
+    if(pulsed) return; pulsed=true;
+    pulsedAt=(typeof performance!=='undefined'?performance.now():Date.now());
+    const pulseList=cueTargets&&cueTargets.length?cueTargets:list;
+    if(projectile) projectileDone=_playManaEffectProjectiles(pulseList,fxCode,opt);
+    else _playManaEffectPulse(pulseList,fxCode);
+  };
   // 開戦直後・召喚直後はrenderAll()とレイアウト確定が別フレームになる。
   // ここでnullのまま返すと、VFXなしでマナ効果だけが先に解決されるため、
-  // DOM上の対象矩形が取れるまで短時間だけ再取得する。
-  if(typeof _captureUnitDamageRect==='function'){
-    for(let i=0;i<24&&!rect;i++){
-      rect=_captureUnitDamageRect(unit,isEnemySide?'enemy':'ally');
-      if(rect&&rect.width>0&&rect.height>0) break;
-      rect=null;
-      // 開戦直後はマナ効果がDOM描画より先に走るため、待つだけでは
-      // 何フレーム経ってもスロットが生まれない。数フレームで取れない時は
-      // 一度こちらから盤面を描かせる。これをしないと _captureUnitDamageRect()
-      // が最後までnullのままになり、VFXを1枚も出さずに200msだけ待って
-      // 抜ける経路へ落ちる（＝マナ効果VFXが出ない）。
-      if(i===3||i===11){
-        if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true});
-        else if(typeof renderAll==='function') renderAll();
-      }
-      await _awaitFrame();
+  // DOM上の対象矩形が取れるまで短時間だけ再取得する（代表1体で待てば全員取れる）。
+  // マナ効果の合図も「今そのキャラクターが見えている位置」から出す
+  // （攻撃で動いた地点で発動した効果が、盤面の定位置から出ないように）。
+  const rectOf=({unit,isEnemySide})=>typeof _captureUnitEffectRect==='function'
+    ?_captureUnitEffectRect(unit,isEnemySide?'enemy':'ally')
+    :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,isEnemySide?'enemy':'ally'):null);
+  let lead=null;
+  for(let i=0;i<24&&!lead;i++){
+    const r=rectOf(list[0]);
+    if(r&&r.width>0&&r.height>0){ lead=r; break; }
+    // 開戦直後はマナ効果がDOM描画より先に走るため、待つだけでは
+    // 何フレーム経ってもスロットが生まれない。数フレームで取れない時は
+    // 一度こちらから盤面を描かせる。
+    if(i===3||i===11){
+      if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true});
+      else if(typeof renderAll==='function') renderAll();
     }
+    await _awaitFrame();
   }
-  // それでも位置が取れない場合は、盤面の味方／敵エリアの中央へ出す。
-  // 「出ない」より「位置がずれても出る」ほうが、効果が働いたことは伝わる。
-  _recordBattleTrace('mana_vfx_rect',{unitId:unit.id,取得:!!rect,
-    幅:rect?Math.round(rect.width):0,左:rect?Math.round(rect.left):0,
-    スロット有:!!(typeof getCurrentUnitSlot==='function'&&getCurrentUnitSlot(isEnemySide?'enemy':'ally',unit))});
-  if(!rect){
-    const field=document.getElementById(isEnemySide?'f-enemy':'f-ally');
-    const fr=field&&field.getBoundingClientRect&&field.getBoundingClientRect();
-    if(fr&&fr.width>0&&fr.height>0){
-      const w=Math.min(fr.width,fr.height*0.7)||fr.width;
-      rect={left:fr.left+(fr.width-w)/2,top:fr.top+fr.height/4,width:w,height:fr.height/2};
-      _recordBattleTrace('mana_vfx_field_fallback',{unitId:unit.id});
-    }
-  }
-  if(!rect||typeof playHitVfxAtRect!=='function'){
-    // 開戦直後などで対象DOMを取得できない場合でも、状態だけを即時に
-    // 反映してしまうと、VFXが出た場合と処理時刻が変わる。旧演出の
-    // 「命中表示→逆再生開始」に相当する時刻まで待ってから、同じ
-    // コールバック境界を通す。これにより、VFXの有無で召喚・バフ・
-    // マナ閾値効果の順序が変わらない。
-    _recordBattleTrace('mana_vfx_missing',{unitId:unit.id});
+  _recordBattleTrace('mana_vfx_rect',{unitId:list[0].unit.id,取得:!!lead,
+    幅:lead?Math.round(lead.width):0,左:lead?Math.round(lead.left):0});
+  const targets=list.map(x=>({...x,rect:x===list[0]?lead:rectOf(x)}))
+    .filter(x=>x.rect&&x.rect.width>0&&x.rect.height>0);
+  cueTargets=targets;
+  if(!targets.length||typeof playHitVfxAtRect!=='function'){
+    // 対象DOMを取得できない場合でも、状態だけを即時に反映してしまうと、
+    // VFXが出た場合と処理時刻が変わる。旧演出の「命中表示→逆再生開始」に
+    // 相当する時刻まで待ってから、同じ境界を通す。
+    _recordBattleTrace('mana_vfx_missing',{unitId:list[0].unit.id});
     await new Promise(resolve=>setTimeout(resolve,200));
-    _recordBattleTrace('mana_vfx_reverse_start',{unitId:unit.id,missing:true});
-    _recordBattleTrace('mana_vfx_reverse_confirmed',{unitId:unit.id,missing:true});
+    startPulse();
     return;
   }
   let resolveReverseStart;
   const reverseStart=new Promise(resolve=>{ resolveReverseStart=resolve; });
-  playHitVfxAtRect(rect,0,{
-    keywordEffect:'マナ効果',
-    gateMs:0,
-    hitDuration:900,
-    fadeDuration:700,
-    vfxScale:.5,
-    spin:true,
-    getRect:()=>_captureUnitDamageRect(unit,isEnemySide?'enemy':'ally'),
-    onFadeStart:()=>{ _recordBattleTrace('mana_vfx_reverse_start',{unitId:unit.id}); resolveReverseStart(); },
-  }).catch(()=>resolveReverseStart());
-  // マナ効果の状態変更・追加召喚は、VFXの消え始め（逆再生開始）まで保留する。
-  // VFXアセットの読み込み失敗などでonFadeStartが届かない場合だけ安全弁を使う。
-  // 通常時は必ず逆再生開始コールバックが先に解決するため、状態変更時刻は変わらない。
-  const reverseFallback=new Promise(resolve=>setTimeout(resolve,1100));
-  await Promise.race([reverseStart,reverseFallback]);
-  _recordBattleTrace('mana_vfx_reverse_confirmed',{unitId:unit.id});
+  const onReverse=()=>{ startPulse(); resolveReverseStart(); };
+  // 完了は保持だけしておく。**待つのは次の効果を始める時**（_endManaEffectRun）。
+  _manaEffectCueDone=Promise.all(targets.map(({unit,isEnemySide,rect})=>
+    playHitVfxAtRect(rect,0,{
+      keywordEffect:'マナ効果',
+      keywordSfx:false,   // マナ効果SEは上で1回だけ鳴らしている
+      gateMs:0,
+      hitDuration:MANA_CUE_VFX_MS,
+      fadeDuration:700,
+      vfxScale:.5,
+      spin:true,
+      waitForFinish:true,
+      getRect:()=>rectOf({unit,isEnemySide}),
+      // 逆再生開始＝ここから効果固有の演出へ引き継ぎ、効果の処理を進める。
+      onFadeStart:onReverse,
+    }).catch(()=>onReverse())));
+  // 効果の処理はマナ効果VFXの**逆再生開始**から進める（旧来の演出境界）。
+  // 素材の読み込み失敗などでコールバックが届かない場合だけ安全弁を使う。
+  await Promise.race([reverseStart,new Promise(resolve=>setTimeout(resolve,MANA_CUE_VFX_MS))]);
+  startPulse();
+  // 飛ばす効果は着弾まで待つ（着弾でダメージ数値を出すため）。
+  if(projectileDone) await projectileDone;
+  // 1回目の効果演出にも次の発動までの間隔を取る。取らないと2回目が同じ瞬間に重なる。
+  // **間隔は「1回目を出した時刻」から測る。** マナ効果VFXの逆再生開始を待つ間に
+  // 時間が経っていると、ここから改めて待つと1回目と2回目の間だけ不自然に空く。
+  const sincePulse=(typeof performance!=='undefined'?performance.now():Date.now())-pulsedAt;
+  const rest=Math.max(0,gap-(pulsedAt?sincePulse:0));
+  if(rest>0) await new Promise(resolve=>setTimeout(resolve,rest));
+  _recordBattleTrace('mana_vfx_reverse_confirmed',{unitId:list[0].unit.id});
 }
 
 function _liveBattleUnits(list,isEnemy){
@@ -626,8 +820,12 @@ async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
     localEvents.push(ev);
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   try{
     coreApplyReleaseEffects(unit,(sacrificed||[]).map(x=>x&&x._releaseSnapshot||x),state,coreMathRng,emit,applyHit);
@@ -986,6 +1184,23 @@ if(!window._battleOpeningContextMenuGuardBound){
   },true);
 }
 
+// マナの数字を出しているのは**戦闘中は #battle-mana-value（renderBattleCounters）**で、
+// renderManaHud() は戦闘画面では非表示にして即 return する。
+// マナが動いたら必ずこちらも呼ぶこと。片方だけだと戦闘中の数字が止まったままになる。
+// 画面に出ているマナの値。**増えた時だけ**SEを鳴らすために覚えておく。
+let _shownManaForSfx=null;
+function _refreshManaDisplays(){
+  const cur=Math.max(0,Number(typeof G!=='undefined'&&G?G.mana:0)||0);
+  // マナ増加のSE（特殊演出シート S004）。**ここが唯一の実装**（PvE・オンライン共通）。
+  // 減った時・据え置きの時は鳴らさない。戦闘開始時の0リセットでも鳴らない。
+  if(_shownManaForSfx!=null&&cur>_shownManaForSfx&&typeof playSfx==='function'){
+    playSfx('S004',{group:'magic',guardKey:`mana-gain:${uid()}`,guardMs:0});
+  }
+  _shownManaForSfx=cur;
+  if(typeof renderManaHud==='function') renderManaHud();
+  if(typeof renderBattleCounters==='function') renderBattleCounters();
+}
+
 function renderBattleCounters(){
   const root=document.getElementById('battle-counters');
   if(!root) return;
@@ -1330,6 +1545,8 @@ function _battleStartLineSpeakers(){
 }
 // 開幕演出（全員の出撃）後に呼ぶ。台詞が無ければ何もしない。
 async function playBattleStartLines(){
+  // 再挑戦（同じエリート・ボスへ挑み直した）時は会話を出さない。
+  if(G&&G._skipBattleStartLines){ G._skipBattleStartLines=false; return; }
   const speakers=_battleStartLineSpeakers();
   if(!speakers.length) return;
   // Webフォントの読み込み前に幅を測ると、台詞ごとに枠の長さがばらつく。
@@ -1428,9 +1645,13 @@ function _warmBattleHitSfx(){
 
 async function startBattle(){
   G._debugFormationAbort=false;
+  G._battleEventPlaybackDepth=0;
+  G._battleVictoryCheckPending=false;
   _warmBattleHitSfx();
   // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
   presentResetPlayback();
+  // 保留していた発光も捨てる（持ち越すと次の戦闘の頭で無関係のカードが光る）。
+  if(typeof presentResetEffectFlashes==='function') presentResetEffectFlashes();
   G._battleCoreEvents=[];
   G._coreConsumedItemEvents=new Set();
   G._injuryDispatchSequence=0;
@@ -1496,6 +1717,10 @@ async function startBattle(){
   G._eidolonDeathCount=0;
   G._genericAllyDeaths=0;
   G.mana=0;
+  // **マナ増加SEの基準を、その戦闘の開始値（0）へ戻す。**
+  // null（初回）や前の戦闘の値のままだと、開戦で得た最初のマナ
+  // （ニンフの「開戦：Xマナを得る」など）でSEが鳴らない。
+  _shownManaForSfx=0;
   [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{ if(u){
     delete u._deathProcessed; delete u._manaFireCount;
     delete u._coreDeathTriggered; delete u._coreDeathEffectsTriggered;
@@ -1569,6 +1794,9 @@ async function startBattle(){
   const fixedTestBattle=!!(G._testBattleMode&&!G._libraryTestBattleMode);
   const reuseWaveEnemies=!fixedTestBattle
     &&!!(waveEnemyKey&&G._waveRetryEnemyKey===waveEnemyKey&&Array.isArray(G._waveEnemySnapshot));
+  // **同じ戦闘への再挑戦では開幕の会話を飛ばす。** 同じ台詞を毎回読まされるため。
+  // 敵を引き継ぐ（＝同じ敵に挑み直した）時が再挑戦。
+  G._skipBattleStartLines=reuseWaveEnemies;
   G.enemies=reuseWaveEnemies
     ?clone(G._waveEnemySnapshot)
     :(fixedTestBattle
@@ -1786,6 +2014,10 @@ function _createPveCoreState(){
       p2:(typeof MAX_ENEMIES==='number'&&MAX_ENEMIES)||14},
     frontSlots:(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7,
   };
+  // **ヴォイド・ウォーカーの紫修正はここでも作り直す。**
+  // createBattleState() を通らない手組みのstateなので、忘れると
+  // 紫キャラクターの強化に+1が乗らない（コアが唯一の実装）。
+  if(typeof coreRefreshVoidWalkerBonus==='function') coreRefreshVoidWalkerBonus(state);
   return state;
 }
 // コアが判定に使う side/slot を盤面へ焼き付ける。戦闘中は付けたままにする。
@@ -1844,6 +2076,8 @@ async function battlePhase(){
           _shownBefore.forEach(([u,atk,hp,maxHp])=>presentHoldShown(u,atk,hp,maxHp));
           try{ await _flushCorePveHitEvents(state,events.slice(from),beforeUnits); }
           finally{ _shownBefore.forEach(([u])=>presentReleaseShown(u)); }
+          _syncCoreManaToG(state);
+          _refreshManaDisplays();
         }
       } finally {
         presentEndPlayback();
@@ -1852,7 +2086,7 @@ async function battlePhase(){
       if(typeof runner.compact==='function') runner.compact();
       _syncCoreResourcesToG(state);
       if(typeof _syncCoreBloodToG==='function') _syncCoreBloodToG(state);
-      if(typeof renderManaHud==='function') renderManaHud();
+      _refreshManaDisplays();
       requestBattleCompact();
       _stampCoreSideSlots(state);
       // 1体の行動が終わってから次が動き出すまで、少し間を置く。
@@ -2244,6 +2478,14 @@ function _checkRearCenterAllyGameOver(){
 // 二重発火防止（G.phase==='reward'なら何もしない）は必須。
 async function finishBattleAsVictory(reason){
   if(G.phase==='reward'||G._battleVictoryPending) return;
+  // 敵全滅を理由にする場合は、召喚済みの敵を含めて最後に再確認する。
+  // 復活・召喚後なら、演出も勝利処理も止めない。
+  if(reason==='敵を全滅させた！'&&_livingCombatUnits(G.enemies).length) return;
+  // 勝利条件が確定した瞬間に、残っているカード固有VFX・ダメージ表示を止める。
+  // モーションの後始末を待つ前に止めることで、勝利後に演出だけが残らない。
+  // 勝利確定時も、直前に出たダメージVFX・数値は最後まで読めるように残す。
+  // 攻撃モーションや固有効果など、戦闘を継続して見せる演出だけを止める。
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
   if(G._battleMotionDepth>0){
     G._pendingVictoryReason=reason||'敵を全滅させた！';
     return;
@@ -2254,8 +2496,6 @@ async function finishBattleAsVictory(reason){
     _exitTestBattle();
     return;
   }
-  // 敵全滅を理由にする場合は、召喚済みの敵を含めて最後に再確認する。
-  if(reason==='敵を全滅させた！'&&_livingCombatUnits(G.enemies).length) return;
   // Scene 5のボス（万象の揺り籠“エピトメ”）は勝利演出・報酬を通さず、
   // 全敵撃破が確定したこの時点から movie3 → 伏せられたラスボス戦の導入へ入る。
   if(typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle()){
@@ -2303,6 +2543,12 @@ function _battleVictoryAlreadyPending(){
 
 function _onAllEnemiesDefeated(){
   if(G.phase==='reward') return; // 二重呼び出し防止
+  // コアのイベント列には、この直後に蘇生・召喚が続くことがある。
+  // 列全体を再生し終えるまで勝利を確定せず、最後の盤面だけで判定する。
+  if((Number(G._battleEventPlaybackDepth)||0)>0){
+    G._battleVictoryCheckPending=true;
+    return;
+  }
   // 死亡効果・指輪効果の召喚処理中に古い全滅通知が届くことがある。
   // 生存中の敵が残っている場合は、勝利を確定しない。
   if(_livingCombatUnits(G.enemies).length) return;
@@ -2327,13 +2573,25 @@ function _onAllEnemiesDefeated(){
 // 共通コアが即時確定した二次ヒットを、PvEの既存演出・死亡処理へ接続する。
 // 数値・対象・死亡判定は coreResolveHit() が確定済みであり、ここでは再計算しない。
 async function _flushCorePveHitEvents(state, events, beforeUnits){
+  // コアの資源変更を、演出開始前にPvE側へ共通反映する。
+  _syncCoreLifeToG(state);
+  G._battleEventPlaybackDepth=(Number(G._battleEventPlaybackDepth)||0)+1;
   presentBeginPlayback();
   try{ return await _flushCorePveHitEventsInner(state,events,beforeUnits); }
-  finally{ presentEndPlayback(); }
+  finally{
+    presentEndPlayback();
+    G._battleEventPlaybackDepth=Math.max(0,(Number(G._battleEventPlaybackDepth)||1)-1);
+    if(!G._battleEventPlaybackDepth&&G._battleVictoryCheckPending){
+      G._battleVictoryCheckPending=false;
+      if(typeof _livingCombatUnits==='function'&&!_livingCombatUnits(G.enemies).length){
+        // 味方側の全滅や蘇生指輪の有無も含め、通常の最終判定へ戻す。
+        _onAllEnemiesDefeated();
+      }
+    }
+  }
 }
 async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // コアがライフを変えた場合（我慢の指輪・負傷:ライフが+Nされる 等）の唯一の反映点。
-  _syncCoreLifeToG(state);
   // 血は死亡イベントの発行時点でコア側へ加算される。マナ・ゴールドの表示反映を
   // 先行させないため、資源全体ではなく血だけをここでGへ戻す。
   _syncCoreBloodToG(state);
@@ -2386,17 +2644,73 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // **最初のattackを掴んではいけない。** ミノタウロスの「負傷：直ちに攻撃する」のように
   // 効果の途中で別のキャラクターが割り込んで攻撃することがあり、それを先出しすると
   // 割り込んだ側が動いている間に、動いていないキャラクターの効果が出てしまう。
-  const _preAttackEffect=_preAttackList.find(e=>e&&e.type!=='attack'
-    &&((e.type==='damage'&&e.sourceId!=null)||(e.type==='stat_change'&&e.sourceId!=null)
-      ||(e.type==='sweep_vfx'&&e.unitId!=null)||(e.type==='summon'&&e.sourceId!=null)));
-  const _preAttackActorId=_preAttackEffect
-    ?String(_preAttackEffect.type==='sweep_vfx'?_preAttackEffect.unitId:_preAttackEffect.sourceId):null;
+  // **マナ獲得（マナ生成＝攻撃：1マナを得る）とマナ効果もここに入れる。**
+  // 入れていなかった頃は、マナが増えるのも、それで発動する他キャラクターのマナ効果も
+  // 「攻撃者が全く動く前」に起きていた（攻撃効果は少し動いてから発動する規則に反する）。
+  // **誰が動いているか／その本人の効果か**の判定は present.js が唯一の実装（オンラインと同じ）。
+  const _preAttackEffect=_preAttackList.find(e=>presentPreAttackActorId(e)!=null);
+  const _preAttackActorId=_preAttackEffect?presentPreAttackActorId(_preAttackEffect):null;
+  // **掴むのは「モーションを出す attack イベント」**（attackVisual!==false）。
+  // 全体攻撃・三方向攻撃は対象ごとに attack を出し、主対象が先頭とは限らない。
+  // 先頭を掴むと、先出ししたモーションのあとに主対象ぶんのモーションがもう一度
+  // 再生され、2回攻撃したように見えていた。
   const _preAttackIndex=_preAttackActorId==null?-1
-    :_preAttackList.findIndex(e=>e&&e.type==='attack'&&String(e.attackerId)===_preAttackActorId);
+    :_preAttackList.findIndex(e=>e&&e.type==='attack'&&String(e.attackerId)===_preAttackActorId
+      &&e.attackVisual!==false);
   const _preAttackEvent=_preAttackIndex>=0?_preAttackList[_preAttackIndex]:null;
   // その攻撃より前に、その本人が起こした効果があるときだけ先出しする。
+  // **その本人が起こした効果があるときだけ先出しする。**
+  // 受けたダメージ（毒・カード効果）まで数えていた頃は、ミノタウロスの
+  // 「負傷：直ちに攻撃する」がダメージを受けるより先に動き出していた。
+  // マナ効果だけは別のキャラクターが持っていることもあるが、
+  // 「攻撃より前に見せるもの」であることに変わりはない（オンラインと同じ）。
   const _preAttackHasEffects=!!_preAttackEvent&&_preAttackList.slice(0,_preAttackIndex)
-    .some(e=>e&&e!==_preAttackEvent&&(e.type==='damage'||e.type==='sweep_vfx'||e.type==='stat_change'||e.type==='summon'));
+    .some(e=>e&&e!==_preAttackEvent&&(e.type==='mana_threshold'
+      ? _preAttackActorId!=null
+      : presentPreAttackEffectOwnerId(e)===_preAttackActorId));
+  // 接触の瞬間に出す攻撃範囲の演出（貫通・三方向攻撃・全体攻撃）。
+  // コアが attack より前に出すので、ここで持っておき onContact で鳴らす。
+  let _pendingContactVfx=null;
+  // 貫通だけは「絵が通り過ぎた瞬間」に数値を出す。通過するまで、その体への
+  // ダメージ表示を待たせるための約束をここに置く（キー＝side:unitId）。
+  const _contactHolds=new Map();
+  const _releaseContactHold=unit=>{
+    if(!unit) return;
+    const key=`${unit.side||''}:${unit.id}`;
+    const hold=_contactHolds.get(key);
+    if(hold){ _contactHolds.delete(key); hold.release(); }
+  };
+  const _awaitContactHold=async ev=>{
+    const key=`${ev&&ev.side||''}:${ev&&ev.unitId}`;
+    const hold=_contactHolds.get(key);
+    if(!hold) return;
+    // 演出が届かない時に戦闘を止めないよう、必ず時間で切り上げる。
+    await Promise.race([hold.promise,sleep(900)]);
+    _contactHolds.delete(key);
+  };
+  const _firePendingContactVfx=()=>{
+    const ev=_pendingContactVfx;
+    if(!ev) return;
+    _pendingContactVfx=null;
+    // **待たない。** 待つと複数対象のダメージ数値の出る時刻がずれる。
+    try{
+      presentAttackContactVfxEvent(ev,{findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        playVfx:playAttackContactVfx,
+        holdForContact:units=>(units||[]).forEach(u=>{
+          if(!u) return;
+          let release=()=>{};
+          const promise=new Promise(resolve=>{ release=resolve; });
+          _contactHolds.set(`${u.side||''}:${u.id}`,{promise,release});
+        }),
+        onContactPass:unit=>_releaseContactHold(unit),
+      });
+    }catch(err){ console.error('[attack contact vfx]',err); }
+  };
+  // 保留が残ったまま再生が終わらないよう、必ず全部解放する。
+  const _releaseAllContactHolds=()=>{
+    _contactHolds.forEach(h=>h.release());
+    _contactHolds.clear();
+  };
   let _preAttackMotion=null,_releasePreAttackStop=null;
   if(_preAttackEvent&&_preAttackHasEffects&&typeof playAttackMotion==='function'){
     const _side=_preAttackEvent.side==='p2'?'p2':'p1';
@@ -2411,6 +2725,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         try{
           await playAttackMotion(_attacker,_target,_side==='p2',()=>_stopped,
             {...PRESENT_ATTACK_MOTION,
+             onContact:_firePendingContactVfx,
              targetRect:_target._lastVisualRect||null});
         } finally { endBattleMotion(); }
       })();
@@ -2424,6 +2739,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // **イベント単位で覚える。** 対象単位で覚えると、同じ相手への通常攻撃の数値まで
   // 「薙ぎ払いで表示済み」と誤判定され、以後その相手のダメージ数値が出なくなる。
   const sweepShownEvents=new Set();
+  // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
+  const keywordShownEvents=new Set();
   const damageEventByTarget=new Map();
   (events||[]).filter(x=>x&&x.type==='damage'&&Number(x.amount)>0).forEach(x=>{
     const key=`${x.side}:${x.unitId}`;
@@ -2431,17 +2748,27 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   });
   for(const e of (events||[]).filter(x=>x&&x.type==='sweep_vfx')){
     const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-    const targetSide=e.side==='p1'?'p2':'p1';
-    const targets=(e.targetIds||[]).map(id=>findLiveUnit(targetSide,id,findUnit(targetSide,id))).filter(Boolean);
+    const foeSide=e.side==='p1'?'p2':'p1';
+    // **対象は敵とは限らない。**（サイレンは自分以外の全キャラクターに当たる）
+    // 見つかった側をそのまま覚えて、数値もVFXもその陣営側へ出す。
+    const sideByTarget=new Map();
+    const targets=(e.targetIds||[]).map(id=>{
+      const foe=findLiveUnit(foeSide,id,findUnit(foeSide,id));
+      if(foe){ sideByTarget.set(foe,foeSide); return foe; }
+      const own=findLiveUnit(e.side,id,findUnit(e.side,id));
+      if(own){ sideByTarget.set(own,e.side); return own; }
+      return null;
+    }).filter(Boolean);
     if(!source||!targets.length) continue;
     sweepSources.add(source.id);
     // 見せ方は presentSweepAttack() が唯一の実装（オンラインと同じ）。
     await presentSweepAttack(source,e.side==='p2',targets,
-      target=>damageEventByTarget.get(`${targetSide}:${target.id}`),
+      target=>damageEventByTarget.get(`${sideByTarget.get(target)||foeSide}:${target.id}`),
       (target,ev)=>{
         if(ev) sweepShownEvents.add(ev);
         if(ev&&typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:ev.hpAfter});
-      });
+      },
+      {sideOf:target=>(sideByTarget.get(target)==='p2'?'enemy':'ally')});
   }
   const effectDamageSources=new Set();
   // stat_change は対象ごとに生成されるが、カード効果の固有SEは効果1回につき
@@ -2457,6 +2784,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 種別ごとに別ループへ分けると、召喚が攻撃後まで遅延したり、召喚後の姿が
   // 次のrenderAllで上書きされたりするため、ここだけは逐次処理する。
   const eventList=(events||[]).filter(Boolean);
+  // HUDに描いてあるマナの値。変わった時だけ描き直すために持つ。
+  let _shownManaValue=Number(G.mana)||0;
   // コアは「召喚→その体が攻撃→反撃で死亡」までを一息に解決してから演出を渡す。
   // HP1の召喚体（スケルトンキングの青スケルトン等）は反撃で必ず即死するため、
   // 演出を再生する頃には既にHP0で、盤面に描画されず攻撃モーションも出せない。
@@ -2474,20 +2803,83 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   eventList.forEach((x,i)=>{
     if(x.type==='mana_threshold'&&x.deferred&&firstDeferredThreshold[x.side]<0) firstDeferredThreshold[x.side]=i;
   });
-  // 同時に発動した複数のマナ閾値効果では、マナ効果VFX（とSE）を
-  // キャラクターごとに1回だけ再生する。「Xマナ毎」が到達回数ぶん発動したとき、
-  // 同じ演出が同じカードへ何重にも重なって見えるため。別のキャラクターが
-  // 同時に発動した分は、それぞれのカード上で同時に再生する。
+  // 「Xマナ毎」が到達回数ぶん発動したときは、**回数ぶん見せる**（間引かない）。
+  // このゲートは「そのキャラクターで初めての発動か」を返すだけに使い、
+  // 2回目以降は高速な繰り返し演出へ落とす（規則は present_events.js）。
   // 区切りは実際の攻撃モーション（即時攻撃）だけにする。マナ閾値効果自身が出す
-  // damage（アラクネ等）で区切ると、同時発動でも2回目以降に演出が復活してしまう。
-  // なお_playManaEffectCue()はvoidで投げっぱなしのため、ここを間引いても
-  // 効果の解決順・タイミングは変わらない。
+  // damage（アラクネ等）で区切ると、ひと続きの発動が途中で1回目に戻る。
   const manaCueGate=presentCreateOnceGate();
+  // 同じ瞬間（同じ発動回）に同じ効果が乗る分は、1体目の演出でまとめて見せる。
+  const manaWaveGate=presentCreateOnceGate();
   for(const [eventIndex,e] of eventList.entries()){
     // コア駆動の戦闘では、通常の攻撃もこの経路で描く（PvE専用の攻撃アクションは通らない）。
     const _isPlayableAttack=e.type==='attack'&&(e.immediate||G._coreDrivenBattle);
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='death'||e.type==='seal_release'||_isPlayableAttack)) continue;
-    if(_isPlayableAttack) manaCueGate.reset();
+    // マナ解決のひと続きが途切れたか＝present.js が唯一の実装（オンラインと同じ）。
+    // ここで途切れたら、続けて出していた効果固有VFXも止めて数え直す。
+    // 攻撃だけを区切りにしていた頃は、死亡演出の最中も活性化のVFXが出続けていた。
+    // 何も走っていない時は await しない。ここで毎イベント1回ずつ待ちを挟むと、
+    // 数値の表示と盤面の詰めの間に描画が割り込み、数値がカード外へ出ることがある。
+    if(typeof presentBreaksManaRun==='function'&&presentBreaksManaRun(e)){
+      manaCueGate.reset();
+      manaWaveGate.reset();
+      if(_manaEffectRunning()) await _endManaEffectRun();
+    }
+    if(e.type==='effect_flash'){
+      await presentEffectFlashEvent(e,{ findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) });
+      continue;
+    }
+    if(e.type==='attack_contact_vfx'){
+      // **ここでは鳴らさない。** 攻撃モーションが対象へ接触した瞬間に鳴らす
+      // （_firePendingContactVfx）。ここで再生すると、コアのイベント順のせいで
+      // 攻撃モーションを再生し終えた＝キャラクターが戻った後になる。
+      _pendingContactVfx=e;
+      continue;
+    }
+    if(e.type==='summon_buff'){
+      // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
+      // 実際の加算は召喚時にコアが行い、summonイベントの中身に載っている。
+      // ここでは見せるものが無い（数値は召喚された体に最初から付いている）。
+      _recordBattleTrace('summon_buff',{side:e.side,atk:Number(e.atk)||0,hp:Number(e.hp)||0});
+      continue;
+    }
+    if(e.type==='unit_stolen'){
+      // 奪われた体は、コアが盤面から外し済み（PvEはコアと同じ配列を共有している）。
+      // 味方側への出現は直後の summon イベントが見せるので、ここは盤面を詰めるだけ。
+      _recordBattleTrace('unit_stolen',{side:e.side,unitId:e.unitId});
+      if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true});
+      else if(typeof renderAll==='function') renderAll();
+      continue;
+    }
+    if(e.type==='revive'){
+      // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      await presentReviveEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        // 蘇生後の値まで表示を進める（根性で耐えた体のHPが0のまま残らないように）。
+        applyStats:(unit,ev)=>{
+          if(typeof presentAdvanceShown!=='function') return;
+          presentAdvanceShown(unit,{
+            atk:Math.max(0,Number(ev.atk)||0),
+            hp:Math.max(0,Number(ev.hp)||0),
+            maxHp:Math.max(1,Number(ev.maxHp)||Number(ev.hp)||1),
+          });
+          if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(unit,e.side==='p1'?'ally':'enemy');
+        },
+        render:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceDuringMotion:true});
+          else if(typeof renderAll==='function') renderAll(); },
+      });
+      continue;
+    }
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='keyword_effect'||e.type==='death'||e.type==='seal_release'||_isPlayableAttack)) continue;
+    if(e.type==='keyword_effect'){
+      // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
+      if(keywordShownEvents.has(e)) continue;
+      // 状態異常を受けた瞬間の見せ方は present_events.js が唯一の実装（オンラインと同じ）。
+      // PvEはコアと同じ実体を共有しているので、ここでは見た目だけを出す（状態は触らない）。
+      presentKeywordEffectEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+      });
+      continue;
+    }
     if(e.type==='shield_lost'){
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // コアが結界喪失効果そのものは解決済みなので、ここでは見た目と音だけ。
@@ -2523,6 +2915,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         processDeath:async(unit,side)=>{
           if(side==='p1') await processAllyDeath(unit);
           else await processEnemyDeath(unit,(state.units.p2||[]).indexOf(unit));
+          // 敵撃破報酬はPvE側の後始末（onGoldGained）で確定する。コアへ渡した
+          // state.resources.p1.gold が古いままだと、次のコア処理の同期でその報酬を
+          // 上書きしてしまうため、後始末後の実値をコア状態へ戻す。
+          if(state.resources&&state.resources.p1) state.resources.p1.gold=Math.max(0,Number(G.gold)||0);
         },
         compact:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true}); },
       });
@@ -2535,7 +2931,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const attackSide=e.side==='p2'?'p2':'p1';
       const attacker=findLiveUnit(attackSide,e.attackerId,findUnit(attackSide,e.attackerId));
       const targetSide=attackSide==='p1'?'p2':'p1';
-      const target=findLiveUnit(targetSide,e.targetId,findUnit(targetSide,e.targetId));
+      // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る
+      // （コアは attack イベントの side に「攻撃した体の陣営」を入れる）。
+      // 相手陣営に見つからなければ同じ陣営から探す。見つからないとモーションが出ない。
+      const target=findLiveUnit(targetSide,e.targetId,null)
+        ||findLiveUnit(attackSide,e.targetId,null)
+        ||findUnit(targetSide,e.targetId)||findUnit(attackSide,e.targetId);
       // コアは攻撃イベントを命中・死亡確定より先に生成する。対象がこの時点で
       // HP0でも、死亡処理とDOM除去は後段なので、攻撃イベントを演出ごと捨てない。
       if(!attacker||!target){
@@ -2552,10 +2953,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         await _preAttackMotion;
         _preAttackMotion=null;
       } else if(attacker&&target&&typeof playAttackMotion==='function'){
+        if(e.attackVisual===false) continue;
         if(typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:effect-attack:${uid()}`,guardMs:0});
         beginBattleMotion();
         try{
           await playAttackMotion(attacker,target,attackSide==='p2',null,{...PRESENT_ATTACK_MOTION,
+            onContact:_firePendingContactVfx,
             targetRect:target._lastVisualRect||null});
         } finally {
           endBattleMotion();
@@ -2577,17 +2980,42 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       await presentManaThresholdEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
         gate:manaCueGate,
-        playCue:(unit,isEnemySide)=>{ if(unit) void _playManaEffectCue(unit,isEnemySide); },
+        waveGate:manaWaveGate,
+        // 同じ瞬間に同じ効果が発動する全員を先読みする（判定は present.js）。
+        waveEvents:ev=>presentManaWaveEvents(eventList,Math.max(0,eventList.indexOf(ev))),
+        // 飛ばす効果（炎の矢）用。その効果が起こしたダメージ＝対象（判定は present.js）。
+        effectDamage:ev=>presentEffectDamageEvents(eventList,Math.max(0,eventList.indexOf(ev))),
+        // 着弾の瞬間に見せるキーワード演出（毒牙など。判定は present.js）。
+        effectKeywords:dmg=>(typeof presentEffectKeywordEvents==='function'
+          ?presentEffectKeywordEvents(eventList,dmg):[]),
+        // **1件ずつ待つ。** 投げっぱなしにすると、直前の効果のVFXが出ている最中に
+        // 次の効果が始まり、別々の効果が同時に見える（サテュロスのマナ発生と
+        // マータの活性化が重なっていた）。
+        playCue:(cueUnits,cueOpt)=>_playManaEffectCue(cueUnits,{...cueOpt,
+          // 着弾で数値を出すので、通常のダメージ演出には出させない（薙ぎ払いと同じ印）。
+          markShown:dmg=>{ if(dmg) sweepShownEvents.add(dmg); },
+          // キーワード演出も着弾で出すので、イベント順では出させない。
+          markKeywordShown:kw=>{ if(kw) keywordShownEvents.add(kw); },
+          playKeyword:kw=>{ if(kw) presentKeywordEffectEvent(kw,{
+            findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) }); },
+          onImpact:(target,dmg)=>{
+            if(target&&dmg&&typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:dmg.hpAfter});
+            if(target&&typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,target.side==='p2'?'enemy':'ally');
+          },
+        }),
       });
       if(e.deferred&&e.deferredAfter&&typeof coreRestoreDeferredState==='function'){
         coreRestoreDeferredState(state,e.deferredAfter);
         G.mana=Math.max(0,Number(state.resources.p1?.mana)||0);
         _syncCoreResourcesToG(state);
-        // 「Xマナ毎」が到達回数ぶん連続発動すると、この分岐が数十〜百回走る。
-        // 1回ごとにHUDを描き直すと開戦がその分止まるため、連続する閾値の
-        // 最後の1回だけ描画する（G.mana/G.gold自体は毎回更新済み）。
-        const nextEvent=eventList[eventIndex+1];
-        if(!(nextEvent&&nextEvent.type==='mana_threshold')&&typeof renderManaHud==='function') renderManaHud();
+        // **マナの数字は、値が変わったら必ずその場で描き直す。**
+        // 「次も閾値なら描かない」にしていた頃は、「Xマナ毎」が続く間ずっと
+        // 古い数字のまま止まり、効果でマナが増えてもカウントが動かなかった。
+        // 連続発動でHUDが何十回も走らないよう、抑えるのは「値が同じ時」だけにする。
+        if(_shownManaValue!==G.mana){
+          _shownManaValue=G.mana;
+          _refreshManaDisplays();
+        }
         _recordBattleTrace('mana_state_restore_done',{unitId:e.unitId});
       }
       continue;
@@ -2611,10 +3039,19 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // manaOnAttack/manaOnInjury/manaOnDeathまで新しい演出待ちになり、
       // 召喚や次の戦闘イベントが遅延する。
       const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      // マナを得た合図（S004）は**発生させたキャラクターの上**に出す。
+      // 見せ方は render.js が唯一の実装（オンラインと同じ）。
+      const _manaVfxShown=!!(source&&Number(e.amount)>0&&typeof playManaGainVfx==='function'
+        &&playManaGainVfx(source,e.side==='p2'?'enemy':'ally'));
+      // **数字はVFXが見え始めてから動かす**（尺は present.js が唯一の定義）。
+      if(_manaVfxShown){
+        await sleep((typeof PRESENT_MANA_GAIN_VALUE_DELAY_MS==='number'&&PRESENT_MANA_GAIN_VALUE_DELAY_MS)||140);
+      }
       if(e.side==='p1'){
         _recordBattleTrace('mana_state_apply',{unitId:e.unitId,amount:Number(e.amount)||0});
         G.mana=Math.max(0,(Number(G.mana)||0)+(Number(e.amount)||0));
-        if(typeof renderManaHud==='function') renderManaHud();
+        _shownManaValue=G.mana;
+        _refreshManaDisplays();
       }
       continue;
     }
@@ -2827,10 +3264,19 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         liveCount:(readyArr||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul).length,
         domCount:document.querySelectorAll(`#f-${e.side==='p2'?'enemy':'ally'} .slot[data-unit-id]`).length,
         expectedIds:readyExpected,actualIds:readyActual});
+      // 登場演出（S001）。**逆再生開始でカードが出る**まで待ってから次へ進む。
+      // 見せ方は playSummonAppearVfx（render.js）が唯一の実装。
+      if(typeof playSummonAppearVfx==='function'){
+        try{ await playSummonAppearVfx(unit,e.side==='p2'?'enemy':'ally'); }
+        catch(err){ console.error('[summon vfx]',err); }
+      }
       await _afterPanelSummon(unit,e.side==='p2',false,true);
       continue;
     }
     if(e.type!=='damage'||!(Number(e.amount)>0)) continue;
+    // 貫通で貫かれた体は、**絵がその位置を通り過ぎるまで**数値を出さない。
+    // 待たされるのは貫通の対象だけで、他のダメージはVFXに依存しない。
+    await _awaitContactHold(e);
     // 1件のダメージをどう見せるかは present_events.js が唯一の実装（オンラインと同じ）。
     // ここでの違い（ユニットの引き方・HPの進め方・先読みするイベント列）だけを渡す。
     await presentDamageEvent(e,{
@@ -2842,16 +3288,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       sleep,
       ownEffectText:_ownCardEffectText,
       sfxDone:damageSfxDone,
-      // 連続するdamageイベントが「同じ瞬間の命中」。ここまでをまとめて鳴らす。
-      sfxBatch:ev=>{
-        const out=[];
-        for(let j=Math.max(0,eventList.indexOf(ev));j<eventList.length;j++){
-          const d=eventList[j];
-          if(!d||d.type!=='damage'||!(Number(d.amount)>0)) break;
-          out.push(d);
-        }
-        return out;
-      },
+      // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（オンラインと同じ）。
+      sfxBatch:ev=>presentDamageSfxBatch(eventList,Math.max(0,eventList.indexOf(ev))),
+      // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
+      runAheadMs:ev=>presentDamageRunAheadMs(eventList,Math.max(0,eventList.indexOf(ev))),
+      // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js。
+      vfxKeyword:ev=>(typeof presentDamageVfxKeyword==='function'
+        ?presentDamageVfxKeyword(eventList,ev):''),
+      // 効果の素材はシートの「VFX/SE」列で引く。
+      effectFxCode:no=>(no&&typeof _effectFxCodeByNo==='function'?_effectFxCodeByNo(no):no),
       alreadyShown:ev=>sweepShownEvents.has(ev),
       noteEffectSource:unit=>{ if(!sweepSources.has(unit.id)) effectDamageSources.add(unit.id); },
       onEffectDamage:(ev,src)=>{
@@ -2866,6 +3311,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     try{ await _preAttackMotion; }catch(err){ /* 演出の失敗で再生を止めない */ }
     _preAttackMotion=null;
   }
+  // 接触フックまで届かなかった接触VFXの保険（攻撃者・対象が盤面に無い等）。
+  // 出ないまま消すと「攻撃範囲の演出が時々出ない」になる。
+  _firePendingContactVfx();
+  _releaseAllContactHolds();
   effectDamageSources.forEach(id=>{
     const source=(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id);
     const code=source&&_effectPresentationCode(source).match(/^C\d{3}$/i);
@@ -2882,6 +3331,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     targetList.push(spawnedUnit);
     await _afterPanelSummon(spawnedUnit,targetList===G.enemies,false,true);
   }
+  // 続けて出していた効果固有VFXは、この再生の終わりで必ず止める。
+  // 止め忘れると次の手番・報酬画面までループし続ける。
+  if(_manaEffectRunning()) await _endManaEffectRun();
   if(typeof requestBattleRender==='function') requestBattleRender();
   _syncCoreBloodToG(state);
 }
@@ -2931,8 +3383,12 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const localEvents=[];
   const emit=ev=>{ localEvents.push(ev); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   const beforeUnits=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const previousDeferMana=!!G._deferManaThresholdEffects;
@@ -2974,13 +3430,15 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
     coreApplyManaThresholdEffects(state,coreMathRng,emit,applyHit);
     if(typeof coreFlushPendingLichSummons==='function') coreFlushPendingLichSummons(state,emit);
     _syncCoreResourcesToG(state);
-    if(typeof renderManaHud==='function') renderManaHud();
+    _refreshManaDisplays();
   }finally{
     G._deferManaThresholdEffects=previousDeferMana;
     _restoreSideSlots();
   }
   // コア召喚をPvEの盤面・演出へ接続する。反復中に再生済みの分は除く。
   await _flushCorePveHitEvents(state,localEvents.slice(flushedEventCount),beforeUnits);
+  _syncCoreManaToG(state);
+  _refreshManaDisplays();
   _recordBattleTrace('attack_effect_dispatch_end',{unitId:unit.id});
   return skipAttack;
 }
@@ -3400,6 +3858,25 @@ function _damageSideOf(unit){
   return '';
 }
 
+// 攻撃モーション中に画面で動いている複製カードの位置。
+// **効果の演出（VFX）はここを発生源にする。** 攻撃で少し動いた地点から
+// 効果が出るように見せるため（攻撃そのもののVFXと数値は盤面の定位置のまま）。
+function _motionCloneRect(unit){
+  if(!unit||unit.id==null||typeof document==='undefined') return null;
+  const id=String(unit.id);
+  const el=[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+    .find(x=>String(x.dataset.unitId||'')===id);
+  const rect=el&&typeof el.getBoundingClientRect==='function'?el.getBoundingClientRect():null;
+  return rect&&rect.width>0&&rect.height>0
+    ?{left:rect.left,top:rect.top,width:rect.width,height:rect.height}:null;
+}
+
+// 効果の演出を出す位置。**動いている最中はその位置を使う。**
+// ダメージ数値・被弾VFXは盤面の定位置（_captureUnitDamageRect）のままにする。
+function _captureUnitEffectRect(unit, side){
+  return _motionCloneRect(unit)||_captureUnitDamageRect(unit,side);
+}
+
 function _captureUnitDamageRect(unit, side){
   if(!unit||!side||typeof getCurrentUnitSlot!=='function') return null;
   const slot=getCurrentUnitSlot(side==='enemy'?'enemy':'ally',unit);
@@ -3542,8 +4019,12 @@ async function _runCoreLiveInjuryEffects(unit, actualDmg, isEnemySide, source, d
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
     const localEvents=[];
   const emit=ev=>{ localEvents.push(ev); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   const side=isEnemySide?'p2':'p1';
   // 反復回数はコア（coreResolveHit内の負傷反復）と同じ式にする。旧式は
@@ -3598,7 +4079,7 @@ async function _runCoreLiveInjuryEffects(unit, actualDmg, isEnemySide, source, d
     coreApplyManaThresholdEffects(state,coreMathRng,emit,applyHit);
     if(typeof coreFlushPendingLichSummons==='function') coreFlushPendingLichSummons(state,emit);
     _syncCoreResourcesToG(state);
-    if(typeof renderManaHud==='function') renderManaHud();
+    _refreshManaDisplays();
   }finally{
     G._deferManaThresholdEffects=previousDeferMana;
     delete unit._coreInjuryEffectsResolving;
@@ -3679,7 +4160,8 @@ async function applyDamageBatch(entries, options){
     });
   }
   try{
-    prepared.forEach(e=>coreResolveHit(state,e.source||opt.source,e.unit,e.amount,!!e._counterDamage,coreMathRng,emit,{deferTriggers:true,effect:!!opt.effect}));
+    prepared.forEach(e=>coreResolveHit(state,e.source||opt.source,e.unit,e.amount,!!e._counterDamage,coreMathRng,emit,
+      {deferTriggers:true,effect:!!opt.effect,suppressAttackHitSfx:!!e.suppressAttackHitSfx}));
     // deferTriggers はダメージ確定だけを遅延する契約。通常攻撃の命中キーワードは
     // PvE側で再実装せず、同じコア関数を一度だけ後段から呼ぶ。
     if(opt.normalAttack){
@@ -3713,6 +4195,7 @@ async function applyDamageBatch(entries, options){
       needsAllyInjuryEffects:actualDmg>0&&side==='ally'&&unit&&unit.hp>0,
       needsEnemyInjuryEffects:actualDmg>0&&side==='enemy'&&unit&&unit.hp>0,
       rect:_captureUnitDamageRect(unit,side),attackSfxSource:base.attackSfxSource||opt.attackSfxSource||null,
+      suppressAttackHitSfx:!!base.suppressAttackHitSfx,
       effectSource:opt.effect?source:null,keywordEffect:opt.keywordEffect||null,
       counterDamage:!!ev.counter};
   });
@@ -3796,7 +4279,7 @@ async function applyDamageBatch(entries, options){
   });
 
   const damaged=results.filter(r=>r.actualDmg>0);
-  damaged.forEach(r=>{ if(r.attackSfxSource) playAttackDamageSfx(r.attackSfxSource,r.actualDmg); });
+  damaged.forEach(r=>{ if(r.attackSfxSource&&!r.suppressAttackHitSfx) playAttackDamageSfx(r.attackSfxSource,r.actualDmg); });
   // 同じキャラクターが1バッチ内で複数回ダメージを受けると（攻撃＋効果ダメージ等）、
   // ダメージ数値が同じ位置に重なって読めなくなる。表示自体は従来どおり投げっぱなしの
   // まま、対象ごとに「前の数値が消えてから次を出す」順番待ちだけを入れる。
@@ -4178,7 +4661,10 @@ function _battleUnitById(list, unit){
   return list.find(x=>x&&x.id===unit.id)||null;
 }
 
-async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarget,targets,damage){
+async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarget,targets,damage,contactModes=[]){
+  // 貫通と範囲攻撃は併用できるので、接触演出は配列で受ける（コアと同じ扱い）。
+  if(typeof contactModes==='string') contactModes=contactModes?[contactModes]:[];
+  const contactMode=contactModes[0]||'';
   attacker=_battleUnitById(isEnemySide?G.enemies:G.allies,attacker)||attacker;
   primaryTarget=_battleUnitById(isEnemySide?G.allies:G.enemies,primaryTarget)||primaryTarget;
   if(!attacker||attacker.hp<=0||!primaryTarget||primaryTarget.hp<=0) return null;
@@ -4189,8 +4675,15 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     if(damage>0&&typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:attack-start:${uid()}`,guardMs:0});
     const result={contacted:false,targetDiedBeforeContact:false,attackerDiedBeforeContact:false,actualTarget:primaryTarget};
     let damageAppliedAtContact=false;
+    let contactVfxPlayed=false;
     const applyMultiContactDamage=async()=>{
       if(!attacker||attacker.hp<=0||!primaryTarget||primaryTarget.hp<=0) return;
+      if(contactMode&&!contactVfxPlayed){
+        contactVfxPlayed=true;
+        presentAttackContactVfxEvent({side:isEnemySide?'p2':'p1',attackerId:attacker.id,mode:contactMode,
+          modes:contactModes,primaryTargetId:primaryTarget.id,targetIds:(targets||[]).map(t=>t.id)},
+          {findUnit:(side,id)=>_battleUnitById(side==='p1'?G.allies:G.enemies,{id}),playVfx:playAttackContactVfx});
+      }
       if(!attacker._attackObserverFired) await _runCoreLiveAttackObservers(attacker,isEnemySide);
       delete attacker._attackObserverFired;
       const seen=new Set();
@@ -4200,7 +4693,7 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
         .filter(t=>t&&t.hp>0&&!seen.has(t.id)&&!t._isObject&&!t._isSoul)
         .map(t=>{seen.add(t.id);return t;});
       const primary=_battleUnitById(isEnemySide?G.allies:G.enemies,primaryTarget)||primaryTarget;
-      const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker}));
+      const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker,suppressAttackHitSfx:!!contactMode}));
       if(!entries.length) return;
       result.contacted=damage>0&&!result.skipAttack;
       const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(primary,'先制');
@@ -4255,7 +4748,13 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     const liveTargets=(targets||[])
       .filter(t=>t&&t.hp>0&&!seen.has(t.id)&&!t._isObject&&!t._isSoul)
       .map(t=>{ seen.add(t.id); return t; });
-    const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker}));
+    if(contactMode&&!contactVfxPlayed){
+      contactVfxPlayed=true;
+      presentAttackContactVfxEvent({side:isEnemySide?'p2':'p1',attackerId:attacker.id,mode:contactMode,
+        modes:contactModes,primaryTargetId:primaryTarget.id,targetIds:(targets||[]).map(t=>t.id)},
+        {findUnit:(side,id)=>_battleUnitById(side==='p1'?G.allies:G.enemies,{id}),playVfx:playAttackContactVfx});
+    }
+    const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker,suppressAttackHitSfx:!!contactMode}));
     result.contacted=damage>0&&entries.length>0;
     if(result.contacted && !attacker._attackObserverFired) await _runCoreLiveAttackObservers(attacker,isEnemySide);
     delete attacker._attackObserverFired;
@@ -4329,8 +4828,8 @@ async function _applyPoisonBeforeAttack(unit){
   _syncCoreLifeToG(state);
   if(!result||result.amount<=0) return;
   log(`${_lc(unit.name,isEnemySide)}が毒で${result.amount}ダメージを受けた。`,isEnemySide?'bad':'good');
-  if(typeof playSfx==='function') playSfx('poison',{group:'combat'});
-  // 毒は通常ダメージのVFXではなくK007を確実に選び、表示開始を待ってから
+  // 毒のSEは playHitVfx が keywordEffect から引いて鳴らす（K017）。ここでは鳴らさない。
+  // 毒は通常ダメージのVFXではなくキーワード専用VFXを確実に選び、表示開始を待ってから
   // 死亡処理・次の攻撃へ進める。ここをfire-and-forgetにすると、直後の
   // renderAll()/死亡処理でVFXが消え、通常ダメージだけに見える。
   if(typeof playHitVfx==='function') await playHitVfx(isEnemySide?'enemy':'ally',unit,result.amount,{keywordEffect:'毒'});
@@ -4508,7 +5007,14 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     if(battleGold) enh.goldOnBattleEnd+=Number(battleGold[1])||0;
     enh.effectRepeatBonus+=Number(panel.effectRepeatBonus||panel._effectRepeatBonus)||0;
     if(panel.manaCost){
-      enh.manaThresholds.push({cost:Number(panel.manaCost)||0,repeat:!!panel.manaRepeat,desc:String(panel._manaThresholdDesc||panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
+      // no：その効果の固有VFX（活性化＝E045等）を引くためのカードNo.。
+      // ここで落とすと、演出側は「どの効果が発動したのか」を知る手段が無くなる。
+      enh.manaThresholds.push({cost:Number(panel.manaCost)||0,repeat:!!panel.manaRepeat,
+        // 演出の番号はシートの「VFX/SE」列が最優先（無ければカードのNo.）。
+        no:String(panel.fxCode||panel.no||panel.artCode||'').toUpperCase(),
+        // order：シートの「マナ順位」。落とすと発動順が指定どおりにならない。
+        order:Number(panel.manaOrder),
+        desc:String(panel._manaThresholdDesc||panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
     }
     if(panel._resonanceEffectName && panel._resonanceEffectName!==panel.name){
       enh.effectNames.push(panel._resonanceEffectName);
@@ -4534,7 +5040,8 @@ function _collectAdjacentEnhancements(unit, slotIdx){
   });
   // 策士：所持キーワード1つにつき+2/+2。合体済みは1枚で2枚分として扱う。
   if(enh.strategyCount>0){
-    const cardNames=CORE_KEYWORD_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
+    // 効果文を持つ強化カード名（野生の力・闇の炎など）はキーワードではないので数えない。
+    const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
     const keywordCount=new Set([...(typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):unit.keywords||[]),...(enh.keywords||[])]
       .map(k=>String(k||'').trim().replace(/\d+$/,''))
       .filter(k=>k&&!cardNames.has(k))).size;
@@ -4603,6 +5110,8 @@ function _clearAdjacentPanelEnhancements(unit){
     delete unit.manaCost;
     delete unit.manaRepeat;
     delete unit._manaThresholdDesc;
+    delete unit._manaThresholdNo;
+    delete unit._manaThresholdOrder;
     delete unit._manaFireCount;
   }
 }
@@ -4641,10 +5150,12 @@ function _applyAdjacentPanelEnhancements(unit, enh){
     unit.manaCost=first.cost;
     unit.manaRepeat=first.repeat;
     unit._manaThresholdDesc=first.desc;
+    unit._manaThresholdNo=String(first.no||'');
+    unit._manaThresholdOrder=first.order;
     unit._adjacentPanelEnhancements.manaThresholdAdded=true;
   }
   const extraThresholds=manaThresholds.slice(unit._adjacentPanelEnhancements.manaThresholdAdded?1:0);
-  unit._extraManaThresholds=extraThresholds.map(t=>({cost:Number(t.cost)||0,repeat:!!t.repeat,desc:String(t.desc||'')})).filter(t=>t.cost>0);
+  unit._extraManaThresholds=extraThresholds.map(t=>({cost:Number(t.cost)||0,repeat:!!t.repeat,desc:String(t.desc||''),no:String(t.no||''),order:t.order})).filter(t=>t.cost>0);
   unit._extraManaCosts=extraThresholds.map(t=>Number(t.cost)||0).filter(Boolean);
   unit._resonanceEffectNames=[...(enh.effectNames||[])].filter(Boolean);
   unit._resonanceEffectScales={...(enh.effectScales||{})};
@@ -4719,6 +5230,10 @@ function _makePanelSummonUnit(spec, keywords){
     manaCost:spec.manaCost||0,
     manaRepeat:!!spec.manaRepeat,
     _manaThresholdDesc:spec.manaThresholdDesc||'',
+    _manaThresholdNo:spec.manaThresholdNo||'',
+    fxCode:spec.fxCode||'',
+    _manaThresholdOrder:spec.manaThresholdOrder,
+    manaOrder:spec.manaOrder,
     goldOnBattleEnd:spec.goldOnBattleEnd||0,
     goldOnDeath:spec.goldOnDeath||0,
     randomItemOnBattleEnd:!!spec.randomItemOnBattleEnd,
@@ -4823,6 +5338,10 @@ function _panelSummonSpec(panel){
       manaCost:Number(openingSpec&&openingSpec.manaCost||panel.manaCost||panel.costMana||(manaLine&&manaLine[1])||0),
       manaRepeat:!!(openingSpec&&openingSpec.manaRepeat)||!!panel.manaRepeat||!!(manaLine&&manaLine[2]),
       manaThresholdDesc:String(openingSpec&&(openingSpec.manaThresholdDesc||openingSpec._manaThresholdDesc)||(manaLine&&manaLine[3])||''),
+      manaThresholdNo:String(openingSpec&&(openingSpec.manaThresholdNo||openingSpec._manaThresholdNo)||panel.fxCode||panel.no||panel.artCode||''),
+      fxCode:String(panel.fxCode||''),
+      manaThresholdOrder:(openingSpec&&(openingSpec.manaThresholdOrder??openingSpec._manaThresholdOrder))??panel.manaOrder,
+      manaOrder:panel.manaOrder,
       goldOnBattleEnd:openingSpec&&openingSpec.goldOnBattleEnd||panel.goldOnBattleEnd||0,
       goldOnDeath:openingSpec&&openingSpec.goldOnDeath||panel.goldOnDeath||0,
       randomItemOnBattleEnd:!!(openingSpec&&openingSpec.randomItemOnBattleEnd)||!!panel.randomItemOnBattleEnd,
@@ -5063,7 +5582,7 @@ function _gainMana(amount, source){
   const sourceName=source&&typeof source==='object'?source.name:source;
   G.mana=_ensureMana()+n;
   log(`${sourceName?_lc(sourceName,false):'マナ'}の効果でマナを${n}つ獲得した。`,'good');
-  if(typeof renderManaHud==='function') renderManaHud();
+  _refreshManaDisplays();
   // ユニットのマナ閾値は共通コアがイベント単位で一度だけ解決する。
   // 旧マナ閾値走査をここで予約すると、コア処理と
   // 二重実行され、召喚・VFX・効果回数が崩れる。
@@ -5789,8 +6308,12 @@ async function _finishNewPanelBattleStartEffects(){
     });
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   try{
     // 開戦処理は coreRunOpening() が唯一の実装。**ここへ手順を書き戻さないこと。**
@@ -5890,7 +6413,8 @@ async function _applyRingBattleStartEffects(){
   }
   // 神速の指輪：開戦：左端のキャラクターのATKを2倍にし、先攻になる。
   // （ATKの2倍化は最終値への乗算のため、上記の加算処理より後に行う。「先攻になる」はbattlePhase()側で判定する）
-  const speedRing=rings.find(r=>r&&(r.name==='神速の指輪'||r.name==='疾風の指輪'));
+  // 開戦効果を持つのは神速の指輪だけ（疾風の指輪は常時：攻撃回数+1）。
+  const speedRing=rings.find(r=>r&&r.name==='神速の指輪');
   if(speedRing){
     const leftmost=(G.allies||[]).find(u=>u&&u.hp>0);
     if(leftmost){
@@ -6150,8 +6674,12 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     if(ev&&(ev.type==='mana_gain'||ev.type==='gold_gain')) _recordBattleTrace(`${ev.type}_generated`,{unitId:ev.unitId||null,side:ev.side,amount:Number(ev.amount)||0,reason:ev.reason||''});
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   try{
       coreTriggerDeath(unit,state,emit);
@@ -6169,7 +6697,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       G._genericAllyDeaths=Math.max(0,Number(state._genericAllyDeaths)||0);
     // gold_gain はコアで確定済みだが、画面上の反映は死亡固有VFXの開始時に行う。
     G.gold=goldBefore;
-    if(typeof renderManaHud==='function') renderManaHud();
+    _refreshManaDisplays();
   }finally{
     touched.forEach(([u,oldSide,slot])=>{
       if(oldSide==null) delete u.side; else u.side=oldSide;
@@ -6366,9 +6894,15 @@ async function allyAttackAction(ally, allyIdx){
   if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け
   const eIdx=G.enemies.indexOf(target);
-  let attackTargets=isGlobal?_targetsInSameAttackRow(target,G.enemies).filter(_canReceiveBattleEffect):isTriDir?([eIdx-1,eIdx,eIdx+1].filter(i=>i>=0&&i<G.enemies.length).map(i=>G.enemies[i]).filter(_canReceiveBattleEffect)):[target];
+  let attackTargets=isGlobal?_targetsInSameAttackRow(target,G.enemies).filter(_canReceiveBattleEffect):isTriDir?
+    (typeof coreTriDirectionTargets==='function'?coreTriDirectionTargets(target,G.enemies):[target]).filter(_canReceiveBattleEffect):[target];
   // 貫通：前衛の対象への攻撃なら、真後ろの後衛キャラクターにも同じダメージを追加する
-  const pierceExtra=_unitHasKeyword(ally,'貫通')?_pierceRearTargets(target,G.enemies).filter(_canReceiveBattleEffect):[];
+  // 貫通は範囲攻撃と**併用できる**（コアの withPierce と同じ扱い）。
+  const contactModes=[...(isGlobal?['all']:isTriDir?['tri']:[]),...(_unitHasKeyword(ally,'貫通')?['pierce']:[])];
+  const contactMode=contactModes[0]||'';
+  const pierceExtra=_unitHasKeyword(ally,'貫通')
+    ?attackTargets.filter(t=>t&&(t.lane||'front')!=='rear')
+      .flatMap(t=>_pierceRearTargets(t,G.enemies)).filter(_canReceiveBattleEffect):[];
   pierceExtra.forEach(t=>{ if(t&&!attackTargets.includes(t)) attackTargets=[...attackTargets,t]; });
   const _allyNm=_lc(_battleLogName(ally,G.allies),false);
   if(isGlobal) log(`${_allyNm}が全ての敵に${attackDmg}ダメージを与えた。`);
@@ -6377,7 +6911,7 @@ async function allyAttackAction(ally, allyIdx){
   if(pierceExtra.length) log(`${_allyNm}の貫通で後衛にも${attackDmg}ダメージを与えた。`);
 
   if(attackTargets.length>1){
-    await _dealMultiAttackDamageWithMutual(ally,false,target,attackTargets,attackDmg);
+    await _dealMultiAttackDamageWithMutual(ally,false,target,attackTargets,attackDmg,contactModes);
   } else {
     await _dealAttackDamageWithMutual(ally,false,target,eIdx,attackDmg);
   }
@@ -6458,10 +6992,15 @@ async function enemyAttackAction(enemy, enemyIdx){
   if(atkVal>0&&enemy.hp>0&&_hasAttackEffectsForPause(enemy)) enemy._attackEffectPending=true;
 
   // 全体攻撃・三方向攻撃・単体攻撃の振り分け（三方向攻撃：隣接3スロット、隠密は除外）
-  const _triAIdxs=isTriDirAtk?[primaryIdx-1,primaryIdx,primaryIdx+1].filter(i=>i>=0&&i<G.allies.length&&_canReceiveBattleEffect(G.allies[i])&&!G.allies[i].stealth):[];
-  let finalTargets=isGlobalAtk?liveAllForGlobal:isTriDirAtk?_triAIdxs.map(i=>G.allies[i]):targets;
+  const _triATargets=isTriDirAtk&&typeof coreTriDirectionTargets==='function'
+    ?coreTriDirectionTargets(primaryTarget,G.allies).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth):[];
+  let finalTargets=isGlobalAtk?liveAllForGlobal:isTriDirAtk?_triATargets:targets;
   // 貫通：前衛の対象への攻撃なら、真後ろの後衛キャラクターにも同じダメージを追加する
-  const pierceExtra=_unitHasKeyword(enemy,'貫通')?_pierceRearTargets(primaryTarget,G.allies).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth):[];
+  const contactModes=[...(isGlobalAtk?['all']:isTriDirAtk?['tri']:[]),...(_unitHasKeyword(enemy,'貫通')?['pierce']:[])];
+  const contactMode=contactModes[0]||'';
+  const pierceExtra=_unitHasKeyword(enemy,'貫通')
+    ?finalTargets.filter(t=>t&&(t.lane||'front')!=='rear')
+      .flatMap(t=>_pierceRearTargets(t,G.allies)).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth):[];
   pierceExtra.forEach(t=>{ if(t&&!finalTargets.includes(t)) finalTargets=[...finalTargets,t]; });
 
   // 全ターゲットを攻撃
@@ -6471,7 +7010,7 @@ async function enemyAttackAction(enemy, enemyIdx){
   else log(`${_enemyNm}が${_lc(_battleLogName(primaryTarget,G.allies),false)}に${atkVal}ダメージを与えた。`);
   if(pierceExtra.length) log(`${_enemyNm}の貫通で後衛にも${atkVal}ダメージを与えた。`);
   if(finalTargets.length>1){
-    await _dealMultiAttackDamageWithMutual(enemy,true,primaryTarget,finalTargets,atkVal);
+    await _dealMultiAttackDamageWithMutual(enemy,true,primaryTarget,finalTargets,atkVal,contactModes);
   } else {
     await _dealAttackDamageWithMutual(enemy,true,primaryTarget,primaryIdx,atkVal);
   }
@@ -6652,8 +7191,12 @@ async function _runCoreLiveAttackObservers(attacker,isEnemySide){
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const localEvents=[];
   const emit=ev=>{ localEvents.push(ev); if(ev&&ev.type==='mana_gain') _recordBattleTrace('mana_gain_generated',{unitId:ev.unitId||null,side:ev.side,amount:Number(ev.amount)||0,reason:ev.reason||''}); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  const applyHit=(source,target,amount,counter)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
+  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
+  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
+    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
   try{ coreApplyAttackObservers(attacker,state,coreMathRng,emit,applyHit); }
   finally{
@@ -6687,7 +7230,10 @@ async function _runCoreLiveAttackRing(isEnemySide){
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const localEvents=[];
   const emit=ev=>{localEvents.push(ev);if(Array.isArray(G._battleCoreEvents))G._battleCoreEvents.push(ev);};
-  const applyHit=(source,target,amount,counter)=>coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // オプションはコアへそのまま渡す（deferTriggers/collect を落とすと誘発順が食い違う）。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>
+    coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   try{coreApplyAttackRing(state,'p1',coreMathRng,emit,applyHit);}finally{
     G._oniRingAttackCount=state._oniRingAttackCount;
     touched.forEach(([u,side,slot])=>{if(side==null)delete u.side;else u.side=side;if(slot==null)delete u.slot;else u.slot=slot;});
@@ -6720,7 +7266,10 @@ async function _applyCoreShieldLostEffectsLive(lostUnit){
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const localEvents=[];
   const emit=ev=>{ localEvents.push(ev); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  const applyHit=(source,target,amount,counter)=>coreResolveHit(state,source,target,amount,counter,coreMathRng,emit);
+  // オプションはコアへそのまま渡す（deferTriggers/collect を落とすと誘発順が食い違う）。
+  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>
+    coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   try{ coreApplyShieldLostEffects(lostUnit,state,coreMathRng,emit,applyHit); }
   finally{ touched.forEach(([u,side,slot])=>{ if(side==null)delete u.side;else u.side=side;if(slot==null)delete u.slot;else u.slot=slot; }); }
   await _flushCorePveHitEvents(state,localEvents,before);
@@ -6870,8 +7419,12 @@ function _removeAbsentKiemetsuCards(){
 
 function _cleanupBattleEndTransientUnits(){
   _removeAbsentKiemetsuCards();
-  if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...G.allies.map(u=>u&&u._panelSummoned?null:u));
-  if(Array.isArray(G.enemies)) G.enemies.splice(0,G.enemies.length,...G.enemies.map(u=>u&&u._panelSummoned?null:u));
+  // **盤面は空にする。** パネル召喚の印が付いた体だけを消していた頃は、
+  // 戦闘中に召喚された体・変身した体が残り、次の戦闘で編成ぶんが改めて出撃して
+  // **キャラクターが複製された**（試験戦闘を途中で終えて通常戦闘へ入った時）。
+  // 次の戦闘は編成から作り直すので、ここで残す必要のある体は無い。
+  if(Array.isArray(G.allies)) G.allies.length=0;
+  if(Array.isArray(G.enemies)) G.enemies.length=0;
   // ラミアで一時的に仲間にしたキャラクターは、メイン置き場由来ではないため報酬フェイズへは持ち越さない
   _removeLamiaCapturedUnits();
   // 仲間になったエリート/ボスの属性を解除
@@ -7074,8 +7627,15 @@ async function _processEnemyDeathInner(e,eIdx){
 // 戦闘開始ボタンは廃止し、プレイヤーターンになったら自動で戦闘フェイズへ進む。
 // この関数はその内部処理そのもの（自動呼び出し・後方互換の手動呼び出し双方から使う）。
 async function _advanceToBattlePhase(){
-  if(G.phase!=='player'||G._battlePhaseRunning) return;
+  // **実行中フラグは「今の戦闘のもの」だけを見る。**
+  // 試験戦闘を途中で終了すると battlePhase() は return で抜けるだけなので、
+  // 中断のされ方によってはフラグが立ったまま残る。そのまま次の戦闘を始めると、
+  // ここで弾かれて**前の盤面のまま何も進まない**（利用者報告の再現条件）。
+  // 戦闘IDが変わっていれば、前の戦闘の残りとみなして無視する。
+  if(G._battlePhaseRunning&&Number(G._battlePhaseRunId)===Number(G._battleRunId)) return;
+  if(G.phase!=='player') return;
   G._battlePhaseRunning=true;
+  G._battlePhaseRunId=Number(G._battleRunId)||0;
   G._showGlobalPanels=false;
   const hp=document.getElementById('hand-pane');
   const hs=document.getElementById('hand-slots');
@@ -7119,6 +7679,9 @@ function startTestBattle(){
   if(!G._debugMode&&!G._isLibrary) return;
   G._testBattleMode=true;
   G._testBattleExitPending=false;
+  // 前回の試験戦闘が中断で終わっていた場合の保険（残っていると次が進まない）。
+  G._battlePhaseRunning=false;
+  if(typeof _resetManaEffectRun==='function') _resetManaEffectRun();
   G._libraryTestBattleMode=!!G._isLibrary;
   if(G._libraryTestBattleMode){
     G._libraryLoanCardsState=typeof clone==='function'?clone(_rewCards||[]):(_rewCards||[]).slice();
@@ -7141,6 +7704,10 @@ function startTestBattle(){
 function stopTestBattle(){
   if(!G._testBattleMode) return;
   G._testBattleAbort=true;
+  // 押した瞬間に音を止める。効果のSEは長いものがあり、戦闘ループが
+  // 安全に抜けるまで鳴り続けると「終了したのに音だけ続く」状態になる。
+  if(typeof _resetManaEffectRun==='function') _resetManaEffectRun();
+  if(typeof stopAllSfx==='function') stopAllSfx();
   // 攻撃演出やVFXの待機中は戦闘ループが安全に抜けるのを待つ。
   // ここで画面を切り替えると、進行中の複製カード・死亡演出が編成画面へ残る。
   if(!G._battlePhaseRunning) void _exitTestBattle();
@@ -7150,11 +7717,20 @@ async function _exitTestBattle(){
   if(G._testBattleExitPending) return;
   if(!G._testBattleMode&&G.phase==='reward') return;
   G._testBattleExitPending=true;
+  // **中断された戦闘の実行中フラグと、鳴りっぱなしのSE・VFXをここで必ず断つ。**
+  // 戦闘ループは return で抜けるだけなので、ここを通さないと次の試験戦闘が
+  // 「前の盤面のまま進まない」「前の効果のSEが鳴り続ける」状態になる。
+  G._battlePhaseRunning=false;
+  if(typeof _resetManaEffectRun==='function') _resetManaEffectRun();
+  if(typeof stopAllSfx==='function') stopAllSfx();
   // 決着後の遷移が長くなりすぎたため、全演出の終了待ちは行わない。
   // 残っている演出は直後の _forceStopAllVfx() で打ち切る。
   const returnToLibrary=!!G._libraryTestBattleMode;
   // デバッグ試験戦闘でも、戦闘を終えた時点の終戦効果を実戦闘経路と同じく確定する。
-  await onBattleEnd();
+  // **ここで失敗しても後始末は必ず続ける**（途中で抜けると _testBattleExitPending が
+  // 立ったままになり、以後の終了処理が全て素通りする）。
+  try{ await onBattleEnd(); }
+  catch(err){ console.error('[testBattle onBattleEnd]',err); }
   G._testBattleMode=false;
   G._libraryTestBattleMode=false;
   G._testBattleAbort=false;
@@ -7164,17 +7740,28 @@ async function _exitTestBattle(){
   document.body.classList.remove('library-test-battle-active');
   document.body.classList.remove('battle-opening-active','battle-start-playing','battle-start-no-effect','battle-start-units-collapsed','battle-start-units-revealing','battle-victory-pending','gameover-active','game-clear-active');
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  if(typeof _resetManaEffectRun==='function') _resetManaEffectRun();
   if(typeof hideAttackLine==='function') hideAttackLine();
   if(typeof _clearAllLogFx==='function') _clearAllLogFx();
   // 通常の戦闘終了時はonBattleEnd()がパネル召喚ユニット（＝現行仕様の全味方）をG.alliesから
   // 除去してから報酬/編成画面に戻るが、試験戦闘の中断はその経路を通らない。これを怠ると、
   // 次回の試験戦闘開始時にapplyNewPanelBattleStart()が現在の編成を「今回分」として追加召喚する際、
   // 前回分の残留ユニットと重複し、出撃から外したキャラが残ったり同じキャラが増殖したりする。
-  if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...G.allies.map(u=>u&&u._panelSummoned?null:u));
-  if(Array.isArray(G.enemies)) G.enemies.splice(0,G.enemies.length,...G.enemies.map(u=>u&&u._panelSummoned?null:u));
+  // **盤面は空にする。** パネル召喚の印が付いた体だけを消していた頃は、
+  // 戦闘中に召喚された体・変身した体が残り、次の戦闘で編成ぶんが改めて出撃して
+  // **キャラクターが複製された**（試験戦闘を途中で終えて通常戦闘へ入った時）。
+  // 次の戦闘は編成から作り直すので、ここで残す必要のある体は無い。
+  if(Array.isArray(G.allies)) G.allies.length=0;
+  if(Array.isArray(G.enemies)) G.enemies.length=0;
   // goToReward()はG.phaseが'player'/'enemy'の間は何もしないガードを持つため、
   // 戦闘フェイズの残留状態のまま呼んでも遷移しないよう先に外しておく。
   G.phase=null;
+  // **戦闘フェイズの実行中フラグを必ず降ろす。** 試験戦闘を途中で終了すると
+  // battlePhase() のループは `return` で抜けるだけなので、ここで降ろさないと
+  // 立ったままになる。次に試験戦闘を始めても _advanceToBattlePhase() の
+  // `if(G._battlePhaseRunning) return;` に弾かれ、
+  // **前の盤面が出たまま何も進まない**（利用者報告の再現条件）。
+  G._battlePhaseRunning=false;
   if(returnToLibrary&&typeof openMapLibraryFormation==='function'){
     openMapLibraryFormation();
     G._testBattleExitPending=false;

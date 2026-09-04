@@ -37,7 +37,12 @@ function showScreen(id){
     const titleEl=document.getElementById('scr-title');
     if(titleEl&&titleEl.classList.contains('startup-title')
       &&!titleEl.classList.contains('startup-title-visible')){
-      titleEl.classList.add('startup-title-visible','startup-menu-visible');
+      // **`startup-menu-ready` も必ず付ける。** メニューは
+      // `.startup-menu-visible:not(.startup-menu-ready)` で pointer-events:none に
+      // なるため、これが無いとタイトルは見えているのに何も押せない
+      // （ゲームオーバーから戻ると操作不能になっていた）。
+      titleEl.classList.add('startup-title-visible','startup-menu-visible',
+        'startup-menu-ready','startup-menu-hover-ready');
     }
     // 戦闘・村で付いた一時クラスを持ち越すと、タイトルの上に暗転が残る。
     document.body.classList.remove('battle-victory-pending','village-departing',
@@ -78,6 +83,47 @@ function showScreen(id){
 function updateGoldenDrop(){
   G.hasGoldenDrop=false;
 }
+// ── 所持金・ライフ・マナ・血の説明（ホバー）────────────────────
+// **文言はテキストメッセージシートが唯一の出どころ**（`window.TEXT_MESSAGES`）。
+// 見せ方はキャラクターのホバー説明と同じ仕組み（`data-preview`）で、見出し下の直線も同じに出す。
+const STATUS_TOOLTIPS=[
+  {title:'所持金',key:'全画面「所持金」上',fallback:'街で買い物や鍛冶に利用できる。',
+    values:['battle-gold-value','village-gold','map-gold'],
+    selectors:['.reward-prod-money']},
+  {title:'ライフ',key:'全画面「ライフ」上',fallback:'ライフが0になるとゲームオーバーになる。',
+    values:['battle-life-value','village-life','map-life'],
+    selectors:['.reward-prod-turn']},
+  {title:'マナ',key:'戦闘画面「マナ」上',fallback:'マナ効果の発動に必要。',
+    values:['battle-mana-value'],selectors:[]},
+  {title:'血',key:'戦闘画面「血」上',
+    fallback:'味方が死ぬと増加する。封印されたキャラクターの解放や、一部のカード効果の発動に必要。',
+    values:['battle-sacrifice-value'],selectors:[]},
+];
+function applyStatusTooltips(){
+  if(typeof document==='undefined') return;
+  const messages=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
+  STATUS_TOOLTIPS.forEach(def=>{
+    const text=String(messages[def.key]||def.fallback||'').trim();
+    if(!text) return;
+    const targets=[];
+    (def.values||[]).forEach(id=>{
+      const el=document.getElementById(id);
+      // 数字だけでなく「枠」全体をホバーの対象にする。
+      const host=el&&el.closest?(el.closest('.battle-status-counter,.battle-counter,.reward-prod-tile')||el):null;
+      if(host) targets.push(host);
+    });
+    (def.selectors||[]).forEach(sel=>{
+      document.querySelectorAll(sel).forEach(el=>targets.push(el));
+    });
+    targets.forEach(el=>{
+      el.setAttribute('data-preview',`${def.title}\n${text}`);
+      el.removeAttribute('data-preview-norule');
+      // 勝利・撤退の結果表示中もこの4つだけは出す（印は render.js が見る）。
+      el.setAttribute('data-preview-status','1');
+    });
+  });
+}
+
 function updateHUD(){
   const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
   const displayLife=Math.max(0,Math.min(_lifeMax,
@@ -115,6 +161,8 @@ function updateHUD(){
   // マップ・戦闘画面でも常時表示するため、reward.js側の描画を待たずここでも更新する。
   if(typeof _syncMoneyTurnTile==='function') _syncMoneyTurnTile();
   if(typeof renderBattleCounters==='function') renderBattleCounters();
+  // 説明のホバーは枠を作り直すたびに貼り直す（描画で属性が消えることがある）。
+  applyStatusTooltips();
   if(G._debugMode){
     // 画面切り替え直後はCSS適用前でoffsetが確定していないため、次フレームで位置を測る。
     // ここで即時計測すると、編成画面へ入った直後にデバッグボタンが一度上へ跳ねる。
@@ -1856,6 +1904,14 @@ function _beginStartupIntro(){
   },1000));
 }
 window.addEventListener('resize', ()=>{ if(typeof _updateLaneOffset==='function') _updateLaneOffset(); });
+// ── 右クリックはゲームの操作にだけ使う ───────────────────────
+// **ブラウザのメニュー（再読み込み・印刷など）は全画面で出さない。**
+// 右クリックはカードの表示切り替えなどゲーム側の操作に割り当てているため、
+// メニューが被ると操作にならない。個別の contextmenu ハンドラより後で
+// 呼ばれても効くよう、capture 段階で止める（preventDefault は
+// 他のリスナーの実行を妨げないので、既存の切り替え処理はそのまま動く）。
+document.addEventListener('contextmenu', e => { e.preventDefault(); }, true);
+
 window.addEventListener('DOMContentLoaded', async () => {
   _beginStartupIntro();
   const msgEl = document.getElementById('load-msg');
@@ -1866,6 +1922,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       : '⚠ オフライン：内蔵データで起動します';
     msgEl.style.color = ok ? 'var(--teal2)' : 'var(--gold2)';
   }
+  // 所持金・ライフ・マナ・血の説明（テキストメッセージシート）を貼る。
+  if (typeof applyStatusTooltips === 'function') applyStatusTooltips();
 });
 
 /* 🛠️ js/engine/main.js の一番最後へ追記（古いF4コードは消去） */

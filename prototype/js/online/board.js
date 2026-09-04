@@ -66,6 +66,10 @@
       manaCost: Math.max(0, Number(snap.manaCost) || 0),
       manaRepeat: !!snap.manaRepeat,
       manaThresholdDesc: String(snap.manaThresholdDesc || ''),
+      manaThresholdNo: String(snap.manaThresholdNo || ''),
+      manaThresholdOrder: snap.manaThresholdOrder,
+      manaOrder: snap.manaOrder,
+      fxCode: String(snap.fxCode || ''),
       _adjacentPanelAbilities: Array.isArray(snap._adjacentPanelAbilities) ? snap._adjacentPanelAbilities.slice() : [],
       _adjacentPanelEffectTexts: Array.isArray(snap._adjacentPanelEffectTexts) ? snap._adjacentPanelEffectTexts.slice() : [],
       _resonanceEffectNames: Array.isArray(snap._resonanceEffectNames) ? snap._resonanceEffectNames.slice() : [],
@@ -121,38 +125,172 @@
   // マナ閾値効果だけは、後続の stat_change / summon を
   // 専用VFXの逆再生開始まで進めない。単純な mana_gain には使わず、
   // 旧オフラインの演出境界だけをオンライン再生へ対応させる。
-  async function _awaitManaReverseStart(unit, isEnemy) {
-    if (!unit || typeof _captureUnitDamageRect !== 'function'
-      || typeof playHitVfxAtRect !== 'function') {
-      await _sleep(200);
+  // 逆再生開始からは、その効果自身のVFX（活性化＝E045）へ引き継ぐ。
+  // ひと続きのマナ効果で走っている演出。**同時に1組だけ**（PvEの持ち方と同じ）。
+  let _manaEffectVfx = [];
+  let _manaEffectCueDone = null;
+  // いま演出を出している効果の番号。**別の効果はこれが終わるまで始めない。**
+  let _manaEffectCurrentCode = '';
+  const _manaEffectRunning = () => _manaEffectVfx.length > 0 || !!_manaEffectCueDone;
+  const _manaCueVfxMs = () => (typeof MANA_CUE_VFX_MS === 'number' && MANA_CUE_VFX_MS) || 900;
+  const _manaRunGap = () => (typeof PRESENT_MANA_RUN_GAP_MS === 'number' && PRESENT_MANA_RUN_GAP_MS) || 150;
+  // ひと続きのマナ効果の演出を終わらせる。**次の効果はこれを終えてから始める。**
+  async function _endManaEffectRun() {
+    const vfx = _manaEffectVfx; _manaEffectVfx = [];
+    const cueDone = _manaEffectCueDone; _manaEffectCueDone = null;
+    _manaEffectCurrentCode = '';
+    if (vfx.length) await Promise.all(vfx.map(v => v.stop()));
+    if (cueDone) await Promise.race([cueDone, _sleep(_manaCueVfxMs() + 700)]);
+  }
+  // 効果1回ぶんの合図（PvEと同じ規則）。**SEは発動回数ぶん**、
+  // **VFXはひと続きの処理が終わるまで**出し続ける（最初の1回でだけ始める）。
+  // 固有の素材が無い効果では何も鳴らさない・出さない。
+  function _playManaEffectPulse(list, effectNo) {
+    // バフの演出（S005〜S009）は**能力変化を受けた対象の上**に出す（PvEと同じ規則）。
+    if (typeof presentIsBuffVfxCode === 'function' && presentIsBuffVfxCode(effectNo)) return;
+    const sfxKey = (typeof getEffectSfxKey === 'function' && getEffectSfxKey(effectNo)) || '';
+    if (sfxKey && typeof playSfx === 'function') {
+      playSfx(sfxKey, { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
+    }
+    if (_manaEffectVfx.length || !effectNo || typeof playEffectVfxOnUnit !== 'function') return;
+    list.forEach(({ unit, isEnemySide, rect }) => {
+      // **合図（K023）と同じ位置から出す**（PvEと同じ）。掴み直すと、
+      // 攻撃モーションの複製カードが既に消えていて盤面の定位置へ戻ってしまう。
+      const v = playEffectVfxOnUnit(unit, isEnemySide ? 'enemy' : 'ally', effectNo,
+        { rect, minDurationMs: (typeof PRESENT_EFFECT_VFX_MIN_MS === 'number' && PRESENT_EFFECT_VFX_MIN_MS) || 900 });
+      if (v) _manaEffectVfx.push(v);
+    });
+  }
+  // 発生元から対象へ飛ぶ効果（炎の矢）の1回ぶん。**発射は少しずつずらす。**
+  // 着弾した矢から順に、着弾VFX・着弾SE・ダメージ数値を出す（PvEと同じ規則）。
+  async function _playManaEffectProjectiles(list, effectNo, opt) {
+    const stagger = (typeof PRESENT_PROJECTILE_STAGGER_MS === 'number' && PRESENT_PROJECTILE_STAGGER_MS) || 90;
+    const sfxKey = (typeof getEffectSfxKey === 'function' && getEffectSfxKey(effectNo)) || '';
+    const shots = [];
+    list.forEach(({ unit, isEnemySide, targets }) => {
+      (targets || []).forEach(t => shots.push({
+        from: unit, fromSide: isEnemySide ? 'enemy' : 'ally',
+        to: t.unit, toSide: t.isEnemySide ? 'enemy' : 'ally', ev: t.ev,
+        keywordEvents: t.keywordEvents || [],
+      }));
+    });
+    if (!shots.length) { _playManaEffectPulse(list, effectNo); return; }
+    await Promise.all(shots.map(async (shot, i) => {
+      if (i) await _sleep(stagger * i);
+      if (sfxKey && typeof playSfx === 'function') {
+        playSfx(sfxKey, { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
+      }
+      if (opt && typeof opt.markShown === 'function') opt.markShown(shot.ev);
+      // 毒牙などのキーワード演出も、この矢の着弾で1回ずつ出す（PvEと同じ規則）。
+      (shot.keywordEvents || []).forEach(kw => {
+        if (opt && typeof opt.markKeywordShown === 'function') opt.markKeywordShown(kw);
+      });
+      await playProjectileEffectVfx(shot.from, shot.fromSide, shot.to, shot.toSide, effectNo, {
+        amount: Math.max(0, Number(shot.ev && shot.ev.amount) || 0),
+        onImpact: () => {
+          if (opt && typeof opt.onImpact === 'function') opt.onImpact(shot.to, shot.ev);
+          (shot.keywordEvents || []).forEach(kw => {
+            if (opt && typeof opt.playKeyword === 'function') opt.playKeyword(kw);
+          });
+        },
+      });
+    }));
+  }
+  // units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。**1体ずつ順に見せない。**
+  // opt.repeat：同じ効果の2回目以降。**間引かず高速で繰り返す。**
+  // マナ効果VFX（K023）とSE（K023）はその効果につき最初の1回だけ。その逆再生開始から先は
+  // 効果固有のVFXを処理が終わるまで出し続け、SEを発動回数ぶん鳴らす（PvEと同じ規則）。
+  async function _awaitManaReverseStart(units, opt) {
+    const list = (Array.isArray(units) ? units : []).filter(x => x && x.unit);
+    if (!list.length) return;
+    const repeat = !!(opt && opt.repeat);
+    const effectNo = String((opt && opt.effectNo) || '');
+    // **素材はシートの「VFX/SE」列で引く**（PvEと同じ）。effectNo は演出の区切り用。
+    const fxCode = typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(effectNo) : effectNo;
+    const gap = _manaRunGap();
+    // 発生元から対象へ飛ぶ効果は、飛ばして着弾まで見せる（発射はずらす）。
+    const projectile = typeof presentIsProjectileEffect === 'function' && presentIsProjectileEffect(effectNo);
+    // **別の効果の演出が出ている間は、VFXもSEも始めない**（PvEと同じ）。
+    if (_manaEffectRunning() && _manaEffectCurrentCode !== effectNo) await _endManaEffectRun();
+    if (repeat) {
+      _manaEffectCurrentCode = effectNo;
+      if (projectile) await _playManaEffectProjectiles(list, fxCode, opt);
+      else _playManaEffectPulse(list, fxCode);
+      await _sleep(gap);
       return;
     }
-    let rect = null;
-    for (let i = 0; i < 12 && !rect; i++) {
-      rect = _captureUnitDamageRect(unit, isEnemy ? 'enemy' : 'ally');
-      if (rect && rect.width > 0 && rect.height > 0) break;
-      rect = null;
+    // 直前の効果の演出を終わらせてから始める。異なる効果を同じ画面に重ねない。
+    await _endManaEffectRun();
+    // **`_endManaEffectRun()` は「今出している効果」の印を消す。** 印を付けるのはこの後。
+    _manaEffectCurrentCode = effectNo;
+    // マナ効果SEはひと続きにつき1回だけ。
+    if (typeof playSfx === 'function') {
+      playSfx('K023', { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
+    }
+    let pulsed = false;
+    let pulsedAt = 0;
+    let projectileDone = null;
+    // 合図（K023）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
+    let cueTargets = null;
+    const startPulse = () => {
+      if (pulsed) return; pulsed = true;
+      pulsedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const pulseList = cueTargets && cueTargets.length ? cueTargets : list;
+      if (projectile) projectileDone = _playManaEffectProjectiles(pulseList, fxCode, opt);
+      else _playManaEffectPulse(pulseList, fxCode);
+    };
+    if (typeof _captureUnitDamageRect !== 'function' || typeof playHitVfxAtRect !== 'function') {
+      await _sleep(200);
+      startPulse();
+      return;
+    }
+    // マナ効果の合図も「今そのキャラクターが見えている位置」から出す（PvEと同じ）。
+    const rectOf = ({ unit, isEnemySide }) => (typeof _captureUnitEffectRect === 'function'
+      ? _captureUnitEffectRect(unit, isEnemySide ? 'enemy' : 'ally')
+      : _captureUnitDamageRect(unit, isEnemySide ? 'enemy' : 'ally'));
+    let lead = null;
+    for (let i = 0; i < 12 && !lead; i++) {
+      const r = rectOf(list[0]);
+      if (r && r.width > 0 && r.height > 0) { lead = r; break; }
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
-    if (!rect) { await _sleep(200); return; }
+    const targets = list.map(x => ({ ...x, rect: x === list[0] ? lead : rectOf(x) }))
+      .filter(x => x.rect && x.rect.width > 0 && x.rect.height > 0);
+    cueTargets = targets;
+    if (!targets.length) { await _sleep(200); startPulse(); return; }
+    const vfxMs = _manaCueVfxMs();
     let resolveReverse;
     const reverse = new Promise(resolve => { resolveReverse = resolve; });
+    const onReverse = () => { startPulse(); resolveReverse(); };
     try {
-      Promise.resolve(playHitVfxAtRect(rect, 0, {
-        keywordEffect: 'マナ効果', gateMs: 0, hitDuration: 900,
-        fadeDuration: 700, vfxScale: .5, spin: true,
-        onFadeStart: resolveReverse,
-      })).catch(resolveReverse);
-      await Promise.race([reverse, _sleep(1100)]);
+      // 完了は保持だけしておく。**待つのは次の効果を始める時**（_endManaEffectRun）。
+      _manaEffectCueDone = Promise.all(targets.map(({ unit, isEnemySide, rect }) =>
+        Promise.resolve(playHitVfxAtRect(rect, 0, {
+          keywordEffect: 'マナ効果', keywordSfx: false, gateMs: 0, hitDuration: vfxMs,
+          fadeDuration: 700, vfxScale: .5, spin: true, waitForFinish: true,
+          getRect: () => rectOf({ unit, isEnemySide }),
+          // 逆再生開始＝ここから効果固有の演出へ引き継ぎ、効果の処理を進める。
+          onFadeStart: onReverse,
+        })).catch(() => onReverse())));
+      await Promise.race([reverse, _sleep(vfxMs)]);
+      startPulse();
+      // 飛ばす効果は着弾まで待つ（着弾でダメージ数値を出すため）。
+      if (projectileDone) await projectileDone;
+      // **間隔は「1回目を出した時刻」から測る**（PvEと同じ）。
+      const sincePulse = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - pulsedAt;
+      await _sleep(Math.max(0, gap - (pulsedAt ? sincePulse : 0)));
     } catch (_) {
       await _sleep(200);
+      startPulse();
     }
   }
 
   // 「どういう規則で見せるか」は battle/present.js が唯一の実装。ここへ書き戻さないこと。
-  //   ・マナ効果VFXはキャラクターごとに1回だけ（別キャラの同時発動はそれぞれ再生する）
+  //   ・マナ効果は発動回数ぶん見せる（同じキャラクターの2回目以降は高速で繰り返す）
   //   ・同じキャラへの連続ダメージは数値が重ならないよう順番待ちにする
   let _manaCueGate = presentCreateOnceGate();
+  // 同じ瞬間（同じ発動回）に同じ効果が乗る分は、1体目の演出でまとめて見せる。
+  let _manaWaveGate = presentCreateOnceGate();
   // 能力変化の固有SE・固有VFXの重複単位。PvEの _flushCorePveHitEvents と同じ持ち方にする。
   //   ・SEは「発生元＋効果」につき1回
   //   ・VFXは「発生元＋効果＋対象」につき1回
@@ -293,11 +431,57 @@
     _scheduleClear();
   }
 
+  // 接触の瞬間に出す攻撃範囲の演出（貫通・三方向攻撃・全体攻撃）。
+  // コアは attack_contact_vfx を attack より前に出す。ここで持っておき、
+  // 攻撃モーションが対象へ接触した瞬間（onContact）に鳴らす。**PvEと同じ規則。**
+  // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
+  const _keywordShownEvents = new Set();
+  let _pendingContactVfx = null;
+  // 貫通だけは「絵が通り過ぎた瞬間」に数値を出す（PvEと同じ規則）。
+  const _contactHolds = new Map();
+  function _releaseContactHold(unit) {
+    if (!unit) return;
+    const key = `${unit.side || ''}:${unit.id}`;
+    const hold = _contactHolds.get(key);
+    if (hold) { _contactHolds.delete(key); hold.release(); }
+  }
+  async function _awaitContactHold(ev) {
+    const key = `${(ev && ev.side) || ''}:${ev && ev.unitId}`;
+    const hold = _contactHolds.get(key);
+    if (!hold) return;
+    await Promise.race([hold.promise, _sleep(900)]);
+    _contactHolds.delete(key);
+  }
+  function _releaseAllContactHolds() {
+    _contactHolds.forEach(h => h.release());
+    _contactHolds.clear();
+  }
+  function _firePendingContactVfx() {
+    const ev = _pendingContactVfx;
+    if (!ev) return;
+    _pendingContactVfx = null;
+    // **待たない。** 待つと複数対象のダメージ数値の出る時刻がずれる。
+    try {
+      presentAttackContactVfxEvent(ev, {
+        findUnit: (side, id) => _find(side, id),
+        playVfx: playAttackContactVfx,
+        holdForContact: units => (units || []).forEach(u => {
+          if (!u) return;
+          let release = () => {};
+          const promise = new Promise(resolve => { release = resolve; });
+          _contactHolds.set(`${u.side || ''}:${u.id}`, { promise, release });
+        }),
+        onContactPass: unit => _releaseContactHold(unit),
+      });
+    } catch (err) { console.error('[attack contact vfx]', err); }
+  }
+
   // 攻撃モーションを開始する。paused=true なら25%地点で止め、release() で接触まで進める。
   // 攻撃効果を「少し動き出した時点」で見せるための仕組み（PvEと同じ扱い）。
   function _startAttackMotion(ev, ctx, paused) {
     const attacker = _find(ev.side, ev.attackerId);
-    const target = _find(ev.side === 'p1' ? 'p2' : 'p1', ev.targetId);
+    // **対象は相手陣営とは限らない**（ピクシーで操られた敵は同じ陣営を殴る。PvEと同じ）。
+    const target = _find(ev.side === 'p1' ? 'p2' : 'p1', ev.targetId) || _find(ev.side, ev.targetId);
     _lastAttacker = attacker;
     if (!attacker || !target || typeof playAttackMotion !== 'function') return null;
     const dmg = Math.max(0, Number(ev.damage) || 0);
@@ -312,6 +496,7 @@
     // PvEの通常攻撃と同じ尺・同じ接触揺れ。
     _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => held) : null, {
       ...PRESENT_ATTACK_MOTION,
+      onContact: _firePendingContactVfx,
       onHit: () => {
         // 接触の揺れだけをここで出す。
         // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
@@ -346,7 +531,13 @@
 
   async function _renderOnlineVersusEvent(ev, ctx) {
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
-    if (presentBreaksManaRun(ev)) _manaCueGate = presentCreateOnceGate();
+    // マナ解決のひと続きが途切れたら、続けて出していた効果固有VFXも止めて数え直す。
+    if (presentBreaksManaRun(ev)) {
+      _manaCueGate = presentCreateOnceGate();
+      _manaWaveGate = presentCreateOnceGate();
+      // 何も走っていない時は await しない（毎イベントの待ちが描画に割り込む）。
+      if (_manaEffectRunning()) await _endManaEffectRun();
+    }
     if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
       _effectStatCueKeys = new Set();
       _effectStatVfxGate = presentCreateOnceGate();
@@ -361,13 +552,20 @@
         G.enemies = _toField(board.p2, 'p2');
         // 血・マナは戦闘ごとに0から始まる。ここで戻さないと前の戦闘
         //（オフラインの旅を含む）の値が残り、開戦時にいきなり血が8あるように見える。
+        // **マナも同じ。** サーバーへ送る初期マナは0なので、戻さないと表示だけが
+        // 前の対戦の値のまま残り、盤面の実際のマナと食い違う。
         G._blood = 0;
         G._enemyBlood = 0;
+        G.mana = 0;
+        // マナ増加SEの基準もここで0に揃える（PvEの startBattle と同じ）。
+        if (typeof _refreshManaDisplays === 'function') _refreshManaDisplays();
         if (typeof renderBattleCounters === 'function') renderBattleCounters();
         // 数値の順番待ちも戦闘をまたいで持ち越さない。
         if (_damageGate && typeof _damageGate.reset === 'function') _damageGate.reset();
         // 例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。戦闘の頭で必ず戻す。
         presentResetPlayback();
+        // 保留していた発光も捨てる（持ち越すと次の戦闘の頭で無関係のカードが光る）。
+        if(typeof presentResetEffectFlashes==='function') presentResetEffectFlashes();
         presentBeginPlayback();
         // 命中音の鳴り始めを揃える（PvEの startBattle と同じ）。
         if (typeof _warmBattleHitSfx === 'function') _warmBattleHitSfx();
@@ -380,6 +578,8 @@
         break;
       }
       case ONLINE_EVENT.TURN_BEGIN: {
+        // 貫通の待ちが残ったまま手番をまたがないようにする。
+        _releaseAllContactHolds();
         // 前の手番で保留していた盤面の詰めを、ここでまとめて流す。
         // これをしないと倒れた体が次の手番まで居座り、PvE（手番の終わりに詰める）と
         // 盤面の見え方が食い違う。手番の頭なので、出したばかりの数値を奪うこともない。
@@ -407,22 +607,33 @@
             if (!n) continue;
             if (n.type === ONLINE_EVENT.TURN_BEGIN || n.type === ONLINE_EVENT.BATTLE_END) break;
             if (n.type === ONLINE_EVENT.ATTACK) {
+              // **モーションを出すイベントだけを掴む。** 全体攻撃・三方向攻撃は対象ごとに
+              // attack を出し、主対象が先頭とは限らない。先頭を掴むと主対象ぶんの
+              // モーションがもう一度再生され、2回攻撃したように見える。
+              if (n.attackVisual === false) continue;
               if (actorId != null && String(n.attackerId) === actorId) { atkEv = n; break; }
               continue;
             }
-            const src = n.type === 'sweep_vfx' ? n.unitId : n.sourceId;
+            // **マナ獲得（マナ生成）とマナ効果もここに入れる（PvEと同じ）。**
+            // 入れないと、マナが増えるのも他キャラクターのマナ効果も
+            // 「攻撃者が全く動く前」に起きる。
+            // ただし**動いている本人を決めてよいのは mana_gain まで**。
+            // マナ効果は別のキャラクターが持っていることがあり、そちらを本人に
+            // してしまうと動いていないキャラクターのモーションが先出しされる。
+            // 発生元の見分けは present.js が唯一の実装（PvEと同じ）。
+            if (n.type === 'mana_threshold') { if (actorId != null) hasEffects = true; continue; }
+            const src = typeof presentPreAttackEffectOwnerId === 'function'
+              ? presentPreAttackEffectOwnerId(n) : null;
             if (src == null) continue;
-            if (n.type === ONLINE_EVENT.DAMAGE || n.type === 'sweep_vfx'
-              || n.type === 'stat_change' || n.type === 'summon') {
-              if (actorId == null) actorId = String(src);
-              if (String(src) === actorId) hasEffects = true;
-            }
+            if (actorId == null) actorId = src;
+            if (src === actorId) hasEffects = true;
           }
         }
         if (atkEv && hasEffects) _preAttack = _startAttackMotion(atkEv, ctx, true);
         break;
       }
       case ONLINE_EVENT.ATTACK: {
+        if (ev.attackVisual === false) break;
         if (_preAttack && _preAttack.ev === ev) {
           // 効果より前に始めておいたモーション。ここで接触まで進める。
           const held = _preAttack; _preAttack = null;
@@ -432,9 +643,14 @@
         }
         const started = _startAttackMotion(ev, ctx, false);
         if (started) await started.motion;
+        // モーションが出せなかった時（攻撃者・対象が盤面に無い等）の保険。
+        // 出ないまま消すと「攻撃範囲の演出が時々出ない」になる。
+        else _firePendingContactVfx();
         break;
       }
       case ONLINE_EVENT.DAMAGE: {
+        // 貫通で貫かれた体は、**絵がその位置を通り過ぎるまで**数値を出さない（PvEと同じ）。
+        await _awaitContactHold(ev);
         // 1件のダメージをどう見せるかは present_events.js が唯一の実装（PvEと同じ）。
         // ここでの違い（ユニットの引き方・HPの反映・先読みするイベント列）だけを渡す。
         // 表示はイベントの hpAfter をそのまま反映する（自前で引き算しない）。
@@ -446,19 +662,24 @@
           sleep: _sleep,
           ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
           sfxDone: _damageSfxDone,
-          // 連続するDAMAGEイベントが「同じ瞬間の命中」。ここまでをまとめて鳴らす。
+          // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（PvEと同じ）。
           sfxBatch: e0 => {
             const evs = (ctx && ctx.events) || [];
             const from = Number(ctx && ctx.eventIndex);
-            const out = [];
-            for (let i = Number.isInteger(from) ? from : evs.indexOf(e0); i >= 0 && i < evs.length; i++) {
-              const d = evs[i];
-              if (!d || d.type !== ONLINE_EVENT.DAMAGE || !(Number(d.amount) > 0)) break;
-              out.push(d);
-            }
-            return out;
+            return presentDamageSfxBatch(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
+          },
+          // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
+          runAheadMs: e0 => {
+            const evs = (ctx && ctx.events) || [];
+            const from = Number(ctx && ctx.eventIndex);
+            return presentDamageRunAheadMs(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
           },
           alreadyShown: e0 => !!(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(e0)),
+          // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js（PvEと同じ）。
+          vfxKeyword: e0 => (typeof presentDamageVfxKeyword === 'function'
+            ? presentDamageVfxKeyword((ctx && ctx.events) || [], e0) : ''),
+          // 効果の素材はシートの「VFX/SE」列で引く（PvEと同じ）。
+          effectFxCode: no => (no && typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(no) : no),
         });
         if (shown && ev.effect && typeof log === 'function') {
           const u = _find(ev.side, ev.unitId);
@@ -468,13 +689,26 @@
         break;
       }
       case 'mana_gain': {
+        // マナを得た合図（S004）は**発生させたキャラクターの上**に出す（PvEと同じ）。
+        {
+          const gainer = ev.unitId != null ? _find(ev.side, ev.unitId) : null;
+          const shown = !!(gainer && Number(ev.amount) > 0 && typeof playManaGainVfx === 'function'
+            && playManaGainVfx(gainer, ev.side === 'p2' ? 'enemy' : 'ally'));
+          // **数字はVFXが見え始めてから動かす**（PvEと同じ。尺は present.js）。
+          if (shown) {
+            await _sleep((typeof PRESENT_MANA_GAIN_VALUE_DELAY_MS === 'number'
+              && PRESENT_MANA_GAIN_VALUE_DELAY_MS) || 140);
+          }
+        }
         if (ev.side === 'p1' && typeof G !== 'undefined' && G) {
           // PvEのマナは色別ではない共有スカラー値。オンラインだけ別形状にすると
           // 戦闘中HUDとマナ閾値処理がずれるため、既存の更新経路を使う。
           const amount = Math.max(0, Number(ev.amount) || 0);
           G.mana = (typeof _ensureMana === 'function' ? Number(_ensureMana()) : Number(G.mana)) || 0;
           G.mana += amount;
-          if (typeof renderManaHud === 'function') renderManaHud();
+          // マナ表示の更新とマナ増加SEは _refreshManaDisplays() が唯一の実装（PvEと同じ）。
+          if (typeof _refreshManaDisplays === 'function') _refreshManaDisplays();
+          else if (typeof renderManaHud === 'function') renderManaHud();
         }
         if (typeof updateHUD === 'function') updateHUD();
         break;
@@ -514,6 +748,18 @@
         });
         break;
       }
+      case 'effect_flash': {
+        // 発光の色・回数は共通プレゼンテーション層で解釈する（PvEと同じ）。
+        await presentEffectFlashEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+        });
+        break;
+      }
+      case 'attack_contact_vfx': {
+        // **ここでは鳴らさない。** 攻撃モーションの接触フックで鳴らす（PvEと同じ）。
+        _pendingContactVfx = ev;
+        break;
+      }
       case 'keyword_effect': {
         const u = _find(ev.side, ev.unitId);
         if (!u) break;
@@ -529,6 +775,9 @@
         if (ev.sourceId && typeof log === 'function') {
           log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}に${ev.keyword || ev.effect}${ev.amount != null ? ` ${ev.amount}` : ''}。`, ev.side === 'p1' ? 'good' : 'bad');
         }
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。状態の反映は上で済ませている。
+        // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
+        if (!_keywordShownEvents.has(ev)) presentKeywordEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
         _render();
         break;
       }
@@ -545,8 +794,34 @@
         await presentManaThresholdEvent(ev, {
           findUnit: (side, id) => _find(side, id),
           gate: _manaCueGate,
-          playCue: (unit, isEnemySide) => _awaitManaReverseStart(unit, isEnemySide),
-          onSkipped: () => _sleep(60),
+          waveGate: _manaWaveGate,
+          // 同じ瞬間に同じ効果が発動する全員を先読みする（判定は present.js）。
+          waveEvents: e0 => {
+            const evs = (ctx && ctx.events) || [];
+            const from = Number(ctx && ctx.eventIndex);
+            return presentManaWaveEvents(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
+          },
+          // 飛ばす効果（炎の矢）用。その効果が起こしたダメージ＝対象（判定は present.js）。
+          effectDamage: e0 => {
+            const evs = (ctx && ctx.events) || [];
+            const from = Number(ctx && ctx.eventIndex);
+            return presentEffectDamageEvents(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
+          },
+          // 着弾の瞬間に見せるキーワード演出（毒牙など。判定は present.js）。
+          effectKeywords: dmg => (typeof presentEffectKeywordEvents === 'function'
+            ? presentEffectKeywordEvents((ctx && ctx.events) || [], dmg) : []),
+          playCue: (cueUnits, cueOpt) => _awaitManaReverseStart(cueUnits, {
+            ...cueOpt,
+            markShown: dmg => { if (dmg && ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(dmg); },
+            markKeywordShown: kw => { if (kw) _keywordShownEvents.add(kw); },
+            playKeyword: kw => { if (kw) presentKeywordEffectEvent(kw, { findUnit: (side, id) => _find(side, id) }); },
+            onImpact: (target, dmg) => {
+              if (target && dmg) target.hp = Math.max(0, Number(dmg.hpAfter) || 0);
+              if (target && typeof updateUnitDamageUi === 'function') {
+                updateUnitDamageUi(target, target.side === 'p2' ? 'enemy' : 'ally');
+              }
+            },
+          }),
         });
         _render();
         break;
@@ -554,7 +829,8 @@
       case 'mana_set': {
         if (ev.side === 'p1' && typeof G !== 'undefined' && G) {
           G.mana = Math.max(0, Number(ev.amount) || 0);
-          if (typeof renderManaHud === 'function') renderManaHud();
+          if (typeof _refreshManaDisplays === 'function') _refreshManaDisplays();
+          else if (typeof renderManaHud === 'function') renderManaHud();
         }
         if (typeof updateHUD === 'function') updateHUD();
         break;
@@ -582,11 +858,44 @@
         }
         break;
       }
+      case 'summon_buff': {
+        // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
+        // 実際の加算はコアが召喚時に行い、summonイベントの中身に載っている（PvEと同じ）。
+        break;
+      }
+      case 'unit_stolen': {
+        // 奪われた体は元の陣営から取り除く。味方側への出現は直後の summon が見せる。
+        const list = (ctx && ctx.board && ctx.board[ev.side]) || null;
+        const u = _find(ev.side, ev.unitId);
+        if (u) {
+          u.hp = 0;
+          if (Array.isArray(list)) {
+            const idx = list.indexOf(u);
+            if (idx >= 0) list[idx] = null;
+          }
+        }
+        _render();
+        break;
+      }
       case 'revive': {
         const u = _find(ev.side, ev.unitId);
         if (!u) break;
         u.atk = Number(ev.atk) || u.atk; u.maxHp = Number(ev.maxHp) || u.maxHp; u.hp = Number(ev.hp) || u.hp;
         u._sealed = false; _render();
+        // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
+        await presentReviveEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          // 蘇生後の値まで表示を進める（PvEと同じ）。
+          applyStats: (u2, e2) => {
+            if (typeof presentAdvanceShown !== 'function') return;
+            presentAdvanceShown(u2, {
+              atk: Math.max(0, Number(e2.atk) || 0),
+              hp: Math.max(0, Number(e2.hp) || 0),
+              maxHp: Math.max(1, Number(e2.maxHp) || Number(e2.hp) || 1),
+            });
+          },
+          render: _render,
+        });
         break;
       }
       case 'shield_set': {
@@ -667,6 +976,14 @@
           render: _render,
           logLine: unit => `${_effectSourceName(ev, ctx)}の効果で${(unit && unit.name) || 'ユニット'}を召喚。`,
         });
+        // 登場演出（S001）。**逆再生開始でカードが出る**まで待つ（PvEと同じ）。
+        if (typeof playSummonAppearVfx === 'function' && ev.unit) {
+          const summoned = _find(ev.side, ev.unit.id);
+          if (summoned) {
+            try { await playSummonAppearVfx(summoned, ev.side === 'p2' ? 'enemy' : 'ally'); }
+            catch (err) { console.error('[summon vfx]', err); }
+          }
+        }
         break;
       }
       case 'sweep_vfx': {
@@ -675,7 +992,15 @@
         // その対象の数値を出し、通常の被弾演出では出し直さない。
         const source = _find(ev.side, ev.unitId);
         const targetSide = ev.side === 'p1' ? 'p2' : 'p1';
-        const targets = (ev.targetIds || []).map(id => _find(targetSide, id)).filter(Boolean);
+        // **対象は敵とは限らない**（サイレンは自分以外の全キャラクターに当たる。PvEと同じ）。
+        const sideByTarget = new Map();
+        const targets = (ev.targetIds || []).map(id => {
+          const foe = _find(targetSide, id);
+          if (foe) { sideByTarget.set(foe, targetSide); return foe; }
+          const own = _find(ev.side, id);
+          if (own) { sideByTarget.set(own, ev.side); return own; }
+          return null;
+        }).filter(Boolean);
         if (!source || !targets.length || typeof presentSweepAttack !== 'function') break;
         const events = (ctx && ctx.events) || [];
         const start = Number(ctx && ctx.eventIndex);
@@ -691,13 +1016,14 @@
           }
         }
         await presentSweepAttack(source, ev.side === 'p2', targets,
-          target => byTarget.get(`${targetSide}:${target.id}`),
+          target => byTarget.get(`${sideByTarget.get(target) || targetSide}:${target.id}`),
           (target, d) => {
             if (!d) return;
             const hurt = _find(d.side, d.unitId);
             if (hurt) hurt.hp = Math.max(0, Number(d.hpAfter) || 0);
             if (ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(d);
-          });
+          },
+          { sideOf: target => (sideByTarget.get(target) === 'p2' ? 'enemy' : 'ally') });
         break;
       }
       case 'transform': {

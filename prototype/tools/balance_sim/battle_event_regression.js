@@ -562,8 +562,21 @@ function main() {
       /effect: \(opts && opts\.effect !== undefined\) \? !!opts\.effect/,
       'コアが effect を上書きしている（通常攻撃で固有VFX・固有SEが出る）');
     // 命中音は共通の受け口（present_events.js）が鳴らす。
-    assert.match(read('js/battle/present_events.js'), /playAttackDamageSfx\(src, Math\.max\(0, Number\(d\.amount\) \|\| 0\)\);/,
+    const presentEvents = read('js/battle/present_events.js');
+    assert.match(presentEvents, /playAttackDamageSfx\(src, amt\);/,
       'ダメージ演出の共通実装が命中音を鳴らしていない');
+    // 同じ瞬間に同じ命中音を重ねない（重ねると鳴り始めがばらついてズレて聞こえる）。
+    assert.match(presentEvents, /playedKeys\.has\(key\)/,
+      '同じ瞬間の同じ命中音をまとめていない');
+    // 「どこまでが同じ瞬間か」「どの種類のダメージか」はコアの印を見る。present側で推測しない。
+    assert.match(read('js/battle/present.js'), /function presentDamageGroupKey\(ev\)/,
+      'ダメージの束の判定が present.js に無い');
+    assert.match(read('js/battle/core.js'), /damageKind: \(opts && opts\.damageKind\) \|\| 'other',/,
+      'コアが damage イベントへ種別を載せていない');
+    // 受け口はどちらも共通の束実装を使う（2箇所で並びを判定しない）。
+    [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
+      assert.match(src, /presentDamageSfxBatch\(/, `${name}が命中音の束の共通実装を呼んでいない`);
+    });
     // 薙ぎ払いの見せ方は1つの実装を両方から呼ぶ。
     assert.match(read('js/engine/render.js'), /async function presentSweepAttack\(/,
       '薙ぎ払いの共通実装が render.js に無い');
@@ -614,8 +627,82 @@ function main() {
     '配置失敗した保留召喚をフラッシュ後段で上限超過追加している');
   assert.match(currentBattle, /_battleCompactAnimatingUntil/,
     '連続召喚で前の詰め移動がDOM再構築により中断される');
-  assert.match(currentBattle, /playCue:\(unit,isEnemySide\)=>\{ if\(unit\) void _playManaEffectCue\(unit,isEnemySide\); \}/,
-    '攻撃中のマナ効果演出を待機せず並行再生していない');
+  // マナ効果は**1件ずつ待って**見せる。投げっぱなしにすると、直前の効果のVFXが
+  // 出ている最中に次の効果が始まり、別々の効果が同時に見える。
+  assert.match(currentBattle, /playCue:\(cueUnits,cueOpt\)=>_playManaEffectCue\(cueUnits,\{\.\.\.cueOpt,/,
+    'PvEのマナ効果演出を1件ずつ待っていない（別の効果と同時に見える）');
+  assert.doesNotMatch(currentBattle, /void _playManaEffectCue\(/,
+    'マナ効果演出を投げっぱなしで再生している（前の演出の途中で次が始まる）');
+  // 「Xマナ毎」の2回目以降は間引かず、高速で回数ぶん見せる。
+  assert.match(read('js/battle/present_events.js'), /const repeat = !!\(api\.gate && !api\.gate\.shouldPlay\(/,
+    'マナ効果の2回目以降を間引いている（発動回数が見えない）');
+  assert.doesNotMatch(read('js/battle/present_events.js'), /api\.onSkipped/,
+    'マナ効果の間引き経路が残っている');
+  // 効果固有VFX（活性化＝E045）は、どの効果が発動したかをコアが載せて初めて選べる。
+  assert.match(read('js/battle/core.js'), /effectNo: t\.no \|\| ''/,
+    'コアが mana_threshold に効果のカードNo.（effectNo）を載せていない');
+  assert.match(read('js/battle/present_events.js'), /effectNo: String\(ev\.effectNo \|\| ''\)/,
+    'マナ効果の演出へ effectNo を渡していない（固有VFXを引けない）');
+  // **同じ効果が複数のキャラクターへ同時に乗る時は、まとめて1回で見せる。**
+  // 1体ずつ順に演出すると「片方が先に強くなる」ように見える（活性化を2体が持つ場合）。
+  // マナ効果の発動順はシートの「マナ順位」→前衛左から右→後衛左から右。
+  assert.match(read('js/battle/core.js'), /fireQueue\.sort\(/,
+    'コアがマナ効果を「マナ順位」で並べ替えていない');
+  assert.match(read('js/data/loader.js'), /row\['マナ順位'\]/,
+    'loaderが「マナ順位」列を読んでいない');
+  assert.match(read('js/battle/core.js'), /wave };/,
+    'コアが mana_threshold に発動回（wave）を載せていない（同時発動を判別できない）');
+  assert.match(presentSrc, /^function presentManaWaveEvents\(/m,
+    'present.jsに「同じ瞬間のマナ効果」の判定が無い');
+  assert.match(read('js/battle/present_events.js'), /api\.waveGate\.shouldPlay\(presentManaWaveKey\(ev\)\)/,
+    'マナ効果の同時発動を1回にまとめていない（1体ずつ順に上がる）');
+  ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
+    assert.match(read(name), /waveEvents:|waveEvents: /,
+      `${name}が同じ瞬間のマナ効果を先読みしていない`);
+  });
+  // 戦闘中のマナの数字は #battle-mana-value（renderBattleCounters）が出す。
+  // renderManaHud() だけを呼ぶと戦闘中は何も更新されず、カウントが止まって見える。
+  assert.match(currentBattle, /function _refreshManaDisplays\(\)\{[\s\S]{0,700}renderBattleCounters\(\);/,
+    'マナ表示の更新が戦闘中のカウンターを含んでいない');
+  // マナ増加SE（特殊演出 S004）は「増えた時だけ」。減った時・据え置きでは鳴らさない。
+  assert.match(currentBattle, /function _refreshManaDisplays\(\)\{[\s\S]{0,400}cur>_shownManaForSfx[\s\S]{0,120}playSfx\('S004'/,
+    'マナ増加SE（S004）を「増えた時だけ」鳴らしていない');
+  assert.match(read('js/online/board.js'), /_refreshManaDisplays === 'function'\) _refreshManaDisplays\(\)/,
+    'オンラインがマナ表示の共通出口を通っていない（マナ増加SEが鳴らない）');
+  assert.doesNotMatch(currentBattle.replace(/function _refreshManaDisplays[\s\S]*?\n\}/, ''),
+    /if\(typeof renderManaHud==='function'\) renderManaHud\(\);/,
+    'マナ表示を renderManaHud() だけで更新している箇所が残っている（戦闘中に反映されない）');
+  // 固有VFXは「処理が終わるまで」出し続け、ひと続きが途切れたら必ず止める。
+  // 止め忘れると次の手番や報酬画面までループし続ける。
+  assert.match(read('js/engine/render.js'), /^function playEffectVfxOnUnit\(/m,
+    'render.jsに効果そのもののVFXを出す実装が無い');
+  // 発生元から対象へ飛ぶ効果（炎の矢）。**着弾でダメージ数値を出す**ので、
+  // 通常のダメージ演出には出させない印（markShown）を必ず付ける。
+  assert.match(read('js/engine/render.js'), /^async function playProjectileEffectVfx\(/m,
+    'render.jsに「発生元から対象へ飛ぶ効果VFX」の実装が無い');
+  ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
+    const src = read(name);
+    assert.match(src, /_playManaEffectProjectiles\(/, `${name}が飛ばす効果を再生していない`);
+    assert.match(src, /markShown\(shot\.ev\)/, `${name}が着弾で出す数値を通常経路から外していない`);
+  });
+  // マナ効果VFX・SEはひと続きにつき1回。そのあとは効果固有のVFX/SEを発動回数ぶん。
+  ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
+    const src = read(name);
+    assert.match(src, /_playManaEffectPulse\(/,
+      `${name}が効果固有の演出（発動回数ぶん）を出していない`);
+    assert.match(src, /getEffectSfxKey\s*\(\s*effectNo\s*\)\s*\)\s*\|\|\s*''/,
+      `${name}が効果固有SEを使っていない（素材が無い効果では何も鳴らさない）`);
+    // マナ効果SE（K023）は**ひと続きにつき1回だけ**。繰り返しで鳴らさないこと。
+    assert.doesNotMatch(src.slice(src.indexOf('_playManaEffectPulse'), src.indexOf('_playManaEffectPulse') + 900),
+      /'K023'/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
+  });
+  ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
+    const src = read(name);
+    assert.match(src, /_endManaEffectRun\s*\(\s*\)\s*\{/,
+      `${name}にひと続きのマナ効果を終わらせる処理が無い`);
+    assert.match(src, /presentBreaksManaRun\(ev?\)[\s\S]{0,220}_endManaEffectRun\(\)/,
+      `${name}がマナ解決の途切れで効果固有VFXを止めていない`);
+  });
   // 同時に発動した複数のマナ閾値効果でマナ効果VFXが重ならないこと。
   // 「どういう規則で見せるか」は battle/present.js が唯一の実装。PvEもオンラインもそこを呼ぶ。
 
@@ -679,7 +766,7 @@ function main() {
   assert.match(playback, /\n  damage: 0,\n  death: 0,\n  sacrifice: 0,\n  seal_release: 0,/,
     '既に待っている種別に固定待ちを足している（オンラインだけ動きが重くなる）');
   assert.match(read('js/battle/present_events.js'),
-    /const waitMs = api\.gate\.reserve\(`u:\$\{target\.id\}`\);/,
+    /const waitMs = api\.gate\.reserve\(`u:\$\{target\.id\}`, ev\);/,
     'ダメージ演出の共通実装が順番待ちを通していない');
   // 待ちを入れるのは「同じキャラクターへ数値が重なって出る」場合だけ。
   // 1発だけのダメージでも毎回待つと、命中してから戻るまでが常に一拍長くなる。
@@ -930,10 +1017,13 @@ function main() {
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
     'モーション終了時の保留分を再生中に流せないままになっている');
-  assert.match(board, /playCue: \(unit, isEnemySide\) => _awaitManaReverseStart\(unit, isEnemySide\),/,
+  assert.match(board, /playCue: \(cueUnits, cueOpt\) => _awaitManaReverseStart\(cueUnits, \{/,
     'オンラインのマナ閾値効果がVFX逆再生開始を待っていない');
-  assert.match(board, /async function _awaitManaReverseStart\(unit, isEnemy\)/,
+  assert.match(board, /async function _awaitManaReverseStart\(units, opt\)/,
     'オンラインのマナ閾値VFX境界処理がない');
+  // マナ効果SEはPvEだけで鳴っていた（オンラインは無音）。両方で鳴らす。
+  assert.match(board, /playSfx\('K023'/,
+    'オンラインでマナ効果SEを鳴らしていない（PvEと食い違う）');
   // 上限・前衛満杯時の後衛送り・ID重複の防止は共通実装（present_events.js）が持つ。
   {
     const pe = read('js/battle/present_events.js');
@@ -954,7 +1044,7 @@ function main() {
   core.coreApplyOpeningEffects(twin.units.p1[0], twin, createSeededRng(2), e => twinEvents.push(e), () => ({amount: 0, died: false}), 0);
   assert.equal(twinEvents.filter(e => e.type === 'summon').length, 1,
     'ツインデビルの開戦コピーが発動していない');
-  assert.equal(twinEvents[0].unit._openingDuplicate, true,
+  assert.equal(twinEvents.find(e => e.type === 'summon').unit._openingDuplicate, true,
     '開戦コピーに再発動防止フラグがない');
 
   const repeated = core.createBattleState({

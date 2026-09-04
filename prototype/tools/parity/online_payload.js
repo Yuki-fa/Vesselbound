@@ -83,12 +83,39 @@ const ALLOW_MISSING = {
   extraManaThresholds: 'effectData.extraManaThresholds として送っている',
   _extraManaThresholds: 'effectData.extraManaThresholds として送っている',
   _manaThresholdDesc: 'effectData.manaThresholdDesc として送っている',
+  manaThresholdNo: 'effectData.manaThresholdNo として送っている',
+  _manaThresholdNo: 'effectData.manaThresholdNo として送っている',
+  manaThresholdOrder: 'effectData.manaThresholdOrder として送っている',
+  _manaThresholdOrder: 'effectData.manaThresholdOrder として送っている',
+  manaOrder: 'effectData.manaOrder として送っている',
+  fxCode: 'effectData.fxCode として送っている',
   _effectRepeatBonus: 'effectData.effectRepeatBonus として送っている',
   _releaseAtkBonus: 'effectData.releaseAtkBonus として送っている',
   _releaseHpBonus: 'effectData.releaseHpBonus として送っている',
 };
 
 const missing = [...readFields].filter(f => !sentFields.has(f) && !ALLOW_MISSING[f]).sort();
+
+// ── 開戦時の資源 ───────────────────────────
+// マナは戦闘ごとの資源で、開戦時は必ず0。オフラインは startBattle() が G.mana=0 に
+// 戻してから戦闘へ入るため、オンラインが G.mana（マップで持ち越した分）を初期値として
+// 送ると、オンラインだけ開幕から大量のマナを持った状態になる
+// （活性化などの「Nマナ毎」が開戦した瞬間に何度も発動して、バフが数倍になった）。
+const resourceBlock = (buildFn.match(/resources:\s*\{[\s\S]*?\n      \},/) || [''])[0]
+  .replace(/\/\/[^\n]*/g, '');  // コメント文は判定対象にしない
+const resourceIssues = [];
+if (!resourceBlock) resourceIssues.push('buildSelfFormation() に resources ブロックが見つからない');
+else {
+  [...resourceBlock.matchAll(/\bmana:\s*([^,\n]+)/g)].forEach(m => {
+    if (m[1].trim() !== '0') resourceIssues.push(`開戦時マナが0以外（持ち越しマナを送っている）: mana: ${m[1].trim()}`);
+  });
+  if (/_ensureMana|G\.mana/.test(resourceBlock)) resourceIssues.push('resources で G.mana / _ensureMana() を読んでいる');
+  if (!/p2:/.test(resourceBlock)) resourceIssues.push('resources に p2 がない（相手側の初期資源が未指定）');
+}
+if (resourceIssues.length) {
+  console.log('\n★ 開戦時の資源がオフラインと違う:');
+  resourceIssues.forEach(x => console.log(`   ${x}`));
+}
 
 console.log(`コアが読むフィールド: ${readFields.size}件 ／ オンラインが送るフィールド: ${sentFields.size}件`);
 if (missing.length) {
@@ -97,5 +124,6 @@ if (missing.length) {
   console.log('\n  versus.js の buildSelfFormation() へ足すか、');
   console.log('  意図的に送らないなら tools/parity/online_payload.js の ALLOW_MISSING へ理由付きで登録すること。');
 }
-console.log(`\nオンライン送信データ検証: NG ${missing.length}`);
-process.exitCode = missing.length ? 1 : 0;
+const ng = missing.length + resourceIssues.length;
+console.log(`\nオンライン送信データ検証: NG ${ng}`);
+process.exitCode = ng ? 1 : 0;

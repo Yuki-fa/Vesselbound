@@ -77,6 +77,9 @@
       // data-preview-norule＝見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。
       // 枠はカードと同じまま、見出し下の直線だけを消す。
       tip.classList.toggle('no-title-rule',!!(el&&el.hasAttribute('data-preview-norule')));
+      // 所持金・ライフ・マナ・血の説明（data-preview-status）は、勝利・撤退の結果表示中も出す。
+      // その画面ではカードの説明だけを止めたいので、印で見分ける（index.htmlのCSS）。
+      tip.classList.toggle('status-tip',!!(el&&el.hasAttribute('data-preview-status')));
       if(!isMapPowerDesc){
         const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
         if(rarityClass) tip.classList.add(rarityClass);
@@ -571,6 +574,146 @@ function getCurrentUnitSlot(side,idxOrUnit){
   return found;
 }
 
+// 保留している「効果発動時の発光」を、VFXが出るこの瞬間に合わせて始める。
+// **規則は present_events.js が唯一の実装**（ここは受け口を各VFXの入口へ置くだけ）。
+function _syncEffectFlashWithVfx(){
+  if(typeof presentFlushEffectFlashes==='function') presentFlushEffectFlashes();
+}
+
+// 効果の発生元を一瞬だけ発光させる（魔導板の接続カードホバーと同じカード周囲の光）。
+// count回の発動は、クラスを付け直して明滅として見せる。
+async function playEffectFlash(unit, side, color, count){
+  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+  if(!slot) return false;
+  const n=Math.max(1,Number(count)||1);
+  const unitId=unit&&unit.id!=null?String(unit.id):'';
+  const clone=unitId?[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+    .find(el=>String(el.dataset.unitId||'')===unitId):null;
+  // 攻撃効果は攻撃モーション中に発動する。元カードは非表示になるため、
+  // 画面上で見えている移動中の複製を優先して光らせる。
+  const targets=[clone,slot].filter((el,i,a)=>el&&a.indexOf(el)===i);
+  targets.forEach(el=>{ el.dataset.effectFlashColor=String(color||'white'); });
+  for(let i=0;i<n;i++){
+    targets.forEach(el=>{
+      el.classList.remove('effect-flash');
+      void el.offsetWidth;
+      el.classList.add('effect-flash');
+    });
+    await new Promise(resolve=>setTimeout(resolve,180));
+  }
+  targets.forEach(el=>{
+    el.classList.remove('effect-flash');
+    delete el.dataset.effectFlashColor;
+  });
+  return true;
+}
+
+// ── 攻撃範囲の接触演出（貫通＝K007／三方向攻撃＝K008／全体攻撃＝K009）──────
+// **ここが唯一の描画実装**（PvE・オンライン共通）。呼ぶのは接触した瞬間で、
+// 呼び出し側は完了を待たない（待つと複数対象のダメージ数値の時刻がずれる）。
+// 大きさ・位置のつまみは present.js（PRESENT_CONTACT_*）が唯一の定義。
+async function playAttackContactVfx({attacker, targets, targetSide, mode, path, duration, fadeDuration, onPass}){
+  _syncEffectFlashWithVfx();
+  const list=(targets||[]).filter(Boolean);
+  if(!list.length||!path||typeof playHitVfxAtRect!=='function') return false;
+  const side=targetSide||((list[0].side==='p2')?'enemy':'ally');
+  const rectOf=unit=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null;
+  const scaleOf=(name,fallback)=>{
+    const n=Number(typeof window!=='undefined'?window[name]:undefined);
+    return Number.isFinite(n)?n:fallback;
+  };
+  // CSSで絵は入れ物の幅の460%に描かれる（.effect-sustain-host .vfx-hit-video / .vfx）。
+  // 「出したい絵の幅」から入れ物の幅を逆算するために使う。
+  const cssRatio=scaleOf('PRESENT_VFX_CSS_WIDTH_RATIO',4.6);
+  const opts=path=>({customVfxPath:path,hitDuration:duration,fadeDuration,waitForFinish:true,gateMs:0,rotation:0});
+
+  if(mode==='all'){
+    const field=document.getElementById(side==='enemy'?'f-enemy':'f-ally');
+    const fieldRect=field&&field.getBoundingClientRect();
+    const targetRects=list.map(rectOf).filter(Boolean);
+    // 敵の前衛と後衛の矩形をまとめた範囲に置く。盤面全体や画面中央を基準に
+    // すると、後衛を巻き込む位置・味方陣営まで覆う位置になる。
+    const top=targetRects.length?Math.min(...targetRects.map(r=>r.top)):fieldRect&&fieldRect.top;
+    const bottom=targetRects.length?Math.max(...targetRects.map(r=>r.bottom||r.top+r.height)):fieldRect&&fieldRect.bottom;
+    const rect=fieldRect&&bottom>top
+      ?{left:fieldRect.left,top,width:fieldRect.width,height:bottom-top}:fieldRect;
+    if(!rect||!rect.width||!rect.height) return false;
+    return !!(await playHitVfxAtRect(rect,0,{...opts(path),vfxScale:scaleOf('PRESENT_CONTACT_ALL_SCALE',.2875)}));
+  }
+
+  // 貫通：**攻撃者から対象へ向かう角度のまま**、対象カードの上を通って
+  // 後ろの敵を貫き、画面外まで飛ぶ。当たったキャラクターには、絵がその位置を
+  // 通り過ぎた瞬間にダメージを見せる（onPass）。
+  // 入れ物（host）の幅は**絵の幅から逆算する**（CSSで絵はhost幅の460%に描かれる）。
+  // 対象の矩形をそのまま入れ物にすると、縦長素材（137x1086）が画面の高さを超えて
+  // 伸び、画面の下から現れたように見える。
+  if(mode==='pierce'&&typeof playCurvedMissile==='function'){
+    const rects=list.map(u=>({unit:u,rect:rectOf(u)})).filter(x=>x.rect);
+    if(!rects.length) return false;
+    const hitRect=rects[0].rect;
+    const attackerRect=attacker&&typeof _captureUnitDamageRect==='function'
+      ?_captureUnitDamageRect(attacker,side==='enemy'?'ally':'enemy'):null;
+    const center=r=>({x:r.left+r.width/2,y:r.top+r.height/2});
+    const hitC=center(hitRect);
+    // 進む向き＝攻撃者から**一番奥の対象**への向き。
+    // 対象が1体なら攻撃者→対象の向き（＝キャラクターの角度）そのまま。
+    // 手前の対象だけを見て向きを決めると、**線が通っていない後衛にダメージが入る**
+    // ように見える（貫く相手は必ず線の上に来るようにする）。
+    const deepC=center(rects[rects.length-1].rect);
+    const fromC=attackerRect?center(attackerRect)
+      :{x:deepC.x,y:deepC.y+(side==='enemy'?1:-1)*(hitRect.height||1)};
+    let vx=deepC.x-fromC.x, vy=deepC.y-fromC.y;
+    if(Math.hypot(vx,vy)<1){ vx=hitC.x-fromC.x; vy=hitC.y-fromC.y; }
+    const len=Math.hypot(vx,vy)||1;
+    vx/=len; vy/=len;
+    const startOffset=scaleOf('PRESENT_CONTACT_PIERCE_START_OFFSET',.5);
+    const overshoot=scaleOf('PRESENT_CONTACT_PIERCE_OVERSHOOT',1.2);
+    const hostW=Math.max(1,hitRect.width*scaleOf('PRESENT_CONTACT_PIERCE_WIDTH',.55)/cssRatio);
+    // 出現位置＝対象カードから手前側へ少し戻した所。終点は画面の外。
+    const reach=Math.max(window.innerWidth||1920,window.innerHeight||1080)*overshoot;
+    // **発生位置は「攻撃者から一番奥の対象へ引いた線」の上に置く。**
+    // 対象カードの中心から横へずらしていた頃は、線が対象と後衛の両方を通らず、
+    // 左の前衛を攻撃した時だけ大きく左へ外れていた。
+    const offsetX=hitRect.width*scaleOf('PRESENT_CONTACT_PIERCE_OFFSET_X',0);
+    const toHit=Math.hypot(hitC.x-fromC.x,hitC.y-fromC.y);
+    const along=Math.max(0,toHit-hitRect.height*startOffset);
+    const sx=fromC.x+vx*along+offsetX, sy=fromC.y+vy*along;
+    const box=(x,y)=>({left:x-hostW/2,top:y-hostW/2,width:hostW,height:hostW});
+    // 素材の先端は上向き。atan2は右向きが0度なので+90する。
+    const angle=Math.atan2(vy,vx)*180/Math.PI+90;
+    const waypoints=rects.map(({unit,rect})=>({point:center(rect),
+      onReach:()=>{ if(typeof onPass==='function') onPass(unit); }}));
+    await playCurvedMissile({asset:path,sourceRect:box(sx,sy),targetRect:box(sx+vx*reach,sy+vy*reach),
+      scale:1,flightMs:scaleOf('PRESENT_CONTACT_PIERCE_FLIGHT_MS',420),
+      impactOffsetY:0,straight:true,fixedAngle:angle,waypoints});
+    return true;
+  }
+
+  if(mode==='tri'){
+    const rects=list.map(rectOf).filter(Boolean);
+    if(!rects.length) return true;
+    const left=Math.min(...rects.map(r=>r.left));
+    const right=Math.max(...rects.map(r=>r.left+r.width));
+    const top=Math.min(...rects.map(r=>r.top));
+    const height=Math.max(...rects.map(r=>r.height));
+    // 絵の幅＝対象3体の横幅×比。入れ物はそこから逆算する（対象の数で絵の大きさを変えない）。
+    const drawW=Math.max(1,(right-left)*scaleOf('PRESENT_CONTACT_TRI_WIDTH',1.5));
+    const hostW=drawW/cssRatio;
+    // 中心は対象列の中央。絵の中で炎が右寄りなぶんを「絵の幅に対する比」で左へずらす。
+    const cx=(left+right)/2+drawW*scaleOf('PRESENT_CONTACT_TRI_OFFSET_X',-.18);
+    await playHitVfxAtRect({left:cx-hostW/2,top:top+height/2-hostW/2,width:hostW,height:hostW},0,
+      {...opts(path),vfxScale:1});
+    return true;
+  }
+
+  await Promise.all(list.map(unit=>{
+    const rect=rectOf(unit);
+    if(!rect) return Promise.resolve();
+    return playHitVfxAtRect(rect,0,{...opts(path),vfxScale:2});
+  }));
+  return true;
+}
+
 // VFX動画は背景黒で書き出されている。<video>要素はブラウザによってはCSSの
 // mix-blend-mode:screenが正しく効かない（動画専用の合成レイヤーで描画されるため）ことがあるので、
 // <canvas>に毎フレーム描画し、輝度の低い（黒に近い）ピクセルほど透明にするルミナンスキー処理で
@@ -834,8 +977,74 @@ function playUnitDeathBurn(unit,side){
 // 実機ブラウザによってはfixed座標の基準が変わり、カード上のVFXが画面外へ配置される。
 // ダメージ演出は実カードのgetBoundingClientRect()を絶対座標として使うため、body直下に置く。
 // 背景外へ出ないことより、命中位置へ確実に表示されることを優先する。
+// 背景（イラスト）が実際に描かれている範囲。#scr-battle は黒帯を含む全画面なので、
+// そのまま使うと帯の上にVFXが出る。3840x2160を幅・高さに収めた実寸を返す。
+function _battleVfxClipRect(){
+  const frame=_battleBackgroundFrameRect();
+  const w=Math.min(frame.width,frame.height*3840/2160);
+  const h=w*2160/3840;
+  return {left:frame.left+(frame.width-w)/2,top:frame.top+(frame.height-h)/2,width:w,height:h};
+}
+
+// **VFXは背景の外へ出さない。** 全画面の入れ物を1枚だけ作り、
+// clip-path で背景の範囲へ切り抜く。入れ物は画面いっぱいなので、
+// 中のhost（position:fixed・画面座標）の位置計算は今までのままでよい。
+// clip-path は子孫（position:fixedも含む）の描画ごと切り抜く。
+function _vfxClipLayer(){
+  if(typeof document==='undefined') return null;
+  let layer=document.getElementById('vfx-frame-clip');
+  if(!layer){
+    layer=document.createElement('div');
+    layer.id='vfx-frame-clip';
+    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',
+      pointerEvents:'none',zIndex:'10035'});
+    (document.body||document.documentElement).appendChild(layer);
+  }
+  const r=_battleVfxClipRect();
+  const vw=window.innerWidth||r.width, vh=window.innerHeight||r.height;
+  layer.style.clipPath=`inset(${Math.max(0,r.top)}px ${Math.max(0,vw-(r.left+r.width))}px `
+    +`${Math.max(0,vh-(r.top+r.height))}px ${Math.max(0,r.left)}px)`;
+  return layer;
+}
+
+// ── カードより「下」に出すVFXの層 ────────────────────────────
+// 戦闘画面（#scr-battle）は transform:scale で**自前の重なり文脈**を作るため、
+// body直下のVFX層（#vfx-frame-clip）へ入れた絵は必ずカードより上になる。
+// カードの下に出したい演出（復活＝K020）は、#scr-battle の直下に **z-index:0** の層を作る。
+// 背景（.screen.asset-backed::before＝z-index:-1）より上、
+// 戦闘UI（.battle-scroll＝z-index:1。盤面のカードはこの中）より下になる。
+// ステージの効果動画（#stage-bg-video）が同じ位置づけ（z-index:0）。
+//
+// **末尾へ足すこと。** 先頭へ入れると `#scr-battle>div:nth-of-type(1){display:none}`
+// に当たってこの層自体が消え、しかも本来隠れていた要素が現れる。
+function _underCardVfxLayer(){
+  if(typeof document==='undefined') return null;
+  const scr=document.getElementById('scr-battle');
+  if(!scr) return null;
+  let layer=document.getElementById('vfx-under-card');
+  if(!layer){
+    layer=document.createElement('div');
+    layer.id='vfx-under-card';
+    Object.assign(layer.style,{position:'absolute',left:'0',top:'0',width:'100%',height:'100%',
+      pointerEvents:'none',zIndex:'0',overflow:'visible'});
+  }
+  if(layer.parentNode!==scr) scr.appendChild(layer);
+  return layer;
+}
+// 画面座標（getBoundingClientRect）→ 戦闘画面の中の座標（scaleを戻した値）。
+// #scr-battle は transform:scale されているので、そのまま入れると位置も大きさもずれる。
+function _toBattleScreenRect(r){
+  if(!r||typeof document==='undefined') return r;
+  const scr=document.getElementById('scr-battle');
+  if(!scr) return r;
+  const base=scr.getBoundingClientRect();
+  const s=typeof _gameScale==='function'?(Number(_gameScale())||1):1;
+  if(!(s>0)) return r;
+  return {left:(r.left-base.left)/s,top:(r.top-base.top)/s,width:r.width/s,height:r.height/s};
+}
+
 function _vfxHostParent(){
-  return document.body;
+  return _vfxClipLayer()||document.body;
 }
 
 // 勝利・敗北が確定した時点で、再生中の全VFX（ダメージ演出／特殊演出／薙ぎ払い演出）を
@@ -846,9 +1055,14 @@ function _forceStopAllVfx(options){
   // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に
   // 生成されるため、戦闘終了時は一時要素を種類を問わずまとめて除去する。
   const selectors=(preserveDamage?'':'.damage-vfx-host,.damage-label-host,')+
+    '.effect-sustain-host,'+
     '.special-vfx-clip,.special-vfx-host,.sweep-vfx-clip,.sweep-vfx-host,'+
     '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,#battle-start-intro'
   document.querySelectorAll(selectors).forEach(el=>el.remove());
+  // **ひと続きのマナ効果も必ず終わらせる。** DOMだけ消しても、
+  // 「処理が終わるまで出し続ける」状態が残っていると次の戦闘へ持ち越され、
+  // 決着後も効果のVFXが出続ける（開戦で敵が全滅した時に炎の矢が残っていた）。
+  if(typeof _resetManaEffectRun==='function') _resetManaEffectRun();
   // 死亡演出のSVGフィルタ定義も次の画面へ持ち越さない。
   const deathFilters=document.getElementById('death-burn-filters');
   if(deathFilters) deathFilters.replaceChildren();
@@ -857,9 +1071,12 @@ function _forceStopAllVfx(options){
 
 // ダメージ数値ラベルの表示時間。同じキャラクターへ連続してダメージを出す側
 // （battle.js）が「前の数値が消えるまで待つ」ためにも使うので、式はここ1か所に置く。
-function damageLabelDurationMs(labelDuration){
+function damageLabelDurationMs(labelDuration, minMs){
   const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
-  return Math.max(600,(Number(labelDuration)||950)/speedMul);
+  // 同種のダメージを畳みかける時は、次の数値が出るまでに1回分の「出て消える」を
+  // 収める必要があるため、既定の下限（600ms）を明示的に外せるようにする。
+  const floor=Number.isFinite(Number(minMs))?Math.max(0,Number(minMs)):600;
+  return Math.max(floor,(Number(labelDuration)||950)/speedMul);
 }
 
 // 同一URLの<img>を短時間に連続生成すると、ブラウザによっては再生状態が共有され
@@ -871,7 +1088,383 @@ const VFX_VARIANT_COUNT=6;
 let _vfxVariantSeq=0;
 function _vfxVariantIndex(){ _vfxVariantSeq=(_vfxVariantSeq+1)%VFX_VARIANT_COUNT; return _vfxVariantSeq; }
 
+// ── 効果そのもののVFXを1体の上に出す ──────────────────────
+// 命中VFX（playHitVfxAtRect）は `characterEffect`（CXXX）しか引けないため、
+// 強化カードの効果（活性化＝E045等）はこちらを使う。素材は `getEffectVfxPath()` が引く。
+// 大きさ・追従は命中VFXと同じ規則を使う（present.js の presentCharacterVfxScale）。
+//
+// options.durationMs … 指定するとその時間で自動的に消える（効果1回ぶんの再生）。
+//                      省略すると **停止するまで出続ける**（素材はwebpのloop=0）。
+// options.minDurationMs … 最低再生時間。stop() が早く呼ばれてもここまでは消さない。
+//                      1回しか発動しない効果で一瞬しか映らないのを防ぐ。
+// 戻り値の stop() はどちらの場合も呼んでよい（自動停止済みなら何もしない）。
+//
+// 素材が登録されていない効果では null を返す。呼び出し側は何も出さないこと
+// （空のまま playHitVfxAtRect へ渡すと通常の被弾VFXへ化ける）。
+function playEffectVfxOnUnit(unit,side,code,options){
+  _syncEffectFlashWithVfx();
+  if(!unit||typeof _captureUnitDamageRect!=='function') return null;
+  const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
+  if(!url) return null;
+  // **効果は「今そのキャラクターが見えている位置」から出す。**
+  // 攻撃で少し動いた地点で発動した効果が、盤面の定位置から出ると別人のように見える。
+  // opt.rect：ひと続きの演出の中で位置を揃えるために、呼び出し側が最初に掴んだ位置。
+  // 攻撃モーションが終わってから出し始めると複製カードが既に消えていて、
+  // 同じ効果なのにマナ効果の合図だけ動いた位置・固有VFXは元の位置、になっていた。
+  const rect=(options&&options.rect&&Number(options.rect.width)>0?options.rect:null)
+    ||(typeof _captureUnitEffectRect==='function'
+      ?_captureUnitEffectRect(unit,side):_captureUnitDamageRect(unit,side));
+  if(!rect||!(rect.width>0)||!(rect.height>0)) return null;
+  const opt=options||{};
+  const fadeDuration=Math.max(0,Number(opt.fadeDuration)||220);
+  const scale=Number(opt.vfxScale)
+    ||(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(code):1);
+  let done=false;
+  const host=document.createElement('div');
+  host.className='effect-sustain-host';
+  Object.assign(host.style,{left:`${rect.left}px`,top:`${rect.top}px`,
+    width:`${rect.width}px`,height:`${rect.height}px`});
+  const img=document.createElement('img');
+  img.className='vfx vfx-hit-video';
+  img.alt='';
+  const characterSized=String(code||'').toUpperCase()==='C008';
+  if(characterSized) Object.assign(img.style,{width:'100%',height:'100%',objectFit:'contain'});
+  img.style.transform=`translate(-50%,-50%) scale(${scale})`;
+  // **フェードインで出す。** いきなり全開で出すと画面が一瞬白く弾けて見える。
+  const fadeInMs=Math.max(0,Number(opt.fadeInMs)!=null&&Number.isFinite(Number(opt.fadeInMs))?Number(opt.fadeInMs):180);
+  if(fadeInMs>0){
+    img.style.opacity='0';
+    img.style.transition=`opacity ${fadeInMs}ms ease-out`;
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(!done) img.style.opacity='1'; }); });
+  }
+  img.src=url+(url.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  host.appendChild(img);
+  _vfxHostParent().appendChild(host);
+  let resolveComplete;
+  const completePromise=new Promise(resolve=>{ resolveComplete=resolve; });
+  const activeVfx=window.__activeVfxPromises||(window.__activeVfxPromises=new Set());
+  activeVfx.add(completePromise);
+  completePromise.finally(()=>activeVfx.delete(completePromise));
+  // 盤面の詰め直しでカードは動く。位置を固定すると「何もない場所」に残る。
+  // **追いかける先は「今そのキャラクターが見えている位置」**（攻撃モーション中は
+  // 動いている複製カード）。盤面の定位置を追いかけていた頃は、
+  // 発生位置を渡しても次のフレームで定位置へ戻され、
+  // 「活性化だけ元の位置で出る」状態になっていた。
+  const follow=()=>{
+    if(done) return;
+    if(!host.isConnected){ done=true; resolveComplete(); return; }
+    let r=null;
+    try{
+      r=typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
+        :_captureUnitDamageRect(unit,side);
+    }catch(e){ r=null; }
+    if(r&&r.width>0&&r.height>0){
+      Object.assign(host.style,{left:`${r.left}px`,top:`${r.top}px`,
+        width:`${r.width}px`,height:`${r.height}px`});
+    }
+    requestAnimationFrame(follow);
+  };
+  requestAnimationFrame(follow);
+  const startedAt=(typeof performance!=='undefined'?performance.now():Date.now());
+  const minDurationMs=Math.max(0,Number(opt.minDurationMs)||0);
+  const stop=()=>{
+    if(done) return completePromise;
+    // 最低再生時間に届いていなければ、そこまで待ってから消す。
+    // 待っている間に呼び直されても done は立っていないので二重には走らない。
+    const now=(typeof performance!=='undefined'?performance.now():Date.now());
+    const remain=minDurationMs-(now-startedAt);
+    if(remain>0){ setTimeout(stop,remain); return completePromise; }
+    done=true;
+    img.style.transition=`opacity ${fadeDuration}ms ease-out`;
+    void img.offsetWidth;
+    img.style.opacity='0';
+    setTimeout(()=>{ try{ host.remove(); }catch(e){} resolveComplete(); },fadeDuration);
+    return completePromise;
+  };
+  const durationMs=Math.max(0,Number(opt.durationMs)||0);
+  if(durationMs) setTimeout(stop,durationMs);
+  return { stop, code:String(code||''), done:()=>done };
+}
+
+// ── 画面に固定して大きく出す効果VFX（アラクネ）──────────────────
+// 対象カードの上ではなく**画面**に出す。アラクネ（C008）は
+// 「画面の中心が絵の頂点、画面の底辺が絵の中心」になる大きさで出す
+// （＝絵の高さ＝画面の高さ、中心を画面下端へ置く）。
+// どの効果をこう出すかは present.js の `PRESENT_SCREEN_BOTTOM_VFX` が唯一の実装。
+// ── 状態異常を付けた時のVFX（毒牙＝K003 等）を「出し直さず継続」させる ──────
+// **ここが唯一の描画実装**（PvE・オンライン共通）。同じキャラクターへ続けて
+// 付与される間は、既に出ている再生を延ばすだけで作り直さない。
+// 尺・フェードの値は present.js（PRESENT_KEYWORD_VFX_*）が唯一の定義。
+// 出せた場合だけ true を返す（素材が無ければ false ＝ 呼び出し側が従来の経路へ落とす）。
+const _keywordVfxSustain=new Map();
+function playKeywordEffectVfxSustained(unit,side,keyword){
+  if(!unit||!keyword||typeof playEffectVfxOnUnit!=='function') return false;
+  const url=typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(keyword):'';
+  if(!url) return false;
+  const code=(String(url).match(/([A-Za-z]\d{3}(?:_\d+)?)\.[a-z0-9]+$/)||[])[1]||'';
+  if(!code) return false;
+  const num=(name,fallback)=>{
+    const n=Number(typeof window!=='undefined'?window[name]:undefined);
+    return Number.isFinite(n)?n:fallback;
+  };
+  const holdMs=num('PRESENT_KEYWORD_VFX_HOLD_MS',800);
+  const key=`${side}:${unit.id}:${keyword}`;
+  const entry=_keywordVfxSustain.get(key);
+  const arm=e=>{
+    if(e.timer) clearTimeout(e.timer);
+    e.timer=setTimeout(()=>{
+      _keywordVfxSustain.delete(key);
+      if(e.handle&&typeof e.handle.stop==='function') e.handle.stop();
+    },holdMs);
+  };
+  // 既に出ている：**出し直さず、消えるまでの時間を延ばすだけ。**
+  if(entry&&entry.handle&&typeof entry.handle.done==='function'&&!entry.handle.done()){
+    arm(entry);
+    return true;
+  }
+  // 新しく出す時だけSEを鳴らす（絵と同じ引き方。連続付与で音が途切れ途切れに重ならない）。
+  if(typeof playSfx==='function'&&typeof getKeywordEffectSfxKey==='function'){
+    const seKey=getKeywordEffectSfxKey(keyword);
+    if(seKey) playSfx(seKey,{group:'combat',guardKey:`kwfx:${seKey}:${uid()}`,guardMs:0});
+  }
+  const handle=playEffectVfxOnUnit(unit,side,code,{
+    fadeInMs:num('PRESENT_KEYWORD_VFX_FADE_IN_MS',120),
+    fadeDuration:num('PRESENT_KEYWORD_VFX_FADE_OUT_MS',220),
+  });
+  if(!handle) return false;
+  const next={handle,timer:null};
+  _keywordVfxSustain.set(key,next);
+  arm(next);
+  return true;
+}
+// 戦闘の切れ目で片付ける。残すと次の戦闘の頭で前の絵が出たままになる。
+function stopAllKeywordEffectVfx(){
+  _keywordVfxSustain.forEach(e=>{
+    if(e&&e.timer) clearTimeout(e.timer);
+    if(e&&e.handle&&typeof e.handle.stop==='function') e.handle.stop();
+  });
+  _keywordVfxSustain.clear();
+}
+
+function playScreenBottomEffectVfx(code,options){
+  _syncEffectFlashWithVfx();
+  const opt=options||{};
+  const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
+  if(!url) return Promise.resolve();
+  const frame=typeof _battleBackgroundFrameRect==='function'?_battleBackgroundFrameRect():null;
+  const rect=(frame&&frame.width>0&&frame.height>0)?frame
+    :{left:0,top:0,width:window.innerWidth,height:window.innerHeight};
+  const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
+  const hitDuration=(Number(opt.hitDuration)
+    ||(typeof PRESENT_CARD_EFFECT_VFX_MS==='number'?PRESENT_CARD_EFFECT_VFX_MS:700))/speedMul;
+  const host=document.createElement('div');
+  host.className='effect-sustain-host';
+  Object.assign(host.style,{
+    left:`${rect.left}px`, top:`${rect.top}px`,
+    width:`${rect.width}px`, height:`${rect.height}px`,
+    pointerEvents:'none', overflow:'visible',
+  });
+  const img=document.createElement('img');
+  img.className='vfx';
+  img.alt='';
+  Object.assign(img.style,{
+    position:'absolute',
+    left:'50%', top:'100%',            // 画面の底辺
+    height:`${rect.height}px`,         // 絵の高さ＝画面の高さ → 頂点が画面中心
+    width:'auto',
+    transform:'translate(-50%,-50%)',  // 中心を画面の底辺へ
+    pointerEvents:'none',
+  });
+  img.src=url+(url.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  host.appendChild(img);
+  _vfxHostParent().appendChild(host);
+  let done=false;
+  const finish=()=>{ if(done) return; done=true; try{ host.remove(); }catch(e){} };
+  // 尺はカード固有の効果VFXと同じ（ゴーレムの負傷エフェクトと同じ長さ）。
+  const fadeMs=Math.max(80,Math.round(hitDuration*.35));
+  setTimeout(()=>{
+    if(done) return;
+    img.style.transition=`opacity ${fadeMs}ms ease-out`;
+    void img.offsetWidth;
+    img.style.opacity='0';
+  },Math.max(0,hitDuration-fadeMs));
+  setTimeout(finish,hitDuration+fadeMs+120);
+  return opt.waitForFinish
+    ?new Promise(resolve=>setTimeout(resolve,hitDuration+fadeMs+120))
+    :Promise.resolve();
+}
+
+// ── 曲線軌道で飛ぶ演出（ミサイル）────────────────────────
+// **素材そのものは加工しない。** `<img>` の位置と回転だけをJSで動かす。
+// 弧の形・尺・回転の補正は present.js が唯一の実装（ここには数値を書かない）。
+//
+// playCurvedMissile({ sourceElement | sourceRect, targetElement | targetRect,
+//                     asset, scale, impactOffsetY, onHit })
+//   ・座標は既存の演出と同じ「画面座標（fixed）」。新しい座標系を作らない。
+//   ・始点・終点はDOMの左上ではなく**中央付近**を使う。
+//   ・三次ベジェで飛ばし、少し先の点との差から進行方向を出して回転させる。
+//   ・onHit は到達した瞬間に1回だけ呼ぶ（ゲームのルールはここで動かさない）。
+//   ・終わったら生成したDOMを必ず消す。
+// 戻り値は「到達して後始末が済んだ」Promise。
+function playCurvedMissile(options){
+  _syncEffectFlashWithVfx();
+  const opt=options||{};
+  const asset=String(opt.asset||'');
+  let hit=false;
+  const fireHit=()=>{ if(hit) return; hit=true;
+    if(typeof opt.onHit==='function'){ try{ opt.onHit(); }catch(e){ console.error('[missile onHit]',e); } } };
+  const rectOf=(rect,el)=>{
+    if(typeof rect==='function'){ try{ return rect(); }catch(e){ return null; } }
+    if(rect&&Number(rect.width)>0) return rect;
+    if(el&&typeof el.getBoundingClientRect==='function'){
+      const r=el.getBoundingClientRect();
+      return (r&&r.width>0&&r.height>0)?r:null;
+    }
+    return null;
+  };
+  const fromRect=rectOf(opt.sourceRect,opt.sourceElement);
+  const toRect=rectOf(opt.targetRect,opt.targetElement);
+  if(!asset||!fromRect||!toRect){ fireHit(); return Promise.resolve(); }
+  // 始点・終点は**中央付近**。着弾だけは素材の絵が上寄りなぶん少し下げる。
+  const impactOffsetY=Number.isFinite(Number(opt.impactOffsetY))?Number(opt.impactOffsetY)
+    :((typeof PRESENT_PROJECTILE_IMPACT_OFFSET_Y==='number'&&PRESENT_PROJECTILE_IMPACT_OFFSET_Y)||0);
+  const from={x:fromRect.left+fromRect.width/2, y:fromRect.top+fromRect.height/2};
+  const to={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*impactOffsetY};
+  // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
+  const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
+  // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
+  // 両軸を等分する。片方の軸だけ動かすと、斜めに飛ばした時に縦線になる。
+  const cp=opt.straight
+    ?{c1:{x:from.x+(to.x-from.x)/3,y:from.y+(to.y-from.y)/3},
+      c2:{x:from.x+(to.x-from.x)*2/3,y:from.y+(to.y-from.y)*2/3},
+      dist:Math.hypot(to.x-from.x,to.y-from.y)}
+    :(typeof presentMissileControlPoints==='function'
+    ?presentMissileControlPoints(from,to,jitter)
+    :{c1:from,c2:to,dist:Math.hypot(to.x-from.x,to.y-from.y)});
+
+  const flightMs=Number.isFinite(Number(opt.flightMs))&&Number(opt.flightMs)>0?Number(opt.flightMs)
+    :(typeof presentMissileFlightMs==='function'?presentMissileFlightMs(cp.dist):800);
+  const ease=typeof presentMissileEase==='function'?presentMissileEase:(t=>t);
+  const noseDeg=(typeof PRESENT_MISSILE_NOSE_OFFSET_DEG==='number'?PRESENT_MISSILE_NOSE_OFFSET_DEG:90);
+  const bezier=t=>{
+    const u=1-t, a=u*u*u, b=3*u*u*t, c=3*u*t*t, d=t*t*t;
+    return {x:a*from.x+b*cp.c1.x+c*cp.c2.x+d*to.x,
+            y:a*from.y+b*cp.c1.y+c*cp.c2.y+d*to.y};
+  };
+  const scale=Number(opt.scale)||1;
+  // 既存の演出と同じ入れ物を使う（戦闘終了時の一括除去もこのクラスで効く）。
+  const host=document.createElement('div');
+  host.className='effect-sustain-host';
+  Object.assign(host.style,{
+    left:`${from.x-fromRect.width/2}px`, top:`${from.y-fromRect.height/2}px`,
+    width:`${fromRect.width}px`, height:`${fromRect.height}px`,
+    pointerEvents:'none',
+  });
+  const img=document.createElement('img');
+  img.className='vfx vfx-hit-video';
+  img.alt='';
+  img.style.pointerEvents='none';
+  img.src=asset+(asset.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  host.appendChild(img);
+  _vfxHostParent().appendChild(host);
+  const halfW=fromRect.width/2, halfH=fromRect.height/2;
+  // **縦横比は変えない。** 位置（left/top）と回転・拡大だけを触る。
+  const place=(pt,deg)=>{
+    host.style.left=`${pt.x-halfW}px`;
+    host.style.top=`${pt.y-halfH}px`;
+    img.style.transform=`translate(-50%,-50%) rotate(${deg}deg) scale(${scale})`;
+  };
+  place(from,Number.isFinite(Number(opt.fixedAngle))?Number(opt.fixedAngle)
+    :Math.atan2(cp.c1.y-from.y,cp.c1.x-from.x)*180/Math.PI+noseDeg);
+  let cleaned=false;
+  const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
+  return new Promise(resolve=>{
+    const finish=()=>{ flushWaypoints(); fireHit(); cleanup(); resolve(); };
+    // **起点は「実際に最初のフレームが来た時刻」**（攻撃モーションと同じ規則）。
+    // 予約時刻を起点にすると、メインスレッドが尺以上止まった時に1フレーム目で着弾する。
+    let startedAt=null;
+    let lastDeg=Math.atan2(cp.c1.y-from.y,cp.c1.x-from.x)*180/Math.PI;
+    // 通過点：飛んでいる絵がその位置を通り過ぎた瞬間に1回だけ呼ぶ。
+    // 貫通のように「当たったキャラクターから順に」見せるために使う。
+    const waypoints=(Array.isArray(opt.waypoints)?opt.waypoints:[])
+      .map(w=>({...w,done:false}))
+      .filter(w=>w&&w.point&&typeof w.onReach==='function');
+    const fireWaypoints=pt=>{
+      waypoints.forEach(w=>{
+        if(w.done) return;
+        // 進行方向にどれだけ進んだかで判定する（横のずれは見ない）。
+        const passed=(pt.x-from.x)*(to.x-from.x)+(pt.y-from.y)*(to.y-from.y)
+          >=(w.point.x-from.x)*(to.x-from.x)+(w.point.y-from.y)*(to.y-from.y);
+        if(!passed) return;
+        w.done=true;
+        try{ w.onReach(); }catch(e){ console.error('[missile waypoint]',e); }
+      });
+    };
+    const flushWaypoints=()=>waypoints.forEach(w=>{
+      if(w.done) return; w.done=true;
+      try{ w.onReach(); }catch(e){ console.error('[missile waypoint]',e); }
+    });
+    const step=()=>{
+      if(cleaned){ resolve(); return; }
+      const now=performance.now();
+      if(startedAt===null) startedAt=now;
+      const raw=Math.min(1,(now-startedAt)/Math.max(1,flightMs));
+      const t=ease(raw);
+      const pt=bezier(t);
+      // 進行方向は「少し先のベジェ点」との差から出す（曲線に沿って先端が向く）。
+      // **終端では先が取れない**ので、少し手前との差も使って必ず向きが出るようにする。
+      // 片側だけにすると t=1 で差が0になり、最後の1フレームだけ先端が明後日を向く。
+      const ahead=bezier(Math.min(1,t+.02));
+      const behind=bezier(Math.max(0,t-.02));
+      const dx=ahead.x-behind.x, dy=ahead.y-behind.y;
+      const deg=Number.isFinite(Number(opt.fixedAngle))?Number(opt.fixedAngle)
+        :(Math.hypot(dx,dy)>0.001?Math.atan2(dy,dx)*180/Math.PI:lastDeg)+noseDeg;
+      lastDeg=deg-noseDeg;
+      place(pt,deg);
+      fireWaypoints(pt);
+      if(raw>=1){ finish(); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    // タブ非表示などでrAFが止まっても必ず着弾させ、DOMも必ず消す。
+    setTimeout(finish,flightMs+1500);
+  });
+}
+
+// ── 発生元から対象へ飛ぶ効果VFX（炎の矢）────────────────────
+// 上の playCurvedMissile を、既存の「ユニットと陣営」から呼ぶための入口。
+// **着弾した瞬間**に着弾VFX・着弾SE・ダメージ数値を出す（`playHitVfx` の effectHitCode 経路）。
+// 素材が無ければ何も飛ばさず、着弾側だけを即座に見せる（演出が消えないようにする）。
+async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
+  const opt=options||{};
+  const impact=()=>{
+    if(typeof opt.onImpact==='function') opt.onImpact();
+    if(typeof playHitVfx==='function'){
+      playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code});
+    }
+  };
+  const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
+  const rectOf=(u,side)=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(u,side):null;
+  // **発生源は「今そのキャラクターが見えている位置」**（攻撃で動いた地点）。
+  // 着弾側は数値と揃える必要があるので盤面の定位置のまま。
+  const fromRect=from
+    ?((typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(from,fromSide):null)||rectOf(from,fromSide))
+    :null;
+  const toRect=to?rectOf(to,toSide):null;
+  if(!url||!fromRect||!toRect){ impact(); return; }
+  await playCurvedMissile({
+    asset:url,
+    sourceRect:fromRect,
+    targetRect:toRect,
+    scale:Number(opt.vfxScale)
+      ||(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(code):1),
+    flightMs:Number(opt.flightMs)||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420)),
+    onHit:impact,
+  });
+}
+
 function playHitVfxAtRect(rect,amount,options){
+  _syncEffectFlashWithVfx();
   if(!rect) return Promise.resolve();
   const opt=options||{};
   // マナ・負傷効果が短時間に大量発動する場面向けの演出高速化倍率（既定1＝通常速度）。
@@ -881,13 +1474,17 @@ function playHitVfxAtRect(rect,amount,options){
   // 待ち時間が上乗せされてテンポが悪化する。表示・消失とも少し早める。
   const hitDuration=(opt.hitDuration||800)/speedMul;
   const fadeDuration=(opt.fadeDuration||140)/speedMul;
-  const labelDuration=damageLabelDurationMs(opt.labelDuration);
+  const labelDuration=damageLabelDurationMs(opt.labelDuration,opt.labelDurationMin);
   // 見た目の再生時間（hitDuration）と、次の行動に進むまで呼び出し元が待つ時間は切り離す。
   // hitDurationはあくまで演出を見やすくスローにするためのもので、これに比例して攻撃間の
   // テンポまで間延びしないよう、呼び出し元への復帰は短いgateMsだけ待てば十分とする。
   // 演出自体はgateMs経過後もバックグラウンドで最後まで再生・フェードアウトを続ける。
   const gateMs=(opt.gateMs??200)/speedMul;
   if(!rect.width||!rect.height) return Promise.resolve();
+  // 着弾VFX（enchantEffectHit）は、素材の絵が下寄りなので少し上へずらして出す。
+  // ずらすのは**VFXの入れ物だけ**。数値のラベルは対象カードの上に残す。
+  // **値を決めるのは effectHitVfx が決まった後**（宣言前に読むと参照エラーで演出が止まる）。
+  let hostOffsetY=0;
   const host=document.createElement('div');
   host.className='damage-vfx-host';
   Object.assign(host.style,{
@@ -901,17 +1498,45 @@ function playHitVfxAtRect(rect,amount,options){
   const charVfx=opt.effectSource&&typeof getCharacterEffectVfxPath==='function'?getCharacterEffectVfxPath(opt.effectSource):'';
   // キャラクター固有VFXが無い場合、毒等キーワード発動によるダメージならキーワード専用のVFXを探す。
   const keywordVfx=!charVfx&&opt.keywordEffect&&typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(opt.keywordEffect):'';
+  // 状態異常を付けたダメージの絵（弱体＝K004）。**絵だけ差し替え、SEは変えない。**
+  const vfxKeywordUrl=!charVfx&&!keywordVfx&&opt.vfxKeyword&&typeof getKeywordEffectVfxPath==='function'
+    ?getKeywordEffectVfxPath(opt.vfxKeyword):'';
+  // 効果が**対象に当たった瞬間**の専用演出（炎の矢＝E058_2）。
+  // 発生元に出す演出（enchantEffect）とは別素材で、こちらが最優先。
+  const effectHitVfx=opt.effectHitCode&&typeof getEffectHitVfxPath==='function'
+    ?getEffectHitVfxPath(opt.effectHitCode):'';
+  if(effectHitVfx){
+    hostOffsetY=rect.height*((typeof PRESENT_EFFECT_HIT_OFFSET_Y==='number'?PRESENT_EFFECT_HIT_OFFSET_Y:0));
+    host.style.top=`${rect.top+hostOffsetY}px`;
+  }
+  // 絵と同じ引き方でSEも鳴らす。**片方だけ番号がずれると音と絵が食い違う。**
+  // opt.keywordSfx===false の呼び出し（マナ効果の合図など）は、SEを別で鳴らすので抑える。
+  if(typeof playSfx==='function'&&opt.keywordSfx!==false){
+    const hitKey=effectHitVfx&&typeof getEffectHitSfxKey==='function'?getEffectHitSfxKey(opt.effectHitCode):'';
+    const kwKey=!hitKey&&opt.keywordEffect&&typeof getKeywordEffectSfxKey==='function'
+      ?getKeywordEffectSfxKey(opt.keywordEffect):'';
+    const seKey=hitKey||kwKey;
+    if(seKey) playSfx(seKey,{group:'combat',guardKey:`kwfx:${seKey}:${_vfxVariantIndex()}:${Date.now()}`,guardMs:0});
+  }
   // labelOnly：命中VFXを出さず、ダメージ数値だけを出す。
   // 薙ぎ払い（アラッサス）のように演出を別で持つ効果で、数値まで消さないために使う。
   const labelOnly=!!opt.labelOnly;
-  const hitUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
+  const customVfx=opt.customVfxPath||'';
+  const hitUrl=customVfx||effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||Assets?.vfx?.hit||'assets/vfx/hit.webp';
   // キャラクター固有VFXの大きさは present.js が唯一の実装。
   // 明示指定が無いときは素材の番号から決める（指定しないと等倍で巨大に出る）。
-  const charVfxCode=charVfx?((String(charVfx).match(/([A-Za-z]\d{3})\.[a-z0-9]+$/)||[])[1]||''):'';
+  // 大きさの鍵は**枝番まで含めた素材名**（E058_1 と E058_2 は別物）。
+  // 枝番を落とすと、着弾VFXが矢と同じ倍率で描かれて見えなくなる（実際にそうなった）。
+  // **キーワードVFX（毒＝K017・毒牙＝K003 等）も同じ倍率表で決める。**
+  // ここに入れていなかった頃は、素材の大きさをどう登録しても等倍のままだった。
+  const scaleSourceUrl=effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||'';
+  const charVfxCode=scaleSourceUrl
+    ?((String(scaleSourceUrl).match(/([A-Za-z]\d{3}(?:_\d+)?)\.[a-z0-9]+$/)||[])[1]||''):'';
   const vfxScale=Number(opt.vfxScale)
     ||(charVfxCode&&typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(charVfxCode):1);
   const spin=!!opt.spin;
-  const baseTransform=`translate(-50%,-50%) scale(${vfxScale})`;
+  const rotation=Number(opt.rotation)||0;
+  const baseTransform=`translate(-50%,-50%) scale(${vfxScale}) rotate(${rotation}deg)`;
   _vfxHostParent().appendChild(host);
   let labelHost=null;
 
@@ -934,6 +1559,15 @@ function playHitVfxAtRect(rect,amount,options){
     // ループ位置がずれて見えることがあるため、インスタンスごとに独立した画像として
     // 扱わせるためのダミークエリを付与する。
     mediaEl.src=hitUrl+(hitUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+    // **素材が読めなかったら通常の被弾VFXへ戻す。** 専用素材を登録しただけで
+    // ファイルを置き忘れると、何も出ないまま「効果が消えた」ように見える。
+    const fallbackUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
+    if(hitUrl!==fallbackUrl){
+      mediaEl.addEventListener('error',()=>{
+        console.warn('[vfx] 素材が読めないため通常の被弾VFXへ戻す:',hitUrl);
+        mediaEl.src=fallbackUrl+(fallbackUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+      },{once:true});
+    }
     host.appendChild(mediaEl);
     stop=()=>{};
   } else {
@@ -964,11 +1598,23 @@ function playHitVfxAtRect(rect,amount,options){
     // 前の数値を消してから次を出す（同じ対象の古いラベルだけを消す）。
     const labelKey=opt.labelKey||`${Math.round(rect.left)}:${Math.round(rect.top)}`;
     labelHost.dataset.damageLabelKey=String(labelKey);
+    // 前の数値は**即座に消さず、素早く薄れさせる**。即消しにすると、同じ値が
+    // 続く時（闇の炎が4回発動など）に数値が出っぱなしに見えて回数が分からない。
+    // 「出て、消えそうになる」を回数分見せる。2回目の重なりが来たものは即座に外す。
+    // 前の数値は即座に外す。残したまま次を重ねると、同じ位置に同じ「-1」が
+    // 出続けて「1回しか出ていない」ように見える。
+    // 回数を見せるのは**次の数値までの間に1回分の「出て消える」を収めること**で行う
+    // （labelDuration に連続再生の間隔を渡す。呼び出し側は present_events.js）。
     document.querySelectorAll(`.damage-label-host[data-damage-label-key="${String(labelKey).replace(/"/g,'\\"')}"]`)
       .forEach(old=>old.remove());
     Object.assign(labelHost.style,{left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`});
     document.body.appendChild(labelHost);
     labelHost.appendChild(label);
+    // 数値のアニメーションが終わったら入れ物ごと外す。**透明のまま置いておかない。**
+    // VFX本体（hitDuration）より数値の方が短いことがあり、残しておくと
+    // 見えていない数値がDOM上に居座る。盤面が詰まると、その位置が
+    // 「カードの無い場所」になり、位置の検査にも実際の見た目にも出てくる。
+    label.addEventListener('animationend',()=>{ try{ labelHost.remove(); }catch(e){} },{once:true});
     const damageDigits=String(Math.max(0,Math.floor(Math.abs(Number(amount)||0)))).length;
     if(damageDigits>=3){
       // 3桁から少しずつ縮小し、桁数が増え続けてもカード幅からはみ出さないようにする。
@@ -998,7 +1644,7 @@ function playHitVfxAtRect(rect,amount,options){
       if(r&&r.width>0&&r.height>0){
         hadRect=true; missed=0;
         const box={left:`${r.left}px`,top:`${r.top}px`,width:`${r.width}px`,height:`${r.height}px`};
-        Object.assign(host.style,box);
+        Object.assign(host.style,{...box,top:`${r.top+r.height*(hostOffsetY?hostOffsetY/rect.height:0)}px`});
         if(labelHost) Object.assign(labelHost.style,box);
       } else if(hadRect&&++missed>2){
         // 対象カードが盤面から消えた。数値だけが空白の上に残ると
@@ -1135,23 +1781,276 @@ if(typeof window!=='undefined') window.playFledVfx=playFledVfx;
 // 対象ごとに固有VFXが3回出る、といった食い違いになる。
 //   damageOf(target) … その対象のダメージイベント（{amount, keywordEffect}）を返す
 //   onShown(target, ev) … 数値を出した対象を呼び出し側へ知らせる（二重表示の抑止用）
-async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown){
+// ── 復活（キーワード「復活」で再召喚された）時の演出（K020）──────────
+// **SEと同時にVFXをフェードイン → その上にカードをフェードイン → VFXをフェードアウト。**
+// 大きさ・尺は present.js（PRESENT_REVIVE_*）が唯一の定義。
+async function playReviveVfx(unit,side){
+  _syncEffectFlashWithVfx();
+  if(!unit||typeof document==='undefined') return false;
+  const url=typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath('復活'):'';
+  const num=(name,fallback)=>{
+    const n=Number(typeof window!=='undefined'?window[name]:undefined);
+    return Number.isFinite(n)?n:fallback;
+  };
+  const fadeIn=num('PRESENT_REVIVE_VFX_FADE_IN_MS',260);
+  const cardMs=num('PRESENT_REVIVE_CARD_FADE_MS',320);
+  const fadeOut=num('PRESENT_REVIVE_VFX_FADE_OUT_MS',320);
+  const sfxKey=typeof getKeywordEffectSfxKey==='function'?getKeywordEffectSfxKey('復活'):'';
+  if(sfxKey&&typeof playSfx==='function'){
+    playSfx(sfxKey,{group:'magic',guardKey:`revive:${sfxKey}:${Date.now()}`,guardMs:0});
+  }
+  // **位置は「今そのカードが見えている場所」。** 復活の最中は倒れた体を外して盤面が
+  // 詰まるため、掴んだ位置のまま出すと絵だけ元の場所に取り残される。
+  const rectOf=()=>{
+    try{
+      return typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
+        :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null);
+    }catch(e){ return null; }
+  };
+  const rect=rectOf();
+  // 復活したカードは、VFXが出てから重なって現れる。
+  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+  if(slot){
+    slot.style.transition='none';
+    slot.style.opacity='0';
+  }
+  // **カードより下に出す。** 層が取れない時だけ従来のVFX層へ落とす。
+  const underLayer=_underCardVfxLayer();
+  const placeRect=r=>(underLayer?_toBattleScreenRect(r):r);
+  // 素材の絵がフレームの中で右寄りなので、その分だけ寄せて中心に合わせる（present.js）。
+  const offX=num('PRESENT_REVIVE_VFX_OFFSET_X',0);
+  const offY=num('PRESENT_REVIVE_VFX_OFFSET_Y',0);
+  const applyRect=(el,r)=>{
+    const p=placeRect(r);
+    if(!p) return;
+    Object.assign(el.style,{left:`${p.left+p.width*offX}px`,top:`${p.top+p.height*offY}px`,
+      width:`${p.width}px`,height:`${p.height}px`});
+  };
+  let host=null;
+  if(url&&rect&&rect.width>0){
+    host=document.createElement('div');
+    host.className='effect-sustain-host';
+    Object.assign(host.style,{pointerEvents:'none',opacity:'0',
+      transition:`opacity ${fadeIn}ms ease-out`});
+    // 下の層は #scr-battle の中（scale済み）なので fixed ではなく absolute で置く。
+    if(underLayer) host.style.position='absolute';
+    applyRect(host,rect);
+    const img=document.createElement('img');
+    img.className='vfx vfx-hit-video';
+    img.alt='';
+    img.style.pointerEvents='none';
+    const scale=typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale('K020'):1;
+    img.style.transform=`translate(-50%,-50%) scale(${scale})`;
+    img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+    host.appendChild(img);
+    (underLayer||_vfxHostParent()).appendChild(host);
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(host) host.style.opacity='1'; }); });
+    // 盤面が詰まってカードが動いても、絵はカードに付いて回る。
+    const follow=()=>{
+      if(!host||!host.isConnected) return;
+      const r=rectOf();
+      if(r&&r.width>0&&r.height>0) applyRect(host,r);
+      requestAnimationFrame(follow);
+    };
+    requestAnimationFrame(follow);
+  }
+  await new Promise(resolve=>setTimeout(resolve,fadeIn));
+  // カードをフェードインさせる（VFXの上に重なって現れる）。
+  if(slot){
+    slot.style.transition=`opacity ${cardMs}ms ease-out`;
+    requestAnimationFrame(()=>{ slot.style.opacity='1'; });
+  }
+  await new Promise(resolve=>setTimeout(resolve,cardMs));
+  if(slot){
+    slot.style.removeProperty('transition');
+    slot.style.removeProperty('opacity');
+  }
+  if(host){
+    host.style.transition=`opacity ${fadeOut}ms ease-out`;
+    host.style.opacity='0';
+    setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
+  }
+  return true;
+}
+
+// ── マナを得た時の演出（S004）────────────────────────────
+// **発生させたキャラクターの上**に、魔導板の方向アイコンと同じ大きさで出す。
+// 大きさ・尺は present.js（PRESENT_MANA_GAIN_VFX_*）が唯一の定義。
+// 素材が登録されていなければ何もしない（SEだけが鳴る）。
+function playManaGainVfx(unit,side){
+  _syncEffectFlashWithVfx();
+  if(!unit||typeof document==='undefined') return false;
+  const url=typeof getEffectVfxPath==='function'?getEffectVfxPath('S004'):'';
+  if(!url) return false;
+  const rect=typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
+    :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null);
+  if(!rect||!(rect.width>0)) return false;
+  const num=(name,fallback)=>{
+    const n=Number(typeof window!=='undefined'?window[name]:undefined);
+    return Number.isFinite(n)?n:fallback;
+  };
+  const scale=typeof _gameScale==='function'?(Number(_gameScale())||1):1;
+  // 大きさは「方向アイコンと同じ64px（ゲーム内座標）」。ただし戦闘のカードは大きいので、
+  // カード幅に対する下限を下回らないようにする（点にしか見えないのを防ぐ）。
+  const size=Math.max(8, num('PRESENT_MANA_GAIN_VFX_SIZE',64)*scale,
+    rect.width*num('PRESENT_MANA_GAIN_VFX_MIN_CARD_RATIO',.55));
+  const fadeIn=num('PRESENT_MANA_GAIN_VFX_FADE_IN_MS',140);
+  const hold=num('PRESENT_MANA_GAIN_VFX_HOLD_MS',260);
+  const fadeOut=num('PRESENT_MANA_GAIN_VFX_FADE_OUT_MS',260);
+  // 出し始めの位置と、消えるまでに上へ動く距離。どちらも**カード高さに対する比**（present.js）。
+  const startY=num('PRESENT_MANA_GAIN_VFX_START_Y',.18);
+  const rise=num('PRESENT_MANA_GAIN_VFX_RISE',.35);
+  const riseMs=fadeIn+hold+fadeOut;
+  const host=document.createElement('div');
+  host.className='effect-sustain-host';
+  Object.assign(host.style,{
+    left:`${rect.left+rect.width/2-size/2}px`,
+    // **カードの中央より少し上**から出す（以前はカードの上端よりさらに上だった）。
+    top:`${rect.top+rect.height/2-size/2-rect.height*startY}px`,
+    width:`${size}px`,height:`${size}px`,pointerEvents:'none',opacity:'0',
+    transform:'translateY(0)',
+    transition:`opacity ${fadeIn}ms ease-out, transform ${riseMs}ms linear`,
+  });
+  const img=document.createElement('img');
+  img.className='vfx vfx-hit-video';
+  img.alt='';
+  // 入れ物と同じ大きさで描く（CSSの既定 width:460% を使わない）。
+  Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
+    width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
+  img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+  host.appendChild(img);
+  _vfxHostParent().appendChild(host);
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
+    host.style.opacity='1';
+    // 出た瞬間から消え終わるまで、一定の速さで上へ動かす。
+    host.style.transform=`translateY(${-rect.height*rise}px)`;
+  }); });
+  setTimeout(()=>{
+    // transform は同じ値のままなので、ここで指定を書き直しても上への移動は途切れない。
+    host.style.transition=`opacity ${fadeOut}ms ease-out, transform ${riseMs}ms linear`;
+    host.style.opacity='0';
+    setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
+  },fadeIn+hold);
+  return true;
+}
+
+// ── 発生源から広がる範囲効果（薙ぎ払い／広がる波）─────────────────
+// **ここが唯一の実装**（PvE・オンライン共通）。どの絵で見せるかは present.js の
+// `presentAreaVfxStyle()` が決める。**見た目上当たった相手から数値を出す。**
+// opt.sideOf(target)：その対象がどちらの陣営か（サイレンは味方にも当たる）。
+async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown,opt){
   if(!source||!targets||!targets.length) return false;
+  const defaultSide=isEnemySide?'ally':'enemy';
+  const sideOf=target=>((opt&&typeof opt.sideOf==='function'&&opt.sideOf(target))||defaultSide);
+  const showHit=target=>{
+    if(!target) return;
+    const ev=typeof damageOf==='function'?damageOf(target):null;
+    const amount=Math.max(0,Number(ev&&ev.amount)||0);
+    if(!(amount>0)) return;
+    const side=sideOf(target);
+    if(typeof onShown==='function') onShown(target,ev);
+    if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,side);
+    // 命中VFXと数値の両方を、絵が当たった瞬間に出す。
+    if(typeof playHitVfx==='function') playHitVfx(side,target,amount,
+      {...(ev&&ev.keywordEffect?{keywordEffect:ev.keywordEffect}:{})});
+  };
+  const code=typeof _effectPresentationCode==='function'?_effectPresentationCode(source):'';
+  const style=typeof presentAreaVfxStyle==='function'?presentAreaVfxStyle(code):'sweep';
+  if(style==='expand'){
+    return await playExpandingWaveVfx(source,isEnemySide?'enemy':'ally',targets,code,{onTargetHit:showHit});
+  }
   const url=typeof getCharacterSweepVfxPath==='function'?getCharacterSweepVfxPath(source):'';
   if(!url||typeof playCharacterSweepVfx!=='function') return false;
-  const targetSide=isEnemySide?'ally':'enemy';
-  await playCharacterSweepVfx(source,isEnemySide,targets,url,{
-    onTargetHit:target=>{
-      if(!target) return;
-      const ev=typeof damageOf==='function'?damageOf(target):null;
-      const amount=Math.max(0,Number(ev&&ev.amount)||0);
-      if(!(amount>0)) return;
-      if(typeof onShown==='function') onShown(target,ev);
-      if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,targetSide);
-      // 命中VFXと数値の両方を、炎が当たった瞬間に出す。
-      if(typeof playHitVfx==='function') playHitVfx(targetSide,target,amount,
-        {...(ev&&ev.keywordEffect?{keywordEffect:ev.keywordEffect}:{})});
-    },
+  await playCharacterSweepVfx(source,isEnemySide,targets,url,{onTargetHit:showHit});
+  return true;
+}
+
+// 発生源の周りにフェードインしてから高速で巨大化し、画面外へ抜ける波（サイレン＝C011）。
+// **広がった絵が届いた対象から順に数値を出す**（薙ぎ払いと同じ規則）。
+// 素材が登録されていなければ何もしない（通常の被弾演出に任せる）。
+async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
+  _syncEffectFlashWithVfx();
+  const opt=options||{};
+  const url=typeof getCharacterEffectVfxPath==='function'
+    ?getCharacterEffectVfxPath({fxCode:code}):'';
+  const rect=typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(source,sourceSide)
+    :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(source,sourceSide):null);
+  if(!url||!rect||!(rect.width>0)) return false;
+  const sfxKey=typeof getEffectSfxKey==='function'?getEffectSfxKey(code):'';
+  if(sfxKey&&typeof playSfx==='function'){
+    playSfx(sfxKey,{group:'magic',guardKey:`area-vfx:${sfxKey}:${Date.now()}`,guardMs:0});
+  }
+  const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+  const vw=window.innerWidth||1920, vh=window.innerHeight||1080;
+  const diag=Math.hypot(vw,vh);
+  const startW=rect.width*((typeof PRESENT_EXPAND_VFX_START==='number'&&PRESENT_EXPAND_VFX_START)||.6);
+  const endW=diag*((typeof PRESENT_EXPAND_VFX_END==='number'&&PRESENT_EXPAND_VFX_END)||2.4);
+  const fadeMs=(typeof PRESENT_EXPAND_VFX_FADE_MS==='number'&&PRESENT_EXPAND_VFX_FADE_MS)||180;
+  const growMs=(typeof PRESENT_EXPAND_VFX_GROW_MS==='number'&&PRESENT_EXPAND_VFX_GROW_MS)||620;
+  // 対象までの距離。**近い順に当たる**ので、届いた瞬間に数値を出す。
+  const pending=(targets||[]).map(unit=>{
+    const side=(G.enemies||[]).includes(unit)?'enemy':'ally';
+    const r=typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null;
+    const dist=r?Math.hypot(r.left+r.width/2-cx,r.top+r.height/2-cy):0;
+    return {unit,dist,done:false};
+  }).sort((a,b)=>a.dist-b.dist);
+  const host=document.createElement('div');
+  host.className='effect-sustain-host';
+  Object.assign(host.style,{left:`${cx-startW/2}px`,top:`${cy-startW/2}px`,
+    width:`${startW}px`,height:`${startW}px`,pointerEvents:'none',opacity:'0',zIndex:'10022'});
+  const img=document.createElement('img');
+  img.className='vfx vfx-hit-video';
+  img.alt='';
+  // **入れ物と同じ大きさで描く。** CSSの既定（width:460%）のままだと、
+  // 絵の見た目の大きさと「どこまで届いたか」の計算が合わなくなる。
+  Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
+    width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
+  img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+  host.appendChild(img);
+  _vfxHostParent().appendChild(host);
+  let cleaned=false;
+  const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
+  const fireReached=radius=>pending.forEach(p=>{
+    if(p.done||radius<p.dist) return;
+    p.done=true;
+    if(typeof opt.onTargetHit==='function') opt.onTargetHit(p.unit);
+  });
+  const flushAll=()=>pending.forEach(p=>{
+    if(p.done) return;
+    p.done=true;
+    if(typeof opt.onTargetHit==='function') opt.onTargetHit(p.unit);
+  });
+  await new Promise(resolve=>{
+    let startedAt=null;
+    const total=fadeMs+growMs;
+    const finish=()=>{ flushAll(); cleanup(); resolve(); };
+    const step=()=>{
+      if(cleaned){ resolve(); return; }
+      const now=performance.now();
+      if(startedAt===null) startedAt=now;
+      const t=now-startedAt;
+      if(t<fadeMs){
+        host.style.opacity=String(Math.max(0,Math.min(1,t/fadeMs)));
+        requestAnimationFrame(step);
+        return;
+      }
+      host.style.opacity='1';
+      // 巨大化は最初が速い（ease-out）。
+      const p=Math.max(0,Math.min(1,(t-fadeMs)/growMs));
+      const eased=1-Math.pow(1-p,2);
+      const w=startW+(endW-startW)*eased;
+      host.style.left=`${cx-w/2}px`;
+      host.style.top=`${cy-w/2}px`;
+      host.style.width=`${w}px`;
+      host.style.height=`${w}px`;
+      // 絵には透明の余白があるので、届いたとみなす半径は少し内側にする。
+      fireReached(w/2*((typeof PRESENT_EXPAND_VFX_HIT_RATIO==='number'&&PRESENT_EXPAND_VFX_HIT_RATIO)||.8));
+      if(p>=1){ finish(); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    // rAFが止まる環境でも必ず終わらせ、DOMも必ず消す。
+    setTimeout(finish,total+1200);
   });
   return true;
 }
@@ -1295,16 +2194,19 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   });
 }
 
-// S002/S003は元動画が長尺のため、順再生後に直近フレームを逆順に描画して折り返す。
+// 特殊演出は元動画が長尺のため、順再生後に直近フレームを逆順に描画して折り返す。
+// **逆再生の開始（onMidpoint）が「効果が確定する瞬間」**。生贄奉納はそこで消し、
+// 召喚はそこで出す（逆の関係）。
 const _SPECIAL_VFX_TIMING={forwardMs:750,reverseMs:750};
 const _SEAL_RELEASE_VFX_TIMING={forwardMs:1750,reverseMs:1750};
 
 // 生贄キャラを1体、S003演出付きで破棄する（封印解放の生贄コスト用）
 function playSacrificeDestroyVfx(unit, side, onReverseStart){
   const slot=getCurrentUnitSlot(side,unit);
+  // 生贄奉納の専用素材は廃止（登録が無いので演出なしで状態だけ進む）。
   const url=Assets?.vfx?.specialProduction?.S003||'';
   const slotH=slot?.getBoundingClientRect?.().height||0;
-  return playSpecialProductionVfx(slot,'S003',url,()=>{
+  return playSpecialProductionVfx(slot,'',url,()=>{
     unit.hp=0;
     unit._deathProcessed=true;
     unit._dp=true;
@@ -1319,10 +2221,40 @@ function playSacrificeDestroyVfx(unit, side, onReverseStart){
   },{..._SPECIAL_VFX_TIMING,scale:4,fit:'cover',offsetY:-slotH*0.15});
 }
 
-// 封印を1体、S002演出付きで解放する
+// 戦闘中の召喚の登場演出。**S001の逆再生開始でカードを即座に出す**（生贄奉納の逆）。
+// SEとVFXは同時に始め、順再生の間はカードを隠しておく。
+// 戻り値は「カードが出た時点」で解決する（逆再生は裏で続ける。演出待ちで戦闘を止めない）。
+// 素材が無ければ即座に出す（演出だけ省く）。
+function playSummonAppearVfx(unit, side){
+  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+  if(!slot) return Promise.resolve();
+  const url=Assets?.vfx?.specialProduction?.S001||'';
+  if(!url) return Promise.resolve();
+  const slotH=slot.getBoundingClientRect?.().height||0;
+  slot.style.setProperty('visibility','hidden','important');
+  return new Promise(resolve=>{
+    let shown=false;
+    const reveal=()=>{
+      if(shown) return; shown=true;
+      slot.style.removeProperty('visibility');
+      resolve();
+    };
+    // 召喚の登場演出だけ速さを変える（倍率は present.js が唯一の定義）。
+    const _speed=Math.max(.1,Number(typeof window!=='undefined'?window.PRESENT_SUMMON_VFX_SPEED:0)||1);
+    const _timing={forwardMs:Math.round(_SPECIAL_VFX_TIMING.forwardMs/_speed),
+      reverseMs:Math.round(_SPECIAL_VFX_TIMING.reverseMs/_speed)};
+    playSpecialProductionVfx(slot,'S001',url,reveal,
+      {..._timing,scale:3,fit:'cover',offsetY:-slotH*0.05}).catch(reveal);
+    // 素材の読み込み失敗などでonMidpointが来なくてもカードは必ず出す。
+    setTimeout(reveal,_timing.forwardMs+900);
+  });
+}
+
+// 封印を1体、K019演出付きで解放する
 function playSealReleaseVfx(unit, side){
+  _syncEffectFlashWithVfx();
   const slot=getCurrentUnitSlot(side,unit);
-  const url=Assets?.vfx?.specialProduction?.S002||'';
+  const url=Assets?.vfx?.specialProduction?.K019||'';
   const slotH=slot?.getBoundingClientRect?.().height||0;
   const fadeMs=Math.max(0,_SEAL_RELEASE_VFX_TIMING.forwardMs+_SEAL_RELEASE_VFX_TIMING.reverseMs-250);
   if(slot){
@@ -1332,16 +2264,30 @@ function playSealReleaseVfx(unit, side){
       el.style.setProperty('transition',`filter ${fadeMs}ms ease-out`,'important');
       el.style.setProperty('filter','brightness(.45) saturate(.65)','important');
     });
+    // **ATK/HPの数値は暗転の間も読めるようにする。**
+    // 封印中は CSS（.sealed-unit .slot-stats）が brightness(1.9) で持ち上げているが、
+    // 下で sealed-unit を外すとその補正だけ先に消える。親の brightness(.45) がそのまま
+    // かかり、白文字＋黒縁の数値が消えて見えていた（「解放でATKとHPが非表示になる」）。
+    // 同じ補正をインラインで引き継ぎ、明るさと一緒に等倍へ戻す。
+    const statEls=[...slot.querySelectorAll('.slot-stats')];
+    statEls.forEach(el=>{
+      el.style.setProperty('transition',`filter ${fadeMs}ms ease-out`,'important');
+      el.style.setProperty('filter','brightness(1.9)','important');
+    });
     // CSSの.sealed-unit子要素暗転を外した後、次フレームでインラインfilterを解除し、
     // S002の順再生+逆再生と同じ尺で明るくする。
     slot.classList.remove('sealed-unit');
-    requestAnimationFrame(()=>fadeEls.forEach(el=>el.style.setProperty('filter','brightness(1) saturate(1)','important')));
+    requestAnimationFrame(()=>{
+      fadeEls.forEach(el=>el.style.setProperty('filter','brightness(1) saturate(1)','important'));
+      statEls.forEach(el=>el.style.setProperty('filter','brightness(1)','important'));
+    });
     setTimeout(()=>{
       fadeEls.forEach(el=>el.style.removeProperty('transition'));
       fadeEls.forEach(el=>el.style.removeProperty('filter'));
+      statEls.forEach(el=>{ el.style.removeProperty('transition'); el.style.removeProperty('filter'); });
     },fadeMs+40);
   }
-  return playSpecialProductionVfx(slot,'S002',url,()=>{
+  return playSpecialProductionVfx(slot,'K019',url,()=>{
     unit._sealed=false;
     delete unit._sealValue;
   },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
@@ -1597,14 +2543,21 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   });
   const opt=options||{};
   const fromList=isEnemySide?G.enemies:G.allies;
-  const toList=isEnemySide?G.allies:G.enemies;
+  // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る。
+  // 相手陣営に見つからなければ、同じ陣営から探す（見つけた側の盤面へ飛ばす）。
+  const foeList=isEnemySide?G.allies:G.enemies;
+  const hasTarget=list=>!!list&&(list.includes(target)
+    ||(target.id!=null&&list.some(u=>u&&u.id===target.id)));
+  const targetOnFoeSide=hasTarget(foeList);
+  const toList=targetOnFoeSide?foeList:fromList;
   let fromIdx=fromList.indexOf(attacker);
   let toIdx=toList.indexOf(target);
   if(fromIdx<0&&attacker.id) fromIdx=fromList.findIndex(u=>u&&u.id===attacker.id);
   if(toIdx<0&&target.id) toIdx=toList.findIndex(u=>u&&u.id===target.id);
   if(fromIdx<0||toIdx<0) return Promise.resolve();
   const fromField=document.getElementById(isEnemySide?'f-enemy':'f-ally');
-  const toField=document.getElementById(isEnemySide?'f-ally':'f-enemy');
+  const toField=document.getElementById(targetOnFoeSide?(isEnemySide?'f-ally':'f-enemy')
+    :(isEnemySide?'f-enemy':'f-ally'));
   // 召喚・死亡後の詰め直しでは配列インデックスが同一フレーム内に更新される。
   // インデックスを先に使うと、攻撃対象の配列位置とDOM上のカードが一時的に
   // 食い違い、別キャラクターの攻撃モーションを表示することがある。IDを正とし、
@@ -1809,11 +2762,14 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
   fromEl.style.setProperty('visibility','hidden','important');
-  _vfxHostParent().appendChild(clone);
+  // 攻撃モーションの複製カードはVFXではないので、背景で切り抜く入れ物へは入れない
+  // （切り抜くと、盤面の端のカードが動いた時に欠ける）。
+  (document.body||document.documentElement).appendChild(clone);
   clone.getBoundingClientRect();
   const stopRatio=Number.isFinite(opt.stopRatio)?opt.stopRatio:1;
   const getCurrentTargetEl=()=>{
-    const side=isEnemySide?'ally':'enemy';
+    // 対象が同じ陣営のこともある（ピクシーで操られた敵）。見つけた側の盤面を使う。
+    const side=targetOnFoeSide?(isEnemySide?'ally':'enemy'):(isEnemySide?'enemy':'ally');
     const current=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,target):null;
     return current||(toEl?.isConnected?toEl:null);
   };
@@ -2233,7 +3189,7 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     return `${g.text}（×${g.count}）`;
   });
   if(strategyPanels.length){
-    const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+    const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
     const baseKeywords=typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):(unit.keywords||[]);
     const keywordNames=new Set([...baseKeywords,...strategyPanels.flatMap(e=>e.panel.adjacentKeywords||[])].map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(k=>k&&!cardNames.has(k)));
     const amount=keywordNames.size*2*strategyPanels.reduce((sum,e)=>sum+(e.panel._tripleMerged?2:1),0);
@@ -2377,7 +3333,7 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
   // 1エントリだけを正とする（両方を残すと_mergeCountedKeywordsで合算され「結界2」等に二重計上される）。
-  const cardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+  const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
   const normalizedKws=[...(unit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())&&!cardNames.has(String(k||'').trim())),...dynamicKws]
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
     .filter(k=>k&&!_isInternalOnlyKeyword(k));
