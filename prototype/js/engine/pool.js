@@ -44,6 +44,45 @@ function _rollPanelDirections(count=2, opts){
   return picks;
 }
 
+// 提示するカードの矢印の向き。**同じ提示の中に、向きの組み合わせが完全に同じカードを2枚以上出さない。**
+// 例）「左＋下」のカードは1枚まで。「左＋下＋右」は向きの数（ポート数）が違うので同時に出てよい。
+// 判定は「向きの集合」で行う（並び順は関係ない）。
+function _panelDirectionKey(dirs){
+  return [...new Set((dirs||[]).map(d=>String(d||'')))].sort().join('|');
+}
+// その本数で作れる向きの組み合わせを全部返す。
+// avoidOpposite＝2本のときは向かい合わせ（上下・左右）を作らない（_rollPanelDirections と同じ規則）。
+function _panelDirectionCombos(count, avoidOpposite){
+  const dirs=['up','right','down','left'];
+  const need=Math.max(1,Math.min(4,Number(count)||1));
+  const out=[];
+  const walk=(start,cur)=>{
+    if(cur.length===need){ out.push(cur.slice()); return; }
+    for(let i=start;i<dirs.length;i++) walk(i+1,cur.concat(dirs[i]));
+  };
+  walk(0,[]);
+  return out.filter(c=>!(avoidOpposite&&need===2
+    &&((c.includes('up')&&c.includes('down'))||(c.includes('left')&&c.includes('right')))));
+}
+// 重複した組み合わせだけを、**同じ本数のまま**別の組み合わせへ振り直す。
+// 空きが無ければそのまま（提示枚数が組み合わせ数を超える場合は重複を許す）。
+function _dedupePanelDirections(cards){
+  const used=new Set();
+  (cards||[]).filter(Boolean).forEach(card=>{
+    const dirs=Array.isArray(card.directions)?card.directions:[];
+    if(!dirs.length) return;
+    const key=_panelDirectionKey(dirs);
+    if(!used.has(key)){ used.add(key); return; }
+    const avoidOpposite=String(card.category||'')==='キャラクター';
+    const free=_panelDirectionCombos(dirs.length,avoidOpposite)
+      .filter(c=>!used.has(_panelDirectionKey(c)));
+    if(!free.length){ used.add(key); return; }
+    card.directions=free[Math.floor(Math.random()*free.length)].slice();
+    used.add(_panelDirectionKey(card.directions));
+  });
+  return cards;
+}
+
 function _isImplementedPoolCard(p){
   return !!(p&&p._implemented!==false&&p._sheetSeen);
 }
@@ -434,5 +473,7 @@ function drawRewards(n){
     const visibleBonus=bonus.filter(Boolean);
     if(visibleBonus.length) res.splice(0,visibleBonus.length,...visibleBonus);
   }
+  // **同じ提示の中で矢印の向きが完全に同じカードを重ねない**（報酬・魔導店とも同じ入口）。
+  _dedupePanelDirections(res);
   return res;
 }

@@ -113,6 +113,7 @@ const Assets = {
     // ダメージイベントの effectNo で引く。登録が無ければ通常の被弾VFXのまま。
     enchantEffectHit: {
       'E058': 'assets/vfx/E058_2.webp', // 炎の矢の着弾
+      'C019': 'assets/vfx/C019_2.webp', // ケンタウロスの着弾
     },
     // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
     // mp4ならcanvasでズーム・回転・再生速度をリアルタイム調整し、WebPならimgでそのまま再生する
