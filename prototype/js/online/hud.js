@@ -83,10 +83,9 @@
       if (lifeEl) {
         const max = (typeof waveLifeMax === 'function') ? waveLifeMax() : 5;
         const life = Math.max(0, Math.min(max, Number(p.life) || 0));
-        const heart = (n, cls, ch) => Array.from({ length: Math.max(0, n) },
-          () => `<span class="battle-life-heart ${cls}">${ch}</span>`).join('');
-        lifeEl.innerHTML = heart(max - life, 'battle-life-heart-empty', '♡')
-          + heart(life, 'battle-life-heart-filled', '♥');
+        // ハートの絵は main.js の lifeHeartHtml() が唯一の実装（life.svg）。
+        lifeEl.innerHTML = Array.from({ length: max },
+          (_, i) => (typeof lifeHeartHtml === 'function' ? lifeHeartHtml(i >= max - life) : '')).join('');
       }
       slot.classList.toggle('is-defeated', p.alive === false);
       slot.classList.toggle('is-next', !!st && st.nextOpponentId === p.id && p.alive !== false);

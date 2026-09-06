@@ -207,8 +207,11 @@ const ONLINE_VERSUS_GOLD = 100;
     m.formationIndex = count;
   }
   // 次に戦う相手（発光させる枠）をサーバーが決める。
-  function _updateNextOpponent(m) {
+  // **編成に入る時に決めて、その相手と戦い終えるまで変えない。**
+  // keepIfAlive は「まだ生きているなら決め直さない」＝対戦マスへ入る時の確認用。
+  function _updateNextOpponent(m, opts) {
     const alive = m.players.filter(p => p && p.alive && !p.self);
+    if (opts && opts.keepIfAlive && alive.some(p => p.id === m.nextOpponentId)) return;
     m.nextOpponentId = alive.length ? alive[m.rng.int(0, alive.length - 1)].id : null;
   }
 
@@ -241,8 +244,13 @@ const ONLINE_VERSUS_GOLD = 100;
     const nextNode = _stageFlow(m.stage)[m.step];
     m.phase = _phaseForNode(nextNode);
     _updateFormationIndex(m);
-    // 対戦相手は編成3回の途中では固定し、対戦マスへ入る時だけ更新する。
-    if (nextNode === 'versus') _updateNextOpponent(m);
+    // **対戦相手は前の対戦が終わった時点で決め、その相手と戦うまで変えない。**
+    // 以前は対戦マスへ入る瞬間に引き直していたため、編成中ずっと
+    // 「次の対戦相手は◯◯」と出していた相手と、実際に戦う相手が食い違っていた。
+    // 対戦マスでは「その相手がまだ生きているか」だけを確かめ、生きていれば決め直さない。
+    // 最初の1人はマッチング成立時（getState）に決まる。
+    if (nextNode === 'versus') _updateNextOpponent(m, { keepIfAlive: true });
+    else if (prevNode === 'versus') _updateNextOpponent(m);
     // 編成→編成は同じ持ち時間の続き。ここで締め切りを引き直すと
     // 1マスごとに90秒与えることになってしまう。
     if (nextNode === 'formation' && prevNode === 'formation' && m.deadlineAt) {

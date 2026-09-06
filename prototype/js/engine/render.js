@@ -156,7 +156,9 @@ function _injectManaIcons(escapedText){
         const icon=c?colorIcon(c):manaIcon();
         return icon.repeat(Math.max(1,parseInt(n,10)||1));
       })
-      .replace(/血(?=が|に|の|は|以上|。|、|$)/g,bloodIcon));
+      // 「血を3得る」のように助詞が続く場合も含めてアイコンにする。
+      // ここに助詞を書き足し忘れると、その言い回しだけ文字のまま残る。
+      .replace(/血(?=[がにのはをへとやも、。]|以上|以下|\d|$)/g,bloodIcon));
   }).join('');
 }
 function _stripStrongMarkupText(text){
@@ -167,10 +169,27 @@ function _stripStrongMarkupText(text){
     .replace(/<\/\s*strong\s*/gi,'')
     .replace(/<\s*strong\s*/gi,'');
 }
+// タイミングのラベル（「開戦：」「死亡：」「4マナ毎：」など）を太字にする。
+// **一覧は持たない。** 文の先頭・句点のあと・「の直後 に現れる「短い語＋：」を対象にする。
+// 一覧を持つと、シートへ新しいトリガを足した時に太字にならない（死亡・解放が抜けていた）。
+// マナのアイコン化より前に呼ぶこと（アイコンにした後だと「毎」だけが残って当たる）。
+function _boldTriggerLabelsInHtml(html){
+  return String(html||'').split(/(<[^>]*>)/g).map(part=>{
+    if(part.startsWith('<')) return part;
+    // 括弧内の注記（「（備考：〜）」）はラベルではないので、括弧を含む語は対象外にする。
+    return part.replace(/(^|[。\n「　])([^\s。、「」（）()：:<>]{1,8})([：:])/g,'$1<strong>$2</strong>$3');
+  }).join('');
+}
 function _boldKeywordsInHtml(html){
-  const variable='毒牙|邪眼|衝撃|結界|封印|弱体|毒';
-  const fixed='復活|根性|二段攻撃|三段攻撃|三方向攻撃|全体攻撃|即死|先制|隠密|加護|貫通|生命吸収';
-  const re=new RegExp(`(${variable})\\d*|(${fixed})`,'g');
+  // **太字にするキーワードの一覧はシート（KW_DESC_MAP）から作る。**
+  // ここに名前を書き並べると、シートへ足したキーワード（防戦・呪詛など）が太字にならない。
+  // 長い名前から先に当てる（「毒牙」を「毒」より先に判定するため）。
+  const names=(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP?Object.keys(KW_DESC_MAP):[])
+    .map(k=>String(k||'').trim()).filter(Boolean)
+    .sort((a,b)=>b.length-a.length)
+    .map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  if(!names.length) return _stripStrongMarkupText(html);
+  const re=new RegExp(`(?:${names.join('|')})\\d*`,'g');
   const normalized=_stripStrongMarkupText(html);
   return normalized.split(/(<[^>]*>)/g).map(part=>{
     if(part.startsWith('<')) return part;
@@ -253,13 +272,15 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   const allKws=[...kws];
   uniqueTextKws.forEach(k=>{ if(!allKws.includes(k)) allKws.push(k); });
   // キーワードの説明も併記する（通常カードのキーワード説明と同じ「名前：説明」形式）。
+  // **説明は種類ごとに1回だけ、変数はXのまま出す**（キーワード欄に数値が出ているため）。
+  const kwDescSeen=new Set();
   const kwDescHtml=allKws.map(k=>{
     const base=k.replace(/\d+$/,'');
+    if(!base||kwDescSeen.has(base)) return '';
+    kwDescSeen.add(base);
     let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||'';
     if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(k)||'';
-    const value=(k.match(/(\d+)$/)||[])[1];
-    if(value) d=String(d||'').replace(/X/g,value);
-    return d?`<strong>${_escapePreviewHtml(k)}</strong>：${_injectManaIcons(_escapePreviewHtml(d))}`:'';
+    return d?`<strong>${_escapePreviewHtml(_keywordDescLabel(base,d))}</strong>：${_injectManaIcons(_escapePreviewHtml(d))}`:'';
   }).filter(Boolean).join('<br>');
   const descText=data.desc?_formatJourneyEffectText(data.desc):'';
   const body=[kwHtml,descText].filter(Boolean).join('<br>');
@@ -283,7 +304,7 @@ function _formatPreviewHtml(desc,opt){
       return _stripStrongMarkupText(m[3]).split(/\s*\/\s*/).map(k=>k.trim()).filter(Boolean)
         .map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ');
     }
-    let body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[3])));
+    let body=_injectManaIcons(_boldTriggerLabelsInHtml(_boldKeywordsInHtml(_escapePreviewHtml(m[3]))));
     // 「Xマナ：」「Xマナ毎：」ラベルはマナ数分のアイコンに変換する（他のタイミングラベルと違い文字列のまま太字にしない）
     if(/^\d+マナ毎?$/.test(m[1])){
       return `<strong>${_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[1])))}</strong>${_escapePreviewHtml(m[2])}${body}`;
@@ -298,6 +319,12 @@ function _formatPreviewHtml(desc,opt){
     body+=part;
   });
   return lines[0]+body;
+}
+// 説明にXを含むキーワードは、名前の末尾にXを付けて出す（例：邪眼X）。
+// 数値そのものはキーワード欄（「邪眼2」）に出ているので、こちらは変数のまま。
+function _keywordDescLabel(base,desc){
+  const name=String(base||'').trim();
+  return /X/.test(String(desc||''))?`${name}X`:name;
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
@@ -314,18 +341,21 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
   const hasManaEffect=Number(card&&card.manaCost)>0||/^\s*\d+マナ(?:毎)?[：:]/m.test(manaEffectText);
   const tooltipKws=[...sourceKws];
   if(hasManaEffect) tooltipKws.push('マナ効果');
-  return tooltipKws.map(k=>String(k||'').trim()).filter(k=>{
-    if(!k||seen.has(k)) return false;
-    seen.add(k); return true;
-  }).filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)).map(k=>{
-    const base=k.replace(/\d+$/,'');
-    let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
-      (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
-    if(!desc&&base==='マナ効果') desc='戦闘中、指定のマナが溜まると一度だけ発動する。（毎の場合は、指定のマナの倍数が溜まるごとに何度でも発動する）';
-    const value=(k.match(/(\d+)$/)||[])[1];
-    if(value) desc=String(desc||'').replace(/X/g,value);
-    return desc?`${k}：${desc}`:'';
-  }).filter(Boolean).join('\n');
+  // **説明は種類ごとに1回だけ、変数はXのまま出す。**
+  // 数値はキーワード欄（「結界1」）に出ているので、ここは一般的な説明でよい。
+  // 以前は「結界1：…1回…」と「結界：…X回…」が並んでいた。
+  return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)
+    .filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k))
+    .map(k=>{
+      const base=k.replace(/\d+$/,'');
+      if(!base||seen.has(base)) return '';
+      seen.add(base);
+      let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
+        (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
+      if(!desc&&base==='マナ効果') desc='戦闘中、指定のマナが溜まると一度だけ発動する。（毎の場合は、指定のマナの倍数が溜まるごとに何度でも発動する）';
+      // 変数を持つキーワードは名前の末尾にXを付ける（例：邪眼X）。
+      return desc?`${_keywordDescLabel(base,desc)}：${desc}`:'';
+    }).filter(Boolean).join('\n');
 }
 function _formatKeywordOnlyHtml(text){
   return String(text||'').split('\n').filter(Boolean).map(line=>{
@@ -1057,7 +1087,7 @@ function _forceStopAllVfx(options){
   const selectors=(preserveDamage?'':'.damage-vfx-host,.damage-label-host,')+
     '.effect-sustain-host,'+
     '.special-vfx-clip,.special-vfx-host,.sweep-vfx-clip,.sweep-vfx-host,'+
-    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,#battle-start-intro'
+    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,.fled-label-host,#battle-start-intro'
   document.querySelectorAll(selectors).forEach(el=>el.remove());
   // **ひと続きのマナ効果も必ず終わらせる。** DOMだけ消しても、
   // 「処理が終わるまで出し続ける」状態が残っていると次の戦闘へ持ち越され、
@@ -1590,6 +1620,14 @@ function playHitVfxAtRect(rect,amount,options){
     const label=document.createElement('div');
     label.className='vfx-damage-label';
     label.textContent=`-${amount}`;
+    // 数値の上に出す小さな見出し（ATKへのダメージ＝武器破壊の「ATK」）。
+    // 何に入ったダメージなのかを、被弾VFXの代わりにここで示す。
+    if(opt.labelNote){
+      const note=document.createElement('span');
+      note.className='vfx-damage-note';
+      note.textContent=String(opt.labelNote);
+      label.appendChild(note);
+    }
     label.style.setProperty('--damage-label-duration',`${labelDuration}ms`);
     // 数値はVFXホストのスタッキングコンテキストから分離し、常に全VFXより前面へ出す。
     labelHost=document.createElement('div');
@@ -1747,31 +1785,84 @@ function playHitVfxOnSlot(slot,amount,options){
   return playHitVfxAtRect(rect,amount,options);
 }
 
-// ATKが0になったキャラクターの逃走表示。カード中央へ「FLED」を1文字ずつ落とし、
-// 文字を消してからカードを暗くフェードアウトさせる（死亡演出は使わない）。
-// カード幅から文字サイズを決めるので、枠からはみ出さない。
+// ATKが0になったキャラクターの逃走表示。
+// **開戦時の登場と同じ形式**（同じVFX・同じSE・同じ緩急）で、逆向きに退場させる。
+// 部品は開戦側（battle.js の _battleOpeningLandingVfx）をそのまま呼ぶ。作り直さない。
+// 死亡演出は使わない（逃走は死亡ではない）。
+// 待ちの理由：**ATKへ入った数値を読ませてから退場を始める。**
+// すぐ動かすと、数値が出た直後にカードが消えて何が起きたのか分からない。
+const PRESENT_FLED_DELAY_MS=380;   // 数値を読ませる間
+const PRESENT_FLED_HOLD_MS=120;    // ふくらんでから動き出すまで
+const PRESENT_FLED_MOVE_MS=420;    // 移動（開戦の登場と同じ緩急・同じ長さ）
+const PRESENT_FLED_FADE_MS=200;    // 動き出したらすぐ消える
+const PRESENT_FLED_MOVE_X=-280;    // 画面座標（3840x2160）での移動量。
+                                   // 開戦の登場で実際に見えている距離と同じくらい。
+                                   // vw は画面の拡縮と連動しないので使わない。
+const PRESENT_FLED_EASING='cubic-bezier(.2,.8,.25,1)';
+const PRESENT_FLED_LETTER_MS=90;   // 「FLED」を1文字ずつ落とす間隔
+const PRESENT_FLED_LABEL_MS=620;   // 文字が落ち切ってから消すまで
 async function playFledVfx(side, unit){
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(!slot) return;
+  // 退場でカードが動く前の位置。「FLED」はここへ出す。
+  const rect=slot.getBoundingClientRect();
+  // 退場中に盤面を詰め直されるとカードのDOMごと作り直され、動きが飛ぶ。
+  // 攻撃モーションと同じ仕組みで、終わるまで詰め・描き直しを保留する。
+  const hold=typeof beginBattleMotion==='function';
+  if(hold) beginBattleMotion();
+  try{
+    await new Promise(r=>setTimeout(r,PRESENT_FLED_DELAY_MS));
+    if(typeof _battleOpeningLandingVfx==='function'){
+      try{ _battleOpeningLandingVfx(slot); }catch(e){ console.error('[fled vfx]',e); }
+    }
+    slot.classList.add('battle-opening-card');
+    slot.style.setProperty('z-index','80','important');
+    slot.style.setProperty('transition','none','important');
+    slot.style.setProperty('transform','translateX(0) scale(1)','important');
+    slot.style.setProperty('opacity','1','important');
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    slot.style.setProperty('transition',
+      `transform ${PRESENT_FLED_MOVE_MS}ms ${PRESENT_FLED_EASING}, opacity ${PRESENT_FLED_FADE_MS}ms ease-out`,'important');
+    slot.style.setProperty('transform','translateX(0) scale(1.12)','important');
+    await new Promise(r=>setTimeout(r,PRESENT_FLED_HOLD_MS));
+    slot.style.setProperty('transform',`translateX(${PRESENT_FLED_MOVE_X}px) scale(.96)`,'important');
+    slot.style.setProperty('opacity','0','important');
+    // **カードが消えるのと同時に「FLED」を出す。**
+    // カードの子にすると一緒に透明になるので、数値と同じく body 直下の入れ物へ出す。
+    // 盤面から独立しているので、カードを外した後もそのまま残る。
+    // **ここで文字の表示を待たないこと。** 待つと、その間カードが盤面に残り、
+    // 呼び出し側が外すまで一度戻ってきたように見える。消すのは時間で予約する。
+    const label=_spawnFledLabel(rect);
+    if(label) window.setTimeout(()=>{ try{ label.remove(); }catch(e){} },
+      PRESENT_FLED_LETTER_MS*4+PRESENT_FLED_LABEL_MS);
+    // 消え切るまで。移動の終わりまでは待たない（既に見えていない）。
+    await new Promise(r=>setTimeout(r,PRESENT_FLED_FADE_MS+60));
+    // **透明のままにしておく。** ここで元へ戻すと、呼び出し側が盤面から外すまでの間
+    // カードがまた現れる。スロットのDOMは次の描き直しで作り直される。
+  } finally {
+    if(hold&&typeof endBattleMotion==='function') endBattleMotion();
+  }
+}
+// 「FLED」の文字。カードが居た場所へ、1文字ずつ落として出す。
+// 文字の大きさはカード幅から決めるので、どの拡大率でも枠と釣り合う。
+function _spawnFledLabel(rect){
+  if(!rect||!(rect.width>0)) return null;
+  const host=document.createElement('div');
+  host.className='fled-label-host';
+  Object.assign(host.style,{left:`${rect.left}px`,top:`${rect.top}px`,
+    width:`${rect.width}px`,height:`${rect.height}px`});
   const label=document.createElement('div');
   label.className='fled-label';
-  const rect=slot.getBoundingClientRect();
-  if(rect.width>0) label.style.fontSize=`${Math.max(12,Math.round(rect.width*0.30))}px`;
-  const letters='FLED'.split('');
-  const stepMs=90;
-  letters.forEach((ch,i)=>{
+  label.style.fontSize=`${Math.max(12,Math.round(rect.width*0.30))}px`;
+  'FLED'.split('').forEach((ch,i)=>{
     const span=document.createElement('span');
     span.textContent=ch;
-    span.style.animationDelay=`${i*stepMs}ms`;
+    span.style.animationDelay=`${i*PRESENT_FLED_LETTER_MS}ms`;
     label.appendChild(span);
   });
-  slot.appendChild(label);
-  // 全文字が落ち切ってから少し見せる。
-  await new Promise(r=>setTimeout(r,letters.length*stepMs+420));
-  // 文字はカードのフェードアウトより前に消す。
-  label.remove();
-  slot.classList.add('fled-unit');
-  await new Promise(r=>setTimeout(r,460));
+  host.appendChild(label);
+  document.body.appendChild(host);
+  return host;
 }
 if(typeof window!=='undefined') window.playFledVfx=playFledVfx;
 
@@ -1792,9 +1883,11 @@ async function playReviveVfx(unit,side){
     const n=Number(typeof window!=='undefined'?window[name]:undefined);
     return Number.isFinite(n)?n:fallback;
   };
-  const fadeIn=num('PRESENT_REVIVE_VFX_FADE_IN_MS',260);
+  const fadeIn=num('PRESENT_REVIVE_VFX_FADE_IN_MS',200);
+  // VFXだけを見せる間。素材の光が一番強くなる時刻に合わせる（present.js）。
+  const holdMs=num('PRESENT_REVIVE_VFX_HOLD_MS',500);
   const cardMs=num('PRESENT_REVIVE_CARD_FADE_MS',320);
-  const fadeOut=num('PRESENT_REVIVE_VFX_FADE_OUT_MS',320);
+  const fadeOut=num('PRESENT_REVIVE_VFX_FADE_OUT_MS',380);
   const sfxKey=typeof getKeywordEffectSfxKey==='function'?getKeywordEffectSfxKey('復活'):'';
   if(sfxKey&&typeof playSfx==='function'){
     playSfx(sfxKey,{group:'magic',guardKey:`revive:${sfxKey}:${Date.now()}`,guardMs:0});
@@ -1809,10 +1902,14 @@ async function playReviveVfx(unit,side){
   };
   const rect=rectOf();
   // 復活したカードは、VFXが出てから重なって現れる。
+  // **消すのはクラスで行うこと。** 盤面のカード（#f-ally/#f-enemy の .slot）には
+  // `opacity:1!important` が掛かっているため、インラインの opacity では消せない。
+  // 以前はインラインで消していたので、カードは最初から出たままで
+  // VFXがその裏に隠れていた（＝復活の演出が出ていないように見えていた）。
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(slot){
-    slot.style.transition='none';
-    slot.style.opacity='0';
+    slot.style.setProperty('transition','none','important');
+    slot.classList.add('revive-hidden');
   }
   // **カードより下に出す。** 層が取れない時だけ従来のVFX層へ落とす。
   const underLayer=_underCardVfxLayer();
@@ -1854,16 +1951,17 @@ async function playReviveVfx(unit,side){
     };
     requestAnimationFrame(follow);
   }
-  await new Promise(resolve=>setTimeout(resolve,fadeIn));
+  // フェードイン＋HOLD の間はVFXだけを見せる（カードはまだ出さない）。
+  await new Promise(resolve=>setTimeout(resolve,fadeIn+holdMs));
   // カードをフェードインさせる（VFXの上に重なって現れる）。
   if(slot){
-    slot.style.transition=`opacity ${cardMs}ms ease-out`;
-    requestAnimationFrame(()=>{ slot.style.opacity='1'; });
+    slot.style.setProperty('transition',`opacity ${cardMs}ms ease-out`,'important');
+    requestAnimationFrame(()=>{ slot.classList.remove('revive-hidden'); });
   }
   await new Promise(resolve=>setTimeout(resolve,cardMs));
   if(slot){
     slot.style.removeProperty('transition');
-    slot.style.removeProperty('opacity');
+    slot.classList.remove('revive-hidden');
   }
   if(host){
     host.style.transition=`opacity ${fadeOut}ms ease-out`;
@@ -2493,12 +2591,31 @@ function updateUnitShieldUi(unit,side){
   if(!unit) return;
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
-  const hasShield=unit.shield>0;
+  const shown=typeof presentShownShield==='function'?presentShownShield(unit):(Number(unit.shield)||0);
+  const hasShield=shown>0;
   slot.classList.toggle('shield-active',hasShield);
   const badge=slot.querySelector('.b-shield');
   if(badge){
-    if(hasShield) badge.textContent=`結界${unit.shield}`;
+    if(hasShield) badge.textContent=`結界${shown}`;
     else badge.remove();
+  } else if(hasShield){
+    // **結界を「得た」時はバッジがまだ無い。** 作り直しを待つと次の攻撃まで出ないため、
+    // ここで足す。並び順は renderField と同じ（守護の次）。
+    let box=slot.querySelector('.slot-badges');
+    if(!box){
+      box=document.createElement('div');
+      box.className='slot-badges';
+      slot.insertBefore(box,slot.firstChild);
+    }
+    const el=document.createElement('span');
+    el.className='slot-badge b-shield';
+    const desc=(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['結界'])||'';
+    if(desc) el.setAttribute('data-kwdesc',desc);
+    el.textContent=`結界${shown}`;
+    const guard=box.querySelector('.b-guard');
+    if(guard&&guard.nextSibling) box.insertBefore(el,guard.nextSibling);
+    else if(guard) box.appendChild(el);
+    else box.insertBefore(el,box.firstChild);
   }
   const portrait=slot.querySelector('.unit-portrait');
   const existingLayer=portrait&&portrait.querySelector('.unit-shield-layer');
@@ -3070,6 +3187,14 @@ const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','復活','
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
+  // **強化カード名のキーワードは、その強化カードの本文（シート）を使う。**
+  // 攻防一体・熟練・大盾などはカードそのものなので、説明はシートの「効果」列が正。
+  // コード側へ文章を書き写さないこと（書き写すとシートを直しても反映されない）。
+  if(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)){
+    const panel=PANEL_POOL.find(p=>p&&String(p.category||'')==='エンチャント'
+      &&String(p.name||'').trim()===s&&String(p.desc||'').trim());
+    if(panel) return String(panel.desc).trim();
+  }
   if(/^加護\d*$/.test(s)){
     const value=Math.max(1,parseInt(s.replace('加護',''),10)||1);
     return `このキャラクターは敵から与えられる状態異常を${value}回無効化する。`;
@@ -3329,7 +3454,15 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
   const dynamicKws=[];
-  if(unit.shield>0) dynamicKws.push(`結界${unit.shield}`);
+  // 結界の数はunit.shield（盤面での合算値）を正とするが、盤面に無いカード
+  // （デバッグ一覧・報酬の提示など）ではshieldが0なので、カード自身のキーワードから拾う。
+  // これが無いと、エルフのようにシートで結界を持つカードの表示が一覧だけ欠ける。
+  const _shieldFromKeywords=(unit.keywords||[]).reduce((n,k)=>{
+    const m=/^結界\s*(\d*)$/.exec(String(k||'').trim());
+    return m?n+Math.max(1,parseInt(m[1]||'1',10)||1):n;
+  },0);
+  const _shieldShown=Math.max(Number(unit.shield)||0,_shieldFromKeywords);
+  if(_shieldShown>0) dynamicKws.push(`結界${_shieldShown}`);
   // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
   // 1エントリだけを正とする（両方を残すと_mergeCountedKeywordsで合算され「結界2」等に二重計上される）。
@@ -3372,12 +3505,15 @@ function _unitPreviewText(unit, desc, slotIdx){
   if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
   // 戦闘実行後に付与された状態異常（毒など）は静的なdesc/keywordsには含まれないため、
   // 現在値をここで都度追記しないとホバー説明文に反映されない
-  if(unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
-  if(unit.shield>0) lines.push(`状態：結界${unit.shield}`);
+  // **「状態」は戦闘中だけ出す。** 編成画面では結界はキーワード欄に出ており、
+  // そこへ更に「状態：結界1」を並べると同じことを二度書くことになる。
+  const _inBattle=typeof G!=='undefined'&&G&&(G.phase==='player'||G.phase==='enemy');
+  if(_inBattle&&unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
+  if(_inBattle&&unit.shield>0) lines.push(`状態：結界${unit.shield}`);
   // descが単純にキーワード名の羅列（例：「先制　シールド」「根性」）で、既にキーワード欄と内容が
   // 重複している場合は二重表示しない
   const descTokens=_stripIconsForMatch(desc).split(/[\s　]+/).filter(Boolean);
-  const descIsRedundant=descTokens.length>0&&descTokens.every(t=>(unit.keywords||[]).some(k=>String(k||'')===t));
+  const descIsRedundant=descTokens.length>0&&descTokens.every(t=>(unit.keywords||[]).includes(t));
   // descはcomputeDesc()経由でマナアイコンが注入済みの場合があるため、data-preview行としては
   // 生の色文字に戻して格納する（ホバー時に_formatPreviewHtmlが改めてアイコン化するため）
   if(desc&&!descIsRedundant) lines.push(_stripIconsForMatch(desc));
@@ -3633,7 +3769,10 @@ function renderField(id,units,isEnemy,_lane){
         const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
         // 標的バッジは非表示（is-front の視覚的シフトで代用）
         if(u.guardian) bs.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
-        if(u.shield>0) bs.push(`<span class="slot-badge b-shield"${_sd('結界')}>結界${u.shield}</span>`);
+        // **結界は表示専用の値で描く**（present.js）。実体を直に描くと、
+        // 結界を割った演出（K018）より先に shield.png と結界バッジが消える。
+        const _shownShield=typeof presentShownShield==='function'?presentShownShield(u):(Number(u.shield)||0);
+        if(_shownShield>0) bs.push(`<span class="slot-badge b-shield"${_sd('結界')}>結界${_shownShield}</span>`);
         if(u.instadead) bs.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
         if(u.poison>0) bs.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${u.poison}</span>`);
         if(u.stealth) bs.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
@@ -3645,7 +3784,7 @@ function renderField(id,units,isEnemy,_lane){
         const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};font-weight:bold;cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
         // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
         // バッジ表示用の擬似キーワードとして合成する
-        const _dynKws=u.shield>0?[`結界${u.shield}`]:[];
+        const _dynKws=_shownShield>0?[`結界${_shownShield}`]:[];
         const _allKws=[...(u.weaken>0?[`弱体${u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
@@ -3681,10 +3820,10 @@ function renderField(id,units,isEnemy,_lane){
         const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
         const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
         slot.style.borderTop='2px solid var(--teal2)';
-        if(u.shield>0) slot.classList.add('shield-active'); else slot.classList.remove('shield-active');
+        if(_shownShield>0) slot.classList.add('shield-active'); else slot.classList.remove('shield-active');
         // .unit-portraitの子として配置することで、attack-motion-clone生成時にportrait用のCSS変数
         // (--new-card-art-left等)がそのまま効き、独立した%指定を並行して持つことによるズレ・変形を防ぐ
-        const shieldLayer=u.shield>0?'<div class="unit-shield-layer"></div>':'';
+        const shieldLayer=_shownShield>0?'<div class="unit-shield-layer"></div>':'';
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
@@ -3731,7 +3870,6 @@ function renderField(id,units,isEnemy,_lane){
           if(src!==i){
             const frontSlots=ENEMY_FRONT_SLOTS||7;
             if((src>=frontSlots)!==(i>=frontSlots)){
-              log('前衛と後衛の間では移動できません','bad');
               window._allySlotDragSrc=null;
               renderAll();
               return;
@@ -3830,7 +3968,6 @@ function renderField(id,units,isEnemy,_lane){
           if(src!==i){
             const frontSlots=ENEMY_FRONT_SLOTS||7;
             if((src>=frontSlots)!==(i>=frontSlots)){
-              log('前衛と後衛の間では移動できません','bad');
               window._allySlotDragSrc=null;
               renderAll();
               return;
@@ -3959,6 +4096,37 @@ function fitCardDescs(){
 // data-preview（ホバー時に_formatPreviewHtmlで改めてアイコン化される）に渡す用途では、
 // 既にアイコン化済みのHTMLを渡すと<img alt="マナ">がアイコン数分「マナ」という文字列に
 // 逆変換されてしまい「2マナ」が「マナマナ」になるバグの原因になるため、必ずこちらを使う。
+// 説明文に出てくる召喚・変身先のキャラクター名へ、そのキャラの
+// キーワードとステータスを添える。
+//   例）「青スケルトン」を召喚し… → 復活を持つ4/1の「青スケルトン」を召喚し…
+// **数値もキーワードもカードの定義（シート）から引く。** 文章へ書き足さないこと。
+function _summonNameAnnotation(name){
+  const wanted=String(name||'').trim();
+  if(!wanted) return '';
+  const defs=[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),
+    ...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])];
+  const def=defs.find(p=>p&&String(p.category||'')!=='エンチャント'
+    &&(String(p.name||'').trim()===wanted
+      ||`${p.color||''}${String(p.name||'').trim()}`===wanted));
+  if(!def) return '';
+  const kws=(def.keywords||[]).map(k=>String(k||'').trim())
+    .filter(k=>k&&!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
+  const atk=Number(def.power!=null?def.power:def.atk);
+  const hp=Number(def.life!=null?def.life:def.hp);
+  const head=kws.length?`${kws.join('・')}を持つ`:'';
+  const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';
+  return `${head}${stat}`;
+}
+// 「〇〇」を召喚／「〇〇」に変身 の直前へ注釈を差し込む。
+// **その並びの時だけ**にする（「「青レムレース」以外の」のような文には付けない）。
+function _annotateSummonNames(desc){
+  // 中身から「も除く。除かないと入れ子（「死亡：「青スケルトン」を召喚する。」）で
+  // 外側を先に掴んでしまい、内側のキャラ名に注釈が付かない（ボーンチャリオット）。
+  return String(desc||'').replace(/「([^「」]{1,24})」(?=(?:を\d*体?召喚|に変身))/g,(m,name)=>{
+    const note=_summonNameAnnotation(name);
+    return note?`${note}${m}`:m;
+  });
+}
 function _rawSubstitutedDesc(card){
   if(!card||card.isEnchant) return card&&card.isEnchant?('契約に「'+card.enchantType+'」を付与する'):'';
   const g=card.grade||1;
@@ -3968,33 +4136,20 @@ function _rawSubstitutedDesc(card){
     desc=_stripOwnNameFromEffectText(desc,ownName);
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
-  if(card._tripleMerged&&!card._tripleDescApplied) desc=_doubleTripleMergedDesc(desc);
-  // 絆の巻物による合体は同じ効果を2回発動するため、表示上の効果量も2倍にする。
-  // マナ閾値そのもの（例：3マナ毎）は変更しない。
-  if(card._merged&&!card._tripleMerged) desc=_doubleTripleMergedDesc(desc);
+  desc=_annotateSummonNames(desc);
+  // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
+  // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。
+  // シートに指定が無いカード（`_mergedFormApplied` が立たない）は、合体しても効果は変わらない。
   return desc;
-}
-function _doubleTripleMergedDesc(desc){
-  return String(desc||'').split('\n').map(line=>{
-    const mana=[];
-    let text=line.replace(/^\s*\d+マナ(?:毎)?[:：]/,m=>{ mana.push(m); return `\u0000${mana.length-1}\u0000`; });
-    const xClause=text.search(/Xは/);
-    let head=xClause>=0?text.slice(0,xClause):text;
-    const tail=xClause>=0?text.slice(xClause):'';
-    head=head.replace(/\d+/g,n=>String(Number(n)*2)).replace(/(?<!\d)X/g,'2X');
-    // 合体後も固定仕様の「4方向ポート」は増やさない。
-    head=head.replace(/8\s*方向/g,'4方向').replace(/8\s*つのポート/g,'4つのポート');
-    head=head.replace(/\u0000(\d+)\u0000/g,(_,i)=>mana[Number(i)]||'');
-    return head+tail;
-  }).join('\n');
 }
 function computeDesc(card,_mlOverride){
   if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   let desc=_rawSubstitutedDesc(card);
-  // タイミングキーワードを太字化（「開戦：」「終戦：」等）
-  desc=desc.replace(/(開戦|終戦|負傷|誘発|攻撃|召喚|常在|常時)：/g,'<strong>$1</strong>：');
   // 説明文中の色名（青・赤・緑・黄）をマナアイコンに置き換える
   desc=_boldKeywordsInHtml(desc);
+  // タイミングのラベルを太字にする。**キーワードの太字より後に行うこと**
+  // （_boldKeywordsInHtml は既存の strong を剥がすため、先に付けても消える）。
+  desc=_boldTriggerLabelsInHtml(desc);
   if(typeof _injectManaIcons==='function') desc=_injectManaIcons(desc);
   desc=desc.replace(/\n/g,'<br>');
   return desc;
@@ -4067,9 +4222,6 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const isPanelCharacter=isPanelCard&&String(card.category||'')==='キャラクター';
   if(isPanelCharacter) div.classList.add('character-card','panel-character-card');
   const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&!isCombatPowerPanel&&card.panelScope!=='global'));
-  const charges=(!isPanelCard&&isActionPanel)?(card.cost>0?card.cost:1):null;
-  const _chargeColorClass=_isWandSub?' wand-sub':'';
-  const chargeLabel=charges!==null?`<div class="card-charge${_chargeColorClass}">${charges}</div>`:'';
   const atkLabel='', hpLabel='';
   const dynDesc=computeDesc(card,_mlOverride);
   const _keywordPreviewCard={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[])]};
@@ -4128,7 +4280,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
-  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${_cardUiName(card)}</div><div class="card-desc">${dynDesc}</div>${enc}${chargeLabel}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${_cardUiName(card)}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}`;
   return div;
 }
 
@@ -4138,6 +4290,9 @@ function renderControls(){
   const dbg=document.getElementById('btn-debug-kill');
   const testBtn=document.getElementById('btn-test-battle');
   const dbgOver=document.getElementById('btn-debug-gameover');
+  // 編成画面のデバッグボタンは4つとも同じ条件で出す（2行2列に並ぶ）。
+  const dbgExtra=['btn-debug-error','btn-debug-map'].map(id=>document.getElementById(id)).filter(Boolean);
+  const setDbgExtra=v=>dbgExtra.forEach(el=>{ el.style.display=v; });
   const debugTestBattle=!!(G._debugMode&&G._testBattleMode&&!G._libraryTestBattleMode);
   // デバッグ撃破ボタンは報酬バー内にあるため、試験戦闘中だけ親を表示して
   // 実際のクリック領域を確保する。通常モード・通常戦闘では親も従来どおり隠す。
@@ -4151,12 +4306,14 @@ function renderControls(){
     if(dbg) dbg.style.display=G._debugMode?'':'none';
     if(testBtn) testBtn.style.display='none';
     if(dbgOver) dbgOver.style.display='none';
+    setDbgExtra('none');
   } else if(G.phase==='reward'){
     // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
     if(dbg) dbg.style.display='none';
     if(dbgOver) dbgOver.style.display=G._debugMode?'':'none';
     if(testBtn) testBtn.style.display=G._debugMode?'':'none';
+    setDbgExtra(G._debugMode?'':'none');
     return;
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
@@ -4165,6 +4322,7 @@ function renderControls(){
     if(dbg) dbg.style.display=G._debugMode&&G._testBattleMode?'':'none';
     if(dbgOver) dbgOver.style.display='none';
     if(testBtn) testBtn.style.display='none';
+    setDbgExtra('none');
   }
   // 戦闘開始ボタンは廃止した。試験戦闘中のみ「戦闘終了」として常時表示する。
   // ただし図書館の試験戦闘は勝敗が付くまで行うため、中断ボタンは出さない。

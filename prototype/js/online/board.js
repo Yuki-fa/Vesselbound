@@ -681,11 +681,6 @@
           // 効果の素材はシートの「VFX/SE」列で引く（PvEと同じ）。
           effectFxCode: no => (no && typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(no) : no),
         });
-        if (shown && ev.effect && typeof log === 'function') {
-          const u = _find(ev.side, ev.unitId);
-          log(`${_effectSourceName(ev, ctx)}の効果で${(u && u.name) || '対象'}に${Number(ev.amount) || 0}ダメージ。`,
-            ev.side === 'p1' ? 'bad' : 'good');
-        }
         break;
       }
       case 'mana_gain': {
@@ -771,9 +766,6 @@
         }
         if (ev.effect === 'keyword_gain' && ev.keyword && !(u.keywords || []).includes(ev.keyword)) {
           u.keywords = [...(u.keywords || []), ev.keyword];
-        }
-        if (ev.sourceId && typeof log === 'function') {
-          log(`${_effectSourceName(ev, ctx)}の効果で${u.name || '対象'}に${ev.keyword || ev.effect}${ev.amount != null ? ` ${ev.amount}` : ''}。`, ev.side === 'p1' ? 'good' : 'bad');
         }
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。状態の反映は上で済ませている。
         // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
@@ -908,6 +900,9 @@
         // 以前はここで再描画するだけで、SEもログも出ていなかった。
         presentShieldLostEvent(ev, {
           findUnit: (side, id) => _find(side, id),
+          // オンラインはイベントの値が唯一の出どころ。残りの結界をここで実体へ写す
+          // （写さないと shield.png と結界バッジが消えなかった）。
+          applyShield: (u, next) => { u.shield = Math.max(0, Number(next) || 0); },
           logLine: u => `${u.name || '対象'}の結界がダメージを防いだ。`,
           render: _render,
         });
@@ -943,6 +938,10 @@
       case 'instant_death':
       case 'curse_death': {
         const u = _find(ev.side, ev.unitId);
+        // 即死の演出は present_events.js が唯一の実装（PvEと同じ）。
+        if (u && ev.type === 'instant_death' && typeof presentInstantDeathEvent === 'function') {
+          presentInstantDeathEvent(ev, { findUnit: (side, id) => _find(side, id) });
+        }
         if (u) { u.hp = 0; _render(); }
         break;
       }
@@ -1111,10 +1110,6 @@
         _render();
         if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx();
         // 勝敗はイベントに書かれた outcome をそのまま出す
-        if (typeof log === 'function') {
-          log(ev.outcome === 'p1' ? '勝利' : (ev.outcome === 'p2' ? '敗北' : '引き分け'),
-            ev.outcome === 'p1' ? 'good' : (ev.outcome === 'p2' ? 'bad' : 'sys'));
-        }
         await _playResultCutin(ev.outcome);
         break;
       default:

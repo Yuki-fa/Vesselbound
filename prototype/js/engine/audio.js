@@ -77,10 +77,11 @@ const SFX_SETTINGS={
     buy1:       {group:'reward', volume: .86},  // 魔導店購入
     buy2:       {group:'reward', volume: .86},  // 道具屋購入
     attack:     {group:'combat', volume: .46, guardMs:80},  // -4.3
-    shield:     {group:'combat', volume: .63, guardMs:80},  // -7.0
+    K018:       {group:'combat', volume: .63, guardMs:80},  // 結界（旧 shield.wav）-7.0
+    K001:       {group:'combat', volume: .63, guardMs:80},  // 即死
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
-    fire:       {group:'magic',  volume: .78, guardMs:90},  // -8.8
-    superMagic: {group:'magic',  volume: .58, guardMs:120}, // -6.2
+    effectDamage:{group:'magic', volume: .78, guardMs:90},  // 効果ダメージ（旧 fire.wav）-8.8
+    C043:       {group:'magic',  volume: .58, guardMs:120}, // アラッサス（旧 super_magic.wav）-6.2
     // 打撃音は 1<2<3 の強度差を残したまま、武器種をまたいだばらつきだけを揃える。
     sword1:     {group:'combat', volume: 1.00, guardMs:40}, // -15.0
     sword2:     {group:'combat', volume: .94, guardMs:40},  // -12.0

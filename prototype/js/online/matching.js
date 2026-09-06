@@ -34,9 +34,8 @@
       if (back) back.onclick = () => {
         if (typeof playSfx === 'function') playSfx('uiConfirm', { group: 'ui', guardKey: 'ui:matching-back' });
         hideOnlineMatching();
-        if (typeof OnlineMatch !== 'undefined' && OnlineMatch) OnlineMatch.reset();
-        if (typeof G !== 'undefined' && G) { G._onlineMode = false; }
-        document.body.classList.remove('online-mode-active');
+        // 後片付けは exitOnlineMode()（online/flow.js）が唯一の実装。
+        if (typeof exitOnlineMode === 'function') exitOnlineMode();
         if (typeof returnToTapStart === 'function') { showScreen('title'); returnToTapStart(); }
       };
     }

@@ -134,6 +134,9 @@ async function presentDamageEvent(ev, api) {
       // 素材はシートの「VFX/SE」列で引く（指定が無ければ効果のカードNo.のまま）。
       effectHitCode: (typeof api.effectFxCode === 'function'
         ? api.effectFxCode(ev.effectNo) : ev.effectNo) || undefined,
+      // ATKへのダメージ（武器破壊）は被弾の絵を出さず、数値の上に小さく「ATK」と出す。
+      // HPは減らないので、被弾VFXを出すと「HPを削った」ように見える。
+      ...(ev.damageTo === 'atk' ? { labelOnly: true, labelNote: 'ATK' } : {}),
     });
   }
   return true;
@@ -168,16 +171,19 @@ function presentShieldLostEvent(ev, api) {
   const unit = api.findUnit(ev.side, ev.unitId);
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
   if (unit) {
-    if (typeof api.logLine === 'function' && typeof log === 'function') {
-      const line = api.logLine(unit);
-      if (line) log(line, 'sys');
-    }
-    if (typeof playSfx === 'function') playSfx('shield', { group: 'combat' });
-    // 結界がダメージを防いだ瞬間の専用VFX（キーワード「結界」＝K018）。
-    // 数値は出ないので amount は0。SEは上の shield を使うので keywordSfx は切る。
+    // 結界がダメージを防いだ瞬間の専用VFXとSE（キーワード「結界」＝K018）。
+    // **絵も音もキーワードの番号で引く。** 数値は出ないので amount は0。
     if (typeof playHitVfx === 'function') {
-      playHitVfx(fxSide, unit, 0, { keywordEffect: '結界', keywordSfx: false });
+      playHitVfx(fxSide, unit, 0, { keywordEffect: '結界' });
     }
+    // **shield.png を消すのはこの瞬間**（結界を割った演出と同じ時刻）。
+    // 残りの結界は**イベントに書かれた値**を使う。コアは手番を先に解決し終えているので、
+    // 実体（unit.shield）はこの先の分まで減っていることがあり、
+    // またオンラインの受け口はイベントでしか実体を更新できない。
+    const nextShield = Number.isFinite(Number(ev.shield))
+      ? Math.max(0, Number(ev.shield)) : Math.max(0, Number(unit.shield) || 0);
+    if (typeof api.applyShield === 'function') api.applyShield(unit, nextShield);
+    if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: nextShield });
     if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
   }
   // 結界のエフェクトを消すため、盤面も描き直す。
@@ -205,10 +211,6 @@ async function presentStatChangeEvent(ev, api) {
   if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
   const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
     ? api.findAnyUnit(ev.sourceId) : null;
-  if (source && typeof api.logLine === 'function' && typeof log === 'function') {
-    const line = api.logLine(target, source);
-    if (line) log(line, ev.side === 'p1' ? 'good' : 'bad');
-  }
   // どの理由で固有VFXを出すかは present.js が唯一の実装。
   if (source && typeof presentStatChangeVfxAllowed === 'function' && presentStatChangeVfxAllowed(ev)
     && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
@@ -256,10 +258,18 @@ function presentKeywordEffectEvent(ev, api) {
   if (!ev || !api) return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit) return false;
+  const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
+  // **結界を得た瞬間に結界の表示（shield.png・結界バッジ）を出す。**
+  // 盤面の描き直しは次の攻撃などまで来ないため、ここで出さないと
+  // 結界を得たのに絵が出ないままになる（スプリガンのマナ効果）。
+  // 表示そのものの実装は render.js の updateUnitShieldUi が唯一の置き場。
+  if (String(ev.effect || '') === 'shield') {
+    if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: unit.shield });
+    if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
+  }
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
   if (typeof getKeywordEffectVfxPath !== 'function' || !getKeywordEffectVfxPath(keyword)) return false;
-  const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
   // **同じキャラクターへ続けて付与される間は出し直さない**（バフVFXと同じ見せ方）。
   // 1つの再生を延ばして出し続ける。実装は render.js が唯一の置き場。
   if (typeof playKeywordEffectVfxSustained === 'function'
@@ -267,6 +277,14 @@ function presentKeywordEffectEvent(ev, api) {
   if (typeof playHitVfx === 'function') playHitVfx(fxSide, unit, 0, { keywordEffect: keyword });
   return true;
 }
+// ── 即死 ────────────────────────────────────
+// 即死効果を受けた瞬間、そのキャラクターの上にキーワード「即死」の演出（K001）を出す。
+// **絵も音もキーワードの番号で引く**（`KW_NO_MAP`）。素材が無ければ何も出さない。
+function presentInstantDeathEvent(ev, api) {
+  if (!ev || !api) return false;
+  return presentKeywordEffectEvent({ side: ev.side, unitId: ev.unitId, keyword: '即死' }, api);
+}
+
 // コアのイベントの `effect` からキーワード名へ。名前はキーワードシートに合わせる。
 const PRESENT_KEYWORD_EFFECT_NAMES = {
   poison: '毒牙', weaken: '衝撃', evil_eye: '邪眼',
@@ -307,10 +325,6 @@ function presentSummonPlacement(ev, api) {
       };
       if (typeof api.place === 'function' && api.place(list, summoned, spec)) layoutChanged = true;
     }
-  }
-  if (ev.sourceId != null && typeof api.logLine === 'function' && typeof log === 'function') {
-    const line = api.logLine(ev.unit);
-    if (line) log(line, ev.side === 'p1' ? 'good' : 'bad');
   }
   const hasDom = typeof api.hasDom === 'function' ? api.hasDom(ev.unit, ev.side) : true;
   if (layoutChanged && typeof api.compact === 'function') api.compact(!hasDom);
@@ -569,10 +583,6 @@ async function presentSealReleaseEvent(ev, api) {
     await playSealReleaseVfx(unit, ev.side === 'p2' ? 'enemy' : 'ally');
   }
   delete unit._sealReady;
-  if (typeof api.logLine === 'function' && typeof log === 'function') {
-    const line = api.logLine(unit);
-    if (line) log(line, 'gold');
-  }
   if (typeof api.compact === 'function') api.compact();
   return true;
 }
@@ -643,6 +653,7 @@ if (typeof window !== 'undefined') {
   window.presentDeathEvent = presentDeathEvent;
   window.presentManaThresholdEvent = presentManaThresholdEvent;
 window.presentEffectFlashEvent = presentEffectFlashEvent;
+  window.presentInstantDeathEvent = presentInstantDeathEvent;
   window.presentQueueEffectFlash = presentQueueEffectFlash;
   window.presentFlushEffectFlashes = presentFlushEffectFlashes;
   window.presentResetEffectFlashes = presentResetEffectFlashes;
@@ -656,7 +667,7 @@ window.presentReviveEvent = presentReviveEvent;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentFledEvent,
-    presentKeywordEffectEvent,
+    presentKeywordEffectEvent, presentInstantDeathEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
     presentEffectFlashEvent, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,

@@ -150,6 +150,7 @@ const Assets = {
     // 通常の被弾VFX（hit.webp）に化け、貫通が毒のVFXを拾っていた。
     // ずれていないかは tools/parity/anim_check.js が検査する。
     keywordEffect: {
+      'K001': 'assets/vfx/K001.webp', // 即死（即死効果を受けた瞬間）
       'K003': 'assets/vfx/K003.webp', // 毒牙（毒のデバフを受けた瞬間）
       'K004': 'assets/vfx/K004.webp', // 衝撃（弱体を付与した瞬間。通常の被弾VFXの代わり）
       'K020': 'assets/vfx/K020.webp', // 復活（再召喚された瞬間）
@@ -238,12 +239,12 @@ const Assets = {
     buy1: 'assets/sfx/buy1.wav',
     buy2: 'assets/sfx/buy2.wav',
     attack: 'assets/sfx/attack.wav',
-    shield: 'assets/sfx/shield.wav',
+
     // 毒のSEはキーワードNo.で引く（毒付与=K003／毒ダメージ=K017）。
     // 旧 poison.wav は廃止。互換のため鍵だけ残し、K003.wav を指す。
     poison: 'assets/sfx/K003.wav',
-    fire: 'assets/sfx/fire.wav',
-    superMagic: 'assets/sfx/super_magic.wav',
+    // カード効果によるダメージの汎用SE（固有SEを持たない効果で鳴らす）。
+    effectDamage: 'assets/sfx/effect_damage.wav',
     sword1: 'assets/sfx/sword1.wav',
     sword2: 'assets/sfx/sword2.wav',
     sword3: 'assets/sfx/sword3.wav',
@@ -276,8 +277,11 @@ const Assets = {
     E058: 'assets/sfx/E058_1.wav', // 炎の矢（発生元）
     E058_HIT: 'assets/sfx/E058_2.wav', // 炎の矢（着弾）
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
+    C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
+    K001: 'assets/sfx/K001.wav', // 即死（即死効果を受けた瞬間）
     K003: 'assets/sfx/K003.wav', // 毒牙（毒のデバフを受けた瞬間）
     K017: 'assets/sfx/K017.wav', // 毒（毒でダメージを受けた瞬間）
+    K018: 'assets/sfx/K018.wav', // 結界（結界がダメージを防いだ瞬間）
     K020: 'assets/sfx/K020.wav', // 復活（再召喚された瞬間）
     victory: 'assets/sfx/victory.wav',
     bossVictory: 'assets/sfx/boss_victory.wav',

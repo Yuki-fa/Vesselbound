@@ -576,11 +576,9 @@ function handlePendingMapItemNode(nodeId){
   if(pending.key==='meteor_scroll'){
     if(['battle','elite','boss'].includes(node.type)){
       node._meteorDebuff=(Number(node._meteorDebuff)||1)*0.5;
-      log('隕石の巻物で敵戦力を半減させた。','gold');
     }else if(node.id!==G.worldMap.current){
       node.type='empty';
       node.cleared=true;
-      log('隕石の巻物でマスを空白にした。','gold');
     }
     _consumePendingMapItemUse();
     renderWorldMap();
@@ -603,7 +601,6 @@ function warpToNearestVillage(){
   target.visited=true;
   _revealAroundCurrentMapNode();
   _consumePendingMapItemUse();
-  log('幻視の巻物で直前の村へワープした。','gold');
   goToWorldMap();
   return true;
 }
@@ -1368,15 +1365,14 @@ function _villageInnUsed(){
 function useVillageInn(){
   const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
     const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
-  if(_villageInnUsed()){ log('この街の宿屋はもう利用できない。','sys'); return; }
-  if(life>=_lifeMax){ log('ライフは満タンだ。','sys'); return; }
-  if((G.gold||0)<500){ log('ゴールドが足りない。','bad'); return; }
+  if(_villageInnUsed()){ ; return; }
+  if(life>=_lifeMax){ ; return; }
+  if((G.gold||0)<500){ ; return; }
   G.gold-=500;
   G._waveLife=life+1;
   G._waveInnUsed=G._waveInnUsed||{};
   G._waveInnUsed[_waveFacilityCacheKey()]=true;
   // 押下時にshop_in.wavを鳴らしているので、ここでは購入音を重ねない。
-  log(`宿屋で休息した。ライフを1回復した（残り${G._waveLife}）。`,'good');
   if(typeof updateHUD==='function') updateHUD();
   renderVillageScreen();
 }
@@ -1438,7 +1434,6 @@ async function _onVillageFacility(fac){
     return;
   }
   // 広場（クエスト受託相当）・酒場・踊り場は表示のみ。SEも鳴らさない。
-  log(`${fac.name}は未実装です。`,'sys');
 }
 // ══════════════════════════════════════════════════════════
 // ワールドマップ画面（出発時に数秒だけ表示してから戦闘へ移行する）
@@ -1557,7 +1552,7 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
   if(lifeEl){
     const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
     const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
-    lifeEl.innerHTML=`${Array.from({length:Math.max(0,_lifeMax-life)},()=>'<span class="battle-life-heart battle-life-heart-empty">♡</span>').join('')}${Array.from({length:life},()=>'<span class="battle-life-heart battle-life-heart-filled">♥</span>').join('')}`;
+    lifeEl.innerHTML=Array.from({length:_lifeMax},(_,i)=>lifeHeartHtml(i>=_lifeMax-life)).join('');
   }
   const host=document.getElementById('map-lines');
   if(!host) return;
@@ -1815,7 +1810,7 @@ function renderVillageScreen(){
   if(lifeEl){
     const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
     const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
-    lifeEl.innerHTML=`${Array.from({length:Math.max(0,_lifeMax-life)},()=>'<span class="battle-life-heart battle-life-heart-empty">♡</span>').join('')}${Array.from({length:life},()=>'<span class="battle-life-heart battle-life-heart-filled">♥</span>').join('')}`;
+    lifeEl.innerHTML=Array.from({length:_lifeMax},(_,i)=>lifeHeartHtml(i>=_lifeMax-life)).join('');
   }
   const host=document.getElementById('village-facilities');
   if(host){
@@ -2395,7 +2390,7 @@ function openMapItemShop(){
     _rewCards=clone(G._waveItemShopStock[waveKey]);
   }else{
     const items=(typeof drawItems==='function'?drawItems(3):[]).filter(Boolean);
-    items.forEach(it=>{ it._buyPrice=_itemShopBuyPrice(it); });
+    items.forEach(it=>{ it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it)); });
     _rewCards=items;
     if(waveKey!=null){ G._waveItemShopStock=G._waveItemShopStock||{}; G._waveItemShopStock[waveKey]=clone(_rewCards); }
   }
@@ -2415,6 +2410,14 @@ function openMapItemShop(){
 function _openWaveAltarMenu(){
   openMapVillage({tower:true});
 }
+// 目利きの指輪：常時：魔導店と道具屋の商品が半額になる。
+// **売値には効かない**（半額になるのは商品＝購入価格だけ）。
+function _shopBuyPriceWithRings(price){
+  const base=Math.max(0,Number(price)||0);
+  const rings=typeof _ringCount==='function'?Math.max(0,Number(_ringCount('目利きの指輪'))||0):0;
+  if(!rings||!base) return base;
+  return Math.max(1,Math.floor(base/Math.pow(2,Math.min(4,rings))));
+}
 function _mapSalePrice(card){
   const r=Math.max(1,Math.min(5,Number(card&&card.rarity)||1));
   return ({1:80,2:160,3:320,4:560,5:800})[r]||80;
@@ -2429,7 +2432,7 @@ function _mapPickSaleCard(pred, used){
   consumePanelSaleStock(def);
   used.add(def.id);
   const card=makePanel(def.id);
-  if(card) card._buyPrice=_mapSalePrice(card);
+  if(card) card._buyPrice=_shopBuyPriceWithRings(_mapSalePrice(card));
   return card;
 }
 function openMapShop(){

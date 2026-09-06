@@ -112,13 +112,19 @@ function audit() {
     const p1 = invoke(card, 'p1', trigger, enemies); const p2 = invoke(card, 'p2', trigger, enemies);
     const effectEvents = p1.events.filter(e => !['battle_start', 'turn_begin', 'battle_end'].includes(e.type));
     const damage = effectEvents.filter(e => e.type === 'damage' && Number(e.amount) > 0);
-    const expectedTargets = /全ての敵(?:キャラクター)?に\d+ダメージ|全てのキャラクターに\d+ダメージ/.test(card.desc) ? 3
+    // 「接続しているエンチャントの数だけ繰り返す」（フィーンド）は、何も接続していない
+    // 検査盤面では0回が正しい。対象数の期待値を置かない。
+    const repeatsByConnection = /接続しているエンチャントの(?:2倍の)?数だけ繰り返す/.test(String(card.desc || ''));
+    const expectedTargets = repeatsByConnection ? null
+      : /全ての敵(?:キャラクター)?に\d+ダメージ|全てのキャラクターに\d+ダメージ/.test(card.desc) ? 3
       : /ランダムな敵に\d+ダメージ/.test(card.desc) ? 1 : null;
     const targetOk = expectedTargets == null || damage.length >= expectedTargets;
     const p2Count = p2.events.filter(e => !['battle_start', 'turn_begin', 'battle_end'].includes(e.type)).length;
     // 条件付きカード（全色・生存者・生贄など）と、攻撃時に数値変化を起こさない
     // 受動修正は、最小シナリオでイベント0でも「未発動」ではなく検査対象外とする。
-    const conditional = new Set(['タイタン', 'ケンタウロス', 'ハイドラ', 'インキュバス', 'サキュバス', 'ウェンディゴ', 'アビス・バロン', '扇動', '武器破壊', '大盾', 'ペガサス', 'ヘルナイト',
+    // フィーンドは「接続しているエンチャントの数だけ繰り返す」なので、
+    // 何も接続していない検査盤面では発動0回が正しい。
+    const conditional = new Set(['タイタン', 'ケンタウロス', 'ハイドラ', 'インキュバス', 'サキュバス', 'ウェンディゴ', 'アビス・バロン', '扇動', '武器破壊', '大盾', 'ペガサス', 'ヘルナイト', 'フィーンド',
       // レイス＝味方の負傷効果を発動（負傷効果持ちの味方が必要）、レムレース＝発動条件が盤面依存。
       // 最小シナリオでは条件を満たせないため検査対象外（幻影効果の修正で誤OKが解消され顕在化した）。
       'レイス', 'レムレース']);
@@ -650,7 +656,9 @@ function audit() {
   const shieldState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
     sides: {p1: {units: [
-      {id: 'carb', name: 'カーバンクル', atk: 5, hp: 3, maxHp: 3},
+      // 本文で判定する（カード名では判定しない）。敵は2体なので命中も2件。
+      {id: 'carb', name: 'カーバンクル', atk: 5, hp: 3, maxHp: 3,
+        desc: '常時：味方が結界を失うたび、ランダムな敵3体に1ダメージを与える。'},
       {id: 'ally', name: '味方', atk: 1, hp: 3, maxHp: 3, shield: 1},
     ]}, p2: {units: [
       {id: 'foe1', name: '敵1', atk: 1, hp: 5, maxHp: 5},
@@ -1129,9 +1137,27 @@ function audit() {
     const s = core.createBattleState({ sides: { p1: { units: [dead, rear] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪' }], p2: [] } });
     const es = [];
     s.units.p1[0].hp = 0;
+    // **死亡の直後には発動しない**（同時に倒れた仲間が復活する場面があるため）。
     core.coreApplyDeathObservers(s.units.p1[0], s, createSeededRng(129), e => es.push(e), () => {});
-    recordDirect('不死の指輪3体召喚', es.filter(e => e.type === 'summon').length === 3
-      && es.filter(e => e.type === 'ring_effect' && e.amount === 3).length === 1, `召喚=${es.filter(e => e.type === 'summon').length}`);
+    const firedOnDeath = es.filter(e => e.type === 'summon').length;
+    // 手番の解決が終わってから判定する。
+    core.coreCheckUndyingRing(s, e => es.push(e));
+    recordDirect('不死の指輪3体召喚', firedOnDeath === 0 && es.filter(e => e.type === 'summon').length === 3
+      && es.filter(e => e.type === 'ring_effect' && e.amount === 3).length === 1,
+      `死亡直後=${firedOnDeath} 手番終わり=${es.filter(e => e.type === 'summon').length}`);
+  }
+  {
+    // 一時的に前衛がいなくなっても、復活などで前衛が戻れば発動しない。
+    const dead = { id: 'ring2-dead', name: '犠牲', atk: 1, hp: 0, maxHp: 4, lane: 'front', keywords: [], desc: '' };
+    const foe = { id: 'ring2-foe', name: '敵', atk: 1, hp: 5, maxHp: 5, keywords: [], desc: '' };
+    const s = core.createBattleState({ sides: { p1: { units: [dead] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪' }], p2: [] } });
+    const es = [];
+    s.units.p1[0].hp = 0;
+    core.coreApplyDeathObservers(s.units.p1[0], s, createSeededRng(131), e => es.push(e), () => {});
+    s.units.p1[0].hp = 2;   // 復活・根性・復活の指輪で前衛が戻った
+    core.coreCheckUndyingRing(s, e => es.push(e));
+    recordDirect('不死の指輪は一時的な全滅で発動しない', es.filter(e => e.type === 'summon').length === 0
+      && !s._undyingRingFired, `召喚=${es.filter(e => e.type === 'summon').length}`);
   }
   console.log('カード\tトリガ\t効果イベント数\tダメージ対象数\t理由\t判定'); rows.forEach(r => console.log(r));
   console.log(`デュラハン回帰\t味方死亡=${allyDeath.length}\t敵死亡=${enemyDeath.length}\t${dullahanOk ? 'OK' : 'NG'}`);
@@ -1153,7 +1179,7 @@ function audit() {
   console.log(`変身表示回帰\tname=${transformTarget.name}\tno=${transformTarget.no}\t${transformOk ? 'OK' : 'NG'}`);
   console.log(`マナ閾値遅延回帰\tdeferred=${!!deferredGain?.deferredAppliedByThreshold}\t復元=${deferredState.resources.p1.mana}\t${deferredOk ? 'OK' : 'NG'}`);
   console.log(`マナ連鎖回帰\t非遅延=${chainPlain.fires}回 ${chainPlain.a} ${chainPlain.b} mana=${chainPlain.mana}\t遅延=${chainDefer.fires}回 ${chainDefer.a} ${chainDefer.b} mana=${chainDefer.mana}\t${chainOk ? 'OK' : 'NG'}`);
-  console.log(`個別修正回帰\t${directResults.slice(-4).join('\t')}`);
+  console.log(`個別修正回帰\t${directResults.slice(-5).join('\t')}`);
   // ── 未監査だったキーワードの回帰（実機報告から追加）──────────────
   // 二段／三段攻撃・熟練・攻防一体・屍術・マナの種は、これまで監査に無かった。
   // 屍術（名前と効果文の二重発動）とマナの種（効果の種類によって反復しない）が

@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vesselbound</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0d0f14;--bg2:#141720;--bg3:#1c2030;
@@ -15,7 +14,7 @@
   --purple:#6a3a9a;--purple2:#9060c0;
   --text:#d8dce8;--text2:#9098b0;
   --border:rgba(100,110,140,0.25);--border2:rgba(180,190,220,0.15);
-  --font-hd:'Cinzel',serif;--font-bd:'Noto Sans JP',sans-serif;
+  --font-hd:'Cinzel',serif;--font-bd:'Shippori Mincho',serif;
   --game-w:3840px;--game-h:2160px;--game-scale:1;--game-offset-x:0px;--game-offset-y:0px;
   --unit-card-w:348.57px;--unit-card-h:468.6px;--unit-frame-w:305.2px;--unit-hate-frame-w:348.57px;--unit-field-gap:24px;--item-card-w:374px;--item-card-h:564px;
 }
@@ -103,7 +102,10 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   position:relative!important;
   z-index:3!important;
   font-family:'Shippori Mincho',var(--font-hd),serif!important;
-  font-size:clamp(132px,9vw,250px)!important;
+  /* **画面座標（3840x2160）での絶対値。** vw はビューポート基準で、
+     戦闘画面の拡大縮小（--game-scale）と連動しないため、窓の大きさで崩れる。
+     値は以前の clamp(...,9vw,...) が幅1920pxの窓で示していた大きさに合わせてある。 */
+  font-size:173px!important;
   font-weight:700!important;
   letter-spacing:.18em!important;
   white-space:nowrap!important;
@@ -120,7 +122,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   z-index:3!important;
   margin-top:18px!important;
   font-family:'Shippori Mincho',var(--font-hd),serif!important;
-  font-size:clamp(40px,2.5vw,70px)!important;
+  font-size:48px!important;
   letter-spacing:.12em!important;
   color:#f1d996!important;
   text-shadow:0 5px 7px #160d03,0 0 20px rgba(255,212,106,.62)!important;
@@ -128,8 +130,8 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .battle-start-icon{
   position:relative!important;
   z-index:2!important;
-  width:clamp(250px,18vw,470px)!important;
-  height:clamp(250px,18vw,470px)!important;
+  width:346px!important;
+  height:346px!important;
   object-fit:contain!important;
   margin-bottom:-120px!important;
   filter:drop-shadow(0 8px 8px rgba(12,5,0,.95)) drop-shadow(0 0 26px rgba(255,210,96,.78));
@@ -138,14 +140,14 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .battle-start-line{
   position:absolute!important;
   z-index:2!important;
-  width:clamp(420px,30vw,980px)!important;
+  width:576px!important;
   height:auto!important;
   top:54%!important;
   opacity:.92!important;
   filter:drop-shadow(0 0 8px rgba(255,215,110,.5));
 }
-.battle-start-line-left{right:calc(50% + clamp(310px,20vw,650px))!important;transform:translateY(-50%)!important}
-.battle-start-line-right{left:calc(50% + clamp(310px,20vw,650px))!important;transform:translateY(-50%) scaleX(-1)!important}
+.battle-start-line-left{right:calc(50% + 384px)!important;transform:translateY(-50%)!important}
+.battle-start-line-right{left:calc(50% + 384px)!important;transform:translateY(-50%) scaleX(-1)!important}
 @keyframes battle-start-in{from{opacity:0}to{opacity:1}}
 @keyframes battle-start-out{from{opacity:1}to{opacity:0}}
 @keyframes battle-start-title-in{from{opacity:0;transform:scale(1.08)}to{opacity:1;transform:scale(1)}}
@@ -262,7 +264,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-menu-input-locked #title-menu *{pointer-events:none!important}
 #scr-title.startup-title:not(.startup-menu-visible) button{cursor:default!important}
 #scr-title.startup-menu-visible #title-menu{opacity:1}
-.title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .08s ease;pointer-events:auto}
+.title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .08s ease;pointer-events:auto}
 #scr-title.startup-menu-visible .title-menu-item{opacity:.82;transform:translateY(0)}
 #scr-title.startup-menu-visible .title-menu-item:nth-of-type(1){transition-delay:.1s}
 #scr-title.startup-menu-visible .title-menu-item:nth-of-type(2){transition-delay:.23s}
@@ -281,7 +283,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 @keyframes title-start-glow{0%,100%{filter:brightness(1) drop-shadow(0 0 14px rgba(255,211,104,.75))}50%{filter:brightness(1.75) drop-shadow(0 0 34px rgba(255,224,135,1))}}
 .title-menu-label{position:relative;z-index:1;line-height:128px}
 #scr-title.startup-title #title-select-back{left:300px;top:12px;transform:none;margin:0;opacity:1}
-#scr-title .title-copyright{top:2050px;width:100%;font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif;font-size:28px;letter-spacing:.08em;color:rgba(245,236,218,.82);text-align:center;white-space:nowrap;transition:opacity .6s ease 1.05s}
+#scr-title .title-copyright{top:2050px;width:100%;font-family:'Shippori Mincho',serif;font-size:28px;letter-spacing:.08em;color:rgba(245,236,218,.82);text-align:center;white-space:nowrap;transition:opacity .6s ease 1.05s}
 #scr-title.startup-title-visible .title-copyright{opacity:1}
 
 /* BUTTONS */
@@ -404,22 +406,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .b-counter{background:rgba(200,80,80,.2);color:#e07070;border:1px solid #c04040}
 .kw-badges{position:absolute;bottom:3px;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
 .b-shield{background:rgba(100,160,220,.2);color:var(--blue2);border:1px solid var(--blue)}
-
-/* LOG */
-#log-wrap{position:relative;flex-shrink:0}
-#log-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:6px 110px 6px 10px;height:80px;overflow-y:auto;font-size:.7rem;line-height:1.5;display:none}
-#log-wrap #btn-pass{position:absolute;top:50%;right:24px;transform:translateY(-50%)}
-#log-box p{margin:0;color:var(--text2)}
-#log-box p.em{color:var(--text)}
-#log-box p.good{color:var(--teal2)}
-#log-box p.bad{color:var(--red2)}
-#log-box p.gold{color:var(--gold2)}
-#log-box p.sys{color:var(--blue2)}
-.log-nm-ally{color:#5fe0e0!important}
-.log-nm-enemy{color:#ff6fb0!important}
-.log-fx-line .log-nm-ally{color:#5fe0e0!important}
-.log-fx-line .log-nm-enemy{color:#ff6fb0!important}
-#log-box p.log-scene-break{height:0.9em;margin:0}
+#btn-pass{position:absolute;top:50%;right:24px;transform:translateY(-50%)}
 
 /* HAND AREA — 2 panes */
 .hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
@@ -438,8 +425,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .card.ring,.card.wand,.card.wand-sub,.card.consumable{border-top:0}
 .card-grade{position:absolute;top:1.8%;left:50%;transform:translateX(-50%);font-size:.82rem;color:var(--gold);font-weight:700;z-index:4;pointer-events:none}
 .card-badge{position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1}
-.card-charge{font-size:.6rem;color:var(--blue);padding:1px 0;margin-top:3px;text-align:center}
-.card-charge.wand-sub{color:var(--blue2)}
 .card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
 .card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;font-size:.62rem;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
 .card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue)}.card-tp.wand-sub{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
@@ -772,6 +757,19 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   animation:damage-label-animation var(--damage-label-duration,850ms) ease-out forwards;
   pointer-events:none;
 }
+/* 数値の上に出す小さな見出し（ATKへのダメージ＝武器破壊の「ATK」）。
+   色・縁取りは数値からそのまま受け継ぐ。 */
+.vfx-damage-label .vfx-damage-note{
+  position:absolute;
+  left:50%;
+  bottom:100%;
+  transform:translateX(-50%);
+  margin-bottom:.06em;
+  font-size:.4em;
+  font-weight:900;
+  letter-spacing:.1em;
+  line-height:1;
+}
 .card-use-glow{box-shadow:0 0 0 1px var(--gold2),0 0 22px rgba(240,208,128,.65)!important}
 @keyframes hit-vfx-animation{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}
@@ -911,8 +909,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .slot-badges{top:7px;right:7px;gap:3px}
 .slot-badge{font-size:.62rem;padding:2px 7px;border-radius:4px}
 .kw-badges{bottom:8px;gap:3px;padding:0 6px}
-#log-box{height:160px;padding:14px 260px 14px 18px;font-size:.78rem;line-height:1.45;border-radius:8px}
-#log-wrap #btn-pass{right:48px}
+#btn-pass{right:48px}
 .hand-area{gap:10px;padding:8px 0}
 .hand-row1{gap:18px!important}
 .hand-pane{gap:8px}
@@ -924,7 +921,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .card-name{font-size:.86rem;line-height:1.14}
 .card-desc{font-size:.66rem;line-height:1.23}
 .card-tp{font-size:.66rem}
-.card-charge{font-size:.66rem}
 .discard-btn,.return-btn{bottom:10px;left:10px;right:10px;font-size:.66rem;padding:3px 6px;border-radius:5px}
 .bctl{max-width:3000px;padding:12px 32px;gap:14px}
 .ph-badge{font-size:.74rem}
@@ -988,31 +984,17 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)
 }
 .hint{display:none}
-#log-wrap{
-  position:absolute;left:72px;top:920px;width:610px;height:640px;z-index:10;
-  border:3px solid rgba(201,168,76,.54);border-radius:14px;background:rgba(10,12,16,.86);
-  box-shadow:0 0 28px rgba(0,0,0,.55),inset 0 0 28px rgba(201,168,76,.08);padding:104px 26px 28px
-}
-#log-wrap::before{
-  content:'戦闘ログ';position:absolute;left:110px;right:110px;top:20px;text-align:center;
-  font-family:var(--font-hd);font-weight:700;font-size:.9rem;letter-spacing:.08em;color:#111;
-  padding:12px 0;border-radius:8px;background:linear-gradient(180deg,#d9b968,#8c6226);box-shadow:0 3px 10px rgba(0,0,0,.45)
-}
-#log-box{
-  width:100%;height:100%;padding:18px;font-size:.72rem;line-height:1.62;border:0;border-radius:8px;
-  background:rgba(14,17,20,.7)
-}
-#log-wrap #btn-pass{
+#btn-pass{
   position:fixed;left:3240px;top:1570px;width:360px;height:360px;border-radius:50%;z-index:22;
   display:grid;place-items:center;padding:0 44px 8px;border:0;background:var(--turn-button-image) center/contain no-repeat;
   font-family:var(--font-hd);font-size:1.45rem;font-weight:700;line-height:1.18;letter-spacing:.06em;color:var(--gold2);
   text-shadow:0 3px 8px rgba(0,0,0,.95),0 0 12px rgba(201,168,76,.55);
   box-shadow:none
 }
-#log-wrap #btn-pass:hover:not(:disabled),#log-wrap #btn-pass:focus-visible{
+#btn-pass:hover:not(:disabled),#btn-pass:focus-visible{
   background-image:var(--turn-button-flow-image)
 }
-#log-wrap #btn-pass:active:not(:disabled){
+#btn-pass:active:not(:disabled){
   transform:translateY(2px)
 }
 #enemy-hand-area{
@@ -1287,28 +1269,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
   paint-order:stroke fill;
   text-shadow:0 2px 4px rgba(0,0,0,.75);
 }
-.card .card-charge{
-  position:absolute;
-  left:14%;
-  right:14%;
-  bottom:7.8%;
-  z-index:9;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:24px;
-  padding:3px 8px;
-  border:2px solid rgba(80,144,208,.78);
-  border-radius:5px;
-  background:rgba(8,18,34,.82);
-  font-family:var(--font-bd);
-  font-weight:700;
-  color:#d9eeff!important;
-  -webkit-text-stroke:1px #685033;
-  paint-order:stroke fill;
-  text-shadow:0 2px 4px rgba(0,0,0,.75);
-}
-.slot.unit-card.selectable,
+.card .slot.unit-card.selectable,
 .slot.unit-card.drag-over{
   outline:none!important;
   border:0!important;
@@ -1452,30 +1413,12 @@ html body .slot.dragging{
   top:18px!important;
   font-size:1.45rem!important;
 }
-#hand-slots .card .card-charge{
-  color:#e8f6ff!important;
-  border-color:rgba(150,210,255,.9);
-  background:rgba(10,31,58,.9);
-}
-#battle-options-btn{
+#hand-slots .card #battle-options-btn{
   border:0!important;
   background:var(--option-button-image) center/contain no-repeat!important;
   color:transparent!important;
   font-size:0!important;
   box-shadow:none!important;
-}
-#log-wrap{
-  background:var(--log-panel-image) center/100% 100% no-repeat!important;
-  border:0!important;
-  border-radius:0!important;
-  box-shadow:none!important;
-  padding:128px 48px 52px!important;
-}
-#log-wrap::before{display:none!important}
-#log-box{
-  background:transparent!important;
-  border:0!important;
-  padding:18px 22px!important;
 }
 #ally-section{
   top:1168px!important;
@@ -1603,40 +1546,6 @@ html body .slot.dragging{
   text-shadow:none!important;
   paint-order:normal!important;
 }
-#log-wrap{
-  padding:126px 62px 58px!important;
-}
-#log-wrap::before{
-  display:block!important;
-  content:'戦闘ログ';
-  position:absolute;
-  left:132px;
-  right:132px;
-  top:41px;
-  z-index:2;
-  text-align:center;
-  font-family:var(--font-hd)!important;
-  font-weight:800;
-  font-size:1.02rem;
-  letter-spacing:.08em;
-  color:#111!important;
-  background:transparent!important;
-  box-shadow:none!important;
-  padding:0!important;
-}
-#log-box{
-  color:#111!important;
-  font-size:.9rem!important;
-  line-height:1.3!important;
-}
-#log-box p,
-#log-box p.em,
-#log-box p.good,
-#log-box p.bad,
-#log-box p.gold,
-#log-box p.sys{
-  color:#111!important;
-}
 .slot.unit-card .unit-portrait{
   top:10.2%!important;
   height:58.5%!important;
@@ -1661,13 +1570,6 @@ html body .slot.dragging{
 }
 #hand-slots .card:hover:not(.inert){
   transform:translateY(-92px)!important;
-}
-#log-wrap::before{
-  top:54px!important;
-  font-weight:900!important;
-}
-#log-box p.log-heading{
-  font-weight:900!important;
 }
 .card,
 .rew-card,
@@ -1733,20 +1635,7 @@ html body .slot.dragging{
   content:''!important;
   display:block!important;
 }
-#log-wrap::before,
-#log-box{
-  font-family:var(--font-hd)!important;
-  font-size:1.56rem!important;
-  font-weight:700!important;
-}
-#log-box{
-  line-height:1.12!important;
-}
-#log-box p.log-heading{
-  text-align:center!important;
-  font-weight:900!important;
-}
-#log-wrap #btn-pass:active:not(:disabled){
+#btn-pass:active:not(:disabled){
   transform:none!important;
   opacity:.35!important;
   transition:opacity .16s ease!important;
@@ -1756,17 +1645,6 @@ html body .slot.dragging{
   height:68%!important;
   background-size:cover!important;
   background-position:center center!important;
-}
-#log-wrap::before{
-  top:48px!important;
-}
-#log-box{
-  padding-top:42px!important;
-  font-family:var(--font-bd)!important;
-}
-#log-box p.log-heading{
-  text-align:center!important;
-  font-family:var(--font-bd)!important;
 }
 #hand-slots .card .card-name,
 .card .card-name,
@@ -1806,19 +1684,6 @@ html body .slot.dragging{
   height:70.5%!important;
   background-size:cover!important;
   background-position:center center!important;
-}
-#log-box{
-  font-family:var(--font-bd)!important;
-  font-size:.9rem!important;
-  font-weight:700!important;
-  line-height:1.2!important;
-}
-#log-box p.log-heading{
-  margin-top:.7em!important;
-  text-align:center!important;
-}
-#log-box p.log-heading:first-child{
-  margin-top:0!important;
 }
 
 /* World map復元：既存画面上に最小表示 */
@@ -1935,9 +1800,6 @@ html body .slot.dragging{
 .map-node.type-boss.boss-visible.is-moveable{
   filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
 }
-body.world-map-active #log-wrap{
-  display:none!important;
-}
 body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-floor),
 body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-gold){
   display:none!important;
@@ -2006,23 +1868,8 @@ body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
 }
 .map-village-card,
 .map-forge-card,
-.map-tavern-card{
-  width:300px;
-  height:420px;
-  padding:34px 24px;
-  border:2px solid var(--gold);
-  background:rgba(22,14,8,.86);
-  color:var(--gold2);
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:22px;
-  text-align:center;
-  font-family:var(--font-bd);
-  cursor:pointer;
-}
-.map-village-card strong,.map-forge-card strong,.map-tavern-card strong{font-family:var(--font-hd);font-size:34px}
-.map-village-card span,.map-forge-card span,.map-tavern-card span{font-size:22px;line-height:1.45;color:#e5cfac}
+.map-village-card strong,.map-forge-card strong{font-family:var(--font-hd);font-size:34px}
+.map-village-card span,.map-forge-card span{font-size:22px;line-height:1.45;color:#e5cfac}
 .map-forge-card em{font-size:26px;font-style:normal;color:var(--teal2)}
 .map-forge-card.selected{box-shadow:0 0 0 4px var(--teal2),0 0 24px rgba(64,176,144,.6)}
 .map-forge-card:disabled{opacity:.38;cursor:default}
@@ -2131,20 +1978,16 @@ body.reward-screen-active #hand-pane .deploy-slot .equip-slot-label small,
 body.reward-screen-active #hand-pane .equip-empty .equip-slot-label small{
   font-size:22px;
 }
-body.world-map-active #log-box{
-  display:block!important;
-  height:100%!important;
-}
 body.world-map-active #map-inventory-toggle{
   display:none!important;
 }
 body.world-map-active #map-inventory-panel{
   z-index:31!important;
 }
-#log-wrap #btn-pass,
-#log-wrap #btn-pass:hover:not(:disabled),
-#log-wrap #btn-pass:focus-visible,
-#log-wrap #btn-pass:active:not(:disabled),
+#btn-pass,
+#btn-pass:hover:not(:disabled),
+#btn-pass:focus-visible,
+#btn-pass:active:not(:disabled),
 #btn-pass:active:not(:disabled){
   top:900px!important;
   transform:none!important;
@@ -2289,9 +2132,6 @@ body.world-map-active .bottom-hud .bhud-item{
   background-size:cover!important;
   background-position:center center!important;
 }
-#log-box{
-  padding-top:56px!important;
-}
 .slot.unit-card.will-die::before,
 .slot.unit-card.will-warn-high::before,
 .slot.unit-card.will-warn-mid::before,
@@ -2371,7 +2211,7 @@ body.world-map-active .bottom-hud .bhud-item{
   color:#3e210d!important;
 }
 #btn-pass:active:not(:disabled),
-#log-wrap #btn-pass:active:not(:disabled){
+#btn-pass:active:not(:disabled){
   transform:none!important;
   translate:none!important;
   opacity:.35!important;
@@ -2476,10 +2316,10 @@ body.world-map-active .bottom-hud .bhud-item{
   margin-left:calc(10% + 5px)!important;
   margin-right:calc(10% + 5px)!important;
 }
-#log-wrap #btn-pass,
-#log-wrap #btn-pass:hover:not(:disabled),
-#log-wrap #btn-pass:focus-visible,
-#log-wrap #btn-pass:active:not(:disabled),
+#btn-pass,
+#btn-pass:hover:not(:disabled),
+#btn-pass:focus-visible,
+#btn-pass:active:not(:disabled),
 #btn-pass:active:not(:disabled){
   left:3112px!important;
   top:900px!important;
@@ -2489,18 +2329,9 @@ body.world-map-active .bottom-hud .bhud-item{
   translate:0 0!important;
   margin:0!important;
 }
-#log-wrap #btn-pass:active:not(:disabled),
+#btn-pass:active:not(:disabled),
 #btn-pass:active:not(:disabled){
   opacity:.35!important;
-}
-#log-box{
-  padding-top:42px!important;
-  overflow-y:auto!important;
-  scroll-behavior:auto!important;
-}
-#log-box p.log-heading{
-  margin-top:.75em!important;
-  margin-bottom:.18em!important;
 }
 #reward-cards-section{
   left:50%!important;
@@ -2529,11 +2360,7 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #hand-slots .card .card-tp,
 #ring-slots .card .card-tp,
-#hand-slots .card .card-charge,
-#ring-slots .card .card-charge{
-  font-size:.66rem!important;
-}
-#rw-cards .rew-card .rew-card-name{
+#ring-slots .card #rw-cards .rew-card .rew-card-name{
   font-size:.82rem!important;
   line-height:1.08!important;
 }
@@ -2546,10 +2373,6 @@ body.world-map-active .bottom-hud .bhud-item{
 #rw-cards .rew-grade,
 #rw-cards .rew-merge{
   font-size:.66rem!important;
-}
-body:not(.world-map-active) #log-wrap{
-  top:auto!important;
-  bottom:62px!important;
 }
 #hand-slots .card:hover:not(.inert),
 #ring-slots .card:hover:not(.inert),
@@ -2577,35 +2400,10 @@ body:not(.world-map-active) #log-wrap{
 .slot.unit-card .unit-portrait{
   height:76.5%!important;
 }
-#log-box{
-  padding-top:34px!important;
-  overflow:hidden!important;
-}
-#log-box p:first-child{
-  margin-top:0!important;
-}
-#log-box p.log-heading:first-child{
-  margin-top:0!important;
-}
 
 /* 画像位置・ログ追従・粒子の自然化 */
 .slot.unit-card .unit-portrait{
   background-position:var(--unit-art-position,center 58%)!important;
-}
-#log-box{
-  padding-top:22px!important;
-  padding-bottom:28px!important;
-  overflow-y:auto!important;
-}
-#log-box p{
-  margin:0!important;
-}
-#log-box p.log-heading{
-  margin-top:.52em!important;
-  margin-bottom:.12em!important;
-}
-#log-box p.log-heading:first-child{
-  margin-top:0!important;
 }
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before{
@@ -2799,33 +2597,7 @@ body:not(.world-map-active) #log-wrap{
   transform:none!important;
   translate:0 0!important;
 }
-#hand-slots .card .card-charge,
-#ring-slots .card .card-charge,
-#enemy-hand-slots .card .card-charge,
-#rw-cards .card .card-charge{
-  position:absolute!important;
-  left:12%!important;
-  right:auto!important;
-  top:3.5%!important;
-  bottom:auto!important;
-  z-index:10!important;
-  display:block!important;
-  min-height:0!important;
-  padding:0!important;
-  border:0!important;
-  background:transparent!important;
-  font-family:var(--font-hd)!important;
-  font-size:2.55rem!important;
-  line-height:1!important;
-  font-weight:700!important;
-  width:64px!important;
-  text-align:center!important;
-  color:#e8ffe0!important;
-  -webkit-text-stroke:2px #050507!important;
-  paint-order:stroke fill!important;
-  text-shadow:0 3px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.9)!important;
-}
-#rw-cards .card-badge{
+#rw-cards .card #rw-cards .card-badge{
   display:none!important;
 }
 #rw-cards .card.treasure,
@@ -2917,7 +2689,7 @@ body:not(.world-map-active) #log-wrap{
   z-index:80!important;
   pointer-events:none!important;
   width:1200px!important;
-  max-width:90vw!important;
+  max-width:3456px!important;   /* 画面幅3840の90%。vwはゲーム画面の縮尺と連動しない */
   transform:translateX(-50%)!important;
   align-items:center!important;
   justify-content:center!important;
@@ -2960,7 +2732,7 @@ body.victory-reward-active #scr-battle.asset-backed::after,
 body.victory-reward-active #victory-overlay .btn{
   display:none!important;
 }
-#log-wrap #btn-pass{
+#btn-pass{
   right:12px!important;
 }
 .return-btn,
@@ -3327,35 +3099,7 @@ body .card.drag-ghost .card-grade{
   top:8px!important;
   font-size:1.52rem!important;
 }
-body #hand-slots .card .card-charge,
-body #ring-slots .card .card-charge,
-body #enemy-hand-slots .card .card-charge,
-body #map-inventory-slots .card .card-charge,
-body #rw-cards .card .card-charge,
-body .card.drag-ghost .card-charge{
-  position:absolute!important;
-  left:5%!important;
-  right:auto!important;
-  top:3.5%!important;
-  bottom:auto!important;
-  z-index:10!important;
-  display:block!important;
-  min-height:0!important;
-  padding:0!important;
-  border:0!important;
-  background:transparent!important;
-  font-family:var(--font-hd)!important;
-  font-size:2.55rem!important;
-  line-height:1!important;
-  font-weight:700!important;
-  width:64px!important;
-  text-align:center!important;
-  color:#e8ffe0!important;
-  -webkit-text-stroke:2px #050507!important;
-  paint-order:stroke fill!important;
-  text-shadow:0 3px 5px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.9)!important;
-}
-body #hand-slots .card .card-name,
+body .card.drag-ghost body #hand-slots .card .card-name,
 body #ring-slots .card .card-name,
 body #enemy-hand-slots .card .card-name,
 body #map-inventory-slots .card .card-name,
@@ -3649,11 +3393,9 @@ body.card-targeting-active #scr-battle.asset-backed .battle-area::after{
   z-index:1!important;
   pointer-events:none!important;
   background:rgba(0,0,0,.36)!important;
-}
-body.card-targeting-active #scr-battle.asset-backed #enemy-area,
+}body.card-targeting-active #scr-battle.asset-backed #enemy-area,
 body.card-targeting-active #scr-battle.asset-backed #ally-section,
 body.card-targeting-active #scr-battle.asset-backed .hand-area,
-body.card-targeting-active #scr-battle.asset-backed #log-wrap,
 body.card-targeting-active #scr-battle.asset-backed #reward-cards-section{
   z-index:12!important;
 }
@@ -3736,11 +3478,9 @@ body.reward-panel-placement #rw-cards .card:not(.pending-placement),
 body.reward-panel-placement #rw-cards .card-empty{
   filter:brightness(.42) grayscale(.25)!important;
   pointer-events:none!important;
-}
-body.reward-panel-placement #reward-move-btns,
+}body.reward-panel-placement #reward-move-btns,
 body.reward-panel-placement #rw-reroll,
-body.reward-panel-placement .bctl-wrap,
-body.reward-panel-placement #log-wrap{
+body.reward-panel-placement .bctl-wrap{
   pointer-events:none!important;
 }
 body #f-ally .slot.unit-card,
@@ -4108,7 +3848,7 @@ body #h-life{
   letter-spacing:.08em!important;
   text-shadow:0 2px 6px rgba(0,0,0,.85)!important;
 }
-body #log-wrap #btn-pass{
+body #btn-pass{
   left:auto!important;
   right:72px!important;
   top:auto!important;
@@ -4381,10 +4121,10 @@ body #f-enemy .slot.empty{
   background:rgba(0,0,0,.06)!important;
   box-shadow:none!important;
 }
-body #log-wrap #btn-pass,
-body #log-wrap #btn-pass:hover:not(:disabled),
-body #log-wrap #btn-pass:focus-visible,
-body #log-wrap #btn-pass:active:not(:disabled),
+body #btn-pass,
+body #btn-pass:hover:not(:disabled),
+body #btn-pass:focus-visible,
+body #btn-pass:active:not(:disabled),
 body #btn-pass:hover:not(:disabled),
 body #btn-pass:focus-visible,
 body #btn-pass:active:not(:disabled){
@@ -4406,13 +4146,10 @@ body.reward-screen-active #btn-pass{
   visibility:hidden!important;
   pointer-events:none!important;
 }
-body.reward-screen-active #log-wrap #btn-pass{
+body.reward-screen-active #btn-pass{
   display:none!important;
   visibility:hidden!important;
   pointer-events:none!important;
-}
-body.reward-screen-active #log-wrap{
-  display:none!important;
 }
 body #scr-battle .bottom-hud,
 body.reward-screen-active #scr-battle .bottom-hud{
@@ -4516,10 +4253,10 @@ body:not(.reward-screen-active) #hand-pane{
 body:not(.reward-screen-active) #hand-slots{
   align-content:start!important;
 }
-body #log-wrap #btn-pass,
-body #log-wrap #btn-pass:hover:not(:disabled),
-body #log-wrap #btn-pass:focus-visible,
-body #log-wrap #btn-pass:active:not(:disabled){
+body #btn-pass,
+body #btn-pass:hover:not(:disabled),
+body #btn-pass:focus-visible,
+body #btn-pass:active:not(:disabled){
   left:3300px!important;
   top:1660px!important;
   z-index:250!important;
@@ -4789,19 +4526,6 @@ body #f-enemy .slot{
   border:0!important;
   background:transparent!important;
   box-shadow:none!important;
-}
-body #log-wrap{
-  width:420px!important;
-  height:560px!important;
-  left:72px!important;
-  bottom:88px!important;
-  top:auto!important;
-  transform:none!important;
-}
-body #log-box{
-  padding:80px 42px 44px!important;
-  font-size:.68rem!important;
-  line-height:1.28!important;
 }
 body.reward-screen-active #enemy-hand-area,
 body.reward-screen-active #enemy-hand-slots.facility-slots,
@@ -5085,20 +4809,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
 body #hand-slots.unit-equip-slots::before{
   left:-16px!important;
 }
-/* 2026-06-29 stable reward/battle HUD and log */
-body #log-wrap{
-  width:520px!important;
-  height:620px!important;
-  left:72px!important;
-  bottom:62px!important;
-  top:auto!important;
-  transform:none!important;
-}
-body #log-box{
-  padding:88px 48px 50px!important;
-  font-size:.86rem!important;
-  line-height:1.38!important;
-}
 body #scr-battle > .bottom-hud,
 body.reward-screen-active #scr-battle > .bottom-hud{
   left:auto!important;
@@ -5181,11 +4891,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important;
   outline:0!important;
 }
-body #log-box,
-body #log-box p{
-  font-size:28px!important;
-  line-height:1.42!important;
-}
 body.reward-screen-active #reward-info-bar .ri-soul:first-child,
 body:not(.reward-screen-active) #reward-info-bar .ri-soul:first-child{
   top:7px!important;
@@ -5201,13 +4906,6 @@ body #scr-battle.asset-backed > .bottom-hud .bhud-item:has(#h-floor) #h-floor,
 body.reward-screen-active #scr-battle > .bottom-hud .bhud-item:has(#h-floor) #h-floor{
   font-size:1.22rem!important;
   line-height:1!important;
-}
-body #log-wrap{
-  width:620px!important;
-}
-body #log-box{
-  padding-left:56px!important;
-  padding-right:56px!important;
 }
 body.reward-screen-active #ally-section{
   top:calc(2160px - 62px - var(--unit-card-h))!important;
@@ -5369,15 +5067,6 @@ body #hand-slots.unit-equip-slots > .reward-unit-anchor{
   min-width:var(--unit-card-w)!important;
   max-width:var(--unit-card-w)!important;
   height:var(--unit-card-h)!important;
-}
-#log-wrap{
-  width:620px!important;
-  height:580px!important;
-}
-#log{
-  padding-left:46px!important;
-  padding-right:46px!important;
-  font-size:1.08rem!important;
 }
 #kw-tooltip .preview-title{
   display:block;
@@ -5792,20 +5481,6 @@ html body .rew-card .card-summon-hp{
   -webkit-text-stroke:2px #050507!important;
   paint-order:stroke fill!important;
 }
-html body .rew-card .card-charge,
-html body #rw-cards .card .card-charge{
-  display:none!important;
-}
-html body #log-box,
-html body #log-wrap::before{
-  display:none!important;
-}
-html body #log-wrap{
-  background:none!important;
-  border:none!important;
-  box-shadow:none!important;
-  padding:0!important;
-}
 html body .slot.unit-card .risk-particles,
 html body .slot.unit-card::before,
 html body .slot.unit-card::after,
@@ -5866,15 +5541,20 @@ html body #rw-cards.drag-over{
    戦闘の途中で編成画面へ入ると、盤面の状態（コアと表示の対応）が壊れる。
    開戦演出中も同じ扱いにする。 */
 body.battle-turn-active #battle-formation-btn,
-body.battle-turn-active #battle-debug-map-btn,
 #scr-battle.battle-opening-pending #battle-formation-btn,
-#scr-battle.battle-opening-pending #battle-debug-map-btn,
 #scr-battle.battle-opening-active #battle-formation-btn,
-#scr-battle.battle-opening-active #battle-debug-map-btn,
-#scr-battle.battle-start-playing #battle-formation-btn,
-#scr-battle.battle-start-playing #battle-debug-map-btn{
+#scr-battle.battle-start-playing #battle-formation-btn{
   display:none!important;
   pointer-events:none!important;
+}
+/* 復活（K020）の演出中だけカードを消す。
+   #f-ally/#f-enemy の .slot は `opacity:1!important` を持つため、
+   JS側のインライン opacity では消せない（VFXがカードの裏に隠れていた）。
+   フェードで見せる演出なので、motion-hidden と違い visibility も transition も切らない。 */
+html body #f-ally .slot.revive-hidden,
+html body #f-enemy .slot.revive-hidden,
+html body .slot.revive-hidden{
+  opacity:0!important;
 }
 html body #f-ally .slot.motion-hidden,
 html body #f-enemy .slot.motion-hidden,
@@ -5954,7 +5634,6 @@ html body .drag-ghost .card-summon-hp{
   width:var(--drag-hp-w)!important;
   text-align:center!important;
 }
-html body .drag-ghost .card-charge,
 html body .drag-ghost .card-badge{
   display:none!important;
 }
@@ -6793,19 +6472,6 @@ html body #battle-order-row .card.panel-character-card.shield-active .card-art::
   from{opacity:.58}
   to{opacity:.88}
 }
-/* 戦闘中（player/enemyフェイズ）はログ表示を完全に隠す。#log-box自体は既に非表示だが、
-   #log-wrapの枠（背景・枠線・box-shadow）と見出し（::before「戦闘ログ」）は別要素のため
-   個別に消す必要がある。#btn-pass（戦闘実行ボタン）は#log-wrapの子だが独自のposition:fixedで
-   配置されているため、#log-wrap自体はdisplay:noneにせずここでは見た目だけを消す。 */
-body.battle-turn-active #log-wrap{
-  border:0!important;
-  background:none!important;
-  box-shadow:none!important;
-}
-body.battle-turn-active #log-wrap::before{
-  content:none!important;
-  display:none!important;
-}
 /* 2026-07-16: メイン置き場を右2列カットし、5列×3行で中央固定 */
 html body.reward-screen-active #hand-pane,
 html body #hand-pane:has(#hand-slots.unit-equip-slots){
@@ -6826,10 +6492,21 @@ html body.reward-screen-active #hand-slots.unit-equip-slots{
   gap:var(--field-gap)!important;
 }
 
+/* ── フォントは全て assets/font/ のファイルから読む ────────────────
+   **外部（Google Fonts）からは読み込まない。** 通信が無い環境でも同じ見た目にするため。
+   Cinzel は可変フォント（1ファイルで太さ100〜900をまかなう）。
+   和文は Shippori Mincho（--font-hd＝Cinzel／--font-bd＝Shippori Mincho）。 */
+@font-face{
+  font-family:"Cinzel";
+  src:url("assets/font/Cinzel-VariableFont_wght.ttf") format("truetype");
+  font-weight:100 900;
+  font-style:normal;
+  font-display:swap;
+}
 /* 2026-07-16 production reward UI */
 @font-face{
   font-family:"Shippori Mincho";
-  src:url("assets/font/ShipporiMincho-SemiBold.ttf") format("truetype");
+  src:url("assets/font/ShipporiMincho-Medium.ttf") format("truetype");
   font-weight:600;
   font-style:normal;
   font-display:swap;
@@ -6861,7 +6538,7 @@ html body:not(.reward-screen-active){
 }
 html body.reward-screen-active,
 html body.reward-screen-active *{
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
 }
 /* ── 画面に属さないオーバーレイの書体を固定する ─────────────────────
    上の `html body.reward-screen-active *` は body 直下のオーバーレイ（ツールチップ等）にも
@@ -6872,7 +6549,7 @@ html body #kw-tooltip, html body #kw-tooltip *,
 html body #map-power-tooltip, html body #map-power-tooltip *,
 html body #keyword-tooltip, html body #keyword-tooltip *,
 html body #treasure-modal, html body #treasure-modal *{
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
 }
 /* マナHUD・勝利オーバーレイは戦闘画面の表示物なので、戦闘時の書体（本文フォント）で固定する。
    勝利オーバーレイの見出しは Cinzel など個別指定があるため、子孫までは上書きしない。 */
@@ -6907,13 +6584,11 @@ html body.reward-screen-active #scr-battle.asset-backed::before,
 html body.reward-screen-active #scr-battle.asset-backed::after{
   content:none!important;
   display:none!important;
-}
-html body.reward-screen-active #reward-bg-video,
+}html body.reward-screen-active #reward-bg-video,
 html body.reward-screen-active #enemy-area,
 html body.reward-screen-active #reward-cards-section,
 html body.reward-screen-active #ally-section,
 html body.reward-screen-active #enemy-hand-area,
-html body.reward-screen-active #log-wrap,
 html body.reward-screen-active #scr-battle > .bottom-hud,
 html body.reward-screen-active .bctl-wrap,
 html body.reward-screen-active #hand-pane > .hand-pane-label,
@@ -7376,7 +7051,7 @@ html body.reward-screen-active.ring-offer-phase #battle-order-section::after{
   right:0;
   top:170px;
   text-align:center;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+  font-family:"Shippori Mincho",serif;
   font-size:30px;
   letter-spacing:.06em;
   color:#8b7c67;
@@ -7413,7 +7088,7 @@ html body.reward-screen-active.treasure-offer-phase #battle-order-section::after
   right:0;
   top:170px;
   text-align:center;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+  font-family:"Shippori Mincho",serif;
   font-size:30px;
   letter-spacing:.06em;
   color:#8b7c67;
@@ -7590,7 +7265,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-head{
   margin:0 0 14px;
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-title{
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+  font-family:"Shippori Mincho",serif;
   color:#c49a6c;
   font-size:30px;
   line-height:1;
@@ -8089,15 +7764,6 @@ html body:not(.reward-screen-active) #enemy-area{
 html body:not(.reward-screen-active) #ally-section{
   top:1100px!important;
 }
-html body #log-box,
-html body #log-box *,
-html body .log-fx-line,
-html body .log-fx-line *{
-  display:none!important;
-  opacity:0!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
-}
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section,
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section *,
 html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #battle-order-section::before,
@@ -8128,12 +7794,6 @@ html body.reward-screen-active #hand-pane > .line{
   background:none!important;
   border:0!important;
   box-shadow:none!important;
-}
-html body #log-wrap{
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
 }
 html body #btn-pass{
   pointer-events:auto!important;
@@ -8187,7 +7847,7 @@ html body.reward-screen-active #hand-pane::before{
   background:none!important;
   border:0!important;
   color:#c49a6c!important;
-  font-family:var(--font-jp), serif!important;
+  font-family:'Shippori Mincho',serif!important;
   font-size:var(--prod-panel-title-size)!important;
   line-height:1!important;
   font-weight:700!important;
@@ -8374,15 +8034,6 @@ html body:not(.reward-screen-active) #enemy-area{
 html body:not(.reward-screen-active) #ally-section{
   top:1050px!important;
 }
-html body:not(.reward-screen-active) #log-box,
-html body:not(.reward-screen-active) #log-box *,
-html body:not(.reward-screen-active) #log-wrap p,
-html body:not(.reward-screen-active) .log-fx-line,
-html body:not(.reward-screen-active) .log-fx-line *{
-  display:none!important;
-  opacity:0!important;
-  visibility:hidden!important;
-}
 
 /* 2026-07-17: 報酬画面 本番左カラムUI */
 html body.reward-screen-active .reward-prod-panel,
@@ -8442,7 +8093,7 @@ html body.reward-screen-active .reward-prod-quest-body{
   left:88px!important;
   right:72px!important;
   top:118px!important;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   font-size:30px!important;
   line-height:1.65!important;
 }
@@ -8473,7 +8124,7 @@ html body.reward-screen-active .reward-prod-tile{
   width:491.8px!important;
   height:100px!important;
   background:url("assets/ui/counter.svg?v=back50") center/100% 100% no-repeat!important;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
 }
 html body.reward-screen-active .reward-prod-money{
   left:0!important;
@@ -8542,7 +8193,7 @@ html body.reward-screen-active .reward-prod-turn h2{
   text-align:left!important;
   white-space:nowrap!important;
 }
-/* ライフ表示（♥♥♥/♡）：フォントサイズ・Y軸は所持金額と同じ、右端はキャンバス座標X=1039px
+/* ライフ表示（/♡）：フォントサイズ・Y軸は所持金額と同じ、右端はキャンバス座標X=1039px
    （タイル原点598.2pxを引いたローカル座標440.8pxをwidthに指定しtext-align:rightで揃える） */
 html body.reward-screen-active .reward-prod-turn strong{
   position:absolute!important;
@@ -8588,7 +8239,7 @@ html body:not(.reward-screen-active) #reward-production-ui .reward-prod-tile{
   width:491.8px!important;
   height:100px!important;
   background:url("assets/ui/counter.svg?v=back50") center/100% 100% no-repeat!important;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   pointer-events:auto!important;
 }
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-money{
@@ -8714,7 +8365,7 @@ html body.reward-screen-active .reward-prod-wave-countdown{
   justify-content:center!important;
   gap:16px!important;
   color:#fff!important;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
   pointer-events:none!important;
   z-index:3!important;
@@ -9294,7 +8945,7 @@ html body.reward-screen-active #journey-progress-ui{
   position:absolute!important;
   inset:106px 74px 28px!important;
   color:#8b7c67;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+  font-family:"Shippori Mincho",serif;
 }
 .journey-scene-track,.journey-node-track{
   position:absolute;
@@ -9382,8 +9033,6 @@ html body.reward-screen-active #journey-progress-ui{
   0%,100%{filter:drop-shadow(0 0 2px rgba(131,11,160,.65));}
   50%{filter:drop-shadow(0 0 9px rgba(131,11,160,1));}
 }
-html body .life-empty{color:#c99049!important;}
-html body .life-full{color:#c49a6c!important;}
 /* 旅の進捗枠内に残り戦闘数を表示するため、旧右側カウントダウンは使わない。 */
 html body.reward-screen-active .reward-prod-wave-countdown{
   display:none!important;
@@ -10228,11 +9877,11 @@ html body.reward-screen-active .shop-board-sell-btn{
 }
 .battle-counter{position:relative;width:250px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg?v=back50");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-counter-bg{display:none}
-.battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;font-size:46px;font-weight:700;color:#f0d28b;text-shadow:0 3px 7px #080300}
+.battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Shippori Mincho",serif;font-size:46px;font-weight:700;color:#f0d28b;text-shadow:0 3px 7px #080300}
 .battle-counter-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(112,206,255,.7))}
 #battle-sacrifice-value{min-width:48px;text-align:left}
 #battle-status-hud{position:absolute!important;left:70px!important;bottom:70px!important;z-index:3200!important;display:none;gap:36.4px;align-items:center;pointer-events:none!important}
-.battle-status-counter{position:relative;width:491.8px;height:100px;display:flex;align-items:center;justify-content:center;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;color:#c49a6c;text-shadow:0 3px 7px #080300}
+.battle-status-counter{position:relative;width:491.8px;height:100px;display:flex;align-items:center;justify-content:center;font-family:"Shippori Mincho",serif;color:#c49a6c;text-shadow:0 3px 7px #080300}
 .battle-status-counter>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-status-label{position:absolute;left:50px;top:35px;z-index:1;font-size:30px;font-weight:700;line-height:1;white-space:nowrap}
 .battle-status-counter strong{position:absolute;left:0;top:27px;width:440px;z-index:1;font-size:46px;font-weight:800;line-height:1;text-align:right;white-space:nowrap}
@@ -10243,9 +9892,11 @@ html body #battle-status-hud .battle-status-counter,
 html body #village-status .battle-status-counter,
 html body #map-status .battle-status-counter,
 html body #battle-counters .battle-counter{pointer-events:auto!important}
-.battle-life-heart{display:inline-block;width:1.05em;text-align:center;font-style:normal}
-.battle-life-heart-empty{color:#c99049}
-.battle-life-heart-filled{color:#c99049}
+/* ライフのハートは assets/ui/life.svg。輪郭（life2）は常に出し、
+   減った枠は中身（life1）だけを隠す。色は文字色をそのまま使う。 */
+.battle-life-heart{position:relative;display:inline-block;width:1.05em;height:1em;margin:0 .085em;vertical-align:-.08em;color:#c49a6c;font-style:normal}
+.battle-life-heart .life-heart-icon{position:absolute;left:0;top:0;width:100%;height:100%;fill:currentColor}
+.battle-life-heart-empty .life-heart-fill{display:none}
 body:not(.reward-screen-active) #scr-battle>.bottom-hud,
 body:not(.reward-screen-active) #scr-battle #reward-info-bar{display:none!important;visibility:hidden!important}
 body #scr-battle .bottom-hud .bhud-item:has(#h-floor),
@@ -10281,27 +9932,31 @@ html body #scr-battle #battle-options-btn{
   width:110px!important;height:102px!important;
   background:url("assets/ui/option.svg") center/42px 42px no-repeat!important;
 }
-.life-lost-cutin{animation:life-lost-cutin .62s ease-out forwards!important}
+/* ライフを失う演出は**中身（life1）だけ**を消す。枠（輪郭）は残す。 */
+.life-lost-cutin .life-heart-fill{display:block!important;animation:life-lost-cutin .62s ease-out forwards!important}
 @keyframes life-lost-cutin{0%{opacity:1;filter:none;transform:scale(1)}45%{opacity:.2;filter:drop-shadow(0 0 18px rgba(255,80,50,.9));transform:scale(1.1)}100%{opacity:0;filter:none;transform:scale(.82)} }
 
+/* **ここも画面座標の絶対値にする。** 結果カットインで実際に効くのはこの3つで、
+   vw のままだと窓の大きさを変えるたびに紋章・直線だけが文字とずれた。
+   値は以前の clamp が幅1920pxの窓で示していた大きさ（80vw=1536／31vw=595）。 */
 #battle-start-intro .battle-start-line{
-  left:50%!important;right:auto!important;top:56%!important;width:clamp(1100px,80vw,2800px)!important;
+  left:50%!important;right:auto!important;top:56%!important;width:1536px!important;
   transform:translate(-50%,-50%)!important;opacity:.9!important;z-index:1!important;
 }
 #battle-start-intro .battle-start-icon{
-  width:clamp(430px,31vw,900px)!important;height:clamp(430px,31vw,900px)!important;
+  width:595px!important;height:595px!important;
   margin-bottom:-255px!important;z-index:2!important;
   filter:drop-shadow(0 12px 11px rgba(8,3,0,.96)) drop-shadow(0 0 34px rgba(255,210,96,.82))!important;
 }
 #battle-start-intro .battle-start-icon-wrap{
   position:relative!important;display:block!important;flex:0 0 auto!important;
-  width:clamp(430px,31vw,900px)!important;height:clamp(430px,31vw,900px)!important;
+  width:595px!important;height:595px!important;
   margin-bottom:-255px!important;z-index:2!important;
 }
 #battle-start-intro .battle-start-icon-wrap .battle-start-icon{
   width:100%!important;height:100%!important;margin:0!important;
 }
-#battle-start-intro .battle-start-title{z-index:3!important;letter-spacing:.08em!important;filter:drop-shadow(0 6px 7px rgba(15,5,0,.88)) drop-shadow(0 0 18px rgba(255,214,104,.42))!important;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important}
+#battle-start-intro .battle-start-title{z-index:3!important;letter-spacing:.08em!important;filter:drop-shadow(0 6px 7px rgba(15,5,0,.88)) drop-shadow(0 0 18px rgba(255,214,104,.42))!important;font-family:"Shippori Mincho",serif!important}
 #battle-start-intro.battle-start-normal .battle-start-title,
 #battle-start-intro.battle-start-normal .battle-start-icon{filter:drop-shadow(0 4px 5px rgba(14,7,2,.72)) drop-shadow(0 0 12px rgba(255,214,104,.28))!important}
 #battle-start-intro.cutin-victory .battle-start-title{
@@ -10333,7 +9988,7 @@ html body #scr-battle #battle-options-btn{
 #battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
 /* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
 #battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/back_light.svg") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
-#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#f3d58f;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:pointer}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#f3d58f;font-family:"Shippori Mincho",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:pointer}
 #battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
 #battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
 #battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
@@ -11008,7 +10663,7 @@ html body.test-battle-active #scr-battle.active #btn-pass{
   padding:0!important;
   background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
   border:0!important;
-  /* ベースの#log-wrap #btn-pass{border-radius:50%}（丸いダイヤル型ボタン用）が
+  /* ベースの#btn-pass{border-radius:50%}（丸いダイヤル型ボタン用）が
      残ったままだと、横長のbutton_purple.svgが楕円にクリップされ形が崩れる。 */
   border-radius:0!important;
   /* 試験戦闘ボタンと同じ「ボタン輪郭そのもの」のホバー発光を出すための土台。 */
@@ -11473,6 +11128,80 @@ html body.game-clear-active #gameover-retry-btn,
 html body.game-clear-active #gameover-back-btn{display:none!important}
 html body.game-clear-active #gameover-actions{justify-content:center!important}
 html body.gameover-ui-pending #scr-gameover.gameover-overlay-active{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+
+/* ══════════════════════════════════════════════════════════
+   進行不能なエラーの表示（#fatal-error-overlay）
+   **画面座標（3840x2160）で組む。** 他の画面と同じ縮尺（--game-scale）を掛け、
+   枠は編成画面の指輪枠、ボタンはゲームオーバーの「タイトルに戻る」と同じ寸法をそのまま使う。
+   ══════════════════════════════════════════════════════════ */
+#fatal-error-overlay{
+  display:none;
+  position:fixed!important;left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;
+  width:var(--game-w)!important;height:var(--game-h)!important;
+  transform:scale(var(--game-scale))!important;transform-origin:top left!important;
+  z-index:2147483000!important;
+  font-family:"Shippori Mincho",serif;
+  color:var(--prod-gold);
+}
+html body.fatal-error-active #fatal-error-overlay{display:block}
+/* エラー中は下の画面を一切操作させない。 */
+html body.fatal-error-active .screen{pointer-events:none!important}
+/* 画面の外（レターボックス）まで暗くするため、大きくはみ出させる。 */
+#fatal-error-backdrop{position:absolute;inset:-4000px;background:rgba(4,5,8,.92)}
+/* 枠：編成画面の指輪枠（.reward-prod-ring）と同じ 1020x372。
+   main_left.svg を上下に分けて描くのも同じ（四隅を縮めないため）。画面中央に置く。 */
+#fatal-error-frame{
+  position:absolute;left:1410px;top:894px;width:1020px;height:372px;box-sizing:border-box;
+}
+#fatal-error-frame::before{
+  content:"";display:block;position:absolute;left:0;right:0;top:0;bottom:90px;z-index:0;pointer-events:none;
+  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat;
+}
+#fatal-error-frame::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:90px;z-index:0;pointer-events:none;
+  background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat;
+}
+/* 見出し：編成画面のパネル見出し（.reward-prod-panel h2）と同じ。
+   **両脇の線は付けない**（編成画面側も content:none で消してあり、線は枠の絵の一部）。
+   色も編成画面のパネルと同じ #a58768。 */
+#fatal-error-title{
+  position:absolute;left:0;right:0;top:42px;z-index:1;margin:0;text-align:center;
+  font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;
+  color:#a58768;text-shadow:0 2px 8px rgba(0,0,0,.85);
+}
+/* 本文：編成画面のクエスト本文（.reward-prod-quest-body）と同じ文字サイズ・同じ左右。 */
+#fatal-error-body{
+  position:absolute;left:88px;right:72px;top:120px;z-index:1;color:#a58768;
+  font-size:35px;line-height:1.35;text-align:center;
+}
+#fatal-error-message{margin:0;white-space:pre-wrap}
+#fatal-error-code{margin:.9em 0 0}
+#fatal-error-code-value{letter-spacing:.1em;user-select:text}
+/* ボタン：ゲームオーバーの「タイトルに戻る」（#gameover-back-btn）と同じ寸法・同じ意匠。
+   枠の下（枠の下端＋78px＝ゲームオーバーの #gameover-actions と同じ間隔）へ置く。 */
+#fatal-error-actions{position:absolute;left:0;right:0;top:1344px;display:flex;justify-content:center}
+#fatal-error-back-btn{
+  position:relative!important;isolation:isolate!important;min-width:0!important;
+  width:496px!important;height:122px!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:none!important;background-color:transparent!important;cursor:pointer!important;
+  font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;line-height:normal!important;
+  letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+  overflow:visible!important;box-sizing:border-box!important;
+}
+#fatal-error-back-btn::after{
+  content:""!important;position:absolute!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
+}
+#fatal-error-back-btn::before{
+  content:""!important;position:absolute!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
+  background:transparent url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;
+  filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));
+  opacity:0;
+}
+#fatal-error-back-btn:hover::after{filter:brightness(1.45)!important}
+#fatal-error-back-btn:hover::before{opacity:.55!important}
+#fatal-error-back-btn:hover{box-shadow:none!important;outline:none!important}
 html body.game-clear-active #gameover-video-tint,
 html body.game-clear-active #gameover-video-shade{display:none!important}
 #gameover-board-panel{position:absolute;left:48%;top:50%;width:1630.1997px;height:1407px;transform:translateY(-50%);padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;z-index:2;animation:gameoverBoardReveal .45s 1.45s both!important;overflow:visible!important}
@@ -11502,7 +11231,7 @@ html body.gameover-active #gameover-board-grid>#hand-pane{
 }
 html body.gameover-active #gameover-board-grid>#hand-pane::before{
   content:"魔導板";position:absolute;left:0;right:0;top:48px;z-index:4;display:block!important;
-  text-align:center;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;
+  text-align:center;font-family:"Shippori Mincho",serif!important;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;
   color:var(--prod-gold);text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;
 }
 html body.gameover-active #gameover-board-grid #hand-slots.unit-equip-slots{
@@ -11523,7 +11252,7 @@ html body.gameover-active #map-power-tooltip,
 html body.gameover-active #map-power-tooltip *,
 html body.gameover-active #keyword-tooltip,
 html body.gameover-active #keyword-tooltip *{
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
 }
 #gameover-board-grid #hand-slots.unit-equip-slots>.card,
 #gameover-board-grid #hand-slots.unit-equip-slots>.card-empty{cursor:default!important;pointer-events:auto!important}
@@ -11564,42 +11293,57 @@ html body.gameover-active.right-card-peek.dragging-in-battle #gameover-board-gri
 }
 html body.gameover-active.right-card-peek .drag-ghost{display:none!important}
 
-/* デバッグボタンは報酬カード枠の右側かつ、デバッグカード枠の外側上部に置く。 */
+/* デバッグボタンは報酬カード枠の右側かつ、デバッグカード枠の外側上部に置く。
+   2行2列に並べる：
+     ゲームオーバー確認 ／ エラー確認
+     試験戦闘　　　　　 ／ マップ確認 */
 html body.reward-screen-active.debug-mode #btn-test-battle,
-html body.reward-screen-active.debug-mode #btn-debug-gameover{
+html body.reward-screen-active.debug-mode #btn-debug-gameover,
+html body.reward-screen-active.debug-mode #btn-debug-error,
+html body.reward-screen-active.debug-mode #btn-debug-map{
   position:absolute!important;top:524.737px!important;width:492.972px!important;height:121.263px!important;
   z-index:28!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;white-space:nowrap!important;opacity:1!important;border:0!important;border-radius:0!important;
   background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   color:var(--prod-gold)!important;display:block!important;overflow:visible!important;
 }
+/* 左列＝2749px／右列＝3277.028px、下段＝524.737px／上段＝368.474px（縦の間隔は列間と同じ35px）。 */
 html body.reward-screen-active.debug-mode #btn-test-battle{left:2749px!important}
+html body.reward-screen-active.debug-mode #btn-debug-map{left:3277.028px!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover,
+html body.reward-screen-active.debug-mode #btn-debug-error{top:368.474px!important}
+html body.reward-screen-active.debug-mode #btn-debug-error{left:3277.028px!important}
 /* .btn は transition:all .2s を持つため、編成画面を開いた瞬間に top が
    1660px台→524px台へ変わる分がアニメーションし、2つのボタンが上へスライドして見える。
    位置は即座に確定させ、色・不透明度など見た目の変化だけ遷移させる。 */
 html body #btn-test-battle,
-html body #btn-debug-gameover{
+html body #btn-debug-gameover,
+html body #btn-debug-error,
+html body #btn-debug-map{
   transition-property:color,background-color,border-color,opacity,filter,box-shadow,text-shadow!important;
   transition-duration:.2s!important;
 }
-html body.reward-screen-active.debug-mode #btn-debug-gameover{left:3277.028px!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover{left:2749px!important}
 html body.reward-screen-active.debug-mode #btn-test-battle::before,
+html body.reward-screen-active.debug-mode #btn-debug-error::before,
+html body.reward-screen-active.debug-mode #btn-debug-map::before,
 html body.reward-screen-active.debug-mode #btn-debug-gameover::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover::before,
+html body.reward-screen-active.debug-mode #btn-debug-error:hover::before,
+html body.reward-screen-active.debug-mode #btn-debug-map:hover::before,
 html body.reward-screen-active.debug-mode #btn-debug-gameover:hover::before{opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover,
+html body.reward-screen-active.debug-mode #btn-debug-error:hover,
+html body.reward-screen-active.debug-mode #btn-debug-map:hover,
 html body.reward-screen-active.debug-mode #btn-debug-gameover:hover{
   box-shadow:none!important;outline:none!important;filter:none!important;
 }
-html body.reward-screen-active.debug-mode #btn-debug-gameover{font-size:30px!important}
-
-html body.gameover-active #scr-battle .battle-scroll,
+html body.reward-screen-active.debug-mode #btn-debug-gameover{font-size:30px!important}html body.gameover-active #scr-battle .battle-scroll,
 html body.gameover-active #scr-battle .bctl-wrap,
 html body.gameover-active #scr-battle .bottom-hud,
 html body.gameover-active #scr-battle #reward-production-ui,
 html body.gameover-active #scr-battle #enemy-area,
 html body.gameover-active #scr-battle #ally-section,
 html body.gameover-active #scr-battle #main-hand-area,
-html body.gameover-active #scr-battle #log-wrap,
 html body.gameover-active #scr-battle #reward-cards-section,
 html body.gameover-active #scr-battle #battle-order-section,
 html body.gameover-active #scr-battle #reward-move-btns{
@@ -11693,7 +11437,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   padding:0 190px 0 130px!important;
   background:url("assets/ui/name_back.svg?v=h180") left top/100% 100% no-repeat!important;
   white-space:nowrap!important;
-  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:'Shippori Mincho',serif!important;
   color:#c49a6c!important;
   text-shadow:0 3px 7px #080300!important;
   pointer-events:none!important;
@@ -11747,7 +11491,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   display:grid!important;
   place-items:center!important;
   z-index:3!important;
-  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:'Shippori Mincho',serif!important;
   font-size:43.82px!important;
   font-weight:700!important;
   letter-spacing:.12em!important;
@@ -11770,7 +11514,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
   transform:translateX(-50%)!important;
   z-index:3!important;
   white-space:nowrap!important;
-  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:'Shippori Mincho',serif!important;
   font-size:28px!important;
   font-weight:600!important;
   letter-spacing:.04em!important;
@@ -12271,7 +12015,7 @@ html body.village-screen-active #village-move-btns#village-move-btns .rew-move-b
    「戦闘開始」と縦位置がずれていた原因）。 */
 html body.village-screen-active #scr-village,
 html body.village-screen-active #scr-village *{
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
 }
 html body.village-screen-active #village-move-btns#village-move-btns{
   z-index:3200!important;
@@ -12576,7 +12320,7 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out.shop-sold-out-
   align-self:flex-end!important;
 }
 html body.reward-screen-active #battle-order-row > .shop-sold-out .shop-sold-out-label{
-  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:'Shippori Mincho',serif!important;
   font-size:46px!important;
   font-weight:700!important;
   letter-spacing:.16em!important;
@@ -12753,7 +12497,7 @@ html body.village-intro-reveal-ui #scr-village > *:not(#village-intro-title):not
   flex-direction:column!important;
   align-items:center!important;
   gap:14px!important;
-  font-family:'Shippori Mincho',"Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:'Shippori Mincho',serif!important;
   font-weight:700!important;
   white-space:nowrap!important;
   color:#fff!important;
@@ -12825,10 +12569,10 @@ html body:not(.library-screen-active) #scr-village #library-exit-btn{display:non
 #library-title img{width:225px;height:237px;object-fit:contain}
 #library-title span{font-size:86px;font-weight:700;letter-spacing:.08em;white-space:nowrap;text-shadow:0 3px 10px rgba(0,0,0,.85),0 0 18px rgba(160,92,255,.45)}
 #library-actions{position:absolute;inset:0;display:none;z-index:8;pointer-events:none}
-#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
+#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
 #library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff6dc}
-#library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
-#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#c49a6c;font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
+#library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
+#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#c49a6c;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
 html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
 /* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
    位置は複製元のインラインstyle（right/top）をそのまま引き継ぐため編成画面と完全に一致する。 */
@@ -13015,7 +12759,7 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
   white-space:pre!important;
   text-align:left!important;
   color:#2b1a0c!important;
-  font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   font-size:60px!important;
   font-weight:700!important;
   line-height:1.45!important;
@@ -13065,7 +12809,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   display:none;align-items:center;justify-content:center;
   background:rgba(4,5,8,.88)!important;
   opacity:1;transition:opacity .9s ease;
-  font-family:'Shippori Mincho','Yu Mincho','Hiragino Mincho ProN',serif!important;
+  font-family:'Shippori Mincho',serif!important;
   color:#eadfca!important;pointer-events:auto!important;
 }
 #online-matching-overlay.is-visible{display:flex!important}
@@ -13126,7 +12870,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
 #online-rival-hud .orh-slot{
   position:absolute!important;width:269px!important;height:100px!important;
   box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;
-  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   font-size:30px!important;font-weight:700!important;color:#f0d28b!important;
   text-shadow:0 3px 7px #080300!important;white-space:nowrap!important;
   z-index:8000!important;
@@ -13146,7 +12890,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   position:absolute!important;left:0!important;right:0!important;top:0!important;bottom:0!important;
   height:100%!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;
   line-height:30px!important;text-align:center!important;transform:none!important;box-sizing:border-box!important;
-  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif!important;
+  font-family:"Shippori Mincho",serif!important;
   font-size:30px!important;font-weight:700!important;color:#f0d28b!important;text-shadow:0 3px 7px #080300!important;
 }
 /* ホバー時だけライフを出す。 */
@@ -13388,11 +13132,11 @@ html body.board-cards-hidden #hand-slots.unit-equip-slots > .card{
 .library-tutorial-dims{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease}
 .library-tutorial-dim{position:fixed;background:rgba(0,0,0,.5);pointer-events:none}
 .library-tutorial-active .library-tutorial-dims{opacity:1}
-.library-tutorial-box{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(1160px * var(--game-scale));height:calc(320px * var(--game-scale));padding:calc(34px * var(--game-scale)) calc(46px * var(--game-scale));box-sizing:border-box;background:rgba(24,14,8,.96);border:calc(3px * var(--game-scale)) solid #c49a6c;border-radius:calc(12px * var(--game-scale));color:#f4e7c8;font-family:var(--font-jp),serif;font-size:calc(35px * var(--game-scale));line-height:1.55;text-align:left;box-shadow:0 0 calc(24px * var(--game-scale)) rgba(0,0,0,.8);pointer-events:none;z-index:10002}
+.library-tutorial-box{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(1160px * var(--game-scale));height:calc(320px * var(--game-scale));padding:calc(34px * var(--game-scale)) calc(46px * var(--game-scale));box-sizing:border-box;background:rgba(24,14,8,.96);border:calc(3px * var(--game-scale)) solid #c49a6c;border-radius:calc(12px * var(--game-scale));color:#f4e7c8;font-family:'Shippori Mincho',serif;font-size:calc(35px * var(--game-scale));line-height:1.55;text-align:left;box-shadow:0 0 calc(24px * var(--game-scale)) rgba(0,0,0,.8);pointer-events:none;z-index:10002}
 body.library-tutorial-lock.library-tutorial-moving #battle-order-row .rew-card.library-tutorial-glow,
 body.library-tutorial-lock.library-tutorial-moving #debug-card-palette .library-tutorial-glow{box-shadow:none!important}
 .library-tutorial-box-hidden{visibility:hidden;pointer-events:none}
-.library-tutorial-intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff3d3;font-family:var(--font-jp),serif;font-size:calc(104px * var(--game-scale));font-weight:700;letter-spacing:.08em;text-shadow:0 4px 20px #000;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.library-tutorial-intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff3d3;font-family:'Shippori Mincho',serif;font-size:calc(104px * var(--game-scale));font-weight:700;letter-spacing:.08em;text-shadow:0 4px 20px #000;opacity:0;transition:opacity .45s ease;pointer-events:none}
 .library-tutorial-intro-active .library-tutorial-intro{opacity:1}
 .library-tutorial-intro-active .library-tutorial-box{opacity:0;pointer-events:none}
 .library-tutorial-allowed{position:relative!important;z-index:10002!important;filter:none!important}
@@ -13519,13 +13263,12 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="battle-life-value">♥♥♥</strong>
+      <span class="battle-status-label">ライフ</span><strong id="battle-life-value"></strong>
     </div>
   </div>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">🔊</button>
   <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">編成</button>
-  <button class="btn small" id="battle-debug-map-btn" title="マップ無限再生（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">マップ</button>
   <div id="reward-production-ui" aria-hidden="true">
     <div class="reward-prod-title">
       <img src="assets/ui/main_icon.svg" alt="">
@@ -13582,6 +13325,10 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     <!-- デバッグモード：演出確認用の試験戦闘ボタン（編成完了/元に戻すの上に表示） -->
     <button id="btn-test-battle" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:test-battle'});startTestBattle()" style="display:none;position:fixed;left:2740px;top:1808px;width:1020px;height:124px;font-size:var(--prod-panel-title-size,28px)">試験戦闘</button>
     <button id="btn-debug-gameover" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:debug-gameover'});debugGameOver()" style="display:none;position:fixed;left:2740px;top:1660px;width:1020px;height:110px;font-size:var(--prod-panel-title-size,28px);opacity:.85;background:rgba(80,20,30,.3);border-color:rgba(200,80,80,.65);color:#f99;z-index:25">ゲームオーバー確認</button>
+    <!-- デバッグモード：エラー画面の確認（進行不能エラーの表示をそのまま出す） -->
+    <button id="btn-debug-error" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:debug-error'});debugShowError()" style="display:none;position:fixed;left:2740px;top:1660px;width:1020px;height:110px;font-size:var(--prod-panel-title-size,28px);z-index:25">エラー確認</button>
+    <!-- デバッグモード：マップ演出の確認（無限再生の開始／終了） -->
+    <button id="btn-debug-map" class="btn" data-sfx-silent="1" onclick="if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:debug-map'});debugToggleMapLoop()" style="display:none;position:fixed;left:2740px;top:1660px;width:1020px;height:110px;font-size:var(--prod-panel-title-size,28px);z-index:25">マップ確認</button>
     <button id="map-village-extra-btn" class="btn" data-sfx-silent="1" style="display:none">情報</button>
     <!-- 報酬フェイズ：移動マスボタン（報酬中のみ表示） -->
     <div id="reward-move-btns" style="display:none"></div>
@@ -13613,11 +13360,7 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
       <div id="battle-order-row"></div>
     </div>
 
-    <!-- ログ（ターン終了ボタン内包） -->
-    <div id="log-wrap">
-      <div id="log-box"></div>
-      <button class="btn small" id="btn-pass" data-sfx-silent="1" onclick="playerPass()">戦闘実行</button>
-    </div>
+    <button class="btn small" id="btn-pass" data-sfx-silent="1" onclick="playerPass()">戦闘実行</button>
 
     <!-- 報酬フェイズ：情報バー（報酬中のみ表示） -->
     <div id="reward-info-bar" class="reward-info-bar" style="display:none">
@@ -13690,7 +13433,7 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     </div>
     <div class="bhud-item">
       <span class="bhud-label">ライフ</span>
-      <span class="bhud-val life" id="h-life">♥♥♥</span>
+      <span class="bhud-val life" id="h-life"></span>
     </div>
     <div class="bhud-item">
       <span class="bhud-label">ゴールド</span>
@@ -13734,7 +13477,7 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="village-life">♥♥♥</strong>
+      <span class="battle-status-label">ライフ</span><strong id="village-life"></strong>
     </div>
   </div>
   <!-- 入場演出：地域名＋下線（battle_line.svg）を画面中央に白一色で表示する -->
@@ -13768,7 +13511,7 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="map-life">♥♥♥</strong>
+      <span class="battle-status-label">ライフ</span><strong id="map-life"></strong>
     </div>
   </div>
   <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
@@ -13808,6 +13551,21 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
     <section id="gameover-board-panel"><div id="gameover-board-grid"></div></section>
   </div>
 </div>
+<!-- 進行不能なエラーの表示。
+     **枠は編成画面の指輪枠（main_left.svg・1020x372）と同じ寸法・同じ描き方**、
+     見出し・本文の文字サイズも編成画面と同じ、ボタンはゲームオーバーの
+     「タイトルに戻る」と同じ寸法・同じ意匠をそのまま使う。 -->
+<div id="fatal-error-overlay" aria-hidden="true">
+  <div id="fatal-error-backdrop"></div>
+  <section id="fatal-error-frame" role="alertdialog" aria-labelledby="fatal-error-title">
+    <h2 id="fatal-error-title">エラー</h2>
+    <div id="fatal-error-body">
+      <p id="fatal-error-message"></p>
+      <p id="fatal-error-code">エラーコード：<span id="fatal-error-code-value">—</span></p>
+    </div>
+  </section>
+  <div id="fatal-error-actions"><button class="btn" id="fatal-error-back-btn" data-sfx-silent="1">タイトルに戻る</button></div>
+</div>
 <div id="scr-clear" class="screen">
   <div class="result-title clear">DUNGEON CLEAR</div>
   <div class="result-sub">全20階を踏破しました</div>
@@ -13839,40 +13597,40 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-    <script src="assets.js?v=contact32"></script>
-<script src="js/engine/audio.js?v=contact32"></script>
+    <script src="assets.js?v=onlineExit01"></script>
+<script src="js/engine/audio.js?v=onlineExit01"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=sheet0904f"></script>
+<script src="js/data/local_xlsx_data.js?v=rewardGrade01"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=contact32"></script>
+<script src="js/data/loader.js?v=rewardGrade01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=contact32"></script>
+    <script src="js/battle/core.js?v=onlineExit01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=contact32"></script>
-    <script src="js/battle/present_events.js?v=contact32"></script>
+    <script src="js/battle/present.js?v=onlineExit01"></script>
+    <script src="js/battle/present_events.js?v=onlineExit01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=asset0903"></script>
+<script src="js/online/server_local.js?v=onlineExit01"></script>
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=tempoAlign01"></script>
-<script src="js/online/matching.js?v=online15"></script>
-    <script src="js/online/board.js?v=contact32"></script>
+<script src="js/online/matching.js?v=onlineExit01"></script>
+    <script src="js/online/board.js?v=onlineExit01"></script>
 <script src="js/online/versus.js?v=asset0903"></script>
-<script src="js/online/flow.js?v=online16"></script>
-<script src="js/online/hud.js?v=core7"></script>
-<script src="js/engine/state.js?v=contact32"></script>
-<script src="js/engine/pool.js?v=contact32"></script>
+<script src="js/online/flow.js?v=onlineExit01"></script>
+<script src="js/online/hud.js?v=onlineExit01"></script>
+<script src="js/engine/state.js?v=onlineExit01"></script>
+<script src="js/engine/pool.js?v=rewardGrade01"></script>
 <script src="js/engine/enemy.js?v=count5"></script>
-    <script src="js/engine/battle.js?v=contact32"></script>
-    <script src="js/engine/render.js?v=contact32"></script>
-<script src="js/engine/reward.js?v=contact32"></script>
+    <script src="js/engine/battle.js?v=onlineExit01"></script>
+    <script src="js/engine/render.js?v=onlineExit01"></script>
+<script src="js/engine/reward.js?v=onlineExit01"></script>
 <script src="js/engine/map.js?v=online6"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-  <script src="js/engine/main.js?v=contact32"></script>
+  <script src="js/engine/main.js?v=onlineExit01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13927,6 +13685,12 @@ document.addEventListener('pointerdown',function(ev){
     </filter>
   </defs>
 </svg>
+<!-- ライフのハート（assets/ui/life.svg）。life2＝輪郭、life1＝中身。
+     ライフが減った枠は中身（life1）だけを隠す。 -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <symbol id="sym-life-outline" viewBox="0 0 42.6 41.7"><path d="M42.6,12.2c0,7.5-6,12.8-9.8,16.5-4.6,4.4-9.5,10.4-11.4,13.5,0,0-.1,0-.2,0-1.9-3-6.8-9-11.4-13.5C6,25,0,19.6,0,12.2S4.8,0,10.6,0s7.9,1.2,10.7,7.1c0,.2.1.2.2,0C24.1,1.3,28.6,0,32,0c5.8,0,10.5,5.3,10.5,12.2ZM23,9.1c-.4.9-1,1.6-1.7,1.6s-1.3-.8-1.7-1.6c-2.4-4.8-4.9-6.8-9.1-6.8-4.3,0-8.1,4.1-8.1,9.8s5.7,11.5,9.1,14.8c4.2,4,7.8,8.2,9.6,11,0,0,.1,0,.2,0,1.9-2.8,5.4-7.1,9.7-11,3.5-3.4,9.1-8.5,9.1-14.8s-3.8-9.8-8.2-9.8-6.6,1.9-9,6.8Z"/></symbol>
+  <symbol id="sym-life-fill" viewBox="0 0 42.6 41.7"><path d="M42.1,12.1c0,7.4-6,12.7-9.7,16.3-4.5,4.3-9.4,10.3-11.2,13.3,0,0-.1,0-.2,0-1.9-3-6.7-9-11.2-13.3C5.9,24.8,0,19.4,0,12.1S4.8,0,10.4,0s8.8,2.5,10.3,8c0,.1.1.4.2.4s.2-.2.2-.4C22.8,2.5,27,0,31.6,0s10.4,5.2,10.4,12.1Z"/></symbol>
+</svg>
 <svg id="death-burn-filters" width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true"></svg>
 <div id="vfx-clip-root"></div>
 <style>
@@ -13938,24 +13702,24 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
   display:none!important;
 }
 
-/* ── FLED（ATKが0になったキャラクターの逃走表示）──────────────────
-   白文字＋黒縁で、カード中央へ1文字ずつ落ちてくる。
-   カードのフェードアウトより前に消すため、表示はJS側で先に取り除く。
-   カード幅からはみ出さないよう、文字サイズはカード幅から算出する。 */
+/* 逃走（ATKが0になって場を去る）。カードの退場は**開戦時の登場と同じ形式**で、
+   その上に「FLED」を出す。動きと時間は render.js の playFledVfx が持つ。
+   文字はカードの子にすると一緒に透明になるので、ダメージ数値と同じく body 直下へ置く。 */
+.fled-label-host{
+  position:fixed!important;
+  z-index:330!important;
+  pointer-events:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
 .fled-label{
-  position:absolute!important;
-  left:0!important; right:0!important;
-  top:50%!important;
-  transform:translateY(-58%)!important;
   display:flex!important;
   align-items:center!important;
   justify-content:center!important;
   gap:.02em!important;
-  z-index:320!important;
-  pointer-events:none!important;
   font-family:var(--font-hd)!important;
   font-weight:700!important;
-  font-size:min(2.1rem,26cqw)!important;
   line-height:1!important;
   letter-spacing:.02em!important;
   white-space:nowrap!important;
@@ -13974,12 +13738,6 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
   0%{ opacity:0; transform:translateY(-70%) scale(1.25); }
   70%{ opacity:1; transform:translateY(6%) scale(1); }
   100%{ opacity:1; transform:translateY(0) scale(1); }
-}
-/* 逃走したカードは暗くフェードアウトする。FLEDの文字はその前にJSが外す。 */
-.slot.unit-card.fled-unit{
-  transition:opacity .42s ease,filter .42s ease!important;
-  opacity:0!important;
-  filter:brightness(.35) saturate(.5)!important;
 }
 
 /* 効果発生元の発光はカードの外周だけ。後続の盤面共通ルールより優先する。 */

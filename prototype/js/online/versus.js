@@ -175,16 +175,10 @@
     }
 
     // 勝敗表示はサーバーの outcome をそのまま使う（再生結果から判定しない）。
-    if (typeof log === 'function') {
-      if (result.outcome === 'p1') log('オンライン対戦に勝利した。', 'good');
-      else if (result.outcome === 'p2') log('オンライン対戦に敗北した。ライフを1失った。', 'bad');
-      else log('オンライン対戦は引き分けだった。ライフは減らない。', 'sys');
-    }
     // 対戦マスの報酬ゴールド。金額を決めるのはサーバー側で、ここは受け取って加算するだけ。
     const gold = Math.max(0, Number(result.goldReward) || 0);
     if (gold > 0 && typeof onGoldGained === 'function') {
       const gained = onGoldGained(gold);
-      if (typeof log === 'function') log(`対戦を終えて${gained}ゴールドを得た。`, 'gold');
       if (typeof refreshRewardGoldUi === 'function') refreshRewardGoldUi();
     }
     // ライフの反映も含め、以降の進行はサーバー状態（OnlineMatch）に追従する。
@@ -206,7 +200,6 @@
     const selfP = st && Array.isArray(st.players) ? st.players.find(p => p.self) : null;
     if (!selfP || selfP.alive !== false) return;   // 敗北していない間は観戦できない
     G._onlineSpectateId = String(playerId || '');
-    if (typeof log === 'function') log(`${G._onlineSpectateId} の画面を観戦する。`, 'sys');
   }
 
   if (typeof window !== 'undefined') {

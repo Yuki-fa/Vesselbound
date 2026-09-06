@@ -198,7 +198,9 @@ async function _loadGameDataFromXlsx() {
   console.log('[Vesselbound] XLSX path:', loadedPath);
   return {
     source: 'xlsx',
-    ft: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.floor, '計算式'], false),
+    // 計算式（戦闘報酬カード出現率など）は現在「資料」シートにある。
+    // 名前が変わっても拾えるよう、旧名も残して順に探す。
+    ft: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.floor, '計算式', '資料'], false),
     gt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.grade, false),
     ct: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.char, 'プレイヤー'], false),
     et: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enemy, false),
@@ -572,8 +574,9 @@ async function loadGameData() {
         }
       });
     } catch (_) { /* キーワード説明文なしで続行 */ }
-    KW_DESC_MAP['封印']='このキャラクターは攻撃できず、いかなる効果も受けない。味方の死亡数がX以上になると、その数をX減らして解放される。';
-    KW_DESC_MAP['隠密']='このキャラクターは「隠密」を持たない味方がいる限り、敵の攻撃の対象にならない。';
+    // **キーワードの説明文はシートが唯一の出どころ。** ここでコード側の文へ
+    // 上書きしないこと（封印・隠密を上書きしていて、シートを直しても反映されなかった）。
+    // シートを読めない時の予備は js/engine/state.js の KW_DESC_MAP。
     ['生贄','狩人','狙撃','強靭','エリート','ボス'].forEach(k => { delete KW_DESC_MAP[k]; delete KW_NO_MAP[k]; });
     if(!KW_DESC_MAP['荷物']) KW_DESC_MAP['荷物']='合体できない。';
 
@@ -891,10 +894,6 @@ async function loadGameData() {
       delete panel.randomItemOnBattleEnd;
       if (/コピーを1体召喚/.test(desc)) panel.summonCount = 2;
       if (/コピーを2体召喚/.test(desc)) panel.summonCount = 3;
-      if (panel.name === 'スリープシープ') {
-        delete panel.summonCount;
-        panel.directionCount = 4;
-      }
       if (panel.name === 'ツインデビル') {
         // 初期出撃は本体1体。2体目は「開戦：コピーを1体召喚する」で
         // coreApplyOpeningEffects が生成するため、配置数へ含めない。
@@ -999,6 +998,81 @@ async function loadGameData() {
         panel._manaThresholdDesc='ランダムな敵に4ダメージを与える。';
       }
     };
+    // ── 合体後の姿（シートの「合体効果」列）─────────────────────────
+    // **合体後の効果・キーワードはシートが唯一の出どころ。**
+    // テキストの数字を機械的に2倍にしてはいけない（シートには倍にしない値がある：
+    // ドワーフの「2体」、ベヒーモスの「2倍→3倍」、ダイアウルフの「2体召喚する」など）。
+    //   ・値が効果文 → その文が合体後の効果になる
+    //   ・値がキーワードだけ（ハーピー＝衝撃6／毒の刃＝毒牙2）→ そのキーワードになる
+    //   ・空欄 → 合体しても効果・キーワードは変わらない
+    // 「合体キーワード」列がシートにあれば、キーワードはそちらを優先する。
+    // ここで**合体後の派生値（マナ閾値・manaOnAttack・隣接ボーナス等）まで作っておく**。
+    // 合体時に文章だけ差し替えると、内部値が合体前のまま残って食い違う。
+    const _MERGED_FORM_FIELDS = ['desc', 'keywords', 'adjacentKeywords', 'adjacentAtkBonus', 'adjacentHpBonus',
+      'manaOnAttack', 'manaOnInjury', 'manaOnDeath', 'goldOnBattleEnd', 'goldOnDeath', 'randomItemOnBattleEnd',
+      'manaCost', 'manaRepeat', 'summonCount', '_manaThresholdDesc', 'releaseAtkBonus', 'releaseHpBonus'];
+    // キーワードだけの指定か。効果文は必ず「〜：」か「。」を含む。
+    const _isMergedKeywordOnly = text => {
+      const t = String(text || '').trim();
+      return !!t && !/[：:。]/.test(t);
+    };
+    // 効果文の中のキーワードを合体後の値へ置き換える（ハーピーの「衝撃3」→「衝撃6」）。
+    // 効果文が空欄のカードは、キーワードそのものが説明文として出るためここで揃える。
+    const _substituteMergedKeywords = (text, mergedKeywords) => {
+      let out = String(text || '');
+      if (!out) return out;
+      (mergedKeywords || []).forEach(mk => {
+        const prefix = String(mk || '').replace(/\d+$/, '');
+        if (!prefix) return;
+        const esc = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        out = out.replace(new RegExp(`${esc}\\s*\\d*`, 'g'), mk);
+      });
+      return out;
+    };
+    // シートのキーワードを当てはめる。**同じ種類（末尾の数字を除いた部分）の
+    // 既存のキーワードは必ず置き換える。** 残すと「封印1」と「封印9」、
+    // 「結界1」と「結界2」のように2つ並ぶ（効果文やカード名から拾った値が残るため）。
+    const _applyMergedKeywordList = (base, merged) => {
+      const prefixOf = k => String(k || '').trim().replace(/\d+$/, '');
+      const prefixes = new Set((merged || []).map(prefixOf).filter(Boolean));
+      const kept = (base || []).filter(k => !prefixes.has(prefixOf(k)));
+      return _mergeUniqueKeywords(kept, merged);
+    };
+    const _buildMergedPanelForm = panel => {
+      delete panel.mergedForm;
+      const src = panel && panel._mergedSource;
+      if (!src) return;
+      const mergedDescRaw = String(src.desc || '').trim();
+      const mergedKwRaw = String(src.keywords || '').trim();
+      const sheetKeywords = Array.isArray(src.sheetKeywords) ? src.sheetKeywords : [];
+      if (!mergedDescRaw && !mergedKwRaw) return;
+      // 「合体キーワード」列が合体後のキーワードの正。列が無い（古いシート）場合だけ、
+      // 「合体効果」列がキーワードだけならそれをキーワードとして読む。
+      const descIsText = !!mergedDescRaw && !_isMergedKeywordOnly(mergedDescRaw);
+      const mergedSheetKeywords = mergedKwRaw ? _splitSheetKeywords(mergedKwRaw)
+        : (descIsText ? sheetKeywords : _splitSheetKeywords(mergedDescRaw));
+      // 派生値を作り直すため、合体後の効果文を持つ複製の上で通常の解析を通す。
+      const draft = Object.assign({}, panel);
+      draft.keywords = Array.isArray(panel.keywords) ? panel.keywords.slice() : [];
+      draft.adjacentKeywords = Array.isArray(panel.adjacentKeywords) ? panel.adjacentKeywords.slice() : [];
+      // 効果文：「合体効果」列が効果文ならそれ。空欄／キーワードだけなら元の文のまま
+      // （文中のキーワードだけ合体後の値へ置き換える）。
+      draft.desc = descIsText ? mergedDescRaw
+        : _substituteMergedKeywords(String(panel.desc || ''), mergedSheetKeywords);
+      if (draft.category === 'キャラクター') {
+        _setPanelKeywordsFromDesc(draft);
+        draft.keywords = _applyMergedKeywordList(draft.keywords, mergedSheetKeywords);
+      } else if (draft.category === 'エンチャント') {
+        _setEnchantFieldsFromDesc(draft);
+        draft.adjacentKeywords = _applyMergedKeywordList(draft.adjacentKeywords, mergedSheetKeywords);
+        const enchantCardNames = new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
+        draft.adjacentKeywords = draft.adjacentKeywords.filter(k => !enchantCardNames.has(String(k || '').trim()));
+      }
+      // 値が消える項目もそのまま写せるよう、無い項目は null で持つ。
+      const form = {};
+      _MERGED_FORM_FIELDS.forEach(k => { form[k] = draft[k] === undefined ? null : draft[k]; });
+      panel.mergedForm = form;
+    };
     const _syncPanelFromRow = (panel, row, forcedCategory) => {
       if (!panel) return;
       panel._sheetSeen = true;
@@ -1063,10 +1137,12 @@ async function loadGameData() {
         const hpP = _parseIntRange(lifeStr, panel.life != null ? panel.life : (panel.hp || 0));
         panel.life = hpP.val;
       }
+      // 効果欄が空なら説明文も空。**キーワード欄を説明文へ写してはいけない。**
+      // キーワードは「キーワード：〇〇」の行とキーワード説明で既に出ているため、
+      // 写すと毒の刃・邪眼のようなキーワードだけのカードで同じ語が2つ並ぶ。
       if (row['効果'] !== undefined) panel.desc = String(row['効果'] || '').trim();
       // Excelの効果欄末尾にカード名が付くことがあるが、表示・キーワード解析から除去する。
       if (panel.category === 'エンチャント') panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
-      if (!panel._sheetDescLoaded && panel.name === 'スリープシープ') panel.desc = '常時：このキャラクターは4つのポートを持つ。';
       if (!panel._sheetDescLoaded && panel.name === 'ツインデビル') panel.desc = '開戦：コピーを1体召喚する。';
       const sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
       if (sfxType) panel.sfxType = sfxType;
@@ -1077,14 +1153,13 @@ async function loadGameData() {
       });
       if (panel.category === 'キャラクター') {
         _setPanelKeywordsFromDesc(panel);
-        panel.keywords = _mergeUniqueKeywords(panel.keywords, sheetKeywords);
-        if (panel.name !== 'スリープシープ' && panel.name !== 'ツインデビル') panel.directionCount = panel.directionCount || 2;
-        if (!panel._sheetDescLoaded && panel.name === 'スリープシープ') panel.directionCount = 4;
+        panel.keywords = _applyMergedKeywordList(panel.keywords, sheetKeywords);
+        if (panel.name !== 'ツインデビル') panel.directionCount = panel.directionCount || 2;
         if (!panel._sheetDescLoaded && panel.name === 'ツインデビル') panel.directionCount = 2;
       }
       if (panel.category === 'エンチャント') {
         _setEnchantFieldsFromDesc(panel);
-        panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, sheetKeywords);
+        panel.adjacentKeywords = _applyMergedKeywordList(panel.adjacentKeywords, sheetKeywords);
         // 強化カード名は表示名であり、接続先へ付与するキーワードではない。
         // シート側に誤って残っている場合もここで除去し、データ追加時の再発を防ぐ。
         const enchantCardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
@@ -1094,6 +1169,13 @@ async function loadGameData() {
         const portVal = parseInt(portStr, 10);
         if (!isNaN(portVal) && portVal >= 1) panel.directionCount = portVal;
       }
+      // **合体後の姿はシートの「合体効果」列で決まる。**
+      // 組み立ては全ての上書き処理が終わってから（下の最終パス）。ここでは素材だけ控える。
+      panel._mergedSource = {
+        desc: String(row['合体効果'] ?? '').trim(),
+        keywords: String(row['合体キーワード'] ?? '').trim(),
+        sheetKeywords: sheetKeywords.slice(),
+      };
     };
     const cardRows = _parseCSVWithHeader(pt || '名前\n', ['No.', '名前']);
     const enchantRows = _parseCSVWithHeader(ent || '名前\n', ['No.', '名前']);
@@ -1123,7 +1205,10 @@ async function loadGameData() {
     // 「未指定＝実装済み」として拾ってしまう_rowImplementedの既定動作とは別扱いにする）。
     // 実装済みとして扱う指輪は、シート側の実装フラグが古い場合でも読み込む。
     // R014/R025はコード側で実装するため、xlsx/local fallbackのfalseを許容する。
-    const _forcedRingNames = new Set(['黄金の指輪', '強欲の指輪', '虹の瞳の指輪']);
+    // コード側で実装済みの指輪は、シートの「実装」列がFALSEのままでも読み込む。
+    // **シートをTRUEにしたらこの一覧から外すこと。**
+    const _forcedRingNames = new Set(['黄金の指輪', '強欲の指輪', '虹の瞳の指輪',
+      '生命の指輪', '召喚師の指輪', '絶魔の指輪', '血の指輪', '目利きの指輪']);
     const parsedRings = ringRows
       .filter(row => _truthySheet(row['実装']) || _forcedRingNames.has(String(row['名前'] || '').trim()))
       .map(_rowToRing)
@@ -1145,15 +1230,9 @@ async function loadGameData() {
       const forceSync = _forcedPanelSyncNames.has(_normCardName(name));
       const implemented = _rowImplemented(row);
       const pool = targetPool || PANEL_POOL;
-      if (!implemented && !forceSync) {
-        const excluded = _filterBySheetCode(pool, code, forcedCategory);
-        const exactExcluded = excluded.filter(panel => [panel && panel.no, panel && panel.No, panel && panel['No.'], panel && panel.artCode]
-          .some(v => String(v || '').trim().toUpperCase() === String(code || '').trim().toUpperCase()));
-        ((exactExcluded.length || excluded.length === 1) ? (exactExcluded.length ? exactExcluded : excluded) : _filterBySheetName(pool, name)).forEach(panel => {
-          if (panel) { panel._rewardExcluded = true; panel._shopExcluded = true; }
-        });
-        return;
-      }
+      // 「実装」＝FALSE でも**シートの値は読む**。報酬・ショップ・デバッグ一覧からは
+      // 外すが（下の `_implemented`）、変身先・召喚先として名前で引かれるカード
+      // （ドラゴン／アークドラゴン等）は、数値やキーワードがシートどおりである必要がある。
       if (forcedCategory === 'キャラクター') {
         const hasStats = String(row['パワー'] || row['攻撃力'] || row['ATK'] || '').trim()
           || String(row['ライフ'] || row['HP'] || '').trim();
@@ -1172,7 +1251,9 @@ async function loadGameData() {
       // シート行から最小限のカード定義を生成して報酬・ショップへ反映する。
       // キャラクターも対象にする（パワー／ライフが無い行は上の hasStats チェックで既に弾いている）。
       // 生成後に _syncPanelFromRow() が色・種族・パワー・ライフ・キーワード・方向数まで埋める。
-      if (!candidates.length && implemented
+      // 実装FALSEの行も生成する。変身先・召喚先はコード側に無いことがあるため
+      // （合体後のドラゴネットが変身する「緑アークドラゴン」など）。
+      if (!candidates.length
           && (forcedCategory === 'エンチャント' || forcedCategory === 'スペル' || forcedCategory === 'キャラクター')) {
         const safeCode = String(code || '').replace(/[^A-Z0-9_-]/gi, '_');
         const generated = {
@@ -1195,6 +1276,7 @@ async function loadGameData() {
       if (_seenPanelIds.has(panel.id)) return; // 既に別の行で同期済みのIDは再上書きしない（同名衝突対策）
       _seenPanelIds.add(panel.id);
       _syncPanelFromRow(panel, row, forcedCategory);
+      panel._implemented = implemented;
       if (!implemented) { panel._rewardExcluded = true; panel._shopExcluded = true; }
       if (Object.prototype.hasOwnProperty.call(row,'報酬') && !_truthySheet(row['報酬'])) panel._rewardExcluded=true;
       if (Object.prototype.hasOwnProperty.call(row,'ショップ') && !_truthySheet(row['ショップ'])) panel._shopExcluded=true;
@@ -1238,30 +1320,27 @@ async function loadGameData() {
       'ダイアウルフ': {desc:'3マナ毎：「緑ウルフ」を召喚する。', keywords:['先制']},
       'ウルフ': {desc:'先制', keywords:['先制']},
       'シャドウ': {desc:'攻撃：血が7以上なら全ての味方は+4/+4を得る。'},
-      'エイドロン': {desc:'負傷：この戦闘中、召喚された味方はATK+4を得る。'},
+      'エイドロン': {desc:'負傷：この戦闘中、召喚された味方はATK+2を得る。'},
       'デュラハン': {desc:'攻撃：ランダムな敵にXダメージを与える。Xは血に等しい。'},
-      'スリープシープ': {desc:'死亡：血を3得る。'},
       'インキュバス': {desc:'常時：このキャラクターが敵を倒した時、血を2得る。'},
       'サキュバス': {desc:'死亡：ランダムな前衛の敵を奪う。'},
       'スリン': {desc:'毒牙3　邪眼3', keywords:['毒牙3','邪眼3']},
-      'ミテーラ': {desc:'開戦：「緑ペリカン」を3体召喚する。'},
+      'ミテーラ': {desc:'開戦：「緑ペリカン」を2体召喚する。'},
       'ユミル': {desc:'攻撃：+X/+Xを得る。Xはマナに等しい。'},
       'マーメイド': {desc:'常時：緑のキャラクターから得るマナは+1される。'},
       'グリムリーパー': {desc:'封印5　即死', keywords:['封印5','即死']},
       'ハイドラ': {desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
       'コカトリス': {desc:'4マナ毎：ランダムな敵に防戦を与える。'},
       'スキュラ': {desc:'2マナ毎：全ての敵に毒1を与える。'},
-      'レプラコーン': {desc:'終戦：ランダムなアイテムを得る。'},
       'ナーガ': {desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
       'ブラウニー': {desc:'攻撃＆負傷：全ての仲間のHPが+2される。'},
       'エルヴンメイジ': {desc:'攻撃：全ての黄キャラクターは+1/+1を得る。'},
       'タイタニア': {desc:'常時：味方の攻撃回数は1回追加される。'},
       'ケットシー': {desc:'負傷：「黄ナイトキャット」を召喚する。'},
-      'カーバンクル': {desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
       'エレメンタル': {desc:'開戦：全ての色の味方がいる場合、このキャラクターのATKとHPを2倍にする。'},
-      'ウォーグ': {desc:'常時：味方が7体以上になるたび、すべての味方は+5/+5を得る。'},
+      'ウォーグ': {desc:'常時：味方が7体を超えて召喚されるたび、すべての味方は+5/+5を得る。'},
       'ワーム': {desc:'攻撃：全ての敵の毒を発動させる。'},
-      'ワイバーン': {desc:'常時：このキャラクターがATKを得るたび、ランダムな敵に2ダメージを与える。'},
+      'ワイバーン': {desc:'常時：このキャラクターがATKを得るたび、ランダムな敵2体に2ダメージを与える。'},
       'バジリスク': {desc:'常時：このキャラクターからダメージを受けた敵は、1%の確率で即死する。'},
       'ジャック・オ・ランタン': {desc:'開戦：全ての味方は+X/+Xを得る。Xは失っているライフの5倍に等しい。'},
       'メリュジーヌ': {desc:'攻撃：全ての敵の毒を2倍にする。'},
@@ -1278,17 +1357,16 @@ async function loadGameData() {
       'インプ': {desc:'攻撃：全てのキャラクターからATKを1奪う。'},
       'エルフ': {desc:'結界1\n負傷：結界1を得る。', keywords:['結界1']},
       'カオス・インプ': {desc:'常時：味方が解放された時、ランダムな味方の開戦効果を発動する。'},
-      'ナイトメア': {desc:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。'},
+      'ナイトメア': {desc:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の3倍に等しい。'},
       'ファナティック': {desc:'常時：味方が解放された時、このキャラクターは+X/+Xと結界を得る。Xは血に等しい。'},
     };
     Object.entries(_requestedEffectOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        const forceEffectOverride = ['コカトリス','スキュラ','レプラコーン',
-          'ノーム','ハーピー','フォルモール','ヘカトンケイル','マミー','スケルトン','ウルフ','レムレース','スリン',
-          'ウォーグ','ワーム','ワイバーン','バジリスク','ジャック・オ・ランタン','メリュジーヌ','リアナンシー',
-          'ニンフ','シャナ','シルフ','ウンディーネ','フロスト・スプライト','グリマルキン','ペガサス','ピクシー',
-          'スプリガン','インプ','カオス・インプ','ナイトメア','ファナティック'].includes(name);
-        if (panel._sheetDescLoaded && !forceEffectOverride) return;
+        // **シートの「効果」列が唯一の出どころ。** 列がある限りコード側の本文は使わない。
+        // ここの表は、シートを読めない環境のための予備でしかない。
+        // （以前は一部のカードをシートより優先していたため、シートを直しても
+        //   古い本文へ戻っていた＝ワイバーン・ウォーグ・ナイトメアで実際に起きた）
+        if (panel._sheetDescLoaded) return;
         panel.desc = _stripOwnNameFromDesc(cfg.desc, panel.name);
         panel._sheetSeen = true;
         panel._implemented = true;
@@ -1316,20 +1394,27 @@ async function loadGameData() {
       [...new Set(hit)].forEach(panel => {
         if (!panel) return;
         if (cfg.name) panel.name = cfg.name;
-        if (cfg.desc != null) panel.desc = cfg.desc;
-        if (cfg.keywords) panel.keywords = cfg.keywords.slice();
-        if (cfg.adjacentKeywords) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
-        if (code === 'C089') delete panel.manaOnAttack;
+        // **シートの列がある限り、シートの値を使う。** ここはシートを読めない時の予備。
+        const useDesc = cfg.desc != null && !panel._sheetDescLoaded;
+        const useKeywords = !!cfg.keywords && !panel._sheetKeywordsLoaded;
+        const useAdjacent = !!cfg.adjacentKeywords && !panel._sheetKeywordsLoaded;
+        if (useDesc) panel.desc = cfg.desc;
+        if (useKeywords) panel.keywords = cfg.keywords.slice();
+        if (useAdjacent) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
+        if (code === 'C089' && useDesc) delete panel.manaOnAttack;
+        if (!useDesc && !useKeywords && !useAdjacent) return;
         if (panel.category === 'キャラクター') _setPanelKeywordsFromDesc(panel);
         else _setEnchantFieldsFromDesc(panel);
-        if (cfg.keywords) panel.keywords = cfg.keywords.slice();
-        if (cfg.adjacentKeywords) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
+        if (useKeywords) panel.keywords = cfg.keywords.slice();
+        if (useAdjacent) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
       });
     });
     const strongRing = (RING_POOL || []).find(r => r && r.name === '強靭の指輪');
     if (strongRing) strongRing.desc = '開戦：全ての味方は「負傷：全ての味方はHP+1を得る。」を得る。';
+    // 召喚専用の体（報酬・ショップに出さない）。**シャドウはここに入れないこと。**
+    // C022「シャドウ」はシート上の通常カードで、ここへ入れると効果文が消えて
+    // 報酬にも出なくなる（実際にそうなっていた）。召喚専用はスケルトン側。
     const _summonOnlyOverrides = {
-      'シャドウ': {desc:'', keywords:[]},
       'ウルフ': {desc:'', keywords:[]},
       'ペリカン': {desc:'', keywords:[]},
       'ドラゴン': {desc:'全体攻撃', keywords:['全体攻撃']},
@@ -1338,12 +1423,15 @@ async function loadGameData() {
     };
     Object.entries(_summonOnlyOverrides).forEach(([name, cfg]) => {
       (PANEL_POOL || []).filter(p => p && p.name === name && String(p.category || '') === 'キャラクター').forEach(panel => {
-        panel.desc = cfg.desc;
         panel.rarity = -1;
         panel._sheetSeen = true;
         panel._implemented = true;
-        _setPanelKeywordsFromDesc(panel);
-        panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
+        // **本文・キーワードはシートが優先。** ここはシートを読めない時の予備。
+        if (!panel._sheetDescLoaded) {
+          panel.desc = cfg.desc;
+          _setPanelKeywordsFromDesc(panel);
+        }
+        if (!panel._sheetKeywordsLoaded) panel.keywords = _mergeUniqueKeywords(panel.keywords, cfg.keywords);
       });
     });
     (PANEL_POOL || []).filter(p => p && p.name === '剣技' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
@@ -1370,6 +1458,9 @@ async function loadGameData() {
     (PANEL_POOL || []).forEach(panel => {
       if(panel&&panel.name&&panel.desc&&!panel._sheetDescLoaded) panel.desc = _stripOwnNameFromDesc(panel.desc, panel.name);
     });
+    // **合体後の姿は、上書き処理が全部終わった最後に組み立てる。**
+    // 途中で作ると、後から効果文が差し替わったカードの合体後だけ古いままになる。
+    (PANEL_POOL || []).forEach(panel => { if (panel) _buildMergedPanelForm(panel); });
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;

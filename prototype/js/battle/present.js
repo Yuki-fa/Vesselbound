@@ -142,10 +142,18 @@ function presentManaWaveEvents(events, index) {
 }
 
 // ── 復活（キーワード「復活」で再召喚された）時の演出（K020）──────────
-// **SEと同時にVFXをフェードイン → その上にカードをフェードイン → VFXをフェードアウト。**
-const PRESENT_REVIVE_VFX_FADE_IN_MS = 260;
+// **SEと同時にVFXをフェードイン → VFXだけを見せる間（HOLD）→ その上にカードを
+// フェードイン → VFXをフェードアウト。**
+// **HOLDを素材の見せ場に合わせること。** K020は119コマ・約3.9秒で、最初の10コマ弱は
+// ほぼ透明、光が最も強くなるのは再生開始から約0.7秒。以前はHOLDが無く、
+// 0.26秒でカードを重ね始めて0.58秒から消し始めていたため、
+// **一番明るい瞬間がカードの裏で、しかも消えかけの状態**になり、何も出ていないように見えた。
+const PRESENT_REVIVE_VFX_FADE_IN_MS = 200;
+// フェードイン後、カードを出し始めるまでVFXだけを見せる時間。
+// フェードイン＋HOLD＝素材の光が最も強くなる時刻（約700ms）に合わせる。
+const PRESENT_REVIVE_VFX_HOLD_MS = 500;
 const PRESENT_REVIVE_CARD_FADE_MS = 320;
-const PRESENT_REVIVE_VFX_FADE_OUT_MS = 320;
+const PRESENT_REVIVE_VFX_FADE_OUT_MS = 380;
 // 素材（K020）の絵がフレームの中で右寄りなので、その分だけ左へ寄せて中心に合わせる。
 // **カード幅に対する比**（負で左）。ここが大きさ・位置のつまみの唯一の置き場。
 const PRESENT_REVIVE_VFX_OFFSET_X = -.06;
@@ -771,6 +779,9 @@ function presentCharacterVfxScale(code) {
 // 数値・VFXを出す瞬間に進める。**規則はここが唯一の実装。**
 function presentShownAtk(unit) {
   if (!unit) return 0;
+  // 「攻防一体」は**ATKが常にHPに等しい**。実際の攻撃力は coreAttackDamage() が
+  // HPから決めるので、数字だけATKのままだと「効いていない」ように見える。
+  if (typeof coreHasEffect === 'function' && coreHasEffect(unit, '攻防一体')) return presentShownHp(unit);
   return unit._displayAtk != null ? unit._displayAtk : (Number(unit.atk) || 0);
 }
 function presentShownHp(unit) {
@@ -781,12 +792,19 @@ function presentShownMaxHp(unit) {
   if (!unit) return 1;
   return Math.max(1, unit._displayMaxHp != null ? unit._displayMaxHp : (Number(unit.maxHp) || Number(unit.hp) || 1));
 }
+// 画面に出す結界の数。ATK/HPと同じ理由で据え置く：コアは1手番ぶんを先に解決するため、
+// そのまま描くと**結界を割った演出（K018）より先に shield.png が消える**。
+function presentShownShield(unit) {
+  if (!unit) return 0;
+  return Math.max(0, unit._displayShield != null ? unit._displayShield : (Number(unit.shield) || 0));
+}
 // 表示値を「この手番が始まる前」に戻す（再生の頭で呼ぶ）。
-function presentHoldShown(unit, atk, hp, maxHp) {
+function presentHoldShown(unit, atk, hp, maxHp, shield) {
   if (!unit) return;
   unit._displayAtk = Number(atk) || 0;
   unit._displayHp = Number(hp) || 0;
   unit._displayMaxHp = Math.max(1, Number(maxHp) || Number(hp) || 1);
+  unit._displayShield = Math.max(0, Number(shield) || 0);
 }
 // 表示値を進める（数値・VFXを出す瞬間に呼ぶ）。
 // **据え置いていない時は何もしない。** 据え置いていなければ実体の値がそのまま
@@ -797,6 +815,7 @@ function presentAdvanceShown(unit, next) {
   if (next.atk != null) unit._displayAtk = Math.max(0, Number(next.atk) || 0);
   if (next.hp != null) unit._displayHp = Math.max(0, Number(next.hp) || 0);
   if (next.maxHp != null) unit._displayMaxHp = Math.max(1, Number(next.maxHp) || 1);
+  if (next.shield != null) unit._displayShield = Math.max(0, Number(next.shield) || 0);
 }
 // 表示値の据え置きをやめて実体へ戻す（再生の終わりで呼ぶ）。
 function presentReleaseShown(unit) {
@@ -804,6 +823,7 @@ function presentReleaseShown(unit) {
   delete unit._displayAtk;
   delete unit._displayHp;
   delete unit._displayMaxHp;
+  delete unit._displayShield;
 }
 
 // 倒れた体を盤面に残しておくか。
@@ -851,6 +871,7 @@ if (typeof window !== 'undefined') {
   window.presentDamageVfxKeyword = presentDamageVfxKeyword;
   window.presentAreaVfxStyle = presentAreaVfxStyle;
   window.PRESENT_REVIVE_VFX_FADE_IN_MS = PRESENT_REVIVE_VFX_FADE_IN_MS;
+  window.PRESENT_REVIVE_VFX_HOLD_MS = PRESENT_REVIVE_VFX_HOLD_MS;
   window.PRESENT_REVIVE_CARD_FADE_MS = PRESENT_REVIVE_CARD_FADE_MS;
   window.PRESENT_REVIVE_VFX_FADE_OUT_MS = PRESENT_REVIVE_VFX_FADE_OUT_MS;
   window.PRESENT_REVIVE_VFX_OFFSET_X = PRESENT_REVIVE_VFX_OFFSET_X;
@@ -905,6 +926,7 @@ if (typeof window !== 'undefined') {
   window.presentKeepsOnBoard = presentKeepsOnBoard;
   window.presentShownAtk = presentShownAtk;
   window.presentShownHp = presentShownHp;
+  window.presentShownShield = presentShownShield;
   window.presentShownMaxHp = presentShownMaxHp;
   window.presentHoldShown = presentHoldShown;
   window.presentAdvanceShown = presentAdvanceShown;
@@ -946,7 +968,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentManaEffectKey, presentManaWaveKey, presentManaWaveEvents,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,
     presentKeepsOnBoard, presentCharacterVfxScale, PRESENT_VFX_SCALE,
-    presentShownAtk, presentShownHp, presentShownMaxHp,
+    presentShownAtk, presentShownHp, presentShownMaxHp, presentShownShield,
     presentHoldShown, presentAdvanceShown, presentReleaseShown,
     PRESENT_STAT_CHANGE_VFX_REASONS,
   };

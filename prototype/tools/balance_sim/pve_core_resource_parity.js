@@ -130,5 +130,15 @@ check('コアへ渡すライフが表示と同じ値である', () => {
     'コアへライフ上限を渡していない');
 });
 
+// --- 静的：所持金の表示は gold_gain の演出だけが進める ---
+check('再生中にコアの所持金を書き戻さない', () => {
+  const m = battleSrc.match(/function _syncCoreResourcesToG\(state\)\{[\s\S]*?\n\}/);
+  assert.ok(m, '_syncCoreResourcesToG() が見つからない');
+  assert.match(m[0], /presentIsPlaying\(\)/,
+    '再生中も所持金を書き戻している（gold_gain の演出でもう一度足され、手番の終わりに減って見える）');
+  assert.match(battleSrc, /if\(e\.type==='gold_gain'\)/,
+    '所持金を進める gold_gain の演出が無い');
+});
+
 console.log(`\n資源パリティ検証: NG ${ng.length}`);
 if (ng.length) { ng.forEach(n => console.log(` - ${n}`)); process.exit(1); }

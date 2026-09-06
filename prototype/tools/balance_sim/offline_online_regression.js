@@ -244,7 +244,9 @@ function main() {
   const shieldState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
     sides: {
+      // カーバンクルは**本文で判定する**（カード名では判定しない）。
       p1: {units: [{id: 'c', name: 'カーバンクル', atk: 1, hp: 5, maxHp: 5,
+        desc: '常時：味方が結界を失うたび、ランダムな敵3体に1ダメージを与える。',
         effectData: {effectNames: ['カーバンクル']}}, {id: 's', name: '盾役', atk: 1, hp: 5, maxHp: 5, shield: 1}]},
       p2: {units: [{id: 'e', name: '敵', atk: 1, hp: 5, maxHp: 5}]},
     },

@@ -83,13 +83,38 @@ function _dedupePanelDirections(cards){
   return cards;
 }
 
+// ── 合体後の姿へ差し替える ────────────────────────────────
+// **合体後の効果・キーワードはシートの「合体効果」列が唯一の出どころ**（loader.js が
+// `mergedForm` として派生値まで作る）。**テキストの数字を機械的に2倍にしてはいけない。**
+// 指定が無いカード（列が空欄）は、合体しても効果もキーワードも変わらない。
+// 戻り値：差し替えたら true（＝表示側で数字を2倍にしてはいけない）。
+function applyMergedPanelForm(card){
+  const form=card&&card.mergedForm;
+  if(!form) return false;
+  Object.keys(form).forEach(k=>{
+    const v=form[k];
+    if(v===null||v===undefined) delete card[k];
+    else card[k]=Array.isArray(v)?v.slice():v;
+  });
+  card._mergedFormApplied=true;
+  return true;
+}
+// そのカードが「カード定義には無いキーワード」を持っているか（アイテム等で個別に付いたもの）。
+// 合体後の姿はシート由来で作り直すため、個別に付いたぶんはここで拾って戻す。
+function extraPanelKeywords(card){
+  if(!card||!Array.isArray(card.keywords)) return [];
+  const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(card.id&&p.id===card.id)||p.name===card.name))||null;
+  const base=new Set(((def&&def.keywords)||[]).map(k=>String(k||'').trim()));
+  return card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
+}
+
 function _isImplementedPoolCard(p){
   return !!(p&&p._implemented!==false&&p._sheetSeen);
 }
 
 const PANEL_POOL=[
   {id:'panel_gnome',no:'001',name:'ノーム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:3,life:4,desc:'終戦：5ゴールドを得る。'},
-  {id:'panel_mata',no:'002',name:'マータ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:0,life:7,desc:'常時：味方が受ける2以上のダメージの半分を代わりに受ける。'},
+  {id:'panel_mata',no:'002',name:'マータ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:0,life:7,desc:'常時：味方が受ける2以上のダメージを1にし、1を超えた分をこのキャラクターが代わりに受ける。'},
   {id:'panel_golem',no:'003',name:'ゴーレム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'アーティファクト',power:3,life:3,desc:'負傷：このキャラクターは+2/+2を得る。'},
   {id:'panel_satyr',no:'004',name:'サテュロス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:4,life:3,manaCost:1,desc:'1マナ：3マナを得る。'},
   {id:'panel_dwarf',no:'005',name:'ドワーフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',cost:1,slot:1,race:'亜人',power:3,life:5,manaCost:2,manaRepeat:true,desc:'2マナ毎：ランダムな赤キャラクター2体は+3/+2を得る。'},
@@ -123,7 +148,7 @@ const PANEL_POOL=[
   {id:'panel_lemures',no:'031',name:'レムレース',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:1,life:4,desc:'死亡：「青レムレース」以外の、この戦闘で死亡したランダムなキャラクターをATKとHPを半分にして召喚する。'},
   {id:'panel_vrykolakas',no:'032',name:'ヴリコラカス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:6,life:3,manaCost:4,manaRepeat:true,desc:'4マナ毎：ランダムな味方が復活を得る。'},
   {id:'panel_vampire_lord',no:'033',name:'ヴァンパイアロード',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：キャラクターが死亡するたび、全ての味方はHP+1を得る。'},
-  {id:'panel_eidolon',no:'034',name:'エイドロン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：味方が3体死亡するたび、1マナを得る。'},
+  {id:'panel_eidolon',no:'034',name:'エイドロン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'負傷：この戦闘中、召喚された味方はATK+2を得る。'},
   {id:'panel_death_knight',no:'035',name:'デスナイト',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:3,desc:'死亡：「青スケルトン」を召喚する。'},
   {id:'panel_revenant',no:'036',name:'レヴナント',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:4,desc:'常時：味方が死亡するたび、このキャラクターは+1/+1を得る。'},
   {id:'panel_dullahan',no:'037',name:'デュラハン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'常時：味方が死亡するたび、ランダムな敵に4ダメージを与える。'},
@@ -131,21 +156,21 @@ const PANEL_POOL=[
   {id:'panel_lich',no:'039',name:'リッチ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:7,life:3,desc:'常時：味方が召喚された時、「青シャドウ」を1体召喚する。'},
   {id:'panel_grim_reaper',no:'040',name:'グリムリーパー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:1,life:5,keywords:['封印5','即死'],desc:'封印5　即死'},
   {id:'panel_dire_wolf',no:'041',name:'ダイアウルフ',rarity:1,displayRarity:'-',grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,power:3,life:3,manaCost:3,manaRepeat:true,desc:'3マナ毎：「緑ウルフ」を召喚する。'},
-  {id:'panel_sleep_sheep',no:'042',name:'スリープシープ',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,power:0,life:1,directionCount:4,desc:'常時：このキャラクターは4つのポートを持つ。'},
+  {id:'panel_sleep_sheep',no:'042',name:'スリープシープ',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,power:0,life:1,desc:'死亡：血を3得る。'},
   {id:'panel_brownie',no:'061',name:'ブラウニー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,power:1,life:4,desc:'攻撃＆負傷：全ての仲間のHPが+2される。'},
   {id:'panel_elf',no:'062',name:'エルフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,power:5,life:3,keywords:['結界1'],desc:'結界1\n負傷：結界1を得る。'},
   {id:'panel_twin_devil',no:'C087',name:'ツインデビル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,directionCount:2,summonCount:2,desc:'開戦：コピーを1体召喚する。'},
   {id:'panel_archdemon',no:'082',name:'アークデーモン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:25,life:20,keywords:['封印12'],desc:'封印12　解放：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続しているエンチャントの数だけ繰り返す。'},
   {id:'panel_arassas',no:'043',name:'アラッサス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,power:15,life:15,desc:'召喚：全ての敵に3ダメージを与える。'},
   {id:'panel_slin',no:'044',name:'スリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,power:10,life:20,keywords:['毒牙3','邪眼3'],desc:'毒牙3　邪眼3'},
-  {id:'panel_mitera',no:'045',name:'ミテーラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:2,life:4,desc:'開戦：「緑ペリカン」を3体召喚する。'},
+  {id:'panel_mitera',no:'045',name:'ミテーラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:2,life:4,desc:'開戦：「緑ペリカン」を2体召喚する。'},
   {id:'panel_jackalope',no:'046',name:'ジャッカロープ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:2,life:2,desc:'開戦：Xマナを得る。Xは味方の緑キャラクターの数に等しい。'},
   {id:'panel_ymir',no:'047',name:'ユミル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'亜人',power:3,life:3,desc:'攻撃：+X/+Xを得る。Xはマナに等しい。'},
   {id:'panel_mermaid',no:'048',name:'マーメイド',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'亜人',power:3,life:4,desc:'常時：緑のキャラクターから得るマナは+1される。'},
   {id:'panel_green_wolf',name:'ウルフ',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:3,life:3,desc:''},
   {id:'panel_green_dragon',name:'ドラゴン',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'竜',power:20,life:20,keywords:['全体攻撃'],desc:'全体攻撃'},
   {id:'panel_green_pelican',name:'ペリカン',rarity:-1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:1,life:1,desc:''},
-  {id:'panel_bandersnatch',no:'C053',name:'バンダースナッチ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:5,life:5,manaCost:6,manaRepeat:true,desc:'6マナ毎：ランダムな敵を「緑ウルフ」に変身させる。'},
+  {id:'panel_bandersnatch',no:'C053',name:'バンダースナッチ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:5,life:5,manaCost:6,manaRepeat:false,desc:'6マナ：ランダムな敵を「緑ペリカン」に変身させる。'},
   {id:'panel_hydra',no:'C055',name:'ハイドラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'竜',power:7,life:7,desc:'終戦：このキャラクター以外の、生存したキャラクターが報酬に出現する。'},
   {id:'panel_scylla',no:'C056',name:'スキュラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:4,life:8,manaCost:3,manaRepeat:true,desc:'3マナ毎：全ての敵に毒12を与える。'},
   {id:'panel_naga',no:'C057',name:'ナーガ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'竜',power:4,life:5,desc:'常時：戦闘中に召喚される味方は+1/+1を得る。戦闘中に召喚された味方の数だけ繰り返す。'},
@@ -320,19 +345,63 @@ function _rewardRarityWeights(useGoldenRing,useMapProgress){
   return _REWARD_RARITY_WEIGHTS;
 }
 
+// 「現在のマップ」＝グレード抽選の基準。ワールドマップ時代は worldMap.index、
+// **ウェーブ進行ではステージ（G._wave）**。レアリティ側（_currentRewardMapNumber）と
+// 同じ値を見ること。ここが1に固定されていた頃は、どこまで進んでも
+// 「グレード1以下」が基準のままだった。
 function _currentRewardMapGrade(fallback){
-  const mapNo=Number(G&&G.worldMap&&G.worldMap.index)||0;
+  const mapNo=Number(G&&G.worldMap&&G.worldMap.index)||Number(G&&G._wave)||0;
   const base=Number.isFinite(mapNo)&&mapNo>0?mapNo:Number(fallback||G&&G.rewardGrade||1);
   return Math.max(1,Math.min(5,base||1));
+}
+
+// ── 提示カードのグレード抽選（シート「戦闘報酬カード出現率計算式」）───────────
+// 現在のマップ以下：70％／マップより1高い：15％／2高い：10％／3高い：5％。
+// **報酬に出るグレードは4まで。上限を超える枠は「以下」の枠へ足す。**
+// （ステージ2なら「+3＝グレード5」が無いのでその5％が下へ回り、
+//   グレード2以下75％／3が15％／4が10％になる。ステージ4以降は100％が「以下」）
+// 候補が尽きた枠も同じように「以下」へ寄せる（提示が空になるのを防ぐ）。
+const REWARD_GRADE_WEIGHTS=[70,15,10,5];   // [現在のマップ以下, +1, +2, +3]
+const REWARD_MAX_GRADE=4;
+
+// 候補を「現在のマップとのグレード差」ごとに分ける。
+// 差が0以下は先頭（以下）、+3を超えるものは末尾の枠へ入れる（取りこぼさないため）。
+function _rewardGradeBuckets(available,cur){
+  const buckets=REWARD_GRADE_WEIGHTS.map(()=>[]);
+  (available||[]).forEach(p=>{
+    const d=(Math.max(1,Number(p&&p.grade)||1))-cur;
+    buckets[Math.max(0,Math.min(buckets.length-1,d))].push(p);
+  });
+  return buckets;
+}
+
+// 上の重みでグレードの枠を1つ選び、その枠の候補配列を返す。
+function _pickRewardGradePool(available,cur){
+  const buckets=_rewardGradeBuckets(available,cur);
+  const weights=REWARD_GRADE_WEIGHTS.slice();
+  for(let k=1;k<weights.length;k++){
+    if(cur+k>REWARD_MAX_GRADE||!buckets[k].length){ weights[0]+=weights[k]; weights[k]=0; }
+  }
+  if(!buckets[0].length){
+    // 「以下」に候補が無い時だけ、残っている上の枠を元の比率で引き直す。
+    weights[0]=0;
+    for(let k=1;k<weights.length;k++) if(buckets[k].length) weights[k]=REWARD_GRADE_WEIGHTS[k];
+  }
+  const total=weights.reduce((a,b)=>a+b,0);
+  if(!total) return [];
+  let r=rand()*total;
+  for(let k=0;k<weights.length;k++){
+    r-=weights[k];
+    if(r<0&&buckets[k].length) return buckets[k];
+  }
+  return buckets.find(b=>b.length)||[];
 }
 
 function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgress){
   const available=(defs||[]).filter(p=>p&&(!usedIds||!usedIds.has(p.id)));
   if(!available.length) return null;
   const cur=Math.max(1,Math.min(5,Number(currentGrade)||1));
-  const low=available.filter(p=>(Number(p.grade)||1)<=cur);
-  const high=available.filter(p=>(Number(p.grade)||1)>cur);
-  const gradePool=(high.length&&(!low.length||rand()>=0.85))?high:low.length?low:high;
+  const gradePool=_pickRewardGradePool(available,cur);
   if(!gradePool.length) return null;
   const weighted=[];
   gradePool.forEach(p=>{
@@ -341,6 +410,14 @@ function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgr
     for(let i=0;i<w;i++) weighted.push(p);
   });
   return weighted.length?randFrom(weighted):randFrom(gradePool);
+}
+
+// 封印カードは1回の提示に1枚まで。**封印を持つキャラクターと「封印されしもの」を
+// 合わせて数える。** 2枚以上出ても解放に必要な血が足りず、どちらも使えないため。
+// 判定はキーワード（自身の封印／接続先へ付ける封印）で行い、カード名では判定しない。
+function _isSealPanel(panel){
+  const has=list=>(Array.isArray(list)?list:[]).some(k=>/^封印\s*\d*$/.test(String(k||'').trim()));
+  return !!panel&&(has(panel.keywords)||has(panel.adjacentKeywords));
 }
 
 function drawPanel(n=1, maxGrade){
@@ -353,19 +430,23 @@ function drawPanel(n=1, maxGrade){
   const allPool=[...panelCandidates];
   const res=[];
   const usedIds=new Set();
+  // 既に封印カードを1枚出したか。出したら以後は候補から外す。
+  let sealPicked=false;
+  const takeable=list=>list.filter(p=>!usedIds.has(p.id)&&!(sealPicked&&_isSealPanel(p)));
   let t=0;
   while(res.length<n&&allPool.length>0&&t++<300){
     // 出現率：キャラクター45%・強化45%・スペル10%（グレード等の絞り込みは各候補配列側で反映済み）
     const r=rand();
     let pool=r<0.5?charCandidates:enchantCandidates;
-    let available=pool.filter(p=>!usedIds.has(p.id));
+    let available=takeable(pool);
     if(!available.length){
       // 選んだカテゴリの在庫が尽きている場合は、全体プールから補う
-      available=allPool.filter(p=>!usedIds.has(p.id));
+      available=takeable(allPool);
     }
     if(!available.length) break;
     const picked=_rewardWeightedPick(available,currentGrade,usedIds,true,true);
     if(!picked) break;
+    if(_isSealPanel(picked)) sealPicked=true;
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
     const card=makePanel(picked.id);
@@ -442,7 +523,9 @@ function drawRewards(n){
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
     const excluded= p=>G._isShop?p._shopExcluded:p._rewardExcluded;
-    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
+    // 確定枠でも封印カードは1枚まで（既に出ていれば候補から外す）。
+    const hasSeal=res.some(_isSealPanel);
+    const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&!(hasSeal&&_isSealPanel(p))&&pred(p));
     if(!candidates.length) return null;
     const picked=_rewardWeightedPick(candidates,maxGrade,used,true,true);
     if(!picked) return null;

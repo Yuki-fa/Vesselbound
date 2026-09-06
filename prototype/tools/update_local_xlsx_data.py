@@ -21,7 +21,7 @@ TARGET = ROOT / 'js' / 'data' / 'local_xlsx_data.js'
 
 # local_xlsx_data.js のキー → xlsx のシート名（loader.js の _XLSX_SHEETS と同じ）
 SHEET_BY_KEY = {
-    'floor': ['階層データ', '計算式'],
+    'floor': ['階層データ', '計算式', '資料'],
     'grade': ['グレードアップ'],
     'char': ['NPC', 'プレイヤー'],
     'enemy': ['敵'],

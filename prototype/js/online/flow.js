@@ -172,6 +172,29 @@
   // 進行位置の追従をリセットする（新しいマッチを始める時）。
   function resetOnlineFlow() { _lastKey = null; _paused = false; _lastBtnKey = null; }
 
+  // ── オンライン対戦から抜ける時の後片付け（唯一の実装）────────────────
+  // **タイトルへ戻る・新しいゲームを始める時は必ずここを通すこと。**
+  // 片付け漏れがあると、
+  //   ・他プレイヤーの名前枠と「残り時間」がタイトル画面に残る
+  //   ・body.online-versus-active が残り、編成画面のボタンが丸ごと隠れて何も押せない
+  // という形で次のプレイに持ち越される。
+  function exitOnlineMode() {
+    if (typeof OnlineMatch !== 'undefined' && OnlineMatch && typeof OnlineMatch.reset === 'function') OnlineMatch.reset();
+    resetOnlineFlow();
+    if (typeof hideOnlineMatching === 'function') hideOnlineMatching();
+    if (typeof G !== 'undefined' && G) {
+      G._onlineMode = false;
+      G._onlineWaiting = false;
+      G._onlinePerfectWin = false;
+      G._onlineSpectateId = '';
+    }
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.remove('online-mode-active', 'online-versus-active', 'online-waiting');
+    }
+    // 相手の枠と残り時間は「オンライン中か」を見て出しているので、すぐ描き直して消す。
+    if (typeof renderOnlineHud === 'function') renderOnlineHud();
+  }
+
   // いま表示している場所を「追従済み」として記録する。
   // マッチング直後は既にリーゼを表示しているので、これを呼ばないと
   // サーバーの初期状態（step0=city）に反応してリーゼを開き直してしまう。
@@ -186,6 +209,7 @@
     window.onlineNotifyReady = onlineNotifyReady;
     window.isOnlineVersusNode = isOnlineVersusNode;
     window.resetOnlineFlow = resetOnlineFlow;
+    window.exitOnlineMode = exitOnlineMode;
     window.setOnlineFlowPaused = setOnlineFlowPaused;
     window.resumeOnlineFlow = resumeOnlineFlow;
     window.primeOnlineFlow = primeOnlineFlow;

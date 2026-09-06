@@ -379,8 +379,17 @@ function main() {
     '画面に出すHPの規則が present.js に無い');
   assert.match(read('js/engine/render.js'), /const _shownHp=typeof presentShownHp==='function'/,
     'カードのHP表示が据え置き値を見ていない');
-  assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp\)/,
+  assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp,shield\)/,
     'PvEが手番の頭で表示値を据え置いていない');
+  // 結界も同じ理由で据え置く。実体を直に描くと、結界を割った演出（K018）より先に
+  // shield.png と結界バッジだけが消える。
+  assert.match(read('js/battle/present.js'), /function presentShownShield\(unit\)/,
+    '画面に出す結界の規則が present.js に無い');
+  assert.match(read('js/engine/render.js'), /const _shownShield=typeof presentShownShield==='function'/,
+    'カードの結界表示が据え置き値を見ていない');
+  assert.match(read('js/battle/present_events.js'),
+    /presentAdvanceShown\(unit, \{ shield: unit\.shield \}\)/,
+    '結界の表示を演出の瞬間に進めていない');
   assert.match(currentBattle, /applyHp:\(unit,hpAfter\)=>\{ if\(typeof presentAdvanceShown==='function'\) presentAdvanceShown\(unit,\{hp:hpAfter\}\); \}/,
     'PvEが数値を出す瞬間に表示HPを進めていない');
   // 据え置いていない時に差分を足すと二重に効く（開戦の効果でATKが1多く見えた）。
