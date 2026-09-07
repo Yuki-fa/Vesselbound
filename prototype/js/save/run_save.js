@@ -1,15 +1,23 @@
 // 正式なRunStateとチェックポイントの寿命。G全体・DOM・演出の進捗は保存しない。
 const SaveRun=(()=>{
+  const CHECKPOINT_TYPES=new Set(['reward','town','tower','battle']);
+  const BATTLE_RESUME_DELAY_MS=4000;
   const fields={
     player:['gold','life','_waveLife','mainBoard','inventory','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','magicLevel','facilities','facilityDiscounts','baseIncome'],
     progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveDefeatReturnTo','_waveIsRetry','_waveRetryEnemyKey','_waveEnemySnapshot','_mapBattle','worldMap','_retryFloor','rewardGrade','rewardGradeUpCount','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
-    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_bossRingOfferSeen','_bonusRewardPanels','_pendingTreasureItems','_eliteTreasureRewardPending','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
+    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','_pendingTreasureItems','_eliteTreasureRewardPending','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
     place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isTreasureMapReward','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
   let resume=null,busy=false,restoring=false,retryBattle=null,catalogReady=false;
   let resumeTimer=null,resumeResolve=null,resumeStarting=false,resumeGeneration=0;
   function lockInput(on){document.body.inert=!!on;}
+  function setResumeOverlay(active){
+    if(typeof document==='undefined'||!document.body) return;
+    document.body.classList.toggle('run-resume-active',!!active);
+    const overlay=document.getElementById('run-resume-overlay');
+    if(overlay) overlay.setAttribute('aria-hidden',String(!active));
+  }
   const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId']);
   function copy(value){
     // カード／コアイベント内の一時表示情報だけを除外する。非有限数は拒否する。
@@ -39,11 +47,7 @@ const SaveRun=(()=>{
     if(resumeTimer!==null){clearTimeout(resumeTimer);resumeTimer=null;}
     const resolve=resumeResolve;resumeResolve=null;
     resumeStarting=false;resume=null;restoring=false;
-    if(typeof document!=='undefined'&&document.body){
-      document.body.classList.remove('run-resume-active');
-      const overlay=document.getElementById('run-resume-overlay');
-      if(overlay) overlay.setAttribute('aria-hidden','true');
-    }
+    setResumeOverlay(false);
     if(resolve) resolve();
   }
   function random(){
@@ -70,7 +74,7 @@ const SaveRun=(()=>{
   function validate(raw){
     const save=SaveMigrations.migrate('run',raw),a=SaveMigrations.assert,s=save.state;
     a(typeof save.runId==='string'&&s,'ラン状態がありません');
-    a(save.checkpoint&&['reward','town','tower','battle'].includes(save.checkpoint.type),'保存地点が不正です');
+    a(save.checkpoint&&CHECKPOINT_TYPES.has(save.checkpoint.type),'保存地点が不正です');
     a(save.checkpoint.scene===s.location.scene&&save.checkpoint.stage===s.location.stage,'チェックポイントの現在地が一致しません');
     for(const group of Object.keys(fields)){
       a(s[group]&&typeof s[group]==='object'&&!Array.isArray(s[group]),`状態がありません: ${group}`);
@@ -105,6 +109,7 @@ const SaveRun=(()=>{
     a(at===p.events.length&&p.events.at(-1).type==='battle_end'&&p.events.at(-1).outcome===p.outcome,'イベント列と結果が一致しません');
   }
   function buildRunSave(type,pendingBattle=null){
+    SaveMigrations.assert(CHECKPOINT_TYPES.has(type),'保存地点が不正です');
     const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||G.worldMap?.currentNodeId||null,battleType:G._waveBattleType||null};
     return {saveVersion:2,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
   }
@@ -176,17 +181,14 @@ const SaveRun=(()=>{
     resumeStarting=true;
     const generation=++resumeGeneration;
     resume=copy(save.pendingBattle);
-    const overlay=document.getElementById('run-resume-overlay');
-    document.body.classList.add('run-resume-active');
-    if(overlay) overlay.setAttribute('aria-hidden','false');
+    setResumeOverlay(true);
     if(typeof _syncRewardJourneyUi==='function') _syncRewardJourneyUi({root:document.getElementById('run-resume-journey-ui'),exactCurrent:true,resume:true});
     await new Promise(resolve=>{
       resumeResolve=resolve;
-      resumeTimer=setTimeout(()=>{resumeTimer=null;resumeResolve=null;resolve();},4000);
+      resumeTimer=setTimeout(()=>{resumeTimer=null;resumeResolve=null;resolve();},BATTLE_RESUME_DELAY_MS);
     });
     if(!resumeStarting||generation!==resumeGeneration) return;
-    document.body.classList.remove('run-resume-active');
-    if(overlay) overlay.setAttribute('aria-hidden','true');
+    setResumeOverlay(false);
     showScreen('battle');
     // ここからは通常進行。戦闘終了後に作られる次のチェックポイントを抑止しない。
     restoring=false;

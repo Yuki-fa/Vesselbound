@@ -1,13 +1,22 @@
 // ═══════════════════════════════════════
-// map.js — 7x7ワールドマップ進行
+// map.js — 街・塔（施設）とワールドマップ画面
 // 依存: state.js, floors.js, pool.js, enemy.js, reward.js
+//
+// 中身は大きく2つ。
+//   ・街／塔の画面と施設（魔導店・鍛冶屋・道具屋・祭壇・図書館・宿屋）
+//   ・出発時に数秒だけ挟むワールドマップ画面（renderWorldMapScreen 以下）
+//
+// **7x7グリッドのワールドマップ進行（generateWorldMap／goToWorldMap）は
+// 現在の進行では使っていない。** ウェーブ進行（_startWaveFlowNext）へ移行済みで、
+// `G.worldMap` が作られるのはデバッグの「マップ確認」ボタンだけ。
+// 施設の在庫を `worldMap` のノードへ保存する分岐（node.shopStock 等）も同じ理由で
+// 通常のプレイでは通らず、ステージ単位のキャッシュ（G._waveShopStock 等）が使われる。
 // ═══════════════════════════════════════
 
 const WORLD_MAP_ENABLED=true;
 const WORLD_MAP_SIZE=7;
 const WORLD_MAP_MAX_INDEX=4;
 const WORLD_MAP_BASE_TURN_LIMIT=15;
-const WORLD_MAP_CENTER=3*WORLD_MAP_SIZE+3;
 const MAP_PANEL_POWERS=[
   {id:'summon',name:'召喚の力',price:200,desc:'置いたカードがキャラクターなら開戦時に場に出る。'},
   {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターなら、開戦時に場に出してHPを2倍にする。'},
@@ -44,7 +53,6 @@ function _applyMapPanelPowerSheetRows(){
 }
 _applyMapPanelPowerSheetRows();
 
-function _mapIdx(x,y){ return y*WORLD_MAP_SIZE+x; }
 function _mapXY(idx){ return {x:idx%WORLD_MAP_SIZE,y:Math.floor(idx/WORLD_MAP_SIZE)}; }
 function _mapEdgeKey(a,b){ return a<b?`${a}-${b}`:`${b}-${a}`; }
 function _markMapEdgeRevealed(a,b){
@@ -69,29 +77,6 @@ function _mapVisualPointFor(id){
     px:Math.max(22,Math.min(78,50+(rawX-50)*0.82+(rand()-.5)*2.5)),
     py:Math.max(20,Math.min(80,50+(rawY-50)*0.82+(rand()-.5)*2)),
   };
-}
-function _mapAngleBetween(a,b){
-  let d=Math.abs(a-b);
-  if(d>Math.PI) d=Math.PI*2-d;
-  return d;
-}
-function _mapOrientation(a,b,c){
-  return ((b.py-a.py)*(c.px-b.px))-((b.px-a.px)*(c.py-b.py));
-}
-function _mapSegmentsIntersect(a,b,c,d){
-  const o1=_mapOrientation(a,b,c);
-  const o2=_mapOrientation(a,b,d);
-  const o3=_mapOrientation(c,d,a);
-  const o4=_mapOrientation(c,d,b);
-  return (o1*o2<0)&&(o3*o4<0);
-}
-// 点pから線分abまでの最短距離（px/py座標系）。
-function _mapPointToSegmentDist(p,a,b){
-  const dx=b.px-a.px,dy=b.py-a.py;
-  const lenSq=dx*dx+dy*dy;
-  if(lenSq<=0) return Math.hypot(p.px-a.px,p.py-a.py);
-  const t=Math.max(0,Math.min(1,((p.px-a.px)*dx+(p.py-a.py)*dy)/lenSq));
-  return Math.hypot(p.px-(a.px+t*dx),p.py-(a.py+t*dy));
 }
 // 道（辺）が、その両端以外の既存マスのアイコンに近づきすぎないようにする
 // （無関係な道やアイコンとの重なり・過度な接近を避けるため）。
@@ -134,53 +119,11 @@ function _mapPathBetween(startId,targetId){
   }
   return [];
 }
-function _mapGraphDistance(a,b){
-  const path=_mapPathBetween(a,b);
-  return path.length?path.length-1:999;
-}
-function _mapGraphDistanceInEdges(a,b,nodes,edges){
-  if(a==null||b==null) return 999;
-  if(a===b) return 0;
-  const exists=new Set((nodes||[]).map(n=>n&&n.id).filter(id=>id!=null));
-  if(!exists.has(a)||!exists.has(b)) return 999;
-  const seen=new Set([a]);
-  const q=[{id:a,dist:0}];
-  while(q.length){
-    const cur=q.shift();
-    for(const edge of (edges||[])){
-      const nb=edge[0]===cur.id?edge[1]:(edge[1]===cur.id?edge[0]:null);
-      if(nb==null||!exists.has(nb)||seen.has(nb)) continue;
-      if(nb===b) return cur.dist+1;
-      seen.add(nb);
-      q.push({id:nb,dist:cur.dist+1});
-    }
-  }
-  return 999;
-}
 // マップ構成比率：全49マス（初期位置1＋村4＋通常戦闘20＋エリート4＋イベント15＋宝箱5）。
 // ボスはマップ上に配置せず、ターン制限到達時にのみ出現する（_startForcedWorldMapBossBattle参照）。
 const WORLD_MAP_TOTAL_TILES=49;
 const WORLD_MAP_TILE_COUNTS={village:4,treasure:5,elite:4,event:15,battle:20};
 const _MAP_SPACED_SAME_TYPES=new Set(['village','elite','treasure']);
-function _mapSameTypeSpacingOk(node,type,nodes,edges,minDist){
-  if(!_MAP_SPACED_SAME_TYPES.has(type)) return true;
-  return !(nodes||[]).some(n=>n&&n!==node&&n.type===type&&_mapGraphDistanceInEdges(node.id,n.id,nodes,edges)<minDist);
-}
-// 未確定（まだtype==='battle'のまま）のマスからランダムにcount個選び、指定typeへ変更する。
-// extraCheckがある場合はそれも満たすマスのみ対象（エリートの距離制約など）。
-// 条件を満たすマスが不足する場合は置ける分だけ配置し、残りは通常戦闘のまま残す。
-function _assignMapTypeBatch(nodes,edges,startId,type,count,extraCheck){
-  const pool=(nodes||[]).filter(n=>n&&n.id!==startId&&n.type==='battle').sort(()=>rand()-.5);
-  let placed=0;
-  for(const n of pool){
-    if(placed>=count) break;
-    if(!_mapSameTypeSpacingOk(n,type,nodes,edges,3)) continue;
-    if(extraCheck&&!extraCheck(n)) continue;
-    n.type=type;
-    placed++;
-  }
-  return placed;
-}
 // 初期配置の比率をこの順で確定する：村→宝箱→エリート（村・宝箱からの距離制約があるため後に置く）→イベント→残りは通常戦闘。
 // ボスはマップ上に配置しないため、中盤での再配置処理は不要（過去のボスマス移設ロジックは廃止）。
 function _applyWorldMapTurnEvents(){
@@ -609,46 +552,6 @@ const ELITE_DETECTION_RANGE=2;
 // エリートが初期位置/村/宝箱に到達した際、自身とボスの戦力に1.2倍ボーナスを与える対象タイプ。
 // 通常戦闘マスは到達すると（次に移動して離れた時点で）空白化されるがボーナスは付与しない。
 const _ELITE_BONUS_TYPES=new Set(['start','village','treasure']);
-// 探知範囲内で最も近い初期位置/村/宝箱を探す。他のエリートが既に今回のターンで目指している
-// マス（claimedTargets）は除外し、複数のエリートが同じ場所を目指さないようにする。
-function _elitePriorityTarget(node,claimedTargetIds){
-  const m=G.worldMap;
-  if(!m||!node) return null;
-  const startId=m.startId!=null?m.startId:WORLD_MAP_CENTER;
-  const candidates=[];
-  (m.nodes||[]).forEach(n=>{
-    if(!n||n===node) return;
-    if(!(n.id===startId||n.type==='village'||n.type==='treasure')) return;
-    if(claimedTargetIds&&claimedTargetIds.has(n.id)) return;
-    const dist=_mapGraphDistance(node.id,n.id);
-    if(dist>0&&dist<=ELITE_DETECTION_RANGE) candidates.push({node:n,dist});
-  });
-  if(!candidates.length) return null;
-  candidates.sort((a,b)=>a.dist-b.dist||rand()-.5);
-  const bestDist=candidates[0].dist;
-  return randFrom(candidates.filter(t=>t.dist===bestDist)).node;
-}
-// 次の1マス先を決める。他のエリートが現在占有中のマス（occupiedIds）と、直前にいたマス
-// （来た道）へは進まない。探知範囲内に目標が無ければ、進める隣接マスからランダムに選ぶ。
-function _eliteNextNode(node,occupiedIds,claimedTargetIds){
-  const m=G.worldMap;
-  if(!m||!node) return null;
-  const blocked=new Set(occupiedIds||[]);
-  if(node._eliteFromId!=null) blocked.add(node._eliteFromId);
-  const target=_elitePriorityTarget(node,claimedTargetIds);
-  if(target){
-    const path=_mapPathBetween(node.id,target.id);
-    if(path.length>1&&!blocked.has(path[1])){
-      return {node:_mapNodeById(path[1]),targetId:target.id};
-    }
-  }
-  const candidates=_mapEdgeNeighbors(node.id,m.edges)
-    .filter(id=>!blocked.has(id))
-    .map(_mapNodeById)
-    .filter(Boolean);
-  if(!candidates.length) return null;
-  return {node:randFrom(candidates),targetId:null};
-}
 // エリートを1体、1マス分だけ進める（2ターンに1回だけ実際に移動する）。
 // 到達したマスが初期位置/村/宝箱/通常戦闘であればそのマスを空白化し、
 // 初期位置/村/宝箱の場合はそのエリート自身とボスに戦力1.2倍ボーナスを与える（ボス分は蓄積）。
@@ -1488,30 +1391,6 @@ function _worldMapLineAnimationDuration(line){
     ?line._motionPath.getTotalLength():0;
   return Math.max(1,Math.round(WORLD_MAP_LINE_MAX_DURATION*length/_worldMapMotionMaxPathLength()));
 }
-function _mapLineTravelerSetProgress(progress,lineNumber){
-  const line=document.querySelector(`#map-lines .map-line.is-active${lineNumber?`[data-line="${lineNumber}"]`:''}`);
-  if(!line) return;
-  const path=line._motionPath;
-  const traveler=line._traveler;
-  if(!path||!traveler) return;
-  const t=Math.max(0,Math.min(1,Number(progress)||0));
-  const total=path.getTotalLength();
-  const p0=path.getPointAtLength(total*t);
-  const prev=path.getPointAtLength(Math.max(0,total*t-2));
-  const p=p0;
-  const scaleX=(line.clientWidth||1)/(Number(line.dataset.viewW)||1);
-  const scaleY=(line.clientHeight||1)/(Number(line.dataset.viewH)||1);
-  traveler.style.left=`${p.x*scaleX}px`;
-  traveler.style.top=`${p.y*scaleY}px`;
-  // 光球は位置だけをパスへ追従させ、発光の尾は常に画面上方向へ伸ばす。
-  traveler.style.transform='translate(-50%,-50%)';
-  line.dataset.progress=String(t);
-}
-function setWorldMapLineProgress(progress,lineNumber){
-  const n=Number(lineNumber)||Number(document.querySelector('#map-lines .map-line.is-active')?.dataset.line)||0;
-  if(G) G._mapLineProgress={line:n,value:Math.max(0,Math.min(1,Number(progress)||0))};
-  _mapLineTravelerSetProgress(progress,n);
-}
 // 現在地マーク（ui/map_mark.svg、左上合わせのpx座標）。キーは worldMapActiveLine() の戻り値。
 // 2＝エルム後／3＝碧翠の塔後／4＝ヴァルガ後／5＝雷鳴の塔後／6＝ギャラハ後／
 // 7＝赤禍の塔後／8＝ヴォルザーク後／0＝蝕界の塔後（ラインのアニメーションは行わない）。
@@ -2274,9 +2153,9 @@ function startLibraryBoardTutorial(){
     ['1',null,'カードは魔導板に置くことで所持できます。多くのカードは、魔導板に置かれているだけで効果を発揮します。'],
     ['2',null,'ここ、図書館ではカードを借りて戦闘の練習を行うことができます。これから上の貸出カードを使って、実際に編成してみましょう。'],
     ['3',()=>cardByName('リザードマン'),'下部に数字が書かれたカードは「キャラクターカード」です。左下の数字がATK（攻撃力）、右下の数字がHP（体力）を表します。'],
-    ['4-1',boardSlot(2,2),'キャラクターカードは「召喚の力」のマスに置くことで戦闘に参加します。上段の「召喚の力」に置いたキャラクターは前衛、下段に置いたキャラクターは後衛になります。'],
-    ['4-2',boardSlot(2,2),'貸出キャラクターの「リザードマン」を「召喚の力」のマスに置いてみましょう。','リザードマン'],
-    ['5-1',()=>cardByName('野生の力'),'それ以外のカードは「エンチャントカード」です。エンチャントカードとキャラクターカードの矢印を向かい合わせると、そのキャラクターにエンチャントの効果を与えられます。'],
+    ['4-1',boardSlot(2,2),'キャラクターカードは「召喚の力」マスに置くことで戦闘に参加します。上段の「召喚の力」マスに置いたキャラクターは前衛、下段に置いたキャラクターは後衛になります。'],
+    ['4-2',boardSlot(2,2),'貸出キャラクターの「リザードマン」を下段中央の「召喚の力」マスに置いてみましょう。','リザードマン'],
+    ['5-1',()=>cardByName('野生の力'),'それ以外のカードは「エンチャントカード」です。エンチャントカードとキャラクターカードの矢印を向かい合わせると、そのキャラクターにエンチャントの効果を与えられます。これを「リンク」と呼びます。'],
     ['5-2',boardSlot(2,1),'貸出エンチャントの「野生の力」を魔導板に置き、先ほど配置したキャラクターと矢印を向かい合わせてみましょう。','野生の力'],
     ['5-3',null,'エンチャントカード同士の矢印を向かい合わせると、その繋がりを通してキャラクターに効果を与えられます。ただし、キャラクターカードは効果を通さないため、キャラクター同士を繋いでも効果はありません。'],
     ['6',null,'戦闘ではキャラクターが多い陣営が先攻となり、前衛の左端から敵味方が交互に行動します。攻撃対象はランダムな敵前衛となり、前衛がいない場合はランダムな後衛を攻撃します。'],
@@ -2638,6 +2517,8 @@ function openMapRingExchange(){
     G._ringOfferFadeOut=null;
     G._boardDiscardCount=0;
   }
+  // 途中離脱で回収する対象は「この祭壇で捧げた分」だけ。持ち越さない。
+  G._ringSacrificedCards=[];
   G._ringOfferPhase=true;
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   renderRewCards();

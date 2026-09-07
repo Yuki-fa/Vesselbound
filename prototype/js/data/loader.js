@@ -1606,3 +1606,22 @@ async function loadGameData() {
     return false;
   }
 }
+
+// ── テキストメッセージシートの文言を引く唯一の入口 ──────────────────
+// **UIの固定文言はシートが唯一の出どころ。** コード側の文字列は
+// 「シートを読めなかった時の予備」としてだけ持つこと（fallback 引数）。
+// シートの「場面」列は改行を含むことがある
+// （例：「編成、ショップ画面「旅の進捗」内」＋改行＋「通常時」）。
+// 呼び出し側が改行まで一致させるのは無理があるので、**空白と改行を無視して**突き合わせる。
+function textMessage(scene, fallback) {
+  const messages = (typeof window !== 'undefined' && window.TEXT_MESSAGES) || {};
+  const want = String(scene || '').replace(/\s+/g, '');
+  if (!want) return String(fallback || '');
+  const direct = messages[scene];
+  if (direct) return String(direct);
+  for (const key of Object.keys(messages)) {
+    if (String(key).replace(/\s+/g, '') === want) return String(messages[key]);
+  }
+  return String(fallback || '');
+}
+if (typeof window !== 'undefined') window.textMessage = textMessage;

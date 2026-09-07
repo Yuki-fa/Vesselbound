@@ -110,11 +110,57 @@ const STATUS_TOOLTIPS=[
     fallback:'味方が死ぬと増加する。封印されたキャラクターの解放や、一部のカード効果の発動に必要。',
     values:['battle-sacrifice-value'],selectors:[]},
 ];
+// ── CSSの content で出す文言をシートから流し込む ─────────────────
+// **文言はテキストメッセージシートが唯一の出どころ。** CSSからはシートを読めないので、
+// カスタムプロパティ（--altar-desc-text 等）へ入れて `content:var(...)` に使わせる。
+// 予備の文字列はCSS側の var() の第2引数が持つ（ここでは値が取れた時だけ設定する）。
+const SHEET_CSS_TEXTS=[
+  {prop:'--altar-desc-text',key:'「祭壇」説明文1',altKeys:['「祭壇」説明文']},
+  {prop:'--title-board',key:'魔導板枠見出し'},
+  {prop:'--title-reward',key:'編成画面報酬枠見出し'},
+  {prop:'--title-shop',key:'魔導店報酬枠見出し'},
+  {prop:'--title-item-shop',key:'道具屋報酬枠見出し'},
+  {prop:'--title-forge',key:'鍛冶屋報酬枠見出し'},
+  {prop:'--title-altar',key:'祭壇報酬枠見出し'},
+  {prop:'--title-library',key:'図書館の報酬枠見出し'},
+  // 祭壇の説明文は2種類。1＝まだ捧げ切っていない時、2＝指輪を取った後。
+  {prop:'--altar-desc-resolved-text',key:'「祭壇」説明文2'},
+];
+// ── DOMに直接書く見出し ────────────────────────────────
+// **文言はテキストメッセージシートが唯一の出どころ。** セレクタで引ける固定の見出しは
+// ここへ足すだけでよい（画面によって変わる見出しは各画面側で textMessage() を呼ぶ）。
+const SHEET_DOM_TITLES=[
+  {sel:'#reward-production-ui .reward-prod-item h2',key:'アイテム枠見出し',fallback:'アイテム'},
+  {sel:'#reward-production-ui .reward-prod-ring h2',key:'指輪枠見出し',fallback:'指輪'},
+  {sel:'#reward-production-ui .reward-prod-quest h2',key:'クエスト枠見出し',fallback:'クエスト'},
+  {sel:'#reward-production-ui .reward-prod-journey h2',key:'旅の進捗枠見出し',fallback:'旅の進捗'},
+  {sel:'#reward-production-ui .reward-prod-money h2',key:'所持金枠見出し',fallback:'所持金'},
+];
+function applySheetDomTitles(){
+  if(typeof document==='undefined'||typeof textMessage!=='function') return;
+  SHEET_DOM_TITLES.forEach(def=>{
+    const text=textMessage(def.key,def.fallback).trim();
+    if(!text) return;
+    document.querySelectorAll(def.sel).forEach(el=>{ el.textContent=text; });
+  });
+}
+function applySheetCssTexts(){
+  if(typeof document==='undefined'||typeof textMessage!=='function') return;
+  SHEET_CSS_TEXTS.forEach(def=>{
+    let text=textMessage(def.key,'').trim();
+    // シートの行名が変わる途中でも拾えるよう、旧い行名も順に見る。
+    (def.altKeys||[]).forEach(k=>{ if(!text) text=textMessage(k,'').trim(); });
+    if(!text) return;
+    // content は文字列リテラルなので、引用符とバックスラッシュを閉じないようにする。
+    document.documentElement.style.setProperty(def.prop,
+      `"${text.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`);
+  });
+}
 function applyStatusTooltips(){
   if(typeof document==='undefined') return;
-  const messages=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
   STATUS_TOOLTIPS.forEach(def=>{
-    const text=String(messages[def.key]||def.fallback||'').trim();
+    const text=(typeof textMessage==='function'?textMessage(def.key,def.fallback)
+      :String(def.fallback||'')).trim();
     if(!text) return;
     const targets=[];
     (def.values||[]).forEach(id=>{
@@ -1877,7 +1923,7 @@ document.addEventListener('contextmenu', e => { e.preventDefault(); }, true);
 //   行　　　：発生行（取れなければ0）
 // 例）BT-T3020 ＝ battle.js の3020行目で TypeError。
 const FATAL_ERROR_TEXT_KEYS=['エラー発生時','エラー'];
-const FATAL_ERROR_FALLBACK='予期しないエラーが発生しました。\nゲームを続行できないため、タイトル画面へ戻ります。';
+const FATAL_ERROR_FALLBACK='予期しないエラーが発生しました。\n続行できないため、タイトル画面へ戻ります。';
 const FATAL_ERROR_FILE_TAGS=[
   [/js\/engine\/battle\.js/,'BT'],[/js\/engine\/render\.js/,'RD'],[/js\/engine\/reward\.js/,'RW'],
   [/js\/engine\/map\.js/,'MP'],[/js\/engine\/main\.js/,'MN'],[/js\/engine\/pool\.js/,'PL'],
@@ -1989,6 +2035,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   // 所持金・ライフ・マナ・血の説明（テキストメッセージシート）を貼る。
   if (typeof applyStatusTooltips === 'function') applyStatusTooltips();
+  // CSSの content で出す文言（見出し・祭壇の説明文）もシートから流し込む。
+  if (typeof applySheetCssTexts === 'function') applySheetCssTexts();
+  if (typeof applySheetDomTitles === 'function') applySheetDomTitles();
   if(typeof SaveRun!=='undefined') SaveRun.ready();
 });
 
