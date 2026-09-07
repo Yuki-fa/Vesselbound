@@ -92,12 +92,13 @@ function _mergeCountedKeywords(list){
     return true;
   });
 }
+// DOM再描画や演出回数でラン用RNGを進めない。ID自体はRunStateへ保存される。
 const uid      = ()    => '_'+Math.random().toString(36).slice(2,8);
-const randFrom = a     => a[Math.floor(Math.random()*a.length)];
-const randi    = (a,b) => a+Math.floor(Math.random()*(b-a+1));
+const randFrom = a     => a[Math.floor(rand()*a.length)];
+const randi    = (a,b) => a+Math.floor(rand()*(b-a+1));
 const clone    = o     => JSON.parse(JSON.stringify(o));
 
-function rand(){ return Math.random(); }
+function rand(){ return typeof runRandom==='function'?runRandom():Math.random(); }
 
 function initState(){
   G={

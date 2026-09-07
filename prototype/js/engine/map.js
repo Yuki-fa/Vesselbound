@@ -66,8 +66,8 @@ function _mapVisualPointFor(id){
   return {
     x,
     y,
-    px:Math.max(22,Math.min(78,50+(rawX-50)*0.82+(Math.random()-.5)*2.5)),
-    py:Math.max(20,Math.min(80,50+(rawY-50)*0.82+(Math.random()-.5)*2)),
+    px:Math.max(22,Math.min(78,50+(rawX-50)*0.82+(rand()-.5)*2.5)),
+    py:Math.max(20,Math.min(80,50+(rawY-50)*0.82+(rand()-.5)*2)),
   };
 }
 function _mapAngleBetween(a,b){
@@ -170,7 +170,7 @@ function _mapSameTypeSpacingOk(node,type,nodes,edges,minDist){
 // extraCheckがある場合はそれも満たすマスのみ対象（エリートの距離制約など）。
 // 条件を満たすマスが不足する場合は置ける分だけ配置し、残りは通常戦闘のまま残す。
 function _assignMapTypeBatch(nodes,edges,startId,type,count,extraCheck){
-  const pool=(nodes||[]).filter(n=>n&&n.id!==startId&&n.type==='battle').sort(()=>Math.random()-.5);
+  const pool=(nodes||[]).filter(n=>n&&n.id!==startId&&n.type==='battle').sort(()=>rand()-.5);
   let placed=0;
   for(const n of pool){
     if(placed>=count) break;
@@ -325,7 +325,7 @@ function _revealAroundCurrentMapNode(){
   });
 }
 function _routeNodeType(routeType,step){
-  const layouts={battle:['battle','battle','event','elite'],explore:['battle','event','treasure','event'],supply:['battle',Math.random()<.5?'merchant':'altar','event','battle']};
+  const layouts={battle:['battle','battle','event','elite'],explore:['battle','event','treasure','event'],supply:['battle',rand()<.5?'merchant':'altar','event','battle']};
   return (layouts[routeType]||layouts.explore)[step]||'battle';
 }
 function _routeRating(type){ return ({battle:20,elite:40,event:10,treasure:20,merchant:30,altar:40}[type]||0); }
@@ -344,7 +344,7 @@ function generateWorldMap(index){
   const boss=_makeRouteNode(nextId++,'boss',1,-1,5,82,50,'');
   boss.visible=true;
   nodes.push(start,village,boss);
-  const routeTypes=['battle','explore','supply'].sort(()=>Math.random()-.5);
+  const routeTypes=['battle','explore','supply'].sort(()=>rand()-.5);
   const firstY=[32,50,68],secondY=[38,50,62];
   const makeRoute=(stage,routeIndex,routeType,from,to,ys)=>{
     let previous=from;
@@ -624,7 +624,7 @@ function _elitePriorityTarget(node,claimedTargetIds){
     if(dist>0&&dist<=ELITE_DETECTION_RANGE) candidates.push({node:n,dist});
   });
   if(!candidates.length) return null;
-  candidates.sort((a,b)=>a.dist-b.dist||Math.random()-.5);
+  candidates.sort((a,b)=>a.dist-b.dist||rand()-.5);
   const bestDist=candidates[0].dist;
   return randFrom(candidates.filter(t=>t.dist===bestDist)).node;
 }
@@ -1733,6 +1733,13 @@ function departWithWorldMap(){
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.lockInput(true);
+  // 街／塔で確定した操作は出発時に正式状態へ昇格する。次戦の準備完了後は
+  // battleチェックポイントで上書きされる。
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()&&!SaveRun.checkpoint(G._isWaveAltar?'tower':'town')){
+    SaveRun.lockInput(false);
+    return;
+  }
   // village-screen-active を外すと「出発する」ボタンのスコープCSS（位置・寸法）が
   // 一斉に消え、既定スタイルに戻ったラベルが画面左上へ飛んで縮みながら消えて見える。
   // 先に入場演出と同じ非表示クラスでUIを消してから、クラスを外す。
@@ -1949,6 +1956,7 @@ async function _playVillageEnterIntro(build){
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
+  G._savePresentation=false;
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
   // 村メニューでは祭壇状態を必ず解除する（塔として開く場合のみ立てる）。
@@ -1965,7 +1973,12 @@ function openMapVillage(options){
   G._ringOfferPhase=false;
   G._facilityLabel='';
   G.phase='reward';
-  // 入場フェード中から蝶のデコード・再生を始め、画面表示後の遅延をなくす。
+  // 新規到着時だけ、画面に存在する施設のランダム提示を先に確定する。
+  // 施設から戻った時やロード復元時には更新せず、開始チェックポイントを保つ。
+  if(options&&options.intro&&!(options&&options.restoreCheckpoint)){
+    _ensureWaveFacilityCheckpointContents();
+    if(typeof SaveRun!=='undefined') SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
+  }
   // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。
   const build=()=>{
     _applyFacilityBackground(null);
@@ -2388,12 +2401,7 @@ function openMapItemShop(){
   if(waveKey!=null&&G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])){
     // 購入済みの枠はnullのまま「売切」として残す（詰めない・補充しない）。
     _rewCards=clone(G._waveItemShopStock[waveKey]);
-  }else{
-    const items=(typeof drawItems==='function'?drawItems(3):[]).filter(Boolean);
-    items.forEach(it=>{ it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it)); });
-    _rewCards=items;
-    if(waveKey!=null){ G._waveItemShopStock=G._waveItemShopStock||{}; G._waveItemShopStock[waveKey]=clone(_rewCards); }
-  }
+  }else _rewCards=_ensureWaveItemShopStock();
   while(_rewCards.length<3) _rewCards.push(null);
   G._isShop=true;
   G._isItemShop=true;
@@ -2435,6 +2443,67 @@ function _mapPickSaleCard(pred, used){
   if(card) card._buyPrice=_shopBuyPriceWithRings(_mapSalePrice(card));
   return card;
 }
+function _ensureWaveShopStock(){
+  const node=_mapCurrentVillageNode();
+  const waveKey=_waveFacilityCacheKey();
+  if(node&&Array.isArray(node.shopStock)) return clone(node.shopStock);
+  if(G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])) return clone(G._waveShopStock[waveKey]);
+  const used=new Set();
+  const stock=[
+    _mapPickSaleCard(p=>Number(p.rarity)===1,used),
+    _mapPickSaleCard(p=>Number(p.rarity)===1,used),
+    _mapPickSaleCard(p=>Number(p.rarity)>=2,used),
+    _mapPickSaleCard(p=>Number(p.rarity)>=2,used),
+    _mapPickSaleCard(p=>Number(p.rarity)>=3,used),
+  ];
+  // **同じ品揃えの中で矢印の向きが完全に同じカードを重ねない**（報酬の提示と同じ規則）。
+  // 魔導店は drawRewards() を通らないので、ここで明示的に呼ぶ。
+  // 呼んでいなかった頃は、5枚中4〜5枚が同じ向きになることがあった
+  // （実測：品揃えの83%に重複、最大5枚が同じ向き）。**在庫を保存する前に行うこと。**
+  if(typeof _dedupePanelDirections==='function') _dedupePanelDirections(stock);
+  if(node) node.shopStock=clone(stock);
+  G._waveShopStock=G._waveShopStock||{};
+  G._waveShopStock[waveKey]=clone(stock);
+  return clone(stock);
+}
+function _ensureWaveItemShopStock(){
+  const waveKey=_waveFacilityCacheKey();
+  if(G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])) return clone(G._waveItemShopStock[waveKey]);
+  const stock=(typeof drawItems==='function'?drawItems(3):[]).filter(Boolean);
+  stock.forEach(it=>{it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it));});
+  while(stock.length<3) stock.push(null);
+  G._waveItemShopStock=G._waveItemShopStock||{};
+  G._waveItemShopStock[waveKey]=clone(stock);
+  return clone(stock);
+}
+function _ensureWaveForgeOffers(){
+  const node=_mapCurrentVillageNode();
+  const waveKey=_waveFacilityCacheKey();
+  if(node&&Array.isArray(node.forgeOffers)) return clone(node.forgeOffers);
+  if(G._waveForgeOffers&&Array.isArray(G._waveForgeOffers[waveKey])) return clone(G._waveForgeOffers[waveKey]);
+  const offers=_pickMapForgeOffers();
+  if(node) node.forgeOffers=clone(offers);
+  G._waveForgeOffers=G._waveForgeOffers||{};
+  G._waveForgeOffers[waveKey]=clone(offers);
+  return clone(offers);
+}
+function _ensureWaveRingExchange(){
+  const waveKey=_waveFacilityCacheKey();
+  if(G._waveRingExchange&&G._waveRingExchange[waveKey]) return clone(G._waveRingExchange[waveKey]);
+  const cache={offer:typeof _pickRingOffer==='function'?clone(_pickRingOffer()):[],unlocked:false,resolved:false,discardCount:0};
+  G._waveRingExchange=G._waveRingExchange||{};
+  G._waveRingExchange[waveKey]=clone(cache);
+  return cache;
+}
+function _ensureWaveFacilityCheckpointContents(){
+  for(const fac of villageFacilityList()){
+    if(_villageFacilityDisabled(fac)) continue;
+    if(fac.key==='shop') _ensureWaveShopStock();
+    else if(fac.key==='item') _ensureWaveItemShopStock();
+    else if(fac.key==='forge') _ensureWaveForgeOffers();
+    else if(fac.key==='ringExchange') _ensureWaveRingExchange();
+  }
+}
 function openMapShop(){
   // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
   // 保存時にG._waveを読むと、デバッグのステージジャンプのように
@@ -2466,18 +2535,7 @@ function openMapShop(){
     _rewCards=clone(node.shopStock||[]).map(shopSlot);
   }else if(waveKey!=null&&G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])){
     _rewCards=clone(G._waveShopStock[waveKey]).map(shopSlot);
-  }else{
-    const used=new Set();
-    _rewCards=[
-      _mapPickSaleCard(p=>Number(p.rarity)===1,used),
-      _mapPickSaleCard(p=>Number(p.rarity)===1,used),
-      _mapPickSaleCard(p=>Number(p.rarity)>=2,used),
-      _mapPickSaleCard(p=>Number(p.rarity)>=2,used),
-      _mapPickSaleCard(p=>Number(p.rarity)>=3,used),
-    ];
-    if(node) node.shopStock=clone(_rewCards);
-    if(waveKey!=null){ G._waveShopStock=G._waveShopStock||{}; G._waveShopStock[waveKey]=clone(_rewCards); }
-  }
+  }else _rewCards=_ensureWaveShopStock().map(shopSlot);
   // 一度売れた枠は補充しない（再入店しても同じ品揃え＝売切のまま）。
   while(_rewCards.length<5) _rewCards.push(null);
   G._isShop=true;
@@ -2512,11 +2570,7 @@ function openMapForge(){
     G._mapForgeOffers=clone(node.forgeOffers||[]);
   }else if(waveKey!=null&&G._waveForgeOffers&&Array.isArray(G._waveForgeOffers[waveKey])){
     G._mapForgeOffers=clone(G._waveForgeOffers[waveKey]);
-  }else{
-    G._mapForgeOffers=_pickMapForgeOffers();
-    if(node) node.forgeOffers=clone(G._mapForgeOffers||[]);
-    if(waveKey!=null){ G._waveForgeOffers=G._waveForgeOffers||{}; G._waveForgeOffers[waveKey]=clone(G._mapForgeOffers||[]); }
-  }
+  }else G._mapForgeOffers=_ensureWaveForgeOffers();
   renderMapForgeOffers();
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   renderMoveSlotsInEnemy();
@@ -2574,7 +2628,8 @@ function openMapRingExchange(){
     G._ringOfferResolved=!!cache.resolved;
     G._boardDiscardCount=cache.discardCount||0;
   }else{
-    G._ringOffer=typeof _pickRingOffer==='function'?_pickRingOffer():[];
+    const initial=_ensureWaveRingExchange();
+    G._ringOffer=clone(initial.offer||[]);
     // 初めて入る祭壇では解放状態を必ず初期化する。前の塔で指輪を取った
     // （_ringOfferResolved=true）まま持ち越すと、新しい祭壇でも「取得済み」扱いになり
     // 指輪が出ず空の枠だけが表示されてしまう。
@@ -2582,8 +2637,6 @@ function openMapRingExchange(){
     G._ringOfferResolved=false;
     G._ringOfferFadeOut=null;
     G._boardDiscardCount=0;
-    G._waveRingExchange=G._waveRingExchange||{};
-    G._waveRingExchange[waveKey]={offer:clone(G._ringOffer||[]),unlocked:false,resolved:false,discardCount:0};
   }
   G._ringOfferPhase=true;
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
@@ -2598,7 +2651,7 @@ function _pickMapForgeOffers(){
   const pool=MAP_PANEL_POWERS.filter(p=>p.id!=='summon');
   const picks=[{...MAP_PANEL_POWERS[0]}];
   while(picks.length<3&&pool.length){
-    picks.push({...pool.splice(Math.floor(Math.random()*pool.length),1)[0]});
+    picks.push({...pool.splice(Math.floor(rand()*pool.length),1)[0]});
   }
   return picks;
 }
@@ -2833,7 +2886,7 @@ function resolveMapEvent(node){
   node.type='empty';
   node._clearedEvent=true;
   delete node._terrainType;
-  const r=Math.floor(Math.random()*3);
+  const r=Math.floor(rand()*3);
   if(r===0){
     const c=drawPanel(1,Math.min(5,G.rewardGrade||1))[0];
     const idx=(G.mainBoard||[]).findIndex(x=>!x);

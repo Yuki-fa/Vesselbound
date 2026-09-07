@@ -706,12 +706,12 @@ function _playDeathBurnOnce(unit,isEnemySide){
   playUnitDeathBurn(unit,isEnemySide?'enemy':'ally');
 }
 
-function _rollEnemyGold(enemy){
+function _rollEnemyGold(enemy,rng){
   const range=Array.isArray(enemy&&enemy.goldRange)?enemy.goldRange:null;
   if(!range) return 1;
   const lo=Math.max(0,Number(range[0])||0);
   const hi=Math.max(lo,Number(range[1])||lo);
-  return randi(lo,hi);
+  return rng?rng.int(lo,hi):randi(lo,hi);
 }
 
 function _initSealStates(){
@@ -953,7 +953,7 @@ function _handleVictory(){
         _exitTestBattle();
         return;
       }
-      if(G.phase==='reward') goToReward();
+      if(G.phase==='reward') goToReward({checkpoint:true});
     });
   }
 }
@@ -1657,6 +1657,12 @@ function _warmBattleHitSfx(){
 }
 
 async function startBattle(){
+  const savedBattle=typeof SaveRun!=='undefined'?SaveRun.takeResume():null;
+  const saveBattle=typeof SaveRun!=='undefined'&&SaveRun.enabled();
+  G._savePreparing=saveBattle;
+  G._savePresentation=!!savedBattle;
+  if(saveBattle) SaveRun.lockInput(true);
+  G._savedBattleEnd=null;
   G._debugFormationAbort=false;
   G._battleEventPlaybackDepth=0;
   G._battleVictoryCheckPending=false;
@@ -1807,7 +1813,7 @@ async function startBattle(){
   // **同じ戦闘への再挑戦では開幕の会話を飛ばす。** 同じ台詞を毎回読まされるため。
   // 敵を引き継ぐ（＝同じ敵に挑み直した）時が再挑戦。
   G._skipBattleStartLines=reuseWaveEnemies;
-  G.enemies=reuseWaveEnemies
+  G.enemies=savedBattle?SaveRun.copy(savedBattle.setup.units.p2):reuseWaveEnemies
     ?clone(G._waveEnemySnapshot)
     :(fixedTestBattle
       ?_withFixedRandom(TEST_BATTLE_ENEMY_SEED,()=>generateEnemies(battleFloor))
@@ -1912,11 +1918,23 @@ async function startBattle(){
 
   // カードの実体だけを先に構築し、開戦時効果は配置演出後まで保留する。
   G._deferManaThresholdEffects=true;
+  if(savedBattle){
+    SaveRun.installSetup(savedBattle);
+  }else{
   _initSealStates();
   if(typeof applyNewPanelBattleStart==='function') await applyNewPanelBattleStart({deferOpeningEffects:true});
   // 接続した強化カード由来の封印も含め、開幕演出の前に封印状態を再計算する。
   _initSealStates();
   _applyTerrainReinforcements();
+  }
+
+  let pendingBattle=null;
+  if(saveBattle){
+    try{pendingBattle=await SaveRun.prepareBattle(savedBattle);}
+    catch(error){SaveRun.failedBattle(error);return;}
+    G._savePreparing=false;
+    G._savePresentation=true;
+  }
 
   // 通常・エリート・ボスを問わず、開幕演出が終わるまでカードは非表示にする。
   renderAll();
@@ -1928,6 +1946,9 @@ async function startBattle(){
   renderAll();
   await playBattleOpeningSequence();
   if(_battleRunStale(_runId)) return;
+  if(pendingBattle){
+    [...G.allies,...G.enemies].filter(Boolean).forEach(markCardSeen);
+  }
   _settleBattleOpeningLayout();
   // 全員が出撃した後、台詞を持つキャラクターがいれば吹き出しで順に出す。
   await playBattleStartLines();
@@ -1935,6 +1956,11 @@ async function startBattle(){
   if(G._debugGameOver){
     G._battleDefeatHandled=true;
     gameOver();
+    return;
+  }
+  if(pendingBattle){
+    G._freeItemPhase='battle';G._freeItemUsed=false;
+    await SaveRun.replay(pendingBattle,_runId);
     return;
   }
   onBattleStart();
@@ -2429,6 +2455,7 @@ function _delayDeathCompact(ms){
 }
 
 function _checkBattleOver(){
+  if(G._savedBattleReplaying) return false;
   if(_checkRearCenterAllyGameOver()) return true;
   _tryNecromancerRingRevive();
   const liveEnemies=G.enemies.filter(e=>e&&e.hp>0&&!e._isObject&&!_isSealed(e));
@@ -2545,6 +2572,7 @@ function _battleVictoryAlreadyPending(){
 }
 
 function _onAllEnemiesDefeated(){
+  if(G._savedBattleReplaying) return;
   if(G.phase==='reward') return; // 二重呼び出し防止
   // コアのイベント列には、この直後に蘇生・召喚が続くことがある。
   // 列全体を再生し終えるまで勝利を確定せず、最後の盤面だけで判定する。
@@ -2925,7 +2953,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         // オンラインはサーバーが確定済みなので何もしない。
         processDeath:async(unit,side)=>{
           const goldBefore=Math.max(0,Number(G.gold)||0);
-          if(side==='p1') await processAllyDeath(unit);
+          if(G._savedBattleReplaying) SaveRun.recordDeath(unit,side,e);
+          else if(side==='p1') await processAllyDeath(unit);
           else await processEnemyDeath(unit,(state.units.p2||[]).indexOf(unit));
           // 敵撃破報酬はPvE側の後始末（onGoldGained）で確定する。コア状態へは
           // **増えた分だけを足す。** 実値を代入すると、コアが確定済みでまだ演出を
@@ -3119,7 +3148,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 盤面から外される前にここで確定させる（外れると体を引けなくなる）。
       const _fledUnit=e.side==='p2'?findLiveUnit('p2',e.unitId,findUnit('p2',e.unitId)):null;
       if(_fledUnit&&typeof _rollEnemyGold==='function'&&typeof onGoldGained==='function'){
-        const _fledGold=_rollEnemyGold(_fledUnit);
+        const _fledGold=G._savedBattleReplaying?(e.pveRewardGold||0):_rollEnemyGold(_fledUnit);
         const _gained=_fledGold>0?onGoldGained(_fledGold):0;
         // **増えた分だけコア状態へ足す。** 撃破報酬と同じ理由（代入は演出待ちの分を消す）。
         if(_gained>0&&state.resources&&state.resources.p1){
@@ -7246,6 +7275,7 @@ function onBattleStart(){
 // ── 戦闘終了時処理 ───────────────────────────
 
 async function _applyCoreBattleEndEffectsLive(){
+  if(typeof SaveRun!=='undefined'&&SaveRun.applyEnd({units:{p1:G.allies,p2:G.enemies}})) return;
   _recordBattleTrace('battle_end_dispatch_start',{phase:G.phase,gold:Number(G.gold)||0,mana:Number(_ensureMana())||0});
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},

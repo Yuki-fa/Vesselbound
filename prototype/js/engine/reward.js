@@ -659,42 +659,40 @@ function renderRaceBuffSummary(){
 
 // ── 報酬フェイズ開始 ────────────────────────────
 
-function goToReward(){
+function goToReward(options){
+  const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
+  const _saveCheckpoint=!!(options&&options.checkpoint);
+  G._savePresentation=false;
   const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isTreasureMapReward||G._isLibrary);
   document.body.classList.remove('battle-victory-pending');
-  G._freeItemPhase='reward';
-  G._freeItemUsed=false;
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy') return;
-  G._isTreasurePhase=false;
-  G._isRewardTown=true; // 既存UIは街モードを維持
-  G._freeRewardPanelMode=true; // 一時仕様：パネルは無料。_baseCostは保持する
-  G._rewardOnePickMode=true;
-  _rewFreePickDone=false;
-  _rewPhaseId++;
-  G.facilities=G.facilities||{altar:1,lab:1,city:1,vault:1,library:1,university:1};
-  G.rewardGrade=Math.max(1,G.facilities.lab||1);
-  // 明示的リセット（前回の残留データを防ぐ）
-  G._pendingTreasureItems=G._pendingTreasureItems||[];
-
-  // メイン置き場は最初から全枠使用可能なため、ボス撃破によるパネル枠解放は不要
-  // ボス報酬フェイズかどうかはG._bossJustDefeatedがリセットされる前に確定させておく
-  // （指輪提示の要否判定と、報酬フェイズ内で参照する_boardDiscardCount等のリセットに使う）
-  G._isBossRewardCycle=!!G._bossJustDefeated;
-  G._boardDiscardCount=0;
-  G._ringOfferUnlocked=false;
-  G._ringOfferResolved=false;
-  G._ringOffer=G._isBossRewardCycle?_pickRingOffer():[];
-  // 指輪の提示は通常の報酬カード取得後（編成完了ボタン押下後）に切り替わる別画面で行う。
-  G._ringOfferPhase=false;
-  G._bossJustDefeated=false;
-
-  const _waveRewardCount=Number.isInteger(G._waveRewardCount)?Math.max(0,Math.min(REWARD_GRID_CAPACITY,G._waveRewardCount)):REWARD_GRID_CAPACITY;
-  _rewCards=drawRewards().filter(c=>c&&!c._isChar).slice(0,_waveRewardCount);
-  G._retryRewardCards=null;
-  _rewCards=_rewCards.filter(c=>c&&!c._isChar);
-  _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
-  _storeRewardStartSnapshot();
+  if(!_restoreCheckpoint){
+    G._freeItemPhase='reward';
+    G._freeItemUsed=false;
+    G._isTreasurePhase=false;
+    G._isRewardTown=true; // 既存UIは街モードを維持
+    G._freeRewardPanelMode=true; // 一時仕様：パネルは無料。_baseCostは保持する
+    G._rewardOnePickMode=true;
+    _rewFreePickDone=false;
+    _rewPhaseId++;
+    G.facilities=G.facilities||{altar:1,lab:1,city:1,vault:1,library:1,university:1};
+    G.rewardGrade=Math.max(1,G.facilities.lab||1);
+    G._pendingTreasureItems=G._pendingTreasureItems||[];
+    G._isBossRewardCycle=!!G._bossJustDefeated;
+    G._boardDiscardCount=0;
+    G._ringOfferUnlocked=false;
+    G._ringOfferResolved=false;
+    G._ringOffer=G._isBossRewardCycle?_pickRingOffer():[];
+    G._ringOfferPhase=false;
+    G._bossJustDefeated=false;
+    const _waveRewardCount=Number.isInteger(G._waveRewardCount)?Math.max(0,Math.min(REWARD_GRID_CAPACITY,G._waveRewardCount)):REWARD_GRID_CAPACITY;
+    _rewCards=drawRewards().filter(c=>c&&!c._isChar).slice(0,_waveRewardCount);
+    G._retryRewardCards=null;
+    _rewCards=_rewCards.filter(c=>c&&!c._isChar);
+    _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
+    _storeRewardStartSnapshot();
+  }
   G.phase='reward';
   G._battlePhaseRunning=false;
   document.body.classList.add('reward-screen-active');
@@ -707,12 +705,13 @@ function goToReward(){
   if(goldLabel) goldLabel.textContent='所持金';
   G._showGlobalPanels=false;
   G._showFacilities=false;
-  G._selectedEquipUnitIdx=G.allies.findIndex(a=>a&&a.hp>0);
-  if(G._selectedEquipUnitIdx<0) G._selectedEquipUnitIdx=0;
-  // 報酬フェイズ突入時に行動権を戦闘フェイズと同値にリセット
-  G.actionsPerTurn=calcActions();
-  G.actionsLeft=G.actionsPerTurn;
-  G._familiarUsed=false; // ファミリア：報酬フェイズ開始時にリセット
+  if(!_restoreCheckpoint){
+    G._selectedEquipUnitIdx=G.allies.findIndex(a=>a&&a.hp>0);
+    if(G._selectedEquipUnitIdx<0) G._selectedEquipUnitIdx=0;
+    G.actionsPerTurn=calcActions();
+    G.actionsLeft=G.actionsPerTurn;
+    G._familiarUsed=false;
+  }
 
   // 報酬フェイズUI
   const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
@@ -756,6 +755,7 @@ function goToReward(){
   renderEnemyHand();
   setHint('ゴールドを支払ってキャラクターやアイテムを購入しましょう');
   updateHUD();
+  if(_saveCheckpoint&&!_isFacilityEntry&&typeof SaveRun!=='undefined') SaveRun.checkpoint('reward');
   // ボス報酬はG._bossJustDefeatedで処理済み
 }
 
@@ -1011,6 +1011,16 @@ function chooseMoveInline(nt){
   if(G._pendingPanelPlacement) return;
   if(G._moveInlineLocked) return; // 連打による戦闘開始の二重発火を防止
   G._moveInlineLocked=true;
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
+    SaveRun.lockInput(true);
+    // 報酬取得・編成変更はこの確定操作を押すまで開始チェックポイントへ書かない。
+    // 押した時点の正式状態を保存し、戦闘準備完了時にbattleチェックポイントで上書きする。
+    if(!SaveRun.checkpoint('reward')){
+      SaveRun.lockInput(false);
+      G._moveInlineLocked=false;
+      return;
+    }
+  }
   G._isShop=false; // 行商モード解除
   setTimeout(()=>{
     G._moveInlineLocked=false;
@@ -1209,8 +1219,8 @@ function _journeyDisplayPosition(route,stage,scene){
   if(special(route[actual-1])) return actual;
   return actual-1;
 }
-function _syncRewardJourneyUi(){
-  const root=document.getElementById('journey-progress-ui');
+function _syncRewardJourneyUi(options){
+  const root=(options&&options.root)||document.getElementById('journey-progress-ui');
   if(!root||!G) return;
   const scene=Math.max(1,Math.min(5,Number(G._wave)||1));
   const route=_journeyRouteForScene(scene);
@@ -1233,7 +1243,7 @@ function _syncRewardJourneyUi(){
     }
   }
   const actual=stage-1;
-  const current=_journeyDisplayPosition(route,stage,scene);
+  const current=options&&options.exactCurrent?actual:_journeyDisplayPosition(route,stage,scene);
   const currentType=route[actual];
   const isFinalScene=scene===5;
   const reached=isFinalScene?currentType==='boss':currentType==='altar';
@@ -1259,6 +1269,7 @@ function _syncRewardJourneyUi(){
   }).join('');
   const nodeMarks=route.map((type,idx)=>{
     const state=idx<current?'passed':(idx===current?'current':'');
+    const resumeClass=options&&options.resume&&idx===current?'run-resume-current':'';
     const nextClass=idx===next?'next':'';
     const icon=_journeyIconForNode(type);
     const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type,scene,idx)}">`:'';
@@ -1269,7 +1280,7 @@ function _syncRewardJourneyUi(){
     // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
     let previewText=_journeyNodeLabel(type,scene,idx);
     let enemyAttr='';
-    if(!(G&&G._onlineMode)&&(type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
+    if(!options?.resume&&!(G&&G._onlineMode)&&(type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
       const previewType=type==='elite'?'elite':'boss';
       const enemyPreview=_ensureWaveEnemyPreview(scene,previewType);
       if(enemyPreview&&enemyPreview.def){
@@ -1292,11 +1303,11 @@ function _syncRewardJourneyUi(){
       }
     }
     // デバッグモードでは各マスをクリックしてそのstageへ直接ジャンプできるようにする。
-    const jumpAttr=(G&&G._debugMode)?` data-journey-jump="${idx+1}" data-journey-type="${type}"`:'';
+    const jumpAttr=(G&&G._debugMode&&!options?.resume)?` data-journey-jump="${idx+1}" data-journey-type="${type}"`:'';
     // エリート／ボス（カード付き）以外は名前だけの1行表示なので、Sceneマークと同じ枠にする
     // （見出し下の直線なし・幅は文字なり）。
     const noRuleAttr=enemyAttr?'':' data-preview-norule="1"';
-    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
+    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass} ${resumeClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
   }).join('');
   // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
   const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
@@ -1313,7 +1324,7 @@ function _syncRewardJourneyUi(){
       return reached?targetText:`${targetText} <strong>${remaining}</strong> 戦`;
     })();
   root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
-  if(G&&G._debugMode) _bindDebugJourneyJump(root);
+  if(G&&G._debugMode&&!options?.resume) _bindDebugJourneyJump(root);
 }
 // デバッグ専用：旅の進捗のSceneマーク（countdownの上のアイコン列）をクリックして
 // そのステージ（=G._wave）へ移動する。移動後も編成画面のままにする。
@@ -2424,6 +2435,7 @@ function _renderRingOfferCards(el){
     // mkCardEl()の汎用カード絵柄解決はassets/art/ring/のパス規則を知らないため使わない。
     const div=document.createElement('div');
     div.classList.add('rew-card','ring-offer-card','ring-visual');
+    if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,ring);
     if(ring.rarity>=1&&ring.rarity<=5) div.classList.add(`rarity-${ring.rarity}`);
     const path=_rewardRingArtPath(ring);
     if(path){
@@ -2499,6 +2511,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const isTreasure=!!card._isTreasure;
   const div=(typeof mkCardEl==='function'&&!card._isChar)?mkCardEl(card,rewIdx??-1,'reward'):document.createElement('div');
   div.classList.add('rew-card');
+  if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   if(_rewardMergeCandidate(rewIdx,card)) div.classList.add('merge-ready');
   if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
   if(!canBuy&&!isPendingSale) div.classList.add('cant');
@@ -2656,6 +2669,7 @@ function _takeRingCard(card){
   const idx=G.rings.findIndex(r=>!r);
   if(idx<0) return false;
   G.rings[idx]=clone(card);
+  if(typeof markCardAcquired==='function') markCardAcquired(card);
   _playRewardAcquireSfx('ring_get.wav');
   return true;
 }
@@ -2771,7 +2785,7 @@ function _pickRingOffer(){
     const src=arr.filter(r=>!exclude.has(r));
     const picked=[];
     while(picked.length<n&&src.length){
-      const idx=Math.floor(Math.random()*src.length);
+      const idx=Math.floor(rand()*src.length);
       picked.push(src.splice(idx,1)[0]);
     }
     return picked;
@@ -2912,6 +2926,7 @@ function takeRewCard(i, targetSlot){
     if(isTown){ G.gold-=(card._buyPrice??1); refreshRewardGoldUi(); } else if(card._isOriginalReward){ _rewFreePickDone=true; }
     const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
     G.allies[emptyIdx]=unit;
+    if(typeof markCardAcquired==='function') markCardAcquired(card);
     // 提示カードから購入したキャラは後衛で配置
     unit.hate=false;
     unit.hateTurns=0;
@@ -2930,6 +2945,7 @@ function takeRewCard(i, targetSlot){
   if(card.type==='ring'){
     if(G._rewardOnePickMode&&_rewFreePickDone&&card._isOriginalReward)return;
     if(!_takeRingCard(card)) return;
+    if(typeof markCardAcquired==='function') markCardAcquired(card);
     if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
     if(card._isOriginalReward) _rewFreePickDone=true;
     _rewCards[i]=null;
@@ -2950,6 +2966,7 @@ function takeRewCard(i, targetSlot){
       placed._rewardReturnPhaseId=_rewPhaseId;
     }
     slots[emptyIdx]=placed;
+    if(typeof markCardAcquired==='function') markCardAcquired(card);
     if(card._isOriginalReward) _rewFreePickDone=true;
     if(card._isTreasure) _rewFreePickDone=true;
     if(isTown&&!G._freeRewardPanelMode&&!card._isTreasure){ G.gold-=cost; refreshRewardGoldUi(); }
@@ -2964,6 +2981,7 @@ function takeRewCard(i, targetSlot){
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope){
     if(G._rewardOnePickMode&&_rewFreePickDone&&card._isOriginalReward)return;
     const finish=()=>{
+      if(typeof markCardAcquired==='function') markCardAcquired(card);
       if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
       if(card._isOriginalReward) _rewFreePickDone=true;
       // ドラッグで魔導板の埋まっているスロットへ直接入れ替えた場合、押し出されたカードが
@@ -3845,9 +3863,9 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   });
   // 魔鏡を置いた場合は、同時に成立する同名組の中からランダムに1組を選ぶ。
   if(!candidates.length) return null;
-  const picked=candidates[Math.floor(Math.random()*candidates.length)];
+  const picked=candidates[Math.floor(rand()*candidates.length)];
   const targetCandidates=picked.filter(idx=>!_isMagicMirrorPanel(unit.equipment[idx]));
-  const targetIdx=targetCandidates[Math.floor(Math.random()*targetCandidates.length)];
+  const targetIdx=targetCandidates[Math.floor(rand()*targetCandidates.length)];
   const sources=picked.map(idx=>{
     const el=document.querySelector(`#hand-slots.unit-equip-slots > :nth-child(${idx+1})`);
     if(!el) return null;
@@ -4257,6 +4275,7 @@ function renderFacilitiesRow(){
 }
 
 function renderHandEditor(){
+  if(typeof SaveProfile!=='undefined') SaveProfile.owned();
   _syncBoardCardVisibilityToggle();
   _syncRewardPanelPlacementOverlay();
   // ゲームオーバー画面・クリア画面でも魔導板のカード表示／非表示を切り替えられるので、

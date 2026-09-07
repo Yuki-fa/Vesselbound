@@ -3982,6 +3982,7 @@ function renderField(id,units,isEnemy,_lane){
       }
     }
     el.appendChild(slot);
+    if(typeof SaveProfile!=='undefined') SaveProfile.observe(slot,units.find(x=>x&&String(x.id)===String(slot.dataset.unitId)));
     if(u&&u.hp>0&&typeof _recordBattleTrace==='function'){
       // renderAll()は演出中にも複数回呼ばれるため、同じユニットのDOM追加を毎回
       // 記録すると召喚・FLIP・マナの時系列がログから押し出される。
@@ -4192,6 +4193,7 @@ function _setUnitStatText(el,value,pairValue,keepSize){
 function mkCardEl(card,_idx,_ctx,_mlOverride){
   const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム','global-panel':'全体'};
   const div=document.createElement('div');
+  if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   const t=card.type||'ring';
   const _isWandSub=t==='wand'&&card.subtype==='wand';
   const _subtypeClass=_isWandSub?' wand-sub':'';

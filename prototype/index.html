@@ -11151,7 +11151,8 @@ html body.fatal-error-active .screen{pointer-events:none!important}
 /* 枠：編成画面の指輪枠（.reward-prod-ring）と同じ 1020x372。
    main_left.svg を上下に分けて描くのも同じ（四隅を縮めないため）。画面中央に置く。 */
 #fatal-error-frame{
-  position:absolute;left:1410px;top:894px;width:1020px;height:372px;box-sizing:border-box;
+  position:absolute;left:50%;top:894px;width:1020px;height:372px;box-sizing:border-box;
+  transform:translateX(-50%);
 }
 #fatal-error-frame::before{
   content:"";display:block;position:absolute;left:0;right:0;top:0;bottom:90px;z-index:0;pointer-events:none;
@@ -11167,11 +11168,12 @@ html body.fatal-error-active .screen{pointer-events:none!important}
 #fatal-error-title{
   position:absolute;left:0;right:0;top:42px;z-index:1;margin:0;text-align:center;
   font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;
+  text-indent:.18em;
   color:#a58768;text-shadow:0 2px 8px rgba(0,0,0,.85);
 }
 /* 本文：編成画面のクエスト本文（.reward-prod-quest-body）と同じ文字サイズ・同じ左右。 */
 #fatal-error-body{
-  position:absolute;left:88px;right:72px;top:120px;z-index:1;color:#a58768;
+  position:absolute;left:80px;right:80px;top:120px;z-index:1;color:#a58768;
   font-size:35px;line-height:1.35;text-align:center;
 }
 #fatal-error-message{margin:0;white-space:pre-wrap}
@@ -13203,12 +13205,45 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
 #library-howto-btn:hover + #library-howto-desc{opacity:1}
 .library-loan-badge{top:30px!important;right:4px!important;left:auto!important;bottom:auto!important;width:96px!important;height:51px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:96px;text-align:center}
 
+/* 戦闘チェックポイント専用の再開画面。通常画面とは別の黒い固定レイヤーで、
+   既存の旅の進捗描画だけを同じ座標系へ載せる。 */
+#run-resume-overlay{
+  display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);
+  width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;
+  z-index:200000;background:#000;color:#8b7c67;pointer-events:all;font-size:28px;
+}
+body.run-resume-active #run-resume-overlay{display:block}
+body.run-resume-active .screen-options-btn,
+body.run-resume-active #battle-options-btn{display:none!important}
+.run-resume-journey{
+  position:absolute;left:50%;top:50%;width:1020px;height:455px;transform:translate(-50%,-50%);
+  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat;
+  font-family:"Shippori Mincho",serif;
+}
+.run-resume-journey h2{
+  position:absolute;top:42px;left:0;right:0;text-align:center;color:#c49a6c;font-size:38px;font-weight:700;
+}
+#run-resume-journey-ui{position:absolute;inset:106px 74px 28px;color:#8b7c67}
+#run-resume-journey-ui .journey-node.run-resume-current{
+  animation:run-resume-node-pulse 1.05s ease-in-out infinite;
+}
+@keyframes run-resume-node-pulse{
+  0%,100%{opacity:.68;filter:brightness(.85) drop-shadow(0 0 3px rgba(240,208,128,.28))}
+  50%{opacity:1;filter:brightness(1.5) drop-shadow(0 0 15px rgba(240,208,128,.72))}
+}
+
 </style>
 </head>
 <body>
 <div id="kw-tooltip"></div>
 <div id="map-power-tooltip"></div>
 <div id="keyword-tooltip"></div>
+<div id="run-resume-overlay" aria-hidden="true">
+  <section class="run-resume-journey">
+    <h2>旅の進捗</h2>
+    <div id="run-resume-journey-ui" aria-label="旅の進捗"></div>
+  </section>
+</div>
 
 <!-- LOADING -->
 <div id="scr-loading" class="screen active startup-splash">
@@ -13225,7 +13260,7 @@ body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .libr
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
     <button class="title-menu-item game-start" type="button" onclick="startGameFromTitle()" data-sfx-silent="1"><span class="title-menu-label">ゲームスタート</span></button>
-    <button class="title-menu-item" type="button"><span class="title-menu-label">コンティニュー</span></button>
+    <button class="title-menu-item" id="title-continue-btn" type="button" disabled><span class="title-menu-label">コンティニュー</span></button>
     <button class="title-menu-item online-battle" type="button" onclick="startOnlineMatchFromTitle()" data-sfx-silent="1"><span class="title-menu-label">オンライン対戦</span></button>
     <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
     <button class="title-menu-item" type="button" onclick="returnToTapStart()"><span class="title-menu-label">終了</span></button>
@@ -13607,9 +13642,9 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=rewardGrade01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=onlineExit01"></script>
+    <script src="js/battle/core.js?v=gremlin01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=onlineExit01"></script>
+    <script src="js/battle/present.js?v=gremlin01"></script>
     <script src="js/battle/present_events.js?v=onlineExit01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13622,15 +13657,19 @@ fitVesselboundViewport();
 <script src="js/online/versus.js?v=asset0903"></script>
 <script src="js/online/flow.js?v=onlineExit01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
-<script src="js/engine/state.js?v=onlineExit01"></script>
-<script src="js/engine/pool.js?v=rewardGrade01"></script>
-<script src="js/engine/enemy.js?v=count5"></script>
-    <script src="js/engine/battle.js?v=onlineExit01"></script>
-    <script src="js/engine/render.js?v=onlineExit01"></script>
-<script src="js/engine/reward.js?v=onlineExit01"></script>
-<script src="js/engine/map.js?v=online6"></script>
+<script src="js/engine/state.js?v=save01"></script>
+<script src="js/save/storage.js?v=save01"></script>
+<script src="js/save/migrations.js?v=checkpoint01"></script>
+<script src="js/save/profile_save.js?v=save01"></script>
+<script src="js/save/run_save.js?v=checkpoint02"></script>
+<script src="js/engine/pool.js?v=gremlin01"></script>
+<script src="js/engine/enemy.js?v=save01"></script>
+    <script src="js/engine/battle.js?v=checkpoint01"></script>
+    <script src="js/engine/render.js?v=save01"></script>
+<script src="js/engine/reward.js?v=checkpoint01"></script>
+<script src="js/engine/map.js?v=gremlin01"></script>
 <script src="js/engine/move.js?v=worldmap3"></script>
-  <script src="js/engine/main.js?v=onlineExit01"></script>
+  <script src="js/engine/main.js?v=checkpoint01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

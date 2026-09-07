@@ -295,7 +295,6 @@ function audit() {
   // 同じ本文由来の汎用 reason が同一トリガーに混在してはならない。
   const duplicateCases = [
     ['ユミル', '攻撃', 'attack_mana_buff'],
-    ['グレムリン', '攻撃', 'attack_swap'],
     ['ファミリア', '攻撃', 'sacrifice_mana'],
     ['戦術', '攻撃', 'attack_self_buff'],
     ['カオス・インプ', '負傷', 'injury_sacrifice_hp'],
@@ -1021,11 +1020,14 @@ function audit() {
     recordDirect('ピクシー', result.skipAttack === true && attacks.length === 1 && attacks[0].attackerId !== attacks[0].targetId, `即時攻撃=${attacks.length}`);
   }
   {
+    // グレムリンの本文は「負傷：全ての敵はATK-1を得る。」。**攻撃では何も起きない。**
+    // カード名で「HPと対象のATKを入れ替える」を起こしていた頃は、攻撃のたびに
+    // 自分のHPが対象のATKまで下がっていた。
     const gremlin = makeDirectUnit('グレムリン', 'p1', { id: 'gremlin', atk: 4, hp: 5, maxHp: 5 });
     const target = plainDirectUnit('gremlin-target', 'p2', { atk: 7, hp: 20, maxHp: 20 });
     const s = makeDirectState([gremlin], [target]); const stateGremlin = s.units.p1[0]; const stateTarget = s.units.p2[0]; stateGremlin._currentAttackTarget = stateTarget;
     core.coreApplyAttackEffects(stateGremlin, s, createSeededRng(107), () => {}, () => {});
-    recordDirect('グレムリン', stateGremlin.hp === 7 && stateTarget.atk === 5, `HP=${stateGremlin.hp} 対象ATK=${stateTarget.atk}`);
+    recordDirect('グレムリン', stateGremlin.hp === 5 && stateTarget.atk === 7, `HP=${stateGremlin.hp} 対象ATK=${stateTarget.atk}`);
   }
   {
     const bunder = makeDirectUnit('バンダースナッチ', 'p1', { id: 'bunder', manaCost: 6, manaRepeat: false, manaThresholdDesc: 'ランダムな敵を「緑ペリカン」に変身させる。' });

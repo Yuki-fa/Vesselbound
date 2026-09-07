@@ -277,16 +277,32 @@ function main() {
   assert.equal(namedEffectState.units.p1[0].atk, 3, 'カード名で発動する負傷効果がコアで発動していない');
   assert.equal(namedEffectState.units.p1[0].maxHp, 5, 'カード名で発動する負傷HP効果がコアで発動していない');
 
+  // HPとATKの入れ替えは**本文で発動する**（カード名では発動しない）。
+  const swapState = core.createBattleState({
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {p1: {units: [{id: 'swapper', name: '入れ替え役', atk: 2, hp: 5, maxHp: 5,
+      desc: '攻撃：このキャラクターのHPと対象のATKを入れ替える。'}]},
+      p2: {units: [{id: 'swap-target', name: '敵', atk: 3, hp: 8, maxHp: 8}]}},
+  });
+  swapState.units.p1[0]._currentAttackTarget = swapState.units.p2[0];
+  core.coreApplyAttackEffects(swapState.units.p1[0], swapState, createSeededRng(18), () => {},
+    () => ({amount: 0, died: false}));
+  assert.equal(swapState.units.p1[0].hp, 3, '本文によるHP入れ替えが共通コアで発動していない');
+  assert.equal(swapState.units.p2[0].atk, 5, '本文による対象ATK入れ替えが共通コアで発動していない');
+
+  // グレムリンの本文は「負傷：全ての敵はATK-1を得る。」なので、攻撃では何も起きない。
+  // カード名で入れ替えを起こしていた頃は、攻撃のたびに自分のHPが対象のATKまで下がっていた。
   const gremlinState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
-    sides: {p1: {units: [{id: 'gremlin', name: 'グレムリン', atk: 2, hp: 5, maxHp: 5}]},
+    sides: {p1: {units: [{id: 'gremlin', name: 'グレムリン', atk: 2, hp: 5, maxHp: 5,
+      desc: '負傷：全ての敵はATK-1を得る。'}]},
       p2: {units: [{id: 'gremlin-target', name: '敵', atk: 3, hp: 8, maxHp: 8}]}},
   });
   gremlinState.units.p1[0]._currentAttackTarget = gremlinState.units.p2[0];
   core.coreApplyAttackEffects(gremlinState.units.p1[0], gremlinState, createSeededRng(18), () => {},
     () => ({amount: 0, died: false}));
-  assert.equal(gremlinState.units.p1[0].hp, 3, 'グレムリンのHP入れ替えが共通コアで発動していない');
-  assert.equal(gremlinState.units.p2[0].atk, 5, 'グレムリンの対象ATK入れ替えが共通コアで発動していない');
+  assert.equal(gremlinState.units.p1[0].hp, 5, 'グレムリンが攻撃で自分のHPを失っている');
+  assert.equal(gremlinState.units.p2[0].atk, 3, 'グレムリンが攻撃で対象のATKを書き換えている');
 
   const modifierState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},

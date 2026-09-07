@@ -34,6 +34,7 @@ function showScreen(id){
   // ゲームオーバーから「タイトルに戻る」と画面が真っ暗になっていた。
   // 導入は既に見終えているので、メニューを出した状態へ戻す。
   if(id==='title'){
+    if(typeof SaveRun!=='undefined') SaveRun.refreshContinue();
     const titleEl=document.getElementById('scr-title');
     if(titleEl&&titleEl.classList.contains('startup-title')
       &&!titleEl.classList.contains('startup-title-visible')){
@@ -143,6 +144,7 @@ function lifeHeartHtml(filled){
     +'</span>';
 }
 function updateHUD(){
+  if(typeof SaveProfile!=='undefined') SaveProfile.owned();
   const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
   const displayLife=Math.max(0,Math.min(_lifeMax,
     G._waveLife!=null ? Number(G._waveLife) : (G.life==null?3:Number(G.life))
@@ -844,7 +846,7 @@ function handleWaveBattleDefeat(){
     G.phase=null;
     if(returnTo==='altar'&&typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
     else if(returnTo==='village'&&typeof openMapVillage==='function') openMapVillage({intro:true});
-    else if(typeof goToReward==='function') goToReward();
+    else if(typeof goToReward==='function') goToReward({checkpoint:true});
   });
   return true;
 }
@@ -1213,6 +1215,9 @@ function startGame(debugMode,onlineMode){
   // 前回のランのステージ持続環境音（雷雨など）を持ち越さない。
   if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(0);
   initState();
+  G._debugMode=!!debugMode;
+  G._onlineMode=!!onlineMode;
+  if(typeof SaveRun!=='undefined') SaveRun.begin();
   G.runStats={
     startedAt:performance.now(), areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
     maxDamage:{amount:0,type:''}, maxAtk:0, maxHp:0
@@ -1405,6 +1410,7 @@ function gameOver(options){
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   const opt=options||{};
   const isClear=opt.clear===true;
+  if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
   ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map'].forEach(debugId=>{
@@ -1983,6 +1989,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   // 所持金・ライフ・マナ・血の説明（テキストメッセージシート）を貼る。
   if (typeof applyStatusTooltips === 'function') applyStatusTooltips();
+  if(typeof SaveRun!=='undefined') SaveRun.ready();
 });
 
 /* 🛠️ js/engine/main.js の一番最後へ追記（古いF4コードは消去） */

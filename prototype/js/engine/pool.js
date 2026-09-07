@@ -3,7 +3,7 @@
 // 依存: constants.js, state.js, units.js, spells.js
 // ═══════════════════════════════════════
 
-function randUses(){ return 3+Math.floor(Math.random()*4); }
+function randUses(){ return 3+Math.floor(rand()*4); }
 
 // キャラクターのグレードを階層に応じて決定
 
@@ -35,7 +35,7 @@ function _rollPanelDirections(count=2, opts){
   const need=Math.max(1,Math.min(4,count||2));
   const avoidOpposite=!!(opts&&opts.avoidOpposite);
   while(picks.length<need){
-    const d=dirs[Math.floor(Math.random()*dirs.length)];
+    const d=dirs[Math.floor(rand()*dirs.length)];
     if(avoidOpposite&&need===2){
       if((d==='up'&&picks.includes('down'))||(d==='down'&&picks.includes('up'))||(d==='left'&&picks.includes('right'))||(d==='right'&&picks.includes('left'))) continue;
     }
@@ -77,7 +77,7 @@ function _dedupePanelDirections(cards){
     const free=_panelDirectionCombos(dirs.length,avoidOpposite)
       .filter(c=>!used.has(_panelDirectionKey(c)));
     if(!free.length){ used.add(key); return; }
-    card.directions=free[Math.floor(Math.random()*free.length)].slice();
+    card.directions=free[Math.floor(rand()*free.length)].slice();
     used.add(_panelDirectionKey(card.directions));
   });
   return cards;
@@ -190,7 +190,7 @@ const PANEL_POOL=[
   {id:'panel_poison_blade',no:'E007',name:'毒の刃',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['毒牙2'],desc:'毒牙2（攻撃時にダメージを受ける毒を付与）'},
   {id:'panel_dragon_contract',no:'008',name:'竜の契約',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['竜の契約'],desc:'攻撃：ランダムな敵に5ダメージを与える。'},
   {id:'panel_imp',no:'C081',name:'インプ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,desc:'攻撃：全てのキャラクターからATKを1奪う。'},
-  {id:'panel_gremlin',name:'グレムリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'攻撃：このキャラクターのHPと対象のATKを入れ替える。'},
+  {id:'panel_gremlin',no:'C083',name:'グレムリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:4,life:5,desc:'負傷：全ての敵はATK-1を得る。'},
   {id:'panel_incubus',name:'インキュバス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'負傷：全ての敵はATK-1を得る。'},
   {id:'panel_gargoyle',name:'ガーゴイル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'開戦：ランダムな黄、緑、紫キャラクター1体ずつは+5/+5を得る。'},
   {id:'panel_hellhound',name:'ヘルハウンド',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:1,life:1,desc:'常時：敵が死んだ時、+1/+1を得る。この戦闘で死んだ敵の数だけ繰り返す。'},
@@ -556,7 +556,9 @@ function drawRewards(n){
     const visibleBonus=bonus.filter(Boolean);
     if(visibleBonus.length) res.splice(0,visibleBonus.length,...visibleBonus);
   }
-  // **同じ提示の中で矢印の向きが完全に同じカードを重ねない**（報酬・魔導店とも同じ入口）。
+  // **同じ提示の中で矢印の向きが完全に同じカードを重ねない。**
+  // 規則は _dedupePanelDirections() が唯一の実装。魔導店は drawRewards() を通らないため
+  // `_ensureWaveShopStock()`（map.js）が同じ関数を自分で呼ぶ。新しい提示口を足したら同様に呼ぶこと。
   _dedupePanelDirections(res);
   return res;
 }

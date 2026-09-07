@@ -347,8 +347,8 @@ function generateEnemies(floor){
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
       _applyEnemyDefAbilities(e, def);
-      e.lane=Math.random()<0.6?'front':'rear'; // 通常敵はランダム（60%前衛）
-      e._visualShift=Math.random()<0.5; // ボス・エリート以外はランダムで下にずらす
+      e.lane=rand()<0.6?'front':'rear'; // 通常敵はランダム（60%前衛）
+      e._visualShift=rand()<0.5; // ボス・エリート以外はランダムで下にずらす
       if(!isBoss&&kws.some(k=>k!=='エリート'&&k!=='ボス')) kwCount++;
     }
     enemies.push(e);
@@ -383,7 +383,7 @@ function generateEnemies(floor){
   for(let _retry=0;_retry<10;_retry++){
     // シャッフル
     for(let _si=enemies.length-1;_si>0;_si--){
-      const _sj=Math.floor(Math.random()*(_si+1));
+      const _sj=Math.floor(rand()*(_si+1));
       const _st=enemies[_si]; enemies[_si]=enemies[_sj]; enemies[_sj]=_st;
     }
     // 偏り判定：左端2体または右端2体が全員前衛でないかチェック

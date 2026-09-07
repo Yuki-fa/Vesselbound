@@ -2042,22 +2042,11 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     foes.filter(x => x.hp > 0 && !coreIsSealed(x) && Number(x.poison) > 0)
       .forEach(x => coreApplyPoisonBeforeTurn(x, emit));
   }
-  // グレムリン：攻撃前に自身のHPと対象のATKを入れ替える。
-  // 旧PvE側の接触フックではなく、オンライン／オフライン共通の攻撃効果として解決する。
-  const gremlinTarget = unit._currentAttackTarget;
-  if (coreHasEffect(unit, 'グレムリン') && gremlinTarget && gremlinTarget.hp > 0) {
-    const nextHp = Math.max(1, Number(gremlinTarget.atk) || 0);
-    const nextAtk = Math.max(0, Number(unit.hp) || 0);
-    const oldTargetAtk = Math.max(0, Number(gremlinTarget.atk) || 0);
-    const oldUnitHp = Math.max(0, Number(unit.hp) || 0);
-    unit.hp = nextHp;
-    unit.maxHp = Math.max(Number(unit.maxHp) || 1, unit.hp);
-    gremlinTarget.atk = nextAtk;
-    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0,
-      hp: unit.hp - oldUnitHp, reason: 'gremlin_swap', sourceId: unit.id });
-    emit({ type: 'stat_change', side: gremlinTarget.side, unitId: gremlinTarget.id,
-      atk: nextAtk - oldTargetAtk, hp: 0, reason: 'gremlin_swap', sourceId: unit.id });
-  }
+  // **HPとATKの入れ替えはカード名で分岐しない。** 下の汎用処理が本文
+  // 「このキャラクターのHPと対象のATKを入れ替える」を見て解決する。
+  // 以前はここにグレムリン専用の分岐があり、シートで本文が
+  // 「負傷：全ての敵はATK-1を得る。」へ変わった後も攻撃のたびに入れ替えが起きて、
+  // 自分のHPが対象のATKまで下がっていた。
   for (let i = 0; i < coreEffectCount(unit, '戦術'); i++) addStats(unit, 1, 2, 'tactics');
   if (coreEffectCount(unit, '共振')) {
     allies.filter(x => x.hp > 0 && x.color === unit.color).forEach(x => addStats(x, 1, 1, 'resonance'));
@@ -2250,8 +2239,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   if (selfTransform) coreTransformUnit(state, unit, selfTransform[1], emit);
   // カード名を知らない追加カードでも、標準的な攻撃効果は本文から実行する。
   // 既存の固有処理と同じ本文を持つものは二重発動しないよう除外する。
-  if (/このキャラクターのHPと対象のATKを入れ替える/.test(attackText)
-    && !coreHasEffect(unit, 'グレムリン')) {
+  if (/このキャラクターのHPと対象のATKを入れ替える/.test(attackText)) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       const oldHp = unit.hp, oldAtk = target.atk;

@@ -618,7 +618,7 @@ const PRESENT_ATTACK_BUFF_REASONS = new Set([
 // **観測（常時）** は、発動しているのは観測者の常時効果なので `passive` に入れる。
 const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
   attack: new Set([...PRESENT_ATTACK_BUFF_REASONS, 'brownie_attack', 'imp_gain', 'imp_steal',
-    'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff', 'gremlin_swap']),
+    'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff']),
   injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie',
     'injury_self_buff', 'injury_allies_atk', 'injury_color_buff', 'injury_sacrifice_hp',
     'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff']),
