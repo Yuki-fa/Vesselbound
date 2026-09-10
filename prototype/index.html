@@ -13822,7 +13822,7 @@ fitVesselboundViewport();
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=multiRevive01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=attackMotion04"></script>
+    <script src="js/battle/present.js?v=attackMotion05"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13844,10 +13844,10 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=attackMotion03"></script>
     <script src="js/engine/battle_events.js?v=multiRevive01"></script>
-    <script src="js/engine/render.js?v=attackMotion04"></script>
-<script src="js/engine/reward_items.js?v=shopMenu01"></script>
+    <script src="js/engine/render.js?v=attackMotion05"></script>
+<script src="js/engine/reward_items.js?v=shopMenu02"></script>
 <script src="js/engine/reward_journey.js?v=steal01"></script>
-<script src="js/engine/reward.js?v=shopMenu01"></script>
+<script src="js/engine/reward.js?v=shopMenu02"></script>
 <script src="js/engine/map.js?v=steal02"></script>
   <script src="js/engine/main.js?v=bgmWarm02"></script>
 <script>
@@ -14276,12 +14276,12 @@ html body.reward-screen-active .shop-pending-sell-btn{
   height:51px!important;
   box-sizing:border-box!important;
   padding:0!important;
-  border:1px solid transparent!important;
+  border:15px solid transparent!important;
   border-radius:0!important;
   background:transparent!important;
   border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
   border-image-slice:15 fill!important;
-  border-image-width:1!important;
+  border-image-width:15px!important;
   border-image-outset:0!important;
   border-image-repeat:stretch!important;
   color:var(--gold2)!important;
@@ -14289,7 +14289,7 @@ html body.reward-screen-active .shop-pending-sell-btn{
   text-shadow:0 1px 2px #000!important;
   transform:translateX(-50%);
   cursor:pointer!important;
-  z-index:10012!important;
+  z-index:101!important;
 }
 html body.reward-screen-active .rew-card:hover .shop-board-sell-btn,
 html body.reward-screen-active .rew-card:hover .shop-pending-sell-btn,
@@ -14345,6 +14345,7 @@ html body.reward-screen-active .shop-buy-price{
   line-height:1!important;
   text-align:right!important;
   text-shadow:0 1px 2px #000!important;
+  z-index:5!important;
 }
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-board-sell-value{
@@ -14362,12 +14363,12 @@ html body #item-use-confirm{
 }
 html body #item-use-confirm .btn{
   min-height:calc(51px * var(--game-scale));
-  border:1px solid transparent;
+  border:15px solid transparent;
   border-radius:0;
   background:transparent;
   border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01");
   border-image-slice:15 fill;
-  border-image-width:1;
+  border-image-width:15px;
   border-image-repeat:stretch;
   color:var(--gold2);
   cursor:pointer;
@@ -14405,11 +14406,11 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
   height:calc(51px * var(--game-scale))!important;
   box-sizing:border-box!important;
   padding:0!important;
-  border:1px solid transparent!important;
+  border:15px solid transparent!important;
   border-radius:0!important;
   border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
   border-image-slice:15 fill!important;
-  border-image-width:1!important;
+  border-image-width:15px!important;
   border-image-repeat:stretch!important;
   background:transparent!important;
   color:var(--gold2)!important;

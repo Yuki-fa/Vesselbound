@@ -233,11 +233,11 @@ const PRESENT_PROJECTILE_STAGGER_MS = 260;
 // 見た目上カードの中央で当たるように下げる。
 const PRESENT_PROJECTILE_IMPACT_OFFSET_Y = .18;
 // ケンタウロスの縦長素材は透明余白の基準位置が炎の矢と異なるため、
-// 画像の移動終点は対象カードの中心へ合わせる。
+// 飛行方向の実体補正はrender.jsで行い、ここでは基準中心だけを返す。
 function presentProjectileImpactOffsetY(code) {
   // C019_1.webp は縦長の透明余白が大きく、通常の「枠の中心」では
   // 絵の実体が敵の上へ大きく外れる。素材の実体中心を敵中心へ合わせる。
-  return String(code || '').toUpperCase() === 'C019' ? .62 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
+  return String(code || '').toUpperCase() === 'C019' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
 }
 // 曲線軌道（ミサイル）の見せ方。**素材を歪めない。** 位置と回転だけで見せる。
 // 膨らみは始点→終点の垂線方向へ。距離に比例させ、画面外へ出ない範囲で頭打ちにする。

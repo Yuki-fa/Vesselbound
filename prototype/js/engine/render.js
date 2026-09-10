@@ -1575,7 +1575,15 @@ function playCurvedMissile(options){
   const centerTo={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
   // C019もE058と同じ着弾座標を使う。縦長素材の透明余白を理由に
   // 飛行方向へ補正すると、敵の中心からさらに離れて見える。
-  const to=centerTo;
+  let to=centerTo;
+  if(String(opt.code||'').toUpperCase()==='C019'){
+    // C019_1.webp は実体が画像の先端側に偏っているため、枠中心を
+    // そのまま終点にすると飛行方向へ突き抜ける。実体中心を敵中心へ置く。
+    const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
+    const len=Math.hypot(vx,vy)||1;
+    const lead=toRect.height*.78;
+    to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
+  }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
   // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
@@ -3289,6 +3297,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   });
   const opt=options||{};
   const fromList=isEnemySide?G.enemies:G.allies;
+  const ownLiveCountAtStart=(fromList||[]).filter(u=>u&&u.hp>0).length;
   // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る。
   // 相手陣営に見つからなければ、同じ陣営から探す（見つけた側の盤面へ飛ばす）。
   const foeList=isEnemySide?G.allies:G.enemies;
@@ -3378,6 +3387,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     // 攻撃効果中の召喚・死亡で攻撃者のスロットが変わった場合も、
     // 複製を固定した開始位置ではなく、現在の最終スロットへ戻す。
     const side=isEnemySide?'enemy':'ally';
+    const currentList=isEnemySide?G.enemies:G.allies;
+    const ownLiveCountNow=(currentList||[]).filter(u=>u&&u.hp>0).length;
+    if(ownLiveCountNow===ownLiveCountAtStart) return 'translate(0,0) rotate(0deg)';
     const current=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,attacker):null;
     if(!current) return 'translate(0,0) rotate(0deg)';
     const currentRect=_getAttackTargetRect(current);

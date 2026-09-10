@@ -158,6 +158,7 @@ function _closeItemUseConfirm(){
 function _openRewardActionTooltip(anchor,title,desc,actions){
   const tip=document.getElementById('kw-tooltip');
   if(!tip) return;
+  const oldRect=tip.style.display==='block'?tip.getBoundingClientRect():null;
   const esc=s=>String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   tip.dataset.rewardLocked='1';
   tip.className='reward-action-tooltip';
@@ -178,7 +179,10 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
   });
   tip.style.display='block';
   const rect=anchor?.getBoundingClientRect?.();
-  if(rect){
+  if(oldRect){
+    tip.style.left=`${oldRect.left}px`;
+    tip.style.top=`${oldRect.top}px`;
+  }else if(rect){
     const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
     tip.style.left=`${Math.max(8,rect.left)}px`;
     tip.style.top=`${rect.bottom+8*scale}px`;
