@@ -212,11 +212,12 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       document.body.appendChild(host);
       const saleEl=host.querySelector('.shop-board-sell-btn');
       const sale=getComputedStyle(saleEl);
-      const saleFrame=getComputedStyle(saleEl,'::before');
       const cost=getComputedStyle(host.querySelector('.shop-board-sell-value'));
       const tip=document.getElementById('kw-tooltip');
       tip.style.display='block'; tip.style.left='137px'; tip.style.top='191px';
-      tip.innerHTML='<div>絆の巻物</div>';
+      tip.className='rarity-3';
+      tip.innerHTML='<div class="preview-title">絆の巻物</div><div class="hover-copy">説明</div>';
+      const beforeHtml=tip.innerHTML, beforeColor=getComputedStyle(tip.querySelector('.preview-title')).color;
       const before=tip.getBoundingClientRect();
       _openRewardActionTooltip(host,'絆の巻物','説明',[{label:'使う'},{label:'捨てる'},{label:'やめる'}]);
       const after=tip.getBoundingClientRect();
@@ -224,18 +225,18 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       const action=getComputedStyle(actionEl);
       const actionFrame=getComputedStyle(actionEl,'::before');
       const result={
-        sale:{width:sale.width,height:sale.height,top:sale.top,color:sale.color,border:saleFrame.borderImageSource,slice:saleFrame.borderImageSlice},
+        sale:{width:sale.width,height:sale.height,top:sale.top,color:sale.color,background:sale.backgroundImage},
         cost:{background:cost.backgroundImage,width:cost.width,height:cost.height},
         action:{color:action.color,border:actionFrame.borderImageSource,slice:actionFrame.borderImageSlice,count:tip.querySelectorAll('.reward-action-btn').length},
-        tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top),w:Math.abs(after.width-before.width)}
+        tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top),w:Math.abs(after.width-before.width)},
+        tooltipKept:tip.innerHTML.startsWith(beforeHtml)&&getComputedStyle(tip.querySelector('.preview-title')).color===beforeColor
       };
       host.remove(); _closeItemUseConfirm();
       return result;
     `);
-    assert.deepEqual([shopUi.sale.width,shopUi.sale.height],['130px','51px']);
+    assert.deepEqual([shopUi.sale.width,shopUi.sale.height,shopUi.sale.top],['132px','62px','230px']);
     assert.equal(shopUi.sale.color,'rgb(196, 154, 108)');
-    assert.match(shopUi.sale.border,/button_invisible\.svg/);
-    assert.equal(shopUi.sale.slice,'22 fill');
+    assert.match(shopUi.sale.background,/button_invisible_s\.svg/);
     assert.match(shopUi.cost.background,/cost\.svg/);
     assert.deepEqual([shopUi.cost.width,shopUi.cost.height],['101px','46px']);
     assert.equal(shopUi.action.count,3);
@@ -244,6 +245,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     assert.equal(shopUi.action.slice,'22 fill');
     assert.ok(shopUi.tooltipDelta.x<1&&shopUi.tooltipDelta.y<1&&shopUi.tooltipDelta.w<1,
       'クリックでホバー説明の位置または幅が動いた');
+    assert.ok(shopUi.tooltipKept,'クリックでホバー説明の内容または文字色が変わった');
     console.log('OK 売却・アクションボタンとcost.svgの実DOM表示');
 
     const revive=await browser.eval(`

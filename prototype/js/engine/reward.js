@@ -1369,7 +1369,6 @@ function _openRingActionConfirm(idx,anchor){
   const ring=Array.isArray(G.rings)?G.rings[idx]:null;
   if(!ring) return;
   const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
-  _closeItemUseConfirm();
   _openRewardActionTooltip(anchor,ring.name||'指輪',ringDesc,[
     {label:ring._disabled?'有効化':'無効化',onClick:()=>{
       ring._disabled=!ring._disabled; _closeItemUseConfirm();
@@ -1391,6 +1390,7 @@ function _rewardRingRarityClass(ring){
 function _showRewardRingTooltip(e){
   const ring=e.currentTarget&&e.currentTarget._rewardRing;
   const tip=document.getElementById('kw-tooltip');
+  if(tip?.dataset.rewardLocked==='1') return;
   if(!ring||!tip){
     _hideRewardRingTooltip();
     return;
@@ -1409,13 +1409,13 @@ function _showRewardRingTooltip(e){
 }
 function _moveRewardRingTooltip(e){
   const tip=document.getElementById('kw-tooltip');
-  if(!tip||tip.style.display==='none') return;
+  if(!tip||tip.style.display==='none'||tip.dataset.rewardLocked==='1') return;
   tip.style.left=`${e.clientX+18}px`;
   tip.style.top=`${e.clientY+18}px`;
 }
 function _hideRewardRingTooltip(){
   const tip=document.getElementById('kw-tooltip');
-  if(tip) tip.style.display='none';
+  if(tip&&tip.dataset.rewardLocked!=='1') tip.style.display='none';
 }
 function renderRewCards(){
   _syncRewardPanelPlacementOverlay();

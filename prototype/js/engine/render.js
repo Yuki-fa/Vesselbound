@@ -1579,13 +1579,17 @@ function playCurvedMissile(options){
   if(String(opt.code||'').toUpperCase()==='C019'){
     // C019_1.webp は実体が画像の先端側に偏っているため、枠中心を
     // そのまま終点にすると飛行方向へ突き抜ける。実体中心を敵中心へ置く。
-    const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
-    const len=Math.hypot(vx,vy)||1;
+    const vy=centerTo.y-from.y;
     // E058_1とC019_1を同じ画面で着弾フレームまで進め、
     // 対象中心と「先端の発光部」を実測した補正。DOMの中心ではなく、
     // プレイヤーが着弾点として見る部分を炎の矢と同じ位置に揃える。
-    const lead=fromRect.width*.9;
-    to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
+    // 進行方向ベクトルで戻すと、斜めの対象でXも動き、
+    // 先端が敵中心の右へずれる。Xは常に対象中心へ固定し、
+    // 透明余白の補正はYだけにする。表示サイズを50%にしたので補正量も半分。
+    const lead=fromRect.width*.45;
+    // WebP内の弾頭は画像中心から素材表示幅の約12%右にある。
+    // 入れ物を同じ量だけ左へ置き、見える弾頭を敵のX中心へ合わせる。
+    to={x:centerTo.x-fromRect.width*.12,y:centerTo.y-Math.sign(vy||-1)*lead};
   }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び

@@ -150,9 +150,12 @@ function _closeItemUseConfirm(){
   const tip=document.getElementById('kw-tooltip');
   if(tip){
     tip.dataset.rewardLocked='';
+    tip.dataset.rewardSlotIdx='';
     tip.classList.remove('reward-action-tooltip');
     tip.innerHTML='';
     tip.style.display='none';
+    tip.style.removeProperty('width');
+    tip.style.removeProperty('max-width');
   }
 }
 function _openRewardActionTooltip(anchor,title,desc,actions){
@@ -160,20 +163,38 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
   if(!tip) return;
   const shownStyle=getComputedStyle(tip);
   const measured=tip.getBoundingClientRect();
-  const oldRect=shownStyle.display!=='none'&&measured.width>0&&measured.height>0?measured:null;
-  // class/contentsの差し替えでCSSの幅が変わる前に、ホバー表示の
-  // 左上と幅を固定する。説明の下へボタン行が伸びるだけにする。
-  if(oldRect){
-    tip.style.left=`${oldRect.left}px`;
-    tip.style.top=`${oldRect.top}px`;
-    tip.style.width=`${oldRect.width}px`;
-    tip.style.maxWidth=`${oldRect.width}px`;
-  }
+  const isHoverTip=shownStyle.display!=='none'&&measured.width>0&&measured.height>0
+    &&tip.dataset.rewardLocked!=='1';
+  // クリック前に表示中のホバー説明を作り直さない。
+  // HTML・レアリティ色・左上座標・幅をそのまま使い、下にボタンだけ追加する。
+  const hoverHtml=isHoverTip?tip.innerHTML:'';
+  const hoverClass=isHoverTip?tip.className:'';
+  const hoverLeft=isHoverTip?tip.style.left:'';
+  const hoverTop=isHoverTip?tip.style.top:'';
+  const hoverWidth=isHoverTip?measured.width:0;
   const esc=s=>String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  tip.querySelector('.reward-action-buttons')?.remove();
+  tip.classList.remove('reward-action-tooltip');
+  if(isHoverTip){
+    tip.className=hoverClass;
+    tip.innerHTML=hoverHtml;
+    tip.style.left=hoverLeft;
+    tip.style.top=hoverTop;
+    tip.style.width=`${hoverWidth}px`;
+    tip.style.maxWidth=`${hoverWidth}px`;
+  }else{
+    tip.className='';
+    tip.style.removeProperty('width');
+    tip.style.removeProperty('max-width');
+    tip.innerHTML=typeof _formatPreviewHtml==='function'
+      ?_formatPreviewHtml([title,desc].filter(Boolean).join('\n'),{plainTitle:true})
+      :`<div class="preview-title">${esc(title)}</div>${esc(desc)}`;
+  }
   tip.dataset.rewardLocked='1';
-  tip.className='reward-action-tooltip';
-  tip.innerHTML=`<div class="preview-title">${esc(title)}</div><div class="reward-action-desc">${esc(desc)}</div><div class="reward-action-buttons"></div>`;
-  const box=tip.querySelector('.reward-action-buttons');
+  tip.classList.add('reward-action-tooltip');
+  const box=document.createElement('div');
+  box.className='reward-action-buttons';
+  tip.appendChild(box);
   (actions||[]).forEach(action=>{
     const button=document.createElement('button');
     button.type='button';
@@ -189,7 +210,7 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
   });
   tip.style.display='block';
   const rect=anchor?.getBoundingClientRect?.();
-  if(!oldRect&&rect){
+  if(!isHoverTip&&rect){
     const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
     tip.style.left=`${Math.max(8,rect.left)}px`;
     tip.style.top=`${rect.bottom+8*scale}px`;
@@ -203,6 +224,7 @@ if(!window._itemRingMenuDismissBound){
     if(!pop&&tip?.dataset.rewardLocked!=='1') return;
     if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,#kw-tooltip.reward-action-tooltip,.reward-prod-item .reward-prod-slots i,.reward-prod-ring .reward-prod-slots i')) return;
     _closeItemUseConfirm();
+    if(G&&G._pendingItemUse) _cancelPendingItemUse();
   },true);
   document.addEventListener('dragstart',e=>{
     _closeItemUseConfirm();
@@ -412,6 +434,21 @@ if(!window._itemUseCancelBound){
     // **ここで他の右クリック処理へ渡さない。** 渡すと reward.js 側の
     // 「カード非表示」の切り替えまで走ってしまう（対象選択中は切り替えさせない）。
     e.stopImmediatePropagation();
+    _cancelPendingItemUse();
+  },true);
+  document.addEventListener('pointerdown',e=>{
+    if(!G||!G._pendingItemUse) return;
+    // contextmenuの発火前の右ボタンでも即時解除する。
+    if(e.button===2){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      _cancelPendingItemUse();
+      return;
+    }
+    if(e.button!==0) return;
+    // 有効な対象カードと明示的なキャンセルボタン以外を
+    // 左クリックした場合も、対象選択を残さない。
+    if(e.target&&e.target.closest&&e.target.closest('#hand-slots.unit-equip-slots > .card,.item-use-cancel-btn')) return;
     _cancelPendingItemUse();
   },true);
   document.addEventListener('keydown',e=>{
@@ -745,7 +782,6 @@ function _openItemUseConfirm(idx,anchor){
   // 明滅して見えた（使えないアイテムでは「使う」が一瞬明るく見える）。
   const tip=document.getElementById('kw-tooltip');
   if(tip?.dataset.rewardLocked==='1'&&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
-  _closeItemUseConfirm();
   const useUnavailable=!_canUseItemNow(card);
   _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
     {label:'使う',disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
