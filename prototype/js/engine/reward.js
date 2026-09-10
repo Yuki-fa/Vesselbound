@@ -65,6 +65,10 @@ function toggleBoardCardVisibility(){
   // ゲームオーバー画面／ゲームクリア画面の魔導板でも同じボタンを出すため、
   // それぞれの位相（'gameover' / 'clear'）も許可する。
   if(!G||(G.phase!=='reward'&&G.phase!=='gameover'&&G.phase!=='clear')) return;
+  // **アイテムの対象選択中は切り替えない。** カードを隠すと対象が選べなくなる。
+  // CSSでもボタンを押せなくしているが、ゲームオーバー画面の複製ボタンや
+  // 詳細度の取り合いに左右されないよう、動作そのものをここで止める。
+  if(G._pendingItemUse) return;
   const enabled=document.body.classList.toggle('right-card-peek');
   if(enabled){
     _dragSrc=null;
@@ -207,8 +211,6 @@ function _pushToRewardAreaAt(card,idx,allowSwap){
 
 function _persistCurrentShopStock(){
   if(!G._isShop) return;
-  const node=typeof _mapCurrentVillageNode==='function'?_mapCurrentVillageNode():null;
-  if(node) node.shopStock=clone(_rewCards||[]);
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
 }
 
@@ -654,6 +656,9 @@ function _boardCardSellEnabled(){
   // ゲームオーバー魔導板は編成画面の描画をそのまま流用する（G.phaseを一時的に
   // 'reward'にする）ため、ここで除外しないとデバッグモードで売却UIが付いてくる。
   if(G&&G._renderingGameOverBoard) return false;
+  // **祭壇では出さない。** デバッグモードの編成画面と同じ描画を使うため、
+  // 除外しないと祭壇にも売却ボタンと売却価格が出て通常プレイと見た目が変わる。
+  if(G&&G._isWaveAltar) return false;
   return !!(G&&(G._isShop||G._isForge||(G._debugMode&&G.phase==='reward')));
 }
 
@@ -684,14 +689,13 @@ function goToReward(options){
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
   G._savePresentation=false;
-  const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isTreasureMapReward||G._isLibrary);
+  const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isLibrary);
   document.body.classList.remove('battle-victory-pending');
   // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
   if(G.phase==='player'||G.phase==='enemy') return;
   if(!_restoreCheckpoint){
     G._freeItemPhase='reward';
     G._freeItemUsed=false;
-    G._isTreasurePhase=false;
     G._isRewardTown=true; // 既存UIは街モードを維持
     G._freeRewardPanelMode=true; // 一時仕様：パネルは無料。_baseCostは保持する
     G._rewardOnePickMode=true;
@@ -699,16 +703,22 @@ function goToReward(options){
     _rewPhaseId++;
     G.facilities=G.facilities||{altar:1,lab:1,city:1,vault:1,library:1,university:1};
     G.rewardGrade=Math.max(1,G.facilities.lab||1);
-    G._pendingTreasureItems=G._pendingTreasureItems||[];
     G._isBossRewardCycle=!!G._bossJustDefeated;
     G._boardDiscardCount=0;
     G._ringOfferUnlocked=false;
     G._ringOfferResolved=false;
-    G._ringOffer=G._isBossRewardCycle?_pickRingOffer():[];
+    // **順番に依存させない。**（提示の中身は現在地とランで決まる）
+    G._ringOffer=G._isBossRewardCycle
+      ?runWithKeyedRandom(`ring:${G._wave}:${G._waveStage}`,()=>_pickRingOffer()):[];
     G._ringOfferPhase=false;
     G._bossJustDefeated=false;
     const _waveRewardCount=Number.isInteger(G._waveRewardCount)?Math.max(0,Math.min(REWARD_GRID_CAPACITY,G._waveRewardCount)):REWARD_GRID_CAPACITY;
-    _rewCards=drawRewards().filter(c=>c&&!c._isChar).slice(0,_waveRewardCount);
+    // **順番に依存させない。**（報酬の中身は現在地とランで決まる）
+    // 報酬画面を開き直しても、途中で他の抽選を挟んでも同じ5枚になる。
+    // 鍵には敗北回数（_waveDefeatCount）も入れる。敗北しても場面・段は進まないため、
+    // これが無いと敗北直後の報酬が直前と全く同じ5枚になる。
+    _rewCards=runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,()=>drawRewards())
+      .filter(c=>c&&!c._isChar).slice(0,_waveRewardCount);
     G._retryRewardCards=null;
     _rewCards=_rewCards.filter(c=>c&&!c._isChar);
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
@@ -717,11 +727,15 @@ function goToReward(options){
   G.phase='reward';
   G._battlePhaseRunning=false;
   document.body.classList.add('reward-screen-active');
-  // 街・施設で画面が隠れている間にブラウザが停止させた背景動画（back1.webm）を再開する。
+  // 街・施設で画面が隠れている間にブラウザが停止させた背景動画（setup.webm）を再開する。
   if(typeof _resumeRewardBgVideo==='function') _resumeRewardBgVideo();
   if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
   // 街のBGMが鳴っている間（＝街の施設に入っている間）はmenu.wavへ切り替えない。
   if(!G._villageBgmActive&&typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
+  // **報酬・編成画面にいる間に、次の戦闘曲を読み込んでおく。**（先読みの規則は main.js）
+  // 戦闘と戦闘の間には街が無い（例：Scene1のstage6〜9）ので、ここで読まないと
+  // ボス戦（battle3＝17.8MB）の頭が無音になる。
+  if(typeof warmNextBattleBgm==='function') warmNextBattleBgm();
   const goldLabel=document.querySelector('#reward-info-bar .ri-soul');
   if(goldLabel) goldLabel.textContent='所持金';
   G._showGlobalPanels=false;
@@ -738,7 +752,8 @@ function goToReward(options){
   const _faf=document.getElementById('f-ally'); if(_faf) _faf.innerHTML='';
   document.getElementById('ally-section').style.display='';
   const eArea=document.getElementById('enemy-area');
-  if(eArea) eArea.style.display=G.enemies.some(e=>e&&e._isTreasureItem)?'':'none';
+  // 敵エリアは報酬フェイズでは常に隠す（宝箱の機能は廃止済み）。
+  if(eArea) eArea.style.display='none';
   // 報酬フェイズでenemy-hand-areaを表示（renderEnemyHandが内容を制御）
   const eHandArea=document.getElementById('enemy-hand-area');
   if(eHandArea) eHandArea.style.display='';
@@ -845,7 +860,6 @@ function resetRewardToStart(options){
   renderEnemyHand();
   renderMapInventorySlots();
   renderMoveSlotsInEnemy();
-  if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
   if(G._isRingExchange&&typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
 }
 
@@ -865,7 +879,7 @@ function renderMoveSlotsInEnemy(){
     const test=document.createElement('button');
     test.className='btn rew-move-btn library-test-btn';
     test.dataset.sfxSilent='1';
-    test.innerHTML='<span class="rew-btn-label">試験戦闘</span>';
+    test.innerHTML=`<span class="rew-btn-label">${_uiLabel('「試験戦闘」ボタン','試験戦闘')}</span>`;
     test.onclick=()=>{ if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'}); startTestBattle(); };
     const restore=document.createElement('button');
     restore.className='btn rew-reset-btn';
@@ -902,8 +916,7 @@ function renderMoveSlotsInEnemy(){
     }
   }
   const _hasPendingRingOffer=G._isBossRewardCycle&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0;
-  const _isMapBossRewardPending=!!G._mapBossRewardPendingAdvance;
-  if(G._isShop||G._isForge||G._isTavern||G._isVillageMenu||G._isTreasureMapReward||G._isRingExchange||G._isLibrary||((typeof WORLD_MAP_ENABLED!=='undefined'&&WORLD_MAP_ENABLED&&G.worldMap)&&!_hasPendingRingOffer&&!_isMapBossRewardPending&&!G._ringOfferPhase)){
+  if(G._isShop||G._isForge||G._isTavern||G._isVillageMenu||G._isRingExchange||G._isLibrary){
     // Wave進行中のショップ/鍛冶屋/指輪交換は、村/祭壇の施設なのでボタンを押しても次stageへは進めず、
     // 項目選択（村/祭壇メニュー）へ戻るだけにする。
     const _waveFacilityReturn=G._isLibrary||(G._isShop||G._isForge||G._isRingExchange);
@@ -916,20 +929,21 @@ function renderMoveSlotsInEnemy(){
       const st=OnlineMatch.getState();
       if(!st) return '';
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
-      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦のボタン（待機時）','戦闘待機中');
+      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦の「戦闘開始」ボタン（待機時）','戦闘待機中');
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
-      // シートの本文は「選択完了 X/Y」の形。X＝今の回数、Y＝必要な回数。
-      return _uiLabel('オンライン対戦のボタン（カード選択）','選択完了 X/Y')
-        .replace(/X/,String(i)).replace(/Y/,String(n));
+      // シートの本文は「選択完了 n/3」の形。**数字はサーバーの値で置き換える。**
+      // n（またはX）＝今の回数、その後ろの「/数字」＝必要な回数。
+      return _uiLabel('オンライン対戦の「戦闘開始」ボタン','選択完了 n/3')
+        .replace(/[nX]/,String(i)).replace(/\/\s*\d+/,`/${n}`);
     })();
     // 同じ戦闘への再挑戦は「再戦」と出す（判定は main.js の _waveRetryPending()）。
     const _startLabel=(typeof _waveRetryPending==='function'&&_waveRetryPending())
-      ?_uiLabel('再戦ボタン','再戦'):_uiLabel('編成完了ボタン','戦闘開始');
+      ?_uiLabel('「再戦」ボタン','再戦'):_uiLabel('「戦闘開始」ボタン','戦闘開始');
     const label=_waveFacilityReturn
-      ?(G._isLibrary?_uiLabel('「図書館」を出るボタン','図書館を出る')
-        :(G._isRingExchange?_uiLabel('祭壇を離れるボタン','祭壇を離れる'):_uiLabel('魔導店、道具屋、鍛冶屋を出るボタン','店を出る')))
-      :(_onlineLabel||(G._isTreasureMapReward?_startLabel:(G._isShop||G._isForge)?_startLabel
-        :G._isWaveAltar?_uiLabel('村、塔を出発するボタン','出発する')
+      ?(G._isLibrary?_uiLabel('「図書館を出る」ボタン','図書館を出る')
+        :(G._isRingExchange?_uiLabel('「祭壇を離れる」ボタン','祭壇を離れる'):_uiLabel('「店を出る」ボタン','店を出る')))
+      :(_onlineLabel||((G._isShop||G._isForge)?_startLabel
+        :G._isWaveAltar?_uiLabel('村、塔を「出発する」ボタン','出発する')
         :(G._isTavern||G._isVillageMenu)?_uiLabel('村メニューを出るボタン','村を出る'):_startLabel));
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
@@ -957,18 +971,18 @@ function renderMoveSlotsInEnemy(){
       }
       // 塔（祭壇）の「出発する」も、街と同じくワールドマップ画面を挟んでから次へ進む。
       if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap(); return; }
-      if(G._isTreasureMapReward&&typeof returnToMapAfterTreasure==='function') returnToMapAfterTreasure(); else if(typeof shopDone==='function') shopDone();
+      if(typeof shopDone==='function') shopDone();
     };
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
-    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isTavern&&!G._isTreasureMapReward
+    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isTavern
       &&(!G._isForge||!!G._debugMode);
     if(canResetMapReward){
       const reset=document.createElement('button');
       reset.className='btn rew-reset-btn';
       reset.dataset.sfxSilent='1';
-      reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('配置を元に戻すボタン','元に戻す')}</span>`;
+      reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('配置を「元に戻す」ボタン','元に戻す')}</span>`;
       reset.onclick=()=>{
         if(typeof playSfx==='function') playSfx('return',{group:'ui'});
         // 鍛冶屋（デバッグ時のみ表示）は入店時点まで完全に巻き戻す。forgePlacementOnlyは
@@ -1005,15 +1019,16 @@ function renderMoveSlotsInEnemy(){
       const st=OnlineMatch.getState();
       if(!st) return '';
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
-      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦のボタン（待機時）','戦闘待機中');
+      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦の「戦闘開始」ボタン（待機時）','戦闘待機中');
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
-      // シートの本文は「選択完了 X/Y」の形。X＝今の回数、Y＝必要な回数。
-      return _uiLabel('オンライン対戦のボタン（カード選択）','選択完了 X/Y')
-        .replace(/X/,String(i)).replace(/Y/,String(n));
+      // シートの本文は「選択完了 n/3」の形。**数字はサーバーの値で置き換える。**
+      // n（またはX）＝今の回数、その後ろの「/数字」＝必要な回数。
+      return _uiLabel('オンライン対戦の「戦闘開始」ボタン','選択完了 n/3')
+        .replace(/[nX]/,String(i)).replace(/\/\s*\d+/,`/${n}`);
     })();
     // 同じ戦闘への再挑戦は「再戦」と出す（判定は main.js の _waveRetryPending()）。
     const _startLabel2=(typeof _waveRetryPending==='function'&&_waveRetryPending())
-      ?_uiLabel('再戦ボタン','再戦'):_uiLabel('編成完了ボタン','戦闘開始');
+      ?_uiLabel('「再戦」ボタン','再戦'):_uiLabel('「戦闘開始」ボタン','戦闘開始');
     const label=G._ringOfferPhase?(G._ringOfferResolved?'決定':'指輪を取らない'):(_onlineFormLabel||_startLabel2);
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
@@ -1021,7 +1036,6 @@ function renderMoveSlotsInEnemy(){
       btn.disabled=true;
       if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       if(!G._ringOfferPhase&&_hasPendingRingOffer){ _enterRingOfferPhase(); return; }
-      if(G._mapBossRewardPendingAdvance&&typeof advanceWorldMapAfterBoss==='function'){ advanceWorldMapAfterBoss(); return; }
       chooseMoveInline(opt.nodeType);
     };
     if(G._pendingPanelPlacement||G._moveInlineLocked){ btn.classList.add('disabled'); btn.disabled=true; }
@@ -1059,25 +1073,11 @@ function chooseMoveInline(nt){
   setTimeout(()=>{
     G._moveInlineLocked=false;
     if(G._pendingPanelPlacement) return;
-    if(typeof _startWaveFlowNext==='function'){
-      document.getElementById('reward-info-bar').style.display='none';
-      document.getElementById('reward-cards-section').style.display='none';
-      const _rmb=document.getElementById('reward-move-btns'); if(_rmb) _rmb.style.display='none';
-      _startWaveFlowNext();
-      return;
-    }
     document.getElementById('reward-info-bar').style.display='none';
     document.getElementById('reward-cards-section').style.display='none';
-    const rMoveBtns=document.getElementById('reward-move-btns');
-    if(rMoveBtns) rMoveBtns.style.display='none';
-    const eArea=document.getElementById('enemy-area');
-    if(eArea) eArea.style.display='';
-    const eLabel=document.getElementById('enemy-field-label');
-    if(eLabel) eLabel.style.display='';
-    const passBtn=document.getElementById('btn-pass');
-    if(passBtn){ passBtn.disabled=false; passBtn.style.display=''; }
-    if(G._retryFloor){ G._retryFloor=false; G.floor--; }
-    chooseMove(nt);
+    const moveBtns=document.getElementById('reward-move-btns');
+    if(moveBtns) moveBtns.style.display='none';
+    _startWaveFlowNext();
   }, 900);
 }
 
@@ -1176,248 +1176,6 @@ function _returnDragSrcToRewardArea(targetIdx){
 }
 // 報酬カード置き場：配置順（戦闘順序）置き場を廃止し、同じ画面位置（#battle-order-section）にそのまま
 // 報酬カードを横スクロール行として並べる。データ(_rewCards)自体は従来通り。
-// Wave進行モード用：現在のwaveStageから「次の実戦闘」のstage番号を求める（村・祭壇の
-// stage（5・10）は、直後に控えている通常戦闘のstageと同じ扱いにする。祭壇の次は次waveの
-// stage1相当＝エリートまでの表示に戻す）。
-function _waveEffectiveBattleStage(stage){
-  if(stage===4) return 5;
-  if(stage===10) return 1;
-  return stage;
-}
-// ステージ1だけ先頭が村（リーゼ＝ゲーム開始地点）。その分、**エルムの後**の通常戦闘を1つ減らす
-// （通常の 5〜8＝4戦 → 6〜8＝3戦）。マス数は他ステージと同じ10で、ボス9・祭壇10も据え置き。
-// エリートと街の位置が1つ後ろへずれるため、_waveBattleType()等はこのルートから引く。
-const SCENE1_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','boss','altar'];
-function _journeyRouteForScene(scene){
-  // オンライン対戦のステージ構成はサーバーが配る。クライアントで組み立てない。
-  if(typeof G!=='undefined'&&G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
-    const st=OnlineMatch.getState();
-    if(st&&Array.isArray(st.stageFlow)&&st.stageFlow.length){
-      // 3回のカード選択は、旅の進捗では1つの一般戦闘マスにまとめる。
-      // 実際の進行（formation×3→versus）はサーバー状態をそのまま使う。
-      const displayRoute=[];
-      st.stageFlow.forEach(type=>{
-        const displayType=type==='formation'?'battle':(type==='versus'?'elite':type);
-        if(displayType==='battle'&&displayRoute[displayRoute.length-1]==='battle') return;
-        displayRoute.push(displayType);
-      });
-      return displayRoute;
-    }
-  }
-  const data=typeof SCENE_FLOW_DATA!=='undefined'?SCENE_FLOW_DATA:null;
-  if(scene===5) return data&&data.final||['city','battle','battle','boss'];
-  if(scene===1) return (data&&data.scene1)||SCENE1_ROUTE;
-  return data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
-}
-function _journeyIconForNode(type){
-  // オンライン対戦マス（versus）はエリートと同じアイコンで表示する（仕様）。
-  return {versus:'elite.svg',elite:'elite.svg',city:'city.svg',boss:'boss.svg',altar:'altar.svg',tower:'altar.svg',finalBoss:'boss.svg'}[type]||'';
-}
-function _journeyNodeClass(type){
-  if(type==='city'||type==='altar'||type==='tower') return 'large';
-  if(type==='versus'||type==='elite'||type==='boss'||type==='finalBoss') return 'special';
-  return '';
-}
-// 村／祭壇は「地域情報」シートの街の名前・塔の名前を表示する（sceneはステージ番号＝G._wave）。
-// ステージ1の先頭の村だけはリーゼ＝シートのステージ0を参照する（idx=マスの並び順）。
-function _journeyNodeLabel(type,scene,idx){
-  if(typeof G!=='undefined'&&G&&G._onlineMode){
-    if(type==='battle') return '編成';
-    if(type==='elite'||type==='boss'||type==='finalBoss') return '戦闘';
-  }
-  const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
-  const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
-  if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
-  if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
-  return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
-}
-// 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。
-// ステージ5のマークはそこへ到達するまで表示自体を出さないため、名前も伏せない。
-function _journeySceneTowerName(scene){
-  const info=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
-  return String((info&&info.towerName)||'???').trim()||'???';
-}
-function _journeyDisplayPosition(route,stage,scene){
-  const actual=Math.max(0,Math.min(route.length-1,stage-1));
-  // ステージ1のstage1は「リーゼ滞在中」なので、先頭の村マスを点灯させる
-  // （以前はゲーム開始前扱いで-1＝どこも点灯させていなかった）。
-  if(actual===0) return 0;
-  const special=type=>['elite','boss','finalBoss'].includes(type);
-  // 次の戦闘が特殊戦の場合は、その一歩前を表示する。
-  if(special(route[actual])){
-    let idx=actual-1;
-    while(idx>0&&special(route[idx])) idx--;
-    return idx;
-  }
-  // 特殊戦を終えて直ちに村／祭壇へ移った場合は、特殊戦ではなく到達先を表示する。
-  if(special(route[actual-1])) return actual;
-  return actual-1;
-}
-// ── 「旅の進捗」枠の見出し（〜まであとX戦／〜に到達）──────────────────
-// **文言はテキストメッセージシートが唯一の出どころ**（textMessage()）。
-// シートの本文は「〜まであとX戦」「〜に到達」の形で、
-//   〜 … 塔の名前（地域情報シート）
-//   X … 残りの戦闘数（数字だけ太字で出す）
-// 最終ステージだけは塔ではなく「最終決戦」に置き換える。
-function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
-  const get=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
-  const template=reached
-    ?get('編成、ショップ画面「旅の進捗」内 塔到達時','〜に到達')
-    :get('編成、ショップ画面「旅の進捗」内 通常時','〜まであとX戦');
-  const name=isFinalScene?'最終決戦':String(towerName||'祭壇');
-  // Xは数字だけを太字にする（前後の文字はシートの本文どおり）。
-  return _escapePreviewHtml(template)
-    .replace(/〜/g,_escapePreviewHtml(name))
-    .replace(/X/,`<strong>${Math.max(0,Number(remaining)||0)}</strong>`);
-}
-function _syncRewardJourneyUi(options){
-  const root=(options&&options.root)||document.getElementById('journey-progress-ui');
-  if(!root||!G) return;
-  const scene=Math.max(1,Math.min(5,Number(G._wave)||1));
-  const route=_journeyRouteForScene(scene);
-  let stage=Math.max(1,Math.min(route.length,Number(G._waveStage)||1));
-  // オンラインのサーバー上は formation が3マス分あるが、表示上は1マスに集約する。
-  // その間は一般戦闘マスを現在位置として維持し、マス自体を進めない。
-  if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
-      const st=OnlineMatch.getState();
-    if(st&&Array.isArray(st.stageFlow)&&st.stageFlow.length){
-      const rawStep=Math.max(0,Math.min(st.stageFlow.length-1,(Number(G._waveStage)||1)-1));
-      let displayIdx=-1;
-      let previousType=null;
-      st.stageFlow.forEach((type,idx)=>{
-        if(idx>rawStep) return;
-        const displayType=type==='formation'?'battle':(type==='versus'?'elite':type);
-        if(displayType!==previousType) displayIdx++;
-        previousType=displayType;
-      });
-      if(displayIdx>=0) stage=displayIdx+1;
-    }
-  }
-  const actual=stage-1;
-  const current=options&&options.exactCurrent?actual:_journeyDisplayPosition(route,stage,scene);
-  const currentType=route[actual];
-  const isFinalScene=scene===5;
-  const reached=isFinalScene?currentType==='boss':currentType==='altar';
-  const remaining=route.slice(actual).filter(type=>['battle','elite','boss','finalBoss'].includes(type)).length;
-  // 現在位置の次に進むノードを強調する。ゲーム開始前は先頭ノードを対象にし、
-  // 祭壇（または最終決戦）へ到達済みのときは次ノードを発光させない。
-  const next=(reached||current>=route.length-1)?-1:(current<0?0:current+1);
-
-  // ステージ4まではScene1〜4だけを並べ、ステージ5へ到達した時点で末尾にScene5を足す。
-  // （最終ステージの存在自体を、到達するまで伏せておくため）
-  // ただしデバッグモードでは、どのステージにいてもScene5マークを出す
-  // （Sceneマークを押してステージ移動できるようにするため）。
-  const sceneCount=(scene>=5||(G&&G._debugMode))?5:4;
-  const sceneMarks=Array.from({length:sceneCount},(_,idx)=>{
-    const n=idx+1;
-    const state=n<scene?'passed':(n===scene?'current':'');
-    const connector=idx<sceneCount-1?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
-    // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
-    const jumpAttr=(G&&G._debugMode)?` data-journey-scene="${n}"`:'';
-    // ホバー表示はブラウザ標準のtitleではなくカードと同じ枠（#kw-tooltip）で塔の名前を出す。
-    // 名前だけの1行表示なので、data-preview-norule で見出し下の直線を消す。
-    return `<span class="journey-scene-mark ${state}" data-preview="${_escapePreviewHtml(_journeySceneTowerName(n))}" data-preview-norule="1"${jumpAttr}></span>${connector}`;
-  }).join('');
-  const nodeMarks=route.map((type,idx)=>{
-    const state=idx<current?'passed':(idx===current?'current':'');
-    const resumeClass=options&&options.resume&&idx===current?'run-resume-current':'';
-    const nextClass=idx===next?'next':'';
-    const icon=_journeyIconForNode(type);
-    const iconHtml=icon?`<img src="assets/ui/${icon}" alt="${_journeyNodeLabel(type,scene,idx)}">`:'';
-    const connector=idx<route.length-1?`<span class="journey-track-line ${idx<current?'passed':''}"></span>`:'';
-    const iconClass=icon?'has-icon':'';
-    const iconStyle=icon?` style="--journey-icon:url('assets/ui/${icon}')"`:'';
-    // エリート/ボスは、実際に出現する個体を先読み確定した上で「エリート／カード名」＋効果＋
-    // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
-    let previewText=_journeyNodeLabel(type,scene,idx);
-    let enemyAttr='';
-    if(!options?.resume&&!(G&&G._onlineMode)&&(type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
-      const previewType=type==='elite'?'elite':'boss';
-      const enemyPreview=_ensureWaveEnemyPreview(scene,previewType);
-      if(enemyPreview&&enemyPreview.def){
-        const def=enemyPreview.def;
-        const label=previewType==='elite'?'エリート':'ボス';
-        previewText=`${label}\n${def.name}`;
-        const artPaths=typeof getCharacterNoArtPath==='function'?getCharacterNoArtPath(def):'';
-        const payload={
-          name:def.name,desc:String(def.desc||'').trim(),atk:enemyPreview.atk,hp:enemyPreview.hp,art:artPaths||null,
-          // 通常カードと同じく、効果テキストの一番上にキーワードを並べて表示する。
-          keywords:[...new Set((def.keywords||[]).map(k=>String(k||'').trim()).filter(Boolean))],
-          // 他のカードと同じ見た目（フレーム＋絵柄＋ATK/HP）でmkCardEl()に渡すための情報。
-          artCode:def.artCode||def._artCode||def.No||def['No.']||def.no||def.imageNo||'',
-          color:def.color||'',
-          _sheetEnemy:!!def._sheetEnemy,
-          // 旅の進捗のホバー表示でも、エリート／ボスは character_frame.png を使う。
-          _isEliteOrBoss:true,
-        };
-        enemyAttr=` data-journey-enemy="${_escapePreviewHtml(JSON.stringify(payload))}"`;
-      }
-    }
-    // デバッグモードでは各マスをクリックしてそのstageへ直接ジャンプできるようにする。
-    const jumpAttr=(G&&G._debugMode&&!options?.resume)?` data-journey-jump="${idx+1}" data-journey-type="${type}"`:'';
-    // エリート／ボス（カード付き）以外は名前だけの1行表示なので、Sceneマークと同じ枠にする
-    // （見出し下の直線なし・幅は文字なり）。
-    const noRuleAttr=enemyAttr?'':' data-preview-norule="1"';
-    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass} ${resumeClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
-  }).join('');
-  // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
-  const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
-  const towerName=String((_regionInfo&&_regionInfo.towerName)||'祭壇').trim()||'祭壇';
-  const onlineState=(G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch)
-    ?OnlineMatch.getState():null;
-  const onlineOpponent=onlineState&&onlineState.nextOpponentId?String(onlineState.nextOpponentId):'';
-  const countdown=onlineOpponent
-    ?`次の対戦相手は${_escapePreviewHtml(onlineOpponent)}`
-    :_journeyCountdownHtml(towerName,remaining,reached,isFinalScene);
-  root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
-  if(G&&G._debugMode&&!options?.resume) _bindDebugJourneyJump(root);
-}
-// デバッグ専用：旅の進捗のSceneマーク（countdownの上のアイコン列）をクリックして
-// そのステージ（=G._wave）へ移動する。移動後も編成画面のままにする。
-function _bindDebugSceneJump(root){
-  root.querySelectorAll('[data-journey-scene]').forEach(mark=>{
-    mark.classList.add('journey-scene-mark-debug-jump');
-    mark.onclick=e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      const wave=Math.max(1,Math.min(5,Number(mark.dataset.journeyScene)||1));
-      // ステージ1の先頭マスは村（リーゼ＝シートのステージ0）なので、G._waveは0で表す。
-      // 旅の進捗のscene計算はMath.max(1,G._wave)なので、0でもステージ1として表示される。
-      G._wave=wave===1?0:wave;
-      G._waveStage=1;
-      G._waveBattleType=null;
-      G._mapBattle=null;
-      G._waveEliteWon=false;
-      G.floor=typeof _waveStageFloor==='function'?_waveStageFloor(wave,1):G.floor;
-      // 編成画面のまま留まる（戦闘・村へは遷移しない）。
-      if(typeof _openWaveFormation==='function') _openWaveFormation();
-      else _syncRewardJourneyUi();
-    };
-  });
-}
-// デバッグ専用：旅の進捗のマスをクリックしてそのstageへ即移動する。
-function _bindDebugJourneyJump(root){
-  _bindDebugSceneJump(root);
-  root.querySelectorAll('[data-journey-jump]').forEach(node=>{
-    node.classList.add('journey-node-debug-jump');
-    node.onclick=e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      const stage=Number(node.dataset.journeyJump)||1;
-      const type=String(node.dataset.journeyType||'');
-      // マスは「いま表示しているステージ（scene）」のもの。G._waveをsceneへ合わせてから飛ぶ。
-      // これをしないと、リーゼ滞在中（G._wave=0）にエルムのマスを押した時に
-      // waveが0のまま=地域情報のステージ0＝リーゼが開いてしまう。
-      const scene=Math.max(1,Math.min(5,Number(G&&G._wave)||1));
-      // ステージ1の先頭マスだけはリーゼ（シートのステージ0）。
-      G._wave=(scene===1&&type==='city'&&stage===1)?0:scene;
-      // 施設系は専用の開き方、戦闘系（通常/エリート/ボス/ラスボス）は_startWaveBattleで即開始。
-      if(type==='city'){ if(typeof _openWaveVillage==='function') _openWaveVillage(stage,false); return; }
-      if(type==='altar'){ if(typeof _openWaveAltar==='function') _openWaveAltar(stage); return; }
-      if(typeof _startWaveBattle==='function') _startWaveBattle(stage);
-    };
-  });
-}
 // 所持金・ターン枠（#reward-production-ui .reward-prod-bottom）の表示更新。
 // 編成画面専用ではなく、マップ・戦闘画面でも同じ枠を常時表示するため、
 // 報酬フェイズ外からも（updateHUD経由で）呼べるよう独立させてある。
@@ -1436,27 +1194,15 @@ function _syncMoneyTurnTile(){
       // 元々ターン枠だった場所は「ライフ」表示に変更する（♥=残りライフ、♡=失ったライフ）。
       if(tile) tile.classList.remove('is-alert');
       // **見出しはテキストメッセージシートが唯一の出どころ**（「ライフ枠見出し」）。
-      if(turnLabel) turnLabel.textContent=typeof textMessage==='function'?textMessage('ライフ枠見出し','ライフ'):'ライフ';
+      if(turnLabel) turnLabel.textContent=typeof textMessage==='function'?textMessage('「ライフ枠」見出し','ライフ'):'ライフ';
       const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
       const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
       // ハートの絵は main.js の lifeHeartHtml() が唯一の実装（life.svg）。
       turn.innerHTML=Array.from({length:_lifeMax},(_,i)=>lifeHeartHtml(i>=_lifeMax-life)).join('');
     }
   }
-  // エリート/ボス襲撃までの残ターンは「戦闘開始」ボタンの上に白文字で表示する。
-  const cd=document.querySelector('.reward-prod-wave-countdown');
-  const cdLabel=document.querySelector('.reward-prod-wave-countdown-label');
-  const cdValue=document.querySelector('.reward-prod-wave-countdown-value');
-  const cdAlert=document.querySelector('.reward-prod-wave-countdown-alert');
-  if(cd){
-    const eff=_waveEffectiveBattleStage(Number(G._waveStage)||1);
-    const toElite=eff<=4;
-    const remaining=Math.max(0,(toElite?4:9)-eff);
-    if(cdLabel) cdLabel.textContent=toElite?'エリート襲撃まで':'ボス襲撃まで';
-    if(cdValue) cdValue.innerHTML=`${remaining} <span class="reward-prod-wave-countdown-unit">ターン</span>`;
-    if(cdAlert) cdAlert.textContent=toElite?'エリート襲撃':'ボス襲撃';
-    cd.classList.toggle('is-alert',remaining===0);
-  }
+  // 「エリート／ボス襲撃まであとNターン」の表示は廃止済み。
+  // 残り戦闘数は「旅の進捗」枠が出す（reward_journey.js の _journeyCountdownHtml）。
 }
 // 編成画面の左上ラベル。施設から入った場合は「編成」ではなく施設名を出す。
 function _syncRewardTitleLabel(){
@@ -1467,11 +1213,11 @@ function _syncRewardTitleLabel(){
   // **見出しはテキストメッセージシートが唯一の出どころ**（「◯◯見出し」）。
   const t=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   el.textContent=fromVillage
-    ||(G._isItemShop?t('道具屋見出し','道具屋')
-    :G._isForge?t('鍛冶屋見出し','鍛治屋')
-    :G._isShop?t('魔導店見出し','魔導店')
-    :G._isRingExchange?t('祭壇見出し','祭壇')
-    :t('編成画面見出し','編成'));
+    ||(G._isItemShop?t('「道具屋」見出し','道具屋')
+    :G._isForge?t('「鍛冶屋」見出し','鍛治屋')
+    :G._isShop?t('「魔導店」見出し','魔導店')
+    :G._isRingExchange?t('「祭壇」見出し','祭壇')
+    :t('「編成画面」見出し','編成'));
   const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(node=>node.querySelector('#rw-count'));
   if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary?'貸出カード':'報酬'} `;
 }
@@ -1506,706 +1252,6 @@ function _syncRewardProductionUi(){
   _syncMoneyTurnTile();
   _syncRewardProductionItems();
   _syncRewardProductionRings();
-}
-function _rewardItemArtPath(card){
-  if(!card) return '';
-  if(card.art) return String(card.art);
-  if(typeof getCardAsset==='function') return getCardAsset(card)||'';
-  return '';
-}
-function _ensureItemSlots(){
-  G.spellSlots=Array.isArray(G.spellSlots)?G.spellSlots:[];
-  while(G.spellSlots.length<4) G.spellSlots.push(null);
-  return G.spellSlots;
-}
-function _syncRewardProductionItems(){
-  const slots=document.querySelectorAll('.reward-prod-item .reward-prod-slots i');
-  if(!slots.length||!G||G.phase!=='reward') return;
-  const items=_ensureItemSlots();
-  slots.forEach((slot,idx)=>{
-    const item=items[idx]||null;
-    const path=_rewardItemArtPath(item);
-    slot.classList.add('item-visual');
-    slot.classList.toggle('item-visual-filled',!!path);
-    if(path) slot.style.setProperty('--item-art',`url("${path}")`);
-    else slot.style.removeProperty('--item-art');
-    slot._rewardItem=item;
-    slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
-    const preview=item?[item.name,_previewRarityLine(item),item.desc||''].filter(Boolean).join('\n'):'';
-    if(preview){
-      slot.setAttribute('data-preview',preview);
-      const rarity=Math.max(1,Math.min(5,parseInt(item.rarity,10)||1));
-      slot.classList.add(`rarity-${rarity}`);
-    }else{
-      slot.removeAttribute('data-preview');
-    }
-    slot.draggable=!!item;
-    if(!slot._itemDragWired){
-      slot._itemDragWired=true;
-      slot.addEventListener('dragstart',e=>{
-        if(!slot._rewardItem){ e.preventDefault(); return; }
-        _dragSrc={arr:'spellSlots',idx};
-        if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); }
-        _setDragZoneClass('dragzone-itemslot');
-        _createDragGhost(slot);
-        if(_dragGhostDiv) _dragGhostDiv.style.setProperty('--item-art',slot.style.getPropertyValue('--item-art'));
-        slot.classList.add('dragging');
-      });
-      slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      slot.addEventListener('dragend',()=>{ slot.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
-      slot.addEventListener('dragover',e=>{
-        if(_dragSrc&&_dragSrc.arr==='spellSlots'&&_dragSrc.idx!==idx){ e.preventDefault(); slot.classList.add('drag-over'); return; }
-        const rewCard=_dragSrc&&_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:null;
-        if(rewCard&&_isItemCard(rewCard)&&!slot._rewardItem){ e.preventDefault(); slot.classList.add('drag-over'); }
-      });
-      slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
-      slot.addEventListener('drop',e=>{
-        slot.classList.remove('drag-over');
-        const items=_ensureItemSlots();
-        if(_dragSrc&&_dragSrc.arr==='spellSlots'&&_dragSrc.idx!==idx){
-          e.preventDefault();
-          const srcIdx=_dragSrc.idx; _dragSrc=null;
-          const tmp=items[idx];
-          items[idx]=items[srcIdx]||null;
-          items[srcIdx]=tmp||null;
-          _playRewardAcquireSfx('item_get.wav');
-          _syncRewardProductionUi();
-          updateHUD();
-          return;
-        }
-        if(_dragSrc&&_dragSrc.arr==='rew'){
-          const rewIdx=_dragSrc.idx;
-          const card=_rewCards[rewIdx];
-          if(!card||!_isItemCard(card)||slot._rewardItem) return;
-          // 道具屋の提示アイテムはドラッグで入れても購入扱い（クリック購入と同じくゴールドを徴収する）。
-          // ただし自分の手持ちを商品枠へ置いたもの（売却待ち）を戻す場合は徴収しない。
-          const buyCost=(G._isItemShop&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
-          if(buyCost>0&&(G.gold||0)<buyCost) return;
-          e.preventDefault();
-          _dragSrc=null;
-          if(buyCost>0){
-            G.gold-=buyCost;
-            if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
-            if(typeof playSfx==='function') playSfx('buy2',{group:'reward'});
-          }
-          const placed=clone(card);
-          // 商品枠に置いていた自分のアイテムを戻す場合、売却待ちの印を消してから手持ちへ返す。
-          delete placed._shopSalePending;
-          delete placed._sellDisplayPrice;
-          delete placed._temporaryRewardAreaCard;
-          if(card._isOriginalReward){
-            placed._rewardReturnCard=clone(card);
-            placed._rewardReturnIdx=rewIdx;
-            placed._rewardReturnPhaseId=_rewPhaseId;
-            _rewFreePickDone=true;
-          }
-          if(card._isTreasure) _rewFreePickDone=true;
-          items[idx]=placed;
-          if(G._isItemShop||G._isLibrary) _rewCards[rewIdx]=null;
-          else _rewCards.splice(rewIdx,1);
-          if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
-          if(typeof _removeDragGhost==='function') _removeDragGhost();
-          if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-          renderRewCards();
-          renderHandEditor();
-          renderMoveSlotsInEnemy();
-          updateHUD();
-        }
-      });
-    }
-    // 店（道具屋・魔導店・鍛冶屋）では手持ちアイテムに売却価格と売却ボタンを重ねる。
-    // 価格はアイテムなので全店共通で道具屋準拠（レアリティ×45）。
-    slot.querySelector('.shop-board-sell-value')?.remove();
-    slot.querySelector('.shop-board-sell-btn')?.remove();
-    if((G._isShop||G._isForge)&&item){
-      const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
-      const val=document.createElement('div');
-      val.className='shop-board-sell-value';
-      val.textContent=`+${price}G`;
-      slot.appendChild(val);
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='shop-board-sell-btn';
-      btn.dataset.sfxSilent='1';
-      btn.textContent='売却';
-      btn.onclick=ev=>{ ev.stopPropagation(); _sellHeldItem(idx); };
-      slot.appendChild(btn);
-    }
-    slot.onclick=e=>{
-      e.stopPropagation();
-      // 対象選択中に、選択中のアイテム自身を押したら中断する。
-      if(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx){ _cancelPendingItemUse(); return; }
-      if(slot._rewardItem) _openItemUseConfirm(idx,slot);
-    };
-  });
-}
-// 道具屋：手持ちアイテムを売却する（レアリティ×45ゴールド）。
-function _sellHeldItem(idx){
-  const items=_ensureItemSlots();
-  const card=items[idx];
-  if(!card) return;
-  const base=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(card):0;
-  items[idx]=null;
-  const gain=typeof onGoldGained==='function'?onGoldGained(base):(G.gold=(G.gold||0)+base,base);
-  if(typeof playFileSfx==='function') playFileSfx('assets/sfx/sell.wav');
-  else try{ const se=new Audio('assets/sfx/sell.wav'); se.volume=sfxFallbackVolume(.85); void se.play(); }catch(_e){}
-  if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
-  _syncRewardProductionUi();
-  renderRewCards();
-  updateHUD();
-}
-function _closeItemUseConfirm(){
-  const old=document.getElementById('item-use-confirm');
-  if(old) old.remove();
-}
-if(!window._itemRingMenuDismissBound){
-  window._itemRingMenuDismissBound=true;
-  document.addEventListener('pointerdown',e=>{
-    const pop=document.getElementById('item-use-confirm');
-    if(!pop) return;
-    if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,.reward-prod-item .reward-prod-slots i,.reward-prod-ring .reward-prod-slots i')) return;
-    _closeItemUseConfirm();
-  },true);
-  document.addEventListener('dragstart',e=>{
-    _closeItemUseConfirm();
-    if(document.body.classList.contains('right-card-peek')){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      _dragSrc=null;
-      window._allySlotDragSrc=null;
-      if(typeof _removeDragGhost==='function') _removeDragGhost();
-      if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-    }
-  },true);
-  ['dragover','drop'].forEach(type=>document.addEventListener(type,e=>{
-    if(!document.body.classList.contains('right-card-peek')) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  },true));
-  // カード透明化中は、dragstart前のpointerdownで行われる選択・クラス更新も止める。
-  // 右クリックによる透明化解除は残すため、左ボタンだけを対象にする。
-  document.addEventListener('pointerdown',e=>{
-    if(!document.body.classList.contains('right-card-peek')||e.button!==0) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    _dragSrc=null;
-    window._allySlotDragSrc=null;
-    if(typeof _removeDragGhost==='function') _removeDragGhost();
-    if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-  },true);
-}
-function _itemEffectKey(card){
-  const key=String(card&&card.itemEffectKey||'');
-  if(key==='underworld_scroll'||card&&card.name==='幻視の巻物') return 'vision_scroll';
-  if(card&&card.name==='ポータルの巻物') return 'portal_scroll';
-  return key;
-}
-function _mainBoardEquips(){
-  const unit=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
-  return unit&&Array.isArray(unit.equipment)?unit.equipment:[];
-}
-function _isBoardCharacterCard(card){
-  return !!card&&String(card.category||'')==='キャラクター';
-}
-function _boardCharacterSlots(){
-  return _mainBoardEquips().map((card,idx)=>({card,idx})).filter(x=>_isBoardCharacterCard(x.card));
-}
-function _cardSealKeywordIndex(card){
-  const kws=Array.isArray(card&&card.keywords)?card.keywords:[];
-  return kws.findIndex(k=>/^封印(?:\d+|∞)$/.test(String(k||'')));
-}
-// 生贄人形は封印の値を3減らす。**最低値は1で、0にはならない**（封印は失われない）。
-// 値はここが唯一の置き場（シートの効果文と合わせること）。
-const SACRIFICE_DOLL_SEAL_REDUCE=3;
-const SACRIFICE_DOLL_SEAL_MIN=1;
-// 生贄人形で実際に減らせる封印かどうか。
-// ・封印∞は減らせない
-// ・既に最低値（封印1）なら減らせない
-// 減らせない相手を選べてしまうと「破壊だけ実行され、アイテムは消費されない」状態で止まる。
-function _cardSealReducible(card){
-  const idx=_cardSealKeywordIndex(card);
-  if(idx<0) return false;
-  const kw=String(card.keywords[idx]||'');
-  if(/∞/.test(kw)) return false;
-  return (parseInt(kw.replace('封印',''),10)||0)>SACRIFICE_DOLL_SEAL_MIN;
-}
-function _reduceCardSeal(card){
-  const idx=_cardSealKeywordIndex(card);
-  if(idx<0) return false;
-  const kw=String(card.keywords[idx]||'');
-  if(/∞/.test(kw)) return false;
-  const cur=parseInt(kw.replace('封印',''),10)||0;
-  const n=Math.max(SACRIFICE_DOLL_SEAL_MIN,cur-SACRIFICE_DOLL_SEAL_REDUCE);
-  if(n===cur) return false;
-  card.keywords[idx]=`封印${n}`;
-  // 説明文にも封印の数が書かれている場合は同じ値へ揃える（消さない）。
-  if(card.desc) card.desc=String(card.desc).replace(/封印\d+/g,`封印${n}`);
-  return true;
-}
-function _consumeItemSlot(idx){
-  const slots=_ensureItemSlots();
-  if(Number.isInteger(idx)) slots[idx]=null;
-  _closeItemUseConfirm();
-  _syncRewardProductionUi();
-  renderHandEditor();
-  renderRewCards();
-  updateHUD();
-}
-// 絆の巻物：キーワードの合体ルール。「毒3」「封印2」等、末尾が数値のキーワードは数値同士を
-// 加算する。数値の無い単純なキーワード（先制・即死等）は重複させず1つのまま残す。
-function _mergeCardKeywordsForBond(baseKeywords,addKeywords){
-  const result=[...(Array.isArray(baseKeywords)?baseKeywords:[])];
-  (Array.isArray(addKeywords)?addKeywords:[]).forEach(k=>{
-    const raw=String(k||'').trim();
-    if(!raw) return;
-    const m=/^(.*?)(\d+)$/.exec(raw);
-    if(m){
-      const prefix=m[1],num=parseInt(m[2],10)||0;
-      const idx=result.findIndex(rk=>{
-        const rm=/^(.*?)(\d+)$/.exec(String(rk||''));
-        return rm&&rm[1]===prefix;
-      });
-      if(idx>=0){
-        const rm=/^(.*?)(\d+)$/.exec(String(result[idx]||''));
-        result[idx]=`${prefix}${(parseInt(rm[2],10)||0)+num}`;
-      }else{
-        result.push(raw);
-      }
-    }else if(!result.includes(raw)){
-      result.push(raw);
-    }
-  });
-  return result;
-}
-// 街（村本体・その施設・祭壇）にいるか。ポータルの巻物の使用可否判定に使う。
-function _isInVillageScene(){
-  if(G._isShop||G._isItemShop||G._isForge||G._isTavern||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isLibrary) return true;
-  // ワールドマップ上の現在地が村マスなら街の中とみなす。
-  // ※#scr-village の .active は街を出た後（報酬フェイズ等）も残ることがあるため判定に使わない。
-  return !!(typeof _mapCurrentVillageNode==='function'&&_mapCurrentVillageNode());
-}
-
-function _canUseItemNow(card){
-  const key=_itemEffectKey(card);
-  const chars=_boardCharacterSlots();
-  if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
-  if(key==='bond_scroll'){
-    const counts={};
-    chars.forEach(({card})=>{ if(!card._merged) counts[card.name]=(counts[card.name]||0)+1; });
-    return Object.values(counts).some(n=>n>=2);
-  }
-  if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardSealReducible(x.card));
-  if(key==='weakening_scroll') return chars.length>0;
-  if(key==='meteor_scroll') return true;
-  // ポータルの巻物は「直前の村へワープする」アイテムなので、街（村・その施設）にいる間は使えない。
-  // **行き先はウェーブ進行（旅の進捗）の街マス。** 以前は G.worldMap があることを
-  // 条件にしていたが、ワールドマップは開かないと作られないため、通常の進行では
-  // ずっと押せないままだった。
-  if(key==='portal_scroll') return !_isInVillageScene()
-    && !!(typeof _wavePreviousVillage==='function'&&_wavePreviousVillage());
-  if(key==='vision_scroll') return chars.length>0;
-  return true;
-}
-// 魔力の巻物が減らせるマナ効果の項目。
-const _MANA_SCROLL_FIELDS=['manaCost','manaOnAttack','manaOnInjury','manaOnDeath'];
-// 最低値1のため、2以上の項目が1つでもあれば減らせる。
-function _manaScrollReducible(card){
-  return _MANA_SCROLL_FIELDS.some(f=>Object.prototype.hasOwnProperty.call(card||{},f)&&(Number(card[f])||0)>1);
-}
-// アイテム使用中、そのスロットが対象になり得るか。
-// アイテム未使用時は常にtrue（通常操作を妨げない）。
-// カードが既にそのキーワードを持っているか（付与系アイテムの対象外判定に使う）。
-function _cardHasKeyword(card,kw){
-  return (Array.isArray(card&&card.keywords)?card.keywords:[]).some(k=>String(k||'').trim()===kw);
-}
-// 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
-// エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
-// _isBoardCharacterCard() で一律に落とす（個別のアイテムごとに書かない）。
-function _isItemUseTargetSlot(slotIdx){
-  const pending=G._pendingItemUse;
-  if(!pending) return true;
-  const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
-  const card=equips[slotIdx];
-  if(!_isBoardCharacterCard(card)) return false;
-  const key=pending.key;
-  // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
-  if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
-  if(key==='vision_scroll'&&_cardHasKeyword(card,'復活')) return false;
-  if(key==='bond_scroll'){
-    if(card._merged) return false;
-    if(!Number.isInteger(pending.firstIdx)){
-      // 1枚目：同名かつ未合体の相方が別スロットに要る
-      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&!c._merged&&c.name===card.name);
-    }
-    // 2枚目：1枚目と同名の別スロット
-    return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
-  }
-  if(key==='mana_scroll') return _manaScrollReducible(card);
-  if(key==='sacrifice_doll'){
-    // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
-    if(!Number.isInteger(pending.destroyIdx)){
-      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardSealReducible(c));
-    }
-    return slotIdx!==pending.destroyIdx&&_cardSealReducible(card);
-  }
-  return true;
-}
-
-// アイテムの対象選択を中断する。生贄人形のように途中で盤面を書き換える
-// アイテムがあるため、開始時のスナップショットへ戻してから解除する。
-function _cancelPendingItemUse(silent){
-  const pending=G._pendingItemUse;
-  if(!pending) return false;
-  if(Array.isArray(pending.boardSnapshot)){
-    const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():null;
-    if(equips) pending.boardSnapshot.forEach((c,i)=>{ equips[i]=c?clone(c):null; });
-  }
-  G._pendingItemUse=null; _syncItemUsePickingUi();
-  if(typeof renderHandEditor==='function') renderHandEditor();
-  if(typeof updateHUD==='function') updateHUD();
-  return true;
-}
-
-// 右クリック／Escでも対象選択を中断できるようにする（1度だけ登録）。
-if(!window._itemUseCancelBound){
-  window._itemUseCancelBound=true;
-  document.addEventListener('contextmenu',e=>{
-    if(!G||!G._pendingItemUse) return;
-    e.preventDefault();
-    _cancelPendingItemUse();
-  },true);
-  document.addEventListener('keydown',e=>{
-    if(e.key!=='Escape'||!G||!G._pendingItemUse) return;
-    e.preventDefault();
-    _cancelPendingItemUse();
-  },true);
-}
-
-// ── 対象を選ぶアイテムの使用中の表示 ───────────────────────────
-// **指示文はテキストメッセージシートが唯一の出どころ**（「「◯◯」使用時」）。
-// 2段階選ぶアイテム（生贄人形・絆の巻物）は「使用時1」「使用時2」を使う。
-// 予備の文字列はシートを読めない時のためだけに持つ。
-const _ITEM_USE_PROMPT_FALLBACK={
-  bond_scroll:['合体する1枚目の同名キャラクターを選んでください。','合体する2枚目の同名キャラクターを選んでください。'],
-  shield_scroll:['結界1を付与するキャラクターを選んでください。'],
-  giant_scroll:['+5/+5を付与するキャラクターを選んでください。'],
-  sacrifice_doll:['破壊するキャラクターを選んでください。','封印の値を3減らすキャラクターを選んでください。'],
-  weakening_scroll:['破壊するキャラクターを選んでください。'],
-  inspire_flag:['根性を付与するキャラクターを選んでください。'],
-  vision_scroll:['復活を付与するキャラクターを選んでください。'],
-  mana_scroll:['マナ効果の値1減らすキャラクターを選んでください。'],
-};
-// いま何段階目か（1始まり）。1段階だけのアイテムは常に1。
-function _itemUseStep(pending){
-  if(!pending) return 1;
-  if(pending.key==='sacrifice_doll') return (pending.destroyIdx==null)?1:2;
-  if(pending.key==='bond_scroll') return (pending.firstIdx==null)?1:2;
-  return 1;
-}
-function _itemUsePromptText(pending){
-  if(!pending) return '';
-  const name=String(pending.card&&pending.card.name||'').trim();
-  const step=_itemUseStep(pending);
-  const list=_ITEM_USE_PROMPT_FALLBACK[pending.key]||[];
-  const fallback=list[step-1]||list[0]||'対象を選んでください。';
-  if(typeof textMessage!=='function') return fallback;
-  // 2段階のものは「使用時1」「使用時2」、1段階のものは「使用時」。
-  const keys=(list.length>1)?[`「${name}」使用時${step}`,`「${name}」使用時`]:[`「${name}」使用時`];
-  for(const k of keys){ const v=textMessage(k,'').trim(); if(v) return v; }
-  return fallback;
-}
-// CSSの content へ入れる文字列リテラル。引用符とバックスラッシュを閉じないようにする。
-function _cssStringLiteral(text){
-  return `"${String(text||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
-}
-// 対象選択中の画面（暗転・報酬枠の見出しと説明文・キャンセルボタン）を今の状態へ合わせる。
-// **開始・段階の進行・終了のすべてでここを呼ぶこと**（呼び忘れると暗転や説明が残る）。
-function _syncItemUsePickingUi(){
-  if(typeof document==='undefined') return;
-  const body=document.body;
-  if(!body) return;
-  const pending=G&&G._pendingItemUse;
-  const sec=document.getElementById('battle-order-section');
-  const root=document.documentElement;
-  const on=!!pending;
-  body.classList.toggle('item-use-picking',on);
-  const oldBtn=sec&&sec.querySelector('.item-use-cancel-btn');
-  if(!on){
-    root.style.removeProperty('--item-use-title');
-    root.style.removeProperty('--item-use-desc');
-    if(oldBtn) oldBtn.remove();
-    return;
-  }
-  root.style.setProperty('--item-use-title',_cssStringLiteral(String(pending.card&&pending.card.name||'')));
-  root.style.setProperty('--item-use-desc',_cssStringLiteral(_itemUsePromptText(pending)));
-  if(!sec) return;
-  if(!oldBtn){
-    // 「元に戻す」と同じ見た目・同じ効果音の扱い（CSSは .rew-reset-btn のルールを共用する）。
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.className='btn rew-reset-btn item-use-cancel-btn';
-    btn.dataset.sfxSilent='1';
-    btn.innerHTML=`<span class="rew-btn-label">${_uiLabel('アイテム使用キャンセルボタン','キャンセル')}</span>`;
-    btn.onclick=()=>{
-      if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-      _cancelPendingItemUse();
-    };
-    sec.appendChild(btn);
-  }
-}
-function _beginBoardItemUse(idx,card){
-  const key=_itemEffectKey(card);
-  const equipsNow=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
-  G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
-    boardSnapshot:(equipsNow||[]).map(c=>c?clone(c):null)};
-  _syncItemUsePickingUi();
-  // 対象外カードの暗転を反映するため描き直す。
-  if(typeof renderHandEditor==='function') renderHandEditor();
-}
-function _useImmediateItem(idx,card){
-  const key=_itemEffectKey(card);
-  if(!_canUseItemNow(card)){ ; return false; }
-  if(key==='silence_scroll'){
-    G.pendingBattleItems=Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[];
-    G.nextBattleItems=Array.isArray(G.nextBattleItems)?G.nextBattleItems:[];
-    const useCard=clone(card);
-    useCard.itemEffectKey='silence_scroll';
-    useCard._itemUseInstanceId=`item-use-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    G.pendingBattleItems.push(clone(useCard));
-    G.nextBattleItems.push(clone(useCard));
-    _consumeItemSlot(idx);
-    return true;
-  }
-  if(key==='golden_scroll'){
-    G.gold=Math.floor((G.gold||0)*2);
-    _consumeItemSlot(idx);
-    return true;
-  }
-  if(key==='jade_vase'){
-    const gain=typeof onGoldGained==='function'?onGoldGained(200):200;
-    if(typeof onGoldGained!=='function') G.gold=(G.gold||0)+gain;
-    _consumeItemSlot(idx);
-    return true;
-  }
-  if(key==='golden_vase'){
-    const gain=typeof onGoldGained==='function'?onGoldGained(300):300;
-    if(typeof onGoldGained!=='function') G.gold=(G.gold||0)+gain;
-    _consumeItemSlot(idx);
-    return true;
-  }
-  if(key==='mana_scroll'){
-    _beginBoardItemUse(idx,card);
-    _closeItemUseConfirm();
-    return true;
-  }
-  if(key==='vision_scroll'){
-    _beginBoardItemUse(idx,card);
-    _closeItemUseConfirm();
-    return true;
-  }
-  if(key==='meteor_scroll'){
-    G.pendingBattleItems=Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[];
-    G.nextBattleItems=Array.isArray(G.nextBattleItems)?G.nextBattleItems:[];
-    const useCard=clone(card);
-    useCard.itemEffectKey='meteor_scroll';
-    useCard._itemUseInstanceId=`item-use-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    G.pendingBattleItems.push(clone(useCard));
-    G.nextBattleItems.push(clone(useCard));
-    _consumeItemSlot(idx);
-    return true;
-  }
-  if(key==='portal_scroll'){
-    G._pendingMapItemUse={slotIdx:idx,key,card:clone(card)};
-    // ウェーブ進行の街マスへ戻る（実装は main.js が唯一の置き場）。
-    if(typeof warpToPreviousWaveVillage==='function'&&warpToPreviousWaveVillage()) return true;
-    G._pendingMapItemUse=null;
-    return false;
-  }
-  _beginBoardItemUse(idx,card);
-  _closeItemUseConfirm();
-  return true;
-}
-function handlePendingItemBoardTarget(slotIdx){
-  const pending=G._pendingItemUse;
-  if(!pending||!Number.isInteger(slotIdx)) return false;
-  const equips=_mainBoardEquips();
-  const card=equips[slotIdx];
-  if(!_isBoardCharacterCard(card)){ ; return true; }
-  const key=pending.key;
-  if(key==='shield_scroll'){
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    card.keywords.push('結界1');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='giant_scroll'){
-    card.power=(Number(card.power)||0)+5; card.life=(Number(card.life)||0)+5;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='inspire_flag'){
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    if(!card.keywords.includes('根性')) card.keywords.push('根性');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='vision_scroll'){
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    if(!card.keywords.includes('復活')) card.keywords.push('復活');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='mana_scroll'){
-    const fields=_MANA_SCROLL_FIELDS;
-    let changed=false;
-    fields.forEach(field=>{
-      if(!Object.prototype.hasOwnProperty.call(card,field)) return;
-      const cur=Number(card[field])||0;
-      // 最低値は1。1以下（＝効果を持たない／既に最小）は減らさない。
-      if(cur<=1) return;
-      card[field]=cur-1;
-      changed=true;
-    });
-    if(!changed){ ; return true; }
-    // 永久減少後の内部値と、カードに表示する効果文の数値を同期する。
-    if(typeof card.desc==='string'){
-      if(Object.prototype.hasOwnProperty.call(card,'manaCost')){
-        const cost=Math.max(0,Number(card.manaCost)||0);
-        card.desc=card.desc.replace(/(^|\n)\s*\d+マナ(毎)?([：:])/g,(_,prefix,every,sep)=>`${prefix}${cost}マナ${every||''}${sep}`);
-      }
-      const manaTriggers=[['manaOnAttack','攻撃'],['manaOnInjury','負傷'],['manaOnDeath','死亡']];
-      manaTriggers.forEach(([field,trigger])=>{
-        if(!Object.prototype.hasOwnProperty.call(card,field)) return;
-        const value=Math.max(0,Number(card[field])||0);
-        const re=new RegExp(`(${trigger}：\\s*(?:[赤青緑黄紫茶]\\s*)?)\\d*マナ(?=を?得る)`,'g');
-        card.desc=card.desc.replace(re,`$1${value}マナ`);
-      });
-    }
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='bond_scroll'){
-    if(!pending.firstIdx&&pending.firstIdx!==0){
-      if(card._merged){ ; return true; }
-      pending.firstIdx=slotIdx;
-      pending.firstName=card.name;
-      _syncItemUsePickingUi();   // 2段階目の指示文へ差し替える
-      renderHandEditor();
-      return true;
-    }
-    const first=equips[pending.firstIdx];
-    if(!first||first===card||card.name!==pending.firstName||card._merged||first._merged){
-      ; return true;
-    }
-    first.power=(Number(first.power)||0)+(Number(card.power)||0);
-    first.life=(Number(first.life)||0)+(Number(card.life)||0);
-    first.manaOnAttack=(Number(first.manaOnAttack)||0)+(Number(card.manaOnAttack)||0);
-    first.manaOnInjury=(Number(first.manaOnInjury)||0)+(Number(card.manaOnInjury)||0);
-    first.manaOnDeath=(Number(first.manaOnDeath)||0)+(Number(card.manaOnDeath)||0);
-    first.goldOnBattleEnd=(Number(first.goldOnBattleEnd)||0)+(Number(card.goldOnBattleEnd)||0);
-    first.goldOnDeath=(Number(first.goldOnDeath)||0)+(Number(card.goldOnDeath)||0);
-    // 絆の巻物は同名キャラクターを1枚に合体する。召喚枚数を加算すると、
-    // 合体後の1枚が戦闘開始時に2体として出撃してしまう。
-    // アイテム等で個別に付いたキーワードは、シート由来の姿へ作り直しても残す。
-    const bondExtraKeywords=typeof extraPanelKeywords==='function'
-      ?_mergeCardKeywordsForBond(extraPanelKeywords(first),extraPanelKeywords(card)):[];
-    first.keywords=_mergeCardKeywordsForBond(first.keywords,card.keywords);
-    first.rarity=Math.min(5,(Number(first.rarity)||1)+1);
-    first.grade=Math.max(Number(first.grade)||1,first.rarity);
-    // **矢印は directions（配列）で描く。** directionCount だけ4にしても
-    // 見た目は元の2方向のままになる（3枚合体は両方を設定している）。
-    first.directions=['up','right','down','left'];
-    first.directionCount=4;
-    first._merged=true;
-    // **合体後の効果はシートの「合体効果」列がそのまま入る**（pool.js／loader.js）。
-    // 以前はここで「効果を2回発動」（_effectRepeatBonus）にしていたが、シートの
-    // 合体効果は既に合体後の値で書かれているため、重ねて増やしてはいけない。
-    // 列が空欄のカードは効果もキーワードも変わらない。
-    if(typeof applyMergedPanelForm==='function'&&applyMergedPanelForm(first)){
-      if(bondExtraKeywords.length) first.keywords=_mergeCardKeywordsForBond(first.keywords,bondExtraKeywords);
-    }
-    delete first.effectRepeatBonus;
-    equips[slotIdx]=null;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
-  }
-  if(key==='sacrifice_doll'){
-    if(!pending.destroyIdx&&pending.destroyIdx!==0){
-      pending.destroyIdx=slotIdx;
-      pending.destroyName=card.name;
-      equips[slotIdx]=null;
-      _syncItemUsePickingUi();   // 2段階目の指示文へ差し替える
-      renderHandEditor();
-      return true;
-    }
-    if(slotIdx===pending.destroyIdx||!_cardSealReducible(card)){ ; return true; }
-    // 封印は最低でも1残るので、解放効果が開戦効果へ変わることはない。
-    // （そのための確認ダイアログも不要になったため廃止した）
-    if(!_reduceCardSeal(card)) return true;
-    G._pendingItemUse=null; _syncItemUsePickingUi();
-    _consumeItemSlot(pending.slotIdx);
-    return true;
-  }
-  if(key==='weakening_scroll'){
-    equips[slotIdx]=null;
-    G.mapPanelPowers=G.mapPanelPowers||{};
-    const summonSlots=Array.from({length:MAIN_BOARD_SIZE},(_,i)=>i)
-      .filter(i=>typeof mapPanelPowerIdAt==='function'&&mapPanelPowerIdAt(i)==='summon');
-    const target=summonSlots.length?randFrom(summonSlots):null;
-    if(target==null){ ; return true; }
-    G._pendingItemUse=null; _syncItemUsePickingUi();
-    _consumeItemSlot(pending.slotIdx);
-    const finish=()=>{ renderHandEditor(); renderRewCards(); updateHUD(); ; };
-    if(typeof _playMapForgeSlotRoll==='function'){
-      G._mapForgeAnimating=true;
-      _playMapForgeSlotRoll([target],target,{id:'eternal'}).then(()=>{
-        G._mapForgeAnimating=false;
-        G.mapPanelPowers[target]='eternal';
-        finish();
-      });
-    }else{
-      G.mapPanelPowers[target]='eternal';
-      finish();
-    }
-    return true;
-  }
-  return false;
-}
-function _openItemUseConfirm(idx,anchor){
-  const slots=_ensureItemSlots();
-  const card=slots[idx];
-  if(!card||G.phase!=='reward') return;
-  _closeItemUseConfirm();
-  const pop=document.createElement('div');
-  pop.id='item-use-confirm';
-  pop.innerHTML=`<div class="item-use-title">${card.name||'アイテム'}</div><button type="button" class="btn item-use-do">使う</button><button type="button" class="btn item-use-discard">捨てる</button><button type="button" class="btn item-use-cancel">キャンセル</button>`;
-  document.body.appendChild(pop);
-  const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
-  const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
-  if(rect){
-    pop.style.left=`${rect.right+14*scale}px`;
-    pop.style.top=`${rect.top+18*scale}px`;
-  }
-  const useBtn=pop.querySelector('.item-use-do');
-  // 使用条件を満たさないアイテムは「使う」を押せなくする
-  // （例：ポータルの巻物は街にいる間は使えない）。
-  if(!_canUseItemNow(card)){
-    useBtn.disabled=true;
-    useBtn.classList.add('item-use-unavailable');
-    useBtn.title='ここでは使用できません';
-  }
-  useBtn.onclick=e=>{
-    e.stopPropagation();
-    if(useBtn.disabled) return;
-    _useImmediateItem(idx,card);
-  };
-  pop.querySelector('.item-use-discard').onclick=e=>{
-    e.stopPropagation();
-    const current=_ensureItemSlots()[idx];
-    if(current){ _ensureItemSlots()[idx]=null; ; }
-    _closeItemUseConfirm();
-    renderHandEditor(); updateHUD();
-  };
-  pop.querySelector('.item-use-cancel').onclick=e=>{
-    e.stopPropagation();
-    _closeItemUseConfirm();
-    // 対象選択中に開いた場合は、選択そのものを取りやめる。
-    _cancelPendingItemUse();
-  };
 }
 function _rewardRingArtPath(ring){
   if(!ring) return '';
@@ -2381,7 +1427,6 @@ function renderRewCards(){
   document.body.classList.toggle('ring-offer-phase',!!(G&&G.phase==='reward'&&G._ringOfferPhase));
   // 指輪取得後の祭壇：見出し下の説明文を「代償の対価たる力は与えられた」に差し替える。
   document.body.classList.toggle('ring-offer-resolved',!!(G&&G.phase==='reward'&&G._ringOfferPhase&&G._ringOfferResolved));
-  document.body.classList.toggle('treasure-offer-phase',!!(G&&G.phase==='reward'&&G._isTreasureMapReward));
   const section=document.getElementById('battle-order-section');
   const el=document.getElementById('battle-order-row');
   if(!section||!el) return;
@@ -2390,7 +1435,7 @@ function renderRewCards(){
   if(G.phase!=='reward'){ section.style.display='none'; el.innerHTML=''; _syncRewardProductionUi(); return; }
   // 村/祭壇メニューと鍛冶屋は同じ行を独自の選択肢で使用するため、
   // カード移動後の再描画で提示内容を消さない。
-  if((G._isVillageMenu&&!G._isShop&&!G._isForge&&!G._isRingExchange&&!G._isTreasureMapReward)||G._isForge){
+  if((G._isVillageMenu&&!G._isShop&&!G._isForge&&!G._isRingExchange)||G._isForge){
     section.style.display='';
     // 鍛冶屋は提示行を独自の選択肢で使う。**所持金が変わったら出し直す。**
     // 出し直さないと、売却して足りるようになっても「ゴールド不足」のまま買えない。
@@ -2447,30 +1492,16 @@ function renderRewCards(){
     requestAnimationFrame(fitCardDescs);
     return;
   }
-  if(G._isTreasureMapReward){
-    _rewCards.slice(0,1).forEach((card,i)=>{
-      if(!card) return;
-      const d=_mkRewDiv(card,()=>takeRewCard(i),i);
-      d.classList.add('treasure-offer-card','item-visual');
-      d.classList.remove('treasure');
-      d.style.setProperty('--item-art',`url("${_rewardItemArtPath(card)}")`);
-      d.classList.add('item-visual-filled');
-      el.appendChild(d);
-    });
-    requestAnimationFrame(fitCardDescs);
-    return;
-  }
   // 道具屋：指輪交換と同じくitem_slot画像の枠でアイテムを3つ並べる（価格バッジは通常のショップと同形式）。
   if(G._isItemShop){
     Array.from({length:3},(_,i)=>_rewCards[i]||null).forEach((card,i)=>{
       if(!card){ el.appendChild(_mkShopSoldOutDiv(i)); return; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
-      d.classList.add('item-shop-card','treasure-offer-card','item-visual');
+      d.classList.add('item-shop-card','item-offer-card','item-visual');
       // 下・上・下と互い違いに置き、行の上下に余白を作らない。
       d.classList.add(i%2===1?'item-shop-card-up':'item-shop-card-down');
       // 商品枠に置いた自分のアイテム（売却待ち）は必ずドラッグで手持ちへ戻せるようにする。
       if(card._shopSalePending){ d.draggable=true; d.classList.remove('reward-drag-locked'); }
-      d.classList.remove('treasure');
       d.style.setProperty('--item-art',`url("${_rewardItemArtPath(card)}")`);
       d.classList.add('item-visual-filled');
       el.appendChild(d);
@@ -2611,15 +1642,15 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const cost=Math.max(0,(card._buyPrice??1));
   const canBuy=!isPendingSale&&(!G._isRewardTown||G._freeRewardPanelMode||cost===0||G.gold>=cost);
   const isLegend=!!card._isLegend;
-  const isTreasure=!!card._isTreasure;
   const div=(typeof mkCardEl==='function'&&!card._isChar)?mkCardEl(card,rewIdx??-1,'reward'):document.createElement('div');
   div.classList.add('rew-card');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
+  // 盤面が変わった後に「取ると合体」を付け直せるよう、対応する提示カードの位置を残す。
+  if(Number.isInteger(rewIdx)&&rewIdx>=0) div.dataset.mergeRewIdx=String(rewIdx);
   if(_rewardMergeCandidate(rewIdx,card)) div.classList.add('merge-ready');
   if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
   if(!canBuy&&!isPendingSale) div.classList.add('cant');
   if(isLegend) div.classList.add('legend');
-  if(isTreasure) div.classList.add('treasure');
   if(typeof applyCardVisual==='function'){
     applyCardVisual(div,card);
   } else if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
@@ -2638,7 +1669,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag='';
     // 体裁（大きさ・位置）はCSSの .shop-insufficient-badge に一本化してある。
-    const shortBadge=!isPendingSale&&!canBuy&&!isTreasure?`<div class="shop-insufficient-badge">ゴールド不足</div>`:'';
+    const shortBadge=!isPendingSale&&!canBuy?`<div class="shop-insufficient-badge">ゴールド不足</div>`:'';
     const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
     // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
     // 既にアイコン化済みの_rewCharDescではなくプレーンテキストを渡す
@@ -2658,7 +1689,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     if(isPendingSale){
       const sale=document.createElement('div');
       sale.className='shop-pending-sale-ui';
-      sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">売却</button>`;
+      sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`;
       sale.querySelector('button').onclick=ev=>{ ev.stopPropagation(); _sellPendingShopCard(rewIdx); };
       div.appendChild(sale);
       div.draggable=true;
@@ -2694,7 +1725,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.querySelector('.card-badge')?.remove();
     div.querySelector('.shop-buy-price')?.remove();
   }
-  if(G._isRewardTown&&!isPendingSale&&!canBuy&&!isTreasure){
+  if(G._isRewardTown&&!isPendingSale&&!canBuy){
     const shortBadgeItem=document.createElement('div');
     shortBadgeItem.className='shop-insufficient-badge';
     shortBadgeItem.textContent='ゴールド不足';
@@ -2703,7 +1734,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(isPendingSale){
     const sale=document.createElement('div');
     sale.className='shop-pending-sale-ui';
-    sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">売却</button>`;
+    sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`;
     sale.querySelector('button').onclick=ev=>{ ev.stopPropagation(); _sellPendingShopCard(rewIdx); };
     div.appendChild(sale);
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
@@ -3043,7 +2074,6 @@ function takeRewCard(i, targetSlot){
     // 指輪の on_summon トリガーを発火（現状 fireTrigger は no-op）
     fireTrigger('on_summon', null);
     _rewCards[i]=null;
-    if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
     refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderEnemyHand(); renderGradeUpBtn();
     return;
   }
@@ -3055,7 +2085,6 @@ function takeRewCard(i, targetSlot){
     if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
     if(card._isOriginalReward) _rewFreePickDone=true;
     _rewCards[i]=null;
-    if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
     refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderEnemyHand(); renderGradeUpBtn(); renderMoveSlotsInEnemy();
     return;
   }
@@ -3074,11 +2103,9 @@ function takeRewCard(i, targetSlot){
     slots[emptyIdx]=placed;
     if(typeof markCardAcquired==='function') markCardAcquired(card);
     if(card._isOriginalReward) _rewFreePickDone=true;
-    if(card._isTreasure) _rewFreePickDone=true;
-    if(isTown&&!G._freeRewardPanelMode&&!card._isTreasure){ G.gold-=cost; refreshRewardGoldUi(); }
+    if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
     if(G._isShop) _rewCards[i]=null;
     else _rewCards.splice(i,1);
-    if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
     _playRewardAcquireSfx('item_get.wav');
     refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderEnemyHand(); renderGradeUpBtn();
     return;
@@ -3096,7 +2123,6 @@ function takeRewCard(i, targetSlot){
         if(G._isShop||G._isLibrary) _rewCards[i]=null;
         else _rewCards.splice(i,1);
       }
-      if(typeof syncCurrentVillageFacilityStateFromReward==='function') syncCurrentVillageFacilityStateFromReward();
       refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderEnemyHand(); renderGradeUpBtn();
     };
     if(!startPanelPlacement(card,finish,'報酬')) return;
@@ -3341,15 +2367,15 @@ const _DRAG_ZONE_CLASSES=['dragzone-battleorder','dragzone-reward-spell','dragzo
 const _DRAG_ZONE_RAISE_TARGETS={
   'dragzone-ring-slot':[['#reward-production-ui',9001]],
   'dragzone-ring-offer':[['#reward-production-ui',9001]],
-  // 魔導板・報酬カードのドラッグ中の暗転オーバーレイは廃止したため、
-  // それより上へ出すためのz-index引き上げも行わない。
-  // 引き上げると魔導板のカードが#hand-paneの装飾レイヤーより前面に出て、
-  // 枠線が明るく浮き上がる（＝所持カードが光って見える）。
-  'dragzone-mainequip':[],
-  'dragzone-reward-spell':[],
-  'dragzone-reward-nonspell':[],
-  'dragzone-reward-item':[['#reward-production-ui',9001],['#battle-order-section',9001]],
-  'dragzone-itemslot':[['#reward-production-ui',9001],['#battle-order-section',9001]],
+  // 魔導板・報酬カードのドラッグ中は #mainequip-drag-overlay で暗転する。
+  // 明るく残す報酬枠だけをオーバーレイより上へ出す
+  // （魔導板は index.html 側の `:is(.dragzone-mainequip,…) #main-hand-area{z-index:9001}` で上げている）。
+  'dragzone-mainequip':[['#battle-order-section',9001]],
+  'dragzone-reward-spell':[['#battle-order-section',9001]],
+  'dragzone-reward-nonspell':[['#battle-order-section',9001]],
+  // アイテムのドラッグは、ドラッグ元にかかわらずアイテム枠だけを明るく残す。
+  'dragzone-reward-item':[['#reward-production-ui',9001]],
+  'dragzone-itemslot':[['#reward-production-ui',9001]],
 };
 function _applyDragZoneRaise(cls){
   (_DRAG_ZONE_RAISE_TARGETS[cls]||[]).forEach(([sel,z])=>{
@@ -3486,7 +2512,19 @@ function _createDragGhost(srcEl){
     dst.style.setProperty('align-items','center','important');
     dst.style.setProperty('justify-content','center','important');
     dst.style.setProperty('text-align',s.textAlign||'center','important');
-    dst.style.setProperty('transform','none','important');
+    // **桁数による縮小（.stat-d3/d4/d5 の transform:scale）を残す。**
+    // ここで transform:none を掛けていたため、桁数の多いカードをドラッグすると
+    // ゴーストの数字だけ元の大きさへ戻っていた。
+    // 位置はこの関数が left/top/width/height で決めているので、
+    // 元の transform のうち**拡大縮小だけ**を取り出して掛け直す（平行移動は捨てる）。
+    const m=/^matrix\(([-\d.]+)/.exec(String(s.transform||''));
+    const statScale=m?parseFloat(m[1]):1;
+    if(Number.isFinite(statScale)&&statScale>0&&Math.abs(statScale-1)>0.001){
+      dst.style.setProperty('transform',`scale(${statScale})`,'important');
+      dst.style.setProperty('transform-origin','center center','important');
+    }else{
+      dst.style.setProperty('transform','none','important');
+    }
   };
   copyStatStyle('.card-summon-atk','.card-summon-atk');
   copyStatStyle('.card-summon-hp','.card-summon-hp');
@@ -3540,7 +2578,10 @@ function _createDragGhost(srcEl){
     .forEach(el=>{
       if(!el.style.getPropertyValue('font-size')) el.style.setProperty('font-size',`${dragStatSize}px`,'important');
       el.style.setProperty('line-height','1','important');
-      el.style.setProperty('transform','none','important');
+      // **copyStatStyle() が入れた縮小（scale）を上書きしないこと。**
+      // ここで一律 transform:none にしていたため、桁数の多いカードをドラッグすると
+      // ゴーストの数字だけ元の大きさへ戻っていた。まだ何も入っていない時だけ消す。
+      if(!el.style.getPropertyValue('transform')) el.style.setProperty('transform','none','important');
     });
   const cs=getComputedStyle(srcEl);
   ['--card-frame','--card-art','--card-art-size','--card-art-position','--unit-frame','--unit-art','--unit-art-size','--unit-art-position'].forEach(k=>{
@@ -3829,7 +2870,9 @@ function _panelCharacterPreviewStats(unit,idx,card){
     base.atk+=Number(enh.atk||0);
     base.hp+=Number(enh.hp||0);
   }
-  // HPを減少させる強化の合計がベースを上回っても、表示上のHPが負にならないようにする
+  // ATK・HPを減少させる強化（呪われた壺の -5/-5 など）の合計がベースを上回っても、
+  // **表示は0が下限**。戦闘中の値（_addBattleStats／コアのaddStats）と同じ規則にする。
+  base.atk=Math.max(0,base.atk);
   base.hp=Math.max(0,base.hp);
   // 「攻防一体」はATKが常にHPに等しい。戦闘中の表示（presentShownAtk）と同じにする。
   if(typeof _collectAdjacentEnhancements==='function'){
@@ -3870,7 +2913,11 @@ function _rewardMergeCandidate(rewIdx,card){
     const key=_panelMergeKey(card);
     if(!key) return false;
     if(card._isChar){
-      return owned.filter(c=>c._isChar&&_panelMergeKey(c)===key).length>=2;
+      // **素材側の `_isChar` は問わない。**
+      // `_isChar` は「所持キャラクター本体」の印で、魔導板へ置いたカードには付かない。
+      // 揃える条件にしていたため、盤面に同名2枚あっても本体側の提示カードが光らなかった。
+      return owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)
+        &&_panelMergeKey(c)===key).length>=2;
     }
     const same=owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)&&_panelMergeKey(c)===key).length;
     const mirrors=owned.filter(c=>_isMagicMirrorPanel(c)).length;
@@ -3879,16 +2926,25 @@ function _rewardMergeCandidate(rewIdx,card){
   if(G.phase!=='reward') return false;
   const cards=Array.isArray(_rewCards)?_rewCards.filter(Boolean):[];
   const usable=cards.filter(c=>!c._tripleMerged&&!_isLuggagePanel(c));
-  const mirrors=cards.filter(c=>!c._tripleMerged&&_isMagicMirrorPanel(c));
+  // **魔導板・場のカードも合体素材に数える。**（ショップ側と同じ扱い）
+  // 以前は提示カード同士しか見ておらず、「同じカードが盤面に2枚あって
+  // 報酬の1枚を取れば3枚そろう」場面で光らなかった。
+  const owned=_ownedMergeCards().filter(c=>c&&!_isLuggagePanel(c));
+  const ownedSame=key=>owned.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length;
+  const mirrors=cards.filter(c=>!c._tripleMerged&&_isMagicMirrorPanel(c))
+    .concat(owned.filter(_isMagicMirrorPanel));
   if(_isMagicMirrorPanel(card)){
-    return usable.some(base=>{
+    const bases=usable.concat(owned);
+    return bases.some(base=>{
       const key=_panelMergeKey(base);
-      return key&&usable.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length>=2;
+      if(!key) return false;
+      const n=usable.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length+ownedSame(key);
+      return n>=2;
     });
   }
   const key=_panelMergeKey(card);
   if(!key) return false;
-  const same=usable.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length;
+  const same=usable.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length+ownedSame(key);
   return same>=3||(same>=2&&mirrors.length>0);
 }
 function _freezeTripleCloneOverlayGeometry(srcEl,cloneEl,rect,baseWidth,baseHeight){
@@ -4026,8 +3082,20 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   if(String(target.category||'')==='キャラクター'){
     const baseAtk=Number(def.power??def.atk??0)||0;
     const baseHp=Number(def.life??def.hp??1)||1;
-    const atkBuff=(Number(target.power??target.atk??baseAtk)||0)-baseAtk;
-    const hpBuff=(Number(target.life??target.hp??baseHp)||0)-baseHp;
+    // **アイテム等で個別に付いたステータスは、3枚すべてから合体後へ引き継ぐ。**
+    // キーワード（mergedKeywords）と同じ扱い。targetの分だけを見ていたため、
+    // 素材にした2枚に掛けた「巨大化の巻物」（+5/+5を永久付与）が消えていた。
+    // 素材はどれが残るか（targetIdx）が抽選なので、掛けた本人が消えることもあった。
+    let atkBuff=0, hpBuff=0;
+    picked.forEach(idx=>{
+      const src=unit.equipment[idx];
+      if(!src) return;
+      const sdef=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(src.id&&p.id===src.id)||p.name===src.name))||src;
+      const sAtk=Number(sdef.power??sdef.atk??0)||0;
+      const sHp=Number(sdef.life??sdef.hp??1)||1;
+      atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk;
+      hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp;
+    });
     target._permBasePower=baseAtk*2;
     target._permBaseLife=baseHp*2;
     target.power=baseAtk*2+atkBuff;
@@ -4125,6 +3193,8 @@ if(!window._equipSelectionClearBound){
   document.addEventListener('contextmenu',e=>{
     // 図書館の「魔導板の使い方」中は、右クリックによるカード非表示も無効にする。
     if(G&&G._libraryTutorialActive){ e.preventDefault(); return; }
+    // アイテムの対象選択中も同じ（カード非表示にすると対象が見えなくなる）。
+    if(G&&G._pendingItemUse){ e.preventDefault(); return; }
     // **ゲームオーバー・クリア画面でも、魔導板の外を右クリックして切り替えられる**
     // （編成画面と同じ扱い）。以前は #gameover-board-grid の上だけだった。
     if(G.phase==='reward'||G.phase==='gameover'||G.phase==='clear'){
@@ -4432,7 +3502,21 @@ function renderHandEditor(){
     if(handLabel) handLabel.childNodes[0].nodeValue='パネル ';
   }
   renderDebugCardPalette();
+  _refreshMergeReadyMarks();
   requestAnimationFrame(fitCardDescs);
+}
+// **「取ると合体」の光は描画時にしか計算していない。**
+// 魔導板へ同じカードを2枚置いても、提示カード（報酬・商品）を作り直すまで
+// 光らなかった。盤面を描き直すたびに、既に出ている提示カードの印を付け直す。
+function _refreshMergeReadyMarks(){
+  if(typeof document==='undefined') return;
+  const cards=Array.isArray(_rewCards)?_rewCards:[];
+  document.querySelectorAll('.rew-card[data-merge-rew-idx]').forEach(el=>{
+    const i=Number(el.dataset.mergeRewIdx);
+    const card=Number.isFinite(i)?cards[i]:null;
+    if(!card) return;
+    el.classList.toggle('merge-ready',!!_rewardMergeCandidate(i,card));
+  });
 }
 
 function _debugPanelSortValue(card){
@@ -4787,7 +3871,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
       const _spellBtn=arrName==='unitEquip'
-        ?(_boardSellable?`<span class="shop-board-sell-value">+${_shopSellGain}G</span><button class="discard-btn shop-board-sell-btn" data-sfx-silent="1">売却</button>`:(_ringOfferDiscardable?`<button class="discard-btn shop-board-sell-btn ring-offer-discard-btn" data-sfx-silent="1">還魂</button>`:''))
+        ?(_boardSellable?`<span class="shop-board-sell-value">+${_shopSellGain}G</span><button class="discard-btn shop-board-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`:(_ringOfferDiscardable?`<button class="discard-btn shop-board-sell-btn ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`:''))
         :'';
       const _libraryLoanBadge=arrName==='unitEquip'&&card._libraryLoan
         ?'<span class="shop-board-sell-value library-loan-badge">貸出</span>':'';
@@ -4807,8 +3891,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _panelOwner=arrName==='unitEquip'?_getPartyBoardUnit():null;
         const st=_panelCharacterPreviewStats(_panelOwner,arrName==='unitEquip'?i:null,card);
         const pAtk=st.atk, pHp=st.hp;
-        // HPを減少させる強化でHPが0になったキャラクターは、出撃不可のキャラと同じ見た目で暗くする
-        if(arrName==='unitEquip'&&pHp<=0) div.classList.add('invalid-battle-position');
+        // HPを減少させる強化でHPが0になったキャラクターは、出撃不可のキャラと同じ見た目で暗くする。
+        // 「特殊マス以外に置かれて出撃できない」場合は魔導板の枠を明るく残す仕様なので、
+        // HP0だけは別クラス（board-hp-zero）も付け、枠画像とマナ／生贄アイコンまで暗くする。
+        if(arrName==='unitEquip'&&pHp<=0) div.classList.add('invalid-battle-position','board-hp-zero');
         // シート「キーワード」列由来のcard.keywordsに、このスロットへ隣接接続している強化パネルの
         // 付与キーワードもマージした上で_unitPreviewText()に渡す（敵ユニットと同じ表示規則で
         // 「キーワード：〇〇」行として太字合成される。本文が空のカードでも説明が空にならない）。
@@ -5031,9 +4117,13 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='unitEquip'&&_emptyMapPowerId&&Assets.mapBoard&&Assets.mapBoard[_emptyMapPowerId]){
         const _boardWidth={eternal:'109.6%',resonance:'112.7%',duplicate:'105.5%'}[_emptyMapPowerId]||'100%';
         ph.style.setProperty('background',`url("${Assets.mapBoard[_emptyMapPowerId]}") center/${_boardWidth} 100% no-repeat`,'important');
-        ph.style.setProperty('outline','5px solid #c49a6c','important');
-        ph.style.setProperty('outline-offset','-5px','important');
-        ph.style.setProperty('box-shadow','inset 0 0 0 5px #c49a6c','important');
+        // **特殊マスの太い線は「外へ1px、内へ3px」の4pxにする。**
+        // 元は5pxすべてがマスの内側で、カードの絵に深く食い込んでいた。
+        // outline は offset の位置から外向きに引かれるので、-3px＋4px で [-1px,+3px] になる。
+        // box-shadow は内側3px（inset）と外側1px（spread）の2本で同じ帯を作る。
+        ph.style.setProperty('outline','4px solid #c49a6c','important');
+        ph.style.setProperty('outline-offset','-3px','important');
+        ph.style.setProperty('box-shadow','inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c','important');
       }
       if(arrName==='unitEquip'&&_emptyMapPowerId){
         // ①〜⑦：戦闘フェイズで出撃する枠（m_board1.svgで区別する）

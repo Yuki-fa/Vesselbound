@@ -138,7 +138,7 @@ const PANEL_POOL=[
   {id:'panel_mummy',no:'023',name:'マミー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:3,life:2,desc:'死亡：10ゴールドを得る。'},
   {id:'panel_banshee',no:'024',name:'バンシー',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:3,desc:'死亡：ランダムな敵にXダメージを与える。XはこのキャラクターのATKに等しい。'},
   {id:'panel_wraith',no:'025',name:'レイス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:6,life:1,desc:'死亡：ランダムな味方の負傷効果を発動する。'},
-  {id:'panel_skeleton_king',no:'026',name:'スケルトンキング',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,desc:'攻撃：「青スケルトン」を召喚し、代わりに攻撃させる。'},
+  {id:'panel_skeleton_king',no:'026',name:'スケルトンキング',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:4,keywords:['復活'],desc:'復活\n攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。'},
   {id:'panel_spectre',no:'027',name:'スペクター',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:3,life:5,manaCost:2,manaRepeat:true,desc:'2マナ毎：全ての青キャラクターはATK+2を得る。'},
   {id:'panel_ghost',no:'028',name:'ゴースト',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:5,life:2,desc:'死亡：ランダムな青キャラクターは+2/+1を得る。'},
   {id:'panel_phantom',no:'029',name:'ファントム',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,race:'不死',power:4,life:3,desc:'死亡：「青シャドウ」を3体召喚する。'},
@@ -218,7 +218,7 @@ const PANEL_POOL=[
   {id:'panel_golden_vase',no:'E041',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:400,keywords:['荷物'],desc:'荷物\n高く売れそうだ。（400Gで売れる。）'},
   {id:'panel_magic_mirror',name:'魔鏡',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,keywords:['荷物'],desc:'荷物\n荷物以外の全てのカードの3枚目として合体できる。'},
   {id:'panel_grace',name:'恩寵',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['恩寵'],desc:'常時：このキャラクターの開戦効果は1回追加で発動する。'},
-  {id:'panel_copy',name:'複製',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：接続している強化カードに変化する。'},
+  {id:'panel_copy',no:'E028',name:'複製',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：このキャラクターの1/1のコピーを召喚する。'},
   {id:'panel_alchemy',name:'錬成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：ランダムなアイテムを得る。'},
   {id:'panel_mana_generate',name:'マナ生成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,manaOnAttack:1,desc:'攻撃：1マナを得る。'},
   {id:'panel_rage',name:'逆上',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆上'],desc:'負傷：ランダムな敵に3ダメージを与える。'},
@@ -238,7 +238,9 @@ const PANEL_POOL=[
   {id:'panel_first_strike',no:'020',name:'先制',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['先制']},
   {id:'panel_shield',no:'021',name:'結界',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['結界']},
   {id:'panel_aoe_attack',no:'022',name:'全体攻撃',rarity:5,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['全体攻撃']},
-  {id:'panel_lifesteal',no:'023',name:'生命吸収',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生命吸収']},
+  // マスター（E023）と同じ値を保つ。ローカルxlsxの読込前／失敗時にも、古い
+  // grade1・rarity3で最初の報酬へ高確率で混ざらないようにする。
+  {id:'panel_lifesteal',no:'023',name:'生命吸収',rarity:5,grade:4,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生命吸収']},
   {id:'panel_pierce',name:'貫通',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['貫通']},
   {id:'panel_bond',name:'奇妙な絆',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['奇妙な絆'],desc:'開戦：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。'},
   {id:'panel_penitence',name:'懺悔',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['懺悔'],desc:'攻撃：このキャラクターは1ダメージを2回受ける。'},
@@ -405,13 +407,30 @@ function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgr
   const cur=Math.max(1,Math.min(5,Number(currentGrade)||1));
   const gradePool=_pickRewardGradePool(available,cur);
   if(!gradePool.length) return null;
-  const weighted=[];
+  // レアリティ比率は「カード1枚ごとの重み」ではなく、レアリティ枠そのものの確率。
+  // 候補枚数を掛けると、同レアリティの実装カードが多いだけで54/22/14/8/2が
+  // 大きく歪む。先に枠を引き、その中からカードを等確率で1枚選ぶ。
+  const byRarity=new Map();
   gradePool.forEach(p=>{
     const rarity=Math.max(1,Math.min(5,Number(p.rarity)||1));
-    const w=_rewardRarityWeights(useGoldenRing,useMapProgress)[rarity]||1;
-    for(let i=0;i<w;i++) weighted.push(p);
+    if(!byRarity.has(rarity)) byRarity.set(rarity,[]);
+    byRarity.get(rarity).push(p);
   });
-  return weighted.length?randFrom(weighted):randFrom(gradePool);
+  const rarityWeights=_rewardRarityWeights(useGoldenRing,useMapProgress);
+  const total=[1,2,3,4,5].reduce((sum,r)=>sum+Math.max(0,Number(rarityWeights[r])||0),0);
+  let roll=rand()*Math.max(1,total);
+  let selected=1;
+  for(let rarity=1;rarity<=5;rarity++){
+    roll-=Math.max(0,Number(rarityWeights[rarity])||0);
+    if(roll<0){ selected=rarity; break; }
+  }
+  // 選ばれた枠に候補が無い場合は最も近いレアリティへ寄せる。同距離なら低い方。
+  // 高レア枠を引いていないのに、候補不足だけを理由に最高レアへ飛ばさない。
+  let rarityPool=byRarity.get(selected)||[];
+  for(let distance=1;!rarityPool.length&&distance<=4;distance++){
+    rarityPool=byRarity.get(selected-distance)||byRarity.get(selected+distance)||[];
+  }
+  return randFrom(rarityPool.length?rarityPool:gradePool);
 }
 
 // 封印カードは1回の提示に1枚まで。**封印を持つキャラクターと「封印されしもの」を
@@ -422,10 +441,17 @@ function _isSealPanel(panel){
   return !!panel&&(has(panel.keywords)||has(panel.adjacentKeywords));
 }
 
+// **「ショップに出さない」判定は魔導店と道具屋の両方で使う。**
+// `G._isShop` は魔導店（カード）だけを指し、道具屋は `G._isItemShop`。
+// 道具屋を見落としていたため、シートで「ショップ＝false」にしたアイテム
+// （黄金の巻物など）が道具屋の品揃えに出ていた。
+function _shopStockContext(){ return !!(typeof G!=='undefined'&&G&&(G._isShop||G._isItemShop)); }
+function _shopOrRewardExcluded(p){ return _shopStockContext()?p._shopExcluded===true:p._rewardExcluded===true; }
+
 function drawPanel(n=1, maxGrade){
   ensurePanelSaleStock();
   const currentGrade=_currentRewardMapGrade(maxGrade);
-  const excluded=p=>G._isShop?p._shopExcluded:p._rewardExcluded;
+  const excluded=_shopOrRewardExcluded;
   const panelCandidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0);
   const charCandidates=panelCandidates.filter(p=>String(p.category||'')==='キャラクター');
   const enchantCandidates=panelCandidates.filter(p=>['エンチャント','強化'].includes(String(p.category||'')));
@@ -495,9 +521,14 @@ function cardRefund(card){
 
 // ── アイテムプールから N 個抽選 ─────────────────
 
-function drawItems(n, maxGrade){
+// opts.forShop：**店の在庫を作る時は必ず true を渡すこと。**
+// `G._isShop` / `G._isItemShop` は「店の画面を開いている間」しか立たず、
+// 在庫はそれより前（村へ入った時点）に作られる。文脈頼みにしていたため、
+// シートで「ショップ＝false」にしたアイテム（黄金の巻物）が並んでいた。
+function drawItems(n, maxGrade, opts){
   const currentGrade=_currentRewardMapGrade(maxGrade);
-  const excluded=G._isShop?p=>p._shopExcluded===true:p=>p._rewardExcluded===true;
+  const forShop=!!(opts&&opts.forShop);
+  const excluded=forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
   const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!excluded(p));
   const res=[];
   const used=new Set();
@@ -512,19 +543,16 @@ function drawItems(n, maxGrade){
   return res;
 }
 
-function drawRewards(n){
-  if(n!=null){
-    // 宝箱：現在の階層セクショングレード以下のアイテムのみ
-    const fd=FLOOR_DATA[G.floor];
-    const maxGrade=fd?(fd.sectionGrade||Math.min(4,Math.ceil(fd.grade))||1):1;
-    return drawItems(n, maxGrade);
-  }
+// 戦闘報酬のカードを引く。**引数は取らない。**
+// 以前はアイテムを引く分岐（宝箱）を兼ねていたが、宝箱の機能は廃止済み。
+// アイテムを引くのは drawItems() が唯一の入口（道具屋・鍛冶屋・報酬アイテム）。
+function drawRewards(){
   const baseGrade=G.rewardGrade||1;
   const res=drawPanel(5, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
-    const excluded= p=>G._isShop?p._shopExcluded:p._rewardExcluded;
+    const excluded=_shopOrRewardExcluded;
     // 確定枠でも封印カードは1枚まで（既に出ていれば候補から外す）。
     const hasSeal=res.some(_isSealPanel);
     const candidates=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!excluded(p)&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&!(hasSeal&&_isSealPanel(p))&&pred(p));

@@ -115,7 +115,9 @@ function audit() {
     // 「接続しているエンチャントの数だけ繰り返す」（フィーンド）は、何も接続していない
     // 検査盤面では0回が正しい。対象数の期待値を置かない。
     const repeatsByConnection = /接続しているエンチャントの(?:2倍の)?数だけ繰り返す/.test(String(card.desc || ''));
-    const expectedTargets = repeatsByConnection ? null
+    // 「〜を持つ全ての味方が」は撃つ体の数が盤面依存（援護射撃）。対象数の期待値を置かない。
+    const shootersByEffect = /を持つ全ての味方が/.test(String(card.desc || ''));
+    const expectedTargets = (repeatsByConnection || shootersByEffect) ? null
       : /全ての敵(?:キャラクター)?に\d+ダメージ|全てのキャラクターに\d+ダメージ/.test(card.desc) ? 3
       : /ランダムな敵に\d+ダメージ/.test(card.desc) ? 1 : null;
     const targetOk = expectedTargets == null || damage.length >= expectedTargets;
@@ -127,7 +129,10 @@ function audit() {
     const conditional = new Set(['タイタン', 'ケンタウロス', 'ハイドラ', 'インキュバス', 'サキュバス', 'ウェンディゴ', 'アビス・バロン', '扇動', '武器破壊', '大盾', 'ペガサス', 'ヘルナイト', 'フィーンド',
       // レイス＝味方の負傷効果を発動（負傷効果持ちの味方が必要）、レムレース＝発動条件が盤面依存。
       // 最小シナリオでは条件を満たせないため検査対象外（幻影効果の修正で誤OKが解消され顕在化した）。
-      'レイス', 'レムレース']);
+      'レイス', 'レムレース',
+      // 援護射撃＝「この効果を持つ全ての味方が撃つ」。検査盤面の味方は持っていないので0発が正しい。
+      // 血の結束＝同じ理由（この効果を持つ味方が要る）。
+      '援護射撃', '血の結束']);
     const ok = (effectEvents.length > 0 && (p2Count > 0 || conditional.has(card.name)) && targetOk)
       || (conditional.has(card.name) && targetOk);
     if (!ok) ng++;
@@ -490,8 +495,12 @@ function audit() {
   // 開戦効果の専用処理と本文パーサーの重複回帰。
   const lillithCard = cards.find(x => x.name === 'リリス');
   const lillithRun = lillithCard ? invoke(lillithCard, 'p1', '開戦', enemies) : null;
+  // **付与するものはシート次第**（結界N → +5/+5 へ変わった）。形ではなく
+  // 「1回しか適用されないこと」を見る（専用分岐と本文パーサーの二重適用検知）。
   const lillithShieldEvents = lillithRun
-    ? lillithRun.events.filter(e => e.type === 'keyword_effect' && e.effect === 'shield' && e.sourceId === 'p1-subject') : [];
+    ? lillithRun.events.filter(e => e.sourceId === 'p1-subject'
+      && ((e.type === 'keyword_effect' && e.effect === 'shield')
+        || (e.type === 'stat_change' && (e.reason === 'lilith' || e.reason === 'opening_atk_scaled_grant')))) : [];
   const wendigo = { id: 'wendigo', name: 'ウェンディゴ', atk: 5, hp: 20, maxHp: 20,
     color: '紫', keywords: [], desc: '開戦：全ての敵は-1/-1を得る。この効果は、このキャラクターのHP10につき1回発生する。' };
   const wendigoState = core.createBattleState({
@@ -505,6 +514,8 @@ function audit() {
   const wendigoEvents = [];
   core.coreApplyOpeningEffects(wendigoState.units.p1[0], wendigoState, createSeededRng(61),
     e => wendigoEvents.push(e), () => ({ amount: 0, died: false }));
+  // ウェンディゴは専用分岐が対象ごとに1件へまとめて出す（HP20/10＝2回ぶん）。
+  // 専用分岐と本文パーサーの二重適用を、最終値で見る。
   const wendigoChanges = wendigoEvents.filter(e => e.type === 'stat_change' && e.reason === 'wendigo');
   const wendigoOk = wendigoChanges.length === 3
     && wendigoState.units.p2.every(x => x.atk === 3 && x.maxHp === 18);

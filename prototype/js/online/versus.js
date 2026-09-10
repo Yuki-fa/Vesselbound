@@ -76,8 +76,6 @@
         baseMaxHp: Number(u._baseMaxHp ?? u.baseMaxHp ?? u.maxHp) || 1,
         // ヴォイド・ウォーカーの戦闘修正の上乗せ分。
         _voidWalkerBonus: Number(u._voidWalkerBonus) || 0,
-        // 解放が開戦効果へ変換済みかどうか。二重発動の抑止に使う。
-        _releaseConvertedToOpening: !!u._releaseConvertedToOpening,
         // 指輪による負傷時HP付与の残量。
         ringInjuryHp: Number(u.ringInjuryHp) || 0,
         summonCount: Number(u.summonCount) || 1,

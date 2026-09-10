@@ -377,6 +377,7 @@ const onlineScript = sc => `
     window.__watch.vfx.length = 0; window.__watch.calls.length = 0;
     window.__watch.board.length = 0;
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
+    window.__watch.hp = {}; window.__watch.hpEarly.length = 0;
   };
   try {
     await Promise.race([

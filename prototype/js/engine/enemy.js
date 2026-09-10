@@ -118,8 +118,16 @@ const ENEMY_COUNT_BY_SCENE={
 };
 const FINAL_BOSS_ENEMY_COUNT=[10,3]; // 伏せられたラスボス戦
 function _sceneEnemyCount(type){
-  // Scene 1の最初の2戦（stage2・stage3）は従来どおり1体・2体の導入戦にする。
-  if(type==='battle'&&Number(G._wave)===1&&(Number(G._waveStage)===2||Number(G._waveStage)===3)) return null;
+  // **Scene 1の導入戦はここで数を確定させる**（1戦目＝1体、2戦目＝2体。どちらも後衛）。
+  // 以前は null を返して「開幕編成」（_openingBattleEnemyLanes）へ委ねていたが、
+  // あちらは **floor で引く**ため、`mapBattle.floor` が `G.floor` とずれると
+  // 表に当たらず、間引きも効かないまま4体へ水増しされていた
+  // （実測：wave1 / stage3 / G.floor=2 で敵4体）。
+  // 仕様は「ステージ1の1戦目は1体、2戦目は2体」なので、floorではなくstageで決める。
+  if(type==='battle'&&Number(G._wave)===1){
+    if(Number(G._waveStage)===2) return [1,1];
+    if(Number(G._waveStage)===3) return [2,2];
+  }
   if(type==='boss'&&typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
     return FINAL_BOSS_ENEMY_COUNT.slice();
   }

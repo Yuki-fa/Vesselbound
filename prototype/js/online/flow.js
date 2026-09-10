@@ -61,7 +61,7 @@
           G.phase = 'reward';
           G._isShop = false; G._isForge = false; G._isTavern = false;
           G._isVillageMenu = false; G._isWaveAltar = false; G._isItemShop = false;
-          G._isRingExchange = false; G._isLibrary = false; G._isTreasureMapReward = false;
+          G._isRingExchange = false; G._isLibrary = false;
           G._facilityLabel = '';
         }
         document.body.classList.remove('village-screen-active', 'world-map-active');

@@ -146,9 +146,10 @@ const CASE_SRC = ci => `
     summonDefs:[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[])],
     itemDefs:typeof ITEM_POOL!=='undefined'?ITEM_POOL:[],
   });
-  state.life={p1:3,p2:3};
+  // PvEアダプターと同じく、ライフを持つのはプレイヤー側だけ。
+  // 敵側を3にすると「失ったライフ」を参照する敵カードの開戦効果が一致しない。
+  state.life={p1:3,p2:0};
   state.maxLife={p1:3,p2:3};
-  state.life={p1:20,p2:20};
   let coreErr=null, coreRes=null;
   try{ coreRes=runBattleCore(state,rngObj,{}); }catch(e){ coreErr=String(e&&e.message||e); }
   const cor=snap(state.units.p1,state.units.p2,state.life&&state.life.p1);

@@ -618,6 +618,10 @@ SEを鳴らすのは `playHitVfxAtRect()`（絵を決めるのと同じ場所）
 **攻撃モーションの先出しは「これから攻撃する本人が起こした効果」だけを合図にする。**
 受けたダメージ（毒・カード効果）を数えてはいけない。判定は present.js の
 `presentPreAttackEffectOwnerId()` / `presentPreAttackActorId()` が唯一の実装。
+**イベントの順番を入れ替えて解決しないこと。** `presentPreAttackPlan()` が
+各一撃の「攻撃前効果 → 対応するattack」を結び、PvE／オンラインとも一撃ごとに
+モーションを開始して25%地点で止める。二段・三段攻撃の次の一撃は、前の一撃の
+通常ダメージ中ではなく、次の攻撃効果列へ入った時点で新しい計画を作る。
 
 **効果発動時の発光（`effect_flash`）は、VFXが出る瞬間に合わせて再生する。**
 コアは効果を解決した順にイベントを出すので、発光のイベントは対応するVFXより**前に**届く。
@@ -1102,10 +1106,12 @@ js/
     pool.js              — PANEL_POOL / SPELL_POOL / ITEM_POOL, drawRewards()
     enemy.js             — generateEnemies()
     battle.js            — startBattle(), nextTurn(), allyAttackAction(), enemyAttackAction(), onBattleEnd()
+    battle_events.js     — PvEで共通コアのイベント列をGと演出へ反映する受け口
     render.js            — renderAll(), mkCardEl(), computeDesc()
     reward.js            — goToReward(), renderRewCards(), renderHandEditor(), エンチャントモーダル
-    map.js               — ワールドマップと街・施設。generateWorldMap(), goToWorldMap(), renderWorldMap() 等（engine内で2番目に大きい）
-    move.js              — chooseMove() のみ（旧マップの遷移処理の残り。16行）
+    reward_items.js      — アイテム表示・使用・対象選択
+    reward_journey.js    — 「旅の進捗」の描画・現在地判定・デバッグ移動
+    map.js               — 現行の進捗ルート表示と街・塔・各施設
     main.js              — showScreen(), updateHUD(), log(), startGame(), gameOver()
 tools/
   balance_sim/offline_online_regression.js — オフライン／オンライン共通コアの回帰検査
@@ -1116,7 +1122,7 @@ tools/
 
 実際の順序：
 
-`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `battle/core.js` → `online/*.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `render.js` → `reward.js` → `map.js` → `move.js` → `main.js`
+`assets.js` → `audio.js` → `constants.js` → `data/floors.js` → `data/events.js` → `local_xlsx_data.js` → （CDN: xlsx.js） → `loader.js` → `units.js` → `battle/core.js` → `online/*.js` → `state.js` → `pool.js` → `enemy.js` → `battle.js` → `battle_events.js` → `render.js` → `reward_items.js` → `reward_journey.js` → `reward.js` → `map.js` → `main.js`
 
 関数本体内の参照はロード順に依存しないが、トップレベルの変数宣言は宣言順に解決されるため、この順序を維持すること。
 
@@ -1193,6 +1199,71 @@ tools/
 キャラクター＝`characterEffect`、強化カード＝`enchantEffect`、キーワード＝`keywordEffect`、
 薙ぎ払い＝`characterSweep`、特殊演出＝`specialProduction`。
 **シートのNo.を振り直したら素材ファイル名もここも必ず一緒に直すこと**（`anim_check.js` が検査する）。
+
+### カード枠の外周線と角R — `assets.js` / `index.html`
+
+カードの外周には常に **1px の #c49a6c（`m_board6.svg` と同色）** の線を引く（報酬・戦闘・魔導板すべて）。
+線は CSS の `border` で描くので、**枠画像の角Rと同じ半径を `border-radius` に入れないと角だけ二重線になる。**
+
+角Rは枠画像ごとに違い、絵を差し替えれば変わる（`summon_frame1` は 712×1079 で29px、
+他の7枚は 708×1075 で40px）。そのため **CSS に固定値を書かない**。
+
+- `applyFrameRadiusKey()`（assets.js）が枠画像のアルファから角Rを実測する。
+  角丸長方形なので、上辺で最初に不透明になる x が横半径、左辺で最初に不透明になる y が縦半径。
+  しきい値は **アルファ128＝見た目の輪郭**。枠画像は箱いっぱいに伸ばすので半径は％で持つ。
+- 結果は要素の inline style ではなく `<style id="card-frame-radius-css">` へ流し込み、
+  カード側には `data-frame-key`（画像のファイル名）だけを付ける。
+  測定は画像読み込み待ちで非同期なため、**先に描画されたカードにも後から効かせる必要がある**。
+- CSS 側は `border-radius:var(--card-frame-r, 5.65% / 3.72%)`。既定値は測定前と
+  canvas が読めない環境（`file://` は汚染されて `getImageData` が失敗する）用の保険。
+- ドラッグゴーストは `cloneNode(true)` なので `data-frame-key` ごと複製され、半径も一致する。
+
+**枠画像を差し替えても、コードもCSSも直す必要はない**（実測が追随する）。
+
+**魔導板のマスの角Rも同じ値に揃えてある。**
+マスには「カードの枠の絵」「マスの背景（`m_board1〜6.svg`）」「マスの外周線（`m_board_frame.svg`）」の
+3つの角丸が重なるため、**1つでも半径が違うと角に二重線と隙間が出る。**
+- CSS 側の角丸は全て `border-radius:var(--card-frame-r,5.65% / 3.721%)`（22箇所）。
+- SVG 側の `rx`/`ry` は **14.7**（＝260×395の箱で 5.65% / 3.721%）。
+  **枠画像の角Rを変えたら、この7つのSVGの `rx`/`ry` も同じ値へ直すこと。**
+  `python3 -c` でアルファを測った値 × カードの箱の大きさ、で求められる。
+- **特殊マスの太い線は「外へ1px・内へ3px」の4px**（`[-1px,+3px]`）。元は5pxすべてが内側だった。
+  **この線はCSSではなく `reward.js` が空きマスへインラインの `!important` で書き込む**
+  （`outline:4px` / `outline-offset:-3px` / `box-shadow:inset 0 0 0 3px + 0 0 0 1px`）。
+  インライン!importantはどのセレクタよりも強いので、**CSSだけ直しても見た目は変わらない。**
+  同じ寸法を `index.html`（マス目変更演出）と `map.js`（図書館チュートリアルの発光）も持つので、
+  太さを変える時は**3か所すべて**を揃えること。
+
+### セーブに何を入れるか — `js/save/`
+
+**オフラインの状態を `G` へ足したら、必ず `run_save.js` の `fields` にも名前を足すこと。**
+（意図的な除外に当てはまる場合を除く。除外の4つは下の表）
+
+`fields` は手書きの許可リストで、**ここに無い名前は保存されない。しかも何のエラーも出ない。**
+再開したときだけ `initState()` の初期値へ静かに巻き戻る形で表面化する。
+逆に入れてはいけないものを入れると `copy()` が保存時に例外を投げる
+（関数・DOM・クラスのインスタンス・Infinity/NaN）＝その場で気づける。
+**入れ忘れは静かに壊れ、入れ間違いは即座に落ちる。だから迷ったら入れる。**
+
+**名前を足すのは後方互換**（古いセーブはその名前を持たないまま初期値で復元される）。
+**名前を消す／グループを移すのは非互換**（`validate()` が古いセーブを
+「未定義の状態です」で弾く）。どうしても要るときは `migrations.js` にステップを足す。
+
+| 入れないもの | 例 | 理由 |
+|---|---|---|
+| `Set` は `fields` ではなく **`setFields`** へ | `_usedNamedElite` `_seenRarity3` | `fields` に入れると配列化されたまま復元され `.has()` が壊れる |
+| 戦闘中の一時状態 | `allies` `enemies` `phase` `turn` `battleCounters` | `pendingBattle` のイベント列から復元するため、二重に持つと食い違う |
+| 画面の開閉・選択状態 | `inventoryOpen` `_selectedEquipUnitIdx` `_showFacilities` | 再開時に前回のUI状態が復活してしまう |
+| モード判定 | `_debugMode` `_onlineMode` `_savePresentation` | 起動時に決まる。保存すると再開でモードが混ざる |
+
+`_runId` `_runSeed` `_runRngState` `questProgress` `difficulty` は `fields` ではなく
+`serializeRunState()` が個別に書き出している（すでに保存済み。二重に足さないこと）。
+
+**コレクション（`profile_save.js`）は自動。**
+`identity()` がシートのNo.列からIDを組み立てて `cards`／`items`／`rings` に振り分けるので、
+カード・アイテム・指輪を足すだけで発見・取得が記録される。コードを足す必要は無い。
+例外は、No.が英字＋数字の形式でない場合（IDにならず記録から漏れる）と、
+この3つ以外の**新しい収集カテゴリ**を作る場合だけ。
 
 ### 主要な状態（G オブジェクト）
 
@@ -1286,10 +1357,6 @@ tools/
 | 対象 | 状況 |
 | --- | --- |
 | `_shopSalePending` 一式（`js/engine/reward.js` 13箇所） | 魔導店の商品枠へ魔導板のカードを置く機能。**確認ダイアログは廃止済み。** ただし `_canReturnDragSrcToRewardArea()` が魔導店を弾いていないため経路だけ残っている。**「置けなくする」か「一式消す」かを決めてから**手を付ける |
-| `_releaseConvertedToOpening` | 設定する側（`_convertReleaseEffectToOpening`）を削除済み。`core.js` / `engine/battle.js` / `online/versus.js` に**読む側だけ**残り、常に false |
-| 7x7ワールドマップの生成（`generateWorldMap` / `goToWorldMap` / `_ensureWorldMap`） | 通常のプレイでは `G.worldMap` が作られない。作るのはデバッグの「マップ確認」ボタンだけ。**「出発時に数秒出るワールドマップ画面」（`renderWorldMapScreen` 以下）は現役なので消さない** |
-| `js/engine/move.js` の `chooseMove()` | `_startWaveFlowNext` が常に存在するため到達しない |
-| 施設の在庫を `worldMap` のノードへ保存する分岐（`node.shopStock` 等） | `G.worldMap` が無いので通らない。ステージ単位のキャッシュ（`G._waveShopStock` 等）が実際に使われている |
 
 **消す前に必ず到達解析をやり直すこと**（他セッションが参照を足している可能性がある）。
 関数ごとに「外部ファイル＋トップレベルから辿れるか」を見る方法で、
@@ -1298,16 +1365,13 @@ tools/
 ### 8-2. CSS（`index.html` 13,900行・`!important` 5,481箇所）
 
 **症状**：同じ要素の同じプロパティに、同じ強さのルールが複数ある。
-後勝ちで決まるため、新しい指定を効かせるのに
-**クラスを2回書いて詳細度を上げるハック**（`.item-use-picking.item-use-picking`、
-`.dragzone-mainequip.dragzone-mainequip`）が必要になっている。
+後勝ちで決まるため、詳細度を上げるハックが必要になりやすい。
 
 **やること（この順で）**：
 
 1. 同じセレクタ・同じプロパティの重複ルールを1つにまとめる。
-   実例：`.reward-prod-quest .reward-prod-quest-body` の `font-size` が
-   24px と 35px の両方 `!important`（実効値は後勝ちで35px）。
-   `#battle-order-row` の `display` も flex と none が競合している。
+   整理済みの実例：`.reward-prod-quest .reward-prod-quest-body` と
+   `.item-use-picking` の競合。今後も同じ方法で小さく進める。
 2. まとめ終わってから、詳細度稼ぎの二重クラスを1つに戻す。
 3. **実効値が変わっていないことを実機で確認する。**
    `getComputedStyle()` で整理前後の値を比べること（見た目の目視だけでは足りない）。
@@ -1315,13 +1379,31 @@ tools/
 **まとめては**いけないもの：`:is(#reward-move-btns,#battle-order-section)` のように
 **意図して対象を広げた**セレクタ（報酬枠の中に「元に戻す」と同じボタンを置くため）。
 
+**やってはいけない順序（実際に壊した例）**：重複を残したまま**二重書きだけ先に外す**と、
+後方の同じ強さのルールに後勝ちで負けて機能が壊れる。
+アイテム使用中の `#battle-order-section{z-index:9001}` と `#battle-options-btn{z-index:9001}` を
+単一クラスへ戻したところ、後方の
+`html body.reward-screen-active #battle-order-section{z-index:10!important}` と
+`#reward-production-ui` 等をまとめた `z-index:2!important` に負け、
+**報酬枠が暗転の下へ沈み、キャンセルも押せなくなった。**
+`.item-use-picking.item-use-picking` にはその旨をCSSのコメントで書いてある。
+**コメントごと消さないこと。**
+
+**もう一つの落とし穴**：広い `filter:none!important`（`#hand-pane *` など）は、
+より詳細度の低い状態クラス（`.item-target-disabled` の暗転）を巻き添えで消す。
+`*:not(.item-target-disabled)` のように除外するか、後ろで打ち消し直すこと。
+**「クラスは付いているのに見た目が変わらない」時はこれを疑う。**
+
 ### 8-3. ファイル分割
 
-`js/engine/battle.js`（7,737行）と `js/engine/reward.js`（5,344行）が大きい。
-分けるなら**役割で**分け、グローバル関数のまま `index.html` へ読み込み順に足す。
+`js/engine/battle.js` と `js/engine/reward.js` はまだ大きい。
+分ける場合は**役割で**分け、グローバル関数のまま `index.html` へ読み込み順に足す。
 
-- `battle.js` … 「コアのイベントを受けて描く受け口」と「戦闘開始・終了の段取り」
-- `reward.js` … 「報酬・店の画面」「魔導板の編集」「アイテムの使用」
+- `battle_events.js` … 「コアのイベントを受けてGと演出へ反映する受け口」を分離済み
+- `battle.js` … 「戦闘開始・終了の段取り」と残るPvE進行
+- `reward_items.js` … 「アイテムの表示・使用・対象選択」を分離済み
+- `reward_journey.js` … 「旅の進捗」を分離済み
+- `reward.js` … 「報酬・店の画面」と「魔導板の編集」
 
 **分割は1ファイルずつ、検査を通しながら**行う。まとめて動かすと切り分けができない。
 
@@ -1366,1280 +1448,39 @@ tools/
 **詰め処理は演出の後に行うこと。** 先に詰めると、再生時に攻撃対象が盤面から消えていて
 攻撃モーションが一切出なくなる。`runner.step({deferCompact:true})` → 演出 → `runner.compact()` の順。
 
-### 履歴
-60. 画面の文言をシートへ寄せ切り、リファクタリングの指示を書いた（今回）。
-    - **画面の文言の扱いは「7. 画面の文言はシートから引く」へ独立させた。**
-      新しい文言はそこの表のとおりに実装する。
-    - シートにまだ行が無いキーも**先に実装済み**（7-1の表）。行が増えれば
-      コードを触らずに切り替わる。コードの文字列はあくまで予備。
-    - `js/engine/map.js` の図書館チュートリアル本文と、`js/engine/main.js` の
-      エラー画面の予備文をシートの本文へ揃えた（照合して不一致0件）。
-    - **リファクタリングの指示は「8. リファクタリング」。** 消してよいと
-      確認済みのもの、CSSの重複、ファイル分割の順序を書いてある。
-    - 変更：`index.html` `js/engine/{main,map,reward}.js`。`?v=` は **`sheetText02`**
-      （reward.js は `sheetText02`、アイテム選択まわりの直前版は `itemPick01`）。
-    - 検査：balance_sim/parity 7本 NG 0。
-
-59. 画面の固定文言をシートへ寄せ、アイテムの対象選択画面を作った。
-    - **見出し・ボタン・指示文はテキストメッセージシートが唯一の出どころ。**
-      DOMは `applySheetDomTitles()`／`_uiLabel()`、CSSの `content` は
-      `applySheetCssTexts()` がカスタムプロパティ（`--title-*`）へ入れて
-      `content:var(--title-xxx,"予備")` で読む。**新しい見出しを足す時もこの形にする。**
-    - **対象を選ぶアイテムの使用中は `body.item-use-picking`。**
-      暗転はドラッグ中（dragzone-mainequip）と同じ仕組みで、魔導板・報酬枠・
-      オプションボタンだけを明るく残す。報酬枠の中身は隠し、見出しをアイテム名、
-      説明文（35px・祭壇の説明文と同じ位置）と「キャンセル」を出す。
-      `_syncItemUsePickingUi()` が唯一の実装で、**開始・段階の進行・終了で必ず呼ぶ**。
-      指示文のキーは「「◯◯」使用時」。2段階選ぶもの（生贄人形・絆の巻物）は「使用時1／2」。
-    - **`#reward-move-btns` 用のボタンCSSは `:is(#reward-move-btns,#battle-order-section)`
-      へ広げてある。** 報酬枠の中に「元に戻す」と同じ見た目のボタンを置くため。
-    - 祭壇を途中で離れる時は**捧げたカードを回収する**（`_reclaimSacrificedRingCards()`）。
-      元のスロットが空いていればそこ、埋まっていればランダムな空きへ。
-      回収した分は `_boardDiscardCount` から引く（引かないと次に入り直した時に
-      カードが手元にあるまま指輪が解放済みになる）。3枚捧げて指輪を取っていない時も確認を出す。
-    - 「衰弱の巻物」を「永劫の巻物」へ改名。**`itemEffectKey` はセーブに載る内部識別子なので
-      `weakening_scroll` のまま据え置く。**
-    - **アイテム使用中は暗転オーバーレイ自身でクリックを止める**
-      （`#mainequip-drag-overlay` を `pointer-events:auto` にする）。
-      ドラッグ中と同じ `pointer-events:none` のままだと、暗い所の
-      「店を出る」やデバッグボタンが押せてしまう。売却価格・売却ボタン・
-      奉納（還魂）ボタン・購入価格も選択中は隠す。
-    - 対象に選べるかは `_isItemUseTargetSlot()` が唯一の実装。エンチャントは
-      `_isBoardCharacterCard()` で一律に落とす（アイテムごとに書かない）。
-      付与系は**既に同じキーワードを持つキャラクターを対象にしない**
-      （鼓舞の旗＝根性、幻視の巻物＝復活）。
-    - 変更：`index.html` `js/data/loader.js` `js/engine/{main,map,pool,reward}.js`
-      `js/save/run_save.js`。`?v=` は **`uiText01`**（reward.js のみ `itemPick01`）。
-    - 検査：balance_sim/parity 7本 NG 0、save 3本 NG 0（saveは1本ずつ回すこと）。
-
-58. UIの固定文言をシートへ寄せ、生贄人形の効果を変えた。
-    - **UIの固定文言はテキストメッセージシートが唯一の出どころ。**
-      引く時は `textMessage(場面, 予備)`（`js/data/loader.js`）を通すこと。
-      シートの「場面」列は改行を含むことがある（「編成、ショップ画面「旅の進捗」内」＋改行＋「通常時」）ので、
-      この関数が空白・改行を無視して突き合わせる。コード側の文字列は予備としてだけ持つ。
-    - **CSSの `content` から出す文言もシートから流し込む。**
-      CSSはシートを読めないので、`applySheetCssTexts()`（main.js）がカスタムプロパティへ入れ、
-      `content:var(--altar-desc-text,"予備")` で読む（祭壇の説明文）。
-    - 「旅の進捗」の見出しはシートの本文をそのまま使う。`〜`＝塔の名前、`X`＝残り戦闘数
-      （数字だけ太字）。置換は `_journeyCountdownHtml()`（reward.js）が唯一の実装。
-    - **生贄人形は封印を3減らし、最低値は1**（0にならない＝封印は失われない）。
-      値は `SACRIFICE_DOLL_SEAL_REDUCE` / `SACRIFICE_DOLL_SEAL_MIN`（reward.js）が唯一の置き場。
-      封印1のカードは対象に選べない。封印が0にならなくなったため、
-      確認ダイアログと解放→開戦の変換（`_convertReleaseEffectToOpening`）は削除した。
-    - 魔導店を出る時の確認（`_confirmShopReturnWithPendingSales`）は廃止。
-      途中離脱の確認が要るのは祭壇だけ（`_confirmRingExchangeReturn`）。
-    - `js/engine/map.js` は**7x7ワールドマップ進行ではない**。中身は街・塔の施設と、
-      出発時に挟むワールドマップ画面。7x7の生成（`generateWorldMap`）は
-      デバッグの「マップ確認」からしか通らない。到達不能だった13関数は削除した。
-    - 変更：`index.html` `js/data/loader.js` `js/engine/{main,map,pool,reward}.js`。
-      `?v=` は **`sheetText01`**。
-    - 検査：balance_sim/parity 7本 NG 0、save 3本 NG 0
-      （saveの3本はヘッドレスブラウザを使うので**連続実行すると落ちる**。1本ずつ回すこと）。
-
-57. グレムリンが攻撃で自分のHPを失っていたのを直した。
-    - **カード名で効果を分岐しない**（`coreHasEffect(unit,'カード名')`）。
-      シートで本文を変えても古い効果が動き続ける。グレムリンは本文が
-      「負傷：全ての敵はATK-1を得る。」へ変わった後も、名前で拾う
-      「HPと対象のATKを入れ替える」が攻撃のたびに発動し、自分のHPが
-      対象のATKまで下がっていた。専用分岐を消し、本文を見る汎用処理だけにした。
-    - **`js/engine/pool.js` の予備データもシートに合わせること。**
-      シートを読めない時はこちらが使われるため、古い本文が残っていると同じ症状が出る。
-    - 変更：`js/battle/{core,present}.js` `js/engine/pool.js` `index.html`
-      `tools/balance_sim/{effect_audit,offline_online_regression}.js`。`?v=` は **`gremlin01`**。
-    - 検査：7本 NG 0（古い入れ替えを前提にしていた2本を新しい本文へ更新）。
-      実機で確認：攻撃してもATK・HPが動かず、負傷で敵のATKが1減る。
-    - **矢印の重複を消す `_dedupePanelDirections()` は、提示口ごとに呼ぶ必要がある。**
-      魔導店（`_ensureWaveShopStock()`／map.js）は `drawRewards()` を通らないため
-      呼ばれておらず、5枚中4〜5枚が同じ向きになっていた（実測：品揃えの83%に重複）。
-      **在庫を保存する前に**呼ぶこと。新しい提示口を足したら同じく呼ぶ。
-
-56. 提示カードのグレード出現率を細分化した。
-    - **グレードの重みは `REWARD_GRADE_WEIGHTS`（`js/engine/pool.js`）が唯一の置き場。**
-      現在のマップ以下70／+1が15／+2が10／+3が5。**報酬に出るグレードは4まで**（`REWARD_MAX_GRADE`）で、
-      上限を超える枠は「以下」の枠へ足す（ステージ2＝75/15/10、ステージ4以降＝100）。
-      候補が尽きた枠も同じく「以下」へ寄せる。
-    - **グレード抽選の基準「現在のマップ」はステージ（`G._wave`）。**
-      `_currentRewardMapGrade()` は `G.worldMap.index`（ワールドマップ時代）が無い時に
-      研究所レベルへ落ちていたため、ウェーブ進行では**どこまで進んでも基準が1のまま**だった。
-      レアリティ側（`_currentRewardMapNumber()`）と同じ値を見ること。
-    - シートの「戦闘報酬カード出現率計算式」の本文は**説明用でコードは読まない**。
-      式を変えたらシート本文も合わせること（ユーザー管理）。
-    - 変更：`js/engine/pool.js` `index.html`。`?v=` は **`rewardGrade01`**。
-    - 検査：7本 NG 0。実機で4万回抽選し、ステージ2＝2以下74.9%／3が15.1%／4が10.0%、
-      ステージ3＝3以下84.9%／4が15.1%、ステージ4以降＝4以下100%を確認。
-
-55. 復活の演出と、オンラインの不具合4件。
-    - **盤面のカードはインラインの `opacity` では消せない。** `#f-ally/#f-enemy .slot` に
-      `opacity:1!important` が掛かっているため、消すときは専用クラス
-      （`.slot.revive-hidden` 等）を足すこと。復活（K020）はカードを消せておらず、
-      VFXがカードの裏に隠れていた。
-    - **VFXの尺は素材の尺に合わせること。** K020は119コマ・約3.9秒で、
-      光が最も強くなるのは約0.7秒。0.26秒でカードを重ねていたので見せ場が全部隠れていた。
-      フェードイン＋`PRESENT_REVIVE_VFX_HOLD_MS` で「VFXだけを見せる間」を作る。
-    - **オンラインの受け口はイベントに書かれた値しか使えない。** 数を変える効果は
-      **結果の値をイベントに載せる**こと（`shield_lost` に残りの結界を追加）。
-      載せないと、コアの実体を共有しているPvEでだけ直り、オンラインでは直らない。
-    - **オンラインから抜ける後片付けは `exitOnlineMode()`（`js/online/flow.js`）が唯一の実装。**
-      `showScreen('title')` と `startGame()` が必ず通す。通さないと他プレイヤーの枠と
-      残り時間がタイトルに残り、`body.online-versus-active` が残って
-      次のゲームの編成画面が丸ごと隠れ、何も押せなくなる。
-    - **次の対戦相手は前の対戦が終わった時点で決め、戦うまで変えない**（`server_local.js`）。
-      対戦マスへ入る瞬間に引き直していたため、編成画面の「次の対戦相手は◯◯」と
-      実際の相手が食い違っていた。対戦マスでは生存確認だけ行う。
-    - 変更：`index.html` `js/battle/{core,present,present_events}.js`
-      `js/engine/{main,render}.js` `js/online/{board,flow,matching,server_local}.js`。
-      `?v=` は **`onlineExit01`**。
-    - 検査：7本 NG 0。実機で確認：復活中のカードの実効 opacity が0、
-      タイトルへ戻ると相手枠・残り時間・online系クラスが全て消える、
-      編成3回→対戦まで相手名が変わらない。
-
-54. 戦闘ログの削除と、表示まわりの修正。
-    - **戦闘ログ（`#log-box` / `log()`）を廃止した。** 画面に出ない表示専用の機能だった。
-      呼び出し184件・CSS116箇所・要素を削除（codex へ委任）。
-      `console.*` と `_recordBattleTrace` は残す。`api.logLine` は呼ばれなくなったが定義は残置。
-    - **自動生成の後始末をすること。** 呼び出しを `;` に置き換えただけの空文が150件、
-      中身が空の `if(...){ }` が8件残っていたので削除した。
-    - ライフを失う演出の対象は「**いま失われた枠＝一番右の空き枠**」。
-      ライフは先に減算されて描き直されるため、「最初の点灯している枠」を掴むと
-      1つ右へずれ、左端と合わせて2つ消えたように見える（`_fadeBattleLife`）。
-    - 太字にするキーワードの一覧は**シート（`KW_DESC_MAP`）から作る**。直書きすると
-      シートへ足したキーワード（防戦・呪詛など）が太字にならない。
-    - 結界の表示は `unit.shield` が無い時（盤面に無いカード）は**キーワードから拾う**。
-    - 「血」のアイコン化は助詞を広く見る（「血を3得る」が文字のまま残っていた）。
-    - 説明文の召喚・変身先には**キーワードとステータスを添える**（`_annotateSummonNames`）。
-      名前の中身から `「` も除くこと。除かないと入れ子（「死亡：「青スケルトン」を召喚する。」）で
-      外側を掴んでしまい、内側に注釈が付かない。
-    - **タイミングのラベル（「開戦：」「死亡：」）の太字は一覧を持たない。**
-      文の先頭・句点のあと・`「`の直後 に現れる「短い語＋：」を太字にする
-      （`_boldTriggerLabelsInHtml`）。一覧を持っていた頃は死亡・解放が抜けていた。
-      **キーワードの太字（`_boldKeywordsInHtml`）より後に呼ぶこと**（先に付けても剥がされる）。
-      括弧内の注記（「（備考：〜）」）はラベルではないので対象外。
-    - 変更：`index.html` `js/engine/{battle,main,map,render,reward}.js`
-      `js/battle/present_events.js` `js/online/{board,versus,hud}.js`。
-      `?v=` は **`logRemove04`**。
-    - 検査：7本 NG 0。実機で確認：ログ要素も `log` 関数も無い、ボーンチャリオットの
-      入れ子注釈、演出対象が一番右の空き枠。
-
-53. フォントを外部読み込みからローカルへ切り替えた。
-    - **フォントは `assets/font/` のファイルだけを使う。外部（Google Fonts）から読み込まない。**
-      通信の無い環境でも同じ見た目にするため。Cinzel と Noto Sans JP は可変フォント
-      （1ファイルで太さ100〜900）なので `font-weight:100 900` で1つずつ宣言する。
-    - 使っている書体は3つ：`--font-hd`＝Cinzel（見出し・ボタン・カードのATK/HP・ダメージ数値）、
-      `--font-bd`＝Noto Sans JP（bodyの既定、報酬カードの名前と説明、ログ、勝利オーバーレイ等）、
-      Shippori Mincho（画面の大半の和文。600と700のみ宣言）。
-    - `var(--font-jp)` は**どこにも定義されていない**（3箇所で使用）。CSS上は無効な指定で、
-      親から継承した書体になる。使うなら定義するか、指定を消すこと。
-    - `CormorantGaramond-VariableFont_wght.ttf` はフォルダにあるが未使用。
-    - **和文は Shippori Mincho に統一した。** `--font-bd` も Shippori Mincho にし、
-      Noto Sans JP の `@font-face` は削除（使用箇所が無くなったため）。
-      OSのフォントへの退避先（Yu Mincho／Hiragino Mincho ProN／Noto Serif JP）も外し、
-      最後の予備は `serif` だけにした（Shippori を同梱しているため）。
-    - 未定義だった `var(--font-jp)` は `'Shippori Mincho',serif` へ置き換えた。
-    - 600（SemiBold）の実体を **Medium** へ差し替えた。
-    - 使われていないCSS・生成を削除：`.map-tavern-card`（酒場のカードUIは無い）、
-      `.card-charge`（杖・固定攻撃カードが1枚も無く、常に生成されない）。
-    - **ライフのハートは `assets/ui/life.svg`。** `index.html` に symbol を1組だけ置き、
-      `lifeHeartHtml()`（`js/engine/main.js`）が唯一の実装。輪郭（life2）は常に出し、
-      減った枠は中身（life1）だけを隠す。枠の数は減らさない。
-    - 変更：`index.html` `js/engine/{main,map,reward,battle}.js` `js/online/hud.js`。
-      `?v=` は **`fixPack27`**。
-    - 確認：外部通信0件、body＝Shippori Mincho、ハートは1枠につきSVG2枚で
-      空き枠だけ中身が `display:none`。
-
-52. 利用者報告8件と、指輪5種・タグ4種の追加（今回）。
-    - **提示に封印カードは1枚まで**（封印を持つキャラクターと「封印されしもの」を合わせて）。
-      判定はキーワードで行う（`_isSealPanel`／`js/engine/pool.js`）。確定枠にも掛ける。
-    - **所持金は「増えた分だけ」コアへ書き戻す。** 実値の代入は、コアが確定済みで
-      まだ演出を出していないゴールド（マミーの死亡効果）を消してしまい、
-      あとから演出で足した分が手番の終わりの同期で減って見えた。
-    - **攻防一体はATKの表示もHPに合わせる。** 実際の攻撃力は `coreAttackDamage()` が
-      HPから決めるのに、数字だけATKのままだったため「効いていない」ように見えていた。
-      規則は `presentShownAtk()`（戦闘）と `_panelCharacterPreviewStats()`（編成）。
-    - **鍛冶屋も所持金が変わったら選択肢を出し直す。** `renderRewCards()` が
-      鍛冶屋では早期returnしていたため、売却して足りるようになっても
-      「ゴールド不足」のまま買えなかった。
-    - **追加攻撃も「攻撃」。** 二段・三段攻撃の2回目以降でも `coreApplyAttackObservers()` を
-      呼ぶ（シャナが2回目以降で強化されなかった）。
-    - **同じ戦闘への再挑戦は「再戦」と出し、背景移動をしない**（通常戦闘と同じ入り方）。
-      判定は `_waveRetryPending()`（`js/engine/main.js`）が唯一の実装。
-    - ゲームオーバー・クリア画面の**左クリックによるカード表示切り替えを廃止**
-      （右クリックと「カード非表示」ボタンだけ。編成画面と同じ）。
-    - 結合アイコンの位置は**ホスト自身の実効縮小率を実測して**求める。
-      ゲームオーバー魔導板は `--game-scale` に加えて盤面ごと縮小されている。
-    - 指輪5種を追加（生命／召喚師／絶魔／血／目利き）。シートの「実装」がFALSEのままなので
-      `_forcedRingNames` で読み込んでいる。**シートをTRUEにしたら一覧から外すこと。**
-    - 指輪タグを追加：大型（本来の値よりATKかHPが10以上高い／咆哮・威光）、
-      結界（結界持ちが3人以上）、血（封印キャラがいる／本文に血を含むキャラが2体以上）。
-      多色（3色以上）は既存。判定は `_countHeldCardTags()`。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/engine/{battle,reward,main,map,pool,state}.js`
-      `js/data/loader.js` `index.html`。`?v=` は **`fixPack24`**。
-    - 検査：7本 NG 0。実機・コアで確認：封印は100回中最大1枚、指輪5種の効果、
-      タグ（結界3／血1／大型1）、ライフ上限3→4、価格320→160・540→270（売値は据え置き）。
-    - 再戦の判定は**種別（elite/boss）まで比べない**。デバッグのステージ移動で戦った戦闘は
-      ルートから引ける種別と実際の種別が食い違い、一致条件に入れると再挑戦にならなかった。
-      比べるのは wave と stage、それに敵の控え（`_waveEnemySnapshot`）の有無だけ。
-    - **キーワードの説明文はシートが唯一の出どころ。** loader.js がシート読み込みの後に
-      封印・隠密をコード側の文へ上書きしていて、シートを直しても反映されなかった。
-      上書きを削除し、`js/engine/state.js` の `KW_DESC_MAP` は
-      **シートを読めない時の予備**（シートと同じ24語）だけにした。
-    - **強化カード名（攻防一体・熟練・大盾など）はキーワードの説明表に書かない。**
-      あれらはカードそのものなので、説明は「エンチャント」シートの効果列が正
-      （`_enchantKeywordDesc` が PANEL_POOL 経由でシートの本文を引く）。
-    - 変数を持つキーワードは**名前の末尾にXを付ける**（例：`邪眼X：…ATKはX減少する。`）。
-    - **キーワードの説明は種類ごとに1回だけ、変数はXのまま出す。** 数値はキーワード欄
-      （「結界1」）に出ているので、説明は一般的な文でよい。見出しも数字を外した名前にする。
-      以前は「結界1：…1回…」と「結界：…X回…」が並んでいた（`_keywordOnlyPreviewText`／
-      `_formatJourneyCardPreview` の2箇所。**片方だけ直さないこと。**）
-    - ゲームオーバー魔導板は編成画面の描画を流用する（`G.phase`を一時的に`'reward'`にする）ため、
-      **売却UIを明示的に止める**（`G._renderingGameOverBoard`）。デバッグモードで
-      売却アイコンと値段が付いてきていた。
-    - 「再戦」の文言は**2箇所**（施設用と通常の報酬用）で作られている。片方だけ直しても
-      通常の報酬画面では「戦闘開始」のままだった。開戦のカットインの見出しも
-      `_battleStartIntroText()` で「再 戦」に差し替える。
-    - **「状態：」は戦闘中だけ出す**（`G.phase` が player/enemy の時）。編成画面では
-      結界はキーワード欄に出ており、「状態：結界1」を並べると同じことを二度書くことになる。
-    - **未確認**：左クリック、結合アイコンの位置は実機未確認。
-
-51. カード効果の変更5枚（ドラゴネット／レプラコーン／カーバンクル／フィーンド／シャナ）（今回）。
-    - どれも**カード名の分岐をやめ、本文から読む**形へ直した：
-      変身先（「「X」に変身する」＝マナ効果でも攻撃効果でも同じ）、
-      終戦の指定アイテム（「「X」をN個得る」）、結界喪失時の人数とダメージ、
-      解放の反復数（「接続しているエンチャントの(2倍の)数だけ繰り返す」）、
-      攻撃観測の自己バフ（「味方が攻撃するたび、このキャラクターは+N/+Nを得る」）。
-      変身後の数値も書かない（変身先カードのシート値を使う）。
-    - **「実装」＝FALSE の行もシートの値を読む。** 報酬・ショップ・デバッグ一覧からは
-      外したままだが（`_implemented`）、変身先・召喚先として名前で引かれるカード
-      （ドラゴン／アークドラゴン）は数値がシートどおりである必要がある。
-      コード側に無い行はここで生成する（「緑アークドラゴン」がこれ）。
-    - 検査もカード名依存をやめた：`offline_online_regression` と `effect_audit` の
-      カーバンクルに本文を持たせ、「接続数だけ繰り返す」効果は対象数の期待値を置かない。
-    - 変更：`js/battle/core.js` `js/data/loader.js` `js/data/local_xlsx_data.js`
-      `tools/balance_sim/{effect_audit,offline_online_regression}.js` `index.html`。
-      `?v=` は **`fixPack18`**（CSVは card／enchant を再生成）。
-    - 検査：7本 NG 0。コアで合体前後を個別に確認（変身先30/25→60/50、アイテム1→2個、
-      結界喪失3体→6体、解放3回→6回、シャナ+1/+1→+2/+2）。
-    - **未確認**：シャナはシートがまだ旧本文（「キャラクターがダメージを受けるたび」）。
-      新旧どちらの本文でも動くようにしてある。
-
-50. 逃走した敵からもゴールドを得るようにした（今回）。
-    - 逃走は死亡ではないため `processEnemyDeath()` を通らず、撃破報酬が入っていなかった。
-      `fled` の再生の直前に、撃破時と同じ計算（`_rollEnemyGold()`→`onGoldGained()`）で
-      報酬だけ渡す。**撃破数・血・死亡効果は発生させない。**
-    - **コア状態の所持金へ書き戻すこと**（`state.resources.p1.gold`）。撃破報酬と同じで、
-      戻さないと手番の終わりの同期で古い値に上書きされ、報酬が消える。
-    - 体は盤面から外される前に引いておく（外れると引けなくなる）。
-    - 変更：`js/engine/battle.js` `index.html`。`?v=` は **`fixPack17`**。
-    - 検査：7本 NG 0。実機で確認：逃走1件でログ「〜は逃走した。」と報酬計算が走ること
-      （試験戦闘は `onGoldGained()` の入口で0になる仕様のため、加算は0）。
-
-49. 逃走の間合いと、スリープシープの4方向ポート解除（今回）。
-    - 逃走は**ATKの数値を読ませてから**始める（`PRESENT_FLED_DELAY_MS=380`）。
-      すぐ動かすと、数値が出た直後にカードが消えて何が起きたのか分からない。
-    - 退場は**動き出したらすぐ消える**：移動は画面座標で -280px（開戦の登場で実際に
-      見えている距離と同じくらい）、透明化は 200ms。画面外まで運ばない。
-    - 退場中は `beginBattleMotion()`／`endBattleMotion()` で詰め・描き直しを保留する。
-      **DOMを作り直されると動きが飛ぶ**（攻撃モーションと同じ理由）。
-    - **スリープシープの4方向ポートを解除した。** 効果が「死亡：血を3得る。」へ変わり、
-      ポートはシートの「ポート」列どおり（既定2）。`js/data/loader.js` に残っていた
-      カード名決め打ち（本文・ポート数・上書き表）と `js/engine/pool.js` の
-      `directionCount:4` を削除。
-    - **「FLED」の文字は残す。** 退場の形式を開戦の登場に合わせた時に消してしまったが、
-      逃走したことが分からなくなる。**カードが消えるのと同時に**カードが居た場所へ出す。
-      カードの子にすると一緒に透明になるので、ダメージ数値と同じく body 直下の
-      入れ物（`.fled-label-host`）へ出し、文字の大きさはカード幅から決める。
-    - **退場したカードは透明のままにして、元へ戻さないこと。** 文字の表示を待ってから
-      inline style を消していたため、呼び出し側が盤面から外すまでの間カードがまた現れていた
-      （「敵が消えた後、一度戻ってくる」）。文字は盤面から独立しているので、
-      消すのは時間で予約するだけにして退場では待たない。
-    - 変更：`js/engine/render.js` `js/data/loader.js` `js/engine/pool.js` `index.html`。
-      `?v=` は **`fixPack16`**。
-    - 検査：7本 NG 0。実機で確認：スリープシープ＝ポート2／本文「死亡：血を3得る。」、
-      FLED＝カード幅の0.30倍（210pxのカードで63px）で4文字が落ちて出ること。
-
-48. 武器破壊で敵のATKが0になると、数値を飛ばして逃走していた（今回）。
-    - **逃走（fled）はダメージの後に出す。** コアが `fled` → `stat_change` → `damage` の順で
-      出していたため、再生側が先に盤面から外してしまい、「-X／ATK」の数値を出す場所が
-      無くなって飛ばされていた。順を `stat_change` → `damage` → `fled` にした。
-      **状態が消える系のイベントは、その原因の数値を出し終えてから出すこと。**
-    - **逃走の見せ方は開戦時の登場と同じ形式にした**（同じ `appearance.webp`・同じSE・
-      同じ緩急で逆向きに退場）。専用の「FLED」文字と暗転は廃止。部品は開戦側の
-      `_battleOpeningLandingVfx()` をそのまま呼ぶ（作り直さない）。
-      画面外への移動は**画面座標の絶対値**（-4200px）。vw は画面の拡縮と連動しない。
-    - 変更：`js/battle/core.js` `js/engine/render.js` `index.html`。`?v=` は **`fixPack12`**。
-    - 検査：7本 NG 0。実機で確認：イベント順 `stat_change[attack_to_atk]→damage(atk)→fled`、
-      ATK数値の表示あり、逃走で登場VFXが再生されること。
-
-47. 武器破壊：逃走表示が出ず、ATKへのダメージに被弾VFXが出ていた（今回）。
-    - **再生するイベントの一覧に `fled` が無かった。** `_flushCorePveHitEventsInner()` の
-      種類の絞り込みで落ちていたため、下の `fled` の分岐（FLED表示）まで届いていなかった。
-      オンライン（board.js）は元から出ていたのでPvEだけの抜け。
-      **新しいイベント種別を足す時は、この一覧にも足すこと。**
-    - **ATKへのダメージは被弾VFXを出さない。** HPは減らないので、被弾の絵を出すと
-      「HPを削った」ように見える。`labelOnly` で数値だけを出し、数値の上に小さく
-      「ATK」と添える（`labelNote`）。何に入ったダメージかを絵の代わりに文字で示す。
-    - 変更：`js/engine/battle.js` `js/battle/present_events.js` `js/engine/render.js`
-      `index.html`。`?v=` は **`fixPack11`**。
-    - 検査：7本 NG 0。実機で確認：逃走イベント1件に対しFLED表示1件、
-      ATK表示は「-7」の上に「ATK」（32px に対し 12.8px）、被弾VFXは非表示。
-
-46. ポータルの巻物が報酬・編成画面で使えなかった（今回）。
-    - **行き先はウェーブ進行（旅の進捗）の街マス。ワールドマップではない。**
-      使用可否が `G.worldMap` の存在を条件にしていたが、ワールドマップは
-      その画面を開いた時にしか作られない（`_ensureWorldMap()`）ため、
-      村→出発→戦闘→報酬という通常の進行では常に押せなかった。
-    - `_wavePreviousVillage()`（現在地より前の `city` マスを後ろから探す。
-      同じSceneに無ければ前のSceneの最後の村）と `warpToPreviousWaveVillage()` を
-      `js/engine/main.js` に置いた。**進行は巻き戻さない**：使った時点の位置を
-      `G._waveResumeStage` に控え、村を出る時（`_startWaveFlowNext()`）に戻す
-      （「再出発時は現在位置の次の場所に移動する」）。
-    - 変更：`js/engine/main.js` `js/engine/reward.js` `js/engine/map.js` `index.html`。
-      `?v=` は **`fixPack10`**。
-    - 検査：7本 NG 0。実機で確認：村では不可／出発後は可、wave1〜5の各地点で
-      正しい村を指すこと、ワープ→再出発で元の位置（wave1 stage6）へ戻ることを確認。
-
-45. 不死の指輪が、一時的に前衛がいなくなっただけで発動していた（今回）。
-    - **判定は解決が終わってから。** 死亡の直後（`coreApplyDeathObservers`）に判定すると、
-      同時に倒れた仲間の復活・根性・復活の指輪がまだ解決されておらず、
-      前衛が戻る場面でも先に発動していた。死亡時は「味方が倒れた」ことだけ控え
-      （`state._undyingRingPending`）、**手番の終わりと開戦の終わりに一度だけ**
-      `coreCheckUndyingRing()` で判定する。
-    - `coreBattleStep()` は判定を足すためのラッパーにし、中身は `coreBattleStepInner()`。
-      **発動したら勝敗を判定し直すこと**（前衛全滅からの召喚なので、
-      判定し直さないと「味方全滅で敗北」のまま戦闘が終わる）。
-    - 変更：`js/battle/core.js` `index.html`。`?v=` は **`fixPack08`**。
-    - 検査：7本 NG 0（`effect_audit` に「死亡直後には発動しない」「復活で戻れば発動しない」を追加）。
-      コアで実行して確認：復活持ちの前衛が倒れた手番は発動0、復活が無い場合だけ3体召喚。
-
-44. マミーの死亡で10ゴールドを得た直後、所持金が一瞬減って見えた（今回）。
-    - **所持金の表示を進めるのは `gold_gain` の演出だけ。** コアは1手番ぶんを先に解決するため、
-      再生の途中で `_syncCoreResourcesToG()` がコアの所持金（もう加算済み）を書き戻すと、
-      そのあと `gold_gain` の演出でもう一度足されて多く見え、手番の終わりの同期で
-      正しい値へ戻る＝一瞬増えて減る。再生中は所持金だけ書き戻さないようにした
-      （ライフ・血はそのまま。判定は `presentIsPlaying()`）。
-    - 変更：`js/engine/battle.js` `index.html`。`?v=` は **`fixPack07`**。
-    - 検査：7本 NG 0（`pve_core_resource_parity` に「再生中は所持金を書き戻さない」を追加）。
-    - **未確認**：実機での見え方は未確認。
-
-43. スプリガンの効果で結界を得ても shield.png が出ず、失う時は演出より先に消えていた（今回）。
-    - **結界を得た瞬間に表示を出す。** `keyword_effect`（`effect:'shield'`）の見せ方に
-      `updateUnitShieldUi()` を足した（`present_events.js`）。オンラインは受け口の直後に
-      `_render()` があるため出ていたが、PvEは次の描き直しまで出なかった。
-      結界バッジが無い時は `updateUnitShieldUi()` が作る（`render.js`）。
-    - **結界は表示専用の値で描く。** ATK/HPと同じ理由（コアが1手番ぶんを先に解決する）で、
-      実体を直に描くと結界を割った演出（K018）より先に shield.png が消える。
-      `presentShownShield()` / `presentHoldShown(u,atk,hp,maxHp,shield)` /
-      `presentAdvanceShown(u,{shield})` を追加し、演出を出す瞬間に進める。
-      **カードの結界を描く時は必ず `presentShownShield()` を通すこと。**
-    - **結界の数は本文から読む。** `js/battle/core.js` のマナ効果「ランダムな味方は結界Nを得る」が
-      1で固定＋正規表現も `結界1` 限定だったため、合体後のスプリガン（結界2）は何も起きなかった。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/battle/present_events.js`
-      `js/engine/render.js` `js/engine/battle.js` `index.html`。`?v=` は **`fixPack06`**。
-    - 検査：7本 NG 0（`battle_event_regression` に結界の据え置きの検査を追加）。
-      合体前後のスプリガンをコアで実行し、結界1／結界2が乗ることを確認。
-    - **未確認**：実機での見え方は未確認。
-
-42. 勝利・撤退のカットインが大きすぎ、窓の大きさを変えるとずれていた（今回）。
-    - **同じ部品に後段でもう1組の指定があった。** 前回 vw を絶対値へ直したのは前半の
-      `.battle-start-title` などで、実際に効いていた `#battle-start-intro .battle-start-line` /
-      `.battle-start-icon` / `.battle-start-icon-wrap`（後段）は vw のままだったため、
-      紋章と直線だけが窓の大きさで伸び縮みして文字とずれていた。
-    - **絶対値へ直す時は、その部品の指定を全部洗い出してから直す。**
-      ブラウザで `document.styleSheets` を走査して vw/vh/clamp の残りを確認するのが確実。
-    - 値は以前の clamp が**幅1920pxの窓**で示していた大きさへ揃えた：
-      見出し173px／小見出し48px／紋章595px／直線1536px。
-      前回は clamp の上限（250px 等）を採ったため、実機より一回り大きくなっていた。
-    - 変更：`index.html`。`?v=` は **`fixPack04`**。
-    - 確認：幅700／1440／2400px の3通りで、画面座標での位置・大きさが完全に一致することを確認。
-
-41. エラー／ゲームオーバーからタイトルへ戻ると「ゲームスタート」が
-    「デバッグモード」のままだった（今回）。
-    - デバッグモードで開始した時、ラベルは意図的に戻していない（タイトルが消える瞬間に
-      文字が戻って見えるため）。復帰は `returnToTapStart()`（終了）だけが行っていたので、
-      `showScreen('title')` で戻る経路では古い表示が残り、押すと普通のゲームが始まっていた。
-    - **タイトルを出す時は必ず表示を既定へ戻す。** `showScreen()` の `id==='title'` で
-      `_titleCtrlHeld=false` にして `_syncTitleStartLabel()` を呼ぶ（`js/engine/main.js`）。
-    - 変更：`js/engine/main.js` `index.html`。`?v=` は **`fixPack04`**。
-    - **未確認**：実機での確認は未実施。
-
-40. シートの「実装」＝FALSEのカードがデバッグ一覧に出ていた（今回）。
-    - **「実装」＝FALSE はそのカードが無いという意味。** 報酬・ショップだけでなく
-      デバッグ一覧・合体候補からも消す。`js/data/loader.js` の `_syncPanelRows()` で
-      `panel._implemented = false` を立てる（以前は `_rewardExcluded`／`_shopExcluded` だけで、
-      デバッグ一覧は `_implemented` しか見ていなかった＝生贄が出ていた）。
-    - この修正で一覧から消えるのは：生贄・即死・全体攻撃・生命吸収・加護・複製・扇動・
-      猫の加護・献身・呪われた壺。**必要なカードがあればシートの「実装」をTRUEにする。**
-    - 変更：`js/data/loader.js` `index.html`。`?v=` は **`fixPack04`**。
-    - **未確認**：実機での確認は未実施。
-
-39. 利用者報告の4件を直した（今回）。
-    - **キーワードだけの強化に、同じキーワードが2つ並んでいた。** 原因はホバー側ではなく
-      読み込み側で、**効果欄が空の時にキーワード欄を説明文へ写していた**（毒の刃＝毒牙1）。
-      キーワードは「キーワード：〇〇」の行として既に出るので、**写さない**（`js/data/loader.js`）。
-      → **キーワードは1箇所からしか出さない。表示を足す前に、出どころが増えていないか見る。**
-    - **根性で耐えた時に負傷効果が出なかった。** キーワード「根性」は
-      「死亡ダメージを受ける時、一度だけHP1で生き残る」＝**死亡ではない**。
-      死亡効果・死亡観測・血へ進める前にHP1へ戻し（`coreTryGuts()`）、
-      代わりに負傷効果を発動する。判定の順（復活の指輪→復活→根性）は
-      `coreTryRevive()` と揃える（先に呼ぶと別の復活手段を使い切る）。
-    - **ヴォイド・ウォーカーがガーゴイルに効いていなかった。** 効果文は
-      「紫のキャラクターが**与える**戦闘修正の値は1大きくなる」なので、
-      **与え手の色**で決まる。`coreStatBonus(target, value, source)` に与え手を渡すようにした
-      （熟練は「**得る**値が+1」なので対象側のまま）。
-      **新しく `coreStatBonus()` を呼ぶ時は、その効果の持ち主を第3引数に渡すこと。**
-    - **攻防一体が機能していなかった。** 「カード名がそのまま能力になる強化」の一覧が
-      battle.js にもう1つあり、そこに攻防一体が入っていなかった。
-      コアの `CORE_KEYWORD_CARD_NAMES` を使う形へ一本化した（防戦だけ追加）。
-    - 変更：`js/battle/core.js` `js/engine/battle.js` `js/data/loader.js` `index.html`。
-      `?v=` は **`fixPack04`**。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-      4件とも個別に動作を確認（根性＝HP1で耐えて+2/+2・血0／ガーゴイル＝+4/+4／攻防一体＝ATK=HP）。
-    - **未確認**：実機での確認は未実施。
-
-
-38. SEの名前を素材番号へ揃え、即死の演出とエラー表示を足した。
-    - **SEの名前替え**：`fire.wav`→`effect_damage.wav`（鍵 `effectDamage`。カード効果ダメージの汎用SE）、
-      `super_magic.wav`→`C043.wav`（鍵 `C043`。全体へ広がる効果ダメージ＝アラッサス）、
-      `shield.wav`→`K018.wav`（鍵 `K018`）。
-      **結界は絵も音もキーワード番号で引く**ようにした（`playSfx('shield')` の直接指定をやめた）。
-    - **即死の演出**：`instant_death` イベントで、そのキャラクターの上に K001.webp を出し K001.wav を鳴らす。
-      `KW_NO_MAP` に `即死→K001` を追加し、見せ方は `presentInstantDeathEvent()`（present_events.js）が
-      唯一の実装。**PvEは `instant_death` を受けていなかった**ので受け口を足した。
-    - **進行不能なエラーの表示**（`showFatalError(code, detail)`＝main.js）：
-      画面全体を暗くし、**編成画面の指輪枠と同じ枠**（`main_left.svg` を上下に分けて描く
-      1020x372）で「エラー」「本文」「エラーコード：」を出し、ui_error.wav を鳴らす。
-      見出し44px・本文35px・色 #a58768 も編成画面のパネルと同じ。
-      枠の下（+78px）はゲームオーバーの「タイトルに戻る」と**同じ寸法・同じ意匠**
-      （496x122・43.82px・button_brown2.svg）。
-      **画面座標（3840x2160）で組み、他の画面と同じ縮尺を掛ける**（同じ寸法にするため）。
-      本文は**テキストメッセージシート**の「エラー発生時」が唯一の出どころ。
-      シートの文末にある「エラーコード：」は下のコード行が受け持つので本文からは外す
-      （両方に出すと2回並ぶ）。
-      `window.onerror` と `unhandledrejection` を拾い、**最初の1件だけ**表示する。
-    - **エラーコードは `<ファイル>-<種別><行>`**。例）`BT-T3020`＝battle.js 3020行目の TypeError。
-      ファイル：BT/RD/RW/MP/MN/CR/PR/PE/LD/PL/ST/AU/OL/IX/GN、
-      種別：T=TypeError／R=ReferenceError／G=RangeError／S=SyntaxError／P=Promise未処理／D=データ／X=その他。
-      データ読み込み失敗は `LD-D001`、内蔵データが空なら `LD-D002`。
-    - **デバッグの編成画面のボタンを2行2列にした**（`ゲームオーバー確認／エラー確認` の下に
-      `試験戦闘／マップ確認`）。「エラー確認」は `debugShowError()` で本番と同じ経路を通す。
-      戦闘画面の右端にあった旧「マップ」ボタンは削除し、入口を編成画面へ一本化した
-      （マップ表示中の「終了」ボタンはそのまま）。
-    - **勝利・撤退のカットインが窓の大きさで崩れていた。** 文字・アイコン・下線の寸法が
-      `clamp(..., Nvw, ...)`＝**ビューポート基準**だったため、戦闘画面の拡大縮小
-      （`--game-scale`）と連動せず、窓を変えると比率が変わっていた。
-      **画面座標（3840x2160）の絶対値へ置き換えた**（設計値＝それぞれの上限値）。
-      「You Win」枠の `max-width:90vw` も同じ理由で 3456px にした。
-      **画面の中に置くものは vw/vh を使わないこと。**
-    - **マップ確認から戻るとデバッグUIが全部消えていた。** `showScreen()` は編成画面以外へ
-      移るとデバッグUIを隠すため、戻った時に出し直す（`renderDebugCardPalette()` /
-      `renderControls()`）。
-    - 変更：`assets.js` `js/engine/audio.js` `js/engine/state.js` `js/engine/main.js`
-      `js/engine/battle.js` `js/engine/render.js` `js/engine/reward.js`
-      `js/battle/present_events.js` `js/online/board.js`
-      `js/data/local_xlsx_data.js` `index.html`。
-      `?v=` は **`errorFrame01`**（CSVは `sheet0905f`）。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-      SE登録85件のファイル実在も確認（`assets/bgm/game_clear.wav` だけ以前から未配置）。
-    - **未確認**：実機での確認は未実施。
-
-
-37. カード効果を8枚ぶん変更し、シートを常に優先するようにした。
-    - **合体後の体数・数値は本文から読む。カード名で数を書かない。**
-      合体後の効果文は体数だけが違うことが多く、名前で分岐すると合体後に付いていけない
-      （ミテーラは「3体」がコードに直書きされていた）。
-      共通のつまみは `corePickDistinct()`（重複しないN体選択）と本文の「N体」。
-    - 変更したカード：
-      マータ（ダメージを1にし、超えた分を肩代わり／合体後はその半分＝`coreMataSplit()`）、
-      エイドロン（ATK+2／+4）、ミテーラ（2体／4体）、ワイバーン（敵2体／4体。ダメージ量も本文から）、
-      コカトリス（合体後は敵2体に防戦）、バンダースナッチ（合体後は敵2体を変身）、
-      サキュバス（合体後は前衛の敵2体を奪う）、アビス・バロン（合体後は敵2体に封印∞）、
-      デュラハン（合体後は敵2体へ血ぶんのダメージ）。
-    - アビス・バロンの解放は**名前の分岐と本文の分岐が二重にあった**ので本文側へ一本化した。
-    - **シートを常に優先するようにした。** `js/data/loader.js` の上書き表
-      （`_requestedEffectOverrides` / `_requestedCardUpdates` / `_summonOnlyOverrides`）は
-      **シートを読めない時の予備**になり、シートに列がある限り使われない。
-      以前は一部のカードだけ上書きが優先され、シートを直しても古い本文へ戻っていた。
-      これに合わせて、次の効果も本文から数値を読むようにした：
-      ウォーグ（人数・加算値）、ガーゴイル（色・加算値）、ナイトメア（血の倍率）、
-      ファミリア（血のしきい値・マナ量）。
-    - 効果欄が空でキーワードだけのカードは、**説明文も空のまま**にする
-      （キーワードは「キーワード：〇〇」の行として別に出るため。→ 40）。
-    - シートのキーワードを当てはめる時は、**同じ種類の既存キーワードを必ず置き換える**
-      （封印1と封印9、結界1と結界2が並んでいた）。
-    - **C022「シャドウ」が召喚専用の一覧に残っていた**ため、効果文が消えて報酬にも
-      出なくなっていた（召喚専用はスケルトン側）。一覧から外した。
-    - 変更：`js/battle/core.js` `js/data/loader.js` `js/engine/pool.js`
-      `js/data/local_xlsx_data.js` `index.html`。`?v=` は **`sheetFirst02`**（CSVは `sheet0905e`）。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-      合体後の全行検証（151件）も NG 0。8枚は合体前後の挙動を個別に確認した。
-    - **未確認**：実機での確認は未実施。
-
-
-
-36. 合体後の効果を、シートの「合体効果」列どおりにした。
-    - **合体後の効果・キーワードはシートが唯一の出どころ。**
-      これまでは合体すると**効果文の数字を一律2倍**にしていたが、シートには倍にしない値がある
-      （ドワーフの「2体」、ベヒーモスの「2倍→3倍」、ダイアウルフの「2体召喚する」など）。
-    - loader.js が「合体効果」列から **`panel.mergedForm`**（効果文・キーワードに加えて、
-      そこから導く manaCost／manaOnAttack／隣接ボーナス等の派生値まで）を組み立て、
-      pool.js の `applyMergedPanelForm()` が合体時に差し替える。
-      **上書き処理が全部終わった最後に組み立てること**（途中で作ると、後から効果文が
-      差し替わったカードの合体後だけ古いまま残る）。
-    - **「合体キーワード」列が合体後のキーワードの正**（変わらないカードも同じ値が入っている）。
-      同じ種類（末尾の数字を除いた部分）の合体前キーワードは必ず置き換える。
-      残すと「結界1」と「結界2」が並ぶ（効果文やカード名から拾った値が残るため）。
-      「合体効果」列が空欄のカードは効果文をそのまま使い、文中のキーワードだけ合体後の値へ置き換える
-      （ハーピーの「衝撃3」→「衝撃6」）。
-      列が両方とも空欄なら、合体しても効果・キーワードは変わらない。
-    - **絆の巻物の「効果を2回発動」（`_effectRepeatBonus`）をやめた。**
-      シートの合体効果は既に合体後の値で書かれているため、重ねて増やすと二重になる。
-    - アイテム等でその個体に付いたキーワード（カード定義に無いもの）は、
-      シート由来の姿へ作り直した後に戻す（`extraPanelKeywords()`）。
-    - 変更：`js/data/loader.js` `js/engine/pool.js` `js/engine/reward.js` `js/engine/render.js`
-      `js/engine/main.js` `js/data/local_xlsx_data.js` `index.html`。
-      `?v=` は **`sheetMerge02`**（CSVは `sheet0905b`）。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-      あわせて**シートの全行（実装済み151件）で、合体後の効果文・キーワードがシートと
-      一致することを確認**（不一致0件）。
-    - **未確認**：実機での確認は未実施。
-
-35. ケンタウロスの着弾VFXを登録し、提示カードの矢印の重複を無くした。
-    - **ケンタウロスの着弾VFXが未登録だった**（素材名が書き出しのままだった）。
-      `C019_2.webp` として `Assets.vfx.enchantEffectHit` へ登録し、
-      大きさは `PRESENT_VFX_SCALE.C019_2`（1.2＝炎の矢の着弾と同じ扱い）。
-      着弾SE（`C019_2.wav`＝`C019_HIT`）は登録済みだったので、これで絵と音が揃う。
-    - **報酬・魔導店で、矢印の向きの組み合わせが完全に同じカードを2枚以上出さないようにした。**
-      判定は**向きの集合**（並び順は無関係）で、**本数が違えば同じ向きを含んでよい**
-      （「左＋下」は1枚まで／「左＋下＋右」は同時に出てよい）。
-      重複したカードだけを**同じ本数のまま**別の組み合わせへ振り直す
-      （`_dedupePanelDirections()`＝pool.js。報酬・魔導店とも `drawRewards()` が唯一の入口）。
-      提示枚数が組み合わせ数を超える場合（2本＝向かい合わせ禁止で4通りしかない）は重複を許す。
-    - 変更：`assets.js` `js/battle/present.js` `js/engine/pool.js` `index.html`。
-      `?v=` は **`contact32`**。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-    - **未確認**：実機での確認は未実施。
-
-
-34. 効果発動の発光をVFXへ合わせ、バフVFXを対象全員へ出すようにした。ホバー説明も直した。
-    - **発光がVFXより先行していた。** コアは効果を解決した順にイベントを出すため、
-      `effect_flash` は対応するVFXより前に届く。特にマナ効果は前の効果の演出が
-      終わるのを待ってから始まるので、その待ち時間ぶんまるごと先に光っていた。
-      **発光は保留し、次にVFXが出る瞬間に合わせて再生する**ようにした
-      （`presentQueueEffectFlash()` / `presentFlushEffectFlashes()`＝present_events.js が唯一の実装。
-      受け口は render.js の各VFXの入口に `_syncEffectFlashWithVfx()` を置くだけ）。
-      VFXを出さない効果のために、700ms（`PRESENT_EFFECT_FLASH_MAX_WAIT_MS`）の安全弁で自動再生する。
-      戦闘の切れ目（`presentResetPlayback()` と同じ場所）で保留を捨てる。
-    - **バフVFX（S005攻撃／S006負傷／S007死亡／S008マナ／S009常時・開戦）は、
-      能力変化を受けた対象全員の上に出す。** `presentStatChangeVfxAllowed()` が
-      効果名の一覧（`PRESENT_STAT_CHANGE_VFX_REASONS`）を必須にしていたため、
-      一覧に無いトリガのバフは1つも出ていなかった。**トリガが決まる能力変化は必ず出す**へ変更。
-    - **マナ効果のバフも S008 を対象全員へ出す。** これまでは
-      `PRESENT_STAT_CHANGE_VFX_EXCLUDED`（mana_threshold*）で丸ごと止めていた。
-      止めていた理由は「発生元のマナ効果の合図と同じ絵が2重になる」ことなので、
-      番号を一律 S008 へ寄せて解決した（合図はカード自身の番号のまま／別素材）。
-      `PRESENT_STAT_CHANGE_VFX_EXCLUDED` は廃止。
-    - **ホバー説明に見出し下の直線を入れた**（キャラクターと同じ。`data-preview-norule` をやめた）。
-    - **所持金・ライフ・マナ・血のホバーが編成画面でしか出なかった。**
-      `#battle-status-hud` `#battle-counters` `#village-status` `#map-status` が
-      `pointer-events:none` で、枠にカーソルが当たらなかった。**枠（`.battle-status-counter`／
-      `.battle-counter`）だけ `pointer-events:auto`** にした（親はnoneのままなので、
-      枠の外と枠同士の隙間はこれまで通り素通りする）。戦闘・村・マップ・
-      ゲームオーバー／クリアのどの画面でも同じに出る。
-    - **それでも対象全員に出なかった原因（ドワーフで発覚）**：
-      1. **マナ効果の `stat_change` に `sourceId` が載っていなかった。**
-         演出の可否は `ev.sourceId` を必須にしているので、マナ効果のバフは
-         1件も通っていなかった。コアの `mana_threshold*` の能力変化すべてと、
-         `opening_atk_double` `opening_hp_double` `attack_swap` に発生元を載せた。
-      2. **発生元にバフVFXが出ていた。** シートの「VFX/SE」列がS008のカード
-         （ドワーフ）は、マナ効果の合図に続く固有VFX（`_playManaEffectPulse`）が
-         **発生元の上に**S008を出していた。対象に選ばれていない本人だけが光る形。
-         **バフの番号（S005〜S009）は発生元へ出さない**ようにした
-         （`presentIsBuffVfxCode()`＝present.js。PvE・オンライン両方の pulse で弾く）。
-    - **バフの番号は「シートの指定が最優先」**（コボルドの列がS007＝死亡でS007.wavが
-      鳴っていた件は、利用者がシート側を修正）。**コードでトリガの番号へ固定しないこと。**
-      固定するとシートを直しても演出が変わらなくなる。
-      列にバフの番号が無いカードだけ、トリガの既定で出す
-      （攻撃S005／マナS008／開戦・常時S009は一律。負傷・死亡はカード固有の絵をそのまま使う）。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/battle/present_events.js`
-      `js/engine/render.js` `js/engine/battle.js` `js/online/board.js`
-      `js/engine/main.js` `index.html`。`?v=` は **`contact31`**（CSVは `sheet0904f`）。
-    - **バフVFXが出ないカードがまだあった（フォルモール・センチネル）。**
-      `reason` がトリガの一覧に載っていないと演出しない作りだったため、
-      効果文から起こす新しい能力変化が漏れていた。
-      **`attack_` / `injury_` / `death_` で始まる reason は、一覧に無くても
-      そのトリガとして扱う**ようにし（`presentStatChangeTrigger()`）、
-      接頭辞の無い名前（`sentinel` `arch_demon_purple_buff` `gremlin_swap`＝攻撃、
-      `strange_bond` `roar` `majesty` `green_hermit`＝開戦、
-      `warg_count_buff` `summon_scaling_buff` `naga_summon` `jack_o_lantern`＝常時）を一覧へ足した。
-      `gremlin_swap` には `sourceId` も無かったので載せた。
-    - **メデューサの固有VFX/SEが、効果ダメージを受けた時だけ出なかった。**
-      マナ効果の解決中は `state._coreEffectNo` が立っており、その最中に**誘発で
-      割り込んだ別のキャラクターのダメージ**（メデューサの負傷＝受けたダメージぶんを
-      ランダムな敵へ）にも同じ番号が載っていた。再生側はその番号を見て
-      「その効果の演出で見せるダメージ」と判断するため、メデューサ自身の
-      固有VFX/SEが一切出なくなっていた。**効果の持ち主が与えたダメージにだけ
-      番号を載せる**ようにした（`coreDamageEffectNo()` / `state._coreEffectOwnerId`）。
-    - **マナ獲得VFX（S004）を、カード中央より少し上から出し、上へ動きながら
-      フェードアウトするようにした**（以前はカードの上端よりさらに上に出て、その場で消えていた）。
-      つまみは `PRESENT_MANA_GAIN_VFX_START_Y`（.18）と `PRESENT_MANA_GAIN_VFX_RISE`（.35）。
-      どちらもカード高さに対する比。
-    - **ミノタウロスがダメージを受ける前に動き出していた。**
-      攻撃モーションの先出し（攻撃効果は「少し動き出してから」見せる規則）で、
-      **本人が起こした効果かどうかを見ていなかった**ため、
-      「受けたダメージ」まで先出しの合図に数えていた。
-      オンライン側は最初から発生元を見ており、**PvEだけが取り残されていた**。
-      判定を present.js（`presentPreAttackEffectOwnerId()` / `presentPreAttackActorId()`）へ集約し、
-      両方の受け口から同じ関数を呼ぶようにした。
-    - **ヘカトンケイルがマナ効果の演出より先にマナを得ていた。**
-      マナ獲得VFX（S004）はフェードインに140msかかるのに、数字は同じ瞬間に動いていた。
-      **数字はVFXが見え始めてから動かす**（`PRESENT_MANA_GAIN_VALUE_DELAY_MS`。PvE・オンライン共通）。
-    - **戦闘中に召喚された体のマナ効果が、その時点のマナぶん一気に発動していた。**
-      「Xマナ毎」の到達回数は現在マナ÷Xで数えるため、召喚直後の体が
-      いきなり撃ち切っていた。**召喚された瞬間のマナを基準にし、
-      それ以降に得たマナだけで数える**（`_manaThresholdBaseline` /
-      `coreManaThresholdProgress()`）。開戦の召喚は盤面の初期配置と同じ扱いで印を付けない。
-    - **マーメイドがいると、誰が攻撃・負傷してもマナが増えていた。**
-      `coreGainResource()` は「攻撃：0マナを得る」の形で毎回呼ばれるが、
-      **0のまま先へ進んでいた**ため、マーメイドの加算（緑から得るマナ+1）が
-      0を1に変えていた。**元の量が0なら即座に抜ける**ようにした。
-    - **状態異常を付けた時のVFX（毒牙＝K003 等）を、連続付与で出し直さないようにした。**
-      付与のたびに `playHitVfx()` で作り直していたため、絵が何度も頭から再生されていた。
-      **同じキャラクターへ続けて付与される間は1つの再生を延ばして出し続ける**
-      （`playKeywordEffectVfxSustained()`＝render.js が唯一の実装。尺は
-      `PRESENT_KEYWORD_VFX_HOLD_MS`＝最後の付与から800ms）。SEは出し始めの1回だけ鳴らす。
-      `getEffectVfxPath()` がキーワードの素材も番号で引けるようにした。
-    - **ウォーグのバフは「効果1回につき1回」。**
-      「7体になった瞬間の1回」だけ発動していたため、5体＋3体召喚のように
-      途中で7体を超えると、7体目より後に出た体が素通りしていた。
-      正しい規則は**1回の効果で何体召喚されても発動は1回**
-      （6体＋3体召喚＝1回／9体＋1体召喚＝1回／9体＋3体召喚＝1回）。
-      召喚は1体ずつ解決されるので、効果の入口（開戦・攻撃・負傷・死亡・結界喪失・
-      復活・リッチのまとめ召喚・指輪・アイテム）で `coreBeginSummonBatch()` /
-      `coreEndSummonBatch()` を掛け、その間の増加をまとめて1回として扱う。
-      **新しく召喚を伴う効果の入口を足す時は、この対で囲むこと。**
-      死亡時にも人数を記録し直す（記録が減らないと、後から召喚しても
-      「増えて7体以上になった」と判定できない）。
-      あわせて、加算値（紫修正などの `coreStatBonus` 込み）と
-      イベントに載せる値が食い違っていたのも直した。
-    - **ファントム／エイドロンのバフが、復活した体に乗らなかった。**
-      「この戦闘中、召喚された味方は+X/+Yを得る」は `coreSummonUnit()` の中でしか
-      乗せていなかったが、**復活＝再召喚**なので `coreTryRevive()` でも乗せる。
-      revive イベントより**先に**乗せ、イベントに載る値も加算後にする
-      （受け口はイベントの値で表示を進めるため、後から足すと表示だけずれる）。
-    - **復活VFXの位置がずれていた。** 掴んだ矩形のまま出していたため、
-      倒れた体を外して盤面が詰まると絵だけ元の場所に取り残されていた。
-      他の効果VFXと同じく**カードを追いかける**ようにした。
-      素材（K020）の絵が右寄りなので、`PRESENT_REVIVE_VFX_OFFSET_X`（カード幅比。
-      既定 -.06）で中心へ寄せる。**大きさ・位置のつまみはここだけ。**
-    - **復活VFXをカードより下に出すようにした。**
-      戦闘画面（#scr-battle）は transform:scale で自前の重なり文脈を作るため、
-      body直下のVFX層（#vfx-frame-clip）へ入れた絵は**必ずカードより上**になる。
-      カードの下に出したい演出は `_underCardVfxLayer()`（#scr-battle 直下の z-index:0 の層。
-      ステージ効果動画 #stage-bg-video と同じ位置づけ）へ入れ、
-      座標は `_toBattleScreenRect()` で画面内（scaleを戻した）座標へ直す。
-      **この層は #scr-battle の末尾へ足すこと。** 先頭へ入れると
-      `#scr-battle>div:nth-of-type(1){display:none}` に当たって層ごと消え、
-      本来隠れていた要素が代わりに現れる（実際に復活VFXが出なくなった）。
-    - **ピクシーの効果文を「攻撃：ランダムな前衛の敵を操り、代わりに攻撃させる。」にした。**
-      操る対象を前衛だけに絞る（`js/data/loader.js` の上書きと core の抽出条件）。
-      **シートのキャラクターシートはまだ旧文（「ランダムな敵を操り」）。**
-    - **オンラインで前の対戦のマナが残っていた。** サーバーへ送る初期マナは0なのに、
-      `G.mana` を戻すのは PvE の `startBattle()` だけだった。
-      オンラインの `BATTLE_START` でも血と同じく0へ戻す。
-    - **勝利・撤退の結果表示中に、所持金・ライフ・マナ・血のホバー説明が出なかった。**
-      その画面はカードの説明を止めるために `#kw-tooltip` ごと `display:none`
-      にしていた。ステータスの説明には印（`data-preview-status` →
-      `#kw-tooltip.status-tip`）を付け、それだけは出すようにした。
-    - **ニンフの開戦マナでマナ獲得SEが鳴らなかった。**
-      SEは「前に表示していたマナより増えたら鳴らす」判定だが、その基準
-      （`_shownManaForSfx`）が初回は null、以降は前の戦闘の値のままだった。
-      **戦闘開始時に0へ戻す**ようにした。
-    - **召喚の登場演出（S001）を1.5倍速にした**（`PRESENT_SUMMON_VFX_SPEED`＝present.js）。
-      順再生の速度は素材そのものなので、折り返し（カードが出る瞬間）が早くなり、
-      逆再生がその倍率で速くなる。生贄奉納・封印解放の演出は据え置き。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-    - **未確認**：実機での確認は未実施。
-
-33. タイトルへ戻ると操作不能になる件と、右クリック・ホバー説明を直した。
-    - **ゲームオーバーからタイトルへ戻ると何も押せなくなっていた。**
-      メニューは `.startup-menu-visible:not(.startup-menu-ready)` で
-      `pointer-events:none` になるが、`showScreen('title')` が
-      `startup-menu-ready` を付けていなかった。見えているのに押せない状態だった。
-    - **ゲームオーバー・クリア画面でも、魔導板の外を右クリックしてカード非表示を
-      切り替えられるようにした**（編成画面と同じ扱い。以前は盤面の上だけ）。
-    - **ブラウザの右クリックメニューを全画面で出さないようにした**
-      （`document` のcapture段階で `preventDefault`。個別の切り替え処理は
-      `preventDefault` では止まらないのでそのまま動く）。
-    - **所持金・ライフ・マナ・血にホバー説明を追加した**（`applyStatusTooltips()`／main.js）。
-      **文言はテキストメッセージシートが唯一の出どころ**（`window.TEXT_MESSAGES` の
-      「全画面「所持金」上」等）。見せ方はキャラクターのホバーと同じ `data-preview` で、
-      見せ方はキャラクターのホバーと同じ（直線も同じに出す。34で `data-preview-norule` をやめた）。枠全体がホバー対象。
-      戦闘・村・マップ・編成のどの画面の表示にも貼る（描画のたびに貼り直す）。
-    - 変更：`js/engine/main.js` `js/engine/reward.js` `index.html`
-      `js/data/local_xlsx_data.js`。`?v=` は **`contact18`**（CSVは `sheet0904f`）。
-    - **未確認**：実機での確認は未実施。
-
-32. 先攻の指輪判定と、ボス報酬の指輪タグを直した。
-    - **疾風の指輪で先攻になっていた。** 先攻になるのは**神速の指輪だけ**
-      （開戦：左端のATKを2倍にし、先攻になる）。疾風の指輪は
-      「常時：味方の攻撃回数は1回追加される」で先攻とは無関係。
-      `corePickFirstSide()` と、PvEの開戦指輪処理の両方で一緒に扱っていた。
-    - **ボス報酬の指輪タグが効かないことがあった。** タグの集計に
-      「3枚以上」「2枚以上」という独自の下限があり、**魔導板のキャラクターが
-      3枚しかいない編成ではどのタグも成立せず、提示が丸ごとランダムへ落ちていた**
-      （紫だけの編成なのに他色の瞳の指輪が出る）。計算式シートの定義どおり
-      「所持カード内に最も多く含まれるタグ」を素直に数える形にした
-      （3色以上で意味を持つ「多色」だけ下限を残す）。
-      あわせて「マナ」タグの正規表現のエスケープ誤り（`\\s`）を直した。
-    - 変更：`js/battle/core.js` `js/engine/battle.js` `js/engine/reward.js`。
-      `?v=` は **`contact17`**。
-    - **未確認**：実機での確認は未実施。
-
-31. 紫修正・追加攻撃・合体カードの取りこぼしを直した。
-    - **ヴォイド・ウォーカーの紫修正（`_voidWalkerBonus`）を1箇所で作り直す形にした**
-      （`coreRefreshVoidWalkerBonus()`）。状態を作った時・召喚した時・手番の頭で必ず通す。
-      キャッシュを置く経路が `createBattleState` と `coreSummonUnit`（召喚された体だけ）に
-      分かれていて、**手組みの `_createPveCoreState()` では初期化そのものが抜けていた**。
-      そのためツインデビルの本体とコピーで +1/+1 と +2/+2 が食い違っていた。
-    - **追加攻撃（二段・三段・疾風の指輪）の攻撃モーションが出ないことがあった。**
-      `strike()` が「その一撃の主対象」を受け取らず外側の `target` を見ていたため、
-      2回目以降の attack イベントが `attackVisual:false` になり再生側が飛ばしていた。
-      主対象を渡す形にした（接触VFXの対象・反撃の判定も同じ主対象で見る）。
-    - **絆の巻物で合体したカードの攻撃効果だけ2回目が発動しなかった。**
-      反復ボーナスの引き方が攻撃だけ `effectData.effectRepeatBonus` しか見ておらず、
-      カード自身の `_effectRepeatBonus` を無視していた（開戦・負傷・死亡は両方見ている）。
-    - **絆の巻物で合体しても4方向にならなかった。** 矢印は `directions`（配列）で描くが、
-      合体処理は `directionCount` しか設定していなかった（3枚合体は両方設定している）。
-    - 変更：`js/battle/core.js` `js/engine/battle.js` `js/engine/reward.js`。
-      `?v=` は **`contact16`**。
-    - **未確認**：実機での確認は未実施。
-
-30. 解放中の数値表示と、根性で耐えた後のHP表示を直した。
-    - **解放の演出中にATK/HPが見えなくなっていた。** 封印中は CSS
-      （`.sealed-unit .slot-stats`）が `brightness(1.9)` で数値を持ち上げているが、
-      解放の暗転→復帰では `sealed-unit` を先に外すため、その補正だけが消えて
-      親の `brightness(.45)` がそのままかかっていた（白文字＋黒縁なので消えて見える）。
-      同じ補正をインラインで引き継ぎ、明るさと一緒に等倍へ戻すようにした。
-    - **根性で耐えた体のHPが0のまま残っていた。** ダメージで表示を0まで進めた後、
-      `revive` イベントで表示を戻していなかった。**蘇生後の値まで表示を進める**
-      （復活・根性・指輪すべて。`presentReviveEvent` の `applyStats`）。
-      専用の演出があるのはキーワード「復活」だけ、という区別はそのまま。
-    - 変更：`js/engine/render.js` `js/battle/present_events.js` `js/engine/battle.js`
-      `js/online/board.js`。`?v=` は **`contact15`**。
-    - **未確認**：実機での見え方は未確認。
-
-29. 同じ陣営への攻撃モーションと、再挑戦時の会話を直した。
-    - **ピクシーで操られた敵が、同じ陣営の敵へ突進しなかった。**
-      攻撃モーションも受け口も「対象は相手陣営」と決め打ちしていたため、
-      対象が見つからずモーションごと出ていなかった。
-      **対象は相手陣営とは限らない。** 相手陣営で見つからなければ同じ陣営から探し、
-      見つけた側の盤面へ飛ばす（`_playAttackMotionCore` / PvE・オンラインの受け口）。
-      傾き（tilt）は今までどおり左右の差だけで決まるので、同じ隊列同士なら角度は付かない。
-    - **再挑戦（同じエリート・ボスへ挑み直した）時は開幕の会話を飛ばす。**
-      判定は「敵を引き継いだか」（`reuseWaveEnemies`）＝`G._skipBattleStartLines`。
-    - マナ獲得VFX（S004）の位置計算が打ち消し合っていた（`offsetY` が効いていなかった）。
-      大きさもカード幅に対する下限（`PRESENT_MANA_GAIN_VFX_MIN_CARD_RATIO`＝.55）を入れた。
-      64px（ゲーム内座標）のままだと戦闘のカードの上では点にしか見えなかった。
-    - 変更：`js/engine/render.js` `js/engine/battle.js` `js/online/board.js`
-      `js/battle/present.js`。`?v=` は **`contact14`**。
-    - **未確認**：実機での見え方は未確認。
-
-28. 更新されたシートで確認し、残っていた食い違いを直した。
-    シートは指示どおり更新済み（C022＝シャドウ／C101＝スケルトン、C107・C108は削除）。
-    27で入れた実装が新しい本文で動くことを `effect_audit.js` で確認した
-    （シャドウ・ファントム・エイドロン・デュラハン・ボーンチャリオット・スリープシープ・
-    ワーム・エレメンタル・サキュバスがすべて期待どおり発動）。
-    - **`loader.js` のカード別上書きがシートのキーワードを force で戻していた。**
-      ウォーグの `先制`・ワームの `三方向攻撃` はシートから外れたので、上書き側からも外した。
-      ウルフを force 一覧へ入れた（シート行はあるが効果文が空で、`_sheetDescLoaded` が
-      立って上書きが素通りし、`先制` が付かないため）。
-    - **奪った体を配列から null で抜いていたのが原因でオンライン再生が落ちていた**
-      （`battleCoreFinalState` が null を踏む）。盤面配列は「生きている体を左詰め」で持つ決まりなので、
-      死亡と同じくHPを0にして詰め直しに任せる形へ直した（死亡効果は発動させない）。
-    - 回帰を新しい仕様へ更新：ワーム（毒の発動）、エレメンタル（全色で2倍／封印色は数えない）。
-      **`createBattleState()` はユニットを複製する。** 検証では状態側の体を見ること
-      （元のオブジェクトを見ていて「効果が出ていない」と誤検出した）。
-    - 変更：`js/data/loader.js` `js/battle/core.js` `js/data/local_xlsx_data.js`
-      `tools/balance_sim/effect_audit.js`。`?v=` は **`contact13`**（CSVは `sheet0904e`）。
-    - **未確認**：実機での通し確認は未実施。
-
-27. カード効果の差し替えをコアへ実装した。
-    **シートはまだ旧内容のまま。** 効果は「新しい効果文が来たら動く」形で入れてあり、
-    シートが更新された時点で切り替わる（現行データでは今までどおり動く）。
-    - 新しく実装した効果文（すべて本文駆動）：
-      `攻撃：血がN以上なら全ての味方は+X/+Yを得る`（シャドウ）／
-      `攻撃：ランダムな敵にXダメージを与える。Xは血に等しい`（デュラハン）／
-      `攻撃：全ての敵の毒を発動させる`（ワーム）／
-      `死亡：この戦闘中、召喚された味方は+X/+Yを得る`（ファントム）／
-      `負傷：この戦闘中、召喚された味方はATK+Xを得る`（エイドロン）／
-      `負傷：ランダムな味方に「死亡：「X」を召喚する。」を付与する`（ボーンチャリオット）／
-      `死亡：血をN得る`（スリープシープ）／`死亡：ランダムな前衛の敵を奪う`（サキュバス）／
-      `開戦：全ての色の味方がいる場合、このキャラクターのATKとHPを2倍にする`（エレメンタル）／
-      `常時：このキャラクターが敵を倒した時、血をN得る`（インキュバス）。
-      リッチの新しい本文は既存の汎用処理（味方が死亡するたび4ダメージ）で動く。
-    - **旧実装は「新しい本文が無い時だけ」動くようにした**（カード名で無条件に発動させない）。
-      判定は「**新しい本文が無いこと**」で書くこと。「古い本文があること」で書くと、
-      本文を持たない検証用ユニット（`effect_audit` の最小シナリオ）で発動しなくなる。
-    - 新しいイベント：`summon_buff`（この戦闘中の召喚バフ）／`unit_stolen`（敵を奪った）。
-      受け口はPvE・オンラインの両方に置いた（`online_receivers.js` が欠落を見る）。
-    - `js/data/loader.js` のカード別上書きを新しい効果文へ更新し、
-      ダイアウルフ＝先制／スケルトン＝復活／ウルフ＝先制を足した。
-      **C022＝シャドウ／C101＝スケルトンの入れ替え**に合わせ、召喚専用カード
-      （報酬・ショップに出さない）をシャドウからスケルトンへ移した。
-      `js/engine/pool.js` の No.・レアリティも入れ替えた。
-    - C107 スケープゴート／C108 ナイトはコード側に定義が無く、参照は
-      ワームの旧効果（「黒ナイト」召喚）だけ。新しい本文へ移れば呼ばれない。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/data/loader.js`
-      `js/engine/pool.js` `js/engine/battle.js` `js/online/board.js`。`?v=` は **`contact12`**。
-    - **未確認**：シートが未更新のため、実データでの動作は未確認。
-      シート更新後に `effect_audit.js` を回すと、新しい本文が期待回数どおり
-      発動しているかを機械的に確認できる。
-
-26. 復活の演出を足し、確率つき効果の発光を成功時だけにした。
-    - **キーワード「復活」で再召喚された時の演出**（K020）。SEと同時にVFXをフェードイン →
-      その上にカードをフェードイン → VFXをフェードアウト（`playReviveVfx()`／render.js、
-      1件の扱いは `presentReviveEvent()`）。**PvEに `revive` の受け口が無かった**ので追加した
-      （オンラインだけが状態を反映していた）。指輪・根性による蘇生は対象外。
-    - **確率つきの負傷効果は、成功したときだけ光る**（ヘカトンケイルの「10%の確率で」）。
-      発動テキストがあるだけで光らせていたため、外れても「発動した」ように見えていた。
-      マナ獲得VFXは `mana_gain` から出るので、当たった時だけ出る。
-    - 素材の登録：メデューサ＝C017（VFX/SE）、サイクロプス＝C018（VFXのみ）、
-      ケンタウロス＝`C019_1.webp`/`C019_1.wav`（発射）＋`C019_2.wav`（着弾）。
-      **`assets/vfx/C019.webp` は `C019_1.webp` へ改名済み**（SEは利用者が改名済み）。
-    - 音量は実測から：C017=.56／C019=1.00／C019_HIT=.43／K020=.39。
-      倍率：C017/C018=.5、C019/C019_1=.125、K020=.5。
-    - 変更：`assets.js` `js/engine/audio.js` `js/engine/state.js` `js/battle/core.js`
-      `js/battle/present.js` `js/battle/present_events.js` `js/engine/render.js`
-      `js/engine/battle.js` `js/online/board.js`。`?v=` は **`contact11`**。
-    - **未確認**：実機での見え方は未確認。
-
-25. 開戦・常時の誘発で生じるバフを S009 にした。
-    - 特殊演出シートに **S009＝バフ（常時）「開戦、誘発効果でバフが発生した。」** が
-      追加されたので、`presentStatChangeVfxCode()` へ
-      **開戦（`opening_*`）・常時の誘発（`passive`）は一律 S009** の規則を足した
-      （攻撃時のバフが一律 S005 なのと同じ形）。
-    - **「死亡」の分類を直した。** 「味方が死亡するたび」等の**観測**は、
-      発動しているのは観測者の常時効果なので `passive`（S009）へ移した。
-      S007（死亡）は倒れた本人の死亡効果だけ。
-    - **観測系の `stat_change` に `sourceId` が無く、VFXが出せなかった**
-      （攻撃観測・結界喪失観測・シャナ）。効果の持ち主を載せ、白い発光も出すようにした。
-    - ガーゴイル（開戦のバフ）を「演出しない」一覧から外した（シートでS009が指定された）。
-    - 内蔵CSVを再生成（`card` / `enchant` / `specialFx`）。シートのVFX/SE列は
-      エティン・ヴァンパイアロード・レヴナント・ウォーグ・ナーガ・ジャック・オ・ランタン・
-      グリマルキン・ガーゴイル・ヘルハウンド・ファナティック・奇妙な絆・屍術に S009 が入った。
-    - 素材：`S009.webp`（516x516・倍率.5）／`S009.wav`（実測-8.8dBFS→音量.77）。
-    - 変更：`assets.js` `js/engine/audio.js` `js/battle/core.js` `js/battle/present.js`
-      `js/data/local_xlsx_data.js`。`?v=` は **`contact10`**（CSVは `sheet0904d`）。
-    - **未確認**：実機での見え方は未確認。
-
-24. 発光の色分けとマナ獲得の演出を足した。
-    - **解放効果＝紫／開戦・終戦・常時の誘発＝白**（`presentEffectFlashEvent` の色表が唯一の定義）。
-      コアは `release`（解放）と `passive`（常時の誘発）のイベントを出す。
-      `passive` を出すのは**誘発する**常時効果だけ（シャナ・エティン・ワイバーン・
-      「味方が死亡するたび」系）。「常時：緑のキャラクターから得るマナは+1される」の
-      ような受動的な補正はコアがイベントを出さないので、そもそも光らない。
-    - **マナを得たとき S004.webp を、得たキャラクターの上に出す**
-      （`playManaGainVfx()`／render.js。魔導板の方向アイコンと同じ64px、
-      フェードイン→少し置く→フェードアウト）。つまみは `PRESENT_MANA_GAIN_VFX_*`。
-      受け口は PvE・オンラインの `mana_gain` の両方。
-    - ケンタウロス（C019）の大きさを炎の矢と揃えた（`PRESENT_VFX_SCALE.C019`＝.125）。
-    - 変更：`assets.js` `js/battle/core.js` `js/battle/present.js`
-      `js/battle/present_events.js` `js/engine/render.js` `js/engine/battle.js`
-      `js/online/board.js` `index.html`（紫の発光色）。`?v=` は **`contact09`**。
-    - **未確認**：実機での見え方は未確認。
-
-23. 貫通VFXが出なくなった件を直した。
-    **`attackTargets()` にも `withPierce()` にも貫通の巻き込みが書かれていた**（二重実装）。
-    先に `attackTargets()` が後衛を対象へ入れてしまうため、`withPierce()` は
-    「もう入っている」と判断して**巻き込んだ相手を控えず**、演出を出すかの判定
-    （`pierceVictimIds.size`）が常に0になっていた。
-    巻き込みは `withPierce()` を唯一の実装とし、控えは「対象に入っているか」と
-    無関係に必ず行うようにした。
-    **教訓：同じルールを2箇所に書くと、片方が「もう片方がやった」と誤判断する。**
-    ケンタウロスのSEは `C019.wav`（実測-12.0dBFS→音量1.00）。`?v=` は **`contact08`**。
-
-22. 効果VFXの追従先を直し、貫通の発生位置を線の上へ揃え、ケンタウロスを追加した。
-    - **効果固有VFXが「元の位置」で出続けていた本当の原因**：`playEffectVfxOnUnit()` の
-      追従ループが**毎フレーム盤面の定位置へ張り直していた**。発生位置を渡しても
-      次のフレームで戻される。追従先を「今そのキャラクターが見えている位置」
-      （`_captureUnitEffectRect`＝攻撃モーション中は動いている複製カード）に変えた。
-    - **貫通VFXの発生位置を「攻撃者から一番奥の対象へ引いた線の上」にした。**
-      対象カードの中心から横へずらしていたため、線が対象と後衛の両方を通らず、
-      左の前衛を攻撃した時だけ大きく左へ外れていた（`PRESENT_CONTACT_PIERCE_OFFSET_X`
-      は0を既定にした。ずらしたい時だけ使う）。
-    - **ケンタウロス（C019）を「発生元から対象へ飛ばす効果」にした。**
-      `PRESENT_PROJECTILE_EFFECTS` はマナ効果だけでなく**ダメージの発生元**でも引く。
-      該当したら数値・HP・命中VFXを**着弾の瞬間**に出し、通常の被弾演出は出さない
-      （`presentDamageEvent`）。素材は `C019.webp` / SEは `Assets.sfx.C019`＝`S019.wav`。
-      SEは `C019.wav`。
-    - 変更：`assets.js` `js/engine/audio.js` `js/battle/present.js`
-      `js/battle/present_events.js` `js/engine/render.js`。`?v=` は **`contact07`**。
-    - **未確認**：実機での見え方は未確認。
-
-21. 貫通の当たり判定を「半分以上重なっている後衛」に確定し、VFXを背景内へ収めた。
-    - **貫通が巻き込む後衛は「前衛カードに半分以上重なって見える体」**（`CORE_PIERCE_OVERLAP`＝.5）。
-      少しでも重なれば当たる（差1枚未満）にしていた頃は、画面ではほとんど後ろにいない
-      後衛にも入っていた。**後ろに誰もいなければ、VFX・SE・効果とも発動しない**
-      （`contactModes` へ 'pierce' を積むのは巻き込む相手がいる時だけ）。
-    - 貫通VFXの幅を2倍（`PRESENT_CONTACT_PIERCE_WIDTH` .55→1.1）、
-      出現位置を左へ（`PRESENT_CONTACT_PIERCE_OFFSET_X`＝-.45＝対象カード幅の比）。
-    - **効果固有VFXが「元の位置」で出ていた。** 合図（K023）は動いた位置から出るのに、
-      固有VFXは合図の逆再生開始後＝攻撃モーションの複製カードが消えた後に位置を
-      掴み直していたため。**合図で掴んだ位置をそのまま使う**（`playEffectVfxOnUnit` の `rect`）。
-    - **VFXが背景の外（黒帯）へ出ていた。** 全画面の入れ物を1枚だけ作り、
-      `clip-path` で背景の描画範囲へ切り抜く（`_vfxClipLayer()` / `_battleVfxClipRect()`）。
-      入れ物は画面いっぱいなので、中のhostの座標計算は今までのまま。
-      **攻撃モーションの複製カードだけは入れない**（VFXではないので切り抜くと欠ける）。
-    - **試験戦闘を途中で終えて通常戦闘に入るとキャラクターが複製されていた。**
-      パネル召喚の印が付いた体だけを消していたため、戦闘中に召喚・変身した体が残り、
-      次の戦闘で編成ぶんが改めて出撃していた。**盤面は空にする**（次は編成から作り直す）。
-    - 大きさ：S003＝.5、K004＝.4。
-    - **デバッグモードの編成画面にも魔導店と同じ売却ボタンを出した**
-      （`_boardCardSellEnabled()`）。以前はボタンが出ず、×の経路でゴールドも入らず消えていた。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/engine/render.js`
-      `js/engine/battle.js` `js/engine/reward.js` `js/online/board.js`。`?v=` は **`contact06`**。
-    - **未確認**：実機での見え方は未確認。
-
-20. 弱体付与の被弾VFX・サイレンの範囲演出・シートのVFX/SE列を実装した。
-    - **与えたダメージが弱体を付与したら、被弾VFXを K004.webp にする**（SEは変えない）。
-      判定は「そのダメージの直後に同じ体へ出ている `keyword_effect`」で行う
-      （`presentDamageVfxKeyword`／present.js）。絵だけ差し替える口として
-      `playHitVfxAtRect` に `vfxKeyword` を足した。
-    - **サイレン（C011）の攻撃演出**を追加。発生源の周りにフェードインしてから
-      高速で巨大化し、画面外へ抜ける（`playExpandingWaveVfx`／render.js）。
-      **絵が届いた対象から順に数値を出す**（薙ぎ払いと同じ規則）。
-      コアは `sweep_vfx` で対象と順番だけを出し、絵の選び方は
-      `presentAreaVfxStyle()`（present.js）が決める。
-      **サイレンは味方にも当たる**ので、受け口は対象を敵・味方の両方から引くようにした。
-    - **シートの「VFX/SE」列を両シートぶん反映した。**
-      キャラクターは複数指定に対応（ブラウニー＝攻撃S005／負傷S006をトリガで選ぶ）。
-      エンチャントは強化カード側の指定を使う（剣技＝S005・継承/遺志＝S007 等）。
-      マナ効果の素材も同じ列で引く（`_effectFxCodeByNo()`。`effectNo` は識別子のまま）。
-      剣技を「演出しない」一覧から外した（シートでS005が指定されたため）。
-    - 内蔵CSVの `card` / `enchant` を再生成（エンチャントシートにVFX/SE列が増えたため）。
-    - 変更：`assets.js` `js/engine/audio.js` `js/engine/state.js` `js/battle/core.js`
-      `js/battle/present.js` `js/battle/present_events.js` `js/engine/render.js`
-      `js/engine/battle.js` `js/online/board.js` `js/data/local_xlsx_data.js`。
-      `?v=` は **`contact05`**（CSVは `sheet0904c`）。
-    - **未確認**：実機での見え方は未確認。広がる波の尺・大きさは
-      `PRESENT_EXPAND_VFX_FADE_MS`／`GROW_MS`／`START`／`END`／`HIT_RATIO` で調整する。
-
-19. 貫通の当たり判定を見た目に合わせ、効果の発生位置・音量・決着後の停止を直した。
-    - **貫通が巻き込む後衛を「真後ろに重なって見える体」に変えた**（`corePierceRearTargets`）。
-      以前は後衛を前衛の人数で等分する近似だったため、**画面では線の上にいない後衛に
-      ダメージが入っていた**。前衛・後衛は同じ幅のカードを中央寄せで並べるので、
-      中央からの位置（カード何枚分か）の差が1枚未満なら重なっている、で判定する。
-      VFXも**一番奥の対象**へ向けて飛ばし、貫く相手が必ず線の上に来るようにした。
-    - **効果の演出は「今そのキャラクターが見えている位置」から出す**
-      （`_captureUnitEffectRect()`＝攻撃モーション中の複製カードの位置）。
-      攻撃で少し動いた地点で発動したマナ効果・炎の矢が、盤面の定位置から出ていた。
-      **ダメージ数値と被弾VFXは盤面の定位置のまま**（動く体に数値を付けると読めない）。
-    - **決着後にマナ効果が続いていた。** どちらかの陣営が全滅していたらマナ閾値効果を
-      一切発動しない（`coreApplyManaThresholdEffectsInner` の先頭）。
-      「居ない」と「全滅した」は別物なので、体はあるのに生存0の時だけ止める。
-      `_forceStopAllVfx()` からも `_resetManaEffectRun()` を呼び、出しっぱなしを断つ。
-    - **同じカードを複数枚持つ時、矢が1本しか飛ばずダメージだけ2体に入っていた。**
-      同じ発動回に同じキャラクターの発動が並ぶ場合、2件目を捨てていたのが原因
-      （`presentManaThresholdEvent`）。**VFXは1体につき1つ、対象は足し合わせる**形にした。
-    - **SEの音割れ**：追加したSEを音量1.0のまま鳴らしていた。素材の実測ラウドネス
-      （200ms窓RMS）を測り、他と同じ目標（約-11dBFS）へ揃えた。
-      K009=-2.9dBFS→.40、C008=-3.5→.42、K019=-3.0→.40 など。
-      あわせて**同じ音を同時に鳴らす上限**（`SFX_SETTINGS.maxSameSound`＝2）を入れた。
-      同じ波形が重なると振幅がそのまま足し算になり、1本では割れない音でも振り切れる。
-    - 変更：`js/battle/core.js` `js/battle/present_events.js` `js/engine/render.js`
-      `js/engine/battle.js` `js/engine/audio.js` `js/online/board.js`。`?v=` は **`contact04`**。
-    - **未確認**：実機での見え方・聞こえ方は未確認。
-
-18. 貫通を「絵が通った所に当たる」演出にし、同名カード複数枚の発動を直した。
-    - **貫通は攻撃者から対象への角度のまま飛ばす。** 対象カードの手前から、その角度で
-      後ろの敵を貫き画面外へ抜ける。当たったキャラクターの数値は、**絵がその位置を
-      通り過ぎた瞬間**に出す（`playCurvedMissile` の `waypoints` →
-      `api.onContactPass` → 受け口の `_awaitContactHold`）。
-      **貫通だけがVFX依存。** 三方向攻撃・全体攻撃は同時に当たるので依存させない。
-    - **接触演出の対象を、範囲攻撃ぶん（`targetIds`）と貫通ぶん（`pierceTargetIds`）に
-      分けた。** 1つの配列にまとめていたため、三方向攻撃のVFXが貫通で巻き込んだ
-      後衛にまで出ていた。
-    - **同じマナ効果カードを複数枚持つと1枚ぶんしか発動しなかった。**
-      `cost|repeat|desc` で重複を落としていたのが原因（炎の矢×2で1回だけ）。
-      重複除去は「同じ配列を別の保持先へ複製している」場合のためのものなので、
-      **保持先ごとに数えて一番多い保持先を採る**形に変えた。
-    - **キーワードVFXに倍率が効いていなかった**（倍率の鍵を命中VFXとキャラVFXからしか
-      取っていなかった）。毒＝K017・毒牙＝K003 を .5 に。
-    - **毒牙などのキーワード演出を、矢の着弾の瞬間に1回ずつ出すようにした。**
-      イベント順のまま出していたため、炎の矢を4本撃っても毒付与の演出は
-      まとめて1回に見えていた（`presentEffectKeywordEvents`）。
-    - **数値を短くするのは「同じ体へ続けて数値が出る」時だけ**にした（`gate.runMs` 側も）。
-      前回は先読み（`runAheadMs`）だけ直しており、直前の束を見る側が残っていた。
-    - アラクネのVFX倍率を **2**（.5から）。
-    - **試験戦闘を途中で止めた時に、効果のSEが鳴り続けていた。**
-      `stopAllSfx()`（audio.js）を追加し、中断時に必ず止める。
-    - **試験戦闘の再開で止まる件**：実行中フラグに戦闘ID（`G._battlePhaseRunId`）を
-      持たせ、**前の戦闘のフラグが残っていても新しい戦闘は進む**ようにした。
-      あわせて `_exitTestBattle()` はフラグ解除を先頭で行い、`onBattleEnd()` が
-      失敗しても後始末を最後まで通す（途中で抜けると以後の終了処理が全て素通りしていた）。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/battle/present_events.js`
-      `js/engine/render.js` `js/engine/battle.js` `js/engine/audio.js` `js/online/board.js`。
-      `?v=` は **`contact03`**。
-    - **未確認**：実機での見え方は未確認。
-
-17. 接触演出の大きさの決め方を直し、演出の二重発生と持ち越しを止めた。
-    - **VFXの大きさは「画面に出る絵の幅」で決める。** 入れ物（host）はCSSで
-      `width:460%` の絵を置くための箱でしかない。対象の矩形をそのまま入れ物にすると、
-      対象の数や素材の縦横比で絵の大きさが変わる。貫通（K007＝137x1086）は
-      縦に約8倍伸びるため、画面の高さを超えて**画面の下から現れたように見えていた**。
-      `PRESENT_VFX_CSS_WIDTH_RATIO`（4.6）で入れ物の幅を逆算する。
-    - つまみ：`PRESENT_CONTACT_PIERCE_WIDTH`（.55＝対象カード幅に対する絵の幅）／
-      `PRESENT_CONTACT_TRI_WIDTH`（3＝対象3体の横幅に対する絵の幅）／
-      `PRESENT_CONTACT_TRI_OFFSET_X`（-.2＝**絵の幅**に対する左へのずらし）。
-      **ずらしの単位を「カード幅」にしていた時は、絵が桁違いに大きいため効かなかった。**
-    - **キーワードNo.の対応表（`KW_NO_MAP`／state.js）が古かった。**
-      毒が `K007` のままで、K007は現在**貫通**。毒ダメージで貫通のSEが鳴り、
-      毒のVFX（K017）は出ていなかった。シートの現行No.へ更新した。
-    - **内蔵CSV（`local_xlsx_data.js`）の keyword / item / ring / specialFx / textMessage が
-      古かった**ので再生成した（`file://` の実機はこれを読む）。
-    - **マナ効果の演出が二重・三重に出ていた。** マナ効果の合図がその効果のVFX/SEを
-      出しているのに、`stat_change`（reason が `mana_threshold*`）でもカード本人の
-      固有VFX/SEを出していた。`PRESENT_STAT_CHANGE_VFX_EXCLUDED` へ入れて止めた。
-    - **効果のNo.が載っているダメージは、カード本人の演出にしない**
-      （`presentDamageVfxSource` が `ev.effectNo` で弾く）。付けている強化カード
-      （炎の矢）で起きたダメージまで本人の効果として鳴り、
-      「関係ない場面でそのキャラクターのSEが鳴る」原因になっていた（アラクネ）。
-    - **数値を短くするのは「同じ体へ続けて数値が出る」時だけ**にした
-      （`presentDamageRunAheadMs`）。別の体へ移るだけで短くしていたため、
-      全体ダメージの数値が一瞬で消えていた。
-    - **攻撃効果は「少し動き出してから」発動させる対象に、マナ獲得とマナ効果も入れた。**
-      `mana_gain` / `mana_threshold` を先出しモーションの判定に入れていなかったため、
-      マナ生成のマナ増加も、それで発動する他キャラクターのマナ効果も、
-      攻撃者が**全く動く前**に起きていた。
-    - **中断された戦闘の演出を持ち越さないようにした**（`_resetManaEffectRun()`）。
-      試験戦闘を途中で終えると効果固有VFXがループしたまま次の戦闘へ残っていた。
-    - **試験戦闘を途中で終了すると、次の試験戦闘が前の盤面のまま止まっていた。**
-      `battlePhase()` を `return` で抜けるだけで `G._battlePhaseRunning` が立ったままになり、
-      `_advanceToBattlePhase()` のガードに弾かれていた。`_exitTestBattle()` で必ず降ろす。
-    - 毒付与VFX（K003）を **.75**、炎の矢の発射間隔を **260ms**（反復時に2本が同時に
-      出たように見えないように）。
-    - 変更：`js/battle/present.js` `js/battle/present_events.js` `js/engine/render.js`
-      `js/engine/battle.js` `js/engine/state.js` `js/online/board.js`
-      `js/data/local_xlsx_data.js`。`?v=` は **`contact02`**（CSVは `sheet0904b`）。
-    - **未確認**：実機での見え方は未確認。上のつまみで調整すること。
-
-16. 攻撃範囲の接触演出（貫通・三方向攻撃・全体攻撃）を作り直した。
-    - **貫通と三方向攻撃・全体攻撃を併用できるようにした。** 効果もVFXも両方出る
-      （コア＝`withPierce()`／イベントは `mode` 1つではなく `modes` 配列）。
-      片方だけを選んでいたため、三方向攻撃持ちの貫通が丸ごと消えていた。
-    - **接触VFXとSEを「ぶつかった瞬間」に出すようにした。** コアが
-      `attack_contact_vfx` を attack より**前**に出し、受け口が保留して
-      攻撃モーションの `onContact` で鳴らす。以前は attack の後ろにあったため、
-      モーションを再生し終えた＝キャラクターが戻ってから出ていた。
-    - **接触VFXを await しないようにした。** 待っていたため、複数の敵に同時に入る
-      はずのダメージ数値がVFXの尺のぶんずれていた。
-    - **貫通VFXの向きを直した。** 対象カードの真上（攻撃者と反対側）から、
-      攻撃者の角度に依存せず画面外までまっすぐ抜ける（上か下の2通りだけ）。
-      敵の攻撃では下向きになるべきところが常に上向きで、画面下から現れていた。
-      大きさは `PRESENT_CONTACT_PIERCE_SCALE`（.5→**1**＝2倍）。
-    - **三方向攻撃VFXを更に左へ。** `PRESENT_CONTACT_TRI_OFFSET_X`（カード幅の比）
-      が唯一のつまみ。現在 **-1.9**（＝対象列の左端から更に約1枚ぶん左）。
-    - **全体攻撃・三方向攻撃で2回攻撃して見える件を直した。** 対象ごとに出る
-      attack イベントのうち、効果の先出しモーションが**最初の1件**を掴んでいた。
-      主対象が先頭とは限らないため、主対象ぶんのモーションがもう一度再生されていた。
-      `attackVisual!==false` で絞る（PvE・オンラインの両方）。
-    - **ゴーレムの負傷効果が「機能していない」件を直した。** シートのVFX/SE列が
-      `S006` になり、`S006` が `assets.js` に未登録だったため、絵も音も出ず
-      効果が起きていないように見えていた。S003/S006/S008 と K007-K009 を登録した。
-    - **内蔵CSV（`local_xlsx_data.js`）が古く、VFX/SE列とマナ順位列を持っていなかった。**
-      `file://` の実機はこれを読むので、両列の機能が丸ごと効かない状態だった。
-      `card` / `enchant` を再生成した。
-    - **賢者の指輪・マナの種の反復で、炎の矢が同じ敵を続けて狙わないようにした。**
-      一続きの中で既に狙った敵を除いて抽選する（全員狙い終えたら選び直す）。
-    - **炎の矢の飛行速度を50%にした**（`PRESENT_PROJECTILE_FLIGHT_MS` 224→**448**）。
-    - 変更：`js/battle/core.js` `js/battle/present.js` `js/battle/present_events.js`
-      `js/engine/battle.js` `js/engine/render.js` `js/engine/audio.js` `js/online/board.js`
-      `assets.js` `js/data/local_xlsx_data.js`。`?v=` は **`contact01`**（CSVは `sheet0904`）。
-    - 検査：balance_sim 5本／`online_payload`／`online_receivers` すべて NG 0。
-      **`present_parity` / `anim_check` は未実施**（実測は指示された時だけ、の運用による）。
-    - **未確認**：実機での見え方（位置・大きさ・向き・速さ）は未確認。上のつまみで調整すること。
-    - **未解決**：マナ生成（攻撃：1マナを得る）が実機で効かないという報告は再現できていない。
-      コアは `mana_gain` を出しマナも増える（node検証済み）、PvEの受け口も
-      `G.mana` を進めて `_refreshManaDisplays()` を呼んでいる。盤面の情報待ち。
-
-15. マナ効果でフリーズする件を直した。
-    `playHitVfxAtRect()` で `effectHitVfx` を**宣言前に読んでいた**（TDZ）。
-    参照エラーで演出が止まり、マナ効果SEだけ鳴って戦闘が進まなくなっていた。
-    値を決める位置を宣言の後ろへ移した。`?v=` は **`fx0904`**。
-    **教訓：`const` を宣言より前で読むと `typeof` ガードでも防げない。**
-    ブロックの途中へ計算を差し込む時は、参照するものが上で宣言済みか必ず確認する。
-
-14. S005/S007の演出を追加し、アラクネを画面演出にした。
-    - `S005.webp/.wav` `S007.webp/.wav` を登録。シートの「VFX/SE」列で指定すれば出る。
-      尺は `PRESENT_CARD_EFFECT_VFX_MS`（700ms＝ゴーレムの負傷エフェクトと同じ）に一本化した。
-    - `playScreenBottomEffectVfx()`（render.js）を追加。アラクネ（C008）は
-      画面の中心が頂点・画面の底辺が中心になる大きさで、画面へ1回だけ出す。
-    - **`assets/vfx/C008.webp` が未配置**（`Hovl Studio_..._Meteors AOE_Side.webp` が
-      それらしい名前で置かれている）。置くまでアラクネの演出は出ない。
-    - `?v=` は **`fx0903`**。
-
-13. 炎の矢を曲線軌道のミサイルにし、活性化の間の詰まりを直した。
-    - `playCurvedMissile()`（render.js）を追加。三次ベジェ＋イージングで飛ばし、
-      少し先と少し手前の点の差から進行方向を出して `<img>` を回転させる（素材は無加工）。
-      5方向（左下→右上／左上→右下／右→左／近距離／遠距離）で実測：
-      onHit 各1回、所要 799〜1025ms、弧の高さ 27〜113px、変形なし、
-      pointer-events:none、再生後の残DOM 0。
-    - **1回目と2回目の間が約1.1秒空いていた。** `_manaEffectCurrentCode` を立てた直後に
-      既存の `_endManaEffectRun()` がそれを消しており、2回目が「別の効果」と誤判定されて
-      マナ効果VFXの完了（約1秒）を待っていた。印を立てる場所をその後ろへ移した。
-      実測：E045のSEが 1216→1367→1521→1672→1825→1977ms（一定150ms間隔）。
-    - `PRESENT_EFFECT_HIT_OFFSET_Y`（-.14）で着弾VFXを少し上へ。
-    - `?v=` は **`missile02`**。
-
-12. 1回目と2回目の間が空く件を直した。
-    間隔をマナ効果VFXの逆再生開始からではなく、**1回目を出した時刻から**測るようにした。
-    あわせて `E058_2` の倍率を .6 → **1.2**（2倍）。`?v=` は **`asset0906`**。
-
-11. 同じ効果を全発動ぶんまとめて処理するようにした。
-    - コアは**1パスで「一番上の順位の効果」だけ**を撃ち、撃ち切ったら次の効果へ移る。
-      活性化（順位1）×8 → 炎の矢（順位2）×8 の順になり、演出も交互にならない。
-      撃ち切った効果を `fireQueue` から外すのを忘れると走査が途中で終わる（実際に一度そうなった）。
-    - 着弾VFX（`E058_2.webp`）が出なかったのは、大きさの鍵を**枝番を落として**引いていたため
-      矢と同じ倍率（.125）で描かれていたから。鍵を `E058_2` まで含め、倍率 .6 を登録した。
-    - `?v=` は **`asset0905`**。
-
-10. 効果の演出が重なる件を直した。
-    - **繰り返し発動の経路だけ、直前の効果の演出を終わらせていなかった。**
-      活性化の演出中に炎の矢の演出が重なる原因。`_manaEffectCurrentCode` を持ち、
-      違う効果が来たらどの経路でも `_endManaEffectRun()` を通すようにした。
-    - 炎の矢：VFXの大きさを半分（`E058` = .25 → **.125**）、
-      着弾位置を `PRESENT_PROJECTILE_IMPACT_OFFSET_Y`（.18）だけ下げた。
-    - 変更：`js/battle/present.js` `js/engine/battle.js` `js/engine/render.js`
-      `js/online/board.js`。`?v=` は **`asset0904`**。
-
-9. 素材の一斉改名への追随と、演出の指定方法を追加した。
-   - 改名：`C001`→`S003`／`C003`→`S006`／`E045`→`S008`（webp・wav とも）、
-     `K026.wav`→`K023.wav`（シートのNo.に一致）、`S002`→`K019`（封印解放）。
-     **登録の鍵（効果の番号）は変えず、参照先のファイル名だけを差し替えた。**
-   - 生贄奉納（旧S003）の専用素材は廃止。登録が無いので演出なしで状態だけ進む。
-   - **戦闘中の召喚に登場演出を追加**（`playSummonAppearVfx`／render.js）。
-     `S001.wav` と `S001.webp` を同時に始め、**逆再生開始でカードを出す**（生贄奉納の逆）。
-   - **攻撃時のバフ効果は一律 `S005.webp`**（`PRESENT_ATTACK_BUFF_REASONS` /
-     `presentStatChangeVfxCode`／present.js）。カードごとに別の絵が出ると何の効果か読めない。
-   - **シートに「VFX/SE」列を追加**。個別カードの演出はこの番号で引く（`fxCode`）。
-   - 変更：`assets.js` `js/engine/audio.js` `js/data/loader.js` `js/battle/core.js`
-     `js/battle/present.js` `js/battle/present_events.js` `js/engine/battle.js`
-     `js/engine/render.js` `js/online/board.js` `js/online/versus.js` `js/online/server_local.js`。
-     `?v=` は **`asset0903`**。
-   - **`assets/vfx/S001.webp` が未配置**（`S00X.webp` という名前で置かれている）。
-     置くまで召喚の登場演出は出ず、カードは即座に出る。
-
-8. 炎の矢が飛ばない件を直し、素材の名前変更に追随した。
-   - **飛行時間が `NaN` だった。** `Number(undefined) ?? 既定` は `??` が null/undefined しか
-     拾わないため **NaN のまま通る**。`setTimeout(fn, NaN)` は即時発火するので、
-     矢が1フレームで消えていた。`Number.isFinite()` で判定するように直した。
-     **`Number(x) ?? 既定` は書かないこと。**
-   - 素材名の変更に追随：`C003.webp`→`S006.webp`（ゴーレム）、
-     `E045.webp`→`S008.webp`（活性化）。倍率表は効果の番号と素材の番号の両方を登録する。
-   - 大きさ：活性化はゴーレムと同じ `.5`、炎の矢は `.25`（素材が210x388に切り詰められたため）。
-   - `anim_check` の素材名の直書きをやめ、`assets.js` の登録から引くようにした
-     （素材名が変わるたびに検査が落ちていた）。
-   - `assets/vfx/E058_2.webp` が配置されたので、着弾VFXも本来の素材で出る。
-   - 変更：`assets.js` `js/battle/present.js` `js/engine/render.js` `tools/parity/anim_check.js`。
-     `?v=` は **`arrow03`**。
-
-7. 炎の矢を「対象へ飛ぶ矢」にした。
-   - `playProjectileEffectVfx()`（render.js）を追加。発生元→対象へ `E058_1.webp` を飛ばし、
-     着弾で消して `E058_2` と `E058_2.wav`、そして**ダメージ数値**を出す。
-   - 発射は `PRESENT_PROJECTILE_STAGGER_MS`（90ms）ずつずらす。飛行は
-     `PRESENT_PROJECTILE_FLIGHT_MS`（420ms）。数値は矢ごとの着弾時刻に出る。
-   - `E058` の表示倍率を 2 → **1**（半分）にした。
-   - 変更：`js/battle/present.js` `js/battle/present_events.js` `js/engine/battle.js`
-     `js/engine/render.js` `js/online/board.js`。`?v=` は **`arrow01`**。
-   - （`assets/vfx/E058_2.webp` はその後配置された。）
-
-6. マナが増えた時に `S004.wav` を鳴らすようにした。
-   `_refreshManaDisplays()`（battle.js）が唯一の実装で、**増えた時だけ**鳴らす。
-   オンラインの `mana_gain` / `mana_set` もこの共通出口を通すようにした。
-   `?v=` は **`manaSfx01`**。
-
-5. 炎の矢のエフェクトが出ない件を直した。
-   - 着弾：`E058_2.webp` が未配置のため専用素材だけを見に行って**何も出ていなかった**。
-     `playHitVfxAtRect()` が読み込み失敗を拾い、通常の被弾VFXへ戻すようにした（警告も出す）。
-   - 発生元：`E058` を `PRESENT_VFX_SCALE` へ 2 で登録（E045と同じ1920×1080で余白が多い）。
-     等倍だと絵が小さく、出ていないように見える。
-   - 効果VFXを**フェードイン**（180ms）で出すようにした（`playEffectVfxOnUnit`）。
-   - 変更：`js/engine/render.js` `js/battle/present.js`。`?v=` は **`kwVfx03`**。
-   - **`assets/vfx/E058_2.webp` は未配置のまま。** 置けばコード変更なしで着弾VFXに切り替わる。
-
-4. キーワード演出の整理と、同一効果の同時発動を直した。
-   - **同じ効果は順位に関係なく同時に見せる**（コアが効果ごとの最小順位でまとめ、
-     再生側は同じ `wave` の間は拾い続ける）。順位で間に別効果が挟まると
-     片方だけVFXが出て、もう片方が素通りしていた。
-   - 結界喪失VFX＝`K018.webp`、毒付与＝`K003.webp`/`K003.wav`、
-     毒ダメージSE＝`K017.wav` を追加。SEは絵と同じく `KW_NO_MAP` で引く
-     （`getKeywordEffectSfxKey()`／鳴らすのは `playHitVfxAtRect()`）。
-     廃止された `poison.wav` の参照を消した。
-   - 炎の矢：発生元へ `E058_1.webp`＋`E058_1.wav`（マナ効果の共通経路）、
-     着弾へ `E058_2.webp`＋`E058_2.wav`（damageイベントの `effectNo` で引く）。
-   - `keyword_effect` の受け口をPvEにも追加（従来はオンラインだけが持っていた）。
-   - 変更：`assets.js` `js/engine/audio.js` `js/battle/core.js` `js/battle/present.js`
-     `js/battle/present_events.js` `js/engine/battle.js` `js/engine/render.js`
-     `js/online/board.js`。`?v=` は **`kwVfx02`**。
-   - **`assets/vfx/E058_2.webp` が未配置。** 置くまで着弾VFXは通常の被弾VFXのままになる
-     （SEは鳴る）。
-   - **未確認**：デバッグモードの試験戦闘での通し操作は未実施。
-
-3. マナ効果の発動順を「マナ順位」列で決めるようにした。
-   - 小さい順→同率は前衛左から右、続いて後衛左から右。空欄は最後。
-     並べ替えは `coreApplyManaThresholdEffectsInner()` の `fireQueue`。
-   - `E045.webp` の最低再生時間を `PRESENT_EFFECT_VFX_MIN_MS`（900ms）にした
-     （発動1回だけの時に一瞬で消えていた）。
-   - 変更：`js/data/loader.js` `js/battle/core.js` `js/battle/present.js` `js/engine/battle.js`
-     `js/engine/render.js` `js/online/board.js` `js/online/versus.js` `js/online/server_local.js`
-     `tools/parity/online_payload.js`。`?v=` は **`manaOrder01`**。
-   - **未確認**：デバッグモードの試験戦闘での通し操作は未実施。
-
-2. マナ効果の演出を「マナ効果VFX/SEは1回だけ → その後は効果固有のVFX/SEを回数ぶん」にした。
-   - K023／K026 はその効果につき1回。逆再生開始から先は `E045.webp` を
-     処理が終わるまで出し続け、`E045.wav` を発動回数ぶん鳴らす（`_playManaEffectPulse()`）。
-   - `playSustainedEffectVfx()`（処理が終わるまでのループ）を `playEffectVfxOnUnit()` へ改名し、
-     `durationMs` で1回ぶんの再生ができるようにした。
-   - `E045.wav` を `Assets.sfx` と `SFX_SETTINGS.sounds` へ登録。引き当ては `getEffectSfxKey()`。
-     固有素材が無い効果（サテュロスの「1マナ：3マナを得る」等）は繰り返しで何も出さない
-     （K026で代用すると発動のたびにマナ効果SEが鳴る）。
-   - 変更：`assets.js` `js/engine/audio.js` `js/engine/battle.js` `js/engine/render.js`
-     `js/online/board.js`、`tools/parity/anim_check.js`、
-     `tools/balance_sim/battle_event_regression.js`。`?v=` は **`vfxSeq05`**。
-   - 実測（サテュロス+活性化／マータ+活性化、開始マナ5→8）：
-     K026 は 963ms に1回、E045 は 1191/1345/1506/1665/1826/1985/2145/2306ms＝8回。
-     固有VFXは常に2件（1キャラ1つ）で重ならず、ATKは a0/a1 が同じ瞬間に上がる。
-   - E045が小さく見えたため、VFXの大きさを `PRESENT_VFX_SCALE`（present.js）へ集約し、
-     `E045 = 2` を登録した（素材は1920×1080＝16:9で余白が多い）。
-   - **未確認**：デバッグモードの試験戦闘での通し操作は未実施。大きさは実機で見て調整すること。
-
-1. マナ効果の演出と表示を直した。
-   - **戦闘中のマナカウントが動かない**：更新に呼んでいたのが `renderManaHud()` だけだったが、
-     これは戦闘画面では非表示にして即 return する。数字を出しているのは `#battle-mana-value`＝
-     `renderBattleCounters()`。`_refreshManaDisplays()`（両方を呼ぶ）へ一本化した。
-   - **効果固有VFX（活性化＝E045）が出ない**：演出の区切りをキャラクター単位にしていたため、
-     自前のマナ効果を持つキャラクターの2つ目の効果が「繰り返し」と誤判定されていた。**効果単位**へ変更。
-   - **同じ効果が1体ずつ順に発動する**：コアが `wave`（発動回の通し番号）を載せ、
-     同じ効果・同じ発動回のキャラクターをまとめて1回で見せるようにした。
-   - **ギガンテスの負傷で味方にヒットエフェクト**：固有VFX素材の無いカードで
-     `playHitVfxAtRect()` が通常の被弾VFXへ落ちていた。素材が無ければ何も再生しない。
-   - **同種ダメージの連続で「-1」が1回に見える**：数値の尺が間隔と同じで消え際が次と重なっていた。
-     間隔170ms／尺はその60%。
-   - `index.html` の該当JSの `?v=` は **`vfxSeq04`**。
-   - 検査：balance_sim 5本／`anim_check`／`online_payload` すべて NG 0。
-     `present_parity` は下記の不安定項目を除き NG 0。
-   - **未確認**：デバッグモードの試験戦闘での通し操作は未実施。
-
-### 未コミットの作業
-
-最後のコミットは `9dfc8d7`。**以降の作業は全て未コミット**（コミットは指示があるまで行わない）。
-`js/battle/core.js` `js/battle/present.js` `js/battle/present_events.js` `js/engine/battle.js`
-`js/engine/render.js` `js/engine/audio.js` `js/online/board.js` `js/online/versus.js`
-`js/online/server_local.js` `js/data/loader.js` `js/data/local_xlsx_data.js`
-`js/engine/main.js` `js/engine/reward.js` `assets.js` `index.html` と `tools/` 各種。
-素材の追加：`assets/vfx/` と `assets/sfx/` の S00X・K00X・E058_X・C008（いずれも未コミット）。
-
-xlsxは `prototype/Vesselbound_data.xlsx`（利用者管理）。**このファイルは触らないこと。**
-内蔵CSV（`js/data/local_xlsx_data.js`）はここから再生成する側なので、こちらは更新してよい。
+### カードの消え方と、一撃の中の死亡
+
+**消え方の分岐は `_playUnitDeathCardFx()`（`js/engine/render.js`）だけに書く。**
+
+| 死に方 | 見せ方 |
+| --- | --- |
+| ダメージでHPが0 | 焼失（`playCardBurnAway`） |
+| ダメージ以外（-の戦闘修正）でHPが0 | 青い波打ち＋WASTED（`playCardWaveAway` / `playWastedLabel`） |
+| ATKが0で場を去る | FLED（`_spawnFledLabel`） |
+
+印（`_deathByStatDrain`）は `js/engine/battle_events.js` の先頭パスがイベント列を
+**前から**追って体へ立てる。**「death イベントの直前を遡る」書き方へ戻さないこと。**
+コアは「戦闘修正でHPが0になった」ことを death イベントで知らせない（死亡効果も血も
+伴わないため、`emit({type:'death'})` は damage 系の3箇所からしか出ない）。
+その消滅を受け持つのは `renderField()` のフォールバックなので、**そこも必ず
+`_playUnitDeathCardFx()` を通す**。
+
+**一撃の中の死亡は、その一撃の数値を全部出してから見せる。**
+規則は `presentReorderDeathsAfterDamageBatch()`（`js/battle/present.js`）が唯一の実装で、
+PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` の `events`）の
+両方が通す。コアは対象1体ずつ「ダメージ→死亡」を出すため、そのまま再生すると
+全体攻撃・三方向攻撃で1体目の数値の直後に死亡演出（約1秒）が割り込み、
+2体目以降の数値がそのぶん遅れて出る（＝1体ずつ削っているように見える）。
+**動かすのは表示順だけ**で、値も勝敗もコア／サーバーが確定済み。
+
+**同時に死ぬなら、消えるのも同時。**
+束は `presentDeathBatchEvents()`（`present.js`／連続する death）が決め、見せ方は
+`presentDeathBatch()`（`present_events.js`）が唯一の実装。`presentDeathEvent()` は
+その1件版の入口として残してある。**1件ずつ演出を回さないこと。**
+順序は「数値を読ませる間（beat）は全員ぶんで1回 → 消失演出は全員同じ時点で開始
+（PvEは `startFx`＝`_playDeathBurnOnce`）→ 死亡効果だけ発生順に解決 → 詰めは1回」。
+先に1体の死亡効果を await すると、その間だけ他のカードが場に残り、
+同時撃破に見えない（`applyDamageBatch()` が以前から同じ順序を守っている）。
 
 ### 未解決
 
@@ -2652,22 +1493,18 @@ xlsxは `prototype/Vesselbound_data.xlsx`（利用者管理）。**このファ�
 **残っている報告**：
 
 1. 攻撃効果発動時の黄色い発光が見えないことがある。発光対象はキャラクターカードの外周だけ。
-2. ~~**アラクネの効果が「アラクネ自身にだけ」出る形になった**~~ → 34で対応。
-   マナ効果のバフは **S008 を対象全員の上**に出す（発生元のマナ効果の合図は
-   カード自身の番号のまま＝別素材なので2重にならない）。
+   → **原因の1つを直した**（再描画でスロットのDOMが作り直されると光が消えていた。
+   `playEffectFlash` が対象を毎回引き直し、`renderField` が `_reapplyEffectFlash()` で
+   付け直すようにした）。**実戦での見え方は未確認。**
 
 上記を直す際の確認順は、`core.js` のイベント生成 → `present.js` / `present_events.js` の規則 →
 `render.js` の矩形・回転・CSS → PvE／オンライン両受け口、とする。実機で未確認のものは「修正済み」と報告しない。
 
-1. **`loop_parity` のケース6が完走しない**（戦闘が終わらない）。ケース2にもHP不一致
-   （ドラゴネット PvE=20 / core=17）。**どちらも変更前のコード（HEAD）で再現する。**原因のカードを特定すること。
-2. **`present_parity` の「【薙ぎ払い】数値がカード外に出ない」が不安定**（同じコードで通ったり落ちたりする）。
-   死亡した対象の数値が `_lastVisualRect`（詰める前の位置）を追い続けるため。今回の変更とは無関係。
-3. **オンラインで味方が複数回連続攻撃することがある**（利用者報告）。イベント列600戦では再現せず。盤面の情報待ち。
-4. **ハーピー（C010・衝撃3）に闇の炎を付けると死亡時に遅延する**（利用者報告）。未確認。
-5. **闇の炎を複数持っても1回しか発動しない**（`coreApplyDeathEffects` が所持数ではなく
-   `repeats`＝逆襲等の反復数でループしている）。仕様なのか不具合なのか要判断。**未修正。**
-6. 同一手番内で死亡と次の攻撃が続く場合、詰めのタイミングの差で対象選択が入れ替わることがある
+1. **`present_parity` の「【薙ぎ払い】数値がカード外に出ない」が不安定**。
+   死亡した対象の数値が `_lastVisualRect`（詰める前の位置）を追い続けるため。
+2. **オンラインで味方が複数回連続攻撃することがある**（利用者報告）。イベント列600戦では再現せず。盤面の情報待ち。
+3. **ハーピー（C010・衝撃3）に闇の炎を付けると死亡時に遅延する**（利用者報告）。未確認。
+4. 同一手番内で死亡と次の攻撃が続く場合、詰めのタイミングの差で対象選択が入れ替わることがある
    （PvEは演出の後、コアは手番の終わりに詰めるため）。
 
 ### 未確認のまま残っている報告
@@ -2683,3 +1520,462 @@ xlsxは `prototype/Vesselbound_data.xlsx`（利用者管理）。**このファ�
 
 FLIP（人数減少時のカード移動演出）の詰め／召喚時のDOM同期・モーション同期／
 召喚上限の実機拒否確認／デバッグ試験戦闘まわりの機能整備／全カード個別の実機目視確認。
+
+### 効果の数値はシートの本文から読む
+
+**カード名に対して数を直書きしないこと。** 合体するとカードの本文はシートの
+「合体効果」列へ差し替わる（`js/engine/pool.js` の `applyMergedPanelForm`）。
+名前で数を決め打ちすると、合体しても基本の値のまま動き、シートを直しても反映されない。
+
+- 読み取りは `coreEffectNumbers(unit, trigger, pattern, fallback)`（`js/battle/core.js`）。
+- 「常時：この◯◯効果はN回追加で発動する」は `coreExtraTriggerTimes(unit, kind, copies)`。
+- **合体後の本文が入っているカードは、枚数で二重に強くしない。**
+  `_collectAdjacentEnhancements()` の `copies` は `_tripleMerged && !_mergedFormApplied`
+  の時だけ2枚分にする（咆哮+＝「ATKを3倍」が2枚分×3倍で9倍になっていた）。
+- 追随漏れは `tools/balance_sim/effect_value_audit.js` が3つの観点で検出する。
+  1. 本文の数と実際に出る値が一致するか
+  2. 「効果」と「合体効果」で数が違うのに結果が変わらないもの
+  3. 「N回追加で発動する」のNどおりか
+  検査盤面では差が出ないものは `MERGE_DIFF_KNOWN` に**理由付きで**登録する。
+
+### 操作ロック（body.inert）は「着いた先」で外す
+
+`SaveRun.lockInput(true)` は `document.body.inert` を立てて**画面全体の操作を止める**。
+`villageDepart()` / `chooseMoveInline()` が出発の二重発火を防ぐために立て、
+解除は着いた先で行う。**立てた側で解除しないこと**（途中で分岐すると解除が漏れる）。
+
+| 着いた先 | 解除する場所 |
+| --- | --- |
+| 戦闘 | `startBattle()`（`SaveRun.prepareBattle` の finally） |
+| 村・塔 | `openMapVillage()` の先頭 |
+
+塔（ステージ4）→フォルセティ（ステージ5）だけは**戦闘を挟まない村→村の移動**で、
+解除が一度も走らず操作不能になっていた。画面は正しく出るので「フリーズ」に見え、
+コンティニュー（＝再読込）で直る、という症状になる。
+
+### シートの行がゲームに出てこない時に見る2箇所
+
+シートは唯一の出どころだが、`_syncPanelRows()`（`js/data/loader.js`）はコード側の
+`PANEL_POOL` へ**重ねて**同期する。次の2つで行が届かないことがある。
+
+1. **改名**：No.が同じで名前だけ変わった行は、コード側の旧名が残る。
+   名前一致で引けなかった場合はシートの名前へ揃える（即死→隠密で発覚）。
+   コード側の裸No.「016」はシートの「E016」と厳密一致しないので、厳密一致だけ見ても拾えない。
+2. **明示的な除外**：「シートに無いから」という理由で消している行が残っていることがある
+   （旧試作カード「複製」を splice していた。シートに復活した時に消え続けた）。
+
+新カードは `実装` 列が FALSE の間はプールへ出ない（`_isImplementedPoolCard`）。
+コード側だけ用意しても画面には出ないので、実装が済んだら列を TRUE にしてもらう。
+
+### 演出の重複判定は「一撃」で区切る
+
+固有VFX・固有SEの重複判定（同じ発生元・効果・対象は1回だけ）は、
+**1回の一撃で複数対象へ同じ効果が乗る場面**のためのもの。区切りは
+`presentBreaksEffectRun()`（`js/battle/present.js`）が唯一の実装で、
+`attack` / `turn_begin` で判定をやり直す。一撃をまたいで持ち越すと、
+二段・三段攻撃の2回目以降が「効果は出ているのにVFXだけ出ない」状態になる。
+
+### 画面揺れは「実際に入った量」で決める
+
+`_predictFinalDamage()` が使えるのは**まだダメージが入っていない盤面**だけ。
+コア駆動のPvEは演出より先にHPを減らし終えているので、接触の時点で相手が
+倒れていると予測が0を返し、**大ダメージでも画面が揺れない**。
+確定値を持っている側は `_shakeWithFinalDamage(amount)` を使うこと。
+PvEはイベント列から対応する damage イベントの `amount` を引いて渡す
+（`battle_events.js` の `_shakeForAttack`）。オンラインは再生用の表示盤面が
+まだ減っていないため、従来どおり `_shakeOnAttackContact()` の予測でよい。
+
+### 毒はダメージではない
+
+キーワードシート K017：「このキャラクターは攻撃を行う前にHP-Xする。」
+`coreApplyPoisonBeforeTurn()`（`js/battle/core.js`）が唯一の実装で、
+**`coreApplyDamage()` を通さない**。そのため
+
+- 結界で防げない／弱体・強靭も乗らない
+- 負傷ではないので、負傷効果も「負傷でマナ」も誘発しない
+- HPが0になったら「衰弱」＝青い波打ち（`stat_change` で減るので印が立つ）
+- **最大HPは減らない。** `stat_change` に `maxHp: 0` を明示する
+
+`stat_change` の `hp` は既定で最大HPにも効く。**`maxHp` が入っている時だけ**
+そちらを最大HPの増減として使う（PvE・オンラインの受け口、playback の表示盤面の3箇所）。
+
+### 戦闘背景のフォーカスと入り方
+
+**寄せるのは背景だけ。UI・キャラクターの大きさは変えない。**
+背景レイヤー（`#scr-battle.asset-backed::before`）の `transform:scale()` だけを動かす
+（`focusBattleBackground()`）。**変数は `:root` に置くこと。**
+`#scr-battle` のインラインstyleは背景切り替えで消える。
+
+**画面振動で `#scr-battle` の箱を動かさないこと。** 箱を動かすと、動いた分だけ
+画面指定サイズの外へはみ出す（拡大して隠そうとすると、はみ出しが余計に目立つ）。
+振動は背景レイヤーと戦場（`#f-ally`/`#f-enemy`）だけを動かす。
+受け渡しは `@property` で登録した `--battle-shake-x/y`（登録しないと動かせない）。
+背景は寄せてあるので、揺れても縁から外が覗かない。
+戦場には別の規則で `translateZ(0)!important` が当たっているので、
+揺れの規則も `!important` ＋高い詳細度で上書きすること。
+
+**寄りは画面を出す前に当てる。** 出してから寄せると寄っていく動きが見える
+（`prepareBattleIntroFocus()` を `showScreen('battle')` より前に呼ぶ）。
+エリート／ボスの開始位置「寄せた状態の左上端」は、拡大が中心基準なので
+素の `left top` では画面の外側になる。寄せた分だけ内側へずらした
+`--battle-bg-corner-x/y`（JSが計算）を使う。
+
+**寄りを戻すのは「完全に暗転して勝利／撤退の文字も消えた後」。**
+報酬は同じ `#scr-battle` 内で切り替わるため `showScreen()` を通らない。
+唯一の確実な契機は戦闘後遷移（`main.js` の `#battle-transition-fade` を出した後の
+720ms コールバック）。結果カットインの時点で戻すと画面が引くのが見える。
+
+**エリート／ボスの背景移動はひと続きの弧**（`playBattleIntroBgPan()`）。
+寄せた状態の左上端から下端まで、Web Animations で刻んだ1本のアニメーション
+（`::before` へ適用、`ease-in-out`）。
+
+- 横：左端 → 中心。`sin` で減速し、中心へ着く時には横の速さが0になる。
+- 縦：上端 → 下端。**最初から最後まで同じ割合で下がり続ける。**
+
+**縦を「横が終わってから」動かさないこと。** 区間を分けると、切り替わる瞬間に
+速さも向きも跳ね上がって折れ線に見える（区間1が29px・区間2が5520pxで、
+同じ時間配分だと速度が数十倍変わる）。縦を通しで動かすと、横が消えるにつれて
+向きだけがなめらかに真下へ変わる＝弧になり、速度は終始ほぼ一定になる。
+
+位置は `calc(◯% + △px)` で持つ。◯が「画像のどこを出すか」、△が寄せた分のずらし。
+こうしておくと背景画像の実寸が変わっても同じ弧になる。
+
+**横に動ける幅は寄せが作る分しかない。** ステージ背景（例 2500×5000）は
+`background-size:cover` で横幅が画面とちょうど一致するため、余白は
+寄せ（`BATTLE_FOCUS_SCALE`）で生まれる `(f-1)/(2f)*3840px` だけ。
+斜めの動きをはっきり見せたい時は寄せを強くする。
+
+**通常戦闘は画面を出す前に暗転しておく**（`prepareBattleIntroFocus()`）。
+出してから黒を被せると、被さるまでの一瞬だけ前の画面や別の位置の背景が見える。
+**この関数には戦闘の種別を必ず渡すこと。** 呼ばれるのは `G._waveBattleType` を
+書き込む前なので、省略すると**前の戦闘の種別**で判定する。エリートを通常と誤判定すると
+通常用の暗転だけが残り、**画面が真っ黒のまま**になる（エリートの入りは暗転を使わない）。
+
+### 効果文からキーワードを拾うのは「素のキーワード行」だけ
+
+強化カードの付与キーワードは**シートの「キーワード」列**が正。
+`js/data/loader.js` の効果文スキャン（結界・封印・邪眼・衝撃）は列が空の古いデータ用の保険で、
+**トリガの前置きが付いた行は見ない**（`bareDesc`）。
+見てしまうと「栄光の歌＝常時：このキャラクターが**召喚した**キャラクターは結界1を得る。」から
+結界1を拾い、**接続したキャラクター自身**に結界が付く。
+
+### BGMの先読み
+
+BGMはWeb Audio（波形を全部読んでから鳴らす）なので、鳴らす瞬間に読むと頭が無音になる。
+**先読みの置き場所は `js/engine/main.js` の `warmNextBattleBgm()` と `_startWaveBattle()` だけ。**
+
+| いつ | 読む曲 | 猶予 |
+| --- | --- | --- |
+| `openMapVillage()` の頭 | その街／塔の曲 | 入場演出 約2.5秒 |
+| 街・塔に着いた時／出発した時 | 次のマスの戦闘曲（`_battleBgmKeyForStage`） | 数秒〜 |
+| 戦闘開始時（ボス・Scene1〜4） | `tower`（ボスに勝つと必ず塔へ直行する） | 戦闘1回分 |
+| 戦闘開始時（それ以外） | `menu` と、このSceneの街の曲 | 戦闘1回分 |
+| デバッグの旅の進捗マスに**カーソルを乗せた時** | その飛び先の曲 | 押すまでの間 |
+
+**デバッグのマス移動には猶予が無い。** 通常の進行は「街→出発→ワールドマップ→戦闘」と
+段階を踏むので先読みが間に合うが、マスを押して直接飛ぶ経路は押した瞬間に鳴らす。
+街・塔は入場演出があるので `openMapVillage()` の先読みで間に合う。戦闘だけは
+猶予が作れないため、マスのホバーで読むようにしてある（それでも間に合わない時は
+曲の頭が0.3〜0.8秒（曲の大きさによる）無音になる）。
+
+`playBgm()` は**読み込み済みならその場で同期に鳴らし始める**。Promiseの解決を待つと、
+戦闘開始のような重い同期処理の後ろへ回されて先読みの意味が無くなる。
+
+### 死亡効果の青い発光は、カードが消える前に出す
+
+コアは「死亡イベント → 死亡効果 → その発光」の順に出す。そのまま再生すると、
+光らせる頃にはカードが焼き落ちて盤面から消えており**青い発光が一切見えない**。
+`presentReorderDeathFlashesBeforeDeath()`（present.js）が、
+**同時に倒れた束の手前へまとめて**寄せる（1体ずつの手前へ入れると死亡の束が切れる）。
+`presentDeathBatch()` は `beat()` の後に発光を出し、`PRESENT_DEATH_FLASH_HOLD_MS` だけ待ってから焼く。
+**発光の生存チェック（hp>0）は死亡効果だけ免除する**（死亡効果は必ずHP0で起きる）。
+
+### ATKの下限は0
+
+ATKが0になると死亡する（ただし死亡効果は出ない）。負の値は作らないこと。
+コアの各 `addStats` と `js/engine/battle.js` の `_addBattleStats()`／接続強化の加算は
+すべて `Math.max(0, …)` を通す。
+
+### BGMはWeb Audioだけで鳴らす（HTMLAudioを混ぜない）
+
+BGMとサブBGM（環境音）は `js/engine/audio.js` の**Web Audio経路が唯一の実装**。
+`<audio>` は効果音だけが使う。BGMへ `new Audio()` を足さないこと。
+
+| | 使うもの |
+| --- | --- |
+| 波形 | `fetch` → `decodeAudioData` →`_bgmBufferCache`（LRU・上限 `BGM_BUFFER_BUDGET_BYTES`） |
+| 再生 | `AudioBufferSourceNode`（`loop=true`。`loopStart`/`loopEnd` は触らない＝波形の端から端） |
+| 音量・フェード | `GainNode` の `linearRampToValueAtTime` |
+| 開始位置 | `source.start(0, offset)`。2周目以降は頭から鳴る（`loopStart` が0のため） |
+| 解禁 | `AudioContext` は suspended から始まる。`unlockSfx()` で `resume()`、保留分を鳴らし直す |
+
+**なぜ移したか。** `<audio>` は切り替え時刻の精度が±10〜50msしかなく、
+「重ねる＝終端が二重に鳴る／重ねない＝無音が入る」のどちらかが必ず残っていた
+（battle3・village_grassland のループの違和感）。Web Audioはサンプル単位でつながる。
+
+気をつけること：
+
+- **`preloadSfx()` にBGMを含めない。** BGMは合計340MB近くあり、`<audio preload="auto">`
+  を作ると起動時に全部取りにいく。`_isBgmKey()`（パスが `assets/bgm/`）で外してある。
+- **メモリはデコード後で数える。** WAV32MB → Float32×2chで約60MB。全曲は載らないので
+  `_pruneBgmBuffers()` が鳴っていない曲から捨てる（鳴っている曲と環境音は必ず残す）。
+- **鳴り始めに読み込み分（0.2〜0.5秒）かかる。** `<audio>` の逐次再生と違い、波形を
+  全部読んでから鳴らすため。先に用意したい曲は `warmBgm(鍵)`。
+  解禁時に `menu`（7MB＝最小・報酬画面で毎回使う）だけ暖めてある。
+- **保留する音量はマスター音量を掛ける前の値**（`_bgmPendingRequest.volume`）。
+  掛けた後を持つと鳴らし直しで二重に掛かる。
+- 効果音は従来どおり `<audio>`。冒頭の `HTMLMediaElement.prototype.volume` ハックも
+  効果音向けで、BGMには関係しなくなった。
+
+### キーワード説明は「付与する状態異常」も続けて出す
+
+「毒牙X」の説明の下に「毒X」、「衝撃X」の下に「弱体X」を並べる（利用者指定）。
+対応は `KW_FOLLOW_UP_DESCS`（render.js）が唯一の定義。
+キーワード説明を作る場所は2つ（カードのホバー＝`_keywordOnlyPreviewText`／
+旅の進捗の敵プレビュー）あり、**両方がこの表を見る**。
+既に本人がそのキーワードを持っている場合は二重に出さない。
+
+### 発光はDOMを掴みっぱなしにしない
+
+効果発動の発光（`.effect-flash`）は、カードのDOM要素にクラスを付けて見せる。
+その要素は**再描画（`renderField`）で作り直され、攻撃モーションの複製は終了時に消える**。
+開始時に掴んだ要素へ付けたままにすると、途中で作り直された瞬間に光が消える。
+
+- `playEffectFlash()` は明滅の1回ごとに対象を引き直す（複製＋実スロット）。
+- 光っている間は `_effectFlashActive`（唯一の保持場所）に残し、
+  `renderField` が新しいスロットへ `_reapplyEffectFlash()` で付け直す。
+- 同じキャラが続けて光る時は、**後から始まった方が勝つ**（token で持ち主を確かめてから消す）。
+  確かめずに消すと、先に始めた発光の後片付けで後の光まで消える。
+
+### 攻撃効果は一撃ごとに完全に発動する（コアは済んでいる）
+
+二段・三段攻撃の2回目・3回目でも、攻撃効果はそれぞれ完全に発動する
+（`coreBattleStepInner` の追加攻撃ループが `coreApplyAttackEffects` を呼ぶ）。
+**攻撃効果を持つ全カードを機械的に検査する**手順があるので、疑ったらまずそれを回すこと
+（1手番だけ回して、1撃目と2撃目それぞれで効果イベントが出るかを数える）。
+
+**コアのイベントの順は「効果 → その一撃の attack」**。attack を区切りに集計すると、
+2撃目の効果を1撃目に数えてしまう（実際にそれで「2撃目が出ていない」と誤診した）。
+
+**再生時もイベント順は変えない。** `presentPreAttackPlan()` が一撃ごとの効果列と
+対応するattackを結び、攻撃モーションを先に始めて25%地点で停止する。
+その状態で効果を見せ、attackへ到達した時に接触まで進めることで、利用者指定の
+**「動き出す → その一撃の効果 → 接触」**を一撃ごとに繰り返す。
+
+### ATK/HPの増減は必ず表示と同時に出す
+
+`keyword_effect` は**VFXの合図**であって、数値は動かさない。ATK/HPを実際に増減させたら、
+**必ず同じ場所で `stat_change` も出す**こと。出さないと画面の数値が変わらず、
+増減の数字（「ATK-2」など）も出ない。
+邪眼（`evil_eye`）はATKを減らすのに `keyword_effect` しか出しておらず、
+**邪眼でATKが0になっても表示は元のまま**だった。
+
+### ATKが0になったら逃走する
+
+シートの「キャラクター死亡条件」のひとつ。**死亡効果は発動しない**ので、死亡ではなく
+逃走（`fled`）として盤面から外す（敵なら逃走と同じく報酬だけ入る）。
+**どうやって0になったかは問わない**（邪眼・弱体化・-X/-Yの強化・ATKへのダメージ…）。
+判定は `coreSweepAtkZeroFlee()` が唯一の実装で、**手番の終わりと開戦の終わり**にまとめて行う
+（効果の途中で一時的に0になることがあるため、その場では判定しない）。
+
+- **初期ATK0のカードはシートに存在せず、開戦でATK0になることも無い**（利用者確認済み）。
+  例外を作らず、敵味方ともATK0なら必ず外す。
+- 封印中は行動しないので見ない（解放されてから判定する）。
+- **ATKの表示は逃走の演出で触らない。** 0になる瞬間は `stat_change` が実際の時刻で見せている。
+  逃走側で0へ進め直して一拍置くと、その分だけ**逃走が1テンポ遅れて見える**。
+- **同じ瞬間に逃走する体はまとめて1回で見せる**（`presentFledBatch`）。
+  ずらし幅は開戦の登場と同じ（総尺360ms を人数で割る＝`PRESENT_FLED_STAGGER_TOTAL_MS`）。
+  **順番は画面上の左から**（配列順ではなく、スロットの left で並べ替える）。
+  盤面から外して詰めるのは**全員ぶんで1回**（1体ずつ詰めると、まだ逃げている途中の
+  カードが動いて位置がずれる）。
+- ATK0の体は手番も持たない（`coreLaneAttackCandidates`）。毒を持つ体だけは毒を受けるために
+  手番へ入るので、**毒の解決が済んだ時点で攻撃せずに手番を終える**
+  （抜けると攻撃力0のまま攻撃モーションと攻撃効果が起きる）。
+
+### 奪うのは「召喚」ではない（移動）
+
+敵を奪う（サキュバスの捕獲／死亡効果の「ランダムな前衛の敵を奪う」）は、
+**対象の体をそのまま前衛の右端へ移す**（`coreStealUnit()` が唯一の実装）。
+召喚として作り直すと、召喚の誘発（ナーガ・ウォーグ・召喚師の指輪・進軍の歌…）が
+誤って乗り、付いていた強化・状態も作り直しで失われる。
+
+- **前衛が埋まっていたら奪えない。** その時、対象の敵は**死なずにそのまま残る**
+  （以前は先にHPを0にしてから召喚していたため、奪えなくても敵だけが消えていた）。
+- 死亡効果から奪う場合は、その死亡で自陣が1体減った後に数える。
+  「7体埋まっていたが、死んだことで6体になった」なら奪える。
+- 奪えなかったことは `steal_rejected` で記録するだけ（盤面は動かないので画面には出さない）。
+- 受け口は PvE（配列を共有しているので描き直すだけ）とオンライン（配列間で移す）の2つ。
+- **ワープさせない。** 攻撃モーションと同じ「動く複製」で運ぶ（`playUnitStealMotion`）。
+  順番は **①複製を作る → ②盤面を動かす → ③新しい位置へ運ぶ**。
+  ①を先にしないと、詰め直した瞬間に移動先へカードが現れてから動く（＝ワープに見える）。
+  複製が生きている間は `renderField()` が実スロットを自動で隠す（`attack-motion-clone` のDOM判定）。
+  複製作りは `_buildMotionCardClone()` が唯一の実装（攻撃モーションと共用）。
+  **rAFだけで待たないこと**（画面が隠れたタブではrAFが止まり、再生ごと固まる）。
+- **再生を始める前に、元の位置へ複製を貼り付けておく**（`beginUnitStealPresentation`）。
+  ここが一番の肝。**PvEはコアと盤面配列を共有している**ので、`unit_stolen` が届く頃には
+  コアはとっくに体を移し終えており、再生中の最初の再描画で移動先へカードが現れる
+  （実測：`unit_stolen` の時点で敵側スロットは無く、味方側スロットが既にある＝これがワープの正体）。
+  イベント列を再生する**前**（画面がまだ前の手番の並びのうち）に複製を貼り、
+  実スロットは `_stealPendingPresent` で描かせない。その複製をそのまま運ぶ。
+- 盤面の詰め直しは `requestBattleCompact({force:true})`。奪うのは死亡効果の解決中
+  （`_pendingDeathEffects>0`）に起きるため、`forceDuringMotion` だけでは保留される。
+- **貼り付けは同期で完結させること。** ここで `await` すると、その隙の再描画で
+  カードが移動先へ現れる＝ワープする（実際にそれで一度ワープを作り直した）。
+- **矩形は `_settledRectOf()` で測る。** 詰め直し（FLIP）の途中は、実レイアウトを終点に
+  置いたうえで transform で移動元へずらしているだけなので、transform の分を引けば
+  終点が同期で分かる。素の `getBoundingClientRect()` だと「まだ動いている最中の位置」を
+  掴み、運び終わってから本来の位置へ跳ねる（＝ガクつく・変な位置へ行く）。
+- 移動は **Web Animations API** で行う。CSSのtransitionは、複製が持ち込んだ
+  インラインの transition/transform に上書きされることがある。
+- **発動時に対象の上でC090（絵＋音）を出し、1秒置いてから動き出す。**（利用者指定）
+  盤面を詰めるのは**動き出しと同時**（`STEAL_CAST_HOLD_MS` の後に `run()`）。
+  詰めを先に済ませると、まだ元の位置に貼り付いているカードの上へ他の敵が寄って重なる。
+- **C090を出して待つ間は、元陣営の並びにも描画専用の空席を残す。**
+  `beginUnitStealPresentation()` が `_stealPresent.origin` に元のレーンと位置を記録し、
+  `renderField()` がその位置を人数計算へ差し込む。実配列へ体を戻してはいけない。
+  動き出す直前に `origin.released=true` とし、複製の移動と同時に残った敵を詰める。
+- `G._vbStealProbe` に始点・終点・dx/dy・再生状態が残る。実機での切り分けに使う。
+- **走っている攻撃モーションの終わりを待ってから始める**（`_waitForBattleMotionIdle`）。
+  割り込むと、飛んでいる複製と奪う複製が同じカードを取り合い、
+  攻撃のアニメーションが消えたり着地先に二重に見えたりする。時間切れは必ず持つこと。
+- **奪われる体は死なない。** サキュバスの捕獲はコアが 死亡 → 死亡効果 → 奪う の順に出すので、
+  そのまま再生すると先にカードが焼き落ちて移動の出発点が無くなる（＝ワープに見える）。
+  同じ一撃の中で奪われる体の死亡は `presentDropDeathsOfStolen()` が落とす。
+- **奪った体は「自軍のキャラクター」ではない。** `renderField()` の `_isPlayerHero` は
+  `applyUnitVisual()`（assets.js）と同じく `_useEnemyVisualFrame` を見ること。
+  見ないと自軍キャラ用の枠（`characterFrame`＝boss_frame.png）で上書きされ、
+  奪った瞬間に敵の枠がボス枠へ変わる。
+- 動く複製は**必ず見える状態で作る**（`_buildMotionCardClone` が inline の
+  `visibility:hidden` を落とす）。攻撃モーション中のスロットを複製すると、
+  そのままでは中身の見えない複製ができる。
+
+### 指輪は「実効指輪」で数える（鏡の指輪）
+
+`coreRingCount()` は必ず `coreResolvedRings()`（鏡の指輪を右隣へ解決した一覧）を通す。
+名前で直接数えると鏡の指輪の分が落ちる（「〜の瞳の指輪が1回しか効かない」）。
+色の瞳の指輪を名前で引いている箇所も同じ一覧を見ること。
+
+### 開戦中に召喚された体にも開戦の指輪・巻物を掛ける
+
+開戦の指輪（`coreApplyOpeningRings`）と開戦のアイテム（`coreApplyOpeningItems`）は
+**開戦効果より前**に走る。開戦効果で召喚された体（複製・ミテーラ等）は盤面に居なかったので、
+そのままだと指輪のバフを1つも受け取れない。配り終えた印
+（`_openingRingsApplied` / `_openingItemsApplied`）を見て `coreSummonUnit()` 側で掛け直す。
+1体ごとに効く分は `coreApplyOpeningRingsToUnitEarly/Late` に切り出してある
+（early → 苦行 → late → 神速 の適用順を崩さないための2分割）。
+
+### 盤面の詰め直しでスロットは「自分の列の中」だけ
+
+`compactBattleUnits()` の `placeFixed()` は、前衛の体を前衛の枠、後衛の体を後衛の枠にしか
+固定しない。**スロット番号から lane を決め直してはいけない。**
+決め直していた頃は、召喚（複製など）で前衛が増えた時に前衛の体が後衛の枠番号を持ったまま
+後衛列へ居座り、本来の後衛が置き場を失って**画面から消えていた**
+（人数が変わって `_compactRecenterOnNext` が立つまで戻らない＝「続けていると出てくる」）。
+
+### 死亡効果の発動回数は「repeats × 所持枚数」
+
+`coreApplyDeathEffects()` の `repeats` は**逆襲・屍術師の指輪・`_effectRepeatBonus` による
+追加発動回数**で、`coreEffectCount(unit, 名前)` は**その効果を何枚つけているか**。
+別々の数なので、どちらか片方だけで回すと数が合わない。
+怨念・レイス・バンシー・デスナイトが `repeats * count` で正しく、
+闇の炎（枚数を見ていない）と遺志・継承（repeats を見ていない）だけがずれていた。
+死亡効果を足す時は `repeats * coreEffectCount(...)` で回すこと。
+`coreEmitEffectFlash(emit, unit, 'death', repeats)` も同じ前提で光を出している。
+
+### 同じトリガの効果は複数あり得る（文ごとに見る）
+
+`coreUnitTriggerText(unit, トリガ)` は**該当する本文を連結して返す**
+（キャラクター本体＋接続した強化カード）。連結した1本の文字列へ `^` 付きの
+正規表現を当てると、**2つ目以降の効果を拾えない**。
+（強化「複製」が他の開戦効果と併用した時だけ動かなかった／
+　強化「扇動」を攻撃効果を持つキャラへ付けると動かなかった、のどちらもこれ。）
+
+**開戦・攻撃・負傷・死亡は `coreTriggerTextParts(unit, トリガ)` で文の配列にしてから、
+`coreTriggerMatch(parts, /…/)` ／ `coreTriggerTest(parts, /…/)` で当てる。**
+新しい効果を足す時も同じ形で書くこと（`〜Text.match(...)` へ戻さない）。
+同じ文の中の条件を見たい時は、一致結果の `match.input`（＝その文）を使う。
+
+**正規表現は文の先頭に `^` を付ける。** 途中一致にすると、対象を絞った文の後半だけを
+拾ってしまう。「血の結束」の
+「このキャラクター以外の、**この効果を持つ**全ての味方は+2/+2を得る。」の末尾に
+汎用の「全ての味方は+X/+Yを得る」が当たり、その強化を持たない味方まで強化されていた。
+
+### `filter:none` を子孫まとめて当てない
+
+ドラッグ中の明るさ戻し（`body.dragzone-*` の `#hand-pane *`）のように
+**子孫すべてへ `filter:none!important`** を当てると、意図して掛けてある個別の暗転
+（戦闘配置不可のキャラのATK/HPなど）まで消える。祖先側で `filter:none` にしてあるなら
+子孫まで当てる必要は無い。当てる場合は暗転させたい要素を `:not()` で除くこと。
+
+### performance.now() を保存しない（プレイ時間）
+
+`performance.now()` はページを読み込み直すと0へ戻る。開始時刻だけを保存して
+「今 − 開始時刻」で数えると、コンティニューのたびにプレイ時間が0へ戻る。
+`runStats.playedMs`（積算）＋`startedAt`（この起動の開始）で数え、
+`serializeRunState()` の頭で `_flushRunStatsPlayTime()` を呼んで今回分を畳む。
+他の統計（味方死亡・敵撃破・最大ダメージ・最大ステータス）は `runStats` ごと
+セーブへ入っているので再開しても消えない（実測で確認済み）。
+
+### 変身したら「絵のパス」を消してから番号を入れる
+
+カードの絵は `applyCharacterArtVars()` が **art（パス）→ artCode（番号）→ 名前の表** の順に見る。
+シート由来のカード定義は番号（`no`／`artCode`）しか持たないので、変身で番号だけ入れ替えても
+旧形態の `art` が残っていると絵が変わらない（ドラゴネット→ドラゴンC104／アークドラゴンC107）。
+`coreTransformUnit()` は変身先が番号しか持たないとき `art` を空にしてから番号を入れる。
+`_assetCodeRaw()` は `no` より `artCode` を先に見るため、番号は `artCode`／`_artCode`／
+`no`／`imageNo` をまとめて置き換えること（VFX・SEも同じ番号で引かれる）。
+
+### 鍵付き乱数の鍵には「やり直した回数」も入れる
+
+報酬・指輪などは `runWithKeyedRandom('reward:<場面>:<段>')` で引く。
+開き直しても同じ内容にするための仕組みなので、**場面・段が進まない出来事**（敗北）を
+挟むと、直前と全く同じものが出る。敗北は `_waveDefeatCount`（ランに保存）で数え、
+報酬の鍵へ足してある。同じ性質の抽選を足す時も、鍵に「いつ・どこで」だけでなく
+**「何回目か」**を入れること。
+
+### 暗転オーバーレイの上に置いた要素は個別に暗くする（魔導板）
+
+`#hand-slots.unit-equip-slots .card.invalid-battle-position::before` の暗転は `z-index:50`。
+枠画像（`::after`＝`m_board_frame.svg`・`z-index:100`）、特殊マス枠（`.map-boundary-layer`）、
+マナ／生贄アイコン（`.mana-cost-orbs`・`z-index:220`）はこれより前面にあるため、
+オーバーレイでは暗くならない。暗くしたいなら `filter` を個別に当てるしかない。
+
+`invalid-battle-position` は**2つの理由**で付く。
+
+| 理由 | 付くクラス | 枠の見え方 |
+| --- | --- | --- |
+| 特殊マス以外に置かれて出撃できない | `invalid-battle-position` | 枠は**明るいまま**（仕様） |
+| HPが0になった | `invalid-battle-position` + `board-hp-zero` | 枠・コストアイコンまで暗くする |
+
+枠を明るく残す仕様を壊さずにHP0だけを暗くするため、`reward.js` の HP0 判定側で
+`board-hp-zero` を併せて付け、CSS はそのクラスにだけ `filter` を当てている。
+`item-target-ok`（アイテムの対象に選べる）の時は他の要素と同じく明るさを戻すこと。
+
+### CSSの transition を上書きしない（戦闘背景）
+
+`#scr-battle.asset-backed::before` の基底規則が「寄せ（transform）をゆっくり効かせる」
+transition を持つ。状態クラス側で `transition:` を書くと**プロパティごと差し替わり**、
+寄せが一瞬で当たる（＝急に見える）。背景の移動は JS のアニメーションで行い、
+状態クラスは静止位置だけを決めること。
+
+### 効果音を尺より先に止めない
+
+`playSfx()` の安全弁は「'ended' が来なかった時にボイス枠を解放する」ためのもので、
+解放すると音も止まる（`_freeSfxVoice` が pause する）。固定4秒にしていた頃は、
+4秒より長いSE（`boss_victory.wav`＝6.7秒）が途中で切れていた。
+解放は `duration + 0.8秒` 後にする（尺が分かるまでは `loadedmetadata` で組み直す）。
+
+戦闘の入り方（利用者指定の順番）:
+
+| | 手順 |
+| --- | --- |
+| 通常戦闘 | 画面全体をフェードインしながら**最初から少しずつ**背景を寄せる → 戦闘開始表示 → キャラ登場 |
+| エリート／ボス | **最初から寄せた状態**で寄せた画像の左上端から始める → 戦闘開始が出るまでにX軸中心へ移動 → 戦闘開始が出たら下へ移動 → キャラ登場 |
+
+**effect.webp はもう使っていない**（戦闘開始・マップとも）。
+
+### 履歴
+
+1. 攻撃前効果はイベントを並べ替えず、`presentPreAttackPlan()` で一撃ごとに
+   モーションを先出しする。奪う演出では、C090の待機中だけ
+   `_stealPresent.origin` により元陣営の空席を保持する。

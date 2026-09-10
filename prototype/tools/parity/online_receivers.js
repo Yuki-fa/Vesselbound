@@ -18,7 +18,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const core = read('js/battle/core.js');
 const board = read('js/online/board.js');
-const battle = read('js/engine/battle.js');
+const battle = [read('js/engine/battle.js'), read('js/engine/battle_events.js')].join('\n');
 const protocol = read('js/online/protocol.js');
 
 const emitted = [...new Set([...core.matchAll(/emit\(\{\s*type:\s*'([a-z_]+)'/g)].map(m => m[1]))].sort();
@@ -43,6 +43,7 @@ const NO_RECEIVER_NEEDED = {
   battle_end: '勝敗は outcome を見る',
   turn_begin: '手番の区切り。演出は無い',
   summon_rejected: '上限拒否の記録用。画面には出さない',
+  steal_rejected: '前衛が埋まっていて奪えなかった記録用。盤面は動かないので画面にも出さない',
   bonus_reward: '報酬画面で処理する',
   item_reward: '報酬画面で処理する',
   gold_spend: 'ゴールドはHUDが state から読む',

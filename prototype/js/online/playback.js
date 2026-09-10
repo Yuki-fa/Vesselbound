@@ -98,7 +98,18 @@ function _hasImmediateDamageFollowup(events, index) {
 async function playOnlineBattleEvents(result, handlers) {
   const opts = handlers || {};
   const speed = Math.max(0.1, Number(opts.speed) || 1);
-  const events = Array.isArray(result && result.events) ? result.events : [];
+  // **一撃の中の死亡は、その一撃の数値を全部出してから見せる。**
+  // 並べ替えの規則は present.js が唯一の実装（PvEと同じものを使う）。
+  // 動かすのは表示順だけで、値も勝敗もサーバーが確定済み。
+  const rawEvents = Array.isArray(result && result.events) ? result.events : [];
+  const _reordered = typeof presentReorderDeathsAfterDamageBatch === 'function'
+    ? presentReorderDeathsAfterDamageBatch(rawEvents) : rawEvents;
+  // 奪われる体は死なない（同じ一撃の中の死亡を落とす）。規則は present.js。
+  const _noStolenDeaths = typeof presentDropDeathsOfStolen === 'function'
+    ? presentDropDeathsOfStolen(_reordered) : _reordered;
+  // 死亡効果の青い発光も、カードが消える前へ寄せる（規則は present.js）。
+  const events = typeof presentReorderDeathFlashesBeforeDeath === 'function'
+    ? presentReorderDeathFlashesBeforeDeath(_noStolenDeaths) : _noStolenDeaths;
 
   // プロトコル版が食い違う場合は、勝手に再生して結果の食い違いを隠さない。
   if (result && result.protocolVersion != null && result.protocolVersion !== ONLINE_PROTOCOL_VERSION) {
@@ -173,7 +184,9 @@ async function playOnlineBattleEvents(result, handlers) {
       const u = ctx.unitById(ev.unitId);
       if (u) {
         u.atk = Math.max(0, (Number(u.atk) || 0) + (Number(ev.atk) || 0));
-        u.maxHp = Math.max(1, (Number(u.maxHp || u.hp) || 1) + (Number(ev.hp) || 0));
+        // `maxHp` が入っている時はそちらが最大HPの増減（毒＝HPだけ減って最大HPは変わらない）。
+        u.maxHp = Math.max(1, (Number(u.maxHp || u.hp) || 1)
+          + (Number(ev.maxHp !== undefined ? ev.maxHp : ev.hp) || 0));
         u.hp = Math.max(0, (Number(u.hp) || 0) + (Number(ev.hp) || 0));
       }
     } else if (ev.type === 'keyword_effect') {

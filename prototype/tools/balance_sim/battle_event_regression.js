@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const cp = require('node:child_process');
 const core = require('../../js/battle/core');
+const present = require('../../js/battle/present');
 const {createSeededRng} = require('../../js/online/protocol');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -95,6 +96,49 @@ function runDeferredManaScenario() {
   assert.equal(state.units.p1[0].atk, 1, 'VFX開始前にマナ効果のATKが反映されている');
   core.coreRestoreDeferredState(state, threshold.deferredAfter);
   assert.equal(state.units.p1[0].atk, 3, 'マナVFX開始時の状態復元に失敗');
+}
+
+function runSkeletonKingAndMultiHitScenario() {
+  const makeState = desc => {
+    const state = core.createBattleState({
+      sides: {
+        p1: {units: [{id: 'king', name: 'スケルトンキング', atk: 3, hp: 12, maxHp: 12,
+          keywords: ['復活'], desc}]},
+        p2: {units: [{id: 'target', name: '標的', atk: 1, hp: 30, maxHp: 30}]},
+      },
+      summonDefs: [{name: '青スケルトン', power: 1, life: 8, color: '青'}],
+    });
+    state._coreFirstSide = 'p1';
+    const events = [];
+    core.runBattleCore(state, createSeededRng(81), {onEvent: e => events.push(e), turnLimit: 1});
+    return events;
+  };
+  const base = makeState('復活\n攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。');
+  const attacks = base.filter(e => e.type === 'attack');
+  assert.equal(base.filter(e => e.type === 'summon').length, 1, 'スケルトンキングが青スケルトンを1体召喚していない');
+  assert.equal(attacks[0] && attacks[0].attackerId !== 'king', true, '青スケルトンが本体より先に攻撃していない');
+  assert.equal(attacks[1] && attacks[1].attackerId, 'king', '青スケルトンの後にスケルトンキング本体が攻撃していない');
+  assert.equal(attacks[0] && attacks[0].targetId, attacks[1] && attacks[1].targetId,
+    '青スケルトンとスケルトンキングの攻撃対象が一致していない');
+
+  const merged = makeState('復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。');
+  assert.equal(merged.filter(e => e.type === 'summon').length, 2, '合体後スケルトンキングの召喚数が2体ではない');
+  assert.equal(merged.filter(e => e.type === 'attack').at(-1).attackerId, 'king',
+    '合体後も召喚体の後に本体が攻撃していない');
+
+  const finish = core.createBattleState({
+    sides: {
+      p1: {units: [{id: 'siren', name: 'サイレン', atk: 3, hp: 10, maxHp: 10,
+        keywords: ['二段攻撃'], desc: '攻撃：全てのキャラクターに1ダメージを与える。'}]},
+      p2: {units: [{id: 'last', name: '標的', atk: 1, hp: 1, maxHp: 1}]},
+    },
+  });
+  finish._coreFirstSide = 'p1';
+  const finishEvents = [];
+  const outcome = core.runBattleCore(finish, createSeededRng(82), {onEvent: e => finishEvents.push(e)});
+  assert.equal(outcome.outcome, 'p1', '攻撃効果で勝利確定後に勝敗が確定していない');
+  assert.equal(finishEvents.filter(e => e.type === 'attack').length, 0,
+    '攻撃効果で全滅した後も接触攻撃／多段攻撃を続けている');
 }
 
 function runManaSummonLichScenario() {
@@ -189,9 +233,13 @@ function runSuccubusCaptureScenario() {
   const events = [];
   core.coreApplyDeathEffects(victim, state, createSeededRng(31), e => events.push(e),
     (source, target, amount, counter) => core.coreResolveHit(state, source, target, amount, counter, createSeededRng(31), e => events.push(e)));
-  const summon = events.find(e => e.type === 'summon');
-  assert.ok(summon, 'サキュバスの撃破時召喚が発生していない');
-  assert.equal(summon.unit._useEnemyVisualFrame, true, 'サキュバスの仲間化ユニットが敵枠を保持していない');
+  // **奪うのは移動であって召喚ではない**（利用者指定。core.js の coreStealUnit）。
+  const stolen = events.find(e => e.type === 'unit_stolen');
+  assert.ok(stolen, 'サキュバスの撃破時の仲間化（unit_stolen）が発生していない');
+  assert.equal(stolen.unit._useEnemyVisualFrame, true, 'サキュバスの仲間化ユニットが敵枠を保持していない');
+  assert.equal(stolen.toSide, 'p1', 'サキュバスの仲間化が味方側へ移っていない');
+  assert.equal(state.units.p2.length, 0, '奪った体が敵陣に残っている');
+  assert.equal(state.units.p1.filter(u => u && u.id === 'victim').length, 1, '奪った体が味方陣に入っていない');
 
   // coreResolveHit() は死亡効果まで同期的に解決する。戦闘ループ側に同じ
   // 撃破後召喚を残すと、1回の撃破で仲間化が2体になり、配置・後続攻撃対象が崩れる。
@@ -207,8 +255,8 @@ function runSuccubusCaptureScenario() {
     core.coreResolveHit(liveState, source, target, amount, counter, createSeededRng(32), e => liveEvents.push(e));
   liveState.units.p1[0]._coreAttackContact = true;
   liveHit(liveState.units.p1[0], liveState.units.p2[0], 6, false);
-  assert.equal(liveEvents.filter(e => e.type === 'summon').length, 1,
-    'サキュバスの1回の撃破で仲間化召喚が二重発生している');
+  assert.equal(liveEvents.filter(e => e.type === 'unit_stolen').length, 1,
+    'サキュバスの1回の撃破で仲間化が二重発生している');
 
   // 反撃で死亡したキャラクターは「サキュバスが攻撃で倒した敵」ではない。
   // counter情報が死亡効果まで届かないと、反撃時だけ仲間化が誤発動する。
@@ -269,7 +317,7 @@ function runSummonLimitScenario() {
 }
 
 function main() {
-  const currentBattle = read('js/engine/battle.js');
+  const currentBattle = [read('js/engine/battle.js'), read('js/engine/battle_events.js')].join('\n');
   const oldBattle = oldRead('js/engine/battle.js');
   const playback = read('js/online/playback.js');
   const board = read('js/online/board.js');
@@ -304,6 +352,7 @@ function main() {
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
   runDeferredManaScenario();
+  runSkeletonKingAndMultiHitScenario();
   runManaSummonLichScenario();
   runPersistentDeathObserverScenario();
   runSuccubusCaptureScenario();
@@ -411,11 +460,10 @@ function main() {
     'オンラインが決着後の暗転を保っていない');
   assert.match(read('js/online/board.js'), /_scheduleClear\(\); return; \}/,
     'オンラインが途中で抜けた時に暗転を外していない（画面が暗いままになる）');
-  // 身代わり攻撃でも手番は消費される。渡さないと同じ側が行動し続け、
-  // 相手の攻撃ターンが一度も来ない（味方がスケルトンキングだけの時に無限化した）。
+  // スケルトンキングは召喚体の攻撃後に本体も同じ対象へ攻撃する。
   assert.match(read('js/battle/core.js'),
-    /if \(attackEffectResult\.skipAttack\) \{\n\s*result = decided\(\);\n\s*side = foeSide;/,
-    '身代わり攻撃のあと手番を渡していない（相手のターンが来なくなる）');
+    /result\.lockTarget = true;/,
+    'スケルトンキング本体の攻撃対象が召喚体と同じ対象へ固定されていない');
   // 強化カード由来のマナ効果は effectData で届く。ここを見ないと、閾値だけ発火して
   // 効果が何も起きない（オンラインで活性化などが無反応になっていた）。
   {
@@ -476,8 +524,12 @@ function main() {
     const render = read('js/engine/render.js');
     // 再生中に倒れた体はカードを残す。ここをhp>0に戻すと、数値・個別VFXが
     // 位置指定のない空枠へ吸い寄せられ「何もない場所」に出る。
-    assert.match(render, /const _alive=!!u&&\(u\.hp>0\|\|_pendingDeath\);/,
+    assert.match(render, /const _alive=!!u&&\(_visualHp\(u\)>0\|\|_pendingDeath\);/,
       '描画が死亡直後の体を保持していない');
+    assert.match(render, /const _visualHp=u=>_keepDying&&typeof presentShownHp==='function'\?presentShownHp\(u\)/,
+      '多段攻撃中の復活を表示HPで再描画していない');
+    assert.match(read('js/battle/present_events.js'), /delete unit\._deathFxReady;[\s\S]*delete unit\._deathFxDone;/,
+      '復活時に直前の死亡演出フラグを解除していない');
     assert.match(render, /\n    if\(_alive\)\{/,
       'カード本体の描画条件が hp>0 のまま（死亡直後に数値の行き先が消える）');
     assert.match(render, /if\(u&&\(!isEnemy\|\|_alive\)\)\{/,
@@ -528,10 +580,17 @@ function main() {
     // 数値を出し終えた印は共通実装が付ける。無いと倒れたカードが再生の終わりまで残る。
     assert.match(read('js/battle/present_events.js'), /unit\._deathFxReady = true;/,
       '死亡演出の共通実装が開始印を付けていない');
-    assert.match(read('js/battle/present_events.js'), /async function presentDeathEvent\(ev, api\)/,
+    assert.match(read('js/battle/present_events.js'), /async function presentDeathBatch\(evs, api\)/,
       '死亡演出の共通実装が無い');
+    assert.match(read('js/battle/present_events.js'), /async function presentDeathEvent\(ev, api\)/,
+      '死亡演出の1件版（共通実装への委譲）が無い');
+    // 同じ瞬間に倒れた体は、まとめて1回で見せる（1体ずつ待つと順に消えていく）。
+    assert.match(read('js/battle/present.js'), /function presentDeathBatchEvents\(events, index\)/,
+      '同時death の束の規則が present.js に無い');
     [['PvE', currentBattle], ['オンライン', board]].forEach(([name, src]) => {
-      assert.match(src, /presentDeathEvent\(/, `${name}が死亡演出の共通実装を呼んでいない`);
+      assert.match(src, /presentDeathBatch\(/, `${name}が死亡演出の共通実装を呼んでいない`);
+      assert.match(src, /presentDeathBatchEvents\(/,
+        `${name}が同時deathの束を present.js から引いていない`);
       assert.match(src, /presentTransformEvent\(/, `${name}が変身演出の共通実装を呼んでいない`);
       assert.match(src, /presentManaThresholdEvent\(/, `${name}がマナ効果の共通実装を呼んでいない`);
     });
@@ -557,7 +616,7 @@ function main() {
     assert.doesNotMatch(currentBattle, /code==='C001'\|\|code==='C002'\|\|code==='C003'/,
       '固有VFXの大きさの一覧を呼び出し側が持っている（present.jsへ戻すこと）');
     // 死亡演出に入るまでは暗くしない。暗くすると「死体が場に残る」ように見える。
-    assert.match(read('js/engine/render.js'), /if\(u\.hp<=0&&!_pendingDeath\) slot\.classList\.add\('dead-unit'\);/,
+    assert.match(read('js/engine/render.js'), /if\(_visualHp\(u\)<=0&&!_pendingDeath\) slot\.classList\.add\('dead-unit'\);/,
       '数値を出し切る間の体まで暗くしている');
     // 攻撃モーション中は実スロットを必ず隠す。敵スロットには
     // `body #f-enemy .slot{visibility:visible!important}` が当たっており、
@@ -666,7 +725,8 @@ function main() {
   assert.match(read('js/battle/present_events.js'), /api\.waveGate\.shouldPlay\(presentManaWaveKey\(ev\)\)/,
     'マナ効果の同時発動を1回にまとめていない（1体ずつ順に上がる）');
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
-    assert.match(read(name), /waveEvents:|waveEvents: /,
+    const src=name==='js/engine/battle.js'?currentBattle:read(name);
+    assert.match(src, /waveEvents:|waveEvents: /,
       `${name}が同じ瞬間のマナ効果を先読みしていない`);
   });
   // 戦闘中のマナの数字は #battle-mana-value（renderBattleCounters）が出す。
@@ -690,13 +750,13 @@ function main() {
   assert.match(read('js/engine/render.js'), /^async function playProjectileEffectVfx\(/m,
     'render.jsに「発生元から対象へ飛ぶ効果VFX」の実装が無い');
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
-    const src = read(name);
+    const src = name==='js/engine/battle.js'?currentBattle:read(name);
     assert.match(src, /_playManaEffectProjectiles\(/, `${name}が飛ばす効果を再生していない`);
     assert.match(src, /markShown\(shot\.ev\)/, `${name}が着弾で出す数値を通常経路から外していない`);
   });
   // マナ効果VFX・SEはひと続きにつき1回。そのあとは効果固有のVFX/SEを発動回数ぶん。
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
-    const src = read(name);
+    const src = name==='js/engine/battle.js'?currentBattle:read(name);
     assert.match(src, /_playManaEffectPulse\(/,
       `${name}が効果固有の演出（発動回数ぶん）を出していない`);
     assert.match(src, /getEffectSfxKey\s*\(\s*effectNo\s*\)\s*\)\s*\|\|\s*''/,
@@ -706,7 +766,7 @@ function main() {
       /'K023'/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
   });
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
-    const src = read(name);
+    const src = name==='js/engine/battle.js'?currentBattle:read(name);
     assert.match(src, /_endManaEffectRun\s*\(\s*\)\s*\{/,
       `${name}にひと続きのマナ効果を終わらせる処理が無い`);
     assert.match(src, /presentBreaksManaRun\(ev?\)[\s\S]{0,220}_endManaEffectRun\(\)/,
@@ -817,24 +877,70 @@ function main() {
     '開戦時の後衛配置まで消している（編成どおりに並ばなくなる）');
   assert.match(read('js/battle/core.js'), /const frontFull = liveFront >= frontSlots;/,
     'コアが前衛の空きを見ずに召喚している（PvEだけ拒否すると内部と画面がずれる）');
-  assert.doesNotMatch(currentBattle, /e\.atk=3; e\.baseAtk=3;[\s\S]*e\.maxHp=500; e\.hp=500;/,
-    'デバッグ試験戦闘で敵ステータスを上書きしている');
+  assert.match(currentBattle, /function _generateFixedTestBattleEnemies\(floor\)[\s\S]*G\._mapBattle=null;/,
+    'デバッグ試験戦闘へ通常戦闘のnode情報が混入している');
   assert.match(currentBattle, /\} else if\(attacker&&target&&typeof playAttackMotion==='function'\)/,
     '即時攻撃イベントを対象のHP0判定で演出ごとスキップしている');
   assert.equal(count(currentBattle, /await playAttackMotion\(/g), 5,
     'PvEのplayAttackMotion呼び出し数が想定外に変化している');
   // 攻撃効果は「少し動き出した時点」で見せる。攻撃より前に効果があるときは、
   // 先にモーションを始めて25%地点で止め、効果を見せてから接触まで進める。
-  assert.match(currentBattle, /const _preAttackHasEffects=/,
+  assert.match(currentBattle, /presentPreAttackPlan\(eventList,eventIndex\)/,
     'PvEが攻撃効果を攻撃モーションより先に出したままになっている');
-  assert.match(read('js/online/board.js'), /_preAttack = _startAttackMotion\(atkEv, ctx, true\)/,
+  assert.match(read('js/online/board.js'), /presentPreAttackPlan\(\(ctx && ctx\.events\) \|\| \[\], Number\(ctx && ctx\.eventIndex\)\)/,
     'オンラインが攻撃効果を攻撃モーションより先に出したままになっている');
   // 先出しモーションは「効果を起こした本人」の攻撃を掴む。最初のattackを掴むと、
   // ミノタウロスの割り込み攻撃を先出ししてしまう。
-  assert.match(currentBattle, /const _preAttackActorId=/,
+  assert.match(read('js/battle/present.js'), /function presentPreAttackPlan\(events, fromIndex\)/,
     'PvEの先出しモーションが効果の発生元を見ていない');
-  assert.match(read('js/online/board.js'), /if \(actorId != null && String\(n\.attackerId\) === actorId\)/,
-    'オンラインの先出しモーションが効果の発生元を見ていない');
+  const twoStrikeEvents=[
+    {type:'turn_begin'},
+    {type:'effect_flash',unitId:'siren',trigger:'attack'},
+    {type:'damage',effect:true,sourceId:'siren',unitId:'enemy'},
+    {type:'attack',attackerId:'siren',targetId:'enemy'},
+    {type:'damage',effect:false,sourceId:'siren',unitId:'enemy'},
+    {type:'effect_flash',unitId:'siren',trigger:'attack'},
+    {type:'damage',effect:true,sourceId:'siren',unitId:'enemy'},
+    {type:'attack',attackerId:'siren',targetId:'enemy'},
+  ];
+  assert.equal(present.presentPreAttackPlan(twoStrikeEvents,0).event,twoStrikeEvents[3],
+    '二段攻撃の1撃目が攻撃前効果へ対応していない');
+  assert.equal(present.presentPreAttackPlan(twoStrikeEvents,5).event,twoStrikeEvents[7],
+    '二段攻撃の2撃目が攻撃前効果へ対応していない');
+  assert.equal(present.presentPreAttackPlan(twoStrikeEvents,4),null,
+    '前の一撃の接触ダメージ中に次の攻撃モーションを始めている');
+  const twoSweepEvents=[
+    {type:'sweep_vfx',side:'p1',unitId:'siren',targetIds:['enemy']},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'siren',effect:true,amount:1,hpAfter:9},
+    {type:'attack',side:'p1',attackerId:'siren',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'siren',effect:false,amount:2,hpAfter:7},
+    {type:'sweep_vfx',side:'p1',unitId:'siren',targetIds:['enemy']},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'siren',effect:true,amount:1,hpAfter:6},
+    {type:'attack',side:'p1',attackerId:'siren',targetId:'enemy'},
+  ];
+  assert.equal(present.presentSweepDamageEvents(twoSweepEvents,0,twoSweepEvents[0]).get('p2:enemy'),twoSweepEvents[1],
+    '1撃目の薙ぎ払いが別の一撃のダメージを先取りしている');
+  assert.equal(present.presentSweepDamageEvents(twoSweepEvents,4,twoSweepEvents[4]).get('p2:enemy'),twoSweepEvents[5],
+    '2撃目の薙ぎ払いが1撃目のダメージへ戻っている');
+  assert.doesNotMatch(currentBattle, /for\(const e of \(events\|\|\[\]\)\.filter\(x=>x&&x\.type==='sweep_vfx'\)\)/,
+    'PvEが全ての薙ぎ払いをイベント再生より前にまとめて出している');
+  const centaur={id:'centaur',no:'C019'};
+  assert.equal(present.presentDamageVfxSource(
+    {effect:true,damageKind:'injury_effect'},null,centaur,
+    ()=>'攻撃：ランダムな敵に2ダメージを与える。'),null,
+  '付与された負傷効果でキャラクター自身の攻撃効果VFXが出ている');
+  assert.equal(present.presentDamageVfxSource(
+    {effect:true,damageKind:'attack_effect'},null,centaur,
+    ()=>'攻撃：ランダムな敵に2ダメージを与える。'),centaur,
+  'キャラクター自身の攻撃効果で固有VFXが出ない');
+  assert.equal(present.presentStatChangeVfxCode(
+    {sourceId:'centaur',reason:'injury_self_buff'},'C019',
+    {codes:['C019'],ownEffectText:'攻撃：ランダムな敵に2ダメージを与える。'}),'S006',
+  '付与された負傷バフでキャラクター自身の固有VFXが出ている');
+  assert.equal(present.presentStatChangeVfxCode(
+    {sourceId:'golem',reason:'golem'},'C003',
+    {codes:['C003'],ownEffectText:'負傷：このキャラクターは+2/+2を得る。'}),'C003',
+  'キャラクター本来の負傷効果で固有VFXが出ない');
   // 「全てのキャラクター」に自分自身は含めない。
   assert.match(read('js/battle/core.js'), /\[\.\.\.allies, \.\.\.foes\]\.filter\(x => x !== unit && x\.hp > 0/,
     '全体ダメージが自分自身も対象にしている');
@@ -843,7 +949,9 @@ function main() {
     '封印解放演出の共通実装が無い');
   [['PvE', currentBattle], ['オンライン', read('js/online/board.js')]].forEach(([name, src]) => {
     assert.match(src, /presentSealReleaseEvent\(/, `${name}が封印解放演出の共通実装を呼んでいない`);
-    assert.match(src, /presentFledEvent\(/, `${name}が逃走演出の共通実装を呼んでいない`);
+    // 逃走は「同じ瞬間の分をまとめて1回」で見せる（presentFledBatch）。
+    // 1件だけの受け口は presentFledEvent がそのまま束へ委譲する。
+    assert.match(src, /presentFled(?:Event|Batch)\(/, `${name}が逃走演出の共通実装を呼んでいない`);
     assert.match(src, /presentShieldLostEvent\(/, `${name}が結界喪失演出の共通実装を呼んでいない`);
   });
   // 音源は使い回す。毎回cloneNode()すると読み込みからやり直しになり、
@@ -864,7 +972,7 @@ function main() {
     /if\(attacker&&target&&typeof playAttackMotion==='function'\)\{[\s\S]*beginBattleMotion\(\);[\s\S]*try\{[\s\S]*await playAttackMotion\([\s\S]*finally \{[\s\S]*endBattleMotion\(\);/,
     'PvEのコア効果由来playAttackMotionがbeginBattleMotionで保護されていない');
   assert.match(board,
-    /const motionDepthStarted = typeof beginBattleMotion === 'function';[\s\S]*if \(motionDepthStarted\) beginBattleMotion\(\);[\s\S]*_motion = playAttackMotion\([\s\S]*await _awaitMotion\(\); \}[\s\S]*finally \{ if \(motionDepthStarted\) endBattleMotion\(\); \}/,
+    /const motionDepthStarted = typeof beginBattleMotion === 'function';[\s\S]*if \(motionDepthStarted\) beginBattleMotion\(\);[\s\S]*_motion = playAttackMotion\([\s\S]*await _awaitMotion\(\); \}[\s\S]*finally \{[^}]*if \(motionDepthStarted\) endBattleMotion\(\); \}/,
     'オンラインのplayAttackMotionが完了待ちを含むbegin/endBattleMotionで保護されていない');
   assert.match(render, /targetRectOverride=opt\.targetRect[\s\S]*!toEl&&!targetRectOverride/,
     '即時攻撃の対象DOMが死亡後に消えた場合の攻撃モーション矩形フォールバックがない');

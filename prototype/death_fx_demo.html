@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>死亡演出の確認 — Vesselbound</title>
+<style>
+  /* ── このページだけの見た目 ───────────────────────────── */
+  body{margin:0;background:#12100e;color:#e8dcc4;font-family:"Shippori Mincho",serif;}
+  header{padding:18px 24px 6px;}
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:.06em;color:#e8d296}
+  p.note{margin:0;font-size:13px;line-height:1.7;color:#a99a80;max-width:900px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;padding:14px 24px 18px}
+  button{font-family:inherit;font-size:14px;padding:9px 18px;border-radius:6px;cursor:pointer;
+    background:#241609;color:#f0dfc4;border:1px solid #c49a6c}
+  button:hover{background:#33200d}
+  .stage{position:relative;height:520px;margin:0 24px 24px;border:1px solid #3a2b18;border-radius:8px;
+    background:#0b0906 url("assets/art/backgrounds/stage_grassland.webp") center/cover no-repeat;overflow:hidden}
+  .demo-card{position:absolute;left:60px;top:110px;width:260px;height:395px;
+    background:#160b03;border-radius:14px;overflow:hidden;
+    box-shadow:0 8px 24px rgba(0,0,0,.6)}
+  .demo-card .art{position:absolute;inset:0;background:center/cover no-repeat}
+  .demo-card .frame{position:absolute;inset:0;background:url("assets/cards/summon_frame1.png") center/100% 100% no-repeat}
+  .demo-card .nm{position:absolute;left:0;right:0;top:56%;text-align:center;font-size:22px;color:#fff5dd;
+    text-shadow:0 2px 4px #000}
+  .demo-card .st{position:absolute;left:0;right:0;bottom:8%;font-size:40px;color:#eefddd;
+    text-shadow:0 3px 5px rgba(0,0,0,.95)}
+  .demo-card .st .a{position:absolute;left:12%}
+  .demo-card .st .h{position:absolute;right:12%;color:#ffe8dd}
+  .lbl{position:absolute;left:60px;top:70px;font-size:14px;color:#c9b48f}
+</style>
+</head>
+<body>
+<header>
+  <h1>死亡演出の確認</h1>
+  <p class="note">
+    ゲーム本体と同じ実装（<code>index.html</code> のCSSと <code>js/engine/render.js</code>）をそのまま読み込んでいます。<br>
+    <b>焼失</b>＝ダメージでHPが0になった時。<b>青い波打ち＋WASTED</b>＝ダメージではなく戦闘修正でHPが0になった時。
+  </p>
+</header>
+<div class="bar">
+  <button id="btn-burn">焼失（ダメージで死亡）</button>
+  <button id="btn-wave">青い波打ち（戦闘修正で死亡）</button>
+  <button id="btn-both">続けて両方</button>
+  <button id="btn-reset">カードを戻す</button>
+</div>
+<div class="stage" id="stage">
+  <div class="lbl" id="lbl">クリックで再生</div>
+  <div class="demo-card" id="card">
+    <div class="art" id="art"></div>
+    <div class="frame"></div>
+    <div class="nm">ゴーレム</div>
+    <div class="st"><span class="a">2</span><span class="h">4</span></div>
+  </div>
+</div>
+
+<!-- 歪ませ用のSVGフィルタ置き場。render.js がここへ filter を足す。 -->
+<svg id="death-burn-filters" width="0" height="0" style="position:absolute" aria-hidden="true"></svg>
+
+<script>
+  // render.js は #vfx-clip-root / _vfxHostParent() を使う。このページには無いので body を返す。
+  function _vfxHostParent(){ return document.body; }
+
+  // **CSSは複製しない。** index.html の <style> から死亡演出の規則だけを抜いて読み込む。
+  // ここへ書き写すと本体と二重管理になり、片方だけ直った状態が生まれる。
+  // 切り出しは自前で構文解析せず、**ブラウザのCSSパーサに読ませてから選ぶ**。
+  // （コメントや @keyframes の入れ子を正規表現で切ると取りこぼす）
+  async function loadDeathCss(){
+    const html=await (await fetch('index.html?fx='+Date.now())).text();
+    // **<style> は1つとは限らない。** index.html には2つあり、後ろの方に
+    // 後から足した規則が入る。全部つなげて読む。
+    const css=[...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m=>m[1]).join('\n');
+    // media="not all" で読み込むと、規則は解析されるがこのページには適用されない。
+    const probe=document.createElement('style');
+    probe.media='not all';
+    probe.textContent=css;
+    document.head.appendChild(probe);
+    const rules=probe.sheet?Array.from(probe.sheet.cssRules):[];
+    const keep=rules.filter(r=>{
+      const kind=r.constructor.name;
+      // @property（--death-* の登録）も要る。これが無いと custom property を
+      // なめらかに補間できず、途中で値が飛ぶ。
+      if(kind==='CSSPropertyRule') return /death-/.test(r.name||'');
+      if(r.type===CSSRule.KEYFRAMES_RULE||kind==='CSSKeyframesRule') return /death-|fledDrop/.test(r.name||'');
+      return /death-|wasted-|fled-label/.test(r.selectorText||'');
+    }).map(r=>r.cssText);
+    probe.remove();
+    const st=document.createElement('style');
+    st.id='death-fx-css';
+    st.textContent=keep.join('\n');
+    document.head.appendChild(st);
+    return keep.length;
+  }
+</script>
+<script src="js/engine/render.js"></script>
+<script>
+  loadDeathCss().then(n=>{
+    document.getElementById('lbl').textContent='読み込んだ規則 '+n+' 件。クリックで再生';
+  }).catch(e=>{
+    document.getElementById('lbl').textContent='CSSの読み込みに失敗: '+e;
+  });
+
+  const card=document.getElementById('card');
+  const art=document.getElementById('art');
+  const lbl=document.getElementById('lbl');
+  art.style.backgroundImage='url("assets/art/characters/C003.jpg"), url("assets/art/characters/C003.png")';
+
+  const rectOf=()=>card.getBoundingClientRect();
+  const show=()=>{ card.style.visibility=''; lbl.textContent='クリックで再生'; };
+  const hide=()=>{ card.style.visibility='hidden'; };
+
+  function play(kind){
+    const rect=rectOf();
+    const clone=card.cloneNode(true);
+    clone.removeAttribute('id');
+    hide();
+    lbl.textContent = kind==='wave' ? '青い波打ち（戦闘修正で死亡）' : '焼失（ダメージで死亡）';
+    const size={width:card.offsetWidth,height:card.offsetHeight};
+    if(kind==='wave'){
+      playCardWaveAway(clone,rect,size);
+      // 実戦と同じく「WASTED」も一緒に出す。
+      if(typeof playWastedLabel==='function') playWastedLabel(rect);
+    }else{
+      playCardBurnAway(clone,rect,size);
+    }
+  }
+
+  document.getElementById('btn-burn').onclick=()=>play('burn');
+  document.getElementById('btn-wave').onclick=()=>play('wave');
+  document.getElementById('btn-reset').onclick=show;
+  document.getElementById('btn-both').onclick=async()=>{
+    play('burn');
+    await new Promise(r=>setTimeout(r,1600));
+    show();
+    await new Promise(r=>setTimeout(r,200));
+    play('wave');
+  };
+</script>
+</body>
+</html>

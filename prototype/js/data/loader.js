@@ -620,6 +620,10 @@ async function loadGameData() {
         const scene = String(row['場面'] ?? row['__col0'] ?? '').trim();
         const text = String(row['テキスト'] ?? row['__col1'] ?? '').trim();
         if (!scene || !text) return;
+        // シートは「見出し」「ボタン」などの区分ごとに見出し行を挟む形になっている。
+        // 区分名の行（2列目が空）は上の !text で落ち、区分ごとに繰り返される
+        // ヘッダー行（場面,テキスト,備考）はここで落とす。
+        if (scene === '場面' && text === 'テキスト') return;
         messages[scene] = text;
       });
       window.TEXT_MESSAGES = messages;
@@ -940,6 +944,12 @@ async function loadGameData() {
       if (m) panel.adjacentHpBonus = parseInt(m[1], 10) || 0;
       m = desc.match(/常時：\s*(?:このキャラクターは\s*)?ATK\+(\d+)/);
       if (m) panel.adjacentAtkBonus = parseInt(m[1], 10) || 0;
+      // **減らす書き方（HP-5／ATK-3）も読む。**（呪われた壺＝常時：このキャラクターはHP-5を得る。）
+      // 読めないと、効果文を変えただけで強化が何もしないカードになる。
+      m = desc.match(/常時：\s*(?:このキャラクターは\s*)?HP-(\d+)/);
+      if (m) panel.adjacentHpBonus = -(parseInt(m[1], 10) || 0);
+      m = desc.match(/常時：\s*(?:このキャラクターは\s*)?ATK-(\d+)/);
+      if (m) panel.adjacentAtkBonus = -(parseInt(m[1], 10) || 0);
       m = desc.match(new RegExp(`常時：\\s*${selfTarget}-(\\d+)\\s*\\/\\s*-(\\d+)`));
       if (m) {
         panel.adjacentAtkBonus = -(parseInt(m[1], 10) || 0);
@@ -961,17 +971,21 @@ async function loadGameData() {
         if(!panel.adjacentKeywords.some(k=>/^封印\d+$/.test(k))) panel.adjacentKeywords.push('封印1');
         panel.releaseAtkBonus=20; panel.releaseHpBonus=20;
       }
-      if(panel.name==='炎の矢'){
-        panel.manaCost=1; panel.manaRepeat=true;
-        panel._manaThresholdDesc='ランダムな敵に4ダメージを与える。';
-      }
       const releaseBuff=desc.match(/解放[:：]\s*\+(\d+)\s*\/\s*\+(\d+)/);
       if(releaseBuff){ panel.releaseAtkBonus=parseInt(releaseBuff[1],10)||0; panel.releaseHpBonus=parseInt(releaseBuff[2],10)||0; }
       const attackMana = desc.match(/攻撃：\s*(?:[赤青緑黄紫茶])?\s*(\d*)マナを?得る/);
       if (attackMana) panel.manaOnAttack = parseInt(attackMana[1], 10) || 1;
-      const shield = `${desc} ${panel.name || ''}`.match(/結界\s*(\d*)/);
+      // **効果文の中のキーワードは、このカードが接続先へ付けるものとは限らない。**
+      // 例）栄光の歌「常時：このキャラクターが召喚したキャラクターは結界1を得る。」は
+      //     召喚された側が得るもので、**このカードを付けたキャラクターには付かない**。
+      // 付与として読むのは「トリガの前置きが無い＝素のキーワード行」だけにする。
+      // （シートは付与キーワードを「キーワード」列に書く。ここは列が空の古いデータ用の保険）
+      const bareDesc = String(desc || '').split(/\n/)
+        .filter(line => !/^\s*(?:常時|開戦|攻撃|負傷|死亡|終戦|解放|マナ|\d+マナ)/.test(line))
+        .join('\n');
+      const shield = `${bareDesc} ${panel.name || ''}`.match(/結界\s*(\d*)/);
       if (shield) panel.adjacentKeywords.push('結界' + (shield[1] || '1'));
-      const seal = desc.match(/封印\s*(\d+)/);
+      const seal = bareDesc.match(/封印\s*(\d+)/);
       if (seal) panel.adjacentKeywords.push('封印' + (seal[1] || '1'));
       if (/死亡：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/.test(desc) && !panel.adjacentKeywords.includes('狂気')) {
         panel.adjacentKeywords.push('狂気');
@@ -979,9 +993,9 @@ async function loadGameData() {
       if (/開戦：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/.test(desc) && !panel.adjacentKeywords.includes('野生の力')) {
         panel.adjacentKeywords.push('野生の力');
       }
-      const evilEye = desc.match(/邪眼\s*(\d*)/);
+      const evilEye = bareDesc.match(/邪眼\s*(\d*)/);
       if (evilEye) panel.adjacentKeywords.push('邪眼' + (evilEye[1] || '1'));
-      const weaken = desc.match(/衝撃\s*(\d*)/);
+      const weaken = bareDesc.match(/衝撃\s*(\d*)/);
       if (weaken) panel.adjacentKeywords.push('衝撃' + (weaken[1] || '1'));
       const tough = desc.match(/強靭\s*(\d*)/);
       if (tough) panel.adjacentKeywords.push('強靭' + (tough[1] || '1'));
@@ -992,11 +1006,10 @@ async function loadGameData() {
       if (/三方向/.test(desc)) panel.directionCount = 3;
       else if (/四方向/.test(desc)) panel.directionCount = 4;
       else if (panel.directionCount == null) panel.directionCount = 2;
+      // **マナのコストと本文はシートの効果文から読む（_setManaThresholdFromDescが唯一の実装）。**
+      // 以前はここで「炎の矢」だけ manaCost=1 に固定していたため、シートが
+      // 「2マナ毎」でも1マナごとに撃っていた。カード名での上書きはしないこと。
       _setManaThresholdFromDesc(panel);
-      if(panel.name==='炎の矢'){
-        panel.manaCost=1; panel.manaRepeat=true;
-        panel._manaThresholdDesc='ランダムな敵に4ダメージを与える。';
-      }
     };
     // ── 合体後の姿（シートの「合体効果」列）─────────────────────────
     // **合体後の効果・キーワードはシートが唯一の出どころ。**
@@ -1275,6 +1288,17 @@ async function loadGameData() {
       );
       if (_seenPanelIds.has(panel.id)) return; // 既に別の行で同期済みのIDは再上書きしない（同名衝突対策）
       _seenPanelIds.add(panel.id);
+      // **No.で引けて名前だけ違う＝シートで改名された。** シートの名前へ揃える。
+      // 名前一致で引けた場合は改名ではないので触らない。
+      // （E016が「即死」から「隠密」へ変わった時、コード側の旧名が残ったままで、
+      //   シート上の新しいカードがゲーム内のどこにも出てこなかった。
+      //   コード側の裸No.「016」はシートの「E016」と厳密一致しないため、
+      //   厳密一致だけを見ていては拾えない。）
+      if (!candidatesByName.length && _normCardName(panel.name) !== _normCardName(name)) {
+        panel.name = String(name).trim();
+        // キーワードは行から入れ直す（旧名がキーワードとして残らないように）。
+        panel.adjacentKeywords = [];
+      }
       _syncPanelFromRow(panel, row, forcedCategory);
       panel._implemented = implemented;
       if (!implemented) { panel._rewardExcluded = true; panel._shopExcluded = true; }
@@ -1292,8 +1316,8 @@ async function loadGameData() {
       panel.keywords=_mergeUniqueKeywords(panel.keywords,['荷物']);
       panel.adjacentKeywords=(panel.adjacentKeywords||[]).filter(k=>String(k||'').trim()!=='荷物');
     });
-    // 旧試作版の内部カード「複製」は現行シートに存在しないため、報酬・デバッグ一覧から除外する。
-    for(let i=PANEL_POOL.length-1;i>=0;i--) if(PANEL_POOL[i]&&PANEL_POOL[i].name==='複製') PANEL_POOL.splice(i,1);
+    // ※「複製」はシート（E028）に入ったので、ここで消してはいけない。
+    //   以前は現行シートに無い旧試作カードだったため取り除いていた。
     const _requestedEffectOverrides = {
       'ノーム': {desc:'終戦：20ゴールドを得る。'},
       'ゴーレム': {desc:'負傷：このキャラクターは+2/+2を得る。'},
@@ -1409,6 +1433,17 @@ async function loadGameData() {
         if (useAdjacent) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
       });
     });
+    // スケルトンキングの新仕様。管理元xlsxはユーザー管理のため変更せず、読み込み後の
+    // 派生データだけを正規化する。合体前後とも「復活」を持ち、スケルトンの攻撃後に
+    // 本体も同じ対象へ攻撃する（旧文の「代わりに」ではない）。
+    _filterBySheetCode(PANEL_POOL, 'C026').forEach(panel => {
+      panel.desc = '復活\n攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。';
+      panel.keywords = _mergeUniqueKeywords(panel.keywords, ['復活']);
+      if (panel.mergedForm) {
+        panel.mergedForm.desc = '復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。';
+        panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);
+      }
+    });
     const strongRing = (RING_POOL || []).find(r => r && r.name === '強靭の指輪');
     if (strongRing) strongRing.desc = '開戦：全ての味方は「負傷：全ての味方はHP+1を得る。」を得る。';
     // 召喚専用の体（報酬・ショップに出さない）。**シャドウはここに入れないこと。**
@@ -1461,6 +1496,11 @@ async function loadGameData() {
     // **合体後の姿は、上書き処理が全部終わった最後に組み立てる。**
     // 途中で作ると、後から効果文が差し替わったカードの合体後だけ古いままになる。
     (PANEL_POOL || []).forEach(panel => { if (panel) _buildMergedPanelForm(panel); });
+    _filterBySheetCode(PANEL_POOL, 'C026').forEach(panel => {
+      if (!panel.mergedForm) return;
+      panel.mergedForm.desc = '復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。';
+      panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);
+    });
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;

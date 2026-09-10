@@ -11,24 +11,28 @@ const Assets = {
     ring: 'assets/cards/card_ring.svg',
     wand: 'assets/cards/card_wand.svg',
     consumable: 'assets/cards/card_item.svg',
-    characterFrame: 'assets/cards/character_frame.png',
-    defenderFrame: 'assets/cards/character_defender_frame.png',
+    // エリート／ボス用の枠。character_frame.png から boss_frame.png へ改名済み。
+    characterFrame: 'assets/cards/boss_frame.png',
     enemyFrame: 'assets/cards/enemy_frame.png',
     ringFrame: 'assets/cards/ring_frame.png',
     wandFrame: 'assets/cards/wand_frame.png',
     itemFrame: 'assets/cards/item_frame.png',
     weaponFrame: 'assets/cards/weapon_frame.png',
     growthFrame: 'assets/cards/growth_frame.png',
-    summonFrameGreen: 'assets/cards/summon_frame1.png',
+    // **summon_frameN の N は色の並び（赤・青・緑・黄・紫）に対応する。**
+    // summon_frame1 と summon_frame3 は入れ替え済み（1＝赤／3＝緑）。
+    summonFrameRed: 'assets/cards/summon_frame1.png',
     summonFrameBlue: 'assets/cards/summon_frame2.png',
-    summonFrameRed: 'assets/cards/summon_frame3.png',
+    summonFrameGreen: 'assets/cards/summon_frame3.png',
     summonFrameBrown: 'assets/cards/summon_frame4.png',
     summonFramePurple: 'assets/cards/summon_frame5.png',
     enchantmentFrame: 'assets/cards/enchantment.png',
-    spell1: 'assets/cards/summon_frame1.png',
+    // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
+    // 画像は上と同じものを色で選ぶ。
+    spell1: 'assets/cards/summon_frame3.png',
     spell2: 'assets/cards/summon_frame2.png',
     spell3: 'assets/cards/summon_frame4.png',
-    spell4: 'assets/cards/summon_frame3.png',
+    spell4: 'assets/cards/summon_frame1.png',
     spell5: 'assets/cards/summon_frame5.png',
     gradeStar: 'assets/cards/grade_star.png',
     redOrb: 'assets/cards/red_orb.png',
@@ -37,7 +41,7 @@ const Assets = {
     yellowOrb: 'assets/cards/yellow_orb.png',
     purpleOrb: 'assets/cards/purple_orb.png',
     blackOrb: 'assets/cards/black_orb.png',
-    manaOrb: 'assets/cards/mana_orb.png',
+    manaOrb: 'assets/cards/mana.png',
     blood: 'assets/cards/blood.png',
     characterMask: 'assets/cards/ch_mask.png',
   },
@@ -100,6 +104,7 @@ const Assets = {
       'C018': 'assets/vfx/C018.webp', // サイクロプス（3マナ：カードの上にフェードイン／アウト）
       'C019': 'assets/vfx/C019_1.webp', // ケンタウロス（攻撃：対象へ飛ばす）
       'C043': 'assets/vfx/C043.webp',
+      'C090': 'assets/vfx/C090.webp', // 奪う（対象の上で再生してから移動する）
     },
     // 強化カード（エンチャント）の効果そのものの演出WebP。カードのNo.（EXXX）で引く。
     // マナ効果のように「発動してから処理が終わるまで出し続ける」用途に使う
@@ -186,7 +191,6 @@ const Assets = {
     mob: 'assets/map/mob.png',
     elite: 'assets/map/elite.png',
     boss: 'assets/map/boss.png',
-    treasure: 'assets/map/treasure.png',
     altar: 'assets/map/altar.png',
     event: 'assets/map/event.png',
     shop: 'assets/map/shop.png',
@@ -265,6 +269,7 @@ const Assets = {
     C011: 'assets/sfx/C011.wav', // サイレン
     C017: 'assets/sfx/C017.wav', // メデューサ
     C019: 'assets/sfx/C019_1.wav', // ケンタウロス（発射）
+    C090: 'assets/sfx/C090.wav', // 奪う
     C019_HIT: 'assets/sfx/C019_2.wav', // ケンタウロス（着弾）
     // マナ効果SE。シートのNo.に合わせて K023（旧 K026）。
     K023: 'assets/sfx/K023.wav',
@@ -382,7 +387,7 @@ function _spellFrameByColor(color){
   return Assets.cards.spell1;
 }
 
-// エリート／ボスの敵はカード枠・戦闘スロットとも character_frame.png を使う。
+// エリート／ボスの敵はカード枠・戦闘スロットとも boss_frame.png を使う。
 // （通常の敵枠や色別の召喚枠ではなく、特別な相手であることを枠で示す）
 function _isEliteOrBossCard(card){
   if(!card) return false;
@@ -614,9 +619,88 @@ function applyPanelArtVars(el, card, prefix){
   return true;
 }
 
+/* ══════════════════════════════════════════════════════════
+   枠画像の角R（cardFrameRadius）
+   ──────────────────────────────────────────────────────────
+   カードの外周に引く1ptの線（#c49a6c）は CSS の border で描くので、
+   **枠画像の角と同じ半径を border-radius に入れないと角だけ二重線になる。**
+   枠画像は1枚ずつ角Rが違ううえ、絵を差し替えると変わる。
+   （例：summon_frame1 は 712x1079 で 29px、他の7枚は 708x1075 で 40px）
+   そこで固定値を書かず、**画像のアルファから角Rを実測して CSS 変数へ流し込む。**
+
+   測り方：枠は角丸長方形なので、上辺(y=0)で最初に不透明になる x が横の半径、
+   左辺(x=0)で最初に不透明になる y が縦の半径。しきい値はアルファ128
+   ＝ 見た目の輪郭（アンチエイリアスの中間）に合わせている。
+   枠画像は `background:… center/100% 100%` でカードの箱いっぱいに伸ばすので、
+   半径は画像サイズに対する％で持たせればカードの大きさが変わっても合う。
+
+   結果は要素ごとの inline style ではなく **1枚のスタイルシートへ流し込む**。
+   測定は画像読み込み待ちで非同期なので、先に描画されたカードにも後から効かせる必要がある。
+   カード側には `data-frame-key`（画像のファイル名）だけを付けておく。
+   ══════════════════════════════════════════════════════════ */
+const _FRAME_RADIUS_ALPHA=128;
+const _frameRadiusByKey=new Map();   // key → '4.07% / 2.69%'
+const _frameRadiusPending=new Set();
+let _frameRadiusStyleEl=null;
+
+function _frameKeyFromUrl(url){
+  const clean=String(url||'').replace(/^url\(["']?|["']?\)$/g,'').split(/[?#]/)[0];
+  const base=clean.split('/').pop()||'';
+  return base.replace(/\.[a-z0-9]+$/i,'').replace(/[^A-Za-z0-9_-]/g,'_');
+}
+
+function _flushFrameRadiusCss(){
+  if(typeof document==='undefined') return;
+  if(!_frameRadiusStyleEl){
+    _frameRadiusStyleEl=document.createElement('style');
+    _frameRadiusStyleEl.id='card-frame-radius-css';
+    (document.head||document.documentElement).appendChild(_frameRadiusStyleEl);
+  }
+  let css='';
+  _frameRadiusByKey.forEach((v,k)=>{ css+=`[data-frame-key="${k}"]{--card-frame-r:${v};}\n`; });
+  _frameRadiusStyleEl.textContent=css;
+}
+
+function _measureFrameRadius(url,key){
+  if(typeof document==='undefined'||_frameRadiusPending.has(key)) return;
+  _frameRadiusPending.add(key);
+  const img=new Image();
+  img.onload=()=>{
+    try{
+      const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
+      if(!W||!H) return;
+      // 左上の角だけ読めば足りる。角Rが画像の1/4を超えることはない。
+      const n=Math.max(8,Math.min(200,Math.floor(Math.min(W,H)/4)));
+      const cv=document.createElement('canvas'); cv.width=n; cv.height=n;
+      const ctx=cv.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,n,n,0,0,n,n);
+      const d=ctx.getImageData(0,0,n,n).data;
+      const op=(x,y)=>d[(y*n+x)*4+3]>_FRAME_RADIUS_ALPHA;
+      let rx=0; while(rx<n&&!op(rx,0)) rx++;
+      let ry=0; while(ry<n&&!op(0,ry)) ry++;
+      if(rx>=n||ry>=n) return;   // 角丸として読めない絵は既定値のまま
+      _frameRadiusByKey.set(key,`${(rx/W*100).toFixed(3)}% / ${(ry/H*100).toFixed(3)}%`);
+      _flushFrameRadiusCss();
+    }catch(e){
+      // file:// で開くと canvas が汚染されて読めない。その場合は CSS の既定値で妥協する。
+    }
+  };
+  img.src=url;
+}
+
+function applyFrameRadiusKey(el, frameUrl){
+  if(!el) return;
+  const key=_frameKeyFromUrl(frameUrl);
+  if(!key){ el.removeAttribute('data-frame-key'); return; }
+  if(el.getAttribute('data-frame-key')!==key) el.setAttribute('data-frame-key',key);
+  if(!_frameRadiusByKey.has(key)) _measureFrameRadius(String(frameUrl||'').replace(/^url\(["']?|["']?\)$/g,''),key);
+}
+
 function applyCardVisual(el, card){
   if(!el) return;
-  el.style.setProperty('--card-frame', assetUrl(getCardFrameAsset(card)));
+  const _cardFrameUrl=assetUrl(getCardFrameAsset(card));
+  el.style.setProperty('--card-frame', _cardFrameUrl);
+  applyFrameRadiusKey(el,_cardFrameUrl);
   if(!applyPanelArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
     el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
     el.style.removeProperty('--card-art-size');
@@ -638,18 +722,18 @@ function applyUnitVisual(el, unit){
   if(!el) return;
   const isEnemyEl=el.classList.contains('enemy')||!!(unit&&unit._useEnemyVisualFrame);
   const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
-  const hasGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.equipment)&&unit.equipment.some(p=>p&&(p.name==='守護'||p.name==='ヘイト'||(p.keywords||[]).includes('守護')||(p.keywords||[]).includes('ヘイト'))));
-  const unitGuard=!isPlayerHero&&!!(unit&&Array.isArray(unit.keywords)&&(unit.keywords.includes('守護')||unit.keywords.includes('ヘイト')));
-  const classGuard=!isPlayerHero&&(el.classList.contains('is-defender')||el.classList.contains('uses-hate-frame'));
-  const isDefender=!!(unit&&!isPlayerHero&&(unit.hate&&unit.hateTurns>0||hasGuard||unitGuard))||classGuard;
+  // 守護／ヘイト専用の枠（character_defender_frame.png）は素材ごと廃止した。
+  // 判定に使っていた hasGuard / unitGuard / classGuard / isDefender も参照先が無くなったので消してある。
   const frame=(isEnemyEl&&_isEliteOrBossCard(unit))
     ? Assets.cards.characterFrame
     : isEnemyEl
     ? Assets.cards.enemyFrame
     : isPlayerHero
       ? Assets.cards.characterFrame
-      : _summonFrameByColor(_summonColor(unit)) || (isDefender?Assets.cards.defenderFrame:Assets.cards.characterFrame);
-  el.style.setProperty('--unit-frame', assetUrl(frame));
+      : _summonFrameByColor(_summonColor(unit)) || Assets.cards.characterFrame;
+  const _unitFrameUrl=assetUrl(frame);
+  el.style.setProperty('--unit-frame', _unitFrameUrl);
+  applyFrameRadiusKey(el,_unitFrameUrl);
   if(!applyCharacterArtVars(el, unit, '--unit')){
     el.style.setProperty('--unit-art', assetUrl(Assets.cards.character));
     el.style.removeProperty('--unit-art-size');

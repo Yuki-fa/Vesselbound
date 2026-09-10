@@ -68,8 +68,10 @@ async function presentDamageEvent(ev, api) {
       const key = getEffectSfxKey(projectileCode);
       if (key) playSfx(key, { group: 'magic', guardKey: `projectile:${key}:${Date.now()}`, guardMs: 0 });
     }
-    // 投げっぱなし。戦闘の進行を矢の飛行時間で止めない。
-    Promise.resolve(playProjectileEffectVfx(vfxSource, srcSide, target, fxSide, projectileCode, {
+    // 攻撃者のモーションを再開する前に着弾・HP反映まで完了させる。
+    // 投げっぱなしにすると、ケンタウロスの攻撃効果だけが敵への着弾前に
+    // 通常攻撃へ進み、2つのダメージ表示が重なる。
+    await Promise.resolve(playProjectileEffectVfx(vfxSource, srcSide, target, fxSide, projectileCode, {
       amount,
       onImpact: () => {
         if (typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
@@ -195,7 +197,10 @@ function presentShieldLostEvent(ev, api) {
 // api:
 //   findUnit(side,id) / findAnyUnit(id)
 //   applyStats(unit, ev)  … 画面に出すATK/HPをここまで進める（PvEは据え置き値、
-//                            オンラインは実体そのもの。hpの増減はmaxHpにも効く）
+//                            オンラインは実体そのもの）。
+//                            **hpの増減は既定でmaxHpにも効く。**
+//                            `ev.maxHp` が入っている場合だけ、そちらをmaxHpの増減として使う
+//                            （毒＝HPだけ減って最大HPは変わらない）。
 //   cueKeys               … 固有SEを鳴らし終えた「発生元＋効果」の記録（Set）
 //   vfxGate               … 固有VFXを出し終えた「発生元＋効果＋対象」のゲート
 //   logLine(unit, source) … ログ文（不要なら省略）
@@ -222,8 +227,9 @@ async function presentStatChangeEvent(ev, api) {
     const enchantName = typeof presentStatChangeEnchantName === 'function'
       ? presentStatChangeEnchantName(ev.reason) : '';
     const enchantCode = enchantName && typeof _enchantFxCode === 'function' ? _enchantFxCode(enchantName) : '';
+    const ownEffectText = typeof api.ownEffectText === 'function' ? api.ownEffectText(source) : '';
     const code = typeof presentStatChangeVfxCode === 'function'
-      ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode }) : ownCode;
+      ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode, ownEffectText }) : ownCode;
     if (/^[A-Z]\d{3}$/i.test(code)) {
       const cueKey = `${source.id}:${String(ev.reason || '')}`;
       // 固有SEは効果1回につき1回。VFXは対象ごとに1回。重複の単位を分ける。
@@ -359,7 +365,11 @@ function presentQueueEffectFlash(entry) {
 // 保留していた発光をまとめて始める。**完了は待たない**（待つと人数ぶん直列化して明滅がずれる）。
 function presentFlushEffectFlashes() {
   if (!_presentPendingFlashes.length) return false;
-  const list = _presentPendingFlashes;
+  // **倒れた体では光らせない（死亡効果だけは別）。** 発光は貯めてからまとめて出すので、
+  // 貯めている間に死んだ体の分がそのまま死亡の瞬間に出てしまう
+  // （負傷効果は死亡時には発動しないので、光ってはいけない）。
+  // **死亡効果（青）は倒れた体で光るのが正しい。** ここでも弾くと青が一切出ない。
+  const list = _presentPendingFlashes.filter(f => f && (f.onDeath || !(f.unit && Number(f.unit.hp) <= 0)));
   _presentPendingFlashes = [];
   if (_presentPendingFlashTimer != null && typeof clearTimeout === 'function') {
     clearTimeout(_presentPendingFlashTimer);
@@ -383,17 +393,24 @@ async function presentEffectFlashEvent(ev, api) {
   if (!ev || !api || typeof api.findUnit !== 'function') return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit || typeof playEffectFlash !== 'function') return false;
+  // **死亡効果の発光だけは倒れた体で出す。** 死亡効果は必ずHP0で発動するので、
+  // 生存判定で弾くと青い発光が一切出なくなる。
+  const onDeath = String(ev.trigger || '') === 'death';
+  // **倒れた体では光らせない。**（負傷効果は死亡時には発動しない）
+  if (!onDeath && Number(unit.hp) <= 0) return false;
   // 発光の色。**ここが唯一の定義。**
   //   解放（release）＝紫／開戦・終戦・常時の誘発（passive）＝白
   // 「常時：緑のキャラクターから得るマナは+1される」のような**受動的な補正**は
   // コアがイベントを出さないので、そもそも光らない。
+  //   援護射撃（support_fire）＝赤（利用者指定。発動元と実際に撃った味方を光らせる）
   const colors = { attack: 'yellow', injury: 'red', death: 'blue', mana: 'green',
-    opening: 'white', battle_end: 'white', passive: 'white', release: 'purple' };
+    opening: 'white', battle_end: 'white', passive: 'white', release: 'purple',
+    support_fire: 'red' };
   const color = colors[String(ev.trigger || '')];
   if (!color) return false;
   // 発光は同じタイミングの複数イベントを同時に開始する。ここをawaitすると、
   // キャラクター数ぶん直列化されて明滅がずれる。
-  presentQueueEffectFlash({ unit, side: ev.side === 'p2' ? 'enemy' : 'ally', color, count: ev.count });
+  presentQueueEffectFlash({ unit, side: ev.side === 'p2' ? 'enemy' : 'ally', color, count: ev.count, onDeath });
   return true;
 }
 
@@ -458,6 +475,15 @@ async function presentReviveEvent(ev, api) {
   if (String(ev.reason || '') !== '復活') return false;
   const unit = unit0;
   if (!unit || typeof playReviveVfx !== 'function') return false;
+  // 同じ多段攻撃中に「死亡→復活→再び死亡」する場合、1回目の死亡演出の印を
+  // 残すと復活後のカードを描き直せず、VFXだけが空枠へ出る。復活は新しい生存期間の開始。
+  delete unit._deathFxStarted;
+  delete unit._deathFxReady;
+  delete unit._deathFxDone;
+  // **描画より先に隠す。** ここで render() すると復活した体が一度そのまま出てしまい、
+  // playReviveVfx() が隠すまでの間だけカードが見えて「出る→消える→VFX→また出る」になる。
+  // 印は render.js の renderField() が見て `.revive-hidden` を付ける。
+  unit._reviveHidden = true;
   if (typeof api.render === 'function') api.render();
   await playReviveVfx(unit, ev.side === 'p2' ? 'enemy' : 'ally');
   return true;
@@ -536,24 +562,80 @@ async function presentManaThresholdEvent(ev, api) {
 //   beat()                    … 直前の数値が読める間だけ待つ
 //   processDeath(unit, side)  … 陣営ごとの後始末（ログ・報酬・カウンタ）。PvEのみ
 //   compact()                 … 盤面の詰め直し（攻撃モーションの完了を待つ）
-async function presentDeathEvent(ev, api) {
-  if (!ev || !api || !ev.unitId) return false;
-  if (typeof api.isDone === 'function' && api.isDone(ev)) return false;
-  const unit = api.findUnit(ev.side, ev.unitId);
-  if (!unit) return false;
-  // 既に生き返っている（復活）場合はここでは演出しない。
-  if (Number(unit.hp) > 0) return false;
-  if (typeof api.markDone === 'function') api.markDone(ev);
-  // 直前に出した数値が読める間だけ待ってから消す。
+// **同じ瞬間に倒れた体は、まとめて1回で見せる。**
+// どこまでが「同じ瞬間」かは present.js の presentDeathBatchEvents が唯一の実装。
+// api:
+//   findUnit(side,id)        … 盤面からユニットを引く
+//   isDone(ev) / markDone(ev)… 二重演出を防ぐ記録
+//   beat()                   … 直前の数値を読ませる間（**まとめて1回だけ待つ**）
+//   startFx(unit, side)      … カードの消失演出を始める（省略可。PvEのみ）
+//   processDeath(unit, side) … 陣営ごとの後始末（省略可。PvEのみ）
+//   compact()                … 盤面の詰め（省略可。**まとめて1回だけ**）
+// 死亡効果の発光を見せてから焼き落とすまでの間（ms）。
+const PRESENT_DEATH_FLASH_HOLD_MS = 220;
+async function presentDeathBatch(evs, api) {
+  const list = (Array.isArray(evs) ? evs : [evs]).filter(Boolean);
+  if (!list.length || !api) return false;
+  const entries = [];
+  list.forEach(ev => {
+    if (!ev.unitId) return;
+    if (typeof api.isDone === 'function' && api.isDone(ev)) return;
+    const unit = api.findUnit(ev.side, ev.unitId);
+    if (!unit) return;
+    // 既に生き返っている（復活）場合はここでは演出しない。
+    if (Number(unit.hp) > 0) return;
+    if (typeof api.markDone === 'function') api.markDone(ev);
+    entries.push({ ev, unit });
+  });
+  if (!entries.length) return false;
+  // 直前に出した数値が読める間だけ待ってから消す。**待つのは全員ぶんで1回。**
   // この間、カードは**暗くせず**生きている見た目のまま残す（renderField 側）。
   // 暗くすると「死体が場に残っている」ように見え、待たないと数値が空白の上に残る。
   if (typeof api.beat === 'function') await api.beat();
+  // **死亡効果の青い発光は、カードが焼き落ちる前に見せる。**
+  // コアは死亡イベントの後に発光を出すため、present.js の並べ替えで前へ寄せてある。
+  // ここで出さずに焼き落とすと、光らせる先のカードが既に盤面から消えている。
+  if (typeof presentFlushEffectFlashes === 'function' && presentFlushEffectFlashes()) {
+    await new Promise(resolve => setTimeout(resolve, PRESENT_DEATH_FLASH_HOLD_MS));
+  }
   // ここまでで数値・VFXは出し終えている。再生中でも焼き落としを始めてよい印。
-  unit._deathFxReady = true;
-  if (typeof api.processDeath === 'function') await api.processDeath(unit, ev.side);
+  // **消失演出は同時に倒れた全員で同じ時点に始める。**
+  // 先に1体の死亡効果を待つと、その間だけ他のカードが場に残り、
+  // 「同時に倒れたのに1体ずつ消えていく」ように見える。
+  entries.forEach(({ unit }) => { unit._deathFxReady = true; });
+  if (typeof api.startFx === 'function') entries.forEach(({ ev, unit }) => api.startFx(unit, ev.side));
+  // **死亡効果の解決だけは発生順に行う。** 順序はコアが決めた通りで、ここでは変えない。
+  for (const { ev, unit } of entries) {
+    if (typeof api.processDeath === 'function') await api.processDeath(unit, ev.side);
+  }
   // 詰めてよいが、**攻撃モーションの完了は待つ**。飛行中に盤面を詰めると、
   // 複製の戻り先が動いて元のカードが二重に見える。
   if (typeof api.compact === 'function') api.compact();
+  return true;
+}
+
+async function presentDeathEvent(ev, api) {
+  return presentDeathBatch([ev], api);
+}
+
+// ── 敵を奪う（移動）────────────────────────────────────
+// **奪うのは移動。ワープさせない。**（利用者指定）
+// 盤面を動かす前の位置から、動かした後の位置まで、攻撃モーションと同じ
+// 「動く複製」で運ぶ。順番（複製を作る → 盤面を動かす → 運ぶ）は
+// render.js の playUnitStealMotion() が持つ。ここは受け口の違いだけを渡す。
+// api: findUnit(side,id) / moveOnBoard(unit,ev) / motion(unit,fromSide,toSide,applyBoard)
+async function presentUnitStolenEvent(ev, api) {
+  if (!ev || !api) return false;
+  const toSide = ev.toSide || (ev.side === 'p1' ? 'p2' : 'p1');
+  const unit = typeof api.findUnit === 'function' ? api.findUnit(ev.side, ev.unitId) : null;
+  const applyBoard = () => {
+    // 奪った時点の値（コアのスナップショット）へ表示を合わせる。
+    // サキュバスの捕獲は倒した敵を仲間にするので、表示上0になったHPを戻す必要がある。
+    if (ev.unit && unit && typeof api.applyStats === 'function') api.applyStats(unit, ev.unit);
+    if (typeof api.moveOnBoard === 'function') api.moveOnBoard(unit, ev);
+  };
+  if (!unit || typeof api.motion !== 'function') { applyBoard(); return true; }
+  await api.motion(unit, ev.side, toSide, applyBoard);
   return true;
 }
 
@@ -579,6 +661,11 @@ async function presentSealReleaseEvent(ev, api) {
   if (!unit) return false;
   unit._sealed = false;
   delete unit._sealValue;
+  // **ここで初めて封印の見た目を解く。**
+  // コアは計算の時点で `_sealed` を落とすが、演出はその後を追って再生される。
+  // 暗転を `_sealed` だけで決めていたため、画面ではまだ味方が生きているのに
+  // 封印キャラだけ先に明るくなっていた。印は再生前に立てておく（battle_events.js）。
+  delete unit._sealShownPending;
   if (typeof playSealReleaseVfx === 'function') {
     await playSealReleaseVfx(unit, ev.side === 'p2' ? 'enemy' : 'ally');
   }
@@ -591,18 +678,56 @@ async function presentSealReleaseEvent(ev, api) {
 // 死亡ではないので死亡効果は出ない。演出を見せてから盤面から外す。
 // 先に外すとカードが一瞬で消え、何が起きたのか分からない。
 // api: findUnit(side,id) / removeFromBoard(unit, side) / compact()
-async function presentFledEvent(ev, api) {
-  if (!ev || !api) return false;
-  const unit = api.findUnit(ev.side, ev.unitId);
-  if (!unit) return false;
-  unit._fled = true;
-  if (typeof playFledVfx === 'function') {
-    try { await playFledVfx(ev.side === 'p1' ? 'ally' : 'enemy', unit); }
-    catch (err) { console.error('[fled vfx]', err); }
+// ── 逃走 ────────────────────────────────────
+// **同じ瞬間に逃走する体は、開戦の登場と同じ間隔でずらして見せる。**
+// （利用者指定。ATK0での逃走は複数体が同時に起きる）
+// 間隔の総尺は開戦の登場（_playBattleOpeningLaneStep の totalSpan）と同じ。
+// **ATKの表示はここでは触らない。** 0になる瞬間は stat_change が実際の時刻で見せている。
+// ここで0へ進め直すと、その分だけ逃走が遅れて「1テンポ遅い」ように見える。
+const PRESENT_FLED_STAGGER_TOTAL_MS = 360;
+async function presentFledBatch(evs, api) {
+  const list = (Array.isArray(evs) ? evs : [evs]).filter(Boolean);
+  if (!list.length || !api) return false;
+  const entries = [];
+  list.forEach(ev => {
+    if (typeof api.isDone === 'function' && api.isDone(ev)) return;
+    const unit = api.findUnit(ev.side, ev.unitId);
+    if (!unit) return;
+    if (typeof api.markDone === 'function') api.markDone(ev);
+    entries.push({ ev, unit });
+  });
+  if (!entries.length) return false;
+  // **左のキャラから順に逃走させる。**（利用者指定）
+  // 並びは配列順ではなく**画面上の位置**で決める（詰め直しで配列順とずれることがある）。
+  if (entries.length > 1 && typeof getCurrentUnitSlot === 'function') {
+    const leftOf = ({ ev, unit }) => {
+      const el = getCurrentUnitSlot(ev.side === 'p1' ? 'ally' : 'enemy', unit);
+      const r = el && el.getBoundingClientRect();
+      return r && r.width ? r.left : Number.MAX_SAFE_INTEGER;
+    };
+    const order = new Map(entries.map(e => [e, leftOf(e)]));
+    entries.sort((a, b) => order.get(a) - order.get(b));
   }
-  if (typeof api.removeFromBoard === 'function') api.removeFromBoard(unit, ev.side);
+  entries.forEach(({ unit }) => { unit._fled = true; });
+  const count = entries.length;
+  const interval = count > 1 ? PRESENT_FLED_STAGGER_TOTAL_MS / (count - 1) : 0;
+  await Promise.all(entries.map(({ ev, unit }, i) => (async () => {
+    if (i && interval) await new Promise(resolve => setTimeout(resolve, Math.round(i * interval)));
+    if (typeof playFledVfx === 'function') {
+      try { await playFledVfx(ev.side === 'p1' ? 'ally' : 'enemy', unit); }
+      catch (err) { console.error('[fled vfx]', err); }
+    }
+  })()));
+  // **盤面から外して詰めるのは全員ぶんで1回。** 1体ずつ詰めると、
+  // まだ逃げている途中のカードが動いて位置がずれる。
+  entries.forEach(({ ev, unit }) => {
+    if (typeof api.removeFromBoard === 'function') api.removeFromBoard(unit, ev.side);
+  });
   if (typeof api.compact === 'function') api.compact();
   return true;
+}
+async function presentFledEvent(ev, api) {
+  return presentFledBatch([ev], api);
 }
 
 // ── 決着のカットイン ────────────────────────────
@@ -651,8 +776,11 @@ if (typeof window !== 'undefined') {
   window.presentSealReleaseEvent = presentSealReleaseEvent;
   window.presentTransformEvent = presentTransformEvent;
   window.presentDeathEvent = presentDeathEvent;
+  window.presentDeathBatch = presentDeathBatch;
   window.presentManaThresholdEvent = presentManaThresholdEvent;
 window.presentEffectFlashEvent = presentEffectFlashEvent;
+  window.presentUnitStolenEvent = presentUnitStolenEvent;
+  window.presentFledBatch = presentFledBatch;
   window.presentInstantDeathEvent = presentInstantDeathEvent;
   window.presentQueueEffectFlash = presentQueueEffectFlash;
   window.presentFlushEffectFlashes = presentFlushEffectFlashes;
@@ -669,8 +797,8 @@ if (typeof module !== 'undefined' && module.exports) {
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
-    presentDeathEvent, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
-    presentEffectFlashEvent, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,
+    presentDeathEvent, presentDeathBatch, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
+    presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,
     presentBattleResultCutin, PRESENT_RESULT_CUTIN_MS, PRESENT_RESULT_AUTO_CONTINUE_MS,
   };
 }

@@ -13,7 +13,14 @@ const URL='http://127.0.0.1:5500/index.html';
   try{
     await load();
     ok('HTTP 5500が正常応答',await b.eval('return (await fetch(location.href)).ok'));
-    ok('セーブなしはコンティニュー無効',await b.eval('return document.getElementById("title-continue-btn").disabled'));
+    // **押せなくはしない**（利用者指定）。セーブが無い時は文字を暗くするだけで、
+    // ホバーでは明るくなり、押しても確定音が鳴るだけで何も起きない。
+    ok('セーブなしはコンティニューを暗く表示',await b.eval(
+      'const b=document.getElementById("title-continue-btn");'+
+      'return b.classList.contains("title-menu-item-empty")&&b.getAttribute("aria-disabled")==="true"&&!b.disabled'));
+    ok('セーブなしでコンティニューを押しても進まない',await b.eval(
+      'const before=document.querySelector(".screen.active")?.id;SaveRun.continueRun();'+
+      'return document.querySelector(".screen.active")?.id===before'));
     const initial=await b.eval('startGame(false);return {checkpoint:loadRun()?.checkpoint,profile:SaveProfile.load(),id:G._runId}');
     ok('通常ラン開始・街到着セーブ',initial.checkpoint?.type==='town');
     ok('初期カードを取得済みで記録',Object.values(initial.profile.cards).filter(x=>x.acquired&&x.seen).length>=2);

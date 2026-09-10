@@ -2,11 +2,31 @@
 const SaveRun=(()=>{
   const CHECKPOINT_TYPES=new Set(['reward','town','tower','battle']);
   const BATTLE_RESUME_DELAY_MS=4000;
+  /* ══════════════════════════════════════════════════════════
+     **オフラインの状態を G へ足したら、必ずここへも名前を足すこと。**
+     ここに無い名前は保存されず、しかも**何のエラーも出ない**。
+     再開したときだけ initState() の初期値へ静かに巻き戻る形で出る。
+     逆に入れてはいけないものを入れると copy() が保存時に例外を投げる
+     （関数・DOM・クラスのインスタンス・Infinity/NaN）＝その場で気づける。
+     **迷ったら入れる**（＝入れ忘れより入れ間違いのほうが安全）。
+
+     ただし次の4つは例外：
+     1. `Set` は fields ではなく **setFields** へ。
+        fields に入れると保存時に配列化され、復元も配列のままで .has() が壊れる。
+     2. **名前を消す／グループを移すのは非互換。**
+        validate() が古いセーブを「未定義の状態です」で弾く。
+        どうしても要るときは migrations.js にステップを足すこと。
+        （名前を足すのは後方互換。古いセーブはその名前を持たないまま初期値で復元される）
+     3. **戦闘中の一時状態は入れない**（allies / enemies / phase / turn / battleCounters 等）。
+        pendingBattle のイベント列から復元するため、二重に持つと食い違う。
+     4. **画面の開閉・モード判定は入れない**（inventoryOpen / _selectedEquipUnitIdx /
+        _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
+     ══════════════════════════════════════════════════════════ */
   const fields={
     player:['gold','life','_waveLife','mainBoard','inventory','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','magicLevel','facilities','facilityDiscounts','baseIncome'],
-    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveDefeatReturnTo','_waveIsRetry','_waveRetryEnemyKey','_waveEnemySnapshot','_mapBattle','worldMap','_retryFloor','rewardGrade','rewardGradeUpCount','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
-    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','_pendingTreasureItems','_eliteTreasureRewardPending','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
-    place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isTreasureMapReward','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
+    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','worldMap','_retryFloor','rewardGrade','rewardGradeUpCount','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
+    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
+    place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
   let resume=null,busy=false,restoring=false,retryBattle=null,catalogReady=false;
@@ -50,7 +70,42 @@ const SaveRun=(()=>{
     setResumeOverlay(false);
     if(resolve) resolve();
   }
+  // **順番に依存しない乱数。**
+  // random() は1本の流れなので、同じ村でも「鍛冶屋へ行く順番」を変えるだけで
+  // 結果が変わる。鍵（場面を表す文字列）から毎回同じ乱数列を作れば、
+  // 操作の順番を変えてもコンティニューしても同じ結果になる。
+  // 鍵にはランの種と「いつ・どこで・何を」を入れること（例：`eternal:2:5:1`）。
+  function keyedRandom(key){
+    const seed=Number(G&&G._runSeed)||0;
+    const text=`${seed}:${String(key||'')}`;
+    let h=2166136261>>>0;
+    for(let i=0;i<text.length;i++){ h^=text.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
+    let t=h>>>0;
+    return ()=>{
+      t=(t+0x6D2B79F5)>>>0;
+      let x=Math.imul(t^(t>>>15),t|1);
+      x^=x+Math.imul(x^(x>>>7),x|61);
+      return ((x^(x>>>14))>>>0)/4294967296;
+    };
+  }
+  // 鍵から1つ選ぶ。候補が同じなら何度呼んでも同じものを返す。
+  function keyedPick(key,list){
+    const arr=(list||[]).filter(v=>v!==undefined);
+    if(!arr.length) return null;
+    return arr[Math.min(arr.length-1,Math.floor(keyedRandom(key)()*arr.length))];
+  }
+  // **範囲を指定して鍵付き乱数へ切り替える。**
+  // 中で使う rand() / randFrom() / randi() がすべてその列になるので、
+  // 抽選処理そのものへ手を入れずに順番依存を外せる。
+  // 流れ（_runRngState）は進めないため、外側の乱数にも影響しない。
+  let _keyedOverride=null;
+  function withKeyedRandom(key,fn){
+    const prev=_keyedOverride;
+    _keyedOverride=keyedRandom(key);
+    try{ return fn(); } finally{ _keyedOverride=prev; }
+  }
   function random(){
+    if(_keyedOverride) return _keyedOverride();
     // 演出用uidの発行回数で、次の報酬候補・施設在庫の乱数を進めない。
     if(typeof G!=='undefined'&&(G._savedBattleReplaying||G._savePresentation)) return Math.random();
     if(!enabled()) return Math.random();
@@ -59,6 +114,9 @@ const SaveRun=(()=>{
     return ((t^(t>>>14))>>>0)/4294967296;
   }
   function serializeRunState(){
+    // プレイ時間は起動ごとの performance.now() 基準なので、保存の直前に
+    // 今回分を runStats.playedMs へ畳んでおく（畳まないと再開で0へ戻る）。
+    if(typeof _flushRunStatsPlayTime==='function') _flushRunStatsPlayTime();
     const state={};
     for(const [group,names] of Object.entries(fields)){
       state[group]={};
@@ -134,7 +192,8 @@ const SaveRun=(()=>{
     G.questProgress=s.questProgress;G.difficulty=s.difficulty;G._runEnded=false;
     _rewCards=s.reward.cards;_rewFreePickDone=s.reward.freePickDone;_rewPhaseId=s.reward.phaseId;
     G._partyBoardUnit=null;G.phase=save.checkpoint.type==='battle'?'player':'reward';
-    if(G.runStats){G.runStats.startedAt=performance.now();}
+    // 復元後は「積算（playedMs）＋この起動からの経過」で数え直す。
+    if(G.runStats){G.runStats.playedMs=Math.max(0,Number(G.runStats.playedMs)||0);G.runStats.startedAt=performance.now();}
     return G;
   }
   function error(error){
@@ -158,7 +217,14 @@ const SaveRun=(()=>{
   }
   function refreshContinue(){
     const btn=document.getElementById('title-continue-btn');
-    if(btn){btn.disabled=!loadRun();btn.setAttribute('aria-disabled',String(btn.disabled));}
+    if(!btn) return;
+    const has=!!loadRun();
+    // **押せなくはしない**（利用者指定）。セーブが無い時は文字を暗くするだけにして、
+    // ホバーでは明るくなり、押した時は確定音（ui_confirm.wav）だけ鳴るようにする。
+    // disabled にすると hover もクリック音も出なくなる（continueRun()側が空振りする）。
+    btn.disabled=false;
+    btn.classList.toggle('title-menu-item-empty',!has);
+    btn.setAttribute('aria-disabled',String(!has));
   }
   async function continueRun(){
     if(busy||restoring) return;
@@ -332,9 +398,22 @@ const SaveRun=(()=>{
       try{saveRun(retryBattle);retryBattle=null;btn.onclick=continueRun;await continueRun();}catch(failure){error(failure);}
     };}
   }
-  return {enabled,begin,cancelResume,random,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
+  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
 })();
 function runRandom(){return typeof SaveRun==='undefined'?Math.random():SaveRun.random();}
+// 順番に依存しない抽選。SaveRunが無い場面（デバッグ等）では通常の乱数へ落とす。
+// 鍵付き乱数で fn を実行する。抽選の中身は触らずに順番依存だけを外す。
+function runWithKeyedRandom(key,fn){
+  if(typeof SaveRun!=='undefined'&&SaveRun&&typeof SaveRun.withKeyedRandom==='function'){
+    return SaveRun.withKeyedRandom(key,fn);
+  }
+  return fn();
+}
+function runKeyedPick(key,list){
+  if(typeof SaveRun!=='undefined'&&SaveRun&&typeof SaveRun.keyedPick==='function') return SaveRun.keyedPick(key,list);
+  const arr=(list||[]);
+  return arr.length?arr[Math.floor(Math.random()*arr.length)]:null;
+}
 function serializeRunState(){return SaveRun.serializeRunState();}
 function restoreRunState(save){return SaveRun.restoreRunState(save);}
 function buildRunSave(kind,pending){return SaveRun.buildRunSave(kind,pending);}

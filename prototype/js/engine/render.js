@@ -274,13 +274,22 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   // キーワードの説明も併記する（通常カードのキーワード説明と同じ「名前：説明」形式）。
   // **説明は種類ごとに1回だけ、変数はXのまま出す**（キーワード欄に数値が出ているため）。
   const kwDescSeen=new Set();
-  const kwDescHtml=allKws.map(k=>{
+  const toHtml=line=>{
+    const m=String(line||'').match(/^([^：:]+)：(.*)$/);
+    return m?`<strong>${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`:'';
+  };
+  const kwDescHtml=allKws.flatMap(k=>{
     const base=k.replace(/\d+$/,'');
-    if(!base||kwDescSeen.has(base)) return '';
+    if(!base||kwDescSeen.has(base)) return [];
     kwDescSeen.add(base);
-    let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||'';
-    if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(k)||'';
-    return d?`<strong>${_escapePreviewHtml(_keywordDescLabel(base,d))}</strong>：${_injectManaIcons(_escapePreviewHtml(d))}`:'';
+    const lines=[_keywordDescLine(base,k)];
+    // 付与する状態異常（毒牙→毒、衝撃→弱体）の説明をすぐ下に続ける。
+    _keywordFollowUps(base).forEach(f=>{
+      if(kwDescSeen.has(f)) return;
+      kwDescSeen.add(f);
+      lines.push(_keywordDescLine(f));
+    });
+    return lines.filter(Boolean).map(toHtml);
   }).filter(Boolean).join('<br>');
   const descText=data.desc?_formatJourneyEffectText(data.desc):'';
   const body=[kwHtml,descText].filter(Boolean).join('<br>');
@@ -326,6 +335,22 @@ function _keywordDescLabel(base,desc){
   const name=String(base||'').trim();
   return /X/.test(String(desc||''))?`${name}X`:name;
 }
+// **付与する状態異常の説明も続けて出す。**（利用者指定）
+// 「毒牙X」だけでは何が起きるか読み取れないので、その下に「毒X」の説明を並べる。
+// 追加する時はここだけに書くこと（キーワード説明を作る場所は2つあり、両方がこれを見る）。
+const KW_FOLLOW_UP_DESCS={ '毒牙':['毒'], '衝撃':['弱体'] };
+function _keywordFollowUps(base){
+  return (KW_FOLLOW_UP_DESCS[String(base||'').trim()]||[]).slice();
+}
+// キーワード1つ分の説明行（「名前X：説明」）。説明が無ければ空文字。
+function _keywordDescLine(name,lookupKey){
+  const base=String(name||'').trim();
+  if(!base) return '';
+  const key=lookupKey||base;
+  let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[key]||KW_DESC_MAP[base]))||'';
+  if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(key)||'';
+  return d?`${_keywordDescLabel(base,d)}：${d}`:'';
+}
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
   const sourceKws=slotIdx!=null&&typeof _unitDisplayKeywords==='function'
@@ -346,15 +371,22 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
   // 以前は「結界1：…1回…」と「結界：…X回…」が並んでいた。
   return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)
     .filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k))
-    .map(k=>{
+    .flatMap(k=>{
       const base=k.replace(/\d+$/,'');
-      if(!base||seen.has(base)) return '';
+      if(!base||seen.has(base)) return [];
       seen.add(base);
       let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
         (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
       if(!desc&&base==='マナ効果') desc='戦闘中、指定のマナが溜まると一度だけ発動する。（毎の場合は、指定のマナの倍数が溜まるごとに何度でも発動する）';
       // 変数を持つキーワードは名前の末尾にXを付ける（例：邪眼X）。
-      return desc?`${_keywordDescLabel(base,desc)}：${desc}`:'';
+      const lines=[desc?`${_keywordDescLabel(base,desc)}：${desc}`:''];
+      // 付与する状態異常（毒牙→毒、衝撃→弱体）の説明をすぐ下に続ける。
+      _keywordFollowUps(base).forEach(f=>{
+        if(seen.has(f)) return;
+        seen.add(f);
+        lines.push(_keywordDescLine(f));
+      });
+      return lines;
     }).filter(Boolean).join('\n');
 }
 function _formatKeywordOnlyHtml(text){
@@ -610,28 +642,67 @@ function _syncEffectFlashWithVfx(){
   if(typeof presentFlushEffectFlashes==='function') presentFlushEffectFlashes();
 }
 
+// **発光中のユニットを覚えておく唯一の場所。**
+// 発光はカードのDOM要素にクラスを付けて見せるが、その要素は
+// 再描画（renderField）と攻撃モーションの開始・終了で作り直される／消える。
+// 開始時に掴んだ要素へ付けたままにすると、途中で作り直された瞬間に光が消える
+// （＝「攻撃効果の黄色い発光が見えないことがある」）。
+// 光っている間はここに残し、renderField が新しいスロットへ付け直す。
+const EFFECT_FLASH_STEP_MS=180;
+const _effectFlashActive=new Map(); // unitId -> {color, until, token}
+function _effectFlashStateFor(unit){
+  const id=unit&&unit.id!=null?String(unit.id):'';
+  if(!id) return null;
+  const st=_effectFlashActive.get(id);
+  if(!st) return null;
+  if(st.until<=Date.now()){ _effectFlashActive.delete(id); return null; }
+  return st;
+}
+// 再描画で作り直したスロットへ、まだ光っているなら光を付け直す。
+function _reapplyEffectFlash(el, unit){
+  const st=_effectFlashStateFor(unit);
+  if(!el||!st) return false;
+  el.dataset.effectFlashColor=st.color;
+  el.classList.add('effect-flash');
+  return true;
+}
 // 効果の発生元を一瞬だけ発光させる（魔導板の接続カードホバーと同じカード周囲の光）。
 // count回の発動は、クラスを付け直して明滅として見せる。
 async function playEffectFlash(unit, side, color, count){
-  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
-  if(!slot) return false;
   const n=Math.max(1,Number(count)||1);
   const unitId=unit&&unit.id!=null?String(unit.id):'';
-  const clone=unitId?[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
-    .find(el=>String(el.dataset.unitId||'')===unitId):null;
-  // 攻撃効果は攻撃モーション中に発動する。元カードは非表示になるため、
-  // 画面上で見えている移動中の複製を優先して光らせる。
-  const targets=[clone,slot].filter((el,i,a)=>el&&a.indexOf(el)===i);
-  targets.forEach(el=>{ el.dataset.effectFlashColor=String(color||'white'); });
+  const flashColor=String(color||'white');
+  // **光らせる先は毎回引き直す。** 攻撃効果は攻撃モーション中に発動するため、
+  // 元カードは隠れていて、見えているのは移動中の複製。その複製はモーションが
+  // 終わると消えるので、掴みっぱなしにすると途中で光が消える。
+  const resolveTargets=()=>{
+    const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+    const clone=unitId?[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+      .find(el=>String(el.dataset.unitId||'')===unitId):null;
+    return [clone,slot].filter((el,i,a)=>el&&a.indexOf(el)===i);
+  };
+  if(!resolveTargets().length) return false;
+  const token={};
+  if(unitId) _effectFlashActive.set(unitId,{color:flashColor,until:Date.now()+n*EFFECT_FLASH_STEP_MS+40,token});
   for(let i=0;i<n;i++){
-    targets.forEach(el=>{
+    resolveTargets().forEach(el=>{
+      el.dataset.effectFlashColor=flashColor;
       el.classList.remove('effect-flash');
       void el.offsetWidth;
       el.classList.add('effect-flash');
     });
-    await new Promise(resolve=>setTimeout(resolve,180));
+    await new Promise(resolve=>setTimeout(resolve,EFFECT_FLASH_STEP_MS));
   }
-  targets.forEach(el=>{
+  // **後から始まった発光を消さない。** 同じキャラが続けて光る時、
+  // 先に始めた方の後片付けで後の光まで消えるのを防ぐ。
+  if(unitId&&_effectFlashActive.get(unitId)?.token!==token) return true;
+  if(unitId) _effectFlashActive.delete(unitId);
+  // 掴んだ要素だけでなく、このユニットのidを持つ要素から漏れなく外す
+  // （再描画で付け直された新しいスロットも対象にする）。
+  document.querySelectorAll('.effect-flash').forEach(el=>{
+    const id=String(el.dataset.unitId||'');
+    if(unitId&&id&&id!==unitId) return;
+    if(unitId&&!id&&!resolveTargets().includes(el)) return;
     el.classList.remove('effect-flash');
     delete el.dataset.effectFlashColor;
   });
@@ -987,6 +1058,118 @@ function playCardBurnAway(slotNode,rect,sourceSize){
   }catch(e){ console.error('[playCardBurnAway]',e); }
 }
 
+// ── 戦闘修正でHPが0になった時の死亡演出（青・波打ちフェード）──────────
+// ダメージで倒れた時（playCardBurnAway）とは別の見せ方。
+// 波打ちはSVGのfeDisplacementMapで作り、CSSでは動かせないのでJSが時間で書き換える。
+const DEATH_WAVE_MS=1100;
+const DEATH_WAVE_FREQ=0.008;   // うねりの細かさ（小さいほど大きな波）
+const DEATH_WAVE_MAX=26;       // うねりの最大振幅（px相当）
+
+function _makeDeathWaveFilter(seed){
+  const svg=document.getElementById('death-burn-filters');
+  if(!svg) return null;
+  const id='death-wave-'+Math.round(Math.abs(seed)*97)+'-'+Math.round(Math.random()*100000);
+  const NS='http://www.w3.org/2000/svg';
+  const f=document.createElementNS(NS,'filter');
+  f.setAttribute('id',id);
+  f.setAttribute('x','-30%'); f.setAttribute('y','-30%');
+  f.setAttribute('width','160%'); f.setAttribute('height','160%');
+  f.setAttribute('color-interpolation-filters','sRGB');
+  const t=document.createElementNS(NS,'feTurbulence');
+  t.setAttribute('type','fractalNoise'); t.setAttribute('numOctaves','2');
+  t.setAttribute('baseFrequency',String(DEATH_WAVE_FREQ));
+  t.setAttribute('seed',String(Math.round(Math.abs(seed)*13)%97)); t.setAttribute('result','n');
+  const d=document.createElementNS(NS,'feDisplacementMap');
+  d.setAttribute('in','SourceGraphic'); d.setAttribute('in2','n');
+  d.setAttribute('scale','0');
+  d.setAttribute('xChannelSelector','R'); d.setAttribute('yChannelSelector','G');
+  f.appendChild(t); f.appendChild(d); svg.appendChild(f);
+  return {id,filter:f,disp:d,turb:t};
+}
+
+// slotNode は再描画前に控えた複製、rect はそのときの画面上の位置。
+function playCardWaveAway(slotNode,rect,sourceSize){
+  try{
+    if(!slotNode||!rect) return;
+    if(!(rect.width>0&&rect.height>0)) return;
+    const parent=typeof _vfxHostParent==='function'?_vfxHostParent():document.body;
+    const seed=Math.random()*1000+1;
+
+    const host=document.createElement('div');
+    host.className='death-wave-clone';
+    Object.assign(host.style,{
+      left:rect.left+'px', top:rect.top+'px',
+      width:rect.width+'px', height:rect.height+'px',
+    });
+
+    const card=slotNode.cloneNode(true);
+    card.className='death-wave-card '+slotNode.className;
+    card.removeAttribute('id');
+    card.style.cssText='';
+    card.style.setProperty('border','0','important');
+    card.style.setProperty('border-top','0','important');
+    card.style.setProperty('outline','0','important');
+    card.style.setProperty('box-shadow','none','important');
+    // 戦闘画面は3840x2160の内部座標を親で縮小している。body直下へ移すと縮小が外れるので、
+    // 元のレイアウト寸法で複製してから表示寸法まで縮める（焼失演出と同じ扱い）。
+    const sourceW=Math.max(1,Number(sourceSize&&sourceSize.width)||Number(slotNode.dataset&&slotNode.dataset.deathSourceWidth)||rect.width);
+    const sourceH=Math.max(1,Number(sourceSize&&sourceSize.height)||Number(slotNode.dataset&&slotNode.dataset.deathSourceHeight)||rect.height);
+    card.style.setProperty('position','absolute','important');
+    card.style.setProperty('left','0','important');
+    card.style.setProperty('top','0','important');
+    card.style.setProperty('width',sourceW+'px','important');
+    card.style.setProperty('min-width',sourceW+'px','important');
+    card.style.setProperty('max-width',sourceW+'px','important');
+    card.style.setProperty('height',sourceH+'px','important');
+    card.style.setProperty('min-height',sourceH+'px','important');
+    card.style.setProperty('max-height',sourceH+'px','important');
+    card.style.setProperty('aspect-ratio','auto','important');
+    card.style.setProperty('transform-origin','0 0','important');
+    card.style.setProperty('transform','scale('+(rect.width/sourceW)+','+(rect.height/sourceH)+')','important');
+
+    const tint=document.createElement('div');
+    tint.className='death-wave-tint';
+    const shade=document.createElement('div');
+    shade.className='death-wave-shade';
+    card.appendChild(tint);
+    card.appendChild(shade);
+
+    const warp=document.createElement('div');
+    warp.className='death-wave-warp';
+    warp.appendChild(card);
+    host.appendChild(warp);
+    parent.appendChild(host);
+
+    const fx=_makeDeathWaveFilter(seed);
+    if(fx) warp.style.filter='url(#'+fx.id+')';
+
+    // うねりは「立ち上がって、消えるころに収まる」。基準の細かさも少しずつ動かして
+    // 波が流れているように見せる。
+    const start=performance.now();
+    const timer=window.setInterval(()=>{
+      if(!host.isConnected){ window.clearInterval(timer); return; }
+      if(!fx) return;
+      const t=Math.max(0,Math.min(1,(performance.now()-start)/DEATH_WAVE_MS));
+      const amp=Math.sin(Math.PI*Math.pow(t,0.85))*DEATH_WAVE_MAX;
+      fx.disp.setAttribute('scale',amp.toFixed(1));
+      fx.turb.setAttribute('baseFrequency',(DEATH_WAVE_FREQ*(1+t*0.9)).toFixed(4));
+    },33);
+
+    let cleaned=false;
+    const cleanup=()=>{
+      if(cleaned) return; cleaned=true;
+      window.clearInterval(timer);
+      window.clearTimeout(fallback);
+      host.remove();
+      if(fx&&fx.filter&&fx.filter.parentNode) fx.filter.parentNode.removeChild(fx.filter);
+    };
+    host.addEventListener('animationend',ev=>{
+      if(ev.target===host&&ev.animationName==='death-wave') cleanup();
+    });
+    const fallback=window.setTimeout(cleanup,DEATH_WAVE_MS+3000);
+  }catch(e){ console.error('[playCardWaveAway]',e); }
+}
+
 // 死亡効果の解決を待たず、死亡が確定した瞬間のカードから演出を開始する。
 // これにより、闇の炎など非同期の死亡効果がある場合も演出が遅れず、攻撃モーション後の
 // 盤面詰めで死亡ユニットが配列から除かれる前に確実に複製元を確保できる。
@@ -999,8 +1182,28 @@ function playUnitDeathBurn(unit,side){
   const clone=slot.cloneNode(true);
   unit._deathFxDone=true;
   slot.style.setProperty('visibility','hidden','important');
-  playCardBurnAway(clone,rect,{width:slot.offsetWidth,height:slot.offsetHeight});
+  _playUnitDeathCardFx(unit,clone,rect,{width:slot.offsetWidth,height:slot.offsetHeight});
   return true;
+}
+
+// **カードの消え方を選ぶのはここだけ。**
+//   ダメージで倒れた            → 焼失（playCardBurnAway）
+//   ダメージ以外でHPが0になった → 青い波打ち＋WASTED（playCardWaveAway）
+// 印（_deathByStatDrain）は battle_events.js がイベント列を見て体へ立てる。
+// **死亡イベントを伴わない消滅からも必ずここを通すこと。**
+// 戦闘修正（-X/-X）でHPが0になった体にはコアが death イベントを出さないため、
+// その消滅は renderField() のフォールバックが受け持つ。分岐がそこに無かったので、
+// 波打ちで見せるはずの死に方が全部「焼失」になっていた。
+function _playUnitDeathCardFx(unit,node,rect,sourceSize){
+  const drained=!!(unit&&unit._deathByStatDrain);
+  if(unit) delete unit._deathByStatDrain;
+  if(drained){
+    playCardWaveAway(node,rect,sourceSize);
+    // ATKが0で場を去る時の「FLED」と対になる表示。
+    if(typeof playWastedLabel==='function') playWastedLabel(rect);
+  }else{
+    playCardBurnAway(node,rect,sourceSize);
+  }
 }
 
 // 演出用ホストの追加先。fixed要素をtransform付きの#vfx-clip-rootへ入れると、
@@ -1087,7 +1290,12 @@ function _forceStopAllVfx(options){
   const selectors=(preserveDamage?'':'.damage-vfx-host,.damage-label-host,')+
     '.effect-sustain-host,'+
     '.special-vfx-clip,.special-vfx-host,.sweep-vfx-clip,.sweep-vfx-host,'+
-    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,.fled-label-host,#battle-start-intro'
+    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,.fled-label-host,#battle-start-intro,'+
+    // **キャラの上へ直接足した絵も消す。**（playVfxOnElement が付ける `.vfx`）
+    // アニメーション終了で自分を消す作りだが、決着で盤面が描き直されたり
+    // ループする素材だったりすると animationend が来ず、キャラの上に残り続ける
+    // （敵が全滅した後も炎の矢の絵が乗ったままになる）。
+    '#f-ally .vfx,#f-enemy .vfx,#f-ally .effect-sustain-host,#f-enemy .effect-sustain-host'
   document.querySelectorAll(selectors).forEach(el=>el.remove());
   // **ひと続きのマナ効果も必ず終わらせる。** DOMだけ消しても、
   // 「処理が終わるまで出し続ける」状態が残っていると次の戦闘へ持ち越され、
@@ -1845,16 +2053,18 @@ async function playFledVfx(side, unit){
 }
 // 「FLED」の文字。カードが居た場所へ、1文字ずつ落として出す。
 // 文字の大きさはカード幅から決めるので、どの拡大率でも枠と釣り合う。
-function _spawnFledLabel(rect){
+function _spawnFledLabel(rect,text){
   if(!rect||!(rect.width>0)) return null;
+  const word=String(text||'FLED');
   const host=document.createElement('div');
   host.className='fled-label-host';
   Object.assign(host.style,{left:`${rect.left}px`,top:`${rect.top}px`,
     width:`${rect.width}px`,height:`${rect.height}px`});
   const label=document.createElement('div');
   label.className='fled-label';
-  label.style.fontSize=`${Math.max(12,Math.round(rect.width*0.30))}px`;
-  'FLED'.split('').forEach((ch,i)=>{
+  // 文字数が増えても枠からはみ出さないよう、4文字を基準に縮める。
+  label.style.fontSize=`${Math.max(12,Math.round(rect.width*0.30*Math.min(1,4/word.length)))}px`;
+  word.split('').forEach((ch,i)=>{
     const span=document.createElement('span');
     span.textContent=ch;
     span.style.animationDelay=`${i*PRESENT_FLED_LETTER_MS}ms`;
@@ -1864,7 +2074,20 @@ function _spawnFledLabel(rect){
   document.body.appendChild(host);
   return host;
 }
-if(typeof window!=='undefined') window.playFledVfx=playFledVfx;
+// ── 「WASTED」の文字（ダメージ以外でHPが0になった時）────────────
+// 見せ方は「FLED」と同じ（カードが居た場所へ1文字ずつ落とす）。
+// 呼ぶのは青い波打ちの死亡演出と同じ場面だけ。
+function playWastedLabel(rect){
+  if(!rect||!(rect.width>0)) return null;
+  const host=_spawnFledLabel(rect,'WASTED');
+  if(host){
+    host.classList.add('wasted-label-host');
+    window.setTimeout(()=>{ try{ host.remove(); }catch(e){} },
+      PRESENT_FLED_LETTER_MS*6+PRESENT_FLED_LABEL_MS);
+  }
+  return host;
+}
+if(typeof window!=='undefined'){ window.playFledVfx=playFledVfx; window.playWastedLabel=playWastedLabel; }
 
 // ── 薙ぎ払いの見せ方（PvEとオンラインで唯一の実装）──────────────
 // 対象ごとの命中VFXを出す代わりに、攻撃者から炎が薙ぎ払い、当たった瞬間に
@@ -1911,6 +2134,8 @@ async function playReviveVfx(unit,side){
     slot.style.setProperty('transition','none','important');
     slot.classList.add('revive-hidden');
   }
+  // 再描画が挟まっても隠れたままにする（印は最後に外す）。
+  if(unit) unit._reviveHidden=true;
   // **カードより下に出す。** 層が取れない時だけ従来のVFX層へ落とす。
   const underLayer=_underCardVfxLayer();
   const placeRect=r=>(underLayer?_toBattleScreenRect(r):r);
@@ -1954,6 +2179,7 @@ async function playReviveVfx(unit,side){
   // フェードイン＋HOLD の間はVFXだけを見せる（カードはまだ出さない）。
   await new Promise(resolve=>setTimeout(resolve,fadeIn+holdMs));
   // カードをフェードインさせる（VFXの上に重なって現れる）。
+  if(unit) delete unit._reviveHidden;
   if(slot){
     slot.style.setProperty('transition',`opacity ${cardMs}ms ease-out`,'important');
     requestAnimationFrame(()=>{ slot.classList.remove('revive-hidden'); });
@@ -2324,6 +2550,9 @@ function playSacrificeDestroyVfx(unit, side, onReverseStart){
 // 戻り値は「カードが出た時点」で解決する（逆再生は裏で続ける。演出待ちで戦闘を止めない）。
 // 素材が無ければ即座に出す（演出だけ省く）。
 function playSummonAppearVfx(unit, side){
+  // **召喚より先に、貯めてある発光を出す。** 発光はまとめ出しのため最大700ms
+  // 待たされることがあり、そのままだと召喚元が光るのが召喚より後になる。
+  _syncEffectFlashWithVfx();
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(!slot) return Promise.resolve();
   const url=Assets?.vfx?.specialProduction?.S001||'';
@@ -2349,6 +2578,26 @@ function playSummonAppearVfx(unit, side){
 }
 
 // 封印を1体、K019演出付きで解放する
+// 戦闘中のユニットのレアリティ。ユニットは編成カードから作られる際に rarity を
+// 引き継がないため、名前でカード定義（キャラクター／敵）を引いて補う。
+// ホバー説明の見出し色（#kw-tooltip の rarity-N）に使う。
+const _RARITY_BY_UNIT_NAME=new Map();
+function _battleUnitRarity(unit){
+  const direct=Number(unit&&unit.rarity);
+  if(direct>=1&&direct<=6) return direct;
+  const name=String(unit&&unit.name||'').trim();
+  if(!name) return 0;
+  if(_RARITY_BY_UNIT_NAME.has(name)) return _RARITY_BY_UNIT_NAME.get(name);
+  let found=0;
+  [typeof PANEL_POOL!=='undefined'?PANEL_POOL:null,
+   typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:null].forEach(pool=>{
+    if(found||!Array.isArray(pool)) return;
+    const def=pool.find(p=>p&&String(p.name||'').trim()===name&&Number(p.rarity)>=1);
+    if(def) found=Number(def.rarity);
+  });
+  _RARITY_BY_UNIT_NAME.set(name,found);
+  return found;
+}
 function playSealReleaseVfx(unit, side){
   _syncEffectFlashWithVfx();
   const slot=getCurrentUnitSlot(side,unit);
@@ -2361,6 +2610,13 @@ function playSealReleaseVfx(unit, side){
     fadeEls.forEach(el=>{
       el.style.setProperty('transition',`filter ${fadeMs}ms ease-out`,'important');
       el.style.setProperty('filter','brightness(.45) saturate(.65)','important');
+      // **filter は要素を新しい重なり文脈にする。**
+      // ATK/HPは情報ブロックの中で z-index:9 にして枠レイヤー（z-index:4）より
+      // 上に出しているが、その情報ブロック自身が z-index:auto のまま文脈になると
+      // 中の 9 は内側だけの順位になり、数値が枠の絵の下へ潜って消える。
+      // 封印中はCSS（.sealed-unit > :has(.slot-stats)）が同じことをしているが、
+      // ここは sealed-unit を外した後なので、インラインで引き継ぐ。
+      if(el.querySelector&&el.querySelector('.slot-stats')) el.style.setProperty('z-index','9','important');
     });
     // **ATK/HPの数値は暗転の間も読めるようにする。**
     // 封印中は CSS（.sealed-unit .slot-stats）が brightness(1.9) で持ち上げているが、
@@ -2382,6 +2638,7 @@ function playSealReleaseVfx(unit, side){
     setTimeout(()=>{
       fadeEls.forEach(el=>el.style.removeProperty('transition'));
       fadeEls.forEach(el=>el.style.removeProperty('filter'));
+      fadeEls.forEach(el=>el.style.removeProperty('z-index'));
       statEls.forEach(el=>{ el.style.removeProperty('transition'); el.style.removeProperty('filter'); });
     },fadeMs+40);
   }
@@ -2653,70 +2910,21 @@ function _getAttackTargetRect(slot){
   };
 }
 
-function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options){
-  if(!attacker||!target||!document.body) return Promise.resolve();
-  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_start',{
-    attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
-  });
-  const opt=options||{};
-  const fromList=isEnemySide?G.enemies:G.allies;
-  // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る。
-  // 相手陣営に見つからなければ、同じ陣営から探す（見つけた側の盤面へ飛ばす）。
-  const foeList=isEnemySide?G.allies:G.enemies;
-  const hasTarget=list=>!!list&&(list.includes(target)
-    ||(target.id!=null&&list.some(u=>u&&u.id===target.id)));
-  const targetOnFoeSide=hasTarget(foeList);
-  const toList=targetOnFoeSide?foeList:fromList;
-  let fromIdx=fromList.indexOf(attacker);
-  let toIdx=toList.indexOf(target);
-  if(fromIdx<0&&attacker.id) fromIdx=fromList.findIndex(u=>u&&u.id===attacker.id);
-  if(toIdx<0&&target.id) toIdx=toList.findIndex(u=>u&&u.id===target.id);
-  if(fromIdx<0||toIdx<0) return Promise.resolve();
-  const fromField=document.getElementById(isEnemySide?'f-enemy':'f-ally');
-  const toField=document.getElementById(targetOnFoeSide?(isEnemySide?'f-ally':'f-enemy')
-    :(isEnemySide?'f-enemy':'f-ally'));
-  // 召喚・死亡後の詰め直しでは配列インデックスが同一フレーム内に更新される。
-  // インデックスを先に使うと、攻撃対象の配列位置とDOM上のカードが一時的に
-  // 食い違い、別キャラクターの攻撃モーションを表示することがある。IDを正とし、
-  // IDがない旧ユニットだけインデックスへフォールバックする。
-  const byUnitId=(field,unit)=>unit&&unit.id!=null
-    ?[...(field?.querySelectorAll('.slot[data-unit-id]')||[])].find(el=>el.dataset.unitId===String(unit.id))||null
-    :null;
-  const fromEl=byUnitId(fromField,attacker)||fromField?.querySelector(`.slot[data-unit-idx="${fromIdx}"]`)||getCurrentUnitSlot(isEnemySide?'enemy':'ally',fromIdx);
-  const toEl=byUnitId(toField,target)||toField?.querySelector(`.slot[data-unit-idx="${toIdx}"]`)||getCurrentUnitSlot(isEnemySide?'ally':'enemy',toIdx);
-  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_dom_resolve',{
-    attackerId:attacker&&attacker.id,targetId:target&&target.id,
-    sourceDomId:fromEl?.dataset?.unitId||null,targetDomId:toEl?.dataset?.unitId||null,
-    sourceIdx:fromEl?.dataset?.unitIdx||null,targetIdx:toEl?.dataset?.unitIdx||null
-  });
-  // 即時攻撃はコア側で命中・死亡まで確定してから再生されるため、対象DOMが
-  // 先に空枠へ置き換わる場合がある。死亡直前の矩形が渡されていれば、攻撃者の
-  // モーションだけは従来どおり再生し、対象DOMの存在を必須にしない。
-  const targetRectOverride=opt.targetRect&&opt.targetRect.width>0&&opt.targetRect.height>0
-    ?opt.targetRect:null;
-  if(!fromEl||(!toEl&&!targetRectOverride)) return Promise.resolve();
-  const fr=fromEl.getBoundingClientRect();
-  const tr=targetRectOverride||_getAttackTargetRect(toEl);
-  const dx=(tr.left+tr.width/2)-(fr.left+fr.width/2);
-  const dy=(tr.top+tr.height/2)-(fr.top+fr.height/2);
-  const dist=Math.hypot(dx,dy)||1;
-  const overlap=Math.min(fr.width,tr.width)*0.33;
-  const ratio=Math.max(0,dist-overlap)/dist;
-  const mx=dx*ratio;
-  const my=dy*ratio;
-  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_rects',{
-    attackerId:attacker.id,targetId:target.id,
-    openingLayoutSettledAt:Number(G&&G._battleOpeningLayoutSettledAt)||null,
-    sourceRect:{left:fr.left,top:fr.top,width:fr.width,height:fr.height},
-    targetRect:{left:tr.left,top:tr.top,width:tr.width,height:tr.height},
-    dx,dy,mx,my,dist,ratio,
-    motionDepth:Number(G&&G._battleMotionDepth)||0
-  });
-  const tilt=Math.abs(dx)<Math.max(6,fr.width*0.15)?0:(dx>0?4:-4)*(isEnemySide?-1:1);
+// ── 盤面カードの「動く複製」を作る ────────────────────────────
+// **カードを動かす演出（攻撃モーション・奪う移動）はこの複製を使う。**
+// 元のスロット要素をそのまま複製すると、CSS変数・固定px指定（ATK/HP・枠）が
+// 親の縮尺から外れて崩れるため、実測値を1つずつ写している。
+// fromEl … 見た目の元にするスロット要素／fr … 置きたい位置と大きさ（ビューポート座標）
+function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
   clone.classList.add('attack-motion-clone');
   // 直前の攻撃が中断された場合でも、複製側へ非表示状態を引き継がない。
   clone.classList.remove('dragging','drag-over','selected','selectable','motion-hidden');
+  // **元スロットが隠されていても、複製は必ず見える状態で作る。**
+  // 攻撃モーション中のスロットは inline で visibility:hidden になっており、
+  // そのまま複製すると「動いているはずのカードが見えない」ことになる。
+  clone.style.removeProperty('visibility');
+  clone.style.setProperty('visibility','visible','important');
   clone.style.setProperty('border','0','important');
   clone.style.setProperty('border-top','0','important');
   const cs=getComputedStyle(fromEl);
@@ -2876,6 +3084,256 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   // 常に解除する（元スロットのclip-pathを引き継がせない）。背景外へのはみ出しは、
   // 追加先である#vfx-clip-root側のclip-pathでまとめて切るため、これで二重に困ることはない。
   clone.style.clipPath='none';
+  return clone;
+}
+
+
+// ── 奪ったキャラの移動 ────────────────────────────────────
+// **ワープさせない。** 敵陣に居た位置から、味方陣の新しい位置まで
+// 攻撃モーションと同じ「動く複製」で運ぶ（利用者指定）。
+//
+// 順番が肝心：
+//   1) **盤面を動かす前**に、いま見えている位置から複製を作って置く。
+//   2) その複製が居る間に盤面を詰め直す（applyBoard）。実スロットは
+//      renderField() が「複製が生きている＝motion-hidden」で自動的に隠す。
+//   3) 新しいスロットの位置まで複製を運び、着いたら複製を消して実スロットを出す。
+// これを守らないと、詰め直した瞬間に移動先へカードが現れてから動く（＝ワープに見える）。
+// 攻撃モーション（G._battleMotionDepth）が終わるのを待つ。
+// **必ず時間切れを持つこと。** 数え違いで depth が残ると戦闘の再生ごと止まる。
+function _waitForBattleMotionIdle(timeoutMs){
+  const limit=Math.max(0,Number(timeoutMs)||0);
+  if(!(Number(G&&G._battleMotionDepth)>0)) return Promise.resolve();
+  return new Promise(resolve=>{
+    const start=performance.now();
+    const tick=()=>{
+      if(!(Number(G&&G._battleMotionDepth)>0)||performance.now()-start>=limit){ resolve(); return; }
+      window.setTimeout(tick,30);
+    };
+    tick();
+  });
+}
+// 奪う演出：対象の上で出す絵と音（キャラクターNo.で引く）と、動き出すまでの間。
+const STEAL_CAST_CODE='C090';
+const STEAL_CAST_HOLD_MS=1000;
+const STEAL_MOVE_MS=520;
+const STEAL_MOVE_EASING='cubic-bezier(.3,.05,.2,1)';
+// ── 奪われる体を、演出が始まるまで元の位置へ留める ────────────────
+// **PvEはコアと盤面配列を共有している。** コアは1手ぶんを全部解決してから
+// イベントを再生するので、`unit_stolen` が届く頃には**とっくに移動先へ描かれている**
+// （実測：unit_stolen の時点で敵側のスロットは無く、味方側のスロットが既にある）。
+// そのままでは何を動かしてもワープに見えるので、**再生を始める前**に
+// 「いま見えている位置」へ複製を貼り付け、実スロットは描かせないようにする。
+// この複製が、そのまま奪う移動で運ばれる複製になる。
+// 詰め直し（FLIP）の途中でも「落ち着いた先の位置」を返す。
+// FLIPは実レイアウトを終点に置いたうえで transform で移動元へずらしているだけなので、
+// transform の分を引けば終点が分かる。**待たずに同期で測れる**のが重要
+// （待つ間に再描画が入ると、その隙にカードが移動先へ現れてワープする）。
+function _settledRectOf(el){
+  const r=el&&el.getBoundingClientRect();
+  if(!r||!r.width||!r.height) return null;
+  let dx=0,dy=0;
+  try{
+    const t=getComputedStyle(el).transform;
+    if(t&&t!=='none'&&typeof DOMMatrixReadOnly==='function'){
+      const m=new DOMMatrixReadOnly(t);
+      dx=Number(m.m41)||0; dy=Number(m.m42)||0;
+    }
+  }catch(e){}
+  return {left:r.left-dx,top:r.top-dy,width:r.width,height:r.height};
+}
+// **同期で完結させること。** ここで await すると、その隙の再描画で
+// カードが移動先へ現れてしまう（＝ワープ）。
+function beginUnitStealPresentation(unit, fromSide){
+  if(!unit||unit._stealPresent||!document.body) return false;
+  if(typeof getCurrentUnitSlot!=='function') return false;
+  const el=getCurrentUnitSlot(fromSide==='p2'?'enemy':'ally',unit);
+  const r=_settledRectOf(el);
+  if(!el||!r) return false;
+  const clone=_buildMotionCardClone(el,r);
+  clone.style.margin='0';
+  clone.style.zIndex='10000';
+  clone.style.pointerEvents='none';
+  (document.body||document.documentElement).appendChild(clone);
+  clone.getBoundingClientRect();
+  unit._stealPendingPresent=true;
+  const field=el.closest('#f-enemy,#f-ally');
+  const lane=el.classList.contains('is-rear')?'rear':'front';
+  const laneSlots=field?[...field.querySelectorAll('.slot[data-unit-id]')]
+    .filter(slot=>lane==='rear'?slot.classList.contains('is-rear'):!slot.classList.contains('is-rear'))
+    .sort((a,b)=>a.getBoundingClientRect().left-b.getBoundingClientRect().left):[];
+  const position=Math.max(0,laneSlots.indexOf(el));
+  const fromList=fromSide==='p2'?(G.enemies||[]):(G.allies||[]);
+  unit._stealPresent={clone,rect:{left:r.left,top:r.top,width:r.width,height:r.height},
+    // PvEはコアと配列を共有するため、この時点で元配列から既に抜けている。
+    // オンラインはイベント再生時に抜くので、まだ実カード自身が元の枠を占めている。
+    // 後者へ描画用の空席まで足すと二重に数えて敵盤面を動かしてしまう。
+    origin:{side:fromSide,lane,position,released:false,detached:!fromList.includes(unit)}};
+  el.classList.add('motion-hidden');
+  el.style.setProperty('visibility','hidden','important');
+  return true;
+}
+async function playUnitStealMotion(unit, fromSide, toSide, applyBoard, durationMs){
+  const sideName=s=>s==='p2'?'enemy':'ally';
+  const run=typeof applyBoard==='function'?applyBoard:()=>{};
+  if(!unit||!document.body){ run(); return false; }
+  // **走っている攻撃モーションが終わってから始める。**
+  // 途中で割り込むと、飛んでいる複製と奪う複製が同じカードを取り合い、
+  // 攻撃のアニメーションが消えたり、着地先に二重に見えたりする。
+  await _waitForBattleMotionIdle(1200);
+  // 再生前に貼り付けておいた複製があれば、それをそのまま運ぶ（PvE）。
+  // 無ければ、いま見えている元スロットから作る（オンラインはこちら）。
+  // オンライン側もPvEと同じ事前保持を使う。元スロットから直接複製するだけだと
+  // 移動先の実カードが待機中からレイアウト人数へ入り、発動元や既存の味方を
+  // 先に動かしたうえ、着地後に奪ったカード自身もFLIPでもう一度ずれる。
+  if(!unit._stealPresent&&typeof beginUnitStealPresentation==='function'){
+    beginUnitStealPresentation(unit,fromSide);
+  }
+  const pre=unit._stealPresent;
+  let fromEl=null, fr=pre?pre.rect:null, clone=pre?pre.clone:null;
+  if(!clone){
+    fromEl=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(sideName(fromSide),unit):null;
+    fr=fromEl&&fromEl.getBoundingClientRect();
+    if(!fromEl||!fr||!fr.width||!fr.height){ run(); return false; }
+    clone=_buildMotionCardClone(fromEl,fr);
+    clone.style.margin='0';
+    clone.style.zIndex='10000';
+    clone.style.pointerEvents='none';
+    fromEl.classList.add('motion-hidden');
+    fromEl.style.setProperty('visibility','hidden','important');
+    (document.body||document.documentElement).appendChild(clone);
+    clone.getBoundingClientRect();
+  }
+  unit._motionHidden=true;
+  // **発動時：対象の上でC090を再生し、1秒置いてから動き出す。**（利用者指定）
+  // 動き出しと同時に盤面を詰める。詰めを先にすると、まだ元の位置に貼り付いている
+  // カードの上へ他の敵が寄ってきて重なる。
+  const holdMs=Math.max(0,Number(STEAL_CAST_HOLD_MS)||0);
+  const castPath=typeof getEffectVfxPath==='function'?getEffectVfxPath(STEAL_CAST_CODE):'';
+  if(castPath&&typeof playHitVfxAtRect==='function'){
+    // 完了は待たない（1秒の間に重ねて見せる）。
+    // 大きさは present.js の PRESENT_VFX_SCALE（C090＝毒牙と同じ .5）。
+    void playHitVfxAtRect({left:fr.left,top:fr.top,width:fr.width,height:fr.height},0,
+      {customVfxPath:castPath,waitForFinish:false,gateMs:0,rotation:0,
+       vfxScale:(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(STEAL_CAST_CODE):1)});
+  }
+  if(typeof playSfx==='function'&&typeof getEffectSfxKey==='function'){
+    const key=getEffectSfxKey(STEAL_CAST_CODE);
+    if(key) playSfx(key,{group:'combat'});
+  }
+  if(holdMs>0) await new Promise(resolve=>window.setTimeout(resolve,holdMs));
+  const finish=()=>{
+    clone.remove();
+    unit._motionHidden=false;
+    delete unit._stealPendingPresent;
+    delete unit._stealPresent;
+    // 奪ったカードは複製が最終地点まで運んだので、盤面詰めのFLIPを重ねない。
+    // 残すと着地後に実カードへ切り替わった瞬間、さらに数px移動して見える。
+    if(G._battleCompactMoves) G._battleCompactMoves.delete(String(unit.id));
+    const el=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(sideName(toSide),unit):null;
+    if(el){ el.classList.remove('motion-hidden'); el.style.removeProperty('visibility'); }
+    if(typeof renderAll==='function') renderAll();
+  };
+  try{
+    // **盤面を詰めるのと動き出しは同時。** 詰めを先に済ませて待つと、
+    // まだ元の位置に貼り付いているカードの上へ他の敵が寄ってきて重なる。
+    // 元陣営の空席保持もこの瞬間に解除する。保持したまま描き直すと、
+    // 複製だけが動いて残った敵は元位置に留まり、詰めが後追いになってしまう。
+    if(pre&&pre.origin) pre.origin.released=true;
+    run();
+    const findTo=()=>typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(sideName(toSide),unit):null;
+    let toEl=findTo();
+    // 詰め直しが非同期に描く場合だけ、スロットができるのを1フレーム分待つ。
+    if(!toEl){ await new Promise(resolve=>window.setTimeout(resolve,32)); toEl=findTo(); }
+    // **着地点も「落ち着いた先の位置」で測る。**
+    // 詰め直しは残ったカードを260msかけて動かすので、素の矩形だと
+    // 「まだ動いている最中の位置」へ運んでしまい、あとから本来の位置へ跳ねる。
+    const to=_settledRectOf(toEl);
+    if(!to){ finish(); return false; }
+    const dx=to.left-fr.left, dy=to.top-fr.top;
+    if(Math.abs(dx)<2&&Math.abs(dy)<2){ finish(); return false; }
+    const ms=Math.max(1,Number(durationMs)||STEAL_MOVE_MS);
+    // **Web Animations APIで運ぶ。** CSSのtransitionは、複製が持ち込んだ
+    // インラインの transition/transform に上書きされることがあり、
+    // 途中で飛んだり効かなかったりする。keyframeで始点と終点を明示する。
+    clone.style.transition='none';
+    let anim=null;
+    try{
+      anim=clone.animate(
+        [{transform:'translate3d(0,0,0)'},{transform:`translate3d(${dx}px,${dy}px,0)`}],
+        {duration:ms,easing:STEAL_MOVE_EASING,fill:'forwards'});
+    }catch(e){ clone.style.transform=`translate3d(${dx}px,${dy}px,0)`; }
+    // 実機で見え方を確かめられるよう、始点・終点と実際の再生状態を残す。
+    G._vbStealProbe={from:{left:Math.round(fr.left),top:Math.round(fr.top)},
+      to:{left:Math.round(to.left),top:Math.round(to.top)},dx:Math.round(dx),dy:Math.round(dy),
+      durationMs:ms,playState:anim?anim.playState:'no-anim'};
+    await new Promise(resolve=>window.setTimeout(resolve,ms+30));
+    if(G._vbStealProbe&&anim) G._vbStealProbe.endState=anim.playState;
+  }catch(e){ /* 演出の失敗で盤面を止めない */ }
+  finish();
+  return true;
+}
+
+function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options){
+  if(!attacker||!target||!document.body) return Promise.resolve();
+  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_start',{
+    attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
+  });
+  const opt=options||{};
+  const fromList=isEnemySide?G.enemies:G.allies;
+  // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る。
+  // 相手陣営に見つからなければ、同じ陣営から探す（見つけた側の盤面へ飛ばす）。
+  const foeList=isEnemySide?G.allies:G.enemies;
+  const hasTarget=list=>!!list&&(list.includes(target)
+    ||(target.id!=null&&list.some(u=>u&&u.id===target.id)));
+  const targetOnFoeSide=hasTarget(foeList);
+  const toList=targetOnFoeSide?foeList:fromList;
+  let fromIdx=fromList.indexOf(attacker);
+  let toIdx=toList.indexOf(target);
+  if(fromIdx<0&&attacker.id) fromIdx=fromList.findIndex(u=>u&&u.id===attacker.id);
+  if(toIdx<0&&target.id) toIdx=toList.findIndex(u=>u&&u.id===target.id);
+  if(fromIdx<0||toIdx<0) return Promise.resolve();
+  const fromField=document.getElementById(isEnemySide?'f-enemy':'f-ally');
+  const toField=document.getElementById(targetOnFoeSide?(isEnemySide?'f-ally':'f-enemy')
+    :(isEnemySide?'f-enemy':'f-ally'));
+  // 召喚・死亡後の詰め直しでは配列インデックスが同一フレーム内に更新される。
+  // インデックスを先に使うと、攻撃対象の配列位置とDOM上のカードが一時的に
+  // 食い違い、別キャラクターの攻撃モーションを表示することがある。IDを正とし、
+  // IDがない旧ユニットだけインデックスへフォールバックする。
+  const byUnitId=(field,unit)=>unit&&unit.id!=null
+    ?[...(field?.querySelectorAll('.slot[data-unit-id]')||[])].find(el=>el.dataset.unitId===String(unit.id))||null
+    :null;
+  const fromEl=byUnitId(fromField,attacker)||fromField?.querySelector(`.slot[data-unit-idx="${fromIdx}"]`)||getCurrentUnitSlot(isEnemySide?'enemy':'ally',fromIdx);
+  const toEl=byUnitId(toField,target)||toField?.querySelector(`.slot[data-unit-idx="${toIdx}"]`)||getCurrentUnitSlot(isEnemySide?'ally':'enemy',toIdx);
+  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_dom_resolve',{
+    attackerId:attacker&&attacker.id,targetId:target&&target.id,
+    sourceDomId:fromEl?.dataset?.unitId||null,targetDomId:toEl?.dataset?.unitId||null,
+    sourceIdx:fromEl?.dataset?.unitIdx||null,targetIdx:toEl?.dataset?.unitIdx||null
+  });
+  // 即時攻撃はコア側で命中・死亡まで確定してから再生されるため、対象DOMが
+  // 先に空枠へ置き換わる場合がある。死亡直前の矩形が渡されていれば、攻撃者の
+  // モーションだけは従来どおり再生し、対象DOMの存在を必須にしない。
+  const targetRectOverride=opt.targetRect&&opt.targetRect.width>0&&opt.targetRect.height>0
+    ?opt.targetRect:null;
+  if(!fromEl||(!toEl&&!targetRectOverride)) return Promise.resolve();
+  const fr=fromEl.getBoundingClientRect();
+  const tr=targetRectOverride||_getAttackTargetRect(toEl);
+  const dx=(tr.left+tr.width/2)-(fr.left+fr.width/2);
+  const dy=(tr.top+tr.height/2)-(fr.top+fr.height/2);
+  const dist=Math.hypot(dx,dy)||1;
+  const overlap=Math.min(fr.width,tr.width)*0.33;
+  const ratio=Math.max(0,dist-overlap)/dist;
+  const mx=dx*ratio;
+  const my=dy*ratio;
+  if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_rects',{
+    attackerId:attacker.id,targetId:target.id,
+    openingLayoutSettledAt:Number(G&&G._battleOpeningLayoutSettledAt)||null,
+    sourceRect:{left:fr.left,top:fr.top,width:fr.width,height:fr.height},
+    targetRect:{left:tr.left,top:tr.top,width:tr.width,height:tr.height},
+    dx,dy,mx,my,dist,ratio,
+    motionDepth:Number(G&&G._battleMotionDepth)||0
+  });
+  const tilt=Math.abs(dx)<Math.max(6,fr.width*0.15)?0:(dx>0?4:-4)*(isEnemySide?-1:1);
+  const clone=_buildMotionCardClone(fromEl, fr);
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
   fromEl.style.setProperty('visibility','hidden','important');
@@ -2901,6 +3359,18 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     const nextRatio=Math.max(0,nextDist-nextOverlap)/nextDist;
     const nextTilt=Math.abs(nextDx)<Math.max(6,fr.width*0.15)?0:(nextDx>0?4:-4)*(isEnemySide?-1:1);
     return `translate(${nextDx*nextRatio*targetRatio}px,${nextDy*nextRatio*targetRatio}px) rotate(${nextTilt}deg)`;
+  };
+  const getAttackerReturnTransform=()=>{
+    // 攻撃効果中の召喚・死亡で攻撃者のスロットが変わった場合も、
+    // 複製を固定した開始位置ではなく、現在の最終スロットへ戻す。
+    const side=isEnemySide?'enemy':'ally';
+    const current=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,attacker):null;
+    if(!current) return 'translate(0,0) rotate(0deg)';
+    const currentRect=_getAttackTargetRect(current);
+    if(!currentRect) return 'translate(0,0) rotate(0deg)';
+    const dx=(currentRect.left+currentRect.width/2)-(fr.left+fr.width/2);
+    const dy=(currentRect.top+currentRect.height/2)-(fr.top+fr.height/2);
+    return `translate(${dx}px,${dy}px) rotate(0deg)`;
   };
   const atStop=getTargetMotionTransform(stopRatio)||`translate(${mx*stopRatio}px,${my*stopRatio}px) rotate(${tilt}deg)`;
   const atHit=getTargetMotionTransform(1)||`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
@@ -3027,7 +3497,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           await runSegment([
             {transform:atStop},
             {transform:'translate(0,0) rotate(0deg)'},
-          ],opt.returnDuration||420);
+          ],opt.returnDuration||420,getAttackerReturnTransform);
           return;
         }
         // 効果を出し終えてから残りの間合いを詰めて接触する。
@@ -3054,7 +3524,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       await runSegment([
         {transform:atHit},
         {transform:'translate(0,0) rotate(0deg)'},
-      ],opt.returnDuration||480);
+      ],opt.returnDuration||480,getAttackerReturnTransform);
     } finally {
       cleanup();
       if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_end',{
@@ -3570,7 +4040,18 @@ function renderField(id,units,isEnemy,_lane){
   // 上限判定のため配列に残る一方、画面上の配置枠は占有しない。
   // ここを生存ユニットとして数えると、非表示のpending体ぶんだけ既存体が
   // 左右へずれ、召喚上限時に一瞬左端へ飛ぶ。
-  const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&x.u.hp>0&&!x.u._corePendingSummon&&!x.u._isObject);
+  // 奪取対象はコア上では既に移動先配列にいるが、演出が動き出すまでは
+  // 移動先の人数にもDOMにも含めない。visibilityだけで隠すと中央寄せ計算には
+  // 数えられ、死んだ発動元（サキュバス）や既存の味方が先に場所を空けて動く。
+  const _stealAwaitingMove=u=>!!(u&&u._stealPendingPresent&&u._stealPresent
+    &&u._stealPresent.origin&&!u._stealPresent.origin.released
+    &&u.side!==u._stealPresent.origin.side);
+  const _keepDying=typeof presentIsPlaying==='function'&&presentIsPlaying();
+  // コアは多段攻撃1手ぶんを先に確定するため、実体HPは「復活後に再び死亡」した
+  // 最終値0でも、再生位置では生存していることがある。配置・描画は表示HPを正とする。
+  const _visualHp=u=>_keepDying&&typeof presentShownHp==='function'?presentShownHp(u):Number(u&&u.hp)||0;
+  const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&_visualHp(x.u)>0&&!x.u._corePendingSummon
+    &&!_stealAwaitingMove(x.u)&&!x.u._isObject);
   const prioritySet=new Set();
   if(isEnemy){
     // allyTarget 強制指定 → 前衛（lane==='front' or hate）→ 全生存敵
@@ -3589,8 +4070,8 @@ function renderField(id,units,isEnemy,_lane){
   // HPが0になっても、死亡演出が終わるまでは盤面の枠を確保しておく。
   // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
   // （＝何もない場所）へ出てしまう。
-  const _keepDying=typeof presentIsPlaying==='function'&&presentIsPlaying();
-  const _onBoard=x=>!!x.u&&(x.u.hp>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
+  const _onBoard=x=>!!x.u&&!_stealAwaitingMove(x.u)
+    &&(_visualHp(x.u)>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
   const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
   const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
   const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
@@ -3602,8 +4083,39 @@ function renderField(id,units,isEnemy,_lane){
   el.style.setProperty('justify-content','center','important');
   const _fieldW=`calc(var(--unit-card-w) * ${frontSlots} + var(--unit-field-gap) * ${frontSlots-1})`;
   const _unitX=(count,pos)=>`calc((${_fieldW} - var(--unit-card-w)) / 2 + (${pos} - (${count} - 1) / 2) * (var(--unit-card-w) + var(--unit-field-gap)))`;
-  const _rearLeft=new Map(_rearIndexes.map((idx,pos)=>[idx,_unitX(_rearIndexes.length,pos)]));
-  const _frontLeft=new Map(_frontIndexes.map((idx,pos)=>[idx,_unitX(_frontIndexes.length,pos)]));
+  // 奪う演出の待機中は、奪われた体が元いた場所をレイアウト上だけ空けておく。
+  // カード本体は既に移動先の配列にあるため、元配列へ戻すと戦闘状態を壊す。
+  // 代わりに元位置の並びへ描画専用の空席を差し込み、残った敵が複製へ
+  // 重なるのを防ぐ。動き出す瞬間に origin.released を立てて通常の詰めへ戻す。
+  const _fieldSide=isEnemy?'p2':'p1';
+  const _stealOrigins=[...(G.allies||[]),...(G.enemies||[])]
+    .map(u=>u&&u._stealPendingPresent&&u._stealPresent&&u._stealPresent.origin)
+    .filter(origin=>origin&&!origin.released&&origin.detached!==false&&origin.side===_fieldSide);
+  const _layoutWithStealOrigins=(indexes,lane)=>{
+    const entries=indexes.map(idx=>({idx}));
+    _stealOrigins.filter(origin=>origin.lane===lane)
+      .sort((a,b)=>a.position-b.position)
+      .forEach(origin=>entries.splice(Math.max(0,Math.min(entries.length,Number(origin.position)||0)),0,{ghost:true}));
+    const positions=new Map();
+    entries.forEach((entry,pos)=>{ if(!entry.ghost) positions.set(entry.idx,pos); });
+    return {count:entries.length,positions};
+  };
+  const _rearLayout=_layoutWithStealOrigins(_rearIndexes,'rear');
+  const _frontLayout=_layoutWithStealOrigins(_frontIndexes,'front');
+  const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearLayout.count,_rearLayout.positions.get(idx))]));
+  const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontLayout.count,_frontLayout.positions.get(idx))]));
+  // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。
+  const holdLayout=!!(G._compactHoldSides&&G._compactHoldSides[isEnemy?'enemies':'allies']
+    &&(G._animateBattleCompact||performance.now()<Number(G._battleCompactAnimatingUntil||0)));
+  if(holdLayout){
+    [..._frontIndexes,..._rearIndexes].forEach(idx=>{
+      const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
+      const oldLeft=previousLefts.get(uid);
+      if(!oldLeft) return;
+      if(_frontIndexes.includes(idx)) _frontLeft.set(idx,oldLeft);
+      else _rearLeft.set(idx,oldLeft);
+    });
+  }
   for(const i of renderIndexes){
     const rawU=units[i];
     // コアは後続効果の対象にできるよう召喚体を生成直後に配列へ入れるが、
@@ -3615,13 +4127,13 @@ function renderField(id,units,isEnemy,_lane){
     if(rawU&&rawU._corePendingSummon&&rawU.hp>0&&typeof _recordBattleTrace==='function'){
       _recordBattleTrace('render_skip_pending',{unitId:rawU.id,name:rawU.name,side:isEnemy?'p2':'p1',index:i});
     }
-    const u=rawU&&rawU._corePendingSummon?null:rawU;
+    const u=rawU&&(rawU._corePendingSummon||_stealAwaitingMove(rawU))?null:rawU;
     // イベント再生中にHPが0になった体は、死亡演出を行うまでカードを残す。
     // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
     // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
-    const _pendingDeath=!!(u&&u.hp<=0&&u.id!=null&&!u._deathFxReady&&dyingIds.has(String(u.id))
+    const _pendingDeath=!!(u&&_visualHp(u)<=0&&u.id!=null&&!u._deathFxReady&&dyingIds.has(String(u.id))
       &&_keepDying);
-    const _alive=!!u&&(u.hp>0||_pendingDeath);
+    const _alive=!!u&&(_visualHp(u)>0||_pendingDeath);
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
     slot.dataset.unitIdx=i;
@@ -3650,7 +4162,8 @@ function renderField(id,units,isEnemy,_lane){
         const _prevRect=previousRects.get(String(u.id));
         if(_prevNode&&_prevRect&&_prevRect.width>0){
           u._deathFxDone=true;
-          playCardBurnAway(_prevNode,_prevRect);
+          // 消え方の分岐は _playUnitDeathCardFx が唯一の実装。
+          _playUnitDeathCardFx(u,_prevNode,_prevRect);
         }
       }
       slot.classList.add('empty','dead-empty');
@@ -3722,7 +4235,11 @@ function renderField(id,units,isEnemy,_lane){
     // _motionHidden フラグは、例外・入れ子・再描画の境界でずれることがあり、
     // ずれた瞬間に「飛んでいる複製」と「元位置の実カード」が同時に見える
     // （＝戦闘が長引くほど起きやすくなる）。複製が生きている間は無条件で隠す。
-    if(u&&_hasMotionClone){
+    // **奪われる体は、演出が始まるまで描かない。**
+    // 元の位置には beginUnitStealPresentation() が貼り付けた複製が残っている。
+    if(u&&u._stealPendingPresent){
+      slot.classList.add('motion-hidden'); slot.style.visibility='hidden';
+    } else if(u&&_hasMotionClone){
       u._motionHidden=true;
       slot.classList.add('motion-hidden'); slot.style.visibility='hidden';
     } else if(u&&u._motionHidden&&Number(G&&G._battleMotionDepth||0)>0){
@@ -3730,17 +4247,35 @@ function renderField(id,units,isEnemy,_lane){
     } else if(u&&u._motionHidden){
       u._motionHidden=false;
     }
-    const _isPlayerHero=!!(u&&!isEnemy&&!u._panelSummoned);
+    // 発光中に作り直されたスロットへ光を付け直す（規則は playEffectFlash 側）。
+    if(u) _reapplyEffectFlash(slot,u);
+    // **奪って味方になった体は「自軍のキャラクター」ではない。**
+    // 判定は assets.js の applyUnitVisual() と揃えること（`_useEnemyVisualFrame` を見る）。
+    // 揃えないと、下の「自軍キャラは characterFrame」でボス枠へ上書きされ、
+    // 奪った瞬間に敵の枠が本来のものからボス枠へ変わる。
+    const _isPlayerHero=!!(u&&!isEnemy&&!u._panelSummoned&&!u._useEnemyVisualFrame);
     const _hasGuardPanel=u&&!_isPlayerHero&&((isEnemy||u._panelSummoned)&&u.guardian);
-    if(u&&u.hp>0&&_hasGuardPanel) slot.classList.add('is-defender','uses-hate-frame');
-    if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('is-defender');
-    if(u&&u.hp>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('uses-hate-frame');
+    if(u&&_visualHp(u)>0&&_hasGuardPanel) slot.classList.add('is-defender','uses-hate-frame');
+    if(u&&_visualHp(u)>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('is-defender');
+    if(u&&_visualHp(u)>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('uses-hate-frame');
     if(_isPlayerHero) slot.classList.remove('is-defender','uses-hate-frame');
     // 敵も、再生中に倒れた体は死亡演出まで中身を描く（味方と同じ扱い）。
     if(u&&(!isEnemy||_alive)){
       slot.classList.add('unit-card');
       if(u.name==='石像') slot.classList.add('no-unit-shadow');
-      if(u._sealed){
+      // 復活演出の準備中はカードを出さない（present_events.js が印を付ける）。
+      if(u._reviveHidden) slot.classList.add('revive-hidden');
+      // **戦闘中もカード説明の見出しをレアリティ色にする。**
+      // ホバー説明（#kw-tooltip）の色は、ホバーした要素が持つ `rarity-N` クラスから
+      // 決まる（この上の _initKwTooltip）。編成・報酬のカードには付いているが、
+      // 戦闘のスロットには付いていなかったため、戦闘中だけ色が白のままだった。
+      // **戦闘中のユニットは rarity を持たない**（編成カードから作る時に引き継がれない）
+      // ので、名前でカード定義を引いて補う。
+      const _rarity=_battleUnitRarity(u);
+      if(_rarity>=1&&_rarity<=6) slot.classList.add(`rarity-${_rarity}`);
+      // `_sealShownPending` は「コアは解放済みだが、演出がまだそこへ来ていない」印。
+      // これを見ないと、味方が倒れる演出より先に封印キャラが明るくなる。
+      if(u._sealed||u._sealShownPending){
         slot.classList.add('sealed-unit');
         slot.style.filter='';
       } else {
@@ -3748,14 +4283,17 @@ function renderField(id,units,isEnemy,_lane){
       }
       // 死亡演出を始めるまでは暗くしない。数値を出し切るための短い間だけ枠を
       // 残しているので、ここで暗い見た目にすると「死体が場に残っている」ように見える。
-      if(u.hp<=0) slot.classList.add('inert');
-      if(u.hp<=0&&!_pendingDeath) slot.classList.add('dead-unit');
+      if(_visualHp(u)<=0) slot.classList.add('inert');
+      if(_visualHp(u)<=0&&!_pendingDeath) slot.classList.add('dead-unit');
       if(!isEnemy&&G._selectedEquipUnitIdx===i) slot.classList.add('selected');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(_isPlayerHero){
         slot.classList.remove('is-defender','uses-hate-frame');
         if(typeof assetUrl==='function'&&typeof Assets!=='undefined'&&Assets.cards?.characterFrame){
-          slot.style.setProperty('--unit-frame',assetUrl(Assets.cards.characterFrame));
+          const _heroFrameUrl=assetUrl(Assets.cards.characterFrame);
+          slot.style.setProperty('--unit-frame',_heroFrameUrl);
+          // 枠画像を差し替えたので、角R測定用のキーも合わせておく（applyUnitVisualの結果を上書きするため）
+          if(typeof applyFrameRadiusKey==='function') applyFrameRadiusKey(slot,_heroFrameUrl);
         }
       }
       if(isEnemy&&typeof getSheetRaceByName==='function'){

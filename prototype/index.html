@@ -38,41 +38,59 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
    スライド演出用の battle-bg-reveal は id+2クラスでこの規則に勝つため影響しない。 */
 #scr-battle.asset-backed::before{background-position:center bottom}
 #scr-battle.battle-bg-normal.asset-backed::before{background-position:center bottom}
+/* エリート／ボスの入り：上端から下端へ、寄りなしで移動する（従来どおり）。
+   寄せ（フォーカス）は**下端まで移動し切ってから**当てる。 */
 #scr-battle.battle-bg-reveal.asset-backed::before{background-position:center top}
-#scr-battle.battle-bg-scroll-ready.asset-backed::before{transition:background-position 3s cubic-bezier(.42,0,.58,1)}
-#scr-battle.battle-bg-scrolling.asset-backed::before{background-position:center bottom;transition:background-position 3s cubic-bezier(.42,0,.58,1)}
+/* **transition を上書きしないこと。** ここで transition を書くと、基底規則の
+   「寄せ（transform）をゆっくり効かせる」指定ごと消えて、寄せが一瞬で当たる。
+   下への移動は JS のアニメーション（playBattleIntroDescent）が受け持つ。
+   このクラスは移動し終わった後の静止位置を決めるためだけに使う。 */
+#scr-battle.battle-bg-scrolling.asset-backed::before{background-position:center bottom}
 .screen.asset-backed::after{display:none}
 .screen.asset-backed>*{position:relative;z-index:1}
-#scr-battle.asset-backed::after{
-  content:'';
-  display:block;
-  position:absolute;
-  inset:0;
-  z-index:0;
-  pointer-events:none;
-  background:url("assets/art/backgrounds/effect.webp") center/cover no-repeat;
-  opacity:1;
-  mix-blend-mode:normal;
-  animation:none;
+/* 戦闘開始で effect.webp を重ねるのはやめた（利用者指定）。
+   通常戦闘は画面全体のフェードイン（#battle-transition-fade）で入る。 */
+/* ── 戦闘背景のフォーカス（寄り）と画面振動 ─────────────────────
+   **寄せるのは背景だけ。UI・キャラクターの大きさは変えない。**
+   **振動も画面（#scr-battle）ごと動かさない。** 画面の箱を動かすと、
+   動いた分だけ画面指定サイズの外へはみ出す（または縁に画面外が見える）。
+   背景レイヤーと戦場（#f-ally/#f-enemy）だけを動かし、箱は動かさない。
+   背景は寄せてあるので、揺れても縁から外が覗かない。
+   変数は :root に置く（--game-scale と同じ場所）。
+   #scr-battle のインラインstyleは背景の切り替えで消されることがあるため。 */
+@property --battle-shake-x{syntax:'<length>';inherits:true;initial-value:0px}
+@property --battle-shake-y{syntax:'<length>';inherits:true;initial-value:0px}
+:root{--battle-bg-focus:1;--battle-bg-focus-ms:0ms}
+#scr-battle.asset-backed::before{
+  transform:translate3d(var(--battle-shake-x),var(--battle-shake-y),0) scale(var(--battle-bg-focus,1));
+  transform-origin:center center;
+  transition:transform var(--battle-bg-focus-ms,0ms) cubic-bezier(.33,0,.2,1);
 }
-#scr-battle.battle-start-playing::after{
-  animation:battle-start-effect-fade 2.16s ease-out forwards;
+/* 戦場は別の規則で translateZ(0)!important が当たっている（GPUレイヤー化）。
+   同じ役目を保ったまま揺れを乗せるため、こちらも !important で上書きする。 */
+html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
+  transform:translate3d(var(--battle-shake-x),var(--battle-shake-y),0)!important;
 }
-#scr-battle.battle-start-no-effect::after{
-  opacity:0!important;
-  animation:none!important;
-}
+/* 振動は背景と戦場だけを動かす（上の --battle-shake-x/y）。
+   Web Animations が使えない環境向けのフォールバック。 */
 @keyframes battle-screen-shake-fallback{
-  0%{transform:scale(var(--game-scale)) translate3d(0,0,0)}
-  4%{transform:scale(var(--game-scale)) translate3d(var(--battle-shake-initial-x, calc(var(--battle-shake-distance) * -1)),var(--battle-shake-initial-y, calc(var(--battle-shake-distance) * .62)),0)}
-  20%{transform:scale(var(--game-scale)) translate3d(var(--battle-shake-distance),calc(var(--battle-shake-distance) * -.52),0)}
-  42%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * -.52),calc(var(--battle-shake-distance) * .3),0)}
-  66%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * .25),calc(var(--battle-shake-distance) * -.14),0)}
-  84%{transform:scale(var(--game-scale)) translate3d(calc(var(--battle-shake-distance) * -.1),calc(var(--battle-shake-distance) * .06),0)}
-  100%{transform:scale(var(--game-scale)) translate3d(0,0,0)}
+  0%{--battle-shake-x:0px;--battle-shake-y:0px}
+  4%{--battle-shake-x:var(--battle-shake-initial-x, calc(var(--battle-shake-distance) * -1));--battle-shake-y:var(--battle-shake-initial-y, calc(var(--battle-shake-distance) * .62))}
+  20%{--battle-shake-x:var(--battle-shake-distance);--battle-shake-y:calc(var(--battle-shake-distance) * -.52)}
+  42%{--battle-shake-x:calc(var(--battle-shake-distance) * -.52);--battle-shake-y:calc(var(--battle-shake-distance) * .3)}
+  66%{--battle-shake-x:calc(var(--battle-shake-distance) * .25);--battle-shake-y:calc(var(--battle-shake-distance) * -.14)}
+  84%{--battle-shake-x:calc(var(--battle-shake-distance) * -.1);--battle-shake-y:calc(var(--battle-shake-distance) * .06)}
+  100%{--battle-shake-x:0px;--battle-shake-y:0px}
 }
-#scr-battle.battle-screen-shake{animation:battle-screen-shake-fallback var(--battle-shake-duration,180ms) ease-out both;transform-origin:center}
-@keyframes battle-start-effect-fade{0%,83%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.04)}}
+#scr-battle.battle-screen-shake{animation:battle-screen-shake-fallback var(--battle-shake-duration,180ms) ease-out both}
+/* ── 大ダメージの衝撃（hit_impact.webm）────────────────────
+   画面振動と同時に短く出して消す。位置・尺は JS 側の定数で調整する。 */
+#battle-hit-impact{
+  position:absolute;inset:0;z-index:4000;pointer-events:none;
+  opacity:0;mix-blend-mode:screen;
+}
+#battle-hit-impact video{width:100%;height:100%;object-fit:cover;display:block}
+#battle-hit-impact.is-visible{opacity:1}
 #battle-start-intro{
   position:absolute!important;
   inset:0!important;
@@ -276,6 +294,9 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 #scr-title.startup-menu-visible .tap-to-start{opacity:0;transition:opacity .25s ease}
 @keyframes tap-to-start-float{0%,100%{transform:translateX(-50%) translateY(-9px)}50%{transform:translateX(-50%) translateY(9px)}}
 #scr-title.startup-menu-hover-ready .title-menu-item:hover{color:#fff!important;opacity:1!important}
+/* セーブデータが無い時のコンティニュー。**押せなくはせず、文字だけ暗くする。**
+   ホバーでは上の規則（!important）で明るくなり、押した時は確定音だけ鳴る。 */
+#scr-title.startup-menu-visible .title-menu-item.title-menu-item-empty{opacity:.34}
 .title-menu-back{position:absolute;left:300px;top:12px;width:900px;height:104px;background:url("assets/ui/select_back.svg") center/100% 100% no-repeat;opacity:1;filter:drop-shadow(0 0 18px rgba(255,211,104,.9));pointer-events:none;z-index:0;animation:title-start-glow 1.5s ease-in-out infinite;transition:top .16s ease,filter .16s ease}
 #scr-title.startup-title:not(.startup-menu-visible) #title-select-back,
 #scr-title.startup-menu-visible:not(.startup-menu-ready) #title-select-back{opacity:0}
@@ -526,9 +547,6 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
 .rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
 @keyframes pblue{from{box-shadow:0 0 6px rgba(60,160,255,.35),inset 0 0 10px rgba(60,160,255,.06)}to{box-shadow:0 0 16px rgba(60,160,255,.75),inset 0 0 20px rgba(60,160,255,.12)}}
-.rew-card.treasure{border:2px solid rgba(60,160,255,.9);animation:pblue 1.3s ease-in-out infinite alternate}
-.rew-card.treasure:hover:not(.cant){border-color:#5cf;box-shadow:0 4px 18px rgba(60,160,255,.7),inset 0 0 20px rgba(60,160,255,.12);transform:translateY(-3px)}
-.card.treasure{border:2px solid rgba(60,160,255,.9)!important;animation:pblue 1.3s ease-in-out infinite alternate}
 .rew-legend-badge{font-size:.54rem;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
 
 
@@ -950,7 +968,7 @@ body{background:#05070b;color:var(--text);font-family:var(--font-bd);font-size:1
 .mo-name{font-size:.95rem}
 .mo-desc{font-size:.7rem}
 #kw-tooltip{font-size:calc(22px * var(--game-scale));max-width:calc(460px * var(--game-scale));padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));border-radius:calc(8px * var(--game-scale))}
-#victory-overlay,#treasure-modal{
+#victory-overlay{
   left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;right:auto!important;bottom:auto!important;
   width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;font-size:28px;
 }
@@ -1717,14 +1735,6 @@ html body .slot.dragging{
   transition:transform .12s ease!important;
   z-index:2!important;
 }
-.map-grid::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:1;
-  pointer-events:none;
-  background:url("assets/art/backgrounds/effect.webp") center/100% 100% no-repeat;
-}
 .map-edge-layer{
   position:absolute!important;
   inset:0!important;
@@ -1891,13 +1901,13 @@ body.map-forge-roll-hide-cards .map-forge-roll-card-fade .shop-board-sell-value{
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade{
   --card-frame:none!important;
   --unit-frame:none!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border-color:transparent!important;
   box-shadow:none!important;
   filter:none!important;
 }
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade.deploy-slot{
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 /* マス目変更演出中はカードが透明になり、下のマス目が見える。
    マス目の太い縁（5px）は空きマス側にしかインラインで付いていないため、
@@ -1906,9 +1916,9 @@ body.map-forge-roll-hide-cards .map-forge-roll-card-fade.deploy-slot{
 /* 既存の「html body #hand-slots.unit-equip-slots > [data-map-board]{outline:0}」より
    優先度を上げる必要がある（あちらはID込みのため）。 */
 html body.map-forge-roll-hide-cards #hand-slots.unit-equip-slots > .map-forge-roll-card-fade[data-map-board]{
-  outline:5px solid #c49a6c!important;
-  outline-offset:-5px!important;
-  box-shadow:inset 0 0 0 5px #c49a6c!important;
+  outline:4px solid #c49a6c!important;
+  outline-offset:-3px!important;
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c!important;
 }
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade::before{
   opacity:1!important;
@@ -2600,12 +2610,6 @@ body.world-map-active .bottom-hud .bhud-item{
 #rw-cards .card #rw-cards .card-badge{
   display:none!important;
 }
-#rw-cards .card.treasure,
-#rw-cards .rew-card.treasure{
-  border:0!important;
-  animation:none!important;
-  box-shadow:none!important;
-}
 #hand-slots .card .card-name,
 #ring-slots .card .card-name,
 #enemy-hand-slots .card .card-name,
@@ -2860,21 +2864,41 @@ body #f-ally .slot.unit-card.selected{
   filter:none!important;
   z-index:9!important;
 }
-body #f-ally .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer),
-body #f-enemy .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer),
-body #f-ally .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer),
-body #f-enemy .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer){
+/* **血の数字（封印コスト）は暗転させない。**
+   戦闘中の封印コストは `.seal-cost-badge` ではなく `.card-activation-costs`
+   （cardManaCostHtml が作る `.seal-cost-entry`）で描かれる。
+   スロットの直下にあるため、除外しないと他の中身と一緒に暗くなる。 */
+body #f-ally .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer):not(.card-activation-costs),
+body #f-enemy .slot.unit-card.sealed-unit > :not(.seal-cost-badge):not(.unit-hit-layer):not(.card-activation-costs),
+body #f-ally .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer):not(.card-activation-costs),
+body #f-enemy .slot.unit-card.sealed-unit.selected > :not(.seal-cost-badge):not(.unit-hit-layer):not(.card-activation-costs){
   filter:brightness(.45) saturate(.65)!important;
 }
-/* 封印中はATK/HPの数値も暗くする。祖先のfilterは効いているが、
-   数値は白文字＋黒縁＋強い影のため、それだけでは明るいままに見える。
-   **ただし読めなくしてはいけない。** 祖先の brightness(.45) に opacity:.5 を
-   重ねると実効2割程度になり、暗いカードの上では数値が消えて見えた。
-   暗くするのは祖先のfilterに任せ、ここではわずかに落とすだけにする。 */
+/* **封印中のATK/HPは「血の数字と同じ暗さ」で出す。**
+   暗さは祖先の brightness(.45) に任せ、ここでは打ち消さない（以前は
+   brightness(1.9) で持ち上げていたが、白文字は既に上限なのでほぼ効いていなかった）。
+   **消えて見えていた原因は明るさではなく `-webkit-text-stroke:2px` の黒縁。**
+   暗くすると縁だけが残って字が黒く潰れるため、封印中だけ縁を細くする。 */
 body #f-ally .slot.unit-card.sealed-unit .slot-stats,
 body #f-enemy .slot.unit-card.sealed-unit .slot-stats{
-  opacity:.92!important;
-  filter:brightness(1.9)!important;
+  opacity:1!important;
+  filter:none!important;
+  -webkit-text-stroke:1px #050507!important;
+}
+/* ══════════════════════════════════════════════════════════
+   **数値が出なかった本当の原因は明るさではなく重なり順。**
+   `.slot-stats` は情報ブロック（インラインstyleのdiv）の中にあり、
+   z-index:9 で枠レイヤー（`.unit-frame-layer`＝z-index:4）より上に出ている。
+   ところが封印中は上のルールが情報ブロックへ `filter` を掛ける。
+   **filter は要素を新しい重なり文脈にする**ため、中の z-index:9 は
+   その内側だけの順位になり、情報ブロック自体は z-index:auto（＝0）として
+   枠レイヤー(4)の下へ潜る。結果、ATK/HPが枠の絵に隠れていた。
+   → 情報ブロックに枠より大きい z-index を与えて元の重なり順へ戻す。
+   （`:has(.slot-stats)` で「数値を含む直下の子」を指す。この div にはクラスが無い）
+   ══════════════════════════════════════════════════════════ */
+body #f-ally .slot.unit-card.sealed-unit > :has(.slot-stats),
+body #f-enemy .slot.unit-card.sealed-unit > :has(.slot-stats){
+  z-index:9!important;
 }
 body .slot.unit-card:hover::before,
 body .slot.unit-card.selected::before{
@@ -3765,8 +3789,13 @@ body .bhud-item:has(#h-magic){
   top:1478px!important;
   right:48px!important;
 }
-body .card.merge-ready,
-body .rew-card.merge-ready{
+/* **報酬・商品の3枚目はここでは扱わない。**
+   `filter` を !important で指定すると、下の `merge-ready-breath`
+   （CSSアニメーション）が上書きされて明滅しなくなる。 */
+/* **`:not(.rew-card)` が要る。** 報酬・商品のカードは `mkCardEl()` が作るので
+   `card` と `rew-card` の**両方**を持つ。`.card` だけで絞ると報酬側にも当たり、
+   `filter` の !important が下の `merge-ready-breath`（アニメーション）を殺す。 */
+body .card.merge-ready:not(.rew-card){
   outline:4px solid #f59b27!important;
   filter:drop-shadow(0 0 18px rgba(245,155,39,.95))!important;
 }
@@ -5377,13 +5406,13 @@ html body .attack-motion-clone{
 }
 html body #hand-slots.unit-equip-slots .deploy-slot{
   position:relative!important;
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
   opacity:1!important;
 }
 html body #hand-slots.unit-equip-slots > .card-empty:not(.deploy-slot):not(.detached-empty){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
   opacity:1!important;
@@ -5542,8 +5571,7 @@ html body #rw-cards.drag-over{
    開戦演出中も同じ扱いにする。 */
 body.battle-turn-active #battle-formation-btn,
 #scr-battle.battle-opening-pending #battle-formation-btn,
-#scr-battle.battle-opening-active #battle-formation-btn,
-#scr-battle.battle-start-playing #battle-formation-btn{
+#scr-battle.battle-opening-active #battle-formation-btn{
   display:none!important;
   pointer-events:none!important;
 }
@@ -5638,16 +5666,16 @@ html body .drag-ghost .card-badge{
   display:none!important;
 }
 html body #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor){
   opacity:1!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   filter:none!important;
 }
 /* 出撃枠①〜⑦はドラッグ中もm_board1.svgのままにする */
 html body #hand-slots.unit-equip-slots > .card.deploy-slot.dragging:not(.reward-unit-anchor){
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor) > *{
   opacity:0!important;
@@ -6010,7 +6038,7 @@ body #spell-slot-pane .spell-slot-zone .spell-slot-card{
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
   border:0!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border-radius:6px;
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-card.spell-fired{
@@ -6019,7 +6047,7 @@ body #spell-slot-pane .spell-slot-zone .spell-slot-card.spell-fired{
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging{
   opacity:1!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   filter:none!important;
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging > *{
@@ -6033,7 +6061,7 @@ body #spell-slot-pane .spell-slot-zone .spell-slot-card.drag-over{
   filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
 }
 html body.right-card-peek #hand-slots.unit-equip-slots .card{
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
   filter:none!important;
@@ -6041,7 +6069,7 @@ html body.right-card-peek #hand-slots.unit-equip-slots .card{
   cursor:default!important;
 }
 html body.right-card-peek #hand-slots.unit-equip-slots .card.deploy-slot{
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.right-card-peek #hand-slots.unit-equip-slots .card > *,
 html body.right-card-peek #hand-slots.unit-equip-slots .card .equip-slot-label,
@@ -6095,13 +6123,13 @@ body #rw-cards .reward-grid-zone .reward-grid-empty{
 }
 body #rw-cards .reward-grid-zone .reward-grid-empty{
   border:0!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border-radius:6px;
 }
 /* ドラッグ中も元の枠位置にm_board6.svgを表示する */
 body #rw-cards .reward-grid-zone .rew-card.dragging{
   opacity:1!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   filter:none!important;
 }
 body #rw-cards .reward-grid-zone .rew-card.dragging > *{
@@ -6166,6 +6194,31 @@ body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .discard-btn{
   z-index:220!important;
+}
+/* **特殊マス以外に置かれた（出撃できない）キャラのATK/HPも、
+   戦闘中の封印キャラと同じ暗さにする。**
+   数値は暗転オーバーレイ（::before・z-index:50）より上の z-index:220 へ
+   持ち上げてあるので、オーバーレイでは暗くならない。明るさは個別に落とす。
+   黒縁を細くするのは封印キャラと同じ理由（暗くすると縁で字が潰れる）。 */
+html body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-atk,
+html body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp,
+html body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
+html body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp{
+  filter:brightness(.45) saturate(.65)!important;
+  -webkit-text-stroke:1px #050507!important;
+}
+/* **アイテムの対象に選べるなら、出撃できないキャラでも明るさを元へ戻す。**
+   選べるカードは暗転しない、という対象選択中の見え方をこちらにも合わせる。 */
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok::before{
+  background:transparent!important;
+}
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .card-summon-atk,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .card-summon-hp,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .stat-atk,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .stat-hp{
+  filter:none!important;
 }
 /* レアリティ別カード名の色：1=白 2=青 3=紫 4=金 5=虹 */
 html body .card.rarity-1 .card-name,
@@ -6352,7 +6405,7 @@ html body.dragging-in-battle .slot.dragging{
 html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor){
   opacity:1!important;
   visibility:visible!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.reward-unit-anchor) > *{
   opacity:0!important;
@@ -6547,8 +6600,7 @@ html body.reward-screen-active *{
    これらは常にどの画面でも同じ書体になるよう、id指定（詳細度がクラスより高い）で固定する。 */
 html body #kw-tooltip, html body #kw-tooltip *,
 html body #map-power-tooltip, html body #map-power-tooltip *,
-html body #keyword-tooltip, html body #keyword-tooltip *,
-html body #treasure-modal, html body #treasure-modal *{
+html body #keyword-tooltip, html body #keyword-tooltip *{
   font-family:"Shippori Mincho",serif!important;
 }
 /* マナHUD・勝利オーバーレイは戦闘画面の表示物なので、戦闘時の書体（本文フォント）で固定する。
@@ -6576,7 +6628,7 @@ html body.reward-screen-active #scr-battle{
 html body.reward-screen-active.facility-bg-active #scr-battle{
   background:#08020f var(--facility-bg-image) center/cover no-repeat!important;
 }
-/* 施設専用背景の画面では、編成画面の背景動画（back1.webm）を重ねない。 */
+/* 施設専用背景の画面では、編成画面の背景動画（setup.webm）を重ねない。 */
 html body.reward-screen-active.facility-bg-active #reward-bg-video{
   display:none!important;
 }
@@ -6760,7 +6812,7 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before{
   background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat;
   pointer-events:none;
 }
-html body #battle-order-row > .rew-card.treasure-offer-card.item-visual::before,
+html body #battle-order-row > .rew-card.item-offer-card.item-visual::before,
 html body .drag-ghost.item-visual::before{
   content:"";
   position:absolute;
@@ -6772,7 +6824,7 @@ html body .drag-ghost.item-visual::before{
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled{cursor:pointer}
 html body .drag-ghost.item-visual-filled{cursor:grab}
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled::after,
-html body #battle-order-row > .rew-card.treasure-offer-card.item-visual-filled::after,
+html body #battle-order-row > .rew-card.item-offer-card.item-visual-filled::after,
 html body .drag-ghost.item-visual-filled::after{
   content:"";
   position:absolute;
@@ -6824,8 +6876,8 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-visua
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.drag-over{
   filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
 }
-/* 指輪のドラッグ中（指輪置き場での並べ替え／栄光の力画面からの装備）：指輪置き場以外の
-   画面全体（背景含む）を黒50%のオーバーレイで暗くする。
+/* 指輪・アイテムのドラッグ中：対象の所持枠以外の画面全体（背景含む）を
+   黒50%のオーバーレイで暗くする。
    #mainequip-drag-overlayと同じ理由（#scr-battleがtransformでスタッキングコンテキストを作るため、
    body直下のオーバーレイからは画面内の要素がz-indexで逃げられない）で、このオーバーレイも
    .battle-area内に置くこと。#reward-production-uiは.battle-scrollの外（#scr-battleの直下）に
@@ -6840,11 +6892,15 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.drag-over{
   pointer-events:none;
 }
 html body.dragzone-ring-slot #ring-drag-overlay,
-html body.dragzone-ring-offer #ring-drag-overlay{
+html body.dragzone-ring-offer #ring-drag-overlay,
+html body.dragzone-reward-item #ring-drag-overlay,
+html body.dragzone-itemslot #ring-drag-overlay{
   display:block;
 }
 html body.dragzone-ring-slot .battle-scroll,
-html body.dragzone-ring-offer .battle-scroll{
+html body.dragzone-ring-offer .battle-scroll,
+html body.dragzone-reward-item .battle-scroll,
+html body.dragzone-itemslot .battle-scroll{
   z-index:30!important;
 }
 /* 指輪置き場（.reward-prod-ring）はz-index:2の#reward-production-ui内にあり、子要素の
@@ -6855,11 +6911,17 @@ html body.dragzone-ring-offer .battle-scroll{
    包括リセットルールが後方（source順で後）にあり、同じ詳細度（class1+id1）のため通常は後勝ちで
    9001が2に巻き戻されてしまう。クラスを二重指定して詳細度を1段階上げ、順序に関係なく確実に勝たせる。 */
 html body.dragzone-ring-slot.dragzone-ring-slot #reward-production-ui,
-html body.dragzone-ring-offer.dragzone-ring-offer #reward-production-ui{
+html body.dragzone-ring-offer.dragzone-ring-offer #reward-production-ui,
+html body.dragzone-reward-item.dragzone-reward-item #reward-production-ui,
+html body.dragzone-itemslot.dragzone-itemslot #reward-production-ui{
   z-index:9001!important;
 }
 html body.dragzone-ring-slot #reward-production-ui > *:not(.reward-prod-ring),
 html body.dragzone-ring-offer #reward-production-ui > *:not(.reward-prod-ring){
+  filter:brightness(.5)!important;
+}
+html body.dragzone-reward-item #reward-production-ui > *:not(.reward-prod-item),
+html body.dragzone-itemslot #reward-production-ui > *:not(.reward-prod-item){
   filter:brightness(.5)!important;
 }
 /* 栄光の力（指輪提示）からのドラッグ中は、ドラッグ元である提示カード枠も明るく残す */
@@ -6892,21 +6954,20 @@ html body.dragzone-reward-nonspell #mainequip-drag-overlay{
    オプションボタン（#battle-options-btn＝z-index:4100）は .battle-scroll より上の
    兄弟要素なので、暗転にも操作不能にもならない（仕様どおり）。
    ══════════════════════════════════════════════════════════ */
-/* いずれも後方に同じ強さの打ち消しルール（html body #mainequip-drag-overlay{display:none!important} /
-   html body.reward-screen-active #battle-order-row{display:flex!important}）があるため、
-   クラスを二重に書いて詳細度を1段上げ、順序に関係なく勝たせる。 */
-html body.item-use-picking.item-use-picking #mainequip-drag-overlay{
+/* 後方の通常状態ルールは :not(.item-use-picking) で対象外にしているため、
+   使用中の指定は通常の詳細度で上書きできる。 */
+html body.item-use-picking #mainequip-drag-overlay{
   display:block!important;
   /* **アイテム使用中は暗転そのものでクリックを止める。**
      ドラッグ中と違い、暗い所を押せてしまうと「店を出る」等が効いてしまう。
      このオーバーレイより上（z-index:9001）に出した魔導板・報酬枠・オプションボタンだけが押せる。 */
   pointer-events:auto!important;
 }
-html body.item-use-picking.item-use-picking .battle-scroll{z-index:30!important}
+html body.item-use-picking .battle-scroll{z-index:30!important}
 /* 戦闘用のカウンター類は .battle-scroll の外（z-index:3200）にいてオーバーレイが届かない。
    アイテム使用中は編成画面の所持金・ライフ枠を使うので、まとめて隠す。 */
-html body.item-use-picking.item-use-picking #battle-counters,
-html body.item-use-picking.item-use-picking #battle-status-hud{
+html body.item-use-picking #battle-counters,
+html body.item-use-picking #battle-status-hud{
   display:none!important;
 }
 /* 売却価格・売却ボタン・奉納（還魂）ボタンは、アイテムの対象選択中は出さない。
@@ -6922,20 +6983,32 @@ html body.item-use-picking.item-use-picking .shop-pending-sale-ui,
 html body.item-use-picking.item-use-picking .shop-buy-price{
   display:none!important;
 }
+/* **このクラスの二重書きを外さないこと。**
+   後方に同じ強さの打ち消しルールが複数ある
+   （`html body.reward-screen-active #battle-order-section{z-index:10!important}` と、
+   `#reward-production-ui` 等をまとめて `z-index:2!important` にしている共有ルール）。
+   単一クラスに戻すと後勝ちで負け、**報酬枠が暗転の下に沈んでキャンセルも押せなくなる。**
+   まとめ直す時は「8. リファクタリング」の順（重複を1つにしてから二重書きを外す）に従うこと。 */
 html body.item-use-picking.item-use-picking #hand-pane,
 html body.item-use-picking.item-use-picking #battle-order-section{
   z-index:9001!important;
 }
+/* **報酬枠は必ず出す。** 報酬を取り終えた後や施設によっては枠自体が display:none に
+   なっており、そのままだと見出しも説明文もキャンセルも出ない（枠ごと消える）。 */
+html body.item-use-picking.item-use-picking #battle-order-section{
+  display:block!important;
+}
 /* オプションボタンは暗転させず押せるままにする（仕様）。
    編成画面ではこのボタンのz-indexは2なので、暗転オーバーレイのために
-   引き上げた .battle-scroll（30）に隠れてしまう。ここで上へ出す。 */
+   引き上げた .battle-scroll（30）に隠れてしまう。ここで上へ出す。
+   **同上：二重書きを外すと後方の `z-index:2!important` に負ける。** */
 html body.item-use-picking.item-use-picking #battle-options-btn{
   z-index:9001!important;
   filter:none!important;
   opacity:1!important;
   pointer-events:auto!important;
 }
-html body.item-use-picking.item-use-picking #main-hand-area{
+html body.item-use-picking #main-hand-area{
   position:absolute!important;
   inset:0!important;
   z-index:9001!important;
@@ -6943,22 +7016,60 @@ html body.item-use-picking.item-use-picking #main-hand-area{
   filter:none!important;
   opacity:1!important;
 }
-html body.item-use-picking.item-use-picking #main-hand-area #hand-pane,
-html body.item-use-picking.item-use-picking #main-hand-area #hand-pane *,
-html body.item-use-picking.item-use-picking #main-hand-area #hand-pane::before{
+/* 魔導板は暗転の対象外（明るいまま操作できる）。
+   ただし**対象に選べないカードの暗転（.item-target-disabled）まで消さないこと。**
+   `#hand-pane *` に filter:none を掛けると、より詳細度が低い
+   `.item-target-disabled{filter:grayscale(...)}` が負けて、
+   エンチャントや対象外のキャラクターが明るいままになる。 */
+html body.item-use-picking #main-hand-area #hand-pane,
+html body.item-use-picking #main-hand-area #hand-pane *,
+html body.item-use-picking #main-hand-area #hand-pane::before{
   pointer-events:auto!important;
+}
+/* 対象外のカードは暗いまま・押せないままにする。
+   **枠の発光（.card-glow-layer の白い内側シャドウ）も消す。**
+   暗くするだけだと枠だけが光って見え、選べるカードと見分けがつかない。 */
+html body.item-use-picking #main-hand-area #hand-pane .item-target-disabled{
   filter:none!important;
-  opacity:1!important;
+  pointer-events:none!important;
+}
+/* 枠の絵を含むカード内容は暗くする。外周の線は後方の共通ルールが
+   `::before` へ描き直すため、疑似要素までここで暗くしない。 */
+html body.item-use-picking #main-hand-area #hand-pane .item-target-disabled > *{
+  filter:grayscale(1) brightness(.28)!important;
+}
+/* `::after` の枠画像はカード本体として暗くする。
+   `::before` は暗転の外側に描き直す枠線なので、filterを掛けない。 */
+html body.item-use-picking #main-hand-area #hand-pane .item-target-disabled::after{
+  filter:grayscale(1) brightness(.28)!important;
+}
+html body.item-use-picking #main-hand-area #hand-pane .item-target-disabled .card-glow-layer{
+  opacity:0!important;
+}
+/* 「カード非表示」ボタンは対象選択中は暗くして押せなくする（右クリックも reward.js で無効化）。
+   ボタンは #hand-pane の中にあるので、上の `#main-hand-area #hand-pane *{pointer-events:auto}`
+   （ID2つ）より詳細度を上げるためIDを3つ並べる。 */
+html body.item-use-picking #main-hand-area #hand-pane #board-card-visibility-btn,
+html body.item-use-picking #main-hand-area #hand-pane #board-card-visibility-btn *,
+html body.item-use-picking #main-hand-area #hand-pane .board-card-visibility-btn,
+html body.item-use-picking #main-hand-area #hand-pane .board-card-visibility-btn *,
+html body.item-use-picking.item-use-picking #board-card-visibility-btn,
+html body.item-use-picking.item-use-picking #board-card-visibility-btn *,
+html body.item-use-picking.item-use-picking .board-card-visibility-btn,
+html body.item-use-picking.item-use-picking .board-card-visibility-btn *{
+  filter:grayscale(1) brightness(.45)!important;
+  pointer-events:none!important;
+  cursor:default!important;
 }
 /* 報酬枠の中身（カード・アイテム）は選択中は出さない。枠と見出しだけを残す。 */
-html body.item-use-picking.item-use-picking #battle-order-row{display:none!important}
+html body.item-use-picking #battle-order-row{display:none!important}
 /* 見出しは使用中のアイテム名、説明文は「◯◯するキャラクターを選んでください。」。
    どちらもテキストメッセージシートの文言をJS（_syncItemUsePickingUi）が入れる。
    位置と大きさは祭壇の説明文（.ring-offer-phase の ::after）に合わせる。 */
-html body.item-use-picking.item-use-picking #battle-order-section::before{
+html body.item-use-picking #battle-order-section::before{
   content:var(--item-use-title,"")!important;
 }
-html body.item-use-picking.item-use-picking #battle-order-section::after{
+html body.item-use-picking #battle-order-section::after{
   content:var(--item-use-desc,"")!important;
   position:absolute!important;
   left:0!important;
@@ -6974,10 +7085,13 @@ html body.item-use-picking.item-use-picking #battle-order-section::after{
 }
 /* 説明文の下に置く「キャンセル」。見た目・大きさは「元に戻す」と同じ
    （.rew-reset-btn のルールを #battle-order-section へも効かせている）。 */
+/* キャンセルは**指輪が並ぶ位置の中心**に合わせる。
+   指輪枠は 260×260 で枠内 top:268px なので中心は 268+130＝398px。
+   ボタンの高さは123pxなので 398-61.5＝336.5px。 */
 html body.item-use-picking.item-use-picking #battle-order-section .item-use-cancel-btn{
   position:absolute!important;
   left:calc(50% - 248.5px)!important;
-  top:270px!important;
+  top:336.5px!important;
   z-index:12!important;
 }
 /* .battle-scroll（z-index:1）の外側には #reward-production-ui（編成/アイテム/指輪/クエスト、z-index:2）や
@@ -7011,9 +7125,13 @@ html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area{
 html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane,
 html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane,
-html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane *,
-html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane *,
-html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane *,
+/* **ATK/HPは除く。** ここで filter:none を全子孫へ当てると、戦闘配置不可
+   （特殊マス以外に置かれたキャラ）のATK/HPに掛けてある暗転まで消えてしまい、
+   ドラッグ中だけ明るくなる。#hand-pane 自体が filter:none なので、
+   除外しても祖先の暗転を受けることはない。 */
+html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
 html body.dragzone-mainequip.dragzone-mainequip #main-hand-area #hand-pane::before,
 html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane::before,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane::before{
@@ -7181,24 +7299,7 @@ html body.reward-screen-active.ring-offer-phase .ring-offer-card.ring-offer-spen
   pointer-events:none!important;
   cursor:default!important;
 }
-html body.reward-screen-active.treasure-offer-phase #battle-order-section::before{
-  content:"財宝";
-}
-html body.reward-screen-active.treasure-offer-phase #battle-order-section::after{
-  content:"魔力を秘めた宝だ";
-  position:absolute;
-  left:0;
-  right:0;
-  top:170px;
-  text-align:center;
-  font-family:"Shippori Mincho",serif;
-  font-size:30px;
-  letter-spacing:.06em;
-  color:#8b7c67;
-  text-shadow:0 2px 8px rgba(0,0,0,.85);
-  pointer-events:none;
-}
-html body.reward-screen-active #battle-order-row{
+html body.reward-screen-active:not(.item-use-picking) #battle-order-row{
   position:absolute!important;
   left:90px!important;
   top:126px!important;
@@ -7233,7 +7334,7 @@ html body.reward-screen-active #battle-order-row > .rew-card.ring-offer-card{
   max-height:var(--prod-card-w)!important;
   align-self:flex-end!important;
 }
-html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card{
+html body.reward-screen-active #battle-order-row > .rew-card.item-offer-card{
   height:var(--prod-card-w)!important;
   min-height:var(--prod-card-w)!important;
   max-height:var(--prod-card-w)!important;
@@ -7243,7 +7344,7 @@ html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card
   box-shadow:none!important;
   animation:none!important;
 }
-html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card > *{
+html body.reward-screen-active #battle-order-row > .rew-card.item-offer-card > *{
   display:none!important;
 }
 html body.reward-screen-active #hand-pane{
@@ -7467,10 +7568,40 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card .panel-dir{
   z-index:28!important;
 }
 /* アイテム使用中：そのアイテムの対象になり得ないカードは暗くして選択不能にする。 */
+/* **対象外のカードは枠の絵も含めて暗くし、外周の線だけ明るく残す。**
+   filter は子へ伝播し、**子から打ち消すことはできない**（祖先のfilterは
+   子のfilterで戻せない）。線だけを明るく残すには、線を暗転する要素の
+   外側へ描き直すしかない。
+   → 枠レイヤーの線は消し、同じ線をカードの `::before` に描く。
+     `::before` は要素の子ではないので `> *` の暗転を受けない。
+     `::after` はマスの枠と特殊マスの太線が使っているので触らない。 */
 html body #hand-slots.unit-equip-slots > .item-target-disabled{
-  filter:grayscale(.85) brightness(.42)!important;
+  filter:none!important;
   pointer-events:none!important;
   cursor:default!important;
+}
+html body #hand-slots.unit-equip-slots > .item-target-disabled > *{
+  filter:grayscale(.85) brightness(.42)!important;
+}
+/* 枠レイヤーの線を消す側は、線を引いている
+   `#hand-slots.unit-equip-slots > .card .character-frame-layer`（id1＋クラス3）より
+   詳細度を上げないと勝てない。クラスを二重指定して4つにする。 */
+html body #hand-slots.unit-equip-slots > .item-target-disabled .character-frame-layer.character-frame-layer,
+html body #hand-slots.unit-equip-slots > .item-target-disabled .board-frame-layer.board-frame-layer{
+  border-color:transparent!important;
+}
+html body #hand-slots.unit-equip-slots > .item-target-disabled.item-target-disabled::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  background:none!important;
+  border:2px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  filter:none!important;
+  z-index:210!important;
+  pointer-events:none!important;
 }
 html body #hand-slots.unit-equip-slots > .item-target-disabled *{pointer-events:none!important}
 /* 対象になり得るカードは通常表示のまま（暗転しないことで選べると分かる）。 */
@@ -8453,47 +8584,6 @@ html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew
   max-height:124px!important;
   font-size:var(--prod-panel-title-size)!important;
 }
-/* エリート/ボス襲撃までの残ターン表示：「戦闘開始」ボタン（#reward-move-btns、top:1968px）の真上、白文字 */
-.reward-prod-wave-countdown{
-  display:none;
-}
-html body.reward-screen-active .reward-prod-wave-countdown{
-  display:flex!important;
-  position:absolute!important;
-  left:2740px!important;
-  top:1868px!important;
-  width:1020px!important;
-  height:80px!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:16px!important;
-  color:#fff!important;
-  font-family:"Shippori Mincho",serif!important;
-  text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
-  pointer-events:none!important;
-  z-index:3!important;
-}
-html body.reward-screen-active .reward-prod-wave-countdown-label{
-  font-size:30px!important;
-  font-weight:700!important;
-  line-height:1!important;
-}
-html body.reward-screen-active .reward-prod-wave-countdown-value,
-html body.reward-screen-active .reward-prod-wave-countdown-alert{
-  font-size:40px!important;
-  font-weight:800!important;
-  line-height:1!important;
-}
-html body.reward-screen-active .reward-prod-wave-countdown-alert{
-  display:none!important;
-}
-html body.reward-screen-active .reward-prod-wave-countdown.is-alert .reward-prod-wave-countdown-label,
-html body.reward-screen-active .reward-prod-wave-countdown.is-alert .reward-prod-wave-countdown-value{
-  display:none!important;
-}
-html body.reward-screen-active .reward-prod-wave-countdown.is-alert .reward-prod-wave-countdown-alert{
-  display:inline!important;
-}
 html body.reward-screen-active.debug-mode #btn-test-battle{
   position:absolute!important;
   left:2778px!important;
@@ -8558,7 +8648,7 @@ html body .slot.unit-card,
 html body #f-ally .slot.unit-card,
 html body #f-enemy .slot.unit-card,
 html body .attack-motion-clone.slot.unit-card{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
 }
 html body .slot.unit-card:hover,
 html body #f-ally .slot.unit-card:hover,
@@ -8570,8 +8660,7 @@ html body .rew-card:hover {
 }
 
 /* ⑤ マージ可能・ショップ配置待ちのカード発光も、安全で滑らかな box-shadow へ変換 */
-html body .card.merge-ready,
-html body .rew-card.merge-ready {
+html body .card.merge-ready:not(.rew-card) {
   filter: none !important;
   box-shadow: 0 0 24px 6px rgba(245, 155, 39, 0.85) !important;
 }
@@ -8613,13 +8702,13 @@ html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots .pan
   visibility:hidden!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;
   box-shadow:none!important;
   filter:none!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card.deploy-slot:not(.reward-unit-anchor){
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > *,
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor)::before,
@@ -8676,22 +8765,25 @@ html body.reward-screen-active:is(.dragzone-mainequip,.dragzone-reward-spell,.dr
 }
 /* ドラッグ中（body.dragzone-*）の「魔導板」暗転防止・残存防止・動作保証CSS */
 
-/* 1. 重なり順（z-index）と位置関係を確定 */
-html body[class*="dragzone-"] #main-hand-area {
+/* 1. 重なり順（z-index）と位置関係を確定
+   **対象は「魔導板・報酬カードのドラッグ」だけ。** [class*="dragzone-"] で全ゾーンに掛けると、
+   指輪ドラッグ（#ring-drag-overlay で暗転）でも魔導板がオーバーレイより上へ出てしまい、
+   魔導板だけ暗くならない。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area {
   position: relative !important;
   z-index: 9001 !important;
   opacity: 1 !important;
   filter: none !important;
 }
 
-html body[class*="dragzone-"] #hand-pane-board-bg {
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane-board-bg {
   position: absolute !important;
   z-index: 9002 !important;
   opacity: 1 !important;
   filter: none !important;
 }
 
-html body[class*="dragzone-"] #hand-pane {
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane {
   position: absolute !important;
   z-index: 9004 !important;
   opacity: 1 !important;
@@ -8699,8 +8791,8 @@ html body[class*="dragzone-"] #hand-pane {
 }
 
 /* 2. 「魔導板」見出し文字を明るく保持 */
-html body[class*="dragzone-"] #hand-pane .spell-label,
-html body[class*="dragzone-"] .spell-label {
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .spell-label,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) .spell-label {
   opacity: 1 !important;
   filter: none !important;
   color: #fff !important;
@@ -8708,18 +8800,18 @@ html body[class*="dragzone-"] .spell-label {
 }
 
 /* 3. ドラッグ中でない他のカード・空枠・出撃枠のみ明るく表示 */
-html body[class*="dragzone-"] #hand-pane .card:not(.dragging),
-html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging),
-html body[class*="dragzone-"] #hand-pane .equip-empty:not(.dragging),
-html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging) {
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .card:not(.dragging),
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .card-empty:not(.dragging),
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .equip-empty:not(.dragging),
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .deploy-slot:not(.dragging) {
   opacity: 1 !important;
   filter: none !important;
 }
 
-html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging)::before,
-html body[class*="dragzone-"] #hand-pane .deploy-slot:not(.dragging)::after,
-html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging)::before,
-html body[class*="dragzone-"] #hand-pane .card-empty:not(.dragging)::after {
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .deploy-slot:not(.dragging)::before,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .deploy-slot:not(.dragging)::after,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .card-empty:not(.dragging)::before,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #hand-pane .card-empty:not(.dragging)::after {
   opacity: 1 !important;
   filter: none !important;
 }
@@ -8810,13 +8902,13 @@ html body.reward-screen-active .character-card.cant .shop-insufficient-badge{
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade{
   --card-frame:none!important;
   --unit-frame:none!important;
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border-color:transparent!important;
   box-shadow:none!important;
   filter:none!important;
 }
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade.deploy-slot{
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.unit-equip-slots > .card.map-forge-roll-card-fade::before{
   opacity:1!important;
@@ -8937,25 +9029,13 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
   font-size:calc(22px * var(--game-scale));
   padding:.45em 1.2em;
 }
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #main-hand-area,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-pane-board-bg,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #hand-slots.unit-equip-slots,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #debug-card-palette,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-ring,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-quest,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-bottom,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-move-btns{
-  filter:brightness(.4) saturate(.5)!important;
-  opacity:1!important;
-  z-index:auto!important;
-}
+/* アイテムのドラッグ中は、指輪と同じ黒50%オーバーレイを使い、
+   アイテム枠だけを明るく残す。個々の盤面要素へfilterを掛けると暗さが重なり、
+   board.svgの枠が背景へ沈むため、ここでは対象枠の明るさだけを保証する。 */
 html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item,
 html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item *,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section *,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section::before,
-html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) #battle-order-section::after{
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item::before,
+html body.reward-screen-active:is(.dragzone-reward-item,.dragzone-itemslot) .reward-prod-item::after{
   filter:none!important;
   opacity:1!important;
   visibility:visible!important;
@@ -9009,11 +9089,6 @@ html body.reward-screen-active .reward-prod-relation .reward-prod-slots i::befor
   background:url("assets/ui/relation_slot.png") center/100% 100% no-repeat;
   opacity:1;
   pointer-events:none;
-}
-html body.reward-screen-active .reward-prod-quest .reward-prod-quest-body{
-  top:104px!important;
-  font-size:24px!important;
-  line-height:1.35!important;
 }
 /* 編成画面：クエストと旅の進捗 */
 html body.reward-screen-active .reward-prod-quest{
@@ -9138,18 +9213,14 @@ html body.reward-screen-active #journey-progress-ui{
   0%,100%{filter:drop-shadow(0 0 2px rgba(131,11,160,.65));}
   50%{filter:drop-shadow(0 0 9px rgba(131,11,160,1));}
 }
-/* 旅の進捗枠内に残り戦闘数を表示するため、旧右側カウントダウンは使わない。 */
-html body.reward-screen-active .reward-prod-wave-countdown{
-  display:none!important;
-}
 /* 魔導板スロットの枠アセット */
 html body #hand-slots.unit-equip-slots > .card:not(.deploy-slot),
 html body #hand-slots.unit-equip-slots > .card-empty:not(.deploy-slot){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > .card.deploy-slot,
 html body #hand-slots.unit-equip-slots > .card-empty.deploy-slot{
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 /* 特殊な魔導板マスは、出撃マス用のdeploy-slotクラスではなく実際のマスIDで描画する */
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"],
@@ -9158,7 +9229,7 @@ html body #hand-slots.unit-equip-slots > [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
   border:0!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-sizing:border-box!important;
   overflow:hidden!important;
 }
@@ -9168,47 +9239,47 @@ html body #hand-slots.unit-equip-slots > [data-map-board="life"],
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
-  outline:3px solid #c49a6c!important;
+  outline:4px solid #c49a6c!important;
   outline-offset:-3px!important;
-  box-shadow:inset 0 0 0 3px #c49a6c!important;
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c!important;
 }
 html body #hand-slots.unit-equip-slots [data-map-board="summon"],
 html body #hand-slots.unit-equip-slots [data-map-board="life"],
 html body #hand-slots.unit-equip-slots [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{
-  box-shadow:inset 0 0 0 3px #c49a6c!important;
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c!important;
 }
 /* 破棄後に生成されるcard-emptyも含め、通常マスは常にm_board6を残す */
 html body #hand-slots.unit-equip-slots .card:not([data-map-board]),
 html body #hand-slots.unit-equip-slots .card-empty:not([data-map-board]){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   background-origin:border-box!important;
   background-clip:border-box!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"]{
-  background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="life"]{
-  background:url("assets/cards/m_board2.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board2.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"]{
-  background:url("assets/cards/m_board3.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board3.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"]{
-  background:url("assets/cards/m_board4.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board4.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
-  background:url("assets/cards/m_board5.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board5.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"]{background-size:109.6% 100%!important}
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"]{background-size:112.7% 100%!important}
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{background-size:105.5% 100%!important}
-html body #hand-slots.unit-equip-slots [data-map-board="summon"]{background-image:url("assets/cards/m_board1.svg")!important}
-html body #hand-slots.unit-equip-slots [data-map-board="life"]{background-image:url("assets/cards/m_board2.svg")!important}
-html body #hand-slots.unit-equip-slots [data-map-board="eternal"]{background-image:url("assets/cards/m_board3.svg")!important}
-html body #hand-slots.unit-equip-slots [data-map-board="resonance"]{background-image:url("assets/cards/m_board4.svg")!important}
-html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-image:url("assets/cards/m_board5.svg")!important}
+html body #hand-slots.unit-equip-slots [data-map-board="summon"]{background-image:url("assets/cards/m_board1.svg?v=cellRadius01")!important}
+html body #hand-slots.unit-equip-slots [data-map-board="life"]{background-image:url("assets/cards/m_board2.svg?v=cellRadius01")!important}
+html body #hand-slots.unit-equip-slots [data-map-board="eternal"]{background-image:url("assets/cards/m_board3.svg?v=cellRadius01")!important}
+html body #hand-slots.unit-equip-slots [data-map-board="resonance"]{background-image:url("assets/cards/m_board4.svg?v=cellRadius01")!important}
+html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-image:url("assets/cards/m_board5.svg?v=cellRadius01")!important}
 #map-power-tooltip,#keyword-tooltip{
   position:fixed;z-index:100001;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;
   padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));
@@ -9341,9 +9412,9 @@ html body #hand-slots.unit-equip-slots > [data-map-board="life"],
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
-  outline:3px solid #c49a6c!important;
+  outline:4px solid #c49a6c!important;
   outline-offset:-3px!important;
-  box-shadow:inset 0 0 0 3px #c49a6c,0 0 10px rgba(196,154,108,.5)!important;
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 10px rgba(196,154,108,.5)!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="life"]::after,
@@ -9352,9 +9423,12 @@ html body #hand-slots.unit-equip-slots > [data-map-board="resonance"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]::after{
   content:""!important;
   position:absolute!important;
-  inset:0!important;
-  border:3px solid #c49a6c!important;
-  border-radius:19px!important;
+  /* **特殊マスの太い線は1px外へ出す。**
+     inset:0 のままだと線がすべてマスの内側を削り、カードの絵に食い込む。
+     -1px にすると線は外へ1pxはみ出し、内側は1pxで済む。 */
+  inset:-1px!important;
+  border:4px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)!important;
   pointer-events:none!important;
   z-index:100!important;
@@ -9370,7 +9444,7 @@ html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data
   content:""!important;
   position:absolute!important;
   inset:0!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   pointer-events:none!important;
   z-index:100!important;
   display:block!important;
@@ -9411,7 +9485,7 @@ html body #hand-slots.unit-equip-slots > .card:not([data-map-board])::after{
   content:""!important;
   position:absolute!important;
   inset:0!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   pointer-events:none!important;
   z-index:100!important;
   display:block!important;
@@ -9426,19 +9500,19 @@ html body #hand-slots.unit-equip-slots > .card:not([data-map-board]) .card-summo
 /* 魔導板カード本体・特殊マス枠・ホバー発光の角丸をカード枠R=19pxに統一 */
 html body #hand-slots.unit-equip-slots > .card,
 html body #hand-slots.unit-equip-slots > .card-empty{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="life"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]::after{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-sizing:border-box!important;
 }
 html body #hand-slots.unit-equip-slots > .card:hover:not(.inert),
 html body #hand-slots.unit-equip-slots > .card.drag-over{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   filter:none!important;
   box-shadow:0 0 16px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.6)!important;
 }
@@ -9450,7 +9524,7 @@ html body #hand-slots.unit-equip-slots > .card:hover::before{
 /* 魔導板カード枠線・arrow・特殊マスの最終優先ルール */
 html body #hand-slots.unit-equip-slots > .card,
 html body #hand-slots.unit-equip-slots > .card-empty{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   overflow:visible!important;
 }
 html body #hand-slots.unit-equip-slots .card .card-art,
@@ -9460,22 +9534,22 @@ html body #hand-slots.unit-equip-slots .card .unit-portrait{
 }
 html body #hand-slots.unit-equip-slots > .card:not([data-map-board]),
 html body #hand-slots.unit-equip-slots > .card-empty:not([data-map-board]){
-  background-image:url("assets/cards/m_board6.svg")!important;
+  background-image:url("assets/cards/m_board6.svg?v=cellRadius01")!important;
   background-size:100% 100%!important;
   background-position:center!important;
   background-repeat:no-repeat!important;
 }
 html body #hand-slots.unit-equip-slots > .card.deploy-slot:not([data-map-board]),
 html body #hand-slots.unit-equip-slots > .card-empty.deploy-slot:not([data-map-board]){
-  background-image:url("assets/cards/m_board1.svg")!important;
+  background-image:url("assets/cards/m_board1.svg?v=cellRadius01")!important;
 }
 html body #hand-slots.unit-equip-slots > .card:not([data-map-board])::after,
 html body #hand-slots.unit-equip-slots > .card-empty:not([data-map-board])::after{
   content:""!important;
   position:absolute!important;
   inset:0!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
-  border-radius:19px!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   pointer-events:none!important;
   z-index:100!important;
   display:block!important;
@@ -9490,7 +9564,7 @@ html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]::after{
   position:absolute!important;
   inset:0!important;
   border:3px solid #c49a6c!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-sizing:border-box!important;
   pointer-events:none!important;
   z-index:100!important;
@@ -9513,7 +9587,7 @@ html body #hand-slots.unit-equip-slots .card .mana-cost-orbs,
 html body #hand-slots.unit-equip-slots .card .seal-cost-badge{z-index:200!important}
 html body #hand-slots.unit-equip-slots > .card:hover,
 html body #hand-slots.unit-equip-slots > .card.drag-over{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   filter:drop-shadow(0 0 8px rgba(255,255,255,.8)) drop-shadow(0 0 16px rgba(255,234,170,.5))!important;
 }
 /* reward-screen-active側のz-index:28指定より高い優先度でarrowを前面化 */
@@ -9531,7 +9605,7 @@ html body #hand-slots.unit-equip-slots > [data-map-board="life"],
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
-  outline:3px solid #c49a6c!important;
+  outline:4px solid #c49a6c!important;
   outline-offset:-3px!important;
 }
 /* 実DOMではdata-map-boardはカード自身に付くため、直下カード用セレクタで補正する */
@@ -9544,14 +9618,14 @@ html body #hand-slots.unit-equip-slots > [data-map-board="life"],
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"],
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"],
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]{
-  border-radius:16px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
 }
 html body #hand-slots.unit-equip-slots > [data-map-board="summon"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="life"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="eternal"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="resonance"]::after,
 html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"]::after{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
 }
 html body #hand-slots.unit-equip-slots > .card:hover,
 html body #hand-slots.unit-equip-slots > .card.drag-over{
@@ -9591,8 +9665,8 @@ html body #hand-slots.unit-equip-slots > .card .board-frame-layer{
   inset:0!important;
   display:block!important;
   box-sizing:border-box!important;
-  border-radius:19px!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   pointer-events:none!important;
   z-index:100!important;
 }
@@ -9602,14 +9676,14 @@ html body #hand-slots.unit-equip-slots > .card .map-boundary-layer{
   display:block!important;
   box-sizing:border-box!important;
   border:5px solid #c49a6c!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   pointer-events:none!important;
   z-index:110!important;
 }
 /* 発光はカード枠と同じ矩形から生成し、filter由来の角ズレをなくす。 */
 html body #rw-cards .reward-grid-zone .rew-card,
 html body #battle-order-row > .rew-card{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   overflow:visible!important;
 }
 html body #rw-cards .reward-grid-zone .rew-card:hover,
@@ -9619,7 +9693,7 @@ html body #battle-order-row > .rew-card:hover,
 html body #battle-order-row > .rew-card.dragging,
 html body #battle-order-row > .rew-card.drag-over{
   filter:none!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
 }
 html body #rw-cards .reward-grid-zone .rew-card.dragging{
@@ -9631,7 +9705,7 @@ html body #rw-cards .reward-grid-zone .rew-card.dragging::after{
   position:absolute!important;
   inset:0!important;
   background:var(--card-frame) center/100% 100% no-repeat!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   pointer-events:none!important;
   z-index:6!important;
 }
@@ -9650,7 +9724,7 @@ html body #hand-slots.unit-equip-slots > .card .card-summon-hp{
 html body #hand-slots.unit-equip-slots > [data-map-board],
 html body #hand-slots.unit-equip-slots > [data-map-board]:hover,
 html body #hand-slots.unit-equip-slots > [data-map-board].drag-over{
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
 }
 /* 発光そのものを同じ矩形の疑似要素で描画し、外側影の隙間とRずれを防ぐ。 */
 html body #hand-slots.unit-equip-slots > .card:hover:not(.inert):not(.invalid-battle-position)::before,
@@ -9665,7 +9739,7 @@ html body #battle-order-row > .rew-card.drag-over::before{
   position:absolute!important;
   inset:0!important;
   border:2px solid rgba(255,255,255,.9)!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-sizing:border-box!important;
   box-shadow:inset 0 0 7px rgba(255,255,255,.75),0 0 14px 2px rgba(255,255,255,.78),0 0 27px 5px rgba(255,234,170,.5)!important;
   pointer-events:none!important;
@@ -9679,7 +9753,7 @@ html body #hand-slots.unit-equip-slots > .card .character-frame-layer{
   inset:0!important;
   display:block!important;
   box-sizing:border-box!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   background:var(--unit-frame,var(--card-frame)) center/100% 100% no-repeat!important;
   pointer-events:none!important;
   z-index:90!important;
@@ -9690,7 +9764,7 @@ html body #hand-slots.unit-equip-slots > .card .card-glow-layer{
   display:block!important;
   box-sizing:border-box!important;
   border:2px solid rgba(255,255,255,.72)!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
   pointer-events:none!important;
   opacity:0!important;
@@ -9751,6 +9825,26 @@ html body #hand-slots.unit-equip-slots > .card.invalid-battle-position .characte
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position .board-frame-layer{
   filter:brightness(.5) saturate(.5)!important;
 }
+/* **HP0になったキャラは、枠画像とマナ／生贄アイコン（上の数字も含む）まで暗転させる。**
+   「特殊マス以外に置かれて出撃できない」invalid-battle-positionは魔導板の枠を明るく残す仕様のため、
+   HP0だけに付くboard-hp-zeroで、::after（m_board_frame）・特殊マス枠・コストアイコンを個別に落とす。
+   暗転オーバーレイ（::before・z-index:50）より前面のz-indexに置かれた要素なので、
+   オーバーレイでは暗くならず、filterで明るさを落とす必要がある。 */
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero::after,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero:not([data-map-board])::after,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero .map-boundary-layer,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero .mana-cost-orbs,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero .seal-cost-badge{
+  filter:brightness(.5) saturate(.5)!important;
+}
+/* アイテムの対象に選べるときは、他の要素と同じく明るさを戻す。 */
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok::after,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok:not([data-map-board])::after,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok .map-boundary-layer,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok .mana-cost-orbs,
+html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok .seal-cost-badge{
+  filter:none!important;
+}
 /* 報酬カードも同じ発光強度に揃える。 */
 html body #rw-cards .reward-grid-zone .rew-card:hover,
 html body #rw-cards .reward-grid-zone .rew-card.dragging,
@@ -9768,7 +9862,7 @@ html body #battle-order-row > .rew-card:hover::before,
 html body #battle-order-row > .rew-card.dragging::before,
 html body #battle-order-row > .rew-card.drag-over::before{
   border:2px solid rgba(255,255,255,.72)!important;
-  border-radius:19px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
 }
 /* 旧hover:not(.inert)の高詳細度ルールを明示的に無効化する。 */
@@ -10691,16 +10785,16 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card > .ring-v
 }
 /* 右クリック表示中も、カードの下にある通常／特殊マスの外枠だけは残す。 */
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board="life"]{
-  background:url("assets/cards/m_board2.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board2.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board="eternal"]{
-  background:url("assets/cards/m_board3.svg") center/109.6% 100% no-repeat!important;
+  background:url("assets/cards/m_board3.svg?v=cellRadius01") center/109.6% 100% no-repeat!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board="resonance"]{
-  background:url("assets/cards/m_board4.svg") center/112.7% 100% no-repeat!important;
+  background:url("assets/cards/m_board4.svg?v=cellRadius01") center/112.7% 100% no-repeat!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board="duplicate"]{
-  background:url("assets/cards/m_board5.svg") center/105.5% 100% no-repeat!important;
+  background:url("assets/cards/m_board5.svg?v=cellRadius01") center/105.5% 100% no-repeat!important;
 }
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card[data-map-board] > .map-boundary-layer{
   opacity:1!important;visibility:visible!important;display:block!important;
@@ -10948,7 +11042,7 @@ html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .c
 html body.right-card-peek.reward-screen-active #hand-slots.unit-equip-slots > .card > .board-frame-layer{
   opacity:1!important;visibility:visible!important;display:block!important;filter:none!important;
   position:absolute!important;inset:0!important;z-index:10050!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 /* ドラッグゴーストでは元カードからコピーした実寸を最優先し、★の明滅拡大も止める。 */
 html body .drag-ghost .triple-merge-star{
@@ -10967,7 +11061,7 @@ html body .triple-merge-white-flash::after{
   position:absolute;
   inset:0;
   z-index:30000;
-  border-radius:19px;
+  border-radius:var(--card-frame-r,5.65% / 3.721%);
   background:#fff;
   pointer-events:none;
   animation:tripleMergeShapeFlash .76s ease-out both;
@@ -11373,18 +11467,18 @@ html body.gameover-active.right-card-peek #gameover-board-grid .card{
   opacity:1!important;visibility:visible!important;filter:none!important;
 }
 html body.gameover-active.right-card-peek #gameover-board-grid .card > *:not(.board-frame-layer):not(.map-boundary-layer){visibility:hidden!important;opacity:0!important}
-html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="summon"]{background:url("assets/cards/m_board1.svg") center/100% 100% no-repeat!important}
-html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="life"]{background:url("assets/cards/m_board2.svg") center/100% 100% no-repeat!important}
-html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="eternal"]{background:url("assets/cards/m_board3.svg") center/109.6% 100% no-repeat!important}
-html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="resonance"]{background:url("assets/cards/m_board4.svg") center/112.7% 100% no-repeat!important}
-html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="duplicate"]{background:url("assets/cards/m_board5.svg") center/105.5% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="summon"]{background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="life"]{background:url("assets/cards/m_board2.svg?v=cellRadius01") center/100% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="eternal"]{background:url("assets/cards/m_board3.svg?v=cellRadius01") center/109.6% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="resonance"]{background:url("assets/cards/m_board4.svg?v=cellRadius01") center/112.7% 100% no-repeat!important}
+html body.gameover-active.right-card-peek #gameover-board-grid .card[data-map-board="duplicate"]{background:url("assets/cards/m_board5.svg?v=cellRadius01") center/105.5% 100% no-repeat!important}
 html body.gameover-active.right-card-peek #gameover-board-grid .card > .board-frame-layer{display:block!important;visibility:visible!important;opacity:1!important}
 html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board]) > .board-frame-layer{
   display:block!important;visibility:visible!important;opacity:1!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
 }
 html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board]){
-  background:url("assets/cards/m_board6.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;box-shadow:none!important;
 }
 html body.gameover-active.right-card-peek #gameover-board-grid .card:not([data-map-board])::before,
@@ -11473,6 +11567,16 @@ html body #battle-mute-btn,
 html body #battle-formation-btn{
   opacity:.7;
   z-index:25;
+}
+/* デバッグの「編成」ボタンは**そこへ行くための近道**なので、
+   既にその画面にいる時（編成画面・ショップ・道具屋・祭壇の鍛冶／指輪交換）は出さない。 */
+html body.reward-screen-active #battle-formation-btn,
+html body.shop-screen-active #battle-formation-btn,
+html body.item-shop-active #battle-formation-btn,
+html body.forge-screen-active #battle-formation-btn,
+html body.ring-offer-phase #battle-formation-btn{
+  display:none!important;
+  pointer-events:none!important;
 }
 /* デバッグ用のミュート／編成ボタン（通常はz-index:25）は、そのままだと戦闘画面の
    暗幕(z-index:69)やクリア演出に隠れて「見えないのに押せる」状態になる。
@@ -11657,7 +11761,7 @@ html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05
 /* ══════════════════════════════════════════════════════════
    道具屋（アイテムショップ）：提示3枠＋手持ちアイテムの売却UI
    ══════════════════════════════════════════════════════════ */
-/* 提示アイテムは宝箱枠（item_slot.svg）と同じ正方形。treasure-offer-cardは
+/* 提示アイテムは item_slot.svg と同じ正方形。item-offer-card は
    子要素を全て隠すルールを持つため、価格バッジだけ復活させる。 */
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-buy-price,
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card > .shop-insufficient-badge{
@@ -12131,33 +12235,6 @@ html body.village-screen-active #village-move-btns#village-move-btns{
 }
 
 
-/* ══════════════════════════════════════════════════════════
-   道具屋でアイテムをドラッグ中の暗転
-   指輪交換（.dragzone-ring-offer）と全く同じ方式＝#ring-drag-overlayによる
-   黒50%の全面オーバーレイを使い、明るく残す枠だけをアイテム枠（.reward-prod-item）に
-   入れ替える（＝指輪枠は暗くなる）。既存の panel 個別 filter:brightness(.4) は
-   二重暗転になるため、道具屋中は打ち消す。
-   ══════════════════════════════════════════════════════════ */
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #ring-drag-overlay{
-  display:block!important;
-}
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) .battle-scroll{
-  z-index:30!important;
-}
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot).item-shop-active #reward-production-ui{
-  z-index:9001!important;
-}
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > *:not(.reward-prod-item){
-  filter:brightness(.5)!important;
-}
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > .reward-prod-item,
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot) #reward-production-ui > .reward-prod-item *{
-  filter:none!important;
-}
-/* ドラッグ元（提示アイテム）も指輪交換と同じく明るく残す。 */
-html body.reward-screen-active.item-shop-active:is(.dragzone-reward-item,.dragzone-itemslot).item-shop-active #battle-order-section{
-  z-index:9001!important;
-}
 /* 所持アイテムをドラッグ中は、売却価格と売却ボタンを隠す（ドラッグゴースト側も含む）。 */
 html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
 html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
@@ -12406,7 +12483,7 @@ html body.reward-screen-active #battle-order-row > .shop-sold-out{
   min-height:var(--prod-card-h)!important;
   max-height:var(--prod-card-h)!important;
   border:0!important;
-  background:url("assets/cards/m_board_frame.svg") center/100% 100% no-repeat!important;
+  background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   box-shadow:none!important;
   display:flex!important;
   align-items:center!important;
@@ -13064,11 +13141,11 @@ html body #battle-order-row > .rew-card.forge-card.item-visual::before{
 html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-buy-price{
   display:flex!important;
 }
-/* 鍛冶屋のカードは .treasure-offer-card を共有しており、その
+/* 鍛冶屋のカードは .item-offer-card を共有しており、その
    「> *{display:none}」で子要素がまとめて隠れる。価格と同じく、
    「ゴールド不足」バッジも明示的に出し直す。 */
 html body.reward-screen-active #battle-order-row > .rew-card.forge-card > .shop-insufficient-badge,
-html body.reward-screen-active #battle-order-row > .rew-card.treasure-offer-card > .shop-insufficient-badge{
+html body.reward-screen-active #battle-order-row > .rew-card.item-offer-card > .shop-insufficient-badge{
   display:block!important;
 }
 /* 変化させられるマスが無い選択肢だけ暗くし、価格に斜線を引く。 */
@@ -13255,21 +13332,19 @@ body.library-tutorial-lock.library-tutorial-moving #debug-card-palette .library-
 html body .library-tutorial-glow.library-tutorial-glow,
 html body #hand-slots.unit-equip-slots > .library-tutorial-glow.library-tutorial-glow,
 html body #battle-order-row .library-tutorial-glow.library-tutorial-glow{
-  box-shadow:inset 0 0 0 3px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
+  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
 }
 /* 魔導板の枠画像(#hand-pane-board-bg)は通常 z-index:9 で #hand-pane(10) の下にある。
    .library-tutorial-allowed の z-index:10002 は board-bg には効くが、
    #hand-pane 側には詳細度の高い既存ルール（z-index:2/10）が勝って効かないため、
    枠画像がカードと「魔導板」見出しの上に来て枠内が暗く見える。元の重なり順に戻す。 */
 /* ══════════════════════════════════════════════════════════
-   カードのドラッグ中に魔導板・報酬枠を暗転オーバーレイより上へ出す
-   z-index引き上げを打ち消す。オーバーレイ自体を廃止したため引き上げは不要で、
-   引き上げると魔導板のカードが#hand-paneの装飾レイヤーより前面に出て
-   枠線が明るく浮き上がる（＝所持カードが光って見える）。
-   既存ルールは「.dragzone-x.dragzone-x」や body[class*=] で詳細度を上げているため、
-   :is()を三重に重ねて確実に勝たせ、ドラッグしていない時と同じ値へ戻す。
+   **魔導板の引き上げ（#main-hand-area の z-index:9001）を打ち消さないこと。**
+   以前は暗転オーバーレイを廃止していたため打ち消していたが、
+   「魔導板・報酬枠以外を暗くする」仕様へ戻したので引き上げが要る。
+   打ち消すと魔導板までオーバーレイの下に沈んで真っ暗になる。
+   （「所持カードが光る」対策は、この下にある影・発光レイヤーの復元ルールが担当する）
    ══════════════════════════════════════════════════════════ */
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area{position:static!important;inset:auto!important;left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;pointer-events:auto!important}
 /* dragzone-* 側の「html body.dragzone-x.dragzone-x #main-hand-area #hand-pane *{filter:none!important}」は、
    矢印マーク（.panel-dir）と合体リンク（.panel-unite-link）の影まで消してしまう。
    影が消えた分だけ盤面のカードが明るくなり「所持カードが光る」ように見えるため、元の影へ戻す。
@@ -13280,23 +13355,27 @@ html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspel
 html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #hand-slots.unit-equip-slots .panel-unite-link,
 html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section #battle-order-row .panel-dir,
 html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section #battle-order-row .panel-unite-link{filter:drop-shadow(rgba(0,0,0,.9) 0 2px 3px)!important}
-/* .battle-scroll の引き上げ（z-index:1→30）も暗転オーバーレイを届かせるためのもの。
-   引き上げると盤面全体が上位の暗いレイヤーより前面に出て明るく光って見える。 */
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) .battle-scroll{z-index:1!important}
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane-board-bg{z-index:9!important}
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-pane{z-index:10!important}
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #battle-order-section{z-index:2!important}
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots{z-index:auto!important}
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots > .card,
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots > .card-empty{position:relative!important;z-index:auto!important}
-/* カードのドラッグ中に魔導板・報酬枠以外を50%黒で暗くする演出は廃止する。
-   周囲が暗くなる分、魔導板の所持カードが光って見えるため。
-   z-index引き上げとドラッグ元の透明化(.dragging)はそのまま残す。 */
-html body #mainequip-drag-overlay{display:none!important}
+/* 暗転オーバーレイを出すのは「アイテムの対象選択中」と
+   「魔導板・報酬カードのドラッグ中」だけ。**ドラッグ側を除外に入れ忘れると
+   魔導板・報酬カードのドラッグで何も暗くならない。** */
+html body:not(.item-use-picking):not(.dragzone-mainequip):not(.dragzone-reward-spell):not(.dragzone-reward-nonspell) #mainequip-drag-overlay{display:none!important}
 /* 既存の暗転ルールは「.dragzone-x.dragzone-x」とクラスを二重指定して詳細度を上げているため、
    打ち消す側も :is() を三重に重ねて確実に勝たせる。 */
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #debug-card-palette,
-html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-battleorder,.dragzone-spellslot) #main-hand-area #spell-slot-pane{filter:none!important}
+/* カードドラッグ時は魔導板の装飾をカードより下へ置く。枠画像を上へ置くと、
+   半透明のmark/m_board画像がカード・矢印・見出しを覆い「暗転」に見える。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane-board-bg{
+  z-index:9002!important;
+}
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane{
+  z-index:9003!important;
+}
+/* 魔導板そのもの以外は暗転対象。カード非表示ボタンとデバッグカード枠も含む。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #debug-card-palette,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #spell-slot-pane,
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell):is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #main-hand-area #hand-pane #board-card-visibility-btn{
+  filter:brightness(.5)!important;
+  opacity:1!important;
+}
 html body #hand-pane-board-bg.library-tutorial-allowed,
 html body.library-tutorial-lock #scr-battle #hand-pane-board-bg.library-tutorial-allowed{z-index:9!important}
 body.library-tutorial-lock #scr-battle *{pointer-events:none!important}
@@ -13358,17 +13437,17 @@ body.run-resume-active #battle-options-btn{display:none!important}
 
 <!-- TITLE -->
 <div id="scr-title" class="screen startup-title">
-  <video id="title-bg-video" src="assets/art/backgrounds/game_title.webm" preload="auto" loop muted playsinline aria-hidden="true"></video>
+  <video id="title-bg-video" src="assets/vfx/game_title.webm" preload="auto" loop muted playsinline aria-hidden="true"></video>
   <img class="startup-title-logo" src="assets/ui/title_logo.svg?v=logo2" alt="Vesselbound">
   <span class="title-logo-texture" aria-hidden="true"></span>
   <div class="tap-to-start">TAP TO START</div>
   <div id="title-menu">
     <span id="title-select-back" class="title-menu-back" aria-hidden="true"></span>
     <button class="title-menu-item game-start" type="button" onclick="startGameFromTitle()" data-sfx-silent="1"><span class="title-menu-label">ゲームスタート</span></button>
-    <button class="title-menu-item" id="title-continue-btn" type="button" disabled><span class="title-menu-label">コンティニュー</span></button>
+    <button class="title-menu-item title-menu-item-empty" id="title-continue-btn" type="button" aria-disabled="true"><span class="title-menu-label">コンティニュー</span></button>
     <button class="title-menu-item online-battle" type="button" onclick="startOnlineMatchFromTitle()" data-sfx-silent="1"><span class="title-menu-label">オンライン対戦</span></button>
-    <button class="title-menu-item" type="button"><span class="title-menu-label">実績</span></button>
-    <button class="title-menu-item" type="button" onclick="returnToTapStart()"><span class="title-menu-label">終了</span></button>
+    <button class="title-menu-item collection" type="button"><span class="title-menu-label">コレクション</span></button>
+    <button class="title-menu-item title-quit" type="button" onclick="returnToTapStart()"><span class="title-menu-label">終了</span></button>
   </div>
   <button id="title-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
@@ -13376,20 +13455,20 @@ body.run-resume-active #battle-options-btn{display:none!important}
 
 <!-- BATTLE -->
 <div id="scr-battle" class="screen">
-  <video id="reward-bg-video" src="assets/art/backgrounds/back1.webm" autoplay loop muted playsinline></video>
+  <video id="reward-bg-video" src="assets/vfx/setup.webm" autoplay loop muted playsinline></video>
   <!-- ステージ持続の効果動画（例：ステージ4のヴォルザーク〜蝕界の塔の雷）。街画面の
        #village-bg-videoと同じ設定で、戦闘・報酬画面（#scr-battle）側に重ねる。 -->
   <video id="stage-bg-video" muted loop playsinline aria-hidden="true"></video>
   <button id="battle-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div id="battle-end-fade" aria-hidden="true"></div>
-  <video id="gameover-video" src="assets/art/backgrounds/game_over.webm" preload="auto" loop muted playsinline></video>
+  <video id="gameover-video" src="assets/vfx/game_over.webm" preload="auto" loop muted playsinline></video>
   <div id="gameover-video-tint" aria-hidden="true"></div>
   <div id="gameover-video-shade" aria-hidden="true"></div>
   <div id="battle-transition-fade" aria-hidden="true"></div>
   <div id="battle-counters" aria-label="戦闘カウンター">
     <div class="battle-counter">
       <img class="battle-counter-bg" src="assets/ui/counter.svg?v=back50" alt="">
-      <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/mana_orb.png" alt=""><span id="battle-mana-value">0</span></div>
+      <div class="battle-counter-content"><img class="battle-counter-icon" src="assets/cards/mana.png" alt=""><span id="battle-mana-value">0</span></div>
     </div>
     <div class="battle-counter">
       <img class="battle-counter-bg" src="assets/ui/counter.svg?v=back50" alt="">
@@ -13399,11 +13478,11 @@ body.run-resume-active #battle-options-btn{display:none!important}
   <div id="battle-status-hud" aria-label="所持金とライフ">
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">所持金</span><strong id="battle-gold-value">0</strong>
+      <span class="battle-status-label status-label-gold">所持金</span><strong id="battle-gold-value">0</strong>
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="battle-life-value"></strong>
+      <span class="battle-status-label status-label-life">ライフ</span><strong id="battle-life-value"></strong>
     </div>
   </div>
   <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
@@ -13443,11 +13522,6 @@ body.run-resume-active #battle-options-btn{display:none!important}
         <strong class="reward-prod-turn-value">0 / 15</strong>
         <div class="reward-prod-turn-alert"></div>
       </div>
-    </div>
-    <div class="reward-prod-wave-countdown">
-      <span class="reward-prod-wave-countdown-label"></span>
-      <span class="reward-prod-wave-countdown-value"></span>
-      <span class="reward-prod-wave-countdown-alert"></span>
     </div>
   </div>
   <div id="legacy-battle-header" style="text-align:center;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0">
@@ -13586,17 +13660,6 @@ body.run-resume-active #battle-options-btn{display:none!important}
   </div>
 </div>
 
-<!-- 宝箱モーダル -->
-<div id="treasure-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:12px">
-  <div style="background:var(--bg2);border:1px solid var(--gold);border-radius:8px;padding:20px;max-width:600px;width:92%">
-    <div style="font-size:.9rem;color:var(--gold2);font-weight:700;margin-bottom:12px;text-align:center">📦 宝箱</div>
-    <div id="treasure-items" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"></div>
-    <div style="text-align:center;margin-top:16px">
-      <button class="btn" id="treasure-done-btn">報酬へ進む</button>
-    </div>
-  </div>
-</div>
-
 <!-- VILLAGE（街）専用画面：背景＋左上の街名プレート＋施設ボタン -->
 <div id="scr-village" class="screen">
   <div id="village-name-plate">
@@ -13613,11 +13676,11 @@ body.run-resume-active #battle-options-btn{display:none!important}
   <div id="village-status" aria-label="所持金とライフ">
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">所持金</span><strong id="village-gold">0</strong>
+      <span class="battle-status-label status-label-gold">所持金</span><strong id="village-gold">0</strong>
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="village-life"></strong>
+      <span class="battle-status-label status-label-life">ライフ</span><strong id="village-life"></strong>
     </div>
   </div>
   <!-- 入場演出：地域名＋下線（battle_line.svg）を画面中央に白一色で表示する -->
@@ -13647,11 +13710,11 @@ body.run-resume-active #battle-options-btn{display:none!important}
   <div id="map-status" aria-label="所持金とライフ">
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">所持金</span><strong id="map-gold">0</strong>
+      <span class="battle-status-label status-label-gold">所持金</span><strong id="map-gold">0</strong>
     </div>
     <div class="battle-status-counter">
       <img src="assets/ui/counter.svg?v=back50" alt="">
-      <span class="battle-status-label">ライフ</span><strong id="map-life"></strong>
+      <span class="battle-status-label status-label-life">ライフ</span><strong id="map-life"></strong>
     </div>
   </div>
   <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
@@ -13737,44 +13800,46 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-    <script src="assets.js?v=onlineExit01"></script>
-<script src="js/engine/audio.js?v=onlineExit01"></script>
+    <script src="assets.js?v=stealCast01"></script>
+<script src="js/engine/audio.js?v=webaudio07"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=rewardGrade01"></script>
+<script src="js/data/local_xlsx_data.js?v=intro16"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=uiText01"></script>
+<script src="js/data/loader.js?v=multiRevive01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=gremlin01"></script>
+    <script src="js/battle/core.js?v=multiRevive01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=gremlin01"></script>
-    <script src="js/battle/present_events.js?v=onlineExit01"></script>
+    <script src="js/battle/present.js?v=multiRevive01"></script>
+    <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
 <script src="js/online/server_local.js?v=onlineExit01"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=tempoAlign01"></script>
+<script src="js/online/playback.js?v=issueFix01"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=onlineExit01"></script>
-<script src="js/online/versus.js?v=asset0903"></script>
-<script src="js/online/flow.js?v=onlineExit01"></script>
+    <script src="js/online/board.js?v=multiRevive01"></script>
+<script src="js/online/versus.js?v=refactor01"></script>
+<script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
 <script src="js/engine/state.js?v=save01"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=save01"></script>
-<script src="js/save/run_save.js?v=uiText02"></script>
-<script src="js/engine/pool.js?v=uiText01"></script>
-<script src="js/engine/enemy.js?v=save01"></script>
-    <script src="js/engine/battle.js?v=checkpoint01"></script>
-    <script src="js/engine/render.js?v=save01"></script>
-<script src="js/engine/reward.js?v=sheetText02"></script>
-<script src="js/engine/map.js?v=sheetText02"></script>
-<script src="js/engine/move.js?v=worldmap3"></script>
-  <script src="js/engine/main.js?v=sheetText02"></script>
+<script src="js/save/run_save.js?v=steal01"></script>
+<script src="js/engine/pool.js?v=multiRevive01"></script>
+<script src="js/engine/enemy.js?v=intro01"></script>
+    <script src="js/engine/battle.js?v=attackMotion02"></script>
+    <script src="js/engine/battle_events.js?v=multiRevive01"></script>
+    <script src="js/engine/render.js?v=attackMotion02"></script>
+<script src="js/engine/reward_items.js?v=noTreasure01"></script>
+<script src="js/engine/reward_journey.js?v=steal01"></script>
+<script src="js/engine/reward.js?v=dragDim01"></script>
+<script src="js/engine/map.js?v=steal02"></script>
+  <script src="js/engine/main.js?v=bgmWarm02"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13896,6 +13961,298 @@ html body .attack-motion-clone.effect-flash{
   border-color:var(--effect-flash-core)!important;
   filter:none!important;
   z-index:999!important;
+}
+/* ══════════════════════════════════════════════════════════
+   カード枠（summon_frameN / enemy_frame / boss_frame 等）の外周線。
+   **報酬カード・魔導板・戦闘スロットを問わず「常に」出す。**
+   色は魔導板のマス（assets/cards/m_board6.svg?v=cellRadius01）と同じ #c49a6c、太さ1px。
+
+   ・枠の絵を描いている要素そのものへ border を足す（box-sizing:border-box なので
+     大きさは1pxも変わらない）。要素を増やしたり inset をずらしたりしないので、
+     **ドラッグ中の複製（.drag-ghost）でも位置がずれない。**
+   ・角Rは枠の絵に合わせる。枠画像は712×1079で角丸半径は約38px＝幅の5.34%。
+     カードの箱は画像と縦横比が違い、背景を 100% 100% で引き伸ばして描いているため、
+     角も同じ比率で潰れる。**縦横を別々の％で指定して同じ楕円にする**
+     半径は枠画像ごとに違い（summon_frame1 は 712×1079 で29px、他の7枚は 708×1075 で40px）、
+     絵を差し替えれば変わるので、**ここに固定値は書かない**。
+     assets.js の `applyFrameRadiusKey()` が枠画像のアルファから角Rを実測し、
+     `[data-frame-key="…"]{--card-frame-r:…}` として流し込む。
+     下の既定値は測定前および canvas が読めない環境（file://）用の保険で、
+     枚数の多いほうの枠（708×1075 / 40px）に合わせてある。
+   ══════════════════════════════════════════════════════════ */
+/* **`background-origin` を border-box にすること。**
+   既定は `padding-box` なので、1pxのボーダーを付けた要素では
+   **枠の絵がパディング箱＝上下左右1px内側に、しかも2px小さく描かれる。**
+   （`background-size:100% 100%` の100%もパディング箱を指すため）
+   直線部分は1pxずれるだけだが、**角では絵の丸みと線の丸みが二重になって隙間が開く**。
+   `background-clip` は border-box のままでよい（線は絵の一番外側1pxへ重ねて描く）。 */
+/* **道具屋・鍛冶屋・祭壇の「選択肢」は枠線の対象外。**
+   これらは `.rew-card` を借りているだけで、中身はカードではなく絵柄1枚
+   （`item-visual`／`ring-visual`／`forge-card`）。枠の絵を持たないので線だけが
+   カードサイズの箱に描かれ、絵より大きな枠が出てしまう。 */
+html body .slot.unit-card::after,
+html body .card:not(.item-visual):not(.ring-visual):not(.forge-card)::after,
+html body .rew-card:not(.item-visual):not(.ring-visual):not(.forge-card)::after,
+html body .unit-frame-layer{
+  box-sizing:border-box!important;
+  background-origin:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+}
+/* **魔導板のキャラクターカードだけ作りが違う。**
+   ・`::after` が描いているのは「マスの枠」（m_board_frame.svg）で、カードの枠ではない。
+     この画像自体に既に #c49a6c の線が入っているので、ここへ線を足すと二重になる。
+   ・カードの枠（summon_frameN）は `.character-frame-layer` が描く。
+     この層は `inset:0` ＝ 親の**パディング箱**なので、親が持つ1pxの透明枠のぶん
+     上下左右へ1pxずつ内側にある。そのまま border を足すとカードの外周より1px内側になり、
+     **下のマスと線がずれて見える**（キャラクターだけ低く見える）。
+   → 枠レイヤーは `inset:0`（＝親のパディング箱）のままでよい。
+     **代わりに親の透明ボーダーを0に統一する**（下のルール）。
+     ボーダーが残っていると枠の絵がその分だけ内側に描かれ、
+     「カードの横幅・縦幅が足りない」「絵と線の間に隙間」になる。 */
+/* **魔導板のカードは透明ボーダーの有無がマスの種類でバラバラだった。**
+   通常のマスは1px、「召喚の力」のマス（.deploy-slot／[data-map-board]）は0px。
+   枠の絵は `inset:0` ＝ パディング箱に描くので、**同じ枠画像でもマスによって
+   大きさと角の位置がずれる**（片方だけ絵と線の間に隙間ができる）。
+   ボーダーは透明で場所取りにしか使っていないうえ box-sizing:border-box なので、
+   0に統一してもカードの外寸は変わらない。 */
+html body #hand-slots.unit-equip-slots > .card{
+  border-width:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card:has(.character-frame-layer)::after{
+  border:0!important;
+}
+/* 逆に、枠レイヤーを持たないカード（エンチャント等）は `::after` が枠の絵そのもの。
+   マスの種類ごとの `#hand-slots.unit-equip-slots > [data-map-board="…"]::after{border:…}` に
+   負けないよう、id込みで詳細度を上げて線を引き直す。 */
+html body #hand-slots.unit-equip-slots > .card:not(:has(.character-frame-layer))::after{
+  background-origin:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+}
+html body .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card .character-frame-layer{
+  box-sizing:border-box!important;
+  background-origin:border-box!important;
+  inset:0!important;
+  outline:0!important;
+  border:2px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+}
+/* ドラッグ中のカードは中身ごと透明にしているが、**線だけは別に消す**。
+   border / outline は `opacity:0` を掛けている要素とは別の場所（疑似要素・outline）
+   から描かれることがあり、移動元に細い線だけが residual として残る。 */
+html body .dragging::after,
+html body .dragging::before,
+html body .card.dragging::after,
+html body .rew-card.dragging::after,
+html body .slot.dragging::after,
+html body .dragging .character-frame-layer,
+html body .dragging .unit-frame-layer,
+html body .drag-source-parts-hidden::after,
+html body .drag-source-parts-hidden .character-frame-layer,
+html body .drag-source-parts-hidden .unit-frame-layer,
+/* 上の枠線ルールには id 付き（`#hand-slots.unit-equip-slots > .card .character-frame-layer`）が
+   あるので、消す側も同じだけ詳細度を上げないと勝てない。 */
+html body #hand-slots.unit-equip-slots > .card.dragging .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.dragging::after,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden::after,
+html body #battle-order-row .rew-card.dragging::after,
+html body #rw-cards .rew-card.dragging::after{
+  border-color:transparent!important;
+  outline-color:transparent!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   **「取ると合体する3枚目」の発光**（報酬・ショップの `.rew-card.merge-ready`）
+   魔導板のカードにホバーした時と同じ drop-shadow を使う。
+   drop-shadow はカードの形（角丸）に沿うので、outline / box-shadow の
+   四角い光のように枠から浮かない。**ゆっくり明滅させる。**
+   ドラッグ中は魔導板のカードと同じく発光を消す（掴んだ絵に光が付いて回らない）。
+   ※先に `html body .rew-card.merge-ready{outline/box-shadow}` があるので、
+     クラスを二重指定して詳細度で勝たせている。
+   ══════════════════════════════════════════════════════════ */
+html body .rew-card.merge-ready.merge-ready{
+  outline:0!important;
+  box-shadow:none!important;
+  animation:merge-ready-breath 2.8s ease-in-out infinite!important;
+}
+@keyframes merge-ready-breath{
+  0%,100%{filter:drop-shadow(0 0 4px rgba(255,214,84,.45)) drop-shadow(0 0 10px rgba(255,186,32,.28))}
+  50%{filter:drop-shadow(0 0 10px rgba(255,224,120,.95)) drop-shadow(0 0 20px rgba(255,186,32,.62))}
+}
+html body .rew-card.merge-ready.merge-ready.dragging,
+html body .rew-card.merge-ready.merge-ready.drag-source-parts-hidden,
+html body .card.merge-ready.merge-ready.dragging,
+html body .card.merge-ready.merge-ready.drag-source-parts-hidden{
+  animation:none!important;
+  filter:none!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   **村（リーゼ等）の背景も、タイトル画面と同じ作りでゆっくり明滅させる。**
+   背景そのもの（`.screen.asset-backed::before`）は動かさず、
+   **同じ画像をもう一枚重ねて不透明度だけを揺らす**（タイトルの
+   `title-castle-overlay-pulse` と同じ 12s・0.3〜0.8）。
+   `::after` は `.screen.asset-backed::after{display:none}` で空いている。
+   ══════════════════════════════════════════════════════════ */
+#scr-village.asset-backed::after{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:-1!important;
+  background-image:var(--screen-bg-image)!important;
+  background-size:cover!important;
+  background-position:center!important;
+  pointer-events:none!important;
+  /* **同じ絵を普通に重ねても見た目は変わらない**（同じ色を同じ色に合成しても同じ色）。
+     タイトルは別の絵（title_castle.png）を重ねているので差が出る。
+     村は同じ絵なので `screen` で重ね、明るさが上下するようにする。 */
+  mix-blend-mode:screen!important;
+  opacity:.12;
+  animation:village-bg-overlay-pulse 12s ease-in-out infinite!important;
+}
+@keyframes village-bg-overlay-pulse{0%,100%{opacity:.12}50%{opacity:.42}}
+
+/* ══════════════════════════════════════════════════════════
+   **ホバー説明の枠と区切り線を素材へ差し替える。**
+   枠＝`assets/ui/info_box.svg`、見出し下の直線＝`assets/ui/info_line.svg`。
+   info_box.svg の地色は、それまでの枠の背景（rgba(47,26,11,.96)）に合わせて
+   `#2f1a0b` / opacity .96 へ書き換えてある（素材側）。
+   枠線・角丸・影はSVGが持つので、CSS側のものは消す。
+   余白は素材の枠の内側に文字が収まるよう広げる。
+   ══════════════════════════════════════════════════════════ */
+html body #kw-tooltip,
+html body #map-power-tooltip,
+html body #keyword-tooltip{
+  /* **9スライス（border-image）で描く。**
+     背景画像として伸ばすと、本文が増えて箱が縦長になるたびに絵ごと縦横比が変わり、
+     枠線の太さや角の見え方が説明ごとにばらつく。
+     border-image なら**四隅は伸びず、辺だけが伸びる**ので、高さだけが変わる。
+     素材（viewBox 501.8x201.8）は外枠 0.9 と内枠 4.7 の二重線なので、
+     角を 10 単位で切れば両方の線が収まる。辺は直線なので伸ばしても分からない。
+     **`background` の一括指定は使わないこと。** background-color まで初期値へ戻り、
+     それぞれのツールチップが持つ地色が消える（地色は元のものをそのまま使う）。 */
+  background-image:none!important;
+  border-style:solid!important;
+  /* **枠の太さ＝素材の拡大率。** 6単位を何pxで描くかで、線の太さも二重線の間隔も
+     まとめて決まる。魔導板のマス枠（2px の二重線）に合わせて 7px にしてある。 */
+  border-width:calc(7px * var(--game-scale))!important;
+  border-color:transparent!important;
+  border-radius:0!important;
+  border-image-source:url("assets/ui/info_box.svg")!important;
+  /* **スライスは単位（px）で指定する。**
+     素材には `width="501.8" height="201.8"` を入れて固有サイズを持たせてある。
+     これが無いと、％指定は「画像の実寸」ではなく**要素の箱**を基準に解釈され、
+     箱の縦横比によって上下と左右で切る位置がずれる（下辺だけ二重線が1本に見えた）。
+     切り出す幅は**二重線が収まるぶんだけ**（6単位）。素材は外枠が 0〜1.8、
+     内枠が 3.8〜5.6 の位置にあるので、6で両方がちょうど入る（上下左右とも同じ）。 */
+  border-image-slice:6!important;
+  border-image-width:calc(7px * var(--game-scale))!important;
+  border-image-repeat:stretch!important;
+  box-shadow:none!important;
+  /* 枠のぶんだけ内側が狭くなるので、余白は border と合わせて元の見え方に揃える。 */
+  padding:calc(15px * var(--game-scale)) calc(21px * var(--game-scale))!important;
+}
+/* 見出し下の直線。素材は横長（viewBox 426x10）なので、幅いっぱいに伸ばして下端へ置く。
+   CSS の border-bottom は消し、位置合わせ用の余白だけ残す。 */
+html body #kw-tooltip .preview-title,
+html body #map-power-tooltip .preview-title,
+html body #keyword-tooltip .preview-title{
+  position:relative!important;
+  border-bottom:0!important;
+  padding-bottom:calc(16px * var(--game-scale))!important;
+  margin-bottom:calc(8px * var(--game-scale))!important;
+}
+html body #kw-tooltip .preview-title::after,
+html body #map-power-tooltip .preview-title::after,
+html body #keyword-tooltip .preview-title::after{
+  content:""!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  height:calc(10px * var(--game-scale))!important;
+  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+}
+/* 見出しだけの1行表示（data-preview-norule）は直線を出さない。 */
+html body #kw-tooltip.no-title-rule .preview-title::after{
+  content:none!important;
+}
+/* 節の区切り線も同じ素材に揃える。 */
+html body #kw-tooltip .preview-section-rule{
+  border:0!important;
+  height:calc(10px * var(--game-scale))!important;
+  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   **戦闘修正でHPが0になった時の死亡演出（青・波打ちフェード）**
+   ダメージで倒れた時の「焼け落ちる」演出（.death-burn-clone）とは別物。
+   ・青く沈む … カード全体を青へ寄せてから暗く落とす
+   ・波打つ  … SVGの feTurbulence + feDisplacementMap を JS が時間で書き換える
+              （CSSアニメーションではSVG属性を動かせないため）
+   ・消える  … 縦に少し伸びながら透明へ
+   演出だけの見せ物なので、盤面やルールには一切触れない。
+   ══════════════════════════════════════════════════════════ */
+.death-wave-clone{
+  position:fixed;
+  z-index:10019;
+  pointer-events:none;
+  overflow:visible;
+  animation:death-wave 1100ms linear forwards;
+}
+.death-wave-warp{position:absolute;inset:0}
+/* **下から一定の速さで薄くしていく。**
+   CSSマスクはSVGフィルタを掛けた親の下では効かない環境があり（実機で全消え）、
+   ここではマスクを使わない。代わりに
+   ・カード全体の opacity を**最初から等速**で落とす（@keyframes death-wave）
+   ・暗い層（.death-wave-shade）を下から立ち上げる
+   の2つで「下から同じペースで消えていく」ように見せる。 */
+.death-wave-card{position:absolute;inset:0}
+/* 青く染める層。カードの上に重ねて比較的暗い青を乗せる。 */
+.death-wave-tint{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(64,150,255,.55),rgba(16,54,140,.85));
+  mix-blend-mode:color;
+  opacity:0;
+  animation:death-wave-tint 1100ms forwards;
+}
+/* 沈み込む影。下から暗さが上がってくる。 */
+.death-wave-shade{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(180deg,rgba(2,10,30,0) 0%,rgba(2,10,30,.95) 100%);
+  background-repeat:no-repeat;
+  background-position:0 100%;
+  background-size:100% 40%;
+  opacity:0;
+  animation:death-wave-shade 1100ms linear forwards;
+}
+@keyframes death-wave{
+  /* **等速で薄くする。** 途中で止まって見えないよう、最初から最後まで一定の速さ。 */
+  0%   {opacity:1;   transform:translateY(0) scaleY(1)}
+  100% {opacity:0;   transform:translateY(-7%) scaleY(1.12)}
+}
+@keyframes death-wave-tint{
+  0%{opacity:0} 14%{opacity:1} 100%{opacity:1}
+}
+/* 暗さは下から。始まってすぐ下辺が沈み、上へ広がっていく。 */
+@keyframes death-wave-shade{
+  0%{opacity:.2; background-position:0 100%; background-size:100% 40%}
+  100%{opacity:1; background-position:0 0%; background-size:100% 190%}
+}
+
+/* 「WASTED」＝ダメージ以外でHPが0になった時。見せ方は「FLED」と同じで色だけ変える
+   （青い波打ちの死亡演出と対になる色）。 */
+.wasted-label-host .fled-label{
+  color:#cfe4ff!important;
+  -webkit-text-stroke:3px #071426;
+  text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 18px rgba(90,160,255,.55)!important;
 }
 </style>
 </body>

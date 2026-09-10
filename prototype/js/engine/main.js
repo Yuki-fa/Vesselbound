@@ -7,7 +7,17 @@
 // HELPERS
 // ═══════════════════════════════════════
 function showScreen(id){
+  // **画面が変わったらアイテム関連のUIを畳む。**
+  // ポータルの巻物のように「使うとその場で画面が切り替わる」アイテムがあり、
+  // 使用確認ウインドウと対象選択の暗転が次の画面へそのまま残っていた。
+  if(typeof _closeItemUseConfirm==='function') _closeItemUseConfirm();
+  if(typeof _cancelPendingItemUse==='function'&&typeof G!=='undefined'&&G&&G._pendingItemUse){
+    _cancelPendingItemUse(true);
+  }
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground(id);
+  // 戦闘画面から離れたら、中心へ寄せた拡大（フォーカス）を必ず外す。
+  // 残すと次に戦闘画面へ戻った時に拡大されたまま始まる。
+  if(id!=='battle'&&typeof clearBattleFocus==='function') clearBattleFocus();
   if(id==='title') _startTitleBgVideo();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('scr-'+id).classList.add('active');
@@ -97,16 +107,19 @@ function updateGoldenDrop(){
 // ── 所持金・ライフ・マナ・血の説明（ホバー）────────────────────
 // **文言はテキストメッセージシートが唯一の出どころ**（`window.TEXT_MESSAGES`）。
 // 見せ方はキャラクターのホバー説明と同じ仕組み（`data-preview`）で、見出し下の直線も同じに出す。
+// titleKey＝見出しの行。**説明文とセットで同じ枠の見出しを引く。**
+// 例：「所持金枠」見出し（ゴールド）＋ 全画面「所持金枠」説明文。
+// シートに見出しの行が無い間は title の値をそのまま使う。
 const STATUS_TOOLTIPS=[
-  {title:'所持金',key:'全画面「所持金」上',fallback:'街で買い物や鍛冶に利用できる。',
+  {title:'所持金',titleKey:'「所持金枠」見出し',key:'全画面「所持金枠」説明文',fallback:'街で買い物や鍛冶に利用できる。',
     values:['battle-gold-value','village-gold','map-gold'],
     selectors:['.reward-prod-money']},
-  {title:'ライフ',key:'全画面「ライフ」上',fallback:'ライフが0になるとゲームオーバーになる。',
+  {title:'ライフ',titleKey:'「ライフ枠」見出し',key:'全画面「ライフ枠」説明文',fallback:'ライフが0になるとゲームオーバーになる。',
     values:['battle-life-value','village-life','map-life'],
     selectors:['.reward-prod-turn']},
-  {title:'マナ',key:'戦闘画面「マナ」上',fallback:'マナ効果の発動に必要。',
+  {title:'マナ',titleKey:'「マナ枠」見出し',key:'戦闘画面「マナ枠」説明文',fallback:'マナ効果の発動に必要。',
     values:['battle-mana-value'],selectors:[]},
-  {title:'血',key:'戦闘画面「血」上',
+  {title:'血',titleKey:'「血枠」見出し',key:'戦闘画面「血枠」説明文',
     fallback:'味方が死ぬと増加する。封印されたキャラクターの解放や、一部のカード効果の発動に必要。',
     values:['battle-sacrifice-value'],selectors:[]},
 ];
@@ -116,13 +129,13 @@ const STATUS_TOOLTIPS=[
 // 予備の文字列はCSS側の var() の第2引数が持つ（ここでは値が取れた時だけ設定する）。
 const SHEET_CSS_TEXTS=[
   {prop:'--altar-desc-text',key:'「祭壇」説明文1',altKeys:['「祭壇」説明文']},
-  {prop:'--title-board',key:'魔導板枠見出し'},
-  {prop:'--title-reward',key:'編成画面報酬枠見出し'},
-  {prop:'--title-shop',key:'魔導店報酬枠見出し'},
-  {prop:'--title-item-shop',key:'道具屋報酬枠見出し'},
-  {prop:'--title-forge',key:'鍛冶屋報酬枠見出し'},
-  {prop:'--title-altar',key:'祭壇報酬枠見出し'},
-  {prop:'--title-library',key:'図書館の報酬枠見出し'},
+  {prop:'--title-board',key:'「魔導板枠」見出し'},
+  {prop:'--title-reward',key:'「編成画面の報酬枠」見出し'},
+  {prop:'--title-shop',key:'「魔導店の報酬枠」見出し'},
+  {prop:'--title-item-shop',key:'「道具屋の報酬枠」見出し'},
+  {prop:'--title-forge',key:'「鍛冶屋の報酬枠」見出し'},
+  {prop:'--title-altar',key:'「祭壇の報酬枠」見出し'},
+  {prop:'--title-library',key:'「図書館の報酬枠」見出し'},
   // 祭壇の説明文は2種類。1＝まだ捧げ切っていない時、2＝指輪を取った後。
   {prop:'--altar-desc-resolved-text',key:'「祭壇」説明文2'},
 ];
@@ -130,16 +143,31 @@ const SHEET_CSS_TEXTS=[
 // **文言はテキストメッセージシートが唯一の出どころ。** セレクタで引ける固定の見出しは
 // ここへ足すだけでよい（画面によって変わる見出しは各画面側で textMessage() を呼ぶ）。
 const SHEET_DOM_TITLES=[
-  {sel:'#reward-production-ui .reward-prod-item h2',key:'アイテム枠見出し',fallback:'アイテム'},
-  {sel:'#reward-production-ui .reward-prod-ring h2',key:'指輪枠見出し',fallback:'指輪'},
-  {sel:'#reward-production-ui .reward-prod-quest h2',key:'クエスト枠見出し',fallback:'クエスト'},
-  {sel:'#reward-production-ui .reward-prod-journey h2',key:'旅の進捗枠見出し',fallback:'旅の進捗'},
-  {sel:'#reward-production-ui .reward-prod-money h2',key:'所持金枠見出し',fallback:'所持金'},
+  {sel:'#reward-production-ui .reward-prod-item h2',key:'「アイテム枠」見出し',fallback:'アイテム'},
+  {sel:'#reward-production-ui .reward-prod-ring h2',key:'「指輪枠」見出し',fallback:'指輪'},
+  {sel:'#reward-production-ui .reward-prod-quest h2',key:'「クエスト枠」見出し',fallback:'クエスト'},
+  {sel:'#reward-production-ui .reward-prod-journey h2',key:'「旅の進捗枠」見出し',fallback:'旅の進捗'},
+  {sel:'#reward-production-ui .reward-prod-money h2',key:'「所持金枠」見出し',fallback:'所持金'},
+  // **画面下のHUDにも同じ見出しが出る。**（戦闘・村・マップの3か所）
+  // 以前は報酬枠の h2 しか指しておらず、シートを変えても画面の表示が変わらなかった。
+  {sel:'.status-label-gold',key:'「所持金枠」見出し',fallback:'所持金'},
+  {sel:'.status-label-life',key:'「ライフ枠」見出し',fallback:'ライフ'},
+  // タイトルメニュー。**「ゲームスタート」はCtrlで「デバッグモード」へ差し替わる**ので、
+  // 差し替えを戻す側（_syncTitleStartLabel）も同じシートの値を使うこと。
+  {sel:'#title-menu .title-menu-item.game-start .title-menu-label',key:'ゲームスタート',fallback:'ゲームスタート'},
+  {sel:'#title-continue-btn .title-menu-label',key:'コンティニュー',fallback:'コンティニュー'},
+  {sel:'#title-menu .title-menu-item.online-battle .title-menu-label',key:'オンライン対戦',fallback:'オンライン対戦'},
+  // 「実績」から「コレクション」へ改名中。シートの行名がどちらでも拾えるようにする。
+  {sel:'#title-menu .title-menu-item.collection .title-menu-label',key:'コレクション',altKeys:['実績'],fallback:'コレクション'},
+  {sel:'#title-menu .title-menu-item.title-quit .title-menu-label',key:'終了',fallback:'終了'},
 ];
 function applySheetDomTitles(){
   if(typeof document==='undefined'||typeof textMessage!=='function') return;
   SHEET_DOM_TITLES.forEach(def=>{
-    const text=textMessage(def.key,def.fallback).trim();
+    let text=textMessage(def.key,'').trim();
+    // シートの行名が変わる途中でも拾えるよう、旧い行名も順に見る（CSS側と同じ扱い）。
+    (def.altKeys||[]).forEach(k=>{ if(!text) text=textMessage(k,'').trim(); });
+    if(!text) text=String(def.fallback||'').trim();
     if(!text) return;
     document.querySelectorAll(def.sel).forEach(el=>{ el.textContent=text; });
   });
@@ -162,6 +190,8 @@ function applyStatusTooltips(){
     const text=(typeof textMessage==='function'?textMessage(def.key,def.fallback)
       :String(def.fallback||'')).trim();
     if(!text) return;
+    const title=(typeof textMessage==='function'&&def.titleKey
+      ?textMessage(def.titleKey,def.title):String(def.title||'')).trim()||String(def.title||'');
     const targets=[];
     (def.values||[]).forEach(id=>{
       const el=document.getElementById(id);
@@ -173,7 +203,7 @@ function applyStatusTooltips(){
       document.querySelectorAll(sel).forEach(el=>targets.push(el));
     });
     targets.forEach(el=>{
-      el.setAttribute('data-preview',`${def.title}\n${text}`);
+      el.setAttribute('data-preview',`${title}\n${text}`);
       el.removeAttribute('data-preview-norule');
       // 勝利・撤退の結果表示中もこの4つだけは出す（印は render.js が見る）。
       el.setAttribute('data-preview-status','1');
@@ -309,7 +339,6 @@ function debugToggleMapLoop(){
   }
   G._debugMapLoopActive=true;
   G._debugMapLoopReturnScreen=document.querySelector('.screen.active')?.id.replace(/^scr-/,'')||'battle';
-  if(typeof _ensureWorldMap==='function') _ensureWorldMap();
   const wave=Math.max(1,Number(G._wave)||1);
   const stage=Math.max(1,Number(G._waveStage)||1);
   const line=typeof worldMapActiveLine==='function'?worldMapActiveLine(wave,stage):1;
@@ -552,6 +581,24 @@ function _waveBattleType(stage){
   if(node==='boss'||node==='finalBoss') return 'boss';
   return 'battle';
 }
+// ── BGMの先読み ────────────────────────────────────────
+// BGMはWeb Audio（波形を全部読んでから鳴らす）ため、鳴らす瞬間に読み込むと
+// 頭が無音になる。**「次に鳴る曲」が決まった時点で先に読ませる。**
+// 先読みの置き場所はここだけにする（audio.js は warmBgm() を提供するだけ）。
+function _battleBgmKeyForStage(stage){
+  // 伏せられたラスボス戦（Scene5 stage5）は専用曲。
+  if(Number(G&&G._wave)===5&&Number(stage)===5) return 'battle4';
+  const type=typeof _waveBattleType==='function'?_waveBattleType(stage):'battle';
+  return type==='boss'?'battle3':'battle1';
+}
+// 村・塔にいる間に、次の戦闘曲を読み込んでおく。
+function warmNextBattleBgm(){
+  if(typeof warmBgm!=='function') return;
+  const stage=Number(G&&G._waveStage)||1;
+  const node=typeof _waveRouteNode==='function'?_waveRouteNode(stage):'battle';
+  // 村（city）のマスからは次のマスが戦闘。それ以外は今のマスがそのまま次の戦闘。
+  warmBgm(_battleBgmKeyForStage(node==='city'?stage+1:stage));
+}
 // 同じ戦闘への再挑戦か。敗北時に控えた敵（_waveEnemySnapshot）をそのまま使える時が再挑戦。
 // **ボタンの文言（「再戦」）と、開幕の背景移動を止める判定の両方でこれを使う。**
 function _waveRetryPending(stage){
@@ -580,7 +627,7 @@ function _waveStageFloor(wave,stage){
   const deep=_waveDeepLevel(stage);
   return Math.max(1,(Math.max(1,Number(wave)||1)-1)*maxDeep+deep);
 }
-// 編成・報酬画面の背景動画（back1.webm）を再開する。
+// 編成・報酬画面の背景動画（setup.webm）を再開する。
 // 街・施設・ワールドマップの間は#scr-battleごとdisplay:noneになるため、ブラウザが
 // 「表示されていないミュート動画」として自動的に一時停止する（＝村や店から戻ると
 // 静止画のまま止まって見える）。報酬画面へ入るたびに明示的に再生し直す。
@@ -680,13 +727,25 @@ function _startWaveBattle(stage){
   if(battleHost){
     battleHost.classList.remove('battle-bg-normal','battle-bg-reveal','battle-bg-scroll-ready','battle-bg-scrolling');
     battleHost.classList.add((type==='elite'||type==='boss')&&!G._waveIsRetry?'battle-bg-reveal':'battle-bg-normal');
+    // **画面が出る前に寄せておく**（エリート／ボス）。出てから寄せると動きが見える。
+    // **種別は必ず渡す。** ここは G._waveBattleType を書き込む前なので、
+    // 省略すると前の戦闘の種別で判定してしまう。
+    if(typeof prepareBattleIntroFocus==='function') prepareBattleIntroFocus(type);
   }
-  // 敗北時、どの画面（村/祭壇/通常の報酬画面）の開始時点までやり直すかを記録しておく。
-  // 村／祭壇を出た直後の戦闘で敗北した場合は、施設へ戻さず報酬付き編成画面へ送る。
-  // それ以外の敗北は従来どおり、直前の画面種別へ戻す。
-  G._waveDefeatReturnTo='reward';
   G._waveVillage=false;
   G._isWaveAltar=false;
+  // **次に鳴る曲を戦闘中に読み込んでおく。**（_isWaveAltarを倒した後で判定すること）
+  // ボス戦（Scene1〜4）に勝つと必ず塔（祭壇）へ直行するので、塔の曲を先に読む
+  // （tower.wavは31MBあり、勝ってから読むと塔の入場に間に合わない）。
+  // それ以外の次は報酬画面のmenu、その先はこのSceneの街。
+  if(typeof warmBgm==='function'){
+    if(type==='boss'&&wave<5) warmBgm('tower');
+    else{
+      warmBgm('menu');
+      const nextVillage=typeof _villageBgmSetting==='function'?_villageBgmSetting():null;
+      if(nextVillage&&nextVillage.key) warmBgm(nextVillage.key);
+    }
+  }
   // 戦闘開始時は村・祭壇・施設メニューを必ず閉じる。Scene 2以降の
   // 村/祭壇からの遷移でも、前画面のフラグが次の報酬UIへ残らないようにする。
   G._isShop=false;
@@ -852,6 +911,11 @@ function handleWaveBattleDefeat(){
   G._waveRetryEnemyKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
   G._mapBattle=null; G._waveBattleType=null;
   G._waveLife=Math.max(0,(G._waveLife==null?(typeof waveLifeMax==='function'?waveLifeMax():3):Number(G._waveLife))-1);
+  // **敗北のたびに報酬の抽選鍵を進める。**
+  // 報酬は`reward:<場面>:<段>`の鍵付き乱数で引くので（開き直しても同じ5枚にするため）、
+  // 敗北して同じ場面・段のまま報酬画面へ入ると、直前と全く同じ5枚が出てしまう。
+  // ランに保存される回数を鍵へ足して、敗北後は別の5枚にする。
+  G._waveDefeatCount=(Number(G._waveDefeatCount)||0)+1;
   if(G._waveLife<=0){
     G._battleDefeatHandled=true;
     // オンライン対戦：CPU戦でのゲームオーバーもサーバーへ通知する（相手には通知されない仕様）。
@@ -862,17 +926,12 @@ function handleWaveBattleDefeat(){
     gameOver();
     return true;
   }
-  // 直前の村/祭壇/報酬画面を開いた時点まで所持金・アイテム・指輪などを巻き戻す。
-  // 魔導板の配置は巻き戻さず、直前に取得した報酬カードを保持する。
-  // _rewardStartSnapshotはgoToReward()が村/祭壇/報酬いずれの画面でも共通で取得済みのものを流用する。
-  const snap=G._rewardStartSnapshot;
-  if(snap){
-    G.spellSlots=clone(snap.spellSlots||[]);
-    G.inventory=clone(snap.inventory||[]);
-    G.gold=Number(snap.gold)||0;
-    G.rings=clone(snap.rings||[]);
-    G.mapPanelPowers=clone(snap.mapPanelPowers||{});
-  }
+  // **敗北しても持ち物は巻き戻さない。**（ペナルティはライフ1つだけ）
+  // 以前はここで所持金・アイテム・指輪・魔導板強化を「直前の画面の開始時点」へ
+  // 戻していたが、**戻る先の画面そのものが無くなっている**（下の returnTo は
+  // 常に 'reward'）。進行だけ先へ進んで持ち物が戻るため、
+  // 「永劫の巻物を使って戦ったのに、戦闘後に巻物が復活してマスが元へ戻る」
+  // といった辻褄の合わない状態になっていた。
   if(typeof _removeAbsentKiemetsuCards==='function') _removeAbsentKiemetsuCards();
   if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
   G.enemies=[];
@@ -882,7 +941,7 @@ function handleWaveBattleDefeat(){
   // 実際の画面構築（村/祭壇/新規報酬5枚）は「Withdraw」が消えた後のコールバックで行う。
   G.phase='reward';
   if(typeof updateHUD==='function') updateHUD();
-  const returnTo=G._waveDefeatReturnTo||'reward';
+  // 敗北後は必ず報酬付き編成画面へ進む（村・祭壇へは戻さない）。
   showVictoryOverlay(()=>{
     const ov=document.getElementById('victory-overlay');
     if(ov) ov.style.display='none';
@@ -890,9 +949,7 @@ function handleWaveBattleDefeat(){
     G._waveWithdraw=false;
     G._waveRewardCount=null;
     G.phase=null;
-    if(returnTo==='altar'&&typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
-    else if(returnTo==='village'&&typeof openMapVillage==='function') openMapVillage({intro:true});
-    else if(typeof goToReward==='function') goToReward({checkpoint:true});
+    if(typeof goToReward==='function') goToReward({checkpoint:true});
   });
   return true;
 }
@@ -905,7 +962,7 @@ const OPENING_MOVIE_SRC = 'assets/movie/movie1.webm';
 const OPENING_MOVIE_FADE_START = 7;    // 秒。ここからフェードアウトを開始する
 const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前までに真っ黒にするか
 const FINAL_BOSS_MOVIE_SRC = 'assets/movie/movie3.webm';
-const GAME_CLEAR_MOVIE_SRC = 'assets/art/backgrounds/game_clear.webm';
+const GAME_CLEAR_MOVIE_SRC = 'assets/vfx/game_clear.webm';
 const FINAL_CLEAR_MOVIE_SRC = 'assets/movie/movie4.webm'; // ラスボス撃破後のエンディング動画
 
 // カットシーン動画の音声を、映像のフェードアウトと同じ時間で絞る。
@@ -1193,13 +1250,18 @@ let _titleStartToken = 0;
 // （メニューから常設のデバッグ項目を無くしたため、こちらが唯一の入口）
 let _titleCtrlHeld = false;
 let _titleMenuClickBlockedUntil = 0;
-const TITLE_START_LABEL='ゲームスタート';
+// **シートの「ゲームスタート」を唯一の出どころにする。**
+// 固定文字列に戻すと、Ctrlを離した瞬間だけシートの文言から外れる。
+const TITLE_START_LABEL_FALLBACK='ゲームスタート';
+const _titleStartLabel=()=>(typeof textMessage==='function'
+  ?textMessage('ゲームスタート',TITLE_START_LABEL_FALLBACK)
+  :TITLE_START_LABEL_FALLBACK).trim()||TITLE_START_LABEL_FALLBACK;
 const TITLE_DEBUG_LABEL='デバッグモード';
 function _syncTitleStartLabel(){
   const title=document.getElementById('scr-title');
   if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
   const label=document.querySelector('#title-menu .title-menu-item.game-start .title-menu-label');
-  if(label) label.textContent=_titleCtrlHeld?TITLE_DEBUG_LABEL:TITLE_START_LABEL;
+  if(label) label.textContent=_titleCtrlHeld?TITLE_DEBUG_LABEL:_titleStartLabel();
 }
 function _setTitleCtrlHeld(on){
   const title=document.getElementById('scr-title');
@@ -1265,7 +1327,7 @@ function startGame(debugMode,onlineMode){
   G._onlineMode=!!onlineMode;
   if(typeof SaveRun!=='undefined') SaveRun.begin();
   G.runStats={
-    startedAt:performance.now(), areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
+    startedAt:performance.now(), playedMs:0, areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
     maxDamage:{amount:0,type:''}, maxAtk:0, maxHp:0
   };
   // デバッグモードでは初期カードを配らず、9999のゴーレムだけを置く。
@@ -1317,6 +1379,7 @@ function startGame(debugMode,onlineMode){
   // オンライン対戦はライフ5から始まる（サーバー側の初期値 ONLINE_START_LIFE と合わせる）。
   // マッチ開始後は OnlineMatch が持つサーバーの値が正になる。
   G._waveLife=G._onlineMode?(typeof ONLINE_START_LIFE!=='undefined'?ONLINE_START_LIFE:5):3;
+  G._waveDefeatCount=0; // 報酬の抽選鍵に足す敗北回数（handleWaveBattleDefeat()で進める）
   if(G._onlineMode){
     // 仕様：マッチングが成立するまではタイトル画面のまま待つ（画面を切り替えない）。
     // 4人揃った後の進行（編成画面へ）は flow.js がサーバー状態を見て行うので、
@@ -1352,8 +1415,25 @@ function _recordRunStatsDamage(amount,type){
   const n=Number(amount)||0;
   if(n>(G.runStats.maxDamage?.amount||0)) G.runStats.maxDamage={amount:n,type:type==='毒'?'毒':''};
 }
+// **プレイ時間は「積算（playedMs）＋今回の起動からの経過」で数える。**
+// performance.now()はページを読み込み直すと0へ戻るため、startedAtだけで数えると
+// コンティニューのたびにプレイ時間が0へ戻る。保存の直前に今回分をplayedMsへ畳み、
+// 復元後はplayedMsから続きを数える。
+function _runStatsElapsedMs(){
+  if(!G.runStats) return 0;
+  const base=Math.max(0,Number(G.runStats.playedMs)||0);
+  const started=Number(G.runStats.startedAt);
+  const session=Number.isFinite(started)?Math.max(0,performance.now()-started):0;
+  return base+session;
+}
+// セーブへ書き出す前に、今回の起動分をplayedMsへ畳んで時計を打ち直す。
+function _flushRunStatsPlayTime(){
+  if(!G.runStats) return;
+  G.runStats.playedMs=_runStatsElapsedMs();
+  G.runStats.startedAt=performance.now();
+}
 function _runStatsTimeText(){
-  const sec=Math.max(0,Math.floor(((performance.now()-(G.runStats?.startedAt||performance.now()))/1000)));
+  const sec=Math.max(0,Math.floor(_runStatsElapsedMs()/1000));
   return `${Math.floor(sec/60)} : ${String(sec%60).padStart(2,'0')}`;
 }
 function _animateGameOverNumber(id,target,duration=650,formatter=n=>String(Math.floor(n)),delay=0){
@@ -1556,7 +1636,7 @@ function gameOver(options){
     video.classList.remove('is-visible');
     video.style.opacity='0';
     video.style.visibility='visible';
-    const desiredSrc=isClear?GAME_CLEAR_MOVIE_SRC:'assets/art/backgrounds/game_over.webm';
+    const desiredSrc=isClear?GAME_CLEAR_MOVIE_SRC:'assets/vfx/game_over.webm';
     if(video.getAttribute('src')!==desiredSrc){
       video.setAttribute('src',desiredSrc);
       video.load();
@@ -1723,6 +1803,10 @@ function continueAfterBattleVictory(silent){
   window.setTimeout(()=>{
     G._battleProceedAction=null;
     G._battleProceedBusy=false;
+    // **背景の寄りを戻すのはここ**（完全に暗転し、勝利／撤退の文字も消えた後）。
+    // 明るいうちに戻すと画面が引くのが見える。報酬は同じ #scr-battle 内で
+    // 切り替わるため showScreen() を通らず、ここが唯一の確実な契機になる。
+    if(typeof clearBattleFocus==='function') clearBattleFocus();
     action();
     // 村・祭壇の入場演出へ入った場合は、暗転をそのまま演出側へ引き継ぐ
     // （ここで外すと、演出の黒が乗るまでの間だけ盤面が見えてしまう。

@@ -62,7 +62,10 @@ function runDirect(setup) {
 }
 
 function main() {
-  const pveBattle = fs.readFileSync(require.resolve('../../js/engine/battle.js'), 'utf8');
+  const pveBattle = [
+    '../../js/engine/battle.js',
+    '../../js/engine/battle_events.js',
+  ].map(file => fs.readFileSync(require.resolve(file), 'utf8')).join('\n');
   assert.match(pveBattle, /coreResolveHit\(state,source,target,amount,counter/,
     'PvEアダプターが共通命中解決を呼び出していない');
   assert.match(pveBattle, /_flushCorePveHitEvents\(state,localEvents/,

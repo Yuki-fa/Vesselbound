@@ -370,6 +370,143 @@ function presentDamageGroupKey(ev) {
   return `${kind}|${solo}`;
 }
 
+// ── 一撃の中の死亡は、その一撃の数値を全部出してから見せる ────────────
+// **同じ束（＝全体攻撃・三方向攻撃の一撃）のダメージは、数値を全部出し切ってから
+//   死亡演出へ進む。**
+// コアは対象1体ずつ「ダメージ→（HPが0なら）死亡」の順にイベントを出す。
+// そのまま再生すると、1体目の数値の直後に死亡演出（数値を読ませる間＋死亡効果で
+// 約1秒）が割り込み、2体目以降の数値がそのぶん遅れて出る。
+// ＝**一度に当たったはずの攻撃が「1体ずつ削っている」ように見えていた。**
+// 束の途中にある death を、その束の最後のダメージの後ろへ送る。
+// **動かすのは表示順だけ。** 値も勝敗もコアが確定済みで、ここでは何も判定しない。
+// 束（damageKind＋batch）の決め方は presentDamageGroupKey が唯一の実装。
+function presentReorderDeathsAfterDamageBatch(events) {
+  const list = Array.isArray(events) ? events.filter(Boolean) : [];
+  if (!list.length) return list;
+  // コアが「同じ瞬間」と印を付けたダメージだけを束として扱う。
+  // 印の無い単発ダメージは1件で1束なので、送る先が無い＝並べ替えない。
+  const inBatch = e => e && e.type === 'damage' && e.batch;
+  const lastOfKey = new Map();
+  list.forEach((e, i) => { if (inBatch(e)) lastOfKey.set(presentDamageGroupKey(e), i); });
+  const out = [];
+  const held = [];
+  let openKey = null;
+  const flush = () => { while (held.length) out.push(held.shift()); openKey = null; };
+  list.forEach((e, i) => {
+    // 手番・戦闘の切れ目をまたいで死亡を持ち越さない。
+    if (e.type === 'turn_begin' || e.type === 'battle_end') { flush(); out.push(e); return; }
+    if (inBatch(e)) {
+      const key = presentDamageGroupKey(e);
+      if (openKey !== null && key !== openKey) flush();
+      openKey = key;
+      out.push(e);
+      if (lastOfKey.get(key) === i) flush();
+      return;
+    }
+    if (e.type === 'death' && openKey !== null && Number(lastOfKey.get(openKey)) > i) {
+      held.push(e);
+      return;
+    }
+    out.push(e);
+  });
+  flush();
+  return out;
+}
+
+// ── 奪われる体は「死なない」──────────────────────────────
+// サキュバスの捕獲は「攻撃で倒した敵をそのまま味方にする」効果なので、
+// コアは 死亡 → 死亡効果 → 奪う（unit_stolen）の順にイベントを出す。
+// そのまま再生すると**先にカードが焼き落ちてしまい**、奪う移動の出発点が無くなる
+// （＝移動が出せずワープに見える）。同じ一撃の中で奪われる体の死亡は落とす。
+function presentDropDeathsOfStolen(events) {
+  const list = Array.isArray(events) ? events.filter(Boolean) : [];
+  if (!list.length) return list;
+  const idOf = e => `${e && e.side}:${e && e.unitId}`;
+  const drop = new Set();
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].type !== 'death') continue;
+    const id = idOf(list[i]);
+    for (let j = i + 1; j < list.length; j++) {
+      const e = list[j];
+      if (presentBreaksEffectRun(e)) break;
+      if (e.type === 'unit_stolen' && idOf(e) === id) { drop.add(i); break; }
+    }
+  }
+  if (!drop.size) return list;
+  return list.filter((e, i) => !drop.has(i));
+}
+
+// ── 死亡効果の発光は、カードが消える前へ寄せる ──────────────────
+// コアは「死亡イベント → 死亡効果（と、その発光）」の順に出す。そのまま再生すると
+// 発光を出す頃にはカードが焼き落ちて盤面から消えており、**青い発光が一切見えない**。
+// 同時に倒れた束（連続する death）の**手前**へまとめて寄せる。
+// 1体ずつの手前へ入れると死亡の束が切れ、「同時に倒れたのに1体ずつ消える」に戻る。
+function presentReorderDeathFlashesBeforeDeath(events) {
+  const list = Array.isArray(events) ? events.filter(Boolean) : [];
+  if (!list.length) return list;
+  const idOf = e => `${e && e.side}:${e && e.unitId}`;
+  const isDeathFlash = e => e && e.type === 'effect_flash' && String(e.trigger || '') === 'death';
+  const hoisted = new Set();
+  const before = new Map();
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].type !== 'death') continue;
+    if (i > 0 && list[i - 1].type === 'death') continue; // 束の先頭だけを見る
+    let end = i;
+    const ids = new Set();
+    while (end < list.length && list[end].type === 'death') { ids.add(idOf(list[end])); end++; }
+    // 同じ一撃の中だけを探す（次の攻撃・手番へまたがせない）。
+    for (let j = end; j < list.length; j++) {
+      const e = list[j];
+      if (presentBreaksEffectRun(e)) break;
+      if (!isDeathFlash(e) || hoisted.has(j) || !ids.has(idOf(e))) continue;
+      hoisted.add(j);
+      if (!before.has(i)) before.set(i, []);
+      before.get(i).push(e);
+    }
+  }
+  if (!hoisted.size) return list;
+  const out = [];
+  list.forEach((e, i) => {
+    if (before.has(i)) before.get(i).forEach(f => out.push(f));
+    if (!hoisted.has(i)) out.push(e);
+  });
+  return out;
+}
+
+// ── 同じ瞬間に倒れた体 ──────────────────────────
+// **同時に死ぬなら、消えるのも同時。**
+// 数値を出し切ってから死亡を見せる並べ替え（presentReorderDeathsAfterDamageBatch）を
+// 通した後は、同じ一撃で倒れた分がイベント列に固まって並ぶ。その連続ぶんを
+// ひとまとまりとして返し、受け口は1回の演出としてまとめて見せる。
+// 1件ずつ「数値を読ませる間＋死亡効果」を待つと、2体目以降のカードが
+// 1秒ずつ遅れて消え、同時撃破に見えない。
+// 同じ瞬間に逃走する体（連続する fled）。死亡の束（presentDeathBatchEvents）と同じ形。
+function presentFledBatchEvents(events, index) {
+  const list = Array.isArray(events) ? events : [];
+  const start = list[index];
+  if (!start || start.type !== 'fled') return [];
+  const out = [];
+  for (let i = index; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'fled') break;
+    out.push(e);
+  }
+  return out;
+}
+
+function presentDeathBatchEvents(events, index) {
+  const list = Array.isArray(events) ? events : [];
+  const start = list[index];
+  if (!start || start.type !== 'death') return [];
+  const out = [];
+  for (let i = index; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type !== 'death') break;
+    out.push(e);
+  }
+  return out;
+}
+
 // この数値の**次に同じ種類のダメージが続くか**。続くなら、その間隔（ms）を返す。
 // 束の1つ目は「これから連続再生になる」ことを予約時には知れないため、
 // イベント列を1つ先まで見る。これを見ないと1つ目だけ数値が長く出っぱなしになり、
@@ -482,12 +619,16 @@ function presentCreateDamageGate(labelDurationMs) {
 // 受けたダメージ（毒・カード効果）は本人の効果ではない。PvE側はここを見ておらず、
 // **ミノタウロス（負傷：効果ダメージを受けたら直ちに攻撃）が、ダメージを受けるより
 // 先に動き出していた**。オンライン側は最初から発生元を見ていた（片側だけの実装だった）。
-const PRESENT_PRE_ATTACK_EFFECT_TYPES = new Set(['damage', 'sweep_vfx', 'stat_change', 'summon',
+const PRESENT_PRE_ATTACK_EFFECT_TYPES = new Set(['effect_flash', 'damage', 'sweep_vfx', 'stat_change', 'summon',
   'mana_gain', 'mana_threshold']);
 function presentPreAttackEffectOwnerId(ev) {
   const type = String((ev && ev.type) || '');
   if (!PRESENT_PRE_ATTACK_EFFECT_TYPES.has(type)) return null;
-  const owner = (type === 'sweep_vfx' || type === 'mana_gain' || type === 'mana_threshold')
+  if (type === 'effect_flash' && String(ev.trigger || '') !== 'attack') return null;
+  // 通常攻撃・反撃のdamageは「攻撃前の効果」ではない。次の追加攻撃を
+  // 前の一撃の接触ダメージ中に始めないため、効果ダメージだけを対象にする。
+  if (type === 'damage' && !ev.effect) return null;
+  const owner = (type === 'effect_flash' || type === 'sweep_vfx' || type === 'mana_gain' || type === 'mana_threshold')
     ? ev.unitId : ev.sourceId;
   return owner == null ? null : String(owner);
 }
@@ -497,6 +638,61 @@ function presentPreAttackEffectOwnerId(ev) {
 function presentPreAttackActorId(ev) {
   if (String((ev && ev.type) || '') === 'mana_threshold') return null;
   return presentPreAttackEffectOwnerId(ev);
+}
+
+// 現在位置から始まる「攻撃前の効果列」と、その直後のモーション付きattackを対応付ける。
+// コアのイベント順（効果 → attack）は変えない。各一撃の先頭でモーションだけを始め、
+// attackへ到達するまで途中停止させるための計画を返す。
+// turn_beginからは最初の一撃を、効果イベントからは二段・三段攻撃の次の一撃を拾う。
+function presentPreAttackPlan(events, fromIndex) {
+  const list = Array.isArray(events) ? events : [];
+  const start = Math.max(0, Number(fromIndex) || 0);
+  const current = list[start];
+  const boundary = current && (current.type === 'turn_begin' || current.type === 'battle_start');
+  if (!boundary && presentPreAttackActorId(current) == null) return null;
+  let actorId = null;
+  let hasEffects = false;
+  for (let i = boundary ? start + 1 : start; i < list.length; i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (i > start && (ev.type === 'turn_begin' || ev.type === 'battle_start' || ev.type === 'battle_end')) break;
+    if (ev.type === 'attack') {
+      if (ev.attackVisual === false) continue;
+      if (actorId != null && String(ev.attackerId) === actorId) {
+        return hasEffects ? { event: ev, index: i, actorId } : null;
+      }
+      continue;
+    }
+    const actor = presentPreAttackActorId(ev);
+    if (actorId == null && actor != null) actorId = actor;
+    const owner = presentPreAttackEffectOwnerId(ev);
+    if (ev.type === 'mana_threshold') {
+      if (actorId != null) hasEffects = true;
+    } else if (actorId != null && owner === actorId) {
+      hasEffects = true;
+    }
+  }
+  return null;
+}
+
+// sweep_vfx の直後に並ぶ、その1回の薙ぎ払いに対応するダメージだけを返す。
+// 対象IDだけでイベント列の先頭から探すと、二段・三段攻撃の2撃目も1撃目の
+// ダメージへ結びつき、後の一撃の演出が最初にまとめて出てしまう。
+function presentSweepDamageEvents(events, fromIndex, sweepEvent) {
+  const list = Array.isArray(events) ? events : [];
+  const start = Math.max(-1, Number(fromIndex));
+  const targets = new Set((sweepEvent && sweepEvent.targetIds || []).map(String));
+  const found = new Map();
+  for (let i = start + 1; i < list.length && found.size < targets.size; i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (ev.type === 'sweep_vfx' || ev.type === 'attack' || ev.type === 'turn_begin'
+      || ev.type === 'battle_start' || ev.type === 'battle_end') break;
+    if (ev.type !== 'damage' || !targets.has(String(ev.unitId))) continue;
+    const key = `${ev.side}:${ev.unitId}`;
+    if (!found.has(key)) found.set(key, ev);
+  }
+  return found;
 }
 
 // ── キャラクター固有VFXを「誰の効果として」出すか ──────────────────
@@ -520,7 +716,24 @@ function presentDamageVfxSource(ev, target, source, ownEffectText) {
   if (!unit) return null;
   if (!ev.effect && !redirected) return null;
   const text = String((typeof ownEffectText === 'function' ? ownEffectText(unit) : '') || '');
-  return /ダメージ/.test(text) ? unit : null;
+  if (redirected) return /ダメージ/.test(text) ? unit : null;
+  // 固有素材は「そのカード自身の、いま発動している種類の効果」にだけ使う。
+  // 例：攻撃効果しか持たないケンタウロスへ負傷エンチャントを付けた場合、
+  // damageKind は injury_effect なのでケンタウロス固有VFXを出してはいけない。
+  // 単に本文全体へ「ダメージ」があるかを見ると、別トリガーの付与効果まで
+  // キャラクター自身の効果と誤認する。
+  const kind = String(ev.damageKind || 'other');
+  const trigger = kind === 'attack_effect' || kind === 'attack_effect_triggered' ? '攻撃'
+    : kind === 'injury_effect' ? '(?:負傷|攻撃[＆&]負傷)'
+      : kind === 'death_effect' ? '死亡' : '';
+  if (!trigger) {
+    // 毒・指輪・アイテム等の other を、本文中に別のダメージ効果を持つというだけで
+    // 本人固有の効果にしない。トリガーが本文上も確認できる固有効果だけ許可する。
+    const ownOtherDamage=/(?:^|[。\n])\s*(?:開戦|解放|常時|終戦|\d+マナ(?:毎)?)\s*[：:][^。]*ダメージ/.test(text);
+    return ownOtherDamage ? unit : null;
+  }
+  const ownTriggerDamage = new RegExp(`(?:^|[。\\n])\\s*${trigger}(?:[＆&](?:攻撃|負傷))?\\s*[：:][^。]*ダメージ`);
+  return ownTriggerDamage.test(text) ? unit : null;
 }
 
 // ── 能力変化（stat_change）で固有VFXを出す効果 ────────────────────
@@ -680,6 +893,13 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   const codes = (opt && Array.isArray(opt.codes) ? opt.codes : [])
     .map(x => String(x || '').trim().toUpperCase()).filter(Boolean);
   const own = String(ownCode || '').trim().toUpperCase();
+  const ownText = String((opt && opt.ownEffectText) || '');
+  const triggerLabel = trigger === 'injury' ? '(?:負傷|攻撃[＆&]負傷)'
+    : trigger === 'attack' ? '攻撃' : trigger === 'death' ? '死亡'
+      : trigger === 'mana' ? '\\d+マナ(?:毎)?' : trigger === 'opening' ? '開戦'
+        : trigger === 'passive' ? '常時' : '';
+  const ownHasTrigger = !!triggerLabel
+    && new RegExp(`(?:^|[。\\n])\\s*${triggerLabel}(?:[＆&](?:攻撃|負傷))?\\s*[：:]`).test(ownText);
   // **シートの「VFX/SE」列の指定を最優先で反映する。**
   // ここでトリガの番号へ固定すると、シートを直しても演出が変わらなくなる。
   // 複数書かれているカード（ブラウニー＝攻撃S005／負傷S006）だけ、そのトリガで選ぶ。
@@ -692,7 +912,9 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   //     対象へ同じ絵を重ねない意味もある（アラクネ＝C008）。
   //   負傷・死亡＝カード固有の絵をそのまま使う（回復＝C012 等）。
   if (wanted && PRESENT_BUFF_VFX_ALWAYS_TRIGGERS.has(trigger)) return wanted;
-  return String(ownCode || '') || wanted;
+  // 付与された別トリガの効果で、キャラクター本体の固有VFXを使わない。
+  // 例：攻撃効果しか持たないケンタウロスへ負傷エンチャントを付けた場合はS006。
+  return ownHasTrigger ? (String(ownCode || '') || wanted) : wanted;
 }
 // その能力変化を起こした強化カード（VFX/SE列を引くための名前）。
 // **カード名から推測せず、コアが出した reason で引く。**
@@ -765,6 +987,7 @@ const PRESENT_VFX_SCALE = {
   K004: .4,                       // 衝撃（弱体を付与した瞬間）
   K020: .5,                       // 復活（644x1073の縦長）
   S003: .5,                       // 金貨（旧C001）
+  C090: .5,                       // 奪う（対象の上で出す。毒牙と同じ大きさ）
 };
 function presentCharacterVfxScale(code) {
   const n = Number(PRESENT_VFX_SCALE[String(code || '').toUpperCase()]);
@@ -850,6 +1073,14 @@ function presentBreaksManaRun(ev) {
   return !ev || !PRESENT_MANA_RUN_TYPES.has(ev.type);
 }
 
+// ひと続きの「一撃」が切り替わったか＝固有VFX／固有SEの重複判定をやり直す区切り。
+// **二段・三段攻撃の2回目以降は別の一撃**なので、同じ効果でもVFXを出し直す。
+// 重複判定（同じ発生元・効果・対象は1回だけ）は、1回の一撃で複数対象へ同じ効果が
+// 乗る場面のためのもので、一撃をまたいで持ち越すと2撃目以降が無音・無演出になる。
+function presentBreaksEffectRun(ev) {
+  return !!ev && (ev.type === 'attack' || ev.type === 'turn_begin');
+}
+
 if (typeof window !== 'undefined') {
   window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
   window.PRESENT_TURN_GAP_MS = PRESENT_TURN_GAP_MS;
@@ -864,6 +1095,11 @@ if (typeof window !== 'undefined') {
   window.PRESENT_DAMAGE_RUN_GAP_MS = PRESENT_DAMAGE_RUN_GAP_MS;
   window.presentDamageKind = presentDamageKind;
   window.presentDamageGroupKey = presentDamageGroupKey;
+  window.presentReorderDeathsAfterDamageBatch = presentReorderDeathsAfterDamageBatch;
+  window.presentReorderDeathFlashesBeforeDeath = presentReorderDeathFlashesBeforeDeath;
+  window.presentDropDeathsOfStolen = presentDropDeathsOfStolen;
+  window.presentFledBatchEvents = presentFledBatchEvents;
+  window.presentDeathBatchEvents = presentDeathBatchEvents;
   window.presentDamageRunAheadMs = presentDamageRunAheadMs;
   window.presentDamageRunLabelMs = presentDamageRunLabelMs;
   window.PRESENT_MANA_RUN_GAP_MS = PRESENT_MANA_RUN_GAP_MS;
@@ -920,6 +1156,7 @@ if (typeof window !== 'undefined') {
   window.presentManaWaveKey = presentManaWaveKey;
   window.presentManaWaveEvents = presentManaWaveEvents;
   window.presentBreaksManaRun = presentBreaksManaRun;
+  window.presentBreaksEffectRun = presentBreaksEffectRun;
   window.presentBeginPlayback = presentBeginPlayback;
   window.presentEndPlayback = presentEndPlayback;
   window.presentIsPlaying = presentIsPlaying;
@@ -936,6 +1173,8 @@ if (typeof window !== 'undefined') {
   window.presentDamageVfxSource = presentDamageVfxSource;
   window.presentPreAttackEffectOwnerId = presentPreAttackEffectOwnerId;
   window.presentPreAttackActorId = presentPreAttackActorId;
+  window.presentPreAttackPlan = presentPreAttackPlan;
+  window.presentSweepDamageEvents = presentSweepDamageEvents;
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
   window.presentStatChangeVfxCode = presentStatChangeVfxCode;
   window.presentIsBuffVfxCode = presentIsBuffVfxCode;
@@ -947,13 +1186,15 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_ATTACK_MOTION, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
+    presentBreaksEffectRun,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
+    presentReorderDeathsAfterDamageBatch, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
     PRESENT_MANA_RUN_GAP_MS, PRESENT_EFFECT_VFX_MIN_MS,
     PRESENT_PROJECTILE_FLIGHT_MS, PRESENT_PROJECTILE_STAGGER_MS, PRESENT_PROJECTILE_IMPACT_OFFSET_Y,
     presentEffectKeywordEvents, presentDamageVfxKeyword, presentAreaVfxStyle,
     presentStatChangeEnchantName, presentIsBuffVfxCode,
-    presentPreAttackEffectOwnerId, presentPreAttackActorId,
+    presentPreAttackEffectOwnerId, presentPreAttackActorId, presentPreAttackPlan, presentSweepDamageEvents,
     PRESENT_EXPAND_VFX_FADE_MS, PRESENT_EXPAND_VFX_GROW_MS,
     PRESENT_EXPAND_VFX_START, PRESENT_EXPAND_VFX_END, PRESENT_EXPAND_VFX_HIT_RATIO,
     presentAttackContactModes, PRESENT_CONTACT_TRI_OFFSET_X, PRESENT_CONTACT_TRI_WIDTH,

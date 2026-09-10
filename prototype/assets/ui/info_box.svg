@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="501.8" height="201.8" viewBox="0 0 501.8 201.8">
+  <!-- Generator: Adobe Illustrator 30.8.1, SVG Export Plug-In . SVG Version: 2.1.4 Build 1)  -->
+  <defs>
+    <style>
+      .st0 {
+        stroke: url(#_名称未設定グラデーション_2);
+      }
+
+      .st0, .st1 {
+        fill: none;
+        stroke-miterlimit: 10;
+        stroke-width: 1.8px;
+      }
+
+      .st1 {
+        stroke: url(#_名称未設定グラデーション);
+      }
+
+      .st2 {
+        display: none;
+        fill: #2f1a0b;
+        isolation: isolate;
+        opacity: 1;
+      }
+    </style>
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="250.9" cy="32.5" fx="250.9" fy="32.5" r="263.4" gradientTransform="translate(0 131) scale(1 -.9)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b4b4b5"/>
+      <stop offset="1" stop-color="#3e3a39"/>
+    </radialGradient>
+    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="250.9" cy="22.3" fx="250.9" fy="22.3" r="269.1" gradientTransform="translate(0 121.3) scale(1 -.9)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b4b4b5"/>
+      <stop offset="1" stop-color="#3e3a39"/>
+    </radialGradient>
+  </defs>
+  <g id="_編成">
+    <g>
+      <rect class="st2" x=".9" y=".9" width="500" height="200"/>
+      <rect class="st1" x="5" y="4.7" width="491.8" height="192.4"/>
+      <rect class="st0" x=".9" y=".9" width="500" height="200"/>
+    </g>
+  </g>
+</svg>

@@ -412,7 +412,9 @@
       if (typeof G !== 'undefined' && G) G._battleFadeHeldByCaller = false;
     };
     const host = document.getElementById('scr-battle');
-    if (host) host.classList.remove('battle-opening-pending', 'battle-opening-active', 'battle-start-playing', 'battle-start-no-effect');
+    if (host) host.classList.remove('battle-opening-pending', 'battle-opening-active');
+    // 戦闘画面の寄せ（中心フォーカス）も必ず外す。残すと次の画面が拡大されたままになる。
+    if (typeof clearBattleFocus === 'function') clearBattleFocus();
     // 盤面を戻し終えてから暗転を外す。次のマスの入場演出が暗転を引き継ぐ場合は
     // そちらに任せる（村・祭壇へ入る時）。**どの経路で抜けても必ず外す。**
     const _scheduleClear = () => requestAnimationFrame(() => {
@@ -491,10 +493,12 @@
     }
     let release = () => {};
     const held = paused ? new Promise(resolve => { release = resolve; }) : null;
+    let markReady = () => {};
+    const ready = paused ? new Promise(resolve => { markReady = resolve; }) : Promise.resolve();
     const motionDepthStarted = typeof beginBattleMotion === 'function';
     if (motionDepthStarted) beginBattleMotion();
     // PvEの通常攻撃と同じ尺・同じ接触揺れ。
-    _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => held) : null, {
+    _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => { markReady(); return held; }) : null, {
       ...PRESENT_ATTACK_MOTION,
       onContact: _firePendingContactVfx,
       onHit: () => {
@@ -509,9 +513,9 @@
     // 同じ契機にするため、呼び出し側はこの Promise を待つ。
     const motion = (async () => {
       try { await _awaitMotion(); }
-      finally { if (motionDepthStarted) endBattleMotion(); }
+      finally { markReady(); if (motionDepthStarted) endBattleMotion(); }
     })();
-    return { ev, motion, release };
+    return { ev, motion, release, ready };
   }
 
   // playback.js から呼ばれる。ctx.board は再生用の表示盤面（イベントで更新済み）。
@@ -531,6 +535,16 @@
 
   async function _renderOnlineVersusEvent(ev, ctx) {
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
+    // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
+    // イベントの順番は変えず、対応付けの規則は present.js の共通実装を使う。
+    if (!_preAttack && ev.type !== ONLINE_EVENT.TURN_BEGIN
+      && typeof presentPreAttackActorId === 'function' && presentPreAttackActorId(ev) != null
+      && typeof presentPreAttackPlan === 'function') {
+      const plan = presentPreAttackPlan((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex));
+      if (plan && plan.event) _preAttack = _startAttackMotion(plan.event, ctx, true);
+    }
+    if (_preAttack && _preAttack.ev !== ev && ev.type !== ONLINE_EVENT.TURN_BEGIN
+      && ev.type !== ONLINE_EVENT.BATTLE_START) await _preAttack.ready;
     // マナ解決のひと続きが途切れたら、続けて出していた効果固有VFXも止めて数え直す。
     if (presentBreaksManaRun(ev)) {
       _manaCueGate = presentCreateOnceGate();
@@ -538,9 +552,13 @@
       // 何も走っていない時は await しない（毎イベントの待ちが描画に割り込む）。
       if (_manaEffectRunning()) await _endManaEffectRun();
     }
-    if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
+    // **一撃が変わったら、固有VFX・固有SEの重複判定をやり直す**（PvEと同じ規則）。
+    // 二段・三段攻撃の2回目以降は別の一撃なので、同じ効果でもVFXを出し直す。
+    if (typeof presentBreaksEffectRun === 'function' && presentBreaksEffectRun(ev)) {
       _effectStatCueKeys = new Set();
       _effectStatVfxGate = presentCreateOnceGate();
+    }
+    if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
       _damageSfxDone = new Set();
       _deathsDone = new Set();
       if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
@@ -589,47 +607,10 @@
         // 1体の行動が終わってから次が動き出すまで、少し間を置く（PvEと同じ定数）。
         if (_turnPlayed) await _sleep(PRESENT_TURN_GAP_MS);
         _turnPlayed = true;
-        // ── 攻撃効果は「少し動き出した時点」で見せる（PvEと同じ扱い）──
-        // コアは攻撃効果を接触より先に解決するため、イベント列では
-        //   [攻撃効果…] → attack → 接触ダメージ の順に並ぶ。
-        // そのまま順に再生すると攻撃者が動く前に効果だけが出る
-        // （アラッサスの薙ぎ払い、サイレンの全体ダメージ）。
-        const evs = (ctx && ctx.events) || [];
-        const from = Number(ctx && ctx.eventIndex);
-        // 効果の発生元＝この手番で動いているキャラクター。
-        // **最初のATTACKを掴んではいけない。** ミノタウロスの「負傷：直ちに攻撃する」の
-        // ように効果の途中で別のキャラクターが割り込んで攻撃することがあり、それを
-        // 先出しすると、動いていないキャラクターの効果が割り込み側の動きの上に出る。
-        let atkEv = null, hasEffects = false, actorId = null;
-        if (Number.isInteger(from)) {
-          for (let i = from + 1; i < evs.length; i++) {
-            const n = evs[i];
-            if (!n) continue;
-            if (n.type === ONLINE_EVENT.TURN_BEGIN || n.type === ONLINE_EVENT.BATTLE_END) break;
-            if (n.type === ONLINE_EVENT.ATTACK) {
-              // **モーションを出すイベントだけを掴む。** 全体攻撃・三方向攻撃は対象ごとに
-              // attack を出し、主対象が先頭とは限らない。先頭を掴むと主対象ぶんの
-              // モーションがもう一度再生され、2回攻撃したように見える。
-              if (n.attackVisual === false) continue;
-              if (actorId != null && String(n.attackerId) === actorId) { atkEv = n; break; }
-              continue;
-            }
-            // **マナ獲得（マナ生成）とマナ効果もここに入れる（PvEと同じ）。**
-            // 入れないと、マナが増えるのも他キャラクターのマナ効果も
-            // 「攻撃者が全く動く前」に起きる。
-            // ただし**動いている本人を決めてよいのは mana_gain まで**。
-            // マナ効果は別のキャラクターが持っていることがあり、そちらを本人に
-            // してしまうと動いていないキャラクターのモーションが先出しされる。
-            // 発生元の見分けは present.js が唯一の実装（PvEと同じ）。
-            if (n.type === 'mana_threshold') { if (actorId != null) hasEffects = true; continue; }
-            const src = typeof presentPreAttackEffectOwnerId === 'function'
-              ? presentPreAttackEffectOwnerId(n) : null;
-            if (src == null) continue;
-            if (actorId == null) actorId = src;
-            if (src === actorId) hasEffects = true;
-          }
+        if (!_preAttack && typeof presentPreAttackPlan === 'function') {
+          const plan = presentPreAttackPlan((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex));
+          if (plan && plan.event) _preAttack = _startAttackMotion(plan.event, ctx, true);
         }
-        if (atkEv && hasEffects) _preAttack = _startAttackMotion(atkEv, ctx, true);
         break;
       }
       case ONLINE_EVENT.ATTACK: {
@@ -730,11 +711,14 @@
           findAnyUnit: id => _find('p1', id) || _find('p2', id),
           applyStats: (unit, e0) => {
             unit.atk = Math.max(0, (Number(unit.atk) || 0) + (Number(e0.atk) || 0));
-            unit.maxHp = Math.max(1, (Number(unit.maxHp || unit.hp) || 1) + (Number(e0.hp) || 0));
+            // `maxHp` が入っている時はそちらが最大HPの増減（毒＝HPだけ減る）。
+            unit.maxHp = Math.max(1, (Number(unit.maxHp || unit.hp) || 1)
+              + (Number(e0.maxHp !== undefined ? e0.maxHp : e0.hp) || 0));
             unit.hp = Math.max(0, (Number(unit.hp) || 0) + (Number(e0.hp) || 0));
           },
           cueKeys: _effectStatCueKeys,
           vfxGate: _effectStatVfxGate,
+          ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
           logLine: (unit) => {
             const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
             return `${_effectSourceName(ev, ctx)}の効果で${unit.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`;
@@ -856,17 +840,41 @@
         break;
       }
       case 'unit_stolen': {
-        // 奪われた体は元の陣営から取り除く。味方側への出現は直後の summon が見せる。
-        const list = (ctx && ctx.board && ctx.board[ev.side]) || null;
-        const u = _find(ev.side, ev.unitId);
-        if (u) {
-          u.hp = 0;
-          if (Array.isArray(list)) {
-            const idx = list.indexOf(u);
-            if (idx >= 0) list[idx] = null;
-          }
-        }
-        _render();
+        // **奪うのは移動であって召喚ではない**（規則は core.js の coreStealUnit）。
+        // 元の陣営から抜いて、奪った側の前衛右端へそのまま入れ直す。
+        // 以前は「消して直後の summon で出し直す」形だったため、召喚の誘発が
+        // 誤って乗り、付いていた強化・状態も作り直しで失われていた。
+        // 見せ方（ワープさせず動かす）は present_events.js が唯一の実装（PvEと同じ）。
+        await presentUnitStolenEvent(ev, {
+          findUnit: (side, id) => _find(side, id) || _find(side === 'p1' ? 'p2' : 'p1', id),
+          applyStats: (u, snap) => {
+            if (!u || !snap) return;
+            u.atk = Math.max(0, Number(snap.atk) || 0);
+            u.hp = Math.max(0, Number(snap.hp) || 0);
+            u.maxHp = Math.max(1, Number(snap.maxHp) || Number(snap.hp) || 1);
+          },
+          moveOnBoard: (u, e) => {
+            const toSide = e.toSide || (e.side === 'p1' ? 'p2' : 'p1');
+            const from = (ctx && ctx.board && ctx.board[e.side]) || null;
+            const to = (ctx && ctx.board && ctx.board[toSide]) || null;
+            if (u) {
+              if (Array.isArray(from)) {
+                const idx = from.indexOf(u);
+                if (idx >= 0) from.splice(idx, 1);
+              }
+              if (e.unit) Object.assign(u, e.unit);
+              u.side = toSide;
+              u.lane = 'front';
+              u._stolen = true;
+              u._useEnemyVisualFrame = true;
+              if (Array.isArray(to)) to.push(u);
+            }
+            _render();
+          },
+          motion: (u, fromSide, toSide, applyBoard) => (typeof playUnitStealMotion === 'function'
+            ? playUnitStealMotion(u, fromSide, toSide, applyBoard)
+            : Promise.resolve(applyBoard())),
+        });
         break;
       }
       case 'revive': {
@@ -1003,17 +1011,8 @@
         if (!source || !targets.length || typeof presentSweepAttack !== 'function') break;
         const events = (ctx && ctx.events) || [];
         const start = Number(ctx && ctx.eventIndex);
-        const byTarget = new Map();
-        if (Number.isInteger(start)) {
-          for (let i = start + 1; i < events.length; i++) {
-            const next = events[i];
-            if (!next || next.type === ONLINE_EVENT.ATTACK || next.type === ONLINE_EVENT.TURN_BEGIN
-              || next.type === ONLINE_EVENT.BATTLE_END) break;
-            if (next.type !== ONLINE_EVENT.DAMAGE) continue;
-            const key = `${next.side}:${next.unitId}`;
-            if (!byTarget.has(key)) byTarget.set(key, next);
-          }
-        }
+        const byTarget = typeof presentSweepDamageEvents === 'function'
+          ? presentSweepDamageEvents(events, start, ev) : new Map();
         await presentSweepAttack(source, ev.side === 'p2', targets,
           target => byTarget.get(`${sideByTarget.get(target) || targetSide}:${target.id}`),
           (target, d) => {
@@ -1091,8 +1090,12 @@
       case ONLINE_EVENT.DEATH: {
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         // 焼失演出は renderField が死亡ユニットに対して自分で流す。
+        // **同じ瞬間に倒れた分はまとめて1回で見せる**（判定は present.js。PvEと同じ）。
+        // 1件ずつ beat と compact を挟むと、2体目以降のカードが遅れて消える。
         await _awaitMotion();
-        await presentDeathEvent(ev, {
+        await presentDeathBatch(typeof presentDeathBatchEvents === 'function'
+          ? presentDeathBatchEvents((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex))
+          : [ev], {
           findUnit: (side, id) => _find(side, id),
           isDone: e0 => _deathsDone.has(`${e0.side}:${e0.unitId}`),
           markDone: e0 => _deathsDone.add(`${e0.side}:${e0.unitId}`),

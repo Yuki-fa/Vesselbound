@@ -139,14 +139,14 @@ let _sfxUnlocked=false;
 let _sfxActiveVoices=0;
 // 鳴っている本数を音ごとに数える（同じ波形の重ねすぎ＝音割れを防ぐ）。
 const _sfxPlayingByKey=Object.create(null);
-let _bgmAudio=null;
-let _bgmNextAudio=null;
+// BGMはWeb Audio API（decodeAudioData + AudioBufferSourceNode）で鳴らす。
+// 状態は「いま鳴っている1本（_bgmVoice）」と「その鍵」だけ。
+let _bgmVoice=null;
 let _bgmKey='';
 let _bgmStartToken=0;
 let _bgmStartingKey='';
 // 自動再生ポリシーで拒否されても、最初の実ユーザー操作で同じ要求を再試行する。
 let _bgmPendingRequest=null;
-let _bgmLoopTimer=null;
 let _bgmTargetVolume=.32*SFX_SETTINGS.masterVolume;
 // 曲ごとの音量。音源のマスター音量が曲ごとに最大8dB以上違うため、
 // 「ファイル自体のRMS × ここの値」がおおよそ揃うように個別に決めている。
@@ -177,55 +177,14 @@ const BGM_DEFAULT_VOLUMES={
   blacksmith:.5,
 };
 // 曲ごとの既定の再生開始位置（秒）。opts.startTimeが無い場合に使う。
-// 2周目以降は曲の頭から鳴る（_applyBgmStartTimeが初回のみ適用する）。
+// 2周目以降は曲の頭から鳴る（start(when,offset)のoffsetにだけ使い、loopStartは0のまま）。
 const BGM_DEFAULT_START_TIMES={
-  battle3:103,   // 1:43
+  battle3:65,    // 1:05
   battle4:79,    // 1:19（ラスボス戦）
   tower:97,      // 1:37
   gameTitle:97, // 1:37
   villageStart:92, // 1:32
 };
-// 開始位置へシークしてからonReadyを呼ぶ。メタデータ未読込のまま尺を測ると
-// ループ予約のタイミングがずれて曲の終わりで音が途切れるため。
-function _applyBgmStartTime(audio,onReady){
-  const done=()=>{ if(typeof onReady==='function') onReady(); };
-  if(!audio){ done(); return; }
-  const startTime=Math.max(0,Number(audio.dataset.startTime)||0);
-  if(startTime<=0){ done(); return; }
-  // readyState>=1（メタデータのみ）でも seekable がまだ空／開始位置を含まないことがあり、
-  // その状態で currentTime へ代入しても位置は 0 のまま戻る＝曲の頭から鳴ってしまう。
-  // 実際に到達できたことを確認してから onReady（フェードイン）へ進める。
-  let settled=false;
-  let pollTimer=null;
-  let giveUpTimer=null;
-  const EVENTS=['loadedmetadata','loadeddata','canplay','canplaythrough','progress','seeked'];
-  const finish=()=>{
-    if(settled) return;
-    settled=true;
-    EVENTS.forEach(t=>audio.removeEventListener(t,attempt));
-    if(pollTimer) clearInterval(pollTimer);
-    if(giveUpTimer) clearTimeout(giveUpTimer);
-    done();
-  };
-  const attempt=()=>{
-    if(settled) return;
-    try{
-      const ranges=audio.seekable;
-      const covered=!!(ranges&&ranges.length&&startTime<=ranges.end(ranges.length-1));
-      if(!covered&&audio.readyState<3) return;
-      audio.currentTime=startTime;
-    }catch(e){ return; }
-    if(Math.abs((Number(audio.currentTime)||0)-startTime)<=1) finish();
-  };
-  EVENTS.forEach(t=>audio.addEventListener(t,attempt));
-  pollTimer=setInterval(attempt,120);
-  // 到達できないまま無音が続くより、頭から鳴らしてフェードインへ進める方がまし。
-  // Rangeに対応したサーバーならメタデータ取得直後にseekableが全体を覆うため、
-  // 通常はここへ来ない。来る場合（Range非対応など）は待たせすぎない。
-  giveUpTimer=setTimeout(finish,1500);
-  attempt();
-}
-
 function _sfxPath(key){
   return Assets&&Assets.sfx?Assets.sfx[key]:null;
 }
@@ -304,39 +263,28 @@ function warmSfxVoices(keys){
 
 function preloadSfx(){
   if(!Assets||!Assets.sfx) return;
-  Object.keys(Assets.sfx).forEach(k=>_sfxAudio(k));
+  // **BGMはここで読み込まない。** BGMはWeb Audio（fetch + decodeAudioData）で
+  // 鳴らすので、<audio preload="auto"> を作ると同じWAVを二重に落とすことになる
+  // （BGMは合計340MB近くあり、起動時に全部取りにいってしまう）。
+  Object.keys(Assets.sfx).forEach(k=>{ if(!_isBgmKey(k)) _sfxAudio(k); });
 }
 
 function unlockSfx(){
   _sfxUnlocked=true;
   preloadSfx();
-  // 既存のaudioが自動再生拒否で捨てられている場合は、保留要求から作り直す。
-  // audioが残っていないと下の再開ブロックが働かず、BGMが永久に鳴らない。
-  if(!_bgmAudio&&_bgmPendingRequest){
+  // AudioContextは自動再生ポリシーで suspended から始まる。実操作のこの瞬間に解く。
+  _resumeBgmContext();
+  // Web Audioは波形を全部読んでから鳴らすため、初回だけ読み込み分（0.2〜0.5秒）待つ。
+  // 一番よく使う menu.wav（7MB＝最小）だけは先に用意しておく。
+  warmBgm('menu');
+  // 解禁前の再生要求は鳴らせずに保留してある。ここで鳴らし直す。
+  if(_bgmPendingRequest){
     const req=_bgmPendingRequest;
     _bgmPendingRequest=null;
-    playBgm(req.key,{startTime:req.startTime,fadeInMs:req.fadeInMs});
-    return;
-  }
-  // ミュート起動でここまで無音だったBGMは、実操作の時点で解除するだけで鳴り始める。
-  if(_bgmAudio&&_bgmAudio.muted){
-    _bgmAudio.muted=false;
-    if(!_bgmAudio.paused) return;
-  }
-  if(_bgmAudio&&_bgmAudio.paused){
-    const audio=_bgmAudio;
-    const key=_bgmKey;
-    const fadeInMs=Number(audio.dataset.fadeInMs)||700;
-    // ここも play() を先に呼ぶ。実操作直後の許可を逃さないため。
-    audio.play().then(()=>{
-      if(_bgmAudio!==audio||_bgmKey!==key) return;
-      _applyBgmStartTime(audio,()=>{
-        if(_bgmAudio!==audio||_bgmKey!==key) return;
-        audio.dataset.startTime='0';
-        _fadeAudioVolume(audio,0,_bgmTargetVolume,fadeInMs);
-        _scheduleBgmSeamlessLoop();
-      });
-    }).catch(()=>{});
+    // playBgm() 冒頭の「同じ曲は鳴らし直さない」ガードに引っかからないよう、
+    // 要求前の状態へ戻してから呼ぶ（保留中は _bgmKey/_bgmStartingKey が立っている）。
+    _bgmKey=''; _bgmStartingKey='';
+    playBgm(req.key,{startTime:req.startTime,fadeInMs:req.fadeInMs,volume:req.volume});
   }
 }
 
@@ -377,9 +325,11 @@ function playSfx(key,opts={}){
   _sfxActiveVoices++;
   _sfxPlayingByKey[key]=(_sfxPlayingByKey[key]||0)+1;
   let released=false;
+  let safetyTimer=null;
   const release=()=>{
     if(released) return;
     released=true;
+    if(safetyTimer!=null){ clearTimeout(safetyTimer); safetyTimer=null; }
     _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
     _sfxPlayingByKey[key]=Math.max(0,(_sfxPlayingByKey[key]||0)-1);
     _freeSfxVoice(key,a);
@@ -391,9 +341,22 @@ function playSfx(key,opts={}){
     setTimeout(()=>{ if(released) return; try{ a.pause(); }catch(e){} release(); },maxPlayMs);
   }
   // 安全弁：'ended'/'error'が何らかの理由で発火しなかった場合、ボイス枠（_sfxActiveVoices）が
-  // 永久に埋まったままになりmaxVoices到達後すべてのSEが鳴らなくなるため、maxPlayMs未設定の
-  // 音でも一定時間後には強制的に解放する。
-  setTimeout(()=>{ if(released) return; release(); },4000);
+  // 永久に埋まったままになりmaxVoices到達後すべてのSEが鳴らなくなるため、
+  // maxPlayMs未設定の音でも一定時間後には強制的に解放する。
+  // **解放は音を止める（_freeSfxVoice が pause する）ので、尺より先に来ないこと。**
+  // 固定4秒にしていた頃は、4秒より長いSE（boss_victory.wav など）が途中で切れていた。
+  const scheduleSafety=()=>{
+    if(released) return;
+    if(safetyTimer!=null) clearTimeout(safetyTimer);
+    const dur=Number(a.duration);
+    const ms=(Number.isFinite(dur)&&dur>0)?Math.max(4000,dur*1000+800):4000;
+    safetyTimer=setTimeout(()=>{ if(released) return; release(); },ms);
+  };
+  scheduleSafety();
+  if(!(Number.isFinite(Number(a.duration))&&a.duration>0)){
+    a.addEventListener('loadedmetadata',scheduleSafety,{once:true});
+    a.addEventListener('durationchange',scheduleSafety,{once:true});
+  }
   a.play().catch(release);
   return true;
 }
@@ -436,251 +399,260 @@ function playFileSfx(path,volume){
 // playSfx()と同じ再生を行い、再生完了（見込み）までを待つPromiseを返す。
 // ミュート中／未解錠で鳴らせなかった場合は待たずに即resolveする。
 
-// フェードは音声ごとに独立したタイマーで行う。
-// ※以前はモジュール変数1本（_bgmFadeTimer）を使い回していたため、BGMと環境音のように
-//   複数の音を同時にフェードすると、
-//   ①後発のフェードが先発のタイマーを消す（先発の音が途中の音量で固まる／pauseされず居残る）
-//   ②先発のsetIntervalは自分のidではなくモジュール変数をclearIntervalするため、
-//     完了時に「現在動いている別のフェード」を消したうえで自分は永久に回り続ける
-//   という二重の破壊が起きていた。②のゾンビタイマーが残ると以後すべてのフェードが
-//   30ms前後で殺され、BGMが極小音量のまま固定される（＝以後の戦闘BGMが鳴らない）。
-function _cancelAudioFade(audio){
-  if(!audio||!audio._fadeTimer) return;
-  clearInterval(audio._fadeTimer);
-  audio._fadeTimer=null;
+/* ══════════════════════════════════════════════════════════
+   BGM（Web Audio API）
+   ──────────────────────────────────────────────────────────
+   **BGMとサブBGM（環境音）はここだけで鳴らす。HTMLAudioは使わない。**
+
+   <audio> では、どうやってもループの継ぎ目に違和感が残った。
+     ・`loop` 属性（ネイティブループ）    → 終端〜先頭の切り替えで無音が入る
+     ・終端の少し手前から次を重ねる       → その分だけ終端が二重に鳴る
+     ・終端の直前で次へ差し替える         → 差し替えの瞬間に段差が出る
+   波形をまるごと持って `AudioBufferSourceNode.loop` に任せると、継ぎ目は
+   **サンプル単位で正確**につながる。ずれる要素がそもそも無くなる。
+
+   ・波形は fetch → decodeAudioData で1度だけ用意し、_bgmBufferCache に持つ。
+     WAVは大きい（最大32MB＝デコード後は約2倍）ので、合計が予算を超えたら
+     鳴っていない曲から捨てる。
+   ・音量・フェードは GainNode のオートメーション（linearRampToValueAtTime）。
+     setInterval で volume を書き換える必要はもう無い。
+   ・開始位置（battle3の1:05など）は `start(when, offset)` の offset。
+     `loopStart` は 0 のままなので、**2周目以降は曲の頭から**鳴る（従来と同じ）。
+   ・AudioContext は自動再生ポリシーで suspended から始まる。最初の実操作
+     （unlockSfx）で resume する。それまでの要求は _bgmPendingRequest に残す。
+   ══════════════════════════════════════════════════════════ */
+let _audioCtx=null;
+let _bgmMasterGain=null;
+// 鍵 → AudioBuffer。使った順に並べ替え、あふれたら古い方から捨てる。
+const _bgmBufferCache=new Map();
+const _bgmDecoding=new Map();
+let _bgmBufferBytes=0;
+// デコード後の合計サイズの上限。WAVは最大32MBで、デコードすると
+// Float32×チャンネル数＝約2倍（60MB前後）になる。BGMは全部で340MB近くあるので、
+// 全曲を持つことはできない。街・戦闘・メニュー・環境音の4〜5本が残る量にする。
+const BGM_BUFFER_BUDGET_BYTES=256*1024*1024;
+
+function _isBgmKey(key){
+  return /assets\/bgm\//.test(String(_sfxPath(key)||''));
 }
-function _fadeAudioVolume(audio, from, to, ms, onDone){
-  if(!audio) return;
-  _cancelAudioFade(audio);
-  const start=performance.now();
-  audio.volume=Math.max(0,Math.min(1,from));
-  const id=setInterval(()=>{
-    const t=Math.min(1,(performance.now()-start)/Math.max(1,ms||1));
-    audio.volume=Math.max(0,Math.min(1,from+(to-from)*t));
-    if(t>=1){
-      clearInterval(id);
-      if(audio._fadeTimer===id) audio._fadeTimer=null;
-      if(onDone) onDone();
-    }
-  },30);
-  audio._fadeTimer=id;
+function _bgmContext(){
+  if(_audioCtx) return _audioCtx;
+  const Ctx=typeof window!=='undefined'&&(window.AudioContext||window.webkitAudioContext);
+  if(!Ctx) return null;
+  try{ _audioCtx=new Ctx(); }catch(e){ return null; }
+  _bgmMasterGain=_audioCtx.createGain();
+  _bgmMasterGain.gain.value=1;
+  _bgmMasterGain.connect(_audioCtx.destination);
+  return _audioCtx;
+}
+// 実操作の直後に呼ぶこと。suspended のままだと音は出ない。
+function _resumeBgmContext(){
+  const ctx=_bgmContext();
+  if(ctx&&ctx.state==='suspended'){ try{ ctx.resume(); }catch(e){} }
+  return ctx;
+}
+function _bgmBufferBytesOf(buf){
+  return buf?Math.max(0,buf.length*buf.numberOfChannels*4):0;
+}
+// 鳴っていない曲から順に捨てる。Mapは挿入順なので、使うたびに入れ直して
+// 「最後に使ったものほど後ろ」にしてある（＝先頭から捨てれば最も古い）。
+function _pruneBgmBuffers(alsoKeep){
+  if(_bgmBufferBytes<=BGM_BUFFER_BUDGET_BYTES) return;
+  const keep=new Set([_bgmKey,alsoKeep,...Object.values(_bgmLayers).map(l=>l&&l.key)].filter(Boolean));
+  for(const key of [..._bgmBufferCache.keys()]){
+    if(_bgmBufferBytes<=BGM_BUFFER_BUDGET_BYTES) break;
+    if(keep.has(key)) continue;
+    _bgmBufferBytes-=_bgmBufferBytesOf(_bgmBufferCache.get(key));
+    _bgmBufferCache.delete(key);
+  }
+}
+// 波形を用意する。同じ鍵への同時要求は1つのデコードにまとめる。
+function _loadBgmBuffer(key){
+  const cached=_bgmBufferCache.get(key);
+  if(cached){
+    _bgmBufferCache.delete(key); _bgmBufferCache.set(key,cached); // 使った印（LRU）
+    return Promise.resolve(cached);
+  }
+  const pending=_bgmDecoding.get(key);
+  if(pending) return pending;
+  const ctx=_bgmContext();
+  const path=_sfxPath(key);
+  if(!ctx||!path) return Promise.resolve(null);
+  const job=fetch(path).then(res=>{
+    if(!res.ok) throw new Error(`${res.status} ${path}`);
+    return res.arrayBuffer();
+  }).then(bytes=>new Promise((resolve,reject)=>{
+    // decodeAudioData はPromiseを返さない実装（古いSafari）もあるため両対応。
+    let ret;
+    try{ ret=ctx.decodeAudioData(bytes,resolve,reject); }catch(e){ reject(e); return; }
+    if(ret&&typeof ret.then==='function') ret.then(resolve,reject);
+  })).then(buffer=>{
+    _bgmBufferCache.set(key,buffer);
+    _bgmBufferBytes+=_bgmBufferBytesOf(buffer);
+    _bgmDecoding.delete(key);
+    _pruneBgmBuffers(key); // いま読んだものは残す
+    return buffer;
+  }).catch(e=>{
+    _bgmDecoding.delete(key);
+    console.warn('[bgm] 読み込みに失敗しました',key,e);
+    return null;
+  });
+  _bgmDecoding.set(key,job);
+  return job;
+}
+// 使う曲を先にデコードしておく（鳴らし始めの待ちを無くしたい場面用）。
+function warmBgm(keys){
+  if(_IS_CLAUDE_BROWSER_PREVIEW) return;
+  (Array.isArray(keys)?keys:[keys]).filter(Boolean).forEach(k=>{ void _loadBgmBuffer(k); });
 }
 
-function _makeBgmAudio(path){
-  const audio=new Audio(path);
-  audio.dataset.bgm='1';
-  audio.loop=false;
-  audio.preload='auto';
-  audio.volume=0;
-  return audio;
+// ── 鳴っている1本（source + gain）─────────────────────────
+const BGM_GAIN_FLOOR=0.0001; // 0はlinearRampの終端に使えない（指数系と揃えて最小値を使う）
+function _startBgmVoice(buffer,{volume,fadeInMs,offset}){
+  const ctx=_bgmContext();
+  if(!ctx||!buffer) return null;
+  const gain=ctx.createGain();
+  const src=ctx.createBufferSource();
+  src.buffer=buffer;
+  // **継ぎ目はここだけで決まる。** loopStart/loopEndを触らない＝波形の端から端。
+  src.loop=true;
+  src.connect(gain);
+  gain.connect(_bgmMasterGain);
+  const now=ctx.currentTime;
+  const target=Math.max(0,Math.min(1,Number(volume)||0));
+  const fade=Math.max(0,Number(fadeInMs)||0)/1000;
+  gain.gain.cancelScheduledValues(now);
+  if(fade>0){
+    gain.gain.setValueAtTime(BGM_GAIN_FLOOR,now);
+    gain.gain.linearRampToValueAtTime(Math.max(BGM_GAIN_FLOOR,target),now+fade);
+  }else{
+    gain.gain.setValueAtTime(target,now);
+  }
+  const dur=Number(buffer.duration)||0;
+  const from=Math.max(0,Math.min(Number(offset)||0,Math.max(0,dur-0.05)));
+  try{ src.start(0,from); }catch(e){ return null; }
+  return {src,gain,target};
 }
-
-let _bgmLoopPrepTimer=null;
-function _clearBgmLoopTimer(){
-  if(_bgmLoopTimer) clearTimeout(_bgmLoopTimer);
-  _bgmLoopTimer=null;
-  if(_bgmLoopPrepTimer) clearTimeout(_bgmLoopPrepTimer);
-  _bgmLoopPrepTimer=null;
+function _setBgmVoiceVolume(voice,value,ms){
+  const ctx=_audioCtx;
+  if(!voice||!ctx) return;
+  const target=Math.max(0,Math.min(1,Number(value)||0));
+  const now=ctx.currentTime;
+  const sec=Math.max(0,Number(ms)||0)/1000;
+  voice.target=target;
+  try{
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(Math.max(BGM_GAIN_FLOOR,voice.gain.gain.value),now);
+    if(sec>0) voice.gain.gain.linearRampToValueAtTime(Math.max(BGM_GAIN_FLOOR,target),now+sec);
+    else voice.gain.gain.setValueAtTime(target,now);
+  }catch(e){}
 }
-
-function _scheduleBgmSeamlessLoop(){
-  _clearBgmLoopTimer();
-  const audio=_bgmAudio;
-  const key=_bgmKey;
-  if(!audio||!key) return;
-  const dur=Number(audio.duration)||0;
-  if(!dur||!Number.isFinite(dur)){
-    audio.addEventListener('loadedmetadata',_scheduleBgmSeamlessLoop,{once:true});
+function _stopBgmVoice(voice,fadeOutMs){
+  if(!voice) return;
+  const ctx=_audioCtx;
+  const ms=Math.max(0,Number(fadeOutMs)||0);
+  const release=()=>{ try{ voice.src.disconnect(); voice.gain.disconnect(); }catch(e){} };
+  if(!ctx||ms<=0){
+    try{ voice.src.stop(); }catch(e){}
+    release();
     return;
   }
-  const lead=Math.min(.18,Math.max(.04,dur*.04));
-  const delay=Math.max(50,(dur-audio.currentTime-lead)*1000);
-  // 切り替えの瞬間に新しいAudioを作ると、大きいWAV（battle4は約25MB）では
-  // デコードが間に合わず一瞬音が途切れる。8秒前に用意して読み込ませておく。
-  const prepAhead=8000;
-  const prepDelay=Math.max(0,delay-prepAhead);
-  _bgmLoopPrepTimer=setTimeout(()=>{
-    if(_bgmAudio!==audio||_bgmKey!==key) return;
-    const path=_sfxPath(key);
-    if(!path) return;
-    const prepared=_makeBgmAudio(path);
-    prepared.dataset.bgmLoopKey=key;
-    _bgmNextAudio=prepared;
-    try{ prepared.load(); }catch(e){}
-  },prepDelay);
-  _bgmLoopTimer=setTimeout(()=>{
-    if(_bgmAudio!==audio||_bgmKey!==key) return;
-    const path=_sfxPath(key);
-    if(!path) return;
-    // 事前に用意したものがあればそれを使う（読み込み済みなので途切れない）。
-    const prepared=(_bgmNextAudio&&_bgmNextAudio.dataset&&_bgmNextAudio.dataset.bgmLoopKey===key)?_bgmNextAudio:null;
-    const next=prepared||_makeBgmAudio(path);
-    _bgmNextAudio=next;
-    next.volume=_bgmTargetVolume;
-    next.play().then(()=>{
-      if(_bgmAudio!==audio||_bgmKey!==key){ next.pause(); return; }
-      const old=audio;
-      _bgmAudio=next;
-      _bgmNextAudio=null;
-      _fadeAudioVolume(old,old.volume,0,120,()=>{
-        try{
-          old.pause();
-          old.currentTime=0;
-          // 大きいWAV（30MB前後）のデコード済みバッファを抱えたままだと、
-          // 次のループやSFXの再生で音が途切れやすい。参照を切って解放させる。
-          old.removeAttribute('src');
-          old.load();
-        }catch(e){}
-      });
-      _scheduleBgmSeamlessLoop();
-    }).catch(()=>{ _scheduleBgmSeamlessLoop(); });
-  },delay);
+  const now=ctx.currentTime;
+  const sec=ms/1000;
+  try{
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(Math.max(BGM_GAIN_FLOOR,voice.gain.gain.value),now);
+    voice.gain.gain.linearRampToValueAtTime(BGM_GAIN_FLOOR,now+sec);
+    voice.src.stop(now+sec+0.02);
+  }catch(e){ try{ voice.src.stop(); }catch(e2){} }
+  setTimeout(release,ms+120);
 }
 
 function playBgm(key,opts={}){
   if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
   const path=_sfxPath(key);
   if(!path) return false;
-  if(_bgmKey===key&&(_bgmStartingKey===key||(_bgmAudio&&!_bgmAudio.paused))) return true;
+  // 同じ曲を鳴らし直さない（鳴っている／鳴らし始めている）。
+  if(_bgmKey===key&&(_bgmStartingKey===key||_bgmVoice)) return true;
   stopBgm(0);
   const startToken=++_bgmStartToken;
   _bgmStartingKey=key;
   _bgmKey=key;
-  const audio=_makeBgmAudio(path);
-  _bgmAudio=audio;
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.32;
   const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.masterVolume));
-  audio.dataset.fadeInMs=String(opts.fadeInMs??700);
-  audio.dataset.startTime=String(Math.max(0,Number(opts.startTime??BGM_DEFAULT_START_TIMES[key])||0));
+  const startTime=Math.max(0,Number(opts.startTime??BGM_DEFAULT_START_TIMES[key])||0);
+  const fadeInMs=opts.fadeInMs??700;
   _bgmTargetVolume=targetVol;
-  _bgmPendingRequest={
-    key,
-    startTime:Number(audio.dataset.startTime)||0,
-    fadeInMs:Number(audio.dataset.fadeInMs)||0,
-    volume:targetVol,
-  };
+  // 保留する音量は**マスター音量を掛ける前**の値。掛けた後を持つと、
+  // 鳴らし直す時に masterVolume が二重に掛かる（デバッグミュート中は0除算にもなる）。
+  _bgmPendingRequest={key,startTime,fadeInMs,volume:baseVol};
+  // 最初の実操作より前は AudioContext を resume できない。要求だけ残して
+  // unlockSfx() から鳴らし直す（HTMLAudioのミュート起動は使わない）。
   if(!_sfxUnlocked) return false;
-  // play() は「その場で」呼ぶこと。メタデータ待ちで遅らせると自動再生の許可判定を
-  // 逃し、操作するまで鳴らなくなる（オンライン化前は同期呼び出しで鳴っていた）。
-  // 曲の頭は聞こえない：audioのvolumeは0で作られ、シーク完了後にフェードインする。
-  const stillCurrent=()=>startToken===_bgmStartToken&&_bgmAudio===audio&&_bgmKey===key;
-  const onStarted=()=>{
-    if(!stillCurrent()){
-      try{ audio.pause(); audio.currentTime=0; audio.removeAttribute('src'); audio.load(); }catch(e){}
-      return;
-    }
-    if(_bgmPendingRequest&&_bgmPendingRequest.key===key) _bgmPendingRequest=null;
-    if(_bgmStartingKey===key) _bgmStartingKey=''; // 開始完了。以後の再要求は下の重複ガードで弾く
-    _applyBgmStartTime(audio,()=>{
-      if(!stillCurrent()) return;
-      audio.dataset.startTime='0'; // 実際に再生が始まった後だけ消費する
-      _fadeAudioVolume(audio,0,targetVol,opts.fadeInMs??700);
-      _scheduleBgmSeamlessLoop();
-    });
-  };
-  audio.play().then(onStarted).catch(()=>{
-    // 自動再生拒否は失敗扱いにせず、実ユーザー操作から同じ要求を再試行する。
-    // ここで_bgmStartingKeyを残すと playBgm() 冒頭の重複ガードに永久に引っかかり、
-    // タイトル導入1秒後の再試行も「操作時の再試行」も全て無視される（BGMが鳴らない）。
+  _resumeBgmContext();
+  const stillCurrent=()=>startToken===_bgmStartToken&&_bgmKey===key;
+  const startWith=buffer=>{
     if(!stillCurrent()) return;
-    _bgmStartingKey='';
-    // ミュート再生は自動再生ポリシーで常に許可される。無音でも曲を進めておけば、
-    // 最初の操作でミュートを外すだけで「頭から」ではなく正しい位置から聞こえる。
-    // ミュート解除が操作前でも許可されるブラウザでは、この時点から実際に鳴る。
-    audio.muted=true;
-    audio.play().then(()=>{
-      if(!stillCurrent()){ audio.muted=false; return; }
-      onStarted();
-      _tryUnmuteBgm(audio);
-    }).catch(()=>{ audio.muted=false; });
-  });
+    // **読めなかった時は「鳴らし始めた」印を残さない。**
+    // 残すと playBgm() 冒頭の重複ガードに永久に引っかかり、以後この曲は
+    // 何度要求しても鳴らなくなる（画面を移るまで無音のまま）。
+    if(!buffer){ _bgmStartingKey=''; _bgmKey=''; return; }
+    const voice=_startBgmVoice(buffer,{volume:_bgmTargetVolume,fadeInMs,offset:startTime});
+    if(!voice){ _bgmStartingKey=''; _bgmKey=''; return; }
+    if(!stillCurrent()){ _stopBgmVoice(voice,0); return; }
+    _bgmVoice=voice;
+    if(_bgmPendingRequest&&_bgmPendingRequest.key===key) _bgmPendingRequest=null;
+    if(_bgmStartingKey===key) _bgmStartingKey='';
+    _pruneBgmBuffers();
+  };
+  // **読み込み済みなら、待たずにその場で鳴らし始める。**
+  // Promiseの解決（マイクロタスク）を待つと、戦闘開始のような重い同期処理の
+  // 後ろへ回されて、先読みしてあっても曲の頭が数百ms無音になる。
+  const ready=_bgmBufferCache.get(key);
+  if(ready){
+    _bgmBufferCache.delete(key); _bgmBufferCache.set(key,ready); // 使った印（LRU）
+    startWith(ready);
+    return true;
+  }
+  _loadBgmBuffer(key).then(startWith);
   return true;
-}
-
-// ミュート起動したBGMのミュートを外す。解除が拒否されて停止するブラウザでは
-// 元のミュート再生へ戻し、最初のユーザー操作（unlockSfx）での解除に委ねる。
-function _tryUnmuteBgm(audio){
-  if(!audio||!audio.muted) return;
-  audio.muted=false;
-  setTimeout(()=>{
-    if(_bgmAudio!==audio) return;
-    if(audio.paused){
-      audio.muted=true;
-      audio.play().catch(()=>{});
-    }
-  },250);
 }
 
 // ── サブBGM（メインBGMに重ねる環境音）──────────────────────
 // チャンネルごとに独立して鳴らせる（'ambient'＝街の環境音、'facility'＝施設内の環境音）。
-// いずれも常に曲の頭からループ再生する。
+// いずれも常に曲の頭からループ再生する。継ぎ目の扱いはメインBGMと同じ。
 const _bgmLayers={};
-// 環境音のループ継ぎ目対策。<audio loop>のネイティブループは終端〜先頭の切り替えで
-// 無音が入る（rain.wavのように途切れて聞こえる）ため、メインBGMと同じ方式で
-// 終端の少し手前に次の再生を重ね、前の音をごく短くフェードアウトさせて繋ぐ。
-function _clearLayerLoopTimer(state){
-  if(state&&state.loopTimer){ clearTimeout(state.loopTimer); state.loopTimer=null; }
-}
-function _scheduleLayerSeamlessLoop(channel){
-  const state=_bgmLayers[channel];
-  if(!state||!state.audio) return;
-  _clearLayerLoopTimer(state);
-  const audio=state.audio;
-  const dur=Number(audio.duration)||0;
-  if(!dur||!Number.isFinite(dur)){
-    audio.addEventListener('loadedmetadata',()=>{
-      if(_bgmLayers[channel]===state&&state.audio===audio) _scheduleLayerSeamlessLoop(channel);
-    },{once:true});
-    return;
-  }
-  const lead=Math.min(.18,Math.max(.04,dur*.04));
-  const delay=Math.max(50,(dur-audio.currentTime-lead)*1000);
-  state.loopTimer=setTimeout(()=>{
-    if(_bgmLayers[channel]!==state||state.audio!==audio) return;
-    const path=_sfxPath(state.key);
-    if(!path) return;
-    const next=_makeBgmAudio(path);
-    next.volume=audio.volume;
-    next.play().then(()=>{
-      if(_bgmLayers[channel]!==state||state.audio!==audio){ try{ next.pause(); }catch(e){} return; }
-      state.audio=next;
-      _fadeAudioVolume(audio,audio.volume,0,120,()=>{ _cancelAudioFade(audio); try{ audio.pause(); audio.currentTime=0; }catch(e){} });
-      _scheduleLayerSeamlessLoop(channel);
-    }).catch(()=>{ if(_bgmLayers[channel]===state&&state.audio===audio) _scheduleLayerSeamlessLoop(channel); });
-  },delay);
-}
 function playBgmLayer(channel,key,opts={}){
   if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
   const path=_sfxPath(key);
   if(!path) return false;
   const cur=_bgmLayers[channel];
-  if(cur&&cur.key===key&&cur.audio&&!cur.audio.paused) return true;
+  if(cur&&cur.key===key&&(cur.starting||cur.voice)) return true;
   stopBgmLayer(channel,0);
-  const audio=_makeBgmAudio(path);
-  audio.loop=false; // ループは_scheduleLayerSeamlessLoop()で継ぎ目なく繋ぐ
-  const state={key,audio,loopTimer:null};
-  _bgmLayers[channel]=state;
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.5;
   const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.masterVolume));
-  if(!_sfxUnlocked) return false;
-  audio.play().then(()=>{
-    if(_bgmLayers[channel]!==state||state.audio!==audio) return;
-    _fadeAudioVolume(audio,0,targetVol,opts.fadeInMs??1000);
-    _scheduleLayerSeamlessLoop(channel);
-  }).catch(()=>{});
+  const state={key,voice:null,starting:true};
+  _bgmLayers[channel]=state;
+  if(!_sfxUnlocked){ state.starting=false; delete _bgmLayers[channel]; return false; }
+  _resumeBgmContext();
+  _loadBgmBuffer(key).then(buffer=>{
+    if(!buffer||_bgmLayers[channel]!==state){ state.starting=false; return; }
+    const voice=_startBgmVoice(buffer,{volume:targetVol,fadeInMs:opts.fadeInMs??1000,offset:0});
+    state.starting=false;
+    if(!voice) return;
+    if(_bgmLayers[channel]!==state){ _stopBgmVoice(voice,0); return; }
+    state.voice=voice;
+    _pruneBgmBuffers();
+  });
   return true;
 }
 function stopBgmLayer(channel,fadeOutMs=350){
   const cur=_bgmLayers[channel];
-  if(!cur||!cur.audio) return;
-  _clearLayerLoopTimer(cur);
-  const audio=cur.audio;
-  const finish=()=>{ _cancelAudioFade(audio); try{ audio.pause(); audio.currentTime=0; }catch(e){} };
-  if(fadeOutMs>0&&!audio.paused) _fadeAudioVolume(audio,audio.volume,0,fadeOutMs,finish);
-  else finish();
+  if(!cur) return;
   delete _bgmLayers[channel];
+  if(cur.voice) _stopBgmVoice(cur.voice,fadeOutMs);
+  cur.voice=null;
 }
-// 既存呼び出し互換：街の環境音チャンネル
 // ステージ単位で鳴らし続ける環境音（例：ステージ4の雷雨）のチャンネル。
 // 街→戦闘→街とBGMが切り替わっても止めないため、stopBgm()／stopAllBgmLayers()の
 // 対象から外し、_syncStageAmbience()だけが開始／停止を管理する。
@@ -698,21 +670,11 @@ function stopBgm(fadeOutMs=350){
   _bgmStartToken++;
   _bgmStartingKey='';
   stopAllBgmLayers(fadeOutMs);
-  if(!_bgmAudio) return;
-  _clearBgmLoopTimer();
-  const audio=_bgmAudio;
-  const next=_bgmNextAudio;
-  const finish=()=>{ _cancelAudioFade(audio); try{ audio.pause(); audio.currentTime=0; }catch(e){} };
-  if(next){ _cancelAudioFade(next); try{ next.pause(); next.currentTime=0; }catch(e){} }
-  if(fadeOutMs>0&&!audio.paused){
-    _fadeAudioVolume(audio,audio.volume,0,fadeOutMs,finish);
-  }else{
-    finish();
-  }
-  _bgmAudio=null;
-  _bgmNextAudio=null;
+  const voice=_bgmVoice;
+  _bgmVoice=null;
   _bgmKey='';
   _bgmPendingRequest=null;
+  if(voice) _stopBgmVoice(voice,fadeOutMs);
 }
 
 // デバッグモード：ミュートボタンで全音声（BGM/SE）をON/OFFする
@@ -727,14 +689,13 @@ function toggleDebugMute(){
   }else if(_bgmVolumeBeforeMute!=null){
     _bgmTargetVolume=_bgmVolumeBeforeMute;
   }
-  // フェード中に切り替えられると、走っているフェードが直後に音量を戻してしまう。
-  // BGM・環境音（ステージ持続音を含む）・次曲の先読み分まで、フェードを止めてから音量を確定する。
-  if(_bgmAudio){ _cancelAudioFade(_bgmAudio); _bgmAudio.volume=_bgmTargetVolume; }
-  if(_bgmNextAudio){ _cancelAudioFade(_bgmNextAudio); _bgmNextAudio.volume=_bgmTargetVolume; }
+  // フェード中に切り替えられても、予約済みのフェードごと上書きして音量を確定する
+  // （_setBgmVoiceVolume が cancelScheduledValues してから書き直す）。
+  // BGM・環境音（ステージ持続音を含む）まで対象にする。
+  if(_bgmVoice) _setBgmVoiceVolume(_bgmVoice,_bgmTargetVolume,0);
   Object.values(_bgmLayers).forEach(l=>{
-    if(!l||!l.audio) return;
-    _cancelAudioFade(l.audio);
-    l.audio.volume=_debugMuted?0:Math.max(0,Math.min(1,(BGM_DEFAULT_VOLUMES[l.key]??.5)*SFX_SETTINGS.masterVolume));
+    if(!l||!l.voice) return;
+    _setBgmVoiceVolume(l.voice,_debugMuted?0:Math.max(0,Math.min(1,(BGM_DEFAULT_VOLUMES[l.key]??.5)*SFX_SETTINGS.masterVolume)),0);
   });
   // 戦闘画面と街画面の両方のミュートボタンを同期する。
   ['battle-mute-btn','village-mute-btn'].forEach(id=>{
@@ -757,7 +718,7 @@ function _handleFirstUserGesture(){
   // 1回で解除してはいけない。最初の操作の play() が自動再生ポリシーで拒否されると
   // 再試行の機会が二度と来ず、BGMが鳴らないままになる。
   // 実際に鳴り始めた（BGM要求が無く、再生中）ことを確認してから解除する。
-  const started=!_bgmPendingRequest&&_bgmAudio&&!_bgmAudio.paused;
+  const started=!_bgmPendingRequest&&!!_bgmVoice;
   if(!started) return;
   document.removeEventListener('pointerdown',_handleFirstUserGesture,true);
   document.removeEventListener('keydown',_handleFirstUserGesture,true);
