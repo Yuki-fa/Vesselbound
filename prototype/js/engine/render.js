@@ -1581,7 +1581,10 @@ function playCurvedMissile(options){
     // そのまま終点にすると飛行方向へ突き抜ける。実体中心を敵中心へ置く。
     const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
     const len=Math.hypot(vx,vy)||1;
-    const lead=toRect.height*.78;
+    // 着弾時のフレーム群を透過アルファで実測すると、実体中心は
+    // 560px高の画像中心より約75px先端側。初フレームだけの約208pxを
+    // 使うと、飛行中に伸びた絵の中心が敵から大きく離れてしまう。
+    const lead=fromRect.width*(4.6*.125)*(75/120);
     to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
   }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
@@ -3507,7 +3510,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         await runSegment([
           {transform:'translate(0,0) rotate(0deg)'},
           {transform:atStop},
-        ],opt.firstDuration||260,()=>getTargetMotionTransform(stopRatio));
+        ],opt.firstDuration||260);
         const pauseResult=await onImpactPause();
         if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_effect_pause',{
           attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
@@ -3539,15 +3542,20 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           return;
         }
         // 効果を出し終えてから残りの間合いを詰めて接触する。
+        // 攻撃効果中に敵が減って盤面が詰め直されても、この一撃の
+        // 終点は再開時に1回だけ決める。フレームごとに対象を追うと、
+        // 三段攻撃の途中でサイレンの全体ダメージが敵を減らした際に
+        // 攻撃カードが左右へ追従し、「跳ねてから戻る」ように見える。
+        const resumedHit=getTargetMotionTransform(1)||atHit;
         await runSegment([
           {transform:atStop},
-          {transform:atHit},
-        ],opt.secondDuration||360,()=>getTargetMotionTransform(1));
+          {transform:resumedHit},
+        ],opt.secondDuration||360);
       } else {
         await runSegment([
           {transform:'translate(0,0) rotate(0deg)'},
           {transform:atHit},
-        ],opt.firstDuration||420,()=>getTargetMotionTransform(1));
+        ],opt.firstDuration||420);
       }
       // 接触した瞬間のフック。戻りモーション（returnDuration）を待つと画面揺れが
       // 体感で1テンポ遅れるため、ここで呼ぶ。
@@ -3561,8 +3569,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       if(typeof opt.onContact==='function') await opt.onContact();
       let stableReturnTransform=null;
       const stableReturn=()=>stableReturnTransform||(stableReturnTransform=getAttackerReturnTransform());
+      const returnStart=clone.style.transform||atHit;
       await runSegment([
-        {transform:atHit},
+        {transform:returnStart},
         {transform:'translate(0,0) rotate(0deg)'},
       ],opt.returnDuration||480,stableReturn);
     } finally {

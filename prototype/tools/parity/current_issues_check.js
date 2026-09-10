@@ -123,6 +123,99 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     ],'二段攻撃を一撃ごとに「動き出す→効果→接触」で再生');
     console.log('OK サイレン＋二段攻撃を一撃ごとに分離');
 
+    const sirenTripleMotion=await browser.eval(`
+      document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+      document.getElementById('scr-battle').classList.add('active');
+      document.body.className='';
+      const siren={id:'siren-triple',name:'サイレン',side:'p1',lane:'front',atk:3,hp:47,maxHp:47,
+        color:'赤',keywords:['邪眼5','邪眼5','大いなる守護','三段攻撃'],
+        desc:'攻撃：全てのキャラクターに1ダメージを与える。',_panelSummoned:true};
+      const enemies=[0,1,2].map(i=>({id:'siren-triple-e'+i,name:'敵'+i,side:'p2',lane:'front',atk:3,hp:20,maxHp:20,
+        color:'黒',keywords:[],desc:'',_panelSummoned:true}));
+      G.allies=[siren]; G.enemies=enemies.slice(); G._battleCompactMoves=new Map();
+      renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const strikes=[];
+      for(let hit=0;hit<3;hit++){
+        const target=G.enemies[G.enemies.length-1];
+        const samples=[];
+        let phase='out';
+        let raf=0;
+        const sample=()=>{
+          const el=document.querySelector('.attack-motion-clone[data-unit-id="siren-triple"]');
+          if(el){ const r=el.getBoundingClientRect(); samples.push({phase,x:r.left+r.width/2,y:r.top+r.height/2}); }
+          raf=requestAnimationFrame(sample);
+        };
+        raf=requestAnimationFrame(sample);
+        await playArassusAttackMotion(siren,target,false,async()=>{
+          phase='effect';
+          if(hit<2){
+            const gone=G.enemies[0]; gone.hp=0; G.enemies=G.enemies.filter(e=>e!==gone);
+            renderField('f-enemy',G.enemies,true);
+            // 詰めアニメーションが進行中のまま攻撃を再開する。
+            // 従来はこの間、複製カードが敵の移動を毎フレーム追い、横に跳ねていた。
+            await new Promise(resolve=>setTimeout(resolve,30));
+          }
+          phase='resume';
+        });
+        cancelAnimationFrame(raf);
+        const start=samples[0], end=samples[samples.length-1];
+        const resume=samples.filter(s=>s.phase==='resume');
+        let reversals=0, lastSign=0;
+        for(let i=1;i<resume.length;i++){
+          const dx=resume[i].x-resume[i-1].x;
+          const sign=Math.abs(dx)<.35?0:Math.sign(dx);
+          if(sign&&lastSign&&sign!==lastSign) reversals++;
+          if(sign) lastSign=sign;
+        }
+        strikes.push({count:samples.length,reversals,returnError:start&&end?Math.hypot(end.x-start.x,end.y-start.y):999});
+      }
+      return strikes;
+    `);
+    assert.equal(sirenTripleMotion.length,3,'サイレンの三段攻撃を3回再生');
+    sirenTripleMotion.forEach((strike,index)=>{
+      assert.ok(strike.count>20,`${index+1}撃目の座標履歴が足りない`);
+      assert.ok(strike.reversals<=1,`${index+1}撃目の戻り中に余分な左右反転がある`);
+      assert.ok(strike.returnError<2,`${index+1}撃目が元の場所へ戻っていない`);
+    });
+    console.log('OK サイレン＋邪眼2枚＋大いなる守護＋三段攻撃で跳ね戻りなし');
+
+    const shopUi=await browser.eval(`
+      document.body.classList.add('reward-screen-active');
+      const host=document.createElement('div'); host.className='rew-card';
+      host.innerHTML='<span class="shop-board-sell-value">+40G</span><button class="shop-board-sell-btn">売却</button>';
+      document.body.appendChild(host);
+      const sale=getComputedStyle(host.querySelector('.shop-board-sell-btn'));
+      const cost=getComputedStyle(host.querySelector('.shop-board-sell-value'));
+      const tip=document.getElementById('kw-tooltip');
+      tip.style.display='block'; tip.style.left='137px'; tip.style.top='191px';
+      tip.innerHTML='<div>絆の巻物</div>';
+      const before=tip.getBoundingClientRect();
+      _openRewardActionTooltip(host,'絆の巻物','説明',[{label:'使う'},{label:'捨てる'},{label:'やめる'}]);
+      const after=tip.getBoundingClientRect();
+      const action=getComputedStyle(tip.querySelector('.reward-action-btn'));
+      const result={
+        sale:{width:sale.width,height:sale.height,bottom:sale.bottom,color:sale.color,border:sale.borderImageSource,slice:sale.borderImageSlice},
+        cost:{background:cost.backgroundImage,width:cost.width,height:cost.height},
+        action:{color:action.color,border:action.borderImageSource,slice:action.borderImageSlice,count:tip.querySelectorAll('.reward-action-btn').length},
+        tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top)}
+      };
+      host.remove(); _closeItemUseConfirm();
+      return result;
+    `);
+    assert.deepEqual([shopUi.sale.width,shopUi.sale.height,shopUi.sale.bottom],['130px','51px','58px']);
+    assert.equal(shopUi.sale.color,'rgb(196, 154, 108)');
+    assert.match(shopUi.sale.border,/button_invisible\.svg/);
+    assert.equal(shopUi.sale.slice,'22 fill');
+    assert.match(shopUi.cost.background,/cost\.svg/);
+    assert.deepEqual([shopUi.cost.width,shopUi.cost.height],['101px','46px']);
+    assert.equal(shopUi.action.count,3);
+    assert.equal(shopUi.action.color,'rgb(196, 154, 108)');
+    assert.match(shopUi.action.border,/button_invisible\.svg/);
+    assert.equal(shopUi.action.slice,'22 fill');
+    assert.ok(shopUi.tooltipDelta.x<1&&shopUi.tooltipDelta.y<1,'クリックでホバー説明の位置が動いた');
+    console.log('OK 売却・アクションボタンとcost.svgの実DOM表示');
+
     const revive=await browser.eval(`
       const originalReviveVfx=playReviveVfx;
       const unit={id:'multi-revive',name:'スケルトン',side:'p2',lane:'front',atk:2,hp:0,maxHp:2,
