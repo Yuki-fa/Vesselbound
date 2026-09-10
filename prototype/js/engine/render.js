@@ -1549,8 +1549,8 @@ function playCurvedMissile(options){
   const opt=options||{};
   const asset=String(opt.asset||'');
   let hit=false;
-  const fireHit=()=>{ if(hit) return; hit=true;
-    if(typeof opt.onHit==='function'){ try{ opt.onHit(); }catch(e){ console.error('[missile onHit]',e); } } };
+  const fireHit=async()=>{ if(hit) return; hit=true;
+    if(typeof opt.onHit==='function'){ try{ await opt.onHit(); }catch(e){ console.error('[missile onHit]',e); } } };
   const rectOf=(rect,el)=>{
     if(typeof rect==='function'){ try{ return rect(); }catch(e){ return null; } }
     if(rect&&Number(rect.width)>0) return rect;
@@ -1562,14 +1562,21 @@ function playCurvedMissile(options){
   };
   const fromRect=rectOf(opt.sourceRect,opt.sourceElement);
   const toRect=rectOf(opt.targetRect,opt.targetElement);
-  if(!asset||!fromRect||!toRect){ fireHit(); return Promise.resolve(); }
+  if(!asset||!fromRect||!toRect){ return fireHit(); }
   // 始点・終点は**中央付近**。着弾だけは素材の絵が上寄りなぶん少し下げる。
   const impactOffsetY=Number.isFinite(Number(opt.impactOffsetY))?Number(opt.impactOffsetY)
     :((typeof PRESENT_PROJECTILE_IMPACT_OFFSET_Y==='number'&&PRESENT_PROJECTILE_IMPACT_OFFSET_Y)||0);
   const from={x:fromRect.left+fromRect.width/2, y:fromRect.top+fromRect.height/2};
   const codeOffset=typeof presentProjectileImpactOffsetY==='function'
     ?presentProjectileImpactOffsetY(opt.code):impactOffsetY;
-  const to={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
+  const centerTo={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
+  let to=centerTo;
+  if(String(opt.code||'').toUpperCase()==='C019'){
+    const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
+    const len=Math.hypot(vx,vy)||1;
+    const lead=toRect.height*.18;
+    to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
+  }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
   // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
@@ -1619,7 +1626,7 @@ function playCurvedMissile(options){
   let cleaned=false;
   const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
   return new Promise(resolve=>{
-    const finish=()=>{ flushWaypoints(); fireHit(); cleanup(); resolve(); };
+    const finish=async()=>{ flushWaypoints(); await fireHit(); cleanup(); resolve(); };
     // **起点は「実際に最初のフレームが来た時刻」**（攻撃モーションと同じ規則）。
     // 予約時刻を起点にすると、メインスレッドが尺以上止まった時に1フレーム目で着弾する。
     let startedAt=null;
@@ -1662,12 +1669,12 @@ function playCurvedMissile(options){
       lastDeg=deg-noseDeg;
       place(pt,deg);
       fireWaypoints(pt);
-      if(raw>=1){ finish(); return; }
+      if(raw>=1){ void finish(); return; }
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
     // タブ非表示などでrAFが止まっても必ず着弾させ、DOMも必ず消す。
-    setTimeout(finish,flightMs+1500);
+    setTimeout(()=>{ void finish(); },flightMs+1500);
   });
 }
 
@@ -1677,10 +1684,10 @@ function playCurvedMissile(options){
 // 素材が無ければ何も飛ばさず、着弾側だけを即座に見せる（演出が消えないようにする）。
 async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
   const opt=options||{};
-  const impact=()=>{
-    if(typeof opt.onImpact==='function') opt.onImpact();
+  const impact=async()=>{
+    if(typeof opt.onImpact==='function') await opt.onImpact();
     if(typeof playHitVfx==='function'){
-      playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code});
+      await playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code});
     }
   };
   const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
@@ -3497,10 +3504,12 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           cloneLifeFill.style.width=`${Math.max(0,Math.min(1,_cHp/cloneMaxHp))*100}%`;
         }
         if(pauseResult&&pauseResult.abort){
+          let stableReturnTransform=null;
+          const stableReturn=()=>stableReturnTransform||(stableReturnTransform=getAttackerReturnTransform());
           await runSegment([
             {transform:atStop},
             {transform:'translate(0,0) rotate(0deg)'},
-          ],opt.returnDuration||420,getAttackerReturnTransform);
+          ],opt.returnDuration||420,stableReturn);
           return;
         }
         // 効果を出し終えてから残りの間合いを詰めて接触する。
@@ -3524,10 +3533,12 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       // ダメージ・反撃を適用する。ここをawaitしても戻りモーションだけが
       // 後続処理を待つため、接触時刻とダメージ時刻が一致する。
       if(typeof opt.onContact==='function') await opt.onContact();
+      let stableReturnTransform=null;
+      const stableReturn=()=>stableReturnTransform||(stableReturnTransform=getAttackerReturnTransform());
       await runSegment([
         {transform:atHit},
         {transform:'translate(0,0) rotate(0deg)'},
-      ],opt.returnDuration||480,getAttackerReturnTransform);
+      ],opt.returnDuration||480,stableReturn);
     } finally {
       cleanup();
       if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_end',{
