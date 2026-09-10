@@ -147,13 +147,50 @@ function _sellHeldItem(idx){
 function _closeItemUseConfirm(){
   const old=document.getElementById('item-use-confirm');
   if(old) old.remove();
+  const tip=document.getElementById('kw-tooltip');
+  if(tip){
+    tip.dataset.rewardLocked='';
+    tip.classList.remove('reward-action-tooltip');
+    tip.innerHTML='';
+    tip.style.display='none';
+  }
+}
+function _openRewardActionTooltip(anchor,title,desc,actions){
+  const tip=document.getElementById('kw-tooltip');
+  if(!tip) return;
+  const esc=s=>String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  tip.dataset.rewardLocked='1';
+  tip.className='reward-action-tooltip';
+  tip.innerHTML=`<div class="preview-title">${esc(title)}</div><div class="reward-action-desc">${esc(desc)}</div><div class="reward-action-buttons"></div>`;
+  const box=tip.querySelector('.reward-action-buttons');
+  (actions||[]).forEach(action=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='reward-action-btn';
+    button.textContent=action.label||'';
+    if(action.disabled){ button.disabled=true; button.classList.add('is-disabled'); }
+    button.onclick=event=>{
+      event.stopPropagation();
+      if(button.disabled) return;
+      action.onClick?.();
+    };
+    box.appendChild(button);
+  });
+  tip.style.display='block';
+  const rect=anchor?.getBoundingClientRect?.();
+  if(rect){
+    const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
+    tip.style.left=`${Math.max(8,rect.left)}px`;
+    tip.style.top=`${rect.bottom+8*scale}px`;
+  }
 }
 if(!window._itemRingMenuDismissBound){
   window._itemRingMenuDismissBound=true;
   document.addEventListener('pointerdown',e=>{
     const pop=document.getElementById('item-use-confirm');
-    if(!pop) return;
-    if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,.reward-prod-item .reward-prod-slots i,.reward-prod-ring .reward-prod-slots i')) return;
+    const tip=document.getElementById('kw-tooltip');
+    if(!pop&&tip?.dataset.rewardLocked!=='1') return;
+    if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,#kw-tooltip.reward-action-tooltip,.reward-prod-item .reward-prod-slots i,.reward-prod-ring .reward-prod-slots i')) return;
     _closeItemUseConfirm();
   },true);
   document.addEventListener('dragstart',e=>{
@@ -695,44 +732,20 @@ function _openItemUseConfirm(idx,anchor){
   // **同じアイテムの吹き出しが既に出ていれば作り直さない。**
   // 押すたびに remove→append していたため、連打するとボタンが消えては出て
   // 明滅して見えた（使えないアイテムでは「使う」が一瞬明るく見える）。
-  const opened=document.getElementById('item-use-confirm');
-  if(opened&&String(opened.dataset.slotIdx)===String(idx)) return;
+  const tip=document.getElementById('kw-tooltip');
+  if(tip?.dataset.rewardLocked==='1'&&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   _closeItemUseConfirm();
-  const pop=document.createElement('div');
-  pop.id='item-use-confirm';
-  pop.dataset.slotIdx=String(idx);
-  pop.innerHTML=`<div class="item-use-title">${card.name||'アイテム'}</div><div class="item-use-desc">${card.desc||''}</div><button type="button" class="btn item-use-do">使う</button><button type="button" class="btn item-use-discard">捨てる</button><button type="button" class="btn item-use-cancel">やめる</button>`;
-  document.body.appendChild(pop);
-  const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
-  const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
-  if(rect){
-    pop.style.left=`${rect.right+14*scale}px`;
-    pop.style.top=`${rect.top+18*scale}px`;
-  }
-  const useBtn=pop.querySelector('.item-use-do');
-  // 使用条件を満たさないアイテムは「使う」を押せなくする
-  // （例：ポータルの巻物は街にいる間は使えない）。
-  if(!_canUseItemNow(card)){
-    useBtn.disabled=true;
-    useBtn.classList.add('item-use-unavailable');
-    useBtn.title='ここでは使用できません';
-  }
-  useBtn.onclick=e=>{
-    e.stopPropagation();
-    if(useBtn.disabled) return;
-    _useImmediateItem(idx,card);
-  };
-  pop.querySelector('.item-use-discard').onclick=e=>{
-    e.stopPropagation();
-    const current=_ensureItemSlots()[idx];
-    if(current){ _ensureItemSlots()[idx]=null; ; }
-    _closeItemUseConfirm();
-    renderHandEditor(); updateHUD();
-  };
-  pop.querySelector('.item-use-cancel').onclick=e=>{
-    e.stopPropagation();
-    _closeItemUseConfirm();
-    // 対象選択中に開いた場合は、選択そのものを取りやめる。
-    _cancelPendingItemUse();
-  };
+  const useUnavailable=!_canUseItemNow(card);
+  _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
+    {label:'使う',disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
+    {label:'捨てる',onClick:()=>{
+      const current=_ensureItemSlots()[idx];
+      if(current) _ensureItemSlots()[idx]=null;
+      _closeItemUseConfirm();
+      renderHandEditor(); updateHUD();
+    }},
+    {label:'やめる',onClick:()=>{ _closeItemUseConfirm(); _cancelPendingItemUse(); }}
+  ]);
+  const lockedTip=document.getElementById('kw-tooltip');
+  if(lockedTip) lockedTip.dataset.rewardSlotIdx=String(idx);
 }

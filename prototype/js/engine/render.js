@@ -11,6 +11,8 @@
   const mapTip=()=>document.getElementById('map-power-tooltip');
   const keywordTip=()=>document.getElementById('keyword-tooltip');
   const hideTips=()=>{
+    // アイテム／指輪をクリックした後は、通常のmousemoveによるホバー解除を止める。
+    if(tip.dataset.rewardLocked==='1') return;
     tip.style.display='none';
     const mt=mapTip(),kt=keywordTip();
     if(mt) mt.style.display='none';
@@ -36,6 +38,7 @@
   });
   document.addEventListener('mouseup',()=>{ _dragging=false; }, true);
   document.addEventListener('mousemove',e=>{
+    if(tip.dataset.rewardLocked==='1') return;
     // 保険：ボタンを押していないmousemoveが来た時点でドラッグは終わっている。
     // HTML5ドラッグ中はmousemoveが発火しないので、これでドラッグを誤って打ち切ることはない。
     if(_dragging&&e.buttons===0) _dragging=false;
@@ -3387,8 +3390,14 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const atHit=getTargetMotionTransform(1)||`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
   const cleanup=()=>{
     if(attacker&&attacker.id!=null&&G._suppressCompactUnitIds){
-      G._suppressCompactUnitIds.delete(String(attacker.id));
-      if(!G._suppressCompactUnitIds.size) G._suppressCompactUnitIds=null;
+      // cleanup直後のrenderAll／死亡後compactが同じフレームで走るため、
+      // ここで即解除すると元カードへFLIPが付き、戻り終端で一度跳ねる。
+      const id=String(attacker.id);
+      window.setTimeout(()=>{
+        if(!G._suppressCompactUnitIds) return;
+        G._suppressCompactUnitIds.delete(id);
+        if(!G._suppressCompactUnitIds.size) G._suppressCompactUnitIds=null;
+      },620);
     }
     if(fromEl){
       fromEl.classList.remove('motion-hidden');

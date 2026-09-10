@@ -14279,7 +14279,7 @@ html body.reward-screen-active .shop-pending-sell-btn{
   border:1px solid transparent!important;
   border-radius:0!important;
   background:transparent!important;
-  border-image-source:url("assets/ui/button_invisible.svg")!important;
+  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
   border-image-slice:15 fill!important;
   border-image-width:1!important;
   border-image-outset:0!important;
@@ -14304,7 +14304,7 @@ html body.reward-screen-active .shop-pending-sell-btn::before{
   content:'';
   position:absolute;
   inset:0;
-  background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;
+  background:transparent url("assets/ui/button_invisible.svg?v=shopMenu01") center/100% 100% no-repeat;
   opacity:0;
   pointer-events:none;
   filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9));
@@ -14312,6 +14312,12 @@ html body.reward-screen-active .shop-pending-sell-btn::before{
 }
 html body.reward-screen-active .shop-board-sell-btn:hover::before,
 html body.reward-screen-active .shop-pending-sell-btn:hover::before{opacity:.84}
+html body.reward-screen-active .shop-board-sell-btn::before,
+html body.reward-screen-active .shop-pending-sell-btn::before{display:none!important}
+html body.reward-screen-active .shop-board-sell-btn:hover,
+html body.reward-screen-active .shop-pending-sell-btn:hover{
+  filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
+}
 html body.reward-screen-active .shop-board-sell-btn{top:94px!important}
 html body.reward-screen-active .shop-pending-sell-btn{top:94px!important}
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
@@ -14333,7 +14339,7 @@ html body.reward-screen-active .shop-buy-price{
   justify-content:flex-end!important;
   border:0!important;
   border-radius:0!important;
-  background:transparent url("assets/ui/cost.svg") center/100% 100% no-repeat!important;
+  background-image:url("assets/ui/cost.svg?v=shopMenu01")!important;
   color:var(--gold2)!important;
   font-size:24px!important;
   line-height:1!important;
@@ -14359,7 +14365,7 @@ html body #item-use-confirm .btn{
   border:1px solid transparent;
   border-radius:0;
   background:transparent;
-  border-image-source:url("assets/ui/button_invisible.svg");
+  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01");
   border-image-slice:15 fill;
   border-image-width:1;
   border-image-repeat:stretch;
@@ -14369,6 +14375,53 @@ html body #item-use-confirm .btn{
 html body #item-use-confirm .btn::before{display:none}
 html body #item-use-confirm .btn:hover{
   filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7));
+}
+
+/* クリックで固定したホバー説明。別ウインドウではなく #kw-tooltip 自体を操作する。 */
+html body #kw-tooltip.reward-action-tooltip{
+  pointer-events:auto!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  width:calc(460px * var(--game-scale))!important;
+  max-width:calc(460px * var(--game-scale))!important;
+  white-space:normal!important;
+  cursor:default!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
+  white-space:pre-wrap!important;
+  text-align:left!important;
+  line-height:1.5!important;
+  margin-bottom:calc(12px * var(--game-scale))!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-buttons{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:calc(8px * var(--game-scale))!important;
+  width:100%!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
+  min-width:0!important;
+  width:100%!important;
+  height:calc(51px * var(--game-scale))!important;
+  box-sizing:border-box!important;
+  padding:0!important;
+  border:1px solid transparent!important;
+  border-radius:0!important;
+  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
+  border-image-slice:15 fill!important;
+  border-image-width:1!important;
+  border-image-repeat:stretch!important;
+  background:transparent!important;
+  color:var(--gold2)!important;
+  font:700 calc(22px * var(--game-scale))/1 var(--font-hd)!important;
+  cursor:pointer!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover{
+  filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled{
+  opacity:.42!important;
+  cursor:not-allowed!important;
 }
 </style>
 </body>

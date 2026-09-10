@@ -1368,26 +1368,21 @@ function _syncRewardProductionRings(){
 function _openRingActionConfirm(idx,anchor){
   const ring=Array.isArray(G.rings)?G.rings[idx]:null;
   if(!ring) return;
-  _closeItemUseConfirm();
-  const pop=document.createElement('div');
-  pop.id='item-use-confirm';
   const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
-  pop.innerHTML=`<div class="item-use-title">${ring.name||'指輪'}</div><div class="item-use-desc">${ringDesc}</div><button type="button" class="btn ring-toggle-do">${ring._disabled?'有効化':'無効化'}</button><button type="button" class="btn ring-discard-do">捨てる</button><button type="button" class="btn ring-action-cancel">やめる</button>`;
-  document.body.appendChild(pop);
-  const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
-  const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
-  if(rect){ pop.style.left=`${rect.right+14*scale}px`; pop.style.top=`${rect.top+18*scale}px`; }
-  pop.querySelector('.ring-toggle-do').onclick=e=>{
-    e.stopPropagation(); ring._disabled=!ring._disabled; _closeItemUseConfirm();
-    if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-    _syncRewardProductionUi(); updateHUD();
-  };
-  pop.querySelector('.ring-discard-do').onclick=e=>{
-    e.stopPropagation(); G.rings[idx]=null; _closeItemUseConfirm();
-    if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
-    _syncRewardProductionUi(); updateHUD();
-  };
-  pop.querySelector('.ring-action-cancel').onclick=e=>{ e.stopPropagation(); _closeItemUseConfirm(); };
+  _closeItemUseConfirm();
+  _openRewardActionTooltip(anchor,ring.name||'指輪',ringDesc,[
+    {label:ring._disabled?'有効化':'無効化',onClick:()=>{
+      ring._disabled=!ring._disabled; _closeItemUseConfirm();
+      if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+      _syncRewardProductionUi(); updateHUD();
+    }},
+    {label:'捨てる',onClick:()=>{
+      G.rings[idx]=null; _closeItemUseConfirm();
+      if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+      _syncRewardProductionUi(); updateHUD();
+    }},
+    {label:'やめる',onClick:()=>_closeItemUseConfirm()}
+  ]);
 }
 function _rewardRingRarityClass(ring){
   const n=Math.max(1,Math.min(5,parseInt(ring&&ring.rarity,10)||1));
