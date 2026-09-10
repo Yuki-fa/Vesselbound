@@ -232,6 +232,11 @@ const PRESENT_PROJECTILE_STAGGER_MS = 260;
 // 素材の中で絵が上寄りだと、枠の中心を合わせても見た目は上に当たる。
 // 見た目上カードの中央で当たるように下げる。
 const PRESENT_PROJECTILE_IMPACT_OFFSET_Y = .18;
+// ケンタウロスの縦長素材は透明余白の基準位置が炎の矢と異なるため、
+// 画像の移動終点は対象カードの中心へ合わせる。
+function presentProjectileImpactOffsetY(code) {
+  return String(code || '').toUpperCase() === 'C019' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
+}
 // 曲線軌道（ミサイル）の見せ方。**素材を歪めない。** 位置と回転だけで見せる。
 // 膨らみは始点→終点の垂線方向へ。距離に比例させ、画面外へ出ない範囲で頭打ちにする。
 // 着弾VFXを出す高さ（対象カードの高さに対する比。マイナスで上へ）。
@@ -1144,6 +1149,7 @@ if (typeof window !== 'undefined') {
   window.PRESENT_PROJECTILE_FLIGHT_MS = PRESENT_PROJECTILE_FLIGHT_MS;
   window.PRESENT_PROJECTILE_STAGGER_MS = PRESENT_PROJECTILE_STAGGER_MS;
   window.PRESENT_PROJECTILE_IMPACT_OFFSET_Y = PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
+  window.presentProjectileImpactOffsetY = presentProjectileImpactOffsetY;
   window.PRESENT_MISSILE_NOSE_OFFSET_DEG = PRESENT_MISSILE_NOSE_OFFSET_DEG;
   window.PRESENT_EFFECT_HIT_OFFSET_Y = PRESENT_EFFECT_HIT_OFFSET_Y;
   window.presentMissileEase = presentMissileEase;

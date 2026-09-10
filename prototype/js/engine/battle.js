@@ -3948,9 +3948,9 @@ function _isArassusPreDamageAttack(unit){
   if(['アラッサス','サイレン'].includes(unit.name)){
     return /全ての(敵|キャラクター)に1ダメージ/.test(text);
   }
-  if(unit.name==='ケンタウロス'){
-    return /ランダムな敵にXダメージ/.test(text);
-  }
+  // ケンタウロスは炎の矢（マナ閾値）と同じく、通常攻撃が敵へ到達してから
+  // 攻撃効果を解決する。専用の途中停止へ入れると、矢の着弾前に通常攻撃を
+  // 再開してダメージ表示が重なる。
   if(unit.name==='グレムリン') return true;
   return false;
 }
@@ -4145,6 +4145,10 @@ async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx
     }
     return attackResult;
   } finally {
+    if(attacker&&attacker.id!=null){
+      G._suppressNextCompactUnitIds=new Set([String(attacker.id)]);
+      window.setTimeout(()=>G._suppressNextCompactUnitIds=null,500);
+    }
     endBattleMotion();
   }
 }
@@ -4286,6 +4290,10 @@ async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarg
     }
     return result;
   } finally {
+    if(attacker&&attacker.id!=null){
+      G._suppressNextCompactUnitIds=new Set([String(attacker.id)]);
+      window.setTimeout(()=>G._suppressNextCompactUnitIds=null,500);
+    }
     endBattleMotion();
   }
 }

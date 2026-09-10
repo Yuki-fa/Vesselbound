@@ -1567,7 +1567,9 @@ function playCurvedMissile(options){
   const impactOffsetY=Number.isFinite(Number(opt.impactOffsetY))?Number(opt.impactOffsetY)
     :((typeof PRESENT_PROJECTILE_IMPACT_OFFSET_Y==='number'&&PRESENT_PROJECTILE_IMPACT_OFFSET_Y)||0);
   const from={x:fromRect.left+fromRect.width/2, y:fromRect.top+fromRect.height/2};
-  const to={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*impactOffsetY};
+  const codeOffset=typeof presentProjectileImpactOffsetY==='function'
+    ?presentProjectileImpactOffsetY(opt.code):impactOffsetY;
+  const to={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
   // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
@@ -1692,6 +1694,7 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
   if(!url||!fromRect||!toRect){ impact(); return; }
   await playCurvedMissile({
     asset:url,
+    code,
     sourceRect:fromRect,
     targetRect:toRect,
     scale:Number(opt.vfxScale)
@@ -4544,6 +4547,9 @@ function renderField(id,units,isEnemy,_lane){
     for(const slot of el.querySelectorAll('.slot[data-unit-id]')){
         const oldRect=previousRects.get(slot.dataset.unitId);
         if(!oldRect) continue;
+        // 多段攻撃の接触直後に相手側の人数が変わっても、攻撃者自身へ
+        // FLIP移動を掛けない。これがあると攻撃者が左右へ一度動いて戻る。
+        if(G._suppressNextCompactUnitIds&&G._suppressNextCompactUnitIds.has(String(slot.dataset.unitId))) continue;
         compactMatched++;
         const newRect=slot.getBoundingClientRect();
         const dx=oldRect.left-newRect.left;
