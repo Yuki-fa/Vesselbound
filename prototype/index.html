@@ -8992,6 +8992,16 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
   text-align:center;
   color:#f2d9a0;
 }
+#item-use-confirm .item-use-desc{
+  grid-column:1 / -1;
+  min-height:calc(58px * var(--game-scale));
+  color:#efe4c6;
+  font-family:var(--font-body,inherit);
+  font-size:calc(20px * var(--game-scale));
+  line-height:1.45;
+  white-space:pre-wrap;
+  text-align:center;
+}
 #item-use-confirm .btn{
   font-size:calc(22px * var(--game-scale));
   padding:.45em .9em;
@@ -13812,7 +13822,7 @@ fitVesselboundViewport();
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=multiRevive01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=attackMotion03"></script>
+    <script src="js/battle/present.js?v=attackMotion04"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13835,9 +13845,9 @@ fitVesselboundViewport();
     <script src="js/engine/battle.js?v=attackMotion03"></script>
     <script src="js/engine/battle_events.js?v=multiRevive01"></script>
     <script src="js/engine/render.js?v=attackMotion04"></script>
-<script src="js/engine/reward_items.js?v=noTreasure01"></script>
+<script src="js/engine/reward_items.js?v=shopMenu01"></script>
 <script src="js/engine/reward_journey.js?v=steal01"></script>
-<script src="js/engine/reward.js?v=dragDim01"></script>
+<script src="js/engine/reward.js?v=shopMenu01"></script>
 <script src="js/engine/map.js?v=steal02"></script>
   <script src="js/engine/main.js?v=bgmWarm02"></script>
 <script>
@@ -14253,6 +14263,112 @@ html body #kw-tooltip .preview-section-rule{
   color:#cfe4ff!important;
   -webkit-text-stroke:3px #071426;
   text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 18px rgba(90,160,255,.55)!important;
+}
+
+/* 売却・還魂の共通UI。カード／アイテムをポイントしている間だけ表示する。 */
+html body.reward-screen-active .shop-board-sell-btn,
+html body.reward-screen-active .shop-pending-sell-btn{
+  display:none!important;
+  left:50%!important;
+  right:auto!important;
+  width:130px!important;
+  min-width:130px!important;
+  height:51px!important;
+  box-sizing:border-box!important;
+  padding:0!important;
+  border:1px solid transparent!important;
+  border-radius:0!important;
+  background:transparent!important;
+  border-image-source:url("assets/ui/button_invisible.svg")!important;
+  border-image-slice:15 fill!important;
+  border-image-width:1!important;
+  border-image-outset:0!important;
+  border-image-repeat:stretch!important;
+  color:var(--gold2)!important;
+  font:700 24px/1.1 var(--font-hd)!important;
+  text-shadow:0 1px 2px #000!important;
+  transform:translateX(-50%);
+  cursor:pointer!important;
+  z-index:10012!important;
+}
+html body.reward-screen-active .rew-card:hover .shop-board-sell-btn,
+html body.reward-screen-active .rew-card:hover .shop-pending-sell-btn,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:hover .shop-board-sell-btn,
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i:hover .shop-board-sell-btn{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+html body.reward-screen-active .shop-board-sell-btn::before,
+html body.reward-screen-active .shop-pending-sell-btn::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;
+  opacity:0;
+  pointer-events:none;
+  filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9));
+  transition:opacity .12s ease;
+}
+html body.reward-screen-active .shop-board-sell-btn:hover::before,
+html body.reward-screen-active .shop-pending-sell-btn:hover::before{opacity:.84}
+html body.reward-screen-active .shop-board-sell-btn{top:94px!important}
+html body.reward-screen-active .shop-pending-sell-btn{top:94px!important}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  top:calc(100% - 25.5px)!important;
+}
+
+/* cost.svg は枠線の下側に重ね、文字は右端へ揃える。 */
+html body.reward-screen-active .shop-board-sell-value,
+html body.reward-screen-active .shop-buy-price{
+  top:34px!important;
+  right:0!important;
+  width:101px!important;
+  height:46px!important;
+  min-width:101px!important;
+  box-sizing:border-box!important;
+  padding:0 8px 0 16px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent url("assets/ui/cost.svg") center/100% 100% no-repeat!important;
+  color:var(--gold2)!important;
+  font-size:24px!important;
+  line-height:1!important;
+  text-align:right!important;
+  text-shadow:0 1px 2px #000!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
+html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-board-sell-value{
+  top:calc(100% - 23px)!important;
+}
+html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:34px!important}
+
+/* クリック後のアイテム／指輪メニューは説明の直下に並ぶ固定表示。 */
+html body #item-use-confirm{
+  min-width:calc(360px * var(--game-scale));
+  padding:calc(14px * var(--game-scale));
+  border:0;
+  background:rgba(8,4,2,.94) url("assets/ui/info_box.svg") center/100% 100% no-repeat;
+  box-shadow:none;
+}
+html body #item-use-confirm .btn{
+  min-height:calc(51px * var(--game-scale));
+  border:1px solid transparent;
+  border-radius:0;
+  background:transparent;
+  border-image-source:url("assets/ui/button_invisible.svg");
+  border-image-slice:15 fill;
+  border-image-width:1;
+  border-image-repeat:stretch;
+  color:var(--gold2);
+  cursor:pointer;
+}
+html body #item-use-confirm .btn::before{display:none}
+html body #item-use-confirm .btn:hover{
+  filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7));
 }
 </style>
 </body>

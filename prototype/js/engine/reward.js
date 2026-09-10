@@ -1371,7 +1371,8 @@ function _openRingActionConfirm(idx,anchor){
   _closeItemUseConfirm();
   const pop=document.createElement('div');
   pop.id='item-use-confirm';
-  pop.innerHTML=`<div class="item-use-title">${ring.name||'指輪'}</div><button type="button" class="btn ring-toggle-do">${ring._disabled?'有効化':'無効化'}</button><button type="button" class="btn ring-discard-do">捨てる</button><button type="button" class="btn ring-action-cancel">キャンセル</button>`;
+  const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
+  pop.innerHTML=`<div class="item-use-title">${ring.name||'指輪'}</div><div class="item-use-desc">${ringDesc}</div><button type="button" class="btn ring-toggle-do">${ring._disabled?'有効化':'無効化'}</button><button type="button" class="btn ring-discard-do">捨てる</button><button type="button" class="btn ring-action-cancel">やめる</button>`;
   document.body.appendChild(pop);
   const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
   const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;

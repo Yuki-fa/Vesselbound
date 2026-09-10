@@ -1570,13 +1570,9 @@ function playCurvedMissile(options){
   const codeOffset=typeof presentProjectileImpactOffsetY==='function'
     ?presentProjectileImpactOffsetY(opt.code):impactOffsetY;
   const centerTo={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
-  let to=centerTo;
-  if(String(opt.code||'').toUpperCase()==='C019'){
-    const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
-    const len=Math.hypot(vx,vy)||1;
-    const lead=toRect.height*.18;
-    to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
-  }
+  // C019もE058と同じ着弾座標を使う。縦長素材の透明余白を理由に
+  // 飛行方向へ補正すると、敵の中心からさらに離れて見える。
+  const to=centerTo;
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
   // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
@@ -3325,6 +3321,11 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const targetRectOverride=opt.targetRect&&opt.targetRect.width>0&&opt.targetRect.height>0
     ?opt.targetRect:null;
   if(!fromEl||(!toEl&&!targetRectOverride)) return Promise.resolve();
+  // 攻撃者自身は、接触中の敵死亡による盤面詰め直しから除外する。
+  // ここを攻撃終了後だけにすると、onContact 内の死亡処理で先にFLIPが付き、
+  // 複製カードの戻り動作と重なって「跳ねてから戻る」ように見える。
+  const compactHold=G._suppressCompactUnitIds||(G._suppressCompactUnitIds=new Set());
+  if(attacker.id!=null) compactHold.add(String(attacker.id));
   const fr=fromEl.getBoundingClientRect();
   const tr=targetRectOverride||_getAttackTargetRect(toEl);
   const dx=(tr.left+tr.width/2)-(fr.left+fr.width/2);
@@ -3385,6 +3386,10 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const atStop=getTargetMotionTransform(stopRatio)||`translate(${mx*stopRatio}px,${my*stopRatio}px) rotate(${tilt}deg)`;
   const atHit=getTargetMotionTransform(1)||`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
   const cleanup=()=>{
+    if(attacker&&attacker.id!=null&&G._suppressCompactUnitIds){
+      G._suppressCompactUnitIds.delete(String(attacker.id));
+      if(!G._suppressCompactUnitIds.size) G._suppressCompactUnitIds=null;
+    }
     if(fromEl){
       fromEl.classList.remove('motion-hidden');
       fromEl.style.removeProperty('visibility');
@@ -4560,7 +4565,8 @@ function renderField(id,units,isEnemy,_lane){
         if(!oldRect) continue;
         // 多段攻撃の接触直後に相手側の人数が変わっても、攻撃者自身へ
         // FLIP移動を掛けない。これがあると攻撃者が左右へ一度動いて戻る。
-        if(G._suppressNextCompactUnitIds&&G._suppressNextCompactUnitIds.has(String(slot.dataset.unitId))) continue;
+        if((G._suppressNextCompactUnitIds&&G._suppressNextCompactUnitIds.has(String(slot.dataset.unitId)))
+          ||(G._suppressCompactUnitIds&&G._suppressCompactUnitIds.has(String(slot.dataset.unitId)))) continue;
         compactMatched++;
         const newRect=slot.getBoundingClientRect();
         const dx=oldRect.left-newRect.left;

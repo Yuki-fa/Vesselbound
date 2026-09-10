@@ -701,7 +701,7 @@ function _openItemUseConfirm(idx,anchor){
   const pop=document.createElement('div');
   pop.id='item-use-confirm';
   pop.dataset.slotIdx=String(idx);
-  pop.innerHTML=`<div class="item-use-title">${card.name||'アイテム'}</div><button type="button" class="btn item-use-do">使う</button><button type="button" class="btn item-use-discard">捨てる</button><button type="button" class="btn item-use-cancel">キャンセル</button>`;
+  pop.innerHTML=`<div class="item-use-title">${card.name||'アイテム'}</div><div class="item-use-desc">${card.desc||''}</div><button type="button" class="btn item-use-do">使う</button><button type="button" class="btn item-use-discard">捨てる</button><button type="button" class="btn item-use-cancel">やめる</button>`;
   document.body.appendChild(pop);
   const rect=anchor&&anchor.getBoundingClientRect?anchor.getBoundingClientRect():null;
   const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
