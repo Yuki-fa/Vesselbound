@@ -158,7 +158,17 @@ function _closeItemUseConfirm(){
 function _openRewardActionTooltip(anchor,title,desc,actions){
   const tip=document.getElementById('kw-tooltip');
   if(!tip) return;
-  const oldRect=tip.style.display==='block'?tip.getBoundingClientRect():null;
+  const shownStyle=getComputedStyle(tip);
+  const measured=tip.getBoundingClientRect();
+  const oldRect=shownStyle.display!=='none'&&measured.width>0&&measured.height>0?measured:null;
+  // class/contentsの差し替えでCSSの幅が変わる前に、ホバー表示の
+  // 左上と幅を固定する。説明の下へボタン行が伸びるだけにする。
+  if(oldRect){
+    tip.style.left=`${oldRect.left}px`;
+    tip.style.top=`${oldRect.top}px`;
+    tip.style.width=`${oldRect.width}px`;
+    tip.style.maxWidth=`${oldRect.width}px`;
+  }
   const esc=s=>String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   tip.dataset.rewardLocked='1';
   tip.className='reward-action-tooltip';
@@ -179,10 +189,7 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
   });
   tip.style.display='block';
   const rect=anchor?.getBoundingClientRect?.();
-  if(oldRect){
-    tip.style.left=`${oldRect.left}px`;
-    tip.style.top=`${oldRect.top}px`;
-  }else if(rect){
+  if(!oldRect&&rect){
     const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
     tip.style.left=`${Math.max(8,rect.left)}px`;
     tip.style.top=`${rect.bottom+8*scale}px`;

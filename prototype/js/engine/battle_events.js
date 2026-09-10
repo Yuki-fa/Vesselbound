@@ -497,7 +497,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         // 効果より前に始めておいたモーション。ここで接触まで進める。
         const held=_preAttack;
         _preAttack=null;
-        held.release();
+        held.release(e.effectOnly?{abort:true}:undefined);
         await held.motion;
       } else if(attacker&&target&&typeof playAttackMotion==='function'){
         if(e.attackVisual===false) continue;

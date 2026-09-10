@@ -13820,7 +13820,7 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=multiRevive01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=multiRevive01"></script>
+    <script src="js/battle/core.js?v=multiFinish01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
     <script src="js/battle/present.js?v=attackMotion05"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
@@ -13831,7 +13831,7 @@ fitVesselboundViewport();
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=issueFix01"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=multiRevive01"></script>
+    <script src="js/online/board.js?v=multiFinish01"></script>
 <script src="js/online/versus.js?v=refactor01"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
@@ -13843,9 +13843,9 @@ fitVesselboundViewport();
 <script src="js/engine/pool.js?v=multiRevive01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=attackMotion03"></script>
-    <script src="js/engine/battle_events.js?v=multiRevive01"></script>
-    <script src="js/engine/render.js?v=attackMotion06"></script>
-<script src="js/engine/reward_items.js?v=shopMenu02"></script>
+    <script src="js/engine/battle_events.js?v=multiFinish01"></script>
+    <script src="js/engine/render.js?v=c019Center01"></script>
+<script src="js/engine/reward_items.js?v=shopMenu03"></script>
 <script src="js/engine/reward_journey.js?v=steal01"></script>
 <script src="js/engine/reward.js?v=shopMenu02"></script>
 <script src="js/engine/map.js?v=steal02"></script>
@@ -14278,16 +14278,9 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
   height:51px!important;
   box-sizing:border-box!important;
   padding:0!important;
-  /* 角飾りは原画でx/y=21pxまである。22pxで切り分け、
-     角と線幅を原寸のまま伸縮させない。 */
-  border:22px solid transparent!important;
+  border:0!important;
   border-radius:0!important;
   background:transparent!important;
-  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
-  border-image-slice:22 fill!important;
-  border-image-width:22px!important;
-  border-image-outset:0!important;
-  border-image-repeat:stretch!important;
   color:#c49a6c!important;
   font:700 24px/1.1 var(--font-hd)!important;
   text-shadow:0 1px 2px #000!important;
@@ -14306,26 +14299,29 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i:hover .sho
 html body.reward-screen-active .shop-board-sell-btn::before,
 html body.reward-screen-active .shop-pending-sell-btn::before{
   content:'';
-  position:absolute;
-  inset:0;
-  background:transparent url("assets/ui/button_invisible.svg?v=shopMenu01") center/100% 100% no-repeat;
-  opacity:0;
-  pointer-events:none;
-  filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9));
-  transition:opacity .12s ease;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:22px solid transparent!important;
+  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu03")!important;
+  border-image-slice:22 fill!important;
+  border-image-width:22px!important;
+  border-image-outset:0!important;
+  border-image-repeat:stretch!important;
+  opacity:1!important;
+  pointer-events:none!important;
+  transition:filter .12s ease!important;
+  z-index:-1!important;
 }
 html body.reward-screen-active .shop-board-sell-btn:hover::before,
-html body.reward-screen-active .shop-pending-sell-btn:hover::before{opacity:.84}
-html body.reward-screen-active .shop-board-sell-btn::before,
-html body.reward-screen-active .shop-pending-sell-btn::before{display:none!important}
-html body.reward-screen-active .shop-board-sell-btn:hover,
-html body.reward-screen-active .shop-pending-sell-btn:hover{
+html body.reward-screen-active .shop-pending-sell-btn:hover::before{
   filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
 }
 html body.reward-screen-active .shop-board-sell-btn,
 html body.reward-screen-active .shop-pending-sell-btn{
-  top:auto!important;
-  bottom:58px!important;
+  top:calc(50% + 18px)!important;
+  bottom:auto!important;
 }
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
   top:calc(100% - 25.5px)!important;
@@ -14358,7 +14354,8 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-boar
   line-height:1!important;
   text-align:right!important;
   text-shadow:0 1px 2px #000!important;
-  z-index:5!important;
+  /* board-frame-layer(100) より上、プログラム枠(map-boundary-layer=110)より下。 */
+  z-index:105!important;
 }
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-board-sell-value{
@@ -14396,8 +14393,6 @@ html body #kw-tooltip.reward-action-tooltip{
   pointer-events:auto!important;
   display:grid!important;
   grid-template-columns:1fr!important;
-  width:calc(460px * var(--game-scale))!important;
-  max-width:calc(460px * var(--game-scale))!important;
   white-space:normal!important;
   cursor:default!important;
 }
@@ -14419,18 +14414,30 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
   height:calc(51px * var(--game-scale))!important;
   box-sizing:border-box!important;
   padding:0!important;
-  border:calc(22px * var(--game-scale)) solid transparent!important;
+  position:relative!important;
+  isolation:isolate!important;
+  border:0!important;
   border-radius:0!important;
-  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01")!important;
-  border-image-slice:22 fill!important;
-  border-image-width:calc(22px * var(--game-scale))!important;
-  border-image-repeat:stretch!important;
   background:transparent!important;
   color:#c49a6c!important;
   font:700 calc(22px * var(--game-scale))/1 var(--font-hd)!important;
   cursor:pointer!important;
 }
-html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover{
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn::before{
+  content:''!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:calc(22px * var(--game-scale)) solid transparent!important;
+  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu03")!important;
+  border-image-slice:22 fill!important;
+  border-image-width:calc(22px * var(--game-scale))!important;
+  border-image-repeat:stretch!important;
+  pointer-events:none!important;
+  z-index:-1!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::before{
   filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled{

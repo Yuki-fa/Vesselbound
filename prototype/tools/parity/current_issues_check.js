@@ -128,7 +128,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       document.getElementById('scr-battle').classList.add('active');
       document.body.className='';
       const siren={id:'siren-triple',name:'サイレン',side:'p1',lane:'front',atk:3,hp:47,maxHp:47,
-        color:'赤',keywords:['邪眼5','邪眼5','大いなる守護','三段攻撃'],
+        color:'赤',keywords:['邪眼5','邪眼5','邪眼5','大いなる守護','三段攻撃'],
         desc:'攻撃：全てのキャラクターに1ダメージを与える。',_panelSummoned:true};
       const enemies=[0,1,2].map(i=>({id:'siren-triple-e'+i,name:'敵'+i,side:'p2',lane:'front',atk:3,hp:20,maxHp:20,
         color:'黒',keywords:[],desc:'',_panelSummoned:true}));
@@ -178,14 +178,41 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       assert.ok(strike.reversals<=1,`${index+1}撃目の戻り中に余分な左右反転がある`);
       assert.ok(strike.returnError<2,`${index+1}撃目が元の場所へ戻っていない`);
     });
-    console.log('OK サイレン＋邪眼2枚＋大いなる守護＋三段攻撃で跳ね戻りなし');
+    console.log('OK サイレン＋邪眼3枚＋大いなる守護＋三段攻撃で跳ね戻りなし');
+
+    const sirenFinish=await browser.eval(`
+      const mk=(id,hp)=>({id,name:id,side:'p2',lane:'front',atk:300,hp,maxHp:hp,color:'黒',keywords:[],desc:'',_panelSummoned:true});
+      const source={id:'siren-finish',name:'サイレン',side:'p1',lane:'front',atk:1,hp:999,maxHp:999,color:'赤',
+        keywords:['邪眼5','邪眼5','邪眼5','大いなる守護','三段攻撃'],
+        desc:'攻撃：全てのキャラクターに1ダメージを与える。',_panelSummoned:true};
+      const setup={sides:{p1:{units:[source]},p2:{units:[mk('finish-a',3),mk('finish-b',3),mk('finish-c',3)]}},
+        resources:{p1:{mana:0,gold:0},p2:{mana:0,gold:0}},rings:{p1:[],p2:[]},items:{p1:[],p2:[]}};
+      const state=createBattleState(setup), events=[];
+      state._coreFirstSide='p1';
+      const runner=createBattleRunner(state,coreMathRng,ev=>events.push(ev),{skipOpening:true});
+      runner.step();
+      const attacks=events.filter(e=>e.type==='attack'&&e.attackerId==='siren-finish'&&e.attackVisual!==false);
+      const final=attacks[attacks.length-1];
+      return {attackCount:attacks.length,effectOnly:!!(final&&final.effectOnly),finalIndex:events.indexOf(final),
+        lastEffectIndex:Math.max(...events.map((e,i)=>e.type==='damage'&&e.damageKind==='attack_effect'?i:-1)),
+        battleEndIndex:events.findIndex(e=>e.type==='battle_end')};
+    `);
+    assert.deepEqual([sirenFinish.attackCount,sirenFinish.effectOnly],[3,true],
+      '効果で全滅する三撃目の踏み込みイベントが無い');
+    assert.ok(sirenFinish.finalIndex>sirenFinish.lastEffectIndex,
+      '最終撃の効果が出る前に攻撃完了になっている');
+    assert.ok(sirenFinish.battleEndIndex<0||sirenFinish.battleEndIndex>sirenFinish.finalIndex,
+      '最終撃のモーションより先に決着が出ている');
+    console.log('OK 効果で全滅する三撃目も踏み込み後にVFX・決着');
 
     const shopUi=await browser.eval(`
       document.body.classList.add('reward-screen-active');
       const host=document.createElement('div'); host.className='rew-card';
       host.innerHTML='<span class="shop-board-sell-value">+40G</span><button class="shop-board-sell-btn">売却</button>';
       document.body.appendChild(host);
-      const sale=getComputedStyle(host.querySelector('.shop-board-sell-btn'));
+      const saleEl=host.querySelector('.shop-board-sell-btn');
+      const sale=getComputedStyle(saleEl);
+      const saleFrame=getComputedStyle(saleEl,'::before');
       const cost=getComputedStyle(host.querySelector('.shop-board-sell-value'));
       const tip=document.getElementById('kw-tooltip');
       tip.style.display='block'; tip.style.left='137px'; tip.style.top='191px';
@@ -193,17 +220,19 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       const before=tip.getBoundingClientRect();
       _openRewardActionTooltip(host,'絆の巻物','説明',[{label:'使う'},{label:'捨てる'},{label:'やめる'}]);
       const after=tip.getBoundingClientRect();
-      const action=getComputedStyle(tip.querySelector('.reward-action-btn'));
+      const actionEl=tip.querySelector('.reward-action-btn');
+      const action=getComputedStyle(actionEl);
+      const actionFrame=getComputedStyle(actionEl,'::before');
       const result={
-        sale:{width:sale.width,height:sale.height,bottom:sale.bottom,color:sale.color,border:sale.borderImageSource,slice:sale.borderImageSlice},
+        sale:{width:sale.width,height:sale.height,top:sale.top,color:sale.color,border:saleFrame.borderImageSource,slice:saleFrame.borderImageSlice},
         cost:{background:cost.backgroundImage,width:cost.width,height:cost.height},
-        action:{color:action.color,border:action.borderImageSource,slice:action.borderImageSlice,count:tip.querySelectorAll('.reward-action-btn').length},
-        tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top)}
+        action:{color:action.color,border:actionFrame.borderImageSource,slice:actionFrame.borderImageSlice,count:tip.querySelectorAll('.reward-action-btn').length},
+        tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top),w:Math.abs(after.width-before.width)}
       };
       host.remove(); _closeItemUseConfirm();
       return result;
     `);
-    assert.deepEqual([shopUi.sale.width,shopUi.sale.height,shopUi.sale.bottom],['130px','51px','58px']);
+    assert.deepEqual([shopUi.sale.width,shopUi.sale.height],['130px','51px']);
     assert.equal(shopUi.sale.color,'rgb(196, 154, 108)');
     assert.match(shopUi.sale.border,/button_invisible\.svg/);
     assert.equal(shopUi.sale.slice,'22 fill');
@@ -213,7 +242,8 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     assert.equal(shopUi.action.color,'rgb(196, 154, 108)');
     assert.match(shopUi.action.border,/button_invisible\.svg/);
     assert.equal(shopUi.action.slice,'22 fill');
-    assert.ok(shopUi.tooltipDelta.x<1&&shopUi.tooltipDelta.y<1,'クリックでホバー説明の位置が動いた');
+    assert.ok(shopUi.tooltipDelta.x<1&&shopUi.tooltipDelta.y<1&&shopUi.tooltipDelta.w<1,
+      'クリックでホバー説明の位置または幅が動いた');
     console.log('OK 売却・アクションボタンとcost.svgの実DOM表示');
 
     const revive=await browser.eval(`

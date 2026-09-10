@@ -618,7 +618,7 @@
         if (_preAttack && _preAttack.ev === ev) {
           // 効果より前に始めておいたモーション。ここで接触まで進める。
           const held = _preAttack; _preAttack = null;
-          held.release();
+          held.release(ev.effectOnly ? { abort: true } : undefined);
           await held.motion;
           break;
         }

@@ -4487,7 +4487,15 @@ function coreBattleStepInner(ctx) {
     // ATK0は死亡効果を発動させず、逃走イベントを出してから勝敗を確定する。
     coreSweepAtkZeroFlee(state, emit);
     result = decided();
-    if (result) return { side, result, stop: true };
+    if (result) {
+      // 攻撃効果だけで決着した場合も、この一撃の「踏み込み→効果」は表示する。
+      // 通常の attack が後ろに無いと、再生側が攻撃モーションを先行開始できず、
+      // 二段／三段攻撃の最終撃だけVFXがカードより先に出ていた。
+      // effectOnly は接触ダメージを発生させず、25%地点から戻す表示用の印。
+      emit({ type: 'attack', side, attackerId: attacker.id, targetId: plannedTarget.id,
+        damage: 0, counterDamage: 0, attackVisual: true, effectOnly: true });
+      return { side, result, stop: true };
+    }
     if (attacker.hp <= 0) {
       coreTriggerDeath(attacker, state, emit);
       coreApplyDeathEffects(attacker, state, rng, emit, applyHit);
@@ -4648,7 +4656,11 @@ function coreBattleStepInner(ctx) {
       coreFlushPendingLichSummons(state, emit);
       coreSweepAtkZeroFlee(state, emit);
       result = decided();
-      if (result) return { side, result, stop: true };
+      if (result) {
+        emit({ type: 'attack', side, attackerId: attacker.id, targetId: nextTarget.id,
+          damage: 0, counterDamage: 0, attackVisual: true, effectOnly: true });
+        return { side, result, stop: true };
+      }
       // 身代わり攻撃（スケルトンキング等）はこの一撃を肩代わりする。本人は殴らない。
       if (extraResult.skipAttack) continue;
       // 対象が攻撃効果で倒れている場合は、この一撃の相手を選び直す。

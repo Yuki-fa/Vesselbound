@@ -1581,10 +1581,10 @@ function playCurvedMissile(options){
     // そのまま終点にすると飛行方向へ突き抜ける。実体中心を敵中心へ置く。
     const vx=centerTo.x-from.x, vy=centerTo.y-from.y;
     const len=Math.hypot(vx,vy)||1;
-    // 着弾時のフレーム群を透過アルファで実測すると、実体中心は
-    // 560px高の画像中心より約75px先端側。初フレームだけの約208pxを
-    // 使うと、飛行中に伸びた絵の中心が敵から大きく離れてしまう。
-    const lead=fromRect.width*(4.6*.125)*(75/120);
+    // E058_1とC019_1を同じ画面で着弾フレームまで進め、
+    // 対象中心と「先端の発光部」を実測した補正。DOMの中心ではなく、
+    // プレイヤーが着弾点として見る部分を炎の矢と同じ位置に揃える。
+    const lead=fromRect.width*.9;
     to={x:centerTo.x-vx/len*lead,y:centerTo.y-vy/len*lead};
   }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
@@ -1636,7 +1636,13 @@ function playCurvedMissile(options){
   let cleaned=false;
   const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
   return new Promise(resolve=>{
-    const finish=async()=>{ flushWaypoints(); await fireHit(); cleanup(); resolve(); };
+    const finish=async()=>{
+      flushWaypoints();
+      await fireHit();
+      const cleanupDelayMs=Math.max(0,Number(opt.cleanupDelayMs)||0);
+      if(cleanupDelayMs) await new Promise(done=>setTimeout(done,cleanupDelayMs));
+      cleanup(); resolve();
+    };
     // **起点は「実際に最初のフレームが来た時刻」**（攻撃モーションと同じ規則）。
     // 予約時刻を起点にすると、メインスレッドが尺以上止まった時に1フレーム目で着弾する。
     let startedAt=null;

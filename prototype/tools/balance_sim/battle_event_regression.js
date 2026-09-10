@@ -137,8 +137,10 @@ function runSkeletonKingAndMultiHitScenario() {
   const finishEvents = [];
   const outcome = core.runBattleCore(finish, createSeededRng(82), {onEvent: e => finishEvents.push(e)});
   assert.equal(outcome.outcome, 'p1', '攻撃効果で勝利確定後に勝敗が確定していない');
-  assert.equal(finishEvents.filter(e => e.type === 'attack').length, 0,
+  assert.equal(finishEvents.filter(e => e.type === 'attack' && !e.effectOnly).length, 0,
     '攻撃効果で全滅した後も接触攻撃／多段攻撃を続けている');
+  assert.equal(finishEvents.filter(e => e.type === 'attack' && e.effectOnly).length, 1,
+    '攻撃効果で全滅する最終撃の踏み込み表示が欠けている');
 }
 
 function runManaSummonLichScenario() {
