@@ -4,41 +4,29 @@
   <defs>
     <style>
       .st0 {
-        stroke: url(#_名称未設定グラデーション_2);
-      }
-
-      .st0, .st1, .st2 {
-        fill: none;
-        stroke-miterlimit: 10;
-      }
-
-      .st0, .st2 {
-        stroke-width: 2px;
-      }
-
-      .st3 {
         isolation: isolate;
         opacity: .8;
       }
 
       .st1 {
-        stroke: url(#_名称未設定グラデーション_3);
+        stroke: url(#_名称未設定グラデーション);
         stroke-width: 1.2px;
       }
 
+      .st1, .st2 {
+        fill: none;
+        stroke-miterlimit: 10;
+      }
+
       .st2 {
-        stroke: url(#_名称未設定グラデーション);
+        stroke: url(#_名称未設定グラデーション_3);
       }
     </style>
-    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="66" cy="-10345" fx="66" fy="-10345" r="71.8" gradientTransform="translate(0 10376.0059)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="66" cy="10409" fx="66" fy="10409" r="71.3" gradientTransform="translate(0 10440.0059) scale(1 -1)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#8a5c12"/>
     </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="66" cy="-10345" fx="66" fy="-10345" r="71.8" gradientTransform="translate(0 10376.0059)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#bf9000"/>
-      <stop offset="1" stop-color="#8a5c12"/>
-    </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_3" data-name="名称未設定グラデーション 3" cx="66" cy="33" fx="66" fy="33" r="63.8" gradientTransform="translate(0 64) scale(1 -1)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション_3" data-name="名称未設定グラデーション 3" cx="66" cy="2127" fx="66" fy="2127" r="63.6" gradientTransform="translate(0 -2096)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#8a5c12"/>
     </radialGradient>
@@ -46,10 +34,9 @@
   <g id="_編成">
     <g id="_魔導板">
       <g>
-        <path class="st3" d="M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z"/>
-        <path class="st2" d="M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z" vector-effect="non-scaling-stroke"/>
-        <path class="st0" d="M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z" vector-effect="non-scaling-stroke"/>
-        <path class="st1" d="M21,55c-2.2-6.7-7.6-12-14.2-14.2v-19.2c6.7-2.2,12-7.6,14.2-14.2l90.1-.3c2.2,6.7,7.6,12,14.2,14.2v19.2c-6.7,2.2-12,7.5-14.2,14.2l-90.1.3Z"/>
+        <path class="st0" d="M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z"/>
+        <path class="st1" d="M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z" vector-effect="non-scaling-stroke"/>
+        <path class="st2" d="M21,55c-2.2-6.7-7.6-12-14.2-14.2v-19.2c6.7-2.2,12-7.6,14.2-14.2l90.1-.3c2.2,6.7,7.6,12,14.2,14.2v19.2c-6.7,2.2-12,7.5-14.2,14.2l-90.1.3Z"/>
       </g>
     </g>
   </g>

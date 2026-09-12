@@ -1279,9 +1279,13 @@ function _syncRewardProductionRings(){
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     if(ring&&(title||desc)){
       slot.setAttribute('data-preview',[title||'指輪',desc].filter(Boolean).join('\n'));
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(ring,desc):'';
+      if(keywordPreview) slot.setAttribute('data-keyword-preview',keywordPreview);
+      else slot.removeAttribute('data-keyword-preview');
       slot.classList.add(_rewardRingRarityClass(ring));
     } else {
       slot.removeAttribute('data-preview');
+      slot.removeAttribute('data-keyword-preview');
     }
     if(!slot._ringTooltipWired){
       slot._ringTooltipWired=true;
@@ -1314,7 +1318,12 @@ function _syncRewardProductionRings(){
         slot.classList.add('dragging');
       });
       slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      slot.addEventListener('dragend',()=>{ slot.classList.remove('dragging'); _dragSrc=null; });
+      slot.addEventListener('dragend',()=>{
+        slot.classList.remove('dragging');
+        _dragSrc=null;
+        _removeDragGhost();
+        _clearDragZoneClass();
+      });
       slot.addEventListener('dragover',e=>{
         if(_dragSrc&&_dragSrc.arr==='rings'&&_dragSrc.idx!==idx){ e.preventDefault(); slot.classList.add('drag-over'); return; }
         if(_dragSrc&&_dragSrc.arr==='ringOffer'&&G._ringOfferUnlocked&&!slot._rewardRing){ e.preventDefault(); slot.classList.add('drag-over'); }
@@ -1368,6 +1377,10 @@ function _syncRewardProductionRings(){
 function _openRingActionConfirm(idx,anchor){
   const ring=Array.isArray(G.rings)?G.rings[idx]:null;
   if(!ring) return;
+  const tip=document.getElementById('kw-tooltip');
+  if(tip?.dataset.rewardLocked==='1'
+    &&tip.dataset.rewardAnchorKind==='ring'
+    &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
   _openRewardActionTooltip(anchor,ring.name||'指輪',ringDesc,[
     {label:ring._disabled?'有効化':'無効化',onClick:()=>{
@@ -1382,6 +1395,8 @@ function _openRingActionConfirm(idx,anchor){
     }},
     {label:'やめる',onClick:()=>_closeItemUseConfirm()}
   ]);
+  const lockedTip=document.getElementById('kw-tooltip');
+  if(lockedTip){ lockedTip.dataset.rewardSlotIdx=String(idx); lockedTip.dataset.rewardAnchorKind='ring'; }
 }
 function _rewardRingRarityClass(ring){
   const n=Math.max(1,Math.min(5,parseInt(ring&&ring.rarity,10)||1));
@@ -1522,7 +1537,14 @@ function renderRewCards(){
     if(!card) return;
     const d=_mkRewDiv(card,()=>takeRewCard(i),i);
     if(pendingRewardIdx===i) d.classList.add('pending-placement');
-    if(_rewardPickUsed&&card._isOriginalReward){ d.onclick=null; d.style.opacity='0.5'; d.style.cursor='default'; }
+    if(_rewardPickUsed&&card._isOriginalReward){
+      d.onclick=null;
+      d.classList.add('reward-used-dim');
+      d.style.cursor='default';
+      // カード本体のopacityを下げると、常時不透明であるべき黒いm_board6背面まで
+      // 半透明になる。購入不可カードと同じ専用暗転層で内容だけを暗くする。
+      _ensureRewardCardDimLayer(d);
+    }
     el.appendChild(d);
   });
   const rbLegacy=document.getElementById('rw-reroll'); if(rbLegacy){ rbLegacy.style.display='none'; rbLegacy.disabled=true; }
@@ -1633,6 +1655,35 @@ function _mkLibraryLoanedOutDiv(itemIdx){
   return div;
 }
 
+// 報酬カードと魔導板カードで、暗転時に透けて見える最背面を共通化する。
+// カード枠・stat_overlay・絵とは別レイヤーにして、それぞれの積層規則へ干渉させない。
+function _ensureCardBackLayer(cardEl){
+  if(!cardEl||cardEl.querySelector(':scope > .card-back-layer')) return;
+  const back=document.createElement('span');
+  back.className='card-back-layer';
+  back.setAttribute('aria-hidden','true');
+  cardEl.insertBefore(back,cardEl.firstChild);
+}
+
+// 報酬カードの枠画像とプログラム枠線を分離する。
+// 購入不可時は枠画像だけを暗くし、この線は通常の明るさを維持する。
+function _ensureRewardCardLineLayer(cardEl){
+  if(!cardEl||cardEl.matches('.item-visual,.ring-visual,.forge-card')||
+    cardEl.querySelector(':scope > .reward-card-line-layer')) return;
+  const line=document.createElement('span');
+  line.className='reward-card-line-layer';
+  line.setAttribute('aria-hidden','true');
+  cardEl.appendChild(line);
+}
+function _ensureRewardCardDimLayer(cardEl){
+  if(!cardEl||!cardEl.matches('.cant,.reward-used-dim')||
+    cardEl.querySelector(':scope > .reward-card-dim-layer')) return;
+  const dim=document.createElement('span');
+  dim.className='reward-card-dim-layer';
+  dim.setAttribute('aria-hidden','true');
+  cardEl.appendChild(dim);
+}
+
 function _mkRewDiv(card, onBuy, rewIdx){
   const isPendingSale=!!card._shopSalePending;
   const cost=Math.max(0,(card._buyPrice??1));
@@ -1652,12 +1703,17 @@ function _mkRewDiv(card, onBuy, rewIdx){
   } else if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
     div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
   }
+  if((card.type==='ring'||_isItemCard(card))&&typeof _auxiliaryKeywordPreviewText==='function'){
+    const keywordPreview=_auxiliaryKeywordPreviewText(card,card.desc||'');
+    if(keywordPreview) div.setAttribute('data-keyword-preview',keywordPreview);
+  }
 
   if(card._isChar){
     // キャラクターカード
     const hasSlot=G.allies.includes(null);
     const disabled=!hasSlot;
     div.className='rew-card character-card'+((isPendingSale||canBuy&&!disabled)?'':' cant')+(isLegend?' legend':'');
+    if(card.color) div.setAttribute('data-preview-title-color',String(card.color));
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
     const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
@@ -1681,7 +1737,10 @@ function _mkRewDiv(card, onBuy, rewIdx){
       div.setAttribute('data-preview',typeof _unitPreviewText==='function'?_unitPreviewText(card,_modDescCard):_modDescCard);
     }
     const _dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card):'';
-    div.innerHTML=`${shortBadge}${costLine}${_dirMarks}<div class="rew-card-art"></div><div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set(card.keywords||[])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
+    div.innerHTML=`${shortBadge}${costLine}${_dirMarks}<div class="rew-card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set(card.keywords||[])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
+    _ensureCardBackLayer(div);
+    _ensureRewardCardLineLayer(div);
+    _ensureRewardCardDimLayer(div);
     if(isPendingSale){
       const sale=document.createElement('div');
       sale.className='shop-pending-sale-ui';
@@ -1769,6 +1828,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
     div.addEventListener('dragend',()=>{ _restoreDragSourceParts(div); div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
   }
+  _ensureCardBackLayer(div);
+  _ensureRewardCardLineLayer(div);
+  _ensureRewardCardDimLayer(div);
   return div;
 }
 
@@ -2216,7 +2278,7 @@ function _renderFieldRow(el){
       const _showShield=false;
       if(_showShield) div.classList.add('shield-active'); else div.classList.remove('shield-active');
       const shieldLayer=_showShield?'<div class="unit-shield-layer"></div>':'';
-      div.innerHTML=`${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="${hpClass}">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="unit-hit-layer"></div>`;
+      div.innerHTML=`${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="${hpClass}">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="unit-hit-layer"></div>`;
       // クリックは装備内容表示のみ。守護はカード効果でのみ付与する。
       div.onclick=e=>{
         e.stopPropagation();
@@ -2363,9 +2425,7 @@ const _DRAG_ZONE_CLASSES=['dragzone-battleorder','dragzone-reward-spell','dragzo
 const _DRAG_ZONE_RAISE_TARGETS={
   'dragzone-ring-slot':[['#reward-production-ui',9001]],
   'dragzone-ring-offer':[['#reward-production-ui',9001]],
-  // 魔導板・報酬カードのドラッグ中は #mainequip-drag-overlay で暗転する。
-  // 明るく残す報酬枠だけをオーバーレイより上へ出す
-  // （魔導板は index.html 側の `:is(.dragzone-mainequip,…) #main-hand-area{z-index:9001}` で上げている）。
+  // 報酬枠全体を暗転させず、各カードが元々持つ明暗だけを維持する。
   'dragzone-mainequip':[['#battle-order-section',9001]],
   'dragzone-reward-spell':[['#battle-order-section',9001]],
   'dragzone-reward-nonspell':[['#battle-order-section',9001]],
@@ -2386,6 +2446,12 @@ function _clearDragZoneRaise(){
     if(el) el.style.removeProperty('z-index');
   });
 }
+function _setInvalidBoardOverlayDragDimming(active){
+  document.querySelectorAll('#hand-slots.unit-equip-slots > .card.invalid-battle-position > .unit-stat-overlay-layer').forEach(el=>{
+    if(active) el.style.setProperty('filter','brightness(.5)','important');
+    else el.style.removeProperty('filter');
+  });
+}
 function _setDragZoneClass(cls){
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
@@ -2393,10 +2459,17 @@ function _setDragZoneClass(cls){
   //  ・ドラッグ元カードを透明にする（.rew-card.dragging{opacity:0}）
   //  ・魔導板/報酬枠をオーバーレイより上へ出す z-index 引き上げ
   // も担っている。付与をやめるとドラッグ元のカード枠と発光が残るため、必ず付与する。
-  if(cls){ document.body.classList.add(cls); _applyDragZoneRaise(cls); }
+  if(cls){
+    document.body.classList.add(cls);
+    _applyDragZoneRaise(cls);
+    if(cls==='dragzone-mainequip'||cls==='dragzone-reward-spell'||cls==='dragzone-reward-nonspell'){
+      _setInvalidBoardOverlayDragDimming(true);
+    }
+  }
   _syncRewardProductionUi();
 }
 function _clearDragZoneClass(){
+  _setInvalidBoardOverlayDragDimming(false);
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
   _syncRewardProductionUi();
@@ -2427,10 +2500,15 @@ function _createDragGhost(srcEl){
   const rect=srcEl.getBoundingClientRect();
   const W=rect.width||srcEl.offsetWidth||80, H=rect.height||srcEl.offsetHeight||80;
   const visualW=W*scale, visualH=H*scale;
-  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:1;visibility:hidden;`+
+  // body へ追加した直後、最初の dragover より前には座標がまだ (0, 0) である。
+  // 子レイヤーには visibility:visible!important があるため、親の visibility だけでは
+  // 左上に1フレーム見えることがある。親の合成 opacity も 0 にして完全に隠す。
+  d.style.cssText=`position:fixed;pointer-events:none;z-index:9998;opacity:0;visibility:hidden;`+
     `width:${W}px;height:${H}px;`+
     `transform:scale(${scale});transform-origin:top left;transition:none;left:0;top:0;`+
     `border-radius:6px;overflow:visible;box-shadow:0 4px 16px rgba(0,0,0,.6)`;
+  // 既存CSSに .drag-ghost { opacity:1!important } があるため、inline側もimportantにする。
+  d.style.setProperty('opacity','0','important');
   d.style.setProperty('--hand-card-w',`${W}px`);
   d.style.setProperty('--hand-card-h',`${H}px`);
   d.style.setProperty('--unit-card-w',`${W}px`);
@@ -2439,6 +2517,17 @@ function _createDragGhost(srcEl){
   d.style.setProperty('--unit-hate-frame-w',`${W}px`);
   d.style.setProperty('--drag-card-w',`${W}px`);
   d.style.setProperty('--drag-card-h',`${H}px`);
+  const gameScale=typeof _gameScale==='function'?_gameScale():1;
+  // ゴーストはゲーム画面のscale外（body直下）なので、通常カードのCSS上2pxと
+  // 同じ実表示幅にするには現在のゲーム倍率を掛ける必要がある。
+  const dragFramePx=2*gameScale;
+  const ghostRewardLine=d.querySelector(':scope > .reward-card-line-layer');
+  if(ghostRewardLine){
+    ghostRewardLine.style.setProperty('border',`${dragFramePx}px solid #c49a6c`,'important');
+    ghostRewardLine.style.setProperty('border-width',`${dragFramePx}px`,'important');
+    ghostRewardLine.style.setProperty('filter','none','important');
+    ghostRewardLine.style.setProperty('z-index','110','important');
+  }
   const frameLayer=srcEl.querySelector('.unit-frame-layer');
   const frameRect=frameLayer?.getBoundingClientRect?.();
   if(frameRect&&frameRect.width&&frameRect.height){
@@ -2451,7 +2540,92 @@ function _createDragGhost(srcEl){
       ghostFrame.style.setProperty('max-width',`${frameRect.width}px`,'important');
       ghostFrame.style.setProperty('max-height',`${frameRect.height}px`,'important');
       ghostFrame.style.setProperty('transform','translate(-50%,-50%)','important');
+      ghostFrame.style.setProperty('border',`${dragFramePx}px solid #c49a6c`,'important');
+      ghostFrame.style.setProperty('border-width',`${dragFramePx}px`,'important');
+      ghostFrame.style.setProperty('background-origin','border-box','important');
     }
+  }
+  const srcCardFrame=srcEl.querySelector('.character-frame-layer');
+  let ghostCardFrame=d.querySelector('.character-frame-layer');
+  // 報酬枠の強化カード等は枠を ::after だけで描いている。
+  // ゴーストでは二重枠防止のため ::after を無効化するので、同じ画像を実DOM層へ移す。
+  // これにより報酬カード由来でも、盤面カード由来と同じ階層構造になる。
+  let _srcFrameStyle=srcCardFrame?getComputedStyle(srcCardFrame):getComputedStyle(srcEl,'::after');
+  const _cssCardFrame=getComputedStyle(srcEl).getPropertyValue('--card-frame').trim();
+  const _hasPseudoFrame=!srcCardFrame&&
+    !srcEl.matches('.item-visual,.ring-visual,.forge-card')&&
+    ((_srcFrameStyle.backgroundImage&&_srcFrameStyle.backgroundImage!=='none')||_cssCardFrame);
+  if(!ghostCardFrame&&_hasPseudoFrame){
+    ghostCardFrame=document.createElement('div');
+    ghostCardFrame.className='character-frame-layer';
+    ghostCardFrame.setAttribute('aria-hidden','true');
+    d.appendChild(ghostCardFrame);
+  }
+  if(ghostCardFrame&&(srcCardFrame||_hasPseudoFrame)){
+    const _srcFrameRect=srcCardFrame?srcCardFrame.getBoundingClientRect():rect;
+    const _framePx=ghostRewardLine?0:dragFramePx;
+    ghostCardFrame.style.setProperty('position','absolute','important');
+    ghostCardFrame.style.setProperty('left',`${_srcFrameRect.left-rect.left}px`,'important');
+    ghostCardFrame.style.setProperty('top',`${_srcFrameRect.top-rect.top}px`,'important');
+    ghostCardFrame.style.setProperty('right','auto','important');
+    ghostCardFrame.style.setProperty('bottom','auto','important');
+    ghostCardFrame.style.setProperty('width',`${_srcFrameRect.width}px`,'important');
+    ghostCardFrame.style.setProperty('height',`${_srcFrameRect.height}px`,'important');
+    ghostCardFrame.style.setProperty('transform','none','important');
+    ghostCardFrame.style.setProperty('border',`${_framePx}px solid #c49a6c`,'important');
+    ghostCardFrame.style.setProperty('border-width',`${_framePx}px`,'important');
+    ghostCardFrame.style.setProperty('background-origin','border-box','important');
+    // 枠を実要素で持たないカードの見た目の正は --card-frame。
+    // ::after は祖先の --unit-frame を拾う古い規則が残っており、報酬の強化カードで
+    // summon_frame1 を返すことがあるため、疑似要素由来の場合はCSS変数を優先する。
+    const _frameBackground=!srcCardFrame&&_cssCardFrame?_cssCardFrame:
+      ((_srcFrameStyle.backgroundImage&&_srcFrameStyle.backgroundImage!=='none')
+        ?_srcFrameStyle.backgroundImage:_cssCardFrame);
+    ghostCardFrame.style.setProperty('background-image',_frameBackground,'important');
+    ghostCardFrame.style.setProperty('background-size',_srcFrameStyle.backgroundSize||'100% 100%','important');
+    ghostCardFrame.style.setProperty('background-position',_srcFrameStyle.backgroundPosition||'center','important');
+    ghostCardFrame.style.setProperty('background-repeat','no-repeat','important');
+    const _frameRadius=_srcFrameStyle.borderRadius||'5.65% / 3.721%';
+    ghostCardFrame.style.setProperty('border-radius',_frameRadius,'important');
+    ghostCardFrame.style.setProperty('clip-path',`inset(0 round ${_frameRadius})`,'important');
+    ghostCardFrame.style.setProperty('filter',srcEl.classList.contains('invalid-battle-position')?'none':(_srcFrameStyle.filter||'none'),'important');
+  }
+  // キャラクターのstat_overlayは通常盤面では#hand-slots限定のz-index:130だが、
+  // ドラッグ複製はbody直下へ移るため、汎用指定のz-index:7へ戻って枠画像(z-index:90)
+  // の下へ潜ってしまう。元カード上の実測矩形を固定し、ドラッグ複製でも同じ積層順にする。
+  const srcStatOverlay=srcEl.querySelector('.unit-stat-overlay-layer');
+  const ghostStatOverlay=d.querySelector('.unit-stat-overlay-layer');
+  if(srcStatOverlay&&ghostStatOverlay){
+    const sr=srcStatOverlay.getBoundingClientRect();
+    const ss=getComputedStyle(srcStatOverlay);
+    ghostStatOverlay.style.setProperty('position','absolute','important');
+    ghostStatOverlay.style.setProperty('left',`${sr.left-rect.left}px`,'important');
+    ghostStatOverlay.style.setProperty('top',`${sr.top-rect.top}px`,'important');
+    ghostStatOverlay.style.setProperty('right','auto','important');
+    ghostStatOverlay.style.setProperty('bottom','auto','important');
+    ghostStatOverlay.style.setProperty('width',`${sr.width}px`,'important');
+    ghostStatOverlay.style.setProperty('height',`${sr.height}px`,'important');
+    ghostStatOverlay.style.setProperty('display','block','important');
+    ghostStatOverlay.style.setProperty('visibility','visible','important');
+    ghostStatOverlay.style.setProperty('opacity','1','important');
+    ghostStatOverlay.style.setProperty('transform','none','important');
+    ghostStatOverlay.style.setProperty('background-image',ss.backgroundImage||'url("assets/cards/stat_overlay.png")','important');
+    ghostStatOverlay.style.setProperty('background-size',ss.backgroundSize||'100% 100%','important');
+    ghostStatOverlay.style.setProperty('background-position',ss.backgroundPosition||'center','important');
+    ghostStatOverlay.style.setProperty('background-repeat','no-repeat','important');
+    ghostStatOverlay.style.setProperty('border-radius',ss.borderRadius||'5.65% / 3.721%','important');
+    // 掴んで持ち上げたカード自身は、通常マスの出撃不可カードでも明るく表示する。
+    const overlayFilter=srcEl.classList.contains('invalid-battle-position')?'none':(ss.filter||'none');
+    ghostStatOverlay.style.setProperty('filter',overlayFilter,'important');
+    ghostStatOverlay.style.setProperty('z-index','130','important');
+  }
+  // 購入不可の報酬カードは、元DOMの疑似要素で暗転している。
+  // cloneNodeでは疑似要素が複製されないため、ゴースト専用の暗転層をカード絵の上・枠の下へ置く。
+  if(srcEl.classList.contains('cant')&&!d.querySelector(':scope > .reward-card-dim-layer')){
+    const dim=document.createElement('span');
+    dim.className='drag-card-dim-layer';
+    dim.setAttribute('aria-hidden','true');
+    d.appendChild(dim);
   }
   const atkEl=srcEl.querySelector('.card-summon-atk');
   const hpEl=srcEl.querySelector('.card-summon-hp');
@@ -2481,7 +2655,6 @@ function _createDragGhost(srcEl){
     d.style.setProperty('--drag-slot-hp-bottom',`${rect.bottom-r.bottom}px`);
     d.style.setProperty('--drag-slot-hp-w',`${r.width}px`);
   }
-  const gameScale=typeof _gameScale==='function'?_gameScale():1;
   const copyStatStyle=(srcSel,dstSel,refSel)=>{
     const src=srcEl.querySelector(srcSel);
     const dst=d.querySelector(dstSel);
@@ -2699,6 +2872,8 @@ function _createDragGhost(srcEl){
     dstDir.style.setProperty('width',`${sr.width}px`,'important');
     dstDir.style.setProperty('height',`${sr.height}px`,'important');
     dstDir.style.setProperty('transform','none','important');
+    // 枠画像は z-index:90。方向矢印は必ずその前面へ出す。
+    dstDir.style.setProperty('z-index','300','important');
   });
   _pinPanelTextPosition(d,srcEl.closest('#reward-cards-section,#rw-cards')?'reward':(srcEl.closest('#hand-slots.unit-equip-slots')?'unitEquip':'normal'));
   d._ghostW=visualW; d._ghostH=visualH;
@@ -2712,6 +2887,7 @@ function _moveDragGhost(clientX,clientY){
   _dragGhostDiv.style.left=(clientX-W/2)+'px';
   _dragGhostDiv.style.top=(clientY-H/2)+'px';
   _dragGhostDiv.style.setProperty('visibility','visible','important');
+  _dragGhostDiv.style.setProperty('opacity','1','important');
 }
 function _removeDragGhost(){
   document.body.classList.remove('dragging-in-battle');
@@ -2720,25 +2896,74 @@ function _removeDragGhost(){
     try{ document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,cancelable:true})); }catch(e){}
   },0);
 }
+// ドラッグ元の見た目を一時的に変える時は、**必ずこれを通して控えを取る**。
+// 控えずに style を直接いじると、ドラッグを中断した時
+// （枠の外へ落とした・Escで取り消した）に元へ戻せず、
+// 再描画が起きるまでカード枠が消えたままになる。
+// 対になる復元は _restoreDragSourceParts()。**片方だけ足さないこと。**
+const _DRAG_SRC_SAVED_PROPS=[['opacity','Opacity'],['display','Display'],
+  ['visibility','Visibility'],['z-index','ZIndex'],['border','Border'],
+  ['border-width','BorderWidth'],['background-origin','BackgroundOrigin'],
+  ['filter','Filter']];
+function _setDragSourceStyle(el,prop,value){
+  if(!el) return;
+  const key=(_DRAG_SRC_SAVED_PROPS.find(x=>x[0]===prop)||[])[1];
+  if(key&&!(('dragSrcPrev'+key) in el.dataset)){
+    el.dataset['dragSrcPrev'+key]=el.style.getPropertyValue(prop)||'';
+    el.dataset['dragSrcPrev'+key+'Priority']=el.style.getPropertyPriority(prop)||'';
+  }
+  el.style.setProperty(prop,value,'important');
+}
 function _hideDragSourceParts(el){
   if(!el) return;
   el.classList.add('drag-source-parts-hidden');
-  Array.from(el.children||[]).forEach(ch=>{
-    ch.dataset.dragSrcPrevOpacity=ch.style.getPropertyValue('opacity')||'';
-    ch.dataset.dragSrcPrevOpacityPriority=ch.style.getPropertyPriority('opacity')||'';
-    ch.style.setProperty('opacity','0','important');
-  });
+  Array.from(el.children||[]).forEach(ch=>_setDragSourceStyle(ch,'opacity','0'));
+  // ドラッグ元には「カード」ではなく、その場所のマス枠だけを残す。
+  // character-frame-layer を戻すと、エンチャントの枠画像が元位置に残り、
+  // ゴースト側との二重表示になる。
+  const _mapBoard=!!el.dataset.mapBoard;
+  const _boardFrame=el.querySelector('.board-frame-layer');
+  if(_boardFrame){
+    _setDragSourceStyle(_boardFrame,'display',_mapBoard?'none':'block');
+    _setDragSourceStyle(_boardFrame,'visibility',_mapBoard?'hidden':'visible');
+    _setDragSourceStyle(_boardFrame,'opacity',_mapBoard?'0':'1');
+    _setDragSourceStyle(_boardFrame,'z-index','110');
+    _setDragSourceStyle(_boardFrame,'filter','none');
+    _setDragSourceStyle(_boardFrame,'border',_mapBoard?'0':'2px solid #c49a6c');
+    _setDragSourceStyle(_boardFrame,'border-width',_mapBoard?'0':'2px');
+    _setDragSourceStyle(_boardFrame,'background-origin','border-box');
+  }
+  const _mapBoundary=el.querySelector('.map-boundary-layer');
+  if(_mapBoundary){
+    _setDragSourceStyle(_mapBoundary,'display','block');
+    _setDragSourceStyle(_mapBoundary,'visibility','visible');
+    _setDragSourceStyle(_mapBoundary,'opacity','1');
+    _setDragSourceStyle(_mapBoundary,'z-index','110');
+    _setDragSourceStyle(_mapBoundary,'filter','none');
+    _setDragSourceStyle(_mapBoundary,'border','5px solid #c49a6c');
+    _setDragSourceStyle(_mapBoundary,'border-width','5px');
+  }
 }
 function _restoreDragSourceParts(el){
   if(!el) return;
   el.classList.remove('drag-source-parts-hidden');
-  Array.from(el.children||[]).forEach(ch=>{
-    const prev=ch.dataset.dragSrcPrevOpacity||'';
-    const prio=ch.dataset.dragSrcPrevOpacityPriority||'';
-    if(prev) ch.style.setProperty('opacity',prev,prio);
-    else ch.style.removeProperty('opacity');
-    delete ch.dataset.dragSrcPrevOpacity;
-    delete ch.dataset.dragSrcPrevOpacityPriority;
+  // **控えたものは全部戻す。** 一部のレイヤ・一部のプロパティだけ戻していた頃は、
+  // ドラッグを中断するとキャラクターのカード枠が消えたままになっていた
+  // （_hideDragSourceParts が display/visibility も落としているのに、
+  //   戻していたのはマス枠と境界の分だけだった）。
+  const targets=[el,...Array.from(el.children||[]),
+    ...Array.from(el.querySelectorAll('.character-frame-layer,.unit-frame-layer,.board-frame-layer,.map-boundary-layer'))];
+  new Set(targets).forEach(node=>{
+    if(!node||!node.dataset) return;
+    _DRAG_SRC_SAVED_PROPS.forEach(([prop,key])=>{
+      if(!(('dragSrcPrev'+key) in node.dataset)) return;
+      const prev=node.dataset['dragSrcPrev'+key]||'';
+      const prio=node.dataset['dragSrcPrev'+key+'Priority']||'';
+      if(prev) node.style.setProperty(prop,prev,prio);
+      else node.style.removeProperty(prop);
+      delete node.dataset['dragSrcPrev'+key];
+      delete node.dataset['dragSrcPrev'+key+'Priority'];
+    });
   });
 }
 
@@ -3029,7 +3254,12 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     if(!el) return null;
     const rect=el.getBoundingClientRect();
     const cloneEl=el.cloneNode(true);
-    cloneEl.querySelectorAll('button').forEach(btn=>btn.remove());
+    // ドロップ成立時点の元カードにはドラッグ元を隠すinline指定が残っている。
+    // それをcloneNodeすると、合体演出側でも枠画像が透明なままになるため、
+    // 複製側だけ保存済みの通常表示へ戻してから演出用DOMへ移す。
+    cloneEl.classList.remove('dragging','drag-over','drag-source-parts-hidden');
+    _restoreDragSourceParts(cloneEl);
+    cloneEl.querySelectorAll('button,.shop-board-sell-value,.shop-buy-price,.shop-pending-sale-ui,.shop-pending-sell-btn').forEach(node=>node.remove());
     // 盤面上のカードは「つながっている方向の矢印」を消し、代わりに#hand-slots側へ
     // .panel-unite-linkを描いている（_renderPanelUniteMarkers）。ゴーストはカード要素だけを
     // body直下へ複製するためunite画像が付いてこず、矢印が欠けたカードに見えてしまう。
@@ -3163,7 +3393,8 @@ function _playTripleMergeAnimation(info){
           else try{ const se=new Audio('assets/sfx/union.wav'); se.volume=sfxFallbackVolume(.8); void se.play(); }catch(_e){} }
         ordered.filter(g=>g!==center).forEach(g=>g.ghost.remove());
         if(center) center.ghost.classList.add('triple-merge-white-flash');
-        _flashConnectedBoardCards(info.targetIdx);
+        // 合体結果の配置先は3枚からランダムに選ばれるため、通常配置と同じ
+        // 接続フラッシュは出さない。接続線そのものは最後の再描画で更新する。
         setTimeout(()=>{
           target.classList.remove('triple-merge-result-hidden');
           dim.classList.remove('visible');
@@ -3219,7 +3450,7 @@ if(!window._equipSelectionClearBound){
     const t=e.target;
     if(!document.body.contains(t)) return;
     if(t&&t.closest&&t.closest('#hand-slots .card,#hand-slots .card-empty,#map-inventory-panel,.unit-card,.card,.card-empty')) return;
-    if(t&&t.closest&&t.closest('button,.map-node,#world-map-panel,#rw-cards,#reward-move-btns')) return;
+    if(t&&t.closest&&t.closest('button,.map-node,#world-map-panel,#rw-cards,#reward-move-btns,#journey-progress-ui')) return;
     if(G.phase==='reward'){
       G._selectedEquipCardIdx=null;
       return;
@@ -3702,6 +3933,25 @@ function renderDebugCardPalette(){
         cardEl.appendChild(art);
       }
       cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,card.desc||''].filter(Boolean).join('\n'));
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,card.desc||''):'';
+      if(keywordPreview) cardEl.setAttribute('data-keyword-preview',keywordPreview);
+    }else if(kind==='item'){
+      // デバッグ一覧のアイテムも指輪と同じく、専用画像を原寸比で収める表示にする。
+      // 通常のカードDOMへ流すとカード枠とカード比率で拡大されるため、item_slot.svgは使わない。
+      cardEl=document.createElement('div');
+      const itemPath=typeof _rewardItemArtPath==='function'?_rewardItemArtPath(card):'';
+      cardEl.className=`item-visual${itemPath?' item-visual-filled':''}`;
+      if(itemPath){
+        cardEl.style.setProperty('--item-art',`url("${itemPath}")`);
+        const art=document.createElement('img');
+        art.className='debug-item-art';
+        art.src=itemPath;
+        art.alt=card.name||'アイテム';
+        cardEl.appendChild(art);
+      }
+      cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,card.desc||''].filter(Boolean).join('\n'));
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,card.desc||''):'';
+      if(keywordPreview) cardEl.setAttribute('data-keyword-preview',keywordPreview);
     }else{
       cardEl=panelKind&&typeof mkCardEl==='function'
         ?mkCardEl(card,-1,'debug-palette')
@@ -3710,9 +3960,16 @@ function renderDebugCardPalette(){
     cardEl.draggable=false;
     const preview=cardEl.getAttribute('data-preview');
     if(preview) item.setAttribute('data-preview',preview);
+    const keywordPreview=cardEl.getAttribute('data-keyword-preview');
+    if(keywordPreview) item.setAttribute('data-keyword-preview',keywordPreview);
+    const titleColor=cardEl.getAttribute('data-preview-title-color');
+    if(titleColor) item.setAttribute('data-preview-title-color',titleColor);
+    const cardRarity=[...cardEl.classList].find(c=>/^rarity-[1-6]$/.test(c));
+    if(cardRarity) item.classList.add(cardRarity);
     cardWrap.appendChild(cardEl);
     const label=document.createElement('div');
-    label.className='debug-palette-label';
+    const rarityClass=card.rarity>=1&&card.rarity<=5?` rarity-${card.rarity}`:'';
+    label.className=`debug-palette-label${rarityClass}`;
     label.innerHTML=`${no?`<span class="debug-palette-no">No.${no}</span>`:''}${_escapePreviewHtml(card.name||def.name||'')}`;
     item.appendChild(cardWrap);
     item.appendChild(label);
@@ -3839,6 +4096,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       div.style.setProperty('--hand-arc',_handArc);
       const _isPanelCharacter=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'')==='キャラクター';
       if(_isPanelCharacter) div.classList.add('character-card','panel-character-card');
+      if(_isPanelCharacter&&card.color) div.setAttribute('data-preview-title-color',String(card.color));
       if(arrName==='unitEquip'&&_isPanelCharacter&&_deployNum<0&&!_hasMapDeployPower) div.classList.add('invalid-battle-position');
       const _isEnchantPanelForClass=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&['強化','エンチャント'].includes(String(card.category||''));
       if(_isEnchantPanelForClass) div.classList.add('enchantment-card');
@@ -3880,6 +4138,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         ].filter(Boolean).join('\n'));
       }
       const _slotLabel=_slotDef?`<div class="equip-slot-label">${_slotDef.label}${_powerDef?`<small>${_powerDef.name}</small>`:''}</div>`:'';
+      if(_powerDef) div.setAttribute('data-map-power-preview',[
+        _powerDef.name,
+        _powerDef.desc||''
+      ].filter(Boolean).join('\n'));
       const _dirOwner=arrName==='unitEquip'?_getPartyBoardUnit():null;
       const _dirConnectivity=_dirOwner&&typeof _panelDirectionConnectivity==='function'?_panelDirectionConnectivity(_dirOwner,i):null;
       const _dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card,_dirConnectivity):'';
@@ -3905,10 +4167,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(typeof _unitShieldValue==='function') _cardForPreview.shield=_unitShieldValue(_cardForPreview);
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_cardForPreview,card.desc||'',i):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
-        if(_powerDef) div.setAttribute('data-map-power-preview',[
-          _powerDef.name,
-          _powerDef.desc||''
-        ].filter(Boolean).join('\n'));
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,card.desc||'',i):(card.name+'\n'+(card.desc||''));
         if(preview) div.setAttribute('data-preview',preview);
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
@@ -3934,6 +4192,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         });
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
+        const _keywordPreview=typeof _keywordOnlyPreviewText==='function'
+          ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
+        if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(arrName==='unitEquip'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
@@ -3947,12 +4208,29 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         div.innerHTML=`${_slotLabel}${_gradeEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='unitEquip'?'パネル':t==='ring'?'指輪':t==='wand'?'杖':'アイテム'}</div><div class="card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_spellBtn}${_libraryLoanBadge}`;
         _pinPanelTextPosition(div,arrName==='unitEquip'?'unitEquip':'normal');
       }
+      if(arrName==='unitEquip') _ensureCardBackLayer(div);
       // 魔導板枠はカード固有の::after（キャラ枠）と競合しない独立レイヤーとして常設する。
       if(arrName==='unitEquip'){
         const characterFrame=document.createElement('span');
         characterFrame.className='character-frame-layer';
         characterFrame.setAttribute('aria-hidden','true');
-        if(_isPanelCharacter) div.appendChild(characterFrame);
+        if(_isPanelCharacter||_isEnchantPanelForClass){
+          // キャラクターとエンチャントのカード枠を同じ実要素で描く。
+          // 疑似要素に残すと、body直下のゴーストで線幅を補正できない。
+          // カード枠は置かれたマスに関係なく常に2px。特殊マスの5px線は
+          // map-boundary-layerだけが担当する。
+          characterFrame.style.setProperty('border','2px solid #c49a6c','important');
+          characterFrame.style.setProperty('border-width','2px','important');
+          characterFrame.style.setProperty('background-origin','border-box','important');
+          if(_isEnchantPanelForClass) characterFrame.style.setProperty('background','var(--card-frame) center/100% 100% no-repeat');
+          div.appendChild(characterFrame);
+        }
+        if(_isPanelCharacter){
+          const statOverlay=document.createElement('span');
+          statOverlay.className='unit-stat-overlay-layer';
+          statOverlay.setAttribute('aria-hidden','true');
+          div.appendChild(statOverlay);
+        }
         const cardGlow=document.createElement('span');
         cardGlow.className='card-glow-layer';
         cardGlow.setAttribute('aria-hidden','true');
@@ -3962,6 +4240,13 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const boardFrame=document.createElement('span');
         boardFrame.className='board-frame-layer';
         boardFrame.setAttribute('aria-hidden','true');
+        // 出撃不可の暗転はカード画像とcharacter-frame-layerだけに適用する。
+        // プログラム生成の通常マス2px線は常に明るく保つため、過去の高詳細度な
+        // dragzone暗転CSSにも負けないよう実レイヤー側で固定する。
+        if(div.classList.contains('invalid-battle-position')&&!div.dataset.mapBoard){
+          boardFrame.style.setProperty('filter','none','important');
+          boardFrame.style.setProperty('opacity','1','important');
+        }
         div.appendChild(boardFrame);
         if(div.dataset.mapBoard){
           const mapBoundary=document.createElement('span');
@@ -4113,13 +4398,19 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='unitEquip'&&_emptyMapPowerId&&Assets.mapBoard&&Assets.mapBoard[_emptyMapPowerId]){
         const _boardWidth={eternal:'109.6%',resonance:'112.7%',duplicate:'105.5%'}[_emptyMapPowerId]||'100%';
         ph.style.setProperty('background',`url("${Assets.mapBoard[_emptyMapPowerId]}") center/${_boardWidth} 100% no-repeat`,'important');
-        // **特殊マスの太い線は「外へ1px、内へ3px」の4pxにする。**
-        // 元は5pxすべてがマスの内側で、カードの絵に深く食い込んでいた。
-        // outline は offset の位置から外向きに引かれるので、-3px＋4px で [-1px,+3px] になる。
-        // box-shadow は内側3px（inset）と外側1px（spread）の2本で同じ帯を作る。
-        ph.style.setProperty('outline','4px solid #c49a6c','important');
-        ph.style.setProperty('outline-offset','-3px','important');
-        ph.style.setProperty('box-shadow','inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c','important');
+        // 占有時のmap-boundary-layerと同じ、カード箱内の5px線に統一する。
+        // outline／外向きshadowを使うと、カード移動時だけマス線の外寸が変わる。
+        ph.style.setProperty('box-sizing','border-box','important');
+        // `background` shorthand は background-origin も padding-box に戻す。
+        // 5px枠を追加した特殊マスでは、それによりSVG自身の2px外周が5px内側へ
+        // もう一本見えるため、背景の基準を明示的に外枠へ揃える。
+        ph.style.setProperty('background-origin','border-box','important');
+        ph.style.setProperty('background-clip','border-box','important');
+        ph.style.setProperty('border','5px solid #c49a6c','important');
+        ph.style.setProperty('border-width','5px','important');
+        ph.style.setProperty('outline','0','important');
+        ph.style.setProperty('outline-offset','0','important');
+        ph.style.setProperty('box-shadow','none','important');
       }
       if(arrName==='unitEquip'&&_emptyMapPowerId){
         // ①〜⑦：戦闘フェイズで出撃する枠（m_board1.svgで区別する）
@@ -4381,7 +4672,7 @@ function dropOnCard(destArr,destIdx){
       if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
     }
     if(!tripleMerge&&srcArr==='unitEquip'&&typeof playSfx==='function') playSfx('fit',{group:'reward'});
-    _flashConnectedBoardCards(destIdx);
+    if(!tripleMerge) _flashConnectedBoardCards(destIdx);
     renderFieldEditor();
     renderMapInventorySlots();
     if(tripleMerge) _playTripleMergeAnimation(tripleMerge);

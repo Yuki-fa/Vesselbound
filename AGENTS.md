@@ -182,7 +182,10 @@ node tools/parity/loop_parity.js      # PvEとコアの結果の一致（最終�
 
 その他のツール（必要な時だけ）：
 `board_parity.js`（魔導板→出撃の突き合わせ）／`core_refactor_diff.js`（コアのリファクタ前後の差分）／
-`layout_probe.js`（画面レイアウトの実測）／`headless.js`（ヘッドレスChromeの土台）。
+`layout_probe.js`（画面レイアウトの実測）／`headless.js`（ヘッドレスChromeの土台）／
+`current_issues_check.js`（サイレン＋邪眼3枚＋大いなる守護＋三段攻撃など、既知の戦闘回帰）／
+`c019_visual_check.js`（C019の可視弾頭の着弾位置と大きさ）／
+`shop_ui_visual_check.js`（商店の固定ホバー・ボタン・価格・キャンセル操作の実測）。
 
 `present_parity.js` は `VB_ONLY=シナリオ名` で1件だけ回せる（`|` 区切りで複数）。
 
@@ -1234,6 +1237,54 @@ tools/
   同じ寸法を `index.html`（マス目変更演出）と `map.js`（図書館チュートリアルの発光）も持つので、
   太さを変える時は**3か所すべて**を揃えること。
 
+### 報酬カード／魔導板カードの黒背面と暗転
+
+報酬カードと魔導板カードは、カード本体の最背面へ黒塗りの `m_board6.svg` を常時置く。
+`.card-back-layer` だけに依存せず、カードルートにも `#000 url(m_board6.svg)` を指定し、
+背面は**いかなる状態でも不透明**にする。カードルート全体へ `opacity` を掛けると背景が透けるため禁止。
+
+- 報酬カードの暗転状態は `.cant` と `.reward-used-dim`。専用の
+  `.reward-card-dim-layer`（黒50%、`z-index:10000`）を、カード絵・枠画像・`stat_overlay.png`・
+  ATK/HP・プログラム枠線の上へ置く。資金不足表示は `z-index:10002` で暗転より上に残す。
+- arrow はカード外へはみ出すため、カード内でクリップされる暗転レイヤーだけでは先端を暗くできない。
+  暗い報酬カードでは arrow を `z-index:10001` に置き、arrow 自体へ `brightness(.5)` を掛ける。
+  暗転レイヤーの下へ入れないこと（はみ出した先端だけ明るくなる）。
+- 魔導板の出撃不可カードも同じ黒背面を使い、暗転は `brightness(.5)` のみで行う。
+  `saturate()` を併用すると報酬カードと色味が変わるため使わない。
+- ドラッグ中は、持ち上げている暗い魔導板カードだけを明るくし、他の暗い魔導板カードは暗いままにする。
+  報酬カードはドラッグ開始前の明暗をカード単位で維持する。ドラッグ中という理由で
+  報酬枠の子要素へ一括 `opacity` / `filter` を掛けてはいけない。
+- 暗い報酬カードの枠線もカード本体と同じく暗くする。枠線だけを明るく残す指定を追加しない。
+
+この重なり順とドラッグ時の状態は `tools/parity/board_drag_visual_check.js` で検査する。
+黒背面の不透明性、暗転レイヤー、`stat_overlay.png`、枠線、arrow、ホバー時の発光を
+個別に実測しているため、関連CSSを触ったらこの検査を通すこと。
+
+### 商店の売却UIとアイテム／指輪の固定ホバー
+
+売却・還魂ボタンは `assets/ui/button_invisible_s.svg` を**元サイズの132×62pxのまま**使う。
+9スライスや疑似要素で枠を描き直してはいけない。発光は透明部分を含む矩形ではなく、
+実際のSVG要素へフィルターを掛けてアルファ形状に沿わせる。
+
+- カードの売却・還魂ボタン：カード上辺から230px下をボタン上辺にする。
+- アイテムの売却ボタン：アイテム枠の下線中央に置く（`top:calc(100% - 31px)`）。
+- どちらも対象へホバーしている時だけ表示する。
+- 価格は `assets/ui/cost.svg` を元サイズの101×46pxで右端揃えにする。
+- カード価格の重なり順は**枠画像（100）＜価格（105）＜プログラム描画の枠線（110）**。
+  `.shop-pending-sale-ui` 自体に高い stacking context を作らない（`z-index:auto`）。
+- アイテム／指輪の価格は `top:34px`。売却ボタンの高さへ移動させない。
+
+アイテム／指輪のクリックでは別ウインドウを作らず、表示中の `#kw-tooltip` をその場で固定する。
+固定前の `innerHTML`・`className`・`left`・`top`・実測幅を保存し、末尾へ
+`.reward-action-buttons` だけを追加する。固定開始前に `_closeItemUseConfirm()` を呼ぶと、
+元の色・位置・内容を失うので禁止。指輪用の `_showRewardRingTooltip()`／
+`_moveRewardRingTooltip()`／`_hideRewardRingTooltip()` は
+`dataset.rewardLocked==='1'` の間は位置や表示を変更しない。閉じる時は固定印と幅指定を解除する。
+
+アイテム使用待ちの解除は `_cancelPendingItemUse()` を唯一の出口にする。
+右クリックは `pointerdown(button===2)` と `contextmenu` の双方で解除し、カード非表示操作へ伝播させない。
+左クリックも、`#hand-slots.unit-equip-slots > .card` と `.item-use-cancel-btn` の外なら解除する。
+
 ### セーブに何を入れるか — `js/save/`
 
 **オフラインの状態を `G` へ足したら、必ず `run_save.js` の `fields` にも名前を足すこと。**
@@ -1421,6 +1472,148 @@ tools/
 
 ---
 
+## 8-6. codexへの修正指示：カード枠SVG化で出た4件の枠線不具合
+
+**2026-09-11。原因はすべて特定済み（実測値つき）。以下のとおり直すこと。**
+**`!important` を積み増して押さえ込まないこと。** 原因は下の「共通の根っこ」にある。
+
+### 共通の根っこ：線の出どころが2つあり、片方だけ縮尺が掛からない
+
+1. **SVGの中に線がある。** `summon_frameN.svg` / `enemy_frame.svg` / `boss_frame.svg` /
+   `enchantment.svg` は `viewBox="0 0 1300 1973.1"` に `stroke-width:20px`（viewBox単位）を持つ。
+   背景を `100% 100%` で描くので、**線の太さは要素の描画サイズに比例する**
+   （260px幅なら 20×260/1300 ＝ 4px）。
+2. **CSSでも線を引いている。** `border:2px solid #c49a6c`／特殊マスは `5px`。
+   こちらは**絶対px**なので描画サイズに比例しない。
+
+そのうえで、実カードは `.screen{transform:scale(var(--game-scale))}` の**中**にあり、
+**攻撃モーションの複製（`.attack-motion-clone`）とドラッグゴースト（`.drag-ghost`）は
+`document.body` 直下＝縮尺の外**にある。同じ `5px` でも画面上の太さが変わる。
+
+**実測（`--game-scale:0.5` にして同じDOMを比較）**
+
+| | CSSの指定 | 画面上の実寸 |
+| --- | --- | --- |
+| 実カード（`.screen` の中） | 5px | **2.50px** |
+| body直下の複製（同じDOM） | 5px | **5.00px** |
+
+→ **ちょうど 1/game-scale 倍（この例で2倍）太くなる。** これが (1)(2) の正体。
+利用者の窓で「2pxが5pxに見える」のは game-scale がおよそ 0.4 だから。
+
+**前例がある。** `#kw-tooltip` は body 直下にあるため
+`font-size:calc(22px * var(--game-scale))` と書いてある。枠線も同じ扱いにすること。
+`_buildMotionCardClone()`（`js/engine/render.js`）も**フォントサイズだけは**
+`fs = parseFloat(s.fontSize) * gameScale`（3052行あたり）で補正しており、
+**border-width の補正だけが抜けている。**
+
+### (1) 攻撃アニメーションで線が太くなる ／ (2) ドラッグで線が太くなる
+
+**直し方（Aを推奨）**
+
+- **A：複製を作るJSで、元の「画面上の太さ」をそのまま写す。**
+  `_buildMotionCardClone()`（render.js）と `_createDragGhost()`（`js/engine/reward.js` 2426行〜）で、
+  枠を描いている要素（`.unit-frame-layer` / `.character-frame-layer`、`::after` を使う型ならカード本体）へ
+  `borderWidth = 元のcomputed borderWidth × _gameScale()` を important で書き込む。
+  フォントサイズと同じ場所・同じやり方で揃う。
+- **B：CSSで、body直下の複製だけ `calc(Npx * var(--game-scale))` にする。**
+  `index.html` 14901行「枠線の最終状態固定」（`.attack-motion-clone` / `.dragging` / `.drag-ghost` を
+  2px に固定しているブロック）を `border-width:calc(2px * var(--game-scale))` へ。特殊マスの5pxも同様。
+
+**注意：`.dragging` は元のカード（`.screen` の中）に付く。`.attack-motion-clone` と
+`.drag-ghost` は body 直下。縮尺の外にあるのは後者だけなので、この2つを同じ規則で
+まとめて指定しないこと**（いま1つの規則でまとめてあるのが混乱のもと）。
+
+### (3) 魔導板上でキャラクターをドラッグすると、下にカード枠画像が残る
+
+**実測（特殊マス `data-map-board="summon"` のキャラクターに `dragging` を付けた時）**
+
+| レイヤ | 中身 | ドラッグ中 | あるべき姿 |
+| --- | --- | --- | --- |
+| `.character-frame-layer` | `summon_frame4.svg`（**カード枠**） | display:block / opacity:1 / border:5px | **消す** |
+| `.board-frame-layer` | `m_board_frame.svg`（**マス枠**） | display:none / hidden | **残す** |
+| `.map-boundary-layer` | 特殊マスの境界 | display:none / hidden | **残す** |
+
+**完全に逆。** 残すべきマス枠と境界が消え、消すべきカード枠が残っている。
+
+- `index.html` 14870行付近（「通常マスは既存のdragging非表示規則に従い、枠を消す」の直前）の規則が
+  `[data-map-board].dragging > .character-frame-layer` を `display:block/opacity:1/border:5px` で
+  **見せて**いる。通常マスと同じく消す側へ変える。
+- `index.html` 14991行「特殊マス上のキャラクターは、下側のマス枠・境界線をドラッグ中だけ隠す」が
+  `.board-frame-layer` と `.map-boundary-layer` を `display:none` にしている。**この規則を消す。**
+  14887行「魔導板のキャラクターを掴んだ時も、強化カードと同じくカード下のマス枠を残す」と
+  正面から矛盾しているので、**残す側に統一する**。
+
+### (4) 特殊マス上の強化カードをドラッグすると、下の枠線が細くなる
+
+**実測（特殊マスの強化カードに `dragging` を付けた時）**
+
+| | ドラッグ前 | ドラッグ中 |
+| --- | --- | --- |
+| `::after`（カード枠 `enchantment.svg`、border **5px**） | display:block / opacity:1 | display:none / opacity:0 |
+| `.board-frame-layer`（マス枠 `m_board_frame.svg`、border **0px**） | display:block | display:block |
+
+カード枠（5px）が消え、**border:0 のマス枠だけ**が残る。残った線は
+`m_board_frame.svg` が自前で描いている線だけなので、特殊マスの5pxより細く見える。
+15004行「特殊マス上の強化カードは、ドラッグ中も元の5px枠を維持する」は `::after` に5pxを
+指定しているが、**その `::after` 自体が display:none にされているので効いていない。**
+
+**直し方**：ドラッグ中に残る側（`.board-frame-layer` か `.map-boundary-layer`）へ
+特殊マスの5px線を持たせる。`::after` を消さず背景だけ透明にして5px枠を残す手もあるが、
+**「マス枠の線はマス枠のレイヤが持つ」に寄せる方が後々ぶれない。**
+
+### 残り2件（2026-09-11 実機報告）：ドラッグ時の枠線
+
+**(1) 攻撃アニメーションと (3) 魔導板キャラのカード枠残りは直った。**
+残っているのは下の4ケース。**利用者の実機報告なので、これが正**。
+
+| ドラッグするもの | 症状 |
+| --- | --- |
+| 特殊マスのキャラクター | **下に残る枠線が細くなる**（特殊マスは5pxのはず） |
+| 通常マスのキャラクター | **下に残る枠線が消える**（通常マスは2pxで残るはず） |
+| 特殊マスのエンチャント | 下の枠線は正常。**掴んだカード（ゴースト）の枠画像と枠線が消える** |
+| 通常マスのエンチャント | **掴んだカード（ゴースト）の線が太くなる**。他は正常 |
+
+**2つの別問題が混ざっている。**
+
+- **A：ドラッグ元に残る「マスの枠線」**（`.board-frame-layer` / `.map-boundary-layer`）。
+  **掴んだのがキャラでもエンチャントでも、そのマスの太さで残ること**
+  （通常マス2px／特殊マス5px）。いまはキャラの時だけ細い・消える。
+  `_hideDragSourceParts()`（`js/engine/reward.js` 2752行〜）の復帰処理が
+  カード種別・マス種別で枝分かれしており、太さを与えていない枝がある。
+  **枝を増やさず、「マス枠はマスの太さで残す」1本にまとめること。**
+- **B：ゴースト（`.drag-ghost`）側のカード枠**。
+  **エンチャントカードは枠を `::after`（疑似要素）で描いている**のが原因。
+  疑似要素は JS から inline で触れないので、`_createDragGhost()`（同 2426行〜）が
+  やっている「元の computed 線幅 × `_gameScale()` を写す」補正が**効かない**
+  （→ 通常マスで太いまま）。また特殊マス用に `::after` を `display:none` にする規則が
+  ゴーストにも当たって**枠画像ごと消える**（→ 特殊マスで消える）。
+
+  **根本策：エンチャントの枠も `::after` をやめ、キャラクターと同じ実要素のレイヤで描く。**
+  そうすればゴースト側で inline に太さ補正も表示制御もできて、両方いっぺんに直る。
+  `::after` のまま押さえ込もうとすると、また `!important` の積み増しになる。
+
+**共通の根っこ（上に書いたもの）を忘れないこと。** 実カードは
+`.screen{transform:scale(var(--game-scale))}` の中、ゴーストと攻撃複製は body 直下。
+絶対pxの線は body 直下で `1/game-scale` 倍に太る。
+
+### 確認のしかた（画面を見られない環境なら必ずこれを使う）
+
+```js
+// 実カードと body 直下の複製で、画面上の線の実寸を比べる
+const card=document.querySelector('#hand-slots.unit-equip-slots > .card');
+const fl=card.querySelector('.character-frame-layer');
+const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'));
+const w=parseFloat(getComputedStyle(fl).borderTopWidth);
+console.log('実カード', (w*scale).toFixed(2)+'px', '／ CSS指定', w+'px');
+```
+
+ドラッグ中の見え方は、実際に掴まなくても
+`el.classList.add('dragging','drag-source-parts-hidden')` を付けて
+各レイヤの `display / opacity / visibility / borderTopWidth` を読めば再現できる。
+**`--game-scale` が 1 の窓では (1)(2) は再現しない。** 必ず `0.5` などに落として確かめること。
+
+---
+
 ## 9. 現在の状態
 
 ### 履歴の記述ルール
@@ -1511,7 +1704,7 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 
 ゴーストの死亡効果でダメージVFXが出る／オンラインで結界を失っても結界VFXが残る／
 街を出て待機状態になった後、消えたボタンの反応が残る／マミーが敵位置で停止して戻らない／
-スケルトンキングの戻り位置がずれる／レムレース・サキュバスで枠が緑になる
+レムレース・サキュバスで枠が緑になる
 （**敵を仲間にした時・敵に変身した時に枠を変えないこと。敵枠は必ず同じものにする**）／
 アラッサスの `super_magic.wav`／バジリスクのキーワード表示／アビス・バロンの∞表示／
 `攻防一体` の効果文にカード名がキーワードとして書かれている（データ側の修正が要る）。
@@ -1761,6 +1954,23 @@ BGMとサブBGM（環境音）は `js/engine/audio.js` の**Web Audio経路が�
 対応するattackを結び、攻撃モーションを先に始めて25%地点で停止する。
 その状態で効果を見せ、attackへ到達した時に接触まで進めることで、利用者指定の
 **「動き出す → その一撃の効果 → 接触」**を一撃ごとに繰り返す。
+
+追加攻撃では、2撃目以降も**攻撃モーションを開始してからVFXを出す**。
+最終的に敵が全滅する予定でも、1撃目の時点で結果表示や戦闘終了へ進めてはいけない。
+最後の追加攻撃のモーション・攻撃効果・接触を再生し終えてから終了判定を見せる。
+回帰確認は `current_issues_check.js` の
+「サイレン＋邪眼3枚＋大いなる守護＋三段攻撃」を使う。
+
+### C019の曲射は素材の可視弾頭を基準に合わせる
+
+`C019.webp`／`C019_1.webp` の表示倍率は `PRESENT_VFX_SCALE` の **0.0625**。
+これは以前の0.125から50%へ縮小した値で、素材の曲がり方を自然に保つため変更しない。
+
+`playCurvedMissile()` の着弾補正はDOM画像の中心ではなく、WebP内で右へ寄っている
+**可視弾頭**を敵の中心へ合わせる。Yは飛行方向と逆へ発射元カード幅の0.45倍、
+Xは敵中心から発射元カード幅の0.12倍だけ左へ補正する。
+斜めの飛行ベクトルを使ってXまで補正すると、左右へ過剰にずれるので禁止。
+調整後はDOM座標だけでなく `c019_visual_check.js` のスクリーンショットで可視弾頭を確認する。
 
 ### ATK/HPの増減は必ず表示と同時に出す
 

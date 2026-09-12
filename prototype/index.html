@@ -1125,6 +1125,78 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card::after{
   background-image:var(--card-frame);
 }
+html body .card.panel-character-card{
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body .card.panel-character-card::after{
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body .card.panel-character-card > .unit-stat-overlay-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:7!important;
+}
+html body .card.panel-character-card > .panel-dir{
+  position:absolute!important;
+  z-index:200!important;
+}
+html body .rew-card.character-card > .unit-stat-overlay-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:7!important;
+}
+html body .rew-card.character-card > .panel-dir{
+  position:absolute!important;
+  z-index:200!important;
+}
+/* 特殊マス上のキャラクターカード：魔導板枠よりstat_overlayを前面へ出す。 */
+html body #hand-slots > .card.character-card > .character-frame-layer,
+html body #hand-slots > .card.character-card > .board-frame-layer{
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body #hand-slots > .card.character-card > .character-frame-layer{z-index:90!important}
+html body #hand-slots > .card.character-card > .board-frame-layer{z-index:100!important}
+html body #hand-slots > .card.character-card > .unit-stat-overlay-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  z-index:130!important;
+}
+html body #hand-slots > .card.character-card > .panel-dir{z-index:200!important}
+/* 報酬欄内のキャラクターカードも同じ積層順にする。 */
+html body #rw-cards .rew-card.character-card::after,
+html body #battle-order-row > .rew-card.character-card::after{
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body #rw-cards .rew-card.character-card > .unit-stat-overlay-layer,
+html body #battle-order-row > .rew-card.character-card > .unit-stat-overlay-layer{z-index:130!important}
+html body #rw-cards .rew-card.character-card > .panel-dir,
+html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!important}
 .slot.unit-card .unit-portrait{
   left:8.5%!important;
   right:8.5%!important;
@@ -3283,9 +3355,18 @@ body #f-enemy .slot.unit-card::after{
   content:none!important;
   display:none!important;
 }
+body #f-ally .slot.unit-card,
+body #f-enemy .slot.unit-card{
+  border:0!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+  overflow:hidden!important;
+}
 body .slot.unit-card:has(.unit-frame-layer)::after{
   content:none!important;
   display:none!important;
+}
+body .slot.unit-card:has(.unit-frame-layer){
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.72%))!important;
 }
 body .slot.unit-card .unit-frame-layer{
   position:absolute!important;
@@ -3297,11 +3378,34 @@ body .slot.unit-card .unit-frame-layer{
   transform-origin:center center!important;
   z-index:4!important;
   pointer-events:none!important;
+  border:0!important;
+  overflow:hidden!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.72%))!important;
   background:var(--unit-frame) center/100% 100% no-repeat!important;
   filter:none!important;
 }
+body .slot.unit-card .unit-stat-overlay-layer{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:var(--unit-frame-w)!important;
+  height:var(--unit-card-h)!important;
+  transform:translate(-50%,-50%)!important;
+  transform-origin:center center!important;
+  z-index:5!important;
+  pointer-events:none!important;
+  overflow:hidden!important;
+  border-radius:var(--card-frame-r,5.65% / 3.72%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.72%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+}
 body .slot.unit-card.is-defender .unit-frame-layer,
 body .slot.unit-card.uses-hate-frame .unit-frame-layer{
+  width:var(--unit-hate-frame-w)!important;
+}
+body .slot.unit-card.is-defender .unit-stat-overlay-layer,
+body .slot.unit-card.uses-hate-frame .unit-stat-overlay-layer{
   width:var(--unit-hate-frame-w)!important;
 }
 body .slot.unit-card.is-defender .unit-portrait,
@@ -5738,15 +5842,18 @@ html body .drag-ghost .card-summon-hp{
   bottom:var(--drag-hp-bottom)!important;
   width:var(--drag-hp-w)!important;
 }
-html body .attack-motion-clone .unit-frame-layer{
+html body .attack-motion-clone .unit-frame-layer,
+html body .attack-motion-clone .unit-stat-overlay-layer{
   transform:none!important;
 }
 html body .attack-motion-clone .unit-frame-layer,
+html body .attack-motion-clone .unit-stat-overlay-layer,
 html body .attack-motion-clone .unit-portrait{
   max-width:none!important;
 }
 html body .attack-motion-clone,
 html body .attack-motion-clone .unit-frame-layer,
+html body .attack-motion-clone .unit-stat-overlay-layer,
 html body .attack-motion-clone .unit-portrait{
   box-sizing:border-box!important;
 }
@@ -5845,7 +5952,8 @@ html body .slot.drag-ghost .slot-stats .h{
   width:var(--unit-stat-w)!important;
   text-align:center!important;
 }
-html body .slot.drag-ghost .unit-frame-layer{
+html body .slot.drag-ghost .unit-frame-layer,
+html body .slot.drag-ghost .unit-stat-overlay-layer{
   left:50%!important;
   top:50%!important;
   transform:translate(-50%,-50%)!important;
@@ -6268,7 +6376,8 @@ html body .attack-motion-clone{
   min-height:var(--motion-card-h)!important;
   max-height:var(--motion-card-h)!important;
 }
-html body .attack-motion-clone .unit-frame-layer{
+html body .attack-motion-clone .unit-frame-layer,
+html body .attack-motion-clone .unit-stat-overlay-layer{
   left:50%!important;
   top:50%!important;
   transform:translate(-50%,-50%)!important;
@@ -6276,7 +6385,9 @@ html body .attack-motion-clone .unit-frame-layer{
   height:var(--unit-card-h)!important;
 }
 html body .attack-motion-clone.uses-hate-frame .unit-frame-layer,
-html body .attack-motion-clone.is-defender .unit-frame-layer{
+html body .attack-motion-clone.is-defender .unit-frame-layer,
+html body .attack-motion-clone.uses-hate-frame .unit-stat-overlay-layer,
+html body .attack-motion-clone.is-defender .unit-stat-overlay-layer{
   width:var(--unit-hate-frame-w)!important;
 }
 html body .attack-motion-clone .slot-stats .a,
@@ -8864,7 +8975,7 @@ html body.world-map-active #reward-info-bar{
   pointer-events:none!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value{
-  display:block!important;
+  display:flex!important;
   visibility:visible!important;
   opacity:1!important;
   position:absolute!important;
@@ -9348,6 +9459,20 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
    幅だけをツールチップに合わせて伸縮させると、内部のATK/HP等（設計px固定）だけが
    取り残されてサイズ・位置が崩れるため、必ず要素ごと一括でscaleする。 */
 #kw-tooltip .preview-title{white-space:normal!important}
+#kw-tooltip .journey-enemy-name{
+  position:relative!important;
+  display:block!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+}
+#kw-tooltip .journey-enemy-name .preview-title-color-icon{
+  position:absolute!important;
+  /* ツールチップの本文パディングを越えて、見出し枠の左端へ置く。 */
+  left:calc(-27px * var(--game-scale))!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  margin:0!important;
+}
 #kw-tooltip .journey-card-wrap{
   position:relative;
   width:calc(260px * var(--game-scale));
@@ -9659,6 +9784,14 @@ html body #hand-slots.unit-equip-slots > [data-map-board="duplicate"].drag-over{
 html body #hand-slots.unit-equip-slots > .card::after{
   background:var(--unit-frame,var(--card-frame)) center/100% 100% no-repeat!important;
 }
+/* 売却価格・カード絵・枠線を同一カード内で確実に積層する。 */
+html body #hand-slots.unit-equip-slots > .card,
+html body #rw-cards .reward-grid-zone .rew-card,
+html body #battle-order-row > .rew-card,
+html body .reward-prod-item .reward-prod-slots i,
+html body .reward-prod-ring .reward-prod-slots i{
+  isolation:isolate!important;
+}
 html body #hand-slots.unit-equip-slots > .card:not([data-map-board])::after{
   background:var(--unit-frame,var(--card-frame)) center/100% 100% no-repeat!important;
 }
@@ -9767,6 +9900,57 @@ html body #hand-slots.unit-equip-slots > .card .character-frame-layer{
   background:var(--unit-frame,var(--card-frame)) center/100% 100% no-repeat!important;
   pointer-events:none!important;
   z-index:90!important;
+}
+html body #hand-slots.unit-equip-slots > .card.panel-character-card .character-frame-layer{
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body #hand-slots.unit-equip-slots > .card.panel-character-card .unit-stat-overlay-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:91!important;
+}
+/* キャラクターカードでは魔導板の矩形フレームを重ねない。 */
+html body #hand-slots.unit-equip-slots > .card.panel-character-card > .board-frame-layer{
+  display:none!important;
+}
+html body #hand-slots > .card.panel-character-card > .character-frame-layer{
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body #hand-slots > .card.panel-character-card > .unit-stat-overlay-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:91!important;
+}
+html body #hand-slots > .card.panel-character-card > .board-frame-layer{
+  display:none!important;
+}
+/* 特殊マス上の最終表示順。後段の旧互換ルールより高詳細度で固定する。 */
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card > .unit-stat-overlay-layer,
+html body #hand-slots > .card.character-card.panel-character-card > .unit-stat-overlay-layer{
+  z-index:130!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card > .panel-dir,
+html body #hand-slots > .card.character-card.panel-character-card > .panel-dir{
+  z-index:200!important;
 }
 html body #hand-slots.unit-equip-slots > .card .card-glow-layer{
   position:absolute!important;
@@ -10786,11 +10970,23 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-disab
 html body.reward-screen-active #debug-card-palette .debug-palette-card > .ring-visual{
   width:100%!important;height:100%!important;position:relative!important;display:block!important;
 }
+html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-visual{
+  width:100%!important;height:100%!important;position:relative!important;display:block!important;
+  background:none!important;border:0!important;box-shadow:none!important;
+}
 html body.reward-screen-active #debug-card-palette .debug-palette-card .debug-ring-art{
   position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
   object-fit:contain!important;display:block!important;z-index:2!important;pointer-events:none!important;
 }
+html body.reward-screen-active #debug-card-palette .debug-palette-card .debug-item-art{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;display:block!important;z-index:2!important;pointer-events:none!important;
+}
 html body.reward-screen-active #debug-card-palette .debug-palette-card > .ring-visual::after{
+  display:none!important;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-visual::before,
+html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-visual::after{
   display:none!important;
 }
 /* 右クリック表示中も、カードの下にある通常／特殊マスの外枠だけは残す。 */
@@ -10951,6 +11147,65 @@ html body .card-activation-costs .mana-primary-hidden{display:none!important}
 
 /* 合体ゴースト内は元カードの設計寸法を保ち、外側ラッパーだけを移動する。 */
 html body .triple-merge-ghost-card{margin:0!important;max-width:none!important;max-height:none!important}
+/* 合体ゴーストはbody直下へ移るため、魔導板内限定のカード枠規則を明示的に引き継ぐ。 */
+html body .triple-merge-ghost-card.enchantment-card > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:var(--card-frame) center/100% 100% no-repeat!important;
+  background-origin:border-box!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  z-index:90!important;
+}
+html body .triple-merge-ghost-card > .panel-dir,
+html body .triple-merge-ghost-card > .panel-dir-up,
+html body .triple-merge-ghost-card > .panel-dir-right,
+html body .triple-merge-ghost-card > .panel-dir-down,
+html body .triple-merge-ghost-card > .panel-dir-left{
+  position:absolute!important;
+  z-index:300!important;
+}
+/* 報酬カード／魔導板カード共通の最背面。m_board6自身の塗りも黒へ統一済み。 */
+html body .card > .card-back-layer,
+html body .rew-card > .card-back-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  box-sizing:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:#000 url("assets/cards/m_board6.svg?v=blackBack02") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
+  z-index:0!important;
+}
+/* SVGの角外や透明画素から画面背景が透けないよう、カード本体にも黒い下地を持たせる。 */
+html body #hand-slots.unit-equip-slots > .card,
+html body #battle-order-row > .rew-card,
+html body #rw-cards .rew-card{
+  background-color:#000!important;
+  isolation:isolate!important;
+}
+/* 暗い報酬カードも、内容だけを暗くして枠画像・枠線は通常の明るさを維持する。 */
+html body.reward-screen-active #battle-order-row > .rew-card.cant::after,
+html body.reward-screen-active #rw-cards .rew-card.cant::after,
+html body.reward-screen-active #battle-order-row > .rew-card.cant > .character-frame-layer,
+html body.reward-screen-active #rw-cards .rew-card.cant > .character-frame-layer{
+  filter:none!important;
+  opacity:1!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.cant > .unit-stat-overlay-layer,
+html body.reward-screen-active #rw-cards .rew-card.cant > .unit-stat-overlay-layer{
+  filter:brightness(.5) saturate(.5)!important;
+}
 
 /* 撤退紋章は赤みを保ったまま、文字を邪魔しない範囲でわずかに明るくする。 */
 #battle-start-intro.cutin-retreat .battle-start-icon{
@@ -11304,10 +11559,10 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 #gameover-results h1,.gameover-line,#gameover-actions{transform:translateX(65px)!important}
 /* 項目行のグループは内容幅に応じて自動で中央寄せになる（justify-content:center）。
    タイトル／ラインと同じ +65px を掛けて「旅の終焉」の中心と一致させる。 */
-.gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:220px!important;row-gap:78px!important;justify-content:center!important;font-size:54px!important;line-height:1.15!important;transform:translateX(65px)!important}
+.gameover-rows{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;column-gap:0!important;row-gap:78px!important;justify-content:stretch!important;width:100%!important;font-size:54px!important;line-height:1.15!important;transform:translateX(65px)!important}
 .gameover-rows>div{display:contents!important}
-.gameover-rows b{font-weight:700!important;white-space:nowrap}
-.gameover-rows span{white-space:nowrap}
+.gameover-rows b{font-weight:700!important;white-space:nowrap;text-align:right!important}
+.gameover-rows span{white-space:nowrap;padding-left:2em!important}
 #gameover-actions{gap:30px!important;margin-top:78px!important}
 #gameover-actions .btn{position:relative!important;min-width:0!important;width:496px!important;height:122px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent center/100% 100% no-repeat!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;line-height:normal!important;letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;overflow:visible!important;box-sizing:border-box!important}
 #gameover-actions .btn{isolation:isolate!important;background-color:transparent!important}
@@ -11626,8 +11881,9 @@ html body.gameover-active #gameover-video-shade{
 }
 html body.gameover-active #reward-bg-video{visibility:hidden!important;opacity:0!important}
 /* display:contentsの行親ではなく、実際の文字要素へ順番に出現演出を適用する。 */
+html body.gameover-active .gameover-rows>div{animation:none!important}
 html body.gameover-active .gameover-rows>div>b,
-html body.gameover-active .gameover-rows>div>span{opacity:0;animation:gameoverRowIn .35s both}
+html body.gameover-active .gameover-rows>div>span{opacity:0;animation:gameoverRowFade .35s both}
 html body.gameover-active .gameover-rows>div:nth-child(1)>*{animation-delay:1.45s}
 html body.gameover-active .gameover-rows>div:nth-child(2)>*{animation-delay:1.55s}
 html body.gameover-active .gameover-rows>div:nth-child(3)>*{animation-delay:1.65s}
@@ -11635,6 +11891,7 @@ html body.gameover-active .gameover-rows>div:nth-child(4)>*{animation-delay:1.75
 html body.gameover-active .gameover-rows>div:nth-child(5)>*{animation-delay:1.85s}
 html body.gameover-active .gameover-rows>div:nth-child(6)>*{animation-delay:1.95s}
 html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05s}
+@keyframes gameoverRowFade{from{opacity:0}to{opacity:1}}
 
 /* ══════════════════════════════════════════════════════════
    街（村）専用画面 #scr-village
@@ -12460,6 +12717,19 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   pointer-events:none!important;
   animation:mapMarkGlow 1.8s ease-in-out infinite!important;
 }
+/* 現在地マークはマップ背景・ラインより前面に固定する。
+   本体画像を別SVGのマスクで隠さず、map_mark.svgそのものを表示する。 */
+html body #scr-map.active #map-lines{
+  z-index:31!important;
+}
+html body #scr-map.active #map-lines .map-mark{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  z-index:32!important;
+  -webkit-mask:none!important;
+  mask:none!important;
+}
 @keyframes mapMarkBob{
   0%,100%{transform:translateY(-14px)}
   50%{transform:translateY(6px)}
@@ -12766,7 +13036,7 @@ html body:not(.library-screen-active) #scr-village #library-exit-btn{display:non
 #library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
 #library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff6dc}
 #library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
-#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:260px;height:55px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/100% 100% no-repeat;color:#c49a6c;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
+#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:262px;height:62px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat;color:#c49a6c;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
 html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
 /* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
    位置は複製元のインラインstyle（right/top）をそのまま引き継ぐため編成画面と完全に一致する。 */
@@ -12810,7 +13080,7 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-boar
   font-family:var(--font-hd)!important;
   font-style:normal!important;
   cursor:pointer!important;
-  z-index:10012!important;
+  z-index:111!important;
 }
 /* ══════════════════════════════════════════════════════════
    ドラッグ中の「#main-hand-area #hand-pane *{filter:none!important;opacity:1!important}」は
@@ -13751,10 +14021,10 @@ body.run-resume-active #battle-options-btn{display:none!important}
     <section id="gameover-results">
       <h1>旅の終焉</h1><img src="assets/ui/battle_line.svg" alt="" class="gameover-line">
       <div class="gameover-rows">
+        <div><b>難易度</b><span id="go-difficulty">ノーマル</span></div>
         <div><b>到達地点</b><span id="go-area">—</span></div>
         <div><b>最終戦闘</b><span id="go-final">—</span></div>
         <div><b>味方死亡回数</b><span id="go-allyDeaths">0</span></div>
-        <div><b>敵撃破回数</b><span id="go-enemyKills">0</span></div>
         <div><b>最大ダメージ</b><span id="go-damage">0 ダメージ</span></div>
         <div><b>最大ステータス</b><span id="go-stats">0 / 0</span></div>
         <div><b>プレイ時間</b><span id="go-time">0 : 00</span></div>
@@ -13810,7 +14080,7 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-    <script src="assets.js?v=stealCast01"></script>
+<script src="assets.js?v=frameSvgOverlay06"></script>
 <script src="js/engine/audio.js?v=webaudio07"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
@@ -13822,7 +14092,7 @@ fitVesselboundViewport();
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=multiFinish01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=c019Half01"></script>
+    <script src="js/battle/present.js?v=c019Center03"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13844,12 +14114,12 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=attackMotion03"></script>
     <script src="js/engine/battle_events.js?v=multiFinish01"></script>
-    <script src="js/engine/render.js?v=c019Center02"></script>
-<script src="js/engine/reward_items.js?v=shopMenu04"></script>
+<script src="js/engine/render.js?v=frameSvgOverlay16"></script>
+<script src="js/engine/reward_items.js?v=itemRingDismiss03"></script>
 <script src="js/engine/reward_journey.js?v=steal01"></script>
-<script src="js/engine/reward.js?v=shopMenu04"></script>
-<script src="js/engine/map.js?v=steal02"></script>
-  <script src="js/engine/main.js?v=bgmWarm02"></script>
+<script src="js/engine/reward.js?v=cardLayerFix10"></script>
+<script src="js/engine/map.js?v=steal04"></script>
+  <script src="js/engine/main.js?v=runStatsUi01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -14032,6 +14302,15 @@ html body #hand-slots.unit-equip-slots > .card{
 html body #hand-slots.unit-equip-slots > .card:has(.character-frame-layer)::after{
   border:0!important;
 }
+/* エンチャントも実要素の枠レイヤーへ移行したため、カード本体の疑似要素は使わない。 */
+html body .card.enchantment-card:has(.character-frame-layer)::after,
+html body .rew-card.enchantment-card:has(.character-frame-layer)::after,
+html body .drag-ghost.enchantment-card:has(.character-frame-layer)::after{
+  content:none!important;
+  display:none!important;
+  border:0!important;
+  background:none!important;
+}
 /* 逆に、枠レイヤーを持たないカード（エンチャント等）は `::after` が枠の絵そのもの。
    マスの種類ごとの `#hand-slots.unit-equip-slots > [data-map-board="…"]::after{border:…}` に
    負けないよう、id込みで詳細度を上げて線を引き直す。 */
@@ -14059,9 +14338,11 @@ html body .rew-card.dragging::after,
 html body .slot.dragging::after,
 html body .dragging .character-frame-layer,
 html body .dragging .unit-frame-layer,
+html body .dragging .unit-stat-overlay-layer,
 html body .drag-source-parts-hidden::after,
 html body .drag-source-parts-hidden .character-frame-layer,
 html body .drag-source-parts-hidden .unit-frame-layer,
+html body .drag-source-parts-hidden .unit-stat-overlay-layer,
 /* 上の枠線ルールには id 付き（`#hand-slots.unit-equip-slots > .card .character-frame-layer`）が
    あるので、消す側も同じだけ詳細度を上げないと勝てない。 */
 html body #hand-slots.unit-equip-slots > .card.dragging .character-frame-layer,
@@ -14298,14 +14579,31 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i:hover .sho
   align-items:center!important;
   justify-content:center!important;
 }
+/* 売却UIを表示する魔導板カード自身の矩形ホバー影は、ボタンの下に
+   四角い発光として残るため消す。ボタン外周の発光は::afterだけで描く。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-btn):hover{
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-btn):hover .card-glow-layer{
+  opacity:0!important;
+  box-shadow:none!important;
+}
+/* カード非表示中は、見えないカード上の売却UIも操作対象にしない。 */
+html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-board-sell-btn,
+html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-pending-sell-btn,
+html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-board-sell-value{
+  display:none!important;
+  pointer-events:none!important;
+}
 html body.reward-screen-active .shop-board-sell-btn::before,
 html body.reward-screen-active .shop-pending-sell-btn::before{
   content:none!important;
 }
 html body.reward-screen-active .shop-board-sell-btn:hover,
 html body.reward-screen-active .shop-pending-sell-btn:hover{
-  /* 実体が透過SVGなので、drop-shadowは矩形ではなく外周パスに沿う。 */
-  filter:brightness(1.55) drop-shadow(0 0 7px rgba(255,231,164,.78))!important;
+  /* 発光は下の::afterでbutton_invisible_s.svgの外周だけへ掛ける。 */
+  filter:none!important;
 }
 html body.reward-screen-active .shop-board-sell-btn,
 html body.reward-screen-active .shop-pending-sell-btn{
@@ -14319,7 +14617,7 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-boar
   bottom:auto!important;
 }
 
-/* cost.svg は枠線の下側に重ね、文字は右端へ揃える。 */
+/* cost.svg は枠線の下側に重ね、文字はcost.svgの中央へ揃える。 */
 html body.reward-screen-active .shop-board-sell-value,
 html body.reward-screen-active .shop-buy-price,
 html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value,
@@ -14329,21 +14627,24 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-board-sell-value{
   top:34px!important;
   right:0!important;
+  left:auto!important;
+  transform:none!important;
   width:101px!important;
   height:46px!important;
   min-width:101px!important;
   box-sizing:border-box!important;
-  padding:0 8px 0 16px!important;
+  padding:0 8px!important;
   display:flex!important;
   align-items:center!important;
-  justify-content:flex-end!important;
+  justify-content:center!important;
   border:0!important;
   border-radius:0!important;
   background:transparent url("assets/ui/cost.svg?v=shopMenu02") center/100% 100% no-repeat!important;
   color:var(--gold2)!important;
   font-size:24px!important;
   line-height:1!important;
-  text-align:right!important;
+  text-align:center!important;
+  font-family:var(--font-bd)!important;
   text-shadow:0 1px 2px #000!important;
   /* board-frame-layer(100) より上、プログラム枠(map-boundary-layer=110)より下。 */
   z-index:105!important;
@@ -14353,6 +14654,29 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-boar
   /* 売却ボタンと同じ下辺へ移動させない。 */
   top:34px!important;
 }
+html body #kw-tooltip .preview-title-color-icon{
+  position:absolute!important;
+  left:0!important;
+  top:0!important;
+  transform:none!important;
+  width:1em!important;
+  height:1em!important;
+  object-fit:contain!important;
+  margin:0!important;
+  display:inline-block!important;
+}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-1{color:#fff!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-2{color:#5ea6ff!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-3{color:#c07bff!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-4{color:#ffd93d!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-5{
+  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
+  background-size:200% 100%!important;
+  -webkit-background-clip:text!important;
+  background-clip:text!important;
+  color:transparent!important;
+  animation:rarity5-shimmer 3s linear infinite!important;
+}
 html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:34px!important}
 
 /* カード価格は枠画像(board-frame=100)より手前、
@@ -14360,9 +14684,23 @@ html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:
    stacking contextを作ると子のz-index:105が外枠を越えるため解除する。
    アイテム／指輪は枠線の疑似要素を110にし、同じく価格の上へ描く。 */
 html body.reward-screen-active .shop-pending-sale-ui{z-index:auto!important}
+html body.reward-screen-active #rw-cards .reward-grid-zone .rew-card::after,
+html body.reward-screen-active #battle-order-row > .rew-card::after{
+  z-index:100!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card .board-frame-layer,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card .map-boundary-layer,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
   z-index:110!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
+html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
+  z-index:110!important;
+}
+/* 手持ちアイテムの売却ボタンは、アイテム枠のプログラム外枠より前へ出す。 */
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+  z-index:111!important;
 }
 
 /* クリック後のアイテム／指輪メニューは説明の直下に並ぶ固定表示。 */
@@ -14393,10 +14731,17 @@ html body #item-use-confirm .btn:hover{
 /* クリックで固定したホバー説明。別ウインドウではなく #kw-tooltip 自体を操作する。 */
 html body #kw-tooltip.reward-action-tooltip{
   pointer-events:auto!important;
-  display:grid!important;
-  grid-template-columns:1fr!important;
-  white-space:normal!important;
+  display:block!important;
+  white-space:pre-wrap!important;
   cursor:default!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-rule{
+  display:block!important;
+  width:100%!important;
+  height:calc(10px * var(--game-scale))!important;
+  margin:calc(8px * var(--game-scale)) 0!important;
+  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
   white-space:pre-wrap!important;
@@ -14406,45 +14751,969 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-buttons{
   display:grid!important;
-  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-columns:repeat(3,calc(132px * var(--game-scale)))!important;
   gap:calc(8px * var(--game-scale))!important;
-  width:100%!important;
+  width:max-content!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
-  min-width:0!important;
-  width:100%!important;
-  height:calc(51px * var(--game-scale))!important;
+  min-width:calc(132px * var(--game-scale))!important;
+  width:calc(132px * var(--game-scale))!important;
+  height:calc(62px * var(--game-scale))!important;
   box-sizing:border-box!important;
   padding:0!important;
   position:relative!important;
   isolation:isolate!important;
   border:0!important;
   border-radius:0!important;
-  background:transparent!important;
+  background:transparent url("assets/ui/button_invisible_s.svg?v=shopMenu05") center/calc(132px * var(--game-scale)) calc(62px * var(--game-scale)) no-repeat!important;
   color:#c49a6c!important;
   font:700 calc(22px * var(--game-scale))/1 var(--font-hd)!important;
   cursor:pointer!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn::before{
-  content:''!important;
-  display:block!important;
-  position:absolute!important;
-  inset:0!important;
-  box-sizing:border-box!important;
-  border:calc(22px * var(--game-scale)) solid transparent!important;
-  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu03")!important;
-  border-image-slice:22 fill!important;
-  border-image-width:calc(22px * var(--game-scale))!important;
-  border-image-repeat:stretch!important;
-  pointer-events:none!important;
-  z-index:-1!important;
+  content:none!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::before{
   filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
 }
+/* 売却／還魂とクリックメニューの発光は、button_invisible_s.svgの外周線だけを光らせる。 */
+html body.reward-screen-active .shop-board-sell-btn::after,
+html body.reward-screen-active .shop-pending-sell-btn::after,
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn::after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  pointer-events:none!important;
+  opacity:0!important;
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 62'%3E%3Cpath d='M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c0,8.3-6.7,15-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+  filter:url(#ui-btn-outer-glow-only)!important;
+  transition:opacity .12s ease!important;
+}
+html body.reward-screen-active .shop-board-sell-btn:hover::after,
+html body.reward-screen-active .shop-pending-sell-btn:hover::after,
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::after{
+  opacity:.84!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled:hover::after,
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled::after{
+  opacity:0!important;
+}
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled{
   opacity:.42!important;
-  cursor:not-allowed!important;
+  cursor:default!important;
+}
+
+/* 特殊マス上のキャラクターカード：SVG枠にない四角いプログラム枠を除去し、
+   枠・stat_overlay・カード本体を同じ角丸でクリップする。 */
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board],
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board]{
+  --card-frame-r:5.65% / 3.721%!important;
+  border-radius:5.65% / 3.721%!important;
+  overflow:hidden!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board]::after,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board]::after{
+  inset:0!important;
+  border:0!important;
+  box-shadow:none!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+  z-index:100!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .character-frame-layer,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board] > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .unit-stat-overlay-layer,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board] > .unit-stat-overlay-layer{
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .map-boundary-layer,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board] > .map-boundary-layer{
+  border:0!important;
+  box-shadow:none!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+  pointer-events:none!important;
+}
+/* 強化カードと同じ枠描画に揃える。特殊マスのキャラクターカードは
+   character-frame-layerだけを枠として使い、カード::afterとの二重描画を止める。 */
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card:has(.character-frame-layer)::after,
+html body #hand-slots > .card.character-card.panel-character-card:has(.character-frame-layer)::after{
+  content:none!important;
+  display:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .character-frame-layer,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board] > .character-frame-layer{
+  display:block!important;
+  z-index:90!important;
+  border:2px solid #c49a6c!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+  background-origin:border-box!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .unit-stat-overlay-layer,
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board] > .unit-stat-overlay-layer{
+  z-index:130!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+/* SVG枠の測定が0%になった場合も、強化カードと同じ既定の角丸を使う。 */
+html body .card[data-frame-key="summon_frame1"],
+html body .card[data-frame-key="summon_frame2"],
+html body .card[data-frame-key="summon_frame3"],
+html body .card[data-frame-key="summon_frame4"],
+html body .card[data-frame-key="summon_frame5"],
+html body .card[data-frame-key="enemy_frame"],
+html body .card[data-frame-key="boss_frame"],
+html body .rew-card[data-frame-key="summon_frame1"],
+html body .rew-card[data-frame-key="summon_frame2"],
+html body .rew-card[data-frame-key="summon_frame3"],
+html body .rew-card[data-frame-key="summon_frame4"],
+html body .rew-card[data-frame-key="summon_frame5"],
+html body .rew-card[data-frame-key="enemy_frame"],
+html body .rew-card[data-frame-key="boss_frame"],
+html body .card[data-frame-key="enchantment"],
+html body .rew-card[data-frame-key="enchantment"]{
+  --card-frame-r:5.65% / 3.721%!important;
+}
+
+/* 戦闘中の実カードは、先行する .slot.unit-card .unit-frame-layer の
+   border:0 に負けない詳細度で通常の2px枠線を戻す。 */
+html body #scr-battle #f-ally .slot.unit-card .unit-frame-layer,
+html body #scr-battle #f-enemy .slot.unit-card .unit-frame-layer{
+  border:2px solid #c49a6c!important;
+  background-origin:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+/* 特殊マスは通常カードより太い5px枠線にする。キャラクターは専用枠層、
+   強化カードなどはカード疑似要素を太くする。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board] > .character-frame-layer,
+html body #hand-slots > .card[data-map-board] > .character-frame-layer{
+  border:5px solid #c49a6c!important;
+  background-origin:border-box!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+html body #hand-slots.unit-equip-slots > .card[data-map-board]:not(:has(.character-frame-layer))::after,
+html body #hand-slots > .card[data-map-board]:not(:has(.character-frame-layer))::after{
+  border:5px solid #c49a6c!important;
+  background-origin:border-box!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+/* 報酬カード枠内の強化カードも、魔導板上と同じく矢印を枠画像の前へ出す。 */
+html body #battle-order-row > .rew-card .panel-dir,
+html body #rw-cards .rew-card .panel-dir{
+  position:absolute!important;
+  z-index:300!important;
+  pointer-events:auto!important;
+}
+html body #battle-order-row > .rew-card.character-card > .panel-dir,
+html body #rw-cards .rew-card.character-card > .panel-dir{
+  z-index:300!important;
+}
+html body #battle-order-row > .rew-card .panel-dir-up,
+html body #battle-order-row > .rew-card .panel-dir-right,
+html body #battle-order-row > .rew-card .panel-dir-down,
+html body #battle-order-row > .rew-card .panel-dir-left,
+html body #rw-cards .rew-card .panel-dir-up,
+html body #rw-cards .rew-card .panel-dir-right,
+html body #rw-cards .rew-card .panel-dir-down,
+html body #rw-cards .rew-card .panel-dir-left{
+  z-index:300!important;
+}
+/* 攻撃アニメーションは#f-ally/#f-enemyの外へ作る複製なので、
+   戦闘スロット用の指定が届かない。複製にも通常の2px枠線を明示する。 */
+html body .attack-motion-clone .unit-frame-layer{
+  border:2px solid #c49a6c!important;
+  background-origin:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+/* 攻撃中の発光がカード本体の枠へ重なって見かけ上5pxになるのを防ぐ。
+   発光は外側のぼかしだけ残し、実際の枠線は .unit-frame-layer の2pxに限定する。 */
+html body .attack-motion-clone.effect-flash{
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
+/* 戦闘カードは unit-frame-layer が枠画像と2px線を兼ねる。
+   親の ::after も同時に線を描くと、攻撃複製だけ二重線になり5px相当に見える。 */
+html body #scr-battle .slot.unit-card:has(.unit-frame-layer)::after,
+html body .attack-motion-clone::after{
+  content:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  background:none!important;
+}
+/* ドラッグ元のカード枠は消し、特殊マスの下側のマス枠を残す。
+   通常マスのキャラクターも既存のdragging非表示規則に従う。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board].dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots > .card[data-map-board].dragging > .character-frame-layer,
+html body #hand-slots > .card[data-map-board].drag-source-parts-hidden > .character-frame-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]).dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]).drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots > .card:not([data-map-board]).dragging > .character-frame-layer,
+html body #hand-slots > .card:not([data-map-board]).drag-source-parts-hidden > .character-frame-layer{
+  opacity:0!important;
+  visibility:visible!important;
+}
+/* 魔導板のカードを掴んだ時は、カード種別に関係なくマス枠を残す。
+   線幅は _hideDragSourceParts() が通常2px／特殊5pxで設定する。 */
+html body #hand-slots.unit-equip-slots > .card.dragging > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden > .board-frame-layer,
+html body #hand-slots > .card.dragging > .board-frame-layer,
+html body #hand-slots > .card.drag-source-parts-hidden > .board-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  z-index:100!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+
+/* 枠線の最終状態固定。
+   attack-motion-clone／ドラッグは常に2px、特殊マスのキャラクターだけ5px、
+   通常マスのキャラクターは消さず2pxで表示する。 */
+html body .attack-motion-clone .unit-frame-layer,
+html body .attack-motion-clone::after,
+html body .dragging::after,
+html body .drag-source-parts-hidden::after,
+html body .dragging .unit-frame-layer,
+html body .drag-source-parts-hidden .unit-frame-layer,
+html body .drag-ghost .unit-frame-layer{
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+}
+/* 通常マスの出撃不可キャラクターをドラッグしても、暗転用疑似レイヤーを
+   枠へ残さない。カード枠レイヤー自体は上の規則で明るく維持する。 */
+html body #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position::before,
+html body #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position::after,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position::before,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position::after,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position::before,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position::after,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position::before,
+html body[class*="dragzone-"] #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position::after{
+  display:none!important;
+  opacity:0!important;
+  content:none!important;
+  background:none!important;
+}
+/* 出撃不可カードの暗転規則はドラッグ中も高詳細度で残るため、
+   ドラッグ元のキャラクター枠・魔導板枠だけは明るさを戻す。 */
+html body #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position:not([data-map-board]) > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position:not([data-map-board]) > .board-frame-layer,
+html body[class*="dragzone-"] #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body[class*="dragzone-"] #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position:not([data-map-board]) > .board-frame-layer,
+html body[class*="dragzone-"] #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body[class*="dragzone-"] #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position:not([data-map-board]) > .board-frame-layer{
+  filter:none!important;
+}
+/* 通常マスのプログラム枠は価格より前面に固定する。価格は
+   character-frame-layer（枠画像）とこの疑似要素（プログラム枠）の間に置く。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card.character-card.panel-character-card:not([data-map-board])::after,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card.enchantment-card:not([data-map-board])::after{
+  z-index:110!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:not([data-map-board]) > .board-frame-layer{
+  z-index:110!important;
+}
+/* 通常マスのキャラクターをドラッグしても、下側のプログラム枠は暗転させない。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card.dragging.invalid-battle-position:not([data-map-board])::after,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden.invalid-battle-position:not([data-map-board])::after{
+  content:""!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  filter:none!important;
+  z-index:110!important;
+}
+/* 魔導板上の売却価格は、カード画像より上・枠画像／枠線より下へ置く。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value{
+  display:flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  top:34px!important;
+  right:0!important;
+  left:auto!important;
+  z-index:105!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  padding:0 8px!important;
+  pointer-events:none!important;
+}
+/* arrowアイコンはカード外側へ張り出すため、カード本体では切らない。
+   枠画像・stat_overlay側の角丸クリップは各レイヤーで維持する。 */
+html body .card.panel-character-card{
+  overflow:visible!important;
+  clip-path:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card{
+  overflow:visible!important;
+  clip-path:none!important;
+}
+/* 特殊マス上のキャラクターカードも、親カードでarrowを切らない。 */
+html body #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board],
+html body #hand-slots > .card.character-card.panel-character-card[data-map-board]{
+  overflow:visible!important;
+  clip-path:none!important;
+}
+/* 先行定義の `body .slot.unit-card .unit-frame-layer { border:0 }` は
+   詳細度が高いため、攻撃複製・戦闘ドラッグゴーストには同等以上の指定を置く。 */
+html body .slot.unit-card.attack-motion-clone .unit-frame-layer,
+html body .slot.unit-card.drag-ghost .unit-frame-layer,
+html body .slot.unit-card.dragging .unit-frame-layer{
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+}
+/* body直下のドラッグゴーストも、疑似枠は倍率計算しない。
+   --game-scaleを掛けるとウインドウ倍率によって2pxが5px相当に変化する。 */
+html body .drag-ghost::after{
+  border-width:2px!important;
+}
+html body #hand-slots.unit-equip-slots > .card[data-map-board].character-card.panel-character-card > .character-frame-layer,
+html body #hand-slots > .card[data-map-board].character-card.panel-character-card > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  background-origin:border-box!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+html body #hand-slots.unit-equip-slots > .card[data-map-board].character-card.panel-character-card.dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].character-card.panel-character-card.drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots > .card[data-map-board].character-card.panel-character-card.dragging > .character-frame-layer,
+html body #hand-slots > .card[data-map-board].character-card.panel-character-card.drag-source-parts-hidden > .character-frame-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]).character-card.panel-character-card > .character-frame-layer,
+html body #hand-slots > .card:not([data-map-board]).character-card.panel-character-card > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+/* エンチャントも character-frame-layer を持つため、カード本体の疑似枠を
+   二重に描かず、実体の枠画像だけを表示する。 */
+html body #hand-slots.unit-equip-slots > .card.enchantment-card:has(.character-frame-layer)::after,
+html body #hand-slots > .card.enchantment-card:has(.character-frame-layer)::after{
+  content:none!important;
+  display:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  background:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card.enchantment-card > .character-frame-layer,
+html body #hand-slots > .card.enchantment-card > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  z-index:90!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background:var(--card-frame) center/100% 100% no-repeat!important;
+  background-origin:border-box!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+}
+html body #hand-slots.unit-equip-slots > .card.enchantment-card[data-map-board] > .character-frame-layer,
+html body #hand-slots > .card.enchantment-card[data-map-board] > .character-frame-layer{
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+html body #hand-slots.unit-equip-slots > .card.enchantment-card.dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.enchantment-card.drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots > .card.enchantment-card.dragging > .character-frame-layer,
+html body #hand-slots > .card.enchantment-card.drag-source-parts-hidden > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+/* 特殊マスのカード枠は要素の外へ広げず、常にカード箱内へクリップする。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board].dragging::after,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].drag-source-parts-hidden::after,
+html body #hand-slots > .card[data-map-board].dragging::after,
+html body #hand-slots > .card[data-map-board].drag-source-parts-hidden::after{
+  inset:0!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+/* 通常マスで出撃不可のキャラクターはカード枠画像も内容と同じ明度へ落とす。
+   プログラム生成のマス枠(board-frame-layer)は別レイヤーなので明るい2pxのまま保つ。 */
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body #hand-slots > .card.invalid-battle-position:not([data-map-board]) > .character-frame-layer{
+  filter:brightness(.5) saturate(.5)!important;
+  opacity:1!important;
+  /* 枠画像(90) < 売却価格(105) < プログラム枠(110) */
+  z-index:90!important;
+}
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .unit-stat-overlay-layer,
+html body #hand-slots > .card.invalid-battle-position:not([data-map-board]) > .unit-stat-overlay-layer{
+  filter:brightness(.5) saturate(.5)!important;
+  opacity:1!important;
+}
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .board-frame-layer,
+html body #hand-slots > .card.invalid-battle-position:not([data-map-board]) > .board-frame-layer{
+  filter:none!important;
+  opacity:1!important;
+}
+/* 特殊マスの枠は旧 inset:-1px ルールを使わず、カード箱内の位置に固定する。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board]::after,
+html body #hand-slots > .card[data-map-board]::after{
+  inset:0!important;
+  box-sizing:border-box!important;
+  border-radius:5.65% / 3.721%!important;
+  clip-path:inset(0 round 5.65% / 3.721%)!important;
+}
+/* アイテム／指輪のドラッグ中は、カード用のプログラム枠線を描かない。
+   item_slot.svg / ring_slot.svg は疑似要素の背景としてそのまま残す。 */
+html body .drag-ghost.item-visual,
+html body .drag-ghost.ring-visual,
+html body .dragging.item-visual,
+html body .dragging.ring-visual{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+html body .drag-ghost.item-visual::before,
+html body .drag-ghost.item-visual::after,
+html body .drag-ghost.ring-visual::before,
+html body .drag-ghost.ring-visual::after,
+html body .dragging.item-visual::before,
+html body .dragging.item-visual::after,
+html body .dragging.ring-visual::before,
+html body .dragging.ring-visual::after{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+/* ドラッグ中の発光用疑似要素は枠線として扱わない。
+   枠画像または専用frame-layerの2px/5pxだけを表示し、発光の外周線が
+   5px相当に見える二重線を作らない。 */
+html body .dragging::before,
+html body .drag-source-parts-hidden::before,
+html body .dragging .card-glow-layer,
+html body .drag-source-parts-hidden .card-glow-layer,
+html body .drag-ghost .card-glow-layer{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
+html body #rw-cards .rew-card.dragging,
+html body #battle-order-row > .rew-card.dragging,
+html body #rw-cards .rew-card.drag-source-parts-hidden,
+html body #battle-order-row > .rew-card.drag-source-parts-hidden{
+  outline:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body #rw-cards .rew-card.dragging::before,
+html body #battle-order-row > .rew-card.dragging::before,
+html body #rw-cards .rew-card.drag-source-parts-hidden::before,
+html body #battle-order-row > .rew-card.drag-source-parts-hidden::before{
+  border:0!important;
+  box-shadow:none!important;
+  content:none!important;
+}
+/* 魔導板カード固有の高詳細度な card-glow-layer は、通常の
+   `.dragging .card-glow-layer` だけでは上書きできない。ドラッグ中は
+   発光レイヤーを完全に消し、カード枠画像＋2px線だけを残す。 */
+html body #hand-slots.unit-equip-slots > .card.dragging > .card-glow-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden > .card-glow-layer,
+html body #hand-slots > .card.dragging > .card-glow-layer,
+html body #hand-slots > .card.drag-source-parts-hidden > .card-glow-layer{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  opacity:0!important;
+  display:none!important;
+}
+/* 通常マスのキャラクター枠はドラッグ中も消さず、2pxで固定する。 */
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]).dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]).drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots > .card:not([data-map-board]).dragging > .character-frame-layer,
+html body #hand-slots > .card:not([data-map-board]).drag-source-parts-hidden > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+}
+/* 要素本体に残る旧ドラッグ発光も止める。これが枠線の外側に重なり、
+   2pxの線を5px程度に見せていた。枠画像・frame-layerは別要素なので影響しない。 */
+html body .dragging,
+html body .drag-source-parts-hidden,
+html body .drag-ghost{
+  outline:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+html body .dragging .unit-frame-layer,
+html body .drag-source-parts-hidden .unit-frame-layer,
+html body .drag-ghost .unit-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+}
+/* 特殊マス上のキャラクターは、下側のマス枠・境界線をドラッグ中も残す。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board].panel-character-card.dragging > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].panel-character-card.drag-source-parts-hidden > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].panel-character-card.dragging > .map-boundary-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board].panel-character-card.drag-source-parts-hidden > .map-boundary-layer,
+html body #hand-slots > .card[data-map-board].panel-character-card.dragging > .board-frame-layer,
+html body #hand-slots > .card[data-map-board].panel-character-card.drag-source-parts-hidden > .board-frame-layer,
+html body #hand-slots > .card[data-map-board].panel-character-card.dragging > .map-boundary-layer,
+html body #hand-slots > .card[data-map-board].panel-character-card.drag-source-parts-hidden > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+/* 特殊マス上の強化カードは、残るマス枠レイヤに5px枠を持たせる。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board]:not(:has(.character-frame-layer)).dragging::after,
+html body #hand-slots.unit-equip-slots > .card[data-map-board]:not(:has(.character-frame-layer)).drag-source-parts-hidden::after,
+html body #hand-slots > .card[data-map-board]:not(:has(.character-frame-layer)).dragging::after,
+html body #hand-slots > .card[data-map-board]:not(:has(.character-frame-layer)).drag-source-parts-hidden::after,
+html body .drag-ghost[data-map-board]:not(:has(.character-frame-layer))::after{
+  display:none!important;
+  border:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card[data-map-board]:not(:has(.character-frame-layer)).dragging > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board]:not(:has(.character-frame-layer)).drag-source-parts-hidden > .board-frame-layer,
+html body #hand-slots > .card[data-map-board]:not(:has(.character-frame-layer)).dragging > .board-frame-layer,
+html body #hand-slots > .card[data-map-board]:not(:has(.character-frame-layer)).drag-source-parts-hidden > .board-frame-layer,
+html body .drag-ghost[data-map-board]:not(:has(.character-frame-layer)) > .board-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background-origin:border-box!important;
+}
+
+/* 2026-09-11: 魔導板ドラッグ枠の最終契約。
+   カード枠は常に2px、特殊マス境界だけ5pxとし、両者を混在させない。 */
+html body #hand-slots.unit-equip-slots > .card > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card[data-map-board] > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.enchantment-card[data-map-board] > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+  z-index:90!important;
+}
+html body #hand-slots.unit-equip-slots > .card:has(> .character-frame-layer)::after{
+  content:none!important;
+  display:none!important;
+  border:0!important;
+  background:none!important;
+  box-shadow:none!important;
+}
+/* 通常マスのプログラム枠。枠画像(90)と価格(105)より前面へ置く。 */
+html body #hand-slots.unit-equip-slots > .card:not([data-map-board]) > .board-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:none!important;
+  filter:none!important;
+  z-index:110!important;
+  pointer-events:none!important;
+}
+/* 特殊マスはカード枠とは別の5px境界を、カード箱の内側へ固定する。 */
+html body #hand-slots.unit-equip-slots > .card[data-map-board] > .board-frame-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card[data-map-board] > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:none!important;
+  box-shadow:none!important;
+  outline:0!important;
+  filter:none!important;
+  z-index:110!important;
+  pointer-events:none!important;
+}
+/* 空の特殊マスも占有時と同じ5px内側境界にし、移動前後で外寸を変えない。 */
+html body #hand-slots.unit-equip-slots > .card-empty[data-map-board]{
+  box-sizing:border-box!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  outline:0!important;
+  outline-offset:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+/* ドラッグ元にはマス枠だけを残し、カード枠画像は残さない。 */
+html body #hand-slots.unit-equip-slots > .card.dragging > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.dragging > .unit-stat-overlay-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden > .unit-stat-overlay-layer{
+  opacity:0!important;
+}
+html body #hand-slots.unit-equip-slots > .card.dragging:not([data-map-board]) > .board-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden:not([data-map-board]) > .board-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border-width:2px!important;
+  filter:none!important;
+}
+html body #hand-slots.unit-equip-slots > .card.dragging[data-map-board] > .map-boundary-layer,
+html body #hand-slots.unit-equip-slots > .card.drag-source-parts-hidden[data-map-board] > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  inset:0!important;
+  border-width:5px!important;
+  filter:none!important;
+}
+/* 移動中の複製にはカード枠画像＋2px線だけを表示する。 */
+html body .drag-ghost{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  clip-path:none!important;
+}
+html body .drag-ghost::before,
+html body .drag-ghost::after{
+  content:none!important;
+  display:none!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+html body .drag-ghost > .character-frame-layer,
+html body .drag-ghost[data-map-board] > .character-frame-layer,
+html body .drag-ghost.enchantment-card[data-map-board] > .character-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background-origin:border-box!important;
+  z-index:90!important;
+}
+html body .drag-ghost > .unit-stat-overlay-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat!important;
+  z-index:130!important;
+}
+html body .drag-ghost > .drag-card-dim-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
+  background:rgba(0,0,0,.48)!important;
+  pointer-events:none!important;
+  z-index:80!important;
+}
+/* ゴーストはbody直下へ移るため、報酬枠／魔導板に限定された矢印のz-indexを継承しない。 */
+html body .drag-ghost > .panel-dir,
+html body .drag-ghost > .panel-dir-up,
+html body .drag-ghost > .panel-dir-right,
+html body .drag-ghost > .panel-dir-down,
+html body .drag-ghost > .panel-dir-left{
+  z-index:300!important;
+}
+html body .drag-ghost > .board-frame-layer,
+html body .drag-ghost > .map-boundary-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+  border:0!important;
+}
+/* 売却価格は枠画像とプログラム枠の間に固定する。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .character-frame-layer{z-index:90!important}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-value{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  z-index:105!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .board-frame-layer,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .map-boundary-layer{z-index:110!important}
+/* 旧ルールの詳細度を上回る最終固定。 */
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .character-frame-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.enchantment-card[data-map-board] > .character-frame-layer{
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  z-index:90!important;
+}
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card:not([data-map-board]) > .board-frame-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:2px solid #c49a6c!important;
+  border-width:2px!important;
+  background:none!important;
+  filter:none!important;
+  z-index:110!important;
+}
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.character-card.panel-character-card[data-map-board] > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card.enchantment-card[data-map-board] > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  background:none!important;
+  box-shadow:none!important;
+  outline:0!important;
+  filter:none!important;
+  z-index:110!important;
+}
+html body .drag-ghost > .character-frame-layer{
+  background:var(--card-frame) center/100% 100% no-repeat!important;
+}
+/* 特殊マスSVG自身の2px線を、追加した5px境界の内側へ二重表示しない。
+   border-boxを背景の基準にするとSVG外周とCSS境界が同じ位置へ重なる。 */
+html body #hand-slots.unit-equip-slots > .card-empty[data-map-board],
+html body #hand-slots.unit-equip-slots > .card[data-map-board]{
+  background-origin:border-box!important;
+  background-clip:border-box!important;
+}
+/* 右クリックのカード非表示では、カード固有枠も必ず隠す。
+   末尾の通常表示契約より後ろに置き、特殊マスの境界だけは残す。 */
+html body.right-card-peek.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .character-frame-layer,
+html body.right-card-peek.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor) > .unit-stat-overlay-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+}
+html body.right-card-peek.reward-screen-active #main-hand-area #hand-pane #hand-slots.unit-equip-slots > .card[data-map-board]:not(.reward-unit-anchor) > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+/* アイテム／指輪は画像を疑似要素で描くため、全カード用の
+   `.drag-ghost::before/::after {display:none}` をここで打ち消す。 */
+html body.reward-screen-active .drag-ghost.item-visual::before{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat!important;
+  opacity:1!important;
+}
+html body.reward-screen-active .drag-ghost.item-visual-filled::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:12%!important;
+  background:var(--item-art) center/cover no-repeat!important;
+  opacity:1!important;
+}
+html body.reward-screen-active .drag-ghost.ring-visual::before{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0!important;
+  background:url("assets/ui/ring_slot.svg") center/100% 100% no-repeat!important;
+  opacity:1!important;
+}
+html body.reward-screen-active .drag-ghost.ring-visual-filled::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:88%!important;
+  height:88%!important;
+  transform:translate(-50%,-50%)!important;
+  background:var(--ring-art) center/contain no-repeat!important;
+  opacity:1!important;
+}
+
+/* ゲームオーバー／クリア魔導板の最終契約。
+   通常画面用の高詳細度ルールが後からカード枠を再表示したり、特殊マス境界を
+   0pxへ戻したりしないよう、複製側の2つのidを含めて確定する。 */
+html body.gameover-active #gameover-board-grid #hand-slots.unit-equip-slots > .card[data-map-board] > .map-boundary-layer{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:absolute!important;
+  inset:0!important;
+  box-sizing:border-box!important;
+  border:5px solid #c49a6c!important;
+  border-width:5px!important;
+  background:none!important;
+  box-shadow:none!important;
+  outline:0!important;
+  filter:none!important;
+  z-index:110!important;
+}
+html body.gameover-active.right-card-peek #gameover-board-grid #hand-slots.unit-equip-slots > .card > .character-frame-layer,
+html body.gameover-active.right-card-peek #gameover-board-grid #hand-slots.unit-equip-slots > .card > .unit-stat-overlay-layer{
+  display:none!important;
+  visibility:hidden!important;
+  opacity:0!important;
+  background:none!important;
+}
+/* 掴んだ元位置にはスロットだけを残し、画像はゴースト側だけで動かす。 */
+html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-visual-filled.dragging::after{
+  opacity:0!important;
+}
+/* カード最背面はspanだけに依存せず、カード本体の背景にも黒いm_board6を固定する。
+   枠や絵は子レイヤーなので、この背景が常に最背面になる。 */
+html body #hand-slots.unit-equip-slots > .card,
+html body.reward-screen-active #battle-order-row > .rew-card:not(.item-visual):not(.ring-visual):not(.forge-card),
+html body.reward-screen-active #rw-cards .rew-card:not(.item-visual):not(.ring-visual):not(.forge-card){
+  background:#000 url("assets/cards/m_board6.svg?v=blackBack02") center/100% 100% no-repeat!important;
+}
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]):not(.deploy-slot){
+  background:#000 url("assets/cards/m_board6.svg?v=blackBack02") center/100% 100% no-repeat!important;
+}
+/* 報酬カードの枠画像とプログラム枠線を分離する。 */
+html body.reward-screen-active #battle-order-row > .rew-card:not(.item-visual):not(.ring-visual):not(.forge-card)::after,
+html body.reward-screen-active #rw-cards .rew-card:not(.item-visual):not(.ring-visual):not(.forge-card)::after,
+html body.reward-screen-active #battle-order-row > .rew-card > .character-frame-layer,
+html body.reward-screen-active #rw-cards .rew-card > .character-frame-layer{
+  border:0!important;
+  z-index:90!important;
+}
+html body .rew-card > .reward-card-line-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  box-sizing:border-box!important;
+  border:2px solid #c49a6c!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:none!important;
+  filter:none!important;
+  pointer-events:none!important;
+  z-index:200!important;
+}
+/* 報酬カード本体と黒背面は暗転状態でも常に不透明にする。暗さは専用子レイヤーだけで作る。 */
+html body.reward-screen-active:not(.right-card-peek) #battle-order-row > .rew-card:not(.dragging):not(.drag-source-parts-hidden),
+html body.reward-screen-active:not(.right-card-peek) #rw-cards .rew-card:not(.dragging):not(.drag-source-parts-hidden),
+html body.reward-screen-active:not(.right-card-peek) #battle-order-row > .rew-card > .card-back-layer,
+html body.reward-screen-active:not(.right-card-peek) #rw-cards .rew-card > .card-back-layer{
+  opacity:1!important;
+}
+html body.reward-screen-active #battle-order-row > .rew-card.cant::before,
+html body.reward-screen-active #rw-cards .rew-card.cant::before{
+  content:none!important;
+  display:none!important;
+}
+html body .rew-card > .reward-card-dim-layer{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  box-sizing:border-box!important;
+  border:0!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  background:rgba(0,0,0,.5)!important;
+  filter:none!important;
+  pointer-events:none!important;
+  /* 枠画像・ATK/HP・arrow・独立枠線を含むカード全体を同じ色で暗転する。
+     ゴールド不足表示(z-index:10002)だけは読み取れるよう前面に残す。 */
+  z-index:10000!important;
+}
+/* 購入不可カードは専用暗転層でカード全体を一様に暗くする。 */
+html body.reward-screen-active #battle-order-row > .rew-card.cant::after,
+html body.reward-screen-active #rw-cards .rew-card.cant::after,
+html body.reward-screen-active #battle-order-row > .rew-card.cant > .character-frame-layer,
+html body.reward-screen-active #rw-cards .rew-card.cant > .character-frame-layer,
+html body.reward-screen-active #battle-order-row > .rew-card.cant > .unit-stat-overlay-layer,
+html body.reward-screen-active #rw-cards .rew-card.cant > .unit-stat-overlay-layer{
+  filter:none!important;
+  opacity:1!important;
+}
+/* ドラッグしていない出撃不可カードは、別カードのドラッグ中もstat_overlayを暗く保つ。 */
+html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.unit-equip-slots > .card.invalid-battle-position:not(.dragging) > .unit-stat-overlay-layer{
+  filter:brightness(.5) saturate(.5)!important;
+}
+/* 魔導板カードと報酬カードのホバー発光を同じ描画経路・同じ値へ固定する。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:hover:not(.inert):not(.dragging),
+html body.reward-screen-active #battle-order-row > .rew-card:hover:not(.cant):not(.dragging),
+html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging){
+  overflow:visible!important;
+  filter:none!important;
+  box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:hover:not(.inert):not(.dragging) > .card-glow-layer,
+html body.reward-screen-active #battle-order-row > .rew-card:hover:not(.cant):not(.dragging)::before,
+html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging)::before{
+  display:none!important;
+  content:none!important;
+  box-shadow:none!important;
+}
+/* 暗い魔導板カードは、報酬カードの黒50%暗転と同じ色倍率にする。
+   saturate()を併用すると魔導板側だけ彩度が落ち、同じm_board6背面でも別色に見える。 */
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .unit-stat-overlay-layer,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-atk,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-hp,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .stat-atk,
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .stat-hp{
+  filter:brightness(.5)!important;
+}
+/* 報酬カードのarrowはカード箱の外へ先端がはみ出すため、箱内の暗転層だけでは
+   先端が明るく残る。arrow全体を暗転層の前へ出し、同じ50%暗転を直接適用する。 */
+html body.reward-screen-active #battle-order-row > .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left),
+html body.reward-screen-active #rw-cards .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left){
+  z-index:10001!important;
+  filter:brightness(.5) drop-shadow(0 2px 3px rgba(0,0,0,.9))!important;
 }
 </style>
 </body>

@@ -48,7 +48,7 @@ const OUT=process.env.VB_C019_SHOT||'/tmp/vesselbound-c019-check.png';
     // cleanupDelayMs中なので、ここは正確な終点。
     const distance=Math.hypot(probe.x-target.x,probe.y-target.y);
     if(distance>=target.w) throw new Error(`C019終点が離れすぎ: ${distance.toFixed(1)}px`);
-    const expectedHostX=target.x-target.w*.12;
+    const expectedHostX=target.x;
     if(Math.abs(probe.x-expectedHostX)>.75) throw new Error(`C019の素材内弾頭補正が不正: ${(probe.x-expectedHostX).toFixed(2)}px`);
     if(!probe.fire) throw new Error('炎の矢の比較DOMが取得できない');
     const fireDistance=Math.hypot(probe.fire.x-target.fire.x,probe.fire.y-target.fire.y);

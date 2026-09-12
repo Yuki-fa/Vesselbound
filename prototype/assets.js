@@ -11,9 +11,10 @@ const Assets = {
     ring: 'assets/cards/card_ring.svg',
     wand: 'assets/cards/card_wand.svg',
     consumable: 'assets/cards/card_item.svg',
-    // エリート／ボス用の枠。character_frame.png から boss_frame.png へ改名済み。
-    characterFrame: 'assets/cards/boss_frame.png',
-    enemyFrame: 'assets/cards/enemy_frame.png',
+    // エリート／ボス用の枠。SVGをそのまま背景レイヤーとして使用する。
+    characterFrame: 'assets/cards/boss_frame.svg',
+    enemyFrame: 'assets/cards/enemy_frame.svg',
+    statOverlay: 'assets/cards/stat_overlay.png',
     ringFrame: 'assets/cards/ring_frame.png',
     wandFrame: 'assets/cards/wand_frame.png',
     itemFrame: 'assets/cards/item_frame.png',
@@ -21,19 +22,19 @@ const Assets = {
     growthFrame: 'assets/cards/growth_frame.png',
     // **summon_frameN の N は色の並び（赤・青・緑・黄・紫）に対応する。**
     // summon_frame1 と summon_frame3 は入れ替え済み（1＝赤／3＝緑）。
-    summonFrameRed: 'assets/cards/summon_frame1.png',
-    summonFrameBlue: 'assets/cards/summon_frame2.png',
-    summonFrameGreen: 'assets/cards/summon_frame3.png',
-    summonFrameBrown: 'assets/cards/summon_frame4.png',
-    summonFramePurple: 'assets/cards/summon_frame5.png',
-    enchantmentFrame: 'assets/cards/enchantment.png',
+    summonFrameRed: 'assets/cards/summon_frame1.svg',
+    summonFrameBlue: 'assets/cards/summon_frame2.svg',
+    summonFrameGreen: 'assets/cards/summon_frame3.svg',
+    summonFrameBrown: 'assets/cards/summon_frame4.svg',
+    summonFramePurple: 'assets/cards/summon_frame5.svg',
+    enchantmentFrame: 'assets/cards/enchantment.svg',
     // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
     // 画像は上と同じものを色で選ぶ。
-    spell1: 'assets/cards/summon_frame3.png',
-    spell2: 'assets/cards/summon_frame2.png',
-    spell3: 'assets/cards/summon_frame4.png',
-    spell4: 'assets/cards/summon_frame1.png',
-    spell5: 'assets/cards/summon_frame5.png',
+    spell1: 'assets/cards/summon_frame3.svg',
+    spell2: 'assets/cards/summon_frame2.svg',
+    spell3: 'assets/cards/summon_frame4.svg',
+    spell4: 'assets/cards/summon_frame1.svg',
+    spell5: 'assets/cards/summon_frame5.svg',
     gradeStar: 'assets/cards/grade_star.png',
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
@@ -387,7 +388,7 @@ function _spellFrameByColor(color){
   return Assets.cards.spell1;
 }
 
-// エリート／ボスの敵はカード枠・戦闘スロットとも boss_frame.png を使う。
+// エリート／ボスの敵はカード枠・戦闘スロットとも boss_frame.svg を使う。
 // （通常の敵枠や色別の召喚枠ではなく、特別な相手であることを枠で示す）
 function _isEliteOrBossCard(card){
   if(!card) return false;
@@ -678,7 +679,10 @@ function _measureFrameRadius(url,key){
       const op=(x,y)=>d[(y*n+x)*4+3]>_FRAME_RADIUS_ALPHA;
       let rx=0; while(rx<n&&!op(rx,0)) rx++;
       let ry=0; while(ry<n&&!op(0,ry)) ry++;
-      if(rx>=n||ry>=n) return;   // 角丸として読めない絵は既定値のまま
+      // SVG枠の一部は上辺／左辺にアンチエイリアスの線が置かれ、
+      // 走査結果が0になることがある。その値を採用すると角丸が0%になり、
+      // SVG自体が丸いのにCSSのプログラム枠だけ四角く残るため、既定値を使う。
+      if(rx<=0||ry<=0||rx>=n||ry>=n) return;   // 角丸として読めない絵は既定値のまま
       _frameRadiusByKey.set(key,`${(rx/W*100).toFixed(3)}% / ${(ry/H*100).toFixed(3)}%`);
       _flushFrameRadiusCss();
     }catch(e){

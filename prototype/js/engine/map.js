@@ -668,6 +668,8 @@ function _worldMapLineAnimationDuration(line){
 // 7＝赤禍の塔後／8＝ヴォルザーク後／0＝蝕界の塔後（ラインのアニメーションは行わない）。
 const WORLD_MAP_MARK_W=50, WORLD_MAP_MARK_H=170.88;
 const WORLD_MAP_MARKS={
+  // 最初の区間の終点（最初の現在地）。マークの左上座標で指定する。
+  1:{x:972,y:1250},
   2:{x:666, y:847},
   3:{x:1977,y:877},
   4:{x:3189,y:897},

@@ -73,8 +73,23 @@
       ||(el&&el.getAttribute('data-kwdesc'))||(el&&el.getAttribute('data-panel-power-preview'))||(el&&el.getAttribute('data-preview'))||'';
     if(desc){
       const journeyEnemyJson=(el&&el===journeyEnemyEl)?el.getAttribute('data-journey-enemy'):'';
+      const titleColor=el&&el.getAttribute('data-preview-title-color')||'';
       tip.innerHTML=journeyEnemyJson?_formatJourneyEnemyHtml(desc,journeyEnemyJson)
-        :(isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc}));
+        :(isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc,titleColor}));
+      tip.style.display='block';
+      // 通常キャラクターの色アイコンは、キャラクター名ではなく説明本文の左端へ置く。
+      // 名前は独立して中央揃えのまま、アイコンだけを名前のY軸中央に合わせる。
+      const _previewColorIcon=tip.querySelector('.preview-title-color-icon');
+      const _previewTitleText=tip.querySelector('.preview-title-text');
+      const _previewTitle=_previewColorIcon&&_previewTitleText?_previewColorIcon.closest('.preview-title'):null;
+      if(_previewColorIcon&&_previewTitleText&&_previewTitle){
+        const _titleRect=_previewTitle.getBoundingClientRect();
+        const _textRect=_previewTitleText.getBoundingClientRect();
+        const _iconRect=_previewColorIcon.getBoundingClientRect();
+        _previewColorIcon.style.setProperty('left','0px','important');
+        _previewColorIcon.style.setProperty('top',`${_textRect.top-_titleRect.top+(_textRect.height-_iconRect.height)/2}px`,'important');
+        _previewColorIcon.style.setProperty('transform','none','important');
+      }
       tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
       tip.classList.toggle('map-tooltip',isMapPowerDesc);
       // data-preview-norule＝見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。
@@ -213,13 +228,19 @@ function _formatJourneyEffectText(desc){
   }).filter(Boolean).join('<br>');
 }
 // 「旅の進捗」パネルのエリート/ボスホバー専用フォーマット。
-// タイトル（エリート／ボス＋カード名、2行中央揃え）→カード画像→直線→効果テキストの順に組み立てる。
+// タイトル（エリート／ボス＋カード名、2行）→カード画像→直線→効果テキストの順に組み立てる。
 function _formatJourneyEnemyHtml(titleText,jsonStr){
-  const titleHtml=String(titleText||'').split('\n').map(l=>_escapePreviewHtml(l)).join('<br>');
-  const title=`<strong class="preview-title">${titleHtml}</strong>`;
+  const titleLines=String(titleText||'').split('\n');
+  const titleHtml=titleLines.map(l=>_escapePreviewHtml(l)).join('<br>');
+  let title=`<strong class="preview-title">${titleHtml}</strong>`;
   let data=null;
   try{ data=JSON.parse(jsonStr); }catch(_e){}
   if(!data) return title;
+  const enemyType=titleLines[0]||'';
+  const enemyName=titleLines[1]||data.name||'';
+  // エリート／ボスの見出しには色アイコンを表示しない。
+  // 色アイコンは通常のキャラクター説明（_formatPreviewHtml）の見出しだけに表示する。
+  title=`<strong class="preview-title journey-enemy-title"><span class="journey-enemy-type">${_escapePreviewHtml(enemyType)}</span><span class="journey-enemy-name">${_escapePreviewHtml(enemyName)}</span></strong>`;
   // 他のカードと全く同じ生成経路（mkCardEl）でフレーム・絵柄・ATK/HPを1枚のカードとして
   // 描画する（独自の簡易表示だと縦横比が崩れて潰れて見えるため）。
   const pseudoCard={
@@ -301,12 +322,15 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
 }
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
+  const titleColor=String(opt&&opt.titleColor||'').trim();
   const clean=_stripStrongMarkupText(desc).replace(/<[^>]*>/g,'');
   const sectionRule='<div class="preview-section-rule"></div>';
   const lines=clean.split('\n').map((line,li)=>{
     if(li===0){
       const title=_escapePreviewHtml(line);
-      return `<strong class="preview-title">${plainTitle?title:_injectManaIcons(_boldKeywordsInHtml(title))}</strong>`;
+      const colorPath=titleColor&&typeof _colorIconPath==='function'?_colorIconPath(titleColor):'';
+      const colorIcon=colorPath?`<img class="preview-title-color-icon" src="${_escapePreviewHtml(colorPath)}" alt="${_escapePreviewHtml(titleColor)}">`:'';
+      return `<strong class="preview-title"><span class="preview-title-text">${plainTitle?title:_injectManaIcons(_boldKeywordsInHtml(title))}</span>${colorIcon}</strong>`;
     }
     if(line==='__CHARACTER_DESC_SEPARATOR__') return sectionRule;
     const m=line.match(/^([^：:]+)([：:])(.*)$/);
@@ -391,6 +415,26 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
       });
       return lines;
     }).filter(Boolean).join('\n');
+}
+// アイテム／指輪はカードと異なり、キーワード列が無いデータもある。
+// 説明文・指輪タグに含まれる「キーワード説明辞書に登録済みの語」だけを拾い、
+// カード名や通常の効果文を誤ってキーワードとして表示しない。
+function _auxiliaryKeywordPreviewText(card,desc){
+  if(!card) return '';
+  const rawDesc=String(desc??card.desc??card.description??card.effectText??card.effect??'');
+  const rawTag=String(card.tag??card.tags??'');
+  const source=[...(Array.isArray(card.keywords)?card.keywords:[]),rawTag].filter(Boolean).map(String);
+  const haystack=`${rawDesc}\n${rawTag}`;
+  const names=typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP
+    ?Object.keys(KW_DESC_MAP).filter(Boolean).sort((a,b)=>b.length-a.length):[];
+  names.forEach(name=>{
+    const escaped=String(name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const m=haystack.match(new RegExp(`${escaped}\\d*`));
+    if(m) source.push(m[0]);
+  });
+  const keywords=[...new Set(source.map(k=>String(k).trim()).filter(Boolean))];
+  if(!keywords.length) return '';
+  return _keywordOnlyPreviewText({...card,keywords},rawDesc);
 }
 function _formatKeywordOnlyHtml(text){
   return String(text||'').split('\n').filter(Boolean).map(line=>{
@@ -1573,23 +1617,20 @@ function playCurvedMissile(options){
   const codeOffset=typeof presentProjectileImpactOffsetY==='function'
     ?presentProjectileImpactOffsetY(opt.code):impactOffsetY;
   const centerTo={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
-  // C019もE058と同じ着弾座標を使う。縦長素材の透明余白を理由に
-  // 飛行方向へ補正すると、敵の中心からさらに離れて見える。
+  // C019_1.webp は絵がキャンバスの上側に寄っている。画像を進行方向へ
+  // 回転しているため、縦方向だけを補正すると斜め着弾時にその余白が
+  // X方向へ回り込み、対象の中心からずれる。画像のローカルY方向の
+  // 余白を、進行方向に合わせて2軸へ投影して補正する。
   let to=centerTo;
-  if(String(opt.code||'').toUpperCase()==='C019'){
-    // C019_1.webp は実体が画像の先端側に偏っているため、枠中心を
-    // そのまま終点にすると飛行方向へ突き抜ける。実体中心を敵中心へ置く。
+  const isC019=String(opt.code||'').toUpperCase()==='C019';
+  const c019Lead=isC019?fromRect.width*.45:0;
+  if(isC019){
     const vy=centerTo.y-from.y;
-    // E058_1とC019_1を同じ画面で着弾フレームまで進め、
-    // 対象中心と「先端の発光部」を実測した補正。DOMの中心ではなく、
-    // プレイヤーが着弾点として見る部分を炎の矢と同じ位置に揃える。
-    // 進行方向ベクトルで戻すと、斜めの対象でXも動き、
-    // 先端が敵中心の右へずれる。Xは常に対象中心へ固定し、
-    // 透明余白の補正はYだけにする。表示サイズを50%にしたので補正量も半分。
-    const lead=fromRect.width*.45;
-    // WebP内の弾頭は画像中心から素材表示幅の約12%右にある。
-    // 入れ物を同じ量だけ左へ置き、見える弾頭を敵のX中心へ合わせる。
-    to={x:centerTo.x-fromRect.width*.12,y:centerTo.y-Math.sign(vy||-1)*lead};
+    const dir=Math.atan2(vy,centerTo.x-from.x);
+    const imageAngle=dir+Math.PI/2;
+    // ホストのXは対象中心に固定する。縦長素材の上寄りの絵に必要な
+    // Y補正だけを終点へ反映し、回転で生じるX補正は画像側で行う。
+    to={x:centerTo.x,y:centerTo.y+c019Lead*Math.cos(imageAngle)};
   }
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
@@ -1633,6 +1674,12 @@ function playCurvedMissile(options){
   const place=(pt,deg)=>{
     host.style.left=`${pt.x-halfW}px`;
     host.style.top=`${pt.y-halfH}px`;
+    if(isC019){
+      const rad=Number(deg)*Math.PI/180;
+      img.style.left=`calc(50% + ${(-c019Lead*Math.sin(rad)).toFixed(3)}px)`;
+    }else{
+      img.style.left='50%';
+    }
     img.style.transform=`translate(-50%,-50%) rotate(${deg}deg) scale(${scale})`;
   };
   place(from,Number.isFinite(Number(opt.fixedAngle))?Number(opt.fixedAngle)
@@ -2984,19 +3031,56 @@ function _buildMotionCardClone(fromEl, fr){
   if(hateFrameW) clone.style.setProperty('--unit-hate-frame-w',hateFrameW);
   const frameLayer=fromEl.querySelector('.unit-frame-layer');
   const frameRect=frameLayer?.getBoundingClientRect?.();
+  const gameScale=_gameScale();
   if(frameRect&&frameRect.width&&frameRect.height){
     clone.style.setProperty('--unit-frame-w',`${frameRect.width}px`,'important');
     clone.style.setProperty('--unit-hate-frame-w',`${frameRect.width}px`,'important');
     const cloneFrame=clone.querySelector('.unit-frame-layer');
+    const sourceFrameStyle=getComputedStyle(frameLayer);
     if(cloneFrame){
       cloneFrame.style.setProperty('width',`${frameRect.width}px`,'important');
       cloneFrame.style.setProperty('height',`${frameRect.height}px`,'important');
       cloneFrame.style.setProperty('max-width',`${frameRect.width}px`,'important');
       cloneFrame.style.setProperty('max-height',`${frameRect.height}px`,'important');
       cloneFrame.style.setProperty('transform','translate(-50%,-50%)','important');
+      // 元カードはゲーム全体の scale 配下、攻撃複製は body 直下にある。
+      // ここを2px固定にすると複製だけ実表示が 1/scale 倍太くなるため、
+      // デザイン上の2pxへ現在のゲーム倍率を掛けて同じ見た目にする。
+      const motionFrameBorderPx=2*gameScale;
+      cloneFrame.style.setProperty('border',`${motionFrameBorderPx}px solid #c49a6c`,'important');
+      cloneFrame.style.setProperty('border-width',`${motionFrameBorderPx}px`,'important');
+      cloneFrame.style.setProperty('background-origin','border-box','important');
+      cloneFrame.style.setProperty('background-image',sourceFrameStyle.backgroundImage,'important');
+      cloneFrame.style.setProperty('background-size',sourceFrameStyle.backgroundSize||'100% 100%','important');
+      cloneFrame.style.setProperty('background-position',sourceFrameStyle.backgroundPosition||'center','important');
+      cloneFrame.style.setProperty('background-repeat','no-repeat','important');
+      cloneFrame.style.setProperty('border-radius',sourceFrameStyle.borderRadius||'5.65% / 3.721%','important');
+      cloneFrame.style.setProperty('clip-path',`inset(0 round ${sourceFrameStyle.borderRadius||'5.65% / 3.721%'})`,'important');
+    }
+    // stat_overlay は元盤面ではゲーム全体の scale 配下だが、攻撃複製は body 直下に置く。
+    // CSS変数の設計pxをそのまま使うと実寸より大きくなり、下端の表示がカード外へ逃げる。
+    // 枠画像と同じ実測矩形へ固定し、複製でも必ず枠の前面に残す。
+    const sourceOverlay=fromEl.querySelector('.unit-stat-overlay-layer');
+    const cloneOverlay=clone.querySelector('.unit-stat-overlay-layer');
+    if(sourceOverlay&&cloneOverlay){
+      const sourceOverlayStyle=getComputedStyle(sourceOverlay);
+      cloneOverlay.style.setProperty('display','block','important');
+      cloneOverlay.style.setProperty('visibility','visible','important');
+      cloneOverlay.style.setProperty('opacity','1','important');
+      cloneOverlay.style.setProperty('width',`${frameRect.width}px`,'important');
+      cloneOverlay.style.setProperty('height',`${frameRect.height}px`,'important');
+      cloneOverlay.style.setProperty('max-width',`${frameRect.width}px`,'important');
+      cloneOverlay.style.setProperty('max-height',`${frameRect.height}px`,'important');
+      cloneOverlay.style.setProperty('transform','translate(-50%,-50%)','important');
+      cloneOverlay.style.setProperty('background-image',sourceOverlayStyle.backgroundImage||'url("assets/cards/stat_overlay.png")','important');
+      cloneOverlay.style.setProperty('background-size','100% 100%','important');
+      cloneOverlay.style.setProperty('background-position','center','important');
+      cloneOverlay.style.setProperty('background-repeat','no-repeat','important');
+      cloneOverlay.style.setProperty('z-index','5','important');
+      cloneOverlay.style.setProperty('border-radius',sourceFrameStyle.borderRadius||'5.65% / 3.721%','important');
+      cloneOverlay.style.setProperty('clip-path',`inset(0 round ${sourceFrameStyle.borderRadius||'5.65% / 3.721%'})`,'important');
     }
   }
-  const gameScale=_gameScale();
   const copyMotionStat=(srcSel,dstSel,refSel)=>{
     const src=fromEl.querySelector(srcSel);
     const dst=clone.querySelector(dstSel);
@@ -4424,9 +4508,15 @@ function renderField(id,units,isEnemy,_lane){
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+        }
+        const _battleFrameLayer=slot.querySelector('.unit-frame-layer');
+        if(_battleFrameLayer){
+          _battleFrameLayer.style.setProperty('border','2px solid #c49a6c','important');
+          _battleFrameLayer.style.setProperty('border-width','2px','important');
+          _battleFrameLayer.style.setProperty('background-origin','border-box','important');
         }
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
         const hitLayer=document.createElement('div');
@@ -4824,12 +4914,17 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
   const isPanelCharacter=isPanelCard&&String(card.category||'')==='キャラクター';
   if(isPanelCharacter) div.classList.add('character-card','panel-character-card');
+  if(div.classList.contains('character-card')&&card.color) div.setAttribute('data-preview-title-color',String(card.color));
   const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&!isCombatPowerPanel&&card.panelScope!=='global'));
   const atkLabel='', hpLabel='';
   const dynDesc=computeDesc(card,_mlOverride);
   const _keywordPreviewCard={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[])]};
   const _keywordPreviewAll=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_keywordPreviewCard):'';
   if(_keywordPreviewAll) div.setAttribute('data-keyword-preview',_keywordPreviewAll);
+  if(card.type==='ring'||card.type==='consumable'||card.kind==='item'){
+    const _auxKeywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,card.desc||''):'';
+    if(_auxKeywordPreview) div.setAttribute('data-keyword-preview',_auxKeywordPreview);
+  }
   let _charPreview='';
   if(div.classList.contains('character-card')){
     // シート「キーワード」列由来のcard.keywordsは、敵ユニット同様に_unitPreviewText()で
@@ -4847,7 +4942,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[_cardUiName(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -4871,6 +4966,9 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
       ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
     const preview=[_cardUiName(card),_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
+    const keywordPreview=typeof _keywordOnlyPreviewText==='function'
+      ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
+    if(keywordPreview) div.setAttribute('data-keyword-preview',keywordPreview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;

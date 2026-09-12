@@ -162,7 +162,7 @@ function _syncRewardJourneyUi(options){
           artCode:def.artCode||def._artCode||def.No||def['No.']||def.no||def.imageNo||'',
           color:def.color||'',
           _sheetEnemy:!!def._sheetEnemy,
-          // 旅の進捗のホバー表示でも、エリート／ボスは boss_frame.png を使う。
+          // 旅の進捗のホバー表示でも、エリート／ボスは boss_frame.svg を使う。
           _isEliteOrBoss:true,
         };
         enemyAttr=` data-journey-enemy="${_escapePreviewHtml(JSON.stringify(payload))}"`;

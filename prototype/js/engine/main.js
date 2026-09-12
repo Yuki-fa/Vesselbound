@@ -1586,9 +1586,9 @@ function gameOver(options){
   if(typeof renderGameOverBoard==='function') renderGameOverBoard();
   document.getElementById('go-area').textContent=G.runStats.areaName;
   document.getElementById('go-final').textContent=G.runStats.finalBattle||'—';
+  document.getElementById('go-difficulty').textContent='ノーマル';
   document.getElementById('go-time').textContent=G.runStats.playTime||'0 : 00';
   _animateGameOverNumber('go-allyDeaths',G.runStats.allyDeaths,600,undefined,800);
-  _animateGameOverNumber('go-enemyKills',G.runStats.enemyKills,600,undefined,900);
   _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
   _animateGameOverPair('go-stats',G.runStats.maxAtk,G.runStats.maxHp,700,1100);
   const resultTitle=document.querySelector('#gameover-results h1');

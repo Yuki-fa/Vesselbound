@@ -26,10 +26,14 @@ function _syncRewardProductionItems(){
     const preview=item?[item.name,_previewRarityLine(item),item.desc||''].filter(Boolean).join('\n'):'';
     if(preview){
       slot.setAttribute('data-preview',preview);
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(item,item.desc||''):'';
+      if(keywordPreview) slot.setAttribute('data-keyword-preview',keywordPreview);
+      else slot.removeAttribute('data-keyword-preview');
       const rarity=Math.max(1,Math.min(5,parseInt(item.rarity,10)||1));
       slot.classList.add(`rarity-${rarity}`);
     }else{
       slot.removeAttribute('data-preview');
+      slot.removeAttribute('data-keyword-preview');
     }
     slot.draggable=!!item;
     if(!slot._itemDragWired){
@@ -152,10 +156,19 @@ function _closeItemUseConfirm(){
     tip.dataset.rewardLocked='';
     tip.dataset.rewardSlotIdx='';
     tip.classList.remove('reward-action-tooltip');
+    tip.dataset.rewardAnchorKind='';
     tip.innerHTML='';
     tip.style.display='none';
     tip.style.removeProperty('width');
     tip.style.removeProperty('max-width');
+  }
+  // 固定したアイテム／指輪説明に付随するキーワード説明も同時に閉じる。
+  // #kw-tooltip だけを閉じると、rewardLocked中は通常のmousemove側が
+  // #keyword-tooltipを片付けないため、キーワード枠だけが画面に残る。
+  const keywordTip=document.getElementById('keyword-tooltip');
+  if(keywordTip){
+    keywordTip.innerHTML='';
+    keywordTip.style.display='none';
   }
 }
 function _openRewardActionTooltip(anchor,title,desc,actions){
@@ -191,7 +204,11 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
       :`<div class="preview-title">${esc(title)}</div>${esc(desc)}`;
   }
   tip.dataset.rewardLocked='1';
+  tip.dataset.rewardAnchorKind='item';
   tip.classList.add('reward-action-tooltip');
+  const rule=document.createElement('div');
+  rule.className='reward-action-rule';
+  tip.appendChild(rule);
   const box=document.createElement('div');
   box.className='reward-action-buttons';
   tip.appendChild(box);
@@ -215,14 +232,33 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
     tip.style.left=`${Math.max(8,rect.left)}px`;
     tip.style.top=`${rect.bottom+8*scale}px`;
   }
+  // クリック前から表示されていたキーワード説明は、固定説明枠の高さが
+  // ボタン分だけ増えたあとも旧位置に残るため、説明枠の直下へ再配置する。
+  const keywordTip=document.getElementById('keyword-tooltip');
+  if(keywordTip&&keywordTip.style.display==='block'){
+    _posTipRelative(keywordTip,tip,'below',false);
+    _fitTooltipStack([tip,keywordTip]);
+  }
 }
 if(!window._itemRingMenuDismissBound){
   window._itemRingMenuDismissBound=true;
+  document.addEventListener('contextmenu',e=>{
+    const tip=document.getElementById('kw-tooltip');
+    if(tip?.dataset.rewardLocked==='1'){
+      // 右クリックは reward.js の共通処理にも渡す。ここで止めると
+      // ポップアップ上だけ「閉じる」になり、他の場所の右クリックと
+      // 「カード表示非表示切り替え」が一致しなくなる。
+      e.preventDefault();
+      _closeItemUseConfirm();
+    }
+  },true);
   document.addEventListener('pointerdown',e=>{
     const pop=document.getElementById('item-use-confirm');
     const tip=document.getElementById('kw-tooltip');
     if(!pop&&tip?.dataset.rewardLocked!=='1') return;
-    if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,#kw-tooltip.reward-action-tooltip,.reward-prod-item .reward-prod-slots i,.reward-prod-ring .reward-prod-slots i')) return;
+    // 中身のある別スロットは次のclickでその説明へ切り替えるため残す。
+    // 空欄は操作対象ではないので、外側クリックと同じく現在の説明を閉じる。
+    if(e.target&&e.target.closest&&e.target.closest('#item-use-confirm,#kw-tooltip.reward-action-tooltip,.reward-prod-item .reward-prod-slots i.item-visual-filled,.reward-prod-ring .reward-prod-slots i.ring-visual-filled')) return;
     _closeItemUseConfirm();
     if(G&&G._pendingItemUse) _cancelPendingItemUse();
   },true);
@@ -246,6 +282,7 @@ if(!window._itemRingMenuDismissBound){
   // 右クリックによる透明化解除は残すため、左ボタンだけを対象にする。
   document.addEventListener('pointerdown',e=>{
     if(!document.body.classList.contains('right-card-peek')||e.button!==0) return;
+    if(e.target&&e.target.closest&&e.target.closest('#journey-progress-ui')) return;
     e.preventDefault();
     e.stopImmediatePropagation();
     _dragSrc=null;
@@ -781,7 +818,9 @@ function _openItemUseConfirm(idx,anchor){
   // 押すたびに remove→append していたため、連打するとボタンが消えては出て
   // 明滅して見えた（使えないアイテムでは「使う」が一瞬明るく見える）。
   const tip=document.getElementById('kw-tooltip');
-  if(tip?.dataset.rewardLocked==='1'&&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
+  if(tip?.dataset.rewardLocked==='1'
+    &&tip.dataset.rewardAnchorKind==='item'
+    &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const useUnavailable=!_canUseItemNow(card);
   _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
     {label:'使う',disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
