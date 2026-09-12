@@ -109,12 +109,12 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     if(!metrics.popupRightClick.closed||!metrics.popupRightClick.peek) throw new Error(`ポップアップ上の右クリックが共通切替になっていない: ${JSON.stringify(metrics.popupRightClick)}`);
     if(!metrics.enhancementKeywordPreview||!metrics.characterTitleIcon||metrics.debugRarityLabels<1||!metrics.debugHover.rarity||!metrics.debugHover.keyword) throw new Error(`強化カード／色アイコン／デバッグホバー表示が不足: ${JSON.stringify(metrics)}`);
     if(metrics.hiddenSale.display!=='none'&&metrics.hiddenSale.pointerEvents!=='none') throw new Error(`カード非表示中も売却UIが反応する: ${JSON.stringify(metrics.hiddenSale)}`);
-    if(metrics.sale.cssW!=='132px'||metrics.sale.cssH!=='62px'||metrics.sale.top!==230) throw new Error(`売却ボタンの寸法または位置が不正: ${JSON.stringify(metrics)}`);
+    if(metrics.sale.cssW!=='101px'||metrics.sale.cssH!=='46px'||metrics.sale.top!==34) throw new Error(`売却価格ボタンの寸法または位置が不正: ${JSON.stringify(metrics)}`);
     if(metrics.cost.padL!==metrics.cost.padR) throw new Error(`販売価格テキストの左右余白が不均等: ${JSON.stringify(metrics.cost)}`);
-    if(!/button_invisible_s\.svg/.test(metrics.sale.frame)) throw new Error('売却ボタンがbutton_invisible_s.svgではない');
+    if(!/cost\.svg/.test(metrics.sale.frame)) throw new Error('売却価格ボタンがcost.svgではない');
     if(metrics.item.sale.width!=='132px'||metrics.item.sale.height!=='62px'||! /button_invisible_s\.svg/.test(metrics.item.sale.background)) throw new Error(`アイテム売却ボタンが原寸素材ではない: ${JSON.stringify(metrics.item)}`);
     if(metrics.item.cost.top!=='34px'||Number(metrics.item.cost.z)>=Number(metrics.item.frameZ)) throw new Error(`アイテム価格の位置または重なり順が不正: ${JSON.stringify(metrics.item)}`);
-    if(!/button_invisible_s\.svg/.test(metrics.action.frame)||Math.abs(metrics.action.width-metrics.action.expectedW)>.1||Math.abs(metrics.action.height-metrics.action.expectedH)>.1) throw new Error(`操作ボタンがbutton_invisible_s.svg原寸ではない: ${JSON.stringify(metrics.action)}`);
+    if(!/border|cost\.svg/.test(metrics.action.frame)||Math.abs(metrics.action.width-101*scale)>.1||Math.abs(metrics.action.height-46*scale)>.1) throw new Error(`売却価格ボタンの寸法・素材が不正: ${JSON.stringify(metrics.action)}`);
     if(metrics.cost.cssW!=='101px'||metrics.cost.cssH!=='46px') throw new Error(`cost.svg表示の寸法が101x46ではない: ${JSON.stringify(metrics)}`);
     if(Number(metrics.cost.z)!==105) throw new Error(`価格表示の重なり順が不正: ${JSON.stringify(metrics.cost)}`);
     const disabledRect=await browser.eval(`
@@ -130,8 +130,8 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     await browser.eval(`_closeItemUseConfirm()`);
     await browser.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:metrics.sale.x+metrics.sale.w/2,y:metrics.sale.y+metrics.sale.h/2});
     await sleep(180);
-    const hoverFilter=await browser.eval(`return (()=>{const b=document.querySelector('#hand-slots .shop-board-sell-btn');const p=getComputedStyle(b,'::after');return {filter:p.filter,opacity:p.opacity};})();`);
-    if(!/drop-shadow|url\(/.test(hoverFilter.filter)||Number(hoverFilter.opacity)<=0) throw new Error(`売却ボタンがホバー発光していない: ${JSON.stringify(hoverFilter)}`);
+    const hoverFilter=await browser.eval(`return (()=>{const b=document.querySelector('#hand-slots .shop-board-sell-action');const s=getComputedStyle(b);const p=getComputedStyle(b,'::after');return {filter:p.filter,opacity:p.opacity,backgroundColor:s.backgroundColor,backgroundImage:s.backgroundImage,color:s.color};})();`);
+    if(hoverFilter.backgroundColor!=='rgba(7, 27, 48, 0.8)'||!/cost\.svg/.test(hoverFilter.backgroundImage)||hoverFilter.color!=='rgb(240, 208, 128)'||Number(hoverFilter.opacity)!==0) throw new Error(`売却価格ボタンのホバー表示が不正: ${JSON.stringify(hoverFilter)}`);
     const shot=await browser.screenshot(OUT);
     const cancelMetrics=await browser.eval(`
       G._pendingItemUse={slotIdx:0,key:'shield_scroll',card:{name:'盾の巻物'},boardSnapshot:null};

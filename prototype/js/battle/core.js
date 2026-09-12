@@ -1103,7 +1103,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
       return { amount: primary.amount || 0, died: !!(primary.died || shared.died) };
     }
   }
-  if (source && source._coreAttackContact && !counter
+  if (source && (source._coreAttackContact || counter)
     && /攻撃はHPではなくATKにダメージを与える/.test(coreUnitTriggerText(source, '攻撃'))) {
     const damage = Math.min(Math.max(0, Number(target.atk) || 0), Math.max(0, Math.round(Number(amount) || 0)));
     target.atk = Math.max(0, (Number(target.atk) || 0) - damage);
@@ -1111,7 +1111,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     if (fled) { target.hp = 0; target._fled = true; }
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: -damage, hp: 0, reason: 'attack_to_atk' });
     emit({ type: 'damage', side: target.side, unitId: target.id, amount: damage, hpAfter: target.hp,
-      sourceId: source.id, counter: false, damageTo: 'atk', effect: false,
+      sourceId: source.id, counter: !!counter, damageTo: 'atk', effect: false,
       damageKind: coreDamageKind(state), batch: state._coreDamageBatch || null,
       redirectedFrom: opt.redirectedFrom || null });
     // **逃走はダメージの後に出す。** 先に出すと再生側が先に盤面から外してしまい、
@@ -1294,7 +1294,7 @@ function coreTriggerAtkGainEffects(target, amount, state, rng, emit, applyHit) {
   if (target._coreAtkGainEffectDepth) return;
   // 対象の体数もダメージ量も**本文から読む**（合体後は体数だけが増える）。
   const wyvernText = coreUnitEffectText(target);
-  const hit = wyvernText.match(/ATKを得るたび、ランダムな敵(?:(\d+)体)?に(\d+)ダメージ/);
+  const hit = wyvernText.match(/ATKを得るたび、(?:ランダムな)?敵(?:(\d+)体)?に(\d+)ダメージ/);
   const count = Math.max(1, Number(hit && hit[1]) || 1);
   const damage = Math.max(0, Number(hit && hit[2]) || 2);
   const foes = (state.units[target.side === 'p1' ? 'p2' : 'p1'] || [])
@@ -2079,6 +2079,28 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   });
   // **効果は文ごとに見る。**（同じトリガの効果は複数あり得る＝本体＋強化カード）
   const openingTexts = coreTriggerTextParts(unit, '開戦');
+  // 開戦時のコピーは、他の開戦効果（召喚・バフ・マナ）より先に解決する。
+  const openingCopy = coreTriggerMatch(openingTexts, /^(?:このキャラクターの)?(?:(\d+)\/(\d+)の)?コピーを(?:(\d+)体)?召喚する/);
+  if (openingCopy && !unit._openingDuplicate) {
+    const count = Math.max(1, Number(openingCopy[3]) || 1);
+    const fixedAtk = openingCopy[1] != null ? Number(openingCopy[1]) : null;
+    const fixedHp = openingCopy[2] != null ? Number(openingCopy[2]) : null;
+    for (let i = 0; i < count; i++) {
+      const copySpec = {
+        name: unit.name,
+        atk: fixedAtk != null ? fixedAtk : unit.atk,
+        hp: fixedHp != null ? fixedHp : unit.hp,
+        maxHp: fixedHp != null ? fixedHp : unit.maxHp,
+        color: unit.color,
+        race: unit.race, keywords: [...(unit.keywords || [])], desc: unit.desc,
+        effectData: { ...(unit.effectData || {}) }, _copyOf: unit.id, _openingDuplicate: true,
+      };
+      coreCopyUnitEffectState(copySpec, unit);
+      if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }
+      if (fixedHp != null) { copySpec.hp = fixedHp; copySpec.maxHp = fixedHp; copySpec._baseMaxHp = fixedHp; }
+      coreSummonUnit(state, unit.side, copySpec, emit, unit.id);
+    }
+  }
   // 開戦：ランダムなA、B、Cキャラクター1体ずつは+X/+Yを得る（ガーゴイル）。
   // **色も加算値も本文から読む**（合体後は+6/+6）。負傷側（フォルモール）と同じ形。
   const openingRandomColors = coreTriggerMatch(openingTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])キャラクター1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
@@ -2144,36 +2166,6 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
     for (let i = 0; i < count; i++) {
       coreSummonUnit(state, unit.side,
         { name: named, color: namedColor || unit.color, placement: 'rightEdge' }, emit, unit.id);
-    }
-  }
-  // ── 開戦：コピーを召喚する（ツインデビル／強化「複製」）──────────────
-  // 本文の形は3つ。**体数も、コピーの数値も本文から読む。**
-  //   「コピーを1体召喚する」                      … 旧本文
-  //   「このキャラクターのコピーをN体召喚する」      … ツインデビル
-  //   「このキャラクターの1/1のコピーを（N体）召喚する」… 強化「複製」
-  // コピー自身は再度この効果を持たない（無限に増えるため）。
-  // **開戦効果は複数あり得る**（キャラクター本体＋強化カード）。文ごとに見る。
-  const openingCopy = coreTriggerMatch(openingTexts, /^(?:このキャラクターの)?(?:(\d+)\/(\d+)の)?コピーを(?:(\d+)体)?召喚する/);
-  if (openingCopy && !unit._openingDuplicate) {
-    const count = Math.max(1, Number(openingCopy[3]) || 1);
-    // 「1/1のコピー」と書かれていればその数値。無ければ本体と同じ数値。
-    const fixedAtk = openingCopy[1] != null ? Number(openingCopy[1]) : null;
-    const fixedHp = openingCopy[2] != null ? Number(openingCopy[2]) : null;
-    for (let i = 0; i < count; i++) {
-      const copySpec = {
-        name: unit.name,
-        atk: fixedAtk != null ? fixedAtk : unit.atk,
-        hp: fixedHp != null ? fixedHp : unit.hp,
-        maxHp: fixedHp != null ? fixedHp : unit.maxHp,
-        color: unit.color,
-        race: unit.race, keywords: [...(unit.keywords || [])], desc: unit.desc,
-        effectData: { ...(unit.effectData || {}) }, _copyOf: unit.id, _openingDuplicate: true,
-      };
-      coreCopyUnitEffectState(copySpec, unit);
-      // 数値を本文で固定する場合は、引き継いだ修正で上書きされないよう後から入れ直す。
-      if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }
-      if (fixedHp != null) { copySpec.hp = fixedHp; copySpec.maxHp = fixedHp; copySpec._baseMaxHp = fixedHp; }
-      coreSummonUnit(state, unit.side, copySpec, emit, unit.id);
     }
   }
   // ── 開戦：このキャラクターの死亡効果を発動する（強化「死の体感」）────────
@@ -2663,17 +2655,6 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
       result.skipAttack = true;
     }
   }
-  // 新しい本文（攻撃：全ての敵の毒を発動させる）へ差し替わったら、この旧効果は動かさない。
-  if (coreHasEffect(unit, 'ワーム') && !coreTriggerTest(attackTexts, /全ての敵の毒を発動させる/)) {
-    const target = unit._currentAttackTarget && unit._currentAttackTarget.hp > 0
-      ? unit._currentAttackTarget : rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-    if (target) {
-      // 「対象の両隣」は攻撃者ではなく、命中対象の陣営・位置を基準にする。
-      const placement = { placementTargetId: target.id };
-      coreSummonUnit(state, target.side, { name: '黒ナイト', color: '黒', placement: 'leftOfTarget', ...placement }, emit, unit.id);
-      coreSummonUnit(state, target.side, { name: '黒ナイト', color: '黒', placement: 'rightOfTarget', ...placement }, emit, unit.id);
-    }
-  }
   const summon = coreTriggerMatch(attackTexts, /「(.+?)」(?:を|が)召喚/);
   if (summon && !coreHasEffect(unit, 'スケルトンキング') && !coreHasEffect(unit, '黄金の瞳"フレイ"')
     && !coreTriggerTest(attackTexts, /「青スケルトン」を召喚し、(?:このキャラクターの前に|代わりに)攻撃させる/)
@@ -2730,6 +2711,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     target.maxHp = Math.max(1, target.maxHp + hp);
     target.hp = Math.max(0, target.hp + hp);
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
+    coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
   // エティン：味方の負傷効果が発動するたび、このキャラクターは+2/+1。
   // 通常の被ダメージと、レイス等による負傷効果の手動発動を同じ入口で扱う。
@@ -2824,8 +2806,12 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
       unit._currentAttackTarget = target;
       coreApplyAttackEffects(unit, state, rng, emit, applyHit);
       emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true });
-      applyHit(unit, target, unit.atk);
-      if (target.hp > 0) applyHit(target, unit, target.atk, true);
+      coreWithDamageKind(state, 'combat', () => {
+        unit._coreAttackContact = true;
+        try { applyHit(unit, target, unit.atk); }
+        finally { delete unit._coreAttackContact; }
+        if (target.hp > 0) applyHit(target, unit, target.atk, true);
+      });
       delete unit._currentAttackTarget;
     }
   }
@@ -3127,6 +3113,7 @@ function coreApplyPoisonBeforeTurn(unit, emit) {
     side: unit.side, unitId: unit.id, amount: lost });
   emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: 0, hp: -lost, maxHp: 0,
     reason: 'poison', keywordEffect: '毒' });
+  if (unit.hp <= 0) emit({ type: 'death', side: unit.side, unitId: unit.id, reason: 'poison' });
   return { amount: lost, died: unit.hp <= 0 };
 }
 
@@ -3183,7 +3170,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   const allies = (state.units[unit.side] || []).filter(Boolean);
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
-  const repeats = 1 + coreExtraTriggerTimes(unit, '死亡', coreUnitKeywordCount(unit, '逆襲'))
+  const repeats = 1 + coreExtraTriggerTimes(unit, '死亡', coreEffectCount(unit, '逆襲'))
     + coreRingCount(state, unit.side, '屍術師の指輪')
     + Math.max(0, Number(unit._effectRepeatBonus) || Number(unit.effectData && unit.effectData.effectRepeatBonus) || 0);
   if (String(coreUnitTriggerText(unit, '死亡') || '').trim()) coreEmitEffectFlash(emit, unit, 'death', repeats);
@@ -4824,7 +4811,7 @@ function runBattleCore(state, rng, opts) {
         return { amount: primary.amount || 0, died: !!(primary.died || shared.died) };
       }
     }
-    if (source && source._coreAttackContact && !counter
+    if (source && (source._coreAttackContact || counter)
       && /攻撃はHPではなくATKにダメージを与える/.test(coreUnitTriggerText(source, '攻撃'))) {
       const damage = Math.min(Math.max(0, Number(target.atk) || 0), Math.max(0, Math.round(Number(amount) || 0)));
       target.atk = Math.max(0, (Number(target.atk) || 0) - damage);
@@ -4832,7 +4819,7 @@ function runBattleCore(state, rng, opts) {
       if (fled) { target.hp = 0; target._fled = true; }
       emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: -damage, hp: 0, reason: 'attack_to_atk' });
       emit({ type: 'damage', side: target.side, unitId: target.id, amount: damage, hpAfter: target.hp,
-        sourceId: source.id, counter: false, damageTo: 'atk' });
+        sourceId: source.id, counter: !!counter, damageTo: 'atk' });
       // 逃走はダメージの後（上の実装と同じ順）。
       if (fled) emit({ type: 'fled', side: target.side, unitId: target.id, sourceId: source.id });
       return { blocked: false, amount: damage, died: false, fled: !!target._fled };

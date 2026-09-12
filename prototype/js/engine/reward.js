@@ -3295,10 +3295,39 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   target.rarity=Math.max(1,Number(target.rarity)||1)+1;
   target.directions=['up','right','down','left'];
   target.directionCount=4;
+  // 合体後フォームを適用するとシート由来の manaCost／封印へ戻るため、
+  // 魔力の巻物・生贄人形で各素材に積んだ恒久減少分を先に控える。
+  const reducedManaCost=Math.min(...picked.map(idx=>{
+    const src=unit.equipment[idx];
+    const value=Number(src&&src.manaCost)||0;
+    return value>0?value:Infinity;
+  }));
+  const sealValueOf=card=>{
+    const kw=(card&&card.keywords||[]).find(k=>/^封印\d+$/.test(String(k||'')));
+    return kw?Math.max(0,Number(String(kw).replace('封印',''))||0):null;
+  };
+  const sealReduction=Math.max(0,...picked.map(idx=>{
+    const src=unit.equipment[idx];
+    const srcDef=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(src&&src.id&&p.id===src.id)||p.name===src.name))||src;
+    const base=sealValueOf(srcDef), current=sealValueOf(src);
+    return base!=null&&current!=null?Math.max(0,base-current):0;
+  }));
   // **合体後の効果はシートの「合体効果」列がそのまま入る**（pool.js／loader.js）。
   // テキストの数字を一律2倍にしてはいけない（シートには倍にしない値がある）。
   // 列が空欄のカードは効果もキーワードも変わらない。
   const tripleFormApplied=typeof applyMergedPanelForm==='function'&&applyMergedPanelForm(target);
+  if(tripleFormApplied&&Number.isFinite(reducedManaCost)&&reducedManaCost>0
+    &&Object.prototype.hasOwnProperty.call(target,'manaCost')){
+    target.manaCost=Math.min(Number(target.manaCost)||reducedManaCost,reducedManaCost);
+  }
+  if(tripleFormApplied&&sealReduction>0){
+    const mergedSeal=sealValueOf(target);
+    if(mergedSeal!=null){
+      const idx=target.keywords.findIndex(k=>/^封印\d+$/.test(String(k||'')));
+      if(idx>=0) target.keywords[idx]=`封印${Math.max(1,mergedSeal-sealReduction)}`;
+      if(typeof target.desc==='string') target.desc=target.desc.replace(/封印\d+/g,`封印${Math.max(1,mergedSeal-sealReduction)}`);
+    }
+  }
   if(tripleFormApplied&&tripleExtraKeywords.length&&typeof _mergeCardKeywordsForBond==='function'){
     target.keywords=_mergeCardKeywordsForBond(target.keywords,tripleExtraKeywords);
   }
@@ -4125,7 +4154,11 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
       const _spellBtn=arrName==='unitEquip'
-        ?(_boardSellable?`<span class="shop-board-sell-value">+${_shopSellGain}G</span><button class="discard-btn shop-board-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`:(_ringOfferDiscardable?`<button class="discard-btn shop-board-sell-btn ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`:''))
+        ?(_boardSellable
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
+          :(_ringOfferDiscardable
+            ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`
+            :''))
         :'';
       const _libraryLoanBadge=arrName==='unitEquip'&&card._libraryLoan
         ?'<span class="shop-board-sell-value library-loan-badge">貸出</span>':'';
@@ -4255,7 +4288,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           div.appendChild(mapBoundary);
         }
       }
-      const discardBtn=div.querySelector('.discard-btn');
+      const discardBtn=div.querySelector('.discard-btn,.shop-board-sell-action');
       if(discardBtn) {
         discardBtn.draggable=false;
         discardBtn.onmousedown=ev=>{ ev.stopPropagation(); };

@@ -2356,6 +2356,12 @@ async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown,op
       {...(ev&&ev.keywordEffect?{keywordEffect:ev.keywordEffect}:{})});
   };
   const code=typeof _effectPresentationCode==='function'?_effectPresentationCode(source):'';
+  // アラッサス等の薙ぎ払いは通常の単体ダメージ経路を通らないため、
+  // 固有SEも共通の薙ぎ払い経路で一度だけ鳴らす。
+  const sweepSfx=typeof getEffectSfxKey==='function'?getEffectSfxKey(code):'';
+  if(sweepSfx&&typeof playSfx==='function'){
+    playSfx(sweepSfx,{group:'magic',guardKey:`sweep:${code}:${source&&source.id||''}`,guardMs:0});
+  }
   const style=typeof presentAreaVfxStyle==='function'?presentAreaVfxStyle(code):'sweep';
   if(style==='expand'){
     return await playExpandingWaveVfx(source,isEnemySide?'enemy':'ally',targets,code,{onTargetHit:showHit});
@@ -4466,7 +4472,7 @@ function renderField(id,units,isEnemy,_lane){
         // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
         // バッジ表示用の擬似キーワードとして合成する
         const _dynKws=_shownShield>0?[`結界${_shownShield}`]:[];
-        const _allKws=[...(u.weaken>0?[`弱体${u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
+        const _allKws=[...(u.poison>0?[`毒${u.poison}`]:[]),...(u.weaken>0?[`弱体${u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
         const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';

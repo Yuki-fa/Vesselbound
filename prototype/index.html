@@ -10428,7 +10428,7 @@ html body #scr-battle.active #btn-pass{display:none!important;visibility:hidden!
 /* 指輪交換中のカード操作は、ショップの売却ボタンと同じ枠付きボタンで表示する。 */
 html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-btn{
   position:absolute!important;
-  top:30px!important;
+  top:94px!important;
   right:4px!important;
   left:auto!important;
   bottom:auto!important;
@@ -10442,6 +10442,11 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-
   background:rgba(5,7,10,.9)!important;
   color:var(--gold2)!important;
   font:700 24px/1.1 var(--font-hd)!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-weight:800!important;
+  font-style:normal!important;
   text-align:center!important;
   text-shadow:0 1px 2px #000!important;
   z-index:10012!important;
@@ -11556,14 +11561,14 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 #gameover-results{position:absolute;left:3.3%;top:7%;width:43%;height:86%;padding:0!important;z-index:2}
 #gameover-results h1{font-size:140px!important;line-height:1!important;letter-spacing:.12em!important;margin:0 0 52px!important;font-weight:700!important;background:linear-gradient(115deg,#554b3e 0%,#d9d0bd 38%,#746653 64%,#312b24 100%);background-size:240% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:gameoverTitleGradient .9s .45s ease-out both!important}
 .gameover-line{width:84%!important;margin:0 auto 62px!important;height:auto!important;filter:brightness(.62) sepia(.3) saturate(.75)!important;animation:gameoverLineGradient .9s .5s ease-out both!important}
-#gameover-results h1,.gameover-line,#gameover-actions{transform:translateX(65px)!important}
+#gameover-results h1,.gameover-line{transform:none!important}
 /* 項目行のグループは内容幅に応じて自動で中央寄せになる（justify-content:center）。
-   タイトル／ラインと同じ +65px を掛けて「旅の終焉」の中心と一致させる。 */
-.gameover-rows{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;column-gap:0!important;row-gap:78px!important;justify-content:stretch!important;width:100%!important;font-size:54px!important;line-height:1.15!important;transform:translateX(65px)!important}
+   タイトル／ラインも同じ結果欄の中心へ置く。 */
+.gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:0!important;row-gap:78px!important;justify-content:center!important;width:max-content!important;margin-left:auto!important;margin-right:auto!important;font-size:54px!important;line-height:1.15!important;transform:none!important}
 .gameover-rows>div{display:contents!important}
 .gameover-rows b{font-weight:700!important;white-space:nowrap;text-align:right!important}
 .gameover-rows span{white-space:nowrap;padding-left:2em!important}
-#gameover-actions{gap:30px!important;margin-top:78px!important}
+#gameover-actions{gap:30px!important;margin-top:78px!important;transform:none!important}
 #gameover-actions .btn{position:relative!important;min-width:0!important;width:496px!important;height:122px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent center/100% 100% no-repeat!important;font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;line-height:normal!important;letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;overflow:visible!important;box-sizing:border-box!important}
 #gameover-actions .btn{isolation:isolate!important;background-color:transparent!important}
 #gameover-actions .btn{background:none!important}
@@ -11892,6 +11897,18 @@ html body.gameover-active .gameover-rows>div:nth-child(5)>*{animation-delay:1.85
 html body.gameover-active .gameover-rows>div:nth-child(6)>*{animation-delay:1.95s}
 html body.gameover-active .gameover-rows>div:nth-child(7)>*{animation-delay:2.05s}
 @keyframes gameoverRowFade{from{opacity:0}to{opacity:1}}
+/* 戦績の表示中に行親のtransformが再計算されると、display:contentsの影響で
+   グループ全体が一瞬揺れて見える。出現順は維持し、位置だけを固定する。 */
+html body.gameover-active .gameover-rows,
+html body.gameover-active .gameover-rows>div{animation:none!important;transform:none!important}
+html body.gameover-active .gameover-rows>div>b,
+html body.gameover-active .gameover-rows>div>span{
+  opacity:0;
+  animation-name:gameoverRowFade!important;
+  animation-duration:.35s!important;
+  animation-fill-mode:both!important;
+  transform:none!important;
+}
 
 /* ══════════════════════════════════════════════════════════
    街（村）専用画面 #scr-village
@@ -14090,18 +14107,18 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=multiRevive01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=multiFinish01"></script>
+    <script src="js/battle/core.js?v=counterFleeMino02"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=c019Center03"></script>
+    <script src="js/battle/present.js?v=skipEmptyPreAttack01"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=onlineExit01"></script>
+<script src="js/online/server_local.js?v=npcProgress02"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=issueFix01"></script>
+<script src="js/online/playback.js?v=timingParity03"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=multiFinish01"></script>
+    <script src="js/online/board.js?v=deathBeforeResult03"></script>
 <script src="js/online/versus.js?v=refactor01"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
@@ -14114,10 +14131,10 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=attackMotion03"></script>
     <script src="js/engine/battle_events.js?v=multiFinish01"></script>
-<script src="js/engine/render.js?v=frameSvgOverlay16"></script>
+<script src="js/engine/render.js?v=onlinePoison02"></script>
 <script src="js/engine/reward_items.js?v=itemRingDismiss03"></script>
 <script src="js/engine/reward_journey.js?v=steal01"></script>
-<script src="js/engine/reward.js?v=cardLayerFix10"></script>
+<script src="js/engine/reward.js?v=shopAction03"></script>
 <script src="js/engine/map.js?v=steal04"></script>
   <script src="js/engine/main.js?v=runStatsUi01"></script>
 <script>
@@ -14639,7 +14656,9 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-boar
   justify-content:center!important;
   border:0!important;
   border-radius:0!important;
-  background:transparent url("assets/ui/cost.svg?v=shopMenu02") center/100% 100% no-repeat!important;
+  /* cost.svgは枠線だけを持ち、通常／ホバーの背景透過率はこの共通値で揃える。 */
+  --shop-cost-bg-opacity:.8;
+  background:rgb(0 0 0 / var(--shop-cost-bg-opacity)) url("assets/ui/cost.svg?v=shopMenu03") center/100% 100% no-repeat!important;
   color:var(--gold2)!important;
   font-size:24px!important;
   line-height:1!important;
@@ -14653,6 +14672,26 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-boar
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i .shop-board-sell-value{
   /* 売却ボタンと同じ下辺へ移動させない。 */
   top:34px!important;
+}
+/* 魔導店・鍛冶屋の売却は、価格表示そのものを売却操作にする。
+   祭壇の還魂も同じ要素・同じ位置を使い、価格枠をボタンとして扱う。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-action{
+  top:34px!important;
+  right:0!important;
+  left:auto!important;
+  width:101px!important;
+  min-width:101px!important;
+  height:46px!important;
+  transform:none!important;
+  pointer-events:auto!important;
+  cursor:pointer!important;
+  z-index:111!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-action:hover,
+html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-action:focus-visible{
+  background-color:#6f4a12!important;
+  color:#f4dfc0!important;
+  outline:none!important;
 }
 html body #kw-tooltip .preview-title-color-icon{
   position:absolute!important;
@@ -15714,6 +15753,45 @@ html body.reward-screen-active #battle-order-row > .rew-card:is(.cant,.reward-us
 html body.reward-screen-active #rw-cards .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left){
   z-index:10001!important;
   filter:brightness(.5) drop-shadow(0 2px 3px rgba(0,0,0,.9))!important;
+}
+/* 価格表示の共通固定ルール（後段の旧価格ルールによるpointer-events:noneを上書き）。
+   売却価格／還魂はこの要素自身が操作対象なので、常にクリックとホバーを受ける。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action{
+  top:34px!important;
+  right:0!important;
+  left:auto!important;
+  width:101px!important;
+  min-width:101px!important;
+  height:46px!important;
+  transform:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  pointer-events:auto!important;
+  cursor:pointer!important;
+  /* 枠画像／プログラム枠（110）より下、カード画像より上。 */
+  z-index:105!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action:hover,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action:focus-visible{
+  /* 通常時と同じcost.svg・同じ透過率を使い、内側の色だけを変える。 */
+  background:rgb(7 27 48 / var(--shop-cost-bg-opacity)) url("assets/ui/cost.svg?v=shopMenu03") center/100% 100% no-repeat!important;
+  box-shadow:none!important;
+  filter:none!important;
+  outline:none!important;
+}
+/* 価格ボタンは色だけを変える。旧売却／還魂ボタン用の外周発光は出さない。 */
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action::after,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action:hover::after,
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action:focus-visible::after{
+  content:none!important;
+  display:none!important;
+  opacity:0!important;
+  filter:none!important;
+}
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(> .shop-board-sell-action):hover{
+  box-shadow:none!important;
+  filter:none!important;
 }
 </style>
 </body>

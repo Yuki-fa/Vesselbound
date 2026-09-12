@@ -114,6 +114,22 @@
     const list = side === 'p1' ? G.allies : G.enemies;
     return (list || []).find(u => u && String(u.id) === String(unitId)) || null;
   }
+  // playback の確定済みスナップショットを、描画用Gにも毎イベント反映する。
+  // 状態異常は数値イベントと別に流れるため、Gだけを更新すると再描画時に
+  // 初期値へ戻って表示が消えることがある。HP・ATKは各イベントの演出側で進める。
+  function _syncOnlineStatuses(board) {
+    ['p1', 'p2'].forEach(side => {
+      (board[side] || []).forEach(snap => {
+        if (!snap) return;
+        const unit = _find(side, snap.id);
+        if (!unit) return;
+        ['poison', 'weaken', 'shield'].forEach(key => {
+          if (snap[key] != null) unit[key] = Number(snap[key]) || 0;
+        });
+        if (snap._sealed != null) unit._sealed = !!snap._sealed;
+      });
+    });
+  }
   function _effectSourceName(ev, ctx) {
     const source = ctx && ctx.unitById ? ctx.unitById(ev.sourceId) : null;
     return (source && source.name) || (ev.sourceId ? String(ev.sourceId) : '効果');
@@ -299,6 +315,8 @@
   let _damageSfxDone = new Set();
   // 同じ死亡を二重に演出しないための記録（PvEの deaths と同じ役目）。
   let _deathsDone = new Set();
+  // 最後の死亡焼失が完了する時刻。決着カットインだけが必要なら残り時間を待つ。
+  let _deathFxReadyAt = 0;
   // 攻撃効果より前に始めておく攻撃モーション（25%地点で停止して待つ）。
   let _preAttack = null;
   // 手番の間を置くのは2手番目以降（戦闘の頭では待たない）。
@@ -535,6 +553,7 @@
 
   async function _renderOnlineVersusEvent(ev, ctx) {
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
+    _syncOnlineStatuses(board);
     // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
     // イベントの順番は変えず、対応付けの規則は present.js の共通実装を使う。
     if (!_preAttack && ev.type !== ONLINE_EVENT.TURN_BEGIN
@@ -562,6 +581,7 @@
       _damageSfxDone = new Set();
       _deathsDone = new Set();
       if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
+      if (ev.type === ONLINE_EVENT.BATTLE_START) _deathFxReadyAt = 0;
     }
 
     switch (ev.type) {
@@ -1093,23 +1113,31 @@
         // **同じ瞬間に倒れた分はまとめて1回で見せる**（判定は present.js。PvEと同じ）。
         // 1件ずつ beat と compact を挟むと、2体目以降のカードが遅れて消える。
         await _awaitMotion();
-        await presentDeathBatch(typeof presentDeathBatchEvents === 'function'
+        const deathShown = await presentDeathBatch(typeof presentDeathBatchEvents === 'function'
           ? presentDeathBatchEvents((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex))
           : [ev], {
           findUnit: (side, id) => _find(side, id),
           isDone: e0 => _deathsDone.has(`${e0.side}:${e0.unitId}`),
           markDone: e0 => _deathsDone.add(`${e0.side}:${e0.unitId}`),
           beat: () => _sleep(PRESENT_HIT_BEAT_MS),
+          startFx: (unit, side) => {
+            if (typeof _playDeathBurnOnce === 'function') _playDeathBurnOnce(unit, side === 'p2');
+          },
           // 陣営ごとの後始末はサーバーが確定済み。オンラインでは何もしない。
           compact: () => {
             if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
             else _render();
           },
         });
+        if (deathShown) {
+          const burnMs = typeof DEATH_BURN_MS === 'number' ? DEATH_BURN_MS : 900;
+          _deathFxReadyAt = Math.max(_deathFxReadyAt, Date.now() + burnMs);
+        }
         break;
       }
       case ONLINE_EVENT.BATTLE_END:
         await _awaitMotion();
+        if (_deathFxReadyAt > Date.now()) await _sleep(_deathFxReadyAt - Date.now());
         _render();
         if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx();
         // 勝敗はイベントに書かれた outcome をそのまま出す

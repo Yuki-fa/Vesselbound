@@ -323,7 +323,7 @@ const ONLINE_VERSUS_GOLD = 100;
     },
 
     // 自分の準備完了（戦闘開始／出発する）を通知する。
-    // 相手（CPU）は締め切りまでのランダムなタイミングで準備完了になる。
+    // 現在は全員NPCの仮対戦なので、プレイヤー操作後は待たずに進める。
     setReady(matchId, formation) {
       const m = _match(matchId);
       if (m.phase === 'finished') return Promise.resolve(_publicState(m));
@@ -333,8 +333,8 @@ const ONLINE_VERSUS_GOLD = 100;
       // 編成1/3・2/3は自分だけの操作なので、相手を待たずにすぐ次の編成画面へ進む。
       // 相手を待つのは、対戦マスの直前になる「編成完了 3/3」だけ。
       if (node === 'formation' && m.formationIndex < ONLINE_FORMATION_PER_VERSUS) { _advance(m); return Promise.resolve(_publicState(m)); }
-      // 相手の準備完了はサーバーが決める（クライアントからは見えない内部判断）。
-      if (!m.ready.opponent) m.ready.opponent = m.rng.next() < 0.85;
+      // 仮NPCは常に準備済み。実プレイヤー接続時は本番サーバーの準備状態へ置き換える。
+      m.ready.opponent = true;
       if (m.ready.self && m.ready.opponent) _advance(m);
       return Promise.resolve(_publicState(m));
     },
@@ -379,6 +379,10 @@ const ONLINE_VERSUS_GOLD = 100;
       const lose = p => { if (!p) return; p.life = Math.max(0, p.life - 1); if (p.life <= 0) p.alive = false; };
       if (sim.outcome === ONLINE_OUTCOME_P1) lose(foeP);
       else if (sim.outcome === ONLINE_OUTCOME_P2) lose(selfP);
+      // 自分の対戦と同時に、残りのNPC同士も1戦したものとして必ず片方のライフを減らす。
+      // 仮サーバーだけの進行処理で、勝敗をクライアント側から推測しない。
+      const npcPair = m.players.filter(p => p && p.alive && !p.self && p !== foeP).slice(0, 2);
+      if (npcPair.length === 2) lose(npcPair[rng.int(0, npcPair.length - 1)]);
       m.life.self = selfP ? selfP.life : 0;
       m.life.opponent = foeP ? foeP.life : 0;
       const aliveOthers = m.players.filter(p => p && p.alive && !p.self).length;

@@ -13,7 +13,7 @@
 // イベント種別ごとの再生ウェイト（ms）。演出調整はここだけを触ること。
 // 攻撃モーション・カットインの尺は board.js 側（演出）が待つ。ここはイベント間の間合い。
 const ONLINE_PLAYBACK_WAIT_MS = {
-  battle_start: 200,
+  battle_start: 0,
   turn_begin: 0,
   attack: 0,
   // 命中から結果（負傷効果など）を見せ始めるまでの間。PvEの負傷効果発火前の間と同じ値にする。
@@ -33,17 +33,17 @@ const ONLINE_PLAYBACK_WAIT_MS = {
   stat_change: 0,
   keyword_effect: 0,
   life_drain: 0,
-  mana_threshold: 180,
+  mana_threshold: 0,
   // 召喚はイベントを受けた瞬間に盤面へ追加する。待機を置くと、
   // リッチの連鎖召喚が次の攻撃後に見えるため、演出待ちは召喚VFX側へ委ねる。
   summon: 0,
-  transform: 420,
+  transform: 0,
   mana_set: 0,
   gold_gain: 0,
   gold_spend: 0,
-  seal_apply: 260,
+  seal_apply: 0,
   shield_lost: 0,
-  revive: 520,
+  revive: 0,
   shield_set: 0,
   ring_effect: 0,
   life_set: 0,

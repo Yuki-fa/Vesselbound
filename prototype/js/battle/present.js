@@ -675,7 +675,9 @@ function presentPreAttackPlan(events, fromIndex) {
     const owner = presentPreAttackEffectOwnerId(ev);
     if (ev.type === 'mana_threshold') {
       if (actorId != null) hasEffects = true;
-    } else if (actorId != null && owner === actorId) {
+    // effect_flash だけで終わった攻撃効果は「実際には不発」。
+    // 対象不在のワーム／センチネル等で踏み込み停止を出さない。
+    } else if (ev.type !== 'effect_flash' && actorId != null && owner === actorId) {
       hasEffects = true;
     }
   }

@@ -911,6 +911,13 @@ function main() {
     '二段攻撃の2撃目が攻撃前効果へ対応していない');
   assert.equal(present.presentPreAttackPlan(twoStrikeEvents,4),null,
     '前の一撃の接触ダメージ中に次の攻撃モーションを始めている');
+  const noTargetEffectEvents=[
+    {type:'turn_begin'},
+    {type:'effect_flash',unitId:'worm',trigger:'attack'},
+    {type:'attack',attackerId:'worm',targetId:'enemy'},
+  ];
+  assert.equal(present.presentPreAttackPlan(noTargetEffectEvents,0),null,
+    '対象不在で発光だけした攻撃効果が先出しモーションを開始している');
   const twoSweepEvents=[
     {type:'sweep_vfx',side:'p1',unitId:'siren',targetIds:['enemy']},
     {type:'damage',side:'p2',unitId:'enemy',sourceId:'siren',effect:true,amount:1,hpAfter:9},
@@ -1132,7 +1139,7 @@ function main() {
     'オンラインが召喚の共通実装を呼んでいない');
   // 死亡の詰めは攻撃モーションの完了を待つ（飛行中に詰めると戻り先が動く）。
   // イベントごとに詰めてもいけない。出したばかりの数値が行き場を失う。
-  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]{0,900}requestBattleCompact\(\{ forceRender: true \}\)/,
+  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]{0,1500}requestBattleCompact\(\{ forceRender: true \}\)/,
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
     'モーション終了時の保留分を再生中に流せないままになっている');
