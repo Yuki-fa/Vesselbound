@@ -570,7 +570,6 @@ function renderMapInventorySlots(){
       const selected=_getPartyBoardUnit();
       if(selected&&selected.hp>0&&isEquipmentCard(card)){
         div.onclick=e=>{ e.stopPropagation(); equipInventoryCardToUnit(i,G._selectedEquipUnitIdx,'inventory'); };
-        div.style.cursor='pointer';
       }
       el.appendChild(div);
     } else {
@@ -1383,17 +1382,17 @@ function _openRingActionConfirm(idx,anchor){
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
   _openRewardActionTooltip(anchor,ring.name||'指輪',ringDesc,[
-    {label:ring._disabled?'有効化':'無効化',onClick:()=>{
+    {label:ring._disabled?_uiLabel('指輪の「有効化」ボタン','有効化'):_uiLabel('指輪の「無効化」ボタン','無効化'),onClick:()=>{
       ring._disabled=!ring._disabled; _closeItemUseConfirm();
       if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
       _syncRewardProductionUi(); updateHUD();
     }},
-    {label:'捨てる',onClick:()=>{
+    {label:_uiLabel('指輪の「捨てる」ボタン','捨てる'),onClick:()=>{
       G.rings[idx]=null; _closeItemUseConfirm();
       if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
       _syncRewardProductionUi(); updateHUD();
     }},
-    {label:'やめる',onClick:()=>_closeItemUseConfirm()}
+    {label:_uiLabel('指輪の「やめる」ボタン','やめる'),onClick:()=>_closeItemUseConfirm()}
   ]);
   const lockedTip=document.getElementById('kw-tooltip');
   if(lockedTip){ lockedTip.dataset.rewardSlotIdx=String(idx); lockedTip.dataset.rewardAnchorKind='ring'; }
@@ -1540,7 +1539,6 @@ function renderRewCards(){
     if(_rewardPickUsed&&card._isOriginalReward){
       d.onclick=null;
       d.classList.add('reward-used-dim');
-      d.style.cursor='default';
       // カード本体のopacityを下げると、常時不透明であるべき黒いm_board6背面まで
       // 半透明になる。購入不可カードと同じ専用暗転層で内容だけを暗くする。
       _ensureRewardCardDimLayer(d);
@@ -1712,7 +1710,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     // キャラクターカード
     const hasSlot=G.allies.includes(null);
     const disabled=!hasSlot;
-    div.className='rew-card character-card'+((isPendingSale||canBuy&&!disabled)?'':' cant')+(isLegend?' legend':'');
+    div.className='rew-card character-card'+(card.rarity>=1&&card.rarity<=6?` rarity-${card.rarity}`:'')+((isPendingSale||canBuy&&!disabled)?'':' cant')+(isLegend?' legend':'');
     if(card.color) div.setAttribute('data-preview-title-color',String(card.color));
     const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
@@ -1744,8 +1742,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
     if(isPendingSale){
       const sale=document.createElement('div');
       sale.className='shop-pending-sale-ui';
-      sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`;
-      sale.querySelector('button').onclick=ev=>{ ev.stopPropagation(); _sellPendingShopCard(rewIdx); };
+      sale.innerHTML=`<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</button>`;
+      _bindPendingShopCardSale(sale,rewIdx);
       div.appendChild(sale);
       div.draggable=true;
       div.addEventListener('dragstart',e=>{
@@ -1789,8 +1787,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(isPendingSale){
     const sale=document.createElement('div');
     sale.className='shop-pending-sale-ui';
-    sale.innerHTML=`<div class="shop-board-sell-value">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</div><button type="button" class="shop-pending-sell-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「売却」ボタン','売却')}</button>`;
-    sale.querySelector('button').onclick=ev=>{ ev.stopPropagation(); _sellPendingShopCard(rewIdx); };
+    sale.innerHTML=`<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</button>`;
+    _bindPendingShopCardSale(sale,rewIdx);
     div.appendChild(sale);
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
@@ -1836,11 +1834,16 @@ function _mkRewDiv(card, onBuy, rewIdx){
 
 function _appendLibraryLoanBadge(div){
   if(!div||!G||!G._isLibrary) return;
-  div.querySelectorAll('.shop-board-sell-value,.shop-pending-sell-btn,.shop-pending-sale-ui').forEach(el=>el.remove());
+  div.querySelectorAll('.shop-board-sell-value,.shop-pending-sale-ui').forEach(el=>el.remove());
   const badge=document.createElement('div');
   badge.className='shop-board-sell-value library-loan-badge';
   badge.textContent='貸出';
   div.appendChild(badge);
+}
+
+function _bindPendingShopCardSale(sale,rewIdx){
+  const action=sale?.querySelector('.shop-board-sell-action');
+  if(action) action.onclick=ev=>{ ev.stopPropagation(); _sellPendingShopCard(rewIdx); };
 }
 
 // ── カード購入処理 ──────────────────────────────
@@ -2493,7 +2496,7 @@ function _createDragGhost(srcEl){
   d.querySelectorAll('button').forEach(b=>b.remove()); // 還魂ボタン等を除去
   // 価格・売却UIは実カード上だけに表示し、ドラッグゴーストには複製しない。
   // ゴーストへ固定pxの価格枠を持ち込むと、ショップカードと魔導板カードで位置・サイズが崩れる。
-  d.querySelectorAll('.shop-buy-price,.shop-board-sell-value,.shop-pending-sell-btn').forEach(el=>el.remove());
+  d.querySelectorAll('.shop-buy-price,.shop-board-sell-value').forEach(el=>el.remove());
   d.classList.remove('dragging','drag-over','selectable');
   d.classList.add('drag-ghost');
   const scale=1;
@@ -2738,7 +2741,6 @@ function _createDragGhost(srcEl){
   };
   copyShopOverlayStyle('.shop-board-sell-value');
   copyShopOverlayStyle('.shop-buy-price');
-  copyShopOverlayStyle('.shop-pending-sell-btn');
   const statSrc=srcEl.querySelector('.slot-stats .a,.card-summon-atk,.card-summon-hp,.slot-stats');
   const statSize=(parseFloat(getComputedStyle(statSrc||srcEl).fontSize)||0)*gameScale;
   const dragStatSize=statSize||Math.max(28,Math.min(W,H)*0.18);
@@ -3259,7 +3261,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     // 複製側だけ保存済みの通常表示へ戻してから演出用DOMへ移す。
     cloneEl.classList.remove('dragging','drag-over','drag-source-parts-hidden');
     _restoreDragSourceParts(cloneEl);
-    cloneEl.querySelectorAll('button,.shop-board-sell-value,.shop-buy-price,.shop-pending-sale-ui,.shop-pending-sell-btn').forEach(node=>node.remove());
+    cloneEl.querySelectorAll('button,.shop-board-sell-value,.shop-buy-price,.shop-pending-sale-ui').forEach(node=>node.remove());
     // 盤面上のカードは「つながっている方向の矢印」を消し、代わりに#hand-slots側へ
     // .panel-unite-linkを描いている（_renderPanelUniteMarkers）。ゴーストはカード要素だけを
     // body直下へ複製するためunite画像が付いてこず、矢印が欠けたカードに見えてしまう。
@@ -3797,7 +3799,9 @@ function _debugImplementedPanelCards(){
   }
   if(typeof PANEL_POOL==='undefined'||!Array.isArray(PANEL_POOL)) return [];
   return PANEL_POOL.filter(p=>{
-    if(!p||!p.id||p.removed||p._implemented===false||p.rarity===-1) return false;
+    // **シートに行が無いカード（_sheetSeen が無い）は出さない。** 報酬・商店（_isImplementedPoolCard）と同じ基準。
+    // pool.js に残った旧スタブ（「生贄」）がシートから消しても一覧に出続けていた。
+    if(!p||!p.id||p.removed||p._implemented===false||p.rarity===-1||!p._sheetSeen) return false;
     const cat=String(p.category||'');
     if(kind==='character') return cat==='キャラクター';
     return cat==='強化'||cat==='エンチャント';
@@ -4155,9 +4159,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
       const _spellBtn=arrName==='unitEquip'
         ?(_boardSellable
-          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
           :(_ringOfferDiscardable
-            ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`
+            ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`
             :''))
         :'';
       const _libraryLoanBadge=arrName==='unitEquip'&&card._libraryLoan
@@ -4379,11 +4383,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(G.phase==='reward'&&arrName==='spells'&&!card.noRewardUse&&!isEquipmentCard(card)&&card.allowRewardUse){
         const _isWand=t==='wand';
         const _hasCharge=!_isWand||(card.usesLeft===undefined||card.usesLeft>0);
-        if(_hasCharge){ div.onclick=()=>useSpell(i); div.style.cursor='pointer'; }
+        if(_hasCharge){ div.onclick=()=>useSpell(i); }
       }
       if(G.phase==='player'&&arrName==='spells'&&card.allowBattleUse){
         div.onclick=()=>useSpell(i);
-        div.style.cursor='pointer';
       }
       if(arrName!=='globalPanels'){
         div.addEventListener('dragstart',e=>{

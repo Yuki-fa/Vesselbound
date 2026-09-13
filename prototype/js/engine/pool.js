@@ -226,7 +226,6 @@ const PANEL_POOL=[
   {id:'panel_ferocious',name:'獰猛',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:12,adjacentHpBonus:-3,desc:'常時：+12/-3を得る。'},
   {id:'panel_grudge',name:'怨念',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['怨念'],desc:'死亡：ランダムな敵に自身の攻撃力に等しいダメージを与える。'},
   {id:'panel_necromancy',name:'屍術',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：キャラクターが死亡するたび、+1/+1を得る。'},
-  {id:'panel_sacrifice',name:'生贄',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生贄'],desc:'生贄'},
   // 以下は「強化」シートにキーワード欄のみで登録されている単純なキーワード付与パネル。
   // PANEL_POOLに未登録だとシート同期の対象外（=常に取得不可）になるため、ここにスタブを追加する。
   {id:'panel_double_attack',no:'014',name:'二段攻撃',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['二段攻撃']},

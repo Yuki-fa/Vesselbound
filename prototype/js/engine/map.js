@@ -1200,7 +1200,8 @@ function leaveMapLibrary(){
 }
 
 function _libraryLoanCards(){
-  const loanNames=['リザードマン','フィーンド','野生の力','生贄','逆上'];
+  // 「生贄」は廃止済みのキーワード（CORE_REMOVED_KEYWORDS）で、シートにも行が無いので貸し出さない。
+  const loanNames=['リザードマン','フィーンド','野生の力','逆上','結界'];
   const source=typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[];
   return loanNames.map(name=>{
     const card=source.find(c=>c&&String(c.name||'')===name);
@@ -1462,7 +1463,7 @@ function startLibraryBoardTutorial(){
       : ['#hand-pane-board-bg','#hand-pane','#hand-slots.unit-equip-slots','#battle-order-section','#battle-options-btn'];
     sels.forEach(sel=>{const el=document.querySelector(sel);if(el)el.classList.add('library-tutorial-allowed');});
   };
-  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('drop',tutorialDragEnd,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();};
+  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();};
   const next=()=>{
     if(!G._libraryTutorialActive)return;
     if(idx>=0&&steps[idx][3]){const s=_libraryTutorialState();if((steps[idx][3]==='リザードマン'&&!s.arachneAtRear)||(steps[idx][3]==='野生の力'&&!s.wildAtRear))return;}
@@ -1517,9 +1518,38 @@ function startLibraryBoardTutorial(){
     scheduleRecalc();
   };
   const isMoving=()=>G._libraryTutorialStep===4||G._libraryTutorialStep===6;
-  const block=(e)=>{if(!G._libraryTutorialActive)return;if(isMoving()&&!root.classList.contains('library-tutorial-intro-active')) box.classList.add('library-tutorial-box-hidden');if(e.target&&e.target.closest&&e.target.closest('.library-tutorial-allowed,.library-tutorial-box'))return;e.preventDefault();e.stopPropagation();};
-  const tutorialDragStart=(e)=>{if(!G._libraryTutorialActive||!isMoving())return;tutorialDragging=true;document.querySelectorAll('#battle-order-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});};
+  // 通常手順の allowBase は暗転・重なり順のために盤面コンテナへもクラスを付ける。
+  // その子要素まで操作許可にならないよう、実際の入力許可は移動ステップの個別要素に限定する。
+  const isTutorialInputAllowed=(target)=>{
+    const el=target&&target.closest?target.closest('.library-tutorial-allowed,.library-tutorial-box'):null;
+    if(!el)return false;
+    if(el.classList.contains('library-tutorial-box'))return true;
+    if(!isMoving())return !!el.closest('#battle-options-btn');
+    return true;
+  };
+  const block=(e)=>{if(!G._libraryTutorialActive)return;if(isMoving()&&!root.classList.contains('library-tutorial-intro-active')) box.classList.add('library-tutorial-box-hidden');if(isTutorialInputAllowed(e.target))return;e.preventDefault();e.stopPropagation();};
+  // チュートリアル中のドラッグ開始は、移動ステップの許可カードからだけ通す。
+  // CSSでホバー対象へ入力を戻しているため、ここで許可外のドラッグを確実に止める。
+  const tutorialDragStart=(e)=>{
+    if(!G._libraryTutorialActive)return;
+    const allowed=isTutorialInputAllowed(e.target);
+    if(!isMoving()||!allowed){e.preventDefault();e.stopPropagation();return;}
+    tutorialDragging=true;
+    document.querySelectorAll('#battle-order-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
+  };
   const tutorialDragEnd=()=>{if(!tutorialDragging)return;tutorialDragging=false;syncMovingHighlights();};
+  // 許可外のドロップ先へ既存の要素ハンドラを到達させない。preventDefault()はしないので、
+  // ブラウザのドロップ成立条件を満たさず、許可外への配置は発生しない。
+  const tutorialDragGuard=(e)=>{
+    if(!G._libraryTutorialActive)return;
+    if(!isMoving()){e.stopPropagation();return;}
+    if(isTutorialInputAllowed(e.target))return;
+    e.stopPropagation();
+  };
+  const tutorialContextMenu=(e)=>{
+    if(!G._libraryTutorialActive)return;
+    e.preventDefault();e.stopPropagation();
+  };
   // 画面のどこをクリックしても次へ進む。ボックスの上だけに限定すると、
   // 暗い部分を押しても反応せず「進めない」と受け取られる。
   // 4-2・5-2（isMoving）は移動完了でのみ進むため、ここでは進めない。
@@ -1533,7 +1563,7 @@ function startLibraryBoardTutorial(){
   };
   allowBase(false);
   document.body.classList.add('library-tutorial-active','library-tutorial-lock');
-  document.addEventListener('pointerdown',block,true); document.addEventListener('click',advanceClick,true); document.addEventListener('dragstart',tutorialDragStart,true); document.addEventListener('dragend',tutorialDragEnd,true); document.addEventListener('drop',tutorialDragEnd,true);
+  document.addEventListener('pointerdown',block,true); document.addEventListener('click',advanceClick,true); document.addEventListener('dragstart',tutorialDragStart,true); document.addEventListener('dragend',tutorialDragEnd,true); document.addEventListener('dragover',tutorialDragGuard,true); document.addEventListener('drop',tutorialDragGuard,true); document.addEventListener('drop',tutorialDragEnd,true); document.addEventListener('contextmenu',tutorialContextMenu,true);
   if(highlightObserver) highlightObserver.observe(document.getElementById('scr-battle'),{childList:true,subtree:true});
   // 文字表示中は除外なし＝画面全体を暗くする。ここで一度計算しないと暗転が1枚も出ない。
   recalcDims();

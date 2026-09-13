@@ -5,6 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vesselbound</title>
 <style>
+/* **カーソルは3種類だけ。**（利用者指定）普段とボタン上＝cursor1／掴めるカードの上＝cursor2／ドラッグ中＝cursor3。
+   値はこの変数だけで持ち、各規則は cursor:var(--cursor-*) で参照する（pointer/default/grab を直接書かない）。
+   数字はクリック位置（指先）。cursor は継承されるので、html に普段のカーソルを置く。 */
+:root{
+  --cursor-normal:url("assets/ui/cursor1.svg?v=cursor01") 14 1, auto;
+  --cursor-grab:url("assets/ui/cursor2.svg?v=cursor01") 8 1, grab;
+  --cursor-drag:url("assets/ui/cursor3.svg?v=cursor01") 15 16, grabbing;
+}
+html{
+  cursor:var(--cursor-normal);
+}
+/* ボタンは既定（UA）で矢印になり html から継承しないため、明示する。ボタン上でもカーソルは変えない（利用者指定）。 */
+button,a[href],[role="button"]{
+  cursor:var(--cursor-normal);
+}
+button:disabled{
+  cursor:var(--cursor-normal);
+}
+/* **掴めるカード（カード・アイテム・指輪）の上は cursor2。**（利用者指定）
+   掴めるかどうかは draggable 属性（JS の el.draggable=条件）で決まるので、それを見る。
+   アイテム／指輪スロットは cursor1 を指定する詳細度の高い規則があるため、同じ強さで上書きする。 */
+html body [draggable="true"],
+html body.reward-screen-active :is(.reward-prod-ring,.reward-prod-item) .reward-prod-slots i[draggable="true"]{
+  cursor:var(--cursor-grab);
+}
+/* 選び終えて使えなくなった報酬カードは draggable のままでも掴めない扱い（cursor1）。 */
+html body .reward-used-dim{
+  cursor:var(--cursor-normal)!important;
+}
+/* **ドラッグ中のカーソル（cursor3）。** ブラウザ標準ドラッグ中は CSS の cursor が効かないため、
+   render.js の _initDragCursor() がこの画像をマウス位置へ置いて追従させる（OSのカーソルは消せない）。 */
+#drag-cursor{
+  position:fixed;
+  left:0;
+  top:0;
+  width:30px;
+  height:31.5px;
+  margin:-16px 0 0 -15px;
+  background:url("assets/ui/cursor3.svg?v=cursor01") center/100% 100% no-repeat;
+  pointer-events:none;
+  z-index:2147483000;
+}
+/* **何もない所（カーソルが cursor1 の所）をクリックした時の白く細い波紋。**（利用者指定）
+   発生は render.js の _initClickRipple()。大きさ＝--click-ripple-size、尺＝animation の秒数。 */
+.click-ripple{
+  --click-ripple-size:64px;
+  position:fixed;
+  width:var(--click-ripple-size);
+  height:var(--click-ripple-size);
+  margin:calc(var(--click-ripple-size) / -2) 0 0 calc(var(--click-ripple-size) / -2);
+  box-sizing:border-box;
+  border:1.5px solid rgba(255,255,255,.85);
+  border-radius:50%;
+  pointer-events:none;
+  z-index:2147483000;
+  animation:click-ripple .5s ease-out forwards;
+}
+@keyframes click-ripple{
+  from{transform:scale(.15);opacity:.9}
+  to{transform:scale(1);opacity:0}
+}
+/* **ゲーム内の全テキストに禁則処理（厳格）を掛ける。**（利用者指定）
+   標準（auto）では小さい仮名（ャ・ッ）や長音「ー」が行頭に来るため strict にする。
+   line-break は継承されるので、ルートの1箇所だけで持つ。個別要素で上書きしないこと。 */
+html{
+  line-break:strict;
+}
 :root{
   --bg:#0d0f14;--bg2:#141720;--bg3:#1c2030;
   --gold:#c9a84c;--gold2:#f0d080;
@@ -280,9 +347,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #scr-title.startup-menu-input-locked #title-menu,
 #scr-title.startup-menu-input-locked #title-menu button,
 #scr-title.startup-menu-input-locked #title-menu *{pointer-events:none!important}
-#scr-title.startup-title:not(.startup-menu-visible) button{cursor:default!important}
+#scr-title.startup-title:not(.startup-menu-visible) button{cursor:var(--cursor-normal)!important}
 #scr-title.startup-menu-visible #title-menu{opacity:1}
-.title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:pointer;opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .08s ease;pointer-events:auto}
+.title-menu-item{position:relative;width:900px;height:128px;border:0;padding:0;background:transparent;color:#eadfca;font-family:'Shippori Mincho',serif;font-size:60px;letter-spacing:.12em;text-shadow:0 3px 8px #090807;cursor:var(--cursor-normal);opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s ease,color .08s ease;pointer-events:auto}
 #scr-title.startup-menu-visible .title-menu-item{opacity:.82;transform:translateY(0)}
 #scr-title.startup-menu-visible .title-menu-item:nth-of-type(1){transition-delay:.1s}
 #scr-title.startup-menu-visible .title-menu-item:nth-of-type(2){transition-delay:.23s}
@@ -308,14 +375,14 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #scr-title.startup-title-visible .title-copyright{opacity:1}
 
 /* BUTTONS */
-.btn{cursor:pointer;border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:.85rem;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
+.btn{cursor:var(--cursor-normal);border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:.85rem;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
 .btn:hover{background:rgba(200,160,60,.15);box-shadow:0 0 16px rgba(200,160,60,.3)}
 .btn:active{transform:scale(.97)}
 .btn.danger{border-color:var(--red);color:var(--red2)}
 .btn.danger:hover{background:rgba(192,64,64,.15)}
 .btn.small{font-size:.75rem;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
 .btn.tiny{font-size:.68rem;padding:.3em .8em;font-family:var(--font-bd)}
-.btn:disabled{opacity:.35;cursor:default;pointer-events:none}
+.btn:disabled{opacity:.35;cursor:var(--cursor-normal);pointer-events:none}
 
 /* BATTLE */
 #scr-battle{flex-direction:column}
@@ -336,8 +403,8 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot-desc-sep{border-top:1px solid rgba(150,190,230,.4);margin:3px 0}
 .slot-desc-enchant{}
 .slot-desc-enchant-line{color:var(--blue2);}
-.slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:pointer;animation:pgold .9s ease-in-out infinite alternate}
-.slot.selectable{cursor:pointer;border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
+.slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:var(--cursor-normal);animation:pgold .9s ease-in-out infinite alternate}
+.slot.selectable{cursor:var(--cursor-normal);border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
 .slot.selectable:hover{background:rgba(200,160,60,.14)}
 @keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
@@ -440,9 +507,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .hand-slots{display:flex;gap:5px}
 
 /* CARDS */
-.card{border:0;border-radius:5px;background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat;padding:5px;flex:1 1 0;min-width:0;aspect-ratio:569/983;overflow:hidden;cursor:pointer;transition:all .15s;position:relative;user-select:none;filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))}
+.card{border:0;border-radius:5px;background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat;padding:5px;flex:1 1 0;min-width:0;aspect-ratio:569/983;overflow:hidden;cursor:var(--cursor-normal);transition:all .15s;position:relative;user-select:none;filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))}
 .card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
-.card.inert{opacity:.38;cursor:default;pointer-events:none}
+.card.inert{opacity:.38;cursor:var(--cursor-normal);pointer-events:none}
 .card.ring,.card.wand,.card.wand-sub,.card.consumable{border-top:0}
 .card-grade{position:absolute;top:1.8%;left:50%;transform:translateX(-50%);font-size:.82rem;color:var(--gold);font-weight:700;z-index:4;pointer-events:none}
 .card-badge{position:absolute;top:3px;right:5px;font-size:1.05rem;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1}
@@ -473,7 +540,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #reward-move-btns{display:flex;gap:6px;flex-shrink:0}
 
 /* リスNPC */
-.rew-move-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;font-size:.84rem;font-weight:600;border-radius:5px;cursor:pointer}
+.rew-move-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;font-size:.84rem;font-weight:600;border-radius:5px;cursor:var(--cursor-normal)}
 
 /* BATTLE CONTROLS */
 .bctl-wrap{background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
@@ -497,11 +564,11 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 /* REWARD CARDS */
 .rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:0}
-.rew-card{border:0;border-radius:5px;background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat;padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:569/983;overflow:hidden;cursor:pointer;transition:all .18s;position:relative;filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))}
+.rew-card{border:0;border-radius:5px;background:var(--card-frame,var(--bg3)) center/100% 100% no-repeat;padding:8px 10px;width:110px;flex:0 0 110px;aspect-ratio:569/983;overflow:hidden;cursor:var(--cursor-normal);transition:all .18s;position:relative;filter:drop-shadow(0 5px 10px rgba(0,0,0,.42))}
 .rew-card:hover:not(.cant){transform:translateY(-3px);border-color:var(--gold);box-shadow:0 4px 12px rgba(200,160,60,.2)}
 /* 報酬・ショップで3枚合体の素材が揃っているカードは、ホバーより弱い緑色で予告する。 */
 .rew-card.merge-ready:not(.cant){box-shadow:0 0 7px rgba(92,210,125,.48),inset 0 0 8px rgba(92,210,125,.12)}
-.rew-card.cant{cursor:default}
+.rew-card.cant{cursor:var(--cursor-normal)}
 .rew-card.cant::after,
 .character-card.cant::after{
   content:"";
@@ -810,7 +877,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .mv-wrap{max-width:520px;width:92%;text-align:center}
 .mv-title{font-family:var(--font-hd);font-size:.92rem;letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
 .mv-opts{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
-.mv-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 16px;cursor:pointer;transition:all .2s;min-width:100px;text-align:center}
+.mv-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 16px;cursor:var(--cursor-normal);transition:all .2s;min-width:100px;text-align:center}
 .mv-opt:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,.5)}
 .mo-icon{font-size:1.4rem;margin-bottom:4px}
 .mo-name{font-size:.8rem;font-weight:500;margin-bottom:3px}
@@ -825,9 +892,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .result-title.clear{color:var(--gold2);text-shadow:0 0 28px rgba(200,160,60,.6)}
 .result-sub{color:var(--text2);font-size:.86rem}
 
-.discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:.6rem;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:3px;cursor:pointer;background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
+.discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:.6rem;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
-.return-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:.6rem;padding:1px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:3px;cursor:pointer;background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
+.return-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:.6rem;padding:1px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .return-btn:hover{background:rgba(64,192,160,.15)}
 /* VFX（damage-vfx-host:10020 / sweep-vfx-host:10021 / special-vfx-clip既定10001）より
    常に手前に出るよう、ホバー説明文のz-indexをVFX群の最大値より高くする。 */
@@ -985,7 +1052,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #battle-options-btn{
   position:absolute;right:96px;top:58px;z-index:20;width:112px;height:112px;border-radius:50%;
   border:4px solid rgba(201,168,76,.72);background:rgba(13,15,20,.82);color:var(--gold2);
-  font-size:56px;line-height:1;cursor:pointer;box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)
+  font-size:56px;line-height:1;cursor:var(--cursor-normal);box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)
 }
 .battle-scroll{position:absolute;inset:0;overflow:hidden;min-height:auto}
 .battle-area{position:absolute;inset:0;max-width:none;width:100%;height:100%;padding:0;margin:0;display:block;overflow:hidden}
@@ -1866,11 +1933,11 @@ html body .slot.dragging{
   filter:drop-shadow(0 0 12px rgba(70,180,255,.9))!important;
 }
 .map-node.is-moveable{
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,255,255,.95))!important;
 }
 .map-node.map-node-midstep{
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   filter:drop-shadow(0 0 6px rgba(255,90,90,.95)) drop-shadow(0 0 16px rgba(255,140,60,.8))!important;
   animation:map-node-midstep-pulse 1s ease-in-out infinite alternate!important;
 }
@@ -1954,7 +2021,7 @@ body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
 .map-village-card span,.map-forge-card span{font-size:22px;line-height:1.45;color:#e5cfac}
 .map-forge-card em{font-size:26px;font-style:normal;color:var(--teal2)}
 .map-forge-card.selected{box-shadow:0 0 0 4px var(--teal2),0 0 24px rgba(64,176,144,.6)}
-.map-forge-card:disabled{opacity:.38;cursor:default}
+.map-forge-card:disabled{opacity:.38;cursor:var(--cursor-normal)}
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-art,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-name,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-desc,
@@ -2923,7 +2990,7 @@ body #hand-slots .card-empty.belt-empty{
 body #hand-slots .card.equip-combat-dim{
   opacity:.48!important;
   filter:grayscale(.65) brightness(.72)!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 body #hand-slots .card.equip-combat-view .discard-btn{
   opacity:.35!important;
@@ -3433,7 +3500,7 @@ body #f-ally .slot.unit-card .unit-hit-layer{
   z-index:1000!important;
   pointer-events:auto!important;
   background:transparent!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 body #f-enemy .slot.unit-card::after,
 body #f-enemy .slot.unit-card.enemy::after,
@@ -3764,11 +3831,11 @@ body #hand-slots .facility-up{
   color:var(--gold2);
   font-weight:800;
   font-size:1rem;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
 }
 body #hand-slots .facility-up:disabled{
   opacity:.38;
-  cursor:default;
+  cursor:var(--cursor-normal);
 }
 body.reward-screen-active #enemy-hand-slots.facility-slots .facility-card{
   height:var(--hand-card-h);
@@ -3790,8 +3857,8 @@ body.reward-screen-active #enemy-hand-slots.facility-slots .facility-card{
 body.reward-screen-active #enemy-hand-slots.facility-slots .facility-name{font-family:var(--font-hd);color:var(--gold2);font-size:1.42rem;letter-spacing:.08em}
 body.reward-screen-active #enemy-hand-slots.facility-slots .facility-lv{font-size:1.32rem;font-weight:800;color:var(--teal2)}
 body.reward-screen-active #enemy-hand-slots.facility-slots .facility-desc{font-size:.9rem;line-height:1.35;color:var(--text2);min-height:100px}
-body.reward-screen-active #enemy-hand-slots.facility-slots .facility-up{width:100%;min-height:58px;border:2px solid var(--gold);border-radius:8px;background:rgba(0,0,0,.28);color:var(--gold2);font-weight:800;font-size:1rem;cursor:pointer}
-body.reward-screen-active #enemy-hand-slots.facility-slots .facility-up:disabled{opacity:.38;cursor:default}
+body.reward-screen-active #enemy-hand-slots.facility-slots .facility-up{width:100%;min-height:58px;border:2px solid var(--gold);border-radius:8px;background:rgba(0,0,0,.28);color:var(--gold2);font-weight:800;font-size:1rem;cursor:var(--cursor-normal)}
+body.reward-screen-active #enemy-hand-slots.facility-slots .facility-up:disabled{opacity:.38;cursor:var(--cursor-normal)}
 body.reward-screen-active #reward-info-bar #rw-gold{
   display:block!important;
   position:absolute!important;
@@ -4443,7 +4510,7 @@ body #f-enemy .slot.unit-card .unit-hit-layer{
   display:block!important;
   background:transparent!important;
   pointer-events:auto!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 body #f-ally .slot.unit-card > .unit-hit-layer,
 body #f-enemy .slot.unit-card > .unit-hit-layer{
@@ -6141,7 +6208,7 @@ body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-card{
   position:relative;
-  cursor:grab;
+  cursor:var(--cursor-grab);
   transition:filter .25s;
 }
 body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
@@ -6174,7 +6241,7 @@ html body.right-card-peek #hand-slots.unit-equip-slots .card{
   box-shadow:none!important;
   filter:none!important;
   transform:none!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body.right-card-peek #hand-slots.unit-equip-slots .card.deploy-slot{
   background:url("assets/cards/m_board1.svg?v=cellRadius01") center/100% 100% no-repeat!important;
@@ -6277,7 +6344,7 @@ body #battle-order-row > .rew-card{
   max-height:var(--hand-card-h)!important;
   flex:0 0 var(--hand-card-w)!important;
   aspect-ratio:auto!important;
-  cursor:grab;
+  cursor:var(--cursor-grab);
 }
 body #battle-order-row .card.dragging,
 body #battle-order-row .rew-card.dragging{
@@ -6328,7 +6395,7 @@ html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-targ
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .stat-hp{
   filter:none!important;
 }
-/* レアリティ別カード名の色：1=白 2=青 3=紫 4=金 5=虹 */
+/* レアリティ別カード名の色：1=白 2=青 3=金 4=紫 5=虹 */
 html body .card.rarity-1 .card-name,
 html body .rew-card.rarity-1 .rew-card-name{
   color:#ffffff!important;
@@ -6339,24 +6406,46 @@ html body .rew-card.rarity-2 .rew-card-name{
 }
 html body .card.rarity-3 .card-name,
 html body .rew-card.rarity-3 .rew-card-name{
-  color:#c07bff!important;
+  color:#ffd93d!important;
 }
 html body .card.rarity-4 .card-name,
 html body .rew-card.rarity-4 .rew-card-name{
-  color:#ffd93d!important;
+  color:#c07bff!important;
 }
 html body .card.rarity-5 .card-name,
 html body .rew-card.rarity-5 .rew-card-name{
-  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
-  background-size:200% 100%!important;
+  background:var(--rarity5-name-bg)!important;
+  background-size:var(--rarity5-name-bg-size)!important;
   -webkit-background-clip:text!important;
   background-clip:text!important;
   color:transparent!important;
-  animation:rarity5-shimmer 3s linear infinite!important;
+  /* カード名にある共通のbackground-position:centerを打ち消し、デバッグ表示と同じ虹域を使う。 */
+  background-position:var(--rarity5-sweep) 0,var(--rarity5-flow) 0!important;
+  animation:rarity5-sweep 3s linear infinite,rarity5-flow 6s linear infinite!important;
 }
-@keyframes rarity5-shimmer{
-  from{background-position:0% 0}
-  to{background-position:200% 0}
+/* **星5のカード名：星3（金）と印象を分けるため、濃い虹＋3秒ごとの斜めの光。**（利用者指定）
+   1層目＝左→右へ走る白い光（うっすら）、2層目＝横に流れる虹（落ち着いた色）。
+   光の濃さ＝1層目の rgba の不透明度、走る速さ＝rarity5-sweep の 90%（3秒のうち光が走る割合）と周期。
+   **background-position を keyframes で直接動かさないこと。** カード名の共通規則を打ち消すため
+   位置に !important が要り、!important はアニメーションより強いので動かなくなる（実際に止まっていた）。
+   動かすのは登録済みの変数（@property）で、位置はその変数を読むだけにする。 */
+@property --rarity5-sweep{syntax:'<percentage>';inherits:false;initial-value:84%}
+@property --rarity5-flow{syntax:'<percentage>';inherits:false;initial-value:0%}
+:root{
+  --rarity5-name-bg:
+    linear-gradient(90deg,transparent 0%,transparent 44%,rgba(255,255,255,.38) 50%,transparent 56%,transparent 100%),
+    linear-gradient(90deg,#d9707f,#d99a68,#d6c476,#86c795,#73b5cc,#8290cf,#b58ccf,#d9707f);
+  --rarity5-name-bg-size:300% 100%,200% 100%;
+}
+/* 光：左端の外（84%）→右端の外（16%）。3秒のうち90%をかけて走り、残りは休む。
+   虹：光とは別の6秒周期で流す（光と同じ周期にすると虹まで速くなる）。 */
+@keyframes rarity5-sweep{
+  0%{--rarity5-sweep:84%;animation-timing-function:ease-in-out}
+  90%,100%{--rarity5-sweep:16%}
+}
+@keyframes rarity5-flow{
+  from{--rarity5-flow:0%}
+  to{--rarity5-flow:200%}
 }
 html body .desc-mana-icon{
   width:1em!important;
@@ -6528,15 +6617,16 @@ html body.dragging-in-battle #hand-slots.unit-equip-slots > .card.dragging:not(.
 /* ツールチップ1行目（カード名）もレアリティに応じて色付けする */
 #kw-tooltip.rarity-1 .preview-title{color:#ffffff!important}
 #kw-tooltip.rarity-2 .preview-title{color:#5ea6ff!important}
-#kw-tooltip.rarity-3 .preview-title{color:#c07bff!important}
-#kw-tooltip.rarity-4 .preview-title{color:#ffd93d!important}
+#kw-tooltip.rarity-3 .preview-title{color:#ffd93d!important}
+#kw-tooltip.rarity-4 .preview-title{color:#c07bff!important}
 #kw-tooltip.rarity-5 .preview-title{
-  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
-  background-size:200% 100%!important;
+  background:var(--rarity5-name-bg)!important;
+  background-size:var(--rarity5-name-bg-size)!important;
+  background-position:var(--rarity5-sweep) 0,var(--rarity5-flow) 0!important;
   -webkit-background-clip:text!important;
   background-clip:text!important;
   color:transparent!important;
-  animation:rarity5-shimmer 3s linear infinite!important;
+  animation:rarity5-sweep 3s linear infinite,rarity5-flow 6s linear infinite!important;
 }
 /* ドラッグ中、そのカードを置けない置き場を暗くする */
 html body #spell-slot-pane,
@@ -6897,7 +6987,7 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i{
   box-shadow:none!important;
   position:relative!important;
   pointer-events:auto!important;
-  cursor:default;
+  cursor:var(--cursor-normal);
 }
 html body.reward-screen-active #kw-tooltip{
   z-index:100000!important;
@@ -6913,7 +7003,7 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i{
   box-shadow:none!important;
   position:relative!important;
   pointer-events:auto!important;
-  cursor:default;
+  cursor:var(--cursor-normal);
 }
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before{
   content:"";
@@ -6932,8 +7022,8 @@ html body .drag-ghost.item-visual::before{
   background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat;
   pointer-events:none;
 }
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled{cursor:pointer}
-html body .drag-ghost.item-visual-filled{cursor:grab}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled{cursor:var(--cursor-normal)}
+html body .drag-ghost.item-visual-filled{cursor:var(--cursor-normal)}
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled::after,
 html body #battle-order-row > .rew-card.item-offer-card.item-visual-filled::after,
 html body .drag-ghost.item-visual-filled::after{
@@ -6981,7 +7071,7 @@ html body.reward-screen-active .ring-visual.ring-visual-filled::after{
   pointer-events:none;
 }
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-visual-filled{
-  cursor:pointer;
+  cursor:var(--cursor-normal);
 }
 /* 指輪をドラッグしたまま他の指輪枠の上にフローした時、魔導板の枠と同じ発光表現にする */
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.drag-over{
@@ -7085,11 +7175,8 @@ html body.item-use-picking #battle-status-hud{
    魔導板の上に出る分は `#hand-slots.unit-equip-slots ...{display:block!important}` が
    後方にあるため、クラスを二重に書いて詳細度で勝たせる。 */
 html body.item-use-picking.item-use-picking #hand-slots.unit-equip-slots .shop-board-sell-value,
-html body.item-use-picking.item-use-picking #hand-slots.unit-equip-slots .shop-board-sell-btn,
 html body.item-use-picking.item-use-picking #hand-slots.unit-equip-slots .shop-buy-price,
 html body.item-use-picking.item-use-picking .shop-board-sell-value,
-html body.item-use-picking.item-use-picking .shop-board-sell-btn,
-html body.item-use-picking.item-use-picking .shop-pending-sell-btn,
 html body.item-use-picking.item-use-picking .shop-pending-sale-ui,
 html body.item-use-picking.item-use-picking .shop-buy-price{
   display:none!important;
@@ -7170,7 +7257,7 @@ html body.item-use-picking.item-use-picking .board-card-visibility-btn,
 html body.item-use-picking.item-use-picking .board-card-visibility-btn *{
   filter:grayscale(1) brightness(.45)!important;
   pointer-events:none!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 /* 報酬枠の中身（カード・アイテム）は選択中は出さない。枠と見出しだけを残す。 */
 html body.item-use-picking #battle-order-row{display:none!important}
@@ -7408,7 +7495,7 @@ html body.reward-screen-active.ring-offer-phase .ring-offer-card.ring-offer-fadi
 /* 空になった提示枠：枠（ring_slot）だけを見せる。ホバー・ドラッグは無効。 */
 html body.reward-screen-active.ring-offer-phase .ring-offer-card.ring-offer-spent{
   pointer-events:none!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body.reward-screen-active:not(.item-use-picking) #battle-order-row{
   position:absolute!important;
@@ -7598,7 +7685,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-rotate{
   background:rgba(20,10,30,.72);
   color:#d7c0a0;
   font-size:15px;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-kind{
   flex:1;
@@ -7625,7 +7712,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-item{
   background:rgba(0,0,0,.28);
   border:1px solid rgba(183,143,82,.35);
   padding:8px;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
   color:#d7c0a0;
   box-sizing:border-box;
 }
@@ -7689,7 +7776,7 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card .panel-dir{
 html body #hand-slots.unit-equip-slots > .item-target-disabled{
   filter:none!important;
   pointer-events:none!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #hand-slots.unit-equip-slots > .item-target-disabled > *{
   filter:grayscale(.85) brightness(.42)!important;
@@ -7716,12 +7803,12 @@ html body #hand-slots.unit-equip-slots > .item-target-disabled.item-target-disab
 }
 html body #hand-slots.unit-equip-slots > .item-target-disabled *{pointer-events:none!important}
 /* 対象になり得るカードは通常表示のまま（暗転しないことで選べると分かる）。 */
-html body #hand-slots.unit-equip-slots > .item-target-ok{cursor:pointer}
+html body #hand-slots.unit-equip-slots > .item-target-ok{cursor:var(--cursor-normal)}
 /* 使用条件を満たさないアイテムの「使う」ボタン。 */
 html body #item-use-confirm .item-use-unavailable{
   opacity:.38!important;
   filter:grayscale(.7)!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
   pointer-events:none!important;
 }
 html body.reward-screen-active #reward-info-bar{
@@ -10207,8 +10294,7 @@ html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{
   height:51px!important;
   min-width:96px!important;
 }
-html body.reward-screen-active .shop-pending-sell-btn,
-html body.reward-screen-active .shop-board-sell-btn{
+html body.reward-screen-active .shop-board-sell-action{
   position:absolute!important;
   top:94px!important;
   right:4px!important;
@@ -10222,7 +10308,7 @@ html body.reward-screen-active .shop-board-sell-btn{
   background:rgba(5,7,10,.9)!important;
   color:var(--gold2)!important;
   font:700 24px/1.1 var(--font-hd)!important;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
   z-index:10012!important;
 }
 #shop-return-confirm{
@@ -10381,7 +10467,7 @@ html body #scr-battle #battle-options-btn{
 #battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
 /* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
 #battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/back_light.svg") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
-#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#f3d58f;font-family:"Shippori Mincho",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:pointer}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#f3d58f;font-family:"Shippori Mincho",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
 #battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
 #battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
 #battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
@@ -10450,7 +10536,7 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-
   text-align:center!important;
   text-shadow:0 1px 2px #000!important;
   z-index:10012!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .ring-offer-discard-btn:hover{
   background:rgba(35,24,10,.96)!important;
@@ -11451,11 +11537,11 @@ html body.battle-victory-pending #scr-battle #f-enemy *:hover{
   filter:none!important;
   box-shadow:none!important;
   text-shadow:inherit!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body.battle-victory-pending #scr-battle #f-ally *,
 html body.battle-victory-pending #scr-battle #f-enemy *{
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 /* 結果カットイン表示中は、状態クラスが遷移途中で外れても発光を止める。 */
 html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *,
@@ -11464,7 +11550,7 @@ html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-ally *,
 html body:has(#battle-start-intro.cutin-retreat) #scr-battle #f-enemy *{
   filter:none!important;
   box-shadow:none!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *::before,
 html body:has(#battle-start-intro.cutin-victory) #scr-battle #f-ally *::after,
@@ -11494,7 +11580,7 @@ html body.reward-screen-active #journey-progress-ui .journey-node:hover{
   filter:brightness(1.6) drop-shadow(0 0 6px rgba(255,225,143,.9))!important;
 }
 html body.debug-mode #journey-progress-ui .journey-node-debug-jump{
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   pointer-events:auto!important;
 }
 html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
@@ -11502,7 +11588,7 @@ html body.debug-mode #journey-progress-ui .journey-node-debug-jump:hover{
 }
 /* デバッグ：Sceneマーク（「次の祭壇まであと〜」の上のアイコン列）もクリックでステージ移動できる。 */
 html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump{
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   pointer-events:auto!important;
 }
 html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump:hover{
@@ -11527,7 +11613,7 @@ html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump:hover{
 .gameover-board-title{text-align:center;font-family:var(--font-hd);font-size:32px;color:#e8c976;letter-spacing:.15em;margin-bottom:24px}
 #gameover-board-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:10px;height:calc(100% - 74px);align-content:center;justify-items:center;overflow:visible}
 #gameover-board-grid>.card-empty{width:100%;height:100%;min-height:80px;border:2px solid rgba(190,140,55,.5);border-radius:10px;background:rgba(35,18,7,.5)}
-#gameover-board-grid>.card{position:relative!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;transform:none!important;cursor:default!important;pointer-events:auto!important}
+#gameover-board-grid>.card{position:relative!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;transform:none!important;cursor:var(--cursor-normal)!important;pointer-events:auto!important}
 #gameover-board-grid .card:hover{filter:none!important}
 html body.right-card-peek #gameover-board-grid>.card{opacity:0!important;visibility:hidden!important}
 html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;visibility:visible!important}
@@ -11654,7 +11740,7 @@ html body.fatal-error-active .screen{pointer-events:none!important}
 #fatal-error-back-btn{
   position:relative!important;isolation:isolate!important;min-width:0!important;
   width:496px!important;height:122px!important;padding:0!important;border:0!important;border-radius:0!important;
-  background:none!important;background-color:transparent!important;cursor:pointer!important;
+  background:none!important;background-color:transparent!important;cursor:var(--cursor-normal)!important;
   font-family:var(--font-hd)!important;font-size:43.82px!important;font-weight:600!important;line-height:normal!important;
   letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;
   display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
@@ -11726,9 +11812,9 @@ html body.gameover-active #keyword-tooltip *{
   font-family:"Shippori Mincho",serif!important;
 }
 #gameover-board-grid #hand-slots.unit-equip-slots>.card,
-#gameover-board-grid #hand-slots.unit-equip-slots>.card-empty{cursor:default!important;pointer-events:auto!important}
+#gameover-board-grid #hand-slots.unit-equip-slots>.card-empty{cursor:var(--cursor-normal)!important;pointer-events:auto!important}
 #gameover-board-grid #hand-slots.unit-equip-slots>.card:hover{transform:none!important;filter:none!important}
-html body.gameover-active #gameover-board-grid .card{cursor:default!important}
+html body.gameover-active #gameover-board-grid .card{cursor:var(--cursor-normal)!important}
 html body.gameover-active.right-card-peek #gameover-board-grid .card{opacity:0!important;visibility:hidden!important}
 html body.gameover-active.right-card-peek #gameover-board-grid .card-empty{opacity:1!important;visibility:visible!important}
 html body.gameover-active.right-card-peek #gameover-board-grid .board-frame-layer,
@@ -11959,7 +12045,7 @@ html body.gameover-active .gameover-rows>div>span{
   background:none!important;
   box-shadow:none!important;
   display:block!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   pointer-events:auto!important;
   isolation:isolate!important;
   overflow:visible!important;
@@ -12022,7 +12108,7 @@ html body.gameover-active .gameover-rows>div>span{
 .village-facility:hover .village-facility-desc{opacity:1!important}
 /* px指定（左上合わせ）のボタンは中心合わせのtranslateを打ち消す。 */
 .village-facility.village-facility-topleft{transform:none!important}
-.village-facility.village-facility-disabled{cursor:default!important}
+.village-facility.village-facility-disabled{cursor:var(--cursor-normal)!important}
 .village-facility.village-facility-disabled::before{filter:grayscale(.7) brightness(.62)!important}
 .village-facility.village-facility-disabled:hover::before{filter:grayscale(.7) brightness(.62)!important}
 .village-facility.village-facility-disabled .village-facility-name{color:#8b8f9a!important}
@@ -12062,11 +12148,10 @@ html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-up{
 html body.reward-screen-active #battle-order-row > .rew-card.item-shop-card-down{
   align-self:flex-end!important;
 }
-/* 手持ちアイテム枠の売却UIは、カード上の売却UI（.shop-board-sell-value/.shop-board-sell-btn）と
+/* 手持ちアイテム枠の売却UIは、カード上の売却UI（.shop-board-sell-value/.shop-board-sell-action）と
    同じ寸法・同じ間隔にする（幅96×高さ51、右端4px、価格top:30・ボタンtop:94＝間隔13px、24px）。
    枠は<i>要素なのでfont-style:normalでイタリックを打ち消す。 */
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
   position:absolute!important;
   right:4px!important;
   width:96px!important;
@@ -12092,13 +12177,6 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
 html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
   top:30px!important;
   pointer-events:none!important;
-}
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  top:94px!important;
-  font-family:var(--font-hd)!important;
-  font-style:normal!important;
-  cursor:pointer!important;
-  z-index:10012!important;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -12521,9 +12599,7 @@ html body.village-screen-active #village-move-btns#village-move-btns{
 
 /* 所持アイテムをドラッグ中は、売却価格と売却ボタンを隠す（ドラッグゴースト側も含む）。 */
 html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
-html body.item-shop-active.dragzone-itemslot .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
-html body.item-shop-active .drag-ghost .shop-board-sell-value,
-html body.item-shop-active .drag-ghost .shop-board-sell-btn{
+html body.item-shop-active .drag-ghost .shop-board-sell-value{
   display:none!important;
 }
 /* 既存のパネル個別暗転（brightness(.4) saturate(.5)）を道具屋中は無効化する。 */
@@ -12560,7 +12636,7 @@ html body .screen-options-btn{
   line-height:0!important;
   box-shadow:none!important;
   overflow:visible!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   z-index:4100!important;
   background:none!important;
 }
@@ -12605,7 +12681,7 @@ html body #village-formation-btn{
   font-size:30px!important;
   line-height:1!important;
   z-index:4100!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #village-mute-btn{
   position:absolute!important;
@@ -12623,7 +12699,7 @@ html body #village-mute-btn{
   font-size:38px!important;
   line-height:1!important;
   z-index:4100!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35)!important}
 
@@ -13050,10 +13126,10 @@ html body:not(.library-screen-active) #scr-village #library-exit-btn{display:non
 #library-title img{width:225px;height:237px;object-fit:contain}
 #library-title span{font-size:86px;font-weight:700;letter-spacing:.08em;white-space:nowrap;text-shadow:0 3px 10px rgba(0,0,0,.85),0 0 18px rgba(160,92,255,.45)}
 #library-actions{position:absolute;inset:0;display:none;z-index:8;pointer-events:none}
-#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:pointer;pointer-events:auto}
+#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#e9dcb4;font-family:"Shippori Mincho",serif;font-size:43.82px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal);pointer-events:auto}
 #library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff6dc}
 #library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
-#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:262px;height:62px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat;color:#c49a6c;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:pointer;z-index:40;align-items:center;justify-content:center}
+#board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:262px;height:62px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat;color:#c49a6c;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:var(--cursor-normal);z-index:40;align-items:center;justify-content:center}
 html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
 /* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
    位置は複製元のインラインstyle（right/top）をそのまま引き継ぐため編成画面と完全に一致する。 */
@@ -13064,8 +13140,7 @@ html body.gameover-active #gameover-board-grid #board-card-visibility-btn{displa
    スタイルが .item-shop-active 前提だったため、そこでは<i>要素の既定スタイル
    （11px・イタリック）のまま表示されていた。道具屋と同じ体裁を全画面に適用する。
    寸法・間隔はカード上の売却UIと同一（96×51／価格top:30・ボタンtop:94／24px）。 */
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
   position:absolute!important;
   right:4px!important;
   width:96px!important;
@@ -13091,13 +13166,6 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-boar
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
   top:30px!important;
   pointer-events:none!important;
-}
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  top:94px!important;
-  font-family:var(--font-hd)!important;
-  font-style:normal!important;
-  cursor:pointer!important;
-  z-index:111!important;
 }
 /* ══════════════════════════════════════════════════════════
    ドラッグ中の「#main-hand-area #hand-pane *{filter:none!important;opacity:1!important}」は
@@ -13278,7 +13346,7 @@ html body.online-waiting #battle-options-btn,
 html body.online-waiting #title-options-btn,
 html body.online-waiting .screen-options-btn{pointer-events:auto!important}
 html body.online-waiting #reward-move-btns .rew-move-btn,
-html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;cursor:default!important}
+html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;cursor:var(--cursor-normal)!important}
 /* マッチング待機オーバーレイ。参加者リストはサーバーの値をそのまま出す。
    「タイトルに戻る」はゲームオーバー画面と同じ見た目（button_brown2.svg・496x122）にする。 */
 #online-matching-overlay{
@@ -13318,7 +13386,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   line-height:normal!important;letter-spacing:.12em!important;text-indent:.12em!important;
   color:var(--prod-gold)!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
-  cursor:pointer!important;overflow:visible!important;box-sizing:border-box!important;isolation:isolate!important;
+  cursor:var(--cursor-normal)!important;overflow:visible!important;box-sizing:border-box!important;isolation:isolate!important;
 }
 #online-matching-overlay .omo-back::after{
   content:""!important;position:absolute!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
@@ -13403,7 +13471,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   text-decoration:line-through!important;text-decoration-thickness:4px!important;color:#9a8f7c!important;
 }
 /* 自分が敗北している間だけ、他プレイヤーの枠を押して観戦できる。 */
-#online-rival-hud.can-spectate .orh-slot{cursor:pointer!important}
+#online-rival-hud.can-spectate .orh-slot{cursor:var(--cursor-normal)!important}
 /* ══════════════════════════════════════════════════════════
    オンライン対戦マスの戦闘中。盤面の描画は通常戦闘（#f-ally / #f-enemy）を
    そのまま使い、編成画面用のUIだけをこのクラスで隠す。
@@ -13430,7 +13498,7 @@ html body #battle-order-row > .rew-card.forge-card{
   border:0!important;
   background:transparent!important;
   padding:0!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #battle-order-row > .rew-card.forge-card.item-visual::before{
   background:var(--forge-art) center/100% 100% no-repeat!important;
@@ -13457,7 +13525,7 @@ html body #battle-order-row > .rew-card.forge-card.forge-no-target > .shop-buy-p
 /* 購入できない選択肢（マス無し・所持金不足・演出中）はクリックできない。
    所持金不足では暗転も斜線もせず、絵はそのまま出す。 */
 html body #battle-order-row > .rew-card.forge-card.forge-disabled{
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #battle-order-row > .rew-card.forge-card.forge-disabled:hover{
   transform:none!important;
@@ -13528,12 +13596,8 @@ html body .village-facility-desc{
 html body.reward-screen-active .library-loan-badge,
 html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value,
 html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-value,
-html body.reward-screen-active .shop-pending-sell-btn,
-html body.reward-screen-active .shop-board-sell-btn,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value,
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
+html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-value{
   right:0!important;
   left:auto!important;
 }
@@ -13675,14 +13739,16 @@ html body:is(.dragzone-mainequip,.dragzone-reward-spell,.dragzone-reward-nonspel
 }
 html body #hand-pane-board-bg.library-tutorial-allowed,
 html body.library-tutorial-lock #scr-battle #hand-pane-board-bg.library-tutorial-allowed{z-index:9!important}
-body.library-tutorial-lock #scr-battle *{pointer-events:none!important}
 body.library-tutorial-lock #library-board-tutorial,
 body.library-tutorial-lock #library-board-tutorial *{pointer-events:none!important}
+/* チュートリアル中も説明を持つカード・マス・枠はホバーを拾う。
+   操作の禁止は map.js の document キャプチャで行うため、ここでは入力を奪わない。 */
+html body.library-tutorial-lock #scr-battle :is([data-preview],[data-panel-power-preview],[data-map-power-preview],[data-keyword-preview],[data-journey-enemy],.card,.rew-card,.slot,.item-visual,.ring-visual,.debug-palette-item){pointer-events:auto!important}
 body.library-tutorial-lock #scr-battle .library-tutorial-allowed{pointer-events:auto!important;z-index:10002!important}
 /* ボックスはクリックを受け取らない。document側でクリックを拾って次へ進めるため、
    ここをautoにすると4-2・5-2でカードを掴む操作の邪魔になる。 */
 body.library-tutorial-lock #library-board-tutorial .library-tutorial-box{pointer-events:none!important}
-body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .library-tutorial-box{pointer-events:auto!important;cursor:pointer}
+body.library-tutorial-lock #library-board-tutorial.library-tutorial-moving .library-tutorial-box{pointer-events:auto!important;cursor:var(--cursor-normal)}
 #library-howto-btn:hover + #library-howto-desc{opacity:1}
 .library-loan-badge{top:30px!important;right:4px!important;left:auto!important;bottom:auto!important;width:96px!important;height:51px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:96px;text-align:center}
 
@@ -14102,7 +14168,7 @@ fitVesselboundViewport();
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=intro16"></script>
+<script src="js/data/local_xlsx_data.js?v=actionLabel01"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=multiRevive01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
@@ -14127,15 +14193,15 @@ fitVesselboundViewport();
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=save01"></script>
 <script src="js/save/run_save.js?v=steal01"></script>
-<script src="js/engine/pool.js?v=multiRevive01"></script>
+<script src="js/engine/pool.js?v=noSacrifice01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=attackMotion03"></script>
+    <script src="js/engine/battle.js?v=strategyCount01"></script>
     <script src="js/engine/battle_events.js?v=multiFinish01"></script>
-<script src="js/engine/render.js?v=onlinePoison02"></script>
-<script src="js/engine/reward_items.js?v=itemRingDismiss03"></script>
-<script src="js/engine/reward_journey.js?v=steal01"></script>
-<script src="js/engine/reward.js?v=shopAction03"></script>
-<script src="js/engine/map.js?v=steal04"></script>
+<script src="js/engine/render.js?v=effectOrder20"></script>
+<script src="js/engine/reward_items.js?v=actionLabel01"></script>
+<script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
+<script src="js/engine/reward.js?v=noSacrifice01"></script>
+<script src="js/engine/map.js?v=libraryTutorial02"></script>
   <script src="js/engine/main.js?v=runStatsUi01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
@@ -14428,43 +14494,113 @@ html body .card.merge-ready.merge-ready.drag-source-parts-hidden{
 
 /* ══════════════════════════════════════════════════════════
    **ホバー説明の枠と区切り線を素材へ差し替える。**
-   枠＝`assets/ui/info_box.svg`、見出し下の直線＝`assets/ui/info_line.svg`。
-   info_box.svg の地色は、それまでの枠の背景（rgba(47,26,11,.96)）に合わせて
-   `#2f1a0b` / opacity .96 へ書き換えてある（素材側）。
+   通常枠＝`assets/ui/info_box1.svg`、旅の進捗の通常枠＝`assets/ui/info_box2.svg`、
+   見出し下の直線＝`assets/ui/info_line.svg`。
+   info_box1.svg は9スライスで使い、横方向と四隅は原寸を保って中央の縦方向だけを可変にする。
    枠線・角丸・影はSVGが持つので、CSS側のものは消す。
-   余白は素材の枠の内側に文字が収まるよう広げる。
+   余白は四隅の装飾より内側に文字が収まる値を確保する。
    ══════════════════════════════════════════════════════════ */
 html body #kw-tooltip,
 html body #map-power-tooltip,
 html body #keyword-tooltip{
   /* **9スライス（border-image）で描く。**
      背景画像として伸ばすと、本文が増えて箱が縦長になるたびに絵ごと縦横比が変わり、
-     枠線の太さや角の見え方が説明ごとにばらつく。
-     border-image なら**四隅は伸びず、辺だけが伸びる**ので、高さだけが変わる。
-     素材（viewBox 501.8x201.8）は外枠 0.9 と内枠 4.7 の二重線なので、
-     角を 10 単位で切れば両方の線が収まる。辺は直線なので伸ばしても分からない。
+     四隅の装飾まで変形する。info_box1.svg（viewBox 500x500）は上下左右85pxで切り、
+     表示先も85pxのままにする。四隅は素材と同じ寸法を保ち、
+     中央区画と辺だけをツールチップの幅・高さに合わせて伸ばす。
      **`background` の一括指定は使わないこと。** background-color まで初期値へ戻り、
      それぞれのツールチップが持つ地色が消える（地色は元のものをそのまま使う）。 */
+  width:calc(800px * var(--game-scale))!important;
+  min-width:calc(800px * var(--game-scale))!important;
+  max-width:calc(800px * var(--game-scale))!important;
+  min-height:calc(170px * var(--game-scale))!important;
+  font-size:calc(35px * var(--game-scale))!important;
+  /* クエスト本文は line-height:1.35 に加え、各行（p）の下へ12pxある。
+     ホバー内の折返し行にも、その合計と同じ見た目の行間を適用する。 */
+  line-height:1.692857!important;
+  position:fixed!important;
+  isolation:isolate!important;
   background-image:none!important;
-  border-style:solid!important;
-  /* **枠の太さ＝素材の拡大率。** 6単位を何pxで描くかで、線の太さも二重線の間隔も
-     まとめて決まる。魔導板のマス枠（2px の二重線）に合わせて 7px にしてある。 */
-  border-width:calc(7px * var(--game-scale))!important;
-  border-color:transparent!important;
+  background-clip:border-box!important;
+  border:0!important;
   border-radius:0!important;
-  border-image-source:url("assets/ui/info_box.svg")!important;
-  /* **スライスは単位（px）で指定する。**
-     素材には `width="501.8" height="201.8"` を入れて固有サイズを持たせてある。
-     これが無いと、％指定は「画像の実寸」ではなく**要素の箱**を基準に解釈され、
-     箱の縦横比によって上下と左右で切る位置がずれる（下辺だけ二重線が1本に見えた）。
-     切り出す幅は**二重線が収まるぶんだけ**（6単位）。素材は外枠が 0〜1.8、
-     内枠が 3.8〜5.6 の位置にあるので、6で両方がちょうど入る（上下左右とも同じ）。 */
-  border-image-slice:6!important;
-  border-image-width:calc(7px * var(--game-scale))!important;
-  border-image-repeat:stretch!important;
   box-shadow:none!important;
-  /* 枠のぶんだけ内側が狭くなるので、余白は border と合わせて元の見え方に揃える。 */
-  padding:calc(15px * var(--game-scale)) calc(21px * var(--game-scale))!important;
+  /* 枠をレイアウト幅として消費させず、装飾より内側へ本文だけを配置する。 */
+  padding:calc(42px * var(--game-scale)) calc(60px * var(--game-scale))!important;
+}
+html body #kw-tooltip::before,
+html body #map-power-tooltip::before,
+html body #keyword-tooltip::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:0!important;
+  box-sizing:border-box!important;
+  border:calc(85px * var(--game-scale)) solid transparent!important;
+  border-image-source:url("assets/ui/info_box1.svg?v=tooltipFrame07")!important;
+  /* 85/500。切り出しと表示先を同寸にして、ゲーム全体の表示倍率以外では縮小しない。 */
+  border-image-slice:17%!important;
+  border-image-width:calc(85px * var(--game-scale))!important;
+  border-image-repeat:stretch!important;
+  pointer-events:none!important;
+}
+/* 旅の進捗内の通常マス／Scene名は、簡素なinfo_box2.svgを横幅可変で使う。 */
+html body #kw-tooltip.no-title-rule{
+  width:auto!important;
+  min-width:0!important;
+  max-width:calc(800px * var(--game-scale))!important;
+  min-height:0!important;
+  padding:calc(24px * var(--game-scale))!important;
+}
+html body #kw-tooltip.no-title-rule::before{
+  border:calc(7px * var(--game-scale)) solid transparent!important;
+  border-image-source:url("assets/ui/info_box2.svg?v=tooltipFrame04")!important;
+  /* 上下7/200=3.5%、左右7/500=1.4%。 */
+  border-image-slice:3.5% 1.4%!important;
+  border-image-width:calc(7px * var(--game-scale))!important;
+}
+/* キャラクターと旅の進捗内のエリート／ボスは指定の黒茶色にする。 */
+html body #kw-tooltip.character-tooltip,
+html body #kw-tooltip.journey-enemy-tooltip{
+  background-color:rgba(7,3,1,.95)!important;
+}
+/* 各説明枠の地色は維持し、透過率だけを95%へ統一する。 */
+html body #kw-tooltip{
+  background-color:rgba(47,26,11,.95)!important;
+}
+html body #kw-tooltip.map-tooltip,
+html body #map-power-tooltip{
+  background-color:rgba(17,28,42,.95)!important;
+}
+/* キーワード説明は従来の茶系地色を維持する。 */
+html body #keyword-tooltip{
+  background-color:rgba(35,19,10,.95)!important;
+}
+html body #kw-tooltip.character-tooltip,
+html body #kw-tooltip.journey-enemy-tooltip{
+  background-color:rgba(7,3,1,.95)!important;
+}
+/* 見出しと太字キーワードは個別の色を維持し、通常本文だけを旅の進捗と同色にする。 */
+html body #kw-tooltip,
+html body #kw-tooltip.map-tooltip,
+html body #map-power-tooltip,
+html body #keyword-tooltip{
+  color:#a99e8f!important;
+}
+/* 説明本文は日本語の文字間を使って両端へ揃える。見出しと操作部の配置は個別指定を維持する。 */
+html body #kw-tooltip,
+html body #map-power-tooltip,
+html body #keyword-tooltip{
+  text-align:justify!important;
+  text-justify:inter-character!important;
+}
+html body #kw-tooltip .preview-title,
+html body #map-power-tooltip .preview-title,
+html body #keyword-tooltip .preview-title,
+html body #kw-tooltip .journey-card-wrap,
+html body #kw-tooltip .reward-action-buttons,
+html body #kw-tooltip .reward-action-btn{
+  text-align:center!important;
 }
 /* 見出し下の直線。素材は横長（viewBox 426x10）なので、幅いっぱいに伸ばして下端へ置く。
    CSS の border-bottom は消し、位置合わせ用の余白だけ残す。 */
@@ -14473,8 +14609,42 @@ html body #map-power-tooltip .preview-title,
 html body #keyword-tooltip .preview-title{
   position:relative!important;
   border-bottom:0!important;
-  padding-bottom:calc(16px * var(--game-scale))!important;
-  margin-bottom:calc(8px * var(--game-scale))!important;
+  padding-bottom:calc(30px * var(--game-scale))!important;
+  margin-bottom:calc(16px * var(--game-scale))!important;
+}
+/* カード名・マス名・旅の進捗内の各名称は、左パネル見出しと同じ44px。 */
+html body #kw-tooltip .preview-title,
+html body #map-power-tooltip .preview-title{
+  font-size:calc(44px * var(--game-scale))!important;
+}
+/* 複数行のキャラクター名／街名は、クエスト本文（35px×1.35）と同じ行送りにする。 */
+html body #kw-tooltip.character-tooltip .preview-title,
+html body #kw-tooltip.no-title-rule .preview-title{
+  line-height:calc(47.25px * var(--game-scale))!important;
+}
+/* 二つ名と固有名はそれぞれの文字サイズに対して1.35倍の行送りを使う。
+   混在サイズを固定pxで送らないため、文字の高さに応じて行間が自動で広がる。 */
+html body #kw-tooltip.journey-enemy-tooltip .preview-title{
+  line-height:normal!important;
+}
+html body #kw-tooltip.journey-enemy-tooltip .journey-enemy-name{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+}
+html body #kw-tooltip.journey-enemy-tooltip .journey-enemy-name > br{
+  display:none!important;
+}
+html body #kw-tooltip.journey-enemy-tooltip :is(.journey-enemy-prefix,.journey-enemy-main-name){
+  display:block!important;
+  line-height:1.35!important;
+}
+/* 街名の固有名より前の行はクエスト本文と同じサイズ・色にする。 */
+html body #kw-tooltip.no-title-rule .preview-title .journey-town-prefix,
+html body #kw-tooltip.no-title-rule .preview-title .journey-battle-prefix,
+html body #kw-tooltip.journey-enemy-tooltip .preview-title .journey-enemy-prefix{
+  font-size:calc(35px * var(--game-scale))!important;
+  color:#8b7c67!important;
 }
 html body #kw-tooltip .preview-title::after,
 html body #map-power-tooltip .preview-title::after,
@@ -14484,8 +14654,8 @@ html body #keyword-tooltip .preview-title::after{
   left:0!important;
   right:0!important;
   bottom:0!important;
-  height:calc(10px * var(--game-scale))!important;
-  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+  height:calc(15px * var(--game-scale))!important;
+  background:url("assets/ui/info_line.svg?v=tooltipLine06") center/100% 100% no-repeat!important;
   pointer-events:none!important;
 }
 /* 見出しだけの1行表示（data-preview-norule）は直線を出さない。 */
@@ -14495,8 +14665,49 @@ html body #kw-tooltip.no-title-rule .preview-title::after{
 /* 節の区切り線も同じ素材に揃える。 */
 html body #kw-tooltip .preview-section-rule{
   border:0!important;
-  height:calc(10px * var(--game-scale))!important;
-  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+  height:calc(15px * var(--game-scale))!important;
+  margin:calc(20px * var(--game-scale)) 0!important;
+  background:url("assets/ui/info_line.svg?v=tooltipLine06") center/100% 100% no-repeat!important;
+}
+/* キャラクターが所持するキーワードは、キーワード説明側の見出しと同色にする。 */
+html body #kw-tooltip .preview-owned-keywords,
+html body #kw-tooltip .preview-owned-keywords strong,
+html body #kw-tooltip .journey-keyword-descriptions strong{
+  color:#f3d69a!important;
+}
+/* 効果タイミングは種類ごとの色で表示する。本文色は変更しない。 */
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-opening{color:#bcbcbc!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-release{color:#a88f97!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-attack{color:#b7a984!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-injury{color:#ba8e85!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-death{color:#8fa3a8!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-passive{color:#9ba88f!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-ending{color:#a0a0a0!important}
+/* 「：」の位置はマナ効果（アイコンのラベル）以外の全行で揃える。
+   幅は render.js の _initPreviewLabelAlign() が説明枠ごとに最長ラベルを測って --preview-label-w へ入れる。
+   同一タイミングの2行目以降もラベルは省略しない（利用者指定）。 */
+html body :is(#kw-tooltip,#map-power-tooltip,#keyword-tooltip) .effect-trigger-label.colon-aligned{
+  display:inline-block!important;
+  min-width:var(--preview-label-w,0px)!important;
+  white-space:nowrap!important;
+  text-align:left!important;
+}
+/* 本文の両端揃えで「：」の前が広がらないよう、ラベル＋「：」を1つの箱にする（render.js が包む）。 */
+html body :is(#kw-tooltip,#map-power-tooltip,#keyword-tooltip) .preview-label-box{
+  display:inline-block!important;
+  white-space:nowrap!important;
+  text-align:left!important;
+}
+/* キーワード説明のラベルは幅を揃えないが、2文字より短いもの（毒X・毒など）は
+   「根性」など2文字キーワードと「：」の位置を合わせる。（利用者指定） */
+html body :is(#kw-tooltip,#map-power-tooltip,#keyword-tooltip) .preview-label-box > .effect-trigger-label:not(.colon-aligned){
+  display:inline-block!important;
+  min-width:2em!important;
+  text-align:left!important;
+}
+/* エリート／ボスのカード画像も、見出し線と本文側の区切り線から少し離す。 */
+html body #kw-tooltip .journey-card-wrap{
+  margin:calc(24px * var(--game-scale)) auto!important;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -14563,77 +14774,21 @@ html body #kw-tooltip .preview-section-rule{
   text-shadow:0 2px 6px rgba(0,0,0,.9),0 0 18px rgba(90,160,255,.55)!important;
 }
 
-/* 売却・還魂の共通UI。カード／アイテムをポイントしている間だけ表示する。 */
-html body.reward-screen-active .shop-board-sell-btn,
-html body.reward-screen-active .shop-pending-sell-btn,
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn,
-html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  display:none!important;
-  left:50%!important;
-  right:auto!important;
-  width:132px!important;
-  min-width:132px!important;
-  height:62px!important;
-  box-sizing:border-box!important;
-  padding:0!important;
-  border:0!important;
-  border-radius:0!important;
-  background:transparent url("assets/ui/button_invisible_s.svg?v=shopMenu04") center/132px 62px no-repeat!important;
-  color:#c49a6c!important;
-  font:700 24px/1.1 var(--font-hd)!important;
-  text-shadow:0 1px 2px #000!important;
-  transform:translateX(-50%);
-  cursor:pointer!important;
-  z-index:101!important;
-  overflow:visible!important;
-  transition:filter .12s ease!important;
-}
-html body.reward-screen-active .rew-card:hover .shop-board-sell-btn,
-html body.reward-screen-active .rew-card:hover .shop-pending-sell-btn,
-html body.reward-screen-active #hand-slots.unit-equip-slots > .card:hover .shop-board-sell-btn,
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i:hover .shop-board-sell-btn{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-}
 /* 売却UIを表示する魔導板カード自身の矩形ホバー影は、ボタンの下に
    四角い発光として残るため消す。ボタン外周の発光は::afterだけで描く。 */
-html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-btn):hover{
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-action):hover{
   box-shadow:none!important;
   filter:none!important;
 }
-html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-btn):hover .card-glow-layer{
+html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(.shop-board-sell-action):hover .card-glow-layer{
   opacity:0!important;
   box-shadow:none!important;
 }
 /* カード非表示中は、見えないカード上の売却UIも操作対象にしない。 */
-html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-board-sell-btn,
-html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-pending-sell-btn,
 html body.reward-screen-active.right-card-peek #hand-slots.unit-equip-slots > .card .shop-board-sell-value{
   display:none!important;
   pointer-events:none!important;
 }
-html body.reward-screen-active .shop-board-sell-btn::before,
-html body.reward-screen-active .shop-pending-sell-btn::before{
-  content:none!important;
-}
-html body.reward-screen-active .shop-board-sell-btn:hover,
-html body.reward-screen-active .shop-pending-sell-btn:hover{
-  /* 発光は下の::afterでbutton_invisible_s.svgの外周だけへ掛ける。 */
-  filter:none!important;
-}
-html body.reward-screen-active .shop-board-sell-btn,
-html body.reward-screen-active .shop-pending-sell-btn{
-  /* カード上辺からボタン上辺まで正確に230px。 */
-  top:230px!important;
-  bottom:auto!important;
-}
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  /* 132x62の素材を縮小せず、アイテム枠の下辺中央に置く。 */
-  top:calc(100% - 31px)!important;
-  bottom:auto!important;
-}
-
 /* cost.svg は枠線の下側に重ね、文字はcost.svgの中央へ揃える。 */
 html body.reward-screen-active .shop-board-sell-value,
 html body.reward-screen-active .shop-buy-price,
@@ -14684,7 +14839,7 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-act
   height:46px!important;
   transform:none!important;
   pointer-events:auto!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   z-index:111!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-action:hover,
@@ -14698,23 +14853,24 @@ html body #kw-tooltip .preview-title-color-icon{
   left:0!important;
   top:0!important;
   transform:none!important;
-  width:1em!important;
-  height:1em!important;
+  width:.86em!important;
+  height:.86em!important;
   object-fit:contain!important;
   margin:0!important;
   display:inline-block!important;
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-1{color:#fff!important}
 html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-2{color:#5ea6ff!important}
-html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-3{color:#c07bff!important}
-html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-4{color:#ffd93d!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-3{color:#ffd93d!important}
+html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-4{color:#c07bff!important}
 html body.reward-screen-active #debug-card-palette .debug-palette-label.rarity-5{
-  background:linear-gradient(90deg,#ff5f5f,#ffbe4d,#fff35f,#63ff8a,#5fd7ff,#7f7fff,#ff7fe6,#ff5f5f)!important;
-  background-size:200% 100%!important;
+  background:var(--rarity5-name-bg)!important;
+  background-size:var(--rarity5-name-bg-size)!important;
+  background-position:var(--rarity5-sweep) 0,var(--rarity5-flow) 0!important;
   -webkit-background-clip:text!important;
   background-clip:text!important;
   color:transparent!important;
-  animation:rarity5-shimmer 3s linear infinite!important;
+  animation:rarity5-sweep 3s linear infinite,rarity5-flow 6s linear infinite!important;
 }
 html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:34px!important}
 
@@ -14737,17 +14893,12 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
   z-index:110!important;
 }
-/* 手持ちアイテムの売却ボタンは、アイテム枠のプログラム外枠より前へ出す。 */
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-board-sell-btn{
-  z-index:111!important;
-}
-
 /* クリック後のアイテム／指輪メニューは説明の直下に並ぶ固定表示。 */
 html body #item-use-confirm{
   min-width:calc(360px * var(--game-scale));
   padding:calc(14px * var(--game-scale));
   border:0;
-  background:rgba(8,4,2,.94) url("assets/ui/info_box.svg") center/100% 100% no-repeat;
+  background:rgba(8,4,2,.94) url("assets/ui/info_box2.svg?v=tooltipFrame04") center/100% 100% no-repeat;
   box-shadow:none;
 }
 html body #item-use-confirm .btn{
@@ -14755,12 +14906,12 @@ html body #item-use-confirm .btn{
   border:calc(22px * var(--game-scale)) solid transparent;
   border-radius:0;
   background:transparent;
-  border-image-source:url("assets/ui/button_invisible.svg?v=shopMenu01");
+  border-image-source:url("assets/ui/button_invisible_s.svg?v=actionMenu09");
   border-image-slice:22 fill;
   border-image-width:calc(22px * var(--game-scale));
   border-image-repeat:stretch;
   color:#c49a6c;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
 }
 html body #item-use-confirm .btn::before{display:none}
 html body #item-use-confirm .btn:hover{
@@ -14772,14 +14923,14 @@ html body #kw-tooltip.reward-action-tooltip{
   pointer-events:auto!important;
   display:block!important;
   white-space:pre-wrap!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-rule{
   display:block!important;
   width:100%!important;
-  height:calc(10px * var(--game-scale))!important;
-  margin:calc(8px * var(--game-scale)) 0!important;
-  background:url("assets/ui/info_line.svg") center/100% 100% no-repeat!important;
+  height:calc(15px * var(--game-scale))!important;
+  margin:calc(8px * var(--game-scale)) 0 0!important;
+  background:url("assets/ui/info_line.svg?v=tooltipLine06") center/100% 100% no-repeat!important;
   pointer-events:none!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
@@ -14789,25 +14940,30 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
   margin-bottom:calc(12px * var(--game-scale))!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-buttons{
-  display:grid!important;
-  grid-template-columns:repeat(3,calc(132px * var(--game-scale)))!important;
-  gap:calc(8px * var(--game-scale))!important;
-  width:max-content!important;
+  display:flex!important;
+  justify-content:flex-start!important;
+  /* button_invisible_s.svg 同士の間隔は25px。（利用者指定） */
+  gap:calc(25px * var(--game-scale))!important;
+  width:calc(680px * var(--game-scale))!important;
+  min-width:calc(680px * var(--game-scale))!important;
+  max-width:none!important;
+  margin:calc(24px * var(--game-scale)) 0 0!important;
 }
+/* アイテム／指輪クリック時のボタンは button_invisible_s.svg（210x60）を縮小せずに使う。（利用者指定） */
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
-  min-width:calc(132px * var(--game-scale))!important;
-  width:calc(132px * var(--game-scale))!important;
-  height:calc(62px * var(--game-scale))!important;
+  min-width:calc(210px * var(--game-scale))!important;
+  width:calc(210px * var(--game-scale))!important;
+  height:calc(60px * var(--game-scale))!important;
   box-sizing:border-box!important;
   padding:0!important;
   position:relative!important;
   isolation:isolate!important;
   border:0!important;
   border-radius:0!important;
-  background:transparent url("assets/ui/button_invisible_s.svg?v=shopMenu05") center/calc(132px * var(--game-scale)) calc(62px * var(--game-scale)) no-repeat!important;
+  background:transparent url("assets/ui/button_invisible_s.svg?v=actionMenu09") center/calc(210px * var(--game-scale)) calc(60px * var(--game-scale)) no-repeat!important;
   color:#c49a6c!important;
   font:700 calc(22px * var(--game-scale))/1 var(--font-hd)!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn::before{
   content:none!important;
@@ -14815,21 +14971,66 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-btn::before{
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::before{
   filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7))!important;
 }
-/* 売却／還魂とクリックメニューの発光は、button_invisible_s.svgの外周線だけを光らせる。 */
-html body.reward-screen-active .shop-board-sell-btn::after,
-html body.reward-screen-active .shop-pending-sell-btn::after,
+/* 売却／還魂とクリックメニューの発光は、それぞれのボタン素材の外周線だけを光らせる。 */
+html body.reward-screen-active .shop-board-sell-action::after,
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn::after{
   content:""!important;
   position:absolute!important;
   inset:0!important;
   pointer-events:none!important;
   opacity:0!important;
-  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 62'%3E%3Cpath d='M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c0,8.3-6.7,15-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+  background:transparent url("assets/ui/button_invisible.svg?v=actionMenu06") center/100% 100% no-repeat!important;
   filter:url(#ui-btn-outer-glow-only)!important;
   transition:opacity .12s ease!important;
 }
-html body.reward-screen-active .shop-board-sell-btn:hover::after,
-html body.reward-screen-active .shop-pending-sell-btn:hover::after,
+html body.reward-screen-active .shop-board-sell-action::after{
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 132 62'%3E%3Cpath d='M116,60.7l-100,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l100-.3c0,8.3,6.7,15,15,15v29.7c0,8.3-6.7,15-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+}
+/* クリックメニューの発光も、ボタンと同じ button_invisible_s.svg の外周に掛ける。 */
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn::after{
+  background:transparent url("assets/ui/button_invisible_s.svg?v=actionMenu09") center/100% 100% no-repeat!important;
+}
+/* **発光はボタン枠の下に描く。**（利用者指定：発光が枠の上に重なっていた）
+   枠を背景のままにすると、発光（::after）は必ず枠より手前になる（isolate の中の負の z-index でも背景より上）。
+   枠を ::before（z:-1）へ移し、発光を z:-2 にして「発光→枠→文字」の順にする。 */
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
+  background:transparent!important;
+}
+/* **重なり順と文字はカード非表示ボタンと同じにする。**（利用者指定）
+   「枠（::before z:-2）→ 発光（::after z:-1）→ 文字」。文字は Shippori Mincho 24px・字間.07em を上下中央に置く。
+   説明枠の white-space:pre-wrap を継承すると、ボタン内の改行・空白で見えない2行目ができ、文字が上へずれる。 */
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  white-space:nowrap!important;
+  font-family:"Shippori Mincho",serif!important;
+  font-size:calc(24px * var(--game-scale))!important;
+  font-weight:700!important;
+  letter-spacing:.07em!important;
+  line-height:1!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:-2!important;
+  pointer-events:none!important;
+  background:transparent url("assets/ui/button_invisible_s.svg?v=actionMenu09") center/100% 100% no-repeat!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::before{
+  filter:none!important;
+}
+html body #kw-tooltip.reward-action-tooltip .reward-action-btn::after{
+  z-index:-1!important;
+  /* **ホバー発光はカード非表示ボタンと同じ作り。**（利用者指定：同じ色・内側は光らせない）
+     素材の全体（半透明の塗り・内側の飾り線）を光らせると枠の内側まで光るので、
+     button_invisible_s.svg の外周線だけ（同じviewBox・同じパス）を白線で描いた絵に同じフィルタを掛ける。
+     素材を書き出し直してパスが変わったら、ここのパスも差し替えること。 */
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 60'%3E%3Cpath d='M196,60.7l-180,.3c0-8.3-6.7-15-15-15v-29.7c8.3,0,15-6.7,15-15l180-.3c0,8.3,6.7,15,15,15v29.7c-8.3,0-15,6.7-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+  filter:url(#ui-btn-outer-glow-only)!important;
+}
+html body.reward-screen-active .shop-board-sell-action:hover::after,
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn:hover::after{
   opacity:.84!important;
 }
@@ -14839,7 +15040,7 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled::afte
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-btn.is-disabled{
   opacity:.42!important;
-  cursor:default!important;
+  cursor:var(--cursor-normal)!important;
 }
 
 /* 特殊マス上のキャラクターカード：SVG枠にない四角いプログラム枠を除去し、
@@ -15768,7 +15969,7 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-boar
   align-items:center!important;
   justify-content:center!important;
   pointer-events:auto!important;
-  cursor:pointer!important;
+  cursor:var(--cursor-normal)!important;
   /* 枠画像／プログラム枠（110）より下、カード画像より上。 */
   z-index:105!important;
 }
@@ -15776,9 +15977,37 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-boar
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action:focus-visible{
   /* 通常時と同じcost.svg・同じ透過率を使い、内側の色だけを変える。 */
   background:rgb(7 27 48 / var(--shop-cost-bg-opacity)) url("assets/ui/cost.svg?v=shopMenu03") center/100% 100% no-repeat!important;
+  color:var(--gold2)!important;
   box-shadow:none!important;
   filter:none!important;
   outline:none!important;
+}
+/* 所持アイテムも独立した「売却」ボタンを出さず、価格表示そのものを操作対象にする。 */
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i > .shop-board-sell-value.item-shop-sell-action{
+  right:6.8px!important;
+  left:auto!important;
+  pointer-events:auto!important;
+  cursor:var(--cursor-normal)!important;
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  /* 枠画像(::before=110)の直下に置く。枠側はpointer-events:noneなので操作は維持される。 */
+  z-index:109!important;
+}
+/* アイテム絵は価格枠より前に描画されるが、入力は価格ボタンへ透過させる。 */
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i .card-art{
+  pointer-events:none!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i > .shop-board-sell-value.item-shop-sell-action:hover,
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i > .shop-board-sell-value.item-shop-sell-action:focus-visible{
+  background:rgb(7 27 48 / var(--shop-cost-bg-opacity)) url("assets/ui/cost.svg?v=shopMenu03") center/100% 100% no-repeat!important;
+  color:var(--gold2)!important;
+  box-shadow:none!important;
+  filter:none!important;
+  outline:none!important;
+}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i > .shop-board-sell-value.item-shop-sell-action::after{
+  content:none!important;
+  display:none!important;
 }
 /* 価格ボタンは色だけを変える。旧売却／還魂ボタン用の外周発光は出さない。 */
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-board-sell-action::after,
@@ -15792,6 +16021,65 @@ html body.reward-screen-active #hand-slots.unit-equip-slots > .card > .shop-boar
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card:has(> .shop-board-sell-action):hover{
   box-shadow:none!important;
   filter:none!important;
+}
+
+/* カードのホバー説明上辺のレアリティ表示。背景は原寸比のまま中央へ置き、
+   星だけをSVGマスクにしてパステルレインボーで塗る。 */
+html body #kw-tooltip.has-rarity-banner{
+  /* レアリティ台を25px上げた分、カード名以下も同じだけ上げる（72px→47px）。 */
+  padding-top:calc(47px * var(--game-scale))!important;
+}
+/* info_box1自体からrarity_backの形状をくり抜く。
+   背景色を重ねて隠す方式ではないため、説明枠を90%透過にしても背後の線が透けない。 */
+html body #kw-tooltip.has-rarity-banner::before{
+  -webkit-mask-image:linear-gradient(#fff 0 0),url("assets/ui/rarity_back.svg?v=rarity01")!important;
+  -webkit-mask-size:100% 100%,calc(202.31px * var(--game-scale)) calc(51.8px * var(--game-scale))!important;
+  -webkit-mask-position:0 0,center calc(-25px * var(--game-scale))!important;
+  -webkit-mask-repeat:no-repeat!important;
+  -webkit-mask-composite:xor!important;
+  mask-image:linear-gradient(#fff 0 0),url("assets/ui/rarity_back.svg?v=rarity01")!important;
+  mask-size:100% 100%,calc(202.31px * var(--game-scale)) calc(51.8px * var(--game-scale))!important;
+  mask-position:0 0,center calc(-25px * var(--game-scale))!important;
+  mask-repeat:no-repeat!important;
+  mask-composite:exclude!important;
+}
+html body #kw-tooltip.has-rarity-banner > .card-rarity-banner{
+  position:absolute!important;
+  left:50%!important;
+  top:calc(-25px * var(--game-scale))!important;
+  width:calc(202.31px * var(--game-scale))!important;
+  height:calc(51.8px * var(--game-scale))!important;
+  transform:translateX(-50%)!important;
+  display:block!important;
+  overflow:visible!important;
+  pointer-events:none!important;
+  z-index:240!important;
+}
+html body #kw-tooltip.has-rarity-banner > .card-rarity-banner > .card-rarity-back{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  background:url("assets/ui/rarity_back.svg?v=rarity01") center/100% 100% no-repeat!important;
+}
+html body #kw-tooltip.has-rarity-banner > .card-rarity-banner > .card-rarity-marks{
+  position:absolute!important;
+  inset:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:calc(4px * var(--game-scale))!important;
+}
+html body #kw-tooltip.has-rarity-banner .card-rarity-mark{
+  display:block!important;
+  flex:0 0 calc(23.92px * var(--game-scale))!important;
+  width:calc(23.92px * var(--game-scale))!important;
+  height:calc(23px * var(--game-scale))!important;
+  background-image:linear-gradient(90deg,#f1a6c8 0%,#f4a08d 16%,#f6c77d 32%,#f3e486 45%,#fff2a3 53%,#f3e486 61%,#a8dfb4 73%,#94d2ee 85%,#baa9eb 100%)!important;
+  background-size:var(--rarity-full-span) 100%!important;
+  background-position:var(--rarity-offset) center!important;
+  background-repeat:no-repeat!important;
+  -webkit-mask:url("assets/ui/rarity.svg?v=rarity01") center/contain no-repeat!important;
+  mask:url("assets/ui/rarity.svg?v=rarity01") center/contain no-repeat!important;
 }
 </style>
 </body>

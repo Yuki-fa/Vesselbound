@@ -107,23 +107,18 @@ function _syncRewardProductionItems(){
         }
       });
     }
-    // 店（道具屋・魔導店・鍛冶屋）では手持ちアイテムに売却価格と売却ボタンを重ねる。
+    // 店（道具屋・魔導店・鍛冶屋）では、手持ちアイテムの売却価格そのものをボタンにする。
     // 価格はアイテムなので全店共通で道具屋準拠（レアリティ×45）。
     slot.querySelector('.shop-board-sell-value')?.remove();
-    slot.querySelector('.shop-board-sell-btn')?.remove();
     if((G._isShop||G._isForge)&&item){
       const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
-      const val=document.createElement('div');
-      val.className='shop-board-sell-value';
-      val.textContent=`+${price}G`;
-      slot.appendChild(val);
-      const btn=document.createElement('button');
-      btn.type='button';
-      btn.className='shop-board-sell-btn';
-      btn.dataset.sfxSilent='1';
-      btn.textContent='売却';
-      btn.onclick=ev=>{ ev.stopPropagation(); _sellHeldItem(idx); };
-      slot.appendChild(btn);
+      const action=document.createElement('button');
+      action.type='button';
+      action.className='shop-board-sell-value shop-board-sell-action item-shop-sell-action';
+      action.dataset.sfxSilent='1';
+      action.textContent=`+${price}G`;
+      action.onclick=ev=>{ ev.stopPropagation(); _sellHeldItem(idx); };
+      slot.appendChild(action);
     }
     slot.onclick=e=>{
       e.stopPropagation();
@@ -227,15 +222,17 @@ function _openRewardActionTooltip(anchor,title,desc,actions){
   });
   tip.style.display='block';
   const rect=anchor?.getBoundingClientRect?.();
-  if(!isHoverTip&&rect){
-    const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
-    tip.style.left=`${Math.max(8,rect.left)}px`;
-    tip.style.top=`${rect.bottom+8*scale}px`;
-  }
   // クリック前から表示されていたキーワード説明は、固定説明枠の高さが
   // ボタン分だけ増えたあとも旧位置に残るため、説明枠の直下へ再配置する。
   const keywordTip=document.getElementById('keyword-tooltip');
-  if(keywordTip&&keywordTip.style.display==='block'){
+  // 既にホバー説明が出ていた場合は、その左上座標を固定する。
+  // ボタン追加後の高さでカード中心へ揃え直すと、クリックした瞬間に
+  // ウインドウ全体が上下へ動くため、キーワード説明だけを直下へ送る。
+  if(isHoverTip){
+    if(keywordTip&&keywordTip.style.display==='block') _posTipRelative(keywordTip,tip,'below',false);
+  }else if(rect&&typeof _positionTooltipGroup==='function'){
+    _positionTooltipGroup([tip,keywordTip],anchor,'side');
+  }else if(keywordTip&&keywordTip.style.display==='block'){
     _posTipRelative(keywordTip,tip,'below',false);
     _fitTooltipStack([tip,keywordTip]);
   }
@@ -823,14 +820,14 @@ function _openItemUseConfirm(idx,anchor){
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const useUnavailable=!_canUseItemNow(card);
   _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
-    {label:'使う',disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
-    {label:'捨てる',onClick:()=>{
+    {label:_uiLabel('アイテムの「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
+    {label:_uiLabel('アイテムの「捨てる」ボタン','捨てる'),onClick:()=>{
       const current=_ensureItemSlots()[idx];
       if(current) _ensureItemSlots()[idx]=null;
       _closeItemUseConfirm();
       renderHandEditor(); updateHUD();
     }},
-    {label:'やめる',onClick:()=>{ _closeItemUseConfirm(); _cancelPendingItemUse(); }}
+    {label:_uiLabel('アイテムの「やめる」ボタン','やめる'),onClick:()=>{ _closeItemUseConfirm(); _cancelPendingItemUse(); }}
   ]);
   const lockedTip=document.getElementById('kw-tooltip');
   if(lockedTip) lockedTip.dataset.rewardSlotIdx=String(idx);

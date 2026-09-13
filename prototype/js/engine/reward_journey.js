@@ -42,7 +42,11 @@ function _journeyNodeLabel(type,scene,idx){
   }
   const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
-  if(type==='city') return String((info&&info.townName)||'村').trim()||'村';
+  if(type==='city'){
+    const town=String((info&&info.townName)||'村').trim()||'村';
+    // 「大樹の抱く集落 エルム」のような街名は、半角スペースを消してその位置で改行する。
+    return town.replace(/ +/g,'\n');
+  }
   if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
   return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
 }
@@ -151,8 +155,9 @@ function _syncRewardJourneyUi(options){
       const enemyPreview=_ensureWaveEnemyPreview(scene,previewType);
       if(enemyPreview&&enemyPreview.def){
         const def=enemyPreview.def;
-        const label=previewType==='elite'?'エリート':'ボス';
-        previewText=`${label}\n${def.name}`;
+        // 種別名（エリート／ボス）はアイコン自体で判別できるため、
+        // ホバー見出しには個体名だけを表示する。
+        previewText=def.name;
         const artPaths=typeof getCharacterNoArtPath==='function'?getCharacterNoArtPath(def):'';
         const payload={
           name:def.name,desc:String(def.desc||'').trim(),atk:enemyPreview.atk,hp:enemyPreview.hp,art:artPaths||null,

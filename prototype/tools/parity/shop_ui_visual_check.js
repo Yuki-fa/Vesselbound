@@ -25,10 +25,9 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       G.spellSlots=[{no:'I002',name:'絆の巻物',rarity:1,desc:'同名のキャラクター2枚を選んでマージする。'},null,null,null];
       renderHandEditor();
       _syncRewardProductionUi();
-      const sale=document.querySelector('#hand-slots .shop-board-sell-btn');
+      const sale=document.querySelector('#hand-slots .shop-board-sell-action');
       const cost=document.querySelector('#hand-slots .shop-board-sell-value');
       if(!sale||!cost) throw new Error('魔導板の売却UIが作られていない');
-      sale.style.setProperty('display','flex','important');
       const card=sale.closest('.card');
       const tip=document.getElementById('kw-tooltip');
       tip.style.display='block'; tip.style.left='100px'; tip.style.top='470px';
@@ -46,12 +45,16 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       const sr=sale.getBoundingClientRect(), cr=cost.getBoundingClientRect(), hr=hide.getBoundingClientRect();
       const cardRect=card.getBoundingClientRect();
       const saleCss=getComputedStyle(sale);
-      const action=tip.querySelector('.reward-action-btn'),af=getComputedStyle(action,'');
-      const itemSale=document.querySelector('.reward-prod-item .reward-prod-slots i .shop-board-sell-btn');
-      const itemCost=document.querySelector('.reward-prod-item .reward-prod-slots i .shop-board-sell-value');
+      const action=tip.querySelector('.reward-action-btn'),af=getComputedStyle(action,'::before');  // 枠は発光より上に描くため ::before に置いてある
+      const actionButtons=[...tip.querySelectorAll('.reward-action-btn')];
+      const actionBox=tip.querySelector('.reward-action-buttons');
+      const actionBoxRect=actionBox.getBoundingClientRect();
+      const actionFirstRect=actionButtons[0].getBoundingClientRect();
+      const actionSecondRect=actionButtons[1].getBoundingClientRect();
+      const itemSale=document.querySelector('.reward-prod-item .reward-prod-slots i .item-shop-sell-action');
+      const itemCost=itemSale;
       const itemSlot=itemSale&&itemSale.closest('i');
       if(!itemSale||!itemCost||!itemSlot) throw new Error('アイテムの売却UIが作られていない');
-      itemSale.style.setProperty('display','flex','important');
       const itemSaleCss=getComputedStyle(itemSale),itemCostCss=getComputedStyle(itemCost);
       const itemSlotFrame=getComputedStyle(itemSlot,'::before');
       const saleMetrics={x:sr.x,y:sr.y,w:sr.width,h:sr.height,cssW:saleCss.width,cssH:saleCss.height,
@@ -67,9 +70,13 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
         cssH:getComputedStyle(cost).height,z:getComputedStyle(cost).zIndex,
         padL:getComputedStyle(cost).paddingLeft,padR:getComputedStyle(cost).paddingRight};
       const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'))||1;
-      const actionMetrics={frame:af.backgroundImage,width:parseFloat(af.width),height:parseFloat(af.height),expectedW:132*scale,expectedH:62*scale};
+      const actionMetrics={frame:af.backgroundImage,width:parseFloat(af.width),height:parseFloat(af.height),
+        groupWidth:actionBoxRect.width,gap:actionSecondRect.left-actionFirstRect.right,
+        leftDelta:actionBoxRect.left-(after.left+parseFloat(getComputedStyle(tip).paddingLeft)),
+        expectedW:210*scale,expectedH:60*scale,expectedGroupW:680*scale,expectedGap:25*scale};
       const itemMetrics={sale:{width:itemSaleCss.width,height:itemSaleCss.height,top:itemSaleCss.top,
-          background:itemSaleCss.backgroundImage},cost:{top:itemCostCss.top,z:itemCostCss.zIndex},frameZ:itemSlotFrame.zIndex};
+          background:itemSaleCss.backgroundImage},cost:{top:itemCostCss.top,right:itemCostCss.right,
+          z:itemCostCss.zIndex,pointerEvents:itemCostCss.pointerEvents},frameZ:itemSlotFrame.zIndex};
       const tipContentKept=tip.innerHTML.startsWith(beforeHtml),tipColorKept=beforeColor===afterColor;
       _openRewardActionTooltip(card,'絆の巻物','同名のキャラクター2枚を選んでマージする。',
         [{label:'使う'},{label:'捨てる'},{label:'やめる'}]);
@@ -78,7 +85,9 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       const popupRightClick={closed:tip.dataset.rewardLocked!=='1',peek:document.body.classList.contains('right-card-peek')};
       document.body.classList.add('right-card-peek');
       sale.style.removeProperty('display');
-      const hiddenSale=getComputedStyle(sale);
+      // getComputedStyle()は生きたオブジェクトなので、クラスを外す前に値を文字列で退避する。
+      const hiddenSaleCss=getComputedStyle(sale);
+      const hiddenSale={display:hiddenSaleCss.display,pointerEvents:hiddenSaleCss.pointerEvents};
       document.body.classList.remove('right-card-peek');
       const probeEnchant=mkCardEl({id:'probe-enchant',name:'毒牙',type:'panel',kind:'panel',panelScope:'unit',category:'強化',keywords:['毒牙'],adjacentKeywords:['毒牙'],desc:'攻撃時：毒牙を得る。',rarity:2},-1,'probe');
       const probeChar=mkCardEl({id:'probe-char',name:'赤の試験キャラ',type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',power:1,life:2,keywords:[],desc:''},-1,'probe');
@@ -102,7 +111,7 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
         characterTitleIcon:!!document.querySelector('#kw-tooltip .preview-title-color-icon'),
         debugRarityLabels:debugLabels,
         debugHover:{rarity:[...debugTip.classList].some(c=>/^rarity-[1-6]$/.test(c)),keyword:!!(debugKwTip&&debugKwTip.style.display==='block')},
-        hiddenSale:{display:hiddenSale.display,pointerEvents:hiddenSale.pointerEvents}};
+        hiddenSale};
     `);
     if(Math.abs(metrics.tipMove.x)>.5||Math.abs(metrics.tipMove.y)>.5||Math.abs(metrics.tipMove.w)>.5) throw new Error('クリック時にツールチップが動いた');
     if(!metrics.tipContentKept||!metrics.tipColorKept) throw new Error(`ホバー説明の内容または色がクリックで変わった: ${JSON.stringify(metrics)}`);
@@ -112,9 +121,15 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     if(metrics.sale.cssW!=='101px'||metrics.sale.cssH!=='46px'||metrics.sale.top!==34) throw new Error(`売却価格ボタンの寸法または位置が不正: ${JSON.stringify(metrics)}`);
     if(metrics.cost.padL!==metrics.cost.padR) throw new Error(`販売価格テキストの左右余白が不均等: ${JSON.stringify(metrics.cost)}`);
     if(!/cost\.svg/.test(metrics.sale.frame)) throw new Error('売却価格ボタンがcost.svgではない');
-    if(metrics.item.sale.width!=='132px'||metrics.item.sale.height!=='62px'||! /button_invisible_s\.svg/.test(metrics.item.sale.background)) throw new Error(`アイテム売却ボタンが原寸素材ではない: ${JSON.stringify(metrics.item)}`);
-    if(metrics.item.cost.top!=='34px'||Number(metrics.item.cost.z)>=Number(metrics.item.frameZ)) throw new Error(`アイテム価格の位置または重なり順が不正: ${JSON.stringify(metrics.item)}`);
-    if(!/border|cost\.svg/.test(metrics.action.frame)||Math.abs(metrics.action.width-101*scale)>.1||Math.abs(metrics.action.height-46*scale)>.1) throw new Error(`売却価格ボタンの寸法・素材が不正: ${JSON.stringify(metrics.action)}`);
+    if(metrics.item.sale.width!=='101px'||metrics.item.sale.height!=='46px'||! /cost\.svg/.test(metrics.item.sale.background)) throw new Error(`アイテム売却価格ボタンの寸法または素材が不正: ${JSON.stringify(metrics.item)}`);
+    if(metrics.item.cost.top!=='34px'||metrics.item.cost.right!=='6.8px'
+      ||Number(metrics.item.cost.z)>=Number(metrics.item.frameZ)||metrics.item.cost.pointerEvents!=='auto') throw new Error(`アイテム売却価格ボタンの位置・重なり順・操作判定が不正: ${JSON.stringify(metrics.item)}`);
+    if(!/button_invisible_s\.svg/.test(metrics.action.frame)
+      ||Math.abs(metrics.action.width-metrics.action.expectedW)>.1
+      ||Math.abs(metrics.action.height-metrics.action.expectedH)>.1
+      ||Math.abs(metrics.action.groupWidth-metrics.action.expectedGroupW)>.1
+      ||Math.abs(metrics.action.gap-metrics.action.expectedGap)>.1
+      ||Math.abs(metrics.action.leftDelta)>.1) throw new Error(`アイテム／指輪操作ボタンの寸法・素材・配置が不正: ${JSON.stringify(metrics.action)}`);
     if(metrics.cost.cssW!=='101px'||metrics.cost.cssH!=='46px') throw new Error(`cost.svg表示の寸法が101x46ではない: ${JSON.stringify(metrics)}`);
     if(Number(metrics.cost.z)!==105) throw new Error(`価格表示の重なり順が不正: ${JSON.stringify(metrics.cost)}`);
     const disabledRect=await browser.eval(`

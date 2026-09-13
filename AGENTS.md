@@ -1389,6 +1389,7 @@ tools/
 | `「祭壇」説明文1` / `「祭壇」説明文2` | 3枚のカードを捧げれば、1つを選んで獲得可能 ／ 対価の力は与えられた |
 | `「絆の巻物」使用時1` / `使用時2` | （現在は「「絆の巻物」使用時」の1行を両方で使用） |
 | `オンライン対戦のボタン（カード選択）` / `（待機時）` | 選択完了 X/Y ／ 戦闘待機中 |
+| `指輪の「有効化」ボタン` | 有効化（無効化中の指輪をクリックした時。「無効化」「捨てる」「やめる」はシートの行あり） |
 
 キー自体が未実装で、コードに直書きのまま残っているもの：
 
@@ -1624,6 +1625,80 @@ console.log('実カード', (w*scale).toFixed(2)+'px', '／ CSS指定', w+'px');
 `el.classList.add('dragging','drag-source-parts-hidden')` を付けて
 各レイヤの `display / opacity / visibility / borderTopWidth` を読めば再現できる。
 **`--game-scale` が 1 の窓では (1)(2) は再現しない。** 必ず `0.5` などに落として確かめること。
+
+---
+
+## 8-7. （完了）使っていない「売却」「還魂」ボタンの要素を消す（2026-09-13 利用者指示）
+
+**この節は完了済み。** 以後守る規則は「9. 現在の状態」の履歴を見ること。以下は経緯の記録。
+
+**仕様（利用者）**：売却・還魂は**価格ラベル／還魂ラベルそのものをクリック**して行う。別の「売却」「還魂」ボタンは使わない。
+残っている要素とCSSを消す。**ラベルの見た目・位置・表示条件（ホバー時だけ出る等）・発光は一切変えないこと。**
+
+**調査済みの現状**
+
+| 対象 | 場所 | 状態 |
+| --- | --- | --- |
+| 売却待ちカードの `<button class="shop-pending-sell-btn">売却</button>` | `js/engine/reward.js` 1747付近・1792付近（同じ処理が2箇所） | **独立したボタンが残っている。** 売却（`_sellPendingShopCard(rewIdx)`）はこのボタンにしか付いておらず、隣の `<div class="shop-board-sell-value">` はクリックできない |
+| 魔導板の売却ラベル／祭壇の還魂ラベル | `reward.js` 4158・4160 | ラベル自体が `<button class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action">`。`shop-board-sell-btn` は**旧ボタン時代のクラス名が残っているだけ** |
+| 手持ちアイテムの売却ラベル | `reward_items.js` 112-118 | ラベルは `shop-board-sell-value shop-board-sell-action`。113行の `.shop-board-sell-btn` 削除は不要 |
+| その他の参照 | `reward.js` 1839・2496・2741（`copyShopOverlayStyle('.shop-pending-sell-btn')`）・3262 | `.shop-pending-sell-btn` の後始末・複製 |
+| CSS | `index.html` の `.shop-pending-sell-btn` / `.shop-board-sell-btn` を含む規則（`grep -n` で約30箇所。7117-7121・10239・12094-12130・13097-13130・13560-13565・14741-14805・14916・14999-15022 など） | 旧ボタン（`button_invisible_s.svg` 132x62・top:94／230px・ホバー時display:flex・::after発光）の指定 |
+
+**直し方**
+
+1. 売却待ちUI：`shop-pending-sell-btn` を作らない。価格ラベルを
+   `<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">` にし、
+   クリックで `ev.stopPropagation(); _sellPendingShopCard(rewIdx);`。2箇所の同じ処理は1つの関数にまとめる。
+   売却待ちラベルに `pointer-events:none` が当たっているならクリックできるように直す（見た目は変えない）。
+2. 4158・4160 のラベルから `shop-board-sell-btn` を外す。`reward_items.js` 113行を消す。
+   `reward.js` の `.shop-pending-sell-btn` 参照（1839・2496・2741・3262）を消す。
+3. `index.html` から `.shop-pending-sell-btn` と `.shop-board-sell-btn` のセレクタを消す。それだけで構成される規則は規則ごと消す。
+   **注意：今のラベルは `shop-board-sell-btn` も持っているので、旧ボタン用の規則の一部がラベルにも当たっている。**
+   消す前に、次の4種のラベルについて**計算済みスタイル**（通常時とホバー時の display・position・top/right・width/height・
+   background-image・z-index・pointer-events・cursor・`::after` の background-image と opacity）を記録し、消した後と比べること。
+   魔導板の売却ラベル／祭壇の還魂ラベル／手持ちアイテムの売却ラベル／売却待ちカードの価格ラベル。
+   値が変わるものは、その規則のセレクタを `.shop-board-sell-action` に置き換えて**今の見え方を保つ**
+   （例：`:has(.shop-board-sell-btn):hover` のカード発光消し、ホバー時の外周発光）。何を置き換えたかは報告する。
+4. 検査ツールの参照も直す：`tools/parity/shop_ui_visual_check.js` 28行（`.shop-board-sell-btn` → `.shop-board-sell-action`）、
+   `tools/parity/current_issues_check.js` 211・213行。
+5. `index.html` の `reward.js` / `reward_items.js` の `?v=` を上げる。
+
+**確認**：変更した全JSの `node --check`、`node tools/parity/shop_ui_visual_check.js`、`node tools/parity/current_issues_check.js`、
+`node tools/parity/anim_check.js`（ローカルサーバーは http://127.0.0.1:5500 で起動済み）。
+上の計算済みスタイルの前後比較の結果と、消したセレクタ・規則の一覧、置き換えたセレクタを日本語で報告する。実機は未確認と書く。
+
+---
+
+## 8-8. （完了）図書館チュートリアル（結界の追加／ホバーだけ反応させる）（2026-09-14 利用者指示）
+
+**この節は完了済み。** 以後守る規則は「9. 現在の状態」の履歴を見ること。以下は経緯の記録。
+
+**1. 貸出カードに「結界」を足す。**
+`js/engine/map.js` の `_libraryLoanCards()` の `loanNames` 末尾に `'結界'` を足す（`PANEL_POOL` の `panel_shield`、シートに行あり）。
+チュートリアルの手順（`steps`）はリザードマンと野生の力しか使わないので、手順は変えない。
+
+**2. チュートリアル中も「ホバーは反応、操作は不可」にする。**
+
+- 現状（調査済み）：`index.html` の `body.library-tutorial-lock #scr-battle *{pointer-events:none!important}` で、
+  `.library-tutorial-allowed` 以外の要素がマウスに一切反応しない。ホバー説明は `render.js` の `_initKwTooltip()` が
+  `mousemove` の `e.target.closest('[data-preview]')` で出すため、**リザードマン（許可カード）以外はホバー説明が出ない**
+  （利用者報告：矢印以外ホバー反応しない）。
+- 仕様（利用者）：**クリック・ドラッグ・ドロップは今まで通り不可。ホバー（説明・ホバー時の見た目）は反応させる。**
+- 直し方：
+  1. CSS で `pointer-events` を奪うのをやめる（上の規則を消すか、`#scr-battle` 内のカード・貸出カード・魔導板のマス・
+     アイテム／指輪枠など**ホバー説明を持つ要素**には `pointer-events:auto` を返す）。暗転（`.library-tutorial-dim`）と
+     説明ボックスの `pointer-events` の扱いは今のまま。
+  2. 操作の禁止は `map.js` のチュートリアル内の document キャプチャで行う。既存の `block`（pointerdown）と
+     `advanceClick`（click）に加えて、許可外（`.library-tutorial-allowed` / `.library-tutorial-box` の外）の
+     `dragstart` は `preventDefault()`、`dragover`／`drop` は既存のドロップ処理へ届かないよう `stopPropagation()`
+     （`preventDefault()` しない＝ドロップ不可）。`finish()` で必ず外す。
+  3. 移動ステップ（4-2・5-2）で「許可カード → 許可マス」のドラッグ＆ドロップが今まで通りできること。
+- **マウスで操作できる要素が増えるので、許可外へ置けてしまう経路が無いかを確認すること**（ドロップ先・クリック・右クリック）。
+
+**確認**：変更した全JSの `node --check`。`index.html` の `map.js` の `?v=` を上げる。
+ヘッドレス検査はこの環境ではサーバー／Chromeにつながらないので実行しなくてよい（Claude側で確認する）。
+変更点と、許可外の操作を止めている箇所の一覧を日本語で報告する。
 
 ---
 
@@ -2221,7 +2296,35 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
 
 ### 履歴
 
-1. 攻撃前モーションは `effect_flash` だけでは先出しせず、効果の実体イベントがある時だけ停止する。
-2. ミノタウロスの割り込み攻撃は `combat` として解決し、外側の効果VFXを引き継がない。
-3. オンラインの毒表示・演出尺・最終死亡から決着までの順序は共通描画規則へ揃える。
-4. ローカルNPCスタブは即時準備とNPC同士の確定ライフ減少を行う。
+1. ホバー説明の「：」揃えは `_initPreviewLabelAlign()`（render.js）が説明枠の中身の変化を見て一括で行う
+   （マナ効果のアイコンラベルは対象外）。本文は両端揃えなので、ラベル＋「：」を `.preview-label-box` に包まないと
+   折り返し行で「：」がずれる。同一タイミングの2行目以降もラベルを省略しない。
+2. 星5カード名の虹と斜めの光は `--rarity5-name-bg` と `@keyframes rarity5-shimmer`（index.html）の1箇所で持つ。
+   位置に `!important` が要るため、keyframes は `@property` の変数（`--rarity5-sweep`/`--rarity5-flow`）だけを動かす。
+   光（左→右・3秒周期）と虹（6秒周期）は別のアニメーションに分けてある。「：」の幅揃えはタイミングのラベル（開戦〜終戦、マナ効果を除く）だけ。
+   キーワード説明（結界X・マナ効果など）は揃えない（短いキーワードの後ろに空白ができるため）。
+   ただし2文字未満（毒X・毒）は2文字キーワードに「：」を合わせる（index.html の `min-width:2em`）。
+5. 禁則処理はゲーム内の全テキストで `line-break:strict`（index.html 先頭の `html{}` の1箇所）。個別要素で上書きしない。
+6. 売却・還魂は**価格ラベル／還魂ラベル自体をクリック**して行う（`.shop-board-sell-value.shop-board-sell-action`）。
+   別の「売却」「還魂」ボタン（旧 `.shop-pending-sell-btn` / `.shop-board-sell-btn`）は作らない。売却待ちカードは `_bindPendingShopCardSale()`。
+7. カーソルは `--cursor-normal`（cursor1）／`--cursor-grab`（cursor2）／`--cursor-drag`（cursor3）の3変数だけ（index.html 先頭）。
+   **ボタン上でもカーソルは変えない**（cursor1）。cursor2 は掴めるカードの上だけ。JS から `style.cursor` を書かない
+   （インライン指定は CSS の `[draggable="true"]` より強く、掴めるカードでも cursor2 にならなくなる）。
+   CSS・JS（`style.cursor`）とも `var(--cursor-*)` で参照し、`pointer`／`default`／`grab` を直接書かない。
+   SVGカーソルは `width`／`height` 属性が無いとChromeで出ないので、書き出し直したら属性を付けること。
+   普段＝cursor1、ボタンと**掴めるカード（`[draggable="true"]`）**＝cursor2。ドラッグ中＝cursor3 は
+   ブラウザ標準ドラッグでは CSS が効かないので `_initDragCursor()`（render.js）が画像を追従させる（OSのカーソルは残る）。
+   何もない所（カーソルが cursor1 の所）のクリックで `_initClickRipple()` が白い波紋を出す。
+8. クリックメニューのボタン（`.reward-action-btn`）はカード非表示ボタンと同じ見た目：
+   枠 `::before`（z:-2）→ 発光 `::after`（z:-1）→ 文字（Shippori Mincho 24px・字間.07em・上下中央）。
+   表示文はテキストメッセージシートの「アイテムの「使う」ボタン」など6行から `_uiLabel()` で引く。
+9. デバッグカード一覧（`_debugImplementedPanelCards()`）は**シートに行があるカード（`_sheetSeen`）だけ**を出す。
+   報酬・商店の `_isImplementedPoolCard()` と同じ基準。`pool.js` の旧スタブ「生贄」はシートに行が無く一覧に出続けていたため削除した
+   （図書館の貸出カードからも外した。貸出はリザードマン・フィーンド・野生の力・逆上・結界の5枚）。
+10. 図書館チュートリアル中は**ホバーは反応、操作は不可**。CSS で `pointer-events` を奪わない（奪うとホバー説明が出ない）。
+   操作の禁止は `map.js` のチュートリアル内の document キャプチャ（pointerdown／click／dragstart／dragover・drop／contextmenu）が
+   `isTutorialInputAllowed()` で判定して行い、`finish()` で外す。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
+   （`#ui-btn-outer-glow-only`）。素材全体を光らせると内側まで光る。`button_invisible_s.svg` を書き出し直したらパスも差し替える。
+3. 効果の種類（キーワード効果／開戦〜終戦）が変わる所の直線は `_joinPreviewParts()`（render.js）が入れる。
+4. 策士の加算量は `_collectAdjacentEnhancements()`（battle.js）の `enh.strategyBonus` だけが決め、説明文はそれを出すだけ。
+   この関数の第1引数は**盤面の持ち主**なので、キャラ本体のキーワードは `equipment[slotIdx]` から読む。

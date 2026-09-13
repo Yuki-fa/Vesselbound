@@ -50,8 +50,10 @@
     const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
     const mapPreviewEl=tgt&&tgt.closest('[data-map-power-preview]');
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
-    // 鍛冶屋・道具屋のメニュー、指輪交換の指輪、所持アイテム・所持指輪はカーソルの右下に出す。
-    const _tipBelow=_tipBelowCursorTarget(tgt);
+    // ホバー説明はカーソルではなく、カード／指輪／アイテム／旅アイコンの実寸を基準に置く。
+    const _journeyTipAnchor=tgt&&tgt.closest('.journey-scene-mark,.journey-node');
+    const _sideTipAnchor=!_journeyTipAnchor&&tgt&&tgt.closest(
+      '.item-visual,.ring-visual,[data-tip-below],.card,.rew-card,.slot,.debug-palette-item');
     // 右クリックのぞき見（right-card-peek）は魔導板カードを透明化する機能なので、
     // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
     // body全体で判定すると、のぞき見中に報酬カード・デバッグカードへホバーしても
@@ -74,11 +76,44 @@
     if(desc){
       const journeyEnemyJson=(el&&el===journeyEnemyEl)?el.getAttribute('data-journey-enemy'):'';
       const titleColor=el&&el.getAttribute('data-preview-title-color')||'';
+      const noTitleRule=!!(el&&el.hasAttribute('data-preview-norule'));
+      // デバッグカードはdata-previewを外側の一覧要素へ転記するため、closestだけでは
+      // 内側のキャラクターカードを検出できない。内包カードも見て背景種別を決める。
+      const isCharacterPreview=!!(el&&el.closest&&(el.closest('.character-card')
+        ||(el.querySelector&&el.querySelector('.character-card'))));
       tip.innerHTML=journeyEnemyJson?_formatJourneyEnemyHtml(desc,journeyEnemyJson)
-        :(isMapPowerDesc?_formatMapPowerHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc,titleColor}));
+        :(isMapPowerDesc?_formatMapPowerHtml(desc)
+          :(noTitleRule?_formatTitleOnlyHtml(desc):_formatPreviewHtml(desc,{plainTitle:!isKeywordDesc,titleColor,sortEffects:isCharacterPreview})));
       tip.style.display='block';
-      // 通常キャラクターの色アイコンは、キャラクター名ではなく説明本文の左端へ置く。
-      // 名前は独立して中央揃えのまま、アイコンだけを名前のY軸中央に合わせる。
+      tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
+      tip.classList.remove('has-rarity-banner');
+      tip.classList.toggle('map-tooltip',isMapPowerDesc);
+      // キャラクターと旅の進捗内のエリート／ボスは、通常カードとは背景色を分ける。
+      tip.classList.toggle('character-tooltip',isCharacterPreview);
+      tip.classList.toggle('journey-enemy-tooltip',!!journeyEnemyJson);
+      // data-preview-norule＝見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。
+      // 枠はカードと同じまま、見出し下の直線だけを消す。
+      tip.classList.toggle('no-title-rule',noTitleRule);
+      // 所持金・ライフ・マナ・血の説明（data-preview-status）は、勝利・撤退の結果表示中も出す。
+      // その画面ではカードの説明だけを止めたいので、印で見分ける（index.htmlのCSS）。
+      tip.classList.toggle('status-tip',!!(el&&el.hasAttribute('data-preview-status')));
+      if(!isMapPowerDesc){
+        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
+        if(rarityClass){
+          tip.classList.add(rarityClass);
+          // レアリティ装飾はカード本体ではなく、そのカードのホバー説明枠へ付ける。
+          // 背景を説明枠の上辺中央へ置き、星をカードのレアリティ数だけ並べる。
+          const rarity=Number(rarityClass.slice('rarity-'.length))||0;
+          if(rarity&&typeof cardRarityBannerHtml==='function'
+            &&el.closest('.card,.rew-card,.slot.unit-card,.debug-palette-item')){
+            tip.classList.add('has-rarity-banner');
+            tip.insertAdjacentHTML('afterbegin',cardRarityBannerHtml({rarity}));
+          }
+        }
+      }
+      tip.style.display='block';
+      // 種別クラスとレアリティを適用し終えて、最終的な文字寸法が確定してから置く。
+      // 左端は従来のまま。下端は1emだった時の位置を維持して、左下基準で縮小する。
       const _previewColorIcon=tip.querySelector('.preview-title-color-icon');
       const _previewTitleText=tip.querySelector('.preview-title-text');
       const _previewTitle=_previewColorIcon&&_previewTitleText?_previewColorIcon.closest('.preview-title'):null;
@@ -86,24 +121,13 @@
         const _titleRect=_previewTitle.getBoundingClientRect();
         const _textRect=_previewTitleText.getBoundingClientRect();
         const _iconRect=_previewColorIcon.getBoundingClientRect();
+        const _oldIconSize=parseFloat(getComputedStyle(_previewTitle).fontSize)||_iconRect.height;
+        const _fixedBottom=_textRect.top-_titleRect.top+(_textRect.height+_oldIconSize)/2;
         _previewColorIcon.style.setProperty('left','0px','important');
-        _previewColorIcon.style.setProperty('top',`${_textRect.top-_titleRect.top+(_textRect.height-_iconRect.height)/2}px`,'important');
+        _previewColorIcon.style.setProperty('top',`${_fixedBottom-_iconRect.height}px`,'important');
         _previewColorIcon.style.setProperty('transform','none','important');
       }
-      tip.className=tip.className.replace(/\brarity-\d\b/g,'').trim();
-      tip.classList.toggle('map-tooltip',isMapPowerDesc);
-      // data-preview-norule＝見出しだけの1行表示（旅の進捗のSceneマーク＝塔の名前）。
-      // 枠はカードと同じまま、見出し下の直線だけを消す。
-      tip.classList.toggle('no-title-rule',!!(el&&el.hasAttribute('data-preview-norule')));
-      // 所持金・ライフ・マナ・血の説明（data-preview-status）は、勝利・撤退の結果表示中も出す。
-      // その画面ではカードの説明だけを止めたいので、印で見分ける（index.htmlのCSS）。
-      tip.classList.toggle('status-tip',!!(el&&el.hasAttribute('data-preview-status')));
-      if(!isMapPowerDesc){
-        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
-        if(rarityClass) tip.classList.add(rarityClass);
-      }
-      tip.style.display='block';
-      _posKwTip(tip,e,0,0,_tipBelow);
+      _posKwTip(tip,e);
     }else tip.style.display='none';
 
     // 特殊マスの説明は編成画面だけでなく、ショップ・鍛冶屋などの
@@ -121,20 +145,112 @@
       kt.innerHTML=_formatKeywordOnlyHtml(keywordPreviewEl.getAttribute('data-keyword-preview')||'');
       kt.style.display='block';
     }else if(kt) kt.style.display='none';
-    // 常に「カード効果 → キーワード → 特殊マス」の順で縦に積む。
-    // 画面下端を越える場合は3枠をまとめて上へ戻し、各説明同士を重ねない。
-    let stackAnchor=tip.style.display==='block'?tip:null;
-    if(kt&&kt.style.display==='block'){
-      if(stackAnchor) _posTipRelative(kt,stackAnchor,'below',false);
-      else _posKwTip(kt,e,0,0,_tipBelow);
-      stackAnchor=kt;
+    // 常に「カード効果 → キーワード → 特殊マス」の順で縦に積み、
+    // 3枠を1つのグループとして基準要素の中心に合わせる。
+    const _groupTips=[tip,kt,mt];
+    if(_journeyTipAnchor){
+      _positionTooltipGroup(_groupTips,_journeyTipAnchor,'above');
+    }else if(_sideTipAnchor){
+      _positionTooltipGroup(_groupTips,_sideTipAnchor,'side');
+    }else{
+      let stackAnchor=tip.style.display==='block'?tip:null;
+      if(kt&&kt.style.display==='block'){
+        if(stackAnchor) _posTipRelative(kt,stackAnchor,'below',false);
+        else _posKwTip(kt,e);
+        stackAnchor=kt;
+      }
+      if(mt&&mt.style.display==='block'){
+        if(stackAnchor) _posTipRelative(mt,stackAnchor,'below',false);
+        else _posKwTip(mt,e);
+      }
+      _fitTooltipStack(_groupTips);
     }
-    if(mt&&mt.style.display==='block'){
-      if(stackAnchor) _posTipRelative(mt,stackAnchor,'below',false);
-      else _posKwTip(mt,e,0,0,_tipBelow);
-      stackAnchor=mt;
+  });
+})();
+// **ホバー説明の「：」の位置は、マナ効果（アイコンのラベル）以外の全行で揃える。**（利用者指定）
+// 説明の中身を差し込む経路は複数ある（render.js の mousemove・reward_items.js の固定ホバーなど）ため、
+// 各経路では揃えず、説明枠の中身が変わった時にここで一括して揃える。
+// 説明枠はmousemoveのたびに中身を作り直すので、星5の虹と光の動きも文書の時刻へ合わせて途切れさせない。
+(function _initPreviewLabelAlign(){
+  const TIP_IDS=['kw-tooltip','map-power-tooltip','keyword-tooltip'];
+  const align=(tip,observer)=>{
+    tip.style.removeProperty('--preview-label-w');
+    const labels=[...tip.querySelectorAll('.effect-trigger-label')]
+      .filter(label=>!label.querySelector('img.desc-mana-icon'));
+    labels.forEach(label=>{
+      // **幅を揃えるのはタイミングのラベル（開戦〜終戦。マナ効果は除く）だけ。**（利用者指定）
+      // キーワード説明（結界X・マナ効果など）まで揃えると、短いキーワード（根性など）の後ろに空白ができる。
+      // 共通クラス effect-trigger-label の途中にも「trigger-」があるので、クラス単位で見る。
+      label.classList.toggle('colon-aligned',[...label.classList].some(c=>/^trigger-/.test(c)&&c!=='trigger-mana'));
+      // **説明本文は両端揃え（文字間を広げる）なので、折り返した行ではラベルと「：」の間まで広がり「：」がずれる。**
+      // ラベルと「：」を1つの箱へ入れ、箱の中は広げさせない。
+      if(label.parentElement&&label.parentElement.classList.contains('preview-label-box')) return;
+      const colon=label.nextSibling;
+      if(!colon||colon.nodeType!==3||!/^[：:]/.test(colon.nodeValue)) return;
+      const box=document.createElement('span');
+      box.className='preview-label-box';
+      label.before(box);
+      box.append(label,colon.nodeValue.slice(0,1));
+      colon.nodeValue=colon.nodeValue.slice(1);
+    });
+    // 箱へ入れ替えた変更で自分が再び呼ばれないようにする。
+    if(observer) observer.takeRecords();
+    const width=labels.filter(label=>label.classList.contains('colon-aligned'))
+      .reduce((max,label)=>Math.max(max,label.offsetWidth),0);
+    if(width>0) tip.style.setProperty('--preview-label-w',`${width}px`);
+    if(typeof tip.getAnimations==='function'){
+      tip.getAnimations({subtree:true}).forEach(anim=>{
+        if(/^rarity5-/.test(anim.animationName||'')) anim.startTime=0;
+      });
     }
-    _fitTooltipStack([tip,kt,mt]);
+  };
+  const start=()=>{
+    TIP_IDS.forEach(id=>{
+      const tip=document.getElementById(id);
+      if(!tip||tip._previewLabelAlign) return;
+      tip._previewLabelAlign=true;
+      new MutationObserver((_,observer)=>align(tip,observer)).observe(tip,{childList:true,subtree:true});
+    });
+  };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start);
+  else start();
+})();
+// **ドラッグ中のカーソル（cursor3）。**（利用者指定）ブラウザ標準ドラッグ中は CSS の cursor が効かないので、
+// 画像（#drag-cursor）をマウス位置へ置いて追従させる。ゴーストを作らないドラッグもあるため、文書全体のイベントで拾う。
+// ドロップ後の再描画で dragend が来ないことがあるので、drop と次の mousemove でも必ず片付ける。
+(function _initDragCursor(){
+  let el=null;
+  const hide=()=>{ if(el){ el.remove(); el=null; } };
+  const moveTo=(x,y)=>{
+    if(!x&&!y) return;  // ドラッグ終端の drag イベントは座標が0になる
+    if(!el){ el=document.createElement('div'); el.id='drag-cursor'; document.body.appendChild(el); }
+    el.style.transform=`translate(${x}px,${y}px)`;
+  };
+  document.addEventListener('dragstart',e=>moveTo(e.clientX,e.clientY),true);
+  document.addEventListener('drag',e=>moveTo(e.clientX,e.clientY),true);
+  document.addEventListener('dragend',hide,true);
+  document.addEventListener('drop',hide,true);
+  document.addEventListener('mousemove',()=>{ if(el) hide(); },true);
+})();
+// **何もない所をクリックした時の白く細い波紋。**（利用者指定）
+// 「何もない所」＝ボタン・リンク・掴めるカードでなく、自分にも祖先にもクリック処理（onclick）が無い所。
+// ボタン上でもカーソルは cursor1 のままなので、カーソルでは判定できない。
+const _CLICK_RIPPLE_INTERACTIVE='button,a[href],[role="button"],[draggable="true"],input,select,textarea,label';
+(function _initClickRipple(){
+  document.addEventListener('click',e=>{
+    if(e.button!==0||(!e.clientX&&!e.clientY)) return;
+    const target=e.target instanceof Element?e.target:null;
+    if(!target||target.closest(_CLICK_RIPPLE_INTERACTIVE)) return;
+    for(let el=target;el&&el!==document.body&&el!==document.documentElement;el=el.parentElement){
+      if(typeof el.onclick==='function') return;
+    }
+    const ripple=document.createElement('div');
+    ripple.className='click-ripple';
+    ripple.style.left=`${e.clientX}px`;
+    ripple.style.top=`${e.clientY}px`;
+    ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
+    document.body.appendChild(ripple);
+    setTimeout(()=>ripple.remove(),1000);  // animationend が来なかった時の保険
   });
 })();
 function _escapePreviewHtml(s){
@@ -218,17 +334,24 @@ function _boldKeywordsInHtml(html){
 // シート上の効果区切りは実データでは改行ではなく全角スペースのため（例
 // 「常時：〜。　誘発：〜。」）、改行に加えて「全角スペース＋短いラベル＋：」も改行として扱う。
 function _formatJourneyEffectText(desc){
-  return String(desc||'').split(/\n|　(?=[^：:　]{1,12}[：:])/).map(line=>{
+  const source=String(desc||'').split(/\n|　(?=[^：:　]{1,12}[：:])/);
+  const lines=_sortPreviewEffectLines(source);
+  const parts=lines.map(line=>{
     const text=String(line||'').trim();
-    if(!text) return '';
+    if(!text) return null;
     const m=text.match(/^([^：:]+)([：:])(.*)$/);
-    if(!m) return _injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(text)));
-    const body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[3])));
-    return `<strong>${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
-  }).filter(Boolean).join('<br>');
+    const meta=_previewEffectMeta(text);
+    const group=_previewLineGroup(text);
+    if(!m) return {html:_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(text))),group};
+    const rawBody=String(m[3]||'');
+    const body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(rawBody)));
+    if(!meta) return {html:`<strong class="effect-trigger-label">${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`,group};
+    return {html:`<strong class="effect-trigger-label ${meta.className}">${_injectManaIcons(_escapePreviewHtml(m[1]))}</strong>${_escapePreviewHtml(m[2])}${body}`,group};
+  }).filter(Boolean);
+  return _joinPreviewParts(parts);
 }
 // 「旅の進捗」パネルのエリート/ボスホバー専用フォーマット。
-// タイトル（エリート／ボス＋カード名、2行）→カード画像→直線→効果テキストの順に組み立てる。
+// タイトル（カード名のみ）→カード画像→直線→効果テキストの順に組み立てる。
 function _formatJourneyEnemyHtml(titleText,jsonStr){
   const titleLines=String(titleText||'').split('\n');
   const titleHtml=titleLines.map(l=>_escapePreviewHtml(l)).join('<br>');
@@ -236,11 +359,16 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   let data=null;
   try{ data=JSON.parse(jsonStr); }catch(_e){}
   if(!data) return title;
-  const enemyType=titleLines[0]||'';
-  const enemyName=titleLines[1]||data.name||'';
+  const enemyName=data.name||titleLines[titleLines.length-1]||'';
+  // 「黄金の瞳“フレイ”」のような二つ名は、名前側の引用符の直前だけで改行する。
+  // 効果本文中の「攻撃：「黒マッドキャット」…」にはこの改行を適用しない。
+  const enemyNameParts=String(enemyName).match(/^(.*?)([“"])(.*)$/);
+  const enemyNameHtml=enemyNameParts
+    ?`<span class="journey-enemy-prefix">${_escapePreviewHtml(enemyNameParts[1])}</span><br><span class="journey-enemy-main-name">${_escapePreviewHtml(enemyNameParts[2]+enemyNameParts[3])}</span>`
+    :_escapePreviewHtml(enemyName);
   // エリート／ボスの見出しには色アイコンを表示しない。
   // 色アイコンは通常のキャラクター説明（_formatPreviewHtml）の見出しだけに表示する。
-  title=`<strong class="preview-title journey-enemy-title"><span class="journey-enemy-type">${_escapePreviewHtml(enemyType)}</span><span class="journey-enemy-name">${_escapePreviewHtml(enemyName)}</span></strong>`;
+  title=`<strong class="preview-title journey-enemy-title"><span class="journey-enemy-name">${enemyNameHtml}</span></strong>`;
   // 他のカードと全く同じ生成経路（mkCardEl）でフレーム・絵柄・ATK/HPを1枚のカードとして
   // 描画する（独自の簡易表示だと縦横比が崩れて潰れて見えるため）。
   const pseudoCard={
@@ -273,7 +401,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   // _boldKeywordsInHtml()は固定のキーワード一覧しか太字にしないため、敵のキーワードには
   // 当たらない。ここは「キーワードそのものを並べる」箇所なので無条件に太字にする。
   const kwHtml=kws.length
-    ?kws.map(k=>`<strong>${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ')
+    ?`<span class="preview-owned-keywords">${kws.map(k=>`<strong>${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ')}</span>`
     :'';
   // 効果テキスト中に登場するキーワード（例：マニガンスの「結界」）も説明の対象にする。
   const descRaw=String(data.desc||'');
@@ -300,7 +428,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   const kwDescSeen=new Set();
   const toHtml=line=>{
     const m=String(line||'').match(/^([^：:]+)：(.*)$/);
-    return m?`<strong>${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`:'';
+    return m?`<strong class="effect-trigger-label">${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`:'';
   };
   const kwDescHtml=allKws.flatMap(k=>{
     const base=k.replace(/\d+$/,'');
@@ -315,9 +443,18 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
     });
     return lines.filter(Boolean).map(toHtml);
   }).filter(Boolean).join('<br>');
-  const descText=data.desc?_formatJourneyEffectText(data.desc):'';
-  const body=[kwHtml,descText].filter(Boolean).join('<br>');
-  const kwSection=kwDescHtml?`${sectionRule}${kwDescHtml}`:'';
+  // キーワード欄へ既に出した語だけで構成される単独行は本文へ重ねない。
+  // スケルトンキングの「復活\n攻撃：…」のようなデータで、復活が
+  // キーワード色と本文色の2つに見えるのを防ぐ。
+  const shownKeywordNames=new Set(allKws.map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(Boolean));
+  const visibleDesc=descRaw.split('\n').filter(line=>{
+    const tokens=String(line||'').trim().split(/[\s　]+/).filter(Boolean);
+    return !(tokens.length&&tokens.every(t=>shownKeywordNames.has(t.replace(/\d+$/,''))));
+  }).join('\n').trim();
+  const descText=visibleDesc?_formatJourneyEffectText(visibleDesc):'';
+  // キーワード効果とタイミング付きの効果の間にも直線を置く（_joinPreviewParts と同じ規則）。
+  const body=[kwHtml,descText].filter(Boolean).join(sectionRule);
+  const kwSection=kwDescHtml?`${sectionRule}<span class="journey-keyword-descriptions">${kwDescHtml}</span>`:'';
   return `${title}${cardHtml}${sectionRule}${body}${kwSection}`;
 }
 function _formatPreviewHtml(desc,opt){
@@ -325,7 +462,11 @@ function _formatPreviewHtml(desc,opt){
   const titleColor=String(opt&&opt.titleColor||'').trim();
   const clean=_stripStrongMarkupText(desc).replace(/<[^>]*>/g,'');
   const sectionRule='<div class="preview-section-rule"></div>';
-  const lines=clean.split('\n').map((line,li)=>{
+  // シート上では複数効果が改行ではなく「全角空白＋次のタイミング：」で
+  // 連結されている場合があるため、旅の進捗と同じ規則で表示行へ分割する。
+  const sourceLines=clean.split(/\n|　(?=[^：:　]{1,12}[：:])/);
+  const orderedLines=opt&&opt.sortEffects?_sortPreviewEffectLines(sourceLines):sourceLines;
+  const lines=orderedLines.map((line,li)=>{
     if(li===0){
       const title=_escapePreviewHtml(line);
       const colorPath=titleColor&&typeof _colorIconPath==='function'?_colorIconPath(titleColor):'';
@@ -337,24 +478,89 @@ function _formatPreviewHtml(desc,opt){
     if(!m) return _injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(line)));
     if(m[1]==='キーワード'){
       // 「キーワード：」というラベル自体は表示せず、キーワードそのものだけを太字で並べる
-      return _stripStrongMarkupText(m[3]).split(/\s*\/\s*/).map(k=>k.trim()).filter(Boolean)
+      const ownedKeywords=_stripStrongMarkupText(m[3]).split(/\s*\/\s*/).map(k=>k.trim()).filter(Boolean)
         .map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ');
+      return `<span class="preview-owned-keywords">${ownedKeywords}</span>`;
     }
     let body=_injectManaIcons(_boldTriggerLabelsInHtml(_boldKeywordsInHtml(_escapePreviewHtml(m[3]))));
+    const meta=_previewEffectMeta(line);
     // 「Xマナ：」「Xマナ毎：」ラベルはマナ数分のアイコンに変換する（他のタイミングラベルと違い文字列のまま太字にしない）
     if(/^\d+マナ毎?$/.test(m[1])){
-      return `<strong>${_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[1])))}</strong>${_escapePreviewHtml(m[2])}${body}`;
+      return `<strong class="effect-trigger-label ${meta?meta.className:''}">${_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(m[1])))}</strong>${_escapePreviewHtml(m[2])}${body}`;
     }
-    return `<strong>${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
+    return `<strong class="effect-trigger-label ${meta?meta.className:''}">${_escapePreviewHtml(m[1])}</strong>${_escapePreviewHtml(m[2])}${body}`;
   });
   // .preview-title は display:block のため、直後に<br>を挟むと1行分余分な空白ができる
+  const parts=lines.slice(1).map((html,i)=>({
+    html,
+    group:orderedLines[i+1]==='__CHARACTER_DESC_SEPARATOR__'?'':_previewLineGroup(orderedLines[i+1]),
+  }));
+  return lines[0]+_joinPreviewParts(parts);
+}
+// **効果の種類が変わる所に直線（info_line.svg）を置く。**（利用者指定）
+// 種類＝キーワード効果／開戦／解放／攻撃／負傷／死亡／常時／マナ効果／終戦。
+// マナ効果は必要量が違っても1つの種類として扱う。種類を持たない行（本文の続きなど）は直前の種類のまま。
+function _previewLineGroup(line){
+  const text=String(line||'').trim();
+  if(/^キーワード[：:]/.test(text)) return 'キーワード効果';
+  const meta=_previewEffectMeta(text);
+  return meta?meta.kind:'';
+}
+function _joinPreviewParts(parts){
+  const sectionRule='<div class="preview-section-rule"></div>';
   let body='';
-  lines.slice(1).forEach(part=>{
-    if(part===sectionRule){ body+=sectionRule; return; }
+  let previousGroup='';
+  (parts||[]).forEach(({html,group})=>{
+    if(html===sectionRule){
+      if(!body.endsWith(sectionRule)) body+=sectionRule;
+      previousGroup='';
+      return;
+    }
+    if(group&&previousGroup&&group!==previousGroup&&body&&!body.endsWith(sectionRule)) body+=sectionRule;
+    if(group) previousGroup=group;
     if(body&&!body.endsWith(sectionRule)) body+='<br>';
-    body+=part;
+    body+=html;
   });
-  return lines[0]+body;
+  return body;
+}
+
+// キャラクター効果の表示順。戦闘ルールには触れず、ホバー説明の行だけを並べ替える。
+const PREVIEW_EFFECT_TRIGGER_ORDER={開戦:0,解放:1,攻撃:2,負傷:3,死亡:4,常時:5,マナ効果:6,終戦:7};
+const PREVIEW_EFFECT_TRIGGER_CLASS={開戦:'trigger-opening',解放:'trigger-release',攻撃:'trigger-attack',負傷:'trigger-injury',死亡:'trigger-death',常時:'trigger-passive',マナ効果:'trigger-mana',終戦:'trigger-ending'};
+function _previewEffectMeta(line){
+  const m=String(line||'').trim().match(/^([^：:]+)[：:]/);
+  if(!m) return null;
+  const label=String(m[1]||'').trim();
+  const kind=/^\d+マナ(?:毎)?$/.test(label)?'マナ効果':label;
+  if(!(kind in PREVIEW_EFFECT_TRIGGER_ORDER)) return null;
+  // マナ効果は必要量が違えば別タイミングなので、実際の表記をキーにする。
+  const key=kind==='マナ効果'?label:kind;
+  const suborder=kind==='マナ効果'?(parseInt(label,10)||0):0;
+  return {key,kind,label,order:PREVIEW_EFFECT_TRIGGER_ORDER[kind],suborder,className:PREVIEW_EFFECT_TRIGGER_CLASS[kind]};
+}
+function _sortPreviewEffectLines(lines){
+  // 区切り線をまたいで説明の所属を変えない。各節内でだけ安定ソートする。
+  const result=[];
+  let segment=[];
+  const flush=()=>{
+    const slots=[];
+    const effects=[];
+    segment.forEach((line,index)=>{
+      const meta=_previewEffectMeta(line);
+      if(meta){ slots.push(index); effects.push({line,index,...meta}); }
+    });
+    effects.sort((a,b)=>a.order-b.order||a.suborder-b.suborder||a.index-b.index);
+    const sorted=segment.slice();
+    slots.forEach((slot,index)=>{ sorted[slot]=effects[index].line; });
+    result.push(...sorted);
+    segment=[];
+  };
+  (lines||[]).forEach(line=>{
+    if(line==='__CHARACTER_DESC_SEPARATOR__'){ flush(); result.push(line); }
+    else segment.push(line);
+  });
+  flush();
+  return result;
 }
 // 説明にXを含むキーワードは、名前の末尾にXを付けて出す（例：邪眼X）。
 // 数値そのものはキーワード欄（「邪眼2」）に出ているので、こちらは変数のまま。
@@ -440,7 +646,7 @@ function _formatKeywordOnlyHtml(text){
   return String(text||'').split('\n').filter(Boolean).map(line=>{
     const m=line.match(/^([^：:]+)[：:](.*)$/);
     if(!m) return _injectManaIcons(_escapePreviewHtml(line));
-    return `<strong>${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`;
+    return `<strong class="effect-trigger-label">${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`;
   }).join('<br>');
 }
 function _formatMapPowerHtml(desc){
@@ -448,6 +654,17 @@ function _formatMapPowerHtml(desc){
   const title=_escapePreviewHtml(lines.shift()||'');
   const body=_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(lines.join('\n')))).replace(/\n/g,'<br>');
   return `<strong class="preview-title">${title}</strong>${body}`;
+}
+// 旅の進捗の通常マス／Scene名は、改行を含んでも全行を同じ見出しとして描く。
+// 街名の「地名 固有名」を2行にした時、2行目だけ本文サイズへ落ちるのを防ぐ。
+function _formatTitleOnlyHtml(desc){
+  const lines=String(desc||'').split('\n');
+  const title=lines.map((line,i)=>{
+    const text=_escapePreviewHtml(line);
+    if(lines.length===1&&line==='一般戦闘') return `<span class="journey-battle-prefix">${text}</span>`;
+    return lines.length>1&&i===0?`<span class="journey-town-prefix">${text}</span>`:text;
+  }).join('<br>');
+  return `<strong class="preview-title">${title}</strong>`;
 }
 function _previewRarityLine(card){
   return '';
@@ -559,55 +776,136 @@ function _applyManaOrbState(div,entity){
   const have=Math.max(0,(typeof _ensureMana==='function'?_ensureMana():Number(G.mana)||0)-cost*fired);
   orbImgs.forEach((img,i)=>{ if(i<have) img.classList.add('mana-orb-lit'); });
 }
-// 説明枠をカーソルの右下に出す対象（鍛冶屋のメニュー・指輪交換の指輪・道具屋のメニュー・
-// 所持アイテム・所持指輪）。いずれも .item-visual / .ring-visual を持つ枠。
-const TIP_BELOW_CURSOR_SELECTOR='.item-visual,.ring-visual,[data-tip-below]';
-function _tipBelowCursorTarget(target){
-  return !!(target&&target.closest&&target.closest(TIP_BELOW_CURSOR_SELECTOR));
-}
-// 説明枠を収める下端。ゲーム描画領域（背景）の底辺で切れてしまうため、
-// ウィンドウ下端ではなく背景の下端を上限にする。
-function _tooltipAreaBottom(){
+// ホバー説明はゲーム画面の上下左右70pxを除いた範囲へ収める。
+// 数値は3840x2160の設計pxなので、実表示では--game-scaleを掛ける。
+function _tooltipSafeBounds(){
   const rs=getComputedStyle(document.documentElement);
-  const scale=parseFloat(rs.getPropertyValue('--game-scale'))||0;
+  const scale=parseFloat(rs.getPropertyValue('--game-scale'))||1;
+  const offX=parseFloat(rs.getPropertyValue('--game-offset-x'))||0;
   const offY=parseFloat(rs.getPropertyValue('--game-offset-y'))||0;
-  const gameBottom=scale>0?offY+2160*scale:window.innerHeight;
-  return Math.min(window.innerHeight,gameBottom)-8;
+  const margin=70*scale;
+  const gameLeft=Math.max(0,offX);
+  const gameTop=Math.max(0,offY);
+  const gameRight=Math.min(window.innerWidth,offX+3840*scale);
+  const gameBottom=Math.min(window.innerHeight,offY+2160*scale);
+  const left=gameLeft+margin;
+  const right=Math.max(left,gameRight-margin);
+  const top=gameTop+margin;
+  const bottom=Math.max(top,gameBottom-margin);
+  return {left,right,top,bottom,width:right-left,height:bottom-top,scale};
+}
+function _tooltipAreaBottom(){
+  return _tooltipSafeBounds().bottom;
 }
 function _posKwTip(tip,e,dx=0,dy=0,below=false){
   const tw=tip.offsetWidth, th=tip.offsetHeight;
-  const bottomLimit=_tooltipAreaBottom();
+  const safe=_tooltipSafeBounds();
   if(below){
     // カーソルの右下に出す。画面外へ出る場合だけ内側へ寄せる。
     const x=e.clientX+18+dx, y=e.clientY+18+dy;
-    tip.style.left=Math.max(4,Math.min(x,window.innerWidth-tw-8))+'px';
-    tip.style.top=Math.max(4,Math.min(y,bottomLimit-th))+'px';
+    tip.style.left=Math.max(safe.left,Math.min(x,safe.right-tw))+'px';
+    tip.style.top=Math.max(safe.top,Math.min(y,safe.bottom-th))+'px';
     return;
   }
   const x=e.clientX+12+dx, y=e.clientY-8+dy;
-  tip.style.left=Math.min(x,window.innerWidth-tw-8)+'px';
+  tip.style.left=Math.max(safe.left,Math.min(x,safe.right-tw))+'px';
   // カーソルの上に出せるならそちら、無理なら下。どちらでも背景の下端からはみ出さないよう戻す。
-  tip.style.top=Math.max(4,Math.min((y-th>4?y-th:y+16),bottomLimit-th))+'px';
+  tip.style.top=Math.max(safe.top,Math.min((y-th>safe.top?y-th:y+16),safe.bottom-th))+'px';
 }
 function _posTipRelative(tip,anchor,side,clampY=true){
   const ar=anchor.getBoundingClientRect();
-  const gap=8;
+  const gap=12*_tooltipSafeBounds().scale;
   const tw=tip.offsetWidth,th=tip.offsetHeight;
-  const useBelow=side==='below'||(side==='right-or-below'&&ar.right+gap+tw>window.innerWidth-8);
+  const safe=_tooltipSafeBounds();
+  const useBelow=side==='below'||(side==='right-or-below'&&ar.right+gap+tw>safe.right);
   const x=useBelow?ar.left:ar.right+gap;
   const y=useBelow?ar.bottom+gap:ar.top;
-  tip.style.left=Math.max(4,Math.min(x,window.innerWidth-tw-8))+'px';
-  tip.style.top=(clampY?Math.max(4,Math.min(y,window.innerHeight-th-8)):y)+'px';
+  tip.style.left=Math.max(safe.left,Math.min(x,safe.right-tw))+'px';
+  tip.style.top=(clampY?Math.max(safe.top,Math.min(y,safe.bottom-th)):y)+'px';
+}
+// 説明・キーワード説明・マス説明を、1つの縦長グループとして配置する。
+// side＝基準の右15px（見切れるなら左）、above＝真上15px（見切れるなら下）。
+// 70pxセーフゾーンへ平行移動しても縦に収まらない場合は、まず特殊マス説明を右列へ移す。
+// それでも収まらない場合は、右列を「キーワード説明→特殊マス説明」の順に積む。
+function _positionTooltipGroup(tips,anchor,placement='side'){
+  const shown=(tips||[]).filter(el=>el&&el.style.display==='block');
+  if(!shown.length||!anchor?.getBoundingClientRect) return false;
+  const ar=anchor.getBoundingClientRect();
+  const safe=_tooltipSafeBounds();
+  const scale=safe.scale;
+  const anchorGap=15*scale;
+  const itemGap=12*scale;
+  const main=shown.find(el=>el.id==='kw-tooltip');
+  const keyword=shown.find(el=>el.id==='keyword-tooltip');
+  const map=shown.find(el=>el.id==='map-power-tooltip');
+  // offsetWidth/offsetHeightは整数へ丸められ、15pxの隙間が表示倍率によって約1設計pxずれる。
+  // 配置とセーフゾーン判定には小数を保持する実描画矩形を使う。
+  const sizes=new Map(shown.map(el=>{
+    const rect=el.getBoundingClientRect();
+    return [el,{width:rect.width,height:rect.height}];
+  }));
+  const makeColumn=items=>{
+    const active=items.filter(Boolean);
+    const positions=new Map();
+    const width=active.length?Math.max(...active.map(el=>sizes.get(el).width)):0;
+    let y=0;
+    active.forEach(el=>{ positions.set(el,{x:0,y}); y+=sizes.get(el).height+itemGap; });
+    return {positions,width,height:active.length?y-itemGap:0};
+  };
+  const joinColumns=(leftItems,rightItems)=>{
+    const left=makeColumn(leftItems),right=makeColumn(rightItems);
+    const positions=new Map(left.positions);
+    right.positions.forEach((pos,el)=>positions.set(el,{x:left.width+itemGap,y:pos.y}));
+    return {
+      positions,
+      width:left.width+(left.width&&right.width?itemGap:0)+right.width,
+      height:Math.max(left.height,right.height)
+    };
+  };
+  let layout=makeColumn(shown);
+  const fits=box=>box.width<=safe.width+.5&&box.height<=safe.height+.5;
+  if(!fits(layout)&&main&&map){
+    // 第1縮約：キャラ説明＋キーワード説明を左列、特殊マス説明を右列へ置く。
+    layout=joinColumns([main,keyword],[map]);
+    if(!fits(layout)&&keyword){
+      // 第2縮約：キャラ説明を左列、キーワード説明＋特殊マス説明を右列へ置く。
+      layout=joinColumns([main],[keyword,map]);
+    }
+  }
+  const groupWidth=layout.width;
+  const groupHeight=layout.height;
+  let groupLeft=0,groupTop=0;
+  if(placement==='above'){
+    groupLeft=ar.left+ar.width/2-groupWidth/2;
+    groupTop=ar.top-anchorGap-groupHeight;
+    if(groupTop<safe.top) groupTop=ar.bottom+anchorGap;
+  }else{
+    groupLeft=ar.right+anchorGap;
+    groupTop=ar.top+ar.height/2-groupHeight/2;
+    if(groupLeft+groupWidth>safe.right) groupLeft=ar.left-anchorGap-groupWidth;
+  }
+  groupLeft=Math.max(safe.left,Math.min(groupLeft,safe.right-groupWidth));
+  groupTop=Math.max(safe.top,Math.min(groupTop,safe.bottom-groupHeight));
+  shown.forEach(el=>{
+    const pos=layout.positions.get(el)||{x:0,y:0};
+    // 1列のアイコン上表示だけは、幅の異なる枠をグループ中央へ揃える。
+    const centeredOffset=layout.positions.size===shown.length&&layout.width===Math.max(...shown.map(x=>sizes.get(x).width))
+      &&placement==='above'?(layout.width-sizes.get(el).width)/2:0;
+    el.style.left=`${groupLeft+pos.x+centeredOffset}px`;
+    el.style.top=`${groupTop+pos.y}px`;
+  });
+  return true;
 }
 function _fitTooltipStack(tips){
   const shown=tips.filter(el=>el&&el.style.display==='block');
   if(!shown.length) return;
+  const safe=_tooltipSafeBounds();
   const bottom=Math.max(...shown.map(el=>el.getBoundingClientRect().bottom));
-  const overflow=bottom-_tooltipAreaBottom();
+  const overflow=bottom-safe.bottom;
   if(overflow>0){
     shown.forEach(el=>{
       const top=parseFloat(el.style.top)||el.getBoundingClientRect().top;
-      el.style.top=Math.max(4,top-overflow)+'px';
+      el.style.top=Math.max(safe.top,top-overflow)+'px';
     });
   }
 }
@@ -3933,10 +4231,10 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     return `${g.text}（×${g.count}）`;
   });
   if(strategyPanels.length){
-    const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
-    const baseKeywords=typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):(unit.keywords||[]);
-    const keywordNames=new Set([...baseKeywords,...strategyPanels.flatMap(e=>e.panel.adjacentKeywords||[])].map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(k=>k&&!cardNames.has(k)));
-    const amount=keywordNames.size*2*strategyPanels.reduce((sum,e)=>sum+(e.panel._tripleMerged?2:1),0);
+    // **数え方は battle.js の _collectAdjacentEnhancements() だけが持つ。** ここで数え直さないこと
+    // （以前は別の数え方をしていて、説明は+4/+4なのに実際は+2/+2だった）。
+    const enh=typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(unit,slotIdx):null;
+    const amount=Number(enh&&enh.strategyBonus)||0;
     if(amount>0) charTexts.unshift(`「策士」の効果で+${amount}/+${amount}されている。`);
   }
   return {normalTexts,charTexts};
@@ -4129,13 +4427,17 @@ function _unitPreviewText(unit, desc, slotIdx){
   const _inBattle=typeof G!=='undefined'&&G&&(G.phase==='player'||G.phase==='enemy');
   if(_inBattle&&unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
   if(_inBattle&&unit.shield>0) lines.push(`状態：結界${unit.shield}`);
-  // descが単純にキーワード名の羅列（例：「先制　シールド」「根性」）で、既にキーワード欄と内容が
-  // 重複している場合は二重表示しない
-  const descTokens=_stripIconsForMatch(desc).split(/[\s　]+/).filter(Boolean);
-  const descIsRedundant=descTokens.length>0&&descTokens.every(t=>(unit.keywords||[]).includes(t));
+  // descの中の単独キーワード行は、既にキーワード欄へ出しているためその行だけ除く。
+  // スケルトンキングの「復活\n攻撃：…」は、復活だけが本文色で二重表示されていた。
+  const shownKeywordNames=new Set([...(unit.keywords||[]),...kws]
+    .map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(Boolean));
+  const visibleDesc=_stripIconsForMatch(desc).split('\n').filter(line=>{
+    const tokens=String(line||'').trim().split(/[\s　]+/).filter(Boolean);
+    return !(tokens.length&&tokens.every(t=>shownKeywordNames.has(t.replace(/\d+$/,''))));
+  }).join('\n').trim();
   // descはcomputeDesc()経由でマナアイコンが注入済みの場合があるため、data-preview行としては
   // 生の色文字に戻して格納する（ホバー時に_formatPreviewHtmlが改めてアイコン化するため）
-  if(desc&&!descIsRedundant) lines.push(_stripIconsForMatch(desc));
+  if(visibleDesc) lines.push(visibleDesc);
   if(normalTexts.length) lines.push(normalTexts.join('\n'));
   if(characterTexts.length){
     lines.push('__CHARACTER_DESC_SEPARATOR__');
@@ -4885,6 +5187,22 @@ function _setUnitStatText(el,value,pairValue,keepSize){
   // pairValueを渡すと、ATK/HPのうち桁数が多い方に合わせた同じクラスになる。
   const cls=(pairValue===undefined?_cardStatDigitClass(value):_cardStatPairDigitClass(value,pairValue)).trim();
   if(cls) el.classList.add(cls);
+}
+
+// カードのホバー説明上辺のレアリティ表示。背景は新規SVG、星はSVGマスクに
+// パステルレインボーを流し、レアリティ数だけ中央に並べる。
+function cardRarityBannerHtml(card){
+  const rarity=Math.max(0,Math.min(6,Math.floor(Number(card&&card.rarity)||0)));
+  if(!rarity) return '';
+  const step=27.92;
+  const starSpan=rarity*23.92+Math.max(0,rarity-1)*4;
+  // 5個で虹全体を使い、1〜4個では同じ虹の中央だけを切り出す。
+  // これにより星が減るほど左右の色が削れ、1個では中央の黄色がほぼ全面を占める。
+  const fullCount=Math.max(5,rarity);
+  const fullSpan=fullCount*23.92+Math.max(0,fullCount-1)*4;
+  const cropStart=(fullSpan-starSpan)/2;
+  const stars=Array.from({length:rarity},(_v,i)=>`<span class="card-rarity-mark" style="--rarity-offset:calc(${-(cropStart+i*step)}px * var(--game-scale))"></span>`).join('');
+  return `<span class="card-rarity-banner" aria-label="レアリティ${rarity}"><span class="card-rarity-back"></span><span class="card-rarity-marks" style="--rarity-full-span:calc(${fullSpan}px * var(--game-scale))">${stars}</span></span>`;
 }
 
 function mkCardEl(card,_idx,_ctx,_mlOverride){

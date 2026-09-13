@@ -4528,15 +4528,25 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     });
   });
   // 策士：所持キーワード1つにつき+X/+X（Xは本文の倍率。基本2／合体3）。
+  // **加算量はここだけで決め、説明文（render.js の _groupedEnchantEffectTexts）は enh.strategyBonus を出すだけ。**
+  // 以前は説明側にも数え方があり、戦闘と説明で数値が食い違っていた。
+  enh.strategyBonus=0;
   if(enh.strategyCount>0){
+    // 第1引数は盤面の持ち主（equipment＝盤面）。キャラ本体のキーワードは、そのマスのカードから読む。
+    // 持ち主自身を読むとキャラのキーワードが数えられない（策士が強化カード分しか効かなかった）。
+    const slotCard=Array.isArray(unit&&unit.equipment)?unit.equipment[slotIdx]:null;
+    const character=slotCard&&String(slotCard.category||'')==='キャラクター'?slotCard:unit;
     // 効果文を持つ強化カード名（野生の力・闇の炎など）はキーワードではないので数えない。
     const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
-    const keywordCount=new Set([...(typeof _unitPanelKeywords==='function'?_unitPanelKeywords(unit):unit.keywords||[]),...(enh.keywords||[])]
+    const ownKeywords=typeof _unitPanelKeywords==='function'?_unitPanelKeywords(character):(character&&character.keywords||[]);
+    // 数字を落として重複を除く（盤面のカードへ既に強化キーワードが反映済みでも二重に数えない）。
+    const keywordCount=new Set([...(ownKeywords||[]),...(enh.keywords||[]),...(enh.abilities||[])]
       .map(k=>String(k||'').trim().replace(/\d+$/,''))
       .filter(k=>k&&!cardNames.has(k))).size;
     const strategyMul=Math.max(1,Number(enh.strategyMultiplier)||2);
-    enh.atk+=keywordCount*strategyMul*enh.strategyCount;
-    enh.hp+=keywordCount*strategyMul*enh.strategyCount;
+    enh.strategyBonus=keywordCount*strategyMul*enh.strategyCount;
+    enh.atk+=enh.strategyBonus;
+    enh.hp+=enh.strategyBonus;
   }
   return enh;
 }

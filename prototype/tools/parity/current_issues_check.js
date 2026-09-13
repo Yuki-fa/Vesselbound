@@ -208,9 +208,9 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     const shopUi=await browser.eval(`
       document.body.classList.add('reward-screen-active');
       const host=document.createElement('div'); host.className='rew-card';
-      host.innerHTML='<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-btn shop-board-sell-action">+40G</button>';
+      host.innerHTML='<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action">+40G</button>';
       document.getElementById('hand-slots').appendChild(host);
-      const saleEl=host.querySelector('.shop-board-sell-btn');
+      const saleEl=host.querySelector('.shop-board-sell-action');
       const sale=getComputedStyle(saleEl);
       const cost=getComputedStyle(host.querySelector('.shop-board-sell-value'));
       const tip=document.getElementById('kw-tooltip');
@@ -223,11 +223,11 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       const after=tip.getBoundingClientRect();
       const actionEl=tip.querySelector('.reward-action-btn');
       const action=getComputedStyle(actionEl);
-      const actionFrame=getComputedStyle(actionEl,'::before');
+      // クリックメニューのボタン枠は ::before の背景画像（button_invisible_s.svg）。発光（::after）より上に描くため。
       const result={
         sale:{width:sale.width,height:sale.height,top:sale.top,color:sale.color,background:sale.backgroundImage},
         cost:{background:cost.backgroundImage,width:cost.width,height:cost.height},
-        action:{color:action.color,border:actionFrame.borderImageSource,slice:actionFrame.borderImageSlice,count:tip.querySelectorAll('.reward-action-btn').length},
+        action:{color:action.color,background:getComputedStyle(actionEl,'::before').backgroundImage,count:tip.querySelectorAll('.reward-action-btn').length},
         tooltipDelta:{x:Math.abs(after.left-before.left),y:Math.abs(after.top-before.top),w:Math.abs(after.width-before.width)},
         tooltipKept:tip.innerHTML.startsWith(beforeHtml)&&getComputedStyle(tip.querySelector('.preview-title')).color===beforeColor
       };
@@ -241,8 +241,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     assert.deepEqual([shopUi.cost.width,shopUi.cost.height],['101px','46px']);
     assert.equal(shopUi.action.count,3);
     assert.equal(shopUi.action.color,'rgb(196, 154, 108)');
-    assert.match(shopUi.action.border,/button_invisible\.svg/);
-    assert.equal(shopUi.action.slice,'22 fill');
+    assert.match(shopUi.action.background,/button_invisible_s\.svg/);
     assert.ok(shopUi.tooltipDelta.x<1&&shopUi.tooltipDelta.y<1&&shopUi.tooltipDelta.w<1,
       'クリックでホバー説明の位置または幅が動いた');
     assert.ok(shopUi.tooltipKept,'クリックでホバー説明の内容または文字色が変わった');
