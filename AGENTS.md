@@ -196,6 +196,9 @@ node tools/parity/loop_parity.js      # PvEとコアの結果の一致（最終�
 削除前の版は `git worktree add <dir> <commit>` で作り、`python3 -m http.server 5510` で配信する。
 画面状態は style_effect_audit.js の一覧を共有し、カットイン・クリア画面・キーワード説明・商店価格・攻撃複製・ドラッグゴーストを足してある。
 既知の意図的な差（色の統合の対応表・px整数化・equip→board の名前変更・カーソルの絵・アニメーション途中の光）はツール先頭の除外表にまとめる）。
+`decl_effect_check.js`（**CSS宣言を消す前の確認用**。対象の要素が出る画面を作り、その宣言1つだけを CSSOM で外して計算値が変わるかを見る。
+対象ごとに値（と @media 条件）を指定し、同じセレクタの別の規則は外さない。前の状態に依存する画面は `chain:true` で監査の状態を順に積み上げる。
+判定は「効いている／効いていない（削除候補）／状態が作れていない／規則なし」。**「状態が作れていない」は残す**）。
 
 `present_parity.js` は `VB_ONLY=シナリオ名` で1件だけ回せる（`|` 区切りで複数）。
 
@@ -2476,6 +2479,13 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
 33. **旧・底部HUD（`.bottom-hud`：「階層」`#h-floor`・「Next」`#h-next-label`・「ライフ」`#h-life`・「ゴールド」`#h-gold`）は削除済み（2026-09-15、利用者指示）。**
    38の画面状態のどれでも表示されていなかった（display:none）。所持金・ライフの表示は `#battle-gold-value`／`#battle-life-value` が受け持つ。
    `updateHUD()` の所持金の数え上げ（`goldDisplayValue()`）とライフの算出はそちらで使うので残してある。復活させないこと。
+34. **監査で判定できなかったCSS宣言19件は `decl_effect_check.js` で実画面判定した（2026-09-15）。**
+   消した4件（どれも削除前の版と計算値が同じことを確認）：狭い窓のゲームオーバーボタン `font-size:18px`（常に効く44px!importantに負ける）、
+   村の移動ボタン `font-size:26px!important`（同条件でより強い44px!importantに負ける）、戻る確認の本文 `color:#f0d080`（箱から同じ色を受け継ぐ）、
+   マッチング画面の自分の欄 `color:#f4e7c8`（親から同じ色を受け継ぐ。opacity:1 は残す）。
+   効いていたので残した10件：試験戦闘の #btn-pass 34px、タイトルメニューのホバー白、倒れた印 .b-dead の赤、マナ枠 .mana-row の色と13px、
+   戻る確認の箱の色・本文の文字サイズ・ボタンの文字サイズ、マッチング画面の 56px、対戦相手の敗退枠の色。
+   画面を作れず判定できないので残した5件：`.slot-desc-enchant-line`、`.card-badge` の色と29px、鍛冶屋の対象なし価格の色、道具の売却ボタンのホバー色。
    ホバー説明（`#kw-tooltip`／`#keyword-tooltip`／`#map-power-tooltip`）の本文が灰色（#a99e8f）なのは 646eb1e の意図的な指定で、削除による変化ではない（f9550b2 と差0）。
    `#map-confirm-dialog`・`#carry-gold-warning`・`.map-village-card`・`.map-forge-card` はどのコードも作らないので、そのCSSの削除は影響なし。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、

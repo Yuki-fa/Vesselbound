@@ -7958,7 +7958,6 @@ html body.reward-screen-active .shop-board-sell-action{
 #shop-return-confirm .shop-return-confirm-msg{
   font-family:var(--font-hd);
   font-size:calc(26px * var(--game-scale));
-  color:#f0d080;
   margin-bottom:calc(16px * var(--game-scale));
 }
 #shop-return-confirm .shop-return-confirm-btns{display:flex;gap:calc(12px * var(--game-scale));justify-content:center}
@@ -9221,7 +9220,7 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 @keyframes gameoverRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes gameoverLineFlash{0%{opacity:0;filter:brightness(2.5);transform:scaleX(.5)}45%{opacity:1;filter:brightness(2)}100%{opacity:.9;filter:none;transform:scaleX(1)}}
 @keyframes gameoverRowIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@media(max-width:1100px){#gameover-shell{left:3%;right:3%;padding:30px;gap:20px}.gameover-rows{gap:10px}#gameover-actions .btn{min-width:0;font-size:18px}}
+@media(max-width:1100px){#gameover-shell{left:3%;right:3%;padding:30px;gap:20px}.gameover-rows{gap:10px}#gameover-actions .btn{min-width:0}}
 
 /* ゲームオーバー最終レイアウト：ゲーム画面を維持したまま、その上へ結果表示を重ねる（背景はgame_over.webm）。 */
 /* inset:0 だとビューポート左上に貼り付き、上下中央に置かれるゲームキャンバス（#scr-battle）と
@@ -9842,7 +9841,6 @@ body.village-screen-active #village-move-btns .rew-move-btn{
   min-height:92px!important;
   height:92px!important;
   width:312px!important;
-  font-size:26px!important;
   line-height:1.15!important;
 }
 body.village-screen-active #village-move-btns{
@@ -10964,7 +10962,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
 #online-matching-overlay .omo-player{
   font-size:56px!important;letter-spacing:.08em!important;opacity:.72!important;text-shadow:0 3px 7px #000!important;
 }
-#online-matching-overlay .omo-player.is-self{opacity:1;color:#f4e7c8}
+#online-matching-overlay .omo-player.is-self{opacity:1}
 /* ゲームオーバーの「タイトルに戻る」と同じ体裁 */
 #online-matching-overlay .omo-back{
   position:absolute!important;left:50%!important;top:1560px!important;transform:translateX(-50%)!important;margin:0!important;
