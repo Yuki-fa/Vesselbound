@@ -124,7 +124,7 @@ const SCENARIOS = [
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [] };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [], transformed: {}, coreSeen: 0 };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -176,6 +176,16 @@ const WATCHER = `
       const list = on ? window.__watch.onCard : window.__watch.offCard;
       if (!list.includes(key)) list.push(key);
     });
+    // PvEはイベントを直接受け取らないため、コアの変身印だけ先に拾う。
+    if (typeof G !== 'undefined' && Array.isArray(G._battleCoreEvents)) {
+      const events = G._battleCoreEvents;
+      const from = Math.max(0, Number(window.__watch.coreSeen) || 0);
+      for (let i = from; i < events.length; i++) {
+        const ev = events[i];
+        if (ev && ev.type === 'transform' && ev.unitId) window.__watch.transformed[ev.unitId] = true;
+      }
+      window.__watch.coreSeen = events.length;
+    }
     // HPは「数値が出た時」に減ること。コアは1手番ぶんを先に解決するため、
     // 据え置きを忘れると数値より先にHPだけが減る（実際に起きた）。
     document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id]').forEach(s2 => {
@@ -187,6 +197,11 @@ const WATCHER = `
       const prev = window.__watch.hp[id];
       window.__watch.hp[id] = hp;
       if (prev == null || hp >= prev) return;
+      // 変身はHP表示の入れ替えで一度だけ減るため、数値表示の先行とはみなさない。
+      if (window.__watch.transformed[id]) {
+        delete window.__watch.transformed[id];
+        return;
+      }
       // 変身はその場で数値が入れ替わる演出。決着後の同期も対象外。
       const last = String(window.__lastEvent || '');
       if (last.startsWith('transform') || last.startsWith('battle_end')) return;
@@ -332,6 +347,8 @@ const pveScript = sc => `
   // **開戦効果の演出も比較する。** 見張りを開戦処理の前から始める。
   // 登場演出・開戦カットインは startBattle() 側（両者とも同じ関数）なので対象外。
   ${WATCHER}
+  // PvEはここからコアイベントを読み始めるため、未読位置を明示的に戻す。
+  window.__watch.coreSeen = 0;
   // 開戦処理はオンライン側（sim）も必ず通る。ここで通しておかないと、
   // 開戦で解決されるはずのマナ閾値などが戦闘ループへずれ込み、比較にならない。
   if (typeof _finishNewPanelBattleStartEffects === 'function') {
@@ -377,12 +394,13 @@ const onlineScript = sc => `
     window.__watch.vfx.length = 0; window.__watch.calls.length = 0;
     window.__watch.board.length = 0;
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
-    window.__watch.hp = {}; window.__watch.hpEarly.length = 0;
+    window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.transformed = {};
   };
   try {
     await Promise.race([
       playOnlineBattleEvents(out, { onEvent: (ev, ctx) => {
         if (!__started && ev && ev.type !== ONLINE_EVENT.BATTLE_START) { __started = true; __resetWatch(); }
+        if (ev && ev.type === 'transform' && ev.unitId) window.__watch.transformed[ev.unitId] = true;
         window.__lastEvent = (ev && ev.type) + ':' + ((ev && (ev.unitId || ev.attackerId)) || '');
         return renderOnlineVersusBoard(ev, ctx);
       } }).then(() => { window.__playbackEnded = true; }),
