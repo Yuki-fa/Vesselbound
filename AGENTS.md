@@ -181,7 +181,8 @@ node tools/parity/loop_parity.js      # PvEとコアの結果の一致（最終�
 すべてこの2つで機械的に検出できる形だった。
 
 その他のツール（必要な時だけ）：
-`board_parity.js`（魔導板→出撃の突き合わせ）／`core_refactor_diff.js`（コアのリファクタ前後の差分）／
+`board_parity.js`（魔導板→出撃の突き合わせ。**node では動かない**：ブラウザのコンソールでファイルの中身を評価してから `window.checkBoardParity()` を呼ぶ）／
+`pointer_drag_check.js`（マウス操作だけでドラッグが成立するか）／`core_refactor_diff.js`（コアのリファクタ前後の差分）／
 `layout_probe.js`（画面レイアウトの実測）／`headless.js`（ヘッドレスChromeの土台）／
 `current_issues_check.js`（サイレン＋邪眼3枚＋大いなる守護＋三段攻撃など、既知の戦闘回帰）／
 `c019_visual_check.js`（C019の可視弾頭の着弾位置と大きさ）／
