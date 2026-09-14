@@ -4040,7 +4040,6 @@ function renderAll(){
   renderManaHud();
   renderControls();
   updateHUD();
-  requestAnimationFrame(fitCardDescs);
 }
 
 function renderManaHud(){
@@ -5075,24 +5074,6 @@ function _evalMath(desc){
   });
 }
 
-// カードのdesc要素をコンテナからはみ出さないようフォントサイズを縮小
-function fitCardDescs(){
-  function fit(el,container){
-    el.style.fontSize='';
-    let fs=parseFloat(window.getComputedStyle(el).fontSize);
-    while(container.scrollHeight>container.clientHeight+1&&fs>6.5){
-      fs=Math.max(6.5,fs-0.5);
-      el.style.fontSize=fs+'px';
-    }
-  }
-  document.querySelectorAll('.card .card-desc').forEach(el=>{
-    const c=el.closest('.card'); if(c) fit(el,c);
-  });
-  document.querySelectorAll('.rew-card .rew-card-desc').forEach(el=>{
-    const c=el.closest('.rew-card'); if(c) fit(el,c);
-  });
-}
-
 // Grade/X置換のみを適用した、マナアイコン注入前のプレーンテキスト。
 // data-preview（ホバー時に_formatPreviewHtmlで改めてアイコン化される）に渡す用途では、
 // 既にアイコン化済みのHTMLを渡すと<img alt="マナ">がアイコン数分「マナ」という文字列に
@@ -5205,8 +5186,7 @@ function cardRarityBannerHtml(card){
   return `<span class="card-rarity-banner" aria-label="レアリティ${rarity}"><span class="card-rarity-back"></span><span class="card-rarity-marks" style="--rarity-full-span:calc(${fullSpan}px * var(--game-scale))">${stars}</span></span>`;
 }
 
-function mkCardEl(card,_idx,_ctx,_mlOverride){
-  const typeLabel={ring:'指輪',consumable:'アイテム','global-panel':'全体'};
+function mkCardEl(card,_idx,_ctx){
   const div=document.createElement('div');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   const t=card.type||'ring';
@@ -5220,10 +5200,6 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   } else if(typeof getCardAsset==='function'&&typeof assetUrl==='function'){
     div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
   }
-  const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=typeLabel[t]||'指輪';
-  const kindLabel='';
-  const gradeEl='';
   const manaCostEl=cardManaCostHtml(card);
   const sealCostEl=cardSealCostHtml(card);
   // 価格バッジはショップ（G._isShop）かつ実際に価格が1以上の場合のみ表示する。
@@ -5237,8 +5213,6 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const isPanelCharacter=isPanelCard&&String(card.category||'')==='キャラクター';
   if(isPanelCharacter) div.classList.add('character-card','panel-character-card');
   if(div.classList.contains('character-card')&&card.color) div.setAttribute('data-preview-title-color',String(card.color));
-  const atkLabel='', hpLabel='';
-  const dynDesc=computeDesc(card,_mlOverride);
   const _keywordPreviewCard={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[])]};
   const _keywordPreviewAll=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_keywordPreviewCard):'';
   if(_keywordPreviewAll) div.setAttribute('data-keyword-preview',_keywordPreviewAll);
@@ -5302,7 +5276,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
-  div.innerHTML=`${gradeEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><div class="card-tp ${t}${_subtypeClass}">${tpLabel}${kindLabel}</div><div class="card-name">${_cardUiName(card)}</div><div class="card-desc">${dynDesc}</div>${enc}${atkLabel}${hpLabel}`;
+  div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}<div class="card-art"></div>`;
   return div;
 }
 

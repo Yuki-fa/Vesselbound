@@ -289,19 +289,6 @@ function _confirmRingExchangeReturn(onYes){
     onYes();
   };
 }
-function _panelTextOffsets(place){
-  return {
-    name:'62px',
-    desc:place==='reward' ? '-12px' : (place==='boardCards'||place==='detached' ? '-34px' : '0px')
-  };
-}
-function _pinPanelTextPosition(el,place){
-  if(!el) return;
-  const pos=_panelTextOffsets(place);
-  el.querySelectorAll('.card-name,.rew-card-name').forEach(n=>n.style.setProperty('transform',`translateY(${pos.name})`,'important'));
-  el.querySelectorAll('.card-desc,.rew-card-desc').forEach(n=>n.style.setProperty('transform',`translateY(${pos.desc})`,'important'));
-}
-
 function _ensureSelectedBoardUnitIdx(){
   const cur=_getPartyBoardUnit();
   if(cur&&cur.hp>0) return G._selectedBoardUnitIdx;
@@ -973,7 +960,7 @@ function chooseMoveInline(nt){
     if(!SaveRun.checkpoint('reward')){
       SaveRun.lockInput(false);
       G._moveInlineLocked=false;
-      return;
+    return;
     }
   }
   G._isShop=false; // 行商モード解除
@@ -1356,7 +1343,6 @@ function renderRewCards(){
   el.innerHTML='';
   if(G._ringOfferPhase){
     _renderRingOfferCards(el);
-    requestAnimationFrame(fitCardDescs);
     return;
   }
   if(!el._wiredForReturn){
@@ -1396,7 +1382,6 @@ function renderRewCards(){
         el.appendChild(_mkLibraryLoanedOutDiv(i));
       }
     }
-    requestAnimationFrame(fitCardDescs);
     return;
   }
   // 道具屋：指輪交換と同じくitem_slot画像の枠でアイテムを3つ並べる（価格バッジは通常のショップと同形式）。
@@ -1413,7 +1398,6 @@ function renderRewCards(){
       d.classList.add('item-visual-filled');
       el.appendChild(d);
     });
-    requestAnimationFrame(fitCardDescs);
     return;
   }
   if(G._isShop){
@@ -1425,8 +1409,7 @@ function renderRewCards(){
       if(pendingRewardIdx===i) d.classList.add('pending-placement');
       el.appendChild(d);
     }
-    requestAnimationFrame(fitCardDescs);
-    return;
+      return;
   }
   _rewCards.slice(0,REWARD_GRID_CAPACITY).forEach((card,i)=>{
     if(!card) return;
@@ -1441,7 +1424,6 @@ function renderRewCards(){
     }
     el.appendChild(d);
   });
-  requestAnimationFrame(fitCardDescs);
 }
 function renderRewardOfferRow(show){
   // 配置順（戦闘順序）システムは廃止。この位置には報酬カードを表示する（renderRewCardsに一本化）。
@@ -1601,7 +1583,6 @@ function _mkRewDiv(card, onBuy, rewIdx){
     if(keywordPreview) div.setAttribute('data-keyword-preview',keywordPreview);
   }
 
-  _pinPanelTextPosition(div,'reward');
   // 価格バッジはショップかつ価格1以上の場合のみ。無料報酬（cost===0）ではDOM自体を作らない
   const showPriceBadge=!!G._isShop&&cost>0&&!isPendingSale;
   if(showPriceBadge){
@@ -1647,8 +1628,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
       }
       if(_libraryTutorialIsMoveStep()&&!_libraryTutorialAllowsMove(card,null)){ e.preventDefault(); return; }
       _dragSrc={arr:'rew',idx:rewIdx};
-      _pinPanelTextPosition(div,'reward');
-      e.dataTransfer.effectAllowed='move';
+          e.dataTransfer.effectAllowed='move';
       e.dataTransfer.setDragImage(_transparentDragImg,0,0);
       _setDragZoneClass(_rewardDragZoneForCard(card));
       _createDragGhost(div);
@@ -2672,7 +2652,6 @@ function _createDragGhost(srcEl){
     // 枠画像は z-index:90。方向矢印は必ずその前面へ出す。
     dstDir.style.setProperty('z-index','300','important');
   });
-  _pinPanelTextPosition(d,srcEl.closest('#reward-cards-section,#rw-cards')?'reward':(srcEl.closest('#hand-slots.board-slots')?'boardCards':'normal'));
   d._ghostW=visualW; d._ghostH=visualH;
   document.body.appendChild(d);
   _dragGhostDiv=d;
@@ -3440,7 +3419,6 @@ function renderHandEditor(){
   }
   renderDebugCardPalette();
   _refreshMergeReadyMarks();
-  requestAnimationFrame(fitCardDescs);
 }
 // **「取ると合体」の光は描画時にしか計算していない。**
 // 魔導板へ同じカードを2枚置いても、提示カード（報酬・商品）を作り直すまで
@@ -3913,8 +3891,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
       }else{
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><div class="card-tp ${t}">${arrName==='globalPanels'?'全体':arrName==='boardCards'?'パネル':t==='ring'?'指輪':'アイテム'}</div><div class="card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}</div><div class="card-desc">${computeDesc(card)}</div>${_spellBtn}${_libraryLoanBadge}`;
-        _pinPanelTextPosition(div,arrName==='boardCards'?'boardCards':'normal');
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
       }
       if(arrName==='boardCards') _ensureCardBackLayer(div);
       // 魔導板枠はカード固有の::after（キャラ枠）と競合しない独立レイヤーとして常設する。
@@ -4058,7 +4035,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         div.addEventListener('dragstart',e=>{
           if(arrName==='boardCards'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
           _dragSrc=arrName==='boardCards'?{arr:arrName,idx:i,unitIdx:G._selectedBoardUnitIdx}:{arr:arrName,idx:i};
-          _pinPanelTextPosition(div,arrName==='boardCards'?'boardCards':'normal');
           if(arrName==='boardCards'){
             _detachBoardConnectionVisuals(i,div,card);
             _setDragZoneClass('dragzone-board');

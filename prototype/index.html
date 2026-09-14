@@ -481,11 +481,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .card.ring,.card.consumable{border-top:0}
 .card-badge{position:absolute;top:3px;right:5px;font-size:29px;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1}
 .card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
-.card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
-.card-tp.ring{color:var(--purple2)}.card-tp.consumable{color:var(--red2)}
-.card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;line-height:1.15;text-align:center;color:#f4e7c8;text-shadow:0 2px 4px rgba(0,0,0,.9)}
-.card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;text-align:left;margin:8% 10% 0}
-.card.character-card .card-desc{display:none}
 .card-enc{margin-top:2px}
 .card-summon-atk{position:absolute;bottom:3px;left:4px;font-weight:700}
 .card-summon-hp{position:absolute;bottom:3px;right:4px;font-weight:700}
@@ -557,9 +552,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   pointer-events:none;
 }
 .rew-card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
-.rew-card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;color:#f4e7c8;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.9)}
-.rew-card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;margin:8% 10% 0}
-.rew-card.character-card .rew-card-desc{display:none}
 .rew-card-cost{font-weight:700;margin-bottom:2px}
 .rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
 .rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
@@ -928,9 +920,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .card,.card-empty{border-radius:8px}
 .card{padding:10px}
 .card-art{min-height:62px;margin-bottom:7px;border-radius:7px}
-.card-name{font-size:24px;line-height:1.14}
-.card-desc{font-size:18px;line-height:1.23}
-.card-tp{font-size:18px}
 .discard-btn{bottom:10px;left:10px;right:10px;padding:3px 6px;border-radius:5px}
 .bctl{max-width:3000px;padding:12px 32px;gap:14px}
 .bottom-hud{min-height:92px}
@@ -939,8 +928,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-cards{gap:14px}
 .rew-card{width:230px;flex-basis:230px;padding:14px 16px;border-radius:8px}
 .rew-card-art{min-height:64px;margin-bottom:8px;border-radius:7px}
-.rew-card-name{font-size:23px}
-.rew-card-desc{font-size:19px;line-height:1.24}
 .mv-title{font-size:32px}
 .mv-wrap{max-width:1100px}
 .mv-opts{gap:18px}
@@ -1019,8 +1006,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #hand-slots{grid-template-columns:repeat(5,1fr)!important;gap:18px;height:100%;align-items:start;justify-content:center}
 #hand-slots .card,#hand-slots .card-empty{height:auto;aspect-ratio:63/88;border-width:3px;border-radius:12px;padding:12px}
 #hand-slots .card-art{min-height:96px}
-#hand-slots .card-name{font-size:22px}
-#hand-slots .card-desc{font-size:17px;line-height:1.22}
 #inline-hand-editor{display:none!important}
 #reward-move-btns{
   position:absolute;left:72px;top:128px;width:780px;z-index:19;display:flex;gap:16px
@@ -1220,11 +1205,6 @@ html body #reward-offer-row > .rew-card.character-card > .panel-dir{z-index:200!
   margin:0!important;
   min-height:0!important;
 }
-.card .card-tp,
-.card.character-card .card-name,
-.card.character-card .card-desc,
-.rew-card.character-card .rew-card-name,
-.rew-card.character-card .rew-card-desc,
 .rew-card.character-card [style*="キャラクター"],
 .rew-card.character-card [style*="var(--text2)"]{
   display:none!important;
@@ -1233,29 +1213,6 @@ html body #reward-offer-row > .rew-card.character-card > .panel-dir{z-index:200!
 .rew-card [style*="_circleCost"],
 .rew-card [style*="position:absolute;top:3px;right:5px"]{
   z-index:9!important;
-}
-.card .card-name,
-.rew-card .rew-card-name{
-  position:relative!important;
-  z-index:9!important;
-  margin-top:69%!important;
-  font-family:var(--font-bd)!important;
-  font-weight:700!important;
-  color:#fff8e8!important;
-  -webkit-text-stroke:1px #685033;
-  paint-order:stroke fill;
-  text-shadow:0 2px 4px rgba(0,0,0,.8);
-}
-.card .card-desc,
-.rew-card .rew-card-desc{
-  position:relative!important;
-  z-index:9!important;
-  margin:17% 10% 0!important;
-  font-family:var(--font-bd)!important;
-  font-weight:700!important;
-  -webkit-text-stroke:1px #685033;
-  paint-order:stroke fill;
-  text-shadow:0 2px 4px rgba(0,0,0,.75);
 }
 .card .slot.unit-card.selectable,
 .slot.unit-card.drag-over{
@@ -1360,14 +1317,6 @@ html body .slot.dragging{
 #hand-slots .card:hover:not(.inert){
   transform:none!important;
 }
-#hand-slots .card .card-name{
-  margin-top:82%!important;
-  line-height:1.12!important;
-}
-#hand-slots .card .card-desc{
-  margin-top:24%!important;
-  line-height:1.18!important;
-}
 #hand-slots .card #battle-options-btn{
   border:0!important;
   background:var(--option-button-image) center/contain no-repeat!important;
@@ -1396,9 +1345,6 @@ html body .slot.dragging{
 #hand-slots .card:hover:not(.inert){
   transform:translateY(-250px)!important;
   z-index:60!important;
-}
-#hand-slots .card .card-name{
-  margin-top:92%!important;
 }
 .slot.unit-card .unit-portrait{
   left:4.8%!important;
@@ -1437,21 +1383,6 @@ html body .slot.dragging{
 }
 #hand-slots .card:hover:not(.inert){
   transform:translateY(-145px)!important;
-}
-#hand-slots .card .card-name,
-.card .card-name,
-.rew-card .rew-card-name{
-  margin-top:96%!important;
-  font-family:var(--font-hd)!important;
-}
-#hand-slots .card .card-desc,
-.card .card-desc,
-.rew-card .rew-card-desc{
-  margin-top:18%!important;
-  color:#111!important;
-  -webkit-text-stroke:0!important;
-  text-shadow:none!important;
-  paint-order:normal!important;
 }
 .slot.unit-card .unit-portrait{
   top:10.2%!important;
@@ -1539,16 +1470,6 @@ html body .slot.dragging{
   height:68%!important;
   background-size:cover!important;
   background-position:center center!important;
-}
-#hand-slots .card .card-name,
-.card .card-name,
-.rew-card .rew-card-name{
-  transform:translateY(-10px)!important;
-}
-#hand-slots .card .card-desc,
-.card .card-desc,
-.rew-card .rew-card-desc{
-  transform:translateY(-40px)!important;
 }
 #f-enemy,
 #f-ally{
@@ -1646,9 +1567,6 @@ body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
   display:none!important;
 }
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-art,
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-name,
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-desc,
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-tp,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-summon-atk,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-summon-hp,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .mana-cost-orbs,
@@ -1858,24 +1776,6 @@ body.world-map-active .bottom-hud .bhud-item{
   opacity:1!important;
   animation:select-particle-blink .72s ease-in-out infinite alternate!important;
 }
-#hand-slots .card .card-name,
-.card .card-name,
-.rew-card .rew-card-name{
-  transform:translateY(-20px)!important;
-}
-#hand-slots .card .card-desc,
-.card .card-desc,
-.rew-card .rew-card-desc{
-  transform:translateY(-50px)!important;
-  margin-left:calc(10% + 5px)!important;
-  margin-right:calc(10% + 5px)!important;
-}
-.card-desc span,
-.rew-card-desc span,
-.card-desc b,
-.rew-card-desc b{
-  color:#3e210d!important;
-}
 #btn-pass:active:not(:disabled),
 #btn-pass:active:not(:disabled){
   transform:none!important;
@@ -1956,22 +1856,6 @@ body.world-map-active .bottom-hud .bhud-item{
   transform-origin:top center!important;
   width:100%!important;
 }
-/* 報酬・ショップ・インベントリカードサイズ統一 */
-#hand-slots .card .card-name,
-#hand-slots .card .rew-card-name{
-  font-size:23px!important;
-  line-height:1.08!important;
-}
-#hand-slots .card .card-desc{
-  line-height:1.16!important;
-}
-#hand-slots .card .card-tp{
-  font-size:23px!important;
-  line-height:1.08!important;
-}
-#rw-cards .rew-card .rew-card-desc{
-  line-height:1.16!important;
-}
 #hand-slots .card:hover:not(.inert),
 #rw-cards .rew-card:hover:not(.cant){
   transform:none!important;
@@ -2034,11 +1918,6 @@ body.world-map-active .bottom-hud .bhud-item{
 .card.dragging,
 .slot.dragging{
   opacity:.4!important;
-}
-#hand-slots .card .card-name,
-.card .card-name,
-.rew-card .rew-card-name{
-  transform:translateY(-15px)!important;
 }
 
 /* 発光レイヤーは背景より上、キャラクター絵より下に固定 */
@@ -2135,17 +2014,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #rw-cards .card #rw-cards .card-badge{
   display:none!important;
-}
-#hand-slots .card .card-name,
-#rw-cards .rew-card .rew-card-name,
-#rw-cards .card .card-name{
-  font-size:25px!important;
-  transform:translateY(-19px)!important;
-}
-#hand-slots .card .card-desc,
-#rw-cards .rew-card .rew-card-desc,
-#rw-cards .card .card-desc{
-  font-size:20px!important;
 }
 .slot.unit-card .slot-stats .h.hp-damaged,
 .slot-stats .h.hp-damaged{
@@ -2445,13 +2313,6 @@ body .slot.selectable:not(.unit-card)::after{
   box-shadow:0 0 12px rgba(255,255,255,.9),0 0 26px rgba(255,234,170,.75)!important;
   animation:select-particle-blink .75s ease-in-out infinite alternate!important;
 }
-body .card.drag-ghost body #hand-slots .card .card-name,
-body #rw-cards .rew-card .rew-card-name,
-body #rw-cards .card .card-name,
-body .card.drag-ghost .card-name{
-  transform:translateY(-23px)!important;
-  font-size:25px!important;
-}
 body .card.dragging{
   opacity:1!important;
   transform:none!important;
@@ -2515,19 +2376,6 @@ body .slot.unit-card.drag-over::after{
 body .slot.unit-card.selectable .slot-stats,
 body .slot.unit-card.drag-over .slot-stats{
   z-index:8!important;
-}
-body .card.dragging .card-name,
-body .card.drag-ghost .card-name{
-  transform:none!important;
-  margin-top:58%!important;
-  font-size:25px!important;
-}
-body .card.dragging .card-desc,
-body .card.drag-ghost .card-desc{
-  transform:none!important;
-  margin-top:8%!important;
-  font-size:20px!important;
-  line-height:1.16!important;
 }
 body .slot.unit-card.dead-unit{
   opacity:.42!important;
@@ -3429,16 +3277,6 @@ body.reward-screen-active #hand-pane::before{
   box-shadow:0 0 8px rgba(201,168,76,.25)!important;
   pointer-events:none!important;
 }
-body .card.dragging .card-name,
-body .card.drag-ghost .card-name{
-  transform:translateY(-23px)!important;
-  margin-top:0!important;
-}
-body .card.dragging .card-desc,
-body .card.drag-ghost .card-desc{
-  transform:none!important;
-  margin-top:0!important;
-}
 /* 2026-06-29 front-7 / no-grid / compact HUD pass */
 body{
   --front7-field-w:calc(var(--unit-card-w) * 7 + var(--unit-field-gap) * 6);
@@ -3994,68 +3832,6 @@ body #hand-slots.board-slots > .card-empty{
   border-bottom:1px solid rgba(232,210,150,.45);
   line-height:1.08;
 }
-body .card:not(.character-card) .card-name,
-body .rew-card:not(.character-card) .rew-card-name{
-  transform:translateY(30px)!important;
-}
-body .card:not(.character-card) .card-desc,
-body .rew-card:not(.character-card) .rew-card-desc{
-  transform:translateY(0)!important;
-}
-body #reward-cards-section .card:not(.character-card) .card-desc,
-body #reward-cards-section .rew-card:not(.character-card) .rew-card-desc{
-  transform:translateY(-16px)!important;
-}
-body #hand-slots.board-slots .card:not(.character-card) .card-desc{
-  transform:translateY(14px)!important;
-}
-body .card.dragging .card-name,
-body .card.drag-ghost .card-name{
-  transform:translateY(30px)!important;
-}
-body .card.dragging .card-desc,
-body .card.drag-ghost .card-desc{
-  margin-top:0!important;
-  transform:translateY(0)!important;
-}
-body #reward-cards-section .card.dragging .card-desc,
-body #reward-cards-section .card.drag-ghost .card-desc{
-  transform:translateY(-16px)!important;
-}
-body #hand-slots.board-slots .card.dragging .card-desc,
-body #hand-slots.board-slots .card.drag-ghost .card-desc{
-  transform:translateY(14px)!important;
-}
-body #hand-slots .card.dragging .card-name,
-body #hand-slots .card.drag-ghost .card-name,
-body #reward-cards-section .card.dragging .card-name,
-body #reward-cards-section .card.drag-ghost .card-name,
-body #reward-cards-section .rew-card.dragging .rew-card-name,
-body #reward-cards-section .rew-card.drag-ghost .rew-card-name,
-body #rw-cards .card.dragging .card-name,
-body #rw-cards .card.drag-ghost .card-name,
-body #rw-cards .rew-card.dragging .rew-card-name,
-body #rw-cards .rew-card.drag-ghost .rew-card-name{
-  transform:translateY(30px)!important;
-}
-body #hand-slots .card.dragging .card-desc,
-body #hand-slots .card.drag-ghost .card-desc{
-  transform:translateY(0)!important;
-}
-body #hand-slots.board-slots .card.dragging .card-desc,
-body #hand-slots.board-slots .card.drag-ghost .card-desc{
-  transform:translateY(14px)!important;
-}
-body #reward-cards-section .card.dragging .card-desc,
-body #reward-cards-section .card.drag-ghost .card-desc,
-body #reward-cards-section .rew-card.dragging .rew-card-desc,
-body #reward-cards-section .rew-card.drag-ghost .rew-card-desc,
-body #rw-cards .card.dragging .card-desc,
-body #rw-cards .card.drag-ghost .card-desc,
-body #rw-cards .rew-card.dragging .rew-card-desc,
-body #rw-cards .rew-card.drag-ghost .rew-card-desc{
-  transform:translateY(-16px)!important;
-}
 /* 2026-07-01 reward board final alignment / drag text lock */
 body.reward-screen-active #hand-pane,
 body #hand-pane:has(#hand-slots.board-slots){
@@ -4083,105 +3859,6 @@ body.reward-screen-active #rw-cards{
   align-items:flex-start!important;
   margin-left:auto!important;
   margin-right:auto!important;
-}
-html body .card.dragging:not(.character-card) .card-name,
-html body .card.drag-ghost:not(.character-card) .card-name,
-html body .rew-card.dragging:not(.character-card) .rew-card-name,
-html body .rew-card.drag-ghost:not(.character-card) .rew-card-name{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(52px)!important;
-}
-html body .card.dragging:not(.character-card) .card-desc,
-html body .card.drag-ghost:not(.character-card) .card-desc,
-html body .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body .rew-card.drag-ghost:not(.character-card) .rew-card-desc{
-  margin-top:0!important;
-  top:auto!important;
-}
-html body #hand-slots.board-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.board-slots .card.drag-ghost:not(.character-card) .card-desc{
-  transform:translateY(-22px)!important;
-}
-html body #reward-cards-section .card.dragging:not(.character-card) .card-desc,
-html body #reward-cards-section .card.drag-ghost:not(.character-card) .card-desc,
-html body #reward-cards-section .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #reward-cards-section .rew-card.drag-ghost:not(.character-card) .rew-card-desc,
-html body #rw-cards .card.dragging:not(.character-card) .card-desc,
-html body #rw-cards .card.drag-ghost:not(.character-card) .card-desc,
-html body #rw-cards .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #rw-cards .rew-card.drag-ghost:not(.character-card) .rew-card-desc{
-  transform:translateY(-4px)!important;
-}
-
-/* 2026-07-01: パネル文字位置とドラッグ中の座標を最終固定 */
-html body .card:not(.character-card) .card-name,
-html body .rew-card:not(.character-card) .rew-card-name,
-html body .card.dragging:not(.character-card) .card-name,
-html body .card.drag-ghost:not(.character-card) .card-name,
-html body .rew-card.dragging:not(.character-card) .rew-card-name,
-html body .rew-card.drag-ghost:not(.character-card) .rew-card-name{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(52px)!important;
-}
-html body #hand-slots.board-slots .card:not(.character-card) .card-desc,
-html body #hand-slots.board-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.board-slots .card.drag-ghost:not(.character-card) .card-desc{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(-22px)!important;
-}
-html body #reward-cards-section .card:not(.character-card) .card-desc,
-html body #reward-cards-section .card.dragging:not(.character-card) .card-desc,
-html body #reward-cards-section .card.drag-ghost:not(.character-card) .card-desc,
-html body #reward-cards-section .rew-card:not(.character-card) .rew-card-desc,
-html body #reward-cards-section .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #reward-cards-section .rew-card.drag-ghost:not(.character-card) .rew-card-desc,
-html body #rw-cards .card:not(.character-card) .card-desc,
-html body #rw-cards .card.dragging:not(.character-card) .card-desc,
-html body #rw-cards .card.drag-ghost:not(.character-card) .card-desc,
-html body #rw-cards .rew-card:not(.character-card) .rew-card-desc,
-html body #rw-cards .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #rw-cards .rew-card.drag-ghost:not(.character-card) .rew-card-desc{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(-4px)!important;
-}
-
-/* 2026-07-01: 最終上書き。通常時/ドラッグ中でパネル文字位置を完全固定 */
-html body .card:not(.character-card) .card-name,
-html body .card.dragging:not(.character-card) .card-name,
-html body .card.drag-ghost:not(.character-card) .card-name,
-html body .rew-card:not(.character-card) .rew-card-name,
-html body .rew-card.dragging:not(.character-card) .rew-card-name,
-html body .rew-card.drag-ghost:not(.character-card) .rew-card-name{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(62px)!important;
-}
-html body #hand-slots.board-slots .card:not(.character-card) .card-desc,
-html body #hand-slots.board-slots .card.dragging:not(.character-card) .card-desc,
-html body #hand-slots.board-slots .card.drag-ghost:not(.character-card) .card-desc{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(-34px)!important;
-}
-html body #reward-cards-section .card:not(.character-card) .card-desc,
-html body #reward-cards-section .card.dragging:not(.character-card) .card-desc,
-html body #reward-cards-section .card.drag-ghost:not(.character-card) .card-desc,
-html body #reward-cards-section .rew-card:not(.character-card) .rew-card-desc,
-html body #reward-cards-section .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #reward-cards-section .rew-card.drag-ghost:not(.character-card) .rew-card-desc,
-html body #rw-cards .card:not(.character-card) .card-desc,
-html body #rw-cards .card.dragging:not(.character-card) .card-desc,
-html body #rw-cards .card.drag-ghost:not(.character-card) .card-desc,
-html body #rw-cards .rew-card:not(.character-card) .rew-card-desc,
-html body #rw-cards .rew-card.dragging:not(.character-card) .rew-card-desc,
-html body #rw-cards .rew-card.drag-ghost:not(.character-card) .rew-card-desc{
-  margin-top:0!important;
-  top:auto!important;
-  transform:translateY(-12px)!important;
 }
 html body .slot.unit-card.no-unit-shadow,
 html body .slot.unit-card.no-unit-shadow.selected,
@@ -4893,34 +4570,6 @@ html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok
 html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok .card-summon-atk,
 html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok .card-summon-hp{
   filter:none!important;
-}
-/* レアリティ別カード名の色：1=白 2=青 3=金 4=紫 5=虹 */
-html body .card.rarity-1 .card-name,
-html body .rew-card.rarity-1 .rew-card-name{
-  color:#ffffff!important;
-}
-html body .card.rarity-2 .card-name,
-html body .rew-card.rarity-2 .rew-card-name{
-  color:#5ea6ff!important;
-}
-html body .card.rarity-3 .card-name,
-html body .rew-card.rarity-3 .rew-card-name{
-  color:#ffd93d!important;
-}
-html body .card.rarity-4 .card-name,
-html body .rew-card.rarity-4 .rew-card-name{
-  color:#c07bff!important;
-}
-html body .card.rarity-5 .card-name,
-html body .rew-card.rarity-5 .rew-card-name{
-  background:var(--rarity5-name-bg)!important;
-  background-size:var(--rarity5-name-bg-size)!important;
-  -webkit-background-clip:text!important;
-  background-clip:text!important;
-  color:transparent!important;
-  /* カード名にある共通のbackground-position:centerを打ち消し、デバッグ表示と同じ虹域を使う。 */
-  background-position:var(--rarity5-sweep) 0,var(--rarity5-flow) 0!important;
-  animation:rarity5-sweep 3s linear infinite,rarity5-flow 6s linear infinite!important;
 }
 /* **星5のカード名：星3（金）と印象を分けるため、濃い虹＋3秒ごとの斜めの光。**（利用者指定）
    1層目＝左→右へ走る白い光（うっすら）、2層目＝横に流れる虹（落ち着いた色）。
@@ -7825,13 +7474,11 @@ html body #hand-slots.board-slots [data-map-board="duplicate"]{background-image:
   max-width:calc(460px * var(--game-scale))!important;
   box-sizing:border-box!important;
 }
-#map-power-tooltip .preview-title,
-#keyword-tooltip .preview-title{
+#map-power-tooltip .preview-title{
   display:block!important;text-align:center!important;margin-bottom:6px!important;
 }
 #kw-tooltip .preview-title,
-#map-power-tooltip .preview-title,
-#keyword-tooltip .preview-title{
+#map-power-tooltip .preview-title{
   display:block!important;text-align:center!important;
   margin:0 0 6px 0!important;padding-bottom:6px!important;
   border-bottom:1px solid rgba(232,210,150,.45)!important;line-height:1.1!important;
@@ -7944,7 +7591,6 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .card-sum
   box-shadow:0 0 18px rgba(196,154,108,.38),0 8px 24px rgba(0,0,0,.75)!important;
 }
 #keyword-tooltip strong{color:#f0d080!important}
-#keyword-tooltip .preview-title{color:#f0d080!important;border-bottom-color:rgba(196,154,108,.72)!important}
 /* 特殊マスの境界線をカード・キャラクター描画より前面に固定 */
 html body #hand-slots.board-slots > [data-map-board="summon"],
 html body #hand-slots.board-slots > [data-map-board="life"],
@@ -9271,8 +8917,6 @@ html body .triple-merge-ghost{
   28%{filter:brightness(2.5);box-shadow:0 0 22px 8px rgba(255,240,135,.95),0 0 44px 16px rgba(255,188,38,.72)}
   100%{filter:brightness(1);box-shadow:none}
 }
-html body .card.rarity-6 .card-name,
-html body .rew-card.rarity-6 .rew-card-name,
 #kw-tooltip.rarity-6 .preview-title{color:#69ef75!important;text-shadow:0 0 7px rgba(76,255,112,.7)!important}
 
 /* 進むボタンと同じように、透過角を含むボタン全幅の外側まで発光を回す。 */
@@ -12414,11 +12058,11 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=boardRename01"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=keywordPreview03"></script>
+<script src="js/engine/render.js?v=keywordPreview04"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
-<script src="js/engine/reward.js?v=keywordPreview02"></script>
+<script src="js/engine/reward.js?v=keywordPreview03"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
   <script src="js/engine/main.js?v=gameoverText02"></script>
 <script>
@@ -12814,7 +12458,6 @@ html body #keyword-tooltip{
 }
 html body #kw-tooltip .preview-title,
 html body #map-power-tooltip .preview-title,
-html body #keyword-tooltip .preview-title,
 html body #kw-tooltip .journey-card-wrap,
 html body #kw-tooltip .reward-action-buttons,
 html body #kw-tooltip .reward-action-btn{
@@ -12823,8 +12466,7 @@ html body #kw-tooltip .reward-action-btn{
 /* 見出し下の直線。素材は横長（viewBox 426x10）なので、幅いっぱいに伸ばして下端へ置く。
    CSS の border-bottom は消し、位置合わせ用の余白だけ残す。 */
 html body #kw-tooltip .preview-title,
-html body #map-power-tooltip .preview-title,
-html body #keyword-tooltip .preview-title{
+html body #map-power-tooltip .preview-title{
   position:relative!important;
   border-bottom:0!important;
   padding-bottom:calc(30px * var(--game-scale))!important;
@@ -12865,8 +12507,7 @@ html body #kw-tooltip.journey-enemy-tooltip .preview-title .journey-enemy-prefix
   color:#8b7c67!important;
 }
 html body #kw-tooltip .preview-title::after,
-html body #map-power-tooltip .preview-title::after,
-html body #keyword-tooltip .preview-title::after{
+html body #map-power-tooltip .preview-title::after{
   content:""!important;
   position:absolute!important;
   left:0!important;
