@@ -378,7 +378,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .btn{cursor:var(--cursor-normal);border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:24px;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
 .btn:hover{background:rgba(200,160,60,.15);box-shadow:0 0 16px rgba(200,160,60,.3)}
 .btn:active{transform:scale(.97)}
-.btn.danger{border-color:var(--red);color:var(--red2)}
 .btn.danger:hover{background:rgba(192,64,64,.15)}
 .btn.small{font-size:21px;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
 .btn.tiny{font-size:19px;padding:.3em .8em;font-family:var(--font-bd)}
@@ -397,7 +396,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot.empty{opacity:.25}
 .slot.bless-blocked{opacity:.3;pointer-events:none}
 .slot.priority-target{box-shadow:0 0 0 2px var(--red2),0 0 10px rgba(224,80,80,.45)!important;border-color:var(--red2)!important;z-index:1}
-.slot-desc{font-size:20px;color:var(--text2);text-align:left;line-height:1.3;padding:0 4px;overflow:hidden;align-self:stretch}
+.slot-desc{color:var(--text2);text-align:left;line-height:1.3;padding:0 4px;overflow:hidden;align-self:stretch}
 .slot-desc-base{}
 .slot-desc-keywords{color:var(--text1,#fff);margin-bottom:2px}
 .slot-desc-sep{border-top:1px solid rgba(150,190,230,.4);margin:3px 0}
@@ -431,8 +430,8 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 /* 不確実死・大(67-99%)：赤橙斜線＋赤橙枠＋速い点滅 */
 .slot.will-warn-high{outline:2px solid rgba(240,70,0,.72)!important;outline-offset:-2px}
 .slot.will-warn-high::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,70,0,.34) 0,rgba(255,70,0,.34) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn .85s ease-in-out infinite}
-.slot-name{font-size:23px;font-weight:500;color:var(--text);text-align:center;line-height:1.2;padding:0 2px}
-.slot-stats{font-size:23px;font-weight:700}
+.slot-name{font-weight:500;color:var(--text);text-align:center;line-height:1.2;padding:0 2px}
+.slot-stats{font-weight:700}
 .slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
 .unit-card{
   border:0!important;background:var(--unit-frame) center/100% 100% no-repeat!important;overflow:visible;
@@ -448,7 +447,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   position:absolute;left:13%;right:13%;top:53.5%;z-index:2;color:#f4e7c8;font-family:var(--font-hd);
   font-size:17px;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
-.unit-card .slot-race{position:absolute;left:18%;right:18%;top:60.5%;z-index:2;text-align:center;color:#efe4c6;text-shadow:0 1px 3px #000}
 .unit-card .slot-stats{position:absolute;left:0;right:0;bottom:8.8%;z-index:3;font-family:var(--font-hd);font-size:30px;line-height:1;text-shadow:0 2px 3px rgba(0,0,0,.9)}
 .unit-card .slot-stats .s{display:none}
 .unit-card .slot-stats .a{position:absolute;left:16.5%;bottom:0;color:#e8ffe0}
@@ -483,15 +481,12 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .grade-stars-5 .grade-star-2,.grade-stars-5 .grade-star-4{transform:translateY(-6%)}
 /* .slot-hpbar / .slot-hpfill removed — replaced by border-top on slot */
 .slot-badges{position:absolute;top:2px;right:2px;display:flex;flex-direction:column;align-items:flex-end;gap:1px;z-index:2}
-.slot-badge{font-size:17px;padding:1px 4px;border-radius:2px}
+.slot-badge{padding:1px 4px;border-radius:2px}
 .b-hate{background:rgba(80,200,200,.2);color:var(--teal2);border:1px solid var(--teal)}
-.b-seal{background:rgba(100,100,220,.2);color:#8090e0;border:1px solid #5060c0}
 .b-dead{background:rgba(200,80,80,.2);color:var(--red2);border:1px solid var(--red)}
 .b-psn{background:rgba(160,60,200,.2);color:#c080e0;border:1px solid #9040b0}
-.b-regen{background:rgba(60,180,100,.2);color:#60d090;border:1px solid var(--teal)}
 .b-guard{background:rgba(200,160,60,.2);color:var(--gold2);border:1px solid var(--gold)}
 .b-stealth{background:rgba(80,80,120,.3);color:#a0a0d0;border:1px solid #6060a0}
-.b-counter{background:rgba(200,80,80,.2);color:#e05050;border:1px solid #c04040}
 .kw-badges{position:absolute;bottom:3px;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
 .b-shield{background:rgba(100,160,220,.2);color:var(--blue2);border:1px solid var(--blue)}
 #btn-pass{position:absolute;top:50%;right:24px;transform:translateY(-50%)}
@@ -501,8 +496,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .hand-row1{display:flex;gap:5px;align-items:flex-start;width:100%}
 .hand-pane{display:flex;flex-direction:column;gap:4px}
 .hp-rings{flex:5}.hp-wands{flex:2}.hp-consum{flex:2}
-.hand-pane-label{font-size:17px;letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
-.ring-label{background:rgba(150,96,192,.18);color:var(--purple2);border:1px solid rgba(150,96,192,.3)}
+.hand-pane-label{letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
 .spell-label{background:rgba(58,110,168,.18);color:var(--blue2);border:1px solid rgba(58,110,168,.3)}
 .hand-slots{display:flex;gap:5px}
 
@@ -511,23 +505,17 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .card:hover:not(.inert){transform:translateY(-4px);box-shadow:0 5px 16px rgba(0,0,0,.5)}
 .card.inert{opacity:.38;cursor:var(--cursor-normal);pointer-events:none}
 .card.ring,.card.wand,.card.wand-sub,.card.consumable{border-top:0}
-.card-grade{position:absolute;top:1.8%;left:50%;transform:translateX(-50%);font-size:23px;color:var(--gold);font-weight:700;z-index:4;pointer-events:none}
 .card-badge{position:absolute;top:3px;right:5px;font-size:29px;color:var(--gold2);font-weight:700;z-index:4;pointer-events:none;line-height:1}
 .card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
-.card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;font-size:17px;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
 .card-tp.ring{color:var(--purple2)}.card-tp.wand{color:var(--blue)}.card-tp.wand-sub{color:var(--blue2)}.card-tp.consumable{color:var(--red2)}
-.card-name{position:relative;z-index:2;font-size:22px;font-weight:700;margin-top:58%;margin-bottom:2px;line-height:1.15;text-align:center;color:#f4e7c8;text-shadow:0 2px 4px rgba(0,0,0,.9)}
-.card-desc{position:relative;z-index:2;font-size:16px;color:#3a2b1c;line-height:1.22;text-align:left;margin:8% 10% 0}
+.card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;line-height:1.15;text-align:center;color:#f4e7c8;text-shadow:0 2px 4px rgba(0,0,0,.9)}
+.card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;text-align:left;margin:8% 10% 0}
 .card.character-card .card-desc{display:none}
 .card-enc{font-size:17px;color:var(--teal2);margin-top:2px}
-.card-buf{font-size:17px;color:var(--gold2);margin-top:1px}
-.card-order{position:absolute;bottom:3px;left:4px;font-size:16px;color:rgba(150,96,192,.6);font-weight:700}
 .card-summon-atk{position:absolute;bottom:3px;left:4px;font-size:17px;color:var(--teal2);font-weight:700}
 .card-summon-hp{position:absolute;bottom:3px;right:4px;font-size:17px;color:#e05060;font-weight:700}
 .card.legend-card{border-color:rgba(200,160,60,.6);box-shadow:0 0 8px rgba(200,160,60,.2)}
-.card.legend-card .card-grade,.legend-grade{color:var(--gold2);font-size:19px}
-.slot-race{font-size:16px;color:var(--text2);line-height:1}
-.slot-grade{position:absolute;top:3px;left:4px;font-size:19px;color:var(--gold);font-weight:700;z-index:3}
 
 /* empty slot placeholder */
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
@@ -545,22 +533,22 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 /* BATTLE CONTROLS */
 .bctl-wrap{background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
 .bctl{display:flex;gap:7px;padding:6px 12px;align-items:center;flex-wrap:wrap;max-width:1100px;margin:0 auto;width:100%}
-.ph-badge{font-size:18px;padding:.26em .7em;border-radius:3px;font-weight:500;letter-spacing:.04em}
+.ph-badge{padding:.26em .7em;border-radius:3px;font-weight:500;letter-spacing:.04em}
 .ph-player{background:rgba(58,110,168,.2);border:1px solid var(--blue);color:var(--blue2)}
 .ph-enemy{background:rgba(192,64,64,.2);border:1px solid var(--red);color:var(--red2)}
-.hint{font-size:18px;color:var(--text2);flex:1}
+.hint{color:var(--text2);flex:1}
 
 /* BOTTOM HUD */
 .bottom-hud{display:flex;justify-content:center;flex-shrink:0;background:var(--bg2);border-top:2px solid rgba(200,160,60,.5)}
 .bhud-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 16px;flex:1;max-width:160px;border-right:1px solid var(--border)}
 .bhud-item:last-child{border-right:none}
-.bhud-label{font-size:16px;color:var(--text2);letter-spacing:.07em;font-family:var(--font-hd)}
-.bhud-val{font-size:34px;font-weight:700;line-height:1}
+.bhud-label{color:var(--text2);letter-spacing:.07em;font-family:var(--font-hd)}
+.bhud-val{font-weight:700;line-height:1}
 .bhud-val.floor{color:var(--teal2)}.bhud-val.life{color:#e05050}.bhud-val.soul{color:var(--gold2)}.bhud-val.turn{color:var(--blue2)}.bhud-val.act{color:var(--purple2)}
 
 /* REWARD INLINE */
-.reward-info-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(200,160,60,.08);border:1px solid rgba(200,160,60,.3);border-radius:4px;font-size:22px;flex-wrap:wrap;flex-shrink:0}
-.ri-soul{color:var(--text2)}.ri-val{font-size:26px;font-weight:700;color:var(--gold2)}
+.reward-info-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(200,160,60,.08);border:1px solid rgba(200,160,60,.3);border-radius:4px;flex-wrap:wrap;flex-shrink:0}
+.ri-soul{color:var(--text2)}.ri-val{font-weight:700;color:var(--gold2)}
 
 /* REWARD CARDS */
 .rew-cards{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:0}
@@ -602,15 +590,10 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   pointer-events:none;
 }
 .rew-card-art{position:absolute;left:11%;right:11%;top:8%;height:42%;border:0;border-radius:42% 42% 5% 5%;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center);background-repeat:no-repeat;box-shadow:none;margin:0;z-index:0}
-.rew-card-tp{position:absolute;left:13%;right:13%;top:52%;z-index:2;font-size:16px;letter-spacing:.05em;margin:0;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.85)}
-.rew-card-name{position:relative;z-index:2;font-size:20px;font-weight:700;margin-top:58%;margin-bottom:2px;color:#f4e7c8;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.9)}
-.rew-card-desc{position:relative;z-index:2;font-size:16px;color:#3a2b1c;line-height:1.22;margin:8% 10% 0}
+.rew-card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;color:#f4e7c8;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.9)}
+.rew-card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;margin:8% 10% 0}
 .rew-card.character-card .rew-card-desc{display:none}
-.rew-card-cost{font-size:17px;color:var(--gold);font-weight:700;margin-bottom:2px}
-.rew-card-refund{font-size:16px;color:var(--teal2);margin-top:2px}
-.rew-merge{font-size:17px;color:var(--gold2);margin-top:2px;font-weight:500}
-.rew-grade{font-size:17px;color:var(--gold);font-weight:700;margin-left:3px}
-.card-sell{font-size:16px;color:var(--teal2);margin-top:2px}
+.rew-card-cost{color:var(--gold);font-weight:700;margin-bottom:2px}
 .rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
 .rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
 @keyframes pblue{from{box-shadow:0 0 6px rgba(60,160,255,.35),inset 0 0 10px rgba(60,160,255,.06)}to{box-shadow:0 0 16px rgba(60,160,255,.75),inset 0 0 20px rgba(60,160,255,.12)}}
@@ -619,11 +602,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 /* HAND EDITOR */
 .hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:4px}
-.hand-editor-title{font-size:20px;color:var(--text2);margin-bottom:8px}
 .he-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
-.he-label{font-size:18px;min-width:52px;padding:2px 6px;border-radius:3px;font-weight:500;text-align:center}
-.he-ring{background:rgba(150,96,192,.15);color:var(--purple2);border:1px solid rgba(150,96,192,.25)}
-.he-spell{background:rgba(58,110,168,.15);color:var(--blue2);border:1px solid rgba(58,110,168,.25)}
 .he-slots{display:flex;gap:5px;flex-wrap:wrap}
 
 /* DRAG STYLES */
@@ -875,30 +854,25 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 /* MOVE / EVENT */
 #scr-move{flex-direction:column;align-items:center;justify-content:center;background:var(--bg2)}
 .mv-wrap{max-width:520px;width:92%;text-align:center}
-.mv-title{font-family:var(--font-hd);font-size:26px;letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
+.mv-title{font-family:var(--font-hd);letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
 .mv-opts{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
 .mv-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 16px;cursor:var(--cursor-normal);transition:all .2s;min-width:100px;text-align:center}
 .mv-opt:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,.5)}
-.mo-icon{font-size:39px;margin-bottom:4px}
-.mo-name{font-size:22px;font-weight:500;margin-bottom:3px}
-.mo-desc{font-size:17px;color:var(--text2)}
 .mv-opt.t-battle{border-top:2px solid var(--red)}
 .mv-opt.t-boss{border-top:2px solid var(--red2);animation:pred .8s ease-in-out infinite alternate}
 @keyframes pred{from{box-shadow:0 0 4px rgba(200,60,60,.2)}to{box-shadow:0 0 12px rgba(200,60,60,.5)}}
 
 #scr-gameover,#scr-clear{align-items:center;justify-content:center;flex-direction:column;gap:12px}
 .result-title{font-family:var(--font-hd);font-size:clamp(56px,8vw,98px);letter-spacing:.2em}
-.result-title.over{color:var(--red2);text-shadow:0 0 28px rgba(200,60,60,.5)}
 .result-title.clear{color:var(--gold2);text-shadow:0 0 28px rgba(200,160,60,.6)}
 .result-sub{color:var(--text2);font-size:24px}
 
-.discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:17px;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
+.discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
-.return-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;font-size:17px;padding:1px 4px;border:1px solid var(--teal);color:var(--teal2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .return-btn:hover{background:rgba(64,192,160,.15)}
 /* VFX（damage-vfx-host:10020 / sweep-vfx-host:10021 / special-vfx-clip既定10001）より
    常に手前に出るよう、ホバー説明文のz-indexをVFX群の最大値より高くする。 */
-#kw-tooltip{position:fixed;z-index:10100;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;font-size:19px;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
+#kw-tooltip{position:fixed;z-index:10100;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
 
 /* VICTORY OVERLAY */
 #victory-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:28px}
@@ -989,8 +963,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot-name{font-size:26px;line-height:1.18;padding:0 8px}
 .slot-stats{font-size:27px}
 .slot-desc{font-size:19px;line-height:1.22;padding:0 10px}
-.slot-race{font-size:17px}
-.slot-grade,.card-grade{top:7px;left:9px;font-size:22px}
 .slot-badges{top:7px;right:7px;gap:3px}
 .slot-badge{font-size:17px;padding:2px 7px;border-radius:4px}
 .kw-badges{bottom:8px;gap:3px;padding:0 6px}
@@ -1006,14 +978,11 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .card-name{font-size:24px;line-height:1.14}
 .card-desc{font-size:18px;line-height:1.23}
 .card-tp{font-size:18px}
-.discard-btn,.return-btn{bottom:10px;left:10px;right:10px;font-size:18px;padding:3px 6px;border-radius:5px}
+.discard-btn{bottom:10px;left:10px;right:10px;font-size:18px;padding:3px 6px;border-radius:5px}
 .bctl{max-width:3000px;padding:12px 32px;gap:14px}
-.ph-badge{font-size:21px}
 .hint{font-size:21px}
 .bottom-hud{min-height:92px}
 .bhud-item{max-width:260px;padding:12px 28px}
-.bhud-label{font-size:18px}
-.bhud-val{font-size:41px}
 .reward-info-bar{padding:14px 18px;gap:14px;font-size:24px;border-radius:8px}
 .ri-val{font-size:29px}
 .rew-cards{gap:14px}
@@ -1021,19 +990,14 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card-art{min-height:64px;margin-bottom:8px;border-radius:7px}
 .rew-card-name{font-size:23px}
 .rew-card-desc{font-size:19px;line-height:1.24}
-.rew-card-cost,.rew-grade,.rew-merge{font-size:19px}
+.rew-card-cost{font-size:19px}
 .mv-title{font-size:32px}
 .hand-editor{padding:20px 24px;border-radius:10px}
-.hand-editor-title{font-size:23px}
 .he-row{gap:14px;margin-bottom:12px}
-.he-label{font-size:21px;min-width:108px;padding:6px 10px;border-radius:6px}
 .he-slots{gap:10px}
 .mv-wrap{max-width:1100px}
 .mv-opts{gap:18px}
 .mv-opt{min-width:210px;padding:24px 28px;border-radius:10px}
-.mo-icon{font-size:56px}
-.mo-name{font-size:27px}
-.mo-desc{font-size:20px}
 #kw-tooltip{font-size:calc(22px * var(--game-scale));max-width:calc(460px * var(--game-scale));padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));border-radius:calc(8px * var(--game-scale))}
 #victory-overlay{
   left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;right:auto!important;bottom:auto!important;
@@ -1131,10 +1095,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   position:absolute;left:72px;bottom:64px;width:610px;height:430px;z-index:12;padding:70px 34px 34px;
   border:3px solid rgba(201,168,76,.54);border-radius:14px;background:rgba(10,12,16,.86);
   box-shadow:0 0 28px rgba(0,0,0,.55),inset 0 0 28px rgba(201,168,76,.08)
-}
-#ring-pane .hand-pane-label{
-  position:absolute;left:130px;right:130px;top:18px;text-align:center;font-family:var(--font-hd);font-size:22px;
-  background:linear-gradient(180deg,#d9b968,#8c6226);color:#111;border:0;border-radius:8px;padding:10px 0
 }
 #ring-slots{grid-template-columns:repeat(2,1fr)!important;gap:26px;height:100%}
 #ring-slots .card,#ring-slots .card-empty{height:310px;aspect-ratio:63/88}
@@ -1312,15 +1272,6 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
 .slot.unit-card .slot-badge{
   display:none!important;
 }
-.slot.unit-card .slot-grade,
-.slot.unit-card .card-grade{
-  left:50%!important;
-  top:16px!important;
-  transform:translateX(-50%)!important;
-  z-index:9!important;
-  font-size:41px!important;
-  pointer-events:none;
-}
 .slot.unit-card .slot-stats{
   position:absolute!important;
   left:0!important;
@@ -1388,15 +1339,6 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
 .rew-card.character-card [style*="var(--text2)"]{
   display:none!important;
 }
-.card .card-grade,
-.rew-card .card-grade{
-  left:50%!important;
-  top:0!important;
-  transform:translateX(-50%)!important;
-  z-index:9!important;
-  font-size:24px!important;
-  pointer-events:none;
-}
 .card .card-badge,
 .rew-card [style*="_circleCost"],
 .rew-card [style*="position:absolute;top:3px;right:5px"]{
@@ -1421,7 +1363,6 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   margin:17% 10% 0!important;
   font-family:var(--font-bd)!important;
   font-weight:700!important;
-  color:#fff8e8!important;
   -webkit-text-stroke:1px #685033;
   paint-order:stroke fill;
   text-shadow:0 2px 4px rgba(0,0,0,.75);
@@ -1558,17 +1499,11 @@ html body .slot.dragging{
 }
 #hand-slots .card .card-name{
   margin-top:82%!important;
-  font-size:44px!important;
   line-height:1.12!important;
 }
 #hand-slots .card .card-desc{
   margin-top:24%!important;
-  font-size:25px!important;
   line-height:1.18!important;
-}
-#hand-slots .card .card-grade{
-  top:18px!important;
-  font-size:41px!important;
 }
 #hand-slots .card #battle-options-btn{
   border:0!important;
@@ -1960,23 +1895,6 @@ body.world-map-render-pending .map-node,
 body.world-map-render-pending .map-edge-layer{
   visibility:hidden!important;
 }
-#world-map-hud{
-  position:absolute;
-  left:54px;
-  top:44px;
-  z-index:8;
-  display:flex;
-  align-items:center;
-  gap:22px;
-  padding:16px 22px;
-  border:2px solid rgba(116,82,32,.72);
-  background:rgba(40,25,10,.72);
-  color:#f0d080;
-  font-family:var(--font-hd);
-  font-size:28px;
-  letter-spacing:.04em;
-}
-#world-map-hud .btn{font-size:24px;padding:.42em 1.2em}
 body.world-map-active #enemy-area,
 body.world-map-active #ally-section,
 body.world-map-active #reward-cards-section,
@@ -2015,11 +1933,6 @@ body.battle-victory-pending:not(.gameover-active) #map-power-tooltip,
 body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
   display:none!important;
 }
-.map-village-card,
-.map-forge-card,
-.map-village-card strong,.map-forge-card strong{font-family:var(--font-hd);font-size:34px}
-.map-village-card span,.map-forge-card span{font-size:22px;line-height:1.45;color:#efe4c6}
-.map-forge-card em{font-size:26px;font-style:normal;color:var(--teal2)}
 .map-forge-card.selected{box-shadow:0 0 0 4px var(--teal2),0 0 24px rgba(64,176,144,.6)}
 .map-forge-card:disabled{opacity:.38;cursor:var(--cursor-normal)}
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-art,
@@ -2351,8 +2264,6 @@ body.world-map-active .bottom-hud .bhud-item{
   margin-left:calc(10% + 5px)!important;
   margin-right:calc(10% + 5px)!important;
 }
-.card-desc .desc-var,
-.rew-card-desc .desc-var,
 .card-desc span,
 .rew-card-desc span,
 .card-desc b,
@@ -2448,18 +2359,10 @@ body.world-map-active .bottom-hud .bhud-item{
 #enemy-hand-area{
   top:96px!important;
 }
-#enemy-hand-area .card .card-grade,
-#enemy-hand-area .rew-card .card-grade,
-#enemy-hand-area .card-grade{
-  transform:translate(-50%,-10px)!important;
-  font-size:41px!important;
-}
 #enemy-hand-area .card .card-name{
-  font-size:44px!important;
   transform:translateY(-20px)!important;
 }
 #enemy-hand-area .card .card-desc{
-  font-size:25px!important;
   line-height:1.18!important;
   transform:translateY(-50px)!important;
   margin-left:calc(10% + 5px)!important;
@@ -2496,31 +2399,21 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 /* 報酬・ショップ・インベントリカードサイズ統一 */
 #hand-slots .card .card-name,
-#ring-slots .card .card-name,
-#hand-slots .card .rew-card-name,
-#ring-slots .card .rew-card-name{
+#hand-slots .card .rew-card-name{
   font-size:23px!important;
   line-height:1.08!important;
 }
-#hand-slots .card .card-desc,
-#ring-slots .card .card-desc{
-  font-size:19px!important;
+#hand-slots .card .card-desc{
   line-height:1.16!important;
 }
-#hand-slots .card .card-tp,
-#ring-slots .card .card-tp,
-#ring-slots .card #rw-cards .rew-card .rew-card-name{
+#hand-slots .card .card-tp{
   font-size:23px!important;
   line-height:1.08!important;
 }
 #rw-cards .rew-card .rew-card-desc{
-  font-size:19px!important;
   line-height:1.16!important;
 }
-#rw-cards .rew-card .rew-card-tp,
-#rw-cards .rew-card .rew-card-cost,
-#rw-cards .rew-grade,
-#rw-cards .rew-merge{
+#rw-cards .rew-card .rew-card-cost{
   font-size:18px!important;
 }
 #hand-slots .card:hover:not(.inert),
@@ -2750,7 +2643,6 @@ body.world-map-active .bottom-hud .bhud-item{
   display:none!important;
 }
 #hand-slots .card .card-name,
-#ring-slots .card .card-name,
 #enemy-hand-slots .card .card-name,
 #rw-cards .rew-card .rew-card-name,
 #rw-cards .card .card-name{
@@ -2758,27 +2650,10 @@ body.world-map-active .bottom-hud .bhud-item{
   transform:translateY(-19px)!important;
 }
 #hand-slots .card .card-desc,
-#ring-slots .card .card-desc,
 #enemy-hand-slots .card .card-desc,
 #rw-cards .rew-card .rew-card-desc,
 #rw-cards .card .card-desc{
   font-size:20px!important;
-}
-#hand-slots .card .card-grade,
-#ring-slots .card .card-grade,
-#enemy-hand-slots .card .card-grade{
-  top:-4px!important;
-  font-size:43px!important;
-}
-#rw-cards .rew-card .card-grade,
-#rw-cards .card .card-grade{
-  top:12px!important;
-  font-size:43px!important;
-}
-.slot.unit-card .slot-grade,
-.slot.unit-card .card-grade{
-  top:18px!important;
-  font-size:43px!important;
 }
 .slot.unit-card .slot-stats .h.hp-damaged,
 .slot-stats .h.hp-damaged{
@@ -2967,7 +2842,6 @@ body #hand-slots .equip-slot-label{
   top:6px;
   z-index:8;
   color:rgba(244,226,174,.92);
-  font-size:15px;
   font-weight:800;
   text-shadow:0 1px 3px rgba(0,0,0,.9);
   pointer-events:none;
@@ -3081,8 +2955,7 @@ body #f-enemy,
 body #f-ally{
   gap:var(--field-gap)!important;
 }
-body .discard-btn,
-body .return-btn{
+body .discard-btn{
   position:absolute!important;
   top:10px!important;
   right:10px!important;
@@ -3118,7 +2991,6 @@ body .return-btn:hover{
 #kw-tooltip .preview-title{
   display:block!important;
   text-align:center!important;
-  font-size:calc(39px * var(--game-scale))!important;
   margin-bottom:6px!important;
 }
 #map-inventory-toggle{
@@ -3254,16 +3126,7 @@ body .slot.selectable:not(.unit-card)::after{
   box-shadow:0 0 12px rgba(255,255,255,.9),0 0 26px rgba(255,234,170,.75)!important;
   animation:select-particle-blink .75s ease-in-out infinite alternate!important;
 }
-body #hand-slots .card .card-grade,
-body #ring-slots .card .card-grade,
-body #enemy-hand-slots .card .card-grade,
-body #map-inventory-slots .card .card-grade,
-body .card.drag-ghost .card-grade{
-  top:8px!important;
-  font-size:43px!important;
-}
 body .card.drag-ghost body #hand-slots .card .card-name,
-body #ring-slots .card .card-name,
 body #enemy-hand-slots .card .card-name,
 body #map-inventory-slots .card .card-name,
 body #rw-cards .rew-card .rew-card-name,
@@ -3866,7 +3729,6 @@ body.reward-screen-active #reward-info-bar #rw-gold{
   top:96px!important;
   min-width:300px!important;
   text-align:center!important;
-  font-size:62px!important;
   line-height:1!important;
   color:var(--gold2)!important;
   text-shadow:0 2px 8px rgba(0,0,0,.9),0 0 16px rgba(201,168,76,.55)!important;
@@ -3878,7 +3740,6 @@ body.reward-screen-active #reward-info-bar .ri-soul{
   top:58px!important;
   width:300px!important;
   text-align:center!important;
-  font-size:24px!important;
   color:var(--text2)!important;
 }
 body.reward-screen-active #rw-reroll{
@@ -3978,27 +3839,6 @@ body .card.merge-ready:not(.rew-card){
   place-items:center!important;
   background:rgba(0,0,0,.68)!important;
 }
-#carry-gold-warning .carry-warn-box{
-  width:760px;
-  padding:42px;
-  border:4px solid rgba(201,168,76,.72);
-  border-radius:14px;
-  background:rgba(10,12,16,.94);
-  color:var(--text);
-  text-align:center;
-  box-shadow:0 0 44px rgba(0,0,0,.75);
-}
-#carry-gold-warning .carry-warn-title{
-  font-family:var(--font-hd);
-  font-size:41px;
-  color:var(--gold2);
-  margin-bottom:18px;
-}
-#carry-gold-warning .carry-warn-text{
-  font-size:28px;
-  line-height:1.55;
-  margin-bottom:28px;
-}
 #carry-gold-warning .carry-warn-actions{
   display:flex;
   justify-content:center;
@@ -4044,7 +3884,6 @@ body #scr-battle .bottom-hud .bhud-item:has(#h-life){
 }
 body #h-life{
   color:#ff4a4a!important;
-  font-size:41px!important;
   letter-spacing:.08em!important;
   text-shadow:0 2px 6px rgba(0,0,0,.85)!important;
 }
@@ -4118,7 +3957,6 @@ body.reward-screen-active #reward-info-bar .ri-soul:first-child{
   top:12px!important;
   width:auto!important;
   text-align:center!important;
-  font-size:25px!important;
   line-height:1!important;
 }
 body.reward-screen-active #reward-info-bar #rw-gold{
@@ -4130,7 +3968,6 @@ body.reward-screen-active #reward-info-bar #rw-gold{
   width:auto!important;
   min-width:0!important;
   text-align:center!important;
-  font-size:50px!important;
   line-height:1.05!important;
 }
 body.reward-screen-active #reward-info-bar > .ri-soul:not(:first-child),
@@ -4270,7 +4107,6 @@ body.reward-screen-active #reward-move-btns{
 body.reward-screen-active #reward-move-btns .rew-move-btn{
   width:100%!important;
   min-height:74px!important;
-  font-size:30px!important;
   justify-content:center!important;
 }
 body #f-ally,
@@ -4769,11 +4605,9 @@ body.reward-screen-active #reward-info-bar{
 }
 body.reward-screen-active #reward-info-bar .ri-soul:first-child{
   top:7px!important;
-  font-size:16px!important;
 }
 body.reward-screen-active #reward-info-bar #rw-gold{
   top:25px!important;
-  font-size:34px!important;
 }
 /* 編成画面以外（戦闘・マップ・村）では所持金の情報バーを出さない。
    ここで display:block!important を当てると、基底の非表示を打ち消して
@@ -5104,7 +4938,6 @@ body:not(.reward-screen-active) #reward-info-bar #rw-gold{
 body #scr-battle > .bottom-hud .bhud-item:has(#h-floor) #h-floor,
 body #scr-battle.asset-backed > .bottom-hud .bhud-item:has(#h-floor) #h-floor,
 body.reward-screen-active #scr-battle > .bottom-hud .bhud-item:has(#h-floor) #h-floor{
-  font-size:34px!important;
   line-height:1!important;
 }
 body.reward-screen-active #ally-section{
@@ -5274,7 +5107,6 @@ body #hand-slots.unit-equip-slots > .reward-unit-anchor{
   margin:0 0 2px;
   padding:0 0 3px;
   border-bottom:1px solid rgba(232,210,150,.45);
-  font-size:calc(41px * var(--game-scale));
   line-height:1.08;
 }
 body .card:not(.character-card) .card-name,
@@ -5610,7 +5442,6 @@ html body .rew-card .card-summon-atk{
   right:auto!important;
   bottom:-8px!important;
   font-family:var(--font-hd)!important;
-  font-size:50px!important;
   line-height:1!important;
   font-weight:700!important;
   color:#e8ffe0!important;
@@ -5634,7 +5465,6 @@ html body .rew-card .card-summon-hp{
   left:auto!important;
   bottom:-8px!important;
   font-family:var(--font-hd)!important;
-  font-size:50px!important;
   line-height:1!important;
   font-weight:700!important;
   color:#ffe8e0!important;
@@ -5665,7 +5495,6 @@ html body .rew-card .card-summon-atk{
   bottom:-1px!important;
   width:64px!important;
   text-align:center!important;
-  font-size:71px!important;
   -webkit-text-stroke:2px #050507!important;
   paint-order:stroke fill!important;
 }
@@ -5677,7 +5506,6 @@ html body .rew-card .card-summon-hp{
   bottom:-11px!important;
   width:80px!important;
   text-align:center!important;
-  font-size:71px!important;
   -webkit-text-stroke:2px #050507!important;
   paint-order:stroke fill!important;
 }
@@ -5781,10 +5609,6 @@ html body .attack-motion-clone{
 html body .attack-motion-clone .slot-stats{
   bottom:3.0%!important;
 }
-html body .attack-motion-clone .slot-stats .a,
-html body .attack-motion-clone .slot-stats .h{
-  font-size:inherit!important;
-}
 html body .slot.unit-card .slot-stats{
   bottom:3.75%!important;
 }
@@ -5816,7 +5640,6 @@ html body .drag-ghost{
 html body .drag-ghost .slot-stats,
 html body .drag-ghost .card-summon-atk,
 html body .drag-ghost .card-summon-hp{
-  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .drag-ghost .card-summon-atk{
@@ -5994,7 +5817,6 @@ html body .drag-ghost .card-summon-atk{
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
-  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .drag-ghost .card-summon-hp{
   right:var(--unit-stat-hp-right)!important;
@@ -6002,7 +5824,6 @@ html body .drag-ghost .card-summon-hp{
   bottom:var(--unit-stat-bottom)!important;
   width:var(--unit-stat-w)!important;
   text-align:center!important;
-  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .slot.drag-ghost .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
@@ -6121,18 +5942,6 @@ html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
   width:32px;
   height:32px;
   filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 7px rgba(255,230,210,.72));
-}
-.seal-infinity-icon b{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#fff8e8;
-  font-size:20px;
-  line-height:1;
-  font-weight:900;
-  text-shadow:0 2px 3px #000,0 0 5px rgba(255,80,40,.95);
 }
 .mana-cost-orbs + .seal-cost-badge{
   left:15%;
@@ -6481,12 +6290,10 @@ html body .attack-motion-clone.is-defender .unit-stat-overlay-layer{
 }
 html body .attack-motion-clone .slot-stats .a,
 html body .attack-motion-clone .slot-stats .h{
-  font-size:var(--motion-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .attack-motion-clone .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:var(--motion-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .attack-motion-clone .slot-stats .a{
@@ -6515,7 +6322,6 @@ html body .slot.dragging{
 }
 html body .drag-ghost .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:var(--drag-stat-size,42px)!important;
 }
 html body .drag-ghost .slot-stats .a{
   left:var(--unit-stat-atk-left)!important;
@@ -6917,7 +6723,6 @@ html body.reward-screen-active .reward-prod-panel{
   width:1020px;
   height:576px;
   box-sizing:border-box;
-  color:var(--prod-gold);
   background-position:center;
   background-size:100% 100%;
   background-repeat:no-repeat;
@@ -6945,7 +6750,6 @@ html body.reward-screen-active .reward-prod-panel h2{
   line-height:1;
   font-weight:700;
   letter-spacing:.18em;
-  color:var(--prod-gold);
   text-shadow:0 2px 8px rgba(0,0,0,.85);
 }
 html body.reward-screen-active .reward-prod-panel h2::before,
@@ -7436,7 +7240,6 @@ html body.reward-screen-active #battle-order-section::before{
   line-height:1;
   font-weight:700;
   letter-spacing:.14em;
-  color:var(--prod-gold);
   text-shadow:0 2px 8px rgba(0,0,0,.85);
   pointer-events:none;
 }
@@ -7599,11 +7402,9 @@ html body.reward-screen-active #hand-pane::before{
   z-index:4;
   display:block!important;
   text-align:center;
-  font-size:var(--prod-panel-title-size);
   line-height:1;
   font-weight:700;
   letter-spacing:.18em;
-  color:var(--prod-gold);
   text-shadow:0 2px 8px rgba(0,0,0,.85);
   pointer-events:none;
 }
@@ -7845,10 +7646,8 @@ html body.reward-screen-active #reward-info-bar .ri-soul:first-child{
   right:0!important;
   top:52px!important;
   margin:0!important;
-  font-size:var(--prod-panel-title-size)!important;
   line-height:1!important;
   letter-spacing:.16em!important;
-  color:var(--prod-gold)!important;
 }
 html body.reward-screen-active #reward-info-bar .ri-soul:first-child::before{
   content:none!important;
@@ -7868,7 +7667,6 @@ html body.reward-screen-active #rw-gold{
   line-height:1!important;
   font-weight:700!important;
   letter-spacing:.06em!important;
-  color:var(--prod-gold)!important;
   text-shadow:0 2px 8px rgba(0,0,0,.9)!important;
 }
 html body.reward-screen-active #reward-move-btns{
@@ -7905,7 +7703,6 @@ html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew
   border-radius:0!important;
   display:grid!important;
   place-items:center!important;
-  font-size:42px!important;
   line-height:1!important;
   letter-spacing:.12em!important;
   font-weight:700!important;
@@ -8043,11 +7840,9 @@ html body.reward-screen-active #hand-pane::before{
   top:48px!important;
   z-index:30!important;
   text-align:center!important;
-  font-size:var(--prod-panel-title-size)!important;
   line-height:1!important;
   font-weight:700!important;
   letter-spacing:.18em!important;
-  color:var(--prod-gold)!important;
   text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
   pointer-events:none!important;
   /* 旧仕様（装飾用の細い金色ライン）のheight/background/box-shadowが本ルールで
@@ -8169,7 +7964,6 @@ html body.reward-screen-active #reward-info-bar .ri-soul:first-child{
   line-height:1!important;
   font-weight:700!important;
   letter-spacing:.16em!important;
-  color:var(--prod-gold)!important;
   text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
 }
 html body.reward-screen-active #reward-info-bar #rw-gold{
@@ -8278,7 +8072,6 @@ html body.reward-screen-active #hand-pane::before{
   padding:0!important;
   background:none!important;
   border:0!important;
-  color:#c49a6c!important;
   font-family:'Shippori Mincho',serif!important;
   font-size:var(--prod-panel-title-size)!important;
   line-height:1!important;
@@ -8358,11 +8151,9 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .discard-btn{
   z-index:9200!important;
 }
 html body.reward-screen-active #reward-info-bar .ri-soul:first-child,
-html body.reward-screen-active #reward-info-bar .ri-label,
 html body.reward-screen-active #battle-order-section::before,
 html body.reward-screen-active #hand-pane::before,
 html body.reward-screen-active #btn-pass,
-html body.reward-screen-active #reward-reset-btn,
 html body.reward-screen-active #rw-gold{
   color:#c49a6c!important;
 }
@@ -8373,7 +8164,6 @@ html body.reward-screen-active #reward-info-bar::after{
 html body #kw-tooltip{
   background:rgba(47,26,11,.96)!important;
   border-color:#b98a51!important;
-  color:#f2dfc1!important;
   box-shadow:0 0 18px rgba(185,138,81,.42),0 8px 24px rgba(0,0,0,.75)!important;
 }
 
@@ -8442,22 +8232,6 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .seal-cos
 html body.reward-screen-active #debug-card-palette .debug-palette-card .seal-cost-badge img{
   width:22px!important;
   height:22px!important;
-}
-html body.reward-screen-active #hand-slots.unit-equip-slots .card .debug-board-discard{
-  top:8px!important;
-  right:8px!important;
-  left:auto!important;
-  bottom:auto!important;
-  width:34px!important;
-  height:34px!important;
-  padding:0!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  border-radius:50%!important;
-  z-index:60!important;
-  font-size:20px!important;
-  line-height:1!important;
 }
 
 html body:not(.reward-screen-active) #enemy-area{
@@ -8538,9 +8312,6 @@ html body.reward-screen-active .reward-prod-quest-body hr{
   margin:18px 0!important;
   background:url("assets/ui/line.png") center/100% 100% no-repeat!important;
   opacity:.6!important;
-}
-html body.reward-screen-active .reward-prod-quest-main{
-  color:#83618f!important;
 }
 html body.reward-screen-active .reward-prod-bottom{
   position:absolute!important;
@@ -8780,7 +8551,6 @@ html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew
   max-width:492px!important;
   min-height:124px!important;
   max-height:124px!important;
-  font-size:var(--prod-panel-title-size)!important;
 }
 html body.reward-screen-active.debug-mode #btn-test-battle{
   position:absolute!important;
@@ -9074,9 +8844,7 @@ html body.reward-screen-active #hand-slots.unit-equip-slots .shop-board-sell-val
   border:2px solid rgba(230,210,150,.75)!important;
   border-radius:6px!important;
   background:rgba(5,7,10,.9)!important;
-  color:var(--gold2)!important;
   font-family:var(--font-hd)!important;
-  font-size:20px!important;
   line-height:1.05!important;
   font-weight:900!important;
   text-align:center!important;
@@ -9213,29 +8981,10 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
   justify-content:center;
   background:rgba(0,0,0,.45);
 }
-#map-confirm-dialog .map-confirm-box{
-  min-width:calc(320px * var(--game-scale));
-  padding:calc(20px * var(--game-scale));
-  border:calc(2px * var(--game-scale)) solid rgba(216,185,130,.8);
-  background:rgba(18,10,4,.96);
-  box-shadow:0 0 calc(28px * var(--game-scale)) rgba(0,0,0,.72);
-  color:var(--gold2);
-  text-align:center;
-}
-#map-confirm-dialog .map-confirm-msg{
-  font-family:var(--font-hd);
-  font-size:calc(26px * var(--game-scale));
-  color:#f0d080;
-  margin-bottom:calc(16px * var(--game-scale));
-}
 #map-confirm-dialog .map-confirm-btns{
   display:flex;
   gap:calc(12px * var(--game-scale));
   justify-content:center;
-}
-#map-confirm-dialog .btn{
-  font-size:calc(22px * var(--game-scale));
-  padding:.45em 1.2em;
 }
 /* アイテムのドラッグ中は、指輪と同じ黒50%オーバーレイを使い、
    アイテム枠だけを明るく残す。個々の盤面要素へfilterを掛けると暗さが重なり、
@@ -9489,14 +9238,14 @@ html body #hand-slots.unit-equip-slots [data-map-board="eternal"]{background-ima
 html body #hand-slots.unit-equip-slots [data-map-board="resonance"]{background-image:url("assets/cards/m_board4.svg?v=cellRadius01")!important}
 html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-image:url("assets/cards/m_board5.svg?v=cellRadius01")!important}
 #map-power-tooltip,#keyword-tooltip{
-  position:fixed;z-index:100001;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;
+  position:fixed;z-index:100001;background:#111c2a;border:1px solid #4080b0;
   padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));
   border-radius:calc(8px * var(--game-scale));font-size:calc(22px * var(--game-scale));
   line-height:1.45;pointer-events:none;display:none;width:calc(460px * var(--game-scale));
   max-width:calc(460px * var(--game-scale));box-sizing:border-box;white-space:pre-wrap;
   box-shadow:0 2px 8px rgba(0,0,0,.6);
 }
-#map-power-tooltip strong,#keyword-tooltip strong{color:#fff2c8!important;font-weight:800!important}
+#map-power-tooltip strong,#keyword-tooltip strong{font-weight:800!important}
 #kw-tooltip.map-tooltip{
   background:#111c2a!important;border-color:#4080b0!important;color:#b8cce4!important;
   width:calc(460px * var(--game-scale))!important;max-width:calc(460px * var(--game-scale))!important;
@@ -9509,7 +9258,7 @@ html body #hand-slots.unit-equip-slots [data-map-board="duplicate"]{background-i
 }
 #map-power-tooltip .preview-title,
 #keyword-tooltip .preview-title{
-  display:block!important;text-align:center!important;font-size:calc(39px * var(--game-scale))!important;margin-bottom:6px!important;
+  display:block!important;text-align:center!important;margin-bottom:6px!important;
 }
 #kw-tooltip .preview-title,
 #map-power-tooltip .preview-title,
@@ -10467,7 +10216,7 @@ html body #scr-battle #battle-options-btn{
 #battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
 /* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
 #battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/back_light.svg") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
-#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#d8b982;font-family:"Shippori Mincho",serif;font-size:52px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#d8b982;font-family:"Shippori Mincho",serif;font-size:44px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
 #battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
 #battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
 #battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
@@ -10721,7 +10470,6 @@ html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew
   max-height:113.145px!important;
   flex:0 0 460px!important;
   aspect-ratio:496 / 122!important;
-  font-size:40px!important;
   box-shadow:none!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after,
@@ -10799,7 +10547,7 @@ html body #battle-continue-btn{
   height:113.145px!important;
   background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   box-shadow:none!important;
-  font-size:46px!important;
+  font-size:44px!important;
 }
 html body #battle-continue-btn .battle-continue-label{
   line-height:113.145px!important;
@@ -10856,7 +10604,6 @@ html body.reward-screen-active #reward-move-btns .rew-move-btn{
   min-height:129.339px!important;
   max-height:129.339px!important;
   flex-basis:525.837px!important;
-  font-size:44px!important;
 }
 html body.reward-screen-active #reward-move-btns .rew-move-btn::before,
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after{
@@ -10871,7 +10618,6 @@ html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew
   min-height:113.171px!important;
   max-height:113.171px!important;
   flex-basis:460.107px!important;
-  font-size:44px!important;
 }
 html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew-reset-btn::before,
 html body.reward-screen-active :is(#reward-move-btns,#battle-order-section) .rew-reset-btn::after{
@@ -11049,7 +10795,6 @@ html body.reward-screen-active.debug-mode #btn-test-battle{
   width:492.972px!important;
   height:121.263px!important;
   z-index:28!important;
-  font-size:44px!important;
   background:transparent url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;
   border:0!important;
 }
@@ -11229,7 +10974,7 @@ html body .card-activation-costs .activation-cost-entry img{
 }
 html body .card-activation-costs .activation-cost-entry b{
   position:absolute!important;inset:0!important;display:grid!important;place-items:center!important;
-  color:#fff8e8!important;font-size:25px!important;font-weight:900!important;line-height:1!important;
+  color:#fff8e8!important;font-weight:900!important;line-height:1!important;
   text-shadow:0 2px 3px #000,0 0 4px #000!important;
 }
 /* 封印はマナより優先して必ず左上（最初の枠）に表示する。 */
@@ -11601,16 +11346,15 @@ html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump:hover{
 #scr-gameover::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.68);animation:gameoverDarken .4s ease-out both;pointer-events:none}
 #gameover-shell{position:absolute;left:7%;right:7%;top:10%;bottom:10%;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:5%;padding:70px 78px;border:3px solid rgba(194,145,34,.85);background:rgba(8,13,10,.48);box-shadow:inset 0 0 60px rgba(0,0,0,.35);animation:gameoverFrameIn .4s .4s ease-out both}
 #gameover-results{padding:20px 36px 0;min-width:0}
-#gameover-results h1{margin:0;text-align:center;font-family:var(--font-hd);font-size:clamp(42px,4.5vw,92px);letter-spacing:.18em;color:#f2eee4;text-shadow:0 0 16px rgba(255,255,255,.2);animation:gameoverRise .4s .45s both}
+#gameover-results h1{margin:0;text-align:center;font-family:var(--font-hd);letter-spacing:.18em;text-shadow:0 0 16px rgba(255,255,255,.2);animation:gameoverRise .4s .45s both}
 .gameover-line{display:block;width:88%;height:auto;margin:26px auto 44px;opacity:.9;animation:gameoverLineFlash .55s .5s both}
-.gameover-rows{display:grid;gap:20px;font-family:var(--font-hd);font-size:clamp(18px,1.4vw,31px);color:#ddd0b3}
+.gameover-rows{display:grid;gap:20px;font-family:var(--font-hd);color:#ddd0b3}
 .gameover-rows>div{display:grid;grid-template-columns:42% 58%;animation:gameoverRowIn .35s both}
 .gameover-rows>div:nth-child(1){animation-delay:1.45s}.gameover-rows>div:nth-child(2){animation-delay:1.55s}.gameover-rows>div:nth-child(3){animation-delay:1.65s}.gameover-rows>div:nth-child(4){animation-delay:1.75s}.gameover-rows>div:nth-child(5){animation-delay:1.85s}.gameover-rows>div:nth-child(6){animation-delay:1.95s}.gameover-rows>div:nth-child(7){animation-delay:2.05s}
 .gameover-rows span{color:#f4e7c8;text-shadow:0 0 8px rgba(255,220,160,.15)}
 #gameover-actions{display:flex;gap:24px;justify-content:center;margin-top:48px;animation:gameoverRowIn .4s 2.15s both}
-#gameover-actions .btn{min-width:310px;font-size:26px;padding:18px 28px}
+#gameover-actions .btn{min-width:310px;padding:18px 28px}
 #gameover-board-panel{position:relative;min-width:0;padding:28px 24px 24px;border:3px solid rgba(194,145,34,.75);background:rgba(20,12,5,.54);box-shadow:inset 0 0 30px rgba(0,0,0,.38);animation:gameoverFrameIn .45s 1.45s both}
-.gameover-board-title{text-align:center;font-family:var(--font-hd);font-size:32px;color:#d8b982;letter-spacing:.15em;margin-bottom:24px}
 #gameover-board-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:10px;height:calc(100% - 74px);align-content:center;justify-items:center;overflow:visible}
 #gameover-board-grid>.card-empty{width:100%;height:100%;min-height:80px;border:2px solid rgba(190,140,55,.5);border-radius:10px;background:rgba(35,18,7,.5)}
 #gameover-board-grid>.card{position:relative!important;width:100%!important;height:100%!important;min-width:0!important;max-width:none!important;transform:none!important;cursor:var(--cursor-normal)!important;pointer-events:auto!important}
@@ -12165,8 +11909,6 @@ html body.reward-screen-active.item-shop-active .reward-prod-item .reward-prod-s
   border:1px solid rgba(230,210,150,.75)!important;
   border-radius:4px!important;
   background:rgba(5,7,10,.9)!important;
-  color:var(--gold2)!important;
-  font-size:24px!important;
   line-height:1.1!important;
   font-weight:800!important;
   font-style:normal!important;
@@ -12191,7 +11933,7 @@ html body.village-screen-active #village-move-btns{
 }
 html body.village-screen-active #village-move-btns .rew-move-btn{
   flex:0 0 248px!important;width:248px;height:82px;margin:0;padding:8px 12px;border-width:3px;border-radius:8px;
-  background:rgba(13,15,20,.82);font-size:19px;display:flex;align-items:center;justify-content:center;gap:8px
+  background:rgba(13,15,20,.82);display:flex;align-items:center;justify-content:center;gap:8px
 }
 body.village-screen-active #village-move-btns{
   position:absolute!important;
@@ -12206,7 +11948,6 @@ body.village-screen-active #village-move-btns{
 body.village-screen-active #village-move-btns .rew-move-btn{
   width:100%!important;
   min-height:74px!important;
-  font-size:30px!important;
   justify-content:center!important;
 }
 body.village-screen-active #village-move-btns{
@@ -12284,7 +12025,6 @@ html body.village-screen-active #village-move-btns .rew-move-btn{
   border-radius:0!important;
   display:grid!important;
   place-items:center!important;
-  font-size:42px!important;
   line-height:1!important;
   letter-spacing:.12em!important;
   font-weight:700!important;
@@ -12362,7 +12102,6 @@ html body.village-screen-active #village-move-btns .rew-move-btn{
   max-width:492px!important;
   min-height:124px!important;
   max-height:124px!important;
-  font-size:var(--prod-panel-title-size)!important;
 }
 html body.village-screen-active #village-move-btns{
   overflow: visible !important;
@@ -12423,7 +12162,6 @@ html body.village-screen-active #village-move-btns .rew-move-btn{
   max-height:113.145px!important;
   flex:0 0 460px!important;
   aspect-ratio:496 / 122!important;
-  font-size:40px!important;
   box-shadow:none!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::after,
@@ -12470,7 +12208,6 @@ html body.village-screen-active #village-move-btns .rew-move-btn{
   min-height:129.339px!important;
   max-height:129.339px!important;
   flex-basis:525.837px!important;
-  font-size:44px!important;
 }
 html body.village-screen-active #village-move-btns .rew-move-btn::before,
 html body.village-screen-active #village-move-btns .rew-move-btn::after{
@@ -13154,8 +12891,6 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i .shop-boar
   border:1px solid rgba(230,210,150,.75)!important;
   border-radius:4px!important;
   background:rgba(5,7,10,.9)!important;
-  color:var(--gold2)!important;
-  font-size:24px!important;
   line-height:1.1!important;
   font-weight:800!important;
   font-style:normal!important;
@@ -13329,7 +13064,6 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
 }
 /* ラスボス戦とScene 4（黄昏の回廊〜謁見の黒影道）だけ暗色（speechbubble3/4）。 */
 #battle-line-layer.is-dark #battle-line-text{
-  color:#fff!important;
   text-shadow:0 2px 6px rgba(0,0,0,.9)!important;
 }
 /* 会話中もカードのホバー説明を最前面に出す（台詞枠 z-index:98500 より上）。 */
