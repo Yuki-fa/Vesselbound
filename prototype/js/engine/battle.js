@@ -5292,6 +5292,10 @@ async function applyNewPanelBattleStart(options){
 // 開戦時の戦闘ルールも共通コアへ委譲する。配置・封印解放のDOM演出だけは
 // この関数の後段で既存処理へ戻す。
 async function _finishNewPanelBattleStartEffects(){
+  // 復活の基準値は、開戦効果（バフ）を解決する前の値で毎戦闘作り直す。
+  // coreStampUnitBaseStats() が createCoreUnit() 生成体を保護するため、
+  // 開戦後に生成済みの召喚体の基準値は上書きしない。
+  [...(G.allies||[]), ...(G.enemies||[])].forEach(coreStampUnitBaseStats);
   _recordBattleTrace('opening_core_start',{allyCount:(G.allies||[]).filter(Boolean).length});
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},

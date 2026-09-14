@@ -538,12 +538,30 @@ function coreStatBonus(target, value, source) {
   return n + skillBonus + modifierBonus;
 }
 
+// 復活の基準値。開戦前の baseAtk/baseMaxHp を優先し、未指定なら現在値から作る。
+// PvEの盤面にも同じ式を適用するため、基準値の作成はここへ集約する。
+function coreUnitBaseStats(raw) {
+  return {
+    atk: Math.max(0, Number(raw && (raw.baseAtk ?? raw.atk)) || 0),
+    maxHp: Math.max(1, Number(raw && (raw.baseMaxHp ?? raw.maxHp ?? raw.hp)) || 1),
+  };
+}
+
+// 開戦前の盤面へ復活用の基準値を焼く。createCoreUnit() で生成済みの体は、
+// 生成時の基準値を維持する（開戦後にこの関数が呼ばれても壊さない）。
+function coreStampUnitBaseStats(unit) {
+  if (!unit || unit._coreBaseStatsLocked) return unit;
+  const base = coreUnitBaseStats(unit);
+  unit._baseAtk = base.atk;
+  unit._baseMaxHp = base.maxHp;
+  return unit;
+}
+
 // 呼び出し側のオブジェクトを一切書き換えないよう、コア内部用に写した可変ユニットを作る。
 function createCoreUnit(raw, side, index) {
   const atk = Math.max(0, Math.round(Number(raw && raw.atk) || 0));
   const hp = Math.max(1, Math.round(Number(raw && raw.hp) || 1));
-  const baseAtk = Math.max(0, Number(raw && (raw.baseAtk ?? raw.atk)) || 0);
-  const baseMaxHp = Math.max(1, Number(raw && (raw.baseMaxHp ?? raw.maxHp ?? raw.hp)) || 1);
+  const base = coreUnitBaseStats(raw);
   return {
     id: String((raw && raw.id) || `${side}-${index}`),
     name: String((raw && raw.name) || ''),
@@ -648,8 +666,9 @@ function createCoreUnit(raw, side, index) {
     _lichShadowSummon: !!(raw && raw._lichShadowSummon),
     slot: index,
     // 復活は開戦時のバフ適用前の値を使う。召喚体もここで生成時の基礎値を固定する。
-    _baseAtk: baseAtk,
-    _baseMaxHp: baseMaxHp,
+    _baseAtk: base.atk,
+    _baseMaxHp: base.maxHp,
+    _coreBaseStatsLocked: true,
   };
 }
 
