@@ -321,6 +321,7 @@ function _injectManaIcons(escapedText){
 }
 function _stripStrongMarkupText(text){
   return String(text||'')
+    .replace(/<\s*strong\b[^>]*>/gi,'')
     .replace(/&lt;\s*\/?\s*strong\s*&gt;/gi,'')
     .replace(/<\/\s*strong\s*>/gi,'')
     .replace(/<\s*\/?\s*strong\s*>/gi,'')
@@ -335,23 +336,66 @@ function _boldTriggerLabelsInHtml(html){
   return String(html||'').split(/(<[^>]*>)/g).map(part=>{
     if(part.startsWith('<')) return part;
     // 括弧内の注記（「（備考：〜）」）はラベルではないので、括弧を含む語は対象外にする。
-    return part.replace(/(^|[。\n「　])([^\s。、「」（）()：:<>]{1,8})([：:])/g,'$1<strong>$2</strong>$3');
+    return part.replace(/(^|[。\n「　])([^\s。、「」（）()：:<>]{1,8})([：:])/g,(all,prefix,label,colon)=>{
+      const meta=typeof PREVIEW_EFFECT_TRIGGER_CLASS!=='undefined'
+        ?PREVIEW_EFFECT_TRIGGER_CLASS[label]
+          ||(/^\d+マナ毎?$/.test(label)?PREVIEW_EFFECT_TRIGGER_CLASS.マナ効果:'')
+        :'';
+      return `${prefix}<strong class="effect-trigger-label${meta?` ${meta}`:''}">${label}</strong>${colon}`;
+    });
   }).join('');
+}
+function _previewKeywordEntries(){
+  if(typeof KW_DESC_MAP==='undefined'||!KW_DESC_MAP) return [];
+  return Object.keys(KW_DESC_MAP).map(raw=>{
+    const name=String(raw||'').trim();
+    if(!name||name==='マナ効果') return null;
+    const desc=String(KW_DESC_MAP[raw]||'');
+    return {name,base:name.replace(/X$/,''),desc};
+  }).filter(Boolean).sort((a,b)=>b.base.length-a.base.length);
+}
+function _previewKeywordMatchAllowed(text,match,index,entry){
+  const rest=String(text||'').slice(index+match.length);
+  // 「封印される」のような動詞はキーワードではない。カード名「衝撃波」も同様に除外する。
+  if(entry.base==='封印'&&/^(?:される|する|した|し|させる)/.test(rest)) return false;
+  if(entry.base==='衝撃'&&/^波/.test(rest)) return false;
+  return true;
+}
+function _findPreviewKeywordMatches(text){
+  const source=String(text||'');
+  const entries=_previewKeywordEntries();
+  if(!source||!entries.length) return [];
+  const names=entries.map(e=>e.base.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  const re=new RegExp(`(?:${names.join('|')})(?:\\d+|X|∞)?`,'g');
+  const result=[];
+  let m;
+  while((m=re.exec(source))){
+    const entry=entries.find(e=>source.startsWith(e.base,m.index));
+    if(!entry||!_previewKeywordMatchAllowed(source,m[0],m.index,entry)) continue;
+    result.push({name:m[0],base:entry.base,index:m.index});
+  }
+  return result;
+}
+function _boldPreviewKeywordText(text){
+  const source=String(text||''), hits=_findPreviewKeywordMatches(source);
+  if(!hits.length) return source;
+  let out='',cursor=0;
+  hits.forEach(hit=>{
+    if(hit.index<cursor) return;
+    out+=source.slice(cursor,hit.index);
+    out+=`<strong class="preview-keyword">${hit.name}</strong>`;
+    cursor=hit.index+hit.name.length;
+  });
+  return out+source.slice(cursor);
 }
 function _boldKeywordsInHtml(html){
   // **太字にするキーワードの一覧はシート（KW_DESC_MAP）から作る。**
   // ここに名前を書き並べると、シートへ足したキーワード（防戦・呪詛など）が太字にならない。
   // 長い名前から先に当てる（「毒牙」を「毒」より先に判定するため）。
-  const names=(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP?Object.keys(KW_DESC_MAP):[])
-    .map(k=>String(k||'').trim()).filter(Boolean)
-    .sort((a,b)=>b.length-a.length)
-    .map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
-  if(!names.length) return _stripStrongMarkupText(html);
-  const re=new RegExp(`(?:${names.join('|')})\\d*`,'g');
   const normalized=_stripStrongMarkupText(html);
   return normalized.split(/(<[^>]*>)/g).map(part=>{
     if(part.startsWith('<')) return part;
-    return part.replace(re,m=>`<strong>${m}</strong>`);
+    return _boldPreviewKeywordText(part);
   }).join('');
 }
 // 効果テキストを他のカード説明と同じ規則で整形する：効果ごとに「：」より前を太字にする。
@@ -425,7 +469,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   // _boldKeywordsInHtml()は固定のキーワード一覧しか太字にしないため、敵のキーワードには
   // 当たらない。ここは「キーワードそのものを並べる」箇所なので無条件に太字にする。
   const kwHtml=kws.length
-    ?`<span class="preview-owned-keywords">${kws.map(k=>`<strong>${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ')}</span>`
+    ?`<span class="preview-owned-keywords">${kws.map(k=>`<strong class="preview-keyword">${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ')}</span>`
     :'';
   // 効果テキスト中に登場するキーワード（例：マニガンスの「結界」）も説明の対象にする。
   const descRaw=String(data.desc||'');
@@ -503,7 +547,7 @@ function _formatPreviewHtml(desc,opt){
     if(m[1]==='キーワード'){
       // 「キーワード：」というラベル自体は表示せず、キーワードそのものだけを太字で並べる
       const ownedKeywords=_stripStrongMarkupText(m[3]).split(/\s*\/\s*/).map(k=>k.trim()).filter(Boolean)
-        .map(k=>_injectManaIcons(_boldKeywordsInHtml(_escapePreviewHtml(k)))).join(' / ');
+        .map(k=>`<strong class="preview-keyword">${_injectManaIcons(_escapePreviewHtml(k))}</strong>`).join(' / ');
       return `<span class="preview-owned-keywords">${ownedKeywords}</span>`;
     }
     let body=_injectManaIcons(_boldTriggerLabelsInHtml(_boldKeywordsInHtml(_escapePreviewHtml(m[3]))));
@@ -609,31 +653,34 @@ function _keywordDescLine(name,lookupKey){
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
+  const rawDesc=[desc,typeof _rawSubstitutedDesc==='function'&&card?_rawSubstitutedDesc(card):'',card&&card.desc]
+    .filter(Boolean).join('\n');
   const sourceKws=slotIdx!=null&&typeof _unitDisplayKeywords==='function'
     ?_unitDisplayKeywords(card,desc||'',slotIdx):(card&&card.keywords||[]);
   // 「マナ効果」は説明専用の擬似キーワード。キャラクター本文のキーワード一覧には加えず、
   // manaCostを持つキャラ、または接続強化を含む効果文に「Xマナ（毎）：」があるキャラの
   // keyword-tooltipだけに追加する。
-  let manaEffectText=`${desc||''}\n${card&&card.desc||''}\n${card&&card._manaThresholdDesc||''}`;
+  let manaEffectText=`${rawDesc}\n${card&&card._manaThresholdDesc||''}`;
   if(card&&slotIdx!=null&&typeof _groupedEnchantEffectTexts==='function'){
     const grouped=_groupedEnchantEffectTexts(card,slotIdx);
     manaEffectText+=`\n${[...(grouped.normalTexts||[]),...(grouped.charTexts||[])].join('\n')}`;
   }
-  const hasManaEffect=Number(card&&card.manaCost)>0||/^\s*\d+マナ(?:毎)?[：:]/m.test(manaEffectText);
   const tooltipKws=[...sourceKws];
-  if(hasManaEffect) tooltipKws.push('マナ効果');
+  _findPreviewKeywordMatches(manaEffectText).forEach(hit=>tooltipKws.push(hit.name));
   // **説明は種類ごとに1回だけ、変数はXのまま出す。**
   // 数値はキーワード欄（「結界1」）に出ているので、ここは一般的な説明でよい。
   // 以前は「結界1：…1回…」と「結界：…X回…」が並んでいた。
   return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)
+    .filter(k=>String(k||'').trim()!=='マナ効果')
     .filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k))
     .flatMap(k=>{
-      const base=k.replace(/\d+$/,'');
+      // 数値・変数記号付きのキーワードは、説明辞書を引く際だけ基底名へ戻す。
+      // 例：「封印1」「封印X」「封印∞」はいずれも「封印」の説明を使う。
+      const base=k.replace(/(?:\d+|X|∞)+$/,'');
       if(!base||seen.has(base)) return [];
       seen.add(base);
       let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
         (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
-      if(!desc&&base==='マナ効果') desc='戦闘中、指定のマナが溜まると一度だけ発動する。（毎の場合は、指定のマナの倍数が溜まるごとに何度でも発動する）';
       // 変数を持つキーワードは名前の末尾にXを付ける（例：邪眼X）。
       const lines=[desc?`${_keywordDescLabel(base,desc)}：${desc}`:''];
       // 付与する状態異常（毒牙→毒、衝撃→弱体）の説明をすぐ下に続ける。
@@ -5235,7 +5282,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
       return true;
     });
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
-    const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card).replace(/^荷物\s*/,'');
+    const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card).replace(/^荷物(?=\s|$)\s*/,'');
     const _panelDescForPreview=card.name==='封印されしもの'
       ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
     const preview=[_cardUiName(card),_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');

@@ -3886,7 +3886,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // 除去されて色情報が消えてしまう。生のcard.descを渡す。
         // 本文に「効果なし」を含む場合は説明文を表示しない。シート「キーワード」列（adjacentKeywords）が
         // あれば「キーワード：〇〇」行として表示する（隣接キャラクターへ付与するキーワード）。
-        const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(card):(card.desc||'')).replace(/^荷物\s*/,'');
+        const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(card):(card.desc||'')).replace(/^荷物(?=\s|$)\s*/,'');
         const _panelDescForPreview=card.name==='封印されしもの'
           ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
         // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
