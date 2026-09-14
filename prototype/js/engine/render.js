@@ -794,9 +794,6 @@ function _tooltipSafeBounds(){
   const bottom=Math.max(top,gameBottom-margin);
   return {left,right,top,bottom,width:right-left,height:bottom-top,scale};
 }
-function _tooltipAreaBottom(){
-  return _tooltipSafeBounds().bottom;
-}
 function _posKwTip(tip,e,dx=0,dy=0,below=false){
   const tw=tip.offsetWidth, th=tip.offsetHeight;
   const safe=_tooltipSafeBounds();
@@ -1829,53 +1826,6 @@ function stopAllKeywordEffectVfx(){
   _keywordVfxSustain.clear();
 }
 
-function playScreenBottomEffectVfx(code,options){
-  _syncEffectFlashWithVfx();
-  const opt=options||{};
-  const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
-  if(!url) return Promise.resolve();
-  const frame=typeof _battleBackgroundFrameRect==='function'?_battleBackgroundFrameRect():null;
-  const rect=(frame&&frame.width>0&&frame.height>0)?frame
-    :{left:0,top:0,width:window.innerWidth,height:window.innerHeight};
-  const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
-  const hitDuration=(Number(opt.hitDuration)
-    ||(typeof PRESENT_CARD_EFFECT_VFX_MS==='number'?PRESENT_CARD_EFFECT_VFX_MS:700))/speedMul;
-  const host=document.createElement('div');
-  host.className='effect-sustain-host';
-  Object.assign(host.style,{
-    left:`${rect.left}px`, top:`${rect.top}px`,
-    width:`${rect.width}px`, height:`${rect.height}px`,
-    pointerEvents:'none', overflow:'visible',
-  });
-  const img=document.createElement('img');
-  img.className='vfx';
-  img.alt='';
-  Object.assign(img.style,{
-    position:'absolute',
-    left:'50%', top:'100%',            // 画面の底辺
-    height:`${rect.height}px`,         // 絵の高さ＝画面の高さ → 頂点が画面中心
-    width:'auto',
-    transform:'translate(-50%,-50%)',  // 中心を画面の底辺へ
-    pointerEvents:'none',
-  });
-  img.src=url+(url.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
-  host.appendChild(img);
-  _vfxHostParent().appendChild(host);
-  let done=false;
-  const finish=()=>{ if(done) return; done=true; try{ host.remove(); }catch(e){} };
-  // 尺はカード固有の効果VFXと同じ（ゴーレムの負傷エフェクトと同じ長さ）。
-  const fadeMs=Math.max(80,Math.round(hitDuration*.35));
-  setTimeout(()=>{
-    if(done) return;
-    img.style.transition=`opacity ${fadeMs}ms ease-out`;
-    void img.offsetWidth;
-    img.style.opacity='0';
-  },Math.max(0,hitDuration-fadeMs));
-  setTimeout(finish,hitDuration+fadeMs+120);
-  return opt.waitForFinish
-    ?new Promise(resolve=>setTimeout(resolve,hitDuration+fadeMs+120))
-    :Promise.resolve();
-}
 
 // ── 曲線軌道で飛ぶ演出（ミサイル）────────────────────────
 // **素材そのものは加工しない。** `<img>` の位置と回転だけをJSで動かす。
@@ -3040,13 +2990,6 @@ const _SWEEP_STYLE_EFFECT_CODES=new Set(['C043']);
 // _SWEEP_VFX_FIT側でcontain指定になり、素材本来の縦横比を保ったまま自動的にフィットする）。
 const _SWEEP_VFX_CROP={};
 
-function isSweepStyleEffectVfx(unit){
-  if(!unit||typeof _assetCodeRaw!=='function'||typeof _normalizeAssetCode!=='function') return false;
-  const raw=_assetCodeRaw(unit);
-  if(!raw) return false;
-  const code=_normalizeAssetCode(raw,'C');
-  return !!(code&&_SWEEP_STYLE_EFFECT_CODES.has(code));
-}
 
 // 攻撃キャラクターのカード先端を起点に、実際の距離・角度で対象群（最も左〜最も右、最も近い〜最も遠い）
 // まで届く長さで炎を伸ばし、対象の角度範囲を回転しながら薙ぎ払うように動画を再生する。

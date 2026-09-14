@@ -1834,6 +1834,8 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 
 1. **`present_parity` の「【薙ぎ払い】数値がカード外に出ない」が不安定**。
    死亡した対象の数値が `_lastVisualRect`（詰める前の位置）を追い続けるため。
+   **「【変身】HPが数値より先に減らない」も PvE・オンラインとも毎回 NG（`A0（40→10）`）。**
+   2026-09-14 に残骸削除の前（`2f7f6a4`）と後で同じ結果を確認済み（削除が原因ではない）。未調査。
 2. **オンラインで味方が複数回連続攻撃することがある**（利用者報告）。イベント列600戦では再現せず。盤面の情報待ち。
 3. **ハーピー（C010・衝撃3）に闇の炎を付けると死亡時に遅延する**（利用者報告）。未確認。
 4. 同一手番内で死亡と次の攻撃が続く場合、詰めのタイミングの差で対象選択が入れ替わることがある
@@ -2365,7 +2367,17 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
 13. ゲーム内で効かない文字色・文字サイズの指定は削除済み（2026-09-14）。削除したのは
    「HTMLにもJSにも名前が無いセレクタ」（規則ごと／セレクタ一覧から外す）と「同じ文脈・同じセレクタの後ろの宣言に必ず負ける宣言」。
    同じ規則に生きたセレクタが残る宣言と `font` 省略形（12件）は残してある。古い試作画面の名前（`.card-grade`・`#ring-slots`・
-   `.map-forge-card`・`#world-map-hud` 等）を新しい要素に再利用しないこと（CSSが既に無い）。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
+   `.map-forge-card`・`#world-map-hud` 等）を新しい要素に再利用しないこと（CSSが既に無い）。
+14. **古いバージョンの残骸を削除済み（2026-09-14）。** 復活させないこと。
+   - JS関数32個（到達解析で辿れないもの）：`battle.js` の旧PvE戦闘処理（`_applyManaThresholdEffectText`・`_onAllyInjuredByPanel`・
+     `_applyRingBattleStartEffects`・`_spawnEnemyUnitByName`・`_spawnRandomEnemyBoss`・`addUnitAtk` 等28個）、
+     `render.js` の `playScreenBottomEffectVfx`・`isSweepStyleEffectVfx`・`_tooltipAreaBottom`、`core.js` の `coreTextTargetCount`。
+     `allyAttackAction` は `tools/balance_sim/ai.js` が呼ぶので残してある。
+   - CSS：どの画面にも無い要素を指す規則167件とセレクタ126箇所（攻撃予告 `.will-*`、`.priority-target`、`.risk-particles`、
+     旧報酬画面 `.reward-grid-zone`、旧指輪枠 `#ring-slots`、旧編成 `.hand-editor`、旧マップ `.mv-opt`・`.map-edge` 等）。
+   - 素材：`assets/vfx/pre/butterfly*.png`。
+   - **残骸の解析をやり直す時は、`js/` の外の `assets.js`（素材一覧 `Assets`）と、テンプレート文字列で組み立てる
+     クラス名（`cutin-${mode}`）・ファイル名（`ring_get${n}.wav`）を必ず含めること。** 見落とすと使用中の物を消す。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
    （`#ui-btn-outer-glow-only`）。素材全体を光らせると内側まで光る。`button_invisible_s.svg` を書き出し直したらパスも差し替える。
 3. 効果の種類（キーワード効果／開戦〜終戦）が変わる所の直線は `_joinPreviewParts()`（render.js）が入れる。
 4. 策士の加算量は `_collectAdjacentEnhancements()`（battle.js）の `enh.strategyBonus` だけが決め、説明文はそれを出すだけ。

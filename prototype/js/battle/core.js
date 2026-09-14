@@ -1266,11 +1266,6 @@ function corePickDistinct(rng, list, count) {
   }
   return out;
 }
-// 本文の「N体」。書かれていなければ1体。
-function coreTextTargetCount(text) {
-  const m = String(text || '').match(/(\d+)体/);
-  return Math.max(1, Number(m && m[1]) || 1);
-}
 
 // マータ：味方が受けるダメージの肩代わり。**分け方は本文で決まる。**
 //   本文（現行）：ダメージを1にし、1を超えた分をこのキャラクターが代わりに受ける

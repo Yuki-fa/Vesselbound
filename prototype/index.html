@@ -378,7 +378,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .btn{cursor:var(--cursor-normal);border:1px solid var(--gold);background:transparent;color:var(--gold2);font-family:var(--font-hd);font-size:24px;letter-spacing:.12em;padding:.7em 2.2em;border-radius:3px;transition:all .2s}
 .btn:hover{background:rgba(200,160,60,.15);box-shadow:0 0 16px rgba(200,160,60,.3)}
 .btn:active{transform:scale(.97)}
-.btn.danger:hover{background:rgba(192,64,64,.15)}
 .btn.small{font-size:21px;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
 .btn.tiny{font-size:19px;padding:.3em .8em;font-family:var(--font-bd)}
 .btn:disabled{opacity:.35;cursor:var(--cursor-normal);pointer-events:none}
@@ -394,21 +393,17 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot{position:relative;border:1px solid var(--border);border-radius:4px;background:var(--bg3);aspect-ratio:63/88;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .18s;overflow:hidden}
 .slot.enemy{border-color:rgba(180,60,60,.3);background:#1a0f0f}
 .slot.empty{opacity:.25}
-.slot.bless-blocked{opacity:.3;pointer-events:none}
-.slot.priority-target{box-shadow:0 0 0 2px var(--red2),0 0 10px rgba(224,80,80,.45)!important;border-color:var(--red2)!important;z-index:1}
 .slot-desc{color:var(--text2);text-align:left;line-height:1.3;padding:0 4px;overflow:hidden;align-self:stretch}
 .slot-desc-base{}
 .slot-desc-keywords{color:var(--text1,#fff);margin-bottom:2px}
 .slot-desc-sep{border-top:1px solid rgba(150,190,230,.4);margin:3px 0}
 .slot-desc-enchant{}
 .slot-desc-enchant-line{color:var(--blue2);}
-.slot.has-move{border-color:var(--gold);background:rgba(200,160,60,.08);cursor:var(--cursor-normal);animation:pgold .9s ease-in-out infinite alternate}
 .slot.selectable{cursor:var(--cursor-normal);border-color:var(--gold);animation:pgold .5s ease-in-out infinite alternate}
 .slot.selectable:hover{background:rgba(200,160,60,.14)}
 @keyframes pgold{from{box-shadow:0 0 4px rgba(200,160,60,.2)}to{box-shadow:0 0 12px rgba(200,160,60,.6)}}
 .slot.glow-blue{box-shadow:0 0 0 2px var(--blue2),0 0 18px rgba(80,144,208,.7)!important;border-color:var(--blue2)!important;z-index:1}
 #hand-slots .card.glow-blue{border-radius:6px;z-index:2;position:relative}
-.slot.glow-red{box-shadow:0 0 0 2px var(--red2),0 0 18px rgba(224,80,80,.7)!important;border-color:var(--red2)!important;z-index:1}
 .slot.unit-card.effect-flash{box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;border-color:var(--effect-flash-core)!important;z-index:3;animation:none}
 .slot.unit-card.effect-flash[data-effect-flash-color="yellow"]{--effect-flash-core:#ffe34d;--effect-flash-glow:rgba(255,214,45,.78)}
 .slot.unit-card.effect-flash[data-effect-flash-color="red"]{--effect-flash-core:#ff5b5b;--effect-flash-glow:rgba(255,60,60,.78)}
@@ -418,18 +413,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot.unit-card.effect-flash[data-effect-flash-color="purple"]{--effect-flash-core:#c77dff;--effect-flash-glow:rgba(170,90,255,.80)}
 @keyframes blink-death{0%,100%{opacity:1}50%{opacity:.08}}
 @keyframes blink-warn{0%,100%{opacity:.7}50%{opacity:.15}}
-/* 確実死：密な赤斜線＋赤枠＋速い点滅 */
-.slot.will-die{outline:2px solid rgba(255,60,60,.85)!important;outline-offset:-2px}
-.slot.will-die::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,40,40,.55) 0,rgba(255,40,40,.55) 4px,transparent 4px,transparent 9px);pointer-events:none;border-radius:inherit;animation:blink-death .7s ease-in-out infinite}
-/* 不確実死・小(1-33%)：黄斜線＋黄枠＋遅い点滅 */
-.slot.will-warn-low{outline:2px solid rgba(240,200,0,.6)!important;outline-offset:-2px}
-.slot.will-warn-low::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,210,0,.28) 0,rgba(255,210,0,.28) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.6s ease-in-out infinite}
-/* 不確実死・中(34-66%)：橙斜線＋橙枠＋中速点滅 */
-.slot.will-warn-mid{outline:2px solid rgba(240,140,0,.65)!important;outline-offset:-2px}
-.slot.will-warn-mid::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,140,0,.30) 0,rgba(255,140,0,.30) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn 1.15s ease-in-out infinite}
-/* 不確実死・大(67-99%)：赤橙斜線＋赤橙枠＋速い点滅 */
-.slot.will-warn-high{outline:2px solid rgba(240,70,0,.72)!important;outline-offset:-2px}
-.slot.will-warn-high::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,rgba(255,70,0,.34) 0,rgba(255,70,0,.34) 3px,transparent 3px,transparent 14px);pointer-events:none;border-radius:inherit;animation:blink-warn .85s ease-in-out infinite}
 .slot-name{font-weight:500;color:var(--text);text-align:center;line-height:1.2;padding:0 2px}
 .slot-stats{font-weight:700}
 .slot-stats .a{color:#e08060}.slot-stats .s{color:var(--text2)}.slot-stats .h{color:#60d090}
@@ -471,9 +454,8 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   background:linear-gradient(90deg,#49b65a 0%,#9edb57 68%,#f0d260 100%);
   box-shadow:inset 0 1px 2px rgba(255,255,255,.32);
 }
-.unit-card .slot-desc,.unit-card .kw-badges{display:none!important}
+.unit-card .slot-desc{display:none!important}
 .unit-card .slot-badges{z-index:6}
-.unit-card .slot-grade{left:50%;top:-2.8%;transform:translateX(-50%);z-index:5}
 .grade-stars{display:inline-flex;align-items:flex-start;justify-content:center;gap:.08em;line-height:1}
 .grade-star{display:block;width:1em;height:1em;background:var(--grade-star-image) center/contain no-repeat;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .grade-stars-3 .grade-star-2,.grade-stars-4 .grade-star-2,.grade-stars-5 .grade-star-3{transform:translateY(-12%)}
@@ -487,7 +469,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .b-psn{background:rgba(160,60,200,.2);color:#c080e0;border:1px solid #9040b0}
 .b-guard{background:rgba(200,160,60,.2);color:var(--gold2);border:1px solid var(--gold)}
 .b-stealth{background:rgba(80,80,120,.3);color:#a0a0d0;border:1px solid #6060a0}
-.kw-badges{position:absolute;bottom:3px;left:0;right:0;display:flex;flex-wrap:wrap;justify-content:center;gap:1px;}
 .b-shield{background:rgba(100,160,220,.2);color:var(--blue2);border:1px solid var(--blue)}
 #btn-pass{position:absolute;top:50%;right:24px;transform:translateY(-50%)}
 
@@ -495,7 +476,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
 .hand-row1{display:flex;gap:5px;align-items:flex-start;width:100%}
 .hand-pane{display:flex;flex-direction:column;gap:4px}
-.hp-rings{flex:5}.hp-wands{flex:2}.hp-consum{flex:2}
 .hand-pane-label{letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
 .spell-label{background:rgba(58,110,168,.18);color:var(--blue2);border:1px solid rgba(58,110,168,.3)}
 .hand-slots{display:flex;gap:5px}
@@ -519,8 +499,8 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 /* empty slot placeholder */
 .card-empty{border:1px dashed rgba(150,96,192,.25);border-radius:5px;flex:1 1 0;min-width:0;aspect-ratio:63/88;display:flex;align-items:center;justify-content:center;opacity:.4}
-/* 手札スロット：列数・flex比はJSで動的に設定（合計10スロットを1行に収める） */
-#ring-slots,#hand-slots,#enemy-ring-slots,#enemy-hand-slots{display:grid;gap:5px}
+#hand-slots,
+#enemy-hand-slots{display:grid;gap:5px}
 .hand-row1{gap:8px!important}
 .card-empty.spell{border-color:rgba(58,110,168,.25)}
 
@@ -600,10 +580,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-legend-badge{font-size:15px;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
 
 
-/* HAND EDITOR */
-.hand-editor{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:4px}
-.he-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
-.he-slots{display:flex;gap:5px;flex-wrap:wrap}
 
 /* DRAG STYLES */
 * { -webkit-user-drag: none; }
@@ -834,7 +810,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   letter-spacing:.1em;
   line-height:1;
 }
-.card-use-glow{box-shadow:0 0 0 1px var(--gold2),0 0 22px rgba(240,208,128,.65)!important}
 @keyframes hit-vfx-animation{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.55)}
   14%{opacity:1;transform:translate(-50%,-50%) scale(1.28)}
@@ -856,10 +831,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .mv-wrap{max-width:520px;width:92%;text-align:center}
 .mv-title{font-family:var(--font-hd);letter-spacing:.1em;color:var(--gold2);margin-bottom:16px}
 .mv-opts{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
-.mv-opt{border:1px solid var(--border2);border-radius:6px;background:var(--bg3);padding:12px 16px;cursor:var(--cursor-normal);transition:all .2s;min-width:100px;text-align:center}
-.mv-opt:hover{transform:translateY(-4px);box-shadow:0 6px 16px rgba(0,0,0,.5)}
-.mv-opt.t-battle{border-top:2px solid var(--red)}
-.mv-opt.t-boss{border-top:2px solid var(--red2);animation:pred .8s ease-in-out infinite alternate}
 @keyframes pred{from{box-shadow:0 0 4px rgba(200,60,60,.2)}to{box-shadow:0 0 12px rgba(200,60,60,.5)}}
 
 #scr-gameover,#scr-clear{align-items:center;justify-content:center;flex-direction:column;gap:12px}
@@ -869,7 +840,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 .discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;padding:1px 4px;border:1px solid var(--red);color:var(--red2);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
-.return-btn:hover{background:rgba(64,192,160,.15)}
 /* VFX（damage-vfx-host:10020 / sweep-vfx-host:10021 / special-vfx-clip既定10001）より
    常に手前に出るよう、ホバー説明文のz-indexをVFX群の最大値より高くする。 */
 #kw-tooltip{position:fixed;z-index:10100;background:#111c2a;border:1px solid #4080b0;color:#b8cce4;padding:5px 9px;border-radius:4px;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
@@ -965,13 +935,12 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .slot-desc{font-size:19px;line-height:1.22;padding:0 10px}
 .slot-badges{top:7px;right:7px;gap:3px}
 .slot-badge{font-size:17px;padding:2px 7px;border-radius:4px}
-.kw-badges{bottom:8px;gap:3px;padding:0 6px}
 #btn-pass{right:48px}
 .hand-area{gap:10px;padding:8px 0}
 .hand-row1{gap:18px!important}
 .hand-pane{gap:8px}
 .hand-pane-label{font-size:20px;padding:5px 10px;border-radius:6px}
-.hand-slots,#ring-slots,#hand-slots,#enemy-ring-slots,#enemy-hand-slots{gap:10px}
+.hand-slots,#hand-slots,#enemy-hand-slots{gap:10px}
 .card,.card-empty{border-radius:8px}
 .card{padding:10px}
 .card-art{min-height:62px;margin-bottom:7px;border-radius:7px}
@@ -992,12 +961,8 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card-desc{font-size:19px;line-height:1.24}
 .rew-card-cost{font-size:19px}
 .mv-title{font-size:32px}
-.hand-editor{padding:20px 24px;border-radius:10px}
-.he-row{gap:14px;margin-bottom:12px}
-.he-slots{gap:10px}
 .mv-wrap{max-width:1100px}
 .mv-opts{gap:18px}
-.mv-opt{min-width:210px;padding:24px 28px;border-radius:10px}
 #kw-tooltip{font-size:calc(22px * var(--game-scale));max-width:calc(460px * var(--game-scale));padding:calc(10px * var(--game-scale)) calc(16px * var(--game-scale));border-radius:calc(8px * var(--game-scale))}
 #victory-overlay{
   left:var(--game-offset-x)!important;top:var(--game-offset-y)!important;right:auto!important;bottom:auto!important;
@@ -1051,14 +1016,10 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 }
 #enemy-hand-area .hand-pane-label{display:none!important}
 #enemy-hand-area .hand-row1{height:100%;align-items:stretch;gap:22px!important}
-#enemy-rings-pane{display:none!important}
 #enemy-hand-pane{flex:1 1 auto!important;width:100%;max-width:none!important}
-#enemy-ring-slots,#enemy-hand-slots{height:100%;gap:18px}
+#enemy-hand-slots{height:100%;gap:18px}
 #enemy-hand-slots{align-items:start;justify-content:center}
 #enemy-hand-slots .card-empty:nth-child(n+6){display:none}
-#enemy-ring-slots .card,#enemy-ring-slots .card-empty{
-  height:auto;aspect-ratio:63/88;padding:12px;border-radius:12px;border-width:3px
-}
 #enemy-hand-slots .card-art{min-height:96px}
 #enemy-hand-slots .card-name{font-size:22px}
 #enemy-hand-slots .card-desc{font-size:17px;line-height:1.22}
@@ -1091,13 +1052,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #rw-grade-up-btn{position:absolute;left:264px;top:0}
 .hand-area{position:static;padding:0}
 .hand-row1{display:block}
-#ring-pane{
-  position:absolute;left:72px;bottom:64px;width:610px;height:430px;z-index:12;padding:70px 34px 34px;
-  border:3px solid rgba(201,168,76,.54);border-radius:14px;background:rgba(10,12,16,.86);
-  box-shadow:0 0 28px rgba(0,0,0,.55),inset 0 0 28px rgba(201,168,76,.08)
-}
-#ring-slots{grid-template-columns:repeat(2,1fr)!important;gap:26px;height:100%}
-#ring-slots .card,#ring-slots .card-empty{height:310px;aspect-ratio:63/88}
 #hand-pane{
   position:absolute;left:1920px;top:1655px;width:1320px;height:430px;transform:translateX(-50%);z-index:12
 }
@@ -1246,28 +1200,8 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   pointer-events:none;
   opacity:0;
 }
-.slot.unit-card.will-die .unit-portrait::after,
-.slot.unit-card.will-warn-high .unit-portrait::after,
-.slot.unit-card.will-warn-mid .unit-portrait::after,
-.slot.unit-card.will-warn-low .unit-portrait::after{display:none!important}
-.slot.unit-card.will-die::after,
-.slot.unit-card.will-warn-low::after,
-.slot.unit-card.will-warn-mid::after,
-.slot.unit-card.will-warn-high::after{
-  background:var(--unit-frame) center/100% 100% no-repeat!important;
-  animation:none!important;
-  border-radius:0!important;
-}
-.slot.unit-card.will-die,
-.slot.unit-card.will-warn-low,
-.slot.unit-card.will-warn-mid,
-.slot.unit-card.will-warn-high{
-  outline:none!important;
-}
 .slot.unit-card .slot-name,
-.slot.unit-card .slot-race,
 .slot.unit-card .slot-desc,
-.slot.unit-card .kw-badges,
 .slot.unit-card .slot-badges,
 .slot.unit-card .slot-badge{
   display:none!important;
@@ -1303,14 +1237,12 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   color:#ffe8e0!important;
 }
 .slot.unit-card .slot-stats .s{display:none!important}
-.slot.unit-card .death-prob-label{display:none!important}
 .slot.empty,
 .card-empty{
   background:transparent!important;
   border:0!important;
   box-shadow:none!important;
 }
-.priority-target.slot.unit-card{box-shadow:none!important;filter:none!important}
 .card .card-art,
 .rew-card .rew-card-art{
   position:absolute!important;
@@ -1330,7 +1262,6 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   min-height:0!important;
 }
 .card .card-tp,
-.rew-card .rew-card-tp,
 .card.character-card .card-name,
 .card.character-card .card-desc,
 .rew-card.character-card .rew-card-name,
@@ -1374,30 +1305,6 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   box-shadow:none!important;
   animation:none!important;
 }
-.slot.unit-card.will-die::before,
-.slot.unit-card.will-warn-high::before,
-.slot.unit-card.will-warn-mid::before,
-.slot.unit-card.will-warn-low::before{
-  content:'';
-  position:absolute;
-  inset:-12px -10px;
-  z-index:1!important;
-  pointer-events:none;
-  border-radius:46% 46% 10% 10%;
-  background:
-    radial-gradient(circle at 18% 18%,var(--risk-particle) 0 4px,transparent 5px),
-    radial-gradient(circle at 82% 20%,var(--risk-particle) 0 3px,transparent 4px),
-    radial-gradient(circle at 12% 78%,var(--risk-particle) 0 3px,transparent 4px),
-    radial-gradient(circle at 88% 72%,var(--risk-particle) 0 4px,transparent 5px);
-  filter:drop-shadow(0 0 12px var(--risk-glow));
-  opacity:.35;
-  display:block!important;
-  animation:risk-particle-blink 1.05s ease-in-out infinite alternate;
-}
-.slot.unit-card.will-warn-low{--risk-particle:rgba(255,232,84,.86);--risk-glow:rgba(255,220,60,.72)}
-.slot.unit-card.will-warn-mid{--risk-particle:rgba(255,166,62,.88);--risk-glow:rgba(255,142,44,.78)}
-.slot.unit-card.will-warn-high{--risk-particle:rgba(255,92,58,.9);--risk-glow:rgba(255,80,50,.82)}
-.slot.unit-card.will-die{--risk-particle:rgba(255,38,46,.95);--risk-glow:rgba(255,44,50,.95)}
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before{
   content:'';
@@ -1416,16 +1323,13 @@ html body #battle-order-row > .rew-card.character-card > .panel-dir{z-index:200!
   display:block!important;
   animation:select-particle-blink .75s ease-in-out infinite alternate;
 }
-.slot.unit-card.glow-red,
 .slot.unit-card.glow-blue{
   box-shadow:none!important;
   border:0!important;
   outline:none!important;
   animation:none!important;
 }
-.slot.unit-card.glow-red::before,
-.slot.unit-card.glow-blue::before,
-.slot.unit-card.priority-target::before{display:none!important}
+.slot.unit-card.glow-blue::before{display:none!important}
 @keyframes risk-particle-blink{
   from{opacity:.22;transform:scale(.985)}
   to{opacity:1;transform:scale(1.02)}
@@ -1515,36 +1419,22 @@ html body .slot.dragging{
 #ally-section{
   top:1168px!important;
 }
-.slot.unit-card .slot-grade,
-.slot.unit-card .card-grade{
-  top:12px!important;
-}
 .slot.unit-card .slot-stats .a{
   left:9.8%!important;
 }
 .slot.unit-card .slot-stats .h{
   right:8.8%!important;
 }
-.slot.unit-card.glow-red::before,
-.slot.unit-card.glow-blue::before,
-.slot.unit-card.priority-target::before{
+.slot.unit-card.glow-blue::before{
   display:block!important;
 }
-.slot.unit-card.glow-red:not(.will-die):not(.will-warn-high):not(.will-warn-mid):not(.will-warn-low)::before,
-.slot.unit-card.glow-blue:not(.will-die):not(.will-warn-high):not(.will-warn-mid):not(.will-warn-low)::before,
-.slot.unit-card.priority-target:not(.will-die):not(.will-warn-high):not(.will-warn-mid):not(.will-warn-low)::before{
+.slot.unit-card.glow-blue:not(.will-die):not(.will-warn-high):not(.will-warn-mid):not(.will-warn-low)::before{
   content:none!important;
 }
-.slot.unit-card.priority-target::after,
-.slot.unit-card.glow-red::after,
 .slot.unit-card.glow-blue::after,
 .slot.unit-card.selectable::after,
 .slot.unit-card.drag-over::after{
   filter:drop-shadow(0 0 12px rgba(255,255,255,.86)) drop-shadow(0 0 26px rgba(255,234,170,.76))!important;
-}
-.slot.unit-card.glow-red::after,
-.slot.unit-card.priority-target::after{
-  filter:drop-shadow(0 0 12px rgba(255,196,104,.86)) drop-shadow(0 0 30px rgba(255,92,58,.76))!important;
 }
 #hand-slots .card:hover:not(.inert){
   transform:translateY(-250px)!important;
@@ -1570,51 +1460,19 @@ html body .slot.dragging{
 }
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before,
-.slot.unit-card.glow-red::before,
-.slot.unit-card.glow-blue::before,
-.slot.unit-card.priority-target::before{
+.slot.unit-card.glow-blue::before{
   content:none!important;
   display:none!important;
   background:none!important;
   animation:none!important;
 }
-.slot.unit-card.will-die::before,
-.slot.unit-card.will-warn-high::before,
-.slot.unit-card.will-warn-mid::before,
-.slot.unit-card.will-warn-low::before{
-  content:''!important;
-  display:block!important;
-  position:absolute;
-  inset:-12px -10px;
-  z-index:1!important;
-  pointer-events:none;
-  border-radius:46% 46% 10% 10%;
-  background:
-    radial-gradient(circle at 18% 18%,var(--risk-particle) 0 4px,transparent 5px),
-    radial-gradient(circle at 82% 20%,var(--risk-particle) 0 3px,transparent 4px),
-    radial-gradient(circle at 12% 78%,var(--risk-particle) 0 3px,transparent 4px),
-    radial-gradient(circle at 88% 72%,var(--risk-particle) 0 4px,transparent 5px);
-  filter:drop-shadow(0 0 12px var(--risk-glow));
-  opacity:.35;
-  animation:risk-particle-blink 1.05s ease-in-out infinite alternate!important;
-}
 .slot.unit-card.selectable::after,
 .slot.unit-card.drag-over::after,
-.slot.unit-card.glow-red::after,
-.slot.unit-card.glow-blue::after,
-.slot.unit-card.priority-target::after{
+.slot.unit-card.glow-blue::after{
   filter:none!important;
-}
-.slot.unit-card.will-die::after,
-.slot.unit-card.will-warn-high::after,
-.slot.unit-card.will-warn-mid::after,
-.slot.unit-card.will-warn-low::after{
-  filter:drop-shadow(0 0 10px var(--risk-glow))!important;
 }
 .slot.unit-card,
 .slot.unit-card.selectable,
-.slot.unit-card.priority-target,
-.slot.unit-card.glow-red,
 .slot.unit-card.glow-blue{
   border:0!important;
   outline:0!important;
@@ -1665,10 +1523,6 @@ html body .slot.dragging{
 }
 .card,
 .rew-card,
-#enemy-ring-slots .card,
-#enemy-ring-slots .card-empty,
-#ring-slots .card,
-#ring-slots .card-empty,
 #hand-slots .card,
 #hand-slots .card-empty{
   aspect-ratio:569/907!important;
@@ -1714,18 +1568,9 @@ html body .slot.dragging{
   opacity:1;
   animation:select-particle-blink .75s ease-in-out infinite alternate!important;
 }
-.slot.unit-card.priority-target::before,
-.slot.unit-card.glow-red::before,
 .slot.unit-card.glow-blue::before{
   content:none!important;
   display:none!important;
-}
-.slot.unit-card.will-die::before,
-.slot.unit-card.will-warn-high::before,
-.slot.unit-card.will-warn-mid::before,
-.slot.unit-card.will-warn-low::before{
-  content:''!important;
-  display:block!important;
 }
 #btn-pass:active:not(:disabled){
   transform:none!important;
@@ -1809,22 +1654,6 @@ html body .slot.dragging{
   transition:transform .12s ease!important;
   z-index:2!important;
 }
-.map-edge-layer{
-  position:absolute!important;
-  inset:0!important;
-  pointer-events:none!important;
-  z-index:2!important;
-}
-.map-edge{
-  position:absolute!important;
-  height:8px!important;
-  transform-origin:0 50%!important;
-  background-repeat:repeat-x!important;
-  background-size:64px 8px!important;
-  opacity:.62!important;
-  z-index:2!important;
-}
-.map-edge.preview{opacity:.36!important}
 .map-node{
   position:absolute!important;
   width:54px!important;
@@ -1841,48 +1670,13 @@ html body .slot.dragging{
   font-size:0!important;
   z-index:4!important;
 }
-.map-node.type-empty:not(.is-current){
-  width:18px!important;
-  height:18px!important;
-  opacity:.5!important;
-}
-.map-node.type-empty.is-moveable:not(.is-current){
-  width:26px!important;
-  height:26px!important;
-}
-.map-node.type-boss{
-  box-shadow:0 0 18px rgba(210,45,20,.36)!important;
-}
-.map-node.type-boss.boss-visible{
-  filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
-  animation:boss-map-pulse 1.1s ease-in-out infinite alternate!important;
-}
 @keyframes boss-map-pulse{
   from{filter:drop-shadow(0 0 8px rgba(255,44,30,.85)) drop-shadow(0 0 18px rgba(255,166,58,.7))}
   to{filter:drop-shadow(0 0 16px rgba(255,64,42,1)) drop-shadow(0 0 34px rgba(255,190,72,.95))}
 }
-.map-node.is-current{
-  width:72px!important;
-  height:72px!important;
-  z-index:4!important;
-  filter:drop-shadow(0 0 12px rgba(70,180,255,.9))!important;
-}
-.map-node.is-moveable{
-  cursor:var(--cursor-normal)!important;
-  filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,255,255,.95))!important;
-}
-.map-node.map-node-midstep{
-  cursor:var(--cursor-normal)!important;
-  filter:drop-shadow(0 0 6px rgba(255,90,90,.95)) drop-shadow(0 0 16px rgba(255,140,60,.8))!important;
-  animation:map-node-midstep-pulse 1s ease-in-out infinite alternate!important;
-}
 @keyframes map-node-midstep-pulse{
   from{opacity:.75}
   to{opacity:1}
-}
-.map-node.type-boss.boss-visible,
-.map-node.type-boss.boss-visible.is-moveable{
-  filter:drop-shadow(0 0 10px rgba(255,44,30,.95)) drop-shadow(0 0 24px rgba(255,166,58,.82))!important;
 }
 body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-floor),
 body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-gold){
@@ -1890,10 +1684,6 @@ body.world-map-active #scr-battle .bottom-hud .bhud-item:has(#h-gold){
 }
 body.world-map-active #mana-hud{
   display:none!important;
-}
-body.world-map-render-pending .map-node,
-body.world-map-render-pending .map-edge-layer{
-  visibility:hidden!important;
 }
 body.world-map-active #enemy-area,
 body.world-map-active #ally-section,
@@ -1933,17 +1723,13 @@ body.battle-victory-pending:not(.gameover-active) #map-power-tooltip,
 body.battle-victory-pending:not(.gameover-active) #keyword-tooltip{
   display:none!important;
 }
-.map-forge-card.selected{box-shadow:0 0 0 4px var(--teal2),0 0 24px rgba(64,176,144,.6)}
-.map-forge-card:disabled{opacity:.38;cursor:var(--cursor-normal)}
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-art,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-name,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-desc,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-tp,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-summon-atk,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-summon-hp,
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade .card-mana-orbs,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .mana-cost-orbs,
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade .seal-cost-orbs,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .panel-dir-mark,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .discard-btn,
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade .shop-board-sell-value{
@@ -2068,32 +1854,6 @@ body.world-map-active .bottom-hud .bhud-item{
 .bottom-hud .bhud-item:nth-child(3){bottom:250px!important}
 .bottom-hud .bhud-item:nth-child(4){bottom:156px!important}
 .bottom-hud .bhud-item:nth-child(5){bottom:62px!important}
-#ring-pane{
-  left:auto!important;
-  right:1720px!important;
-  bottom:64px!important;
-  width:360px!important;
-  height:430px!important;
-  padding:70px 0 34px!important;
-  border:0!important;
-  border-radius:0!important;
-  background:transparent!important;
-  box-shadow:none!important;
-}
-#ring-pane .hand-pane-label{
-  display:none!important;
-}
-#enemy-rings-pane{
-  display:block!important;
-  flex:0 0 360px!important;
-  border:0!important;
-  background:transparent!important;
-  box-shadow:none!important;
-  margin-right:28px!important;
-}
-#enemy-rings-pane .hand-pane-label{
-  display:none!important;
-}
 #reward-cards-section #rw-cards{
   transform:none!important;
 }
@@ -2118,28 +1878,6 @@ body.world-map-active .bottom-hud .bhud-item{
   height:auto!important;
   aspect-ratio:569/907!important;
 }
-#ring-pane{
-  left:2410px!important;
-  right:auto!important;
-  top:auto!important;
-  bottom:62px!important;
-  width:628px!important;
-  height:478px!important;
-  padding:0!important;
-}
-#ring-slots{
-  grid-template-columns:repeat(2,300px)!important;
-  gap:28px!important;
-  height:478px!important;
-  align-items:start!important;
-  justify-content:start!important;
-}
-#ring-slots .card,
-#ring-slots .card-empty{
-  width:300px!important;
-  height:auto!important;
-  aspect-ratio:569/907!important;
-}
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before{
   content:''!important;
@@ -2158,18 +1896,9 @@ body.world-map-active .bottom-hud .bhud-item{
   opacity:1!important;
   animation:select-particle-blink .75s ease-in-out infinite alternate!important;
 }
-.slot.unit-card.priority-target::before,
-.slot.unit-card.glow-red::before,
 .slot.unit-card.glow-blue::before{
   content:none!important;
   display:none!important;
-}
-.slot.unit-card.will-die::before,
-.slot.unit-card.will-warn-high::before,
-.slot.unit-card.will-warn-mid::before,
-.slot.unit-card.will-warn-low::before{
-  content:''!important;
-  display:block!important;
 }
 
 /* 最新調整: 守護枠、粒子レイヤー、カードサイズを最終上書き */
@@ -2194,40 +1923,6 @@ body.world-map-active .bottom-hud .bhud-item{
   background-size:cover!important;
   background-position:center center!important;
 }
-.slot.unit-card.will-die::before,
-.slot.unit-card.will-warn-high::before,
-.slot.unit-card.will-warn-mid::before,
-.slot.unit-card.will-warn-low::before{
-  content:none!important;
-  display:none!important;
-}
-.slot.unit-card .risk-particles{
-  display:none;
-  position:absolute;
-  inset:-17px -15px;
-  z-index:4;
-  pointer-events:none;
-  border-radius:48% 48% 12% 12%;
-  background:
-    radial-gradient(circle at 6% 44%,var(--risk-particle) 0 6px,transparent 7px),
-    radial-gradient(circle at 94% 42%,var(--risk-particle) 0 6px,transparent 7px),
-    radial-gradient(circle at 14% 82%,var(--risk-particle) 0 5px,transparent 6px),
-    radial-gradient(circle at 86% 80%,var(--risk-particle) 0 5px,transparent 6px),
-    radial-gradient(circle at 50% 2%,var(--risk-particle) 0 4px,transparent 5px);
-  filter:drop-shadow(0 0 20px var(--risk-glow)) drop-shadow(0 0 34px var(--risk-glow));
-  opacity:.95;
-  animation:risk-particle-blink .62s ease-in-out infinite alternate;
-}
-.slot.unit-card.will-die .risk-particles,
-.slot.unit-card.will-warn-high .risk-particles,
-.slot.unit-card.will-warn-mid .risk-particles,
-.slot.unit-card.will-warn-low .risk-particles{
-  display:block;
-}
-.slot.unit-card.will-warn-low{--risk-particle:rgba(255,245,12,1);--risk-glow:rgba(255,228,0,1)}
-.slot.unit-card.will-warn-mid{--risk-particle:rgba(255,152,0,1);--risk-glow:rgba(255,116,0,1)}
-.slot.unit-card.will-warn-high{--risk-particle:rgba(255,64,28,1);--risk-glow:rgba(255,44,18,1)}
-.slot.unit-card.will-die{--risk-particle:rgba(255,0,32,1);--risk-glow:rgba(255,0,22,1)}
 .slot.unit-card.selectable::before,
 .slot.unit-card.drag-over::before{
   content:''!important;
@@ -2246,11 +1941,6 @@ body.world-map-active .bottom-hud .bhud-item{
   filter:drop-shadow(0 0 18px rgba(255,255,255,1)) drop-shadow(0 0 32px rgba(255,255,255,.9))!important;
   opacity:1!important;
   animation:select-particle-blink .72s ease-in-out infinite alternate!important;
-}
-#hand-slots .card .card-grade,
-.card .card-grade,
-.rew-card .card-grade{
-  transform:translate(-50%,-10px)!important;
 }
 #hand-slots .card .card-name,
 .card .card-name,
@@ -2282,11 +1972,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #enemy-hand-slots{
   gap:18px!important;
-}
-#enemy-ring-slots .card,
-#enemy-ring-slots .card-empty{
-  height:auto!important;
-  aspect-ratio:569/907!important;
 }
 
 /* 2026-05-08 追加調整 */
@@ -2331,30 +2016,6 @@ body.world-map-active .bottom-hud .bhud-item{
   -webkit-mask:radial-gradient(ellipse at center,transparent 0 57%,#000 59% 78%,transparent 80%)!important;
   mask:radial-gradient(ellipse at center,transparent 0 57%,#000 59% 78%,transparent 80%)!important;
   filter:drop-shadow(0 0 18px rgba(255,255,255,1)) drop-shadow(0 0 34px rgba(255,255,255,.9))!important;
-}
-.slot.unit-card .risk-particles{
-  inset:-18px -15px!important;
-  background:
-    conic-gradient(from 5deg,
-      transparent 0 8deg,
-      var(--risk-particle) 9deg 14deg,
-      transparent 16deg 44deg,
-      color-mix(in srgb,var(--risk-particle) 76%,transparent) 46deg 51deg,
-      transparent 54deg 88deg,
-      var(--risk-particle) 90deg 96deg,
-      transparent 99deg 132deg,
-      color-mix(in srgb,var(--risk-particle) 82%,transparent) 134deg 140deg,
-      transparent 143deg 178deg,
-      var(--risk-particle) 180deg 186deg,
-      transparent 189deg 222deg,
-      color-mix(in srgb,var(--risk-particle) 74%,transparent) 224deg 230deg,
-      transparent 233deg 268deg,
-      var(--risk-particle) 270deg 276deg,
-      transparent 279deg 314deg,
-      color-mix(in srgb,var(--risk-particle) 84%,transparent) 316deg 322deg,
-      transparent 325deg 360deg)!important;
-  -webkit-mask:radial-gradient(ellipse at center,transparent 0 57%,#000 59% 78%,transparent 80%)!important;
-  mask:radial-gradient(ellipse at center,transparent 0 57%,#000 59% 78%,transparent 80%)!important;
 }
 #enemy-hand-area{
   top:96px!important;
@@ -2417,24 +2078,18 @@ body.world-map-active .bottom-hud .bhud-item{
   font-size:18px!important;
 }
 #hand-slots .card:hover:not(.inert),
-#ring-slots .card:hover:not(.inert),
-#rw-cards .rew-card:hover:not(.cant),
-#rw-cards .map-reward-unit:hover{
+#rw-cards .rew-card:hover:not(.cant){
   transform:none!important;
   translate:0 0!important;
   filter:drop-shadow(0 0 12px rgba(255,255,255,.9)) drop-shadow(0 0 26px rgba(255,234,170,.75))!important;
   box-shadow:none!important;
   z-index:60!important;
 }
-#rw-cards .rew-card,
-#rw-cards .map-choice-reward-card,
-#rw-cards .map-reward-unit{
+#rw-cards .rew-card{
   box-shadow:none!important;
   animation:none!important;
 }
-#rw-cards .rew-card:not(:hover),
-#rw-cards .map-choice-reward-card:not(:hover),
-#rw-cards .map-reward-unit:not(:hover){
+#rw-cards .rew-card:not(:hover){
   filter:none!important;
 }
 
@@ -2460,19 +2115,6 @@ body.world-map-active .bottom-hud .bhud-item{
     radial-gradient(ellipse at 82% 20%,rgba(255,255,255,.48) 0 4%,transparent 18%),
     radial-gradient(ellipse at 18% 84%,rgba(255,255,255,.42) 0 4%,transparent 18%),
     radial-gradient(ellipse at 82% 84%,rgba(255,255,255,.46) 0 4%,transparent 18%)!important;
-  -webkit-mask:radial-gradient(ellipse at center,transparent 0 51%,#000 57% 82%,transparent 88%)!important;
-  mask:radial-gradient(ellipse at center,transparent 0 51%,#000 57% 82%,transparent 88%)!important;
-}
-.slot.unit-card .risk-particles{
-  background:
-    radial-gradient(ellipse at 50% -5%,var(--risk-particle) 0 7%,color-mix(in srgb,var(--risk-particle) 36%,transparent) 16%,transparent 34%),
-    radial-gradient(ellipse at 50% 105%,var(--risk-particle) 0 8%,color-mix(in srgb,var(--risk-particle) 32%,transparent) 18%,transparent 36%),
-    radial-gradient(ellipse at -6% 52%,var(--risk-particle) 0 9%,color-mix(in srgb,var(--risk-particle) 38%,transparent) 18%,transparent 38%),
-    radial-gradient(ellipse at 106% 52%,var(--risk-particle) 0 9%,color-mix(in srgb,var(--risk-particle) 38%,transparent) 18%,transparent 38%),
-    radial-gradient(ellipse at 18% 18%,color-mix(in srgb,var(--risk-particle) 60%,transparent) 0 4%,transparent 18%),
-    radial-gradient(ellipse at 82% 20%,color-mix(in srgb,var(--risk-particle) 54%,transparent) 0 4%,transparent 18%),
-    radial-gradient(ellipse at 18% 84%,color-mix(in srgb,var(--risk-particle) 48%,transparent) 0 4%,transparent 18%),
-    radial-gradient(ellipse at 82% 84%,color-mix(in srgb,var(--risk-particle) 52%,transparent) 0 4%,transparent 18%)!important;
   -webkit-mask:radial-gradient(ellipse at center,transparent 0 51%,#000 57% 82%,transparent 88%)!important;
   mask:radial-gradient(ellipse at center,transparent 0 51%,#000 57% 82%,transparent 88%)!important;
 }
@@ -2513,20 +2155,6 @@ body.world-map-active .bottom-hud .bhud-item{
   mask:none!important;
   filter:blur(4px) drop-shadow(0 0 20px rgba(255,255,255,.92)) drop-shadow(0 0 34px rgba(255,255,255,.72))!important;
 }
-.slot.unit-card .risk-particles{
-  background:
-    radial-gradient(ellipse at 50% -8%,color-mix(in srgb,var(--risk-particle) 58%,transparent) 0 8%,color-mix(in srgb,var(--risk-particle) 25%,transparent) 20%,color-mix(in srgb,var(--risk-particle) 9%,transparent) 34%,transparent 52%),
-    radial-gradient(ellipse at 50% 108%,color-mix(in srgb,var(--risk-particle) 54%,transparent) 0 8%,color-mix(in srgb,var(--risk-particle) 23%,transparent) 20%,color-mix(in srgb,var(--risk-particle) 8%,transparent) 34%,transparent 52%),
-    radial-gradient(ellipse at -8% 52%,color-mix(in srgb,var(--risk-particle) 68%,transparent) 0 10%,color-mix(in srgb,var(--risk-particle) 28%,transparent) 22%,color-mix(in srgb,var(--risk-particle) 10%,transparent) 38%,transparent 56%),
-    radial-gradient(ellipse at 108% 52%,color-mix(in srgb,var(--risk-particle) 68%,transparent) 0 10%,color-mix(in srgb,var(--risk-particle) 28%,transparent) 22%,color-mix(in srgb,var(--risk-particle) 10%,transparent) 38%,transparent 56%),
-    radial-gradient(ellipse at 18% 18%,color-mix(in srgb,var(--risk-particle) 28%,transparent) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 20%,color-mix(in srgb,var(--risk-particle) 26%,transparent) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 18% 84%,color-mix(in srgb,var(--risk-particle) 22%,transparent) 0 6%,transparent 26%),
-    radial-gradient(ellipse at 82% 84%,color-mix(in srgb,var(--risk-particle) 24%,transparent) 0 6%,transparent 26%)!important;
-  -webkit-mask:none!important;
-  mask:none!important;
-  filter:blur(4px) drop-shadow(0 0 20px var(--risk-glow)) drop-shadow(0 0 34px var(--risk-glow))!important;
-}
 .card.dragging,
 .slot.dragging{
   opacity:.4!important;
@@ -2540,8 +2168,7 @@ body.world-map-active .bottom-hud .bhud-item{
 
 /* 発光レイヤーは背景より上、キャラクター絵より下に固定 */
 .slot.unit-card.selectable::before,
-.slot.unit-card.drag-over::before,
-.slot.unit-card .risk-particles{
+.slot.unit-card.drag-over::before{
   z-index:1!important;
 }
 .slot.unit-card .unit-portrait{
@@ -2550,7 +2177,6 @@ body.world-map-active .bottom-hud .bhud-item{
 .slot.unit-card::after{
   z-index:6!important;
 }
-.slot.unit-card .card-grade,
 .slot.unit-card .slot-stats{
   z-index:8!important;
 }
@@ -2590,8 +2216,7 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #f-ally .slot,
 #f-enemy .slot,
-#rw-cards>.field .slot,
-#rw-cards .map-reward-unit{
+#rw-cards>.field .slot{
   box-sizing:border-box!important;
   width:var(--unit-card-w)!important;
   flex:0 0 var(--unit-card-w)!important;
@@ -2616,7 +2241,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #rw-cards .rew-card,
 #rw-cards .card,
-#rw-cards .map-choice-reward-card,
 #hand-slots .card,
 #hand-slots .card-empty,
 #enemy-hand-slots .card,
@@ -2633,7 +2257,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #rw-cards .rew-card,
 #rw-cards .card,
-#rw-cards .map-choice-reward-card,
 #enemy-hand-slots .card,
 #enemy-hand-slots .card-empty{
   transform:none!important;
@@ -2662,39 +2285,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #enemy-hand-slots{
   grid-template-columns:repeat(5,var(--item-card-w))!important;
-}
-#enemy-hand-slots.shop-sale-hand{
-  grid-template-columns:repeat(9,var(--hand-card-w))!important;
-  justify-content:center!important;
-  gap:18px!important;
-}
-#enemy-hand-slots.shop-sale-hand .card,
-#enemy-hand-slots.shop-sale-hand .card-empty{
-  width:var(--hand-card-w)!important;
-  min-width:var(--hand-card-w)!important;
-  max-width:var(--hand-card-w)!important;
-  height:var(--hand-card-h)!important;
-  min-height:var(--hand-card-h)!important;
-  max-height:var(--hand-card-h)!important;
-}
-.shop-equipment-row{
-  width:auto!important;
-  display:grid!important;
-  grid-template-columns:repeat(7,var(--hand-card-w))!important;
-  justify-content:center!important;
-  align-items:start!important;
-  gap:var(--field-gap)!important;
-  margin:0 auto!important;
-}
-.shop-equipment-row .rew-card,
-.shop-equipment-row .card,
-.shop-equipment-row .card-empty{
-  width:var(--hand-card-w)!important;
-  min-width:var(--hand-card-w)!important;
-  max-width:var(--hand-card-w)!important;
-  height:var(--hand-card-h)!important;
-  min-height:var(--hand-card-h)!important;
-  max-height:var(--hand-card-h)!important;
 }
 #victory-overlay{
   background:transparent!important;
@@ -2725,35 +2315,9 @@ body.world-map-active .bottom-hud .bhud-item{
   letter-spacing:.18em!important;
 }
 #victory-overlay .btn{display:none!important}
-body.victory-reward-active #victory-overlay{
-  pointer-events:none!important;
-}
-body.victory-reward-active #scr-battle.asset-backed::before,
-#scr-battle.victory-reward-backdrop.asset-backed::before{
-  background-image:
-    linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.58)),
-    var(--screen-bg-image)!important;
-  background-size:cover,cover!important;
-  background-position:center,center!important;
-}
-body.victory-reward-active #scr-battle.asset-backed::after,
-#scr-battle.victory-reward-backdrop.asset-backed::after{
-  display:block!important;
-  z-index:0!important;
-  opacity:1!important;
-  background:
-    radial-gradient(circle at 9% 37%,rgba(142,190,255,.20) 0 2px,transparent 3px),
-    radial-gradient(circle at 92% 39%,rgba(255,224,138,.25) 0 2px,transparent 3px),
-    radial-gradient(circle at 57% 30%,rgba(235,248,255,.16) 0 2px,transparent 3px)!important;
-  background-size:620px 420px,570px 390px,410px 360px!important;
-}
-body.victory-reward-active #victory-overlay .btn{
-  display:none!important;
-}
 #btn-pass{
   right:12px!important;
 }
-.return-btn,
 .discard-btn{
   display:block!important;
   z-index:30!important;
@@ -2767,8 +2331,7 @@ body.victory-reward-active #victory-overlay .btn{
   --field-gap:14px;
 }
 body.reward-screen-active #hand-pane,
-body.world-map-active #hand-pane,
-body.victory-reward-active #hand-pane{
+body.world-map-active #hand-pane{
   position:absolute!important;
   left:50%!important;
   right:auto!important;
@@ -2781,8 +2344,7 @@ body.victory-reward-active #hand-pane{
   z-index:70!important;
 }
 body #hand-slots,
-body.world-map-active #hand-slots,
-body.victory-reward-active #hand-slots{
+body.world-map-active #hand-slots{
   display:grid!important;
   grid-template-columns:repeat(7,var(--hand-card-w))!important;
   justify-content:center!important;
@@ -2801,13 +2363,7 @@ body #hand-slots .card-empty{
   max-height:var(--hand-card-h)!important;
 }
 body #rw-cards .rew-card,
-body #rw-cards .card,
-body #rw-cards .map-choice-reward-card,
-body #enemy-hand-slots.shop-sale-hand .card,
-body #enemy-hand-slots.shop-sale-hand .card-empty,
-body .shop-equipment-row .rew-card,
-body .shop-equipment-row .card,
-body .shop-equipment-row .card-empty{
+body #rw-cards .card{
   width:var(--hand-card-w)!important;
   min-width:var(--hand-card-w)!important;
   max-width:var(--hand-card-w)!important;
@@ -2980,8 +2536,7 @@ body .discard-btn{
   z-index:40!important;
   overflow:hidden!important;
 }
-body .discard-btn:hover,
-body .return-btn:hover{
+body .discard-btn:hover{
   filter:brightness(1.14)!important;
 }
 #kw-tooltip strong{
@@ -3044,21 +2599,13 @@ body:not(.world-map-active) #world-map-panel{
 
 /* 発光統一：hover/select/drag/死亡予測は同じ形、色だけ変更 */
 body .slot.unit-card.selectable,
-body .slot.unit-card.drag-over,
-body .slot.unit-card.will-die,
-body .slot.unit-card.will-warn-low,
-body .slot.unit-card.will-warn-mid,
-body .slot.unit-card.will-warn-high{
+body .slot.unit-card.drag-over{
   outline:0!important;
   box-shadow:none!important;
   border-color:transparent!important;
 }
 body .slot.unit-card.selectable::before,
-body .slot.unit-card.drag-over::before,
-body .slot.unit-card.will-die::before,
-body .slot.unit-card.will-warn-low::before,
-body .slot.unit-card.will-warn-mid::before,
-body .slot.unit-card.will-warn-high::before{
+body .slot.unit-card.drag-over::before{
   content:''!important;
   display:block!important;
   position:absolute!important;
@@ -3076,36 +2623,10 @@ body .slot.unit-card.will-warn-high::before{
   animation:select-particle-blink .75s ease-in-out infinite alternate!important;
 }
 body .slot.unit-card.selectable::after,
-body .slot.unit-card.drag-over::after,
-body .slot.unit-card.will-die::after,
-body .slot.unit-card.will-warn-low::after,
-body .slot.unit-card.will-warn-mid::after,
-body .slot.unit-card.will-warn-high::after{
+body .slot.unit-card.drag-over::after{
   background:transparent!important;
   filter:drop-shadow(0 0 12px var(--glow-shadow,rgba(255,255,255,.9))) drop-shadow(0 0 26px var(--glow-outer,rgba(255,234,170,.75)))!important;
   z-index:21!important;
-}
-body .slot.unit-card.will-warn-low{
-  --glow-core:rgba(255,245,80,.95);
-  --glow-soft:rgba(255,230,80,.7);
-  --glow-shadow:rgba(255,230,60,.9);
-  --glow-outer:rgba(255,210,50,.75);
-}
-body .slot.unit-card.will-warn-mid{
-  --glow-core:rgba(255,170,60,.95);
-  --glow-soft:rgba(255,150,50,.7);
-  --glow-shadow:rgba(255,142,44,.9);
-  --glow-outer:rgba(255,116,0,.75);
-}
-body .slot.unit-card.will-warn-high,
-body .slot.unit-card.will-die{
-  --glow-core:rgba(255,64,58,.95);
-  --glow-soft:rgba(255,52,46,.72);
-  --glow-shadow:rgba(255,44,40,.92);
-  --glow-outer:rgba(255,0,22,.78);
-}
-body .slot.unit-card .risk-particles{
-  display:none!important;
 }
 body .slot.unit-card.selectable,
 body .slot.unit-card.drag-over{
@@ -3195,11 +2716,7 @@ body .slot.unit-card.drag-over::after{
   background:var(--unit-frame) center/100% 100% no-repeat!important;
   filter:none!important;
 }
-body .slot.unit-card.selectable .slot-grade,
-body .slot.unit-card.selectable .card-grade,
 body .slot.unit-card.selectable .slot-stats,
-body .slot.unit-card.drag-over .slot-grade,
-body .slot.unit-card.drag-over .card-grade,
 body .slot.unit-card.drag-over .slot-stats{
   z-index:8!important;
 }
@@ -3391,52 +2908,6 @@ body #f-ally .slot.unit-card.is-defender::after{
   content:none!important;
   display:none!important;
 }
-body .slot.unit-card.will-die::before,
-body .slot.unit-card.will-warn-low::before,
-body .slot.unit-card.will-warn-mid::before,
-body .slot.unit-card.will-warn-high::before,
-body .slot.unit-card .risk-particles{
-  z-index:3!important;
-}
-body .slot.unit-card.will-die .risk-particles,
-body .slot.unit-card.will-warn-low .risk-particles,
-body .slot.unit-card.will-warn-mid .risk-particles,
-body .slot.unit-card.will-warn-high .risk-particles{
-  display:none!important;
-}
-body .slot.unit-card.will-die,
-body .slot.unit-card.will-warn-low,
-body .slot.unit-card.will-warn-mid,
-body .slot.unit-card.will-warn-high{
-  filter:drop-shadow(0 0 12px var(--glow-shadow,rgba(255,255,255,.9))) drop-shadow(0 0 26px var(--glow-outer,rgba(255,234,170,.75)))!important;
-}
-body .slot.unit-card.will-die::after,
-body .slot.unit-card.will-warn-low::after,
-body .slot.unit-card.will-warn-mid::after,
-body .slot.unit-card.will-warn-high::after{
-  z-index:4!important;
-  filter:none!important;
-  background:var(--unit-frame) center/100% 100% no-repeat!important;
-}
-body .slot.unit-card.will-warn-low::before{
-  --glow-core:rgba(255,245,80,.95);
-  --glow-soft:rgba(255,230,80,.7);
-  --glow-shadow:rgba(255,230,60,.9);
-  --glow-outer:rgba(255,210,50,.75);
-}
-body .slot.unit-card.will-warn-mid::before{
-  --glow-core:rgba(255,170,60,.95);
-  --glow-soft:rgba(255,150,50,.7);
-  --glow-shadow:rgba(255,142,44,.9);
-  --glow-outer:rgba(255,116,0,.75);
-}
-body .slot.unit-card.will-warn-high::before,
-body .slot.unit-card.will-die::before{
-  --glow-core:rgba(255,64,58,.95);
-  --glow-soft:rgba(255,52,46,.72);
-  --glow-shadow:rgba(255,44,40,.92);
-  --glow-outer:rgba(255,0,22,.78);
-}
 body .slot.unit-card.drag-over,
 body .slot.unit-card.is-defender.drag-over{
   transform:none!important;
@@ -3444,26 +2915,12 @@ body .slot.unit-card.is-defender.drag-over{
   outline:0!important;
   box-shadow:none!important;
 }
-body.card-targeting-active #scr-battle.asset-backed .battle-area::after{
-  content:''!important;
-  position:absolute!important;
-  inset:0!important;
-  z-index:1!important;
-  pointer-events:none!important;
-  background:rgba(0,0,0,.36)!important;
-}body.card-targeting-active #scr-battle.asset-backed #enemy-area,
-body.card-targeting-active #scr-battle.asset-backed #ally-section,
-body.card-targeting-active #scr-battle.asset-backed .hand-area,
-body.card-targeting-active #scr-battle.asset-backed #reward-cards-section{
-  z-index:12!important;
-}
 body #hand-slots .card.selected{
   filter:drop-shadow(0 0 14px rgba(255,255,255,.92)) drop-shadow(0 0 28px rgba(255,232,170,.8))!important;
   z-index:30!important;
 }
 body #rw-cards .pending-placement,
-body #enemy-hand-slots .pending-placement,
-body .shop-equipment-row .pending-placement{
+body #enemy-hand-slots .pending-placement{
   filter:drop-shadow(0 0 14px rgba(255,255,255,.94)) drop-shadow(0 0 30px rgba(255,232,170,.86))!important;
   outline:0!important;
   box-shadow:none!important;
@@ -3508,8 +2965,7 @@ body.reward-panel-placement #hand-slots .card,
 body.reward-panel-placement #hand-slots .card-empty,
 body.reward-panel-placement #rw-cards .rew-card,
 body.reward-panel-placement #rw-cards .card,
-body.reward-panel-placement #rw-cards .card-empty,
-body.reward-panel-placement #rw-cards .map-reward-unit{
+body.reward-panel-placement #rw-cards .card-empty{
   position:relative!important;
   z-index:920!important;
   pointer-events:auto!important;
@@ -3517,8 +2973,7 @@ body.reward-panel-placement #rw-cards .map-reward-unit{
   filter:none!important;
 }
 body.reward-panel-placement #rw-cards .pending-placement,
-body.reward-panel-placement #enemy-hand-slots .pending-placement,
-body.reward-panel-placement .shop-equipment-row .pending-placement{
+body.reward-panel-placement #enemy-hand-slots .pending-placement{
   position:relative!important;
   pointer-events:none!important;
   opacity:1!important;
@@ -3544,8 +2999,7 @@ body.reward-panel-placement .bctl-wrap{
 body #f-ally .slot.unit-card,
 body #f-enemy .slot.unit-card,
 body #f-enemy .slot.unit-card.enemy,
-body #rw-cards>.field .slot.unit-card,
-body #rw-cards .map-reward-unit{
+body #rw-cards>.field .slot.unit-card{
   width:var(--unit-card-w)!important;
   min-width:var(--unit-card-w)!important;
   max-width:var(--unit-card-w)!important;
@@ -3584,38 +3038,6 @@ body .slot.unit-card .slot-stats .a{
 }
 body .slot.unit-card .slot-stats .h{
   right:4.8%!important;
-}
-body .slot.unit-card.priority-target{
-  filter:drop-shadow(0 0 10px rgba(255,214,120,.82)) drop-shadow(0 0 22px rgba(255,128,74,.58))!important;
-}
-body .slot.unit-card.priority-target .unit-frame-layer{
-  filter:drop-shadow(0 0 10px rgba(255,214,120,.88)) drop-shadow(0 0 22px rgba(255,128,74,.62))!important;
-}
-body #rw-cards .reward-panel-row{
-  display:flex!important;
-  flex-wrap:nowrap!important;
-  gap:var(--field-gap)!important;
-  justify-content:flex-start!important;
-  align-items:start!important;
-  width:100%!important;
-  overflow-x:auto!important;
-  overflow-y:visible!important;
-  scrollbar-width:none!important;
-}
-body #rw-cards .reward-panel-row::-webkit-scrollbar{
-  display:none!important;
-}
-body #rw-cards .reward-panel-row .rew-card,
-body #rw-cards .reward-panel-row .card,
-body #rw-cards .reward-panel-row .card-empty{
-  flex:0 0 var(--hand-card-w)!important;
-}
-body #rw-cards .reward-panel-row.rw-centered{
-  justify-content:center!important;
-}
-body #rw-cards .reward-panel-row.rw-edge-fade{
-  -webkit-mask-image:linear-gradient(to right,transparent 0,black 80px,black calc(100% - 80px),transparent 100%)!important;
-  mask-image:linear-gradient(to right,transparent 0,black 80px,black calc(100% - 80px),transparent 100%)!important;
 }
 body #rw-reroll{
   z-index:1200!important;
@@ -3831,19 +3253,6 @@ body .card.merge-ready:not(.rew-card){
   outline:4px solid #f59b27!important;
   filter:drop-shadow(0 0 18px rgba(245,155,39,.95))!important;
 }
-#carry-gold-warning{
-  position:fixed!important;
-  inset:0!important;
-  z-index:5000!important;
-  display:grid!important;
-  place-items:center!important;
-  background:rgba(0,0,0,.68)!important;
-}
-#carry-gold-warning .carry-warn-actions{
-  display:flex;
-  justify-content:center;
-  gap:24px;
-}
 #victory-overlay{
   background:rgba(0,0,0,.56)!important;
 }
@@ -4006,9 +3415,6 @@ body.reward-screen-active #enemy-hand-area{
 body.reward-screen-active #enemy-hand-area .hand-row1{
   height:100%!important;
   display:block!important;
-}
-body.reward-screen-active #enemy-rings-pane{
-  display:none!important;
 }
 body.reward-screen-active #enemy-hand-pane{
   width:100%!important;
@@ -5027,13 +4433,6 @@ body #hand-slots.unit-equip-slots .card-empty::before,
 body #hand-slots.unit-equip-slots .card-empty::after{
   display:none!important;
 }
-body #hand-slots.unit-equip-slots .panel-disabled-slot{
-  opacity:1!important;
-  background:#020202!important;
-  border:2px solid #000!important;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)!important;
-  pointer-events:none!important;
-}
 body.reward-screen-active #reward-cards-section .card,
 body.reward-screen-active #reward-cards-section .card-empty{
   width:var(--hand-card-w)!important;
@@ -5044,12 +4443,6 @@ body.reward-screen-active #reward-cards-section .card-empty{
   max-height:var(--hand-card-h)!important;
 }
 
-/* 2026-06-30 quick overrides */
-body .card-grade,
-body .slot-grade,
-body .rew-grade{
-  display:none!important;
-}
 body.reward-screen-active{
   --reward-panel-ratio:.6273;
   --hand-card-h:var(--unit-card-h);
@@ -5095,12 +4488,6 @@ body #hand-slots.unit-equip-slots > .card-empty{
   min-height:var(--unit-card-h)!important;
   max-height:var(--unit-card-h)!important;
 }
-body #hand-slots.unit-equip-slots > .reward-unit-anchor{
-  width:var(--unit-card-w)!important;
-  min-width:var(--unit-card-w)!important;
-  max-width:var(--unit-card-w)!important;
-  height:var(--unit-card-h)!important;
-}
 #kw-tooltip .preview-title{
   display:block;
   text-align:center;
@@ -5143,8 +4530,6 @@ body #hand-slots.unit-equip-slots .card.drag-ghost .card-desc{
 }
 body #hand-slots .card.dragging .card-name,
 body #hand-slots .card.drag-ghost .card-name,
-body #ring-slots .card.dragging .card-name,
-body #ring-slots .card.drag-ghost .card-name,
 body #enemy-hand-slots .card.dragging .card-name,
 body #enemy-hand-slots .card.drag-ghost .card-name,
 body #map-inventory-slots .card.dragging .card-name,
@@ -5198,9 +4583,7 @@ body.reward-screen-active #reward-cards-section{
   transform:translateX(-50%)!important;
 }
 body.reward-screen-active #reward-cards-section #rw-cards,
-body.reward-screen-active #rw-cards,
-body.reward-screen-active .reward-panel-row,
-body.reward-screen-active .shop-equipment-row.reward-panel-row{
+body.reward-screen-active #rw-cards{
   display:flex!important;
   justify-content:center!important;
   align-items:flex-start!important;
@@ -5359,8 +4742,7 @@ html body #rw-cards .card-empty{
 }
 html body .slot.unit-card,
 html body #f-ally .slot.unit-card,
-html body #f-enemy .slot.unit-card,
-html body #hand-slots.unit-equip-slots > .reward-unit-anchor{
+html body #f-enemy .slot.unit-card{
   width:var(--unit-card-w)!important;
   min-width:var(--unit-card-w)!important;
   max-width:var(--unit-card-w)!important;
@@ -5392,7 +4774,6 @@ html body .slot.unit-card .unit-portrait{
   background-position:var(--unit-art-position,center center)!important;
 }
 html body #f-ally .slot.unit-card .unit-portrait,
-html body #hand-slots.unit-equip-slots > .reward-unit-anchor .unit-portrait,
 html body .attack-motion-clone .unit-portrait{
   border-radius:0!important;
   clip-path:none!important;
@@ -5425,10 +4806,6 @@ html body #hand-slots.unit-equip-slots > .card:not(.reward-unit-anchor){
   box-shadow:none!important;
 }
 html body #hand-slots.unit-equip-slots > .card.glow-blue:not(.reward-unit-anchor){
-  box-shadow:none!important;
-  filter:drop-shadow(0 0 9px rgba(80,144,208,.9)) drop-shadow(0 0 18px rgba(80,144,208,.65))!important;
-}
-html body #hand-slots.unit-equip-slots > .reward-unit-anchor.glow-blue{
   box-shadow:none!important;
   filter:drop-shadow(0 0 9px rgba(80,144,208,.9)) drop-shadow(0 0 18px rgba(80,144,208,.65))!important;
 }
@@ -5509,15 +4886,11 @@ html body .rew-card .card-summon-hp{
   -webkit-text-stroke:2px #050507!important;
   paint-order:stroke fill!important;
 }
-html body .slot.unit-card .risk-particles,
 html body .slot.unit-card::before,
 html body .slot.unit-card::after,
 html body .slot.selectable:not(.unit-card)::after{
   background:none!important;
   animation:none!important;
-}
-html body .slot.unit-card .risk-particles{
-  display:none!important;
 }
 html body .slot.unit-card .slot-stats{
   bottom:3.0%!important;
@@ -5555,7 +4928,6 @@ html body .rew-card:hover{
 }
 html body .card-empty.drag-over,
 html body #hand-slots.unit-equip-slots .card-empty.drag-over,
-html body #spell-slot-pane .spell-slot-zone.drag-over,
 html body #rw-cards.drag-over{
   border-color:rgba(255,255,255,.95)!important;
   box-shadow:0 0 10px 2px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.5)!important;
@@ -5685,15 +5057,12 @@ html body #hand-slots.unit-equip-slots > .card:hover{
   outline:0!important;
 }
 html body .attack-motion-clone .slot-life-bar,
-html body .attack-motion-clone .slot-life-fill,
-html body .attack-motion-clone .hp-bar,
-html body .attack-motion-clone .unit-hp-bar{
+html body .attack-motion-clone .slot-life-fill{
   display:none!important;
 }
 html body .attack-motion-clone::before,
 html body .attack-motion-clone::after,
-html body .attack-motion-clone .unit-hit-layer,
-html body .attack-motion-clone .risk-particles{
+html body .attack-motion-clone .unit-hit-layer{
   content:none!important;
   display:none!important;
 }
@@ -5848,40 +5217,6 @@ html body .slot.drag-ghost .unit-stat-overlay-layer{
   width:var(--unit-frame-w)!important;
   height:var(--unit-card-h)!important;
 }
-html body .panel-character-card .card-grade,
-html body .enchantment-card .card-grade,
-html body #reward-cards-section .panel-character-card .card-grade,
-html body #reward-cards-section .enchantment-card .card-grade,
-html body #rw-cards .panel-character-card .card-grade,
-html body #rw-cards .enchantment-card .card-grade,
-html body #hand-slots.unit-equip-slots .panel-character-card .card-grade,
-html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
-  display:none!important;
-}
-html body .panel-character-card .card-grade .grade-stars,
-html body .enchantment-card .card-grade .grade-stars{
-  display:inline-flex!important;
-  flex-direction:column!important;
-  gap:1px!important;
-}
-html body .panel-character-card .card-grade .grade-star,
-html body .enchantment-card .card-grade .grade-star{
-  transform:none!important;
-}
-html body .panel-character-card .card-grade,
-html body .enchantment-card .card-grade,
-html body #reward-cards-section .panel-character-card .card-grade,
-html body #reward-cards-section .enchantment-card .card-grade,
-html body #rw-cards .panel-character-card .card-grade,
-html body #rw-cards .enchantment-card .card-grade,
-html body #hand-slots.unit-equip-slots .panel-character-card .card-grade,
-html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
-  display:none!important;
-  left:7%!important;
-  top:5%!important;
-  right:auto!important;
-  transform:none!important;
-}
 .mana-cost-orbs{
   position:absolute;
   left:4.6%;
@@ -5906,9 +5241,6 @@ html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
 .mana-cost-orbs img.mana-orb-lit{
   filter:drop-shadow(0 1px 2px rgba(0,0,0,.9));
 }
-.mana-cost-orbs.mana-orbs-hidden{
-  display:none;
-}
 .seal-cost-badge{
   position:absolute;
   left:4.6%;
@@ -5925,23 +5257,6 @@ html body #hand-slots.unit-equip-slots .enchantment-card .card-grade{
   object-fit:contain;
   filter:brightness(.5) drop-shadow(0 1px 2px rgba(0,0,0,.9));
   transition:filter .2s;
-}
-.seal-cost-badge img.seal-cost-lit{
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 6px rgba(255,230,210,.9));
-}
-.seal-cost-badge.seal-cost-infinite{
-  display:block;
-}
-.seal-infinity-icon{
-  position:relative;
-  display:block;
-  width:32px;
-  height:32px;
-}
-.seal-infinity-icon img{
-  width:32px;
-  height:32px;
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 7px rgba(255,230,210,.72));
 }
 .mana-cost-orbs + .seal-cost-badge{
   left:15%;
@@ -5995,55 +5310,6 @@ body #spell-slot-pane{
   min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
   z-index:20!important;
 }
-body #spell-slot-pane .spell-slot-zone{
-  width:var(--hand-card-w)!important;
-  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
-  display:grid!important;
-  grid-template-columns:var(--hand-card-w)!important;
-  grid-template-rows:repeat(3,var(--hand-card-h))!important;
-  gap:var(--field-gap)!important;
-}
-body #spell-slot-pane .spell-slot-zone.drag-over{
-  filter:drop-shadow(0 0 18px rgba(255,232,170,.8));
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card,
-body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
-  width:var(--hand-card-w)!important;
-  min-width:var(--hand-card-w)!important;
-  max-width:var(--hand-card-w)!important;
-  height:var(--hand-card-h)!important;
-  min-height:var(--hand-card-h)!important;
-  max-height:var(--hand-card-h)!important;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card{
-  position:relative;
-  cursor:var(--cursor-grab);
-  transition:filter .25s;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-empty{
-  border:0!important;
-  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
-  border-radius:6px;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card.spell-fired{
-  filter:brightness(0.3) saturate(0.35);
-  pointer-events:none;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging{
-  opacity:1!important;
-  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
-  filter:none!important;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging > *{
-  opacity:0!important;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card.dragging::after{
-  content:none!important;
-  display:none!important;
-}
-body #spell-slot-pane .spell-slot-zone .spell-slot-card.drag-over{
-  filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))!important;
-}
 html body.right-card-peek #hand-slots.unit-equip-slots .card{
   background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
   border:0!important;
@@ -6069,59 +5335,6 @@ html body.right-card-peek #hand-slots.unit-equip-slots .panel-unite-link{
   display:none!important;
   opacity:0!important;
   visibility:hidden!important;
-}
-/* 報酬置き場：スペル置き場と左右対称の横2×縦3マス固定グリッド */
-body #reward-cards-section.reward-grid-mode{
-  position:absolute!important;
-  left:80px!important;
-  top:650px!important;
-  width:calc(var(--hand-card-w) * 2 + var(--field-gap))!important;
-  height:auto!important;
-  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
-  transform:none!important;
-  z-index:20!important;
-}
-body #reward-cards-section.reward-grid-mode>.field-label{
-  display:none!important;
-}
-body #reward-cards-section.reward-grid-mode #rw-cards{
-  display:block!important;
-}
-body #rw-cards .reward-grid-zone{
-  width:calc(var(--hand-card-w) * 2 + var(--field-gap))!important;
-  min-height:calc(var(--hand-card-h) * 3 + var(--field-gap) * 2)!important;
-  display:grid!important;
-  grid-template-columns:repeat(2,var(--hand-card-w))!important;
-  grid-template-rows:repeat(3,var(--hand-card-h))!important;
-  gap:var(--field-gap)!important;
-}
-body #rw-cards .reward-grid-zone .rew-card,
-body #rw-cards .reward-grid-zone .card,
-body #rw-cards .reward-grid-zone .reward-grid-empty{
-  width:var(--hand-card-w)!important;
-  min-width:var(--hand-card-w)!important;
-  max-width:var(--hand-card-w)!important;
-  height:var(--hand-card-h)!important;
-  min-height:var(--hand-card-h)!important;
-  max-height:var(--hand-card-h)!important;
-}
-body #rw-cards .reward-grid-zone .reward-grid-empty{
-  border:0!important;
-  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
-  border-radius:6px;
-}
-/* ドラッグ中も元の枠位置にm_board6.svgを表示する */
-body #rw-cards .reward-grid-zone .rew-card.dragging{
-  opacity:1!important;
-  background:url("assets/cards/m_board6.svg?v=cellRadius01") center/100% 100% no-repeat!important;
-  filter:none!important;
-}
-body #rw-cards .reward-grid-zone .rew-card.dragging > *{
-  opacity:0!important;
-}
-body #rw-cards .reward-grid-zone .rew-card.dragging::after{
-  content:none!important;
-  display:none!important;
 }
 /* 戦闘順序：報酬カードが元々あった位置（同位置）に、魔術師以外のメイン置き場キャラを並べ替え可能な状態で表示する */
 body #battle-order-section{
@@ -6174,8 +5387,6 @@ body #hand-slots.unit-equip-slots .card.invalid-battle-position::before{
 }
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-atk,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp,
-body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
-body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp,
 body #hand-slots.unit-equip-slots .card.invalid-battle-position .discard-btn{
   z-index:220!important;
 }
@@ -6185,9 +5396,7 @@ body #hand-slots.unit-equip-slots .card.invalid-battle-position .discard-btn{
    持ち上げてあるので、オーバーレイでは暗くならない。明るさは個別に落とす。
    黒縁を細くするのは封印キャラと同じ理由（暗くすると縁で字が潰れる）。 */
 html body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-atk,
-html body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp,
-html body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-atk,
-html body #hand-slots.unit-equip-slots .card.invalid-battle-position .stat-hp{
+html body #hand-slots.unit-equip-slots .card.invalid-battle-position .card-summon-hp{
   filter:brightness(.45) saturate(.65)!important;
   -webkit-text-stroke:1px #050507!important;
 }
@@ -6199,9 +5408,7 @@ html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-targ
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .character-frame-layer,
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .board-frame-layer,
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .card-summon-atk,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .card-summon-hp,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .stat-atk,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .stat-hp{
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position.item-target-ok .card-summon-hp{
   filter:none!important;
 }
 /* レアリティ別カード名の色：1=白 2=青 3=金 4=紫 5=虹 */
@@ -6688,7 +5895,6 @@ html body:not(.reward-screen-active) #reward-production-ui{
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-title,
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-item,
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-ring,
-html body:not(.reward-screen-active) #reward-production-ui .reward-prod-relation,
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-quest,
 html body:not(.reward-screen-active) #reward-production-ui .reward-prod-journey{
   display:none!important;
@@ -6726,10 +5932,6 @@ html body.reward-screen-active .reward-prod-panel{
   background-position:center;
   background-size:100% 100%;
   background-repeat:no-repeat;
-}
-html body.reward-screen-active .reward-prod-spell{
-  top:360px;
-  background-image:url("assets/ui/spell.png");
 }
 html body.reward-screen-active .reward-prod-item{
   top:360px;
@@ -8005,12 +7207,8 @@ html body.reward-screen-active #hand-slots.unit-equip-slots::after,
 html body.reward-screen-active #hand-pane .hand-pane-label,
 html body.reward-screen-active #hand-pane .spell-label,
 html body.reward-screen-active #hand-pane > h2,
-html body.reward-screen-active #hand-pane > .pane-title,
-html body.reward-screen-active #hand-pane > .section-title,
-html body.reward-screen-active #hand-pane > .hand-pane-title,
 html body.reward-screen-active #hand-pane > .hand-pane-label,
 html body.reward-screen-active #hand-pane > .spell-label,
-html body.reward-screen-active #hand-pane > .prod-title-line,
 html body.reward-screen-active #hand-pane > .line{
   content:none!important;
   display:none!important;
@@ -8055,7 +7253,6 @@ html body.reward-screen-active #battle-order-section,
 html body.reward-screen-active #hand-pane,
 html body.reward-screen-active #reward-info-bar,
 html body.reward-screen-active #btn-pass,
-html body.reward-screen-active #reward-reset-btn,
 html body.reward-screen-active #battle-options-btn{
   z-index:2!important;
 }
@@ -8270,11 +7467,6 @@ html body.reward-screen-active .reward-prod-tile strong{
 /* クエストの討伐目標3行 */
 html body.reward-screen-active .reward-prod-quest-body p:not(.reward-prod-quest-main){
   color:#8b7c67!important;
-}
-html body.reward-screen-active .reward-prod-spell{
-  top:360px!important;
-  height:576px!important;
-  background-image:url("assets/ui/spell.png")!important;
 }
 html body.reward-screen-active .reward-prod-item{
   top:360px!important;
@@ -8525,13 +7717,6 @@ html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn str
 .reward-prod-turn.is-alert .reward-prod-turn-alert{
   display:flex!important;
 }
-html body.reward-screen-active .reward-prod-spell .reward-prod-slots i{
-  border:0!important;
-  border-radius:0!important;
-  background:url("assets/cards/spell_card_back.png") center/100% 100% no-repeat!important;
-  box-shadow:none!important;
-  opacity:1!important;
-}
 html body.reward-screen-active #reward-info-bar,
 html body.reward-screen-active #reward-info-bar::after{
   display:none!important;
@@ -8639,8 +7824,7 @@ html body .rew-card.merge-ready {
 }
 
 html body #rw-cards .pending-placement,
-html body #enemy-hand-slots .pending-placement,
-html body .shop-equipment-row .pending-placement {
+html body #enemy-hand-slots .pending-placement {
   filter: none !important;
   box-shadow: 0 0 16px 3px rgba(255, 255, 255, 0.8), 0 0 32px 8px rgba(255, 232, 170, 0.55) !important;
 }
@@ -8972,20 +8156,6 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
   font-size:calc(22px * var(--game-scale));
   padding:.45em .9em;
 }
-#map-confirm-dialog{
-  position:fixed;
-  inset:0;
-  z-index:100200;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,.45);
-}
-#map-confirm-dialog .map-confirm-btns{
-  display:flex;
-  gap:calc(12px * var(--game-scale));
-  justify-content:center;
-}
 /* アイテムのドラッグ中は、指輪と同じ黒50%オーバーレイを使い、
    アイテム枠だけを明るく残す。個々の盤面要素へfilterを掛けると暗さが重なり、
    board.svgの枠が背景へ沈むため、ここでは対象枠の明るさだけを保証する。 */
@@ -9019,7 +8189,6 @@ html body.reward-screen-active.forge-screen-active.dragzone-mainequip #battle-or
 /* 左側パネルの配置と枠を統一する。Y値はゲームキャンバス座標。 */
 html body.reward-screen-active .reward-prod-item,
 html body.reward-screen-active .reward-prod-ring,
-html body.reward-screen-active .reward-prod-relation,
 html body.reward-screen-active .reward-prod-quest{
   width:1020px!important;
   height:372px!important;
@@ -9028,25 +8197,7 @@ html body.reward-screen-active .reward-prod-quest{
 }
 html body.reward-screen-active .reward-prod-item{top:356px!important;}
 html body.reward-screen-active .reward-prod-ring{top:765px!important;}
-html body.reward-screen-active .reward-prod-relation{top:1174px!important;}
 html body.reward-screen-active .reward-prod-quest{top:1583px!important;}
-html body.reward-screen-active .reward-prod-relation .reward-prod-slots i{
-  border:0!important;
-  border-radius:0!important;
-  background:none!important;
-  box-shadow:none!important;
-  position:relative!important;
-  pointer-events:auto!important;
-}
-html body.reward-screen-active .reward-prod-relation .reward-prod-slots i::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:2;
-  background:url("assets/ui/relation_slot.png") center/100% 100% no-repeat;
-  opacity:1;
-  pointer-events:none;
-}
 /* 編成画面：クエストと旅の進捗 */
 html body.reward-screen-active .reward-prod-quest{
   top:1174px!important;
@@ -9622,7 +8773,6 @@ html body #hand-slots.unit-equip-slots > .card::after{
 }
 /* 売却価格・カード絵・枠線を同一カード内で確実に積層する。 */
 html body #hand-slots.unit-equip-slots > .card,
-html body #rw-cards .reward-grid-zone .rew-card,
 html body #battle-order-row > .rew-card,
 html body .reward-prod-item .reward-prod-slots i,
 html body .reward-prod-ring .reward-prod-slots i{
@@ -9659,34 +8809,16 @@ html body #hand-slots.unit-equip-slots > .card .map-boundary-layer{
   pointer-events:none!important;
   z-index:110!important;
 }
-/* 発光はカード枠と同じ矩形から生成し、filter由来の角ズレをなくす。 */
-html body #rw-cards .reward-grid-zone .rew-card,
 html body #battle-order-row > .rew-card{
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   overflow:visible!important;
 }
-html body #rw-cards .reward-grid-zone .rew-card:hover,
-html body #rw-cards .reward-grid-zone .rew-card.dragging,
-html body #rw-cards .reward-grid-zone .rew-card.drag-over,
 html body #battle-order-row > .rew-card:hover,
 html body #battle-order-row > .rew-card.dragging,
 html body #battle-order-row > .rew-card.drag-over{
   filter:none!important;
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
-}
-html body #rw-cards .reward-grid-zone .rew-card.dragging{
-  background:transparent!important;
-}
-html body #rw-cards .reward-grid-zone .rew-card.dragging::after{
-  content:""!important;
-  display:block!important;
-  position:absolute!important;
-  inset:0!important;
-  background:var(--card-frame) center/100% 100% no-repeat!important;
-  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
-  pointer-events:none!important;
-  z-index:6!important;
 }
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card .panel-dir,
 html body.reward-screen-active #hand-slots.unit-equip-slots > .card .panel-dir-up,
@@ -9708,9 +8840,6 @@ html body #hand-slots.unit-equip-slots > [data-map-board].drag-over{
 /* 発光そのものを同じ矩形の疑似要素で描画し、外側影の隙間とRずれを防ぐ。 */
 html body #hand-slots.unit-equip-slots > .card:hover:not(.inert):not(.invalid-battle-position)::before,
 html body #hand-slots.unit-equip-slots > .card.drag-over:not(.invalid-battle-position)::before,
-html body #rw-cards .reward-grid-zone .rew-card:hover::before,
-html body #rw-cards .reward-grid-zone .rew-card.dragging::before,
-html body #rw-cards .reward-grid-zone .rew-card.drag-over::before,
 html body #battle-order-row > .rew-card:hover::before,
 html body #battle-order-row > .rew-card.dragging::before,
 html body #battle-order-row > .rew-card.drag-over::before{
@@ -9875,19 +9004,12 @@ html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok .man
 html body #hand-slots.unit-equip-slots > .card.board-hp-zero.item-target-ok .seal-cost-badge{
   filter:none!important;
 }
-/* 報酬カードも同じ発光強度に揃える。 */
-html body #rw-cards .reward-grid-zone .rew-card:hover,
-html body #rw-cards .reward-grid-zone .rew-card.dragging,
-html body #rw-cards .reward-grid-zone .rew-card.drag-over,
 html body #battle-order-row > .rew-card:hover,
 html body #battle-order-row > .rew-card.dragging,
 html body #battle-order-row > .rew-card.drag-over{
   filter:none!important;
   box-shadow:none!important;
 }
-html body #rw-cards .reward-grid-zone .rew-card:hover::before,
-html body #rw-cards .reward-grid-zone .rew-card.dragging::before,
-html body #rw-cards .reward-grid-zone .rew-card.drag-over::before,
 html body #battle-order-row > .rew-card:hover::before,
 html body #battle-order-row > .rew-card.dragging::before,
 html body #battle-order-row > .rew-card.drag-over::before{
@@ -10733,9 +9855,6 @@ html body .triple-merge-ghost{
   position:fixed!important;margin:0!important;z-index:20000!important;
   pointer-events:none!important;overflow:visible!important;
 }
-html body .triple-merge-flash{
-  animation:tripleMergeFlash .62s ease-out both!important;
-}
 @keyframes tripleMergeFlash{
   0%{filter:brightness(1);box-shadow:none}
   28%{filter:brightness(2.5);box-shadow:0 0 22px 8px rgba(255,240,135,.95),0 0 44px 16px rgba(255,188,38,.72)}
@@ -10857,9 +9976,6 @@ html body .triple-merge-dim{
 }
 html body .triple-merge-dim.visible{opacity:1}
 html body .triple-merge-focus{z-index:20000!important}
-html body .triple-merge-power-flash{
-  animation:tripleMergePowerFlash .72s ease-out both!important;
-}
 html body .triple-merge-result-hidden{visibility:hidden!important}
 html body .triple-merge-white-flash{
   animation:tripleMergeWhiteFlash .76s ease-out both!important;
@@ -11260,7 +10376,6 @@ html body.reward-screen-active #reward-move-btns#reward-move-btns .rew-move-btn:
 html body.battle-victory-pending #scr-battle .slot.unit-card:hover,
 html body.battle-victory-pending #scr-battle .slot.unit-card:hover::before,
 html body.battle-victory-pending #scr-battle .slot.unit-card:hover::after,
-html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red,
 html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue{
   transform:none!important;
   filter:none!important;
@@ -11270,8 +10385,6 @@ html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue{
 }
 html body.battle-victory-pending #scr-battle .slot.unit-card:hover::before,
 html body.battle-victory-pending #scr-battle .slot.unit-card:hover::after,
-html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red::before,
-html body.battle-victory-pending #scr-battle .slot.unit-card.glow-red::after,
 html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue::before,
 html body.battle-victory-pending #scr-battle .slot.unit-card.glow-blue::after{
   display:none!important;
@@ -11506,7 +10619,6 @@ html body.fatal-error-active .screen{pointer-events:none!important}
 html body.game-clear-active #gameover-video-tint,
 html body.game-clear-active #gameover-video-shade{display:none!important}
 #gameover-board-panel{position:absolute;left:48%;top:50%;width:1630.1997px;height:1407px;transform:translateY(-50%);padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;z-index:2;animation:gameoverBoardReveal .45s 1.45s both!important;overflow:visible!important}
-.gameover-board-title{display:none!important}
 #gameover-board-grid{position:absolute;inset:0!important;width:1630.1997px!important;height:1407px!important;display:block!important;overflow:visible!important}
 html body.gameover-active #gameover-board-grid>#hand-pane-board-bg{
   display:block!important;position:absolute!important;left:0!important;top:0!important;
@@ -12480,16 +11592,12 @@ html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35
   -webkit-mask-position:0 0;
   mask-position:0 0;
 }
-.map-motion-path{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:visible!important;visibility:hidden!important;pointer-events:none!important}
-#map-lines,.map-line,.map-motion-path,.map-motion-path svg,.map-motion-path path{overflow:visible!important}
+#map-lines,.map-line{overflow:visible!important}
 #scr-map.active,
 #map-lines,
 .map-line,
 .map-line::before,
-.map-line::after,
-.map-motion-path,
-.map-motion-path svg,
-.map-motion-path path{
+.map-line::after{
   overflow:visible!important;
   contain:none!important;
   clip-path:none!important;
@@ -13402,11 +12510,6 @@ html body #board-card-visibility-btn:active .bcv-label{color:#c49a6c!important;t
 /* ::before のホバー発光レイヤーは絶対配置のため、文字より後に描画されて文字を覆う
    （＝文字色が変わって見える）。ラベルをspanで包んで発光レイヤーより前面に出す。 */
 html body #board-card-visibility-btn .bcv-label{position:relative;z-index:1}
-/* カード非表示：マスの右クリック挙動を確認するための機能なので、カードの中身も枠も完全に隠す。
-   枠レイヤーを除外に残すとカードの輪郭だけが残ってしまう。マス自体はクリックできるよう要素は残す。 */
-html body.board-cards-hidden #hand-slots.unit-equip-slots > .card > *{visibility:hidden!important}
-html body.board-cards-hidden #hand-slots.unit-equip-slots > .card{
-  background:transparent!important;border-color:transparent!important;box-shadow:none!important;outline:0!important}
 #library-board-tutorial{position:fixed;inset:0;z-index:10000;pointer-events:auto}
 .library-tutorial-dims{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease}
 .library-tutorial-dim{position:fixed;background:rgba(0,0,0,.5);pointer-events:none}
@@ -13907,7 +13010,7 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=multiRevive01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=counterFleeMino02"></script>
+    <script src="js/battle/core.js?v=legacyCleanup01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
     <script src="js/battle/present.js?v=skipEmptyPreAttack01"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
@@ -13929,9 +13032,9 @@ fitVesselboundViewport();
 <script src="js/save/run_save.js?v=steal01"></script>
 <script src="js/engine/pool.js?v=noSacrifice01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=strategyCount01"></script>
+    <script src="js/engine/battle.js?v=legacyCleanup01"></script>
     <script src="js/engine/battle_events.js?v=multiFinish01"></script>
-<script src="js/engine/render.js?v=effectOrder20"></script>
+<script src="js/engine/render.js?v=legacyCleanup01"></script>
 <script src="js/engine/reward_items.js?v=actionLabel01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
 <script src="js/engine/reward.js?v=fontSizeInt01"></script>
@@ -14613,7 +13716,6 @@ html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:
    stacking contextを作ると子のz-index:105が外枠を越えるため解除する。
    アイテム／指輪は枠線の疑似要素を110にし、同じく価格の上へ描く。 */
 html body.reward-screen-active .shop-pending-sale-ui{z-index:auto!important}
-html body.reward-screen-active #rw-cards .reward-grid-zone .rew-card::after,
 html body.reward-screen-active #battle-order-row > .rew-card::after{
   z-index:100!important;
 }
@@ -14666,12 +13768,6 @@ html body #kw-tooltip.reward-action-tooltip .reward-action-rule{
   margin:calc(8px * var(--game-scale)) 0 0!important;
   background:url("assets/ui/info_line.svg?v=tooltipLine06") center/100% 100% no-repeat!important;
   pointer-events:none!important;
-}
-html body #kw-tooltip.reward-action-tooltip .reward-action-desc{
-  white-space:pre-wrap!important;
-  text-align:left!important;
-  line-height:1.5!important;
-  margin-bottom:calc(12px * var(--game-scale))!important;
 }
 html body #kw-tooltip.reward-action-tooltip .reward-action-buttons{
   display:flex!important;
@@ -15677,9 +14773,7 @@ html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.draggin
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .character-frame-layer,
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) > .unit-stat-overlay-layer,
 html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-atk,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-hp,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .stat-atk,
-html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .stat-hp{
+html body #hand-slots.unit-equip-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-hp{
   filter:brightness(.5)!important;
 }
 /* 報酬カードのarrowはカード箱の外へ先端がはみ出すため、箱内の暗転層だけでは
