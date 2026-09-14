@@ -641,9 +641,8 @@ function goToReward(options){
     // 鍵には敗北回数（_waveDefeatCount）も入れる。敗北しても場面・段は進まないため、
     // これが無いと敗北直後の報酬が直前と全く同じ5枚になる。
     _rewCards=runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,()=>drawRewards())
-      .filter(c=>c&&!c._isChar).slice(0,_waveRewardCount);
+      .filter(c=>c).slice(0,_waveRewardCount);
     G._retryRewardCards=null;
-    _rewCards=_rewCards.filter(c=>c&&!c._isChar);
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
     _storeRewardStartSnapshot();
   }
@@ -1429,7 +1428,6 @@ function renderRewCards(){
     requestAnimationFrame(fitCardDescs);
     return;
   }
-  _rewCards=_rewCards.filter(card=>!card||!card._isChar);
   _rewCards.slice(0,REWARD_GRID_CAPACITY).forEach((card,i)=>{
     if(!card) return;
     const d=_mkRewDiv(card,()=>takeRewCard(i),i);
@@ -1584,7 +1582,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   const cost=Math.max(0,(card._buyPrice??1));
   const canBuy=!isPendingSale&&(!G._isRewardTown||G._freeRewardPanelMode||cost===0||G.gold>=cost);
   const isLegend=!!card._isLegend;
-  const div=(typeof mkCardEl==='function'&&!card._isChar)?mkCardEl(card,rewIdx??-1,'reward'):document.createElement('div');
+  const div=typeof mkCardEl==='function'?mkCardEl(card,rewIdx??-1,'reward'):document.createElement('div');
   div.classList.add('rew-card');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   // 盤面が変わった後に「取ると合体」を付け直せるよう、対応する提示カードの位置を残す。
@@ -1601,61 +1599,6 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if((card.type==='ring'||_isItemCard(card))&&typeof _auxiliaryKeywordPreviewText==='function'){
     const keywordPreview=_auxiliaryKeywordPreviewText(card,card.desc||'');
     if(keywordPreview) div.setAttribute('data-keyword-preview',keywordPreview);
-  }
-
-  if(card._isChar){
-    // キャラクターカード
-    const hasSlot=G.allies.includes(null);
-    const disabled=!hasSlot;
-    div.className='rew-card character-card'+(card.rarity>=1&&card.rarity<=6?` rarity-${card.rarity}`:'')+((isPendingSale||canBuy&&!disabled)?'':' cant')+(isLegend?' legend':'');
-    if(card.color) div.setAttribute('data-preview-title-color',String(card.color));
-    const raceBadge=`<div style="font-size:15px;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
-    const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
-    const statsLine=`<div style="font-size:19px;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
-    const costLine=G._isRewardTown?`<div class="rew-card-cost">${cost}ゴールド${disabled?' （盤面満杯）':''}</div>`:disabled?`<div class="rew-card-cost">（盤面満杯）</div>`:'';
-    const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
-    const gradeTag='';
-    // 体裁（大きさ・位置）はCSSの .shop-insufficient-badge に一本化してある。
-    const shortBadge=!isPendingSale&&!canBuy?`<div class="shop-insufficient-badge">ゴールド不足</div>`:'';
-    const _rewCharDesc=_stripKeywordsFromDesc(card.desc?computeDesc(card):'',card);
-    // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
-    // 既にアイコン化済みの_rewCharDescではなくプレーンテキストを渡す
-    // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
-    const _rewCharDescPlain=card.desc?_stripKeywordsFromDesc(_rawSubstitutedDesc(card),card):'';
-    const _charPreview=typeof _unitPreviewText==='function'?_unitPreviewText(card,_rewCharDescPlain):_rewCharDescPlain;
-    if(_charPreview) div.setAttribute('data-preview',_charPreview);
-    const _sumBonusCardAtk=(G.hasGoldenDrop?1:0);
-    const _sumBonusCardHp=(G.hasGoldenDrop?1:0);
-    const _hasSumDescCard=(_sumBonusCardAtk>0||_sumBonusCardHp>0)&&/\d+\/\d+、/.test(card.desc||'');
-    if(_hasSumDescCard){
-      const _modDescCard=(card.desc||'').replace(/(\d+)\/(\d+)、/g,(_m,a,h)=>`${parseInt(a)+_sumBonusCardAtk}/${parseInt(h)+_sumBonusCardHp}、`);
-      div.setAttribute('data-preview',typeof _unitPreviewText==='function'?_unitPreviewText(card,_modDescCard):_modDescCard);
-    }
-    const _dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card):'';
-    div.innerHTML=`${shortBadge}${costLine}${_dirMarks}<div class="rew-card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><div style="font-size:17px;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:14px;color:var(--text2);margin:1px 0">${[...new Set(card.keywords||[])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
-    _ensureCardBackLayer(div);
-    _ensureRewardCardLineLayer(div);
-    _ensureRewardCardDimLayer(div);
-    if(isPendingSale){
-      const sale=document.createElement('div');
-      sale.className='shop-pending-sale-ui';
-      sale.innerHTML=`<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</button>`;
-      _bindPendingShopCardSale(sale,rewIdx);
-      div.appendChild(sale);
-      div.draggable=true;
-      div.addEventListener('dragstart',e=>{
-        _dragSrc={arr:'rew',idx:rewIdx};
-        e.dataTransfer.effectAllowed='move';
-        e.dataTransfer.setDragImage(_transparentDragImg,0,0);
-        _setDragZoneClass(_rewardDragZoneForCard(card));
-        _createDragGhost(div);
-        div.classList.add('dragging');
-      });
-      div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
-    }else if(canBuy&&!disabled) div.onclick=onBuy;
-    _appendLibraryLoanBadge(div);
-    return div;
   }
 
   _pinPanelTextPosition(div,'reward');
@@ -1988,47 +1931,9 @@ function takeRewCard(i, targetSlot){
   // 街扱いのゴールド徴収・購入可否判定の対象外にする。
   const isPendingSale=!!card._shopSalePending;
   const isTown=G._isRewardTown&&!isPendingSale;
-  const cost=isPendingSale?0:(card._isChar?(card._buyPrice??1):Math.max(0,(card._buyPrice??1)));
-
-  if(card._isChar){
-    // 通常報酬フェイズ：キャラ1枚のみ無料取得、以降はロック（ターン開始時の報酬カードのみ対象）
-    if(!isTown){
-      if(_rewFreePickDone&&card._isOriginalReward)return;
-    } else {
-      // 街：通常購入
-      if(G.gold<cost)return;
-    }
-  } else {
-    // パネル：通常購入（パネル無料モード中はゴールド不足でも取得できる）
-    if(!G._freeRewardPanelMode&&G.gold<cost) return;
-  }
-
-  if(card._isChar){
-    // キャラクター：指定スロット or 最初の空きへ配置
-    let emptyIdx;
-    if(targetSlot!=null){
-      if(G.allies[targetSlot]!=null)return;
-      emptyIdx=targetSlot;
-    } else {
-      emptyIdx=G.allies.indexOf(null);
-    }
-    if(emptyIdx<0)return;
-    // 通常報酬は無料取得、街は通常購入（ターン開始時の報酬カードのみ無料取得権を消費する）
-    if(isTown){ G.gold-=(card._buyPrice??1); refreshRewardGoldUi(); } else if(card._isOriginalReward){ _rewFreePickDone=true; }
-    const unit=makeUnitFromDef(card, undefined, true); // 購入：効果召喚ボーナスは対象外
-    G.allies[emptyIdx]=unit;
-    if(typeof markCardAcquired==='function') markCardAcquired(card);
-    // 提示カードから購入したキャラは後衛で配置
-    unit.hate=false;
-    unit.hateTurns=0;
-    // 戦闘報酬の無料取得では購入音を鳴らさず、街・ショップ購入時だけ再生する。
-    if((isTown||G._isShop)&&typeof playSfx==='function') playSfx('buy1',{group:'reward'});
-    // 召喚時効果（addAlly と同じ処理を実行）
-    if(['grimalkin_summon','imp_summon','rukh_summon','medusa_summon','ogre_summon'].includes(unit.effect)&&typeof applyUnitSummonEffect==='function') applyUnitSummonEffect(unit,null);
-    _rewCards[i]=null;
-    refreshRewardGoldUi(); renderRewCards(); renderFieldEditor();
-    return;
-  }
+  const cost=isPendingSale?0:Math.max(0,(card._buyPrice??1));
+  // パネル：通常購入（パネル無料モード中はゴールド不足でも取得できる）
+  if(!G._freeRewardPanelMode&&G.gold<cost) return;
 
   if(card.type==='ring'){
     if(G._rewardOnePickMode&&_rewFreePickDone&&card._isOriginalReward)return;
@@ -2236,7 +2141,7 @@ function _renderFieldRow(el){
       div.addEventListener('dragover',e=>{
         if(_rewDragSrc>=0){
           const rc=_rewCards[_rewDragSrc];
-          if(rc?._isChar){ e.preventDefault(); div.classList.add('drag-over'); }
+          if(rc){ e.preventDefault(); div.classList.add('drag-over'); }
         } else if(_fieldDragSrc>=0){ e.preventDefault(); div.classList.add('drag-over'); }
       });
       div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
@@ -2245,7 +2150,7 @@ function _renderFieldRow(el){
         if(_rewDragSrc>=0){
           const src=_rewDragSrc; _rewDragSrc=-1; _clearFieldDropHighlights();
           const rc=_rewCards[src];
-          if(rc&&rc._isChar){
+          if(rc){
             if(!G._isRewardTown||G.gold>=(rc._buyPrice??2)){
               takeRewCard(src,i);
             } else {
@@ -3022,13 +2927,6 @@ function _rewardMergeCandidate(rewIdx,card){
     const owned=_ownedMergeCards();
     const key=_panelMergeKey(card);
     if(!key) return false;
-    if(card._isChar){
-      // **素材側の `_isChar` は問わない。**
-      // `_isChar` は「所持キャラクター本体」の印で、魔導板へ置いたカードには付かない。
-      // 揃える条件にしていたため、盤面に同名2枚あっても本体側の提示カードが光らなかった。
-      return owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)
-        &&_panelMergeKey(c)===key).length>=2;
-    }
     const same=owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)&&_panelMergeKey(c)===key).length;
     const mirrors=owned.filter(c=>_isMagicMirrorPanel(c)).length;
     return _isMagicMirrorPanel(card)?same>=2:(same>=2||same>=1&&mirrors>0);

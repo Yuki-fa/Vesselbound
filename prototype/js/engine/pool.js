@@ -9,10 +9,6 @@
 function calcBuyPrice(card){
   if(!card) return 1;
   if(typeof G!=='undefined'&&G&&G._freeRewardPanelMode&&(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope)) return 0;
-  // キャラクター
-  if(card._isChar){
-    return card.cost||2;
-  }
   if(card.type==='consumable') return card.cost||1;
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return card.cost||2;
   // 指輪

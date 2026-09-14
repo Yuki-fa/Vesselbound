@@ -241,6 +241,40 @@
   document.addEventListener('drop',hide,true);
   document.addEventListener('mousemove',()=>{ if(el) hide(); },true);
 })();
+// **cursor1 の所でボタンを押している間は、cursor1 を左へ8°回す。指先の位置は変えない。**（利用者指定）
+// CSSではカーソル画像を回せないので、cursor1.svg を読み、指先を中心に回した SVG を作って --cursor-press へ入れる。
+// 回した絵が枠からはみ出さないよう余白（PAD）を足し、クリック位置（ホットスポット）も同じだけずらす。
+(function _initPressCursor(){
+  const ANGLE=-8;                    // 負＝左回り（SVGの座標はy軸が下向き）
+  const FINGERTIP={x:8,y:0};         // cursor1.svg の指先（指の輪郭の最上点）
+  const PAD=8;
+  const root=document.documentElement;
+  const normal=getComputedStyle(root).getPropertyValue('--cursor-normal');
+  const m=normal.match(/url\(["']?([^"')]+)["']?\)\s*([\d.]+)\s+([\d.]+)/);
+  if(!m||typeof fetch!=='function') return;
+  const [,src,hx,hy]=m;
+  fetch(src).then(r=>r.ok?r.text():'').then(text=>{
+    const open=text.match(/<svg\b[^>]*>/i), close=text.lastIndexOf('</svg>');
+    if(!open||close<0) return;
+    const vb=(open[0].match(/viewBox="([^"]+)"/)||[])[1];
+    const [vx,vy,vw,vh]=vb?vb.trim().split(/[\s,]+/).map(Number):[0,0,Number((open[0].match(/width="([\d.]+)/)||[])[1])||30,Number((open[0].match(/height="([\d.]+)/)||[])[1])||44];
+    const inner=text.slice(open.index+open[0].length,close);
+    const w=vw+PAD*2, h=vh+PAD*2;
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vx-PAD} ${vy-PAD} ${w} ${h}">`
+      +`<g transform="rotate(${ANGLE} ${FINGERTIP.x} ${FINGERTIP.y})">${inner}</g></svg>`;
+    root.style.setProperty('--cursor-press',
+      `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Number(hx)+PAD} ${Number(hy)+PAD}, auto`);
+  }).catch(()=>{});
+  const release=()=>root.classList.remove('cursor-pressing');
+  document.addEventListener('pointerdown',e=>{
+    if(e.button!==0) return;
+    const target=e.target instanceof Element?e.target:null;
+    // 押し始めの所のカーソルが cursor1 の時だけ（掴めるカードの cursor2 は変えない）。
+    if(target&&/cursor1\.svg/.test(getComputedStyle(target).cursor)) root.classList.add('cursor-pressing');
+  },true);
+  ['pointerup','pointercancel','dragstart'].forEach(type=>document.addEventListener(type,release,true));
+  window.addEventListener('blur',release);
+})();
 // **何もない所をクリックした時の白く細い波紋。**（利用者指定）
 // 「何もない所」＝ボタン・リンク・掴めるカードでなく、自分にも祖先にもクリック処理（onclick）が無い所。
 // ボタン上でもカーソルは cursor1 のままなので、カーソルでは判定できない。
@@ -5150,7 +5184,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   const t=card.type||'ring';
   div.className=`card ${t}${card.legend?' legend-card':''}`;
-  if(card._isChar||(!card.type&&!card.kind)) div.classList.add('character-card');
+  if(!card.type&&!card.kind) div.classList.add('character-card');
   if(card.rarity>=1&&card.rarity<=6) div.classList.add(`rarity-${card.rarity}`);
   div.dataset.cardIdx=String(_idx);
   div.dataset.cardCtx=_ctx||'';

@@ -2423,6 +2423,9 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    難易度の値（難易度ノーマル）、ボタン（「再挑戦」「タイトルに戻る」「続ける」）を `gameOver()`（main.js）で `textMessage()` から入れる。到達地点の値は地域情報シートの道の名前のまま。
    見出しは letter-spacing が末尾にも付くので `padding-left` に同じ値を足して中心を揃えている。
 25. **所持金・ライフ・マナ・血のホバー説明（`data-preview-status`）は枠の15px上の中央に固定。** `_positionTooltipGroup(...,'status-above')`。見切れても下へは回さず、70pxのセーフゾーン内へずらす。
+26. **クリック中のカーソル：cursor1 の所で押している間は cursor1 を指先中心に左へ8°回した画像。** render.js の `_initPressCursor()` が cursor1.svg を読んで回した SVG を作り `--cursor-press` へ入れ、
+   押し始めの所のカーソルが cursor1 の時だけ `html.cursor-pressing` を付ける（掴めるカードの cursor2・ドラッグ中の cursor3 は変えない）。指先の座標は `FINGERTIP`（cursor1.svg を差し替えたら確認）。
+27. **`card._isChar`（旧「所持キャラクター本体」の印）の分岐は削除済み。** 立てる処理が無く到達不能だった。報酬カードは全て `mkCardEl()` で作る。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

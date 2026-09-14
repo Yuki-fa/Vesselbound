@@ -7,14 +7,21 @@
 <style>
 /* **カーソルは3種類だけ。**（利用者指定）普段とボタン上＝cursor1／掴めるカードの上＝cursor2／ドラッグ中＝cursor3。
    値はこの変数だけで持ち、各規則は cursor:var(--cursor-*) で参照する（pointer/default/grab を直接書かない）。
-   数字はクリック位置（指先）。cursor は継承されるので、html に普段のカーソルを置く。 */
+   数字はクリック位置（指先）。cursor1 の指先は x=8、cursor2 は x=14（以前は2つが入れ替わっていた）。cursor は継承されるので、html に普段のカーソルを置く。 */
 :root{
-  --cursor-normal:url("assets/ui/cursor1.svg?v=cursor01") 14 1, auto;
-  --cursor-grab:url("assets/ui/cursor2.svg?v=cursor01") 8 1, grab;
+  --cursor-normal:url("assets/ui/cursor1.svg?v=cursor01") 8 1, auto;
+  --cursor-grab:url("assets/ui/cursor2.svg?v=cursor01") 14 1, grab;
   --cursor-drag:url("assets/ui/cursor3.svg?v=cursor01") 15 16, grabbing;
+  /* クリック中（押している間）の cursor1。render.js の _initPressCursor() が cursor1.svg を指先を中心に左へ8°回した画像を作って入れる。 */
+  --cursor-press:var(--cursor-normal);
 }
 html{
   cursor:var(--cursor-normal);
+}
+/* **cursor1 の所でボタンを押している間は、左へ8°回した cursor1。**（利用者指定）押し始めが cursor1 の所の時だけ付く印。 */
+html.cursor-pressing,
+html.cursor-pressing *{
+  cursor:var(--cursor-press)!important;
 }
 /* ボタンは既定（UA）で矢印になり html から継承しないため、明示する。ボタン上でもカーソルは変えない（利用者指定）。 */
 button,a[href],[role="button"]{
@@ -259,7 +266,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 /* TITLE */
 #scr-title{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#1a1030 0%,var(--bg) 70%)}
 #scr-title.asset-backed::before{opacity:1;filter:none}
-#scr-title .sub{color:var(--text2);letter-spacing:.1em;font-size:25px;margin-bottom:3rem}
+#scr-title .sub{letter-spacing:.1em;margin-bottom:3rem}
 
 /* 起動ブランドロゴ／タイトル演出 */
 #scr-loading.startup-splash{display:flex!important;z-index:100!important;align-items:stretch!important;justify-content:center!important;background:#0b0c10!important;opacity:1;transition:opacity .8s ease!important;pointer-events:auto!important}
@@ -486,7 +493,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;line-height:1.15;text-align:center;color:#f4e7c8;text-shadow:0 2px 4px rgba(0,0,0,.9)}
 .card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;text-align:left;margin:8% 10% 0}
 .card.character-card .card-desc{display:none}
-.card-enc{font-size:17px;color:var(--teal2);margin-top:2px}
+.card-enc{margin-top:2px}
 .card-summon-atk{position:absolute;bottom:3px;left:4px;font-weight:700}
 .card-summon-hp{position:absolute;bottom:3px;right:4px;font-weight:700}
 .card.legend-card{border-color:rgba(200,160,60,.6);box-shadow:0 0 8px rgba(200,160,60,.2)}
@@ -515,8 +522,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .bhud-item:last-child{border-right:none}
 .bhud-label{color:var(--text2);letter-spacing:.07em;font-family:var(--font-hd)}
 .bhud-val{font-weight:700;line-height:1}
-.bhud-val.floor{color:var(--teal2)}.bhud-val.soul{color:var(--gold2)}.bhud-val.turn{color:var(--blue2)}
-/* REWARD INLINE */
+.bhud-val.floor{color:var(--teal2)}.bhud-val.soul{color:var(--gold2)}/* REWARD INLINE */
 .reward-info-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(200,160,60,.08);border:1px solid rgba(200,160,60,.3);border-radius:4px;flex-wrap:wrap;flex-shrink:0}
 .ri-soul{color:var(--text2)}.ri-val{font-weight:700;color:var(--gold2)}
 
@@ -561,11 +567,11 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card-name{position:relative;z-index:2;font-weight:700;margin-top:58%;margin-bottom:2px;color:#f4e7c8;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,.9)}
 .rew-card-desc{position:relative;z-index:2;color:#3a2b1c;line-height:1.22;margin:8% 10% 0}
 .rew-card.character-card .rew-card-desc{display:none}
-.rew-card-cost{color:var(--gold);font-weight:700;margin-bottom:2px}
+.rew-card-cost{font-weight:700;margin-bottom:2px}
 .rew-card.legend{border-color:rgba(200,160,60,.6);box-shadow:0 0 6px rgba(200,160,60,.25),inset 0 0 16px rgba(200,160,60,.04)}
 .rew-card.legend:hover:not(.cant){border-color:var(--gold2);box-shadow:0 4px 14px rgba(200,160,60,.45),inset 0 0 16px rgba(200,160,60,.06)}
 @keyframes pblue{from{box-shadow:0 0 6px rgba(60,160,255,.35),inset 0 0 10px rgba(60,160,255,.06)}to{box-shadow:0 0 16px rgba(60,160,255,.75),inset 0 0 20px rgba(60,160,255,.12)}}
-.rew-legend-badge{font-size:15px;color:var(--gold2);margin-top:3px;letter-spacing:.04em;opacity:.85}
+.rew-legend-badge{margin-top:3px;letter-spacing:.04em;opacity:.85}
 
 
 
@@ -911,7 +917,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 /* 3840x2160 基準レイアウト。実モニタには JS で全体スケールを掛ける */
 #scr-battle>div:first-child{padding:12px 32px!important}
-#scr-battle>div:first-child span{font-size:29px!important}
 .battle-area{max-width:3000px;padding:22px 32px;gap:18px}
 .field{gap:14px}
 .slot{border-radius:8px;gap:3px}
@@ -941,7 +946,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card-art{min-height:64px;margin-bottom:8px;border-radius:7px}
 .rew-card-name{font-size:23px}
 .rew-card-desc{font-size:19px;line-height:1.24}
-.rew-card-cost{font-size:19px}
 .mv-title{font-size:32px}
 .mv-wrap{max-width:1100px}
 .mv-opts{gap:18px}
@@ -1372,8 +1376,6 @@ html body .slot.dragging{
 #hand-slots .card #battle-options-btn{
   border:0!important;
   background:var(--option-button-image) center/contain no-repeat!important;
-  color:transparent!important;
-  font-size:0!important;
   box-shadow:none!important;
 }
 #ally-section{
@@ -1974,9 +1976,6 @@ body.world-map-active .bottom-hud .bhud-item{
 }
 #rw-cards .rew-card .rew-card-desc{
   line-height:1.16!important;
-}
-#rw-cards .rew-card .rew-card-cost{
-  font-size:18px!important;
 }
 #hand-slots .card:hover:not(.inert),
 #rw-cards .rew-card:hover:not(.cant){
@@ -4694,7 +4693,6 @@ html body .drag-ghost .card-summon-hp{
 }
 html body .slot.drag-ghost .slot-stats{
   bottom:var(--unit-stat-bottom)!important;
-  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .slot.drag-ghost .slot-stats .a{
@@ -5008,7 +5006,6 @@ html body .attack-motion-clone .slot-stats .h{
 html body .attack-motion-clone .slot-stats,
 html body .attack-motion-clone .slot-stats .a,
 html body .attack-motion-clone .slot-stats .h{
-  font-size:var(--motion-stat-size,42px)!important;
   line-height:1!important;
 }
 html body .card.dragging,
@@ -5048,7 +5045,6 @@ html body .drag-ghost .slot-stats .a,
 html body .drag-ghost .slot-stats .h,
 html body .drag-ghost .card-summon-atk,
 html body .drag-ghost .card-summon-hp{
-  font-size:var(--drag-stat-size,42px)!important;
   line-height:1!important;
   text-align:center!important;
 }
@@ -8759,7 +8755,7 @@ html body #scr-battle #battle-options-btn{
 #battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
 /* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
 #battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/back_light.svg") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
-#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#d8b982;font-family:"Shippori Mincho",serif;font-size:44px;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#d8b982;font-family:"Shippori Mincho",serif;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
 #battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
 #battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
 #battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
@@ -12419,14 +12415,14 @@ fitVesselboundViewport();
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=cleanupLegacy01"></script>
 <script src="js/save/run_save.js?v=boardRename01"></script>
-<script src="js/engine/pool.js?v=equipLegacyGone01"></script>
+<script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=boardRename01"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=equipLegacyGone01"></script>
+<script src="js/engine/render.js?v=pressCursor01"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
-<script src="js/engine/reward.js?v=equipLegacyGone01"></script>
+<script src="js/engine/reward.js?v=isCharGone01"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
   <script src="js/engine/main.js?v=gameoverText02"></script>
 <script>
