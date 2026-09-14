@@ -2428,6 +2428,11 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    （掴めるカードの cursor3・ドラッグ中の cursor4 は変えない）。クリック位置は各絵の指先から指の向きに1px内側：cursor1＝8 1、cursor3＝14 1、cursor2＝2 1（指が約15°傾いている）。
    絵を差し替えたら指先の座標を確認すること。
 27. **`card._isChar`（旧「所持キャラクター本体」の印）の分岐は削除済み。** 立てる処理が無く到達不能だった。報酬カードは全て `mkCardEl()` で作る。
+28. **ドラッグはブラウザ標準を使わず `js/engine/pointer_drag.js` がマウス操作から組み立てる。**（標準ドラッグ中はブラウザのカーソルが出るため）
+   押して4px動くと元の要素へ `dragstart`、移動中は `drag`／マウスの下へ `dragleave`・`dragenter`・`dragover`、離すと受け付けていれば `drop`→`dragend` を送る。
+   **置き先の処理は従来どおり dragover/drop で書く**（標準ドラッグと同じイベントの形）。本物の dragstart は window のキャプチャで止め、`[draggable="true"]` は `-webkit-user-drag:none`。
+   押す操作が取り消されていたら始めない、dragstart が取り消されたら始めない、離した直後のクリックは握りつぶす。ドラッグ中は `html.pointer-dragging` で cursor4。
+   検査：`node tools/parity/pointer_drag_check.js`（既存検査の DragEvent 直接送信もそのまま使える）。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

@@ -224,23 +224,6 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start);
   else start();
 })();
-// **ドラッグ中のカーソル（cursor4）。**（利用者指定）ブラウザ標準ドラッグ中は CSS の cursor が効かないので、
-// 画像（#drag-cursor）をマウス位置へ置いて追従させる。ゴーストを作らないドラッグもあるため、文書全体のイベントで拾う。
-// ドロップ後の再描画で dragend が来ないことがあるので、drop と次の mousemove でも必ず片付ける。
-(function _initDragCursor(){
-  let el=null;
-  const hide=()=>{ if(el){ el.remove(); el=null; } };
-  const moveTo=(x,y)=>{
-    if(!x&&!y) return;  // ドラッグ終端の drag イベントは座標が0になる
-    if(!el){ el=document.createElement('div'); el.id='drag-cursor'; document.body.appendChild(el); }
-    el.style.transform=`translate(${x}px,${y}px)`;
-  };
-  document.addEventListener('dragstart',e=>moveTo(e.clientX,e.clientY),true);
-  document.addEventListener('drag',e=>moveTo(e.clientX,e.clientY),true);
-  document.addEventListener('dragend',hide,true);
-  document.addEventListener('drop',hide,true);
-  document.addEventListener('mousemove',()=>{ if(el) hide(); },true);
-})();
 // **cursor1 の所でボタンを押している間は cursor2 にする。指先の位置は cursor1 と揃える。**（利用者指定）
 // cursor2.svg は width/height を持たず、そのままカーソルに使うと大きさが定まらない（ブラウザのカーソルに戻ることがある）。
 // 読み込んで viewBox の寸法を大きさとして付けてから --cursor-press へ入れる。

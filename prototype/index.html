@@ -41,18 +41,11 @@ html body.reward-screen-active :is(.reward-prod-ring,.reward-prod-item) .reward-
 html body .reward-used-dim{
   cursor:var(--cursor-normal)!important;
 }
-/* **ドラッグ中のカーソル（cursor4）。** ブラウザ標準ドラッグ中は CSS の cursor が効かないため、
-   render.js の _initDragCursor() がこの画像をマウス位置へ置いて追従させる（OSのカーソルは消せない）。 */
-#drag-cursor{
-  position:fixed;
-  left:0;
-  top:0;
-  width:30px;
-  height:31.5px;
-  margin:-16px 0 0 -15px;
-  background:url("assets/ui/cursor4.svg?v=cursor02") center/100% 100% no-repeat;
-  pointer-events:none;
-  z-index:2147483000;
+/* **ドラッグ中のカーソル（cursor4）。** ドラッグは js/engine/pointer_drag.js がマウス操作から組み立てるので、
+   ブラウザ標準ドラッグと違い CSS の cursor がそのまま効く。ドラッグ中だけ html に pointer-dragging が付く。 */
+html.pointer-dragging,
+html.pointer-dragging *{
+  cursor:var(--cursor-drag)!important;
 }
 /* **何もない所（カーソルが cursor1 の所）をクリックした時の白く細い波紋。**（利用者指定）
    発生は render.js の _initClickRipple()。大きさ＝--click-ripple-size、尺＝animation の秒数。 */
@@ -577,7 +570,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 /* DRAG STYLES */
 * { -webkit-user-drag: none; }
-[draggable="true"] { -webkit-user-drag: element; }
+/* **ブラウザ標準のドラッグは使わない。** 掴んでもブラウザのカーソルが出ないよう、ドラッグは pointer_drag.js が組み立てる。
+   タッチでも同じドラッグが動くよう、掴めるものの上では画面の移動（パン）もさせない。 */
+[draggable="true"] { -webkit-user-drag: none; touch-action: none; }
 .card.dragging{opacity:.4;transform:scale(.95)}
 .card.drag-over{border-color:var(--gold);box-shadow:0 0 8px rgba(200,160,60,.5);transform:scale(1.04)}
 .card-empty.drag-over{border-color:var(--gold);opacity:.8}
@@ -12419,7 +12414,8 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=boardRename01"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=cursorRename01"></script>
+<script src="js/engine/render.js?v=pointerDrag01"></script>
+<script src="js/engine/pointer_drag.js?v=pointerDrag01"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
 <script src="js/engine/reward.js?v=isCharGone01"></script>
