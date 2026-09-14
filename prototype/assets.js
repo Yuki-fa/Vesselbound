@@ -399,6 +399,10 @@ function _isEliteOrBossCard(card){
 function getCardFrameAsset(card){
   if(!card) return Assets.cards.default;
   if(_isEliteOrBossCard(card)) return Assets.cards.characterFrame;
+  // **敵を仲間にした体・敵に変身した体（_useEnemyVisualFrame）は、カードになっても敵の枠のまま。**
+  // 戦闘スロットの applyUnitVisual() と同じ判定。ここで見ていなかったため、レムレース＋ハイドラで
+  // 報酬に出たウィスプが召喚体の色の枠（色なし＝緑）になっていた。
+  if(card._useEnemyVisualFrame) return Assets.cards.enemyFrame;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
   if(card.magicPanel) return Assets.cards.wandFrame;
   if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;

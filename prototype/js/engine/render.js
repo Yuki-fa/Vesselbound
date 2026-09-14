@@ -52,8 +52,10 @@
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
     // ホバー説明はカーソルではなく、カード／指輪／アイテム／旅アイコンの実寸を基準に置く。
     const _journeyTipAnchor=tgt&&tgt.closest('.journey-scene-mark,.journey-node');
+    // 上にカードが無い特殊マス（空きマス .card-empty に特殊マス説明が付く）も、キャラと同じくマスの横に置く。
+    // 含めないとカーソル位置に出ていた。
     const _sideTipAnchor=!_journeyTipAnchor&&tgt&&tgt.closest(
-      '.item-visual,.ring-visual,[data-tip-below],.card,.rew-card,.slot,.debug-palette-item');
+      '.item-visual,.ring-visual,[data-tip-below],.card,.card-empty,.rew-card,.slot,.debug-palette-item');
     // 右クリックのぞき見（right-card-peek）は魔導板カードを透明化する機能なので、
     // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
     // body全体で判定すると、のぞき見中に報酬カード・デバッグカードへホバーしても
@@ -79,7 +81,9 @@
       const noTitleRule=!!(el&&el.hasAttribute('data-preview-norule'));
       // デバッグカードはdata-previewを外側の一覧要素へ転記するため、closestだけでは
       // 内側のキャラクターカードを検出できない。内包カードも見て背景種別を決める。
-      const isCharacterPreview=!!(el&&el.closest&&(el.closest('.character-card')
+      // **戦闘中のユニット（味方・敵とも .slot.unit-card）もキャラクター。** .character-card が付かないため、
+      // 含めないと戦闘中のホバーだけ通常カードの茶色の背景になっていた。
+      const isCharacterPreview=!!(el&&el.closest&&(el.closest('.character-card,.slot.unit-card')
         ||(el.querySelector&&el.querySelector('.character-card'))));
       tip.innerHTML=journeyEnemyJson?_formatJourneyEnemyHtml(desc,journeyEnemyJson)
         :(isMapPowerDesc?_formatMapPowerHtml(desc)
@@ -286,7 +290,8 @@ function _injectManaIcons(escapedText){
       .replace(/[青赤緑黄紫黒](?!(?:の)?\d*マナ)/g,m=>colorIcon(m))
       // 「赤の3マナ」「2マナ」のように、色（省略可）＋「の」（省略可）＋数字（省略可）＋「マナ」を
       // まとめてマナの数だけアイコン化する。色が付かない場合（例：「2マナを得る」）にも対応する。
-      .replace(/([青赤緑黄紫茶黒])?(?:の)?(\d*)マナ/g,(_,c,n)=>{
+      // **「マナ効果」はキーワード名なので文字のまま残す。**（利用者指定）後ろに「効果」が続くマナは置き換えない。
+      .replace(/([青赤緑黄紫茶黒])?(?:の)?(\d*)マナ(?!効果)/g,(_,c,n)=>{
         const icon=c?colorIcon(c):manaIcon();
         return icon.repeat(Math.max(1,parseInt(n,10)||1));
       })
@@ -4327,9 +4332,13 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
   // 1エントリだけを正とする（両方を残すと_mergeCountedKeywordsで合算され「結界2」等に二重計上される）。
   const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
+  // **廃止済みキーワード（エリート・ボス・生贄など、CORE_REMOVED_KEYWORDS）は出さない。**（利用者指定）
+  // battle.js はエリート戦／ボス戦の判定に keywords の「エリート」「ボス」を使うので、データからは消さず表示で除く。
+  // 戦闘中のバッジ（renderField）は以前から除いていたが、ホバー説明のキーワード欄だけ残っていた。
+  const _isRemovedKeyword=k=>typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k||'').trim().replace(/\d+$/,''));
   const normalizedKws=[...(unit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())&&!cardNames.has(String(k||'').trim())),...dynamicKws]
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
-    .filter(k=>k&&!_isInternalOnlyKeyword(k));
+    .filter(k=>k&&!_isInternalOnlyKeyword(k)&&!_isRemovedKeyword(k));
   // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
   const mergedKws=typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(normalizedKws):[...new Set(normalizedKws)];
   const filtered=mergedKws.filter(k=>{

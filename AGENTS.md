@@ -827,6 +827,16 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 `coreInsertSummonedUnit()` は `placementTargetId` が無ければ前衛の右端へ入れる。
 **発生元IDで補ってはいけない**（同時召喚の並びが逆になる）。
 
+**PvEの開戦配置は枠番号の位置へ置くので、配列に空欄（null）が残る。** 空欄を残したまま差し込むと
+空欄ごと後ろへずれ、後衛が描画範囲（0〜`MAX_ALLIES`-1）の外へ押し出されて消える
+（前衛・後衛にミテーラ→開戦でペリカン4体、で後衛のミテーラが14番へ。誰かが倒れて詰め直されると戻る）。
+`coreInsertSummonedUnit()` は差し込む前に空欄を取り除き、`coreCompactUnits()` は空欄も詰める。
+
+**「この戦闘中、召喚された味方は〜」（ファントム／エイドロン）は、既に召喚された味方とこれから召喚される味方の両方。**
+コアで召喚した体と「復活」で再召喚された体に `_summonedInBattle` を付け、`coreAddSummonBuff()` が発動時に
+生存中のそれらへ増えた分を足す（`stat_change` reason:'summon_buff'）。これから召喚される体は `coreSummonUnit()` で合計を受け取る。
+`_panelSummoned` は魔導板から出撃した体にも付くので、この判定に使わないこと。
+
 **自動テストの通過を「直った」と書かないこと。** 実機で見ていない項目は「未確認」と明記する。
 
 ### 効果の自動検証（効果に触る変更では必須）
@@ -2377,7 +2387,31 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
      旧報酬画面 `.reward-grid-zone`、旧指輪枠 `#ring-slots`、旧編成 `.hand-editor`、旧マップ `.mv-opt`・`.map-edge` 等）。
    - 素材：`assets/vfx/pre/butterfly*.png`。
    - **残骸の解析をやり直す時は、`js/` の外の `assets.js`（素材一覧 `Assets`）と、テンプレート文字列で組み立てる
-     クラス名（`cutin-${mode}`）・ファイル名（`ring_get${n}.wav`）を必ず含めること。** 見落とすと使用中の物を消す。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
+     クラス名（`cutin-${mode}`）・ファイル名（`ring_get${n}.wav`）を必ず含めること。** 見落とすと使用中の物を消す。
+15. **根性で耐える一撃は、HPを一瞬も0に見せない。** コアは `damage（hpAfter:0）→ … → revive（reason:'根性', hp:1）` の順に出すので、
+   `present.js` の `presentHoldHpForGuts()` が「同じ体への次の damage／death／手番の切れ目より前に根性の revive が来る damage」の
+   表示用 `hpAfter` を1にする（写しを書き換え、元のイベントとコアの値は変えない）。PvE・オンラインとも
+   `presentReorderDeathsAfterDamageBatch()` の入口で通る。
+17. **ATKを足す箇所では必ず `coreTriggerAtkGainEffects()` を呼ぶ**（ワイバーン「ATKを得るたび」）。
+   `coreApplyOpeningScaledGrant()`（リリス等の「ATK〜につき〜回付与」）だけ抜けていて、リリスから受けても発動しなかった。
+   この関数は `state, applyHit` を受け取る。ATKを足す新しい経路を足したら同じ呼び出しを入れること。
+18. **敵を仲間にした体・敵に変身した体の枠は、報酬・魔導板へ移っても変えない。** 戦闘ユニットから報酬カードを作る
+   `_unitToRewardPanel()`（battle.js）は `_useEnemyVisualFrame` を引き継ぎ、カードの枠を決める `getCardFrameAsset()`（assets.js）も
+   この印を見て `enemy_frame.svg` を返す（戦闘スロットの `applyUnitVisual()` と同じ判定）。
+   どちらかが抜けると、レムレース＋ハイドラで報酬に出たウィスプのように召喚体の色の枠（緑）になる。
+   敵側の体（`side==='p2'`）から作る報酬カードも敵の枠にする。
+   **レムレースに報酬の効果はない（シート優先）。** core.js に「レムレースを倒した相手を報酬に出す」古い処理が残っており、
+   敵のウィスプが緑の枠で報酬に出ていたため削除した。報酬に出す効果はシートの本文（ハイドラ・「倒したキャラクターが報酬に出現する」）だけ。
+20. **シートの色表記は「赤の味方」。** 以前の「赤キャラクター」から変わったのにコアの正規表現が旧表記しか読まず、
+   コボルド・フォルモール・ゴースト・ジャッカロープ・エルヴンメイジ・ガーゴイル・ドワーフ・スペクター・リザードマン・ダークワン・マーメイド・
+   アークデーモン・強化「献身」（「このキャラクター以外の」付き）が実機で発動していなかった。色を読む正規表現は
+   `([色])(?:の味方|の?キャラクター)` で新旧両方を受ける。node側の監査が通ったのは内蔵CSVが古かったため（再生成して判明）。
+   loader.js の `_requestedEffectOverrides`（シートを読めない時の予備）は、シートの「キーワード」「効果」列と完全に同じ値にする（効果欄が空なら desc も空）。
+19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
+   手番ごとの状態（frames）には開始時から居る体の `equipment` を入れない（`applyFrame()` は equipment を消さない）。
+   current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。
+16. 戦闘中のユニット（`.slot.unit-card`）のホバー説明はキャラクター用（暗い背景・効果の並べ替え）。
+   上にカードが無い特殊マス（`.card-empty`）の説明はキャラと同じくマスの横に置く。一般戦闘マスの当たりは `::before` で59×99px。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
    （`#ui-btn-outer-glow-only`）。素材全体を光らせると内側まで光る。`button_invisible_s.svg` を書き出し直したらパスも差し替える。
 3. 効果の種類（キーワード効果／開戦〜終戦）が変わる所の直線は `_joinPreviewParts()`（render.js）が入れる。
 4. 策士の加算量は `_collectAdjacentEnhancements()`（battle.js）の `enh.strategyBonus` だけが決め、説明文はそれを出すだけ。

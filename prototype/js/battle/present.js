@@ -387,8 +387,33 @@ function presentDamageGroupKey(ev) {
 // 束の途中にある death を、その束の最後のダメージの後ろへ送る。
 // **動かすのは表示順だけ。** 値も勝敗もコアが確定済みで、ここでは何も判定しない。
 // 束（damageKind＋batch）の決め方は presentDamageGroupKey が唯一の実装。
-function presentReorderDeathsAfterDamageBatch(events) {
+// ── 根性で耐える一撃は、HPを一瞬も0に見せない ────────────────────
+// コアは「damage（hpAfter:0）→ 負傷効果など → revive（reason:'根性', hp:1）」の順に出す。
+// そのまま再生すると、damage で表示HPが0まで進み、revive が来るまでの間ずっと0が見えていた。
+// **同じ体への次の damage／death／instant_death／手番の切れ目より前に根性の revive が来るなら、
+// その damage で見せるHPを1（根性で残る値）にする。** 召喚時の強化（summon_buff）は revive の前に
+// 加算で届くので、ここでは1にしておけば revive の値と一致する。
+// **動かすのは表示だけ。** 元のイベントは書き換えず、写しの hpAfter だけを変える。
+function presentHoldHpForGuts(events) {
   const list = Array.isArray(events) ? events.filter(Boolean) : [];
+  if (!list.some(e => e.type === 'revive' && e.reason === '根性')) return list;
+  const sameUnit = (a, b) => a && b && a.side === b.side && String(a.unitId) === String(b.unitId);
+  return list.map((e, i) => {
+    if (e.type !== 'damage' || e.damageTo === 'atk' || Number(e.hpAfter) > 0) return e;
+    for (let j = i + 1; j < list.length; j++) {
+      const n = list[j];
+      if (n.type === 'turn_begin' || n.type === 'battle_end') return e;
+      if (!sameUnit(n, e)) continue;
+      if (n.type === 'revive') return n.reason === '根性' ? { ...e, hpAfter: 1 } : e;
+      if (n.type === 'damage' || n.type === 'death' || n.type === 'instant_death') return e;
+    }
+    return e;
+  });
+}
+
+function presentReorderDeathsAfterDamageBatch(events) {
+  // 根性で耐える一撃の表示HPを先に整える（PvE・オンラインとも、この入口を通る）。
+  const list = presentHoldHpForGuts(Array.isArray(events) ? events.filter(Boolean) : []);
   if (!list.length) return list;
   // コアが「同じ瞬間」と印を付けたダメージだけを束として扱う。
   // 印の無い単発ダメージは1件で1束なので、送る先が無い＝並べ替えない。
@@ -1105,6 +1130,7 @@ if (typeof window !== 'undefined') {
   window.presentDamageKind = presentDamageKind;
   window.presentDamageGroupKey = presentDamageGroupKey;
   window.presentReorderDeathsAfterDamageBatch = presentReorderDeathsAfterDamageBatch;
+  window.presentHoldHpForGuts = presentHoldHpForGuts;
   window.presentReorderDeathFlashesBeforeDeath = presentReorderDeathFlashesBeforeDeath;
   window.presentDropDeathsOfStolen = presentDropDeathsOfStolen;
   window.presentFledBatchEvents = presentFledBatchEvents;
@@ -1199,7 +1225,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentBreaksEffectRun,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
-    presentReorderDeathsAfterDamageBatch, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
+    presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
     PRESENT_MANA_RUN_GAP_MS, PRESENT_EFFECT_VFX_MIN_MS,
     PRESENT_PROJECTILE_FLIGHT_MS, PRESENT_PROJECTILE_STAGGER_MS, PRESENT_PROJECTILE_IMPACT_OFFSET_Y,
     presentEffectKeywordEvents, presentDamageVfxKeyword, presentAreaVfxStyle,

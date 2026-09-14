@@ -261,7 +261,22 @@ const SaveRun=(()=>{
     try{await startBattle();}
     finally{if(generation===resumeGeneration) resumeStarting=false;}
   }
-  function snapshotCore(state){return copy({units:state.units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0});}
+  // **手番ごとの状態には、開始時から居る体の魔導板一式（equipment）を入れない。**
+  // 1体あたり約2KBあり、手番数×体数ぶん current／backup の2世代へ積まれて
+  // ブラウザの保存上限に達していた（「セーブに失敗しました。空き容量〜」）。
+  // 開始時から居る体の equipment は setup に1回だけ残り、applyFrame() は equipment を消さない。
+  // 戦闘中に召喚された体は setup に居ないので、従来どおり状態に含める。
+  function snapshotCore(state,setupIds){
+    const units={};
+    for(const side of ['p1','p2']){
+      units[side]=(state.units[side]||[]).map(u=>{
+        if(!u||!setupIds||!setupIds.has(u.id)) return u;
+        const {equipment,...rest}=u;
+        return rest;
+      });
+    }
+    return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0});
+  }
   function computeBattle(initial,seed){
     const state=copy(initial);
     state.turn=0;state._coreStateToken=`saved-${seed}`;
@@ -269,6 +284,8 @@ const SaveRun=(()=>{
     state.deadUnits=[];
     const events=[],frames=[];
     let from=0;
+    // 開始時から居る体のID（手番ごとの状態から equipment を省く対象）。
+    const setupIds=new Set(['p1','p2'].flatMap(side=>(initial.units[side]||[]).filter(Boolean).map(u=>u.id)));
     const emit=ev=>events.push(copy(ev));
     const rewardRng=createSeededRng(seed^0x47a21b),paid=new Set();
     const frame=()=>{
@@ -281,7 +298,7 @@ const SaveRun=(()=>{
         paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);
         reward+=goldIncomeAmount(ev.pveRewardGold);
       }
-      frames.push({from,to:events.length,state:snapshotCore(state)});from=events.length;
+      frames.push({from,to:events.length,state:snapshotCore(state,setupIds)});from=events.length;
       state.resources.p1.gold+=reward;
     };
     const runner=createBattleRunner(state,createSeededRng(seed),emit);
@@ -290,7 +307,10 @@ const SaveRun=(()=>{
       const stop=runner.step({deferCompact:true});frame();runner.compact();if(stop) break;
     }
     const result=runner.finish();frame();
-    return {seed,setup:copy(initial),events,outcome:result.outcome,endReason:result.endReason,frames,finalState:snapshotCore(state)};
+    // **setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を保存しない。**
+    // 戦闘の計算にだけ使い、読み込み（installSetup）では使わない。
+    const {summonDefs,itemDefs,...setup}=initial;
+    return {seed,setup:copy(setup),events,outcome:result.outcome,endReason:result.endReason,frames,finalState:snapshotCore(state,setupIds)};
   }
   function installSetup(p){
     const s=copy(p.setup);
@@ -327,7 +347,8 @@ const SaveRun=(()=>{
         // 戻り、姿だけ消えたまま攻撃を続ける。表示済みの状態は巻き戻さない。
         if(existing&&!existing._corePendingSummon) delete data._corePendingSummon;
         const u=existing||{};
-        for(const key of Object.keys(u)) if(!omitted.has(key)&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')) delete u[key];
+        // equipment は手番ごとの状態に入れていない（snapshotCore）ので、既存の体からは消さない。
+        for(const key of Object.keys(u)) if(!omitted.has(key)&&key!=='equipment'&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')) delete u[key];
         return Object.assign(u,data);
       });
       state.units[side].splice(0,state.units[side].length,...next);

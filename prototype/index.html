@@ -8313,6 +8313,18 @@ html body.reward-screen-active #journey-progress-ui{
   box-shadow:inset 0 0 0 6px #830ba0;
 }
 .journey-node.current img{position:relative;z-index:1;}
+/* **一般戦闘マス（25pxの円）はホバーの当たりを見た目より広げる。**（利用者指定：判定が非常に小さい）
+   透明な ::before を左右17px・上下37px広げ、59×99pxにする。左右はマス間の線（35px）の半分未満なので
+   隣のマスの当たりと重ならず、上下は .journey-node-track（高さ100px）の内側に収まる。
+   ::after は現在地・通過済みの表示に使っているので触らない。 */
+.journey-node:not(.special):not(.large)::before{
+  content:"";
+  position:absolute;
+  left:-17px;
+  right:-17px;
+  top:-37px;
+  bottom:-37px;
+}
 .journey-node.next:not(.current){
   box-shadow:0 0 8px 3px rgba(131,11,160,.9),0 0 18px 7px rgba(131,11,160,.48);
   animation:journey-next-pulse 1.45s ease-in-out infinite;
@@ -13000,19 +13012,19 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=frameSvgOverlay06"></script>
+<script src="assets.js?v=enemyFrameCard01"></script>
 <script src="js/engine/audio.js?v=webaudio07"></script>
 <script src="js/engine/constants.js?v=rear5cap1"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=actionLabel01"></script>
+<script src="js/data/local_xlsx_data.js?v=sheetAlly01"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=multiRevive01"></script>
+<script src="js/data/loader.js?v=sheetAlly01"></script>
 <script src="js/data/units.js?v=cleanup157"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=legacyCleanup01"></script>
+    <script src="js/battle/core.js?v=sheetAlly01"></script>
 <script src="js/battle/formation.js?v=formationShared01"></script>
-    <script src="js/battle/present.js?v=skipEmptyPreAttack01"></script>
+    <script src="js/battle/present.js?v=gutsHoldHp01"></script>
     <script src="js/battle/present_events.js?v=attackMotion02"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13029,12 +13041,12 @@ fitVesselboundViewport();
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=save01"></script>
-<script src="js/save/run_save.js?v=steal01"></script>
+<script src="js/save/run_save.js?v=saveSize01"></script>
 <script src="js/engine/pool.js?v=noSacrifice01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=legacyCleanup01"></script>
+    <script src="js/engine/battle.js?v=wispFrame02"></script>
     <script src="js/engine/battle_events.js?v=multiFinish01"></script>
-<script src="js/engine/render.js?v=legacyCleanup01"></script>
+<script src="js/engine/render.js?v=manaEffectText01"></script>
 <script src="js/engine/reward_items.js?v=actionLabel01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
 <script src="js/engine/reward.js?v=fontSizeInt01"></script>

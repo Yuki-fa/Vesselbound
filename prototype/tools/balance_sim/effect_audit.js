@@ -22,7 +22,7 @@ function loadCards() {
   const enemyContext = {}; vm.runInNewContext(`${fs.readFileSync(require.resolve('../../js/data/events.js'), 'utf8')}\nthis.pool=ENEMY_POOL;`, enemyContext);
   const enemies = (enemyContext.pool || []).filter(x => x && x.name).map(x => ({ ...x, atk: 2, hp: 100, maxHp: 100, color: x.color || '青', desc: x.desc || '' }));
   const overrides = {
-    'フォルモール': '負傷：ランダムな赤、青、緑キャラクター1体ずつは+2/+2を得る。',
+    'フォルモール': '負傷：ランダムな赤、青、緑の味方1体ずつは+2/+2を得る。',
     'ファミリア': '攻撃：血が5以上なら2マナ得る。',
     'カオス・インプ': '常時：味方が解放された時、ランダムな味方の開戦効果を発動する。',
   };
@@ -251,7 +251,7 @@ function audit() {
   console.log(`deferTriggers二重発動回帰	defer=${deferredTriggerEvents.length + deferredDeathEvents.length}件通常=${normalTriggerEvents.length + normalDeathEvents.length}件	${deferredTriggersOk ? 'OK' : 'NG'}`);
   // マナ効果回帰：マーメイドの名前判定と効果文判定を重複適用しない。
   const mermaid = { id: 'mermaid', name: 'マーメイド', color: '青', atk: 1, hp: 5, maxHp: 5,
-    keywords: [], desc: '常時：緑のキャラクターから得るマナは+1される。' };
+    keywords: [], desc: '常時：緑の味方から得るマナは+1される。' };
   const green = { id: 'green', name: '緑キャラ', color: '緑', atk: 1, hp: 5, maxHp: 5,
     keywords: [], desc: '' };
   const manaState = core.createBattleState({

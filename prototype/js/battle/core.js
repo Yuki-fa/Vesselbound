@@ -927,7 +927,7 @@ function coreGainResource(state, side, kind, amount, unit, emit, reason, options
     const holders = (state && state.units && state.units[side]) || [];
     value += holders.filter(x => x && x.hp > 0 && !coreIsSealed(x)
       && (coreHasEffect(x, 'マーメイド')
-        || /緑のキャラクターから得るマナは\+1される/.test(coreUnitEffectText(x)))).length;
+        || /緑(?:の味方|のキャラクター)から得るマナは\+1される/.test(coreUnitEffectText(x)))).length;
   }
   if (kind === 'gold' && coreRingCount(state, side, '強欲の指輪')) value *= 1.2;
   if (!state || !state.resources || !state.resources[side] || !value) return 0;
@@ -1369,6 +1369,12 @@ function coreRingCount(state, side, name) {
 // 前衛優先・隣接（三方向）・ランダム対象の結果がオンラインとずれる。
 // 規則：効果元の右隣が指定されていればその直後、無ければ前衛ブロックの右端。
 function coreInsertSummonedUnit(list, child, spec, frontSlots) {
+  // **盤面配列は生存を左詰めで持つ。差し込む前に空欄を取り除く。**
+  // PvEの開戦配置は枠番号の位置へ置くため、前衛(3)と後衛(10)の間に空欄が残ることがある。
+  // そのまま差し込むと空欄ごと後ろへずれ、ペリカン4体で後衛のミテーラが14番＝描画範囲（0〜13）の外へ
+  // 押し出されて画面から消えていた（誰かが倒れて詰め直されるまで戻らない）。
+  // オンラインの配列は元から詰まっているので何も変わらない。
+  for (let i = list.length - 1; i >= 0; i--) if (!list[i]) list.splice(i, 1);
   const limit = Math.max(1, Number(frontSlots) || 7);
   const occupied = u => u && u.hp > 0 && !u._isObject && !u._isSoul;
   const frontIndexes = [];
@@ -1405,6 +1411,20 @@ function coreAddSummonBuff(state, side, atk, hp, emit, sourceId) {
     emit({ type: 'summon_buff', side, atk: Number(atk) || 0, hp: Number(hp) || 0,
       totalAtk: cur.atk, totalHp: cur.hp, sourceId: sourceId || null });
   }
+  // **既に召喚されている味方にも、増えた分をこの場で足す。**（利用者指定）
+  // 対象はこの戦闘中に召喚された（または「復活」で再召喚された）生存中の体。これから召喚される体は
+  // coreSummonUnit() で合計を受け取るので、二重には乗らない。
+  const list = (state.units && state.units[side]) || [];
+  const giver = sourceId != null ? list.find(u => u && String(u.id) === String(sourceId)) || null : null;
+  list.filter(u => u && u.hp > 0 && u._summonedInBattle).forEach(u => {
+    const addAtk = coreStatBonus(u, Number(atk) || 0, giver);
+    const addHp = coreStatBonus(u, Number(hp) || 0, giver);
+    if (!addAtk && !addHp) return;
+    u.atk = Math.max(0, u.atk + addAtk); u.maxHp += addHp; u.hp += addHp;
+    if (typeof emit === 'function') {
+      emit({ type: 'stat_change', side, unitId: u.id, atk: addAtk, hp: addHp, reason: 'summon_buff', sourceId: sourceId || null });
+    }
+  });
 }
 function coreSummonBuffOf(state, side) {
   const b = state && state._summonBuff && state._summonBuff[side];
@@ -1545,6 +1565,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     _summonedBySuccubus: !!source._summonedBySuccubus,
   }, side, list.length);
   coreCopyUnitEffectState(child, source);
+  // 「この戦闘中、召喚された味方」（ファントム／エイドロン）の対象の印。開戦の召喚も含む。
+  // _panelSummoned は魔導板から出撃した体にも付くので、この判定には使えない。
+  child._summonedInBattle = true;
   // コアは同一同期処理中の後続効果から召喚体を参照できる必要がある一方、
   // PvE描画側がイベントを再生するまでは盤面スロットを占有させてはいけない。
   // フラッシュ側でイベント順に退避・再配置するための内部印。
@@ -1596,7 +1619,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     && /戦闘中に召喚される味方は\+1\/\+1を得る/.test(coreUnitEffectText(x)))
     .forEach(() => addStats(child, summonCount + 1, summonCount + 1, 'summon_scaling_buff'));
   // 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）。
-  // **効果が発動した後に召喚された体だけ**が受け取る（積み上がった合計を1回で足す）。
+  // **既に召喚されている味方と、これから召喚される味方の両方が対象。**（利用者指定）
+  // 既にいる体は発動時に coreAddSummonBuff() が増えた分を足す。ここ（これから召喚される体）は
+  // 積み上がった合計を1回で足す。両方で足しても、同じ体へ二重には乗らない。
   const summonBuff = coreSummonBuffOf(state, side);
   if (summonBuff.atk || summonBuff.hp) addStats(child, summonBuff.atk, summonBuff.hp, 'summon_buff');
   if (coreRingCount(state, side, '光の指輪')) {
@@ -1915,7 +1940,7 @@ function coreEmitEffectFlash(emit, unit, trigger, count) {
 // ◯は結界N（リリスの旧本文）でも +A/+B（現在の本文）でも受け付ける。
 // **付与するものも、何につき何回かも、すべて本文から読む。**
 // シートで◯を書き換えた時に、コードを触らずに済むようにしてある。
-function coreApplyOpeningScaledGrant(unit, openingText, allies, rng, emit, scaleValue, reason) {
+function coreApplyOpeningScaledGrant(unit, openingText, allies, rng, emit, scaleValue, reason, state, applyHit) {
   const text = String(openingText || '');
   const per = text.match(/ATK(\d+)につき(\d+)回発生する/);
   if (!per) return 0;
@@ -1936,6 +1961,9 @@ function coreApplyOpeningScaledGrant(unit, openingText, allies, rng, emit, scale
       target.maxHp = Math.max(1, target.maxHp + hp);
       target.hp = Math.max(0, target.hp + hp);
       emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
+      // **ATKを付与したら「ATKを得るたび」（ワイバーン）を誘発する。**（利用者報告：リリスから受けても発動しなかった）
+      // 他のATK加算箇所は全て呼んでいたが、ここだけ抜けていた。
+      if (atk > 0 && state && typeof applyHit === 'function') coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
     } else {
       const amount = Math.max(1, Number(shield && shield[1]) || 1);
       target.shield = (Number(target.shield) || 0) + amount;
@@ -2050,13 +2078,13 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
     // シートで結界から +5/+5 へ変わったので、どちらの本文でも動くようにしてある。
     // openingTexts はこの下で宣言されるので触らない（TDZ）。本文はここで引き直す。
     coreApplyOpeningScaledGrant(unit, coreUnitTriggerText(unit, '開戦'), allies, rng, emit,
-      Number(unit.atk) || 0, 'lilith');
+      Number(unit.atk) || 0, 'lilith', state, applyHit);
   }
   // ミテーラの「「緑ペリカン」をN体召喚する」は下の共通処理（本文の体数）で解決する。
   // 名前で体数を書くと、合体後（4体）に付いていけない。
   if (coreHasEffect(unit, 'ジャッカロープ')) {
     const count = allies.filter(x => x.hp > 0 && x.color === '緑').length;
-    const mul = Math.max(1, coreEffectNumbers(unit, '開戦', /Xは味方の緑キャラクターの数の(\d+)倍に等しい/, [1])[0]);
+    const mul = Math.max(1, coreEffectNumbers(unit, '開戦', /Xは味方の緑(?:の味方|の?キャラクター)の数の(\d+)倍に等しい/, [1])[0]);
     coreGainResource(state, unit.side, 'mana', count * mul, unit, emit, 'jackalope');
   }
   if (coreHasEffect(unit, '緑域の隠者"ヴィーザル"')) allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 4, 'green_hermit'));
@@ -2098,7 +2126,7 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   }
   // 開戦：ランダムなA、B、Cキャラクター1体ずつは+X/+Yを得る（ガーゴイル）。
   // **色も加算値も本文から読む**（合体後は+6/+6）。負傷側（フォルモール）と同じ形。
-  const openingRandomColors = coreTriggerMatch(openingTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])キャラクター1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const openingRandomColors = coreTriggerMatch(openingTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])(?:の味方|の?キャラクター)1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
   if (openingRandomColors) {
     [openingRandomColors[1], openingRandomColors[2], openingRandomColors[3]].forEach(rawColor => {
       const color = rawColor === '茶' ? '黄' : rawColor;
@@ -2106,7 +2134,7 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
       if (target) addStats(target, Number(openingRandomColors[4]) || 0, Number(openingRandomColors[5]) || 0, 'gargoyle');
     });
   }
-  const openingColor = coreTriggerMatch(openingTexts, /全ての([赤青緑黄紫茶])(?:の)?キャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const openingColor = coreTriggerMatch(openingTexts, /全ての([赤青緑黄紫茶])(?:の味方|の?キャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
   if (openingColor) {
     const color = openingColor[1] === '茶' ? '黄' : openingColor[1];
     allies.filter(x => x.hp > 0 && x.color === color && !coreIsSealed(x))
@@ -2150,7 +2178,7 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   // ◯は結界Nでも +A/+B でもよい（判定は coreApplyOpeningScaledGrant が唯一の実装）。
   if (coreTriggerTest(openingTexts, /^ランダムな味方に(?:結界\d*|\+\d+\/?\+\d+)を付与する。この効果は、このキャラクターのATK\d+につき\d+回発生する/)
       && !coreHasEffect(unit, 'リリス')) {
-    coreApplyOpeningScaledGrant(unit, openingTexts.join(' '), allies, rng, emit, Number(unit.atk) || 0, 'opening_atk_scaled_grant');
+    coreApplyOpeningScaledGrant(unit, openingTexts.join(' '), allies, rng, emit, Number(unit.atk) || 0, 'opening_atk_scaled_grant', state, applyHit);
   }
   const openingSummon = coreTriggerMatch(openingTexts, /「(.+?)」を(\d+)体?召喚する/);
   if (openingSummon) {
@@ -2363,7 +2391,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   }
   if (coreHasEffect(unit, 'エルヴンメイジ')) {
     // 加算値は本文から読む（合体後は+2/+2）。**カード名に数を直書きしないこと。**
-    const mage = coreEffectNumbers(unit, '攻撃', /全ての黄(?:の)?キャラクターは\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
+    const mage = coreEffectNumbers(unit, '攻撃', /全ての黄(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
     allies.filter(x => x.hp > 0 && x.color === '黄').forEach(x => addStats(x, mage[0], mage[1], 'elven_mage'));
   }
   if (coreHasEffect(unit, 'インプ')) {
@@ -2420,7 +2448,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   if (attackAlliesBuff && !attackBloodTeamBuff) {
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, Number(attackAlliesBuff[1]), Number(attackAlliesBuff[2]), 'attack_allies_buff'));
   }
-  const attackColorBuff = coreTriggerMatch(attackTexts, /全ての([赤青緑黄紫茶])(?:の)?キャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const attackColorBuff = coreTriggerMatch(attackTexts, /全ての([赤青緑黄紫茶])(?:の味方|の?キャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
   if (attackColorBuff && !coreHasEffect(unit, 'エルヴンメイジ')) {
     const color = attackColorBuff[1] === '茶' ? '黄' : attackColorBuff[1];
     [...allies, ...foes].filter(x => x.hp > 0 && x.color === color && !coreIsSealed(x))
@@ -2749,7 +2777,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   }
   const redBonus = coreEffectCount(unit, 'コボルド');
   // 加算値は本文から読む（合体後は+2/+2）。**カード名に数を直書きしないこと。**
-  const kobold = coreEffectNumbers(unit, '負傷', /全ての赤キャラクターは\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
+  const kobold = coreEffectNumbers(unit, '負傷', /全ての赤(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
   for (let i = 0; i < redBonus; i++) allies.filter(x => x.hp > 0 && x.color === '赤')
     .forEach(x => addStats(x, kobold[0], kobold[1], 'kobold'));
   // 旧本文（負傷：全ての敵はATK-1）の時だけ。本文が変われば下の汎用処理へ移る。
@@ -2840,7 +2868,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   if (injuryAlliesAtk && !coreHasEffect(unit, 'ギガンテス')) {
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, actualDamage, 0, 'injury_allies_atk'));
   }
-  const injuryColorBuff = coreTriggerMatch(injuryTexts, /全ての([赤青緑黄紫茶])キャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const injuryColorBuff = coreTriggerMatch(injuryTexts, /全ての([赤青緑黄紫茶])(?:の味方|の?キャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
   // コボルドは旧来のカード名効果で同じ本文を既に解決している。
   // 本文解析も通すと、コボルド自身の負傷効果だけが二重になる。
   if (injuryColorBuff && !coreHasEffect(unit, 'コボルド')) {
@@ -2848,7 +2876,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     allies.filter(x => x.hp > 0 && x.color === color && !coreIsSealed(x))
       .forEach(x => addStats(x, Number(injuryColorBuff[2]), Number(injuryColorBuff[3]), 'injury_color_buff'));
   }
-  const injuryRandomColors = coreTriggerMatch(injuryTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])キャラクター1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const injuryRandomColors = coreTriggerMatch(injuryTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])(?:の味方|の?キャラクター)1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
   if (injuryRandomColors) {
     [injuryRandomColors[1], injuryRandomColors[2], injuryRandomColors[3]].forEach(color => {
       const target = rng.pick(allies.filter(x => x.hp > 0 && x.color === color && !coreIsSealed(x)));
@@ -2966,7 +2994,7 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
     const purple = (state.units[unit.side] || []).filter(x => x && x.hp > 0 && x.color === '紫' && !coreIsSealed(x));
     const repeats = coreConnectedEnhancementCount(unit);
     // 加算値は本文から読む（合体後は+2/+2）。
-    const demon = coreEffectNumbers(unit, '解放', /全ての紫の?キャラクターは\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
+    const demon = coreEffectNumbers(unit, '解放', /全ての紫(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
     for (let i = 0; i < repeats; i++) purple.forEach(x => {
       const atk = coreStatBonus(x, demon[0], unit), hp = coreStatBonus(x, demon[1], unit);
       x.atk = Math.max(0, x.atk + atk); x.maxHp += hp; x.hp += hp;
@@ -3225,7 +3253,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     }
   }
   if (coreHasEffect(unit, 'ゴースト')) {
-    const ghost = coreEffectNumbers(unit, '死亡', /ランダムな青キャラクターは\+(\d+)\/?\+(\d+)を得る/, [2, 1]);
+    const ghost = coreEffectNumbers(unit, '死亡', /ランダムな青(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [2, 1]);
     const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && x.color === '青' && !coreIsSealed(x)));
     if (target) addStats(target, ghost[0], ghost[1], 'ghost');
   }
@@ -3239,12 +3267,8 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
         keywords: dead.keywords || [], _useEnemyVisualFrame: true }, emit, unit.id);
     }
   }
-  if (unit.side === 'p1' && coreHasEffect(unit, 'レムレース')) {
-    const killer = unit._lastDamageSource;
-    if (killer && killer !== unit) {
-      emit({ type: 'bonus_reward', side: 'p1', unitId: killer.id, reason: 'lemures', unit: coreUnitSnapshot(killer) });
-    }
-  }
+  // **レムレースに報酬の効果はない（シート優先）。** 以前は「倒した相手を報酬に出す」古い処理が残り、
+  // レムレースを倒した敵のウィスプが報酬に出ていた（利用者報告）。
   if (coreHasEffect(unit, 'バンシー')) {
     // 対象の人数は本文から読む（合体後は2体）。
     const banshee = Math.max(1, coreEffectNumbers(unit, '死亡', /ランダムな敵(\d+)体にXダメージを与える/, [1])[0]);
@@ -3337,15 +3361,15 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (deathSummonBuff) {
     coreAddSummonBuff(state, unit.side, Number(deathSummonBuff[1]) || 0, Number(deathSummonBuff[2]) || 0, emit, unit.id);
   }
-  // 死亡：ランダムな味方（N体）はHP+Xを得る。Xは血に等しい（強化「献身」）。
-  const devotion = coreTriggerMatch(deathTexts, /^ランダムな味方(?:(\d+)体)?はHP\+Xを得る。Xは血に等しい/);
+  // 死亡：（このキャラクター以外の）ランダムな味方（N体）はHP+Xを得る。Xは血に等しい（強化「献身」）。
+  // **シートは「このキャラクター以外の」付き。** 頭に付いた文を受け付けず、合体後（2体）も含め発動していなかった。
+  // 「N体」は別々の体（同じ体を2回選ばない）。
+  const devotion = coreTriggerMatch(deathTexts, /^(?:このキャラクター以外の、?)?ランダムな味方(?:(\d+)体)?はHP\+Xを得る。Xは血に等しい/);
   if (devotion) {
     const times = Math.max(1, Number(devotion[1]) || 1);
     const amount = Math.max(0, Number(state.blood && state.blood[unit.side]) || 0);
-    for (let i = 0; i < times && amount > 0; i++) {
-      const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)));
-      if (target) addStats(target, 0, amount, 'devotion');
-    }
+    if (amount > 0) corePickDistinct(rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), times)
+      .forEach(target => addStats(target, 0, amount, 'devotion'));
   }
   // 死亡：このキャラクター以外の、この効果を持つ全ての味方は+X/+Yを得る（強化「血の結束」）。
   // **効果名で味方を数える。** 同じ強化を持っている味方だけが強くなる。
@@ -3395,7 +3419,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) applyHit(unit, target, Math.max(0, Number(unit.atk) || 0));
   }
-  const deathBlueBuff = coreTriggerMatch(deathTexts, /ランダムな青キャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+  const deathBlueBuff = coreTriggerMatch(deathTexts, /ランダムな青(?:の味方|の?キャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
   // ゴーストは上の固有処理を正とし、本文解析を重ねない。
   if (deathBlueBuff && !coreHasEffect(unit, 'ゴースト')) for (let i = 0; i < repeats; i++) {
     const target = rng.pick(allies.filter(x => x.hp > 0 && x.color === '青' && !coreIsSealed(x)));
@@ -3724,6 +3748,8 @@ function coreTryRevive(unit, state, emit) {
     unit.hp = 1;
   }
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
+  // キーワード「復活」は再召喚なので、以後「この戦闘中、召喚された味方」の対象になる。
+  if (!ring && keyword === '復活') unit._summonedInBattle = true;
   // **復活＝再召喚。** 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）は
   // 効果が発動した後に**召喚された**体へ乗るので、復活した体にも乗せる。
   // revive イベントより先に乗せて、イベントに載る値も加算後にする
@@ -4128,8 +4154,8 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           x.poison = (Number(x.poison) || 0) + Number(poison[1]);
           emit({ type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(poison[1]) });
         });
-        const randomColor = text.match(/^ランダムな([赤青緑黄紫茶])の?キャラクター(?:(\d+)体)?は\+([0-9]+)\/?\+([0-9]+)を得る/);
-        if (randomColor && !/^ランダムな紫のキャラクターは\+/.test(text)) for (let repeat = 0; repeat < repeatCount; repeat++) {
+        const randomColor = text.match(/^ランダムな([赤青緑黄紫茶])(?:の味方|の?キャラクター)(?:(\d+)体)?は\+([0-9]+)\/?\+([0-9]+)を得る/);
+        if (randomColor && !/^ランダムな紫(?:の味方|のキャラクター)は\+/.test(text)) for (let repeat = 0; repeat < repeatCount; repeat++) {
           const color = randomColor[1] === '茶' ? '黄' : randomColor[1];
           const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === color);
           const count = Math.max(1, Number(randomColor[2]) || 1);
@@ -4202,7 +4228,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           const item = pool.length ? rng.pick(pool) : null;
           emit({ type: 'item_reward', side, unitId: unit.id, reason: 'mana_threshold_item', item: item ? { ...item } : null });
         }
-        const colorBuff = text.match(/^ランダムな([赤青緑黄紫])の?キャラクター(?:(\d+)体)?は\+(\d+)\/(\+?\d+)を得る/);
+        const colorBuff = text.match(/^ランダムな([赤青緑黄紫])(?:の味方|の?キャラクター)(?:(\d+)体)?は\+(\d+)\/(\+?\d+)を得る/);
         // randomColorが同じ「ランダムな赤キャラクター2体」表記を処理済み。
         if (colorBuff && !randomColor) {
           const count = Math.max(1, Number(colorBuff[2]) || 1);
@@ -4216,7 +4242,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
             fireAtkGain(target, atk);
           }
         }
-        const allColorBuff = text.match(/^全ての([赤青緑黄紫茶])(?:の)?キャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+        const allColorBuff = text.match(/^全ての([赤青緑黄紫茶])(?:の味方|の?キャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
         if (allColorBuff) {
           const color = allColorBuff[1] === '茶' ? '黄' : allColorBuff[1];
           (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === color).forEach(target => {
@@ -4227,7 +4253,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
             fireAtkGain(target, atk);
           });
         }
-        const randomColorCountBuff = text.match(/^ランダムな([赤青緑黄紫茶])キャラクター(\d+)体は\+([0-9]+)\/(?:\+)?([0-9]+)を得る/);
+        const randomColorCountBuff = text.match(/^ランダムな([赤青緑黄紫茶])(?:の味方|の?キャラクター)(\d+)体は\+([0-9]+)\/(?:\+)?([0-9]+)を得る/);
         // 上のrandomColor（「2体」表記を含む）と同じ文面を再度処理しない。
         if (randomColorCountBuff && !randomColor) {
           const color = randomColorCountBuff[1] === '茶' ? '黄' : randomColorCountBuff[1];
@@ -4241,7 +4267,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
             fireAtkGain(target, atk);
           }
         }
-        const allColorAtk = text.match(/^全ての([赤青緑黄紫茶])キャラクターはATK\+([0-9]+)を得る/);
+        const allColorAtk = text.match(/^全ての([赤青緑黄紫茶])(?:の味方|の?キャラクター)はATK\+([0-9]+)を得る/);
         if (allColorAtk) {
           const color = allColorAtk[1] === '茶' ? '黄' : allColorAtk[1];
           (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === color).forEach(target => {
@@ -4265,7 +4291,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           target.poison = (Number(target.poison) || 0) + amount;
           emit({ type: 'keyword_effect', effect: 'poison', side: target.side, unitId: target.id, amount, sourceId: unit.id });
         });
-        const randomPurpleBuff = text.match(/^ランダムな紫のキャラクターは\+([0-9]+)\/?\+([0-9]+)を得る/);
+        const randomPurpleBuff = text.match(/^ランダムな紫(?:の味方|のキャラクター)は\+([0-9]+)\/?\+([0-9]+)を得る/);
         // マナの種・賢者の指輪の反復は**効果の種類を問わず**効かせる。
         // 自己バフ型だけ反復していたため、対象がランダムな効果や召喚では
         // マナの種が何も足していなかった。
@@ -4690,7 +4716,9 @@ function coreCompactUnits(state, keepOnBoard) {
     // オンラインでは誰も外さないため、死んだ召喚体が配列に残り続けて位置がずれる。
     const kept = list.filter(u => u && (u.hp > 0
       || (typeof keepOnBoard === 'function' && keepOnBoard(u))));
-    if (kept.length !== list.filter(Boolean).length) {
+    // 空欄（null）も詰める。倒れた体が居ない時だけ比べていると、PvEの開戦配置で残った空欄が
+    // 詰められず、召喚の差し込みで後衛が描画範囲の外へ押し出される原因になっていた。
+    if (kept.length !== list.length) {
       list.splice(0, list.length, ...kept);
     }
   });

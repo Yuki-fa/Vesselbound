@@ -3056,6 +3056,10 @@ function _unitToRewardPanel(unit){
   if(unit.imageNo) card.imageNo=unit.imageNo;
   if(unit.no) card.no=unit.no;
   if(Array.isArray(unit.directions)&&unit.directions.length) card.directions=[...unit.directions];
+  // **敵の枠の印も引き継ぐ。**（利用者報告：レムレース＋ハイドラで報酬に出たウィスプが緑の枠になっていた）
+  // 敵を仲間にした体・敵に変身した体の枠は、報酬や魔導板へ移っても変えない（AGENTS.md）。
+  // 敵側の体（「倒したキャラクターが報酬に出現する」で出る敵）も敵の枠のまま出す。
+  if(unit._useEnemyVisualFrame||unit.side==='p2') card._useEnemyVisualFrame=true;
   // 通常の報酬カードはmakePanel()で方向を生成するが、戦闘中ユニットから
   // 直接作る追加報酬カードはその経路を通らないため、ここで同じ情報を補う。
   if(!Array.isArray(card.directions)||!card.directions.length){
