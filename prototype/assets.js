@@ -9,7 +9,6 @@ const Assets = {
     default: 'assets/cards/card_placeholder.svg',
     character: 'assets/cards/card_character.svg',
     ring: 'assets/cards/card_ring.svg',
-    wand: 'assets/cards/card_wand.svg',
     consumable: 'assets/cards/card_item.svg',
     // エリート／ボス用の枠。SVGをそのまま背景レイヤーとして使用する。
     characterFrame: 'assets/cards/boss_frame.svg',
@@ -342,7 +341,6 @@ function getCardAsset(card){
   if(panelArt) return panelArt;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.character;
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return Assets.cards.consumable;
-  if(card.type==='wand') return Assets.cards.wand;
   if(card.type==='consumable') return Assets.cards.consumable;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ring;
   return Assets.cards.default;
@@ -417,7 +415,6 @@ function getCardFrameAsset(card){
     return Assets.cards.growthFrame||Assets.cards.itemFrame;
   }
   if(card.fixedAttack||card.fixedEquip) return Assets.cards.weaponFrame||Assets.cards.itemFrame;
-  if(card.type==='wand') return Assets.cards.wandFrame;
   if(card.type==='consumable') return Assets.cards.itemFrame;
   if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ringFrame;
   return Assets.cards.itemFrame;

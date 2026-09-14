@@ -3,8 +3,6 @@
 // 依存: constants.js, state.js, units.js, spells.js
 // ═══════════════════════════════════════
 
-function randUses(){ return 3+Math.floor(rand()*4); }
-
 // キャラクターのグレードを階層に応じて決定
 
 // 購入価格
@@ -16,7 +14,6 @@ function calcBuyPrice(card){
     return card.cost||2;
   }
   if(card.type==='consumable') return card.cost||1;
-  if(card.type==='wand') return card.cost||2;
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return card.cost||2;
   // 指輪
   return card.cost||4;
@@ -348,13 +345,13 @@ function _rewardRarityWeights(useGoldenRing,useMapProgress){
   return _REWARD_RARITY_WEIGHTS;
 }
 
-// 「現在のマップ」＝グレード抽選の基準。ワールドマップ時代は worldMap.index、
+// 「現在のマップ」＝グレード抽選の基準。
 // **ウェーブ進行ではステージ（G._wave）**。レアリティ側（_currentRewardMapNumber）と
 // 同じ値を見ること。ここが1に固定されていた頃は、どこまで進んでも
 // 「グレード1以下」が基準のままだった。
 function _currentRewardMapGrade(fallback){
-  const mapNo=Number(G&&G.worldMap&&G.worldMap.index)||Number(G&&G._wave)||0;
-  const base=Number.isFinite(mapNo)&&mapNo>0?mapNo:Number(fallback||G&&G.rewardGrade||1);
+  const mapNo=Number(G&&G._wave)||0;
+  const base=Number.isFinite(mapNo)&&mapNo>0?mapNo:Number(fallback||1);
   return Math.max(1,Math.min(5,base||1));
 }
 
@@ -546,7 +543,7 @@ function drawItems(n, maxGrade, opts){
 // 以前はアイテムを引く分岐（宝箱）を兼ねていたが、宝箱の機能は廃止済み。
 // アイテムを引くのは drawItems() が唯一の入口（道具屋・鍛冶屋・報酬アイテム）。
 function drawRewards(){
-  const baseGrade=G.rewardGrade||1;
+  const baseGrade=1;
   const res=drawPanel(5, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);
   const pickGuaranteedPanel=(pred, used)=>{

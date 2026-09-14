@@ -19,12 +19,12 @@ const SaveRun=(()=>{
         （名前を足すのは後方互換。古いセーブはその名前を持たないまま初期値で復元される）
      3. **戦闘中の一時状態は入れない**（allies / enemies / phase / turn / battleCounters 等）。
         pendingBattle のイベント列から復元するため、二重に持つと食い違う。
-     4. **画面の開閉・モード判定は入れない**（inventoryOpen / _selectedEquipUnitIdx /
+     4. **画面の開閉・モード判定は入れない**（_selectedEquipUnitIdx /
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
-    player:['gold','life','_waveLife','mainBoard','inventory','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','magicLevel','facilities','facilityDiscounts','baseIncome'],
-    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','worldMap','_retryFloor','rewardGrade','rewardGradeUpCount','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
+    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome'],
+    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
     choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
     place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
@@ -126,7 +126,7 @@ const SaveRun=(()=>{
     state.rng={seed:G._runSeed,state:G._runRngState};
     state.questProgress=copy(G.questProgress||{});state.difficulty=G.difficulty||'normal';
     state.reward={cards:copy(_rewCards),freePickDone:!!_rewFreePickDone,phaseId:_rewPhaseId};
-    state.location={scene:G._wave,stage:G._waveStage,node:G.worldMap?.currentNodeId||null,screen:G._waveVillage?'village':'battle'};
+    state.location={scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,screen:G._waveVillage?'village':'battle'};
     return state;
   }
   function validate(raw){
@@ -144,10 +144,10 @@ const SaveRun=(()=>{
     a(s.progress._wave===s.location.scene&&s.progress._waveStage===s.location.stage,'現在地が一致しません');
     a(Number.isFinite(s.player.gold)&&s.player.gold>=0&&Number.isFinite(s.player._waveLife)&&s.player._waveLife>=0,'資源が不正です');
     a(Array.isArray(s.player.mainBoard)&&s.player.mainBoard.length===MAIN_BOARD_SIZE,'魔導板が不正です');
-    for(const key of ['inventory','globalPanels','spellSlots','rings']) a(Array.isArray(s.player[key]),`所持欄がありません: ${key}`);
+    for(const key of ['globalPanels','spellSlots','rings']) a(Array.isArray(s.player[key]),`所持欄がありません: ${key}`);
     const pools=[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ITEM_POOL!=='undefined'?ITEM_POOL:[]),...(typeof RING_POOL!=='undefined'?RING_POOL:[])];
     function cards(list){for(const c of list){if(!c)continue;const ref=SaveProfile.identity(c);a(typeof c==='object'&&pools.some(def=>c.id===def.id||(ref&&SaveProfile.identity(def)?.id===ref.id)),`未登録の所持カードIDです: ${c.id||c.no||c.No||c.name||'?'}`);}}
-    for(const key of ['mainBoard','inventory','globalPanels','spellSlots','rings']) cards(s.player[key]);
+    for(const key of ['mainBoard','globalPanels','spellSlots','rings']) cards(s.player[key]);
     a(s.reward&&Array.isArray(s.reward.cards)&&typeof s.reward.freePickDone==='boolean'&&Number.isInteger(s.reward.phaseId),'報酬状態が不正です');cards(s.reward.cards);
     a(s.rng&&[s.rng.seed,s.rng.state].every(n=>Number.isInteger(n)&&n>=0&&n<=0xffffffff),'乱数状態が不正です');
     a(s.sets&&setFields.every(k=>Array.isArray(s.sets[k])),'集合の状態が不正です');
@@ -168,7 +168,7 @@ const SaveRun=(()=>{
   }
   function buildRunSave(type,pendingBattle=null){
     SaveMigrations.assert(CHECKPOINT_TYPES.has(type),'保存地点が不正です');
-    const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||G.worldMap?.currentNodeId||null,battleType:G._waveBattleType||null};
+    const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,battleType:G._waveBattleType||null};
     return {saveVersion:2,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
   }
   function saveRun(save){return SaveStorage.write('run',save,validate);}

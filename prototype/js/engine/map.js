@@ -1188,7 +1188,6 @@ function leaveMapLibrary(){
   if(snap){
     const copy=typeof clone==='function'?clone:(v=>v);
     G.mainBoard=copy(snap.mainBoard||[]);
-    G.inventory=copy(snap.inventory||[]);
     G.globalPanels=copy(snap.globalPanels||[]);
     if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
   }
@@ -1223,7 +1222,6 @@ function resetLibraryLoanFormation(){
   if(!snap) return;
   const copy=typeof clone==='function'?clone:(v=>v);
   G.mainBoard=copy(snap.mainBoard||[]);
-  G.inventory=copy(snap.inventory||[]);
   G.globalPanels=copy(snap.globalPanels||[]);
   G._pendingPanelPlacement=null;
   // 「元に戻す」でアイテムの対象選択を持ち越すと、中断時に古い盤面が書き戻されて
@@ -1255,9 +1253,8 @@ function openMapLibraryFormation(){
   if(!G._libraryLoanSnapshot){
     G._libraryLoanSnapshot=typeof clone==='function'?{
       mainBoard:clone(G.mainBoard||[]),
-      inventory:clone(G.inventory||[]),
       globalPanels:clone(G.globalPanels||[])
-    }:{mainBoard:G.mainBoard||[],inventory:G.inventory||[],globalPanels:G.globalPanels||[]};
+    }:{mainBoard:G.mainBoard||[],globalPanels:G.globalPanels||[]};
   }
   _rewCards=Array.isArray(G._libraryLoanCardsState)
     ? (typeof clone==='function'?clone(G._libraryLoanCardsState):G._libraryLoanCardsState.slice())
@@ -1632,7 +1629,7 @@ function _mapPickSaleCard(pred, used){
   ensurePanelSaleStock();
   const pool=(PANEL_POOL||[]).filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!p._rewardExcluded&&!p._shopExcluded&&p.rarity!==-1&&panelSaleStockCount(p)>0&&!used.has(p.id)&&pred(p));
   if(!pool.length) return null;
-  const currentGrade=typeof _currentRewardMapGrade==='function'?_currentRewardMapGrade(G.rewardGrade||1):(G.rewardGrade||1);
+  const currentGrade=typeof _currentRewardMapGrade==='function'?_currentRewardMapGrade(1):1;
   const def=typeof _rewardWeightedPick==='function'?_rewardWeightedPick(pool,currentGrade,used):randFrom(pool);
   if(!def) return null;
   consumePanelSaleStock(def);

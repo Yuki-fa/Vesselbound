@@ -415,7 +415,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // コアが結界喪失効果そのものは解決済みなので、ここでは見た目と音だけ。
       presentShieldLostEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
-        logLine:u=>`${_lc(u.name,e.side==='p2')}の結界がダメージを防いだ。`,
       });
       continue;
     }
@@ -424,7 +423,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // コア駆動では _resolveSeals() を通らないため、ここで演出する。
       await presentSealReleaseEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
-        logLine:u=>`${_lc(u.name,e.side==='p2')}の封印が解放された。`,
         compact:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true}); },
       });
       continue;

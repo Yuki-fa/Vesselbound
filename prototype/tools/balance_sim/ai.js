@@ -37,7 +37,6 @@ function installBalanceAi() {
     let turn = Math.max(1, Number(G.turn) || 1);
     while (G.phase !== 'reward' && !G._battleDefeatHandled && turn <= SIM_MAX_TURNS) {
       G.phase = 'player';
-      G.actionsLeft = G.actionsPerTurn || 1;
       const allies = _simLiving(G.allies, false).slice();
       for (const ally of allies) {
         if (G.phase === 'reward' || G._battleDefeatHandled) break;

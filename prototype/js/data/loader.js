@@ -122,7 +122,6 @@ function _parseCSVWithHeader(text, headerNames) {
 const _XLSX_PATHS = ['./Vesselbound_data.xlsx', './Vesselbound_data .xlsx', './Vesselbound_data (1).xlsx'];
 const _XLSX_SHEETS = {
   floor: '階層データ',
-  grade: 'グレードアップ',
   char: 'NPC',
   enemy: '敵',
   keyword: 'キーワード',
@@ -163,7 +162,6 @@ async function _loadGameDataFromEmbeddedXlsx() {
   return {
     source: 'embedded-xlsx',
     ft: data.floor || '名前\n',
-    gt: data.grade || '名前\n',
     ct: data.char || '名前\n',
     et: data.enemy || '名前\n',
     kwt: data.keyword || '名前\n',
@@ -201,7 +199,6 @@ async function _loadGameDataFromXlsx() {
     // 計算式（戦闘報酬カード出現率など）は現在「資料」シートにある。
     // 名前が変わっても拾えるよう、旧名も残して順に探す。
     ft: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.floor, '計算式', '資料'], false),
-    gt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.grade, false),
     ct: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.char, 'プレイヤー'], false),
     et: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.enemy, false),
     kwt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.keyword, false),
@@ -229,8 +226,7 @@ async function _loadGameDataFromGoogleCsv() {
     if (r && !r.ok) throw new Error('HTTP ' + r.status);
   }
   const [ft, et, pt, ent] = await Promise.all(responses.map(r => r.text()));
-  // 任意シート：グレードアップ・NPC・キーワード・指輪（未使用/欠落時は内蔵デフォルトを維持）
-  let gt = '名前\n';
+  // 任意シート：NPC・キーワード・指輪（未使用/欠落時は内蔵デフォルトを維持）
   let kwt = '名前\n';
   let ct = '名前\n';
   let rt = '名前\n';
@@ -256,7 +252,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, gt, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
+  return { source: 'csv', ft, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -360,7 +356,6 @@ function _normCardName(s) {
   return String(s || '')
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
-    .replace(/小杖/g, '短杖')
     .replace(/\s+/g, '')
     .trim();
 }
@@ -552,7 +547,7 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, gt, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt } = loaded;
+    let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt } = loaded;
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -707,56 +702,6 @@ async function loadGameData() {
     } else {
       console.warn('[Vesselbound] 階層データが空のため、既存のFLOOR_DATAを維持します');
     }
-
-    // ── グレードアップ費用 ──
-    // シート列：グレード, 費用（グレード2以上の費用 = G1→G2, G2→G3, ...）
-    const gradeRows = _parseCSV(gt);
-    const newCosts = gradeRows
-      .map(row => parseInt(row['費用']))
-      .filter(v => !isNaN(v) && v > 0);
-    if (newCosts.length > 0) {
-      GRADE_UP_COSTS.length = 0;
-      newCosts.forEach(c => GRADE_UP_COSTS.push(c));
-    }
-    const facilityKeyByName = {
-      '祭壇': 'altar',
-      '研究所': 'lab',
-      '市街': 'city',
-      '金庫': 'vault',
-      '図書館': 'library',
-      '大学': 'university',
-    };
-    window.FACILITY_UPGRADE_COSTS = window.FACILITY_UPGRADE_COSTS || {};
-    gradeRows.forEach(row => {
-      const rowGrade = parseInt(row['グレード'] || row['レベル'] || row['Lv'] || row['段階']);
-      if (!isNaN(rowGrade) && rowGrade >= 2 && rowGrade <= 7) {
-        Object.entries(facilityKeyByName).forEach(([label, key]) => {
-          const cost = parseInt(row[label]);
-          if (!isNaN(cost) && cost > 0) {
-            window.FACILITY_UPGRADE_COSTS[key] = window.FACILITY_UPGRADE_COSTS[key] || [];
-            window.FACILITY_UPGRADE_COSTS[key][rowGrade - 2] = cost;
-          }
-        });
-      }
-      const name = (row['設備'] || row['施設'] || row['項目'] || row['名前'] || '').trim();
-      const key = facilityKeyByName[name] || Object.values(facilityKeyByName).find(v => v === name);
-      if (!key) return;
-      const verticalLevel = parseInt(row['レベル'] || row['Lv'] || row['グレード'] || row['段階']);
-      const verticalCost = parseInt(row['費用'] || row['コスト'] || row['必要ゴールド'] || row['価格']);
-      if (!isNaN(verticalLevel) && verticalLevel >= 2 && verticalLevel <= 7 && !isNaN(verticalCost) && verticalCost > 0) {
-        window.FACILITY_UPGRADE_COSTS[key] = window.FACILITY_UPGRADE_COSTS[key] || [];
-        window.FACILITY_UPGRADE_COSTS[key][verticalLevel - 2] = verticalCost;
-        return;
-      }
-      const costs = [];
-      for (let level = 2; level <= 7; level++) {
-        const raw = row[`Lv${level}`] || row[`Lv.${level}`] || row[String(level)] || row[`費用${level}`];
-        const cost = parseInt(raw);
-        if (!isNaN(cost) && cost > 0) costs[level - 2] = cost;
-      }
-      if (costs.length) window.FACILITY_UPGRADE_COSTS[key] = costs;
-    });
-
 
     // ── キャラクタープール（ネームド・グレード・パワー・ライフ・種族・価格・説明文 / 敵専用も含む）──
     const charRows = _parseCSVWithHeader(ct, ['カード名', '名前']);
@@ -1639,7 +1584,7 @@ async function loadGameData() {
     });
 
     console.log(
-      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} グレードアップ費用:${GRADE_UP_COSTS.join(',')} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件 敵:${ENEMY_POOL.length}件 カード上書き:${_seenPanelIds.size}件 指輪:${RING_POOL.length}件`
+      `[Vesselbound] データ読み込み完了 — 階層:${FLOOR_DATA.length - 1} キャラ上書き:${charRows.length}件 KW:${Object.keys(KW_DESC_MAP).length}件 敵:${ENEMY_POOL.length}件 カード上書き:${_seenPanelIds.size}件 指輪:${RING_POOL.length}件`
     );
     return true;
 

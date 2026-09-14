@@ -57,7 +57,7 @@ const SaveProfile=(()=>{
   function owned(){
     if(!enabled()) return;
     // 戦闘用allies/enemiesは所持品ではない。一時召喚・コピー・変身は入らない。
-    for(const name of ['mainBoard','inventory','globalPanels','spellSlots','rings']){
+    for(const name of ['mainBoard','globalPanels','spellSlots','rings']){
       for(const card of G[name]||[]) if(card) mark(card,true);
     }
   }

@@ -2407,6 +2407,14 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    アークデーモン・強化「献身」（「このキャラクター以外の」付き）が実機で発動していなかった。色を読む正規表現は
    `([色])(?:の味方|の?キャラクター)` で新旧両方を受ける。node側の監査が通ったのは内蔵CSVが古かったため（再生成して判明）。
    loader.js の `_requestedEffectOverrides`（シートを読めない時の予備）は、シートの「キーワード」「効果」列と完全に同じ値にする（効果欄が空なら desc も空）。
+21. **敵の手札エリア（`#enemy-hand-area`）と「DUNGEON CLEAR」画面（`#scr-clear`）は廃止・削除済み。** 前者は報酬画面の施設アップグレード表示の入れ物だったが
+   全状態で CSS により非表示だった（`renderEnemyHand`・`renderFacilitiesRow`・`upgradeFacility` も削除。`G.facilities` の状態は研究所→報酬グレードで使うので残す）。
+   ゲームクリアは `startFinalBossClearSequence()`（movie4→`gameOver({clear:true})` の結果画面）だけ。`showScreen('clear')` を書かないこと。
+22. **廃止済み機能の残骸は削除済み（再び足さない）。** 報酬グレード／グレードアップ（`GRADE_UP_COSTS`・`G.rewardGrade`）、施設グレードアップと施設費用、杖（チャージ）、
+   契約（旧指輪）、新タイプインベントリ（`#map-inventory-*`・`G.inventory`）、`#spell-slot-pane`、プレイヤー行動数、魔術レベル、下部メッセージ（`setHint`）、戦闘ログ（`_lc`・`logLine`）、
+   リロール、固定プレイヤーキャラ（`_checkRearCenterAllyGameOver`・`_getLeaderAlly`・`commander` フェーズ）、旧マップの `#world-map-panel`。
+   **残した現行機能**：`G.spellSlots`＝アイテム4枠、`G.phase` の `player`/`enemy`＝戦闘中の状態、`#btn-pass`＝試験戦闘の「戦闘終了」ボタン、
+   村の施設ボタン（`VILLAGE_FACILITY_DEFS`）、出発時のワールドマップ演出（`renderWorldMapScreen`）。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `equipment` を入れない（`applyFrame()` は equipment を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

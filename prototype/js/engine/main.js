@@ -83,7 +83,7 @@ function showScreen(id){
   // 街のBGMが鳴っている間（街画面／街の施設）はBGMを切り替えない。
   if(typeof playBgm==='function'&&!(typeof G!=='undefined'&&G&&G._villageBgmActive)){
     // 街（村）専用画面と、商談（報酬/編成）フェイズ中の戦闘画面はメニュー曲を使う。
-    const isMenuLike=typeof G!=='undefined'&&G&&(G.phase==='map'||G.phase==='reward');
+    const isMenuLike=typeof G!=='undefined'&&G&&G.phase==='reward';
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
     // ラスボス戦だけは専用BGM（battle4.wav、1:17から）を使う。
     const isFinalBoss=typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow();
@@ -229,9 +229,6 @@ function updateHUD(){
     document.getElementById('h-floor').textContent=G.floor;
     const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
   }
-  document.getElementById('h-reward-grade').textContent='★'.repeat(G.rewardGrade||1);
-  const magicEl=document.getElementById('h-magic');
-  if(magicEl) magicEl.textContent=G.magicLevel;
   const lifeEl=document.getElementById('h-life');
   if(lifeEl){
     const life=displayLife;
@@ -240,7 +237,6 @@ function updateHUD(){
   // 所持金はカウントアップ演出中の表示値を使い、3桁区切りで表示する。
   const _goldShown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
   document.getElementById('h-gold').textContent=Number(_goldShown).toLocaleString('ja-JP');
-  document.getElementById('h-act').textContent=G.actionsLeft+'/'+G.actionsPerTurn;
   const battleGold=document.getElementById('battle-gold-value');
   if(battleGold) battleGold.textContent=Number(_goldShown).toLocaleString('ja-JP');
   const battleLife=document.getElementById('battle-life-value');
@@ -265,12 +261,7 @@ function updateHUD(){
       _positionDebugMuteButton();
       _positionDebugFormationButton();
     });
-    if(typeof renderDebugRewardRerollButton==='function') renderDebugRewardRerollButton();
   }
-}
-// 味方キャラ名は水色、敵キャラ名はピンクで表示する（ログ本文中の名前を包む用）
-function _lc(name,isEnemy){
-  return name?`<span class="${isEnemy?'log-nm-enemy':'log-nm-ally'}">${name}</span>`:'';
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -359,7 +350,7 @@ function debugOpenFormation(){
   // 戦闘中の非同期攻撃ループを、編成画面へ切り替えた後まで走らせない。
   // フラグだけでは次のstartBattle()で解除された瞬間に前の戦闘が再開してしまうため、
   // abortBattleForDebug()が世代番号を進めて古いループを完全に無効化する。
-  if(['battle','player','enemy','commander'].includes(G.phase)){
+  if(['battle','player','enemy'].includes(G.phase)){
     if(typeof abortBattleForDebug==='function') abortBattleForDebug();
     else { G._debugFormationAbort=true; document.body.classList.remove('battle-turn-active'); }
     // 戦闘中だけ存在する召喚ユニットを編成画面へ持ち越さない。
@@ -373,14 +364,9 @@ function debugOpenFormation(){
   document.body.classList.remove('village-screen-active','world-map-active');
   if(typeof _openWaveFormation==='function') _openWaveFormation();
 }
-// リロールボタン（デバッグモード・報酬フェイズ中のみ表示。全敵撃破と同じ枠を共有）
-function _positionDebugRerollButton(){
-  _positionBelowGold(document.getElementById('rw-appearance-mode'));
-}
 window.addEventListener('resize',()=>{
   if(typeof G==='undefined'||!G._debugMode) return;
   _positionDebugKillButton();
-  _positionDebugRerollButton();
   _positionDebugMuteButton();
   _positionDebugFormationButton();
 });
@@ -883,12 +869,9 @@ function finishWaveBattleVictory(showVictoryIntro){
     return true;
   }
   if(type==='boss'&&wave===5&&stage===5){
-    // ラスボス撃破：ゲームクリア
-    runTransition(()=>{
-      G._mapBattle=null; G._waveBattleType=null;
-      if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
-      G.enemies=[]; G.phase='clear'; showScreen('clear');
-    });
+    // ラスボス撃破：通常はfinishBattleAsVictory()側で先にエンディング（movie4→結果画面）へ入るため、ここは保険。
+    // 旧「DUNGEON CLEAR」画面（#scr-clear）は廃止済み。
+    void startFinalBossClearSequence();
     return true;
   }
   if(type==='boss'){
@@ -1399,7 +1382,7 @@ function _runStatsAreaName(){
   // 街を出た後（塔へ向かう区間）なら「塔までの名前」を使う（戦闘カットインの副題と同じ）。
   const routeName=typeof _waveBattleRouteName==='function'?String(_waveBattleRouteName()||'').trim():'';
   if(routeName) return routeName;
-  return String(G.worldMap?.areaName||G.areaName||G.mapAreaName||G.floorName||`${G.floor||1}階`);
+  return String(G.areaName||G.mapAreaName||G.floorName||`${G.floor||1}階`);
 }
 function _recordRunStatsSnapshot(){
   if(!G.runStats) return;
@@ -2198,10 +2181,7 @@ window.addEventListener('keydown', async (e) => {
       // 1. 魔導板（メインボード）の全カードを最新化
       if (Array.isArray(G.mainBoard)) G.mainBoard.forEach(refreshCardObject);
       
-      // 2. マップインベントリの全カードを最新化
-      if (Array.isArray(G.inventory)) G.inventory.forEach(refreshCardObject);
-      
-      // 3. 戦闘中の味方ユニットと、それに連動するパッシブバフを再計算して最新化
+      // 2. 戦闘中の味方ユニットと、それに連動するパッシブバフを再計算して最新化
       if (Array.isArray(G.allies)) {
         G.allies.forEach(u => {
           refreshUnitObject(u);

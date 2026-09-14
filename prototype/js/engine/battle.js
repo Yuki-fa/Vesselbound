@@ -930,26 +930,19 @@ function _handleVictory(){
   if(G._battleDefeatHandled) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
   if(typeof finishWaveBattleVictory==='function'&&finishWaveBattleVictory(true)) return;
-  if(_isBossFight && G.floor===FLOOR_DATA.length-1){
-    showVictoryOverlay(()=>{
-      _cleanupBattleEndTransientUnits();
-      showScreen('clear');
-    });
-  } else {
-    // 表示タイマーと非表示タイマーを独立したsetTimeoutで走らせず、表示が確定してから
-    // 一定時間後に非表示にするようチェーンする（メインスレッドが混雑していても表示が
-    // 一瞬で消えないようにするため）。
-    showVictoryOverlay(()=>{
-      const ov=document.getElementById('victory-overlay');
-      if(ov) ov.style.display='none';
-      _cleanupBattleEndTransientUnits();
-      if(G._libraryTestBattleMode){
-        _exitTestBattle();
-        return;
-      }
-      if(G.phase==='reward') goToReward({checkpoint:true});
-    });
-  }
+  // 表示タイマーと非表示タイマーを独立したsetTimeoutで走らせず、表示が確定してから
+  // 一定時間後に非表示にするようチェーンする（メインスレッドが混雑していても表示が
+  // 一瞬で消えないようにするため）。
+  showVictoryOverlay(()=>{
+    const ov=document.getElementById('victory-overlay');
+    if(ov) ov.style.display='none';
+    _cleanupBattleEndTransientUnits();
+    if(G._libraryTestBattleMode){
+      _exitTestBattle();
+      return;
+    }
+    if(G.phase==='reward') goToReward({checkpoint:true});
+  });
 }
 
 
@@ -961,7 +954,7 @@ function addUnitHp(unit, amount, sideOverride){
 }
 
 function _isBattleGainPhase(){
-  return !!(G&&['player','enemy','commander'].includes(G.phase));
+  return !!(G&&['player','enemy'].includes(G.phase));
 }
 
 function snapshotAlliesAtBattleStart(){
@@ -1351,7 +1344,7 @@ function _refreshManaDisplays(){
 function renderBattleCounters(){
   const root=document.getElementById('battle-counters');
   if(!root) return;
-  const active=!!(G&&(G.phase==='battle'||G.phase==='player'||G.phase==='enemy'||G.phase==='commander'||G._battleVictoryPending||G._waveWithdraw));
+  const active=!!(G&&(G.phase==='battle'||G.phase==='player'||G.phase==='enemy'||G._battleVictoryPending||G._waveWithdraw));
   root.style.display=active?'flex':'none';
   const status=document.getElementById('battle-status-hud');
   if(status) status.style.display=active?'flex':'none';
@@ -1900,7 +1893,6 @@ async function startBattle(){
 
   updateGoldenDrop();
   if(typeof syncUnitPanelStatBonuses==='function') G.allies.forEach(a=>syncUnitPanelStatBonuses(a));
-  G._masterHandReady=false;
   G._manaCycleUsed=false;
   G._eidolonDeathCount=0;
   G._genericAllyDeaths=0;
@@ -2175,8 +2167,6 @@ async function nextTurn(){
 
 function startPlayerPhase(){
   G.phase='player';
-  G.actionsPerTurn=calcActions();
-  G.actionsLeft=G.actionsPerTurn;
   G.spreadActive=false;
   // 毒処理後も仲間が全滅していたらゲームオーバー
   if(!G.allies.filter(a=>a&&a.hp>0&&!a._isSoul).length){
@@ -2188,9 +2178,6 @@ function startPlayerPhase(){
     }
   }
   renderAll();
-  if(G._testBattleMode){
-    setHint(G._libraryTestBattleMode?'試験戦闘中：勝敗が付くまで戦います。':'試験戦闘中：「戦闘終了」でいつでも編成画面に戻れます。');
-  }
   // 戦闘開始ボタンは廃止し、間を置かず自動で戦闘フェイズへ進む
   _advanceToBattlePhase();
 }
@@ -2342,16 +2329,6 @@ function clampUnitStats(unit){
   unit.maxHp=Math.max(0,Number(unit.maxHp??unit.hp)||0);
   unit.hp=Math.max(0,Math.min(unit.maxHp,Number(unit.hp)||0));
   return unit;
-}
-
-function _battleLogName(unit,list){
-  if(!unit) return '';
-  const name=unit.name||'';
-  const same=(list||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.name||'')===name);
-  if(same.length<=1) return name;
-  const idx=same.indexOf(unit);
-  const suffix=String.fromCharCode(65+Math.max(0,idx));
-  return `${name}（${suffix}）`;
 }
 
 function _layoutEnemyLanes(enemies){
@@ -2520,7 +2497,6 @@ function compactBattleUnitsAfterDeath(){
   G._compactingAfterDeath=true;
   requestBattleCompact();
   G._compactingAfterDeath=false;
-  _checkRearCenterAllyGameOver();
 }
 
 function _beginDeathCompactDelay(){
@@ -2658,7 +2634,6 @@ function _delayDeathCompact(ms){
 
 function _checkBattleOver(){
   if(G._savedBattleReplaying) return false;
-  if(_checkRearCenterAllyGameOver()) return true;
   _tryNecromancerRingRevive();
   const liveEnemies=G.enemies.filter(e=>e&&e.hp>0&&!e._isObject&&!_isSealed(e));
   const liveAllies=G.allies.filter(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&!_isSealed(a));
@@ -2699,13 +2674,6 @@ function handleBattleDefeat(){
   if(typeof handleWaveBattleDefeat==='function'&&handleWaveBattleDefeat()) return;
   G._battleDefeatHandled=true;
   gameOver();
-}
-
-// メイン置き場に固定リーダー（後衛中央）が存在した旧仕様の名残。
-// 現行仕様では後衛は任意（後衛不在の編成も許可）のため、この条件による敗北判定は行わない。
-// 全滅判定は_checkBattleOver()/_onAllEnemiesDefeated()側で別途行う。
-function _checkRearCenterAllyGameOver(){
-  return false;
 }
 
 // ── 勝利確定（敵全滅・引き分けの両方から呼ばれる共通処理）─────────
@@ -2786,7 +2754,6 @@ function _onAllEnemiesDefeated(){
   if(_livingCombatUnits(G.enemies).length) return;
   if(!(G.allies||[]).some(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul)){
     if(_tryNecromancerRingRevive()){
-      if(_checkRearCenterAllyGameOver()) return;
       if(_isBossFight) G._bossJustDefeated=true;
       finishBattleAsVictory('敵を全滅させた！');
       return;
@@ -2795,7 +2762,6 @@ function _onAllEnemiesDefeated(){
     finishBattleAsVictory('Draw');
     return;
   }
-  if(_checkRearCenterAllyGameOver()) return;
   if(_isBossFight) G._bossJustDefeated=true;
   finishBattleAsVictory('敵を全滅させた！');
 }
@@ -4630,7 +4596,7 @@ function _terrainNpcSpec(name, fallbackAtk, fallbackHp){
   const base=(typeof UNIT_POOL!=='undefined'&&Array.isArray(UNIT_POOL))
     ?UNIT_POOL.find(u=>u&&u.name===name)
     :null;
-  const mapNo=Math.max(1,Number(G&&G._mapBattle&&G._mapBattle.mapIndex)||Number(G&&G.worldMap&&G.worldMap.index)||1);
+  const mapNo=Math.max(1,Number(G&&G._mapBattle&&G._mapBattle.mapIndex)||Number(G&&G._wave)||1);
   const atk=Math.max(0,Math.round(Number(base&&base.atk)||Number(fallbackAtk)||0));
   const hp=Math.max(1,Math.round(Number(base&&base.hp)||Number(fallbackHp)||1));
   return {
@@ -4678,7 +4644,7 @@ function _applyTerrainReinforcements(){
   }else if(terrain==='start'){
     const spec=_terrainNpcSpec('魔術師',0,1);
     [frontSlots,frontSlots+Math.max(0,rearSlots-1)].forEach(slot=>{ const u=_placeTerrainNpcAt(slot,spec); if(u) added.push(u); });
-    const buff=Math.max(0,(Number(b.mapIndex)||Number(G.worldMap&&G.worldMap.index)||1)*2);
+    const buff=Math.max(0,(Number(b.mapIndex)||Number(G._wave)||1)*2);
     if(buff>0){
       (G.allies||[]).forEach(u=>{
         if(!u||u.hp<=0||u._isObject||u._isSoul) return;
@@ -4743,14 +4709,6 @@ function _colorKey(color){
   if(c==='黄'||c==='茶'||c==='yellow') return 'yellow';
   if(c==='紫'||c==='purple') return 'purple';
   return '';
-}
-
-// ── 「リーダー」＝メイン置き場⑥（後衛中央）から出撃したキャラクター。⑥が空/死亡の場合は後衛の誰か ──
-function _getLeaderAlly(){
-  const leaderSlot=(typeof MAIN_BOARD_REAR_SLOTS!=='undefined'&&MAIN_BOARD_REAR_SLOTS[1])||17;
-  const bySlot=(G.allies||[]).find(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&a._mainBoardSlot===leaderSlot);
-  if(bySlot) return bySlot;
-  return (G.allies||[]).find(a=>a&&a.hp>0&&!a._isObject&&!a._isSoul&&(a.lane||'front')==='rear')||null;
 }
 
 // ── 効果によるアドホックな味方召喚（例：センチネルの「赤ゴーレム」、スケルトンキングの「青スケルトン」）──
@@ -4851,7 +4809,6 @@ function _panelSummonDisplayEquipment(sourcePanel, contributingPanels){
 // ── 動的に再計算が必要な「常時」パッシブ（マナ数依存・リーダー依存）を反映する ──
 // マナ・リーダーのステータスは増加方向にのみ追従する（減少時に強制的にHPを削らないための簡易措置）
 function _recomputeDynamicPanelStats(){
-  const leader=_getLeaderAlly();
   const manaCount=_ensureMana();
   (G.allies||[]).forEach(u=>{
     if(!u||u.hp<=0) return;
@@ -4864,14 +4821,6 @@ function _recomputeDynamicPanelStats(){
         if(delta>0) addUnitHp(u,delta,'ally');
         u._manaScaleApplied=manaCount;
       }
-    }
-    if(/常時：XはリーダーのATK、HPの2倍に等しい。/.test(desc)&&leader&&leader!==u){
-      // 自身の元々のステータス（シート値）とは無関係に、常にリーダーの2倍を絶対値として設定する
-      const targetAtk=Math.max(0,(leader.atk||0)*2), targetHp=Math.max(1,(leader.maxHp||leader.hp||0)*2);
-      const hpDiff=targetHp-(u.maxHp||0);
-      u.atk=targetAtk; u.baseAtk=targetAtk;
-      u.maxHp=targetHp;
-      u.hp=hpDiff>0?(u.hp||0)+hpDiff:Math.min(u.hp||0,u.maxHp);
     }
   });
   (G.enemies||[]).forEach(u=>{
@@ -5637,7 +5586,6 @@ async function allyAttackAction(ally, allyIdx){
     ?attackTargets.filter(t=>t&&(t.lane||'front')!=='rear')
       .flatMap(t=>_pierceRearTargets(t,G.enemies)).filter(_canReceiveBattleEffect):[];
   pierceExtra.forEach(t=>{ if(t&&!attackTargets.includes(t)) attackTargets=[...attackTargets,t]; });
-  const _allyNm=_lc(_battleLogName(ally,G.allies),false);
 
   if(attackTargets.length>1){
     await _dealMultiAttackDamageWithMutual(ally,false,target,attackTargets,attackDmg,contactModes);
@@ -5731,7 +5679,6 @@ async function enemyAttackAction(enemy, enemyIdx){
   pierceExtra.forEach(t=>{ if(t&&!finalTargets.includes(t)) finalTargets=[...finalTargets,t]; });
 
   // 全ターゲットを攻撃
-  const _enemyNm=_lc(_battleLogName(enemy,G.enemies),true);
   if(finalTargets.length>1){
     await _dealMultiAttackDamageWithMutual(enemy,true,primaryTarget,finalTargets,atkVal,contactModes);
   } else {
@@ -6168,7 +6115,6 @@ async function applyVictoryBonuses(){
 
 function checkInstantVictory(){
   if(G.phase==='player'&&G.enemies.filter(e=>e&&e.hp>0&&!e._isObject).length===0){
-    if(_checkRearCenterAllyGameOver()) return true;
     if(_isBossFight) G._bossJustDefeated=true;
     finishBattleAsVictory('敵を全滅させた！');
     return true;
@@ -6488,11 +6434,3 @@ async function _exitTestBattle(){
 }
 
 // showVictoryOverlay()はmain.jsで定義（スクリプト読み込み順の都合上こちらは重複のため削除済み）
-
-// summon.js から統合（論理削除用）
-function calcActions() {
-  return 3;
-}
-function fireTrigger(trigger, sourceRingId) {
-  // 指輪トリガー（廃止済み）の名残：安全な no-op として維持
-}

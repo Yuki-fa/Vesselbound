@@ -167,7 +167,7 @@ function presentDamageSfxBatch(events, index) {
 }
 
 // ── 結界が割れた ────────────────────────────────
-// api: findUnit(side,id) / render() / logLine(unit) … ログ文（不要なら省略）
+// api: findUnit(side,id) / render() …
 function presentShieldLostEvent(ev, api) {
   if (!ev || !api) return false;
   const unit = api.findUnit(ev.side, ev.unitId);
@@ -203,7 +203,6 @@ function presentShieldLostEvent(ev, api) {
 //                            （毒＝HPだけ減って最大HPは変わらない）。
 //   cueKeys               … 固有SEを鳴らし終えた「発生元＋効果」の記録（Set）
 //   vfxGate               … 固有VFXを出し終えた「発生元＋効果＋対象」のゲート
-//   logLine(unit, source) … ログ文（不要なら省略）
 //   render()              … 盤面の描き直し（不要なら省略）
 //   trace(info)           … 記録（不要なら省略）
 async function presentStatChangeEvent(ev, api) {
@@ -310,7 +309,6 @@ const PRESENT_KEYWORD_EFFECT_NAMES = {
 //   hasDom(unit, side)        … その召喚体のDOMが既にあるか
 //   compact(force)            … 盤面の詰め直し
 //   render()                  … 単純な描き直し
-//   logLine(unit)             … ログ文（不要なら省略）
 function presentSummonPlacement(ev, api) {
   if (!ev || !api || !ev.unit) return false;
   const list = typeof api.list === 'function' ? api.list(ev.side) : null;
@@ -654,7 +652,7 @@ function presentTransformEvent(ev, api) {
 }
 
 // ── 封印の解放 ────────────────────────────────
-// api: findUnit(side,id) / compact() / logLine(unit)
+// api: findUnit(side,id) / compact()
 async function presentSealReleaseEvent(ev, api) {
   if (!ev || !api) return false;
   const unit = api.findUnit(ev.side, ev.unitId);

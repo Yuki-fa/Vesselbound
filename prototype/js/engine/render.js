@@ -528,7 +528,6 @@ function _joinPreviewParts(parts){
   });
   return body;
 }
-
 // キャラクター効果の表示順。戦闘ルールには触れず、ホバー説明の行だけを並べ替える。
 const PREVIEW_EFFECT_TRIGGER_ORDER={開戦:0,解放:1,攻撃:2,負傷:3,死亡:4,常時:5,マナ効果:6,終戦:7};
 const PREVIEW_EFFECT_TRIGGER_CLASS={開戦:'trigger-opening',解放:'trigger-release',攻撃:'trigger-attack',負傷:'trigger-injury',死亡:'trigger-death',常時:'trigger-passive',マナ効果:'trigger-mana',終戦:'trigger-ending'};
@@ -3973,7 +3972,6 @@ function renderAll(){
   renderHand();
   renderManaHud();
   renderControls();
-  renderEnemyHand();
   updateHUD();
   requestAnimationFrame(fitCardDescs);
 }
@@ -5080,7 +5078,7 @@ function _annotateSummonNames(desc){
   });
 }
 function _rawSubstitutedDesc(card){
-  if(!card||card.isEnchant) return card&&card.isEnchant?('契約に「'+card.enchantType+'」を付与する'):'';
+  if(!card) return '';
   const g=card.grade||1;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   const ownName=String(card.name||'').trim();
@@ -5095,7 +5093,6 @@ function _rawSubstitutedDesc(card){
   return desc;
 }
 function computeDesc(card,_mlOverride){
-  if(card.isEnchant) return '契約に「'+card.enchantType+'」を付与する';
   let desc=_rawSubstitutedDesc(card);
   // 説明文中の色名（青・赤・緑・黄）をマナアイコンに置き換える
   desc=_boldKeywordsInHtml(desc);
@@ -5158,13 +5155,11 @@ function cardRarityBannerHtml(card){
 }
 
 function mkCardEl(card,_idx,_ctx,_mlOverride){
-  const typeLabel={ring:'指輪',wand:'杖',consumable:'アイテム','global-panel':'全体'};
+  const typeLabel={ring:'指輪',consumable:'アイテム','global-panel':'全体'};
   const div=document.createElement('div');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   const t=card.type||'ring';
-  const _isWandSub=t==='wand'&&card.subtype==='wand';
-  const _subtypeClass=_isWandSub?' wand-sub':'';
-  div.className=`card ${t}${_subtypeClass}${card.legend?' legend-card':''}`;
+  div.className=`card ${t}${card.legend?' legend-card':''}`;
   if(card._isChar||(!card.type&&!card.kind)) div.classList.add('character-card');
   if(card.rarity>=1&&card.rarity<=6) div.classList.add(`rarity-${card.rarity}`);
   div.dataset.cardIdx=String(_idx);
@@ -5175,7 +5170,7 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
     div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
   }
   const enc=card.enchants&&card.enchants.length?`<div class="card-enc">${card.enchants.join('・')}</div>`:'';
-  const tpLabel=_isWandSub?'短杖':(typeLabel[t]||'指輪');
+  const tpLabel=typeLabel[t]||'指輪';
   const kindLabel='';
   const gradeEl='';
   const manaCostEl=cardManaCostHtml(card);
@@ -5309,26 +5304,5 @@ function renderControls(){
     pp.style.display='';
   } else {
     pp.style.display='none';
-  }
-}
-
-function setHint(t){ document.getElementById('hint-txt').textContent=t; }
-
-// 敵側インベントリエリア（報酬フェイズの施設アップグレード表示専用）
-function renderEnemyHand(){
-  const area=document.getElementById('enemy-hand-area');
-  if(!area) return;
-  const isReward=G.phase==='reward'&&(G._masterHandReady||false);
-  if(!isReward){ area.style.display='none'; return; }
-  area.style.display='';
-  const handEl=document.getElementById('enemy-hand-slots');
-  const handCountEl=document.getElementById('enemy-hand-count');
-  const handMaxEl=document.getElementById('enemy-hand-max');
-  if(!handEl) return;
-  handEl.innerHTML='';
-  if(typeof renderFacilitiesRow==='function'){
-    renderFacilitiesRow();
-    if(handCountEl) handCountEl.textContent='6';
-    if(handMaxEl) handMaxEl.textContent='6';
   }
 }

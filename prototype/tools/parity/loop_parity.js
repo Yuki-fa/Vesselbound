@@ -106,7 +106,7 @@ const CASE_SRC = ci => `
   G._testBattleMode=false; G._battleVictoryPending=false; G._battleMotionDepth=0;
   G._battleCoreEvents=[]; G._coreConsumedItemEvents=new Set(); G._injuryDispatchSequence=0;
   G._battleDraw=false; G._isBossRewardCycle=false; G._battleSummonedAllyCount=0;
-  G._masterHandReady=false; G._manaCycleUsed=false; G._eidolonDeathCount=0;
+  G._manaCycleUsed=false; G._eidolonDeathCount=0;
   G._genericAllyDeaths=0; G._showGlobalPanels=true; G._battleDefeatHandled=false;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
   G._battleStartedAt=performance.now(); G._battleSpeed=1; G._battleSpeedFrom=1;

@@ -739,10 +739,6 @@
           cueKeys: _effectStatCueKeys,
           vfxGate: _effectStatVfxGate,
           ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
-          logLine: (unit) => {
-            const detail = (Number(ev.atk) || 0) || (Number(ev.hp) || 0);
-            return `${_effectSourceName(ev, ctx)}の効果で${unit.name || '対象'}が${detail >= 0 ? '+' : ''}${detail}変化。`;
-          },
           render: _render,
         });
         break;
@@ -931,7 +927,6 @@
           // オンラインはイベントの値が唯一の出どころ。残りの結界をここで実体へ写す
           // （写さないと shield.png と結界バッジが消えなかった）。
           applyShield: (u, next) => { u.shield = Math.max(0, Number(next) || 0); },
-          logLine: u => `${u.name || '対象'}の結界がダメージを防いだ。`,
           render: _render,
         });
         break;
@@ -1001,7 +996,6 @@
             requestBattleCompact(force ? { forceRender: true, forceDuringMotion: true } : { forceRender: true });
           },
           render: _render,
-          logLine: unit => `${_effectSourceName(ev, ctx)}の効果で${(unit && unit.name) || 'ユニット'}を召喚。`,
         });
         // 登場演出（S001）。**逆再生開始でカードが出る**まで待つ（PvEと同じ）。
         if (typeof playSummonAppearVfx === 'function' && ev.unit) {
@@ -1083,7 +1077,6 @@
         await _awaitMotion();
         await presentSealReleaseEvent(ev, {
           findUnit: (side, id) => _find(side, id),
-          logLine: u => `${u.name || '対象'}の封印が解放された。`,
           compact: () => {
             if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
             else _render();

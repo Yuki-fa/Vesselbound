@@ -106,9 +106,6 @@ function initState(){
     // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),
     enemies:[],
-    // ── マップ用インベントリ（9×2）──
-    inventory: Array(18).fill(null),
-    inventoryOpen:false,
     globalPanels:Array(7).fill(null),
     _showGlobalPanels:true,
     // ── スペル置き場（廃止。互換用に空配列だけ残す）──
@@ -118,7 +115,6 @@ function initState(){
     mainBoard:Array(15).fill(null),
     // ── 状態 ──
     phase:'init',
-    actionsPerTurn:1, actionsLeft:0,
     turn:0, earnedGold:0,
     moveMaskLanes:[],
     spreadActive:false, spreadMult:0,
@@ -134,20 +130,12 @@ function initState(){
     _waveRewardCount:null,
     _waveWithdraw:false,
     battleCounters:{damage:0,deaths:0},
-    // ── 魔術レベル（大学施設の魔法パネル効果で参照。現在レベルアップ手段なし）──
-    magicLevel:1,
     hasGoldenDrop:false,
     baseIncome:0,
-    facilities:{altar:1,lab:1,city:1,vault:1,library:1,university:1},
-    facilityDiscounts:{},
     _nextRewardUniqueSlot:false,
-    // ── 報酬グレード ──
-    rewardGrade:1,
-    rewardGradeUpCount:0,
     rewardCharCount:3,
     _bossJustDefeated:false,
     // ── 報酬 ──
-    rerollCount:0,
     _seenRarity3:new Set(),
     buffAdjBonuses:{},
     rewardCards:6,
