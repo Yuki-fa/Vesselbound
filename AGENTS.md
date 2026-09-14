@@ -1702,6 +1702,38 @@ console.log('実カード', (w*scale).toFixed(2)+'px', '／ CSS指定', w+'px');
 
 ---
 
+## 8-9. （完了）文字サイズを整数pxにそろえる（2026-09-14 利用者指示）
+
+**この節は完了済み。** 以後守る規則は「9. 現在の状態」の履歴を見ること。以下は経緯の記録。
+
+**方針（利用者承認済み）**：文字サイズの指定値を整数の px にそろえる。作業前にコミット済み（`646eb1e`）。
+
+**対象と置き換え**（`html{font-size:28px}` なので 1rem＝28px）
+
+| 今の指定 | 置き換え | 例 |
+| --- | --- | --- |
+| rem（`font-size` と `font` 省略形の文字サイズ部分） | rem×28 を四捨五入（.5 は切り上げ）した整数px | `.68rem`→`19px`、`1rem`→`28px` |
+| 小数px（同上） | 四捨五入した整数px | `43.82px`→`44px`、`24.8px`→`25px`、`19.84px`→`20px` |
+
+- 置き換える場所：`prototype/index.html` の `<style>` 内の CSS（`@media` の中も）、HTML の `style` 属性、
+  `prototype/js/` 配下の JS 文字列の中の `font-size:…`（`local_xlsx_data.js` は除く）。
+- **`font-size` と `font` 省略形の「文字サイズ」以外は触らない。** margin・padding・gap・width・line-height などに使われている rem はそのまま。
+  `font` 省略形は `700 .68rem/1.2 …` の `.68rem` の部分だけを変える（`/1.2` の行の高さは変えない）。
+- `!important` や前後の書き方はそのまま残し、値だけを変える（規則の順番・セレクタは変えない）。
+
+**触らないもの**
+
+- `calc(22px * var(--game-scale))` のような表示倍率を掛ける指定（元の数値は整数）。
+- JS でその場で計算する値（`${fs}px` など、枠に収めるための縮小）。
+- `font-size:0`、`em`・`%` 指定（6箇所。親の文字サイズを実画面で確かめる必要があるので Claude 側で直す）。
+
+**確認**：変更した全JSの `node --check`。置き換え後に、`font-size`／`font` 省略形の中に rem と小数px が残っていないことを
+スクリプトで数えて報告する（残りは0件のはず。表示倍率・JS計算・em・% は除く）。`index.html` の変更したJSの `?v=` を上げる。
+ヘッドレス検査はこの環境ではサーバー／Chromeにつながらないので実行しなくてよい（Claude側で確認する）。
+置き換えた件数（rem／小数px）と、置き換え前後の値の対応表を日本語で報告する。git commit はしない。
+
+---
+
 ## 9. 現在の状態
 
 ### 履歴の記述ルール
@@ -2323,7 +2355,13 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    （図書館の貸出カードからも外した。貸出はリザードマン・フィーンド・野生の力・逆上・結界の5枚）。
 10. 図書館チュートリアル中は**ホバーは反応、操作は不可**。CSS で `pointer-events` を奪わない（奪うとホバー説明が出ない）。
    操作の禁止は `map.js` のチュートリアル内の document キャプチャ（pointerdown／click／dragstart／dragover・drop／contextmenu）が
-   `isTutorialInputAllowed()` で判定して行い、`finish()` で外す。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
+   `isTutorialInputAllowed()` で判定して行い、`finish()` で外す。
+11. **文字サイズは整数pxで指定する**（rem・小数px・em を新しく書かない）。画面に合わせて伸縮する所は
+   `calc(整数px * var(--game-scale))`。例外は JS でその場で計算する値と、親の動的な大きさに比例させる
+   `.vfx-damage-note{font-size:.4em}`（ダメージ数値に対する比率のため）。
+12. ゲームクリア／ゲームオーバーの項目（`.gameover-rows`）は列幅が中身の幅で決まり中央寄せなので、
+   数え上げで文字幅が変わると全行が震える。`_animateGameOverNumber()`（main.js）は**最終値の幅を先に確保してから**数える。
+   数値を動かす項目を足す時もこの関数を通すこと。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
    （`#ui-btn-outer-glow-only`）。素材全体を光らせると内側まで光る。`button_invisible_s.svg` を書き出し直したらパスも差し替える。
 3. 効果の種類（キーワード効果／開戦〜終戦）が変わる所の直線は `_joinPreviewParts()`（render.js）が入れる。
 4. 策士の加算量は `_collectAdjacentEnhancements()`（battle.js）の `enh.strategyBonus` だけが決め、説明文はそれを出すだけ。

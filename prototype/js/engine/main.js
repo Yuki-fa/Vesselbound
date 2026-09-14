@@ -1441,6 +1441,17 @@ function _animateGameOverNumber(id,target,duration=650,formatter=n=>String(Math.
   const end=Math.max(0,Number(target)||0);
   el.textContent=formatter(0);
   window.setTimeout(()=>{
+    // **数え上げ中に文字幅が変わると、項目の列幅（max-content）と中央寄せの位置が毎フレーム変わり、
+    // 「難易度」など全ての行が左右に震える。** 最終値の幅を先に確保してから数え始める。
+    // 前回の結果画面で確保した幅が残らないよう、毎回外してから測り直す。
+    el.style.minWidth='';
+    el.textContent=formatter(end);
+    const cs=getComputedStyle(el);
+    const extra=cs.boxSizing==='border-box'?0
+      :(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0)+(parseFloat(cs.borderLeftWidth)||0)+(parseFloat(cs.borderRightWidth)||0);
+    const finalWidth=el.offsetWidth-extra;
+    if(finalWidth>0) el.style.minWidth=`${Math.ceil(finalWidth)}px`;
+    el.textContent=formatter(0);
     const started=performance.now();
     const tick=now=>{
       const p=Math.min(1,(now-started)/duration);

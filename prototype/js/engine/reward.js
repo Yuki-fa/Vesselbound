@@ -1712,9 +1712,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
     const disabled=!hasSlot;
     div.className='rew-card character-card'+(card.rarity>=1&&card.rarity<=6?` rarity-${card.rarity}`:'')+((isPendingSale||canBuy&&!disabled)?'':' cant')+(isLegend?' legend':'');
     if(card.color) div.setAttribute('data-preview-title-color',String(card.color));
-    const raceBadge=`<div style="font-size:.55rem;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
+    const raceBadge=`<div style="font-size:15px;color:var(--text2);margin-bottom:1px">${card.race||'-'}</div>`;
     const atkStr=`<span style="color:var(--teal2)">${card.atk}</span>`;
-    const statsLine=`<div style="font-size:.68rem;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
+    const statsLine=`<div style="font-size:19px;font-weight:700;margin-top:2px">${atkStr}<span style="color:var(--text2)">/</span><span style="color:#60d090">${card.hp}</span></div>`;
     const costLine=G._isRewardTown?`<div class="rew-card-cost">${cost}ゴールド${disabled?' （盤面満杯）':''}</div>`:disabled?`<div class="rew-card-cost">（盤面満杯）</div>`:'';
     const uniqueBadge=card.unique?`<div class="rew-legend-badge">⭐ ユニーク</div>`:'';
     const gradeTag='';
@@ -1735,7 +1735,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
       div.setAttribute('data-preview',typeof _unitPreviewText==='function'?_unitPreviewText(card,_modDescCard):_modDescCard);
     }
     const _dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card):'';
-    div.innerHTML=`${shortBadge}${costLine}${_dirMarks}<div class="rew-card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><div style="font-size:.62rem;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:.5rem;color:var(--text2);margin:1px 0">${[...new Set(card.keywords||[])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
+    div.innerHTML=`${shortBadge}${costLine}${_dirMarks}<div class="rew-card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><div style="font-size:17px;color:var(--purple2);margin-bottom:1px">キャラクター</div>${raceBadge}<div class="rew-card-name">${typeof _cardUiName==='function'?_cardUiName(card):card.name}${gradeTag}</div>${_rewCharDesc?`<div class="rew-card-desc">${_rewCharDesc}</div>`:''}<div style="font-size:14px;color:var(--text2);margin:1px 0">${[...new Set(card.keywords||[])].filter(Boolean).join('　')}</div>${statsLine}${uniqueBadge}`;
     _ensureCardBackLayer(div);
     _ensureRewardCardLineLayer(div);
     _ensureRewardCardDimLayer(div);
