@@ -187,6 +187,10 @@ node tools/parity/loop_parity.js      # PvEとコアの結果の一致（最終�
 `current_issues_check.js`（サイレン＋邪眼3枚＋大いなる守護＋三段攻撃など、既知の戦闘回帰）／
 `c019_visual_check.js`（C019の可視弾頭の着弾位置と大きさ）／
 `shop_ui_visual_check.js`（商店の固定ホバー・ボタン・価格・キャンセル操作の実測）。
+`style_effect_audit.js`（CSSの宣言を画面状態ごとに1つずつ差し替え、効いていない宣言を洗い出す）。
+**「効いていない」判定をそのまま削除の根拠にしないこと。** 監査が作っていない画面状態（戦闘開始・勝利・撤退のカットイン、
+ゲームオーバー／クリアの魔導板など）でだけ効く宣言も「効いていない」に入る。2026-09-14 に `.battle-start-title{color:transparent}` と
+ゲームオーバー魔導板見出しの文字サイズ・色を誤って消し、利用者報告で戻した。削除前に、その宣言のセレクタが表す画面を実際に出して見比べること。
 
 `present_parity.js` は `VB_ONLY=シナリオ名` で1件だけ回せる（`|` 区切りで複数）。
 
@@ -1838,7 +1842,13 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 1. 攻撃効果発動時の黄色い発光が見えないことがある。発光対象はキャラクターカードの外周だけ。
    → **原因の1つを直した**（再描画でスロットのDOMが作り直されると光が消えていた。
    `playEffectFlash` が対象を毎回引き直し、`renderField` が `_reapplyEffectFlash()` で
-   付け直すようにした）。**実戦での見え方は未確認。**
+   付け直すようにした）。
+   → **2026-09-14 本当の原因を直した：光そのものが描かれていなかった。** 2026-09-12 のカード角の丸め
+   `body .slot.unit-card:has(.unit-frame-layer){clip-path:inset(0 round …)}` が要素自身の box-shadow（＝発光）まで切り取っていた。
+   クラスは付き、計算値にも box-shadow は出るので、DOMを見るだけの検査では気付けない（スクリーンショットで確認すること）。
+   発光中だけ `html body .slot.unit-card.effect-flash{clip-path:none!important}` で外す（角の丸めは `.unit-frame-layer` 側の clip-path が受け持つ）。
+   **`.attack-motion-clone.effect-flash`（クラス2つ）では `:has()` 付きの丸め（クラス3つ）に負ける**ので、`.slot.unit-card` を含めた指定にしている。
+   ヘッドレスの実戦（PvE・オンライン、スケルトンキングの攻撃効果）で、攻撃中の複製に黄色い光が見えることをスクリーンショットで確認済み。実機は未確認。
 
 上記を直す際の確認順は、`core.js` のイベント生成 → `present.js` / `present_events.js` の規則 →
 `render.js` の矩形・回転・CSS → PvE／オンライン両受け口、とする。実機で未確認のものは「修正済み」と報告しない。
@@ -2452,6 +2462,10 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    さらに、ドラッグ中はポインタを捕まえ（setPointerCapture）、ボタンを離した状態の pointermove は取り消しではなく「離した」として扱う。
    離した位置が置き先でなくても、直前に受け付けた置き先の矩形から `max(12, 28×--game-scale)` px 以内ならそこへ落とす（マス間の隙間で離した時の取りこぼし対策）。
    検査：`node tools/parity/pointer_drag_check.js`（既存検査の DragEvent 直接送信もそのまま使える）。
+30. **攻撃効果などの発光（`.effect-flash`）は、光っている間だけカードの `clip-path` を外す。** 角の丸め（`body .slot.unit-card:has(.unit-frame-layer)`）は
+   要素自身の box-shadow まで切り取るため、付けたままだと光が描かれない。`:has()` 付きの丸めに勝つよう `.slot.unit-card.effect-flash` で指定する。
+31. **「戦闘開始」の文字は `color:transparent` で金色グラデーション（background-clip:text）を見せている。** 消すと単色になり光の流れが消える。
+   **ゲームオーバー／クリア画面の「魔導板」見出しは編成画面の見出しと同じ値**（44px・#c49a6c・字間.08em・影 0 2px 8px rgba(0,0,0,.9)）。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

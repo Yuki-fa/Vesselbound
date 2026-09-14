@@ -198,6 +198,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   background-size:240% 100%;
   -webkit-background-clip:text;
   background-clip:text;
+  /* **消さないこと。** 文字色を透明にして、上の金色グラデーション（文字の形に切り抜き）を見せている。
+     消すと文字が単色で塗られ、光の流れ（battle-start-shine）が見えなくなる（2026-09-14 監査で誤って削除→復元）。 */
+  color:transparent!important;
   filter:drop-shadow(0 7px 7px rgba(12,5,0,.98)) drop-shadow(0 0 28px rgba(255,214,104,.72));
   animation:battle-start-title-in .3s ease-out both,battle-start-shine 1.05s .28s ease-in-out both;
 }
@@ -9700,9 +9703,12 @@ html body.gameover-active #gameover-board-grid>#hand-pane{
   padding:0!important;margin:0!important;background:none!important;border:0!important;box-shadow:none!important;
   z-index:10!important;overflow:visible!important;transform:none!important;
 }
+/* **編成画面の「魔導板」見出し（html body.reward-screen-active #hand-pane::before）と同じ見た目にする。**
+   文字サイズ・色を消すと、既定の28px・白っぽい色になって編成画面と変わる（2026-09-14 監査で誤って削除→復元）。 */
 html body.gameover-active #gameover-board-grid>#hand-pane::before{
   content:var(--title-board,"魔導板");position:absolute;left:0;right:0;top:48px;z-index:4;display:block!important;
-  text-align:center;font-family:"Shippori Mincho",serif!important;line-height:1;font-weight:700;letter-spacing:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none;
+  text-align:center;font-family:"Shippori Mincho",serif!important;line-height:1;font-weight:700;pointer-events:none;
+  font-size:var(--prod-panel-title-size)!important;color:#c49a6c!important;letter-spacing:.08em!important;text-shadow:0 2px 8px rgba(0,0,0,.9)!important;
 }
 html body.gameover-active #gameover-board-grid #hand-slots.board-slots{
   position:absolute!important;left:110px!important;top:126px!important;width:1412px!important;height:1230px!important;
@@ -12174,18 +12180,29 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
   100%{ opacity:1; transform:translateY(0) scale(1); }
 }
 
-/* 効果発生元の発光はカードの外周だけ。後続の盤面共通ルールより優先する。 */
+/* 効果発生元の発光はカードの外周だけ。後続の盤面共通ルールより優先する。
+   **光っている間だけ clip-path を外す。** カード角の丸め（.slot.unit-card:has(.unit-frame-layer) の clip-path）は
+   要素自身の box-shadow まで切り取るため、付けたままだと光が一切見えない（2026-09-14 実測）。
+   角の丸めは .unit-frame-layer 側の clip-path が受け持つので、外しても角は崩れない。 */
 html body #scr-battle .slot.unit-card.effect-flash{
   box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
   border-color:var(--effect-flash-core)!important;
   filter:none!important;
+  clip-path:none!important;
   z-index:999!important;
 }
 html body .attack-motion-clone.effect-flash{
   box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
   border-color:var(--effect-flash-core)!important;
   filter:none!important;
+  clip-path:none!important;
   z-index:999!important;
+}
+/* 角の丸めは `body .slot.unit-card:has(.unit-frame-layer)`（クラス3つ分）で付くため、
+   `.attack-motion-clone.effect-flash`（2つ分）では負けて外れない。攻撃中に光るのは複製なので、
+   複製にも付いている .slot.unit-card を含めて確実に上回らせる（場所を問わず効くように #scr-battle は付けない）。 */
+html body .slot.unit-card.effect-flash{
+  clip-path:none!important;
 }
 /* ══════════════════════════════════════════════════════════
    カード枠（summon_frameN / enemy_frame / boss_frame 等）の外周線。
