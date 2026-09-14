@@ -378,7 +378,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .btn:hover{background:rgba(200,160,60,.15);box-shadow:0 0 16px rgba(200,160,60,.3)}
 .btn:active{transform:scale(.97)}
 .btn.small{font-size:21px;padding:.4em 1.1em;font-family:var(--font-bd);letter-spacing:.04em}
-.btn.tiny{font-size:19px;padding:.3em .8em;font-family:var(--font-bd)}
 .btn:disabled{opacity:.35;cursor:var(--cursor-normal);pointer-events:none}
 
 /* BATTLE */
@@ -475,8 +474,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .hand-area{display:flex;flex-direction:column;gap:4px;flex-shrink:0;padding:4px 0}
 .hand-row1{display:flex;gap:5px;align-items:flex-start;width:100%}
 .hand-pane{display:flex;flex-direction:column;gap:4px}
-.hand-pane-label{letter-spacing:.06em;padding:2px 6px;border-radius:3px;font-weight:500}
-.spell-label{background:rgba(58,110,168,.18);color:var(--blue2);border:1px solid rgba(58,110,168,.3)}
 .hand-slots{display:flex;gap:5px}
 
 /* CARDS */
@@ -520,8 +517,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .bhud-item:last-child{border-right:none}
 .bhud-label{color:var(--text2);letter-spacing:.07em;font-family:var(--font-hd)}
 .bhud-val{font-weight:700;line-height:1}
-.bhud-val.floor{color:var(--teal2)}.bhud-val.life{color:#e05050}.bhud-val.soul{color:var(--gold2)}.bhud-val.turn{color:var(--blue2)}.bhud-val.act{color:var(--purple2)}
-
+.bhud-val.floor{color:var(--teal2)}.bhud-val.life{color:#e05050}.bhud-val.soul{color:var(--gold2)}.bhud-val.turn{color:var(--blue2)}
 /* REWARD INLINE */
 .reward-info-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(200,160,60,.08);border:1px solid rgba(200,160,60,.3);border-radius:4px;flex-wrap:wrap;flex-shrink:0}
 .ri-soul{color:var(--text2)}.ri-val{font-weight:700;color:var(--gold2)}
@@ -932,7 +928,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .hand-area{gap:10px;padding:8px 0}
 .hand-row1{gap:18px!important}
 .hand-pane{gap:8px}
-.hand-pane-label{font-size:20px;padding:5px 10px;border-radius:6px}
 .hand-slots,
 #hand-slots{gap:10px}
 .card,.card-empty{border-radius:8px}
@@ -1030,7 +1025,6 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #hand-pane{
   position:absolute;left:1920px;top:1655px;width:1320px;height:430px;transform:translateX(-50%);z-index:12
 }
-#hand-pane .hand-pane-label{display:none}
 #hand-slots{grid-template-columns:repeat(5,1fr)!important;gap:18px;height:100%;align-items:start;justify-content:center}
 #hand-slots .card,#hand-slots .card-empty{height:auto;aspect-ratio:63/88;border-width:3px;border-radius:12px;padding:12px}
 #hand-slots .card-art{min-height:96px}
@@ -1610,22 +1604,6 @@ html body .slot.dragging{
   background:var(--world-map-panel-image) center/100% 100% no-repeat!important;
   transition:transform .12s ease!important;
   z-index:2!important;
-}
-.map-node{
-  position:absolute!important;
-  width:54px!important;
-  height:54px!important;
-  transform:translate(-50%,-50%)!important;
-  border:0!important;
-  padding:0!important;
-  border-radius:0!important;
-  background-color:transparent!important;
-  background-size:contain!important;
-  background-repeat:no-repeat!important;
-  background-position:center!important;
-  color:transparent!important;
-  font-size:0!important;
-  z-index:4!important;
 }
 @keyframes boss-map-pulse{
   from{filter:drop-shadow(0 0 8px rgba(255,44,30,.85)) drop-shadow(0 0 18px rgba(255,166,58,.7))}
@@ -2319,15 +2297,6 @@ body #hand-slots .card-empty.belt-empty{
   background:rgba(0,0,0,.28)!important;
   border:4px solid rgba(0,0,0,.82)!important;
   box-shadow:inset 0 0 0 2px rgba(85,130,170,.22),0 0 10px rgba(0,0,0,.38)!important;
-}
-body #hand-slots .card.equip-combat-dim{
-  opacity:.48!important;
-  filter:grayscale(.65) brightness(.72)!important;
-  cursor:var(--cursor-normal)!important;
-}
-body #hand-slots .card.equip-combat-view .discard-btn{
-  opacity:.35!important;
-  pointer-events:none!important;
 }
 body #f-ally .slot.unit-card.selected{
   box-shadow:none!important;
@@ -5380,7 +5349,6 @@ html body.reward-screen-active #reward-cards-section,
 html body.reward-screen-active #ally-section,
 html body.reward-screen-active #scr-battle > .bottom-hud,
 html body.reward-screen-active .bctl-wrap,
-html body.reward-screen-active #hand-pane > .hand-pane-label,
 html body.reward-screen-active #btn-debug-kill,
 html body.reward-screen-active #rw-count,
 html body.reward-screen-active #rw-race-buffs,
@@ -6144,8 +6112,7 @@ html body.reward-screen-active #hand-slots.board-slots{
   overflow:visible!important;
 }
 html body.reward-screen-active #hand-slots.board-slots::before,
-html body.reward-screen-active #hand-slots.board-slots::after,
-html body.reward-screen-active #hand-pane .hand-pane-label{
+html body.reward-screen-active #hand-slots.board-slots::after{
   content:none!important;
   display:none!important;
 }
@@ -6324,12 +6291,6 @@ html body #hand-slots.board-slots > .item-target-disabled *{pointer-events:none!
 /* 対象になり得るカードは通常表示のまま（暗転しないことで選べると分かる）。 */
 html body #hand-slots.board-slots > .item-target-ok{cursor:var(--cursor-normal)}
 /* 使用条件を満たさないアイテムの「使う」ボタン。 */
-html body #item-use-confirm .item-use-unavailable{
-  opacity:.38!important;
-  filter:grayscale(.7)!important;
-  cursor:var(--cursor-normal)!important;
-  pointer-events:none!important;
-}
 html body.reward-screen-active #reward-info-bar{
   display:block!important;
   position:absolute!important;
@@ -6720,11 +6681,7 @@ html body.reward-screen-active #hand-pane #hand-slots.board-slots::before,
 html body.reward-screen-active #hand-pane #hand-slots.board-slots::after,
 html body.reward-screen-active #hand-slots.board-slots::before,
 html body.reward-screen-active #hand-slots.board-slots::after,
-html body.reward-screen-active #hand-pane .hand-pane-label,
-html body.reward-screen-active #hand-pane .spell-label,
 html body.reward-screen-active #hand-pane > h2,
-html body.reward-screen-active #hand-pane > .hand-pane-label,
-html body.reward-screen-active #hand-pane > .spell-label,
 html body.reward-screen-active #hand-pane > .line{
   content:none!important;
   display:none!important;
@@ -7457,13 +7414,6 @@ html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.d
 }
 
 /* 2. 「魔導板」見出し文字を明るく保持 */
-html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) #hand-pane .spell-label,
-html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) .spell-label {
-  opacity: 1 !important;
-  filter: none !important;
-  color: #fff !important;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9) !important;
-}
 
 /* 3. ドラッグ中でない他のカード・空枠・出撃枠のみ明るく表示 */
 html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) #hand-pane .card:not(.dragging),
@@ -7634,41 +7584,6 @@ html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspe
 html body.reward-screen-active:is(.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-item) #rw-cards .rew-card.drag-source-parts-hidden::after{
   opacity:0!important;
   background:none!important;
-}
-#item-use-confirm{
-  position:fixed;
-  z-index:100200;
-  min-width:calc(320px * var(--game-scale));
-  padding:calc(18px * var(--game-scale));
-  border:calc(2px * var(--game-scale)) solid rgba(216,185,130,.8);
-  background:rgba(18,10,4,.94);
-  box-shadow:0 0 calc(28px * var(--game-scale)) rgba(0,0,0,.72);
-  color:var(--gold2);
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:calc(12px * var(--game-scale));
-  transform-origin:0 0;
-}
-#item-use-confirm .item-use-title{
-  grid-column:1 / -1;
-  font-family:var(--font-hd);
-  font-size:calc(28px * var(--game-scale));
-  text-align:center;
-  color:#f0d080;
-}
-#item-use-confirm .item-use-desc{
-  grid-column:1 / -1;
-  min-height:calc(58px * var(--game-scale));
-  color:#efe4c6;
-  font-family:var(--font-body,inherit);
-  font-size:calc(20px * var(--game-scale));
-  line-height:1.45;
-  white-space:pre-wrap;
-  text-align:center;
-}
-#item-use-confirm .btn{
-  font-size:calc(22px * var(--game-scale));
-  padding:.45em .9em;
 }
 /* アイテムのドラッグ中は、指輪と同じ黒50%オーバーレイを使い、
    アイテム枠だけを明るく残す。個々の盤面要素へfilterを掛けると暗さが重なり、
@@ -10029,6 +9944,9 @@ html body.right-card-peek #gameover-board-grid>.card-empty{opacity:1!important;v
 #gameover-results h1{font-size:140px!important;line-height:1!important;letter-spacing:.12em!important;margin:0 0 52px!important;font-weight:700!important;background:linear-gradient(115deg,#554b3e 0%,#d9d0bd 38%,#746653 64%,#312b24 100%);background-size:240% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:gameoverTitleGradient .9s .45s ease-out both!important}
 .gameover-line{width:84%!important;margin:0 auto 62px!important;height:auto!important;filter:brightness(.62) sepia(.3) saturate(.75)!important;animation:gameoverLineGradient .9s .5s ease-out both!important}
 #gameover-results h1,.gameover-line{transform:none!important}
+/* letter-spacing は最後の文字の後ろにも付き、見出しの見た目が左へ .06em ずれて項目・ボタンの中心と揃わない。
+   同じ幅を左に足して打ち消す。 */
+#gameover-results h1{padding-left:.12em!important}
 /* 項目行のグループは内容幅に応じて自動で中央寄せになる（justify-content:center）。
    タイトル／ラインも同じ結果欄の中心へ置く。 */
 .gameover-rows{display:grid!important;grid-template-columns:max-content max-content!important;column-gap:0!important;row-gap:78px!important;justify-content:center!important;width:max-content!important;margin-left:auto!important;margin-right:auto!important;font-size:54px!important;line-height:1.15!important;transform:none!important}
@@ -12496,10 +12414,10 @@ fitVesselboundViewport();
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=sheetAlly01"></script>
+<script src="js/data/local_xlsx_data.js?v=gameoverText02"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=legacyGone02"></script>
-<script src="js/data/units.js?v=boardRename01"></script>
+<script src="js/data/loader.js?v=equipLegacyGone01"></script>
+<script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=boardRename01"></script>
 <script src="js/battle/formation.js?v=boardRename01"></script>
@@ -12521,16 +12439,16 @@ fitVesselboundViewport();
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=cleanupLegacy01"></script>
 <script src="js/save/run_save.js?v=boardRename01"></script>
-<script src="js/engine/pool.js?v=cleanupLegacy01"></script>
+<script src="js/engine/pool.js?v=equipLegacyGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=boardRename01"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=boardRename01"></script>
+<script src="js/engine/render.js?v=equipLegacyGone01"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
-<script src="js/engine/reward.js?v=boardRename01"></script>
+<script src="js/engine/reward.js?v=equipLegacyGone01"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
-  <script src="js/engine/main.js?v=boardRename01"></script>
+  <script src="js/engine/main.js?v=gameoverText02"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13221,29 +13139,6 @@ html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
   z-index:110!important;
 }
 /* クリック後のアイテム／指輪メニューは説明の直下に並ぶ固定表示。 */
-html body #item-use-confirm{
-  min-width:calc(360px * var(--game-scale));
-  padding:calc(14px * var(--game-scale));
-  border:0;
-  background:rgba(8,4,2,.94) url("assets/ui/info_box2.svg?v=tooltipFrame04") center/100% 100% no-repeat;
-  box-shadow:none;
-}
-html body #item-use-confirm .btn{
-  min-height:calc(51px * var(--game-scale));
-  border:calc(22px * var(--game-scale)) solid transparent;
-  border-radius:0;
-  background:transparent;
-  border-image-source:url("assets/ui/button_invisible_s.svg?v=actionMenu09");
-  border-image-slice:22 fill;
-  border-image-width:calc(22px * var(--game-scale));
-  border-image-repeat:stretch;
-  color:#c49a6c;
-  cursor:var(--cursor-normal);
-}
-html body #item-use-confirm .btn::before{display:none}
-html body #item-use-confirm .btn:hover{
-  filter:brightness(1.55) drop-shadow(0 0 10px rgba(255,231,164,.7));
-}
 
 /* クリックで固定したホバー説明。別ウインドウではなく #kw-tooltip 自体を操作する。 */
 html body #kw-tooltip.reward-action-tooltip{

@@ -1578,9 +1578,19 @@ function gameOver(options){
   G._gameOverClear=isClear;
   G._debugGameOver=false;
   if(typeof renderGameOverBoard==='function') renderGameOverBoard();
+  // **表示文はテキストメッセージシート（クリア、ゲームオーバー）が唯一の出どころ。**
+  const _msg=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
+  [['go-difficulty','「難易度」見出し','難易度'],['go-area','「到達地点」見出し','到達地点'],
+    ['go-final','「最終戦闘」見出し','最終戦闘'],['go-allyDeaths','「味方死亡回数」見出し','味方死亡回数'],
+    ['go-damage','「最大ダメージ」見出し','最大ダメージ'],['go-stats','「最大ステータス」見出し','最大ステータス'],
+    ['go-time','「プレイ時間」見出し','プレイ時間']].forEach(([id,key,fallback])=>{
+    const label=document.getElementById(id)?.previousElementSibling;
+    if(label&&label.tagName==='B') label.textContent=_msg(key,fallback);
+  });
+  // 到達地点は地域情報シートの道の名前（_runStatsAreaName）。
   document.getElementById('go-area').textContent=G.runStats.areaName;
   document.getElementById('go-final').textContent=G.runStats.finalBattle||'—';
-  document.getElementById('go-difficulty').textContent='ノーマル';
+  document.getElementById('go-difficulty').textContent=_msg('難易度ノーマル','ノーマル');
   document.getElementById('go-time').textContent=G.runStats.playTime||'0 : 00';
   _animateGameOverNumber('go-allyDeaths',G.runStats.allyDeaths,600,undefined,800);
   _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
@@ -1588,10 +1598,10 @@ function gameOver(options){
   const resultTitle=document.querySelector('#gameover-results h1');
   // オンライン対戦で相手のライフを0にした場合は「踏破」ではなく「完全勝利」と表示する。
   const _perfect=!!(G&&G._onlineMode&&G._onlinePerfectWin);
-  if(resultTitle) resultTitle.textContent=isClear?(_perfect?'完全勝利':'踏破'):'旅の終焉';
+  if(resultTitle) resultTitle.textContent=isClear?(_perfect?_msg('オンライン対戦「完全勝利」見出し','完全勝利'):_msg('「クリア」見出し','踏破')):_msg('「ゲームオーバー」見出し','旅の終焉');
   const back=document.getElementById('gameover-back-btn');
   if(back){
-    back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':'タイトルに戻る';
+    back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':_msg('「タイトルに戻る」ボタン','タイトルに戻る');
     back.onclick=()=>{
       if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-back'});
       if(G._gameOverSpecialDebug) returnFromDebugGameOver();
@@ -1599,12 +1609,14 @@ function gameOver(options){
     };
   }
   const retry=document.getElementById('gameover-retry-btn');
+  if(retry) retry.textContent=_msg('「再挑戦」ボタン','再挑戦');
   if(retry) retry.onclick=()=>{
     if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-retry'});
     closeGameOverOverlay();
     startGame(!!G._debugMode);
   };
   const continueBtn=document.getElementById('gameover-continue-btn');
+  if(continueBtn) continueBtn.textContent=_msg('「続ける」ボタン','続ける');
   if(continueBtn) continueBtn.onclick=()=>{
     if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-continue'});
     closeGameOverOverlay();

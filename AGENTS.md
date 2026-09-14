@@ -2418,7 +2418,11 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
 23. **魔導板・報酬カード置き場の名前は旧「装備」「行動順」から付け替え済み。** 魔導板のカード配列は `unit.boardCards`（旧 `equipment`。戦闘コア・オンライン送受信・セーブ共通）、
    ドラッグ元の区分は `'boardCards'`、DOM/CSS は `#hand-slots.board-slots`・`.board-slot-*`・`.board-empty`・`data-board-idx`・`dragzone-board`、
    報酬カード置き場は `#reward-offer-section`・`#reward-offer-row`・`dragzone-reward-offer`・`renderRewardOfferRow()`。旧名で新しいコードを書かないこと。
-   旧セーブ（`equipment` を持つもの）の互換読込は無い（利用者の判断）。旧「キャラごとの装備」の残骸（`card.equip`・`fixedEquip`・`kind==='equipment'`・`equip-combat-*`）は別物で未整理。
+   旧セーブ（`equipment` を持つもの）の互換読込は無い（利用者の判断）。旧「キャラごとの装備・行動指示」の残骸（初期キャラ7体・`card.equip`・`fixedEquip`・`fixedAttack`・`kind==='equipment'`・`equip-combat-*`・シートの「装備」「初期パネル」列の読込）も削除済み。
+24. **クリア・ゲームオーバー画面の表示文はテキストメッセージシート「クリア、ゲームオーバー」が唯一の出どころ。** 見出し（踏破・オンライン対戦「完全勝利」・旅の終焉）、項目名7つ、
+   難易度の値（難易度ノーマル）、ボタン（「再挑戦」「タイトルに戻る」「続ける」）を `gameOver()`（main.js）で `textMessage()` から入れる。到達地点の値は地域情報シートの道の名前のまま。
+   見出しは letter-spacing が末尾にも付くので `padding-left` に同じ値を足して中心を揃えている。
+25. **所持金・ライフ・マナ・血のホバー説明（`data-preview-status`）は枠の15px上の中央に固定。** `_positionTooltipGroup(...,'status-above')`。見切れても下へは回さず、70pxのセーフゾーン内へずらす。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

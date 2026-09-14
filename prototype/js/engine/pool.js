@@ -297,7 +297,6 @@ function makePanel(idOrName){
     }
   }
   _normalizePanelRewardCost(c);
-  c.equip=true;
   c.noRewardUse=true;
   if(String(c.category||'')==='キャラクター') c.directions=_rollPanelDirections(c.directionCount||2,{avoidOpposite:true});
   if(['強化','エンチャント'].includes(String(c.category||''))){

@@ -387,29 +387,6 @@ function _filterBySheetCode(list, code, category) {
 }
 
 
-function _starterNameFromSheet(s) {
-  const n = _normCardName(s);
-  const map = {
-    '戦士':'戦士',
-    '魔術師':'魔術師',
-    '神官':'神官',
-    '盗賊':'盗賊',
-    '騎士':'騎士',
-    '屍術師':'屍術師',
-    '狩人':'狩人',
-  };
-  return map[n] || '';
-}
-
-function _findStarterUnitBySheetName(name) {
-  const n = _starterNameFromSheet(name);
-  if (!n) return null;
-  return (UNIT_POOL || []).find(u => u && u.starterOnly && _normCardName(u.name) === _normCardName(n))
-    || _findBySheetName(typeof UNIT_POOL !== 'undefined' ? UNIT_POOL : [], n)
-    || null;
-}
-
-
 // ── 行 → キャラクターオブジェクト（シートデータのみ。effect/injury等はJS定義で上書き）──
 function _rowToUnit(row) {
   const atkP = _parseIntRange(row['パワー'] || row['攻撃力'] || row['ATK'], 0);
@@ -727,39 +704,6 @@ async function loadGameData() {
         }, 0);
         unit.hate = false; unit.hateTurns = 0;
       }
-    };
-    const _syncStarterFromRow = (unit, row) => {
-      const starterName = _starterNameFromSheet(row['名前']);
-      if (!unit && starterName) {
-        unit = {
-          id: 'c_starter_sheet_' + _normCardName(starterName),
-          name: starterName,
-          race: '亜人',
-          grade: 1,
-          atk: 1,
-          hp: 1,
-          cost: 0,
-          unique: false,
-          starterOnly: true,
-          initialEquipment: [],
-        };
-        UNIT_POOL.push(unit);
-      }
-      if (!unit) return;
-      _assignSheetArtCode(unit, row, 'MC');
-      unit.unique = false;
-      unit.starterOnly = true;
-      unit.enemyOnly = false;
-      unit.desc = '';
-      _applySheetUnitFields(unit, row);
-      if (unit.rarity === undefined) unit.rarity = -1;
-      unit.initialPanelName = String(row['初期パネル'] || unit.initialPanelName || '').trim();
-      unit.initialPanelDesc = String(row['初期パネルの効果'] || row['効果'] || unit.initialPanelDesc || '').trim();
-      delete unit.effect;
-      delete unit.injury;
-      unit.keywords = [];
-      unit.initialEquipment = [];
-      unit._sheetSeen = true;
     };
     // ── 「キャラクター」「強化」シート → PANEL_POOL 同期 ──
     // マナは色を持たない単一プールに統一されたため、カードの「色」は見た目・種族分類用のみに使う。
@@ -1520,7 +1464,6 @@ async function loadGameData() {
       _sheetUnitNames.add(_normCardName(name));
       _syncUnitFromRow(unit, row);
       if (_normCardName(name) === _normCardName('ミラ') || _normCardName(name) === _normCardName('アドラ')) {
-        unit.starterOnly = true;
         unit.initialParty = true;
         unit.rarity = -1;
       }
@@ -1553,7 +1496,6 @@ async function loadGameData() {
           keywords: kws,
           desc: row['効果'] || '',
           sfxType: String(row['効果音'] || row['SE'] || row['SFX'] || '').trim(),
-          equipmentText: row['装備'] || '',
           spawnTurn: turn,
           bossOnly: isBossEnemy,
           // 「台詞1〜3」列：戦闘開始時に吹き出しで順に表示する台詞。
@@ -1564,14 +1506,6 @@ async function loadGameData() {
         ENEMY_POOL.push(enemy);
       });
     }
-
-    const starterRows = _parseCSV(ct);
-    starterRows.forEach(row => {
-      const starterName = _starterNameFromSheet(row['名前']);
-      if (!starterName) return;
-      _sheetUnitNames.add(_normCardName(starterName));
-      _syncStarterFromRow(_findStarterUnitBySheetName(starterName), row);
-    });
 
     // シートに存在しない内蔵キャラクターは出現候補から外す。
     // 旧データ（例：ヴァンパイア等）が報酬/ネームド敵に漏れるのを防ぐ。

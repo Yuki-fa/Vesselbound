@@ -52,9 +52,12 @@
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
     // ホバー説明はカーソルではなく、カード／指輪／アイテム／旅アイコンの実寸を基準に置く。
     const _journeyTipAnchor=tgt&&tgt.closest('.journey-scene-mark,.journey-node');
+    // **所持金・ライフ・マナ・血の説明は、枠の15px上の中央に固定する。**（利用者指定）
+    // セーフゾーンに掛かる時は下へ回さず、内側へずらす。
+    const _statusTipAnchor=!_journeyTipAnchor&&tgt&&tgt.closest('[data-preview-status]');
     // 上にカードが無い特殊マス（空きマス .card-empty に特殊マス説明が付く）も、キャラと同じくマスの横に置く。
     // 含めないとカーソル位置に出ていた。
-    const _sideTipAnchor=!_journeyTipAnchor&&tgt&&tgt.closest(
+    const _sideTipAnchor=!_journeyTipAnchor&&!_statusTipAnchor&&tgt&&tgt.closest(
       '.item-visual,.ring-visual,[data-tip-below],.card,.card-empty,.rew-card,.slot,.debug-palette-item');
     // 右クリックのぞき見（right-card-peek）は魔導板カードを透明化する機能なので、
     // その挙動（カード自身の説明を出さずマスの説明だけ出す）も魔導板の範囲に限定する。
@@ -152,7 +155,9 @@
     // 常に「カード効果 → キーワード → 特殊マス」の順で縦に積み、
     // 3枠を1つのグループとして基準要素の中心に合わせる。
     const _groupTips=[tip,kt,mt];
-    if(_journeyTipAnchor){
+    if(_statusTipAnchor){
+      _positionTooltipGroup(_groupTips,_statusTipAnchor,'status-above');
+    }else if(_journeyTipAnchor){
       _positionTooltipGroup(_groupTips,_journeyTipAnchor,'above');
     }else if(_sideTipAnchor){
       _positionTooltipGroup(_groupTips,_sideTipAnchor,'side');
@@ -876,10 +881,11 @@ function _positionTooltipGroup(tips,anchor,placement='side'){
   const groupWidth=layout.width;
   const groupHeight=layout.height;
   let groupLeft=0,groupTop=0;
-  if(placement==='above'){
+  // status-above＝所持金・ライフ・マナ・血。真上15pxに固定し、見切れても下へは回さない（下の clamp で内側へ寄せる）。
+  if(placement==='above'||placement==='status-above'){
     groupLeft=ar.left+ar.width/2-groupWidth/2;
     groupTop=ar.top-anchorGap-groupHeight;
-    if(groupTop<safe.top) groupTop=ar.bottom+anchorGap;
+    if(placement==='above'&&groupTop<safe.top) groupTop=ar.bottom+anchorGap;
   }else{
     groupLeft=ar.right+anchorGap;
     groupTop=ar.top+ar.height/2-groupHeight/2;
@@ -891,7 +897,7 @@ function _positionTooltipGroup(tips,anchor,placement='side'){
     const pos=layout.positions.get(el)||{x:0,y:0};
     // 1列のアイコン上表示だけは、幅の異なる枠をグループ中央へ揃える。
     const centeredOffset=layout.positions.size===shown.length&&layout.width===Math.max(...shown.map(x=>sizes.get(x).width))
-      &&placement==='above'?(layout.width-sizes.get(el).width)/2:0;
+      &&(placement==='above'||placement==='status-above')?(layout.width-sizes.get(el).width)/2:0;
     el.style.left=`${groupLeft+pos.x+centeredOffset}px`;
     el.style.top=`${groupTop+pos.y}px`;
   });
@@ -4845,11 +4851,7 @@ function renderField(id,units,isEnemy,_lane){
           const ally=G.allies&&G.allies[unitIdx];
           const card=ally&&ally.boardCards&&ally.boardCards[boardIdx];
           if(!ally||ally.hp<=0||boardIdx==null||boardIdx<0||!card) return;
-          if(card.fixedAttack&&typeof useFixedEquipOnEnemy==='function'){
-            useFixedEquipOnEnemy(unitIdx,boardIdx,i);
-            return;
-          }
-          if(!card.fixedEquip&&typeof useDraggedSpellOnTarget==='function'){
+          if(typeof useDraggedSpellOnTarget==='function'){
             const prev=G.spells;
             G.spells=ally.boardCards;
             G._boardSpellRestore=prev;
@@ -4861,11 +4863,6 @@ function renderField(id,units,isEnemy,_lane){
       }
       if(u&&u.hp>0&&G.phase==='player'&&typeof useDraggedSpellOnTarget==='function'){
         slot.addEventListener('dragover',e=>{
-          if(isEnemy&&window._fixedEquipDrag){
-            e.preventDefault();
-            slot.classList.add('drag-over');
-            return;
-          }
           const si=window._spellDragIdx;
           if(si==null) return;
           const sp=G.spells&&G.spells[si];
@@ -4878,13 +4875,6 @@ function renderField(id,units,isEnemy,_lane){
         });
         slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
         slot.addEventListener('drop',e=>{
-          if(isEnemy&&window._fixedEquipDrag&&typeof useFixedEquipOnEnemy==='function'){
-            e.preventDefault();
-            slot.classList.remove('drag-over');
-            useFixedEquipOnEnemy(window._fixedEquipDrag.unitIdx, window._fixedEquipDrag.boardIdx, i);
-            window._fixedEquipDrag=null;
-            return;
-          }
           const si=window._spellDragIdx;
           if(si==null) return;
           e.preventDefault();
@@ -5186,7 +5176,6 @@ function mkCardEl(card,_idx,_ctx,_mlOverride){
   const isPanelCharacter=isPanelCard&&String(card.category||'')==='キャラクター';
   if(isPanelCharacter) div.classList.add('character-card','panel-character-card');
   if(div.classList.contains('character-card')&&card.color) div.setAttribute('data-preview-title-color',String(card.color));
-  const isActionPanel=card&&(card.fixedAttack||card.fixedEquip||((card.type==='panel'||card.kind==='panel'||card.panelScope)&&!isPassivePanel&&!isCombatPowerPanel&&card.panelScope!=='global'));
   const atkLabel='', hpLabel='';
   const dynDesc=computeDesc(card,_mlOverride);
   const _keywordPreviewCard={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[])]};
