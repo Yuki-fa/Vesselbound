@@ -2433,6 +2433,10 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    押して4px動くと元の要素へ `dragstart`、移動中は `drag`／マウスの下へ `dragleave`・`dragenter`・`dragover`、離すと受け付けていれば `drop`→`dragend` を送る。
    **置き先の処理は従来どおり dragover/drop で書く**（標準ドラッグと同じイベントの形）。本物の dragstart は window のキャプチャで止め、`[draggable="true"]` は `-webkit-user-drag:none`。
    押す操作が取り消されていたら始めない、dragstart が取り消されたら始めない、離した直後のクリックは握りつぶす。ドラッグ中は `html.pointer-dragging` で cursor4。
+   **置き先は離した位置で取り直す。** 最後の pointermove で覚えた要素へ落とすと、素早く離した時や、ドラッグ中に魔導板が描き直された時に
+   drop が届かず「光っているのに置けない」ことがあった（利用者報告）。
+   さらに、ドラッグ中はポインタを捕まえ（setPointerCapture）、ボタンを離した状態の pointermove は取り消しではなく「離した」として扱う。
+   離した位置が置き先でなくても、直前に受け付けた置き先の矩形から `max(12, 28×--game-scale)` px 以内ならそこへ落とす（マス間の隙間で離した時の取りこぼし対策）。
    検査：`node tools/parity/pointer_drag_check.js`（既存検査の DragEvent 直接送信もそのまま使える）。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
