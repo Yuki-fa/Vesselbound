@@ -740,6 +740,9 @@ function presentSweepDamageEvents(events, fromIndex, sweepEvent) {
 // ownEffectText には「そのカード自身の効果文」を返す関数を渡す（マスタ参照は呼び出し側の役目）。
 function presentDamageVfxSource(ev, target, source, ownEffectText) {
   if (!ev) return null;
+  // 援護射撃など、強化で得た効果を別の味方が肩代わりして与えたダメージ。
+  // 効果ダメージとしての表示は行うが、射手本人の固有VFX/SEは出さない。
+  if (ev.effectSource === false) return null;
   // **効果のカードNo.が載っているダメージは、その効果の演出で見せる。**
   // 発生元カード本人の固有VFX/SEを重ねてはいけない。付けている強化カード
   // （炎の矢など）で起きたダメージまで本人の効果として鳴り、

@@ -184,6 +184,7 @@
     if (typeof hideOnlineMatching === 'function') hideOnlineMatching();
     if (typeof G !== 'undefined' && G) {
       G._onlineMode = false;
+      G._debugOnline = false;
       G._onlineWaiting = false;
       G._onlinePerfectWin = false;
       G._onlineSpectateId = '';

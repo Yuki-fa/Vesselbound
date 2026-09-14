@@ -920,6 +920,9 @@ function coreApplyDamage(target, amount, emit, opts) {
     // 攻撃するたびに攻撃者の固有VFX・固有SEが出ていた（アラッサス／ゴーレム）。
     effect: (opts && opts.effect !== undefined) ? !!opts.effect
       : !!(opts && opts.sourceId && !opts.counter),
+    // 援護射撃のように、効果を持つ味方が肩代わりして撃つダメージは、
+    // 効果ダメージではあるが射手自身の固有VFXの発生元にはしない。
+    effectSource: (opts && opts.effectSource !== undefined) ? !!opts.effectSource : true,
     suppressAttackHitSfx: !!(opts && opts.suppressAttackHitSfx),
   });
   if (target.hp <= 0) {
@@ -1077,10 +1080,11 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   if (!state || !target || target.hp <= 0 || !(amount > 0)) return { amount: 0, died: false };
   const opt = options || {};
   const units = state.units || { p1: [], p2: [] };
-  const applyHit = (nextSource, nextTarget, nextAmount, nextCounter, skipSourceEffects, skipTough) =>
+  const applyHit = (nextSource, nextTarget, nextAmount, nextCounter, skipSourceEffects, skipTough, extraOptions) =>
     coreResolveHit(state, nextSource, nextTarget, nextAmount, nextCounter, rng, emit, {
       skipSourceEffects: !!skipSourceEffects, skipTough: !!skipTough,
       deferTriggers: !!opt.deferTriggers, collect: opt.collect,
+      ...(extraOptions || {}),
     });
   if (source) target._lastDamageSource = source;
   target._lastDamageWasCounter = !!counter;
@@ -1148,6 +1152,8 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     // 再生側が「対象に当たった瞬間」の専用演出を選ぶために使う。
     effectNo: coreDamageEffectNo(state, source),
     effect: !!opt.effect || !!(source && !source._coreAttackContact && !counter),
+    // 援護射撃など「射手本人の固有VFXを出さない」ダメージの印。未指定なら coreApplyDamage 側の既定（true）。
+    effectSource: opt.effectSource,
     suppressAttackHitSfx: !!opt.suppressAttackHitSfx,
   });
   if (result.amount > 0) {
@@ -2372,7 +2378,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     coreGainResource(state, unit.side, 'mana', Number(familiarBlood[2]) || 0, unit, emit, 'familiar_blood');
   }
   if (coreHasEffect(unit, 'メリュジーヌ')) {
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+    foes.filter(x => x.hp > 0 && !coreIsSealed(x) && Number(x.poison) > 0).forEach(x => {
       // 倍率は本文から読む（合体後は3倍）。
       x.poison = Math.max(0, Number(x.poison) || 0)
         * Math.max(1, coreEffectNumbers(unit, '攻撃', /全ての敵の毒を(\d+)倍にする/, [2])[0]);
@@ -2544,7 +2550,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     shooters.forEach(shooter => {
       for (let i = 0; i < times; i++) {
         const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-        if (target) applyHit(shooter, target, amount);
+        if (target) applyHit(shooter, target, amount, false, false, false, { effectSource: false });
       }
     });
   }
@@ -3273,17 +3279,21 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   if (coreHasEffect(unit, 'ゴースト')) {
     const ghost = coreEffectNumbers(unit, '死亡', /ランダムな青(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [2, 1]);
-    const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && x.color === '青' && !coreIsSealed(x)));
-    if (target) addStats(target, ghost[0], ghost[1], 'ghost');
+    for (let i = 0; i < repeats; i++) {
+      const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && x.color === '青' && !coreIsSealed(x)));
+      if (target) addStats(target, ghost[0], ghost[1], 'ghost');
+    }
   }
   if (coreHasEffect(unit, 'レムレース')) {
-    const candidates = (state.deadUnits || []).filter(x => x && x.id !== unit.id && x.name !== '青レムレース');
-    const dead = rng.pick(candidates);
-    if (dead) {
-      const atk = Math.max(1, Math.floor((Number(dead.atk) || 0) / 2));
-      const maxHp = Math.max(1, Math.floor((Number(dead.maxHp || dead.hp) || 1) / 2));
-      coreSummonUnit(state, unit.side, { name: dead.name, atk, hp: maxHp, maxHp, color: dead.color,
-        keywords: dead.keywords || [], _useEnemyVisualFrame: true }, emit, unit.id);
+    for (let i = 0; i < repeats; i++) {
+      const candidates = (state.deadUnits || []).filter(x => x && x.id !== unit.id && x.name !== '青レムレース');
+      const dead = rng.pick(candidates);
+      if (dead) {
+        const atk = Math.max(1, Math.floor((Number(dead.atk) || 0) / 2));
+        const maxHp = Math.max(1, Math.floor((Number(dead.maxHp || dead.hp) || 1) / 2));
+        coreSummonUnit(state, unit.side, { name: dead.name, atk, hp: maxHp, maxHp, color: dead.color,
+          keywords: dead.keywords || [], _useEnemyVisualFrame: true }, emit, unit.id);
+      }
     }
   }
   // **レムレースに報酬の効果はない（シート優先）。** 以前は「倒した相手を報酬に出す」古い処理が残り、
@@ -3350,10 +3360,11 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     }
   }
   const granted = unit.effectData && unit.effectData.grantedDeathSummon;
-  if (granted) coreSummonUnit(state, unit.side, granted, emit, unit.id);
+  if (granted) for (let i = 0; i < repeats; i++) coreSummonUnit(state, unit.side, granted, emit, unit.id);
   if (coreHasEffect(unit, '深藍の魔女"ティアマリス"')) {
-    const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-    if (target) {
+    for (let i = 0; i < repeats; i++) {
+      const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
+      if (!target) break;
       target.hp = 0;
       emit({ type: 'instant_death', side: target.side, unitId: target.id, sourceId: unit.id });
       coreTriggerDeath(target, state, emit);
@@ -3378,7 +3389,9 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   // 死亡：この戦闘中、召喚された味方は+X/+Yを得る（ファントム）
   const deathSummonBuff = coreTriggerMatch(deathTexts, /^この戦闘中、召喚された味方は\+(\d+)\/?\+(\d+)を得る/);
   if (deathSummonBuff) {
-    coreAddSummonBuff(state, unit.side, Number(deathSummonBuff[1]) || 0, Number(deathSummonBuff[2]) || 0, emit, unit.id);
+    for (let i = 0; i < repeats; i++) {
+      coreAddSummonBuff(state, unit.side, Number(deathSummonBuff[1]) || 0, Number(deathSummonBuff[2]) || 0, emit, unit.id);
+    }
   }
   // 死亡：（このキャラクター以外の）ランダムな味方（N体）はHP+Xを得る。Xは血に等しい（強化「献身」）。
   // **シートは「このキャラクター以外の」付き。** 頭に付いた文を受け付けず、合体後（2体）も含め発動していなかった。
@@ -3387,8 +3400,10 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (devotion) {
     const times = Math.max(1, Number(devotion[1]) || 1);
     const amount = Math.max(0, Number(state.blood && state.blood[unit.side]) || 0);
-    if (amount > 0) corePickDistinct(rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), times)
-      .forEach(target => addStats(target, 0, amount, 'devotion'));
+    for (let i = 0; i < repeats; i++) {
+      if (amount > 0) corePickDistinct(rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), times)
+        .forEach(target => addStats(target, 0, amount, 'devotion'));
+    }
   }
   // 死亡：このキャラクター以外の、この効果を持つ全ての味方は+X/+Yを得る（強化「血の結束」）。
   // **効果名で味方を数える。** 同じ強化を持っている味方だけが強くなる。
@@ -3396,27 +3411,31 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     /^このキャラクター以外の、この効果を持つ全ての味方は\+(\d+)\/?\+(\d+)を得る/);
   if (bloodBond) {
     const atk = Number(bloodBond[1]) || 0, hp = Number(bloodBond[2]) || 0;
-    allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x) && coreHasEffect(x, '血の結束'))
-      .forEach(x => addStats(x, atk, hp, 'blood_bond'));
+    for (let i = 0; i < repeats; i++) {
+      allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x) && coreHasEffect(x, '血の結束'))
+        .forEach(x => addStats(x, atk, hp, 'blood_bond'));
+    }
   }
   // 死亡：血をN得る（スリープシープ）
   const deathBlood = coreTriggerMatch(deathTexts, /^血を(\d+)得る/);
   if (deathBlood) {
     state.blood = state.blood || { p1: 0, p2: 0 };
     const gain = Number(deathBlood[1]) || 0;
-    state.blood[unit.side] = Math.max(0, Number(state.blood[unit.side]) || 0) + gain;
-    emit({ type: 'blood_set', side: unit.side, amount: state.blood[unit.side], gained: gain, sourceId: unit.id });
+    state.blood[unit.side] = Math.max(0, Number(state.blood[unit.side]) || 0) + gain * repeats;
+    emit({ type: 'blood_set', side: unit.side, amount: state.blood[unit.side], gained: gain * repeats, sourceId: unit.id });
   }
   // 死亡：ランダムな前衛の敵をN体奪う（サキュバス。合体後は2体）
   const deathSteal = coreTriggerMatch(deathTexts, /^ランダムな前衛の敵(?:(\d+)体)?を奪う/);
   if (deathSteal) {
-    const stealPool = foes.filter(x => x.hp > 0 && !coreIsSealed(x)
+    const stealPool = () => foes.filter(x => x.hp > 0 && x.side !== unit.side && !coreIsSealed(x)
       && (x.lane || 'front') !== 'rear' && !x._isObject && !x._isSoul);
     // **生きている敵をそのまま味方の前衛右端へ移す。**（召喚し直さない）
     // 前衛が埋まっていて移せない時は、その敵は死なずにそのまま敵陣に残る。
-    corePickDistinct(rng, stealPool, Math.max(1, Number(deathSteal[1]) || 1)).forEach(stolen => {
-      coreStealUnit(state, stolen, unit.side, emit, unit.id);
-    });
+    for (let i = 0; i < repeats; i++) {
+      corePickDistinct(rng, stealPool(), Math.max(1, Number(deathSteal[1]) || 1)).forEach(stolen => {
+        coreStealUnit(state, stolen, unit.side, emit, unit.id);
+      });
+    }
   }
   const deathMana = coreTriggerMatch(deathTexts, /^(\d+)マナを得る/);
   if (deathMana && !unit.manaOnDeath) coreGainResource(state, unit.side, 'mana', Number(deathMana[1]) * repeats, unit, emit, 'death_text_mana');
@@ -3479,8 +3498,9 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   const deathInstant = coreTriggerTest(deathTexts, /ランダムな敵を即死させる/);
   if (deathInstant && !coreHasEffect(unit, '深藍の魔女"ティアマリス"')) {
-    const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-    if (target) {
+    for (let i = 0; i < repeats; i++) {
+      const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
+      if (!target) break;
       target.hp = 0;
       emit({ type: 'instant_death', side: target.side, unitId: target.id, sourceId: unit.id });
       coreTriggerDeath(target, state, emit);

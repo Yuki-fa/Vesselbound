@@ -11703,14 +11703,14 @@ fitVesselboundViewport();
 <script src="js/data/loader.js?v=equipLegacyGone01"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=reviveBase01"></script>
+    <script src="js/battle/core.js?v=deathRepeatSupportFire01"></script>
 <script src="js/battle/formation.js?v=boardRename01"></script>
-    <script src="js/battle/present.js?v=gutsHoldHp01"></script>
+    <script src="js/battle/present.js?v=supportFireVfx01"></script>
     <script src="js/battle/present_events.js?v=cleanupLegacy01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=boardRename01"></script>
+<script src="js/online/server_local.js?v=debugOnlineUnlimited01"></script>
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=timingParity03"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
@@ -11733,7 +11733,7 @@ fitVesselboundViewport();
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
 <script src="js/engine/reward.js?v=removeBottomHud01"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
-  <script src="js/engine/main.js?v=removeBottomHud01"></script>
+  <script src="js/engine/main.js?v=debugOnline02"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -12216,13 +12216,14 @@ html body #kw-tooltip .journey-keyword-descriptions strong{
   color:#f0d080!important;
 }
 /* 効果タイミングは種類ごとの色で表示する。本文色は変更しない。 */
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-opening{color:#bcbcbc!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-release{color:#a88f97!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-attack{color:#b7a984!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-injury{color:#ba8e85!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-death{color:#8fa3a8!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-passive{color:#9ba88f!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-ending{color:#a0a0a0!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-opening{color:#b3ada4!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-release{color:#aa919f!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-attack{color:#b59f75!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-injury{color:#bc8b82!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-death{color:#8fa3ad!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-passive{color:#9aa58f!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-mana{color:#879fb8!important}
+html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-ending{color:#9b9690!important}
 /* 「：」の位置はマナ効果（アイコンのラベル）以外の全行で揃える。
    幅は render.js の _initPreviewLabelAlign() が説明枠ごとに最長ラベルを測って --preview-label-w へ入れる。
    同一タイミングの2行目以降もラベルは省略しない（利用者指定）。 */

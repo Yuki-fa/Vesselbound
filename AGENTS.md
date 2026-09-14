@@ -2486,6 +2486,21 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    効いていたので残した10件：試験戦闘の #btn-pass 34px、タイトルメニューのホバー白、倒れた印 .b-dead の赤、マナ枠 .mana-row の色と13px、
    戻る確認の箱の色・本文の文字サイズ・ボタンの文字サイズ、マッチング画面の 56px、対戦相手の敗退枠の色。
    画面を作れず判定できないので残した5件：`.slot-desc-enchant-line`、`.card-badge` の色と29px、鍛冶屋の対象なし価格の色、道具の売却ボタンのホバー色。
+35. **死亡効果は、どれも `repeats`（逆襲・屍術師の指輪・`_effectRepeatBonus`）回発動させる（2026-09-15 修正）。**
+   `coreApplyDeathEffectsInner()` で、ゴースト・レムレース・ファントム（召喚された味方+X/+Y）・献身・血の結束・スリープシープ（血）・サキュバス（奪う）・
+   ティアマリス・付与された死亡召喚・即死が1回しか起きていなかった（発光の count だけ2になっていた）。**新しい死亡効果を足す時も repeats のループに入れること。**
+   1回のままにしたもの：ナイトメアの封印の付与、死亡の観測者、撃破報酬、ボーンチャリオットの効果付与（重ねても意味が無い／観測・報酬のため）。
+36. **攻撃効果は、何も変わらない時にイベントを出さない。** 踏み込みの一時停止は「effect_flash 以外のイベントがあるか」で決まる（`presentPreAttackPlan()`）。
+   メリュジーヌが毒の無い敵にも `stat_change`（0/0）を出していたため、不発でも止まっていた。毒が1以上の敵だけを対象にした。
+   同種の疑い（未修正・報告のみ）：攻撃時にHP／ATKを入れ替える効果で、値が同じ時に0変化のイベントが出る可能性。
+37. **援護射撃のダメージには `effectSource:false` を付け、射手本人の固有VFX／SEを出さない**（`presentDamageVfxSource()` が見る）。
+   アラッサスは本文に「ダメージ」を含むため、援護射撃で撃つと固有VFXが出ていた。`coreResolveHit()` から `coreApplyDamage()` へ `effectSource` を渡すこと
+   （渡し忘れで一度直らなかった）。アラッサス自身の全体攻撃では従来どおり固有VFXを出す。
+38. **デバッグオンライン**：タイトルで Ctrl／Command を押している間、「オンライン対戦」が「デバッグオンライン」（テキストメッセージのキー `デバッグオンライン`）になる。
+   `G._debugMode` と `G._onlineMode` を両方立て、デバッグモードと同じ専用項目（試験戦闘・ゲームオーバー・エラー・マップ・カード一覧）を出す。
+   制限時間は**サーバー側で無期限**（`OnlineMatch.start({unlimitedTime})` → `server_local.js` の `m.unlimitedTime` → `_armDeadline()` が締め切りを付けない）。
+   **`startGame()` は途中で `exitOnlineMode()` を呼び、そこで `G._debugOnline` が消えるので、その後で立て直している**（消えたまま始めて編成に制限時間が付いた）。
+   対戦中（`online-versus-active`）は編成UIごと隠れる条件はそのまま（試験戦闘などをサーバーの進行と衝突させないため）。
    ホバー説明（`#kw-tooltip`／`#keyword-tooltip`／`#map-power-tooltip`）の本文が灰色（#a99e8f）なのは 646eb1e の意図的な指定で、削除による変化ではない（f9550b2 と差0）。
    `#map-confirm-dialog`・`#carry-gold-warning`・`.map-village-card`・`.map-forge-card` はどのコードも作らないので、そのCSSの削除は影響なし。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、

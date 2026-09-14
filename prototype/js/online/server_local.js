@@ -216,6 +216,12 @@ const ONLINE_VERSUS_GOLD = 100;
   }
 
   function _armDeadline(m) {
+    if (m.unlimitedTime) {
+      m.deadlineAt = null;
+      m.ready.self = false;
+      m.ready.opponent = false;
+      return;
+    }
     const limit = m.phase === 'formation'
       ? onlineFormationTimeMs(m.stage)
       : ONLINE_TIME_LIMIT_MS[m.phase];
@@ -278,6 +284,8 @@ const ONLINE_VERSUS_GOLD = 100;
         roster,                 // 4人揃った時の最終的な並び（サーバーが決める）
         players: [],            // 現在までに参加した人（マッチング演出用）
         matching: true,
+        // クライアント要求をサーバー側のマッチ状態として保持し、締め切り判定に使う。
+        unlimitedTime: !!(opts && opts.unlimitedTime),
         joinAt: _now(),
         stage: 1,
         step: 0,

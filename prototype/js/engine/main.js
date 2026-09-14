@@ -1230,11 +1230,19 @@ const _titleStartLabel=()=>(typeof textMessage==='function'
   ?textMessage('ゲームスタート',TITLE_START_LABEL_FALLBACK)
   :TITLE_START_LABEL_FALLBACK).trim()||TITLE_START_LABEL_FALLBACK;
 const TITLE_DEBUG_LABEL='デバッグモード';
+// シートに行が無い環境でも使えるよう既定文言を持たせる。
+const TITLE_ONLINE_DEBUG_LABEL_FALLBACK='デバッグオンライン';
+const _titleOnlineDebugLabel=()=>(typeof textMessage==='function'
+  ?textMessage('デバッグオンライン',TITLE_ONLINE_DEBUG_LABEL_FALLBACK)
+  :TITLE_ONLINE_DEBUG_LABEL_FALLBACK).trim()||TITLE_ONLINE_DEBUG_LABEL_FALLBACK;
 function _syncTitleStartLabel(){
   const title=document.getElementById('scr-title');
   if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
   const label=document.querySelector('#title-menu .title-menu-item.game-start .title-menu-label');
   if(label) label.textContent=_titleCtrlHeld?TITLE_DEBUG_LABEL:_titleStartLabel();
+  const onlineLabel=document.querySelector('#title-menu .title-menu-item.online-battle .title-menu-label');
+  if(onlineLabel) onlineLabel.textContent=_titleCtrlHeld?_titleOnlineDebugLabel():
+    (typeof textMessage==='function'?textMessage('オンライン対戦','オンライン対戦'):'オンライン対戦').trim()||'オンライン対戦';
 }
 function _setTitleCtrlHeld(on){
   const title=document.getElementById('scr-title');
@@ -1256,9 +1264,11 @@ function startOnlineMatchFromTitle(){
   if(_startingFromTitle) return;
   _titleStartToken++;
   _startingFromTitle = true;
+  const debugOnline=!!_titleCtrlHeld;
   _titleCtrlHeld = false;
+  _syncTitleStartLabel();
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-online' });
-  startGame(false, true);
+  startGame(debugOnline, true);
   _startingFromTitle = false;
 }
 
@@ -1298,6 +1308,7 @@ function startGame(debugMode,onlineMode){
   initState();
   G._debugMode=!!debugMode;
   G._onlineMode=!!onlineMode;
+  G._debugOnline=!!(debugMode&&onlineMode);
   if(typeof SaveRun!=='undefined') SaveRun.begin();
   G.runStats={
     startedAt:performance.now(), playedMs:0, areaName:'', finalBattle:'', allyDeaths:0, enemyKills:0,
@@ -1337,6 +1348,9 @@ function startGame(debugMode,onlineMode){
   if(typeof exitOnlineMode==='function') exitOnlineMode();
   else if(typeof OnlineMatch!=='undefined'&&OnlineMatch&&typeof OnlineMatch.reset==='function') OnlineMatch.reset();
   G._onlineMode=!!onlineMode;
+  // **exitOnlineMode() がデバッグオンラインの印も消すので、ここで立て直す。**
+  // 立て直さないと OnlineMatch.start() に unlimitedTime:false が渡り、編成から制限時間が付く。
+  G._debugOnline=!!(debugMode&&onlineMode);
   document.body.classList.toggle('online-mode-active',!!onlineMode);
   // ゲーム開始地点は「風止みの村 リーゼ」（地域情報シートのステージ0）。
   // 普通の村と同じ#scr-village＋入場演出で開く。施設（ホーム・図書館）は未実装のため
@@ -1359,7 +1373,8 @@ function startGame(debugMode,onlineMode){
     // ここで primeOnlineFlow() は呼ばない（呼ぶと成立後の遷移が飛ぶ）。
     G._wave=1; G._waveStage=1;
     if(typeof OnlineMatch!=='undefined'&&OnlineMatch){
-      void OnlineMatch.start({seedSource:`vb-${Date.now()}`,selfId:(G._onlineSelfId||'あなた')});
+      void OnlineMatch.start({seedSource:`vb-${Date.now()}`,selfId:(G._onlineSelfId||'あなた'),
+        unlimitedTime:G._debugOnline});
     }
     if(typeof showOnlineMatching==='function') showOnlineMatching();
     return;
