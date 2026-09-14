@@ -40,13 +40,13 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       G.mainBoard[1]=prepare(characterDef);
       G.mainBoard[0]._sellDisplayPrice=40;
       G.mainBoard[1]._sellDisplayPrice=40;
-      unit.equipment=G.mainBoard;
+      unit.boardCards=G.mainBoard;
       renderHandEditor();
       _syncRewardProductionUi();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 
       const host=document.getElementById('hand-slots');
-      const card=i=>host.querySelector('[data-equip-idx="'+i+'"]');
+      const card=i=>host.querySelector('[data-board-idx="'+i+'"]');
       const style=e=>e?{
         display:getComputedStyle(e).display,
         visibility:getComputedStyle(e).visibility,
@@ -122,7 +122,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
         ghostOverlayRect:rect(characterGhost?.querySelector('.unit-stat-overlay-layer')),
         ghostBoundary:style(characterGhost?.querySelector('.map-boundary-layer'))
       };
-      dropOnCard('unitEquip',2);
+      dropOnCard('boardCards',2);
       _removeDragGhost();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 
@@ -137,7 +137,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       const moved=card(2);
       dragStart(moved);
       await new Promise(r=>requestAnimationFrame(r));
-      dropOnCard('unitEquip',1);
+      dropOnCard('boardCards',1);
       _removeDragGhost();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 
@@ -173,7 +173,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       const invalidPeerIdx=Array.from({length:15},(_,i)=>i).find(i=>i!==2&&
         (typeof mapPanelPowerIdAt!=='function'||!mapPanelPowerIdAt(i)));
       G.mainBoard[invalidPeerIdx]=prepare(characterDef);
-      unit.equipment=G.mainBoard;
+      unit.boardCards=G.mainBoard;
       renderHandEditor();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       const invalidCard=card(2);
@@ -211,7 +211,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       G._isForge=false;
       renderRewCards();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const rewardCard=document.querySelector('#battle-order-row .rew-card');
+      const rewardCard=document.querySelector('#reward-offer-row .rew-card');
       if(!rewardCard) throw new Error('報酬枠の検証カードが描画されていない');
       const rewardRect=rect(rewardCard);
       dragStart(rewardCard);
@@ -276,8 +276,8 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       dragStart(invalidCard);
       _moveDragGhost(invalidRect.x+invalidRect.w*1.5,invalidRect.y+invalidRect.h*.5);
       await new Promise(r=>requestAnimationFrame(r));
-      const dragOverlay=document.getElementById('mainequip-drag-overlay');
-      const rewardSection=document.getElementById('battle-order-section');
+      const dragOverlay=document.getElementById('board-drag-overlay');
+      const rewardSection=document.getElementById('reward-offer-section');
       const rewardAreaDuringDrag={
         bodyClass:document.body.className,
         overlay:style(dragOverlay),
@@ -308,19 +308,19 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       renderRewCards();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       const box=e=>{ const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; };
-      return {board:box(document.querySelector('#hand-slots.unit-equip-slots > .card')),
-        reward:box(document.querySelector('#battle-order-row > .rew-card'))};
+      return {board:box(document.querySelector('#hand-slots.board-slots > .card')),
+        reward:box(document.querySelector('#reward-offer-row > .rew-card'))};
     `);
     await browser.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:hoverTargets.board.x,y:hoverTargets.board.y});
     await new Promise(r=>setTimeout(r,260));
     const boardHover=await browser.eval(`{
-      const el=document.querySelector('#hand-slots.unit-equip-slots > .card');
+      const el=document.querySelector('#hand-slots.board-slots > .card');
       return {shadow:getComputedStyle(el).boxShadow,hovered:el.matches(':hover')};
     }`);
     await browser.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:hoverTargets.reward.x,y:hoverTargets.reward.y});
     await new Promise(r=>setTimeout(r,260));
     const rewardHover=await browser.eval(`{
-      const el=document.querySelector('#battle-order-row > .rew-card');
+      const el=document.querySelector('#reward-offer-row > .rew-card');
       return {shadow:getComputedStyle(el).boxShadow,hovered:el.matches(':hover')};
     }`);
     result.hover={board:hoverTargets.board,reward:hoverTargets.reward,boardShadow:boardHover,rewardShadow:rewardHover};
@@ -334,7 +334,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       _rewCards=[used];
       renderRewCards();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const card=document.querySelector('#battle-order-row > .rew-card');
+      const card=document.querySelector('#reward-offer-row > .rew-card');
       const back=card.querySelector(':scope > .card-back-layer');
       const dim=card.querySelector(':scope > .reward-card-dim-layer');
       const line=card.querySelector(':scope > .reward-card-line-layer');
@@ -437,7 +437,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
     check(result.darkRewardDrag.dim&&result.darkRewardDrag.dim.opacity==='1'&&
       result.darkRewardDrag.back&&result.darkRewardDrag.back.background.includes('m_board6.svg'),
       '暗い報酬カードがドラッグ中に明るくなる、または黒背面が消える');
-    check(result.rewardAreaDuringDrag.bodyClass.includes('dragzone-mainequip')&&
+    check(result.rewardAreaDuringDrag.bodyClass.includes('dragzone-board')&&
       result.rewardAreaDuringDrag.overlay.display!=='none'&&
       Number(result.rewardAreaDuringDrag.sectionZ)>Number(result.rewardAreaDuringDrag.overlayZ)&&
       result.rewardAreaDuringDrag.darkCard.opacity==='1'&&

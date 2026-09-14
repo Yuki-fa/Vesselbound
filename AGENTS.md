@@ -1306,7 +1306,7 @@ tools/
 
 アイテム使用待ちの解除は `_cancelPendingItemUse()` を唯一の出口にする。
 右クリックは `pointerdown(button===2)` と `contextmenu` の双方で解除し、カード非表示操作へ伝播させない。
-左クリックも、`#hand-slots.unit-equip-slots > .card` と `.item-use-cancel-btn` の外なら解除する。
+左クリックも、`#hand-slots.board-slots > .card` と `.item-use-cancel-btn` の外なら解除する。
 
 ### セーブに何を入れるか — `js/save/`
 
@@ -1327,7 +1327,7 @@ tools/
 |---|---|---|
 | `Set` は `fields` ではなく **`setFields`** へ | `_usedNamedElite` `_seenRarity3` | `fields` に入れると配列化されたまま復元され `.has()` が壊れる |
 | 戦闘中の一時状態 | `allies` `enemies` `phase` `turn` `battleCounters` | `pendingBattle` のイベント列から復元するため、二重に持つと食い違う |
-| 画面の開閉・選択状態 | `inventoryOpen` `_selectedEquipUnitIdx` `_showFacilities` | 再開時に前回のUI状態が復活してしまう |
+| 画面の開閉・選択状態 | `inventoryOpen` `_selectedBoardUnitIdx` `_showFacilities` | 再開時に前回のUI状態が復活してしまう |
 | モード判定 | `_debugMode` `_onlineMode` `_savePresentation` | 起動時に決まる。保存すると再開でモードが混ざる |
 
 `_runId` `_runSeed` `_runRngState` `questProgress` `difficulty` は `fields` ではなく
@@ -1451,14 +1451,14 @@ tools/
 3. **実効値が変わっていないことを実機で確認する。**
    `getComputedStyle()` で整理前後の値を比べること（見た目の目視だけでは足りない）。
 
-**まとめては**いけないもの：`:is(#reward-move-btns,#battle-order-section)` のように
+**まとめては**いけないもの：`:is(#reward-move-btns,#reward-offer-section)` のように
 **意図して対象を広げた**セレクタ（報酬枠の中に「元に戻す」と同じボタンを置くため）。
 
 **やってはいけない順序（実際に壊した例）**：重複を残したまま**二重書きだけ先に外す**と、
 後方の同じ強さのルールに後勝ちで負けて機能が壊れる。
-アイテム使用中の `#battle-order-section{z-index:9001}` と `#battle-options-btn{z-index:9001}` を
+アイテム使用中の `#reward-offer-section{z-index:9001}` と `#battle-options-btn{z-index:9001}` を
 単一クラスへ戻したところ、後方の
-`html body.reward-screen-active #battle-order-section{z-index:10!important}` と
+`html body.reward-screen-active #reward-offer-section{z-index:10!important}` と
 `#reward-production-ui` 等をまとめた `z-index:2!important` に負け、
 **報酬枠が暗転の下へ沈み、キャンセルも押せなくなった。**
 `.item-use-picking.item-use-picking` にはその旨をCSSのコメントで書いてある。
@@ -1624,7 +1624,7 @@ tools/
 
 ```js
 // 実カードと body 直下の複製で、画面上の線の実寸を比べる
-const card=document.querySelector('#hand-slots.unit-equip-slots > .card');
+const card=document.querySelector('#hand-slots.board-slots > .card');
 const fl=card.querySelector('.character-frame-layer');
 const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--game-scale'));
 const w=parseFloat(getComputedStyle(fl).borderTopWidth);
@@ -2299,7 +2299,7 @@ Xは敵中心から発射元カード幅の0.12倍だけ左へ補正する。
 
 ### 暗転オーバーレイの上に置いた要素は個別に暗くする（魔導板）
 
-`#hand-slots.unit-equip-slots .card.invalid-battle-position::before` の暗転は `z-index:50`。
+`#hand-slots.board-slots .card.invalid-battle-position::before` の暗転は `z-index:50`。
 枠画像（`::after`＝`m_board_frame.svg`・`z-index:100`）、特殊マス枠（`.map-boundary-layer`）、
 マナ／生贄アイコン（`.mana-cost-orbs`・`z-index:220`）はこれより前面にあるため、
 オーバーレイでは暗くならない。暗くしたいなら `filter` を個別に当てるしかない。
@@ -2415,12 +2415,16 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    リロール、固定プレイヤーキャラ（`_checkRearCenterAllyGameOver`・`_getLeaderAlly`・`commander` フェーズ）、旧マップの `#world-map-panel`。
    **残した現行機能**：`G.spellSlots`＝アイテム4枠、`G.phase` の `player`/`enemy`＝戦闘中の状態、`#btn-pass`＝試験戦闘の「戦闘終了」ボタン、
    村の施設ボタン（`VILLAGE_FACILITY_DEFS`）、出発時のワールドマップ演出（`renderWorldMapScreen`）。
+23. **魔導板・報酬カード置き場の名前は旧「装備」「行動順」から付け替え済み。** 魔導板のカード配列は `unit.boardCards`（旧 `equipment`。戦闘コア・オンライン送受信・セーブ共通）、
+   ドラッグ元の区分は `'boardCards'`、DOM/CSS は `#hand-slots.board-slots`・`.board-slot-*`・`.board-empty`・`data-board-idx`・`dragzone-board`、
+   報酬カード置き場は `#reward-offer-section`・`#reward-offer-row`・`dragzone-reward-offer`・`renderRewardOfferRow()`。旧名で新しいコードを書かないこと。
+   旧セーブ（`equipment` を持つもの）の互換読込は無い（利用者の判断）。旧「キャラごとの装備」の残骸（`card.equip`・`fixedEquip`・`kind==='equipment'`・`equip-combat-*`）は別物で未整理。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
-   手番ごとの状態（frames）には開始時から居る体の `equipment` を入れない（`applyFrame()` は equipment を消さない）。
+   手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。
 16. 戦闘中のユニット（`.slot.unit-card`）のホバー説明はキャラクター用（暗い背景・効果の並べ替え）。
    上にカードが無い特殊マス（`.card-empty`）の説明はキャラと同じくマスの横に置く。一般戦闘マスの当たりは `::before` で59×99px。発光の絵はカード非表示ボタンと同じく**外周線だけのデータSVG**
    （`#ui-btn-outer-glow-only`）。素材全体を光らせると内側まで光る。`button_invisible_s.svg` を書き出し直したらパスも差し替える。
 3. 効果の種類（キーワード効果／開戦〜終戦）が変わる所の直線は `_joinPreviewParts()`（render.js）が入れる。
 4. 策士の加算量は `_collectAdjacentEnhancements()`（battle.js）の `enh.strategyBonus` だけが決め、説明文はそれを出すだけ。
-   この関数の第1引数は**盤面の持ち主**なので、キャラ本体のキーワードは `equipment[slotIdx]` から読む。
+   この関数の第1引数は**盤面の持ち主**なので、キャラ本体のキーワードは `boardCards[slotIdx]` から読む。

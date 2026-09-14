@@ -20,15 +20,15 @@ const SHOT=process.env.VB_GAMEOVER_BOARD_SHOT||'/tmp/vb-gameover-board-hidden.pn
       G.mainBoard=new Array(15).fill(null);
       G.mainBoard[0]=prep(enchant);
       G.mainBoard[1]=prep(character);
-      unit.equipment=G.mainBoard;
+      unit.boardCards=G.mainBoard;
       G.phase='gameover';
       renderGameOverBoard();
       document.body.classList.remove('reward-screen-active','right-card-peek','game-clear-active');
       document.body.classList.add('gameover-active');
       document.getElementById('scr-gameover').classList.add('active','gameover-overlay-active');
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const host=document.querySelector('#gameover-board-grid #hand-slots.unit-equip-slots');
-      const card=i=>host.querySelector('[data-equip-idx="'+i+'"]');
+      const host=document.querySelector('#gameover-board-grid #hand-slots.board-slots');
+      const card=i=>host.querySelector('[data-board-idx="'+i+'"]');
       const style=e=>{ if(!e) return null; const s=getComputedStyle(e); return {
         display:s.display,visibility:s.visibility,opacity:s.opacity,border:s.borderTopWidth,
         background:s.backgroundImage,z:s.zIndex

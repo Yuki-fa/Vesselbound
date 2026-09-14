@@ -2175,7 +2175,7 @@ window.addEventListener('keydown', async (e) => {
           unit.keywords = [...(def.keywords || [])];
         }
         // ユニットが内包している接続クローンパネルもすべて最新化
-        if (Array.isArray(unit.equipment)) unit.equipment.forEach(refreshCardObject);
+        if (Array.isArray(unit.boardCards)) unit.boardCards.forEach(refreshCardObject);
       };
 
       // 1. 魔導板（メインボード）の全カードを最新化

@@ -43,10 +43,10 @@ function makeStarterInitialPanel(name, desc) {
 }
 
 function _buildUnitInitialEquipment(def, slots) {
-  const equips = new Array(slots.length).fill(null);
+  const boardList = new Array(slots.length).fill(null);
   const starterPanel = makeStarterInitialPanel(def.initialPanelName, def.initialPanelDesc);
-  if (starterPanel) equips[0] = starterPanel;
-  return equips;
+  if (starterPanel) boardList[0] = starterPanel;
+  return boardList;
 }
 
 function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
@@ -88,7 +88,7 @@ function makeUnitFromDef(def, fieldIdx, skipSummonBonus){
     initialPanelName: def.initialPanelName || '',
     initialPanelDesc: def.initialPanelDesc || '',
     equipmentSlots: equipSlots.map(s => ({ ...s })),
-    equipment: _buildUnitInitialEquipment(def, equipSlots),
+    boardCards: _buildUnitInitialEquipment(def, equipSlots),
     No: def.No || def.no || def.code || def.artCode || def.imageNo || '',
     no: def.no || def.No || def.code || def.artCode || def.imageNo || '',
     code: def.code || def.artCode || def.No || def.no || def.imageNo || '',

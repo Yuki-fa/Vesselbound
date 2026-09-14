@@ -55,7 +55,7 @@
       desc: snap.desc || info.desc || '',
       keywords: Array.isArray(snap.keywords) ? snap.keywords.slice() : [],
       effectData: snap.effectData ? { ...snap.effectData } : (info.effectData ? { ...info.effectData } : {}),
-      equipment: Array.isArray(snap.equipment) ? snap.equipment : (Array.isArray(info.equipment) ? info.equipment : []),
+      boardCards: Array.isArray(snap.boardCards) ? snap.boardCards : (Array.isArray(info.boardCards) ? info.boardCards : []),
       poison: Math.max(0, Number(snap.poison) || 0),
       weakenOnHit: Math.max(0, Number(snap.weakenOnHit) || 0),
       manaOnAttack: Math.max(0, Number(snap.manaOnAttack) || 0),

@@ -1189,7 +1189,7 @@ function leaveMapLibrary(){
     const copy=typeof clone==='function'?clone:(v=>v);
     G.mainBoard=copy(snap.mainBoard||[]);
     G.globalPanels=copy(snap.globalPanels||[]);
-    if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+    if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   }
   _rewCards=[];
   G._libraryLoanSnapshot=null;
@@ -1231,7 +1231,7 @@ function resetLibraryLoanFormation(){
   _rewCards=Array.isArray(G._libraryLoanInitialCards)
     ? (typeof clone==='function'?clone(G._libraryLoanInitialCards):G._libraryLoanInitialCards.slice())
     : _libraryLoanCards();
-  if(typeof syncEquipmentPassives==='function') syncEquipmentPassives();
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   if(typeof renderHandEditor==='function') renderHandEditor();
   if(typeof renderRewCards==='function') renderRewCards();
   if(typeof updateHUD==='function') updateHUD();
@@ -1286,8 +1286,8 @@ function _libraryTutorialState(){
 // 暗転の穴（getBoundingClientRect）も発光対象も操作許可も取れないまま進んでしまう。
 function _waitLibraryUIReady(fn,tries){
   tries=tries||0;
-  const slots=document.querySelector('#hand-slots.unit-equip-slots');
-  const card=document.querySelector('#battle-order-row .rew-card');
+  const slots=document.querySelector('#hand-slots.board-slots');
+  const card=document.querySelector('#reward-offer-row .rew-card');
   const ok=!!(slots&&card
     &&slots.getBoundingClientRect().width>0&&slots.getBoundingClientRect().height>0
     &&card.getBoundingClientRect().width>0
@@ -1311,13 +1311,13 @@ function startLibraryBoardTutorial(){
     if(!dims) return;
     const excluded=[];
     const boardHoleRects=[];
-    if(revealTargets) document.querySelectorAll('#battle-order-row .rew-card').forEach(el=>excluded.push(el.getBoundingClientRect()));
+    if(revealTargets) document.querySelectorAll('#reward-offer-row .rew-card').forEach(el=>excluded.push(el.getBoundingClientRect()));
     // 魔導板は枠画像・盤面コンテナ・実スロットが別要素。枠全体を覆う矩形も必ず穴に含める。
-    if(revealTargets) ['#battle-order-section','#battle-order-row','#hand-pane-board-bg','#hand-pane','#hand-slots.unit-equip-slots','#board-card-visibility-btn','#battle-options-btn'].forEach(sel=>{
-      const el=document.querySelector(sel); if(el){ const rect=el.getBoundingClientRect(); excluded.push(rect); if(sel==='#hand-slots.unit-equip-slots') boardHoleRects.push(rect); }
+    if(revealTargets) ['#reward-offer-section','#reward-offer-row','#hand-pane-board-bg','#hand-pane','#hand-slots.board-slots','#board-card-visibility-btn','#battle-options-btn'].forEach(sel=>{
+      const el=document.querySelector(sel); if(el){ const rect=el.getBoundingClientRect(); excluded.push(rect); if(sel==='#hand-slots.board-slots') boardHoleRects.push(rect); }
     });
     // 魔導板のマスは枠の矩形だけでは取りこぼすことがあるため、1マスずつ穴に含める。
-    if(revealTargets) document.querySelectorAll('#hand-slots.unit-equip-slots > *').forEach(el=>{ const rect=el.getBoundingClientRect(); excluded.push(rect); boardHoleRects.push(rect); });
+    if(revealTargets) document.querySelectorAll('#hand-slots.board-slots > *').forEach(el=>{ const rect=el.getBoundingClientRect(); excluded.push(rect); boardHoleRects.push(rect); });
     // innerWidth/Height が取れない状況（描画前・非表示タブ等）では暗転を作れないため、
     // documentElement のサイズで補う。0のまま計算すると矩形が1枚も生成されない。
     const vw=window.innerWidth||document.documentElement.clientWidth||0;
@@ -1325,7 +1325,7 @@ function startLibraryBoardTutorial(){
     if(vw<=0||vh<=0) return;
     // 魔導板本体と全15マスを除外矩形へ入れたことを毎回検証する。
     // 再描画でDOMが差し替わっても、次の計算でこの判定を更新する。
-    const board=document.querySelector('#hand-slots.unit-equip-slots');
+    const board=document.querySelector('#hand-slots.board-slots');
     const boardRect=board&&board.getBoundingClientRect();
     G._libraryTutorialBoardHoleVerified=!!(revealTargets&&boardRect&&boardRect.width>0&&boardRect.height>0
       &&boardHoleRects.some(rect=>rect.left<=boardRect.left+0.5&&rect.top<=boardRect.top+0.5
@@ -1408,10 +1408,10 @@ function startLibraryBoardTutorial(){
         `inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 ${blur1}px ${sp1}px rgba(255,255,255,${a1}),0 0 ${blur2}px ${sp2}px rgba(255,234,170,${a2})`,'important');
     });
   },60);
-  const boardSlot=(row,col)=>`#hand-slots.unit-equip-slots > :nth-child(${row*MAIN_BOARD_COLS+col+1})`;
+  const boardSlot=(row,col)=>`#hand-slots.board-slots > :nth-child(${row*MAIN_BOARD_COLS+col+1})`;
   // 貸出カードのDOMにはカード名のテキストが無い（ATK/HPと「貸出」バッジのみ）。
   // dataset.cardIdx と実データ(_rewCards)を突き合わせて1枚だけ特定する。
-  const cardByName=name=>Array.from(document.querySelectorAll('#battle-order-row .rew-card')).find(el=>{
+  const cardByName=name=>Array.from(document.querySelectorAll('#reward-offer-row .rew-card')).find(el=>{
     const i=Number(el.dataset&&el.dataset.cardIdx);
     const c=(typeof _rewCards!=='undefined'&&Array.isArray(_rewCards))?_rewCards[i]:null;
     return !!(c&&c.name===name);
@@ -1457,7 +1457,7 @@ function startLibraryBoardTutorial(){
   const allowBase=(moving)=>{
     const sels=moving
       ? ['#battle-options-btn']
-      : ['#hand-pane-board-bg','#hand-pane','#hand-slots.unit-equip-slots','#battle-order-section','#battle-options-btn'];
+      : ['#hand-pane-board-bg','#hand-pane','#hand-slots.board-slots','#reward-offer-section','#battle-options-btn'];
     sels.forEach(sel=>{const el=document.querySelector(sel);if(el)el.classList.add('library-tutorial-allowed');});
   };
   const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();};
@@ -1493,7 +1493,7 @@ function startLibraryBoardTutorial(){
             applyGlowShadow(src);
           }
         }
-        const cells=document.querySelectorAll('#hand-slots.unit-equip-slots > *');
+        const cells=document.querySelectorAll('#hand-slots.board-slots > *');
         const dest=cells[st[0]==='4-2'?12:11];
         if(dest){
           dest.classList.add('library-tutorial-glow','library-tutorial-allowed');
@@ -1532,7 +1532,7 @@ function startLibraryBoardTutorial(){
     const allowed=isTutorialInputAllowed(e.target);
     if(!isMoving()||!allowed){e.preventDefault();e.stopPropagation();return;}
     tutorialDragging=true;
-    document.querySelectorAll('#battle-order-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
+    document.querySelectorAll('#reward-offer-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
   };
   const tutorialDragEnd=()=>{if(!tutorialDragging)return;tutorialDragging=false;syncMovingHighlights();};
   // 許可外のドロップ先へ既存の要素ハンドラを到達させない。preventDefault()はしないので、
@@ -1859,8 +1859,8 @@ function _pickMapForgeOffers(){
 // 鍛冶屋メニューの画像。並び順＝MAP_PANEL_POWERSの順。
 const MAP_FORGE_ART_BY_ID={summon:'b_board1.svg',life:'b_board2.svg',eternal:'b_board3.svg',resonance:'b_board4.svg',duplicate:'b_board5.svg'};
 function renderMapForgeOffers(){
-  const section=document.getElementById('battle-order-section');
-  const row=document.getElementById('battle-order-row');
+  const section=document.getElementById('reward-offer-section');
+  const row=document.getElementById('reward-offer-row');
   if(!section||!row) return;
   section.style.display='';
   row.innerHTML='';
@@ -1888,7 +1888,7 @@ function renderMapForgeOffers(){
     btn.classList.add(i%2===1?'item-shop-card-up':'item-shop-card-down');
     // 暗転＋価格の斜線は「変化させられるマスが無い」場合だけ。
     // 所持金不足は暗転も斜線もせず、カードと同じ「ゴールド不足」バッジを出す。
-    // ※汎用の .cant は #battle-order-row のカード用スタイル（background差し替え・::before暗転）が
+    // ※汎用の .cant は #reward-offer-row のカード用スタイル（background差し替え・::before暗転）が
     //   まとめて掛かり、鍛冶屋の絵（--forge-art を ::before に敷いている）が消えるため使わない。
     if(noTarget) btn.classList.add('forge-no-target');
     if(disabled) btn.classList.add('forge-disabled');
@@ -1953,7 +1953,7 @@ async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
     }catch(_e){ next(); }
   })(0);
   const slotEl=Number.isInteger(targetSlotIdx)
-    ?document.querySelector(`#hand-slots.unit-equip-slots > :nth-child(${targetSlotIdx+1})`):null;
+    ?document.querySelector(`#hand-slots.board-slots > :nth-child(${targetSlotIdx+1})`):null;
   const rect=slotEl&&slotEl.getBoundingClientRect?slotEl.getBoundingClientRect():null;
   await new Promise(resolve=>{
     const img=document.createElement('img');

@@ -13,7 +13,7 @@
 // 並び自体は _battleSlotForMainBoardSlot() の希望スロットで最終的に決まるが、
 // 希望スロットが衝突したときの解決順が生成順に依存するため、順序を保つ。
 function formationDeploySlots(board) {
-  const equip = (board && Array.isArray(board.equipment)) ? board.equipment : [];
+  const boardList = (board && Array.isArray(board.boardCards)) ? board.boardCards : [];
   const frontSlots = (typeof MAIN_BOARD_FRONT_SLOTS !== 'undefined' && MAIN_BOARD_FRONT_SLOTS) || [1, 3];
   const rearSlots = (typeof MAIN_BOARD_REAR_SLOTS !== 'undefined' && MAIN_BOARD_REAR_SLOTS) || [10, 12, 14];
   const baseDeploy = new Set([...frontSlots, ...rearSlots]);
@@ -21,7 +21,7 @@ function formationDeploySlots(board) {
     : ((typeof mapPanelPowerIdAt === 'function') ? mapPanelPowerIdAt(idx) : '');
   const powered = Object.keys((typeof G !== 'undefined' && G && G.mapPanelPowers) || {})
     .map(n => parseInt(n, 10))
-    .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < equip.length
+    .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < boardList.length
       && !baseDeploy.has(idx) && powerAt(idx));
   const groups = [
     { slots: frontSlots, toRear: false },
@@ -61,7 +61,7 @@ function formationAssignSlot(occupied, preferredSlot, from, to) {
 function buildBoardFormation(board, opts) {
   const options = opts || {};
   const persistEternal = !!options.persistEternal;
-  const equip = (board && Array.isArray(board.equipment)) ? board.equipment : [];
+  const boardList = (board && Array.isArray(board.boardCards)) ? board.boardCards : [];
   const max = (typeof MAX_ALLIES !== 'undefined' && MAX_ALLIES) || 14;
   const frontCount = Math.min((typeof ENEMY_FRONT_SLOTS !== 'undefined' && ENEMY_FRONT_SLOTS) || 7, max);
   const occupiedFront = new Set();
@@ -69,7 +69,7 @@ function buildBoardFormation(board, opts) {
   const entries = [];
 
   formationDeploySlots(board).forEach(({ idx, toRear }) => {
-    const panel = equip[idx];
+    const panel = boardList[idx];
     if (!panel) return;
     if (typeof _panelSummonSpec !== 'function') return;
     const spec = _panelSummonSpec(panel);

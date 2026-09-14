@@ -26,10 +26,10 @@ const SHOT=process.env.VB_TRIPLE_FRAME_SHOT||'/tmp/vb-triple-merge-frame.png';
       const prep=()=>{ const c=_preparePanelCard(def); c.directions=['up','right']; c._sellDisplayPrice=40; return c; };
       G.mainBoard=new Array(15).fill(null);
       G.mainBoard[0]=prep(); G.mainBoard[2]=prep(); G.mainBoard[3]=prep();
-      unit.equipment=G.mainBoard;
+      unit.boardCards=G.mainBoard;
       renderHandEditor();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const source=document.querySelector('#hand-slots [data-equip-idx="3"]');
+      const source=document.querySelector('#hand-slots [data-board-idx="3"]');
       const sourceHadPrice=!!source.querySelector('.shop-board-sell-value');
       const r=source.getBoundingClientRect();
       source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,

@@ -143,7 +143,7 @@ const ONLINE_VERSUS_GOLD = 100;
         _adjacentPanelAbilities: Array.isArray(unit._adjacentPanelAbilities) ? unit._adjacentPanelAbilities.slice() : [],
         _releaseAtkBonus: Number(unit._releaseAtkBonus ?? def._releaseAtkBonus ?? def.releaseAtkBonus) || 0,
         _releaseHpBonus: Number(unit._releaseHpBonus ?? def._releaseHpBonus ?? def.releaseHpBonus) || 0,
-        equipment: Array.isArray(unit.equipment) ? unit.equipment.map(x => ({ ...x })) : [],
+        boardCards: Array.isArray(unit.boardCards) ? unit.boardCards.map(x => ({ ...x })) : [],
         effectData: {
           ...(def && def.effectData && typeof def.effectData === 'object' ? def.effectData : {}),
           ...(unit.effectData && typeof unit.effectData === 'object' ? unit.effectData : {}),

@@ -143,7 +143,7 @@ function coreUnitKeywords(unit) {
   if (shieldText) kws.push('結界' + (shieldText[1] || '1'));
   const sealText = ownPassiveText.match(/封印\s*(\d+)/);
   if (sealText) kws.push('封印' + (sealText[1] || '1'));
-  // 注：unit.equipment（接続強化パネルの複製）は再スキャンしない。既に unit.keywords へ
+  // 注：unit.boardCards（接続強化パネルの複製）は再スキャンしない。既に unit.keywords へ
   // 反映済みで、再スキャンすると同じキーワードが二重・三重に数えられる。
   if (kws.includes('三段攻撃')) {
     for (let i = kws.length - 1; i >= 0; i--) if (kws[i] === '二段攻撃') kws.splice(i, 1);
@@ -605,7 +605,7 @@ function createCoreUnit(raw, side, index) {
       : (Array.isArray(raw && raw._extraManaThresholds) ? raw._extraManaThresholds.map(x => ({ ...x })) : []),
     weakenOnHit: Math.max(0, Number(raw && raw.weakenOnHit) || 0),
     ringInjuryHp: Math.max(0, Number(raw && raw.ringInjuryHp) || 0),
-    equipment: Array.isArray(raw && raw.equipment) ? raw.equipment.map(x => ({ ...x })) : [],
+    boardCards: Array.isArray(raw && raw.boardCards) ? raw.boardCards.map(x => ({ ...x })) : [],
     effectData: raw && raw.effectData && typeof raw.effectData === 'object' ? {
       ...raw.effectData,
       extraManaThresholds: Array.isArray(raw.effectData.extraManaThresholds)
@@ -617,7 +617,7 @@ function createCoreUnit(raw, side, index) {
       releaseAtkBonus: Number(raw._releaseAtkBonus) || Number(raw.effectData.releaseAtkBonus) || 0,
       releaseHpBonus: Number(raw._releaseHpBonus) || Number(raw.effectData.releaseHpBonus) || 0,
     } : {},
-    // 編成時に算出された魔導板効果は、表示用equipmentだけでなく
+    // 編成時に算出された魔導板効果は、表示用boardCardsだけでなく
     // 戦闘判定用の補助フィールドにも保持する。PvE/PvPで同じ判定入力にする。
     _adjacentPanelAbilities: Array.isArray(raw && raw._adjacentPanelAbilities)
       ? raw._adjacentPanelAbilities.slice()
@@ -725,7 +725,7 @@ function coreUnitSnapshot(u) {
     extraManaThresholds: Array.isArray(u.extraManaThresholds) ? u.extraManaThresholds.map(x => ({ ...x })) : [],
     weakenOnHit: Math.max(0, Number(u.weakenOnHit) || 0),
     ringInjuryHp: Math.max(0, Number(u.ringInjuryHp) || 0),
-    equipment: Array.isArray(u.equipment) ? u.equipment.map(x => ({ ...x })) : [],
+    boardCards: Array.isArray(u.boardCards) ? u.boardCards.map(x => ({ ...x })) : [],
     effectData: u.effectData ? {
       ...u.effectData,
       extraManaThresholds: Array.isArray(u.effectData.extraManaThresholds)
@@ -1336,12 +1336,12 @@ function coreEffectCount(unit, name) {
 function coreConnectedEnhancementCount(unit) {
   const textCount = Array.isArray(unit && unit._adjacentPanelEffectTexts)
     ? unit._adjacentPanelEffectTexts.length : 0;
-  const equipmentCount = Array.isArray(unit && unit.equipment)
-    ? unit.equipment.filter(x => x && String(x.category || '') !== 'キャラクター').length : 0;
+  const boardCardCount = Array.isArray(unit && unit.boardCards)
+    ? unit.boardCards.filter(x => x && String(x.category || '') !== 'キャラクター').length : 0;
   // 効果文は1枚の強化カードから複数件になることがあるため、接続枚数の
   // 代替値として優先してはいけない。実カード配列を正とし、旧データで
-  // equipmentだけ欠落している場合に限って効果文数へフォールバックする。
-  return equipmentCount || textCount;
+  // boardCardsだけ欠落している場合に限って効果文数へフォールバックする。
+  return boardCardCount || textCount;
 }
 // ── 実効指輪（鏡の指輪の解決）─────────────────────────────
 // **鏡の指輪は「右隣（配列で1つ後ろ）の指輪と同じ効果を持つ」。**
@@ -1554,7 +1554,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     manaOrder: source.manaOrder,
     manaThresholdOrder: source.manaThresholdOrder != null ? source.manaThresholdOrder : source._manaThresholdOrder,
     extraManaThresholds: source.extraManaThresholds, weakenOnHit: source.weakenOnHit,
-    equipment: source.equipment, _adjacentPanelAbilities: source._adjacentPanelAbilities,
+    boardCards: source.boardCards, _adjacentPanelAbilities: source._adjacentPanelAbilities,
     _resonanceEffectNames: source._resonanceEffectNames,
     _openingDuplicate: !!source._openingDuplicate,
     boss: !!source.boss,

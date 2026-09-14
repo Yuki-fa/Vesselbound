@@ -294,15 +294,15 @@ function _itemEffectKey(card){
   if(card&&card.name==='ポータルの巻物') return 'portal_scroll';
   return key;
 }
-function _mainBoardEquips(){
+function _mainBoardCards(){
   const unit=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
-  return unit&&Array.isArray(unit.equipment)?unit.equipment:[];
+  return unit&&Array.isArray(unit.boardCards)?unit.boardCards:[];
 }
 function _isBoardCharacterCard(card){
   return !!card&&String(card.category||'')==='キャラクター';
 }
 function _boardCharacterSlots(){
-  return _mainBoardEquips().map((card,idx)=>({card,idx})).filter(x=>_isBoardCharacterCard(x.card));
+  return _mainBoardCards().map((card,idx)=>({card,idx})).filter(x=>_isBoardCharacterCard(x.card));
 }
 function _cardSealKeywordIndex(card){
   const kws=Array.isArray(card&&card.keywords)?card.keywords:[];
@@ -417,8 +417,8 @@ function _cardHasKeyword(card,kw){
 function _isItemUseTargetSlot(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending) return true;
-  const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
-  const card=equips[slotIdx];
+  const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
+  const card=boardList[slotIdx];
   if(!_isBoardCharacterCard(card)) return false;
   const key=pending.key;
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
@@ -428,7 +428,7 @@ function _isItemUseTargetSlot(slotIdx){
     if(card._merged) return false;
     if(!Number.isInteger(pending.firstIdx)){
       // 1枚目：同名かつ未合体の相方が別スロットに要る
-      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&!c._merged&&c.name===card.name);
+      return boardList.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&!c._merged&&c.name===card.name);
     }
     // 2枚目：1枚目と同名の別スロット
     return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
@@ -437,7 +437,7 @@ function _isItemUseTargetSlot(slotIdx){
   if(key==='sacrifice_doll'){
     // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
     if(!Number.isInteger(pending.destroyIdx)){
-      return equips.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardSealReducible(c));
+      return boardList.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardSealReducible(c));
     }
     return slotIdx!==pending.destroyIdx&&_cardSealReducible(card);
   }
@@ -450,8 +450,8 @@ function _cancelPendingItemUse(silent){
   const pending=G._pendingItemUse;
   if(!pending) return false;
   if(Array.isArray(pending.boardSnapshot)){
-    const equips=typeof _mainBoardEquips==='function'?_mainBoardEquips():null;
-    if(equips) pending.boardSnapshot.forEach((c,i)=>{ equips[i]=c?clone(c):null; });
+    const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():null;
+    if(boardList) pending.boardSnapshot.forEach((c,i)=>{ boardList[i]=c?clone(c):null; });
   }
   G._pendingItemUse=null; _syncItemUsePickingUi();
   if(typeof renderHandEditor==='function') renderHandEditor();
@@ -482,7 +482,7 @@ if(!window._itemUseCancelBound){
     if(e.button!==0) return;
     // 有効な対象カードと明示的なキャンセルボタン以外を
     // 左クリックした場合も、対象選択を残さない。
-    if(e.target&&e.target.closest&&e.target.closest('#hand-slots.unit-equip-slots > .card,.item-use-cancel-btn')) return;
+    if(e.target&&e.target.closest&&e.target.closest('#hand-slots.board-slots > .card,.item-use-cancel-btn')) return;
     _cancelPendingItemUse();
   },true);
   document.addEventListener('keydown',e=>{
@@ -545,7 +545,7 @@ function _syncItemUsePickingUi(){
   const body=document.body;
   if(!body) return;
   const pending=G&&G._pendingItemUse;
-  const sec=document.getElementById('battle-order-section');
+  const sec=document.getElementById('reward-offer-section');
   const root=document.documentElement;
   const on=!!pending;
   // **対象選択の間は「カード非表示」を解除する。** 非表示のままだと対象が見えないうえ、
@@ -584,9 +584,9 @@ function _syncItemUsePickingUi(){
 }
 function _beginBoardItemUse(idx,card){
   const key=_itemEffectKey(card);
-  const equipsNow=typeof _mainBoardEquips==='function'?_mainBoardEquips():[];
+  const boardListNow=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
-    boardSnapshot:(equipsNow||[]).map(c=>c?clone(c):null)};
+    boardSnapshot:(boardListNow||[]).map(c=>c?clone(c):null)};
   _syncItemUsePickingUi();
   // 対象外カードの暗転を反映するため描き直す。
   if(typeof renderHandEditor==='function') renderHandEditor();
@@ -657,8 +657,8 @@ function _useImmediateItem(idx,card){
 function handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
-  const equips=_mainBoardEquips();
-  const card=equips[slotIdx];
+  const boardList=_mainBoardCards();
+  const card=boardList[slotIdx];
   if(!_isBoardCharacterCard(card)){ ; return true; }
   const key=pending.key;
   if(key==='shield_scroll'){
@@ -717,7 +717,7 @@ function handlePendingItemBoardTarget(slotIdx){
       renderHandEditor();
       return true;
     }
-    const first=equips[pending.firstIdx];
+    const first=boardList[pending.firstIdx];
     if(!first||first===card||card.name!==pending.firstName||card._merged||first._merged){
       ; return true;
     }
@@ -749,14 +749,14 @@ function handlePendingItemBoardTarget(slotIdx){
       if(bondExtraKeywords.length) first.keywords=_mergeCardKeywordsForBond(first.keywords,bondExtraKeywords);
     }
     delete first.effectRepeatBonus;
-    equips[slotIdx]=null;
+    boardList[slotIdx]=null;
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
   }
   if(key==='sacrifice_doll'){
     if(!pending.destroyIdx&&pending.destroyIdx!==0){
       pending.destroyIdx=slotIdx;
       pending.destroyName=card.name;
-      equips[slotIdx]=null;
+      boardList[slotIdx]=null;
       _syncItemUsePickingUi();   // 2段階目の指示文へ差し替える
       renderHandEditor();
       return true;
@@ -770,7 +770,7 @@ function handlePendingItemBoardTarget(slotIdx){
     return true;
   }
   if(key==='weakening_scroll'){
-    equips[slotIdx]=null;
+    boardList[slotIdx]=null;
     G.mapPanelPowers=G.mapPanelPowers||{};
     const summonSlots=Array.from({length:MAIN_BOARD_SIZE},(_,i)=>i)
       .filter(i=>typeof mapPanelPowerIdAt==='function'&&mapPanelPowerIdAt(i)==='summon');

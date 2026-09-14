@@ -79,8 +79,8 @@
         // 指輪による負傷時HP付与の残量。
         ringInjuryHp: Number(u.ringInjuryHp) || 0,
         summonCount: Number(u.summonCount) || 1,
-        equipment: (entry.contributingPanels.length && typeof _panelSummonDisplayEquipment === 'function')
-          ? _panelSummonDisplayEquipment(panel, entry.contributingPanels) : [],
+        boardCards: (entry.contributingPanels.length && typeof _panelSummonDisplayBoardCards === 'function')
+          ? _panelSummonDisplayBoardCards(panel, entry.contributingPanels) : [],
         // 効果移行用の完全な戦闘データ。表示用のdescだけでなく、強化で追加された
         // 効果名・倍率・マナ閾値も共通コアへ渡す。
         effectData: {

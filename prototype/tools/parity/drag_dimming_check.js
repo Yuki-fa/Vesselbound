@@ -18,16 +18,16 @@ const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
       document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
       document.getElementById('scr-battle').classList.add('active');
       document.body.className='reward-screen-active';
-      const ids=['reward-production-ui','battle-order-section','main-hand-area','hand-pane-board-bg','hand-pane'];
+      const ids=['reward-production-ui','reward-offer-section','main-hand-area','hand-pane-board-bg','hand-pane'];
       ids.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.removeProperty('z-index'); });
       const read=()=>{
         const css=id=>getComputedStyle(document.getElementById(id));
         return {
           ringOverlay:{display:css('ring-drag-overlay').display,background:css('ring-drag-overlay').backgroundColor,z:css('ring-drag-overlay').zIndex},
-          cardOverlay:{display:css('mainequip-drag-overlay').display,background:css('mainequip-drag-overlay').backgroundColor,z:css('mainequip-drag-overlay').zIndex},
+          cardOverlay:{display:css('board-drag-overlay').display,background:css('board-drag-overlay').backgroundColor,z:css('board-drag-overlay').zIndex},
           scrollZ:css('scr-battle').getPropertyValue('--unused')||getComputedStyle(document.querySelector('.battle-scroll')).zIndex,
           productionZ:css('reward-production-ui').zIndex,
-          orderZ:css('battle-order-section').zIndex,
+          orderZ:css('reward-offer-section').zIndex,
           mainZ:css('main-hand-area').zIndex,
           board:{display:css('hand-pane-board-bg').display,opacity:css('hand-pane-board-bg').opacity,filter:css('hand-pane-board-bg').filter,z:css('hand-pane-board-bg').zIndex},
           paneZ:css('hand-pane').zIndex,
@@ -38,7 +38,7 @@ const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
         };
       };
       const out={};
-      for(const cls of ['dragzone-ring-slot','dragzone-itemslot','dragzone-reward-item','dragzone-mainequip','dragzone-reward-spell']){
+      for(const cls of ['dragzone-ring-slot','dragzone-itemslot','dragzone-reward-item','dragzone-board','dragzone-reward-spell']){
         _setDragZoneClass(cls);
         out[cls]=read();
       }
@@ -49,7 +49,7 @@ const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
     const ring = states['dragzone-ring-slot'];
     const item = states['dragzone-itemslot'];
     const rewardItem = states['dragzone-reward-item'];
-    const card = states['dragzone-mainequip'];
+    const card = states['dragzone-board'];
     const rewardCard = states['dragzone-reward-spell'];
     check('指輪ドラッグは黒50%オーバーレイ', ring.ringOverlay.display === 'block' && ring.ringOverlay.background === 'rgba(0, 0, 0, 0.5)', JSON.stringify(ring));
     check('アイテムドラッグは指輪と同じ暗さ', item.ringOverlay.display === 'block' && item.ringOverlay.background === ring.ringOverlay.background, JSON.stringify(item));

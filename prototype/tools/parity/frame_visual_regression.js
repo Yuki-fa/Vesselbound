@@ -74,10 +74,10 @@ const near=(a,b,eps=.5)=>Math.abs(Number(a)-Number(b))<=eps;
       const unit=_getPartyBoardUnit();
       const characterDef=PANEL_POOL.find(c=>String(c.category||'')==='キャラクター');
       const prepare=c=>typeof _preparePanelCard==='function'?_preparePanelCard(c):({...c,directions:['up','right']});
-      G.mainBoard=new Array(15).fill(null); G.mainBoard[1]=prepare(characterDef); unit.equipment=G.mainBoard;
+      G.mainBoard=new Array(15).fill(null); G.mainBoard[1]=prepare(characterDef); unit.boardCards=G.mainBoard;
       renderHandEditor(); _syncRewardProductionUi();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-      const card=document.querySelector('#hand-slots [data-equip-idx="1"]');
+      const card=document.querySelector('#hand-slots [data-board-idx="1"]');
       const r=card.getBoundingClientRect();
       card.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,
         dataTransfer:new DataTransfer(),clientX:r.x+r.width/2,clientY:r.y+r.height/2}));
@@ -96,7 +96,7 @@ const near=(a,b,eps=.5)=>Math.abs(Number(a)-Number(b))<=eps;
       const empty=document.querySelector('#hand-slots .card-empty[data-map-board]');
       const es=getComputedStyle(empty);
       document.body.classList.add('right-card-peek');
-      const source=document.querySelector('#hand-slots [data-equip-idx="1"]');
+      const source=document.querySelector('#hand-slots [data-board-idx="1"]');
       const hiddenFrame=source.querySelector('.character-frame-layer');
       const hiddenStyle=getComputedStyle(hiddenFrame);
       return {ghost:read(ghost),frame:read(frame),art:read(art),

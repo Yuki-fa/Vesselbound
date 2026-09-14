@@ -1880,7 +1880,7 @@ async function startBattle(){
   G.nextBattleItems=[];
   (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
   (G.allies||[]).forEach(u=>{
-    (u?.equipment||[]).forEach(p=>{
+    (u?.boardCards||[]).forEach(p=>{
       if(p){
         delete p._rewardReturnCard;
         delete p._rewardReturnIdx;
@@ -1911,7 +1911,7 @@ async function startBattle(){
   G.phase='player';
   G._showGlobalPanels=true;
   G._battleDefeatHandled=false;
-  G._selectedEquipUnitIdx=-1;
+  G._selectedBoardUnitIdx=-1;
 
   // 報酬フェイズUI非表示
   const rInfo=document.getElementById('reward-info-bar');
@@ -1932,10 +1932,10 @@ async function startBattle(){
   if(eLabel) eLabel.style.display='';
   // 報酬フェイズから素早く次戦へ移行した際、報酬カード置き場（旧配置順置き場）とメイン置き場が
   // 直前のレンダリング内容のまま画面に残ってしまう（renderAll()はこれらを更新しないため）のを防ぐ
-  const battleOrderSection=document.getElementById('battle-order-section');
-  if(battleOrderSection) battleOrderSection.style.display='none';
-  const battleOrderRow=document.getElementById('battle-order-row');
-  if(battleOrderRow) battleOrderRow.innerHTML='';
+  const rewardOfferSection=document.getElementById('reward-offer-section');
+  if(rewardOfferSection) rewardOfferSection.style.display='none';
+  const rewardOfferRow=document.getElementById('reward-offer-row');
+  if(rewardOfferRow) rewardOfferRow.innerHTML='';
   if(typeof renderHandEditor==='function') renderHandEditor();
 
   const fixedTestBattle=!!(G._testBattleMode&&!G._libraryTestBattleMode);
@@ -3097,15 +3097,15 @@ function _unitEffectPanelCount(unit, kw){
   if(!unit||!kw) return 0;
   if(Number.isInteger(unit._mainBoardSlot)&&typeof _getPartyBoardUnit==='function'&&typeof _collectEnhancementPanelsForSlot==='function'){
     const board=_getPartyBoardUnit();
-    if(board&&Array.isArray(board.equipment)){
+    if(board&&Array.isArray(board.boardCards)){
       return _panelEffectKeywordCount(_collectEnhancementPanelsForSlot(board,unit._mainBoardSlot),kw);
     }
   }
-  // 接続数のカウントはequipment配列の添字（盤面上の位置＝物理的に別々の接続）で数える。
+  // 接続数のカウントはboardCards配列の添字（盤面上の位置＝物理的に別々の接続）で数える。
   // p.id/p.uidは同じ強化カードを複数枚接続した場合でも同じ値（テンプレート由来）になるため、
   // これをキーにすると2枚目以降が「同一パネル」とみなされ重複発動しなくなるバグの原因だった。
   let count=0;
-  (Array.isArray(unit.equipment)?unit.equipment:[]).forEach((p,i)=>{
+  (Array.isArray(unit.boardCards)?unit.boardCards:[]).forEach((p,i)=>{
     if(!p||String(p.category||'')==='キャラクター') return;
     const names=[p.name,...(p.keywords||[]),...(p.adjacentKeywords||[])].filter(Boolean);
     if(names.includes(kw)) count+=(p._tripleMerged?2:1)+(Number(p._effectRepeatBonus||p.effectRepeatBonus)||0);
@@ -4221,7 +4221,7 @@ function _panelAllowsDirection(panel, dir){
 const _PANEL_DIR_DELTA={up:{dx:0,dy:-1},right:{dx:1,dy:0},down:{dx:0,dy:1},left:{dx:-1,dy:0}};
 function _panelDirectionConnectivity(unit, idx){
   const connectivity={};
-  const eq=Array.isArray(unit?.equipment)?unit.equipment:[];
+  const eq=Array.isArray(unit?.boardCards)?unit.boardCards:[];
   const panel=eq[idx];
   if(!panel||!Array.isArray(panel.directions)) return connectivity;
   const pos=_panelGridPos(idx);
@@ -4256,7 +4256,7 @@ function _panelDirectionConnectivity(unit, idx){
 // ②①の強化カードに隣接し、かつ矢印が互いを向いている（相互）強化カード
 // ※②以降も相互矢印が続く限り連鎖する
 function _collectEnhancementPanelsForSlot(unit, slotIdx){
-  const panels=Array.isArray(unit?.equipment)?unit.equipment:[];
+  const panels=Array.isArray(unit?.boardCards)?unit.boardCards:[];
   const result=[];
   const seen=new Set();
   const queue=[];
@@ -4377,9 +4377,9 @@ function _collectAdjacentEnhancements(unit, slotIdx){
   // 以前は説明側にも数え方があり、戦闘と説明で数値が食い違っていた。
   enh.strategyBonus=0;
   if(enh.strategyCount>0){
-    // 第1引数は盤面の持ち主（equipment＝盤面）。キャラ本体のキーワードは、そのマスのカードから読む。
+    // 第1引数は盤面の持ち主（boardCards＝盤面）。キャラ本体のキーワードは、そのマスのカードから読む。
     // 持ち主自身を読むとキャラのキーワードが数えられない（策士が強化カード分しか効かなかった）。
-    const slotCard=Array.isArray(unit&&unit.equipment)?unit.equipment[slotIdx]:null;
+    const slotCard=Array.isArray(unit&&unit.boardCards)?unit.boardCards[slotIdx]:null;
     const character=slotCard&&String(slotCard.category||'')==='キャラクター'?slotCard:unit;
     // 効果文を持つ強化カード名（野生の力・闇の炎など）はキーワードではないので数えない。
     const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
@@ -4563,7 +4563,7 @@ function _makePanelSummonUnit(spec, keywords){
     // onBattleStart()より後に盤面へ現れるため、召喚時点で自前で付与しておく
     shield:mergedKeywords.reduce((sum,k)=>sum+_shieldValueFromKeyword(k),0),
     sfxType:spec.sfxType||'',
-    equipment:[],
+    boardCards:[],
     _panelSummoned:true,
     summonCount:Math.max(1,Number(spec.summonCount||spec.count)||1),
     _sourcePanelName:spec.panelName||spec.name||'',
@@ -4732,7 +4732,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
   const color=m?m[1]:'';
   const baseName=m?m[2]:String(name||'');
   const board=!isEnemySide&&typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
-  const eq=board&&Array.isArray(board.equipment)?board.equipment:[];
+  const eq=board&&Array.isArray(board.boardCards)?board.boardCards:[];
   const ownedIdx=eq.findIndex(p=>p&&String(p.category||'')==='キャラクター'&&p.name===baseName);
   if(ownedIdx>=0){
     const panel=eq[ownedIdx];
@@ -4749,7 +4749,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
       // 寄与している強化パネルの効果全文（キーワード以外）も戦闘中の説明文に表示されるよう、
       // applyNewPanelBattleStart()と同様に複製して引き継ぐ
       if(contributingPanels.length){
-        summoned.equipment=_panelSummonDisplayEquipment(panel,contributingPanels);
+        summoned.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);
       }
       // 召喚は前衛の右端にだけ出す。前衛が満杯なら成立させない（後衛へ逃がさない）。
       // 後衛へ送ると陣営の上限を超え、編成していない後衛枠にキャラクターが現れる。
@@ -4795,7 +4795,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
   return rearIdx>=0?unit:null;
 }
 
-function _panelSummonDisplayEquipment(sourcePanel, contributingPanels){
+function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
   const center=sourcePanel?{...clone(sourcePanel),directions:['up','down','left','right']}:null;
   const panels=(contributingPanels||[]).map(entry=>{
     const p=entry&&entry.panel?entry.panel:entry;
@@ -5240,7 +5240,7 @@ function _battleSlotForMainBoardSlot(idx,toRear){
 async function applyNewPanelBattleStart(options){
   const deferOpeningEffects=options===true||!!(options&&options.deferOpeningEffects);
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
-  const equip=board&&Array.isArray(board.equipment)?board.equipment:[];
+  const equip=board&&Array.isArray(board.boardCards)?board.boardCards:[];
   // 共鳴の力：開戦時に場に出た同色の味方全員へ+3/+3を与える。対象キャラの出撃が全て終わった後に
   // まとめて適用するため、該当パネルの色だけここに集めておく（deploySlotGroup内では未出撃の味方に
   // 反映漏れが起きるため）。
@@ -5259,7 +5259,7 @@ async function applyNewPanelBattleStart(options){
     const panel=entry.panel;
     // コピー召喚先にも強化カードの効果全文がフロー表示されるよう、寄与している強化パネルを複製して引き継ぐ
     if(entry.contributingPanels.length){
-      summoned.equipment=_panelSummonDisplayEquipment(panel,entry.contributingPanels);
+      summoned.boardCards=_panelSummonDisplayBoardCards(panel,entry.contributingPanels);
     }
     const placed=entry.toRear
       ?_summonPanelUnitToRear(summoned,false,summoned._battleSlot)
@@ -6049,7 +6049,7 @@ async function onBattleEnd(){
 
 function _removeAbsentKiemetsuCards(){
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
-  const equip=board&&Array.isArray(board.equipment)?board.equipment:null;
+  const equip=board&&Array.isArray(board.boardCards)?board.boardCards:null;
   if(!equip) return;
   const absentKiemetsuSlots=new Set();
   // 戦闘中ユニットには、強化カードから付与された帰滅も反映されているため、

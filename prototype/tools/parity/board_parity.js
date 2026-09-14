@@ -92,8 +92,8 @@
     }
     const live = _getPartyBoardUnit();
     // 永劫の力がカード本体を書き換えるため、必ずコピーへ通す。
-    const snapshot = JSON.parse(JSON.stringify(live.equipment || []));
-    const restore = () => { live.equipment.length = 0; snapshot.forEach(p => live.equipment.push(p ? JSON.parse(JSON.stringify(p)) : null)); };
+    const snapshot = JSON.parse(JSON.stringify(live.boardCards || []));
+    const restore = () => { live.boardCards.length = 0; snapshot.forEach(p => live.boardCards.push(p ? JSON.parse(JSON.stringify(p)) : null)); };
 
     restore();
     const onlineUnits = (buildOnlineSelfFormation() || {}).units || [];

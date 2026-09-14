@@ -19,7 +19,7 @@ const SaveRun=(()=>{
         （名前を足すのは後方互換。古いセーブはその名前を持たないまま初期値で復元される）
      3. **戦闘中の一時状態は入れない**（allies / enemies / phase / turn / battleCounters 等）。
         pendingBattle のイベント列から復元するため、二重に持つと食い違う。
-     4. **画面の開閉・モード判定は入れない**（_selectedEquipUnitIdx /
+     4. **画面の開閉・モード判定は入れない**（_selectedBoardUnitIdx /
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
@@ -261,17 +261,17 @@ const SaveRun=(()=>{
     try{await startBattle();}
     finally{if(generation===resumeGeneration) resumeStarting=false;}
   }
-  // **手番ごとの状態には、開始時から居る体の魔導板一式（equipment）を入れない。**
+  // **手番ごとの状態には、開始時から居る体の魔導板一式（boardCards）を入れない。**
   // 1体あたり約2KBあり、手番数×体数ぶん current／backup の2世代へ積まれて
   // ブラウザの保存上限に達していた（「セーブに失敗しました。空き容量〜」）。
-  // 開始時から居る体の equipment は setup に1回だけ残り、applyFrame() は equipment を消さない。
+  // 開始時から居る体の boardCards は setup に1回だけ残り、applyFrame() は boardCards を消さない。
   // 戦闘中に召喚された体は setup に居ないので、従来どおり状態に含める。
   function snapshotCore(state,setupIds){
     const units={};
     for(const side of ['p1','p2']){
       units[side]=(state.units[side]||[]).map(u=>{
         if(!u||!setupIds||!setupIds.has(u.id)) return u;
-        const {equipment,...rest}=u;
+        const {boardCards,...rest}=u;
         return rest;
       });
     }
@@ -284,7 +284,7 @@ const SaveRun=(()=>{
     state.deadUnits=[];
     const events=[],frames=[];
     let from=0;
-    // 開始時から居る体のID（手番ごとの状態から equipment を省く対象）。
+    // 開始時から居る体のID（手番ごとの状態から boardCards を省く対象）。
     const setupIds=new Set(['p1','p2'].flatMap(side=>(initial.units[side]||[]).filter(Boolean).map(u=>u.id)));
     const emit=ev=>events.push(copy(ev));
     const rewardRng=createSeededRng(seed^0x47a21b),paid=new Set();
@@ -347,8 +347,8 @@ const SaveRun=(()=>{
         // 戻り、姿だけ消えたまま攻撃を続ける。表示済みの状態は巻き戻さない。
         if(existing&&!existing._corePendingSummon) delete data._corePendingSummon;
         const u=existing||{};
-        // equipment は手番ごとの状態に入れていない（snapshotCore）ので、既存の体からは消さない。
-        for(const key of Object.keys(u)) if(!omitted.has(key)&&key!=='equipment'&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')) delete u[key];
+        // boardCards は手番ごとの状態に入れていない（snapshotCore）ので、既存の体からは消さない。
+        for(const key of Object.keys(u)) if(!omitted.has(key)&&key!=='boardCards'&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')) delete u[key];
         return Object.assign(u,data);
       });
       state.units[side].splice(0,state.units[side].length,...next);

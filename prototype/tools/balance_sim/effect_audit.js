@@ -1078,7 +1078,7 @@ function audit() {
 
   // 個別修正回帰：解放バフ、無限封印、ナイトメア再発動、熟練複数枚。
   {
-    const arch = makeDirectUnit('アークデーモン', 'p1', { id: 'arch', desc: '解放：全ての紫のキャラクターは+1/+1を得る。', keywords: ['封印12'], equipment: [{ category: '強化' }, { category: 'エンチャント' }] });
+    const arch = makeDirectUnit('アークデーモン', 'p1', { id: 'arch', desc: '解放：全ての紫のキャラクターは+1/+1を得る。', keywords: ['封印12'], boardCards: [{ category: '強化' }, { category: 'エンチャント' }] });
     const purple = { id: 'arch-purple', name: '紫仲間', side: 'p1', color: '紫', atk: 2, hp: 2, maxHp: 2, keywords: [], desc: '' };
     const s = makeDirectState([arch, purple], []); const es = [];
     core.coreApplyReleaseEffects(s.units.p1[0], [], s, createSeededRng(121), e => es.push(e), () => {});

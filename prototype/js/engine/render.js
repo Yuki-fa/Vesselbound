@@ -62,7 +62,7 @@
     // data-previewが無視されて説明が消えてしまっていた。
     const isGameoverBoard=!!(tgt&&tgt.closest('#gameover-board-grid'));
     const isPanelPeek=!!(document.body&&document.body.classList.contains('right-card-peek'))
-      &&!!(tgt&&tgt.closest('#hand-slots.unit-equip-slots,#gameover-board-grid'));
+      &&!!(tgt&&tgt.closest('#hand-slots.board-slots,#gameover-board-grid'));
     // 右クリックのぞき見中は、透明化したカード自身の説明へフォールバックしない。
     // 特殊マスがある場合だけ、そのマスの説明を表示する。
     const el=isPanelPeek?panelPreviewEl:(cardPreviewEl||kwEl||panelPreviewEl);
@@ -4111,7 +4111,7 @@ function _enchantEffectTextForPanel(p){
 function _enchantmentEffectsList(unit,slotIdx){
   if(!unit) return [];
   slotIdx=slotIdx||0;
-  const eq=Array.isArray(unit.equipment)?unit.equipment:[];
+  const eq=Array.isArray(unit.boardCards)?unit.boardCards:[];
   const panels=typeof _collectEnhancementPanelsForSlot==='function'
     ?_collectEnhancementPanelsForSlot(unit,slotIdx)
     :eq.map((panel,idx)=>({panel,idx}));
@@ -4231,7 +4231,7 @@ function _wireEnchantGlowHover(hitLayer,unit,unitIdx,slotIdx){
   if(!hitLayer||!unit) return;
   slotIdx=slotIdx||0;
   hitLayer.addEventListener('mouseenter',()=>{
-    if(unitIdx!==G._selectedEquipUnitIdx) return;
+    if(unitIdx!==G._selectedBoardUnitIdx) return;
     const list=typeof _collectEnhancementPanelsForSlot==='function'
       ?_collectEnhancementPanelsForSlot(unit,slotIdx).filter(({panel:p,idx})=>
         p&&idx!==slotIdx&&(String(p.category||'')==='強化'||String(p.category||'')==='エンチャント'))
@@ -4240,7 +4240,7 @@ function _wireEnchantGlowHover(hitLayer,unit,unitIdx,slotIdx){
     const handSlots=document.getElementById('hand-slots');
     if(!handSlots) return;
     list.forEach(({idx})=>{
-      const card=handSlots.querySelector(`[data-equip-idx="${idx}"]`);
+      const card=handSlots.querySelector(`[data-board-idx="${idx}"]`);
       if(card) card.classList.add('glow-blue');
     });
   });
@@ -4251,9 +4251,9 @@ function _wireEnchantGlowHover(hitLayer,unit,unitIdx,slotIdx){
   });
 }
 // スロット番号に対応する装備欄カードのDOM要素を取得
-function _equipSlotEl(handSlots,slotIdx){
+function _boardSlotEl(handSlots,slotIdx){
   if(!handSlots) return null;
-  return handSlots.querySelector(`[data-equip-idx="${slotIdx}"]`);
+  return handSlots.querySelector(`[data-board-idx="${slotIdx}"]`);
 }
 function _connectedPanelHoverIndicesUntilCharacter(unit,startIdx){
   if(typeof _connectedBoardFlashIndices==='function') return new Set(_connectedBoardFlashIndices(unit,startIdx));
@@ -4266,7 +4266,7 @@ function _wireEnchantSelfHover(cardDiv,unit,enchantIdx){
   cardDiv.addEventListener('mouseenter',()=>{
     const handSlots=document.getElementById('hand-slots');
     if(!handSlots) return;
-    const eq=Array.isArray(unit.equipment)?unit.equipment:[];
+    const eq=Array.isArray(unit.boardCards)?unit.boardCards:[];
     const affected=new Set();
     const connected=new Set();
     const passable=_connectedPanelHoverIndicesUntilCharacter(unit,enchantIdx);
@@ -4281,8 +4281,8 @@ function _wireEnchantSelfHover(cardDiv,unit,enchantIdx){
         contrib.forEach(c=>{ if(c.idx!==enchantIdx&&passable.has(c.idx)) connected.add(c.idx); });
       }
     });
-    affected.forEach(idx=>{ const el=_equipSlotEl(handSlots,idx); if(el) el.classList.add('glow-blue'); });
-    connected.forEach(idx=>{ const el=_equipSlotEl(handSlots,idx); if(el) el.classList.add('glow-blue'); });
+    affected.forEach(idx=>{ const el=_boardSlotEl(handSlots,idx); if(el) el.classList.add('glow-blue'); });
+    connected.forEach(idx=>{ const el=_boardSlotEl(handSlots,idx); if(el) el.classList.add('glow-blue'); });
   });
   cardDiv.addEventListener('mouseleave',()=>{
     const handSlots=document.getElementById('hand-slots');
@@ -4348,13 +4348,13 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   const weakenList=unit.weaken>0?[`弱体${unit.weaken}`]:[];
   return [...weakenList,...filtered];
 }
-// 戦闘中のユニットは _panelSummonDisplayEquipment() が作る
-// 「index0＝本体、以降＝接続中の強化カード」という平坦な配列を equipment に持つ。
+// 戦闘中のユニットは _panelSummonDisplayBoardCards() が作る
+// 「index0＝本体、以降＝接続中の強化カード」という平坦な配列を boardCards に持つ。
 // これを盤面のスロット番号（_mainBoardSlot）で引くと _collectEnhancementPanelsForSlot() の
 // 隣接判定がどれも成立せず、強化カードの効果文が丸ごと消えて編成画面と食い違う。
 // 平坦配列を持つユニットは本体の位置＝0 で引く。
 function _unitDescSlotIdx(unit, fallbackIdx){
-  const eq=Array.isArray(unit&&unit.equipment)?unit.equipment:null;
+  const eq=Array.isArray(unit&&unit.boardCards)?unit.boardCards:null;
   if(eq&&eq.length&&eq[0]&&String(eq[0].category||'')==='キャラクター') return 0;
   return Number.isInteger(unit&&unit._mainBoardSlot)?unit._mainBoardSlot:fallbackIdx;
 }
@@ -4686,7 +4686,7 @@ function renderField(id,units,isEnemy,_lane){
       // 残しているので、ここで暗い見た目にすると「死体が場に残っている」ように見える。
       if(_visualHp(u)<=0) slot.classList.add('inert');
       if(_visualHp(u)<=0&&!_pendingDeath) slot.classList.add('dead-unit');
-      if(!isEnemy&&G._selectedEquipUnitIdx===i) slot.classList.add('selected');
+      if(!isEnemy&&G._selectedBoardUnitIdx===i) slot.classList.add('selected');
       if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
       if(_isPlayerHero){
         slot.classList.remove('is-defender','uses-hate-frame');
@@ -4830,8 +4830,8 @@ function renderField(id,units,isEnemy,_lane){
         });
         slot.onclick=()=>{
           if(G.phase==='player') return;
-          if(G._selectedEquipUnitIdx!==i) G._selectedEquipCardIdx=null;
-          G._selectedEquipUnitIdx=i;
+          if(G._selectedBoardUnitIdx!==i) G._selectedBoardCardIdx=null;
+          G._selectedBoardUnitIdx=i;
           G._showGlobalPanels=false;
           renderAll();
           if(typeof renderHandEditor==='function') renderHandEditor();
@@ -4840,21 +4840,21 @@ function renderField(id,units,isEnemy,_lane){
       }
       if(u&&isEnemy&&u.hp>0&&G.phase==='player'){
         slot.onclick=()=>{
-          const unitIdx=G._selectedEquipUnitIdx;
-          const equipIdx=G._selectedEquipCardIdx;
+          const unitIdx=G._selectedBoardUnitIdx;
+          const boardIdx=G._selectedBoardCardIdx;
           const ally=G.allies&&G.allies[unitIdx];
-          const card=ally&&ally.equipment&&ally.equipment[equipIdx];
-          if(!ally||ally.hp<=0||equipIdx==null||equipIdx<0||!card) return;
+          const card=ally&&ally.boardCards&&ally.boardCards[boardIdx];
+          if(!ally||ally.hp<=0||boardIdx==null||boardIdx<0||!card) return;
           if(card.fixedAttack&&typeof useFixedEquipOnEnemy==='function'){
-            useFixedEquipOnEnemy(unitIdx,equipIdx,i);
+            useFixedEquipOnEnemy(unitIdx,boardIdx,i);
             return;
           }
           if(!card.fixedEquip&&typeof useDraggedSpellOnTarget==='function'){
             const prev=G.spells;
-            G.spells=ally.equipment;
-            G._unitEquipSpellRestore=prev;
-            useDraggedSpellOnTarget(equipIdx,'enemy',i);
-            if(typeof _restoreUnitEquipSpellSource==='function') _restoreUnitEquipSpellSource();
+            G.spells=ally.boardCards;
+            G._boardSpellRestore=prev;
+            useDraggedSpellOnTarget(boardIdx,'enemy',i);
+            if(typeof _restoreBoardSpellSource==='function') _restoreBoardSpellSource();
           }
         };
         if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
@@ -4881,7 +4881,7 @@ function renderField(id,units,isEnemy,_lane){
           if(isEnemy&&window._fixedEquipDrag&&typeof useFixedEquipOnEnemy==='function'){
             e.preventDefault();
             slot.classList.remove('drag-over');
-            useFixedEquipOnEnemy(window._fixedEquipDrag.unitIdx, window._fixedEquipDrag.equipIdx, i);
+            useFixedEquipOnEnemy(window._fixedEquipDrag.unitIdx, window._fixedEquipDrag.boardIdx, i);
             window._fixedEquipDrag=null;
             return;
           }
