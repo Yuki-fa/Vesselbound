@@ -4097,11 +4097,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // もう一本見えるため、背景の基準を明示的に外枠へ揃える。
         ph.style.setProperty('background-origin','border-box','important');
         ph.style.setProperty('background-clip','border-box','important');
-        ph.style.setProperty('border','5px solid #c49a6c','important');
-        ph.style.setProperty('border-width','5px','important');
-        ph.style.setProperty('outline','0','important');
-        ph.style.setProperty('outline-offset','0','important');
-        ph.style.setProperty('box-shadow','none','important');
+        // 5px枠・outline:0・box-shadow:none は CSS（`#hand-slots.board-slots > .card-empty[data-map-board]`）が持つ。
+        // **ここで要素へ直接 !important で書かない。** 直接指定はCSSのどの規則にも勝つため、
+        // カードを持って重ねた時の発光（.drag-over）が空の特殊マスだけ出なかった（利用者報告）。
       }
       if(arrName==='boardCards'&&_emptyMapPowerId){
         // ①〜⑦：戦闘フェイズで出撃する枠（m_board1.svgで区別する）

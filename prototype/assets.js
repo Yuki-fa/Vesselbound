@@ -173,7 +173,7 @@ const Assets = {
     turn: 'assets/ui/turn.png',
     turnFlow: 'assets/ui/turn_flow.png',
     log: 'assets/ui/log.png',
-    option: 'assets/ui/option.svg',
+    option: 'assets/ui/option_open.svg',
     button: 'assets/ui/button_blue1.svg',
     backLight: 'assets/ui/back_light.svg',
     board: 'assets/ui/board.svg',

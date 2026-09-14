@@ -5866,7 +5866,7 @@ html body.world-map-active #battle-options-btn::before{
 }
 html body.reward-screen-active #battle-options-btn,
 html body.world-map-active #battle-options-btn{
-  background:url("assets/ui/option.svg") center/42px 42px no-repeat!important;
+  background:url("assets/ui/option_open.svg") center/42px 42px no-repeat!important;
 }
 html body.reward-screen-active #battle-options-btn:hover::before,
 html body.world-map-active #battle-options-btn:hover::before{
@@ -8692,7 +8692,7 @@ html body #scr-battle #battle-options-btn::before{
 }
 html body #scr-battle #battle-options-btn{
   width:110px!important;height:102px!important;
-  background:url("assets/ui/option.svg") center/42px 42px no-repeat!important;
+  background:url("assets/ui/option_open.svg") center/42px 42px no-repeat!important;
 }
 /* ライフを失う演出は**中身（life1）だけ**を消す。枠（輪郭）は残す。 */
 .life-lost-cutin .life-heart-fill{display:block!important;animation:life-lost-cutin .62s ease-out forwards!important}
@@ -8964,7 +8964,7 @@ html body #battle-continue-btn{
   clip-path:none!important;
 }
 
-/* オプションは元のbutton.svgとoption.svgだけで描画する。追加の左右線は使用しない。 */
+/* オプションは元のbutton.svgとoption_open.svgだけで描画する。追加の左右線は使用しない。 */
 html body #scr-battle #battle-options-btn,
 html body.reward-screen-active #battle-options-btn,
 html body.world-map-active #battle-options-btn{
@@ -8976,7 +8976,7 @@ html body.reward-screen-active #battle-options-btn::after,
 html body.world-map-active #battle-options-btn::after{
   box-sizing:border-box!important;
   border:0!important;
-  background-image:url("assets/ui/option.svg"),url("assets/ui/button_option.svg")!important;
+  background-image:url("assets/ui/option_open.svg"),url("assets/ui/button_option.svg")!important;
   background-position:center,center!important;
   background-size:42px 42px,100% 100%!important;
   background-repeat:no-repeat,no-repeat!important;
@@ -10902,13 +10902,13 @@ html body .screen-options-btn{
   z-index:4100!important;
   background:none!important;
 }
-/* 顔は option.svg（アイコン）＋ button_option.svg（枠）の2枚重ね。戦闘画面と同一。 */
+/* 顔は option_open.svg（アイコン）＋ button_option.svg（枠）の2枚重ね。戦闘画面と同一。 */
 html body .screen-options-btn::after{
   content:''!important;position:absolute!important;left:0!important;top:0!important;
   width:110px!important;height:102px!important;z-index:2!important;pointer-events:none!important;
   box-sizing:border-box!important;
   border:0!important;
-  background-image:url("assets/ui/option.svg"),url("assets/ui/button_option.svg")!important;
+  background-image:url("assets/ui/option_open.svg"),url("assets/ui/button_option.svg")!important;
   background-position:center,center!important;
   background-size:42px 42px,100% 100%!important;
   background-repeat:no-repeat,no-repeat!important;
@@ -11893,7 +11893,7 @@ html body #board-card-visibility-btn::before{
 html body #board-card-visibility-btn:hover::before{opacity:.84!important}
 /* オプションボタン：back_light.svg の層はアイコンより前面にあり、枠内を光らせるうえ
    アイコンの色まで変えてしまう。枠画像(button_option.svg)の複製を同じSVGでマスクした
-   レイヤーへ置き換える。アイコン(option.svg)は ::after 側にあり触らない。 */
+   レイヤーへ置き換える。アイコン(option_open.svg)は ::after 側にあり触らない。 */
 html body.reward-screen-active #battle-options-btn::before,
 html body.world-map-active #battle-options-btn::before,
 html body #scr-battle #battle-options-btn::before{
@@ -12380,7 +12380,7 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=cleanupLegacy01"></script>
+<script src="assets.js?v=optionOpen01"></script>
 <script src="js/engine/audio.js?v=webaudio07"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
@@ -12418,7 +12418,7 @@ fitVesselboundViewport();
 <script src="js/engine/pointer_drag.js?v=pointerDrag01"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
-<script src="js/engine/reward.js?v=isCharGone01"></script>
+<script src="js/engine/reward.js?v=specialDragOver01"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
   <script src="js/engine/main.js?v=gameoverText02"></script>
 <script>
@@ -13816,6 +13816,27 @@ html body #hand-slots.board-slots > .card-empty[data-map-board]{
   outline-offset:0!important;
   box-shadow:none!important;
   filter:none!important;
+}
+/* **カードを持って空の特殊マスに重ねた時も、通常の空きマスと同じく光らせる。**（利用者報告）
+   上の規則（outline:0／box-shadow:none）が `.card-empty.drag-over` の発光より詳細度が高く、特殊マスだけ光っていなかった。 */
+html body #hand-slots.board-slots > .card-empty[data-map-board].drag-over{
+  border-color:rgba(255,255,255,.95)!important;
+  box-shadow:0 0 10px 2px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.5)!important;
+  outline:2px solid rgba(255,255,255,.9)!important;
+}
+/* **カードが載っている特殊マスへカードを持って重ねた時も、空の特殊マスと同じ光り方。**（利用者指定）
+   載っている時のマス枠は子要素 .map-boundary-layer（5px）が描くので、枠の色はそちらを白くする。
+   マス枠には #main-hand-area #hand-pane を含む強い指定があるため、同じ強さに .drag-over を足して上書きする。 */
+html body #hand-slots.board-slots > .card[data-map-board].drag-over,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card[data-map-board].drag-over{
+  outline:2px solid rgba(255,255,255,.9)!important;
+  box-shadow:0 0 10px 2px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.5)!important;
+}
+html body #hand-slots.board-slots > .card[data-map-board].drag-over > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.character-card.panel-character-card[data-map-board].drag-over > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card[data-map-board].drag-over > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.enchantment-card[data-map-board].drag-over > .map-boundary-layer{
+  border-color:rgba(255,255,255,.95)!important;
 }
 /* ドラッグ元にはマス枠だけを残し、カード枠画像は残さない。 */
 html body #hand-slots.board-slots > .card.dragging > .character-frame-layer,
