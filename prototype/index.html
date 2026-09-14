@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vesselbound</title>
 <style>
-/* **カーソルは3種類だけ。**（利用者指定）普段とボタン上＝cursor1／掴めるカードの上＝cursor2／ドラッグ中＝cursor3。
+/* **カーソルは4種類だけ。**（利用者指定）普段とボタン上＝cursor1／押している間＝cursor2／掴めるカードの上＝cursor3／ドラッグ中＝cursor4。
    値はこの変数だけで持ち、各規則は cursor:var(--cursor-*) で参照する（pointer/default/grab を直接書かない）。
-   数字はクリック位置（指先）。cursor1 の指先は x=8、cursor2 は x=14（以前は2つが入れ替わっていた）。cursor は継承されるので、html に普段のカーソルを置く。 */
+   数字はクリック位置（指先）。cursor1 の指先は x=8、cursor3 は x=14、cursor2 は render.js の HOTSPOT。cursor は継承されるので、html に普段のカーソルを置く。 */
 :root{
-  --cursor-normal:url("assets/ui/cursor1.svg?v=cursor01") 8 1, auto;
-  --cursor-grab:url("assets/ui/cursor2.svg?v=cursor01") 14 1, grab;
-  --cursor-drag:url("assets/ui/cursor3.svg?v=cursor01") 15 16, grabbing;
-  /* クリック中（押している間）の cursor1。render.js の _initPressCursor() が cursor1.svg を指先を中心に左へ8°回した画像を作って入れる。 */
+  --cursor-normal:url("assets/ui/cursor1.svg?v=cursor02") 8 1, auto;
+  --cursor-grab:url("assets/ui/cursor3.svg?v=cursor02") 14 1, grab;
+  --cursor-drag:url("assets/ui/cursor4.svg?v=cursor02") 15 16, grabbing;
+  /* クリック中（押している間）のカーソル＝cursor2。render.js の _initPressCursor() が大きさを付けた画像と指先のクリック位置を入れる。 */
   --cursor-press:var(--cursor-normal);
 }
 html{
   cursor:var(--cursor-normal);
 }
-/* **cursor1 の所でボタンを押している間は、左へ8°回した cursor1。**（利用者指定）押し始めが cursor1 の所の時だけ付く印。 */
+/* **cursor1 の所でボタンを押している間は cursor2。**（利用者指定）押し始めが cursor1 の所の時だけ付く印。 */
 html.cursor-pressing,
 html.cursor-pressing *{
   cursor:var(--cursor-press)!important;
@@ -30,7 +30,7 @@ button,a[href],[role="button"]{
 button:disabled{
   cursor:var(--cursor-normal);
 }
-/* **掴めるカード（カード・アイテム・指輪）の上は cursor2。**（利用者指定）
+/* **掴めるカード（カード・アイテム・指輪）の上は cursor3。**（利用者指定）
    掴めるかどうかは draggable 属性（JS の el.draggable=条件）で決まるので、それを見る。
    アイテム／指輪スロットは cursor1 を指定する詳細度の高い規則があるため、同じ強さで上書きする。 */
 html body [draggable="true"],
@@ -41,7 +41,7 @@ html body.reward-screen-active :is(.reward-prod-ring,.reward-prod-item) .reward-
 html body .reward-used-dim{
   cursor:var(--cursor-normal)!important;
 }
-/* **ドラッグ中のカーソル（cursor3）。** ブラウザ標準ドラッグ中は CSS の cursor が効かないため、
+/* **ドラッグ中のカーソル（cursor4）。** ブラウザ標準ドラッグ中は CSS の cursor が効かないため、
    render.js の _initDragCursor() がこの画像をマウス位置へ置いて追従させる（OSのカーソルは消せない）。 */
 #drag-cursor{
   position:fixed;
@@ -50,7 +50,7 @@ html body .reward-used-dim{
   width:30px;
   height:31.5px;
   margin:-16px 0 0 -15px;
-  background:url("assets/ui/cursor3.svg?v=cursor01") center/100% 100% no-repeat;
+  background:url("assets/ui/cursor4.svg?v=cursor02") center/100% 100% no-repeat;
   pointer-events:none;
   z-index:2147483000;
 }
@@ -12419,7 +12419,7 @@ fitVesselboundViewport();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=boardRename01"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=pressCursor01"></script>
+<script src="js/engine/render.js?v=cursorRename01"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
 <script src="js/engine/reward.js?v=isCharGone01"></script>

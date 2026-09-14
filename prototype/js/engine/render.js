@@ -224,7 +224,7 @@
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start);
   else start();
 })();
-// **ドラッグ中のカーソル（cursor3）。**（利用者指定）ブラウザ標準ドラッグ中は CSS の cursor が効かないので、
+// **ドラッグ中のカーソル（cursor4）。**（利用者指定）ブラウザ標準ドラッグ中は CSS の cursor が効かないので、
 // 画像（#drag-cursor）をマウス位置へ置いて追従させる。ゴーストを作らないドラッグもあるため、文書全体のイベントで拾う。
 // ドロップ後の再描画で dragend が来ないことがあるので、drop と次の mousemove でも必ず片付ける。
 (function _initDragCursor(){
@@ -241,35 +241,32 @@
   document.addEventListener('drop',hide,true);
   document.addEventListener('mousemove',()=>{ if(el) hide(); },true);
 })();
-// **cursor1 の所でボタンを押している間は、cursor1 を左へ8°回す。指先の位置は変えない。**（利用者指定）
-// CSSではカーソル画像を回せないので、cursor1.svg を読み、指先を中心に回した SVG を作って --cursor-press へ入れる。
-// 回した絵が枠からはみ出さないよう余白（PAD）を足し、クリック位置（ホットスポット）も同じだけずらす。
+// **cursor1 の所でボタンを押している間は cursor2 にする。指先の位置は cursor1 と揃える。**（利用者指定）
+// cursor2.svg は width/height を持たず、そのままカーソルに使うと大きさが定まらない（ブラウザのカーソルに戻ることがある）。
+// 読み込んで viewBox の寸法を大きさとして付けてから --cursor-press へ入れる。
+// HOTSPOT＝cursor2 の指先から指の向きに1px内側（cursor1 の「8 1」と同じ取り方。指は約15°左へ傾いている）。
 (function _initPressCursor(){
-  const ANGLE=-8;                    // 負＝左回り（SVGの座標はy軸が下向き）
-  const FINGERTIP={x:8,y:0};         // cursor1.svg の指先（指の輪郭の最上点）
-  const PAD=8;
+  const SRC='assets/ui/cursor2.svg?v=cursor02';
+  const HOTSPOT={x:2,y:1};
   const root=document.documentElement;
-  const normal=getComputedStyle(root).getPropertyValue('--cursor-normal');
-  const m=normal.match(/url\(["']?([^"')]+)["']?\)\s*([\d.]+)\s+([\d.]+)/);
-  if(!m||typeof fetch!=='function') return;
-  const [,src,hx,hy]=m;
-  fetch(src).then(r=>r.ok?r.text():'').then(text=>{
-    const open=text.match(/<svg\b[^>]*>/i), close=text.lastIndexOf('</svg>');
-    if(!open||close<0) return;
-    const vb=(open[0].match(/viewBox="([^"]+)"/)||[])[1];
-    const [vx,vy,vw,vh]=vb?vb.trim().split(/[\s,]+/).map(Number):[0,0,Number((open[0].match(/width="([\d.]+)/)||[])[1])||30,Number((open[0].match(/height="([\d.]+)/)||[])[1])||44];
-    const inner=text.slice(open.index+open[0].length,close);
-    const w=vw+PAD*2, h=vh+PAD*2;
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vx-PAD} ${vy-PAD} ${w} ${h}">`
-      +`<g transform="rotate(${ANGLE} ${FINGERTIP.x} ${FINGERTIP.y})">${inner}</g></svg>`;
+  if(typeof fetch==='function') fetch(SRC).then(r=>r.ok?r.text():'').then(text=>{
+    const open=text.match(/<svg\b[^>]*>/i);
+    if(!open) return;
+    let tag=open[0];
+    const vb=(tag.match(/viewBox="([^"]+)"/)||[])[1];
+    if(vb&&!/\swidth=/.test(tag)){
+      const [,,vw,vh]=vb.trim().split(/[\s,]+/).map(Number);
+      tag=tag.replace(/^<svg\b/i,`<svg width="${vw}" height="${vh}"`);
+    }
+    const svg=text.replace(/<\?xml[^>]*>\s*/,'').replace(open[0],tag);
     root.style.setProperty('--cursor-press',
-      `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${Number(hx)+PAD} ${Number(hy)+PAD}, auto`);
+      `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${HOTSPOT.x} ${HOTSPOT.y}, auto`);
   }).catch(()=>{});
   const release=()=>root.classList.remove('cursor-pressing');
   document.addEventListener('pointerdown',e=>{
     if(e.button!==0) return;
     const target=e.target instanceof Element?e.target:null;
-    // 押し始めの所のカーソルが cursor1 の時だけ（掴めるカードの cursor2 は変えない）。
+    // 押し始めの所のカーソルが cursor1 の時だけ（掴めるカードの cursor3 は変えない）。
     if(target&&/cursor1\.svg/.test(getComputedStyle(target).cursor)) root.classList.add('cursor-pressing');
   },true);
   ['pointerup','pointercancel','dragstart'].forEach(type=>document.addEventListener(type,release,true));

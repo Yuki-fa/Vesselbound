@@ -2351,12 +2351,12 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
 5. 禁則処理はゲーム内の全テキストで `line-break:strict`（index.html 先頭の `html{}` の1箇所）。個別要素で上書きしない。
 6. 売却・還魂は**価格ラベル／還魂ラベル自体をクリック**して行う（`.shop-board-sell-value.shop-board-sell-action`）。
    別の「売却」「還魂」ボタン（旧 `.shop-pending-sell-btn` / `.shop-board-sell-btn`）は作らない。売却待ちカードは `_bindPendingShopCardSale()`。
-7. カーソルは `--cursor-normal`（cursor1）／`--cursor-grab`（cursor2）／`--cursor-drag`（cursor3）の3変数だけ（index.html 先頭）。
-   **ボタン上でもカーソルは変えない**（cursor1）。cursor2 は掴めるカードの上だけ。JS から `style.cursor` を書かない
-   （インライン指定は CSS の `[draggable="true"]` より強く、掴めるカードでも cursor2 にならなくなる）。
+7. カーソルは `--cursor-normal`（cursor1）／`--cursor-grab`（cursor3）／`--cursor-drag`（cursor4）の3変数だけ（index.html 先頭）。
+   **ボタン上でもカーソルは変えない**（cursor1）。cursor3 は掴めるカードの上だけ。JS から `style.cursor` を書かない
+   （インライン指定は CSS の `[draggable="true"]` より強く、掴めるカードでも cursor3 にならなくなる）。
    CSS・JS（`style.cursor`）とも `var(--cursor-*)` で参照し、`pointer`／`default`／`grab` を直接書かない。
    SVGカーソルは `width`／`height` 属性が無いとChromeで出ないので、書き出し直したら属性を付けること。
-   普段＝cursor1、ボタンと**掴めるカード（`[draggable="true"]`）**＝cursor2。ドラッグ中＝cursor3 は
+   普段＝cursor1、ボタンと**掴めるカード（`[draggable="true"]`）**＝cursor3。ドラッグ中＝cursor4 は
    ブラウザ標準ドラッグでは CSS が効かないので `_initDragCursor()`（render.js）が画像を追従させる（OSのカーソルは残る）。
    何もない所（カーソルが cursor1 の所）のクリックで `_initClickRipple()` が白い波紋を出す。
 8. クリックメニューのボタン（`.reward-action-btn`）はカード非表示ボタンと同じ見た目：
@@ -2423,8 +2423,10 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    難易度の値（難易度ノーマル）、ボタン（「再挑戦」「タイトルに戻る」「続ける」）を `gameOver()`（main.js）で `textMessage()` から入れる。到達地点の値は地域情報シートの道の名前のまま。
    見出しは letter-spacing が末尾にも付くので `padding-left` に同じ値を足して中心を揃えている。
 25. **所持金・ライフ・マナ・血のホバー説明（`data-preview-status`）は枠の15px上の中央に固定。** `_positionTooltipGroup(...,'status-above')`。見切れても下へは回さず、70pxのセーフゾーン内へずらす。
-26. **クリック中のカーソル：cursor1 の所で押している間は cursor1 を指先中心に左へ8°回した画像。** render.js の `_initPressCursor()` が cursor1.svg を読んで回した SVG を作り `--cursor-press` へ入れ、
-   押し始めの所のカーソルが cursor1 の時だけ `html.cursor-pressing` を付ける（掴めるカードの cursor2・ドラッグ中の cursor3 は変えない）。指先の座標は `FINGERTIP`（cursor1.svg を差し替えたら確認）。
+26. **クリック中のカーソル：cursor1 の所で押している間は cursor2（回転なし）。** render.js の `_initPressCursor()` が cursor2.svg を読み、
+   width/height が無いので viewBox の寸法を付けてから `--cursor-press` へ入れる。押し始めの所のカーソルが cursor1 の時だけ `html.cursor-pressing` を付ける
+   （掴めるカードの cursor3・ドラッグ中の cursor4 は変えない）。クリック位置は各絵の指先から指の向きに1px内側：cursor1＝8 1、cursor3＝14 1、cursor2＝2 1（指が約15°傾いている）。
+   絵を差し替えたら指先の座標を確認すること。
 27. **`card._isChar`（旧「所持キャラクター本体」の印）の分岐は削除済み。** 立てる処理が無く到達不能だった。報酬カードは全て `mkCardEl()` で作る。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
