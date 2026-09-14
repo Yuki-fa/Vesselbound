@@ -225,18 +225,8 @@ function updateHUD(){
   const displayLife=Math.max(0,Math.min(_lifeMax,
     G._waveLife!=null ? Number(G._waveLife) : (G.life==null?3:Number(G.life))
   ));
-  if(G.phase!=='reward'){
-    document.getElementById('h-floor').textContent=G.floor;
-    const _nl=document.getElementById('h-next-label'); if(_nl) _nl.style.display='none';
-  }
-  const lifeEl=document.getElementById('h-life');
-  if(lifeEl){
-    const life=displayLife;
-    lifeEl.innerHTML=Array.from({length:_lifeMax},(_,i)=>lifeHeartHtml(i>=_lifeMax-life)).join('');
-  }
   // 所持金はカウントアップ演出中の表示値を使い、3桁区切りで表示する。
   const _goldShown=typeof goldDisplayValue==='function'?goldDisplayValue():(Number(G.gold)||0);
-  document.getElementById('h-gold').textContent=Number(_goldShown).toLocaleString('ja-JP');
   const battleGold=document.getElementById('battle-gold-value');
   if(battleGold) battleGold.textContent=Number(_goldShown).toLocaleString('ja-JP');
   const battleLife=document.getElementById('battle-life-value');

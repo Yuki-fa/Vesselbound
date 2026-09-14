@@ -191,6 +191,11 @@ node tools/parity/loop_parity.js      # PvEとコアの結果の一致（最終�
 **「効いていない」判定をそのまま削除の根拠にしないこと。** 監査が作っていない画面状態（戦闘開始・勝利・撤退のカットイン、
 ゲームオーバー／クリアの魔導板など）でだけ効く宣言も「効いていない」に入る。2026-09-14 に `.battle-start-title{color:transparent}` と
 ゲームオーバー魔導板見出しの文字サイズ・色を誤って消し、利用者報告で戻した。削除前に、その宣言のセレクタが表す画面を実際に出して見比べること。
+`style_state_diff.js`（**CSSを消した後の確認用**。削除前の版を別ポートで配信し、同じ画面状態を両方で出して全要素の計算済みスタイルを比べる。
+`VB_BASE_URL=http://127.0.0.1:5510/index.html VB_URL=http://127.0.0.1:5500/index.html`、`VB_ONLY=状態名`。
+削除前の版は `git worktree add <dir> <commit>` で作り、`python3 -m http.server 5510` で配信する。
+画面状態は style_effect_audit.js の一覧を共有し、カットイン・クリア画面・キーワード説明・商店価格・攻撃複製・ドラッグゴーストを足してある。
+既知の意図的な差（色の統合の対応表・px整数化・equip→board の名前変更・カーソルの絵・アニメーション途中の光）はツール先頭の除外表にまとめる）。
 
 `present_parity.js` は `VB_ONLY=シナリオ名` で1件だけ回せる（`|` 区切りで複数）。
 
@@ -2466,6 +2471,13 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    要素自身の box-shadow まで切り取るため、付けたままだと光が描かれない。`:has()` 付きの丸めに勝つよう `.slot.unit-card.effect-flash` で指定する。
 31. **「戦闘開始」の文字は `color:transparent` で金色グラデーション（background-clip:text）を見せている。** 消すと単色になり光の流れが消える。
    **ゲームオーバー／クリア画面の「魔導板」見出しは編成画面の見出しと同じ値**（44px・#c49a6c・字間.08em・影 0 2px 8px rgba(0,0,0,.9)）。
+32. **2026-09-14 のCSS削除（2f7f6a4・7b7c9e4・e7db2d7）は `style_state_diff.js` で50画面状態を削除前後で突き合わせ済み。**
+   新たな抜けは無し。差として出た `#h-next-label` は旧・底部HUDの部品で、画面には出ていなかった。
+33. **旧・底部HUD（`.bottom-hud`：「階層」`#h-floor`・「Next」`#h-next-label`・「ライフ」`#h-life`・「ゴールド」`#h-gold`）は削除済み（2026-09-15、利用者指示）。**
+   38の画面状態のどれでも表示されていなかった（display:none）。所持金・ライフの表示は `#battle-gold-value`／`#battle-life-value` が受け持つ。
+   `updateHUD()` の所持金の数え上げ（`goldDisplayValue()`）とライフの算出はそちらで使うので残してある。復活させないこと。
+   ホバー説明（`#kw-tooltip`／`#keyword-tooltip`／`#map-power-tooltip`）の本文が灰色（#a99e8f）なのは 646eb1e の意図的な指定で、削除による変化ではない（f9550b2 と差0）。
+   `#map-confirm-dialog`・`#carry-gold-warning`・`.map-village-card`・`.map-forge-card` はどのコードも作らないので、そのCSSの削除は影響なし。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、
    手番ごとの状態（frames）には開始時から居る体の `boardCards` を入れない（`applyFrame()` は boardCards を消さない）。
    current／backup の2世代を localStorage に持つため、以前は保存上限に達して「セーブに失敗しました。空き容量〜」が出ていた。

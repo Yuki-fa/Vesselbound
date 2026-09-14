@@ -114,7 +114,7 @@ window.__caPatchOnlineState=function(){
   return st;
 };
 `;
-const STATES=[
+const STYLE_AUDIT_STATES=[
   ['title', `showScreen('title');`],
   ['setup', `startGame(true);`, 1800],
   ['village', `openMapVillage&&openMapVillage();`, 1200],
@@ -173,14 +173,18 @@ const STATES=[
   ['villageMove', `openMapVillage&&openMapVillage(); await new Promise(r=>setTimeout(r,900));`, 1200],
   ['gameover', `try{ hideOnlineMatching(); }catch(e){} gameOver();`, 3500],
 ];
-(async()=>{
+
+// style_state_diff.js と状態生成を共有する。require 時は監査を起動しない。
+if(typeof module!=='undefined') module.exports={STATES:STYLE_AUDIT_STATES,PAGE_LIB};
+
+if(require.main===module)(async()=>{
   const b=await launch({width:3840,height:2160});
   const log=[];
   try{
     await b.goto(URL,1500);
     await b.waitFor('typeof startGame==="function"&&typeof goToReward==="function"',30000);
     await b.eval(PAGE_LIB+'return 1;');
-    for(const [label,code,wait] of STATES){
+    for(const [label,code,wait] of STYLE_AUDIT_STATES){
       try{
         await b.eval(`try{ ${code} }catch(e){ console.warn('state',${JSON.stringify(label)},e); } await new Promise(r=>setTimeout(r,${wait||900})); return 1;`);
       }catch(e){ log.push([label,'setup-error',String(e.message||e)]); }

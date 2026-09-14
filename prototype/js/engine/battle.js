@@ -1028,7 +1028,7 @@ function _fadeBattleLife(){
     // まだ減算されていない場合は、これから失う枠（左端の点灯）を使う。
     return host?host.querySelector('.battle-life-heart-filled'):null;
   };
-  const life=_lostHeart(document.getElementById('battle-life-value'))||_lostHeart(document.getElementById('h-life'));
+  const life=_lostHeart(document.getElementById('battle-life-value'));
   if(life) life.classList.add('life-lost-cutin');
   try{
     const src=(typeof Assets!=='undefined'&&Assets.sfx&&Assets.sfx.lifeLost)||'assets/sfx/life_lost.wav';
