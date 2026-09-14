@@ -47,7 +47,8 @@ function _journeyNodeLabel(type,scene,idx){
     // 「大樹の抱く集落 エルム」のような街名は、半角スペースを消してその位置で改行する。
     return town.replace(/ +/g,'\n');
   }
-  if(type==='altar') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
+  // オンラインのステージ構成（サーバー）は祭壇ではなく tower で届く。名前は同じ「塔の名前」。
+  if(type==='altar'||type==='tower') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
   return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
 }
 // 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。

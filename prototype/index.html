@@ -11081,6 +11081,8 @@ html body.online-versus-active #enemy-area,
 html body.online-versus-active #ally-section{display:block!important}
 /* 対戦マスに制限時間は無い。次のマスの持ち時間は再生が終わってから始まる。 */
 html body.online-versus-active #online-rival-hud .orh-timer{display:none!important}
+/* デバッグオンラインで試験戦闘をしている間は、対戦の残り時間を出さない（利用者指定）。 */
+html body.test-battle-active #online-rival-hud .orh-timer{display:none!important}
 /* ══════════════════════════════════════════════════════════
    鍛冶屋のメニュー。道具屋（.item-shop-card）と同じ並び・同じ価格バッジで、
    カードの絵だけ b_board1〜5.svg に差し替える。
@@ -11730,7 +11732,7 @@ fitVesselboundViewport();
 <script src="js/engine/render.js?v=keywordPreview04"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
-<script src="js/engine/reward_journey.js?v=townNameBreak06"></script>
+<script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>
 <script src="js/engine/reward.js?v=removeBottomHud01"></script>
 <script src="js/engine/map.js?v=boardRename01"></script>
   <script src="js/engine/main.js?v=debugOnline02"></script>
