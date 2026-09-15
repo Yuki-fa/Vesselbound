@@ -653,6 +653,11 @@ function presentCreateDamageGate(labelDurationMs) {
 // 先に動き出していた**。オンライン側は最初から発生元を見ていた（片側だけの実装だった）。
 const PRESENT_PRE_ATTACK_EFFECT_TYPES = new Set(['effect_flash', 'damage', 'sweep_vfx', 'stat_change', 'summon',
   'mana_gain', 'mana_threshold']);
+function presentIsAttackManaGain(ev) {
+  if (!ev || ev.type !== 'mana_gain') return false;
+  const reason = String(ev.reason || '');
+  return reason === 'manaOnAttack' || reason.startsWith('attack_');
+}
 function presentPreAttackEffectOwnerId(ev) {
   const type = String((ev && ev.type) || '');
   if (!PRESENT_PRE_ATTACK_EFFECT_TYPES.has(type)) return null;
@@ -661,8 +666,7 @@ function presentPreAttackEffectOwnerId(ev) {
   // これを先出しの合図にすると、死亡後のマナ効果の再生中に次の攻撃が
   // 動き出して止まってしまうため、攻撃由来の mana_gain だけを対象にする。
   if (type === 'mana_gain') {
-    const reason = String(ev.reason || '');
-    if (reason !== 'manaOnAttack' && !reason.startsWith('attack_')) return null;
+    if (!presentIsAttackManaGain(ev)) return null;
   }
   // 通常攻撃・反撃のdamageは「攻撃前の効果」ではない。次の追加攻撃を
   // 前の一撃の接触ダメージ中に始めないため、効果ダメージだけを対象にする。
@@ -679,6 +683,28 @@ function presentPreAttackActorId(ev) {
   return presentPreAttackEffectOwnerId(ev);
 }
 
+// 効果イベントの途中（stat_change など）から計画を作る場合も、死亡でマナ→活性化の
+// 結果を攻撃前効果と誤認しない。直前の turn_begin / battle_start / attack まで戻って、
+// 攻撃開始の合図が無い mana_threshold の後にいるなら、その区間は先出し対象外にする。
+function presentPreAttackHasUnresolvedManaEffect(events, fromIndex) {
+  const list = Array.isArray(events) ? events : [];
+  const start = Math.min(list.length - 1, Math.max(0, Number(fromIndex) || 0));
+  let thresholdSeen = false;
+  for (let i = start; i >= 0; i--) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (i < start && (ev.type === 'turn_begin' || ev.type === 'battle_start'
+      || ev.type === 'attack' || ev.type === 'battle_end')) break;
+    if (ev.type === 'mana_threshold') {
+      thresholdSeen = true;
+      continue;
+    }
+    if (thresholdSeen && (ev.type === 'effect_flash' && String(ev.trigger || '') === 'attack')) return false;
+    if (thresholdSeen && presentIsAttackManaGain(ev)) return false;
+  }
+  return thresholdSeen;
+}
+
 // 現在位置から始まる「攻撃前の効果列」と、その直後のモーション付きattackを対応付ける。
 // コアのイベント順（効果 → attack）は変えない。各一撃の先頭でモーションだけを始め、
 // attackへ到達するまで途中停止させるための計画を返す。
@@ -689,9 +715,12 @@ function presentPreAttackPlan(events, fromIndex) {
   const current = list[start];
   const boundary = current && (current.type === 'turn_begin' || current.type === 'battle_start');
   if (!boundary && presentPreAttackActorId(current) == null) return null;
+  if (!boundary && presentPreAttackHasUnresolvedManaEffect(list, start)) return null;
   let actorId = null;
   let hasEffects = false;
   let hasAttackManaGain = false;
+  let manaEffectBlocked = false;
+  let attackEffectStarted = false;
   for (let i = boundary ? start + 1 : start; i < list.length; i++) {
     const ev = list[i];
     if (!ev) continue;
@@ -703,13 +732,51 @@ function presentPreAttackPlan(events, fromIndex) {
       }
       continue;
     }
+    if (ev.type === 'effect_flash' && String(ev.trigger || '') === 'attack') {
+      // 死亡でマナ→活性化持ち本人が次に攻撃すると、マナ効果より先に攻撃モーションが
+      // 動き出して止まるため、攻撃効果の始まりが明示された時だけ数え直す。
+      const owner = presentPreAttackEffectOwnerId(ev);
+      const sameActor = actorId != null && owner === actorId;
+      const wasManaEffectBlocked = manaEffectBlocked;
+      manaEffectBlocked = false;
+      attackEffectStarted = true;
+      if (wasManaEffectBlocked || !sameActor) {
+        actorId = owner;
+        hasEffects = false;
+        hasAttackManaGain = false;
+      }
+      continue;
+    }
+    if (presentIsAttackManaGain(ev)) {
+      const owner = presentPreAttackEffectOwnerId(ev);
+      const sameActor = actorId != null && owner === actorId;
+      const wasManaEffectBlocked = manaEffectBlocked;
+      manaEffectBlocked = false;
+      attackEffectStarted = false;
+      if (wasManaEffectBlocked || !sameActor) {
+        actorId = owner;
+        hasEffects = false;
+      }
+      hasAttackManaGain = true;
+      continue;
+    }
+    if (manaEffectBlocked) continue;
     const actor = presentPreAttackActorId(ev);
     if (actorId == null && actor != null) actorId = actor;
     const owner = presentPreAttackEffectOwnerId(ev);
     if (ev.type === 'mana_threshold') {
       // マナ効果そのものは攻撃前の合図にしない。直前に同じ攻撃者の
       // 攻撃由来 mana_gain があった場合だけ、その攻撃に続く効果として扱う。
-      if (actorId != null && hasAttackManaGain) hasEffects = true;
+      if (actorId != null && (hasAttackManaGain || attackEffectStarted)) hasEffects = true;
+      else {
+        // mana_threshold の stat_change / damage / summon 等を本人の攻撃効果と
+        // 数えない。利用者報告の「死亡でマナ→活性化→本人攻撃」の先出しを防ぐ。
+        manaEffectBlocked = true;
+        actorId = null;
+        hasEffects = false;
+        hasAttackManaGain = false;
+        attackEffectStarted = false;
+      }
     // effect_flash だけで終わった攻撃効果は「実際には不発」。
     // 対象不在のワーム／センチネル等で踏み込み停止を出さない。
     } else if (ev.type !== 'effect_flash' && actorId != null && owner === actorId) {

@@ -113,9 +113,35 @@ function _optionDelete(){if(_optionDeleteKind==='run')SaveRun?.deleteRunSave();e
 function _optionSave(){_optionSaved={..._optionDraft};_optionWrite(_optionSaved);_optionSfx('uiConfirm');_optionRender();}
 function _optionReturnTitle(){
   if(document.getElementById('scr-title')?.classList.contains('active')){_optionClose(true);return;}
+  // タイトルへ戻る前に、戦闘の非同期処理と演出を同じ既存経路で打ち切る。
+  // abortBattleForDebug() は名前に反して、走っている戦闘を即時停止する唯一の実装。
+  const g=typeof G!=='undefined'&&G?G:null;
+  const battleScreen=document.getElementById('scr-battle');
+  const battleActive=!!(g&&(
+    g._battlePhaseRunning||g.phase==='battle'||g.phase==='player'||g.phase==='enemy'||
+    g._battleVictoryPending||g._battlePresentationPlaying
+  ))||!!(typeof window!=='undefined'&&window.__VB_BATTLE_PRESENTATION_PLAYING)||
+    !!document.getElementById('battle-start-intro')||
+    !!(battleScreen&&battleScreen.classList.contains('active'))||
+    document.body.classList.contains('battle-victory-pending');
+  const onlineActive=!!(g&&(g._onlineMode||g._debugOnline))||
+    !!(typeof window!=='undefined'&&window.__VB_BATTLE_PRESENTATION_PLAYING)||
+    document.body.classList.contains('online-mode-active')||document.body.classList.contains('online-versus-active');
+  if(battleActive){
+    if(typeof abortBattleForDebug==='function')abortBattleForDebug();
+    if(typeof _forceStopAllVfx==='function')_forceStopAllVfx();
+    if(typeof setBattlePresentationPlaying==='function')setBattlePresentationPlaying(false);
+    // 開戦カットイン等の残骸は、VFX共通停止経路で消す。念のため要素が残った場合も除去する。
+    document.getElementById('battle-start-intro')?.remove();
+    if(g)g.phase=null;
+    if(typeof renderManaHud==='function')renderManaHud();
+  }
+  if(onlineActive&&typeof exitOnlineMode==='function')exitOnlineMode();
   _optionSave();_optionClose(false);if(typeof closeGameOverOverlay==='function')closeGameOverOverlay();
   if(typeof G!=='undefined'&&G){G._villageBgmActive=false;if(typeof _applyFacilityAmbience==='function')_applyFacilityAmbience(null);}
-  if(typeof stopEveryBgmLayer==='function')stopEveryBgmLayer(250);if(typeof stopBgm==='function')stopBgm(250);
+  // 停止はshowScreen()より前に行い、playBgm()と同じ即時停止にする。
+  // 旧BGMのフェードを残すと、タイトルBGMとの切り替え直後に音が重なるため。
+  if(typeof stopEveryBgmLayer==='function')stopEveryBgmLayer(250);if(typeof stopBgm==='function')stopBgm(0);
   if(typeof showScreen==='function')showScreen('title');else if(typeof returnToTapStart==='function')returnToTapStart();
 }
 // つまみの中心は溝の幅の 0〜100% に置いている（_optionRender）。値もその幅で決める。

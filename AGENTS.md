@@ -1,4 +1,5 @@
 すべての思考・回答・コメントは日本語で行うこと。
+**利用者への報告・途中経過の一言・最終回答も必ず日本語。** 会話の要約（コンテキスト圧縮）の後や、英語の指示書・ツール出力を読んだ直後にも英語へ切り替えないこと（実際に報告が英語になっていた。利用者指摘 2026-09-16）。
 
 # AGENTS.md
 
@@ -1861,6 +1862,11 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 マナ効果の持ち主がそのまま次に攻撃する時、マナ効果で得たマナ（`mana_gain` reason=`mana_threshold`）と `mana_threshold` を「攻撃前の効果」と数え、
 モーションを先出しして途中で止めていた。**攻撃前の合図にする `mana_gain` は攻撃由来（`manaOnAttack`・`attack_…`）だけ**、
 `mana_threshold` はその攻撃由来のマナが先にあった時だけにした（死亡の `death_text_mana`／`manaOnDeath` 等やマナ効果のマナは合図にしない）。
+**これだけでは直っていなかった（利用者再報告）**：死亡でマナ→**活性化**（強化カードのマナ効果）持ち本人が次に攻撃する場合、
+マナ効果の**結果**（`stat_change` sourceId=本人、ほかに効果ダメージ・召喚・keyword_effect も sourceId=本人・reason 無しで出る）が本人の攻撃前効果と数えられていた
+（実測 攻撃モーション 2573ms → マナ効果 2834ms）。**攻撃由来でない `mana_threshold` の後は、攻撃効果の始まり（`effect_flash` trigger=attack／攻撃由来 `mana_gain`）が来るまで数えない**。
+効果イベントの途中から計画を作る時も、同じ区間を遡って同じ判定をする（`presentPreAttackHasUnresolvedManaEffect`）。reason だけで判定しないこと。
+修正後の実測：マナ効果 2564〜2764ms → 攻撃モーション 3561ms。再現はゾンビ（前衛・HP2）を敵が攻撃して倒し、活性化持ちオーク（後衛）が次に攻撃する盤面。
 
 **ゲームオーバー画面の結果の行（2026-09-16、利用者指定）**：項目名（`.gameover-rows`）は `#8b7c67`、値（`.gameover-rows span`）は `#a99e8f`。
 
@@ -2628,6 +2634,9 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    **共有規則が `position:relative!important` なので、下の3つは `#options-layer .options-bottom #options-…{position:absolute!important}` で横一列に固定している。**
    「実行」は262×62だけが反応し、ホバーはカード非表示ボタンと同じ。音量は range 入力をやめたポインタ操作（端でもつまみを掴める。値が変わって離した時に uiConfirm）。
    「タイトルに戻る」はラン中なら環境音・BGMを止めて `showScreen('title')`（タイトルBGMに切り替わる）、タイトル画面では閉じるだけ。
+   **戦闘中（開戦カットイン・勝利待ちを含む）は、先に `abortBattleForDebug()`（戦闘の世代番号を進めて非同期処理を打ち切る唯一の実装）→ `_forceStopAllVfx()` → 演出中フラグを下ろし `G.phase=null` → `renderManaHud()`、オンラインなら `exitOnlineMode()`**。
+   以前は画面だけ切り替えていたため、**タイトルの裏で戦闘が続き、右上に旧マナ表示（`#mana-hud`、phase が battle のまま）が出て、BGM の停止フェードとタイトルBGMが競合して鳴らなかった**（利用者報告）。BGM は `stopBgm(0)` で即時停止してから切り替える。
+   確認（ヘッドレス、本物のクリック）：編成画面から／試験戦闘中から タイトル画面・旧マナ表示なし・`_bgmKey=gameTitle`、その後の試験戦闘も進行（`startBattle()` が `_debugFormationAbort` を戻す）。
    一時停止中もクリックの波紋・オプション画面自身・右上のボタンの発光は止めない。
    右上のオプションボタンはムービー中（`body.cutscene-video-active`：_playOpeningMovie／_playDepartureMovie／_playCutsceneMovieToBlack）とマップ画面（`#scr-map`／`body.world-map-active`）では出さない。
    **左下のボタン**：何も変えていない時は「戻る」（オプションの「戻る」ボタン、青＝button_blue1.svg、押すと閉じる。**ホバーの発光は「元に戻す」と同じ強さ・同じ色で、光の層だけ button_brown2.svg から作る**。発光は画像自体を明るくするので、青の画像だと青っぽい光になっていた）、変えた時は「保存して戻る」（オプションの「保存して戻る」ボタン、茶金、保存して閉じる）。
