@@ -4,18 +4,21 @@
   <defs>
     <style>
       .st0 {
-        fill: url(#_名称未設定グラデーション_2371);
+        fill: url(#_名称未設定グラデーション_2);
       }
 
       .st1 {
-        fill: url(#_名称未設定グラデーション_237);
+        fill: url(#_名称未設定グラデーション);
       }
     </style>
-    <radialGradient id="_名称未設定グラデーション_237" data-name="名称未設定グラデーション 237" cx="250" cy="104" fx="250" fy="104" r="456.8" gradientTransform="translate(283.1 350.2) rotate(-89.6) scale(1 -.3)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="-2386.4" cy="6663" fx="-2386.4" fy="6663" r="456.8" gradientTransform="translate(-5005.4039 -2323.1101) rotate(-89.6) scale(1 .7918)" gradientUnits="userSpaceOnUse">
       <stop offset=".6" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#3f2800"/>
     </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_2371" data-name="名称未設定グラデーション 237" r="447.3" gradientTransform="translate(288 350.2) rotate(-89.6) scale(1 -.4)" xlink:href="#_名称未設定グラデーション_237"/>
+    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="-2386.4" cy="5266.5" fx="-2386.4" fy="5266.5" r="447.3" gradientTransform="translate(-4293.1228 -2318.1715) rotate(-89.6) scale(1 .8655)" gradientUnits="userSpaceOnUse">
+      <stop offset=".6" stop-color="#bf9000"/>
+      <stop offset="1" stop-color="#3f2800"/>
+    </radialGradient>
   </defs>
   <path class="st1" d="M500,200V0H0v200h500ZM1.8,1.8h496.3v196.4H1.8V1.8h0Z"/>
   <path class="st0" d="M495.7,195.7V4.3H4.3v191.4h491.4ZM6.1,6.1h487.8v187.9H6.1V6.1h0Z"/>
