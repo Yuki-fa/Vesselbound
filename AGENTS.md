@@ -1837,6 +1837,29 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 本番の通信サーバーへ置き換える時は、このNPC即時準備とNPC同士の代理決着だけを
 サーバー側の実際の準備状態・試合結果へ差し替える。戦闘コアと再生規則は変更しない。
 
+### 文字色・文字サイズの整理（2026-09-15、利用者指定の範囲だけ）
+
+**マナ効果の見出しの色は専用の指定を持たない（2026-09-15、利用者指定で元に戻した）。**
+cbc62b3 で `.effect-trigger-label.trigger-mana{color:#879fb8}` を足したが削除し、以前と同じく `#kw-tooltip strong` の `#fff2c8` を継ぐ。
+（ヘッドレスで cbc62b3 の前の版を描いて確認：ダイアウルフの「毎」＝#fff2c8、比較用のノームの「終戦」＝当時の #a0a0a0 と一致。）
+他の7色（開戦 #b3ada4／解放 #aa919f／攻撃 #b59f75／負傷 #bc8b82／死亡 #8fa3ad／常時 #9aa58f／終戦 #9b9690）はそのまま。
+
+見た目を変えずに「同じ値の別表記」「後段に完全上書きされた死んだ指定」を減らした。**近いという理由だけで他の色・サイズを統合しないこと。**
+- 直書きの文字色を同値の変数へ（`color:` だけ。背景・border・影・グラデーション内の同じ16進数は対象外）：
+  `#d8b982`→`var(--prod-gold)` 7件、`#f0d080`→`var(--gold2)` 7件、`#9098b0`→`var(--text2)` 3件（3変数とも :root で1回だけ定義）。
+- `#ffffff`→`#fff`（`#kw-tooltip.rarity-1 .preview-title`）。`#efe4c6`→`#f4e7c8`（`.village-facility-desc`・`#library-howto-desc`。**ここだけ意図した見た目の変化**）。
+- オプションのスライダー数値 36px→35px（**意図した変化**）。
+- オプション画面前段の死んだ `color:` 7件（.options-title／heading／item／current／choice／slider .number／action）と、
+  死んだ `font-size:` 5件（#options-confirm-title・-message・-actions button、.options-action、.options-bottom button）を削除。
+  `.options-current-title` の色は後段の上書き対象外なので残す（変数化）。
+- **残した死んだ指定**：`#options-revert`・`#options-title`・`#options-confirm-cancel` の `color:#d8b982`（後段の共有規則 `color:var(--prod-gold)!important` に上書き。
+  「表示に使われているもの」だけ変数化する指示のため触っていない）、`#options-panel .options-action{font-size:28px}`（消すと空の規則が残る）。
+- 変わらない役割の色・サイズ（本文 #a99e8f、弱い文字 #8b7c67、二次本文 #a58768、構造色 #c49a6c、キーワード #f0d080、#fff2c8、#fff8e8、ATK/HP、レアリティ色、
+  効果タイミングの色（開戦・解放・攻撃・負傷・死亡・常時・終戦の7色）、HUD 30px/46px、本文35px、ボタン44px、#btn-pass 41px、カード固有サイズ）と `run-resume-overlay` は対象外。
+- 確認：コミット f7f4284 を 5510 番で出し、作業ツリー（5500）と計算済みスタイルを比較。
+  オプション画面・削除確認2種・Common ツールチップ等は scratchpad の比較で想定外の差0、`style_state_diff.js` の全状態も #efe4c6→#f4e7c8 と 36px→35px 以外の差なし。
+  オプション画面・削除確認は `style_state_diff.js` の状態に入っていないので、オプションの CSS を触る時は別に確かめること。
+
 ### 未解決
 
 #### 直近の利用者報告（2026-09-04時点）

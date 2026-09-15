@@ -211,7 +211,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   font-family:'Shippori Mincho',var(--font-hd),serif!important;
   font-size:48px!important;
   letter-spacing:.12em!important;
-  color:#f0d080!important;
+  color:var(--gold2)!important;
   text-shadow:0 5px 7px #160d03,0 0 20px rgba(255,212,106,.62)!important;
 }
 .battle-start-icon{
@@ -4456,7 +4456,7 @@ html body.dragging-in-battle #hand-slots.board-slots > .card.dragging:not(.rewar
   padding-bottom:6px!important;
 }
 /* ツールチップ1行目（カード名）もレアリティに応じて色付けする */
-#kw-tooltip.rarity-1 .preview-title{color:#ffffff!important}
+#kw-tooltip.rarity-1 .preview-title{color:#fff!important}
 #kw-tooltip.rarity-2 .preview-title{color:#5ea6ff!important}
 #kw-tooltip.rarity-3 .preview-title{color:#ffd93d!important}
 #kw-tooltip.rarity-4 .preview-title{color:#c07bff!important}
@@ -5494,7 +5494,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-rotate{
   height:34px;
   border:1px solid rgba(183,143,82,.55);
   background:rgba(20,10,30,.72);
-  color:#d8b982;
+  color:var(--prod-gold);
   font-size:15px;
   cursor:var(--cursor-normal);
 }
@@ -5504,7 +5504,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-kind{
 html body.reward-screen-active #debug-card-palette .debug-palette-kind.active,
 html body.reward-screen-active #debug-card-palette .debug-palette-rotate:hover{
   border-color:#f2d49a;
-  color:#f0d080;
+  color:var(--gold2);
   box-shadow:0 0 10px rgba(242,212,154,.32);
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-list{
@@ -5524,7 +5524,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-item{
   border:1px solid rgba(183,143,82,.35);
   padding:8px;
   cursor:var(--cursor-normal);
-  color:#d8b982;
+  color:var(--prod-gold);
   box-sizing:border-box;
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-item:hover{
@@ -5562,7 +5562,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-label{
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-no{
   display:block;
-  color:#9098b0;
+  color:var(--text2);
   font-size:16px;
 }
 html body.reward-screen-active #debug-card-palette .debug-palette-card .card-summon-atk,
@@ -7285,7 +7285,7 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card .card-sum
   background:rgba(35,19,10,.97)!important;border-color:#c49a6c!important;
   box-shadow:0 0 18px rgba(196,154,108,.38),0 8px 24px rgba(0,0,0,.75)!important;
 }
-#keyword-tooltip strong{color:#f0d080!important}
+#keyword-tooltip strong{color:var(--gold2)!important}
 /* 特殊マスの境界線をカード・キャラクター描画より前面に固定 */
 html body #hand-slots.board-slots > [data-map-board="summon"],
 html body #hand-slots.board-slots > [data-map-board="life"],
@@ -7981,7 +7981,7 @@ html body.reward-screen-active .shop-board-sell-action{
 }
 .battle-counter{position:relative;width:250px;height:100px;box-sizing:border-box;display:grid;place-items:center;border:25px solid transparent;border-image-source:url("assets/ui/counter.svg?v=back50");border-image-slice:12 fill;border-image-width:25px;border-image-outset:0;border-image-repeat:stretch;filter:drop-shadow(0 4px 9px rgba(0,0,0,.72))}
 .battle-counter-bg{display:none}
-.battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Shippori Mincho",serif;font-size:46px;font-weight:700;color:#f0d080;text-shadow:0 3px 7px #080300}
+.battle-counter-content{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:24px;min-width:88%;height:100%;font-family:"Shippori Mincho",serif;font-size:46px;font-weight:700;color:var(--gold2);text-shadow:0 3px 7px #080300}
 .battle-counter-icon{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(112,206,255,.7))}
 #battle-sacrifice-value{min-width:48px;text-align:left}
 #battle-status-hud{position:absolute!important;left:70px!important;bottom:70px!important;z-index:3200!important;display:none;gap:36.4px;align-items:center;pointer-events:none!important}
@@ -8082,7 +8082,7 @@ html body #scr-battle #battle-options-btn{
 #battle-continue-panel{position:absolute!important;left:50%!important;top:calc(56% + 420px)!important;transform:translateX(-50%)!important;display:flex;flex-direction:column;align-items:center;pointer-events:auto;width:420px;height:162px}
 /* fix_backはボタンの兄弟レイヤーとして固定し、必ずボタンの背面に置く。 */
 #battle-continue-panel .battle-continue-back{position:absolute;inset:0;background:url("assets/ui/back_light.svg") center/100% 100% no-repeat;opacity:.78;filter:drop-shadow(0 0 10px rgba(255,222,135,.48));z-index:0;pointer-events:none;transition:opacity .16s ease,filter .16s ease}
-#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:#d8b982;font-family:"Shippori Mincho",serif;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
+#battle-continue-btn{position:absolute;inset:0;z-index:1;isolation:isolate;width:100%;height:100%;padding:0;border:0;background:transparent;color:var(--prod-gold);font-family:"Shippori Mincho",serif;font-weight:700;letter-spacing:.12em;text-shadow:0 3px 5px #000;cursor:var(--cursor-normal)}
 #battle-continue-btn img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:drop-shadow(0 5px 9px rgba(0,0,0,.9));z-index:1}
 #battle-continue-btn .battle-continue-label{position:relative;z-index:2;display:block;line-height:162px}
 #battle-continue-panel:hover .battle-continue-back{opacity:1;filter:brightness(1.3) drop-shadow(0 0 18px rgba(255,222,135,.9))}
@@ -9678,7 +9678,7 @@ html body.gameover-active .gameover-rows>div>span{
   font-weight:700!important;
   letter-spacing:.12em!important;
   line-height:1!important;
-  color:#d8b982!important;
+  color:var(--prod-gold)!important;
   text-shadow:0 2px 8px rgba(0,0,0,.85)!important;
 }
 /* 説明文：文字は小さく、背後のグラデーションはテキストより少し長めに取る。
@@ -9701,7 +9701,7 @@ html body.gameover-active .gameover-rows>div>span{
   font-weight:600!important;
   letter-spacing:.04em!important;
   line-height:1.2!important;
-  color:#efe4c6!important;
+  color:#f4e7c8!important;
   text-shadow:0 3px 7px #080300!important;
   padding:7px 132px!important;
   background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%)!important;
@@ -9712,8 +9712,8 @@ html body.gameover-active .gameover-rows>div>span{
 .village-facility.village-facility-disabled{cursor:var(--cursor-normal)!important}
 .village-facility.village-facility-disabled::before{filter:grayscale(.7) brightness(.62)!important}
 .village-facility.village-facility-disabled:hover::before{filter:grayscale(.7) brightness(.62)!important}
-.village-facility.village-facility-disabled .village-facility-name{color:#9098b0!important}
-.village-facility.village-facility-disabled:hover .village-facility-name{color:#9098b0!important}
+.village-facility.village-facility-disabled .village-facility-name{color:var(--text2)!important}
+.village-facility.village-facility-disabled:hover .village-facility-name{color:var(--text2)!important}
 /* 所持金／ライフ：戦闘画面の #battle-status-hud と同じ位置・同じ寸法（.battle-status-counter を共用） */
 #village-status,
 #map-status{
@@ -10715,9 +10715,9 @@ html body:not(.library-screen-active) #scr-village #library-exit-btn{display:non
 #library-title img{width:225px;height:237px;object-fit:contain}
 #library-title span{font-size:86px;font-weight:700;letter-spacing:.08em;white-space:nowrap;text-shadow:0 3px 10px rgba(0,0,0,.85),0 0 18px rgba(160,92,255,.45)}
 #library-actions{position:absolute;inset:0;display:none;z-index:8;pointer-events:none}
-#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:#d8b982;font-family:"Shippori Mincho",serif;font-size:44px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal);pointer-events:auto}
+#library-howto-btn{position:absolute;left:1625px;top:1065px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;color:var(--prod-gold);font-family:"Shippori Mincho",serif;font-size:44px;font-weight:700;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal);pointer-events:auto}
 #library-howto-btn:hover{filter:brightness(1.55) drop-shadow(0 0 16px rgba(120,190,240,.6));color:#fff2c8}
-#library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#efe4c6;font-family:"Shippori Mincho",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
+#library-howto-desc{position:absolute;left:1625px;top:1203px;width:498px;box-sizing:border-box;padding:7px 0;color:#f4e7c8;font-family:"Shippori Mincho",serif;font-size:28px;font-weight:600;line-height:1.2;letter-spacing:.04em;text-align:center;text-shadow:0 3px 7px #080300;background:linear-gradient(90deg,rgba(6,10,18,0) 0%,rgba(6,10,18,.62) 26%,rgba(6,10,18,.62) 74%,rgba(6,10,18,0) 100%);pointer-events:none;opacity:0;transition:opacity .16s ease-out}
 #board-card-visibility-btn{display:none;position:absolute;right:0;top:0;width:262px;height:62px;box-sizing:border-box;padding:0;white-space:nowrap;border:0;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat;font-family:"Shippori Mincho",serif;font-size:24px;font-weight:700;letter-spacing:.07em;line-height:1;cursor:var(--cursor-normal);z-index:40;align-items:center;justify-content:center}
 html body.reward-screen-active #board-card-visibility-btn{display:inline-flex}
 /* ゲームオーバー画面の魔導板（#hand-paneの複製）にも同じボタンを出す。
@@ -11006,7 +11006,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   position:absolute!important;width:269px!important;height:100px!important;
   box-sizing:border-box!important;display:flex!important;align-items:center!important;justify-content:center!important;
   font-family:"Shippori Mincho",serif!important;
-  font-size:30px!important;font-weight:700!important;color:#f0d080!important;
+  font-size:30px!important;font-weight:700!important;color:var(--gold2)!important;
   text-shadow:0 3px 7px #080300!important;white-space:nowrap!important;
   z-index:8000!important;
   /* ホバーでライフを出すため、枠だけは入力を拾う（HUD全体は pointer-events:none のまま）。 */
@@ -11026,7 +11026,7 @@ html body.online-waiting #reward-move-btns .rew-reset-btn{opacity:.55!important;
   height:100%!important;z-index:1!important;display:flex!important;align-items:center!important;justify-content:center!important;
   line-height:30px!important;text-align:center!important;transform:none!important;box-sizing:border-box!important;
   font-family:"Shippori Mincho",serif!important;
-  font-size:30px!important;font-weight:700!important;color:#f0d080!important;text-shadow:0 3px 7px #080300!important;
+  font-size:30px!important;font-weight:700!important;color:var(--gold2)!important;text-shadow:0 3px 7px #080300!important;
 }
 /* ホバー時だけライフを出す。 */
 #online-rival-hud .orh-life{display:none;position:relative;z-index:1;font-size:30px}
@@ -11378,16 +11378,16 @@ body.run-resume-active #battle-options-btn{display:none!important}
 #options-close-proxy{position:absolute;right:96px;top:58px;width:112px;height:112px;border:0;border-radius:0;background:url("assets/ui/option_close.svg") center/42px 42px no-repeat,url("assets/ui/button_option.svg") center/100% 100% no-repeat;background-color:transparent;z-index:4;cursor:var(--cursor-normal);box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)}
 #options-panel{position:absolute;left:915px;top:235px;width:2010px;height:1500px;background:url("assets/ui/option.svg") center/100% 100% no-repeat;z-index:1}
 #options-panel button{font:inherit;color:inherit;border:0;background:transparent}
-.options-title{position:absolute;top:46px;left:0;width:100%;text-align:center;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;color:#f4e7c8;text-shadow:0 2px 8px rgba(0,0,0,.85)}
+.options-title{position:absolute;top:46px;left:0;width:100%;text-align:center;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85)}
 .options-title::before,.options-title::after{content:"";display:inline-block;width:250px;height:3px;margin:0 34px .32em;background:url("assets/ui/line.png") center/100% 100% no-repeat}
 .options-heading,.options-item{position:absolute;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.85);white-space:nowrap}
-.options-heading{left:108px;font-size:40px;font-weight:700;color:#d8b982}
-.options-item{left:208px;font-size:40px;color:#c49a6c}
+.options-heading{left:108px;font-size:40px;font-weight:700}
+.options-item{left:208px;font-size:40px}
 .options-line{position:absolute;left:105px;width:1800px;height:2px}
 .options-line.item{left:205px;width:1600px}
-.options-current-title{position:absolute;left:1450px;top:108px;width:346px;text-align:center;font-size:28px;color:#d8b982}
-.options-current{position:absolute;left:1450px;width:346px;text-align:center;font-size:28px;color:#c49a6c}
-.options-choice{position:absolute;left:0;width:100%;display:flex;align-items:center;justify-content:center;height:70px;font-size:42px;color:#f4e7c8}
+.options-current-title{position:absolute;left:1450px;top:108px;width:346px;text-align:center;font-size:28px;color:var(--prod-gold)}
+.options-current{position:absolute;left:1450px;width:346px;text-align:center;font-size:28px}
+.options-choice{position:absolute;left:0;width:100%;display:flex;align-items:center;justify-content:center;height:70px;font-size:42px}
 .options-choice button{position:absolute;width:70px;height:70px;background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat;cursor:var(--cursor-normal)}
 .options-choice .prev{left:760px;transform:scaleX(-1)}
 .options-choice .next{left:1179px}
@@ -11404,14 +11404,14 @@ body.run-resume-active #battle-options-btn{display:none!important}
 .options-slider .thumb{position:absolute;top:50%;width:58.49px;height:58.49px;transform:translate(-50%,-50%);pointer-events:none;z-index:1}
 .options-slider .thumb.green{background:url("assets/ui/thumb_green.svg") center/100% 100% no-repeat}
 .options-slider .thumb.red{background:url("assets/ui/thumb_red.svg") center/100% 100% no-repeat}
-.options-slider .number{position:absolute;left:595px;width:150px;text-align:right;font-size:36px;color:#f4e7c8}
-.options-action{position:absolute;left:0;width:100%;height:62px;background:url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;font-size:28px;color:#d8b982!important;cursor:var(--cursor-normal)}
+.options-slider .number{position:absolute;left:595px;width:150px;text-align:right;font-size:35px}
+.options-action{position:absolute;left:0;width:100%;height:62px;background:url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;cursor:var(--cursor-normal)}
 .options-action:hover:not(:disabled){filter:brightness(1.5) drop-shadow(0 0 10px rgba(255,231,164,.8))}
 .options-action:disabled{opacity:.28;pointer-events:none}
 /* 「データ管理」の見出し（top:1139px・高さ40px）と縦の中心を揃え、見出しの右に置く（見本 X≈1261＝枠からの相対346px）。 */
 .options-note{position:absolute;left:346px;top:1159px;transform:translateY(-50%);width:auto;white-space:nowrap;font-size:24px;line-height:1;color:#8b7c67;text-align:left}
 .options-bottom{position:absolute;top:1805px;left:0;width:100%;height:122px;z-index:2}
-.options-bottom button{position:absolute;top:0;width:494.5px;height:122px;font-size:44px;font-weight:700;letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal)}
+.options-bottom button{position:absolute;top:0;width:494.5px;height:122px;font-weight:700;letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal)}
 #options-save{left:1145px;background:url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;color:#f4e7c8;box-shadow:0 0 14px 2px rgba(255,218,125,.32)}
 #options-save:hover{box-shadow:0 0 20px 5px rgba(255,218,125,.56)}
 #options-revert{left:1672.75px;background:url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;color:#d8b982}
@@ -11420,10 +11420,10 @@ body.run-resume-active #battle-options-btn{display:none!important}
 #options-confirm-layer.is-open{display:block}
 #options-confirm-shade{position:absolute;inset:0;background:rgba(0,0,0,.4)}
 #options-confirm-box{position:absolute;left:920px;top:560px;width:2000px;height:760px;background:url("assets/ui/main_left.svg") center/100% 100% no-repeat;text-align:center;color:#f4e7c8}
-#options-confirm-title{margin-top:150px;font-size:48px;font-weight:700}
-#options-confirm-message{margin:48px auto 0;width:1300px;font-size:30px;white-space:pre-wrap}
+#options-confirm-title{margin-top:150px;font-weight:700}
+#options-confirm-message{margin:48px auto 0;width:1300px;white-space:pre-wrap}
 #options-confirm-actions{display:flex;justify-content:center;gap:35.056px;margin-top:110px}
-#options-confirm-actions button{width:494.5px;height:122px;font-size:30px;font-weight:700;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
+#options-confirm-actions button{width:494.5px;height:122px;font-weight:700;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
 #options-confirm-delete{background-image:url("assets/ui/button_red.svg")!important;color:#f4e7c8}
 #options-confirm-cancel{background-image:url("assets/ui/button_brown2.svg")!important;color:#d8b982}
 body.options-open .screen>button[id$="options-btn"]{z-index:4200!important}
@@ -11437,7 +11437,7 @@ body.options-open .screen-options-btn::before{animation-play-state:running!impor
 /* オプションの文字色は魔導板の設計色に合わせる。ID付きの既存規則より強くする。 */
 #options-layer .options-title,#options-layer #options-confirm-title{color:#c49a6c!important}
 #options-layer .options-item,#options-layer .options-current,#options-layer .options-choice,#options-layer .options-slider .number{color:#8b7c67!important}
-#options-layer .options-heading{color:#d8b982!important}
+#options-layer .options-heading{color:var(--prod-gold)!important}
 
 /* 実行ボタンはカード非表示ボタンと同じ外周線だけのホバー。 */
 #options-layer .options-action{left:calc(50% - 131px)!important;width:262px!important;height:62px!important;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;font-size:28px!important;color:#c49a6c!important;filter:none!important}
@@ -12434,7 +12434,7 @@ html body #kw-tooltip .preview-owned-keywords,
 html body #kw-tooltip .preview-owned-keywords strong,
 html body #kw-tooltip .preview-keyword,
 html body #kw-tooltip .journey-keyword-descriptions strong{
-  color:#f0d080!important;
+  color:var(--gold2)!important;
 }
 /* 効果タイミングは種類ごとの色で表示する。本文色は変更しない。 */
 html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-opening{color:#b3ada4!important}
@@ -12443,7 +12443,6 @@ html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-atta
 html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-injury{color:#bc8b82!important}
 html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-death{color:#8fa3ad!important}
 html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-passive{color:#9aa58f!important}
-html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-mana{color:#879fb8!important}
 html body :is(#kw-tooltip,#map-power-tooltip) .effect-trigger-label.trigger-ending{color:#9b9690!important}
 /* 「：」の位置はマナ効果（アイコンのラベル）以外の全行で揃える。
    幅は render.js の _initPreviewLabelAlign() が説明枠ごとに最長ラベルを測って --preview-label-w へ入れる。
