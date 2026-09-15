@@ -137,6 +137,7 @@
   // 演出側の陣営名。p1（自分）が味方、p2（相手）が敵。
   const _fxSide = side => (side === 'p1' ? 'ally' : 'enemy');
   const _sleep = ms => {
+    // 速度判定は速度倍率を読む唯一の入口で更新する（PvEと共通）。
     const speed = typeof getBattlePresentationSpeedScale === 'function'
       ? getBattlePresentationSpeedScale() : 1;
     return new Promise(r => setTimeout(r, Math.max(0, Number(ms) || 0) / speed));
@@ -397,6 +398,9 @@
     };
     G.allies = new Array(MAX_SLOTS).fill(null);
     G.enemies = new Array(MAX_SLOTS).fill(null);
+    // オンラインはPvEの startBattle() を通らないため、速度関連の戦闘状態だけは
+    // 共通初期化関数で揃える。盤面は BATTLE_START でサーバー確定値を入れる。
+    if (typeof initializeBattlePresentationState === 'function') initializeBattlePresentationState();
     // 通常の戦闘画面と同じ状態にする。編成画面用の表示は body.online-versus-active 側の
     // CSSでまとめて隠すので、ここで個々の要素の display は触らない
     // （触ると編成画面へ戻った時に元へ戻す責任がこちらに移ってしまう）。
@@ -640,6 +644,7 @@
         break;
       }
       case ONLINE_EVENT.ATTACK: {
+        if (typeof presentRecordAttackEvent === 'function') presentRecordAttackEvent(ev);
         if (ev.attackVisual === false) break;
         if (_preAttack && _preAttack.ev === ev) {
           // 効果より前に始めておいたモーション。ここで接触まで進める。
@@ -716,10 +721,19 @@
         break;
       }
       case 'gold_gain': {
-        if (ev.side === 'p1' && typeof G !== 'undefined' && G) {
-          G.gold = Math.max(0, Number(G.gold) || 0) + Math.max(0, Number(ev.amount) || 0);
+        if (ev.side === 'p1' && typeof presentGoldGainEvent === 'function') {
+          await presentGoldGainEvent(ev, {
+            findUnit: (side, id) => _find(side, id),
+            getVisualRect: (ev0, source) => ev0.lastVisualRect
+              || source._lastVisualRect
+              || (ctx.goldVisualRects && ctx.goldVisualRects.get(`${ev0.side}:${ev0.unitId}`))
+              || null,
+            applyGold: amount => {
+              if (typeof G !== 'undefined' && G) G.gold = Math.max(0, Number(G.gold) || 0) + amount;
+            },
+            updateHud: () => { if (typeof updateHUD === 'function') updateHUD(); },
+          });
         }
-        if (typeof updateHUD === 'function') updateHUD();
         break;
       }
       case 'gold_spend': {
@@ -1107,6 +1121,15 @@
         break;
       }
       case ONLINE_EVENT.DEATH: {
+        // gold_gain が死亡した発生元を指す場合も、死亡前の位置から同じS003を出せるよう
+        // 共通ゴールド演出へ最後の矩形を引き継ぐ。
+        const dead = _find(ev.side, ev.unitId);
+        if (dead && ctx.goldVisualRects && typeof _captureUnitEffectRect === 'function') {
+          const rect = _captureUnitEffectRect(dead, _fxSide(ev.side));
+          if (rect && rect.width > 0 && rect.height > 0) {
+            ctx.goldVisualRects.set(`${ev.side}:${ev.unitId}`, { ...rect });
+          }
+        }
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         // 焼失演出は renderField が死亡ユニットに対して自分で流す。
         // **同じ瞬間に倒れた分はまとめて1回で見せる**（判定は present.js。PvEと同じ）。

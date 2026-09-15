@@ -51,6 +51,7 @@ const ONLINE_PLAYBACK_WAIT_MS = {
 };
 
 function _onlineSleep(ms) {
+  // 速度判定は速度倍率を読む唯一の入口で更新する（PvEと共通）。
   const speed = typeof getBattlePresentationSpeedScale === 'function'
     ? getBattlePresentationSpeedScale() : 1;
   const wait = Math.max(0, Number(ms) || 0) / speed;
@@ -130,6 +131,7 @@ async function playOnlineBattleEvents(result, handlers) {
     visualizedDamageEvents: new Set(),
     itemRewards: [],
     bonusRewards: [],
+    goldVisualRects: new Map(),
     unitById(id) {
       return board.p1.find(u => u.id === id) || board.p2.find(u => u.id === id) || null;
     },

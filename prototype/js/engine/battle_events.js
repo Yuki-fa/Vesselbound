@@ -8,6 +8,13 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   finally{
     presentEndPlayback();
     G._battleEventPlaybackDepth=Math.max(0,(Number(G._battleEventPlaybackDepth)||1)-1);
+    // 死亡中の requestBattleCompact() は、後続のダメージ数値・VFXを旧DOMへ
+    // 出し切るため保留される。攻撃モーション終了側が先に来ても直描きせず、
+    // この再生終了後の共通入口でFLIP用の旧矩形を取って詰める。
+    if(!G._battleEventPlaybackDepth&&!presentIsPlaying()&&G._pendingBattleCompact
+      &&typeof requestBattleCompact==='function'){
+      requestBattleCompact({forceRender:true});
+    }
     if(!G._battleEventPlaybackDepth&&G._battleVictoryCheckPending){
       G._battleVictoryCheckPending=false;
       if(typeof _livingCombatUnits==='function'&&!_livingCombatUnits(G.enemies).length){
@@ -469,6 +476,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(_isPlayableAttack){
+      if(typeof presentRecordAttackEvent==='function') presentRecordAttackEvent(e);
       // ミノタウロス等の負傷誘発攻撃はコアで命中結果だけを確定するが、
       // 通常攻撃と同じ接触モーションをここで再生する。これを省くと
       // 「いきなり被ダメージ」になり、攻撃者と表示上の攻撃がずれる。
@@ -603,31 +611,16 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='gold_gain'){
-      if(e.side==='p1'&&Number(e.amount)>0){
-        // 死亡処理中に先行した詰め処理で配列から見えなくなっても、死亡イベントの
-        // スナップショットを使って固有VFXと状態反映を落とさない。
-        const source=findLiveUnit('p1',e.unitId,findUnit('p1',e.unitId))
-          || (e.unit?{...e.unit,_lastVisualRect:e.lastVisualRect}:null);
-        if(source){
-          _recordBattleTrace('gold_vfx_start',{unitId:e.unitId,amount:Number(e.amount)||0});
-          if(typeof _playCardEffectSfx==='function') _playCardEffectSfx('C001');
-          let resolveReverseStart;
-          const reverseStart=new Promise(resolve=>{ resolveReverseStart=resolve; });
-          const vfx=typeof _playCardEffectVfx==='function'
-            ?_playCardEffectVfx('C001',[source],{gateMs:0,hitDuration:900,waitForFinish:false,
-              onFadeStart:()=>{ _recordBattleTrace('gold_vfx_reverse_start',{unitId:e.unitId}); resolveReverseStart(); }})
-            :Promise.resolve();
-          // ゴールドの状態変更は固有VFXの逆再生開始と同時に確定する。
-          // VFX終了まで待つと、旧版より効果解決が遅くなる。
-          // 対象矩形を取得できない環境ではonFadeStartが呼ばれないため、
-          // VFX呼び出しが即時完了した場合だけ安全弁を置く。
-          const reverseFallback=new Promise(resolve=>setTimeout(resolve,1100));
-          await Promise.race([reverseStart,reverseFallback]).catch(()=>{});
-          _recordBattleTrace('gold_state_apply',{unitId:e.unitId,amount:Number(e.amount)||0});
-          G.gold=Math.max(0,Number(G.gold||0)+(Number(e.amount)||0));
-          if(typeof updateHUD==='function') updateHUD();
-        }
-      }
+      if(e.side==='p1') await presentGoldGainEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        getVisualRect:(ev,source)=>ev.lastVisualRect||source._lastVisualRect||null,
+        applyGold:amount=>{
+          _recordBattleTrace('gold_state_apply',{unitId:e.unitId,amount});
+          G.gold=Math.max(0,Number(G.gold||0)+amount);
+        },
+        updateHud:()=>updateHUD(),
+        trace:info=>_recordBattleTrace('gold_vfx_start',info),
+      });
       continue;
     }
     if(e.type==='transform'){
@@ -908,7 +901,11 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 続けて出していた効果固有VFXは、この再生の終わりで必ず止める。
   // 止め忘れると次の手番・報酬画面までループし続ける。
   if(_manaEffectRunning()) await _endManaEffectRun();
-  if(typeof requestBattleRender==='function') requestBattleRender();
+  // 死亡再生中の直接 renderAll() は、死亡体を除いた配列をFLIPなしで描き直して
+  // 残りのカードを瞬間移動させる。HP/HUDの更新も含め、詰めが必要な描画は
+  // PvE・オンライン共通の requestBattleCompact() へ渡し、再生終了後にFLIPする。
+  if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+  else if(typeof requestBattleRender==='function') requestBattleRender();
   _syncCoreBloodToG(state);
 }
 

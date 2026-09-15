@@ -11850,12 +11850,33 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
 </div>
 
 <script>
+// 表示モードは options.js より先に必要になるため、正規化と保存値の読込をここで共通化する。
+// 壊れた値や旧形式は、オプション画面と同じく既定のモード1へ戻す。
+window.normalizeVesselboundDisplayMode=function(value){
+  if(value==='window') return 1;
+  if(value==='fullscreen') return 4;
+  const mode=Number(value);
+  return Number.isFinite(mode)?Math.max(1,Math.min(4,mode||1)):1;
+};
+window.readVesselboundDisplayMode=function(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('vesselbound.options')||'null');
+    return window.normalizeVesselboundDisplayMode(raw&&typeof raw==='object'?raw.mode:1);
+  }catch(_e){return 1;}
+};
+window.VB_OPTION_DISPLAY_MODE=window.readVesselboundDisplayMode();
+let _vbDprMediaQuery=null;
 function fitVesselboundViewport(){
   const baseW=3840;
   const baseH=2160;
   const vw=window.innerWidth||baseW;
   const vh=window.innerHeight||baseH;
-  const scale=Math.min(vw/baseW,vh/baseH);
+  const mode=window.normalizeVesselboundDisplayMode(window.VB_OPTION_DISPLAY_MODE);
+  const dpr=Number(window.devicePixelRatio)||1;
+  // 1〜3は物理ピクセル基準の枠をCSSピクセルへ換算する。枠が窓を超える場合だけ
+  // 現在と同じく、縦横に収まる最大倍率まで縮める。4は窓いっぱいに合わせる。
+  const modeScale=mode===4?Infinity:([1920,2560,3840][mode-1]/dpr)/baseW;
+  const scale=Math.min(vw/baseW,vh/baseH,modeScale);
   const ox=Math.max(0,(vw-baseW*scale)/2);
   const oy=Math.max(0,(vh-baseH*scale)/2);
   const root=document.documentElement;
@@ -11870,32 +11891,50 @@ function fitVesselboundViewport(){
   root.style.setProperty('--stage-clip-bottom',`${Math.max(0,vh-(oy+baseH*scale))}px`);
   root.style.setProperty('--stage-clip-left',`${ox}px`);
 }
+function _watchVesselboundDpr(){
+  if(_vbDprMediaQuery){
+    if(_vbDprMediaQuery.removeEventListener)_vbDprMediaQuery.removeEventListener('change',_onVesselboundDprChange);
+    else _vbDprMediaQuery.removeListener?.(_onVesselboundDprChange);
+  }
+  if(typeof window.matchMedia!=='function')return;
+  _vbDprMediaQuery=window.matchMedia(`(resolution: ${Number(window.devicePixelRatio)||1}dppx)`);
+  if(_vbDprMediaQuery.addEventListener)_vbDprMediaQuery.addEventListener('change',_onVesselboundDprChange);
+  else _vbDprMediaQuery.addListener?.(_onVesselboundDprChange);
+}
+function _onVesselboundDprChange(){
+  fitVesselboundViewport();
+  _watchVesselboundDpr();
+  window.dispatchEvent(new Event('resize'));
+}
 window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
+// Escでフルスクリーンを抜けた時も、設定値を変えずに現在の窓へ枠を戻す。
+window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.dispatchEvent(new Event('resize'));});
 fitVesselboundViewport();
+_watchVesselboundDpr();
 </script>
-<script src="assets.js?v=uiReturn01"></script>
+<script src="assets.js?v=artJpgOnly01"></script>
 <script src="js/engine/audio.js?v=presentSpeed01"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=gameoverText02"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=equipLegacyGone01"></script>
+<script src="js/data/loader.js?v=displayMode01"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=deathRepeatSupportFire01"></script>
 <script src="js/battle/formation.js?v=boardRename01"></script>
     <script src="js/battle/present.js?v=supportFireVfx01"></script>
-    <script src="js/battle/present_events.js?v=presentSpeed01"></script>
+    <script src="js/battle/present_events.js?v=parityGold01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
 <script src="js/online/server_local.js?v=debugOnlineUnlimited01"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=presentSpeed01"></script>
+<script src="js/online/playback.js?v=speedAuto01"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=presentSpeed01"></script>
+    <script src="js/online/board.js?v=flipGap01"></script>
 <script src="js/online/versus.js?v=boardRename01"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
@@ -11906,16 +11945,16 @@ fitVesselboundViewport();
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=presentSpeed02"></script>
-    <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=presentSpeed02"></script>
+    <script src="js/engine/battle.js?v=flipGap01"></script>
+    <script src="js/engine/battle_events.js?v=flipGap01"></script>
+<script src="js/engine/render.js?v=flipGap02"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>
 <script src="js/engine/reward.js?v=removeBottomHud01"></script>
-<script src="js/engine/map.js?v=presentSpeed01"></script>
-<script src="js/engine/main.js?v=presentSpeed01"></script>
-<script src="js/engine/options.js?v=optionsLayout08"></script>
+<script src="js/engine/map.js?v=displayMode01"></script>
+<script src="js/engine/main.js?v=displayMode01"></script>
+<script src="js/engine/options.js?v=displayMode01"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

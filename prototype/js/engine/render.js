@@ -3860,6 +3860,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       requestAnimationFrame(()=>{
         // 攻撃終了時の保険renderが、直前に開始したFLIPの詰めアニメーションを
         // 同じフレームで上書きしないようにする。
+        // （2026-09-15：ここを requestBattleCompact 経由にすると、攻撃中に倒れた敵の隙間が
+        //  次の死亡まで約30秒残る回帰が出たため、コミット済みの renderAll に戻した。
+        //  この場合だけ隙間がモーション終了時に1フレームで詰まる問題は未解決。AGENTS.md 参照）
         if(attacker&&attacker.hp>0&&performance.now()>(Number(G._battleCompactAnimatingUntil)||0)) renderAll();
       });
     }
@@ -4469,9 +4472,48 @@ function _unitPreviewText(unit, desc, slotIdx){
   return lines.join('\n');
 }
 
+// 詰め保留へ入る直前の盤面を、次の共通FLIPの移動元として保存する。
+// visibility:hidden は位置情報を失わせないので通常スロットをまず読む。
+// 既にスロットがDOMから外れていた場合だけ、画面上を動く複製を補助に使う。
+function captureBattleCompactPreviousRects(){
+  if(G._battleCompactPreviousRects instanceof Map) return;
+  // 死亡を伴わない演出中の再描画まで保存すると、後の別の詰めへ
+  // 無関係な古い矩形を持ち込むため、死亡が見えている時だけ退避する。
+  const hasDead=[...(G.allies||[]),...(G.enemies||[])]
+    .some(u=>u&&u.hp<=0&&!u._isSoul&&!u._isObject);
+  if(!hasDead) return;
+  const rects=new Map();
+  ['f-ally','f-enemy'].forEach(fieldId=>{
+    const field=document.getElementById(fieldId);
+    if(!field) return;
+    field.querySelectorAll('.slot[data-unit-id]').forEach(slot=>{
+      const rect=slot.getBoundingClientRect();
+      if(rect&&rect.width>0&&rect.height>0) rects.set(String(slot.dataset.unitId),{
+        left:rect.left,top:rect.top,width:rect.width,height:rect.height
+      });
+    });
+  });
+  document.querySelectorAll('.attack-motion-clone[data-unit-id]').forEach(clone=>{
+    const unitId=String(clone.dataset.unitId||'');
+    if(!unitId||rects.has(unitId)) return;
+    const rect=clone.getBoundingClientRect();
+    if(rect&&rect.width>0&&rect.height>0) rects.set(unitId,{
+      left:rect.left,top:rect.top,width:rect.width,height:rect.height
+    });
+  });
+  G._battleCompactPreviousRects=rects;
+  if(typeof _recordBattleTrace==='function') _recordBattleTrace('battle_compact_previous_rects_held',{count:rects.size,ids:[...rects.keys()]});
+}
+
 function renderField(id,units,isEnemy,_lane){
   const el=document.getElementById(id);
   const previousRects=new Map();
+  // 攻撃モーション中の死亡では、モーション終了まで詰めを保留する間に
+  // 元スロットが空枠へ置き換わったり、攻撃用複製だけが残ったりする。
+  // 死亡を検知した瞬間に退避した矩形を優先し、詰め後の残存体へ
+  // 「死亡した瞬間の位置」からFLIPを掛ける。両陣営で同じ入口を使うため、
+  // PvE・オンラインで矩形の取り方を分けない。
+  const heldRects=G._battleCompactPreviousRects;
   // 死亡演出の複製元。スロットは毎回createElementで作り直されるため、
   // 消える前のDOMをここで控えておかないと「生きていたときの見た目」が取れない。
   // 全スロットを複製すると無駄なので、今回死んだユニットの分だけに絞る。
@@ -4506,6 +4548,11 @@ function renderField(id,units,isEnemy,_lane){
         previousSlots.set(oldSlot.dataset.unitId,clone);
       }
     }
+    if(heldRects){
+      heldRects.forEach((rect,unitId)=>{
+        if(rect&&rect.width>0&&rect.height>0) previousRects.set(String(unitId),rect);
+      });
+    }
   }
   el.innerHTML='';
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
@@ -4524,6 +4571,24 @@ function renderField(id,units,isEnemy,_lane){
   // コアは多段攻撃1手ぶんを先に確定するため、実体HPは「復活後に再び死亡」した
   // 最終値0でも、再生位置では生存していることがある。配置・描画は表示HPを正とする。
   const _visualHp=u=>_keepDying&&typeof presentShownHp==='function'?presentShownHp(u):Number(u&&u.hp)||0;
+  // 死亡枠を残した描画は、IDの並びが次の描画と同じでも「詰め待ち」の状態である。
+  // これを記録しないと、再生終了後の requestBattleCompact() が変更なしと判定し、
+  // 空いた位置を次の死亡まで残してしまう。保留時の旧矩形もここで保存し、
+  // 再生終了後の最初の共通compactで、その位置からFLIPを開始できるようにする。
+  const heldGapSide=isEnemy?'enemies':'allies';
+  const hasHeldGap=_keepDying&&dyingIds.size>0&&units.some(u=>u&&_visualHp(u)>0);
+  if(hasHeldGap){
+    const heldGaps=G._battleCompactHeldGaps||(G._battleCompactHeldGaps={allies:false,enemies:false});
+    heldGaps[heldGapSide]=true;
+    if(!(G._battleCompactPreviousRects instanceof Map)&&previousRects.size){
+      G._battleCompactPreviousRects=new Map([...previousRects].map(([unitId,rect])=>[unitId,{
+        left:rect.left,top:rect.top,width:rect.width,height:rect.height
+      }]));
+      if(typeof _recordBattleTrace==='function') _recordBattleTrace('battle_compact_previous_rects_held',{
+        count:previousRects.size,ids:[...previousRects.keys()],reason:'death_gap'
+      });
+    }
+  }
   const liveUnits=units.map((u,i)=>({u,i})).filter(x=>x.u&&_visualHp(x.u)>0&&!x.u._corePendingSummon
     &&!_stealAwaitingMove(x.u)&&!x.u._isObject);
   const prioritySet=new Set();

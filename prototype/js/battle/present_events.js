@@ -417,6 +417,65 @@ async function presentEffectFlashEvent(ev, api) {
   return true;
 }
 
+// 攻撃を見せた記録は自動加速の共通条件で使う。PvEのイベント生成側と
+// オンラインのイベント受け口の両方からこの関数を通し、片側だけ記録しない。
+function presentRecordAttackEvent(ev) {
+  if (!ev || ev.attackerId == null || typeof G === 'undefined' || !G) return;
+  if (!G._battleAttackedIds) G._battleAttackedIds = {};
+  G._battleAttackedIds[ev.attackerId] = true;
+}
+
+// ゴールド獲得の見せ方と、表示上の所持金を確定する時刻を共通化する。
+// api:
+//   findUnit(side,id) / findAnyUnit(id)
+//   getVisualRect(ev, source) … 死亡後の発生元を描くための最後の矩形
+//   applyGold(amount, ev) … 逆再生開始時（または安全弁）に表示値へ反映
+//   updateHud() / trace(info) … 任意
+async function presentGoldGainEvent(ev, api) {
+  if (!ev || !api) return false;
+  const amount = Math.max(0, Number(ev.amount) || 0);
+  if (!(amount > 0)) return false;
+  const live = ev.unitId != null && typeof api.findUnit === 'function'
+    ? api.findUnit(ev.side, ev.unitId) : null;
+  const source = live || (ev.unit ? { ...ev.unit } : null);
+  if (!source) {
+    if (typeof api.applyGold === 'function') api.applyGold(amount, ev);
+    if (typeof api.updateHud === 'function') api.updateHud();
+    return false;
+  }
+  const rect = typeof api.getVisualRect === 'function' ? api.getVisualRect(ev, source) : null;
+  if (rect && rect.width > 0 && rect.height > 0) source._lastVisualRect = { ...rect };
+  const code = typeof _effectPresentationCode === 'function'
+    ? String(_effectPresentationCode(source) || '').toUpperCase() : '';
+  const hasSfx = code && typeof getEffectSfxKey === 'function' && getEffectSfxKey(code);
+  const hasVfx = code && typeof getCharacterEffectVfxPath === 'function'
+    && getCharacterEffectVfxPath({ fxCode: code });
+  if (typeof api.trace === 'function') api.trace({ unitId: ev.unitId, amount, code });
+  if (hasSfx && typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code);
+
+  let applied = false;
+  const apply = () => {
+    if (applied) return;
+    applied = true;
+    if (typeof api.applyGold === 'function') api.applyGold(amount, ev);
+    if (typeof api.updateHud === 'function') api.updateHud();
+  };
+  let reverseStart = Promise.resolve();
+  if (hasVfx && typeof _playCardEffectVfx === 'function') {
+    reverseStart = new Promise(resolve => {
+      const done = () => { apply(); resolve(); };
+      Promise.resolve(_playCardEffectVfx(code, [source], {
+        gateMs: 0, hitDuration: 900, waitForFinish: false,
+        onFadeStart: done,
+      })).catch(() => {}).then(() => { if (!applied) resolve(); });
+    });
+  }
+  // DOM矩形を取れない環境でも、所持金の表示だけは必ず進める。
+  await Promise.race([reverseStart, new Promise(resolve => setTimeout(resolve, 1100))]);
+  apply();
+  return true;
+}
+
 // ── 攻撃範囲の接触演出（貫通・三方向攻撃・全体攻撃）────────────────
 // **鳴らすのは「対象へ接触した瞬間」。** 受け口は攻撃モーションの onContact から呼ぶ。
 // **完了を待たないこと。** 待つと、同時に入るはずの複数対象のダメージ数値が
@@ -794,6 +853,8 @@ window.presentEffectFlashEvent = presentEffectFlashEvent;
   window.presentResetEffectFlashes = presentResetEffectFlashes;
 window.presentReviveEvent = presentReviveEvent;
   window.presentAttackContactVfxEvent = presentAttackContactVfxEvent;
+  window.presentRecordAttackEvent = presentRecordAttackEvent;
+  window.presentGoldGainEvent = presentGoldGainEvent;
   window.presentSummonPlacement = presentSummonPlacement;
   window.presentBattleResultCutin = presentBattleResultCutin;
   window.PRESENT_RESULT_CUTIN_MS = PRESENT_RESULT_CUTIN_MS;
@@ -806,6 +867,8 @@ if (typeof module !== 'undefined' && module.exports) {
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentDeathBatch, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
     presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,
+    presentRecordAttackEvent,
+    presentGoldGainEvent,
     presentBattleResultCutin, PRESENT_RESULT_CUTIN_MS, PRESENT_RESULT_AUTO_CONTINUE_MS,
   };
 }

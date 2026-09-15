@@ -1,6 +1,11 @@
 // オプション画面。設定値・一時停止・確認削除をここへ集約する。
 const OPTION_STORAGE_KEY='vesselbound.options';
 const OPTION_DEFAULTS={speed:'normal',mode:1,language:1,bgm:100,se:100};
+try{
+  const startupOptions=JSON.parse(localStorage.getItem(OPTION_STORAGE_KEY)||'null');
+  const startupLanguage=Number(startupOptions&&startupOptions.language);
+  window.VB_OPTION_LANGUAGE=startupLanguage>=1&&startupLanguage<=3?startupLanguage:1;
+}catch(_e){window.VB_OPTION_LANGUAGE=1;}
 let _optionSaved=null,_optionDraft=null,_optionDeleteKind=null;
 const _optionText=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
 const _optionLabels={
@@ -23,7 +28,7 @@ function _optionRead(){
   try{
     const raw=JSON.parse(localStorage.getItem(OPTION_STORAGE_KEY)||'null');
     const v={...OPTION_DEFAULTS,...(raw&&typeof raw==='object'?raw:{})};
-    if(v.mode==='window')v.mode=1;else if(v.mode==='fullscreen')v.mode=4;else v.mode=Math.max(1,Math.min(4,Number(v.mode)||1));
+    v.mode=typeof normalizeVesselboundDisplayMode==='function'?normalizeVesselboundDisplayMode(v.mode):Math.max(1,Math.min(4,Number(v.mode)||1));
     if(v.language==='ja')v.language=1;else v.language=Math.max(1,Math.min(3,Number(v.language)||1));
     v.speed=v.speed==='fast'?'fast':'normal';v.bgm=Math.round(Math.max(0,Math.min(100,Number(v.bgm)||0)));v.se=Math.round(Math.max(0,Math.min(100,Number(v.se)||0)));
     return v;
@@ -31,12 +36,30 @@ function _optionRead(){
 }
 function _optionWrite(v){try{localStorage.setItem(OPTION_STORAGE_KEY,JSON.stringify(v));}catch(e){console.warn('[options] 設定保存失敗',e);}}
 function _optionApply(v){
+  const previousLanguage=Number(typeof window!=='undefined'&&window.VB_OPTION_LANGUAGE)||1;
+  const previousMode=Number(typeof window!=='undefined'&&window.VB_OPTION_DISPLAY_MODE)||1;
   _optionDraft={...OPTION_DEFAULTS,...v};
   if(typeof SFX_SETTINGS!=='undefined'){SFX_SETTINGS.bgmVolume=_optionDraft.bgm/100;SFX_SETTINGS.sfxVolume=_optionDraft.se/100;}
   if(typeof setAudioOptionVolumes==='function')setAudioOptionVolumes();
-  if(typeof window!=='undefined')window.VB_OPTION_SPEED=_optionDraft.speed;
+  if(typeof window!=='undefined'){
+    window.VB_OPTION_SPEED=_optionDraft.speed;
+    window.VB_OPTION_LANGUAGE=Math.max(1,Math.min(3,Number(_optionDraft.language)||1));
+    window.VB_OPTION_DISPLAY_MODE=typeof normalizeVesselboundDisplayMode==='function'?normalizeVesselboundDisplayMode(_optionDraft.mode):Math.max(1,Math.min(4,Number(_optionDraft.mode)||1));
+  }
+  if(previousLanguage!==window.VB_OPTION_LANGUAGE&&typeof document!=='undefined'&&document.documentElement){
+    if(typeof _optionSetText==='function')_optionSetText();
+    if(typeof _optionRender==='function')_optionRender();
+    if(typeof applySheetDomTitles==='function')applySheetDomTitles();
+    if(typeof applySheetCssTexts==='function')applySheetCssTexts();
+    if(typeof applyStatusTooltips==='function')applyStatusTooltips();
+  }
   if(typeof G!=='undefined'&&G)G._optionsDisplayMode=_optionDraft.mode;
   if(_optionDraft.mode===4){const p=document.documentElement.requestFullscreen?.();p?.catch(()=>{});}else if(document.fullscreenElement){const p=document.exitFullscreen?.();p?.catch(()=>{});}
+  if(previousMode!==window.VB_OPTION_DISPLAY_MODE){
+    // 表示モード変更を、枠の倍率だけでなく各画面のresize再配置にも一度で伝える。
+    if(typeof fitVesselboundViewport==='function')fitVesselboundViewport();
+    window.dispatchEvent(new Event('resize'));
+  }
 }
 function _optionSetText(){
   document.querySelectorAll('[data-option-text]').forEach(el=>{const item=_optionLabels[el.dataset.optionText];if(item)el.textContent=_optionText(item[0],item[1]);});

@@ -616,11 +616,22 @@ function isBattlePresentationPlaying(){
   return _isOnlineBattlePresentationPlaying()||!!(typeof G!=='undefined'&&G&&G._battlePhaseRunning);
 }
 // 速度倍率 S：再生中でなければ1。オプション「高速」は PvE・オンラインとも1.5。
-// 「通常」は PvE だけ従来の自動加速（長い戦闘で1.5へ）。オンラインに自動加速は無い。
+// 「通常」は PvE・オンラインとも同じ自動加速を使う。自動加速の判定更新も
+// この入口へ集約し、待ち・タイマー・アニメーション同期の経路差を作らない。
 function getBattlePresentationSpeedScale(){
   if(!isBattlePresentationPlaying()) return 1;
   if(typeof window!=='undefined'&&window.VB_OPTION_SPEED==='fast') return 1.5;
-  if(_isOnlineBattlePresentationPlaying()) return 1;
+  // 速度を読む全経路（sleep・タイマー・rAF・VFX）から同じ判定を通す。
+  // イベント再生型のPvEは battleSleep() を通らないため、ここが自動加速判定の入口。
+  // rAFは毎フレーム呼ばれるので、短時間の再判定は間引く。
+  if(typeof G!=='undefined'&&G){
+    const now=performance.now();
+    const last=Number(G._battleSpeedLastCheckAt);
+    if(!Number.isFinite(last)||now-last>=100){
+      G._battleSpeedLastCheckAt=now;
+      updateBattleSpeedMode();
+    }
+  }
   return getBattleSpeedScale();
 }
 function battlePresentationSetTimeout(fn,ms){
@@ -671,8 +682,26 @@ function _setBattleSpeedTarget(target){
   G._battleSpeedChangedAt=performance.now();
 }
 
+// PvE／オンラインで同じ戦闘演出速度の基準時刻と状態を使う。
+// オンラインは startBattle() を通らないため、入口だけ別に初期化すると
+// 自動加速の経過時間や前回の攻撃記録が戦闘をまたいで混ざってしまう。
+function initializeBattlePresentationState(){
+  if(!G) return;
+  G._battleStartedAt=performance.now();
+  G._battleSpeed=1;
+  G._battleSpeedFrom=1;
+  G._battleSpeedTarget=1;
+  G._battleSpeedChangedAt=performance.now();
+  G._battleSpeedLastCheckAt=-Infinity;
+  G._battleSpeedReason='';
+  G._battleAttackedIds={};
+}
+
 function updateBattleSpeedMode(){
-  if(!G||G.phase!=='enemy') return getBattleSpeedScale();
+  // 戦闘演出の再生中だけ判定する。PvE／オンラインの判定は
+  // isBattlePresentationPlaying() に集約し、phase名へ依存しない。
+  const canUpdate=isBattlePresentationPlaying();
+  if(!canUpdate) return getBattleSpeedScale();
   // オプションの演出速度「高速」は最初から1.5倍で固定する（加速の3秒の立ち上がりも無し）。
   // 「通常」は下の自動加速（長い戦闘だけ速める）をそのまま使う。
   // 値は options.js が window.VB_OPTION_SPEED に置く（G は startGame() で作り直されるため G には持たない）。
@@ -701,8 +730,7 @@ function updateBattleSpeedMode(){
 }
 
 function battleSleep(ms){
-  updateBattleSpeedMode();
-  const speed=getBattleSpeedScale();
+  const speed=getBattlePresentationSpeedScale();
   // 通常速度は1.60倍まで遅くし、1.5倍速時は従来の1.12倍相当へ戻して加速後のテンポを維持する。
   const fastProgress=Math.max(0,Math.min(1,(speed-1)/.5));
   const tempoMul=1.6-(.48*fastProgress);
@@ -2022,14 +2050,8 @@ async function startBattle(){
   G.battleCounters={damage:0,deaths:0};
   G._blood=0;
   G._enemyBlood=0;
-  G._battleStartedAt=performance.now();
+  initializeBattlePresentationState();
   G._battleVictoryPending=false;
-  G._battleSpeed=1;
-  G._battleSpeedFrom=1;
-  G._battleSpeedTarget=1;
-  G._battleSpeedChangedAt=performance.now();
-  G._battleSpeedReason='';
-  G._battleAttackedIds={};
   // コアの現在の到達回数カウンタを戦闘単位でリセットする。
   [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{ if(u) delete u._manaFireCounts; });
   G._battleEndEffectsApplied=false;
@@ -2445,10 +2467,19 @@ function compactBattleUnits(){
   // 以前はどちらか一方の人数変化を全陣営へ適用していたため、多段攻撃の途中で
   // 敵が減ると、攻撃者まで左右へ移動してから元の位置へ戻るFLIPが発生していた。
   const compactSideChanged={
-    allies:!!previousCounts&&(
-      previousCounts.allies!==compactCounts.allies||previousDomCounts.allies!==compactCounts.allies),
-    enemies:!!previousCounts&&(
-      previousCounts.enemies!==compactCounts.enemies||previousDomCounts.enemies!==compactCounts.enemies),
+    allies:(!!previousCounts&&(
+      previousCounts.allies!==compactCounts.allies||previousDomCounts.allies!==compactCounts.allies
+      // 死亡体がまだ配列に残る再生中は、前回のcompactで人数だけ先に記録されて
+      // いても、今回の死亡側を詰める必要がある。これを見落とすとholdLayoutが
+      // 古いleftを採用し、後段の通常renderAll()でFLIPなしに隙間を詰めてしまう。
+      ||(G.allies||[]).some(u=>u&&u.hp<=0&&!u._isSoul&&!u._isObject)
+      // 死亡枠を残した再生中はIDの並びが既に生存体だけに見えることがある。
+      // それでも旧位置は詰まっていないため、保留印がある側は必ずFLIPする。
+      ))||!!G._battleCompactHeldGaps?.allies,
+    enemies:(!!previousCounts&&(
+      previousCounts.enemies!==compactCounts.enemies||previousDomCounts.enemies!==compactCounts.enemies
+      ||(G.enemies||[]).some(u=>u&&u.hp<=0&&!u._isSoul&&!u._isObject)
+      ))||!!G._battleCompactHeldGaps?.enemies,
   };
   G._compactRecenterSides=compactSideChanged;
   G._compactHoldSides={
@@ -2594,8 +2625,11 @@ function endBattleMotion(){
     _recordBattleTrace('battle_compact_flush_after_motion',{reason:'motion_end'});
     G._pendingBattleCompact=false;
     G._pendingBattleRender=false;
-    compactBattleUnits();
-    _renderAfterBattleCompact();
+    // 詰めと描画は必ず requestBattleCompact() を通す。ここで compactBattleUnits() と
+    // renderAll() を直に呼ぶと、PvEの死亡イベント再生中に配列だけ先に詰めた状態を
+    // 描画してしまい、旧矩形のスナップショットなしで残りのカードが瞬間移動する。
+    // 再生中なら requestBattleCompact() 自身が再度保留し、再生終了後にFLIPを作る。
+    requestBattleCompact({forceRender:true});
   } else if(!G._battleMotionDepth&&G._pendingBattleRender){
     G._pendingBattleRender=false;
     if(typeof renderAll==='function') renderAll();
@@ -2616,12 +2650,19 @@ function _renderAfterBattleCompact(){
   try{
     if(typeof renderAll==='function') renderAll();
   }finally{
+    // 死亡枠保留を検出した次のcompactで、詰めた位置までのFLIPを作り終えた。
+    // この印を残すと、後続の通常再描画まで毎回「人数変化あり」になる。
+    G._battleCompactHeldGaps=null;
+    // 退避矩形はこの詰め1回だけの移動元。残すと後続の無関係な再描画へ
+    // 古い位置を持ち越し、別のカードまで逆方向へFLIPする。
+    delete G._battleCompactPreviousRects;
     G._animateBattleCompact=false;
   }
   window.setTimeout(()=>{
     if(G._compactHoldSides&&performance.now()>=Number(G._battleCompactAnimatingUntil||0)){
+      // 初回FLIPで保持した側を、ここでrenderAll()だけして詰め直してはいけない。
+      // 次回の共通compact入口が最新のpreviousRectsを取得して移動を表現する。
       G._compactHoldSides=null;
-      if(typeof renderAll==='function') renderAll();
     }
   },270);
 }
@@ -2638,6 +2679,8 @@ function requestBattleCompact(options){
   // カードが先に消え、そのあとに来るダメージ数値・VFXが行き場を失って
   // 何もない場所へ出る。再生が終わってから battlePhase() 側でまとめて詰める。
   if(presentIsPlaying()&&!forceDuringMotion&&!force){
+    if(typeof captureBattleCompactPreviousRects==='function'&&!G._battleCompactPreviousRects)
+      captureBattleCompactPreviousRects();
     G._pendingBattleCompact=true;
     G._pendingBattleRender=true;
     return;
@@ -2647,6 +2690,8 @@ function requestBattleCompact(options){
   // ここで死亡効果内の召喚・変身が先にrenderAll()すると、死亡ユニットがDOMから
   // 消えた後の矩形しか取れず、残存キャラが瞬間移動する。
   if(!force&&((G._battleMotionDepth>0&&!forceDuringMotion)||G._resolvingDamageBatchDeaths>0||G._pendingDeathEffects>0)){
+    if(typeof captureBattleCompactPreviousRects==='function'&&!G._battleCompactPreviousRects)
+      captureBattleCompactPreviousRects();
     G._pendingBattleCompact=true;
     G._pendingBattleRender=true;
     return;
@@ -6091,7 +6136,7 @@ async function onBattleEnd(){
   // ゴールド本体はコアが既に加算済み。ここではコアイベントをVFX/ログへ接続し、二重加算しない。
   (G._battleCoreEvents||[]).filter(e=>e&&e.type==='gold_gain'&&e.reason==='goldOnBattleEnd').forEach(e=>{
     const unit=(G.allies||[]).find(a=>a&&a.id===e.unitId);
-    if(unit) goldEffectUnits.push({unit,amount:e.amount});
+    if(unit) goldEffectUnits.push({unit,amount:e.amount,event:e});
   });
   // コアは判定時点で所持金を確定するが、表示上の獲得タイミングは固有VFXの開始時に揃える。
   // ここで一度だけ表示値を効果前へ戻し、各VFXを開始する直前に対応額を反映する。
@@ -6109,13 +6154,13 @@ async function onBattleEnd(){
   }
   // 終戦時のゴールド演出は、他の終戦時効果の処理・演出が終わってから開始する。
   await _waitForPendingVfx();
-  for(const {unit:a,amount} of goldEffectUnits){
-    _playCardEffectSfx('C001');
-    G.gold=Math.max(0,Number(G.gold||0)+(Number(amount)||0));
-    // VFXのDOM生成直後に反映し、画面上の獲得演出と所持金表示を同時に開始する。
-    const vfx=_playCardEffectVfx('C001',[a],{gateMs:0,hitDuration:900,waitForFinish:true});
-    updateHUD();
-    await vfx;
+  for(const {unit:a,amount,event} of goldEffectUnits){
+    await presentGoldGainEvent(event||{type:'gold_gain',side:'p1',unitId:a.id,unit:a,amount}, {
+      findUnit:(side,id)=>(G.allies||[]).find(u=>u&&u.id===id)||null,
+      getVisualRect:(ev,source)=>ev.lastVisualRect||source._lastVisualRect||null,
+      applyGold:value=>{ G.gold=Math.max(0,Number(G.gold||0)+value); },
+      updateHud:()=>updateHUD(),
+    });
   }
   for(const a of randomItemEffectUnits) _grantRandomItem(a.name,{free:true});
   const itemRewards=(G._battleCoreEvents||[]).filter(e=>e&&e.type==='item_reward');

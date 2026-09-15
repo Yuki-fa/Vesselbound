@@ -484,8 +484,9 @@ function getCharacterNoArtPath(card){
   else if(code[0]==='C') dir='assets/art/characters';
   else if(code[0]==='S') dir='assets/art/cards';
   else return '';
-  // 拡張子はjpg/pngどちらで保存されているか分からないため両方を候補として返す（assetUrlが重ね合わせで解決する）
-  return [`${dir}/${code}.jpg`,`${dir}/${code}.png`];
+  // カード絵は jpg だけを読む（利用者指定）。以前は png も重ねて候補にしていたが、
+  // 素材はすべて jpg なので、カードを描くたびに存在しない png の 404 が出ていた。
+  return `${dir}/${code}.jpg`;
 }
 
 // キャラクターの効果によるダメージ時、そのキャラクター専用の透過WebPが

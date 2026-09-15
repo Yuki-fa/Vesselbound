@@ -2067,9 +2067,9 @@ function _fatalErrorCode(info){
   return `${file}-${kind}${line}`;
 }
 function _fatalErrorMessage(){
-  const messages=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
-  const key=FATAL_ERROR_TEXT_KEYS.find(k=>String(messages[k]||'').trim());
-  const text=key?String(messages[key]).trim():FATAL_ERROR_FALLBACK;
+  const text=(textMessage(FATAL_ERROR_TEXT_KEYS[0],'').trim()
+    ||textMessage(FATAL_ERROR_TEXT_KEYS[1],FATAL_ERROR_FALLBACK).trim()
+    ||FATAL_ERROR_FALLBACK);
   // シートの文末にある「エラーコード：」は、下のコード行が受け持つので本文からは外す
   // （両方に出すと「エラーコード：」が2回並ぶ）。
   return text.replace(/\n?[\s　]*エラーコード[\s　]*[：:][\s　]*$/,'');

@@ -407,12 +407,11 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
 function villageFacilityLabelText(name){
-  const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
   const variants=villageFacilityNameVariants(name);
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
     for(const v of variants){
-      const hit=msgs[`${pre}「${v}」ボタン`];
+      const hit=textMessage(`${pre}「${v}」ボタン`,'');
       if(hit) return String(hit);
     }
   }
@@ -421,13 +420,12 @@ function villageFacilityLabelText(name){
 // 施設ボタン直下の説明文は「テキストメッセージ」シートの「街「◯◯」直下」行から引く。
 // シート内の表記揺れ（鍛冶屋／鍛治屋）に備えて両方の綴りで探す。
 function villageFacilityDescText(name){
-  const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
   const variants=villageFacilityNameVariants(name);
   // 塔の施設は「塔「◯◯」直下」、街の施設は「街「◯◯」直下」を参照する。
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
     for(const v of variants){
-      const hit=msgs[`${pre}「${v}」直下`];
+      const hit=textMessage(`${pre}「${v}」直下`,'');
       if(hit) return String(hit);
     }
   }
@@ -939,8 +937,7 @@ function renderVillageScreen(){
     };
     const desc=document.getElementById('library-howto-desc');
     if(desc){
-      const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
-      desc.textContent=String(msgs['図書館「魔導板の使い方」直下']||'魔導板の使い方を確認する。');
+      desc.textContent=textMessage('図書館「魔導板の使い方」直下','魔導板の使い方を確認する。');
     }
     return;
   }
@@ -1274,8 +1271,7 @@ function openMapLibraryFormation(){
 
 // 図書館の「魔導板の使い方」。フラグは実行中だけ保持し、セーブには含めない。
 function _libraryTutorialText(key,fallback){
-  const msgs=(typeof window!=='undefined'&&window.TEXT_MESSAGES)||{};
-  return String(msgs[`「魔導板の使い方」${key}`]||fallback);
+  return textMessage(`「魔導板の使い方」${key}`,fallback);
 }
 function _libraryTutorialState(){
   const b=Array.isArray(G&&G.mainBoard)?G.mainBoard:[];

@@ -348,8 +348,8 @@ function main() {
     '生贄死亡効果をVFX完了後へ遅延している');
   assert.match(currentBattle, /const goldBefore=Math\.max\(0,Number\(G\.gold\)\|\|0\)/,
     '死亡時ゴールドをVFX開始前に表示へ反映している');
-  assert.match(currentBattle, /e\.type==='gold_gain'[\s\S]*_playCardEffectVfx\('C001'/,
-    '死亡時ゴールドの固有VFX接続がない');
+  assert.match(read('js/engine/battle_events.js'), /e\.type==='gold_gain'[\s\S]*presentGoldGainEvent\(e/,
+    '死亡時ゴールドを共通プレゼンテーションへ接続していない');
   const coreEvents = runSummonScenario();
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();

@@ -583,24 +583,31 @@ async function loadGameData() {
       window.REGION_INFO = window.REGION_INFO || {};
     }
 
-    // テキストメッセージシート（任意）：「場面」→「テキスト」の対応表。
+    // テキストメッセージシート（任意）：「場面」→言語ごとの対応表。
     // 街の施設ボタン直下の説明文などUIの固定文言に使う。
     try {
-      const tmRows = _parseCSVWithHeader(tmt || '名前\n', ['場面', 'テキスト']);
-      const messages = {};
+      const tmRows = _parseCSVWithHeader(tmt || '名前\n', ['場面', 'テキスト', 'English', '中文']);
+      const messagesByLanguage = {1:{}, 2:{}, 3:{}};
       tmRows.forEach(row => {
         const scene = String(row['場面'] ?? row['__col0'] ?? '').trim();
-        const text = String(row['テキスト'] ?? row['__col1'] ?? '').trim();
-        if (!scene || !text) return;
+        if (!scene) return;
         // シートは「見出し」「ボタン」などの区分ごとに見出し行を挟む形になっている。
-        // 区分名の行（2列目が空）は上の !text で落ち、区分ごとに繰り返される
+        // 区分名の行（全言語の2列目以降が空）はここで落とし、区分ごとに繰り返される
         // ヘッダー行（場面,テキスト,備考）はここで落とす。
-        if (scene === '場面' && text === 'テキスト') return;
-        messages[scene] = text;
+        const ja = String(row['テキスト'] ?? row['__col1'] ?? '').trim();
+        const en = String(row['English'] ?? '').trim();
+        const zh = String(row['中文'] ?? '').trim();
+        if (scene === '場面' && ja === 'テキスト') return;
+        if (!ja && !en && !zh) return;
+        if (ja) messagesByLanguage[1][scene] = ja;
+        if (en) messagesByLanguage[2][scene] = en;
+        if (zh) messagesByLanguage[3][scene] = zh;
       });
-      window.TEXT_MESSAGES = messages;
+      window.TEXT_MESSAGES_BY_LANGUAGE = messagesByLanguage;
+      window.TEXT_MESSAGES = messagesByLanguage[1];
     } catch (_) {
       window.TEXT_MESSAGES = window.TEXT_MESSAGES || {};
+      window.TEXT_MESSAGES_BY_LANGUAGE = window.TEXT_MESSAGES_BY_LANGUAGE || {1:window.TEXT_MESSAGES,2:{},3:{}};
     }
 
     // 魔導板強化シート（任意）：鍛冶屋の魔導板パネル価格・説明文をシート駆動にする
@@ -1535,14 +1542,24 @@ async function loadGameData() {
 // （例：「編成、ショップ画面「旅の進捗」内」＋改行＋「通常時」）。
 // 呼び出し側が改行まで一致させるのは無理があるので、**空白と改行を無視して**突き合わせる。
 function textMessage(scene, fallback) {
-  const messages = (typeof window !== 'undefined' && window.TEXT_MESSAGES) || {};
+  const byLanguage = (typeof window !== 'undefined' && window.TEXT_MESSAGES_BY_LANGUAGE) || {};
+  const language = Math.max(1, Math.min(3, Number(typeof window !== 'undefined' && window.VB_OPTION_LANGUAGE) || 1));
+  const messages = byLanguage[language] || {};
+  const japanese = byLanguage[1] || ((typeof window !== 'undefined' && window.TEXT_MESSAGES) || {});
   const want = String(scene || '').replace(/\s+/g, '');
   if (!want) return String(fallback || '');
-  const direct = messages[scene];
-  if (direct) return String(direct);
-  for (const key of Object.keys(messages)) {
-    if (String(key).replace(/\s+/g, '') === want) return String(messages[key]);
-  }
+  const lookup = table => {
+    const direct = table[scene];
+    if (direct) return String(direct);
+    for (const key of Object.keys(table)) {
+      if (String(key).replace(/\s+/g, '') === want) return String(table[key]);
+    }
+    return '';
+  };
+  const selected = lookup(messages);
+  if (selected) return selected;
+  const fallbackJapanese = lookup(japanese);
+  if (fallbackJapanese) return fallbackJapanese;
   return String(fallback || '');
 }
 if (typeof window !== 'undefined') window.textMessage = textMessage;
