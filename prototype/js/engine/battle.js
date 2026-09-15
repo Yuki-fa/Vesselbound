@@ -1407,16 +1407,19 @@ if(!window._battleOpeningContextMenuGuardBound){
       document.getElementById('battle-start-intro')
     ));
   };
+  // 開戦演出中もオプション（およびデバッグ時のミュート）は操作可能にする。
+  // **オプション画面の中（#options-layer）と閉じるボタン（#options-close-proxy）も除外すること。**
+  // オプションボタンだけ除外していた頃は、開いたオプション画面のクリックがすべて握りつぶされ、閉じられなくなっていた。
+  const passThrough='#battle-options-btn,#battle-mute-btn,#options-layer,#options-close-proxy';
   document.addEventListener('contextmenu',e=>{
-    // 開戦演出中もオプション（およびデバッグ時のミュート）は操作可能にする。
-    if(e.target&&e.target.closest&&e.target.closest('#battle-options-btn,#battle-mute-btn')) return;
+    if(e.target&&e.target.closest&&e.target.closest(passThrough)) return;
     if(!isOpening()) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   },true);
   document.addEventListener('click',e=>{
     // 場面外クリックでreward.jsの再描画処理が走ると、開戦演出中のカードが消えるため止める。
-    if(e.target&&e.target.closest&&e.target.closest('#battle-options-btn,#battle-mute-btn')) return;
+    if(e.target&&e.target.closest&&e.target.closest(passThrough)) return;
     if(!isOpening()) return;
     e.preventDefault();
     e.stopImmediatePropagation();

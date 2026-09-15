@@ -1839,6 +1839,61 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 
 ### 文字色・文字サイズの整理（2026-09-15、利用者指定の範囲だけ）
 
+**画面に出ない要素のCSSの削除（2026-09-15 その2、利用者指定）**
+- 戦闘カードの状態バッジ（`.slot-badges`／`.slot-badge`／`.b-hate` `.b-dead` `.b-psn` `.b-guard` `.b-stealth` `.b-shield`）と、カードの説明欄（`.slot-desc` 系）の見た目のCSSを削除。
+  **JS（render.js・reward.js）は今も `slot unit-card` の中にバッジと説明欄を作っており、`.slot.unit-card .slot-name/.slot-desc/.slot-badges/.slot-badge{display:none!important}` と
+  `.unit-card .slot-desc{display:none!important}` で隠している。この隠す規則は消さないこと**（消すと右上にバッジが出る）。
+- 魔導板の枠ラベル（`.board-slot-label`・`small`）の見た目のCSSと、空き枠（`.card-empty.board-empty`）の文字の色・サイズ・太さ・影を削除。
+  隠す規則（`#hand-slots.board-slots .board-slot-label{display:none}`・`#hand-slots .board-slot-label,.card-empty{font-size:0}`・right-card-peek の opacity:0）は残す。
+- `#rw-race-buffs` の style 属性を削除（`renderRaceBuffSummary()` が常に空・非表示）。
+- 見える文字を持たない土台の色を `#8b7c67` に：`body`（以前 `var(--text)`＝#d8dce8）と `#scr-gameover`（以前 #eee）。
+- オプション画面（Gemini の指摘を検証して反映）：`#options-save/revert/title/confirm-delete/confirm-cancel` の前段の color（後段の共有規則 `color:var(--prod-gold)!important` が常に勝つ）、
+  `#options-confirm-box` の color（後段 `#options-layer #options-confirm-box{color:#a58768!important}`）、`#options-panel .options-action{font-size:28px}`（後段 28px!important）を削除。
+- `.card-desc`・`.rew-card-desc`・`.card-tp`・`.bhud-val` は、それより前（2026-09-14）に CSS ごと削除済みだった（文字スタイル台帳の集計はその前）。
+- 名前の由来：`#map-power-tooltip` は 2026-08-05 にマップ画面の魔導板マスの強化説明を出す別ボックスとして作られた名残（データ名も `MAP_PANEL_POWERS`）。今はホバー説明の2つ目の箱として共通に使う。
+  マナ効果の見出し（`<strong class="effect-trigger-label trigger-mana">`）には専用の色が無く、ホバー説明の太字全般の `#kw-tooltip strong{color:#fff2c8}` が効いている。
+
+**道具屋の商品がゴールド不足で枠ごと消えていた（2026-09-16）**：買えないカードの `::before` を消す規則
+（`#reward-offer-row > .rew-card.cant::before, #rw-cards .rew-card.cant::before{content:none!important;display:none!important}`）が、
+`::before` をアイテム枠（item_slot.svg）に使う道具屋の商品（`.item-visual`）にも当たっていた。`:not(.item-visual)` で除外した。
+
+**死亡でマナが出た後、次の攻撃が先に動き出して止まっていた（2026-09-16、PvE・オンライン共通）**：`presentPreAttackPlan()`（present.js）が、
+マナ効果の持ち主がそのまま次に攻撃する時、マナ効果で得たマナ（`mana_gain` reason=`mana_threshold`）と `mana_threshold` を「攻撃前の効果」と数え、
+モーションを先出しして途中で止めていた。**攻撃前の合図にする `mana_gain` は攻撃由来（`manaOnAttack`・`attack_…`）だけ**、
+`mana_threshold` はその攻撃由来のマナが先にあった時だけにした（死亡の `death_text_mana`／`manaOnDeath` 等やマナ効果のマナは合図にしない）。
+
+**ゲームオーバー画面の結果の行（2026-09-16、利用者指定）**：項目名（`.gameover-rows`）は `#8b7c67`、値（`.gameover-rows span`）は `#a99e8f`。
+
+**「画面に効いていない指定」の削除（2026-09-16、利用者指定の範囲 2）**
+文字スタイル台帳の「画面に効いていない指定」（色60・サイズ64）は、**74画面を再現して効いていなかった**というだけで、大半は再現していない画面で使われている
+（HPが減った時の赤い数字 `.h.hp-damaged`、「売切」`.shop-sold-out-label`、「ゴールド不足」、勝利・撤退の戦闘タイトル `cutin-${…}`、ラン中だけ出る `.options-note` 等）。
+**この一覧を丸ごと消さないこと。** 消したのは次の確実に効かないものだけ：
+- どの確認画面でも、当たる要素（見えていても隠れていても）に一度も効いていないCSS宣言2件：
+  `#scr-title.startup-menu-hover-ready .title-menu-item:hover` の `color:#fff`、`#reward-move-btns .rew-move-btn` の `font-size:19px`。
+  （`html body.test-battle-active #scr-battle.active #btn-pass` の `font-size:34px!important` も「一度も効いていない」と判定して消したが、
+  削除前後の画面比較で試験戦闘の #btn-pass が 34px→41px に変わったため**戻した**。目印の値で調べる方法は誤ることがあるので、
+  **削除した後は必ず削除前の版と画面の計算値を比べて確かめること**。）
+- HTML の style 属性12件：編成画面のデバッグボタン4つ（`#btn-test-battle` `#btn-debug-gameover` `#btn-debug-error` `#btn-debug-map`）の font-size と `#btn-debug-gameover` の `color:#f99`
+  （表示されるのは `reward-screen-active.debug-mode` の時だけで、そこでは `!important` の 44px／30px・`#D8B982` が勝つ）、
+  常に隠れている要素の font-size／color：`#legacy-battle-header` 内の「Vesselbound」、`#rw-power-rating`、`#boss-reward-notice`、`#mv-hint`（`#scr-move` はどこからも表示されない）。
+- 残した style 属性：`#battle-mute-btn` `#battle-formation-btn` `#map-debug-map-btn` の `color:var(--gold2)`、`#btn-debug-kill` の `color:#e87`（上書きする規則が無く、表示される時はこの値が効く）。
+  JS が計算して付ける style（読み込みメッセージ、カードの数値サイズ等）は対象外。
+- 判定の注意：目印の値に差し替えて計算値を見る方法は、`transition` に color が入っている要素だと途中の値を読んで「効いていない」と誤る。計算値がインラインの値と同じかも併せて見ること。
+  「上書き」と判定するのは、見えている画面で負けているだけでなく、**隠れている要素も含めてどの画面でも一度も効いていない**時だけにする（`.btn` や `#btn-pass` の 41px は隠れた要素には効いていた）。
+
+**戦闘中にオプションを閉じられなかった不具合（2026-09-16）**：battle.js の開戦演出中ガード（`document` の capture で click／contextmenu を `stopImmediatePropagation`）が
+`#battle-options-btn,#battle-mute-btn` だけを通していたため、開いたオプション画面（`#options-layer`）と閉じるボタン（`#options-close-proxy`）のクリックが握りつぶされていた。
+通す対象に `#options-layer,#options-close-proxy` を加えた（`passThrough`）。**このガードに新しい操作対象を足す時は、オプション画面の中も通すこと。**
+ヘッドレスで、戦闘中に本物のクリックで「開く→閉じる→再び開く」を確認済み（実機未確認）。
+**コンティニューの「旅の進捗」（`.run-resume-journey`）**：編成画面の旅の進捗と同じく `palt`・字送り .04em（見出しは .18em）を付けた（以前は字詰めも字送りも無く詰まって見えた）。見出しの大きさ 38px は変えていない。
+オンライン待機の参加者名 `#online-matching-overlay .omo-player` は 56px→54px（利用者指定）。
+
+**戦闘の台詞の文字色（2026-09-16、利用者指定）**：`#battle-line-text` の基本色（淡色の吹き出し＝味方の台詞用）を `#2b1a0c` から `transparent` にした。
+台詞（`battleLines`）を持つのは敵だけ（enemy.js が敵シートの台詞を入れる）で、敵の吹き出しは `#battle-line-layer.is-dark #battle-line-text{color:#fff!important}` で表示される。
+**味方にも台詞を持たせる時は、淡色の吹き出しの文字色を決め直すこと**（今のままだと文字が見えない）。
+「FLED」（ATKが0で場を去る）と「WASTED」（ダメージ以外でHPが0）は同じ `_spawnFledLabel()`（1文字ずつ span）で、WASTED は `.wasted-label-host` で色だけ変える。
+「ラン再開の表示」（`#run-resume-overlay`）は、戦闘の途中で保存したランをコンティニューした時に、旅の進捗を4秒（`BATTLE_RESUME_DELAY_MS`）見せてから戦闘へ入る画面。
+
 **マナ効果の見出しの色は専用の指定を持たない（2026-09-15、利用者指定で元に戻した）。**
 cbc62b3 で `.effect-trigger-label.trigger-mana{color:#879fb8}` を足したが削除し、以前と同じく `#kw-tooltip strong` の `#fff2c8` を継ぐ。
 （ヘッドレスで cbc62b3 の前の版を描いて確認：ダイアウルフの「毎」＝#fff2c8、比較用のノームの「終戦」＝当時の #a0a0a0 と一致。）

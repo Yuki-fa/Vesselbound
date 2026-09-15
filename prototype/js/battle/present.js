@@ -657,6 +657,13 @@ function presentPreAttackEffectOwnerId(ev) {
   const type = String((ev && ev.type) || '');
   if (!PRESENT_PRE_ATTACK_EFFECT_TYPES.has(type)) return null;
   if (type === 'effect_flash' && String(ev.trigger || '') !== 'attack') return null;
+  // 死亡・マナ効果などで得たマナは、本人の攻撃を起こした効果ではない。
+  // これを先出しの合図にすると、死亡後のマナ効果の再生中に次の攻撃が
+  // 動き出して止まってしまうため、攻撃由来の mana_gain だけを対象にする。
+  if (type === 'mana_gain') {
+    const reason = String(ev.reason || '');
+    if (reason !== 'manaOnAttack' && !reason.startsWith('attack_')) return null;
+  }
   // 通常攻撃・反撃のdamageは「攻撃前の効果」ではない。次の追加攻撃を
   // 前の一撃の接触ダメージ中に始めないため、効果ダメージだけを対象にする。
   if (type === 'damage' && !ev.effect) return null;
@@ -684,6 +691,7 @@ function presentPreAttackPlan(events, fromIndex) {
   if (!boundary && presentPreAttackActorId(current) == null) return null;
   let actorId = null;
   let hasEffects = false;
+  let hasAttackManaGain = false;
   for (let i = boundary ? start + 1 : start; i < list.length; i++) {
     const ev = list[i];
     if (!ev) continue;
@@ -699,11 +707,16 @@ function presentPreAttackPlan(events, fromIndex) {
     if (actorId == null && actor != null) actorId = actor;
     const owner = presentPreAttackEffectOwnerId(ev);
     if (ev.type === 'mana_threshold') {
-      if (actorId != null) hasEffects = true;
+      // マナ効果そのものは攻撃前の合図にしない。直前に同じ攻撃者の
+      // 攻撃由来 mana_gain があった場合だけ、その攻撃に続く効果として扱う。
+      if (actorId != null && hasAttackManaGain) hasEffects = true;
     // effect_flash だけで終わった攻撃効果は「実際には不発」。
     // 対象不在のワーム／センチネル等で踏み込み停止を出さない。
     } else if (ev.type !== 'effect_flash' && actorId != null && owner === actorId) {
       hasEffects = true;
+    }
+    if (ev.type === 'mana_gain' && actorId != null && owner === actorId) {
+      hasAttackManaGain = true;
     }
   }
   return null;
