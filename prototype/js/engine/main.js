@@ -253,7 +253,22 @@ function updateHUD(){
     });
   }
 }
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// 演出・戦闘の待ちをオプション画面の一時停止ゲートへ通す唯一の入口。
+// setTimeoutを一発で予約せず、停止中は残り時間を進めない。
+const sleep=(ms,options)=>new Promise(resolve=>{
+  const skipSpeed=!!(options&&options.skipBattlePresentationSpeed);
+  const speed=(!skipSpeed&&typeof getBattlePresentationSpeedScale==='function')
+    ?getBattlePresentationSpeedScale():1;
+  let remain=Math.max(0,Number(ms)||0)/speed,last=performance.now();
+  const tick=()=>{
+    const now=performance.now(),paused=document.body.classList.contains('options-open');
+    if(!paused) remain-=now-last;
+    last=now;
+    if(remain<=0){resolve();return;}
+    setTimeout(tick,Math.min(50,Math.max(1,remain)));
+  };
+  tick();
+});
 
 // ═══════════════════════════════════════
 // GAME FLOW
@@ -961,7 +976,8 @@ async function _playOpeningMovie(){
   const fade  = typeof _ensureVillageEnterFadeEl === 'function' ? _ensureVillageEnterFadeEl() : null;
   const video = typeof _ensureCutsceneVideoEl === 'function' ? _ensureCutsceneVideoEl() : null;
   if(!fade || !video) return;
-  const wait = ms => new Promise(r => window.setTimeout(r, ms));
+  document.body.classList.add('cutscene-video-active');
+  const wait = ms => sleep(ms);
   const timers = [];
   let skipHandler = null;
   let stopAudioFade = null;
@@ -1043,6 +1059,7 @@ async function _playOpeningMovie(){
     if(skipHandler) window.removeEventListener('pointerdown', skipHandler, true);
     try{ video.pause(); }catch(_e){}
     video.classList.remove('is-active');
+    document.body.classList.remove('cutscene-video-active');
   }
 }
 
@@ -1073,7 +1090,8 @@ async function _playCutsceneMovieToBlack(src){
   const fade=typeof _ensureVillageEnterFadeEl==='function'?_ensureVillageEnterFadeEl():null;
   const video=typeof _ensureCutsceneVideoEl==='function'?_ensureCutsceneVideoEl():null;
   if(!fade||!video) return;
-  const wait=ms=>new Promise(resolve=>window.setTimeout(resolve,ms));
+  document.body.classList.add('cutscene-video-active');
+  const wait=ms=>sleep(ms);
   const timers=[];
   let stopAudioFade=null;
   try{
@@ -1146,6 +1164,7 @@ async function _playCutsceneMovieToBlack(src){
     if(typeof stopAudioFade==='function') stopAudioFade();
     try{ video.pause(); }catch(_e){}
     video.classList.remove('is-active');
+    document.body.classList.remove('cutscene-video-active');
   }
 }
 

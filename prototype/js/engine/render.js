@@ -1824,16 +1824,16 @@ function playEffectVfxOnUnit(unit,side,code,options){
     // 待っている間に呼び直されても done は立っていないので二重には走らない。
     const now=(typeof performance!=='undefined'?performance.now():Date.now());
     const remain=minDurationMs-(now-startedAt);
-    if(remain>0){ setTimeout(stop,remain); return completePromise; }
+    if(remain>0){ battlePresentationSetTimeout(stop,remain); return completePromise; }
     done=true;
     img.style.transition=`opacity ${fadeDuration}ms ease-out`;
     void img.offsetWidth;
     img.style.opacity='0';
-    setTimeout(()=>{ try{ host.remove(); }catch(e){} resolveComplete(); },fadeDuration);
+    battlePresentationSetTimeout(()=>{ try{ host.remove(); }catch(e){} resolveComplete(); },fadeDuration);
     return completePromise;
   };
   const durationMs=Math.max(0,Number(opt.durationMs)||0);
-  if(durationMs) setTimeout(stop,durationMs);
+  if(durationMs) battlePresentationSetTimeout(stop,durationMs);
   return { stop, code:String(code||''), done:()=>done };
 }
 
@@ -2214,7 +2214,10 @@ function playHitVfxAtRect(rect,amount,options){
     // hitDuration（既定1400ms）まで間延びさせるよう再生速度を落とし、スローモーションにする。
     videoRef.addEventListener('loadedmetadata',()=>{
       if(videoRef.duration&&isFinite(videoRef.duration)&&videoRef.duration>0){
-        videoRef.playbackRate=Math.min(16,Math.max(0.25,videoRef.duration/(hitDuration/1000)));
+        const speed=typeof getBattlePresentationSpeedScale==='function'
+          ?getBattlePresentationSpeedScale():1;
+        videoRef.playbackRate=Math.min(16,Math.max(0.25,
+          videoRef.duration/(hitDuration/1000)*speed));
       }
     },{once:true});
     host.appendChild(mediaEl);
@@ -2320,7 +2323,7 @@ function playHitVfxAtRect(rect,amount,options){
     // 一度スタイルを強制的に確定させてから変更することで、確実にフェードアニメーションとして扱わせる。
     void mediaEl.offsetWidth;
     mediaEl.style.opacity='0';
-    setTimeout(()=>{ host.remove(); labelHost?.remove(); resolveComplete(); },fadeDuration);
+    battlePresentationSetTimeout(()=>{ host.remove(); labelHost?.remove(); resolveComplete(); },fadeDuration);
   };
   if(isWebp){
     // 素材自体の再生がhitDurationより先に終わり最後のコマで静止した後、finish()の
@@ -2352,8 +2355,8 @@ function playHitVfxAtRect(rect,amount,options){
         {transform:`${baseTransform} rotate(360deg)`},
         {transform:`${baseTransform} rotate(1440deg)`},
       ],{duration:hitDuration,easing:'linear',fill:'forwards'});
-      setTimeout(finishWebp,hitDuration+60);
-      setTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
+      battlePresentationSetTimeout(finishWebp,hitDuration+60);
+      battlePresentationSetTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
     };
     if(labelOnly||(mediaEl.complete&&mediaEl.naturalWidth>0)){
       startWebpPlayback();
@@ -2362,13 +2365,13 @@ function playHitVfxAtRect(rect,amount,options){
       const begin=()=>{ if(started) return; started=true; startWebpPlayback(); };
       mediaEl.addEventListener('load',begin,{once:true});
       mediaEl.addEventListener('error',begin,{once:true});
-      setTimeout(begin,1500);
+      battlePresentationSetTimeout(begin,1500);
     }
   } else {
     videoRef.addEventListener('ended',finish,{once:true});
     // 再生速度調整が効かない場合（メタデータ取得失敗等）の保険。通常はvideoのendedで先に終わる。
-    setTimeout(finish,opt.maxDuration||Math.max(1000,hitDuration+400));
-    setTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
+    battlePresentationSetTimeout(finish,opt.maxDuration||Math.max(1000,hitDuration+400));
+    battlePresentationSetTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
   }
   // 呼び出し元への復帰はgateMsのみ待つ（次の攻撃・演出再開のテンポを演出の長さに引きずられないようにする）。
   // WebPは読み込み完了後に startWebpPlayback() 側で回転もかける。
@@ -2380,7 +2383,7 @@ function playHitVfxAtRect(rect,amount,options){
       {transform:`${baseTransform} rotate(1440deg)`},
     ],{duration:hitDuration,easing:'linear',fill:'forwards'});
   }
-  return opt.waitForFinish?completePromise:new Promise(resolve=>setTimeout(resolve,gateMs));
+  return opt.waitForFinish?completePromise:new Promise(resolve=>battlePresentationSetTimeout(resolve,gateMs));
 }
 
 function playHitVfxOnSlot(slot,amount,options){
@@ -2776,7 +2779,7 @@ async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
     };
     requestAnimationFrame(step);
     // rAFが止まる環境でも必ず終わらせ、DOMも必ず消す。
-    setTimeout(finish,total+1200);
+    battlePresentationSetTimeout(finish,total+1200);
   });
   return true;
 }
@@ -3162,7 +3165,10 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
     // 回転量に関わらず再生時間を一定に保つため、動画自体の再生速度をsweepDurationに合わせる
     created.video.addEventListener('loadedmetadata',()=>{
       if(created.video.duration&&isFinite(created.video.duration)&&created.video.duration>0){
-        created.video.playbackRate=Math.min(16,Math.max(0.25,created.video.duration/(sweepDuration/1000)));
+        const speed=typeof getBattlePresentationSpeedScale==='function'
+          ?getBattlePresentationSpeedScale():1;
+        created.video.playbackRate=Math.min(16,Math.max(0.25,
+          created.video.duration/(sweepDuration/1000)*speed));
       }
     },{once:true});
   }
@@ -3181,7 +3187,7 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
       const ratio=Math.max(0,Math.min(1,(a-startAngle)/span));
       // 0〜0.1は出現、0.1〜0.75で回り切る。その区間へ対象の角度を写す。
       const at=sweepDuration*(0.1+0.65*ratio);
-      setTimeout(()=>{ try{ opt.onTargetHit((targets||[])[i],i); }catch(e){ console.error('[sweep onTargetHit]',e); } },at);
+      battlePresentationSetTimeout(()=>{ try{ opt.onTargetHit((targets||[])[i],i); }catch(e){ console.error('[sweep onTargetHit]',e); } },at);
     });
   }
   return new Promise(resolve=>{
@@ -3200,7 +3206,7 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
       mediaEl.style.transform=`rotate(${endAngle}deg) scaleY(${sizeScale})`;
       mediaEl.style.opacity='1';
     }
-    setTimeout(finish,sweepDuration+400);
+    battlePresentationSetTimeout(finish,sweepDuration+400);
   });
 }
 
@@ -3859,9 +3865,10 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     }
   };
   const runSegment=(frames,duration,dynamicEnd)=>{
-    // 戦闘全体の自動高速化で攻撃モーションまで短縮すると、接触前に
-    // カードが瞬間移動したように見える。攻撃演出は常に指定尺で再生する。
-    const scaledDuration=Math.max(180,duration);
+    // 攻撃モーションも戦闘演出の速度（オプション「高速」＝1.5倍、PvEの自動加速）に合わせる（利用者指定）。
+    // 短くしすぎると接触前にカードが瞬間移動したように見えるので、下限180msは残す。
+    const presentationSpeed=typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1;
+    const scaledDuration=Math.max(180,duration/presentationSpeed);
     const parseTransform=value=>{
       const tm=String(value||'').match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/);
       const rm=String(value||'').match(/rotate\(\s*(-?[\d.]+)deg\s*\)/);

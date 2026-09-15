@@ -1861,8 +1861,11 @@ PvE（`battle_events.js` の `eventList`）とオンライン（`playback.js` �
 上記を直す際の確認順は、`core.js` のイベント生成 → `present.js` / `present_events.js` の規則 →
 `render.js` の矩形・回転・CSS → PvE／オンライン両受け口、とする。実機で未確認のものは「修正済み」と報告しない。
 
-1. **`present_parity` の「【薙ぎ払い】数値がカード外に出ない」が不安定**（2026-09-14 は全件2回＋`VB_ONLY=薙ぎ払い` 3回の計5回すべてOK。再発したら記録）。
-   死亡した対象の数値が `_lastVisualRect`（詰める前の位置）を追い続けるため。
+1. ~~`present_parity` の「【薙ぎ払い】数値がカード外に出ない」が不安定~~ **2026-09-15 解消（検査側の誤判定）。**
+   オンラインで再現した時の診断：数値の持ち主は倒れた E2（スロットは既に無い）で、数値の矩形 `940,325 126x191` は
+   燃え落ち中の複製 `.death-burn-clone` の矩形と完全に一致していた。つまり**数値は燃えているカードの上に正しく出ていた**。
+   検査は生きている `.slot[data-unit-id]` の矩形しか「カード」と見ておらず、詰めが数値より先に済むと「カード外」と数えていた
+   （以前の「`_lastVisualRect` を追い続けるため」という推測は外れ）。検査の「カード」に `.death-burn-clone` を加えた。
    **「【変身】HPが数値より先に減らない」の毎回NGは検査側の誤判定で、2026-09-14 に修正済み。** 変身でHP表示が入れ替わる（40→10）のは正しい挙動。
    検査は直前のイベントが transform の時だけ許していたが、表示の入れ替えは遅れて反映され、その時には次のイベントへ進んでいた。
    今は変身したキャラを `__watch.transformed` に記録し（オンラインは onEvent、PvE は `G._battleCoreEvents` を走査）、そのキャラのHP減少を1回だけ許す。
@@ -2501,6 +2504,38 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    制限時間は**サーバー側で無期限**（`OnlineMatch.start({unlimitedTime})` → `server_local.js` の `m.unlimitedTime` → `_armDeadline()` が締め切りを付けない）。
    **`startGame()` は途中で `exitOnlineMode()` を呼び、そこで `G._debugOnline` が消えるので、その後で立て直している**（消えたまま始めて編成に制限時間が付いた）。
    対戦中（`online-versus-active`）は編成UIごと隠れる条件はそのまま（試験戦闘などをサーバーの進行と衝突させないため）。
+39. **オプション画面（2026-09-15）**：`js/engine/options.js`・index.html の `#options-layer`。右上のオプションボタン（タイトル・戦闘・村・マップ）で開閉。
+   開いている間は `body.options-open`：80%の黒オーバーレイ、共通の `sleep()` が止まる（`battleSleep()` 経由の待ちも止まる）、CSSアニメーション停止、動画停止。
+   **`sleep()` を通らない `setTimeout` の待ち（render.js のVFX内部、battle.js の一部カットイン、main.js のムービー等）は止まらない。** オンラインの残り時間はサーバーが持つので止めない。
+   設定は localStorage `vesselbound.options`（speed／mode／language／bgm／se）。起動時に読み込んで反映。「確定して保存」で保存、「元に戻す」と保存せずに閉じた時は保存済みへ戻す。
+   **演出速度（2026-09-15 作り直し）**：戦闘演出の速度倍率 S は battle.js の `getBattlePresentationSpeedScale()` だけが決める。
+   再生中でなければ 1。オプション「高速」（`window.VB_OPTION_SPEED==='fast'`、G には持たない）は PvE・オンラインとも 1.5。「通常」は PvE だけ従来の自動加速（`getBattleSpeedScale()`）、オンラインは 1。
+   **再生中の印は経路ごとに別**：PvE＝`G._battlePhaseRunning`、オンライン＝`window.__VB_BATTLE_PRESENTATION_PLAYING`（board.js の begin/endOnlineVersusField だけが `setBattlePresentationPlaying()` で上げ下げ）。
+   PvE でオンライン用の印を立てると下ろし忘れて編成画面の待ちまで速くなり、自動加速も効かなくなる（一度そうなった）。
+   S を掛けている所：main.js の `sleep()`、オンラインの `_onlineSleep()`／board.js `_sleep()`、`battlePresentationSetTimeout()`（VFXのタイマー・被弾VFXの復帰待ち）、
+   VFX動画の playbackRate、**攻撃モーション（render.js `runSegment` の尺を S で割る。下限180ms）**、
+   戦闘画面・VFX・攻撃複製・死亡の燃え落ち（`.death-burn-clone`）・カットインの `document.getAnimations()` の playbackRate（常時のrAFで追従し、再生が終わったら1へ戻す）。
+   速くしないもの：オプション画面、クリックの波紋、UIボタンのホバー、BGM、オンラインの残り時間。計測：同じ戦闘で高速は通常の約0.68倍（PvE・オンラインとも）。
+   表示モード「フルスクリーン」は Fullscreen API で即時反映。データ削除：セーブ＝`SaveRun.deleteRunSave()`、システム＝`SaveStorage.remove('profile')`＋設定を既定へ。
+   通常ゲーム・オンライン中は削除不可＋注釈。
+   **文言はテキストメッセージシートの実際のキー**（「オプション」見出し／「演出速度」見出し／「演出速度」項目1〜2／「表示モード」項目1〜4／「表示言語」項目1〜3／
+   オプションの「実行」ボタン／セーブデータ削除時 など）。選択肢の数もシートの項目数に従う。削除確認の見出しはシートに無く `削除確認見出し`（既定「削除確認」）。
+   表示モードの 2560×1440／3840×2160 と、表示言語の English／中文は**保存するだけ**（ブラウザでは窓の大きさを変えられない／翻訳が無い）。
+   色：見出し「オプション」と削除確認の見出しは #c49a6c、項目名・現在設定の値・選択肢・音量の数値は #8b7c67。
+   削除確認はエラー画面（`#fatal-error-*`）と同じ枠・見出し・本文の位置（枠 top:894px、見出し +42px、本文 +120px、ボタン行 top:1344px・間隔35px）。
+   下の3ボタンと削除確認の2ボタンはゲームオーバー画面のボタンと同じ作り（`::after` に素材、`::before` に発光、ホバーで点滅、`--font-hd` 44px）。
+   **共有規則が `position:relative!important` なので、下の3つは `#options-layer .options-bottom #options-…{position:absolute!important}` で横一列に固定している。**
+   「実行」は262×62だけが反応し、ホバーはカード非表示ボタンと同じ。音量は range 入力をやめたポインタ操作（端でもつまみを掴める。値が変わって離した時に uiConfirm）。
+   「タイトルに戻る」はラン中なら環境音・BGMを止めて `showScreen('title')`（タイトルBGMに切り替わる）、タイトル画面では閉じるだけ。
+   一時停止中もクリックの波紋・オプション画面自身・右上のボタンの発光は止めない。
+   右上のオプションボタンはムービー中（`body.cutscene-video-active`：_playOpeningMovie／_playDepartureMovie／_playCutsceneMovieToBlack）とマップ画面（`#scr-map`／`body.world-map-active`）では出さない。
+   **左下のボタン**：何も変えていない時は「戻る」（オプションの「戻る」ボタン、青＝button_blue1.svg、押すと閉じる。**ホバーの発光は「元に戻す」と同じ強さ・同じ色で、光の層だけ button_brown2.svg から作る**。発光は画像自体を明るくするので、青の画像だと青っぽい光になっていた）、変えた時は「保存して戻る」（オプションの「保存して戻る」ボタン、茶金、保存して閉じる）。
+   削除の「実行」は、ラン中（通常ゲーム・オンライン）に加え、**消すデータが無い時も押せない**（セーブ＝`vesselbound.run.*`、システム＝`vesselbound.profile.*` か `vesselbound.options`）。
+   **システムデータの削除は設定の保存（`vesselbound.options`）も消す**（既定値を書き戻すと「データあり」のまま明るく残った）。
+   効果音：オプションボタン・閉じる・戻る／保存して戻る・タイトルに戻る・実行・キャンセル＝`uiConfirm`（ui_confirm.wav）、元に戻す＝`uiReturn`（return.wav。assets.js に登録）、選択肢の矢印＝`select`。
+   「実行」のホバーはカード非表示ボタンと同じ（外周線だけのデータSVG＋`#ui-btn-outer-glow-only`）。矢印は押せる時ホバーで発光、押せない時は opacity .5。
+   各行の文字は、上下の線の真ん中に**文字の見た目の中心**を合わせる（Shippori Mincho は 40px の箱の中心より約1.6px下に描かれる。行ごとの top を index.html に直書き）。
+   **`#options-panel button{background:transparent;font:inherit}` があるので、パネル内のボタンの背景・文字サイズは `#options-panel …` で指定すること**（矢印が消え「実行」が14pxになった）。
    ホバー説明（`#kw-tooltip`／`#keyword-tooltip`／`#map-power-tooltip`）の本文が灰色（#a99e8f）なのは 646eb1e の意図的な指定で、削除による変化ではない（f9550b2 と差0）。
    `#map-confirm-dialog`・`#carry-gold-warning`・`.map-village-card`・`.map-forge-card` はどのコードも作らないので、そのCSSの削除は影響なし。
 19. **セーブ容量**：戦闘の保存（`run_save.js`）は setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を入れず、

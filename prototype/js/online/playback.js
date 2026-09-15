@@ -51,7 +51,9 @@ const ONLINE_PLAYBACK_WAIT_MS = {
 };
 
 function _onlineSleep(ms) {
-  const wait = Math.max(0, Number(ms) || 0);
+  const speed = typeof getBattlePresentationSpeedScale === 'function'
+    ? getBattlePresentationSpeedScale() : 1;
+  const wait = Math.max(0, Number(ms) || 0) / speed;
   return wait ? new Promise(r => setTimeout(r, wait)) : Promise.resolve();
 }
 
@@ -97,7 +99,6 @@ function _hasImmediateDamageFollowup(events, index) {
  */
 async function playOnlineBattleEvents(result, handlers) {
   const opts = handlers || {};
-  const speed = Math.max(0.1, Number(opts.speed) || 1);
   // **一撃の中の死亡は、その一撃の数値を全部出してから見せる。**
   // 並べ替えの規則は present.js が唯一の実装（PvEと同じものを使う）。
   // 動かすのは表示順だけで、値も勝敗もサーバーが確定済み。
@@ -248,7 +249,7 @@ async function playOnlineBattleEvents(result, handlers) {
       || ev.type === 'instant_death' || ev.type === 'curse_death')
       && _hasImmediateSummon(events, i))
       ? 0 : (ONLINE_PLAYBACK_WAIT_MS[ev.type] || 0);
-    await _onlineSleep(waitMs / speed);
+    await _onlineSleep(waitMs);
   }
 
   // 勝敗はサーバーの値をそのまま返す。

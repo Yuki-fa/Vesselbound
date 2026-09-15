@@ -353,10 +353,15 @@ function presentQueueEffectFlash(entry) {
   if (!entry || !entry.unit) return false;
   _presentPendingFlashes.push(entry);
   if (_presentPendingFlashTimer == null && typeof setTimeout === 'function') {
-    _presentPendingFlashTimer = setTimeout(() => {
+    _presentPendingFlashTimer = typeof battlePresentationSetTimeout === 'function'
+      ? battlePresentationSetTimeout(() => {
+        _presentPendingFlashTimer = null;
+        presentFlushEffectFlashes();
+      }, PRESENT_EFFECT_FLASH_MAX_WAIT_MS)
+      : setTimeout(() => {
       _presentPendingFlashTimer = null;
       presentFlushEffectFlashes();
-    }, PRESENT_EFFECT_FLASH_MAX_WAIT_MS);
+      }, PRESENT_EFFECT_FLASH_MAX_WAIT_MS);
   }
   return true;
 }
@@ -594,7 +599,8 @@ async function presentDeathBatch(evs, api) {
   // コアは死亡イベントの後に発光を出すため、present.js の並べ替えで前へ寄せてある。
   // ここで出さずに焼き落とすと、光らせる先のカードが既に盤面から消えている。
   if (typeof presentFlushEffectFlashes === 'function' && presentFlushEffectFlashes()) {
-    await new Promise(resolve => setTimeout(resolve, PRESENT_DEATH_FLASH_HOLD_MS));
+    if (typeof api.sleep === 'function') await api.sleep(PRESENT_DEATH_FLASH_HOLD_MS);
+    else await new Promise(resolve => setTimeout(resolve, PRESENT_DEATH_FLASH_HOLD_MS));
   }
   // ここまでで数値・VFXは出し終えている。再生中でも焼き落としを始めてよい印。
   // **消失演出は同時に倒れた全員で同じ時点に始める。**
@@ -710,7 +716,10 @@ async function presentFledBatch(evs, api) {
   const count = entries.length;
   const interval = count > 1 ? PRESENT_FLED_STAGGER_TOTAL_MS / (count - 1) : 0;
   await Promise.all(entries.map(({ ev, unit }, i) => (async () => {
-    if (i && interval) await new Promise(resolve => setTimeout(resolve, Math.round(i * interval)));
+    if (i && interval) {
+      if (typeof api.sleep === 'function') await api.sleep(Math.round(i * interval));
+      else await new Promise(resolve => setTimeout(resolve, Math.round(i * interval)));
+    }
     if (typeof playFledVfx === 'function') {
       try { await playFledVfx(ev.side === 'p1' ? 'ally' : 'enemy', unit); }
       catch (err) { console.error('[fled vfx]', err); }

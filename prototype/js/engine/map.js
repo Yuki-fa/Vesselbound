@@ -46,7 +46,7 @@ function _applyMapPanelPowerSheetRows(){
 _applyMapPanelPowerSheetRows();
 
 function _mapDelay(ms){
-  return new Promise(resolve=>setTimeout(resolve,ms));
+  return sleep(ms);
 }
 
 function waveStageIsAfterCity(wave,stage){
@@ -818,6 +818,7 @@ function _ensureCutsceneVideoEl(){
 async function _playDepartureMovie(src,done){
   if(G._departureMoviePlaying){ done(); return; }
   G._departureMoviePlaying=true;
+  document.body.classList.add('cutscene-video-active');
   const fade=_ensureVillageEnterFadeEl();
   const video=_ensureCutsceneVideoEl();
   try{
@@ -858,6 +859,7 @@ async function _playDepartureMovie(src,done){
   }finally{
     try{ video.pause(); }catch(_e){}
     video.classList.remove('is-active');
+    document.body.classList.remove('cutscene-video-active');
     G._departureMoviePlaying=false;
   }
   done();

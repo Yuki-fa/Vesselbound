@@ -351,7 +351,7 @@ async function _endManaEffectRun(){
   const cueDone=_manaEffectCueDone; _manaEffectCueDone=null;
   _manaEffectCurrentCode='';
   if(vfx.length) await Promise.all(vfx.map(v=>v.stop()));
-  if(cueDone) await Promise.race([cueDone,new Promise(resolve=>setTimeout(resolve,MANA_CUE_VFX_MS+700))]);
+  if(cueDone) await Promise.race([cueDone,new Promise(resolve=>battlePresentationSetTimeout(resolve,MANA_CUE_VFX_MS+700))]);
 }
 
 // 戦闘そのものが中断された時の後始末。**待たずに捨てる。**
@@ -400,7 +400,7 @@ async function _playManaEffectProjectiles(list,effectNo,opt){
   });
   if(!shots.length){ _playManaEffectPulse(list,effectNo); return; }
   await Promise.all(shots.map(async (shot,i)=>{
-    if(i) await new Promise(resolve=>setTimeout(resolve,stagger*i));
+    if(i) await new Promise(resolve=>battlePresentationSetTimeout(resolve,stagger*i));
     // 発射のSEは矢ごとに1本（発射がずれるので重ならない）。
     if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
     // ダメージ数値はこの矢の着弾で出すので、通常のダメージ演出には出させない。
@@ -447,7 +447,7 @@ async function _playManaEffectCue(units,opt){
     _recordBattleTrace('mana_effect_pulse',{unitId:list[0].unit.id,effectNo,人数:list.length});
     if(projectile) await _playManaEffectProjectiles(list,fxCode,opt);
     else _playManaEffectPulse(list,fxCode);
-    await new Promise(resolve=>setTimeout(resolve,gap));
+    await new Promise(resolve=>battlePresentationSetTimeout(resolve,gap));
     return;
   }
   // 直前の効果の演出（固有VFX・マナ効果VFX）を終わらせてから始める。
@@ -530,7 +530,7 @@ async function _playManaEffectCue(units,opt){
     }).catch(()=>onReverse())));
   // 効果の処理はマナ効果VFXの**逆再生開始**から進める（旧来の演出境界）。
   // 素材の読み込み失敗などでコールバックが届かない場合だけ安全弁を使う。
-  await Promise.race([reverseStart,new Promise(resolve=>setTimeout(resolve,MANA_CUE_VFX_MS))]);
+  await Promise.race([reverseStart,new Promise(resolve=>battlePresentationSetTimeout(resolve,MANA_CUE_VFX_MS))]);
   startPulse();
   // 飛ばす効果は着弾まで待つ（着弾でダメージ数値を出すため）。
   if(projectileDone) await projectileDone;
@@ -539,7 +539,7 @@ async function _playManaEffectCue(units,opt){
   // 時間が経っていると、ここから改めて待つと1回目と2回目の間だけ不自然に空く。
   const sincePulse=(typeof performance!=='undefined'?performance.now():Date.now())-pulsedAt;
   const rest=Math.max(0,gap-(pulsedAt?sincePulse:0));
-  if(rest>0) await new Promise(resolve=>setTimeout(resolve,rest));
+  if(rest>0) await new Promise(resolve=>battlePresentationSetTimeout(resolve,rest));
   _recordBattleTrace('mana_vfx_reverse_confirmed',{unitId:list[0].unit.id});
 }
 
@@ -604,6 +604,65 @@ function getBattleSpeedScale(){
   return Math.max(1,Math.min(1.5,scale));
 }
 
+// 戦闘演出の速度は、PvE／オンラインで同じ入口から読む（唯一の実装）。
+// **再生中かどうかは経路ごとに別の印で持つ。**
+//   PvE：G._battlePhaseRunning（_advanceToBattlePhase() で立ち、戦闘の終わりで下りる）
+//   オンライン：window.__VB_BATTLE_PRESENTATION_PLAYING（board.js の beginOnlineVersusField／endOnlineVersusField）
+// 同じ印をPvEでも立てていた頃は、PvEが下ろし忘れて編成画面の待ちまで速くなり、PvEの自動加速も効かなくなっていた。
+function _isOnlineBattlePresentationPlaying(){
+  return !!(typeof window!=='undefined'&&window.__VB_BATTLE_PRESENTATION_PLAYING);
+}
+function isBattlePresentationPlaying(){
+  return _isOnlineBattlePresentationPlaying()||!!(typeof G!=='undefined'&&G&&G._battlePhaseRunning);
+}
+// 速度倍率 S：再生中でなければ1。オプション「高速」は PvE・オンラインとも1.5。
+// 「通常」は PvE だけ従来の自動加速（長い戦闘で1.5へ）。オンラインに自動加速は無い。
+function getBattlePresentationSpeedScale(){
+  if(!isBattlePresentationPlaying()) return 1;
+  if(typeof window!=='undefined'&&window.VB_OPTION_SPEED==='fast') return 1.5;
+  if(_isOnlineBattlePresentationPlaying()) return 1;
+  return getBattleSpeedScale();
+}
+function battlePresentationSetTimeout(fn,ms){
+  const speed=typeof getBattlePresentationSpeedScale==='function'
+    ?getBattlePresentationSpeedScale():1;
+  return setTimeout(fn,Math.max(0,Number(ms)||0)/speed);
+}
+
+// CSSアニメーション・element.animate() の再生速度を S に揃える。
+// 毎フレーム軽く確かめ、再生が終わった時に一度だけ 1 へ戻す（戦闘後の編成画面の演出を速くしない）。
+let _battlePresentationAnimationRaf=0;
+let _battlePresentationAnimationRate=1;
+function _isBattlePresentationAnimation(anim){
+  const target=anim&&anim.effect&&typeof anim.effect.getTiming==='function'
+    ?anim.effect.target:null;
+  if(!target||typeof target.closest!=='function') return false;
+  if(target.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover]')) return false;
+  return !!target.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro');
+}
+function _syncBattlePresentationAnimations(){
+  const speed=isBattlePresentationPlaying()?getBattlePresentationSpeedScale():1;
+  if((speed!==1||_battlePresentationAnimationRate!==1)&&typeof document!=='undefined'&&typeof document.getAnimations==='function'){
+    document.getAnimations().forEach(anim=>{
+      if(_isBattlePresentationAnimation(anim)&&anim.playbackRate!==speed){
+        try{ anim.playbackRate=speed; }catch(_e){}
+      }
+    });
+  }
+  _battlePresentationAnimationRate=speed;
+  _battlePresentationAnimationRaf=typeof requestAnimationFrame==='function'?requestAnimationFrame(_syncBattlePresentationAnimations):0;
+}
+function setBattlePresentationPlaying(playing){
+  // オンラインの再生だけが使う（PvE は G._battlePhaseRunning）。
+  if(typeof window!=='undefined') window.__VB_BATTLE_PRESENTATION_PLAYING=!!playing;
+  if(!_battlePresentationAnimationRaf&&typeof requestAnimationFrame==='function'){
+    _battlePresentationAnimationRaf=requestAnimationFrame(_syncBattlePresentationAnimations);
+  }
+}
+if(typeof requestAnimationFrame==='function'&&typeof window!=='undefined'){
+  _battlePresentationAnimationRaf=requestAnimationFrame(_syncBattlePresentationAnimations);
+}
+
 function _setBattleSpeedTarget(target){
   target=Math.max(1,Math.min(1.5,target||1));
   if(!G||G._battleSpeedTarget===target) return;
@@ -614,6 +673,15 @@ function _setBattleSpeedTarget(target){
 
 function updateBattleSpeedMode(){
   if(!G||G.phase!=='enemy') return getBattleSpeedScale();
+  // オプションの演出速度「高速」は最初から1.5倍で固定する（加速の3秒の立ち上がりも無し）。
+  // 「通常」は下の自動加速（長い戦闘だけ速める）をそのまま使う。
+  // 値は options.js が window.VB_OPTION_SPEED に置く（G は startGame() で作り直されるため G には持たない）。
+  if(typeof window!=='undefined'&&window.VB_OPTION_SPEED==='fast'){
+    if(G._battleSpeedTarget!==1.5||G._battleSpeedFrom!==1.5){
+      G._battleSpeedFrom=1.5; G._battleSpeedTarget=1.5; G._battleSpeed=1.5; G._battleSpeedChangedAt=performance.now();
+    }
+    return getBattleSpeedScale();
+  }
   const liveTotal=_liveBattleUnits(G.allies,false).length+_liveBattleUnits(G.enemies,true).length;
   const elapsed=performance.now()-(G._battleStartedAt||performance.now());
   const shouldSlow=liveTotal<=5;
@@ -638,7 +706,8 @@ function battleSleep(ms){
   // 通常速度は1.60倍まで遅くし、1.5倍速時は従来の1.12倍相当へ戻して加速後のテンポを維持する。
   const fastProgress=Math.max(0,Math.min(1,(speed-1)/.5));
   const tempoMul=1.6-(.48*fastProgress);
-  return sleep((Number(ms)||0)*tempoMul/speed);
+  // sleep() 自体も再生中の速度を適用するため、ここでは二重に割らない。
+  return sleep((Number(ms)||0)*tempoMul,{skipBattlePresentationSpeed:true});
 }
 
 
@@ -1153,15 +1222,17 @@ function playBattleHitImpact(){
   video.src=BATTLE_HIT_IMPACT_SRC;
   video.muted=true; video.playsInline=true; video.autoplay=true; video.preload='auto';
   video.setAttribute('muted',''); video.setAttribute('playsinline',''); video.setAttribute('autoplay','');
+  video.playbackRate=Math.max(.25,Math.min(16,
+    typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1));
   box.appendChild(video);
   host.appendChild(box);
   void box.offsetWidth;
   box.classList.add('is-visible');
   try{ const played=video.play(); if(played&&played.catch) played.catch(()=>{}); }catch(e){}
-  _battleHitImpactTimer=window.setTimeout(()=>{
+  _battleHitImpactTimer=battlePresentationSetTimeout(()=>{
     box.style.transition=`opacity ${BATTLE_HIT_IMPACT_OUT_MS}ms ease-in`;
     box.classList.remove('is-visible');
-    _battleHitImpactTimer=window.setTimeout(()=>{
+    _battleHitImpactTimer=battlePresentationSetTimeout(()=>{
       _battleHitImpactTimer=null;
       box.remove();
     },BATTLE_HIT_IMPACT_OUT_MS);
@@ -1199,26 +1270,26 @@ function showBattleCutin(type='start',options={}){
   _showBattleEndFade();
   if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
   // 敗北（オンライン）も撤退と同じくライフを失う演出・SEを出す。
-  if(mode==='retreat'||mode==='defeat') window.setTimeout(_fadeBattleLife,520);
+  if(mode==='retreat'||mode==='defeat') battlePresentationSetTimeout(_fadeBattleLife,520);
   return new Promise(resolve=>{
     // 勝利は表示位置を保持したまま待機する。退場アニメーションを挟むと
     // 「勝利」が一度消え、flex再配置によってラインと本文も移動してしまう。
     if(!isResult){
-      window.setTimeout(()=>overlay.classList.add('battle-start-closing'),Math.max(900,Number(options.holdMs)||1200));
+      battlePresentationSetTimeout(()=>overlay.classList.add('battle-start-closing'),Math.max(900,Number(options.holdMs)||1200));
     }
-    window.setTimeout(()=>{
+    battlePresentationSetTimeout(()=>{
       const fade=document.getElementById('battle-end-fade');
       if(fade && isResult){
         // 結果表示後は背景を保持した暗転状態で停止する。進むボタン押下時だけ
         // battle-transition-fade を使って完全に暗転し、次画面へ遷移する。
-        window.setTimeout(()=>{
+        battlePresentationSetTimeout(()=>{
           overlay.classList.remove('battle-start-closing');
           overlay.classList.add('awaiting-continue');
           resolve(overlay);
         },240);
       }else if(fade){
         fade.classList.add('is-final');
-        window.setTimeout(()=>{
+        battlePresentationSetTimeout(()=>{
           fade.classList.remove('is-visible','is-final');
           fade.removeAttribute('style');
           overlay.remove();
@@ -1403,8 +1474,8 @@ function _battleOpeningLandingVfx(slot){
   fx.className='battle-opening-appearance-vfx';
   slot.insertBefore(fx,slot.firstChild);
   _playBattleOpeningAppearanceSfx();
-  window.setTimeout(()=>fx.classList.add('is-fading'),180);
-  window.setTimeout(()=>fx.remove(),620);
+  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),180);
+  battlePresentationSetTimeout(()=>fx.remove(),620);
 }
 
 function _animateBattleOpeningSlot(slot,delayMs){
@@ -1415,15 +1486,15 @@ function _animateBattleOpeningSlot(slot,delayMs){
   slot.style.setProperty('transform','translateX(-110vw) scale(.96)','important');
   slot.style.setProperty('transition','none','important');
   return new Promise(resolve=>{
-    window.setTimeout(()=>{
+    battlePresentationSetTimeout(()=>{
       slot.style.setProperty('transition','transform 420ms cubic-bezier(.2,.8,.25,1), opacity 420ms cubic-bezier(.2,.8,.25,1)','important');
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
         slot.style.setProperty('transform','translateX(0) scale(1.12)','important');
         slot.style.setProperty('opacity','1','important');
       }));
-      window.setTimeout(()=>slot.style.setProperty('transform','translateX(0) scale(1)','important'),270);
+      battlePresentationSetTimeout(()=>slot.style.setProperty('transform','translateX(0) scale(1)','important'),270);
     },delayMs);
-    window.setTimeout(()=>{
+    battlePresentationSetTimeout(()=>{
       slot.style.removeProperty('z-index');
       slot.style.removeProperty('visibility');
       slot.style.removeProperty('opacity');
@@ -1433,7 +1504,7 @@ function _animateBattleOpeningSlot(slot,delayMs){
       slot.classList.add('battle-opening-done');
       resolve();
     },delayMs+420);
-    window.setTimeout(()=>_battleOpeningLandingVfx(slot),delayMs);
+    battlePresentationSetTimeout(()=>_battleOpeningLandingVfx(slot),delayMs);
   });
 }
 

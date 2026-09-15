@@ -169,7 +169,10 @@ const WATCHER = `
       const hr = h.getBoundingClientRect();
       if (hr.width <= 0) return;
       const cx = hr.left + hr.width / 2, cy = hr.top + hr.height / 2;
-      const on = [...document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id]')]
+      // **倒れて燃え落ちている最中のカード（.death-burn-clone）もカードとして数える。**
+      // 盤面の詰めが数値より先に済むと、倒れたキャラのスロットは消えて、数値は燃え落ちの複製の上に残る。
+      // これは正しい見え方で、スロットだけを見ていた頃は「カード外」と誤判定していた（【薙ぎ払い】の不安定なNGの原因。2026-09-15 診断で確認）。
+      const on = [...document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id],.death-burn-clone')]
         .some(s => { const r = s.getBoundingClientRect();
           return cx >= r.left - 6 && cx <= r.right + 6 && cy >= r.top - 6 && cy <= r.bottom + 6; });
       const key = (h.textContent || '').trim() + '@' + Math.round(cx) + ',' + Math.round(cy);

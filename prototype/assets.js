@@ -210,6 +210,7 @@ const Assets = {
     menuOpen: 'assets/sfx/menu_open.wav',
     menuClose: 'assets/sfx/menu_close.wav',
     select: 'assets/sfx/select.wav',
+    uiReturn: 'assets/sfx/return.wav', // オプションの「元に戻す」（利用者指定）
     gameStart: 'assets/sfx/game_start.wav',
     knock: 'assets/sfx/knock.wav',
     boom: 'assets/sfx/boom.wav',

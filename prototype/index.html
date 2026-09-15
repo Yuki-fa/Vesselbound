@@ -11370,6 +11370,154 @@ body.run-resume-active #battle-options-btn{display:none!important}
 }
 
 </style>
+<style>
+/* OPTIONS: 3840x2160設計座標。既存の.screenと同じ縮尺枠に載せる。 */
+#options-layer{display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;z-index:4050;font-family:"Shippori Mincho",serif;color:#f4e7c8}
+#options-layer.is-open{display:block}
+#options-shade{position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:0}
+#options-close-proxy{position:absolute;right:96px;top:58px;width:112px;height:112px;border:0;border-radius:0;background:url("assets/ui/option_close.svg") center/42px 42px no-repeat,url("assets/ui/button_option.svg") center/100% 100% no-repeat;background-color:transparent;z-index:4;cursor:var(--cursor-normal);box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)}
+#options-panel{position:absolute;left:915px;top:235px;width:2010px;height:1500px;background:url("assets/ui/option.svg") center/100% 100% no-repeat;z-index:1}
+#options-panel button{font:inherit;color:inherit;border:0;background:transparent}
+.options-title{position:absolute;top:46px;left:0;width:100%;text-align:center;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;color:#f4e7c8;text-shadow:0 2px 8px rgba(0,0,0,.85)}
+.options-title::before,.options-title::after{content:"";display:inline-block;width:250px;height:3px;margin:0 34px .32em;background:url("assets/ui/line.png") center/100% 100% no-repeat}
+.options-heading,.options-item{position:absolute;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.85);white-space:nowrap}
+.options-heading{left:108px;font-size:40px;font-weight:700;color:#d8b982}
+.options-item{left:208px;font-size:40px;color:#c49a6c}
+.options-line{position:absolute;left:105px;width:1800px;height:2px}
+.options-line.item{left:205px;width:1600px}
+.options-current-title{position:absolute;left:1450px;top:108px;width:346px;text-align:center;font-size:28px;color:#d8b982}
+.options-current{position:absolute;left:1450px;width:346px;text-align:center;font-size:28px;color:#c49a6c}
+.options-choice{position:absolute;left:0;width:100%;display:flex;align-items:center;justify-content:center;height:70px;font-size:42px;color:#f4e7c8}
+.options-choice button{position:absolute;width:70px;height:70px;background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat;cursor:var(--cursor-normal)}
+.options-choice .prev{left:760px;transform:scaleX(-1)}
+.options-choice .next{left:1179px}
+.options-choice button.is-disabled{opacity:.25;pointer-events:none}
+/* #options-panel button{background:transparent;font:inherit} より強く指定する（矢印が消え、「実行」が14pxになっていた）。 */
+#options-panel .options-choice button{background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat}
+/* 押せる矢印はホバーで発光、押せない矢印は暗くしすぎない（利用者指定）。 */
+#options-panel .options-choice button:not(.is-disabled):hover{filter:brightness(1.8) drop-shadow(0 0 6px rgba(255,225,143,.9)) drop-shadow(0 0 12px rgba(255,194,70,.7))}
+#options-panel .options-choice button.is-disabled{opacity:.5}
+#options-panel .options-action{font-size:28px}
+.options-slider{position:absolute;left:0;width:100%;height:60px;display:flex;align-items:center;justify-content:center}
+.options-slider .track{width:447.48px;height:30.93px;background:url("assets/ui/track.svg") center/100% 100% no-repeat;position:relative}
+.options-slider .slider-hit{position:absolute;left:-29.245px;right:-29.245px;top:-29.245px;bottom:-29.245px;z-index:2;cursor:var(--cursor-normal);touch-action:none}
+.options-slider .thumb{position:absolute;top:50%;width:58.49px;height:58.49px;transform:translate(-50%,-50%);pointer-events:none;z-index:1}
+.options-slider .thumb.green{background:url("assets/ui/thumb_green.svg") center/100% 100% no-repeat}
+.options-slider .thumb.red{background:url("assets/ui/thumb_red.svg") center/100% 100% no-repeat}
+.options-slider .number{position:absolute;left:595px;width:150px;text-align:right;font-size:36px;color:#f4e7c8}
+.options-action{position:absolute;left:0;width:100%;height:62px;background:url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;font-size:28px;color:#d8b982!important;cursor:var(--cursor-normal)}
+.options-action:hover:not(:disabled){filter:brightness(1.5) drop-shadow(0 0 10px rgba(255,231,164,.8))}
+.options-action:disabled{opacity:.28;pointer-events:none}
+/* 「データ管理」の見出し（top:1139px・高さ40px）と縦の中心を揃え、見出しの右に置く（見本 X≈1261＝枠からの相対346px）。 */
+.options-note{position:absolute;left:346px;top:1159px;transform:translateY(-50%);width:auto;white-space:nowrap;font-size:24px;line-height:1;color:#8b7c67;text-align:left}
+.options-bottom{position:absolute;top:1805px;left:0;width:100%;height:122px;z-index:2}
+.options-bottom button{position:absolute;top:0;width:494.5px;height:122px;font-size:44px;font-weight:700;letter-spacing:.06em;text-shadow:0 2px 8px rgba(0,0,0,.85);cursor:var(--cursor-normal)}
+#options-save{left:1145px;background:url("assets/ui/button_brown1.svg") center/100% 100% no-repeat!important;color:#f4e7c8;box-shadow:0 0 14px 2px rgba(255,218,125,.32)}
+#options-save:hover{box-shadow:0 0 20px 5px rgba(255,218,125,.56)}
+#options-revert{left:1672.75px;background:url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;color:#d8b982}
+#options-title{left:2200.5px;background:url("assets/ui/button_brown2.svg") center/100% 100% no-repeat!important;color:#d8b982}
+#options-confirm-layer{display:none;position:absolute;inset:0;z-index:3}
+#options-confirm-layer.is-open{display:block}
+#options-confirm-shade{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+#options-confirm-box{position:absolute;left:920px;top:560px;width:2000px;height:760px;background:url("assets/ui/main_left.svg") center/100% 100% no-repeat;text-align:center;color:#f4e7c8}
+#options-confirm-title{margin-top:150px;font-size:48px;font-weight:700}
+#options-confirm-message{margin:48px auto 0;width:1300px;font-size:30px;white-space:pre-wrap}
+#options-confirm-actions{display:flex;justify-content:center;gap:35.056px;margin-top:110px}
+#options-confirm-actions button{width:494.5px;height:122px;font-size:30px;font-weight:700;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
+#options-confirm-delete{background-image:url("assets/ui/button_red.svg")!important;color:#f4e7c8}
+#options-confirm-cancel{background-image:url("assets/ui/button_brown2.svg")!important;color:#d8b982}
+body.options-open .screen>button[id$="options-btn"]{z-index:4200!important}
+body.options-open .screen-options-btn::after,body.options-open #battle-options-btn::after{background-image:url("assets/ui/option_close.svg"),url("assets/ui/button_option.svg")!important;background-size:42px 42px,100% 100%!important}
+body.options-open *{animation-play-state:paused!important}
+/* オプション中も、操作対象とクリック波紋のアニメーションは止めない。 */
+body.options-open #options-layer *,body.options-open #options-close-proxy,body.options-open .click-ripple,
+body.options-open #options-close-proxy::before,body.options-open #battle-options-btn::before,
+body.options-open .screen-options-btn::before{animation-play-state:running!important}
+
+/* オプションの文字色は魔導板の設計色に合わせる。ID付きの既存規則より強くする。 */
+#options-layer .options-title,#options-layer #options-confirm-title{color:#c49a6c!important}
+#options-layer .options-item,#options-layer .options-current,#options-layer .options-choice,#options-layer .options-slider .number{color:#8b7c67!important}
+#options-layer .options-heading{color:#d8b982!important}
+
+/* 実行ボタンはカード非表示ボタンと同じ外周線だけのホバー。 */
+#options-layer .options-action{left:calc(50% - 131px)!important;width:262px!important;height:62px!important;background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;font-size:28px!important;color:#c49a6c!important;filter:none!important}
+/* カード非表示ボタン（html body #board-card-visibility-btn::before）と同じ：外周線だけのSVGを「発光のみ」のフィルタで光らせる。
+   button_invisible.svg 全体を光らせると内側の装飾線まで光る（利用者指摘：発光がカード非表示ボタンと違った）。 */
+#options-layer .options-action::before{content:"";position:absolute;inset:0;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 262 62'%3E%3Cpath d='M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat;opacity:0;pointer-events:none;filter:url(#ui-btn-outer-glow-only);overflow:visible;transition:opacity .12s ease}
+#options-layer .options-action:hover:not(:disabled)::before{opacity:.84}
+#options-layer .options-action:disabled:hover::before{opacity:0}
+
+/* ゲームオーバー／エラー画面のボタン意匠を共有する。 */
+#options-layer #options-save,#options-layer #options-revert,#options-layer #options-title,
+#options-layer #options-confirm-delete,#options-layer #options-confirm-cancel{
+  position:relative!important;isolation:isolate!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:none!important;background-color:transparent!important;font-family:var(--font-hd)!important;font-size:44px!important;font-weight:600!important;line-height:normal!important;
+  letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;overflow:visible!important;box-sizing:border-box!important;box-shadow:none!important;outline:none!important
+}
+#options-layer #options-save,#options-layer #options-revert,#options-layer #options-title{width:494.5px!important;height:122px!important}
+/* 下の3つは横一列に固定配置する（上の共有規則の position:relative!important に負けて縦に積まれていた）。 */
+#options-layer .options-bottom #options-save,#options-layer .options-bottom #options-revert,#options-layer .options-bottom #options-title{position:absolute!important;top:0!important}
+#options-layer .options-bottom #options-save{left:1145px!important}
+#options-layer .options-bottom #options-revert{left:1672.75px!important}
+#options-layer .options-bottom #options-title{left:2200.5px!important}
+#options-layer #options-confirm-delete,#options-layer #options-confirm-cancel{width:496px!important;height:122px!important}
+#options-layer #options-save::after,#options-layer #options-revert::after,#options-layer #options-title::after,
+#options-layer #options-confirm-delete::after,#options-layer #options-confirm-cancel::after,
+#options-layer #options-save::before,#options-layer #options-revert::before,#options-layer #options-title::before,
+#options-layer #options-confirm-delete::before,#options-layer #options-confirm-cancel::before{
+  content:""!important;position:absolute!important;inset:0!important;pointer-events:none!important;background:transparent center/100% 100% no-repeat!important;z-index:-1!important
+}
+#options-layer #options-save::after{background-image:url("assets/ui/button_brown1.svg")!important}
+#options-layer #options-revert::after,#options-layer #options-title::after,#options-layer #options-confirm-cancel::after{background-image:url("assets/ui/button_brown2.svg")!important}
+#options-layer #options-confirm-delete::after{background-image:url("assets/ui/button_red.svg")!important}
+#options-layer #options-save::before{background-image:url("assets/ui/button_brown1.svg")!important}
+/* 何も変えていない時の「戻る」：カード未取得時の「戦闘開始」と同じ青（button_blue1.svg）。
+   発光（::before）は「元に戻す」と同じ色味にするため、青ではなく button_brown2.svg から作る（利用者指定）。 */
+#options-layer #options-save.is-back::after{background-image:url("assets/ui/button_blue1.svg")!important}
+#options-layer #options-save.is-back::before{background-image:url("assets/ui/button_brown2.svg")!important}
+/* 「戻る」のホバーは「元に戻す」と同じ強さ（利用者指定）。「保存して戻る」の強い発光（brightness 1.85／opacity 1）より詳細度を上げて上書きする。 */
+#options-layer .options-bottom #options-save.is-back:hover::after{filter:brightness(1.45)!important}
+#options-layer .options-bottom #options-save.is-back:hover::before{opacity:.55!important}
+#options-layer #options-revert::before,#options-layer #options-title::before,#options-layer #options-confirm-cancel::before{background-image:url("assets/ui/button_brown2.svg")!important}
+#options-layer #options-confirm-delete::before{background-image:url("assets/ui/button_red.svg")!important}
+#options-layer #options-save::before,#options-layer #options-revert::before,#options-layer #options-title::before,#options-layer #options-confirm-delete::before,#options-layer #options-confirm-cancel::before{filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));opacity:0}
+#options-layer #options-save:hover::before,#options-layer #options-revert:hover::before,#options-layer #options-title:hover::before,#options-layer #options-confirm-delete:hover::before,#options-layer #options-confirm-cancel:hover::before{opacity:1;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite}
+#options-layer #options-save:hover::after,#options-layer #options-confirm-delete:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+#options-layer #options-revert:hover::after,#options-layer #options-title:hover::after,#options-layer #options-confirm-cancel:hover::after{filter:brightness(1.45)!important}
+#options-layer #options-revert:hover::before,#options-layer #options-title:hover::before,#options-layer #options-confirm-cancel:hover::before{opacity:.55!important}
+#options-layer #options-save:hover::before,#options-layer #options-confirm-delete:hover::before{opacity:1!important}
+#options-layer #options-confirm-delete:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+/* 削除実行のホバーは赤が強く出すぎるので、元に戻す（brown2）と同程度の強さにする（利用者指定）。 */
+#options-layer #options-confirm-actions #options-confirm-delete:hover::after{filter:brightness(1.25)!important}
+#options-layer #options-confirm-actions #options-confirm-delete:hover::before{opacity:.4!important}
+
+/* 削除確認は fatal-error-overlay の枠・見出し・本文・ボタンと同じ設計値。 */
+#options-layer #options-confirm-box{left:50%!important;top:894px!important;width:1020px!important;height:372px!important;transform:translateX(-50%);background:none!important;text-align:center!important;color:#a58768!important}
+#options-layer #options-confirm-box::before{content:"";display:block;position:absolute;left:0;right:0;top:0;bottom:90px;z-index:0;pointer-events:none;background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat}
+#options-layer #options-confirm-box::after{content:"";position:absolute;left:0;right:0;bottom:0;height:90px;z-index:0;pointer-events:none;background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat}
+#options-layer #options-confirm-title{position:absolute;left:0;right:0;top:42px;z-index:1;margin:0;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;text-indent:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85)}
+#options-layer #options-confirm-message{position:absolute;left:80px;right:80px;top:120px;z-index:1;margin:0;width:auto;font-size:35px;line-height:1.35;text-align:center;white-space:pre-wrap;color:#a58768}
+#options-layer #options-confirm-actions{position:absolute;left:0;right:0;top:450px;margin:0;display:flex;justify-content:center;gap:35px;z-index:2}
+
+/* 右上ボタンは通常のオプションボタンと同じ発光を保つ。 */
+/* 右上の「閉じる」は、覆っている本物のオプションボタンと同じ光り方にする（利用者指摘：通常時と発光が違った）。
+   タイトル・村・マップ＝.screen-options-btn の規則、戦闘・編成＝#battle-options-btn の規則をそのまま写す。 */
+#options-layer #options-close-proxy{background:none!important;box-shadow:none!important;border:0!important;border-radius:0!important;overflow:visible!important}
+#options-layer #options-close-proxy::after{content:"";position:absolute;left:0;top:0;width:110px;height:102px;z-index:2;pointer-events:none;
+  background-image:url("assets/ui/option_close.svg"),url("assets/ui/button_option.svg");background-position:center,center;background-size:42px 42px,100% 100%;background-repeat:no-repeat,no-repeat;transition:filter .15s ease}
+#options-layer #options-close-proxy::before{content:"";display:block;position:absolute;left:0;top:0;width:110px;height:102px;z-index:1;pointer-events:none;
+  background:transparent url("assets/ui/button_option.svg") center/100% 100% no-repeat;opacity:0}
+#options-layer #options-close-proxy.mirror-screen::before{transform:scale(1.03);filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9)) drop-shadow(0 0 12px rgba(255,194,70,.78))}
+#options-layer #options-close-proxy.mirror-screen:hover::before{opacity:.84}
+#options-layer #options-close-proxy.mirror-screen:hover::after{filter:grayscale(.65) brightness(1.35)}
+#options-layer #options-close-proxy.mirror-battle::before{transform:none;filter:brightness(1.9) url(#ui-btn-outer-glow)}
+#options-layer #options-close-proxy.mirror-battle:hover::before{opacity:.84}
+#options-layer #options-close-proxy.mirror-battle:hover::after{filter:none}
+html body.world-map-active #battle-options-btn{display:none!important}
+/* マップ画面（#scr-map）自身のオプションボタンも出さない（利用者指定）。 */
+html body.world-map-active #map-options-btn,html body #scr-map.active #map-options-btn{display:none!important}
+body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle-options-btn,body.cutscene-video-active #village-options-btn,body.cutscene-video-active #map-options-btn{display:none!important}
+</style>
 </head>
 <body>
 <div id="kw-tooltip"></div>
@@ -11404,6 +11552,37 @@ body.run-resume-active #battle-options-btn{display:none!important}
   </div>
   <button id="title-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
+</div>
+
+<div id="options-layer" aria-hidden="true">
+  <div id="options-shade"></div>
+  <button data-sfx-silent="1" id="options-close-proxy" type="button" aria-label="オプションを閉じる"></button>
+  <section id="options-panel" aria-label="オプション">
+    <div class="options-title" data-option-text="title"></div>
+    <div class="options-heading" style="top:148px" data-option-text="game"></div><img class="options-line" style="top:224px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-heading" style="top:369px" data-option-text="graphics"></div><img class="options-line" style="top:445px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-heading" style="top:590px" data-option-text="language"></div><img class="options-line" style="top:664px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-heading" style="top:809px" data-option-text="sound"></div><img class="options-line" style="top:884px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-heading" style="top:1139px" data-option-text="data"></div><img class="options-line" style="top:1215px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-current-title" style="top:160px" data-option-text="current"></div>
+    <div class="options-item" style="top:259px" data-option-text="speed-label"></div><img class="options-line item" style="top:335px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:479px" data-option-text="mode-label"></div><img class="options-line item" style="top:554px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:699px" data-option-text="language-label"></div><img class="options-line item" style="top:775px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:918px" data-option-text="bgm-label"></div><img class="options-line item" style="top:994px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:1028px" data-option-text="se-label"></div><img class="options-line item" style="top:1103px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:1254px" data-option-text="run-label"></div><img class="options-line item" style="top:1334px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:1368px" data-option-text="profile-label"></div><img class="options-line item" style="top:1443px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-current" style="top:259px" data-current="speed"></div><div class="options-current" style="top:479px" data-current="mode"></div><div class="options-current" style="top:699px" data-current="language"></div><div class="options-current" style="top:918px" data-current="bgm"></div><div class="options-current" style="top:1028px" data-current="se"></div>
+    <div class="options-choice" style="top:244px" data-choice="speed"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
+    <div class="options-choice" style="top:464px" data-choice="mode"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
+    <div class="options-choice" style="top:684px" data-choice="language"><button data-sfx-silent="1" class="prev" type="button"></button><span>日本語</span><button data-sfx-silent="1" class="next" type="button"></button></div>
+    <div class="options-slider" style="top:909px" data-slider="bgm"><span class="number"></span><div class="track"><span class="slider-hit"></span><span class="thumb green"></span></div></div>
+    <div class="options-slider" style="top:1018px" data-slider="se"><span class="number"></span><div class="track"><span class="slider-hit"></span><span class="thumb red"></span></div></div>
+    <button data-sfx-silent="1" class="options-action" style="top:1244px" data-action="run"></button><button data-sfx-silent="1" class="options-action" style="top:1358px" data-action="profile"></button>
+    <div class="options-note" data-option-text="runNote"></div>
+  </section>
+  <div class="options-bottom"><button data-sfx-silent="1" id="options-save" type="button" data-option-text="save"></button><button data-sfx-silent="1" id="options-revert" type="button" data-option-text="revert"></button><button data-sfx-silent="1" id="options-title" type="button" data-option-text="return-title"></button></div>
+  <div id="options-confirm-layer"><div id="options-confirm-shade"></div><div id="options-confirm-box"><div id="options-confirm-title"></div><div id="options-confirm-message"></div><div id="options-confirm-actions"><button data-sfx-silent="1" id="options-confirm-delete" type="button"></button><button data-sfx-silent="1" id="options-confirm-cancel" type="button"></button></div></div></div>
 </div>
 
 <!-- BATTLE -->
@@ -11695,8 +11874,8 @@ window.addEventListener('resize',fitVesselboundViewport);
 window.addEventListener('orientationchange',fitVesselboundViewport);
 fitVesselboundViewport();
 </script>
-<script src="assets.js?v=optionOpen01"></script>
-<script src="js/engine/audio.js?v=webaudio07"></script>
+<script src="assets.js?v=uiReturn01"></script>
+<script src="js/engine/audio.js?v=presentSpeed01"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11708,15 +11887,15 @@ fitVesselboundViewport();
     <script src="js/battle/core.js?v=deathRepeatSupportFire01"></script>
 <script src="js/battle/formation.js?v=boardRename01"></script>
     <script src="js/battle/present.js?v=supportFireVfx01"></script>
-    <script src="js/battle/present_events.js?v=cleanupLegacy01"></script>
+    <script src="js/battle/present_events.js?v=presentSpeed01"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
 <script src="js/online/server_local.js?v=debugOnlineUnlimited01"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=timingParity03"></script>
+<script src="js/online/playback.js?v=presentSpeed01"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=boardRename01"></script>
+    <script src="js/online/board.js?v=presentSpeed01"></script>
 <script src="js/online/versus.js?v=boardRename01"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
@@ -11727,15 +11906,16 @@ fitVesselboundViewport();
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=removeBottomHud01"></script>
+    <script src="js/engine/battle.js?v=presentSpeed02"></script>
     <script src="js/engine/battle_events.js?v=cleanupLegacy01"></script>
-<script src="js/engine/render.js?v=keywordPreview04"></script>
+<script src="js/engine/render.js?v=presentSpeed02"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>
 <script src="js/engine/reward.js?v=removeBottomHud01"></script>
-<script src="js/engine/map.js?v=boardRename01"></script>
-  <script src="js/engine/main.js?v=debugOnline02"></script>
+<script src="js/engine/map.js?v=presentSpeed01"></script>
+<script src="js/engine/main.js?v=presentSpeed01"></script>
+<script src="js/engine/options.js?v=optionsLayout08"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

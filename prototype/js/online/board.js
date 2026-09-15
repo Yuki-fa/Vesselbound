@@ -136,7 +136,11 @@
   }
   // 演出側の陣営名。p1（自分）が味方、p2（相手）が敵。
   const _fxSide = side => (side === 'p1' ? 'ally' : 'enemy');
-  const _sleep = ms => new Promise(r => setTimeout(r, Math.max(0, ms)));
+  const _sleep = ms => {
+    const speed = typeof getBattlePresentationSpeedScale === 'function'
+      ? getBattlePresentationSpeedScale() : 1;
+    return new Promise(r => setTimeout(r, Math.max(0, Number(ms) || 0) / speed));
+  };
 
   // マナ閾値効果だけは、後続の stat_change / summon を
   // 専用VFXの逆再生開始まで進めない。単純な mana_gain には使わず、
@@ -384,6 +388,7 @@
 
   // ── 通常の戦闘画面へ入る／戻る ────────────────────────
   function beginOnlineVersusField(result) {
+    if (typeof setBattlePresentationPlaying === 'function') setBattlePresentationPlaying(true);
     _setCardInfo(result && result.formations);
     if (typeof G === 'undefined' || !G) return;
     _saved = {
@@ -413,6 +418,7 @@
   }
 
   function endOnlineVersusField() {
+    if (typeof setBattlePresentationPlaying === 'function') setBattlePresentationPlaying(false);
     _motion = null;
     _lastAttacker = null;
     document.body.classList.remove('online-versus-active', 'battle-victory-pending');

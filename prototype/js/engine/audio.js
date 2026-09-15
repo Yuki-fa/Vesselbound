@@ -37,6 +37,8 @@ const _IS_CLAUDE_BROWSER_PREVIEW=/\bClaude\//.test(navigator.userAgent||'');
 
 const SFX_SETTINGS={
   masterVolume: 1.0, 
+  bgmVolume: 1.0,
+  sfxVolume: 1.0,
   // 長い攻撃音・死亡音が多数重なっても、魔法／毒／カード効果音を拒否しない。
   maxVoices:24,
   // **同じ音を同時に鳴らす上限。** 同じ波形が重なると振幅が足し算になり音が割れる。
@@ -148,6 +150,7 @@ let _bgmStartingKey='';
 // 自動再生ポリシーで拒否されても、最初の実ユーザー操作で同じ要求を再試行する。
 let _bgmPendingRequest=null;
 let _bgmTargetVolume=.32*SFX_SETTINGS.masterVolume;
+let _bgmBaseVolume=1;
 // 曲ごとの音量。音源のマスター音量が曲ごとに最大8dB以上違うため、
 // 「ファイル自体のRMS × ここの値」がおおよそ揃うように個別に決めている。
 // （実測RMS[dBFS] → 再生時の実効値[dBFS]。目標は-16前後）
@@ -319,9 +322,10 @@ function playSfx(key,opts={}){
   // 一度読み込んだ複製を鍵ごとに持ち回り、currentTime=0 で鳴らし直す。
   const a=_takeSfxVoice(key,base);
   if(!a) return false;
+  a.dataset.optionBaseVolume=String(finalVol);
   const speed=(typeof getBattleSpeedScale==='function'&&typeof G!=='undefined'&&(G.phase==='enemy'||G._battlePhaseRunning))?getBattleSpeedScale():1;
   a.playbackRate=Math.max(.5,Math.min(2,speed));
-  a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.masterVolume));
+  a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.sfxVolume * SFX_SETTINGS.masterVolume));
   _sfxActiveVoices++;
   _sfxPlayingByKey[key]=(_sfxPlayingByKey[key]||0)+1;
   let released=false;
@@ -579,7 +583,8 @@ function playBgm(key,opts={}){
   _bgmStartingKey=key;
   _bgmKey=key;
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.32;
-  const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.masterVolume));
+  _bgmBaseVolume=baseVol;
+  const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.bgmVolume*SFX_SETTINGS.masterVolume));
   const startTime=Math.max(0,Number(opts.startTime??BGM_DEFAULT_START_TIMES[key])||0);
   const fadeInMs=opts.fadeInMs??700;
   _bgmTargetVolume=targetVol;
@@ -630,8 +635,8 @@ function playBgmLayer(channel,key,opts={}){
   if(cur&&cur.key===key&&(cur.starting||cur.voice)) return true;
   stopBgmLayer(channel,0);
   const baseVol=opts.volume??BGM_DEFAULT_VOLUMES[key]??.5;
-  const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.masterVolume));
-  const state={key,voice:null,starting:true};
+  const targetVol=Math.max(0,Math.min(1,baseVol*SFX_SETTINGS.bgmVolume*SFX_SETTINGS.masterVolume));
+  const state={key,voice:null,starting:true,baseVolume:baseVol};
   _bgmLayers[channel]=state;
   if(!_sfxUnlocked){ state.starting=false; delete _bgmLayers[channel]; return false; }
   _resumeBgmContext();
@@ -695,7 +700,7 @@ function toggleDebugMute(){
   if(_bgmVoice) _setBgmVoiceVolume(_bgmVoice,_bgmTargetVolume,0);
   Object.values(_bgmLayers).forEach(l=>{
     if(!l||!l.voice) return;
-    _setBgmVoiceVolume(l.voice,_debugMuted?0:Math.max(0,Math.min(1,(BGM_DEFAULT_VOLUMES[l.key]??.5)*SFX_SETTINGS.masterVolume)),0);
+    _setBgmVoiceVolume(l.voice,_debugMuted?0:Math.max(0,Math.min(1,(BGM_DEFAULT_VOLUMES[l.key]??.5)*SFX_SETTINGS.bgmVolume*SFX_SETTINGS.masterVolume)),0);
   });
   // 戦闘画面と街画面の両方のミュートボタンを同期する。
   ['battle-mute-btn','village-mute-btn'].forEach(id=>{
@@ -709,7 +714,13 @@ function toggleDebugMute(){
 function sfxFallbackVolume(base){
   const master=Number(SFX_SETTINGS&&SFX_SETTINGS.masterVolume);
   const m=Number.isFinite(master)?master:1;
-  return Math.max(0,Math.min(1,(Number(base)||0)*m));
+  return Math.max(0,Math.min(1,(Number(base)||0)*Number(SFX_SETTINGS.sfxVolume||1)*m));
+}
+function setAudioOptionVolumes(){
+  const s=SFX_SETTINGS;
+  if(_bgmVoice) _setBgmVoiceVolume(_bgmVoice,_bgmBaseVolume*s.bgmVolume*s.masterVolume,0);
+  Object.values(_bgmLayers).forEach(l=>{if(l&&l.voice)_setBgmVoiceVolume(l.voice,(Number(l.baseVolume)||1)*s.bgmVolume*s.masterVolume,0);});
+  document.querySelectorAll('audio[data-sfx-voice="1"],audio[data-sfx="1"]').forEach(a=>{a.volume=Math.max(0,Math.min(1,(Number(a.dataset.optionBaseVolume)||1)*s.sfxVolume*s.masterVolume));});
 }
 function isDebugMuted(){ return _debugMuted; }
 
