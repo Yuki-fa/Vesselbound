@@ -118,9 +118,10 @@ const SFX_SETTINGS={
     S006:       {group:'magic',  volume: 0.53}, // 特殊演出：負傷効果（旧C003）（実測-5.4dBFS）
     S008:       {group:'magic',  volume: 0.89}, // 特殊演出：活性化（旧E045）（実測-10.0dBFS）
     S009:       {group:'magic',  volume: 0.77}, // 特殊演出：バフ（常時）（実測-8.8dBFS）
-    K007:       {group:'combat',  volume: 0.50}, // 貫通（実測-4.9dBFS）
-    K008:       {group:'combat',  volume: 0.53}, // 三方向攻撃（実測-5.4dBFS）
-    K009:       {group:'combat',  volume: 0.40}, // 全体攻撃（実測-2.9dBFS）
+    // 攻撃範囲の音（K007〜K009）は3.7〜4.5秒ある。戦闘SEの共通上限（600ms）で止めると途中で切れるため、上限を外す。
+    K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
+    K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
+    K009:       {group:'combat',  volume: 0.40, maxPlayMs:0}, // 全体攻撃（実測-2.9dBFS）
     // キャラクター固有ボイス（グループはuiのまま＝combatのmaxPlayMs打ち切りを受けない）
     C001:       {group:'ui',     volume: .97}, // -10.7
     C002:       {group:'ui',     volume: .55}, // -5.8

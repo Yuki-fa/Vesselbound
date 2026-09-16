@@ -1022,9 +1022,11 @@ const PRESENT_ATTACK_BUFF_REASONS = new Set([
 // 死亡は「**倒れた本人の死亡効果**」だけ。「味方が死亡するたび」のような
 // **観測（常時）** は、発動しているのは観測者の常時効果なので `passive` に入れる。
 const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
-  attack: new Set([...PRESENT_ATTACK_BUFF_REASONS, 'brownie_attack', 'imp_gain', 'imp_steal',
+  // ラミア・ユミル・エルヴンメイジはカード名の reason で来る。ここに無いとトリガが決まらず、S005 が出なかった。
+  attack: new Set([...PRESENT_ATTACK_BUFF_REASONS, 'brownie_attack', 'imp_gain', 'imp_steal', 'lamia', 'ymir', 'elven_mage',
+    'sacrifice_atk_steal', 'sacrifice_atk_gain',
     'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff']),
-  injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie',
+  injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie', 'fornjot', 'chaos_imp', 'umbra',
     'injury_self_buff', 'injury_allies_atk', 'injury_color_buff', 'injury_sacrifice_hp',
     'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff']),
   death: new Set(['will', 'inherit', 'death_color_buff', 'ghost',
