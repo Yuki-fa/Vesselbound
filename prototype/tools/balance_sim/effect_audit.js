@@ -604,8 +604,9 @@ function audit() {
   core.coreApplyManaThresholdEffects(deferredState, createSeededRng(71), e => deferredEvents.push(e), () => ({ amount: 0, died: false }));
   const deferredGain = deferredEvents.find(e => e.type === 'mana_gain');
   const deferredThreshold = deferredEvents.find(e => e.type === 'mana_threshold');
+  // 遅延は演出のタイミングだけ。**コアの計算状態は巻き戻さない**（2026-09-17）ので、マナは閾値効果の分（2+1）まで進んだまま。
   const deferredOk = deferredGain && deferredGain.deferredAppliedByThreshold === true
-    && deferredThreshold && deferredState.resources.p1.mana === 2;
+    && deferredThreshold && deferredState.resources.p1.mana === 3;
   if (!deferredOk) ng++;
   // マナ連鎖回帰：「1マナ：3マナを得る」で増えたマナが「1マナ毎：+1/+1」の到達回数へ乗ること、
   // かつ遅延モード（PvE開戦演出）のdeferredAfterを順に復元した結果が非遅延と一致すること。
@@ -1190,7 +1191,7 @@ function audit() {
   console.log(`ボーンチャリオット回帰\t不正召喚=${malformed.length}\t正規召喚=${proper.length}\t${chariotOk ? 'OK' : 'NG'}`);
   console.log(`ランダム対象回帰\t対象=${[...new Set(randomTargetResults)].join(',')}\t${randomTargetOk ? 'OK' : 'NG'}`);
   console.log(`変身表示回帰\tname=${transformTarget.name}\tno=${transformTarget.no}\t${transformOk ? 'OK' : 'NG'}`);
-  console.log(`マナ閾値遅延回帰\tdeferred=${!!deferredGain?.deferredAppliedByThreshold}\t復元=${deferredState.resources.p1.mana}\t${deferredOk ? 'OK' : 'NG'}`);
+  console.log(`マナ閾値遅延回帰\tdeferred=${!!deferredGain?.deferredAppliedByThreshold}\tマナ=${deferredState.resources.p1.mana}\t${deferredOk ? 'OK' : 'NG'}`);
   console.log(`マナ連鎖回帰\t非遅延=${chainPlain.fires}回 ${chainPlain.a} ${chainPlain.b} mana=${chainPlain.mana}\t遅延=${chainDefer.fires}回 ${chainDefer.a} ${chainDefer.b} mana=${chainDefer.mana}\t${chainOk ? 'OK' : 'NG'}`);
   console.log(`個別修正回帰\t${directResults.slice(-5).join('\t')}`);
   // ── 未監査だったキーワードの回帰（実機報告から追加）──────────────

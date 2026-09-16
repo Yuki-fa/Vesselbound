@@ -70,12 +70,16 @@
       manaThresholdOrder: snap.manaThresholdOrder,
       manaOrder: snap.manaOrder,
       fxCode: String(snap.fxCode || ''),
+      extraManaThresholds: Array.isArray(snap.extraManaThresholds)
+        ? snap.extraManaThresholds.map(x => ({ ...x })) : [],
       _adjacentPanelAbilities: Array.isArray(snap._adjacentPanelAbilities) ? snap._adjacentPanelAbilities.slice() : [],
       _adjacentPanelEffectTexts: Array.isArray(snap._adjacentPanelEffectTexts) ? snap._adjacentPanelEffectTexts.slice() : [],
       _resonanceEffectNames: Array.isArray(snap._resonanceEffectNames) ? snap._resonanceEffectNames.slice() : [],
       _resonanceEffectScales: { ...(snap._resonanceEffectScales || {}) },
       _mapPanelPower: String(snap._mapPanelPower || ''),
       _uniteGroups: Array.isArray(snap._uniteGroups) ? snap._uniteGroups.slice() : [],
+      _tripleMerged: !!snap._tripleMerged,
+      _merged: !!snap._merged,
       // 封印中のカードはPvEと同じ .sealed-unit 表示になる（renderFieldが見る）。
       _sealed: !!snap._sealed,
       shield: Number(snap.shield) || 0,

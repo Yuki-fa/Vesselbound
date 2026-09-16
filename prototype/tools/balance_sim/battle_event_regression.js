@@ -240,6 +240,56 @@ function runManaSummonLichScenario() {
     '開戦マナ閾値召喚のリッチ誘発が次のトリガへ遅延している');
 }
 
+function runLemuresEffectInheritanceScenario() {
+  const state = core.createBattleState({
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {
+      p1: {units: [
+        {id: 'lemures', name: 'レムレース', atk: 1, hp: 4, maxHp: 4, color: '黒',
+          desc: '死亡：「青レムレース」以外の、この戦闘で死亡したランダムなキャラクターをATKとHPを半分にして召喚する。'},
+      ]},
+      p2: {units: [{id: 'victim', name: 'バンシー', atk: 8, hp: 1, maxHp: 6, color: '赤',
+        desc: '死亡：全ての敵に1ダメージを与える。',
+        keywords: ['闇の炎'],
+        effectData: {effectNames: ['闇の炎'], manaCost: 1, manaRepeat: true, manaThresholdDesc: 'このキャラクターは+1/+1を得る。',
+          manaThresholdNo: 'E045'},
+        _adjacentPanelAbilities: ['活性化'],
+        _adjacentPanelEffectTexts: ['マナ：1マナ毎：このキャラクターは+1/+1を得る。'],
+        _tripleMerged: true,
+      }, {id: 'dummy', name: '標的', atk: 1, hp: 10, maxHp: 10, color: '黒'}]},
+    },
+    summonDefs: [{name: 'バンシー', power: 8, life: 6, color: '赤'}],
+  });
+  const events = [];
+  const emit = event => events.push(event);
+  const victim = state.units.p2[0];
+  victim.hp = 0;
+  core.coreTriggerDeath(victim, state, emit);
+  core.coreApplyDeathEffects(state.units.p1[0], state, createSeededRng(101), emit, () => ({amount: 0, died: false}));
+  const summonedEvent = events.find(e => e.type === 'summon');
+  const summoned = summonedEvent && state.units.p1.find(u => u && u.id === summonedEvent.unit.id);
+  assert.ok(summoned, 'レムレースが死亡体を呼び戻していない');
+  assert.equal(summoned.atk, 4, '通常レムレースが死亡時ATKではなく基礎ATKの半分で召喚していない');
+  assert.equal(summoned.maxHp, 3, '通常レムレースが死亡時HPではなく基礎HPの半分で召喚していない');
+  assert.equal(summoned.manaCost, 1, '呼び戻した体へ活性化のマナコストを引き継いでいない');
+  assert.equal(summoned.manaThresholdDesc, 'このキャラクターは+1/+1を得る。', '呼び戻した体へ活性化の効果文を引き継いでいない');
+  assert.deepEqual(summoned._adjacentPanelAbilities, ['活性化'], '呼び戻した体へ強化カード名を引き継いでいない');
+  assert.equal(summoned._tripleMerged, true, '呼び戻した体へ合体印を引き継いでいない');
+  // 倒れた体は相手陣営（p2）。相手陣営の体を呼び戻した時は敵枠（2026-09-16 利用者確認済みの規則）。
+  assert.equal(summoned._useEnemyVisualFrame, true, '相手陣営で倒れた体を敵枠で呼び戻していない');
+
+  state.resources.p1.mana = 1;
+  core.coreApplyManaThresholdEffects(state, createSeededRng(102), emit, () => ({amount: 0, died: false}));
+  assert.ok(events.some(e => e.type === 'mana_threshold' && e.unitId === summoned.id), '呼び戻した体のマナ効果が発動していない');
+  summoned.hp = 0;
+  core.coreTriggerDeath(summoned, state, emit);
+  core.coreApplyDeathEffects(summoned, state, createSeededRng(103), emit, (source, target, amount) => {
+    emit({type: 'damage', sourceId: source.id, unitId: target.id, amount});
+    return {amount, died: false};
+  });
+  assert.ok(events.some(e => e.type === 'damage' && e.sourceId === summoned.id), '呼び戻した体の死亡効果（闇の炎）が発動していない');
+}
+
 function runPersistentDeathObserverScenario() {
   const state = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
@@ -412,6 +462,7 @@ function main() {
   runDeferredDeathChainParityScenario();
   runSkeletonKingAndMultiHitScenario();
   runManaSummonLichScenario();
+  runLemuresEffectInheritanceScenario();
   runPersistentDeathObserverScenario();
   runSuccubusCaptureScenario();
   runSummonLimitScenario();

@@ -770,6 +770,9 @@ function coreUnitSnapshot(u) {
     releaseAtkBonus: Number(u._releaseAtkBonus) || Number(u.effectData && u.effectData.releaseAtkBonus) || 0,
     releaseHpBonus: Number(u._releaseHpBonus) || Number(u.effectData && u.effectData.releaseHpBonus) || 0,
     _effectRepeatBonus: Number(u._effectRepeatBonus) || 0,
+    // 復活・レムレースが開戦時の基礎値へ戻るための値も死亡記録に残す。
+    _baseAtk: Number.isFinite(Number(u._baseAtk)) ? Number(u._baseAtk) : Number(u.atk) || 0,
+    _baseMaxHp: Number.isFinite(Number(u._baseMaxHp)) ? Number(u._baseMaxHp) : Number(u.maxHp || u.hp) || 1,
     _tripleMerged: !!u._tripleMerged,
     _merged: !!u._merged,
     _mapPanelPower: String(u._mapPanelPower || ''),
@@ -1673,6 +1676,12 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     extraManaThresholds: source.extraManaThresholds, weakenOnHit: source.weakenOnHit,
     boardCards: source.boardCards, _adjacentPanelAbilities: source._adjacentPanelAbilities,
     _resonanceEffectNames: source._resonanceEffectNames,
+    _resonanceEffectScales: source._resonanceEffectScales,
+    _adjacentPanelEffectTexts: source._adjacentPanelEffectTexts,
+    _adjacentPanelStrategyCount: source._adjacentPanelStrategyCount,
+    _uniteGroups: source._uniteGroups,
+    _tripleMerged: !!source._tripleMerged,
+    _merged: !!source._merged,
     _openingDuplicate: !!source._openingDuplicate,
     boss: !!source.boss,
     // サキュバスで敵カードを味方化した場合は、名前・数値だけでなく
@@ -3377,14 +3386,45 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     }
   }
   if (coreHasEffect(unit, 'レムレース')) {
+    const deathText = coreUnitTriggerText(unit, '死亡');
+    const excludedName = (deathText.match(/「([^」]+)」以外の/) || [])[1] || '';
+    const merged = !/半分にして/.test(deathText);
     for (let i = 0; i < repeats; i++) {
-      const candidates = (state.deadUnits || []).filter(x => x && x.id !== unit.id && x.name !== '青レムレース');
+      const candidates = (state.deadUnits || []).filter(x => {
+        if (!x || x.id === unit.id) return false;
+        if (!excludedName) return true;
+        const name = String(x.name || '').replace(/^[赤青緑黄紫黒]/, '');
+        return name !== excludedName && `${x.color || ''}${name}` !== excludedName;
+      });
       const dead = rng.pick(candidates);
       if (dead) {
-        const atk = Math.max(1, Math.floor((Number(dead.atk) || 0) / 2));
-        const maxHp = Math.max(1, Math.floor((Number(dead.maxHp || dead.hp) || 1) / 2));
-        coreSummonUnit(state, unit.side, { name: dead.name, atk, hp: maxHp, maxHp, color: dead.color,
-          keywords: dead.keywords || [], _useEnemyVisualFrame: true }, emit, unit.id);
+        const baseAtk = Number.isFinite(Number(dead._baseAtk)) ? Number(dead._baseAtk) : Number(dead.atk) || 0;
+        const baseMaxHp = Number.isFinite(Number(dead._baseMaxHp))
+          ? Number(dead._baseMaxHp) : Number(dead.maxHp || dead.hp) || 1;
+        const atk = merged ? Math.max(1, Math.floor(baseAtk)) : Math.max(1, Math.floor(baseAtk / 2));
+        const maxHp = merged ? Math.max(1, Math.floor(baseMaxHp)) : Math.max(1, Math.floor(baseMaxHp / 2));
+        // 死亡時のスナップショットから、戦闘開始時から持っていた効果状態だけを
+        // 引き継ぐ。毒・弱体・結界・死亡印などの現在状態は明示的に捨てる。
+        coreSummonUnit(state, unit.side, {
+          name: dead.name, atk, hp: maxHp, maxHp, color: dead.color, race: dead.race,
+          no: dead.no || dead.artCode, art: dead.art, sfxType: dead.sfxType,
+          desc: dead.desc, keywords: dead.keywords || [], effectData: dead.effectData || {},
+          manaOnAttack: dead.manaOnAttack, manaOnInjury: dead.manaOnInjury, manaOnDeath: dead.manaOnDeath,
+          goldOnBattleEnd: dead.goldOnBattleEnd, goldOnDeath: dead.goldOnDeath,
+          randomItemOnBattleEnd: dead.randomItemOnBattleEnd, randomItemCost: dead.randomItemCost,
+          manaCost: dead.manaCost, manaRepeat: dead.manaRepeat,
+          manaThresholdDesc: dead.manaThresholdDesc, manaThresholdNo: dead.manaThresholdNo,
+          manaOrder: dead.manaOrder, manaThresholdOrder: dead.manaThresholdOrder,
+          fxCode: dead.fxCode, extraManaThresholds: dead.extraManaThresholds,
+          _adjacentPanelAbilities: dead._adjacentPanelAbilities,
+          _adjacentPanelEffectTexts: dead._adjacentPanelEffectTexts,
+          _adjacentPanelStrategyCount: dead._adjacentPanelStrategyCount,
+          _uniteGroups: dead._uniteGroups, _resonanceEffectNames: dead._resonanceEffectNames,
+          _resonanceEffectScales: dead._resonanceEffectScales, _tripleMerged: dead._tripleMerged,
+          // 敵の体を味方化した場合など、元の表示枠をスナップショットから維持する。
+          // **相手陣営で倒れた体を呼び戻した時は必ず敵枠**（緑などの召喚枠にしない。2026-09-16 利用者確認済みの規則）。
+          _useEnemyVisualFrame: !!dead._useEnemyVisualFrame || (dead.side != null && dead.side !== unit.side),
+        }, emit, unit.id);
       }
     }
   }
