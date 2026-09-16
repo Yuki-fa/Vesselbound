@@ -1508,11 +1508,14 @@ function _battleOpeningLandingVfx(slot){
   slot.classList.add('battle-opening-appearance-active');
   slot.insertBefore(fx,slot.firstChild);
   _playBattleOpeningAppearanceSfx();
-  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),700);
+  // 素材は着地直後（約430〜630ms）が小さく明るい光で、その後は大きく薄い輪へ広がる。
+  // 700ms／1120msまで出していた時は、広がった輪まで見えて以前より大きく見えた（利用者報告）。
+  // 明るい光を出し切った所で薄れ始め、輪が広がり切る前に消す。
+  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),560);
   battlePresentationSetTimeout(()=>{
     fx.remove();
     slot.classList.remove('battle-opening-appearance-active');
-  },1120);
+  },980);
 }
 
 function _animateBattleOpeningSlot(slot,delayMs){
@@ -5488,6 +5491,19 @@ async function _finishNewPanelBattleStartEffects(){
     return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
       Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
   };
+  // **戦闘ループと同じく、表示するATK/HPを開戦処理の前の値で据え置く。**
+  // コアは開戦効果を一度に解決するため、据え置かないと「死の体感」＋「闇の炎」のように
+  // 開戦でダメージが連鎖する盤面で、最初の数値が出た時点で最終HPまで下がって見え、
+  // 倒れた敵が演出より先に消えたり、古い値で描き直されたりしていた（利用者報告：ボス戦）。
+  const _openingShownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
+    .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0]);
+  if(typeof presentBeginPlayback==='function') presentBeginPlayback();
+  let _openingPlaybackOpen=true;
+  const _endOpeningPlayback=()=>{
+    if(!_openingPlaybackOpen) return;
+    _openingPlaybackOpen=false;
+    if(typeof presentEndPlayback==='function') presentEndPlayback();
+  };
   try{
     // 開戦処理は coreRunOpening() が唯一の実装。**ここへ手順を書き戻さないこと。**
     // 以前はPvEとオンラインで同じ手順が別々に書かれており、
@@ -5499,6 +5515,9 @@ async function _finishNewPanelBattleStartEffects(){
       味方:(state.units.p1||[]).filter(Boolean).filter(u=>u.hp>0)
         .map(u=>`${u.name}:${u.atk}/${u.hp}`).join(' ')});
     _syncCoreResourcesToG(state);
+  }catch(e){
+    _endOpeningPlayback();
+    throw e;
   }finally{
     state._openingPhase=false;
     touched.forEach(([u,oldSide,slot])=>{
@@ -5523,10 +5542,20 @@ async function _finishNewPanelBattleStartEffects(){
     await _afterPanelSummon(spawnedUnit,targetList===G.enemies,true,true);
   }
   _recordBattleTrace('opening_core_events',{count:localEvents.length,types:localEvents.map(e=>e&&e.type).filter(Boolean)});
-  await _flushCorePveHitEvents(state,localEvents,before);
+  try{
+    if(typeof presentHoldShown==='function') _openingShownBefore.forEach(([u,atk,hp,maxHp,shield])=>presentHoldShown(u,atk,hp,maxHp,shield));
+    await _flushCorePveHitEvents(state,localEvents,before);
+  }finally{
+    if(typeof presentReleaseShown==='function') _openingShownBefore.forEach(([u])=>presentReleaseShown(u));
+    _endOpeningPlayback();
+  }
   // 生命の力のHP2倍は coreRunOpening() の中で解決済み。
   // ここで再度呼ぶと2回適用され、オンラインと食い違う。
-  if(typeof renderAll==='function') renderAll();
+  // 死亡イベント中のrequestBattleCompact()は、外側の開戦再生中は保留される。
+  // 再生を閉じた直後にcompact入口を通さずrenderAll()すると、死亡体を含む配列を
+  // そのまま描き直してHP0のカードが再出現するため、戦闘ループと同じ詰め処理を行う。
+  if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true});
+  else if(typeof renderAll==='function') renderAll();
   await _resolveSeals();
   _recomputeDynamicPanelStats();
 }

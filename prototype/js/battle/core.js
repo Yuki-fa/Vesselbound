@@ -3985,7 +3985,11 @@ function coreTriggerBattleEnd(state, emit, rng) {
 // renderField() が描画対象から外すため盤面から消える。
 // （ミテーラのペリカンが、サテュロスのマナ効果の発動で消えていた）
 // ここはゲームの状態ではなく再生の進み具合なので、スナップショットの対象外にする。
-const CORE_PRESENTATION_ONLY_KEYS = new Set(['_corePendingSummon']);
+// 演出側だけが持つ値。遅延スナップショットの復元で消したり戻したりしない。
+// 表示の据え置き（_display*）を消すと、開戦のマナ効果（炎の矢）の演出開始時にHP表示が最終値へ飛び、
+// 死亡演出を始めた印（_deathFx*）を戻すと、倒れた体が盤面に描き直されていた（利用者報告：ボス戦）。
+const CORE_PRESENTATION_ONLY_KEYS = new Set(['_corePendingSummon',
+  '_displayAtk', '_displayHp', '_displayMaxHp', '_displayShield', '_deathFxReady', '_deathFxStarted']);
 
 function coreSnapshotDeferredState(state) {
   const units = {};
