@@ -1008,7 +1008,7 @@ function renderVillageScreen(){
     mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'🔇':'🔊';
     mute.onclick=()=>{ if(typeof toggleDebugMute==='function') toggleDebugMute(); };
   }
-  // デバッグモードでは、ミュートボタンの下に編成画面を開くボタンを出す。
+  // デバッグモードでは、オプションボタンの左に編成画面を開くボタンを出す。
   const form=document.getElementById('village-formation-btn');
   if(form){
     form.style.display=(G&&G._debugMode)?'block':'none';

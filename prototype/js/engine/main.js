@@ -279,28 +279,34 @@ function _positionBelowGold(btn){
 function _positionDebugKillButton(){
   _positionBelowGold(document.getElementById('btn-debug-kill'));
 }
-// ミュートボタン（デバッグモード中は常時表示・オプションボタンの直下に追従）
+// ミュートボタン（報酬画面以外はオプションボタンの直下に追従）
 function _positionDebugMuteButton(){
   const btn=document.getElementById('battle-mute-btn');
   const opt=document.getElementById('battle-options-btn');
   if(!btn||!opt||btn.style.display==='none') return;
+  const rewardScreen=document.body.classList.contains('reward-screen-active');
+  if(typeof isDebugMuted==='function'){
+    btn.textContent=rewardScreen?(isDebugMuted()?'ミュート解除':'ミュート'):(isDebugMuted()?'🔇':'🔊');
+    btn.title=rewardScreen?btn.textContent:'ミュート';
+  }
+  // 報酬画面ではCSSの固定座標（マップ確認ボタンと同じ列）を使う。
+  if(rewardScreen) return;
   if(opt.offsetWidth===0&&opt.offsetHeight===0) return;
   btn.style.left=opt.offsetLeft+'px';
   btn.style.top=(opt.offsetTop+opt.offsetHeight+20)+'px';
   btn.style.width=opt.offsetWidth+'px';
   btn.style.height=opt.offsetHeight+'px';
 }
-// 編成画面ボタン（デバッグモード中のみ表示・ミュートボタンの直下に追従）
+// 編成画面ボタン（デバッグモード中のみ表示・オプションボタンの左に追従）
 function _positionDebugFormationButton(){
   const btn=document.getElementById('battle-formation-btn');
-  const mute=document.getElementById('battle-mute-btn');
-  if(!btn||!mute||btn.style.display==='none') return;
-  if(mute.offsetWidth===0&&mute.offsetHeight===0) return;
-  btn.style.left=mute.offsetLeft+'px';
-  btn.style.top=(mute.offsetTop+mute.offsetHeight+20)+'px';
-  btn.style.width=mute.offsetWidth+'px';
-  btn.style.height=mute.offsetHeight+'px';
-  btn.style.fontSize=Math.round(mute.offsetHeight*0.34)+'px';
+  const opt=document.getElementById('battle-options-btn');
+  if(!btn||!opt||btn.style.display==='none') return;
+  if(opt.offsetWidth===0&&opt.offsetHeight===0) return;
+  btn.style.left=(opt.offsetLeft-20-262)+'px';
+  btn.style.top=(opt.offsetTop+(opt.offsetHeight-62)/2)+'px';
+  btn.style.width='262px';
+  btn.style.height='62px';
 }
 // マップ確認の入口は編成画面の「マップ確認」ボタン（#btn-debug-map）だけ。
 // マップ表示中の「終了」ボタン（#map-debug-map-btn）で元の画面へ戻る。

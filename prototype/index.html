@@ -9421,21 +9421,24 @@ html body.gameover-active.right-card-peek.dragging-in-battle #gameover-board-gri
 html body.gameover-active.right-card-peek .drag-ghost{display:none!important}
 
 /* デバッグボタンは報酬カード枠の右側かつ、デバッグカード枠の外側上部に置く。
-   2行2列に並べる：
-     ゲームオーバー確認 ／ エラー確認
-     試験戦闘　　　　　 ／ マップ確認 */
+   右列は上から マップ確認（212.211）／エラー確認（368.474）／ミュート（524.737）、左列は ゲームオーバー確認（368.474）／試験戦闘（524.737）。 */
 html body.reward-screen-active.debug-mode #btn-test-battle,
 html body.reward-screen-active.debug-mode #btn-debug-gameover,
 html body.reward-screen-active.debug-mode #btn-debug-error,
-html body.reward-screen-active.debug-mode #btn-debug-map{
+html body.reward-screen-active.debug-mode #btn-debug-map,
+html body.reward-screen-active.debug-mode #battle-mute-btn,
+html body #scr-map.active #map-debug-map-btn{
   position:absolute!important;top:524.737px!important;width:492.972px!important;height:121.263px!important;
   z-index:28!important;font-family:var(--font-hd)!important;font-size:44px!important;font-weight:600!important;white-space:nowrap!important;opacity:1!important;border:0!important;border-radius:0!important;
   background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
   color:var(--prod-gold)!important;display:block!important;overflow:visible!important;
 }
-/* 左列＝2749px／右列＝3277.028px、下段＝524.737px／上段＝368.474px（縦の間隔は列間と同じ35px）。 */
+/* 左列＝2749px／右列＝3277.028px、上段＝212.211px／368.474px／下段＝524.737px。 */
 html body.reward-screen-active.debug-mode #btn-test-battle{left:2749px!important}
-html body.reward-screen-active.debug-mode #btn-debug-map{left:3277.028px!important}
+html body.reward-screen-active.debug-mode #btn-debug-map,
+html body #scr-map.active #map-debug-map-btn{left:3277.028px!important;top:212.211px!important}
+/* ミュートは以前のマップ確認の位置（右列の下段）。 */
+html body.reward-screen-active.debug-mode #battle-mute-btn{left:3277.028px!important;top:524.737px!important}
 html body.reward-screen-active.debug-mode #btn-debug-gameover,
 html body.reward-screen-active.debug-mode #btn-debug-error{top:368.474px!important}
 html body.reward-screen-active.debug-mode #btn-debug-error{left:3277.028px!important}
@@ -9445,7 +9448,9 @@ html body.reward-screen-active.debug-mode #btn-debug-error{left:3277.028px!impor
 html body #btn-test-battle,
 html body #btn-debug-gameover,
 html body #btn-debug-error,
-html body #btn-debug-map{
+html body #btn-debug-map,
+html body #battle-mute-btn,
+html body #scr-map #map-debug-map-btn{
   transition-property:color,background-color,border-color,opacity,filter,box-shadow,text-shadow!important;
   transition-duration:.2s!important;
 }
@@ -9453,18 +9458,25 @@ html body.reward-screen-active.debug-mode #btn-debug-gameover{left:2749px!import
 html body.reward-screen-active.debug-mode #btn-test-battle::before,
 html body.reward-screen-active.debug-mode #btn-debug-error::before,
 html body.reward-screen-active.debug-mode #btn-debug-map::before,
-html body.reward-screen-active.debug-mode #btn-debug-gameover::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover::before,
+html body.reward-screen-active.debug-mode #battle-mute-btn::before,
+html body #scr-map #map-debug-map-btn::before{content:""!important;position:absolute!important;inset:0!important;background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;filter:grayscale(.65) brightness(1.35) drop-shadow(0 0 10px rgba(205,210,220,.72)) drop-shadow(0 0 21px rgba(120,130,150,.58))!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover::before,
 html body.reward-screen-active.debug-mode #btn-debug-error:hover::before,
 html body.reward-screen-active.debug-mode #btn-debug-map:hover::before,
-html body.reward-screen-active.debug-mode #btn-debug-gameover:hover::before{opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important}
+html body.reward-screen-active.debug-mode #btn-debug-gameover:hover::before,
+html body.reward-screen-active.debug-mode #battle-mute-btn:hover::before,
+html body #scr-map #map-debug-map-btn:hover::before{opacity:1!important;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite!important}
 html body.reward-screen-active.debug-mode #btn-test-battle:hover,
 html body.reward-screen-active.debug-mode #btn-debug-error:hover,
 html body.reward-screen-active.debug-mode #btn-debug-map:hover,
-html body.reward-screen-active.debug-mode #btn-debug-gameover:hover{
+html body.reward-screen-active.debug-mode #btn-debug-gameover:hover,
+html body.reward-screen-active.debug-mode #battle-mute-btn:hover,
+html body #scr-map #map-debug-map-btn:hover{
   box-shadow:none!important;outline:none!important;filter:none!important;
 }
 html body.reward-screen-active.debug-mode #btn-debug-gameover{font-size:30px!important}html body.gameover-active #scr-battle .battle-scroll,
+html body.reward-screen-active.debug-mode #battle-mute-btn{font-size:44px!important}
 html body.gameover-active #scr-battle .bctl-wrap,
 html body.gameover-active #scr-battle #reward-production-ui,
 html body.gameover-active #scr-battle #enemy-area,
@@ -10252,26 +10264,7 @@ html body .screen-options-btn::before{
   filter:brightness(2.1) drop-shadow(0 0 6px rgba(255,231,164,.9)) drop-shadow(0 0 12px rgba(255,194,70,.78))!important;
 }
 html body .screen-options-btn:hover::before{opacity:.84!important;animation:none!important}
-/* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x90）の直下。
-   編成ボタンはさらにその直下（top:180+90+20=290px）。 */
-html body #village-formation-btn{
-  position:absolute!important;
-  left:3666px!important;
-  top:290px!important;
-  width:110px!important;
-  height:90px!important;
-  margin:0!important;
-  padding:0!important;
-  opacity:.7!important;
-  background:rgba(13,15,20,.82)!important;
-  border:1px solid rgba(201,168,76,.6)!important;
-  border-radius:6px!important;
-  color:var(--gold2)!important;
-  font-size:30px!important;
-  line-height:1!important;
-  z-index:4100!important;
-  cursor:var(--cursor-normal)!important;
-}
+/* デバッグ用ミュートボタン：オプションボタン（left:3666px, top:70px, 110x102）の直下。 */
 html body #village-mute-btn{
   position:absolute!important;
   left:3666px!important;
@@ -10291,6 +10284,29 @@ html body #village-mute-btn{
   cursor:var(--cursor-normal)!important;
 }
 html body .screen-options-btn:hover::after{filter:grayscale(.65) brightness(1.35)!important}
+
+/* デバッグ用「編成」ボタンはカード非表示ボタンと同じ外周枠を使い、
+   オプションボタンの左へ縦中央で配置する（右端との間隔は20px）。 */
+html body #battle-formation-btn,
+html body #village-formation-btn{
+  position:absolute!important;left:3384px!important;top:90px!important;
+  width:262px!important;height:62px!important;box-sizing:border-box!important;
+  margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:transparent url("assets/ui/button_invisible.svg") center/262px 62px no-repeat!important;
+  color:#c49a6c!important;font-family:"Shippori Mincho",serif!important;font-size:24px!important;
+  font-weight:700!important;letter-spacing:.07em!important;line-height:1!important;
+  text-shadow:none!important;opacity:1!important;z-index:4100!important;cursor:var(--cursor-normal)!important;
+}
+html body #battle-formation-btn::before,
+html body #village-formation-btn::before{
+  content:''!important;position:absolute!important;inset:0!important;
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 262 62'%3E%3Cpath d='M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c0,8.28-6.72,15-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat!important;
+  opacity:0!important;pointer-events:none!important;filter:url(#ui-btn-outer-glow-only)!important;
+}
+html body #battle-formation-btn:hover::before,
+html body #village-formation-btn:hover::before{opacity:.84!important}
+html body #battle-formation-btn:hover,
+html body #village-formation-btn:hover{filter:none!important;color:#c49a6c!important;text-shadow:none!important}
 
 /* ══════════════════════════════════════════════════════════
    ワールドマップ画面 #scr-map
@@ -11623,7 +11639,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
       <span class="battle-status-label status-label-life">ライフ</span><strong id="battle-life-value"></strong>
     </div>
   </div>
-  <!-- デバッグモード：ミュートボタン（オプションボタンの直下に表示） -->
+  <!-- デバッグモード：ミュートボタン（報酬画面以外はオプションボタンの直下に表示） -->
   <button class="btn small" id="battle-mute-btn" title="ミュート" data-sfx-silent="1" onclick="toggleDebugMute()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">🔊</button>
   <button class="btn small" id="battle-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" onclick="debugOpenFormation()" style="display:none;position:absolute;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2)">編成</button>
   <div id="reward-production-ui" aria-hidden="true">
@@ -11781,7 +11797,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
     <button type="button" class="btn rew-move-btn" id="library-exit-btn" data-sfx-silent="1" style="display:none"><span class="rew-btn-label">図書館から出る</span></button>
   </div>
   <button id="village-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
-  <!-- デバッグモードのみ表示。オプションボタンの直下に置く。 -->
+  <!-- デバッグモードのみ表示。ミュートはオプションの直下、編成は左に置く。 -->
   <button class="btn small" id="village-mute-btn" title="ミュート" data-sfx-silent="1" style="display:none">🔊</button>
   <button class="btn small" id="village-formation-btn" title="編成画面を開く（デバッグ）" data-sfx-silent="1" style="display:none">編成</button>
 </div>
@@ -11803,7 +11819,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
     </div>
   </div>
   <button id="map-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
-  <button class="btn small" id="map-debug-map-btn" title="マップ無限再生を終了（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;right:180px;top:160px;opacity:.7;background:rgba(13,15,20,.82);border-color:rgba(201,168,76,.6);color:var(--gold2);z-index:25">終了</button>
+  <button class="btn small" id="map-debug-map-btn" title="マップ無限再生を終了（デバッグ）" data-sfx-silent="1" onclick="debugToggleMapLoop()" style="display:none;position:absolute;left:3277.028px;top:212.211px;width:492.972px;height:121.263px;z-index:25">終了</button>
 </div>
 
 <!-- MOVE SELECT (fallback / smithy-rest after) -->
@@ -11920,7 +11936,7 @@ fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
 <script src="assets.js?v=frameVer0916"></script>
-<script src="js/engine/audio.js?v=sfxReplace0917"></script>
+<script src="js/engine/audio.js?v=debugButtons0917"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11958,8 +11974,8 @@ _watchVesselboundDpr();
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=enemyAnnot0917"></script>
 <script src="js/engine/reward.js?v=tripleEmpty0917"></script>
-<script src="js/engine/map.js?v=displayMode01"></script>
-<script src="js/engine/main.js?v=deadAssets0916"></script>
+<script src="js/engine/map.js?v=debugButtons0917"></script>
+<script src="js/engine/main.js?v=debugButtons0917"></script>
 <script src="js/engine/options.js?v=titleMenu0916"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
