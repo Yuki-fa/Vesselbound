@@ -382,6 +382,19 @@ const FILE_SFX_VOLUMES={
   'assets/sfx/game_over.wav':  .49,  // -5.9
 };
 const _fileSfxCache={};
+function warmFileSfx(path){
+  if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
+  if(!path) return false;
+  let base=_fileSfxCache[path];
+  if(!base){
+    base=new Audio(path);
+    base.preload='auto';
+    base.dataset.sfx='1'; // 先頭の音量ハックの対象外にする
+    _fileSfxCache[path]=base;
+  }
+  try{ base.load(); }catch(e){}
+  return base;
+}
 function playFileSfx(path,volume){
   if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
   if(!path) return false;

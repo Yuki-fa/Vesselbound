@@ -247,13 +247,30 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #scr-battle.battle-opening-active .unit-card.battle-opening-card,
 #scr-battle.battle-opening-active .unit-card.battle-opening-done{visibility:visible!important;opacity:1!important}
 #scr-battle .battle-opening-card{will-change:opacity,translate,scale;}
+/* CSSアニメーションは !important を上書きできないため、コマ送りする背景位置だけ !important を外す。 */
+/* 34コマの間隔は33段なので、位置0%→100%をsteps(33,end)で進める。 */
 .battle-opening-appearance-vfx{
   position:absolute!important;inset:-72%!important;z-index:0!important;pointer-events:none!important;
-  background:url("assets/vfx/appearance.webp") center/contain no-repeat!important;
+  background-image:url("assets/vfx/appearance_sheet.webp")!important;
+  background-size:auto 100%!important;
+  background-repeat:no-repeat!important;
+  background-position:0 center;
   opacity:1;transform:scale(1.08);filter:drop-shadow(0 0 28px rgba(255,216,116,.98));
+  visibility:hidden;
+  animation:
+    battle-opening-appearance-frames 1122ms steps(33,end) 396ms 1 both,
+    battle-opening-appearance-visible 1518ms steps(1,end) 0ms 1 both;
   transition:opacity .42s ease-out,transform .42s ease-out;
 }
 .battle-opening-appearance-vfx.is-fading{opacity:0;transform:scale(1.32)}
+@keyframes battle-opening-appearance-frames{
+  from{background-position:0 center}
+  to{background-position:100% center}
+}
+@keyframes battle-opening-appearance-visible{
+  0%,26.1%{visibility:hidden}
+  26.2%,100%{visibility:visible}
+}
 @keyframes bg-dust-drift{
   from{background-position:0 0,0 0,0 0,0 0,0 0,0 0}
   to{background-position:32px -18px,-24px -12px,18px 24px,10px -30px,-16px 20px,22px 16px}
@@ -11880,7 +11897,7 @@ fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
 <script src="assets.js?v=bg0916"></script>
-<script src="js/engine/audio.js?v=deadAssets0916"></script>
+<script src="js/engine/audio.js?v=appearSfx0916"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11911,7 +11928,7 @@ _watchVesselboundDpr();
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=appearVfx0916"></script>
+    <script src="js/engine/battle.js?v=appearSheet0916"></script>
     <script src="js/engine/battle_events.js?v=summonDup0916"></script>
 <script src="js/engine/render.js?v=deathThrottle0916"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
@@ -12034,6 +12051,11 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
    **光っている間だけ clip-path を外す。** カード角の丸め（.slot.unit-card:has(.unit-frame-layer) の clip-path）は
    要素自身の box-shadow まで切り取るため、付けたままだと光が一切見えない（2026-09-14 実測）。
    角の丸めは .unit-frame-layer 側の clip-path が受け持つので、外しても角は崩れない。 */
+/* 登場VFXはカードの外へ広がるため、角の丸めの clip-path が切り取らないようにする。
+   角の丸めは .unit-frame-layer 側が受け持つ。 */
+html body #scr-battle .slot.unit-card.battle-opening-appearance-active{
+  clip-path:none!important;
+}
 html body #scr-battle .slot.unit-card.effect-flash{
   box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
   border-color:var(--effect-flash-core)!important;

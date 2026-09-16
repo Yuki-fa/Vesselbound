@@ -1503,10 +1503,14 @@ function _battleOpeningSealedSlotList(selector,isEnemy){
 function _battleOpeningLandingVfx(slot){
   const fx=document.createElement('div');
   fx.className='battle-opening-appearance-vfx';
+  slot.classList.add('battle-opening-appearance-active');
   slot.insertBefore(fx,slot.firstChild);
   _playBattleOpeningAppearanceSfx();
-  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),180);
-  battlePresentationSetTimeout(()=>fx.remove(),620);
+  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),700);
+  battlePresentationSetTimeout(()=>{
+    fx.remove();
+    slot.classList.remove('battle-opening-appearance-active');
+  },1120);
 }
 
 function _animateBattleOpeningSlot(slot,delayMs){
@@ -1533,9 +1537,9 @@ function _animateBattleOpeningSlot(slot,delayMs){
       slot.style.removeProperty('transition');
       slot.classList.remove('battle-opening-card');
       slot.classList.add('battle-opening-done');
-      _battleOpeningLandingVfx(slot);
       resolve();
     },delayMs+420);
+    battlePresentationSetTimeout(()=>_battleOpeningLandingVfx(slot),delayMs);
   });
 }
 
@@ -1914,6 +1918,7 @@ function abortBattleForDebug(){
 // 音源の読み込みが済んでいないと鳴り始めが1回ごとにばらつき、ずれて聞こえる。
 // 戦闘の頭で、使う可能性のある命中音を鳴らせる状態にしておく。
 function _warmBattleHitSfx(){
+  if(typeof warmFileSfx==='function') warmFileSfx('assets/sfx/appearance.wav');
   if(typeof warmSfxVoices!=='function') return;
   const keys=[];
   ['sword','axe','punch','kick'].forEach(t=>{ for(let lv=1;lv<=3;lv++) keys.push(`${t}${lv}`); });

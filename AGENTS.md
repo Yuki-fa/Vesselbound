@@ -1949,10 +1949,26 @@ VFXは後から `#vfx-frame-clip`（z-index 10035、背景枠で切り抜く層�
 （実機プロファイル31.5秒で RasterTask 11.2秒、うち死亡演出中 4.45秒）。**書き換えは33msごと（`DEATH_BURN_FILTER_UPDATE_INTERVAL_MS`）、値が前回と同じなら書き込まない。** 最後（進行度1.0）は必ず書く。
 **SVGフィルターの属性は書き換えるたびに本スレッドで描き直しになる。毎フレーム動かさないこと。**
 
-**戦闘開始で登場したキャラクターの下のVFX（appearance.webp）が見えていなかった（2026-09-16、利用者報告）**：`_battleOpeningLandingVfx()` はカードの子要素としてVFXを入れるが、
-**カードがまだ `opacity:0`（登場アニメで現れる前）の時に入れて、620msで消していた**ため、親と一緒に透明のまま消えていた（計測：VFXの寿命中ずっと親の不透明度0）。
-呼び出しを**カードの登場処理が終わった直後（`battle-opening-done` を付けた直後）**へ移した。計測：VFXの寿命中の親の不透明度 0.999。
-**子要素に演出を足す時は、親の opacity／visibility も見ること。**
+**戦闘開始で登場したキャラクターの下のVFX（appearance.webp）が見えていなかった（2026-09-16、利用者報告。原因は4つ重なっていた）**：
+1. **カード角の丸めの clip-path**（2026-09-12 追加の `body .slot.unit-card:has(.unit-frame-layer){clip-path:inset(0 round …)}`）が、カードより大きく広がる子要素のVFX（`inset:-72%`）を枠で切り取っていた。
+   → VFXを出している間だけカードに `battle-opening-appearance-active` を付けて `clip-path:none`（角の丸めは `.unit-frame-layer` が受け持つ）。
+2. **表示時間が短すぎた**：180msで薄れ始め620msで削除。2026-09-15（e9040f8）から `battlePresentationSetTimeout` で演出速度に応じてさらに縮む。
+   → 薄れ始めを700ms、削除を1120msへ。
+3. **素材がアニメWebPの無限ループ**：1コマ目が**空のコマ396ms**（滑り込みの待ち）→ 本体34コマ×33ms（光るのは約430〜630ms＝着地の瞬間）→ 最後のコマ3003ms、1周4521ms。
+   ブラウザは同じ画像のCSS背景アニメを**1本のタイムラインで共有**するので、新しく出したVFXは周期の途中から始まり、本体が映るのは運次第だった。
+   → 本体34コマを1枚に並べた `assets/vfx/appearance_sheet.webp`（15062×543、1コマ443×543、約200KB）を作り（`tools/make_appearance_sheet.py`）、CSSのコマ送りで**要素ごとに先頭から1回だけ**再生する（最初の396msは visibility で隠す）。元の appearance.webp は残してある。
+   **`?_r=` などでURLを分けて再生を頭出しする方式は採らないこと**（開戦時に最大20枚ぶんデコードが増え、処理落ちの原因になる）。
+4. **コマ送りが動いていなかった**：一括指定 `background:url(…) 0 center/… !important` で背景位置にも `!important` が付き、**CSSアニメーションは `!important` の宣言を上書きできない**ため最初のコマで止まっていた。
+   → `background-image／size／repeat` は `!important`、**`background-position` だけ `!important` を外す**。**アニメーションで動かすプロパティに `!important` を付けないこと。**
+
+**途中の誤り（記録）**：最初は、VFXを入れた瞬間に親カードの不透明度を1回だけ測って0だったので「ずっと透明」と判断し、呼び出しを登場処理の後へ移した（取り消し済み）。
+実際は420msかけて0→1へ上がる。**時間で変わる値を1点だけ測って結論を出さないこと。** また、計算後の値（opacity・clip-path）が揃っていても見えないことがある。**最後は必ず撮影して確かめること。**
+確認（ヘッドレス）：背景位置が 9%（521ms）→15%（621ms）→33%（802ms）→94%（1501ms）と進み、着地の瞬間（約630ms）にカードの周りのエフェクトが写る。present_parity NG 0、loop_parity 24/24 NG 0。
+**子要素に演出を足す時は、親の opacity／visibility だけでなく clip-path・overflow も見ること。**
+
+**最初に登場したキャラの登場SEが鳴らなかった（2026-09-16、利用者報告）**：`playFileSfx()` は初回に `new Audio(path)` を作り、**読み込みを待たずに複製して再生**するため、最初の1回は鳴らなかった。
+audio.js に事前読み込みだけを行う `warmFileSfx(path)` を足し、開戦前に通る `_warmBattleHitSfx()` から `assets/sfx/appearance.wav` を温める。確認：最初の着地の時点で素材は読み込み済み（readyState 4）。
+**ファイルSEを新しく足した時は、最初の再生より前に `warmFileSfx()` で温めること。**
 
 **エリート・ボス戦の開戦が重かった：背景画像の縮小（2026-09-16、利用者了承）**：`stage_grassland`／`stage_valley`／`stage_endworld` の3枚だけが **6144×12288（7500万画素）** で、
 他の背景（forest・capital1・capital2）は 2500×5000（1200万画素）だった。エリート・ボスの開戦は背景を動かしながら拡大するため、巨大な画像の描き直しで長い停止が出ていた
