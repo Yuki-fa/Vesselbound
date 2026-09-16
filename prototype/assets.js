@@ -4,33 +4,36 @@
 // file:// 起動を維持するため、プロジェクトルート相対パスを使う。
 // ═══════════════════════════════════════
 
+// カード枠の SVG を差し替えたら上げる。ブラウザのキャッシュで古い枠が出続けるのを防ぐ。
+const CARD_FRAME_VERSION='frame0916';
+
 const Assets = {
   cards: {
     // エリート／ボス用の枠。SVGをそのまま背景レイヤーとして使用する。
-    characterFrame: 'assets/cards/boss_frame.svg',
-    enemyFrame: 'assets/cards/enemy_frame.svg',
+    characterFrame: `assets/cards/boss_frame.svg?v=${CARD_FRAME_VERSION}`,
+    enemyFrame: `assets/cards/enemy_frame.svg?v=${CARD_FRAME_VERSION}`,
     statOverlay: 'assets/cards/stat_overlay.png',
     // **summon_frameN の N は色の並び（赤・青・緑・黄・紫）に対応する。**
     // summon_frame1 と summon_frame3 は入れ替え済み（1＝赤／3＝緑）。
-    summonFrameRed: 'assets/cards/summon_frame1.svg',
-    summonFrameBlue: 'assets/cards/summon_frame2.svg',
-    summonFrameGreen: 'assets/cards/summon_frame3.svg',
-    summonFrameBrown: 'assets/cards/summon_frame4.svg',
-    summonFramePurple: 'assets/cards/summon_frame5.svg',
-    summonFrameRedMerged: 'assets/cards/summon_frame1_m.svg',
-    summonFrameBlueMerged: 'assets/cards/summon_frame2_m.svg',
-    summonFrameGreenMerged: 'assets/cards/summon_frame3_m.svg',
-    summonFrameBrownMerged: 'assets/cards/summon_frame4_m.svg',
-    summonFramePurpleMerged: 'assets/cards/summon_frame5_m.svg',
-    enchantmentFrame: 'assets/cards/enchantment.svg',
-    enchantmentFrameMerged: 'assets/cards/enchantment_m.svg',
+    summonFrameRed: `assets/cards/summon_frame1.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBlue: `assets/cards/summon_frame2.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameGreen: `assets/cards/summon_frame3.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBrown: `assets/cards/summon_frame4.svg?v=${CARD_FRAME_VERSION}`,
+    summonFramePurple: `assets/cards/summon_frame5.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameRedMerged: `assets/cards/summon_frame1_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBlueMerged: `assets/cards/summon_frame2_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameGreenMerged: `assets/cards/summon_frame3_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBrownMerged: `assets/cards/summon_frame4_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFramePurpleMerged: `assets/cards/summon_frame5_m.svg?v=${CARD_FRAME_VERSION}`,
+    enchantmentFrame: `assets/cards/enchantment.svg?v=${CARD_FRAME_VERSION}`,
+    enchantmentFrameMerged: `assets/cards/enchantment_m.svg?v=${CARD_FRAME_VERSION}`,
     // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
     // 画像は上と同じものを色で選ぶ。
-    spell1: 'assets/cards/summon_frame3.svg',
-    spell2: 'assets/cards/summon_frame2.svg',
-    spell3: 'assets/cards/summon_frame4.svg',
-    spell4: 'assets/cards/summon_frame1.svg',
-    spell5: 'assets/cards/summon_frame5.svg',
+    spell1: `assets/cards/summon_frame3.svg?v=${CARD_FRAME_VERSION}`,
+    spell2: `assets/cards/summon_frame2.svg?v=${CARD_FRAME_VERSION}`,
+    spell3: `assets/cards/summon_frame4.svg?v=${CARD_FRAME_VERSION}`,
+    spell4: `assets/cards/summon_frame1.svg?v=${CARD_FRAME_VERSION}`,
+    spell5: `assets/cards/summon_frame5.svg?v=${CARD_FRAME_VERSION}`,
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
     greenOrb: 'assets/cards/green_orb.png',

@@ -1980,6 +1980,11 @@ VFXは後から `#vfx-frame-clip`（z-index 10035、背景枠で切り抜く層�
 - 変換は `getCardFrameAsset(card)`（assets.js）が**合体前と同じ規則で枠を決めてから `_tripleMerged` なら対応表で差し替える**。対応表はここ1か所。盤面・報酬・戦闘中のカード（`_tripleMerged` はコア・オンラインへ受け渡し済み）がすべてこの関数を通る。
 確認（ヘッドレス）：枠の対応が上の通り、合体不可はエリートだけ、戦闘中の合体済みカードは `summon_frame3_m.svg`（合体前は `summon_frame3.svg`）で星なし。battle_event_regression OK、present_parity NG 0、loop_parity 24/24 NG 0。
 
+**カード枠の素材を差し替えても反映されなかった（2026-09-16、利用者報告：enchantment.svg）**：`Assets.cards` の枠のパスに版番号が無く、`assetUrl()` も何も付けないため、ファイルを差し替えても URL が同じで**ブラウザが古い画像をキャッシュから使い続けていた**。
+assets.js 先頭の **`CARD_FRAME_VERSION`**（今は `frame0916`）を、枠の画像すべて（boss・enemy・召喚5色とその合体後・エンチャント2種・スペル用）のパスに `?v=` で付ける。**枠の SVG を差し替えたらこの番号を上げること。**
+合体後の枠への変換表と `isTripleMergeBlockedCard()` は `Assets.cards` の値そのもので比べるので版番号付きでも一致する。`data-frame-key`・`_measureFrameRadius()` は `_frameKeyFromUrl()` が `?v=` を除いて扱う。
+確認（ヘッドレス）：枠の URL がすべて版番号付き、読み込まれる enchantment.svg が新しい中身、合体前後の切り替え・合体不可の判定・戦闘中の枠も従来どおり。
+
 **最初に登場したキャラの登場SEが鳴らなかった（2026-09-16、利用者報告）**：`playFileSfx()` は初回に `new Audio(path)` を作り、**読み込みを待たずに複製して再生**するため、最初の1回は鳴らなかった。
 audio.js に事前読み込みだけを行う `warmFileSfx(path)` を足し、開戦前に通る `_warmBattleHitSfx()` から `assets/sfx/appearance.wav` を温める。確認：最初の着地の時点で素材は読み込み済み（readyState 4）。
 **ファイルSEを新しく足した時は、最初の再生より前に `warmFileSfx()` で温めること。**
