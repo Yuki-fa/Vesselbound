@@ -647,14 +647,16 @@ let _battlePresentationAnimationRate=1;
 function _isBattlePresentationAnimation(anim){
   const target=anim&&anim.effect&&typeof anim.effect.getTiming==='function'
     ?anim.effect.target:null;
-  if(!target||typeof target.closest!=='function') return false;
-  if(target.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover]')) return false;
-  return !!target.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro');
+  let owner=target;
+  while(owner&&typeof owner.closest!=='function') owner=owner.parentElement||owner.parentNode||owner.host||null;
+  if(!owner) return false;
+  if(owner.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover]')) return false;
+  return !!owner.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro');
 }
 function _syncBattlePresentationAnimations(){
   const speed=isBattlePresentationPlaying()?getBattlePresentationSpeedScale():1;
   if((speed!==1||_battlePresentationAnimationRate!==1)&&typeof document!=='undefined'&&typeof document.getAnimations==='function'){
-    document.getAnimations().forEach(anim=>{
+    document.getAnimations({subtree:true}).forEach(anim=>{
       if(_isBattlePresentationAnimation(anim)&&anim.playbackRate!==speed){
         try{ anim.playbackRate=speed; }catch(_e){}
       }

@@ -248,19 +248,24 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #scr-battle.battle-opening-active .unit-card.battle-opening-done{visibility:visible!important;opacity:1!important}
 #scr-battle .battle-opening-card{will-change:opacity,translate,scale;}
 /* CSSアニメーションは !important を上書きできないため、コマ送りする背景位置だけ !important を外す。 */
-/* 34コマの間隔は33段なので、位置0%→100%をsteps(33,end)で進める。 */
+/* 外側は元の appearance.webp と同じ大きさ・影にし、内側でシートを1コマずつ送る。 */
 .battle-opening-appearance-vfx{
   position:absolute!important;inset:-72%!important;z-index:0!important;pointer-events:none!important;
-  background-image:url("assets/vfx/appearance_sheet.webp")!important;
-  background-size:auto 100%!important;
-  background-repeat:no-repeat!important;
-  background-position:0 center;
+  background:none!important;
   opacity:1;transform:scale(1.08);filter:drop-shadow(0 0 28px rgba(255,216,116,.98));
+  transition:opacity .42s ease-out,transform .42s ease-out;
+}
+.battle-opening-appearance-vfx::before{
+  content:"";position:absolute;left:50%;top:50%;
+  width:100%;height:auto;aspect-ratio:443 / 543;
+  transform:translate(-50%,-50%);
+  background-image:url("assets/vfx/appearance_sheet.webp");
+  background-size:3400% 100%;background-repeat:no-repeat;
+  background-position:0 center;
   visibility:hidden;
   animation:
-    battle-opening-appearance-frames 1122ms steps(33,end) 396ms 1 both,
+    battle-opening-appearance-frames 1122ms steps(34,jump-none) 396ms 1 both,
     battle-opening-appearance-visible 1518ms steps(1,end) 0ms 1 both;
-  transition:opacity .42s ease-out,transform .42s ease-out;
 }
 .battle-opening-appearance-vfx.is-fading{opacity:0;transform:scale(1.32)}
 @keyframes battle-opening-appearance-frames{
@@ -11928,7 +11933,7 @@ _watchVesselboundDpr();
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=appearSheet0916"></script>
+    <script src="js/engine/battle.js?v=appearGeom0916"></script>
     <script src="js/engine/battle_events.js?v=summonDup0916"></script>
 <script src="js/engine/render.js?v=deathThrottle0916"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
