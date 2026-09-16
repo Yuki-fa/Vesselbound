@@ -405,7 +405,6 @@ function placePendingPanelToSelectedUnit(slotIdx){
     placed._rewardReturnPhaseId=_rewPhaseId;
   }
   boardList[slotIdx]=placed;
-  if(_hasTripleMergeCandidate(unit,slotIdx)) _beginTripleMergeHidden(slotIdx);
   // 合体前の3枚をDOM上に残した状態でスナップショットを取れるよう、先に一度描画する。
   renderHandEditor();
   // デバッグ配置では同一カードを複数スロットへ置いて、召喚上限や誘発回数を
@@ -424,7 +423,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
     if(G._isShop&&typeof _playRewardAcquireSfx==='function'&&!isPendingSale) _playRewardAcquireSfx('buy1.wav');
     else if(typeof playSfx==='function') playSfx('fit',{group:'reward'});
   }
-  if(tripleMerge) _setTripleMergeHiddenIndex(tripleMerge.targetIdx);
+  if(tripleMerge) _beginTripleMergeHidden(tripleMerge.targetIdx);
   renderHandEditor();
   if(tripleMerge) _playTripleMergeAnimation(tripleMerge);
   else _flashConnectedBoardCards(slotIdx);
@@ -2966,31 +2965,6 @@ function _freezeTripleCloneOverlayGeometry(srcEl,cloneEl,rect,baseWidth,baseHeig
   pin('.card-activation-costs');
   pin('.card-activation-costs .activation-cost-entry','.card-activation-costs');
 }
-function _hasTripleMergeCandidate(unit,placedIdx){
-  if(!unit||!Array.isArray(unit.boardCards)) return false;
-  const available=unit.boardCards.map((card,idx)=>({card,idx}))
-    .filter(x=>x.card&&!x.card._tripleMerged&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(x.card)));
-  const baseCards=available.filter(x=>!_isLuggagePanel(x.card));
-  const mirrors=available.filter(x=>_isMagicMirrorPanel(x.card));
-  const seen=new Set();
-  for(const anchor of baseCards){
-    const key=_panelMergeKey(anchor.card);
-    if(!key||_isMagicMirrorPanel(anchor.card)) continue;
-    const same=baseCards.filter(x=>!_isMagicMirrorPanel(x.card)&&_panelMergeKey(x.card)===key);
-    if(same.length>=3){
-      const picked=same.slice(0,3).map(x=>x.idx);
-      if(picked.includes(placedIdx)) return true;
-    }else if(same.length>=2&&mirrors.length){
-      for(const mirror of mirrors){
-        const picked=[same[0].idx,same[1].idx,mirror.idx];
-        const sig=picked.slice().sort((a,b)=>a-b).join(',');
-        if(!seen.has(sig)&&picked.includes(placedIdx)) return true;
-        seen.add(sig);
-      }
-    }
-  }
-  return false;
-}
 function _beginTripleMergeHidden(idx){
   if(!G) return;
   _setTripleMergeHiddenIndex(idx);
@@ -3008,7 +2982,6 @@ function _clearTripleMergeHidden(){
   if(G._tripleMergeHiddenTimer) clearTimeout(G._tripleMergeHiddenTimer);
   G._tripleMergeHiddenTimer=null;
   G._tripleMergeHiddenIdx=null;
-  document.querySelectorAll('#hand-slots.board-slots > .triple-merge-result-hidden').forEach(el=>el.classList.remove('triple-merge-result-hidden'));
 }
 function _tryTripleMergeOnBoard(unit,placedIdx){
   if(!unit||!Array.isArray(unit.boardCards)) return null;
@@ -3161,10 +3134,11 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
 function _playTripleMergeAnimation(info){
   if(!info) return;
   requestAnimationFrame(()=>{
+    // 合体先を空きマスとして描き直してから位置を取る（盤面の移動経路は合体後に描き直していない）。
+    if(typeof renderHandEditor==='function') renderHandEditor();
     const target=document.querySelector(`#hand-slots.board-slots > :nth-child(${info.targetIdx+1})`);
     if(!target){ _clearTripleMergeHidden(); return; }
     const tr=target.getBoundingClientRect();
-    target.classList.add('triple-merge-result-hidden');
     const dim=document.createElement('div');
     dim.className='triple-merge-dim';
     document.body.appendChild(dim);
@@ -3218,7 +3192,6 @@ function _playTripleMergeAnimation(info){
         // 合体結果の配置先は3枚からランダムに選ばれるため、通常配置と同じ
         // 接続フラッシュは出さない。接続線そのものは最後の再描画で更新する。
         setTimeout(()=>{
-          target.classList.remove('triple-merge-result-hidden');
           _clearTripleMergeHidden();
           dim.classList.remove('visible');
           ghosts.forEach(g=>g.ghost.remove());
@@ -3770,13 +3743,15 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       ph.style.setProperty('--hand-arc',_handArc);
       el.appendChild(ph); continue;
     }
-    const card=arr[i];
+    // **トリプル合体の演出中は、合体先のマスを空きマスとして描く。**
+    // カード要素は自分の背景に枠（--card-frame）を描くため、中身だけ隠しても
+    // 合体後の枠（*_m.svg）だけが先に見えていた（利用者報告）。
+    const card=(arrName==='boardCards'&&G._tripleMergeHiddenIdx===i)?null:arr[i];
     if(card){
       const div=document.createElement('div');
       const _isRingInHand=card.type==='ring'||!card.type||card.kind==='summon'||card.kind==='passive';
       const t=_isRingInHand?'ring':(card.type||'');
       div.className=`card ${t}`;
-      if(arrName==='boardCards'&&G._tripleMergeHiddenIdx===i) div.classList.add('triple-merge-result-hidden');
       if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
       if(arrName==='boardCards') div.dataset.boardIdx=String(i);
       // ロール演出中に別カードをドラッグ操作すると、その途中の再描画で候補/当選演出だけが
@@ -4353,14 +4328,13 @@ function dropOnCard(destArr,destIdx){
     _syncUnitPanelEffectsAfterMove(destUnit);
     if(srcUnit) _syncUnitPanelEffectsAfterMove(srcUnit);
     if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
-    if(_hasTripleMergeCandidate(destUnit,destIdx)) _beginTripleMergeHidden(destIdx);
     renderHandEditor();
     const tripleMerge=_tryTripleMergeOnBoard(destUnit,destIdx);
     if(tripleMerge){
       _syncUnitPanelEffectsAfterMove(destUnit);
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
     }
-    if(tripleMerge) _setTripleMergeHiddenIndex(tripleMerge.targetIdx);
+    if(tripleMerge) _beginTripleMergeHidden(tripleMerge.targetIdx);
     else _clearTripleMergeHidden();
     if(!tripleMerge&&srcArr==='boardCards'&&typeof playSfx==='function') playSfx('fit',{group:'reward'});
     if(!tripleMerge) _flashConnectedBoardCards(destIdx);

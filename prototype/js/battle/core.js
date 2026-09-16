@@ -4455,12 +4455,19 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           const target = rng.pick((state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === '紫'));
           if (target) addStatsForManaThreshold(target, Number(randomPurpleBuff[1]), Number(randomPurpleBuff[2]), 'mana_threshold_random_purple');
         }
-        const reviveGain = text.match(/^ランダムな味方が復活を得る/);
+        // ヴリコラカス：「「青ヴリコラカス」以外のランダムな味方N体が復活を得る」。除外名・体数は本文から読む
+        // （除外名は色＋名前。合体後は2体）。旧文「ランダムな味方が復活を得る」も同じ規則で読む。
+        const reviveGain = text.match(/^(?:「([^」]+)」以外の)?ランダムな味方(?:(\d+)体)?が復活を得る/);
         if (reviveGain) {
-          const target = rng.pick((state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)));
-          if (target) {
-            target.keywords = coreUnitKeywords(target).concat(['復活']);
-            emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '復活', sourceId: unit.id });
+          const excluded = String(reviveGain[1] || '');
+          const reviveCount = Math.max(1, Number(reviveGain[2]) || 1);
+          const notExcluded = x => !excluded || (x.name !== excluded && `${x.color || ''}${x.name || ''}` !== excluded);
+          for (let repeat = 0; repeat < repeatCount; repeat++) {
+            const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && notExcluded(x));
+            corePickDistinct(rng, pool, reviveCount).forEach(target => {
+              target.keywords = coreUnitKeywords(target).concat(['復活']);
+              emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '復活', sourceId: unit.id });
+            });
           }
         }
         // トリプル合体後は「「緑ウルフ」を2体召喚する」になる。体数を読まないと、
@@ -4492,7 +4499,9 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         }
         const selfTransform = text.match(/^「(.+?)」に変身する/);
         if (selfTransform) coreTransformUnit(state, unit, selfTransform[1], emit);
-        const gain = text.match(/^([^\s、。]+)を得る/);
+        // 「結界1を得る」のようなキーワードだけを拾う。「このキャラクターは+1/+1を得る」（活性化）や
+        // 「ランダムな味方が復活を得る」まで一語として拾い、謎のキーワードとして付いていた（利用者報告）。
+        const gain = text.match(/^([^\s、。はがの+＋\/]+)を得る/);
         if (gain && !/マナ$/.test(gain[1])) {
           unit.keywords = coreUnitKeywords(unit).concat(unit.keywords.includes(gain[1]) ? [] : [gain[1]]);
           emit({ type: 'keyword_effect', effect: 'keyword_gain', side, unitId: unit.id, sourceId: unit.id, keyword: gain[1] });

@@ -274,6 +274,8 @@ function presentKeywordEffectEvent(ev, api) {
   }
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
+  // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。
+  if (String(ev.effect || '') === 'keyword_gain' && keyword === '復活') return false;
   if (typeof getKeywordEffectVfxPath !== 'function' || !getKeywordEffectVfxPath(keyword)) return false;
   // **同じキャラクターへ続けて付与される間は出し直さない**（バフVFXと同じ見せ方）。
   // 1つの再生を延ばして出し続ける。実装は render.js が唯一の置き場。

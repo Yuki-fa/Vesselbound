@@ -6176,7 +6176,15 @@ async function _applyCoreBattleEndEffectsLive(){
     u.side=state.units.p1.includes(u)?'p1':'p2';
     u.slot=i;
   });
-  const emit=ev=>{ if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
+  const emit=ev=>{
+    if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
+    // 終戦の「永久に+X/+Y」（レプラコーン）は魔導板のカードへ書き込む。
+    // 戦闘中の再生（battle_events.js）と違い、ここはイベントを流さないので、書き込まないと効果が消えていた（利用者報告）。
+    if(ev&&ev.type==='stat_change'&&ev.persistent&&ev.side==='p1'
+      &&typeof persistBoardCharacterStats==='function'&&typeof _getPartyBoardUnit==='function'){
+      persistBoardCharacterStats(_getPartyBoardUnit(),ev.boardSlot,ev.atk,ev.hp);
+    }
+  };
   try{ coreTriggerBattleEnd(state,emit,coreMathRng); _syncCoreResourcesToG(state); }
   finally{
     touched.forEach(([u,oldSide,slot])=>{
