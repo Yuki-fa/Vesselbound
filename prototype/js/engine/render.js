@@ -1336,6 +1336,8 @@ const DEATH_BURN_ROUGH=34;     // 輪郭の歪み量（0で正円のまま）
 const DEATH_BURN_FREQ=0.013;   // 歪みの細かさ
 const DEATH_BURN_CR_START=-10.9; // 開始時に穴を完全に塞ぐための負のマージン
 const DEATH_BURN_CR_END=115;
+// 書き換えのたびにSVGフィルターの再描画が走る。毎フレームだと約2倍になり処理落ちするため、33msごとにする。
+const DEATH_BURN_FILTER_UPDATE_INTERVAL_MS=33;
 
 // death-burn の --death-cr と同じ進行度。CSSでは30%まで開始値を保ち、
 // 30〜100%を直線補間しているため、Computed Styleを読まずに経過時間から求める。
@@ -1463,14 +1465,24 @@ function playCardBurnAway(slotNode,rect,sourceSize){
     }
     const burnStartedAt=performance.now();
     let animationFrame=0;
+    let lastFilterWriteAt=-Infinity;
+    let lastFilterScale='';
     const updateFilter=now=>{
       if(!host.isConnected) return;
       if(fx){
-        const t=_deathBurnCrProgress(now-burnStartedAt);
-      // 燃え始めた瞬間から縁は乱れていてほしい。進行度に素直に比例させると
-      // 穴が小さいうちは歪みも小さく、正円のリングに見えてしまう。
-        const w=t>0.004?(0.6+0.4*Math.pow(t,0.7)):0;
-        fx.disp.setAttribute('scale',(DEATH_BURN_ROUGH*w).toFixed(1));
+        const elapsed=now-burnStartedAt;
+        const t=_deathBurnCrProgress(elapsed);
+        if(elapsed-lastFilterWriteAt>=DEATH_BURN_FILTER_UPDATE_INTERVAL_MS||t>=1){
+          // 燃え始めた瞬間から縁は乱れていてほしい。進行度に素直に比例させると
+          // 穴が小さいうちは歪みも小さく、正円のリングに見えてしまう。
+          const w=t>0.004?(0.6+0.4*Math.pow(t,0.7)):0;
+          const scale=(DEATH_BURN_ROUGH*w).toFixed(1);
+          if(scale!==lastFilterScale){
+            fx.disp.setAttribute('scale',scale);
+            lastFilterScale=scale;
+            lastFilterWriteAt=now;
+          }
+        }
       }
       animationFrame=window.requestAnimationFrame(updateFilter);
     };

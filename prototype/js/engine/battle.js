@@ -1533,9 +1533,9 @@ function _animateBattleOpeningSlot(slot,delayMs){
       slot.style.removeProperty('transition');
       slot.classList.remove('battle-opening-card');
       slot.classList.add('battle-opening-done');
+      _battleOpeningLandingVfx(slot);
       resolve();
     },delayMs+420);
-    battlePresentationSetTimeout(()=>_battleOpeningLandingVfx(slot),delayMs);
   });
 }
 
