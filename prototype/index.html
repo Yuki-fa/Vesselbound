@@ -800,8 +800,9 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 
 .discard-btn{position:absolute;bottom:5px;left:5px;right:5px;display:block;padding:1px 4px;border:1px solid var(--red);border-radius:3px;cursor:var(--cursor-normal);background:var(--bg3);line-height:1.4;text-align:center;overflow:hidden;white-space:nowrap}
 .discard-btn:hover{background:rgba(192,64,64,.15)}
-/* VFX（damage-vfx-host:10020 / sweep-vfx-host:10021 / special-vfx-clip既定10001）より
-   常に手前に出るよう、ホバー説明文のz-indexをVFX群の最大値より高くする。 */
+/* #vfx-frame-clip（z-index:10035）の中で、各VFXホスト
+   （effect-sustain-host:10022 / sweep-vfx-host:10021 / damage-vfx-host:10020）と
+   ダメージ数値（damage-label-host:10030）を重ねる。ホバー説明文はその全てより上。 */
 #kw-tooltip{position:fixed;z-index:10100;background:#111c2a;border:1px solid #4080b0;padding:5px 9px;border-radius:4px;line-height:1.45;pointer-events:none;display:none;max-width:220px;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,.6)}
 
 /* VICTORY OVERLAY */
@@ -11912,7 +11913,7 @@ _watchVesselboundDpr();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=clipboardCatch01"></script>
     <script src="js/engine/battle_events.js?v=summonDup0916"></script>
-<script src="js/engine/render.js?v=vfxVersion0916"></script>
+<script src="js/engine/render.js?v=damageLabel0916"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>

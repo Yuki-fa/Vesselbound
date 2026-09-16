@@ -1642,10 +1642,9 @@ function _playUnitDeathCardFx(unit,node,rect,sourceSize){
   }
 }
 
-// 演出用ホストの追加先。fixed要素をtransform付きの#vfx-clip-rootへ入れると、
-// 実機ブラウザによってはfixed座標の基準が変わり、カード上のVFXが画面外へ配置される。
-// ダメージ演出は実カードのgetBoundingClientRect()を絶対座標として使うため、body直下に置く。
-// 背景外へ出ないことより、命中位置へ確実に表示されることを優先する。
+// 演出用ホストの追加先。#vfx-frame-clip は position:fixed・画面全体の層なので、
+// 子のposition:fixedへ渡す left/top（getBoundingClientRect()の画面座標）は従来どおり。
+// そのためVFXとダメージ数値を同じクリップ層へ入れても、表示位置は変わらない。
 // 背景（イラスト）が実際に描かれている範囲。#scr-battle は黒帯を含む全画面なので、
 // そのまま使うと帯の上にVFXが出る。3840x2160を幅・高さに収めた実寸を返す。
 function _battleVfxClipRect(){
@@ -2279,7 +2278,9 @@ function playHitVfxAtRect(rect,amount,options){
     document.querySelectorAll(`.damage-label-host[data-damage-label-key="${String(labelKey).replace(/"/g,'\\"')}"]`)
       .forEach(old=>old.remove());
     Object.assign(labelHost.style,{left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`});
-    document.body.appendChild(labelHost);
+    // VFXと同じクリップ層へ入れる。層内では数値（10030）が各VFXホストより前面に出る。
+    // クリップ層は画面全体のposition:fixedなので、上の画面座標はそのまま使える。
+    _vfxHostParent().appendChild(labelHost);
     labelHost.appendChild(label);
     // 数値のアニメーションが終わったら入れ物ごと外す。**透明のまま置いておかない。**
     // VFX本体（hitDuration）より数値の方が短いことがあり、残しておくと
@@ -4701,11 +4702,28 @@ function renderField(id,units,isEnemy,_lane){
   };
   const _rearLayout=_layoutWithStealOrigins(_rearIndexes,'rear');
   const _frontLayout=_layoutWithStealOrigins(_frontIndexes,'front');
-  const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearLayout.count,_rearLayout.positions.get(idx))]));
-  const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontLayout.count,_frontLayout.positions.get(idx))]));
-  // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。
+  // 人数が変わった直後の再描画では、compact が保留されているため既存カードの
+  // left 式は前回の人数を基準にしている。新しい召喚体だけを新人数で計算すると
+  // 半枚ずれて重なるので、フィールド要素に列ごとの基準人数を保持する。
+  // 基準人数の更新は、既存カードの left も書き換える描画だけで行う。
+  // holdLayout 中は既存カードへ previousLefts の旧 left を入れ直すため、
+  // 新規カードも同じ旧人数を基準にして半枚ずれを防ぐ。
   const holdLayout=!!(G._compactHoldSides&&G._compactHoldSides[isEnemy?'enemies':'allies']
     &&(G._animateBattleCompact||performance.now()<Number(G._battleCompactAnimatingUntil||0)));
+  const _layoutIsBeingRewritten=!holdLayout;
+  const _storedLayoutCount=(key,count)=>{
+    const old=Number(el.dataset[key]);
+    if(_layoutIsBeingRewritten||!Number.isFinite(old)||old<0){
+      el.dataset[key]=String(count);
+      return count;
+    }
+    return old;
+  };
+  const _frontBaseCount=_storedLayoutCount('layoutFrontCount',_frontLayout.count);
+  const _rearBaseCount=_storedLayoutCount('layoutRearCount',_rearLayout.count);
+  const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearBaseCount,_rearLayout.positions.get(idx))]));
+  const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontBaseCount,_frontLayout.positions.get(idx))]));
+  // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。
   if(holdLayout){
     [..._frontIndexes,..._rearIndexes].forEach(idx=>{
       const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
