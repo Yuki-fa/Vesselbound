@@ -31,6 +31,34 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
 // なぜそのカードなのかを必ず一行で書いておくこと。
 const SCENARIOS = [
   {
+    name: '根性で耐える',
+    // 根性の体は致死ダメージでもHP1で残る。**HPが一瞬も0に見えてはいけない**（利用者報告：直っていない）。
+    seed: 2468,
+    requires: ['revive'],
+    noZeroHp: ['A0'],
+    p1: [['ゴブリン', 'A0', { atk: 1, hp: 3, maxHp: 3, keywords: ['根性'] }]],
+    p2: [['オーク', 'E0', { atk: 10, hp: 40, maxHp: 40 }]],
+  },
+  {
+    name: 'ダイアウルフの召喚',
+    // ダイアウルフのマナ効果はウルフを召喚する（利用者報告：マナVFXは出るが召喚されない）。
+    seed: 13579,
+    requires: ['mana_threshold', 'summon'],
+    mana: { p1: 6, p2: 0 },
+    p1: [['ダイアウルフ', 'A0', { hp: 30, maxHp: 30 }]],
+    p2: [['ゴブリン', 'E0', { atk: 1, hp: 60, maxHp: 60 }]],
+  },
+  {
+    name: '合体ダイアウルフの召喚',
+    // トリプル合体後の本文は「「緑ウルフ」を2体召喚する」。体数を読まずに召喚が0体になっていた（利用者報告）。
+    seed: 13580,
+    requires: ['mana_threshold', 'summon'],
+    mana: { p1: 3, p2: 0 },
+    p1: [['ダイアウルフ', 'A0', { hp: 30, maxHp: 30, desc: '3マナ毎：「緑ウルフ」を2体召喚する。',
+      _manaThresholdDesc: '「緑ウルフ」を2体召喚する。' }]],
+    p2: [['ゴブリン', 'E0', { atk: 1, hp: 60, maxHp: 60 }]],
+  },
+  {
     name: '固有VFXと肩代わり',
     // C003ゴーレム（負傷で+2/+2）とC002マータ（ダメージの半分を肩代わり）。
     // 個別VFXを持つ4枚のうちの2枚。発生元の決め方が食い違うと即座に出なくなる。
@@ -124,7 +152,7 @@ const SCENARIOS = [
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [], transformed: {}, coreSeen: 0 };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0 };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -199,6 +227,9 @@ const WATCHER = `
       if (!Number.isFinite(hp)) return;
       const prev = window.__watch.hp[id];
       window.__watch.hp[id] = hp;
+      // HPが0と表示された後にまた1以上へ戻った体（根性で耐える体は一瞬も0に見せない約束）。
+      // 最後に本当に倒れて0になるのは対象外。
+      if (prev === 0 && hp > 0 && !window.__watch.hpZero.includes(id)) window.__watch.hpZero.push(id);
       if (prev == null || hp >= prev) return;
       // 変身はHP表示の入れ替えで一度だけ減るため、数値表示の先行とはみなさない。
       if (window.__watch.transformed[id]) {
@@ -253,6 +284,7 @@ const COLLECT = `
     board: window.__watch.board.slice(),
     overlap: window.__watch.overlap.slice(),
     hpEarly: window.__watch.hpEarly.slice(),
+    hpZero: window.__watch.hpZero.slice(),
     onCard: window.__watch.onCard.length,
     // 一度でもカードの上に出た数値は、対象が消えた後の残り姿を数えない。
     offCard: window.__watch.offCard.filter(k => !window.__watch.onCard.includes(k)),
@@ -397,7 +429,7 @@ const onlineScript = sc => `
     window.__watch.vfx.length = 0; window.__watch.calls.length = 0;
     window.__watch.board.length = 0;
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
-    window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.transformed = {};
+    window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.hpZero.length = 0; window.__watch.transformed = {};
   };
   try {
     await Promise.race([
@@ -513,6 +545,11 @@ const onlineScript = sc => `
       check(`${tag}HPが数値より先に減らない`,
         (pve.hpEarly || []).length === 0 && (online.hpEarly || []).length === 0,
         `PvE=${(pve.hpEarly || []).join(' / ') || 'なし'} オンライン=${(online.hpEarly || []).join(' / ') || 'なし'}`);
+      if (sc.noZeroHp) {
+        const bad = r => (r.hpZero || []).filter(id => sc.noZeroHp.includes(id));
+        check(`${tag}根性で耐える体のHPが0に見えない`, !bad(pve).length && !bad(online).length,
+          `PvE=${bad(pve).join(',') || 'なし'} オンライン=${bad(online).join(',') || 'なし'}`);
+      }
       check(`${tag}攻撃中に元のカードが残らない`,
         (pve.overlap || []).length === 0 && (online.overlap || []).length === 0,
         `PvE=${(pve.overlap || []).join(' / ') || 'なし'} オンライン=${(online.overlap || []).join(' / ') || 'なし'}`);

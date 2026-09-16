@@ -4459,8 +4459,11 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
             emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '復活', sourceId: unit.id });
           }
         }
-        const summonWolf = text.match(/^「緑ウルフ」を召喚する/);
-        if (summonWolf) for (let repeat = 0; repeat < repeatCount; repeat++) coreSummonUnit(state, side, {
+        // トリプル合体後は「「緑ウルフ」を2体召喚する」になる。体数を読まないと、
+        // マナ効果（VFX）だけ発動して1体も召喚されなかった。
+        const summonWolf = text.match(/^「緑ウルフ」を(?:(\d+)体)?召喚する/);
+        const wolfCount = summonWolf ? Math.max(1, Number(summonWolf[1]) || 1) : 0;
+        if (summonWolf) for (let repeat = 0; repeat < repeatCount; repeat++) for (let n = 0; n < wolfCount; n++) coreSummonUnit(state, side, {
           name: '緑ウルフ', color: '緑', placement: 'rightEdge'
         }, emit, unit.id);
         const randomTransform = text.match(/^ランダムな敵(?:(\d+)体)?を「([^」]+)」に変身させる/);

@@ -451,17 +451,30 @@ function presentHoldHpForGuts(events) {
   const list = Array.isArray(events) ? events.filter(Boolean) : [];
   if (!list.some(e => e.type === 'revive' && e.reason === '根性')) return list;
   const sameUnit = (a, b) => a && b && a.side === b.side && String(a.unitId) === String(b.unitId);
-  return list.map((e, i) => {
+  const dropDeaths = new Set();
+  const heldDamage = new Set();
+  list.forEach((e, i) => {
     if (e.type !== 'damage' || e.damageTo === 'atk' || Number(e.hpAfter) > 0) return e;
+    const deathIndexes = [];
     for (let j = i + 1; j < list.length; j++) {
       const n = list[j];
       if (n.type === 'turn_begin' || n.type === 'battle_end') return e;
       if (!sameUnit(n, e)) continue;
-      if (n.type === 'revive') return n.reason === '根性' ? { ...e, hpAfter: 1 } : e;
-      if (n.type === 'damage' || n.type === 'death' || n.type === 'instant_death') return e;
+      if (n.type === 'damage' || n.type === 'instant_death') return e;
+      if (n.type === 'death') {
+        deathIndexes.push(n);
+        continue;
+      }
+      if (n.type === 'revive') {
+        if (n.reason === '根性' && deathIndexes.length) {
+          heldDamage.add(e);
+          deathIndexes.forEach(death => dropDeaths.add(death));
+        }
+        return e;
+      }
     }
-    return e;
   });
+  return list.filter(e => !dropDeaths.has(e)).map(e => heldDamage.has(e) ? { ...e, hpAfter: 1 } : e);
 }
 
 function presentReorderDeathsAfterDamageBatch(events) {

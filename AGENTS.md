@@ -1104,6 +1104,11 @@ Codexは commit / push を行わない。ブラウザ実機確認時はブラウ
   自動検査が成功しただけで完了扱いにしない。正常応答を確認した固定ローカルサーバーを実際に開き、
   デバッグモードの試験戦闘で再現ケースを操作し、修正前の症状が消えたことを確認するまで完了報告しない。
   確認できない場合は未完了として報告する。
+- **トリプル合体の演出中の合体先マス（2026-09-16）**：魔導板カードの子要素には `visibility:visible!important` を当てるルールがあるため、
+  マスに `visibility:hidden` を付けるだけでは合体後の枠（*_m.svg）・裏地・売値が透けて見えた。演出中は状態で持ち、
+  `renderHandEditor()` が描く時点から子要素と疑似要素を隠す（reward.js）。
+- **合体後の効果文の体数**：ダイアウルフの合体後は「「緑ウルフ」を2体召喚する」。コアの正規表現が体数を読まず、マナ効果だけ出て召喚0体だった。
+  合体効果列を足したら、コアの文の読み取りが合体後の表現（N体・数値違い）に対応しているか確かめる。
 - **施設からの試験戦闘の戻り（2026-09-16）**：試験戦闘の `onBattleEnd()` は `_rewCards` を戦闘報酬に置き換える。
   図書館以外でも `startTestBattle()` が施設フラグ・品揃え・ゴールド等を `G._testBattleReturnState` に控え、
   `_exitTestBattle()` が戻してから `goToReward({restoreCheckpoint:true})` で描き直す。控えないと道具屋に戦闘報酬（アイテム枠のカード）が並ぶ。
@@ -2717,6 +2722,9 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    `present.js` の `presentHoldHpForGuts()` が「同じ体への次の damage／death／手番の切れ目より前に根性の revive が来る damage」の
    表示用 `hpAfter` を1にする（写しを書き換え、元のイベントとコアの値は変えない）。PvE・オンラインとも
    `presentReorderDeathsAfterDamageBatch()` の入口で通る。
+   **コアの `coreApplyDamage()` はHPが0になると根性でも必ず `death` を出す**（`damage→death→revive(根性)`）。
+   以前は途中の `death` で諦めていたためオンラインで0が見えていた。今は根性の revive の前の `death` を再生の列から外し、
+   damage の表示HPを1にする。検査：`present_parity.js` の「根性で耐える」（0と表示された後に1以上へ戻ったら NG）。
 17. **ATKを足す箇所では必ず `coreTriggerAtkGainEffects()` を呼ぶ**（ワイバーン「ATKを得るたび」）。
    `coreApplyOpeningScaledGrant()`（リリス等の「ATK〜につき〜回付与」）だけ抜けていて、リリスから受けても発動しなかった。
    この関数は `state, applyHit` を受け取る。ATKを足す新しい経路を足したら同じ呼び出しを入れること。
