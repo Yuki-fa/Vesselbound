@@ -93,9 +93,64 @@ function runDeferredManaScenario() {
   core.coreApplyManaThresholdEffects(state, core.coreMathRng, e => events.push(e), () => ({amount: 0, died: false}));
   const threshold = events.find(e => e.type === 'mana_threshold');
   assert.ok(threshold && threshold.deferredAfter, 'マナ閾値の遅延スナップショットがない');
-  assert.equal(state.units.p1[0].atk, 1, 'VFX開始前にマナ効果のATKが反映されている');
-  core.coreRestoreDeferredState(state, threshold.deferredAfter);
-  assert.equal(state.units.p1[0].atk, 3, 'マナVFX開始時の状態復元に失敗');
+  assert.equal(state.units.p1[0].atk, 3, '遅延モードでもマナ効果の計算結果を保持していない');
+  assert.equal(state.units.p1[0].hp, 3, '遅延モードでもマナ効果のHP計算結果を保持していない');
+}
+
+function runDeferredDeathChainParityScenario() {
+  // 開戦の死亡効果で敵の「狂気」が倒れ、その死亡時マナで「炎の矢」が発動する。
+  // 矢は別の対象を倒すため、遅延走査後に盤面を開戦前へ戻すと、次の手番で
+  // 既に死亡した対象が生き返った状態として扱われる（課題AJの最小再現）。
+  const setup = {
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {
+      p1: {units: [
+        {id: 'opening-death', name: '死の体感', atk: 1, hp: 10, maxHp: 10,
+          desc: '開戦：このキャラクターの死亡効果を発動する。\n死亡：全ての敵キャラクターに1ダメージを与える。'},
+        {id: 'arrow-target', name: '炎の矢の対象', atk: 1, hp: 3, maxHp: 3},
+      ]},
+      p2: {units: [
+        {id: 'madness', name: '狂気', atk: 1, hp: 1, maxHp: 1, manaOnDeath: 1},
+        {id: 'arrow', name: '炎の矢', atk: 1, hp: 10, maxHp: 10, manaCost: 1,
+          manaThresholdDesc: 'ランダムな敵に4ダメージを与える。'},
+      ]},
+    },
+  };
+  const run = defer => {
+    const state = core.createBattleState(setup);
+    state.deferManaThresholdEffects = defer;
+    const events = [];
+    const runner = core.runBattleCore(state, createSeededRng(1), {
+      stepwise: true, turnLimit: 2, onEvent: event => events.push(event),
+    });
+    // compactを遅らせ、死亡体をイベント列とstateに残したまま1〜2手番進める。
+    runner.step({deferCompact: true});
+    runner.step({deferCompact: true});
+    return {state, events};
+  };
+  const immediate = run(false);
+  const deferred = run(true);
+  const stateShape = result => ({
+    units: ['p1', 'p2'].flatMap(side => result.state.units[side].filter(Boolean)
+      .map(unit => ({side, id: unit.id, hp: unit.hp, alive: unit.hp > 0, atk: unit.atk}))),
+    mana: {p1: result.state.resources.p1.mana, p2: result.state.resources.p2.mana},
+  });
+  assert.deepEqual(stateShape(deferred), stateShape(immediate),
+    '遅延マナ走査の有無で開戦後の最終状態が変わっている');
+
+  const deathIndex = new Map();
+  deferred.events.forEach((event, index) => {
+    if (event.type === 'death' || event.type === 'instant_death') {
+      deathIndex.set(`${event.side}:${event.unitId}`, index);
+    }
+    if (event.type !== 'damage' && event.type !== 'stat_change') return;
+    const key = `${event.side}:${event.unitId}`;
+    const diedAt = deathIndex.get(key);
+    if (diedAt == null) return;
+    const revived = deferred.events.slice(diedAt + 1, index)
+      .some(next => next.type === 'revive' && `${next.side}:${next.unitId}` === key);
+    assert.ok(revived, `死亡後に復活なしで${event.type}が同じ体へ発生している: ${key}`);
+  });
 }
 
 function runSkeletonKingAndMultiHitScenario() {
@@ -354,6 +409,7 @@ function main() {
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
   runDeferredManaScenario();
+  runDeferredDeathChainParityScenario();
   runSkeletonKingAndMultiHitScenario();
   runManaSummonLichScenario();
   runPersistentDeathObserverScenario();

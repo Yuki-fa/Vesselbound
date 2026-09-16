@@ -264,7 +264,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 閾値効果を含むイベント列では、閾値へ到達させたマナ獲得も同じ演出単位にする。
   // コアは後続の判定に必要なので数値を先に計算するが、UI側のG.manaだけを先に
   // 書き換えると、ユーザーには「マナ効果→逆再生開始」より前に効果が進んで見える。
-  // 最初の遅延閾値より前にある mana_gain を、閾値の deferredAfter 復元まで保留する。
+  // 最初の遅延閾値より前にある mana_gain を、閾値イベントの演出開始まで保留する。
   const firstDeferredThreshold={p1:-1,p2:-1};
   eventList.forEach((x,i)=>{
     if(x.type==='mana_threshold'&&x.deferred&&firstDeferredThreshold[x.side]<0) firstDeferredThreshold[x.side]=i;
@@ -559,25 +559,22 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           },
         }),
       });
-      if(e.deferred&&e.deferredAfter&&typeof coreRestoreDeferredState==='function'){
-        coreRestoreDeferredState(state,e.deferredAfter);
-        G.mana=Math.max(0,Number(state.resources.p1?.mana)||0);
-        _syncCoreResourcesToG(state);
-        // **マナの数字は、値が変わったら必ずその場で描き直す。**
-        // 「次も閾値なら描かない」にしていた頃は、「Xマナ毎」が続く間ずっと
-        // 古い数字のまま止まり、効果でマナが増えてもカウントが動かなかった。
-        // 連続発動でHUDが何十回も走らないよう、抑えるのは「値が同じ時」だけにする。
-        if(_shownManaValue!==G.mana){
-          _shownManaValue=G.mana;
-          _refreshManaDisplays();
-        }
-        _recordBattleTrace('mana_state_restore_done',{unitId:e.unitId});
+      // deferredBefore/deferredAfter は表示の時系列を説明するイベント情報であり、
+      // PvEの実計算stateを戻してはいけない。コアは遅延中も最終状態まで計算済みなので、
+      // ここで復元すると後続の開戦効果／手番がオンラインと異なる盤面を読む。
+      // マナ表示だけは、その閾値の計算後スナップショットを表示値として使う。
+      // 実stateには触れないため、後続の効果の計算結果や発動回数は巻き戻らない。
+      if(e.deferred&&e.deferredAfter&&e.deferredAfter.resources
+        &&e.deferredAfter.resources.p1&&typeof _refreshManaDisplays==='function'){
+        G.mana=Math.max(0,Number(e.deferredAfter.resources.p1.mana)||0);
+        _shownManaValue=G.mana;
+        _refreshManaDisplays();
       }
       continue;
     }
     if(e.type==='mana_gain'){
       if(e.deferredAppliedByThreshold){
-        // 閾値イベントの逆再生開始時に deferredAfter を復元済み。
+        // 閾値イベントの計算済みstateに含まれるため、ここでは再加算しない。
         // ここで同じmana_gainを再加算すると、閾値効果だけマナが二重になる。
         _recordBattleTrace('mana_state_skip_deferred',{unitId:e.unitId,amount:Number(e.amount)||0});
         continue;

@@ -962,7 +962,7 @@ function coreGainResource(state, side, kind, amount, unit, emit, reason, options
     // 死亡トリガでは、表示側の詰め処理が先に走っても効果元を解決できるよう
     // イベントにカード状態のスナップショットを保持する（ルール計算は変更しない）。
     unit: unit ? coreUnitSnapshot(unit) : null,
-    // 閾値イベントは演出の逆再生開始時に deferredAfter を復元するため、
+    // 閾値イベントの計算済みstateはコアが保持しているため、
     // その中で追加されたマナを再生側がもう一度加算してはいけない。
     deferredAppliedByThreshold: !!(options && options.deferredAppliedByThreshold) });
   if (kind === 'mana') {
@@ -4082,16 +4082,14 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
   const fireAtkGain = (target, atk) => {
     if (target && Number(atk) > 0) coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
-  // 遅延モード（PvEの開戦演出）では、走査中は状態を進めたまま各発動の
-  // before/afterスナップショットを累積で記録し、走査の最後に一度だけ
-  // 走査前の盤面へ戻す。1発動ごとに巻き戻すと、
-  //   ・各deferredAfterが「基準+その1発だけ」の絶対スナップショットになり、
-  //     演出側（battle.js）が順に復元した時点で先行する発動が消える
-  //   ・「1マナ：3マナを得る」で増えたマナが消え、後続の「Xマナ毎」の
-  //     到達回数が伸びない（マナ連鎖が途切れる）
-  //   ・_extraManaThresholdsがディープコピーで作り直され、効果ごとの
-  //     発動回数カウンタ（_manaFireCounts）が別オブジェクトへ逃げて過剰発動する
-  // という3つの不具合が同時に起きる。
+  // 遅延モード（PvEの開戦演出）でも、計算状態は走査中から最後まで進めたままにする。
+  // deferredBefore/deferredAfter は表示側がイベントの時系列を合わせるための
+  // スナップショットであり、コアの計算状態を巻き戻す用途には使わない。
+  // ここで走査前へ戻すと、
+  //   ・先行する発動が消える
+  //   ・「1マナ：3マナを得る」のようなマナ連鎖が途切れる
+  //   ・発動回数カウンタが別オブジェクトへ逃げて過剰発動する
+  // という3つの不具合が再発する。
   const deferAll = !!state.deferManaThresholdEffects;
   const forcedUnitId = options && options.force ? String(options.onlyUnitId || '') : '';
   let forcedTriggered = false;
@@ -4105,7 +4103,6 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
     return arr.length > 0 && !arr.some(u => u.hp > 0);
   };
   if (coreSideWipedOut('p1') || coreSideWipedOut('p2')) return;
-  const scanBaseline = deferAll ? coreSnapshotDeferredState(state) : null;
   let changed = true;
   // 1パスで発動するのは (ユニット×閾値) ごとに1回のため、
   // 「1マナ毎」に高マナで到達している場合は到達回数分のパスが要る。
@@ -4248,7 +4245,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           // wave：同じ番号なら同じ瞬間の発動。再生側が同時に見せるための印。
           wave };
         // PvEではこのイベントを先に出し、演出アダプタが逆再生開始時に
-        // deferredAfterを復元する。コア内の計算順は維持する。
+        // deferredAfterは演出側が時系列を参照するための情報としてイベントへ載せる。
         emit(thresholdEvent);
         const repeatCount = 1 + coreEffectCount(unit, 'マナの種')
           + (side === 'p1' ? coreRingCount(state, 'p1', '賢者の指輪') : 0);
@@ -4523,8 +4520,8 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
       }
     });
   }
-  // 演出側が deferredAfter を順に復元して盤面を進めるため、コアは走査前の状態へ戻す。
-  if (deferAll && scanBaseline) coreRestoreDeferredState(state, scanBaseline);
+  // 遅延は演出のタイミングだけを遅らせる。ここで計算状態を戻すと、
+  // この関数の後に続く開戦効果／手番が巻き戻された盤面を読むことになる。
 }
 
 /**
