@@ -6812,6 +6812,12 @@ html body.reward-screen-active .rew-card.cant .shop-insufficient-badge,
 html body.reward-screen-active .character-card.cant .shop-insufficient-badge{
   z-index:10002!important;
 }
+/* 道具屋の商品（.item-visual）は --card-frame を持たないため、上の背景指定が既定値の --bg3（青灰色）へ落ち、
+   ゴールド不足の商品だけ背景が青く見えていた（利用者報告）。アイテム枠は ::before で描くので、本体の背景は付けない。 */
+html body.reward-screen-active #reward-offer-row > .rew-card.cant.item-visual,
+html body.reward-screen-active #rw-cards .rew-card.cant.item-visual{
+  background:transparent!important;
+}
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade{
   --card-frame:none!important;
   --unit-frame:none!important;
@@ -11886,7 +11892,7 @@ fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
 <script src="assets.js?v=frameVer0916"></script>
-<script src="js/engine/audio.js?v=atkRangeSfx0917"></script>
+<script src="js/engine/audio.js?v=sfxReplace0917"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -11895,9 +11901,9 @@ _watchVesselboundDpr();
 <script src="js/data/loader.js?v=displayMode01"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=reviveShield0917"></script>
+    <script src="js/battle/core.js?v=teamBuffSource0917"></script>
 <script src="js/battle/formation.js?v=leprechaun0916"></script>
-    <script src="js/battle/present.js?v=atkBuffVfx0917"></script>
+    <script src="js/battle/present.js?v=deathBreak0917"></script>
     <script src="js/battle/present_events.js?v=reviveGain0917"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -13678,7 +13684,10 @@ html body #hand-slots.board-slots > .card.invalid-battle-position:not([data-map-
   filter:brightness(.5)!important;
 }
 /* 報酬カードのarrowはカード箱の外へ先端がはみ出すため、箱内の暗転層だけでは
-   先端が明るく残る。arrow全体を暗転層の前へ出し、同じ50%暗転を直接適用する。 */
+   先端が明るく残る。arrow全体を暗転層の前へ出し、同じ50%暗転を直接適用する。
+   **#reward-offer-section まで書いて詳細度を上げること。** ドラッグ中に報酬枠の矢印へ影を戻すルール
+   （body:is(.dragzone-…) #reward-offer-section #reward-offer-row .panel-dir）が暗転を消し、暗いカードの矢印だけ明るくなっていた。 */
+html body.reward-screen-active #reward-offer-section #reward-offer-row > .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left),
 html body.reward-screen-active #reward-offer-row > .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left),
 html body.reward-screen-active #rw-cards .rew-card:is(.cant,.reward-used-dim) > :is(.panel-dir,.panel-dir-up,.panel-dir-right,.panel-dir-down,.panel-dir-left){
   z-index:10001!important;

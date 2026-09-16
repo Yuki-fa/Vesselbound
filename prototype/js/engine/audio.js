@@ -142,6 +142,8 @@ let _sfxUnlocked=false;
 let _sfxActiveVoices=0;
 // 鳴っている本数を音ごとに数える（同じ波形の重ねすぎ＝音割れを防ぐ）。
 const _sfxPlayingByKey=Object.create(null);
+// 鍵ごとに今鳴っている声の解放関数（古い順）。同じ音の本数上限に達した時、いちばん古い声を止めて新しい声に譲る。
+const _sfxReleasersByKey=Object.create(null);
 // BGMはWeb Audio API（decodeAudioData + AudioBufferSourceNode）で鳴らす。
 // 状態は「いま鳴っている1本（_bgmVoice）」と「その鍵」だけ。
 let _bgmVoice=null;
@@ -249,6 +251,7 @@ function stopAllSfx(){
   });
   _sfxActiveVoices=0;
   Object.keys(_sfxPlayingByKey).forEach(k=>{ _sfxPlayingByKey[k]=0; });
+  Object.keys(_sfxReleasersByKey).forEach(k=>{ _sfxReleasersByKey[k]=[]; });
 }
 
 // 使う音を先に鳴らせる状態にしておく。戦闘の最初の一撃だけ鳴り始めが遅れるのを防ぐ。
@@ -313,7 +316,15 @@ function playSfx(key,opts={}){
   // **同じ音を同時に何本も重ねない。** 同じ波形が重なると振幅がそのまま足し算に
   // なり、1本では割れない音でも簡単に振り切れる（矢を4本同時に撃つ等）。
   // guardMs=0 で意図的に連射している呼び出しがあるので、ここは本数で止める。
-  if((_sfxPlayingByKey[key]||0)>=SFX_SETTINGS.maxSameSound) return false;
+  // **上限に達した時は新しい方を捨てず、いちばん古い声を止めて鳴らす。**
+  // 捨てると、ヴァンパイアロードのように同じ効果が短い間隔で続いた時に後の発動のSEが丸ごと鳴らなかった（利用者報告）。
+  // 本数は増やさないので、重なって音が割れる問題（上の注記）は起きない。
+  if((_sfxPlayingByKey[key]||0)>=SFX_SETTINGS.maxSameSound){
+    const list=_sfxReleasersByKey[key]||[];
+    const oldest=list.shift();
+    if(oldest) oldest();
+    if((_sfxPlayingByKey[key]||0)>=SFX_SETTINGS.maxSameSound) return false;
+  }
   _sfxLastPlayed[guardKey]=now;
 
   // **複製を使い回す。** cloneNode()で毎回作り直すと、その複製は読み込みからやり直しになり、
@@ -333,11 +344,13 @@ function playSfx(key,opts={}){
   const release=()=>{
     if(released) return;
     released=true;
+    { const list=_sfxReleasersByKey[key]; if(list){ const i=list.indexOf(release); if(i>=0) list.splice(i,1); } }
     if(safetyTimer!=null){ clearTimeout(safetyTimer); safetyTimer=null; }
     _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
     _sfxPlayingByKey[key]=Math.max(0,(_sfxPlayingByKey[key]||0)-1);
     _freeSfxVoice(key,a);
   };
+  (_sfxReleasersByKey[key]||(_sfxReleasersByKey[key]=[])).push(release);
   a.addEventListener('ended',release,{once:true});
   a.addEventListener('error',release,{once:true});
   const maxPlayMs=opts.maxPlayMs??soundCfg.maxPlayMs??groupCfg.maxPlayMs;

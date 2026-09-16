@@ -1275,7 +1275,9 @@ function presentBreaksManaRun(ev) {
 // 重複判定（同じ発生元・効果・対象は1回だけ）は、1回の一撃で複数対象へ同じ効果が
 // 乗る場面のためのもので、一撃をまたいで持ち越すと2撃目以降が無音・無演出になる。
 function presentBreaksEffectRun(ev) {
-  return !!ev && (ev.type === 'attack' || ev.type === 'turn_begin');
+  // 死亡も区切りにする。「キャラクターが死亡するたび」（ヴァンパイアロード等）は死亡1回ごとに別の発動なので、
+  // 同じ一撃で2体倒れても、2回目の発動の固有SE・VFXを出し直す。
+  return !!ev && (ev.type === 'attack' || ev.type === 'turn_begin' || ev.type === 'death');
 }
 
 if (typeof window !== 'undefined') {

@@ -3666,13 +3666,14 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
   if (dead.side === 'p2' && coreRingCount(state, 'p1', '魔力の指輪')) {
     coreGainResource(state, 'p1', 'mana', 2 * coreRingCount(state, 'p1', '魔力の指輪'), null, emit, 'magic_ring');
   }
-  const addStats = (u, atk, hp, reason) => {
+  const addStats = (u, atk, hp, reason, source) => {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     atk = coreStatBonus(u, atk); hp = coreStatBonus(u, hp);
     u.atk = Math.max(0, u.atk + atk); u.maxHp = Math.max(1, u.maxHp + hp); u.hp += hp;
     // 「味方が死亡するたび」等の常時効果が発動した合図（白）。
-    coreEmitPassiveFlash(emit, u);
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
+    // 味方全体へのバフは発生元（source）で1回だけ合図する（呼び出し側）。自分へのバフはここで合図する。
+    if (!source) coreEmitPassiveFlash(emit, u);
+    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: (source || u).id });
     coreTriggerAtkGainEffects(u, atk, state, rng, emit, applyHit);
   };
   // 「仲間が死亡するたび、このキャラクターは+2/+1を得る」系のデータ効果。
@@ -3690,7 +3691,7 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
       for (let i = 0; i < state._enemyDeaths; i++) addStats(u, 1, 1, 'hellhound');
     });
     all.filter(u => u && u.hp > 0 && u.side === 'p1' && /敵が死亡するたび、全ての味方は\+4\/\+3を得る/.test(coreUnitEffectText(u)))
-      .forEach(u => state.units.p1.filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 3, 'enemy_death_team_buff')));
+      .forEach(u => { coreEmitPassiveFlash(emit, u); state.units.p1.filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 3, 'enemy_death_team_buff', u)); });
     all.filter(u => u && u.hp > 0 && u.side === 'p1'
       && !coreHasEffect(u, 'ヘルハウンド')
       && /敵が死んだ時、\+1\/\+1を得る/.test(coreUnitEffectText(u)))
@@ -3704,7 +3705,10 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
   });
   all.filter(u => u.hp > 0 && (coreHasEffect(u, 'ヴァンパイアロード')
     || /キャラクターが死亡するたび、全ての味方はHP\+1を得る/.test(coreUnitEffectText(u)))).forEach(u => {
-    (state.units[u.side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 0, 1, 'character_death_team_hp'));
+    // **発生元はヴァンパイアロード本人。** 受け取った味方を発生元にすると、表示側が味方ごとに別の効果とみなし、
+    // SEを人数ぶん重ねて同時再生の上限で落としていた（利用者報告）。
+    coreEmitPassiveFlash(emit, u);
+    (state.units[u.side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 0, 1, 'character_death_team_hp', u));
   });
   all.filter(u => u.hp > 0 && u.side === dead.side && coreHasEffect(u, 'レヴナント')
     && !/味方が死亡するたび、このキャラクターは\+1\/\+1を得る/.test(coreUnitEffectText(u)))
@@ -3717,7 +3721,8 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
     .forEach(u => addStats(u, 1, 1, 'necromancy'));
   all.filter(u => u.hp > 0 && u.side === 'p2' && coreHasEffect(u, '虚空の渡し守"ナグルファル"')).forEach(u => addStats(u, 3, 1, 'naglfar'));
   if (dead.side === 'p1') all.filter(u => u.hp > 0 && u.side === 'p2' && coreHasEffect(u, '忘却の骸"ゲルミール"')).forEach(u => {
-    (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 3, 'gellmir'));
+    coreEmitPassiveFlash(emit, u);
+    (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 3, 'gellmir', u));
   });
   // 死亡観測は観測者と同じ陣営の死亡だけを数える。p1固定の共有カウンタでは
   // p2側のエイドロンが不発し、観測者が複数いると発動回数を奪い合っていた。
@@ -3787,15 +3792,17 @@ function coreApplyAttackObservers(attacker, state, rng, emit, applyHit) {
   const allies = (state.units[attacker.side] || []).filter(Boolean);
   const foes = (state.units[attacker.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const all = [...(state.units.p1 || []), ...(state.units.p2 || [])].filter(Boolean);
-  const addStats = (u, atk, hp, reason) => {
+  const addStats = (u, atk, hp, reason, source) => {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     u.atk = Math.max(0, u.atk + atk); u.maxHp = Math.max(1, u.maxHp + hp); u.hp += hp;
-    coreEmitPassiveFlash(emit, u);
+    // 味方全体へのバフは発生元（source）で1回だけ合図する（呼び出し側）。自分へのバフはここで合図する。
+    if (!source) coreEmitPassiveFlash(emit, u);
     // sourceId が無いと演出側が「効果による変化」と判断できず、VFXが出ない。
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
+    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: (source || u).id });
   };
   all.filter(u => u.hp > 0 && u.side === attacker.side && coreHasEffect(u, '隻眼の魔狼"ガルム・グリーム"')).forEach(u => {
-    allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'garm'));
+    coreEmitPassiveFlash(emit, u);
+    allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'garm', u));
   });
   all.filter(u => u.hp > 0 && u.side === attacker.side && coreHasEffect(u, '極光の女王"グンダ"')).forEach(u => {
     coreHitAll(state, rng, emit, applyHit, u, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), 1);
@@ -3806,7 +3813,8 @@ function coreApplyAttackObservers(attacker, state, rng, emit, applyHit) {
   all.filter(u => u.hp > 0 && u.side === attacker.side).forEach(u => {
     const text = coreUnitEffectText(u);
     if (!coreHasEffect(u, '隻眼の魔狼"ガルム・グリーム"') && /味方が攻撃するたび、全ての味方は\+1\/\+1を得る/.test(text)) {
-      allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'attack_observer_team_buff'));
+      coreEmitPassiveFlash(emit, u);
+      allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 1, 1, 'attack_observer_team_buff', u));
     }
     // 「味方が攻撃するたび、このキャラクターは+N/+Nを得る。」（シャナ）。
     // 全体バフ（ガルム・グリーム）とは別物。**自分だけが強くなる。**
@@ -3846,15 +3854,17 @@ function coreApplyShieldLostEffects(target, state, rng, emit, applyHit) {
   if (!target) return;
   const allies = (state.units[target.side] || []).filter(Boolean);
   const foes = (state.units[target.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
-  const addStats = (u, atk, hp, reason) => {
+  const addStats = (u, atk, hp, reason, source) => {
     if (!u || u.hp <= 0 || coreIsSealed(u)) return;
     atk = coreStatBonus(u, atk); hp = coreStatBonus(u, hp);
     u.atk = Math.max(0, u.atk + atk); u.maxHp += hp; u.hp += hp;
-    coreEmitPassiveFlash(emit, u);
-    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: u.id });
+    // 味方全体へのバフは発生元（source）で1回だけ合図する（呼び出し側）。自分へのバフはここで合図する。
+    if (!source) coreEmitPassiveFlash(emit, u);
+    emit({ type: 'stat_change', side: u.side, unitId: u.id, atk, hp, reason, sourceId: (source || u).id });
   };
   if (target.side === 'p2') allies.filter(u => u.hp > 0 && coreHasEffect(u, '惑わしの妖精"エインセル"')).forEach(u => {
-    allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 2, 2, 'ainsel'));
+    coreEmitPassiveFlash(emit, u);
+    allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 2, 2, 'ainsel', u));
   });
   // 絶魔の指輪：常時：味方が結界を失うたび、全ての味方は+1/+1を得る。
   const sealBreakerRings = target.side === 'p1' ? coreRingCount(state, 'p1', '絶魔の指輪') : 0;
