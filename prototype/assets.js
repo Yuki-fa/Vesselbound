@@ -17,7 +17,13 @@ const Assets = {
     summonFrameGreen: 'assets/cards/summon_frame3.svg',
     summonFrameBrown: 'assets/cards/summon_frame4.svg',
     summonFramePurple: 'assets/cards/summon_frame5.svg',
+    summonFrameRedMerged: 'assets/cards/summon_frame1_m.svg',
+    summonFrameBlueMerged: 'assets/cards/summon_frame2_m.svg',
+    summonFrameGreenMerged: 'assets/cards/summon_frame3_m.svg',
+    summonFrameBrownMerged: 'assets/cards/summon_frame4_m.svg',
+    summonFramePurpleMerged: 'assets/cards/summon_frame5_m.svg',
     enchantmentFrame: 'assets/cards/enchantment.svg',
+    enchantmentFrameMerged: 'assets/cards/enchantment_m.svg',
     // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
     // 画像は上と同じものを色で選ぶ。
     spell1: 'assets/cards/summon_frame3.svg',
@@ -363,7 +369,22 @@ function _isEliteOrBossCard(card){
   const kws=Array.isArray(card.keywords)?card.keywords:[];
   return kws.includes('ボス')||kws.includes('エリート');
 }
-function getCardFrameAsset(card){
+// 合体後の枠への変換は、カード描画と戦闘スロットで共通に使う。
+const TRIPLE_MERGED_FRAME_MAP = Object.freeze({
+  [Assets.cards.enchantmentFrame]: Assets.cards.enchantmentFrameMerged,
+  [Assets.cards.summonFrameRed]: Assets.cards.summonFrameRedMerged,
+  [Assets.cards.summonFrameBlue]: Assets.cards.summonFrameBlueMerged,
+  [Assets.cards.summonFrameGreen]: Assets.cards.summonFrameGreenMerged,
+  [Assets.cards.summonFrameBrown]: Assets.cards.summonFrameBrownMerged,
+  [Assets.cards.summonFramePurple]: Assets.cards.summonFramePurpleMerged,
+  [Assets.cards.enemyFrame]: Assets.cards.characterFrame,
+});
+function _tripleMergedFrameAsset(frame, card){
+  return card&&card._tripleMerged
+    ?(TRIPLE_MERGED_FRAME_MAP[frame]||frame)
+    :frame;
+}
+function _getCardFrameAssetBase(card){
   if(!card) return '';
   if(_isEliteOrBossCard(card)) return Assets.cards.characterFrame;
   // **敵を仲間にした体・敵に変身した体（_useEnemyVisualFrame）は、カードになっても敵の枠のまま。**
@@ -385,6 +406,14 @@ function getCardFrameAsset(card){
   }
   if(card.fixedAttack||card.fixedEquip) return '';
   return '';
+}
+function getCardFrameAsset(card){
+  return _tripleMergedFrameAsset(_getCardFrameAssetBase(card),card);
+}
+
+// 合体前の枠が boss_frame.svg になるカードは、トリプル合体の素材にしない。
+function isTripleMergeBlockedCard(card){
+  return _getCardFrameAssetBase(card)===Assets.cards.characterFrame;
 }
 
 function _characterArtDef(cardOrName){
@@ -709,7 +738,7 @@ function applyUnitVisual(el, unit){
     : isPlayerHero
       ? Assets.cards.characterFrame
       : _summonFrameByColor(_summonColor(unit)) || Assets.cards.characterFrame;
-  const _unitFrameUrl=assetUrl(frame);
+  const _unitFrameUrl=assetUrl(_tripleMergedFrameAsset(frame,unit));
   el.style.setProperty('--unit-frame', _unitFrameUrl);
   applyFrameRadiusKey(el,_unitFrameUrl);
   if(!applyCharacterArtVars(el, unit, '--unit')){

@@ -2588,23 +2588,6 @@ function _createDragGhost(srcEl){
       }
     });
   }
-  // body直下へ複製すると、合体★の固定px指定だけがゲームscaleから外れて巨大化する。
-  const srcMergeStar=srcEl.querySelector('.triple-merge-star');
-  const dstMergeStar=d.querySelector('.triple-merge-star');
-  if(srcMergeStar&&dstMergeStar){
-    const sr=srcMergeStar.getBoundingClientRect();
-    const ss=getComputedStyle(srcMergeStar);
-    dstMergeStar.style.setProperty('left',`${sr.left-rect.left}px`,'important');
-    dstMergeStar.style.setProperty('top',`${sr.top-rect.top}px`,'important');
-    dstMergeStar.style.setProperty('right','auto','important');
-    dstMergeStar.style.setProperty('bottom','auto','important');
-    dstMergeStar.style.setProperty('width',`${sr.width}px`,'important');
-    dstMergeStar.style.setProperty('height',`${sr.height}px`,'important');
-    dstMergeStar.style.setProperty('font-size',`${(parseFloat(ss.fontSize)||0)*gameScale}px`,'important');
-    dstMergeStar.style.setProperty('line-height','1','important');
-    dstMergeStar.style.setProperty('animation','none','important');
-    dstMergeStar.style.setProperty('transform','none','important');
-  }
   const srcSeal=srcEl.querySelector('.seal-cost-badge');
   const dstSeal=d.querySelector('.seal-cost-badge');
   if(srcSeal&&dstSeal){
@@ -2898,10 +2881,11 @@ function _ownedMergeCards(){
 }
 function _rewardMergeCandidate(rewIdx,card){
   if(!card||!G) return false;
+  if(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(card)) return false;
   if(_isLuggagePanel(card)&&!_isMagicMirrorPanel(card)) return false;
   // ショップでは、魔導板上のカード／所持キャラクターも合体素材として数える。
   if(G._isShop||G._isRewardTown){
-    const owned=_ownedMergeCards();
+    const owned=_ownedMergeCards().filter(c=>!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
     const key=_panelMergeKey(card);
     if(!key) return false;
     const same=owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)&&_panelMergeKey(c)===key).length;
@@ -2910,11 +2894,11 @@ function _rewardMergeCandidate(rewIdx,card){
   }
   if(G.phase!=='reward') return false;
   const cards=Array.isArray(_rewCards)?_rewCards.filter(Boolean):[];
-  const usable=cards.filter(c=>!c._tripleMerged&&!_isLuggagePanel(c));
+  const usable=cards.filter(c=>!c._tripleMerged&&!_isLuggagePanel(c)&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
   // **魔導板・場のカードも合体素材に数える。**（ショップ側と同じ扱い）
   // 以前は提示カード同士しか見ておらず、「同じカードが盤面に2枚あって
   // 報酬の1枚を取れば3枚そろう」場面で光らなかった。
-  const owned=_ownedMergeCards().filter(c=>c&&!_isLuggagePanel(c));
+  const owned=_ownedMergeCards().filter(c=>c&&!_isLuggagePanel(c)&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
   const ownedSame=key=>owned.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length;
   const mirrors=cards.filter(c=>!c._tripleMerged&&_isMagicMirrorPanel(c))
     .concat(owned.filter(_isMagicMirrorPanel));
@@ -2976,7 +2960,6 @@ function _freezeTripleCloneOverlayGeometry(srcEl,cloneEl,rect,baseWidth,baseHeig
   pin('.card-summon-hp');
   pin('.slot-stats .a','.slot-stats');
   pin('.slot-stats .h','.slot-stats');
-  pin('.triple-merge-star');
   pin('.card-activation-costs');
   pin('.card-activation-costs .activation-cost-entry','.card-activation-costs');
 }
@@ -2985,7 +2968,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   const placed=unit.boardCards[placedIdx];
   if(!placed||placed._tripleMerged) return null;
   const available=unit.boardCards.map((card,idx)=>({card,idx}))
-    .filter(x=>x.card&&!x.card._tripleMerged);
+    .filter(x=>x.card&&!x.card._tripleMerged&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(x.card)));
   const baseCards=available.filter(x=>!_isLuggagePanel(x.card));
   const mirrors=available.filter(x=>_isMagicMirrorPanel(x.card));
   const candidates=[];
@@ -3795,7 +3778,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
       const _isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
       const _isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
-      const _mergeStarHtml=card._tripleMerged?'<span class="triple-merge-star" aria-label="3枚合体">★</span>':'';
       // 指輪提示（栄光の力）中は、そのターンに取得したばかりのカード（＝「報酬に戻す」対象）も含め、
       // 魔導板上の全カード（キャラクター・強化とも）を廃棄カウントの対象にする。
       // 以前は_isCurrentRewardReturnCardを除外していたため、そのカードの×が「報酬に戻す」として
@@ -3853,7 +3835,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,card.desc||'',i):(card.name+'\n'+(card.desc||''));
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(_panelOwner&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(div,_panelOwner,G._selectedBoardUnitIdx,i);
       }else if(_isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
@@ -3879,7 +3861,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'
           ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(arrName==='boardCards'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
       }else if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
@@ -3889,7 +3871,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
       }else{
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_mergeStarHtml}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
       }
       if(arrName==='boardCards') _ensureCardBackLayer(div);
       // 魔導板枠はカード固有の::after（キャラ枠）と競合しない独立レイヤーとして常設する。

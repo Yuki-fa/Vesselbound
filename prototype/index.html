@@ -8562,16 +8562,6 @@ html body #battle-continue-panel .battle-continue-back{
   transform:none!important;
 }
 
-/* 3枚合体：右上の星と吸い込み／強発光演出。 */
-html body .card .triple-merge-star{
-  position:absolute!important;right:8px!important;top:8px!important;z-index:10050!important;
-  display:block!important;visibility:visible!important;opacity:1!important;
-  color:#ffe45c;font-size:24px;line-height:1;
-  text-shadow:0 0 4px #fff7b0,0 0 10px #ffc928;
-  /* 周期的に一瞬だけ強く光る演出（tripleMergeStarShimmer）は外し、
-     text-shadowによる一定の淡い発光だけにする。 */
-  pointer-events:none;
-}
 html body .triple-merge-ghost{
   position:fixed!important;margin:0!important;z-index:20000!important;
   pointer-events:none!important;overflow:visible!important;
@@ -8979,11 +8969,6 @@ html body.right-card-peek.reward-screen-active #hand-slots.board-slots > .card >
   opacity:1!important;visibility:visible!important;display:block!important;filter:none!important;
   position:absolute!important;inset:0!important;z-index:10050!important;
   background:url("assets/cards/m_board_frame.svg?v=cellRadius01") center/100% 100% no-repeat!important;
-}
-/* ドラッグゴーストでは元カードからコピーした実寸を最優先し、★の明滅拡大も止める。 */
-html body .drag-ghost .triple-merge-star{
-  animation:none!important;
-  transform:none!important;
 }
 
 /* 合体時の白光は矩形ラッパーではなく、カードと同じ角丸の専用面で描画する。 */
@@ -11901,7 +11886,7 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=bg0916"></script>
+<script src="assets.js?v=mergeFrame0916"></script>
 <script src="js/engine/audio.js?v=appearSfx0916"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
@@ -11935,11 +11920,11 @@ _watchVesselboundDpr();
 <script src="js/engine/enemy.js?v=intro01"></script>
     <script src="js/engine/battle.js?v=appearGeom0916"></script>
     <script src="js/engine/battle_events.js?v=summonDup0916"></script>
-<script src="js/engine/render.js?v=deathThrottle0916"></script>
+<script src="js/engine/render.js?v=mergeFrame0916"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>
-<script src="js/engine/reward.js?v=removeBottomHud01"></script>
+<script src="js/engine/reward.js?v=mergeFrame0916"></script>
 <script src="js/engine/map.js?v=displayMode01"></script>
 <script src="js/engine/main.js?v=deadAssets0916"></script>
 <script src="js/engine/options.js?v=titleMenu0916"></script>

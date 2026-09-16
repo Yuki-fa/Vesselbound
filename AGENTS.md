@@ -1974,6 +1974,12 @@ VFXは後から `#vfx-frame-clip`（z-index 10035、背景枠で切り抜く層�
 - 演出速度の同期（`_syncBattlePresentationAnimations()`）は疑似要素のアニメーションにも掛かるようにした。
 確認（ヘッドレス、元の1コマ画像を contain で置いたものと同じコマで比較）：コマ2・5・10とも背景位置が k/33、平均差0.03〜0.10、差の大きい画素0%、描かれる範囲は1px以内で一致。
 
+**トリプル合体の見た目（2026-09-16、利用者指定）**：右上の星（★、`.triple-merge-star`）は**廃止**。代わりに**合体後は枠を差し替える**。
+- `enchantment.svg` → `enchantment_m.svg`、`summon_frame1〜5.svg` → `summon_frame1〜5_m.svg`（1＝赤、2＝青、3＝緑、4＝茶/黄、5＝紫）、`enemy_frame.svg` → `boss_frame.svg`。
+- **`boss_frame.svg` の枠のカードはトリプル合体しない**（`isTripleMergeBlockedCard()`。合体の判定と合体候補の表示の両方、魔鏡を3枚目にする場合も同じ）。エリート・ボス・種類なしのキャラ（`_isChar`）・色なしの召喚キャラが該当する。
+- 変換は `getCardFrameAsset(card)`（assets.js）が**合体前と同じ規則で枠を決めてから `_tripleMerged` なら対応表で差し替える**。対応表はここ1か所。盤面・報酬・戦闘中のカード（`_tripleMerged` はコア・オンラインへ受け渡し済み）がすべてこの関数を通る。
+確認（ヘッドレス）：枠の対応が上の通り、合体不可はエリートだけ、戦闘中の合体済みカードは `summon_frame3_m.svg`（合体前は `summon_frame3.svg`）で星なし。battle_event_regression OK、present_parity NG 0、loop_parity 24/24 NG 0。
+
 **最初に登場したキャラの登場SEが鳴らなかった（2026-09-16、利用者報告）**：`playFileSfx()` は初回に `new Audio(path)` を作り、**読み込みを待たずに複製して再生**するため、最初の1回は鳴らなかった。
 audio.js に事前読み込みだけを行う `warmFileSfx(path)` を足し、開戦前に通る `_warmBattleHitSfx()` から `assets/sfx/appearance.wav` を温める。確認：最初の着地の時点で素材は読み込み済み（readyState 4）。
 **ファイルSEを新しく足した時は、最初の再生より前に `warmFileSfx()` で温めること。**

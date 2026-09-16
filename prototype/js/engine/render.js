@@ -5368,7 +5368,6 @@ function mkCardEl(card,_idx,_ctx){
   // 無料報酬（_buyPrice===0）ではバッジそのものを作らない（CSSでの後隠しはしない）。
   const showPriceBadge=G.phase==='reward'&&!!G._isShop&&Number(card._buyPrice)>0&&!card._debugInfiniteCard;
   const badgeEl=showPriceBadge?`<span class="card-badge">${_circleCost(card._buyPrice)}</span>`:'';
-  const mergeStarEl=card._tripleMerged?'<span class="triple-merge-star" aria-label="3枚合体">★</span>':'';
   const isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
   const isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
   const isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
@@ -5399,7 +5398,7 @@ function mkCardEl(card,_idx,_ctx){
     const pHp=Number(card.life??card.hp??1);
     const preview=_charPreview||[_cardUiName(card),card.desc||''].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div><span class="unit-stat-overlay-layer" aria-hidden="true"></span><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
@@ -5426,7 +5425,7 @@ function mkCardEl(card,_idx,_ctx){
     const keywordPreview=typeof _keywordOnlyPreviewText==='function'
       ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
     if(keywordPreview) div.setAttribute('data-keyword-preview',keywordPreview);
-    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${mergeStarEl}${dirMarks}<div class="card-art"></div>`;
+    div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}${dirMarks}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
     return div;
   }
