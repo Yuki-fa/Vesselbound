@@ -138,11 +138,34 @@ function buildBoardFormation(board, opts) {
   return { entries, ordered };
 }
 
+// 戦闘終了時の「永久に+X/+Y」の保存先。PvE／オンラインの受け口はこの共通関数を
+// 呼び、魔導板上のキャラクターカードへ同じ規則で累積する。
+function persistBoardCharacterStats(board, slotIdx, atk, hp) {
+  const cards = board && Array.isArray(board.boardCards) ? board.boardCards : [];
+  const card = cards[Number(slotIdx)];
+  if (!card || String(card.category || '') !== 'キャラクター') return false;
+  const da = Number(atk) || 0;
+  const dh = Number(hp) || 0;
+  if (!da && !dh) return false;
+  if (da) {
+    card.power = Math.max(0, (Number(card.power ?? card.atk) || 0) + da);
+    if (card.atk != null) card.atk = card.power;
+    if (Number.isFinite(Number(card._permBasePower))) card._permBasePower += da;
+  }
+  if (dh) {
+    card.life = Math.max(1, (Number(card.life ?? card.hp) || 1) + dh);
+    if (card.hp != null) card.hp = card.life;
+    if (Number.isFinite(Number(card._permBaseLife))) card._permBaseLife += dh;
+  }
+  return true;
+}
+
 if (typeof window !== 'undefined') {
   window.formationDeploySlots = formationDeploySlots;
   window.formationAssignSlot = formationAssignSlot;
   window.buildBoardFormation = buildBoardFormation;
+  window.persistBoardCharacterStats = persistBoardCharacterStats;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { formationDeploySlots, formationAssignSlot, buildBoardFormation };
+  module.exports = { formationDeploySlots, formationAssignSlot, buildBoardFormation, persistBoardCharacterStats };
 }

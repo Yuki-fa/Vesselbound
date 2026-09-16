@@ -164,7 +164,6 @@ const BGM_DEFAULT_VOLUMES={
   battle1:.55,
   battle3:.65,
   battle4:.65,
-  gameClear:.65,
   villageForest:.68,
   villageGrassland:.57,
   villageValley:.71,

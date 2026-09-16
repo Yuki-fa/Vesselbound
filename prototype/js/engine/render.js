@@ -3,6 +3,17 @@
 // 依存: constants.js, state.js, battle.js
 // ═══════════════════════════════════════
 
+// VFX素材を差し替えたら上げる。再生ごとに変えないこと（変えるとデコードが再生回数ぶん増える）。
+const VFX_ASSET_VERSION='vfx0916';
+function _withVfxAssetVersion(url){
+  const raw=String(url||'');
+  if(!raw) return raw;
+  const hashIndex=raw.indexOf('#');
+  const base=hashIndex<0?raw:raw.slice(0,hashIndex);
+  const hash=hashIndex<0?'':raw.slice(hashIndex);
+  return `${base}${base.includes('?')?'&':'?'}v=${VFX_ASSET_VERSION}${hash}`;
+}
+
 // ── キーワードツールチップ（KW_DESC_MAP は loader.js で effect_id シートから読み込み）──
 
 (function _initKwTooltip(){
@@ -112,7 +123,7 @@
           // 背景を説明枠の上辺中央へ置き、星をカードのレアリティ数だけ並べる。
           const rarity=Number(rarityClass.slice('rarity-'.length))||0;
           if(rarity&&typeof cardRarityBannerHtml==='function'
-            &&el.closest('.card,.rew-card,.slot.unit-card,.debug-palette-item')){
+            &&el.closest('.card,.rew-card,.slot.unit-card,.debug-palette-item,.reward-prod-slots i.item-visual-filled,.reward-prod-slots i.ring-visual-filled')){
             tip.classList.add('has-rarity-banner');
             tip.insertAdjacentHTML('afterbegin',cardRarityBannerHtml({rarity}));
           }
@@ -1246,7 +1257,7 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
   // 判定し省電力のため自動一時停止してしまう（AbortError: video-only background media was
   // paused to save power）ため、それらは避けた静的なスタイルを与える。
   // canvas側は呼び出し元がclassName（位置・アニメーション）を制御して上に重ねて隠す。
-  video.src=videoUrl;
+  video.src=_withVfxAssetVersion(videoUrl);
   video.muted=true;
   video.autoplay=true;
   video.playsInline=true;
@@ -1316,6 +1327,7 @@ function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
 // カードが盤面から消える直前の見た目をそのまま複製し、#vfx-clip-rootの中で焼き落とす。
 // 実スロットは従来どおり即座に空にするため、盤面の詰め直しや当たり判定には影響しない。
 const DEATH_BURN_MS=900;
+const DEATH_BURN_CR_HOLD_MS=DEATH_BURN_MS*0.30;
 const DEATH_BURN_HOLES=9;      // 焼け穴の数
 const DEATH_BURN_SPREAD=78;    // 穴を散らす範囲（大きいほど全面へ広がる）
 const DEATH_BURN_EDGE='6%';    // 焼け縁のぼかし幅
@@ -1324,6 +1336,13 @@ const DEATH_BURN_ROUGH=34;     // 輪郭の歪み量（0で正円のまま）
 const DEATH_BURN_FREQ=0.013;   // 歪みの細かさ
 const DEATH_BURN_CR_START=-10.9; // 開始時に穴を完全に塞ぐための負のマージン
 const DEATH_BURN_CR_END=115;
+
+// death-burn の --death-cr と同じ進行度。CSSでは30%まで開始値を保ち、
+// 30〜100%を直線補間しているため、Computed Styleを読まずに経過時間から求める。
+function _deathBurnCrProgress(elapsedMs){
+  return Math.max(0,Math.min(1,
+    (elapsedMs-DEATH_BURN_CR_HOLD_MS)/(DEATH_BURN_MS-DEATH_BURN_CR_HOLD_MS)));
+}
 
 function _deathBurnRnd(seed){ const x=Math.sin(seed)*10000; return x-Math.floor(x); }
 
@@ -1435,30 +1454,34 @@ function playCardBurnAway(slotNode,rect,sourceSize){
     host.appendChild(warpEmber);
     parent.appendChild(host);
 
-    // 輪郭の歪みはSVG属性なのでCSSアニメーションで動かせない。進行度を読んで書き換える。
+    // 輪郭の歪みはSVG属性なのでCSSアニメーションで動かせない。
+    // CSSの--death-crを読むと毎回スタイル計算を強制するため、開始時刻から進行度を求める。
     const fx=_makeDeathBurnFilter(seed);
     if(fx){
       warpCard.style.filter='url(#'+fx.id+')';
       warpEmber.style.filter='url(#'+fx.id+')';
     }
-    const span=DEATH_BURN_CR_END-DEATH_BURN_CR_START;
-    const timer=window.setInterval(()=>{
-      if(!host.isConnected){ window.clearInterval(timer); return; }
-      if(!fx) return;
-      const cr=parseFloat(getComputedStyle(host).getPropertyValue('--death-cr'))||DEATH_BURN_CR_START;
-      const t=Math.max(0,Math.min(1,(cr-DEATH_BURN_CR_START)/span));
+    const burnStartedAt=performance.now();
+    let animationFrame=0;
+    const updateFilter=now=>{
+      if(!host.isConnected) return;
+      if(fx){
+        const t=_deathBurnCrProgress(now-burnStartedAt);
       // 燃え始めた瞬間から縁は乱れていてほしい。進行度に素直に比例させると
       // 穴が小さいうちは歪みも小さく、正円のリングに見えてしまう。
-      const w=t>0.004?(0.6+0.4*Math.pow(t,0.7)):0;
-      fx.disp.setAttribute('scale',(DEATH_BURN_ROUGH*w).toFixed(1));
-    },33);
+        const w=t>0.004?(0.6+0.4*Math.pow(t,0.7)):0;
+        fx.disp.setAttribute('scale',(DEATH_BURN_ROUGH*w).toFixed(1));
+      }
+      animationFrame=window.requestAnimationFrame(updateFilter);
+    };
+    animationFrame=window.requestAnimationFrame(updateFilter);
 
     // 後片付けは「実際にアニメーションが終わったとき」に行う。固定時間で消すと、
     // 重い処理でアニメーションの開始が遅れた場合に再生途中で消えてしまう。
     let cleaned=false;
     const cleanup=()=>{
       if(cleaned) return; cleaned=true;
-      window.clearInterval(timer);
+      window.cancelAnimationFrame(animationFrame);
       window.clearTimeout(fallback);
       host.remove();
       if(fx&&fx.filter&&fx.filter.parentNode) fx.filter.parentNode.removeChild(fx.filter);
@@ -1734,7 +1757,10 @@ function damageLabelDurationMs(labelDuration, minMs){
 // ループ位置がずれて見える。それを避けるためURLへ印を付けるが、**毎回乱数にすると
 // 常にキャッシュを外れ、命中のたびに画像を読み直して主スレッドが数百ms止まる。**
 // （同じ瞬間に出るはずの数値が1体だけ先に出る／命中音がずれる原因になっていた）
-// 少数の決まった印を順に使い回し、2回目以降はキャッシュから読ませる。
+// 画像URLへの印は利用者の指示で廃止した。番号はSEの重複防止キーと、
+// 画像を使わない軌道の決定にだけ残している。
+// 画像URLへ再生ごとの印は付けない。番号はSEの重複防止キーと、
+// 画像を使わない軌道の決定にだけ残している。
 const VFX_VARIANT_COUNT=6;
 let _vfxVariantSeq=0;
 function _vfxVariantIndex(){ _vfxVariantSeq=(_vfxVariantSeq+1)%VFX_VARIANT_COUNT; return _vfxVariantSeq; }
@@ -1788,7 +1814,7 @@ function playEffectVfxOnUnit(unit,side,code,options){
     img.style.transition=`opacity ${fadeInMs}ms ease-out`;
     requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(!done) img.style.opacity='1'; }); });
   }
-  img.src=url+(url.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  img.src=_withVfxAssetVersion(url);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
   let resolveComplete;
@@ -1985,7 +2011,7 @@ function playCurvedMissile(options){
   img.className='vfx vfx-hit-video';
   img.alt='';
   img.style.pointerEvents='none';
-  img.src=asset+(asset.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  img.src=_withVfxAssetVersion(asset);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
   const halfW=fromRect.width/2, halfH=fromRect.height/2;
@@ -2191,15 +2217,15 @@ function playHitVfxAtRect(rect,amount,options){
     mediaEl.alt='';
     // 同一URLの<img>を短時間に連続生成すると、ブラウザによっては再生状態が共有され
     // ループ位置がずれて見えることがあるため、インスタンスごとに独立した画像として
-    // 扱わせるためのダミークエリを付与する。
-    mediaEl.src=hitUrl+(hitUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+    // 扱わせるための再生ごとのダミークエリを付与していたが、利用者の指示で外した。
+    mediaEl.src=_withVfxAssetVersion(hitUrl);
     // **素材が読めなかったら通常の被弾VFXへ戻す。** 専用素材を登録しただけで
     // ファイルを置き忘れると、何も出ないまま「効果が消えた」ように見える。
     const fallbackUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
     if(hitUrl!==fallbackUrl){
       mediaEl.addEventListener('error',()=>{
         console.warn('[vfx] 素材が読めないため通常の被弾VFXへ戻す:',hitUrl);
-        mediaEl.src=fallbackUrl+(fallbackUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+        mediaEl.src=_withVfxAssetVersion(fallbackUrl);
       },{once:true});
     }
     host.appendChild(mediaEl);
@@ -2528,11 +2554,25 @@ async function playReviveVfx(unit,side){
   // `opacity:1!important` が掛かっているため、インラインの opacity では消せない。
   // 以前はインラインで消していたので、カードは最初から出たままで
   // VFXがその裏に隠れていた（＝復活の演出が出ていないように見えていた）。
-  const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
-  if(slot){
-    slot.style.setProperty('transition','none','important');
-    slot.classList.add('revive-hidden');
-  }
+  const unitId=unit&&unit.id!=null?String(unit.id):'';
+  const currentSlots=()=>{
+    const out=[];
+    const direct=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
+    if(direct&&!direct.classList.contains('attack-motion-clone')) out.push(direct);
+    if(unitId){
+      document.querySelectorAll('.slot[data-unit-id]').forEach(el=>{
+        if(el.classList.contains('attack-motion-clone')) return;
+        if(String(el.dataset.unitId||'')===unitId&&!out.includes(el)) out.push(el);
+      });
+    }
+    return out;
+  };
+  const setHidden=(hidden,transition)=>currentSlots().forEach(el=>{
+    if(transition==null) el.style.removeProperty('transition');
+    else el.style.setProperty('transition',transition,'important');
+    el.classList.toggle('revive-hidden',hidden);
+  });
+  setHidden(true,'none');
   // 再描画が挟まっても隠れたままにする（印は最後に外す）。
   if(unit) unit._reviveHidden=true;
   // **カードより下に出す。** 層が取れない時だけ従来のVFX層へ落とす。
@@ -2562,7 +2602,7 @@ async function playReviveVfx(unit,side){
     img.style.pointerEvents='none';
     const scale=typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale('K020'):1;
     img.style.transform=`translate(-50%,-50%) scale(${scale})`;
-    img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+    img.src=_withVfxAssetVersion(url);
     host.appendChild(img);
     (underLayer||_vfxHostParent()).appendChild(host);
     requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(host) host.style.opacity='1'; }); });
@@ -2575,25 +2615,24 @@ async function playReviveVfx(unit,side){
     };
     requestAnimationFrame(follow);
   }
-  // フェードイン＋HOLD の間はVFXだけを見せる（カードはまだ出さない）。
-  await new Promise(resolve=>setTimeout(resolve,fadeIn+holdMs));
-  // カードをフェードインさせる（VFXの上に重なって現れる）。
-  if(unit) delete unit._reviveHidden;
-  if(slot){
-    slot.style.setProperty('transition',`opacity ${cardMs}ms ease-out`,'important');
-    requestAnimationFrame(()=>{ slot.classList.remove('revive-hidden'); });
+  try{
+    // フェードイン＋HOLD の間はVFXだけを見せる（カードはまだ出さない）。
+    await new Promise(resolve=>setTimeout(resolve,fadeIn+holdMs));
+    // 再描画後のスロットを引き直してカードをフェードインさせる。
+    if(unit) delete unit._reviveHidden;
+    setHidden(false,`opacity ${cardMs}ms ease-out`);
+    await new Promise(resolve=>setTimeout(resolve,cardMs));
+    return true;
+  } finally {
+    // 途中終了・再描画のどちらでも、全ての現行スロットから印を除去する。
+    if(unit) delete unit._reviveHidden;
+    setHidden(false,null);
+    if(host){
+      host.style.transition=`opacity ${fadeOut}ms ease-out`;
+      host.style.opacity='0';
+      setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
+    }
   }
-  await new Promise(resolve=>setTimeout(resolve,cardMs));
-  if(slot){
-    slot.style.removeProperty('transition');
-    slot.classList.remove('revive-hidden');
-  }
-  if(host){
-    host.style.transition=`opacity ${fadeOut}ms ease-out`;
-    host.style.opacity='0';
-    setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
-  }
-  return true;
 }
 
 // ── マナを得た時の演出（S004）────────────────────────────
@@ -2640,7 +2679,7 @@ function playManaGainVfx(unit,side){
   // 入れ物と同じ大きさで描く（CSSの既定 width:460% を使わない）。
   Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
     width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
-  img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+  img.src=_withVfxAssetVersion(url);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
@@ -2734,7 +2773,7 @@ async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
   // 絵の見た目の大きさと「どこまで届いたか」の計算が合わなくなる。
   Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
     width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
-  img.src=url+(url.includes('?')?'&':'?')+'_r='+(typeof _vfxVariantIndex==='function'?_vfxVariantIndex():0);
+  img.src=_withVfxAssetVersion(url);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
   let cleaned=false;
@@ -2866,7 +2905,7 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   img.className='special-vfx-img';
   img.alt='';
   img.style.cssText=`position:absolute;inset:0;width:100%;height:100%;object-fit:${opt.fit||'cover'};object-position:${opt.objectPosition||'center center'};`;
-  img.src=vfxUrl+(vfxUrl.includes('?')?'&':'?')+'_r='+_vfxVariantIndex();
+  img.src=_withVfxAssetVersion(vfxUrl);
   host.appendChild(img);
   const w=Math.max(1,Math.round(hostW)), h=Math.max(1,Math.round(hostH));
   const frames=[];
@@ -3131,8 +3170,8 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
     // 自身の速度で再生させ、薙ぎ払いの見た目（回転）はhost側のanimateでsweepDuration通りに制御する。
     mediaEl=document.createElement('div');
     mediaEl.className='vfx-sweep-video';
-    // 同一URLの背景画像を短時間に連続生成した際の再生状態共有を避けるためのダミークエリ。
-    const bustUrl=videoUrl+(videoUrl.includes('?')?'&':'?')+'_r='+Math.random();
+    // 同一URLの背景画像に付けていた再生位置ずれ対策のダミークエリは、利用者の指示で外した。
+    const bustUrl=_withVfxAssetVersion(videoUrl);
     // 素材によっては帯の左右・上下に透明マージンを持って書き出されていることがあり、そのままの
     // 比率で炎box（幅=届く長さ、高さ=太さ）に収めると、透明部分の分だけ発生源（攻撃キャラ）側に
     // 隙間ができ、炎がキャラクターから離れて浮いて見えてしまう。そういう素材だけ_SWEEP_VFX_CROPに
@@ -3563,21 +3602,31 @@ const STEAL_MOVE_EASING='cubic-bezier(.3,.05,.2,1)';
 // 「いま見えている位置」へ複製を貼り付け、実スロットは描かせないようにする。
 // この複製が、そのまま奪う移動で運ばれる複製になる。
 // 詰め直し（FLIP）の途中でも「落ち着いた先の位置」を返す。
-// FLIPは実レイアウトを終点に置いたうえで transform で移動元へずらしているだけなので、
-// transform の分を引けば終点が分かる。**待たずに同期で測れる**のが重要
-// （待つ間に再描画が入ると、その隙にカードが移動先へ現れてワープする）。
+// FLIPは実レイアウトを終点に置いたうえで transform で移動元へずらしている。
+// getBoundingClientRect() に transform の行列を手計算で戻すと、再描画をまたいだ
+// 移動状態で補正を二重にすることがあるため、測定中だけ transform を無効化する。
+// **待たずに同期で測れる**のが重要（待つ間に再描画が入るとワープする）。
 function _settledRectOf(el){
-  const r=el&&el.getBoundingClientRect();
-  if(!r||!r.width||!r.height) return null;
-  let dx=0,dy=0;
+  if(!el) return null;
+  const hadInlineTransform=el.style.getPropertyValue('transform')!=='';
+  const inlineTransform=el.style.getPropertyValue('transform');
+  const inlineTransformPriority=el.style.getPropertyPriority('transform');
+  const hadInlineTransition=el.style.getPropertyValue('transition')!=='';
+  const inlineTransition=el.style.getPropertyValue('transition');
+  const inlineTransitionPriority=el.style.getPropertyPriority('transition');
+  let r=null;
   try{
-    const t=getComputedStyle(el).transform;
-    if(t&&t!=='none'&&typeof DOMMatrixReadOnly==='function'){
-      const m=new DOMMatrixReadOnly(t);
-      dx=Number(m.m41)||0; dy=Number(m.m42)||0;
-    }
-  }catch(e){}
-  return {left:r.left-dx,top:r.top-dy,width:r.width,height:r.height};
+    el.style.setProperty('transform','none','important');
+    el.style.setProperty('transition','none','important');
+    r=el.getBoundingClientRect();
+  }finally{
+    if(hadInlineTransform) el.style.setProperty('transform',inlineTransform,inlineTransformPriority);
+    else el.style.removeProperty('transform');
+    if(hadInlineTransition) el.style.setProperty('transition',inlineTransition,inlineTransitionPriority);
+    else el.style.removeProperty('transition');
+  }
+  if(!r||!r.width||!r.height) return null;
+  return {left:r.left,top:r.top,width:r.width,height:r.height};
 }
 // **同期で完結させること。** ここで await すると、その隙の再描画で
 // カードが移動先へ現れてしまう（＝ワープ）。
@@ -3585,7 +3634,9 @@ function beginUnitStealPresentation(unit, fromSide){
   if(!unit||unit._stealPresent||!document.body) return false;
   if(typeof getCurrentUnitSlot!=='function') return false;
   const el=getCurrentUnitSlot(fromSide==='p2'?'enemy':'ally',unit);
-  const r=_settledRectOf(el);
+  // 奪取元は現在画面に見えている位置から運ぶ。FLIP中でも、ここでは
+  // transformを外した終点ではなく、実際に表示されている矩形が必要。
+  const r=el&&el.getBoundingClientRect();
   if(!el||!r) return false;
   const clone=_buildMotionCardClone(el,r);
   clone.style.margin='0';
@@ -3595,9 +3646,18 @@ function beginUnitStealPresentation(unit, fromSide){
   clone.getBoundingClientRect();
   unit._stealPendingPresent=true;
   const field=el.closest('#f-enemy,#f-ally');
-  const lane=el.classList.contains('is-rear')?'rear':'front';
+  // is-rear は敵側の描画補助クラスで、味方側には付かない。レーンは
+  // DOMの見た目ではなく、コア／配置が持つユニット属性を唯一の根拠にする。
+  const lane=unit.lane==='rear'?'rear':'front';
+  const fieldUnits=fromSide==='p2'?(G.enemies||[]):(G.allies||[]);
+  const slotLane=slot=>{
+    if(!slot) return 'front';
+    if(String(slot.dataset.unitId)===String(unit.id)) return lane;
+    const slotUnit=fieldUnits.find(x=>x&&String(x.id)===String(slot.dataset.unitId));
+    return slotUnit&&slotUnit.lane==='rear'?'rear':'front';
+  };
   const laneSlots=field?[...field.querySelectorAll('.slot[data-unit-id]')]
-    .filter(slot=>lane==='rear'?slot.classList.contains('is-rear'):!slot.classList.contains('is-rear'))
+    .filter(slot=>slotLane(slot)===lane)
     .sort((a,b)=>a.getBoundingClientRect().left-b.getBoundingClientRect().left):[];
   const position=Math.max(0,laneSlots.indexOf(el));
   const fromList=fromSide==='p2'?(G.enemies||[]):(G.allies||[]);

@@ -6,19 +6,10 @@
 
 const Assets = {
   cards: {
-    default: 'assets/cards/card_placeholder.svg',
-    character: 'assets/cards/card_character.svg',
-    ring: 'assets/cards/card_ring.svg',
-    consumable: 'assets/cards/card_item.svg',
     // エリート／ボス用の枠。SVGをそのまま背景レイヤーとして使用する。
     characterFrame: 'assets/cards/boss_frame.svg',
     enemyFrame: 'assets/cards/enemy_frame.svg',
     statOverlay: 'assets/cards/stat_overlay.png',
-    ringFrame: 'assets/cards/ring_frame.png',
-    wandFrame: 'assets/cards/wand_frame.png',
-    itemFrame: 'assets/cards/item_frame.png',
-    weaponFrame: 'assets/cards/weapon_frame.png',
-    growthFrame: 'assets/cards/growth_frame.png',
     // **summon_frameN の N は色の並び（赤・青・緑・黄・紫）に対応する。**
     // summon_frame1 と summon_frame3 は入れ替え済み（1＝赤／3＝緑）。
     summonFrameRed: 'assets/cards/summon_frame1.svg',
@@ -34,7 +25,6 @@ const Assets = {
     spell3: 'assets/cards/summon_frame4.svg',
     spell4: 'assets/cards/summon_frame1.svg',
     spell5: 'assets/cards/summon_frame5.svg',
-    gradeStar: 'assets/cards/grade_star.png',
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
     greenOrb: 'assets/cards/green_orb.png',
@@ -43,7 +33,6 @@ const Assets = {
     blackOrb: 'assets/cards/black_orb.png',
     manaOrb: 'assets/cards/mana.png',
     blood: 'assets/cards/blood.png',
-    characterMask: 'assets/cards/ch_mask.png',
   },
   backgrounds: {
     title: 'assets/art/backgrounds/title_castle.png',
@@ -90,7 +79,6 @@ const Assets = {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
     // 検出した場合、canvasでのルミナンスキー処理を行わずimgでそのまま再生する。
     hit: 'assets/vfx/hit.webp',
-    glow: 'assets/vfx/glow.svg',
     // キャラクターの効果（通常攻撃ではない）でダメージが発生した際、そのキャラクターの
     // ナンバー（CXXX）に対応するWebPがあれば、通常のhit.webpの代わりに再生する。
     // 存在するものだけをここに登録する（未登録＝通常のhit.webpを使用）。
@@ -170,9 +158,6 @@ const Assets = {
     },
   },
   ui: {
-    turn: 'assets/ui/turn.png',
-    turnFlow: 'assets/ui/turn_flow.png',
-    log: 'assets/ui/log.png',
     option: 'assets/ui/option_open.svg',
     button: 'assets/ui/button_blue1.svg',
     backLight: 'assets/ui/back_light.svg',
@@ -181,19 +166,6 @@ const Assets = {
     mark: 'assets/ui/mark.svg',
     reward: 'assets/ui/reward.svg',
     ringSlot: 'assets/ui/ring_slot.svg',
-  },
-  map: {
-    panel: 'assets/art/backgrounds/world_map.png',
-    dashedLine: 'assets/map/dashed_line.png',
-    player: 'assets/map/player.png',
-    empty: 'assets/map/empty.png',
-    empty2: 'assets/map/empty2.png',
-    mob: 'assets/map/mob.png',
-    elite: 'assets/map/elite.png',
-    boss: 'assets/map/boss.png',
-    altar: 'assets/map/altar.png',
-    event: 'assets/map/event.png',
-    shop: 'assets/map/shop.png',
   },
   mapBoard: {
     summon: 'assets/cards/m_board1.svg',
@@ -240,7 +212,6 @@ const Assets = {
     battle1: 'assets/bgm/battle1.wav',
     battle3: 'assets/bgm/battle3.wav',
     battle4: 'assets/bgm/battle4.wav', // ラスボス戦
-    gameClear: 'assets/bgm/game_clear.wav', // エンディング（movie4と同時再生）
     buy1: 'assets/sfx/buy1.wav',
     buy2: 'assets/sfx/buy2.wav',
     attack: 'assets/sfx/attack.wav',
@@ -337,14 +308,11 @@ function getStageBackgroundKey(floor){
 }
 
 function getCardAsset(card){
-  if(!card) return Assets.cards.default;
+  if(!card) return '';
   const panelArt=getPanelArtPath(card);
   if(panelArt) return panelArt;
-  if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.character;
-  if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return Assets.cards.consumable;
-  if(card.type==='consumable') return Assets.cards.consumable;
-  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ring;
-  return Assets.cards.default;
+  // 実在するカード絵が無いカードは、存在しない汎用画像へフォールバックしない。
+  return '';
 }
 
 const SummonColorByName = {
@@ -396,15 +364,15 @@ function _isEliteOrBossCard(card){
   return kws.includes('ボス')||kws.includes('エリート');
 }
 function getCardFrameAsset(card){
-  if(!card) return Assets.cards.default;
+  if(!card) return '';
   if(_isEliteOrBossCard(card)) return Assets.cards.characterFrame;
   // **敵を仲間にした体・敵に変身した体（_useEnemyVisualFrame）は、カードになっても敵の枠のまま。**
   // 戦闘スロットの applyUnitVisual() と同じ判定。ここで見ていなかったため、レムレース＋ハイドラで
   // 報酬に出たウィスプが召喚体の色の枠（色なし＝緑）になっていた。
   if(card._useEnemyVisualFrame) return Assets.cards.enemyFrame;
   if(card._isChar||(!card.type&&!card.kind)) return Assets.cards.characterFrame;
-  if(card.magicPanel) return Assets.cards.wandFrame;
-  if(card.type==='global-panel'||card.panelScope==='global') return Assets.cards.itemFrame;
+  if(card.magicPanel) return '';
+  if(card.type==='global-panel'||card.panelScope==='global') return '';
   if(card.category==='スペル'||card.type==='spell'||card.kind==='spell') return _spellFrameByColor(card.color);
   if(card.type==='panel'||card.kind==='panel'||card.panelScope){
     const cat=String(card.category||'');
@@ -412,13 +380,11 @@ function getCardFrameAsset(card){
       const color=_summonColor(card);
       return color?_summonFrameByColor(color):Assets.cards.characterFrame;
     }
-    if(cat.includes('強化')||cat.includes('エンチャント')) return Assets.cards.enchantmentFrame||Assets.cards.wandFrame;
-    return Assets.cards.growthFrame||Assets.cards.itemFrame;
+    if(cat.includes('強化')||cat.includes('エンチャント')) return Assets.cards.enchantmentFrame;
+    return '';
   }
-  if(card.fixedAttack||card.fixedEquip) return Assets.cards.weaponFrame||Assets.cards.itemFrame;
-  if(card.type==='consumable') return Assets.cards.itemFrame;
-  if(card.type==='ring'||card.kind==='summon'||card.kind==='passive') return Assets.cards.ringFrame;
-  return Assets.cards.itemFrame;
+  if(card.fixedAttack||card.fixedEquip) return '';
+  return '';
 }
 
 function _characterArtDef(cardOrName){
@@ -482,7 +448,6 @@ function getCharacterNoArtPath(card){
   else if(code.startsWith('EN')) dir='assets/art/enemies';
   else if(code[0]==='E') dir='assets/art/enchantment';
   else if(code[0]==='C') dir='assets/art/characters';
-  else if(code[0]==='S') dir='assets/art/cards';
   else return '';
   // カード絵は jpg だけを読む（利用者指定）。以前は png も重ねて候補にしていたが、
   // 素材はすべて jpg なので、カードを描くたびに存在しない png の 404 が出ていた。
@@ -705,11 +670,17 @@ function applyFrameRadiusKey(el, frameUrl){
 
 function applyCardVisual(el, card){
   if(!el) return;
-  const _cardFrameUrl=assetUrl(getCardFrameAsset(card));
-  el.style.setProperty('--card-frame', _cardFrameUrl);
-  applyFrameRadiusKey(el,_cardFrameUrl);
+  const _cardFrame=getCardFrameAsset(card);
+  if(_cardFrame){
+    const _cardFrameUrl=assetUrl(_cardFrame);
+    el.style.setProperty('--card-frame', _cardFrameUrl);
+    applyFrameRadiusKey(el,_cardFrameUrl);
+  }else{
+    el.style.removeProperty('--card-frame');
+    el.removeAttribute('data-frame-key');
+  }
   if(!applyPanelArtVars(el, card, '--card')&&!applyCharacterArtVars(el, card, '--card')){
-    el.style.setProperty('--card-art', assetUrl(getCardAsset(card)));
+    el.style.removeProperty('--card-art');
     el.style.removeProperty('--card-art-size');
     el.style.removeProperty('--card-art-position');
   }
@@ -729,7 +700,7 @@ function applyUnitVisual(el, unit){
   if(!el) return;
   const isEnemyEl=el.classList.contains('enemy')||!!(unit&&unit._useEnemyVisualFrame);
   const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
-  // 守護／ヘイト専用の枠（character_defender_frame.png）は素材ごと廃止した。
+  // 守護／ヘイト専用の枠は素材ごと廃止した。
   // 判定に使っていた hasGuard / unitGuard / classGuard / isDefender も参照先が無くなったので消してある。
   const frame=(isEnemyEl&&_isEliteOrBossCard(unit))
     ? Assets.cards.characterFrame
@@ -742,7 +713,7 @@ function applyUnitVisual(el, unit){
   el.style.setProperty('--unit-frame', _unitFrameUrl);
   applyFrameRadiusKey(el,_unitFrameUrl);
   if(!applyCharacterArtVars(el, unit, '--unit')){
-    el.style.setProperty('--unit-art', assetUrl(Assets.cards.character));
+    el.style.removeProperty('--unit-art');
     el.style.removeProperty('--unit-art-size');
     el.style.removeProperty('--unit-art-position');
   }
@@ -782,13 +753,7 @@ function applyScreenAssetBackground(screenId){
 function applyUiAssets(){
   const root=document.documentElement;
   if(!root) return;
-  root.style.setProperty('--turn-button-image', assetUrl(Assets.ui.turn));
-  root.style.setProperty('--turn-button-flow-image', assetUrl(Assets.ui.turnFlow));
-  root.style.setProperty('--grade-star-image', assetUrl(Assets.cards.gradeStar));
-  root.style.setProperty('--character-mask-image', assetUrl(Assets.cards.characterMask));
-  root.style.setProperty('--log-panel-image', assetUrl(Assets.ui.log));
   root.style.setProperty('--option-button-image', assetUrl(Assets.ui.option));
-  if(Assets.map&&Assets.map.panel) root.style.setProperty('--world-map-panel-image', assetUrl(Assets.map.panel));
 }
 
 function setBattleStageBackground(){

@@ -34,6 +34,56 @@ const PRESENT_ATTACK_MOTION = {
 // **PvEとオンラインで同じ値を使うこと。**
 const PRESENT_TURN_GAP_MS = 240;
 
+// 手番の境界で、次に再生するものがマナ効果へ続く場合だけ一般の手番間待ちを省く。
+//
+// オンラインはイベント列の turn_begin の前後を直接見られる。PvEは次の
+// runner.step()をまだ呼んでいないため、現在の手番の末尾を渡す。この場合は
+// 非攻撃由来のマナ獲得（死亡・負傷など）の直後だけを候補にする。攻撃由来の
+// mana_gain は通常の攻撃間隔を壊さないよう対象外にする。
+function presentShouldSkipTurnGapBeforeManaEffect(events, index) {
+  const list = Array.isArray(events) ? events : [];
+  const at = Number(index);
+  const isAttackManaGain = ev => {
+    const reason = String(ev && ev.reason || '');
+    return reason === 'manaOnAttack' || reason.startsWith('attack_');
+  };
+  const hasManaGain = (from, to) => {
+    for (let i = from; i < to; i++) {
+      const ev = list[i];
+      if (ev && ev.type === 'mana_gain' && !isAttackManaGain(ev)) return true;
+    }
+    return false;
+  };
+
+  // オンライン：turn_begin の直後に mana_threshold があり、直前の手番に
+  // 非攻撃由来の mana_gain がある時だけ短絡する。
+  if (Number.isInteger(at) && at >= 0 && at < list.length
+    && list[at] && list[at].type === 'turn_begin') {
+    let nextThreshold = false;
+    for (let i = at + 1; i < list.length; i++) {
+      const ev = list[i];
+      if (!ev) continue;
+      if (ev.type === 'mana_threshold') { nextThreshold = true; break; }
+      if (ev.type === 'attack' || ev.type === 'turn_begin' || ev.type === 'battle_end') break;
+    }
+    if (!nextThreshold) return false;
+    let from = at - 1;
+    while (from >= 0 && list[from] && list[from].type !== 'turn_begin'
+      && list[from].type !== 'battle_start') from--;
+    return hasManaGain(from + 1, at);
+  }
+
+  // PvE：現在の手番の再生が終わる境界。次の手番はまだ生成されていないが、
+  // 死亡・負傷などで得たマナの直後だけ、次の閾値効果へ続く候補として扱う。
+  if (at === list.length && list.length) {
+    let from = list.length - 1;
+    while (from >= 0 && list[from] && list[from].type !== 'turn_begin'
+      && list[from].type !== 'battle_start' && list[from].type !== 'attack') from--;
+    return hasManaGain(from + 1, list.length);
+  }
+  return false;
+}
+
 // マナ解決の「ひと続き」とみなすイベント種別。
 // ここに無い種別（attack / death など）が来たら、別の発動機会として数え直す。
 // damage はマナ閾値効果自身（アラクネ等）も出すため継続扱いにする。
@@ -156,7 +206,7 @@ const PRESENT_REVIVE_CARD_FADE_MS = 320;
 const PRESENT_REVIVE_VFX_FADE_OUT_MS = 380;
 // 素材（K020）の絵がフレームの中で右寄りなので、その分だけ左へ寄せて中心に合わせる。
 // **カード幅に対する比**（負で左）。ここが大きさ・位置のつまみの唯一の置き場。
-const PRESENT_REVIVE_VFX_OFFSET_X = -.06;
+const PRESENT_REVIVE_VFX_OFFSET_X = -.12;
 const PRESENT_REVIVE_VFX_OFFSET_Y = 0;
 
 // ── マナを得た時の演出（S004）────────────────────────────
@@ -167,10 +217,13 @@ const PRESENT_MANA_GAIN_VFX_SIZE = 64;      // 方向アイコン（.panel-dir�
 // カード幅に対する下限。盤面のカードが大きい戦闘画面で、
 // 64pxのままだと点にしか見えないため、カード幅のこの比を下回らないようにする。
 const PRESENT_MANA_GAIN_VFX_MIN_CARD_RATIO = .55;
-const PRESENT_MANA_GAIN_VFX_FADE_IN_MS = 140;
+const PRESENT_MANA_GAIN_VFX_FADE_IN_MS = 70;
+// マナ獲得VFXから次のマナ効果へ進める境界。フェードイン完了後に進め、
+// 上昇して消えるVFXの残り時間は待たずに重ねてよい。
+const PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS = PRESENT_MANA_GAIN_VFX_FADE_IN_MS;
 // **マナの数字を動かす時刻。** VFXが見え始めてから動かす（フェードインぶん待つ）。
 // 先に数字だけ動くと「VFXより先にマナを得た」ように見える（ヘカトンケイルで発覚）。
-const PRESENT_MANA_GAIN_VALUE_DELAY_MS = PRESENT_MANA_GAIN_VFX_FADE_IN_MS;
+const PRESENT_MANA_GAIN_VALUE_DELAY_MS = PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS;
 const PRESENT_MANA_GAIN_VFX_HOLD_MS = 260;
 const PRESENT_MANA_GAIN_VFX_FADE_OUT_MS = 260;
 // 出し始める位置。**カードの中央からどれだけ上か**（カード高さに対する比。0で中央）。
@@ -690,19 +743,26 @@ function presentPreAttackHasUnresolvedManaEffect(events, fromIndex) {
   const list = Array.isArray(events) ? events : [];
   const start = Math.min(list.length - 1, Math.max(0, Number(fromIndex) || 0));
   let thresholdSeen = false;
+  let attackEffectStarted = false;
   for (let i = start; i >= 0; i--) {
     const ev = list[i];
     if (!ev) continue;
     if (i < start && (ev.type === 'turn_begin' || ev.type === 'battle_start'
       || ev.type === 'attack' || ev.type === 'battle_end')) break;
+    // fromIndex 側に攻撃効果の開始があるなら、その後ろにある閾値効果は
+    // その攻撃へ続くものとして解決済み。fromIndex 自体が合図でも同じ扱い。
+    if ((ev.type === 'effect_flash' && String(ev.trigger || '') === 'attack')
+      || presentIsAttackManaGain(ev)) {
+      attackEffectStarted = true;
+      if (thresholdSeen) return false;
+      continue;
+    }
     if (ev.type === 'mana_threshold') {
       thresholdSeen = true;
       continue;
     }
-    if (thresholdSeen && (ev.type === 'effect_flash' && String(ev.trigger || '') === 'attack')) return false;
-    if (thresholdSeen && presentIsAttackManaGain(ev)) return false;
   }
-  return thresholdSeen;
+  return thresholdSeen && !attackEffectStarted;
 }
 
 // 現在位置から始まる「攻撃前の効果列」と、その直後のモーション付きattackを対応付ける。
@@ -738,6 +798,7 @@ function presentPreAttackPlan(events, fromIndex) {
       const owner = presentPreAttackEffectOwnerId(ev);
       const sameActor = actorId != null && owner === actorId;
       const wasManaEffectBlocked = manaEffectBlocked;
+      if (boundary && wasManaEffectBlocked) return null;
       manaEffectBlocked = false;
       attackEffectStarted = true;
       if (wasManaEffectBlocked || !sameActor) {
@@ -878,6 +939,7 @@ const PRESENT_STAT_CHANGE_VFX_REASONS = new Set([
   'mana_threshold_color_all', 'mana_threshold_color_atk', 'mana_threshold_random_purple',
   'mana_threshold_hp_double', 'release_bonus',
   'release_self_buff', 'death_random_blue_buff', 'death_random_ally_buff', 'ghost',
+  'battle_end_permanent_buff',
 ]);
 
 // カード固有の効果VFXの尺（ms）。**ゴーレムの負傷エフェクトと同じ長さに揃える。**
@@ -994,6 +1056,7 @@ function presentStatChangeTrigger(reason) {
   if (/^attack_/.test(name)) return 'attack';
   if (/^injury_/.test(name)) return 'injury';
   if (/^death_/.test(name)) return 'death';
+  if (name === 'battle_end_permanent_buff') return 'passive';
   return '';
 }
 // その能力変化で出す演出の番号。
@@ -1021,7 +1084,9 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   // ここでトリガの番号へ固定すると、シートを直しても演出が変わらなくなる。
   // 複数書かれているカード（ブラウニー＝攻撃S005／負傷S006）だけ、そのトリガで選ぶ。
   if (codes.length > 1 && wanted && codes.includes(wanted)) return wanted;
-  const sheetBuff = codes.find(presentIsBuffVfxCode) || (presentIsBuffVfxCode(own) ? own : '');
+  // シートのバフ番号は、今回のトリガの番号と一致する時だけ使う。
+  // ゴーレムの負傷S006にマナ効果を付けても、マナの既定S008を出す。
+  const sheetBuff = wanted && codes.includes(wanted) ? wanted : '';
   if (sheetBuff) return sheetBuff;
   // 列にバフの番号が無いカードの扱い。
   //   攻撃・マナ・開戦・常時＝**一律でバフの番号**（利用者指定の規則）。
@@ -1201,6 +1266,7 @@ function presentBreaksEffectRun(ev) {
 if (typeof window !== 'undefined') {
   window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
   window.PRESENT_TURN_GAP_MS = PRESENT_TURN_GAP_MS;
+  window.presentShouldSkipTurnGapBeforeManaEffect = presentShouldSkipTurnGapBeforeManaEffect;
   window.PRESENT_ATTACK_MOTION = PRESENT_ATTACK_MOTION;
   window.PRESENT_FRONT_SLOTS = PRESENT_FRONT_SLOTS;
   window.PRESENT_MAX_SLOTS = PRESENT_MAX_SLOTS;
@@ -1233,6 +1299,7 @@ if (typeof window !== 'undefined') {
   window.PRESENT_MANA_GAIN_VFX_SIZE = PRESENT_MANA_GAIN_VFX_SIZE;
   window.PRESENT_MANA_GAIN_VFX_MIN_CARD_RATIO = PRESENT_MANA_GAIN_VFX_MIN_CARD_RATIO;
   window.PRESENT_MANA_GAIN_VFX_FADE_IN_MS = PRESENT_MANA_GAIN_VFX_FADE_IN_MS;
+  window.PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS = PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS;
   window.PRESENT_MANA_GAIN_VALUE_DELAY_MS = PRESENT_MANA_GAIN_VALUE_DELAY_MS;
   window.PRESENT_SUMMON_VFX_SPEED = PRESENT_SUMMON_VFX_SPEED;
   window.PRESENT_KEYWORD_VFX_HOLD_MS = PRESENT_KEYWORD_VFX_HOLD_MS;
@@ -1304,6 +1371,7 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_ATTACK_MOTION, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
+    presentShouldSkipTurnGapBeforeManaEffect,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,

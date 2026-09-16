@@ -1,7 +1,7 @@
 // 恒久コレクション。カードの表示・正式取得だけを受け、戦闘計算からは呼ばない。
 const SaveProfile=(()=>{
   let profile=null,dirty=false,blocked=false;
-  function fresh(){return {saveVersion:1,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{}};}
+  function fresh(){return {saveVersion:1,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{},openingMovieShown:false};}
   function validate(raw){
     const p=SaveMigrations.migrate('profile',raw),assert=SaveMigrations.assert;
     for(const group of ['cards','items','rings']){
@@ -12,6 +12,9 @@ const SaveProfile=(()=>{
       }
     }
     assert(p.completedRuns&&typeof p.completedRuns==='object','ラン結果がありません');
+    // 旧プロフィールには無い項目なので、読み込み時は未再生として補う。
+    if(p.openingMovieShown==null) p.openingMovieShown=false;
+    assert(typeof p.openingMovieShown==='boolean','オープニングムービー再生済み状態が不正です');
     return p;
   }
   function load(){
@@ -78,7 +81,26 @@ const SaveProfile=(()=>{
     p.completedRuns[G._runId]={result,endedAt:Date.now()};dirty=true;
     return flush(true);
   }
-  return {validate,load,flush,enabled,identity,owned,observe,finish,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
+  function openingMovieShown(){
+    // オプションのシステムデータ削除はSaveStorageを直接消すため、
+    // キャッシュではなく保存媒体を見て、同一ページ内の削除も反映する。
+    try{
+      const saved=SaveStorage.read('profile',validate);
+      if(!saved){ profile=null;dirty=false;blocked=false;return false; }
+      profile=saved.data;
+      return !!profile.openingMovieShown;
+    }catch(error){
+      console.error('[profile] オープニングムービー状態の読み込みに失敗しました',error);
+      return !!load().openingMovieShown;
+    }
+  }
+  function markOpeningMovieShown(){
+    const p=load();
+    if(p.openingMovieShown) return true;
+    p.openingMovieShown=true;dirty=true;
+    return flush(true);
+  }
+  return {validate,load,flush,enabled,identity,owned,observe,finish,openingMovieShown,markOpeningMovieShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
 })();
 function markCardSeen(cardId){return SaveProfile.markCardSeen(cardId);}
 function markCardAcquired(cardId){return SaveProfile.markCardAcquired(cardId);}

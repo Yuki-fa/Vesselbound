@@ -142,7 +142,9 @@ function _optionReturnTitle(){
   // 停止はshowScreen()より前に行い、playBgm()と同じ即時停止にする。
   // 旧BGMのフェードを残すと、タイトルBGMとの切り替え直後に音が重なるため。
   if(typeof stopEveryBgmLayer==='function')stopEveryBgmLayer(250);if(typeof stopBgm==='function')stopBgm(0);
-  if(typeof showScreen==='function')showScreen('title');else if(typeof returnToTapStart==='function')returnToTapStart();
+  if(typeof _returnToTitleMenu==='function')_returnToTitleMenu();
+  else if(typeof showScreen==='function')showScreen('title');
+  else if(typeof returnToTapStart==='function')returnToTapStart();
 }
 // つまみの中心は溝の幅の 0〜100% に置いている（_optionRender）。値もその幅で決める。
 // **getBoundingClientRect() は縮小後の画面の単位なので、設計座標の数値（つまみ58.49px等）を混ぜない。**

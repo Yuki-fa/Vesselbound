@@ -83,6 +83,8 @@
       guardian: !!snap.guardian,
       // 魔導板から場に出たキャラクターなので、色ごとの召喚枠で描く（PvEの召喚ユニットと同じ）。
       _panelSummoned: true,
+      _mainBoardSlot: Number.isInteger(Number(snap._mainBoardSlot)) ? Number(snap._mainBoardSlot) : null,
+      _summonedInBattle: !!snap._summonedInBattle,
     };
   }
 
@@ -113,6 +115,18 @@
   function _find(side, unitId) {
     const list = side === 'p1' ? G.allies : G.enemies;
     return (list || []).find(u => u && String(u.id) === String(unitId)) || null;
+  }
+  // 再生用盤面も描画用Gと同じ結界値へ進める。
+  // _syncOnlineStatuses() は各イベントの先頭で再生用盤面をGへ同期するため、
+  // Gだけを書き換えると、次のイベントで古い結界が復活してしまう。
+  function _applyOnlineShield(ctx, side, unitId, next) {
+    const value = Math.max(0, Number(next) || 0);
+    const list = ctx && ctx.board && (side === 'p1' ? ctx.board.p1 : ctx.board.p2);
+    const snap = (list || []).find(u => u && String(u.id) === String(unitId));
+    if (snap) snap.shield = value;
+    const unit = _find(side, unitId);
+    if (unit) unit.shield = value;
+    return unit;
   }
   // playback の確定済みスナップショットを、描画用Gにも毎イベント反映する。
   // 状態異常は数値イベントと別に流れるため、Gだけを更新すると再描画時に
@@ -635,7 +649,11 @@
           requestBattleCompact({ forceRender: true, forceDuringMotion: true });
         }
         // 1体の行動が終わってから次が動き出すまで、少し間を置く（PvEと同じ定数）。
-        if (_turnPlayed) await _sleep(PRESENT_TURN_GAP_MS);
+        if (_turnPlayed
+          && !(typeof presentShouldSkipTurnGapBeforeManaEffect === 'function'
+            && presentShouldSkipTurnGapBeforeManaEffect((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex)))) {
+          await _sleep(PRESENT_TURN_GAP_MS);
+        }
         _turnPlayed = true;
         if (!_preAttack && typeof presentPreAttackPlan === 'function') {
           const plan = presentPreAttackPlan((ctx && ctx.events) || [], Number(ctx && ctx.eventIndex));
@@ -703,8 +721,8 @@
             && playManaGainVfx(gainer, ev.side === 'p2' ? 'enemy' : 'ally'));
           // **数字はVFXが見え始めてから動かす**（PvEと同じ。尺は present.js）。
           if (shown) {
-            await _sleep((typeof PRESENT_MANA_GAIN_VALUE_DELAY_MS === 'number'
-              && PRESENT_MANA_GAIN_VALUE_DELAY_MS) || 140);
+            await _sleep((typeof PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS === 'number'
+              && PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS) || 140);
           }
         }
         if (ev.side === 'p1' && typeof G !== 'undefined' && G) {
@@ -761,6 +779,10 @@
           ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
           render: _render,
         });
+        if (ev.persistent && ev.side === 'p1' && typeof persistBoardCharacterStats === 'function'
+          && typeof _getPartyBoardUnit === 'function') {
+          persistBoardCharacterStats(_getPartyBoardUnit(), ev.boardSlot, ev.atk, ev.hp);
+        }
         break;
       }
       case 'effect_flash': {
@@ -779,7 +801,10 @@
         const u = _find(ev.side, ev.unitId);
         if (!u) break;
         if (ev.effect === 'poison') u.poison = (Number(u.poison) || 0) + (Number(ev.amount) || 0);
-        if (ev.effect === 'shield') u.shield = (Number(u.shield) || 0) + (Number(ev.amount) || 0);
+        if (ev.effect === 'shield') {
+          _applyOnlineShield(ctx, ev.side, ev.unitId,
+            (Number(u.shield) || 0) + (Number(ev.amount) || 0));
+        }
         if (ev.effect === 'weaken') u.weaken = (Number(u.weaken) || 0) + (Number(ev.amount) || 0);
         if (ev.effect === 'evil_eye') {
           u.atk = Math.max(0, (Number(u.atk) || 0) - (Number(ev.amount) || 0));
@@ -936,7 +961,7 @@
       }
       case 'shield_set': {
         const u = _find(ev.side, ev.unitId);
-        if (u) { u.shield = Number(ev.amount) || 0; _render(); }
+        if (u) { _applyOnlineShield(ctx, ev.side, ev.unitId, ev.amount); _render(); }
         break;
       }
       case 'shield_lost': {
@@ -946,7 +971,7 @@
           findUnit: (side, id) => _find(side, id),
           // オンラインはイベントの値が唯一の出どころ。残りの結界をここで実体へ写す
           // （写さないと shield.png と結界バッジが消えなかった）。
-          applyShield: (u, next) => { u.shield = Math.max(0, Number(next) || 0); },
+          applyShield: (u, next) => _applyOnlineShield(ctx, ev.side, ev.unitId, next),
           render: _render,
         });
         break;

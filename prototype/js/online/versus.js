@@ -63,6 +63,8 @@
         _resonanceEffectNames: Array.isArray(u._resonanceEffectNames) ? u._resonanceEffectNames.slice() : [],
         _resonanceEffectScales: { ...(u._resonanceEffectScales || {}) },
         _mapPanelPower: entry.panelPower,
+        _mainBoardSlot: Number.isInteger(entry.slotIdx) ? entry.slotIdx : null,
+        _summonedInBattle: !!u._summonedInBattle,
         _openingDuplicate: !!u._openingDuplicate,
         // 3枚合体の印。これを送らないと合体カードの強化分が丸ごと落ちる
         // （ファントムが6体ではなく3体しか召喚しない等）。

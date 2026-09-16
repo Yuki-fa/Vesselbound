@@ -588,6 +588,8 @@ function createCoreUnit(raw, side, index) {
     weaken: Math.max(0, Number(raw && raw.weaken) || 0),
     _sealed: !!(raw && raw._sealed),
     _panelSummoned: raw && raw._panelSummoned !== undefined ? !!raw._panelSummoned : true,
+    _mainBoardSlot: Number.isInteger(Number(raw && raw._mainBoardSlot)) ? Number(raw._mainBoardSlot) : null,
+    _summonedInBattle: !!(raw && raw._summonedInBattle),
     summonCount: Math.max(1, Number(raw && raw.summonCount) || 1),
     _mapPanelPower: String((raw && raw._mapPanelPower) || ''),
     _openingDuplicate: !!(raw && raw._openingDuplicate),
@@ -723,6 +725,8 @@ function coreUnitSnapshot(u) {
     color: u.color, race: u.race, sfxType: u.sfxType || '', no: u.no || '', art: u.art || '', keywords: u.keywords.slice(),
     desc: u.desc, guardian: u.guardian, hate: u.hate, hateTurns: u.hateTurns,
     stealth: u.stealth, _sealed: u._sealed, _panelSummoned: u._panelSummoned,
+    _mainBoardSlot: Number.isInteger(Number(u._mainBoardSlot)) ? Number(u._mainBoardSlot) : null,
+    _summonedInBattle: !!u._summonedInBattle,
     shield: u.shield, weaken: u.weaken,
     artCode: u.artCode || u._artCode || u.no || '',
     imageNo: u.imageNo || u.artCode || u._artCode || u.no || '',
@@ -3816,11 +3820,32 @@ function coreTriggerBattleEnd(state, emit, rng) {
   ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     if (unit.hp > 0 && !coreIsSealed(unit)) {
       const repeats = 1 + Math.max(0, Number(unit._effectRepeatBonus) || 0);
+      // 終戦：全ての味方は永久に+X/+Yを得る。数値は通常・合体効果の本文から読む。
+      // 戦闘中の召喚体には魔導板上の保存先が無いため、対象から除外する。
+      const permanentTeamBuff = coreUnitTriggerText(unit, '終戦')
+        .match(/終戦\s*[：:]\s*全ての味方は永久に\+(\d+)\s*\/\s*\+(\d+)を得る/);
+      if (permanentTeamBuff) {
+        const atk = (Number(permanentTeamBuff[1]) || 0) * repeats;
+        const hp = (Number(permanentTeamBuff[2]) || 0) * repeats;
+        (state.units[side] || []).filter(target => target && target.hp > 0
+          && !coreIsSealed(target)
+          // 通常の編成体はslotを持つ。軽量なコア呼び出し（監査等）ではslotが
+          // 省略されるため許可し、戦闘中召喚体だけは明示的に除外する。
+          && (Number.isInteger(target._mainBoardSlot) || !target._summonedInBattle)
+          && !target._isObject && !target._isSoul).forEach(target => {
+            target.atk = Math.max(0, (Number(target.atk) || 0) + atk);
+            target.maxHp = Math.max(1, (Number(target.maxHp) || 1) + hp);
+            target.hp = Math.max(0, (Number(target.hp) || 0) + hp);
+            emit({ type: 'stat_change', side, unitId: target.id, atk, hp,
+              reason: 'battle_end_permanent_buff', sourceId: unit.id,
+              persistent: true, boardSlot: target._mainBoardSlot });
+          });
+      }
       if ((Number(unit.goldOnBattleEnd) || 0) > 0 || unit.randomItemOnBattleEnd) {
         coreEmitEffectFlash(emit, unit, 'battle_end', repeats);
       }
       coreGainResource(state, side, 'gold', unit.goldOnBattleEnd * repeats, unit, emit, 'goldOnBattleEnd');
-      // 終戦：「アイテム名」を（N個）得る（レプラコーン）。**名前も個数も本文から読む。**
+      // 終戦：「アイテム名」を（N個）得る。**名前も個数も本文から読む。**
       // ランダムなアイテムではなく、指定した1種類を配る。
       const namedItem = coreUnitTriggerText(unit, '終戦').match(/「([^」]+)」を(\d+)?個?得る/);
       if (namedItem) {
@@ -4453,6 +4478,16 @@ function coreBattleStepInner(ctx) {
     // 盤面が変わっているかもしれないので、紫修正を作り直してから手番を始める。
     coreRefreshVoidWalkerBonus(state);
     emit({ type: 'turn_begin', turn: state.turn });
+
+    // 前の手番で死亡・負傷・開戦など、攻撃以外で得たマナによる閾値効果は
+    // この手番の攻撃効果より先に解決する。ここを攻撃後の呼び出しだけに
+    // 頼ると、攻撃効果のイベント（先出しモーションを含む）の途中へ
+    // 前手番のマナ効果が割り込んでしまう。
+    // 攻撃中に得たマナの閾値効果は、下の攻撃効果後の呼び出しで従来どおり解決する。
+    coreApplyManaThresholdEffects(state, rng, emit, applyHit);
+    coreApplyRingManaEffects(state, rng, emit, applyHit);
+    coreFlushPendingLichSummons(state, emit);
+    coreSweepAtkZeroFlee(state, emit);
 
     const foeSide = side === 'p1' ? 'p2' : 'p1';
     const attacker = corePickAttacker(units[side], state.lane[side], side === 'p2');

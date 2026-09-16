@@ -855,18 +855,30 @@ function main() {
     '人数変化時のFLIPがtransform遷移になっていない');
   assert.match(render, /_battleCompactMoves/,
     '再描画後にFLIPの残り移動量を引き継ぐ状態がない');
-  assert.match(currentBattle, /unit\.lane='rear';\s*unit\._battleSlot=i/,
-    '後衛召喚のスロット番号を保持していない');
-  assert.match(currentBattle, /sourceIsRear&&sourceIdx>=frontSlots[\s\S]*rear\.splice\(logicalSource\+1,0,unit\)/,
-    '後衛の効果元に対する右隣召喚が前衛へ移動している');
+  const openingFront=currentBattle.slice(currentBattle.indexOf('function _summonPanelUnitToFront'), currentBattle.indexOf('// 開戦時のパネル出撃'));
+  const openingRear=currentBattle.slice(currentBattle.indexOf('function _summonPanelUnitToRear'), currentBattle.indexOf('function _battleSlotForMainBoardSlot'));
+  assert.match(openingFront, /arr\[slot\]=unit/,
+    '開戦時の前衛配置が指定枠へ直接置いていない');
+  assert.match(openingRear, /arr\[slot\]=unit/,
+    '開戦時の後衛配置が指定枠へ直接置いていない');
+  assert.doesNotMatch(openingFront, /_rebuildBattleUnitArray\(/,
+    '開戦時の前衛配置が他の体を全体再構築している');
+  assert.doesNotMatch(openingRear, /_rebuildBattleUnitArray\(/,
+    '開戦時の後衛配置が他の体を全体再構築している');
+  assert.match(currentBattle, /function _rebuildBattleUnitArray\(arr, frontSlots, max, frontUnits, rearUnits\)/,
+    '召喚配置の配列全体を組み直す共通関数が無い');
+  assert.match(currentBattle, /const sourceIsRear=\(actualSource\.lane\|\|'front'\)==='rear'[\s\S]*?if\(sourceIsRear\)\{[\s\S]*?front\.push\(unit\)[\s\S]*?rebuildFront\(front\)/,
+    '後衛の効果元からの召喚が前衛右端へ組み直されていない');
+  assert.doesNotMatch(currentBattle, /sourceIsRear&&sourceIdx>=frontSlots[\s\S]*rear\.splice\(logicalSource\+1,0,unit\)/,
+    '後衛の効果元へ召喚体を差し込む旧規則が残っている');
+  assert.match(currentBattle, /const key=unit\.id!=null\?String\(unit\.id\):unit;[\s\S]*if\(seen\.has\(key\)\) continue;/,
+    '召喚配置の配列再構築がID重複を除去していない');
   assert.match(currentBattle, /let insertAt=placement&&placement\.leftOf\?logicalSource:logicalSource\+1;[\s\S]*return insertAt;/,
     '効果元の左隣召喚が実際の挿入スロットを返していない');
   assert.match(currentBattle, /sourceIdx<0&&source\.id!=null\) sourceIdx=arr\.findIndex\(u=>u&&u\.id===source\.id\)/,
     '召喚元の別オブジェクト参照でrightOfSourceが位置フォールバックしている');
   assert.match(currentBattle, /const logicalSource=front\.indexOf\(actualSource\)/,
     '前衛の召喚挿入位置が補正前のsource参照を使っている');
-  assert.match(currentBattle, /const logicalSource=rear\.indexOf\(actualSource\)/,
-    '後衛の召喚挿入位置が補正前のsource参照を使っている');
   // 召喚は前衛の右端にだけ出る。後衛へ逃がすと陣営の上限を超え、
   // 編成していない後衛枠にキャラクターが現れる。
   assert.match(currentBattle, /const rearIdx=_summonMidBattleAllyFront\(summoned,isEnemySide,placement\);/,

@@ -7553,9 +7553,9 @@ html body #hand-slots.board-slots > [data-map-board].drag-over{
 /* 発光そのものを同じ矩形の疑似要素で描画し、外側影の隙間とRずれを防ぐ。 */
 html body #hand-slots.board-slots > .card:hover:not(.inert):not(.invalid-battle-position)::before,
 html body #hand-slots.board-slots > .card.drag-over:not(.invalid-battle-position)::before,
-html body #reward-offer-row > .rew-card:hover::before,
-html body #reward-offer-row > .rew-card.dragging::before,
-html body #reward-offer-row > .rew-card.drag-over::before{
+html body #reward-offer-row > .rew-card:not(.item-visual):hover::before,
+html body #reward-offer-row > .rew-card:not(.item-visual).dragging::before,
+html body #reward-offer-row > .rew-card:not(.item-visual).drag-over::before{
   content:""!important;
   position:absolute!important;
   inset:0!important;
@@ -7723,9 +7723,9 @@ html body #reward-offer-row > .rew-card.drag-over{
   filter:none!important;
   box-shadow:none!important;
 }
-html body #reward-offer-row > .rew-card:hover::before,
-html body #reward-offer-row > .rew-card.dragging::before,
-html body #reward-offer-row > .rew-card.drag-over::before{
+html body #reward-offer-row > .rew-card:not(.item-visual):hover::before,
+html body #reward-offer-row > .rew-card:not(.item-visual).dragging::before,
+html body #reward-offer-row > .rew-card:not(.item-visual).drag-over::before{
   border:2px solid rgba(255,255,255,.72)!important;
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
@@ -11878,20 +11878,20 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=artJpgOnly01"></script>
-<script src="js/engine/audio.js?v=presentSpeed01"></script>
+<script src="assets.js?v=deadAssets0916"></script>
+<script src="js/engine/audio.js?v=deadAssets0916"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=cardText0916"></script>
+<script src="js/data/local_xlsx_data.js?v=leprechaun0916"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=displayMode01"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=deathRepeatSupportFire01"></script>
-<script src="js/battle/formation.js?v=boardRename01"></script>
-    <script src="js/battle/present.js?v=manaPreAttack02"></script>
-    <script src="js/battle/present_events.js?v=parityGold01"></script>
+    <script src="js/battle/core.js?v=leprechaun0916"></script>
+<script src="js/battle/formation.js?v=leprechaun0916"></script>
+    <script src="js/battle/present.js?v=turnMana0916"></script>
+    <script src="js/battle/present_events.js?v=steal0916"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
@@ -11899,27 +11899,27 @@ _watchVesselboundDpr();
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=speedAuto01"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=flipGap01"></script>
-<script src="js/online/versus.js?v=boardRename01"></script>
+    <script src="js/online/board.js?v=turnMana0916"></script>
+<script src="js/online/versus.js?v=leprechaun0916"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
 <script src="js/engine/state.js?v=cleanupLegacy01"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
-<script src="js/save/profile_save.js?v=cleanupLegacy01"></script>
+<script src="js/save/profile_save.js?v=opening0916"></script>
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=isCharGone01"></script>
 <script src="js/engine/enemy.js?v=intro01"></script>
-    <script src="js/engine/battle.js?v=optionsGuard01"></script>
-    <script src="js/engine/battle_events.js?v=flipGap01"></script>
-<script src="js/engine/render.js?v=flipGap02"></script>
+    <script src="js/engine/battle.js?v=clipboardCatch01"></script>
+    <script src="js/engine/battle_events.js?v=summonDup0916"></script>
+<script src="js/engine/render.js?v=vfxVersion0916"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=boardRename01"></script>
 <script src="js/engine/reward_journey.js?v=onlineTowerName01"></script>
 <script src="js/engine/reward.js?v=removeBottomHud01"></script>
 <script src="js/engine/map.js?v=displayMode01"></script>
-<script src="js/engine/main.js?v=displayMode01"></script>
-<script src="js/engine/options.js?v=returnTitle01"></script>
+<script src="js/engine/main.js?v=deadAssets0916"></script>
+<script src="js/engine/options.js?v=titleMenu0916"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -13641,7 +13641,8 @@ html body.reward-screen-active #rw-cards .rew-card.cant > .unit-stat-overlay-lay
 html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.board-slots > .card.invalid-battle-position:not(.dragging) > .unit-stat-overlay-layer{
   filter:brightness(.5) saturate(.5)!important;
 }
-/* 魔導板カードと報酬カードのホバー発光を同じ描画経路・同じ値へ固定する。 */
+/* 商品の item-visual は ::before に絵・アイテム枠を描くため、ホバー発光で消さない。 */
+/* キャラクター報酬カードだけ、従来どおり疑似要素の発光を抑止する。 */
 html body.reward-screen-active #hand-slots.board-slots > .card:hover:not(.inert):not(.dragging),
 html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging),
 html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging){
@@ -13650,8 +13651,8 @@ html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.draggin
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
 }
 html body.reward-screen-active #hand-slots.board-slots > .card:hover:not(.inert):not(.dragging) > .card-glow-layer,
-html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging)::before,
-html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging)::before{
+html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging):not(.item-visual)::before,
+html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging):not(.item-visual)::before{
   display:none!important;
   content:none!important;
   box-shadow:none!important;

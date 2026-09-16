@@ -600,7 +600,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         &&playManaGainVfx(source,e.side==='p2'?'enemy':'ally'));
       // **数字はVFXが見え始めてから動かす**（尺は present.js が唯一の定義）。
       if(_manaVfxShown){
-        await sleep((typeof PRESENT_MANA_GAIN_VALUE_DELAY_MS==='number'&&PRESENT_MANA_GAIN_VALUE_DELAY_MS)||140);
+        await sleep((typeof PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS==='number'
+          &&PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS)||140);
       }
       if(e.side==='p1'){
         _recordBattleTrace('mana_state_apply',{unitId:e.unitId,amount:Number(e.amount)||0});
@@ -702,6 +703,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         ownEffectText:_ownCardEffectText,
         trace:info=>_recordBattleTrace('stat_change_effect_cue',info),
       });
+      if (e.persistent && e.side === 'p1' && typeof persistBoardCharacterStats === 'function'
+        && typeof _getPartyBoardUnit === 'function') {
+        persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
+      }
       continue;
     }
     if(e.type==='summon'&&e.unit){
@@ -755,7 +760,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if(!list.includes(unit)){
           coreInsertSummonedUnit(list,unit,e,(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7);
         }
-        unit.lane='front';
+        // コアが空欄を詰めた後も、開戦配置由来の古い物理添字が残ることがある。
+        // lane の論理列から全体を書き直し、同じIDの参照を一つにする。
+        if(typeof _rebuildBattleUnitArray==='function'){
+          const frontSlots=(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7;
+          const max=e.side==='p2'?(MAX_ENEMIES||14):(MAX_ALLIES||14);
+          _rebuildBattleUnitArray(list,frontSlots,max,
+            list.filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')!=='rear'),
+            list.filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')==='rear'));
+        }
         unit._battleSlot=list.indexOf(unit);
         placed=list.indexOf(unit);
       } else {

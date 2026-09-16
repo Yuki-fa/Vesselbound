@@ -98,7 +98,7 @@ function _vbDiagRun(){
   out.push('■ 表示中のVFX', ...(vfx.length?vfx.map(v=>'   '+v):['   （なし）']));
   const text=out.join('\n');
   console.log(text);
-  try{ if(navigator.clipboard) navigator.clipboard.writeText(text); }catch(_){ }
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(text).catch(()=>{}); }catch(_){ }
   return text;
 }
 // コンソールで `vbDiag` と打っても `vbDiag()` と打っても結果が出るようにする。
@@ -2381,7 +2381,11 @@ async function battlePhase(){
       // 途切れなく続くと何が起きているか追えない。値は present.js が唯一の定義。
       // **盤面を詰め終えてから待つ**（オンラインは次の手番の頭で待つため、
       // ここで詰める前に待つと、途中の並びだけが片側に増えて食い違う）。
-      if(events.length>from) await sleep(PRESENT_TURN_GAP_MS);
+      if(events.length>from
+        && !(typeof presentShouldSkipTurnGapBeforeManaEffect === 'function'
+          && presentShouldSkipTurnGapBeforeManaEffect(events.slice(from), events.length - from))) {
+        await sleep(PRESENT_TURN_GAP_MS);
+      }
       if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
       if(G._testBattleAbort){ _exitTestBattle(); return; }
       if(_checkBattleOver()) return;
@@ -4743,8 +4747,8 @@ function _placeTerrainNpcAt(slotIdx, spec){
   const unit=_makePanelSummonUnit(spec,[]);
   unit._terrainNpc=true;
   unit._battleSlot=slotIdx;
-  const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
-  unit.lane=slotIdx<frontSlots?'front':'rear';
+  // lane は配置後の配列添字から再計算しない。地形側が指定した体の属性を使う。
+  unit.lane=spec&&spec.lane==='rear'?'rear':'front';
   G.allies[slotIdx]=unit;
   return unit;
 }
@@ -4761,7 +4765,7 @@ function _applyTerrainReinforcements(){
     const spec=_terrainNpcSpec('戦士',0,1);
     [0,frontSlots-1].forEach(slot=>{ const u=_placeTerrainNpcAt(slot,spec); if(u) added.push(u); });
   }else if(terrain==='start'){
-    const spec=_terrainNpcSpec('魔術師',0,1);
+    const spec={..._terrainNpcSpec('魔術師',0,1),lane:'rear'};
     [frontSlots,frontSlots+Math.max(0,rearSlots-1)].forEach(slot=>{ const u=_placeTerrainNpcAt(slot,spec); if(u) added.push(u); });
     const buff=Math.max(0,(Number(b.mapIndex)||Number(G._wave)||1)*2);
     if(buff>0){
@@ -5135,9 +5139,46 @@ async function _applyOpeningItemEffects(){
 function _normalizeColorTextForBattle(c){
   return String(c||'')==='茶'?'黄':String(c||'');
 }
+
+// 盤面配列を、lane の論理列から毎回まるごと組み直す。開戦配置の空欄や、
+// コアが左詰めした配列を部分的に上書きすると、書かなかった範囲に古い参照が
+// 残って同じ体が二箇所に見えるため、召喚配置では必ずこの出口を通す。
+function _rebuildBattleUnitArray(arr, frontSlots, max, frontUnits, rearUnits){
+  const seen=new Set();
+  const uniqueAlive=units=>{
+    const out=[];
+    for(const unit of units||[]){
+      if(!unit||unit.hp<=0||unit._isObject||unit._isSoul) continue;
+      const key=unit.id!=null?String(unit.id):unit;
+      if(seen.has(key)) continue;
+      seen.add(key); out.push(unit);
+    }
+    return out;
+  };
+  const front=uniqueAlive(frontUnits);
+  const rear=uniqueAlive(rearUnits);
+  arr.length=max;
+  for(let i=0;i<max;i++) arr[i]=null;
+  front.slice(0,frontSlots).forEach((unit,i)=>{
+    unit.lane='front'; unit._battleSlot=i; arr[i]=unit;
+  });
+  rear.slice(0,Math.max(0,max-frontSlots)).forEach((unit,i)=>{
+    unit.lane='rear'; unit._battleSlot=frontSlots+i; arr[frontSlots+i]=unit;
+  });
+  return {front:front.slice(0,frontSlots),rear:rear.slice(0,Math.max(0,max-frontSlots))};
+}
+
 function _summonPanelUnitToFront(unit, isEnemySide, preferredSlot){
   const arr=isEnemySide?G.enemies:G.allies;
   const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
+  // 開戦配置の再実行やコピー経路で同じ体が残っていても、他の体の枠は動かさず
+  // その体の参照だけを先に外す。配列全体を lane から組み直すと、出撃順によって
+  // 既に配置済みの体まで入れ替わるため、ここでは空欄化だけに留める。
+  const unitId=unit&&unit.id!=null?String(unit.id):null;
+  for(let i=0;i<arr.length;i++){
+    const existing=arr[i];
+    if(existing===unit||(unitId!=null&&existing&&existing.id!=null&&String(existing.id)===unitId)) arr[i]=null;
+  }
   // 初期出撃・旧互換入口も、戦闘中召喚と同じ陣営総数上限を先に確認する。
   // ここを通さず空き枠だけを見ると、上限超過体が一度配列へ入り、
   // compact/render の間だけ左端や空き位置へ表示される。
@@ -5147,8 +5188,7 @@ function _summonPanelUnitToFront(unit, isEnemySide, preferredSlot){
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
   const rearSlots=Math.max(0,max-frontSlots);
   const isFree=u=>!u||u.hp<=0||u._isObject||u._isSoul;
-  // 開戦召喚だけは魔導板由来の希望スロットを優先する。衝突時は近傍へ
-  // 寄せるが、通常の戦闘中召喚（preferredSlotなし）の右詰め挙動は維持する。
+  // 開戦時は魔導板の希望枠を優先し、埋まっていれば近い空き枠へ置く。
   if(Number.isInteger(preferredSlot)&&preferredSlot>=0&&preferredSlot<frontSlots){
     let slot=isFree(arr[preferredSlot])?preferredSlot:-1;
     for(let distance=1;slot<0&&distance<frontSlots;distance++){
@@ -5158,27 +5198,18 @@ function _summonPanelUnitToFront(unit, isEnemySide, preferredSlot){
       else if(right<frontSlots&&isFree(arr[right])) slot=right;
     }
     if(slot>=0){
-      unit.lane='front';
-      unit._battleSlot=slot;
-      arr[slot]=unit;
-      return slot;
+      unit.lane='front'; unit._battleSlot=slot; arr[slot]=unit; return slot;
     }
     return -1;
   }
   for(let i=frontSlots-1;i>=0;i--){
     if(isFree(arr[i])){
-      unit.lane='front';
-      unit._battleSlot=i;
-      arr[i]=unit;
-      return i;
+      unit.lane='front'; unit._battleSlot=i; arr[i]=unit; return i;
     }
   }
   for(let i=frontSlots+rearSlots-1;i>=frontSlots;i--){
-    if(!arr[i]||arr[i].hp<=0||arr[i]._isObject||arr[i]._isSoul){
-      unit.lane='rear';
-      unit._battleSlot=i;
-      arr[i]=unit;
-      return i;
+    if(isFree(arr[i])){
+      unit.lane='rear'; unit._battleSlot=i; arr[i]=unit; return i;
     }
   }
   return -1;
@@ -5210,12 +5241,14 @@ function _summonMidBattleFrontEdge(unit, isEnemySide, edge){
   if(liveCount>=max) return -1;
   const frontSlots=Math.min(ENEMY_FRONT_SLOTS||7,max);
   const isFree=u=>!u||u.hp<=0||u._isObject||u._isSoul;
-  const front=arr.slice(0,frontSlots).filter(u=>!isFree(u));
+  // coreInsertSummonedUnit() は空欄を詰めるため、配列の先頭側に後衛が来ることがある。
+  // 物理添字ではなく lane を体の属性として扱う。
+  const front=arr.filter(u=>!isFree(u)&&(u.lane||'front')!=='rear');
+  const rear=arr.filter(u=>!isFree(u)&&(u.lane||'front')==='rear');
   if(front.length>=frontSlots) return -1;
   if(edge==='left') front.unshift(unit); else front.push(unit);
-  for(let i=0;i<frontSlots;i++) arr[i]=front[i]||null;
-  front.forEach((u,i)=>{ u.lane='front'; u._battleSlot=i; });
-  return edge==='left'?0:front.length-1;
+  const rebuilt=_rebuildBattleUnitArray(arr,frontSlots,max,front,rear);
+  return edge==='left'?0:rebuilt.front.length-1;
 }
 
 function _summonMidBattleAllyFront(unit, isEnemySide, placement){
@@ -5235,8 +5268,8 @@ function _summonMidBattleAllyFront(unit, isEnemySide, placement){
   // 無いと、直後のrequestBattleCompact()で中央へ動かされ「効果元の左に出る」「戦闘中に
   // 並び順が入れ替わる」ことになる。挿入で他のユニットもずれるため、前衛全体を振り直す。
   const rebuildFront=(front)=>{
-    for(let i=0;i<frontSlots;i++) arr[i]=front[i]||null;
-    front.forEach((u,i)=>{ u.lane='front'; u._battleSlot=i; });
+    const rear=arr.filter(u=>!isFree(u)&&(u.lane||'front')==='rear');
+    return _rebuildBattleUnitArray(arr,frontSlots,max,front,rear);
   };
 
   // 戦闘中の召喚は前衛へ置く。前衛の効果元だけは右隣への挿入を優先し、
@@ -5255,20 +5288,18 @@ function _summonMidBattleAllyFront(unit, isEnemySide, placement){
     const actualSource=sourceIdx>=0?arr[sourceIdx]:source;
     unit._summonedFromId=String(actualSource.id||'');
     const sourceIsRear=(actualSource.lane||'front')==='rear';
-    if(sourceIsRear&&sourceIdx>=frontSlots){
-      const rear=arr.slice(frontSlots,frontSlots+(max-frontSlots)).filter(u=>!isFree(u));
-      if(rear.length>=max-frontSlots) return -1;
-      const logicalSource=rear.indexOf(actualSource);
-      if(logicalSource>=0){
-        rear.splice(logicalSource+1,0,unit);
-        for(let i=0;i<max-frontSlots;i++) arr[frontSlots+i]=rear[i]||null;
-        rear.forEach((u,i)=>{ u.lane='rear'; u._battleSlot=frontSlots+i; });
-        return frontSlots+logicalSource+1;
-      }
+    if(sourceIsRear){
+      // 後衛は編成由来の列であり、戦闘中の召喚体を差し込まない。
+      // コアと同じく、効果元が後衛でも召喚体は前衛の右端へ置く。
+      const front=arr.filter(u=>!isFree(u)&&(u.lane||'front')!=='rear');
+      if(front.length>=frontSlots) return -1;
+      front.push(unit);
+      const rebuilt=rebuildFront(front);
+      return rebuilt.front.length-1;
     }
     if(!sourceIsRear&&sourceIdx>=0){
       // ① 効果元より右に空きがあれば、間の味方を右へ1つずつ寄せて右隣へ挿入する。
-      const front=arr.slice(0,frontSlots).filter(u=>!isFree(u));
+      const front=arr.filter(u=>!isFree(u)&&(u.lane||'front')!=='rear');
       if(front.length>=frontSlots) return -1;
       const logicalSource=front.indexOf(actualSource);
       if(logicalSource<0) return -1;
@@ -5290,16 +5321,22 @@ function _summonMidBattleAllyFront(unit, isEnemySide, placement){
   }
 
   // 指輪など、効果元の位置を持たない召喚は一番右の空き枠へ置く。
-  const front=arr.slice(0,frontSlots).filter(u=>!isFree(u));
+  const front=arr.filter(u=>!isFree(u)&&(u.lane||'front')!=='rear');
   if(front.length>=frontSlots) return -1;
   front.push(unit);
-  rebuildFront(front);
-  return front.length-1;
+  const rebuilt=rebuildFront(front);
+  return rebuilt.front.length-1;
 }
 
 function _summonPanelUnitToRear(unit, isEnemySide, preferredSlot){
   const arr=isEnemySide?G.enemies:G.allies;
   const max=isEnemySide?(MAX_ENEMIES||14):(MAX_ALLIES||14);
+  // 同じ体の古い参照だけを外し、他の体のスロットは詰め直さない。
+  const unitId=unit&&unit.id!=null?String(unit.id):null;
+  for(let i=0;i<arr.length;i++){
+    const existing=arr[i];
+    if(existing===unit||(unitId!=null&&existing&&existing.id!=null&&String(existing.id)===unitId)) arr[i]=null;
+  }
   // 表示待ちの召喚体も生成済みとして上限枠を占有する。
   const liveCount=arr.filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul).length;
   if(liveCount>=max) return -1;
@@ -5315,27 +5352,16 @@ function _summonPanelUnitToRear(unit, isEnemySide, preferredSlot){
       else if(right<frontSlots+rearSlots&&isFree(arr[right])) slot=right;
     }
     if(slot>=0){
-      unit.lane='rear';
-      unit._battleSlot=slot;
-      arr[slot]=unit;
-      return slot;
+      unit.lane='rear'; unit._battleSlot=slot; arr[slot]=unit; return slot;
     }
     return -1;
   }
-  // renderField() は後衛を配列順（左→右）に描画する。右端の物理スロットから
-  // 逆順に埋めると、2体目以降の召喚で先に出たキャラクターが左へ飛び、
-  // 召喚イベント順と見た目の順序が逆転する。後衛も論理列を組み直し、
-  // 新しい召喚体を右側へ追加する。
-  const rear=arr.slice(frontSlots,frontSlots+rearSlots)
-    .filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul);
-  if(rear.length>=rearSlots) return -1;
-  rear.push(unit);
-  for(let i=0;i<rearSlots;i++) arr[frontSlots+i]=rear[i]||null;
-  rear.forEach((u,i)=>{
-    u.lane='rear';
-    u._battleSlot=frontSlots+i;
-  });
-  return frontSlots+rear.length-1;
+  for(let i=frontSlots+rearSlots-1;i>=frontSlots;i--){
+    if(isFree(arr[i])){
+      unit.lane='rear'; unit._battleSlot=i; arr[i]=unit; return i;
+    }
+  }
+  return -1;
 }
 
 function _battleSlotForMainBoardSlot(idx,toRear){

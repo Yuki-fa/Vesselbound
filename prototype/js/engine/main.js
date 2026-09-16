@@ -46,15 +46,6 @@ function showScreen(id){
   if(id==='title'){
     if(typeof SaveRun!=='undefined') SaveRun.refreshContinue();
     const titleEl=document.getElementById('scr-title');
-    if(titleEl&&titleEl.classList.contains('startup-title')
-      &&!titleEl.classList.contains('startup-title-visible')){
-      // **`startup-menu-ready` も必ず付ける。** メニューは
-      // `.startup-menu-visible:not(.startup-menu-ready)` で pointer-events:none に
-      // なるため、これが無いとタイトルは見えているのに何も押せない
-      // （ゲームオーバーから戻ると操作不能になっていた）。
-      titleEl.classList.add('startup-title-visible','startup-menu-visible',
-        'startup-menu-ready','startup-menu-hover-ready');
-    }
     // 戦闘・村で付いた一時クラスを持ち越すと、タイトルの上に暗転が残る。
     document.body.classList.remove('battle-victory-pending','village-departing',
       'gameover-active','game-clear-active','gameover-ui-pending');
@@ -944,8 +935,9 @@ function handleWaveBattleDefeat(){
 // ── オープニングムービー ─────────────────────────────────────
 // タイトルで「初めて」ゲームスタートを押した時だけ流す。
 // ゲームオーバー等で一度タイトルへ戻った後は、再度押しても流さない。
-// G は startGame() の initState() で作り直されるため、再生済みフラグはモジュール変数で持つ。
-let _openingMovieShown = false;
+// G は startGame() の initState() で作り直されるため、再生済みフラグはシステムセーブから読む。
+let _openingMovieShown = typeof SaveProfile!=='undefined'&&typeof SaveProfile.openingMovieShown==='function'
+  ? SaveProfile.openingMovieShown() : false;
 const OPENING_MOVIE_SRC = 'assets/movie/movie1.webm';
 const OPENING_MOVIE_FADE_START = 7;    // 秒。ここからフェードアウトを開始する
 const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前までに真っ黒にするか
@@ -1217,9 +1209,6 @@ async function startFinalBossClearSequence(){
     if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(600);
     // 撃破の余韻を残してからエンディングへ入る。
     await new Promise(resolve=>window.setTimeout(resolve,FINAL_CLEAR_PRE_WAIT_MS));
-    // movie4とgame_clear.wavを同時に始める。BGMはクリア画面まで鳴り続ける
-    // （gameOver()はisClearのときstopBgm()しない）。
-    if(typeof playBgm==='function') playBgm('gameClear',{fadeInMs:0});
     // movie3と同じく、末尾は黒へフェードアウトして終わる。
     await _playCutsceneMovieToBlack(FINAL_CLEAR_MOVIE_SRC);
     G._mapBattle=null;
@@ -1304,8 +1293,16 @@ function startGameFromTitle(){
   _startingFromTitle = true;
   const startToken=++_titleStartToken;
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-game-start' });
+  // オプションからシステムデータを削除した直後も、保存媒体の状態を反映する。
+  if(typeof SaveProfile!=='undefined'&&typeof SaveProfile.openingMovieShown==='function'){
+    _openingMovieShown=SaveProfile.openingMovieShown();
+  }
   if(_openingMovieShown){ startGame(); _startingFromTitle = false; return; }
   _openingMovieShown = true;
+  // 再生開始時点で保存する。スキップ・動画エラーでも再生済みとして扱う。
+  if(typeof SaveProfile!=='undefined'&&typeof SaveProfile.markOpeningMovieShown==='function'){
+    SaveProfile.markOpeningMovieShown();
+  }
   void _playOpeningMovie().then(() => {
     if(startToken!==_titleStartToken) return;
     startGame(); _startingFromTitle = false;
@@ -1629,7 +1626,7 @@ function gameOver(options){
     back.onclick=()=>{
       if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-back'});
       if(G._gameOverSpecialDebug) returnFromDebugGameOver();
-      else{ closeGameOverOverlay(); showScreen('title'); }
+      else{ closeGameOverOverlay(); _returnToTitleMenu(); }
     };
   }
   const retry=document.getElementById('gameover-retry-btn');
@@ -1644,7 +1641,7 @@ function gameOver(options){
   if(continueBtn) continueBtn.onclick=()=>{
     if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-continue'});
     closeGameOverOverlay();
-    showScreen('title');
+    _returnToTitleMenu();
   };
   const go=document.getElementById('go-sub'); if(go) go.textContent=`${G.floor}階で力尽きました`;
   G.phase=isClear?'clear':'gameover';
@@ -1938,6 +1935,29 @@ function _startTitleBgVideo(){
   const promise=video.play();
   if(promise&&typeof promise.catch==='function') promise.catch(()=>{});
 }
+// ラン中の画面からタイトルへ戻る時の共通経路。
+// 起動時の導入演出（returnToTapStart()）とは異なり、既に導入済みとして
+// メニューを最終状態まで表示し、タイトルの入力とBGMを直ちに有効にする。
+function _returnToTitleMenu(){
+  _titleStartToken++;
+  _startingFromTitle=false;
+  _startupIntroSkipped=true;
+  _startupIntroTimerIds.forEach(id=>clearTimeout(id));
+  _startupIntroTimerIds=[];
+  const title=document.getElementById('scr-title');
+  if(title){
+    title.classList.remove('startup-menu-input-locked');
+    title.classList.add('active','startup-title','startup-title-visible','startup-menu-visible',
+      'startup-menu-ready','startup-menu-hover-ready');
+    _wireTitleSelectBack();
+  }
+  window.removeEventListener('pointerdown',_skipStartupIntro,true);
+  _syncTitleStartLabel();
+  _startTitleBgVideo();
+  _startTitleBgm();
+  if(typeof showScreen==='function') showScreen('title');
+  else if(typeof returnToTapStart==='function') returnToTapStart();
+}
 function _revealTitleMenu(){
   if(_startupIntroSkipped) return;
   _startupIntroSkipped=true;
@@ -2102,7 +2122,8 @@ function showFatalError(code,detail){
       if(document.body) document.body.classList.remove('fatal-error-active');
       if(overlay) overlay.setAttribute('aria-hidden','true');
       if(typeof closeGameOverOverlay==='function') closeGameOverOverlay();
-      if(typeof showScreen==='function') showScreen('title');
+      if(typeof _returnToTitleMenu==='function') _returnToTitleMenu();
+      else if(typeof showScreen==='function') showScreen('title');
       else location.reload();
     }catch(_e){ location.reload(); }
   };

@@ -690,7 +690,12 @@ async function presentDeathEvent(ev, api) {
 async function presentUnitStolenEvent(ev, api) {
   if (!ev || !api) return false;
   const toSide = ev.toSide || (ev.side === 'p1' ? 'p2' : 'p1');
-  const unit = typeof api.findUnit === 'function' ? api.findUnit(ev.side, ev.unitId) : null;
+  // PvEはコア解決済みで移動先配列にいる一方、オンラインは受け口が
+  // moveOnBoard() まで元配列に保持する。どちらの時点でも同じ演出を使えるよう、
+  // 元側・移動先側の順に探す（ルールや配置はここで作らない）。
+  const unit = typeof api.findUnit === 'function'
+    ? (api.findUnit(ev.side, ev.unitId) || api.findUnit(toSide, ev.unitId))
+    : null;
   const applyBoard = () => {
     // 奪った時点の値（コアのスナップショット）へ表示を合わせる。
     // サキュバスの捕獲は倒した敵を仲間にするので、表示上0になったHPを戻す必要がある。
