@@ -376,7 +376,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     // **再生するイベントの一覧。ここに無い種類は下の分岐まで届かない。**
     // 逃走（fled）が抜けていたため、武器破壊でATKが0になっても FLED 表示が出なかった。
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='shield_set'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
     if(e.type==='sweep_vfx'){
       const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       const foeSide=e.side==='p1'?'p2':'p1';
@@ -415,6 +415,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       presentKeywordEffectEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
       });
+      continue;
+    }
+    if(e.type==='shield_set'){
+      // 復活で結界を付け直した時など。表示の据え置き値を進めて、結界の絵をその場で出す（オンラインの shield_set と同じ）。
+      const unit=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(unit){
+        if(typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{shield:Math.max(0,Number(e.amount)||0)});
+        if(typeof updateUnitShieldUi==='function') updateUnitShieldUi(unit,e.side==='p1'?'ally':'enemy');
+      }
       continue;
     }
     if(e.type==='shield_lost'){

@@ -4723,16 +4723,23 @@ function renderField(id,units,isEnemy,_lane){
   const holdLayout=!!(G._compactHoldSides&&G._compactHoldSides[isEnemy?'enemies':'allies']
     &&(G._animateBattleCompact||performance.now()<Number(G._battleCompactAnimatingUntil||0)));
   const _layoutIsBeingRewritten=!holdLayout;
-  const _storedLayoutCount=(key,count)=>{
+  // その列に据え置き中の既存カード（旧 left を持つ体）が1枚も無ければ、重なる相手がいないので新しい人数で置く。
+  // 後衛のエピトメが攻撃中に前衛へボスを召喚した時、前衛の旧人数0を基準にして半枚右へずれ、
+  // 攻撃が終わってから中央へ動いていた（利用者報告）。
+  const _laneHasHeld=indexes=>indexes.some(idx=>{
+    const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
+    return !!uid&&previousLefts.has(uid);
+  });
+  const _storedLayoutCount=(key,count,indexes)=>{
     const old=Number(el.dataset[key]);
-    if(_layoutIsBeingRewritten||!Number.isFinite(old)||old<0){
+    if(_layoutIsBeingRewritten||!Number.isFinite(old)||old<0||!_laneHasHeld(indexes)){
       el.dataset[key]=String(count);
       return count;
     }
     return old;
   };
-  const _frontBaseCount=_storedLayoutCount('layoutFrontCount',_frontLayout.count);
-  const _rearBaseCount=_storedLayoutCount('layoutRearCount',_rearLayout.count);
+  const _frontBaseCount=_storedLayoutCount('layoutFrontCount',_frontLayout.count,_frontIndexes);
+  const _rearBaseCount=_storedLayoutCount('layoutRearCount',_rearLayout.count,_rearIndexes);
   const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearBaseCount,_rearLayout.positions.get(idx))]));
   const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontBaseCount,_frontLayout.positions.get(idx))]));
   // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。

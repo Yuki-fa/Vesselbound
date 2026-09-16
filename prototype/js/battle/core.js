@@ -3935,6 +3935,13 @@ function coreTryRevive(unit, state, emit) {
     emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp, reason: 'summon_buff', sourceId: unit.id });
   }
   emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk, reason: ring ? 'revival_ring' : keyword });
+  // **復活（再召喚）・復活の指輪では、キーワードの結界を付け直す。** 開戦時にしか付けていなかったため、
+  // 結界持ちが復活しても結界が無かった（利用者報告）。根性は死亡ではないので、残っている結界をそのまま使う。
+  if (ring || keyword === '復活') {
+    const reviveShield = coreUnitShieldValue(unit);
+    unit.shield = reviveShield;
+    if (reviveShield > 0) emit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
+  }
   // 復活後は次の死亡を新しい1回として扱う。
   delete unit._coreDeathTriggered;
   delete unit._coreDeathEffectsTriggered;
