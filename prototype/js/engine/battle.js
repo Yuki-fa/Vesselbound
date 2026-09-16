@@ -6505,6 +6505,41 @@ function startTestBattle(){
     G._libraryLoanCardsState=typeof clone==='function'?clone(_rewCards||[]):(_rewCards||[]).slice();
     document.body.classList.remove('library-formation-active');
     if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
+  }else{
+    // 施設／報酬画面からの試験戦闘では、戦闘終了時に onBattleEnd() が報酬カードを
+    // 入れ替えるため、開始時の画面と品揃えをまとめて退避しておく。施設フラグを
+    // 残したまま goToReward() へ進むと、試験戦闘の報酬が商品として描画される。
+    const copy=typeof clone==='function'?clone:(v=>v);
+    G._testBattleReturnState={
+      flags:{
+        isShop:!!G._isShop, isItemShop:!!G._isItemShop, isForge:!!G._isForge,
+        isTavern:!!G._isTavern, isVillageMenu:!!G._isVillageMenu,
+        isRingExchange:!!G._isRingExchange, isWaveAltar:!!G._isWaveAltar,
+        isLibrary:!!G._isLibrary, isLibraryMenu:!!G._isLibraryMenu,
+        facilityLabel:G._facilityLabel, facilityCacheKey:G._facilityCacheKey,
+        mapReturnAfterReward:!!G._mapReturnAfterReward, isRewardTown:!!G._isRewardTown,
+        freeRewardPanelMode:!!G._freeRewardPanelMode, rewardOnePickMode:!!G._rewardOnePickMode,
+        freeItemPhase:G._freeItemPhase, freeItemUsed:!!G._freeItemUsed,
+        isBossRewardCycle:!!G._isBossRewardCycle
+      },
+      rewCards:copy(_rewCards||[]),
+      rewFreePickDone:!!_rewFreePickDone,
+      mapForgeOffers:copy(G._mapForgeOffers||[]),
+      mapPanelPowers:copy(G.mapPanelPowers||{}),
+      ringOffer:copy(G._ringOffer||[]),
+      ringOfferUnlocked:!!G._ringOfferUnlocked,
+      ringOfferResolved:!!G._ringOfferResolved,
+      ringOfferPhase:!!G._ringOfferPhase,
+      boardDiscardCount:G._boardDiscardCount||0,
+      rewardStartSnapshot:G._rewardStartSnapshot?copy(G._rewardStartSnapshot):null,
+      spellSlots:copy(G.spellSlots||[]),
+      gold:G.gold,
+      mana:G.mana,
+      life:G.life,
+      waveLife:G._waveLife,
+      blood:G._blood,
+      enemyBlood:G._enemyBlood
+    };
   }
   G._testBattleAbort=false;
   G._testBattleSavedFloor=G.floor;
@@ -6585,7 +6620,36 @@ async function _exitTestBattle(){
     G._testBattleExitPending=false;
     return;
   }
-  if(typeof goToReward==='function') goToReward();
+  const returnState=G._testBattleReturnState;
+  if(returnState){
+    const copy=typeof clone==='function'?clone:(v=>v);
+    const f=returnState.flags||{};
+    G._isShop=!!f.isShop; G._isItemShop=!!f.isItemShop; G._isForge=!!f.isForge;
+    G._isTavern=!!f.isTavern; G._isVillageMenu=!!f.isVillageMenu;
+    G._isRingExchange=!!f.isRingExchange; G._isWaveAltar=!!f.isWaveAltar;
+    G._isLibrary=!!f.isLibrary; G._isLibraryMenu=!!f.isLibraryMenu;
+    G._facilityLabel=f.facilityLabel; G._facilityCacheKey=f.facilityCacheKey;
+    G._mapReturnAfterReward=!!f.mapReturnAfterReward; G._isRewardTown=!!f.isRewardTown;
+    G._freeRewardPanelMode=!!f.freeRewardPanelMode; G._rewardOnePickMode=!!f.rewardOnePickMode;
+    G._freeItemPhase=f.freeItemPhase; G._freeItemUsed=!!f.freeItemUsed;
+    G._isBossRewardCycle=!!f.isBossRewardCycle;
+    _rewCards=copy(returnState.rewCards||[]);
+    _rewFreePickDone=!!returnState.rewFreePickDone;
+    G._mapForgeOffers=copy(returnState.mapForgeOffers||[]);
+    G.mapPanelPowers=copy(returnState.mapPanelPowers||{});
+    G._ringOffer=copy(returnState.ringOffer||[]);
+    G._ringOfferUnlocked=!!returnState.ringOfferUnlocked;
+    G._ringOfferResolved=!!returnState.ringOfferResolved;
+    G._ringOfferPhase=!!returnState.ringOfferPhase;
+    G._boardDiscardCount=returnState.boardDiscardCount||0;
+    G._rewardStartSnapshot=copy(returnState.rewardStartSnapshot);
+    G.spellSlots=copy(returnState.spellSlots||[]);
+    G.gold=returnState.gold; G.mana=returnState.mana;
+    G.life=returnState.life; G._waveLife=returnState.waveLife;
+    G._blood=returnState.blood; G._enemyBlood=returnState.enemyBlood;
+    G._testBattleReturnState=null;
+    if(typeof goToReward==='function') goToReward({restoreCheckpoint:true});
+  }else if(typeof goToReward==='function') goToReward();
   G._testBattleExitPending=false;
 }
 

@@ -1053,14 +1053,93 @@ function coreBeginDamageBatch(state) {
   state._coreDamageBatchSeq = (Number(state._coreDamageBatchSeq) || 0) + 1;
   state._coreDamageBatch = 'b' + state._coreDamageBatchSeq;
   state._coreDamageBatchKind = kind;
+  const uniteStack = state._coreUniteBatchStack || (state._coreUniteBatchStack = []);
+  uniteStack.push(state._coreUniteBatch || null);
+  state._coreUniteBatch = { id: state._coreDamageBatch, groups: new Map(), flushing: false };
   return true;
 }
 function coreEndDamageBatch(state) {
   if (!state) return;
+  if (state._coreUniteBatch && state._coreUniteBatch.id === state._coreDamageBatch) {
+    coreFlushUniteBatch(state);
+    const uniteStack = state._coreUniteBatchStack || [];
+    state._coreUniteBatch = uniteStack.pop() || null;
+    if (!state._coreUniteBatch) delete state._coreUniteBatch;
+  }
   const stack = state._coreDamageBatchStack || [];
   const prev = stack.pop() || { id: null, kind: null };
   state._coreDamageBatch = prev.id;
   state._coreDamageBatchKind = prev.kind;
+}
+
+function coreUniteGroupKey(target) {
+  return target && Array.isArray(target._uniteGroups) && target._uniteGroups.length
+    ? `${target.side}:unite:${target._uniteGroups[0]}` : null;
+}
+
+function coreUniteMembers(state, target) {
+  const groups = target && Array.isArray(target._uniteGroups) ? target._uniteGroups : [];
+  return (state.units[target.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)
+    && Array.isArray(x._uniteGroups) && x._uniteGroups.some(g => groups.includes(g)));
+}
+
+// 団結の余りは、まず「基本値+1でも生き残る」メンバーへ割り当てる。
+function coreUniteRemainderMembers(members, base, count, rng) {
+  const safe = members.filter(x => x.hp > base + 1);
+  const picked = [];
+  const take = (pool) => {
+    while (picked.length < count && pool.length) {
+      const item = rng && typeof rng.pick === 'function' ? rng.pick(pool) : pool[0];
+      const index = pool.indexOf(item);
+      picked.push(item);
+      pool.splice(index < 0 ? 0 : index, 1);
+    }
+  };
+  take(safe.slice());
+  if (picked.length < count) take(members.filter(x => !picked.includes(x)));
+  return picked;
+}
+
+function coreFlushUniteBatch(state) {
+  const batch = state && state._coreUniteBatch;
+  if (!batch || batch.flushing || !batch.groups.size) return;
+  batch.flushing = true;
+  try {
+    batch.groups.forEach(group => {
+      const members = coreUniteMembers(state, group.target).filter(x => x.hp > 0);
+      if (!members.length || !(group.total > 0)) return;
+      const allocations = new Map(members.map(x => [x, 0]));
+      const received = group.received.filter(x => allocations.has(x));
+      if (group.total < members.length) {
+        // 小さな合計は、実際に受けたメンバーを優先して1ずつ配る。
+        let left = group.total;
+        const primary = received.slice();
+        while (left > 0 && primary.length) { allocations.set(primary.shift(), 1); left--; }
+        const rest = members.filter(x => !received.includes(x));
+        while (left > 0 && rest.length) {
+          const item = group.rng && typeof group.rng.pick === 'function' ? group.rng.pick(rest) : rest[0];
+          rest.splice(Math.max(0, rest.indexOf(item)), 1);
+          allocations.set(item, 1); left--;
+        }
+      } else {
+        const base = Math.floor(group.total / members.length);
+        members.forEach(x => allocations.set(x, base));
+        const extra = coreUniteRemainderMembers(members, base, group.total % members.length, group.rng);
+        extra.forEach(x => allocations.set(x, allocations.get(x) + 1));
+      }
+      allocations.forEach((amount, member) => {
+        if (!(amount > 0)) return;
+        const result = group.applyHit(group.source, member, amount, group.counter, true, true,
+          { deferTriggers: !!group.deferTriggers, collect: group.collect });
+        group.applied += result.amount || 0;
+        group.died = group.died || !!result.died;
+      });
+      group.results.forEach(result => {
+        result.amount = group.applied;
+        result.died = group.died;
+      });
+    });
+  } finally { batch.flushing = false; }
 }
 
 // 複数の対象へ同時に作用するダメージ。**全員に入れてから、対象の並び順で誘発する。**
@@ -1092,26 +1171,35 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     });
   if (source) target._lastDamageSource = source;
   target._lastDamageWasCounter = !!counter;
-  if (!opt.skipSourceEffects && Array.isArray(target._uniteGroups) && target._uniteGroups.length) {
-    const members = (units[target.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)
-      && Array.isArray(x._uniteGroups) && x._uniteGroups.some(g => target._uniteGroups.includes(g)));
-    if (members.length >= 2 && !target._uniteSplit) {
-      const distributable = Math.max(0, Number(amount) - coreToughValue(target));
-      const share = Math.floor(distributable / members.length);
-      let remainder = distributable - share * members.length;
-      if (share > 0 || remainder > 0) {
-        let result = { amount: 0, died: false };
-        members.forEach(member => {
-          const part = share + (remainder-- > 0 ? 1 : 0);
-          if (part > 0) {
-            const r = coreResolveHit(state, source, member, part, counter, rng, emit, {
-              skipSourceEffects: true, skipTough: member === target,
-              deferTriggers: !!opt.deferTriggers,
-            });
-            result.amount += r.amount || 0;
-            result.died = result.died || !!r.died;
-          }
-        });
+  if (!opt.skipSourceEffects && !target._uniteSplit && Array.isArray(target._uniteGroups)
+    && target._uniteGroups.length) {
+    const members = coreUniteMembers(state, target);
+    if (members.length >= 2) {
+      const batch = state._coreUniteBatch;
+      // 束の中では各ヒットを貯め、束の終了時にグループ単位で1回だけ分散する。
+      if (batch && !batch.flushing) {
+        const key = coreUniteGroupKey(target);
+        let group = batch.groups.get(key);
+        if (!group) {
+          group = { target, source, counter: !!counter, total: 0, received: [], results: [],
+            rng, deferTriggers: !!opt.deferTriggers, collect: opt.collect, applied: 0, died: false,
+            applyHit: (s, t, a, c, ss, st, extra) => coreResolveHit(state, s, t, a, c, rng, emit, {
+              skipSourceEffects: !!ss, skipTough: !!st, ...(extra || {}) }) };
+          batch.groups.set(key, group);
+        }
+        group.total += Math.max(0, Number(amount) - coreToughValue(target));
+        if (!group.received.includes(target)) group.received.push(target);
+        const deferredResult = { amount: 0, died: false };
+        group.results.push(deferredResult);
+        return deferredResult;
+      }
+      // runBattleCoreの外から単体で呼ばれる場合も、同じ蓄積経路を使う。
+      const started = coreBeginDamageBatch(state);
+      if (started) {
+        const standalone = { id: state._coreDamageBatch, groups: new Map(), flushing: false };
+        state._coreUniteBatch = standalone;
+        const result = coreResolveHit(state, source, target, amount, counter, rng, emit, opt);
+        coreEndDamageBatch(state);
         return result;
       }
     }
@@ -4653,6 +4741,7 @@ function coreBattleStepInner(ctx) {
     const strike = (victims, primaryTarget) => {
       const strikeTarget = primaryTarget || target;
       const pending = [];
+      const pendingUniteCounters = [];
       const spread = coreAttackSpread(attacker);
       // 接触演出は複数同時に出る（三方向攻撃＋貫通など）。**片方で上書きしないこと。**
       const contactModes = [];
@@ -4688,14 +4777,25 @@ function coreBattleStepInner(ctx) {
             if (!victim || victim.hp <= 0) return;
             const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(victim, '先制');
             const counter = coreCounterDamage(attacker, victim);
+            // 団結対象へのダメージは束の終了時まで仮結果になるため、先制で倒れたかを
+            // ここで判定してはいけない。束を閉じた後に生存を確認して反撃する。
+            const uniteBatched = !!(attackerFirst && state._coreUniteBatch
+              && coreUniteGroupKey(victim)
+              && coreUniteMembers(state, victim).length >= 2);
             attacker._coreAttackContact = true;
             const targetResult = applyHit(attacker, victim, damage, false, false, false, hitOpts);
             delete attacker._coreAttackContact;
-            if (allowCounter && !(attackerFirst && targetResult.died)) {
+            if (allowCounter && uniteBatched) {
+              pendingUniteCounters.push({ victim, counter });
+            } else if (allowCounter && !(attackerFirst && targetResult.died)) {
               applyHit(victim, attacker, counter, true, false, false, hitOpts);
             }
           });
         } finally { if (batched) coreEndDamageBatch(state); }
+      });
+      // 団結の割り振り結果が確定してから、先制対象の反撃可否を判定する。
+      pendingUniteCounters.forEach(({ victim, counter }) => {
+        if (victim && victim.hp > 0) applyHit(victim, attacker, counter, true, false, false, hitOpts);
       });
       // 誘発は戦闘ダメージの束の外で解決する（負傷効果・死亡効果はそれぞれ別の種別になる）。
       pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
@@ -4872,97 +4972,6 @@ function runBattleCore(state, rng, opts) {
   const allUnits = () => [...(units.p1 || []), ...(units.p2 || [])].filter(Boolean);
   const fieldOrder = u => (u.side === 'p1' ? 0 : 100) + u.slot;
 
-  // 1回の接触に伴う共通処理。数値・状態変更・トリガ発火をここへ集約する。
-  const legacyApplyHit = (source, target, amount, counter, skipSourceEffects, skipTough) => {
-    if (source && target) target._lastDamageSource = source;
-    // 団結：同じ「団結」強化につながる味方へ、強靭適用後のダメージを分散する。
-    // グループは編成側が接続関係から作り、コアはIDの集合だけを参照する。
-    if (!skipSourceEffects && target && amount > 0 && !target._uniteSplit && Array.isArray(target._uniteGroups) && target._uniteGroups.length) {
-      const members = (units[target.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)
-        && Array.isArray(x._uniteGroups) && x._uniteGroups.some(g => target._uniteGroups.includes(g)));
-      if (members.length >= 2) {
-        const distributable = Math.max(0, Number(amount) - coreToughValue(target));
-        const share = Math.floor(distributable / members.length);
-        let remainder = distributable - share * members.length;
-        if (share > 0 || remainder > 0) {
-          let result = { amount: 0, died: false };
-          members.forEach(member => {
-            const part = share + (remainder-- > 0 ? 1 : 0);
-            if (part > 0) {
-              const r = applyHit(source, member, part, counter, true, member === target);
-              result.amount += r.amount || 0; result.died = result.died || !!r.died;
-            }
-          });
-          return result;
-        }
-      }
-    }
-    // マータ：味方が受けるダメージの肩代わり。分け方は coreMataSplit()（本文で決まる）。
-    if (!skipSourceEffects && target && amount >= 2 && !coreHasEffect(target, 'マータ')) {
-      const mata = (units[target.side] || []).find(x => x && x !== target && x.hp > 0
-        && !coreIsSealed(x) && coreHasEffect(x, 'マータ') && (Number(x.shield) || 0) <= 0);
-      if (mata) {
-        const split = coreMataSplit(mata, amount);
-        const primary = applyHit(source, target, split.target, counter, true);
-        const shared = split.redirected > 0 ? applyHit(source, mata, split.redirected, counter) : { amount: 0, died: false };
-        return { amount: primary.amount || 0, died: !!(primary.died || shared.died) };
-      }
-    }
-    if (source && (source._coreAttackContact || counter)
-      && /攻撃はHPではなくATKにダメージを与える/.test(coreUnitTriggerText(source, '攻撃'))) {
-      const damage = Math.min(Math.max(0, Number(target.atk) || 0), Math.max(0, Math.round(Number(amount) || 0)));
-      target.atk = Math.max(0, (Number(target.atk) || 0) - damage);
-      const fled = target.atk <= 0;
-      if (fled) { target.hp = 0; target._fled = true; }
-      emit({ type: 'stat_change', side: target.side, unitId: target.id, atk: -damage, hp: 0, reason: 'attack_to_atk' });
-      emit({ type: 'damage', side: target.side, unitId: target.id, amount: damage, hpAfter: target.hp,
-        sourceId: source.id, counter: !!counter, damageTo: 'atk' });
-      // 逃走はダメージの後（上の実装と同じ順）。
-      if (fled) emit({ type: 'fled', side: target.side, unitId: target.id, sourceId: source.id });
-      return { blocked: false, amount: damage, died: false, fled: !!target._fled };
-    }
-    const before = target && target.hp;
-    const result = coreApplyDamage(target, amount, emit, {
-      sourceId: source && source.id,
-      counter: !!counter,
-      skipTough: !!skipTough,
-    });
-    if (result.blocked && result.reason === 'shield') coreApplyShieldLostEffects(target, state, rng, emit, applyHit);
-    if (result.amount > 0) {
-      coreApplyLuckyRing(target, result.amount, state, emit);
-      if (source && !skipSourceEffects) {
-        const keywordResult = coreApplyKeywordOnHit(source, target, result.amount, before, state, emit);
-        // 即死は通常ダメージイベントを伴わずHPだけが0になるため、再生側にも
-        // 通常の死亡イベントを流して、PvEと同じ死亡確定タイミングに揃える。
-        if (keywordResult && keywordResult.killed) {
-          emit({ type: 'death', side: target.side, unitId: target.id });
-        }
-        if (keywordResult && keywordResult.cursed && source.hp <= 0) {
-          coreTriggerDeath(source, state, emit);
-          coreApplyDeathEffects(source, state, rng, emit, applyHit);
-          coreTryRevive(source, state, emit);
-        }
-      }
-      if (target.hp > 0) coreTriggerManaOnInjury(target, state, emit);
-      if (target.hp > 0) {
-        const repeats = 1 + coreRingCount(state, target.side, '激怒の指輪')
-          + coreExtraTriggerTimes(target, '負傷', coreEffectCount(target, '執念の炎'))
-          // 反復ボーナスは createCoreUnit() が _effectRepeatBonus へ正規化するため、
-        // effectData だけを見ると絆・3枚合体の分がオンラインで落ちる。
-        + Math.max(0, Number(target._effectRepeatBonus) || Number(target.effectData && target.effectData.effectRepeatBonus) || 0);
-        for (let i = 0; i < repeats && target.hp > 0; i++) {
-          coreApplyInjuryEffects(target, result.amount, state, rng, emit, applyHit, source);
-        }
-      }
-    }
-    if (target.hp <= 0) {
-      coreTriggerDeath(target, state, emit);
-      coreApplyDeathEffects(target, state, rng, emit, applyHit);
-      coreApplyDeathObservers(target, state, rng, emit, applyHit);
-      coreTryRevive(target, state, emit);
-    }
-    return result;
-  };
   // 実際の戦闘ループは共通の即時解決入口を使用する。
   // extra：deferTriggers / collect を渡すための追加指定。
   // 「全員にダメージを入れてから、まとめて誘発」する効果がこれを使う。
