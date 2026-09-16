@@ -210,6 +210,9 @@ async function presentStatChangeEvent(ev, api) {
   const target = api.findUnit(ev.side, ev.unitId);
   if (!target) return false;
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
+  // **効果の発光（負傷＝赤など）は、能力変化を見せるこの瞬間に始める。** 発光は次のVFXまで保留する仕組みだが、
+  // グレムリンの「全ての敵はATK-1」のように同期の入口を通るVFXが無い効果では、安全弁の700ms後まで光らず遅れて見えた。
+  if (typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
   // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
   if (typeof api.applyStats === 'function') api.applyStats(target, ev);
   if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);

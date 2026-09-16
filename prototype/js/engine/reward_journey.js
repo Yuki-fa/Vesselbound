@@ -161,7 +161,8 @@ function _syncRewardJourneyUi(options){
         previewText=def.name;
         const artPaths=typeof getCharacterNoArtPath==='function'?getCharacterNoArtPath(def):'';
         const payload={
-          name:def.name,desc:String(def.desc||'').trim(),atk:enemyPreview.atk,hp:enemyPreview.hp,art:artPaths||null,
+          // 召喚・変身先へ「〜を持つX/Xの」の注釈を付ける（カードや戦闘中のホバーと同じ表記）。
+          name:def.name,desc:(typeof _annotateSummonNames==='function'?_annotateSummonNames(String(def.desc||'').trim()):String(def.desc||'').trim()),atk:enemyPreview.atk,hp:enemyPreview.hp,art:artPaths||null,
           // 通常カードと同じく、効果テキストの一番上にキーワードを並べて表示する。
           keywords:[...new Set((def.keywords||[]).map(k=>String(k||'').trim()).filter(Boolean))],
           // 他のカードと同じ見た目（フレーム＋絵柄＋ATK/HP）でmkCardEl()に渡すための情報。

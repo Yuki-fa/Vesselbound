@@ -2731,7 +2731,8 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     result.lockTarget = true;
   }
   if (coreHasEffect(unit, '黄金の瞳"フレイ"')) {
-    coreSummonUnit(state, unit.side, { name: '黒マッドキャット', atk: 1, hp: 2 }, emit, unit.id);
+    // 能力値はシートのマッドキャット（説明文の「2/3の「黒マッドキャット」」と同じ値）。固定値の1/2では表示と食い違っていた。
+    coreSummonUnit(state, unit.side, { name: '黒マッドキャット' }, emit, unit.id);
   }
   const randomTransform = coreTriggerMatch(attackTexts, /ランダムな敵を「([^」]+)」に変身させる/);
   if (randomTransform) {
