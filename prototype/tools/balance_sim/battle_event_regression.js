@@ -82,6 +82,23 @@ function runCrossStateSummonIdScenario() {
   assert.notEqual(summons[0].unit.id, summons[1].unit.id, 'state再生成で召喚IDが衝突している');
 }
 
+function runRunDaughterInjurySummonScenario() {
+  const state = core.createBattleState({
+    sides: {
+      p1: {units: []},
+      p2: {units: [{id: 'run-daughter', name: '波の娘 “ラン・ドーター”', atk: 3, hp: 5, maxHp: 5,
+        desc: '負傷：「黒ケルピー」を2体召喚する。'}]},
+    },
+    summonDefs: [{name: '黒ケルピー', power: 1, life: 3, color: '黒'}],
+  });
+  const events = [];
+  core.coreApplyInjuryEffects(state.units.p2[0], 1, state, createSeededRng(53),
+    event => events.push(event), () => ({amount: 1, died: false}));
+  const summons = events.filter(event => event.type === 'summon');
+  assert.equal(summons.length, 2,
+    '波の娘 “ラン・ドーター”の負傷時に黒ケルピーを2体召喚していない');
+}
+
 function runDeferredManaScenario() {
   const state = core.createBattleState({
     resources: {p1: {mana: 2, gold: 0}, p2: {mana: 0, gold: 0}},
@@ -458,6 +475,7 @@ function main() {
   const coreEvents = runSummonScenario();
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
+  runRunDaughterInjurySummonScenario();
   runDeferredManaScenario();
   runDeferredDeathChainParityScenario();
   runSkeletonKingAndMultiHitScenario();

@@ -5251,7 +5251,7 @@ function _evalMath(desc){
 // キーワードとステータスを添える。
 //   例）「青スケルトン」を召喚し… → 復活を持つ4/1の「青スケルトン」を召喚し…
 // **数値もキーワードもカードの定義（シート）から引く。** 文章へ書き足さないこと。
-function _summonNameAnnotation(name){
+function _summonNameAnnotation(name, owner){
   const wanted=String(name||'').trim();
   if(!wanted) return '';
   const defs=[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),
@@ -5262,19 +5262,25 @@ function _summonNameAnnotation(name){
   if(!def) return '';
   const kws=(def.keywords||[]).map(k=>String(k||'').trim())
     .filter(k=>k&&!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
-  const atk=Number(def.power!=null?def.power:def.atk);
-  const hp=Number(def.life!=null?def.life:def.hp);
+  let atk=Number(def.power!=null?def.power:def.atk);
+  let hp=Number(def.life!=null?def.life:def.hp);
+  // 敵カードの召喚文は、召喚先カードの基礎値ではなく、実戦と同じく
+  // 召喚元（敵）の現在ATK／最大HPの80%を表示する。
+  if(owner&&owner._sheetEnemy&&typeof coreEnemySummonStats==='function'){
+    const actual=coreEnemySummonStats(owner);
+    if(actual){ atk=actual.atk; hp=actual.hp; }
+  }
   const head=kws.length?`${kws.join('・')}を持つ`:'';
   const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';
   return `${head}${stat}`;
 }
 // 「〇〇」を召喚／「〇〇」に変身 の直前へ注釈を差し込む。
 // **その並びの時だけ**にする（「「青レムレース」以外の」のような文には付けない）。
-function _annotateSummonNames(desc){
+function _annotateSummonNames(desc, owner){
   // 中身から「も除く。除かないと入れ子（「死亡：「青スケルトン」を召喚する。」）で
   // 外側を先に掴んでしまい、内側のキャラ名に注釈が付かない（ボーンチャリオット）。
   return String(desc||'').replace(/「([^「」]{1,24})」(?=(?:を\d*体?召喚|に変身))/g,(m,name)=>{
-    const note=_summonNameAnnotation(name);
+    const note=_summonNameAnnotation(name, owner);
     return note?`${note}${m}`:m;
   });
 }
@@ -5287,7 +5293,7 @@ function _rawSubstitutedDesc(card){
     desc=_stripOwnNameFromEffectText(desc,ownName);
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
-  desc=_annotateSummonNames(desc);
+  desc=_annotateSummonNames(desc,card);
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。
   // シートに指定が無いカード（`_mergedFormApplied` が立たない）は、合体しても効果は変わらない。

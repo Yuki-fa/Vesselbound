@@ -1207,7 +1207,12 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
       }
     }
   }
-  if (!opt.skipSourceEffects && amount >= 2 && !coreHasEffect(target, 'マータ')) {
+  // マータの分割は「対象が実際にダメージを受ける」場合だけ行う。
+  // 先に分割すると、結界で本体側の1ダメージが0になっても、余剰分だけが
+  // マータへ飛んでしまう（本体は無傷なのに肩代わりだけ発生する）。
+  const incoming = coreResolveIncomingDamage(target, amount, {skipTough: !!opt.skipTough});
+  if (!opt.skipSourceEffects && amount >= 2 && incoming.amount > 0 && !incoming.blocked
+    && !coreHasEffect(target, 'マータ')) {
     const mata = (units[target.side] || []).find(x => x && x !== target && x.hp > 0
       && !coreIsSealed(x) && coreHasEffect(x, 'マータ') && (Number(x.shield) || 0) <= 0);
     if (mata) {
@@ -1426,7 +1431,12 @@ function coreTriggerAtkGainEffects(target, amount, state, rng, emit, applyHit) {
 }
 
 function coreEffectKey(value) {
-  return String(value || '').replace(/[“”＂]/g, '"').replace(/[‘’]/g, "'").trim();
+  return String(value || '')
+    .replace(/[“”＂]/g, '"').replace(/[‘’]/g, "'")
+    // シート由来の名前には引用符の前後に空白が入る場合がある。
+    // 効果識別子では引用符周辺の空白を意味として扱わない。
+    .replace(/\s*(["'])\s*/g, '$1')
+    .trim();
 }
 function coreUnitEffectNames(unit) {
   const out = new Set([coreEffectKey(unit && unit.name)]);
@@ -1599,6 +1609,17 @@ function coreStealUnit(state, stolen, toSide, emit, sourceId, opts) {
   return true;
 }
 
+// 敵が戦闘中に召喚する体の表示／実戦共通ステータス。召喚元の現在ATK・最大HPの80%を使う。
+const CORE_ENEMY_SUMMON_STAT_RATIO = 0.8;
+function coreEnemySummonStats(source) {
+  if (!source) return null;
+  const baseHp = Number(source.maxHp) || Number(source.hp) || 0;
+  return {
+    atk: Math.max(0, Math.round((Number(source.atk) || 0) * CORE_ENEMY_SUMMON_STAT_RATIO)),
+    hp: Math.max(1, Math.round(baseHp * CORE_ENEMY_SUMMON_STAT_RATIO)),
+  };
+}
+
 function coreSummonUnit(state, side, spec, emit, sourceId) {
   const list = state.units[side] || (state.units[side] = []);
   // 召喚上限は配列長ではなく、生存中の実ユニット数で判定する。
@@ -1643,8 +1664,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   // 敵側の戦闘中召喚は、通常モードと同じく召喚元の現在戦力の80%にする。
   // 召喚元をIDで解決できない指輪由来などは、明示された値をそのまま使う。
   if (side === 'p2' && sourceUnit) {
-    source.atk = Math.max(0, Math.round((Number(sourceUnit.atk) || 0) * 0.8));
-    source.hp = Math.max(1, Math.round((Number(sourceUnit.maxHp || sourceUnit.hp) || 1) * 0.8));
+    const enemyStats = coreEnemySummonStats(sourceUnit);
+    source.atk = enemyStats.atk;
+    source.hp = enemyStats.hp;
     source.maxHp = source.hp;
   }
   // PvEの負傷・マナ効果は呼び出しごとに薄いコアstateを作り直すため、

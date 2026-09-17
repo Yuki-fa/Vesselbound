@@ -5229,14 +5229,8 @@ function _summonPanelUnitToFront(unit, isEnemySide, preferredSlot){
 // （前衛が満杯なら召喚自体を諦める）。
 // 戦闘中に敵（エリート・ボス）がキャラクターを召喚する場合、召喚されたキャラクターの
 // ATK/HPは召喚元自身のステータスの80%とする。HPは被ダメージで揺れないよう最大HPを基準にする。
-const ENEMY_SUMMON_STAT_RATIO=0.8;
 function _enemySummonStats(source){
-  if(!source) return null;
-  const baseHp=Number(source.maxHp)||Number(source.hp)||0;
-  return {
-    atk:Math.max(0,Math.round((Number(source.atk)||0)*ENEMY_SUMMON_STAT_RATIO)),
-    hp:Math.max(1,Math.round(baseHp*ENEMY_SUMMON_STAT_RATIO)),
-  };
+  return typeof coreEnemySummonStats==='function'?coreEnemySummonStats(source):null;
 }
 
 // 前衛の左端／右端へ召喚する（placement:{frontEdge:'left'|'right'}）。

@@ -764,8 +764,8 @@ function renderMoveSlotsInEnemy(){
   if(!el) return;
   el.innerHTML='';
   // デバッグモード：演出確認用の試験戦闘ボタン（報酬/編成フェイズ中のみ表示）
-  // デバッグボタンは4つとも同じ条件（デバッグモード＋編成画面）で出す。
-  ['btn-test-battle','btn-debug-gameover','btn-debug-error','btn-debug-map'].forEach(id=>{
+  // デバッグボタンはデバッグモード＋編成画面の間だけ出す。
+  ['btn-test-battle','btn-debug-gameover','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display=(G._debugMode&&G.phase==='reward')?'':'none';
   });
@@ -2272,6 +2272,14 @@ function _createDragGhost(srcEl){
   // 価格・売却UIは実カード上だけに表示し、ドラッグゴーストには複製しない。
   // ゴーストへ固定pxの価格枠を持ち込むと、ショップカードと魔導板カードで位置・サイズが崩れる。
   d.querySelectorAll('.shop-buy-price,.shop-board-sell-value').forEach(el=>el.remove());
+  // アイテム／指輪のゴーストには、報酬カード共通の外周線を複製しない。
+  // 専用の item_slot.svg / ring_slot.svg だけを枠として残す。
+  if(srcEl.classList.contains('item-visual')||srcEl.classList.contains('ring-visual')){
+    d.classList.remove('card','rew-card','item-offer-card','item-shop-card','forge-card');
+    d.style.removeProperty('--card-frame');
+    d.style.removeProperty('--unit-frame');
+    d.querySelectorAll('.reward-card-line-layer,.reward-card-dim-layer').forEach(el=>el.remove());
+  }
   d.classList.remove('dragging','drag-over','selectable');
   d.classList.add('drag-ghost');
   const scale=1;
@@ -2677,6 +2685,11 @@ function _hideDragSourceParts(el){
   if(!el) return;
   el.classList.add('drag-source-parts-hidden');
   Array.from(el.children||[]).forEach(ch=>_setDragSourceStyle(ch,'opacity','0'));
+  // 所持アイテムの価格・売却表示は、CSSの重要度で opacity を上書きされても
+  // ドラッグ元へ残らないよう、表示自体を隠す（復元時は保存値から戻す）。
+  el.querySelectorAll('.shop-buy-price,.shop-board-sell-value,.shop-pending-sale-ui').forEach(ch=>{
+    _setDragSourceStyle(ch,'display','none');
+  });
   // ドラッグ元には「カード」ではなく、その場所のマス枠だけを残す。
   // character-frame-layer を戻すと、エンチャントの枠画像が元位置に残り、
   // ゴースト側との二重表示になる。

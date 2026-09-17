@@ -26,14 +26,14 @@ function showScreen(id){
   document.body.classList.toggle('library-screen-active',id==='village'&&!!(G&&G._isLibraryMenu));
   if(id!=='reward'){
     document.body.classList.remove('debug-mode');
-    ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map'].forEach(debugId=>{
+    ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
       const debugEl=document.getElementById(debugId);
       if(debugEl) debugEl.style.display='none';
     });
   }
   const battleCutin=document.getElementById('battle-start-intro');
   const hideDebugCutin=!!(battleCutin||document.body.classList.contains('battle-victory-pending'));
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map'].forEach(debugId=>{
+  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl&&hideDebugCutin) debugEl.style.display='none';
   });
@@ -279,23 +279,13 @@ function _positionBelowGold(btn){
 function _positionDebugKillButton(){
   _positionBelowGold(document.getElementById('btn-debug-kill'));
 }
-// ミュートボタン（報酬画面以外はオプションボタンの直下に追従）
+// ミュートボタンはオプションと編成の間へ固定配置する。
 function _positionDebugMuteButton(){
   const btn=document.getElementById('battle-mute-btn');
-  const opt=document.getElementById('battle-options-btn');
-  if(!btn||!opt||btn.style.display==='none') return;
-  const rewardScreen=document.body.classList.contains('reward-screen-active');
+  if(!btn||btn.style.display==='none') return;
   if(typeof isDebugMuted==='function'){
-    btn.textContent=rewardScreen?(isDebugMuted()?'ミュート解除':'ミュート'):(isDebugMuted()?'🔇':'🔊');
-    btn.title=rewardScreen?btn.textContent:'ミュート';
+    btn.textContent=isDebugMuted()?'ミュート解除':'ミュート';
   }
-  // 報酬画面ではCSSの固定座標（マップ確認ボタンと同じ列）を使う。
-  if(rewardScreen) return;
-  if(opt.offsetWidth===0&&opt.offsetHeight===0) return;
-  btn.style.left=opt.offsetLeft+'px';
-  btn.style.top=(opt.offsetTop+opt.offsetHeight+20)+'px';
-  btn.style.width=opt.offsetWidth+'px';
-  btn.style.height=opt.offsetHeight+'px';
 }
 // 編成画面ボタン（デバッグモード中のみ表示・オプションボタンの左に追従）
 function _positionDebugFormationButton(){
@@ -307,6 +297,15 @@ function _positionDebugFormationButton(){
   btn.style.top=(opt.offsetTop+(opt.offsetHeight-62)/2)+'px';
   btn.style.width='262px';
   btn.style.height='62px';
+}
+// デバッグ用ライフ変更（報酬／編成画面のみ表示）。3の次は1へ戻す。
+function debugCycleLife(){
+  if(!G||!G._debugMode) return;
+  const key=G._waveLife==null?'life':'_waveLife';
+  const current=Number(G[key]);
+  const life=Number.isFinite(current)?current:3;
+  G[key]=life>=3?1:life+1;
+  if(typeof updateHUD==='function') updateHUD();
 }
 // マップ確認の入口は編成画面の「マップ確認」ボタン（#btn-debug-map）だけ。
 // マップ表示中の「終了」ボタン（#map-debug-map-btn）で元の画面へ戻る。
@@ -1344,7 +1343,6 @@ function startGame(debugMode,onlineMode){
     // デバッグ試験戦闘の実機計測専用。通常モードでは公開しない。
     window.__vesselboundDebugState=G;
     _giveDebugGolem();
-    G.gold=100000;
     const dbg=document.getElementById('btn-debug-kill');
     if(dbg) dbg.style.display='';
     const muteBtn=document.getElementById('battle-mute-btn');
@@ -1560,7 +1558,7 @@ function gameOver(options){
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map'].forEach(debugId=>{
+  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });
@@ -1862,7 +1860,7 @@ function continueAfterBattleVictory(silent){
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map'].forEach(debugId=>{
+  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });

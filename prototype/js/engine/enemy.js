@@ -179,6 +179,36 @@ function _ensureWaveEnemyPreview(wave,type){
   return preview;
 }
 
+// デバッグ専用：現在ステージのエリート／ボスを、同じグレード帯の次の番号へ進める。
+// プレビューを更新することで、旅の進捗表示と次回の実戦闘の両方を同じ個体にする。
+function debugAdvanceEliteBoss(){
+  if(typeof G==='undefined'||!G||!G._debugMode) return;
+  const wave=Math.max(1,Number(G._wave)||1);
+  G._waveEnemyPreview=G._waveEnemyPreview||{};
+  const chosen=[];
+  const advance=type=>{
+    const preview=_ensureWaveEnemyPreview(wave,type);
+    if(!preview||!preview.def) return;
+    const pool=ENEMY_POOL.filter(e=>e&&e.bossOnly&&e.grade===preview.def.grade);
+    if(!pool.length) return;
+    const currentIndex=Math.max(0,pool.findIndex(e=>e===preview.def||e.name===preview.def.name));
+    let next=pool[(currentIndex+1)%pool.length];
+    // エリートとボスの同一個体回避は通常のプレビュー選定と同じ規則にする。
+    if(chosen.some(e=>e.name===next.name)&&pool.length>1){
+      next=pool[(pool.indexOf(next)+1)%pool.length];
+    }
+    chosen.push(next);
+    preview.def=next;
+    const mult=type==='boss'?2:1.5;
+    const stats=enemyStats(next,preview.floor,mult);
+    preview.atk=stats.atk;
+    preview.hp=stats.hp;
+  };
+  advance('elite');
+  advance('boss');
+  if(typeof _syncRewardJourneyUi==='function') _syncRewardJourneyUi();
+}
+
 function _sideBossDef(def, grade){
   const same=ENEMY_POOL.find(e=>e!==def && !e.bossOnly && !e.unique && !e._isNamed && e.grade===grade && e.name===def.name);
   if(same) return same;

@@ -728,13 +728,11 @@ function toggleDebugMute(){
     if(!l||!l.voice) return;
     _setBgmVoiceVolume(l.voice,_debugMuted?0:Math.max(0,Math.min(1,(BGM_DEFAULT_VOLUMES[l.key]??.5)*SFX_SETTINGS.bgmVolume*SFX_SETTINGS.masterVolume)),0);
   });
-  // 戦闘画面と街画面の両方のミュートボタンを同期する。報酬画面の戦闘ボタンだけ文言にする。
+  // 戦闘画面・街画面・編成画面のミュートボタンを同じ文言で同期する。
   ['battle-mute-btn','village-mute-btn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn){
-      const rewardLabel=id==='battle-mute-btn'&&document.body.classList.contains('reward-screen-active');
-      btn.textContent=rewardLabel?(_debugMuted?'ミュート解除':'ミュート'):( _debugMuted?'🔇':'🔊');
-      btn.title=rewardLabel?btn.textContent:(id==='battle-mute-btn'||id==='village-mute-btn'?'ミュート':'');
+      btn.textContent=_debugMuted?'ミュート解除':'ミュート';
     }
   });
 }

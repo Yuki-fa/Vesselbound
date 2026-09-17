@@ -46,9 +46,10 @@ function _syncRewardProductionItems(){
         _createDragGhost(slot);
         if(_dragGhostDiv) _dragGhostDiv.style.setProperty('--item-art',slot.style.getPropertyValue('--item-art'));
         slot.classList.add('dragging');
+        _hideDragSourceParts(slot);
       });
       slot.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      slot.addEventListener('dragend',()=>{ slot.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
+      slot.addEventListener('dragend',()=>{ _restoreDragSourceParts(slot); slot.classList.remove('dragging'); _removeDragGhost(); _clearDragZoneClass(); _dragSrc=null; });
       slot.addEventListener('dragover',e=>{
         if(_dragSrc&&_dragSrc.arr==='spellSlots'&&_dragSrc.idx!==idx){ e.preventDefault(); slot.classList.add('drag-over'); return; }
         const rewCard=_dragSrc&&_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:null;

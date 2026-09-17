@@ -5,7 +5,7 @@
     <style>
       .st0 {
         isolation: isolate;
-        opacity: .8;
+        opacity: .5;
       }
 
       .st1 {
@@ -22,11 +22,11 @@
         stroke: url(#_名称未設定グラデーション_2);
       }
     </style>
-    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="106" cy="-6153" fx="106" fy="-6153" r="108.3" gradientTransform="translate(0 6184.0059)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション" data-name="名称未設定グラデーション" cx="106" cy="6217" fx="106" fy="6217" r="108.3" gradientTransform="translate(0 6248.0059) scale(1 -1)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#8a5c12"/>
     </radialGradient>
-    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="106" cy="-4160.9" fx="106" fy="-4160.9" r="101.2" gradientTransform="translate(0 -4130) scale(1 -1)" gradientUnits="userSpaceOnUse">
+    <radialGradient id="_名称未設定グラデーション_2" data-name="名称未設定グラデーション 2" cx="106" cy="6320.9" fx="106" fy="6320.9" r="101.2" gradientTransform="translate(0 -6290)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#bf9000"/>
       <stop offset="1" stop-color="#8a5c12"/>
     </radialGradient>

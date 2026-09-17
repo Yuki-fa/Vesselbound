@@ -427,6 +427,21 @@ function main() {
     createSeededRng(20), event => splitEvents.push(event));
   assert.equal(splitState.units.p1[0].hp, 8, 'マータ分散後の本体ダメージが不正');
   assert.equal(splitState.units.p1[2].hp, 8, 'マータ分散先のダメージが不正');
+  const shieldedSplitState = core.createBattleState({
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {p1: {units: [
+      {id: 'shielded-target', name: '結界対象', atk: 1, hp: 10, maxHp: 10, shield: 1},
+      {id: 'shielded-mata', name: '別名のマータ', atk: 1, hp: 10, maxHp: 10,
+        effectData: {effectNames: ['マータ']}},
+    ]}, p2: {units: [{id: 'shielded-attacker', name: '攻撃役', atk: 6, hp: 10, maxHp: 10}]}}});
+  const shieldedSplitEvents = [];
+  core.coreResolveHit(shieldedSplitState, shieldedSplitState.units.p2[0],
+    shieldedSplitState.units.p1[0], 4, false, createSeededRng(20),
+    event => shieldedSplitEvents.push(event));
+  assert.equal(shieldedSplitState.units.p1[0].hp, 10, '結界対象がダメージを受けている');
+  assert.equal(shieldedSplitState.units.p1[1].hp, 10, '結界で0ダメージなのにマータが肩代わりしている');
+  assert.equal(shieldedSplitEvents.filter(e => e.type === 'damage' && e.amount > 0).length, 0,
+    '結界で無効化された攻撃に実ダメージイベントがある');
   const uniteState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
     sides: {p1: {units: [

@@ -1005,7 +1005,7 @@ function renderVillageScreen(){
   const mute=document.getElementById('village-mute-btn');
   if(mute){
     mute.style.display=(G&&G._debugMode)?'block':'none';
-    mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'🔇':'🔊';
+    mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'ミュート解除':'ミュート';
     mute.onclick=()=>{ if(typeof toggleDebugMute==='function') toggleDebugMute(); };
   }
   // デバッグモードでは、オプションボタンの左に編成画面を開くボタンを出す。
@@ -2018,7 +2018,14 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   const target=(typeof runKeyedPick==='function')
     ?runKeyedPick(`forge:${G._wave}:${G._waveStage}:${power.id}`,candidates)
     :randFrom(candidates);
+  const offerIdx=(G._mapForgeOffers||[]).findIndex(p=>p&&p.id===power.id);
   G.gold-=power.price;
+  // 購入成立と同時に商品枠を売切へする。代金反映後の再描画で一瞬だけ
+  // 「ゴールド不足」が出てから売切へ変わる状態を作らない。
+  if(offerIdx>=0) G._mapForgeOffers[offerIdx]=null;
+  const wk=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
+  G._waveForgeOffers=G._waveForgeOffers||{};
+  G._waveForgeOffers[wk]=clone(G._mapForgeOffers||[]);
   G._pendingMapForgePower=power;
   G._mapForgeAnimating=true;
   // 候補マスの一斉発光は廃止（_playMapForgeSlotRoll側で対象1マスのみ光らせる）。
@@ -2029,12 +2036,7 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   await _playMapForgeSlotRoll(candidates,target,power);
   G.mapPanelPowers=G.mapPanelPowers||{};
   G.mapPanelPowers[target]=power.id;
-  const offerIdx=(G._mapForgeOffers||[]).findIndex(p=>p&&p.id===power.id);
-  if(offerIdx>=0) G._mapForgeOffers[offerIdx]=null;
-  // 同じwave内で再訪しても「売切」が保たれるよう、waveキャッシュにも書き戻す。
-  const wk=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
-  G._waveForgeOffers=G._waveForgeOffers||{};
-  G._waveForgeOffers[wk]=clone(G._mapForgeOffers||[]);
+  // 商品枠とwaveキャッシュは購入成立時点で既に売切へ更新済み。
   G._pendingMapForgePower=null;
   if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
   else {
