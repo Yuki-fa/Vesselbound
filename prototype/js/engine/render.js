@@ -304,8 +304,20 @@ function _injectManaIcons(escapedText){
   };
   const bloodPath=typeof Assets!=='undefined'&&Assets.cards&&Assets.cards.blood||'assets/cards/blood.png';
   const bloodIcon=`<img class="desc-mana-icon desc-blood-icon" src="${bloodPath}" alt="血">`;
+  // 色の字を含む「名前」はアイコン化しない。指輪名（「緑の瞳の指輪」「黄金の指輪」等）と
+  // 「赤い瞳」は色の指定ではなく固有名詞なので、文字のまま残す（利用者指定 2026-09-22）。
+  // 指輪名は RING_POOL から引くので、シートへ指輪を足せばそのまま守られる。
   const eyeNames=[];
-  const protectEyeNames=text=>String(text).replace(/[赤青緑黄紫]い瞳/g,name=>{
+  const _protectedNamePatterns=()=>{
+    const names=(typeof RING_POOL!=='undefined'&&Array.isArray(RING_POOL)?RING_POOL:[])
+      .map(r=>String(r&&r.name||'').trim())
+      .filter(n=>n&&/[赤青緑黄紫黒]/.test(n))
+      .sort((a,b)=>b.length-a.length)
+      .map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+    // 指輪表に無い言い回しも守る：「赤の指輪」のように色＋「の指輪」と続く形と、「黄金」。
+    return new RegExp(`(?:${[...names,'[赤青緑黄紫黒]の指輪','黄金','[赤青緑黄紫]い瞳'].join('|')})`,'g');
+  };
+  const protectEyeNames=text=>String(text).replace(_protectedNamePatterns(),name=>{
     const token=`__EYE_NAME_${eyeNames.length}__`;
     eyeNames.push(name);
     return token;
@@ -1644,7 +1656,7 @@ function playUnitDeathBurn(unit,side){
 // 波打ちで見せるはずの死に方が全部「焼失」になっていた。
 function _playUnitDeathCardFx(unit,node,rect,sourceSize){
   const drained=!!(unit&&unit._deathByStatDrain);
-  if(unit) delete unit._deathByStatDrain;
+  if(unit){ delete unit._deathByStatDrain; delete unit._deathWithoutEvent; }
   if(drained){
     playCardWaveAway(node,rect,sourceSize);
     // ATKが0で場を去る時の「FLED」と対になる表示。
@@ -4196,6 +4208,27 @@ function _stripOwnNameFromEffectText(text, name){
 }
 
 const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','即死','先制','防戦','帰滅','隠密','貫通','結界','生命吸収','封印','荷物']);
+// 強化・エンチャントカードの「キーワード：〜」欄に出す語の唯一の実装。
+// 魔導板・報酬画面・コレクションはすべてこれを呼ぶ（同じカードが画面ごとに違う欄を出さないため）。
+// 出すのはシート「キーワード」列（adjacentKeywords）と、カード自身が持つ「荷物」だけ。
+// **効果文に出てくる語は拾わない。** 「衝撃波（攻撃：全ての敵に弱体1を与える）」の弱体1や、
+// 「栄光の歌」の結界1は相手や味方に与えるものであって、そのカードのキーワードではない。
+// カード名と同じ語は、単純キーワード付与パネル（_ENCHANT_KEYWORD_ONLY）と
+// 数値付きの結界／封印／毒／邪眼／衝撃だけ残す（「狂気」等の自己参照マーカーは落とす）。
+function _enchantPreviewKeywords(card){
+  if(!card) return [];
+  const internal=typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'?_INTERNAL_ONLY_ENCHANT_NAMES:new Set();
+  const ownName=String(card.name||'').trim();
+  return [...new Set([
+    ...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),
+    ...(card.adjacentKeywords||[]),
+  ].map(k=>String(k||'').trim()).filter(Boolean))].filter(k=>{
+    if(internal.has(k)) return false;
+    if(k!==ownName) return true;
+    return _ENCHANT_KEYWORD_ONLY.has(k)||/^結界\d+$/.test(k)||/^封印\d+$/.test(k)
+      ||/^毒牙?\d*$/.test(k)||/^邪眼\d*$/.test(k)||/^衝撃\d*$/.test(k);
+  });
+}
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
@@ -4683,7 +4716,7 @@ function renderField(id,units,isEnemy,_lane){
   // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
   // （＝何もない場所）へ出てしまう。
   const _onBoard=x=>!!x.u&&!_stealAwaitingMove(x.u)
-    &&(_visualHp(x.u)>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
+    &&(_visualHp(x.u)>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&!x.u._deathWithoutEvent&&dyingIds.has(String(x.u.id))));
   const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
   const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
   const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
@@ -4767,8 +4800,10 @@ function renderField(id,units,isEnemy,_lane){
     // イベント再生中にHPが0になった体は、死亡演出を行うまでカードを残す。
     // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
     // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
-    const _pendingDeath=!!(u&&_visualHp(u)<=0&&u.id!=null&&!u._deathFxReady&&dyingIds.has(String(u.id))
-      &&_keepDying);
+    // **来ない死亡イベントを待たない。** _deathWithoutEvent が立っている体は
+    // 戦闘修正で倒れた体なので、その場で消え方（青い波打ち）を見せる。
+    const _pendingDeath=!!(u&&_visualHp(u)<=0&&u.id!=null&&!u._deathFxReady&&!u._deathWithoutEvent
+      &&dyingIds.has(String(u.id))&&_keepDying);
     const _alive=!!u&&(_visualHp(u)>0||_pendingDeath);
     const slot=document.createElement('div');
     slot.className='slot'+(isEnemy?' enemy':'');
@@ -5421,14 +5456,8 @@ function mkCardEl(card,_idx,_ctx){
     // 既にアイコンが埋め込まれたdynDesc（computeDesc結果）ではなく生のcard.descを使う。
     // 本文が空でもシート「キーワード」列（adjacentKeywords）があれば、隣接キャラクターに付与する
     // キーワードとして「キーワード：〇〇」行を合成する（敵/キャラクターと同じ表示規則）。
-    // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
-    // このカード自身のキーワード欄プレビューからも除外する
-    const _adjKws=[...new Set([...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),...(card.adjacentKeywords||[])])].filter(k=>{
-      const s=String(k||'').trim();
-      if(_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
-      if(s===String(card.name||'')&&!_ENCHANT_KEYWORD_ONLY.has(s)&&!/^結界\d+$/.test(s)&&!/^封印\d+$/.test(s)&&!/^毒牙?\d*$/.test(s)&&!/^邪眼\d*$/.test(s)&&!/^衝撃\d*$/.test(s)) return false;
-      return true;
-    });
+    // キーワード欄の中身は _enchantPreviewKeywords() が唯一の実装。
+    const _adjKws=_enchantPreviewKeywords(card);
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
     const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card).replace(/^荷物(?=\s|$)\s*/,'');
     const _panelDescForPreview=card.name==='封印されしもの'

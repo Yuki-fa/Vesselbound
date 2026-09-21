@@ -2113,7 +2113,13 @@ async function startBattle(){
   {
     // ステージごとの明示指定（_sceneEnemyCount）で数と前後衛が確定している場合は、
     // 序盤の間引き・水増し・自動レーン配置をすべて行わない。
-    const _laneFixed=fixedTestBattle?false:!!G._enemyLaneFixed;
+    // **既に確定した敵をそのまま使う経路（再戦のスナップショット／セーブからの復帰）では、
+    // 間引き・水増し・レーン再配置を一切行わない。**
+    // 数と前後衛の抑止は generateEnemies() が立てる G._enemyLaneFixed に依存しているが、
+    // この2経路は generateEnemies() を通らないため旗が立たず、下の水増しが働いていた。
+    // 実例：ステージ1の2戦目（2体）で敗北して再戦すると、同じ敵が4体へ増えていた。
+    const _enemiesAlreadyFixed=!!savedBattle||reuseWaveEnemies;
+    const _laneFixed=fixedTestBattle?false:(!!G._enemyLaneFixed||_enemiesAlreadyFixed);
     G._enemyLaneFixed=false;
     const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
     const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
@@ -5042,6 +5048,7 @@ function _reviveWithHalvedStats(unit,isEnemySide){
   if(state._revivalRingUsed) G._revivalRingUsed=true;
   delete unit._deathFxDone;
   delete unit._deathFxReady;
+  delete unit._deathWithoutEvent;
   if(reason==='復活'){
     unit._panelSummoned=true;
     _afterPanelSummon(unit,isEnemySide);

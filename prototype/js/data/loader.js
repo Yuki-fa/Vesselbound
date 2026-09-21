@@ -1091,12 +1091,30 @@ async function loadGameData() {
     const itemRows = _parseCSVWithHeader(it || '名前\n', ['No.', '名前']);
     const ringRows = _parseCSVWithHeader(rt || '名前\n', ['No.', '名前']);
     if(itemRows.length){
+      const _addedSheetItems=[];
       itemRows.forEach(row=>{
         const name=String(row['名前']||'').trim();
         const no=String(row['No.']||row['No']||'').trim();
         if(!name&&!no) return;
-        (ITEM_POOL||[]).filter(item=>(name&&String(item.name||'').trim()===name)||(no&&String(item.no||'').trim()===no))
-          .forEach(item=>{
+        let matched=(ITEM_POOL||[]).filter(item=>(name&&String(item.name||'').trim()===name)||(no&&String(item.no||'').trim()===no));
+        // シートに増えた行はコード側の一覧（pool.js の ITEM_POOL）に無いので、ここで作る。
+        // これをしないと、シートへアイテムを1行足してもコレクションにも店にも一切出ない。
+        // ただしアイテムの効果は itemEffectKey ごとにコードで実装するものなので、
+        // 実装が無いものは入手・購入の抽選から外し（_noItemEffectImpl）、コレクションにだけ出す。
+        if(!matched.length&&name&&String(name).toLowerCase()!=='false'){
+          const digits=(no.match(/\d+/)||[])[0];
+          if(digits){
+            const num=String(parseInt(digits,10)).padStart(3,'0');
+            const added={id:`item_sheet_I${num}`,no:num,name,
+              rarity:Math.max(1,Number(row['レアリティ'])||1),grade:Math.max(1,Number(row['グレード'])||1),
+              type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'',
+              art:`assets/art/item/I${num}.jpg`,desc:'',_noItemEffectImpl:true};
+            ITEM_POOL.push(added);
+            matched=[added];
+            _addedSheetItems.push(`${name}(I${num})`);
+          }
+        }
+        matched.forEach(item=>{
             if(Object.prototype.hasOwnProperty.call(row,'実装')) item._implemented=_truthySheet(row['実装']);
             if(Object.prototype.hasOwnProperty.call(row,'ショップ')) {
               item._shopAvailable=_truthySheet(row['ショップ']);
@@ -1109,6 +1127,11 @@ async function loadGameData() {
       // ゲーム仕様では黄金の巻物は所持金を2倍にする（シート側の旧1.5倍表記を補正）。
       const goldenScroll=(ITEM_POOL||[]).find(item=>item&&item.name==='黄金の巻物');
       if(goldenScroll) goldenScroll.desc='所持金を2倍にする。';
+      if(_addedSheetItems.length){
+        console.warn(`[Vesselbound] シートだけにあるアイテム：${_addedSheetItems.join(' / ')}。`
+          +'コレクションには出るが、itemEffectKey の実装が無いので入手・購入の抽選には入らない。'
+          +'効果を実装したら pool.js の ITEM_POOL へ itemEffectKey 付きで追加すること。');
+      }
     }
     // 指輪シートは「実装」列が明示的にTRUE/✓等の場合のみ採用する（空欄のドラフト行を
     // 「未指定＝実装済み」として拾ってしまう_rowImplementedの既定動作とは別扱いにする）。

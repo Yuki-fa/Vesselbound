@@ -24,8 +24,6 @@
 指示がない限り、`AGENTS.md` `CLAUDE.md` `docs/` `prototype/` のみを読み書き・参照対象とする。
 `画像素材/` `資料/` `old_build/` などにはユーザーから明示的に指示がない限りアクセスしない。
 
-SE選定・実装時のみ `docs/SOUND_EFFECT_RULES.md` を読むこと。SEに関係しない改修では読まない。
-
 ### Claude / Codex の役割
 
 Claudeが司令塔、Codexが実装担当。委譲の主目的は**Claudeのコンテキスト消費の節約**であり、委譲自体は必須ではない。

@@ -140,7 +140,7 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
 
 シートの列はヘッダー名で読む。カードの効果文、マナ順位、VFX/SE、アート番号などを変更したときは、現行データの内蔵フォールバックも更新する必要がある。カード絵の番号解決は `prototype/assets.js: getCharacterNoArtPath()`、素材の効果参照は `prototype/assets.js: getCharacterEffectVfxPath()` が担当する。
 
-カード名をキーワードとして扱わない。効果文を持つ強化カード名は効果の識別子であり、素のキーワードとは区別する。この一覧と判定は `prototype/js/battle/core.js: coreUnitKeywords()` などコア側の規則に従う。新しいカードや効果の追加時は、AGENTS.mdのカード追加手順・キーワード一覧・オンライン受け渡し規則を必ず確認する。
+カード名をキーワードとして扱わない。効果文を持つ強化カード名は効果の識別子であり、素のキーワードとは区別する。この一覧と判定は `prototype/js/battle/core.js: coreUnitKeywords()` などコア側の規則に従う。新しいカードや効果の追加時は、AGENTS.md の「キーワードとカード名」「実装境界」を確認する。
 
 ## 更新時の確認先
 

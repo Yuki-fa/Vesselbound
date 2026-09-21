@@ -42,6 +42,7 @@ const Assets = {
     blackOrb: 'assets/cards/black_orb.png',
     manaOrb: 'assets/cards/mana.png',
     blood: 'assets/cards/blood.png',
+    collectionBoard: 'assets/cards/c_board.svg',
   },
   backgrounds: {
     title: 'assets/art/backgrounds/title_castle.png',
@@ -175,6 +176,12 @@ const Assets = {
     mark: 'assets/ui/mark.svg',
     reward: 'assets/ui/reward.svg',
     ringSlot: 'assets/ui/ring_slot.svg',
+    collection: 'assets/ui/collection.svg',
+    collectionLine: 'assets/ui/collection_line.svg',
+    collectionThumb: 'assets/ui/thumb_blue.svg',
+    collectionTrack: 'assets/ui/track.svg',
+    collectionArrow: 'assets/ui/option_select.svg',
+    collectionTab: 'assets/ui/button_invisible.svg',
   },
   mapBoard: {
     summon: 'assets/cards/m_board1.svg',

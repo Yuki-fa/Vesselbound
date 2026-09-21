@@ -24,6 +24,8 @@ function showScreen(id){
   // 街（村）専用画面のCSSスコープ。編成画面のボタン等の複製ルールがこのクラスに依存する。
   document.body.classList.toggle('village-screen-active',id==='village');
   document.body.classList.toggle('library-screen-active',id==='village'&&!!(G&&G._isLibraryMenu));
+  // マップ確認の「終了」ボタンは、マップ画面を離れたら必ず消す。
+  if(id!=='map'&&typeof _setDebugMapButtonVisible==='function') _setDebugMapButtonVisible(false);
   if(id!=='reward'){
     document.body.classList.remove('debug-mode');
     ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
@@ -311,7 +313,12 @@ function debugCycleLife(){
 // マップ表示中の「終了」ボタン（#map-debug-map-btn）で元の画面へ戻る。
 function _setDebugMapButtonVisible(visible){
   const btn=document.getElementById('map-debug-map-btn');
-  if(btn) btn.style.display=visible?'':'none';
+  if(!btn) return;
+  // **クラスで絞ること。** このボタンのCSSは display:block!important を持つので、
+  // インラインの display:none では消えない（通常プレイのマップにも「終了」が出ていた）。
+  // body.debug-mode は編成画面以外で外れるため、マップ画面では判定に使えない。
+  btn.classList.toggle('is-debug-map-open',!!visible);
+  btn.style.display=visible?'':'none';
 }
 function debugToggleMapLoop(){
   if(typeof G==='undefined'||!G||!G._debugMode) return;

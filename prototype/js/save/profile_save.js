@@ -64,6 +64,18 @@ const SaveProfile=(()=>{
       for(const card of G[name]||[]) if(card) mark(card,true);
     }
   }
+  // コレクション画面用の読み取り専用API。
+  // 未発見カードを表示しても、ここで seen に書き換えない。
+  function collectionState(card){
+    const ref=identity(card);
+    if(!ref) return {seen:false,acquired:false};
+    const saved=load()[ref.group][ref.id];
+    return {seen:!!saved?.seen,acquired:!!saved?.acquired};
+  }
+  function resetCache(){
+    profile=null;dirty=false;blocked=false;
+    return load();
+  }
   function observe(element,card){
     if(!enabled()) return;
     const runId=G._runId;
@@ -100,7 +112,7 @@ const SaveProfile=(()=>{
     p.openingMovieShown=true;dirty=true;
     return flush(true);
   }
-  return {validate,load,flush,enabled,identity,owned,observe,finish,openingMovieShown,markOpeningMovieShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
+  return {validate,load,flush,enabled,identity,owned,observe,finish,collectionState,resetCache,openingMovieShown,markOpeningMovieShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
 })();
 function markCardSeen(cardId){return SaveProfile.markCardSeen(cardId);}
 function markCardAcquired(cardId){return SaveProfile.markCardAcquired(cardId);}

@@ -4069,7 +4069,8 @@ function coreTriggerBattleEnd(state, emit, rng) {
 // 表示の据え置き（_display*）を消すと、開戦のマナ効果（炎の矢）の演出開始時にHP表示が最終値へ飛び、
 // 死亡演出を始めた印（_deathFx*）を戻すと、倒れた体が盤面に描き直されていた（利用者報告：ボス戦）。
 const CORE_PRESENTATION_ONLY_KEYS = new Set(['_corePendingSummon',
-  '_displayAtk', '_displayHp', '_displayMaxHp', '_displayShield', '_deathFxReady', '_deathFxStarted']);
+  '_displayAtk', '_displayHp', '_displayMaxHp', '_displayShield', '_deathFxReady', '_deathFxStarted',
+  '_deathWithoutEvent']);
 
 function coreSnapshotDeferredState(state) {
   const units = {};

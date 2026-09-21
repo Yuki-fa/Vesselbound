@@ -52,6 +52,7 @@ function _optionApply(v){
     if(typeof applySheetDomTitles==='function')applySheetDomTitles();
     if(typeof applySheetCssTexts==='function')applySheetCssTexts();
     if(typeof applyStatusTooltips==='function')applyStatusTooltips();
+    if(typeof applyCollectionTexts==='function')applyCollectionTexts();
   }
   if(typeof G!=='undefined'&&G)G._optionsDisplayMode=_optionDraft.mode;
   if(_optionDraft.mode===4){const p=document.documentElement.requestFullscreen?.();p?.catch(()=>{});}else if(document.fullscreenElement){const p=document.exitFullscreen?.();p?.catch(()=>{});}
@@ -109,10 +110,15 @@ function _optionClose(restore){
 }
 function _optionChoice(kind,dir){const choices=_optionChoices[kind],current=kind==='speed'?(_optionDraft.speed==='fast'?1:0):_optionDraft[kind]-1,next=Math.max(0,Math.min(choices.length-1,current+dir));if(next===current)return;if(kind==='speed')_optionDraft.speed=next?'fast':'normal';else _optionDraft[kind]=next+1;_optionApply(_optionDraft);playSfx?.('select',{group:'ui',guardKey:`ui:option:${kind}`});_optionRender();}
 function _optionConfirm(kind){if(_optionIsRunLocked())return;_optionDeleteKind=kind;const label=_optionLabels[kind==='run'?'runConfirm':'profileConfirm'];document.getElementById('options-confirm-message').textContent=_optionText(label[0],label[1]);document.getElementById('options-confirm-layer').classList.add('is-open');}
-function _optionDelete(){if(_optionDeleteKind==='run')SaveRun?.deleteRunSave();else{SaveStorage?.remove('profile');try{localStorage.removeItem(OPTION_STORAGE_KEY);}catch(e){}_optionSaved={...OPTION_DEFAULTS};_optionApply(_optionSaved);}document.getElementById('options-confirm-layer').classList.remove('is-open');_optionDeleteKind=null;_optionRender();playSfx?.('uiConfirm',{group:'ui',guardKey:'ui:option-delete'});}
+function _optionDelete(){if(_optionDeleteKind==='run')SaveRun?.deleteRunSave();else{SaveStorage?.remove('profile');SaveProfile?.resetCache?.();try{localStorage.removeItem(OPTION_STORAGE_KEY);}catch(e){}_optionSaved={...OPTION_DEFAULTS};_optionApply(_optionSaved);}document.getElementById('options-confirm-layer').classList.remove('is-open');_optionDeleteKind=null;_optionRender();playSfx?.('uiConfirm',{group:'ui',guardKey:'ui:option-delete'});}
 function _optionSave(){_optionSaved={..._optionDraft};_optionWrite(_optionSaved);_optionSfx('uiConfirm');_optionRender();}
 function _optionReturnTitle(){
-  if(document.getElementById('scr-title')?.classList.contains('active')){_optionClose(true);return;}
+  // タイトルが active なら既にタイトルなので、オプションを閉じるだけでよい。
+  // ただしコレクションはタイトルの上に重なる層なので、閉じないと「効かない」ように見える。
+  if(document.getElementById('scr-title')?.classList.contains('active')){
+    if(typeof closeCollection==='function'&&document.body.classList.contains('collection-open')) closeCollection();
+    _optionClose(true);return;
+  }
   // タイトルへ戻る前に、戦闘の非同期処理と演出を同じ既存経路で打ち切る。
   // abortBattleForDebug() は名前に反して、走っている戦闘を即時停止する唯一の実装。
   const g=typeof G!=='undefined'&&G?G:null;
@@ -151,11 +157,17 @@ function _optionReturnTitle(){
 // 混ぜると端の近くで値が張り付き、だいぶ動かさないと動かなかった。
 function _optionSliderValue(box,e,grab){const r=box.querySelector('.track').getBoundingClientRect();if(!(r.width>0))return Number(_optionDraft[box.dataset.slider])||0;return Math.round(Math.max(0,Math.min(1,(e.clientX-(grab||0)-r.left)/r.width))*100);}
 function _optionWireSlider(box){
-  const hit=box.querySelector('.slider-hit');let start=0,changed=false,grab=0;
+  const hit=box.querySelector('.slider-hit'),thumb=box.querySelector('.thumb');let start=0,changed=false,grab=0;
   const update=e=>{const n=_optionSliderValue(box,e,grab);if(n!==_optionDraft[box.dataset.slider]){changed=true;_optionDraft[box.dataset.slider]=n;_optionApply(_optionDraft);_optionRender();}};
-  hit.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();start=Number(_optionDraft[box.dataset.slider])||0;changed=false;const t=box.querySelector('.thumb').getBoundingClientRect(),tc=t.left+t.width/2;grab=Math.abs(e.clientX-tc)<=t.width/2?e.clientX-tc:0;hit.setPointerCapture?.(e.pointerId);update(e);});
-  hit.addEventListener('pointermove',e=>{if(hit.hasPointerCapture?.(e.pointerId))update(e);});
-  hit.addEventListener('pointerup',e=>{if(hit.hasPointerCapture?.(e.pointerId))hit.releasePointerCapture(e.pointerId);if(changed)playSfx?.('uiConfirm',{group:'ui',guardKey:`ui:option-slider:${box.dataset.slider}`,guardMs:0});});
+  const begin=e=>{const handle=e.currentTarget;e.preventDefault();e.stopPropagation();start=Number(_optionDraft[box.dataset.slider])||0;changed=false;const t=thumb.getBoundingClientRect(),tc=t.left+t.width/2;grab=Math.abs(e.clientX-tc)<=t.width/2?e.clientX-tc:0;handle.setPointerCapture?.(e.pointerId);update(e);};
+  const move=e=>{const handle=e.currentTarget;if(handle.hasPointerCapture?.(e.pointerId))update(e);};
+  const end=e=>{const handle=e.currentTarget;if(handle.hasPointerCapture?.(e.pointerId))handle.releasePointerCapture(e.pointerId);if(changed)playSfx?.('uiConfirm',{group:'ui',guardKey:`ui:option-slider:${box.dataset.slider}`,guardMs:0});changed=false;};
+  [hit,thumb].filter(Boolean).forEach(handle=>{
+    handle.addEventListener('pointerdown',begin);
+    handle.addEventListener('pointermove',move);
+    handle.addEventListener('pointerup',end);
+    handle.addEventListener('pointercancel',end);
+  });
 }
 document.addEventListener('DOMContentLoaded',()=>{
   _optionSaved=_optionRead();_optionApply(_optionSaved);

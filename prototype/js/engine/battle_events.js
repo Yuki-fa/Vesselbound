@@ -172,6 +172,26 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     if(byDamage) delete u._deathByStatDrain;
     else if(Number(u.hp)<=0) u._deathByStatDrain=true;
   });
+  // **死亡イベントが来ない消滅**（戦闘修正でHPが0になった体）へ印を付ける。
+  // renderField() は死亡イベントが再生されるまでカードを残すが、コアは戦闘修正で
+  // 倒れた体に death を出さない。来ないイベントを待つ間にカードごと消えてしまい、
+  // 衰弱の演出（青い波打ち＋WASTED）が一度も出なかった（利用者報告 2026-09-22）。
+  // 逃走（fled）は専用の演出で消すので対象から外す。
+  {
+    const eventedIds=new Set();
+    (events||[]).forEach(e=>{
+      if(!e||e.unitId==null) return;
+      if(e.type==='death'||e.type==='fled') eventedIds.add(`${e.side}:${e.unitId}`);
+    });
+    (events||[]).forEach(e=>{
+      if(!e||e.unitId==null) return;
+      if(!(e.type==='stat_change'&&Number(e.hp)<0)) return;
+      const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(!u||Number(u.hp)>0) return;
+      if(eventedIds.has(`${e.side}:${e.unitId}`)) delete u._deathWithoutEvent;
+      else u._deathWithoutEvent=true;
+    });
+  }
   // **これから解放される封印キャラは、演出が届くまで暗転を保つ。**
   // コアは計算の時点で `_sealed` を落としてしまうので、この時点では既に
   // 解放済みの状態になっている。そのまま描くと、画面ではまだ味方が生きているのに
@@ -678,6 +698,16 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='stat_change'){
+      // **戦闘修正でHPが0になった体は、ここで消え方を見せる。**
+      // コアは death を出さないので、待っていると演出のないままカードが消える
+      // （複数体が同時に逃走・衰弱した時に衰弱の演出が出なかった。利用者報告 2026-09-22）。
+      // カードは開戦の据え置き（presentHoldShown）で画面に残っているうちに焼く。
+      const _showWither=(unit,side)=>{
+        if(!unit||!unit._deathWithoutEvent||unit._deathFxDone) return;
+        if(Number(unit.hp)>0) return;
+        if(typeof presentShownHp==='function'&&presentShownHp(unit)>0) return;
+        if(typeof playUnitDeathBurn==='function') playUnitDeathBurn(unit,side==='p1'?'ally':'enemy');
+      };
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // どの理由で固有VFXを出すかは present.js。ここへ規則を書き戻さないこと。
       if(!presentStatChangeVfxAllowed(e)){
@@ -690,6 +720,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
             maxHp:Math.max(1,presentShownMaxHp(only)+(Number(e.maxHp!==undefined?e.maxHp:e.hp)||0)),
           });
           if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(only,e.side==='p1'?'ally':'enemy');
+          _showWither(only,e.side);
         }
         continue;
       }
@@ -713,6 +744,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         && typeof _getPartyBoardUnit === 'function') {
         persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
       }
+      _showWither(findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId)),e.side);
       continue;
     }
     if(e.type==='summon'&&e.unit){

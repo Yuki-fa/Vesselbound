@@ -9423,6 +9423,8 @@ html body.gameover-active.right-card-peek.dragging-in-battle #gameover-board-gri
 html body.gameover-active.right-card-peek .drag-ghost{display:none!important}
 
 /* デバッグボタンは報酬カード枠の右側かつ、デバッグカード枠の外側上部に置く。
+   マップの「終了」（#map-debug-map-btn）は body.debug-mode がマップ画面では外れているので、
+   デバッグのマップ確認中だけ付く .is-debug-map-open で絞る（無いと通常プレイでも出る）。
    上からエラー確認／マップ確認、ライフ変更／ゲームオーバー確認、試験戦闘／エリート・ボス変更。 */
 html body.reward-screen-active.debug-mode #btn-test-battle,
 html body.reward-screen-active.debug-mode #btn-debug-gameover,
@@ -9430,7 +9432,7 @@ html body.reward-screen-active.debug-mode #btn-debug-error,
 html body.reward-screen-active.debug-mode #btn-debug-map,
 html body.reward-screen-active.debug-mode #btn-debug-life-plus,
 html body.reward-screen-active.debug-mode #btn-debug-elite-boss,
-html body #scr-map.active #map-debug-map-btn{
+html body #scr-map.active #map-debug-map-btn.is-debug-map-open{
   position:absolute!important;top:524.737px!important;width:492.972px!important;height:121.263px!important;
   z-index:28!important;font-family:var(--font-hd)!important;font-size:44px!important;font-weight:600!important;white-space:nowrap!important;opacity:1!important;border:0!important;border-radius:0!important;
   background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat!important;
@@ -9443,7 +9445,10 @@ html body.reward-screen-active.debug-mode #btn-test-battle{left:2749px!important
 html body.reward-screen-active.debug-mode #btn-debug-map,
 html body.reward-screen-active.debug-mode #btn-debug-gameover,
 html body.reward-screen-active.debug-mode #btn-debug-elite-boss,
-html body #scr-map.active #map-debug-map-btn{left:3277.028px!important}
+html body #scr-map.active #map-debug-map-btn.is-debug-map-open{left:3277.028px!important}
+/* マップの「終了」は「マップ確認」と同じ位置に置く（利用者指定）。
+   上のまとめ規則が下段の 524.737px を当てるので、ここで上段へ戻す。 */
+html body #scr-map.active #map-debug-map-btn.is-debug-map-open{top:212.211px!important}
 html body.reward-screen-active.debug-mode #btn-debug-error,
 html body.reward-screen-active.debug-mode #btn-debug-map{top:212.211px!important}
 html body.reward-screen-active.debug-mode #btn-debug-life-plus,
@@ -11453,7 +11458,11 @@ body.run-resume-active #battle-options-btn{display:none!important}
 </style>
 <style>
 /* OPTIONS: 3840x2160設計座標。既存の.screenと同じ縮尺枠に載せる。 */
-#options-layer{display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;z-index:4050;font-family:"Shippori Mincho",serif;color:#f4e7c8}
+/* オプションは押したら必ず最前面。ゲームオーバー／クリアの結果画面
+   （#scr-gameover.gameover-overlay-active＝9000）やマッチング待機（9000）、
+   村の暗転（99000）、商店の確認（100200）、再開の確認（200000）より上に出す。
+   進行不能エラー（#fatal-error-overlay＝2147483000）だけは、これより上のまま。 */
+#options-layer{display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;z-index:2000000;font-family:"Shippori Mincho",serif;color:#f4e7c8}
 #options-layer.is-open{display:block}
 #options-shade{position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:0}
 #options-close-proxy{position:absolute;right:96px;top:58px;width:112px;height:112px;border:0;border-radius:0;background:url("assets/ui/option_close.svg") center/42px 42px no-repeat,url("assets/ui/button_option.svg") center/100% 100% no-repeat;background-color:transparent;z-index:4;cursor:var(--cursor-normal);box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)}
@@ -11464,24 +11473,26 @@ body.run-resume-active #battle-options-btn{display:none!important}
 .options-heading,.options-item{position:absolute;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,.85);white-space:nowrap}
 .options-heading{left:108px;font-size:40px;font-weight:700}
 .options-item{left:208px;font-size:40px}
-.options-line{position:absolute;left:105px;width:1800px;height:2px}
+.options-line{position:absolute;left:105px;width:1800px;height:4px}
 .options-line.item{left:205px;width:1600px}
 .options-current-title{position:absolute;left:1450px;top:108px;width:346px;text-align:center;font-size:28px;color:var(--prod-gold)}
 .options-current{position:absolute;left:1450px;width:346px;text-align:center;font-size:28px}
 .options-choice{position:absolute;left:0;width:100%;display:flex;align-items:center;justify-content:center;height:70px;font-size:42px}
-.options-choice button{position:absolute;width:70px;height:70px;background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat;cursor:var(--cursor-normal)}
+.options-choice button{position:absolute;width:70px;height:70px;background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat;cursor:var(--cursor-normal);filter:none;isolation:isolate}
 .options-choice .prev{left:760px;transform:scaleX(-1)}
 .options-choice .next{left:1179px}
 .options-choice button.is-disabled{opacity:.25;pointer-events:none}
 /* #options-panel button{background:transparent;font:inherit} より強く指定する（矢印が消え、「実行」が14pxになっていた）。 */
 #options-panel .options-choice button{background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat}
-/* 押せる矢印はホバーで発光、押せない矢印は暗くしすぎない（利用者指定）。 */
-#options-panel .options-choice button:not(.is-disabled):hover{filter:brightness(1.8) drop-shadow(0 0 6px rgba(255,225,143,.9)) drop-shadow(0 0 12px rgba(255,194,70,.7))}
+/* 本体へfilterを付け替えると反転ボタンの合成レイヤーが再生成されてちらつく。
+   発光用の複製は常駐させ、ホバー時はopacityだけを変える。 */
+#options-panel .options-choice button::before{content:"";position:absolute;inset:0;background:url("assets/ui/option_select.svg") center/23.9px 58.3px no-repeat;filter:brightness(1.8) drop-shadow(0 0 6px rgba(255,225,143,.9)) drop-shadow(0 0 12px rgba(255,194,70,.7));opacity:0;pointer-events:none;transition:opacity .12s ease;will-change:opacity;transform:translateZ(0)}
+#options-panel .options-choice button:not(.is-disabled):hover::before{opacity:1}
 #options-panel .options-choice button.is-disabled{opacity:.5}
 .options-slider{position:absolute;left:0;width:100%;height:60px;display:flex;align-items:center;justify-content:center}
-.options-slider .track{width:447.48px;height:30.93px;background:url("assets/ui/track.svg") center/100% 100% no-repeat;position:relative}
-.options-slider .slider-hit{position:absolute;left:-29.245px;right:-29.245px;top:-29.245px;bottom:-29.245px;z-index:2;cursor:var(--cursor-normal);touch-action:none}
-.options-slider .thumb{position:absolute;top:50%;width:58.49px;height:58.49px;transform:translate(-50%,-50%);pointer-events:none;z-index:1}
+.options-slider .track{width:447.5px;height:20px;box-sizing:border-box;position:relative;border-style:solid;border-color:transparent;border-width:0 9.625px;border-image-source:url("assets/ui/track.svg?v=track0918c");border-image-slice:0 7.7 fill;border-image-width:0 9.625px;border-image-repeat:stretch}
+.options-slider .slider-hit{position:absolute;left:0;right:0;top:-19.245px;bottom:-19.245px;z-index:2;cursor:var(--cursor-normal);touch-action:none}
+.options-slider .thumb{position:absolute;top:50%;width:58.49px;height:58.49px;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;cursor:var(--cursor-normal);z-index:3}
 .options-slider .thumb.green{background:url("assets/ui/thumb_green.svg") center/100% 100% no-repeat}
 .options-slider .thumb.red{background:url("assets/ui/thumb_red.svg") center/100% 100% no-repeat}
 .options-slider .number{position:absolute;left:595px;width:150px;text-align:right;font-size:35px}
@@ -11597,6 +11608,113 @@ html body.world-map-active #battle-options-btn{display:none!important}
 /* マップ画面（#scr-map）自身のオプションボタンも出さない（利用者指定）。 */
 html body.world-map-active #map-options-btn,html body #scr-map.active #map-options-btn{display:none!important}
 body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle-options-btn,body.cutscene-video-active #village-options-btn,body.cutscene-video-active #map-options-btn{display:none!important}
+
+/* タイトル画面：コレクション（3840x2160 基準）。 */
+#scr-title.collection-open .startup-title-logo,
+#scr-title.collection-open .title-logo-texture,
+#scr-title.collection-open .tap-to-start,
+#scr-title.collection-open #title-menu,
+#scr-title.collection-open .title-copyright{opacity:0!important;pointer-events:none!important}
+#scr-title.collection-transition .startup-title-logo,
+#scr-title.collection-transition .title-logo-texture,
+#scr-title.collection-transition .tap-to-start,
+#scr-title.collection-transition #title-menu,
+#scr-title.collection-transition .title-copyright{transition:opacity .45s ease!important}
+#scr-title.startup-title>#collection-layer{
+  display:block;visibility:hidden;position:absolute;left:0;top:0;width:3840px;height:2160px;margin:0;transform:none;opacity:0;
+  z-index:4000;pointer-events:none;color:#caa869;font-family:'Shippori Mincho',serif;transition:opacity .45s ease,visibility 0s linear .45s
+}
+#scr-title.startup-title.collection-open>#collection-layer{visibility:visible;opacity:1;pointer-events:auto;transition:opacity .45s ease,visibility 0s linear 0s}
+#collection-layer button{font-family:'Shippori Mincho',serif;color:#caa869}
+#collection-shade{position:absolute;inset:0;background:rgba(0,0,0,.8)}
+#collection-panel-bg{position:absolute;left:70px;top:70px;width:2189px;height:2020px;background:url("assets/ui/collection.svg?v=collection2189") center/100% 100% no-repeat;pointer-events:none}
+#collection-title{position:absolute;left:70px;top:116px;width:2189px;margin:0;font-size:44px;line-height:1;font-weight:700;letter-spacing:.18em;text-indent:.18em;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none}
+.collection-tab{position:absolute;top:114px;width:262px;height:62px;margin:0;padding:0;border:0;background:transparent url("assets/ui/button_invisible.svg?v=opacity0917") center/262px 62px no-repeat;font-size:24px;line-height:62px;letter-spacing:.12em;text-indent:.12em;text-align:center;overflow:visible;cursor:var(--cursor-normal);filter:none}
+/* カード非表示ボタンと同じく、素材全体を複製せず外周線だけを発光源にする。 */
+.collection-tab::before{content:"";position:absolute;inset:0;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 262 62'%3E%3Cpath d='M246,61H16c0-8.28-6.72-15-15-15v-30c8.28,0,15-6.72,15-15h230c0,8.28,6.72,15,15,15v30c-8.28,0-15,6.72-15,15Z' fill='none' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") center/100% 100% no-repeat;filter:url(#ui-btn-outer-glow-only);opacity:.001;pointer-events:none;overflow:visible;transition:opacity .12s ease;will-change:opacity;transform:translateZ(0);backface-visibility:hidden}
+.collection-tab:hover::before,.collection-tab.is-active::before{opacity:.84}
+.collection-tab:hover,.collection-tab.is-active{filter:none}
+#collection-tab-character{left:166.5px}#collection-tab-enchant{left:455.5px}#collection-tab-enemy{left:1611.5px}#collection-tab-equipment{left:1900.5px;font-size:21px}#collection-merge{left:2904px}
+#collection-merge:disabled{opacity:.42;cursor:var(--cursor-normal);filter:none}
+#collection-merge:disabled::before{display:none}
+
+#collection-grid-viewport{position:absolute;left:147px;top:210px;width:2035px;height:1771px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;overscroll-behavior:contain;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 41px,#000 1714px,transparent 1771px);mask-image:linear-gradient(to bottom,transparent 0,#000 41px,#000 1714px,transparent 1771px)}
+#collection-grid-viewport.is-at-bottom{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 41px,#000 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 41px,#000 100%)}
+#collection-grid-viewport::-webkit-scrollbar{display:none}
+#collection-grid-content{position:relative;width:1995px;min-height:1650px;margin:45px 0 0 20px}
+#collection-grid{position:relative;z-index:2;display:grid;grid-template-columns:repeat(7,261px);grid-auto-rows:396px;gap:28px;width:1995px;min-height:396px}
+#collection-grid.is-equipment{grid-auto-rows:auto;align-items:start;min-height:193px;column-gap:28px;row-gap:96px}
+#collection-grid-marks{position:absolute;left:0;top:0;right:0;bottom:0;z-index:1;pointer-events:none}
+#collection-grid-marks i{position:absolute;width:21px;height:21px;background:url("assets/ui/mark.svg") center/contain no-repeat}
+.collection-grid-cell{position:relative;width:261px;height:396px;margin:0;padding:0;box-sizing:border-box;border:0;border-radius:0;background:url("assets/cards/c_board.svg") center/261px 396px no-repeat;overflow:visible;cursor:var(--cursor-normal)}
+.collection-grid-cell.collection-item,.collection-grid-cell.collection-ring{background:none}
+/* カードを表示するマスでは c_board.svg を重ねない。素材枠＋プログラム枠との三重描画を防ぐ。 */
+.collection-grid-cell.collection-character:is(.is-seen,.is-acquired),.collection-grid-cell.collection-enchant:is(.is-seen,.is-acquired),.collection-grid-cell.collection-enemy:is(.is-seen,.is-acquired){background:none}
+#collection-grid.is-equipment .collection-grid-cell{height:193px}
+.collection-equipment-line{grid-column:1/-1;display:block;width:1212px;height:4px;margin:0 auto;align-self:center;object-fit:fill;pointer-events:none}
+.collection-grid-cell.is-acquired{cursor:var(--cursor-normal)}
+.collection-card-face{position:absolute;inset:0;z-index:2;box-sizing:border-box;border:0;border-radius:var(--card-frame-r,5.65% / 3.721%);overflow:hidden;clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%));pointer-events:none;isolation:isolate}
+/* カード画像とSVG枠より必ず前面に2px線を描く。 */
+.collection-card-face::after{content:"";position:absolute;inset:0;z-index:20;box-sizing:border-box;border:2px solid #c49a6c;border-radius:inherit;pointer-events:none}
+.collection-card-art,.collection-preview-art{position:absolute;left:6.16%;right:6.16%;top:3.58%;height:92.85%;z-index:1;background-image:var(--card-art);background-size:var(--card-art-size,cover);background-position:var(--card-art-position,center 58%);background-repeat:no-repeat}
+.collection-card-frame,.collection-preview-frame{position:absolute;inset:0;z-index:2;background:var(--card-frame) center/100% 100% no-repeat;pointer-events:none}
+.collection-aux-face{position:absolute;left:50%;top:0;width:189.5px;height:189.5px;transform:translateX(-50%);background:linear-gradient(#000,#000) center/94.72% 94.72% no-repeat;pointer-events:none;isolation:isolate}
+.collection-aux-face::before,.collection-aux-face::after{content:"";position:absolute;pointer-events:none}
+.collection-aux-face::before{inset:0;z-index:2;background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat}
+.collection-aux-face::after{inset:12%;z-index:1;background:var(--collection-aux-art) center/cover no-repeat}
+.collection-ring .collection-aux-face{width:193px;height:193px}
+.collection-ring .collection-aux-face::before{background-image:url("assets/ui/ring_slot.svg")}
+.collection-ring .collection-aux-face::after{inset:6%;background-size:contain;background-repeat:no-repeat}
+/* 未所有カードは魔導板の召喚不可カードと同じ暗さ。最前面の2px枠線は暗転させない。 */
+.collection-grid-cell.is-unseen .collection-aux-face::after{display:none}
+.collection-grid-cell.is-seen .collection-card-art,.collection-grid-cell.is-seen .collection-card-frame,.collection-grid-cell.is-seen .collection-aux-face::after{filter:brightness(.5) saturate(.5)}
+.collection-grid-cell:is(.is-seen,.is-acquired):hover,.collection-grid-cell:is(.is-seen,.is-acquired).is-selected{filter:drop-shadow(0 0 9px rgba(255,255,255,.9)) drop-shadow(0 0 18px rgba(255,255,255,.55))}
+
+#collection-scroll{position:absolute;left:110px;top:279.245px;width:30.93px;height:1601.51px}
+/* 溝は transform-origin:0 0 で90度回すので、画面上では left の左側へ height(20px) ぶん伸びる。
+   つまり溝の見た目の中心は left(50%+2px) − 10px ＝ 50%−8px。つまみ（中心合わせ）もそこへ置く。 */
+#collection-scroll-track{position:absolute;left:calc(50% + 2px);top:0;width:1601.51px;height:20px;box-sizing:border-box;transform-origin:0 0;transform:rotate(90deg);border-style:solid;border-color:transparent;border-width:0 10px;border-image-source:url("assets/ui/track.svg?v=track0918c");border-image-slice:0 10.4 fill;border-image-width:0 10px;border-image-repeat:stretch}
+#collection-scroll-thumb{position:absolute;left:calc(50% - 8px);top:0;width:58.49px;height:58.49px;z-index:4;transform:translate(-50%,-50%);background:url("assets/ui/thumb_blue.svg") center/contain no-repeat;pointer-events:auto;touch-action:none;cursor:var(--cursor-normal);filter:drop-shadow(0 0 5px rgba(90,184,255,.65))}
+#collection-scroll-thumb.is-disabled{opacity:.45}
+#collection-scroll-hit{position:absolute;left:-13.78px;right:-13.78px;top:0;bottom:0;z-index:3;touch-action:none;cursor:var(--cursor-normal)}
+
+#collection-preview-card{position:absolute;left:2611.5px;top:235px;width:847px;height:1283.85px;box-sizing:border-box;border-radius:var(--card-frame-r,5.65% / 3.721%);background-position:center,center;background-repeat:no-repeat,no-repeat;pointer-events:none}
+#collection-preview-card.collection-preview-panel{border:0;overflow:hidden;clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%));isolation:isolate}
+/* 枠線と画像を同じ角丸で切り、角に背景色の隙間が出ないよう内側へ重ねる。 */
+#collection-preview-card.collection-preview-panel::after{content:"";position:absolute;inset:0;z-index:20;box-sizing:border-box;border:.5px solid #c49a6c;border-radius:inherit;box-shadow:inset 0 0 0 4.5px #c49a6c;pointer-events:none}
+#collection-preview-card.collection-preview-panel.is-unowned .collection-preview-art,#collection-preview-card.collection-preview-panel.is-unowned .collection-preview-frame{filter:brightness(.5) saturate(.5)}
+/* リング／アイテムの拡大画像は、キャラクターカード（top:235px・height:1283.85px → 中心876.925px）と
+   同じ縦中心に置く。リング＝876.925−847/2＝453.425px、アイテム＝876.925−831.18/2＝461.335px。 */
+#collection-preview-card.collection-preview-aux{top:453.425px;height:847px;background:linear-gradient(#000,#000) center/94.72% 94.72% no-repeat;isolation:isolate}
+#collection-preview-card.collection-preview-aux::before,#collection-preview-card.collection-preview-aux::after{content:"";position:absolute;pointer-events:none}
+#collection-preview-card.collection-preview-aux::before{z-index:1;background:var(--collection-aux-art) center/cover no-repeat}
+#collection-preview-card.collection-preview-aux::after{inset:0;z-index:2;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
+#collection-preview-card.collection-preview-item::before{inset:12%}
+#collection-preview-card.collection-preview-item::after{background-image:url("assets/ui/item_slot.svg")}
+/* item_slot.svg（189.5枠／直線は5内側）と ring_slot.svg（193枠／直線は6.8内側）は、
+   枠の四角い直線の一辺が同じ長さ（179.5）になるよう箱の寸法を変えてある。
+   直線どうしを重ねるには left だけでなく top も (847−831.18)/2 ＝ 7.91px 下げる。 */
+#collection-preview-card.collection-preview-item{left:2619.41px;top:461.335px;width:831.18px;height:831.18px;background-size:94.72% 94.72%}
+#collection-preview-card.collection-preview-ring::before{inset:6%;background-size:contain}
+#collection-preview-card.collection-preview-ring::after{background-image:url("assets/ui/ring_slot.svg")}
+#collection-preview-card.collection-preview-aux.is-unowned::before{filter:brightness(.5) saturate(.5)}
+#collection-color-orb{position:absolute;left:2428px;top:1585px;width:77px;height:77px;object-fit:contain}
+.collection-arrow{position:absolute;top:1589px;width:24px;height:58px;margin:0;padding:0;border:0;background:url("assets/ui/option_select.svg") center/contain no-repeat;cursor:var(--cursor-normal);filter:none;isolation:isolate}
+.collection-arrow::before{content:"";position:absolute;inset:0;background:url("assets/ui/option_select.svg") center/contain no-repeat;filter:brightness(1.8) drop-shadow(0 0 6px rgba(255,225,143,.9)) drop-shadow(0 0 12px rgba(255,194,70,.7));opacity:0;pointer-events:none;transition:opacity .12s ease;will-change:opacity;transform:translateZ(0)}
+.collection-arrow:hover:not(:disabled)::before{opacity:1}
+.collection-arrow:disabled{opacity:.3;filter:none;cursor:var(--cursor-normal)}
+.collection-arrow:disabled::before{display:none}
+#collection-prev{left:2628px;transform:scaleX(-1)}#collection-next{left:3418px}
+#collection-card-name{position:absolute;left:2685px;top:1580px;width:700px;height:77px;font-size:44px;line-height:77px;font-weight:700;letter-spacing:.08em;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 7px rgba(0,0,0,.9)}
+#collection-detail-line{position:absolute;left:2429px;top:1677px;width:1212px;height:4px}
+#collection-detail-text{position:absolute;left:2429px;top:1714px;width:1212px;color:#a58768;font-size:35px;line-height:1.52;letter-spacing:.03em;text-shadow:0 2px 7px rgba(0,0,0,.9)}
+#collection-card-stats{min-height:54px;text-align:left;white-space:pre-wrap}
+#collection-card-stats:empty{display:none}
+#collection-card-desc{white-space:pre-wrap;text-align:justify;text-align-last:left}
+#collection-return{position:absolute;left:3277.028px;top:1970.737px;width:492.972px;height:121.263px;margin:0;padding:0;border:0;background:none;font-size:44px;line-height:121.263px;font-weight:700;letter-spacing:.12em;text-indent:.12em;text-align:center;cursor:var(--cursor-normal);overflow:visible;isolation:isolate}
+#collection-return::after,#collection-return::before{content:"";position:absolute;inset:0;z-index:-1;background:url("assets/ui/button_brown2.svg") center/100% 100% no-repeat}
+#collection-return::before{filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));opacity:0;transition:opacity .15s ease}
+#collection-return:hover::after{filter:brightness(1.45)}#collection-return:hover::before{opacity:.55}
 </style>
 </head>
 <body>
@@ -11632,6 +11750,26 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
   </div>
   <button id="title-options-btn" class="screen-options-btn" title="オプション" data-sfx-silent="1">⚙</button>
   <div class="title-copyright">©2027 Argante Inc. All Rights Reserved.</div>
+  <div id="collection-layer" aria-hidden="true">
+    <div id="collection-shade"></div>
+    <div id="collection-panel-bg"></div>
+    <h2 id="collection-title" data-collection-text="title"></h2>
+    <button type="button" class="collection-tab" id="collection-tab-character" data-collection-kind="character" data-collection-text="character"></button>
+    <button type="button" class="collection-tab" id="collection-tab-enchant" data-collection-kind="enchant" data-collection-text="enchant"></button>
+    <button type="button" class="collection-tab" id="collection-tab-enemy" data-collection-kind="enemy" data-collection-text="enemy"></button>
+    <button type="button" class="collection-tab" id="collection-tab-equipment" data-collection-kind="equipment" data-collection-text="equipment"></button>
+    <button type="button" class="collection-tab" id="collection-merge" data-collection-text="merge"></button>
+    <div id="collection-scroll" aria-hidden="true"><span id="collection-scroll-track"></span><span id="collection-scroll-thumb"></span><span id="collection-scroll-hit"></span></div>
+    <div id="collection-grid-viewport"><div id="collection-grid-content"><div id="collection-grid-marks"></div><div id="collection-grid"></div></div></div>
+    <div id="collection-preview-card" aria-hidden="true"></div>
+    <img id="collection-color-orb" alt="" hidden>
+    <button type="button" class="collection-arrow" id="collection-prev" aria-label="前のカード" data-sfx-silent="1"></button>
+    <div id="collection-card-name"></div>
+    <button type="button" class="collection-arrow" id="collection-next" aria-label="次のカード" data-sfx-silent="1"></button>
+    <img id="collection-detail-line" src="assets/ui/collection_line.svg?v=smooth0918" alt="">
+    <div id="collection-detail-text"><div id="collection-card-stats"></div><div id="collection-card-desc"></div></div>
+    <button type="button" id="collection-return" data-collection-text="return"></button>
+  </div>
 </div>
 
 <div id="options-layer" aria-hidden="true">
@@ -11639,19 +11777,19 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
   <button data-sfx-silent="1" id="options-close-proxy" type="button" aria-label="オプションを閉じる"></button>
   <section id="options-panel" aria-label="オプション">
     <div class="options-title" data-option-text="title"></div>
-    <div class="options-heading" style="top:148px" data-option-text="game"></div><img class="options-line" style="top:224px" src="assets/ui/option_line1.svg" alt="">
-    <div class="options-heading" style="top:369px" data-option-text="graphics"></div><img class="options-line" style="top:445px" src="assets/ui/option_line1.svg" alt="">
-    <div class="options-heading" style="top:590px" data-option-text="language"></div><img class="options-line" style="top:664px" src="assets/ui/option_line1.svg" alt="">
-    <div class="options-heading" style="top:809px" data-option-text="sound"></div><img class="options-line" style="top:884px" src="assets/ui/option_line1.svg" alt="">
-    <div class="options-heading" style="top:1139px" data-option-text="data"></div><img class="options-line" style="top:1215px" src="assets/ui/option_line1.svg" alt="">
+    <div class="options-heading" style="top:148px" data-option-text="game"></div><img class="options-line" style="top:224px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
+    <div class="options-heading" style="top:369px" data-option-text="graphics"></div><img class="options-line" style="top:445px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
+    <div class="options-heading" style="top:590px" data-option-text="language"></div><img class="options-line" style="top:664px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
+    <div class="options-heading" style="top:809px" data-option-text="sound"></div><img class="options-line" style="top:884px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
+    <div class="options-heading" style="top:1139px" data-option-text="data"></div><img class="options-line" style="top:1215px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
     <div class="options-current-title" style="top:160px" data-option-text="current"></div>
-    <div class="options-item" style="top:259px" data-option-text="speed-label"></div><img class="options-line item" style="top:335px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:479px" data-option-text="mode-label"></div><img class="options-line item" style="top:554px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:699px" data-option-text="language-label"></div><img class="options-line item" style="top:775px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:918px" data-option-text="bgm-label"></div><img class="options-line item" style="top:994px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:1028px" data-option-text="se-label"></div><img class="options-line item" style="top:1103px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:1254px" data-option-text="run-label"></div><img class="options-line item" style="top:1334px" src="assets/ui/option_line2.svg" alt="">
-    <div class="options-item" style="top:1368px" data-option-text="profile-label"></div><img class="options-line item" style="top:1443px" src="assets/ui/option_line2.svg" alt="">
+    <div class="options-item" style="top:259px" data-option-text="speed-label"></div><img class="options-line item" style="top:335px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:479px" data-option-text="mode-label"></div><img class="options-line item" style="top:554px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:699px" data-option-text="language-label"></div><img class="options-line item" style="top:775px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:918px" data-option-text="bgm-label"></div><img class="options-line item" style="top:994px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:1028px" data-option-text="se-label"></div><img class="options-line item" style="top:1103px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:1254px" data-option-text="run-label"></div><img class="options-line item" style="top:1334px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:1368px" data-option-text="profile-label"></div><img class="options-line item" style="top:1443px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
     <div class="options-current" style="top:259px" data-current="speed"></div><div class="options-current" style="top:479px" data-current="mode"></div><div class="options-current" style="top:699px" data-current="language"></div><div class="options-current" style="top:918px" data-current="bgm"></div><div class="options-current" style="top:1028px" data-current="se"></div>
     <div class="options-choice" style="top:244px" data-choice="speed"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
     <div class="options-choice" style="top:464px" data-choice="mode"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
@@ -11995,18 +12133,18 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=frameVer0916"></script>
+<script src="assets.js?v=frameRadiusRestore0918"></script>
 <script src="js/engine/audio.js?v=debugButtons0917b"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=leprechaun0916"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=displayMode01"></script>
+<script src="js/data/loader.js?v=sheetItems0921"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=enemySummonStats0917c"></script>
-<script src="js/battle/formation.js?v=leprechaun0916"></script>
+    <script src="js/battle/core.js?v=witherFx0922"></script>
+<script src="js/battle/formation.js?v=sealGate0922"></script>
     <script src="js/battle/present.js?v=deathBreak0917"></script>
     <script src="js/battle/present_events.js?v=injuryFlash0917"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
@@ -12023,20 +12161,21 @@ _watchVesselboundDpr();
 <script src="js/engine/state.js?v=cleanupLegacy01"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
-<script src="js/save/profile_save.js?v=opening0916"></script>
+<script src="js/save/profile_save.js?v=collection0918"></script>
 <script src="js/save/run_save.js?v=boardRename01"></script>
-<script src="js/engine/pool.js?v=isCharGone01"></script>
+<script src="js/engine/pool.js?v=rewardRarity0921"></script>
 <script src="js/engine/enemy.js?v=debugEnemyCycle0917"></script>
-    <script src="js/engine/battle.js?v=enemySummonStats0917"></script>
-    <script src="js/engine/battle_events.js?v=reviveShield0917"></script>
-<script src="js/engine/render.js?v=enemySummonStats0917"></script>
+    <script src="js/engine/battle.js?v=witherFx0922"></script>
+    <script src="js/engine/battle_events.js?v=witherFx0922"></script>
+<script src="js/engine/render.js?v=witherFx0922"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=rewardDragFix0917"></script>
 <script src="js/engine/reward_journey.js?v=enemySummonStats0917"></script>
-<script src="js/engine/reward.js?v=rewardDragFix0917"></script>
+<script src="js/engine/reward.js?v=panelDesc0922"></script>
 <script src="js/engine/map.js?v=forgeSoldOut0917"></script>
-    <script src="js/engine/main.js?v=debugButtons0917c"></script>
-<script src="js/engine/options.js?v=titleMenu0916"></script>
+    <script src="js/engine/main.js?v=debugMapBtn0921"></script>
+<script src="js/engine/options.js?v=collectionReturn0921"></script>
+<script src="js/engine/collection.js?v=collection0921b"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){

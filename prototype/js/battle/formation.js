@@ -138,6 +138,34 @@ function buildBoardFormation(board, opts) {
   return { entries, ordered };
 }
 
+// 特殊マス（前衛・後衛の出撃マスと「召喚の力」等のパネル力マス）に、出撃できる
+// キャラクターが1体でも置かれているか。出撃判定そのものを流用するので、
+// 「ボタンは押せるのに誰も出ない」というズレが起きない。
+// 判定できない場合（読み込み順の都合で補助関数が無い等）は true を返す。
+// 押せなくする側の判定なので、分からない時に操作を止めない。
+function boardHasDeployableCharacter(board) {
+  const boardList = (board && Array.isArray(board.boardCards)) ? board.boardCards : [];
+  if (!boardList.length) return false;
+  if (typeof formationDeploySlots !== 'function' || typeof _panelSummonSpec !== 'function') return true;
+  const placed = formationDeploySlots(board).some(({ idx }) => {
+    const panel = boardList[idx];
+    return !!(panel && _panelSummonSpec(panel));
+  });
+  if (!placed) return false;
+  // 封印されたキャラクターは戦闘開始時に場へ出ない。全員が封印なら生贄にできる味方もおらず、
+  // 誰も解放されないので出撃0と同じ。封印は隣接する「封印されしもの」からも付くため、
+  // カードのキーワードだけでは判定できない。実際に出撃ユニットを作って調べる。
+  // persistEternal:false ＝ 永劫の力の+1/+1をカードへ書き戻さない（判定で盤面を変えない）。
+  if (typeof buildBoardFormation !== 'function' || typeof coreSealValue !== 'function') return true;
+  let units = [];
+  try {
+    units = ((buildBoardFormation(board, { persistEternal: false }) || {}).entries || [])
+      .map(e => e && e.unit).filter(Boolean);
+  } catch (e) { return true; }
+  if (!units.length) return true;
+  return units.some(u => !(coreSealValue(u) > 0));
+}
+
 // 戦闘終了時の「永久に+X/+Y」の保存先。PvE／オンラインの受け口はこの共通関数を
 // 呼び、魔導板上のキャラクターカードへ同じ規則で累積する。
 function persistBoardCharacterStats(board, slotIdx, atk, hp) {
@@ -164,8 +192,9 @@ if (typeof window !== 'undefined') {
   window.formationDeploySlots = formationDeploySlots;
   window.formationAssignSlot = formationAssignSlot;
   window.buildBoardFormation = buildBoardFormation;
+  window.boardHasDeployableCharacter = boardHasDeployableCharacter;
   window.persistBoardCharacterStats = persistBoardCharacterStats;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { formationDeploySlots, formationAssignSlot, buildBoardFormation, persistBoardCharacterStats };
+  module.exports = { formationDeploySlots, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats };
 }

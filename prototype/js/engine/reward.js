@@ -759,10 +759,25 @@ function resetRewardToStart(options){
 
 // ── 行き先ノード表示 ───────────────────────────
 
+// 特殊マスにキャラクターが1体もいない時は、施設を出るボタンと戦闘開始を押せなくする。
+// （誰も出撃できない状態で先へ進めると、そのまま敗北するしかなくなるため）
+// 判定は formation.js の出撃規則をそのまま使う。
+function _noDeployableBoardCharacter(){
+  if(typeof boardHasDeployableCharacter!=='function') return false;
+  const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
+  if(!board) return false;
+  return !boardHasDeployableCharacter(board);
+}
+function _blockMoveBtnWhenEmpty(btn){
+  btn.classList.add('disabled');
+  btn.disabled=true;
+  btn.title='特殊マスにキャラクターを置いてください';
+}
 function renderMoveSlotsInEnemy(){
   const el=document.getElementById('reward-move-btns');
   if(!el) return;
   el.innerHTML='';
+  const _noDeployable=_noDeployableBoardCharacter();
   // デバッグモード：演出確認用の試験戦闘ボタン（報酬/編成フェイズ中のみ表示）
   // デバッグボタンはデバッグモード＋編成画面の間だけ出す。
   ['btn-test-battle','btn-debug-gameover','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
@@ -789,8 +804,10 @@ function renderMoveSlotsInEnemy(){
     // **ボタンの文言はテキストメッセージシートが唯一の出どころ。**
     quit.innerHTML=`<span class="rew-btn-label">${_uiLabel('「図書館」チュートリアルをやめるボタン','読書をやめる')}</span>`;
     quit.onclick=()=>{
+      if(quit.disabled) return;
       if(typeof closeMapLibraryFormation==='function') closeMapLibraryFormation();
     };
+    if(_noDeployable){ quit.disabled=true; quit.title='特殊マスにキャラクターを置いてください'; }
     el.appendChild(quit);
     el.appendChild(restore);
     el.appendChild(test);
@@ -867,6 +884,8 @@ function renderMoveSlotsInEnemy(){
       if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap(); return; }
       if(typeof shopDone==='function') shopDone();
     };
+    // 「店を出る」「祭壇を離れる」だけを止める。「図書館を出る」「出発する」「村を出る」は対象外。
+    if(_noDeployable&&_waveFacilityReturn&&!G._isLibrary) _blockMoveBtnWhenEmpty(btn);
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
@@ -933,6 +952,8 @@ function renderMoveSlotsInEnemy(){
       chooseMoveInline(opt.nodeType);
     };
     if(G._pendingPanelPlacement||G._moveInlineLocked){ btn.classList.add('disabled'); btn.disabled=true; }
+    // 「戦闘開始」「再戦」だけを止める（指輪提示中とオンラインの編成完了は対象外）。
+    if(_noDeployable&&label===_startLabel2) _blockMoveBtnWhenEmpty(btn);
     el.appendChild(btn);
   });
   const reset=document.createElement('button');
@@ -3435,6 +3456,8 @@ function renderHandEditor(){
   }
   renderDebugCardPalette();
   _refreshMergeReadyMarks();
+  // 特殊マスの出入りで「戦闘開始」等の可否が変わるので、盤面を描いたら毎回ボタンも作り直す。
+  if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
 }
 // **「取ると合体」の光は描画時にしか計算していない。**
 // 魔導板へ同じカードを2枚置いても、提示カード（報酬・商品）を作り直すまで
@@ -3869,9 +3892,14 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // _applyAdjacentPanelEnhancementsと同じ計算（複数の結界付与元をXに合算）をここでも行っておく。
         // これがないと、接続した結界がいくつあっても編成画面のキーワード欄に「結界X」が出ない。
         if(typeof _unitShieldValue==='function') _cardForPreview.shield=_unitShieldValue(_cardForPreview);
-        const _keywordPreview=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_cardForPreview,card.desc||'',i):'';
+        // **商店と同じ効果文を渡すこと。** 生の card.desc を渡すと
+        // 「〜を持つX/Xの」（召喚体の注釈）やGrade置換が抜け、魔導板に置いた途端に
+        // 説明が商品と食い違う（ケットシー等。利用者報告 2026-09-22）。
+        const _charDescForPreview=typeof _rawSubstitutedDesc==='function'
+          ?_rawSubstitutedDesc(card):String(card.desc||'');
+        const _keywordPreview=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_cardForPreview,_charDescForPreview,i):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
-        const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,card.desc||'',i):(card.name+'\n'+(card.desc||''));
+        const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,_charDescForPreview,i):(card.name+'\n'+_charDescForPreview);
         if(preview) div.setAttribute('data-preview',preview);
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
@@ -3885,15 +3913,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(card):(card.desc||'')).replace(/^荷物(?=\s|$)\s*/,'');
         const _panelDescForPreview=card.name==='封印されしもの'
           ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
-        // シート「キーワード」列に実在しないカード名自己参照マーカー（内部の効果判定専用）は
-        // このカード自身のキーワード欄プレビューからも除外する
-        const _adjKws=[...new Set([...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),...(card.adjacentKeywords||[])])].filter(k=>{
-          const s=String(k||'').trim();
-          if(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(s)) return false;
-          const isDisplayKeyword=(typeof _ENCHANT_KEYWORD_ONLY!=='undefined'&&_ENCHANT_KEYWORD_ONLY.has(s))||/^結界\d+$/.test(s)||/^封印\d+$/.test(s)||/^毒牙?\d*$/.test(s)||/^邪眼\d*$/.test(s)||/^衝撃\d*$/.test(s);
-          if(s===String(card.name||'')&&!isDisplayKeyword) return false;
-          return true;
-        });
+        // キーワード欄の中身は render.js の _enchantPreviewKeywords() が唯一の実装。
+        const _adjKws=typeof _enchantPreviewKeywords==='function'?_enchantPreviewKeywords(card):[];
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'

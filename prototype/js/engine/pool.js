@@ -370,9 +370,8 @@ function _rewardGradeBuckets(available,cur){
   return buckets;
 }
 
-// 上の重みでグレードの枠を1つ選び、その枠の候補配列を返す。
-function _pickRewardGradePool(available,cur){
-  const buckets=_rewardGradeBuckets(available,cur);
+// 各グレード枠の重み。上限（グレード4）を超える枠と、候補が無い枠の分は「以下」へ寄せる。
+function _rewardGradeWeights(buckets,cur){
   const weights=REWARD_GRADE_WEIGHTS.slice();
   for(let k=1;k<weights.length;k++){
     if(cur+k>REWARD_MAX_GRADE||!buckets[k].length){ weights[0]+=weights[k]; weights[k]=0; }
@@ -382,6 +381,10 @@ function _pickRewardGradePool(available,cur){
     weights[0]=0;
     for(let k=1;k<weights.length;k++) if(buckets[k].length) weights[k]=REWARD_GRADE_WEIGHTS[k];
   }
+  return weights;
+}
+// 重みでグレードの枠を1つ選び、その枠の候補配列を返す。
+function _pickWeightedGradeBucket(buckets,weights){
   const total=weights.reduce((a,b)=>a+b,0);
   if(!total) return [];
   let r=rand()*total;
@@ -391,22 +394,23 @@ function _pickRewardGradePool(available,cur){
   }
   return buckets.find(b=>b.length)||[];
 }
+function _pickRewardGradePool(available,cur){
+  const buckets=_rewardGradeBuckets(available,cur);
+  return _pickWeightedGradeBucket(buckets,_rewardGradeWeights(buckets,cur));
+}
+
+const _rewardRarityOf=p=>Math.max(1,Math.min(5,Number(p&&p.rarity)||1));
 
 function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgress){
   const available=(defs||[]).filter(p=>p&&(!usedIds||!usedIds.has(p.id)));
   if(!available.length) return null;
   const cur=Math.max(1,Math.min(5,Number(currentGrade)||1));
-  const gradePool=_pickRewardGradePool(available,cur);
-  if(!gradePool.length) return null;
+  const buckets=_rewardGradeBuckets(available,cur);
+  const gradeWeights=_rewardGradeWeights(buckets,cur);
+  if(!gradeWeights.some(w=>w>0)) return null;
   // レアリティ比率は「カード1枚ごとの重み」ではなく、レアリティ枠そのものの確率。
   // 候補枚数を掛けると、同レアリティの実装カードが多いだけで54/22/14/8/2が
   // 大きく歪む。先に枠を引き、その中からカードを等確率で1枚選ぶ。
-  const byRarity=new Map();
-  gradePool.forEach(p=>{
-    const rarity=Math.max(1,Math.min(5,Number(p.rarity)||1));
-    if(!byRarity.has(rarity)) byRarity.set(rarity,[]);
-    byRarity.get(rarity).push(p);
-  });
   const rarityWeights=_rewardRarityWeights(useGoldenRing,useMapProgress);
   const total=[1,2,3,4,5].reduce((sum,r)=>sum+Math.max(0,Number(rarityWeights[r])||0),0);
   let roll=rand()*Math.max(1,total);
@@ -415,8 +419,23 @@ function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgr
     roll-=Math.max(0,Number(rarityWeights[rarity])||0);
     if(roll<0){ selected=rarity; break; }
   }
-  // 選ばれた枠に候補が無い場合は最も近いレアリティへ寄せる。同距離なら低い方。
-  // 高レア枠を引いていないのに、候補不足だけを理由に最高レアへ飛ばさない。
+  // **引いたレアリティは動かさない。グレード枠のほうを引き直す。**
+  // グレードとレアリティの在庫は偏っている（グレード1にレア5は0枚、グレード4にレア1は0枚）。
+  // 枠に無いからと近いレアリティへ寄せると、レア3が14%→20%へ膨らみ、レア5が2%→0.5%へ潰れる。
+  // そのレアリティを持つグレード枠だけを、元のグレード比率のまま引き直す。
+  const ofRarity=buckets.map(list=>list.filter(p=>_rewardRarityOf(p)===selected));
+  const narrowed=_pickWeightedGradeBucket(ofRarity,gradeWeights.map((w,k)=>ofRarity[k].length?w:0));
+  if(narrowed.length) return randFrom(narrowed);
+  // どのグレードにもそのレアリティが無い時だけ、最も近いレアリティへ寄せる（同距離なら低い方）。
+  // 在庫切れなどで本当に居ない場合の最後の逃げ道。
+  const gradePool=_pickWeightedGradeBucket(buckets,gradeWeights);
+  if(!gradePool.length) return null;
+  const byRarity=new Map();
+  gradePool.forEach(p=>{
+    const rarity=_rewardRarityOf(p);
+    if(!byRarity.has(rarity)) byRarity.set(rarity,[]);
+    byRarity.get(rarity).push(p);
+  });
   let rarityPool=byRarity.get(selected)||[];
   for(let distance=1;!rarityPool.length&&distance<=4;distance++){
     rarityPool=byRarity.get(selected-distance)||byRarity.get(selected+distance)||[];
@@ -520,7 +539,9 @@ function drawItems(n, maxGrade, opts){
   const currentGrade=_currentRewardMapGrade(maxGrade);
   const forShop=!!(opts&&opts.forShop);
   const excluded=forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!excluded(p));
+  // _noItemEffectImpl：シートにだけある行から作ったアイテム。効果のコードが無いので
+  // 入手・購入の抽選には入れない（コレクションには出る）。
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&!excluded(p));
   const res=[];
   const used=new Set();
   let t=0;
