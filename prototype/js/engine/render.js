@@ -4369,6 +4369,28 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
 }
 // 指輪シートの「キャラクター用説明文」は、装備中の指輪が味方キャラクターへ
 // 常時付与する説明として、キャラクター効果の末尾に表示する。
+function _currentRainbowRingBonusForUnit(unit){
+  const applied=Number(unit&&unit._rainbowRingBonus);
+  if(Number.isFinite(applied)&&applied>0) return applied;
+  let allies=[];
+  const battleAllies=Array.isArray(G?.allies)?G.allies:[];
+  if(battleAllies.includes(unit)){
+    allies=battleAllies;
+  }else if(unit&&unit._ownedBoardPreview===true){
+    // 編成中は「盤面にある全カード」ではなく、実際に出撃するユニットを数える。
+    // buildBoardFormation は戦闘と同じ出撃判定を使う。persistEternal:false で盤面は書き換えない。
+    try{
+      const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
+      const formation=board&&typeof buildBoardFormation==='function'
+        ?buildBoardFormation(board,{persistEternal:false}):null;
+      allies=((formation&&formation.entries)||[]).map(entry=>entry&&entry.unit).filter(Boolean);
+    }catch(_e){ allies=[]; }
+  }
+  if(typeof coreRainbowRingBonusForUnits==='function') return coreRainbowRingBonusForUnits(allies);
+  const colors=new Set(allies.filter(u=>u&&u.hp>0&&!u._sealed)
+    .map(u=>String(u.color||'')).filter(Boolean));
+  return Math.min(5,colors.size)*3;
+}
 function _ringCharacterDescriptionsForUnit(unit){
   if(!unit||!Array.isArray(G?.rings)) return [];
   // 敵キャラクターへプレイヤーの指輪説明を付けない。
@@ -4384,7 +4406,14 @@ function _ringCharacterDescriptionsForUnit(unit){
   const unitColor=colorMap[rawColor]||String(unit.color||'').trim();
   return (rings||[])
     .filter(r=>!eyeColors[r&&r.name]||eyeColors[r.name]===unitColor)
-    .map(r=>String(r&&r.characterDesc||'').trim()).filter(Boolean);
+    .map(r=>{
+      let text=String(r&&r.characterDesc||'').trim();
+      if(r&&r.name==='虹の瞳の指輪'&&text){
+        const x=_currentRainbowRingBonusForUnit(unit);
+        text=text.replace(/\+X\/\+X/g,`+${x}/+${x}`);
+      }
+      return text;
+    }).filter(Boolean);
 }
 // キャラクターカードの説明欄HTML：本来の効果の下に線を引き、その下に強化カードが与えている効果の全文を並べる
 function _unitCombinedDescHtml(unit,baseDesc,slotIdx){

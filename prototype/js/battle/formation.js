@@ -95,7 +95,10 @@ function buildBoardFormation(board, opts) {
     }
     const openingCopy = /^開戦\s*[：:]\s*コピーを1体召喚する/.test(String(spec.desc || ''));
     const rawCount = Math.max(1, Number(spec.count) || 1);
-    const baseCount = openingCopy ? 1 : rawCount + (panelPower === 'duplicate' ? 1 : 0);
+    // **複製の力（duplicate）はここで増やさない。** マスの説明どおり「開戦時に場に出て
+    // コピーを1体生成する」＝ツインデビルと同じく、出撃は1体で、コピーはコアの開戦効果が召喚する。
+    // ここで2体にすると、戦闘開始前から2体並んで見えていた（利用者報告 2026-09-22）。
+    const baseCount = openingCopy ? 1 : rawCount;
     const enh = (typeof _collectAdjacentEnhancements === 'function') ? _collectAdjacentEnhancements(board, idx) : null;
     const contributingPanels = (typeof _collectEnhancementPanelsForSlot === 'function')
       ? _collectEnhancementPanelsForSlot(board, idx) : [];
@@ -112,7 +115,6 @@ function buildBoardFormation(board, opts) {
         : null;
       if (!unit) continue;
       unit._mapPanelPower = panelPower;
-      if (n > 0 && panelPower === 'duplicate') unit._openingDuplicate = true;
       if (enh && typeof _applyAdjacentPanelEnhancements === 'function') _applyAdjacentPanelEnhancements(unit, enh);
       unit._mainBoardSlot = idx;
       unit.lane = toRear ? 'rear' : 'front';

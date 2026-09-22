@@ -922,16 +922,20 @@ function audit() {
     recordDirect('ノスフェラトゥ', !!target && target.id === 'visible', `対象=${target && target.name}`);
   }
   {
-    const vri = makeDirectUnit('ヴリコラカス', 'p1', { id: 'vri', manaCost: 4, manaRepeat: true, manaThresholdDesc: 'ランダムな味方が復活を得る。' });
+    const vri = makeDirectUnit('ヴリコラカス', 'p1', { id: 'vri', manaCost: 4, manaRepeat: true,
+      manaThresholdDesc: '「青ヴリコラカス」以外のランダムな味方が復活を得る。' });
     const ally = { id: 'revive-target', name: '対象', side: 'p1', atk: 2, hp: 4, maxHp: 4, color: '赤', keywords: [], desc: '' };
     const s = makeDirectState([vri, ally], [], { p1: { mana: 4, gold: 0 }, p2: { mana: 0, gold: 0 } });
-    const es = []; const pickLast = { next: () => 0.9, int: (a, b) => b, pick: xs => xs[xs.length - 1] };
-    core.coreApplyManaThresholdEffects(s, pickLast, e => es.push(e), () => ({ amount: 0, died: false }));
+    // 先頭選択でも本人は候補から除外され、味方へ復活が付くこと。
+    // 「ランダムで偶然本人を選ばなかった」だけの通過を防ぐ。
+    const es = []; const pickFirst = { next: () => 0, int: a => a, pick: xs => xs[0] };
+    core.coreApplyManaThresholdEffects(s, pickFirst, e => es.push(e), () => ({ amount: 0, died: false }));
+    const selfExcluded=!s.units.p1.find(x=>x.id==='vri').keywords.includes('復活');
     const target = s.units.p1.find(x => x.id === 'revive-target');
     target.atk = 10; target.maxHp = 20; target.hp = 0;
     core.coreTriggerDeath(target, s, e => es.push(e)); core.coreTryRevive(target, s, e => es.push(e));
     const revives = es.filter(e => e.type === 'revive');
-    recordDirect('ヴリコラカス', !target.keywords.includes('復活') && revives.length === 1
+    recordDirect('ヴリコラカス', selfExcluded && !target.keywords.includes('復活') && revives.length === 1
       && target.atk === 1 && target.maxHp === 2 && target.hp === 2, `復活=${revives.length} ${target.atk}/${target.hp}`);
   }
   {
@@ -1143,6 +1147,19 @@ function audit() {
     const foe = { id: 'defense-foe', name: '攻撃役', atk: 1, hp: 5, maxHp: 5, keywords: ['防戦'], desc: '' };
     const result = core.runBattleCore(core.createBattleState({ sides: { p1: { units: [defense] }, p2: { units: [foe] } } }), createSeededRng(127), { turnLimit: 3 });
     recordDirect('両陣営防戦引き分け', result.outcome === 'draw' && result.endReason === 'both_defense', `結果=${result.outcome}/${result.endReason}`);
+  }
+  {
+    const allies = ['赤', '青', '緑'].map((color, i) => ({ id: `rainbow-${i}`, name: `味方${i}`,
+      atk: 2, hp: 5, maxHp: 5, color, keywords: [], desc: '' }));
+    const s = core.createBattleState({ sides: { p1: { units: allies }, p2: { units: [] } },
+      rings: { p1: [{ name: '虹の瞳の指輪' }], p2: [] } });
+    const es = [];
+    s.units.p1.forEach(unit => core.coreApplyOpeningRingsToUnitEarly(s, unit, e => es.push(e)));
+    const changes = es.filter(e => e.type === 'stat_change' && e.reason === 'rainbow_ring');
+    recordDirect('虹の瞳の指輪現在値', changes.length === 3
+      && changes.every(e => e.atk === 9 && e.hp === 9 && e.rainbowBonus === 9)
+      && s.units.p1.every(unit => unit._rainbowRingBonus === 9),
+    `付与=${changes.map(e => e.rainbowBonus).join(',')}`);
   }
   {
     const dead = { id: 'ring-dead', name: '犠牲', atk: 1, hp: 0, maxHp: 1, lane: 'front', keywords: [], desc: '' };

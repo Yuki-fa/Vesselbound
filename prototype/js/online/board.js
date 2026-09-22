@@ -777,6 +777,9 @@
             unit.maxHp = Math.max(1, (Number(unit.maxHp || unit.hp) || 1)
               + (Number(e0.maxHp !== undefined ? e0.maxHp : e0.hp) || 0));
             unit.hp = Math.max(0, (Number(unit.hp) || 0) + (Number(e0.hp) || 0));
+            if(e0.reason==='rainbow_ring'){
+              unit._rainbowRingBonus=Math.max(0,Number(e0.rainbowBonus!=null?e0.rainbowBonus:e0.atk)||0);
+            }
           },
           cueKeys: _effectStatCueKeys,
           vfxGate: _effectStatVfxGate,

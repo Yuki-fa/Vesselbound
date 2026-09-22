@@ -6183,7 +6183,7 @@ async function _applyCoreBattleEndEffectsLive(){
     // 戦闘中の再生（battle_events.js）と違い、ここはイベントを流さないので、書き込まないと効果が消えていた（利用者報告）。
     if(ev&&ev.type==='stat_change'&&ev.persistent&&ev.side==='p1'
       &&typeof persistBoardCharacterStats==='function'&&typeof _getPartyBoardUnit==='function'){
-      persistBoardCharacterStats(_getPartyBoardUnit(),ev.boardSlot,ev.atk,ev.hp);
+      _persistPermanentStatOrWarn(_getPartyBoardUnit(),ev);
     }
   };
   try{ coreTriggerBattleEnd(state,emit,coreMathRng); _syncCoreResourcesToG(state); }
@@ -6195,6 +6195,23 @@ async function _applyCoreBattleEndEffectsLive(){
   }
   _recordBattleTrace('battle_end_dispatch_done',{events:(G._battleCoreEvents||[]).filter(e=>e&&e.type==='gold_gain').length,gold:Number(G.gold)||0});
   G._coreBattleEndTriggered=true;
+}
+
+// 終戦の「永久に+X/+Y」を魔導板のカードへ書き戻す。**書けなかった時は必ず記録を残すこと。**
+// 「終戦では上がるのに編成画面へ戻ると元に戻っている」という報告があり、
+// 静かに失敗していると原因を追えない（2026-09-22、再現条件を特定できていない）。
+function _persistPermanentStatOrWarn(board,ev){
+  const ok=persistBoardCharacterStats(board,ev&&ev.boardSlot,ev&&ev.atk,ev&&ev.hp);
+  if(ok) return true;
+  const cards=board&&Array.isArray(board.boardCards)?board.boardCards:null;
+  const card=cards?cards[Number(ev&&ev.boardSlot)]:null;
+  const info={unitId:(ev&&ev.unitId)||null,boardSlot:ev&&ev.boardSlot,
+    atk:ev&&ev.atk,hp:ev&&ev.hp,reason:(ev&&ev.reason)||'',
+    盤面あり:!!cards,カードあり:!!card,種別:card?String(card.category||''):'',
+    カード名:card?String(card.name||''):''};
+  if(typeof _recordBattleTrace==='function') _recordBattleTrace('persist_stats_failed',info);
+  console.warn('[Vesselbound] 永久強化を魔導板へ書き戻せなかった',info);
+  return false;
 }
 
 async function onBattleEnd(){

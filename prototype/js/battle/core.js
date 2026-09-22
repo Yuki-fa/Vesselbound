@@ -748,6 +748,7 @@ function coreUnitSnapshot(u) {
     extraManaThresholds: Array.isArray(u.extraManaThresholds) ? u.extraManaThresholds.map(x => ({ ...x })) : [],
     weakenOnHit: Math.max(0, Number(u.weakenOnHit) || 0),
     ringInjuryHp: Math.max(0, Number(u.ringInjuryHp) || 0),
+    _rainbowRingBonus: Math.max(0, Number(u._rainbowRingBonus) || 0),
     boardCards: Array.isArray(u.boardCards) ? u.boardCards.map(x => ({ ...x })) : [],
     effectData: u.effectData ? {
       ...u.effectData,
@@ -1494,6 +1495,13 @@ function coreResolvedRings(state, side) {
 function coreRingCount(state, side, name) {
   return coreResolvedRings(state, side).filter(x => x && String(x.name || x) === String(name || '')).length;
 }
+// 虹の瞳の指輪の X。戦闘計算と説明表示が別の数え方にならないよう共通化する。
+function coreRainbowRingBonusForUnits(units) {
+  const colors = new Set((units || []).filter(Boolean)
+    .filter(unit => unit.hp > 0 && !coreIsSealed(unit))
+    .map(unit => String(unit.color || '')).filter(Boolean));
+  return Math.min(5, colors.size) * 3;
+}
 // 召喚体を盤面配列のどこへ入れるかを決める。**位置の決定はここが唯一の実装。**
 // 末尾へ push すると、表示のために前衛右端へ並べ替えるPvEと配列の順序が食い違い、
 // 前衛優先・隣接（三方向）・ランダム対象の結果がオンラインとずれる。
@@ -1987,10 +1995,12 @@ function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
   });
   if (side === 'p1' && coreRingCount(state, 'p1', '虹の瞳の指輪')) {
     const live = (state.units.p1 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
-    const n = Math.min(5, new Set(live.map(x => x.color).filter(Boolean)).size) * 3;
+    const n = coreRainbowRingBonusForUnits(live);
     if (n) {
       unit.atk = Math.max(0, unit.atk + n); unit.maxHp += n; unit.hp += n;
-      emit({ type: 'stat_change', side: 'p1', unitId: unit.id, atk: n, hp: n, reason: 'rainbow_ring' });
+      unit._rainbowRingBonus = n;
+      emit({ type: 'stat_change', side: 'p1', unitId: unit.id, atk: n, hp: n,
+        reason: 'rainbow_ring', rainbowBonus: n });
     }
   }
 }
@@ -2252,26 +2262,32 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   const openingTexts = coreTriggerTextParts(unit, '開戦');
   // 開戦時のコピーは、他の開戦効果（召喚・バフ・マナ）より先に解決する。
   const openingCopy = coreTriggerMatch(openingTexts, /^(?:このキャラクターの)?(?:(\d+)\/(\d+)の)?コピーを(?:(\d+)体)?召喚する/);
+  // 開戦のコピー召喚はここだけ。ツインデビル（本文）と複製の力（マスの力）が共に使う。
+  const summonOpeningCopy = (fixedAtk, fixedHp) => {
+    const copySpec = {
+      name: unit.name,
+      atk: fixedAtk != null ? fixedAtk : unit.atk,
+      hp: fixedHp != null ? fixedHp : unit.hp,
+      maxHp: fixedHp != null ? fixedHp : unit.maxHp,
+      color: unit.color,
+      race: unit.race, keywords: [...(unit.keywords || [])], desc: unit.desc,
+      effectData: { ...(unit.effectData || {}) }, _copyOf: unit.id, _openingDuplicate: true,
+    };
+    coreCopyUnitEffectState(copySpec, unit);
+    if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }
+    if (fixedHp != null) { copySpec.hp = fixedHp; copySpec.maxHp = fixedHp; copySpec._baseMaxHp = fixedHp; }
+    coreSummonUnit(state, unit.side, copySpec, emit, unit.id);
+  };
   if (openingCopy && !unit._openingDuplicate) {
     const count = Math.max(1, Number(openingCopy[3]) || 1);
     const fixedAtk = openingCopy[1] != null ? Number(openingCopy[1]) : null;
     const fixedHp = openingCopy[2] != null ? Number(openingCopy[2]) : null;
-    for (let i = 0; i < count; i++) {
-      const copySpec = {
-        name: unit.name,
-        atk: fixedAtk != null ? fixedAtk : unit.atk,
-        hp: fixedHp != null ? fixedHp : unit.hp,
-        maxHp: fixedHp != null ? fixedHp : unit.maxHp,
-        color: unit.color,
-        race: unit.race, keywords: [...(unit.keywords || [])], desc: unit.desc,
-        effectData: { ...(unit.effectData || {}) }, _copyOf: unit.id, _openingDuplicate: true,
-      };
-      coreCopyUnitEffectState(copySpec, unit);
-      if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }
-      if (fixedHp != null) { copySpec.hp = fixedHp; copySpec.maxHp = fixedHp; copySpec._baseMaxHp = fixedHp; }
-      coreSummonUnit(state, unit.side, copySpec, emit, unit.id);
-    }
+    for (let i = 0; i < count; i++) summonOpeningCopy(fixedAtk, fixedHp);
   }
+  // 複製の力（マスの力）：「開戦時に場に出てコピーを1体生成する」。
+  // 出撃時に2体並べず、ツインデビルと同じく開戦で召喚する（利用者指定 2026-09-22）。
+  // コピー自身には印（_openingDuplicate）が付くので、コピーがさらに複製することはない。
+  if (unit._mapPanelPower === 'duplicate' && !unit._openingDuplicate) summonOpeningCopy(null, null);
   // 開戦：ランダムなA、B、Cキャラクター1体ずつは+X/+Yを得る（ガーゴイル）。
   // **色も加算値も本文から読む**（合体後は+6/+6）。負傷側（フォルモール）と同じ形。
   const openingRandomColors = coreTriggerMatch(openingTexts, /ランダムな([赤青緑黄紫茶])、([赤青緑黄紫茶])、([赤青緑黄紫茶])(?:の味方|の?キャラクター)1体ずつは\+([0-9]+)\/?\+([0-9]+)を得る/);
@@ -3222,7 +3238,11 @@ function coreApplyKeywordOnHit(attacker, target, damageDone, targetPreHp, state,
   const result = { protected: protectedByWard, killed: false, healed: 0 };
   const bonus = Math.max(0, Number(options && options.bonus) || 0);
   if (protectedByWard || protectedByRing) { result.protected = true; return result; }
-  if (coreUnitHasKeyword(target, '呪詛') && attacker.hp > 0) {
+  // 呪詛：このキャラクターにダメージを与えたキャラクターは死亡する。
+  // **呪詛を持つ体がそのダメージで倒れた時は不発**（利用者指定 2026-09-22）。
+  // 倒れた後に発動すると、死亡効果で撃った体を巻き込み、その体が復活していても
+  // 呪詛の死亡が後から届いて「復活したのにまた死ぬ」ことになっていた。
+  if (coreUnitHasKeyword(target, '呪詛') && attacker.hp > 0 && target.hp > 0) {
     attacker.hp = 0;
     result.cursed = true;
     emit({ type: 'curse_death', side: attacker.side, unitId: attacker.id, sourceId: target.id });
@@ -5236,6 +5256,7 @@ if (typeof window !== 'undefined') {
   window.coreHasEffect = coreHasEffect;
   window.coreEffectCount = coreEffectCount;
   window.coreRingCount = coreRingCount;
+  window.coreRainbowRingBonusForUnits = coreRainbowRingBonusForUnits;
   window.coreSummonUnit = coreSummonUnit;
   window.coreFlushPendingLichSummons = coreFlushPendingLichSummons;
   window.coreTransformUnit = coreTransformUnit;
@@ -5292,7 +5313,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyKeywordOnHit, coreApplyPoisonBeforeTurn,
     coreKeywordHitAmounts,
     coreTriggerAtkGainEffects,
-    coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreApplyAttackEffects,
+    coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreRainbowRingBonusForUnits, coreApplyAttackEffects,
     coreEffectNumbers, coreExtraTriggerTimes,
     coreResolvedRings, coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
     coreTriggerTextParts, coreTriggerMatch, coreTriggerTest,

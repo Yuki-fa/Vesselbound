@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="../">
+<link rel="icon" href="data:,">
+<title>カード横回転・登場演出比較 — Vesselbound</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --gold:#c49a6c;
+    --gold-bright:#ffe6a3;
+    --ink:#080706;
+    --panel:rgba(11,8,7,.78);
+    --cursor-normal:url("assets/ui/cursor1.svg") 5 2,default;
+    --cursor-press:url("assets/ui/cursor2.svg") 5 2,pointer;
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%;margin:0}
+  body{
+    cursor:var(--cursor-normal);
+    color:#ead9b9;
+    font-family:"Shippori Mincho","Yu Mincho","Hiragino Mincho ProN",serif;
+    background:
+      linear-gradient(rgba(2,2,3,.7),rgba(2,2,3,.86)),
+      url("assets/art/backgrounds/stage_capital1.webp") center/cover fixed no-repeat,
+      #080706;
+  }
+  button{cursor:var(--cursor-normal)}
+  button:active{cursor:var(--cursor-press)}
+
+  .page{
+    width:min(1480px,calc(100% - 40px));
+    margin:0 auto;
+    padding:28px 0 44px;
+  }
+  .title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:18px}
+  h1{margin:0;color:#f1d79c;font-size:clamp(22px,2.4vw,36px);letter-spacing:.12em;text-shadow:0 2px 12px #000}
+  .lead{max-width:740px;margin:8px 0 0;color:#ae9b7b;font-size:14px;line-height:1.7;letter-spacing:.04em}
+  .controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px}
+  .control-button{
+    position:relative;
+    min-width:170px;
+    height:48px;
+    padding:0 24px 2px;
+    border:0;
+    color:#f5ddb0;
+    font:700 15px/1 "Shippori Mincho","Yu Mincho",serif;
+    letter-spacing:.12em;
+    background:transparent url("assets/ui/button_blue1.svg") center/100% 100% no-repeat;
+    text-shadow:0 2px 4px #000;
+  }
+  .control-button:hover{filter:drop-shadow(0 0 6px rgba(255,221,139,.7))}
+  .control-button:focus-visible{outline:2px solid #f6d785;outline-offset:3px}
+
+  .pattern-grid{display:grid;grid-template-columns:repeat(3,minmax(300px,1fr));gap:16px}
+  .pattern{
+    position:relative;
+    min-height:430px;
+    overflow:hidden;
+    border:1px solid rgba(184,133,62,.52);
+    border-radius:8px;
+    background:
+      radial-gradient(circle at 50% 47%,rgba(78,54,31,.16),transparent 43%),
+      linear-gradient(180deg,rgba(12,10,12,.76),rgba(4,4,5,.92));
+    box-shadow:inset 0 0 0 1px rgba(255,215,132,.04),0 12px 34px rgba(0,0,0,.38);
+  }
+  .pattern::before{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background:linear-gradient(110deg,transparent 18%,rgba(255,218,140,.035) 48%,transparent 70%);
+  }
+  .pattern:hover{border-color:rgba(232,182,90,.78)}
+  .pattern:focus-visible{outline:2px solid #f6d785;outline-offset:2px}
+  .pattern-head{position:absolute;left:18px;right:18px;top:15px;z-index:20;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;pointer-events:none}
+  .pattern-name{margin:0;color:#efd59d;font-size:18px;letter-spacing:.11em}
+  .pattern-no{color:#8c7049;font-size:12px;letter-spacing:.14em}
+  .pattern-spec{margin:4px 0 0;color:#917f65;font-size:11px;line-height:1.55;letter-spacing:.05em}
+  .replay-hint{padding-top:3px;color:#7d6a4f;font-size:11px;white-space:nowrap}
+
+  .scene{
+    position:absolute;
+    left:0;right:0;top:67px;bottom:0;
+    perspective:1100px;
+    perspective-origin:50% 48%;
+    overflow:hidden;
+  }
+  .floor-shadow{
+    position:absolute;left:50%;top:84%;width:170px;height:26px;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:rgba(0,0,0,.72);
+    filter:blur(10px);
+    opacity:.55;
+  }
+  .card-rig{
+    position:absolute;left:50%;top:49%;
+    width:174px;height:264.05px;
+    transform:translate(-50%,-50%);
+    transform-style:preserve-3d;
+  }
+  .card-spinner{
+    position:absolute;inset:0;
+    transform-style:preserve-3d;
+    transform-origin:50% 50%;
+    will-change:transform,opacity,filter;
+  }
+  .card-face{
+    position:absolute;inset:0;
+    overflow:hidden;
+    border-radius:5.65% / 3.721%;
+    backface-visibility:hidden;
+    -webkit-backface-visibility:hidden;
+    background:#130905;
+    box-shadow:0 14px 32px rgba(0,0,0,.62);
+  }
+  .card-face,.card-face *{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .card-front{transform:rotateY(0deg) translateZ(.1px)}
+  .card-back{
+    transform:rotateY(180deg) translateZ(.1px);
+    background:
+      radial-gradient(circle at 50% 50%,rgba(104,63,20,.28),transparent 34%),
+      #100805 url("assets/cards/c_board.svg") center/100% 100% no-repeat;
+  }
+  .card-art{position:absolute;left:6.16%;right:6.16%;top:3.58%;height:92.85%;z-index:1;background:url("assets/art/characters/C003.jpg") center 58%/cover no-repeat}
+  .card-frame{position:absolute;inset:0;z-index:2;background:url("assets/cards/summon_frame3.svg") center/100% 100% no-repeat}
+  .stat-overlay{position:absolute;inset:0;z-index:3;background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat}
+  .stat{position:absolute;bottom:2.4%;z-index:4;width:29%;text-align:center;color:#fff7df;font:bold 25px/1 Georgia,serif;-webkit-text-stroke:1px rgba(0,0,0,.85);text-shadow:0 2px 4px #000}
+  .stat.atk{left:2.2%}.stat.hp{right:2.2%}
+
+  .impact{position:absolute;left:50%;top:49%;width:1px;height:1px;pointer-events:none}
+  .impact-ring,.impact-ring-2,.impact-flare-x,.impact-flare-y,.impact-core,.impact-sparks{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+  .impact-ring,.impact-ring-2{width:250px;height:250px;margin:-125px;border:2px solid rgba(255,225,145,.9);border-radius:50%;box-shadow:0 0 16px rgba(255,211,103,.75),inset 0 0 14px rgba(255,229,160,.45)}
+  .impact-ring-2{width:196px;height:196px;margin:-98px;border-width:1px;border-color:rgba(255,255,232,.82)}
+  .impact-flare-x{width:330px;height:8px;margin:-4px -165px;background:linear-gradient(90deg,transparent,rgba(255,210,105,.2) 24%,#fffbe5 50%,rgba(255,210,105,.2) 76%,transparent);filter:blur(1px)}
+  .impact-flare-y{width:8px;height:330px;margin:-165px -4px;background:linear-gradient(180deg,transparent,rgba(255,210,105,.16) 24%,#fffbe5 50%,rgba(255,210,105,.16) 76%,transparent);filter:blur(1px)}
+  .impact-core{width:190px;height:286px;margin:-143px -95px;border-radius:10px;background:rgba(255,240,184,.22);box-shadow:0 0 16px #fff1b9,0 0 38px rgba(255,198,70,.85),0 0 74px rgba(255,183,40,.48)}
+  .impact-sparks{width:2px;height:2px}
+  .impact-sparks i{position:absolute;left:-2px;top:-2px;width:4px;height:21px;border-radius:50%;background:linear-gradient(#fff9d9,#e7a83a,transparent);transform-origin:2px 2px;opacity:0}
+  .impact-sparks i:nth-child(1){--angle:0deg}.impact-sparks i:nth-child(2){--angle:30deg}.impact-sparks i:nth-child(3){--angle:60deg}.impact-sparks i:nth-child(4){--angle:90deg}.impact-sparks i:nth-child(5){--angle:120deg}.impact-sparks i:nth-child(6){--angle:150deg}.impact-sparks i:nth-child(7){--angle:180deg}.impact-sparks i:nth-child(8){--angle:210deg}.impact-sparks i:nth-child(9){--angle:240deg}.impact-sparks i:nth-child(10){--angle:270deg}.impact-sparks i:nth-child(11){--angle:300deg}.impact-sparks i:nth-child(12){--angle:330deg}
+
+  .pattern.is-impact .card-spinner{animation:card-impact var(--impact-card-ms,360ms) cubic-bezier(.12,.78,.2,1) both}
+  .pattern.is-impact .impact-core{animation:impact-core var(--impact-ms,540ms) ease-out both}
+  .pattern.is-impact .impact-ring{animation:impact-ring var(--impact-ms,540ms) cubic-bezier(.08,.72,.16,1) both}
+  .pattern.is-impact .impact-ring-2{animation:impact-ring-2 calc(var(--impact-ms,540ms) * .82) cubic-bezier(.08,.72,.16,1) 35ms both}
+  .pattern.is-impact .impact-flare-x{animation:impact-flare var(--impact-ms,540ms) ease-out both}
+  .pattern.is-impact .impact-flare-y{animation:impact-flare-y var(--impact-ms,540ms) ease-out both}
+  .pattern.is-impact .impact-sparks i{animation:impact-spark calc(var(--impact-ms,540ms) * .92) ease-out both;animation-delay:calc(var(--spark-delay,0ms) + (var(--angle) / 30deg) * 2ms)}
+
+  .pattern[data-pattern="quick"]{--impact-ms:380ms;--impact-card-ms:250ms}
+  .pattern[data-pattern="heavy"]{--impact-ms:760ms;--impact-card-ms:470ms}
+  .pattern[data-pattern="reverse"]{--impact-ms:500ms;--impact-card-ms:330ms}
+  .pattern[data-pattern="elastic"]{--impact-ms:620ms;--impact-card-ms:410ms}
+  .pattern[data-pattern="minimal"]{--impact-ms:340ms;--impact-card-ms:230ms}
+  .pattern[data-pattern="quick"] .impact-ring-2,.pattern[data-pattern="minimal"] .impact-ring-2,.pattern[data-pattern="minimal"] .impact-flare-y,.pattern[data-pattern="minimal"] .impact-sparks{display:none}
+  .pattern[data-pattern="heavy"] .impact-ring{border-width:3px}
+  .pattern[data-pattern="reverse"] .impact-ring{border-color:#d7ecff;box-shadow:0 0 15px #89c6ff,inset 0 0 10px #fff}
+  .pattern[data-pattern="elastic"] .impact-core{box-shadow:0 0 20px #fff6c5,0 0 52px rgba(255,201,75,.92),0 0 92px rgba(255,177,38,.58)}
+  .pattern[data-pattern="minimal"] .impact-core{box-shadow:0 0 12px #fff3c0,0 0 28px rgba(255,201,75,.62)}
+
+  @keyframes card-impact{
+    0%{filter:brightness(1);transform:scale(1)}
+    18%{filter:brightness(1.78) saturate(1.14);transform:scale(1.045)}
+    52%{filter:brightness(1.14);transform:scale(.992)}
+    100%{filter:brightness(1);transform:scale(1)}
+  }
+  @keyframes impact-core{0%{opacity:0;transform:scale(.76)}12%{opacity:1;transform:scale(1.04)}38%{opacity:.5}100%{opacity:0;transform:scale(1.14)}}
+  @keyframes impact-ring{0%{opacity:0;transform:scale(.24)}18%{opacity:1}100%{opacity:0;transform:scale(1.48)}}
+  @keyframes impact-ring-2{0%{opacity:0;transform:scale(.38)}24%{opacity:.9}100%{opacity:0;transform:scale(1.28)}}
+  @keyframes impact-flare{0%{opacity:0;transform:scaleX(.12)}14%{opacity:1}100%{opacity:0;transform:scaleX(1)}}
+  @keyframes impact-flare-y{0%{opacity:0;transform:scaleY(.1)}14%{opacity:.8}100%{opacity:0;transform:scaleY(.82)}}
+  @keyframes impact-spark{0%{opacity:0;transform:rotate(var(--angle)) translateY(-38px) scaleY(.35)}14%{opacity:1}100%{opacity:0;transform:rotate(var(--angle)) translateY(-148px) scaleY(1)}}
+
+  .status{margin:16px 2px 0;color:#8f806a;font-size:12px;letter-spacing:.05em;text-align:right}
+  code{color:#cbb084}
+  @media (max-width:1040px){.pattern-grid{grid-template-columns:repeat(2,minmax(280px,1fr))}.title-row{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  @media (max-width:650px){.page{width:min(100% - 22px,460px);padding-top:18px}.pattern-grid{grid-template-columns:1fr}.pattern{min-height:410px}.controls{width:100%}.control-button{flex:1;min-width:140px}}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="title-row">
+    <div>
+      <h1>カード横回転・登場演出</h1>
+      <p class="lead">すべてカードの中心を固定し、登場直後にY軸で高速回転、徐々に減速して正面で停止します。カード、または各枠内をクリックすると個別に再生できます。</p>
+    </div>
+    <div class="controls">
+      <button class="control-button" id="play-all" type="button">すべて再生</button>
+      <button class="control-button" id="play-sequence" type="button">順番に再生</button>
+    </div>
+  </div>
+
+  <section class="pattern-grid" id="pattern-grid" aria-label="カード登場演出の比較">
+    <article class="pattern" data-pattern="standard" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">A　標準</p><p class="pattern-spec">6回転・1.55秒／素直な減速と中程度の発光</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern" data-pattern="quick" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">B　高速スナップ</p><p class="pattern-spec">8回転・1.05秒／鋭く停止して短く発光</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern" data-pattern="heavy" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">C　重厚</p><p class="pattern-spec">5回転・2.10秒／長い減速と太い余韻</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern" data-pattern="reverse" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">D　逆回転</p><p class="pattern-spec">逆向き6回転・1.60秒／青白い輪から金へ</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern" data-pattern="elastic" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">E　弾性停止</p><p class="pattern-spec">7回転・1.75秒／正面をわずかに越えて収束</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern" data-pattern="minimal" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">F　簡潔</p><p class="pattern-spec">6回転・1.35秒／発光を抑えた実戦向け</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+  </section>
+  <p class="status" id="status">SPACE：すべて再生　／　各案は必ず <code>rotateY(0deg)</code> で停止</p>
+</main>
+
+<template id="scene-template">
+  <div class="scene">
+    <div class="floor-shadow"></div>
+    <div class="impact" aria-hidden="true">
+      <span class="impact-core"></span><span class="impact-ring"></span><span class="impact-ring-2"></span>
+      <span class="impact-flare-x"></span><span class="impact-flare-y"></span>
+      <span class="impact-sparks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="card-rig">
+      <div class="card-spinner">
+        <div class="card-face card-front"><div class="card-art"></div><div class="card-frame"></div><div class="stat-overlay"></div><span class="stat atk">2</span><span class="stat hp">4</span></div>
+        <div class="card-face card-back"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  (()=>{
+    'use strict';
+
+    const definitions={
+      standard:{
+        duration:1550,
+        easing:'cubic-bezier(.06,.70,.13,1)',
+        frames:[
+          {offset:0,angle:-2160,scale:.72,opacity:0},
+          {offset:.09,angle:-1590,scale:.89,opacity:1},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      },
+      quick:{
+        duration:1050,
+        easing:'cubic-bezier(.04,.82,.10,1)',
+        frames:[
+          {offset:0,angle:-2880,scale:.76,opacity:0},
+          {offset:.08,angle:-2040,scale:.94,opacity:1},
+          {offset:.84,angle:-10,scale:1.015,opacity:1},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      },
+      heavy:{
+        duration:2100,
+        easing:'cubic-bezier(.08,.58,.13,1)',
+        frames:[
+          {offset:0,angle:-1800,scale:.62,opacity:0},
+          {offset:.12,angle:-1400,scale:.78,opacity:1},
+          {offset:.72,angle:-120,scale:.985,opacity:1},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      },
+      reverse:{
+        duration:1600,
+        easing:'cubic-bezier(.06,.72,.14,1)',
+        frames:[
+          {offset:0,angle:2160,scale:.7,opacity:0},
+          {offset:.10,angle:1600,scale:.91,opacity:1},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      },
+      elastic:{
+        duration:1750,
+        easing:'linear',
+        frames:[
+          {offset:0,angle:-2520,scale:.7,opacity:0,easing:'cubic-bezier(.05,.69,.11,1)'},
+          {offset:.09,angle:-1920,scale:.91,opacity:1,easing:'cubic-bezier(.08,.62,.13,1)'},
+          {offset:.78,angle:-18,scale:1.018,opacity:1,easing:'cubic-bezier(.2,.7,.2,1)'},
+          {offset:.88,angle:7,scale:.995,opacity:1,easing:'ease-out'},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      },
+      minimal:{
+        duration:1350,
+        easing:'cubic-bezier(.05,.76,.12,1)',
+        frames:[
+          {offset:0,angle:-2160,scale:.82,opacity:0},
+          {offset:.08,angle:-1540,scale:.96,opacity:1},
+          {offset:1,angle:0,scale:1,opacity:1}
+        ]
+      }
+    };
+
+    const template=document.getElementById('scene-template');
+    const patterns=[...document.querySelectorAll('.pattern')];
+    for(const pattern of patterns) pattern.appendChild(template.content.cloneNode(true));
+
+    const waits=new WeakMap();
+    function clearImpact(pattern){
+      pattern.classList.remove('is-impact');
+      void pattern.offsetWidth;
+    }
+    function transformOf(frame,angleOffset=0){
+      return `rotateY(${frame.angle+angleOffset}deg) translateZ(.1px) scale(${frame.scale})`;
+    }
+    function play(pattern){
+      const name=pattern.dataset.pattern;
+      const def=definitions[name];
+      const spinner=pattern.querySelector('.card-spinner');
+      const front=pattern.querySelector('.card-front');
+      const back=pattern.querySelector('.card-back');
+      const previous=waits.get(pattern);
+      if(previous) clearTimeout(previous);
+      for(const animation of [...spinner.getAnimations(),...front.getAnimations(),...back.getAnimations()]) animation.cancel();
+      clearImpact(pattern);
+      spinner.style.transform='scale(1)';
+      front.style.opacity='0';
+      back.style.opacity='0';
+      const faceKeyframes=angleOffset=>def.frames.map(frame=>{
+        const keyframe={offset:frame.offset,opacity:frame.opacity,transform:transformOf(frame,angleOffset)};
+        if(frame.easing) keyframe.easing=frame.easing;
+        return keyframe;
+      });
+      const timing={duration:def.duration,easing:def.easing,fill:'forwards'};
+      const animation=front.animate(faceKeyframes(0),timing);
+      const backAnimation=back.animate(faceKeyframes(180),timing);
+      animation.finished.then(()=>{
+        front.style.opacity='1';
+        back.style.opacity='1';
+        front.style.transform='rotateY(0deg) translateZ(.1px) scale(1)';
+        back.style.transform='rotateY(180deg) translateZ(.1px) scale(1)';
+        animation.cancel();
+        backAnimation.cancel();
+        pattern.classList.add('is-impact');
+        const timer=setTimeout(()=>pattern.classList.remove('is-impact'),900);
+        waits.set(pattern,timer);
+      }).catch(()=>{});
+      return def.duration;
+    }
+    function playAll(){patterns.forEach(play)}
+    async function playSequence(){
+      for(const pattern of patterns){
+        const duration=play(pattern);
+        await new Promise(resolve=>setTimeout(resolve,duration+420));
+      }
+    }
+
+    for(const pattern of patterns){
+      pattern.addEventListener('click',()=>play(pattern));
+      pattern.addEventListener('keydown',event=>{
+        if(event.key==='Enter'||event.key===' '){event.preventDefault();play(pattern)}
+      });
+    }
+    document.getElementById('play-all').addEventListener('click',playAll);
+    document.getElementById('play-sequence').addEventListener('click',playSequence);
+    document.addEventListener('keydown',event=>{
+      if(event.code==='Space'&&event.target===document.body){event.preventDefault();playAll()}
+    });
+    setTimeout(playAll,280);
+  })();
+</script>
+</body>
+</html>

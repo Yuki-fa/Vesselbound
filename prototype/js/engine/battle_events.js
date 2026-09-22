@@ -161,6 +161,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // ずれても残る。見せ方は render.js の _playUnitDeathCardFx が唯一の実装。
   (events||[]).forEach(e=>{
     if(!e||e.unitId==null) return;
+    // 虹の瞳の指輪の説明文には、コアが実際に付与した X を出す。
+    // PvEはユニットを共有するが、オンライン再生はイベントから表示側へ受け渡す必要がある。
+    if(e.type==='stat_change'&&e.reason==='rainbow_ring'){
+      const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+      if(u) u._rainbowRingBonus=Math.max(0,Number(e.rainbowBonus!=null?e.rainbowBonus:e.atk)||0);
+    }
     // ATKへのダメージ（武器破壊）はHPを削らないので数に入れない。
     const byDamage=(e.type==='damage'&&e.damageTo!=='atk')||e.type==='instant_death';
     const byDrain=e.type==='stat_change'&&Number(e.hp)<0;
@@ -742,7 +748,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       });
       if (e.persistent && e.side === 'p1' && typeof persistBoardCharacterStats === 'function'
         && typeof _getPartyBoardUnit === 'function') {
-        persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
+        // 書けなかった時は理由を残す（battle.js の _persistPermanentStatOrWarn が唯一の実装）。
+        if (typeof _persistPermanentStatOrWarn === 'function') _persistPermanentStatOrWarn(_getPartyBoardUnit(), e);
+        else persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
       }
       _showWither(findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId)),e.side);
       continue;

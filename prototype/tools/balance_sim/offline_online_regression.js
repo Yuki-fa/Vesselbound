@@ -118,8 +118,14 @@ function main() {
   // 出撃体数（複製・恩寵）とレーン・出撃順は共通ビルダー（battle/formation.js）が唯一の実装。
   // オンライン側で作り直すと、以前のように出撃順とレーンがPvEと食い違う。
   const formation = fs.readFileSync(require.resolve('../../js/battle/formation.js'), 'utf8');
-  assert.match(formation, /const baseCount = openingCopy \? 1 : rawCount \+ \(panelPower === 'duplicate' \? 1 : 0\)/,
-    '共通ビルダーに複製の出撃数計算がない');
+  // **複製の力は出撃時に増やさない。** ツインデビルと同じく、開戦でコアがコピーを召喚する
+  // （2026-09-22 利用者指定。以前は編成時に2体作っていて、戦闘開始前から2体並んで見えた）。
+  assert.match(formation, /const baseCount = openingCopy \? 1 : rawCount;/,
+    '共通ビルダーが複製の力で出撃数を増やしている（開戦の召喚で出すこと）');
+  assert.doesNotMatch(formation, /panelPower === 'duplicate' \? 1 : 0/,
+    '共通ビルダーに複製の出撃数加算が残っている');
+  assert.match(coreSrc, /unit\._mapPanelPower === 'duplicate' && !unit\._openingDuplicate/,
+    'コアが複製の力のコピーを開戦で召喚していない');
   assert.match(formation, /openingCopyExtra/, '共通ビルダーに恩寵の追加出撃数計算がない');
   assert.match(versus, /buildBoardFormation\(board, \{ persistEternal: !!\(opts && opts\.persistEternal\) \}\)/,
     'オンライン編成生成が共通ビルダーを使っていない');

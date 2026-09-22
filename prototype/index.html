@@ -12138,13 +12138,13 @@ _watchVesselboundDpr();
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=leprechaun0916"></script>
+<script src="js/data/local_xlsx_data.js?v=vriExclude0922"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=sheetItems0921"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=witherFx0922"></script>
-<script src="js/battle/formation.js?v=sealGate0922"></script>
+    <script src="js/battle/core.js?v=rainbowText0922"></script>
+<script src="js/battle/formation.js?v=dupPower0922"></script>
     <script src="js/battle/present.js?v=deathBreak0917"></script>
     <script src="js/battle/present_events.js?v=injuryFlash0917"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
@@ -12152,9 +12152,9 @@ _watchVesselboundDpr();
 <script src="js/online/sim.js?v=online6"></script>
 <script src="js/online/server_local.js?v=debugOnlineUnlimited01"></script>
 <script src="js/online/match.js?v=online13"></script>
-<script src="js/online/playback.js?v=speedAuto01"></script>
+<script src="js/online/playback.js?v=rainbowText0922"></script>
 <script src="js/online/matching.js?v=onlineExit01"></script>
-    <script src="js/online/board.js?v=lemures0917"></script>
+    <script src="js/online/board.js?v=rainbowText0922"></script>
 <script src="js/online/versus.js?v=leprechaun0916"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
@@ -12165,9 +12165,9 @@ _watchVesselboundDpr();
 <script src="js/save/run_save.js?v=boardRename01"></script>
 <script src="js/engine/pool.js?v=rewardRarity0921"></script>
 <script src="js/engine/enemy.js?v=debugEnemyCycle0917"></script>
-    <script src="js/engine/battle.js?v=witherFx0922"></script>
-    <script src="js/engine/battle_events.js?v=witherFx0922"></script>
-<script src="js/engine/render.js?v=witherFx0922"></script>
+    <script src="js/engine/battle.js?v=persistWarn0922"></script>
+    <script src="js/engine/battle_events.js?v=rainbowText0922"></script>
+<script src="js/engine/render.js?v=rainbowText0922"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=rewardDragFix0917"></script>
 <script src="js/engine/reward_journey.js?v=enemySummonStats0917"></script>
@@ -12868,6 +12868,13 @@ html body.reward-screen-active .shop-pending-sale-ui .shop-board-sell-value{top:
 html body.reward-screen-active .shop-pending-sale-ui{z-index:auto!important}
 html body.reward-screen-active #reward-offer-row > .rew-card::after{
   z-index:100!important;
+}
+/* 指輪・アイテムの枠（::before＝ring_slot/item_slot）は、上の ::after（絵＝100）より手前へ。
+   指輪置き場（.reward-prod-ring）は下の規則で110にしてあるのに、祭壇の提示枠だけ
+   既定の2のままで、絵が枠を覆っていた（暗い指輪にホバーすると枠が消える。利用者報告 2026-09-22）。 */
+html body.reward-screen-active #reward-offer-row > .rew-card.ring-visual::before,
+html body.reward-screen-active #reward-offer-row > .rew-card.item-visual::before{
+  z-index:110!important;
 }
 html body.reward-screen-active #hand-slots.board-slots > .card .board-frame-layer,
 html body.reward-screen-active #hand-slots.board-slots > .card .map-boundary-layer,

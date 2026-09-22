@@ -191,6 +191,9 @@ async function playOnlineBattleEvents(result, handlers) {
         u.maxHp = Math.max(1, (Number(u.maxHp || u.hp) || 1)
           + (Number(ev.maxHp !== undefined ? ev.maxHp : ev.hp) || 0));
         u.hp = Math.max(0, (Number(u.hp) || 0) + (Number(ev.hp) || 0));
+        if(ev.reason==='rainbow_ring'){
+          u._rainbowRingBonus=Math.max(0,Number(ev.rainbowBonus!=null?ev.rainbowBonus:ev.atk)||0);
+        }
       }
     } else if (ev.type === 'keyword_effect') {
       const u = ctx.unitById(ev.unitId);
