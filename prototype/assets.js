@@ -212,6 +212,11 @@ const Assets = {
     bookClosing: 'assets/sfx/book_closing.wav',
     altarIn: 'assets/sfx/altar_in.wav',
     altarOut: 'assets/sfx/altar_out.wav',
+    // 報酬めくり（js/engine/card_reveal.js）。音の山を「表になって光る瞬間」に合わせて鳴らす。
+    cardFlip: 'assets/sfx/card_flip.wav', // レア度1・2：カードが真横（幅0）になる瞬間
+    R3: 'assets/sfx/R3.wav',
+    R4: 'assets/sfx/R4.wav',
+    R5: 'assets/sfx/R5.wav',
     fit: 'assets/sfx/fit.wav',
     'return': 'assets/sfx/return.wav',
     menu: 'assets/bgm/menu.wav',

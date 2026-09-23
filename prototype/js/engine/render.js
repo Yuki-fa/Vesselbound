@@ -1746,10 +1746,13 @@ function _forceStopAllVfx(options){
   const preserveDamage=!!(options&&options.preserveDamage);
   // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に
   // 生成されるため、戦闘終了時は一時要素を種類を問わずまとめて除去する。
-  const selectors=(preserveDamage?'':'.damage-vfx-host,.damage-label-host,')+
+  // FLED／WASTED の文字もダメージ数値と同じ扱い。最後の1体を倒した時も読み切れるように、
+  // 勝利確定（preserveDamage）では残す（自分で時間が来たら消える）。以前は勝利確定で即座に消され、
+  // 最後の敵が毒・衰弱で死んだ時は WASTED が出なかった。
+  const selectors=(preserveDamage?'':'.damage-vfx-host,.damage-label-host,.fled-label-host,')+
     '.effect-sustain-host,'+
     '.special-vfx-clip,.special-vfx-host,.sweep-vfx-clip,.sweep-vfx-host,'+
-    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,.fled-label-host,#battle-start-intro,'+
+    '.attack-motion-clone,.death-burn-clone,.battle-opening-appearance-vfx,#battle-start-intro,'+
     // **キャラの上へ直接足した絵も消す。**（playVfxOnElement が付ける `.vfx`）
     // アニメーション終了で自分を消す作りだが、決着で盤面が描き直されたり
     // ループする素材だったりすると animationend が来ず、キャラの上に残り続ける
@@ -2521,7 +2524,10 @@ function _spawnFledLabel(rect,text){
     label.appendChild(span);
   });
   host.appendChild(label);
-  document.body.appendChild(host);
+  // **ダメージ数値と同じ層（#vfx-frame-clip の中・z-index:10030）へ置く。**
+  // body 直下（z-index:330）に置いていた頃は、同じ層の中で消えていくカードの複製
+  // （衰弱・毒で死んだ時の波打ち .death-wave-clone：10019）の下に隠れ、WASTED が一度も見えなかった。
+  (typeof _vfxHostParent==='function'?_vfxHostParent():document.body).appendChild(host);
   return host;
 }
 // ── 「WASTED」の文字（ダメージ以外でHPが0になった時）────────────

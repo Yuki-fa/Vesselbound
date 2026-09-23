@@ -7951,6 +7951,28 @@ html body.reward-screen-active .shop-board-sell-action{
 }
 #battle-end-fade.is-visible{opacity:.78;visibility:visible;transition:opacity .72s ease}
 #battle-end-fade.is-final{opacity:1;visibility:visible;transition:opacity .36s ease}
+/* 戦闘後の報酬めくり（js/engine/card_reveal.js）。暗転（z-index:5000）の下に置き、暗転が明けると見える。
+   めくりの間は報酬欄のカードを隠し、終わったら手前の黒とカードを消して報酬欄をフェードで出す。 */
+#reward-reveal-layer{position:absolute;inset:0;z-index:4500;pointer-events:auto;opacity:1;transition:opacity .52s ease}
+#reward-reveal-layer.is-leaving{opacity:0;pointer-events:none}
+#reward-reveal-layer .reward-reveal-shade{position:absolute;inset:0;background:rgba(0,0,0,.8)}
+/* 表の面は報酬欄と同じ寸法（--hand-card-w/h）で描いてから拡大する（--rr-scale は reward.js が入れる）。
+   カード内の数字・コストなどは px 指定が多く、枠だけ大きくすると数字が小さいまま外へずれるため。 */
+html body #reward-reveal-layer .cr-front-content>.card.reward-reveal-face{
+  position:absolute!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;
+  width:var(--hand-card-w)!important;height:var(--hand-card-h)!important;
+  min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;transform:scale(var(--rr-scale,1))!important;transform-origin:0 0!important;
+  opacity:1!important;filter:none!important}
+/* 攻撃・体力の数字は報酬欄（#reward-offer-row）と同じく丸の中央へ置く。 */
+html body #reward-reveal-layer .reward-reveal-face .card-summon-atk,
+html body #reward-reveal-layer .reward-reveal-face .card-summon-hp{
+  bottom:var(--unit-stat-bottom)!important;width:var(--unit-stat-w)!important;text-align:center!important;
+  display:flex!important;align-items:center!important;justify-content:center!important}
+html body #reward-reveal-layer .reward-reveal-face .card-summon-atk{left:var(--unit-stat-atk-left)!important;right:auto!important}
+html body #reward-reveal-layer .reward-reveal-face .card-summon-hp{right:var(--unit-stat-hp-right)!important;left:auto!important}
+html body.reward-screen-active #reward-offer-row{transition:opacity .52s ease .12s}
+html body.reward-screen-active.reward-reveal-active #reward-offer-row{opacity:0!important;transition:none!important}
 #battle-transition-fade{position:absolute!important;inset:0!important;z-index:5000!important;background:#000;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .7s ease}
 #battle-transition-fade.is-visible{opacity:1;visibility:visible;pointer-events:auto}
 #battle-options-btn{z-index:4100!important}
@@ -12129,8 +12151,8 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=panels0923b"></script>
-<script src="js/engine/audio.js?v=debugButtons0917b"></script>
+<script src="assets.js?v=revealSfx0923"></script>
+<script src="js/engine/audio.js?v=revealSfx0923"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -12139,7 +12161,7 @@ _watchVesselboundDpr();
 <script src="js/data/loader.js?v=sheetItems0921"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=rainbowText0922"></script>
+    <script src="js/battle/core.js?v=silence0923"></script>
 <script src="js/battle/formation.js?v=dupPower0922"></script>
     <script src="js/battle/present.js?v=deathBreak0917"></script>
     <script src="js/battle/present_events.js?v=injuryFlash0917"></script>
@@ -12159,15 +12181,16 @@ _watchVesselboundDpr();
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=collection0918"></script>
 <script src="js/save/run_save.js?v=boardRename01"></script>
-<script src="js/engine/pool.js?v=rewardRarity0921"></script>
+<script src="js/engine/pool.js?v=rewardHigh0923"></script>
 <script src="js/engine/enemy.js?v=debugEnemyCycle0917"></script>
     <script src="js/engine/battle.js?v=persistWarn0922"></script>
     <script src="js/engine/battle_events.js?v=rainbowText0922"></script>
-<script src="js/engine/render.js?v=rainbowText0922"></script>
+<script src="js/engine/render.js?v=wastedLayer0923"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=rewardDragFix0917"></script>
 <script src="js/engine/reward_journey.js?v=enemySummonStats0917"></script>
-<script src="js/engine/reward.js?v=panelDesc0922"></script>
+<script src="js/engine/card_reveal.js?v=revealLand0923"></script>
+<script src="js/engine/reward.js?v=revealGlow0923"></script>
 <script src="js/engine/map.js?v=forgeSoldOut0917"></script>
     <script src="js/engine/main.js?v=debugMapBtn0921"></script>
 <script src="js/engine/options.js?v=collectionReturn0921"></script>
@@ -12245,10 +12268,11 @@ html body:has(#battle-start-intro) #btn-debug-gameover{
 
 /* 逃走（ATKが0になって場を去る）。カードの退場は**開戦時の登場と同じ形式**で、
    その上に「FLED」を出す。動きと時間は render.js の playFledVfx が持つ。
-   文字はカードの子にすると一緒に透明になるので、ダメージ数値と同じく body 直下へ置く。 */
+   文字はカードの子にすると一緒に透明になるので、ダメージ数値と同じ層（#vfx-frame-clip）へ置き、
+   同じ重なり順にする。消えていくカードの複製（10019〜10022）より上でないと文字が隠れる。 */
 .fled-label-host{
   position:fixed!important;
-  z-index:330!important;
+  z-index:10030!important;
   pointer-events:none!important;
   display:flex!important;
   align-items:center!important;
@@ -13923,6 +13947,22 @@ html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.draggin
   display:none!important;
   content:none!important;
   box-shadow:none!important;
+}
+/* 戦闘報酬で最初から置かれていたカード（レア度2以上）の枠の発光。取得するまで（reward.js の .reward-rarity-glow）。
+   色はめくり演出と同じ：2=青・3=金・4=紫・5=橙（利用者指定）。**ホバー中はホバーの光を優先**するので :not(:hover)。 */
+html body #reward-offer-row > .rew-card.reward-rarity-glow.rarity-2,html body #rw-cards .rew-card.reward-rarity-glow.rarity-2{--rrg:70,170,255;--rrg-line:#9fdcff}
+html body #reward-offer-row > .rew-card.reward-rarity-glow.rarity-3,html body #rw-cards .rew-card.reward-rarity-glow.rarity-3{--rrg:255,190,70;--rrg-line:#ffe39a}
+html body #reward-offer-row > .rew-card.reward-rarity-glow.rarity-4,html body #rw-cards .rew-card.reward-rarity-glow.rarity-4{--rrg:160,110,255;--rrg-line:#d6c2ff}
+html body #reward-offer-row > .rew-card.reward-rarity-glow.rarity-5,html body #rw-cards .rew-card.reward-rarity-glow.rarity-5{--rrg:255,135,35;--rrg-line:#ffc58a}
+html body.reward-screen-active #reward-offer-row > .rew-card.reward-rarity-glow:not(:hover):not(.cant):not(.dragging),
+html body.reward-screen-active #rw-cards .rew-card.reward-rarity-glow:not(:hover):not(.cant):not(.dragging){
+  overflow:visible!important;
+  box-shadow:0 0 10px 2px rgba(var(--rrg),.95),0 0 26px 6px rgba(var(--rrg),.6),0 0 48px 10px rgba(var(--rrg),.28)!important;
+}
+html body.reward-screen-active #reward-offer-row > .rew-card.reward-rarity-glow:not(:hover):not(.cant):not(.dragging) > .reward-card-line-layer,
+html body.reward-screen-active #rw-cards .rew-card.reward-rarity-glow:not(:hover):not(.cant):not(.dragging) > .reward-card-line-layer{
+  border-color:var(--rrg-line)!important;
+  box-shadow:0 0 6px 1px rgba(var(--rrg),.95),inset 0 0 8px 1px rgba(var(--rrg),.75)!important;
 }
 /* 暗い魔導板カードは、報酬カードの黒50%暗転と同じ色倍率にする。
    saturate()を併用すると魔導板側だけ彩度が落ち、同じm_board6背面でも別色に見える。 */

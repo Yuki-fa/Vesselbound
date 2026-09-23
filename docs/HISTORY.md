@@ -343,6 +343,9 @@ main.js `_returnToTitleMenu()` でメニューが出て押せる状態（`_revea
 台詞（`battleLines`）を持つのは敵だけ（enemy.js が敵シートの台詞を入れる）で、敵の吹き出しは `#battle-line-layer.is-dark #battle-line-text{color:#fff!important}` で表示される。
 **味方にも台詞を持たせる時は、淡色の吹き出しの文字色を決め直すこと**（今のままだと文字が見えない）。
 「FLED」（ATKが0で場を去る）と「WASTED」（ダメージ以外でHPが0）は同じ `_spawnFledLabel()`（1文字ずつ span）で、WASTED は `.wasted-label-host` で色だけ変える。
+**文字はダメージ数値と同じ層（`#vfx-frame-clip` の中・z-index:10030）に置く（2026-09-23）。** body 直下（330）だった頃は、
+同じ層の中で波打って消えるカードの複製（`.death-wave-clone`：10019）の下に隠れ、毒・衰弱で死んだ時に WASTED が見えなかった。
+勝利確定の片付け（`_forceStopAllVfx({preserveDamage:true})`）でもダメージ数値と同じく残す（最後の1体の WASTED／FLED が即座に消されていた）。
 「ラン再開の表示」（`#run-resume-overlay`）は、戦闘の途中で保存したランをコンティニューした時に、旅の進捗を4秒（`BATTLE_RESUME_DELAY_MS`）見せてから戦闘へ入る画面。
 
 **マナ効果の見出しの色は専用の指定を持たない（2026-09-15、利用者指定で元に戻した）。**

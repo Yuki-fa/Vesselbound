@@ -602,6 +602,8 @@ function renderRaceBuffSummary(){
 function goToReward(options){
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
+  // 前回のめくりが途中で残っていれば片付ける（報酬欄が隠れたままにならないように）。
+  _finishRewardReveal(true);
   G._savePresentation=false;
   const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isLibrary);
   document.body.classList.remove('battle-victory-pending');
@@ -629,8 +631,9 @@ function goToReward(options){
     // 報酬画面を開き直しても、途中で他の抽選を挟んでも同じ5枚になる。
     // 鍵には敗北回数（_waveDefeatCount）も入れる。敗北しても場面・段は進まないため、
     // これが無いと敗北直後の報酬が直前と全く同じ5枚になる。
-    _rewCards=runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,()=>drawRewards())
-      .filter(c=>c).slice(0,_waveRewardCount);
+    // レア度4以上の枚数と並び（隣り合わせない）は _arrangeRewardRarity() が唯一の実装。枚数を切り詰めた後に通す。
+    _rewCards=runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
+      ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
     _storeRewardStartSnapshot();
@@ -691,6 +694,70 @@ function goToReward(options){
   updateHUD();
   if(_saveCheckpoint&&!_isFacilityEntry&&typeof SaveRun!=='undefined') SaveRun.checkpoint('reward');
   // ボス報酬はG._bossJustDefeatedで処理済み
+  // **戦闘を終えて報酬画面へ入った時だけ**、報酬カードをめくって見せる。
+  // checkpoint付きで呼ばれるのは勝利・敗北後の2か所だけ（battle.js／main.js）。
+  // 施設・再開（restoreCheckpoint）・オンラインの編成ではめくらない。
+  if(_saveCheckpoint&&!_isFacilityEntry&&!_restoreCheckpoint) _playRewardReveal();
+}
+
+// ── 戦闘後の報酬めくり ─────────────────────────────
+// 黒80%の上に裏向きの報酬カードを横一列に並べ、レア度の低い段から表にする
+// （演出は js/engine/card_reveal.js が唯一の実装。プレビューと同じもの）。
+// 報酬欄のカードは goToReward() で既に描いてあり、めくりの間は隠しているだけ。
+// 最後に手前のカードと黒を消し、報酬欄の同じカードをフェードで出す。
+const REWARD_REVEAL_CARD_W=480;  // 手前に並べるカードの幅（利用者指定）
+const REWARD_REVEAL_GAP=150;     // カードの間隔（利用者指定）
+const REWARD_REVEAL_START_MS=800;// 暗転が明けてからめくり始めるまで（暗転の戻りは0.7秒）
+const REWARD_REVEAL_FADE_MS=520; // 手前のカードと黒が消える時間（CSSと揃える）
+let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
+function _rewardRevealRarity(card){ return Math.max(1,Math.min(5,Number(card&&card.rarity)||1)); }
+function _playRewardReveal(){
+  const host=document.getElementById('scr-battle');
+  const cards=(_rewCards||[]).filter(Boolean);
+  if(!host||!cards.length||typeof cardRevealCreateRig!=='function'||typeof mkCardEl!=='function') return;
+  const token=++_rewardRevealToken;
+  document.body.classList.add('reward-reveal-active');
+  const layer=document.createElement('div');
+  layer.id='reward-reveal-layer';
+  layer.innerHTML='<div class="reward-reveal-shade"></div>';
+  const W=REWARD_REVEAL_CARD_W, H=W*(typeof CARD_REVEAL_ASPECT==='number'?CARD_REVEAL_ASPECT:1.5157);
+  const total=cards.length*W+(cards.length-1)*REWARD_REVEAL_GAP;
+  // 表の面は報酬欄と同じ寸法で描いて拡大する（CSSの .reward-reveal-face）。
+  const nativeW=parseFloat(getComputedStyle(host).getPropertyValue('--hand-card-w'))||W;
+  // 画面（3840×2160）の中央へ、横一列・上下中央で並べる。
+  const rigs=cards.map((card,i)=>{
+    const front=mkCardEl(card,-1,'reveal');
+    front.classList.add('reward-reveal-face');
+    front.style.setProperty('--rr-scale',String(W/nativeW));
+    if(typeof applyCardVisual==='function') applyCardVisual(front,card);
+    const rig=cardRevealCreateRig(front,W);
+    rig.style.left=`${1920-total/2+i*(W+REWARD_REVEAL_GAP)}px`;
+    rig.style.top=`${1080-H/2}px`;
+    // **高レア度ほど手前に重ねる**（光・輪・火花の上に他のカードが来ないように。利用者指定）。
+    rig.style.zIndex=String(_rewardRevealRarity(card));
+    layer.appendChild(rig);
+    return rig;
+  });
+  host.appendChild(layer);
+  const rarities=cards.map(_rewardRevealRarity);
+  window.setTimeout(async()=>{
+    if(token!==_rewardRevealToken) return;
+    try{ await cardRevealPlaySequence(rigs,rarities,{shakeTarget:layer}); }
+    catch(e){ console.error('[reward reveal]',e); }
+    if(token!==_rewardRevealToken) return;
+    _finishRewardReveal(false);
+  },REWARD_REVEAL_START_MS);
+}
+// immediate=true：演出なしで即座に片付ける（画面を離れた時・次の報酬画面に入る時）。
+function _finishRewardReveal(immediate){
+  const layer=document.getElementById('reward-reveal-layer');
+  if(immediate) _rewardRevealToken++;
+  // 報酬欄のカードはCSSのトランジションでフェードインする。
+  document.body.classList.remove('reward-reveal-active');
+  if(!layer) return;
+  if(immediate){ layer.remove(); return; }
+  layer.classList.add('is-leaving');
+  window.setTimeout(()=>layer.remove(),REWARD_REVEAL_FADE_MS+60);
 }
 
 function _storeRewardStartSnapshot(){
@@ -1439,6 +1506,7 @@ function renderRewCards(){
     if(_rewardPickUsed&&card._isOriginalReward){
       d.onclick=null;
       d.classList.add('reward-used-dim');
+      d.classList.remove('reward-rarity-glow'); // 取得済みの報酬は光らせない
       // カード本体のopacityを下げると、常時不透明であるべき黒いm_board6背面まで
       // 半透明になる。購入不可カードと同じ専用暗転層で内容だけを暗くする。
       _ensureRewardCardDimLayer(d);
@@ -1592,6 +1660,9 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(Number.isInteger(rewIdx)&&rewIdx>=0) div.dataset.mergeRewIdx=String(rewIdx);
   if(_rewardMergeCandidate(rewIdx,card)) div.classList.add('merge-ready');
   if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
+  // 戦闘報酬で最初から置かれていたカード（レア度2以上）は、取得するまで枠をめくり演出と同じ色で光らせる。
+  // 色はCSS（.reward-rarity-glow）。ホバー中はホバーの光を優先する。
+  if(card._isOriginalReward&&!G._isShop&&!G._isItemShop&&_rewardRevealRarity(card)>=2) div.classList.add('reward-rarity-glow');
   if(!canBuy&&!isPendingSale) div.classList.add('cant');
   if(isLegend) div.classList.add('legend');
   if(typeof applyCardVisual==='function'){

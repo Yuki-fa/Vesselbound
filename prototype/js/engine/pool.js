@@ -555,6 +555,61 @@ function drawItems(n, maxGrade, opts){
   return res;
 }
 
+// ── 報酬のレア度4以上の枚数と並び（利用者指定） ─────────────────
+// 戦闘後のめくり演出では高レア度の光ほど手前に重ねるので、**レア度4以上は隣り合わせない。**
+// そのため1回の報酬に出るレア度4以上は最大2枚（枠が少なければ隣り合わずに置ける数まで）。
+// 呼ぶのは報酬の枚数を切り詰めた**後**（枚数で置ける数が変わるため）。runWithKeyedRandom の中で呼ぶこと。
+const REWARD_HIGH_RARITY=4;
+const REWARD_HIGH_RARITY_MAX=2;
+function _isHighRarityReward(card){ return !!card&&_rewardRarityOf(card)>=REWARD_HIGH_RARITY; }
+function _arrangeRewardRarity(cards){
+  const res=(cards||[]).slice();
+  const n=res.length;
+  const max=Math.min(REWARD_HIGH_RARITY_MAX,Math.ceil(n/2));
+  // 1) 多すぎる分を、同じ種類（カテゴリ）のレア度3以下へ差し替える。
+  //    後ろの枠から差し替える（先頭側には確定枠・ボーナスのカードが入るため）。
+  let highs=res.map((c,i)=>_isHighRarityReward(c)?i:-1).filter(i=>i>=0);
+  if(highs.length>max){
+    ensurePanelSaleStock();
+    const maxGrade=_currentRewardMapGrade(1);
+    const used=new Set(res.filter(Boolean).map(c=>c.id));
+    for(const idx of highs.slice(max).reverse()){
+      const old=res[idx];
+      const hasSeal=res.some((c,i)=>i!==idx&&_isSealPanel(c));
+      const base=PANEL_POOL.filter(p=>p&&p.id&&_isImplementedPoolCard(p)&&!_shopOrRewardExcluded(p)&&p.rarity!==-1&&
+        panelSaleStockCount(p)>0&&!used.has(p.id)&&!(hasSeal&&_isSealPanel(p))&&!_isHighRarityReward(p));
+      const same=base.filter(p=>String(p.category||'')===String(old.category||''));
+      const picked=_rewardWeightedPick(same.length?same:base,maxGrade,used,true,true);
+      if(!picked) continue; // 候補が無ければ諦める（並べ替えで隣り合わせないことを優先）
+      returnPanelToSalePool(old);
+      consumePanelSaleStock(picked);
+      used.add(picked.id);
+      const card=makePanel(picked.id);
+      if(card) res[idx]=card;
+    }
+    _dedupePanelDirections(res);
+    highs=res.map((c,i)=>_isHighRarityReward(c)?i:-1).filter(i=>i>=0);
+  }
+  // 2) 隣り合っていれば並べ替える。隣り合わない置き方のうち、今の位置を最も多く残すものから選ぶ。
+  const adjacent=pos=>pos.some((p,i)=>i>0&&p-pos[i-1]<=1);
+  if(highs.length<2||!adjacent(highs)) return res;
+  const k=highs.length, options=[];
+  const walk=(start,pos)=>{
+    if(pos.length===k){ options.push(pos.slice()); return; }
+    for(let i=start;i<n;i++){ pos.push(i); walk(i+2,pos); pos.pop(); }
+  };
+  walk(0,[]);
+  if(!options.length) return res;
+  const keep=pos=>pos.filter(p=>highs.includes(p)).length;
+  const best=Math.max(...options.map(keep));
+  const pool=options.filter(pos=>keep(pos)===best);
+  const target=pool[Math.floor(rand()*pool.length)];
+  // 高レア度は元の順のまま target へ、残りも元の順のまま空いた枠へ。
+  const highCards=highs.map(i=>res[i]);
+  const lowCards=res.filter((c,i)=>!highs.includes(i));
+  return res.map((c,i)=>target.includes(i)?highCards[target.indexOf(i)]:lowCards.shift());
+}
+
 // 戦闘報酬のカードを引く。**引数は取らない。**
 // 以前はアイテムを引く分岐（宝箱）を兼ねていたが、宝箱の機能は廃止済み。
 // アイテムを引くのは drawItems() が唯一の入口（道具屋・鍛冶屋・報酬アイテム）。

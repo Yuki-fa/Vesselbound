@@ -74,6 +74,11 @@ const SFX_SETTINGS={
     bookClosing:{group:'ui',     volume: 1.00},
     altarIn:    {group:'ui',     volume: .28},  // -1.0（突出して大きかった）
     altarOut:   {group:'ui',     volume: .39},  // -3.9
+    // 報酬めくり。音量は他のSEと同じ基準（-12相当）。山の位置は card_reveal.js の CARD_REVEAL_SOUNDS。
+    cardFlip:   {group:'reward', volume: 1.00},  // -23.5（これ以上上げられない）
+    R3:         {group:'reward', volume: .35},  // -2.9
+    R4:         {group:'reward', volume: .34},  // -2.7
+    R5:         {group:'reward', volume: .37},  // -3.3
     fit:        {group:'reward', volume: 1.00, guardMs:80}, // -19.7
     'return':   {group:'ui',     volume: 1.00}, // -12.2
     buy1:       {group:'reward', volume: .86},  // 魔導店購入
@@ -333,6 +338,8 @@ function playSfx(key,opts={}){
   // 一度読み込んだ複製を鍵ごとに持ち回り、currentTime=0 で鳴らし直す。
   const a=_takeSfxVoice(key,base);
   if(!a) return false;
+  // offsetMs：ファイルの途中から鳴らす（音の山を演出の瞬間へ合わせる時に、頭を詰めるため）。
+  if(opts.offsetMs>0){ try{ a.currentTime=opts.offsetMs/1000; }catch(e){} }
   a.dataset.optionBaseVolume=String(finalVol);
   const speed=(typeof getBattleSpeedScale==='function'&&typeof G!=='undefined'&&(G.phase==='enemy'||G._battlePhaseRunning))?getBattleSpeedScale():1;
   a.playbackRate=Math.max(.5,Math.min(2,speed));

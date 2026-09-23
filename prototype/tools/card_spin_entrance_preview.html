@@ -241,9 +241,38 @@
   @keyframes effect-rays{0%{opacity:0;transform:rotate(-4deg) scale(.62)}16%{opacity:.86}54%{opacity:.48}100%{opacity:0;transform:rotate(7deg) scale(1.22)}}
   @keyframes effect-cross-flare{0%{opacity:0;transform:scale(.18)}12%{opacity:.96;transform:scale(.72)}38%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.18)}}
 
+  /* ── ハイクオリティ版（js/engine/card_reveal.js をそのまま使う） ── */
+  .hq-grid{grid-template-columns:repeat(5,minmax(200px,1fr))}
+  .hq .scene{perspective:none}
+  .hq .hq-slot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+  .hq .hq-slot .cr-rig{left:0;top:0;transform:translate(-50%,-50%)}
+  .hq-note{margin:-4px 2px 14px;color:#8f806a;font-size:12px;line-height:1.7;letter-spacing:.04em}
+  .preview-card{position:absolute;inset:0;overflow:hidden;border-radius:5.65% / 3.721%;background:#130905}
+  .preview-card .pc-art{position:absolute;left:6.16%;right:6.16%;top:3.58%;height:92.85%;background:center 58%/cover no-repeat}
+  .preview-card .pc-frame{position:absolute;inset:0;background:center/100% 100% no-repeat}
+  .preview-card .pc-stat{position:absolute;inset:0;background:url("assets/cards/stat_overlay.png") center/100% 100% no-repeat}
+  .preview-card .pc-num{position:absolute;bottom:2.4%;width:29%;text-align:center;color:#fff7df;font:bold 14em/1 Georgia,serif;
+    font-size:calc(var(--cr-w,174px) * .145);-webkit-text-stroke:1px rgba(0,0,0,.85);text-shadow:0 2px 4px #000}
+  .preview-card .pc-num.atk{left:2.2%}.preview-card .pc-num.hp{right:2.2%}
+
+  .seq-wrap{position:relative;border:1px solid rgba(184,133,62,.52);border-radius:8px;overflow:hidden;
+    background:url("assets/art/backgrounds/stage_capital1.webp") center/cover no-repeat,#080706}
+  .seq-bar{position:relative;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px;
+    background:linear-gradient(180deg,rgba(6,5,5,.92),rgba(6,5,5,.6))}
+  .seq-bar .label{color:#b9a27b;font-size:13px;letter-spacing:.08em;margin-right:4px}
+  .seq-bar .control-button{min-width:120px;height:40px;font-size:13px}
+  .seq-bar input{width:170px;height:36px;padding:0 10px;border:1px solid rgba(196,154,108,.6);border-radius:4px;
+    background:rgba(0,0,0,.55);color:#f1dcb0;font:14px/1 Georgia,serif;letter-spacing:.2em}
+  .seq-stage{position:relative;height:520px}
+  .seq-reward-row{position:absolute;left:50%;top:32px;display:flex;gap:18px;transform:translateX(-50%);opacity:0}
+  .seq-reward-row .rw{position:relative;width:96px;height:calc(96px * 1.51575)}
+  .seq-overlay{position:absolute;inset:0;background:rgba(0,0,0,.8);opacity:0}
+  .seq-cards{position:absolute;left:50%;top:56%;width:0;height:0}
+  .seq-cards .cr-rig{transform:translate(-50%,-50%)}
+
   .status{margin:16px 2px 0;color:#8f806a;font-size:12px;letter-spacing:.05em;text-align:right}
   code{color:#cbb084}
-  @media (max-width:1040px){.pattern-grid,.rarity-grid{grid-template-columns:repeat(2,minmax(280px,1fr))}.title-row{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  @media (max-width:1040px){.hq-grid{grid-template-columns:repeat(3,minmax(200px,1fr))}.pattern-grid,.rarity-grid{grid-template-columns:repeat(2,minmax(280px,1fr))}.title-row{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
   @media (max-width:650px){.page{width:min(100% - 22px,460px);padding-top:18px}.pattern-grid{grid-template-columns:1fr}.pattern{min-height:410px}.controls{width:100%}.control-button{flex:1;min-width:140px}}
 </style>
 </head>
@@ -252,7 +281,7 @@
   <div class="title-row">
     <div>
       <h1>カードめくり・登場演出</h1>
-      <p class="lead">すべてカードの中心を固定し、裏面から正面へY軸で1回だけめくります。停止時の発光を控えめな輪郭光からド派手な粒子光まで比較できます。下段にはレア度別の別案も用意しています。カード、または各枠内をクリックすると個別に再生できます。</p>
+      <p class="lead">上段が<strong>ハイクオリティ版</strong>（本編で使う演出。<code>js/engine/card_reveal.js</code> をそのまま読み込んでいます）。その下で報酬5枚の並びを通しで再生できます。下段は比較用のベース案です。カード、または各枠内をクリックすると個別に再生できます。</p>
     </div>
     <div class="controls">
       <button class="control-button" id="play-all" type="button">すべて再生</button>
@@ -260,6 +289,34 @@
     </div>
   </div>
 
+  <h2 class="section-title">ハイクオリティ版（本編で使う演出）</h2>
+  <p class="hq-note">1 通常 ／ 2 縁を駆ける青い光 ／ 3 金の縁・斜めの掃光・立ち昇る金粒 ／ 4 背後に開いて回る魔法陣・周回する光の粒 ／ 5 伏せたまま光を溜めて震え、閃光・衝撃波・火花が弾け、箔押しの虹彩が残る。4と5は「魔法陣＝静かな神秘」と「炸裂＝爆発」で性質を分け、放射状の集中線は使っていません。</p>
+  <section class="pattern-grid hq-grid" id="hq-grid" aria-label="ハイクオリティ版">
+    <article class="pattern hq" data-rarity="1" tabindex="0"><div class="pattern-head"><div><p class="pattern-name">レア度1　通常</p><p class="pattern-spec">めくりのみ</p></div><span class="replay-hint">CLICK</span></div></article>
+    <article class="pattern hq" data-rarity="2" tabindex="0"><div class="pattern-head"><div><p class="pattern-name">レア度2　青の縁光</p><p class="pattern-spec">縁を左右へ駆ける光</p></div><span class="replay-hint">CLICK</span></div></article>
+    <article class="pattern hq" data-rarity="3" tabindex="0"><div class="pattern-head"><div><p class="pattern-name">レア度3　黄金の掃光</p><p class="pattern-spec">金縁・掃光・立ち昇る金粒</p></div><span class="replay-hint">CLICK</span></div></article>
+    <article class="pattern hq" data-rarity="4" tabindex="0"><div class="pattern-head"><div><p class="pattern-name">レア度4　秘術</p><p class="pattern-spec">魔法陣・虹色の走光・周回光</p></div><span class="replay-hint">CLICK</span></div></article>
+    <article class="pattern hq" data-rarity="5" tabindex="0"><div class="pattern-head"><div><p class="pattern-name">レア度5　炸裂</p><p class="pattern-spec">溜め・閃光・衝撃波・火花・箔</p></div><span class="replay-hint">CLICK</span></div></article>
+  </section>
+
+  <h2 class="section-title">報酬5枚の並びで通し再生</h2>
+  <p class="hq-note">黒80%を掛け、裏向きの5枚を等間隔（本編はW480px・間隔150px）で並べ、レア度の低い段から表にします。同じレア度は同時、段の間は0.5秒。最後に手前のカードと黒を消し、報酬欄に同じカードを出します。</p>
+  <div class="seq-wrap">
+    <div class="seq-bar">
+      <span class="label">レア度（左から）</span>
+      <input id="seq-input" value="1 4 2 2 1" aria-label="レア度の並び">
+      <button class="control-button" id="seq-play" type="button">再生</button>
+      <button class="control-button" id="seq-random" type="button">ランダム</button>
+      <button class="control-button" id="seq-all" type="button">1〜5</button>
+    </div>
+    <div class="seq-stage" id="seq-stage">
+      <div class="seq-reward-row" id="seq-reward-row"></div>
+      <div class="seq-overlay" id="seq-overlay"></div>
+      <div class="seq-cards" id="seq-cards"></div>
+    </div>
+  </div>
+
+  <h2 class="section-title">ベース案（比較用）</h2>
   <section class="pattern-grid" id="pattern-grid" aria-label="カード登場演出の比較">
     <article class="pattern" data-pattern="outline" tabindex="0">
       <div class="pattern-head"><div><p class="pattern-name">A　輪郭光</p><p class="pattern-spec">1回めくり・0.90秒／輪郭だけの控えめな発光</p></div><span class="replay-hint">CLICK：再生</span></div>
@@ -314,6 +371,79 @@
   </div>
 </template>
 
+<script src="js/engine/card_reveal.js"></script>
+<script>
+  // ── ハイクオリティ版：本編と同じ js/engine/card_reveal.js を使う ──
+  (()=>{
+    'use strict';
+    const ARTS=['C003','C012','C027','C041','C033'];
+    const STATS=[[2,4],[3,5],[5,6],[6,8],[9,9]];
+    function previewFront(rarity,idx){
+      const r=Math.max(1,Math.min(5,rarity));
+      const el=document.createElement('div');
+      el.className='preview-card';
+      const [a,h]=STATS[(idx??r-1)%STATS.length];
+      el.innerHTML=`<div class="pc-art" style="background-image:url('assets/art/characters/${ARTS[(idx??r-1)%ARTS.length]}.jpg')"></div>`
+        +`<div class="pc-frame" style="background-image:url('assets/cards/summon_frame${r}.svg')"></div><div class="pc-stat"></div>`
+        +`<span class="pc-num atk">${a}</span><span class="pc-num hp">${h}</span>`;
+      return el;
+    }
+    // 単体の5枚。
+    const tiles=[...document.querySelectorAll('.pattern.hq')];
+    for(const tile of tiles){
+      const r=Number(tile.dataset.rarity);
+      const scene=document.createElement('div');scene.className='scene';
+      const slot=document.createElement('div');slot.className='hq-slot';
+      const rig=cardRevealCreateRig(previewFront(r),170);
+      slot.appendChild(rig);scene.appendChild(slot);tile.appendChild(scene);
+      tile._rig=rig;
+      const play=()=>cardRevealPlay(rig,r,{shakeTarget:tile});
+      tile.addEventListener('click',play);
+      tile.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();play()}});
+    }
+    window.__hqPlayAll=()=>tiles.forEach(t=>cardRevealPlay(t._rig,Number(t.dataset.rarity),{shakeTarget:t}));
+
+    // 報酬5枚の通し再生。本編と同じ比率（W480:間隔150）を縮めて並べる。
+    const stage=document.getElementById('seq-stage');
+    const cardsHost=document.getElementById('seq-cards');
+    const overlay=document.getElementById('seq-overlay');
+    const rewardRow=document.getElementById('seq-reward-row');
+    const input=document.getElementById('seq-input');
+    const W=170,GAP=W*150/480;
+    let token=0;
+    const wait=ms=>new Promise(r=>setTimeout(r,ms));
+    async function playSequence(rarities){
+      const my=++token;
+      cardsHost.innerHTML='';rewardRow.innerHTML='';
+      rewardRow.getAnimations().forEach(a=>a.cancel());overlay.getAnimations().forEach(a=>a.cancel());
+      rewardRow.style.opacity='0';
+      const n=rarities.length,total=n*W+(n-1)*GAP;
+      const rigs=rarities.map((r,i)=>{
+        const rig=cardRevealCreateRig(previewFront(r,i),W);
+        rig.style.left=`${-total/2+W/2+i*(W+GAP)}px`;rig.style.top='0';
+        cardsHost.appendChild(rig);return rig;
+      });
+      overlay.animate([{opacity:0},{opacity:1}],{duration:420,fill:'forwards'});
+      cardsHost.animate([{opacity:0},{opacity:1}],{duration:420,fill:'forwards'});
+      await wait(520);if(my!==token) return;
+      await cardRevealPlaySequence(rigs,rarities,{shakeTarget:stage});
+      if(my!==token) return;
+      // 報酬欄に同じカードを出してから、手前と黒を消す（入れ替わりが見えないよう重ねて行う）。
+      rarities.forEach((r,i)=>{const w=document.createElement('div');w.className='rw';w.style.setProperty('--cr-w','96px');w.appendChild(previewFront(r,i));rewardRow.appendChild(w)});
+      rewardRow.animate([{opacity:0},{opacity:1}],{duration:520,delay:120,fill:'forwards'});
+      cardsHost.animate([{opacity:1},{opacity:0}],{duration:520,fill:'forwards'});
+      overlay.animate([{opacity:1},{opacity:0}],{duration:620,fill:'forwards'});
+    }
+    const parse=()=>input.value.split(/[\s,、]+/).map(Number).filter(n=>n>=1&&n<=5).slice(0,5);
+    document.getElementById('seq-play').addEventListener('click',()=>playSequence(parse()));
+    document.getElementById('seq-random').addEventListener('click',()=>{
+      const pick=()=>{const x=Math.random()*100;return x<54?1:x<76?2:x<90?3:x<98?4:5};
+      const r=Array.from({length:5},pick);input.value=r.join(' ');playSequence(r);
+    });
+    document.getElementById('seq-all').addEventListener('click',()=>{input.value='1 2 3 4 5';playSequence([1,2,3,4,5])});
+    setTimeout(()=>{window.__hqPlayAll();},300);
+  })();
+</script>
 <script>
   (()=>{
     'use strict';
@@ -435,7 +565,8 @@
     };
 
     const template=document.getElementById('scene-template');
-    const patterns=[...document.querySelectorAll('.pattern')];
+    // ハイクオリティ版（.hq）は上のスクリプトが受け持つので、ベース案の場面を重ねない。
+    const patterns=[...document.querySelectorAll('.pattern:not(.hq)')];
     for(const pattern of patterns) pattern.appendChild(template.content.cloneNode(true));
 
     const waits=new WeakMap();
@@ -493,7 +624,7 @@
       }).catch(()=>{});
       return def.duration;
     }
-    function playAll(){patterns.forEach(play)}
+    function playAll(){patterns.forEach(play);if(window.__hqPlayAll) window.__hqPlayAll()}
     async function playSequence(){
       for(const pattern of patterns){
         const duration=play(pattern);
@@ -512,7 +643,7 @@
     document.addEventListener('keydown',event=>{
       if(event.code==='Space'&&event.target===document.body){event.preventDefault();playAll()}
     });
-    setTimeout(playAll,280);
+    // 自動再生は上のハイクオリティ版だけにする。ベース案は「すべて再生」かクリックで。
   })();
 </script>
 </body>

@@ -55,6 +55,11 @@ Vesselboundは、魔導板で編成したキャラクターとエンチャント
 
 カード生成は `prototype/js/engine/pool.js: makePanel()` と `prototype/js/engine/pool.js: makeItem()`、報酬抽選は `prototype/js/engine/pool.js: drawRewards()`、アイテム抽選は `prototype/js/engine/pool.js: drawItems()` が担当する。ショップ価格は `prototype/js/engine/pool.js: calcBuyPrice()` で求める。
 
+**戦闘報酬のレア度4以上は、1回の提示で最大2枚・隣り合わせない**（利用者指定。めくり演出で高レア度の光を手前に重ねるため）。
+唯一の実装は `pool.js: _arrangeRewardRarity()`。`reward.js: goToReward()` が報酬の枚数を切り詰めた後に、
+同じ `runWithKeyedRandom` の中で通す（再現性を保つ）。多すぎる分は後ろの枠から同じカテゴリのレア度3以下へ差し替え、
+隣り合っていれば、今の位置をできるだけ残す並びへ入れ替える。枠が少ない時は置ける数まで（2枠なら1枚）。
+
 指輪は `RING_POOL` のパッシブ効果として扱われる。旧来の「指輪がトリガーでキャラクターを召喚する」方式を現行の文書仕様として扱わないこと。指輪の装備枠は `G.rings` で、戦闘中の具体的な効果判定はコア側で行う。
 
 ## 戦闘
