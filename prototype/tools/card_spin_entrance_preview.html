@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <base href="../">
 <link rel="icon" href="data:,">
-<title>カード横回転・登場演出比較 — Vesselbound</title>
+<title>カードめくり・登場演出比較 — Vesselbound</title>
 <style>
   :root{
     color-scheme:dark;
@@ -74,6 +74,8 @@
   }
   .pattern:hover{border-color:rgba(232,182,90,.78)}
   .pattern:focus-visible{outline:2px solid #f6d785;outline-offset:2px}
+  .section-title{margin:30px 0 12px;color:#d9bd83;font-size:20px;letter-spacing:.16em;text-shadow:0 2px 10px #000}
+  .rarity-grid{grid-template-columns:repeat(3,minmax(260px,1fr))}
   .pattern-head{position:absolute;left:18px;right:18px;top:15px;z-index:20;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;pointer-events:none}
   .pattern-name{margin:0;color:#efd59d;font-size:18px;letter-spacing:.11em}
   .pattern-no{color:#8c7049;font-size:12px;letter-spacing:.14em}
@@ -149,21 +151,83 @@
   .pattern.is-impact .impact-flare-y{animation:impact-flare-y var(--impact-ms,540ms) ease-out both}
   .pattern.is-impact .impact-sparks i{animation:impact-spark calc(var(--impact-ms,540ms) * .92) ease-out both;animation-delay:calc(var(--spark-delay,0ms) + (var(--angle) / 30deg) * 2ms)}
 
-  .pattern[data-pattern="quick"]{--impact-ms:380ms;--impact-card-ms:250ms}
-  .pattern[data-pattern="heavy"]{--impact-ms:760ms;--impact-card-ms:470ms}
-  .pattern[data-pattern="reverse"]{--impact-ms:500ms;--impact-card-ms:330ms}
-  .pattern[data-pattern="elastic"]{--impact-ms:620ms;--impact-card-ms:410ms}
-  .pattern[data-pattern="minimal"]{--impact-ms:340ms;--impact-card-ms:230ms}
-  .pattern[data-pattern="quick"] .impact-ring-2,.pattern[data-pattern="minimal"] .impact-ring-2,.pattern[data-pattern="minimal"] .impact-flare-y,.pattern[data-pattern="minimal"] .impact-sparks{display:none}
-  .pattern[data-pattern="heavy"] .impact-ring{border-width:3px}
-  .pattern[data-pattern="reverse"] .impact-ring{border-color:#d7ecff;box-shadow:0 0 15px #89c6ff,inset 0 0 10px #fff}
-  .pattern[data-pattern="elastic"] .impact-core{box-shadow:0 0 20px #fff6c5,0 0 52px rgba(255,201,75,.92),0 0 92px rgba(255,177,38,.58)}
-  .pattern[data-pattern="minimal"] .impact-core{box-shadow:0 0 12px #fff3c0,0 0 28px rgba(255,201,75,.62)}
+  /* すべて180度の1回転だけ。発光の強さ・要素数だけを案ごとに変える。 */
+  .pattern[data-pattern="outline"]{--impact-ms:330ms;--impact-card-ms:900ms}
+  .pattern[data-pattern="warm"]{--impact-ms:460ms;--impact-card-ms:980ms}
+  .pattern[data-pattern="double"]{--impact-ms:610ms;--impact-card-ms:1080ms}
+  .pattern[data-pattern="arcane"]{--impact-ms:760ms;--impact-card-ms:1180ms;--sweep-gradient:linear-gradient(90deg,transparent,rgba(121,104,255,.22) 19%,#f1edff 48%,rgba(78,203,255,.24) 72%,transparent)}
+  .pattern[data-pattern="burst"]{--impact-ms:900ms;--impact-card-ms:1280ms}
+  .pattern[data-pattern="grand"]{--impact-ms:1120ms;--impact-card-ms:1420ms}
+  .pattern[data-pattern="outline"] .impact-core{background:rgba(255,240,184,.06);box-shadow:0 0 8px rgba(255,241,185,.52),0 0 18px rgba(255,198,70,.22)}
+  .pattern[data-pattern="outline"] .impact-ring{width:210px;height:210px;margin:-105px;border-width:1px;border-color:rgba(255,225,145,.6);box-shadow:0 0 8px rgba(255,211,103,.32)}
+  .pattern[data-pattern="outline"] .impact-ring-2,.pattern[data-pattern="outline"] .impact-flare-x,.pattern[data-pattern="outline"] .impact-flare-y,.pattern[data-pattern="outline"] .impact-sparks{display:none}
+  .pattern[data-pattern="warm"] .impact-core{background:rgba(255,240,184,.12);box-shadow:0 0 12px #fff1b9,0 0 28px rgba(255,198,70,.48)}
+  .pattern[data-pattern="warm"] .impact-ring{width:224px;height:224px;margin:-112px;border-width:1px;box-shadow:0 0 12px rgba(255,211,103,.52),inset 0 0 8px rgba(255,229,160,.25)}
+  .pattern[data-pattern="warm"] .impact-ring-2,.pattern[data-pattern="warm"] .impact-flare-y,.pattern[data-pattern="warm"] .impact-sparks{display:none}
+  .pattern[data-pattern="double"] .impact-core{background:rgba(255,240,184,.16);box-shadow:0 0 15px #fff1b9,0 0 36px rgba(255,198,70,.62)}
+  .pattern[data-pattern="double"] .impact-ring{box-shadow:0 0 15px rgba(255,211,103,.66),inset 0 0 10px rgba(255,229,160,.34)}
+  .pattern[data-pattern="double"] .impact-ring-2{box-shadow:0 0 10px rgba(255,255,232,.5)}
+  .pattern[data-pattern="double"] .impact-flare-y,.pattern[data-pattern="double"] .impact-sparks{display:none}
+  .pattern[data-pattern="arcane"] .impact-ring{border-color:#cdbbff;box-shadow:0 0 18px rgba(167,137,255,.8),inset 0 0 12px rgba(220,207,255,.46)}
+  .pattern[data-pattern="arcane"] .impact-ring-2{border-color:#8bd8ff;box-shadow:0 0 14px rgba(90,197,255,.64)}
+  .pattern[data-pattern="arcane"] .impact-core{background:rgba(210,198,255,.16);box-shadow:0 0 17px #e1d8ff,0 0 42px rgba(122,93,255,.7),0 0 72px rgba(56,170,255,.3)}
+  .pattern[data-pattern="arcane"] .impact-flare-x{background:linear-gradient(90deg,transparent,rgba(121,104,255,.22) 24%,#f1edff 50%,rgba(78,203,255,.22) 76%,transparent)}
+  .pattern[data-pattern="burst"] .impact-core{box-shadow:0 0 20px #fff6c5,0 0 50px rgba(255,201,75,.85),0 0 88px rgba(255,177,38,.52)}
+  .pattern[data-pattern="burst"] .impact-ring{border-width:3px;box-shadow:0 0 22px rgba(255,211,103,.9),inset 0 0 16px rgba(255,229,160,.52)}
+  .pattern[data-pattern="burst"] .impact-ring-2{box-shadow:0 0 16px rgba(255,255,232,.74)}
+  .pattern[data-pattern="burst"] .impact-flare-x,.pattern[data-pattern="burst"] .impact-flare-y{filter:blur(1.5px)}
+  .pattern[data-pattern="grand"] .impact-core{background:rgba(255,245,193,.3);box-shadow:0 0 24px #fff8d6,0 0 58px rgba(255,205,90,.98),0 0 112px rgba(255,157,28,.68)}
+  .pattern[data-pattern="grand"] .impact-ring{width:290px;height:290px;margin:-145px;border-width:4px;box-shadow:0 0 28px rgba(255,220,126,1),inset 0 0 20px rgba(255,245,190,.62)}
+  .pattern[data-pattern="grand"] .impact-ring-2{width:216px;height:216px;margin:-108px;border-width:2px;box-shadow:0 0 22px rgba(255,255,232,.92)}
+  .pattern[data-pattern="grand"] .impact-flare-x{width:430px;margin-left:-215px;filter:blur(2px)}
+  .pattern[data-pattern="grand"] .impact-flare-y{width:8px;height:430px;margin-left:-4px;margin-top:-215px;filter:blur(2px)}
+  /* レア度5：大祝福。発光色は白金〜黄金だけで構成する。 */
+  .pattern[data-pattern="grand"] .impact-core{background:radial-gradient(circle at 50% 42%,rgba(255,248,207,.58),rgba(255,211,104,.34) 46%,rgba(155,88,20,.12) 78%);box-shadow:0 0 24px #fff8d6,0 0 52px rgba(255,205,90,.95),0 0 92px rgba(255,173,46,.58),0 0 128px rgba(255,189,60,.18)}
+  .pattern[data-pattern="grand"] .impact-ring,
+  .pattern[data-pattern="grand"] .impact-ring-2{border-color:transparent;background:conic-gradient(from 15deg,#fff0b1 0 24%,#d9a33f 24% 58%,#ffe39a 58% 78%,#c98d2f 78% 87%,#e0aa46 87% 100%) border-box;-webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+  .pattern[data-pattern="grand"] .impact-ring{box-shadow:0 0 30px rgba(255,209,93,.96),0 0 54px rgba(255,180,48,.55),0 0 72px rgba(255,195,74,.18),inset 0 0 18px rgba(255,245,190,.62)}
+  .pattern[data-pattern="grand"] .impact-ring-2{box-shadow:0 0 22px rgba(255,224,130,.84),0 0 34px rgba(255,188,67,.18)}
+  .pattern[data-pattern="grand"] .impact-flare-x{background:linear-gradient(90deg,transparent,rgba(255,184,71,.28) 22%,#fff1b0 50%,rgba(255,205,91,.2) 72%,rgba(224,160,54,.16) 82%,transparent)}
+  .pattern[data-pattern="grand"] .impact-flare-y{background:linear-gradient(180deg,transparent,rgba(255,184,71,.28) 22%,#fff1b0 50%,rgba(255,205,91,.2) 72%,rgba(224,160,54,.16) 82%,transparent)}
+  .pattern[data-pattern="grand"] .impact-sparks i{width:5px;height:28px;background:linear-gradient(#fff8db,#ffd36c 48%,rgba(232,169,55,.5) 72%,transparent);box-shadow:0 0 8px rgba(255,212,110,.85),0 0 12px rgba(232,169,55,.18)}
+
+  /* レア度別プリセット。1はめくりのみ、2〜4は形状と色の印象を変える。 */
+  .pattern[data-pattern="rarity1"] .impact{display:none}
+  .pattern[data-pattern="rarity2"] .impact-core{width:160px;height:96px;margin:-48px -80px;border-radius:50%;background:rgba(141,220,255,.08);box-shadow:0 0 9px rgba(135,220,255,.62),0 0 22px rgba(63,157,255,.3)}
+  .pattern[data-pattern="rarity2"] .impact-ring{width:218px;height:156px;margin:-78px -109px;border-width:1px;border-color:rgba(118,211,255,.72);border-radius:50%;box-shadow:0 0 12px rgba(82,186,255,.5),inset 0 0 8px rgba(180,235,255,.3)}
+  .pattern[data-pattern="rarity2"] .impact-ring-2,.pattern[data-pattern="rarity2"] .impact-flare-y,.pattern[data-pattern="rarity2"] .impact-sparks{display:none}
+  .pattern[data-pattern="rarity2"] .impact-flare-x{background:linear-gradient(90deg,transparent,rgba(115,215,255,.2) 22%,#d9f8ff 50%,rgba(115,215,255,.2) 78%,transparent);filter:blur(1px)}
+  .pattern[data-pattern="rarity3"] .impact-core{width:150px;height:150px;margin:-75px;clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);background:rgba(255,221,130,.1);box-shadow:0 0 13px #fff1b9,0 0 29px rgba(241,177,64,.52)}
+  .pattern[data-pattern="rarity3"] .impact-ring{width:218px;height:218px;margin:-109px;border-width:2px;border-color:rgba(255,207,104,.78);clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);box-shadow:0 0 15px rgba(255,198,75,.6),inset 0 0 10px rgba(255,229,160,.3)}
+  .pattern[data-pattern="rarity3"] .impact-ring-2{display:none}
+  .pattern[data-pattern="rarity3"] .impact-flare-x{width:270px;margin-left:-135px;background:linear-gradient(90deg,transparent,rgba(255,203,91,.18) 24%,#fff5c9 50%,rgba(255,203,91,.18) 76%,transparent)}
+  .pattern[data-pattern="rarity3"] .impact-flare-y,.pattern[data-pattern="rarity3"] .impact-sparks{display:none}
+  /* レア度別・別案：欠けやすい図形のborder/clip-pathを使わず、光の質と動きで差を作る。 */
+  .effect-card-outline,.effect-rays,
+  .effect-cross-flare{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+  .effect-card-outline{width:190px;height:286px;margin:-143px -95px;border:1px solid var(--edge-color,#ffe5a0);border-radius:11px;box-shadow:0 0 10px var(--edge-color,#ffe5a0),0 0 30px var(--edge-glow,rgba(255,190,66,.45)),inset 0 0 10px var(--edge-inner,rgba(255,232,170,.18))}
+  .effect-rays{width:390px;height:390px;margin:-195px;border-radius:50%;background:repeating-conic-gradient(from 4deg,transparent 0 17deg,rgba(255,228,147,.5) 18deg 19deg,transparent 20deg 45deg);-webkit-mask:radial-gradient(circle,transparent 0 25%,#000 40%,rgba(0,0,0,.55) 58%,transparent 74%);mask:radial-gradient(circle,transparent 0 25%,#000 40%,rgba(0,0,0,.55) 58%,transparent 74%);filter:drop-shadow(0 0 7px rgba(255,199,82,.65))}
+  .card-surface-effects{position:absolute;inset:0;z-index:6;overflow:hidden;border-radius:inherit;pointer-events:none}
+  .effect-sweep{position:absolute;left:-52px;top:0;width:52px;height:100%;opacity:0;pointer-events:none;background:var(--sweep-gradient,linear-gradient(90deg,transparent,rgba(255,255,240,.72),transparent));filter:blur(var(--sweep-blur,1.6px));mix-blend-mode:screen;will-change:transform,opacity}
+  .effect-cross-flare::before,.effect-cross-flare::after{content:"";position:absolute;left:0;top:0;display:block;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,rgba(255,208,98,.2) 18%,#fff8d2 50%,rgba(255,208,98,.2) 82%,transparent);filter:blur(1px);box-shadow:0 0 10px rgba(255,216,124,.62)}
+  .effect-cross-flare::before{width:360px;height:5px}
+  .effect-cross-flare::after{width:5px;height:360px;background:linear-gradient(180deg,transparent,rgba(255,208,98,.18) 18%,#fff8d2 50%,rgba(255,208,98,.18) 82%,transparent)}
+  .pattern.rarity-pattern .impact-core,.pattern.rarity-pattern .impact-ring,.pattern.rarity-pattern .impact-ring-2,.pattern.rarity-pattern .impact-flare-x,.pattern.rarity-pattern .impact-flare-y,.pattern.rarity-pattern .impact-sparks,
+  .pattern[data-pattern="grand"] .impact-core,.pattern[data-pattern="grand"] .impact-ring-2,.pattern[data-pattern="grand"] .impact-flare-x,.pattern[data-pattern="grand"] .impact-flare-y,.pattern[data-pattern="grand"] .impact-sparks{display:none!important}
+  .pattern[data-pattern="rarity2"]{--edge-color:rgba(143,220,255,.78);--edge-glow:rgba(66,155,235,.34);--edge-inner:rgba(157,227,255,.1)}
+  .pattern[data-pattern="rarity3"]{--edge-color:rgba(255,218,130,.82);--edge-glow:rgba(225,159,49,.42);--edge-inner:rgba(255,236,177,.14);--sweep-gradient:linear-gradient(90deg,transparent,rgba(255,210,102,.2) 20%,#fff8d9 50%,rgba(255,210,102,.2) 80%,transparent)}
+  .pattern[data-pattern="grand"]{--edge-color:rgba(255,232,153,.96);--edge-glow:rgba(245,177,53,.68);--edge-inner:rgba(255,245,205,.26);--sweep-gradient:linear-gradient(90deg,transparent,rgba(255,196,74,.22) 18%,#fff8d7 46%,rgba(255,220,126,.3) 62%,rgba(224,160,54,.14) 78%,transparent)}
+  .pattern.is-impact[data-pattern="rarity2"] .effect-card-outline{animation:effect-edge-bloom 520ms ease-out both}
+  .pattern.is-impact[data-pattern="rarity3"] .effect-card-outline{animation:effect-edge-bloom 640ms ease-out both}
+  .pattern.is-impact:is([data-pattern="rarity3"],[data-pattern="arcane"],[data-pattern="grand"]) .effect-sweep{animation:effect-sweep 620ms cubic-bezier(.18,.64,.18,1) both}
+  .pattern.is-impact[data-pattern="grand"] .effect-card-outline{animation:effect-edge-bloom 1040ms ease-out both}
+  .pattern.is-impact[data-pattern="grand"] .effect-rays{animation:effect-rays 1120ms cubic-bezier(.1,.66,.14,1) both}
+  .pattern.is-impact[data-pattern="grand"] .effect-cross-flare{animation:effect-cross-flare 920ms cubic-bezier(.12,.7,.18,1) both}
 
   @keyframes card-impact{
     0%{filter:brightness(1);transform:scale(1)}
-    18%{filter:brightness(1.78) saturate(1.14);transform:scale(1.045)}
-    52%{filter:brightness(1.14);transform:scale(.992)}
+    18%{filter:brightness(1.18) saturate(1.05);transform:scale(1.012)}
+    52%{filter:brightness(1.05);transform:scale(.998)}
     100%{filter:brightness(1);transform:scale(1)}
   }
   @keyframes impact-core{0%{opacity:0;transform:scale(.76)}12%{opacity:1;transform:scale(1.04)}38%{opacity:.5}100%{opacity:0;transform:scale(1.14)}}
@@ -172,10 +236,14 @@
   @keyframes impact-flare{0%{opacity:0;transform:scaleX(.12)}14%{opacity:1}100%{opacity:0;transform:scaleX(1)}}
   @keyframes impact-flare-y{0%{opacity:0;transform:scaleY(.1)}14%{opacity:.8}100%{opacity:0;transform:scaleY(.82)}}
   @keyframes impact-spark{0%{opacity:0;transform:rotate(var(--angle)) translateY(-38px) scaleY(.35)}14%{opacity:1}100%{opacity:0;transform:rotate(var(--angle)) translateY(-148px) scaleY(1)}}
+  @keyframes effect-edge-bloom{0%{opacity:0;transform:scale(.95)}18%{opacity:1;transform:scale(1.005)}52%{opacity:.56}100%{opacity:0;transform:scale(1.08)}}
+  @keyframes effect-sweep{0%{opacity:0;transform:translateX(0)}14%{opacity:.18}46%{opacity:.84}100%{opacity:0;transform:translateX(278px)}}
+  @keyframes effect-rays{0%{opacity:0;transform:rotate(-4deg) scale(.62)}16%{opacity:.86}54%{opacity:.48}100%{opacity:0;transform:rotate(7deg) scale(1.22)}}
+  @keyframes effect-cross-flare{0%{opacity:0;transform:scale(.18)}12%{opacity:.96;transform:scale(.72)}38%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.18)}}
 
   .status{margin:16px 2px 0;color:#8f806a;font-size:12px;letter-spacing:.05em;text-align:right}
   code{color:#cbb084}
-  @media (max-width:1040px){.pattern-grid{grid-template-columns:repeat(2,minmax(280px,1fr))}.title-row{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
+  @media (max-width:1040px){.pattern-grid,.rarity-grid{grid-template-columns:repeat(2,minmax(280px,1fr))}.title-row{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start}}
   @media (max-width:650px){.page{width:min(100% - 22px,460px);padding-top:18px}.pattern-grid{grid-template-columns:1fr}.pattern{min-height:410px}.controls{width:100%}.control-button{flex:1;min-width:140px}}
 </style>
 </head>
@@ -183,8 +251,8 @@
 <main class="page">
   <div class="title-row">
     <div>
-      <h1>カード横回転・登場演出</h1>
-      <p class="lead">すべてカードの中心を固定し、登場直後にY軸で高速回転、徐々に減速して正面で停止します。カード、または各枠内をクリックすると個別に再生できます。</p>
+      <h1>カードめくり・登場演出</h1>
+      <p class="lead">すべてカードの中心を固定し、裏面から正面へY軸で1回だけめくります。停止時の発光を控えめな輪郭光からド派手な粒子光まで比較できます。下段にはレア度別の別案も用意しています。カード、または各枠内をクリックすると個別に再生できます。</p>
     </div>
     <div class="controls">
       <button class="control-button" id="play-all" type="button">すべて再生</button>
@@ -193,26 +261,38 @@
   </div>
 
   <section class="pattern-grid" id="pattern-grid" aria-label="カード登場演出の比較">
-    <article class="pattern" data-pattern="standard" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">A　標準</p><p class="pattern-spec">6回転・1.55秒／素直な減速と中程度の発光</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="outline" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">A　輪郭光</p><p class="pattern-spec">1回めくり・0.90秒／輪郭だけの控えめな発光</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
-    <article class="pattern" data-pattern="quick" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">B　高速スナップ</p><p class="pattern-spec">8回転・1.05秒／鋭く停止して短く発光</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="warm" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">B　暖色パルス</p><p class="pattern-spec">1回めくり・0.98秒／小さな輪と柔らかな発光</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
-    <article class="pattern" data-pattern="heavy" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">C　重厚</p><p class="pattern-spec">5回転・2.10秒／長い減速と太い余韻</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="double" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">C　二重リング</p><p class="pattern-spec">1回めくり・1.08秒／二重の輪で確実に停止</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
-    <article class="pattern" data-pattern="reverse" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">D　逆回転</p><p class="pattern-spec">逆向き6回転・1.60秒／青白い輪から金へ</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="arcane" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">D　レア度4・秘術色</p><p class="pattern-spec">1回めくり・1.18秒／青紫の輪と共通のカード走光</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
-    <article class="pattern" data-pattern="elastic" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">E　弾性停止</p><p class="pattern-spec">7回転・1.75秒／正面をわずかに越えて収束</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="burst" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">E　炸裂</p><p class="pattern-spec">1回めくり・1.28秒／太い輪と十字フレア</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
-    <article class="pattern" data-pattern="minimal" tabindex="0">
-      <div class="pattern-head"><div><p class="pattern-name">F　簡潔</p><p class="pattern-spec">6回転・1.35秒／発光を抑えた実戦向け</p></div><span class="replay-hint">CLICK：再生</span></div>
+    <article class="pattern" data-pattern="grand" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">F　レア度5・大祝福</p><p class="pattern-spec">1回めくり・1.42秒／太い輪・黄金放射・カード走光・十字フレア</p></div><span class="replay-hint">CLICK：再生</span></div>
     </article>
   </section>
-  <p class="status" id="status">SPACE：すべて再生　／　各案は必ず <code>rotateY(0deg)</code> で停止</p>
+  <h2 class="section-title">レア度別・別案</h2>
+  <section class="pattern-grid rarity-grid" aria-label="レア度別カード登場演出">
+    <article class="pattern rarity-pattern" data-pattern="rarity1" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">レア度1　通常</p><p class="pattern-spec">1回めくり・0.76秒／発光なし</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern rarity-pattern" data-pattern="rarity2" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">レア度2　青の縁光</p><p class="pattern-spec">1回めくり・0.86秒／カード外周だけが青く発光</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+    <article class="pattern rarity-pattern" data-pattern="rarity3" tabindex="0">
+      <div class="pattern-head"><div><p class="pattern-name">レア度3　黄金の掃光</p><p class="pattern-spec">1回めくり・0.98秒／控えめな金縁と光の掃過</p></div><span class="replay-hint">CLICK：再生</span></div>
+    </article>
+  </section>
+  <p class="status" id="status">SPACE：すべて再生　／　各案は必ず1回だけめくり、正面 <code>rotateY(0deg)</code> で停止</p>
 </main>
 
 <template id="scene-template">
@@ -222,10 +302,12 @@
       <span class="impact-core"></span><span class="impact-ring"></span><span class="impact-ring-2"></span>
       <span class="impact-flare-x"></span><span class="impact-flare-y"></span>
       <span class="impact-sparks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="effect-card-outline"></span><span class="effect-rays"></span>
+      <span class="effect-cross-flare"></span>
     </div>
     <div class="card-rig">
       <div class="card-spinner">
-        <div class="card-face card-front"><div class="card-art"></div><div class="card-frame"></div><div class="stat-overlay"></div><span class="stat atk">2</span><span class="stat hp">4</span></div>
+        <div class="card-face card-front"><div class="card-art"></div><div class="card-frame"></div><div class="stat-overlay"></div><span class="stat atk">2</span><span class="stat hp">4</span><div class="card-surface-effects" aria-hidden="true"><span class="effect-sweep"></span></div></div>
         <div class="card-face card-back"></div>
       </div>
     </div>
@@ -237,64 +319,119 @@
     'use strict';
 
     const definitions={
-      standard:{
-        duration:1550,
-        easing:'cubic-bezier(.06,.70,.13,1)',
+      outline:{
+        duration:900,
+        impactAt:.16,
+        easing:'cubic-bezier(.16,.72,.2,1)',
         frames:[
-          {offset:0,angle:-2160,scale:.72,opacity:0},
-          {offset:.09,angle:-1590,scale:.89,opacity:1},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.985},
+          {offset:.14,angle:-174,scale:.99},
+          {offset:.62,angle:-62,scale:1.004},
+          {offset:.86,angle:-8,scale:1},
+          {offset:1,angle:0,scale:1}
         ]
       },
-      quick:{
-        duration:1050,
-        easing:'cubic-bezier(.04,.82,.10,1)',
+      warm:{
+        duration:980,
+        impactAt:.15,
+        easing:'cubic-bezier(.12,.74,.18,1)',
         frames:[
-          {offset:0,angle:-2880,scale:.76,opacity:0},
-          {offset:.08,angle:-2040,scale:.94,opacity:1},
-          {offset:.84,angle:-10,scale:1.015,opacity:1},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.975},
+          {offset:.12,angle:-176,scale:.985},
+          {offset:.58,angle:-66,scale:1.006},
+          {offset:.84,angle:-9,scale:1.002},
+          {offset:1,angle:0,scale:1}
         ]
       },
-      heavy:{
-        duration:2100,
-        easing:'cubic-bezier(.08,.58,.13,1)',
+      double:{
+        duration:1080,
+        impactAt:.14,
+        easing:'cubic-bezier(.08,.7,.15,1)',
         frames:[
-          {offset:0,angle:-1800,scale:.62,opacity:0},
-          {offset:.12,angle:-1400,scale:.78,opacity:1},
-          {offset:.72,angle:-120,scale:.985,opacity:1},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.965},
+          {offset:.1,angle:-177,scale:.98},
+          {offset:.54,angle:-72,scale:1.008},
+          {offset:.8,angle:-14,scale:1.004},
+          {offset:.94,angle:2,scale:1},
+          {offset:1,angle:0,scale:1}
         ]
       },
-      reverse:{
-        duration:1600,
-        easing:'cubic-bezier(.06,.72,.14,1)',
+      arcane:{
+        duration:1180,
+        impactAt:.13,
+        easing:'cubic-bezier(.08,.64,.14,1)',
         frames:[
-          {offset:0,angle:2160,scale:.7,opacity:0},
-          {offset:.10,angle:1600,scale:.91,opacity:1},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.95},
+          {offset:.12,angle:-178,scale:.974},
+          {offset:.5,angle:-76,scale:1.012},
+          {offset:.76,angle:-18,scale:1.006},
+          {offset:.91,angle:3,scale:1},
+          {offset:1,angle:0,scale:1}
         ]
       },
-      elastic:{
-        duration:1750,
-        easing:'linear',
+      burst:{
+        duration:1280,
+        impactAt:.12,
+        easing:'cubic-bezier(.06,.6,.12,1)',
         frames:[
-          {offset:0,angle:-2520,scale:.7,opacity:0,easing:'cubic-bezier(.05,.69,.11,1)'},
-          {offset:.09,angle:-1920,scale:.91,opacity:1,easing:'cubic-bezier(.08,.62,.13,1)'},
-          {offset:.78,angle:-18,scale:1.018,opacity:1,easing:'cubic-bezier(.2,.7,.2,1)'},
-          {offset:.88,angle:7,scale:.995,opacity:1,easing:'ease-out'},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.94},
+          {offset:.1,angle:-178,scale:.97},
+          {offset:.48,angle:-80,scale:1.016},
+          {offset:.72,angle:-22,scale:1.01},
+          {offset:.88,angle:5,scale:1.002},
+          {offset:1,angle:0,scale:1}
         ]
       },
-      minimal:{
-        duration:1350,
-        easing:'cubic-bezier(.05,.76,.12,1)',
+      grand:{
+        duration:1420,
+        impactAt:.11,
+        easing:'cubic-bezier(.05,.56,.1,1)',
         frames:[
-          {offset:0,angle:-2160,scale:.82,opacity:0},
-          {offset:.08,angle:-1540,scale:.96,opacity:1},
-          {offset:1,angle:0,scale:1,opacity:1}
+          {offset:0,angle:-180,scale:.925},
+          {offset:.1,angle:-179,scale:.96},
+          {offset:.45,angle:-84,scale:1.02},
+          {offset:.68,angle:-28,scale:1.014},
+          {offset:.84,angle:7,scale:1.004},
+          {offset:.94,angle:-2,scale:1},
+          {offset:1,angle:0,scale:1}
         ]
-      }
+      },
+      rarity1:{
+        duration:760,
+        noImpact:true,
+        easing:'cubic-bezier(.14,.76,.2,1)',
+        frames:[
+          {offset:0,angle:-180,scale:.985},
+          {offset:.12,angle:-176,scale:.99},
+          {offset:.62,angle:-64,scale:1.002},
+          {offset:.88,angle:-7,scale:1},
+          {offset:1,angle:0,scale:1}
+        ]
+      },
+      rarity2:{
+        duration:860,
+        impactAt:.14,
+        easing:'cubic-bezier(.12,.74,.18,1)',
+        frames:[
+          {offset:0,angle:-180,scale:.975},
+          {offset:.12,angle:-176,scale:.985},
+          {offset:.58,angle:-66,scale:1.004},
+          {offset:.86,angle:-8,scale:1},
+          {offset:1,angle:0,scale:1}
+        ]
+      },
+      rarity3:{
+        duration:980,
+        impactAt:.13,
+        easing:'cubic-bezier(.1,.7,.16,1)',
+        frames:[
+          {offset:0,angle:-180,scale:.965},
+          {offset:.11,angle:-177,scale:.98},
+          {offset:.55,angle:-70,scale:1.006},
+          {offset:.84,angle:-9,scale:1.002},
+          {offset:1,angle:0,scale:1}
+        ]
+      },
     };
 
     const template=document.getElementById('scene-template');
@@ -316,20 +453,36 @@
       const front=pattern.querySelector('.card-front');
       const back=pattern.querySelector('.card-back');
       const previous=waits.get(pattern);
-      if(previous) clearTimeout(previous);
+      if(previous){
+        clearTimeout(previous.impactTimer);
+        clearTimeout(previous.clearTimer);
+      }
       for(const animation of [...spinner.getAnimations(),...front.getAnimations(),...back.getAnimations()]) animation.cancel();
       clearImpact(pattern);
+      // 表裏を同じ中心で初期化する。front=-180 / back=0 なので、開始時は裏面だけが見える。
       spinner.style.transform='scale(1)';
-      front.style.opacity='0';
-      back.style.opacity='0';
+      front.style.opacity='1';
+      back.style.opacity='1';
+      front.style.transform='rotateY(-180deg) translateZ(.1px) scale(1)';
+      back.style.transform='rotateY(0deg) translateZ(.1px) scale(1)';
       const faceKeyframes=angleOffset=>def.frames.map(frame=>{
-        const keyframe={offset:frame.offset,opacity:frame.opacity,transform:transformOf(frame,angleOffset)};
+        const keyframe={offset:frame.offset,transform:transformOf(frame,angleOffset)};
         if(frame.easing) keyframe.easing=frame.easing;
         return keyframe;
       });
       const timing={duration:def.duration,easing:def.easing,fill:'forwards'};
       const animation=front.animate(faceKeyframes(0),timing);
       const backAnimation=back.animate(faceKeyframes(180),timing);
+      // 表面が見え始める瞬間に発光を開始する。めくり完了まで待たない。
+      let impactTimer=null;
+      if(!def.noImpact){
+        impactTimer=setTimeout(()=>{
+          pattern.classList.add('is-impact');
+          const clearTimer=setTimeout(()=>pattern.classList.remove('is-impact'),1400);
+          waits.set(pattern,{impactTimer:null,clearTimer});
+        },def.duration*def.impactAt);
+      }
+      waits.set(pattern,{impactTimer,clearTimer:null});
       animation.finished.then(()=>{
         front.style.opacity='1';
         back.style.opacity='1';
@@ -337,9 +490,6 @@
         back.style.transform='rotateY(180deg) translateZ(.1px) scale(1)';
         animation.cancel();
         backAnimation.cancel();
-        pattern.classList.add('is-impact');
-        const timer=setTimeout(()=>pattern.classList.remove('is-impact'),900);
-        waits.set(pattern,timer);
       }).catch(()=>{});
       return def.duration;
     }

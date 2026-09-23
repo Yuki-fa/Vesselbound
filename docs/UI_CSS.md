@@ -4,6 +4,31 @@ CSS整理、枠線、ドラッグ、画面状態ごとの見た目に関する�
 
 ## 見た目を直す時に確認する状態
 
+**9スライス素材のルート svg には width/height を残す**（2026-09-23）：
+`border-image-slice` を**数値（px）**で書く素材は、SVGの**固有サイズ**が基準になる。
+Illustrator の書き出しで「レスポンシブ」にチェックが入っていると `width`／`height` が消え、
+viewBox しか残らない。すると固有サイズが 300×134 相当まで落ち、`border-image-slice:85` が
+まったく別の位置を切って枠が崩れる（`main_right_frame.svg` を開き直して色を変えた時に発生）。
+`main_left_frame` / `main_left_decoration` / `main_right_frame` / `main_right_decoration` は
+すべて `viewBox="0 0 1020 455" width="1020" height="455"`。素材を作り直したら必ず確認する。
+確認は `tools/parity/panel_frame_visual_check.js` の末尾「file://」行（natural width/height）。
+`info_box.svg` は width/height を持たないが、スライスを % で書いているので影響を受けない。
+
+**共通パネルの9スライス**（2026-09-23）：正本は `prototype/assets/ui/` 直下の
+`main_left_frame.svg`／`main_left_decoration.svg`／`main_right_frame.svg`／`main_right_decoration.svg`。
+すべて1020×455。分割後の素材を直接編集し、変更時は参照URLの版を更新する。一体型の旧SVGは不要。
+左枠は所持品・クエスト・旅の進捗・エラー・削除確認・再開画面、右枠はオプション・コレクション・
+報酬欄・通常の説明枠に使う。外枠の切出し／表示幅は両方85px、装飾は原寸で上中央、黒50%背景はCSSで一度だけ描く。
+body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バーを出さず、既存の種別別背景色を保つ。
+簡素な旅の説明枠は `info_box.svg`（旧info_box2.svg）。
+`tools/parity/panel_frame_visual_check.js` で実ホバー・各画面・原寸との四隅／線幅の画素比較を確認する。
+外部で作った一体型SVGを新たに取り込む場合だけ `tools/split_panel_svg.py 入力.svg --name main_left`（またはmain_right）を使う。
+旧SVGとの初回比較は `VB_PANEL_SOURCE_DIR=旧素材の退避先` を検査ツールへ渡す。通常の検査・起動に旧素材は不要。
+
+**祭壇の指輪枠**（2026-09-22）：`.ring-visual::before` は発光の代用品ではなく実際の枠。
+通常カード用の `::before{display:none;content:none}` や矩形枠のホバー規則から、
+`.item-visual` と同様に `.ring-visual` も除外する。z-indexの変更だけでは消失を防げない。
+
 **オプションは常に最前面**：`#options-layer` は `z-index:2000000`。ゲームオーバー／クリアの
 結果画面（`#scr-gameover.gameover-overlay-active`）とマッチング待機は 9000、村の暗転 99000、
 商店の確認 100200、再開の確認 200000。以前は 4050 で、結果画面の下に潜っていた（2026-09-21）。

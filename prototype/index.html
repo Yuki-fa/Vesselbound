@@ -5214,7 +5214,7 @@ html body.reward-screen-active #reward-offer-section{
   transform:none!important;
   padding:0!important;
   margin:0!important;
-  background:url("assets/ui/reward.svg?v=back50") center/100% 100% no-repeat!important;
+  background:rgba(0,0,0,.5) url("assets/ui/main_right_decoration.svg?v=panels0923") center top/1020px 455px no-repeat!important;
   z-index:10!important;
   overflow:visible!important;
 }
@@ -6928,8 +6928,6 @@ html body.reward-screen-active .reward-prod-ring,
 html body.reward-screen-active .reward-prod-quest{
   width:1020px!important;
   height:372px!important;
-  background-image:url("assets/ui/main_left.svg?v=back50")!important;
-  background-size:100% 100%!important;
 }
 html body.reward-screen-active .reward-prod-item{top:356px!important;}
 html body.reward-screen-active .reward-prod-ring{top:765px!important;}
@@ -6939,7 +6937,6 @@ html body.reward-screen-active .reward-prod-quest{
   top:1174px!important;
   width:1020px!important;
   height:289px!important;
-  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active .reward-prod-item h2,
 html body.reward-screen-active .reward-prod-ring h2,
@@ -6961,7 +6958,6 @@ html body.reward-screen-active .reward-prod-journey{
   top:1500px!important;
   width:1020px!important;
   height:455px!important;
-  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat!important;
 }
 html body.reward-screen-active #journey-progress-ui{
   position:absolute!important;
@@ -7584,9 +7580,9 @@ html body #hand-slots.board-slots > [data-map-board].drag-over{
 /* 発光そのものを同じ矩形の疑似要素で描画し、外側影の隙間とRずれを防ぐ。 */
 html body #hand-slots.board-slots > .card:hover:not(.inert):not(.invalid-battle-position)::before,
 html body #hand-slots.board-slots > .card.drag-over:not(.invalid-battle-position)::before,
-html body #reward-offer-row > .rew-card:not(.item-visual):hover::before,
-html body #reward-offer-row > .rew-card:not(.item-visual).dragging::before,
-html body #reward-offer-row > .rew-card:not(.item-visual).drag-over::before{
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual):hover::before,
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual).dragging::before,
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual).drag-over::before{
   content:""!important;
   position:absolute!important;
   inset:0!important;
@@ -7754,9 +7750,9 @@ html body #reward-offer-row > .rew-card.drag-over{
   filter:none!important;
   box-shadow:none!important;
 }
-html body #reward-offer-row > .rew-card:not(.item-visual):hover::before,
-html body #reward-offer-row > .rew-card:not(.item-visual).dragging::before,
-html body #reward-offer-row > .rew-card:not(.item-visual).drag-over::before{
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual):hover::before,
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual).dragging::before,
+html body #reward-offer-row > .rew-card:not(.item-visual):not(.ring-visual).drag-over::before{
   border:2px solid rgba(255,255,255,.72)!important;
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
@@ -8200,8 +8196,8 @@ html body #scr-battle #battle-options-btn::before{
   opacity:.72!important;
 }
 
-/* 左側パネルは元SVGの上部と下端90pxを重ならない領域へ分けて描画する。
-   四隅と四辺を縮小せず、半透明の背面が下部だけ二重になることも防ぐ。 */
+/* 左枠は外枠・見出し装飾・黒50%背景を分離する。
+   外枠は原寸85pxの9スライス。半透明背景は一度だけ描く。 */
 html body.reward-screen-active .reward-prod-item,
 html body.reward-screen-active .reward-prod-ring,
 html body.reward-screen-active .reward-prod-quest,
@@ -8213,36 +8209,33 @@ html body.reward-screen-active .reward-prod-journey{
 html body.reward-screen-active .reward-prod-item::before,
 html body.reward-screen-active .reward-prod-ring::before,
 html body.reward-screen-active .reward-prod-quest::before,
-html body.reward-screen-active .reward-prod-journey::before{
+html body.reward-screen-active .reward-prod-journey::before,
+#fatal-error-frame::before,
+#options-layer #options-confirm-box::before,
+.run-resume-journey::before{
   content:""!important;
   display:block!important;
   position:absolute!important;
   left:0!important;
   right:0!important;
   top:0!important;
-  bottom:90px!important;
-  z-index:0!important;
-  pointer-events:none!important;
-  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat!important;
-}
-html body.reward-screen-active .reward-prod-item::after,
-html body.reward-screen-active .reward-prod-ring::after,
-html body.reward-screen-active .reward-prod-quest::after,
-html body.reward-screen-active .reward-prod-journey::after{
-  content:""!important;
-  position:absolute!important;
-  left:0!important;
-  right:0!important;
   bottom:0!important;
-  height:90px!important;
   z-index:0!important;
   pointer-events:none!important;
-  background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat!important;
+  box-sizing:border-box!important;
+  background:rgba(0,0,0,.5) url("assets/ui/main_left_decoration.svg?v=panels0923") center top/1020px 455px no-repeat!important;
+  border:0 solid transparent!important;
+  border-image-source:url("assets/ui/main_left_frame.svg?v=panels0923")!important;
+  border-image-slice:85!important;
+  border-image-width:85px!important;
+  border-image-outset:0!important;
+  border-image-repeat:stretch!important;
 }
 html body.reward-screen-active .reward-prod-item > *,
 html body.reward-screen-active .reward-prod-ring > *,
 html body.reward-screen-active .reward-prod-quest > *,
-html body.reward-screen-active .reward-prod-journey > *{
+html body.reward-screen-active .reward-prod-journey > *,
+.run-resume-journey > *{
   z-index:1!important;
 }
 
@@ -8300,7 +8293,7 @@ html body.world-map-active #battle-options-btn::after{
   background-repeat:no-repeat,no-repeat!important;
 }
 
-/* 右下ボタン群：reward.svgとの間隔を左側パネル間と同じ34pxにし、
+/* 右下ボタン群：報酬枠との間隔を左側パネル間と同じ34pxにし、
    元SVGの496:122を保ったまま少し縮小する。 */
 html body.reward-screen-active #reward-move-btns{
   left:2749px!important;
@@ -9275,18 +9268,10 @@ html body.fatal-error-active .screen{pointer-events:none!important}
 /* 画面の外（レターボックス）まで暗くするため、大きくはみ出させる。 */
 #fatal-error-backdrop{position:absolute;inset:-4000px;background:rgba(4,5,8,.92)}
 /* 枠：編成画面の指輪枠（.reward-prod-ring）と同じ 1020x372。
-   main_left.svg を上下に分けて描くのも同じ（四隅を縮めないため）。画面中央に置く。 */
+   main_left_frame.svgの9スライスも共通で使う。画面中央に置く。 */
 #fatal-error-frame{
   position:absolute;left:50%;top:894px;width:1020px;height:372px;box-sizing:border-box;
   transform:translateX(-50%);
-}
-#fatal-error-frame::before{
-  content:"";display:block;position:absolute;left:0;right:0;top:0;bottom:90px;z-index:0;pointer-events:none;
-  background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat;
-}
-#fatal-error-frame::after{
-  content:"";position:absolute;left:0;right:0;bottom:0;height:90px;z-index:0;pointer-events:none;
-  background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat;
 }
 /* 見出し：編成画面のパネル見出し（.reward-prod-panel h2）と同じ。
    **両脇の線は付けない**（編成画面側も content:none で消してあり、線は枠の絵の一部）。
@@ -11440,7 +11425,6 @@ body.run-resume-active .screen-options-btn,
 body.run-resume-active #battle-options-btn{display:none!important}
 .run-resume-journey{
   position:absolute;left:50%;top:50%;width:1020px;height:455px;transform:translate(-50%,-50%);
-  background:url("assets/ui/main_left.svg?v=back50") center/100% 100% no-repeat;
   font-family:"Shippori Mincho",serif;
 }
 .run-resume-journey h2{
@@ -11466,7 +11450,21 @@ body.run-resume-active #battle-options-btn{display:none!important}
 #options-layer.is-open{display:block}
 #options-shade{position:absolute;inset:0;background:rgba(0,0,0,.8);z-index:0}
 #options-close-proxy{position:absolute;right:96px;top:58px;width:112px;height:112px;border:0;border-radius:0;background:url("assets/ui/option_close.svg") center/42px 42px no-repeat,url("assets/ui/button_option.svg") center/100% 100% no-repeat;background-color:transparent;z-index:4;cursor:var(--cursor-normal);box-shadow:0 0 24px rgba(0,0,0,.55),inset 0 0 20px rgba(201,168,76,.12)}
-#options-panel{position:absolute;left:915px;top:235px;width:2010px;height:1500px;background:url("assets/ui/option.svg") center/100% 100% no-repeat;z-index:1}
+#options-panel{position:absolute;left:915px;top:235px;width:2010px;height:1500px;background:rgba(0,0,0,.5) url("assets/ui/main_right_decoration.svg?v=panels0923") center top/1020px 455px no-repeat;z-index:1}
+/* main_right_frame.svg（1020×455）は背景とdecoration_barを含まない原寸外枠。
+   85pxで切り、表示も85px。角は拡大縮小せず、辺は長さ方向だけ伸ばす。
+   border-image-widthはborder-widthとは独立なので、内容の座標・寸法を変えない。
+   素材更新時はui直下のframe／decorationを直接編集する。元の一体型SVGは不要。 */
+#options-panel,
+#collection-panel-bg,
+html body.reward-screen-active #reward-offer-section{
+  border:0 solid transparent!important;
+  border-image-source:url("assets/ui/main_right_frame.svg?v=panels0923b")!important;
+  border-image-slice:85!important;
+  border-image-width:85px!important;
+  border-image-outset:0!important;
+  border-image-repeat:stretch!important;
+}
 #options-panel button{font:inherit;color:inherit;border:0;background:transparent}
 .options-title{position:absolute;top:46px;left:0;width:100%;text-align:center;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85)}
 .options-title::before,.options-title::after{content:"";display:inline-block;width:250px;height:3px;margin:0 34px .32em;background:url("assets/ui/line.png") center/100% 100% no-repeat}
@@ -11510,7 +11508,7 @@ body.run-resume-active #battle-options-btn{display:none!important}
 #options-confirm-layer{display:none;position:absolute;inset:0;z-index:3}
 #options-confirm-layer.is-open{display:block}
 #options-confirm-shade{position:absolute;inset:0;background:rgba(0,0,0,.4)}
-#options-confirm-box{position:absolute;left:920px;top:560px;width:2000px;height:760px;background:url("assets/ui/main_left.svg") center/100% 100% no-repeat;text-align:center}
+#options-confirm-box{position:absolute;left:920px;top:560px;width:2000px;height:760px;text-align:center}
 #options-confirm-title{margin-top:150px;font-weight:700}
 #options-confirm-message{margin:48px auto 0;width:1300px;white-space:pre-wrap}
 #options-confirm-actions{display:flex;justify-content:center;gap:35.056px;margin-top:110px}
@@ -11584,8 +11582,6 @@ body.options-open .screen-options-btn::before{animation-play-state:running!impor
 
 /* 削除確認は fatal-error-overlay の枠・見出し・本文・ボタンと同じ設計値。 */
 #options-layer #options-confirm-box{left:50%!important;top:894px!important;width:1020px!important;height:372px!important;transform:translateX(-50%);background:none!important;text-align:center!important;color:#a58768!important}
-#options-layer #options-confirm-box::before{content:"";display:block;position:absolute;left:0;right:0;top:0;bottom:90px;z-index:0;pointer-events:none;background:url("assets/ui/main_left.svg?v=back50") top center/1020px 455px no-repeat}
-#options-layer #options-confirm-box::after{content:"";position:absolute;left:0;right:0;bottom:0;height:90px;z-index:0;pointer-events:none;background:url("assets/ui/main_left.svg?v=back50") bottom center/1020px 455px no-repeat}
 #options-layer #options-confirm-title{position:absolute;left:0;right:0;top:42px;z-index:1;margin:0;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;text-indent:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85)}
 #options-layer #options-confirm-message{position:absolute;left:80px;right:80px;top:120px;z-index:1;margin:0;width:auto;font-size:35px;line-height:1.35;text-align:center;white-space:pre-wrap;color:#a58768}
 #options-layer #options-confirm-actions{position:absolute;left:0;right:0;top:450px;margin:0;display:flex;justify-content:center;gap:35px;z-index:2}
@@ -11627,7 +11623,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
 #scr-title.startup-title.collection-open>#collection-layer{visibility:visible;opacity:1;pointer-events:auto;transition:opacity .45s ease,visibility 0s linear 0s}
 #collection-layer button{font-family:'Shippori Mincho',serif;color:#caa869}
 #collection-shade{position:absolute;inset:0;background:rgba(0,0,0,.8)}
-#collection-panel-bg{position:absolute;left:70px;top:70px;width:2189px;height:2020px;background:url("assets/ui/collection.svg?v=collection2189") center/100% 100% no-repeat;pointer-events:none}
+#collection-panel-bg{position:absolute;left:70px;top:70px;width:2189px;height:2020px;background:rgba(0,0,0,.5) url("assets/ui/main_right_decoration.svg?v=panels0923") center top/1020px 455px no-repeat;pointer-events:none}
 #collection-title{position:absolute;left:70px;top:116px;width:2189px;margin:0;font-size:44px;line-height:1;font-weight:700;letter-spacing:.18em;text-indent:.18em;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.85);pointer-events:none}
 .collection-tab{position:absolute;top:114px;width:262px;height:62px;margin:0;padding:0;border:0;background:transparent url("assets/ui/button_invisible.svg?v=opacity0917") center/262px 62px no-repeat;font-size:24px;line-height:62px;letter-spacing:.12em;text-indent:.12em;text-align:center;overflow:visible;cursor:var(--cursor-normal);filter:none}
 /* カード非表示ボタンと同じく、素材全体を複製せず外周線だけを発光源にする。 */
@@ -12054,7 +12050,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
   </div>
 </div>
 <!-- 進行不能なエラーの表示。
-     **枠は編成画面の指輪枠（main_left.svg・1020x372）と同じ寸法・同じ描き方**、
+     **枠は編成画面の指輪枠（main_left_frame.svg・1020x372）と同じ寸法・同じ描き方**、
      見出し・本文の文字サイズも編成画面と同じ、ボタンはゲームオーバーの
      「タイトルに戻る」と同じ寸法・同じ意匠をそのまま使う。 -->
 <div id="fatal-error-overlay" aria-hidden="true">
@@ -12133,7 +12129,7 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=frameRadiusRestore0918"></script>
+<script src="assets.js?v=panels0923b"></script>
 <script src="js/engine/audio.js?v=debugButtons0917b"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
@@ -12483,9 +12479,9 @@ html body .card.merge-ready.merge-ready.drag-source-parts-hidden{
 
 /* ══════════════════════════════════════════════════════════
    **ホバー説明の枠と区切り線を素材へ差し替える。**
-   通常枠＝`assets/ui/info_box1.svg`、旅の進捗の通常枠＝`assets/ui/info_box2.svg`、
+   通常枠＝`main_right_frame.svg`の9スライス外枠、旅の進捗の通常枠＝`assets/ui/info_box.svg`、
    見出し下の直線＝`assets/ui/info_line.svg`。
-   info_box1.svg は9スライスで使い、横方向と四隅は原寸を保って中央の縦方向だけを可変にする。
+   main_right_frame.svg の四隅は原寸を保つ。説明枠にはdecoration_barを表示しない。
    枠線・角丸・影はSVGが持つので、CSS側のものは消す。
    余白は四隅の装飾より内側に文字が収まる値を確保する。
    ══════════════════════════════════════════════════════════ */
@@ -12494,7 +12490,7 @@ html body #map-power-tooltip,
 html body #keyword-tooltip{
   /* **9スライス（border-image）で描く。**
      背景画像として伸ばすと、本文が増えて箱が縦長になるたびに絵ごと縦横比が変わり、
-     四隅の装飾まで変形する。info_box1.svg（viewBox 500x500）は上下左右85pxで切り、
+     四隅の装飾まで変形する。main_right_frame.svg（viewBox 1020x455）は上下左右85pxで切り、
      表示先も85pxのままにする。四隅は素材と同じ寸法を保ち、
      中央区画と辺だけをツールチップの幅・高さに合わせて伸ばす。
      **`background` の一括指定は使わないこと。** background-color まで初期値へ戻り、
@@ -12526,14 +12522,14 @@ html body #keyword-tooltip::before{
   z-index:0!important;
   box-sizing:border-box!important;
   border:calc(85px * var(--game-scale)) solid transparent!important;
-  border-image-source:url("assets/ui/info_box1.svg?v=tooltipFrame07")!important;
-  /* 85/500。切り出しと表示先を同寸にして、ゲーム全体の表示倍率以外では縮小しない。 */
-  border-image-slice:17%!important;
+  border-image-source:url("assets/ui/main_right_frame.svg?v=panels0923b")!important;
+  /* 原寸85px。body直下の説明枠だけはゲーム全体の縮尺を幅へ明示的に掛ける。 */
+  border-image-slice:85!important;
   border-image-width:calc(85px * var(--game-scale))!important;
   border-image-repeat:stretch!important;
   pointer-events:none!important;
 }
-/* 旅の進捗内の通常マス／Scene名は、簡素なinfo_box2.svgを横幅可変で使う。 */
+/* 旅の進捗内の通常マス／Scene名は、簡素なinfo_box.svgを横幅可変で使う。 */
 html body #kw-tooltip.no-title-rule{
   width:auto!important;
   min-width:0!important;
@@ -12543,7 +12539,7 @@ html body #kw-tooltip.no-title-rule{
 }
 html body #kw-tooltip.no-title-rule::before{
   border:calc(7px * var(--game-scale)) solid transparent!important;
-  border-image-source:url("assets/ui/info_box2.svg?v=tooltipFrame04")!important;
+  border-image-source:url("assets/ui/info_box.svg?v=tooltipFrame0923")!important;
   /* 上下7/200=3.5%、左右7/500=1.4%。 */
   border-image-slice:3.5% 1.4%!important;
   border-image-width:calc(7px * var(--game-scale))!important;
@@ -12870,8 +12866,8 @@ html body.reward-screen-active #reward-offer-row > .rew-card::after{
   z-index:100!important;
 }
 /* 指輪・アイテムの枠（::before＝ring_slot/item_slot）は、上の ::after（絵＝100）より手前へ。
-   指輪置き場（.reward-prod-ring）は下の規則で110にしてあるのに、祭壇の提示枠だけ
-   既定の2のままで、絵が枠を覆っていた（暗い指輪にホバーすると枠が消える。利用者報告 2026-09-22）。 */
+   指輪置き場（.reward-prod-ring）と祭壇の提示枠で描画順を揃える。
+   ホバー時の消失は別途、通常カード用のdisplay:none規則からring-visualも除外する。 */
 html body.reward-screen-active #reward-offer-row > .rew-card.ring-visual::before,
 html body.reward-screen-active #reward-offer-row > .rew-card.item-visual::before{
   z-index:110!important;
@@ -13911,7 +13907,8 @@ html body.reward-screen-active #rw-cards .rew-card.cant > .unit-stat-overlay-lay
 html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell) #hand-slots.board-slots > .card.invalid-battle-position:not(.dragging) > .unit-stat-overlay-layer{
   filter:brightness(.5) saturate(.5)!important;
 }
-/* 商品の item-visual は ::before に絵・アイテム枠を描くため、ホバー発光で消さない。 */
+/* item-visual／ring-visualは::beforeが実際の枠。通常カード用の発光抑止で消さない。
+   祭壇の未解放指輪もring-visualであり、z-indexを上げてもdisplay:noneでは表示されない。 */
 /* キャラクター報酬カードだけ、従来どおり疑似要素の発光を抑止する。 */
 html body.reward-screen-active #hand-slots.board-slots > .card:hover:not(.inert):not(.dragging),
 html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging),
@@ -13921,8 +13918,8 @@ html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.draggin
   box-shadow:inset 0 0 6px rgba(255,255,255,.58),0 0 10px 1px rgba(255,255,255,.72),0 0 20px 3px rgba(255,234,170,.42)!important;
 }
 html body.reward-screen-active #hand-slots.board-slots > .card:hover:not(.inert):not(.dragging) > .card-glow-layer,
-html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging):not(.item-visual)::before,
-html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging):not(.item-visual)::before{
+html body.reward-screen-active #reward-offer-row > .rew-card:hover:not(.cant):not(.dragging):not(.item-visual):not(.ring-visual)::before,
+html body.reward-screen-active #rw-cards .rew-card:hover:not(.cant):not(.dragging):not(.item-visual):not(.ring-visual)::before{
   display:none!important;
   content:none!important;
   box-shadow:none!important;
@@ -14019,7 +14016,7 @@ html body #kw-tooltip.has-rarity-banner{
   /* レアリティ台を25px上げた分、カード名以下も同じだけ上げる（72px→47px）。 */
   padding-top:calc(47px * var(--game-scale))!important;
 }
-/* info_box1自体からrarity_backの形状をくり抜く。
+/* main_rightの外枠からrarity_backの形状をくり抜く。
    背景色を重ねて隠す方式ではないため、説明枠を90%透過にしても背後の線が透けない。 */
 html body #kw-tooltip.has-rarity-banner::before{
   -webkit-mask-image:linear-gradient(#fff 0 0),url("assets/ui/rarity_back.svg?v=rarity01")!important;
