@@ -237,6 +237,41 @@ function coreUnitIsSilenced(unit) {
   return !!(unit && (unit._silenced || unit._scrollSilencedUntilAttack));
 }
 
+// ── 静寂（静寂の巻物「全ての敵は一度攻撃するまで全ての効果が無効化される」）──────
+// **判定側に「沈黙中なら」の分岐を足さないこと。** 効果の入力はカード本文・キーワード・
+// 効果データ・魔導板の強化・カード名（名前で持つ効果）と多岐にわたる。以前は攻撃効果と
+// 死亡効果の2か所だけで止めていたため、開戦・負傷・根性・復活・結界・攻防一体・マナ効果など
+// ほぼ全部が素通りしていた（利用者報告 2026-09-23）。
+// 沈黙した体からは効果の入力を丸ごと取り外し（＝効果を何も持たない同じ数値の体）、
+// 最初の攻撃の手番（追加攻撃・反撃まで）を終えたら戻す（coreBattleStep）。
+// 外へ出す写し（coreUnitSnapshot）は元の効果で出す（蘇生・奪取・表示が空の体にならないように）。
+// 検査：tools/balance_sim/silence_scroll_check.js（全カードで「効果なしの体」と一致するか）。
+const CORE_SILENCE_TEXT_FIELDS = ['desc', 'effectText', 'effect', 'keywords', 'effectData', 'boardCards', 'stealth'];
+function coreSilenceUnit(unit) {
+  if (!unit) return;
+  unit._silenced = true;
+  if (unit._silenceStash) return;
+  const stash = {};
+  [...CORE_SILENCE_TEXT_FIELDS, ...CORE_UNIT_EFFECT_STATE_FIELDS].forEach(k => { if (k in unit) stash[k] = unit[k]; });
+  unit._silenceStash = stash;
+  unit.desc = ''; unit.effectText = ''; unit.effect = '';
+  unit.keywords = []; unit.effectData = {}; unit.boardCards = [];
+  unit.stealth = false;
+  coreCopyUnitEffectState(unit, {}, { resetMissing: true });
+  // 結界（キーワード由来の障壁）も効果。張られた分は戻さない（消費される状態のため）。
+  unit.shield = 0;
+}
+function coreUnsilenceUnit(unit) {
+  if (!unit) return;
+  const stash = unit._silenceStash;
+  delete unit._silenced; delete unit._scrollSilencedUntilAttack; delete unit._silenceStash;
+  if (!stash) return;
+  // 沈黙中に外から得たキーワード（付与効果）は残す。
+  const gained = Array.isArray(unit.keywords) ? unit.keywords.slice() : [];
+  Object.keys(stash).forEach(k => { unit[k] = stash[k]; });
+  unit.keywords = [...(Array.isArray(stash.keywords) ? stash.keywords : []), ...gained];
+}
+
 function coreShieldValueFromKeyword(k) {
   const m = String(k || '').trim().match(/^結界\s*(\d*)$/);
   if (!m) return 0;
@@ -718,7 +753,9 @@ function coreIsAlive(u) { return !!u && u.hp > 0; }
 function coreLivingUnits(units) { return (units || []).filter(coreCanAct); }
 
 // 外へ出すユニット情報。演出側・保存側はこの形だけを見る。
-function coreUnitSnapshot(u) {
+function coreUnitSnapshot(unit) {
+  // 沈黙中の体も、外へは元の効果で出す（coreSilenceUnit）。
+  const u = unit && unit._silenceStash ? { ...unit, ...unit._silenceStash } : unit;
   return {
     id: u.id, name: u.name, side: u.side, lane: u.lane,
     atk: u.atk, hp: Math.max(0, u.hp), maxHp: u.maxHp,
@@ -1440,7 +1477,8 @@ function coreEffectKey(value) {
     .trim();
 }
 function coreUnitEffectNames(unit) {
-  const out = new Set([coreEffectKey(unit && unit.name)]);
+  // 名前で持つ効果（カード名＝効果名）も、沈黙中は持たない。
+  const out = new Set(coreUnitIsSilenced(unit) ? [] : [coreEffectKey(unit && unit.name)]);
   (unit && unit.keywords || []).forEach(k => out.add(coreEffectKey(k)));
   (unit && unit.effectData && unit.effectData.effectNames || []).forEach(k => out.add(coreEffectKey(k)));
   (unit && unit.effectData && unit.effectData.adjacentAbilities || []).forEach(k => out.add(coreEffectKey(k)));
@@ -1451,6 +1489,8 @@ function coreUnitEffectNames(unit) {
 
 function coreHasEffect(unit, name) { return coreUnitEffectNames(unit).has(coreEffectKey(name)); }
 function coreEffectCount(unit, name) {
+  // 名前で持つ効果（カード名＝効果名）も、沈黙中は数えない（coreSilenceUnit）。
+  if (coreUnitIsSilenced(unit)) return 0;
   const wanted = coreEffectKey(name);
   // 強化カードは同じ効果名を keywords と effectNames の両方へ保持するため、
   // 表現形式を足し合わせると1枚の強化が2回分として発動する。
@@ -1909,6 +1949,8 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   target.effectData = (def.effectData && typeof def.effectData === 'object') ? { ...def.effectData } : {};
   // 変身先のデータ駆動効果も同時に置換する。旧形態の効果を残さない。
   coreCopyUnitEffectState(target, def, { resetMissing: true });
+  // 沈黙中に変身したら、沈黙は続けたまま変身後の効果を取り外し直す（戻す時に旧形態へ戻らないように）。
+  if (target._silenceStash) { delete target._silenceStash; coreSilenceUnit(target); }
   target.poison = 0; target.weaken = 0; target.shield = coreUnitShieldValue(target);
   emit({ type: 'transform', side: target.side, unitId: target.id, name: target.name,
     atk: target.atk, hp: target.hp, maxHp: target.maxHp, from: oldName, unit: coreUnitSnapshot(target) });
@@ -1951,7 +1993,7 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
       x.keywords = coreUnitKeywords(x).concat(['根性']);
       emit({ type: 'keyword_effect', effect: 'keyword_gain', side: x.side, unitId: x.id, keyword: '根性', sourceId: item.id });
     });
-    if (key === 'silence_scroll') live(foes).forEach(x => { x._silenced = true; });
+    if (key === 'silence_scroll') live(foes).forEach(coreSilenceUnit);
     if (key === 'underworld_scroll') live(allies).filter(x => x.lane !== 'rear').forEach(x => {
       coreApplyDeathEffects(x, state, rng, emit, applyHit);
       coreApplyDeathObservers(x, state, rng, emit, applyHit);
@@ -4660,7 +4702,14 @@ function coreSweepAtkZeroFlee(state, emit) {
 }
 // 中身は coreBattleStepInner に置き、ここで最後に一度だけ判定する。
 function coreBattleStep(ctx) {
-  const next = coreBattleStepInner(ctx);
+  let next;
+  try {
+    next = coreBattleStepInner(ctx);
+  } finally {
+    // 静寂の巻物：沈黙したまま攻撃した体は、手番を終えた時点で効果を取り戻す。
+    const silenced = ctx.state && ctx.state._silencedAttackers;
+    if (silenced) { delete ctx.state._silencedAttackers; silenced.forEach(coreUnsilenceUnit); }
+  }
   // ATK0になった体は、この手番の解決が全部終わってから外す。
   if (coreSweepAtkZeroFlee(ctx.state, ctx.emit) && typeof ctx.decided === 'function') {
     next.result = ctx.decided();
@@ -4734,7 +4783,9 @@ function coreBattleStepInner(ctx) {
     if (!plannedTarget) { result = decided(); return { side, result, stop: true }; }
     attacker._currentAttackTarget = plannedTarget;
     attacker._attackTargetWasWounded = !!(plannedTarget.hp > 0 && plannedTarget.hp < plannedTarget.maxHp);
-    const silenced = !!attacker._silenced;
+    const silenced = coreUnitIsSilenced(attacker);
+    // 沈黙は「一度攻撃するまで」。この手番（追加攻撃・反撃を含む）を終えたら coreBattleStep が戻す。
+    if (silenced) (state._silencedAttackers = state._silencedAttackers || []).push(attacker);
     // 反復ボーナス（絆の巻物で合体したカード等）は**他のトリガと同じ引き方**にする。
     // ここだけ effectData しか見ていなかったため、合体したカードの
     // **攻撃効果だけ2回目が発動しなかった**（効果の数値が増えないように見える）。
@@ -4749,7 +4800,6 @@ function coreBattleStepInner(ctx) {
       attackEffectResult = coreApplyAttackEffects(attacker, state, rng, emit, applyHit, `${attackEventSeq}:${i}`) || attackEffectResult;
       coreFlushPendingLichSummons(state, emit);
     }
-    if (silenced) delete attacker._silenced;
     delete attacker._currentAttackTarget;
     delete attacker._attackTargetWasWounded;
     // 身代わり攻撃（スケルトンキングの召喚体・操作した敵）で本人が攻撃しない場合も、

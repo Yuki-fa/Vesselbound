@@ -154,6 +154,17 @@ node prototype/tools/balance_sim/offline_online_regression.js
    **既に生成している**。`/^(\d+)マナを得る/` を追加で拾うと2回入る。
    テキストパース側に `&& !Number(unit.manaOnX)` のガードを必ず付ける。
 
+5. **「効果が無効化される」を判定ごとの分岐で書く**
+   静寂の巻物（`silence_scroll`：全ての敵は一度攻撃するまで全ての効果が無効化される）は、以前コアの
+   攻撃効果と死亡効果の2か所だけで止めていたため、開戦・負傷・根性・復活・結界・攻防一体・マナ効果・
+   カード名で持つ効果（ゴーレム等）が全部素通りしていた（2026-09-23）。
+   今は `coreSilenceUnit()` が効果の入力（本文・キーワード・効果データ・`CORE_UNIT_EFFECT_STATE_FIELDS`・
+   隠密・結界）を**丸ごと取り外し**、効果を何も持たない同じ数値の体にする。名前で持つ効果は
+   `coreUnitEffectNames` / `coreEffectCount` が沈黙中は数えない。最初の攻撃の手番（追加攻撃・反撃まで）を
+   終えたら `coreBattleStep` が `coreUnsilenceUnit()` で戻す。外へ出す写し（`coreUnitSnapshot`）は元の効果で出す。
+   **新しい効果の入力フィールドを足したら `CORE_UNIT_EFFECT_STATE_FIELDS` に入れること**（入れないと沈黙を素通りする）。
+   検査は `tools/balance_sim/silence_scroll_check.js`（全カードで「効果なしの体」とイベント列が一致するか）。
+
 ### 既存の食い違い（勝手に揃えないこと）
 - 追加攻撃回数と攻撃範囲：味方側は効果文からも拾うが、敵側はキーワード列だけを見る
   （`coreExtraAttackCount(unit,{fromKeywordsOnly:true})` で従来の挙動を保持している）

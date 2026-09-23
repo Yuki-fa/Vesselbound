@@ -11,7 +11,7 @@
 | 触ったもの | 回すもの | 目安 |
 | --- | --- | --- |
 | 何を触っても | `node --check`（変更した全JS）＋ `index.html` の `?v=` を上げる | 数秒 |
-| 効果・キーワード・カードデータ | balance_sim 5本 | 約30秒 |
+| 効果・キーワード・カードデータ | balance_sim 6本 | 約30秒 |
 | 演出・VFX・SE・数値表示 | ＋ `anim_check.js` / `present_parity.js` | 各2〜5分 |
 | オンラインの編成・送信・受け口 | ＋ `online_payload.js` / `online_receivers.js` | 各数秒 |
 | 戦闘の進行そのもの（ターン・対象選択・終了判定） | ＋ `loop_parity.js` | 数分 |
@@ -21,7 +21,7 @@
 ### 絞って回す。全数はコミット前に1回、裏で
 
 重いのはブラウザを使う3本だけ（`present_parity` 3分／`anim_check` 2分／`loop_parity` 2分）。
-balance_sim 5本は node だけなので30秒。**直した箇所に対応する分だけ絞って回すこと。**
+balance_sim 6本は node だけなので30秒。**直した箇所に対応する分だけ絞って回すこと。**
 
 ```bash
 VB_ONLY=根性で耐える node tools/parity/present_parity.js   # 1シナリオだけ（| 区切りで複数）
@@ -37,13 +37,13 @@ VB_CASES=4 node tools/parity/loop_parity.js                # 24ケース → 4�
 **セーブ検査の3本はヘッドレスブラウザを立てるので、続けて回すと落ちる。**
 1本ずつ、数秒あけて回すこと（内容ではなく起動の競合で落ちる）。
 
-balance_sim の5本は**効果に触ったら必ず**。ソース検査（`battle_event_regression.js`）は
+balance_sim の6本は**効果に触ったら必ず**。ソース検査（`battle_event_regression.js`）は
 二重実装の復活を見ているので、共通実装のシグネチャを変えたら必ず一緒に直す。
 
 ```bash
 cd prototype/tools/balance_sim
 for f in effect_audit.js card_core_smoke.js offline_online_regression.js \
-         battle_event_regression.js pve_core_resource_parity.js; do node "$f"; done
+         battle_event_regression.js pve_core_resource_parity.js silence_scroll_check.js; do node "$f"; done
 ```
 
 | 検査 | 見ているもの |
@@ -53,6 +53,7 @@ for f in effect_audit.js card_core_smoke.js offline_online_regression.js \
 | `offline_online_regression.js` | オフライン基準版とコア／オンライン再生の一致 |
 | `battle_event_regression.js` | 二重実装が復活していないか（ソース検査を含む） |
 | `pve_core_resource_parity.js` | 資源変化がPvEへ戻っているか |
+| `silence_scroll_check.js` | 静寂の巻物：沈黙中の敵が全カードで「効果なしの体」と一致し、最初の攻撃の後に戻るか |
 
 ローカルサーバー（**ポートは5500に固定する**。後述）が要る検査：
 
