@@ -1,17 +1,28 @@
-// quest.js — 酒場クエスト（Q009 護衛依頼）と、クエスト用の立ち絵／会話表示。
+// quest.js — 酒場クエスト（護衛依頼など）と、クエスト用の立ち絵／会話表示。
 // 依存: loader.js, formation.js, pool.js, reward.js, map.js, main.js
 //
 // 会話の本文・話者・クエスト説明は window.QUEST_DATA（クエストシート）から読む。
 // ここに個別の台詞や説明文を書かないこと。
+//
+// **クエストの番号・街・必須カードを決め打ちしないこと。**
+//   どの街で何のクエストが出るか … 地域情報シートの「クエスト」列（その街＝そのステージの酒場で受ける）
+//   会話 … クエストシートの「<番号>_1」（酒場）と「<番号>_2」（その街の塔に着いた時）
+//   達成報酬のゴールド … 「_2」行の概要の「100G獲得」から読む（loader.js の rewardGold）
+//   シートに列の無いもの（必須カード・右の立ち絵）… 下の QUEST_CONFIG
 
-const Q009_ID='Q009';
-const Q009_TAVERN_VARIANT='_1';
-const Q009_TOWER_VARIANT='_2';
+const QUEST_TAVERN_VARIANT='_1';
+const QUEST_TOWER_VARIANT='_2';
+// クエストごとの設定。requiredCardNo＝達成に必須のカード（NPCシートのNo.）。
+// portraitB＝会話で右（対象B）に出す立ち絵（TAVERN_PORTRAIT_CONFIG のキー）。
+const QUEST_CONFIG={
+  Q003:{requiredCardNo:'NPC001',portraitB:'MC002'},
+};
 
 // ── 調整用レイアウト定数 ──────────────────────────────
 // 立ち絵は設計座標へ原寸配置する。画面外へはみ出した分は #scr-* の overflow で切る。
 const TAVERN_PORTRAIT_CONFIG={
   MC001:{src:'assets/art/NPC/MC001.webp',x:-207,y:252,width:1990,height:3410},
+  MC002:{src:'assets/art/NPC/MC002.webp',x:2211,y:300,width:2095,height:2877},
   MC004:{src:'assets/art/NPC/MC004.webp',x:1819,y:192,width:3155,height:4291},
 };
 const TAVERN_PORTRAIT_FADE_MS=480;
@@ -26,7 +37,6 @@ const TAVERN_DIALOGUE_ANCHORS={
   left:{x:1075,y:695,tail:'bottom'},
   right:{x:3082,y:843,tail:'top'},
 };
-const TAVERN_GOLD_GAIN_POSITION={x:300,y:1800};
 // 最後の台詞をクリックしてから酒場を出る（村へ戻る）までの間。台詞枠は先に消え、立ち絵を少し残す。
 const TAVERN_LEAVE_DELAY_MS=900;
 
@@ -53,7 +63,7 @@ const TAVERN_LINE_MIN_W=520;
 const TAVERN_LINE_TIP_FROM_END=84;
 
 if(typeof window!=='undefined'){
-  window.Q009_ID=Q009_ID;
+  window.QUEST_CONFIG=QUEST_CONFIG;
   window.TAVERN_PORTRAIT_CONFIG=TAVERN_PORTRAIT_CONFIG;
   window.TAVERN_FACE_CONFIG=TAVERN_FACE_CONFIG;
   window.TAVERN_DIALOGUE_POSITION_MODE=TAVERN_DIALOGUE_POSITION_MODE;
@@ -76,10 +86,14 @@ function _qEnsureStyle(){
   const style=document.createElement('style');
   style.id='tavern-quest-style';
   style.textContent=`
-#tavern-presentation-layer{
+#tavern-presentation-layer,.tavern-presentation-host{
   position:absolute!important;inset:0!important;overflow:hidden!important;
   z-index:120!important;pointer-events:none!important;
 }
+/* 失敗の台詞（酒場の外）で画面にかける暗幕。立ち絵より奥。 */
+.quest-event-shade{position:absolute!important;inset:0!important;z-index:115!important;pointer-events:auto!important;
+  background:rgba(0,0,0,.6)!important;opacity:0;transition:opacity ${TAVERN_PORTRAIT_FADE_MS}ms ease!important}
+.quest-event-shade.is-visible{opacity:1!important}
 .tavern-portrait{
   position:absolute!important;display:block!important;margin:0!important;padding:0!important;
   max-width:none!important;max-height:none!important;object-fit:fill!important;
@@ -127,17 +141,6 @@ function _qEnsureStyle(){
   position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important;
   background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
 }
-.tavern-gold-gain{
-  position:absolute!important;z-index:4200!important;pointer-events:none!important;
-  color:#f7d67d!important;font-family:"Shippori Mincho",serif!important;font-size:70px!important;
-  font-weight:700!important;letter-spacing:.04em!important;text-shadow:0 3px 8px rgba(0,0,0,.95),0 0 18px rgba(255,194,57,.8)!important;
-  animation:tavern-gold-gain-float 1.35s ease-out forwards!important;
-}
-@keyframes tavern-gold-gain-float{
-  0%{opacity:0;transform:translate(-50%,20px) scale(.9)}
-  16%{opacity:1;transform:translate(-50%,0) scale(1)}
-  100%{opacity:0;transform:translate(-50%,-150px) scale(1.04)}
-}
 /* 編成窓の間、立ち絵は背景のすぐ上（暗幕 ::before z0 と編成の枠より奥）に置く。 */
 html body.reward-screen-active.tavern-screen-active #scr-battle > #tavern-presentation-layer{
   z-index:-1!important;
@@ -151,8 +154,13 @@ html body.tavern-tower-event-active #village-move-btns{display:none!important}
 /* 酒場では「店を出る」ボタンを置かない（会話の終わりに自動で村へ戻る。2026-09-24 利用者指定）。 */
 /* 街画面のボタン用の指定（html body.village-screen-active #village-move-btns .rew-move-btn）より強くする。 */
 html body.tavern-village-active.village-screen-active #village-move-btns #village-depart-btn{display:none!important}
-/* クエスト説明文はシートの改行をそのまま改行にする。 */
-html body .reward-prod-quest-body p.reward-prod-quest-main{white-space:pre-line!important}
+/* クエスト説明文：シートの改行をそのまま改行にする。文字色は旅の進捗の「〜の塔まで」と同じ、
+   両端揃え、行間はカードのホバー説明（#kw-tooltip の line-height）と同じ（2026-09-24 利用者指定）。 */
+html body.reward-screen-active .reward-prod-quest-body p.reward-prod-quest-main,
+html body .reward-prod-quest-body p.reward-prod-quest-main{
+  white-space:pre-line!important;color:#8b7c67!important;
+  text-align:justify!important;text-justify:inter-character!important;line-height:1.692857!important;
+}
 /* 立ち絵（#tavern-presentation-layer z120）より、左上の場所表示を手前に出す。
    所持金・ライフは会話のクリック層（#tavern-dialogue-layer z5000）より手前にして、
    会話中もホバー説明を出せるようにする（ここを押しても台詞は送らない）。 */
@@ -168,75 +176,112 @@ function _qQuestState(){
   return G.questProgress;
 }
 
-function _qRaw(){
-  const all=_qQuestState();
-  return all?all[Q009_ID]||null:null;
-}
-
-function _qRegionIds(){
-  const info=typeof regionInfoForWave==='function'?regionInfoForWave(G&&G._wave):null;
-  const raw=String(info&&info.quest||'').trim();
-  return raw.split(/[、,\s]+/).map(v=>v.trim()).filter(Boolean);
-}
-
 function _qQuestData(id){
   const data=(typeof window!=='undefined'&&window.QUEST_DATA)||{};
   return data[id]||null;
 }
 
 function _qVariant(base,suffix){
-  const id=`${String(base||Q009_ID)}${suffix}`;
-  return _qQuestData(id)?id:String(base||Q009_ID);
+  const id=`${String(base||'')}${suffix}`;
+  return _qQuestData(id)?id:String(base||'');
+}
+
+// その街（ステージ）の地域情報に書かれたクエスト番号。会話データがあるものだけ。
+function _qRegionIds(wave){
+  const info=typeof regionInfoForWave==='function'?regionInfoForWave(wave):null;
+  const raw=String(info&&info.quest||'').trim();
+  return raw.split(/[、,\s]+/).map(v=>v.trim()).filter(id=>id&&id!=='-')
+    .filter(id=>_qQuestData(_qVariant(id,QUEST_TAVERN_VARIANT))||_qQuestData(id));
+}
+
+// その街の酒場が開いているか（クエストがある街だけ開く）。map.js が施設ボタンの可否に使う。
+function questTavernAvailable(wave){
+  const w=Math.max(0,Number(wave!=null?wave:(G&&G._wave))||0);
+  return _qRegionIds(w).length>0;
+}
+
+function _qAllEntries(){
+  const all=_qQuestState();
+  return all?Object.values(all).filter(e=>e&&typeof e==='object'&&e.questId):[];
+}
+// その街で出ている（出た）クエスト。
+function _qEntryForWave(wave){
+  const w=Number(wave);
+  return _qAllEntries().find(e=>Number(e.wave)===w)||null;
+}
+// 受託して進行中のクエスト（塔に着く前）。
+function _qActiveEntry(){
+  return _qAllEntries().find(e=>e.status==='accepted'&&!e.towerEventDone)||null;
 }
 
 function _qEnsureSelected(){
   const all=_qQuestState();
   if(!all) return null;
-  if(all[Q009_ID]) return all[Q009_ID];
-  if(Number(G&&G._wave)!==3) return null;
-  const candidates=_qRegionIds().filter(id=>_qQuestData(_qVariant(id,Q009_TAVERN_VARIANT))||_qQuestData(id));
+  const wave=Math.max(0,Number(G&&G._wave)||0);
+  const existing=_qEntryForWave(wave);
+  if(existing) return existing;
+  const candidates=_qRegionIds(wave);
   if(!candidates.length) return null;
-  const selected=runWithKeyedRandom(`quest:${Number(G._wave)||0}:tavern`,()=>candidates[Math.floor(rand()*candidates.length)]);
-  const tavernVariant=_qVariant(selected,Q009_TAVERN_VARIANT);
-  const towerVariant=_qVariant(selected,Q009_TOWER_VARIANT);
+  const selected=runWithKeyedRandom(`quest:${wave}:tavern`,()=>candidates[Math.floor(rand()*candidates.length)]);
+  const tavernVariant=_qVariant(selected,QUEST_TAVERN_VARIANT);
+  const towerVariant=_qVariant(selected,QUEST_TOWER_VARIANT);
   const data=_qQuestData(tavernVariant)||_qQuestData(selected)||{};
-  all[Q009_ID]={
+  all[selected]={
     questId:selected,
+    wave,
     tavernVariant,
     towerVariant,
     status:'offered',
     rewardCardTaken:false,
+    partedPending:false,
     towerEventStarted:false,
     towerRewardGiven:false,
     towerEventDone:false,
     description:String(data.description||''),
   };
-  return all[Q009_ID];
+  return all[selected];
 }
 
+// 酒場の中で扱うクエスト（今の街のもの）。
 function _qEntry(){
-  const current=_qRaw();
-  return current||_qEnsureSelected();
+  const wave=Math.max(0,Number(G&&G._wave)||0);
+  return _qEntryForWave(wave)||_qEnsureSelected();
 }
 
-function _qIsActive(entry){
-  return !!entry&&['offered','rejected','accepted'].includes(String(entry.status));
+function _qConfig(entry){
+  return (entry&&QUEST_CONFIG[entry.questId])||{};
 }
 
-function _qHasDinaOnBoard(){
-  if(typeof G==='undefined'||!G) return false;
+function _qCardNo(card){
+  return String(card&&(card.no||card.No||card['No.']||card.artCode)||'').toUpperCase();
+}
+// そのクエストに必須のカードか（今回はファラ＝NPC001）。
+function _qIsRequiredCard(card,entry){
+  const no=String(_qConfig(entry).requiredCardNo||'').toUpperCase();
+  return !!(card&&no&&_qCardNo(card)===no);
+}
+// 進行中のクエストに必須のカードか（ショップの「別れる」、戦闘中の台詞の判定に使う）。
+function questRequiredCardFor(card){
+  const entry=_qActiveEntry();
+  return entry&&_qIsRequiredCard(card,entry)?entry:null;
+}
+
+function _qHasRequiredOnBoard(entry){
+  if(typeof G==='undefined'||!G||!entry) return false;
   const cards=Array.isArray(G.mainBoard)?G.mainBoard:[];
-  return cards.some(card=>card&&(
-    card._npcCard||String(card.no||card.No||card['No.']||card.artCode||'').toUpperCase()==='NPC001'
-  ));
+  return cards.some(card=>_qIsRequiredCard(card,entry));
+}
+function _qRequiredInReward(entry){
+  return typeof _rewCards!=='undefined'&&Array.isArray(_rewCards)&&_rewCards.some(card=>_qIsRequiredCard(card,entry));
 }
 
-function _qDinaCard(){
-  if(typeof makePanel!=='function') return null;
+function _qMakeRequiredCard(entry){
+  const no=String(_qConfig(entry).requiredCardNo||'').toUpperCase();
+  if(!no||typeof makePanel!=='function') return null;
   const panel=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))
-    ?PANEL_POOL.find(card=>card&&card._npcCard&&String(card.no||card.artCode||'').toUpperCase()==='NPC001')
+    ?PANEL_POOL.find(card=>card&&card._npcCard&&_qCardNo(card)===no)
     :null;
-  const card=makePanel(panel?panel.id:'panel_npc_NPC001');
+  const card=makePanel(panel?panel.id:`panel_npc_${no}`);
   if(!card) return null;
   card._npcCard=true;
   card._npcDeployOnly=true;
@@ -249,10 +294,18 @@ function _qDinaCard(){
   return card;
 }
 
-function _qDescription(entry){
-  if(!entry||!_qIsActive(entry)) return '';
-  const data=_qQuestData(entry.tavernVariant)||_qQuestData(entry.questId);
-  return String(entry.description||data&&data.description||'').trim();
+// クエスト枠に出す説明文。受託して進行中の間だけ出す。
+// 酒場の依頼の編成窓では、受ける前の依頼として出す（拒否した後は、枠の外では出さない）。
+function _qDescription(){
+  const active=_qActiveEntry();
+  if(active) return String(active.description||(_qQuestData(active.tavernVariant)||{}).description||'').trim();
+  if(G&&G._isTavern&&G.phase==='reward'){
+    const entry=_qEntryForWave(G._wave);
+    if(entry&&['offered','rejected'].includes(String(entry.status))){
+      return String(entry.description||(_qQuestData(entry.tavernVariant)||{}).description||'').trim();
+    }
+  }
+  return '';
 }
 
 function _qSyncQuestBody(){
@@ -262,8 +315,7 @@ function _qSyncQuestBody(){
   if(title) title.textContent=_qText('「クエスト枠」見出し','');
   const body=panel.querySelector('.reward-prod-quest-body');
   if(!body) return;
-  const entry=_qRaw();
-  const desc=_qDescription(entry);
+  const desc=_qDescription();
   body.innerHTML='';
   if(desc){
     const p=document.createElement('p');
@@ -278,7 +330,6 @@ function syncQuestFormationUi(){
   _qSyncQuestBody();
   const body=document.body;
   if(!body) return;
-  const entry=_qRaw();
   const title=_qText('「酒場の報酬枠」見出し','');
   if(G&&G.phase==='reward'&&G._isTavern){
     body.classList.add('tavern-screen-active');
@@ -288,36 +339,152 @@ function syncQuestFormationUi(){
     body.style.removeProperty('--title-reward');
   }
   const panel=document.querySelector('.reward-prod-quest');
-  if(panel) panel.classList.toggle('q009-active',!!_qDescription(entry));
+  if(panel) panel.classList.toggle('quest-active',!!_qDescription());
 }
 
+function _qMarkFailed(entry){
+  if(!entry) return;
+  entry.status='failed';
+  entry.rewardCardTaken=false;
+  entry.partedPending=false;
+  entry.description='';
+  // 報酬枠に置き去りにした必須カードは消す。
+  if(typeof _rewCards!=='undefined'&&Array.isArray(_rewCards)){
+    for(let i=0;i<_rewCards.length;i++) if(_qIsRequiredCard(_rewCards[i],entry)) _rewCards[i]=null;
+  }
+  syncQuestFormationUi();
+}
+
+// 必須カードが魔導板から失われていないか。**失敗にするのは本当に失われた時だけ。**
+//   ・報酬枠へ置いた／ショップで「別れる」を押しただけなら、画面を出るまでは失敗にしない
+//     （出る時は questGuardLeave が「クエスト失敗警告」を出す）。
+//   ・戦闘での死亡・逃走（帰滅で消える）は、ここで失敗にする。
+//   leaving：画面を出る処理の中から呼ぶ。警告を通らずに出た場合も、ここで失敗へ確定する。
 function checkQ009CompanionPresence(options){
-  const entry=_qRaw();
-  if(!entry||entry.status!=='accepted'||entry.towerEventDone) return false;
-  if(_qHasDinaOnBoard()){
+  const entry=_qActiveEntry();
+  if(!entry) return false;
+  if(_qHasRequiredOnBoard(entry)){
     entry.rewardCardTaken=true;
+    entry.partedPending=false;
     return false;
   }
   const opts=options||{};
-  // 酒場の依頼枠に残る間は、受託ボタンを押す前の一時カード移動として扱う。
-  // 酒場を出る時は置き去りなので、必ず失敗へ確定する。
-  const rewardHasDina=typeof _rewCards!=='undefined'&&Array.isArray(_rewCards)
-    &&_rewCards.some(card=>card&&card._npcCard);
-  if(G&&G._isTavern&&!opts.leaving&&rewardHasDina&&entry.status!=='accepted') return false;
-  entry.status='failed';
-  entry.rewardCardTaken=false;
-  entry.description='';
-  syncQuestFormationUi();
+  const pending=_qRequiredInReward(entry)||entry.partedPending;
+  if(pending&&!opts.leaving) return false;
+  _qMarkFailed(entry);
   return true;
 }
 
 function onTavernQuestRewardCardTaken(card){
-  const entry=_qRaw();
-  if(!entry||!G||!G._isTavern||!card||!card._npcCard) return;
-  entry.rewardCardTaken=_qHasDinaOnBoard();
+  const entry=_qEntry();
+  if(!entry||!G||!G._isTavern||!_qIsRequiredCard(card,entry)) return;
+  entry.rewardCardTaken=_qHasRequiredOnBoard(entry);
   syncQuestFormationUi();
   if(typeof syncTavernFormationControls==='function') syncTavernFormationControls();
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+}
+
+// ショップ：必須カードの右上に値段の代わりに「別れる」を出す（reward.js）。押すとカードを消す。
+// この時点ではまだ失敗にしない（店を出る時に「クエスト失敗警告」を出す）。
+function questCardPartable(card){
+  return !!(G&&G._isShop&&questRequiredCardFor(card));
+}
+function questPartWithCard(card){
+  const entry=questRequiredCardFor(card);
+  if(!entry) return false;
+  entry.partedPending=true;
+  return true;
+}
+
+// ── 画面を出る時の「クエスト失敗警告」 ─────────────────────
+// 進行中のクエストの必須カードが魔導板に無いまま画面を出ようとしたら、
+// セーブデータ削除時と同じ見た目の確認窓（showGameConfirm）で警告する。
+// OK：失敗にして、非戦闘時クエスト失敗台詞を喋らせてから、押したボタンの処理へ進む。
+function questNeedsLeaveWarning(){
+  if(!G||G._isTavern) return false;
+  const entry=_qActiveEntry();
+  return !!(entry&&!_qHasRequiredOnBoard(entry));
+}
+let _qLeaveBypass=false;
+function questGuardLeave(proceed){
+  if(_qLeaveBypass||!questNeedsLeaveWarning()) return false;
+  const entry=_qActiveEntry();
+  const message=_qText('クエスト失敗警告','');
+  const open=typeof showGameConfirm==='function'?showGameConfirm:null;
+  const onOk=async()=>{
+    _qMarkFailed(entry);
+    if(typeof renderRewCards==='function') renderRewCards();
+    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint(G._waveVillage?'town':'reward');
+    await _qPlayFailLines(entry,'failedNonBattle');
+    _qLeaveBypass=true;
+    try{ proceed(); }finally{ _qLeaveBypass=false; }
+  };
+  if(!open){ void onOk(); return true; }
+  open({title:_qText('「クエスト失敗警告」見出し','警告'),message,okLabel:'OK',cancelLabel:_qText('「キャンセル」ボタン','キャンセル'),onOk});
+  return true;
+}
+// 画面を出るボタン（報酬・ショップ・施設の移動ボタン、村の出発ボタン）を押した瞬間に先回りして判定する。
+if(typeof document!=='undefined'){
+  document.addEventListener('click',ev=>{
+    if(_qLeaveBypass) return;
+    const btn=ev.target&&ev.target.closest&&ev.target.closest('#reward-move-btns .rew-move-btn,#village-depart-btn');
+    if(!btn||btn.disabled) return;
+    if(!questNeedsLeaveWarning()) return;
+    ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation();
+    questGuardLeave(()=>btn.click());
+  },true);
+}
+
+// 失敗の台詞（非戦闘時・失敗後）を、今の画面の上に暗幕をかけて喋らせる。A は最初から F003 の表情。
+async function _qPlayFailLines(entry,kind){
+  const data=_qQuestData(entry&&entry.tavernVariant)||{};
+  const lines=data[kind]||[];
+  if(!lines.length) return;
+  const active=document.querySelector('.screen.active');
+  const screen=active&&active.id==='scr-battle'?'battle':'village';
+  const host=_qMovePresentationHost(screen);
+  let shade=null;
+  if(host&&!G._isTavern){
+    shade=document.createElement('div');
+    shade.className='quest-event-shade';
+    host.parentElement.insertBefore(shade,host);
+    requestAnimationFrame(()=>shade.classList.add('is-visible'));
+  }
+  await _qShowPortraitPair(screen,entry,{faceA:'F003'});
+  await _qStartDialogue(lines,{screen});
+  await _qClearPresentation();
+  if(shade){
+    shade.classList.remove('is-visible');
+    await _qWait(TAVERN_PORTRAIT_FADE_MS);
+    shade.remove();
+  }
+}
+
+// ── 戦闘中：必須カードが死亡・逃走する時の台詞 ─────────────────
+// 戦闘を一時停止し、そのカードの上に死亡時台詞／逃走時台詞を出す（戦闘の台詞と同じ位置の決め方）。
+// battle_events.js が死亡・逃走の演出の直前に呼ぶ。
+async function questBattleCardLine(events,kind,findUnit){
+  if(typeof _showBattleLine!=='function') return;
+  for(const ev of (events||[])){
+    if(!ev||ev.side!=='p1') continue;
+    const unit=typeof findUnit==='function'?findUnit(ev.side,ev.unitId):null;
+    const entry=unit?questRequiredCardFor(unit):null;
+    if(!entry) continue;
+    const key=`${kind}:${ev.unitId}`;
+    entry._battleLinesShown=entry._battleLinesShown||{};
+    if(entry._battleLinesShown[key]) continue;
+    entry._battleLinesShown[key]=true;
+    const lines=((_qQuestData(entry.tavernVariant)||{})[kind==='flee'?'flee':'death'])||[];
+    if(!lines.length) continue;
+    try{
+      if(document.fonts&&document.fonts.ready) await document.fonts.ready;
+      const centerX=_battleLineUnitCenterX(unit,false);
+      const tailY=_battleLineTailY(false,String(unit.lane||'front')==='rear');
+      for(const line of lines) await _showBattleLine(line.text,centerX,tailY,false);
+    }finally{
+      if(typeof _removeBattleLineLayer==='function') _removeBattleLineLayer();
+    }
+  }
 }
 
 function _qPresentationScreen(kind){
@@ -332,6 +499,7 @@ function _qMovePresentationHost(kind){
   if(!host){
     host=document.createElement('div');
     host.id='tavern-presentation-layer';
+    host.className='tavern-presentation-host';
   }
   target.appendChild(host);
   return host;
@@ -388,9 +556,16 @@ async function showTavernPortrait(id,options){
   return img;
 }
 
-function _qClearPresentation(){
+// 立ち絵は**常にフェードで消す**（2026-09-24 利用者指定）。immediate は画面が暗転している時だけ使う。
+async function _qClearPresentation(options){
   const host=document.getElementById('tavern-presentation-layer');
-  if(host) host.remove();
+  if(!host) return;
+  if(options&&options.immediate){ host.remove(); return; }
+  // 消える途中の層は id を外し、次に出す立ち絵の層とぶつからないようにする。
+  host.removeAttribute('id');
+  host.querySelectorAll('.tavern-portrait,.tavern-face').forEach(el=>el.classList.remove('is-visible'));
+  await _qWait(TAVERN_PORTRAIT_FADE_MS);
+  host.remove();
 }
 
 function _qRemoveDialogue(){
@@ -524,11 +699,14 @@ function _qStartDialogue(lines,options){
   });
 }
 
-async function _qShowPortraitPair(screen){
-  _qClearPresentation();
+// A（MC001）→ B（クエストごとの立ち絵）の順にフェードインで出す。faceA を渡すと A は最初からその表情。
+async function _qShowPortraitPair(screen,entry,options){
+  const opts=options||{};
+  await _qClearPresentation();
   _qMovePresentationHost(screen);
-  await showTavernPortrait('MC001',{screen});
-  await showTavernPortrait('MC004',{screen});
+  await showTavernPortrait('MC001',{screen,face:opts.faceA});
+  const portraitB=_qConfig(entry).portraitB;
+  if(portraitB) await showTavernPortrait(portraitB,{screen});
 }
 
 function _qCustomizeTavernVillage(){
@@ -577,7 +755,8 @@ function syncTavernFormationControls(){
   const host=document.getElementById('reward-move-btns');
   const button=host&&host.querySelector('.rew-move-btn');
   if(!button) return;
-  const accepted=_qHasDinaOnBoard();
+  const entry=_qEntry();
+  const accepted=_qHasRequiredOnBoard(entry);
   button.disabled=!!G._pendingPanelPlacement;
   button.classList.toggle('disabled',!!button.disabled);
   button.innerHTML=`<span class="rew-btn-label">${_qText(accepted?'「受託」ボタン':'「拒否」ボタン','')}</span>`;
@@ -606,11 +785,9 @@ function _qOpenTavernFormation(){
   if(typeof showScreen==='function') showScreen('battle');
   _qMovePresentationHost('battle');
   // 暗幕は他の施設と同じ `body.facility-bg-active #scr-battle::before`（black1.svg を乗算）を使う。
-  // 独自に black1.svg を普通に重ねていた頃は、素材の白い部分がそのまま出て背景が消え、
-  // 魔導板などの枠（battle-scroll）より手前に来て枠も隠れていた。
   if(typeof _applyFacilityBackground==='function') _applyFacilityBackground('tavern');
   if(typeof goToReward==='function') goToReward();
-  const card=_qHasDinaOnBoard()?null:_qDinaCard();
+  const card=_qHasRequiredOnBoard(entry)?null:_qMakeRequiredCard(entry);
   if(typeof _rewCards!=='undefined'){
     _rewCards=[];
     if(card){ card._isOriginalReward=true; _rewCards[0]=card; }
@@ -632,9 +809,10 @@ function _qReturnToTavernResponse(){
 
 function _qAcceptTavernQuest(){
   const entry=_qEntry();
-  if(!entry||!_qHasDinaOnBoard()) return;
+  if(!entry||!_qHasRequiredOnBoard(entry)) return;
   entry.status='accepted';
   entry.rewardCardTaken=true;
+  entry.partedPending=false;
   entry.towerEventDone=false;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
   _qReturnToTavernResponse();
@@ -649,6 +827,9 @@ function _qRejectTavernQuest(){
   entry.rewardCardTaken=false;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
   _qReturnToTavernResponse();
+  syncQuestFormationUi();
+  // 拒否した時は、左のキャラ（MC001）の表情を F003 にする（2026-09-24 利用者指定）。
+  void showTavernPortrait('MC001',{screen:'village',face:'F003'});
   const data=_qQuestData(entry.tavernVariant)||{};
   _qStartDialogue(data.rejected,{screen:'village',onDone:_qLeaveTavernAfterLines});
 }
@@ -662,11 +843,14 @@ async function _qLeaveTavernAfterLines(){
 }
 
 function _qLeaveTavernToVillage(){
+  // 酒場を出る時も暗転を挟む（立ち絵は暗転で隠れてから消す）。
+  if(typeof fadeScreenSwitch==='function') return fadeScreenSwitch(_qLeaveTavernToVillageNow);
+  return _qLeaveTavernToVillageNow();
+}
+function _qLeaveTavernToVillageNow(){
   checkQ009CompanionPresence({leaving:true});
   _qRemoveDialogue();
-  _qClearPresentation();
-  const veil=document.getElementById('tavern-formation-veil');
-  if(veil) veil.remove();
+  void _qClearPresentation({immediate:true});
   document.body.classList.remove('tavern-village-active','tavern-screen-active','reward-screen-active','facility-bg-active');
   if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
   if(typeof openMapVillage==='function') openMapVillage();
@@ -674,58 +858,43 @@ function _qLeaveTavernToVillage(){
 }
 
 async function openTavern(){
-  if(!G||Number(G._wave)!==3) return;
+  if(!G||!questTavernAvailable(G._wave)) return;
   const entry=_qEnsureSelected();
   if(!entry) return;
-  // 村画面の施設ボタンから入る経路も、戦闘／他施設から戻る経路と同じ
-  // 「受託後にディナが失われていないか」の唯一の判定を通す。
+  // 受託後に必須カードが失われていないかの唯一の判定を通す。
   checkQ009CompanionPresence({leaving:true});
-  _qShowTavernVillage();
-  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
-  _qClearPresentation();
-  if(entry.status==='failed'||entry.status==='completed') return;
-  await _qShowPortraitPair('village');
+  // 入店は暗転を挟む（map.js の fadeScreenSwitch）。立ち絵は明けてから出す。
+  const enter=()=>{
+    _qShowTavernVillage();
+    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+    void _qClearPresentation({immediate:true});
+  };
+  if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(enter); else enter();
+  const data=_qQuestData(entry.tavernVariant)||{};
+  if(entry.status==='completed') return;
+  // 失敗した後に入ると、失敗後台詞を出して酒場を出る。A は最初から F003 の表情。
+  if(entry.status==='failed'){
+    await _qShowPortraitPair('village',entry,{faceA:'F003'});
+    _qStartDialogue(data.failedAfter,{screen:'village',onDone:_qLeaveTavernAfterLines});
+    return;
+  }
+  await _qShowPortraitPair('village',entry);
   if(entry.status==='accepted'){
-    const data=_qQuestData(entry.tavernVariant)||{};
     _qStartDialogue(data.acceptedAfter,{screen:'village',onDone:_qLeaveTavernAfterLines});
   }else if(entry.status==='rejected'){
-    const data=_qQuestData(entry.tavernVariant)||{};
     _qStartDialogue(data.rejectedAfter,{screen:'village',onDone:_qOpenTavernFormation});
   }else{
-    const data=_qQuestData(entry.tavernVariant)||{};
     _qStartDialogue(data.initial,{screen:'village',onDone:_qOpenTavernFormation});
   }
 }
 
-function _qUpdateVillageGold(){
-  const el=document.getElementById('village-gold');
-  if(!el) return;
-  const value=typeof goldDisplayValue==='function'?goldDisplayValue():Number(G.gold)||0;
-  el.textContent=Number(value).toLocaleString('ja-JP');
-}
-
-function _qShowGoldGain(){
-  const screen=document.getElementById('scr-village');
-  if(!screen) return;
-  const old=screen.querySelector('.tavern-gold-gain');
-  if(old) old.remove();
-  const gain=document.createElement('div');
-  gain.className='tavern-gold-gain';
-  gain.textContent='+500';
-  gain.style.left=`${TAVERN_GOLD_GAIN_POSITION.x}px`;
-  gain.style.top=`${TAVERN_GOLD_GAIN_POSITION.y}px`;
-  screen.appendChild(gain);
-  window.setTimeout(()=>gain.remove(),1450);
-}
-
-function _qFinishTowerArrival(){
-  const entry=_qRaw();
+async function _qFinishTowerArrival(entry){
   if(!entry) return;
   entry.status='completed';
   entry.towerEventDone=true;
   entry.description='';
   _qRemoveDialogue();
-  _qClearPresentation();
+  await _qClearPresentation();
   document.body.classList.remove('tavern-tower-event-active');
   if(typeof renderVillageScreen==='function') renderVillageScreen();
   syncQuestFormationUi();
@@ -733,10 +902,10 @@ function _qFinishTowerArrival(){
   _qTowerSession=false;
 }
 
+// クエストを受けた街の塔に着いた時（地名表示の後）、「_2」の会話を始める。
 async function maybeStartQ009TowerArrival(){
-  const entry=_qRaw();
-  if(_qTowerSession||!entry||Number(G&&G._wave)!==3||!G._isWaveAltar
-    ||entry.status!=='accepted'||entry.towerEventDone) return;
+  const entry=_qActiveEntry();
+  if(_qTowerSession||!entry||!G||!G._isWaveAltar||Number(G._wave)!==Number(entry.wave)) return;
   _qTowerSession=true;
   entry.towerEventStarted=true;
   _qEnsureStyle();
@@ -745,25 +914,31 @@ async function maybeStartQ009TowerArrival(){
   if(facilities) facilities.style.display='none';
   const moves=document.getElementById('village-move-btns');
   if(moves) moves.style.display='none';
-  await _qShowPortraitPair('village');
+  await _qShowPortraitPair('village',entry);
   const data=_qQuestData(entry.towerVariant)||{};
+  const reward=Math.max(0,Number(data.rewardGold)||0);
   _qStartDialogue(data.initial,{screen:'village',onLine:index=>{
     if(index!==0||entry.towerRewardGiven) return;
     entry.towerRewardGiven=true;
-    G.gold=(Number(G.gold)||0)+500;
-    _qUpdateVillageGold();
+    // 「+100」と数え上げは共通の所持金演出（gold_fx.js）が出す。ここは所持金を足すだけ。
+    if(reward) G.gold=(Number(G.gold)||0)+reward;
     if(typeof updateHUD==='function') updateHUD();
-    _qShowGoldGain();
     if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('tower');
-  },onDone:_qFinishTowerArrival});
+  },onDone:()=>_qFinishTowerArrival(entry)});
 }
 
 if(typeof window!=='undefined'){
   window.showTavernPortrait=showTavernPortrait;
   window.openTavern=openTavern;
+  window.questTavernAvailable=questTavernAvailable;
   window.syncQuestFormationUi=syncQuestFormationUi;
   window.syncTavernFormationControls=syncTavernFormationControls;
   window.checkQ009CompanionPresence=checkQ009CompanionPresence;
   window.onTavernQuestRewardCardTaken=onTavernQuestRewardCardTaken;
   window.maybeStartQ009TowerArrival=maybeStartQ009TowerArrival;
+  window.questRequiredCardFor=questRequiredCardFor;
+  window.questCardPartable=questCardPartable;
+  window.questPartWithCard=questPartWithCard;
+  window.questGuardLeave=questGuardLeave;
+  window.questBattleCardLine=questBattleCardLine;
 }

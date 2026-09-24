@@ -479,6 +479,11 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 束の2件目以降は markDone 済みになるので、このループが後で届いても素通りする。
       const _deathGroup=typeof presentDeathBatchEvents==='function'
         ?presentDeathBatchEvents(eventList,eventIndex):[e];
+      // クエストに必須のカード（ファラなど）が倒れる時は、戦闘を止めてカードの上に死亡時台詞を出す（quest.js）。
+      if(typeof questBattleCardLine==='function'){
+        await questBattleCardLine(_deathGroup.filter(ev=>!deaths.has(`${ev.side}:${ev.unitId}`)),'death',
+          (side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+      }
       await presentDeathBatch(_deathGroup,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
         isDone:ev=>deaths.has(`${ev.side}:${ev.unitId}`),
@@ -688,6 +693,11 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 束の2件目以降は markDone 済みになるので、このループが後で届いても素通りする。
       const _fledGroup=typeof presentFledBatchEvents==='function'
         ?presentFledBatchEvents(eventList,eventIndex):[e];
+      // 必須カードが逃走する時は、カードの上に逃走時台詞を出す（quest.js）。
+      if(typeof questBattleCardLine==='function'){
+        await questBattleCardLine(_fledGroup.filter(ev=>!fledShown.has(`${ev.side}:${ev.unitId}`)),'flee',
+          (side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+      }
       await presentFledBatch(_fledGroup,{
         // 陣営を跨いで探す（奪われた直後など、配列の側が入れ替わっていることがある）。
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))

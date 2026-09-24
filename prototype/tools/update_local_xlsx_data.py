@@ -37,6 +37,7 @@ SHEET_BY_KEY = {
     'region': ['地域情報'],
     'textMessage': ['テキストメッセージ'],
     'quest': ['クエスト'],
+    'talk': ['会話メッセージ'],
 }
 
 

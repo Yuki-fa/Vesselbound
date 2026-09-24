@@ -253,7 +253,7 @@ const ITEM_POOL=[
   {id:'item_sacrifice_doll',no:'007',name:'生贄人形',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'sacrifice_doll',art:'assets/art/item/I007.jpg',desc:'キャラクターを1枚破壊し、対象のキャラクターが持つ封印の値を永久に3減らす。（但し、最低値は1）'},
   // itemEffectKey はセーブ（pendingBattleItems 等）に載る内部識別子なので、
   // カード名を「衰弱の巻物」→「永劫の巻物」に変えても weakening_scroll のまま据え置く。
-  {id:'item_weakening_scroll',no:'008',name:'永劫の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/art/item/I008.jpg',desc:'キャラクターを1枚破壊し、ランダムな「召喚の力」マスを「永劫の力」マスに変化させる。'},
+  {id:'item_weakening_scroll',no:'008',name:'永劫の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/art/item/I008.jpg',desc:'「召喚の力」マス上のキャラクターを1枚破壊し、そのマスを「永劫の力」マスに変化させる。'},
   {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/art/item/I009.jpg',desc:'直前の村にワープする。再出発時は現在位置の次の場所に移動する。'},
   {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/art/item/I010.jpg',desc:'所持金を2倍にする。'},
   {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/item/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。（但し、最低値は1）'},

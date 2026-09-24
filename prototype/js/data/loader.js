@@ -134,6 +134,7 @@ const _XLSX_SHEETS = {
   region: '地域情報',
   textMessage: 'テキストメッセージ',
   quest: 'クエスト',
+  talk: '会話メッセージ',
 };
 
 function _xlsxSheetToCSV(workbook, sheetName, required) {
@@ -175,6 +176,7 @@ async function _loadGameDataFromEmbeddedXlsx() {
     rgt: data.region || '名前\n',
     tmt: data.textMessage || '名前\n',
     qt: data.quest || 'No.,名前\n',
+    tkt: data.talk || '',
   };
 }
 
@@ -213,6 +215,7 @@ async function _loadGameDataFromXlsx() {
     rgt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.region, false),
     tmt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.textMessage, false),
     qt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.quest, false),
+    tkt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.talk, false),
   };
 }
 
@@ -255,7 +258,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n', qt: 'No.,名前\n' };
+  return { source: 'csv', ft, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n', qt: 'No.,名前\n', tkt: '' };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -527,7 +530,32 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt, qt } = loaded;
+    let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt, qt, tkt } = loaded;
+    // 会話メッセージシート（任意）：街の名前の行の下に「場面／テキスト」が並ぶ。
+    // window.TALK_MESSAGES = {街の名前: {場面: テキスト}}。列が1つだけの行が街の名前、
+    // 「場面」「テキスト」の見出し行は飛ばす。使い方は map.js の villageTalkMessage()。
+    try {
+      const rows = [];
+      if (tkt && String(tkt).trim()) {
+        const parsed = _parseCSV(String(tkt));
+        const first = String(tkt).split(/\r?\n/)[0].split(',')[0].replace(/^"|"$/g, '').trim();
+        let section = first;
+        const talk = {};
+        parsed.forEach(row => {
+          if (!row) return;
+          const a = String(row['__col0'] || '').trim(), b = String(row['__col1'] || '').trim();
+          if (a && !b && !String(row['__col2'] || '').trim()) { section = a; return; }
+          if (a === '場面') return;
+          if (!a || !b) return;
+          (talk[section] = talk[section] || {})[a] = b;
+        });
+        window.TALK_MESSAGES = talk;
+      } else {
+        window.TALK_MESSAGES = window.TALK_MESSAGES || {};
+      }
+    } catch (_) {
+      window.TALK_MESSAGES = window.TALK_MESSAGES || {};
+    }
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -592,38 +620,53 @@ async function loadGameData() {
     try {
       const questRows = _parseCSVWithHeader(qt || 'No.,名前\n', ['No.', '名前', '台詞1', 'クエスト説明文']);
       const questMap = {};
-      const lineColumns = [
-        { text: 4, speaker: 3 }, { text: 6, speaker: 5 },
-        { text: 8, speaker: 7 }, { text: 10, speaker: 9 },
-      ];
-      const readLines = row => lineColumns.reduce((out, cols) => {
-        const text = String(row[`__col${cols.text}`] || '').trim();
-        if (!text) return out;
-        const speaker = String(row[`__col${cols.speaker}`] || '').trim().toUpperCase();
-        out.push({ speaker: speaker === 'A' ? 'A' : 'B', text });
-        return out;
-      }, []);
-      const readLine = (row, textCol, speakerCol) => {
+      // **列は見出しの名前で探す**（列が増えても位置がずれない）。台詞の直前の列が「対象」なら話者、
+      // 無ければ B（依頼人）。死亡時台詞・逃走時台詞は「対象」を持たない（カードの上で本人が喋る）。
+      const headerAt = {};
+      if (questRows[0]) {
+        let col = -1;
+        Object.keys(questRows[0]).forEach(key => {
+          const m = /^__col(\d+)$/.exec(key);
+          if (m) { col = Number(m[1]); return; }
+          if (col >= 0 && headerAt[col] === undefined) headerAt[col] = key;
+        });
+      }
+      const colOf = name => {
+        const hit = Object.keys(headerAt).find(k => headerAt[k] === name);
+        return hit === undefined ? -1 : Number(hit);
+      };
+      const readAt = (row, textCol) => {
+        if (textCol < 0) return [];
         const text = String(row[`__col${textCol}`] || '').trim();
         if (!text) return [];
-        const speaker = String(row[`__col${speakerCol}`] || '').trim().toUpperCase();
-        return [{ speaker: speaker === 'A' ? 'A' : 'B', text }];
+        const prev = headerAt[textCol - 1];
+        const speakerRaw = (prev === undefined || prev === '対象') ? String(row[`__col${textCol - 1}`] || '').trim().toUpperCase() : '';
+        return [{ speaker: speakerRaw === 'A' ? 'A' : 'B', text }];
       };
+      const lineCols = Object.keys(headerAt).map(Number).filter(c => /^台詞\d+$/.test(headerAt[c]))
+        .sort((a, b) => Number(headerAt[a].slice(2)) - Number(headerAt[b].slice(2)));
       questRows.forEach(row => {
         const id = String(row['No.'] || row['No'] || row['__col0'] || '').trim();
         if (!id) return;
-        const description = String(row['クエスト説明文'] || row['__col19'] || '').trim();
+        const summary = String(row['概要'] || '').trim();
+        const goldMatch = summary.match(/(\d+)\s*G\s*獲得/);
         questMap[id] = {
           id,
           baseId: id.replace(/_\d+$/, ''),
           name: String(row['名前'] || row['カード名'] || row['__col1'] || '').trim(),
-          summary: String(row['概要'] || row['__col2'] || '').trim(),
-          initial: readLines(row),
-          accepted: readLine(row, 12, 11),
-          rejected: readLine(row, 14, 13),
-          acceptedAfter: readLine(row, 16, 15),
-          rejectedAfter: readLine(row, 18, 17),
-          description,
+          summary,
+          // 達成報酬のゴールド（概要の「100G獲得」から読む。無ければ0）。
+          rewardGold: goldMatch ? Number(goldMatch[1]) : 0,
+          initial: lineCols.reduce((out, c) => out.concat(readAt(row, c)), []),
+          accepted: readAt(row, colOf('受託台詞')),
+          rejected: readAt(row, colOf('拒否台詞')),
+          acceptedAfter: readAt(row, colOf('受託後台詞')),
+          rejectedAfter: readAt(row, colOf('拒否後台詞')),
+          failedAfter: readAt(row, colOf('失敗後台詞')),
+          failedNonBattle: readAt(row, colOf('非戦闘時クエスト失敗台詞')),
+          death: readAt(row, colOf('死亡時台詞')),
+          flee: readAt(row, colOf('逃走時台詞')),
+          description: String(row['クエスト説明文'] || '').trim(),
         };
       });
       window.QUEST_DATA = questMap;

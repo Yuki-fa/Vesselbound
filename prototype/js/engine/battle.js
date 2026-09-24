@@ -1615,7 +1615,9 @@ function _battleOpeningBossSlots(){
 // ── 戦闘開始時の台詞（敵シートの「台詞1〜3」列）───────────────
 // 全員が場に出撃した後、台詞を持つキャラクターの分だけ順に吹き出しを出す。
 // 尻尾の先端をそのキャラクターの中心X・下記のYへ合わせ、敵は上向き／味方は下向き。
-const BATTLE_LINE_TAIL_Y={enemyRear:435,enemyFront:854,allyFront:1542,allyRear:1969};
+// 味方は敵の位置を上下に折り返した高さ（カードの上端から約72px下）。以前の 1542／1969 は
+// カードの下寄りで低すぎた（2026-09-24 利用者指摘。味方の台詞＝クエストの死亡時・逃走時台詞）。
+const BATTLE_LINE_TAIL_Y={enemyRear:435,enemyFront:854,allyFront:1303,allyRear:1725};
 // 枠と尻尾はSVGをそのまま貼る。淡色＝speechbubble1/2、暗色＝speechbubble3/4。
 // 枠は元SVG（speechbubble1/3.svg、1091.39x194.88）と同じ六角形をJS側で組み立てる。
 // 元の頂点：(1033.69,2.62)(57.7,2.62)(2.89,97.56)(57.7,192.5)(1033.69,192.5)(1088.51,97.56)
@@ -2298,6 +2300,10 @@ function startPlayerPhase(){
 
 // 戦闘中ずっと使い回すコア状態。**盤面配列はGと共有する**（同じ実体を指す）。
 // コアは side/slot を見て判定するため、戦闘中は付け替えたままにし、終了時に戻す。
+// 進行中の戦闘のコアの状態（battlePhase が作る）。所持金などの正本で、手番ごとに G へ書き戻す。
+// 終戦時の効果は別の state で解決するので、その結果をここへも入れないと、次の書き戻しで消える。
+// セーブへ紛れ込まないよう G には載せない。
+let _pveLiveCoreState=null;
 function _createPveCoreState(){
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},
@@ -2343,6 +2349,7 @@ async function battlePhase(){
   // PvEは1手進めるごとに、その手番で出たイベントだけを演出へ流す。
   // **ここに独自のターン処理を書き戻さないこと。** オンラインと結果が食い違う。
   const state=_createPveCoreState();
+  _pveLiveCoreState=state;
   _stampCoreSideSlots(state);
   const events=[];
   const emit=ev=>{
@@ -6186,7 +6193,22 @@ async function _applyCoreBattleEndEffectsLive(){
       _persistPermanentStatOrWarn(_getPartyBoardUnit(),ev);
     }
   };
-  try{ coreTriggerBattleEnd(state,emit,coreMathRng); _syncCoreResourcesToG(state); }
+  try{
+    coreTriggerBattleEnd(state,emit,coreMathRng);
+    _syncCoreResourcesToG(state);
+    // **終戦時の所持金は、演出の再生中でも必ず反映する。** _syncCoreResourcesToG は再生中の所持金を
+    // 書き戻さない（手番の途中の二重表示を防ぐため）が、終戦はここで決まり、後で書き戻す機会が無い。
+    // このため終戦時にゴールドを得る効果（ノームなど）の分が所持金に一度も入っていなかった
+    // （表示だけ一度減らして足し戻していたので、演出は出てもお金は増えていなかった。2026-09-24）。
+    // この state は直前の所持金から作っているので、差分は終戦時の効果の分だけ。
+    // 画面への見せ方（演出の時に数え上げる）は onBattleEnd の goldFxDefer／goldFxRelease が受け持つ。
+    if(state.resources&&state.resources.p1){
+      G.gold=Math.max(0,Number(state.resources.p1.gold)||0);
+      // 進行中の戦闘のコアへも入れる。入れないと直後の手番の書き戻し（_syncCoreResourcesToG）で
+      // 終戦時の分が消える（150→170→150 になっていた）。
+      if(_pveLiveCoreState&&_pveLiveCoreState.resources&&_pveLiveCoreState.resources.p1) _pveLiveCoreState.resources.p1.gold=G.gold;
+    }
+  }
   finally{
     touched.forEach(([u,oldSide,slot])=>{
       if(oldSide==null) delete u.side; else u.side=oldSide;
@@ -6231,11 +6253,10 @@ async function onBattleEnd(){
   });
   // コアは判定時点で所持金を確定するが、表示上の獲得タイミングは固有VFXの開始時に揃える。
   // ここで一度だけ表示値を効果前へ戻し、各VFXを開始する直前に対応額を反映する。
+  // 所持金そのものは減らさず、表示だけ預ける（gold_fx.js）。所持金を一度減らして足し戻すと、
+  // 共通の所持金演出が「-X」「+X」を出してしまう。
   const pendingGold=goldEffectUnits.reduce((sum,e)=>sum+(Number(e.amount)||0),0);
-  if(pendingGold){
-    G.gold=Math.max(0,Number(G.gold||0)-pendingGold);
-    updateHUD();
-  }
+  if(pendingGold&&typeof goldFxDefer==='function') goldFxDefer(pendingGold);
   const randomItemEffectUnits=[];
   for(const a of (G.allies||[])){
     if(!G._coreBattleEndTriggered&&a&&a.hp>0&&a.randomItemOnBattleEnd){
@@ -6249,10 +6270,12 @@ async function onBattleEnd(){
     await presentGoldGainEvent(event||{type:'gold_gain',side:'p1',unitId:a.id,unit:a,amount}, {
       findUnit:(side,id)=>(G.allies||[]).find(u=>u&&u.id===id)||null,
       getVisualRect:(ev,source)=>ev.lastVisualRect||source._lastVisualRect||null,
-      applyGold:value=>{ G.gold=Math.max(0,Number(G.gold||0)+value); },
+      applyGold:value=>{ if(typeof goldFxRelease==='function') goldFxRelease(value); },
       updateHud:()=>updateHUD(),
     });
   }
+  // 途中で抜けても預けた分を残さない（表示と所持金を必ず一致させる）。
+  if(pendingGold&&typeof goldFxRelease==='function') goldFxRelease(pendingGold);
   for(const a of randomItemEffectUnits) _grantRandomItem(a.name,{free:true});
   const itemRewards=(G._battleCoreEvents||[]).filter(e=>e&&e.type==='item_reward');
   await _flushCorePveHitEvents({units:{p1:G.allies||[],p2:G.enemies||[]}},itemRewards,new Set([...G.allies||[],...G.enemies||[]]));

@@ -165,6 +165,12 @@ node prototype/tools/balance_sim/offline_online_regression.js
    **新しい効果の入力フィールドを足したら `CORE_UNIT_EFFECT_STATE_FIELDS` に入れること**（入れないと沈黙を素通りする）。
    検査は `tools/balance_sim/silence_scroll_check.js`（全カードで「効果なしの体」とイベント列が一致するか）。
 
+6. **終戦時の所持金を「再生中は書き戻さない」同期に任せる**
+   `_syncCoreResourcesToG` は演出の再生中は所持金を書き戻さない。終戦時の効果（ノームなどの「終戦：Xゴールドを得る」）は
+   再生中に解決されるので、この同期に任せると所持金に一度も入らなかった（表示だけ一度減らして足し戻していた。2026-09-24）。
+   今は `_applyCoreBattleEndEffectsLive` が所持金を直接反映し、進行中の戦闘のコアの状態（`_pveLiveCoreState`）にも入れる。
+   入れないと直後の手番の書き戻しで消える。
+
 ### 既存の食い違い（勝手に揃えないこと）
 - 追加攻撃回数と攻撃範囲：味方側は効果文からも拾うが、敵側はキーワード列だけを見る
   （`coreExtraAttackCount(unit,{fromKeywordsOnly:true})` で従来の挙動を保持している）

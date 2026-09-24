@@ -87,6 +87,45 @@ function _consumePendingMapItemUse(){
   G._pendingMapItemUse=null;
 }
 
+// ── 店の出入りなどの画面切り替えを「暗転 → 切り替え → 明転」で見せる（2026-09-24 利用者指定）──
+// 画面をパッと切り替えないための唯一の入口。action（画面を切り替える処理）は真っ暗な間に実行する。
+// 暗転中はクリックを受け付けない。フェード中に呼ばれたら、重ねずにそのまま実行する。
+const SCREEN_SWITCH_FADE_OUT_MS=260;
+const SCREEN_SWITCH_FADE_IN_MS=360;
+let _screenSwitchFading=false;
+function _ensureScreenSwitchFadeEl(){
+  let el=document.getElementById('screen-switch-fade');
+  if(!el){
+    el=document.createElement('div');
+    el.id='screen-switch-fade';
+    el.setAttribute('aria-hidden','true');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+async function fadeScreenSwitch(action){
+  if(_screenSwitchFading||typeof document==='undefined') return action();
+  _screenSwitchFading=true;
+  const el=_ensureScreenSwitchFadeEl();
+  const wait=ms=>new Promise(r=>window.setTimeout(r,ms));
+  el.classList.add('is-blocking');
+  el.style.transition=`opacity ${SCREEN_SWITCH_FADE_OUT_MS}ms ease`;
+  void el.offsetWidth;
+  el.style.opacity='1';
+  await wait(SCREEN_SWITCH_FADE_OUT_MS);
+  try{
+    return await action();
+  }finally{
+    // 新しい画面が描かれてから明けるよう、2フレーム待つ。
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    el.style.transition=`opacity ${SCREEN_SWITCH_FADE_IN_MS}ms ease`;
+    el.style.opacity='0';
+    window.setTimeout(()=>{ if(el.style.opacity==='0') el.classList.remove('is-blocking'); },SCREEN_SWITCH_FADE_IN_MS);
+    _screenSwitchFading=false;
+  }
+}
+if(typeof window!=='undefined') window.fadeScreenSwitch=fadeScreenSwitch;
+
 function shopDone(){
   if(G._pendingPanelPlacement) return;
   if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true});
@@ -122,6 +161,8 @@ function getVillageBackgroundKey(){
   // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
   const wave=Math.max(0,Number(G&&G._wave)||0);
   if(G&&G._isTavern) return (VILLAGE_FACILITY_BG[wave]||{}).tavern||`village${Math.min(4,wave)}`;
+  // 店の入店時の台詞の間は、その店の背景にする。
+  if(G&&G._facilityGreetingKey) return (VILLAGE_FACILITY_BG[wave]||{})[G._facilityGreetingKey]||`village${Math.min(4,wave)}`;
   return wave>=5?'villageEnd':`village${Math.min(4,wave)}`;
 }
 // 街ごとに背景の真上へ重ねる効果動画（未定義のステージは動画なし）。
@@ -562,7 +603,8 @@ function useVillageInn(){
 const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','inn','landing','arena']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
-  if(fac.key==='tavern') return Number(G&&G._wave)!==3;
+  // 酒場はクエストのある街だけ開く（地域情報の「クエスト」列。quest.js）。
+  if(fac.key==='tavern') return !(typeof questTavernAvailable==='function'&&questTavernAvailable(G&&G._wave));
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   if(fac.key==='inn'){
     const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
@@ -578,6 +620,28 @@ async function _onVillageFacility(fac){
   // 入場演出中（ボタンがまだ見えていない間）は押せないようにする。
   if(G._villageIntroPlaying) return;
   if(G._villageFacilityBusy) return;
+  if(_screenSwitchFading) return;
+  // 画面が切り替わる施設は暗転を挟む（宿屋は切り替わらない。酒場は openTavern の中で挟む）。
+  if(['shop','forge','item'].includes(fac.key)){
+    const greeting=_facilityGreetingText(fac);
+    if(greeting&&typeof _qStartDialogue==='function'){
+      // 入店時の台詞（会話メッセージシート）を右（キャラB）の位置に出してから商品画面へ。
+      await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+      await _qStartDialogue([{speaker:'B',text:greeting}],{screen:'village'});
+      _hideFacilityGreetingScene();
+      _enterVillageFacilityNow(fac);
+    }else{
+      await fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
+    }
+    _maybeStartShopTutorial(fac);
+    return;
+  }
+  if(['ringExchange','library'].includes(fac.key)){
+    return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
+  }
+  return _enterVillageFacilityNow(fac);
+}
+function _enterVillageFacilityNow(fac){
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -932,8 +996,9 @@ function renderVillageScreen(){
     if(exit){
       exit.style.display='grid';
       exit.onclick=()=>{
+        if(_screenSwitchFading) return;
         if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
-        leaveMapLibrary();
+        void fadeScreenSwitch(()=>leaveMapLibrary());
       };
     }
     const title=document.getElementById('library-title');
@@ -941,6 +1006,17 @@ function renderVillageScreen(){
     const actions=document.getElementById('library-actions');
     if(actions) actions.style.display='block';
     const btn=document.getElementById('library-howto-btn');
+    if(btn) btn.textContent=textMessage('図書館「魔導板の使い方」ボタン','魔導板の使い方');
+    const mergeBtn=document.getElementById('library-merge-btn');
+    if(mergeBtn){
+      mergeBtn.textContent=textMessage('図書館「マージとは」ボタン','マージとは');
+      mergeBtn.onclick=()=>{
+        if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
+        openLibraryMergeTutorial();
+      };
+    }
+    const mergeDesc=document.getElementById('library-merge-desc');
+    if(mergeDesc) mergeDesc.textContent=textMessage('図書館「マージとは」直下','マージのシステムを確認する。');
     if(btn) btn.onclick=()=>{
       if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
       openMapLibraryFormation();
@@ -1311,14 +1387,141 @@ function _waitLibraryUIReady(fn,tries){
   if(ok||tries>90){ fn(); return; }
   requestAnimationFrame(()=>_waitLibraryUIReady(fn,tries+1));
 }
+// ── 画面上のチュートリアル（図書館「魔導板の使い方」「マージとは」、店の初回説明）──────────
+// 手順・文言・移動の条件は設定（cfg）で渡す。動かし方（暗転の穴・発光・操作の制限・クリック送り）は共通。
+//   cfg.id        … 'board'（魔導板の使い方）など。手順固有の小細工の切り替えに使う
+//   cfg.introText … 最初にオーバーレイ上へ大きく出す文字（テキストメッセージ「…説明開始」）
+//   cfg.text(key,fallback) … 各手順の文言
+//   cfg.buildSteps(h) … 手順の配列を返す。h＝{cardByName,cardsByName,boardSlot}
+//       手順＝[キー, 発光させる対象, 予備の文言, 移動させるカード名, 移動の設定]
+//       移動の設定＝{destIndex:置き先のマス番号（nullならどこでも）, done:()=>進めてよいか}
+//   cfg.onFinish  … 終わった時
 function startLibraryBoardTutorial(){
   if(window._libraryBoardTutorialPlayed||!G||!G._isLibrary) return;
-  window._libraryBoardTutorialPlayed=true; G._libraryTutorialActive=true;
-  const scr=document.getElementById('scr-battle'); if(!scr) return;
+  window._libraryBoardTutorialPlayed=true;
+  runBoardTutorial({
+    id:'board',
+    introText:textMessage('図書館「魔導板の使い方」説明開始','魔導板の使い方'),
+    text:(key,fallback)=>_libraryTutorialText(key,fallback),
+    buildSteps:h=>_libraryBoardTutorialSteps(h),
+  });
+}
+function _libraryBoardTutorialSteps({cardByName,boardSlot}){
+  const done=name=>()=>{const s=_libraryTutorialState();return name==='リザードマン'?s.arachneAtRear:s.wildAtRear;};
+  return [
+    ['1',null,'カードは魔導板に置くことで所持できます。多くのカードは、魔導板に置かれているだけで効果を発揮します。'],
+    ['2',null,'ここ、図書館ではカードを借りて戦闘の練習を行うことができます。これから上の貸出カードを使って、実際に編成してみましょう。'],
+    ['3',()=>cardByName('リザードマン'),'下部に数字が書かれたカードは「キャラクターカード」です。左下の数字がATK（攻撃力）、右下の数字がHP（体力）を表します。'],
+    ['4-1',boardSlot(2,2),'キャラクターカードは「召喚の力」マスに置くことで戦闘に参加します。上段の「召喚の力」マスに置いたキャラクターは前衛、下段に置いたキャラクターは後衛になります。'],
+    ['4-2',boardSlot(2,2),'貸出キャラクターの「リザードマン」を下段中央の「召喚の力」マスに置いてみましょう。','リザードマン',{destIndex:12,done:done('リザードマン')}],
+    ['5-1',()=>cardByName('野生の力'),'それ以外のカードは「エンチャントカード」です。エンチャントカードとキャラクターカードの矢印を向かい合わせると、そのキャラクターにエンチャントの効果を与えられます。これを「リンク」と呼びます。'],
+    ['5-2',boardSlot(2,1),'貸出エンチャントの「野生の力」を魔導板に置き、先ほど配置したキャラクターと矢印を向かい合わせてみましょう。','野生の力',{destIndex:11,done:done('野生の力')}],
+    ['5-3',null,'エンチャントカード同士の矢印を向かい合わせると、その繋がりを通してキャラクターに効果を与えられます。ただし、キャラクターカードは効果を通さないため、キャラクター同士を繋いでも効果はありません。'],
+    ['6',null,'戦闘ではキャラクターが多い陣営が先攻となり、前衛の左端から敵味方が交互に行動します。攻撃対象はランダムな敵前衛となり、前衛がいない場合はランダムな後衛を攻撃します。'],
+    ['7',null,'相手を全滅させれば勝利です。敗北するとライフを1つ失い、ライフがなくなるとゲームオーバーです。それでは、試験戦闘を行ってみましょう。']
+  ];
+}
+// ── 図書館「マージとは」──────────────────────────────
+// 貸出カードを「ノーム」5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
+// 貸出カード・魔導板・オプション以外は操作させない（魔導板の使い方と同じ）。
+function _libraryMergeLoanCards(){
+  const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))?PANEL_POOL.find(c=>c&&String(c.name||'')==='ノーム'):null;
+  if(!def||typeof makePanel!=='function') return [];
+  return Array.from({length:5},()=>{
+    const card=makePanel(def.id);
+    if(card){ card._libraryLoan=true; card._isOriginalReward=false; }
+    return card;
+  }).filter(Boolean);
+}
+function _libraryBoardHasMergedGnome(){
+  return (G&&Array.isArray(G.mainBoard)?G.mainBoard:[]).some(c=>c&&c._tripleMerged
+    &&String(c._tripleBaseName||c.name||'').replace(/\+$/,'')==='ノーム');
+}
+function openLibraryMergeTutorial(){
+  if(!G||G._libraryTutorialActive) return;
+  openMapLibraryFormation();
+  _rewCards=_libraryMergeLoanCards();
+  if(typeof renderRewCards==='function') renderRewCards();
+  _waitLibraryUIReady(()=>runBoardTutorial({
+    id:'merge',
+    introText:textMessage('図書館「マージとは」説明開始','マージとは'),
+    text:(key,fallback)=>textMessage(`「マージとは」${key}`,fallback),
+    buildSteps:()=>[
+      ['1',null,'同じカードを魔導板に3枚置くと、合体して1枚のカードになります。これを「マージ」と呼びます。'],
+      ['2',null,'貸出キャラクターの「ノーム」を魔導板に3枚置いてみましょう。','ノーム',{destIndex:null,done:_libraryBoardHasMergedGnome}],
+      ['3',()=>Array.from(document.querySelectorAll('#hand-slots.board-slots > *')).filter((el,i)=>{const c=(G.mainBoard||[])[i];return !!(c&&c._tripleMerged);}),'マージ成功です！マージしたカードは効果が強化され、矢印が4方向になります。'],
+      ['4',null,'既にマージしたカードを更にマージすることはできません。また、「荷物」という効果を持つカードもマージすることはできません。'],
+    ],
+  }));
+}
+
+// ── 店の入店時の台詞（会話メッセージシート）─────────────────────
+// シートは「街の名前」の行の下に「場面／テキスト」が並ぶ（loader.js が TALK_MESSAGES へ読む）。
+// 今の街の見出しの下を優先し、無ければ他の見出しの下の同じ場面を使う。
+function villageTalkMessage(scene){
+  const all=(typeof window!=='undefined'&&window.TALK_MESSAGES)||{};
+  const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
+  // 見出しは「風止みの村 リーゼ」のように二つ名付きのことがあるので、街の名前を含む見出しも今の街とみなす。
+  const own=Object.keys(all).find(k=>town&&(k===town||k.includes(town)||town.includes(k)));
+  if(own&&all[own]&&all[own][scene]) return String(all[own][scene]);
+  for(const sec of Object.values(all)){ if(sec&&sec[scene]) return String(sec[scene]); }
+  return '';
+}
+function _facilityGreetingText(fac){
+  for(const v of villageFacilityNameVariants(fac&&fac.name)){
+    const t=villageTalkMessage(`「${v}」入店時`);
+    if(t) return t;
+  }
+  return '';
+}
+// 台詞の間は、村の画面を店の背景にして施設ボタン類を隠す（右＝キャラBの位置に台詞）。
+function _showFacilityGreetingScene(fac){
+  G._facilityGreetingKey=fac.key;
+  if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
+  document.body.classList.add('facility-greeting-active');
+  const plate=document.getElementById('village-name-plate');
+  if(plate) plate.style.display='inline-flex';
+  const sub=document.getElementById('village-name-sub');
+  const main=document.getElementById('village-name-main');
+  if(sub) sub.textContent='';
+  if(main) main.textContent=villageFacilityLabelText(fac.name);
+}
+function _hideFacilityGreetingScene(){
+  G._facilityGreetingKey=null;
+  document.body.classList.remove('facility-greeting-active');
+}
+
+// ── 店の初回説明（ゲーム内で初めてその店に入った時。入店時の台詞の後、商品画面の上で）──
+const SHOP_TUTORIAL_NAMES={shop:['魔導店','魔道店'],item:['道具屋'],forge:['鍛冶屋','鍛治屋']};
+function _shopTutorialText(names,suffix,fallback){
+  for(const n of names){ const t=textMessage(`「${n}」${suffix}`,''); if(t) return t; }
+  return fallback;
+}
+function _maybeStartShopTutorial(fac){
+  const names=SHOP_TUTORIAL_NAMES[fac&&fac.key];
+  if(!names||!G||G._debugMode||G._onlineMode) return;
+  const flag=`shop:${fac.key}`;
+  if(typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(flag)) return;
+  _waitLibraryUIReady(()=>{
+    if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
+    runBoardTutorial({
+      id:`shop-${fac.key}`,
+      introText:_shopTutorialText(names,'説明開始',names[0]),
+      text:(key,fallback)=>_shopTutorialText(names,key,fallback),
+      buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']],
+    });
+  });
+}
+
+function runBoardTutorial(cfg){
+  if(!G||G._libraryTutorialActive) return;
+  G._libraryTutorialActive=true;
+  const scr=document.getElementById('scr-battle'); if(!scr){ G._libraryTutorialActive=false; return; }
   const root=document.createElement('div'); root.id='library-board-tutorial';
   // #scr-battle は transform:scale() でスタッキングコンテキストになるため、
   // チュートリアルの暗転は body 直下に置き、fixed のビューポート座標で描画する。
-  root.innerHTML='<div class="library-tutorial-dims" aria-hidden="true"></div><div class="library-tutorial-intro">魔導板の使い方</div><div class="library-tutorial-box"></div>';
+  root.innerHTML='<div class="library-tutorial-dims" aria-hidden="true"></div><div class="library-tutorial-intro"></div><div class="library-tutorial-box"></div>';
+  root.querySelector('.library-tutorial-intro').textContent=String(cfg.introText||'');
   document.body.appendChild(root);
   const dims=root.querySelector('.library-tutorial-dims');
   let dimsObserver=null, dimsRecalcFrame=0;
@@ -1392,11 +1595,18 @@ function startLibraryBoardTutorial(){
   // （outline:5px と同じ枠線）。インライン!importantはCSSのどんなセレクタよりも強いため、
   // .library-tutorial-glow のクラス指定では移動先のマスが絶対に光らない。
   // そこで発光もインライン!importantで上書きし、解除時に元の値へ戻す。
-  const GLOW_SHADOW='inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)';
+  // **マスの枠線（元のインライン値）はそのまま残し、光だけを後ろへ足す。**
+  // 以前は内側3px＋外側1pxの線を含む値で丸ごと置き換えていたため、光らせたマスだけ線が太くなった
+  // （2026-09-24 利用者指摘）。元の値は dataset.libTutShadow に取っておき、解除時に戻す。
+  const GLOW_ONLY='0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)';
+  const withBase=(el,glowValue)=>{
+    const base=String(el.dataset.libTutShadow||'').trim();
+    return base&&base!=='none'?`${base},${glowValue}`:glowValue;
+  };
   const applyGlowShadow=el=>{
     if(!el||!el.style) return;
     if(el.dataset.libTutShadow==null) el.dataset.libTutShadow=el.style.getPropertyValue('box-shadow')||'';
-    el.style.setProperty('box-shadow',GLOW_SHADOW,'important');
+    el.style.setProperty('box-shadow',withBase(el,GLOW_ONLY),'important');
   };
   const clearGlowShadow=el=>{
     if(!el||!el.style||el.dataset.libTutShadow==null) return;
@@ -1421,7 +1631,7 @@ function startLibraryBoardTutorial(){
     document.querySelectorAll('.library-tutorial-glow').forEach(el=>{
       if(!el.style||el.dataset.libTutShadow==null) return;
       el.style.setProperty('box-shadow',
-        `inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 ${blur1}px ${sp1}px rgba(255,255,255,${a1}),0 0 ${blur2}px ${sp2}px rgba(255,234,170,${a2})`,'important');
+        withBase(el,`0 0 ${blur1}px ${sp1}px rgba(255,255,255,${a1}),0 0 ${blur2}px ${sp2}px rgba(255,234,170,${a2})`),'important');
     });
   },60);
   const boardSlot=(row,col)=>`#hand-slots.board-slots > :nth-child(${row*MAIN_BOARD_COLS+col+1})`;
@@ -1432,6 +1642,15 @@ function startLibraryBoardTutorial(){
     const c=(typeof _rewCards!=='undefined'&&Array.isArray(_rewCards))?_rewCards[i]:null;
     return !!(c&&c.name===name);
   });
+  const cardsByName=name=>Array.from(document.querySelectorAll('#reward-offer-row .rew-card')).filter(el=>{
+    const i=Number(el.dataset&&el.dataset.cardIdx);
+    const c=(typeof _rewCards!=='undefined'&&Array.isArray(_rewCards))?_rewCards[i]:null;
+    return !!(c&&c.name===name);
+  });
+  // 移動の手順の「進めてよいか」「置き先」（設定が無ければ魔導板の使い方の決まり）。
+  const moveOpt=st=>(st&&st[4])||{};
+  const moveDone=st=>{ const o=moveOpt(st); return typeof o.done==='function'?!!o.done():false; };
+  const moveDest=st=>{ const o=moveOpt(st); return Object.prototype.hasOwnProperty.call(o,'destIndex')?o.destIndex:null; };
   let tutorialDragging=false;
   let highlightSyncFrame=0;
   // renderHandEditor() は盤面の子要素を全て作り直すため、発光対象をDOM参照で保持しない。
@@ -1444,27 +1663,16 @@ function startLibraryBoardTutorial(){
       const st=steps[idx];
       if(!st||!st[3]) return;
       clear(); clearAllowed(); allowBase(true);
-      const source=cardByName(st[3]);
-      if(source){ source.classList.add('library-tutorial-allowed'); glow(source); }
+      cardsByName(st[3]).forEach(source=>{ source.classList.add('library-tutorial-allowed'); glow(source); });
       const target=st[1]?(glow(st[1])):[];
       target.forEach(el=>el.classList.add('library-tutorial-allowed'));
+      if(moveDest(st)==null) document.querySelectorAll('#hand-slots.board-slots > *').forEach(el=>el.classList.add('library-tutorial-allowed'));
     });
   };
   const highlightObserver=typeof MutationObserver==='function'?new MutationObserver(records=>{
     if(records.some(r=>r.type==='childList')) syncMovingHighlights();
   }):null;
-  const steps=[
-    ['1',null,'カードは魔導板に置くことで所持できます。多くのカードは、魔導板に置かれているだけで効果を発揮します。'],
-    ['2',null,'ここ、図書館ではカードを借りて戦闘の練習を行うことができます。これから上の貸出カードを使って、実際に編成してみましょう。'],
-    ['3',()=>cardByName('リザードマン'),'下部に数字が書かれたカードは「キャラクターカード」です。左下の数字がATK（攻撃力）、右下の数字がHP（体力）を表します。'],
-    ['4-1',boardSlot(2,2),'キャラクターカードは「召喚の力」マスに置くことで戦闘に参加します。上段の「召喚の力」マスに置いたキャラクターは前衛、下段に置いたキャラクターは後衛になります。'],
-    ['4-2',boardSlot(2,2),'貸出キャラクターの「リザードマン」を下段中央の「召喚の力」マスに置いてみましょう。','リザードマン'],
-    ['5-1',()=>cardByName('野生の力'),'それ以外のカードは「エンチャントカード」です。エンチャントカードとキャラクターカードの矢印を向かい合わせると、そのキャラクターにエンチャントの効果を与えられます。これを「リンク」と呼びます。'],
-    ['5-2',boardSlot(2,1),'貸出エンチャントの「野生の力」を魔導板に置き、先ほど配置したキャラクターと矢印を向かい合わせてみましょう。','野生の力'],
-    ['5-3',null,'エンチャントカード同士の矢印を向かい合わせると、その繋がりを通してキャラクターに効果を与えられます。ただし、キャラクターカードは効果を通さないため、キャラクター同士を繋いでも効果はありません。'],
-    ['6',null,'戦闘ではキャラクターが多い陣営が先攻となり、前衛の左端から敵味方が交互に行動します。攻撃対象はランダムな敵前衛となり、前衛がいない場合はランダムな後衛を攻撃します。'],
-    ['7',null,'相手を全滅させれば勝利です。敗北するとライフを1つ失い、ライフがなくなるとゲームオーバーです。それでは、試験戦闘を行ってみましょう。']
-  ];
+  const steps=cfg.buildSteps({cardByName,cardsByName,boardSlot});
   let idx=-1, dropCheck=null, progressTimer=null;
   const clearAllowed=()=>document.querySelectorAll('.library-tutorial-allowed').forEach(el=>el.classList.remove('library-tutorial-allowed'));
   // 移動ステップ(4-2/5-2)では魔導板全体を操作可能にしない。
@@ -1476,25 +1684,26 @@ function startLibraryBoardTutorial(){
       : ['#hand-pane-board-bg','#hand-pane','#hand-slots.board-slots','#reward-offer-section','#battle-options-btn'];
     sels.forEach(sel=>{const el=document.querySelector(sel);if(el)el.classList.add('library-tutorial-allowed');});
   };
-  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();};
+  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;G._libraryTutorialMove=null;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();if(typeof cfg.onFinish==='function')cfg.onFinish();};
   const next=()=>{
     if(!G._libraryTutorialActive)return;
-    if(idx>=0&&steps[idx][3]){const s=_libraryTutorialState();if((steps[idx][3]==='リザードマン'&&!s.arachneAtRear)||(steps[idx][3]==='野生の力'&&!s.wildAtRear))return;}
+    if(idx>=0&&steps[idx][3]&&!moveDone(steps[idx])) return;
     idx++; if(idx>=steps.length){finish();return;}
     clear();clearAllowed();
     const st=steps[idx];
     allowBase(!!st[3]);
     const target=st[1]?(glow(typeof st[1]==='function'?st[1]():st[1])):[]; G._libraryTutorialStep=idx;
-    if(st[0]==='3'){const c=(_rewCards||[]).find(x=>x&&x.name==='リザードマン');if(c)c.directions=['up','left'];if(typeof renderRewCards==='function')renderRewCards();if(st[0]==='3')glow(st[1]);}
-    if(st[0]==='5-1'){const c=(_rewCards||[]).find(x=>x&&x.name==='野生の力');if(c)c.directions=['up','left','right'];if(typeof renderRewCards==='function')renderRewCards();glow(st[1]);}
+    // 移動の手順は reward.js／render.js のドラッグ許可（_libraryTutorialMoveContext）へ渡す。
+    G._libraryTutorialMove=st[3]?{name:st[3],index:moveDest(st)}:null;
+    if(cfg.id==='board'&&st[0]==='3'){const c=(_rewCards||[]).find(x=>x&&x.name==='リザードマン');if(c)c.directions=['up','left'];if(typeof renderRewCards==='function')renderRewCards();if(st[0]==='3')glow(st[1]);}
+    if(cfg.id==='board'&&st[0]==='5-1'){const c=(_rewCards||[]).find(x=>x&&x.name==='野生の力');if(c)c.directions=['up','left','right'];if(typeof renderRewCards==='function')renderRewCards();glow(st[1]);}
     const moving=!!st[3]; document.body.classList.add('library-tutorial-lock');
     root.classList.toggle('library-tutorial-moving',moving);
     if(moving){
       // カードのtextContentにはカード名が入らない（ATK/HPと「貸出」バッジのみ）ため、
       // 実データと突き合わせるcardByName()で移動元カードを特定する。
-      const source=cardByName(st[3]);
-      if(source){source.classList.add('library-tutorial-allowed');glow(source);} target.forEach(el=>el.classList.add('library-tutorial-allowed'));
-      const moved=()=>{const s=_libraryTutorialState();return (st[3]==='リザードマン'&&s.arachneAtRear)||(st[3]==='野生の力'&&s.wildAtRear);};
+      cardsByName(st[3]).forEach(source=>{source.classList.add('library-tutorial-allowed');glow(source);}); target.forEach(el=>el.classList.add('library-tutorial-allowed'));
+      const moved=()=>moveDone(st);
       let moveAdvanced=false;
       // 盤面はrenderHandEditor()でDOMごと作り直されるため、発光クラスは何度でも剥がれる。
       // MutationObserverでは取りこぼしたので、進行監視と同じ間隔で毎回付け直す。
@@ -1503,14 +1712,17 @@ function startLibraryBoardTutorial(){
         // ドラッグ中に移動元カードへ発光を付け直すと、掴んで持ち上げた後も
         // 元の位置に光った枠が residual として残って見える。掴んでいる間は付けない。
         if(!tutorialDragging){
-          const src=cardByName(st[3]);
-          if(src&&!src.classList.contains('library-tutorial-glow')){
+          cardsByName(st[3]).forEach(src=>{
+            if(src.classList.contains('library-tutorial-glow')) return;
             src.classList.add('library-tutorial-glow','library-tutorial-allowed');
             applyGlowShadow(src);
-          }
+          });
         }
         const cells=document.querySelectorAll('#hand-slots.board-slots > *');
-        const dest=cells[st[0]==='4-2'?12:11];
+        const destIndex=moveDest(st);
+        // 置き先の指定が無い（マージとは）時は、魔導板のどのマスにも置ける（光らせない）。
+        if(destIndex==null) cells.forEach(el=>el.classList.add('library-tutorial-allowed'));
+        const dest=destIndex==null?null:cells[destIndex];
         if(dest){
           dest.classList.add('library-tutorial-glow','library-tutorial-allowed');
           // 発光値の書き込みは明滅タイマーが担当する。ここで毎回 applyGlowShadow() を
@@ -1526,11 +1738,11 @@ function startLibraryBoardTutorial(){
       progressTimer=setInterval(()=>{ advanceAfterMove(); scheduleRecalc(); },100);
       syncMovingHighlights();
     }
-    box.textContent=_libraryTutorialText(st[0],st[2]);
+    box.textContent=cfg.text(st[0],st[2]);
     box.classList.remove('library-tutorial-box-hidden');
     scheduleRecalc();
   };
-  const isMoving=()=>G._libraryTutorialStep===4||G._libraryTutorialStep===6;
+  const isMoving=()=>!!(steps[G._libraryTutorialStep]&&steps[G._libraryTutorialStep][3]);
   // 通常手順の allowBase は暗転・重なり順のために盤面コンテナへもクラスを付ける。
   // その子要素まで操作許可にならないよう、実際の入力許可は移動ステップの個別要素に限定する。
   const isTutorialInputAllowed=(target)=>{
@@ -1568,6 +1780,9 @@ function startLibraryBoardTutorial(){
   // 4-2・5-2（isMoving）は移動完了でのみ進むため、ここでは進めない。
   const advanceClick=(e)=>{
     if(!G._libraryTutorialActive||root.classList.contains('library-tutorial-intro-active')) return;
+    // 大きな文字が消えてから最初の手順が出るまで（600ms）のクリックは捨てる。
+    // ここで next() を呼ぶと、待ちの next() と合わせて2回進み、手順1が飛ばされていた。
+    if(idx<0){e.preventDefault();e.stopImmediatePropagation();return;}
     if(isMoving()){
       e.preventDefault();e.stopImmediatePropagation();box.classList.add('library-tutorial-box-hidden');
       return;
@@ -1591,6 +1806,8 @@ function _itemShopSellPrice(card){
   return Math.max(1,Math.min(5,Number(card&&card.rarity)||1))*45;
 }
 function openMapItemShop(){
+  // 来店ごとの番号。返品できるのは、この来店で買った商品だけ（reward.js の _shopPurchaseKey）。
+  G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
   // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
   // 保存時にG._waveを読むと、デバッグのステージジャンプのように
   // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
@@ -1729,6 +1946,8 @@ function _ensureWaveFacilityCheckpointContents(){
   }
 }
 function openMapShop(){
+  // 来店ごとの番号。返品できるのは、この来店で買った商品だけ（reward.js の _shopPurchaseKey）。
+  G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
   // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
   // 保存時にG._waveを読むと、デバッグのステージジャンプのように
   // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。

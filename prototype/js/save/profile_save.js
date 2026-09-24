@@ -1,7 +1,7 @@
 // 恒久コレクション。カードの表示・正式取得だけを受け、戦闘計算からは呼ばない。
 const SaveProfile=(()=>{
   let profile=null,dirty=false,blocked=false;
-  function fresh(){return {saveVersion:1,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{},openingMovieShown:false};}
+  function fresh(){return {saveVersion:1,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{},openingMovieShown:false,tutorialsShown:{}};}
   function validate(raw){
     const p=SaveMigrations.migrate('profile',raw),assert=SaveMigrations.assert;
     for(const group of ['cards','items','rings']){
@@ -15,6 +15,8 @@ const SaveProfile=(()=>{
     // 旧プロフィールには無い項目なので、読み込み時は未再生として補う。
     if(p.openingMovieShown==null) p.openingMovieShown=false;
     assert(typeof p.openingMovieShown==='boolean','オープニングムービー再生済み状態が不正です');
+    // 店の初回説明などのチュートリアル表示済み（旧プロフィールには無いので空で補う）。
+    if(!p.tutorialsShown||typeof p.tutorialsShown!=='object'||Array.isArray(p.tutorialsShown)) p.tutorialsShown={};
     return p;
   }
   function load(){
@@ -112,7 +114,16 @@ const SaveProfile=(()=>{
     p.openingMovieShown=true;dirty=true;
     return flush(true);
   }
-  return {validate,load,flush,enabled,identity,owned,observe,finish,collectionState,resetCache,openingMovieShown,markOpeningMovieShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
+  // ゲーム内で一度だけ出すチュートリアル（店の初回説明など）。ランをまたいで残す。
+  function tutorialShown(key){ try{ return !!(load().tutorialsShown||{})[String(key)]; }catch(_e){ return false; } }
+  function markTutorialShown(key){
+    const p=load();
+    p.tutorialsShown=p.tutorialsShown&&typeof p.tutorialsShown==='object'?p.tutorialsShown:{};
+    if(p.tutorialsShown[String(key)]) return true;
+    p.tutorialsShown[String(key)]=true;dirty=true;
+    return flush(true);
+  }
+  return {validate,load,flush,enabled,identity,owned,observe,finish,collectionState,resetCache,openingMovieShown,markOpeningMovieShown,tutorialShown,markTutorialShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
 })();
 function markCardSeen(cardId){return SaveProfile.markCardSeen(cardId);}
 function markCardAcquired(cardId){return SaveProfile.markCardAcquired(cardId);}

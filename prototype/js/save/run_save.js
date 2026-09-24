@@ -196,6 +196,8 @@ const SaveRun=(()=>{
     G._partyBoardUnit=null;G.phase=save.checkpoint.type==='battle'?'player':'reward';
     // 復元後は「積算（playedMs）＋この起動からの経過」で数え直す。
     if(G.runStats){G.runStats.playedMs=Math.max(0,Number(G.runStats.playedMs)||0);G.runStats.startedAt=performance.now();}
+    // 復元した所持金は増減の演出を出さずにそのまま表示する（gold_fx.js）。
+    if(typeof goldFxSnap==='function') goldFxSnap();
     return G;
   }
   function error(error){

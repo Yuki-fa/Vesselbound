@@ -44,4 +44,4 @@
 
 ### 酒場クエストの保存
 
-`questProgress` は `run_save.js` の `serializeRunState()`／`restoreRunState()` が個別に保存・復元する。Q009では選択したクエストID、`tavernVariant`／`towerVariant`、`status`（`offered`／`rejected`／`accepted`／`failed`／`completed`）、`rewardCardTaken`、塔の会話・+500G済みフラグを保存する。会話途中の吹き出しや立ち絵は一時DOMなので保存せず、再開時は会話の先頭からやり直せる。古いランで `questProgress` が無い場合は空オブジェクトとして復元する。
+`questProgress` は `run_save.js` の `serializeRunState()`／`restoreRunState()` が個別に保存・復元する。クエスト番号ごとに、受けた街（`wave`）、`tavernVariant`／`towerVariant`、`status`（`offered`／`rejected`／`accepted`／`failed`／`completed`）、`rewardCardTaken`、`partedPending`、塔の会話・報酬済みフラグを保存する。会話途中の吹き出しや立ち絵は一時DOMなので保存せず、再開時は会話の先頭からやり直せる。古いランで `questProgress` が無い場合は空オブジェクトとして復元する。

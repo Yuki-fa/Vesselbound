@@ -10926,6 +10926,9 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
   height:2160px!important;
   transform-origin:0 0!important;
   pointer-events:none!important;
+  /* 影は枠と尻尾に別々に掛けず、両方を含むこの層へ1つだけ掛ける。別々だと尻尾の影が枠へ落ちて
+     つなぎ目が切れて見えた（speechbubble2.svg に影が付いて見える。2026-09-24 利用者指摘。酒場の台詞と同じ直し方）。 */
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.55))!important;
 }
 /* 枠はJS側で <polygon> の頂点を計算して描く（SVG動的描画）。
    border-imageのスライスでは「斜辺の角度」と「線の太さ」を同時に固定できない
@@ -10944,7 +10947,7 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
   padding:0!important;
   background:none!important;
   border:0!important;
-  filter:drop-shadow(0 8px 18px rgba(0,0,0,.55))!important;
+  filter:none!important;
   z-index:1!important;
   pointer-events:none!important;
 }
@@ -10962,9 +10965,11 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
   z-index:1!important;
   white-space:pre!important;
   text-align:left!important;
-  /* 淡色の吹き出し（味方の台詞）の文字色。台詞（battleLines）を持つのは敵だけで、敵の吹き出しは下の .is-dark で #fff にする。
-     淡色の吹き出しは出ないので、ここは透明にしておく（利用者指定。味方に台詞を持たせる時は色を決め直すこと）。 */
-  color:transparent!important;
+  /* 淡色の吹き出し（味方の台詞＝クエストの死亡時・逃走時台詞）の文字色。酒場の台詞と同じ。
+     以前は味方の台詞が無かったため透明にしていて、死亡時・逃走時台詞の文字が見えなかった（2026-09-24 利用者指摘）。
+     敵の吹き出しは下の .is-dark で #fff にする。 */
+  color:#332315!important;
+  text-shadow:0 1px 0 rgba(255,245,225,.5)!important;
   font-family:"Shippori Mincho",serif!important;
   font-size:60px!important;
   font-weight:700!important;
@@ -10980,7 +10985,7 @@ html body .slot-stats .h.stat-d5{transform:scale(.43)!important;transform-origin
   background-size:100% 100%!important;
   background-repeat:no-repeat!important;
   transform-origin:center center!important;
-  filter:drop-shadow(0 6px 12px rgba(0,0,0,.45))!important;
+  filter:none!important;
   z-index:2!important;
   pointer-events:none!important;
 }
@@ -11387,7 +11392,8 @@ body.library-tutorial-lock.library-tutorial-moving #debug-card-palette .library-
 html body .library-tutorial-glow.library-tutorial-glow,
 html body #hand-slots.board-slots > .library-tutorial-glow.library-tutorial-glow,
 html body #reward-offer-row .library-tutorial-glow.library-tutorial-glow{
-  box-shadow:inset 0 0 0 3px #c49a6c,0 0 0 1px #c49a6c,0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
+  /* 光だけを足す（線は足さない）。内側3px＋外側1pxの線を入れていた頃は、光らせたマスの線が太くなった。 */
+  box-shadow:0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)!important;
 }
 /* 魔導板の枠画像(#hand-pane-board-bg)は通常 z-index:9 で #hand-pane(10) の下にある。
    .library-tutorial-allowed の z-index:10002 は board-bg には効くが、
@@ -11472,6 +11478,96 @@ body.run-resume-active #battle-options-btn{display:none!important}
   50%{opacity:1;filter:brightness(1.5) drop-shadow(0 0 15px rgba(240,208,128,.72))}
 }
 
+
+/* 店の出入りなどの画面切り替えの暗転（map.js の fadeScreenSwitch）。オプション・説明枠より下、他の演出より上。 */
+#screen-switch-fade{position:fixed;inset:0;z-index:99400;background:#000;opacity:0;pointer-events:none}
+#screen-switch-fade.is-blocking{pointer-events:auto}
+/* 図書館「マージとは」ボタン（X310,Y980。利用者指定）。見た目は「魔導板の使い方」ボタンと同じ。 */
+#library-merge-btn{position:absolute;left:310px;top:980px;width:498px;height:124px;border:0;padding:0;background:transparent url("assets/ui/button_blue2.svg") center/100% 100% no-repeat;cursor:var(--cursor-normal);pointer-events:auto}
+#library-merge-desc{position:absolute;left:310px;top:1118px;width:498px;box-sizing:border-box;padding:7px 0;pointer-events:none}
+/* 店の入店時の台詞の間は、村の施設ボタン・出発ボタンを隠す（map.js の _showFacilityGreetingScene）。 */
+html body.facility-greeting-active #village-facilities,
+html body.facility-greeting-active.village-screen-active #village-move-btns{display:none!important}
+html body.facility-greeting-active #village-name-plate{z-index:130!important}
+html body.facility-greeting-active #village-status{z-index:5100!important}
+/* ══ ゲーム共通の確認窓（js/engine/game_confirm.js の showGameConfirm）══════════════
+   **セーブデータ削除時の確認窓（#options-confirm-…）と同じ見た目。** 下の規則は、
+   #options-confirm-… の規則を #game-confirm-… へ機械的に写したもの（2026-09-24）。
+   削除確認の見た目を変えたら、同じ変更をここへも入れること。 */
+#game-confirm-root{display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;z-index:2000000;font-family:"Shippori Mincho",serif;color:#f4e7c8}
+#game-confirm-root.is-open{display:block}
+#game-confirm-root #game-confirm-box::before{content:""!important;
+  display:block!important;
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:0!important;
+  bottom:0!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  box-sizing:border-box!important;
+  background:rgba(0,0,0,.5) url("assets/ui/main_left_decoration.svg?v=panels0923") center top/1020px 455px no-repeat!important;
+  border:0 solid transparent!important;
+  border-image-source:url("assets/ui/main_left_frame.svg?v=panels0923")!important;
+  border-image-slice:85!important;
+  border-image-width:85px!important;
+  border-image-outset:0!important;
+  border-image-repeat:stretch!important;}
+#game-confirm-layer{display:none;position:absolute;inset:0;z-index:3}
+#game-confirm-layer.is-open{display:block}
+#game-confirm-shade{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+#game-confirm-box{position:absolute;left:920px;top:560px;width:2000px;height:760px;text-align:center}
+#game-confirm-title{margin-top:150px;font-weight:700}
+#game-confirm-message{margin:48px auto 0;width:1300px;white-space:pre-wrap}
+#game-confirm-actions{display:flex;justify-content:center;gap:35.056px;margin-top:110px}
+#game-confirm-actions button{width:494.5px;height:122px;font-weight:700;background-position:center;background-size:100% 100%;background-repeat:no-repeat}
+#game-confirm-ok{background-image:url("assets/ui/button_red.svg")!important}
+#game-confirm-cancel{background-image:url("assets/ui/button_brown2.svg")!important}
+#game-confirm-root #game-confirm-title{color:#c49a6c!important}
+#game-confirm-root #game-confirm-ok,
+#game-confirm-root #game-confirm-cancel{position:relative!important;isolation:isolate!important;min-width:0!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:none!important;background-color:transparent!important;font-family:var(--font-hd)!important;font-size:44px!important;font-weight:600!important;line-height:normal!important;
+  letter-spacing:.12em!important;text-indent:.12em!important;color:var(--prod-gold)!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;overflow:visible!important;box-sizing:border-box!important;box-shadow:none!important;outline:none!important}
+#game-confirm-root #game-confirm-ok,
+#game-confirm-root #game-confirm-cancel{width:496px!important;height:122px!important}
+#game-confirm-root #game-confirm-ok::after,
+#game-confirm-root #game-confirm-cancel::after,
+#game-confirm-root #game-confirm-ok::before,
+#game-confirm-root #game-confirm-cancel::before{content:""!important;position:absolute!important;inset:0!important;pointer-events:none!important;background:transparent center/100% 100% no-repeat!important;z-index:-1!important}
+#game-confirm-root #game-confirm-cancel::after{background-image:url("assets/ui/button_brown2.svg")!important}
+#game-confirm-root #game-confirm-ok::after{background-image:url("assets/ui/button_red.svg")!important}
+#game-confirm-root #game-confirm-cancel::before{background-image:url("assets/ui/button_brown2.svg")!important}
+#game-confirm-root #game-confirm-ok::before{background-image:url("assets/ui/button_red.svg")!important}
+#game-confirm-root #game-confirm-ok::before,
+#game-confirm-root #game-confirm-cancel::before{filter:brightness(2.15) drop-shadow(0 0 10px rgba(255,225,143,.98)) drop-shadow(0 0 21px rgba(255,177,49,.88));opacity:0}
+#game-confirm-root #game-confirm-ok:hover::before,
+#game-confirm-root #game-confirm-cancel:hover::before{opacity:1;animation:rewBtnFixBackBlink 1.1s ease-in-out infinite}
+#game-confirm-root #game-confirm-ok:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+#game-confirm-root #game-confirm-cancel:hover::after{filter:brightness(1.45)!important}
+#game-confirm-root #game-confirm-cancel:hover::before{opacity:.55!important}
+#game-confirm-root #game-confirm-ok:hover::before{opacity:1!important}
+#game-confirm-root #game-confirm-ok:hover::after{filter:brightness(1.85) drop-shadow(0 0 8px rgba(255,225,143,.9))!important}
+#game-confirm-root #game-confirm-actions #game-confirm-ok:hover::after{filter:brightness(1.25)!important}
+#game-confirm-root #game-confirm-actions #game-confirm-ok:hover::before{opacity:.4!important}
+#game-confirm-root #game-confirm-box{left:50%!important;top:894px!important;width:1020px!important;height:372px!important;transform:translateX(-50%);background:none!important;text-align:center!important;color:#a58768!important}
+#game-confirm-root #game-confirm-title{position:absolute;left:0;right:0;top:42px;z-index:1;margin:0;font-size:var(--prod-panel-title-size);line-height:1;font-weight:700;letter-spacing:.18em;text-indent:.18em;text-shadow:0 2px 8px rgba(0,0,0,.85)}
+#game-confirm-root #game-confirm-message{position:absolute;left:80px;right:80px;top:120px;z-index:1;margin:0;width:auto;font-size:35px;line-height:1.35;text-align:center;white-space:pre-wrap;color:#a58768}
+#game-confirm-root #game-confirm-actions{position:absolute;left:0;right:0;top:450px;margin:0;display:flex;justify-content:center;gap:35px;z-index:2}
+/* 確認窓の暗幕は、オプション画面の暗幕（80%）の上に重ねた削除確認と同じ濃さに見えるようにする。 */
+#game-confirm-root #game-confirm-shade{background:rgba(0,0,0,.72)!important}
+
+/* ── 所持金の増減演出（js/engine/gold_fx.js。全場面共通）──────────────
+   所持金の数字の真上に「+500」を出す。大きさ・書体・右端の位置は JS が数字に合わせて入れる。
+   出してから --gold-fx-hold（1秒）待ち、上へ動きながら消える。 */
+.gold-fx-pop{
+  z-index:100050;pointer-events:none;white-space:nowrap;text-align:right;
+  color:#f7d67d;text-shadow:0 2px 6px rgba(0,0,0,.95),0 0 12px rgba(255,194,57,.55);
+  font-variant-numeric:tabular-nums;
+  animation:gold-fx-in .16s ease-out both,gold-fx-rise var(--gold-fx-rise-ms,.7s) ease-in var(--gold-fx-hold,1s) forwards;
+}
+.gold-fx-pop.is-loss{color:#ff9a86;text-shadow:0 2px 6px rgba(0,0,0,.95),0 0 12px rgba(255,90,60,.45)}
+@keyframes gold-fx-in{from{opacity:0}to{opacity:1}}
+@keyframes gold-fx-rise{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(var(--gold-fx-rise,-40px))}}
 </style>
 <style>
 /* OPTIONS: 3840x2160設計座標。既存の.screenと同じ縮尺枠に載せる。 */
@@ -11999,7 +12095,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
   <video id="village-bg-video-2" muted loop playsinline aria-hidden="true"></video>
   <div id="village-facilities"></div>
   <div id="library-title"><img src="assets/ui/main_icon.svg" alt=""><span>図書館</span></div>
-  <div id="library-actions"><button type="button" id="library-howto-btn" data-sfx-silent="1">魔導板の使い方</button><span id="library-howto-desc"></span></div>
+  <div id="library-actions"><button type="button" id="library-howto-btn" data-sfx-silent="1">魔導板の使い方</button><span id="library-howto-desc"></span><button type="button" id="library-merge-btn" data-sfx-silent="1">マージとは</button><span id="library-merge-desc"></span></div>
   <!-- 所持金／ライフは戦闘画面の #battle-status-hud と同じマークアップ・同じクラスを使う -->
   <div id="village-status" aria-label="所持金とライフ">
     <div class="battle-status-counter">
@@ -12167,9 +12263,9 @@ _watchVesselboundDpr();
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=quest0924"></script>
+<script src="js/data/local_xlsx_data.js?v=talk0924"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=q0090924"></script>
+<script src="js/data/loader.js?v=talk0924"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=silence0923"></script>
@@ -12190,20 +12286,22 @@ _watchVesselboundDpr();
 <script src="js/engine/state.js?v=q0090924"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
-<script src="js/save/profile_save.js?v=collection0918"></script>
-<script src="js/save/run_save.js?v=q0090924"></script>
-<script src="js/engine/pool.js?v=q0090924"></script>
+<script src="js/save/profile_save.js?v=tutorial0924"></script>
+<script src="js/save/run_save.js?v=goldFx0924"></script>
+<script src="js/engine/pool.js?v=eternal0924"></script>
 <script src="js/engine/enemy.js?v=debugEnemyCycle0917"></script>
-    <script src="js/engine/battle.js?v=q0090924"></script>
-    <script src="js/engine/battle_events.js?v=rainbowText0922"></script>
+    <script src="js/engine/battle.js?v=lineFix0924"></script>
+    <script src="js/engine/battle_events.js?v=questLine0924"></script>
 <script src="js/engine/render.js?v=tipColor0924"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
-<script src="js/engine/reward_items.js?v=rewardDragFix0917"></script>
+<script src="js/engine/reward_items.js?v=return0924"></script>
 <script src="js/engine/reward_journey.js?v=enemySummonStats0917"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=tavernReset0924"></script>
-<script src="js/engine/map.js?v=tavern0924"></script>
-    <script src="js/engine/quest.js?v=bubble0924b"></script>
+<script src="js/engine/reward.js?v=return0924"></script>
+<script src="js/engine/map.js?v=tutorial0924"></script>
+    <script src="js/engine/game_confirm.js?v=confirm0924"></script>
+    <script src="js/engine/quest.js?v=q003a"></script>
+    <script src="js/engine/gold_fx.js?v=speed200"></script>
     <script src="js/engine/main.js?v=debugReset0924"></script>
 <script src="js/engine/options.js?v=collectionReturn0921"></script>
 <script src="js/engine/collection.js?v=band0924"></script>

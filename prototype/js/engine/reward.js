@@ -8,17 +8,17 @@ let _placingChar=null; // フィールド配置待ちのキャラカード
 let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを戻せるよう識別する
 const REWARD_GRID_CAPACITY=5; // 報酬置き場：最大5枚
+// チュートリアルの移動の手順（map.js の runBoardTutorial が G._libraryTutorialMove に入れる）。
+// index が null なら魔導板のどのマスへ置いてもよい（「マージとは」）。
 function _libraryTutorialMoveContext(){
   if(!G||!G._libraryTutorialActive) return null;
-  if(G._libraryTutorialStep===4) return {name:'リザードマン',index:12};
-  if(G._libraryTutorialStep===6) return {name:'野生の力',index:11};
-  return null;
+  return G._libraryTutorialMove||null;
 }
 function _libraryTutorialIsMoveStep(){ return !!_libraryTutorialMoveContext(); }
 function _libraryTutorialAllowsMove(card,destIdx){
   const ctx=_libraryTutorialMoveContext();
   if(!ctx) return true;
-  if(destIdx==null) return !!(card&&card.name===ctx.name);
+  if(destIdx==null||ctx.index==null) return !!(card&&card.name===ctx.name);
   return !!(card&&card.name===ctx.name&&Number(destIdx)===ctx.index);
 }
 function _syncBoardCardVisibilityToggle(){
@@ -269,25 +269,23 @@ function _confirmRingExchangeReturn(onYes){
   const discarded=Number(G._boardDiscardCount)||0;
   const needsConfirm=!!(G._ringOfferPhase&&!G._ringOfferResolved&&discarded>=1);
   if(!needsConfirm){ onYes(); return; }
-  const old=document.getElementById('shop-return-confirm');
-  if(old) old.remove();
   const msg=typeof textMessage==='function'
     ?textMessage('「祭壇」途中離脱時','捧げたカードを回収して祭壇を離れますか？')
     :'捧げたカードを回収して祭壇を離れますか？';
-  const dialog=document.createElement('div');
-  dialog.id='shop-return-confirm';
-  dialog.innerHTML=`<div class="shop-return-confirm-box"><div class="shop-return-confirm-msg">${_escapePreviewHtml(msg)}</div><div class="shop-return-confirm-btns"><button type="button" class="btn ring-exchange-return-ok">OK</button><button type="button" class="btn ring-exchange-return-cancel">キャンセル</button></div></div>`;
-  document.body.appendChild(dialog);
-  const close=()=>dialog.remove();
-  dialog.querySelector('.ring-exchange-return-cancel').onclick=close;
-  dialog.querySelector('.ring-exchange-return-ok').onclick=()=>{
-    close();
+  const reclaimAndLeave=()=>{
     // 「回収して離れる」なので、捧げたカードを魔導板へ戻してから出る。
     _reclaimSacrificedRingCards();
     if(typeof renderHandEditor==='function') renderHandEditor();
     if(typeof renderRewCards==='function') renderRewCards();
     onYes();
   };
+  // セーブデータ削除時と同じ見た目の確認窓で出す（game_confirm.js。2026-09-24 利用者指定）。
+  if(typeof showGameConfirm==='function'){
+    showGameConfirm({title:_uiLabel('「祭壇」途中離脱時の見出し','確認'),message:msg,okLabel:'OK',
+      cancelLabel:_uiLabel('「キャンセル」ボタン','キャンセル'),onOk:reclaimAndLeave});
+    return;
+  }
+  reclaimAndLeave();
 }
 function _ensureSelectedBoardUnitIdx(){
   const cur=_getPartyBoardUnit();
@@ -946,8 +944,13 @@ function renderMoveSlotsInEnemy(){
         };
         // 魔導店を出る時の確認は廃止した（商品枠に魔導板のカードを置けなくなったため）。
         // 途中離脱の確認が要るのは祭壇（カードを捧げ切る前に離れる時）だけ。
-        if(G._isRingExchange) _confirmRingExchangeReturn(goBack);
-        else goBack();
+        // 施設を出る時は暗転を挟む（map.js の fadeScreenSwitch。2026-09-24 利用者指定）。
+        const goBackFaded=()=>{
+          if(typeof fadeScreenSwitch==='function') void fadeScreenSwitch(goBack);
+          else goBack();
+        };
+        if(G._isRingExchange) _confirmRingExchangeReturn(goBackFaded);
+        else goBackFaded();
         return;
       }
       // 塔（祭壇）の「出発する」も、街と同じくワールドマップ画面を挟んでから次へ進む。
@@ -961,8 +964,8 @@ function renderMoveSlotsInEnemy(){
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
     // 酒場（依頼カードを受け取る画面）にも置く（2026-09-24 利用者指定）。戻り先は依頼カードを
     // 報酬枠へ置いた直後のスナップショット（quest.js の _qOpenTavernFormation）。
-    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu
-      &&(!G._isForge||!!G._debugMode);
+    // 鍛冶屋には置かない（デバッグモードでも出さない。2026-09-24 利用者指定）。
+    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isForge;
     if(canResetMapReward){
       const reset=document.createElement('button');
       reset.className='btn rew-reset-btn';
@@ -2005,6 +2008,44 @@ function _discardBoardCardForRingOffer(idx,card){
   renderMoveSlotsInEnemy();
 }
 
+// ── 返品（魔導店・道具屋で、この来店で買った商品）─────────────────
+// 買った商品には _shopBuy（来店の番号・商品枠・買値・商品の写し）を付ける。
+// この来店の間は、右上に売価の代わりに「返品」（テキストメッセージ「ショップ画面の「返品」ボタン」）を出し、
+// 押すと買値と同額を返して商品枠へ戻す（強欲の指輪などの倍率は掛けない）。
+function _shopPurchaseKey(){
+  return `${Number(G&&G._shopVisitSeq)||0}:${G&&G._isItemShop?'item':'shop'}`;
+}
+function markShopPurchase(target,offerCard,rewIdx,price){
+  if(!target||!G||!G._isShop||!(Number(price)>0)) return;
+  const copy=clone(offerCard);
+  delete copy._shopBuy;
+  target._shopBuy={key:_shopPurchaseKey(),idx:Number(rewIdx),price:Number(price),card:copy};
+}
+function isShopReturnable(card){
+  return !!(card&&card._shopBuy&&G&&G._isShop&&card._shopBuy.key===_shopPurchaseKey());
+}
+function returnShopPurchase(card,removeFromOwner){
+  if(!isShopReturnable(card)) return false;
+  const buy=card._shopBuy;
+  if(typeof removeFromOwner==='function') removeFromOwner();
+  G.gold=Math.max(0,Number(G.gold)||0)+Math.max(0,Number(buy.price)||0);
+  const offer=clone(buy.card);
+  delete offer._shopBuy;
+  const cap=typeof _shopSlotCapacity==='function'?_shopSlotCapacity():REWARD_GRID_CAPACITY;
+  while(_rewCards.length<cap) _rewCards.push(null);
+  let slot=Number.isInteger(buy.idx)&&buy.idx>=0&&buy.idx<cap&&!_rewCards[buy.idx]?buy.idx:_rewCards.findIndex((c,k)=>k<cap&&!c);
+  if(slot<0) slot=_rewCards.length;
+  _rewCards[slot]=offer;
+  if(typeof playFileSfx==='function') playFileSfx('assets/sfx/sell.wav');
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
+  refreshRewardGoldUi();
+  if(typeof _syncRewardProductionUi==='function') _syncRewardProductionUi();
+  renderHandEditor(); renderFieldEditor(); renderRewCards(); updateHUD();
+  return true;
+}
+function _shopReturnLabel(){ return _uiLabel('ショップ画面の「返品」ボタン','返品'); }
+
 function takeRewCard(i, targetSlot){
   if(G._pendingPanelPlacement) return;
   const card=_rewCards[i]; if(!card) return;
@@ -2039,6 +2080,7 @@ function takeRewCard(i, targetSlot){
       placed._rewardReturnIdx=i;
       placed._rewardReturnPhaseId=_rewPhaseId;
     }
+    if(isTown&&!G._freeRewardPanelMode) markShopPurchase(placed,card,i,cost);
     slots[emptyIdx]=placed;
     if(typeof markCardAcquired==='function') markCardAcquired(card);
     if(card._isOriginalReward) _rewFreePickDone=true;
@@ -2052,6 +2094,8 @@ function takeRewCard(i, targetSlot){
 
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope){
     if(G._rewardOnePickMode&&_rewFreePickDone&&card._isOriginalReward)return;
+    // 返品用の印は置く前に付ける（置かれるのはこのカード自身）。
+    if(isTown&&!G._freeRewardPanelMode) markShopPurchase(card,card,i,cost);
     const finish=()=>{
       if(typeof markCardAcquired==='function') markCardAcquired(card);
       if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
@@ -3933,8 +3977,15 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _boardSellable=_boardCardSellEnabled(card);
       const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
+      // クエストに必須のカード（ファラなど）は、ショップでは値段の代わりに「別れる」を出す（quest.js）。
+      const _questPartable=arrName==='boardCards'&&typeof questCardPartable==='function'&&questCardPartable(card);
+      const _shopReturnable=arrName==='boardCards'&&isShopReturnable(card);
       const _spellBtn=arrName==='boardCards'
-        ?(_boardSellable
+        ?(_shopReturnable
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action shop-return-btn" data-sfx-silent="1">${_shopReturnLabel()}</button>`
+          :_questPartable
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action quest-part-btn" data-sfx-silent="1">${_uiLabel('ショップ画面の「別れる」ボタン','別れる')}</button>`
+          :_boardSellable
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
           :(_ringOfferDiscardable
             ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('祭壇の「還魂」ボタン','還魂')}</button>`
@@ -4075,6 +4126,32 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // SEはボタン種別で最初に決める。デバッグモード等の分岐が先にreturnしても
         // 「還魂＝ascension / 売却＝sell」が確実に鳴るようにする。
         if(!discardBtn.classList.contains('ring-offer-discard-btn')&&_boardCardSellEnabled(card)) _playRewardAcquireSfx('sell.wav');
+        // 「返品」：買値と同額を返し、商品枠へ戻す。
+        if(discardBtn.classList.contains('shop-return-btn')){
+          const unit=_getPartyBoardUnit();
+          returnShopPurchase(card,()=>{
+            if(!unit) return;
+            const boardList=_normalizeUnitBoardCards(unit);
+            boardList[i]=null;
+            unit.boardCards=boardList;
+            _syncUnitPanelEffectsAfterMove(unit);
+          });
+          return;
+        }
+        // 「別れる」：カードを消す（お金は入らない）。失敗にするのは店を出る時（クエスト失敗警告）。
+        if(discardBtn.classList.contains('quest-part-btn')){
+          if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+          const unit=_getPartyBoardUnit();
+          if(unit&&typeof questPartWithCard==='function'&&questPartWithCard(card)){
+            const boardList=_normalizeUnitBoardCards(unit);
+            boardList[i]=null;
+            unit.boardCards=boardList;
+            _syncUnitPanelEffectsAfterMove(unit);
+            if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+          }
+          renderHandEditor(); renderFieldEditor(); renderRewCards();
+          return;
+        }
         if(arrName==='boardCards'){
           // 指輪提示（還魂）中は最優先で廃棄カウントへ回す。デバッグモード分岐やショップ分岐が
           // 先にreturnすると_boardDiscardCountが増えず、3枚還魂しても指輪が解放されない。

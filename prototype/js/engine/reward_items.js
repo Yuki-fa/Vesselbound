@@ -86,6 +86,7 @@ function _syncRewardProductionItems(){
             if(typeof playSfx==='function') playSfx('buy2',{group:'reward'});
           }
           const placed=clone(card);
+          if(buyCost>0&&typeof markShopPurchase==='function') markShopPurchase(placed,card,rewIdx,buyCost);
           // 商品枠に置いていた自分のアイテムを戻す場合、売却待ちの印を消してから手持ちへ返す。
           delete placed._shopSalePending;
           delete placed._sellDisplayPrice;
@@ -117,8 +118,15 @@ function _syncRewardProductionItems(){
       action.type='button';
       action.className='shop-board-sell-value shop-board-sell-action item-shop-sell-action';
       action.dataset.sfxSilent='1';
-      action.textContent=`+${price}G`;
-      action.onclick=ev=>{ ev.stopPropagation(); _sellHeldItem(idx); };
+      // この来店で買ったアイテムは売価ではなく「返品」（買値と同額で戻す。reward.js）。
+      const returnable=typeof isShopReturnable==='function'&&isShopReturnable(item);
+      action.textContent=returnable?_shopReturnLabel():`+${price}G`;
+      if(returnable) action.classList.add('shop-return-btn');
+      action.onclick=ev=>{
+        ev.stopPropagation();
+        if(returnable){ returnShopPurchase(item,()=>{ items[idx]=null; }); return; }
+        _sellHeldItem(idx);
+      };
       slot.appendChild(action);
     }
     slot.onclick=e=>{
@@ -387,7 +395,8 @@ function _canUseItemNow(card){
     return Object.values(counts).some(n=>n>=2);
   }
   if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardSealReducible(x.card));
-  if(key==='weakening_scroll') return chars.length>0;
+  // 永劫の巻物：「召喚の力」マス上のキャラクターを破壊し、そのマスを「永劫の力」にする（2026-09-24 利用者指定）。
+  if(key==='weakening_scroll') return chars.some(x=>_isSummonPowerSlot(x.slotIdx!=null?x.slotIdx:x.idx));
   // 魔力の巻物は減らせるマナ効果を持つキャラクターが1体も居なければ使えない（生贄人形と同じ扱い）。
   if(key==='mana_scroll') return chars.some(x=>_manaScrollReducible(x.card));
   if(key==='meteor_scroll') return true;
@@ -415,6 +424,9 @@ function _cardHasKeyword(card,kw){
 // 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
 // エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
 // _isBoardCharacterCard() で一律に落とす（個別のアイテムごとに書かない）。
+function _isSummonPowerSlot(slotIdx){
+  return Number.isInteger(Number(slotIdx))&&typeof mapPanelPowerIdAt==='function'&&mapPanelPowerIdAt(Number(slotIdx))==='summon';
+}
 function _isItemUseTargetSlot(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending) return true;
@@ -435,6 +447,7 @@ function _isItemUseTargetSlot(slotIdx){
     return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
   }
   if(key==='mana_scroll') return _manaScrollReducible(card);
+  if(key==='weakening_scroll') return _isSummonPowerSlot(slotIdx);
   if(key==='sacrifice_doll'){
     // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
     if(!Number.isInteger(pending.destroyIdx)){
@@ -511,7 +524,7 @@ const _ITEM_USE_PROMPT_FALLBACK={
   shield_scroll:['結界1を付与するキャラクターを選んでください。'],
   giant_scroll:['+5/+5を付与するキャラクターを選んでください。'],
   sacrifice_doll:['破壊するキャラクターを選んでください。','封印の値を3減らすキャラクターを選んでください。'],
-  weakening_scroll:['破壊するキャラクターを選んでください。'],
+  weakening_scroll:['「召喚の力」マス上の、破壊するキャラクターを選んでください。'],
   inspire_flag:['根性を付与するキャラクターを選んでください。'],
   vision_scroll:['復活を付与するキャラクターを選んでください。'],
   mana_scroll:['マナ効果の値1減らすキャラクターを選んでください。'],
@@ -771,17 +784,11 @@ function handlePendingItemBoardTarget(slotIdx){
     return true;
   }
   if(key==='weakening_scroll'){
+    // 選んだキャラクターの居る「召喚の力」マスそのものを「永劫の力」マスにする（ランダムではない）。
+    if(!_isSummonPowerSlot(slotIdx)) return true;
     boardList[slotIdx]=null;
     G.mapPanelPowers=G.mapPanelPowers||{};
-    const summonSlots=Array.from({length:MAIN_BOARD_SIZE},(_,i)=>i)
-      .filter(i=>typeof mapPanelPowerIdAt==='function'&&mapPanelPowerIdAt(i)==='summon');
-    // **順番に依存させない。**（同じ村で先に鍛冶屋へ寄っても結果を変えない）
-    // 鍵はラン・現在地・使ったアイテム枠。コンティニューしても同じマスが選ばれる。
-    const target=summonSlots.length
-      ?(typeof runKeyedPick==='function'
-        ?runKeyedPick(`eternal:${G._wave}:${G._waveStage}:${pending.slotIdx}`,summonSlots)
-        :randFrom(summonSlots))
-      :null;
+    const target=slotIdx;
     if(target==null){ ; return true; }
     G._pendingItemUse=null; _syncItemUsePickingUi();
     _consumeItemSlot(pending.slotIdx);
