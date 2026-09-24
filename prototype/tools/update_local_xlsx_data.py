@@ -36,6 +36,7 @@ SHEET_BY_KEY = {
     'specialFx': ['特殊演出'],
     'region': ['地域情報'],
     'textMessage': ['テキストメッセージ'],
+    'quest': ['クエスト'],
 }
 
 
@@ -113,8 +114,16 @@ def to_csv(rows):
 
 
 def main():
-    keys = sys.argv[1:] or ['textMessage', 'region']
-    xlsx = find_xlsx()
+    # --from <path>：手元の xlsx 以外（Googleスプレッドシートから書き出した最新版など）から焼き直す。
+    #   手元の Vesselbound_data.xlsx は利用者が管理するので、書き換えずにこちらを使う。
+    args = sys.argv[1:]
+    src_path = None
+    if '--from' in args:
+        i = args.index('--from')
+        src_path = Path(args[i + 1])
+        args = args[:i] + args[i + 2:]
+    keys = args or ['textMessage', 'region']
+    xlsx = src_path or find_xlsx()
     src = TARGET.read_text(encoding='utf-8')
     data = json.loads(src[src.index('{'):src.rindex('}') + 1])
     with zipfile.ZipFile(xlsx) as zf:

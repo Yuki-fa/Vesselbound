@@ -37,6 +37,15 @@ function formationDeploySlots(board) {
   return out;
 }
 
+// 指定した魔導板スロットが、現在の共通出撃規則で「召喚可能なマス」かを返す。
+// NPCの配置制限など、画面側から出撃マスを判定する場合も formationDeploySlots を
+// 直接組み立て直さず、この関数を使ってPvE／オンラインの意味を揃える。
+function boardSlotIsDeployable(board, slotIdx) {
+  const idx = Number(slotIdx);
+  if (!Number.isInteger(idx)) return false;
+  return formationDeploySlots(board).some(slot => slot.idx === idx);
+}
+
 // _summonPanelUnitToFront/Rear と同じ「希望スロット→空いていなければ近い順」の解決。
 // 盤面配列を触らずに最終的な並びを知るため、占有集合だけで同じ判定を行う。
 function formationAssignSlot(occupied, preferredSlot, from, to) {
@@ -192,11 +201,12 @@ function persistBoardCharacterStats(board, slotIdx, atk, hp) {
 
 if (typeof window !== 'undefined') {
   window.formationDeploySlots = formationDeploySlots;
+  window.boardSlotIsDeployable = boardSlotIsDeployable;
   window.formationAssignSlot = formationAssignSlot;
   window.buildBoardFormation = buildBoardFormation;
   window.boardHasDeployableCharacter = boardHasDeployableCharacter;
   window.persistBoardCharacterStats = persistBoardCharacterStats;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { formationDeploySlots, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats };
+  module.exports = { formationDeploySlots, boardSlotIsDeployable, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats };
 }

@@ -133,6 +133,7 @@ const _XLSX_SHEETS = {
   deepLevel: '深層レベル',
   region: '地域情報',
   textMessage: 'テキストメッセージ',
+  quest: 'クエスト',
 };
 
 function _xlsxSheetToCSV(workbook, sheetName, required) {
@@ -173,6 +174,7 @@ async function _loadGameDataFromEmbeddedXlsx() {
     dlt: data.deepLevel || data.floorLevel || '名前\n',
     rgt: data.region || '名前\n',
     tmt: data.textMessage || '名前\n',
+    qt: data.quest || 'No.,名前\n',
   };
 }
 
@@ -210,6 +212,7 @@ async function _loadGameDataFromXlsx() {
     dlt: _xlsxSheetToCSVAny(workbook, [_XLSX_SHEETS.deepLevel, '深層レベル', '階層グレード'], false),
     rgt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.region, false),
     tmt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.textMessage, false),
+    qt: _xlsxSheetToCSV(workbook, _XLSX_SHEETS.quest, false),
   };
 }
 
@@ -252,7 +255,7 @@ async function _loadGameDataFromGoogleCsv() {
     const npcRes = await fetch(_sheetUrl(_SHEET_GIDS['NPC']));
     if (npcRes.ok) ct = await npcRes.text();
   } catch (_) { /* 任意シート */ }
-  return { source: 'csv', ft, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n' };
+  return { source: 'csv', ft, ct, et, kwt, pt, ent, it: '名前\n', rt, mpt, dlt, rgt: '名前\n', tmt: '名前\n', qt: 'No.,名前\n' };
 }
 
 async function _ensureMapPanelPowerCsv(mpt) {
@@ -524,7 +527,7 @@ async function loadGameData() {
         console.log('[Vesselbound] CSV loaded');
       }
     }
-    let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt } = loaded;
+    let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt, qt } = loaded;
     mpt = await _ensureMapPanelPowerCsv(mpt);
     dlt = await _ensureDeepLevelCsv(dlt);
 
@@ -581,6 +584,51 @@ async function loadGameData() {
       window.REGION_INFO = regionMap;
     } catch (_) {
       window.REGION_INFO = window.REGION_INFO || {};
+    }
+
+    // クエストシート。台詞の直前にある「対象」は同名ヘッダーが繰り返されるため、
+    // 名前ではなくCSV/XLSX変換時に保持した __colN の列位置で読む。
+    // A＝左、B＝右。空欄の台詞は配列へ入れない。
+    try {
+      const questRows = _parseCSVWithHeader(qt || 'No.,名前\n', ['No.', '名前', '台詞1', 'クエスト説明文']);
+      const questMap = {};
+      const lineColumns = [
+        { text: 4, speaker: 3 }, { text: 6, speaker: 5 },
+        { text: 8, speaker: 7 }, { text: 10, speaker: 9 },
+      ];
+      const readLines = row => lineColumns.reduce((out, cols) => {
+        const text = String(row[`__col${cols.text}`] || '').trim();
+        if (!text) return out;
+        const speaker = String(row[`__col${cols.speaker}`] || '').trim().toUpperCase();
+        out.push({ speaker: speaker === 'A' ? 'A' : 'B', text });
+        return out;
+      }, []);
+      const readLine = (row, textCol, speakerCol) => {
+        const text = String(row[`__col${textCol}`] || '').trim();
+        if (!text) return [];
+        const speaker = String(row[`__col${speakerCol}`] || '').trim().toUpperCase();
+        return [{ speaker: speaker === 'A' ? 'A' : 'B', text }];
+      };
+      questRows.forEach(row => {
+        const id = String(row['No.'] || row['No'] || row['__col0'] || '').trim();
+        if (!id) return;
+        const description = String(row['クエスト説明文'] || row['__col19'] || '').trim();
+        questMap[id] = {
+          id,
+          baseId: id.replace(/_\d+$/, ''),
+          name: String(row['名前'] || row['カード名'] || row['__col1'] || '').trim(),
+          summary: String(row['概要'] || row['__col2'] || '').trim(),
+          initial: readLines(row),
+          accepted: readLine(row, 12, 11),
+          rejected: readLine(row, 14, 13),
+          acceptedAfter: readLine(row, 16, 15),
+          rejectedAfter: readLine(row, 18, 17),
+          description,
+        };
+      });
+      window.QUEST_DATA = questMap;
+    } catch (_) {
+      window.QUEST_DATA = window.QUEST_DATA || {};
     }
 
     // テキストメッセージシート（任意）：「場面」→言語ごとの対応表。
@@ -1422,6 +1470,73 @@ async function loadGameData() {
       panel.mergedForm.desc = '復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。';
       panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);
     });
+    // NPCシートのキャラクターを、報酬／ショップ抽選から除外した魔導板カードへ変換する。
+    // NPCはUNIT_POOLにも入れるが、カードの唯一の定義はこのシート行から作る。
+    const _upsertNpcPanelFromRow = row => {
+      const rawCode = String(row['No.'] || row['No'] || row['NO'] || row['__col0'] || '').trim();
+      if (!/^NPC\s*0*\d+$/i.test(rawCode)) return null;
+      const code = rawCode.replace(/\s+/g, '').toUpperCase();
+      const name = String(row['名前'] || row['カード名'] || row['__col1'] || '').trim();
+      if (!name || !_rowImplemented(row)) return null;
+      const pool = Array.isArray(PANEL_POOL) ? PANEL_POOL : [];
+      let panel = pool.find(p => p && (String(p.no || p.artCode || '').toUpperCase() === code || p.id === `panel_npc_${code}`));
+      if (!panel) {
+        panel = {
+          id: `panel_npc_${code}`,
+          no: code,
+          name,
+          rarity: -1,
+          grade: 1,
+          type: 'panel',
+          kind: 'panel',
+          panelScope: 'unit',
+          category: 'キャラクター',
+          cost: 0,
+          slot: 1,
+        };
+        pool.push(panel);
+      }
+      const atk = _parseIntRange(row['パワー'] || row['攻撃力'] || row['ATK'], 0);
+      const hp = _parseIntRange(row['ライフ'] || row['HP'], 1);
+      const portRaw = String(row['ポート'] ?? row['ハブ'] ?? '').trim();
+      const port = portRaw === '' ? 2 : parseInt(portRaw, 10);
+      panel.no = code;
+      panel.No = code;
+      panel['No.'] = code;
+      panel.imageNo = code;
+      panel.artCode = code;
+      panel.name = name;
+      panel.category = 'キャラクター';
+      panel.type = 'panel';
+      panel.kind = 'panel';
+      panel.panelScope = 'unit';
+      panel.rarity = -1;
+      panel.grade = Math.max(1, parseInt(row['グレード'] || row['レベル'], 10) || 1);
+      panel.power = atk.val;
+      panel.life = hp.val;
+      panel.baseAtk = atk.range;
+      panel.baseHp = hp.range;
+      panel.color = _normalizeColorText(String(row['カラー'] || '').trim());
+      panel.race = String(row['種族'] || 'NPC').trim() || 'NPC';
+      panel.desc = String(row['効果'] || '').trim();
+      panel.keywords = _splitSheetKeywords(row['キーワード']);
+      panel.sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
+      panel.directionCount = Number.isFinite(port) && port >= 0 ? port : 0;
+      panel.directions = [];
+      panel.cost = 0;
+      panel._buyPrice = 0;
+      panel._sheetSeen = true;
+      panel._sheetDescLoaded = true;
+      panel._sheetKeywordsLoaded = true;
+      panel._implemented = true;
+      panel._rewardExcluded = true;
+      panel._shopExcluded = true;
+      panel._npcCard = true;
+      panel._npcDeployOnly = true;
+      panel.boss = true;
+      panel.noRewardUse = true;
+      return panel;
+    };
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;
@@ -1482,6 +1597,9 @@ async function loadGameData() {
         return;
       }
       // 通常キャラクター：UNIT_POOL を更新
+      if (/^NPC\s*0*\d+$/i.test(String(row['No.'] || row['No'] || row['NO'] || row['__col0'] || '').trim())) {
+        _upsertNpcPanelFromRow(row);
+      }
       let unit = _findBySheetName(UNIT_POOL, name);
       if (!unit) {
         unit = _rowToUnit(row);

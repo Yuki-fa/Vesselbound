@@ -45,7 +45,7 @@ const Assets = {
     collectionBoard: 'assets/cards/c_board.svg',
   },
   backgrounds: {
-    title: 'assets/art/backgrounds/title_castle.png',
+    title: 'assets/art/backgrounds/title_castle.webp',
     stage1: 'assets/art/backgrounds/stage_forest.webp',
     stage2: 'assets/art/backgrounds/stage_grassland.webp?v=bg0916',
     stage3: 'assets/art/backgrounds/stage_valley.webp?v=bg0916',
@@ -56,34 +56,40 @@ const Assets = {
     stageEnd: 'assets/art/backgrounds/stage_endworld.webp?v=bg0916',
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。
-    village0: 'assets/art/backgrounds/village_start.png',
-    village1: 'assets/art/backgrounds/village_forest.png',
-    village2: 'assets/art/backgrounds/village_grassland.png',
-    village3: 'assets/art/backgrounds/village_valley.png',
-    village4: 'assets/art/backgrounds/city_capital.png',
-    villageEnd: 'assets/art/backgrounds/village_endworld.png',
+    village0: 'assets/art/backgrounds/village_start.webp',
+    // リーゼのホーム（ホームは未実装のため、今は入れない）。
+    homeStart: 'assets/art/backgrounds/home_start.webp',
+    village1: 'assets/art/backgrounds/village_forest.webp',
+    village2: 'assets/art/backgrounds/village_grassland.webp',
+    village3: 'assets/art/backgrounds/village_valley.webp',
+    village4: 'assets/art/backgrounds/city_capital.webp',
+    villageEnd: 'assets/art/backgrounds/village_endworld.webp',
     // ワールドマップ画面（出発時に数秒表示する）
-    map: 'assets/art/backgrounds/map.jpg',
+    map: 'assets/art/backgrounds/map.webp',
     // 塔（祭壇）画面の背景
-    tower: 'assets/art/backgrounds/tower.png',
+    tower: 'assets/art/backgrounds/tower.webp',
     // 図書館画面の背景
-    library: 'assets/art/backgrounds/library.png',
+    library: 'assets/art/backgrounds/library.webp',
     // 街の施設ごとの背景（ステージ1・エルム）
-    itemShopForest: 'assets/art/backgrounds/item_shop_forest.png',
-    magicShopForest: 'assets/art/backgrounds/magic_shop_forest.png',
+    itemShopForest: 'assets/art/backgrounds/item_shop_forest.webp',
+    magicShopForest: 'assets/art/backgrounds/magic_shop_forest.webp',
     // 街の施設ごとの背景（ステージ2・ヴァルガ）
-    itemShopGrassland: 'assets/art/backgrounds/item_shop_grassland.png',
-    magicShopGrassland: 'assets/art/backgrounds/magic_shop_grassland.png',
-    blacksmithGrassland: 'assets/art/backgrounds/blacksmith_grassland.png',
+    itemShopGrassland: 'assets/art/backgrounds/item_shop_grassland.webp',
+    magicShopGrassland: 'assets/art/backgrounds/magic_shop_grassland.webp',
+    blacksmithGrassland: 'assets/art/backgrounds/blacksmith_grassland.webp',
     // 街の施設ごとの背景（ステージ3・ギャラハ）
-    magicShopValley: 'assets/art/backgrounds/magic_shop_valley.png',
-    blacksmithValley: 'assets/art/backgrounds/blacksmith_valley.png',
+    magicShopValley: 'assets/art/backgrounds/magic_shop_valley.webp',
+    blacksmithValley: 'assets/art/backgrounds/blacksmith_valley.webp',
     // 街の施設ごとの背景（ステージ4・ヴォルザーク）
-    magicShopCapital: 'assets/art/backgrounds/magic_shop_capital.png',
-    blacksmithCapital: 'assets/art/backgrounds/blacksmith_capital.png',
+    magicShopCapital: 'assets/art/backgrounds/magic_shop_capital.webp',
+    blacksmithCapital: 'assets/art/backgrounds/blacksmith_capital.webp',
     // 街の施設ごとの背景（ステージ5・フォルセティ）
-    magicShopEndworld: 'assets/art/backgrounds/magic_shop_endworld.png',
-    itemShopEndworld: 'assets/art/backgrounds/item_shop_endworld.png',
+    magicShopEndworld: 'assets/art/backgrounds/magic_shop_endworld.webp',
+    itemShopEndworld: 'assets/art/backgrounds/item_shop_endworld.webp',
+    // 酒場（ステージ1・エルム／2・ヴァルガ／3・ギャラハ）。酒場は未実装のため、今は入れない。
+    tavernForest: 'assets/art/backgrounds/tavern_forest.webp',
+    tavernGrassland: 'assets/art/backgrounds/tavern_grassland.webp',
+    tavernValley: 'assets/art/backgrounds/tavern_valley.webp',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -750,7 +756,11 @@ function applyUnitVisual(el, unit){
   const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
   // 守護／ヘイト専用の枠は素材ごと廃止した。
   // 判定に使っていた hasGuard / unitGuard / classGuard / isDefender も参照先が無くなったので消してある。
-  const frame=(isEnemyEl&&_isEliteOrBossCard(unit))
+  // **味方でもボス枠のカード（NPC「ディナ」など）は戦闘中もボス枠。** 味方は色で召喚枠を選ぶため、
+  // 黒（召喚枠の無い色）は既定の緑枠になり、戦闘に入ると枠が変わって見えた（2026-09-24 利用者指摘）。
+  // 戦闘中の体には _npcCard／boss の印が引き継がれないので、カード番号（NPC001 など）でも見る。
+  const _isNpcUnit=!!(unit&&(unit._npcCard||/^NPC\d+$/i.test(String(unit.no||unit.artCode||''))));
+  const frame=((isEnemyEl&&_isEliteOrBossCard(unit))||(!isEnemyEl&&unit&&(_isNpcUnit||_isEliteOrBossCard(unit))))
     ? Assets.cards.characterFrame
     : isEnemyEl
     ? Assets.cards.enemyFrame

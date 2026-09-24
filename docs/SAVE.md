@@ -41,3 +41,7 @@
 `serializeRunState()` の頭で `_flushRunStatsPlayTime()` を呼んで今回分を畳む。
 他の統計（味方死亡・敵撃破・最大ダメージ・最大ステータス）は `runStats` ごと
 セーブへ入っているので再開しても消えない（実測で確認済み）。
+
+### 酒場クエストの保存
+
+`questProgress` は `run_save.js` の `serializeRunState()`／`restoreRunState()` が個別に保存・復元する。Q009では選択したクエストID、`tavernVariant`／`towerVariant`、`status`（`offered`／`rejected`／`accepted`／`failed`／`completed`）、`rewardCardTaken`、塔の会話・+500G済みフラグを保存する。会話途中の吹き出しや立ち絵は一時DOMなので保存せず、再開時は会話の先頭からやり直せる。古いランで `questProgress` が無い場合は空オブジェクトとして復元する。

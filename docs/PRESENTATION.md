@@ -548,4 +548,12 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 **素材の切り抜き方（余白の量）が変われば倍率も変わる。** 差し替えたら見て調整すること。
 **効果としての再生と被弾演出としての再生で別々に持たないこと**（片方だけ巨大に出る）。
 
+## 酒場クエストの立ち絵・台詞枠
+
+酒場と赤禍の塔の会話表示は `prototype/js/engine/quest.js` にまとめる。立ち絵は設計座標へ原寸で置き、`TAVERN_PORTRAIT_CONFIG` の `MC001`（`x=-207,y=252`、1990×3410）と `MC004`（`x=1819,y=192`、3155×4291）をこの順にフェードインする。フェード時間と次の立ち絵までの待ち時間は `TAVERN_PORTRAIT_FADE_MS`／`TAVERN_PORTRAIT_STEP_MS`。表情差分は `showTavernPortrait('MC001',{face:'F002'})` のように明示した場合だけ使い、`TAVERN_FACE_CONFIG` の `(827,349)` に310×233で重ねる。既定の会話では表情を重ねない。
+
+台詞枠は戦闘の `speechbubble2.svg` と六角形の枠計算を流用した専用DOMで、`TAVERN_DIALOGUE_ANCHORS` の左 `(1055,550)`・右 `(2868,822)` を尻尾の先端として使う。`TAVERN_DIALOGUE_POSITION_MODE` を `tail` から `box` へ変更すると、同じ座標を枠の左上として解釈できる。左は下向き、右は上向きで、同じ話者の枠だけを書き換えるため、別話者の連続台詞が既存枠を消さない。台詞本文と話者はクエストシートから取得し、改行はそのまま表示する。
+
+塔での報酬表示位置は `TAVERN_GOLD_GAIN_POSITION`、酒場編成窓の暗幕は `black1.svg` を使う `tavern-formation-veil` で調整する。演出中の会話DOM・立ち絵は保存せず、再開時はクエスト状態から入口の演出を再生する。
+
 ---

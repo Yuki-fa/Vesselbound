@@ -6258,35 +6258,68 @@ async function onBattleEnd(){
   await _flushCorePveHitEvents({units:{p1:G.allies||[],p2:G.enemies||[]}},itemRewards,new Set([...G.allies||[],...G.enemies||[]]));
 }
 
+// ── 帰滅（K015）─────────────────────────────────────────
+// 「このキャラクターは戦闘中のHP変化が永続化する。また、死亡、逃走した場合は消滅する。」
+//   ・死亡・逃走（コアは逃走でもHPを0にする）したら、魔導板のカードごと消す。
+//   ・生き残ったら、戦闘中のHPの増減を魔導板のカードのライフへ書き戻す。
+//     増減は「戦闘開始時（開戦効果の前）のコアの写し」との差で測る。開戦効果や他のカードの
+//     常時効果は次の戦闘でもまた掛かるので、開戦後の値との差にすると二重に入る。
+//   以前の文面（戦闘終了時に場にいない場合、消滅）では出撃できなかっただけでも消していたが、
+//   今の文面は死亡・逃走だけなので、出撃しなかったカードは残す（2026-09-24 利用者指定）。
+//   **1戦につき1回だけ。** 敗北・撤退の経路では片付け（_cleanupBattleEndTransientUnits）の前にも
+//   呼ばれるので、戦闘のイベント列を目印にして二重に書き戻さない。
+//   試験戦闘（G._testBattleMode）では魔導板へ書き戻さない。
 function _removeAbsentKiemetsuCards(){
+  const events=G._battleCoreEvents;
+  if(Array.isArray(events)&&G._kiemetsuAppliedEvents===events) return;
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
   const equip=board&&Array.isArray(board.boardCards)?board.boardCards:null;
   if(!equip) return;
-  const absentKiemetsuSlots=new Set();
-  // 戦闘中ユニットには、強化カードから付与された帰滅も反映されているため、
-  // まず死亡・未配置の実体側から対象スロットを特定する。
-  (G.allies||[]).forEach(unit=>{
-    if(!unit||!Number.isInteger(unit._mainBoardSlot)||unit.hp>0||!_unitHasKeyword(unit,'帰滅')) return;
-    absentKiemetsuSlots.add(unit._mainBoardSlot);
-  });
-  // 開戦時に出撃できなかったキャラクターも「場にいない」ため消滅させる。
-  equip.forEach((panel,slot)=>{
-    if(!panel||String(panel.category||'')!=='キャラクター') return;
-    const hasKiemetsu=Array.isArray(panel.keywords)&&panel.keywords.includes('帰滅')||String(panel.desc||'').includes('帰滅');
-    if(!hasKiemetsu) return;
-    const aliveOnField=(G.allies||[]).some(u=>u&&u.hp>0&&u._mainBoardSlot===slot&&!u._isObject&&!u._isSoul);
-    if(!aliveOnField) absentKiemetsuSlots.add(slot);
-  });
-  absentKiemetsuSlots.forEach(slot=>{
-    if((G.allies||[]).some(u=>u&&u.hp>0&&u._mainBoardSlot===slot&&!u._isObject&&!u._isSoul)){
-      absentKiemetsuSlots.delete(slot);
+  if(Array.isArray(events)) G._kiemetsuAppliedEvents=events;
+  const startEv=(events||[]).find(e=>e&&e.type==='battle_start');
+  const startUnits=((startEv&&startEv.sides&&startEv.sides.p1)||[]).filter(Boolean);
+  const startHp=new Map(startUnits.map(u=>[String(u.id),Number(u.hp)]));
+  // **倒れた体は、ここへ来る時点で G.allies から外れていることがある**（敗北時は全員外れている）。
+  // そのため帰滅の体は戦闘開始時の写しから集め、生き残りは G.allies、居なければ
+  // 死亡・逃走のイベントで判定する（根性・復活で立ち直った体は G.allies に居る）。
+  const endedIds=new Set((events||[]).filter(e=>e&&e.side==='p1'&&(e.type==='death'||e.type==='fled')).map(e=>String(e.unitId)));
+  const vanished=new Set();
+  const hpDelta=new Map();
+  const judge=(id,slot,liveUnit)=>{
+    if(!Number.isInteger(slot)) return;
+    if(liveUnit){
+      if(!(liveUnit.hp>0)){ vanished.add(slot); return; }
+      const before=startHp.get(String(id));
+      if(!Number.isFinite(before)) return;
+      const delta=Math.round(Number(liveUnit.hp)-before);
+      if(delta) hpDelta.set(slot,(hpDelta.get(slot)||0)+delta);
+      return;
     }
+    if(endedIds.has(String(id))) vanished.add(slot);
+  };
+  const seen=new Set();
+  // 戦闘中ユニットには、強化カードから付与された帰滅も反映されている。
+  (G.allies||[]).forEach(unit=>{
+    if(!unit||unit._isObject||unit._isSoul||!_unitHasKeyword(unit,'帰滅')) return;
+    seen.add(String(unit.id));
+    judge(unit.id,unit._mainBoardSlot,unit);
   });
-  absentKiemetsuSlots.forEach(slot=>{
-    const panel=equip[slot];
-    if(!panel) return;
-    equip[slot]=null;
+  startUnits.forEach(snap=>{
+    if(seen.has(String(snap.id))||!_unitHasKeyword(snap,'帰滅')) return;
+    judge(snap.id,Number.isInteger(Number(snap._mainBoardSlot))?Number(snap._mainBoardSlot):null,null);
   });
+  // 同じマスから別の体が生きて残っている（復活など）なら消さない。
+  vanished.forEach(slot=>{
+    if((G.allies||[]).some(u=>u&&u.hp>0&&u._mainBoardSlot===slot&&!u._isObject&&!u._isSoul)) vanished.delete(slot);
+  });
+  vanished.forEach(slot=>{ if(equip[slot]) equip[slot]=null; });
+  if(G._testBattleMode) return;
+  hpDelta.forEach((delta,slot)=>{
+    if(vanished.has(slot)) return;
+    _persistPermanentStatOrWarn(board,{boardSlot:slot,atk:0,hp:delta,reason:'kiemetsu'});
+  });
+  // 帰滅カードの死亡・逃走による盤面消失を、酒場クエストの失敗判定へ一本化して通知する。
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
 }
 
 function _cleanupBattleEndTransientUnits(){

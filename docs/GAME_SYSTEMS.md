@@ -118,6 +118,14 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
 
 戦闘終了後、召喚された一時ユニットや戦闘中のHP・状態は次の戦闘へそのまま持ち越さない。例外的に、PvEの魔導板「永劫の力」による恒久的な+1/+1など、編成やラン状態へ保存される効果は別に扱う。
 
+### 酒場とQ009「護衛依頼」
+
+酒場の入口は `prototype/js/engine/map.js` の施設判定で管理する。現在開放するのは `G._wave===3`（ギャラハ）だけで、エルム・ヴァルガの酒場は同じ施設一覧に表示されても無効状態になる。酒場背景は `VILLAGE_FACILITY_BG`、酒場専用の編成窓は `prototype/js/engine/quest.js` が既存の `goToReward()`／編成DOMを使って表示する。
+
+クエストシートは `prototype/js/data/loader.js` が `window.QUEST_DATA` へ読み込む。重複する「対象」列はヘッダー名で参照せず `__colN` の列位置で読み、`A` を左、`B` を右の話者とする。地域情報の「クエスト」列から `runWithKeyedRandom('quest:<stage>:tavern', ...)` でラン内の候補を一度だけ選び、`Q009_1` は酒場、`Q009_2` は赤禍の塔の会話に使う。
+
+Q009の状態は `G.questProgress.Q009` に保持する。`status` は `offered`（未受託）、`rejected`（拒否済み）、`accepted`（受託・進行中）、`failed`（失敗）、`completed`（完了）で、選択ID、報酬枠のディナ取得、塔の報酬済みフラグも同じオブジェクトに入る。進行中のディナが魔導板から消えたかは `checkQ009CompanionPresence()` 一か所で判定し、帰滅による戦闘終了、配置変更、報酬枠へ戻す操作、施設退出から同じ関数を呼ぶ。NPC001カードのカード定義はNPCシート行から生成され、`_rewardExcluded`／`_shopExcluded` と `boss:true` を持つため通常抽選には出ず、ボス枠で無料提示される。
+
 ## 仕様を読む順番
 
 画面の入口や大まかなデータの流れを確認するときは、この文書の該当節から `prototype/js/` のファイルを開く。戦闘の条件、イベントの順序、演出の待ち時間、片側限定の理由を変更・判断するときはAGENTS.mdを先に読む。とくに次の対応を崩さない。

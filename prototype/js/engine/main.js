@@ -664,6 +664,9 @@ function _openWaveFormation(){
   });
   _rewCards=[];
   _rewFreePickDone=true;
+  // 「元に戻す」の戻り先も、報酬枠を空にした状態で取り直す。goToReward() が報酬を引いた時点の
+  // スナップショットのままだと、デバッグの編成で「元に戻す」を押した時に報酬カードが出てきた。
+  if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   G._waveRewardCount=null;
   G._waveWithdraw=false;
   const cards=document.getElementById('reward-cards-section');

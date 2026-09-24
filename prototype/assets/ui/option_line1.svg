@@ -1,17 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1800 2" preserveAspectRatio="none" shape-rendering="geometricPrecision">
+<!-- 先細りの図形（高さ2の菱形）で描くと、画面の縮小表示で輪郭が階段状にガタついた（2026-09-24 利用者指摘）。
+     一定の太さの帯に、太さの変化と同じ具合の透明度を掛けて両端を消す。色は元の素材と同じ。
+     書き出し直す時も、斜めの輪郭を持つ細い図形ではなく「帯＋透明度」にすること。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 2" preserveAspectRatio="none">
   <defs>
-    <style>
-      .cls-1 {
-        fill: url(#_名称未設定グラデーション_122);
-      }
-    </style>
-    <linearGradient id="_名称未設定グラデーション_122" data-name="名称未設定グラデーション 122" x1="0" y1="1" x2="1800" y2="1" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#bf9000"/>
-      <stop offset="1" stop-color="#3f2800"/>
-    </linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1800" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#bf9000"/><stop offset="1" stop-color="#3f2800"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="1800" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.25" stop-color="#fff" stop-opacity="0.77"/><stop offset="0.5" stop-color="#fff" stop-opacity="1"/><stop offset="0.75" stop-color="#fff" stop-opacity="0.77"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="1800" height="2"><rect width="1800" height="2" fill="url(#a)"/></mask>
   </defs>
-  <g id="_オプション" data-name="オプション">
-    <polygon class="cls-1" points="0 1 450 .23 900 0 1350 .23 1800 1 1350 1.77 900 2 450 1.76 0 1"/>
-  </g>
+  <rect width="1800" height="2" fill="url(#c)" mask="url(#m)"/>
 </svg>

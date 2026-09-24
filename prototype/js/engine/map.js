@@ -89,6 +89,7 @@ function _consumePendingMapItemUse(){
 
 function shopDone(){
   if(G._pendingPanelPlacement) return;
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true});
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._isShop=false;
   G._isForge=false;
@@ -120,6 +121,7 @@ function getVillageBackgroundKey(){
   if(G&&G._isWaveAltar) return 'tower';
   // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
   const wave=Math.max(0,Number(G&&G._wave)||0);
+  if(G&&G._isTavern) return (VILLAGE_FACILITY_BG[wave]||{}).tavern||`village${Math.min(4,wave)}`;
   return wave>=5?'villageEnd':`village${Math.min(4,wave)}`;
 }
 // 街ごとに背景の真上へ重ねる効果動画（未定義のステージは動画なし）。
@@ -135,9 +137,11 @@ const VILLAGE_BG_VIDEOS={
 const TOWER_BG_VIDEO={src:'assets/vfx/tower.webm',rate:0.3,layers:2};
 // 街×施設ごとの背景（Assets.backgroundsのキー）。未定義ならステージ背景のまま。
 const VILLAGE_FACILITY_BG={
-  1:{item:'itemShopForest',shop:'magicShopForest'},
-  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland'},
-  3:{shop:'magicShopValley',forge:'blacksmithValley'},
+  // tavern（酒場）・home（ホーム）は未実装で入れないが、背景だけ先に対応付けておく。
+  0:{home:'homeStart'},
+  1:{item:'itemShopForest',shop:'magicShopForest',tavern:'tavernForest'},
+  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland',tavern:'tavernGrassland'},
+  3:{shop:'magicShopValley',forge:'blacksmithValley',tavern:'tavernValley'},
   4:{shop:'magicShopCapital',forge:'blacksmithCapital'},
   5:{shop:'magicShopEndworld',item:'itemShopEndworld'},
 };
@@ -374,6 +378,7 @@ const VILLAGE_FACILITY_DEFS={
   '宿屋':     {key:'inn'},
   '広場':     {key:'plaza'},
   '酒場':     {key:'tavern'},
+  '闘技場':   {key:'arena'},
   // 塔の施設
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
@@ -459,22 +464,23 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
     '魔導店':{x:267, y:814},
     '道具屋':{x:3132,y:1020},
   },
-  // ヴァルガ
+  // ヴァルガ（2026-09-23 利用者指定）
   2:{
-    '鍛冶屋':{x:3209,y:967},
-    '魔導店':{x:2352,y:967},
-    '道具屋':{x:756, y:1020},
-    '宿屋':  {x:1231,y:814},
+    '魔導店':{x:2285,y:777},
+    '道具屋':{x:3135,y:920},
+    '宿屋':  {x:935, y:900},
+    '酒場':  {x:348, y:1395},
   },
-  // ギャラハ
+  // ギャラハ（2026-09-23 利用者指定）
   3:{
-    '鍛冶屋':{x:2481,y:487},
-    '魔導店':{x:2826,y:899},
-    '広場':  {x:486, y:1481},
+    '魔導店':{x:800, y:905},
+    '鍛冶屋':{x:1620,y:795},
+    '酒場':  {x:3145,y:995},
+    '闘技場':{x:2785,y:675},
   },
-  // ヴォルザーク
+  // ヴォルザーク（宿屋は、酒場から差し替わった時に酒場の位置をそのまま使う。2026-09-24 利用者指定）
   4:{
-    '酒場':  {x:2485,y:1698},
+    '宿屋':  {x:2485,y:1698},
     '魔導店':{x:3206,y:1100},
     '鍛冶屋':{x:335, y:1096},
   },
@@ -553,9 +559,10 @@ function useVillageInn(){
 // 中身が未実装／現在は開放しない施設。表示はするが選べない（暗くする）。
 // inn（宿屋）は処理自体は実装済みだが、いまは押せないようにしている
 // （再開する時はこのSetから'inn'を外すだけでよい。下の条件判定はそのまま残してある）。
-const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','tavern','inn','landing']);
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','inn','landing','arena']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
+  if(fac.key==='tavern') return Number(G&&G._wave)!==3;
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   if(fac.key==='inn'){
     const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
@@ -606,7 +613,11 @@ async function _onVillageFacility(fac){
     useVillageInn();
     return;
   }
-  // 広場（クエスト受託相当）・酒場・踊り場は表示のみ。SEも鳴らさない。
+  if(fac.key==='tavern'){
+    if(typeof openTavern==='function') openTavern();
+    return;
+  }
+  // 広場（クエスト受託相当）・闘技場・踊り場は表示のみ。SEも鳴らさない。
 }
 // ══════════════════════════════════════════════════════════
 // ワールドマップ画面（出発時に数秒だけ表示してから戦闘へ移行する）
@@ -1111,6 +1122,7 @@ async function _playVillageEnterIntro(build){
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
   G._savePresentation=false;
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true});
   // **村の画面に入ったら、必ず操作を解禁する。**
   // villageDepart() は出発の二重発火を防ぐため body.inert を立て、解除は
   // startBattle() 側で行っていた。ところが塔（ステージ4）→フォルセティ（ステージ5）
@@ -1156,8 +1168,14 @@ function openMapVillage(options){
     if(typeof showScreen==='function') showScreen('village');
     renderVillageScreen();
   };
-  if(options&&options.intro){ void _playVillageEnterIntro(build); return; }
+  if(options&&options.intro){
+    void _playVillageEnterIntro(build).then(()=>{
+      if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
+    });
+    return;
+  }
   build();
+  if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
 }
 
 // 図書館メニュー。街と同じ画面構造を使い、背景だけlibrary.pngへ差し替える。

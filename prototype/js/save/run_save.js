@@ -149,6 +149,7 @@ const SaveRun=(()=>{
     function cards(list){for(const c of list){if(!c)continue;const ref=SaveProfile.identity(c);a(typeof c==='object'&&pools.some(def=>c.id===def.id||(ref&&SaveProfile.identity(def)?.id===ref.id)),`未登録の所持カードIDです: ${c.id||c.no||c.No||c.name||'?'}`);}}
     for(const key of ['mainBoard','globalPanels','spellSlots','rings']) cards(s.player[key]);
     a(s.reward&&Array.isArray(s.reward.cards)&&typeof s.reward.freePickDone==='boolean'&&Number.isInteger(s.reward.phaseId),'報酬状態が不正です');cards(s.reward.cards);
+    if(s.questProgress!==undefined) a(s.questProgress&&typeof s.questProgress==='object'&&!Array.isArray(s.questProgress),'クエスト状態が不正です');
     a(s.rng&&[s.rng.seed,s.rng.state].every(n=>Number.isInteger(n)&&n>=0&&n<=0xffffffff),'乱数状態が不正です');
     a(s.sets&&setFields.every(k=>Array.isArray(s.sets[k])),'集合の状態が不正です');
     if(save.checkpoint.type==='battle') validateBattle(save.pendingBattle);
@@ -189,7 +190,8 @@ const SaveRun=(()=>{
     for(const group of Object.keys(fields)) Object.assign(G,s[group]);
     for(const name of setFields) G[name]=new Set(s.sets[name]);
     G._runId=save.runId;G._runSeed=s.rng.seed;G._runRngState=s.rng.state;
-    G.questProgress=s.questProgress;G.difficulty=s.difficulty;G._runEnded=false;
+    G.questProgress=(s.questProgress&&typeof s.questProgress==='object'&&!Array.isArray(s.questProgress))?s.questProgress:{};
+    G.difficulty=s.difficulty;G._runEnded=false;
     _rewCards=s.reward.cards;_rewFreePickDone=s.reward.freePickDone;_rewPhaseId=s.reward.phaseId;
     G._partyBoardUnit=null;G.phase=save.checkpoint.type==='battle'?'player':'reward';
     // 復元後は「積算（playedMs）＋この起動からの経過」で数え直す。

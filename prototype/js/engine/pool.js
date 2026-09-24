@@ -8,6 +8,7 @@
 // 購入価格
 function calcBuyPrice(card){
   if(!card) return 1;
+  if(card._npcCard) return 0;
   if(typeof G!=='undefined'&&G&&G._freeRewardPanelMode&&(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope)) return 0;
   if(card.type==='consumable') return card.cost||1;
   if(card.type==='panel'||card.type==='global-panel'||card.kind==='panel'||card.panelScope) return card.cost||2;
@@ -294,7 +295,10 @@ function makePanel(idOrName){
   }
   _normalizePanelRewardCost(c);
   c.noRewardUse=true;
-  if(String(c.category||'')==='キャラクター') c.directions=_rollPanelDirections(c.directionCount||2,{avoidOpposite:true});
+  if(String(c.category||'')==='キャラクター'){
+    const directionCount=c.directionCount==null?2:Math.max(0,Number(c.directionCount)||0);
+    c.directions=directionCount>0?_rollPanelDirections(directionCount,{avoidOpposite:true}):[];
+  }
   if(['強化','エンチャント'].includes(String(c.category||''))){
     const directionCount=c.directionCount==null?2:Math.max(0,Number(c.directionCount)||0);
     c.directions=directionCount>0?_rollPanelDirections(directionCount):[];

@@ -356,6 +356,8 @@ function placePendingPanelToSelectedUnit(slotIdx){
   if(!unit) return false;
   const boardList=_normalizeUnitBoardCards(unit);
   if(slotIdx<0||slotIdx>=boardList.length) return false;
+  if(pending.card._npcDeployOnly&&typeof boardSlotIsDeployable==='function'
+    &&!boardSlotIsDeployable(unit,slotIdx)) return false;
   const oldCard=boardList[slotIdx]||null;
   const merged=_mergedPanelCard(oldCard,pending.card);
   const nextBoardList=boardList.slice();
@@ -566,7 +568,8 @@ function _detachBoardConnectionVisuals(srcIdx, srcEl, srcCard){
 // 魔導板上のカードを売却できる施設か。魔導店（_isShop）に加え、鍛冶屋（_isForge）でも売却できる。
 // **デバッグモードの編成画面でも魔導店と同じ売却ボタンを出す**（利用者指定）。
 // 以前はデバッグモードだけボタンが出ず、×の経路でゴールドも入らずに消えていた。
-function _boardCardSellEnabled(){
+function _boardCardSellEnabled(card){
+  if(card&&card._npcCard) return false;
   // ゲームオーバー魔導板は編成画面の描画をそのまま流用する（G.phaseを一時的に
   // 'reward'にする）ため、ここで除外しないとデバッグモードで売却UIが付いてくる。
   if(G&&G._renderingGameOverBoard) return false;
@@ -632,7 +635,7 @@ function goToReward(options){
     // 鍵には敗北回数（_waveDefeatCount）も入れる。敗北しても場面・段は進まないため、
     // これが無いと敗北直後の報酬が直前と全く同じ5枚になる。
     // レア度4以上の枚数と並び（隣り合わせない）は _arrangeRewardRarity() が唯一の実装。枚数を切り詰めた後に通す。
-    _rewCards=runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
+    _rewCards=G._isTavern?[]:runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
       ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
@@ -956,7 +959,9 @@ function renderMoveSlotsInEnemy(){
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
-    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isTavern
+    // 酒場（依頼カードを受け取る画面）にも置く（2026-09-24 利用者指定）。戻り先は依頼カードを
+    // 報酬枠へ置いた直後のスナップショット（quest.js の _qOpenTavernFormation）。
+    const canResetMapReward=!G._isLibrary&&!G._isVillageMenu
       &&(!G._isForge||!!G._debugMode);
     if(canResetMapReward){
       const reset=document.createElement('button');
@@ -972,6 +977,7 @@ function renderMoveSlotsInEnemy(){
       };
       el.appendChild(reset);
     }
+    if(G._isTavern&&typeof syncTavernFormationControls==='function') syncTavernFormationControls();
     return;
   }
   let opts;
@@ -1144,6 +1150,7 @@ function _returnDragSrcToRewardArea(targetIdx){
   renderRewCards();
   renderHandEditor();
   renderFieldEditor();
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
 }
 // 報酬カード置き場：配置順（戦闘順序）置き場を廃止し、同じ画面位置（#reward-offer-section）にそのまま
 // 報酬カードを横スクロール行として並べる。データ(_rewCards)自体は従来通り。
@@ -1180,7 +1187,7 @@ function _syncRewardTitleLabel(){
   const el=document.querySelector('#reward-production-ui .reward-prod-title span');
   if(!el) return;
   // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
-  const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary)?String(G._facilityLabel||'').trim():'';
+  const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary||G._isTavern)?String(G._facilityLabel||'').trim():'';
   // **見出しはテキストメッセージシートが唯一の出どころ**（「◯◯見出し」）。
   const t=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   el.textContent=fromVillage
@@ -1197,7 +1204,7 @@ function _syncRewardProductionUi(){
   if(!body) return;
   _syncRewardJourneyUi();
   if(!G||G.phase!=='reward'){
-    body.classList.remove('reward-pick-finished','reward-return-open','reward-pick-taken','forge-screen-active','shop-screen-active');
+    body.classList.remove('reward-pick-finished','reward-return-open','reward-pick-taken','forge-screen-active','shop-screen-active','tavern-screen-active');
     body.classList.remove('map-forge-roll-hide-cards');
     _syncMoneyTurnTile();
     return;
@@ -1205,6 +1212,7 @@ function _syncRewardProductionUi(){
   body.classList.toggle('forge-screen-active',!!G._isForge);
   body.classList.toggle('shop-screen-active',!!G._isShop);
   body.classList.toggle('item-shop-active',!!G._isItemShop);
+  body.classList.toggle('tavern-screen-active',!!G._isTavern);
   _syncRewardTitleLabel();
   const dragging=Array.from(body.classList).some(c=>c.indexOf('dragzone-')===0);
   const returned=Array.isArray(_rewCards)&&_rewCards.some(c=>c&&c._temporaryRewardAreaCard);
@@ -1223,6 +1231,7 @@ function _syncRewardProductionUi(){
   _syncMoneyTurnTile();
   _syncRewardProductionItems();
   _syncRewardProductionRings();
+  if(typeof syncQuestFormationUi==='function') syncQuestFormationUi();
 }
 function _rewardRingArtPath(ring){
   if(!ring) return '';
@@ -1413,7 +1422,8 @@ function renderRewCards(){
   const el=document.getElementById('reward-offer-row');
   if(!section||!el) return;
   const rewardSectionLabel=document.querySelector('#reward-cards-section .field-label');
-  if(rewardSectionLabel) rewardSectionLabel.textContent=G._isLibrary?'貸出カード':'提示カード';
+  if(rewardSectionLabel) rewardSectionLabel.textContent=G._isLibrary?'貸出カード':(G._isTavern
+    ?_uiLabel('「酒場の報酬枠」見出し','依頼カード'):'提示カード');
   if(G.phase!=='reward'){ section.style.display='none'; el.innerHTML=''; _syncRewardProductionUi(); return; }
   // 村/祭壇メニューと鍛冶屋は同じ行を独自の選択肢で使用するため、
   // カード移動後の再描画で提示内容を消さない。
@@ -1705,7 +1715,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.appendChild(sale);
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
-  }else if(canBuy&&G._isShop) div.onclick=onBuy;
+  }else if(canBuy&&(G._isShop||G._isTavern)) div.onclick=onBuy;
   _appendLibraryLoanBadge(div);
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
@@ -2053,6 +2063,7 @@ function takeRewCard(i, targetSlot){
         else _rewCards.splice(i,1);
       }
       refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor();
+      if(card._npcCard&&typeof onTavernQuestRewardCardTaken==='function') onTavernQuestRewardCardTaken(card);
     };
     if(!startPanelPlacement(card,finish,'報酬')) return;
     if(targetSlot!=null&&typeof placePendingPanelToSelectedUnit==='function'){
@@ -2885,7 +2896,10 @@ function _boardSlotDef(idx,unit){
   return UNIT_EQUIP_SLOTS[idx]||{label:'',kind:'any'};
 }
 function _canCardUseBoardSlot(card,idx,unit){
-  return !!card&&idx>=0&&idx<MAIN_BOARD_SIZE;
+  if(!card||idx<0||idx>=MAIN_BOARD_SIZE) return false;
+  if(card._npcDeployOnly&&typeof boardSlotIsDeployable==='function'
+    &&!boardSlotIsDeployable(unit,idx)) return false;
+  return true;
 }
 function _findBoardSlotForCard(unit,card,arr){
   const boardList=arr||_getPartyBoardUnit().boardCards||[];
@@ -3459,6 +3473,7 @@ function moveBoardCardToUnit(boardIdx, srcUnitIdx, destUnitIdx){
   if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   renderHandEditor();
   renderFieldEditor();
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
   return true;
 }
 // ── スペル置き場（1×3・戦闘をまたいで保持。スペルカードのみ⇔報酬エリアの間で移動可）──
@@ -3915,7 +3930,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       // 以前は_isCurrentRewardReturnCardを除外していたため、そのカードの×が「報酬に戻す」として
       // 処理されて_boardDiscardCountが増えず、3枚のはずが4枚廃棄しないと解放されない不具合があった。
       const _ringOfferDiscardable=arrName==='boardCards'&&G&&G._ringOfferPhase&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0&&!G._ringOfferUnlocked&&!G._ringOfferResolved;
-      const _boardSellable=_boardCardSellEnabled();
+      const _boardSellable=_boardCardSellEnabled(card);
       const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
       const _spellBtn=arrName==='boardCards'
@@ -4059,7 +4074,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(_libraryTutorialIsMoveStep()) return;
         // SEはボタン種別で最初に決める。デバッグモード等の分岐が先にreturnしても
         // 「還魂＝ascension / 売却＝sell」が確実に鳴るようにする。
-        if(!discardBtn.classList.contains('ring-offer-discard-btn')&&_boardCardSellEnabled()) _playRewardAcquireSfx('sell.wav');
+        if(!discardBtn.classList.contains('ring-offer-discard-btn')&&_boardCardSellEnabled(card)) _playRewardAcquireSfx('sell.wav');
         if(arrName==='boardCards'){
           // 指輪提示（還魂）中は最優先で廃棄カウントへ回す。デバッグモード分岐やショップ分岐が
           // 先にreturnすると_boardDiscardCountが増えず、3枚還魂しても指輪が解放されない。
@@ -4067,7 +4082,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             _discardBoardCardForRingOffer(i,card);
             return;
           }
-          if(_boardCardSellEnabled()){
+          if(_boardCardSellEnabled(card)){
             const unit=_getPartyBoardUnit();
             if(unit){
               const boardList=_normalizeUnitBoardCards(unit);
@@ -4081,6 +4096,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             }
             refreshRewardGoldUi();
             renderHandEditor(); renderFieldEditor(); renderRewCards();
+            if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
             return;
           }
           if(G&&G._debugMode){
@@ -4094,6 +4110,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             }
             renderHandEditor();
             renderFieldEditor();
+            if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
             return;
           }
           if(_isCurrentRewardReturnCard(card)){
@@ -4108,6 +4125,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             _restoreRewardReturnCard(card);
             _rewFreePickDone=false;
             renderRewCards(); renderHandEditor(); renderFieldEditor();
+            if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
             return;
           }
           return;
@@ -4169,6 +4187,12 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='boardCards'||arrName==='globalPanels'){
         ph.classList.add('board-empty',`board-slot-${_slotDef.kind}`);
       }
+      if(arrName==='boardCards'&&G._pendingPanelPlacement&&G._pendingPanelPlacement.card
+        &&G._pendingPanelPlacement.card._npcDeployOnly
+        &&typeof _canCardUseBoardSlot==='function'
+        &&!_canCardUseBoardSlot(G._pendingPanelPlacement.card,i,_getPartyBoardUnit())){
+        ph.classList.add('invalid-battle-position');
+      }
       const _emptyMapPowerId=arrName==='boardCards'&&typeof mapPanelPowerIdAt==='function'?mapPanelPowerIdAt(i):'';
       const _emptyPowerId=_emptyMapPowerId;
       if(arrName==='boardCards'&&_emptyMapPowerId) ph.dataset.mapBoard=_emptyMapPowerId;
@@ -4211,6 +4235,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(arrName==='boardCards'&&_dragSrc){
           const c=_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:_dragSrc.arr==='boardCards'?(_getPartyBoardUnit()?.boardCards||[])[_dragSrc.idx]:_dragSrc.card;
           if(!_libraryTutorialAllowsMove(c,i)) return;
+          if(c&&(!_canCardUseBoardSlot(c,i,_getPartyBoardUnit()))) return;
         }
         e.preventDefault(); ph.classList.add('drag-over');
       });
@@ -4412,6 +4437,7 @@ function dropOnCard(destArr,destIdx){
       if(srcArr==='boardCards'&&typeof playSfx==='function') playSfx('fit',{group:'reward'});
       _flashConnectedBoardCards(destIdx);
       renderFieldEditor();
+      if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
       return;
     }
     if(srcArr==='boardCards'){
@@ -4444,6 +4470,7 @@ function dropOnCard(destArr,destIdx){
     if(!tripleMerge&&srcArr==='boardCards'&&typeof playSfx==='function') playSfx('fit',{group:'reward'});
     if(!tripleMerge) _flashConnectedBoardCards(destIdx);
     renderFieldEditor();
+    if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
     if(tripleMerge) _playTripleMergeAnimation(tripleMerge);
     return;
   }

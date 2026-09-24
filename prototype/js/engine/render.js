@@ -5047,6 +5047,10 @@ function renderField(id,units,isEnemy,_lane){
         const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
         const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
         if(_preview) slot.setAttribute('data-preview',_preview);
+        // 説明の見出し左の色アイコン。味方はカードの色、**敵は常に黒**（2026-09-24 利用者指定）。
+        // 編成画面のカード（render.js の mkCardEl）と同じ属性で渡す。付け忘れていたため戦闘中だけ出なかった。
+        const _previewColor=isEnemy?'黒':String(u.color||'');
+        if(_previewColor) slot.setAttribute('data-preview-title-color',_previewColor);
         // 画面に出す値は present.js が唯一の実装。演出の再生中は
         // 「まだ見せていない変化」を反映しない（数値が出る前にHPが減らない）。
         const _shownAtk=typeof presentShownAtk==='function'?presentShownAtk(u):(u.atk||0);
@@ -5085,6 +5089,7 @@ function renderField(id,units,isEnemy,_lane){
         const hitLayer=document.createElement('div');
         hitLayer.className='unit-hit-layer';
         if(_preview) hitLayer.setAttribute('data-preview',_preview);
+        if(_previewColor) hitLayer.setAttribute('data-preview-title-color',_previewColor);
         slot.appendChild(hitLayer);
         slot._hitLayer=hitLayer;
         if(!isEnemy&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(hitLayer,u,i);

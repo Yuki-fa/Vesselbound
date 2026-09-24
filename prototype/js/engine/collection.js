@@ -376,7 +376,7 @@ function _collectionRender(){
     if(_collectionKind==='equipment'&&!insertedEquipmentLine&&_collectionEntryKind(card)==='item'){
       const line=document.createElement('img');
       line.className='collection-equipment-line';
-      line.src='assets/ui/collection_line.svg?v=smooth0918';
+      line.src='assets/ui/collection_line.svg?v=band0924';
       line.alt='';
       grid.appendChild(line);
       insertedEquipmentLine=true;

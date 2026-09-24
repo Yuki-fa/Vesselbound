@@ -318,7 +318,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
   inset:0;
   z-index:0;
   pointer-events:none;
-  background:url("assets/art/backgrounds/title_castle.png") center/cover no-repeat;
+  background:url("assets/art/backgrounds/title_castle.webp") center/cover no-repeat;
   opacity:0;
   animation:title-castle-overlay-pulse 12s ease-in-out infinite;
   animation-play-state:paused;
@@ -4487,7 +4487,7 @@ html body.reward-screen-active #reward-bg-video{
   width:100%!important;
   height:100%!important;
   object-fit:cover!important;
-  filter:hue-rotate(245deg) saturate(1.35)!important;
+  filter:grayscale(1) sepia(1) saturate(2.4) hue-rotate(-8deg) brightness(8.6)!important;
   z-index:-1!important;
   pointer-events:none!important;
 }
@@ -6018,9 +6018,20 @@ html body.reward-screen-active #reward-bg-video{
   width:100%!important;
   height:100%!important;
   object-fit:cover!important;
-  opacity:.48!important;
-  filter:sepia(.38) hue-rotate(245deg) saturate(2.1) brightness(1.12)!important;
-  mix-blend-mode:screen!important;
+  /* 色味は金（2026-09-24 利用者指定。以前は紫＝sepia(.38) hue-rotate(245deg) saturate(2.1)）。
+     元の動画は暗い赤橙のグラデーション＋光の粒で、色相を回すだけでは茶色〜黄緑になるため、
+     一度モノクロにしてセピアで金を乗せる。
+     **重ね方は soft-light で、動画の平均を50%グレーへ合わせる（brightness(8.6)）。**
+     soft-light は重ねる色が50%グレーなら下を変えず、それより暗いと焼き込み・明るいと覆い焼きになる。
+       screen だった頃：動画の暗いグラデーションが背景の中間調を約3割持ち上げ、色褪せて見えた。
+       soft-light＋brightness(1.3)の頃：動画がほぼ全面暗いため背景全体が沈み、焼き込みに見えた。
+     この動画の明るさは中央値で約15/255なので、8.6倍で約128（50%グレー）になる。
+     こうすると平らな部分は背景の明るさを保ったまま金色の暖かみだけが乗り、揺らぎと光の粒が明暗として出る。
+     動画を差し替えたら中央値を測り直して brightness を合わせること。金の強さは opacity で調整する
+     （.5 は強すぎるとの指摘で .3 に。2026-09-24）。 */
+  opacity:.3!important;
+  filter:grayscale(1) sepia(1) saturate(2.4) hue-rotate(-8deg) brightness(8.6)!important;
+  mix-blend-mode:soft-light!important;
   z-index:1!important;
   pointer-events:none!important;
 }
@@ -9180,7 +9191,7 @@ html body.debug-mode #journey-progress-ui .journey-scene-mark-debug-jump:hover{
 }
 
 /* ゲームオーバー：背景を残したまま結果と敗北時点の魔導板を表示する。 */
-#scr-gameover{display:none;overflow:hidden;background:#07100d url('assets/art/backgrounds/game_start.png') center/cover no-repeat;color:#8b7c67}
+#scr-gameover{display:none;overflow:hidden;background:#07100d url('assets/art/backgrounds/village_start.webp') center/cover no-repeat;color:#8b7c67}
 #scr-gameover.active{display:block}
 #scr-gameover::before{content:'';position:absolute;inset:0;background:rgba(0,0,0,.68);animation:gameoverDarken .4s ease-out both;pointer-events:none}
 #gameover-shell{position:absolute;left:7%;right:7%;top:10%;bottom:10%;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:5%;padding:70px 78px;border:3px solid rgba(194,145,34,.85);background:rgba(8,13,10,.48);box-shadow:inset 0 0 60px rgba(0,0,0,.35);animation:gameoverFrameIn .4s .4s ease-out both}
@@ -10759,7 +10770,7 @@ html body.library-formation-active.reward-screen-active #scr-battle::before{
   background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
 }
 html body.library-formation-active #scr-battle{
-  background:#08020f url("assets/art/backgrounds/library.png") center/cover no-repeat!important;
+  background:#08020f url("assets/art/backgrounds/library.webp") center/cover no-repeat!important;
 }
 html body.library-screen-active #village-name-plate,
 html body.library-screen-active #scr-village #village-move-btns #village-depart-btn,
@@ -11784,7 +11795,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
     <button type="button" class="collection-arrow" id="collection-prev" aria-label="前のカード" data-sfx-silent="1"></button>
     <div id="collection-card-name"></div>
     <button type="button" class="collection-arrow" id="collection-next" aria-label="次のカード" data-sfx-silent="1"></button>
-    <img id="collection-detail-line" src="assets/ui/collection_line.svg?v=smooth0918" alt="">
+    <img id="collection-detail-line" src="assets/ui/collection_line.svg?v=band0924" alt="">
     <div id="collection-detail-text"><div id="collection-card-stats"></div><div id="collection-card-desc"></div></div>
     <button type="button" id="collection-return" data-collection-text="return"></button>
   </div>
@@ -11795,19 +11806,19 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
   <button data-sfx-silent="1" id="options-close-proxy" type="button" aria-label="オプションを閉じる"></button>
   <section id="options-panel" aria-label="オプション">
     <div class="options-title" data-option-text="title"></div>
-    <div class="options-heading" style="top:148px" data-option-text="game"></div><img class="options-line" style="top:224px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
-    <div class="options-heading" style="top:369px" data-option-text="graphics"></div><img class="options-line" style="top:445px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
-    <div class="options-heading" style="top:590px" data-option-text="language"></div><img class="options-line" style="top:664px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
-    <div class="options-heading" style="top:809px" data-option-text="sound"></div><img class="options-line" style="top:884px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
-    <div class="options-heading" style="top:1139px" data-option-text="data"></div><img class="options-line" style="top:1215px" src="assets/ui/option_line1.svg?v=smooth0918" alt="">
+    <div class="options-heading" style="top:148px" data-option-text="game"></div><img class="options-line" style="top:224px" src="assets/ui/option_line1.svg?v=band0924" alt="">
+    <div class="options-heading" style="top:369px" data-option-text="graphics"></div><img class="options-line" style="top:445px" src="assets/ui/option_line1.svg?v=band0924" alt="">
+    <div class="options-heading" style="top:590px" data-option-text="language"></div><img class="options-line" style="top:664px" src="assets/ui/option_line1.svg?v=band0924" alt="">
+    <div class="options-heading" style="top:809px" data-option-text="sound"></div><img class="options-line" style="top:884px" src="assets/ui/option_line1.svg?v=band0924" alt="">
+    <div class="options-heading" style="top:1139px" data-option-text="data"></div><img class="options-line" style="top:1215px" src="assets/ui/option_line1.svg?v=band0924" alt="">
     <div class="options-current-title" style="top:160px" data-option-text="current"></div>
-    <div class="options-item" style="top:259px" data-option-text="speed-label"></div><img class="options-line item" style="top:335px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:479px" data-option-text="mode-label"></div><img class="options-line item" style="top:554px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:699px" data-option-text="language-label"></div><img class="options-line item" style="top:775px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:918px" data-option-text="bgm-label"></div><img class="options-line item" style="top:994px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:1028px" data-option-text="se-label"></div><img class="options-line item" style="top:1103px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:1254px" data-option-text="run-label"></div><img class="options-line item" style="top:1334px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
-    <div class="options-item" style="top:1368px" data-option-text="profile-label"></div><img class="options-line item" style="top:1443px" src="assets/ui/option_line2.svg?v=smooth0918" alt="">
+    <div class="options-item" style="top:259px" data-option-text="speed-label"></div><img class="options-line item" style="top:335px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:479px" data-option-text="mode-label"></div><img class="options-line item" style="top:554px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:699px" data-option-text="language-label"></div><img class="options-line item" style="top:775px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:918px" data-option-text="bgm-label"></div><img class="options-line item" style="top:994px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:1028px" data-option-text="se-label"></div><img class="options-line item" style="top:1103px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:1254px" data-option-text="run-label"></div><img class="options-line item" style="top:1334px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
+    <div class="options-item" style="top:1368px" data-option-text="profile-label"></div><img class="options-line item" style="top:1443px" src="assets/ui/option_line2.svg?v=band0924b" alt="">
     <div class="options-current" style="top:259px" data-current="speed"></div><div class="options-current" style="top:479px" data-current="mode"></div><div class="options-current" style="top:699px" data-current="language"></div><div class="options-current" style="top:918px" data-current="bgm"></div><div class="options-current" style="top:1028px" data-current="se"></div>
     <div class="options-choice" style="top:244px" data-choice="speed"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
     <div class="options-choice" style="top:464px" data-choice="mode"><button data-sfx-silent="1" class="prev" type="button"></button><span></span><button data-sfx-silent="1" class="next" type="button"></button></div>
@@ -12151,18 +12162,18 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=revealSfx0923"></script>
+<script src="assets.js?v=npcFrame0924b"></script>
 <script src="js/engine/audio.js?v=revealSfx0923"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=vriExclude0922"></script>
+<script src="js/data/local_xlsx_data.js?v=quest0924"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=sheetItems0921"></script>
+<script src="js/data/loader.js?v=q0090924"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=silence0923"></script>
-<script src="js/battle/formation.js?v=dupPower0922"></script>
+<script src="js/battle/formation.js?v=q0090924"></script>
     <script src="js/battle/present.js?v=deathBreak0917"></script>
     <script src="js/battle/present_events.js?v=injuryFlash0917"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
@@ -12176,25 +12187,26 @@ _watchVesselboundDpr();
 <script src="js/online/versus.js?v=leprechaun0916"></script>
 <script src="js/online/flow.js?v=noTreasure01"></script>
 <script src="js/online/hud.js?v=onlineExit01"></script>
-<script src="js/engine/state.js?v=cleanupLegacy01"></script>
+<script src="js/engine/state.js?v=q0090924"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=checkpoint01"></script>
 <script src="js/save/profile_save.js?v=collection0918"></script>
-<script src="js/save/run_save.js?v=boardRename01"></script>
-<script src="js/engine/pool.js?v=rewardHigh0923"></script>
+<script src="js/save/run_save.js?v=q0090924"></script>
+<script src="js/engine/pool.js?v=q0090924"></script>
 <script src="js/engine/enemy.js?v=debugEnemyCycle0917"></script>
-    <script src="js/engine/battle.js?v=persistWarn0922"></script>
+    <script src="js/engine/battle.js?v=q0090924"></script>
     <script src="js/engine/battle_events.js?v=rainbowText0922"></script>
-<script src="js/engine/render.js?v=wastedLayer0923"></script>
+<script src="js/engine/render.js?v=tipColor0924"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=rewardDragFix0917"></script>
 <script src="js/engine/reward_journey.js?v=enemySummonStats0917"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=revealGlow0923"></script>
-<script src="js/engine/map.js?v=forgeSoldOut0917"></script>
-    <script src="js/engine/main.js?v=debugMapBtn0921"></script>
+<script src="js/engine/reward.js?v=tavernReset0924"></script>
+<script src="js/engine/map.js?v=tavern0924"></script>
+    <script src="js/engine/quest.js?v=bubble0924b"></script>
+    <script src="js/engine/main.js?v=debugReset0924"></script>
 <script src="js/engine/options.js?v=collectionReturn0921"></script>
-<script src="js/engine/collection.js?v=collection0921b"></script>
+<script src="js/engine/collection.js?v=band0924"></script>
 <script>
 // 勝利・撤退カットインの進行ボタンは、全体クリックSEより後段でも必ず遷移処理へ到達させる。
 document.addEventListener('click',function(ev){
@@ -12589,6 +12601,12 @@ html body #kw-tooltip.character-tooltip,
 html body #kw-tooltip.journey-enemy-tooltip{
   background-color:rgba(7,3,1,.95)!important;
 }
+/* 特殊マスの説明は、キャラクター用の枠（character-tooltip）で出る時も特殊マスの地色にする。
+   カード非表示中は #map-power-tooltip ではなく #kw-tooltip に「character-tooltip map-tooltip」の
+   両方が付いて出るため、上の黒茶色が勝って通常時（紺）と色が違っていた。 */
+html body #kw-tooltip.character-tooltip.map-tooltip{
+  background-color:rgba(17,28,42,.95)!important;
+}
 /* 見出しと太字キーワードは個別の色を維持し、通常本文だけを旅の進捗と同色にする。 */
 html body #kw-tooltip,
 html body #kw-tooltip.map-tooltip,
@@ -12645,6 +12663,19 @@ html body #kw-tooltip.journey-enemy-tooltip .journey-enemy-name > br{
 html body #kw-tooltip.journey-enemy-tooltip :is(.journey-enemy-prefix,.journey-enemy-main-name){
   display:block!important;
   line-height:1.35!important;
+}
+/* 旅の進捗の2行の名前（二つ名＋固有名／地名＋街名）は、1行目と2行目の間を空ける。
+   文字サイズの違う2行を ×1.35 で詰めて並べると、固有名（引用符・カタカナ）が
+   1行目に接して見えた（ギャラハなど。2026-09-24 利用者指摘）。調整は下の --journey-name-gap。 */
+html body #kw-tooltip{
+  --journey-name-gap:calc(12px * var(--game-scale));
+}
+html body #kw-tooltip.journey-enemy-tooltip .journey-enemy-prefix{
+  margin-bottom:var(--journey-name-gap)!important;
+}
+html body #kw-tooltip.no-title-rule .preview-title .journey-town-prefix{
+  display:inline-block!important;
+  margin-bottom:var(--journey-name-gap)!important;
 }
 /* 街名の固有名より前の行はクエスト本文と同じサイズ・色にする。 */
 html body #kw-tooltip.no-title-rule .preview-title .journey-town-prefix,
@@ -14069,6 +14100,26 @@ html body #kw-tooltip.has-rarity-banner::before{
   mask-position:0 0,center calc(-25px * var(--game-scale))!important;
   mask-repeat:no-repeat!important;
   mask-composite:exclude!important;
+}
+/* **塗り（地色）もくり抜く。** 地色は説明枠の本体に塗っていたので、枠線（::before）だけを
+   くり抜いても rarity_back の後ろに地色が残っていた（2026-09-24 利用者指摘）。
+   本体をくり抜くとレアリティ台ごと欠けるため、レアリティ台付きの時だけ地色を ::before へ移し、
+   枠線と一緒に同じマスクで抜く。::before は本文より下へ（z-index:-1。本体が isolation:isolate
+   なので本体の外へは出ない）。地色は各説明枠の地色と同じ値を --rarity-tip-bg で渡す。 */
+html body #kw-tooltip.has-rarity-banner{
+  --rarity-tip-bg:rgba(47,26,11,.95);
+  background-color:transparent!important;
+}
+html body #kw-tooltip.has-rarity-banner:is(.character-tooltip,.journey-enemy-tooltip){
+  --rarity-tip-bg:rgba(7,3,1,.95);
+}
+html body #kw-tooltip.has-rarity-banner.map-tooltip{
+  --rarity-tip-bg:rgba(17,28,42,.95);
+}
+html body #kw-tooltip.has-rarity-banner::before{
+  background-color:var(--rarity-tip-bg)!important;
+  background-clip:border-box!important;
+  z-index:-1!important;
 }
 html body #kw-tooltip.has-rarity-banner > .card-rarity-banner{
   position:absolute!important;
