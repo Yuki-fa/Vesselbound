@@ -149,5 +149,6 @@ function initState(){
     _bossRingOfferSeen:[],
     // ラン中のクエスト状態。会話のDOMは保存せず、再開時は入口から再表示する。
     questProgress:{},
+    _facilityTalkSeen:{},
   };
 }

@@ -1532,6 +1532,12 @@ function coreResolvedRings(state, side) {
     return cur;
   }).filter(Boolean);
 }
+// 指輪名ではなく、シートの効果文から「開戦：全ての敵は+X/+Yを得る。」を読む。
+function coreOpeningEnemyStatBonus(ring) {
+  const text = String(ring && (ring.desc || ring.effect || ring.effectText) || '');
+  const match = text.match(/(?:^|\s)開戦\s*[：:]\s*全ての敵は\s*[+＋]?\s*(\d+)\s*\/\s*[+＋]?\s*(\d+)\s*を得る/);
+  return match ? { atk: Number(match[1]) || 0, hp: Number(match[2]) || 0 } : null;
+}
 function coreRingCount(state, side, name) {
   return coreResolvedRings(state, side).filter(x => x && String(x.name || x) === String(name || '')).length;
 }
@@ -1795,7 +1801,11 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   // 開戦効果より前に走るので、開戦効果で召喚された体（複製・ミテーラ等）は
   // そのままだと指輪のバフを1つも受け取れない。
   // 配り終えた印（_openingRingsApplied／_openingItemsApplied）が立っていれば掛ける。
-  if (state._openingPhase) {
+  // **元の値を写したコピー（複製の力など）には掛けない。** 写した値に指輪の分が既に入っているため、
+  // 掛けると指輪が二重に乗り、コピーだけ元より大幅に強くなっていた（虹の瞳の指輪等。2026-09-25 利用者報告）。
+  if (spec && spec._inheritsStats) {
+    // 何も掛けない（下の色の指輪も同じ理由で掛けない）。
+  } else if (state._openingPhase) {
     if (state._openingRingsApplied) {
       coreApplyOpeningRingsToUnitEarly(state, child, emit);
       coreApplyOpeningRingsToUnitLate(state, child, emit);
@@ -2070,6 +2080,21 @@ function coreApplyOpeningRings(state, rng, emit, applyHit) {
   try {
   const live = side => (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
   ['p1', 'p2'].forEach(side => live(side).forEach(u => coreApplyOpeningRingsToUnitEarly(state, u, emit)));
+  // 効果文駆動の敵全体バフ。どちらの陣営が装備しても、その相手側へ同じ規則で適用する。
+  ['p1', 'p2'].forEach(ownerSide => {
+    const enemySide = ownerSide === 'p1' ? 'p2' : 'p1';
+    coreResolvedRings(state, ownerSide).forEach(ring => {
+      const bonus = coreOpeningEnemyStatBonus(ring);
+      if (!bonus || (!bonus.atk && !bonus.hp)) return;
+      live(enemySide).forEach(unit => {
+        unit.atk = Math.max(0, unit.atk + bonus.atk);
+        unit.maxHp += bonus.hp;
+        unit.hp += bonus.hp;
+        emit({ type: 'stat_change', side: enemySide, unitId: unit.id,
+          atk: bonus.atk, hp: bonus.hp, reason: 'opening_ring_enemy_buff', ringName: String(ring.name || '') });
+      });
+    });
+  });
   const pain = coreRingCount(state, 'p1', '苦行の指輪');
   for (let i = 0; i < pain; i++) coreHitAll(state, rng, emit, applyHit, null, live('p1'), 1);
   ['p1', 'p2'].forEach(side => live(side).forEach(u => coreApplyOpeningRingsToUnitLate(state, u, emit)));
@@ -2314,6 +2339,12 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
       color: unit.color,
       race: unit.race, keywords: [...(unit.keywords || [])], desc: unit.desc,
       effectData: { ...(unit.effectData || {}) }, _copyOf: unit.id, _openingDuplicate: true,
+      // 元の今の値をそのまま写すコピー（値の指定が無い）。指輪を掛け終えた値を写すので、
+      // 召喚時に開戦の指輪をもう一度掛けない（coreSummonUnit）。
+      _inheritsStats: fixedAtk == null && fixedHp == null,
+      // つながっている強化カード（ホバー説明の強化の効果文はここから引く）。
+      // 渡さないとコピーの説明に強化カードの効果文が出なかった（2026-09-25 利用者報告）。
+      boardCards: Array.isArray(unit.boardCards) ? unit.boardCards.map(c => (c && typeof c === 'object' ? { ...c } : c)) : undefined,
     };
     coreCopyUnitEffectState(copySpec, unit);
     if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }
@@ -4686,15 +4717,20 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
 // **初期ATK0のカードはシートに存在せず、開戦でATK0になることも無い**（利用者確認済み）。
 // そのため「一度でもATKが1以上だった」印は見ず、敵味方ともATK0なら必ず外す。
 // 効果の途中で一時的に0になることがあるため、判定は処理の切れ目でまとめて行う。
+function coreFleesInsteadOfAttack(unit) {
+  if (!unit || coreUnitIsSilenced(unit)) return false;
+  return /(?:^|\s)常時\s*[：:]\s*このキャラクターは攻撃する代わりに逃走する/.test(coreUnitEffectText(unit));
+}
 function coreSweepAtkZeroFlee(state, emit) {
   if (!state || !state.units) return false;
   let any = false;
   ['p1', 'p2'].forEach(side => (state.units[side] || []).forEach(u => {
     if (!u || u.hp <= 0 || u._isObject || u._isSoul || u._fled) return;
     if (coreIsSealed(u)) return; // 封印中は行動しない。解放されてから見る。
-    if (coreAttackDamage(u) > 0) return;
+    if (!u._fleeInsteadOfAttack && coreAttackDamage(u) > 0) return;
     u.hp = 0;
     u._fled = true;
+    delete u._fleeInsteadOfAttack;
     any = true;
     if (typeof emit === 'function') emit({ type: 'fled', side: u.side, unitId: u.id, reason: 'atk_zero' });
   }));
@@ -4749,6 +4785,15 @@ function coreBattleStepInner(ctx) {
         result = { outcome: 'draw', reason: 'both_defense' };
         return { side, result, stop: false };
       }
+      side = foeSide;
+      result = decided();
+      return { side, result, stop: false };
+    }
+    // 効果文の「攻撃する代わりに逃走」は、この体の攻撃手番で ATK0逃走と同じ
+    // fled イベント／盤面除去へ流す。攻撃指輪・攻撃効果・接触攻撃は発動しない。
+    if (coreFleesInsteadOfAttack(attacker)) {
+      attacker._fleeInsteadOfAttack = true;
+      coreSweepAtkZeroFlee(state, emit);
       side = foeSide;
       result = decided();
       return { side, result, stop: false };
@@ -5145,9 +5190,6 @@ function runBattleCore(state, rng, opts) {
       ...(extra || {}),
     });
 
-  // 封印X：戦闘開始時は場に出ていない。判定・順序はコアの共通ルール。
-  coreInitSealStates(allUnits(), fieldOrder);
-
   // 必要な血が揃っている封印を、盤面順に1体ずつ解放する。血は消費しない。
   const resolveSeals = () => {
     const sealed = allUnits().filter(u => u.hp > 0 && coreIsSealed(u))
@@ -5177,6 +5219,10 @@ function runBattleCore(state, rng, opts) {
   // PvEは startBattle() の中で既に開戦処理を済ませてから1手ずつ進める。
   // ここで二度目を走らせると開戦効果が二重に乗るため、その場合は飛ばす。
   const skipOpening = !!(opts && opts.skipOpening);
+  // skipOpening は「前戦闘の状態をそのまま使う」契約でもある。
+  // 開戦済みの封印値をここで再初期化すると、連戦の状態だけが変わるため、
+  // 初期化も開戦処理と同じくスキップする。
+  if (!skipOpening) coreInitSealStates(allUnits(), fieldOrder);
   if (!skipOpening) coreRunOpening(state, rng, emit, applyHit, resolveSeals);
 
   // 先攻：生存数が多い側。同数なら rng で決める（呼び出し側では決めない）。
@@ -5226,7 +5272,11 @@ function runBattleCore(state, rng, opts) {
     // 決着を確定して battle_end を出す。PvEもこれを通す。
     finish() {
       if (!result) result = { outcome: 'draw', reason: 'turn_limit' };
-      coreTriggerBattleEnd(state, emit, rng);
+      // 闘技場など、終了時効果を盤面へ持ち越さないPvEモードは、
+      // 戦闘結果イベントだけを出して終戦効果を実行しない。
+      // この指定自体はコア共通の意味なので、オンライン側の将来の利用も同じ結果になる。
+      const skipBattleEnd=!!((opts && opts.skipBattleEnd)||state._skipBattleEnd);
+      if (!skipBattleEnd) coreTriggerBattleEnd(state, emit, rng);
       emit({ type: 'battle_end', outcome: result.outcome, reason: result.reason });
       return { outcome: result.outcome, endReason: result.reason, turns: state.turn };
     },
@@ -5349,7 +5399,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
-    coreSummonUnit, coreStealUnit, coreSweepAtkZeroFlee, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
+    coreSummonUnit, coreStealUnit, coreFleesInsteadOfAttack, coreSweepAtkZeroFlee, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
     coreBeginSummonBatch, coreEndSummonBatch, coreApplyWargThreshold,
     corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
     coreRunOpening,
@@ -5365,7 +5415,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreTriggerAtkGainEffects,
     coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreRainbowRingBonusForUnits, coreApplyAttackEffects,
     coreEffectNumbers, coreExtraTriggerTimes,
-    coreResolvedRings, coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
+    coreResolvedRings, coreOpeningEnemyStatBonus, coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
     coreTriggerTextParts, coreTriggerMatch, coreTriggerTest,
     coreApplyOpeningEffects,
     coreApplyMapPanelOpeningEffects,

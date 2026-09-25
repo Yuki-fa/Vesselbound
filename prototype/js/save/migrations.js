@@ -1,6 +1,29 @@
 // バージョンごとの変換はここへ追加する。runとprofileは別々に進化できる。
 const SaveMigrations=(()=>{
-  const versions={run:2,profile:1};
+  const versions={run:3,profile:2};
+  const legacyNpcIds={NPC001:'BC002',NPC002:'BC003',NPC003:'BC004'};
+  const replaceLegacyNpcText=value=>{
+    let text=String(value);
+    for(const [oldId,newId] of Object.entries(legacyNpcIds)) text=text.split(oldId).join(newId);
+    return text;
+  };
+  const rewriteLegacyNpcIds=value=>{
+    if(typeof value==='string') return replaceLegacyNpcText(value);
+    if(Array.isArray(value)) return value.map(rewriteLegacyNpcIds);
+    if(!value||typeof value!=='object') return value;
+    const out={};
+    for(const [key,item] of Object.entries(value)){
+      const nextKey=replaceLegacyNpcText(key);
+      const nextValue=rewriteLegacyNpcIds(item);
+      const current=out[nextKey];
+      if(current&&nextValue&&typeof current==='object'&&typeof nextValue==='object'
+          &&['seen','acquired'].some(k=>k in current||k in nextValue)){
+        out[nextKey]={...current,...nextValue,
+          seen:!!(current.seen||nextValue.seen),acquired:!!(current.acquired||nextValue.acquired)};
+      }else out[nextKey]=nextValue;
+    }
+    return out;
+  };
   const steps={
     run:{
       1:data=>{
@@ -14,9 +37,14 @@ const SaveMigrations=(()=>{
           node:state&&state.location?state.location.node:null,
           battleType:state&&state.progress?state.progress._waveBattleType:null
         }};
-      }
+      },
+      // NPCシートのNo.変更。カード本体・盤面・報酬・クエスト状態内の参照をまとめて読み替える。
+      2:data=>({...rewriteLegacyNpcIds(data),saveVersion:3})
     },
-    profile:{}
+    profile:{
+      // コレクションキー（NPC001等）も新しいBC番号へ統合する。
+      1:data=>({...rewriteLegacyNpcIds(data),saveVersion:2})
+    }
   };
   function assert(condition,message){if(!condition) throw new Error(message);}
   function json(value,parents=new Set()){
@@ -46,5 +74,5 @@ const SaveMigrations=(()=>{
     assert(typeof data.gameVersion==='string','gameVersionがありません');
     return data;
   }
-  return {versions,steps,assert,json,migrate,gameVersion:'save-20260907-2'};
+  return {versions,steps,assert,json,migrate,gameVersion:'save-20260926-3'};
 })();

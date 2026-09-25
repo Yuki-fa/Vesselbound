@@ -24,8 +24,8 @@ const SaveRun=(()=>{
      ══════════════════════════════════════════════════════════ */
   const fields={
     player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome'],
-    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','runStats'],
-    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
+    progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
+    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
     place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
@@ -38,7 +38,7 @@ const SaveRun=(()=>{
     const overlay=document.getElementById('run-resume-overlay');
     if(overlay) overlay.setAttribute('aria-hidden',String(!active));
   }
-  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId']);
+  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_questDeliveryOrigin']);
   function copy(value){
     // カード／コアイベント内の一時表示情報だけを除外する。非有限数は拒否する。
     const raw=JSON.stringify(value,(key,v)=>{
@@ -170,7 +170,7 @@ const SaveRun=(()=>{
   function buildRunSave(type,pendingBattle=null){
     SaveMigrations.assert(CHECKPOINT_TYPES.has(type),'保存地点が不正です');
     const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,battleType:G._waveBattleType||null};
-    return {saveVersion:2,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
+    return {saveVersion:SaveMigrations.versions.run,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
   }
   function saveRun(save){return SaveStorage.write('run',save,validate);}
   function loadRun(){
@@ -213,6 +213,38 @@ const SaveRun=(()=>{
       return save;
     }catch(e){error(e);return null;}
   }
+  // 会話だけの進行は街の購入途中を丸ごと確定せず、必要な値だけ現チェックポイントへ書く。
+  function checkpointFacilityTalk(innPaid,options){
+    if(!enabled()||restoring||busy||G._runEnded) return null;
+    try{
+      const opt=innPaid&&typeof innPaid==='object'?innPaid:(options||{innPaid:!!innPaid});
+      const paidInn=innPaid&&typeof innPaid==='object'?!!opt.innPaid:!!innPaid;
+      const paidArena=!!opt.arenaPaid;
+      const save=loadRun();
+      if(!save||save.checkpoint.type!=='town'||save.checkpoint.scene!==G._wave) return null;
+      save.state.choices._facilityTalkSeen=copy(G._facilityTalkSeen||{});
+      if(paidInn){
+        save.state.choices._waveInnUsed=copy(G._waveInnUsed||{});
+        save.state.player.gold=copy(G.gold);
+        save.state.player._waveLife=copy(G._waveLife);
+      }
+      if(paidArena){
+        // 支払った時点を闘技場の再開地点として確定する。戦闘開始前でも
+        // _arenaEntrySnapshot と次の敵候補を保存しておけば、再開時に同じ入口から戻れる。
+        save.state.choices._arenaChallengeUsed=copy(G._arenaChallengeUsed||{});
+        save.state.choices._arenaEntrySnapshot=copy(G._arenaEntrySnapshot||null);
+        save.state.progress._arenaActive=!!G._arenaActive;
+        save.state.progress._arenaRound=Math.max(1,Number(G._arenaRound)||1);
+        save.state.progress._arenaWins=Math.max(0,Number(G._arenaWins)||0);
+        save.state.progress._waveBosses=copy(G._waveBosses||{});
+        save.state.player.gold=copy(G.gold);
+      }
+      save.savedAt=Date.now();
+      saveRun(save);
+      refreshContinue();
+      return save;
+    }catch(e){ error(e); return null; }
+  }
   function finish(result){
     if(!enabled()||G._runEnded) return;
     if(SaveProfile.finish(result)){
@@ -241,7 +273,13 @@ const SaveRun=(()=>{
       document.body.classList.remove('gameover-active','game-clear-active','battle-victory-pending');
       const type=save.checkpoint.type;
       if(type==='reward'){showScreen('battle');goToReward({restoreCheckpoint:true});}
-      else if(type==='town'||type==='tower') openMapVillage({tower:type==='tower',restoreCheckpoint:true});
+      else if(type==='town'||type==='tower'){
+        // 支払い直後の闘技場は、まだ戦闘チェックポイントを作る前に終了しても
+        // _arenaActive=true の街セーブが残る。再開時は街へ戻さず第1戦へ進める。
+        if(type==='town'&&G._arenaActive&&typeof arenaResumeFromCheckpoint==='function'){
+          await arenaResumeFromCheckpoint();
+        }else openMapVillage({tower:type==='tower',restoreCheckpoint:true});
+      }
       else await showBattleResume(save);
     }catch(e){console.error('[run] 再開失敗',e);window.alert('セーブデータを再開できませんでした。');showScreen('title');}
     finally{restoring=false;}
@@ -281,7 +319,7 @@ const SaveRun=(()=>{
     }
     return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0});
   }
-  function computeBattle(initial,seed){
+  function computeBattle(initial,seed,options){
     const state=copy(initial);
     state.turn=0;state._coreStateToken=`saved-${seed}`;
     state.lane={p1:{lane:'front',attacked:new Set()},p2:{lane:'front',attacked:new Set()}};
@@ -305,7 +343,9 @@ const SaveRun=(()=>{
       frames.push({from,to:events.length,state:snapshotCore(state,setupIds)});from=events.length;
       state.resources.p1.gold+=reward;
     };
-    const runner=createBattleRunner(state,createSeededRng(seed),emit);
+    const opts=options||{};
+    const runner=createBattleRunner(state,createSeededRng(seed),emit,
+      {skipOpening:!!opts.skipOpening,skipBattleEnd:!!opts.skipBattleEnd});
     frame();
     while(!runner.result&&state.turn<BATTLE_CORE_TURN_LIMIT){
       const stop=runner.step({deferCompact:true});frame();runner.compact();if(stop) break;
@@ -321,7 +361,10 @@ const SaveRun=(()=>{
     G.allies=s.units.p1;G.enemies=s.units.p2;G.activeBattleItems=s.items.p1;
     G.gold=s.resources.p1.gold;G.mana=s.resources.p1.mana;G._blood=s.blood.p1;G._enemyBlood=s.blood.p2;
     G._waveLife=s.life.p1;G.life=s.life.p1;
-    _isBossFight=G._waveBattleType==='boss';
+    const arenaBossRound=G._arenaActive&&((typeof arenaRoundKind==='function'
+      ?arenaRoundKind(Number(G._arenaRound)||1)==='boss'
+      :Number(G._arenaRound)===6));
+    _isBossFight=G._waveBattleType==='boss'||!!arenaBossRound;
     _stampCoreSideSlots({units:{p1:G.allies,p2:G.enemies}});
   }
   async function prepareBattle(saved){
@@ -332,7 +375,13 @@ const SaveRun=(()=>{
       // プールは純データ。runner等の実行状態はsetupへ持ち込まない。
       const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots});
       const seed=Math.floor(random()*4294967296);
-      const p=computeBattle(initial,seed);
+      const arenaBattle=!!G._arenaActive;
+      const questGarmBattle=!!(typeof questIsGarmBattle==='function'&&questIsGarmBattle());
+      const questMagicWolfBattle=!!(typeof questIsMagicWolfBattle==='function'&&questIsMagicWolfBattle());
+      const p=computeBattle(initial,seed,{
+        skipOpening:(arenaBattle&&Number(G._arenaRound)>1)||questGarmBattle,
+        skipBattleEnd:arenaBattle||questMagicWolfBattle,
+      });
       const save=buildRunSave('battle',p);
       retryBattle=save;saveRun(save);retryBattle=null;
       return p;
@@ -369,13 +418,13 @@ const SaveRun=(()=>{
       // 最後のframeは終戦効果。既存onBattleEndの共通出口で反映する。
       for(const f of p.frames.slice(0,-1)){
         if(_battleRunStale(runId)) return;
-        const held=[...G.allies,...G.enemies].filter(Boolean).map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0]);
+        const held=[...G.allies,...G.enemies].filter(Boolean).map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
         presentBeginPlayback();
         try{
           applyFrame(f,state);held.forEach(([u,...values])=>presentHoldShown(u,...values));
           const events=copy(p.events.slice(f.from,f.to));G._battleCoreEvents.push(...events);
           await _flushCorePveHitEvents(state,events,before);
-        }finally{held.forEach(([u])=>presentReleaseShown(u));presentEndPlayback();}
+        }finally{held.forEach(([u])=>presentReleaseShown(u));[...G.allies,...G.enemies].forEach(u=>u&&presentReleaseShown(u));presentEndPlayback();}
         _syncCoreLifeToG(state);_syncCoreResourcesToG(state);_syncCoreManaToG(state);_refreshManaDisplays();
         coreCompactUnits(state);requestBattleCompact();
         if(f.to>f.from) await sleep(PRESENT_TURN_GAP_MS);
@@ -384,8 +433,11 @@ const SaveRun=(()=>{
     if(_battleRunStale(runId)) return;
     G._deferManaThresholdEffects=false;
     if(p.outcome==='p2'){
-      applyEnd(state);SaveProfile.owned();handleBattleDefeat();
+      applyEnd(state);
+      if(!G._arenaActive) SaveProfile.owned();
+      handleBattleDefeat();
     }else{
+      if(G._arenaActive) applyEnd(state);
       G._battleDraw=p.outcome==='draw';
       if(_isBossFight&&p.outcome==='p1') G._bossJustDefeated=true;
       await finishBattleAsVictory(p.outcome==='draw'?'Draw':'敵を全滅させた！');
@@ -423,7 +475,7 @@ const SaveRun=(()=>{
       try{saveRun(retryBattle);retryBattle=null;btn.onclick=continueRun;await continueRun();}catch(failure){error(failure);}
     };}
   }
-  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
+  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,checkpointFacilityTalk,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
 })();
 function runRandom(){return typeof SaveRun==='undefined'?Math.random():SaveRun.random();}
 // 順番に依存しない抽選。SaveRunが無い場面（デバッグ等）では通常の乱数へ落とす。

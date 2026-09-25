@@ -275,6 +275,11 @@ function presentKeywordEffectEvent(ev, api) {
     if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: unit.shield });
     if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
   }
+  // 弱体を与えた瞬間に、据え置いていた弱体の値を進める（ホバー説明の「弱体N」がここで増える）。
+  if (String(ev.effect || '') === 'weaken' && unit._displayWeaken != null && typeof presentAdvanceShown === 'function') {
+    presentAdvanceShown(unit, { weaken: Math.min(Math.max(0, Number(unit.weaken) || 0),
+      unit._displayWeaken + Math.max(0, Number(ev.amount) || 0)) });
+  }
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
   // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。

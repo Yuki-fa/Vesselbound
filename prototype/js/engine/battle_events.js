@@ -148,6 +148,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 「薙ぎ払いで表示済み」と誤判定され、以後その相手のダメージ数値が出なくなる。
   // 逃走を二重に見せないための印（束の2件目以降を素通りさせる）。
   const fledShown=new Set();
+  // 逃走した敵の撃破報酬を払った体（束の2件目以降がループへ戻ってきても二重に払わない）。
+  const fledGoldPaid=new Set();
   const sweepShownEvents=new Set();
   // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
   const keywordShownEvents=new Set();
@@ -676,23 +678,34 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='fled'){
-      // **逃走した敵からもゴールドは得る。** 逃走は死亡ではないので撃破数・血・
-      // 死亡効果は発生しないが、報酬だけは撃破時と同じ計算で渡す（利用者指定）。
-      // 盤面から外される前にここで確定させる（外れると体を引けなくなる）。
-      const _fledUnit=e.side==='p2'?findLiveUnit('p2',e.unitId,findUnit('p2',e.unitId)):null;
-      if(_fledUnit&&typeof _rollEnemyGold==='function'&&typeof onGoldGained==='function'){
-        const _fledGold=G._savedBattleReplaying?(e.pveRewardGold||0):_rollEnemyGold(_fledUnit);
-        const _gained=_fledGold>0?onGoldGained(_fledGold):0;
-        // **増えた分だけコア状態へ足す。** 撃破報酬と同じ理由（代入は演出待ちの分を消す）。
-        if(_gained>0&&state.resources&&state.resources.p1){
-          state.resources.p1.gold=Math.max(0,(Number(state.resources.p1.gold)||0)+_gained);
-        }
-      }
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // **同じ瞬間に逃走する分はまとめて1回で見せる**（ずらし方は present_events.js）。
       // 束の2件目以降は markDone 済みになるので、このループが後で届いても素通りする。
       const _fledGroup=typeof presentFledBatchEvents==='function'
         ?presentFledBatchEvents(eventList,eventIndex):[e];
+      // **逃走した敵からもゴールドは得る。** 逃走は死亡ではないので撃破数・血・
+      // 死亡効果は発生しないが、報酬だけは撃破時と同じ計算で渡す（利用者指定）。
+      // 盤面から外される前にここで確定させる（外れると体を引けなくなる）。
+      // **束の全員分を払う。** 以前は束の先頭（e）の分しか払っておらず、同時に逃走した
+      // 2体目以降のゴールドが戦闘中に入らなかった（2026-09-25 利用者報告）。
+      _fledGroup.forEach(ev=>{
+        const key=`${ev.side}:${ev.unitId}`;
+        if(!ev||ev.side!=='p2'||fledGoldPaid.has(key)) return;
+        fledGoldPaid.add(key);
+        const _fledUnit=findLiveUnit('p2',ev.unitId,findUnit('p2',ev.unitId));
+        if(!_fledUnit||typeof _rollEnemyGold!=='function'||typeof onGoldGained!=='function') return;
+        const _fledGold=G._savedBattleReplaying?(ev.pveRewardGold||0):_rollEnemyGold(_fledUnit);
+        const _gained=_fledGold>0?onGoldGained(_fledGold):0;
+        // **増えた分だけコア状態へ足す。** 撃破報酬と同じ理由（代入は演出待ちの分を消す）。
+        if(_gained>0&&state.resources&&state.resources.p1){
+          state.resources.p1.gold=Math.max(0,(Number(state.resources.p1.gold)||0)+_gained);
+        }
+      });
+      // Q004はガルム（EN027）が逃走した結果を、通常の逃走演出を保ったまま
+      // クエスト状態へ記録する。勝敗後のcamp遷移はquest.js側で判定する。
+      if(typeof questBattleEnemyFled==='function'){
+        questBattleEnemyFled(_fledGroup,(side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+      }
       // 必須カードが逃走する時は、カードの上に逃走時台詞を出す（quest.js）。
       if(typeof questBattleCardLine==='function'){
         await questBattleCardLine(_fledGroup.filter(ev=>!fledShown.has(`${ev.side}:${ev.unitId}`)),'flee',
@@ -756,7 +769,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         ownEffectText:_ownCardEffectText,
         trace:info=>_recordBattleTrace('stat_change_effect_cue',info),
       });
-      if (e.persistent && e.side === 'p1' && typeof persistBoardCharacterStats === 'function'
+      if (!((typeof arenaIsActive==='function')&&arenaIsActive())
+        && e.persistent && e.side === 'p1' && typeof persistBoardCharacterStats === 'function'
         && typeof _getPartyBoardUnit === 'function') {
         // 書けなかった時は理由を残す（battle.js の _persistPermanentStatOrWarn が唯一の実装）。
         if (typeof _persistPermanentStatOrWarn === 'function') _persistPermanentStatOrWarn(_getPartyBoardUnit(), e);
@@ -788,6 +802,16 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 失敗して末尾・左端へフォールバックする。表示へ接続した時点で消費する。
       pendingSummons.delete(String(e.unit.id));
       delete unit._corePendingSummon;
+      // 複製のコピーは、出てきた瞬間は元のキャラと同じ値で見せる（2026-09-25 利用者指定）。
+      // 元のキャラは表示を手番の前の値で据え置いているので、コピーも同じ値で据え置く
+      // （据え置かないとコピーだけ計算済みの値で出て、元より強く見える）。解除は手番の終わり。
+      if(unit._openingDuplicate&&typeof presentHoldShown==='function'){
+        const original=findLiveUnit(e.side,e.sourceId,findUnit(e.side,e.sourceId));
+        if(original&&original._displayAtk!=null){
+          presentHoldShown(unit,original._displayAtk,original._displayHp,original._displayMaxHp,
+            unit.shield||0,original._displayWeaken!=null?original._displayWeaken:(unit.weaken||0));
+        }
+      }
       // 同じコア処理内で「本体 summon → その本体を起点にした誘発 summon」が
       // 連続して出る場合、次のイベントを表示するまで本体は pendingSummons に
       // 退避している。G 配列だけを見ていると source が見つからず、誘発体が

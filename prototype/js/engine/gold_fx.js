@@ -36,6 +36,17 @@ function goldDisplayValue(){
   if(_goldFxShown==null) return Math.max(0,Number(G&&G.gold)||0)-_goldFxDeferred;
   return _goldFxShown;
 }
+// イベント（クエストのお礼など）で所持金を得る時の共通の入口。所持金を足し、income.wav を鳴らす。
+// **イベントで収入を得る時は、今後もこれを通す**（利用者指定 2026-09-25）。
+// 「+X」と数え上げはこのファイルの監視が出すので、ここでは所持金を足すだけ。
+function gainEventGold(amount){
+  const add=Math.max(0,Math.round(Number(amount)||0));
+  if(!add||typeof G==='undefined'||!G) return 0;
+  G.gold=(Number(G.gold)||0)+add;
+  if(typeof playSfx==='function') playSfx('income',{group:'ui'});
+  if(typeof updateHUD==='function') updateHUD();
+  return add;
+}
 function goldFxDefer(amount){ _goldFxDeferred+=Math.max(0,Number(amount)||0); }
 function goldFxRelease(amount){ _goldFxDeferred=Math.max(0,_goldFxDeferred-Math.max(0,Number(amount)||0)); }
 function goldFxSnap(){
@@ -115,6 +126,7 @@ function _goldFxTick(now){
 if(typeof window!=='undefined'){
   window.goldDisplayValue=goldDisplayValue;
   window.goldFxDefer=goldFxDefer;
+  window.gainEventGold=gainEventGold;
   window.goldFxRelease=goldFxRelease;
   window.goldFxSnap=goldFxSnap;
   window.requestAnimationFrame(_goldFxTick);

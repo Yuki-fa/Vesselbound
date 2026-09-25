@@ -158,6 +158,8 @@ function getVillageBackgroundKey(){
   if(G&&G._isLibraryMenu) return 'library';
   // 塔（祭壇）は全ステージ共通でtower.png。
   if(G&&G._isWaveAltar) return 'tower';
+  // 魔獣撃退依頼（Q004）の討伐後の場面は camp.webp（quest.js の _qShowGarmCamp）。
+  if(G&&G._questCampScene) return 'camp';
   // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
   const wave=Math.max(0,Number(G&&G._wave)||0);
   if(G&&G._isTavern) return (VILLAGE_FACILITY_BG[wave]||{}).tavern||`village${Math.min(4,wave)}`;
@@ -181,10 +183,10 @@ const VILLAGE_FACILITY_BG={
   // tavern（酒場）・home（ホーム）は未実装で入れないが、背景だけ先に対応付けておく。
   0:{home:'homeStart'},
   1:{item:'itemShopForest',shop:'magicShopForest',tavern:'tavernForest'},
-  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland',tavern:'tavernGrassland'},
-  3:{shop:'magicShopValley',forge:'blacksmithValley',tavern:'tavernValley'},
-  4:{shop:'magicShopCapital',forge:'blacksmithCapital'},
-  5:{shop:'magicShopEndworld',item:'itemShopEndworld'},
+  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland',tavern:'tavernGrassland',inn:'innGrassland'},
+  3:{shop:'magicShopValley',forge:'blacksmithValley',tavern:'tavernValley',arena:'arena'},
+  4:{shop:'magicShopCapital',forge:'blacksmithCapital',inn:'innCapital'},
+  5:{shop:'magicShopEndworld',item:'itemShopEndworld',inn:'innEndworld'},
 };
 // 施設画面（#scr-battle上の編成UI）の背景を、その街の施設専用画像へ差し替える。
 // 編成画面（#scr-battle）の背景を専用画像で上書きする。編成画面は #scr-battle の
@@ -465,14 +467,39 @@ function villageFacilityLabelText(name){
 }
 // 施設ボタン直下の説明文は「テキストメッセージ」シートの「街「◯◯」直下」行から引く。
 // シート内の表記揺れ（鍛冶屋／鍛治屋）に備えて両方の綴りで探す。
+// ライフが満タンか（宿屋はこの時暗くして入れない。直下の説明も満タン時の行に替える）。
+function _villageLifeFull(){
+  const max=typeof waveLifeMax==='function'?waveLifeMax():3;
+  const life=G&&G._waveLife!=null?Number(G._waveLife):max;
+  return life>=max;
+}
 function villageFacilityDescText(name){
   const variants=villageFacilityNameVariants(name);
+  // 闘技場は挑戦後に専用の直下文へ切り替える。シートに行が無い版では
+  // 通常の「街「闘技場」直下」へ戻す（表示文をコードへ固定しない）。
+  if(variants.includes('闘技場')&&!(G&&G._isWaveAltar)&&_villageArenaUsed()){
+    const done=textMessage('街「闘技場」直下（挑戦後）','');
+    if(done) return String(done);
+  }
+  // 宿屋はライフ満タンの時「街「宿屋」直下（ライフ満タン時）」を使う（利用者指定 2026-09-25）。
+  if(variants.includes('宿屋')&&!(G&&G._isWaveAltar)&&_villageLifeFull()){
+    const full=textMessage('街「宿屋」直下（ライフ満タン時）','');
+    if(full) return String(full);
+  }
+  // 酒場はクエストを達成した後「街「酒場」直下（クエスト完了後）」を使う（利用者指定 2026-09-25）。
+  if(variants.includes('酒場')&&!(G&&G._isWaveAltar)&&typeof questTavernCompleted==='function'&&questTavernCompleted(G&&G._wave)){
+    const done=textMessage('街「酒場」直下（クエスト完了後）','');
+    if(done) return String(done);
+  }
   // 塔の施設は「塔「◯◯」直下」、街の施設は「街「◯◯」直下」を参照する。
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
     for(const v of variants){
       const hit=textMessage(`${pre}「${v}」直下`,'');
-      if(hit) return String(hit);
+      if(hit){
+        // 会話シートで宿屋が開放された後も、旧テキストシートの施錠表示だけは出さない。
+        return v==='宿屋'?String(hit).replace(/（鍵が閉まっている）/g,'').trim():String(hit);
+      }
     }
   }
   for(const v of variants){
@@ -582,35 +609,23 @@ function _villageInnUsed(){
   const used=G._waveInnUsed||{};
   return !!used[_waveFacilityCacheKey()];
 }
-function useVillageInn(){
-  const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
-    const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
-  if(_villageInnUsed()){ ; return; }
-  if(life>=_lifeMax){ ; return; }
-  if((G.gold||0)<500){ ; return; }
-  G.gold-=500;
-  G._waveLife=life+1;
-  G._waveInnUsed=G._waveInnUsed||{};
-  G._waveInnUsed[_waveFacilityCacheKey()]=true;
-  // 押下時にshop_in.wavを鳴らしているので、ここでは購入音を重ねない。
-  if(typeof updateHUD==='function') updateHUD();
-  renderVillageScreen();
+function _villageArenaUsed(){
+  const used=G._arenaChallengeUsed||{};
+  return !!used[_waveFacilityCacheKey()];
 }
-// 宿屋は「ライフが減っている」「500G以上持っている」「この街で未利用」の全てを満たす時のみ押せる。
-// 中身が未実装／現在は開放しない施設。表示はするが選べない（暗くする）。
-// inn（宿屋）は処理自体は実装済みだが、いまは押せないようにしている
-// （再開する時はこのSetから'inn'を外すだけでよい。下の条件判定はそのまま残してある）。
-const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','inn','landing','arena']);
+// 中身が未実装の施設だけ暗くする。宿屋は会話シートから料金と回復量を読む。
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','landing']);
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
   // 酒場はクエストのある街だけ開く（地域情報の「クエスト」列。quest.js）。
-  if(fac.key==='tavern') return !(typeof questTavernAvailable==='function'&&questTavernAvailable(G&&G._wave));
+  // 酒場はクエストのある街だけ開き、そのクエストを達成した後は入れない。
+  if(fac.key==='tavern') return !(typeof questTavernAvailable==='function'&&questTavernAvailable(G&&G._wave))
+    ||(typeof questTavernCompleted==='function'&&questTavernCompleted(G&&G._wave));
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
-  if(fac.key==='inn'){
-    const _lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
-    const life=Math.max(0,Math.min(_lifeMax,G._waveLife==null?_lifeMax:Number(G._waveLife)));
-    return life>=3||_villageInnUsed()||(G.gold||0)<500;
-  }
+  // 宿屋はライフ満タンの時は入れない（ボタンを暗くする）。
+  if(fac.key==='inn') return _villageLifeFull();
+  // 闘技場は同じラン・同じ街では一度だけ挑戦できる。
+  if(fac.key==='arena') return _villageArenaUsed();
   // 祭壇は指輪取得後（resolved）も入場できる。中は指輪が消えて枠だけの状態になる
   // （_renderRingOfferCards()／body.ring-offer-resolved）。
   return false;
@@ -622,30 +637,90 @@ async function _onVillageFacility(fac){
   if(G._villageFacilityBusy) return;
   if(_screenSwitchFading) return;
   // 画面が切り替わる施設は暗転を挟む（宿屋は切り替わらない。酒場は openTavern の中で挟む）。
-  if(['shop','forge','item'].includes(fac.key)){
-    const greeting=_facilityGreetingText(fac);
-    if(greeting&&typeof _qStartDialogue==='function'){
-      // 入店時の台詞（会話メッセージシート）を右（キャラB）の位置に出してから商品画面へ。
-      await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
-      await _qStartDialogue([{speaker:'B',text:greeting}],{screen:'village'});
-      _hideFacilityGreetingScene();
-      _enterVillageFacilityNow(fac);
-    }else{
-      await fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
-    }
-    _maybeStartShopTutorial(fac);
-    return;
+  // 施設に入る音はボタンを押した時に鳴らす。台詞や暗転の後に鳴らすと遅れて聞こえる（2026-09-25 利用者指摘）。
+  // 店・宿屋・図書館・酒場＝shop_in.wav、祭壇＝altarIn。音はここだけで鳴らし、各 open〜関数では鳴らさない。
+  const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',ringExchange:'altarIn'}[fac.key];
+  if(enterSfx&&typeof playSfx==='function') playSfx(enterSfx,{group:'ui'});
+  if(['shop','forge','item','inn','arena'].includes(fac.key)){
+    G._villageFacilityBusy=true;
+    try{
+      const talk=_facilityGreetingEntry(fac);
+      const key=`${_waveFacilityCacheKey()}:${fac.key}`;
+      const seen=!!((G._facilityTalkSeen||{})[key]);
+      // 宿屋は支払い後の再訪、店は2回目以降の来店で「再訪時台詞」を出す。
+      // 再訪時台詞が無い店は、そのラン中は最初の1回しか喋らない。
+      const revisit=!!(talk&&talk['再訪時台詞']&&(
+        fac.key==='inn'
+          ?_villageInnUsed()
+          :fac.key==='arena'
+            ?false
+            :seen
+      ));
+      if(talk&&typeof _qStartDialogue==='function'&&(!seen||revisit||fac.key==='inn'||fac.key==='arena')){
+        await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+        if(fac.key==='inn'){
+          // 宿屋でも酒場と同じく A の位置に主人公（MC001）を出す（2026-09-25 利用者指定）。
+          if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
+          await _runVillageInnDialogue(talk,!!revisit);
+          await fadeScreenSwitch(()=>{
+            if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
+            document.body.classList.remove('inn-rest-fading');
+            _hideFacilityGreetingScene();
+            if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
+            renderVillageScreen();
+          });
+          return;
+        }
+        if(fac.key==='arena'){
+          // 闘技場も宿屋と同じく受付の会話画面で完結する。支払い後は
+          // _runVillageArenaDialogue() が戦闘への暗転と復帰を担当する。
+          if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
+          await _runVillageArenaDialogue(talk,!!revisit);
+          return;
+        }
+        await _qStartDialogue([revisit?talk['再訪時台詞']:talk['台詞1']].filter(Boolean),{screen:'village'});
+        G._facilityTalkSeen=G._facilityTalkSeen||{};
+        G._facilityTalkSeen[key]=true;
+        if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
+        _hideFacilityGreetingScene();
+        _enterVillageFacilityNow(fac);
+        _revealFacilityUi();
+      }else if(fac.key!=='inn'){
+        await fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
+      }
+      if(fac.key!=='inn') _maybeStartShopTutorial(fac);
+      return;
+    }finally{ G._villageFacilityBusy=false; }
   }
   if(['ringExchange','library'].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
 }
+// 入店時の台詞の後、店の背景はそのままに、black1.svg の暗幕と各枠だけをフェードインで出す（2026-09-25 利用者指定）。
+// 店の背景と同じ見た目の覆いを UI の上に置き、それを消していく（UI の各要素の不透明度には触らない）。
+const FACILITY_UI_FADE_MS=500;
+function _revealFacilityUi(){
+  const scr=document.getElementById('scr-battle');
+  if(!scr) return;
+  const cs=getComputedStyle(scr);
+  const cover=document.createElement('div');
+  cover.className='facility-ui-reveal-cover';
+  Object.assign(cover.style,{
+    position:'absolute',inset:'0',zIndex:'99990',pointerEvents:'none',
+    backgroundColor:cs.backgroundColor,backgroundImage:cs.backgroundImage,backgroundSize:cs.backgroundSize,
+    backgroundPosition:cs.backgroundPosition,backgroundRepeat:cs.backgroundRepeat,
+    opacity:'1',transition:`opacity ${FACILITY_UI_FADE_MS}ms ease`,
+  });
+  scr.appendChild(cover);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ cover.style.opacity='0'; }));
+  window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
+}
 function _enterVillageFacilityNow(fac){
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
-    // shop_in.wavは各open〜関数側で鳴らす。
+    // shop_in.wav は施設ボタンを押した時（_onVillageFacility）に鳴らす。
     G._facilityLabel=fac.name;
     document.body.classList.remove('village-screen-active');
     if(typeof showScreen==='function') showScreen('battle');
@@ -668,13 +743,7 @@ function _enterVillageFacilityNow(fac){
     return;
   }
   if(fac.key==='library'){
-    if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
     openMapLibraryMenu();
-    return;
-  }
-  if(fac.key==='inn'){
-    if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
-    useVillageInn();
     return;
   }
   if(fac.key==='tavern'){
@@ -1020,6 +1089,7 @@ function renderVillageScreen(){
     if(btn) btn.onclick=()=>{
       if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
       openMapLibraryFormation();
+      _prepareLibraryLoanMode('board');
       if(!window._libraryBoardTutorialPlayed) _waitLibraryUIReady(()=>startLibraryBoardTutorial());
     };
     const desc=document.getElementById('library-howto-desc');
@@ -1087,7 +1157,15 @@ function renderVillageScreen(){
     });
   }
   const depart=document.getElementById('village-depart-btn');
-  if(depart) depart.onclick=villageDepart;
+  if(depart){
+    depart.onclick=villageDepart;
+    // 酒場では同じボタンの文字を「店を出る」に書き換える（quest.js _qCustomizeTavernVillage）。
+    // 街・塔の画面では必ず「出発する」に戻す（酒場の後の塔で「店を出る」のままだった。2026-09-25 利用者指摘）。
+    const departLabel=textMessage('「出発する」ボタン','出発する');
+    const labelEl=depart.querySelector('.rew-btn-label');
+    if(!labelEl) depart.innerHTML=`<span class="rew-btn-label">${departLabel}</span>`;
+    else if(labelEl.textContent!==departLabel) labelEl.textContent=departLabel;
+  }
   // デバッグモードでは街にもミュートボタンを出す（オプションボタンの直下）。
   const mute=document.getElementById('village-mute-btn');
   if(mute){
@@ -1244,18 +1322,25 @@ function openMapVillage(options){
     if(typeof showScreen==='function') showScreen('village');
     renderVillageScreen();
   };
+  // 到着の会話が始まる塔では、施設ボタン・出発ボタンを地名表示の前から隠しておく（quest.js）。
+  if(G._isWaveAltar&&typeof questPrepareTowerArrival==='function') questPrepareTowerArrival();
+  if(!G._isWaveAltar&&typeof questPrepareTownArrival==='function') questPrepareTownArrival();
   if(options&&options.intro){
     void _playVillageEnterIntro(build).then(()=>{
       if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
+      if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
     });
     return;
   }
   build();
   if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
+  if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
 }
 
 // 図書館メニュー。街と同じ画面構造を使い、背景だけlibrary.pngへ差し替える。
 function openMapLibraryMenu(){
+  // 酒場の立ち絵が戦闘画面側に残っていると、図書館の編成画面を開いた時に再表示される。
+  if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
   G._isLibraryMenu=true;
   G._isLibrary=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isItemShop=false;
@@ -1270,9 +1355,25 @@ function openMapLibraryMenu(){
 }
 
 // 図書館の編成画面から「読書をやめる」で、説明を開く前の図書館メニューへ戻る。
+// 盤面は入館時の編成へ戻し、貸出カードも捨てる（利用者指定 2026-09-25）。
+// 同じ説明を開き直すと、貸出カードは指定の5枚から始まる。
 function closeMapLibraryFormation(){
   if(typeof playSfx==='function') playSfx('bookClosing',{group:'ui'});
-  G._libraryLoanCardsState=typeof clone==='function'?clone(_rewCards||[]):(_rewCards||[]).slice();
+  const snap=G._libraryLoanSnapshot;
+  if(snap){
+    const copy=typeof clone==='function'?clone:(v=>v);
+    G.mainBoard=copy(snap.mainBoard||[]);
+    G.globalPanels=copy(snap.globalPanels||[]);
+    if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  }
+  G._pendingPanelPlacement=null;
+  G._pendingItemUse=null;
+  if(typeof _closeItemUseConfirm==='function') _closeItemUseConfirm();
+  _rewCards=[];
+  G._libraryLoanResetSnapshot=null;
+  G._libraryLoanCardsState=null;
+  G._libraryLoanInitialCards=null;
+  G._libraryLoanMode=null;
   openMapLibraryMenu();
 }
 
@@ -1286,8 +1387,10 @@ function leaveMapLibrary(){
   }
   _rewCards=[];
   G._libraryLoanSnapshot=null;
+  G._libraryLoanResetSnapshot=null;
   G._libraryLoanCardsState=null;
   G._libraryLoanInitialCards=null;
+  G._libraryLoanMode=null;
   openMapVillage();
 }
 
@@ -1310,8 +1413,36 @@ function _libraryLoanCards(){
   }).filter(Boolean);
 }
 
+function _captureLibraryLoanResetSnapshot(){
+  const copy=typeof clone==='function'?clone:(v=>v.slice());
+  G._libraryLoanResetSnapshot={
+    mainBoard:copy(G.mainBoard||[]),
+    globalPanels:copy(G.globalPanels||[])
+  };
+}
+
+// 二つの説明は貸出カードが異なる。同じ説明へ戻る時は途中の編成を保持し、
+// 説明を切り替えた時だけ入館時の盤面とその説明の貸出カードへ揃える。
+function _prepareLibraryLoanMode(mode){
+  if(G._libraryLoanMode===mode) return;
+  const copy=typeof clone==='function'?clone:(v=>v.slice());
+  const entry=G._libraryLoanSnapshot;
+  if(entry){
+    G.mainBoard=copy(entry.mainBoard||[]);
+    G.globalPanels=copy(entry.globalPanels||[]);
+    if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  }
+  _rewCards=mode==='merge'?_libraryMergeLoanCards():_libraryLoanCards();
+  G._libraryLoanInitialCards=copy(_rewCards);
+  G._libraryLoanCardsState=null;
+  G._libraryLoanMode=mode;
+  _captureLibraryLoanResetSnapshot();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderRewCards==='function') renderRewCards();
+}
+
 function resetLibraryLoanFormation(){
-  const snap=G._libraryLoanSnapshot;
+  const snap=G._libraryLoanResetSnapshot||G._libraryLoanSnapshot;
   if(!snap) return;
   const copy=typeof clone==='function'?clone:(v=>v);
   G.mainBoard=copy(snap.mainBoard||[]);
@@ -1358,6 +1489,7 @@ function openMapLibraryFormation(){
   if(!Array.isArray(G._libraryLoanInitialCards)){
     G._libraryLoanInitialCards=typeof clone==='function'?clone(_rewCards):_rewCards.slice();
   }
+  if(!G._libraryLoanResetSnapshot) _captureLibraryLoanResetSnapshot();
   _rewFreePickDone=true;
   if(typeof renderRewCards==='function') renderRewCards();
   if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
@@ -1422,10 +1554,11 @@ function _libraryBoardTutorialSteps({cardByName,boardSlot}){
   ];
 }
 // ── 図書館「マージとは」──────────────────────────────
-// 貸出カードを「ノーム」5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
+// 貸出カードを MERGE_TUTORIAL_CARD（ブラウニー）5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
 // 貸出カード・魔導板・オプション以外は操作させない（魔導板の使い方と同じ）。
+const MERGE_TUTORIAL_CARD='ブラウニー'; // 「マージとは」の貸出カード（利用者指定 2026-09-25。旧ノーム）
 function _libraryMergeLoanCards(){
-  const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))?PANEL_POOL.find(c=>c&&String(c.name||'')==='ノーム'):null;
+  const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))?PANEL_POOL.find(c=>c&&String(c.name||'')===MERGE_TUTORIAL_CARD):null;
   if(!def||typeof makePanel!=='function') return [];
   return Array.from({length:5},()=>{
     const card=makePanel(def.id);
@@ -1433,48 +1566,118 @@ function _libraryMergeLoanCards(){
     return card;
   }).filter(Boolean);
 }
-function _libraryBoardHasMergedGnome(){
+function _libraryBoardHasMergedTutorialCard(){
   return (G&&Array.isArray(G.mainBoard)?G.mainBoard:[]).some(c=>c&&c._tripleMerged
-    &&String(c._tripleBaseName||c.name||'').replace(/\+$/,'')==='ノーム');
+    &&String(c._tripleBaseName||c.name||'').replace(/\+$/,'')===MERGE_TUTORIAL_CARD);
 }
 function openLibraryMergeTutorial(){
   if(!G||G._libraryTutorialActive) return;
   openMapLibraryFormation();
-  _rewCards=_libraryMergeLoanCards();
-  if(typeof renderRewCards==='function') renderRewCards();
+  _prepareLibraryLoanMode('merge');
+  if(window._libraryMergeTutorialPlayed) return;
+  window._libraryMergeTutorialPlayed=true;
   _waitLibraryUIReady(()=>runBoardTutorial({
     id:'merge',
     introText:textMessage('図書館「マージとは」説明開始','マージとは'),
     text:(key,fallback)=>textMessage(`「マージとは」${key}`,fallback),
     buildSteps:()=>[
       ['1',null,'同じカードを魔導板に3枚置くと、合体して1枚のカードになります。これを「マージ」と呼びます。'],
-      ['2',null,'貸出キャラクターの「ノーム」を魔導板に3枚置いてみましょう。','ノーム',{destIndex:null,done:_libraryBoardHasMergedGnome}],
+      ['2',null,`貸出キャラクターの「${MERGE_TUTORIAL_CARD}」を魔導板に3枚置いてみましょう。`,MERGE_TUTORIAL_CARD,{destIndex:null,done:()=>_libraryBoardHasMergedTutorialCard()&&!window._tripleMergeAnimationActive}],
       ['3',()=>Array.from(document.querySelectorAll('#hand-slots.board-slots > *')).filter((el,i)=>{const c=(G.mainBoard||[])[i];return !!(c&&c._tripleMerged);}),'マージ成功です！マージしたカードは効果が強化され、矢印が4方向になります。'],
       ['4',null,'既にマージしたカードを更にマージすることはできません。また、「荷物」という効果を持つカードもマージすることはできません。'],
     ],
   }));
 }
 
-// ── 店の入店時の台詞（会話メッセージシート）─────────────────────
-// シートは「街の名前」の行の下に「場面／テキスト」が並ぶ（loader.js が TALK_MESSAGES へ読む）。
-// 今の街の見出しの下を優先し、無ければ他の見出しの下の同じ場面を使う。
-function villageTalkMessage(scene){
+// ── 施設の会話（会話メッセージシート）─────────────────────
+// 現在の街の見出しだけを見る。場面名には「ヴァルガ「宿屋」入店時」のような街名が付く。
+function villageTalkEntry(scene){
   const all=(typeof window!=='undefined'&&window.TALK_MESSAGES)||{};
   const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
-  // 見出しは「風止みの村 リーゼ」のように二つ名付きのことがあるので、街の名前を含む見出しも今の街とみなす。
   const own=Object.keys(all).find(k=>town&&(k===town||k.includes(town)||town.includes(k)));
-  if(own&&all[own]&&all[own][scene]) return String(all[own][scene]);
-  for(const sec of Object.values(all)){ if(sec&&sec[scene]) return String(sec[scene]); }
-  return '';
+  const rows=own&&all[own];
+  if(!rows) return null;
+  const name=Object.keys(rows).find(k=>k===scene||k.endsWith(scene));
+  return name?rows[name]:null;
 }
-function _facilityGreetingText(fac){
+function _facilityGreetingEntry(fac){
   for(const v of villageFacilityNameVariants(fac&&fac.name)){
-    const t=villageTalkMessage(`「${v}」入店時`);
+    const t=villageTalkEntry(`「${v}」入店時`);
     if(t) return t;
   }
-  return '';
+  return null;
 }
-// 台詞の間は、村の画面を店の背景にして施設ボタン類を隠す（右＝キャラBの位置に台詞）。
+function _villageDialogueChoices(text){
+  return String(text||'').split('\n').map(s=>s.trim()).filter(Boolean).map(s=>{
+    const priceMatch=s.match(/([\d,]+)G/);
+    const lifeMatch=s.match(/ライフ\s*(\d+)\s*回復/);
+    return {text:s,price:priceMatch?Number(priceMatch[1].replace(/,/g,'')):0,
+      life:lifeMatch?Number(lifeMatch[1]):0,cancel:s.includes('やめておく')};
+  });
+}
+const INN_REST_BG_FADE_MS=650;
+const INN_LIFE_FADE_MS=750;
+async function _runVillageInnDialogue(talk,revisit){
+  if(revisit){
+    await _qStartDialogue([talk['再訪時台詞']],{screen:'village'});
+    return;
+  }
+  if(talk['台詞1']) await _qStartDialogue([talk['台詞1']],{screen:'village'});
+  const prompt=talk['台詞2'];
+  if(!prompt) return;
+  // 回復量が今の減っている分より多い選択肢は出さない（ライフが2以上減っている時だけ「ライフ2回復」を出す。
+  // ライフ上限が増えても、減っている分で判定する。2026-09-25 利用者指定）。
+  const lifeMax=typeof waveLifeMax==='function'?waveLifeMax():3;
+  const lifeNow=Math.max(0,Math.min(lifeMax,Number(G._waveLife==null?lifeMax:G._waveLife)||0));
+  const missing=lifeMax-lifeNow;
+  const choices=_villageDialogueChoices(prompt.text).filter(c=>c.cancel||!(c.life>0)||c.life<=missing);
+  const chosen=await _qStartDialogue([{...prompt,choices}],{screen:'village'});
+  if(!chosen||chosen.cancel) return;
+  if((Number(G.gold)||0)<chosen.price){
+    // ゴールド不足時台詞の間は、A の表情を F004 にする（2026-09-25 利用者指定）。
+    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village',face:'F004'});
+    if(talk['ゴールド不足時台詞']) await _qStartDialogue([talk['ゴールド不足時台詞']],{screen:'village'});
+    return;
+  }
+  G.gold-=chosen.price;
+  G._waveInnUsed=G._waveInnUsed||{};
+  G._waveInnUsed[_waveFacilityCacheKey()]=true;
+  if(typeof playSfx==='function') playSfx('purchase',{group:'ui'});
+  // 台詞3はクリックで閉じる。台詞が消えてから、背景だけを暗転させ、キャラも消す（2026-09-25 利用者指定）。
+  if(talk['台詞3']) await _qStartDialogue([talk['台詞3']],{screen:'village'});
+  document.body.classList.add('inn-rest-fading');
+  await Promise.all([
+    typeof _qClearPresentation==='function'?_qClearPresentation():Promise.resolve(),
+    _mapDelay(INN_REST_BG_FADE_MS),
+  ]);
+  if(typeof playSfx==='function') playSfx('lifeGet',{group:'ui'});
+  const max=typeof waveLifeMax==='function'?waveLifeMax():3;
+  const previous=Math.max(0,Math.min(max,Number(G._waveLife==null?max:G._waveLife)||0));
+  const next=Math.min(max,previous+chosen.life);
+  G._waveLife=next;
+  const lifeEl=document.getElementById('village-life');
+  if(lifeEl){
+    lifeEl.innerHTML=Array.from({length:max},(_,i)=>lifeHeartHtml(i>=max-next)).join('');
+    Array.from(lifeEl.querySelectorAll('.battle-life-heart')).forEach((heart,i)=>{
+      if(i>=max-next&&i<max-previous) heart.classList.add('inn-life-restored');
+    });
+  }
+  if(typeof updateHUD==='function') updateHUD();
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(true);
+  await _mapDelay(INN_LIFE_FADE_MS);
+  // 台詞4は暗転を解いてから出し、クリックしたら宿屋を出る（2026-09-25 利用者指定）。
+  // 台詞4がシートに無ければ、暗転のまま宿屋を出る。
+  if(talk['台詞4']){
+    document.body.classList.add('inn-rest-return');
+    document.body.classList.remove('inn-rest-fading');
+    // 暗転の間に消したキャラ（A）も背景と一緒に戻す。
+    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village'});
+    await _mapDelay(INN_REST_BG_FADE_MS);
+    document.body.classList.remove('inn-rest-return');
+    await _qStartDialogue([talk['台詞4']],{screen:'village'});
+  }
+}
+// 台詞の間は、村の画面を施設の背景にして施設ボタン類を隠す。
 function _showFacilityGreetingScene(fac){
   G._facilityGreetingKey=fac.key;
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
@@ -1492,23 +1695,53 @@ function _hideFacilityGreetingScene(){
 }
 
 // ── 店の初回説明（ゲーム内で初めてその店に入った時。入店時の台詞の後、商品画面の上で）──
-const SHOP_TUTORIAL_NAMES={shop:['魔導店','魔道店'],item:['道具屋'],forge:['鍛冶屋','鍛治屋']};
-function _shopTutorialText(names,suffix,fallback){
-  for(const n of names){ const t=textMessage(`「${n}」${suffix}`,''); if(t) return t; }
-  return fallback;
+// 店ごとにシート上の場面名が異なる（魔道店の説明開始だけ旧表記）ため、
+// 存在するキーを1つだけ使う。存在しない表記揺れを順にtextMessageへ渡さない。
+const SHOP_TUTORIAL_TEXT_KEYS={
+  shop:{intro:'「魔道店」説明開始',step:'「魔導店」'},
+  item:{intro:'「道具屋」説明開始',step:'「道具屋」'},
+  forge:{intro:'「鍛冶屋」説明開始',step:'「鍛冶屋」'},
+};
+function _shopTutorialText(facKey,suffix,fallback){
+  const def=SHOP_TUTORIAL_TEXT_KEYS[facKey];
+  if(!def) return fallback;
+  const key=suffix==='説明開始'?def.intro:`${def.step}${suffix}`;
+  return textMessage(key,fallback);
 }
 function _maybeStartShopTutorial(fac){
-  const names=SHOP_TUTORIAL_NAMES[fac&&fac.key];
-  if(!names||!G||G._debugMode||G._onlineMode) return;
-  const flag=`shop:${fac.key}`;
+  const facKey=fac&&fac.key;
+  const textKeys=SHOP_TUTORIAL_TEXT_KEYS[facKey];
+  if(!textKeys||!G||G._debugMode||G._onlineMode) return;
+  const flag=`shop:${facKey}`;
   if(typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(flag)) return;
   _waitLibraryUIReady(()=>{
     if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
     runBoardTutorial({
-      id:`shop-${fac.key}`,
-      introText:_shopTutorialText(names,'説明開始',names[0]),
-      text:(key,fallback)=>_shopTutorialText(names,key,fallback),
+      id:`shop-${facKey}`,
+      introText:_shopTutorialText(facKey,'説明開始',facKey),
+      text:(key,fallback)=>_shopTutorialText(facKey,key,fallback),
       buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']],
+    });
+  });
+}
+
+// 闘技場の初回説明。入店台詞1の後に呼ばれ、説明終了後は呼び出し元の会話へ戻る。
+function _maybeStartArenaTutorial(){
+  if(!G||G._debugMode||G._onlineMode||G._libraryTutorialActive) return Promise.resolve();
+  const flag='arena';
+  if(typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(flag)) return Promise.resolve();
+  if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
+  return new Promise(resolve=>{
+    runBoardTutorial({
+      id:'arena',
+      hostId:'scr-village',
+      observeHostId:'scr-village',
+      allowNoHost:true,
+      skipRenderHandEditor:true,
+      introText:textMessage('「闘技場」説明開始','闘技場'),
+      text:(key,fallback)=>textMessage(`「闘技場」${key}`,fallback),
+      buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']],
+      onFinish:resolve,
     });
   });
 }
@@ -1516,7 +1749,8 @@ function _maybeStartShopTutorial(fac){
 function runBoardTutorial(cfg){
   if(!G||G._libraryTutorialActive) return;
   G._libraryTutorialActive=true;
-  const scr=document.getElementById('scr-battle'); if(!scr){ G._libraryTutorialActive=false; return; }
+  const scr=document.getElementById(cfg.hostId||'scr-battle');
+  if(!scr&&!cfg.allowNoHost){ G._libraryTutorialActive=false; return; }
   const root=document.createElement('div'); root.id='library-board-tutorial';
   // #scr-battle は transform:scale() でスタッキングコンテキストになるため、
   // チュートリアルの暗転は body 直下に置き、fixed のビューポート座標で描画する。
@@ -1524,52 +1758,61 @@ function runBoardTutorial(cfg){
   root.querySelector('.library-tutorial-intro').textContent=String(cfg.introText||'');
   document.body.appendChild(root);
   const dims=root.querySelector('.library-tutorial-dims');
+  const dimSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  const dimPath=document.createElementNS('http://www.w3.org/2000/svg','path');
+  dimPath.setAttribute('fill-rule','evenodd');
+  dimPath.setAttribute('fill','#000');
+  dimPath.setAttribute('fill-opacity','.5');
+  dimSvg.appendChild(dimPath);
+  dims.appendChild(dimSvg);
+  // board.svg の背景 polygon（viewBox 1631×1407）。右の装飾だけが張り出す輪郭を
+  // 暗転の穴にも使い、SVG の外側に明るい矩形を残さない。
+  const BOARD_OUTLINE=[
+    [1630.4,1136.2],[1591.2,1113.6],[1591.2,367.7],[1629.9,345.4],
+    [1629.9,299.2],[1591.2,276.9],[1591.2,.2],[1.1,.2],
+    [.9,1405.9],[1591.1,1405.9],[1591.2,1205],[1630.4,1182.4]
+  ];
   let dimsObserver=null, dimsRecalcFrame=0;
   let revealTargets=false;
   const recalcDims=()=>{
     if(!dims) return;
-    const excluded=[];
-    const boardHoleRects=[];
-    if(revealTargets) document.querySelectorAll('#reward-offer-row .rew-card').forEach(el=>excluded.push(el.getBoundingClientRect()));
-    // 魔導板は枠画像・盤面コンテナ・実スロットが別要素。枠全体を覆う矩形も必ず穴に含める。
-    if(revealTargets) ['#reward-offer-section','#reward-offer-row','#hand-pane-board-bg','#hand-pane','#hand-slots.board-slots','#board-card-visibility-btn','#battle-options-btn'].forEach(sel=>{
-      const el=document.querySelector(sel); if(el){ const rect=el.getBoundingClientRect(); excluded.push(rect); if(sel==='#hand-slots.board-slots') boardHoleRects.push(rect); }
-    });
-    // 魔導板のマスは枠の矩形だけでは取りこぼすことがあるため、1マスずつ穴に含める。
-    if(revealTargets) document.querySelectorAll('#hand-slots.board-slots > *').forEach(el=>{ const rect=el.getBoundingClientRect(); excluded.push(rect); boardHoleRects.push(rect); });
     // innerWidth/Height が取れない状況（描画前・非表示タブ等）では暗転を作れないため、
-    // documentElement のサイズで補う。0のまま計算すると矩形が1枚も生成されない。
+    // documentElement のサイズで補う。
     const vw=window.innerWidth||document.documentElement.clientWidth||0;
     const vh=window.innerHeight||document.documentElement.clientHeight||0;
     if(vw<=0||vh<=0) return;
-    // 魔導板本体と全15マスを除外矩形へ入れたことを毎回検証する。
-    // 再描画でDOMが差し替わっても、次の計算でこの判定を更新する。
+    dimSvg.setAttribute('viewBox',`0 0 ${vw} ${vh}`);
+    const rectPath=r=>`M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`;
+    const cutouts=[`M0 0H${vw}V${vh}H0Z`];
+    const reward=document.getElementById('reward-offer-section');
+    const frame=document.getElementById('hand-pane-board-bg');
+    const frameRect=frame&&frame.getBoundingClientRect();
+    if(revealTargets){
+      const rewardRect=reward&&reward.getBoundingClientRect();
+      if(rewardRect&&rewardRect.width>0&&rewardRect.height>0) cutouts.push(rectPath(rewardRect));
+      if(frameRect&&frameRect.width>0&&frameRect.height>0){
+        const sx=frameRect.width/1631, sy=frameRect.height/1407;
+        cutouts.push(BOARD_OUTLINE.map(([x,y],i)=>`${i?'L':'M'}${frameRect.left+x*sx} ${frameRect.top+y*sy}`).join('')+'Z');
+      }
+    }
+    // オプションボタンは説明中も明るく押せるようにする（利用者指定 2026-09-25）。
+    // 形は button_option.svg（110×102、四隅が半径15の内向きの弧）に合わせて切り抜く。
+    const optBtn=document.getElementById('battle-options-btn');
+    const optRect=optBtn&&optBtn.getBoundingClientRect();
+    if(optRect&&optRect.width>0&&optRect.height>0){
+      const ox=optRect.left, oy=optRect.top, sx=optRect.width/110, sy=optRect.height/102;
+      const P=(x,y)=>`${ox+x*sx} ${oy+y*sy}`, R=`${15*sx} ${15*sy} 0 0 0`;
+      cutouts.push(`M${P(94,101)}L${P(16,101)}A${R} ${P(1,86)}L${P(1,16)}A${R} ${P(16,1)}L${P(94,1)}A${R} ${P(109,16)}L${P(109,86)}A${R} ${P(94,101)}Z`);
+    }
+    dimPath.setAttribute('d',cutouts.join(' '));
+    // 再描画で盤面が差し替わっても、全マスがSVG本体の内側にあることを確認する。
     const board=document.querySelector('#hand-slots.board-slots');
     const boardRect=board&&board.getBoundingClientRect();
-    G._libraryTutorialBoardHoleVerified=!!(revealTargets&&boardRect&&boardRect.width>0&&boardRect.height>0
-      &&boardHoleRects.some(rect=>rect.left<=boardRect.left+0.5&&rect.top<=boardRect.top+0.5
-        &&rect.right>=boardRect.right-0.5&&rect.bottom>=boardRect.bottom-0.5));
-    const xs=[0,vw]; excluded.forEach(r=>{if(r.width>0&&r.height>0){xs.push(Math.max(0,Math.min(vw,r.left)),Math.max(0,Math.min(vw,r.right)));}});
-    xs.sort((a,b)=>a-b);
-    const bounds=[]; xs.forEach(x=>{if(!bounds.length||Math.abs(bounds[bounds.length-1]-x)>0.5) bounds.push(x);});
-    dims.replaceChildren();
-    const add=(left,top,width,height)=>{
-      if(width<=0.5||height<=0.5)return;
-      const d=document.createElement('div'); d.className='library-tutorial-dim';
-      d.style.left=`${left}px`; d.style.top=`${top}px`; d.style.width=`${width}px`; d.style.height=`${height}px`;
-      dims.appendChild(d);
-    };
-    for(let i=0;i<bounds.length-1;i++){
-      const left=bounds[i], right=bounds[i+1], mid=(left+right)/2;
-      const holes=excluded.filter(r=>r.right>left&&r.left<right)
-        .map(r=>({top:Math.max(0,r.top),bottom:Math.min(vh,r.bottom)}))
-        .filter(r=>r.bottom>r.top).sort((a,b)=>a.top-b.top);
-      const merged=[]; holes.forEach(r=>{
-        const last=merged[merged.length-1];
-        if(last&&r.top<=last.bottom) last.bottom=Math.max(last.bottom,r.bottom); else merged.push(r);
-      });
-      let y=0; merged.forEach(r=>{add(left,y,right-left,r.top-y);y=r.bottom;}); add(left,y,right-left,vh-y);
-    }
+    G._libraryTutorialBoardHoleVerified=!!(revealTargets&&frameRect&&boardRect&&boardRect.width>0&&boardRect.height>0
+      &&boardRect.left>=frameRect.left+frameRect.width*.9/1631-.5
+      &&boardRect.top>=frameRect.top-.5
+      &&boardRect.right<=frameRect.left+frameRect.width*1591.1/1631+.5
+      &&boardRect.bottom<=frameRect.bottom+.5);
   };
   window.addEventListener('resize',recalcDims);
   window.addEventListener('orientationchange',recalcDims);
@@ -1579,7 +1822,7 @@ function runBoardTutorial(cfg){
   };
   const observeBoard=()=>{
     if(typeof MutationObserver!=='function') return;
-    const host=document.getElementById('scr-battle');
+    const host=document.getElementById(cfg.observeHostId||'scr-battle');
     if(!host) return;
     dimsObserver=new MutationObserver(records=>{
       if(records.some(record=>!root.contains(record.target))) scheduleRecalc();
@@ -1651,7 +1894,7 @@ function runBoardTutorial(cfg){
   const moveOpt=st=>(st&&st[4])||{};
   const moveDone=st=>{ const o=moveOpt(st); return typeof o.done==='function'?!!o.done():false; };
   const moveDest=st=>{ const o=moveOpt(st); return Object.prototype.hasOwnProperty.call(o,'destIndex')?o.destIndex:null; };
-  let tutorialDragging=false;
+  let tutorialDragging=false, draggingRewardIndex=-1;
   let highlightSyncFrame=0;
   // renderHandEditor() は盤面の子要素を全て作り直すため、発光対象をDOM参照で保持しない。
   // 現在のステップとカード名から毎回引き直し、再描画後にも同じ実DOMへ付け直す。
@@ -1659,9 +1902,17 @@ function runBoardTutorial(cfg){
     if(highlightSyncFrame) return;
     highlightSyncFrame=requestAnimationFrame(()=>{
       highlightSyncFrame=0;
-      if(!G._libraryTutorialActive||tutorialDragging) return;
+      if(!G._libraryTutorialActive) return;
       const st=steps[idx];
       if(!st||!st[3]) return;
+      if(tutorialDragging){
+        cardsByName(st[3]).forEach(source=>{
+          if(Number(source.dataset.cardIdx)===draggingRewardIndex) return;
+          source.classList.add('library-tutorial-allowed','library-tutorial-glow');
+          if(source.dataset.libTutShadow==null) applyGlowShadow(source);
+        });
+        return;
+      }
       clear(); clearAllowed(); allowBase(true);
       cardsByName(st[3]).forEach(source=>{ source.classList.add('library-tutorial-allowed'); glow(source); });
       const target=st[1]?(glow(st[1])):[];
@@ -1684,7 +1935,7 @@ function runBoardTutorial(cfg){
       : ['#hand-pane-board-bg','#hand-pane','#hand-slots.board-slots','#reward-offer-section','#battle-options-btn'];
     sels.forEach(sel=>{const el=document.querySelector(sel);if(el)el.classList.add('library-tutorial-allowed');});
   };
-  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;G._libraryTutorialMove=null;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);document.body.classList.remove('library-tutorial-lock','library-tutorial-active');root.remove();if(typeof renderHandEditor==='function')renderHandEditor();if(typeof cfg.onFinish==='function')cfg.onFinish();};
+  const finish=()=>{G._libraryTutorialActive=false;G._libraryTutorialStep=-1;G._libraryTutorialMove=null;tutorialDragging=false;clearInterval(glowPulseTimer);clear();clearAllowed();if(dropCheck)document.removeEventListener('drop',dropCheck,true);if(progressTimer){clearInterval(progressTimer);progressTimer=null;}if(dimsObserver)dimsObserver.disconnect();if(highlightObserver)highlightObserver.disconnect();if(highlightSyncFrame)cancelAnimationFrame(highlightSyncFrame);if(dimsRecalcFrame)cancelAnimationFrame(dimsRecalcFrame);document.removeEventListener('click',advanceClick,true);document.removeEventListener('pointerdown',block,true);document.removeEventListener('dragstart',tutorialDragStart,true);document.removeEventListener('dragend',tutorialDragEnd,true);document.removeEventListener('dragover',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragGuard,true);document.removeEventListener('drop',tutorialDragEnd,true);document.removeEventListener('contextmenu',tutorialContextMenu,true);window.removeEventListener('resize',recalcDims);window.removeEventListener('orientationchange',recalcDims);if(messageObserver)messageObserver.disconnect();document.body.classList.remove('library-tutorial-lock','library-tutorial-active','library-tutorial-free-drop','library-tutorial-message','library-tutorial-message-moving');root.remove();if(!cfg.skipRenderHandEditor&&typeof renderHandEditor==='function')renderHandEditor();if(typeof cfg.onFinish==='function')cfg.onFinish();};
   const next=()=>{
     if(!G._libraryTutorialActive)return;
     if(idx>=0&&steps[idx][3]&&!moveDone(steps[idx])) return;
@@ -1698,6 +1949,8 @@ function runBoardTutorial(cfg){
     if(cfg.id==='board'&&st[0]==='3'){const c=(_rewCards||[]).find(x=>x&&x.name==='リザードマン');if(c)c.directions=['up','left'];if(typeof renderRewCards==='function')renderRewCards();if(st[0]==='3')glow(st[1]);}
     if(cfg.id==='board'&&st[0]==='5-1'){const c=(_rewCards||[]).find(x=>x&&x.name==='野生の力');if(c)c.directions=['up','left','right'];if(typeof renderRewCards==='function')renderRewCards();glow(st[1]);}
     const moving=!!st[3]; document.body.classList.add('library-tutorial-lock');
+    // 置き先が自由な移動（マージとは）は、重ねたマスを通常どおり光らせる（index.html）。
+    document.body.classList.toggle('library-tutorial-free-drop',moving&&moveDest(st)==null);
     root.classList.toggle('library-tutorial-moving',moving);
     if(moving){
       // カードのtextContentにはカード名が入らない（ATK/HPと「貸出」バッジのみ）ため、
@@ -1711,13 +1964,12 @@ function runBoardTutorial(cfg){
         if(moveAdvanced||!G._libraryTutorialActive) return;
         // ドラッグ中に移動元カードへ発光を付け直すと、掴んで持ち上げた後も
         // 元の位置に光った枠が residual として残って見える。掴んでいる間は付けない。
-        if(!tutorialDragging){
-          cardsByName(st[3]).forEach(src=>{
-            if(src.classList.contains('library-tutorial-glow')) return;
-            src.classList.add('library-tutorial-glow','library-tutorial-allowed');
-            applyGlowShadow(src);
-          });
-        }
+        cardsByName(st[3]).forEach(src=>{
+          if(tutorialDragging&&Number(src.dataset.cardIdx)===draggingRewardIndex) return;
+          if(src.classList.contains('library-tutorial-glow')) return;
+          src.classList.add('library-tutorial-glow','library-tutorial-allowed');
+          applyGlowShadow(src);
+        });
         const cells=document.querySelectorAll('#hand-slots.board-slots > *');
         const destIndex=moveDest(st);
         // 置き先の指定が無い（マージとは）時は、魔導板のどのマスにも置ける（光らせない）。
@@ -1740,6 +1992,7 @@ function runBoardTutorial(cfg){
     }
     box.textContent=cfg.text(st[0],st[2]);
     box.classList.remove('library-tutorial-box-hidden');
+    syncMessageClass();
     scheduleRecalc();
   };
   const isMoving=()=>!!(steps[G._libraryTutorialStep]&&steps[G._libraryTutorialStep][3]);
@@ -1752,17 +2005,24 @@ function runBoardTutorial(cfg){
     if(!isMoving())return !!el.closest('#battle-options-btn');
     return true;
   };
-  const block=(e)=>{if(!G._libraryTutorialActive)return;if(isMoving()&&!root.classList.contains('library-tutorial-intro-active')) box.classList.add('library-tutorial-box-hidden');if(isTutorialInputAllowed(e.target))return;e.preventDefault();e.stopPropagation();};
+  // オプションボタンとオプション画面の操作は、説明の進行・入力制限の対象にしない。
+  const isOptionsTarget=t=>!!(t&&t.closest&&t.closest('#battle-options-btn,#options-layer'));
+  const block=(e)=>{if(!G._libraryTutorialActive)return;if(isOptionsTarget(e.target))return;if(isMoving()&&!root.classList.contains('library-tutorial-intro-active')) box.classList.add('library-tutorial-box-hidden');if(isTutorialInputAllowed(e.target))return;e.preventDefault();e.stopPropagation();};
   // チュートリアル中のドラッグ開始は、移動ステップの許可カードからだけ通す。
   // CSSでホバー対象へ入力を戻しているため、ここで許可外のドラッグを確実に止める。
   const tutorialDragStart=(e)=>{
     if(!G._libraryTutorialActive)return;
-    const allowed=isTutorialInputAllowed(e.target);
-    if(!isMoving()||!allowed){e.preventDefault();e.stopPropagation();return;}
+    const source=e.target&&e.target.closest&&e.target.closest('#reward-offer-row .rew-card.library-tutorial-allowed');
+    const st=steps[G._libraryTutorialStep];
+    const sourceIdx=source?Number(source.dataset.cardIdx):-1;
+    const sourceCard=sourceIdx>=0?(_rewCards||[])[sourceIdx]:null;
+    if(!isMoving()||!sourceCard||sourceCard.name!==st[3]){e.preventDefault();e.stopImmediatePropagation();return;}
     tutorialDragging=true;
-    document.querySelectorAll('#reward-offer-row .rew-card,#debug-card-palette .debug-palette-item').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
+    draggingRewardIndex=sourceIdx;
+    clearGlowShadow(source);
+    source.classList.remove('library-tutorial-glow');
   };
-  const tutorialDragEnd=()=>{if(!tutorialDragging)return;tutorialDragging=false;syncMovingHighlights();};
+  const tutorialDragEnd=()=>{if(!tutorialDragging)return;tutorialDragging=false;draggingRewardIndex=-1;syncMovingHighlights();};
   // 許可外のドロップ先へ既存の要素ハンドラを到達させない。preventDefault()はしないので、
   // ブラウザのドロップ成立条件を満たさず、許可外への配置は発生しない。
   const tutorialDragGuard=(e)=>{
@@ -1780,6 +2040,7 @@ function runBoardTutorial(cfg){
   // 4-2・5-2（isMoving）は移動完了でのみ進むため、ここでは進めない。
   const advanceClick=(e)=>{
     if(!G._libraryTutorialActive||root.classList.contains('library-tutorial-intro-active')) return;
+    if(isOptionsTarget(e.target)) return;
     // 大きな文字が消えてから最初の手順が出るまで（600ms）のクリックは捨てる。
     // ここで next() を呼ぶと、待ちの next() と合わせて2回進み、手順1が飛ばされていた。
     if(idx<0){e.preventDefault();e.stopImmediatePropagation();return;}
@@ -1790,9 +2051,26 @@ function runBoardTutorial(cfg){
     e.preventDefault();e.stopImmediatePropagation();next();
   };
   allowBase(false);
+  // 説明の文字（最初の大きな文字・説明枠）が出ている間は、ボタンとカードのホバーを全て止める
+  // （body.library-tutorial-message。index.html。利用者指定 2026-09-25）。移動の手順で説明枠を隠したら戻す。
+  const syncMessageClass=()=>{
+    const on=!!G._libraryTutorialActive&&(root.classList.contains('library-tutorial-intro-active')||!box.classList.contains('library-tutorial-box-hidden'));
+    document.body.classList.toggle('library-tutorial-message',on);
+    // 移動の手順では、動かすカードと置き先だけは説明が出ていてもそのまま掴めるようにする。
+    document.body.classList.toggle('library-tutorial-message-moving',on&&isMoving());
+  };
+  const messageObserver=typeof MutationObserver==='function'?new MutationObserver(syncMessageClass):null;
+  if(messageObserver){
+    messageObserver.observe(root,{attributes:true,attributeFilter:['class']});
+    messageObserver.observe(box,{attributes:true,attributeFilter:['class']});
+  }
+  syncMessageClass();
   document.body.classList.add('library-tutorial-active','library-tutorial-lock');
   document.addEventListener('pointerdown',block,true); document.addEventListener('click',advanceClick,true); document.addEventListener('dragstart',tutorialDragStart,true); document.addEventListener('dragend',tutorialDragEnd,true); document.addEventListener('dragover',tutorialDragGuard,true); document.addEventListener('drop',tutorialDragGuard,true); document.addEventListener('drop',tutorialDragEnd,true); document.addEventListener('contextmenu',tutorialContextMenu,true);
-  if(highlightObserver) highlightObserver.observe(document.getElementById('scr-battle'),{childList:true,subtree:true});
+  if(highlightObserver){
+    const observeHost=document.getElementById(cfg.observeHostId||'scr-battle');
+    if(observeHost) highlightObserver.observe(observeHost,{childList:true,subtree:true});
+  }
   // 文字表示中は除外なし＝画面全体を暗くする。ここで一度計算しないと暗転が1枚も出ない。
   recalcDims();
   const intro=()=>{root.classList.add('library-tutorial-intro-active');setTimeout(()=>{root.classList.remove('library-tutorial-intro-active');revealTargets=true;recalcDims();setTimeout(next,600);},1700);};
@@ -1824,7 +2102,6 @@ function openMapItemShop(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
-  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
   const waveKey=_waveFacilityCacheKey();
   if(waveKey!=null&&G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])){
     // 購入済みの枠はnullのまま「売切」として残す（詰めない・補充しない）。
@@ -1962,7 +2239,6 @@ function openMapShop(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
-  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
   const waveKey=_waveFacilityCacheKey();
   const shopAllowed=card=>{
     if(!card) return false;
@@ -1999,7 +2275,6 @@ function openMapForge(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
-  if(typeof playSfx==='function') playSfx('shopIn',{group:'ui'});
   _rewCards=[];
   _rewFreePickDone=true;
   const waveKey=_waveFacilityCacheKey();
@@ -2053,7 +2328,6 @@ function openMapRingExchange(){
   G.phase='reward';
   document.body.classList.remove('world-map-active');
   goToReward();
-  if(typeof playSfx==='function') playSfx('altarIn',{group:'ui'});
   const waveKey=_waveFacilityCacheKey();
   const cache=G._waveRingExchange&&G._waveRingExchange[waveKey];
   if(cache){

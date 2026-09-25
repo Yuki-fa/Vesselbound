@@ -28,14 +28,14 @@ function showScreen(id){
   if(id!=='map'&&typeof _setDebugMapButtonVisible==='function') _setDebugMapButtonVisible(false);
   if(id!=='reward'){
     document.body.classList.remove('debug-mode');
-    ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+    ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
       const debugEl=document.getElementById(debugId);
       if(debugEl) debugEl.style.display='none';
     });
   }
   const battleCutin=document.getElementById('battle-start-intro');
   const hideDebugCutin=!!(battleCutin||document.body.classList.contains('battle-victory-pending'));
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl&&hideDebugCutin) debugEl.style.display='none';
   });
@@ -73,17 +73,24 @@ function showScreen(id){
     const endFade=document.getElementById('battle-end-fade');
     if(endFade){ endFade.classList.remove('is-visible','is-final'); endFade.removeAttribute('style'); }
   }
+  // 魔獣撃退依頼の討伐後（camp と続く編成画面）は BGM を流さない（環境音だけ）。
+  // それ以外の画面（マップ・戦闘・次の街）へ移ったら解除する。
+  const _questNoBgmHere=typeof G!=='undefined'&&G&&G._questNoBgm
+    &&(id==='village'||(id==='battle'&&G.phase==='reward'));
+  if(typeof G!=='undefined'&&G&&G._questNoBgm&&!_questNoBgmHere) G._questNoBgm=false;
   // 街のBGMが鳴っている間（街画面／街の施設）はBGMを切り替えない。
-  if(typeof playBgm==='function'&&!(typeof G!=='undefined'&&G&&G._villageBgmActive)){
+  if(!_questNoBgmHere&&typeof playBgm==='function'&&!(typeof G!=='undefined'&&G&&G._villageBgmActive)){
     // 街（村）専用画面と、商談（報酬/編成）フェイズ中の戦闘画面はメニュー曲を使う。
     const isMenuLike=typeof G!=='undefined'&&G&&G.phase==='reward';
     const isBossBattle=typeof G!=='undefined'&&G&&G._waveBattleType==='boss';
+    const isArenaBattle=typeof G!=='undefined'&&G&&G._arenaActive;
     // ラスボス戦だけは専用BGM（battle4.wav、1:17から）を使う。
     const isFinalBoss=typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow();
     // 音量は曲ごとにBGM_DEFAULT_VOLUMES（audio.js）で決める。ここで.32を渡すと
     // 戦闘BGMだけが他より小さくなるため、指定せず既定値に任せる。
     if(id==='title') _startTitleBgm();
-    else if(id==='battle') playBgm(isMenuLike?'menu':(isFinalBoss?'battle4':(isBossBattle?'battle3':'battle1')),{fadeInMs:700});
+    else if(id==='battle') playBgm(isArenaBattle?'battle2':(isMenuLike?'menu':(isFinalBoss?'battle4':(isBossBattle?'battle3':'battle1'))),
+      isArenaBattle?{fadeInMs:700,startTime:57,fadeOutMs:700}:{fadeInMs:700});
     // 街は入場演出中はboom.wav後に演出側が鳴らすため何もしない。
     else if(id==='village'){
       if(!(typeof G!=='undefined'&&G&&G._villageIntroPlaying)){
@@ -121,7 +128,7 @@ const STATUS_TOOLTIPS=[
 // カスタムプロパティ（--altar-desc-text 等）へ入れて `content:var(...)` に使わせる。
 // 予備の文字列はCSS側の var() の第2引数が持つ（ここでは値が取れた時だけ設定する）。
 const SHEET_CSS_TEXTS=[
-  {prop:'--altar-desc-text',key:'「祭壇」説明文1',altKeys:['「祭壇」説明文']},
+  {prop:'--altar-desc-text',key:'「祭壇」説明文1'},
   {prop:'--title-board',key:'「魔導板枠」見出し'},
   {prop:'--title-reward',key:'「編成画面の報酬枠」見出し'},
   {prop:'--title-shop',key:'「魔導店の報酬枠」見出し'},
@@ -150,9 +157,9 @@ const SHEET_DOM_TITLES=[
   {sel:'#title-menu .title-menu-item.game-start .title-menu-label',key:'ゲームスタート',fallback:'ゲームスタート'},
   {sel:'#title-continue-btn .title-menu-label',key:'コンティニュー',fallback:'コンティニュー'},
   {sel:'#title-menu .title-menu-item.online-battle .title-menu-label',key:'オンライン対戦',fallback:'オンライン対戦'},
-  // 「実績」から「コレクション」へ改名中。シートの行名がどちらでも拾えるようにする。
-  {sel:'#title-menu .title-menu-item.collection .title-menu-label',key:'コレクション',altKeys:['実績'],fallback:'コレクション'},
+  {sel:'#title-menu .title-menu-item.collection .title-menu-label',key:'コレクション',fallback:'コレクション'},
   {sel:'#title-menu .title-menu-item.title-quit .title-menu-label',key:'終了',fallback:'終了'},
+  {sel:'#fatal-error-title',key:'「エラー発生時」見出し',fallback:'エラー'},
 ];
 function applySheetDomTitles(){
   if(typeof document==='undefined'||typeof textMessage!=='function') return;
@@ -514,6 +521,13 @@ function _giveDebugGolem(){
   const deploySlots=(typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'?MAIN_BOARD_FRONT_SLOTS:[1,3]);
   const slot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
   if(slot!=null) G.mainBoard[slot]=golem;
+  // デバッグでは黄金の壺を上段・中段の両端に1個ずつ、計4個持たせる（売却やショップの確認用。2026-09-25 利用者指定）。
+  const cols=typeof MAIN_BOARD_COLS==='number'?MAIN_BOARD_COLS:5;
+  [0,cols-1,cols,cols*2-1].forEach(i=>{
+    if(i<0||i>=G.mainBoard.length||G.mainBoard[i]) return;
+    const pot=makePanel('黄金の壺')||makePanel('panel_golden_vase');
+    if(pot) G.mainBoard[i]=pot;
+  });
 }
 
 // Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。
@@ -606,10 +620,11 @@ function _waveRetryPending(stage){
   return String(G._waveRetryEnemyKey||'').startsWith(prefix);
 }
 // 深層レベル＝そのwave内で何回目の通常戦闘か（1〜6）。エリート/ボスは固定値。
-function _waveDeepLevel(stage){
+function _waveDeepLevel(stage,waveOverride){
   // ステージ1はルートが1つ後ろにずれる（1=村/2,3=通常/4=エリート/5=街/6,7,8=通常/9=ボス）。
   // 街の後の戦闘は3戦だが、ボス直前が最高難度になるよう深層レベルは4,5,6を割り当てる。
-  if(Number(G&&G._wave)===1){
+  const wave=Number(waveOverride==null?(G&&G._wave):waveOverride)||0;
+  if(wave===1){
     const t1={2:1,3:2,4:2,6:4,7:5,8:6,9:6};
     return t1[stage]||1;
   }
@@ -618,7 +633,7 @@ function _waveDeepLevel(stage){
 }
 function _waveStageFloor(wave,stage){
   const maxDeep=typeof _mapDeepLevelsPerMap==='function'?_mapDeepLevelsPerMap():6;
-  const deep=_waveDeepLevel(stage);
+  const deep=_waveDeepLevel(stage,wave);
   return Math.max(1,(Math.max(1,Number(wave)||1)-1)*maxDeep+deep);
 }
 // 編成・報酬画面の背景動画（setup.webm）を再開する。
@@ -713,7 +728,8 @@ function _startWaveBattle(stage){
   G._testBattleSavedFloor=null;
   G._libraryTestBattleMode=false;
   document.body.classList.remove('test-battle-active');
-  const type=_waveBattleType(stage);
+  const questSpec=typeof questBattleStartSpec==='function'?questBattleStartSpec(stage):null;
+  const type=questSpec&&questSpec.type||_waveBattleType(stage);
   const wave=Math.max(1,Number(G._wave)||1);
   // showScreen('battle') が描画される前に背景位置を確定する。
   // 通常戦闘では、開幕演出側のクラス付与を待つと一瞬だけ既定位置（上寄り）が見える。
@@ -727,7 +743,10 @@ function _startWaveBattle(stage){
     // **画面が出る前に寄せておく**（エリート／ボス）。出てから寄せると動きが見える。
     // **種別は必ず渡す。** ここは G._waveBattleType を書き込む前なので、
     // 省略すると前の戦闘の種別で判定してしまう。
-    if(typeof prepareBattleIntroFocus==='function') prepareBattleIntroFocus(type);
+    // クエストの続きの戦闘（魔狼に挑む）は今の画面のまま続けるので、寄せ・暗転の準備をしない。
+    // 通常戦闘の準備は画面を黒で覆ってから開幕演出で明けるが、続きの戦闘は開幕演出を出さないため
+    // 黒いまま残っていた（2026-09-25 利用者指摘）。
+    if(!questSpec&&typeof prepareBattleIntroFocus==='function') prepareBattleIntroFocus(type);
   }
   G._waveVillage=false;
   G._isWaveAltar=false;
@@ -768,7 +787,9 @@ function _startWaveBattle(stage){
   G._extraBattleMult=type==='elite'?1.5:(type==='boss'?2:1);
   // _extraBattleMultは敵生成直後に1.0へリセットされるため、戦闘中に参照する用の控えを残す。
   G._battleBossMult=G._extraBattleMult;
-  G._mapBattle={mapIndex:wave,nodeId:null,type,floor:_waveStageFloor(wave,stage),forcedBoss:false,normalBattleNo:stage===1?1:stage===2?2:0,turn:0};
+  G._mapBattle={mapIndex:wave,nodeId:questSpec&&questSpec.nodeId||null,type,
+    floor:questSpec&&questSpec.floor!=null?questSpec.floor:_waveStageFloor(wave,stage),
+    forcedBoss:!!(questSpec&&questSpec.forcedBoss),normalBattleNo:stage===1?1:stage===2?2:0,turn:0};
   G.floor=G._mapBattle.floor;
   G.phase='battle';
   document.body.classList.remove('world-map-active');
@@ -1255,9 +1276,7 @@ const _titleStartLabel=()=>(typeof textMessage==='function'
 const TITLE_DEBUG_LABEL='デバッグモード';
 // シートに行が無い環境でも使えるよう既定文言を持たせる。
 const TITLE_ONLINE_DEBUG_LABEL_FALLBACK='デバッグオンライン';
-const _titleOnlineDebugLabel=()=>(typeof textMessage==='function'
-  ?textMessage('デバッグオンライン',TITLE_ONLINE_DEBUG_LABEL_FALLBACK)
-  :TITLE_ONLINE_DEBUG_LABEL_FALLBACK).trim()||TITLE_ONLINE_DEBUG_LABEL_FALLBACK;
+const _titleOnlineDebugLabel=()=>TITLE_ONLINE_DEBUG_LABEL_FALLBACK;
 function _syncTitleStartLabel(){
   const title=document.getElementById('scr-title');
   if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
@@ -1568,7 +1587,7 @@ function gameOver(options){
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });
@@ -1870,7 +1889,7 @@ function continueAfterBattleVictory(silent){
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
-  ['btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });
@@ -2070,7 +2089,7 @@ document.addEventListener('contextmenu', e => { e.preventDefault(); }, true);
 //             P=Promiseの未処理／D=データ読み込み／X=その他
 //   行　　　：発生行（取れなければ0）
 // 例）BT-T3020 ＝ battle.js の3020行目で TypeError。
-const FATAL_ERROR_TEXT_KEYS=['エラー発生時','エラー'];
+const FATAL_ERROR_TEXT_KEYS=['エラー発生時'];
 const FATAL_ERROR_FALLBACK='予期しないエラーが発生しました。\n続行できないため、タイトル画面へ戻ります。';
 const FATAL_ERROR_FILE_TAGS=[
   [/js\/engine\/battle\.js/,'BT'],[/js\/engine\/render\.js/,'RD'],[/js\/engine\/reward\.js/,'RW'],
@@ -2101,9 +2120,7 @@ function _fatalErrorCode(info){
   return `${file}-${kind}${line}`;
 }
 function _fatalErrorMessage(){
-  const text=(textMessage(FATAL_ERROR_TEXT_KEYS[0],'').trim()
-    ||textMessage(FATAL_ERROR_TEXT_KEYS[1],FATAL_ERROR_FALLBACK).trim()
-    ||FATAL_ERROR_FALLBACK);
+  const text=textMessage(FATAL_ERROR_TEXT_KEYS[0],FATAL_ERROR_FALLBACK).trim()||FATAL_ERROR_FALLBACK;
   // シートの文末にある「エラーコード：」は、下のコード行が受け持つので本文からは外す
   // （両方に出すと「エラーコード：」が2回並ぶ）。
   return text.replace(/\n?[\s　]*エラーコード[\s　]*[：:][\s　]*$/,'');
@@ -2118,6 +2135,9 @@ function showFatalError(code,detail){
   try{ console.error('[Vesselbound] fatal',shown,detail||''); }catch(_e){}
   if(typeof G!=='undefined'&&G) G._lastFatalError={code:shown,detail:String((info&&info.message)||(detail&&detail.message)||detail||'')};
   const msgEl=document.getElementById('fatal-error-message');
+  const titleEl=document.getElementById('fatal-error-title');
+  if(titleEl) titleEl.textContent=typeof textMessage==='function'
+    ?textMessage('「エラー発生時」見出し','エラー'):'エラー';
   if(msgEl) msgEl.textContent=_fatalErrorMessage();
   const codeEl=document.getElementById('fatal-error-code-value');
   if(codeEl) codeEl.textContent=shown;

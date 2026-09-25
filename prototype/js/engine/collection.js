@@ -14,19 +14,19 @@ function _collectionText(key,fallback){
 }
 
 const COLLECTION_TEXTS={
-  title:['「コレクション」見出し','コレクション'],
-  character:['コレクション「キャラクター」ボタン','キャラクター'],
-  enchant:['コレクション「エンチャント」ボタン','エンチャント'],
-  enemy:['コレクション「エネミー」ボタン','エネミー'],
-  equipment:['コレクション「リング / アイテム」ボタン','リング / アイテム'],
-  merge:['コレクション「マージ」ボタン','マージ'],
+  title:['コレクション','コレクション'],
+  character:[null,'キャラクター'],
+  enchant:[null,'エンチャント'],
+  enemy:[null,'エネミー'],
+  equipment:[null,'リング / アイテム'],
+  merge:[null,'マージ'],
   return:['「タイトルに戻る」ボタン','タイトルに戻る']
 };
 
 function applyCollectionTexts(){
   document.querySelectorAll('[data-collection-text]').forEach(el=>{
     const item=COLLECTION_TEXTS[el.dataset.collectionText];
-    if(item) el.textContent=_collectionText(item[0],item[1]);
+    if(item) el.textContent=item[0]===null?item[1]:_collectionText(item[0],item[1]);
   });
 }
 

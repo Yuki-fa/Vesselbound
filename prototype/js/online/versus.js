@@ -112,7 +112,7 @@
       units,
       rings: {
         p1: (typeof _effectiveRings === 'function')
-          ? _effectiveRings().map(r => ({ name: String(r.name || ''), unique: String(r.unique || '') })) : [],
+          ? _effectiveRings().map(r => ({ name: String(r.name || ''), unique: String(r.unique || ''), desc: String(r.desc || '') })) : [],
         p2: [],
       },
       items: {

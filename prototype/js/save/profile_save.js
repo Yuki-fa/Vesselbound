@@ -1,7 +1,7 @@
 // 恒久コレクション。カードの表示・正式取得だけを受け、戦闘計算からは呼ばない。
 const SaveProfile=(()=>{
   let profile=null,dirty=false,blocked=false;
-  function fresh(){return {saveVersion:1,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{},openingMovieShown:false,tutorialsShown:{}};}
+  function fresh(){return {saveVersion:SaveMigrations.versions.profile,gameVersion:SaveMigrations.gameVersion,cards:{},items:{},rings:{},completedRuns:{},openingMovieShown:false,tutorialsShown:{}};}
   function validate(raw){
     const p=SaveMigrations.migrate('profile',raw),assert=SaveMigrations.assert;
     for(const group of ['cards','items','rings']){

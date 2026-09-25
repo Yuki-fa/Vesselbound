@@ -5,6 +5,13 @@
 
 // VFX素材を差し替えたら上げる。再生ごとに変えないこと（変えるとデコードが再生回数ぶん増える）。
 const VFX_ASSET_VERSION='vfx0916';
+// 戦闘の後の会話・確認（闘技場の継戦確認、魔獣撃退依頼の魔狼の会話など）の間は、デバッグ用のボタンを出さない。
+// 勝利後に phase が reward になる一方、通常の勝利演出を通らないため、右下のボタンが確認窓・会話の後ろに出ていた（2026-09-26）。
+// battle-victory-pending は goToReward() で外れるので、通常の編成画面では従来どおり出る。
+function debugButtonsSuppressed(){
+  return !!((typeof G!=='undefined'&&G&&G._arenaActive)
+    ||(typeof document!=='undefined'&&document.body&&document.body.classList.contains('battle-victory-pending')));
+}
 function _withVfxAssetVersion(url){
   const raw=String(url||'');
   if(!raw) return raw;
@@ -4562,7 +4569,9 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   });
   // 弱体X（弱体化Xにより付与された状態）はunit.keywordsではなくunit.weaken（数値、加算式）で
   // 管理しているため、ここで表示用の擬似キーワードとして先頭に合成する
-  const weakenList=unit.weaken>0?[`弱体${unit.weaken}`]:[];
+  // 戦闘の再生中は、まだ演出を出していない弱体を含めない（present.js の据え置き値）。
+  const shownWeaken=typeof presentShownWeaken==='function'?presentShownWeaken(unit):(Number(unit.weaken)||0);
+  const weakenList=shownWeaken>0?[`弱体${shownWeaken}`]:[];
   return [...weakenList,...filtered];
 }
 // 戦闘中のユニットは _panelSummonDisplayBoardCards() が作る
@@ -5029,7 +5038,7 @@ function renderField(id,units,isEnemy,_lane){
         // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
         // バッジ表示用の擬似キーワードとして合成する
         const _dynKws=_shownShield>0?[`結界${_shownShield}`]:[];
-        const _allKws=[...(u.poison>0?[`毒${u.poison}`]:[]),...(u.weaken>0?[`弱体${u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
+        const _allKws=[...(u.poison>0?[`毒${u.poison}`]:[]),...((typeof presentShownWeaken==='function'?presentShownWeaken(u):(Number(u.weaken)||0))>0?[`弱体${typeof presentShownWeaken==='function'?presentShownWeaken(u):u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
         const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
         const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
         const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
@@ -5532,7 +5541,7 @@ function renderControls(){
   // 編成画面のデバッグボタンは4つとも同じ条件で出す（2行2列に並ぶ）。
   const dbgExtra=['btn-debug-error','btn-debug-map'].map(id=>document.getElementById(id)).filter(Boolean);
   const setDbgExtra=v=>dbgExtra.forEach(el=>{ el.style.display=v; });
-  const debugTestBattle=!!(G._debugMode&&G._testBattleMode&&!G._libraryTestBattleMode);
+  const debugTestBattle=!!(G._debugMode&&G._testBattleMode&&!G._libraryTestBattleMode&&!debugButtonsSuppressed());
   // デバッグ撃破ボタンは報酬バー内にあるため、試験戦闘中だけ親を表示して
   // 実際のクリック領域を確保する。通常モード・通常戦闘では親も従来どおり隠す。
   const dbgParent=dbg&&dbg.parentElement;
@@ -5542,7 +5551,7 @@ function renderControls(){
   }
   if(G.phase==='player'){
     badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
-    if(dbg) dbg.style.display=G._debugMode?'':'none';
+    if(dbg) dbg.style.display=G._debugMode&&!debugButtonsSuppressed()?'':'none';
     if(testBtn) testBtn.style.display='none';
     if(dbgOver) dbgOver.style.display='none';
     setDbgExtra('none');
@@ -5550,15 +5559,17 @@ function renderControls(){
     // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
     if(dbg) dbg.style.display='none';
-    if(dbgOver) dbgOver.style.display=G._debugMode?'':'none';
-    if(testBtn) testBtn.style.display=G._debugMode?'':'none';
-    setDbgExtra(G._debugMode?'':'none');
+    // 闘技場の継戦確認の間（勝利後に phase が reward になる）は、デバッグ用のボタンを出さない。
+    const _dbgShow=G._debugMode&&!debugButtonsSuppressed();
+    if(dbgOver) dbgOver.style.display=_dbgShow?'':'none';
+    if(testBtn) testBtn.style.display=_dbgShow?'':'none';
+    setDbgExtra(_dbgShow?'':'none');
     return;
   } else {
     badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
     // デバッグ試験戦闘では自動進行中（enemyフェイズ）でも一括撃破を使えるようにする。
     // 人数減少後のFLIPを画面遷移前に実測するための検証専用入口で、通常戦闘には出さない。
-    if(dbg) dbg.style.display=G._debugMode&&G._testBattleMode?'':'none';
+    if(dbg) dbg.style.display=G._debugMode&&G._testBattleMode&&!debugButtonsSuppressed()?'':'none';
     if(dbgOver) dbgOver.style.display='none';
     if(testBtn) testBtn.style.display='none';
     setDbgExtra('none');

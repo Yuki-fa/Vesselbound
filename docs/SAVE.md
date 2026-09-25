@@ -45,3 +45,7 @@
 ### 酒場クエストの保存
 
 `questProgress` は `run_save.js` の `serializeRunState()`／`restoreRunState()` が個別に保存・復元する。クエスト番号ごとに、受けた街（`wave`）、`tavernVariant`／`towerVariant`、`status`（`offered`／`rejected`／`accepted`／`failed`／`completed`）、`rewardCardTaken`、`partedPending`、塔の会話・報酬済みフラグを保存する。会話途中の吹き出しや立ち絵は一時DOMなので保存せず、再開時は会話の先頭からやり直せる。古いランで `questProgress` が無い場合は空オブジェクトとして復元する。
+
+図書館の `_libraryLoanResetSnapshot` は「元に戻す」用の編成で、退館時に使う `_libraryLoanSnapshot` とは別に保存する。`_libraryLoanMode` は現在の説明（`board`／`merge`）で、説明を切り替えた時に入館時の盤面と貸出カードを復元する。古いセーブにこれらが無い場合は図書館の編成画面を開く時に補う。ノーム5枚の説明でも初期盤面のカードを残す。
+
+施設の初回台詞は `_facilityTalkSeen`（wave:施設キー）、宿屋の利用済みは `_waveInnUsed` をランセーブに保存する。`checkpointFacilityTalk()` は既存の街チェックポイントの会話済みだけを更新し、宿屋の支払い時に限り所持金・ライフ・利用済みも更新する。途中のショップ購入は確定しない。古いセーブで `_facilityTalkSeen` が無い時は空オブジェクトとして扱う。会話・休息中のDOMや暗転クラスは保存しない。

@@ -601,7 +601,16 @@ function getBattleSpeedScale(){
   const t=Math.min(1,(performance.now()-changed)/3000);
   const scale=from+(target-from)*t;
   G._battleSpeed=scale;
-  return Math.max(1,Math.min(1.5,scale));
+  // 自動加速は1.5倍まで（_setBattleSpeedTarget）。オプションの2倍速・3倍速はこの上限の外で固定する。
+  return Math.max(1,Math.min(3,scale));
+}
+// オプションの演出速度（options.js の window.VB_OPTION_SPEED）の倍率。通常は1（自動加速を使う）。
+// 旧「高速」（fast）は2倍速として扱う。
+function optionBattleSpeedMultiplier(){
+  const v=typeof window!=='undefined'?window.VB_OPTION_SPEED:'';
+  if(v==='x3') return 3;
+  if(v==='x2'||v==='fast') return 2;
+  return 1;
 }
 
 // 戦闘演出の速度は、PvE／オンラインで同じ入口から読む（唯一の実装）。
@@ -613,14 +622,18 @@ function _isOnlineBattlePresentationPlaying(){
   return !!(typeof window!=='undefined'&&window.__VB_BATTLE_PRESENTATION_PLAYING);
 }
 function isBattlePresentationPlaying(){
-  return _isOnlineBattlePresentationPlaying()||!!(typeof G!=='undefined'&&G&&G._battlePhaseRunning);
+  // セーブ有効時の戦闘（通常プレイ）は SaveRun.replay() が再生し、_battlePhaseRunning を立てない。
+  // これを見ないと、演出速度（自動加速・2倍速・3倍速）が通常プレイの戦闘に一度も掛かっていなかった（2026-09-25）。
+  return _isOnlineBattlePresentationPlaying()||!!(typeof G!=='undefined'&&G&&(G._battlePhaseRunning||G._savedBattleReplaying));
 }
-// 速度倍率 S：再生中でなければ1。オプション「高速」は PvE・オンラインとも1.5。
+// 速度倍率 S：再生中でなければ1。オプション「2倍速」「3倍速」は PvE・オンラインとも2・3。
 // 「通常」は PvE・オンラインとも同じ自動加速を使う。自動加速の判定更新も
 // この入口へ集約し、待ち・タイマー・アニメーション同期の経路差を作らない。
 function getBattlePresentationSpeedScale(){
   if(!isBattlePresentationPlaying()) return 1;
-  if(typeof window!=='undefined'&&window.VB_OPTION_SPEED==='fast') return 1.5;
+  // オプションの2倍速・3倍速は最初から固定の倍率（自動加速の立ち上がりも無し）。
+  const optionMul=optionBattleSpeedMultiplier();
+  if(optionMul>1) return optionMul;
   // 速度を読む全経路（sleep・タイマー・rAF・VFX）から同じ判定を通す。
   // イベント再生型のPvEは battleSleep() を通らないため、ここが自動加速判定の入口。
   // rAFは毎フレーム呼ばれるので、短時間の再判定は間引く。
@@ -704,12 +717,13 @@ function updateBattleSpeedMode(){
   // isBattlePresentationPlaying() に集約し、phase名へ依存しない。
   const canUpdate=isBattlePresentationPlaying();
   if(!canUpdate) return getBattleSpeedScale();
-  // オプションの演出速度「高速」は最初から1.5倍で固定する（加速の3秒の立ち上がりも無し）。
-  // 「通常」は下の自動加速（長い戦闘だけ速める）をそのまま使う。
+  // オプションの演出速度「2倍速」「3倍速」は最初からその倍率で固定する（加速の3秒の立ち上がりも無し）。
+  // 「通常」は下の自動加速（長い戦闘だけ速める。最大1.5倍）をそのまま使う。
   // 値は options.js が window.VB_OPTION_SPEED に置く（G は startGame() で作り直されるため G には持たない）。
-  if(typeof window!=='undefined'&&window.VB_OPTION_SPEED==='fast'){
-    if(G._battleSpeedTarget!==1.5||G._battleSpeedFrom!==1.5){
-      G._battleSpeedFrom=1.5; G._battleSpeedTarget=1.5; G._battleSpeed=1.5; G._battleSpeedChangedAt=performance.now();
+  const optionMul=optionBattleSpeedMultiplier();
+  if(optionMul>1){
+    if(G._battleSpeedTarget!==optionMul||G._battleSpeedFrom!==optionMul){
+      G._battleSpeedFrom=optionMul; G._battleSpeedTarget=optionMul; G._battleSpeed=optionMul; G._battleSpeedChangedAt=performance.now();
     }
     return getBattleSpeedScale();
   }
@@ -1028,6 +1042,7 @@ function _handleVictory(){
   if(G.phase!=='reward') return;
   if(G._battleDefeatHandled) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
+  if(typeof questHandleBattleVictory==='function'&&questHandleBattleVictory()) return;
   if(typeof finishWaveBattleVictory==='function'&&finishWaveBattleVictory(true)) return;
   // 表示タイマーと非表示タイマーを独立したsetTimeoutで走らせず、表示が確定してから
   // 一定時間後に非表示にするようチェーンする（メインスレッドが混雑していても表示が
@@ -1087,6 +1102,13 @@ function _waveBattleRouteName(){
 }
 function _battleStartIntroText(){
   if(G&&G._libraryTestBattleMode) return {title:'戦 闘 開 始',subtitle:'試験戦闘',kind:'normal'};
+  if(G&&G._arenaActive){
+    const round=Math.max(1,Math.min(6,Number(G._arenaRound)||1));
+    const kind=typeof arenaRoundKind==='function'?arenaRoundKind(round):(round===6?'boss':'elite');
+    const subtitle=typeof textMessage==='function'?textMessage('街「闘技場」ボタン','闘技場'):'闘技場';
+    const title=(G._waveIsRetry)?'再 戦':'戦 闘 開 始';
+    return {title,subtitle:String(subtitle||'闘技場').trim()||'闘技場',kind};
+  }
   const mapBattle=G._mapBattle||null;
   const kind=String(G._waveBattleType||mapBattle?.type||'');
   const isBoss=kind==='boss'||_isBossFight||!!mapBattle?.forcedBoss;
@@ -1289,7 +1311,7 @@ function showBattleCutin(type='start',options={}){
   overlay.id='battle-start-intro';
   // 敗北は撤退と同じ装いにする（文字だけ違う）。
   overlay.className=`battle-start-intro cutin-${mode==='defeat'?'retreat':mode} battle-start-${info.kind||'normal'}`;
-  overlay.innerHTML=`<div class="battle-start-aura"></div><div class="battle-cut-in-particles" aria-hidden="true"></div><img class="battle-start-line" src="assets/ui/battle_line.svg" alt=""><span class="battle-start-icon-wrap"><img class="battle-start-icon" src="assets/ui/main_icon.svg" alt=""></span><div class="battle-start-title">${_escapePreviewHtml(title)}</div><div class="battle-start-subtitle">${_escapePreviewHtml(options.subtitle||((mode==='start')?(String(info.subtitle||'').trim()||'\u00a0'):subtitle))}</div>`;
+  overlay.innerHTML=`<div class="battle-start-aura"></div><div class="battle-cut-in-particles" aria-hidden="true"></div><img class="battle-start-line" src="assets/ui/main_line.svg" alt=""><span class="battle-start-icon-wrap"><img class="battle-start-icon" src="assets/ui/main_icon.svg" alt=""></span><div class="battle-start-title">${_escapePreviewHtml(title)}</div><div class="battle-start-subtitle">${_escapePreviewHtml(options.subtitle||((mode==='start')?(String(info.subtitle||'').trim()||'\u00a0'):subtitle))}</div>`;
   host.appendChild(overlay);
   if(mode==='start') return overlay;
   // 勝利・撤退の結果表示中は、戦場カードを操作・ホバーできないようにする。
@@ -1335,9 +1357,74 @@ function showBattleCutin(type='start',options={}){
 }
 
 // infoOverride：カットインの文言を呼び出し側で指定する（省略時は従来どおり戦闘種別から作る）。
+// 続きの戦闘（闘技場の2戦目以降・魔獣撃退依頼で魔狼に挑む）か。
+// 味方は場に居たままで、開幕の文字・背景の動き・暗転・味方の登場を行わず、敵の登場だけを見せる。
+function _battleCarryOpening(){
+  return !!(G&&G._arenaActive&&Number(G._arenaRound)>1)
+    ||!!(typeof questBattleCarryActive==='function'&&questBattleCarryActive());
+}
+const ARENA_WAVE_INTRO_FADE_IN_MS=300;
+const ARENA_WAVE_INTRO_HOLD_MS=400;
+const ARENA_WAVE_INTRO_FADE_OUT_MS=400;
+async function _showArenaWaveIntro(){
+  if(!G||!G._arenaActive) return;
+  const host=document.getElementById('scr-battle');
+  if(!host) return;
+  const old=document.getElementById('arena-wave-intro');
+  if(old) old.remove();
+  const total=typeof ARENA_ROUND_COUNT==='number'?ARENA_ROUND_COUNT:6;
+  const round=Math.max(1,Math.min(total,Number(G._arenaRound)||1));
+  const overlay=document.createElement('div');
+  overlay.id='arena-wave-intro';
+  overlay.setAttribute('aria-hidden','true');
+  const title=document.createElement('div');
+  title.className='battle-start-title';
+  title.textContent=`WAVE ${round}/${total}`;
+  overlay.appendChild(title);
+  host.appendChild(overlay);
+  const animateOpacity=(from,to,duration,easing)=>{
+    if(typeof overlay.animate==='function'){
+      try{
+        return overlay.animate([{opacity:from},{opacity:to}],
+          {duration,easing,fill:'forwards'});
+      }catch(_e){}
+    }
+    const speed=typeof getBattlePresentationSpeedScale==='function'
+      ?getBattlePresentationSpeedScale():1;
+    overlay.style.transition=`opacity ${Math.max(1,duration/speed)}ms ${easing}`;
+    overlay.style.opacity=String(to);
+    return null;
+  };
+  animateOpacity(0,1,ARENA_WAVE_INTRO_FADE_IN_MS,'ease-out');
+  await sleep(ARENA_WAVE_INTRO_FADE_IN_MS);
+  if(!overlay.isConnected) return;
+  await sleep(ARENA_WAVE_INTRO_HOLD_MS);
+  if(!overlay.isConnected) return;
+  animateOpacity(1,0,ARENA_WAVE_INTRO_FADE_OUT_MS,'ease-in');
+  await sleep(ARENA_WAVE_INTRO_FADE_OUT_MS);
+  if(overlay.isConnected) overlay.remove();
+}
 function _playBattleStartIntro(infoOverride){
   const host=document.getElementById('scr-battle');
   if(!host) return Promise.resolve();
+  const info=infoOverride||_battleStartIntroText();
+  // 闘技場の2戦目以降は、現在の背景・カメラ位置を保ったまま、敵の出現だけを行う。
+  // battle-opening-pending はカードを隠すために使うが、背景クラスとフォーカスは触らない。
+  // 魔獣撃退依頼（Q004）で魔狼に挑んだ続きの戦闘も同じ（戦闘開始の文字を出さない）。
+  const arenaCarryIntro=_battleCarryOpening();
+  if(arenaCarryIntro){
+    // 味方は前の戦闘から場に居たまま。開幕の「全員隠す」から味方だけ外す（index.html の battle-carry-allies）。
+    host.classList.add('battle-carry-allies');
+    // 続きの戦闘は暗転しない。前の準備で黒幕が残っていたら外す（残ると画面が真っ暗のまま）。
+    const carryFade=document.getElementById('battle-transition-fade');
+    if(carryFade&&carryFade.classList.contains('is-visible')){ carryFade.style.transition=''; carryFade.classList.remove('is-visible'); }
+    host.classList.remove('battle-start-units-collapsed','battle-start-units-revealing','battle-opening-active');
+    host.classList.add('battle-opening-pending');
+    void host.offsetWidth;
+    const oldCarry=document.getElementById('battle-start-intro');
+    if(oldCarry) oldCarry.remove();
+    return Promise.resolve(info.kind);
+  }
   const endFade=document.getElementById('battle-end-fade');
   if(endFade){ endFade.classList.remove('is-visible','is-final'); endFade.removeAttribute('style'); }
   host.classList.remove('battle-bg-normal','battle-bg-reveal','battle-bg-scroll-ready','battle-bg-scrolling','battle-start-units-collapsed','battle-start-units-revealing','battle-opening-active');
@@ -1355,7 +1442,6 @@ function _playBattleStartIntro(infoOverride){
     focusBattleBackground(BATTLE_FOCUS_SCALE,0);
     return Promise.resolve('boss');
   }
-  const info=infoOverride||_battleStartIntroText();
   // 再戦では背景移動をしない（通常戦闘と同じ入り方）。判定は main.js の _waveRetryPending()。
   const needsScroll=(info.kind==='elite'||info.kind==='boss')&&!(G&&G._waveIsRetry);
   host.classList.add(needsScroll?'battle-bg-reveal':'battle-bg-normal');
@@ -1813,7 +1899,11 @@ function _battleStartLineSpeakers(){
   const out=[];
   (typeof _orderedBattleCharacters==='function'?_orderedBattleCharacters():[]).forEach(unit=>{
     if(!unit||unit.hp<=0) return;
-    const lines=Array.isArray(unit.battleLines)?unit.battleLines.filter(t=>String(t||'').trim()):[];
+    const useArenaLines=!!(G&&G._arenaActive&&(unit.elite||unit.boss));
+    const sourceLines=useArenaLines
+      ?(Array.isArray(unit.arenaBattleLines)?unit.arenaBattleLines:[])
+      :(Array.isArray(unit.battleLines)?unit.battleLines:[]);
+    const lines=sourceLines.filter(t=>String(t||'').trim());
     if(!lines.length) return;
     const isEnemySide=(G.enemies||[]).includes(unit);
     out.push({unit,isEnemySide,isRear:String(unit.lane||'front')==='rear',lines});
@@ -1850,13 +1940,15 @@ async function playBattleOpeningSequence(introKind){
   if(!host) return;
   host.classList.remove('battle-opening-pending');
   host.classList.add('battle-opening-active');
+  // 続きの戦闘では味方を出し直さない（敵だけが登場する）。
+  const carry=_battleCarryOpening();
   const enemyRear=_battleOpeningSlotList('#f-enemy',true,true);
-  const allyRear=_battleOpeningSlotList('#f-ally',false,true);
+  const allyRear=carry?[]:_battleOpeningSlotList('#f-ally',false,true);
   const enemyFront=_battleOpeningSlotList('#f-enemy',true,false);
-  const allyFront=_battleOpeningSlotList('#f-ally',false,false);
+  const allyFront=carry?[]:_battleOpeningSlotList('#f-ally',false,false);
   const sealed=[
     ..._battleOpeningSealedSlotList('#f-enemy',true),
-    ..._battleOpeningSealedSlotList('#f-ally',false)
+    ...(carry?[]:_battleOpeningSealedSlotList('#f-ally',false))
   ];
   // ラスボス戦は通常の登場演出（落下＋着地VFX）を使わず、
   // 封印キャラも含めて全員を同時にフェードインで出す。
@@ -1878,7 +1970,7 @@ async function playBattleOpeningSequence(introKind){
     await _fadeInBattleOpeningSealedSlots(bossSlots,
       {durationMs:BATTLE_OPENING_BOSS_FADE_MS,fromDark:true});
   }
-  host.classList.remove('battle-opening-active');
+  host.classList.remove('battle-opening-active','battle-carry-allies');
 }
 
 // 開幕カードのtransform解除直後は、複数体時の絶対left/top再配置がまだ
@@ -1935,6 +2027,21 @@ function _warmBattleHitSfx(){
 
 async function startBattle(){
   const savedBattle=typeof SaveRun!=='undefined'?SaveRun.takeResume():null;
+  const arenaBattle=!!(typeof arenaIsActive==='function'&&arenaIsActive());
+  const questBattle=!!(typeof questBattleCarryActive==='function'&&questBattleCarryActive());
+  const arenaRound=Math.max(1,Number(G._arenaRound)||1);
+  // 2戦目以降は前戦闘の味方配列・HP・バフ・資源をそのまま次戦へ渡す。
+  // セーブ再開は setup を復元するため、ここでは通常の初期化を通してよい。
+  const arenaCarry=arenaBattle&&!savedBattle&&arenaRound>1;
+  const questCarry=questBattle&&!savedBattle;
+  const carryBattle=arenaCarry||questCarry;
+  // 引き継ぐ体には、前の戦闘で付いた「体どうしを指す参照」（_lastDamageSource 等）が残っている。
+  // 敵と味方が互いを指して循環し、clone()（JSON）が例外で落ちていた（GN-T0。2026-09-25 利用者報告）。
+  // 戦闘ごとの一時的な値なので、次の戦闘の前に外す（セーブの omitted と同じ扱い）。
+  if(carryBattle) [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{
+    if(!u||typeof u!=='object') return;
+    ['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect'].forEach(k=>{ delete u[k]; });
+  });
   const saveBattle=typeof SaveRun!=='undefined'&&SaveRun.enabled();
   G._savePreparing=saveBattle;
   G._savePresentation=!!savedBattle;
@@ -1975,24 +2082,26 @@ async function startBattle(){
   // （ステージ5のエリート勝利→ラスボス直行など）では付いたまま次の戦闘に入り、
   // その戦闘中ずっとホバー説明が出なくなる。戦闘開始時に必ず落とす。
   document.body.classList.remove('reward-screen-active','ring-offer-phase','ring-offer-resolved','battle-victory-pending');
-  const pendingItems=[
-    ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
-    ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
-  ];
-  const seenItemKeys=new Set();
-  G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
-    if(!c) return false;
-    if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
-    const key=String(c.itemEffectKey||'')==='meteor_scroll'
-      ?'meteor_scroll'
-      :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
-    if(seenItemKeys.has(key)) return false;
-    seenItemKeys.add(key);
-    return true;
-  });
-  G.pendingBattleItems=[];
-  G.nextBattleItems=[];
-  (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
+  if(!carryBattle){
+    const pendingItems=[
+      ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
+      ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
+    ];
+    const seenItemKeys=new Set();
+    G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
+      if(!c) return false;
+      if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
+      const key=String(c.itemEffectKey||'')==='meteor_scroll'
+        ?'meteor_scroll'
+        :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
+      if(seenItemKeys.has(key)) return false;
+      seenItemKeys.add(key);
+      return true;
+    });
+    G.pendingBattleItems=[];
+    G.nextBattleItems=[];
+    (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
+  }
   (G.allies||[]).forEach(u=>{
     (u?.boardCards||[]).forEach(p=>{
       if(p){
@@ -2010,15 +2119,16 @@ async function startBattle(){
   G._manaCycleUsed=false;
   G._eidolonDeathCount=0;
   G._genericAllyDeaths=0;
-  G.mana=0;
+  if(!carryBattle) G.mana=0;
   // **マナ増加SEの基準を、その戦闘の開始値（0）へ戻す。**
   // null（初回）や前の戦闘の値のままだと、開戦で得た最初のマナ
   // （ニンフの「開戦：Xマナを得る」など）でSEが鳴らない。
-  _shownManaForSfx=0;
+  _shownManaForSfx=carryBattle?Math.max(0,Number(G.mana)||0):0;
   [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{ if(u){
     delete u._deathProcessed; delete u._manaFireCount;
     delete u._coreDeathTriggered; delete u._coreDeathEffectsTriggered;
-    delete u._coreDeathObserved; delete u._wardCharges;
+    delete u._coreDeathObserved;
+    if(!carryBattle) delete u._wardCharges;
   } });
 
   // フェイズを先行設定（報酬フェイズから遷移時、addAlly/renderAll 等が reward UI を誤操作しないよう）
@@ -2058,12 +2168,16 @@ async function startBattle(){
   // 通常戦闘後に残るG._mapBattleを優先すると、序盤戦の敵数制限まで試験戦闘へ混入する。
   const battleFloor=fixedTestBattle?G.floor:(mapBattle?mapBattle.floor:G.floor);
   const fd=FLOOR_DATA[battleFloor];
-  _isBossFight=!!(mapBattle?(mapBattle.type==='boss'||mapBattle.forcedBoss):(fd&&fd.boss));
+  const arenaBossRound=arenaBattle&&((typeof arenaRoundKind==='function'
+    ?arenaRoundKind(arenaRound)==='boss'
+    :arenaRound===6));
+  _isBossFight=!!(mapBattle?(mapBattle.type==='boss'||mapBattle.forcedBoss):(fd&&fd.boss))
+    ||arenaBossRound;
 
   G.turn=0; G.earnedGold=0; G.spreadActive=false; G.spreadMult=0;
   G._isEliteFight=false; G._eliteIdx=-1; G._eliteKilled=false;
   G.battleCounters={damage:0,deaths:0};
-  G._blood=0;
+  if(!carryBattle) G._blood=0;
   G._enemyBlood=0;
   initializeBattlePresentationState();
   G._battleVictoryPending=false;
@@ -2080,13 +2194,16 @@ async function startBattle(){
   // デバッグ試験戦闘は「毎回まったく同じ内容」であること。通常戦闘のリトライ用
   // 敵スナップショットを流用すると、直前に戦った敵（効果・演出まで）がそのまま出て
   // ATK/HPだけ書き換わった状態になる。生成も乱数固定にして構成のぶれを無くす。
-  const reuseWaveEnemies=!fixedTestBattle
+  const reuseWaveEnemies=!fixedTestBattle&&!arenaBattle&&!questBattle
     &&!!(waveEnemyKey&&G._waveRetryEnemyKey===waveEnemyKey&&Array.isArray(G._waveEnemySnapshot));
   // **同じ戦闘への再挑戦では開幕の会話を飛ばす。** 同じ台詞を毎回読まされるため。
   // 敵を引き継ぐ（＝同じ敵に挑み直した）時が再挑戦。
-  G._skipBattleStartLines=reuseWaveEnemies;
-  G.enemies=savedBattle?SaveRun.copy(savedBattle.setup.units.p2):reuseWaveEnemies
+  G._skipBattleStartLines=reuseWaveEnemies||!!(questBattle&&G._waveIsRetry);
+  G.enemies=savedBattle?SaveRun.copy(savedBattle.setup.units.p2):arenaBattle
+    ?generateArenaEnemies(arenaRound):reuseWaveEnemies
     ?clone(G._waveEnemySnapshot)
+    :questBattle
+    ?generateQuestGarmEnemies()
     :(fixedTestBattle
       ?_generateFixedTestBattleEnemies(battleFloor)
       :((mapBattle&&mapBattle.type==='elite'&&typeof generateEliteEnemies==='function')
@@ -2120,7 +2237,7 @@ async function startBattle(){
     // 数と前後衛の抑止は generateEnemies() が立てる G._enemyLaneFixed に依存しているが、
     // この2経路は generateEnemies() を通らないため旗が立たず、下の水増しが働いていた。
     // 実例：ステージ1の2戦目（2体）で敗北して再戦すると、同じ敵が4体へ増えていた。
-    const _enemiesAlreadyFixed=!!savedBattle||reuseWaveEnemies;
+    const _enemiesAlreadyFixed=!!savedBattle||reuseWaveEnemies||arenaBattle||questBattle;
     const _laneFixed=fixedTestBattle?false:(!!G._enemyLaneFixed||_enemiesAlreadyFixed);
     G._enemyLaneFixed=false;
     const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
@@ -2157,7 +2274,7 @@ async function startBattle(){
   }
   // 試験戦闘の敵を通常戦闘のリトライ用スナップショットへ書き込まない
   // （書き込むと、次の通常戦闘のリトライに試験戦闘の敵が出る）。
-  if(waveEnemyKey&&!fixedTestBattle){
+  if(waveEnemyKey&&!fixedTestBattle&&!arenaBattle&&!questBattle){
     if(reuseWaveEnemies) G._waveRetryEnemyKey=null;
     else G._waveEnemySnapshot=clone(G.enemies);
   }
@@ -2173,13 +2290,17 @@ async function startBattle(){
   G.allies.forEach(a=>{
     if(!a) return;
     delete a._deathFxStarted;
-    a._dp=false; a.powerBroken=false;
-    a.nullified=0; a.instadead=false;
+    if(!carryBattle){
+      a._dp=false; a.powerBroken=false;
+      a.nullified=0; a.instadead=false;
+    }
     a._battleStartHp=a.hp;
-    const hasBattleHate=(a._panelSummoned&&a.guardian);
-    if(hasBattleHate){ a.hate=true; a.hateTurns=99; }
-    else { a.hate=false; a.hateTurns=0; }
-    delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
+    if(!carryBattle){
+      const hasBattleHate=(a._panelSummoned&&a.guardian);
+      if(hasBattleHate){ a.hate=true; a.hateTurns=99; }
+      else { a.hate=false; a.hateTurns=0; }
+      delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
+    }
   });
   snapshotAlliesAtBattleStart();
   if(_isBossFight){
@@ -2192,15 +2313,17 @@ async function startBattle(){
   if(preIntroHost){
     preIntroHost.classList.remove('battle-start-units-revealing');
     preIntroHost.classList.add('battle-opening-pending');
+    // 続きの戦闘では味方は場に居たまま（隠さない）。
+    preIntroHost.classList.toggle('battle-carry-allies',_battleCarryOpening());
   }
 
   // カードの実体だけを先に構築し、開戦時効果は配置演出後まで保留する。
   G._deferManaThresholdEffects=true;
   if(savedBattle){
     SaveRun.installSetup(savedBattle);
-  }else{
+  }else if(!carryBattle){
   _initSealStates();
-  if(typeof applyNewPanelBattleStart==='function') await applyNewPanelBattleStart({deferOpeningEffects:true});
+  if(typeof applyNewPanelBattleStart==='function') await applyNewPanelBattleStart({deferOpeningEffects:true,persistEternal:!arenaBattle});
   // 接続した強化カード由来の封印も含め、開幕演出の前に封印状態を再計算する。
   _initSealStates();
   _applyTerrainReinforcements();
@@ -2231,6 +2354,8 @@ async function startBattle(){
   // 全員が出撃した後、台詞を持つキャラクターがいれば吹き出しで順に出す。
   await playBattleStartLines();
   if(_battleRunStale(_runId)) return;
+  await _showArenaWaveIntro();
+  if(_battleRunStale(_runId)) return;
   if(G._debugGameOver){
     G._battleDefeatHandled=true;
     gameOver();
@@ -2239,6 +2364,20 @@ async function startBattle(){
   if(pendingBattle){
     G._freeItemPhase='battle';G._freeItemUsed=false;
     await SaveRun.replay(pendingBattle,_runId);
+    return;
+  }
+  if(carryBattle){
+    // 連戦では onBattleStart() と開戦効果を呼ばない。前戦闘終了時の
+    // HP・バフ・結界・マナなどをそのままコアへ渡す。
+    G._freeItemPhase='battle';
+    G._deferManaThresholdEffects=false;
+    renderAll();
+    await sleep(introKind==='elite'?500:1000);
+    if(_battleRunStale(_runId)) return;
+    if(G.phase==='reward'||G._battleVictoryPending) return;
+    if(checkInstantVictory()) return;
+    requestAnimationFrame(_updateLaneOffset);
+    await nextTurn();
     return;
   }
   onBattleStart();
@@ -2357,6 +2496,11 @@ async function battlePhase(){
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
   // 開戦処理は startBattle() 側で済んでいるので飛ばす。
+  // 終戦効果を持ち越さない戦闘はstateの入力で指定する。進行の呼び出し形は通常戦闘と共通にする。
+  // Q004の魔狼戦は通常勝利の終戦効果を発生させず、直後の選択へ味方状態を渡す。
+  // ガルム戦自体は通常戦闘として終戦処理を行う。
+  state._skipBattleEnd=!!((typeof arenaIsActive==='function'&&arenaIsActive())
+    ||(typeof questIsMagicWolfBattle==='function'&&questIsMagicWolfBattle()));
   const runner=createBattleRunner(state,coreMathRng,emit,{skipOpening:true});
   G._coreDrivenBattle=true;
   const beforeUnits=new Set([...(state.units.p1||[]),...(state.units.p2||[])].filter(Boolean));
@@ -2377,16 +2521,17 @@ async function battlePhase(){
       // コアは1手番ぶんを先に解決するため、据え置かないと数値・VFXが出る前に
       // HP/ATKだけが変わって見える。進めるのは演出を出す瞬間（_flushCorePveHitEvents）。
       const _shownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
-        .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0]);
+        .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0,Number(u.weaken)||0]);
       let stepped=false;
       try{
         try{ stop=runner.step({deferCompact:true}); stepped=true; }
         catch(e){ console.error('[coreBattleStep]',e); }
         // この手番で出たぶんだけを再生する。
         if(stepped){
-          _shownBefore.forEach(([u,atk,hp,maxHp,shield])=>presentHoldShown(u,atk,hp,maxHp,shield));
+          _shownBefore.forEach(([u,atk,hp,maxHp,shield,weaken])=>presentHoldShown(u,atk,hp,maxHp,shield,weaken));
           try{ await _flushCorePveHitEvents(state,events.slice(from),beforeUnits); }
-          finally{ _shownBefore.forEach(([u])=>presentReleaseShown(u)); }
+          // 手番の途中で出た体（複製のコピー等）も据え置いていることがあるので、盤面の全員を戻す。
+          finally{ _shownBefore.forEach(([u])=>presentReleaseShown(u)); [...(G.allies||[]),...(G.enemies||[])].forEach(u=>u&&presentReleaseShown(u)); }
           _syncCoreManaToG(state);
           _refreshManaDisplays();
         }
@@ -2812,6 +2957,11 @@ function handleBattleDefeat(){
     _onAllEnemiesDefeated();
     return;
   }
+  if(typeof arenaIsActive==='function'&&arenaIsActive()
+     &&typeof arenaHandleBattleDefeat==='function'){
+    void arenaHandleBattleDefeat();
+    return;
+  }
   if(G._testBattleMode&&!G._libraryTestBattleMode){
     _exitTestBattle();
     return;
@@ -2842,6 +2992,19 @@ async function finishBattleAsVictory(reason){
   // ここで専用終了しないと _testBattleMode が残り、次の「戦闘開始」も試験戦闘になる。
   if(G._testBattleMode&&!G._libraryTestBattleMode){
     _exitTestBattle();
+    return;
+  }
+  if(typeof questHandleMagicWolfVictory==='function'&&questHandleMagicWolfVictory()) return;
+  if(typeof arenaIsActive==='function'&&arenaIsActive()
+     &&typeof arenaHandleBattleVictory==='function'){
+    G._battleVictoryPending=true;
+    G._battlePhaseRunning=false;
+    G.phase='reward';
+    document.body.classList.add('battle-victory-pending');
+    document.body.classList.remove('battle-turn-active');
+    updateHUD();
+    if(reason==='Draw'||G._battleDraw) void arenaHandleBattleDefeat();
+    else void arenaHandleBattleVictory();
     return;
   }
   // Scene 5のボス（万象の揺り籠“エピトメ”）は勝利演出・報酬を通さず、
@@ -5402,6 +5565,8 @@ function _battleSlotForMainBoardSlot(idx,toRear){
 
 async function applyNewPanelBattleStart(options){
   const deferOpeningEffects=options===true||!!(options&&options.deferOpeningEffects);
+  const persistEternal=!(options&&Object.prototype.hasOwnProperty.call(options,'persistEternal'))
+    ||!!options.persistEternal;
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
   const equip=board&&Array.isArray(board.boardCards)?board.boardCards:[];
   // 共鳴の力：開戦時に場に出た同色の味方全員へ+3/+3を与える。対象キャラの出撃が全て終わった後に
@@ -5416,7 +5581,10 @@ async function applyNewPanelBattleStart(options){
     frontSlots:[...((typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'&&MAIN_BOARD_FRONT_SLOTS)||[1,3])],
     rearSlots:[...((typeof MAIN_BOARD_REAR_SLOTS!=='undefined'&&MAIN_BOARD_REAR_SLOTS)||[10,12,14])]});
   const formation=typeof buildBoardFormation==='function'
-    ?buildBoardFormation(board,{persistEternal:true}):{entries:[]};
+    ?(persistEternal
+      ?buildBoardFormation(board,{persistEternal:true})
+      :buildBoardFormation(board,{persistEternal:false}))
+    :{entries:[]};
   for(const entry of formation.entries){
     const summoned=entry.unit;
     const panel=entry.panel;
@@ -5504,7 +5672,7 @@ async function _finishNewPanelBattleStartEffects(){
   // 開戦でダメージが連鎖する盤面で、最初の数値が出た時点で最終HPまで下がって見え、
   // 倒れた敵が演出より先に消えたり、古い値で描き直されたりしていた（利用者報告：ボス戦）。
   const _openingShownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
-    .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0]);
+    .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0,Number(u.weaken)||0]);
   if(typeof presentBeginPlayback==='function') presentBeginPlayback();
   let _openingPlaybackOpen=true;
   const _endOpeningPlayback=()=>{
@@ -5551,10 +5719,13 @@ async function _finishNewPanelBattleStartEffects(){
   }
   _recordBattleTrace('opening_core_events',{count:localEvents.length,types:localEvents.map(e=>e&&e.type).filter(Boolean)});
   try{
-    if(typeof presentHoldShown==='function') _openingShownBefore.forEach(([u,atk,hp,maxHp,shield])=>presentHoldShown(u,atk,hp,maxHp,shield));
+    if(typeof presentHoldShown==='function') _openingShownBefore.forEach(([u,atk,hp,maxHp,shield,weaken])=>presentHoldShown(u,atk,hp,maxHp,shield,weaken));
     await _flushCorePveHitEvents(state,localEvents,before);
   }finally{
-    if(typeof presentReleaseShown==='function') _openingShownBefore.forEach(([u])=>presentReleaseShown(u));
+    if(typeof presentReleaseShown==='function'){
+      _openingShownBefore.forEach(([u])=>presentReleaseShown(u));
+      [...(G.allies||[]),...(G.enemies||[])].forEach(u=>u&&presentReleaseShown(u));
+    }
     _endOpeningPlayback();
   }
   // 生命の力のHP2倍は coreRunOpening() の中で解決済み。
@@ -6188,7 +6359,8 @@ async function _applyCoreBattleEndEffectsLive(){
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
     // 終戦の「永久に+X/+Y」（レプラコーン）は魔導板のカードへ書き込む。
     // 戦闘中の再生（battle_events.js）と違い、ここはイベントを流さないので、書き込まないと効果が消えていた（利用者報告）。
-    if(ev&&ev.type==='stat_change'&&ev.persistent&&ev.side==='p1'
+    if(!(typeof arenaIsActive==='function'&&arenaIsActive())
+      &&ev&&ev.type==='stat_change'&&ev.persistent&&ev.side==='p1'
       &&typeof persistBoardCharacterStats==='function'&&typeof _getPartyBoardUnit==='function'){
       _persistPermanentStatOrWarn(_getPartyBoardUnit(),ev);
     }

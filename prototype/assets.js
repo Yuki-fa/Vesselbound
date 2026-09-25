@@ -62,6 +62,11 @@ const Assets = {
     village1: 'assets/art/backgrounds/village_forest.webp',
     village2: 'assets/art/backgrounds/village_grassland.webp',
     village3: 'assets/art/backgrounds/village_valley.webp',
+    // ギャラハの闘技場受付。
+    // 受領済みの素材ファイル名には先頭空白が含まれているため、file://で実在する名前を参照する。
+    arena: 'assets/art/backgrounds/ arena.webp',
+    // 闘技場の戦闘背景。
+    stageArena: 'assets/art/backgrounds/stage_arena.webp',
     village4: 'assets/art/backgrounds/city_capital.webp',
     villageEnd: 'assets/art/backgrounds/village_endworld.webp',
     // ワールドマップ画面（出発時に数秒表示する）
@@ -90,6 +95,10 @@ const Assets = {
     tavernForest: 'assets/art/backgrounds/tavern_forest.webp',
     tavernGrassland: 'assets/art/backgrounds/tavern_grassland.webp',
     tavernValley: 'assets/art/backgrounds/tavern_valley.webp',
+    camp: 'assets/art/backgrounds/camp.webp',
+    innGrassland: 'assets/art/backgrounds/inn_grassland.webp',
+    innCapital: 'assets/art/backgrounds/inn_capital.webp',
+    innEndworld: 'assets/art/backgrounds/inn_endworld.webp',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -214,6 +223,11 @@ const Assets = {
     boom: 'assets/sfx/boom.wav',
     shopIn: 'assets/sfx/shop_in.wav',
     shopOut: 'assets/sfx/shop_out.wav',
+    purchase: 'assets/sfx/purchase.wav',
+    income: 'assets/sfx/income.wav',
+    lifeGet: 'assets/sfx/life_get.wav',
+    cheers1: 'assets/sfx/cheers1.wav',
+    cheers2: 'assets/sfx/cheers2.wav',
     bookOpening: 'assets/sfx/book_opening.wav',
     bookClosing: 'assets/sfx/book_closing.wav',
     altarIn: 'assets/sfx/altar_in.wav',
@@ -241,6 +255,7 @@ const Assets = {
     // 施設内で重ねる環境音
     blacksmith: 'assets/bgm/blacksmith.wav',
     battle1: 'assets/bgm/battle1.wav',
+    battle2: 'assets/bgm/battle2.wav',
     battle3: 'assets/bgm/battle3.wav',
     battle4: 'assets/bgm/battle4.wav', // ラスボス戦
     buy1: 'assets/sfx/buy1.wav',
@@ -309,7 +324,7 @@ const Assets = {
 };
 
 const CharacterArtOverrideMap = {
-  // カード名でアート番号を上書きする例外表。原則は「No.」列（C###/E###/EN###/NPC###）から
+  // カード名でアート番号を上書きする例外表。原則は「No.」列（C###/E###/EN###/BC###）から
   // assets/art/ 以下を自動解決する（getCharacterNoArtPath）ので、ここに足すのは番号と絵が
   // 一致しないカードだけにすること。
   'エルフ': {path:'assets/art/characters/C044.jpg'},
@@ -456,11 +471,11 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   const text=String(raw||'').trim();
   if(!text) return '';
   // 旧「P」表記（メインキャラクター）は新しい「MC」表記に読み替える
-  // NPCは「char（NPC）」シートの初期キャラクター。MCより先に判定しないと
-  // 「NPC001」がどの分岐にも当たらず空文字になり、絵が出ない。
+  // BC/NPCは「char（NPC）」シートのキャラクター。MCより先に判定しないと
+  // 「BC002」などがどの分岐にも当たらず空文字になり、絵が出ない。
   // 「EN075_1」のような枝番付きのNo.も受け付ける（ラスボス戦の後衛3体など、
   // 同じ番号で複数の個体が並ぶケース）。枝番はそのままファイル名へ残す。
-  const prefixed=text.match(/^(NPC|MC|EN|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
+  const prefixed=text.match(/^(BC|NPC|MC|EN|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
   if(prefixed){
     let p=prefixed[1].toUpperCase();
     if(p==='P') p='MC';
@@ -476,7 +491,7 @@ function getCharacterNoArtPath(card){
   const raw=_assetCodeRaw(card);
   if(!raw) return '';
   const isEnemyCard=!!(card._sheetEnemy||card.enemyOnly||card.side==='enemy'||card.isEnemy);
-  const explicit=String(raw).trim().match(/^(MC|EN|[ECS])/i);
+  const explicit=String(raw).trim().match(/^(BC|NPC|MC|EN|[ECS])/i);
   let prefix=explicit?explicit[1].toUpperCase():'';
   if(!prefix){
     const cat=String(card.category||card.kind||card.type||'');
@@ -498,7 +513,7 @@ function getCharacterNoArtPath(card){
   // （loader.js の _assignSheetArtCode）。実ファイルは NPC### 表記なので読み替える。
   if(code.startsWith('MC')) code='NPC'+code.slice(2);
   let dir='';
-  if(code.startsWith('NPC')) dir='assets/art/NPC';
+  if(code.startsWith('NPC')||code.startsWith('BC')) dir='assets/art/NPC';
   else if(code.startsWith('EN')) dir='assets/art/enemies';
   else if(code[0]==='E') dir='assets/art/enchantment';
   else if(code[0]==='C') dir='assets/art/characters';
@@ -756,10 +771,10 @@ function applyUnitVisual(el, unit){
   const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
   // 守護／ヘイト専用の枠は素材ごと廃止した。
   // 判定に使っていた hasGuard / unitGuard / classGuard / isDefender も参照先が無くなったので消してある。
-  // **味方でもボス枠のカード（NPC「ディナ」など）は戦闘中もボス枠。** 味方は色で召喚枠を選ぶため、
+  // **味方でもボス枠のカード（BC「ディナ」など）は戦闘中もボス枠。** 味方は色で召喚枠を選ぶため、
   // 黒（召喚枠の無い色）は既定の緑枠になり、戦闘に入ると枠が変わって見えた（2026-09-24 利用者指摘）。
-  // 戦闘中の体には _npcCard／boss の印が引き継がれないので、カード番号（NPC001 など）でも見る。
-  const _isNpcUnit=!!(unit&&(unit._npcCard||/^NPC\d+$/i.test(String(unit.no||unit.artCode||''))));
+  // 戦闘中の体には _npcCard／boss の印が引き継がれないので、カード番号（BC002 など）でも見る。
+  const _isNpcUnit=!!(unit&&(unit._npcCard||/^(?:NPC|BC)\d+$/i.test(String(unit.no||unit.artCode||''))));
   const frame=((isEnemyEl&&_isEliteOrBossCard(unit))||(!isEnemyEl&&unit&&(_isNpcUnit||_isEliteOrBossCard(unit))))
     ? Assets.cards.characterFrame
     : isEnemyEl
@@ -800,8 +815,12 @@ function applyScreenAssetBackground(screenId){
   }
   if(screenId==='map'){ setScreenAssetBackground('map','map'); return; }
   if(screenId==='battle'){
+    if(typeof G!=='undefined'&&G&&G._arenaActive){
+      setScreenAssetBackground('battle','stageArena');
+      return;
+    }
     const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
-    // ショップ用の'camp'背景は画像ごと廃止済み。施設の背景は_setOverrideBackground()の
+    // 施設／クエストの専用背景は_setOverrideBackground()の
     // --facility-bg-image（.facility-bg-active）が上から出すので、ここではステージ背景だけを敷く。
     const key=mapStage||getStageBackgroundKey(typeof G!=='undefined'?G.floor:1);
     setScreenAssetBackground('battle',key);
@@ -815,6 +834,10 @@ function applyUiAssets(){
 }
 
 function setBattleStageBackground(){
+  if(typeof G!=='undefined'&&G&&G._arenaActive){
+    setScreenAssetBackground('battle','stageArena');
+    return;
+  }
   const mapStage=(typeof getWorldMapStageBackgroundKey==='function')?getWorldMapStageBackgroundKey():null;
   setScreenAssetBackground('battle',mapStage||getStageBackgroundKey(typeof G!=='undefined'?G.floor:1));
 }

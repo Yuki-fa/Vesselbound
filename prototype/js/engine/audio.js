@@ -70,6 +70,11 @@ const SFX_SETTINGS={
     boom:       {group:'ui',     volume: .61},  // -7.7
     shopIn:     {group:'ui',     volume: .49},  // -5.8
     shopOut:    {group:'ui',     volume: .70},  // -8.9
+    purchase:   {group:'ui',     volume: 1.00},
+    income:     {group:'ui',     volume: 1.00},
+    lifeGet:    {group:'ui',     volume: 1.00},
+    cheers1:    {group:'ui',     volume: 1.00, guardMs:0},
+    cheers2:    {group:'ui',     volume: 1.00, guardMs:0},
     bookOpening:{group:'ui',     volume: 1.00},
     bookClosing:{group:'ui',     volume: 1.00},
     altarIn:    {group:'ui',     volume: .28},  // -1.0（突出して大きかった）
@@ -170,6 +175,7 @@ let _bgmBaseVolume=1;
 const BGM_DEFAULT_VOLUMES={
   menu:1.0,
   battle1:.55,
+  battle2:.55,
   battle3:.65,
   battle4:.65,
   villageForest:.68,
@@ -189,6 +195,7 @@ const BGM_DEFAULT_VOLUMES={
 // 曲ごとの既定の再生開始位置（秒）。opts.startTimeが無い場合に使う。
 // 2周目以降は曲の頭から鳴る（start(when,offset)のoffsetにだけ使い、loopStartは0のまま）。
 const BGM_DEFAULT_START_TIMES={
+  battle2:57,
   battle3:65,    // 1:05
   battle4:79,    // 1:19（ラスボス戦）
   tower:97,      // 1:37
@@ -611,7 +618,10 @@ function playBgm(key,opts={}){
   if(!path) return false;
   // 同じ曲を鳴らし直さない（鳴っている／鳴らし始めている）。
   if(_bgmKey===key&&(_bgmStartingKey===key||_bgmVoice)) return true;
-  stopBgm(0);
+  // 闘技場など、次の曲へ移る前に現在の街BGMだけを自然に下げたい呼び出し元は
+  // fadeOutMs を渡す。未指定時は従来どおり即時停止する。
+  const fadeOutMs=Math.max(0,Number(opts.fadeOutMs)||0);
+  stopBgm(fadeOutMs);
   const startToken=++_bgmStartToken;
   _bgmStartingKey=key;
   _bgmKey=key;

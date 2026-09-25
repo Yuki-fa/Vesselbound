@@ -115,6 +115,7 @@ PvEとオンラインの受け口は共通関数を呼ぶだけにする。
 画面側にも唯一の実装がある。場面ごとに同じ仕組みを作り直さない。
 所持金の増減の見せ方（+X表示・数え上げ）は prototype/js/engine/gold_fx.js だけが決める。獲得・支払いの経路ごとに演出を書かない。
 先に確定して後で見せる額は goldFxDefer／goldFxRelease で預ける。所持金を一度減らして足し戻さない（-X と +X が出る）。
+イベント（クエストのお礼など）で所持金を得る時は gold_fx.js の gainEventGold を通す（income.wav を鳴らす）。G.gold へ直接足さない。
 施設の出入りなど画面の切り替えは map.js の fadeScreenSwitch を通す。
 OK／キャンセルの確認窓は game_confirm.js の showGameConfirm（見た目はセーブ削除の確認窓）を使う。
 画面上のチュートリアルは map.js の runBoardTutorial に設定（手順・文言・移動条件）を渡す。進め方や操作制限を別に書かない。

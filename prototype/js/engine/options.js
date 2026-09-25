@@ -14,23 +14,28 @@ const _optionLabels={
   language:['「言語設定」見出し','言語設定'],'language-label':['「表示言語」見出し','表示言語'],sound:['「サウンド設定」見出し','サウンド設定'],
   'bgm-label':['「BGM ボリューム」見出し','BGM ボリューム'],'se-label':['「SE ボリューム」見出し','SE ボリューム'],data:['「データ管理」見出し','データ管理'],
   'run-label':['「セーブデータの削除」見出し','セーブデータの削除'],'profile-label':['「システムデータの削除」見出し','システムデータの削除'],
-  runNote:['データ管理注釈','※ラン中は削除できません。'],execute:['オプションの「実行」ボタン','実行'],save:['オプションの「保存して戻る」ボタン','保存して戻る'],back:['オプションの「戻る」ボタン','戻る'],
-  revert:['配置を「元に戻す」ボタン','元に戻す'],'return-title':['「タイトルに戻る」ボタン','タイトルに戻る'],delete:['オプションの「削除実行」ボタン','実行'],
-  cancel:['オプションの「キャンセル」ボタン','キャンセル'],confirm:['削除確認見出し','削除確認'],runConfirm:['セーブデータ削除時','直前のランのデータを削除します。\nこの操作は取り消すことができません。\n本当に削除してよろしいですか？'],
+  runNote:['データ管理注釈','※ラン中は削除できません。'],execute:['「実行」ボタン','実行'],save:['「保存して戻る」ボタン','保存して戻る'],back:['「戻る」ボタン','戻る'],
+  revert:['配置を「元に戻す」ボタン','元に戻す'],'return-title':['「タイトルに戻る」ボタン','タイトルに戻る'],delete:['「削除実行」ボタン','削除実行'],
+  cancel:['「キャンセル」ボタン','キャンセル'],confirm:['「データ削除時」見出し','警告'],runConfirm:['セーブデータ削除時','直前のランのデータを削除します。\nこの操作は取り消すことができません。\n本当に削除してよろしいですか？'],
   profileConfirm:['システムデータ削除時','コレクションと履歴のデータを削除します。\nこの操作は取り消すことができません。\n本当に削除してよろしいですか？']
 };
 const _optionChoices={
-  speed:[['「演出速度」項目1','通常'],['「演出速度」項目2','高速']],
+  // 演出速度：通常／2倍速／3倍速（2026-09-25 利用者指定。旧「高速」＝1.5倍は廃止）。値は OPTION_SPEED_VALUES の順。
+  speed:[['「演出速度」項目1','通常'],['「演出速度」項目2','2倍速'],['「演出速度」項目3','3倍速']],
   mode:[['「表示モード」項目1','1920 × 1080'],['「表示モード」項目2','2560 × 1440'],['「表示モード」項目3','3840 × 2160'],['「表示モード」項目4','フルスクリーン']],
   language:[['「表示言語」項目1','日本語'],['「表示言語」項目2','English'],['「表示言語」項目3','中文']]
 };
+const OPTION_SPEED_VALUES=['normal','x2','x3'];
+// 保存値を今の3段階へ揃える。旧「高速」（fast）は2倍速として読む。
+function _optionSpeedValue(v){ return v==='fast'?'x2':(OPTION_SPEED_VALUES.includes(v)?v:'normal'); }
+function _optionSpeedIndex(v){ return Math.max(0,OPTION_SPEED_VALUES.indexOf(_optionSpeedValue(v))); }
 function _optionRead(){
   try{
     const raw=JSON.parse(localStorage.getItem(OPTION_STORAGE_KEY)||'null');
     const v={...OPTION_DEFAULTS,...(raw&&typeof raw==='object'?raw:{})};
     v.mode=typeof normalizeVesselboundDisplayMode==='function'?normalizeVesselboundDisplayMode(v.mode):Math.max(1,Math.min(4,Number(v.mode)||1));
     if(v.language==='ja')v.language=1;else v.language=Math.max(1,Math.min(3,Number(v.language)||1));
-    v.speed=v.speed==='fast'?'fast':'normal';v.bgm=Math.round(Math.max(0,Math.min(100,Number(v.bgm)||0)));v.se=Math.round(Math.max(0,Math.min(100,Number(v.se)||0)));
+    v.speed=_optionSpeedValue(v.speed);v.bgm=Math.round(Math.max(0,Math.min(100,Number(v.bgm)||0)));v.se=Math.round(Math.max(0,Math.min(100,Number(v.se)||0)));
     return v;
   }catch(e){return {...OPTION_DEFAULTS};}
 }
@@ -72,7 +77,7 @@ function _optionSetText(){
 }
 function _optionIsRunLocked(){const active=document.querySelector('.screen.active');return !!(active&&active.id!=='scr-title'&&typeof G!=='undefined'&&G&&(G._runId||G._onlineMode));}
 function _optionCurrent(v){
-  if(v==='speed')return _optionText(_optionChoices.speed[_optionSaved.speed==='fast'?1:0][0],_optionChoices.speed[_optionSaved.speed==='fast'?1:0][1]);
+  if(v==='speed'){const c=_optionChoices.speed[_optionSpeedIndex(_optionSaved.speed)];return _optionText(c[0],c[1]);}
   if(v==='mode')return _optionText(_optionChoices.mode[_optionSaved.mode-1][0],_optionChoices.mode[_optionSaved.mode-1][1]);
   if(v==='language')return _optionText(_optionChoices.language[_optionSaved.language-1][0],_optionChoices.language[_optionSaved.language-1][1]);
   return `${_optionSaved[v]}`;
@@ -83,7 +88,7 @@ function _optionHasData(kind){try{const key=g=>typeof SaveStorage!=='undefined'&
 function _optionIsDirty(){if(!_optionSaved||!_optionDraft)return false;return ['speed','mode','language','bgm','se'].some(k=>String(_optionDraft[k])!==String(_optionSaved[k]));}
 function _optionRender(){
   document.querySelectorAll('[data-choice]').forEach(box=>{
-    const kind=box.dataset.choice,choices=_optionChoices[kind],idx=kind==='speed'?(_optionDraft.speed==='fast'?1:0):_optionDraft[kind]-1;
+    const kind=box.dataset.choice,choices=_optionChoices[kind],idx=kind==='speed'?_optionSpeedIndex(_optionDraft.speed):_optionDraft[kind]-1;
     box.querySelector('span').textContent=_optionText(choices[idx][0],choices[idx][1]);
     box.querySelector('.prev').classList.toggle('is-disabled',idx<=0);box.querySelector('.next').classList.toggle('is-disabled',idx>=choices.length-1);
   });
@@ -108,7 +113,7 @@ function _optionClose(restore){
   if(restore&&_optionSaved)_optionApply(_optionSaved);document.querySelectorAll('video[data-option-was-playing="1"]').forEach(v=>v.play().catch(()=>{}));
   layer.classList.remove('is-open');layer.setAttribute('aria-hidden','true');document.body.classList.remove('options-open');document.getElementById('options-confirm-layer').classList.remove('is-open');
 }
-function _optionChoice(kind,dir){const choices=_optionChoices[kind],current=kind==='speed'?(_optionDraft.speed==='fast'?1:0):_optionDraft[kind]-1,next=Math.max(0,Math.min(choices.length-1,current+dir));if(next===current)return;if(kind==='speed')_optionDraft.speed=next?'fast':'normal';else _optionDraft[kind]=next+1;_optionApply(_optionDraft);playSfx?.('select',{group:'ui',guardKey:`ui:option:${kind}`});_optionRender();}
+function _optionChoice(kind,dir){const choices=_optionChoices[kind],current=kind==='speed'?_optionSpeedIndex(_optionDraft.speed):_optionDraft[kind]-1,next=Math.max(0,Math.min(choices.length-1,current+dir));if(next===current)return;if(kind==='speed')_optionDraft.speed=OPTION_SPEED_VALUES[next];else _optionDraft[kind]=next+1;_optionApply(_optionDraft);playSfx?.('select',{group:'ui',guardKey:`ui:option:${kind}`});_optionRender();}
 function _optionConfirm(kind){if(_optionIsRunLocked())return;_optionDeleteKind=kind;const label=_optionLabels[kind==='run'?'runConfirm':'profileConfirm'];document.getElementById('options-confirm-message').textContent=_optionText(label[0],label[1]);document.getElementById('options-confirm-layer').classList.add('is-open');}
 function _optionDelete(){if(_optionDeleteKind==='run')SaveRun?.deleteRunSave();else{SaveStorage?.remove('profile');SaveProfile?.resetCache?.();try{localStorage.removeItem(OPTION_STORAGE_KEY);}catch(e){}_optionSaved={...OPTION_DEFAULTS};_optionApply(_optionSaved);}document.getElementById('options-confirm-layer').classList.remove('is-open');_optionDeleteKind=null;_optionRender();playSfx?.('uiConfirm',{group:'ui',guardKey:'ui:option-delete'});}
 function _optionSave(){_optionSaved={..._optionDraft};_optionWrite(_optionSaved);_optionSfx('uiConfirm');_optionRender();}

@@ -72,7 +72,8 @@ function _parseCSV(text) {
     if (!line.trim()) return null;
     const vals = _csvRow(line);
     const obj = {};
-    headers.forEach((h, i) => {
+    vals.forEach((_, i) => {
+      const h=headers[i];
       const v = (vals[i] || '').trim();
       obj[`__col${i}`] = v;
       if (h) obj[h] = v;
@@ -318,7 +319,7 @@ function _sheetArtCode(row, fallbackPrefix) {
   if (!row) return '';
   const raw = String(row['No.'] || row['No'] || row['NO'] || row['コード'] || row['画像No'] || row['画像番号'] || row['__col0'] || '').trim();
   if (!raw) return '';
-  const prefixed = raw.match(/^(MC|EN|P|[ECS])\s*0*(\d+)$/i);
+  const prefixed = raw.match(/^(BC|NPC|MC|EN|P|[RECS])\s*0*(\d+)$/i);
   if (prefixed) {
     let p = prefixed[1].toUpperCase();
     if (p === 'P') p = 'MC';
@@ -441,6 +442,10 @@ function _rowToRing(row) {
   };
   if (!isNaN(rarity) && rarity >= 1) ring.rarity = Math.min(5, rarity);
   if (!isNaN(grade) && grade >= 1) ring.grade = grade;
+  if (Object.prototype.hasOwnProperty.call(row, '出現')) {
+    ring._rewardAvailable = _truthySheet(row['出現']);
+    if (!ring._rewardAvailable) ring._rewardExcluded = true;
+  }
   _assignSheetArtCode(ring, row, 'R');
   ring.ringEffectKey = _ringEffectKeyFromRow(row, name);
   return ring;
@@ -531,23 +536,28 @@ async function loadGameData() {
       }
     }
     let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt, qt, tkt } = loaded;
-    // 会話メッセージシート（任意）：街の名前の行の下に「場面／テキスト」が並ぶ。
-    // window.TALK_MESSAGES = {街の名前: {場面: テキスト}}。列が1つだけの行が街の名前、
-    // 「場面」「テキスト」の見出し行は飛ばす。使い方は map.js の villageTalkMessage()。
+    // 会話メッセージシート：街見出しごとの「場面／対象／台詞…」を列名で読む。
+    // 同じ「対象」列は直後の台詞列に対応する。街ごとのヘッダの欠落列にも対応する。
     try {
-      const rows = [];
       if (tkt && String(tkt).trim()) {
         const parsed = _parseCSV(String(tkt));
         const first = String(tkt).split(/\r?\n/)[0].split(',')[0].replace(/^"|"$/g, '').trim();
         let section = first;
+        let columns = [];
         const talk = {};
         parsed.forEach(row => {
           if (!row) return;
-          const a = String(row['__col0'] || '').trim(), b = String(row['__col1'] || '').trim();
-          if (a && !b && !String(row['__col2'] || '').trim()) { section = a; return; }
-          if (a === '場面') return;
-          if (!a || !b) return;
-          (talk[section] = talk[section] || {})[a] = b;
+          const values=Array.from({length:40},(_,i)=>String(row[`__col${i}`]||'').trim());
+          const a=values[0];
+          if (!a) return;
+          if (a === '場面') { columns=values; return; }
+          if (values.slice(1).every(v=>!v)) { section=a; columns=[]; return; }
+          const entry={};
+          columns.forEach((name,i)=>{
+            if(!(/^台詞\d+$/.test(name)||['ゴールド不足時台詞','再訪時台詞'].includes(name))||!values[i]) return;
+            entry[name]={speaker:values[i-1]==='A'?'A':'B',text:values[i]};
+          });
+          if(Object.keys(entry).length) (talk[section]=talk[section]||{})[a]=entry;
         });
         window.TALK_MESSAGES = talk;
       } else {
@@ -635,6 +645,13 @@ async function loadGameData() {
         const hit = Object.keys(headerAt).find(k => headerAt[k] === name);
         return hit === undefined ? -1 : Number(hit);
       };
+      const colOfAny = (...names) => {
+        for (const name of names) {
+          const col = colOf(name);
+          if (col >= 0) return col;
+        }
+        return -1;
+      };
       const readAt = (row, textCol) => {
         if (textCol < 0) return [];
         const text = String(row[`__col${textCol}`] || '').trim();
@@ -650,6 +667,12 @@ async function loadGameData() {
         if (!id) return;
         const summary = String(row['概要'] || '').trim();
         const goldMatch = summary.match(/(\d+)\s*G\s*獲得/);
+        const rewardGoldByCount = {};
+        for (const match of summary.matchAll(/(\d+)\s*個\s*[：:]\s*(\d+)\s*G/g)) {
+          rewardGoldByCount[Number(match[1])] = Number(match[2]);
+        }
+        const specialA1 = readAt(row, colOfAny('特殊台詞A1', '特殊台詞1', '特殊拒否台詞1'));
+        const specialA2 = readAt(row, colOfAny('特殊台詞A2', '特殊台詞2', '特殊拒否台詞2'));
         questMap[id] = {
           id,
           baseId: id.replace(/_\d+$/, ''),
@@ -657,16 +680,40 @@ async function loadGameData() {
           summary,
           // 達成報酬のゴールド（概要の「100G獲得」から読む。無ければ0）。
           rewardGold: goldMatch ? Number(goldMatch[1]) : 0,
+          // 回収数別の報酬（例：「1個：50G、2個：120G」）。
+          rewardGoldByCount,
           initial: lineCols.reduce((out, c) => out.concat(readAt(row, c)), []),
           accepted: readAt(row, colOf('受託台詞')),
           rejected: readAt(row, colOf('拒否台詞')),
+          // 新列名を正とし、旧内蔵データの列名は A1/A2 として読む。
+          specialA1,
+          specialA2,
+          specialB1: readAt(row, colOf('特殊台詞B1')),
+          specialB2: readAt(row, colOf('特殊台詞B2')),
+          specialC1: readAt(row, colOf('特殊台詞C1')),
+          specialC2: readAt(row, colOf('特殊台詞C2')),
+          specialC3: readAt(row, colOf('特殊台詞C3')),
+          // Q003/Q004 の既存処理との互換名。値の出どころは A1/A2 に統一する。
+          specialRejected1: specialA1,
+          specialRejected2: specialA2,
+          specialRejectedAfter: readAt(row, colOf('特殊拒否後台詞')),
           acceptedAfter: readAt(row, colOf('受託後台詞')),
           rejectedAfter: readAt(row, colOf('拒否後台詞')),
           failedAfter: readAt(row, colOf('失敗後台詞')),
           failedNonBattle: readAt(row, colOf('非戦闘時クエスト失敗台詞')),
+          // 戦闘以外で必須カードが破壊された時（quest.js の questOnRequiredCardDestroyed）。
+          // 「非戦闘時死亡時台詞」だけの列は台詞1として読む。台詞1／台詞2の列があればそちらを使う。
+          destroyed1: readAt(row, colOf('非戦闘時死亡時台詞1')).concat(readAt(row, colOf('非戦闘時死亡時台詞'))),
+          destroyed2: readAt(row, colOf('非戦闘時死亡時台詞2')),
+          destroyedAfter: readAt(row, colOf('非戦闘時死亡後台詞')),
           death: readAt(row, colOf('死亡時台詞')),
           flee: readAt(row, colOf('逃走時台詞')),
+          progress1: readAt(row, colOf('進行台詞1')),
+          progress2: readAt(row, colOf('進行台詞2')),
+          progress3: readAt(row, colOf('進行台詞3')),
           description: String(row['クエスト説明文'] || '').trim(),
+          // 酒場で B が最初に喋る時に出す名前（quest.js の名前札。「奇妙な少女 ファラ」＝空白の前が小さい）。
+          characterName: String(row['キャラクターの名前'] || '').trim(),
         };
       });
       window.QUEST_DATA = questMap;
@@ -1160,6 +1207,12 @@ async function loadGameData() {
       if (panel.category === 'エンチャント') {
         _setEnchantFieldsFromDesc(panel);
         panel.adjacentKeywords = _applyMergedKeywordList(panel.adjacentKeywords, sheetKeywords);
+        // 「荷物」は接続先へ付与する効果ではなく、カード自身の分類（合体不可）。
+        // 効果文が空のカードも通常のエンチャントとして安全に保持する。
+        if (sheetKeywords.includes('荷物')) {
+          panel.keywords = _mergeUniqueKeywords(panel.keywords, ['荷物']);
+          panel.adjacentKeywords = panel.adjacentKeywords.filter(k => String(k || '').trim() !== '荷物');
+        }
         // 強化カード名は表示名であり、接続先へ付与するキーワードではない。
         // シート側に誤って残っている場合もここで除去し、データ追加時の再発を防ぐ。
         const enchantCardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
@@ -1167,7 +1220,7 @@ async function loadGameData() {
         // 「ポート」列＝各強化カードの接続ポイントの数（旧「ハブ」列も互換で許容）
         const portStr = String(row['ポート'] ?? row['ハブ'] ?? '').trim();
         const portVal = parseInt(portStr, 10);
-        if (!isNaN(portVal) && portVal >= 1) panel.directionCount = portVal;
+        if (!isNaN(portVal) && portVal >= 0) panel.directionCount = portVal;
       }
       // **合体後の姿はシートの「合体効果」列で決まる。**
       // 組み立ては全ての上書き処理が終わってから（下の最終パス）。ここでは素材だけ控える。
@@ -1322,7 +1375,9 @@ async function loadGameData() {
     // シート側の更新前でも壺・魔鏡の合体不可ルールを一貫して適用する。
     const _luggagePanelNames=new Set(['翡翠の壺','黄金の壺','魔鏡']);
     (PANEL_POOL||[]).forEach(panel=>{
-      if(!_luggagePanelNames.has(String(panel&&panel.name||'').trim())) return;
+      const hasLuggage=(panel&&panel.keywords||[]).concat(panel&&panel.adjacentKeywords||[])
+        .some(k=>String(k||'').trim()==='荷物');
+      if(!panel||(!hasLuggage&&!_luggagePanelNames.has(String(panel.name||'').trim()))) return;
       panel.keywords=_mergeUniqueKeywords(panel.keywords,['荷物']);
       panel.adjacentKeywords=(panel.adjacentKeywords||[]).filter(k=>String(k||'').trim()!=='荷物');
     });
@@ -1517,7 +1572,7 @@ async function loadGameData() {
     // NPCはUNIT_POOLにも入れるが、カードの唯一の定義はこのシート行から作る。
     const _upsertNpcPanelFromRow = row => {
       const rawCode = String(row['No.'] || row['No'] || row['NO'] || row['__col0'] || '').trim();
-      if (!/^NPC\s*0*\d+$/i.test(rawCode)) return null;
+      if (!/^(?:NPC|BC)\s*0*\d+$/i.test(rawCode)) return null;
       const code = rawCode.replace(/\s+/g, '').toUpperCase();
       const name = String(row['名前'] || row['カード名'] || row['__col1'] || '').trim();
       if (!name || !_rowImplemented(row)) return null;
@@ -1640,7 +1695,7 @@ async function loadGameData() {
         return;
       }
       // 通常キャラクター：UNIT_POOL を更新
-      if (/^NPC\s*0*\d+$/i.test(String(row['No.'] || row['No'] || row['NO'] || row['__col0'] || '').trim())) {
+      if (/^(?:NPC|BC)\s*0*\d+$/i.test(String(row['No.'] || row['No'] || row['NO'] || row['__col0'] || '').trim())) {
         _upsertNpcPanelFromRow(row);
       }
       let unit = _findBySheetName(UNIT_POOL, name);
@@ -1674,6 +1729,11 @@ async function loadGameData() {
         const turn = turnRaw === '-' ? 999 : (parseInt(turnRaw) || 1);
         const kws = (row['キーワード'] || '').split(/[\s、,，]+/).filter(Boolean);
         const isBossEnemy = _truthySheet(row['ボス']) || _truthySheet(row['Boss']) || _truthySheet(row['ボスかどうか']);
+        // 「出現」列がない旧データは従来どおり出現可能として扱う。
+        // 列番号ではなくヘッダ名で読むことで、敵シートへの列追加に追従する。
+        const hasSpawnColumn = Object.prototype.hasOwnProperty.call(row,'出現');
+        const spawnValue = String(row['出現'] == null ? '' : row['出現']).trim().toLowerCase();
+        const spawnEnabled = !hasSpawnColumn || !['false','0','×','✕'].includes(spawnValue);
         const enemy = {
           name,
           grade: Math.max(1, Math.round(level || 1)),
@@ -1689,8 +1749,12 @@ async function loadGameData() {
           sfxType: String(row['効果音'] || row['SE'] || row['SFX'] || '').trim(),
           spawnTurn: turn,
           bossOnly: isBossEnemy,
+          spawnEnabled,
+          _spawnEnabled: spawnEnabled,
           // 「台詞1〜3」列：戦闘開始時に吹き出しで順に表示する台詞。
           lines: ['台詞1','台詞2','台詞3'].map(k=>String(row[k]||'').trim()).filter(Boolean),
+          // 「闘技場台詞」列は、闘技場のエリート／ボスだけが使う開幕台詞。
+          arenaLines: [String(row['闘技場台詞']||'').trim()].filter(Boolean),
           _sheetEnemy: true,
         };
         _assignSheetArtCode(enemy, row, 'EN', true);

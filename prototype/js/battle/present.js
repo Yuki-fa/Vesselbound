@@ -1219,12 +1219,20 @@ function presentShownShield(unit) {
   return Math.max(0, unit._displayShield != null ? unit._displayShield : (Number(unit.shield) || 0));
 }
 // 表示値を「この手番が始まる前」に戻す（再生の頭で呼ぶ）。
-function presentHoldShown(unit, atk, hp, maxHp, shield) {
+function presentHoldShown(unit, atk, hp, maxHp, shield, weaken) {
   if (!unit) return;
   unit._displayAtk = Number(atk) || 0;
   unit._displayHp = Number(hp) || 0;
   unit._displayMaxHp = Math.max(1, Number(maxHp) || Number(hp) || 1);
   unit._displayShield = Math.max(0, Number(shield) || 0);
+  // 弱体（unit.weaken）も手番の前の値で据え置く。コアが先に全部足すため、据え置かないと
+  // 付与の演出が出る前からホバー説明だけ「弱体24」になっていた（2026-09-25 利用者報告）。
+  if (weaken != null) unit._displayWeaken = Math.max(0, Number(weaken) || 0);
+}
+// ホバー説明などに出す弱体の値（据え置き中は据え置いた値）。
+function presentShownWeaken(unit) {
+  if (!unit) return 0;
+  return Math.max(0, Number(unit._displayWeaken != null ? unit._displayWeaken : unit.weaken) || 0);
 }
 // 表示値を進める（数値・VFXを出す瞬間に呼ぶ）。
 // **据え置いていない時は何もしない。** 据え置いていなければ実体の値がそのまま
@@ -1236,6 +1244,7 @@ function presentAdvanceShown(unit, next) {
   if (next.hp != null) unit._displayHp = Math.max(0, Number(next.hp) || 0);
   if (next.maxHp != null) unit._displayMaxHp = Math.max(1, Number(next.maxHp) || 1);
   if (next.shield != null) unit._displayShield = Math.max(0, Number(next.shield) || 0);
+  if (next.weaken != null && unit._displayWeaken != null) unit._displayWeaken = Math.max(0, Number(next.weaken) || 0);
 }
 // 表示値の据え置きをやめて実体へ戻す（再生の終わりで呼ぶ）。
 function presentReleaseShown(unit) {
@@ -1244,6 +1253,7 @@ function presentReleaseShown(unit) {
   delete unit._displayHp;
   delete unit._displayMaxHp;
   delete unit._displayShield;
+  delete unit._displayWeaken;
 }
 
 // 倒れた体を盤面に残しておくか。

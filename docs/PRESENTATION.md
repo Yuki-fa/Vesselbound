@@ -576,3 +576,28 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 施設を出るボタン（reward.js の goBack）、図書館を出る、酒場の出入り（quest.js）。
 ワールドマップへの出発・入場演出は独自の暗転があるので使わない（二重になる）。
 
+**イベント収入の音（2026-09-25、利用者指定）**：イベントで所持金を得る時は `gold_fx.js: gainEventGold()` を通し、income.wav（`income`）を鳴らす。今はクエスト到着のお礼（quest.js）が使う。戦闘中のゴールド獲得（gold_gain）は `presentGoldGainEvent()` の担当で、こちらは使わない。
+
+**塔の到着会話とボタン**：到着の会話が始まる塔では、`openMapVillage()` が地名表示の前に `questPrepareTowerArrival()` を呼んで施設ボタン・出発ボタンを隠す（以前は地名表示の後に一瞬出てから隠れた）。
+
+**立ち絵の表情差分（2026-09-25）**：F001〜（351×351）は MC001 の左上から X811・Y335 に実寸で置く（`quest.js: TAVERN_FACE_CONFIG`）。表情は常にフェードインで替える（`TAVERN_FACE_FADE_MS`＝1000ms・ease-in-out。画像の展開を待ってから始める。立ち絵ごと消す時は立ち絵と同じ速さ）：新しい表情を今の表情の上に重ねてフェードインし、出きってから前の表情を外す（前の表情が不透明のまま下にあるので元の顔は透けない）。立ち絵は `img.decode()` を待ってからフェードインし、塔の到着会話では地名表示の間に先読み・展開しておく（展開待ちで急に出て見えたため）。
+
+**施設に入る音（2026-09-25）**：施設ボタンを押した瞬間に `map.js: _onVillageFacility()` だけが鳴らす（店・宿屋・図書館・酒場＝shopIn、祭壇＝altarIn）。各 open〜関数では鳴らさない（暗転・台詞の後に鳴って遅れて聞こえたため）。
+
+**入店台詞の後の店の画面**：台詞の後は、店の背景はそのままに black1.svg の暗幕と各枠をフェードインで出す（`map.js: _revealFacilityUi()`。背景と同じ見た目の覆いを UI の上に置いて消す。`FACILITY_UI_FADE_MS`＝500ms）。
+
+**逃走した敵の撃破報酬**：同時に逃走した束の全員分を払う（`battle_events.js` の fled。以前は束の先頭の分しか戦闘中に入らなかった）。
+
+**演出速度（2026-09-25、利用者指定）**：オプションは「通常／2倍速／3倍速」（旧「高速」＝1.5倍は廃止し、保存値 fast は2倍速として読む）。倍率は `battle.js: optionBattleSpeedMultiplier()`、通常は自動加速（最大1.5倍）。**セーブ有効時の戦闘は `SaveRun.replay()` が再生し `_battlePhaseRunning` を立てないので、`isBattlePresentationPlaying()` は `G._savedBattleReplaying` も見る**（見ていなかったため、通常プレイの戦闘には自動加速も含め速度が一度も掛かっていなかった）。
+
+**弱体の表示の据え置き**：ATK/HP/結界と同じく、弱体（`unit.weaken`）も手番の前の値で据え置き（`presentHoldShown` の6番目の引数）、弱体の付与（keyword_effect weaken）を見せるたびに進める。ホバー説明は `presentShownWeaken()` を読む。
+
+**複製のコピーの表示**：コピーは出てきた瞬間、元のキャラの据え置き中の表示値と同じ値で見せる（`battle_events.js` の summon）。手番の終わりに盤面の全員の据え置きを解く。
+
+**立ち絵が出る時の表情（2026-09-26、利用者指定）**：表情を指定して立ち絵を出す時は、表情も立ち絵と同じ瞬間・同じ速さでフェードインする（出てから切り替わって見えない。`quest.js: showTavernPortrait` の appearing）。既に出ている立ち絵の表情を替える時だけ、1秒のフェードインで重ねる。魔狼に出会った時の A は最初から F004。
+
+**クエストの続きの戦闘（魔狼に挑む）**：`main.js: _startWaveBattle` は続きの戦闘では開幕の寄せ・暗転の準備をしない（準備の黒幕が開幕演出なしで残り、画面が真っ暗になっていた）。
+
+**続きの戦闘の開幕（2026-09-26、利用者指定）**：闘技場の2戦目以降と「魔狼に挑む」は `battle.js: _battleCarryOpening()` が真。味方は場に居たまま出し直さない（開幕の「全カードを隠す」から `#scr-battle.battle-carry-allies` で味方だけ外し、`playBattleOpeningSequence` は敵だけを登場させる）。闘技場の継戦（`arena.js: _arenaContinue`）は暗転しない。
+
+**依頼人の名前札（2026-09-26、利用者指定）**：クエストシート「キャラクターの名前」に記載がある時、酒場で B が最初に喋る時に、main_line.svg（高さ30px＝930×30、X2370・Y1765）と、その上の名前（空白の前は小さく48px、後は大きく86px）をフェードインで出す。その台詞を送ってから1秒後にフェードアウト。小さい文字と大きい文字は縦の中心で揃える。線は main_line.svg をマスクにして名前の文字色（#f7efdf）を中央、両端を金（#9c7a45）へ落とすグラデーションで塗る（`TAVERN_NAME_LINE_GRADIENT`）。線と文字には「戦闘開始」と同じドロップシャドウ（線の影はマスクに消されないよう外側の箱に付ける）。`quest.js: _qShowNamePlate`／`TAVERN_NAME_PLATE`。battle_line.svg は main_line.svg に改名（参照はすべて更新）。

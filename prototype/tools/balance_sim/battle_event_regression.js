@@ -39,6 +39,48 @@ function runSummonScenario() {
   return events;
 }
 
+function runGenericFleeAndEnemyRingScenario() {
+  const fleeState = core.createBattleState({
+    sides: {
+      p1: {units: [{id: 'flee', name: '任意名', atk: 4, hp: 9, maxHp: 9,
+        desc: '常時：このキャラクターは攻撃する代わりに逃走する。'}]},
+      p2: {units: [{id: 'guard', name: '標的', atk: 1, hp: 50, maxHp: 50}]},
+    },
+  });
+  fleeState._coreFirstSide = 'p1';
+  const fleeEvents = [];
+  core.runBattleCore(fleeState, createSeededRng(901), {turnLimit: 1, onEvent: e => fleeEvents.push(e)});
+  assert.ok(fleeEvents.some(e => e.type === 'fled' && e.unitId === 'flee' && e.reason === 'atk_zero'),
+    '汎用の「攻撃する代わりに逃走」がATK0逃走イベントへ流れていない');
+  assert.ok(!fleeEvents.some(e => e.type === 'attack' && e.attackerId === 'flee'),
+    '逃走したキャラクターが接触攻撃を行っている');
+
+  const makeRingState = () => core.createBattleState({
+    rings: {p1: [{name: '任意名の指輪', desc: '開戦：全ての敵は+5/+5を得る。'}], p2: []},
+    sides: {
+      p1: {units: [{id: 'owner', name: '装備者', atk: 1, hp: 100, maxHp: 100}]},
+      p2: {units: [
+        {id: 'enemy-a', name: '敵A', atk: 2, hp: 100, maxHp: 100},
+        {id: 'enemy-b', name: '敵B', atk: 3, hp: 100, maxHp: 100},
+      ]},
+    },
+  });
+  const opened = makeRingState();
+  opened._coreFirstSide = 'p1';
+  const ringEvents = [];
+  core.runBattleCore(opened, createSeededRng(902), {turnLimit: 1, onEvent: e => ringEvents.push(e)});
+  assert.deepEqual(opened.units.p2.map(u => [u.atk, u.maxHp]), [[7, 105], [8, 105]],
+    '効果文駆動の敵全体+5/+5が全対象へ適用されていない');
+  assert.equal(ringEvents.filter(e => e.type === 'stat_change' && e.reason === 'opening_ring_enemy_buff').length, 2,
+    '敵全体強化のstat_changeイベント数が対象数と一致しない');
+
+  const continued = makeRingState();
+  continued._coreFirstSide = 'p1';
+  core.runBattleCore(continued, createSeededRng(903), {turnLimit: 1, skipOpening: true});
+  assert.deepEqual(continued.units.p2.map(u => [u.atk, u.maxHp]), [[2, 100], [3, 100]],
+    'skipOpeningの続き戦闘で指輪の開戦効果が再発動している');
+}
+
 function runBatchedLichScenario() {
   const state = core.createBattleState({
     sides: {p1: {units: [
@@ -448,6 +490,8 @@ function main() {
   const presentSrc = read('js/battle/present.js');
   const versusSrc = read('js/online/versus.js');
   const render = read('js/engine/render.js');
+  assert.match(versusSrc, /desc:\s*String\(r\.desc\s*\|\|\s*''\)/,
+    'オンライン編成payloadが指輪の効果文を落としている');
   const injuryStart = currentBattle.indexOf('async function _runCoreLiveInjuryEffects');
   const injuryFn = currentBattle.slice(injuryStart, currentBattle.indexOf('async function _fireAllyInjuryEffects', injuryStart));
   assert.match(currentBattle, /_genericAllyDeaths:Number\(G\._genericAllyDeaths\)\|\|0/,
@@ -473,6 +517,7 @@ function main() {
   assert.match(read('js/engine/battle_events.js'), /e\.type==='gold_gain'[\s\S]*presentGoldGainEvent\(e/,
     '死亡時ゴールドを共通プレゼンテーションへ接続していない');
   const coreEvents = runSummonScenario();
+  runGenericFleeAndEnemyRingScenario();
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
   runRunDaughterInjurySummonScenario();
@@ -555,8 +600,9 @@ function main() {
     '画面に出すHPの規則が present.js に無い');
   assert.match(read('js/engine/render.js'), /const _shownHp=typeof presentShownHp==='function'/,
     'カードのHP表示が据え置き値を見ていない');
-  assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp,shield\)/,
-    'PvEが手番の頭で表示値を据え置いていない');
+  // 弱体も同じく据え置く（2026-09-25。付与の演出より先にホバー説明の「弱体N」が増えていた）。
+  assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp,shield,weaken\)/,
+    'PvEが手番の頭で表示値（弱体を含む）を据え置いていない');
   // 結界も同じ理由で据え置く。実体を直に描くと、結界を割った演出（K018）より先に
   // shield.png と結界バッジだけが消える。
   assert.match(read('js/battle/present.js'), /function presentShownShield\(unit\)/,

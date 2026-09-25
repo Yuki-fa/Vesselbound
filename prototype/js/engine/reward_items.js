@@ -588,7 +588,7 @@ function _syncItemUsePickingUi(){
     btn.type='button';
     btn.className='btn rew-reset-btn item-use-cancel-btn';
     btn.dataset.sfxSilent='1';
-    btn.innerHTML=`<span class="rew-btn-label">${_uiLabel('アイテム使用キャンセルボタン','キャンセル')}</span>`;
+    btn.innerHTML=`<span class="rew-btn-label">${_uiLabel('「キャンセル」ボタン','キャンセル')}</span>`;
     btn.onclick=()=>{
       if(typeof playSfx==='function') playSfx('return',{group:'ui'});
       _cancelPendingItemUse();
@@ -668,7 +668,31 @@ function _useImmediateItem(idx,card){
   _closeItemUseConfirm();
   return true;
 }
+// 魔導板のカードを対象にするアイテムの使用。使い終わって対象が盤面に残っていれば、
+// そのカードに _itemBuffed（アイテムで永久強化された）を付ける。酒場の依頼カードの特殊拒否に使う（quest.js）。
 function handlePendingItemBoardTarget(slotIdx){
+  const pending=G._pendingItemUse;
+  // クエストの必須カード（ファラ）をアイテムで破壊したかを見るため、使う前に持ち主を覚えておく。
+  const questEntry=typeof questRequiredEntryOnBoard==='function'?questRequiredEntryOnBoard():null;
+  // 生贄人形の1段目で壊した時は、2段目（封印を減らす）を終えるまで会話へ進まない（pending に覚えておく）。
+  const deferredEntry=pending&&pending._questDestroyedEntry||null;
+  const handled=_handlePendingItemBoardTarget(slotIdx);
+  const destroyedEntry=questEntry&&typeof questRequiredCardGone==='function'&&questRequiredCardGone(questEntry)?questEntry:null;
+  if(destroyedEntry&&G._pendingItemUse){
+    // 2段目の前に取り消すと、盤面は使う前へ戻り（_cancelPendingItemUse の boardSnapshot）、何も起きない。
+    G._pendingItemUse._questDestroyedEntry=destroyedEntry;
+  }else if((destroyedEntry||deferredEntry)&&!G._pendingItemUse&&typeof questOnRequiredCardDestroyed==='function'){
+    // アイテムを使い終えてから会話へ（2026-09-25 利用者指定）。演出の終わりは quest.js 側が待つ。
+    questOnRequiredCardDestroyed(destroyedEntry||deferredEntry);
+  }
+  if(pending&&G._pendingItemUse===null){
+    const idx=pending.key==='bond_scroll'?pending.firstIdx:slotIdx;
+    const target=Number.isInteger(idx)?_mainBoardCards()[idx]:null;
+    if(target) target._itemBuffed=true;
+  }
+  return handled;
+}
+function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
   const boardList=_mainBoardCards();
@@ -828,14 +852,14 @@ function _openItemUseConfirm(idx,anchor){
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const useUnavailable=!_canUseItemNow(card);
   _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
-    {label:_uiLabel('アイテムの「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
-    {label:_uiLabel('アイテムの「捨てる」ボタン','捨てる'),onClick:()=>{
+    {label:_uiLabel('「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
+    {label:_uiLabel('「捨てる」ボタン','捨てる'),onClick:()=>{
       const current=_ensureItemSlots()[idx];
       if(current) _ensureItemSlots()[idx]=null;
       _closeItemUseConfirm();
       renderHandEditor(); updateHUD();
     }},
-    {label:_uiLabel('アイテムの「やめる」ボタン','やめる'),onClick:()=>{ _closeItemUseConfirm(); _cancelPendingItemUse(); }}
+    {label:_uiLabel('「やめる」ボタン','やめる'),onClick:()=>{ _closeItemUseConfirm(); _cancelPendingItemUse(); }}
   ]);
   const lockedTip=document.getElementById('kw-tooltip');
   if(lockedTip) lockedTip.dataset.rewardSlotIdx=String(idx);
