@@ -166,7 +166,7 @@ async function _arenaBeginChallenge(){
   }
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpointFacilityTalk(false,{arenaPaid:true});
-    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
 }
 
@@ -428,7 +428,7 @@ async function _arenaFinish(result,wins){
     if(typeof openMapVillage==='function') openMapVillage();
     if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
       const saved=SaveRun.checkpoint('town');
-      if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+      if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
     }
   });
   _arenaFinishBusy=false;

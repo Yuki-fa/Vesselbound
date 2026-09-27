@@ -759,16 +759,8 @@ function _startWaveBattle(stage){
     // 黒いまま残っていた（2026-09-25 利用者指摘）。
     if(!questSpec&&typeof prepareBattleIntroFocus==='function') prepareBattleIntroFocus(type);
   }
-  // 「戦闘開始／再戦」を押した保存表示は、強敵戦でも必ず暗転内に置く。
-  // 強敵戦は通常の入口では暗転しないため、この明示契機だけ黒幕を先に固定する。
-  if(G._battleStartAutosaveRequested){
-    const autosaveFade=document.getElementById('battle-transition-fade');
-    if(autosaveFade){
-      autosaveFade.style.transition='none';
-      autosaveFade.classList.add('is-visible');
-      void autosaveFade.offsetWidth;
-    }
-  }
+  // 保存表示のために暗転を足したり延ばしたりしない（2026-09-27 利用者指定）。
+  // 強敵戦など、もともと暗転しない入口では、表示は暗転なしで高速に出て消える。
   G._waveVillage=false;
   G._isWaveAltar=false;
   // **次に鳴る曲を戦闘中に読み込んでおく。**（_isWaveAltarを倒した後で判定すること）

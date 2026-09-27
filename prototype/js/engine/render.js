@@ -683,28 +683,6 @@ function _keywordDescLine(name,lookupKey){
   if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(key)||'';
   return d?`${_keywordDescLabel(base,d)}：${d}`:'';
 }
-// 戦闘中の状態値を、キーワードシート由来の名前・説明へ結び付ける。
-// シートにない語は状態バッジとして表示しない（廃止済み語をコード側だけで復活させないため）。
-function _keywordSheetStatus(rawName,amount){
-  if(typeof KW_DESC_MAP==='undefined'||!KW_DESC_MAP) return null;
-  const source=String(rawName||'').trim();
-  if(!source) return null;
-  const suffixMatch=source.match(/(?:\d+|X|∞)$/);
-  const suffix=amount==null?(suffixMatch?suffixMatch[0]:''):String(amount);
-  const requestedBase=source.replace(/(?:\d+|X|∞)+$/,'');
-  const keys=Object.keys(KW_DESC_MAP).filter(Boolean);
-  const sheetName=keys.find(name=>String(name).trim()===source)
-    ||keys.find(name=>String(name).trim().replace(/X$/,'')===requestedBase);
-  if(!sheetName) return null;
-  const name=String(sheetName).trim().replace(/X$/,'');
-  const desc=String(KW_DESC_MAP[sheetName]||KW_DESC_MAP[name]||'').trim();
-  if(!name||!desc) return null;
-  return {name,label:`${name}${suffix}`,desc};
-}
-function _keywordStatusPreviewLine(name,amount){
-  const meta=_keywordSheetStatus(name,amount);
-  return meta?`${meta.label}：${meta.desc}`:'';
-}
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
   const rawDesc=[desc,typeof _rawSubstitutedDesc==='function'&&card?_rawSubstitutedDesc(card):'',card&&card.desc]
@@ -4607,14 +4585,9 @@ function _unitPreviewText(unit, desc, slotIdx){
   // **「状態」は戦闘中だけ出す。** 編成画面では結界はキーワード欄に出ており、
   // そこへ更に「状態：結界1」を並べると同じことを二度書くことになる。
   const _inBattle=typeof G!=='undefined'&&G&&(G.phase==='player'||G.phase==='enemy');
-  if(_inBattle&&unit.poison>0){
-    const poisonLine=_keywordStatusPreviewLine('毒',unit.poison);
-    if(poisonLine) lines.push(poisonLine);
-  }
-  if(_inBattle&&unit.shield>0){
-    const shieldLine=_keywordStatusPreviewLine('結界',unit.shield);
-    if(shieldLine) lines.push(shieldLine);
-  }
+  // 状態は名前と値だけの1行（キーワードの説明文は続けない。2026-09-27 利用者指定で元に戻した）。
+  if(_inBattle&&unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
+  if(_inBattle&&unit.shield>0) lines.push(`状態：結界${unit.shield}`);
   // descの中の単独キーワード行は、既にキーワード欄へ出しているためその行だけ除く。
   // スケルトンキングの「復活\n攻撃：…」は、復活だけが本文色で二重表示されていた。
   const shownKeywordNames=new Set([...(unit.keywords||[]),...kws]

@@ -2359,7 +2359,7 @@ async function startBattle(){
     // 「戦闘開始／再戦」の押下で作ったbattleチェックポイントだけを表示する。
     // 黒幕は main.js の入口で固定済みなので、高速表示が消えてから開幕演出へ進む。
     if(showBattleStartAutosave&&pendingBattle&&typeof SaveRun.showAutoSaveIndicator==='function'){
-      await SaveRun.showAutoSaveIndicator({fast:true});
+      void SaveRun.showAutoSaveIndicator({fast:true});
     }
     G._savePreparing=false;
     G._savePresentation=true;

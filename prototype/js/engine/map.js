@@ -914,7 +914,7 @@ async function _playWorldMapDeparture(done,beforeReveal){
     fade.style.opacity='1';
     await _mapDelay(360);
     // 「出発する」で確定した保存は、画面が真っ暗になった直後に表示する。
-    // 表示が終わるまでマップを開かず、AUTO SAVING... が明転後へ残らないようにする。
+    // 表示の終わりは待たない（暗転を長くしない。2026-09-27 利用者指定）。表示は暗転と並行して出て、描き終わったら消える。
     if(typeof beforeReveal==='function'&&await beforeReveal()===false){
       // 保存失敗画面からタイトルへ戻った後に、この非同期遷移が
       // 背後で再開しないよう、マップ開始前に中止して黒幕も片付ける。
@@ -1043,7 +1043,7 @@ function departWithWorldMap(options){
       // 画面が真っ暗になった直後に正式状態を保存する。失敗時は次画面へ進めない。
       const saved=SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
       if(!saved){ SaveRun.lockInput(false); return false; }
-      if(typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+      if(typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
       return true;
     }
     :null;
@@ -1369,7 +1369,7 @@ function openMapVillage(options){
         // イベント完了時の _qFinish*Arrival で保存と表示をまとめる。
         if(saved&&!arrivalQuestPending&&autosaveMode
           &&typeof SaveRun.showAutoSaveIndicator==='function'){
-          await SaveRun.showAutoSaveIndicator({fast:autosaveMode==='battleProgress'});
+          void SaveRun.showAutoSaveIndicator({fast:autosaveMode==='battleProgress'});
         }
         return true;
       }
@@ -1739,7 +1739,7 @@ async function _runVillageInnDialogue(talk){
   if(typeof updateHUD==='function') updateHUD();
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpointFacilityTalk(true);
-    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
   await _mapDelay(INN_LIFE_FADE_MS);
   // 台詞4は暗転を解いてから出し、クリックしたら宿屋を出る（2026-09-25 利用者指定）。

@@ -1001,7 +1001,7 @@ function renderMoveSlotsInEnemy(){
             if(!changed||typeof SaveRun==='undefined'||!SaveRun.enabled()) return;
             const saved=SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
             if(saved&&typeof SaveRun.showAutoSaveIndicator==='function'){
-              await SaveRun.showAutoSaveIndicator();
+              void SaveRun.showAutoSaveIndicator();
             }
           };
           if(typeof fadeScreenSwitch==='function') void fadeScreenSwitch(leave);

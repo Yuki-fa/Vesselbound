@@ -2286,7 +2286,7 @@ async function _qFinishTownArrival(entry,shade,status){
   syncQuestFormationUi();
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpoint('town');
-    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
   _qTownSession=false;
 }
@@ -2358,7 +2358,7 @@ async function _qFinishTowerArrival(entry){
   syncQuestFormationUi();
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpoint('tower');
-    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
   _qTowerSession=false;
 }
