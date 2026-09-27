@@ -140,6 +140,13 @@ function buildBoardFormation(board, opts) {
     }
   });
 
+  // 「この効果を持つ味方の数」など、編成全体を見て決まる常時能力は
+  // 全出撃ユニットが揃ってから共通コアで一度だけ確定する。
+  // 枠溢れで assignedSlot が付かなかった体は実際には出撃しないため数えない。
+  if (typeof coreApplyFormationPassives === 'function') {
+    coreApplyFormationPassives(entries.filter(entry => entry.assignedSlot >= 0).map(entry => entry.unit));
+  }
+
   // 画面・イベント上の並び。assignedSlot が付かなかった分（枠溢れ）は末尾へ。
   const ordered = entries.slice().sort((a, b) => {
     const av = a.assignedSlot < 0 ? Number.MAX_SAFE_INTEGER : a.assignedSlot;

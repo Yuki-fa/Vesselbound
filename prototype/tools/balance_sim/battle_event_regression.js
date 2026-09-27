@@ -79,6 +79,47 @@ function runGenericFleeAndEnemyRingScenario() {
   core.runBattleCore(continued, createSeededRng(903), {turnLimit: 1, skipOpening: true});
   assert.deepEqual(continued.units.p2.map(u => [u.atk, u.maxHp]), [[2, 100], [3, 100]],
     'skipOpeningの続き戦闘で指輪の開戦効果が再発動している');
+
+  const makeKeywordRingState = () => core.createBattleState({
+    rings: {p1: [
+      {name: '任意名A', desc: '開戦：全ての敵は三方向攻撃を得る。'},
+      {name: '任意名B', desc: '開戦：全ての敵は結界1を得る。'},
+    ], p2: []},
+    sides: {
+      p1: {units: [{id: 'keyword-owner', name: '装備者', atk: 1, hp: 100, maxHp: 100}]},
+      p2: {units: [
+        {id: 'keyword-enemy-a', name: '敵A', atk: 2, hp: 100, maxHp: 100},
+        {id: 'keyword-enemy-b', name: '敵B', atk: 3, hp: 100, maxHp: 100,
+          desc: '開戦：「青スケルトン」を1体召喚する。'},
+      ]},
+    },
+    summonDefs: [{name: '青スケルトン', power: 1, life: 20, color: '青'}],
+  });
+  const keywordOpened = makeKeywordRingState();
+  const keywordEvents = [];
+  core.coreRunOpening(keywordOpened, createSeededRng(904), e => keywordEvents.push(e),
+    (source, target, amount, counter, skipSourceEffects, skipTough, options) => core.coreResolveHit(
+      keywordOpened, source, target, amount, counter, createSeededRng(905), e => keywordEvents.push(e),
+      {skipSourceEffects, skipTough, ...(options || {})}),
+    () => {});
+  const keywordTargets = keywordOpened.units.p2.filter(Boolean);
+  assert.equal(keywordTargets.length, 3, '指輪回帰用の開戦召喚が成立していない');
+  keywordTargets.forEach(unit => {
+    assert.equal(core.coreAttackSpread(unit), 'tri', `${unit.id}へ三方向攻撃が付与されていない`);
+    assert.ok(core.coreUnitKeywords(unit).includes('結界1'), `${unit.id}へ結界1が付与されていない`);
+    assert.equal(unit.shield, 1, `${unit.id}の結界1が実効シールドへ反映されていない`);
+  });
+  assert.equal(keywordEvents.filter(e => e.reason === 'opening_ring_enemy_keyword').length, 6,
+    '敵全体キーワード指輪のイベント数が初期2体＋開戦召喚1体×2種と一致しない');
+
+  const keywordContinued = makeKeywordRingState();
+  keywordContinued._coreFirstSide = 'p1';
+  core.runBattleCore(keywordContinued, createSeededRng(906), {turnLimit: 1, skipOpening: true});
+  keywordContinued.units.p2.filter(Boolean).forEach(unit => {
+    assert.notEqual(core.coreAttackSpread(unit), 'tri', 'skipOpeningで三方向攻撃が再付与されている');
+    assert.equal(core.coreUnitKeywords(unit).includes('結界1'), false, 'skipOpeningで結界1が再付与されている');
+    assert.equal(unit.shield, 0, 'skipOpeningで結界が再生成されている');
+  });
 }
 
 function runBatchedLichScenario() {

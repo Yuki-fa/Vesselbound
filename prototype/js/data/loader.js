@@ -536,8 +536,9 @@ async function loadGameData() {
       }
     }
     let { source, ft, ct, et, kwt, pt, ent, it, rt, mpt, dlt, rgt, tmt, qt, tkt } = loaded;
-    // 会話メッセージシート：街見出しごとの「場面／対象／台詞…」を列名で読む。
-    // 同じ「対象」列は直後の台詞列に対応する。街ごとのヘッダの欠落列にも対応する。
+    // 会話メッセージシート：街見出しごとの「場面／対象／表情／台詞…」を列名で読む。
+    // 同じ見出しが繰り返されるため、列番号はヘッダーから都度求める。
+    // 表情の画像名は話者（対象 A/B）とは独立して扱う。
     try {
       if (tkt && String(tkt).trim()) {
         const parsed = _parseCSV(String(tkt));
@@ -547,15 +548,24 @@ async function loadGameData() {
         const talk = {};
         parsed.forEach(row => {
           if (!row) return;
-          const values=Array.from({length:40},(_,i)=>String(row[`__col${i}`]||'').trim());
+          const colKeys=Object.keys(row).filter(key=>/^__col\d+$/.test(key))
+            .sort((a,b)=>Number(a.slice(5))-Number(b.slice(5)));
+          const values=colKeys.map(key=>String(row[key]||'').trim());
           const a=values[0];
           if (!a) return;
           if (a === '場面') { columns=values; return; }
           if (values.slice(1).every(v=>!v)) { section=a; columns=[]; return; }
           const entry={};
           columns.forEach((name,i)=>{
-            if(!(/^台詞\d+$/.test(name)||['ゴールド不足時台詞','再訪時台詞'].includes(name))||!values[i]) return;
-            entry[name]={speaker:values[i-1]==='A'?'A':'B',text:values[i]};
+            if(!(/^台詞\d+$/.test(name)||/^特殊台詞\d+$/.test(name)
+              ||name==='ゴールド不足時台詞')||!values[i]) return;
+            const faceCol=columns[i-1]==='表情'?i-1:-1;
+            const targetCol=faceCol>=0&&columns[faceCol-1]==='対象'
+              ?faceCol-1
+              :columns[i-1]==='対象'?i-1:-1;
+            const target=targetCol>=0?String(values[targetCol]||'').toUpperCase():'';
+            const face=faceCol>=0?String(values[faceCol]||'').trim():'';
+            entry[name]={speaker:target==='A'?'A':'B',face,text:values[i]};
           });
           if(Object.keys(entry).length) (talk[section]=talk[section]||{})[a]=entry;
         });
@@ -633,12 +643,35 @@ async function loadGameData() {
       // **列は見出しの名前で探す**（列が増えても位置がずれない）。台詞の直前の列が「対象」なら話者、
       // 無ければ B（依頼人）。死亡時台詞・逃走時台詞は「対象」を持たない（カードの上で本人が喋る）。
       const headerAt = {};
-      if (questRows[0]) {
-        let col = -1;
-        Object.keys(questRows[0]).forEach(key => {
-          const m = /^__col(\d+)$/.exec(key);
-          if (m) { col = Number(m[1]); return; }
-          if (col >= 0 && headerAt[col] === undefined) headerAt[col] = key;
+      // 解析済みの行オブジェクトでは、同じ見出し（対象・表情）が1プロパティに
+      // 畳み込まれる。元CSVのヘッダー行を直接読むことで、繰り返し列も位置を保つ。
+      const rawQuestRows = [];
+      const rawQuestText = String(qt || '');
+      let rawQuestRow = '', rawQuestInQuote = false;
+      for (let i = 0; i < rawQuestText.length; i++) {
+        const ch = rawQuestText[i];
+        if (ch === '"') {
+          if (rawQuestInQuote && rawQuestText[i + 1] === '"') {
+            rawQuestRow += '""'; i++;
+          } else {
+            rawQuestInQuote = !rawQuestInQuote;
+            rawQuestRow += ch;
+          }
+        } else if (ch === '\r') {
+        } else if (ch === '\n' && !rawQuestInQuote) {
+          rawQuestRows.push(rawQuestRow); rawQuestRow = '';
+        } else {
+          rawQuestRow += ch;
+        }
+      }
+      if (rawQuestRow.trim()) rawQuestRows.push(rawQuestRow);
+      const rawQuestHeader = rawQuestRows.find(line => {
+        const cols = _csvRow(line).map(value => value.trim());
+        return ['No.', '名前', '台詞1', 'クエスト説明文'].some(name => cols.includes(name));
+      });
+      if (rawQuestHeader) {
+        _csvRow(rawQuestHeader).forEach((header, index) => {
+          headerAt[index] = header.trim();
         });
       }
       const colOf = name => {
@@ -656,9 +689,17 @@ async function loadGameData() {
         if (textCol < 0) return [];
         const text = String(row[`__col${textCol}`] || '').trim();
         if (!text) return [];
-        const prev = headerAt[textCol - 1];
-        const speakerRaw = (prev === undefined || prev === '対象') ? String(row[`__col${textCol - 1}`] || '').trim().toUpperCase() : '';
-        return [{ speaker: speakerRaw === 'A' ? 'A' : 'B', text }];
+        // 新しいクエストシートは「対象→表情→台詞」の3列を1組にする。
+        // 表情列を挟まない旧データも読み続けられるよう、見出しで両方を判定する。
+        const faceCol = headerAt[textCol - 1] === '表情' ? textCol - 1 : -1;
+        const targetCol = faceCol >= 0 && headerAt[faceCol - 1] === '対象'
+          ? faceCol - 1
+          : headerAt[textCol - 1] === '対象' ? textCol - 1 : -1;
+        const speakerRaw = targetCol >= 0
+          ? String(row[`__col${targetCol}`] || '').trim().toUpperCase()
+          : '';
+        const face = faceCol >= 0 ? String(row[`__col${faceCol}`] || '').trim() : '';
+        return [{ speaker: speakerRaw === 'A' ? 'A' : 'B', face, text }];
       };
       const lineCols = Object.keys(headerAt).map(Number).filter(c => /^台詞\d+$/.test(headerAt[c]))
         .sort((a, b) => Number(headerAt[a].slice(2)) - Number(headerAt[b].slice(2)));
@@ -673,6 +714,8 @@ async function loadGameData() {
         }
         const specialA1 = readAt(row, colOfAny('特殊台詞A1', '特殊台詞1', '特殊拒否台詞1'));
         const specialA2 = readAt(row, colOfAny('特殊台詞A2', '特殊台詞2', '特殊拒否台詞2'));
+        const specialA3 = readAt(row, colOf('特殊台詞A3'));
+        const specialA4 = readAt(row, colOf('特殊台詞A4'));
         questMap[id] = {
           id,
           baseId: id.replace(/_\d+$/, ''),
@@ -688,26 +731,28 @@ async function loadGameData() {
           // 新列名を正とし、旧内蔵データの列名は A1/A2 として読む。
           specialA1,
           specialA2,
+          specialA3,
+          specialA4,
           specialB1: readAt(row, colOf('特殊台詞B1')),
           specialB2: readAt(row, colOf('特殊台詞B2')),
-          specialC1: readAt(row, colOf('特殊台詞C1')),
-          specialC2: readAt(row, colOf('特殊台詞C2')),
-          specialC3: readAt(row, colOf('特殊台詞C3')),
-          // Q003/Q004 の既存処理との互換名。値の出どころは A1/A2 に統一する。
+          specialB3: readAt(row, colOf('特殊台詞B3')),
+          // Q003/Q004 の既存処理との互換名。値の出どころは A1〜A4 に統一する。
           specialRejected1: specialA1,
           specialRejected2: specialA2,
+          specialRejected3: specialA3,
+          specialRejected4: specialA4,
           specialRejectedAfter: readAt(row, colOf('特殊拒否後台詞')),
           acceptedAfter: readAt(row, colOf('受託後台詞')),
           rejectedAfter: readAt(row, colOf('拒否後台詞')),
           failedAfter: readAt(row, colOf('失敗後台詞')),
-          failedNonBattle: readAt(row, colOf('非戦闘時クエスト失敗台詞')),
+          failedNonBattle: readAt(row, colOfAny('非戦闘時失敗台詞', '非戦闘時クエスト失敗台詞')),
           // 戦闘以外で必須カードが破壊された時（quest.js の questOnRequiredCardDestroyed）。
-          // 「非戦闘時死亡時台詞」だけの列は台詞1として読む。台詞1／台詞2の列があればそちらを使う。
-          destroyed1: readAt(row, colOf('非戦闘時死亡時台詞1')).concat(readAt(row, colOf('非戦闘時死亡時台詞'))),
-          destroyed2: readAt(row, colOf('非戦闘時死亡時台詞2')),
+          // 新列名を優先し、旧名と旧単独列はフォールバックとして読む。
+          destroyed1: readAt(row, colOfAny('非戦闘時死亡台詞1', '非戦闘時死亡時台詞1', '非戦闘時死亡時台詞')),
+          destroyed2: readAt(row, colOfAny('非戦闘時死亡台詞2', '非戦闘時死亡時台詞2')),
           destroyedAfter: readAt(row, colOf('非戦闘時死亡後台詞')),
-          death: readAt(row, colOf('死亡時台詞')),
-          flee: readAt(row, colOf('逃走時台詞')),
+          death: readAt(row, colOfAny('死亡台詞', '死亡時台詞')),
+          flee: readAt(row, colOfAny('逃走台詞', '逃走時台詞')),
           progress1: readAt(row, colOf('進行台詞1')),
           progress2: readAt(row, colOf('進行台詞2')),
           progress3: readAt(row, colOf('進行台詞3')),
@@ -1252,7 +1297,7 @@ async function loadGameData() {
             const added={id:`item_sheet_I${num}`,no:num,name,
               rarity:Math.max(1,Number(row['レアリティ'])||1),grade:Math.max(1,Number(row['グレード'])||1),
               type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'',
-              art:`assets/art/item/I${num}.jpg`,desc:'',_noItemEffectImpl:true};
+              art:`assets/art/items/I${num}.jpg`,desc:'',_noItemEffectImpl:true};
             ITEM_POOL.push(added);
             matched=[added];
             _addedSheetItems.push(`${name}(I${num})`);
@@ -1371,6 +1416,17 @@ async function loadGameData() {
     });
     _syncPanelRows(cardRows, 'キャラクター', PANEL_POOL);
     _syncPanelRows(enchantRows, 'エンチャント', PANEL_POOL);
+    // 名前なし・実装falseになったシート行は廃止済み。コード側に旧定義が残っていても、
+    // 通常抽選だけでなくプール自体から外す。旧セーブは SaveMigrations で現行カードへ移す。
+    const _retiredEnchantCodes = enchantRows
+      .filter(row => !String(row['名前'] || row['カード名'] || '').trim() && _falseySheet(row['実装']))
+      .map(row => _sheetArtCode(row, 'E')).filter(Boolean);
+    for (let i = (PANEL_POOL || []).length - 1; i >= 0; i--) {
+      const panel = PANEL_POOL[i];
+      if (_retiredEnchantCodes.some(code => _filterBySheetCode([panel], code, 'エンチャント').length)) {
+        PANEL_POOL.splice(i, 1);
+      }
+    }
     // 荷物はカード自身が持つキーワードで、接続先へは付与しない。
     // シート側の更新前でも壺・魔鏡の合体不可ルールを一貫して適用する。
     const _luggagePanelNames=new Set(['翡翠の壺','黄金の壺','魔鏡']);

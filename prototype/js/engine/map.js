@@ -36,12 +36,10 @@ function _applyMapPanelPowerSheetRows(){
     if(priceRaw&&!isNaN(price)) target.price=price;
     const desc=String(row['効果']||row['説明']||row['説明文']||'').trim();
     if(desc) target.desc=desc;
-    // 鍛冶屋のホバー説明。列が未追加の場合は「効果」を流用する。
+    // 鍛冶屋のホバー説明は専用列だけを使う。
     const forgeDesc=String(row['鍛冶屋説明文']||'').trim();
     if(forgeDesc) target.forgeDesc=forgeDesc;
   });
-  const eternal=MAP_PANEL_POWERS.find(p=>p.id==='eternal');
-  if(eternal) eternal.desc='置いたカードがキャラクターなら、開戦時に場に出して永久に+1/+1を与える。';
 }
 _applyMapPanelPowerSheetRows();
 
@@ -172,9 +170,9 @@ function getVillageBackgroundKey(){
 const VILLAGE_BG_VIDEOS={
   // 0（リーゼ）は背景動画のみを表示する。
   // layer2Opacity：2枚目だけ不透明度を変える（未指定ならCSSの50%のまま＝塔と同じ濃さ）。
-  1:{src:'assets/vfx/village_forest.webm',rate:0.3,layers:2,layer2Opacity:0.25},
-  3:'assets/vfx/village_valley.webm',
-  4:{src:'assets/vfx/city_capital.webm',rate:0.9}, // 雷は他の3倍速
+  1:{src:'assets/vfx/stage2_village.webm',rate:0.3,layers:2,layer2Opacity:0.25},
+  3:'assets/vfx/stage3_village.webm',
+  4:{src:'assets/vfx/stage4_city.webm',rate:0.9}, // 雷は他の3倍速
 };
 // 塔（祭壇）は全ステージ共通。効果が薄いため layers:2 で同じ動画を2重に重ねる。
 const TOWER_BG_VIDEO={src:'assets/vfx/tower.webm',rate:0.3,layers:2};
@@ -183,7 +181,7 @@ const VILLAGE_FACILITY_BG={
   // tavern（酒場）・home（ホーム）は未実装で入れないが、背景だけ先に対応付けておく。
   0:{home:'homeStart'},
   1:{item:'itemShopForest',shop:'magicShopForest',tavern:'tavernForest'},
-  2:{item:'itemShopGrassland',shop:'magicShopGrassland',forge:'blacksmithGrassland',tavern:'tavernGrassland',inn:'innGrassland'},
+  2:{item:'itemShopGrassland',shop:'magicShopGrassland',tavern:'tavernGrassland',inn:'innGrassland'},
   3:{shop:'magicShopValley',forge:'blacksmithValley',tavern:'tavernValley',arena:'arena'},
   4:{shop:'magicShopCapital',forge:'blacksmithCapital',inn:'innCapital'},
   5:{shop:'magicShopEndworld',item:'itemShopEndworld',inn:'innEndworld'},
@@ -251,7 +249,7 @@ const STAGE_AMBIENCE={
 // 塔（祭壇）へ入った時点で止める。街画面側は VILLAGE_BG_VIDEOS が同じ動画を出す。
 const STAGE_BG_VIDEOS={
   // ステージ4：ヴォルザークに入ってから蝕界の塔まで、雷を戦闘中も重ね続ける。
-  4:{src:'assets/vfx/city_capital.webm',rate:0.9,fromStage:4},
+  4:{src:'assets/vfx/stage4_city.webm',rate:0.9,fromStage:4},
 };
 function _stageAmbienceList(){
   if(!G) return [];
@@ -644,24 +642,24 @@ async function _onVillageFacility(fac){
   if(['shop','forge','item','inn','arena'].includes(fac.key)){
     G._villageFacilityBusy=true;
     try{
-      const talk=_facilityGreetingEntry(fac);
       const key=`${_waveFacilityCacheKey()}:${fac.key}`;
+      const arenaAfterKey=_facilityArenaAfterTalkKey();
+      const normalTalk=_facilityGreetingEntry(fac);
+      const arenaAfterTalk=_facilityArenaAfterTalkEntry(fac);
+      // 闘技場の参加（支払い済み）は同じwaveのラン状態に残る。通常の店台詞を
+      // 既に見ていても、専用台詞の未表示マーカーを優先する。
+      const arenaAfterPending=!!(arenaAfterTalk&&_villageArenaUsed()
+        &&!((G._facilityTalkSeen||{})[arenaAfterKey]));
+      const talk=arenaAfterPending?arenaAfterTalk:normalTalk;
       const seen=!!((G._facilityTalkSeen||{})[key]);
-      // 宿屋は支払い後の再訪、店は2回目以降の来店で「再訪時台詞」を出す。
-      // 再訪時台詞が無い店は、そのラン中は最初の1回しか喋らない。
-      const revisit=!!(talk&&talk['再訪時台詞']&&(
-        fac.key==='inn'
-          ?_villageInnUsed()
-          :fac.key==='arena'
-            ?false
-            :seen
-      ));
-      if(talk&&typeof _qStartDialogue==='function'&&(!seen||revisit||fac.key==='inn'||fac.key==='arena')){
+      if(talk&&typeof _qStartDialogue==='function'
+        &&(arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
         await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+        // 施設の会話は、シートの最初の台詞が B でも酒場と同じ位置に A を出す。
+        // 台詞ごとの表情は、その後 _qStartDialogue() がシートの値を適用する。
+        if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
         if(fac.key==='inn'){
-          // 宿屋でも酒場と同じく A の位置に主人公（MC001）を出す（2026-09-25 利用者指定）。
-          if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
-          await _runVillageInnDialogue(talk,!!revisit);
+          await _runVillageInnDialogue(talk);
           await fadeScreenSwitch(()=>{
             if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
             document.body.classList.remove('inn-rest-fading');
@@ -674,13 +672,21 @@ async function _onVillageFacility(fac){
         if(fac.key==='arena'){
           // 闘技場も宿屋と同じく受付の会話画面で完結する。支払い後は
           // _runVillageArenaDialogue() が戦闘への暗転と復帰を担当する。
-          if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
-          await _runVillageArenaDialogue(talk,!!revisit);
+          await _runVillageArenaDialogue(talk);
           return;
         }
-        await _qStartDialogue([revisit?talk['再訪時台詞']:talk['台詞1']].filter(Boolean),{screen:'village'});
+        const greetingLine=arenaAfterPending
+          ?_facilityArenaAfterTalkLine(talk)
+          :talk['台詞1'];
+        await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
+        if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
         G._facilityTalkSeen=G._facilityTalkSeen||{};
-        G._facilityTalkSeen[key]=true;
+        if(arenaAfterPending){
+          // 専用台詞の直後は通常の初回台詞を次の入店で1回だけ出す。
+          // 通常台詞を先に見ていた場合も、ここで一度だけ通常経路へ戻す。
+          G._facilityTalkSeen[arenaAfterKey]=true;
+          G._facilityTalkSeen[key]=false;
+        }else G._facilityTalkSeen[key]=true;
         if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
         _hideFacilityGreetingScene();
         _enterVillageFacilityNow(fac);
@@ -894,7 +900,7 @@ function renderWorldMapScreen(activeOverride,targetWave,targetStage){
   }
 }
 // 街を出る → マップ画面を数秒表示 → フェードアウトして戦闘へ。
-async function _playWorldMapDeparture(done){
+async function _playWorldMapDeparture(done,beforeReveal){
   if(G._debugMapLoopActive){
     G._debugMapLoopActive=false;
     document.body.classList.remove('world-map-active');
@@ -907,6 +913,15 @@ async function _playWorldMapDeparture(done){
     fade.style.transition='opacity .34s ease';
     fade.style.opacity='1';
     await _mapDelay(360);
+    // 「出発する」で確定した保存は、画面が真っ暗になった直後に表示する。
+    // 表示が終わるまでマップを開かず、AUTO SAVING... が明転後へ残らないようにする。
+    if(typeof beforeReveal==='function'&&await beforeReveal()===false){
+      // 保存失敗画面からタイトルへ戻った後に、この非同期遷移が
+      // 背後で再開しないよう、マップ開始前に中止して黒幕も片付ける。
+      fade.style.transition='none';
+      fade.style.opacity='0';
+      return;
+    }
     // マップは「これから向かう区間」を光らせる。
     // 村（stage4）を出た直後＝塔へ向かう区間、塔（stage10）を出た直後＝次のステージの街へ向かう区間。
     let nextWave=Math.max(1,Number(G._wave)||1);
@@ -937,7 +952,7 @@ async function _playWorldMapDeparture(done){
 // ── 出発時のムービー ─────────────────────────────────────
 // ワールドマップの代わりにムービーを流すステージ（キー＝G._wave。街のみ・塔は対象外）。
 const DEPARTURE_MOVIES={
-  5:'assets/movie/movie2.webm', // 断罪と記憶の村 フォルセティ → 最終決戦へ
+  5:'assets/movies/movie2.webm', // 断罪と記憶の村 フォルセティ → 最終決戦へ
 };
 function _departureMovieSrc(){
   if(!G||G._isWaveAltar) return '';
@@ -957,7 +972,7 @@ function _ensureCutsceneVideoEl(){
 }
 // 暗転 → ムービー全画面再生 → 再生完了で暗転 → done()（次の戦闘へ）→ 明転。
 // 再生できない／終わらない場合に進行が止まらないよう、安全弁のタイムアウトを必ず張る。
-async function _playDepartureMovie(src,done){
+async function _playDepartureMovie(src,done,beforeReveal){
   if(G._departureMoviePlaying){ done(); return; }
   G._departureMoviePlaying=true;
   document.body.classList.add('cutscene-video-active');
@@ -967,6 +982,11 @@ async function _playDepartureMovie(src,done){
     fade.style.transition='opacity .34s ease';
     fade.style.opacity='1';
     await _mapDelay(360);
+    if(typeof beforeReveal==='function'&&await beforeReveal()===false){
+      fade.style.transition='none';
+      fade.style.opacity='0';
+      return;
+    }
     if(video.getAttribute('src')!==src){
       video.setAttribute('src',src);
       video.load();
@@ -1012,8 +1032,21 @@ async function _playDepartureMovie(src,done){
   fade.style.opacity='0';
 }
 // 街・塔の「出発する」共通処理。BGMを落としてマップ画面（またはムービー）を挟んでから次へ進む。
-function departWithWorldMap(){
+function departWithWorldMap(options){
   if(G._pendingPanelPlacement) return;
+  const saveDeparture=!!(options&&options.save);
+  if(saveDeparture&&typeof SaveRun!=='undefined'&&SaveRun.enabled()){
+    SaveRun.lockInput(true);
+  }
+  const beforeReveal=saveDeparture&&typeof SaveRun!=='undefined'&&SaveRun.enabled()
+    ?async()=>{
+      // 画面が真っ暗になった直後に正式状態を保存する。失敗時は次画面へ進めない。
+      const saved=SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
+      if(!saved){ SaveRun.lockInput(false); return false; }
+      if(typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+      return true;
+    }
+    :null;
   G._villageBgmActive=false;
   // 出発した時点で次の戦闘曲を読み込んでおく（ワールドマップの間に間に合わせる）。
   if(typeof warmNextBattleBgm==='function') warmNextBattleBgm();
@@ -1023,22 +1056,19 @@ function departWithWorldMap(){
   // 街・塔からワールドマップ画面を挟まない。
   if(G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch&&OnlineMatch.isActive()){
     next();
-    return;
+    return true;
   }
   const movie=_departureMovieSrc();
-  if(movie){ void _playDepartureMovie(movie,next); return; }
-  void _playWorldMapDeparture(next);
+  if(movie){ void _playDepartureMovie(movie,next,beforeReveal); return true; }
+  void _playWorldMapDeparture(next,beforeReveal);
+  return true;
 }
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
-  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.lockInput(true);
   // 街／塔で確定した操作は出発時に正式状態へ昇格する。次戦の準備完了後は
-  // battleチェックポイントで上書きされる。
-  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()&&!SaveRun.checkpoint(G._isWaveAltar?'tower':'town')){
-    SaveRun.lockInput(false);
-    return;
-  }
+  // battleチェックポイントで上書きされる。暗転と表示は departWithWorldMap() が揃える。
+  if(departWithWorldMap({save:true})===false) return;
   // village-screen-active を外すと「出発する」ボタンのスコープCSS（位置・寸法）が
   // 一斉に消え、既定スタイルに戻ったラベルが画面左上へ飛んで縮みながら消えて見える。
   // 先に入場演出と同じ非表示クラスでUIを消してから、クラスを外す。
@@ -1047,7 +1077,6 @@ function villageDepart(){
   if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
   // オンライン対戦のマッチングは入口（startGame）で済んでいる。
   // 準備完了の通知は _startWaveFlowNext() に一本化してあるので、ここでは行わない。
-  departWithWorldMap();
 }
 function renderVillageScreen(){
   if(G&&G._isLibraryMenu){
@@ -1193,8 +1222,8 @@ function _ensureVillageEnterFadeEl(){
   }
   return el;
 }
-async function _playVillageEnterIntro(build){
-  if(G._villageIntroPlaying){ build(); return; }
+async function _playVillageEnterIntro(build,beforeReveal){
+  if(G._villageIntroPlaying){ build(); return true; }
   G._villageIntroPlaying=true;
   const body=document.body;
   const fade=_ensureVillageEnterFadeEl();
@@ -1219,6 +1248,8 @@ async function _playVillageEnterIntro(build){
       fade.style.opacity='1';
       await _mapDelay(360);
     }
+    // 戦闘後／ラン開始の保存表示は、完全暗転のまま最後まで見せてから街を開く。
+    if(typeof beforeReveal==='function'&&await beforeReveal()===false) return false;
     // ② 村画面へ切り替える（背景以外は隠したまま構築する）
     body.classList.add('village-intro-active','village-intro-hide-ui');
     build();
@@ -1264,6 +1295,7 @@ async function _playVillageEnterIntro(build){
     body.classList.remove('village-intro-hide-ui');
     body.classList.add('village-intro-reveal-ui');
     await _mapDelay(440);
+    return true;
   }finally{
     body.classList.remove('village-intro-active','village-intro-circle','village-intro-hide-ui','village-intro-reveal-ui');
     fade.style.transition='none';
@@ -1307,12 +1339,16 @@ function openMapVillage(options){
   G._ringOfferPhase=false;
   G._facilityLabel='';
   G.phase='reward';
+  // 到着イベントがある場合は、到着時の表示をここでは出さず、イベント完了時へまとめる。
+  // prepare関数は地名演出より前にUIを隠す役目も持つため、保存判定より先に一度だけ呼ぶ。
+  const arrivalQuestPending=G._isWaveAltar
+    ?(typeof questPrepareTowerArrival==='function'&&questPrepareTowerArrival())
+    :(typeof questPrepareTownArrival==='function'&&questPrepareTownArrival());
   // 新規到着時だけ、画面に存在する施設のランダム提示を先に確定する。
   // 施設から戻った時やロード復元時には更新せず、開始チェックポイントを保つ。
-  if(options&&options.intro&&!(options&&options.restoreCheckpoint)){
-    _ensureWaveFacilityCheckpointContents();
-    if(typeof SaveRun!=='undefined') SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
-  }
+  // 抽選結果は先に確定するが、ディスクへの保存は入場演出が真っ暗になった直後に行う。
+  const shouldSaveArrival=!!(options&&options.intro&&!(options&&options.restoreCheckpoint));
+  if(shouldSaveArrival) _ensureWaveFacilityCheckpointContents();
   // 街は編成画面ではなく専用画面。goToReward()を通さないためmenu_open.wavは鳴らない。
   const build=()=>{
     _applyFacilityBackground(null);
@@ -1322,15 +1358,30 @@ function openMapVillage(options){
     if(typeof showScreen==='function') showScreen('village');
     renderVillageScreen();
   };
-  // 到着の会話が始まる塔では、施設ボタン・出発ボタンを地名表示の前から隠しておく（quest.js）。
-  if(G._isWaveAltar&&typeof questPrepareTowerArrival==='function') questPrepareTowerArrival();
-  if(!G._isWaveAltar&&typeof questPrepareTownArrival==='function') questPrepareTownArrival();
   if(options&&options.intro){
-    void _playVillageEnterIntro(build).then(()=>{
+    const autosaveMode=String(options.autosaveMode||'');
+    const beforeReveal=shouldSaveArrival&&typeof SaveRun!=='undefined'
+      ?async()=>{
+        if(typeof SaveRun.enabled==='function'&&!SaveRun.enabled()) return true;
+        const saved=SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
+        if(!saved) return false;
+        // 街／塔の到着クエストが続く場合は、ここの保存は表示なし。
+        // イベント完了時の _qFinish*Arrival で保存と表示をまとめる。
+        if(saved&&!arrivalQuestPending&&autosaveMode
+          &&typeof SaveRun.showAutoSaveIndicator==='function'){
+          await SaveRun.showAutoSaveIndicator({fast:autosaveMode==='battleProgress'});
+        }
+        return true;
+      }
+      :null;
+    const opening=_playVillageEnterIntro(build,beforeReveal).then(opened=>{
+      if(opened===false) return false;
       if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
       if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
+      return true;
     });
-    return;
+    void opening;
+    return opening;
   }
   build();
   if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
@@ -1345,7 +1396,7 @@ function openMapLibraryMenu(){
   G._isLibrary=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isItemShop=false;
   G._isVillageMenu=false; G._isRingExchange=false;
-  G._facilityLabel='図書館';
+  G._facilityLabel=typeof textMessage==='function'?textMessage('街「図書館」ボタン','図書館'):'図書館';
   G.phase='reward';
   G._villageBgmActive=true;
   _applyFacilityBackground(null);
@@ -1410,7 +1461,11 @@ function _libraryLoanCards(){
     if(name==='リザードマン') loan.directions=['up','left'];
     if(name==='野生の力') loan.directions=['up','left','right'];
     return loan;
-  }).filter(Boolean);
+  }).filter(Boolean).map((loan,index)=>{
+    // 魔導板から「返却」した時に、借りた元の報酬枠へ正確に戻すための位置。
+    loan._libraryLoanSlot=index;
+    return loan;
+  });
 }
 
 function _captureLibraryLoanResetSnapshot(){
@@ -1467,7 +1522,7 @@ function openMapLibraryFormation(){
   G._isLibrary=true;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isItemShop=false;
   G._isVillageMenu=false; G._isRingExchange=false;
-  G._facilityLabel='図書館';
+  G._facilityLabel=typeof textMessage==='function'?textMessage('街「図書館」ボタン','図書館'):'図書館';
   G.phase='reward';
   document.body.classList.remove('village-screen-active','library-screen-active','world-map-active');
   if(typeof showScreen==='function') showScreen('battle');
@@ -1560,9 +1615,13 @@ const MERGE_TUTORIAL_CARD='ブラウニー'; // 「マージとは」の貸出�
 function _libraryMergeLoanCards(){
   const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))?PANEL_POOL.find(c=>c&&String(c.name||'')===MERGE_TUTORIAL_CARD):null;
   if(!def||typeof makePanel!=='function') return [];
-  return Array.from({length:5},()=>{
+  return Array.from({length:5},(_,index)=>{
     const card=makePanel(def.id);
-    if(card){ card._libraryLoan=true; card._isOriginalReward=false; }
+    if(card){
+      card._libraryLoan=true;
+      card._libraryLoanSlot=index;
+      card._isOriginalReward=false;
+    }
     return card;
   }).filter(Boolean);
 }
@@ -1607,6 +1666,26 @@ function _facilityGreetingEntry(fac){
   }
   return null;
 }
+function _facilityArenaAfterTalkEntry(fac){
+  const names=villageFacilityNameVariants(fac&&fac.name);
+  const isMagicShop=fac&&fac.key==='shop'&&names.some(v=>['魔導店','魔道店','ショップ'].includes(v));
+  if(!isMagicShop) return null;
+  for(const v of names){
+    const t=villageTalkEntry(`「${v}」入店時（闘技場後）`);
+    if(t) return t;
+  }
+  return null;
+}
+function _facilityArenaAfterTalkLine(talk){
+  const result=G&&G._arenaResults&&G._arenaResults[_waveFacilityCacheKey()];
+  if(result&&result.allWon) return talk&&talk['特殊台詞2']||talk&&talk['台詞1'];
+  if(result&&Number(result.prize)<=0) return talk&&talk['特殊台詞1']||talk&&talk['台詞1'];
+  // 古いランセーブなどで結果がまだ無い場合は、通常の台詞へ戻す。
+  return talk&&talk['台詞1'];
+}
+function _facilityArenaAfterTalkKey(){
+  return `${_waveFacilityCacheKey()}:shop:arenaAfter`;
+}
 function _villageDialogueChoices(text){
   return String(text||'').split('\n').map(s=>s.trim()).filter(Boolean).map(s=>{
     const priceMatch=s.match(/([\d,]+)G/);
@@ -1617,11 +1696,7 @@ function _villageDialogueChoices(text){
 }
 const INN_REST_BG_FADE_MS=650;
 const INN_LIFE_FADE_MS=750;
-async function _runVillageInnDialogue(talk,revisit){
-  if(revisit){
-    await _qStartDialogue([talk['再訪時台詞']],{screen:'village'});
-    return;
-  }
+async function _runVillageInnDialogue(talk){
   if(talk['台詞1']) await _qStartDialogue([talk['台詞1']],{screen:'village'});
   const prompt=talk['台詞2'];
   if(!prompt) return;
@@ -1634,8 +1709,7 @@ async function _runVillageInnDialogue(talk,revisit){
   const chosen=await _qStartDialogue([{...prompt,choices}],{screen:'village'});
   if(!chosen||chosen.cancel) return;
   if((Number(G.gold)||0)<chosen.price){
-    // ゴールド不足時台詞の間は、A の表情を F004 にする（2026-09-25 利用者指定）。
-    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village',face:'F004'});
+    // ゴールド不足時台詞の表情は、会話メッセージシートの列を使う。
     if(talk['ゴールド不足時台詞']) await _qStartDialogue([talk['ゴールド不足時台詞']],{screen:'village'});
     return;
   }
@@ -1663,7 +1737,10 @@ async function _runVillageInnDialogue(talk,revisit){
     });
   }
   if(typeof updateHUD==='function') updateHUD();
-  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(true);
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
+    const saved=SaveRun.checkpointFacilityTalk(true);
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+  }
   await _mapDelay(INN_LIFE_FADE_MS);
   // 台詞4は暗転を解いてから出し、クリックしたら宿屋を出る（2026-09-25 利用者指定）。
   // 台詞4がシートに無ければ、暗転のまま宿屋を出る。
@@ -2208,7 +2285,7 @@ function _ensureWaveForgeOffers(){
 function _ensureWaveRingExchange(){
   const waveKey=_waveFacilityCacheKey();
   if(G._waveRingExchange&&G._waveRingExchange[waveKey]) return clone(G._waveRingExchange[waveKey]);
-  const cache={offer:typeof _pickRingOffer==='function'?clone(_pickRingOffer()):[],unlocked:false,resolved:false,discardCount:0};
+  const cache={offer:typeof _pickAltarRingOffer==='function'?clone(_pickAltarRingOffer()):[],unlocked:false,resolved:false,discardCount:0};
   G._waveRingExchange=G._waveRingExchange||{};
   G._waveRingExchange[waveKey]=clone(cache);
   return cache;
@@ -2311,7 +2388,7 @@ function _syncWaveFacilityCache(){
   }
 }
 // 祭壇の「指輪交換」：指輪3つを提示し、魔導板のカード3枚と引き換えに1つを選んで得る
-// （既存のボス撃破後「栄光の力」画面の仕組み＝_ringOfferPhase系をそのまま再利用する）。
+// 指輪の提示・還魂操作は、祭壇と指輪依頼で共有する _ringOfferPhase 系を使う。
 function openMapRingExchange(){
   // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
   // 保存時にG._waveを読むと、デバッグのステージジャンプのように
@@ -2403,14 +2480,21 @@ function renderMapForgeOffers(){
     if(disabled) btn.classList.add('forge-disabled');
     btn.style.setProperty('--forge-art',`url("assets/ui/${art}")`);
     // ホバー説明：上段＝改造「◯◯」＋鍛冶屋説明文、下段＝マス名＋マスの効果（青系）。
-    const forgeDesc=String(master.forgeDesc||power.forgeDesc||'').trim()
-      ||`最上段、最下段のランダムな1マスを「${power.name}」に変化させる。`;
+    const forgeDesc=String(master.forgeDesc||power.forgeDesc||'').trim();
     const powerDesc=String(master.desc||power.desc||'').trim();
-    btn.setAttribute('data-preview',`改造「${power.name}」\n${forgeDesc}`);
+    const forgeTitleTemplate=typeof textMessage==='function'?textMessage('鍛冶屋「魔導板強化」見出し','改造「X」'):'改造「X」';
+    const forgeTitle=String(forgeTitleTemplate||'改造「X」').replace(/X/g,power.name);
+    btn.setAttribute('data-preview',[forgeTitle,forgeDesc].filter(Boolean).join('\n'));
     // マスの説明は、盤面のカードにホバーした時と同じく別ボックス（#map-power-tooltip）へ出す。
     btn.setAttribute('data-map-power-preview',[power.name,powerDesc].filter(Boolean).join('\n'));
-    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`
-      +((poor&&!noTarget)?'<div class="shop-insufficient-badge">ゴールド不足</div>':'');
+    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`;
+    if(poor&&!noTarget){
+      const shortage=document.createElement('div');
+      shortage.className='shop-insufficient-badge';
+      shortage.textContent=typeof textMessage==='function'
+        ?textMessage('ショップ「ゴールド不足」表示','ゴールド不足'):'ゴールド不足';
+      btn.appendChild(shortage);
+    }
     btn.onclick=async()=>{
       if(disabled) return;
       await applyPendingMapForgePower(power);

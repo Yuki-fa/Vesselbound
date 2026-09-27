@@ -151,7 +151,7 @@ function _arenaMarkChallenge(){
   G._arenaChallengeUsed[_arenaFacilityKey()]=true;
 }
 
-function _arenaBeginChallenge(){
+async function _arenaBeginChallenge(){
   if(!G._arenaEntrySnapshot) G._arenaEntrySnapshot=_arenaCaptureEntrySnapshot();
   _arenaMarkChallenge();
   G._arenaActive=true;
@@ -165,7 +165,8 @@ function _arenaBeginChallenge(){
     _arenaEnsureUsedBoss(2);
   }
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
-    SaveRun.checkpointFacilityTalk(false,{arenaPaid:true});
+    const saved=SaveRun.checkpointFacilityTalk(false,{arenaPaid:true});
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
   }
 }
 
@@ -178,11 +179,7 @@ async function _arenaLeaveEntry(){
   });
 }
 
-async function _runVillageArenaDialogue(talk,revisit){
-  if(revisit&&talk['再訪時台詞']){
-    await _qStartDialogue([talk['再訪時台詞']],{screen:'village'});
-    return;
-  }
+async function _runVillageArenaDialogue(talk){
   if(talk['台詞1']) await _qStartDialogue([talk['台詞1']],{screen:'village'});
   await _maybeStartArenaTutorial();
   const prompt=talk['台詞2'];
@@ -193,7 +190,6 @@ async function _runVillageArenaDialogue(talk,revisit){
   if(!chosen||chosen.cancel){ await _arenaLeaveEntry(); return; }
   const entryCost=Number(chosen.price)>0?Number(chosen.price):ARENA_ENTRY_COST;
   if((Number(G.gold)||0)<entryCost){
-    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village',face:'F004'});
     if(talk['ゴールド不足時台詞']) await _qStartDialogue([talk['ゴールド不足時台詞']],{screen:'village'});
     await _arenaLeaveEntry();
     return;
@@ -201,9 +197,9 @@ async function _runVillageArenaDialogue(talk,revisit){
   G.gold=Math.max(0,(Number(G.gold)||0)-entryCost);
   if(typeof updateHUD==='function') updateHUD();
   if(typeof playSfx==='function') playSfx('purchase',{group:'ui'});
-  _arenaBeginChallenge();
+  await _arenaBeginChallenge();
   if(talk['台詞3']) await _qStartDialogue([talk['台詞3']],{screen:'village'});
-  await fadeScreenSwitch(()=>{
+  await fadeScreenSwitch(async()=>{
     if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
     _hideFacilityGreetingScene();
     _arenaStartBattle();
@@ -325,8 +321,6 @@ async function arenaHandleBattleVictory(){
   if(typeof playSfx==='function') playSfx('cheers2',{group:'ui',guardMs:0});
   if(typeof showVictoryOverlay==='function'){
     showVictoryOverlay(()=>{
-      const ov=document.getElementById('victory-overlay');
-      if(ov) ov.style.display='none';
       // continueAfterBattleVictory() の共通暗転を _arenaFinish() の
       // fadeScreenSwitch() へ引き渡し、村へ切り替わるまで黒を維持する。
       G._battleFadeHeldByCaller=true;
@@ -351,7 +345,25 @@ async function arenaHandleBattleDefeat(){
   document.body.classList.add('battle-victory-pending');
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   if(typeof _waitForPendingVfx==='function') await _waitForPendingVfx();
-  await _arenaFinish('lose',Math.max(0,Number(G._arenaWins)||0));
+  const wins=Math.max(0,Number(G._arenaWins)||0);
+  const finish=()=>{
+    // 共通の「進む」暗転を、村へ戻す _arenaFinish() まで保持する。
+    G._battleFadeHeldByCaller=true;
+    G._arenaOutcomePending=false;
+    void _arenaFinish('lose',wins);
+  };
+  if(typeof showBattleCutin==='function'){
+    const overlay=await showBattleCutin('defeat',{
+      resultKey:'闘技場戦闘結果「敗北」',
+      // 闘技場の敗北はランのライフを失わないため、ハート消失演出は出さない。
+      skipLifeFx:true
+    });
+    if(typeof _armBattleContinue==='function'){
+      _armBattleContinue(overlay,finish);
+      return;
+    }
+  }
+  finish();
 }
 
 function _arenaPrepareReception(){
@@ -377,6 +389,9 @@ async function _arenaFinish(result,wins){
   if(_arenaFinishBusy) return;
   _arenaFinishBusy=true;
   const talk=_facilityGreetingEntry({name:'闘技場'})||{};
+  const finishedWins=Math.max(0,Math.min(ARENA_ROUND_COUNT,Number(wins)||0));
+  const prize=result==='win'?arenaPrizeForWins(finishedWins):0;
+  const allWon=result==='win'&&finishedWins===ARENA_ROUND_COUNT;
   if(typeof stopBgm==='function') stopBgm(600);
   await fadeScreenSwitch(()=>{
     if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
@@ -385,26 +400,36 @@ async function _arenaFinish(result,wins){
     // 「呼び出し側が暗転を保持中」の印を返す。
     G._battleFadeHeldByCaller=false;
   });
+  // 闘技場後の魔導店会話が結果を1回だけ選べるよう、賞金額と全勝を街へ戻った時点で保存する。
+  G._arenaResults=G._arenaResults||{};
+  G._arenaResults[_arenaFacilityKey()]={wins:finishedWins,prize,allWon};
+  G._arenaEntrySnapshot=null;
   if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
   if(result==='win'){
-    const reward=arenaPrizeForWins(wins);
-    if(reward&&typeof gainEventGold==='function') gainEventGold(reward);
-    if(talk['台詞4']) await _qStartDialogue([talk['台詞4']],{screen:'village'});
+    if(prize&&typeof gainEventGold==='function') gainEventGold(prize);
+    if(typeof updateHUD==='function') updateHUD();
+  }
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+  if(result==='win'){
+    const resultLine=allWon?talk['特殊台詞1']:talk['台詞4'];
+    if(resultLine) await _qStartDialogue([resultLine],{screen:'village'});
   }else if(talk['台詞5']){
     await _qStartDialogue([talk['台詞5']],{screen:'village'});
   }
-  await fadeScreenSwitch(()=>{
+  await fadeScreenSwitch(async()=>{
     if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
     _hideFacilityGreetingScene();
     // 戦闘の終わりに付いた勝利待ちの印を残さない（街の画面へ持ち越さない）。
     document.body.classList.remove('battle-victory-pending','battle-turn-active');
-    G._arenaEntrySnapshot=null;
     G._arenaOutcomePending=false;
     G._arenaActive=false;
     G._waveVillage=true;
     G.phase='reward';
     if(typeof openMapVillage==='function') openMapVillage();
-    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
+      const saved=SaveRun.checkpoint('town');
+      if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') await SaveRun.showAutoSaveIndicator();
+    }
   });
   _arenaFinishBusy=false;
 }

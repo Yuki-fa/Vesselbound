@@ -573,6 +573,44 @@ function coreStatBonus(target, value, source) {
   return n + skillBonus + modifierBonus;
 }
 
+// 編成が確定した時点で解決する「この効果を持つ味方の数」型の常時修正。
+// カード名ではなく効果文を読み、PvE／オンラインが共有する formation.js から一度だけ呼ぶ。
+// 戦闘中の死亡・召喚では呼び直さないため、従来の開戦時に確定した値を維持する。
+function coreFormationPassiveSpec(unit) {
+  const match = coreUnitEffectText(unit).match(
+    /常時\s*[：:]\s*(?:このキャラクターは\s*)?\+X\s*\/\s*\+Xを得る[。.]?\s*Xはこの効果を持つ味方の数(?:の(\d+)倍)?に等しい/
+  );
+  if (!match) return null;
+  return { multiplier: Math.max(1, Number(match[1]) || 1) };
+}
+function coreApplyFormationPassives(units) {
+  const live = (units || []).filter(unit => unit && unit.hp > 0);
+  const holders = live.map(unit => ({ unit, spec: coreFormationPassiveSpec(unit) }))
+    .filter(entry => entry.spec);
+  const count = holders.length;
+  if (!count) return { count: 0, applied: [] };
+
+  // 熟練とヴォイド・ウォーカーによる戦闘修正も、旧開戦処理と同じ共通入口を通す。
+  coreRefreshVoidWalkerBonus({ units: { p1: live, p2: [] } });
+  const applied = [];
+  holders.forEach(({ unit, spec }) => {
+    const rawAtk = Number(unit.atk) || 0;
+    const rawMaxHp = Math.max(0, Number(unit.maxHp != null ? unit.maxHp : unit.hp) || 0);
+    if (!Number.isFinite(Number(unit.baseAtk))) unit.baseAtk = rawAtk;
+    // 復活時の基準値は従来どおり、この常時修正を得る前の値に固定する。
+    if (!Number.isFinite(Number(unit.baseMaxHp))) unit.baseMaxHp = rawMaxHp;
+    const value = count * spec.multiplier;
+    const atk = coreStatBonus(unit, value, unit);
+    const hp = coreStatBonus(unit, value, unit);
+    unit.atk = Math.max(0, rawAtk + atk);
+    unit.maxHp = Math.max(0, rawMaxHp + hp);
+    unit.hp = Math.max(0, Math.min(unit.maxHp, (Number(unit.hp) || 0) + hp));
+    unit._formationPassiveStatBonus = { atk, hp, count, multiplier: spec.multiplier };
+    applied.push(unit);
+  });
+  return { count, applied };
+}
+
 // 復活の基準値。開戦前の baseAtk/baseMaxHp を優先し、未指定なら現在値から作る。
 // PvEの盤面にも同じ式を適用するため、基準値の作成はここへ集約する。
 function coreUnitBaseStats(raw) {
@@ -1538,6 +1576,39 @@ function coreOpeningEnemyStatBonus(ring) {
   const match = text.match(/(?:^|\s)開戦\s*[：:]\s*全ての敵は\s*[+＋]?\s*(\d+)\s*\/\s*[+＋]?\s*(\d+)\s*を得る/);
   return match ? { atk: Number(match[1]) || 0, hp: Number(match[2]) || 0 } : null;
 }
+// 指輪名や番号ではなく、シートの効果文から敵全体へ与えるキーワードを読む。
+// +5/+5 のような数値修正は coreOpeningEnemyStatBonus() の担当なので除外する。
+function coreOpeningEnemyKeywordGrants(ring) {
+  const text = String(ring && (ring.desc || ring.effect || ring.effectText) || '');
+  const match = text.match(/(?:^|\s)開戦\s*[：:]\s*全ての敵は\s*([^。\n]+?)\s*を得る(?:。|$)/);
+  if (!match) return [];
+  const raw = String(match[1] || '').trim();
+  if (!raw || /^[+＋\-－]?\s*\d+\s*\/\s*[+＋\-－]?\s*\d+$/.test(raw)) return [];
+  return [...new Set(raw.split(/[\s　、,，・]+|と/).map(x => String(x || '').trim()).filter(Boolean))];
+}
+// 「開戦：全ての敵は〜を得る。」を、対象1体へ適用する共通出口。
+// 初期配置だけでなく開戦効果で召喚された体にも同じ処理を使うため、
+// coreApplyOpeningRings() と coreSummonUnit() の両方から呼ぶ。
+function coreApplyOpeningEnemyRingToUnit(ring, unit, emit) {
+  if (!ring || !unit || unit.hp <= 0 || coreIsSealed(unit)) return;
+  const bonus = coreOpeningEnemyStatBonus(ring);
+  if (bonus && (bonus.atk || bonus.hp)) {
+    unit.atk = Math.max(0, unit.atk + bonus.atk);
+    unit.maxHp += bonus.hp;
+    unit.hp += bonus.hp;
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id,
+      atk: bonus.atk, hp: bonus.hp, reason: 'opening_ring_enemy_buff', ringName: String(ring.name || '') });
+  }
+  coreOpeningEnemyKeywordGrants(ring).forEach(keyword => {
+    unit.keywords = [...(unit.keywords || []), keyword];
+    // 初期配置は後段の shield_set でも同期される。開戦召喚はその後段を通らないため、
+    // ここで実効結界値も加算して召喚スナップショットへ載せる。
+    const shield = coreShieldValueFromKeyword(keyword);
+    if (shield > 0) unit.shield = (Number(unit.shield) || 0) + shield;
+    emit({ type: 'keyword_effect', effect: 'keyword_gain', side: unit.side, unitId: unit.id,
+      keyword, reason: 'opening_ring_enemy_keyword', ringName: String(ring.name || '') });
+  });
+}
 function coreRingCount(state, side, name) {
   return coreResolvedRings(state, side).filter(x => x && String(x.name || x) === String(name || '')).length;
 }
@@ -1808,6 +1879,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   } else if (state._openingPhase) {
     if (state._openingRingsApplied) {
       coreApplyOpeningRingsToUnitEarly(state, child, emit);
+      const enemyOwnerSide = side === 'p1' ? 'p2' : 'p1';
+      coreResolvedRings(state, enemyOwnerSide)
+        .forEach(ring => coreApplyOpeningEnemyRingToUnit(ring, child, emit));
       coreApplyOpeningRingsToUnitLate(state, child, emit);
     }
   } else if (matchingColorRings) {
@@ -2084,15 +2158,7 @@ function coreApplyOpeningRings(state, rng, emit, applyHit) {
   ['p1', 'p2'].forEach(ownerSide => {
     const enemySide = ownerSide === 'p1' ? 'p2' : 'p1';
     coreResolvedRings(state, ownerSide).forEach(ring => {
-      const bonus = coreOpeningEnemyStatBonus(ring);
-      if (!bonus || (!bonus.atk && !bonus.hp)) return;
-      live(enemySide).forEach(unit => {
-        unit.atk = Math.max(0, unit.atk + bonus.atk);
-        unit.maxHp += bonus.hp;
-        unit.hp += bonus.hp;
-        emit({ type: 'stat_change', side: enemySide, unitId: unit.id,
-          atk: bonus.atk, hp: bonus.hp, reason: 'opening_ring_enemy_buff', ringName: String(ring.name || '') });
-      });
+      live(enemySide).forEach(unit => coreApplyOpeningEnemyRingToUnit(ring, unit, emit));
     });
   });
   const pain = coreRingCount(state, 'p1', '苦行の指輪');
@@ -2259,12 +2325,6 @@ function coreApplyOpeningEffects(unit, state, rng, emit, applyHit, triggerIndex)
   if (wild) {
     const [wildMana] = coreEffectNumbers(unit, '開戦', /^\s*開戦\s*[：:]\s*(\d+)マナを得る/, [1]);
     if (wildMana > 0) coreGainResource(state, unit.side, 'mana', wild * wildMana, unit, emit, 'wild_power');
-  }
-  if (coreHasEffect(unit, '奇妙な絆')) {
-    // 合体後は「数の2倍」。**倍率は本文から読む。**
-    const count = allies.filter(x => x.hp > 0 && coreHasEffect(x, '奇妙な絆')).length;
-    const bondMul = Math.max(1, coreEffectNumbers(unit, '開戦', /この効果を持つ味方の数の(\d+)倍に等しい/, [1])[0]);
-    if (count) addStats(unit, count * bondMul, count * bondMul, 'strange_bond');
   }
   // 咆哮・威光：**倍率は本文から読む**（基本2倍／合体3倍）。
   const roar = coreEffectCount(unit, '咆哮');
@@ -5357,6 +5417,8 @@ if (typeof window !== 'undefined') {
   window.coreEffectCount = coreEffectCount;
   window.coreRingCount = coreRingCount;
   window.coreRainbowRingBonusForUnits = coreRainbowRingBonusForUnits;
+  window.coreFormationPassiveSpec = coreFormationPassiveSpec;
+  window.coreApplyFormationPassives = coreApplyFormationPassives;
   window.coreSummonUnit = coreSummonUnit;
   window.coreFlushPendingLichSummons = coreFlushPendingLichSummons;
   window.coreTransformUnit = coreTransformUnit;
@@ -5410,12 +5472,14 @@ if (typeof module !== 'undefined' && module.exports) {
     coreUnitHasSacrifice, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
     coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus, coreRefreshVoidWalkerBonus,
+    coreFormationPassiveSpec, coreApplyFormationPassives,
     coreApplyKeywordOnHit, coreApplyPoisonBeforeTurn,
     coreKeywordHitAmounts,
     coreTriggerAtkGainEffects,
     coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreRainbowRingBonusForUnits, coreApplyAttackEffects,
     coreEffectNumbers, coreExtraTriggerTimes,
-    coreResolvedRings, coreOpeningEnemyStatBonus, coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
+    coreResolvedRings, coreOpeningEnemyStatBonus, coreOpeningEnemyKeywordGrants, coreApplyOpeningEnemyRingToUnit,
+    coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
     coreTriggerTextParts, coreTriggerMatch, coreTriggerTest,
     coreApplyOpeningEffects,
     coreApplyMapPanelOpeningEffects,

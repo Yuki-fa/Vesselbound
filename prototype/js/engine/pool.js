@@ -176,8 +176,8 @@ const PANEL_POOL=[
   {id:'panel_carbuncle',no:'C077',name:'カーバンクル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:1,life:5,desc:'常時：味方が結界を失うたび、全ての敵に1ダメージを与える。'},
   {id:'panel_elemental',no:'C080',name:'エレメンタル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,race:'精霊',power:5,life:5,desc:'開戦：全ての色の味方がいる場合、生命吸収を得る。'},
   {id:'panel_counterattack_oath',no:'E001',name:'逆襲',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆襲'],desc:'死亡：全ての味方は+1/+1を得る。'},
-  {id:'panel_great_guard',no:'E002',name:'大いなる守護',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentHpBonus:7,desc:'常時：HP+7を得る。'},
-  {id:'panel_inner_might',no:'E003',name:'内なる大力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:4,adjacentHpBonus:2,desc:'常時：+4/+2を得る。'},
+  {id:'panel_great_guard',no:'E002',name:'大いなる守護',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentHpBonus:5,desc:'常時：このキャラクターはHP+5を得る。'},
+  {id:'panel_inner_might',no:'E003',name:'内なる大力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:3,adjacentHpBonus:2,desc:'常時：このキャラクターは+3/+2を得る。'},
   {id:'panel_dark_ritual',no:'E004',name:'闇の儀式',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の儀式'],desc:'死亡：以後、召喚される同名のキャラクターを永久に+2/+2する。'},
   {id:'panel_persistent_flame',no:'E005',name:'執念の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['根性'],desc:'根性（致死ダメージを受けた時、1度だけHP1で耐える）'},
   {id:'panel_dark_flame',no:'E006',name:'闇の炎',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['闇の炎'],desc:'死亡：全ての敵キャラクターに1ダメージを与える。'},
@@ -217,13 +217,12 @@ const PANEL_POOL=[
   {id:'panel_mana_generate',name:'マナ生成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,manaOnAttack:1,desc:'攻撃：1マナを得る。'},
   {id:'panel_rage',name:'逆上',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['逆上'],desc:'負傷：ランダムな敵に3ダメージを与える。'},
   {id:'panel_sword_skill',name:'剣技',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['剣技'],desc:'攻撃：ATK+3を得る。'},
-  {id:'panel_ferocious',name:'獰猛',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:12,adjacentHpBonus:-3,desc:'常時：+12/-3を得る。'},
+  {id:'panel_ferocious',name:'獰猛',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentAtkBonus:8,adjacentHpBonus:-3,desc:'常時：このキャラクターは+8/-3を得る。'},
   {id:'panel_grudge',name:'怨念',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['怨念'],desc:'死亡：ランダムな敵に自身の攻撃力に等しいダメージを与える。'},
   {id:'panel_necromancy',name:'屍術',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：キャラクターが死亡するたび、+1/+1を得る。'},
   // 以下は「強化」シートにキーワード欄のみで登録されている単純なキーワード付与パネル。
   // PANEL_POOLに未登録だとシート同期の対象外（=常に取得不可）になるため、ここにスタブを追加する。
-  {id:'panel_double_attack',no:'014',name:'二段攻撃',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['二段攻撃']},
-  {id:'panel_triple_attack',no:'015',name:'三段攻撃',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['三段攻撃']},
+  {id:'panel_double_attack',no:'E014',name:'多段攻撃',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['二段攻撃']},
   {id:'panel_instant_death',no:'016',name:'即死',rarity:5,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['即死']},
   {id:'panel_triway_attack',no:'017',name:'三方向攻撃',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['三方向攻撃']},
   {id:'panel_evil_eye',no:'018',name:'邪眼',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['邪眼5']},
@@ -235,7 +234,7 @@ const PANEL_POOL=[
   // grade1・rarity3で最初の報酬へ高確率で混ざらないようにする。
   {id:'panel_lifesteal',no:'023',name:'生命吸収',rarity:5,grade:4,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['生命吸収']},
   {id:'panel_pierce',name:'貫通',rarity:4,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['貫通']},
-  {id:'panel_bond',name:'奇妙な絆',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['奇妙な絆'],desc:'開戦：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。'},
+  {id:'panel_bond',name:'奇妙な絆',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。'},
   {id:'panel_penitence',name:'懺悔',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['懺悔'],desc:'攻撃：このキャラクターは1ダメージを2回受ける。'},
   {id:'panel_activation',name:'活性化',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'1マナ毎：このキャラクターは+1/+1を得る。'},
   {id:'panel_inheritance',name:'継承',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'死亡：このキャラクターのATKをランダムな味方に与える。'},
@@ -244,20 +243,20 @@ const PANEL_POOL=[
 ];
 
 const ITEM_POOL=[
-  {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/art/item/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
-  {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/art/item/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
-  {id:'item_shield_scroll',no:'003',name:'盾の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'shield_scroll',art:'assets/art/item/I003.jpg',desc:'対象のキャラクターに結界1を永久付与する。'},
-  {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/art/item/I004.jpg',desc:'対象のキャラクターに復活を永久付与する。'},
-  {id:'item_giant_scroll',no:'005',name:'巨大化の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'giant_scroll',art:'assets/art/item/I005.jpg',desc:'対象のキャラクターに+5/+5を永久付与する。'},
-  {id:'item_meteor_scroll',no:'006',name:'隕石の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'meteor_scroll',art:'assets/art/item/I006.jpg',desc:'次の戦闘開始時、隕石を落とす。全ての敵にHPの半分のダメージを与える。重複不可。'},
-  {id:'item_sacrifice_doll',no:'007',name:'生贄人形',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'sacrifice_doll',art:'assets/art/item/I007.jpg',desc:'キャラクターを1枚破壊し、対象のキャラクターが持つ封印の値を永久に3減らす。（但し、最低値は1）'},
+  {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/art/items/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
+  {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/art/items/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
+  {id:'item_shield_scroll',no:'003',name:'盾の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'shield_scroll',art:'assets/art/items/I003.jpg',desc:'対象のキャラクターに結界1を永久付与する。'},
+  {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/art/items/I004.jpg',desc:'対象のキャラクターに復活を永久付与する。'},
+  {id:'item_giant_scroll',no:'005',name:'巨大化の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'giant_scroll',art:'assets/art/items/I005.jpg',desc:'対象のキャラクターに+5/+5を永久付与する。'},
+  {id:'item_meteor_scroll',no:'006',name:'隕石の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'meteor_scroll',art:'assets/art/items/I006.jpg',desc:'次の戦闘開始時、隕石を落とす。全ての敵にHPの半分のダメージを与える。重複不可。'},
+  {id:'item_sacrifice_doll',no:'007',name:'生贄人形',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'sacrifice_doll',art:'assets/art/items/I007.jpg',desc:'キャラクターを1枚破壊し、対象のキャラクターが持つ封印の値を永久に3減らす。（但し、最低値は1）'},
   // itemEffectKey はセーブ（pendingBattleItems 等）に載る内部識別子なので、
   // カード名を「衰弱の巻物」→「永劫の巻物」に変えても weakening_scroll のまま据え置く。
-  {id:'item_weakening_scroll',no:'008',name:'永劫の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/art/item/I008.jpg',desc:'「召喚の力」マス上のキャラクターを1枚破壊し、そのマスを「永劫の力」マスに変化させる。'},
-  {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/art/item/I009.jpg',desc:'直前の村にワープする。再出発時は現在位置の次の場所に移動する。'},
-  {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/art/item/I010.jpg',desc:'所持金を2倍にする。'},
-  {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/item/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。（但し、最低値は1）'},
-  {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/item/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
+  {id:'item_weakening_scroll',no:'008',name:'永劫の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'weakening_scroll',art:'assets/art/items/I008.jpg',desc:'「召喚の力」マス上のキャラクターを1枚破壊し、そのマスを「永劫の力」マスに変化させる。'},
+  {id:'item_portal_scroll',no:'009',name:'ポータルの巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'portal_scroll',art:'assets/art/items/I009.jpg',desc:'直前の村にワープする。再出発時は現在位置の次の場所に移動する。'},
+  {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/art/items/I010.jpg',desc:'所持金を2倍にする。'},
+  {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/items/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。（但し、最低値は1）'},
+  {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/items/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
 ];
 
 function makeItem(idOrName){

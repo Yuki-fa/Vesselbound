@@ -116,8 +116,12 @@ function _isCurrentRewardReturnCard(card){
   return !!(card&&card._rewardReturnCard&&card._rewardReturnPhaseId===_rewPhaseId);
 }
 
+function _rewardAreaAcceptsCard(card){
+  return typeof questRewardSlotAcceptsCard!=='function'||questRewardSlotAcceptsCard(card);
+}
+
 function _restoreRewardReturnCard(card){
-  if(!_isCurrentRewardReturnCard(card)) return false;
+  if(!_isCurrentRewardReturnCard(card)||!_rewardAreaAcceptsCard(card)) return false;
   const returned=clone(card._rewardReturnCard);
   delete returned._rewardReturnCard;
   delete returned._rewardReturnIdx;
@@ -154,8 +158,17 @@ function _rewardDragZoneForCard(card){
 function _shopSlotCapacity(){
   return G._isItemShop?3:REWARD_GRID_CAPACITY;
 }
+// 魔導店の商品パネルを、既存カードのある魔導板へ置く入れ替えだけを止める。
+// 商品枠へ手動で戻した売却待ちカード（_shopSalePending）は返品／売却経路の一部なので対象外。
+// 同名カードの合体は押し出しを伴わないため、従来どおり許可する。
+function _shopOfferBoardSwapBlocked(card,destCard,merged,isOfferSource){
+  if(!isOfferSource||typeof G==='undefined'||!G||!G._isShop||!card||!destCard
+    ||card._shopSalePending||_isItemCard(card)) return false;
+  return !merged;
+}
 function _pushToRewardArea(card){
   if(!card) return true;
+  if(!_rewardAreaAcceptsCard(card)) return false;
   if(_isCurrentRewardReturnCard(card)) return _restoreRewardReturnCard(card);
   const returned=clone(card);
   delete returned._rewardReturnCard;
@@ -190,6 +203,7 @@ function _pushToRewardArea(card){
 // （戻り値は{ok, displaced}。allowSwap未指定時は従来通りboolean互換のtrue/falseを返す）
 function _pushToRewardAreaAt(card,idx,allowSwap){
   if(!card) return allowSwap?{ok:true,displaced:null}:true;
+  if(!_rewardAreaAcceptsCard(card)) return allowSwap?{ok:false,displaced:null}:false;
   if(!Array.isArray(_rewCards)) _rewCards=[];
   if(!Number.isInteger(idx)||idx<0||idx>=REWARD_GRID_CAPACITY||(_rewCards[idx]&&!allowSwap)){
     return allowSwap?{ok:false,displaced:null}:false;
@@ -363,6 +377,11 @@ function placePendingPanelToSelectedUnit(slotIdx){
     &&!boardSlotIsDeployable(unit,slotIdx)) return false;
   const oldCard=boardList[slotIdx]||null;
   const merged=_mergedPanelCard(oldCard,pending.card);
+  // 依頼カードをクリックで既存カードと入れ替える場合も、押し出すカードが依頼枠へ戻せる時だけ許可する。
+  if(oldCard&&!merged&&!_rewardAreaAcceptsCard(oldCard)) return false;
+  // 魔導店の商品で既存の魔導板カードを商品枠へ押し出す入れ替えは禁止する。
+  const isShopOfferPlacement=pending.rewardIdx>=0||pending.sourceName==='報酬';
+  if(_shopOfferBoardSwapBlocked(pending.card,oldCard,merged,isShopOfferPlacement)) return false;
   const nextBoardList=boardList.slice();
   nextBoardList[slotIdx]=merged||pending.card;
   if(!_canApplyBoardChange(unit,nextBoardList)) return false;
@@ -421,7 +440,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
   G._pendingPanelPlacement=null;
   _syncRewardPanelPlacementOverlay();
   if(done) done();
-  // 3枚合体時は通常配置音を鳴らさず、1.5秒の吸い込み完了時にunion.wavだけを鳴らす。
+  // 3枚合体時は通常配置音を鳴らさず、1.5秒の吸い込み完了時にmerge.wavだけを鳴らす。
   // 魔導店での配置＝購入なので、通常の配置音ではなくbuy1.wavを鳴らす。
   if(!tripleMerge){
     _clearTripleMergeHidden();
@@ -613,7 +632,7 @@ function goToReward(options){
   G._savePresentation=false;
   const _isFacilityEntry=!!(G._isShop||G._isForge||G._isRingExchange||G._isVillageMenu||G._isWaveAltar||G._isTavern||G._isLibrary);
   document.body.classList.remove('battle-victory-pending');
-  // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer・hideVictoryOverlay 等から保護）
+  // 戦闘フェイズ中に呼ばれた場合は何もしない（stale timer 等から保護）
   if(G.phase==='player'||G.phase==='enemy') return;
   if(!_restoreCheckpoint){
     G._freeItemPhase='reward';
@@ -627,9 +646,8 @@ function goToReward(options){
     G._boardDiscardCount=0;
     G._ringOfferUnlocked=false;
     G._ringOfferResolved=false;
-    // **順番に依存させない。**（提示の中身は現在地とランで決まる）
-    G._ringOffer=G._isBossRewardCycle
-      ?runWithKeyedRandom(`ring:${G._wave}:${G._waveStage}`,()=>_pickRingOffer()):[];
+    // ボス撃破後の指輪報酬は廃止済み。指輪提示は祭壇・クエスト側だけが用意する。
+    G._ringOffer=[];
     G._ringOfferPhase=false;
     G._bossJustDefeated=false;
     const _waveRewardCount=Number.isInteger(G._waveRewardCount)?Math.max(0,Math.min(REWARD_GRID_CAPACITY,G._waveRewardCount)):REWARD_GRID_CAPACITY;
@@ -659,7 +677,7 @@ function goToReward(options){
   // ボス戦（battle3＝17.8MB）の頭が無音になる。
   if(typeof warmNextBattleBgm==='function') warmNextBattleBgm();
   const goldLabel=document.querySelector('#reward-info-bar .ri-soul');
-  if(goldLabel) goldLabel.textContent='所持金';
+  if(goldLabel) goldLabel.textContent=_uiLabel('「所持金枠」見出し','所持金');
   G._showGlobalPanels=false;
   G._showFacilities=false;
   if(!_restoreCheckpoint){
@@ -680,32 +698,34 @@ function goToReward(options){
   document.getElementById('reward-cards-section').style.display='';
   document.getElementById('btn-pass').style.display='none';
 
-  const bossNotice=document.getElementById('boss-reward-notice');
-  if(bossNotice) bossNotice.style.display='none';
-
   refreshRewardGoldUi();
   const rewardCount=document.getElementById('rw-count');
   if(rewardCount) rewardCount.textContent=G._isLibrary?5:(G.rewardCharCount||3);
   const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(el=>el.querySelector('#rw-count'));
-  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary?'貸出カード':'報酬'} `;
+  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary
+    ?_uiLabel('「図書館の報酬枠」見出し','貸出カード')
+    :_uiLabel('「編成画面の報酬枠」見出し','報酬')} `;
 
   renderAll(); // フィールド（仲間エリア）も再描画
   _updateLaneOffset(); // スロット描画後に同期計測してオフセットを確定
-  // renderAll→renderControls が textContent を上書きするので必ず後で設定する
-  document.getElementById('ph-badge').textContent='商談フェイズ';
-  document.getElementById('ph-badge').className='ph-badge';
-
   renderRewCards();
   renderRaceBuffSummary();
   renderMoveSlotsInEnemy();
   renderFieldEditor();
   updateHUD();
-  if(_saveCheckpoint&&!_isFacilityEntry&&typeof SaveRun!=='undefined') SaveRun.checkpoint('reward');
-  // ボス報酬はG._bossJustDefeatedで処理済み
+  let autosaveDisplay=null;
+  if(_saveCheckpoint&&!_isFacilityEntry&&typeof SaveRun!=='undefined'){
+    const saved=SaveRun.checkpoint('reward');
+    // 戦闘結果の「進む」で編成画面を開く時だけ、高速表示を暗転内へ収める。
+    if(saved&&typeof SaveRun.showAutoSaveIndicator==='function'){
+      autosaveDisplay=SaveRun.showAutoSaveIndicator({fast:true});
+    }
+  }
   // **戦闘を終えて報酬画面へ入った時だけ**、報酬カードをめくって見せる。
   // checkpoint付きで呼ばれるのは勝利・敗北後の2か所だけ（battle.js／main.js）。
   // 施設・再開（restoreCheckpoint）・オンラインの編成ではめくらない。
   if(_saveCheckpoint&&!_isFacilityEntry&&!_restoreCheckpoint) _playRewardReveal();
+  return autosaveDisplay;
 }
 
 // ── 戦闘後の報酬めくり ─────────────────────────────
@@ -772,6 +792,7 @@ function _storeRewardStartSnapshot(){
   G._rewardStartSnapshot={
     rewCards:clone(_rewCards||[]),
     mainBoard:clone(G.mainBoard||[]),
+    globalPanels:clone(G.globalPanels||[]),
     spellSlots:clone(G.spellSlots||[]),
     gold:G.gold,
     freePickDone:!!_rewFreePickDone,
@@ -788,6 +809,25 @@ function _storeRewardStartSnapshot(){
   };
 }
 
+// 店を出る時に確定対象となる状態だけを、入店時スナップショットと比較する。
+// 商品の並びや画面の選択状態は対象外。カードの並べ替えだけでも mainBoard が変われば保存する。
+function _facilityCommitStateChanged(){
+  const s=G&&G._rewardStartSnapshot;
+  if(!s) return false;
+  const stable=value=>{
+    try{
+      return JSON.stringify(typeof SaveRun!=='undefined'&&typeof SaveRun.copy==='function'
+        ?SaveRun.copy(value):value);
+    }catch(_e){ return ''; }
+  };
+  return stable(G.mainBoard||[])!==stable(s.mainBoard||[])
+    ||stable(G.globalPanels||[])!==stable(s.globalPanels||[])
+    ||stable(G.mapPanelPowers||{})!==stable(s.mapPanelPowers||{})
+    ||stable(G.spellSlots||[])!==stable(s.spellSlots||[])
+    ||stable(G.rings||[])!==stable(s.rings||[])
+    ||Number(G.gold||0)!==Number(s.gold||0);
+}
+
 function resetRewardToStart(options){
   if(G.phase!=='reward'||!G._rewardStartSnapshot) return;
   const s=G._rewardStartSnapshot;
@@ -797,6 +837,9 @@ function resetRewardToStart(options){
   const _forgeGold=_forgePlacementOnly?G.gold:null;
   _rewCards=clone(s.rewCards||[]);
   G.mainBoard=clone(s.mainBoard||[]);
+  // 旧いランセーブ内のスナップショットにはこの項目が無い。
+  // 欠落時は現在値を消さず、新しいスナップショットだけ正確に巻き戻す。
+  if(Array.isArray(s.globalPanels)) G.globalPanels=clone(s.globalPanels);
   G.spellSlots=clone(s.spellSlots||[]);
   G.gold=_forgePlacementOnly?Number(_forgeGold)||0:Number(s.gold)||0;
   _rewFreePickDone=!!s.freePickDone;
@@ -834,25 +877,26 @@ function resetRewardToStart(options){
 
 // ── 行き先ノード表示 ───────────────────────────
 
-// 特殊マスにキャラクターが1体もいない時は、施設を出るボタンと戦闘開始を押せなくする。
-// （誰も出撃できない状態で先へ進めると、そのまま敗北するしかなくなるため）
-// 判定は formation.js の出撃規則をそのまま使う。
+// 出撃可否の判定は formation.js の出撃規則をそのまま使う。
 function _noDeployableBoardCharacter(){
   if(typeof boardHasDeployableCharacter!=='function') return false;
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
   if(!board) return false;
   return !boardHasDeployableCharacter(board);
 }
-function _blockMoveBtnWhenEmpty(btn){
-  btn.classList.add('disabled');
-  btn.disabled=true;
-  btn.title='特殊マスにキャラクターを置いてください';
+function _showNoDeployableCharacterError(){
+  if(typeof showErrorOverlay!=='function') return false;
+  return showErrorOverlay({
+    title:_uiLabel('「戦闘キャラ不在時」見出し','戦闘不可'),
+    message:_uiLabel('戦闘キャラ不在時','戦闘可能なキャラクターがいません。\n封印の効果を持たないキャラクターを1枚以上、召喚可能なマスに置いてください。'),
+    buttonKey:'「戻る」ボタン',
+    buttonFallback:'戻る'
+  });
 }
 function renderMoveSlotsInEnemy(){
   const el=document.getElementById('reward-move-btns');
   if(!el) return;
   el.innerHTML='';
-  const _noDeployable=_noDeployableBoardCharacter();
   // デバッグモード：演出確認用の試験戦闘ボタン（報酬/編成フェイズ中のみ表示）
   // デバッグボタンはデバッグモード＋編成画面の間だけ出す。
   ['btn-debug-kill','btn-test-battle','btn-debug-gameover','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
@@ -865,13 +909,16 @@ function renderMoveSlotsInEnemy(){
     test.className='btn rew-move-btn library-test-btn';
     test.dataset.sfxSilent='1';
     test.innerHTML=`<span class="rew-btn-label">${_uiLabel('「試験戦闘」ボタン','試験戦闘')}</span>`;
-    test.onclick=()=>{ if(test.disabled) return; if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'}); startTestBattle(); };
-    // 召喚マスに出撃できるキャラがいない時は、試験戦闘を暗くして押せなくする（2026-09-25 利用者指定）。
-    if(_noDeployable) _blockMoveBtnWhenEmpty(test);
+    test.onclick=()=>{
+      if(test.disabled) return;
+      if(_noDeployableBoardCharacter()){ _showNoDeployableCharacterError(); return; }
+      if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
+      startTestBattle();
+    };
     const restore=document.createElement('button');
     restore.className='btn rew-reset-btn';
     restore.dataset.sfxSilent='1';
-    restore.innerHTML='<span class="rew-btn-label">元に戻す</span>';
+    restore.innerHTML=`<span class="rew-btn-label">${_uiLabel('「元に戻す」ボタン','元に戻す')}</span>`;
     restore.onclick=()=>{
       if(typeof playSfx==='function') playSfx('return',{group:'ui'});
       if(typeof resetLibraryLoanFormation==='function') resetLibraryLoanFormation();
@@ -880,7 +927,7 @@ function renderMoveSlotsInEnemy(){
     quit.className='btn rew-reset-btn library-quit-btn';
     quit.dataset.sfxSilent='1';
     // **ボタンの文言はテキストメッセージシートが唯一の出どころ。**
-    quit.innerHTML=`<span class="rew-btn-label">${_uiLabel('「図書館」チュートリアルをやめるボタン','読書をやめる')}</span>`;
+    quit.innerHTML=`<span class="rew-btn-label">${_uiLabel('「読書をやめる」ボタン','読書をやめる')}</span>`;
     quit.onclick=()=>{
       if(quit.disabled) return;
       if(typeof closeMapLibraryFormation==='function') closeMapLibraryFormation();
@@ -891,21 +938,7 @@ function renderMoveSlotsInEnemy(){
     el.appendChild(test);
     return;
   }
-  const villageExtraBtn=document.getElementById('map-village-extra-btn');
-  if(villageExtraBtn){
-    villageExtraBtn.style.setProperty('display','none','important');
-    villageExtraBtn.onclick=null;
-    if(G.phase==='reward'&&G._isTavern){
-      villageExtraBtn.style.setProperty('display','block','important');
-      villageExtraBtn.innerHTML='<span class="rew-btn-label">村へ戻る</span>';
-      villageExtraBtn.onclick=()=>{
-        if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-        if(typeof returnToMapVillage==='function') returnToMapVillage();
-      };
-    }
-  }
-  const _hasPendingRingOffer=G._isBossRewardCycle&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0;
-  if(G._isShop||G._isForge||G._isTavern||G._isVillageMenu||G._isRingExchange||G._isLibrary){
+  if(G._isShop||G._isForge||G._isTavern||G._isRingExchange||G._isLibrary){
     // Wave進行中のショップ/鍛冶屋/指輪交換は、村/祭壇の施設なのでボタンを押しても次stageへは進めず、
     // 項目選択（村/祭壇メニュー）へ戻るだけにする。
     const _waveFacilityReturn=G._isLibrary||(G._isShop||G._isForge||G._isRingExchange);
@@ -918,11 +951,11 @@ function renderMoveSlotsInEnemy(){
       const st=OnlineMatch.getState();
       if(!st) return '';
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
-      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦の「戦闘開始」ボタン（待機時）','戦闘待機中');
+      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦「戦闘開始」ボタン（待機時）','戦闘待機中');
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
       // シートの本文は「選択完了 n/3」の形。**数字はサーバーの値で置き換える。**
       // n（またはX）＝今の回数、その後ろの「/数字」＝必要な回数。
-      return _uiLabel('オンライン対戦の「戦闘開始」ボタン','選択完了 n/3')
+      return _uiLabel('オンライン対戦「戦闘開始」ボタン','選択完了 n/3')
         .replace(/[nX]/,String(i)).replace(/\/\s*\d+/,`/${n}`);
     })();
     // 同じ戦闘への再挑戦は「再戦」と出す（判定は main.js の _waveRetryPending()）。
@@ -933,11 +966,15 @@ function renderMoveSlotsInEnemy(){
         :(G._isRingExchange?_uiLabel('「祭壇を離れる」ボタン','祭壇を離れる'):_uiLabel('「店を出る」ボタン','店を出る')))
       :(_onlineLabel||((G._isShop||G._isForge)?_startLabel
         :G._isWaveAltar?_uiLabel('「出発する」ボタン','出発する')
-        :(G._isTavern||G._isVillageMenu)?'村を出る':_startLabel));
+        :G._isTavern?_uiLabel('「拒否」ボタン','拒否'):_startLabel));
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
       if(!_waveFacilityReturn&&G._moveInlineLocked) return;
+      if(_waveFacilityReturn&&!G._isLibrary&&_noDeployableBoardCharacter()){
+        _showNoDeployableCharacterError();
+        return;
+      }
       if(!_waveFacilityReturn&&typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       if(_waveFacilityReturn){
         const goBack=()=>{
@@ -956,19 +993,28 @@ function renderMoveSlotsInEnemy(){
         // 途中離脱の確認が要るのは祭壇（カードを捧げ切る前に離れる時）だけ。
         // 施設を出る時は暗転を挟む（map.js の fadeScreenSwitch。2026-09-24 利用者指定）。
         const goBackFaded=()=>{
-          if(typeof fadeScreenSwitch==='function') void fadeScreenSwitch(goBack);
-          else goBack();
+          // 指輪交換の途中離脱では、この関数へ来る前に捧げたカードを回収している。
+          // 回収後の正式状態で差分を判定する。
+          const changed=_facilityCommitStateChanged();
+          const leave=async()=>{
+            goBack();
+            if(!changed||typeof SaveRun==='undefined'||!SaveRun.enabled()) return;
+            const saved=SaveRun.checkpoint(G._isWaveAltar?'tower':'town');
+            if(saved&&typeof SaveRun.showAutoSaveIndicator==='function'){
+              await SaveRun.showAutoSaveIndicator();
+            }
+          };
+          if(typeof fadeScreenSwitch==='function') void fadeScreenSwitch(leave);
+          else void leave();
         };
         if(G._isRingExchange) _confirmRingExchangeReturn(goBackFaded);
         else goBackFaded();
         return;
       }
       // 塔（祭壇）の「出発する」も、街と同じくワールドマップ画面を挟んでから次へ進む。
-      if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap(); return; }
+      if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap({save:true}); return; }
       if(typeof shopDone==='function') shopDone();
     };
-    // 「店を出る」「祭壇を離れる」だけを止める。「図書館を出る」「出発する」「村を出る」は対象外。
-    if(_noDeployable&&_waveFacilityReturn&&!G._isLibrary) _blockMoveBtnWhenEmpty(btn);
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
@@ -980,7 +1026,7 @@ function renderMoveSlotsInEnemy(){
       const reset=document.createElement('button');
       reset.className='btn rew-reset-btn';
       reset.dataset.sfxSilent='1';
-      reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('配置を「元に戻す」ボタン','元に戻す')}</span>`;
+      reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「元に戻す」ボタン','元に戻す')}</span>`;
       reset.onclick=()=>{
         if(typeof playSfx==='function') playSfx('return',{group:'ui'});
         // 鍛冶屋（デバッグ時のみ表示）は入店時点まで完全に巻き戻す。forgePlacementOnlyは
@@ -1009,49 +1055,45 @@ function renderMoveSlotsInEnemy(){
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
-    // 通常の報酬カード取得後（編成完了）→ ボス報酬の指輪提示があれば「栄光の力」画面へ切り替え。
-    // 栄光の力画面では、指輪未取得中は「指輪を取らない」、取得後は「決定」とラベルを変える。
     // オンライン対戦：次が編成画面なら「編成完了 1/3」のように残り回数を出す（値はサーバー由来）。
     const _onlineFormLabel=(()=>{
       if(!(G&&G._onlineMode)||typeof OnlineMatch==='undefined'||!OnlineMatch) return '';
-      if(G._onlineWaiting) return '戦闘待機中';
+      if(G._onlineWaiting) return _uiLabel('オンライン対戦「戦闘開始」ボタン（待機時）','戦闘待機中');
       const st=OnlineMatch.getState();
       if(!st) return '';
       // 編成マス以外（対戦マスなど）では通常戦闘を行わないので「戦闘開始」は出さない。
-      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦の「戦闘開始」ボタン（待機時）','戦闘待機中');
+      if(st.nodeType!=='formation') return _uiLabel('オンライン対戦「戦闘開始」ボタン（待機時）','戦闘待機中');
       const i=Math.max(1,Number(st.formationIndex)||1), n=Math.max(1,Number(st.formationTotal)||3);
       // シートの本文は「選択完了 n/3」の形。**数字はサーバーの値で置き換える。**
       // n（またはX）＝今の回数、その後ろの「/数字」＝必要な回数。
-      return _uiLabel('オンライン対戦の「戦闘開始」ボタン','選択完了 n/3')
+      return _uiLabel('オンライン対戦「戦闘開始」ボタン','選択完了 n/3')
         .replace(/[nX]/,String(i)).replace(/\/\s*\d+/,`/${n}`);
     })();
     // 同じ戦闘への再挑戦は「再戦」と出す（判定は main.js の _waveRetryPending()）。
     const _startLabel2=(typeof _waveRetryPending==='function'&&_waveRetryPending())
       ?_uiLabel('「再戦」ボタン','再戦'):_uiLabel('「戦闘開始」ボタン','戦闘開始');
-    const label=G._ringOfferPhase?(G._ringOfferResolved?'決定':'指輪を取らない'):(_onlineFormLabel||_startLabel2);
+    const label=_onlineFormLabel||_startLabel2;
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(btn.disabled||G._moveInlineLocked) return;
+      if(!_onlineFormLabel&&_noDeployableBoardCharacter()){
+        _showNoDeployableCharacterError();
+        return;
+      }
       btn.disabled=true;
       if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
-      if(!G._ringOfferPhase&&_hasPendingRingOffer){ _enterRingOfferPhase(); return; }
       chooseMoveInline(opt.nodeType);
     };
     if(G._pendingPanelPlacement||G._moveInlineLocked){ btn.classList.add('disabled'); btn.disabled=true; }
-    // 「戦闘開始」「再戦」だけを止める（指輪提示中とオンラインの編成完了は対象外）。
-    if(_noDeployable&&label===_startLabel2) _blockMoveBtnWhenEmpty(btn);
     el.appendChild(btn);
   });
   const reset=document.createElement('button');
   reset.className='btn rew-reset-btn';
   reset.dataset.sfxSilent='1';
-  reset.innerHTML='<span class="rew-btn-label">元に戻す</span>';
+  reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「元に戻す」ボタン','元に戻す')}</span>`;
   reset.onclick=()=>{
     if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-    // 栄光の力（指輪提示）画面中の「元に戻す」は、通常の報酬カード取得画面までは戻さず、
-    // この画面に入った時点の状態にだけ戻す。
-    if(G._ringOfferPhase) _resetRingPhaseToStart();
-    else resetRewardToStart();
+    resetRewardToStart();
   };
   el.appendChild(reset);
 }
@@ -1062,9 +1104,12 @@ function chooseMoveInline(nt){
   G._moveInlineLocked=true;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     SaveRun.lockInput(true);
+    // 実際に「戦闘開始／再戦」を押した経路だけ、prepareBattleの保存後に高速表示する。
+    G._battleStartAutosaveRequested=true;
     // 報酬取得・編成変更はこの確定操作を押すまで開始チェックポイントへ書かない。
     // 押した時点の正式状態を保存し、戦闘準備完了時にbattleチェックポイントで上書きする。
     if(!SaveRun.checkpoint('reward')){
+      delete G._battleStartAutosaveRequested;
       SaveRun.lockInput(false);
       G._moveInlineLocked=false;
     return;
@@ -1091,7 +1136,7 @@ function _dragSrcCard(){
   return null;
 }
 function _canReturnDragSrcToRewardArea(){
-  // #reward-offer-row（＝#reward-offer-section内）は栄光の力（指輪提示）画面中は指輪提示専用の
+  // #reward-offer-row（＝#reward-offer-section内）は祭壇・指輪依頼の提示中は指輪専用の
   // 表示に切り替わっているため、通常報酬フェイズ用の「カードを報酬置き場へ戻す」動作の対象外にする
   // （この関数のリスナー自体は#reward-offer-rowに一度だけ登録され、フェイズが変わっても残り続けるため
   // ここで都度チェックする必要がある）。
@@ -1101,6 +1146,7 @@ function _canReturnDragSrcToRewardArea(){
   // 図書館の貸出カード枠には、貸出カード（_libraryLoan）しか戻せない。
   // 自前の所持カードを置けてしまうと、図書館を出た時点でそのカードを失う。
   if(G._isLibrary){ const c=_dragSrcCard(); if(!c||!c._libraryLoan) return false; }
+  if(!_rewardAreaAcceptsCard(_dragSrcCard())) return false;
   return true;
 }
 function _isShopSoldOutDropBlocked(target){
@@ -1136,7 +1182,6 @@ function _returnDragSrcToRewardArea(targetIdx){
     nextBoardList[src.idx]=null;
     if(!_canApplyBoardChange(unit,nextBoardList)) return;
   }
-  const questTagged=typeof questMarkDeliveryOffer==='function'&&questMarkDeliveryOffer(card,src);
   // 魔導板のカードを、既に埋まっている報酬スロットへドロップした場合は、その場で入れ替える
   // （押し出された報酬カードを、ドラッグ元の魔導板スロットへそのまま戻す）
   let displacedToEquip=null;
@@ -1152,7 +1197,7 @@ function _returnDragSrcToRewardArea(targetIdx){
   } else {
     restored=_restoreRewardReturnCard(card)||_pushToRewardArea(card);
   }
-  if(!restored){ if(questTagged) delete card._questDeliveryOrigin; return; }
+  if(!restored) return;
   _dragSrc=null;
   if(src.arr==='boardCards'){
     unit.boardCards[src.idx]=displacedToEquip||null;
@@ -1212,7 +1257,9 @@ function _syncRewardTitleLabel(){
     :G._isRingExchange?t('「祭壇」見出し','祭壇')
     :t('「編成画面」見出し','編成'));
   const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(node=>node.querySelector('#rw-count'));
-  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary?'貸出カード':'報酬'} `;
+  if(rewardLabel&&rewardLabel.firstChild) rewardLabel.firstChild.nodeValue=`${G._isLibrary
+    ?_uiLabel('「図書館の報酬枠」見出し','貸出カード')
+    :_uiLabel('「編成画面の報酬枠」見出し','報酬')} `;
 }
 function _syncRewardProductionUi(){
   const body=document.body;
@@ -1237,8 +1284,7 @@ function _syncRewardProductionUi(){
   body.classList.toggle('reward-return-open',returned||returnDragging);
   // 編成完了ボタンのfix.png表示切り替え用：元々持っていたカードを報酬置き場に残していても
   // （＝returnedがtrueでも）、無料ピックを取得済みならfix.png表示とする。
-  // 栄光の力（指輪提示）画面中は「指輪を取らない」ラベルの間はfix.png/fix_backを出さず、
-  // 「決定」（指輪を取得済み＝G._ringOfferResolved）になって初めてfix表示にする。
+  // 祭壇・指輪依頼の提示中は、指輪を取得済みになった時だけfix表示にする。
   const pickTaken=G._ringOfferPhase
     ?!!G._ringOfferResolved
     :!!(G._rewardOnePickMode&&_rewFreePickDone&&!G._pendingPanelPlacement&&!returnDragging);
@@ -1254,7 +1300,7 @@ function _rewardRingArtPath(ring){
   if(!code) return '';
   const m=code.match(/^R?\s*0*(\d+)$/i);
   if(m) code='R'+String(parseInt(m[1],10)).padStart(3,'0');
-  return `assets/art/ring/${code}.jpg`;
+  return `assets/art/rings/${code}.jpg`;
 }
 function _syncRewardProductionRings(){
   const slots=document.querySelectorAll('.reward-prod-ring .reward-prod-slots i');
@@ -1297,7 +1343,7 @@ function _syncRewardProductionRings(){
       });
     }
     // 指輪置き場内の入れ替え（ドラッグ&ドロップで並べ替え。鏡の指輪は右隣の指輪を参照するため順序が意味を持つ）と、
-    // 提示された指輪（栄光の力・#reward-offer-row側）を空き枠へドラッグして装備する操作を受け付ける。
+    // 提示された指輪（#reward-offer-row側）を空き枠へドラッグして装備する操作を受け付ける。
     slot.draggable=!!ring;
     if(!slot._ringDragWired){
       slot._ringDragWired=true;
@@ -1305,7 +1351,8 @@ function _syncRewardProductionRings(){
         if(!slot._rewardRing){ e.preventDefault(); return; }
         _dragSrc={arr:'rings',idx};
         if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); }
-        _setDragZoneClass('dragzone-ring-slot');
+        const canReturn=typeof questRingOfferCanReturn==='function'&&questRingOfferCanReturn(slot._rewardRing);
+        _setDragZoneClass(canReturn?'dragzone-ring-offer':'dragzone-ring-slot');
         _createDragGhost(slot);
         // _createDragGhost()はクローン後にstyle.cssTextを丸ごと上書きするため、
         // --ring-art（CSS変数）がゴースト側に残らず指輪の絵が表示されない。元要素から再設定する。
@@ -1344,7 +1391,7 @@ function _syncRewardProductionRings(){
           if(!offerRing) return;
           G.rings=Array.isArray(G.rings)?G.rings:[null,null,null,null];
           G.rings[idx]=clone(offerRing);
-          // 栄光の力から指輪枠へ配置できた瞬間に取得SEを鳴らす。
+          // 提示枠から指輪枠へ配置できた瞬間に取得SEを鳴らす。
           _playRewardAcquireSfx('ring_get.wav');
           // 指輪は1つだけ取得可能。選んだ指輪を提示から取り除き、残りはフェードアウトで
           // 消して空の枠3つだけを残す（_renderRingOfferCards()）。フェードアウトは取得直後の
@@ -1377,19 +1424,23 @@ function _openRingActionConfirm(idx,anchor){
     &&tip.dataset.rewardAnchorKind==='ring'
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
-  _openRewardActionTooltip(anchor,ring.name||'指輪',ringDesc,[
-    {label:ring._disabled?'有効化':_uiLabel('「無効化」ボタン','無効化'),onClick:()=>{
+  const cancel={label:_uiLabel('「やめる」ボタン','やめる'),onClick:()=>_closeItemUseConfirm()};
+  const locked=typeof questRingActionsLocked==='function'&&questRingActionsLocked(ring);
+  // 依頼品の指輪は、無効化・捨てるを消さずに暗くして押せなくする（2026-09-27 利用者指定）。
+  const actions=[
+    {label:ring._disabled?_uiLabel('「有効化」ボタン','有効化'):_uiLabel('「無効化」ボタン','無効化'),disabled:locked,onClick:()=>{
       ring._disabled=!ring._disabled; _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
     }},
-    {label:_uiLabel('「捨てる」ボタン','捨てる'),onClick:()=>{
+    {label:_uiLabel('「捨てる」ボタン','捨てる'),disabled:locked,onClick:()=>{
       G.rings[idx]=null; _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
     }},
-    {label:_uiLabel('「やめる」ボタン','やめる'),onClick:()=>_closeItemUseConfirm()}
-  ]);
+    cancel
+  ];
+  _openRewardActionTooltip(anchor,ring.name||_uiLabel('「指輪枠」見出し','指輪'),ringDesc,actions);
   const lockedTip=document.getElementById('kw-tooltip');
   if(lockedTip){ lockedTip.dataset.rewardSlotIdx=String(idx); lockedTip.dataset.rewardAnchorKind='ring'; }
 }
@@ -1413,7 +1464,7 @@ function _showRewardRingTooltip(e){
   }
   const esc=s=>String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   tip.className=_rewardRingRarityClass(ring);
-  tip.innerHTML=`<div class="preview-title">${esc(title||'指輪')}</div>${esc(desc)}`;
+  tip.innerHTML=`<div class="preview-title">${esc(title||_uiLabel('「指輪枠」見出し','指輪'))}</div>${esc(desc)}`;
   tip.style.display='block';
   _moveRewardRingTooltip(e);
 }
@@ -1437,8 +1488,11 @@ function renderRewCards(){
   const el=document.getElementById('reward-offer-row');
   if(!section||!el) return;
   const rewardSectionLabel=document.querySelector('#reward-cards-section .field-label');
-  if(rewardSectionLabel) rewardSectionLabel.textContent=G._isLibrary?'貸出カード':(G._isTavern
-    ?_uiLabel('「酒場の報酬枠」見出し','依頼カード'):'提示カード');
+  if(rewardSectionLabel) rewardSectionLabel.textContent=G._isLibrary
+    ?_uiLabel('「図書館の報酬枠」見出し','貸出カード')
+    :(G._isTavern
+      ?(typeof questTavernRewardTitle==='function'?questTavernRewardTitle():_uiLabel('「酒場の報酬枠」見出し1','依頼人'))
+      :_uiLabel('「編成画面の報酬枠」見出し','報酬'));
   if(G.phase!=='reward'){ section.style.display='none'; el.innerHTML=''; _syncRewardProductionUi(); return; }
   // 村/祭壇メニューと鍛冶屋は同じ行を独自の選択肢で使用するため、
   // カード移動後の再描画で提示内容を消さない。
@@ -1544,16 +1598,45 @@ function renderRewardOfferRow(show){
   if(typeof renderRewCards==='function') renderRewCards();
 }
 
-// ── 指輪の提示（栄光の力）：通常の報酬カードと同じ場所（#reward-offer-row）に表示する ──
+// ── 祭壇・指輪依頼の提示：通常の報酬カードと同じ場所（#reward-offer-row）に表示する ──
 // 暗い（未解放）間はホバーで説明のみ表示、明るくなったらドラッグで指輪置き場へ持っていく。
 // 祭壇の提示枠の数（＝提示される指輪の数）。取得後に残す空枠の数もこれに合わせる。
 const RING_OFFER_SLOT_COUNT=3;
+function _ringOfferSlotCount(){
+  const count=typeof questRingOfferSlotCount==='function'?Number(questRingOfferSlotCount()):RING_OFFER_SLOT_COUNT;
+  return Math.max(1,Math.min(RING_OFFER_SLOT_COUNT,Number.isFinite(count)?Math.floor(count):RING_OFFER_SLOT_COUNT));
+}
+function _wireQuestRingReturnTarget(div){
+  if(!(typeof questRingOfferActive==='function'&&questRingOfferActive())) return;
+  div.classList.add('quest-ring-return-target');
+  // 通常の取得済み枠は操作不能だが、クエスト中だけ提示位置へ戻すドロップ先として使う。
+  div.style.setProperty('pointer-events','auto','important');
+  div.addEventListener('dragover',event=>{
+    const ring=_dragSrc&&_dragSrc.arr==='rings'&&Array.isArray(G.rings)?G.rings[_dragSrc.idx]:null;
+    if(!(ring&&typeof questRingOfferCanReturn==='function'&&questRingOfferCanReturn(ring))) return;
+    event.preventDefault();
+    div.classList.add('drag-over');
+  });
+  div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+  div.addEventListener('drop',event=>{
+    div.classList.remove('drag-over');
+    const srcIdx=_dragSrc&&_dragSrc.arr==='rings'?_dragSrc.idx:-1;
+    if(srcIdx<0||typeof questReturnRingOffer!=='function'||!questReturnRingOffer(srcIdx)) return;
+    event.preventDefault();
+    _dragSrc=null;
+    if(typeof _removeDragGhost==='function') _removeDragGhost();
+    if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
+    updateHUD();
+    renderRewCards();
+    renderMoveSlotsInEnemy();
+  });
+}
 // 指輪取得後の祭壇：他の指輪は消えて空の枠だけが残る。取得直後の1回だけ、
 // 残っていた指輪をその場でフェードアウトさせる（再入場時は最初から枠だけ）。
 function _renderRingOfferResolvedFrames(el){
   const fade=G._ringOfferFadeOut;
   G._ringOfferFadeOut=null;
-  for(let i=0;i<RING_OFFER_SLOT_COUNT;i++){
+  for(let i=0;i<_ringOfferSlotCount();i++){
     const div=document.createElement('div');
     div.classList.add('rew-card','ring-offer-card','ring-visual','ring-offer-spent');
     const fadingRing=fade&&i!==fade.taken?(fade.offer||[])[i]:null;
@@ -1564,6 +1647,7 @@ function _renderRingOfferResolvedFrames(el){
         div.style.setProperty('--ring-art',`url("${path}")`);
       }
     }
+    _wireQuestRingReturnTarget(div);
     el.appendChild(div);
   }
 }
@@ -1573,7 +1657,7 @@ function _renderRingOfferCards(el){
   (G._ringOffer||[]).forEach((ring,idx)=>{
     if(!ring) return;
     // 指輪置き場（.ring-visual）と同じ見た目（ring_slot.pngの枠＋指輪アート）で表示する。
-    // mkCardEl()の汎用カード絵柄解決はassets/art/ring/のパス規則を知らないため使わない。
+    // mkCardEl()の汎用カード絵柄解決はassets/art/rings/のパス規則を知らないため使わない。
     const div=document.createElement('div');
     div.classList.add('rew-card','ring-offer-card','ring-visual');
     if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,ring);
@@ -1627,7 +1711,7 @@ function _mkShopSoldOutDiv(itemIdx){
   }
   const label=document.createElement('span');
   label.className='shop-sold-out-label';
-  label.textContent='売切';
+  label.textContent=_uiLabel('ショップ「売切」表示','売切');
   div.appendChild(label);
   return div;
 }
@@ -1639,7 +1723,7 @@ function _mkLibraryLoanedOutDiv(itemIdx){
   if(Number.isInteger(itemIdx)) div.dataset.rewIdx=String(itemIdx);
   const label=document.createElement('span');
   label.className='shop-sold-out-label';
-  label.textContent='貸出中';
+  label.textContent=_uiLabel('図書館「貸出中」表示','貸出中');
   div.appendChild(label);
   return div;
 }
@@ -1719,13 +1803,16 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(G._isRewardTown&&!isPendingSale&&!canBuy){
     const shortBadgeItem=document.createElement('div');
     shortBadgeItem.className='shop-insufficient-badge';
-    shortBadgeItem.textContent='ゴールド不足';
+    shortBadgeItem.textContent=_uiLabel('ショップ「ゴールド不足」表示','ゴールド不足');
     div.appendChild(shortBadgeItem);
   }
   if(isPendingSale){
     const sale=document.createElement('div');
     sale.className='shop-pending-sale-ui';
-    sale.innerHTML=`<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${Number(card._sellDisplayPrice??_shopCardSellGain(card))}G</button>`;
+    // 表示は実際の入金（onGoldGained＝指輪の倍率込み）と同じ額にする。
+    const pendingBase=Number(card._sellDisplayPrice??_shopCardSellGain(card))||0;
+    const pendingShown=typeof goldIncomeAmount==='function'?goldIncomeAmount(pendingBase):pendingBase;
+    sale.innerHTML=`<button type="button" class="shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${pendingShown}G</button>`;
     _bindPendingShopCardSale(sale,rewIdx);
     div.appendChild(sale);
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
@@ -1735,7 +1822,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
     // 自分のカードなので魔導板へ戻せる必要がある。ショップの購入不可ロックから除外する。
-    const _rewardDragLocked=!!G._pendingPanelPlacement||(_rewFreePickDone&&!!card._isOriginalReward)||(G._isShop&&!canBuy&&!isPendingSale);
+    const _rewardDragLocked=!!G._pendingPanelPlacement||(_rewFreePickDone&&!!card._isOriginalReward&&G._rewardOnePickMode)||(G._isShop&&!canBuy&&!isPendingSale);
     div.draggable=!_rewardDragLocked;
     if(_rewardDragLocked) div.classList.add('reward-drag-locked');
     div.addEventListener('dragstart',e=>{
@@ -1774,8 +1861,48 @@ function _appendLibraryLoanBadge(div){
   div.querySelectorAll('.shop-board-sell-value,.shop-pending-sale-ui').forEach(el=>el.remove());
   const badge=document.createElement('div');
   badge.className='shop-board-sell-value library-loan-badge';
-  badge.textContent='貸出';
+  badge.textContent=_uiLabel('図書館「貸出」表示','貸出');
   div.appendChild(badge);
+}
+
+function _libraryLoanOriginalSlot(card){
+  const marked=Number(card&&card._libraryLoanSlot);
+  if(Number.isInteger(marked)&&marked>=0&&marked<REWARD_GRID_CAPACITY) return marked;
+  // 位置情報を持たない旧セーブは、入館時の貸出一覧から同じカードの空き枠を補う。
+  const initial=Array.isArray(G&&G._libraryLoanInitialCards)?G._libraryLoanInitialCards:[];
+  const same=(a,b)=>!!a&&!!b&&(
+    (a.id&&b.id&&String(a.id)===String(b.id))
+    ||String(a.name||'')===String(b.name||'')
+  );
+  return initial.findIndex((entry,index)=>same(entry,card)&&!(_rewCards&&_rewCards[index]));
+}
+function _returnLibraryLoanCard(boardIdx,card){
+  if(!G||!G._isLibrary||!card||!card._libraryLoan) return false;
+  const slotIdx=_libraryLoanOriginalSlot(card);
+  if(slotIdx<0||(_rewCards&&_rewCards[slotIdx])) return false;
+  const unit=_getPartyBoardUnit();
+  if(!unit) return false;
+  const boardList=_normalizeUnitBoardCards(unit);
+  if(!boardList[boardIdx]) return false;
+  const returned=clone(card);
+  returned._libraryLoan=true;
+  returned._libraryLoanSlot=slotIdx;
+  returned._isOriginalReward=false;
+  delete returned._rewardReturnCard;
+  delete returned._rewardReturnIdx;
+  delete returned._rewardReturnPhaseId;
+  boardList[boardIdx]=null;
+  unit.boardCards=boardList;
+  _rewCards[slotIdx]=returned;
+  _syncUnitPanelEffectsAfterMove(unit);
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+  renderRewCards();
+  renderHandEditor();
+  renderFieldEditor();
+  renderMoveSlotsInEnemy();
+  if(typeof updateHUD==='function') updateHUD();
+  return true;
 }
 
 function _bindPendingShopCardSale(sale,rewIdx){
@@ -1806,7 +1933,7 @@ function _takeRingCard(card){
   return true;
 }
 
-// ── ボス報酬後の指輪提示 ──────────────────────
+// ── 祭壇の指輪提示 ──────────────────────────
 // 現在保持するカード（魔導板上のカード）から、色タグ／効果カテゴリタグの出現数を数える。
 function _countHeldCardTags(){
   const counts={};
@@ -1905,9 +2032,8 @@ function _ringHasNoTag(ring){
   const tag=_ringTagText(ring);
   return !tag||tag==='-'||tag==='ー';
 }
-// ボス撃破後、現在保持するカードに含まれる文字が多いタグを参照し、2枚は一致するタグ、
-// 1枚はタグなしの指輪を提示する。
-function _pickRingOffer(){
+// 祭壇で提示する指輪を、現在保持するカードのタグから選ぶ。
+function _pickAltarRingOffer(){
   const pool=((typeof RING_POOL!=='undefined'&&Array.isArray(RING_POOL))?RING_POOL:[])
     .filter(r=>r&&!r._rewardExcluded&&r._rewardAvailable!==false);
   if(!pool.length) return [];
@@ -1954,44 +2080,6 @@ function _pickRingOffer(){
   });
   return result.slice(0,3).map(r=>clone(r));
 }
-// 「編成完了」ボタンから呼ばれる：通常の報酬カード取得後、ボス報酬の指輪提示があれば
-// 「栄光の力」画面（同じ#reward-offer-row領域を指輪提示に切り替えた画面）へ遷移する。
-function _enterRingOfferPhase(){
-  G._ringOfferPhase=true;
-  _storeRingPhaseStartSnapshot();
-  renderRewCards();
-  renderMoveSlotsInEnemy();
-  renderHandEditor();
-  renderFieldEditor();
-}
-// 栄光の力（指輪提示）画面に入った時点のスナップショット。この画面での「元に戻す」は
-// 通常の報酬カード取得画面まで戻さず、この画面の最初の状態にだけ戻す。
-function _storeRingPhaseStartSnapshot(){
-  G._ringPhaseStartSnapshot={
-    mainBoard:clone(G.mainBoard||[]),
-    rings:clone(G.rings||[]),
-    ringOffer:clone(G._ringOffer||[]),
-    ringOfferUnlocked:!!G._ringOfferUnlocked,
-    ringOfferResolved:!!G._ringOfferResolved,
-    boardDiscardCount:G._boardDiscardCount||0
-  };
-}
-function _resetRingPhaseToStart(){
-  if(!G._ringPhaseStartSnapshot) return;
-  const s=G._ringPhaseStartSnapshot;
-  G.mainBoard=clone(s.mainBoard||[]);
-  G.rings=clone(s.rings||[null,null,null,null]);
-  G._ringOffer=clone(s.ringOffer||[]);
-  G._ringOfferUnlocked=!!s.ringOfferUnlocked;
-  G._ringOfferResolved=!!s.ringOfferResolved;
-  G._boardDiscardCount=s.boardDiscardCount||0;
-  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
-  updateHUD();
-  renderRewCards();
-  renderHandEditor();
-  renderFieldEditor();
-  renderMoveSlotsInEnemy();
-}
 // 廃棄ボタンから呼ばれる：魔導板のカードを1枚廃棄し、3枚に達したら指輪提示を解放する。
 function _discardBoardCardForRingOffer(idx,card){
   if(!Array.isArray(G._ringOffer)||!G._ringOffer.length||G._ringOfferUnlocked) return;
@@ -2009,7 +2097,7 @@ function _discardBoardCardForRingOffer(idx,card){
   G._ringSacrificedCards=Array.isArray(G._ringSacrificedCards)?G._ringSacrificedCards:[];
   G._ringSacrificedCards.push({idx,card:clone(card)});
   G._boardDiscardCount=(G._boardDiscardCount||0)+1;
-  const ringGetCount=Math.max(1,Math.min(3,G._boardDiscardCount-Number(G._ringPhaseStartSnapshot?.boardDiscardCount||0)));
+  const ringGetCount=Math.max(1,Math.min(3,G._ringSacrificedCards.length));
   _playRewardAcquireSfx(`ring_get${ringGetCount}.wav`);
   // 3枚廃棄すると指輪を1つだけ得られるようになる（6枚廃棄しても2つにはならない：1度解放したら再度解放しない）
   if(G._boardDiscardCount>=3&&!G._ringOfferUnlocked){
@@ -2076,7 +2164,7 @@ function takeRewCard(i, targetSlot){
     if(!_takeRingCard(card)) return;
     if(typeof markCardAcquired==='function') markCardAcquired(card);
     if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
-    if(card._isOriginalReward) _rewFreePickDone=true;
+    if(card._isOriginalReward&&G._rewardOnePickMode) _rewFreePickDone=true;
     _rewCards[i]=null;
     refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor(); renderMoveSlotsInEnemy();
     return;
@@ -2096,11 +2184,12 @@ function takeRewCard(i, targetSlot){
     if(isTown&&!G._freeRewardPanelMode) markShopPurchase(placed,card,i,cost);
     slots[emptyIdx]=placed;
     if(typeof markCardAcquired==='function') markCardAcquired(card);
-    if(card._isOriginalReward) _rewFreePickDone=true;
+    if(card._isOriginalReward&&G._rewardOnePickMode) _rewFreePickDone=true;
     if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
     if(G._isShop) _rewCards[i]=null;
     else _rewCards.splice(i,1);
-    _playRewardAcquireSfx('item_get.wav');
+    // 道具屋で代金を払って買った時は購入音（buy2.wav）。それ以外の入手は通常の入手音（2026-09-27 利用者指摘：購入音が鳴らなかった）。
+    _playRewardAcquireSfx(isTown&&!G._freeRewardPanelMode&&cost>0?'buy2.wav':'item_get.wav');
     refreshRewardGoldUi(); renderRewCards(); renderFieldEditor(); renderHandEditor();
     if(G._isTavern&&typeof syncTavernFormationControls==='function') syncTavernFormationControls();
     return;
@@ -2113,7 +2202,7 @@ function takeRewCard(i, targetSlot){
     const finish=()=>{
       if(typeof markCardAcquired==='function') markCardAcquired(card);
       if(isTown&&!G._freeRewardPanelMode){ G.gold-=cost; refreshRewardGoldUi(); }
-      if(card._isOriginalReward) _rewFreePickDone=true;
+      if(card._isOriginalReward&&G._rewardOnePickMode) _rewFreePickDone=true;
       // ドラッグで魔導板の埋まっているスロットへ直接入れ替えた場合、押し出されたカードが
       // 既にこのスロット（_rewCards[i]）へ入っているため、その場合はここで消してしまわない
       if(_rewCards[i]===card){
@@ -2176,16 +2265,6 @@ function _renderFieldRow(el){
       if(unit.name==='石像') div.classList.add('no-unit-shadow');
       if(typeof applyUnitVisual==='function') applyUnitVisual(div,unit);
       div.draggable=true;
-      const badges=[];
-      const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';}; 
-      // 標的バッジは非表示（is-front の視覚的シフトで代用）
-      if(unit.guardian)badges.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
-      if(unit.shield>0)badges.push(`<span class="slot-badge b-shield"${_sd('結界')}>🛡</span>`);
-      if(unit.instadead)badges.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
-      if(unit.poison>0)badges.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${unit.poison}</span>`);
-      if(unit.stealth)badges.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
-      if(unit.allyTarget)badges.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
-      const badgeBlock=badges.length?`<div class="slot-badges">${badges.join('')}</div>`:'';
       const gradeTag='';
       const _rawDesc=unit.desc&&typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(unit):(unit.desc||'');
       const _desc=_stripKeywordsFromDesc(_rawDesc,unit);
@@ -2197,29 +2276,18 @@ function _renderFieldRow(el){
       const _preview=typeof _unitPreviewText==='function'?_unitPreviewText(unit,_plainDesc):_plainDesc;
       if(_preview) div.setAttribute('data-preview',_preview);
       const raceTag='';
-      const _kColorMap={'即死':'#e060e0','侵食':'#a060d0','毒':'#a060d0','加護':'#60b0e0','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','三方向攻撃':'#e04040','貫通':'#e08040','結束':'#80d0d0','邪眼':'#c060c0','弱体':'#c08040','衝撃':'#c08040','結界':'#60a0e0','隠密':'#8080c0','攻防一体':'#60c090'};
-      const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-      // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
-      // バッジ表示用の擬似キーワードとして合成する
-      const _allKws=[...(unit.weaken>0?[`弱体${unit.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(unit.keywords||[]):[...new Set(unit.keywords||[])])].filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k));
-      const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
-      const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス'&&k!=='生贄'&&k!=='狩人'&&k!=='狙撃'&&k!=='強靭');
-      const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:2px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
-      const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
-      let kwBlock='';
-      if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
       const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
       const _btmStyle='position:absolute;bottom:22px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0';
       div.style.borderTop=unit.hate&&unit.hateTurns>0?'':'2px solid var(--teal2)';
       const hpClass=(unit.maxHp!=null&&unit.hp<unit.maxHp)?'h hp-damaged':'h';
       const _hpMax=Math.max(1,unit.maxHp||unit.hp||1);
       const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,unit.hp||0)/_hpMax)*100)));
-      const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,unit.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
+      const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(typeof _lifeLabelText==='function'?_lifeLabelText():'ライフ')} ${Math.max(0,unit.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
       // 報酬フェイズ中のシールド発光は配置順エリアだけに限定する。
       const _showShield=false;
       if(_showShield) div.classList.add('shield-active'); else div.classList.remove('shield-active');
       const shieldLayer=_showShield?'<div class="unit-shield-layer"></div>':'';
-      div.innerHTML=`${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="${hpClass}">${unit.hp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div><div class="unit-hit-layer"></div>`;
+      div.innerHTML=`<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${unit.name}</div>${raceTag}<div class="slot-stats"><span class="a">${unit.atk}</span><span class="s">/</span><span class="${hpClass}">${unit.hp}</span></div></div><div style="${_btmStyle}">${descTag}</div><div class="unit-hit-layer"></div>`;
       // クリックは装備内容表示のみ。守護はカード効果でのみ付与する。
       div.onclick=e=>{
         e.stopPropagation();
@@ -2424,7 +2492,7 @@ document.addEventListener('drop', ()=>{ _clearDragZoneClass(); }, true);
 function _createDragGhost(srcEl){
   _removeDragGhost();
   // #scr-battleはゲーム画面全体を包む唯一のscreen divのため、これをclosest()判定に含めると
-  // どのカードをドラッグしても常にtrueになってしまう（出撃枠のドラッグ時に誤ってm_board6.svgへ
+  // どのカードをドラッグしても常にtrueになってしまう（出撃枠のドラッグ時に誤ってmagic_board6.svgへ
   // 切り替わるバグの原因だった）。実際に戦闘中のフィールド上ユニットをドラッグしている場合のみ、
   // または報酬フェイズ以外でのドラッグの場合のみ「戦闘中のドラッグ」として扱う。
   const isBattleDrag = !!(srcEl && (srcEl.closest('#f-ally,#f-enemy') || (typeof G !== 'undefined' && G && G.phase !== 'reward')));
@@ -2557,7 +2625,7 @@ function _createDragGhost(srcEl){
     ghostStatOverlay.style.setProperty('visibility','visible','important');
     ghostStatOverlay.style.setProperty('opacity','1','important');
     ghostStatOverlay.style.setProperty('transform','none','important');
-    ghostStatOverlay.style.setProperty('background-image',ss.backgroundImage||'url("assets/cards/stat_overlay.png")','important');
+    ghostStatOverlay.style.setProperty('background-image',ss.backgroundImage||'url("assets/cards/status_overlay.png")','important');
     ghostStatOverlay.style.setProperty('background-size',ss.backgroundSize||'100% 100%','important');
     ghostStatOverlay.style.setProperty('background-position',ss.backgroundPosition||'center','important');
     ghostStatOverlay.style.setProperty('background-repeat','no-repeat','important');
@@ -3025,6 +3093,20 @@ function _panelCharacterPreviewStats(unit,idx,card){
     base.atk+=Number(enh.atk||0);
     base.hp+=Number(enh.hp||0);
   }
+  // 編成全体で決まる常時修正は、戦闘と同じ共通編成から表示分だけを受け取る。
+  // entry.unit の総能力値へ置き換えると永劫の力など表示対象外の値まで混ざるため、
+  // core.js が記録した常時修正量だけを足す。
+  if(typeof buildBoardFormation==='function'){
+    try{
+      const formation=buildBoardFormation(unit,{persistEternal:false});
+      const entry=(formation.entries||[]).find(e=>e&&e.slotIdx===idx&&e.copyIndex===0);
+      const bonus=entry&&entry.unit&&entry.unit._formationPassiveStatBonus;
+      if(bonus){
+        base.atk+=Number(bonus.atk)||0;
+        base.hp+=Number(bonus.hp)||0;
+      }
+    }catch(_e){ /* 読み込み途中は通常の隣接値だけを表示する。 */ }
+  }
   // ATK・HPを減少させる強化（呪われた壺の -5/-5 など）の合計がベースを上回っても、
   // **表示は0が下限**。戦闘中の値（_addBattleStats／コアのaddStats）と同じ規則にする。
   base.atk=Math.max(0,base.atk);
@@ -3364,8 +3446,8 @@ function _playTripleMergeAnimation(info){
       ],{duration:900,easing:'cubic-bezier(.55,.02,.2,1)',fill:'forwards'}).finished.catch(()=>{})));
       {
         const unionPlayed=typeof playSfx==='function'&&playSfx('union',{group:'magic',guardKey:`triple-union:${Date.now()}`,guardMs:0});
-        if(!unionPlayed){ if(typeof playFileSfx==='function') playFileSfx('assets/sfx/union.wav');
-          else try{ const se=new Audio('assets/sfx/union.wav'); se.volume=sfxFallbackVolume(.8); void se.play(); }catch(_e){} }
+        if(!unionPlayed){ if(typeof playFileSfx==='function') playFileSfx('assets/sfx/merge.wav');
+          else try{ const se=new Audio('assets/sfx/merge.wav'); se.volume=sfxFallbackVolume(.8); void se.play(); }catch(_e){} }
         ordered.filter(g=>g!==center).forEach(g=>g.ghost.remove());
         if(center) center.ghost.classList.add('triple-merge-white-flash');
         // 合体結果の配置先は3枚からランダムに選ばれるため、通常配置と同じ
@@ -3986,7 +4068,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
       const _isCombatPowerPanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('戦闘力');
       const _isPanelCard=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope);
-      // 指輪提示（栄光の力）中は、そのターンに取得したばかりのカード（＝「報酬に戻す」対象）も含め、
+      // 祭壇の指輪提示中は、そのターンに取得したばかりのカード（＝「報酬に戻す」対象）も含め、
       // 魔導板上の全カード（キャラクター・強化とも）を廃棄カウントの対象にする。
       // 以前は_isCurrentRewardReturnCardを除外していたため、そのカードの×が「報酬に戻す」として
       // 処理されて_boardDiscardCountが増えず、3枚のはずが4枚廃棄しないと解放されない不具合があった。
@@ -3997,8 +4079,11 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       // クエストに必須のカード（ファラなど）は、ショップでは値段の代わりに「別れる」を出す（quest.js）。
       const _questPartable=arrName==='boardCards'&&typeof questCardPartable==='function'&&questCardPartable(card);
       const _shopReturnable=arrName==='boardCards'&&isShopReturnable(card);
+      const _libraryReturnable=arrName==='boardCards'&&G&&G._isLibrary&&card._libraryLoan;
       const _spellBtn=arrName==='boardCards'
-        ?(_shopReturnable
+        ?(_libraryReturnable
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action library-loan-return-btn" data-sfx-silent="1">${_uiLabel('「返却」ボタン','返却')}</button>`
+          :_shopReturnable
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action shop-return-btn" data-sfx-silent="1">${_shopReturnLabel()}</button>`
           :_questPartable
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action quest-part-btn" data-sfx-silent="1">${_uiLabel('「別れる」ボタン','別れる')}</button>`
@@ -4008,8 +4093,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
             ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('「還魂」ボタン','還魂')}</button>`
             :''))
         :'';
-      const _libraryLoanBadge=arrName==='boardCards'&&card._libraryLoan
-        ?'<span class="shop-board-sell-value library-loan-badge">貸出</span>':'';
       const _powerId=_mapPowerId;
       const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;
       if(_powerDef){
@@ -4055,7 +4138,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,_charDescForPreview,i):(card.name+'\n'+_charDescForPreview);
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(_panelOwner&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(div,_panelOwner,G._selectedBoardUnitIdx,i);
       }else if(_isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
@@ -4074,17 +4157,17 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'
           ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
         if(arrName==='boardCards'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
       }else if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
         div.classList.add('spell-card');
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,typeof _previewRarityLine==='function'?_previewRarityLine(card):'',card.desc||''].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}<div class="card-art"></div>${_spellBtn}`;
         if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
       }else{
-        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}${_libraryLoanBadge}`;
+        div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
       }
       if(arrName==='boardCards') _ensureCardBackLayer(div);
       // 魔導板枠はカード固有の::after（キャラ枠）と競合しない独立レイヤーとして常設する。
@@ -4140,6 +4223,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         discardBtn.onclick=ev=>{
         ev.stopPropagation();
         if(_libraryTutorialIsMoveStep()) return;
+        if(discardBtn.classList.contains('library-loan-return-btn')){
+          _returnLibraryLoanCard(i,card);
+          return;
+        }
         // SEはボタン種別で最初に決める。デバッグモード等の分岐が先にreturnしても
         // 「還魂＝ascension / 売却＝sell」が確実に鳴るようにする。
         if(!discardBtn.classList.contains('ring-offer-discard-btn')&&_boardCardSellEnabled(card)) _playRewardAcquireSfx('sell.wav');
@@ -4310,7 +4397,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // カードを持って重ねた時の発光（.drag-over）が空の特殊マスだけ出なかった（利用者報告）。
       }
       if(arrName==='boardCards'&&_emptyMapPowerId){
-        // ①〜⑦：戦闘フェイズで出撃する枠（m_board1.svgで区別する）
+        // ①〜⑦：戦闘フェイズで出撃する枠（magic_board1.svgで区別する）
         ph.classList.add('deploy-slot');
       }
       if(arrName==='spells') ph.classList.add('belt-empty');
@@ -4457,7 +4544,7 @@ function _renderPanelUniteMarkers(host, unit){
         midX=sx<dx?(sx+sw+dx)/2:(dx+dw+sx)/2;
       }
       const marker=document.createElement('img');
-      marker.src=vertical?'assets/cards/unite_a.png':'assets/cards/unite_b.png';
+      marker.src=vertical?'assets/cards/arrow_unite_a.png':'assets/cards/arrow_unite_b.png';
       marker.className=`panel-unite-link panel-unite-${vertical?'v':'h'}`;
       marker.dataset.srcIdx=String(idx);
       marker.dataset.dstIdx=String(targetIdx);
@@ -4523,7 +4610,11 @@ function _boardDropAllowedAt(destIdx){
   if(!_libraryTutorialAllowsMove(src,destIdx)) return false;
   if(!_canCardUseBoardSlot(src,destIdx,unit)) return false;
   const dest=board[destIdx];
-  if(_dragSrc.arr==='boardCards'&&dest&&!_mergedPanelCard(dest,src)&&!_canCardUseBoardSlot(dest,_dragSrc.idx,unit)) return false;
+  const merged=dest?_mergedPanelCard(dest,src):null;
+  if(_dragSrc.arr==='rew'&&_shopOfferBoardSwapBlocked(src,dest,merged,true)) return false;
+  // 依頼枠のカードを既存カードへ落とす時、押し出されるカードを依頼枠へ置けないなら発光させない。
+  if(_dragSrc.arr==='rew'&&dest&&!merged&&!_rewardAreaAcceptsCard(dest)) return false;
+  if(_dragSrc.arr==='boardCards'&&dest&&!merged&&!_canCardUseBoardSlot(dest,_dragSrc.idx,unit)) return false;
   return true;
 }
 function dropOnCard(destArr,destIdx){
@@ -4539,6 +4630,17 @@ function dropOnCard(destArr,destIdx){
     _dragSrc=null;
     if(typeof _removeDragGhost==='function') _removeDragGhost();
     return;
+  }
+  if(srcArr==='rew'&&destArr==='boardCards'){
+    const destUnit=_getPartyBoardUnit();
+    const dest=(destUnit&&destUnit.boardCards||[])[destIdx]||null;
+    const merged=dest?_mergedPanelCard(dest,srcCard):null;
+    if(_shopOfferBoardSwapBlocked(srcCard,dest,merged,true)){
+      _dragSrc=null;
+      if(typeof _removeDragGhost==='function') _removeDragGhost();
+      if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
+      return;
+    }
   }
   _dragSrc=null;
   if(srcArr==='debugPanel'){
@@ -4640,6 +4742,7 @@ function dropOnCard(destArr,destIdx){
 function discardHeCard(arrName, idx){
   const arr=arrName==='rings'?G.rings:G.spells;
   const card=arr[idx]; if(!card) return;
+  if(arrName==='rings'&&typeof questRingActionsLocked==='function'&&questRingActionsLocked(card)) return;
   arr[idx]=null;
   if(card&&card.type==='panel'&&typeof returnPanelToSalePool==='function') returnPanelToSalePool(card);
   const refund=cardRefund(card);

@@ -194,7 +194,7 @@ PvE 側の召喚の配置が**配列の添字から lane を決め直して**い
 スタイル計算2.4秒、GPU 4.4秒、自前JSではVFX追従（render.js の `follow`）1.2秒／6,024回。重い場面は3つ。
 - **死亡演出**：倒れた体1つにつき33msごとに `getComputedStyle()` を読んでSVGフィルターの `scale` を書き換えていた（読むたびにスタイル計算を強制）。死亡が重なる1秒間に火の粉664回・カード328回の描画。
 - **VFX**：アニメwebp（30fps・K017=156／K003=157／S006=174／S009=176／K019=273コマ）を、`?_r=0〜5` の6種類のURLに分けて読んでいたため、**同じアニメが最大6本ぶん別々にデコード**されていた。
-- **カード枠・重ね画像**：enemy_frame.svg 2.63MB／boss_frame.svg 2.71MB（1300×1973のビットマップ埋め込み）、stat_overlay.png 1300×1973、背景 stage_valley.webp 6144×12288。
+- **カード枠・重ね画像**：enemy_frame.svg 2.63MB／enemy_frame_m.svg 2.71MB（1300×1973のビットマップ埋め込み）、status_overlay.png 1300×1973、背景 stage_valley.webp 6144×12288。
 
 **入れた対策（2026-09-16、利用者選択）**
 1. 死亡演出：`setInterval`+`getComputedStyle` をやめ、開始時刻からの経過時間で進行度を出す `requestAnimationFrame` に変更（進行度の対応は変更前と一致）。火の粉の `blur`／`mix-blend-mode`／mask は見た目が変わるため維持。
@@ -260,10 +260,10 @@ VFXは後から `#vfx-frame-clip`（z-index 10035、背景枠で切り抜く層�
 確認（ヘッドレス、元の1コマ画像を contain で置いたものと同じコマで比較）：コマ2・5・10とも背景位置が k/33、平均差0.03〜0.10、差の大きい画素0%、描かれる範囲は1px以内で一致。
 
 **トリプル合体の見た目（2026-09-16、利用者指定）**：右上の星（★、`.triple-merge-star`）は**廃止**。代わりに**合体後は枠を差し替える**。
-- `enchantment.svg` → `enchantment_m.svg`、`summon_frame1〜5.svg` → `summon_frame1〜5_m.svg`（1＝赤、2＝青、3＝緑、4＝茶/黄、5＝紫）、`enemy_frame.svg` → `boss_frame.svg`。
-- **`boss_frame.svg` の枠のカードはトリプル合体しない**（`isTripleMergeBlockedCard()`。合体の判定と合体候補の表示の両方、魔鏡を3枚目にする場合も同じ）。エリート・ボス・種類なしのキャラ（`_isChar`）・色なしの召喚キャラが該当する。
+- `enchantment.svg` → `enchantment_m.svg`、`summon_frame1〜5.svg` → `summon_frame1〜5_m.svg`（1＝赤、2＝青、3＝緑、4＝茶/黄、5＝紫）、`enemy_frame.svg` → `enemy_frame_m.svg`。
+- **`enemy_frame_m.svg` の枠のカードはトリプル合体しない**（`isTripleMergeBlockedCard()`。合体の判定と合体候補の表示の両方、魔鏡を3枚目にする場合も同じ）。エリート・ボス・種類なしのキャラ（`_isChar`）・色なしの召喚キャラが該当する。
 - 変換は `getCardFrameAsset(card)`（assets.js）が**合体前と同じ規則で枠を決めてから `_tripleMerged` なら対応表で差し替える**。対応表はここ1か所。盤面・報酬・戦闘中のカード（`_tripleMerged` はコア・オンラインへ受け渡し済み）がすべてこの関数を通る。
-確認（ヘッドレス）：枠の対応が上の通り、合体不可はエリートだけ、戦闘中の合体済みカードは `summon_frame3_m.svg`（合体前は `summon_frame3.svg`）で星なし。battle_event_regression OK、present_parity NG 0、loop_parity 24/24 NG 0。
+確認（ヘッドレス）：枠の対応が上の通り、合体不可はエリートだけ、戦闘中の合体済みカードは `character_frame3_m.svg`（合体前は `character_frame3.svg`）で星なし。battle_event_regression OK、present_parity NG 0、loop_parity 24/24 NG 0。
 
 **カード枠の素材を差し替えても反映されなかった（2026-09-16、利用者報告：enchantment.svg）**：`Assets.cards` の枠のパスに版番号が無く、`assetUrl()` も何も付けないため、ファイルを差し替えても URL が同じで**ブラウザが古い画像をキャッシュから使い続けていた**。
 assets.js 先頭の **`CARD_FRAME_VERSION`**（今は `frame0916`）を、枠の画像すべて（boss・enemy・召喚5色とその合体後・エンチャント2種・スペル用）のパスに `?v=` で付ける。**枠の SVG を差し替えたらこの番号を上げること。**
@@ -908,7 +908,7 @@ Xは敵中心から発射元カード幅の0.12倍だけ左へ補正する。
 ### 暗転オーバーレイの上に置いた要素は個別に暗くする（魔導板）
 
 `#hand-slots.board-slots .card.invalid-battle-position::before` の暗転は `z-index:50`。
-枠画像（`::after`＝`m_board_frame.svg`・`z-index:100`）、特殊マス枠（`.map-boundary-layer`）、
+枠画像（`::after`＝`magic_board_frame.svg`・`z-index:100`）、特殊マス枠（`.map-boundary-layer`）、
 マナ／生贄アイコン（`.mana-cost-orbs`・`z-index:220`）はこれより前面にあるため、
 オーバーレイでは暗くならない。暗くしたいなら `filter` を個別に当てるしかない。
 
@@ -1026,6 +1026,7 @@ transition を持つ。状態クラス側で `transition:` を書くと**プロ�
    リロール、固定プレイヤーキャラ（`_checkRearCenterAllyGameOver`・`_getLeaderAlly`・`commander` フェーズ）、旧マップの `#world-map-panel`。
    **残した現行機能**：`G.spellSlots`＝アイテム4枠、`G.phase` の `player`/`enemy`＝戦闘中の状態、`#btn-pass`＝試験戦闘の「戦闘終了」ボタン、
    村の施設ボタン（`VILLAGE_FACILITY_DEFS`）、出発時のワールドマップ演出（`renderWorldMapScreen`）。
+   2026-09-26：内蔵データ（local_xlsx_data.js）と取り込みツール（tools/update_local_xlsx_data.py）から、廃止したシート「グレードアップ」「魔法」を外した。ツールはシート一覧に無いキーを内蔵データから自動で消す。
 23. **魔導板・報酬カード置き場の名前は旧「装備」「行動順」から付け替え済み。** 魔導板のカード配列は `unit.boardCards`（旧 `equipment`。戦闘コア・オンライン送受信・セーブ共通）、
    ドラッグ元の区分は `'boardCards'`、DOM/CSS は `#hand-slots.board-slots`・`.board-slot-*`・`.board-empty`・`data-board-idx`・`dragzone-board`、
    報酬カード置き場は `#reward-offer-section`・`#reward-offer-row`・`dragzone-reward-offer`・`renderRewardOfferRow()`。旧名で新しいコードを書かないこと。

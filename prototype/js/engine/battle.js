@@ -1048,14 +1048,12 @@ function _handleVictory(){
   // 一定時間後に非表示にするようチェーンする（メインスレッドが混雑していても表示が
   // 一瞬で消えないようにするため）。
   showVictoryOverlay(()=>{
-    const ov=document.getElementById('victory-overlay');
-    if(ov) ov.style.display='none';
     _cleanupBattleEndTransientUnits();
     if(G._libraryTestBattleMode){
       _exitTestBattle();
       return;
     }
-    if(G.phase==='reward') goToReward({checkpoint:true});
+    if(G.phase==='reward') return goToReward({checkpoint:true});
   });
 }
 
@@ -1100,13 +1098,28 @@ function _waveBattleRouteName(){
   const fallback=afterCity?info.toTownName:info.toTowerName;
   return String(primary||fallback||'').trim();
 }
+function _battleIntroText(key,fallback){
+  return typeof textMessage==='function'?textMessage(key,fallback):fallback;
+}
+// カットインの大見出し（戦闘開始・再戦）は一文字ずつ空けて見せる（「戦 闘 開 始」）。
+// 文言はシートのまま（空白なし）で、表示の時だけ字間を空ける。既に空白を含む文言はそのまま。
+function _battleIntroTitle(key,fallback){
+  const text=String(_battleIntroText(key,fallback)||'');
+  return /\s/.test(text)?text:Array.from(text).join(' ');
+}
 function _battleStartIntroText(){
-  if(G&&G._libraryTestBattleMode) return {title:'戦 闘 開 始',subtitle:'試験戦闘',kind:'normal'};
+  if(G&&G._libraryTestBattleMode) return {
+    title:_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始'),
+    subtitle:_battleIntroText('「試験戦闘」ボタン','試験戦闘'),
+    kind:'normal'
+  };
   if(G&&G._arenaActive){
     const round=Math.max(1,Math.min(6,Number(G._arenaRound)||1));
     const kind=typeof arenaRoundKind==='function'?arenaRoundKind(round):(round===6?'boss':'elite');
     const subtitle=typeof textMessage==='function'?textMessage('街「闘技場」ボタン','闘技場'):'闘技場';
-    const title=(G._waveIsRetry)?'再 戦':'戦 闘 開 始';
+    const title=G._waveIsRetry
+      ?_battleIntroTitle('「再戦」ボタン','再 戦')
+      :_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始');
     return {title,subtitle:String(subtitle||'闘技場').trim()||'闘技場',kind};
   }
   const mapBattle=G._mapBattle||null;
@@ -1117,7 +1130,9 @@ function _battleStartIntroText(){
   // 小さい文字（サブタイトル）に道中の固有名を出す。
   const routeName=_waveBattleRouteName();
   // 同じ戦闘への再挑戦は「再 戦」と出す（判定は main.js の _waveRetryPending()）。
-  const title=(G&&G._waveIsRetry)?'再 戦':'戦 闘 開 始';
+  const title=G&&G._waveIsRetry
+    ?_battleIntroTitle('「再戦」ボタン','再 戦')
+    :_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始');
   if(isBoss) return {title,subtitle:routeName,kind:'boss'};
   if(isElite) return {title,subtitle:routeName,kind:'elite'};
   return {title,subtitle:routeName,kind:'normal'};
@@ -1302,8 +1317,14 @@ function showBattleCutin(type='start',options={}){
   const old=document.getElementById('battle-start-intro');
   if(old) old.remove();
   const info=options.info||_battleStartIntroText();
-  const title=mode==='victory'?'勝 利':mode==='retreat'?'撤 退':mode==='defeat'?'敗 北'
-    :(String(options.title||info.title||'').trim()||'戦 闘 開 始');
+  const resultText=(key,fallback)=>{
+    const raw=typeof textMessage==='function'?textMessage(key,fallback):fallback;
+    return Array.from(String(raw||fallback).replace(/\s+/g,'')).join(' ');
+  };
+  const title=mode==='victory'?resultText('戦闘結果「勝利」','勝利')
+    :mode==='retreat'?resultText('戦闘結果「撤退」','撤退')
+    :mode==='defeat'?resultText(options.resultKey||'戦闘結果「敗北」','敗北')
+    :(String(options.title||info.title||'').trim()||_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始'));
   // 結果画面でも開始画面と同じ高さを確保する。空文字だけでは行ボックスが
   // 縮み、タイトルとラインが上へ再配置されるため、不可視の空白を残す。
   const subtitle=isResult?'\u00a0':(String(info.subtitle||'').trim()||'\u00a0');
@@ -1322,7 +1343,7 @@ function showBattleCutin(type='start',options={}){
   _showBattleEndFade();
   if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
   // 敗北（オンライン）も撤退と同じくライフを失う演出・SEを出す。
-  if(mode==='retreat'||mode==='defeat') battlePresentationSetTimeout(_fadeBattleLife,520);
+  if((mode==='retreat'||mode==='defeat')&&!options.skipLifeFx) battlePresentationSetTimeout(_fadeBattleLife,520);
   return new Promise(resolve=>{
     // 勝利は表示位置を保持したまま待機する。退場アニメーションを挟むと
     // 「勝利」が一度消え、flex再配置によってラインと本文も移動してしまう。
@@ -1363,9 +1384,9 @@ function _battleCarryOpening(){
   return !!(G&&G._arenaActive&&Number(G._arenaRound)>1)
     ||!!(typeof questBattleCarryActive==='function'&&questBattleCarryActive());
 }
-const ARENA_WAVE_INTRO_FADE_IN_MS=300;
-const ARENA_WAVE_INTRO_HOLD_MS=400;
-const ARENA_WAVE_INTRO_FADE_OUT_MS=400;
+const ARENA_WAVE_INTRO_FADE_IN_MS=400;
+const ARENA_WAVE_INTRO_HOLD_MS=900;
+const ARENA_WAVE_INTRO_FADE_OUT_MS=500;
 async function _showArenaWaveIntro(){
   if(!G||!G._arenaActive) return;
   const host=document.getElementById('scr-battle');
@@ -2027,6 +2048,8 @@ function _warmBattleHitSfx(){
 
 async function startBattle(){
   const savedBattle=typeof SaveRun!=='undefined'?SaveRun.takeResume():null;
+  const showBattleStartAutosave=!!(G&&G._battleStartAutosaveRequested)&&!savedBattle;
+  if(G) delete G._battleStartAutosaveRequested;
   const arenaBattle=!!(typeof arenaIsActive==='function'&&arenaIsActive());
   const questBattle=!!(typeof questBattleCarryActive==='function'&&questBattleCarryActive());
   const arenaRound=Math.max(1,Number(G._arenaRound)||1);
@@ -2072,7 +2095,7 @@ async function startBattle(){
   G._battleDraw=false;
   // 勝利SEは goToReward() より前に鳴るため、_bossJustDefeated が既に消えている場合に備えて
   // _isBossRewardCycle も参照している（main.js の _wasBossWin）。ただしこのフラグは
-  // 次に goToReward() が走るまで前回のボス報酬サイクルの値を保持し続けるため、
+  // 次に goToReward() が走るまで前回のボス戦判定値を保持し続けるため、
   // 塔や施設を挟んだ次の通常戦闘の勝利までボス勝利SEが鳴ってしまう。戦闘開始時に必ず落とす。
   G._isBossRewardCycle=false;
   document.body.classList.remove('right-card-peek');
@@ -2333,6 +2356,11 @@ async function startBattle(){
   if(saveBattle){
     try{pendingBattle=await SaveRun.prepareBattle(savedBattle);}
     catch(error){SaveRun.failedBattle(error);return;}
+    // 「戦闘開始／再戦」の押下で作ったbattleチェックポイントだけを表示する。
+    // 黒幕は main.js の入口で固定済みなので、高速表示が消えてから開幕演出へ進む。
+    if(showBattleStartAutosave&&pendingBattle&&typeof SaveRun.showAutoSaveIndicator==='function'){
+      await SaveRun.showAutoSaveIndicator({fast:true});
+    }
     G._savePreparing=false;
     G._savePresentation=true;
   }
@@ -2351,10 +2379,12 @@ async function startBattle(){
     [...G.allies,...G.enemies].filter(Boolean).forEach(markCardSeen);
   }
   _settleBattleOpeningLayout();
+  // 闘技場は、敵の登場が終わった直後に WAVE を出す。完全に消えてから
+  // 敵の開幕台詞へ進めるため、ここで await して順序を固定する。
+  await _showArenaWaveIntro();
+  if(_battleRunStale(_runId)) return;
   // 全員が出撃した後、台詞を持つキャラクターがいれば吹き出しで順に出す。
   await playBattleStartLines();
-  if(_battleRunStale(_runId)) return;
-  await _showArenaWaveIntro();
   if(_battleRunStale(_runId)) return;
   if(G._debugGameOver){
     G._battleDefeatHandled=true;
@@ -4913,7 +4943,8 @@ function _terrainNpcSpec(name, fallbackAtk, fallbackHp){
     atk,
     hp,
     race:(base&&base.race)||'NPC',
-    desc:(base&&base.desc)||(name==='戦士'?'負傷：このキャラクターにダメージを与えた敵はHP-Xを得る。Xはこのキャラクターが受けたダメージに等しい。':'常時：全ての味方は+X/+Xを得る。（Xは現在のマップの2倍に等しい）'),
+    // 表示文はキャラクターシートの効果文だけを使う。
+    desc:(base&&base.desc)||'',
     keywords:[...(base&&base.keywords||[])],
     color:(base&&base.color)||'',
     sfxType:(base&&base.sfxType)||'',

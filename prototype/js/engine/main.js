@@ -131,6 +131,7 @@ const SHEET_CSS_TEXTS=[
   {prop:'--altar-desc-text',key:'「祭壇」説明文1'},
   {prop:'--title-board',key:'「魔導板枠」見出し'},
   {prop:'--title-reward',key:'「編成画面の報酬枠」見出し'},
+  {prop:'--title-gold',key:'「所持金枠」見出し'},
   {prop:'--title-shop',key:'「魔導店の報酬枠」見出し'},
   {prop:'--title-item-shop',key:'「道具屋の報酬枠」見出し'},
   {prop:'--title-forge',key:'「鍛冶屋の報酬枠」見出し'},
@@ -143,10 +144,15 @@ const SHEET_CSS_TEXTS=[
 // **文言はテキストメッセージシートが唯一の出どころ。** セレクタで引ける固定の見出しは
 // ここへ足すだけでよい（画面によって変わる見出しは各画面側で textMessage() を呼ぶ）。
 const SHEET_DOM_TITLES=[
+  {sel:'#scr-title .tap-to-start',key:'TAP TO START',fallback:'TAP TO START'},
+  {sel:'#scr-title .title-copyright',key:'著作権表示',fallback:'©2027 Argante Inc. All Rights Reserved.'},
+  {sel:'#run-resume-overlay .run-resume-journey h2',key:'「旅程枠」見出し',fallback:'旅の進捗'},
+  {sel:'#library-title span',key:'街「図書館」ボタン',fallback:'図書館'},
+  {sel:'#library-exit-btn .rew-btn-label',key:'「図書館を出る」ボタン',fallback:'図書館から出る'},
   {sel:'#reward-production-ui .reward-prod-item h2',key:'「アイテム枠」見出し',fallback:'アイテム'},
   {sel:'#reward-production-ui .reward-prod-ring h2',key:'「指輪枠」見出し',fallback:'指輪'},
   {sel:'#reward-production-ui .reward-prod-quest h2',key:'「クエスト枠」見出し',fallback:'クエスト'},
-  {sel:'#reward-production-ui .reward-prod-journey h2',key:'「旅の進捗枠」見出し',fallback:'旅の進捗'},
+  {sel:'#reward-production-ui .reward-prod-journey h2',key:'「旅程枠」見出し',fallback:'旅の進捗'},
   {sel:'#reward-production-ui .reward-prod-money h2',key:'「所持金枠」見出し',fallback:'所持金'},
   // **画面下のHUDにも同じ見出しが出る。**（戦闘・村・マップの3か所）
   // 以前は報酬枠の h2 しか指しておらず、シートを変えても画面の表示が変わらなかった。
@@ -160,6 +166,8 @@ const SHEET_DOM_TITLES=[
   {sel:'#title-menu .title-menu-item.collection .title-menu-label',key:'コレクション',fallback:'コレクション'},
   {sel:'#title-menu .title-menu-item.title-quit .title-menu-label',key:'終了',fallback:'終了'},
   {sel:'#fatal-error-title',key:'「エラー発生時」見出し',fallback:'エラー'},
+  {sel:'#fatal-error-back-btn',key:'「タイトルに戻る」ボタン',fallback:'タイトルに戻る'},
+  {sel:'#title-options-btn,#battle-options-btn,#village-options-btn,#map-options-btn',attr:'title',key:'「オプション」見出し',fallback:'オプション'},
 ];
 function applySheetDomTitles(){
   if(typeof document==='undefined'||typeof textMessage!=='function') return;
@@ -169,7 +177,10 @@ function applySheetDomTitles(){
     (def.altKeys||[]).forEach(k=>{ if(!text) text=textMessage(k,'').trim(); });
     if(!text) text=String(def.fallback||'').trim();
     if(!text) return;
-    document.querySelectorAll(def.sel).forEach(el=>{ el.textContent=text; });
+    document.querySelectorAll(def.sel).forEach(el=>{
+      if(def.attr) el.setAttribute(def.attr,text);
+      else el.textContent=text;
+    });
   });
 }
 function applySheetCssTexts(){
@@ -586,7 +597,7 @@ function _waveBattleType(stage){
   if(Number(G&&G._wave)===5&&Number(stage)===5) return 'boss';
   const node=_waveRouteNode(stage);
   if(node==='elite') return 'elite';
-  if(node==='boss'||node==='finalBoss') return 'boss';
+  if(node==='boss') return 'boss';
   return 'battle';
 }
 // ── BGMの先読み ────────────────────────────────────────
@@ -660,7 +671,7 @@ function _openWaveFormation(){
   G._waveVillage=false;
   G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._facilityLabel='';
   // 祭壇（指輪交換）の状態も必ず解除する。残っていると次の報酬画面が
-  // 「栄光の力」（指輪提示）表示のままになる。
+  // 指輪提示のままになる。
   G._isRingExchange=false;
   G._ringOfferPhase=false;
   G._villageBgmActive=false;
@@ -700,7 +711,7 @@ function _grantWaveEliteItem(){
   slots[idx]=item;
 }
 // stage5：村（ショップ・クエスト受託）
-function _openWaveVillage(stage,eliteWon){
+function _openWaveVillage(stage,eliteWon,options){
   // ここでshowScreen('battle')を呼ぶとG.phaseがまだ戦闘中の値のためbattle1.wavが再生されてしまう。
   // 画面切り替えはopenMapVillage()（入場演出）側に任せる。
   G._waveStage=stage;
@@ -708,17 +719,17 @@ function _openWaveVillage(stage,eliteWon){
   G._waveEliteWon=!!eliteWon;
   G._isWaveAltar=false;
   G.phase=null;
-  if(typeof openMapVillage==='function') openMapVillage({intro:true});
+  if(typeof openMapVillage==='function') return openMapVillage({intro:true,...(options||{})});
 }
 // stage10：祭壇（鍛冶・指輪交換）
-function _openWaveAltar(stage){
+function _openWaveAltar(stage,options){
   // 塔も村と全く同じ形式（#scr-village＋入場演出）。showScreen('battle')は呼ばない
   // （呼ぶとG.phaseがまだ戦闘中の値のためbattle1/battle3が一瞬鳴ってしまう）。
   G._waveStage=stage;
   G._waveVillage=true;
   G._isWaveAltar=true;
   G.phase=null;
-  if(typeof openMapVillage==='function') openMapVillage({intro:true,tower:true});
+  if(typeof openMapVillage==='function') return openMapVillage({intro:true,tower:true,...(options||{})});
 }
 function _startWaveBattle(stage){
   // 試験戦闘の終了操作と通常の戦闘開始が近接しても、試験用の敵・終了処理を
@@ -747,6 +758,16 @@ function _startWaveBattle(stage){
     // 通常戦闘の準備は画面を黒で覆ってから開幕演出で明けるが、続きの戦闘は開幕演出を出さないため
     // 黒いまま残っていた（2026-09-25 利用者指摘）。
     if(!questSpec&&typeof prepareBattleIntroFocus==='function') prepareBattleIntroFocus(type);
+  }
+  // 「戦闘開始／再戦」を押した保存表示は、強敵戦でも必ず暗転内に置く。
+  // 強敵戦は通常の入口では暗転しないため、この明示契機だけ黒幕を先に固定する。
+  if(G._battleStartAutosaveRequested){
+    const autosaveFade=document.getElementById('battle-transition-fade');
+    if(autosaveFade){
+      autosaveFade.style.transition='none';
+      autosaveFade.classList.add('is-visible');
+      void autosaveFade.offsetWidth;
+    }
   }
   G._waveVillage=false;
   G._isWaveAltar=false;
@@ -864,8 +885,6 @@ function finishWaveBattleVictory(showVictoryIntro){
   const runTransition=fn=>{
     if(!showVictoryIntro){ fn(); return; }
     showVictoryOverlay(()=>{
-      const ov=document.getElementById('victory-overlay');
-      if(ov) ov.style.display='none';
       fn();
     });
   };
@@ -890,7 +909,7 @@ function finishWaveBattleVictory(showVictoryIntro){
       G._waveBattleType=null;
       if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
       G.enemies=[]; G.phase=null;
-      _openWaveVillage(cityStage,true);
+      _openWaveVillage(cityStage,true,{autosaveMode:'battleProgress'});
     });
     return true;
   }
@@ -912,7 +931,7 @@ function finishWaveBattleVictory(showVictoryIntro){
       G._mapBattle=null; G._waveBattleType=null;
       if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
       G.enemies=[]; G.phase=null;
-      _openWaveAltar(10);
+      _openWaveAltar(10,{autosaveMode:'battleProgress'});
     });
     return true;
   }
@@ -958,13 +977,11 @@ function handleWaveBattleDefeat(){
   if(typeof updateHUD==='function') updateHUD();
   // 敗北後は必ず報酬付き編成画面へ進む（村・祭壇へは戻さない）。
   showVictoryOverlay(()=>{
-    const ov=document.getElementById('victory-overlay');
-    if(ov) ov.style.display='none';
     G._battleDefeatHandled=true;
     G._waveWithdraw=false;
     G._waveRewardCount=null;
     G.phase=null;
-    if(typeof goToReward==='function') goToReward({checkpoint:true});
+    if(typeof goToReward==='function') return goToReward({checkpoint:true});
   });
   return true;
 }
@@ -974,12 +991,12 @@ function handleWaveBattleDefeat(){
 // G は startGame() の initState() で作り直されるため、再生済みフラグはシステムセーブから読む。
 let _openingMovieShown = typeof SaveProfile!=='undefined'&&typeof SaveProfile.openingMovieShown==='function'
   ? SaveProfile.openingMovieShown() : false;
-const OPENING_MOVIE_SRC = 'assets/movie/movie1.webm';
+const OPENING_MOVIE_SRC = 'assets/movies/movie1.webm';
 const OPENING_MOVIE_FADE_START = 7;    // 秒。ここからフェードアウトを開始する
 const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前までに真っ黒にするか
-const FINAL_BOSS_MOVIE_SRC = 'assets/movie/movie3.webm';
+const FINAL_BOSS_MOVIE_SRC = 'assets/movies/movie3.webm';
 const GAME_CLEAR_MOVIE_SRC = 'assets/vfx/game_clear.webm';
-const FINAL_CLEAR_MOVIE_SRC = 'assets/movie/movie4.webm'; // ラスボス撃破後のエンディング動画
+const FINAL_CLEAR_MOVIE_SRC = 'assets/movies/movie4.webm'; // ラスボス撃破後のエンディング動画
 
 // カットシーン動画の音声を、映像のフェードアウトと同じ時間で絞る。
 // 映像だけ暗転して音が鳴りっぱなしのまま切れると不自然なため、両方を同時に落とす。
@@ -1274,14 +1291,15 @@ const _titleStartLabel=()=>(typeof textMessage==='function'
   ?textMessage('ゲームスタート',TITLE_START_LABEL_FALLBACK)
   :TITLE_START_LABEL_FALLBACK).trim()||TITLE_START_LABEL_FALLBACK;
 const TITLE_DEBUG_LABEL='デバッグモード';
-// シートに行が無い環境でも使えるよう既定文言を持たせる。
+// この2件はデバッグ専用で、テキストメッセージシートに行を持たない。
 const TITLE_ONLINE_DEBUG_LABEL_FALLBACK='デバッグオンライン';
+const _titleDebugLabel=()=>TITLE_DEBUG_LABEL;
 const _titleOnlineDebugLabel=()=>TITLE_ONLINE_DEBUG_LABEL_FALLBACK;
 function _syncTitleStartLabel(){
   const title=document.getElementById('scr-title');
   if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
   const label=document.querySelector('#title-menu .title-menu-item.game-start .title-menu-label');
-  if(label) label.textContent=_titleCtrlHeld?TITLE_DEBUG_LABEL:_titleStartLabel();
+  if(label) label.textContent=_titleCtrlHeld?_titleDebugLabel():_titleStartLabel();
   const onlineLabel=document.querySelector('#title-menu .title-menu-item.online-battle .title-menu-label');
   if(onlineLabel) onlineLabel.textContent=_titleCtrlHeld?_titleOnlineDebugLabel():
     (typeof textMessage==='function'?textMessage('オンライン対戦','オンライン対戦'):'オンライン対戦').trim()||'オンライン対戦';
@@ -1422,13 +1440,15 @@ function startGame(debugMode,onlineMode){
     // ここで primeOnlineFlow() は呼ばない（呼ぶと成立後の遷移が飛ぶ）。
     G._wave=1; G._waveStage=1;
     if(typeof OnlineMatch!=='undefined'&&OnlineMatch){
-      void OnlineMatch.start({seedSource:`vb-${Date.now()}`,selfId:(G._onlineSelfId||'あなた'),
+      // 表示キーではなく、未設定時の内部プレイヤーID。
+      const defaultSelfId='あなた';
+      void OnlineMatch.start({seedSource:`vb-${Date.now()}`,selfId:(G._onlineSelfId||defaultSelfId),
         unlimitedTime:G._debugOnline});
     }
     if(typeof showOnlineMatching==='function') showOnlineMatching();
     return;
   }
-  _openWaveVillage(1,false);
+  _openWaveVillage(1,false,{autosaveMode:'runStart'});
 }
 
 function _runStatsAreaName(){
@@ -1616,8 +1636,6 @@ function gameOver(options){
   if(typeof _showBattleEndFade==='function') _showBattleEndFade();
   // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
   if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
-  const victory=document.getElementById('victory-overlay');
-  if(victory) victory.style.display='none';
   ['rw-cards','reward-cards-section'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
@@ -1655,7 +1673,9 @@ function gameOver(options){
   if(resultTitle) resultTitle.textContent=isClear?(_perfect?_msg('オンライン対戦「完全勝利」見出し','完全勝利'):_msg('「クリア」見出し','踏破')):_msg('「ゲームオーバー」見出し','旅の終焉');
   const back=document.getElementById('gameover-back-btn');
   if(back){
-    back.textContent=G._gameOverSpecialDebug?'編成画面に戻る':_msg('「タイトルに戻る」ボタン','タイトルに戻る');
+    back.textContent=G._gameOverSpecialDebug
+      ?'編成画面に戻る'
+      :_msg('「タイトルに戻る」ボタン','タイトルに戻る');
     back.onclick=()=>{
       if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-back'});
       if(G._gameOverSpecialDebug) returnFromDebugGameOver();
@@ -1676,7 +1696,6 @@ function gameOver(options){
     closeGameOverOverlay();
     _returnToTitleMenu();
   };
-  const go=document.getElementById('go-sub'); if(go) go.textContent=`${G.floor}階で力尽きました`;
   G.phase=isClear?'clear':'gameover';
   document.body.classList.toggle('game-clear-active',isClear);
   document.body.classList.toggle('gameover-ui-pending',isClear);
@@ -1814,7 +1833,10 @@ function _armBattleContinue(cutin,onShown,opts){
   }
   const panel=document.createElement('div');
   panel.id='battle-continue-panel';
-  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" data-sfx-silent="1"><span class="battle-continue-label">進む</span></button>';
+  panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" data-sfx-silent="1"><span class="battle-continue-label"></span></button>';
+  const label=panel.querySelector('.battle-continue-label');
+  // シートに専用行の無い戦闘結果ボタン。
+  if(label) label.textContent='進む';
   panel.style.pointerEvents='auto';
   panel.style.zIndex='10001';
   const btn=panel.querySelector('#battle-continue-btn');
@@ -1860,14 +1882,20 @@ function continueAfterBattleVictory(silent){
   if(fade) fade.classList.add('is-visible');
   // 図書館の試験戦闘は図書館のBGMを鳴らしたまま編成画面へ戻す。
   if(typeof stopBgm==='function'&&!(G&&G._libraryTestBattleMode)) stopBgm(700);
-  window.setTimeout(()=>{
+  window.setTimeout(async()=>{
     G._battleProceedAction=null;
     G._battleProceedBusy=false;
     // **背景の寄りを戻すのはここ**（完全に暗転し、勝利／撤退の文字も消えた後）。
     // 明るいうちに戻すと画面が引くのが見える。報酬は同じ #scr-battle 内で
     // 切り替わるため showScreen() を通らず、ここが唯一の確実な契機になる。
     if(typeof clearBattleFocus==='function') clearBattleFocus();
-    action();
+    // 編成画面へ進む経路は、高速オートセーブ表示が終わるPromiseを返す。
+    // それを待ってから黒幕を外し、表示が明転後へ残らないようにする。
+    try{ await Promise.resolve(action()); }
+    catch(error){
+      if(typeof showFatalError==='function') showFatalError('',{error,source:'js/engine/main.js',kind:'P'});
+      else window.setTimeout(()=>{ throw error; },0);
+    }
     // 村・祭壇の入場演出へ入った場合は、暗転をそのまま演出側へ引き継ぐ
     // （ここで外すと、演出の黒が乗るまでの間だけ盤面が見えてしまう。
     //   _playVillageEnterIntro()が村画面を組み立てた時点で外す）。
@@ -1895,7 +1923,7 @@ function showVictoryOverlay(onShown,shownDuration){
   });
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
   // ここでの味方生存チェックは常にtrueとなり誤って早期returnしてしまう。勝利可否は呼び出し元で判定済み。
-  // 「You Win」表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる
+  // 結果表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる
   setTimeout(()=>{
     if(G._battleDefeatHandled||G.phase!=='reward') return;
     const isWithdraw=!!G._waveWithdraw;
@@ -1915,12 +1943,6 @@ function showVictoryOverlay(onShown,shownDuration){
     }));
   },120);
 }
-function hideVictoryOverlay(){
-  document.getElementById('victory-overlay').style.display='none';
-  if(typeof G!=='undefined'&&G._battleProceedAction) continueAfterBattleVictory();
-  else goToReward();
-}
-
 // ── 起動時データ読み込み／ブランドロゴ → タイトル演出 ───────────
 let _startupIntroTimerIds=[];
 let _startupIntroSkipped=false;
@@ -2090,7 +2112,7 @@ document.addEventListener('contextmenu', e => { e.preventDefault(); }, true);
 //   行　　　：発生行（取れなければ0）
 // 例）BT-T3020 ＝ battle.js の3020行目で TypeError。
 const FATAL_ERROR_TEXT_KEYS=['エラー発生時'];
-const FATAL_ERROR_FALLBACK='予期しないエラーが発生しました。\n続行できないため、タイトル画面へ戻ります。';
+const FATAL_ERROR_FALLBACK='予期しないエラーが発生しました。\n続行できないため、タイトル画面へ戻ります。\n\nエラーコード：';
 const FATAL_ERROR_FILE_TAGS=[
   [/js\/engine\/battle\.js/,'BT'],[/js\/engine\/render\.js/,'RD'],[/js\/engine\/reward\.js/,'RW'],
   [/js\/engine\/map\.js/,'MP'],[/js\/engine\/main\.js/,'MN'],[/js\/engine\/pool\.js/,'PL'],
@@ -2120,10 +2142,37 @@ function _fatalErrorCode(info){
   return `${file}-${kind}${line}`;
 }
 function _fatalErrorMessage(){
-  const text=textMessage(FATAL_ERROR_TEXT_KEYS[0],FATAL_ERROR_FALLBACK).trim()||FATAL_ERROR_FALLBACK;
-  // シートの文末にある「エラーコード：」は、下のコード行が受け持つので本文からは外す
-  // （両方に出すと「エラーコード：」が2回並ぶ）。
-  return text.replace(/\n?[\s　]*エラーコード[\s　]*[：:][\s　]*$/,'');
+  return textMessage(FATAL_ERROR_TEXT_KEYS[0],FATAL_ERROR_FALLBACK).trim()||FATAL_ERROR_FALLBACK;
+}
+function showErrorOverlay(options){
+  if(typeof document==='undefined') return false;
+  const opt=options&&typeof options==='object'?options:{};
+  if(document.body&&document.body.classList.contains('fatal-error-active')) return false;
+  const getText=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
+  const titleEl=document.getElementById('fatal-error-title');
+  const msgEl=document.getElementById('fatal-error-message');
+  const codeWrap=document.getElementById('fatal-error-code');
+  const codeEl=document.getElementById('fatal-error-code-value');
+  const overlay=document.getElementById('fatal-error-overlay');
+  const back=document.getElementById('fatal-error-back-btn');
+  if(titleEl) titleEl.textContent=String(opt.title||getText('「エラー発生時」見出し','エラー'));
+  if(msgEl) msgEl.textContent=String(opt.message||'');
+  const code=String(opt.code||'').trim();
+  if(codeWrap) codeWrap.style.display=code?'inline':'none';
+  if(codeEl) codeEl.textContent=code;
+  if(back){
+    back.textContent=String(opt.buttonText||getText(opt.buttonKey||'「OK」ボタン',opt.buttonFallback||'OK'));
+    back.onclick=()=>{
+      try{ if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:error-overlay-back'}); }catch(_e){}
+      if(document.body) document.body.classList.remove('fatal-error-active');
+      if(overlay) overlay.setAttribute('aria-hidden','true');
+      if(typeof opt.onClose==='function') opt.onClose();
+    };
+  }
+  if(document.body) document.body.classList.add('fatal-error-active');
+  if(overlay) overlay.setAttribute('aria-hidden','false');
+  try{ if(typeof playSfx==='function') playSfx('uiError',{group:'ui',guardKey:'ui:error-overlay'}); }catch(_e){}
+  return true;
 }
 // code：省略すると info から作る。detail：原因のオブジェクト（コンソールへ出す）。
 function showFatalError(code,detail){
@@ -2134,36 +2183,28 @@ function showFatalError(code,detail){
   if(document.body&&document.body.classList.contains('fatal-error-active')) return shown;
   try{ console.error('[Vesselbound] fatal',shown,detail||''); }catch(_e){}
   if(typeof G!=='undefined'&&G) G._lastFatalError={code:shown,detail:String((info&&info.message)||(detail&&detail.message)||detail||'')};
-  const msgEl=document.getElementById('fatal-error-message');
-  const titleEl=document.getElementById('fatal-error-title');
-  if(titleEl) titleEl.textContent=typeof textMessage==='function'
-    ?textMessage('「エラー発生時」見出し','エラー'):'エラー';
-  if(msgEl) msgEl.textContent=_fatalErrorMessage();
-  const codeEl=document.getElementById('fatal-error-code-value');
-  if(codeEl) codeEl.textContent=shown;
-  if(document.body) document.body.classList.add('fatal-error-active');
-  const overlay=document.getElementById('fatal-error-overlay');
-  if(overlay) overlay.setAttribute('aria-hidden','false');
   // 進行中の音は全部止めてから鳴らす（何が起きたか分かるように）。
   try{ if(typeof stopAllSfx==='function') stopAllSfx(); }catch(_e){}
   try{ if(typeof stopBgm==='function') stopBgm(200); }catch(_e){}
-  try{ if(typeof playSfx==='function') playSfx('uiError',{group:'ui',guardKey:'ui:fatal-error'}); }catch(_e){}
-  const back=document.getElementById('fatal-error-back-btn');
-  if(back) back.onclick=()=>{
-    try{ if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:fatal-error-back'}); }catch(_e){}
-    // **状態が壊れている可能性があるので、タイトルへ戻れなければ読み込み直す。**
-    try{
-      if(document.body) document.body.classList.remove('fatal-error-active');
-      if(overlay) overlay.setAttribute('aria-hidden','true');
+  showErrorOverlay({
+    message:_fatalErrorMessage(),
+    code:shown,
+    buttonKey:'「タイトルに戻る」ボタン',
+    buttonFallback:'タイトルに戻る',
+    onClose:()=>{
+      // **状態が壊れている可能性があるので、タイトルへ戻れなければ読み込み直す。**
+      try{
       if(typeof closeGameOverOverlay==='function') closeGameOverOverlay();
       if(typeof _returnToTitleMenu==='function') _returnToTitleMenu();
       else if(typeof showScreen==='function') showScreen('title');
       else location.reload();
-    }catch(_e){ location.reload(); }
-  };
+      }catch(_e){ location.reload(); }
+    },
+  });
   return shown;
 }
 if(typeof window!=='undefined'){
+  window.showErrorOverlay=showErrorOverlay;
   window.showFatalError=showFatalError;
   window.addEventListener('error',e=>{
     if(!e) return;

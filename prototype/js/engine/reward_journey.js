@@ -26,19 +26,21 @@ function _journeyRouteForScene(scene){
 }
 function _journeyIconForNode(type){
   // オンライン対戦マス（versus）はエリートと同じアイコンで表示する（仕様）。
-  return {versus:'elite.svg',elite:'elite.svg',city:'city.svg',boss:'boss.svg',altar:'altar.svg',tower:'altar.svg',finalBoss:'boss.svg'}[type]||'';
+  return {versus:'elite.svg',elite:'elite.svg',city:'village.svg',boss:'boss.svg',altar:'altar.svg',tower:'altar.svg'}[type]||'';
 }
 function _journeyNodeClass(type){
   if(type==='city'||type==='altar'||type==='tower') return 'large';
-  if(type==='versus'||type==='elite'||type==='boss'||type==='finalBoss') return 'special';
+  if(type==='versus'||type==='elite'||type==='boss') return 'special';
   return '';
 }
 // 村／祭壇は「地域情報」シートの街の名前・塔の名前を表示する（sceneはステージ番号＝G._wave）。
 // ステージ1の先頭の村だけはリーゼ＝シートのステージ0を参照する（idx=マスの並び順）。
 function _journeyNodeLabel(type,scene,idx){
   if(typeof G!=='undefined'&&G&&G._onlineMode){
-    if(type==='battle') return '編成';
-    if(type==='elite'||type==='boss'||type==='finalBoss') return '戦闘';
+    if(type==='battle') return typeof textMessage==='function'
+      ?textMessage('「編成画面」見出し','編成'):'編成';
+    if(type==='elite'||type==='boss') return typeof textMessage==='function'
+      ?textMessage('オンライン対戦編成画面「戦闘」説明文','戦闘'):'戦闘';
   }
   const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
@@ -49,7 +51,8 @@ function _journeyNodeLabel(type,scene,idx){
   }
   // オンラインのステージ構成（サーバー）は祭壇ではなく tower で届く。名前は同じ「塔の名前」。
   if(type==='altar'||type==='tower') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
-  return {battle:'一般戦闘',elite:'エリート',boss:'ボス',finalBoss:'ラスボス'}[type]||'';
+  return {battle:typeof textMessage==='function'
+    ?textMessage('編成画面「一般戦闘」説明文','一般戦闘'):'一般戦闘',elite:'エリート',boss:'ボス'}[type]||'';
 }
 // 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。
 // ステージ5のマークはそこへ到達するまで表示自体を出さないため、名前も伏せない。
@@ -62,7 +65,7 @@ function _journeyDisplayPosition(route,stage,scene){
   // ステージ1のstage1は「リーゼ滞在中」なので、先頭の村マスを点灯させる
   // （以前はゲーム開始前扱いで-1＝どこも点灯させていなかった）。
   if(actual===0) return 0;
-  const special=type=>['elite','boss','finalBoss'].includes(type);
+  const special=type=>type==='elite'||type==='boss';
   // 次の戦闘が特殊戦の場合は、その一歩前を表示する。
   if(special(route[actual])){
     let idx=actual-1;
@@ -82,8 +85,8 @@ function _journeyDisplayPosition(route,stage,scene){
 function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
   const get=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   const template=reached
-    ?get('「編成画面、ショップ画面の旅の進捗枠」内 塔到達時','〜に到達')
-    :get('「編成画面、ショップ画面の旅の進捗枠」内 通常時','〜まであとX戦');
+    ?get('「編成画面、ショップ画面の旅程枠」内 塔到達時','〜に到達')
+    :get('「編成画面、ショップ画面の旅程枠」内 通常時','〜まであとX戦');
   const name=isFinalScene?'最終決戦':String(towerName||'祭壇');
   // Xは数字だけを太字にする（前後の文字はシートの本文どおり）。
   return _escapePreviewHtml(template)
@@ -118,7 +121,7 @@ function _syncRewardJourneyUi(options){
   const currentType=route[actual];
   const isFinalScene=scene===5;
   const reached=isFinalScene?currentType==='boss':currentType==='altar';
-  const remaining=route.slice(actual).filter(type=>['battle','elite','boss','finalBoss'].includes(type)).length;
+  const remaining=route.slice(actual).filter(type=>['battle','elite','boss'].includes(type)).length;
   // 現在位置の次に進むノードを強調する。ゲーム開始前は先頭ノードを対象にし、
   // 祭壇（または最終決戦）へ到達済みのときは次ノードを発光させない。
   const next=(reached||current>=route.length-1)?-1:(current<0?0:current+1);
@@ -151,7 +154,7 @@ function _syncRewardJourneyUi(options){
     // カード画像＋ATK/HPをホバー表示する（data-journey-enemyに詰めてrender.js側で描画）。
     let previewText=_journeyNodeLabel(type,scene,idx);
     let enemyAttr='';
-    if(!options?.resume&&!(G&&G._onlineMode)&&(type==='elite'||type==='boss'||type==='finalBoss')&&typeof _ensureWaveEnemyPreview==='function'){
+    if(!options?.resume&&!(G&&G._onlineMode)&&(type==='elite'||type==='boss')&&typeof _ensureWaveEnemyPreview==='function'){
       const previewType=type==='elite'?'elite':'boss';
       const enemyPreview=_ensureWaveEnemyPreview(scene,previewType);
       if(enemyPreview&&enemyPreview.def){
@@ -169,7 +172,7 @@ function _syncRewardJourneyUi(options){
           artCode:def.artCode||def._artCode||def.No||def['No.']||def.no||def.imageNo||'',
           color:def.color||'',
           _sheetEnemy:!!def._sheetEnemy,
-          // 旅の進捗のホバー表示でも、エリート／ボスは boss_frame.svg を使う。
+          // 旅の進捗のホバー表示でも、エリート／ボスは enemy_frame_m.svg を使う。
           _isEliteOrBoss:true,
         };
         enemyAttr=` data-journey-enemy="${_escapePreviewHtml(JSON.stringify(payload))}"`;
@@ -180,7 +183,10 @@ function _syncRewardJourneyUi(options){
     // エリート／ボス（カード付き）以外は名前だけの1行表示なので、Sceneマークと同じ枠にする
     // （見出し下の直線なし・幅は文字なり）。
     const noRuleAttr=enemyAttr?'':' data-preview-norule="1"';
-    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass} ${resumeClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
+    // オンラインの「編成」「戦闘」だけを、通常の「一般戦闘」と同じホバー文字の規格にする印。
+    const onlineLabelAttr=(G&&G._onlineMode&&(type==='battle'||type==='elite'||type==='boss'))
+      ?' data-online-journey-label="1"':'';
+    return `<span class="journey-node ${_journeyNodeClass(type)} ${iconClass} ${state} ${nextClass} ${resumeClass}"${iconStyle} data-preview="${_escapePreviewHtml(previewText)}"${enemyAttr}${noRuleAttr}${onlineLabelAttr}${jumpAttr}>${iconHtml}</span>${connector}`;
   }).join('');
   // 「祭壇」は地域情報シートの「塔の名前」に置き換える（例：碧翠の塔まであと3戦／碧翠の塔に到達）。
   const _regionInfo=typeof regionInfoForWave==='function'?regionInfoForWave(scene):null;
@@ -188,8 +194,10 @@ function _syncRewardJourneyUi(options){
   const onlineState=(G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch)
     ?OnlineMatch.getState():null;
   const onlineOpponent=onlineState&&onlineState.nextOpponentId?String(onlineState.nextOpponentId):'';
+  const opponentTemplate=typeof textMessage==='function'
+    ?textMessage('オンライン対戦「次の対戦相手」表示','次の対戦相手はX'):'次の対戦相手はX';
   const countdown=onlineOpponent
-    ?`次の対戦相手は${_escapePreviewHtml(onlineOpponent)}`
+    ?_escapePreviewHtml(opponentTemplate).replace(/X/g,()=>_escapePreviewHtml(onlineOpponent))
     :_journeyCountdownHtml(towerName,remaining,reached,isFinalScene);
   root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
   if(G&&G._debugMode&&!options?.resume) _bindDebugJourneyJump(root);
@@ -244,7 +252,7 @@ function _bindDebugJourneyJump(root){
       const scene=Math.max(1,Math.min(5,Number(G&&G._wave)||1));
       // ステージ1の先頭マスだけはリーゼ（シートのステージ0）。
       G._wave=(scene===1&&type==='city'&&stage===1)?0:scene;
-      // 施設系は専用の開き方、戦闘系（通常/エリート/ボス/ラスボス）は_startWaveBattleで即開始。
+      // 施設系は専用の開き方、戦闘系（通常/エリート/ボス）は_startWaveBattleで即開始。
       if(type==='city'){ if(typeof _openWaveVillage==='function') _openWaveVillage(stage,false); return; }
       if(type==='altar'){ if(typeof _openWaveAltar==='function') _openWaveAltar(stage); return; }
       if(typeof _startWaveBattle==='function') _startWaveBattle(stage);

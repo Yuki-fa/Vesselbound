@@ -101,7 +101,7 @@ body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バ
 
 ### 共通の根っこ：線の出どころが2つあり、片方だけ縮尺が掛からない
 
-1. **SVGの中に線がある。** `summon_frameN.svg` / `enemy_frame.svg` / `boss_frame.svg` /
+1. **SVGの中に線がある。** `summon_frameN.svg` / `enemy_frame.svg` / `enemy_frame_m.svg` /
    `enchantment.svg` は `viewBox="0 0 1300 1973.1"` に `stroke-width:20px`（viewBox単位）を持つ。
    背景を `100% 100%` で描くので、**線の太さは要素の描画サイズに比例する**
    （260px幅なら 20×260/1300 ＝ 4px）。
@@ -151,8 +151,8 @@ body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バ
 
 | レイヤ | 中身 | ドラッグ中 | あるべき姿 |
 | --- | --- | --- | --- |
-| `.character-frame-layer` | `summon_frame4.svg`（**カード枠**） | display:block / opacity:1 / border:5px | **消す** |
-| `.board-frame-layer` | `m_board_frame.svg`（**マス枠**） | display:none / hidden | **残す** |
+| `.character-frame-layer` | `character_frame4.svg`（**カード枠**） | display:block / opacity:1 / border:5px | **消す** |
+| `.board-frame-layer` | `magic_board_frame.svg`（**マス枠**） | display:none / hidden | **残す** |
 | `.map-boundary-layer` | 特殊マスの境界 | display:none / hidden | **残す** |
 
 **完全に逆。** 残すべきマス枠と境界が消え、消すべきカード枠が残っている。
@@ -172,10 +172,10 @@ body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バ
 | | ドラッグ前 | ドラッグ中 |
 | --- | --- | --- |
 | `::after`（カード枠 `enchantment.svg`、border **5px**） | display:block / opacity:1 | display:none / opacity:0 |
-| `.board-frame-layer`（マス枠 `m_board_frame.svg`、border **0px**） | display:block | display:block |
+| `.board-frame-layer`（マス枠 `magic_board_frame.svg`、border **0px**） | display:block | display:block |
 
 カード枠（5px）が消え、**border:0 のマス枠だけ**が残る。残った線は
-`m_board_frame.svg` が自前で描いている線だけなので、特殊マスの5pxより細く見える。
+`magic_board_frame.svg` が自前で描いている線だけなので、特殊マスの5pxより細く見える。
 15004行「特殊マス上の強化カードは、ドラッグ中も元の5px枠を維持する」は `::after` に5pxを
 指定しているが、**その `::after` 自体が display:none にされているので効いていない。**
 
@@ -342,7 +342,7 @@ console.log('実カード', (w*scale).toFixed(2)+'px', '／ CSS指定', w+'px');
 
 ---
 
-**魔導板のドラッグ発光（2026-09-25）**：カードを持って重ねたマスは、特殊マスも普通のマスも同じく光る（普通の空きマスは m_board6.svg の規則の box-shadow:none に負けて一度も光っていなかった）。光らせるかは dragover で `.drag-over` を付けるかで決め、置けないマス（ファラなど特殊マス専用のカード、入れ替えで相手が特殊マス外へ出る場合）には付けない（`reward.js: _boardDropAllowedAt()`）。チュートリアル中の発光抑止は、置き先が自由な手順（`body.library-tutorial-free-drop`）では外す。
+**魔導板のドラッグ発光（2026-09-25）**：カードを持って重ねたマスは、特殊マスも普通のマスも同じく光る（普通の空きマスは magic_board6.svg の規則の box-shadow:none に負けて一度も光っていなかった）。光らせるかは dragover で `.drag-over` を付けるかで決め、置けないマス（ファラなど特殊マス専用のカード、入れ替えで相手が特殊マス外へ出る場合）には付けない（`reward.js: _boardDropAllowedAt()`）。チュートリアル中の発光抑止は、置き先が自由な手順（`body.library-tutorial-free-drop`）では外す。
 
 **チュートリアルの説明表示中（2026-09-25）**：最初の大きな文字・説明枠が出ている間は `body.library-tutorial-message` を付け、`#scr-battle` 内のボタン・カードのホバーとホバー説明を全て止める（移動の手順では、動かすカードと置き先の `.library-tutorial-allowed` だけ掴める）。オプションボタンは暗転を `button_option.svg` の形で切り抜いて明るく残し、押すとオプション画面が開く（説明は進まない）。`map.js: runBoardTutorial()` の `syncMessageClass()`／`isOptionsTarget()`。
 

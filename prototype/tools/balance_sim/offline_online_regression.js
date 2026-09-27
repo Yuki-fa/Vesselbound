@@ -118,6 +118,7 @@ function main() {
   // 出撃体数（複製・恩寵）とレーン・出撃順は共通ビルダー（battle/formation.js）が唯一の実装。
   // オンライン側で作り直すと、以前のように出撃順とレーンがPvEと食い違う。
   const formation = fs.readFileSync(require.resolve('../../js/battle/formation.js'), 'utf8');
+  const reward = fs.readFileSync(require.resolve('../../js/engine/reward.js'), 'utf8');
   // **複製の力は出撃時に増やさない。** ツインデビルと同じく、開戦でコアがコピーを召喚する
   // （2026-09-22 利用者指定。以前は編成時に2体作っていて、戦闘開始前から2体並んで見えた）。
   assert.match(formation, /const baseCount = openingCopy \? 1 : rawCount;/,
@@ -127,6 +128,14 @@ function main() {
   assert.match(coreSrc, /unit\._mapPanelPower === 'duplicate' && !unit\._openingDuplicate/,
     'コアが複製の力のコピーを開戦で召喚していない');
   assert.match(formation, /openingCopyExtra/, '共通ビルダーに恩寵の追加出撃数計算がない');
+  assert.match(formation, /coreApplyFormationPassives\(entries\.filter\(entry => entry\.assignedSlot >= 0\)/,
+    '編成全体で決まる常時効果が共通ビルダーからコアへ接続されていない');
+  const previewStats = reward.slice(reward.indexOf('function _panelCharacterPreviewStats'),
+    reward.indexOf('function _mergedPanelCard'));
+  assert.match(previewStats, /buildBoardFormation\(unit,\{persistEternal:false\}\)/,
+    '魔導板の能力値表示が共通編成を参照していない');
+  assert.match(previewStats, /_formationPassiveStatBonus/,
+    '魔導板の能力値表示へ編成時常時修正が加算されていない');
   assert.match(versus, /buildBoardFormation\(board, \{ persistEternal: !!\(opts && opts\.persistEternal\) \}\)/,
     'オンライン編成生成が共通ビルダーを使っていない');
   // 永劫の力の恒久加算は「実際に戦闘を行う呼び出し」1回だけ。両方で加算すると1戦で+2/+2になる。
@@ -159,6 +168,40 @@ function main() {
   assert.equal(online.outcome, direct.outcome, '共有コアの勝敗がオンラインと不一致');
   assert.equal(online.endReason, direct.endReason, '共有コアの終了理由がオンラインと不一致');
   assert.deepEqual(online.finalState, direct.finalState, '共有コアの最終状態がオンラインと不一致');
+
+  // 「この効果を持つ味方」は接続グループではなく、同じ陣営で出撃する全ユニットを数える。
+  // 合体版だけ倍率2。編成時に確定し、戦闘中に1体倒れても残りの値は再計算しない。
+  const bondText = '常時：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数に等しい。';
+  const mergedBondText = '常時：このキャラクターは+X/+Xを得る。Xはこの効果を持つ味方の数の2倍に等しい。';
+  const bondUnits = [
+    {id:'bond-a',name:'任意A',atk:1,hp:10,maxHp:10,effectData:{effectTexts:[bondText]}},
+    {id:'bond-b',name:'任意B',atk:2,hp:10,maxHp:10,effectData:{effectTexts:[mergedBondText]}},
+    {id:'bond-c',name:'任意C',atk:3,hp:10,maxHp:10,effectData:{effectTexts:[bondText]}},
+    {id:'plain',name:'効果なし',atk:4,hp:10,maxHp:10},
+  ];
+  const bondResult = core.coreApplyFormationPassives(bondUnits);
+  assert.equal(bondResult.count, 3, '同陣営の効果所持者数を数えられていない');
+  assert.deepEqual(bondUnits.map(unit => [unit.atk,unit.maxHp]), [[4,13],[8,16],[6,13],[4,10]],
+    '通常／合体の編成時+X/+Xが不正');
+
+  const deathState = core.createBattleState({sides:{p1:{units:bondUnits},p2:{units:[
+    {id:'bond-killer',name:'攻撃役',atk:99,hp:99,maxHp:99},
+  ]}}});
+  const beforeDeathAtk = deathState.units.p1[0].atk;
+  core.coreResolveHit(deathState, deathState.units.p2[0], deathState.units.p1[2], 99, false,
+    createSeededRng(0x2609), () => {});
+  assert.equal(deathState.units.p1[0].atk, beforeDeathAtk,
+    '効果所持者の死亡時に編成確定済みの常時修正が再計算されている');
+
+  const bondSetup = {seed:0x2610,turnLimit:2,
+    resources:{p1:{mana:0,gold:0},p2:{mana:0,gold:0}},
+    sides:{p1:{units:bondUnits},p2:{units:[{id:'bond-foe',name:'相手',atk:1,hp:100,maxHp:100}]}}};
+  const bondOnline = simulateOnlineBattle(bondSetup);
+  const bondDirect = runDirect(bondSetup);
+  assert.deepEqual(bondOnline.events, bondDirect.events, '編成時常時修正のイベント列がオンラインと不一致');
+  assert.deepEqual(bondOnline.finalState, bondDirect.finalState, '編成時常時修正の最終状態がオンラインと不一致');
+  assert.equal(bondDirect.events.some(event => event.reason === 'strange_bond'), false,
+    '常時化した効果が開戦時に二重適用されている');
 
   // 実データの全キャラクターを同じ初期配置で両経路へ投入する。
   // これは「コアを呼んだ」だけでなく、召喚・変身・各トリガのイベント列と

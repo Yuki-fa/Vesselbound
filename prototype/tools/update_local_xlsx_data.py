@@ -22,13 +22,11 @@ TARGET = ROOT / 'js' / 'data' / 'local_xlsx_data.js'
 # local_xlsx_data.js のキー → xlsx のシート名（loader.js の _XLSX_SHEETS と同じ）
 SHEET_BY_KEY = {
     'floor': ['階層データ', '計算式', '資料'],
-    'grade': ['グレードアップ'],
     'char': ['NPC', 'プレイヤー'],
     'enemy': ['敵'],
     'keyword': ['キーワード'],
     'card': ['キャラクター', 'カード'],
     'enchant': ['エンチャント', '強化'],
-    'spell': ['魔法'],
     'item': ['アイテム', 'Item'],
     'ring': ['指輪'],
     'mapPanelPower': ['魔導板強化'],
@@ -127,6 +125,10 @@ def main():
     xlsx = src_path or find_xlsx()
     src = TARGET.read_text(encoding='utf-8')
     data = json.loads(src[src.index('{'):src.rindex('}') + 1])
+    # シートの一覧に無いキー（廃止したグレードアップ・魔法など）は内蔵データから外す。
+    for stale in [k for k in data if k not in SHEET_BY_KEY]:
+        del data[stale]
+        print(f'{stale}: 削除（廃止したシート）')
     with zipfile.ZipFile(xlsx) as zf:
         for key in keys:
             names = SHEET_BY_KEY.get(key)

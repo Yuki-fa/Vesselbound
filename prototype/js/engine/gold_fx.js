@@ -47,6 +47,18 @@ function gainEventGold(amount){
   if(typeof updateHUD==='function') updateHUD();
   return add;
 }
+// イベント（クエストの紛失弁償など）で所持金を支払う時の共通の入口。
+// G.gold の差分は下の監視が「-X」と数え下げで表示し、SEは既存の支払い音を使う。
+function spendEventGold(amount){
+  const requested=Math.max(0,Math.round(Number(amount)||0));
+  if(!requested||typeof G==='undefined'||!G) return 0;
+  const before=Math.max(0,Number(G.gold)||0);
+  const paid=Math.min(before,requested);
+  G.gold=before-paid;
+  if(paid&&typeof playSfx==='function') playSfx('purchase',{group:'ui'});
+  if(typeof updateHUD==='function') updateHUD();
+  return paid;
+}
 function goldFxDefer(amount){ _goldFxDeferred+=Math.max(0,Number(amount)||0); }
 function goldFxRelease(amount){ _goldFxDeferred=Math.max(0,_goldFxDeferred-Math.max(0,Number(amount)||0)); }
 function goldFxSnap(){
@@ -127,6 +139,7 @@ if(typeof window!=='undefined'){
   window.goldDisplayValue=goldDisplayValue;
   window.goldFxDefer=goldFxDefer;
   window.gainEventGold=gainEventGold;
+  window.spendEventGold=spendEventGold;
   window.goldFxRelease=goldFxRelease;
   window.goldFxSnap=goldFxSnap;
   window.requestAnimationFrame(_goldFxTick);

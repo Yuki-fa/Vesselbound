@@ -317,7 +317,7 @@ tools/
 // ITEM_POOL — 消耗品（シート「item」由来。絵は art で直接指定）
 { id:'item_silence_scroll', no:'001', name:'静寂の巻物', rarity:1,
   type:'consumable', kind:'item', category:'アイテム',
-  itemEffectKey:'silence_scroll', art:'assets/art/item/I001.jpg', desc:'...' }
+  itemEffectKey:'silence_scroll', art:'assets/art/items/I001.jpg', desc:'...' }
 ```
 
 ### カード絵の解決 — `assets.js`
@@ -327,13 +327,13 @@ tools/
 
 | 接頭辞 | 配置先 | 内容 |
 |---|---|---|
-| `NPC` / `MC` | `assets/art/NPC/` | 初期キャラクター（シート「char（NPC）」）。`MC` は No. が裸の数値だった場合のフォールバックで `NPC###` に読み替える |
+| `NPC` / `MC` | `assets/art/npcs/` | 初期キャラクター（シート「char（NPC）」）。`MC` は No. が裸の数値だった場合のフォールバックで `NPC###` に読み替える |
 | `C` | `assets/art/characters/` | キャラクターカード |
-| `E` | `assets/art/enchantment/` | エンチャント（強化）カード |
+| `E` | `assets/art/enchantments/` | エンチャント（強化）カード |
 | `EN` | `assets/art/enemies/` | 敵専用カード |
 | `S` | `assets/art/cards/` | スペル（**ディレクトリ未作成**。スペルを実装する時に要対応） |
 
-指輪は `reward.js` が `assets/art/ring/R###.jpg` を直接組み立て、アイテムは `art` プロパティで直接指定する。
+指輪は `reward.js` が `assets/art/rings/R###.jpg` を直接組み立て、アイテムは `art` プロパティで直接指定する。
 番号と絵が一致しないカードだけ `CharacterArtOverrideMap`（assets.js）に名前で例外登録する。
 
 **個別カードの演出は、シートの「VFX/SE」列（`fxCode`）で指定する。**
@@ -350,7 +350,7 @@ tools/
 
 ### カード枠の外周線と角R — `assets.js` / `index.html`
 
-カードの外周には常に **1px の #c49a6c（`m_board6.svg` と同色）** の線を引く（報酬・戦闘・魔導板すべて）。
+カードの外周には常に **1px の #c49a6c（`magic_board6.svg` と同色）** の線を引く（報酬・戦闘・魔導板すべて）。
 線は CSS の `border` で描くので、**枠画像の角Rと同じ半径を `border-radius` に入れないと角だけ二重線になる。**
 
 角Rは枠画像ごとに違い、絵を差し替えれば変わる（`summon_frame1` は 712×1079 で29px、
@@ -369,7 +369,7 @@ tools/
 **枠画像を差し替えても、コードもCSSも直す必要はない**（実測が追随する）。
 
 **魔導板のマスの角Rも同じ値に揃えてある。**
-マスには「カードの枠の絵」「マスの背景（`m_board1〜6.svg`）」「マスの外周線（`m_board_frame.svg`）」の
+マスには「カードの枠の絵」「マスの背景（`m_board1〜6.svg`）」「マスの外周線（`magic_board_frame.svg`）」の
 3つの角丸が重なるため、**1つでも半径が違うと角に二重線と隙間が出る。**
 - CSS 側の角丸は全て `border-radius:var(--card-frame-r,5.65% / 3.721%)`（22箇所）。
 - SVG 側の `rx`/`ry` は **14.7**（＝260×395の箱で 5.65% / 3.721%）。
@@ -384,12 +384,12 @@ tools/
 
 ### 報酬カード／魔導板カードの黒背面と暗転
 
-報酬カードと魔導板カードは、カード本体の最背面へ黒塗りの `m_board6.svg` を常時置く。
-`.card-back-layer` だけに依存せず、カードルートにも `#000 url(m_board6.svg)` を指定し、
+報酬カードと魔導板カードは、カード本体の最背面へ黒塗りの `magic_board6.svg` を常時置く。
+`.card-back-layer` だけに依存せず、カードルートにも `#000 url(magic_board6.svg)` を指定し、
 背面は**いかなる状態でも不透明**にする。カードルート全体へ `opacity` を掛けると背景が透けるため禁止。
 
 - 報酬カードの暗転状態は `.cant` と `.reward-used-dim`。専用の
-  `.reward-card-dim-layer`（黒50%、`z-index:10000`）を、カード絵・枠画像・`stat_overlay.png`・
+  `.reward-card-dim-layer`（黒50%、`z-index:10000`）を、カード絵・枠画像・`status_overlay.png`・
   ATK/HP・プログラム枠線の上へ置く。資金不足表示は `z-index:10002` で暗転より上に残す。
 - arrow はカード外へはみ出すため、カード内でクリップされる暗転レイヤーだけでは先端を暗くできない。
   暗い報酬カードでは arrow を `z-index:10001` に置き、arrow 自体へ `brightness(.5)` を掛ける。
@@ -402,7 +402,7 @@ tools/
 - 暗い報酬カードの枠線もカード本体と同じく暗くする。枠線だけを明るく残す指定を追加しない。
 
 この重なり順とドラッグ時の状態は `tools/parity/board_drag_visual_check.js` で検査する。
-黒背面の不透明性、暗転レイヤー、`stat_overlay.png`、枠線、arrow、ホバー時の発光を
+黒背面の不透明性、暗転レイヤー、`status_overlay.png`、枠線、arrow、ホバー時の発光を
 個別に実測しているため、関連CSSを触ったらこの検査を通すこと。
 
 ### 商店の売却UIとアイテム／指輪の固定ホバー

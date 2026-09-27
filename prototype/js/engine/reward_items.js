@@ -83,7 +83,8 @@ function _syncRewardProductionItems(){
           if(buyCost>0){
             G.gold-=buyCost;
             if(typeof refreshRewardGoldUi==='function') refreshRewardGoldUi();
-            if(typeof playSfx==='function') playSfx('buy2',{group:'reward'});
+            // クリック購入と同じ鳴らし方（ファイル指定・FILE_SFX_VOLUMES の音量）にそろえる。
+            if(typeof _playRewardAcquireSfx==='function') _playRewardAcquireSfx('buy2.wav');
           }
           const placed=clone(card);
           if(buyCost>0&&typeof markShopPurchase==='function') markShopPurchase(placed,card,rewIdx,buyCost);
@@ -120,7 +121,9 @@ function _syncRewardProductionItems(){
       action.dataset.sfxSilent='1';
       // この来店で買ったアイテムは売価ではなく「返品」（買値と同額で戻す。reward.js）。
       const returnable=typeof isShopReturnable==='function'&&isShopReturnable(item);
-      action.textContent=returnable?_shopReturnLabel():`+${price}G`;
+      // 表示も実際の入金（onGoldGained＝強欲の指輪などの倍率込み）と同じ額にする（2026-09-27 利用者指摘）。
+      const shownPrice=typeof goldIncomeAmount==='function'?goldIncomeAmount(price):price;
+      action.textContent=returnable?_shopReturnLabel():`+${shownPrice}G`;
       if(returnable) action.classList.add('shop-return-btn');
       action.onclick=ev=>{
         ev.stopPropagation();

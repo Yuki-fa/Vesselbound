@@ -10,30 +10,30 @@ const CARD_FRAME_VERSION='frame0916';
 const Assets = {
   cards: {
     // エリート／ボス用の枠。SVGをそのまま背景レイヤーとして使用する。
-    characterFrame: `assets/cards/boss_frame.svg?v=${CARD_FRAME_VERSION}`,
+    characterFrame: `assets/cards/enemy_frame_m.svg?v=${CARD_FRAME_VERSION}`,
     enemyFrame: `assets/cards/enemy_frame.svg?v=${CARD_FRAME_VERSION}`,
-    statOverlay: 'assets/cards/stat_overlay.png',
+    statOverlay: 'assets/cards/status_overlay.png',
     // **summon_frameN の N は色の並び（赤・青・緑・黄・紫）に対応する。**
     // summon_frame1 と summon_frame3 は入れ替え済み（1＝赤／3＝緑）。
-    summonFrameRed: `assets/cards/summon_frame1.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameBlue: `assets/cards/summon_frame2.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameGreen: `assets/cards/summon_frame3.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameBrown: `assets/cards/summon_frame4.svg?v=${CARD_FRAME_VERSION}`,
-    summonFramePurple: `assets/cards/summon_frame5.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameRedMerged: `assets/cards/summon_frame1_m.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameBlueMerged: `assets/cards/summon_frame2_m.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameGreenMerged: `assets/cards/summon_frame3_m.svg?v=${CARD_FRAME_VERSION}`,
-    summonFrameBrownMerged: `assets/cards/summon_frame4_m.svg?v=${CARD_FRAME_VERSION}`,
-    summonFramePurpleMerged: `assets/cards/summon_frame5_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameRed: `assets/cards/character_frame1.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBlue: `assets/cards/character_frame2.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameGreen: `assets/cards/character_frame3.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBrown: `assets/cards/character_frame4.svg?v=${CARD_FRAME_VERSION}`,
+    summonFramePurple: `assets/cards/character_frame5.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameRedMerged: `assets/cards/character_frame1_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBlueMerged: `assets/cards/character_frame2_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameGreenMerged: `assets/cards/character_frame3_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFrameBrownMerged: `assets/cards/character_frame4_m.svg?v=${CARD_FRAME_VERSION}`,
+    summonFramePurpleMerged: `assets/cards/character_frame5_m.svg?v=${CARD_FRAME_VERSION}`,
     enchantmentFrame: `assets/cards/enchantment.svg?v=${CARD_FRAME_VERSION}`,
     enchantmentFrameMerged: `assets/cards/enchantment_m.svg?v=${CARD_FRAME_VERSION}`,
     // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
     // 画像は上と同じものを色で選ぶ。
-    spell1: `assets/cards/summon_frame3.svg?v=${CARD_FRAME_VERSION}`,
-    spell2: `assets/cards/summon_frame2.svg?v=${CARD_FRAME_VERSION}`,
-    spell3: `assets/cards/summon_frame4.svg?v=${CARD_FRAME_VERSION}`,
-    spell4: `assets/cards/summon_frame1.svg?v=${CARD_FRAME_VERSION}`,
-    spell5: `assets/cards/summon_frame5.svg?v=${CARD_FRAME_VERSION}`,
+    spell1: `assets/cards/character_frame3.svg?v=${CARD_FRAME_VERSION}`,
+    spell2: `assets/cards/character_frame2.svg?v=${CARD_FRAME_VERSION}`,
+    spell3: `assets/cards/character_frame4.svg?v=${CARD_FRAME_VERSION}`,
+    spell4: `assets/cards/character_frame1.svg?v=${CARD_FRAME_VERSION}`,
+    spell5: `assets/cards/character_frame5.svg?v=${CARD_FRAME_VERSION}`,
     redOrb: 'assets/cards/red_orb.png',
     blueOrb: 'assets/cards/blue_orb.png',
     greenOrb: 'assets/cards/green_orb.png',
@@ -45,60 +45,59 @@ const Assets = {
     collectionBoard: 'assets/cards/c_board.svg',
   },
   backgrounds: {
-    title: 'assets/art/backgrounds/title_castle.webp',
-    stage1: 'assets/art/backgrounds/stage_forest.webp',
-    stage2: 'assets/art/backgrounds/stage_grassland.webp?v=bg0916',
-    stage3: 'assets/art/backgrounds/stage_valley.webp?v=bg0916',
+    title: 'assets/art/backgrounds/title.webp',
+    stage1: 'assets/art/backgrounds/stage1_battlestage.webp',
+    stage2: 'assets/art/backgrounds/stage2_battlestage.webp?v=bg0916',
+    stage3: 'assets/art/backgrounds/stage3_battlestage.webp?v=bg0916',
     // ステージ4は街の前後で背景を分ける。
     // stage4＝「黄昏の回廊」（街の手前）／stage4Tower＝「謁見の黒影道」（街を出た後）。
-    stage4: 'assets/art/backgrounds/stage_capital1.webp',
-    stage4Tower: 'assets/art/backgrounds/stage_capital2.webp',
-    stageEnd: 'assets/art/backgrounds/stage_endworld.webp?v=bg0916',
+    stage4: 'assets/art/backgrounds/stage4_battlestage_1.webp',
+    stage4Tower: 'assets/art/backgrounds/stage4_battlestage_2.webp',
+    stageEnd: 'assets/art/backgrounds/stage5_battlestage.webp?v=bg0916',
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。
-    village0: 'assets/art/backgrounds/village_start.webp',
+    village0: 'assets/art/backgrounds/stage0_village.webp',
     // リーゼのホーム（ホームは未実装のため、今は入れない）。
-    homeStart: 'assets/art/backgrounds/home_start.webp',
-    village1: 'assets/art/backgrounds/village_forest.webp',
-    village2: 'assets/art/backgrounds/village_grassland.webp',
-    village3: 'assets/art/backgrounds/village_valley.webp',
+    homeStart: 'assets/art/backgrounds/stage0_home.webp',
+    village1: 'assets/art/backgrounds/stage1_village.webp',
+    village2: 'assets/art/backgrounds/stage2_village.webp',
+    village3: 'assets/art/backgrounds/stage3_village.webp',
     // ギャラハの闘技場受付。
     // 受領済みの素材ファイル名には先頭空白が含まれているため、file://で実在する名前を参照する。
-    arena: 'assets/art/backgrounds/ arena.webp',
+    arena: 'assets/art/backgrounds/stage3_arena.webp',
     // 闘技場の戦闘背景。
-    stageArena: 'assets/art/backgrounds/stage_arena.webp',
-    village4: 'assets/art/backgrounds/city_capital.webp',
-    villageEnd: 'assets/art/backgrounds/village_endworld.webp',
+    stageArena: 'assets/art/backgrounds/stage3_arena_battlestage.webp',
+    village4: 'assets/art/backgrounds/stage4_city.webp',
+    villageEnd: 'assets/art/backgrounds/stage5_village.webp',
     // ワールドマップ画面（出発時に数秒表示する）
     map: 'assets/art/backgrounds/map.webp',
     // 塔（祭壇）画面の背景
     tower: 'assets/art/backgrounds/tower.webp',
     // 図書館画面の背景
-    library: 'assets/art/backgrounds/library.webp',
+    library: 'assets/art/backgrounds/stage0_library.webp',
     // 街の施設ごとの背景（ステージ1・エルム）
-    itemShopForest: 'assets/art/backgrounds/item_shop_forest.webp',
-    magicShopForest: 'assets/art/backgrounds/magic_shop_forest.webp',
+    itemShopForest: 'assets/art/backgrounds/stage1_item_shop.webp',
+    magicShopForest: 'assets/art/backgrounds/stage1_magic_shop.webp',
     // 街の施設ごとの背景（ステージ2・ヴァルガ）
-    itemShopGrassland: 'assets/art/backgrounds/item_shop_grassland.webp',
-    magicShopGrassland: 'assets/art/backgrounds/magic_shop_grassland.webp',
-    blacksmithGrassland: 'assets/art/backgrounds/blacksmith_grassland.webp',
+    itemShopGrassland: 'assets/art/backgrounds/stage2_item_shop.webp',
+    magicShopGrassland: 'assets/art/backgrounds/stage2_magic_shop.webp',
     // 街の施設ごとの背景（ステージ3・ギャラハ）
-    magicShopValley: 'assets/art/backgrounds/magic_shop_valley.webp',
-    blacksmithValley: 'assets/art/backgrounds/blacksmith_valley.webp',
+    magicShopValley: 'assets/art/backgrounds/stage3_magic_shop.webp',
+    blacksmithValley: 'assets/art/backgrounds/stage3_blacksmith.webp',
     // 街の施設ごとの背景（ステージ4・ヴォルザーク）
-    magicShopCapital: 'assets/art/backgrounds/magic_shop_capital.webp',
-    blacksmithCapital: 'assets/art/backgrounds/blacksmith_capital.webp',
+    magicShopCapital: 'assets/art/backgrounds/stage4_shop.webp',
+    blacksmithCapital: 'assets/art/backgrounds/stage4_blacksmith.webp',
     // 街の施設ごとの背景（ステージ5・フォルセティ）
-    magicShopEndworld: 'assets/art/backgrounds/magic_shop_endworld.webp',
-    itemShopEndworld: 'assets/art/backgrounds/item_shop_endworld.webp',
+    magicShopEndworld: 'assets/art/backgrounds/stage5_magic_shop.webp',
+    itemShopEndworld: 'assets/art/backgrounds/stage5_item_shop.webp',
     // 酒場（ステージ1・エルム／2・ヴァルガ／3・ギャラハ）。酒場は未実装のため、今は入れない。
-    tavernForest: 'assets/art/backgrounds/tavern_forest.webp',
-    tavernGrassland: 'assets/art/backgrounds/tavern_grassland.webp',
-    tavernValley: 'assets/art/backgrounds/tavern_valley.webp',
+    tavernForest: 'assets/art/backgrounds/stage1_tavern.webp',
+    tavernGrassland: 'assets/art/backgrounds/stage2_tavern.webp',
+    tavernValley: 'assets/art/backgrounds/stage3_tavern.webp',
     camp: 'assets/art/backgrounds/camp.webp',
-    innGrassland: 'assets/art/backgrounds/inn_grassland.webp',
-    innCapital: 'assets/art/backgrounds/inn_capital.webp',
-    innEndworld: 'assets/art/backgrounds/inn_endworld.webp',
+    innGrassland: 'assets/art/backgrounds/stage2_inn.webp',
+    innCapital: 'assets/art/backgrounds/stage4_inn.webp',
+    innEndworld: 'assets/art/backgrounds/stage5_inn.webp',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
@@ -199,16 +198,16 @@ const Assets = {
     collectionLine: 'assets/ui/collection_line.svg',
     collectionThumb: 'assets/ui/thumb_blue.svg',
     collectionTrack: 'assets/ui/track.svg',
-    collectionArrow: 'assets/ui/option_select.svg',
+    collectionArrow: 'assets/ui/select.svg',
     collectionTab: 'assets/ui/button_invisible.svg',
   },
   mapBoard: {
-    summon: 'assets/cards/m_board1.svg',
-    life: 'assets/cards/m_board2.svg',
-    eternal: 'assets/cards/m_board3.svg',
-    resonance: 'assets/cards/m_board4.svg',
-    duplicate: 'assets/cards/m_board5.svg',
-    empty: 'assets/cards/m_board6.svg',
+    summon: 'assets/cards/magic_board1.svg',
+    life: 'assets/cards/magic_board2.svg',
+    eternal: 'assets/cards/magic_board3.svg',
+    resonance: 'assets/cards/magic_board4.svg',
+    duplicate: 'assets/cards/magic_board5.svg',
+    empty: 'assets/cards/magic_board6.svg',
   },
   sfx: {
     uiConfirm: 'assets/sfx/ui_confirm.wav',
@@ -240,14 +239,14 @@ const Assets = {
     fit: 'assets/sfx/fit.wav',
     'return': 'assets/sfx/return.wav',
     menu: 'assets/bgm/menu.wav',
-    villageForest: 'assets/bgm/village_forest.wav',
-    villageGrassland: 'assets/bgm/village_grassland.wav',
-    villageValley: 'assets/bgm/village_valley.wav',
-    villageEndworld: 'assets/bgm/village_endworld.wav',
-    cityCapital: 'assets/bgm/city_capital.wav',
+    villageForest: 'assets/bgm/stage1_village.wav',
+    villageGrassland: 'assets/bgm/stage2_village.wav',
+    villageValley: 'assets/bgm/stage3_village.wav',
+    villageEndworld: 'assets/bgm/stage5_village.wav',
+    cityCapital: 'assets/bgm/stage4_city.wav',
     tower: 'assets/bgm/tower.wav',
-    gameTitle: 'assets/bgm/game_title.wav',
-    villageStart: 'assets/bgm/village_start.wav', // リーゼ（ゲーム開始地点）
+    gameTitle: 'assets/bgm/title.wav',
+    villageStart: 'assets/bgm/stage0_village.wav', // リーゼ（ゲーム開始地点）
     // 街BGMに重ねる環境音（サブBGMレイヤー）
     thunder: 'assets/bgm/thunder.wav',
     rain: 'assets/bgm/rain.wav',
@@ -401,7 +400,7 @@ function _spellFrameByColor(color){
   return Assets.cards.spell1;
 }
 
-// エリート／ボスの敵はカード枠・戦闘スロットとも boss_frame.svg を使う。
+// エリート／ボスの敵はカード枠・戦闘スロットとも enemy_frame_m.svg を使う。
 // （通常の敵枠や色別の召喚枠ではなく、特別な相手であることを枠で示す）
 function _isEliteOrBossCard(card){
   if(!card) return false;
@@ -451,7 +450,7 @@ function getCardFrameAsset(card){
   return _tripleMergedFrameAsset(_getCardFrameAssetBase(card),card);
 }
 
-// 合体前の枠が boss_frame.svg になるカードは、トリプル合体の素材にしない。
+// 合体前の枠が enemy_frame_m.svg になるカードは、トリプル合体の素材にしない。
 function isTripleMergeBlockedCard(card){
   return _getCardFrameAssetBase(card)===Assets.cards.characterFrame;
 }
@@ -513,9 +512,9 @@ function getCharacterNoArtPath(card){
   // （loader.js の _assignSheetArtCode）。実ファイルは NPC### 表記なので読み替える。
   if(code.startsWith('MC')) code='NPC'+code.slice(2);
   let dir='';
-  if(code.startsWith('NPC')||code.startsWith('BC')) dir='assets/art/NPC';
+  if(code.startsWith('NPC')||code.startsWith('BC')) dir='assets/art/npcs';
   else if(code.startsWith('EN')) dir='assets/art/enemies';
-  else if(code[0]==='E') dir='assets/art/enchantment';
+  else if(code[0]==='E') dir='assets/art/enchantments';
   else if(code[0]==='C') dir='assets/art/characters';
   else return '';
   // カード絵は jpg だけを読む（利用者指定）。以前は png も重ねて候補にしていたが、

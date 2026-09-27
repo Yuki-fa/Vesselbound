@@ -65,7 +65,6 @@ function _withVfxAssetVersion(url){
     const cardPreviewEl=tgt&&tgt.closest('[data-preview]');
     const journeyEnemyEl=tgt&&tgt.closest('[data-journey-enemy]');
     const panelPreviewEl=tgt&&tgt.closest('[data-panel-power-preview]');
-    const kwEl=tgt&&tgt.closest('.slot-badge[data-kwdesc]');
     const mapPreviewEl=tgt&&tgt.closest('[data-map-power-preview]');
     const keywordPreviewEl=tgt&&tgt.closest('[data-keyword-preview]');
     // ホバー説明はカーソルではなく、カード／指輪／アイテム／旅アイコンの実寸を基準に置く。
@@ -86,7 +85,7 @@ function _withVfxAssetVersion(url){
       &&!!(tgt&&tgt.closest('#hand-slots.board-slots,#gameover-board-grid'));
     // 右クリックのぞき見中は、透明化したカード自身の説明へフォールバックしない。
     // 特殊マスがある場合だけ、そのマスの説明を表示する。
-    const el=isPanelPeek?panelPreviewEl:(cardPreviewEl||kwEl||panelPreviewEl);
+    const el=isPanelPeek?panelPreviewEl:(cardPreviewEl||panelPreviewEl);
     if(!el&&!mapPreviewEl&&!keywordPreviewEl){ hideTips(); return; }
     const isKeywordDesc=!!(el&&el.hasAttribute('data-kwdesc'));
     // 右クリックのぞき見中、マス自体（召喚の力など）の説明はdata-panel-power-previewから出す。
@@ -296,6 +295,9 @@ const _CLICK_RIPPLE_INTERACTIVE='button,a[href],[role="button"],[draggable="true
 })();
 function _escapePreviewHtml(s){
   return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function _lifeLabelText(){
+  return typeof textMessage==='function'?textMessage('「ライフ枠」見出し','ライフ'):'ライフ';
 }
 // 説明文中の「（色文字）（数字）マナ」をマナ数分のマナアイコンに置き換える（数字・「マナ」の文字は表示しない）。
 // また色名（青・赤・緑・黄・紫・茶）が強化系キーワードに続く場合は、見た目・種族分類の色アイコンを添える（マナとは無関係）。
@@ -680,6 +682,28 @@ function _keywordDescLine(name,lookupKey){
   let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[key]||KW_DESC_MAP[base]))||'';
   if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(key)||'';
   return d?`${_keywordDescLabel(base,d)}：${d}`:'';
+}
+// 戦闘中の状態値を、キーワードシート由来の名前・説明へ結び付ける。
+// シートにない語は状態バッジとして表示しない（廃止済み語をコード側だけで復活させないため）。
+function _keywordSheetStatus(rawName,amount){
+  if(typeof KW_DESC_MAP==='undefined'||!KW_DESC_MAP) return null;
+  const source=String(rawName||'').trim();
+  if(!source) return null;
+  const suffixMatch=source.match(/(?:\d+|X|∞)$/);
+  const suffix=amount==null?(suffixMatch?suffixMatch[0]:''):String(amount);
+  const requestedBase=source.replace(/(?:\d+|X|∞)+$/,'');
+  const keys=Object.keys(KW_DESC_MAP).filter(Boolean);
+  const sheetName=keys.find(name=>String(name).trim()===source)
+    ||keys.find(name=>String(name).trim().replace(/X$/,'')===requestedBase);
+  if(!sheetName) return null;
+  const name=String(sheetName).trim().replace(/X$/,'');
+  const desc=String(KW_DESC_MAP[sheetName]||KW_DESC_MAP[name]||'').trim();
+  if(!name||!desc) return null;
+  return {name,label:`${name}${suffix}`,desc};
+}
+function _keywordStatusPreviewLine(name,amount){
+  const meta=_keywordSheetStatus(name,amount);
+  return meta?`${meta.label}：${meta.desc}`:'';
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
@@ -1076,6 +1100,12 @@ function getCurrentUnitSlot(side,idxOrUnit){
   // ここを「そのキャラの居場所」として返すと、数値・VFX・攻撃モーションが
   // 何もない場所へ出る。キャラ指定での解決では空きスロットを返さない。
   if(found&&typeof idxOrUnit==='object'&&found.classList&&found.classList.contains('dead-empty')) return null;
+  // 表示されていない枠（大きさ0）を居場所として返すと、攻撃モーション・VFX・数値が画面の左上（0,0）へ向かう。
+  // 敵が大量に並んだ時（召喚で枠が足りない時）に起きていた（2026-09-27 利用者指摘）。
+  if(found&&typeof found.getBoundingClientRect==='function'){
+    const r=found.getBoundingClientRect();
+    if(!(r.width>0&&r.height>0)) return null;
+  }
   return found;
 }
 
@@ -3160,7 +3190,10 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
 
   // 発生源から見た各対象の実際の角度・距離を計算する。これにより対象が1体で近くても、
   // 遠く（後衛）でも、正しい長さ・向きで炎が届く。
-  const targetRects=targetSlots.map(s=>s.getBoundingClientRect());
+  // 表示しきれない枠（大きさ0＝左上の 0,0）を向きの計算に入れない。敵が大量に並んだ時（ケルピーの召喚など）、
+  // それらが混ざると扇が画面の左上へ引っ張られ、左端へ攻撃したように見えていた（2026-09-27 利用者指摘）。
+  const targetRects=targetSlots.map(s=>s.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+  if(!targetRects.length) return Promise.resolve();
   const points=targetRects.map(r=>({x:r.left+r.width/2,y:r.top+r.height/2}));
   const angles=points.map(p=>Math.atan2(p.y-originY,p.x-originX)*180/Math.PI);
   const distances=points.map(p=>Math.hypot(p.x-originX,p.y-originY));
@@ -3309,7 +3342,7 @@ function updateUnitDamageUi(unit,side){
   const fill=slot.querySelector('.slot-life-fill');
   if(fill) fill.style.width=`${rate*100}%`;
   const bar=slot.querySelector('.slot-life-bar');
-  if(bar) bar.title=`ライフ ${_hpVal}/${maxHp}`;
+  if(bar) bar.title=`${_lifeLabelText()} ${_hpVal}/${maxHp}`;
 }
 // 戦闘中、ATK/HPを変化させる効果が発動するたびに呼び出し、両陣営の生存ユニット全員の
 // 外観の数値（ATK/HP）を即座に更新する（renderAll()のようなカード再構築は行わない軽量版）。
@@ -3329,29 +3362,6 @@ function updateUnitShieldUi(unit,side){
   const shown=typeof presentShownShield==='function'?presentShownShield(unit):(Number(unit.shield)||0);
   const hasShield=shown>0;
   slot.classList.toggle('shield-active',hasShield);
-  const badge=slot.querySelector('.b-shield');
-  if(badge){
-    if(hasShield) badge.textContent=`結界${shown}`;
-    else badge.remove();
-  } else if(hasShield){
-    // **結界を「得た」時はバッジがまだ無い。** 作り直しを待つと次の攻撃まで出ないため、
-    // ここで足す。並び順は renderField と同じ（守護の次）。
-    let box=slot.querySelector('.slot-badges');
-    if(!box){
-      box=document.createElement('div');
-      box.className='slot-badges';
-      slot.insertBefore(box,slot.firstChild);
-    }
-    const el=document.createElement('span');
-    el.className='slot-badge b-shield';
-    const desc=(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['結界'])||'';
-    if(desc) el.setAttribute('data-kwdesc',desc);
-    el.textContent=`結界${shown}`;
-    const guard=box.querySelector('.b-guard');
-    if(guard&&guard.nextSibling) box.insertBefore(el,guard.nextSibling);
-    else if(guard) box.appendChild(el);
-    else box.insertBefore(el,box.firstChild);
-  }
   const portrait=slot.querySelector('.unit-portrait');
   const existingLayer=portrait&&portrait.querySelector('.unit-shield-layer');
   if(hasShield&&portrait&&!existingLayer){
@@ -3473,7 +3483,7 @@ function _buildMotionCardClone(fromEl, fr){
       cloneOverlay.style.setProperty('max-width',`${frameRect.width}px`,'important');
       cloneOverlay.style.setProperty('max-height',`${frameRect.height}px`,'important');
       cloneOverlay.style.setProperty('transform','translate(-50%,-50%)','important');
-      cloneOverlay.style.setProperty('background-image',sourceOverlayStyle.backgroundImage||'url("assets/cards/stat_overlay.png")','important');
+      cloneOverlay.style.setProperty('background-image',sourceOverlayStyle.backgroundImage||'url("assets/cards/status_overlay.png")','important');
       cloneOverlay.style.setProperty('background-size','100% 100%','important');
       cloneOverlay.style.setProperty('background-position','center','important');
       cloneOverlay.style.setProperty('background-repeat','no-repeat','important');
@@ -4281,11 +4291,6 @@ function _enchantEffectTextForPanel(p){
     return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect||'','封印されしもの')
       .replace(/^封印\d+\s*/,'').trim();
   }
-  if(p.manaOnAttack) return `攻撃：${Math.max(1,Number(p.manaOnAttack)||1)}マナを得る。`;
-  if(p.adjacentAtkBonus||p.adjacentHpBonus){
-    const a=p.adjacentAtkBonus||0, h=p.adjacentHpBonus||0;
-    return `常時：${a&&h?`+${a}/+${h}`:a?`ATK+${a}`:`HP+${h}`}を得る。`;
-  }
   // 自分自身の名前を自己参照キーワードとして持つ場合（狂気・闇の炎等）は、
   // _enchantKeywordDesc()の汎用（かつシート更新に追従しない恐れのある）ハードコード文言ではなく、
   // シート上の本文（authoritative）をそのまま使う
@@ -4376,7 +4381,8 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     // （以前は別の数え方をしていて、説明は+4/+4なのに実際は+2/+2だった）。
     const enh=typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(unit,slotIdx):null;
     const amount=Number(enh&&enh.strategyBonus)||0;
-    if(amount>0) charTexts.unshift(`「策士」の効果で+${amount}/+${amount}されている。`);
+    const template=String(strategyPanels.find(e=>String(e.panel&&e.panel.characterDesc||'').trim())?.panel.characterDesc||'').trim();
+    if(amount>0&&template) charTexts.unshift(template.replace(/\+\d+\s*\/\s*\+\d+/,`+${amount}/+${amount}`));
   }
   return {normalTexts,charTexts};
 }
@@ -4601,8 +4607,14 @@ function _unitPreviewText(unit, desc, slotIdx){
   // **「状態」は戦闘中だけ出す。** 編成画面では結界はキーワード欄に出ており、
   // そこへ更に「状態：結界1」を並べると同じことを二度書くことになる。
   const _inBattle=typeof G!=='undefined'&&G&&(G.phase==='player'||G.phase==='enemy');
-  if(_inBattle&&unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
-  if(_inBattle&&unit.shield>0) lines.push(`状態：結界${unit.shield}`);
+  if(_inBattle&&unit.poison>0){
+    const poisonLine=_keywordStatusPreviewLine('毒',unit.poison);
+    if(poisonLine) lines.push(poisonLine);
+  }
+  if(_inBattle&&unit.shield>0){
+    const shieldLine=_keywordStatusPreviewLine('結界',unit.shield);
+    if(shieldLine) lines.push(shieldLine);
+  }
   // descの中の単独キーワード行は、既にキーワード欄へ出しているためその行だけ除く。
   // スケルトンキングの「復活\n攻撃：…」は、復活だけが本文色で二重表示されていた。
   const shownKeywordNames=new Set([...(unit.keywords||[]),...kws]
@@ -5017,34 +5029,9 @@ function renderField(id,units,isEnemy,_lane){
       }
       // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
       {
-        // ── ステータスバッジ（右上固定：状態異常のみ）──
-        const bs=[];
-        const _sd=(k)=>{const d=KW_DESC_MAP[k]||'';return d?` data-kwdesc="${d.replace(/"/g,'&quot;')}"`:'';};
-        // 標的バッジは非表示（is-front の視覚的シフトで代用）
-        if(u.guardian) bs.push(`<span class="slot-badge b-guard"${_sd('守護')}>守護</span>`);
         // **結界は表示専用の値で描く**（present.js）。実体を直に描くと、
-        // 結界を割った演出（K018）より先に shield.png と結界バッジが消える。
+        // 結界を割った演出（K018）より先に shield.png が消える。
         const _shownShield=typeof presentShownShield==='function'?presentShownShield(u):(Number(u.shield)||0);
-        if(_shownShield>0) bs.push(`<span class="slot-badge b-shield"${_sd('結界')}>結界${_shownShield}</span>`);
-        if(u.instadead) bs.push(`<span class="slot-badge b-dead"${_sd('即死')}>即死</span>`);
-        if(u.poison>0) bs.push(`<span class="slot-badge b-psn" data-kwdesc="敵のターン終了時にライフをX失う。">毒${u.poison}</span>`);
-        if(u.stealth) bs.push(`<span class="slot-badge b-stealth"${_sd('隠密')}>隠密</span>`);
-        if(u.allyTarget) bs.push(`<span class="slot-badge b-hate"${_sd('狙われ')}>狙われ</span>`);
-        const badgeBlock=bs.length?`<div class="slot-badges">${bs.join('')}</div>`:'';
-        // ── キーワードブロック（パワー/ライフとテキストの中間・中央揃え）──
-        // エリート/ボスは他キーワードの1行上。
-        const _kColorMap={'即死':'#e060e0','毒牙':'#a060d0','毒':'#a060d0','加護':'#60b0e0','エリート':'#ffd700','ボス':'#ff8040','二段攻撃':'#60d0e0','三段攻撃':'#60d0e0','全体攻撃':'#e04040','三方向攻撃':'#e04040','貫通':'#e08040','狩人':'#d08040','狙撃':'#d08040','結束':'#80d0d0','邪眼':'#c060c0','弱体':'#c08040','衝撃':'#c08040','強靭':'#60c090','結界':'#60a0e0','隠密':'#8080c0','アーティファクト':'#b0a080'};
-        const _mkKwSpan=k=>{const kb=k.replace(/\d+$/,'');const kc=_kColorMap[k]||_kColorMap[kb]||'#888';const kd=KW_DESC_MAP[k]||KW_DESC_MAP[kb]||'';return `<span class="slot-badge" style="background:rgba(0,0,0,.4);color:${kc};border:1px solid ${kc};font-weight:bold;cursor:help"${kd?` data-kwdesc="${kd.replace(/"/g,'&quot;')}"`:''}>${k}</span>`;};
-        // 弱体X（弱体化Xにより付与された状態）はunit.weaken（数値、加算式）で管理しているため、
-        // バッジ表示用の擬似キーワードとして合成する
-        const _dynKws=_shownShield>0?[`結界${_shownShield}`]:[];
-        const _allKws=[...(u.poison>0?[`毒${u.poison}`]:[]),...((typeof presentShownWeaken==='function'?presentShownWeaken(u):(Number(u.weaken)||0))>0?[`弱体${typeof presentShownWeaken==='function'?presentShownWeaken(u):u.weaken}`]:[]),...(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords([...(u.keywords||[]),..._dynKws]):[...new Set([...(u.keywords||[]),..._dynKws])])].filter(k=>!_INTERNAL_ONLY_ENCHANT_NAMES.has(k)&&!(typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k).replace(/\d+$/,''))));
-        const _topKws=_allKws.filter(k=>k==='エリート'||k==='ボス');
-        const _normKws=_allKws.filter(k=>k!=='エリート'&&k!=='ボス');
-        const _topRow=_topKws.length?`<div style="display:flex;justify-content:center;gap:2px;margin-bottom:1px;pointer-events:auto">${_topKws.map(_mkKwSpan).join('')}</div>`:'';
-        const _normRow=_normKws.length?`<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">${_normKws.map(_mkKwSpan).join('')}</div>`:'';
-        let kwBlock='';
-        if(_normKws.length) kwBlock=`<div style="margin:4px 0 3px;padding:0 2px">${_normRow}</div>`;
         const gradeTag='';
         const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
         const _desc=_stripKeywordsFromDesc(_rawDesc,u);
@@ -5070,7 +5057,7 @@ function renderField(id,units,isEnemy,_lane){
         const _statPairCls=_cardStatPairDigitClass(_shownAtk,_shownHp);
         const _hpMax=_shownMaxHp;
         const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,_shownHp)/_hpMax)*100)));
-        const hpBar=`<div class="slot-life-bar" title="ライフ ${Math.max(0,_shownHp)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
+        const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(_lifeLabelText())} ${Math.max(0,_shownHp)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
         const raceTag='';
         // 情報ブロック：絶対配置でカード全体に広げ中央固定
         // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
@@ -5084,9 +5071,9 @@ function renderField(id,units,isEnemy,_lane){
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}${badgeBlock}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}">${_topRow}<div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${kwBlock}${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
         }
         const _battleFrameLayer=slot.querySelector('.unit-frame-layer');
         if(_battleFrameLayer){
@@ -5533,14 +5520,27 @@ function mkCardEl(card,_idx,_ctx){
 }
 
 function renderControls(){
-  const badge=document.getElementById('ph-badge');
   const pp=document.getElementById('btn-pass');
   const dbg=document.getElementById('btn-debug-kill');
   const testBtn=document.getElementById('btn-test-battle');
   const dbgOver=document.getElementById('btn-debug-gameover');
-  // 編成画面のデバッグボタンは4つとも同じ条件で出す（2行2列に並ぶ）。
-  const dbgExtra=['btn-debug-error','btn-debug-map'].map(id=>document.getElementById(id)).filter(Boolean);
-  const setDbgExtra=v=>dbgExtra.forEach(el=>{ el.style.display=v; });
+  const dbgQuest=document.getElementById('btn-debug-quest');
+  // 編成画面の補助ボタンは、闘技場中・勝利演出中を含めて同じ条件で出す。
+  const dbgExtra=['btn-debug-map'].map(id=>document.getElementById(id)).filter(Boolean);
+  const setDbgExtra=v=>dbgExtra.forEach(el=>{
+    if(v==='none') el.style.setProperty('display','none','important');
+    else el.style.removeProperty('display');
+  });
+  const setDbgQuest=v=>{
+    if(!dbgQuest) return;
+    if(v) dbgQuest.style.removeProperty('display');
+    else dbgQuest.style.setProperty('display','none','important');
+  };
+  const setDbgOver=v=>{
+    if(!dbgOver) return;
+    if(v) dbgOver.style.removeProperty('display');
+    else dbgOver.style.setProperty('display','none','important');
+  };
   const debugTestBattle=!!(G._debugMode&&G._testBattleMode&&!G._libraryTestBattleMode&&!debugButtonsSuppressed());
   // デバッグ撃破ボタンは報酬バー内にあるため、試験戦闘中だけ親を表示して
   // 実際のクリック領域を確保する。通常モード・通常戦闘では親も従来どおり隠す。
@@ -5550,27 +5550,27 @@ function renderControls(){
     else dbgParent.style.removeProperty('display');
   }
   if(G.phase==='player'){
-    badge.className='ph-badge ph-player'; badge.textContent='プレイヤーターン';
     if(dbg) dbg.style.display=G._debugMode&&!debugButtonsSuppressed()?'':'none';
     if(testBtn) testBtn.style.display='none';
-    if(dbgOver) dbgOver.style.display='none';
+    setDbgOver(false);
+    setDbgQuest(false);
     setDbgExtra('none');
   } else if(G.phase==='reward'){
-    // 商談フェイズ：バッジはgoToReward()で設定済みなので上書きしない
     pp.style.display='none';
     if(dbg) dbg.style.display='none';
     // 闘技場の継戦確認の間（勝利後に phase が reward になる）は、デバッグ用のボタンを出さない。
     const _dbgShow=G._debugMode&&!debugButtonsSuppressed();
-    if(dbgOver) dbgOver.style.display=_dbgShow?'':'none';
+    setDbgOver(_dbgShow);
+    setDbgQuest(_dbgShow);
     if(testBtn) testBtn.style.display=_dbgShow?'':'none';
     setDbgExtra(_dbgShow?'':'none');
     return;
   } else {
-    badge.className='ph-badge ph-enemy'; badge.textContent='敵のターン';
     // デバッグ試験戦闘では自動進行中（enemyフェイズ）でも一括撃破を使えるようにする。
     // 人数減少後のFLIPを画面遷移前に実測するための検証専用入口で、通常戦闘には出さない。
     if(dbg) dbg.style.display=G._debugMode&&G._testBattleMode&&!debugButtonsSuppressed()?'':'none';
-    if(dbgOver) dbgOver.style.display='none';
+    setDbgOver(false);
+    setDbgQuest(false);
     if(testBtn) testBtn.style.display='none';
     setDbgExtra('none');
   }

@@ -638,7 +638,9 @@
         _render();
         // 開戦カットイン → 登場演出。PvEの startBattle() と同じ順番。
         if (typeof _playBattleStartIntro === 'function') {
-          await _playBattleStartIntro({ title: '戦 闘 開 始', subtitle: _opponentLabel(), kind: 'normal' });
+          const _battleStartTitle=typeof textMessage==='function'
+            ?Array.from(String(textMessage('「戦闘開始」ボタン','戦闘開始'))).join(' ').replace(/\s+/g,' '):'戦 闘 開 始';
+          await _playBattleStartIntro({ title: _battleStartTitle, subtitle: _opponentLabel(), kind: 'normal' });
         }
         if (typeof playBattleOpeningSequence === 'function') await playBattleOpeningSequence();
         break;

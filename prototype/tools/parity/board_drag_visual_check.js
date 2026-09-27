@@ -290,7 +290,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
         darkDim:style(darkRewardCard?.querySelector('.reward-card-dim-layer')),
         darkLine:style(darkRewardCard?.querySelector('.reward-card-line-layer'))
       };
-      const backSvg=await fetch('assets/cards/m_board6.svg?v=blackBack02').then(r=>r.text());
+      const backSvg=await fetch('assets/cards/magic_board6.svg?v=blackBack02').then(r=>r.text());
       return {gameScale:_gameScale(),enchantDrag,specialRectBefore,specialDrag,emptyState,placedState,pricing,invalidNormal,invalidDrag,rewardDrag,darkReward,darkRewardDrag,rewardAreaDuringDrag,backSvgBlack:(()=>{ const m=backSvg.match(/fill:\\s*#([0-9a-f]{6})/i); if(!m) return false; const v=parseInt(m[1],16); return [16,8,0].every(sh=>((v>>sh)&255)<=0x20); })()};
     `);
     await browser.screenshot(DRAG_SHOT);
@@ -361,13 +361,13 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       '特殊マスのドラッグ元境界が5px・明表示ではない');
     check(near(parseFloat(result.specialDrag.ghostFrame.border),2*result.gameScale,.15),
       '特殊マス由来のゴースト枠が通常表示と同じ実表示幅ではない');
-    check(result.specialDrag.ghostOverlay&&result.specialDrag.ghostOverlay.background.includes('stat_overlay.png')&&
+    check(result.specialDrag.ghostOverlay&&result.specialDrag.ghostOverlay.background.includes('status_overlay.png')&&
       result.specialDrag.ghostOverlay.display!=='none'&&result.specialDrag.ghostOverlay.opacity==='1',
-      'キャラクタードラッグ複製のstat_overlay.pngが表示されない');
+      'キャラクタードラッグ複製のstatus_overlay.pngが表示されない');
     check(Number(result.specialDrag.ghostOverlay.z)>Number(result.specialDrag.ghostFrame.z),
-      'キャラクタードラッグ複製のstat_overlay.pngが枠画像より下にある');
+      'キャラクタードラッグ複製のstatus_overlay.pngが枠画像より下にある');
     for(const key of ['x','y','w','h']) check(near(result.specialDrag.ghostFrameRect[key],result.specialDrag.ghostOverlayRect[key]),
-      `キャラクタードラッグ複製のstat_overlay.pngと枠画像の${key}が不一致`);
+      `キャラクタードラッグ複製のstatus_overlay.pngと枠画像の${key}が不一致`);
     check(result.specialDrag.ghostBoundary.display==='none','ゴーストに特殊マス境界が付いている');
     check(result.emptyState.style.border==='5px'&&result.emptyState.outline==='none'&&result.emptyState.shadow==='none',
       '空の特殊マス境界が占有時と同じ5px内側線ではない');
@@ -389,17 +389,17 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
     check(result.invalidNormal.frame.filter!=='none'&&result.invalidNormal.frame.filter.includes('brightness(0.5)'),
       '通常マスのキャラクター枠画像が暗転していない');
     check(result.invalidNormal.overlay&&result.invalidNormal.overlay.filter.includes('brightness(0.5)'),
-      '通常マスのキャラクターstat_overlay.pngが暗転していない');
+      '通常マスのキャラクターstatus_overlay.pngが暗転していない');
     check(result.invalidDrag.overlay&&result.invalidDrag.overlay.filter==='none'&&!result.invalidDrag.dim,
       '掴んだ暗い魔導板カード自身が明るくならない');
     check(result.invalidDrag.peerOverlay&&result.invalidDrag.peerOverlay.filter.includes('brightness(0.5)'),
-      '別カードのドラッグ中に、他の暗い魔導板カードのstat_overlay.pngが明るくなる');
+      '別カードのドラッグ中に、他の暗い魔導板カードのstatus_overlay.pngが明るくなる');
     check(result.invalidNormal.line.filter==='none'&&result.invalidNormal.line.border==='2px',
       '通常マスのプログラム枠線まで暗転または太さ変更されている');
-    check(result.invalidNormal.back&&result.invalidNormal.back.background.includes('m_board6.svg'),
-      '魔導板カードの最背面にm_board6.svgがない');
-    check(result.invalidNormal.card&&result.invalidNormal.card.background.includes('m_board6.svg'),
-      '魔導板カード本体の最背面背景にm_board6.svgがない');
+    check(result.invalidNormal.back&&result.invalidNormal.back.background.includes('magic_board6.svg'),
+      '魔導板カードの最背面にmagic_board6.svgがない');
+    check(result.invalidNormal.card&&result.invalidNormal.card.background.includes('magic_board6.svg'),
+      '魔導板カード本体の最背面背景にmagic_board6.svgがない');
     check(result.rewardDrag.initialOpacity==='0'&&result.rewardDrag.ghostOpacity==='1',
       '報酬カードのドラッグ複製が座標確定前に表示される');
     check(result.rewardDrag.frame&&result.rewardDrag.frame.display!=='none'&&
@@ -413,10 +413,10 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
     check(result.rewardDrag.arrow&&Number(result.rewardDrag.arrow.z)>Number(result.rewardDrag.frame.z),
       '報酬カードのarrowが枠画像より後ろにある');
     check(result.darkReward.className.includes('cant')&&result.darkReward.back&&
-      result.darkReward.back.background.includes('m_board6.svg'),
-      '暗い報酬カードの最背面にm_board6.svgがない');
-    check(result.darkReward.card&&result.darkReward.card.background.includes('m_board6.svg'),
-      '報酬カード本体の最背面背景にm_board6.svgがない');
+      result.darkReward.back.background.includes('magic_board6.svg'),
+      '暗い報酬カードの最背面にmagic_board6.svgがない');
+    check(result.darkReward.card&&result.darkReward.card.background.includes('magic_board6.svg'),
+      '報酬カード本体の最背面背景にmagic_board6.svgがない');
     check(result.darkReward.frame.filter==='none'&&result.darkReward.frame.opacity==='1'&&
       result.darkReward.frame.background!=='none',
       '暗い報酬カードの枠画像が欠けている');
@@ -435,7 +435,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       Number(result.darkReward.characterDim.z)>Number(result.darkReward.characterLine.z),
       '暗い報酬キャラクターのATK/HPまたは枠線が明るいまま残る');
     check(result.darkRewardDrag.dim&&result.darkRewardDrag.dim.opacity==='1'&&
-      result.darkRewardDrag.back&&result.darkRewardDrag.back.background.includes('m_board6.svg'),
+      result.darkRewardDrag.back&&result.darkRewardDrag.back.background.includes('magic_board6.svg'),
       '暗い報酬カードがドラッグ中に明るくなる、または黒背面が消える');
     check(result.rewardAreaDuringDrag.bodyClass.includes('dragzone-board')&&
       result.rewardAreaDuringDrag.overlay.display!=='none'&&
@@ -446,10 +446,10 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       result.rewardAreaDuringDrag.darkLine.filter==='none',
       'カードドラッグ中に報酬カード本来の明暗が維持されない');
     // 背面の塗りは素材側で調整されることがある（#000000→#160b03）。完全な黒ではなく「黒に近い暗色」かを見る。
-    check(result.backSvgBlack,'m_board6.svgの塗りが黒に近い暗色ではない（RGB各0x20以下）');
+    check(result.backSvgBlack,'magic_board6.svgの塗りが黒に近い暗色ではない（RGB各0x20以下）');
     check(result.usedReward.className.includes('reward-used-dim')&&
       result.usedReward.card.opacity==='1'&&result.usedReward.back.opacity==='1'&&
-      result.usedReward.back.background.includes('m_board6.svg')&&
+      result.usedReward.back.background.includes('magic_board6.svg')&&
       result.usedReward.back.backgroundColor==='rgb(0, 0, 0)'&&
       result.usedReward.dim&&result.usedReward.dim.backgroundColor.includes('0.5')&&
       Number(result.usedReward.dim.z)>Number(result.usedReward.line.z),

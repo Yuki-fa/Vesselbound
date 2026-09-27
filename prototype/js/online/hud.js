@@ -28,11 +28,14 @@
         // 「所持金」→「残り時間」、金額→残り時間に置き換えたもの。見た目の定義は共有クラス側。
         '<div class="orh-timer battle-status-counter">' +
         '<img src="assets/ui/counter.svg?v=back50" alt="">' +
-        '<span class="battle-status-label">残り時間</span>' +
+        '<span class="battle-status-label" data-role="timer-label"></span>' +
         '<strong data-role="timer-value">--:--</strong></div>';
       // .screen と同じスケール枠（CSS側で --game-scale を適用）にして body 直下へ置く。
       // 特定の画面の中に入れると、その画面が隠れた時に一緒に消えてしまう。
       document.body.appendChild(el);
+      const timerLabel = el.querySelector('[data-role="timer-label"]');
+      if (timerLabel) timerLabel.textContent = typeof textMessage === 'function'
+        ? textMessage('オンライン対戦「残り時間」見出し', '残り時間') : '残り時間';
       el.addEventListener('click', e => {
         const slot = e.target && e.target.closest ? e.target.closest('.orh-slot') : null;
         if (!slot) return;

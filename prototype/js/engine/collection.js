@@ -12,22 +12,34 @@ function _collectionText(key,fallback){
   const value=typeof textMessage==='function'?textMessage(key,fallback):fallback;
   return String(value||fallback||'').trim();
 }
+function _collectionTextItem(item){
+  if(!item) return '';
+  return item[0]?_collectionText(item[0],item[1]):String(item[1]||'').trim();
+}
 
 const COLLECTION_TEXTS={
   title:['コレクション','コレクション'],
-  character:[null,'キャラクター'],
-  enchant:[null,'エンチャント'],
-  enemy:[null,'エネミー'],
-  equipment:[null,'リング / アイテム'],
-  merge:[null,'マージ'],
-  return:['「タイトルに戻る」ボタン','タイトルに戻る']
+  character:['「キャラクター」タブ','キャラクター'],
+  enchant:['「エンチャント」タブ','エンチャント'],
+  enemy:['「エネミー」タブ','エネミー'],
+  equipment:['「リング / アイテム」タブ','リング / アイテム'],
+  merge:['「マージ」ボタン','マージ'],
+  return:['「タイトルに戻る」ボタン','タイトルに戻る'],
+  // この3件はシートに行が無い補助ラベル。
+  previous:[null,'前のカード'],
+  next:[null,'次のカード'],
+  unseen:[null,'未発見'],
 };
 
 function applyCollectionTexts(){
   document.querySelectorAll('[data-collection-text]').forEach(el=>{
     const item=COLLECTION_TEXTS[el.dataset.collectionText];
-    if(item) el.textContent=item[0]===null?item[1]:_collectionText(item[0],item[1]);
+    if(item) el.textContent=_collectionTextItem(item);
   });
+  const prev=document.getElementById('collection-prev');
+  const next=document.getElementById('collection-next');
+  if(prev) prev.setAttribute('aria-label',_collectionTextItem(COLLECTION_TEXTS.previous));
+  if(next) next.setAttribute('aria-label',_collectionTextItem(COLLECTION_TEXTS.next));
 }
 
 function _collectionSheetCode(card,kind,index){
@@ -127,7 +139,7 @@ function _collectionRingArt(card){
   if(typeof _rewardRingArtPath==='function') return _rewardRingArtPath(card);
   const raw=String(card.artCode||card.no||card.No||card['No.']||'').trim();
   const n=(raw.match(/\d+/)||[])[0];
-  return n?`assets/art/ring/R${String(parseInt(n,10)).padStart(3,'0')}.jpg`:'';
+  return n?`assets/art/rings/R${String(parseInt(n,10)).padStart(3,'0')}.jpg`:'';
 }
 
 function _collectionSetAuxArt(el,card,kind){
@@ -148,7 +160,7 @@ function _collectionCardCell(card,index){
   else if(state.seen) button.classList.add('is-seen');
   else button.classList.add('is-unseen');
   button.disabled=!selectable;
-  button.setAttribute('aria-label',selectable?String(card.name||''):'\u672a\u767a\u898b');
+  button.setAttribute('aria-label',selectable?String(card.name||''):_collectionTextItem(COLLECTION_TEXTS.unseen));
 
   // 未発見のリング／アイテムも枠だけは置く（キャラクターの空マスと同じ扱い）。
   // 絵は発見済みのときだけ入れる（--collection-aux-art が無ければ ::after は描かれない）。

@@ -402,7 +402,7 @@ const FILE_SFX_VOLUMES={
   'assets/sfx/sell.wav':       .53,  // -8.5
   'assets/sfx/ring_get.wav':  1.00,  // -16.1（これ以上上げられない）
   'assets/sfx/item_get.wav':  1.00,  // -22.1（同上）
-  'assets/sfx/union.wav':      .79,  // -10.0
+  'assets/sfx/merge.wav':      .79,  // -10.0
   'assets/sfx/board_change1.wav':.79,// -10.0
   'assets/sfx/board_change2.wav':.72,// -8.7
   'assets/sfx/appearance.wav': 1.00, // -12.2

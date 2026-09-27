@@ -2,6 +2,18 @@
 const SaveRun=(()=>{
   const CHECKPOINT_TYPES=new Set(['reward','town','tower','battle']);
   const BATTLE_RESUME_DELAY_MS=4000;
+  const AUTO_SAVE_INDICATOR_DRAW_MS=1200;
+  const AUTO_SAVE_INDICATOR_FADE_MS=400;
+  const AUTO_SAVE_INDICATOR_FAST_DRAW_MS=240;
+  const AUTO_SAVE_INDICATOR_FAST_FADE_MS=120;
+  const AUTO_SAVE_INDICATOR_REDUCED_HOLD_MS=600;
+  const AUTO_SAVE_INDICATOR_REDUCED_FADE_MS=250;
+  const AUTO_SAVE_INDICATOR_FAST_REDUCED_HOLD_MS=200;
+  const AUTO_SAVE_INDICATOR_FAST_REDUCED_FADE_MS=120;
+  let autoSaveIndicatorVisible=false;
+  let autoSaveIndicatorFadeTimer=null;
+  let autoSaveIndicatorEndTimer=null;
+  let autoSaveIndicatorResolve=null;
   /* ══════════════════════════════════════════════════════════
      **オフラインの状態を G へ足したら、必ずここへも名前を足すこと。**
      ここに無い名前は保存されず、しかも**何のエラーも出ない**。
@@ -25,7 +37,7 @@ const SaveRun=(()=>{
   const fields={
     player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome'],
     progress:['floor','_wave','_waveStage','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
-    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
+    choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards'],
     place:['_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
@@ -38,7 +50,7 @@ const SaveRun=(()=>{
     const overlay=document.getElementById('run-resume-overlay');
     if(overlay) overlay.setAttribute('aria-hidden',String(!active));
   }
-  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_questDeliveryOrigin']);
+  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_questOfferCard']);
   function copy(value){
     // カード／コアイベント内の一時表示情報だけを除外する。非有限数は拒否する。
     const raw=JSON.stringify(value,(key,v)=>{
@@ -172,7 +184,54 @@ const SaveRun=(()=>{
     const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,battleType:G._waveBattleType||null};
     return {saveVersion:SaveMigrations.versions.run,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
   }
-  function saveRun(save){return SaveStorage.write('run',save,validate);}
+  function showAutoSaveIndicator(options){
+    if(typeof document==='undefined') return Promise.resolve(false);
+    const indicator=document.getElementById('run-autosave-indicator');
+    if(!indicator) return Promise.resolve(false);
+    const fast=!!(options&&options.fast);
+    const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const drawMs=fast?AUTO_SAVE_INDICATOR_FAST_DRAW_MS:AUTO_SAVE_INDICATOR_DRAW_MS;
+    const holdMs=reduced
+      ?(fast?AUTO_SAVE_INDICATOR_FAST_REDUCED_HOLD_MS:AUTO_SAVE_INDICATOR_REDUCED_HOLD_MS)
+      :drawMs;
+    const fadeMs=reduced
+      ?(fast?AUTO_SAVE_INDICATOR_FAST_REDUCED_FADE_MS:AUTO_SAVE_INDICATOR_REDUCED_FADE_MS)
+      :(fast?AUTO_SAVE_INDICATOR_FAST_FADE_MS:AUTO_SAVE_INDICATOR_FADE_MS);
+    // 次の明示表示が来た時は前の表示を畳み、今回の保存を先頭から見せる。
+    if(autoSaveIndicatorFadeTimer!==null) clearTimeout(autoSaveIndicatorFadeTimer);
+    if(autoSaveIndicatorEndTimer!==null) clearTimeout(autoSaveIndicatorEndTimer);
+    if(autoSaveIndicatorResolve){ autoSaveIndicatorResolve(false); autoSaveIndicatorResolve=null; }
+    autoSaveIndicatorVisible=true;
+    indicator.classList.remove('is-visible','is-fading','is-reduced-motion');
+    if(reduced) indicator.classList.add('is-reduced-motion');
+    indicator.style.setProperty('--run-autosave-draw-ms',`${drawMs}ms`);
+    indicator.style.setProperty('--run-autosave-fade-ms',`${fadeMs}ms`);
+    // 同じDOMを再利用するため、クラスを付け直す前にアニメーション状態を確定する。
+    void indicator.offsetWidth;
+    indicator.classList.add('is-visible');
+    indicator.setAttribute('aria-hidden','false');
+    return new Promise(resolve=>{
+      autoSaveIndicatorResolve=resolve;
+      autoSaveIndicatorFadeTimer=setTimeout(()=>{
+        indicator.classList.add('is-fading');
+      },holdMs);
+      autoSaveIndicatorEndTimer=setTimeout(()=>{
+        indicator.classList.remove('is-visible','is-fading','is-reduced-motion');
+        indicator.setAttribute('aria-hidden','true');
+        autoSaveIndicatorVisible=false;
+        autoSaveIndicatorFadeTimer=null;
+        autoSaveIndicatorEndTimer=null;
+        const done=autoSaveIndicatorResolve;
+        autoSaveIndicatorResolve=null;
+        if(done) done(true);
+      },holdMs+fadeMs);
+    });
+  }
+  function saveRun(save){
+    // 表示は不可逆操作を確定する10契機からだけ明示的に呼ぶ。
+    // ここで出すと、会話済み印などの表示不要な保存まで画面へ出てしまう。
+    return SaveStorage.write('run',save,validate);
+  }
   function loadRun(){
     if(!catalogReady) return null;
     try{
@@ -200,9 +259,25 @@ const SaveRun=(()=>{
     if(typeof goldFxSnap==='function') goldFxSnap();
     return G;
   }
+  function showSaveError(message){
+    if(typeof showErrorOverlay!=='function') return;
+    const title=typeof textMessage==='function'?textMessage('「エラー発生時」見出し','エラー'):'エラー';
+    showErrorOverlay({
+      title,
+      message,
+      buttonKey:'「タイトルに戻る」ボタン',
+      buttonFallback:'タイトルに戻る',
+      onClose:()=>{
+        if(typeof _returnToTitleMenu==='function') _returnToTitleMenu();
+        else if(typeof showScreen==='function') showScreen('title');
+      }
+    });
+  }
   function error(error){
     console.error('[run] セーブに失敗しました',error);
-    window.alert('セーブに失敗しました。空き容量やブラウザの保存設定を確認してください。');
+    const fallback='セーブに失敗しました。空き容量やブラウザの保存設定を確認してください。';
+    const message=typeof textMessage==='function'?textMessage('セーブ失敗時',fallback):fallback;
+    showSaveError(message);
   }
   function checkpoint(type){
     if(!enabled()||restoring||busy||G._runEnded) return;
@@ -281,7 +356,13 @@ const SaveRun=(()=>{
         }else openMapVillage({tower:type==='tower',restoreCheckpoint:true});
       }
       else await showBattleResume(save);
-    }catch(e){console.error('[run] 再開失敗',e);window.alert('セーブデータを再開できませんでした。');showScreen('title');}
+    }catch(e){
+      console.error('[run] 再開失敗',e);
+      showScreen('title');
+      const fallback='セーブデータを再開できませんでした。';
+      const message=typeof textMessage==='function'?textMessage('セーブ再開失敗時',fallback):fallback;
+      showSaveError(message);
+    }
     finally{restoring=false;}
   }
   async function showBattleResume(save){
@@ -475,7 +556,7 @@ const SaveRun=(()=>{
       try{saveRun(retryBattle);retryBattle=null;btn.onclick=continueRun;await continueRun();}catch(failure){error(failure);}
     };}
   }
-  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,checkpointFacilityTalk,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
+  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,checkpointFacilityTalk,showAutoSaveIndicator,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
 })();
 function runRandom(){return typeof SaveRun==='undefined'?Math.random():SaveRun.random();}
 // 順番に依存しない抽選。SaveRunが無い場面（デバッグ等）では通常の乱数へ落とす。
