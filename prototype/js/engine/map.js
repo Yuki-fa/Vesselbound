@@ -1748,7 +1748,11 @@ async function _runVillageInnDialogue(talk){
     document.body.classList.add('inn-rest-return');
     document.body.classList.remove('inn-rest-fading');
     // 暗転の間に消したキャラ（A）も背景と一緒に戻す。
-    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village'});
+    // 台詞4に表情の指定があれば、暗転中に切り替えておき、明けた時には最初からその表情で出す
+    //（明けてから表情が変わって見えないようにする。暗転前には表情を変えない。2026-09-28 利用者指定）。
+    const restFaceSpec=typeof _qFaceSpec==='function'?_qFaceSpec(talk['台詞4'].face):null;
+    const restFace=restFaceSpec&&restFaceSpec.portraitId==='MC001'?restFaceSpec.name:undefined;
+    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village',face:restFace});
     await _mapDelay(INN_REST_BG_FADE_MS);
     document.body.classList.remove('inn-rest-return');
     await _qStartDialogue([talk['台詞4']],{screen:'village'});

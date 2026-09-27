@@ -1034,8 +1034,11 @@ const WAVE=1;
       const b=await newPage();
       await acceptedRun(b);
       // 死亡：HP1。逃走：ATK0（コアが逃走させる）。
+      // 死亡はファラ1人（HP1）で戦う。強いゴーレムを並べると、味方が先に動いた時に1体だけの敵を倒し切り、
+      // ファラが一度も攻撃されずに終わって台詞待ちが時間切れになっていた（先攻は乱数なので結果が揺れていた）。
+      // 逃走はATK0のファラだけでは戦闘が終わらないので、今までどおりゴーレムを並べる。
       await b.run(`const c=_getPartyBoardUnit().boardCards[1];${kind==='death'?'c.life=1;c.hp=1;c.power=1;':'c.power=0;c.atk=0;c.life=60;'}
-        const d=PANEL_POOL.find(x=>x.name==='ゴーレム');const g=makePanel(d.id);g.power=99;g.life=999;_getPartyBoardUnit().boardCards[3]=g;
+        ${kind==='death'?'':"const d=PANEL_POOL.find(x=>x.name==='ゴーレム');const g=makePanel(d.id);g.power=99;g.life=999;_getPartyBoardUnit().boardCards[3]=g;"}
         G._waveVillage=false;_startWaveBattle(1);return 1;`);
       const text=q1.q[kind][0].text;
       await b.until(`document.getElementById('battle-line-text')?.textContent===${JSON.stringify(text)}&&document.getElementById('battle-line-layer')?.classList.contains('is-visible')`,60000);

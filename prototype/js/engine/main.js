@@ -1827,8 +1827,8 @@ function _armBattleContinue(cutin,onShown,opts){
   panel.id='battle-continue-panel';
   panel.innerHTML='<span class="battle-continue-back" aria-hidden="true"></span><button id="battle-continue-btn" type="button" data-sfx-silent="1"><span class="battle-continue-label"></span></button>';
   const label=panel.querySelector('.battle-continue-label');
-  // シートに専用行の無い戦闘結果ボタン。
-  if(label) label.textContent='進む';
+  // 戦闘結果の「進む」ボタン（テキストメッセージ「「進む」ボタン」）。
+  if(label) label.textContent=typeof textMessage==='function'?textMessage('「進む」ボタン','進む'):'進む';
   panel.style.pointerEvents='auto';
   panel.style.zIndex='10001';
   const btn=panel.querySelector('#battle-continue-btn');
