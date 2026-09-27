@@ -54,6 +54,17 @@
         if (typeof startOnlineVersusBattle === 'function') startOnlineVersusBattle();
         break;
       case 'formation':
+        // オンラインでは通常のCPU戦を省いて編成画面だけを開くが、受託済みの
+        // 戦闘型クエストがこのraw stageを対象にしている時だけ、PvEと同じ
+        // _startWaveBattle()へ入る。クエスト戦の間はサーバー追従による画面遷移を
+        // 保留し、完了／撤退時にquest.jsから最新状態へ追いつく。
+        if (typeof questEncounterBattlePending === 'function'
+          && questEncounterBattlePending(stage)
+          && typeof _startWaveBattle === 'function') {
+          _paused = true;
+          _startWaveBattle(stage);
+          break;
+        }
         // 通常戦闘は行わず、編成画面だけを挟む（仕様）。
         // _openWaveFormation() は報酬カードを消す「編成だけ」の画面なので使わない。
         // 通常の戦闘後と同じ報酬画面（カードあり）を開く。
@@ -166,7 +177,11 @@
   function resumeOnlineFlow() {
     _paused = false;
     if (typeof OnlineMatch === 'undefined' || !OnlineMatch) return;
-    onOnlineStateChanged(OnlineMatch.getState());
+    const st = OnlineMatch.getState();
+    // 同じnodeへ戻る場合は_lastKeyで画面遷移を省くが、ローカルのクエスト戦が
+    // 一時的に進めたwaveStageだけは、サーバーのraw stepへ必ず戻す。
+    if (st) _applyServerPosition(st);
+    onOnlineStateChanged(st);
   }
 
   // 進行位置の追従をリセットする（新しいマッチを始める時）。

@@ -28,14 +28,14 @@ function showScreen(id){
   if(id!=='map'&&typeof _setDebugMapButtonVisible==='function') _setDebugMapButtonVisible(false);
   if(id!=='reward'){
     document.body.classList.remove('debug-mode');
-    ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+    ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
       const debugEl=document.getElementById(debugId);
       if(debugEl) debugEl.style.display='none';
     });
   }
   const battleCutin=document.getElementById('battle-start-intro');
   const hideDebugCutin=!!(battleCutin||document.body.classList.contains('battle-victory-pending'));
-  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl&&hideDebugCutin) debugEl.style.display='none';
   });
@@ -813,6 +813,15 @@ function _startWaveBattle(stage){
   startBattle();
 }
 function _startWaveFlowNext(){
+  // オンラインの編成マスで敗れたクエスト戦は、サーバーへ準備完了を送る前に
+  // 同じ対象戦を再開する。送信してしまうとraw stageが進み、受託済みQ004の
+  // 対象を二度と踏めなくなる。
+  if(G._onlineMode&&typeof questEncounterBattlePending==='function'
+    &&questEncounterBattlePending(Number(G._waveStage)||1)){
+    if(typeof setOnlineFlowPaused==='function') setOnlineFlowPaused(true);
+    _startWaveBattle(Number(G._waveStage)||1);
+    return true;
+  }
   // オンライン対戦：次のマスへ進むかどうかはサーバーが決める。
   // ここでは準備完了を通知するだけで、画面の切り替えは flow.js がサーバー状態を見て行う。
   // （双方が準備完了、または制限時間の締め切りでサーバーが step を進める）
@@ -1599,7 +1608,7 @@ function gameOver(options){
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
-  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });
@@ -1909,7 +1918,7 @@ function continueAfterBattleVictory(silent){
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
-  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';
   });

@@ -1059,6 +1059,11 @@ function getCurrentUnitSlot(side,idxOrUnit){
   const field=document.getElementById(side==='enemy'?'f-enemy':'f-ally');
   if(!field) return null;
   const list=side==='enemy'?G.enemies:G.allies;
+  const isMeasurable=slot=>{
+    if(!slot||typeof slot.getBoundingClientRect!=='function') return !!slot;
+    const r=slot.getBoundingClientRect();
+    return !!(r&&r.width>0&&r.height>0);
+  };
   // コアイベントの再生では、state.units由来のオブジェクトとG配列上の
   // 実体が別参照になることがある。FLIP後の実DOMはunitIdを正として
   // 解決し、VFX・攻撃モーション・召喚完了判定の対象を一致させる。
@@ -1067,7 +1072,9 @@ function getCurrentUnitSlot(side,idxOrUnit){
   if(unitId){
     const byId=[...field.querySelectorAll('.slot[data-unit-id]')]
       .find(slot=>String(slot.dataset.unitId||'')===unitId);
-    if(byId) return byId;
+    // IDが一致していても、非表示の旧枠（実寸0）は現在位置として返さない。
+    // 召喚直後などにそこを攻撃先へ使うと、複製カードが画面左上へ飛ぶ。
+    if(byId&&isMeasurable(byId)) return byId;
   }
   const idx=typeof idxOrUnit==='number'?idxOrUnit:list.indexOf(idxOrUnit);
   if(idx<0) return null;
@@ -1080,10 +1087,7 @@ function getCurrentUnitSlot(side,idxOrUnit){
   if(found&&typeof idxOrUnit==='object'&&found.classList&&found.classList.contains('dead-empty')) return null;
   // 表示されていない枠（大きさ0）を居場所として返すと、攻撃モーション・VFX・数値が画面の左上（0,0）へ向かう。
   // 敵が大量に並んだ時（召喚で枠が足りない時）に起きていた（2026-09-27 利用者指摘）。
-  if(found&&typeof found.getBoundingClientRect==='function'){
-    const r=found.getBoundingClientRect();
-    if(!(r.width>0&&r.height>0)) return null;
-  }
+  if(found&&!isMeasurable(found)) return null;
   return found;
 }
 
@@ -3880,7 +3884,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   };
   const getTargetMotionTransform=(targetRatio)=>{
     const currentTargetEl=getCurrentTargetEl();
-    const currentTargetRect=_getAttackTargetRect(currentTargetEl||toEl);
+    const currentTargetRect=currentTargetEl?_getAttackTargetRect(currentTargetEl):null;
     if(!currentTargetRect) return null;
     const nextDx=(currentTargetRect.left+currentTargetRect.width/2)-(fr.left+fr.width/2);
     const nextDy=(currentTargetRect.top+currentTargetRect.height/2)-(fr.top+fr.height/2);
@@ -3965,6 +3969,11 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     };
     const start= parseTransform(frames[0]?.transform);
     const staticEnd=parseTransform(frames[frames.length-1]?.transform);
+    // 終点が途中で変わる場合は、前フレームの現在位置から残り進捗ぶんだけ
+    // 新しい終点へ近づける。固定した始点から毎回引き直すと、召喚・死亡で
+    // 対象枠が変わった瞬間に攻撃カードが横へ跳ねる。
+    let current={...start};
+    let previousEased=0;
     clone.style.setProperty('transition','none','important');
     clone.style.transform=frames[0]?.transform||'translate(0,0) rotate(0deg)';
     return new Promise(resolve=>{
@@ -3998,9 +4007,22 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         // 攻撃モーション本来の加速・減速を戻す。
         const eased=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
         const end=dynamicEnd?parseTransform(dynamicEnd()):staticEnd;
-        const x=start.x+(end.x-start.x)*eased;
-        const y=start.y+(end.y-start.y)*eased;
-        const r=start.r+(end.r-start.r)*eased;
+        let x,y,r;
+        if(dynamicEnd){
+          const rest=Math.max(0,1-previousEased);
+          const alpha=rest>0?Math.max(0,Math.min(1,(eased-previousEased)/rest)):1;
+          current={
+            x:current.x+(end.x-current.x)*alpha,
+            y:current.y+(end.y-current.y)*alpha,
+            r:current.r+(end.r-current.r)*alpha,
+          };
+          previousEased=eased;
+          ({x,y,r}=current);
+        }else{
+          x=start.x+(end.x-start.x)*eased;
+          y=start.y+(end.y-start.y)*eased;
+          r=start.r+(end.r-start.r)*eased;
+        }
         clone.style.transform=`translate(${x}px,${y}px) rotate(${r}deg)`;
         if(p>=1){ finish(); return; }
         requestAnimationFrame(tick);
@@ -4050,15 +4072,14 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           return;
         }
         // 効果を出し終えてから残りの間合いを詰めて接触する。
-        // 攻撃効果中に敵が減って盤面が詰め直されても、この一撃の
-        // 終点は再開時に1回だけ決める。フレームごとに対象を追うと、
-        // 三段攻撃の途中でサイレンの全体ダメージが敵を減らした際に
-        // 攻撃カードが左右へ追従し、「跳ねてから戻る」ように見える。
+        // 召喚の描画が効果待ちの終端と同じフレームに入る場合があるため、
+        // 対象はunitIdで接触直前まで取り直す。runSegment側が現在位置から
+        // 滑らかに追従させるので、三段攻撃中の詰め直しでも横へ跳ねない。
         const resumedHit=getTargetMotionTransform(1)||atHit;
         await runSegment([
           {transform:atStop},
           {transform:resumedHit},
-        ],opt.secondDuration||360);
+        ],opt.secondDuration||360,()=>getTargetMotionTransform(1)||resumedHit);
       } else {
         await runSegment([
           {transform:'translate(0,0) rotate(0deg)'},
@@ -4067,9 +4088,20 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       }
       // 接触した瞬間のフック。戻りモーション（returnDuration）を待つと画面揺れが
       // 体感で1テンポ遅れるため、ここで呼ぶ。
-      if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_contact',{
-        attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
-      });
+      if(typeof _recordBattleTrace==='function'){
+        const contactTargetEl=getCurrentTargetEl();
+        const contactTargetRect=contactTargetEl?_getAttackTargetRect(contactTargetEl):null;
+        const contactMotionRect=clone.getBoundingClientRect();
+        const center=rect=>rect?{
+          x:rect.left+rect.width/2,y:rect.top+rect.height/2,
+          width:rect.width,height:rect.height,
+        }:null;
+        _recordBattleTrace('attack_motion_contact',{
+          attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide,
+          targetDomId:contactTargetEl?.dataset?.unitId||null,
+          motionCenter:center(contactMotionRect),targetCenter:center(contactTargetRect),
+        });
+      }
       if(typeof opt.onHit==='function'){ try{ opt.onHit(); }catch(e){ console.error('[attackMotion onHit]',e); } }
       // 攻撃効果の一時停止（onImpactPause）とは別に、実際の接触時点で
       // ダメージ・反撃を適用する。ここをawaitしても戻りモーションだけが
@@ -5532,7 +5564,7 @@ function renderControls(){
     pp.style.display='none';
     if(dbg) dbg.style.display='none';
     // 闘技場の継戦確認の間（勝利後に phase が reward になる）は、デバッグ用のボタンを出さない。
-    const _dbgShow=G._debugMode&&!debugButtonsSuppressed();
+    const _dbgShow=G._debugMode&&!G._onlineMode&&!debugButtonsSuppressed();
     setDbgOver(_dbgShow);
     setDbgQuest(_dbgShow);
     if(testBtn) testBtn.style.display=_dbgShow?'':'none';

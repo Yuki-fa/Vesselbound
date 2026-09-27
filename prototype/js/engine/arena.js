@@ -17,7 +17,7 @@ function arenaPrizeForWins(wins){
 }
 
 function _arenaHideDebugButtons(){
-  ['btn-debug-kill','btn-debug-gameover','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
+  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.style.display='none';
   });

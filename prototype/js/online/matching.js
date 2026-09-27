@@ -54,7 +54,10 @@
           hideOnlineMatching();
           // 後片付けは exitOnlineMode()（online/flow.js）が唯一の実装。
           if (typeof exitOnlineMode === 'function') exitOnlineMode();
-          if (typeof returnToTapStart === 'function') { showScreen('title'); returnToTapStart(); }
+          // マッチングはタイトルメニューから始めているので、起動直後の
+          // TAP TO STARTではなく、項目が開いた同じメニュー状態へ戻す。
+          if (typeof _returnToTitleMenu === 'function') _returnToTitleMenu();
+          else if (typeof showScreen === 'function') showScreen('title');
         };
       }
     }

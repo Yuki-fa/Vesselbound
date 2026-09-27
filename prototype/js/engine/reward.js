@@ -899,7 +899,7 @@ function renderMoveSlotsInEnemy(){
   el.innerHTML='';
   // デバッグモード：演出確認用の試験戦闘ボタン（報酬/編成フェイズ中のみ表示）
   // デバッグボタンはデバッグモード＋編成画面の間だけ出す。
-  ['btn-debug-kill','btn-test-battle','btn-debug-gameover','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
+  ['btn-debug-kill','btn-test-battle','btn-debug-gameover','btn-debug-quest','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(id=>{
     const el=document.getElementById(id);
     // 闘技場の継戦確認の間は出さない（勝利後に phase が reward になるため、確認窓の後ろに出ていた）。
     if(el) el.style.display=(G._debugMode&&G.phase==='reward'&&!(typeof debugButtonsSuppressed==='function'&&debugButtonsSuppressed()))?'':'none';

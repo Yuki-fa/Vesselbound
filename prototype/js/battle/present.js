@@ -853,6 +853,13 @@ function presentPreAttackPlan(events, fromIndex) {
       }
     // effect_flash だけで終わった攻撃効果は「実際には不発」。
     // 対象不在のワーム／センチネル等で踏み込み停止を出さない。
+    } else if (ev.type === 'damage' && ev.effect === true && ev.effectSource === false
+      && attackEffectStarted && actorId != null) {
+      // 援護射撃は、攻撃者の効果を別の味方（sourceId）が撃つ。
+      // sourceIdを次の攻撃者として扱うと、直後のattack.attackerIdと一致せず
+      // 先出しモーションが作られない。効果の肩代わり印を見て、最初に
+      // effect_flash(trigger=attack)を出した本人の攻撃効果として待ち合わせる。
+      hasEffects = true;
     } else if (ev.type !== 'effect_flash' && actorId != null && owner === actorId) {
       hasEffects = true;
     }

@@ -480,7 +480,10 @@ function _qDebugSave(){
   if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:quest-debug-save'});
 }
 function questDebugOpenEditor(){
-  if(!G||!G._debugMode||(typeof debugButtonsSuppressed==='function'&&debugButtonsSuppressed())) return;
+  // オンライン進行中はサーバーが現在地を持つため、ローカルのクエスト強制変更を開かない。
+  // ボタン側のCSSに加え、古いDOMやプログラム呼び出しからも入れないよう入口でも止める。
+  if(!G||!G._debugMode||G._onlineMode
+    ||(typeof debugButtonsSuppressed==='function'&&debugButtonsSuppressed())) return;
   const layer=document.getElementById('quest-debug-layer');
   if(!layer) return;
   layer.querySelectorAll('button[data-quest-debug-dir]').forEach(button=>{
@@ -1153,8 +1156,8 @@ async function showTavernPortrait(id,options){
       // 出きってから前の表情を外す。前の表情は不透明のまま下に残るので、元の顔が透けることもない。
       host.appendChild(face);
       if(appearing){
-        // 立ち絵と同じ速さで、立ち絵と同じ瞬間にフェードインする（下の立ち絵の表示でまとめて出す）。
-        face.style.setProperty('transition',`opacity ${TAVERN_PORTRAIT_FADE_MS}ms ease`,'important');
+        // 初登場は下で「立ち絵＋表情」を同じ入れ物へまとめて出す。
+        // 表情自身は最初から不透明にし、元の顔が途中で透けないようにする。
         current.forEach(el=>{ try{ el.remove(); }catch(_e){} });
         appearFace=face;
       }else{
@@ -1174,8 +1177,33 @@ async function showTavernPortrait(id,options){
   if(typeof img.decode==='function'){ try{ await img.decode(); }catch(_e){} }
   if(appearFace&&typeof appearFace.decode==='function'){ try{ await appearFace.decode(); }catch(_e){} }
   if(appearing){
-    requestAnimationFrame(()=>{ img.classList.add('is-visible'); if(appearFace) appearFace.classList.add('is-visible'); });
+    let appearanceGroup=null;
+    if(appearFace){
+      // 個々を0→1にすると、半透明の表情差分の下から本体の元の顔が見える。
+      // 子は最初から不透明にし、消える時と同じく入れ物のopacityだけを動かす。
+      appearanceGroup=document.createElement('div');
+      appearanceGroup.className='tavern-portrait-fade-group';
+      appearanceGroup.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;opacity:0';
+      host.insertBefore(appearanceGroup,img);
+      appearanceGroup.appendChild(img);
+      appearanceGroup.appendChild(appearFace);
+      [img,appearFace].forEach(el=>{
+        el.style.setProperty('transition','none','important');
+        el.classList.add('is-visible');
+      });
+      void appearanceGroup.offsetWidth;
+      appearanceGroup.style.transition=`opacity ${TAVERN_PORTRAIT_FADE_MS}ms ease`;
+      requestAnimationFrame(()=>{ if(appearanceGroup) appearanceGroup.style.opacity='1'; });
+    }else{
+      requestAnimationFrame(()=>img.classList.add('is-visible'));
+    }
     await _qWait(TAVERN_PORTRAIT_STEP_MS);
+    if(appearanceGroup&&appearanceGroup.parentNode){
+      const parent=appearanceGroup.parentNode;
+      while(appearanceGroup.firstChild) parent.insertBefore(appearanceGroup.firstChild,appearanceGroup);
+      appearanceGroup.remove();
+      [img,appearFace].forEach(el=>el&&el.style.removeProperty('transition'));
+    }
   }
   return img;
 }
@@ -1476,6 +1504,22 @@ function _qEncounterTargetMatches(entry,wave,stage){
   return !!(target&&Number(target.wave)===Number(wave)&&Number(target.stage)===Number(stage));
 }
 
+// Q004の対象マスへ入ったか。通常進行は既存の戦闘入口が必ず呼ばれるが、
+// オンラインのformationマスは戦闘を省いて編成画面だけを開くため、flow.jsが
+// この共通判定を見てクエスト戦だけを開始する。
+function questEncounterBattlePending(stage){
+  const entry=_qActiveEntry();
+  const game=typeof G!=='undefined'&&G?G:null;
+  return !!(entry&&_qConfig(entry).encounterTargets&&entry.status==='accepted'
+    &&['wolf','garm','garmFled'].includes(String(entry.encounterPhase||''))
+    &&_qEncounterTargetMatches(entry,game&&game._wave,stage));
+}
+
+function _qResumeOnlineAfterQuestEncounter(){
+  if(!G||!G._onlineMode||typeof resumeOnlineFlow!=='function') return;
+  requestAnimationFrame(()=>resumeOnlineFlow());
+}
+
 function _qQuestEnemyDef(code){
   const key=String(code||'').toUpperCase();
   const pool=typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[];
@@ -1601,7 +1645,9 @@ async function _qFinishMagicWolfEscape(entry,shade){
     G._battlePhaseRunning=false;
     if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
     if(typeof finishWaveBattleVictory==='function') finishWaveBattleVictory(false);
-    if(typeof goToReward==='function') return goToReward({checkpoint:true});
+    const result=typeof goToReward==='function'?goToReward({checkpoint:true}):undefined;
+    _qResumeOnlineAfterQuestEncounter();
+    return result;
   });
 }
 
@@ -1698,7 +1744,9 @@ async function _qShowGarmCamp(entry,escaped){
     document.body.classList.remove('tavern-tower-event-active','quest-camp-scene','village-screen-active');
     if(typeof showScreen==='function') showScreen('battle');
     if(typeof finishWaveBattleVictory==='function') finishWaveBattleVictory(false);
-    if(typeof goToReward==='function') return goToReward({checkpoint:true});
+    const result=typeof goToReward==='function'?goToReward({checkpoint:true}):undefined;
+    _qResumeOnlineAfterQuestEncounter();
+    return result;
   });
 }
 
@@ -2297,7 +2345,14 @@ function _qTownArrivalEntry(){
   const cfg=questCfg&&questCfg.townArrival;
   if(_qTownSession||!entry||questCfg.completeAt!=='town'||!cfg||entry.townEventDone||!G||G._isWaveAltar) return null;
   if(Number(G._wave)!==Number(questCfg.completeWave)) return null;
-  if(typeof waveStageRouteType==='function'&&waveStageRouteType(G._wave,G._waveStage)!=='city') return null;
+  // オンラインのG._waveStageはサーバーのraw step（city=5）で、PvEの旅程配列とは
+  // 添字の意味が違う。オンラインだけはサーバーが配った現在ノードを正とする。
+  const onlineState=G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch
+    ?OnlineMatch.getState():null;
+  const nodeType=onlineState&&onlineState.nodeType
+    ?String(onlineState.nodeType)
+    :(typeof waveStageRouteType==='function'?waveStageRouteType(G._wave,G._waveStage):null);
+  if(nodeType!=='city') return null;
   return entry;
 }
 
@@ -2449,6 +2504,7 @@ if(typeof window!=='undefined'){
   window.questPartWithCard=questPartWithCard;
   window.questGuardLeave=questGuardLeave;
   window.questBattleCardLine=questBattleCardLine;
+  window.questEncounterBattlePending=questEncounterBattlePending;
   window.questIsMagicWolfBattle=questIsMagicWolfBattle;
   window.questIsGarmBattle=questIsGarmBattle;
   window.questBattleCarryActive=questBattleCarryActive;

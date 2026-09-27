@@ -75,6 +75,75 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     assert.ok(Math.abs(onlineSteal.landed-onlineSteal.settled)<=1,'オンラインで奪ったカードが着地後にもう一度ずれている');
     console.log('OK オンライン奪取も待機中固定・最終地点へ1回で移動');
 
+    const supportPlan=await browser.eval(`
+      const events=[
+        {type:'turn_begin'},
+        {type:'effect_flash',side:'p1',unitId:'support-leader',trigger:'attack'},
+        {type:'effect_flash',side:'p1',unitId:'support-leader',trigger:'support_fire'},
+        {type:'effect_flash',side:'p1',unitId:'support-shooter',trigger:'support_fire'},
+        {type:'damage',side:'p2',unitId:'support-target',sourceId:'support-shooter',effect:true,effectSource:false,damageKind:'attack_effect'},
+        {type:'attack',side:'p1',attackerId:'support-leader',targetId:'support-target'},
+      ];
+      const plan=presentPreAttackPlan(events,0);
+      return plan?{index:plan.index,actorId:plan.actorId,event:plan.event}:null;
+    `);
+    assert.ok(supportPlan&&supportPlan.index===5&&supportPlan.actorId==='support-leader',
+      '援護射撃を撃った味方へ攻撃者を取り違え、最初の攻撃モーションを先出しできていない');
+    console.log('OK 援護射撃の数値より先に最初の攻撃者のモーションを開始');
+
+    const arassusSummon=await browser.eval(`
+      document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+      document.getElementById('scr-battle').classList.add('active');
+      document.body.className='';
+      const mk=(id,name,side,code)=>({id,name,side,lane:'front',atk:3,hp:30,maxHp:30,color:side==='p1'?'赤':'黒',
+        no:code,artCode:code,keywords:[],desc:'',_panelSummoned:true});
+      const arassus=mk('arassus-c043','アラッサス','p1','C043');
+      arassus.desc='攻撃：全ての敵に1ダメージを与える。';
+      const left=mk('ran-left','左の敵','p2','EN022');
+      const ran=mk('ran-daughter-en026','波の娘 “ラン・ドーター”','p2','EN026');
+      ran.desc='負傷：「黒ケルピー」を2体召喚する。';
+      const right=mk('ran-right','右の敵','p2','EN022');
+      G.allies=[arassus]; G.enemies=[left,ran,right]; G._battleCompactMoves=new Map();
+      renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const center=el=>{const r=el&&el.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height}:null;};
+      const before=center(getCurrentUnitSlot('enemy',ran));
+      const originalTrace=_recordBattleTrace;
+      let contact=null;
+      _recordBattleTrace=(type,data)=>{ if(type==='attack_motion_contact'&&data&&data.attackerId===arassus.id) contact=data; return originalTrace(type,data); };
+      try{
+        beginBattleMotion();
+        await playArassusAttackMotion(arassus,ran,false,async()=>{
+          const k1=mk('ran-kelpie-1','黒ケルピー','p2','EN022');
+          const k2=mk('ran-kelpie-2','黒ケルピー','p2','EN022');
+          coreInsertSummonedUnit(G.enemies,k1,{placement:'rightOfSource',placementTargetId:ran.id},7);
+          coreInsertSummonedUnit(G.enemies,k2,{placement:'rightOfSource',placementTargetId:ran.id},7);
+          // 実戦の召喚描画とFLIPが効果待ちの終端より1フレーム遅れる条件を作る。
+          setTimeout(()=>renderField('f-enemy',G.enemies,true),70);
+          await new Promise(resolve=>setTimeout(resolve,10));
+        });
+      }finally{
+        endBattleMotion();
+        _recordBattleTrace=originalTrace;
+      }
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      const after=center(getCurrentUnitSlot('enemy',ran));
+      return {before,after,contact};
+    `);
+    assert.ok(arassusSummon.before&&arassusSummon.after&&arassusSummon.contact,
+      'アラッサス＋ラン・ドーター召喚の座標を取得');
+    assert.ok(Math.abs(arassusSummon.after.x-arassusSummon.before.x)>20,
+      'ケルピー召喚で対象枠が動く再現条件になっていない');
+    assert.equal(arassusSummon.contact.targetDomId,'ran-daughter-en026',
+      '接触直前にラン・ドーターの枠をunitIdで取り直していない');
+    const motion=arassusSummon.contact.motionCenter;
+    const target=arassusSummon.contact.targetCenter;
+    assert.ok(motion&&target,'接触時の攻撃先座標が記録されていない');
+    assert.ok(Math.abs(motion.x-target.x)<target.width*.65
+      &&Math.abs(motion.y-target.y)<target.height*.65,
+    `アラッサスの接触先が移動後の対象枠から外れている ${JSON.stringify({motion,target})}`);
+    console.log('OK アラッサスは負傷召喚後のラン・ドーター現在位置へ接触');
+
     const siren=await browser.eval(`
       const originalMotion=playAttackMotion;
       const originalFlash=presentEffectFlashEvent;
