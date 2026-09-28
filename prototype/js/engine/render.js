@@ -3363,21 +3363,11 @@ function _gameScale(){
 function _getAttackTargetRect(slot){
   const rect=slot?.getBoundingClientRect?.();
   if(!rect) return rect;
-  // 詰めアニメーション中は現在のgetBoundingClientRect()が移動途中の値になる。
-  // inlineのleft/topは詰め後の終点を保持しているため、攻撃先だけ終点へ補正する。
-  const left=parseFloat(slot.style.left);
-  const top=parseFloat(slot.style.top);
-  const parent=slot.offsetParent;
-  if(!Number.isFinite(left)||!Number.isFinite(top)||!parent) return rect;
-  const parentRect=parent.getBoundingClientRect();
-  const scaleX=parent.offsetWidth?parentRect.width/parent.offsetWidth:1;
-  const scaleY=parent.offsetHeight?parentRect.height/parent.offsetHeight:1;
-  return {
-    left:parentRect.left+left*scaleX,
-    top:parentRect.top+top*scaleY,
-    width:rect.width,
-    height:rect.height,
-  };
+  // 詰めアニメーション中は getBoundingClientRect() が移動途中の値になる。
+  // slot.style.left は `calc(...)` なので parseFloat では終点を復元できず、
+  // 対象が並び替え中だと複製カードもカードの間へ吸い寄せられていた。
+  // FLIPのtransformだけを一時的に外す共通の実測で、必ず落ち着き先を返す。
+  return (typeof _settledRectOf==='function'&&_settledRectOf(slot))||rect;
 }
 
 // ── 盤面カードの「動く複製」を作る ────────────────────────────
@@ -3801,12 +3791,37 @@ async function playUnitStealMotion(unit, fromSide, toSide, applyBoard, durationM
   return true;
 }
 
+// 攻撃効果で召喚・死亡が起き、並びのFLIPが始まった場合だけ、
+// 対象が終点へ着くまで待つ。rAFが止まるタブでも戦闘を止めないよう上限を持つ。
+function _attackLayoutIsMoving(){
+  const now=performance.now();
+  const compactUntil=Math.max(0,Number(G&&G._battleCompactAnimatingUntil)||0);
+  // transition開始は描画の次フレームなので、記録した260msに
+  // 2フレーム分の余裕を足し、実スロットのtransformが終わるまで移動中とする。
+  return !!(G&&G._animateBattleCompact)||now<compactUntil+34;
+}
+function _waitForAttackLayoutSettled(timeoutMs){
+  const limit=Math.max(0,Number(timeoutMs)||900);
+  const started=performance.now();
+  return new Promise(resolve=>{
+    const poll=()=>{
+      const now=performance.now();
+      const compactUntil=Math.max(0,Number(G&&G._battleCompactAnimatingUntil)||0);
+      const moving=_attackLayoutIsMoving();
+      if(!moving||now-started>=limit){ resolve(!moving); return; }
+      window.setTimeout(poll,Math.min(34,Math.max(8,compactUntil+34-now)));
+    };
+    poll();
+  });
+}
+
 function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options){
   if(!attacker||!target||!document.body) return Promise.resolve();
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_start',{
     attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
   });
   const opt=options||{};
+  const layoutAtStart=typeof _battleLayoutSignature==='function'?_battleLayoutSignature():'';
   const fromList=isEnemySide?G.enemies:G.allies;
   const ownLiveCountAtStart=(fromList||[]).filter(u=>u&&u.hp>0).length;
   // **対象は相手陣営とは限らない。** ピクシーで操られた敵は同じ陣営の敵を殴る。
@@ -4071,6 +4086,27 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           ],opt.returnDuration||420,stableReturn);
           return;
         }
+        // 攻撃効果で並びが増減したら、死亡演出中に保留された詰めも
+        // ここで共通入口から流す。この時点で攻撃前効果は全て見せ終わっているため、
+        // 旧配置に数値・VFXを出す必要はもう無い。FLIPの終了後に対象へ向かう。
+        const layoutNow=typeof _battleLayoutSignature==='function'?_battleLayoutSignature():layoutAtStart;
+        const layoutChanged=layoutNow!==layoutAtStart;
+        const compactPending=!!(G&&G._pendingBattleCompact);
+        const domOutOfSync=typeof _battleDomLayoutMatchesUnits==='function'
+          ?!_battleDomLayoutMatchesUnits():false;
+        const compactWasMoving=_attackLayoutIsMoving();
+        // 死亡ケースはコアが攻撃モーション開始前に最終HPまで解決するため、
+        // 配列シグネチャは前後で同じになり得る。DOMとの不一致はここで必ず流す。
+        if((compactPending||domOutOfSync)&&typeof requestBattleCompact==='function'){
+          // 保留分をこの場で引き受ける。まだ死亡効果処理中なら
+          // requestBattleCompact()側が再度保留するので、その状態は失わない。
+          G._pendingBattleCompact=false;
+          G._pendingBattleRender=false;
+          requestBattleCompact({forceDuringMotion:true,forceRender:true});
+        }
+        const shouldWait=layoutChanged||compactPending||domOutOfSync
+          ||compactWasMoving||_attackLayoutIsMoving();
+        if(shouldWait) await _waitForAttackLayoutSettled(900);
         // 効果を出し終えてから残りの間合いを詰めて接触する。
         // 召喚の描画が効果待ちの終端と同じフレームに入る場合があるため、
         // 対象はunitIdで接触直前まで取り直す。runSegment側が現在位置から
@@ -4090,7 +4126,11 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       // 体感で1テンポ遅れるため、ここで呼ぶ。
       if(typeof _recordBattleTrace==='function'){
         const contactTargetEl=getCurrentTargetEl();
-        const contactTargetRect=contactTargetEl?_getAttackTargetRect(contactTargetEl):null;
+        // 検査用の targetCenter は終点補正値ではなく、接触したその瞬間に
+        // 画面上で見えている対象枠を記録する。同じ補正関数どうしを比べると、
+        // FLIP途中に外れていても検査が通るため。
+        const contactTargetRect=contactTargetEl?.getBoundingClientRect?.()||null;
+        const settledTargetRect=contactTargetEl?_getAttackTargetRect(contactTargetEl):null;
         const contactMotionRect=clone.getBoundingClientRect();
         const center=rect=>rect?{
           x:rect.left+rect.width/2,y:rect.top+rect.height/2,
@@ -4100,6 +4140,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide,
           targetDomId:contactTargetEl?.dataset?.unitId||null,
           motionCenter:center(contactMotionRect),targetCenter:center(contactTargetRect),
+          settledTargetCenter:center(settledTargetRect),
         });
       }
       if(typeof opt.onHit==='function'){ try{ opt.onHit(); }catch(e){ console.error('[attackMotion onHit]',e); } }

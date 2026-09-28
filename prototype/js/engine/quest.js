@@ -319,6 +319,34 @@ function _qActiveEntry(){
   return _qNormalizeEntry(_qAllEntries().find(e=>e.status==='accepted'&&!e.towerEventDone)||null);
 }
 
+// クエストの分類（クエストシートの「分類」。酒場側の行 → 無ければ番号だけの行）。
+function _qQuestClass(id){
+  const data=_qQuestData(_qVariant(id,QUEST_TAVERN_VARIANT))||_qQuestData(id)||{};
+  return String(data.questClass||'').trim();
+}
+// その街で選ばれる（選ばれた）クエスト。
+// 前の街で選ばれたクエストと同じ分類の候補は外す（例：護衛依頼→危険生物護送 にはしない。2026-09-28 利用者指定）。
+// 前の街の選択は、実際に選ばれていればそれを、まだなら同じ鍵付き乱数で決まるはずのものを使う（受託・拒否は問わない）。
+// 外して候補が無くなる時は、外さずに全候補から選ぶ。
+function _qPickForWave(wave,depth){
+  const w=Math.max(0,Number(wave)||0);
+  const existing=_qEntryForWave(w);
+  if(existing) return existing.questId;
+  const candidates=_qRegionIds(w);
+  if(!candidates.length) return '';
+  let pool=candidates;
+  if((depth||0)<8){
+    let prevWave=w-1;
+    while(prevWave>=0&&!_qRegionIds(prevWave).length) prevWave--;
+    const prevId=prevWave>=0?_qPickForWave(prevWave,(depth||0)+1):'';
+    const prevClass=prevId?_qQuestClass(prevId):'';
+    if(prevClass){
+      const filtered=candidates.filter(id=>_qQuestClass(id)!==prevClass);
+      if(filtered.length) pool=filtered;
+    }
+  }
+  return runWithKeyedRandom(`quest:${w}:tavern`,()=>pool[Math.floor(rand()*pool.length)]);
+}
 function _qEnsureSelected(){
   const all=_qQuestState();
   if(!all) return null;
@@ -327,7 +355,8 @@ function _qEnsureSelected(){
   if(existing) return existing;
   const candidates=_qRegionIds(wave);
   if(!candidates.length) return null;
-  const selected=runWithKeyedRandom(`quest:${wave}:tavern`,()=>candidates[Math.floor(rand()*candidates.length)]);
+  const selected=_qPickForWave(wave);
+  if(!selected) return null;
   const tavernVariant=_qVariant(selected,QUEST_TAVERN_VARIANT);
   const towerVariant=_qVariant(selected,QUEST_TOWER_VARIANT);
   const data=_qQuestData(tavernVariant)||_qQuestData(selected)||{};

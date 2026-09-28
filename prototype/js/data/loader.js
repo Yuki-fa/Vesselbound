@@ -759,6 +759,8 @@ async function loadGameData() {
           description: String(row['クエスト説明文'] || '').trim(),
           // 酒場で B が最初に喋る時に出す名前（quest.js の名前札。「奇妙な少女 ファラ」＝空白の前が小さい）。
           characterName: String(row['キャラクターの名前'] || '').trim(),
+          // 分類（A/B/…）。同じ分類のクエストは次の街で続けて出さない（quest.js _qPickForWave）。
+          questClass: String(row['分類'] || '').trim(),
         };
       });
       window.QUEST_DATA = questMap;

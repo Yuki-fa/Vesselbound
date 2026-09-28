@@ -2164,7 +2164,8 @@ function showErrorOverlay(options){
   if(back){
     back.textContent=String(opt.buttonText||getText(opt.buttonKey||'「OK」ボタン',opt.buttonFallback||'OK'));
     back.onclick=()=>{
-      try{ if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:error-overlay-back'}); }catch(_e){}
+      // ボタンの音は呼び出し側で変えられる（戦闘キャラ不在の「戻る」はオプション画面の「戻る」と同じ uiConfirm）。
+      try{ if(typeof playSfx==='function') playSfx(opt.buttonSfx||'uiConfirmHeavy',{group:'ui',guardKey:'ui:error-overlay-back'}); }catch(_e){}
       if(document.body) document.body.classList.remove('fatal-error-active');
       if(overlay) overlay.setAttribute('aria-hidden','true');
       if(typeof opt.onClose==='function') opt.onClose();

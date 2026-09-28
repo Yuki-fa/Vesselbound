@@ -91,58 +91,111 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       '援護射撃を撃った味方へ攻撃者を取り違え、最初の攻撃モーションを先出しできていない');
     console.log('OK 援護射撃の数値より先に最初の攻撃者のモーションを開始');
 
-    const arassusSummon=await browser.eval(`
+    const arassusReflow=await browser.eval(`
       document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
       document.getElementById('scr-battle').classList.add('active');
       document.body.className='';
       const mk=(id,name,side,code)=>({id,name,side,lane:'front',atk:3,hp:30,maxHp:30,color:side==='p1'?'赤':'黒',
         no:code,artCode:code,keywords:[],desc:'',_panelSummoned:true});
-      const arassus=mk('arassus-c043','アラッサス','p1','C043');
-      arassus.desc='攻撃：全ての敵に1ダメージを与える。';
-      const left=mk('ran-left','左の敵','p2','EN022');
-      const ran=mk('ran-daughter-en026','波の娘 “ラン・ドーター”','p2','EN026');
-      ran.desc='負傷：「黒ケルピー」を2体召喚する。';
-      const right=mk('ran-right','右の敵','p2','EN022');
-      G.allies=[arassus]; G.enemies=[left,ran,right]; G._battleCompactMoves=new Map();
-      renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
-      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
       const center=el=>{const r=el&&el.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height}:null;};
-      const before=center(getCurrentUnitSlot('enemy',ran));
-      const originalTrace=_recordBattleTrace;
-      let contact=null;
-      _recordBattleTrace=(type,data)=>{ if(type==='attack_motion_contact'&&data&&data.attackerId===arassus.id) contact=data; return originalTrace(type,data); };
-      try{
-        beginBattleMotion();
-        await playArassusAttackMotion(arassus,ran,false,async()=>{
-          const k1=mk('ran-kelpie-1','黒ケルピー','p2','EN022');
-          const k2=mk('ran-kelpie-2','黒ケルピー','p2','EN022');
-          coreInsertSummonedUnit(G.enemies,k1,{placement:'rightOfSource',placementTargetId:ran.id},7);
-          coreInsertSummonedUnit(G.enemies,k2,{placement:'rightOfSource',placementTargetId:ran.id},7);
-          // 実戦の召喚描画とFLIPが効果待ちの終端より1フレーム遅れる条件を作る。
-          setTimeout(()=>renderField('f-enemy',G.enemies,true),70);
-          await new Promise(resolve=>setTimeout(resolve,10));
-        });
-      }finally{
-        endBattleMotion();
-        _recordBattleTrace=originalTrace;
-      }
-      await new Promise(resolve=>requestAnimationFrame(resolve));
-      const after=center(getCurrentUnitSlot('enemy',ran));
-      return {before,after,contact};
+      const runCase=async kind=>{
+        const arassus=mk('arassus-'+kind,'アラッサス','p1','C043');
+        arassus.desc='攻撃：全ての敵に1ダメージを与える。';
+        arassus.attackSfx='sword';
+        const left=mk('left-'+kind,'左の敵','p2','EN022');
+        const ran=mk('target-'+kind,'波の娘 “ラン・ドーター”','p2','EN026');
+        ran.desc=kind==='summon'?'負傷：「黒ケルピー」を2体召喚する。':'';
+        const right=mk('right-'+kind,'右の敵','p2','EN022');
+        G.allies=[arassus]; G.enemies=[left,ran,right]; G._coreDrivenBattle=true;
+        G._battleCompactMoves=new Map(); G._lastCompactLiveCounts={allies:1,enemies:3};
+        G._pendingBattleCompact=false; G._pendingBattleRender=false;
+        G._animateBattleCompact=false; G._battleCompactAnimatingUntil=0;
+        G._resolvingDamageBatchDeaths=0; G._pendingDeathEffects=0;
+        G._battleCompactPreviousRects=null; G._battleCompactHeldGaps=null;
+        renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        const before=center(getCurrentUnitSlot('enemy',ran));
+        // コアは1手を最後まで計算してから演出する。死亡ケースはモーション開始時点で
+        // 配列だけ最終HPになっている一方、DOMは3枚配置のままという実戦条件を作る。
+        if(kind==='death') left.hp=0;
+        const originalTrace=_recordBattleTrace;
+        let contact=null;
+        _recordBattleTrace=(type,data)=>{
+          if(type==='attack_motion_contact'&&data&&data.attackerId===arassus.id) contact=data;
+          return originalTrace(type,data);
+        };
+        try{
+          beginBattleMotion();
+          await playArassusAttackMotion(arassus,ran,false,async()=>{
+            if(kind==='summon'){
+              const k1=mk('kelpie-1-'+kind,'黒ケルピー','p2','EN022');
+              const k2=mk('kelpie-2-'+kind,'黒ケルピー','p2','EN022');
+              coreInsertSummonedUnit(G.enemies,k1,{placement:'rightOfSource',placementTargetId:ran.id},7);
+              coreInsertSummonedUnit(G.enemies,k2,{placement:'rightOfSource',placementTargetId:ran.id},7);
+            }
+            // 攻撃前効果の最後に詰め直しが始まり、そのFLIPがまだ進行中のまま
+            // モーションの停止が解除される条件。特に死亡は配列シグネチャが変わらない。
+            requestBattleCompact({forceDuringMotion:true,forceRender:true});
+            await new Promise(resolve=>setTimeout(resolve,10));
+          });
+        }finally{
+          endBattleMotion();
+          _recordBattleTrace=originalTrace;
+        }
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        const after=center(getCurrentUnitSlot('enemy',ran));
+
+        // 接触後のcombat damageが、共通イベント表示から対象の数値と命中SEへ届くことも確認する。
+        const originalHit=playHitVfx;
+        const originalHitSfx=playAttackDamageSfx;
+        const labels=[];
+        const hitSfx=[];
+        try{
+          playHitVfx=(side,unit,amount)=>{ labels.push({side,unitId:unit&&unit.id,amount,
+            domId:getCurrentUnitSlot(side,unit)?.dataset?.unitId||null}); return true; };
+          playAttackDamageSfx=(source,amount)=>{ hitSfx.push({sourceId:source&&source.id,amount}); return true; };
+          const damage={type:'damage',side:'p2',unitId:ran.id,sourceId:arassus.id,
+            amount:3,hpAfter:27,damageKind:'combat',batch:'contact-'+kind,effect:false};
+          await presentDamageEvent(damage,{
+            findUnit:(side,id)=>side==='p2'&&String(id)===String(ran.id)?ran:null,
+            findAnyUnit:id=>String(id)===String(arassus.id)?arassus:null,
+            applyHp:(unit,hp)=>{ unit.hp=hp; },
+            gate:presentCreateDamageGate(()=>0),sleep:async()=>{},ownEffectText:()=>'',
+            sfxDone:new Set(),sfxBatch:()=>[damage],alreadyShown:()=>false,
+          });
+        }finally{
+          playHitVfx=originalHit;
+          playAttackDamageSfx=originalHitSfx;
+        }
+        return {kind,before,after,contact,labels,hitSfx};
+      };
+      return [await runCase('summon'),await runCase('death')];
     `);
-    assert.ok(arassusSummon.before&&arassusSummon.after&&arassusSummon.contact,
-      'アラッサス＋ラン・ドーター召喚の座標を取得');
-    assert.ok(Math.abs(arassusSummon.after.x-arassusSummon.before.x)>20,
-      'ケルピー召喚で対象枠が動く再現条件になっていない');
-    assert.equal(arassusSummon.contact.targetDomId,'ran-daughter-en026',
-      '接触直前にラン・ドーターの枠をunitIdで取り直していない');
-    const motion=arassusSummon.contact.motionCenter;
-    const target=arassusSummon.contact.targetCenter;
-    assert.ok(motion&&target,'接触時の攻撃先座標が記録されていない');
-    assert.ok(Math.abs(motion.x-target.x)<target.width*.65
-      &&Math.abs(motion.y-target.y)<target.height*.65,
-    `アラッサスの接触先が移動後の対象枠から外れている ${JSON.stringify({motion,target})}`);
-    console.log('OK アラッサスは負傷召喚後のラン・ドーター現在位置へ接触');
+    assert.equal(arassusReflow.length,2,'アラッサスの召喚／死亡ケースを両方実行');
+    for(const result of arassusReflow){
+      assert.ok(result.before&&result.after&&result.contact,
+        `アラッサス（${result.kind}）の座標を取得`);
+      assert.ok(Math.abs(result.after.x-result.before.x)>20,
+        `アラッサス（${result.kind}）で対象枠が動く再現条件になっていない`);
+      assert.equal(result.contact.targetDomId,'target-'+result.kind,
+        `アラッサス（${result.kind}）が接触直前に対象枠をunitIdで取り直していない`);
+      const motion=result.contact.motionCenter;
+      const target=result.contact.targetCenter;
+      const settled=result.contact.settledTargetCenter;
+      assert.ok(motion&&target&&settled,
+        `アラッサス（${result.kind}）の接触座標が記録されていない`);
+      assert.ok(Math.abs(target.x-settled.x)<=1.5&&Math.abs(target.y-settled.y)<=1.5,
+        `アラッサス（${result.kind}）がFLIP終了前に接触している ${JSON.stringify({target,settled})}`);
+      assert.ok(Math.abs(motion.x-target.x)<=target.width/2
+        &&Math.abs(motion.y-target.y)<=target.height/2,
+      `アラッサス（${result.kind}）の接触点が対象枠の外 ${JSON.stringify({motion,target})}`);
+      assert.ok(result.labels.some(x=>x.unitId==='target-'+result.kind
+        &&x.domId==='target-'+result.kind&&x.amount===3),
+      `アラッサス（${result.kind}）の対象へダメージ表示が呼ばれていない`);
+      assert.ok(result.hitSfx.some(x=>x.sourceId==='arassus-'+result.kind&&x.amount===3),
+        `アラッサス（${result.kind}）の接触ダメージで命中SEが呼ばれていない`);
+    }
+    console.log('OK アラッサスは召喚／死亡後のFLIP完了位置へ接触し、対象の数値・命中SEも再生');
 
     const siren=await browser.eval(`
       const originalMotion=playAttackMotion;

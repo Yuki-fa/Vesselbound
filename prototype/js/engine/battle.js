@@ -2798,6 +2798,23 @@ function _battleLayoutSignature(){
   return `${side(G.allies)}||${side(G.enemies)}`;
 }
 
+// コアの生存配列と、現在画面にあるカードのID順を比べる。
+// 召喚・死亡ではコアが演出より先に最終状態まで解決するため、
+// _battleLayoutSignature() の前後比較だけでは「配列は新しいがDOMは旧配置」を拾えない。
+function _battleDomUnitIds(side){
+  const field=document.getElementById(side==='p1'?'f-ally':'f-enemy');
+  return field?[...field.querySelectorAll('.slot[data-unit-id]')]
+    .map(slot=>String(slot.dataset.unitId||'')).join('|'):'';
+}
+function _battleArrayUnitIds(arr){
+  return (arr||[]).filter(u=>u&&u.hp>0&&!u._isSoul&&!u._isObject&&u.id!=null)
+    .map(u=>String(u.id)).join('|');
+}
+function _battleDomLayoutMatchesUnits(){
+  return `${_battleDomUnitIds('p1')}||${_battleDomUnitIds('p2')}`
+    ===`${_battleArrayUnitIds(G.allies)}||${_battleArrayUnitIds(G.enemies)}`;
+}
+
 function compactBattleUnitsAfterDeath(){
   if(G._isSimulating||G._compactingAfterDeath||G._deferBattleCompact) return;
   _recordBattleTrace('battle_compact_request',{reason:'death',motionDepth:G._battleMotionDepth||0});
@@ -2906,12 +2923,8 @@ function requestBattleCompact(options){
   // 並べ替えるため、配列だけを比較すると「変更なし」と誤判定する。
   // DOMにまだ存在しない召喚体や、DOM上の順序が古い状態を検出し、
   // 配列と画面の実体が一致した場合だけ再描画を省略する。
-  const liveDomLayout=side=>{
-    const field=document.getElementById(side==='p1'?'f-ally':'f-enemy');
-    return field?[...field.querySelectorAll('.slot[data-unit-id]')].map(x=>String(x.dataset.unitId||'')).join('|'):'';
-  };
-  const liveArrayLayout=arr=>(arr||[]).filter(u=>u&&u.hp>0&&!u._isSoul&&!u._isObject&&u.id!=null)
-    .map(u=>String(u.id)).join('|');
+  const liveDomLayout=side=>_battleDomUnitIds(side);
+  const liveArrayLayout=arr=>_battleArrayUnitIds(arr);
   const domBefore=`${liveDomLayout('p1')}||${liveDomLayout('p2')}`;
   // compactBattleUnits()は死亡ユニットを配列から除去するため、renderField()へ
   // 到達した時点では死亡直前のDOM矩形をユニットから探せない場合がある。
@@ -6485,8 +6498,9 @@ async function onBattleEnd(){
 }
 
 // ── 帰滅（K015）─────────────────────────────────────────
-// 「このキャラクターは戦闘中のHP変化が永続化する。また、死亡、逃走した場合は消滅する。」
-//   ・死亡・逃走（コアは逃走でもHPを0にする）したら、魔導板のカードごと消す。
+// 「このキャラクターは戦闘中のHP変化が永続化し、復活の効果を持たずに死亡、逃走した場合は消滅する。」
+//   ・死亡後に復活イベントが続いたら、その1回は消滅しない。
+//   ・復活を消費した後の死亡、または逃走は魔導板のカードごと消す。
 //   ・生き残ったら、戦闘中のHPの増減を魔導板のカードのライフへ書き戻す。
 //     増減は「戦闘開始時（開戦効果の前）のコアの写し」との差で測る。開戦効果や他のカードの
 //     常時効果は次の戦闘でもまた掛かるので、開戦後の値との差にすると二重に入る。
@@ -6504,39 +6518,25 @@ function _removeAbsentKiemetsuCards(){
   if(Array.isArray(events)) G._kiemetsuAppliedEvents=events;
   const startEv=(events||[]).find(e=>e&&e.type==='battle_start');
   const startUnits=((startEv&&startEv.sides&&startEv.sides.p1)||[]).filter(Boolean);
-  const startHp=new Map(startUnits.map(u=>[String(u.id),Number(u.hp)]));
   // **倒れた体は、ここへ来る時点で G.allies から外れていることがある**（敗北時は全員外れている）。
-  // そのため帰滅の体は戦闘開始時の写しから集め、生き残りは G.allies、居なければ
-  // 死亡・逃走のイベントで判定する（根性・復活で立ち直った体は G.allies に居る）。
-  const endedIds=new Set((events||[]).filter(e=>e&&e.side==='p1'&&(e.type==='death'||e.type==='fled')).map(e=>String(e.unitId)));
+  // そのため戦闘開始時の写しを基準にし、生存実体と既存イベント列を
+  // coreKiemetsuBattleOutcome() へ渡す。復活の成否や逃走のルールをここで再構成しない。
   const vanished=new Set();
   const hpDelta=new Map();
-  const judge=(id,slot,liveUnit)=>{
+  const startsById=new Map(startUnits.filter(u=>u&&u.id!=null).map(u=>[String(u.id),u]));
+  const liveById=new Map((G.allies||[]).filter(u=>u&&u.id!=null&&!u._isObject&&!u._isSoul)
+    .map(u=>[String(u.id),u]));
+  const candidateIds=new Set([...startsById.keys(),...liveById.keys()]);
+  candidateIds.forEach(id=>{
+    const start=startsById.get(id)||null;
+    const live=liveById.get(id)||null;
+    const outcome=coreKiemetsuBattleOutcome(start,live,events||[]);
+    if(!outcome.applies) return;
+    const rawSlot=live&&live._mainBoardSlot!=null?live._mainBoardSlot:start&&start._mainBoardSlot;
+    const slot=Number.isInteger(Number(rawSlot))?Number(rawSlot):null;
     if(!Number.isInteger(slot)) return;
-    if(liveUnit){
-      if(!(liveUnit.hp>0)){ vanished.add(slot); return; }
-      const before=startHp.get(String(id));
-      if(!Number.isFinite(before)) return;
-      const delta=Math.round(Number(liveUnit.hp)-before);
-      if(delta) hpDelta.set(slot,(hpDelta.get(slot)||0)+delta);
-      return;
-    }
-    if(endedIds.has(String(id))) vanished.add(slot);
-  };
-  const seen=new Set();
-  // 戦闘中ユニットには、強化カードから付与された帰滅も反映されている。
-  (G.allies||[]).forEach(unit=>{
-    if(!unit||unit._isObject||unit._isSoul||!_unitHasKeyword(unit,'帰滅')) return;
-    seen.add(String(unit.id));
-    judge(unit.id,unit._mainBoardSlot,unit);
-  });
-  startUnits.forEach(snap=>{
-    if(seen.has(String(snap.id))||!_unitHasKeyword(snap,'帰滅')) return;
-    judge(snap.id,Number.isInteger(Number(snap._mainBoardSlot))?Number(snap._mainBoardSlot):null,null);
-  });
-  // 同じマスから別の体が生きて残っている（復活など）なら消さない。
-  vanished.forEach(slot=>{
-    if((G.allies||[]).some(u=>u&&u.hp>0&&u._mainBoardSlot===slot&&!u._isObject&&!u._isSoul)) vanished.delete(slot);
+    if(outcome.vanished){ vanished.add(slot); return; }
+    if(outcome.hpDelta) hpDelta.set(slot,(hpDelta.get(slot)||0)+outcome.hpDelta);
   });
   vanished.forEach(slot=>{ if(equip[slot]) equip[slot]=null; });
   if(G._testBattleMode) return;

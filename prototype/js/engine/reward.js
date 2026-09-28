@@ -890,7 +890,9 @@ function _showNoDeployableCharacterError(){
     title:_uiLabel('「戦闘キャラ不在時」見出し','戦闘不可'),
     message:_uiLabel('戦闘キャラ不在時','戦闘可能なキャラクターがいません。\n封印の効果を持たないキャラクターを1枚以上、召喚可能なマスに置いてください。'),
     buttonKey:'「戻る」ボタン',
-    buttonFallback:'戻る'
+    buttonFallback:'戻る',
+    // 押した時の音は、オプション画面の「戻る」と同じ（2026-09-28 利用者指定）。
+    buttonSfx:'uiConfirm'
   });
 }
 function renderMoveSlotsInEnemy(){

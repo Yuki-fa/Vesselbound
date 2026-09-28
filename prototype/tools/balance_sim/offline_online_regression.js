@@ -61,6 +61,34 @@ function runDirect(setup) {
   };
 }
 
+function runKiemetsuOfflineOnlineScenario() {
+  const setup = {
+    seed: 0x5151,
+    turnLimit: 12,
+    sides: {
+      p1: {units: [{id: 'kiemetsu-guard', name: '帰滅の護衛', atk: 4, hp: 8, maxHp: 8,
+        keywords: ['帰滅', '復活'], _mainBoardSlot: 2}]},
+      p2: {units: [{id: 'kiemetsu-killer', name: '攻撃役', atk: 20, hp: 100, maxHp: 100}]},
+    },
+  };
+  const online = simulateOnlineBattle(setup);
+  const offline = runDirect(setup);
+  assert.deepEqual(online.events, offline.events,
+    '帰滅＋復活のイベント列がオフライン／オンラインで不一致');
+  assert.deepEqual(online.finalState, offline.finalState,
+    '帰滅＋復活の最終状態がオフライン／オンラインで不一致');
+  const start = offline.events.find(event => event.type === 'battle_start')?.sides?.p1?.[0] || null;
+  const onlineOutcome = core.coreKiemetsuBattleOutcome(start, null, online.events);
+  const offlineOutcome = core.coreKiemetsuBattleOutcome(start, null, offline.events);
+  assert.deepEqual(onlineOutcome, offlineOutcome,
+    '帰滅の戦闘後判定がオフライン／オンラインで不一致');
+  assert.deepEqual([offlineOutcome.vanished, offlineOutcome.reason], [true, 'death'],
+    '復活を1回消費した後の死亡が帰滅の消滅になっていない');
+  assert.equal(offline.events.filter(event => event.type === 'revive'
+    && event.unitId === 'kiemetsu-guard').length, 1,
+  '帰滅＋復活の比較シナリオが1回だけ復活する条件になっていない');
+}
+
 function main() {
   const pveBattle = [
     '../../js/engine/battle.js',
@@ -168,6 +196,7 @@ function main() {
   assert.equal(online.outcome, direct.outcome, '共有コアの勝敗がオンラインと不一致');
   assert.equal(online.endReason, direct.endReason, '共有コアの終了理由がオンラインと不一致');
   assert.deepEqual(online.finalState, direct.finalState, '共有コアの最終状態がオンラインと不一致');
+  runKiemetsuOfflineOnlineScenario();
 
   // 「この効果を持つ味方」は接続グループではなく、同じ陣営で出撃する全ユニットを数える。
   // 合体版だけ倍率2。編成時に確定し、戦闘中に1体倒れても残りの値は再計算しない。

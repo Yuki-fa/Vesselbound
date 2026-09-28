@@ -260,11 +260,14 @@ const WAVE=1;
     await b.until('document.getElementById("quest-debug-layer")?.classList.contains("is-open")',10000);
     const draft=await b.run(`(()=>{const rows=[...document.querySelectorAll('#quest-debug-layer .quest-debug-row')];const row=wave=>rows.find(r=>r.dataset.wave===String(wave));return {count:rows.length,towns:rows.map(r=>r.querySelector('[data-quest-debug-town]')?.textContent||''),varga:row(2)?.dataset.questId||'',names:rows.map(r=>r.querySelector('[data-quest-debug-name]')?.textContent||'')};})()`);
     ok('クエスト変更：エルム・ヴァルガ・ギャラハの3行を表示する',draft.count===3&&draft.towns.join('|')==='エルム|ヴァルガ|ギャラハ'&&draft.varga==='Q004',draft);
-    await b.run(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"] button[data-quest-debug-dir="next"]').click();return 1;`);
-    await b.until(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"]')?.dataset.questId==='Q005'`,10000);
-    await b.run(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"] button[data-quest-debug-dir="next"]').click();return 1;`);
-    await b.until(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"]')?.dataset.questId==='Q004'`,10000);
-    ok('クエスト変更：ヴァルガの右矢印はQ004とQ005をループする',true);
+    // ヴァルガの候補は地域情報シートから読む（Q006 などが増えても一周して最初へ戻ることを確かめる）。
+    const vargaIds=await b.run(`return _qRegionIds(2)`);
+    for(let k=1;k<=vargaIds.length;k++){
+      const want=vargaIds[k%vargaIds.length];
+      await b.run(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"] button[data-quest-debug-dir="next"]').click();return 1;`);
+      await b.until(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"]')?.dataset.questId===${JSON.stringify(want)}`,10000);
+    }
+    ok(`クエスト変更：ヴァルガの右矢印は候補（${vargaIds.join('→')}）を一周して最初へ戻る`,vargaIds[0]==='Q004'&&vargaIds.length>=2,vargaIds);
     await b.run(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"] button[data-quest-debug-dir="next"]').click();return 1;`);
     await b.until(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="2"]')?.dataset.questId==='Q005'`,10000);
     await b.run(`document.getElementById('quest-debug-save').click();return 1;`);

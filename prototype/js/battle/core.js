@@ -4137,6 +4137,65 @@ function coreTryRevive(unit, state, emit) {
   return ring ? 'revival_ring' : keyword;
   } finally { coreEndSummonBatch(state, emit); }
 }
+
+// ── 帰滅（K015）の戦闘後状態 ──────────────────────────────────
+// 魔導板への書き戻し自体はPvE側の仕事だが、「死亡した時点で復活できたか」は
+// 戦闘イベント列で決まるルールなのでコアが唯一の判定を持つ。
+//
+// death / instant_death の後に同じIDの revive が来れば、その死亡では消滅しない。
+// 復活を消費した後の次の死亡は revive が来ないため消滅する。
+// fled は復活の有無に関係なくその場で消滅する。
+// 新しいイベント種別は増やさず、PvE／オンラインが共有する既存列をそのまま読む。
+function coreKiemetsuExitReason(events, unitId, side) {
+  if (unitId == null) return '';
+  const id = String(unitId);
+  let expectedSide = side == null ? '' : String(side);
+  let deathWithoutRevive = false;
+  for (const event of Array.isArray(events) ? events : []) {
+    if (!event || event.unitId == null || String(event.unitId) !== id) continue;
+    // 対戦では両陣営が同じローカルIDを持つ入力も許される。IDだけで追うと、
+    // 相手側のreviveがこちら側の未復活死亡を打ち消すため、開始時の陣営も照合する。
+    // 戦闘中に奪われた体は、それ以降の死亡・復活イベントが移動先陣営で出る。
+    if (event.type === 'unit_stolen' && (!expectedSide || String(event.side || '') === expectedSide)) {
+      expectedSide = event.toSide == null ? expectedSide : String(event.toSide);
+      continue;
+    }
+    if (expectedSide && String(event.side || '') !== expectedSide) continue;
+    if (event.type === 'fled') return 'fled';
+    if (event.type === 'death' || event.type === 'instant_death') {
+      deathWithoutRevive = true;
+      continue;
+    }
+    if (event.type === 'revive') deathWithoutRevive = false;
+  }
+  return deathWithoutRevive ? 'death' : '';
+}
+
+// 戦闘開始時の写しと戦闘後の実体から、帰滅の消滅とHP永続化を一度で決める。
+// hpDelta は開戦効果前のHPとの差。次戦闘で開戦効果を二重適用しないため、
+// 戦闘終了時の maxHp ではなく、従来どおり実際の hp 変化だけを返す。
+function coreKiemetsuBattleOutcome(startUnit, liveUnit, events) {
+  const start = startUnit || null;
+  const live = liveUnit || null;
+  const applies = !!((start && coreUnitHasKeyword(start, '帰滅'))
+    || (live && coreUnitHasKeyword(live, '帰滅')));
+  if (!applies) return { applies: false, vanished: false, reason: '', hpDelta: 0 };
+  const id = start && start.id != null ? start.id : live && live.id;
+  const side = start && start.side != null ? start.side : live && live.side;
+  // 戦闘修正でHP0になる経路は死亡イベントを出さないが、実体がまだ配列に
+  // 残っている場合は従来どおり死亡として扱う。「姿が無い」だけでは判定しない。
+  const eventReason = coreKiemetsuExitReason(events, id, side);
+  const reason = eventReason || (live && !(Number(live.hp) > 0) ? 'death' : '');
+  const vanished = !!reason;
+  let hpDelta = 0;
+  const before = Number(start && start.hp);
+  const after = Number(live && live.hp);
+  if (!vanished && live && after > 0 && Number.isFinite(before) && Number.isFinite(after)) {
+    hpDelta = Math.round(after - before);
+  }
+  return { applies: true, vanished, reason, hpDelta };
+}
+
 function coreTriggerBattleEnd(state, emit, rng) {
   ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     if (unit.hp > 0 && !coreIsSealed(unit)) {
@@ -5445,6 +5504,8 @@ if (typeof window !== 'undefined') {
   window.coreTriggerManaOnInjury = coreTriggerManaOnInjury;
   window.coreTriggerDeath = coreTriggerDeath;
   window.coreTryRevive = coreTryRevive;
+  window.coreKiemetsuExitReason = coreKiemetsuExitReason;
+  window.coreKiemetsuBattleOutcome = coreKiemetsuBattleOutcome;
   window.coreTriggerBattleEnd = coreTriggerBattleEnd;
   window.coreApplyLuckyRing = coreApplyLuckyRing;
   window.coreResolveHit = coreResolveHit;
@@ -5493,7 +5554,8 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyOpeningItems,
     coreApplyOpeningRings,
     coreTriggerManaOnAttack, coreTriggerManaOnInjury,
-    coreTriggerDeath, coreTriggerBattleEnd, coreTryRevive, coreApplyLuckyRing,
+    coreTriggerDeath, coreTriggerBattleEnd, coreTryRevive,
+    coreKiemetsuExitReason, coreKiemetsuBattleOutcome, coreApplyLuckyRing,
     coreResolveHit, coreApplyHitTriggers, coreHitAll, coreBeginDamageBatch, coreEndDamageBatch,
   };
 }

@@ -182,6 +182,138 @@ function runRunDaughterInjurySummonScenario() {
     '波の娘 “ラン・ドーター”の負傷時に黒ケルピーを2体召喚していない');
 }
 
+function runArassusReflowCoreScenario() {
+  const run = kind => {
+    const summon = kind === 'summon';
+    const state = core.createBattleState({
+      sides: {
+        p1: {units: [{id: `arassus-${kind}`, name: 'アラッサス', no: 'C043', atk: 3, hp: 30, maxHp: 30,
+          desc: '攻撃：全ての敵に1ダメージを与える。'}]},
+        p2: {units: [
+          {id: `left-${kind}`, name: '左の敵', atk: 1, hp: summon ? 8 : 1, maxHp: summon ? 8 : 1},
+          {id: `ran-${kind}`, name: '波の娘 “ラン・ドーター”', atk: 2, hp: 8, maxHp: 8,
+            desc: summon ? '負傷：「黒ケルピー」を2体召喚する。' : ''},
+          {id: `right-${kind}`, name: '右の敵', atk: 1, hp: 8, maxHp: 8},
+        ]},
+      },
+      summonDefs: [{name: '黒ケルピー', power: 1, life: 3, color: '黒'}],
+    });
+    state._coreFirstSide = 'p1';
+    const events = [];
+    const runner = core.createBattleRunner(state, createSeededRng(summon ? 531 : 532),
+      event => events.push(event), {skipOpening: true});
+    runner.step({deferCompact: true});
+    return {state, events};
+  };
+
+  for (const kind of ['summon', 'death']) {
+    const {events} = run(kind);
+    if (kind === 'summon') {
+      assert.equal(events.filter(event => event.type === 'summon' && event.unit && event.unit.name === 'ケルピー').length, 2,
+        'アラッサスの攻撃効果後にラン・ドーターの2体召喚が成立していない');
+    } else {
+      assert.ok(events.some(event => event.type === 'death' && event.unitId === 'left-death'),
+        'アラッサスの攻撃効果で敵が減るシナリオになっていない');
+    }
+    const attackIndex = events.findIndex(event => event.type === 'attack'
+      && event.attackerId === `arassus-${kind}` && event.attackVisual !== false);
+    assert.ok(attackIndex >= 0, `アラッサス（${kind}）の接触攻撃イベントがない`);
+    const attack = events[attackIndex];
+    assert.ok(events.slice(attackIndex + 1).some(event => event.type === 'damage'
+      && event.side === 'p2' && event.unitId === attack.targetId && event.damageKind === 'combat'
+      && !event.counter && Number(event.amount) > 0),
+    `アラッサス（${kind}）の攻撃対象へ実ダメージイベントがない`);
+    assert.ok(events.slice(attackIndex + 1).some(event => event.type === 'damage'
+      && event.side === 'p1' && event.unitId === `arassus-${kind}` && event.counter
+      && event.damageKind === 'combat'),
+    `アラッサス（${kind}）の反撃イベントがない`);
+  }
+}
+
+function runKiemetsuLifecycleScenario() {
+  const state = core.createBattleState({
+    sides: {
+      p1: {units: [{id: 'kiemetsu-revive', name: '帰滅の護衛', atk: 4, hp: 8, maxHp: 8,
+        keywords: ['帰滅', '復活'], _mainBoardSlot: 3}]},
+      p2: {units: [{id: 'kiemetsu-killer', name: '攻撃役', atk: 20, hp: 30, maxHp: 30}]},
+    },
+  });
+  const unit = state.units.p1[0];
+  const killer = state.units.p2[0];
+  const start = core.coreUnitSnapshot(unit);
+  const events = [];
+  const hit = () => core.coreResolveHit(state, killer, unit, 20, false,
+    createSeededRng(541), event => events.push(event));
+
+  hit();
+  assert.ok(unit.hp > 0, '帰滅＋復活が1回目の死亡で復活していない');
+  assert.equal(events.filter(event => event.type === 'revive' && event.unitId === unit.id).length, 1,
+    '帰滅＋復活の1回目にreviveイベント数が不正');
+  assert.equal(core.coreUnitKeywords(unit).includes('復活'), false,
+    '一度復活した後も状態としての復活が残っている');
+  const afterRevive = core.coreKiemetsuBattleOutcome(start, unit, events);
+  assert.equal(afterRevive.vanished, false, '復活できた1回目の死亡で帰滅が消滅している');
+  assert.equal(afterRevive.hpDelta, -4, '復活後のHP変化が戦闘後の永続化差分になっていない');
+
+  const secondFrom = events.length;
+  hit();
+  assert.equal(unit.hp, 0, '復活消費後の2回目の死亡で生存している');
+  assert.equal(events.slice(secondFrom).some(event => event.type === 'revive' && event.unitId === unit.id), false,
+    '復活消費後の2回目の死亡で再度復活している');
+  const afterSecondDeath = core.coreKiemetsuBattleOutcome(start, null, events);
+  assert.deepEqual([afterSecondDeath.vanished, afterSecondDeath.reason, afterSecondDeath.hpDelta],
+    [true, 'death', 0], '復活消費後の死亡が帰滅の消滅になっていない');
+  assert.equal(core.coreKiemetsuExitReason([
+    {type: 'death', side: 'p1', unitId: 'same-local-id'},
+    {type: 'death', side: 'p2', unitId: 'same-local-id'},
+    {type: 'revive', side: 'p2', unitId: 'same-local-id'},
+  ], 'same-local-id', 'p1'), 'death',
+  '相手側の同一IDの復活が帰滅の未復活死亡を打ち消している');
+  assert.equal(core.coreKiemetsuExitReason([
+    {type: 'unit_stolen', side: 'p1', toSide: 'p2', unitId: 'stolen-kiemetsu'},
+    {type: 'death', side: 'p2', unitId: 'stolen-kiemetsu'},
+  ], 'stolen-kiemetsu', 'p1'), 'death',
+  '戦闘中に奪われた帰滅の移動先陣営での死亡を見失っている');
+
+  const survivorState = core.createBattleState({
+    sides: {
+      p1: {units: [{id: 'kiemetsu-hp', name: 'HP永続化役', atk: 3, hp: 10, maxHp: 10,
+        keywords: ['帰滅'], _mainBoardSlot: 4}]},
+      p2: {units: [{id: 'kiemetsu-chip', name: '削り役', atk: 3, hp: 10, maxHp: 10}]},
+    },
+  });
+  const survivor = survivorState.units.p1[0];
+  const survivorStart = core.coreUnitSnapshot(survivor);
+  const survivorEvents = [];
+  core.coreResolveHit(survivorState, survivorState.units.p2[0], survivor, 3, false,
+    createSeededRng(542), event => survivorEvents.push(event));
+  const survived = core.coreKiemetsuBattleOutcome(survivorStart, survivor, survivorEvents);
+  assert.deepEqual([survived.vanished, survived.hpDelta], [false, -3],
+    '生存した帰滅のHP変化が戦闘後差分として残っていない');
+  const drained = core.coreKiemetsuBattleOutcome(survivorStart,
+    {...survivorStart, hp: 0}, []);
+  assert.deepEqual([drained.vanished, drained.reason], [true, 'death'],
+    '死亡イベントを出さないHP0の戦闘修正で、帰滅が盤面に残っている');
+
+  const fledState = core.createBattleState({
+    sides: {p1: {units: [{id: 'kiemetsu-fled', name: '逃走役', atk: 0, hp: 7, maxHp: 7,
+      keywords: ['帰滅', '復活'], _mainBoardSlot: 5}]}, p2: {units: []}},
+  });
+  const fled = fledState.units.p1[0];
+  const fledStart = core.coreUnitSnapshot(fled);
+  const fledEvents = [];
+  core.coreSweepAtkZeroFlee(fledState, event => fledEvents.push(event));
+  const fledOutcome = core.coreKiemetsuBattleOutcome(fledStart, null, fledEvents);
+  assert.deepEqual([fledOutcome.vanished, fledOutcome.reason], [true, 'fled'],
+    '復活を持つ帰滅が逃走した時に消滅していない');
+
+  const battleSource = read('js/engine/battle.js');
+  assert.match(battleSource, /coreKiemetsuBattleOutcome\(start,live,events\|\|\[\]\)/,
+    '戦闘後の魔導板反映が帰滅の共通コア判定を使っていない');
+  assert.match(battleSource, /hpDelta\.forEach\(\(delta,slot\)=>[\s\S]{0,240}hp:delta,reason:'kiemetsu'/,
+    '帰滅のHP差分が魔導板の永続化出口へ接続されていない');
+}
+
 function runDeferredManaScenario() {
   const state = core.createBattleState({
     resources: {p1: {mana: 2, gold: 0}, p2: {mana: 0, gold: 0}},
@@ -562,6 +694,8 @@ function main() {
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
   runRunDaughterInjurySummonScenario();
+  runArassusReflowCoreScenario();
+  runKiemetsuLifecycleScenario();
   runDeferredManaScenario();
   runDeferredDeathChainParityScenario();
   runSkeletonKingAndMultiHitScenario();
