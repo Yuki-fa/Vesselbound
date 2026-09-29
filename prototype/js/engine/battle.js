@@ -1810,14 +1810,28 @@ function _battleLineUnitCenterX(unit,isEnemySide){
   const list=isEnemySide?G.enemies:G.allies;
   const idx=(list||[]).indexOf(unit);
   const slot=root&&idx>=0?root.querySelector(`.unit-card[data-unit-idx="${idx}"]`):null;
+  // 攻撃者自身が反撃・呪詛で倒れる時は、接触中の本体スロットが非表示。
+  // その場合だけ飛行中の複製を話者の位置にし、空の元位置へ尻尾を出さない。
+  const moving=[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+    .find(el=>String(el.dataset.unitId||'')===String(unit&&unit.id||''));
+  const anchor=moving||slot;
   const rootStyle=getComputedStyle(document.documentElement);
   const scale=parseFloat(rootStyle.getPropertyValue('--game-scale'))||1;
   const offX=parseFloat(rootStyle.getPropertyValue('--game-offset-x'))||0;
-  if(!slot) return 1920;
-  const r=slot.getBoundingClientRect();
+  if(!anchor) return 1920;
+  const r=anchor.getBoundingClientRect();
   return ((r.left+r.width/2)-offX)/(scale||1);
 }
-function _battleLineTailY(isEnemySide,isRear){
+function _battleLineTailY(isEnemySide,isRear,unit){
+  const moving=unit&&[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+    .find(el=>String(el.dataset.unitId||'')===String(unit.id||''));
+  if(moving){
+    const rootStyle=getComputedStyle(document.documentElement);
+    const scale=parseFloat(rootStyle.getPropertyValue('--game-scale'))||1;
+    const offY=parseFloat(rootStyle.getPropertyValue('--game-offset-y'))||0;
+    const r=moving.getBoundingClientRect();
+    return ((r.top+r.height/2)-offY)/(scale||1);
+  }
   if(isEnemySide) return isRear?BATTLE_LINE_TAIL_Y.enemyRear:BATTLE_LINE_TAIL_Y.enemyFront;
   return isRear?BATTLE_LINE_TAIL_Y.allyRear:BATTLE_LINE_TAIL_Y.allyFront;
 }
@@ -1914,6 +1928,35 @@ function _showBattleLine(text,centerX,tailY,isEnemySide){
     };
     document.addEventListener('pointerdown',onClick,true);
   });
+}
+
+// 死亡・逃走・プレイヤー敗北で使う、開幕台詞と同じ吹き出し。
+// 「いつ出すか」は present_events.js が決め、ここは DOM の表示だけを行う。
+async function showBattleUnitOutcomeLines(unit,side,lines){
+  const spoken=(Array.isArray(lines)?lines:[]).map(line=>String(line||'').trim()).filter(Boolean);
+  if(!unit||!spoken.length) return false;
+  const isEnemySide=side==='p2'||(G.enemies||[]).includes(unit);
+  const isRear=String(unit.lane||'front')==='rear';
+  try{ if(document.fonts&&document.fonts.ready) await document.fonts.ready; }catch(_e){}
+  try{
+    const centerX=_battleLineUnitCenterX(unit,isEnemySide);
+    const tailY=_battleLineTailY(isEnemySide,isRear,unit);
+    for(const line of spoken) await _showBattleLine(line,centerX,tailY,isEnemySide);
+  }finally{
+    _removeBattleLineLayer();
+  }
+  return true;
+}
+
+// プレイヤー敗北時の話者は、盤面に残った敵を「前衛左→右、後衛左→右」で並べる。
+// 複数いる時も1体ずつ順に話し、全員が終わるまで決着表示へ進まない。
+async function playBattlePlayerDefeatLines(){
+  if(typeof presentPlayerDefeatLines!=='function') return false;
+  const ordered=typeof _orderedBattleCharacters==='function'
+    ?_orderedBattleCharacters():(G.enemies||[]).filter(unit=>unit&&unit.hp>0);
+  const speakers=ordered.filter(unit=>unit&&unit.hp>0&&(G.enemies||[]).includes(unit))
+    .map(unit=>({unit,side:'p2'}));
+  return presentPlayerDefeatLines(speakers,{showLines:showBattleUnitOutcomeLines});
 }
 // 台詞を持つキャラクターを、盤面の並び順で集める。
 function _battleStartLineSpeakers(){
@@ -3012,7 +3055,10 @@ function handleBattleDefeat(){
   if(typeof _removeAbsentKiemetsuCards==='function') _removeAbsentKiemetsuCards();
   if(typeof handleWaveBattleDefeat==='function'&&handleWaveBattleDefeat()) return;
   G._battleDefeatHandled=true;
-  gameOver();
+  void (async()=>{
+    if(typeof playBattlePlayerDefeatLines==='function') await playBattlePlayerDefeatLines();
+    gameOver();
+  })();
 }
 
 // ── 勝利確定（敵全滅・引き分けの両方から呼ばれる共通処理）─────────
@@ -6521,7 +6567,7 @@ function _removeAbsentKiemetsuCards(){
   // **倒れた体は、ここへ来る時点で G.allies から外れていることがある**（敗北時は全員外れている）。
   // そのため戦闘開始時の写しを基準にし、生存実体と既存イベント列を
   // coreKiemetsuBattleOutcome() へ渡す。復活の成否や逃走のルールをここで再構成しない。
-  const vanished=new Set();
+  const vanished=new Map();
   const hpDelta=new Map();
   const startsById=new Map(startUnits.filter(u=>u&&u.id!=null).map(u=>[String(u.id),u]));
   const liveById=new Map((G.allies||[]).filter(u=>u&&u.id!=null&&!u._isObject&&!u._isSoul)
@@ -6535,10 +6581,15 @@ function _removeAbsentKiemetsuCards(){
     const rawSlot=live&&live._mainBoardSlot!=null?live._mainBoardSlot:start&&start._mainBoardSlot;
     const slot=Number.isInteger(Number(rawSlot))?Number(rawSlot):null;
     if(!Number.isInteger(slot)) return;
-    if(outcome.vanished){ vanished.add(slot); return; }
+    if(outcome.vanished){ vanished.set(slot,outcome.reason); return; }
     if(outcome.hpDelta) hpDelta.set(slot,(hpDelta.get(slot)||0)+outcome.hpDelta);
   });
-  vanished.forEach(slot=>{ if(equip[slot]) equip[slot]=null; });
+  vanished.forEach((reason,slot)=>{
+    const card=equip[slot];
+    if(!card) return;
+    equip[slot]=null;
+    if(!G._testBattleMode&&typeof questOnCardLost==='function') questOnCardLost(card,reason);
+  });
   if(G._testBattleMode) return;
   hpDelta.forEach((delta,slot)=>{
     if(vanished.has(slot)) return;

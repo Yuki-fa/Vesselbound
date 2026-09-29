@@ -148,19 +148,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 「薙ぎ払いで表示済み」と誤判定され、以後その相手のダメージ数値が出なくなる。
   // 逃走を二重に見せないための印（束の2件目以降を素通りさせる）。
   const fledShown=new Set();
+  // 攻撃の接触時に先出しした死亡／逃走台詞を、後の本演出で重ねない。
+  const outcomeLinesShown=new Set();
   // 逃走した敵の撃破報酬を払った体（束の2件目以降がループへ戻ってきても二重に払わない）。
   const fledGoldPaid=new Set();
   const sweepShownEvents=new Set();
   // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
   const keywordShownEvents=new Set();
-  // **ダメージではなく戦闘修正でHPが0になった体に印を付ける。**
-  // コアは「修正でHPが0になった」ことを死亡イベントでは知らせない
-  // （修正で落ちた体は死亡効果も血も伴わないため、death イベント自体が出ない）。
-  // そのため death の直前だけを遡っていた頃は印が一度も立たず、
-  // 実際の消滅を受け持つ renderField() のフォールバックが常に焼失で消していた。
-  // イベント列を**前から**追い、その体のHPを最後に削ったものが何かを覚える。
-  // 印はイベントではなく**体そのもの**へ付けるので、消えるのが後のフラッシュに
-  // ずれても残る。見せ方は render.js の _playUnitDeathCardFx が唯一の実装。
+  // 虹の瞳の指輪の実効値だけを表示側へ渡す。
+  // 戦闘修正死の印は death.statChange から共通の presentDeathBatch() が渡す。
   (events||[]).forEach(e=>{
     if(!e||e.unitId==null) return;
     // 虹の瞳の指輪の説明文には、コアが実際に付与した X を出す。
@@ -169,37 +165,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       if(u) u._rainbowRingBonus=Math.max(0,Number(e.rainbowBonus!=null?e.rainbowBonus:e.atk)||0);
     }
-    // ATKへのダメージ（武器破壊）はHPを削らないので数に入れない。
-    const byDamage=(e.type==='damage'&&e.damageTo!=='atk')||e.type==='instant_death';
-    const byDrain=e.type==='stat_change'&&Number(e.hp)<0;
-    if(!byDamage&&!byDrain) return;
-    const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-    if(!u) return;
-    // コアは解決済みなので u.hp は最終値。最後にHPを削ったのが修正で、
-    // かつ倒れているなら「修正で落ちた」。
-    if(byDamage) delete u._deathByStatDrain;
-    else if(Number(u.hp)<=0) u._deathByStatDrain=true;
   });
-  // **死亡イベントが来ない消滅**（戦闘修正でHPが0になった体）へ印を付ける。
-  // renderField() は死亡イベントが再生されるまでカードを残すが、コアは戦闘修正で
-  // 倒れた体に death を出さない。来ないイベントを待つ間にカードごと消えてしまい、
-  // 衰弱の演出（青い波打ち＋WASTED）が一度も出なかった（利用者報告 2026-09-22）。
-  // 逃走（fled）は専用の演出で消すので対象から外す。
-  {
-    const eventedIds=new Set();
-    (events||[]).forEach(e=>{
-      if(!e||e.unitId==null) return;
-      if(e.type==='death'||e.type==='fled') eventedIds.add(`${e.side}:${e.unitId}`);
-    });
-    (events||[]).forEach(e=>{
-      if(!e||e.unitId==null) return;
-      if(!(e.type==='stat_change'&&Number(e.hp)<0)) return;
-      const u=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
-      if(!u||Number(u.hp)>0) return;
-      if(eventedIds.has(`${e.side}:${e.unitId}`)) delete u._deathWithoutEvent;
-      else u._deathWithoutEvent=true;
-    });
-  }
   // **これから解放される封印キャラは、演出が届くまで暗転を保つ。**
   // コアは計算の時点で `_sealed` を落としてしまうので、この時点では既に
   // 解放済みの状態になっている。そのまま描くと、画面ではまだ味方が生きているのに
@@ -246,6 +212,19 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     ?presentDropDeathsOfStolen(_reordered):_reordered;
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
+  const _outcomeLineApi={
+    findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))
+      ||findLiveUnit(side==='p1'?'p2':'p1',id,findUnit(side==='p1'?'p2':'p1',id)),
+    isLineDone:ev=>outcomeLinesShown.has(ev),
+    markLineDone:ev=>outcomeLinesShown.add(ev),
+    showLines:(unit,side,lines,options)=>showBattleUnitOutcomeLines(unit,side,lines,options),
+  };
+  const _fireAttackContact=async(attackEvent,attackIndex)=>{
+    _firePendingContactVfx();
+    if(typeof presentAttackContactOutcomeLines==='function'){
+      await presentAttackContactOutcomeLines(eventList,attackIndex,_outcomeLineApi);
+    }
+  };
   // 攻撃前効果のイベント順は変えず、各一撃のモーションだけを先に開始して25%で止める。
   // 二段・三段攻撃では、1撃目のattackを解放した後、次の効果列の先頭で新しい計画を作る。
   let _preAttack=null;
@@ -271,7 +250,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       try{
         await playAttackMotion(attacker,target,side==='p2',()=>{ markReady(); return stopped; },
           {...PRESENT_ATTACK_MOTION,
-           onContact:_firePendingContactVfx,
+           onContact:()=>_fireAttackContact(attackEvent,plan.index),
            onHit:()=>_shakeForAttack(attackEvent),
            targetRect:target._lastVisualRect||null});
       } finally { markReady(); endBattleMotion(); }
@@ -481,15 +460,22 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 束の2件目以降は markDone 済みになるので、このループが後で届いても素通りする。
       const _deathGroup=typeof presentDeathBatchEvents==='function'
         ?presentDeathBatchEvents(eventList,eventIndex):[e];
+      // 追撃目標を倒した事実は、盤面から外れる前にクエスト側へ渡す。
+      if(typeof questBattleEnemyDefeated==='function'){
+        questBattleEnemyDefeated(_deathGroup,(side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+      }
       // クエストに必須のカード（ファラなど）が倒れる時は、戦闘を止めてカードの上に死亡時台詞を出す（quest.js）。
       if(typeof questBattleCardLine==='function'){
-        await questBattleCardLine(_deathGroup.filter(ev=>!deaths.has(`${ev.side}:${ev.unitId}`)),'death',
-          (side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+        if(await questBattleCardLine(_deathGroup.filter(ev=>!deaths.has(`${ev.side}:${ev.unitId}`)),'death',
+          (side,id)=>findLiveUnit(side,id,findUnit(side,id)),eventList)) return;
       }
       await presentDeathBatch(_deathGroup,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
         isDone:ev=>deaths.has(`${ev.side}:${ev.unitId}`),
         markDone:ev=>deaths.add(`${ev.side}:${ev.unitId}`),
+        isLineDone:_outcomeLineApi.isLineDone,
+        markLineDone:_outcomeLineApi.markLineDone,
+        showLines:_outcomeLineApi.showLines,
         beat:()=>sleep(PRESENT_HIT_BEAT_MS),
         // **カードの消失演出は同時に倒れた全員で同じ時点に始める。**
         // 死亡効果（processDeath）を先に待つと、その間だけ他のカードが場に残る。
@@ -553,7 +539,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         beginBattleMotion();
         try{
           await playAttackMotion(attacker,target,attackSide==='p2',null,{...PRESENT_ATTACK_MOTION,
-            onContact:_firePendingContactVfx,
+            onContact:()=>_fireAttackContact(e,eventIndex),
             // **大ダメージの画面揺れは接触の瞬間**（オンラインの受け口と同じ扱い）。
             onHit:()=>_shakeForAttack(e),
             targetRect:target._lastVisualRect||null});
@@ -667,10 +653,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       presentTransformEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
-        setForm:(unit,ev)=>_setBattleUnitForm(unit,ev.name,ev.atk,ev.maxHp,unit.color),
-        advanceShown:unit=>{
+        // PvEの体はコアの最終状態そのもの。変身時点の写しで上書きしない（present_events.js）。
+        unitIsFinalState:true,
+        advanceShown:(unit,ev)=>{
           if(typeof presentAdvanceShown==='function'){
-            presentAdvanceShown(unit,{atk:unit.atk,hp:unit.hp,maxHp:unit.maxHp});
+            const num=(v,fb)=>(v!=null&&Number.isFinite(Number(v))?Number(v):fb);
+            presentAdvanceShown(unit,{atk:num(ev&&ev.atk,unit.atk),hp:num(ev&&ev.hp,unit.hp),maxHp:num(ev&&ev.maxHp,unit.maxHp)});
           }
         },
         render:()=>{ if(typeof renderAll==='function') renderAll(); },
@@ -708,8 +696,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       }
       // 必須カードが逃走する時は、カードの上に逃走時台詞を出す（quest.js）。
       if(typeof questBattleCardLine==='function'){
-        await questBattleCardLine(_fledGroup.filter(ev=>!fledShown.has(`${ev.side}:${ev.unitId}`)),'flee',
-          (side,id)=>findLiveUnit(side,id,findUnit(side,id)));
+        if(await questBattleCardLine(_fledGroup.filter(ev=>!fledShown.has(`${ev.side}:${ev.unitId}`)),'flee',
+          (side,id)=>findLiveUnit(side,id,findUnit(side,id)),eventList)) return;
       }
       await presentFledBatch(_fledGroup,{
         // 陣営を跨いで探す（奪われた直後など、配列の側が入れ替わっていることがある）。
@@ -717,6 +705,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           ||findLiveUnit(side==='p1'?'p2':'p1',id,findUnit(side==='p1'?'p2':'p1',id)),
         isDone:ev=>fledShown.has(`${ev.side}:${ev.unitId}`),
         markDone:ev=>fledShown.add(`${ev.side}:${ev.unitId}`),
+        isLineDone:_outcomeLineApi.isLineDone,
+        markLineDone:_outcomeLineApi.markLineDone,
+        showLines:_outcomeLineApi.showLines,
         removeFromBoard:(unit,side)=>{
           const list=side==='p1'?G.allies:G.enemies;
           const index=list.indexOf(unit);
@@ -727,16 +718,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='stat_change'){
-      // **戦闘修正でHPが0になった体は、ここで消え方を見せる。**
-      // コアは death を出さないので、待っていると演出のないままカードが消える
-      // （複数体が同時に逃走・衰弱した時に衰弱の演出が出なかった。利用者報告 2026-09-22）。
-      // カードは開戦の据え置き（presentHoldShown）で画面に残っているうちに焼く。
-      const _showWither=(unit,side)=>{
-        if(!unit||!unit._deathWithoutEvent||unit._deathFxDone) return;
-        if(Number(unit.hp)>0) return;
-        if(typeof presentShownHp==='function'&&presentShownHp(unit)>0) return;
-        if(typeof playUnitDeathBurn==='function') playUnitDeathBurn(unit,side==='p1'?'ally':'enemy');
-      };
+      if(e.side==='p1'&&typeof questBattleVanishedCard==='function'
+        &&questBattleVanishedCard(findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId)),eventList)) return;
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // どの理由で固有VFXを出すかは present.js。ここへ規則を書き戻さないこと。
       if(!presentStatChangeVfxAllowed(e)){
@@ -749,7 +732,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
             maxHp:Math.max(1,presentShownMaxHp(only)+(Number(e.maxHp!==undefined?e.maxHp:e.hp)||0)),
           });
           if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(only,e.side==='p1'?'ally':'enemy');
-          _showWither(only,e.side);
         }
         continue;
       }
@@ -776,7 +758,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if (typeof _persistPermanentStatOrWarn === 'function') _persistPermanentStatOrWarn(_getPartyBoardUnit(), e);
         else persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
       }
-      _showWither(findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId)),e.side);
       continue;
     }
     if(e.type==='summon'&&e.unit){
@@ -811,6 +792,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           presentHoldShown(unit,original._displayAtk,original._displayHp,original._displayMaxHp,
             unit.shield||0,original._displayWeaken!=null?original._displayWeaken:(unit.weaken||0));
         }
+      }else if(G._coreDrivenBattle&&typeof presentHoldShown==='function'&&unit._displayHp==null){
+        // **召喚体も、出てきた瞬間の値（召喚イベントの写し）で据え置く。** 体はコアの最終状態なので、
+        // 据え置かないと画面のHPが最終値のままになり、倒れた後に「復活」で生き残った召喚体は
+        // 倒れた時点でも hp>0 に見えて焼失が出なかった（オンラインは焼失→復活。2026-09-29）。
+        // 解除は他の体と同じく手番の終わり（盤面の全員をまとめて戻す）。
+        const s0=e.unit||{};
+        const num=(v,fb)=>(v!=null&&Number.isFinite(Number(v))?Number(v):fb);
+        presentHoldShown(unit,num(s0.atk,unit.atk),num(s0.hp,unit.hp),num(s0.maxHp,unit.maxHp),
+          num(s0.shield,unit.shield||0),num(s0.weaken,unit.weaken||0));
       }
       // 同じコア処理内で「本体 summon → その本体を起点にした誘発 summon」が
       // 連続して出る場合、次のイベントを表示するまで本体は pendingSummons に

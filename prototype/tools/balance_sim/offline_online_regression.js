@@ -89,6 +89,41 @@ function runKiemetsuOfflineOnlineScenario() {
   '帰滅＋復活の比較シナリオが1回だけ復活する条件になっていない');
 }
 
+function runStatChangeDeathOfflineOnlineScenario() {
+  const setup = {
+    seed: 0x929,
+    turnLimit: 8,
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {
+      p1: {units: [
+        {id: 'wendigo', name: 'ウェンディゴ', atk: 8, hp: 10, maxHp: 10,
+          desc: '開戦：全ての敵は-1/-1を得る。この効果は、このキャラクターのHP10につき1回発生する。'},
+      ]},
+      p2: {units: [
+        {id: 'death-trigger', name: '死亡効果役', atk: 1, hp: 1, maxHp: 1, manaOnDeath: 2,
+          desc: '死亡：2マナを得る。'},
+        {id: 'reviver', name: '復活役', atk: 2, hp: 1, maxHp: 1, keywords: ['復活']},
+        {id: 'naglfar', name: '死の渡し守 “ナグルファル”', atk: 5, hp: 20, maxHp: 20,
+          desc: '常時：キャラクターが死亡するたび、このキャラクターは+3/+1を得る。'},
+      ]},
+    },
+  };
+  const online = simulateOnlineBattle(setup);
+  const offline = runDirect(setup);
+  assert.deepEqual(online.events, offline.events,
+    '戦闘修正死を含むイベント列がオフライン／オンラインで不一致');
+  assert.deepEqual(online.finalState, offline.finalState,
+    '戦闘修正死を含む最終状態がオフライン／オンラインで不一致');
+  assert.ok(offline.events.some(event => event.type === 'death'
+    && event.unitId === 'death-trigger' && event.statChange),
+  'オフライン／オンライン比較シナリオで戦闘修正死が発生していない');
+  assert.ok(offline.events.some(event => event.type === 'revive' && event.unitId === 'reviver'),
+    'オフライン／オンライン比較シナリオで戦闘修正死からの復活が発生していない');
+  assert.ok(offline.events.some(event => event.type === 'stat_change'
+    && event.unitId === 'naglfar' && event.reason === 'character_death_self_buff'),
+  'オフライン／オンライン比較シナリオでナグルファルの死亡観測が発生していない');
+}
+
 function main() {
   const pveBattle = [
     '../../js/engine/battle.js',
@@ -180,6 +215,13 @@ function main() {
     'PvEに旧deploySlotGroupが残っている（共通ビルダーとの二重実装）');
   const board = fs.readFileSync(require.resolve('../../js/online/board.js'), 'utf8');
   const playback = fs.readFileSync(require.resolve('../../js/online/playback.js'), 'utf8');
+  // 決着台詞はルールに使わない表示データだが、payload と receiver の両方に必要。
+  ['deathBattleLines','fleeBattleLines','playerDefeatBattleLines'].forEach(field=>{
+    assert.match(versus,new RegExp(`${field}: Array\\.isArray\\(u\\.${field}\\)`),
+      `オンライン編成payloadが${field}を送っていない`);
+    assert.match(board,new RegExp(`${field}: Array\\.isArray\\(snap\\.${field}\\)`),
+      `オンライン盤面receiverが${field}を復元していない`);
+  });
   assert.doesNotMatch(board, /ev\.effect === 'evil_eye'[\s\S]{0,240}u\.weaken\s*=/,
     'オンライン盤面の邪眼再生が弱体まで加算している');
   assert.match(board, /poison:\s*Math\.max\(0, Number\(snap\.poison\)/,
@@ -197,6 +239,7 @@ function main() {
   assert.equal(online.endReason, direct.endReason, '共有コアの終了理由がオンラインと不一致');
   assert.deepEqual(online.finalState, direct.finalState, '共有コアの最終状態がオンラインと不一致');
   runKiemetsuOfflineOnlineScenario();
+  runStatChangeDeathOfflineOnlineScenario();
 
   // 「この効果を持つ味方」は接続グループではなく、同じ陣営で出撃する全ユニットを数える。
   // 合体版だけ倍率2。編成時に確定し、戦闘中に1体倒れても残りの値は再計算しない。

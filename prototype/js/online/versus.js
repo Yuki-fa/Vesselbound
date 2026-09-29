@@ -47,6 +47,10 @@
         desc: String(u.desc || ''),
         sfxType: String(u.sfxType || panel.sfxType || ''),
         keywords: Array.isArray(u.keywords) ? u.keywords.slice() : [],
+        // 決着台詞はルール入力ではないが、オンライン再生側が同じ演出入口で必要。
+        deathBattleLines: Array.isArray(u.deathBattleLines) ? u.deathBattleLines.slice() : [],
+        fleeBattleLines: Array.isArray(u.fleeBattleLines) ? u.fleeBattleLines.slice() : [],
+        playerDefeatBattleLines: Array.isArray(u.playerDefeatBattleLines) ? u.playerDefeatBattleLines.slice() : [],
         poison: Number(u.poison) || 0,
         weakenOnHit: Number(u.weakenOnHit) || 0,
         manaOnAttack: Number(u.manaOnAttack) || 0,

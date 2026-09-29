@@ -128,7 +128,7 @@ const ARENA_ROUNDS=6;
     // WAVE より先に開幕台詞が出た場合も拾えるよう、闘技場へ入る前から記録する。
     await armWaveRecorder(b);
     const boardBefore=await b.run(`return ${boardSnapshotExpr}`);
-    const talk=await b.run(`(()=>{const t=villageTalkEntry('「闘技場」入店時')||{};return {line1:t['台詞1']||null,prompt:t['台詞2']||null,line3:t['台詞3']||null,line4:t['台詞4']||null,line5:t['台詞5']||null,special1:t['特殊台詞1']||null};})()`);
+    const talk=await b.run(`(()=>{const t=villageTalkEntry('「闘技場」入店時')||{};return {line1:t['台詞1']||null,prompt:t['台詞2']||null,line3:t['台詞3']||null,line4:t['台詞4']||null,line5:t['台詞5']||null,specialA1:t['特殊台詞A1']||null};})()`);
     assert.ok(talk.line1&&talk.prompt&&talk.line3&&talk.line4,'闘技場の会話シートを取得できない');
     await clickFacility(b,'^闘技場$');
     await waitLine(b,talk.line1);
@@ -245,9 +245,9 @@ const ARENA_ROUNDS=6;
     await b.until(`G._arenaOutcomePending===true&&Number(G._arenaRound)===${ARENA_ROUNDS}&&document.getElementById('battle-continue-btn')`,120000);
     ok('闘技場：6戦目勝利後は「進む」ボタンで最終結果を進められる',true);
     await clickContinue(b);
-    // 全勝は台詞4ではなく特殊台詞1（2026-09-26 利用者指定）。
-    await waitLine(b,run.talk.special1||run.talk.line4);
-    ok('闘技場：全勝後は特殊台詞1が出る',!!run.talk.special1);
+    // 全勝は台詞4ではなく特殊台詞A1（会話メッセージシートの新列名）。
+    await waitLine(b,run.talk.specialA1||run.talk.line4);
+    ok('闘技場：全勝後は特殊台詞A1が出る',!!run.talk.specialA1);
     await b.until(`Number(G.gold)===${run.goldBefore-run.cost+800}`,30000);
     ok('闘技場：全勝後は参加前−参加費+800G',true);
     await clickDialogue(b);

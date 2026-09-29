@@ -54,6 +54,12 @@
       grade: Number(info.grade) || 1,
       desc: snap.desc || info.desc || '',
       keywords: Array.isArray(snap.keywords) ? snap.keywords.slice() : [],
+      deathBattleLines: Array.isArray(snap.deathBattleLines) ? snap.deathBattleLines.slice()
+        : (Array.isArray(info.deathBattleLines) ? info.deathBattleLines.slice() : []),
+      fleeBattleLines: Array.isArray(snap.fleeBattleLines) ? snap.fleeBattleLines.slice()
+        : (Array.isArray(info.fleeBattleLines) ? info.fleeBattleLines.slice() : []),
+      playerDefeatBattleLines: Array.isArray(snap.playerDefeatBattleLines) ? snap.playerDefeatBattleLines.slice()
+        : (Array.isArray(info.playerDefeatBattleLines) ? info.playerDefeatBattleLines.slice() : []),
       effectData: snap.effectData ? { ...snap.effectData } : (info.effectData ? { ...info.effectData } : {}),
       boardCards: Array.isArray(snap.boardCards) ? snap.boardCards : (Array.isArray(info.boardCards) ? info.boardCards : []),
       poison: Math.max(0, Number(snap.poison) || 0),
@@ -338,6 +344,8 @@
   let _damageSfxDone = new Set();
   // 同じ死亡を二重に演出しないための記録（PvEの deaths と同じ役目）。
   let _deathsDone = new Set();
+  // 接触時に先に出した死亡／逃走台詞を、後続イベントで重ねない。
+  let _outcomeLinesDone = new Set();
   // 最後の死亡焼失が完了する時刻。決着カットインだけが必要なら残り時間を待つ。
   let _deathFxReadyAt = 0;
   // 攻撃効果より前に始めておく攻撃モーション（25%地点で停止して待つ）。
@@ -381,6 +389,10 @@
   // 「進む」ボタンは付けない（次のマスへ進む時刻はサーバーが持つため）。
   async function _playResultCutin(outcome) {
     if (outcome !== 'p1' && outcome !== 'p2' && outcome !== 'draw') return;
+    // 敗北が確定した盤面のまま、撤退／敗北カットインより先に残存敵が話す。
+    if (outcome === 'p2' && typeof playBattlePlayerDefeatLines === 'function') {
+      await playBattlePlayerDefeatLines();
+    }
     // 「いつ・どのSEで・どの尺で出すか」は present_events.js が唯一の実装（PvEと同じ）。
     // オンラインの引き分け（相打ち）は、PvEの引き分け勝利ルートと同じ勝利演出を出す。
     await presentBattleResultCutin({
@@ -524,6 +536,21 @@
     } catch (err) { console.error('[attack contact vfx]', err); }
   }
 
+  const _outcomeLineApi = {
+    findUnit: (side, id) => _find(side, id) || _find(side === 'p1' ? 'p2' : 'p1', id),
+    isLineDone: ev => _outcomeLinesDone.has(ev),
+    markLineDone: ev => _outcomeLinesDone.add(ev),
+    showLines: (unit, side, lines, options) => showBattleUnitOutcomeLines(unit, side, lines, options),
+  };
+
+  async function _fireAttackContact(ev, ctx) {
+    _firePendingContactVfx();
+    if (typeof presentAttackContactOutcomeLines !== 'function') return;
+    const events = (ctx && ctx.events) || [];
+    const index = events.indexOf(ev);
+    if (index >= 0) await presentAttackContactOutcomeLines(events, index, _outcomeLineApi);
+  }
+
   // 攻撃モーションを開始する。paused=true なら25%地点で止め、release() で接触まで進める。
   // 攻撃効果を「少し動き出した時点」で見せるための仕組み（PvEと同じ扱い）。
   function _startAttackMotion(ev, ctx, paused) {
@@ -546,7 +573,7 @@
     // PvEの通常攻撃と同じ尺・同じ接触揺れ。
     _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => { markReady(); return held; }) : null, {
       ...PRESENT_ATTACK_MOTION,
-      onContact: _firePendingContactVfx,
+      onContact: () => _fireAttackContact(ev, ctx),
       onHit: () => {
         // 接触の揺れだけをここで出す。
         // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
@@ -608,6 +635,7 @@
     if (ev.type === ONLINE_EVENT.TURN_BEGIN || ev.type === ONLINE_EVENT.BATTLE_START) {
       _damageSfxDone = new Set();
       _deathsDone = new Set();
+      if (ev.type === ONLINE_EVENT.BATTLE_START) _outcomeLinesDone = new Set();
       if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
       if (ev.type === ONLINE_EVENT.BATTLE_START) _deathFxReadyAt = 0;
     }
@@ -1142,6 +1170,9 @@
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         await presentFledEvent(ev, {
           findUnit: (side, id) => _find(side, id),
+          isLineDone: _outcomeLineApi.isLineDone,
+          markLineDone: _outcomeLineApi.markLineDone,
+          showLines: _outcomeLineApi.showLines,
           removeFromBoard: (unit, side) => {
             const list = side === 'p1' ? G.allies : G.enemies;
             const index = (list || []).indexOf(unit);
@@ -1175,6 +1206,9 @@
           findUnit: (side, id) => _find(side, id),
           isDone: e0 => _deathsDone.has(`${e0.side}:${e0.unitId}`),
           markDone: e0 => _deathsDone.add(`${e0.side}:${e0.unitId}`),
+          isLineDone: _outcomeLineApi.isLineDone,
+          markLineDone: _outcomeLineApi.markLineDone,
+          showLines: _outcomeLineApi.showLines,
           beat: () => _sleep(PRESENT_HIT_BEAT_MS),
           startFx: (unit, side) => {
             if (typeof _playDeathBurnOnce === 'function') _playDeathBurnOnce(unit, side === 'p2');

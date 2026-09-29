@@ -10451,14 +10451,23 @@ html body #village-formation-btn:hover{filter:none!important;color:#c49a6c!impor
    発光が四角くなる。発光はピン形状だけを抜いた map_mark_glow.svg を::beforeに敷いて出す。 */
 .map-mark{
   position:absolute!important;
-  background:url("assets/ui/map_mark.svg") center/100% 100% no-repeat!important;
+  background:none!important;
   pointer-events:none!important;
   z-index:2!important;
   transform-origin:50% 100%!important;
   animation:mapMarkBob 1.8s ease-in-out infinite!important;
-  /* map_mark.svgに埋め込まれた矩形影をピン形状のマスクで除外する。 */
+}
+/* 本体は::afterに描き、**本体にだけ**ピン形状のマスクを掛けて、埋め込みの矩形影（SVGの枠で四角く切れる）を落とす。
+   要素そのものへマスクを掛けると::beforeの発光まで削れるため、要素へは掛けない
+   （9/12にマスクを外した後、マーク大の四角が見えていた。2026-09-29 利用者報告）。 */
+.map-mark::after{
+  content:''!important;
+  position:absolute!important;
+  inset:0!important;
+  background:url("assets/ui/map_mark.svg") center/100% 100% no-repeat!important;
   -webkit-mask:url("assets/ui/map_mark_glow.svg") center/100% 100% no-repeat!important;
   mask:url("assets/ui/map_mark_glow.svg") center/100% 100% no-repeat!important;
+  pointer-events:none!important;
 }
 .map-mark::before{
   content:''!important;
@@ -10470,7 +10479,7 @@ html body #village-formation-btn:hover{filter:none!important;color:#c49a6c!impor
   animation:mapMarkGlow 1.8s ease-in-out infinite!important;
 }
 /* 現在地マークはマップ背景・ラインより前面に固定する。
-   本体画像を別SVGのマスクで隠さず、map_mark.svgそのものを表示する。 */
+   要素へはマスクを掛けない（発光の::beforeが削れる）。矩形影は本体の::afterのマスクで落とす。 */
 html body #scr-map.active #map-lines{
   z-index:31!important;
 }
@@ -12436,47 +12445,47 @@ _watchVesselboundDpr();
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=text0928"></script>
+<script src="js/data/local_xlsx_data.js?v=kiemetsuTalk0928"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=questTalkA4-cardFx0927"></script>
+<script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=kiemetsuAttackReflow0928"></script>
+    <script src="js/battle/core.js?v=enhvfx0929"></script>
 <script src="js/battle/formation.js?v=cardFx0927"></script>
-    <script src="js/battle/present.js?v=reportedFixes0928"></script>
-    <script src="js/battle/present_events.js?v=weakenShown0925"></script>
+    <script src="js/battle/present.js?v=area0929-outcome0929"></script>
+    <script src="js/battle/present_events.js?v=area0929-outcome0929"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=debugOnlineUnlimited01"></script>
+<script src="js/online/server_local.js?v=debugOnlineUnlimited01-outcome0929"></script>
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=rainbowText0922"></script>
 <script src="js/online/matching.js?v=reportedFixes0928"></script>
-    <script src="js/online/board.js?v=introTitle0927-onlineText0927"></script>
-<script src="js/online/versus.js?v=q0020926"></script>
+    <script src="js/online/board.js?v=introTitle0927-onlineText0927-outcome0929"></script>
+<script src="js/online/versus.js?v=q0020926-outcome0929"></script>
 <script src="js/online/flow.js?v=reportedFixes0928"></script>
 <script src="js/online/hud.js?v=onlineExit01-onlineText0927"></script>
 <script src="js/engine/state.js?v=innTalk0925-questText0927"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=cardFx0927"></script>
 <script src="js/save/profile_save.js?v=q0020926"></script>
-<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927"></script>
+<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928"></script>
 <script src="js/engine/pool.js?v=dirRename-cardFx0927"></script>
-<script src="js/engine/enemy.js?v=garmHover"></script>
-    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928"></script>
-<script src="js/engine/battle_events.js?v=q0040925"></script>
-<script src="js/engine/render.js?v=kiemetsuAttackReflow0928"></script>
+<script src="js/engine/enemy.js?v=garmHover-outcome0929"></script>
+    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929"></script>
+<script src="js/engine/battle_events.js?v=revive0929-outcome0929"></script>
+<script src="js/engine/render.js?v=area0929"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=shopFix0927"></script>
 <script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=backSfx0928"></script>
-<script src="js/engine/map.js?v=innFace0928"></script>
+<script src="js/engine/reward.js?v=rarityAltar0928"></script>
+<script src="js/engine/map.js?v=innFace0928-q0060928"></script>
     <script src="js/engine/game_confirm.js?v=tmKeys0926"></script>
-    <script src="js/engine/quest.js?v=reportedFixes0928"></script>
+    <script src="js/engine/quest.js?v=q006done0929-outcome0929"></script>
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
-    <script src="js/engine/arena.js?v=reportedFixes0928"></script>
-    <script src="js/engine/main.js?v=backSfx0928"></script>
+    <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929"></script>
+    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929"></script>
 <script src="js/engine/options.js?v=keyRename0927"></script>
 <script src="js/engine/collection.js?v=keyRename0927-textAudit0927"></script>
 <script>
@@ -13965,15 +13974,25 @@ html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slot
 html body #hand-slots.board-slots > .card-empty[data-map-board].npc-drop-hint,
 html body #hand-slots.board-slots > .card[data-map-board].npc-drop-hint,
 html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card[data-map-board].npc-drop-hint{
-  border-color:rgba(255,255,255,.95)!important;
-  outline:2px solid rgba(255,255,255,.9)!important;
-  box-shadow:0 0 10px 2px rgba(255,255,255,.85),0 0 22px rgba(255,255,255,.5)!important;
+  border-color:rgba(var(--npc-drop-rgb,255,255,255),.95)!important;
+  outline:2px solid rgba(var(--npc-drop-rgb,255,255,255),.9)!important;
+  box-shadow:0 0 10px 2px rgba(var(--npc-drop-rgb,255,255,255),.85),0 0 22px rgba(var(--npc-drop-rgb,255,255,255),.5)!important;
 }
 html body #hand-slots.board-slots > .card[data-map-board].npc-drop-hint > .map-boundary-layer,
 html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.character-card.panel-character-card[data-map-board].npc-drop-hint > .map-boundary-layer,
 html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card[data-map-board].npc-drop-hint > .map-boundary-layer,
 html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.enchantment-card[data-map-board].npc-drop-hint > .map-boundary-layer{
-  border-color:rgba(255,255,255,.95)!important;
+  border-color:rgba(var(--npc-drop-rgb,255,255,255),.95)!important;
+}
+html body #hand-slots.board-slots > .npc-drop-danger{--npc-drop-rgb:255,48,48}
+/* キャラが乗っている特殊マス（npc-drop-danger）は、キャラカード側の枠の指定に負けないよう強めに赤く光らせる（依頼中だけ）。 */
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .npc-drop-hint.npc-drop-danger.npc-drop-danger,
+html body #main-hand-area #hand-pane #hand-slots.board-slots > .npc-drop-hint.npc-drop-danger.npc-drop-danger,
+html body #hand-slots.board-slots > .npc-drop-hint.npc-drop-danger{
+  --npc-drop-rgb:255,48,48;
+  border-color:rgba(255,48,48,.95)!important;
+  outline:2px solid rgba(255,48,48,.9)!important;
+  box-shadow:0 0 10px 2px rgba(255,48,48,.85),0 0 22px rgba(255,48,48,.5)!important;
 }
 /* ドラッグ元にはマス枠だけを残し、カード枠画像は残さない。 */
 html body #hand-slots.board-slots > .card.dragging > .character-frame-layer,
@@ -14103,6 +14122,14 @@ html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slot
   outline:0!important;
   filter:none!important;
   z-index:110!important;
+}
+/* 依頼カード（帰滅持ち）をドラッグ中、キャラが乗っている特殊マスは、マスの枠（.map-boundary-layer）を赤く光らせる。
+   空いているマスは今どおり白（npc-drop-hint）。依頼中だけ（reward.js _syncNpcDropHints が npc-drop-danger を付ける）。 */
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.character-card.panel-character-card[data-map-board].npc-drop-danger > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card.enchantment-card[data-map-board].npc-drop-danger > .map-boundary-layer,
+html body.reward-screen-active #main-hand-area #hand-pane #hand-slots.board-slots > .card[data-map-board].npc-drop-danger > .map-boundary-layer{
+  border-color:rgba(255,48,48,.95)!important;
+  box-shadow:0 0 10px 2px rgba(255,48,48,.85),0 0 22px rgba(255,48,48,.5),inset 0 0 8px rgba(255,48,48,.6)!important;
 }
 html body .drag-ghost > .character-frame-layer{
   background:var(--card-frame) center/100% 100% no-repeat!important;
@@ -14312,6 +14339,15 @@ html body #hand-slots.board-slots > .card.invalid-battle-position:not([data-map-
 html body #hand-slots.board-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-atk,
 html body #hand-slots.board-slots > .card.invalid-battle-position:not([data-map-board]) .card-summon-hp{
   filter:brightness(.5)!important;
+}
+/* アイテムの対象に選べるカード（item-target-ok）は、特殊マス以外でも枠・ステータスまで明るく戻す。
+   上の暗転と詳細度が同じで後勝ちになり、絵だけ明るく枠とATK/HPが暗いままだった（2026-09-28 利用者指摘）。 */
+html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok:not([data-map-board]) > .character-frame-layer,
+html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok:not([data-map-board]) > .unit-stat-overlay-layer,
+html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok:not([data-map-board]) > .board-frame-layer,
+html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok:not([data-map-board]) .card-summon-atk,
+html body #hand-slots.board-slots > .card.invalid-battle-position.item-target-ok:not([data-map-board]) .card-summon-hp{
+  filter:none!important;
 }
 /* 報酬カードのarrowはカード箱の外へ先端がはみ出すため、箱内の暗転層だけでは
    先端が明るく残る。arrow全体を暗転層の前へ出し、同じ50%暗転を直接適用する。

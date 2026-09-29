@@ -646,6 +646,12 @@ async function _onVillageFacility(fac){
       const arenaAfterKey=_facilityArenaAfterTalkKey();
       const normalTalk=_facilityGreetingEntry(fac);
       const arenaAfterTalk=_facilityArenaAfterTalkEntry(fac);
+      // 命の鎖は、会話シートに A1〜A3 が揃った鍛冶屋だけで起動する。
+      // 町名の分岐を増やさず、ギャラハ等の通常鍛冶屋は従来の台詞1を保つ。
+      const forgeChainTalk=fac.key==='forge'&&normalTalk
+        &&normalTalk['特殊台詞A1']&&normalTalk['特殊台詞A2']&&normalTalk['特殊台詞A3'];
+      const forgeChainState=forgeChainTalk&&typeof questForgeChainState==='function'
+        ?questForgeChainState():null;
       // 闘技場の参加（支払い済み）は同じwaveのラン状態に残る。通常の店台詞を
       // 既に見ていても、専用台詞の未表示マーカーを優先する。
       const arenaAfterPending=!!(arenaAfterTalk&&_villageArenaUsed()
@@ -653,7 +659,7 @@ async function _onVillageFacility(fac){
       const talk=arenaAfterPending?arenaAfterTalk:normalTalk;
       const seen=!!((G._facilityTalkSeen||{})[key]);
       if(talk&&typeof _qStartDialogue==='function'
-        &&(arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
+        &&(forgeChainState||arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
         await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
         // 施設の会話は、シートの最初の台詞が B でも酒場と同じ位置に A を出す。
         // 台詞ごとの表情は、その後 _qStartDialogue() がシートの値を適用する。
@@ -675,19 +681,27 @@ async function _onVillageFacility(fac){
           await _runVillageArenaDialogue(talk);
           return;
         }
-        const greetingLine=arenaAfterPending
-          ?_facilityArenaAfterTalkLine(talk)
-          :talk['台詞1'];
-        await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
+        if(forgeChainState){
+          await _runVillageForgeChainDialogue(talk,forgeChainState);
+        }else{
+          const greetingLine=arenaAfterPending
+            ?_facilityArenaAfterTalkLine(talk)
+            :talk['台詞1'];
+          await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
+        }
         if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
-        G._facilityTalkSeen=G._facilityTalkSeen||{};
-        if(arenaAfterPending){
-          // 専用台詞の直後は通常の初回台詞を次の入店で1回だけ出す。
-          // 通常台詞を先に見ていた場合も、ここで一度だけ通常経路へ戻す。
-          G._facilityTalkSeen[arenaAfterKey]=true;
-          G._facilityTalkSeen[key]=false;
-        }else G._facilityTalkSeen[key]=true;
-        if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
+        // 命の鎖の特殊会話は「通常の台詞1を見た」とは数えない。
+        // 鎖を切った後／写し身がいない次回入店で、台詞1を通常どおり1回出す。
+        if(!forgeChainState){
+          G._facilityTalkSeen=G._facilityTalkSeen||{};
+          if(arenaAfterPending){
+            // 専用台詞の直後は通常の初回台詞を次の入店で1回だけ出す。
+            // 通常台詞を先に見ていた場合も、ここで一度だけ通常経路へ戻す。
+            G._facilityTalkSeen[arenaAfterKey]=true;
+            G._facilityTalkSeen[key]=false;
+          }else G._facilityTalkSeen[key]=true;
+          if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
+        }
         _hideFacilityGreetingScene();
         _enterVillageFacilityNow(fac);
         _revealFacilityUi();
@@ -1066,6 +1080,7 @@ function departWithWorldMap(options){
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
+  if(typeof questBeforeTowerDepart==='function'&&questBeforeTowerDepart()) return;
   // 街／塔で確定した操作は出発時に正式状態へ昇格する。次戦の準備完了後は
   // battleチェックポイントで上書きされる。暗転と表示は departWithWorldMap() が揃える。
   if(departWithWorldMap({save:true})===false) return;
@@ -1308,7 +1323,10 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
   G._savePresentation=false;
-  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true});
+  // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
+  // この時点ではまだ店（#scr-battle）が表示中。pendingEvent だけ確定し、
+  // 村画面を組み立てた後の questResumePendingEvent() から再生する。
+  if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true,deferEvent:true});
   // **村の画面に入ったら、必ず操作を解禁する。**
   // villageDepart() は出発の二重発火を防ぐため body.inert を立て、解除は
   // startBattle() 側で行っていた。ところが塔（ステージ4）→フォルセティ（ステージ5）
@@ -1378,6 +1396,7 @@ function openMapVillage(options){
       if(opened===false) return false;
       if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
       if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
+      if(typeof questResumePendingEvent==='function') questResumePendingEvent();
       return true;
     });
     void opening;
@@ -1386,6 +1405,7 @@ function openMapVillage(options){
   build();
   if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
   if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
+  if(typeof questResumePendingEvent==='function') questResumePendingEvent();
 }
 
 // 図書館メニュー。街と同じ画面構造を使い、背景だけlibrary.pngへ差し替える。
@@ -1678,8 +1698,8 @@ function _facilityArenaAfterTalkEntry(fac){
 }
 function _facilityArenaAfterTalkLine(talk){
   const result=G&&G._arenaResults&&G._arenaResults[_waveFacilityCacheKey()];
-  if(result&&result.allWon) return talk&&talk['特殊台詞2']||talk&&talk['台詞1'];
-  if(result&&Number(result.prize)<=0) return talk&&talk['特殊台詞1']||talk&&talk['台詞1'];
+  if(result&&result.allWon) return talk&&talk['特殊台詞A2']||talk&&talk['台詞1'];
+  if(result&&Number(result.prize)<=0) return talk&&talk['特殊台詞A1']||talk&&talk['台詞1'];
   // 古いランセーブなどで結果がまだ無い場合は、通常の台詞へ戻す。
   return talk&&talk['台詞1'];
 }
@@ -1693,6 +1713,62 @@ function _villageDialogueChoices(text){
     return {text:s,price:priceMatch?Number(priceMatch[1].replace(/,/g,'')):0,
       life:lifeMatch?Number(lifeMatch[1]):0,cancel:s.includes('やめておく')};
   });
+}
+const FORGE_CHAIN_CUT_SFX='assets/sfx/chain_cut.wav';
+const FORGE_CHAIN_CUT_TIMEOUT_MS=6500;
+function _waitForgeChainCutSfx(){
+  const audio=typeof playFileSfx==='function'?playFileSfx(FORGE_CHAIN_CUT_SFX):null;
+  if(!audio||typeof audio.addEventListener!=='function') return Promise.resolve();
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=()=>{ if(done) return;done=true;resolve(); };
+    audio.addEventListener('ended',finish,{once:true});
+    audio.addEventListener('error',finish,{once:true});
+    window.setTimeout(finish,FORGE_CHAIN_CUT_TIMEOUT_MS);
+  });
+}
+function _saveForgeChainProgress(){
+  if(typeof SaveRun==='undefined'||!SaveRun.enabled()) return null;
+  // 特殊会話は通常の鍛冶屋画面を開く前に確定する。
+  // 入店後の差分保存だけでは基準時点より前の支払い・効果削除を拾えないため、町状態へ明示的に保存する。
+  return SaveRun.checkpoint('town');
+}
+async function _runVillageForgeChainDialogue(talk,state){
+  const intro=state&&state.revisit
+    ?[talk['特殊台詞B1']]
+    :[talk['特殊台詞A1'],talk['特殊台詞A2']];
+  const lines=intro.filter(Boolean);
+  if(lines.length) await _qStartDialogue(lines,{screen:'village'});
+  const prompt=talk['特殊台詞A3'];
+  if(!prompt) return false;
+  const choices=_villageDialogueChoices(prompt.text);
+  const chosen=await _qStartDialogue([{...prompt,choices}],{screen:'village'});
+  if(typeof questMarkForgeChainSeen==='function') questMarkForgeChainSeen();
+  if(!chosen||chosen.cancel){
+    _saveForgeChainProgress();
+    return true;
+  }
+  const price=Math.max(0,Number(chosen.price)||0);
+  if((Number(G.gold)||0)<price){
+    _saveForgeChainProgress();
+    if(talk['ゴールド不足時台詞']) await _qStartDialogue([talk['ゴールド不足時台詞']],{screen:'village'});
+    return true;
+  }
+  if(typeof spendEventGold==='function') spendEventGold(price);
+  else G.gold=Math.max(0,(Number(G.gold)||0)-price);
+  await fadeScreenSwitch(async()=>{
+    // 暗転中に表情差分を外す。明転時には最初から本体の通常の顔が出る。
+    if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village',face:'MC001_re'});
+    if(typeof questCutFatalLink==='function') questCutFatalLink();
+    if(typeof updateHUD==='function') updateHUD();
+    _saveForgeChainProgress();
+    await _waitForgeChainCutSfx();
+  });
+  // fadeScreenSwitch は明転を開始した時点で戻るため、画面が完全に見えてからA4へ進む。
+  await _mapDelay(SCREEN_SWITCH_FADE_IN_MS);
+  const after=[talk['特殊台詞A4'],talk['特殊台詞A5']].filter(Boolean);
+  if(after.length) await _qStartDialogue(after,{screen:'village'});
+  return true;
 }
 const INN_REST_BG_FADE_MS=650;
 const INN_LIFE_FADE_MS=750;

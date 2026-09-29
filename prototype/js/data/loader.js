@@ -557,7 +557,7 @@ async function loadGameData() {
           if (values.slice(1).every(v=>!v)) { section=a; columns=[]; return; }
           const entry={};
           columns.forEach((name,i)=>{
-            if(!(/^台詞\d+$/.test(name)||/^特殊台詞\d+$/.test(name)
+            if(!(/^台詞\d+$/.test(name)||/^特殊台詞(?:[AB])?\d+$/.test(name)
               ||name==='ゴールド不足時台詞')||!values[i]) return;
             const faceCol=columns[i-1]==='表情'?i-1:-1;
             const targetCol=faceCol>=0&&columns[faceCol-1]==='対象'
@@ -565,7 +565,13 @@ async function loadGameData() {
               :columns[i-1]==='対象'?i-1:-1;
             const target=targetCol>=0?String(values[targetCol]||'').toUpperCase():'';
             const face=faceCol>=0?String(values[faceCol]||'').trim():'';
-            entry[name]={speaker:target==='A'?'A':'B',face,text:values[i]};
+            // 新列名 A1〜A5 / B1 を正とする。旧「特殊台詞1〜3」は A1〜A3 へ読み替える。
+            const legacy=String(name).match(/^特殊台詞(\d+)$/);
+            const key=legacy?`特殊台詞A${legacy[1]}`:name;
+            // 新旧列が併存する移行中データでも、新列を旧列で上書きしない。
+            // 旧名は、新名の列自体が無いシートだけのフォールバックにする。
+            if(legacy&&columns.includes(key)) return;
+            entry[key]={speaker:target==='A'?'A':'B',face,text:values[i]};
           });
           if(Object.keys(entry).length) (talk[section]=talk[section]||{})[a]=entry;
         });
@@ -753,6 +759,8 @@ async function loadGameData() {
           destroyedAfter: readAt(row, colOf('非戦闘時死亡後台詞')),
           death: readAt(row, colOfAny('死亡台詞', '死亡時台詞')),
           flee: readAt(row, colOfAny('逃走台詞', '逃走時台詞')),
+          fled1: readAt(row, colOf('逃走後台詞1')),
+          fled2: readAt(row, colOf('逃走後台詞2')),
           progress1: readAt(row, colOf('進行台詞1')),
           progress2: readAt(row, colOf('進行台詞2')),
           progress3: readAt(row, colOf('進行台詞3')),
@@ -1633,7 +1641,7 @@ async function loadGameData() {
       if (!/^(?:NPC|BC)\s*0*\d+$/i.test(rawCode)) return null;
       const code = rawCode.replace(/\s+/g, '').toUpperCase();
       const name = String(row['名前'] || row['カード名'] || row['__col1'] || '').trim();
-      if (!name || !_rowImplemented(row)) return null;
+      if (!name) return null;
       const pool = Array.isArray(PANEL_POOL) ? PANEL_POOL : [];
       let panel = pool.find(p => p && (String(p.no || p.artCode || '').toUpperCase() === code || p.id === `panel_npc_${code}`));
       if (!panel) {
@@ -1688,7 +1696,6 @@ async function loadGameData() {
       panel._rewardExcluded = true;
       panel._shopExcluded = true;
       panel._npcCard = true;
-      panel._npcDeployOnly = true;
       panel.boss = true;
       panel.noRewardUse = true;
       return panel;
@@ -1696,7 +1703,13 @@ async function loadGameData() {
     charRows.forEach(row => {
       const name = row['名前'] || row['カード名'];
       if (!name) return;
-      if (!_rowImplemented(row)) return;
+      // NPC行は通常抽選から除外した依頼用定義として保持する。「実装=false」でも、
+      // 後からクエスト側が参照できるようにする（loader は QUEST_CONFIG の読み込み順へ依存させない）。
+      const npcNo=String(row['No.'] || row['No'] || '').replace(/\s+/g,'').toUpperCase();
+      if (!_rowImplemented(row)){
+        if(/^(?:NPC|BC)\d+$/.test(npcNo)) _upsertNpcPanelFromRow(row);
+        return;
+      }
       if (row['種族']) SHEET_RACE_BY_NAME[_normCardName(name)] = row['種族'];
       const isEnemyOnly = _truthySheet(row['敵専用']) || _truthySheet(row['相手キャラクター専用']);
       const isNamed = _truthySheet(row['ネームド']) || _truthySheet(row['ユニーク']);
@@ -1813,6 +1826,10 @@ async function loadGameData() {
           lines: ['台詞1','台詞2','台詞3'].map(k=>String(row[k]||'').trim()).filter(Boolean),
           // 「闘技場台詞」列は、闘技場のエリート／ボスだけが使う開幕台詞。
           arenaLines: [String(row['闘技場台詞']||'').trim()].filter(Boolean),
+          // 決着時の台詞。列位置ではなく、敵シートの見出し名で読む。
+          deathLines: [String(row['死亡台詞']||'').trim()].filter(Boolean),
+          fleeLines: [String(row['逃走台詞']||'').trim()].filter(Boolean),
+          playerDefeatLines: [String(row['プレイヤー敗北台詞']||'').trim()].filter(Boolean),
           _sheetEnemy: true,
         };
         _assignSheetArtCode(enemy, row, 'EN', true);

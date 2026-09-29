@@ -345,6 +345,8 @@ async function arenaHandleBattleDefeat(){
   document.body.classList.add('battle-victory-pending');
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   if(typeof _waitForPendingVfx==='function') await _waitForPendingVfx();
+  // 闘技場固有の分岐は作らず、通常戦・オンラインと同じ敗北台詞入口を通す。
+  if(typeof playBattlePlayerDefeatLines==='function') await playBattlePlayerDefeatLines();
   const wins=Math.max(0,Number(G._arenaWins)||0);
   const finish=()=>{
     // 共通の「進む」暗転を、村へ戻す _arenaFinish() まで保持する。
@@ -411,7 +413,7 @@ async function _arenaFinish(result,wins){
   }
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
   if(result==='win'){
-    const resultLine=allWon?talk['特殊台詞1']:talk['台詞4'];
+    const resultLine=allWon?talk['特殊台詞A1']:talk['台詞4'];
     if(resultLine) await _qStartDialogue([resultLine],{screen:'village'});
   }else if(talk['台詞5']){
     await _qStartDialogue([talk['台詞5']],{screen:'village'});

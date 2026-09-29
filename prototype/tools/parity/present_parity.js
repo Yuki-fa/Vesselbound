@@ -148,11 +148,76 @@ const SCENARIOS = [
          ['オーク', 'E1', { atk: 2, hp: 8, maxHp: 8 }],
          ['ゴブリン', 'E2', { atk: 2, hp: 8, maxHp: 8 }]],
   },
+  {
+    name: '攻撃効果で相手が変身',
+    // ペガサス（C076）の攻撃効果がバンダースナッチ（C053）のマナ効果を発動し、攻撃対象がペリカンへ変身する。
+    // 変身しても**同じ体への攻撃は続く**（コアは接触ダメージを出す）。PvEだけ攻撃が途中で戻り、
+    // ダメージが入らなかった（2026-09-29 利用者報告）。
+    seed: 7676,
+    requires: ['transform', 'attack'],
+    p1: [['ペガサス', 'A0', { hp: 40, maxHp: 40 }], ['バンダースナッチ', 'A1', { hp: 40, maxHp: 40 }]],
+    p2: [['オーク', 'E0', { atk: 1, hp: 60, maxHp: 60 }]],
+  },
+  {
+    name: '強化カードの単体ダメージ',
+    // アラッサス（固有VFX＝薙ぎ払い）に竜の契約（攻撃：ランダムな敵に5ダメージ。VFX指定なし）を付けた。
+    // 単体のダメージにアラッサスの固有VFXを使うと、薙ぎ払いの絵が敵の左から真横に出る（2026-09-29 利用者報告）。
+    // 薙ぎ払いは sweep_vfx の1回だけ。5ダメージは通常の効果ダメージの絵で出ること。
+    seed: 4343,
+    requires: ['sweep_vfx'],
+    noOwnVfxAmount: 5,
+    p1: [['アラッサス', 'A0', { hp: 40, maxHp: 40, _adjacentPanelEffectTexts: ['攻撃：ランダムな敵に5ダメージを与える。'] }]],
+    p2: [['オーク', 'E0', { atk: 1, hp: 60, maxHp: 60 }]],
+  },
+  {
+    name: '強化カードの単体ダメージ（同じ形）',
+    // メデューサ（固有VFX C017。本来の効果も「負傷：ランダムな敵にXダメージ」）に逆上（負傷：ランダムな敵に4ダメージ）。
+    // 形・トリガが同じでも、強化カードで得た効果には本人の固有VFXを使わない（2026-09-29 利用者指定。
+    // コアが effectSource:false を付ける）。
+    seed: 4344,
+    requires: ['attack'],
+    noOwnVfxAmount: 4,
+    p1: [['メデューサ', 'A0', { atk: 1, hp: 60, maxHp: 60, _adjacentPanelEffectTexts: ['負傷：ランダムな敵に4ダメージを与える。'],
+      _adjacentPanelAbilities: ['逆上'] }]],
+    p2: [['オーク', 'E0', { atk: 3, hp: 60, maxHp: 60 }]],
+  },
+  {
+    name: '衰弱死',
+    // ウェンディゴの開戦 -1/-1 で倒れた体は**死亡として扱う**（2026-09-29 利用者決定）。
+    // 消え方は青い波打ち＋WASTEDを1回だけ。焼失と二重に出たり、どちらも出なかったりしないこと。
+    // 倒れた体の死亡を、ナグルファル（キャラクターが死亡するたび）が観測する。
+    seed: 929,
+    requires: ['death', 'stat_change'],
+    wastedOnce: ['E0', 'E1'],
+    p1: [['ウェンディゴ', 'A0', { atk: 8, hp: 10, maxHp: 10 }]],
+    p2: [['ゴブリン', 'E0', { atk: 1, hp: 1, maxHp: 1 }],
+         ['ゴブリン', 'E1', { atk: 1, hp: 1, maxHp: 1 }],
+         ['死の渡し守 “ナグルファル”', 'E2', { atk: 5, hp: 30, maxHp: 30 }]],
+  },
+  {
+    name: '死亡台詞（攻撃の接触）',
+    // 攻撃で致死ダメージが確定した場合、焼失時ではなくぶつかった瞬間に共通台詞入口を呼ぶ。
+    seed: 92901,
+    requires: ['death'],
+    outcomeLine: {kind:'death',text:'死亡台詞検査'},
+    p1: [['ゴブリン', 'A0', { atk: 20, hp: 100, maxHp: 100 }]],
+    p2: [['オーク', 'E0', { atk: 1, hp: 2, maxHp: 2, deathBattleLines:['死亡台詞検査'] }]],
+  },
+  {
+    name: '逃走台詞（攻撃の接触）',
+    // ATK攻撃で0にした場合も、FLEDの表示より前の接触時に共通台詞入口を呼ぶ。
+    seed: 92902,
+    requires: ['fled'],
+    outcomeLine: {kind:'flee',text:'逃走台詞検査'},
+    p1: [['ゴブリン', 'A0', { atk: 20, hp: 100, maxHp: 100,
+      desc:'攻撃：このキャラクターの攻撃はHPではなくATKにダメージを与える。' }]],
+    p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, fleeBattleLines:['逃走台詞検査'] }]],
+  },
 ];
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0 };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], lines: [], lineAtContact: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0 };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -167,6 +232,22 @@ const WATCHER = `
       };
     }
     // 解放演出も比べる（片側だけ出ない状態が実際にあった）。
+    // 攻撃モーションの節目（調査用。VB_DUMP の時だけ出す）。
+    if (typeof window._recordBattleTrace === 'function') {
+      const origTrace = window._recordBattleTrace;
+      window._recordBattleTrace = function (type, data) {
+        try { if (/^attack_motion/.test(String(type))) (window.__watch.trace = window.__watch.trace || []).push(String(type) + ':' + ((data && data.attackerId) || '') + '>' + ((data && data.targetId) || '')); } catch (e) {}
+        return origTrace.apply(this, arguments);
+      };
+    }
+    // 倒れ方（衰弱＝波打ち＋WASTED／それ以外＝焼失）も比べる。1体につき1回だけ呼ばれること。
+    {
+      const fn = window._playUnitDeathCardFx;
+      if (typeof fn === 'function') window._playUnitDeathCardFx = function (u) {
+        try { window.__watch.calls.push((u && u._deathByStatDrain ? 'wasted' : 'burn') + '→' + ((u && u.id) || '?')); } catch (e) {}
+        return fn.apply(this, arguments);
+      };
+    }
     ['playSealReleaseVfx', 'playCharacterSweepVfx'].forEach(name => {
       const fn = window[name];
       if (typeof fn !== 'function') return;
@@ -175,6 +256,17 @@ const WATCHER = `
         return fn.apply(this, arguments);
       };
     });
+    // 吹き出し自体はクリック待ちなので、この一致検査では呼び出しと接触時刻を記録して即時解決する。
+    // PvE/オンラインの両方が同じ showBattleUnitOutcomeLines へ来ることもここで検出する。
+    if (typeof window.showBattleUnitOutcomeLines === 'function') {
+      window.showBattleUnitOutcomeLines = function (u, side, lines, options) {
+        const value = String((options && options.kind) || '') + ':' + String(side || '') + ':'
+          + String((u && u.id) || '') + ':' + (lines || []).join('\\n');
+        window.__watch.lines.push(value);
+        if (document.querySelector('.attack-motion-clone')) window.__watch.lineAtContact.push(value);
+        return new Promise(resolve => setTimeout(() => resolve(true), 30));
+      };
+    }
     const orig = window.playHitVfx;
     window.playHitVfx = function (side, unit, amount, opt) {
       try {
@@ -281,7 +373,10 @@ const COLLECT = `
   ({
     vfx: window.__watch.vfx.slice().sort(),
     calls: window.__watch.calls.slice(),
+    lines: window.__watch.lines.slice(),
+    lineAtContact: window.__watch.lineAtContact.slice(),
     board: window.__watch.board.slice(),
+    trace: (window.__watch.trace || []).slice(),
     overlap: window.__watch.overlap.slice(),
     hpEarly: window.__watch.hpEarly.slice(),
     hpZero: window.__watch.hpZero.slice(),
@@ -352,7 +447,10 @@ const SETUP = `
         manaThresholdNo: u._manaThresholdNo,
         extraManaThresholds: (u._extraManaThresholds || []).map(x => ({ ...x })),
         adjacentAbilities: (u._adjacentPanelAbilities || []).slice(),
-        effectNames: [], effectTexts: (u._adjacentPanelEffectTexts || []).slice() } };
+        effectNames: [], effectTexts: (u._adjacentPanelEffectTexts || []).slice() },
+      deathBattleLines: (u.deathBattleLines || []).slice(),
+      fleeBattleLines: (u.fleeBattleLines || []).slice(),
+      playerDefeatBattleLines: (u.playerDefeatBattleLines || []).slice() };
   };
 `;
 
@@ -427,6 +525,7 @@ const onlineScript = sc => `
   let __started = false;
   const __resetWatch = () => {
     window.__watch.vfx.length = 0; window.__watch.calls.length = 0;
+    window.__watch.lines.length = 0; window.__watch.lineAtContact.length = 0;
     window.__watch.board.length = 0;
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
     window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.hpZero.length = 0; window.__watch.transformed = {};
@@ -496,6 +595,13 @@ const onlineScript = sc => `
         r.board = norm(r.board).filter(x => String(x).replace(/[\s/]/g, '') !== '');
       });
       const tag = `【${sc.name}】`;
+      // VB_DUMP=1 でイベント列と演出の呼び出しを出す（調査用）。
+      if (process.env.VB_DUMP) [['PvE', pve], ['オンライン', online]].forEach(([k, r]) => {
+        console.log(`${tag}${k} events=${(r && r.eventsRaw || []).join(' ')}`);
+        console.log(`${tag}${k} calls=${(r && r.calls || []).join(' ')}`);
+        console.log(`${tag}${k} lines=${(r && r.lines || []).join(' ')}`);
+        console.log(`${tag}${k} trace=${(r && r.trace || []).join(' ')}`);
+      });
       if (!pve || pve.エラー) { check(`${tag}PvEの再生が動く`, false, (pve && pve.エラー) || '結果が返らない'); continue; }
       if (!online || online.エラー) { check(`${tag}オンラインの再生が動く`, false, (online && online.エラー) || '結果が返らない'); continue; }
 
@@ -519,6 +625,18 @@ const onlineScript = sc => `
       check(`${tag}演出の呼び出し（対象と順番）が一致する`, pveCalls === onCalls,
         pveCalls === onCalls ? `${(pve.calls || []).length}回`
           : `PvE=${pveCalls || 'なし'}\n\tオンライン=${onCalls || 'なし'}`);
+
+      if(sc.outcomeLine){
+        const expected=`${sc.outcomeLine.kind}:p2:E0:${sc.outcomeLine.text}`;
+        const same=(pve.lines||[]).join('|')===(online.lines||[]).join('|');
+        check(`${tag}決着台詞の呼び出しが一致する`,same
+          &&(pve.lines||[]).filter(x=>x===expected).length===1
+          &&(online.lines||[]).filter(x=>x===expected).length===1,
+        `PvE=${(pve.lines||[]).join(' / ')||'なし'} オンライン=${(online.lines||[]).join(' / ')||'なし'}`);
+        check(`${tag}ぶつかった瞬間に台詞で停止する`,
+          (pve.lineAtContact||[]).includes(expected)&&(online.lineAtContact||[]).includes(expected),
+          `PvE=${(pve.lineAtContact||[]).join(' / ')||'接触外'} オンライン=${(online.lineAtContact||[]).join(' / ')||'接触外'}`);
+      }
 
       // 盤面の並びは「見えた状態の並び」で比べる。ただし**1フレーム未満で通過した
       // 状態は見えない**ので、片方だけが拾った中間状態は差とみなさない。
@@ -549,6 +667,24 @@ const onlineScript = sc => `
         const bad = r => (r.hpZero || []).filter(id => sc.noZeroHp.includes(id));
         check(`${tag}根性で耐える体のHPが0に見えない`, !bad(pve).length && !bad(online).length,
           `PvE=${bad(pve).join(',') || 'なし'} オンライン=${bad(online).join(',') || 'なし'}`);
+      }
+      if (sc.noOwnVfxAmount != null) {
+        // 強化カードで得た単体ダメージに、キャラクター固有VFX（C番号の絵）を使っていないこと。
+        const bad = r => (r.calls || []).filter(c => new RegExp(`^C\\d+\\.webp\\(${sc.noOwnVfxAmount}\\)`).test(String(c)));
+        check(`${tag}強化カードの単体ダメージに固有VFXを使わない`, !bad(pve).length && !bad(online).length,
+          `PvE=${bad(pve).join(',') || 'なし'} オンライン=${bad(online).join(',') || 'なし'}`);
+      }
+      if (sc.wastedOnce) {
+        // 番号は正規化済み（norm）なので、呼び出しの種類ごとの回数で見る。
+        const count = (r, kind) => (r.calls || []).filter(c => String(c).startsWith(kind + '→')).length;
+        const want = sc.wastedOnce.length;
+        check(`${tag}衰弱で倒れた体は波打ち＋WASTEDで1回だけ消える`,
+          count(pve, 'wasted') === want && count(online, 'wasted') === want,
+          `PvE=wasted${count(pve, 'wasted')}/burn${count(pve, 'burn')} オンライン=wasted${count(online, 'wasted')}/burn${count(online, 'burn')}（期待 wasted${want}）`);
+        // ナグルファルの観測（理由 character_death_self_buff）は balance_sim の offline_online_regression.js が見る。
+        const deaths = r => (r.eventsRaw || []).filter(e => String(e).startsWith('death:')).length;
+        check(`${tag}衰弱で倒れた体に死亡イベントが出る`, deaths(pve) >= want && deaths(online) >= want,
+          `PvE=${deaths(pve)}件 オンライン=${deaths(online)}件（期待 ${want}件以上）`);
       }
       check(`${tag}攻撃中に元のカードが残らない`,
         (pve.overlap || []).length === 0 && (online.overlap || []).length === 0,

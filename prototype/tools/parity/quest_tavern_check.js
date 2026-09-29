@@ -1,8 +1,8 @@
 'use strict';
 
-// 酒場クエスト（Q002 物資回収／Q003 護衛依頼／Q005 呪いの指輪輸送／Q007 木箱輸送）の実ブラウザ回帰検査。
+// 酒場クエスト（Q002／Q003／Q004／Q005／Q006 危険生物護送／Q007）の実ブラウザ回帰検査。
 // 実行前に prototype で `python3 -m http.server 5500 --bind 127.0.0.1` を起動する。
-//   VB_ONLY=部分一致 で節（「クエスト変更」「物資回収」「木箱輸送」「呪いの指輪」「酒場」「施設会話」「ショップ」「闘技場後」「戦闘」「塔」「祭壇」「所持金」「画面仕様」）を絞れる。
+//   VB_ONLY=部分一致 で節（「クエスト変更」「物資回収」「魔獣撃退」「危険生物護送」「命の鎖」「木箱輸送」「呪いの指輪」「酒場」「施設会話」「ショップ」「闘技場アレス」「闘技場後」「戦闘」「塔」「祭壇」「所持金」「画面仕様」）を絞れる。
 const assert=require('node:assert/strict');
 const {launch,sleep}=require('./headless');
 
@@ -21,6 +21,7 @@ const WAVE=1;
   const section=name=>!ONLY||name.includes(ONLY)||ONLY.includes(name);
 
   const openPages=new Set();
+  globalThis.__questOpenPages=openPages;
   async function newPage(){
     const b=await launch({width:1600,height:900});
     openPages.add(b);
@@ -61,15 +62,26 @@ const WAVE=1;
   const lineSel=side=>`#tavern-dialogue-layer .tavern-dialogue-bubble[data-side="${side}"] .tavern-dialogue-text`;
   async function waitLine(b,line){
     const side=line.speaker==='A'?'left':'right';
-    await b.until(`document.querySelector('${lineSel(side)}')?.textContent===${JSON.stringify(line.text)}`);
+    await b.until(`(()=>[...document.querySelectorAll('${lineSel(side)}')].some(el=>el.textContent===${JSON.stringify(line.text)}&&el.classList.contains('is-visible')&&Number(getComputedStyle(el).opacity)>.9))()`);
   }
   const clickDialogue=b=>b.run(`document.getElementById('tavern-dialogue-layer')?.click();return 1;`);
   async function waitChoice(b,line){
     const expected=String(line&&line.text||'').split('\n').map(v=>v.trim()).filter(v=>v.startsWith('・'));
-    await b.until(`(()=>JSON.stringify([...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-choice')].map(x=>x.textContent))===${JSON.stringify(JSON.stringify(expected))})()`);
+    await b.until(`(()=>{const els=[...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-choice')],text=els[0]?.closest('.tavern-dialogue-text');return JSON.stringify(els.map(x=>x.textContent))===${JSON.stringify(JSON.stringify(expected))}&&!!text&&text.classList.contains('is-visible')&&Number(getComputedStyle(text).opacity)>.9})()`);
     return expected;
   }
   const clickChoice=(b,index)=>b.run(`document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-choice')[${Number(index)}]?.click();return 1;`);
+  async function waitBattleLine(b,text){
+    await b.until(`(()=>{const layer=document.getElementById('battle-line-layer');const line=document.getElementById('battle-line-text');return !!(layer&&layer.classList.contains('is-visible')&&line&&line.textContent===${JSON.stringify(String(text||''))}&&Number(getComputedStyle(layer).opacity)>.9);})()`,60000);
+  }
+  const clickBattleLine=b=>b.run(`document.dispatchEvent(new PointerEvent('pointerdown',{button:0,bubbles:true}));return 1;`);
+  async function clickBattleContinue(b){
+    const pos=await b.run(`(()=>{const el=document.getElementById('battle-continue-btn');if(!el)return null;const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];})()`);
+    if(!pos) throw new Error('戦闘結果の「進む」が無い');
+    await b.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:pos[0],y:pos[1]});
+    await b.call('Input.dispatchMouseEvent',{type:'mousePressed',x:pos[0],y:pos[1],button:'left',clickCount:1});
+    await b.call('Input.dispatchMouseEvent',{type:'mouseReleased',x:pos[0],y:pos[1],button:'left',clickCount:1});
+  }
   const statusOf=(b,id)=>b.run(`return (G.questProgress&&G.questProgress[${JSON.stringify(id)}]||{}).status||''`);
   const status=b=>statusOf(b,QUEST);
   const face=(b,id)=>b.run(`const f=document.querySelector('.tavern-presentation-host .tavern-face[data-face-id="${id}"]');return f?(f.complete&&f.naturalWidth>0?'表示':'読込失敗'):'なし'`);
@@ -93,6 +105,8 @@ const WAVE=1;
   async function startRunWithWaveQuest(b,wave,id=QUEST){
     await b.run(`startGame(false);return 1;`);
     await b.until('G&&G._runId&&G._waveVillage',30000);
+    // 別の節で塔・街を移動しても新候補Q006の会話が割り込まないよう、両方を固定する。
+    await b.run(`questDebugForceWaveQuest(1,'Q003');questDebugForceWaveQuest(2,'Q005');return 1;`);
     const forced=await b.run(`const e=questDebugForceWaveQuest(${Number(wave)},${JSON.stringify(id)});return e&&e.questId||'';`);
     assert.equal(forced,id,`wave${wave}のテスト用クエスト固定に失敗 ${id}`);
   }
@@ -172,6 +186,202 @@ const WAVE=1;
     &&q5.q2.initial.length===3&&q5.q2.rewardGold===200,q5);
   ok('Q005の依頼品はR042「呪いの指輪」で、見出し1／2と説明文1がシートにある',
     !!q5.ring&&q5.ring.name==='呪いの指輪'&&q5.title1==='依頼人'&&q5.title2==='依頼品'&&!!q5.message,q5);
+
+  // Q004追撃戦の決着だけを実戦画面で再現する。敵の生成、台詞の受け渡し、
+  // 戦闘結果の入口は本編の関数をそのまま使い、コアの勝敗判定だけを最小状態に置き換える。
+  async function setupQ004PursuitBoard(b,options){
+    const opt=options||{};
+    await startRunWithWaveQuest(b,2,'Q004');
+    // 村へ入った時の遅れた処理（入場の演出）が終わってから戦闘画面へ切り替える。
+    // 待たないと約2秒後に画面が村へ戻り、撤退表示の「進む」が押せなくなる（検査だけの問題）。
+    await b.until(`document.querySelector('.screen.active')?.id==='scr-village'&&!G._villageIntroPlaying`,60000);
+    await new Promise(resolve=>setTimeout(resolve,2500));
+    const code=String(opt.enemyCode||'EN027').toUpperCase();
+    return b.run(`(()=>{
+      if(typeof _skipStartupIntro==='function') window.removeEventListener('pointerdown',_skipStartupIntro,true);
+      const code=${JSON.stringify(code)};
+      const enemyNo=def=>String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code)||'').toUpperCase();
+      const def=ENEMY_POOL.find(row=>enemyNo(row)===code);
+      if(!def) throw new Error('Q004検査用の敵定義が無い '+code);
+      const entry=questDebugForceWaveQuest(2,'Q004');
+      Object.assign(entry,{status:'accepted',encounterTarget:{wave:2,stage:6},encounterPhase:'garm',
+        encounterFled:false,encounterDefeated:${!!opt.defeated},encounterRewardGiven:false,towerEventDone:false});
+      const unit=_mkEnemy(8,12,def.name,def.icon,def.grade||1,0,[...(def.keywords||[])],def.race||'-');
+      _applyEnemyDefAbilities(unit,def);
+      unit.id='q004-pursuit-enemy';unit.side='p2';unit.lane='rear';unit._visualShift=false;
+      if(code==='EN027') unit._questGarm=true;
+      const slots=14;
+      G.allies=new Array(slots).fill(null);
+      G.enemies=new Array(slots).fill(null);G.enemies[0]=unit;
+      G._wave=2;G._waveStage=6;G._waveBattleType='battle';
+      G._mapBattle={mapIndex:2,nodeId:'quest-garm',type:'battle',floor:1,forcedBoss:false,turn:0};
+      G._waveLife=3;G._waveRetryEnemyKey='old-retry';G._waveIsRetry=true;
+      G._waveRewardCount=null;G._waveWithdraw=false;G._battleDefeatHandled=false;
+      G._battleVictoryPending=false;G._battlePhaseRunning=false;G._battleProceedAction=null;
+      G.phase='battle';document.body.classList.remove('reward-screen-active','battle-victory-pending');
+      showScreen('battle');renderAll();
+      return {id:unit.id,name:unit.name,gold:Number(G.gold)||0,death:[...(unit.deathBattleLines||[])],
+        flee:[...(unit.fleeBattleLines||[])],playerDefeat:[...(unit.playerDefeatBattleLines||[])]};
+    })()`);
+  }
+
+  // ── Q004「魔獣撃退」：追撃戦の敗北・逃走・討伐後撤退 ────────────
+  if(section('魔獣撃退')){
+    const lost=await newPage();
+    const lostEnemy=await setupQ004PursuitBoard(lost);
+    ok('魔獣撃退：EN027の死亡・逃走・プレイヤー敗北台詞を敵定義からユニットへ渡す',
+      lostEnemy.death.length>0&&lostEnemy.flee.length>0&&lostEnemy.playerDefeat.length>0,lostEnemy);
+    await lost.run(`handleWaveBattleDefeat();return 1;`);
+    await waitBattleLine(lost,lostEnemy.playerDefeat[0]);
+    const lostPaused=await lost.run(`(()=>{const e=G.questProgress.Q004||{};return {status:e.status,phase:e.encounterPhase,
+      stage:G._waveStage,retry:G._waveRetryEnemyKey,isRetry:G._waveIsRetry,
+      proceed:typeof G._battleProceedAction==='function',cutin:!!document.getElementById('battle-continue-btn')};})()`);
+    ok('魔獣撃退 B-1：ガルムの敗北台詞中は撤退表示へ進まず、クエストを失敗にして再戦鍵を消す',
+      lostPaused.status==='failed'&&lostPaused.phase==='failed'&&lostPaused.stage===6
+      &&lostPaused.retry===null&&!lostPaused.isRetry&&!lostPaused.proceed&&!lostPaused.cutin,lostPaused);
+    await clickBattleLine(lost);
+    await waitLine(lost,q4.q1.specialA1[0]);
+    ok('魔獣撃退 B-1：敵の敗北台詞の後に Q004_1 特殊台詞A1を戦闘画面で出す',
+      !(await lost.run(`return typeof G._battleProceedAction==='function'||!!document.getElementById('battle-continue-btn')`)));
+    await clickDialogue(lost);
+    await lost.until(`typeof G._battleProceedAction==='function'&&!!document.getElementById('battle-continue-btn')`,60000);
+    ok('魔獣撃退 B-1：特殊台詞A1を送った後に撤退表示へ進む',
+      await lost.run(`return G._waveStage===6&&G._waveWithdraw===true`));
+    await clickBattleContinue(lost);
+    await lost.until(`G.questProgress?.Q004?.status==='failed'&&Number(G._waveStage)===7&&G._waveBattleType==null&&document.body.classList.contains('reward-screen-active')`,60000);
+    const lostDone=await lost.run(`return {status:G.questProgress.Q004.status,stage:G._waveStage,retry:G._waveRetryEnemyKey,isRetry:G._waveIsRetry,withdraw:G._waveWithdraw}`);
+    ok('魔獣撃退 B-1：撤退後はステージを通過し、失敗のまま追撃戦を再戦しない',
+      lostDone.status==='failed'&&lostDone.stage===7&&lostDone.retry===null&&!lostDone.isRetry&&!lostDone.withdraw,lostDone);
+    await finish(lost);
+
+    const fled=await newPage();
+    const fledEnemy=await setupQ004PursuitBoard(fled);
+    await fled.run(`(()=>{
+      const unit=G.enemies.find(Boolean);const ev={type:'fled',side:'p2',unitId:unit.id};
+      window.__q004FleeTrace=[];window.__q004FleeDone=false;window.__q004FleeError='';
+      const original=window.playFledVfx;window.__q004FleeOriginal=original;
+      window.playFledVfx=async(...args)=>{__q004FleeTrace.push('fled');return typeof original==='function'?original(...args):undefined;};
+      const recorded=questBattleEnemyFled([ev],(side,id)=>G.enemies.find(x=>x&&x.id===id));
+      window.__q004FleePromise=presentFledEvent(ev,{
+        findUnit:(side,id)=>G.enemies.find(x=>x&&x.id===id),
+        showLines:async(...args)=>{__q004FleeTrace.push('line:start');await showBattleUnitOutcomeLines(...args);__q004FleeTrace.push('line:end');},
+        removeFromBoard:(target)=>{__q004FleeTrace.push('remove');const i=G.enemies.indexOf(target);if(i>=0)G.enemies[i]=null;},
+        compact:()=>renderAll(),
+      }).then(()=>{__q004FleeTrace.push('done');__q004FleeDone=true;window.playFledVfx=original;})
+        .catch(error=>{__q004FleeError=String(error&&error.stack||error);__q004FleeDone=true;window.playFledVfx=original;});
+      return recorded;
+    })()`);
+    await waitBattleLine(fled,fledEnemy.flee[0]);
+    const fleePaused=await fled.run(`(()=>{const u=G.enemies.find(Boolean),e=G.questProgress.Q004;return {trace:[...__q004FleeTrace],fled:!!u?._fled,onBoard:!!u,done:__q004FleeDone,phase:e.encounterPhase,status:e.status};})()`);
+    ok('魔獣撃退 B-2：逃走台詞中は FLED と盤面除外を始めず、追撃結果だけを記録す',
+      fleePaused.trace.join('|')==='line:start'&&!fleePaused.fled&&fleePaused.onBoard&&!fleePaused.done
+      &&fleePaused.phase==='garmFled'&&fleePaused.status==='accepted',fleePaused);
+    await clickBattleLine(fled);
+    await fled.until(`window.__q004FleeDone===true`,60000);
+    const fleeDone=await fled.run(`return {trace:[...__q004FleeTrace],error:__q004FleeError,onBoard:G.enemies.some(Boolean),phase:G.questProgress.Q004.encounterPhase}`);
+    ok('魔獣撃退 B-2：逃走台詞完了後だけ FLED 演出・盤面除外へ順に進む',
+      !fleeDone.error&&fleeDone.trace.join('|')==='line:start|line:end|fled|remove|done'
+      &&!fleeDone.onBoard&&fleeDone.phase==='garmFled',fleeDone);
+    await finish(fled);
+
+    const retreat=await newPage();
+    const retreatEnemy=await setupQ004PursuitBoard(retreat,{defeated:true,enemyCode:'EN020'});
+    const reportLines=[...(q4.q.initial||[]).slice(0,1),
+      ...(q4.q.specialB1||[]),...(q4.q.specialB2||[]),...(q4.q.specialB3||[]),...(q4.q.specialB4||[])];
+    ok('魔獣撃退 B-3：討伐後撤退の報告は台詞1から特殊台詞B1へ続く',
+      reportLines.length>=2&&(q4.q.specialB1||[]).length>0,{reportLines});
+    await retreat.run(`handleWaveBattleDefeat();return 1;`);
+    await retreat.until(`typeof G._battleProceedAction==='function'&&!!document.getElementById('battle-continue-btn')`,60000);
+    const retreatPaused=await retreat.run(`return {status:G.questProgress.Q004.status,phase:G.questProgress.Q004.encounterPhase,stage:G._waveStage,
+      battleLine:document.getElementById('battle-line-text')?.textContent||'',retry:G._waveRetryEnemyKey,isRetry:G._waveIsRetry}`);
+    ok('魔獣撃退 B-3：ガルム討伐済みでその後に敗北しても、失敗にせず再戦鍵を消す',
+      retreatPaused.status==='accepted'&&retreatPaused.phase==='camp'&&retreatPaused.stage===6
+      &&!retreatPaused.battleLine&&retreatPaused.retry===null&&!retreatPaused.isRetry,retreatPaused);
+    await clickBattleContinue(retreat);
+    for(let i=0;i<reportLines.length;i++){
+      await waitLine(retreat,reportLines[i]);
+      ok(`魔獣撃退 B-3：報告 ${i+1}/${reportLines.length} をシート順に表示`,true);
+      if(i===0&&Number(q4.q.rewardGold)>0){
+        await retreat.until(`Number(G.gold)===${Number(retreatEnemy.gold)+Number(q4.q.rewardGold)}`,30000);
+      }
+      await clickDialogue(retreat);
+    }
+    await retreat.until(`G.questProgress?.Q004?.status==='completed'&&Number(G._waveStage)===7&&G._waveBattleType==null&&document.body.classList.contains('reward-screen-active')`,60000);
+    const retreatDone=await retreat.run(`return {status:G.questProgress.Q004.status,phase:G.questProgress.Q004.encounterPhase,
+      stage:G._waveStage,gold:G.gold,rewardGiven:G.questProgress.Q004.encounterRewardGiven,retry:G._waveRetryEnemyKey,isRetry:G._waveIsRetry}`);
+    ok('魔獣撃退 B-3：台詞1→B1〜B3（あれば続きも）の後は成功報酬を渡してステージ通過',
+      retreatDone.status==='completed'&&retreatDone.phase==='done'&&retreatDone.stage===7
+      &&retreatDone.gold===Number(retreatEnemy.gold)+Number(q4.q.rewardGold||0)&&retreatDone.rewardGiven
+      &&retreatDone.retry===null&&!retreatDone.isRetry,retreatDone);
+    await finish(retreat);
+  }
+
+  // ── 闘技場：アレスも汎用の死亡・逃走・プレイヤー敗北台詞を使う ────────
+  if(section('闘技場アレス')){
+    const b=await newPage();
+    await b.run(`if(typeof _skipStartupIntro==='function')window.removeEventListener('pointerdown',_skipStartupIntro,true);startGame(true);return 1;`);
+    await b.until(`G&&G._runId`,30000);
+    const ares=await b.run(`(()=>{
+      const enemyNo=def=>String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code)||'').toUpperCase();
+      const def=ENEMY_POOL.find(row=>enemyNo(row)==='EN048');if(!def)throw new Error('EN048の敵定義が無い');
+      window.__installAresOutcomeTest=()=>{const unit=_mkEnemy(20,30,def.name,def.icon,def.grade||1,0,[...(def.keywords||[])],def.race||'-');
+        _applyEnemyDefAbilities(unit,def);unit.id='arena-ares-outcome';unit.side='p2';unit.lane='front';unit.boss=true;
+        G.allies=new Array(14).fill(null);G.enemies=new Array(14).fill(null);G.enemies[0]=unit;window.__aresOutcomeUnit=unit;renderAll();return unit;};
+      G._wave=3;G._waveStage=1;G._waveBattleType=null;G._mapBattle=null;G.phase='battle';
+      G._arenaActive=true;G._arenaRound=6;G._arenaWins=5;G._arenaOutcomePending=false;
+      G._battleDefeatHandled=false;G._battleVictoryPending=false;G._battlePhaseRunning=false;G._battleProceedAction=null;
+      document.body.classList.remove('reward-screen-active','battle-victory-pending');showScreen('battle');
+      const unit=__installAresOutcomeTest();return {name:unit.name,death:[...(unit.deathBattleLines||[])],
+        flee:[...(unit.fleeBattleLines||[])],playerDefeat:[...(unit.playerDefeatBattleLines||[])]};
+    })()`);
+    ok('闘技場：EN048アレスの3種の台詞をシート見出しから戦闘ユニットへ渡す',
+      ares.death.length>0&&ares.flee.length>0&&ares.playerDefeat.length>0,ares);
+
+    await b.run(`(()=>{const unit=__aresOutcomeUnit;unit.hp=0;unit._displayHp=0;
+      window.__aresDeathTrace=[];window.__aresDeathDone=false;window.__aresDeathError='';
+      const ev={type:'death',side:'p2',unitId:unit.id};
+      presentDeathEvent(ev,{findUnit:()=>unit,
+        showLines:async(...args)=>{__aresDeathTrace.push('line:start');await showBattleUnitOutcomeLines(...args);__aresDeathTrace.push('line:end');},
+        beat:async()=>{__aresDeathTrace.push('beat');},startFx:()=>{__aresDeathTrace.push('deathFx');},
+        processDeath:async()=>{__aresDeathTrace.push('process');},compact:()=>{__aresDeathTrace.push('compact');},
+      }).then(()=>{__aresDeathDone=true;}).catch(error=>{__aresDeathError=String(error&&error.stack||error);__aresDeathDone=true;});return 1;})()`);
+    await waitBattleLine(b,ares.death[0]);
+    const aresDeathPaused=await b.run(`return {trace:[...__aresDeathTrace],fx:!!__aresOutcomeUnit._deathFxReady,done:__aresDeathDone}`);
+    ok('闘技場：アレスの死亡台詞中は死亡ビートと焼失を始めない',
+      aresDeathPaused.trace.join('|')==='line:start'&&!aresDeathPaused.fx&&!aresDeathPaused.done,aresDeathPaused);
+    await clickBattleLine(b);
+    await b.until(`window.__aresDeathDone===true`,30000);
+    const aresDeathDone=await b.run(`return {trace:[...__aresDeathTrace],error:__aresDeathError}`);
+    ok('闘技場：アレスの死亡台詞完了後に死亡演出へ進む',
+      !aresDeathDone.error&&aresDeathDone.trace.join('|')==='line:start|line:end|beat|deathFx|process|compact',aresDeathDone);
+
+    await b.run(`(()=>{const unit=__installAresOutcomeTest();window.__aresFleeTrace=[];window.__aresFleeDone=false;window.__aresFleeError='';
+      const original=window.playFledVfx;window.playFledVfx=async(...args)=>{__aresFleeTrace.push('fled');return typeof original==='function'?original(...args):undefined;};
+      const ev={type:'fled',side:'p2',unitId:unit.id};presentFledEvent(ev,{findUnit:()=>unit,
+        showLines:async(...args)=>{__aresFleeTrace.push('line:start');await showBattleUnitOutcomeLines(...args);__aresFleeTrace.push('line:end');},
+        removeFromBoard:()=>{__aresFleeTrace.push('remove');G.enemies[0]=null;},compact:()=>renderAll(),
+      }).then(()=>{__aresFleeTrace.push('done');__aresFleeDone=true;window.playFledVfx=original;})
+        .catch(error=>{__aresFleeError=String(error&&error.stack||error);__aresFleeDone=true;window.playFledVfx=original;});return 1;})()`);
+    await waitBattleLine(b,ares.flee[0]);
+    const aresFleePaused=await b.run(`return {trace:[...__aresFleeTrace],fled:!!__aresOutcomeUnit._fled,done:__aresFleeDone}`);
+    ok('闘技場：アレスの逃走台詞中は FLED 演出を始めない',
+      aresFleePaused.trace.join('|')==='line:start'&&!aresFleePaused.fled&&!aresFleePaused.done,aresFleePaused);
+    await clickBattleLine(b);
+    await b.until(`window.__aresFleeDone===true`,60000);
+    const aresFleeDone=await b.run(`return {trace:[...__aresFleeTrace],error:__aresFleeError,onBoard:G.enemies.some(Boolean)}`);
+    ok('闘技場：アレスの逃走台詞完了後に FLED と盤面除外へ進む',
+      !aresFleeDone.error&&aresFleeDone.trace.join('|')==='line:start|line:end|fled|remove|done'&&!aresFleeDone.onBoard,aresFleeDone);
+
+    await b.run(`__installAresOutcomeTest();G._arenaOutcomePending=false;G._battleDefeatHandled=false;G._battleVictoryPending=false;G._battleProceedAction=null;arenaHandleBattleDefeat();return 1;`);
+    await waitBattleLine(b,ares.playerDefeat[0]);
+    const aresDefeatPaused=await b.run(`return {pending:G._arenaOutcomePending,proceed:typeof G._battleProceedAction==='function',cutin:!!document.getElementById('battle-continue-btn')}`);
+    ok('闘技場：プレイヤー敗北確定時はアレスの台詞中に敗北表示へ進まない',
+      aresDefeatPaused.pending&&!aresDefeatPaused.proceed&&!aresDefeatPaused.cutin,aresDefeatPaused);
+    await clickBattleLine(b);
+    await b.until(`typeof G._battleProceedAction==='function'&&!!document.getElementById('battle-continue-btn')`,60000);
+    ok('闘技場：アレスのプレイヤー敗北台詞完了後に闘技場の敗北表示へ進む',true);
+    await finish(b);
+  }
 
   async function openQ002Choice(b){
     await openWave(b,WAVE);
@@ -295,11 +505,15 @@ const WAVE=1;
     ok('Q002を引き受けると受託台詞の後に酒場を出て、状態がaccepted',await statusOf(b,'Q002')==='accepted');
     const mix=await inspectQ002RewardMix(b);
     ok('Q002受託後の保存状態：ヴァルガまで最大3戦を選び、対象だけE101を1枚、対象外は0枚',
-      mix.assigned&&mix.count>0&&mix.max&&mix.targetsValid&&mix.targetCounts.every(n=>n===1)&&!!mix.non&&mix.nonCount===0&&mix.remaining===0,mix);
+      mix.assigned&&mix.count>0&&mix.max&&mix.targetsValid&&mix.targetCounts.every(n=>n===1)
+      // 残り戦闘がすべて対象の時は、対象外の戦闘が無いので確認を飛ばす（乱数で起きる）。
+      &&(mix.non?mix.nonCount===0:true)&&mix.remaining===0,mix);
     await enterShop(b);
     await sleep(400);
     const desc=await b.run(`return document.querySelector('.reward-prod-quest-body p')?.textContent||''`);
-    ok('Q002受託後、クエスト枠にシートの説明文が出る',desc===q2.q2.description,{desc,want:q2.q2.description});
+    // 説明文は酒場側（Q002_1）→ 到着側（Q002_2）の順に探す（本体の _qEnsureSelected と同じ）。
+    const q2Desc=(q2.q&&q2.q.description)||q2.q2.description;
+    ok('Q002受託後、クエスト枠にシートの説明文が出る',!!q2Desc&&desc===q2Desc,{desc,want:q2Desc});
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await b.until(`document.querySelector("#scr-village.active")&&!G._isShop&&${notFading}`,30000);
     await finish(b);
@@ -449,6 +663,317 @@ const WAVE=1;
     await clickDialogue(b);
     await b.until(`document.querySelector("#scr-village.active")&&!G._isTavern&&${notFading}`);
     await finish(b);
+  }
+
+  if(section('危険生物護送')){
+    const b=await newPage();
+    await startRunWithWaveQuest(b,2,'Q006');
+    const q6=await b.run(`return {q:QUEST_DATA.Q006_1,q2:QUEST_DATA.Q006_2,card:PANEL_POOL.find(c=>c.no==='BC001')}`);
+    ok('Q006の列と依頼NPCを読む（実装falseでも依頼専用、逃走後台詞は対象・表情付き）',
+      q6.q.initial.length===11&&q6.q.questClass==='A'&&q6.q.fled1[0].speaker==='A'
+      &&q6.q.fled1[0].face==='MC001_C'&&q6.q.fled2.length===1&&q6.q.rewardGold===100
+      &&q6.card._npcCard&&q6.card._rewardExcluded&&q6.card._shopExcluded&&q6.card.life===50
+      &&q6.card.keywords.includes('帰滅')&&await b.run(`return _cardRequiresDeployableSlot(PANEL_POOL.find(c=>c.no==='BC001'))&&questCardLossIsFatal(PANEL_POOL.find(c=>c.no==='BC001'))`),q6.card);
+    const fatalWording=await b.run(`(()=>{const make=desc=>({desc,effectText:'',effect:'',effectData:{effectTexts:[]}});
+      const old=make('常時：このキャラクターが還魂以外で失われるとゲームオーバーになる。');
+      const current=make('常時：このキャラクターが祭壇に捧げられる以外の理由で失われるとゲームオーバーになる。');
+      return {old:questCardLossIsFatal(old),current:questCardLossIsFatal(current),pad:TAVERN_LINE_PAD_X,mc008:TAVERN_PORTRAIT_CONFIG.MC008};})()`);
+    ok('帰滅で召喚マスを判定し、致死効果は旧文言と新文言を受け付ける',fatalWording.old&&fatalWording.current&&fatalWording.pad===48
+      &&fatalWording.mc008.width===1152&&fatalWording.mc008.height===1183,fatalWording);
+
+    const portraitState=(page,key)=>page.run(`(()=>{const p=document.querySelector('.tavern-portrait[data-portrait-key="${key}"]');if(!p)return null;
+      const cs=getComputedStyle(p);return {id:p.dataset.portraitId,x:parseFloat(p.style.left),y:parseFloat(p.style.top),w:p.naturalWidth,h:p.naturalHeight,
+      layer:Number(cs.zIndex)||0,flip:new DOMMatrix(cs.transform).a<0,visible:p.complete&&p.naturalWidth>0&&Number(cs.opacity)>.9};})()`);
+    const bubbleState=(page,index)=>page.run(`(()=>{const b=document.querySelector('.tavern-dialogue-bubble[data-line-index="${Number(index)}"]');
+      const t=document.querySelector('.tavern-dialogue-tail[data-line-index="${Number(index)}"]');const text=b?.querySelector('.tavern-dialogue-text');
+      if(!b||!t||!text)return null;const cs=getComputedStyle(t),m=new DOMMatrix(cs.transform),bs=getComputedStyle(b),style=getComputedStyle(text),r=text.getBoundingClientRect();
+      let opacity=1;for(let p=text;p&&p.nodeType===1;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+      return {x:parseFloat(cs.left)+(m.a<0?parseFloat(cs.width):0),y:parseFloat(cs.top)+(m.d>0?parseFloat(cs.height):0),down:m.d>0,
+        opacity:Number(bs.opacity),textOpacity:Number(style.opacity),text:text.textContent,visible:opacity>.9&&style.visibility!=='hidden'&&style.display!=='none'&&!/transparent|rgba\\(0, 0, 0, 0\\)/.test(style.color)&&r.bottom>0&&r.top<innerHeight};})()`);
+    async function waitIndexed(page,index,line){
+      await page.until(`(()=>{const el=document.querySelector('.tavern-dialogue-bubble[data-line-index="${Number(index)}"] .tavern-dialogue-text');return el?.textContent===${JSON.stringify(line.text)}&&el.classList.contains('is-visible')&&Number(getComputedStyle(el).opacity)>.9})()`);
+    }
+    async function checkDrag(page,id){
+      const result=await page.run(`(()=>{const u=_getPartyBoardUnit(),old=clone(u.boardCards);const offer=_rewCards.findIndex(c=>c&&c._questOfferCard&&coreUnitHasKeyword(c,'帰滅'));
+        const def=PANEL_POOL.find(c=>c&&c.category==='キャラクター'&&!c._npcCard);u.boardCards[1]=makePanel(def.id);u.boardCards[3]=null;renderHandEditor();
+        _dragSrc={arr:'rew',idx:offer};_syncNpcDropHints();const read=i=>{const el=document.querySelector('#hand-slots.board-slots > :nth-child('+(i+1)+')');const layer=el.querySelector(':scope > .map-boundary-layer');return {red:el.classList.contains('npc-drop-danger'),hint:el.classList.contains('npc-drop-hint'),outline:getComputedStyle(el).outlineColor,frame:layer?getComputedStyle(layer).borderTopColor:''};};
+        const occupied=read(1),empty=read(3);const was=G._isTavern;G._isTavern=false;_syncNpcDropHints();const normal=read(1);G._isTavern=was;
+        _dragSrc=null;_clearNpcDropHints();G.mainBoard=old;G._partyBoardUnit=null;renderHandEditor();return {occupied,empty,normal};})()`);
+      ok(`${id}依頼ドラッグ：占有マスは赤、空きは白、通常編成は赤くならない`,
+        result.occupied.red&&result.occupied.hint
+        // キャラが乗った特殊マスの枠は、マスの枠の層（.map-boundary-layer）で見える。赤はその線の色で確かめる。
+        &&(result.occupied.outline==='rgba(255, 48, 48, 0.9)'||result.occupied.frame==='rgba(255, 48, 48, 0.95)')
+        &&!result.empty.red&&result.empty.hint&&result.empty.outline==='rgba(255, 255, 255, 0.9)'&&!result.normal.red,result);
+    }
+    async function finishLines(page,lines){for(const line of lines||[]){await waitLine(page,line);await clickDialogue(page);}}
+    async function resumePage(page){
+      await page.goto(URL,2500);
+      await page.until('window.QUEST_DATA&&QUEST_DATA.Q006_1&&typeof SaveRun!=="undefined"&&typeof questResumePendingEvent==="function"',30000);
+      await page.run(`void SaveRun.continueRun();return 1;`);
+    }
+    async function makeAccepted(page,life=3){
+      await startRunWithWaveQuest(page,2,'Q006');
+      await page.until(notFading,30000);
+      await page.run(`G._wave=2;G._waveStage=5;G._waveVillage=true;G._waveLife=${life};G.life=${life};
+        const e=G.questProgress.Q006;e.status='accepted';delete e.acceptedLife;e.acceptedExitDone=true;e.rewardCardTaken=true;
+        G.mainBoard=new Array(MAIN_BOARD_SIZE).fill(null);G.mainBoard[1]=_qMakeRequiredCard(e);
+        const def=PANEL_POOL.find(c=>c.category==='キャラクター'&&!c._npcCard&&Number(c.power)>0);
+        G.mainBoard[3]=makePanel(def.id);G._partyBoardUnit=null;return 1;`);
+    }
+    async function assertGameOverPresentation(page,label){
+      await page.until(`G.phase==='gameover'`,15000);
+      await sleep(120);
+      const state=await page.run(`(()=>{const video=document.getElementById('gameover-video'),fade=document.getElementById('battle-end-fade');return {
+        battle:!!document.querySelector('#scr-battle.active'),body:document.body.classList.contains('gameover-active'),overlay:document.getElementById('scr-gameover')?.classList.contains('gameover-overlay-active'),
+        src:video?.getAttribute('src')||'',videoVisible:getComputedStyle(video).visibility==='visible',fade:fade?.classList.contains('is-visible')&&getComputedStyle(fade).visibility==='visible'};})()`);
+      ok(`${label}：戦闘敗北と同じ暗転・game_over.webm・結果画面へ移る`,state.battle&&state.body&&state.overlay&&state.src==='assets/vfx/game_over.webm'&&state.videoVisible&&state.fade,state);
+    }
+    await openWave(b,2);
+    await b.run(`G._waveLife=2;G.life=2;return 1;`);
+    await clickFacility(b,'^酒場$');
+    for(let i=0;i<6;i++){
+      await waitIndexed(b,i,q6.q.initial[i]);
+      if(i===0){
+        const p=await portraitState(b,'MC007'),a=await bubbleState(b,0);
+        ok('台詞1：MC007はX2735・Y1015、1085×1288、Bの尻尾は下向きX2810・Y1435',
+          p?.visible&&p.x===2735&&p.y===1015&&p.w===1085&&p.h===1288&&a?.visible&&a.down&&a.x===2810&&a.y===1435,{p,a});
+        ok('名前札は台詞1では出さない',await b.run(`return !document.querySelector('.tavern-name-plate')`));
+        await clickDialogue(b);await sleep(400);
+        // 台詞2は A（反対側）なので、B の台詞1の吹き出しは文字ごと残る（「A の台詞は B の台詞で消えない」と同じ決まり）。
+        const kept=await bubbleState(b,0);
+        ok('反対側の台詞に進んでも、前の吹き出しは文字ごと残る',kept&&kept.opacity===1&&kept.textOpacity===1&&kept.visible,kept);
+        continue;
+      }
+      if(i===2){
+        await b.until(`document.querySelector('.tavern-name-plate.is-visible')`);
+        const p=await portraitState(b,'MC003'),a=await bubbleState(b,2),small=await portraitState(b,'MC007');
+        const plateX=await b.run(`return parseFloat(getComputedStyle(document.querySelector('.tavern-name-plate')).left)`);
+        ok('台詞3：MC003は右からX1700へ、MC007より手前、尻尾X2380、名前札の線X2045',
+          p?.visible&&p.x===1700&&p.layer>small.layer&&a?.visible&&a.x===2380&&a.y===843&&!a.down&&plateX===2045,{p,a,plateX});
+      }
+      if(i===3) ok('MC001_reは表情画像を外して本体の顔に戻す',await b.run(`return !document.querySelector('.tavern-face[data-face-portrait-key="MC001"]')`));
+      await clickDialogue(b);
+    }
+    await waitIndexed(b,6,q6.q.initial[6]);
+    await waitIndexed(b,7,q6.q.initial[7]);
+    const transformed=await portraitState(b,'companion');
+    const simultaneous=await b.run(`return [...document.querySelectorAll('.tavern-dialogue-bubble.is-visible')].map(x=>Number(x.dataset.lineIndex)).sort((a,b)=>a-b)`);
+    ok('台詞7・8を同時表示し、台詞7でMC007を左右反転MC001（X2190・Y252）へ置き換える',
+      simultaneous.join()==='6,7'&&transformed?.visible&&transformed.id==='MC001'&&transformed.flip&&transformed.x===2190&&transformed.y===252&&!(await portraitState(b,'MC007')),
+      {simultaneous,transformed});
+    await clickDialogue(b);
+    for(let i=8;i<q6.q.initial.length;i++){ await waitIndexed(b,i,q6.q.initial[i]);await clickDialogue(b); }
+    await b.until('G._isTavern&&document.body.classList.contains("reward-screen-active")');
+    const offer=await b.run(`return {cards:_rewCards.filter(Boolean).map(c=>c.no),title:questTavernRewardTitle(),want:textMessage('「酒場の報酬枠」見出し2',''),label:document.querySelector('#reward-move-btns .rew-btn-label')?.textContent}`);
+    ok('台詞11後は依頼品の編成画面、BC001が1枚、拒否',offer.cards.join()==='BC001'&&offer.title===offer.want&&offer.label==='拒否',offer);
+    await checkDrag(b,'Q006');
+    const gold=await b.run(`G.mainBoard[1]=null;renderHandEditor();takeRewCard(0);const invalid=placePendingPanelToSelectedUnit(0);const placed=placePendingPanelToSelectedUnit(1);
+      if(invalid||!placed)throw new Error('Q006召喚マス制限');return G.gold;`);
+    ok('召喚マスに置くと受託へ変わる',await b.run(`return document.querySelector('#reward-move-btns .rew-btn-label')?.textContent==='受託'`));
+    await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    await waitLine(b,q6.q.accepted[0]);
+    ok('受託台詞で概要の100G獲得、写し身のHPはNPCシート固定値50',await b.run(`return G.gold===${gold}+100&&G.mainBoard[1].life===50&&!('acceptedLife' in G.questProgress.Q006)`));
+    const acceptedFace=await b.run(`return {hero:!!document.querySelector('.tavern-face.is-visible[data-face-id="${q6.q.accepted[0].face}"][data-face-portrait-key="MC001"]'),
+      companion:!!document.querySelector('.tavern-face.is-visible[data-face-id="${q6.q.accepted[0].face}"][data-face-portrait-key="companion"]')}`);
+    ok('受託台詞のMC001表情は話者Bではなく画像名どおり主人公へ付ける',acceptedFace.hero&&!acceptedFace.companion,acceptedFace);
+    await clickDialogue(b);
+    await waitIndexed(b,0,q6.q.specialA1[0]);
+    const a1=await bubbleState(b,0),beside=await portraitState(b,'companion'),hero=await portraitState(b,'MC001');
+    ok('退出後A1：写し身X330は主人公より奥、尻尾X1650・Y1390、ライフは減らさない',
+      beside?.visible&&beside.x===330&&beside.layer<hero.layer&&a1?.visible&&a1.down&&a1.x===1650&&a1.y===1390&&await b.run(`return G._waveLife===2&&G.life===2`),{a1,beside});
+    await clickDialogue(b);await waitIndexed(b,1,q6.q.specialA2[0]);
+    const keptA1=await bubbleState(b,0),a2=await bubbleState(b,1);
+    ok('退出後A2：尻尾X2955・Y1340、A1の吹き出しを残し、ライフは減らさない',
+      keptA1?.visible&&a2?.visible&&!a2.down&&a2.x===2955&&a2.y===1340&&await b.run(`return G._waveLife===2&&G.life===2`),{keptA1,a2});
+    // A2途中の実セーブから再開しても、受託金を繰り返さず、A1を残す表示を再構成する。
+    await resumePage(b);
+    const exitLines=[...q6.q.specialA1,...q6.q.specialA2,...q6.q.specialA3];
+    for(let i=0;i<exitLines.length;i++){await waitIndexed(b,i,exitLines[i]);await clickDialogue(b);}
+    await b.until(`G.questProgress.Q006.acceptedExitDone&&!_qPendingEventSession`);
+    ok('A1〜A3を再開してもライフ2・HP50・受託金100Gを保ち、ゲームオーバーにしない',await b.run(`return G._waveLife===2&&G.life===2&&G.mainBoard[1].life===50&&G.gold===${gold}+100&&G.phase!=='gameover'`));
+    await finish(b);
+
+    const escort=await newPage();await startRunWithQuest(escort);await openWave(escort,1);
+    await escort.run(`_qOpenTavernFormation();return 1;`);await checkDrag(escort,'Q003');await finish(escort);
+
+    const item=await newPage();await makeAccepted(item);await openWave(item,2);await enterShop(item);
+    await item.run(`G.mainBoard[3].keywords=['封印5'];const doll=ITEM_POOL.find(c=>c.itemEffectKey==='sacrifice_doll');
+      const slots=_ensureItemSlots();slots[0]=clone(doll);_beginBoardItemUse(0,slots[0]);handlePendingItemBoardTarget(1);handlePendingItemBoardTarget(3);return 1;`);
+    await waitIndexed(item,0,q6.q.destroyed1[0]);await waitIndexed(item,1,q6.q.destroyed2[0]);
+    const itemLoss=await item.run(`return {indices:[...document.querySelectorAll('.tavern-dialogue-bubble.is-visible')].map(x=>Number(x.dataset.lineIndex)).sort((a,b)=>a-b),
+      faces:[...document.querySelectorAll('.tavern-face.is-visible')].map(x=>x.dataset.faceId),facilities:getComputedStyle(document.getElementById('village-facilities')).display,moves:getComputedStyle(document.getElementById('village-move-btns')).display}`);
+    const itemCompanion=await portraitState(item,'companion');
+    ok('アイテム消失：死亡台詞1・2を同時表示し、A・Bは最初からMC001_C、Bは左右反転MC001',
+      itemLoss.indices.join()==='0,1'&&itemLoss.faces.filter(x=>x==='MC001_C').length===2&&itemCompanion?.flip&&itemCompanion.x===2190&&itemCompanion.y===252,
+      {itemLoss,itemCompanion});
+    ok('非戦闘死亡会話中は、街の施設ボタンと「出発する」を押せない',itemLoss.facilities==='none'&&itemLoss.moves==='none',itemLoss);
+    await resumePage(item);
+    await waitIndexed(item,0,q6.q.destroyed1[0]);await waitIndexed(item,1,q6.q.destroyed2[0]);
+    await clickDialogue(item);
+    await assertGameOverPresentation(item,'消失イベント途中の再開後');
+    await finish(item);
+
+    const parted=await newPage();await makeAccepted(parted);await openWave(parted,2);await enterShop(parted);
+    await parted.until(`!!document.querySelector('#hand-slots .quest-part-btn')`);
+    await parted.run(`document.querySelector('#hand-slots .quest-part-btn').click();document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    await waitIndexed(parted,0,q6.q.fled1[0]);
+    const partFirst=await parted.run(`return {companion:!!document.querySelector('.tavern-portrait[data-portrait-key="companion"]'),
+      facilities:getComputedStyle(document.getElementById('village-facilities')).display,moves:getComputedStyle(document.getElementById('village-move-btns')).display,event:document.body.classList.contains('quest-town-event-active')}`);
+    ok('店で「別れる」後は逃走後台詞1から始め、Bを出さず、街の操作を封鎖する',!partFirst.companion&&partFirst.facilities==='none'&&partFirst.moves==='none'&&partFirst.event,partFirst);
+    await clickDialogue(parted);await waitIndexed(parted,1,q6.q.fled2[0]);
+    ok('逃走後台詞2でもBを出さない',!(await portraitState(parted,'companion')));
+    await clickDialogue(parted);await assertGameOverPresentation(parted,'店で「別れる」後');await finish(parted);
+
+    for(const kind of ['death','flee']){
+      const page=await newPage();await makeAccepted(page);
+      // 戦闘の受け口へ確定イベントを渡す。敵が残る状態でも会話へ入ることを検査する。
+      await page.run(`G._waveVillage=false;G._isTavern=false;G._isShop=false;G._isVillageMenu=false;G.phase='enemy';showScreen('battle');
+        document.body.classList.remove('reward-screen-active','village-screen-active');
+        const u={...clone(G.mainBoard[1]),id:'q006-loss',side:'p1',lane:'front',slot:0,atk:25,hp:${kind==='death'?0:50},maxHp:50,_mainBoardSlot:1};
+        const enemy={id:'q006-foe',name:'検査用',side:'p2',lane:'front',slot:0,atk:1,hp:999,maxHp:999,keywords:[]};
+        G.allies=[u];G.enemies=[enemy];G._battleRunId=100;G._battleVictoryPending=false;
+        window.__q6State={units:{p1:G.allies,p2:G.enemies},life:{p1:G._waveLife,p2:1},resources:{p1:{gold:G.gold,mana:0},p2:{gold:0,mana:0}},blood:{p1:0,p2:0}};
+        const event={type:'${kind==='death'?'death':'fled'}',side:'p1',unitId:u.id};G._battleCoreEvents=[event];
+        window.__q6PlaybackDone=false;void _flushCorePveHitEvents(__q6State,[event],new Set([u,enemy])).then(()=>{__q6PlaybackDone=true;});return 1;`);
+      if(kind==='flee'&&q6.q.flee.length){
+        await page.until(`document.getElementById('battle-line-text')?.textContent===${JSON.stringify(q6.q.flee[0].text)}&&document.getElementById('battle-line-layer')?.classList.contains('is-visible')`);
+        ok('逃走の戦闘吹き出しを先に出す',await page.run(`return !document.getElementById('tavern-dialogue-layer')`));
+        await page.call('Input.dispatchMouseEvent',{type:'mousePressed',x:800,y:450,button:'left',clickCount:1});
+        await page.call('Input.dispatchMouseEvent',{type:'mouseReleased',x:800,y:450,button:'left',clickCount:1});
+      }
+      const lines=kind==='death'?[...q6.q.destroyed1,...q6.q.destroyed2]:[...q6.q.fled1,...q6.q.fled2];
+      await waitIndexed(page,0,lines[0]);
+      if(kind==='death') await waitIndexed(page,1,lines[1]);
+      ok(`戦闘${kind}：敵が残っていても進行を打ち切り、即座にクエスト会話`,await page.run(`return G._battleRunId>100&&G.enemies[0].hp===999&&G.questProgress.Q006.pendingEvent==='loss'&&__q6PlaybackDone`));
+      if(kind==='death'){
+        const deathState=await page.run(`return {indices:[...document.querySelectorAll('.tavern-dialogue-bubble.is-visible')].map(x=>Number(x.dataset.lineIndex)).sort((a,b)=>a-b),faces:[...document.querySelectorAll('.tavern-face.is-visible')].map(x=>x.dataset.faceId)}`);
+        ok('戦闘死亡：死亡台詞1・2を同時表示し、A・BはMC001_C',deathState.indices.join()==='0,1'&&deathState.faces.filter(x=>x==='MC001_C').length===2,deathState);
+        await clickDialogue(page);
+      }else{
+        ok('戦闘逃走：逃走後台詞1ではBを出さない',!(await portraitState(page,'companion')));
+        await clickDialogue(page);await waitIndexed(page,1,lines[1]);
+        ok('戦闘逃走：逃走後台詞2でもBを出さない',!(await portraitState(page,'companion')));
+        await clickDialogue(page);
+      }
+      await assertGameOverPresentation(page,`戦闘${kind}`);await finish(page);
+    }
+
+    const tower=await newPage();await makeAccepted(tower);
+    await tower.run(`G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    // 出発の処理（マップへ進む＝departWithWorldMap）が呼ばれたことだけを記録し、その先（次の戦闘）へは進ませない。
+    // 進ませるとマップの画面は一瞬で過ぎ、次の戦闘で写し身が倒れて別の会話に入る。
+    await tower.run(`window.__departCalls=0;window.departWithWorldMap=function(){window.__departCalls++;return false;};return 1;`);
+    ok('Q006は塔の到着時には開始せず、「出発する」で特殊A1へ',await tower.run(`const before=!document.getElementById('tavern-dialogue-layer');villageDepart();return before;`));
+    await finishLines(tower,q6.q2.specialA1);
+    await tower.until(`window.__departCalls===1`,30000);
+    ok('還魂せず出発した時は特殊A1の後に元の出発処理を続け、completed・カードと消失効果は残る',await tower.run(`return G.questProgress.Q006.status==='completed'&&!!G.mainBoard[1]&&questCardLossIsFatal(G.mainBoard[1])&&window.__departCalls===1`));
+    async function takeAltarRing(page,sacrifice){
+      await page.run(`openMapRingExchange();const board=_getPartyBoardUnit().boardCards;const def=PANEL_POOL.find(c=>c.category==='キャラクター'&&!c._npcCard&&Number(c.power)>0);
+        for(const idx of [0,2,4])board[idx]=makePanel(def.id);renderHandEditor();
+        for(const idx of ${sacrifice?'[1,0,2]':'[0,2,4]'})_discardBoardCardForRingOffer(idx,board[idx]);
+        const slot=[...document.querySelectorAll('.reward-prod-ring .reward-prod-slots i')].find(el=>!el._rewardRing);if(!slot)throw new Error('空き指輪枠なし');
+        _dragSrc={arr:'ringOffer',idx:0};slot.dispatchEvent(new Event('drop',{bubbles:true,cancelable:true}));return 1;`);
+    }
+    await tower.run(`G._wave=3;G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    await takeAltarRing(tower,true);
+    ok('以後の塔で還魂を確定しても、祭壇を離れるまでは会話を待つ',await tower.run(`return G.questProgress.Q006.companionReleased&&G.questProgress.Q006.pendingEvent==='towerSacrifice'&&!document.getElementById('tavern-dialogue-layer')`));
+    await tower.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    await waitIndexed(tower,0,q6.q2.initial[0]);
+    const sacrificedPortrait=await portraitState(tower,'companion');
+    ok('完了後の別の塔でも還魂→台詞1、Bは左右反転MC001',sacrificedPortrait?.flip&&sacrificedPortrait.x===2190&&sacrificedPortrait.y===252,sacrificedPortrait);
+    await clickDialogue(tower);await waitIndexed(tower,1,q6.q2.initial[1]);
+    const restored=await portraitState(tower,'restored'),towerLine2=await bubbleState(tower,1);
+    ok('台詞2の前に白くフェードしMC008（X2700・Y1090、原寸）へ戻し、吹き出し先端はX2810・Y1435',
+      restored?.visible&&restored.id==='MC008'&&restored.x===2700&&restored.y===1090&&restored.w===1152&&restored.h===1183
+      &&!(await portraitState(tower,'companion'))&&towerLine2?.down&&towerLine2.x===2810&&towerLine2.y===1435,{restored,towerLine2});
+    await tower.run(`window.__mc008Dying=false;const host=document.getElementById('tavern-presentation-layer');window.__mc008Watch=new MutationObserver(()=>{if(document.querySelector('.tavern-portrait.is-dying[data-portrait-id="MC008"]'))__mc008Dying=true;});__mc008Watch.observe(host,{subtree:true,attributes:true,attributeFilter:['class']});return 1;`);
+    await clickDialogue(tower);await waitIndexed(tower,2,q6.q2.initial[2]);
+    const fadeRed=await tower.run(`__mc008Watch.disconnect();return {seen:__mc008Dying,remaining:!!document.querySelector('.tavern-portrait[data-portrait-id="MC008"]')}`);
+    ok('台詞3の前にMC008を赤く染めながら消す',fadeRed.seen&&!fadeRed.remaining,fadeRed);
+    await clickDialogue(tower);await tower.until(`!_qPendingEventSession`);
+    ok('還魂完了後もcompleted、カード消失・ゲームオーバーなし',await tower.run(`return G.questProgress.Q006.status==='completed'&&!G.mainBoard.some(c=>c&&c.no==='BC001')&&G.phase!=='gameover'`));
+    await finish(tower);
+
+    const kept=await newPage();await makeAccepted(kept);await kept.run(`G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    await takeAltarRing(kept,false);await finishLines(kept,q6.q2.specialA1);await kept.until(`!_qPendingEventSession`);
+    ok('写し身を還魂せず指輪を取得した時も特殊A1→completed',await kept.run(`return G.questProgress.Q006.status==='completed'&&G.mainBoard[1]?.no==='BC001'&&!G.questProgress.Q006.companionReleased`));
+    await finish(kept);
+  }
+
+  // ── ヴォルザーク鍛冶屋：写し身の「命の鎖」を切る特殊会話 ──────────
+  if(section('命の鎖')){
+    async function prepareForge(page,gold,withCard=true){
+      await startRunWithWaveQuest(page,2,'Q006');
+      await page.run(`(()=>{const e=G.questProgress.Q006;e.status='completed';e.acceptedExitDone=true;e.rewardCardTaken=true;e.towerEventDone=true;
+        e.companionReleased=false;e.lifeLinkCut=false;e.forgeChainSeen=false;G.mainBoard=new Array(MAIN_BOARD_SIZE).fill(null);
+        if(${withCard?'true':'false'}){const c=_qMakeRequiredCard(e);c.desc=String(c.desc||'')+'\\n常時：検査用の別効果。';G.mainBoard[1]=c;}
+        const def=PANEL_POOL.find(c=>c.category==='キャラクター'&&!c._npcCard&&Number(c.power)>0);G.mainBoard[3]=makePanel(def.id);G._partyBoardUnit=null;
+        G.gold=${Number(gold)};G._facilityTalkSeen={};SaveProfile.markTutorialShown('shop:forge');return 1;})()`);
+      await openWave(page,4);
+    }
+    async function leaveForge(page){
+      await page.until(`document.body.classList.contains('reward-screen-active')&&G._isForge`,30000);
+      await page.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+      await page.until(`document.querySelector('#scr-village.active')&&!G._isForge&&${notFading}`,30000);
+    }
+    const success=await newPage();await prepareForge(success,250,true);
+    const forgeTalk=await success.run(`return villageTalkEntry('ヴォルザーク「鍛冶屋」入店時')`);
+    ok('会話メッセージの特殊台詞A1〜A5・B1を新しい列名で読む',
+      ['特殊台詞A1','特殊台詞A2','特殊台詞A3','特殊台詞A4','特殊台詞A5','特殊台詞B1'].every(k=>forgeTalk&&forgeTalk[k])
+      &&!forgeTalk?.['特殊台詞1']&&!forgeTalk?.['特殊台詞2'],forgeTalk);
+    await clickFacility(success,'^鍛[冶治]屋$');
+    await waitLine(success,forgeTalk['特殊台詞A1']);
+    if(forgeTalk['特殊台詞A1'].face){await waitVisibleFace(success,forgeTalk['特殊台詞A1'].face);ok('鎖切断会話の表情はシートの表情列に従う',await face(success,forgeTalk['特殊台詞A1'].face)==='表示');}
+    await clickDialogue(success);await waitLine(success,forgeTalk['特殊台詞A2']);await clickDialogue(success);
+    const successChoices=await waitChoice(success,forgeTalk['特殊台詞A3']);
+    // 料金はシートの選択肢の文（「・切ってもらう（NG）」）から読む。値を検査に直書きしない（シートで100G→50Gに変わった）。
+    const chainCost=Number((String(successChoices[0]||'').match(/（(\d+)G）/)||[])[1]);
+    ok('「切ってもらう」の料金を選択肢の文から読む',chainCost>0&&chainCost<250&&successChoices[1].includes('やめておく'),{successChoices,chainCost});
+    await success.run(`window.__chainSfx='';window.__chainBlack=false;window.__chainProbeDone=false;
+      const original=playFileSfx;window.playFileSfx=function(path,volume){window.__chainSfx=path;const audio=original(path,volume);if(path==='assets/sfx/chain_cut.wav'&&audio?.dispatchEvent)setTimeout(()=>audio.dispatchEvent(new Event('ended')),80);return audio;};
+      const probe=()=>{const f=document.getElementById('screen-switch-fade');if(f&&parseFloat(getComputedStyle(f).opacity)>.95)__chainBlack=true;if(!__chainProbeDone)requestAnimationFrame(probe);};requestAnimationFrame(probe);return 1;`);
+    await clickChoice(success,0);
+    await waitLine(success,forgeTalk['特殊台詞A4']);
+    const cut=await success.run(`__chainProbeDone=true;const c=G.mainBoard.find(x=>x&&x.no==='BC001');return {gold:G.gold,sfx:__chainSfx,black:__chainBlack,
+      fatal:questCardLossIsFatal(c),other:/検査用の別効果/.test(JSON.stringify(c)),lifeLinkCut:G.questProgress.Q006.lifeLinkCut===true,
+      face:!!document.querySelector('.tavern-face.is-visible[data-face-portrait-key="MC001"]')};`);
+    ok('料金を支払い、暗転中のchain_cut.wav後に通常顔へ戻し、致死効果だけを削除する',
+      cut.gold===250-chainCost&&cut.sfx==='assets/sfx/chain_cut.wav'&&cut.black&&!cut.fatal&&cut.other&&cut.lifeLinkCut&&!cut.face,cut);
+    await clickDialogue(success);await waitLine(success,forgeTalk['特殊台詞A5']);
+    if(forgeTalk['特殊台詞A5'].face){await waitVisibleFace(success,forgeTalk['特殊台詞A5'].face);ok('切断後A5もシートの表情列に従う',await face(success,forgeTalk['特殊台詞A5'].face)==='表示');}
+    await clickDialogue(success);await leaveForge(success);
+    await success.goto(URL,2500);
+    await success.until('window.QUEST_DATA&&typeof SaveRun!=="undefined"&&typeof questForgeChainState==="function"',30000);
+    await success.run(`void SaveRun.continueRun();return 1;`);
+    await success.until(`document.querySelector('#scr-village.active')&&G._wave===4&&${notFading}`,30000);
+    const restoredCut=await success.run(`(()=>{const c=G.mainBoard.find(x=>x&&x.no==='BC001');return {gold:G.gold,card:!!c,fatal:questCardLossIsFatal(c),other:/検査用の別効果/.test(JSON.stringify(c)),cut:G.questProgress.Q006.lifeLinkCut===true};})()`);
+    ok('鎖切断・料金の支払い・残した別効果をランセーブで保つ',restoredCut.gold===250-chainCost&&restoredCut.card&&!restoredCut.fatal&&restoredCut.other&&restoredCut.cut,restoredCut);
+    await clickFacility(success,'^鍛[冶治]屋$');await waitLine(success,forgeTalk['台詞1']);
+    ok('鎖を切った後の再訪は従来どおり台詞1',true);
+    await clickDialogue(success);await success.until(`document.body.classList.contains('reward-screen-active')&&G._isForge`,30000);
+    const harmless=await success.run(`(()=>{const i=G.mainBoard.findIndex(x=>x&&x.no==='BC001'),c=G.mainBoard[i];G.mainBoard[i]=null;const fired=questOnCardLost(c,'death');return {fired,pending:G.questProgress.Q006.pendingEvent||'',phase:G.phase};})()`);
+    ok('鎖切断後は写し身を別の方法で失ってもゲームオーバーイベントにならない',!harmless.fired&&!harmless.pending&&harmless.phase!=='gameover',harmless);
+    await finish(success);
+
+    const shortGold=chainCost-1;
+    const retry=await newPage();await prepareForge(retry,shortGold,true);
+    const retryTalk=await retry.run(`return villageTalkEntry('ヴォルザーク「鍛冶屋」入店時')`);
+    await clickFacility(retry,'^鍛[冶治]屋$');
+    await waitLine(retry,retryTalk['特殊台詞A1']);await clickDialogue(retry);
+    await waitLine(retry,retryTalk['特殊台詞A2']);await clickDialogue(retry);
+    await waitChoice(retry,retryTalk['特殊台詞A3']);await clickChoice(retry,0);
+    await waitLine(retry,retryTalk['ゴールド不足時台詞']);
+    ok('料金-1Gでは不足台詞を出し、所持金と致死効果を変えない',await retry.run(`const c=G.mainBoard.find(x=>x&&x.no==='BC001');return G.gold===${shortGold}&&questCardLossIsFatal(c)&&G.questProgress.Q006.forgeChainSeen===true`));
+    await clickDialogue(retry);await leaveForge(retry);
+    await clickFacility(retry,'^鍛[冶治]屋$');await waitLine(retry,retryTalk['特殊台詞B1']);await clickDialogue(retry);
+    await waitChoice(retry,retryTalk['特殊台詞A3']);await clickChoice(retry,1);
+    await retry.until(`document.body.classList.contains('reward-screen-active')&&G._isForge`,30000);
+    ok('不足後の再訪はB1→A3、やめた場合も鎖と所持金を保つ',await retry.run(`const c=G.mainBoard.find(x=>x&&x.no==='BC001');return G.gold===${shortGold}&&questCardLossIsFatal(c)`));
+    await leaveForge(retry);
+    await retry.run(`const i=G.mainBoard.findIndex(x=>x&&x.no==='BC001');if(i>=0)G.mainBoard[i]=null;return 1;`);
+    await clickFacility(retry,'^鍛[冶治]屋$');await waitLine(retry,retryTalk['台詞1']);
+    ok('写し身を持っていない時は従来どおり台詞1',true);
+    await finish(retry);
   }
 
   // ── Q007「木箱輸送依頼」：ギャラハで5枚提示し、任意の枚数を持って受託 ──
@@ -727,9 +1252,9 @@ const WAVE=1;
   // ── ギャラハ魔導店：闘技場参加後の専用入店台詞 ───────────────
   if(section('闘技場後')){
     const arenaAfterCases=[
-      {label:'賞金0',column:'特殊台詞1',result:{wins:0,prize:0,allWon:false}},
+      {label:'賞金0',column:'特殊台詞A1',result:{wins:0,prize:0,allWon:false}},
       {label:'賞金あり',column:'台詞1',result:{wins:3,prize:100,allWon:false}},
-      {label:'全勝',column:'特殊台詞2',result:{wins:6,prize:800,allWon:true}},
+      {label:'全勝',column:'特殊台詞A2',result:{wins:6,prize:800,allWon:true}},
     ];
     for(const scenario of arenaAfterCases){
       const b=await newPage();
@@ -756,7 +1281,7 @@ const WAVE=1;
       await b.until('document.body.classList.contains("reward-screen-active")&&G._isShop');
       await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
       await b.until(`document.querySelector('#scr-village.active')&&!G._isShop&&${notFading}`,30000);
-      if(scenario.column==='特殊台詞1'){
+      if(scenario.column==='特殊台詞A1'){
         await clickFacility(b,'^魔[導道]店$');
         await waitLine(b,expected.normal);
         const second=await b.run(`(()=>{const seen=G._facilityTalkSeen||{};return {text:document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text')?.textContent||'',normal:seen['3:shop']===true,special:seen['3:shop:arenaAfter']===true};})()`);
@@ -858,9 +1383,11 @@ const WAVE=1;
     await waitLine(b,d1[0]);
     await sleep(700);
     const st=await b.run(`return {reward:document.body.classList.contains('reward-screen-active'),village:!!document.querySelector('#scr-village.active'),
-      faces:[...document.querySelectorAll('.tavern-presentation-host .tavern-face.is-visible')].map(f=>f.dataset.faceId).join(),slot:!!_ensureItemSlots()[0],pending:!!G._pendingItemUse}`);
+      faces:[...document.querySelectorAll('.tavern-presentation-host .tavern-face.is-visible')].map(f=>f.dataset.faceId).join(),slot:!!_ensureItemSlots()[0],pending:!!G._pendingItemUse,
+      facilities:getComputedStyle(document.getElementById('village-facilities')).display,moves:getComputedStyle(document.getElementById('village-move-btns')).display}`);
     const destroyedFirstFace=q1.q.destroyed1[0].face||'';
     ok('編成を閉じて酒場の会話へ（A は非戦闘時死亡台詞のシート表情、生贄人形は使い切り）',!st.reward&&st.village&&st.faces===destroyedFirstFace&&!st.slot&&!st.pending,st);
+    ok('護衛依頼の非戦闘破壊会話中も、街の施設ボタンと「出発する」を押せない',st.facilities==='none'&&st.moves==='none',st);
     await clickDialogue(b);
     await b.until(`!!document.querySelector('.tavern-portrait.is-dying[data-portrait-id="MC002"]')`,3000);
     ok('台詞1の後、ファラの立ち絵を赤く消す',true);
@@ -1191,6 +1718,17 @@ const WAVE=1;
   globalThis.__questOpenPages=openPages;
 })().catch(async error=>{
   console.error('RESULT_NG',error&&error.message||error);
+  // 止まった時の状態（原因の切り分け用）。
+  for(const pg of (globalThis.__questOpenPages||[])){
+    try{ console.error('STATE',JSON.stringify(await pg.run(`return {screen:document.querySelector('.screen.active')?.id,body:document.body.className.slice(0,240),phase:G.phase,wave:G._wave,stage:G._waveStage,altar:G._isWaveAltar,intro:G._villageIntroPlaying,pending:!!G._pendingPanelPlacement,
+      q4:G.questProgress&&G.questProgress.Q004&&{s:G.questProgress.Q004.status,ep:G.questProgress.Q004.encounterPhase,fled:G.questProgress.Q004.encounterFled,defeated:G.questProgress.Q004.encounterDefeated,reward:G.questProgress.Q004.encounterRewardGiven},
+      q6:G.questProgress&&G.questProgress.Q006&&{s:G.questProgress.Q006.status,ev:G.questProgress.Q006.pendingEvent,after:G.questProgress.Q006.towerKeepDepartAfter},
+      retry:G._waveRetryEnemyKey,isRetry:G._waveIsRetry,withdraw:G._waveWithdraw,defeatHandled:G._battleDefeatHandled,
+      arena:{active:G._arenaActive,round:G._arenaRound,pending:G._arenaOutcomePending},battleLine:document.getElementById('battle-line-text')?.textContent||'',
+      proceed:typeof G._battleProceedAction==='function',fleeTrace:window.__q004FleeTrace||window.__aresFleeTrace||null,deathTrace:window.__aresDeathTrace||null,
+      dlg:[...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-text')].map(x=>({text:x.textContent.slice(0,40),visible:x.classList.contains('is-visible'),opacity:getComputedStyle(x).opacity}))}`))); }catch(_e){}
+    try{ await pg.close(); }catch(_e){}
+  }
   process.exitCode=1;
   // 失敗してもブラウザを閉じる（閉じないと node が終わらない）。
   process.exit(1);

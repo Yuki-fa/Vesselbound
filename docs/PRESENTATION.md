@@ -548,6 +548,18 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 **素材の切り抜き方（余白の量）が変われば倍率も変わる。** 差し替えたら見て調整すること。
 **効果としての再生と被弾演出としての再生で別々に持たないこと**（片方だけ巨大に出る）。
 
+## 敵の決着台詞（死亡・逃走・プレイヤー敗北。2026-09-29）
+
+- **いつ出すか**は present_events.js だけが決める。PvE・オンライン共通。
+  - `presentAttackContactOutcomeLines`：攻撃の接触
+  - `presentDeathBatch`：焼失の前
+  - 逃走：FLED の前
+  - `presentPlayerDefeatLines`
+- 攻撃で決着する体の選び方は `presentAttackContactOutcomeEvents()`（present.js、純粋関数）。
+- **見せ方**は battle.js の `showBattleUnitOutcomeLines()` で、開幕台詞と同じ吹き出しを使う。
+- 接触時に一度出した台詞は、後の死亡・逃走の演出で出し直さない（isLineDone／markLineDone）。
+- 攻撃者自身が反撃で倒れる時は、元のスロットが隠れている。そのため飛行中の複製を話者の位置にする。
+
 ## 酒場クエストの立ち絵・台詞枠
 
 酒場と赤禍の塔の会話表示は `prototype/js/engine/quest.js` にまとめる。立ち絵は設計座標へ原寸で置き、`TAVERN_PORTRAIT_CONFIG` の `MC001`（`x=-207,y=252`、1990×3410）と `MC004`（`x=1819,y=192`、3155×4291）をこの順にフェードインする。フェード時間と次の立ち絵までの待ち時間は `TAVERN_PORTRAIT_FADE_MS`／`TAVERN_PORTRAIT_STEP_MS`。表情差分は `showTavernPortrait('MC001',{face:'F002'})` のように明示した場合だけ使い、`TAVERN_FACE_CONFIG` の `(827,349)` に310×233で重ねる。既定の会話では表情を重ねない。
@@ -609,3 +621,9 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 **オンライン対戦の画面（2026-09-27）**：編成画面の背景は setup.webp、旅程の「編成」「戦闘」のホバーは通常の一般戦闘と同じ（info_box.svg の9スライス）。マッチング画面はエラー画面と同じ枠で、見出し「オンライン対戦「マッチング」見出し」、本文に参加者、枠外上部に光る線が弧を描く、枠外下部に「キャンセル」。成立時はオーバーレイ＋「対戦開始！」（チュートリアルの見出しと同じ104px）。
 
 **検査（2026-09-27〜28）**：`tools/parity/headless.js` は起動した Chrome を必ず Browser.close で閉じ（失敗・例外・SIGINT/SIGTERM・exit でも）、一時プロファイルを消す。クラッシュ報告・復元バブルは起動引数で抑止。クエスト検査の「戦闘」節の死亡台詞は、ファラ1人（HP1）で戦わせて必ず倒れるようにした（強いゴーレムを並べると先攻次第で敵を倒し切り、台詞待ちが時間切れになっていた）。
+
+**酒場・イベントの吹き出し（2026-09-28）**：文字はフェードで切り替える（`TAVERN_DIALOGUE_FADE_MS`＝180ms）。左右の余白 `TAVERN_LINE_PAD_X`＝48。左右それぞれ直前にその側で話した台詞を残し（B が話しても A は消えない）、指定した台詞（persistentLines）は次の台詞が出ても残す。切り替え中のクリックは1回分覚えて終わったら進め、出ている選択肢はフェード中でも押せる。立ち絵が出る時も消える時も「立ち絵＋表情差分」を入れ物ごとフェードする（別々だと元の顔が透ける）。
+
+**攻撃モーションの行き先（2026-09-28）**：召喚・死亡で並びが動く（FLIP）間は待ち、並びが確定してから対象の unitId の枠を取り直して接触する（render.js: _playAttackMotionCore／_getAttackTargetRect、_battleDomLayoutMatchesUnits）。途中の座標へ飛ぶと、敵の間に落ちてダメージ表示・命中SEが出なかった。
+
+**非戦闘時のゲームオーバー（2026-09-28）**：街など戦闘以外でゲームオーバーになる時も、先に戦闘画面へ切り替えてから暗転・game_over.webm・結果画面を通す（main.js: gameOver）。街の会話イベント中は施設ボタン・出発するを押せない。

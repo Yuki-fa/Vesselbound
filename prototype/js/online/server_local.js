@@ -121,6 +121,12 @@ const ONLINE_VERSUS_GOLD = 100;
         desc: def ? String(unit.desc || def.desc || '') : '',
         sfxType: def ? String(unit.sfxType || def.sfxType || '') : '',
         keywords: Array.isArray(unit.keywords) ? unit.keywords.slice() : (Array.isArray(def && def.keywords) ? def.keywords.slice() : []),
+        deathBattleLines: Array.isArray(unit.deathBattleLines) ? unit.deathBattleLines.slice()
+          : (Array.isArray(def && def.deathBattleLines) ? def.deathBattleLines.slice() : []),
+        fleeBattleLines: Array.isArray(unit.fleeBattleLines) ? unit.fleeBattleLines.slice()
+          : (Array.isArray(def && def.fleeBattleLines) ? def.fleeBattleLines.slice() : []),
+        playerDefeatBattleLines: Array.isArray(unit.playerDefeatBattleLines) ? unit.playerDefeatBattleLines.slice()
+          : (Array.isArray(def && def.playerDefeatBattleLines) ? def.playerDefeatBattleLines.slice() : []),
         poison: Number(unit.poison ?? def.poison) || 0,
         weakenOnHit: Number(unit.weakenOnHit ?? def.weakenOnHit) || 0,
         manaOnAttack: Number(unit.manaOnAttack ?? def.manaOnAttack) || 0,

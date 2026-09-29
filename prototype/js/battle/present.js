@@ -605,6 +605,89 @@ function presentDeathBatchEvents(events, index) {
   return out;
 }
 
+// ── 決着時の敵台詞 ──────────────────────────────────
+// 台詞の種類と「通常攻撃の接触で決着したか」の対応付けは、
+// PvE/オンラインのどちらもこの純粋関数を使う。DOMや G には触れない。
+const PRESENT_OUTCOME_LINE_FIELDS = Object.freeze({
+  death: 'deathBattleLines',
+  flee: 'fleeBattleLines',
+  playerDefeat: 'playerDefeatBattleLines',
+});
+
+function presentUnitOutcomeLines(unit, kind) {
+  const field = PRESENT_OUTCOME_LINE_FIELDS[String(kind || '')];
+  if (!unit || !field || !Array.isArray(unit[field])) return [];
+  return unit[field].map(line => String(line || '').trim()).filter(Boolean);
+}
+
+// attack の接触時点で、後続する戦闘ダメージによる死亡／逃走を先読みする。
+// 値や勝敗は決めない。コアが出した damage と death/fled の対応だけを返す。
+function presentAttackContactOutcomeEvents(events, attackIndex) {
+  const list = Array.isArray(events) ? events : [];
+  const index = Number(attackIndex);
+  const attack = Number.isInteger(index) ? list[index] : null;
+  if (!attack || attack.type !== 'attack') return [];
+  let end = list.length;
+  for (let i = index + 1; i < list.length; i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (ev.type === 'turn_begin' || ev.type === 'battle_end') { end = i; break; }
+    // 三方向／全体攻撃の2体目以降は attackVisual:false で同じ接触。
+    // 次の実モーションが始まる手前だけを、今回の一撃とする。
+    if (ev.type === 'attack' && ev.attackVisual !== false) { end = i; break; }
+  }
+  const casualtyKeys = new Set();
+  const attackStatKeys = new Set();
+  const causedAtContact = ev => {
+    const sourceId = String(ev && ev.sourceId || '');
+    const unitId = String(ev && ev.unitId || '');
+    const attackerId = String(attack.attackerId || '');
+    const targetId = String(attack.targetId || '');
+    // 通常の命中と、反撃側の即死／呪詛のどちらも接触時に起きる。
+    return (sourceId === attackerId && unitId !== attackerId)
+      || (sourceId === targetId && unitId === attackerId);
+  };
+  for (let i = index + 1; i < end; i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (ev.type === 'damage' && String(ev.damageKind || '') === 'combat'
+      && Number(ev.amount) > 0 && Number(ev.hpAfter) <= 0) {
+      const direct = !ev.counter && String(ev.sourceId || '') === String(attack.attackerId || '');
+      const counter = !!ev.counter && String(ev.unitId || '') === String(attack.attackerId || '');
+      if (direct || counter) casualtyKeys.add(`${ev.side}:${ev.unitId}`);
+      continue;
+    }
+    // 即死・呪詛死も攻撃の命中誘発。後続の death に sourceId が無いため、
+    // この時点で対象を控える。コアの事象列自体は書き換えない。
+    if ((ev.type === 'instant_death' || ev.type === 'curse_death') && causedAtContact(ev)) {
+      casualtyKeys.add(`${ev.side}:${ev.unitId}`);
+      continue;
+    }
+    // 邪眼などの命中時ATK低下が0を作った場合、fled 側には sourceId が無い。
+    // 後続の fled(reason=atk_zero) と組み合わせた時だけ接触由来とみなす。
+    if (ev.type === 'stat_change' && Number(ev.atk) < 0 && causedAtContact(ev)) {
+      attackStatKeys.add(`${ev.side}:${ev.unitId}`);
+      continue;
+    }
+    if (ev.type === 'fled' && (causedAtContact(ev)
+      || (String(ev.reason || '') === 'atk_zero' && attackStatKeys.has(`${ev.side}:${ev.unitId}`)))) {
+      casualtyKeys.add(`${ev.side}:${ev.unitId}`);
+    }
+  }
+  if (!casualtyKeys.size) return [];
+  const out = [];
+  const used = new Set();
+  for (let i = index + 1; i < end; i++) {
+    const ev = list[i];
+    if (!ev || (ev.type !== 'death' && ev.type !== 'fled')) continue;
+    const key = `${ev.side}:${ev.unitId}`;
+    if (!casualtyKeys.has(key) || used.has(key)) continue;
+    used.add(key);
+    out.push(ev);
+  }
+  return out;
+}
+
 // この数値の**次に同じ種類のダメージが続くか**。続くなら、その間隔（ms）を返す。
 // 束の1つ目は「これから連続再生になる」ことを予約時には知れないため、
 // イベント列を1つ先まで見る。これを見ないと1つ目だけ数値が長く出っぱなしになり、
@@ -930,8 +1013,15 @@ function presentDamageVfxSource(ev, target, source, ownEffectText) {
     const ownOtherDamage=/(?:^|[。\n])\s*(?:開戦|解放|常時|終戦|\d+マナ(?:毎)?)\s*[：:][^。]*ダメージ/.test(text);
     return ownOtherDamage ? unit : null;
   }
-  const ownTriggerDamage = new RegExp(`(?:^|[。\\n])\\s*${trigger}(?:[＆&](?:攻撃|負傷))?\\s*[：:][^。]*ダメージ`);
-  return ownTriggerDamage.test(text) ? unit : null;
+  const ownTriggerDamage = new RegExp(`(?:^|[。\\n])\\s*${trigger}(?:[＆&](?:攻撃|負傷))?\\s*[：:]([^。]*ダメージ[^。]*)`, 'g');
+  const ownDamageTexts = [...text.matchAll(ownTriggerDamage)].map(m => m[1]);
+  if (!ownDamageTexts.length) return null;
+  // **形も本人の効果と同じ時だけ。** 全体の効果（「全ての敵に」など。コアは area を付ける）しか持たない
+  // カードの固有VFXを、強化カードで得た単体のダメージに使わない（逆も同じ）。
+  // アラッサス＋竜の契約で、薙ぎ払いの絵が敵の左から真横に出ていた（2026-09-29 利用者報告）。
+  const isAreaText = t => /全ての(?:敵|キャラクター|前衛の味方|味方)に/.test(t);
+  const sameShape = ownDamageTexts.some(t => isAreaText(t) === !!ev.area);
+  return sameShape ? unit : null;
 }
 
 // ── 能力変化（stat_change）で固有VFXを出す効果 ────────────────────
@@ -1318,6 +1408,8 @@ if (typeof window !== 'undefined') {
   window.presentDropDeathsOfStolen = presentDropDeathsOfStolen;
   window.presentFledBatchEvents = presentFledBatchEvents;
   window.presentDeathBatchEvents = presentDeathBatchEvents;
+  window.presentUnitOutcomeLines = presentUnitOutcomeLines;
+  window.presentAttackContactOutcomeEvents = presentAttackContactOutcomeEvents;
   window.presentDamageRunAheadMs = presentDamageRunAheadMs;
   window.presentDamageRunLabelMs = presentDamageRunLabelMs;
   window.PRESENT_MANA_RUN_GAP_MS = PRESENT_MANA_RUN_GAP_MS;
@@ -1411,6 +1503,7 @@ if (typeof module !== 'undefined' && module.exports) {
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
+    presentUnitOutcomeLines, presentAttackContactOutcomeEvents,
     PRESENT_MANA_RUN_GAP_MS, PRESENT_EFFECT_VFX_MIN_MS,
     PRESENT_PROJECTILE_FLIGHT_MS, PRESENT_PROJECTILE_STAGGER_MS, PRESENT_PROJECTILE_IMPACT_OFFSET_Y,
     presentEffectKeywordEvents, presentDamageVfxKeyword, presentAreaVfxStyle,

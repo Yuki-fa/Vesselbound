@@ -122,7 +122,10 @@ function _withVfxAssetVersion(url){
       // その画面ではカードの説明だけを止めたいので、印で見分ける（index.htmlのCSS）。
       tip.classList.toggle('status-tip',!!(el&&el.hasAttribute('data-preview-status')));
       if(!isMapPowerDesc){
-        const rarityClass=el&&[...el.classList].find(c=>/^rarity-[1-6]$/.test(c));
+        // 戦闘中のカードは説明文を上に重ねた透明な層（.unit-hit-layer）が持ち、rarity-N はカード本体（.slot.unit-card）に付く。
+        // 説明文を持つ要素に無ければ、カード本体の rarity-N を使う（戦闘中だけ見出しが白かった。2026-09-28 利用者指摘）。
+        const _rarityOf=node=>node&&node.classList?[...node.classList].find(c=>/^rarity-[1-6]$/.test(c)):null;
+        const rarityClass=_rarityOf(el)||(el&&el.closest?_rarityOf(el.closest('.slot.unit-card')):null);
         if(rarityClass){
           tip.classList.add(rarityClass);
           // レアリティ装飾はカード本体ではなく、そのカードのホバー説明枠へ付ける。
@@ -1653,7 +1656,10 @@ function playCardWaveAway(slotNode,rect,sourceSize){
 // これにより、闇の炎など非同期の死亡効果がある場合も演出が遅れず、攻撃モーション後の
 // 盤面詰めで死亡ユニットが配列から除かれる前に確実に複製元を確保できる。
 function playUnitDeathBurn(unit,side){
-  if(!unit||unit.hp>0||unit._deathFxDone) return false;
+  // **倒れたかは画面に出ているHPで見る。** PvEの体はコアの最終状態なので、倒れた後に復活して
+  // 生き残った体は hp>0 のまま届き、焼失が出ずに復活の演出だけになっていた（オンラインは焼失→復活）。
+  const shownHp=typeof presentShownHp==='function'?presentShownHp(unit):(unit&&unit.hp);
+  if(!unit||shownHp>0||unit._deathFxDone) return false;
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(!slot) return false;
   const rect=slot.getBoundingClientRect();
@@ -1668,14 +1674,11 @@ function playUnitDeathBurn(unit,side){
 // **カードの消え方を選ぶのはここだけ。**
 //   ダメージで倒れた            → 焼失（playCardBurnAway）
 //   ダメージ以外でHPが0になった → 青い波打ち＋WASTED（playCardWaveAway）
-// 印（_deathByStatDrain）は battle_events.js がイベント列を見て体へ立てる。
-// **死亡イベントを伴わない消滅からも必ずここを通すこと。**
-// 戦闘修正（-X/-X）でHPが0になった体にはコアが death イベントを出さないため、
-// その消滅は renderField() のフォールバックが受け持つ。分岐がそこに無かったので、
-// 波打ちで見せるはずの死に方が全部「焼失」になっていた。
+// 印（_deathByStatDrain）は death.statChange を受けた共通の presentDeathBatch() が立てる。
+// 死亡イベントだけを消失演出の入口にするため、戦闘修正の表示と二重には再生されない。
 function _playUnitDeathCardFx(unit,node,rect,sourceSize){
   const drained=!!(unit&&unit._deathByStatDrain);
-  if(unit){ delete unit._deathByStatDrain; delete unit._deathWithoutEvent; }
+  if(unit) delete unit._deathByStatDrain;
   if(drained){
     playCardWaveAway(node,rect,sourceSize);
     // ATKが0で場を去る時の「FLED」と対になる表示。
@@ -3164,7 +3167,10 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   const sourceSlot=getCurrentUnitSlot(isEnemySide?'enemy':'ally',unit);
   const targetSlots=(targets||[]).map(t=>getCurrentUnitSlot(isEnemySide?'ally':'enemy',t)).filter(Boolean);
   if(!sourceSlot||!targetSlots.length) return Promise.resolve();
-  const sourceRect=sourceSlot.getBoundingClientRect();
+  // **発生源は効果の演出の決まり（_captureUnitEffectRect）どおり、攻撃で踏み込んだ複製カードの位置。**
+  // 定位置の枠から出すと、斜め前の敵へ踏み込んだ時にカードの左下など離れた所から炎が出た（2026-09-29 利用者報告）。
+  const sourceRect=(typeof _captureUnitEffectRect==='function'
+    ?_captureUnitEffectRect(unit,isEnemySide?'enemy':'ally'):null)||sourceSlot.getBoundingClientRect();
   // カード先端（味方なら上端＝敵陣営へ向く側）を発生源にする
   // カード中央ではなく、やや左寄り（口元付近を想定）を発生源にする
   const originX=sourceRect.left+sourceRect.width*0.25;
@@ -3337,6 +3343,23 @@ function _refreshAllUnitStatsUi(){
 }
 
 // シールド消費時、カードDOMを作り直さずshield-active/魔方陣レイヤーだけを即座に更新する
+// 戦闘中の1体のホバー説明（data-preview）だけを作り直す。作り方は renderField() と同じ。
+// 説明は盤面を描いた時にしか作られないため、開戦で弱体・毒を付けても、次に盤面を描き直す（最初の攻撃）まで
+// 古い説明のまま「弱体1」が出なかった（タイタン。2026-09-29 利用者報告）。付与の瞬間にここを呼ぶ。
+function refreshUnitPreviewUi(unit,side){
+  if(!unit) return false;
+  const slot=getCurrentUnitSlot(side,unit);
+  if(!slot) return false;
+  const list=side==='enemy'?(G.enemies||[]):(G.allies||[]);
+  const idx=list.indexOf(unit);
+  const plainDesc=unit.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(unit)),unit):'';
+  const preview=_unitPreviewText(unit,plainDesc,_unitDescSlotIdx(unit,idx>=0?idx:0));
+  if(!preview) return false;
+  slot.setAttribute('data-preview',preview);
+  slot.querySelectorAll('.unit-hit-layer').forEach(el=>el.setAttribute('data-preview',preview));
+  return true;
+}
+
 function updateUnitShieldUi(unit,side){
   if(!unit) return;
   const slot=getCurrentUnitSlot(side,unit);
@@ -4818,7 +4841,7 @@ function renderField(id,units,isEnemy,_lane){
   // ここで即座に詰めると、まだ出ていないダメージ数値やVFXが移動前の位置
   // （＝何もない場所）へ出てしまう。
   const _onBoard=x=>!!x.u&&!_stealAwaitingMove(x.u)
-    &&(_visualHp(x.u)>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&!x.u._deathWithoutEvent&&dyingIds.has(String(x.u.id))));
+    &&(_visualHp(x.u)>0||(_keepDying&&x.u.id!=null&&!x.u._deathFxReady&&dyingIds.has(String(x.u.id))));
   const _isRearUnit=x=>_onBoard(x)&&(x.u.lane||'front')==='rear';
   const _rearIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&_isRearUnit(x)).map(x=>x.i);
   const _frontIndexes=units.map((u,i)=>({u,i})).filter(x=>_onBoard(x)&&!x.u._corePendingSummon&&!x.u._isObject&&!_isRearUnit(x)).map(x=>x.i);
@@ -4902,9 +4925,8 @@ function renderField(id,units,isEnemy,_lane){
     // イベント再生中にHPが0になった体は、死亡演出を行うまでカードを残す。
     // 先に空スロットへ変えてしまうと、まだ出ていないダメージ数値・個別VFXが
     // 空きスロットの位置（7枠等間隔の左端寄り）へ出てしまう。
-    // **来ない死亡イベントを待たない。** _deathWithoutEvent が立っている体は
-    // 戦闘修正で倒れた体なので、その場で消え方（青い波打ち）を見せる。
-    const _pendingDeath=!!(u&&_visualHp(u)<=0&&u.id!=null&&!u._deathFxReady&&!u._deathWithoutEvent
+    // HP0の体は、コアの死亡イベントが消失演出を開始するまで盤面へ残す。
+    const _pendingDeath=!!(u&&_visualHp(u)<=0&&u.id!=null&&!u._deathFxReady
       &&dyingIds.has(String(u.id))&&_keepDying);
     const _alive=!!u&&(_visualHp(u)>0||_pendingDeath);
     const slot=document.createElement('div');

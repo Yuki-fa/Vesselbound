@@ -122,6 +122,81 @@ function runGenericFleeAndEnemyRingScenario() {
   });
 }
 
+function runStatChangeDeathScenario() {
+  const state = core.createBattleState({
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {
+      p1: {units: [
+        {id: 'wendigo', name: 'ウェンディゴ', atk: 4, hp: 10, maxHp: 10,
+          desc: '開戦：全ての敵は-1/-1を得る。この効果は、このキャラクターのHP10につき1回発生する。'},
+      ]},
+      p2: {units: [
+        {id: 'death-trigger', name: '死亡効果役', atk: 1, hp: 1, maxHp: 1, manaOnDeath: 2,
+          desc: '死亡：2マナを得る。'},
+        {id: 'reviver', name: '復活役', atk: 2, hp: 1, maxHp: 1, keywords: ['復活']},
+        {id: 'naglfar', name: '死の渡し守 “ナグルファル”', atk: 5, hp: 10, maxHp: 10,
+          desc: '常時：キャラクターが死亡するたび、このキャラクターは+3/+1を得る。'},
+      ]},
+    },
+  });
+  const events = [];
+  const rng = createSeededRng(0x929);
+  const emit = event => events.push(event);
+  const hit = (source, target, amount, counter, skipSourceEffects, skipTough, options) =>
+    core.coreResolveHit(state, source, target, amount, counter, rng, emit,
+      {skipSourceEffects, skipTough, ...(options || {})});
+  core.coreApplyOpeningEffects(state.units.p1[0], state, rng, emit, hit, 0);
+
+  const drains = events.filter(event => event.type === 'stat_change' && event.reason === 'wendigo');
+  const deaths = events.filter(event => event.type === 'death' && event.statChange);
+  assert.deepEqual(drains.map(event => event.unitId), ['death-trigger', 'reviver', 'naglfar'],
+    'ウェンディゴの修正が全対象へ先に入っていない');
+  assert.deepEqual(deaths.map(event => event.unitId), ['death-trigger', 'reviver'],
+    '戦闘修正でHP0になった体のdeathイベントが不足または重複している');
+  const firstDeath = events.findIndex(event => event.type === 'death' && event.statChange);
+  const lastDrain = events.reduce((last, event, index) =>
+    event.type === 'stat_change' && event.reason === 'wendigo' ? index : last, -1);
+  assert.ok(firstDeath > lastDrain, '複数対象への修正を入れ終える前に死亡誘発を始めている');
+  assert.deepEqual(events.slice(firstDeath, firstDeath + deaths.length).map(event => event.type),
+    ['death', 'death'], '同時に倒れた体のdeathイベントが連続していない');
+
+  assert.equal(state.resources.p2.mana, 2,
+    '戦闘修正で倒れた体自身の「死亡：」効果が発動していない');
+  assert.equal(events.filter(event => event.type === 'mana_gain'
+    && event.unitId === 'death-trigger' && event.reason === 'manaOnDeath').length, 1,
+  '戦闘修正死の死亡時マナが1回だけ発動していない');
+  assert.equal(events.filter(event => event.type === 'stat_change'
+    && event.unitId === 'naglfar' && event.reason === 'character_death_self_buff').length, 2,
+  'ウェンディゴで倒れた2体がナグルファルを発動させていない');
+  assert.deepEqual([state.units.p2[2].atk, state.units.p2[2].hp, state.units.p2[2].maxHp],
+    [10, 11, 11], 'ナグルファルの戦闘修正後＋死亡2回ぶんの能力値が不正');
+  assert.ok(state.units.p2[1].hp > 0, '戦闘修正で倒れた復活持ちが復活していない');
+  assert.equal(events.filter(event => event.type === 'revive' && event.unitId === 'reviver').length, 1,
+    '戦闘修正死の復活イベントが1回ではない');
+  // death-triggerはATK/HPが同時に0になる。既存優先順位どおりHP0を死亡として扱い、
+  // ATK0逃走へは送らない。
+  core.coreSweepAtkZeroFlee(state, emit);
+  assert.equal(events.some(event => event.type === 'fled' && event.unitId === 'death-trigger'), false,
+    'ATKとHPが同時に0の体を死亡より先に逃走させている');
+
+  const fleeState = core.createBattleState({
+    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
+    sides: {
+      p1: {units: [{id: 'atk-zero', name: 'ATK0役', atk: 0, hp: 5, maxHp: 5,
+        manaOnDeath: 3, desc: '死亡：3マナを得る。'}]},
+      p2: {units: []},
+    },
+  });
+  const fleeEvents = [];
+  core.coreSweepAtkZeroFlee(fleeState, event => fleeEvents.push(event));
+  assert.equal(fleeEvents.filter(event => event.type === 'fled' && event.unitId === 'atk-zero').length, 1,
+    'HPが残るATK0の体が従来どおり逃走していない');
+  assert.equal(fleeEvents.some(event => event.type === 'death'), false,
+    'HPが残るATK0の逃走を死亡として扱っている');
+  assert.equal(fleeState.resources.p1.mana, 0,
+    'HPが残るATK0の逃走で死亡効果が発動している');
+}
+
 function runBatchedLichScenario() {
   const state = core.createBattleState({
     sides: {p1: {units: [
@@ -691,6 +766,7 @@ function main() {
     '死亡時ゴールドを共通プレゼンテーションへ接続していない');
   const coreEvents = runSummonScenario();
   runGenericFleeAndEnemyRingScenario();
+  runStatChangeDeathScenario();
   runBatchedLichScenario();
   runCrossStateSummonIdScenario();
   runRunDaughterInjurySummonScenario();
@@ -704,6 +780,56 @@ function main() {
   runPersistentDeathObserverScenario();
   runSuccubusCaptureScenario();
   runSummonLimitScenario();
+  // 決着台詞はコアのイベントを書き換えず、present.js が接触と結果イベントを対応付ける。
+  const contactDeathEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'hero',amount:5,hpAfter:0,damageKind:'combat'},
+    {type:'death',side:'p2',unitId:'enemy'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(contactDeathEvents,0),[contactDeathEvents[2]],
+    '攻撃接触の死亡台詞対象をコアイベントから拾えない');
+  const contactFleeEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'hero',amount:3,hpAfter:0,damageTo:'atk',damageKind:'combat'},
+    {type:'fled',side:'p2',unitId:'enemy'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(contactFleeEvents,0),[contactFleeEvents[2]],
+    '攻撃接触の逃走台詞対象をコアイベントから拾えない');
+  const counterDeathEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p1',unitId:'hero',sourceId:'enemy',counter:true,amount:5,hpAfter:0,damageKind:'combat'},
+    {type:'death',side:'p1',unitId:'hero'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(counterDeathEvents,0),[counterDeathEvents[2]],
+    '反撃で倒れる攻撃者を接触時の台詞対象にできない');
+  const instantDeathEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'hero',amount:1,hpAfter:5,damageKind:'combat'},
+    {type:'instant_death',side:'p2',unitId:'enemy',sourceId:'hero'},
+    {type:'death',side:'p2',unitId:'enemy'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(instantDeathEvents,0),[instantDeathEvents[3]],
+    '命中時の即死による死亡を接触時の台詞対象にできない');
+  const curseDeathEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'hero',amount:1,hpAfter:5,damageKind:'combat'},
+    {type:'curse_death',side:'p1',unitId:'hero',sourceId:'enemy'},
+    {type:'death',side:'p1',unitId:'hero'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(curseDeathEvents,0),[curseDeathEvents[3]],
+    '命中時の呪詛による攻撃者の死亡を接触時の台詞対象にできない');
+  const atkZeroFleeEvents=[
+    {type:'attack',side:'p1',attackerId:'hero',targetId:'enemy'},
+    {type:'damage',side:'p2',unitId:'enemy',sourceId:'hero',amount:1,hpAfter:5,damageKind:'combat'},
+    {type:'stat_change',side:'p2',unitId:'enemy',sourceId:'hero',atk:-3,hp:0,reason:'evil_eye'},
+    {type:'fled',side:'p2',unitId:'enemy',reason:'atk_zero'},
+  ];
+  assert.deepEqual(present.presentAttackContactOutcomeEvents(atkZeroFleeEvents,0),[atkZeroFleeEvents[3]],
+    '命中時のATK低下による逃走を接触時の台詞対象にできない');
+  assert.deepEqual(present.presentUnitOutcomeLines({deathBattleLines:[' 死亡台詞 ','']},'death'),['死亡台詞'],
+    '決着台詞を種類別フィールドから引けない');
+  assert.deepEqual(present.presentUnitOutcomeLines({playerDefeatBattleLines:[' 敗北台詞 ']},'playerDefeat'),['敗北台詞'],
+    'プレイヤー敗北台詞を専用フィールドから引けない');
   const types = coreEvents.map(e => e.type);
   const summonIndexes = coreEvents.map((e, i) => e.type === 'summon' ? i : -1).filter(i => i >= 0);
 
@@ -798,7 +924,7 @@ function main() {
   assert.match(read('js/battle/core.js'), /function coreApplyHitTriggers\(/,
     '命中後の誘発が切り出されていない（全員にダメージ→まとめて誘発ができない）');
   assert.match(read('js/battle/core.js'),
-    /\{ deferTriggers: true, collect: pending \}\)\);/,
+    /\{ deferTriggers: true, collect: pending(?:, area: true(?:, \.\.\.\(extraOpt \|\| \{\}\))?)? \}\)\);/,
     '全体ダメージが1体ずつ誘発まで解決している');
   // 決着後の暗転は、画面が切り替わってから外す。進行処理側で外すと、
   // 切り替わる前に盤面が一瞬明るく見える。
@@ -827,7 +953,7 @@ function main() {
   // 「1体ずつ誘発まで解決」に戻り、対象の並び順で結果が変わる（アラクネ＋ギガンテス）。
   {
     const core = read('js/battle/core.js');
-    assert.match(core, /function coreHitAll\(state, rng, emit, applyHit, source, targets, amount\)/,
+    assert.match(core, /function coreHitAll\(state, rng, emit, applyHit, source, targets, amount(?:, extraOpt)?\)/,
       '複数対象ダメージの共通入口（coreHitAll）が無い');
     ['サイレン等の全体ダメージ', 'アラッサス等の全体攻撃', 'アラクネのマナ効果'].forEach(() => {});
     assert.equal((core.match(/coreHitAll\(state, rng, emit, applyHit,/g) || []).length >= 3, true,
@@ -939,8 +1065,25 @@ function main() {
       assert.match(src, /presentDeathBatch\(/, `${name}が死亡演出の共通実装を呼んでいない`);
       assert.match(src, /presentDeathBatchEvents\(/,
         `${name}が同時deathの束を present.js から引いていない`);
+      assert.match(src, /presentAttackContactOutcomeLines\(/,
+        `${name}が攻撃接触時の決着台詞を共通入口へ渡していない`);
       assert.match(src, /presentTransformEvent\(/, `${name}が変身演出の共通実装を呼んでいない`);
       assert.match(src, /presentManaThresholdEvent\(/, `${name}がマナ効果の共通実装を呼んでいない`);
+    });
+    const outcomeEvents=read('js/battle/present_events.js');
+    assert.match(outcomeEvents, /async function presentAttackContactOutcomeLines\(events, attackIndex, api\)/,
+      '接触時の決着台詞を待つ共通実装が無い');
+    assert.match(outcomeEvents, /await api\.showLines\(unit, entry\.side/,
+      '決着台詞の表示完了を待たずに次の演出へ進んでいる');
+    assert.match(read('js/data/loader.js'), /row\['死亡台詞'\][\s\S]*row\['逃走台詞'\][\s\S]*row\['プレイヤー敗北台詞'\]/,
+      '敵の3台詞をシート見出し名で読んでいない');
+    assert.match(outcomeEvents, /async function presentPlayerDefeatLines\(speakers, api\)/,
+      'プレイヤー敗北台詞の共通入口が無い');
+    assert.match(read('js/engine/battle.js'), /return presentPlayerDefeatLines\(speakers,\{showLines:showBattleUnitOutcomeLines\}\)/,
+      '戦闘盤面の敗北台詞が共通入口を通っていない');
+    [read('js/engine/main.js'),read('js/engine/arena.js'),board].forEach((src,index)=>{
+      assert.match(src,/playBattlePlayerDefeatLines\(\)/,
+        `敗北経路${index+1}が撤退／敗北表示の前に共通台詞を呼んでいない`);
     });
     // 死亡もコアが出したイベントの順番のまま処理する。まとめて後回しにすると、
     // 同じ盤面でもオンラインと「消える順番」が食い違う。
@@ -1497,7 +1640,9 @@ function main() {
     'オンラインが召喚の共通実装を呼んでいない');
   // 死亡の詰めは攻撃モーションの完了を待つ（飛行中に詰めると戻り先が動く）。
   // イベントごとに詰めてもいけない。出したばかりの数値が行き場を失う。
-  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]{0,1500}requestBattleCompact\(\{ forceRender: true \}\)/,
+  // 決着台詞の共通APIを渡す分だけ death case が長くなるため、
+  // 同じ case 内に詰めがあることを十分な範囲で見る。
+  assert.match(board, /case ONLINE_EVENT\.DEATH:[\s\S]{0,2200}requestBattleCompact\(\{ forceRender: true \}\)/,
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
     'モーション終了時の保留分を再生中に流せないままになっている');

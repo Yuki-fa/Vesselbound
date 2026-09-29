@@ -50,7 +50,7 @@ const SaveRun=(()=>{
     const overlay=document.getElementById('run-resume-overlay');
     if(overlay) overlay.setAttribute('aria-hidden',String(!active));
   }
-  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_questOfferCard']);
+  const omitted=new Set(['_lastDamageSource','_coreRunner','_lastVisualRect','_battleEntryRect','_shownAtk','_shownHp','_shownMaxHp','_shownShield','_deathFxStarted','_deathFxDone','_deathFxReady','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_questOfferCard','_battleLinesShown']);
   function copy(value){
     // カード／コアイベント内の一時表示情報だけを除外する。非有限数は拒否する。
     const raw=JSON.stringify(value,(key,v)=>{
@@ -347,6 +347,13 @@ const SaveRun=(()=>{
       restoreRunState(save);
       document.body.classList.remove('gameover-active','game-clear-active','battle-victory-pending');
       const type=save.checkpoint.type;
+      // クエスト会話の途中は、保存した種類から再生する。資源の支払済みフラグはquestProgressに残す。
+      if(typeof questResumePendingEvent==='function'
+        &&Object.values(G.questProgress||{}).some(e=>e&&e.pendingEvent)){
+        restoring=false;
+        questResumePendingEvent({restore:true});
+        return;
+      }
       if(type==='reward'){showScreen('battle');goToReward({restoreCheckpoint:true});}
       else if(type==='town'||type==='tower'){
         // 支払い直後の闘技場は、まだ戦闘チェックポイントを作る前に終了しても
@@ -506,6 +513,7 @@ const SaveRun=(()=>{
           const events=copy(p.events.slice(f.from,f.to));G._battleCoreEvents.push(...events);
           await _flushCorePveHitEvents(state,events,before);
         }finally{held.forEach(([u])=>presentReleaseShown(u));[...G.allies,...G.enemies].forEach(u=>u&&presentReleaseShown(u));presentEndPlayback();}
+        if(_battleRunStale(runId)) return;
         _syncCoreLifeToG(state);_syncCoreResourcesToG(state);_syncCoreManaToG(state);_refreshManaDisplays();
         coreCompactUnits(state);requestBattleCompact();
         if(f.to>f.from) await sleep(PRESENT_TURN_GAP_MS);

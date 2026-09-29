@@ -943,14 +943,45 @@ function finishWaveBattleVictory(showVictoryIntro){
 // ライフが残っていれば同じstageを最初からやり直す。
 function handleWaveBattleDefeat(){
   if(!G._waveBattleType) return false;
-  G._waveRetryEnemyKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
-  G._mapBattle=null; G._waveBattleType=null;
+  // 台詞待ちの間に敗北判定が再入しても、二重に決着を始めない。
+  if(G._battleDefeatHandled) return true;
+  G._battleDefeatHandled=true;
+  const questDefeat=typeof questPrepareBattleDefeat==='function'?questPrepareBattleDefeat():null;
+  void _finishWaveBattleDefeat(questDefeat);
+  return true;
+}
+
+async function _finishWaveBattleDefeat(questDefeat){
+  const battleKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
+  // 追撃戦はこのマスで決着する。通常戦だけ同じ敵への再戦鍵を残す。
+  if(questDefeat&&questDefeat.noRetry){
+    G._waveRetryEnemyKey=null;
+    G._waveIsRetry=false;
+  }else{
+    G._waveRetryEnemyKey=battleKey;
+  }
   G._waveLife=Math.max(0,(G._waveLife==null?(typeof waveLifeMax==='function'?waveLifeMax():3):Number(G._waveLife))-1);
   // **敗北のたびに報酬の抽選鍵を進める。**
   // 報酬は`reward:<場面>:<段>`の鍵付き乱数で引くので（開き直しても同じ5枚にするため）、
   // 敗北して同じ場面・段のまま報酬画面へ入ると、直前と全く同じ5枚が出てしまう。
   // ランに保存される回数を鍵へ足して、敗北後は別の5枚にする。
   G._waveDefeatCount=(Number(G._waveDefeatCount)||0)+1;
+  // **敗北しても持ち物は巻き戻さない。**（ペナルティはライフ1つだけ）
+  // 以前はここで所持金・アイテム・指輪・魔導板強化を「直前の画面の開始時点」へ
+  // 戻していたが、**戻る先の画面そのものが無くなっている**（下の returnTo は
+  // 常に 'reward'）。進行だけ先へ進んで持ち物が戻るため、
+  // 「永劫の巻物を使って戦ったのに、戦闘後に巻物が復活してマスが元へ戻る」
+  // といった辻褄の合わない状態になっていた。
+  // 盤面に残る敵の敗北台詞 → クエストの追加台詞の順。
+  // 敵やスロットを消す前に待つことで、吹き出しの尻尾も話者の位置に合う。
+  try{
+    if(typeof playBattlePlayerDefeatLines==='function') await playBattlePlayerDefeatLines();
+    if(questDefeat&&typeof questPlayBattleDefeatDialogue==='function'){
+      await questPlayBattleDefeatDialogue(questDefeat);
+    }
+  }catch(error){
+    console.error('[battle defeat dialogue]',error);
+  }
   if(G._waveLife<=0){
     G._battleDefeatHandled=true;
     // オンライン対戦：CPU戦でのゲームオーバーもサーバーへ通知する（相手には通知されない仕様）。
@@ -959,17 +990,14 @@ function handleWaveBattleDefeat(){
       void OnlineMatch.reportGameOver();
     }
     gameOver();
-    return true;
+    return;
   }
-  // **敗北しても持ち物は巻き戻さない。**（ペナルティはライフ1つだけ）
-  // 以前はここで所持金・アイテム・指輪・魔導板強化を「直前の画面の開始時点」へ
-  // 戻していたが、**戻る先の画面そのものが無くなっている**（下の returnTo は
-  // 常に 'reward'）。進行だけ先へ進んで持ち物が戻るため、
-  // 「永劫の巻物を使って戦ったのに、戦闘後に巻物が復活してマスが元へ戻る」
-  // といった辻褄の合わない状態になっていた。
   if(typeof _removeAbsentKiemetsuCards==='function') _removeAbsentKiemetsuCards();
   if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
   G.enemies=[];
+  // 通常敗北は同じステージの再戦。追撃戦は「進む」後にクエスト側が
+  // finishWaveBattleVictory() へ渡すため、それまで現在ステージ情報を保持する。
+  if(!questDefeat){ G._mapBattle=null; G._waveBattleType=null; }
   G._battleDefeatHandled=false;
   G._waveWithdraw=true;
   // showVictoryOverlay()はG.phase==='reward'を要求するためここで先に立てるが、
@@ -982,9 +1010,11 @@ function handleWaveBattleDefeat(){
     G._waveWithdraw=false;
     G._waveRewardCount=null;
     G.phase=null;
+    if(questDefeat&&typeof questFinishBattleDefeat==='function'){
+      return questFinishBattleDefeat(questDefeat);
+    }
     if(typeof goToReward==='function') return goToReward({checkpoint:true});
   });
-  return true;
 }
 // ── オープニングムービー ─────────────────────────────────────
 // タイトルで「初めて」ゲームスタートを押した時だけ流す。
@@ -1600,6 +1630,10 @@ function debugKillAll(){
 }
 
 function gameOver(options){
+  if(typeof questDeferGameOver==='function'&&questDeferGameOver(options)) return;
+  // game_over.webm と戦闘終了の暗転は #scr-battle 内にある。
+  // 街・店での非戦闘死亡も、結果枠を組み立てる前に同じ画面へ移す。
+  if(!document.querySelector('#scr-battle.active')&&typeof showScreen==='function') showScreen('battle');
   const isLibraryTestBattle=!!(G&&G._libraryTestBattleMode);
   // 敗北・踏破の結果画面へ移る前に、戦闘中の一時VFXを必ず破棄する。
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();

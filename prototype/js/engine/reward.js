@@ -373,7 +373,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
   if(!unit) return false;
   const boardList=_normalizeUnitBoardCards(unit);
   if(slotIdx<0||slotIdx>=boardList.length) return false;
-  if(pending.card._npcDeployOnly&&typeof boardSlotIsDeployable==='function'
+  if(_cardRequiresDeployableSlot(pending.card)&&typeof boardSlotIsDeployable==='function'
     &&!boardSlotIsDeployable(unit,slotIdx)) return false;
   const oldCard=boardList[slotIdx]||null;
   const merged=_mergedPanelCard(oldCard,pending.card);
@@ -802,6 +802,8 @@ function _storeRewardStartSnapshot(){
     ringOfferUnlocked:!!G._ringOfferUnlocked,
     ringOfferResolved:!!G._ringOfferResolved,
     boardDiscardCount:G._boardDiscardCount||0,
+    // 祭壇で捧げたカードの控え。還魂の音（ring_get1〜3）の段階もこの件数で決めるので、「元に戻す」で一緒に戻す。
+    ringSacrificedCards:clone(G._ringSacrificedCards||[]),
     ringOfferPhase:!!G._ringOfferPhase,
     mapPanelPowers:clone(G.mapPanelPowers||{}),
     mapForgeOffers:clone(G._mapForgeOffers||[]),
@@ -849,6 +851,8 @@ function resetRewardToStart(options){
   G._ringOfferUnlocked=!!s.ringOfferUnlocked;
   G._ringOfferResolved=!!s.ringOfferResolved;
   G._boardDiscardCount=s.boardDiscardCount||0;
+  // 「元に戻す」で還魂の音の段階も最初へ戻す（3枚捧げて戻すと、次の1枚目で ring_get3 が鳴っていた。2026-09-28 利用者指摘）。
+  G._ringSacrificedCards=clone(s.ringSacrificedCards||[]);
   G._ringOfferPhase=!!s.ringOfferPhase;
   G.mapPanelPowers=_forgePlacementOnly?_forgePowers:clone(s.mapPanelPowers||{});
   G._mapForgeOffers=_forgePlacementOnly?_forgeOffers:clone(s.mapForgeOffers||[]);
@@ -1403,6 +1407,7 @@ function _syncRewardProductionRings(){
           G._ringOfferUnlocked=false;
           G._ringOfferResolved=true;
           // 指輪を取った時点で「捧げたカード」は確定する（もう回収できない）。
+          if(G._isRingExchange&&typeof questCommitAltarSacrifices==='function') questCommitAltarSacrifices(G._ringSacrificedCards||[]);
           G._ringSacrificedCards=[];
           // 別の枠へドラッグした場合は自然発火するdragendでゴーストが消えるが、この枠の
           // ようにドロップ成功でrenderRewCards()がこの要素自体を作り直す（＝ドラッグ元の要素が
@@ -1412,6 +1417,7 @@ function _syncRewardProductionRings(){
           updateHUD();
           renderRewCards();
           renderMoveSlotsInEnemy();
+          if(G._isRingExchange&&typeof questOnAltarRingTaken==='function') questOnAltarRingTaken();
         }
       });
     }
@@ -3024,9 +3030,16 @@ function _normalizeUnitBoardCards(unit){
 function _boardSlotDef(idx,unit){
   return UNIT_EQUIP_SLOTS[idx]||{label:'',kind:'any'};
 }
+// 特殊マス限定はNPCフラグやカード名ではなく、キーワード「帰滅」のルールとして判定する。
+function _cardRequiresDeployableSlot(card){
+  if(!card) return false;
+  if(typeof coreUnitHasKeyword==='function') return coreUnitHasKeyword(card,'帰滅');
+  return (Array.isArray(card.keywords)?card.keywords:[])
+    .some(keyword=>String(keyword||'').replace(/[0-9０-９]+$/,'')==='帰滅');
+}
 function _canCardUseBoardSlot(card,idx,unit){
   if(!card||idx<0||idx>=MAIN_BOARD_SIZE) return false;
-  if(card._npcDeployOnly&&typeof boardSlotIsDeployable==='function'
+  if(_cardRequiresDeployableSlot(card)&&typeof boardSlotIsDeployable==='function'
     &&!boardSlotIsDeployable(unit,idx)) return false;
   return true;
 }
@@ -4375,7 +4388,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         ph.classList.add('board-empty',`board-slot-${_slotDef.kind}`);
       }
       if(arrName==='boardCards'&&G._pendingPanelPlacement&&G._pendingPanelPlacement.card
-        &&G._pendingPanelPlacement.card._npcDeployOnly
+        &&_cardRequiresDeployableSlot(G._pendingPanelPlacement.card)
         &&typeof _canCardUseBoardSlot==='function'
         &&!_canCardUseBoardSlot(G._pendingPanelPlacement.card,i,_getPartyBoardUnit())){
         ph.classList.add('invalid-battle-position');
@@ -4564,7 +4577,7 @@ function _renderPanelUniteMarkers(host, unit){
   });
 }
 
-// ── 特殊マス専用のカード（ファラなど _npcDeployOnly）を持っている間は、置けるマスを全部光らせる ──
+// ── 「帰滅」持ちのカードを持っている間は、置けるマスを全部光らせる ──
 // 重ねたマスだけ光る .drag-over とは別に、ドラッグしている間ずっと .npc-drop-hint を付ける（2026-09-25 利用者指定）。
 // 盤面はドラッグ中にも描き直されるので、ドラッグが終わるまで毎フレーム付け直す。
 function _dragSrcCard(){
@@ -4576,10 +4589,16 @@ function _dragSrcCard(){
 }
 function _syncNpcDropHints(){
   const card=_dragSrcCard();
-  const on=!!(card&&card._npcDeployOnly);
+  const on=_cardRequiresDeployableSlot(card);
   const srcIdx=on&&_dragSrc.arr==='boardCards'?_dragSrc.idx:-1;
+  const questDrag=on&&typeof questRequestDragActive==='function'&&questRequestDragActive(card);
+  const board=(_getPartyBoardUnit()||{}).boardCards||[];
   document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,i)=>{
-    el.classList.toggle('npc-drop-hint',on&&i!==srcIdx&&_boardDropAllowedAt(i));
+    // 依頼枠へ別カードを戻せない場合も、召喚可能な特殊マスの占有状態は知らせる。
+    const allowed=on&&i!==srcIdx&&_canCardUseBoardSlot(card,i,_getPartyBoardUnit());
+    const danger=allowed&&questDrag&&board[i]&&String(board[i].category||'')==='キャラクター';
+    el.classList.toggle('npc-drop-hint',allowed&&(_boardDropAllowedAt(i)||danger));
+    el.classList.toggle('npc-drop-danger',!!danger);
   });
   return on;
 }
@@ -4587,7 +4606,7 @@ let _npcDropHintFrame=0;
 function _clearNpcDropHints(){
   if(_npcDropHintFrame) cancelAnimationFrame(_npcDropHintFrame);
   _npcDropHintFrame=0;
-  document.querySelectorAll('.npc-drop-hint').forEach(el=>el.classList.remove('npc-drop-hint'));
+  document.querySelectorAll('.npc-drop-hint,.npc-drop-danger').forEach(el=>el.classList.remove('npc-drop-hint','npc-drop-danger'));
 }
 if(typeof window!=='undefined'){
   window.addEventListener('dragstart',()=>{

@@ -59,6 +59,11 @@ function _applyEnemyDefAbilities(enemy, def){
   // 「闘技場台詞」列。空配列も保持し、闘技場のエリート／ボスが通常台詞へ
   // フォールバックしないようにする。
   if(Array.isArray(def.arenaLines)) enemy.arenaBattleLines=def.arenaLines.slice();
+  // 死亡・逃走・プレイヤー敗北の台詞は、生成した戦闘ユニットへ運ぶ。
+  // 見せる順序と一時停止は present*.js だけが決める。
+  if(Array.isArray(def.deathLines)) enemy.deathBattleLines=def.deathLines.slice();
+  if(Array.isArray(def.fleeLines)) enemy.fleeBattleLines=def.fleeLines.slice();
+  if(Array.isArray(def.playerDefeatLines)) enemy.playerDefeatBattleLines=def.playerDefeatLines.slice();
   const sheetRace=typeof getSheetRaceByName==='function'?getSheetRaceByName(enemy.name):'';
   if(sheetRace) enemy.race=sheetRace;
   ['No','no','NO','code','artCode','imageNo','画像No','画像番号','art','image'].forEach(k=>{
@@ -463,13 +468,14 @@ function _applyOpeningBattleEnemyFormation(enemies,floor){
 function generateQuestGarmEnemies(){
   const floor=typeof _waveStageFloor==='function'?_waveStageFloor(2,3):Math.max(1,Number(G&&G.floor)||1);
   const mult=1.5;
+  const encounterSpec=typeof questEncounterEnemySpec==='function'?questEncounterEnemySpec():null;
   const findCode=code=>{
     const key=String(code||'').toUpperCase();
     return (typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])
       .find(def=>String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code||'')).toUpperCase()===key);
   };
-  const wolf=findCode('EN020');
-  const garm=findCode('EN027');
+  const wolf=findCode(encounterSpec&&encounterSpec.escortEnemyNo);
+  const garm=findCode(encounterSpec&&encounterSpec.targetEnemyNo);
   if(!wolf||!garm) return generateEnemies(floor);
   // ガルムの強さはクエスト枠のホバー表示で先に決めた値を使う（quest.js questGarmPreviewStats）。
   const garmPreview=typeof questGarmPreviewStats==='function'?questGarmPreviewStats():null;

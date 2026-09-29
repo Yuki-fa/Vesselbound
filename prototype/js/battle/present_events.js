@@ -280,6 +280,8 @@ function presentKeywordEffectEvent(ev, api) {
     presentAdvanceShown(unit, { weaken: Math.min(Math.max(0, Number(unit.weaken) || 0),
       unit._displayWeaken + Math.max(0, Number(ev.amount) || 0)) });
   }
+  // **ホバー説明もこの瞬間に作り直す**（弱体・毒などは盤面を描き直すまで説明に出なかった）。
+  if (typeof refreshUnitPreviewUi === 'function') refreshUnitPreviewUi(unit, fxSide);
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
   // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。
@@ -645,6 +647,58 @@ async function presentManaThresholdEvent(ev, api) {
 //   compact()                … 盤面の詰め（省略可。**まとめて1回だけ**）
 // 死亡効果の発光を見せてから焼き落とすまでの間（ms）。
 const PRESENT_DEATH_FLASH_HOLD_MS = 220;
+
+// 決着台詞の順序と、台詞中に次の演出へ進まないことの唯一の実装。
+// api.showLines(unit, side, lines, {kind}) だけが DOM 側の吹き出しを担当する。
+async function _presentOutcomeLineEntries(entries, kind, api) {
+  const list = Array.isArray(entries) ? entries : [];
+  if (!list.length || !api || typeof api.showLines !== 'function') return false;
+  let shown = false;
+  for (const entry of list) {
+    const ev = entry && entry.ev;
+    const unit = entry && entry.unit;
+    if (!unit) continue;
+    if (ev && typeof api.isLineDone === 'function' && api.isLineDone(ev)) continue;
+    const lines = typeof presentUnitOutcomeLines === 'function'
+      ? presentUnitOutcomeLines(unit, kind) : [];
+    if (!lines.length) continue;
+    if (ev && typeof api.markLineDone === 'function') api.markLineDone(ev);
+    shown = true;
+    await api.showLines(unit, entry.side || (ev && ev.side) || '', lines, { kind });
+  }
+  return shown;
+}
+
+async function presentOutcomeEventLines(evs, kind, api) {
+  const list = (Array.isArray(evs) ? evs : [evs]).filter(Boolean);
+  if (!api || typeof api.findUnit !== 'function') return false;
+  return _presentOutcomeLineEntries(list.map(ev => ({
+    ev,
+    side: ev.side,
+    unit: api.findUnit(ev.side, ev.unitId),
+  })), kind, api);
+}
+
+// キャラクターがぶつかった瞬間の停止。対応する死亡／逃走の選別は
+// present.js の純粋関数、吹き出しの待機はこの共通入口が受け持つ。
+async function presentAttackContactOutcomeLines(events, attackIndex, api) {
+  const outcomes = typeof presentAttackContactOutcomeEvents === 'function'
+    ? presentAttackContactOutcomeEvents(events, attackIndex) : [];
+  let shown = false;
+  for (const ev of outcomes) {
+    const kind = ev.type === 'fled' ? 'flee' : 'death';
+    if (await presentOutcomeEventLines([ev], kind, api)) shown = true;
+  }
+  return shown;
+}
+
+// 残った敵は呼び出し側が渡した盤面順に、1体ずつ1台詞ずつ話す。
+async function presentPlayerDefeatLines(speakers, api) {
+  const entries = (Array.isArray(speakers) ? speakers : []).map(entry => entry && entry.unit
+    ? entry : { unit: entry, side: 'p2' });
+  return _presentOutcomeLineEntries(entries, 'playerDefeat', api);
+}
+
 async function presentDeathBatch(evs, api) {
   const list = (Array.isArray(evs) ? evs : [evs]).filter(Boolean);
   if (!list.length || !api) return false;
@@ -654,12 +708,18 @@ async function presentDeathBatch(evs, api) {
     if (typeof api.isDone === 'function' && api.isDone(ev)) return;
     const unit = api.findUnit(ev.side, ev.unitId);
     if (!unit) return;
-    // 既に生き返っている（復活）場合はここでは演出しない。
-    if (Number(unit.hp) > 0) return;
+    // 既に生き返っている（根性など、画面でも倒れていない）場合はここでは演出しない。
+    // **倒れたかは画面に出ているHPで見る。** PvEの体はコアの最終状態なので、倒れた後に「復活」で
+    // 生き残った体は hp>0 のまま届く。最終値で見ていた頃は、PvEだけ焼失が出ずに復活の演出だけになっていた
+    // （オンラインは1手ずつ進めるので焼失→復活。戦闘中に召喚されたスケルトンで食い違った。2026-09-29）。
+    const shownHp = typeof presentShownHp === 'function' ? presentShownHp(unit) : Number(unit.hp);
+    if (Number(shownHp) > 0) return;
     if (typeof api.markDone === 'function') api.markDone(ev);
     entries.push({ ev, unit });
   });
   if (!entries.length) return false;
+  // 死亡演出を始める前に台詞が終わるまで停止する。
+  await _presentOutcomeLineEntries(entries.map(entry => ({ ...entry, side: entry.ev.side })), 'death', api);
   // 直前に出した数値が読める間だけ待ってから消す。**待つのは全員ぶんで1回。**
   // この間、カードは**暗くせず**生きている見た目のまま残す（renderField 側）。
   // 暗くすると「死体が場に残っている」ように見え、待たないと数値が空白の上に残る。
@@ -675,7 +735,14 @@ async function presentDeathBatch(evs, api) {
   // **消失演出は同時に倒れた全員で同じ時点に始める。**
   // 先に1体の死亡効果を待つと、その間だけ他のカードが場に残り、
   // 「同時に倒れたのに1体ずつ消えていく」ように見える。
-  entries.forEach(({ unit }) => { unit._deathFxReady = true; });
+  entries.forEach(({ ev, unit }) => {
+    // 死亡処理は通常と共通だが、戦闘修正で倒れた体の消失演出は
+    // 従来どおり青い波打ち＋WASTED。deathイベントの印をこの共通入口で
+    // 体へ渡すことで、PvEとオンラインが同じ規則で消える。
+    if (ev.statChange) unit._deathByStatDrain = true;
+    else delete unit._deathByStatDrain;
+    unit._deathFxReady = true;
+  });
   if (typeof api.startFx === 'function') entries.forEach(({ ev, unit }) => api.startFx(unit, ev.side));
   // **死亡効果の解決だけは発生順に行う。** 順序はコアが決めた通りで、ここでは変えない。
   for (const { ev, unit } of entries) {
@@ -724,9 +791,16 @@ function presentTransformEvent(ev, api) {
   if (!ev || !api) return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit) return false;
-  if (ev.unit) Object.assign(unit, ev.unit);
-  else if (typeof api.setForm === 'function') api.setForm(unit, ev);
-  if (typeof api.advanceShown === 'function') api.advanceShown(unit);
+  // **PvEの体はコアが計算し終えた最終状態そのもの**（state.units と同じ参照。変身もコアで適用済み）。
+  // そこへ変身時点の写し（ev.unit）を上書きすると、変身後に受けたダメージ・死亡・演出中の印まで巻き戻る。
+  // ペガサスの攻撃効果でバンダースナッチが攻撃対象をペリカンにした時、攻撃が途中で戻り、
+  // 倒したペリカンが盤面に残っていた（2026-09-29 利用者報告）。写しを使うのはオンライン（1手ずつ進める再生用の盤面）だけ。
+  if (!api.unitIsFinalState) {
+    if (ev.unit) Object.assign(unit, ev.unit);
+    else if (typeof api.setForm === 'function') api.setForm(unit, ev);
+  }
+  // 画面の数値は「変身した時点」の値まで進める（最終値まで進めると、その後のダメージより先にHPが減って見える）。
+  if (typeof api.advanceShown === 'function') api.advanceShown(unit, ev);
   if (typeof api.render === 'function') api.render();
   return true;
 }
@@ -786,6 +860,8 @@ async function presentFledBatch(evs, api) {
     const order = new Map(entries.map(e => [e, leftOf(e)]));
     entries.sort((a, b) => order.get(a) - order.get(b));
   }
+  // FLED の表示と逃走VFXのどちらよりも先に話す。
+  await _presentOutcomeLineEntries(entries.map(entry => ({ ...entry, side: entry.ev.side })), 'flee', api);
   entries.forEach(({ unit }) => { unit._fled = true; });
   const count = entries.length;
   const interval = count > 1 ? PRESENT_FLED_STAGGER_TOTAL_MS / (count - 1) : 0;
@@ -858,6 +934,9 @@ if (typeof window !== 'undefined') {
   window.presentTransformEvent = presentTransformEvent;
   window.presentDeathEvent = presentDeathEvent;
   window.presentDeathBatch = presentDeathBatch;
+  window.presentOutcomeEventLines = presentOutcomeEventLines;
+  window.presentAttackContactOutcomeLines = presentAttackContactOutcomeLines;
+  window.presentPlayerDefeatLines = presentPlayerDefeatLines;
   window.presentManaThresholdEvent = presentManaThresholdEvent;
 window.presentEffectFlashEvent = presentEffectFlashEvent;
   window.presentUnitStolenEvent = presentUnitStolenEvent;
@@ -880,7 +959,8 @@ if (typeof module !== 'undefined' && module.exports) {
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
-    presentDeathEvent, presentDeathBatch, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
+    presentDeathEvent, presentDeathBatch, presentOutcomeEventLines, presentAttackContactOutcomeLines,
+    presentPlayerDefeatLines, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
     presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,
     presentRecordAttackEvent,
     presentGoldGainEvent,
