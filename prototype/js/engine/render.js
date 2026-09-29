@@ -925,6 +925,26 @@ function _posTipRelative(tip,anchor,side,clampY=true){
   tip.style.left=Math.max(safe.left,Math.min(x,safe.right-tw))+'px';
   tip.style.top=(clampY?Math.max(safe.top,Math.min(y,safe.bottom-th)):y)+'px';
 }
+// **編成画面の魔導板・報酬カード枠のホバー説明（カード・キーワード・特殊マス）は、原則右に出すが、
+// 右に出した時に他のカードを隠す面積が、左に出した時より20%以上多ければ左に出す。**（2026-09-30 利用者指定）
+// 数えるのは魔導板と報酬カード枠に置かれているカードだけ（空きマス・特殊マスの枠、デバッグカード領域は数えない）。
+// 空きマスも数えると、何も無いマスを覆う側を避けてカードを隠す側へ出てしまった（2026-09-30 利用者指摘）。
+// 右にも左にもカードが無ければ右のまま。店・鍛冶屋などの施設では従来どおり。
+function _formationTipPrefersLeft(anchor,safe,w,h,top,rightLeft,leftLeft){
+  if(typeof G==='undefined'||!G||G.phase!=='reward'||G._isShop||G._isItemShop||G._isForge||G._isTavern) return false;
+  if(!anchor||!anchor.closest||!anchor.closest('#hand-slots,#reward-offer-row')) return false;
+  const others=[...document.querySelectorAll('#hand-slots .card,#reward-offer-row > .rew-card,#reward-offer-row > .character-card')]
+    .filter(el=>el!==anchor&&!anchor.contains(el)&&!el.contains(anchor)&&!el.classList.contains('card-empty'))
+    .map(el=>el.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+  if(!others.length) return false;
+  const t=Math.max(safe.top,Math.min(top,safe.bottom-h));
+  const cover=left=>{
+    const l=Math.max(safe.left,Math.min(left,safe.right-w)),r=l+w,b=t+h;
+    return others.reduce((sum,o)=>sum+Math.max(0,Math.min(r,o.right)-Math.max(l,o.left))*Math.max(0,Math.min(b,o.bottom)-Math.max(t,o.top)),0);
+  };
+  const right=cover(rightLeft),left=cover(leftLeft);
+  return right>0&&right>=left*1.2;
+}
 // 説明・キーワード説明・マス説明を、1つの縦長グループとして配置する。
 // side＝基準の右15px（見切れるなら左）、above＝真上15px（見切れるなら下）。
 // 70pxセーフゾーンへ平行移動しても縦に収まらない場合は、まず特殊マス説明を右列へ移す。
@@ -983,9 +1003,11 @@ function _positionTooltipGroup(tips,anchor,placement='side'){
     groupTop=ar.top-anchorGap-groupHeight;
     if(placement==='above'&&groupTop<safe.top) groupTop=ar.bottom+anchorGap;
   }else{
-    groupLeft=ar.right+anchorGap;
+    const rightLeft=ar.right+anchorGap,leftLeft=ar.left-anchorGap-groupWidth;
+    groupLeft=rightLeft;
     groupTop=ar.top+ar.height/2-groupHeight/2;
-    if(groupLeft+groupWidth>safe.right) groupLeft=ar.left-anchorGap-groupWidth;
+    if(groupLeft+groupWidth>safe.right) groupLeft=leftLeft;
+    else if(_formationTipPrefersLeft(anchor,safe,groupWidth,groupHeight,groupTop,rightLeft,leftLeft)) groupLeft=leftLeft;
   }
   groupLeft=Math.max(safe.left,Math.min(groupLeft,safe.right-groupWidth));
   groupTop=Math.max(safe.top,Math.min(groupTop,safe.bottom-groupHeight));

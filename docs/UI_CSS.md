@@ -17,7 +17,6 @@ viewBox しか残らない。すると固有サイズが 300×134 相当まで�
 `main_left_frame` / `main_left_decoration` / `main_right_frame` / `main_right_decoration` は
 すべて `viewBox="0 0 1020 455" width="1020" height="455"`。素材を作り直したら必ず確認する。
 確認は `tools/parity/panel_frame_visual_check.js` の末尾「file://」行（natural width/height）。
-`info_box.svg` は width/height を持たないが、スライスを % で書いているので影響を受けない。
 
 **共通パネルの9スライス**（2026-09-23）：正本は `prototype/assets/ui/` 直下の
 `main_left_frame.svg`／`main_left_decoration.svg`／`main_right_frame.svg`／`main_right_decoration.svg`。
@@ -25,7 +24,9 @@ viewBox しか残らない。すると固有サイズが 300×134 相当まで�
 左枠は所持品・クエスト・旅の進捗・エラー・削除確認・再開画面、右枠はオプション・コレクション・
 報酬欄・通常の説明枠に使う。外枠の切出し／表示幅は両方85px、装飾は原寸で上中央、黒50%背景はCSSで一度だけ描く。
 body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バーを出さず、既存の種別別背景色を保つ。
-簡素な旅の説明枠は `info_box.svg`（旧info_box2.svg）。
+**編成画面のホバー説明の左右（2026-09-30）**：魔導板・報酬カード枠のカード／キーワード／特殊マスの説明は原則右（15px）。右に出した時に隠す他のカード（魔導板と報酬枠に置かれているカードだけ。空きマス・特殊マスの枠、デバッグカード領域は数えない）の面積が、左に出した時の1.2倍以上なら左へ出す（`render.js: _formationTipPrefersLeft`）。どちらもカードを隠さなければ右。空きマスも数えると、何も無いマスを避けてカードを隠す側へ出てしまった。店・道具屋・鍛冶屋・酒場、アイテム・指輪・ライフなど他の説明は従来どおり。
+
+簡素な旅の説明枠とゴールド不足の札は、CSSの二重線（main_right_frame.svg の外側二本線に合わせ、外線1.8・隙間2.0・内線2.0、色は辺の中央#b58e00→端#6e4a00）。1つの箱（inset:3.8）の枠線＝内線、outline（offset 2.0）＝外線で描き、旅程の枠は設計px（縮尺1）で組んで transform:scale(--game-scale) で縮める（縮めた値を枠線に使うと1.7px→1pxのように切り捨てられ、画面ごと縮むゴールド不足の札より細くなる）。::before（#6e4a00）と::after（#b58e00、左右の端ほど透明のマスク）を重ねてグラデーションにする。別の大きさの箱・背景の帯・1px未満のborder-imageでは、枠の高さが小数の時に辺ごとの画素の丸めがずれて隙間が潰れる／線が消える。旧 `info_box.svg` の9スライスは、線が1px未満になる倍率で角と辺の描画がずれて下辺が欠けたため廃止（2026-09-29）。
 `tools/parity/panel_frame_visual_check.js` で実ホバー・各画面・原寸との四隅／線幅の画素比較を確認する。
 外部で作った一体型SVGを新たに取り込む場合だけ `tools/split_panel_svg.py 入力.svg --name main_left`（またはmain_right）を使う。
 旧SVGとの初回比較は `VB_PANEL_SOURCE_DIR=旧素材の退避先` を検査ツールへ渡す。通常の検査・起動に旧素材は不要。

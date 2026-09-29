@@ -128,7 +128,7 @@ const ARENA_ROUNDS=6;
     // WAVE より先に開幕台詞が出た場合も拾えるよう、闘技場へ入る前から記録する。
     await armWaveRecorder(b);
     const boardBefore=await b.run(`return ${boardSnapshotExpr}`);
-    const talk=await b.run(`(()=>{const t=villageTalkEntry('「闘技場」入店時')||{};return {line1:t['台詞1']||null,prompt:t['台詞2']||null,line3:t['台詞3']||null,line4:t['台詞4']||null,line5:t['台詞5']||null,specialA1:t['特殊台詞A1']||null};})()`);
+    const talk=await b.run(`(()=>{const t=villageTalkEntry('「闘技場」入場時')||{};return {line1:t['台詞1']||null,prompt:t['台詞2']||null,line3:t['台詞3']||null,line4:t['台詞4']||null,line5:t['台詞5']||null,specialA1:t['特殊台詞A1']||null};})()`);
     assert.ok(talk.line1&&talk.prompt&&talk.line3&&talk.line4,'闘技場の会話シートを取得できない');
     await clickFacility(b,'^闘技場$');
     await waitLine(b,talk.line1);

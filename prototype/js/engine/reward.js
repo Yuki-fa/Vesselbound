@@ -733,10 +733,12 @@ function goToReward(options){
 // （演出は js/engine/card_reveal.js が唯一の実装。プレビューと同じもの）。
 // 報酬欄のカードは goToReward() で既に描いてあり、めくりの間は隠しているだけ。
 // 最後に手前のカードと黒を消し、報酬欄の同じカードをフェードで出す。
+// 消える間は大きな縦長の光の帯を1本、左から右へ流す（2026-09-30 利用者指定。数本は多すぎて不自然）。
 const REWARD_REVEAL_CARD_W=480;  // 手前に並べるカードの幅（利用者指定）
 const REWARD_REVEAL_GAP=150;     // カードの間隔（利用者指定）
 const REWARD_REVEAL_START_MS=800;// 暗転が明けてからめくり始めるまで（暗転の戻りは0.7秒）
 const REWARD_REVEAL_FADE_MS=520; // 手前のカードと黒が消える時間（CSSと揃える）
+const REWARD_REVEAL_SWEEP_MS=640; // 光の帯が流れ切るまで（CSSのアニメーションの長さと揃える）
 let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
 function _rewardRevealRarity(card){ return Math.max(1,Math.min(5,Number(card&&card.rarity)||1)); }
 function _playRewardReveal(){
@@ -782,10 +784,21 @@ function _finishRewardReveal(immediate){
   if(immediate) _rewardRevealToken++;
   // 報酬欄のカードはCSSのトランジションでフェードインする。
   document.body.classList.remove('reward-reveal-active');
+  if(immediate){ document.getElementById('reward-reveal-sweep')?.remove(); }
   if(!layer) return;
   if(immediate){ layer.remove(); return; }
   layer.classList.add('is-leaving');
   window.setTimeout(()=>layer.remove(),REWARD_REVEAL_FADE_MS+60);
+  // 流れる光。手前の層と一緒に薄くならないよう、層の外（同じ画面の直下）に置く。
+  const host=layer.parentElement;
+  if(host){
+    document.getElementById('reward-reveal-sweep')?.remove();
+    const sweep=document.createElement('div');
+    sweep.id='reward-reveal-sweep';
+    sweep.innerHTML='<i></i>';
+    host.appendChild(sweep);
+    window.setTimeout(()=>sweep.remove(),REWARD_REVEAL_SWEEP_MS+60);
+  }
 }
 
 function _storeRewardStartSnapshot(){

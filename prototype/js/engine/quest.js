@@ -69,7 +69,7 @@ const TAVERN_PORTRAIT_CONFIG={
   MC003:{src:'assets/art/sprites/MC003.webp',x:2400,y:240,width:2305,height:3880},
   MC004:{src:'assets/art/sprites/MC004.webp',x:1819,y:192,width:3155,height:4291},
   MC005:{src:'assets/art/sprites/MC005.webp',x:2320,y:380,width:1898,height:2847},
-  MC006:{src:'assets/art/sprites/MC006.webp',x:2525,y:155,width:2645,height:4616},
+  MC006:{src:'assets/art/sprites/MC006.webp',x:2142,y:102,width:2077,height:4452},
   MC007:{src:'assets/art/sprites/MC007.webp',x:2735,y:1015,width:1085,height:1288},
   MC008:{src:'assets/art/sprites/MC008.webp',x:2700,y:1090,width:1152,height:1183},
 };
@@ -1459,6 +1459,21 @@ async function _qClearPresentation(options){
   host.removeAttribute('id');
   await _qFadePresentationElements(host.querySelectorAll('.tavern-portrait,.tavern-face'),TAVERN_PORTRAIT_FADE_MS);
   host.remove();
+}
+
+// **デバッグの編成ボタン用：進行中のイベント（酒場・クエストの街／塔イベント・camp・店の入店台詞）を強制終了する。**
+// 台詞は世代番号を進めて消すので、台詞を待っている処理はそこで止まったまま再開しない。
+// 立ち絵・暗幕・名前札・施設の背景も即座に片付ける（背景は編成画面の setup.webp に戻る）。2026-09-30 利用者指定。
+function questForceEndEventForDebug(){
+  _qRemoveDialogue();
+  _qPendingNamePlate='';
+  _qFormationContext=null;
+  void _qClearPresentation({immediate:true});
+  document.querySelectorAll('.quest-event-shade,.tavern-name-plate').forEach(el=>el.remove());
+  document.body.classList.remove('tavern-village-active','tavern-screen-active','quest-town-event-active',
+    'tavern-tower-event-active','quest-camp-scene','facility-greeting-active','facility-bg-active');
+  if(G){ G._isTavern=false; G._questCampScene=false; G._facilityGreetingKey=null; }
+  if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
 }
 
 function _qRemoveDialogue(){

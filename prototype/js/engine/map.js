@@ -1681,7 +1681,7 @@ function villageTalkEntry(scene){
 }
 function _facilityGreetingEntry(fac){
   for(const v of villageFacilityNameVariants(fac&&fac.name)){
-    const t=villageTalkEntry(`「${v}」入店時`);
+    const t=villageTalkEntry(`「${v}」入店時`)||villageTalkEntry(`「${v}」入場時`);
     if(t) return t;
   }
   return null;

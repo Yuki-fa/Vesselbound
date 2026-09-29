@@ -422,11 +422,11 @@ const WAVE=1;
       window.__questRewardScreenSeen=false;const watch=()=>{if(document.body.classList.contains('reward-screen-active'))__questRewardScreenSeen=true;if(!e.townEventDone)requestAnimationFrame(watch);};requestAnimationFrame(watch);
       const before=G.gold;openMapVillage({intro:true});return before;})()`);
     await waitLine(b,q10.q2.initial[0]);
-    await b.until(`(()=>{const p=document.querySelector('#tavern-presentation-layer img.tavern-portrait[data-portrait-id="MC006"]');return !!(p&&p.style.left==='2525px'&&p.style.top==='155px'&&p.complete&&p.naturalWidth>0);})()`,30000);
+    await b.until(`(()=>{const p=document.querySelector('#tavern-presentation-layer img.tavern-portrait[data-portrait-id="MC006"]');return !!(p&&p.style.left==='2142px'&&p.style.top==='102px'&&p.complete&&p.naturalWidth>0);})()`,30000);
     await b.until(`document.querySelector('.tavern-name-plate.is-visible')`,5000);
     const townPortrait=await b.run(`(()=>{const p=document.querySelector('#tavern-presentation-layer img.tavern-portrait[data-portrait-id="MC006"]');const plate=document.querySelector('.tavern-name-plate');return {x:p?.style.left||'',y:p?.style.top||'',w:p?.style.width||'',h:p?.style.height||'',visible:!!plate?.classList.contains('is-visible'),name:(plate?.textContent||'').replace(/\\s+/g,'')};})()`);
-    ok(`Q007ヴォルザーグ到着（${label}）：BはMC006（X2525・Y155・原寸）、名前札はシート値`,
-      townPortrait.x==='2525px'&&townPortrait.y==='155px'&&townPortrait.w==='2645px'&&townPortrait.h==='4616px'&&townPortrait.visible
+    ok(`Q007ヴォルザーグ到着（${label}）：BはMC006（X2142・Y102・原寸）、名前札はシート値`,
+      townPortrait.x==='2142px'&&townPortrait.y==='102px'&&townPortrait.w==='2077px'&&townPortrait.h==='4452px'&&townPortrait.visible
       &&townPortrait.name===String(q10.q2.characterName||'').replace(/\s+/g,''),townPortrait);
     return gold;
   }

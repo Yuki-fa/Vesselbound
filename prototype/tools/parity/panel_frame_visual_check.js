@@ -111,8 +111,8 @@ const sourceDir=process.env.VB_PANEL_SOURCE_DIR;
     console.log('説明枠',JSON.stringify(tips));
     await sleep(550);await b.screenshot(path.join(output,'tooltips.png'));
     const simpleTip=await b.eval(`const el=document.getElementById('kw-tooltip');el.className='no-title-rule';
-      el.innerHTML='旅の進捗';return getComputedStyle(el,'::before').borderImageSource;`);
-    assert(simpleTip.includes('/info_box.svg'),'簡素な説明枠の改名が未反映');
+      el.innerHTML='旅の進捗';const s=getComputedStyle(el,'::before'),a=getComputedStyle(el,'::after');return {outline:s.outlineStyle,mask:a.maskImage||a.webkitMaskImage};`);
+    assert(simpleTip.outline==='solid'&&String(simpleTip.mask).startsWith('linear-gradient'),'簡素な説明枠が二重線になっていない');
     await b.screenshot(path.join(output,'info-box.png'));
     await b.eval(`for(const id of ['kw-tooltip','map-power-tooltip','keyword-tooltip'])document.getElementById(id).style.display='none';
       _optionOpen();_optionConfirm('profile');`);
@@ -185,11 +185,9 @@ const sourceDir=process.env.VB_PANEL_SOURCE_DIR;
     }
     // file://でも外部SVGが読み込めることを実際の本編で確認。
     await b.goto(pathToFileURL(path.join(root,'index.html')).href,1800);
-    const local=await b.eval(`return await Promise.all(['main_left_frame','main_left_decoration','main_right_frame','main_right_decoration','info_box'].map(async name=>{
+    const local=await b.eval(`return await Promise.all(['main_left_frame','main_left_decoration','main_right_frame','main_right_decoration'].map(async name=>{
       const im=new Image();im.src='assets/ui/'+name+'.svg';await im.decode();return {name,protocol:location.protocol,width:im.naturalWidth,height:im.naturalHeight};}));`);
     for(const im of local.slice(0,4)){assert.equal(im.width,1020);assert.equal(im.height,455);}
-    // info_boxはviewBoxのみ（500×200）で、Chromeの自然寸法は300×120になる。
-    assert(local[4].width>0);assert.equal(local[4].width/local[4].height,2.5);
     await b.waitFor('typeof _optionOpen==="function"&&typeof RING_POOL!=="undefined"&&RING_POOL.length>0',20000);
     await b.eval('_returnToTitleMenu();_optionOpen();');await sleep(500);
     assert(await b.eval(`return document.getElementById('options-layer').classList.contains('is-open')&&

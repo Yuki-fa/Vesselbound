@@ -193,7 +193,6 @@ const Assets = {
     panelDecoration: 'assets/ui/main_right_decoration.svg?v=panels0923',
     leftPanelFrame: 'assets/ui/main_left_frame.svg?v=panels0923',
     leftPanelDecoration: 'assets/ui/main_left_decoration.svg?v=panels0923',
-    infoBox: 'assets/ui/info_box.svg?v=tooltipFrame0923',
     ringSlot: 'assets/ui/ring_slot.svg',
     collectionLine: 'assets/ui/collection_line.svg',
     collectionThumb: 'assets/ui/thumb_blue.svg',

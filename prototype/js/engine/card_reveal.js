@@ -148,10 +148,14 @@ function cardRevealEnsureStyles() {
 
 // ── 部品 ──────────────────────────────────────────
 // 角丸の四角を「上辺中央から時計回り」に一周するパス。pathLength=100 で使う。
-function cardRevealRimPath(w, h) {
-  const rx = w * .0565, ry = h * .03721;
-  return `M${w / 2},0 H${w - rx} A${rx},${ry} 0 0 1 ${w},${ry} V${h - ry} A${rx},${ry} 0 0 1 ${w - rx},${h}`
-    + ` H${rx} A${rx},${ry} 0 0 1 0,${h - ry} V${ry} A${rx},${ry} 0 0 1 ${rx},0 Z`;
+// inset：外周からの内寄せ量。線の中心をカードの外周に置くと太い線の半分が外へはみ出し、
+// カードの枠とずれて見えた（2026-09-30 利用者指摘）。角の丸みも内寄せ分だけ小さくする。
+function cardRevealRimPath(w, h, inset) {
+  const i = Math.max(0, Number(inset) || 0);
+  const rx = Math.max(0, w * .0565 - i), ry = Math.max(0, h * .03721 - i);
+  const L = i, T = i, R = w - i, B = h - i;
+  return `M${w / 2},${T} H${R - rx} A${rx},${ry} 0 0 1 ${R},${T + ry} V${B - ry} A${rx},${ry} 0 0 1 ${R - rx},${B}`
+    + ` H${L + rx} A${rx},${ry} 0 0 1 ${L},${B - ry} V${T + ry} A${rx},${ry} 0 0 1 ${L + rx},${T} Z`;
 }
 
 function cardRevealEl(tag, cls, parent) {
@@ -250,7 +254,8 @@ function cardRevealRim(rig, opts) {
   // 余白6emずつを含めた viewBox。パスはカードの縁（0〜100 × 0〜151.575）に置く。
   const W = 100, H = 100 * CARD_REVEAL_ASPECT;
   svg.setAttribute('viewBox', `-6 -6 ${W + 12} ${H + 12}`);
-  const d = cardRevealRimPath(W, H);
+  // 最も太い芯（頭＝coreWidth×1.45）の外側がカードの外周にちょうど揃う位置へ線を寄せる。
+  const d = cardRevealRimPath(W, H, (opts.coreWidth || 2.2) * 1.45 / 2);
   const defs = cardRevealSvg('defs', {}, svg);
   const fid = `cr-blur-${Math.random().toString(36).slice(2, 8)}`;
   const filter = cardRevealSvg('filter', { id: fid, x: '-20%', y: '-20%', width: '140%', height: '140%' }, defs);

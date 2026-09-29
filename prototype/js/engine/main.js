@@ -387,6 +387,8 @@ function debugOpenFormation(){
     G.enemies=new Array((typeof MAX_ENEMIES!=='undefined'&&MAX_ENEMIES)||14).fill(null);
     if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
   }
+  // イベント中（立ち絵・台詞が出ている間）なら、イベントを強制終了してから編成へ移る（背景も setup.webp）。
+  if(typeof questForceEndEventForDebug==='function') questForceEndEventForDebug();
   document.body.classList.remove('village-screen-active','world-map-active');
   if(typeof _openWaveFormation==='function') _openWaveFormation();
 }

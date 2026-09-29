@@ -7893,6 +7893,19 @@ html body.reward-screen-active .shop-board-sell-action{
 #reward-reveal-layer{position:absolute;inset:0;z-index:4500;pointer-events:auto;opacity:1;transition:opacity .52s ease}
 #reward-reveal-layer.is-leaving{opacity:0;pointer-events:none}
 #reward-reveal-layer .reward-reveal-shade{position:absolute;inset:0;background:rgba(0,0,0,.8)}
+/* 手前の層が消える間に流す光の帯（reward.js の _finishRewardReveal）。大きな縦長の柔らかい帯を1本だけ、
+   左から右へ流す（REWARD_REVEAL_SWEEP_MS＝640ms と揃える）。 */
+#reward-reveal-sweep{position:absolute;inset:0;z-index:4501;pointer-events:none;overflow:hidden}
+#reward-reveal-sweep>i{position:absolute;top:-10%;bottom:-10%;left:0;width:1400px;
+  background:linear-gradient(90deg,rgba(255,236,196,0) 0%,rgba(255,236,196,.12) 28%,rgba(255,246,226,.38) 50%,rgba(255,236,196,.12) 72%,rgba(255,236,196,0) 100%);
+  mix-blend-mode:screen;opacity:0;transform:translateX(-1400px) skewX(-8deg);
+  animation:rewardRevealSweep .64s cubic-bezier(.4,0,.5,1) forwards}
+@keyframes rewardRevealSweep{
+  0%{opacity:0;transform:translateX(-1400px) skewX(-8deg)}
+  20%{opacity:1}
+  78%{opacity:1}
+  100%{opacity:0;transform:translateX(3840px) skewX(-8deg)}
+}
 /* 表の面は報酬欄と同じ寸法（--hand-card-w/h）で描いてから拡大する（--rr-scale は reward.js が入れる）。
    カード内の数字・コストなどは px 指定が多く、枠だけ大きくすると数字が小さいまま外へずれるため。 */
 html body #reward-reveal-layer .cr-front-content>.card.reward-reveal-face{
@@ -11314,15 +11327,11 @@ html body #reward-offer-row > .rew-card.forge-card > .shop-insufficient-badge{
   left:50%!important;
   transform:translate(-50%,-50%)!important;
   background:rgba(180,40,40,.8)!important;
-  border:7px solid transparent!important;
-  border-image-source:url("assets/ui/info_box.svg?v=goldShortage0927")!important;
-  border-image-slice:3.5% 1.4%!important;
-  border-image-width:7px!important;
-  border-image-outset:0!important;
-  border-image-repeat:stretch!important;
+  border:0!important;
   border-radius:0!important;
   box-sizing:border-box!important;
-  padding:2px 12px!important;
+  /* 元の余白2px 12pxに、枠の幅7pxを足す。 */
+  padding:9px 19px!important;
   font-size:24px!important;
   line-height:1.25!important;
   font-weight:700!important;
@@ -11332,6 +11341,36 @@ html body #reward-offer-row > .rew-card.forge-card > .shop-insufficient-badge{
   opacity:1!important;
   z-index:10012!important;
   pointer-events:none!important;
+}
+/* 枠は旅程の説明枠（#kw-tooltip.no-title-rule::before/::after）と同じ二重線・同じ描き方
+   （main_right_frame.svg の外側二本線に合わせる。外線1.8・隙間2.0・内線2.0、中央#b58e00→端#6e4a00）。 */
+html body #reward-offer-row > .rew-card > .shop-insufficient-badge::before,
+html body #reward-offer-row > .rew-card > .shop-insufficient-badge::after,
+html body #reward-offer-row > .character-card > .shop-insufficient-badge::before,
+html body #reward-offer-row > .character-card > .shop-insufficient-badge::after,
+html body #rw-cards > .rew-card > .shop-insufficient-badge::before,
+html body #rw-cards > .rew-card > .shop-insufficient-badge::after,
+html body #rw-cards > .character-card > .shop-insufficient-badge::before,
+html body #rw-cards > .character-card > .shop-insufficient-badge::after{
+  content:""!important;
+  position:absolute!important;
+  inset:3.8px!important;
+  box-sizing:border-box!important;
+  background:none!important;
+  border:2px solid #6e4a00!important;
+  border-image:none!important;
+  outline:1.8px solid #6e4a00!important;
+  outline-offset:2px!important;
+  pointer-events:none!important;
+}
+html body #reward-offer-row > .rew-card > .shop-insufficient-badge::after,
+html body #reward-offer-row > .character-card > .shop-insufficient-badge::after,
+html body #rw-cards > .rew-card > .shop-insufficient-badge::after,
+html body #rw-cards > .character-card > .shop-insufficient-badge::after{
+  border-color:#b58e00!important;
+  outline-color:#b58e00!important;
+  -webkit-mask:linear-gradient(to right,transparent 0%,rgba(0,0,0,.085) 18%,rgba(0,0,0,.56) 29%,rgba(0,0,0,.89) 39%,#000 50%,rgba(0,0,0,.89) 61%,rgba(0,0,0,.56) 71%,rgba(0,0,0,.085) 82%,transparent 100%) -3.8px 0/calc(100% + 7.6px) 100% repeat-y no-clip!important;
+  mask:linear-gradient(to right,transparent 0%,rgba(0,0,0,.085) 18%,rgba(0,0,0,.56) 29%,rgba(0,0,0,.89) 39%,#000 50%,rgba(0,0,0,.89) 61%,rgba(0,0,0,.56) 71%,rgba(0,0,0,.085) 82%,transparent 100%) -3.8px 0/calc(100% + 7.6px) 100% repeat-y no-clip!important;
 }
 /* 本文テキストはプロポーショナル字送りにする（和文の約物・仮名のアキを詰める）。
    クエスト枠・旅の進捗枠・会話文（施設説明／チュートリアルのボックス）が対象。 */
@@ -12445,7 +12484,7 @@ _watchVesselboundDpr();
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=kiemetsuTalk0928"></script>
+<script src="js/data/local_xlsx_data.js?v=arenaEnter0929"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
@@ -12802,7 +12841,7 @@ html body.facility-greeting-active #scr-village.asset-backed::after{
 
 /* ══════════════════════════════════════════════════════════
    **ホバー説明の枠と区切り線を素材へ差し替える。**
-   通常枠＝`main_right_frame.svg`の9スライス外枠、旅の進捗の通常枠＝`assets/ui/info_box.svg`、
+   通常枠＝`main_right_frame.svg`の9スライス外枠、旅の進捗の通常枠＝CSSの二重線（info_box.svgは廃止）、
    見出し下の直線＝`assets/ui/info_line.svg`。
    main_right_frame.svg の四隅は原寸を保つ。説明枠にはdecoration_barを表示しない。
    枠線・角丸・影はSVGが持つので、CSS側のものは消す。
@@ -12852,7 +12891,7 @@ html body #keyword-tooltip::before{
   border-image-repeat:stretch!important;
   pointer-events:none!important;
 }
-/* 旅の進捗内の通常マス／Scene名は、簡素なinfo_box.svgを横幅可変で使う。 */
+/* 旅の進捗内の通常マス／Scene名は、簡素な二重線の枠を横幅可変で使う。 */
 html body #kw-tooltip.no-title-rule{
   width:auto!important;
   min-width:0!important;
@@ -12860,12 +12899,42 @@ html body #kw-tooltip.no-title-rule{
   min-height:0!important;
   padding:calc(24px * var(--game-scale))!important;
 }
-html body #kw-tooltip.no-title-rule::before{
-  border:calc(7px * var(--game-scale)) solid transparent!important;
-  border-image-source:url("assets/ui/info_box.svg?v=tooltipFrame0923")!important;
-  /* 上下7/200=3.5%、左右7/500=1.4%。 */
-  border-image-slice:3.5% 1.4%!important;
-  border-image-width:calc(7px * var(--game-scale))!important;
+/* 二重線をCSSの線で描く。間隔と色は main_right_frame.svg の外側二本線に合わせる
+   （外線1.8、隙間2.0、内線2.0。色は2本とも辺の中央#b58e00→端#6e4a00、左右の辺は#6e4a00。2026-09-30 利用者指定）。
+   9スライスだと線が1px未満に縮む倍率（旅程の枠）で、角と辺の描画がずれて
+   下辺の外線が角の部分だけ欠けた（2026-09-29 利用者指摘・倍率0.43未満で再現）。 */
+/* 内線＝枠線（外から3.8〜5.8）、外線＝outline（隙間2.0の外、0〜1.8）。1つの箱から描くので4辺の線と隙間が揃う。
+   色は::beforeを端の色#6e4a00、::afterを中央の色#b58e00で同じ形・同じ箱に描き、::afterを左右の端ほど
+   透明にするマスクで重ねて「中央#b58e00→端#6e4a00」のグラデーションにする。
+   **設計px（縮尺1）で組んで transform:scale(--game-scale) で縮める。** ゴールド不足の札（画面ごと縮む）と
+   同じ描かれ方にするため。縮めた値を直接枠線に使うと、1.7pxのような太さが1pxへ切り捨てられ、札より細くなった
+   （2026-09-30 利用者指摘）。 */
+html body #kw-tooltip.no-title-rule::before,
+html body #kw-tooltip.no-title-rule::after{
+  content:""!important;
+  position:absolute!important;
+  inset:auto!important;
+  left:0!important;
+  top:0!important;
+  width:calc(100% / var(--game-scale) - 7.6px)!important;
+  height:calc(100% / var(--game-scale) - 7.6px)!important;
+  transform-origin:0 0!important;
+  transform:scale(var(--game-scale)) translate(3.8px,3.8px)!important;
+  z-index:0!important;
+  box-sizing:border-box!important;
+  background:none!important;
+  border:2px solid #6e4a00!important;
+  border-image:none!important;
+  outline:1.8px solid #6e4a00!important;
+  outline-offset:2px!important;
+  pointer-events:none!important;
+}
+html body #kw-tooltip.no-title-rule::after{
+  border-color:#b58e00!important;
+  outline-color:#b58e00!important;
+  /* マスクは外線（箱の外3.8まで）も覆うよう、箱より広く置いて切り抜きをしない。 */
+  -webkit-mask:linear-gradient(to right,transparent 0%,rgba(0,0,0,.085) 18%,rgba(0,0,0,.56) 29%,rgba(0,0,0,.89) 39%,#000 50%,rgba(0,0,0,.89) 61%,rgba(0,0,0,.56) 71%,rgba(0,0,0,.085) 82%,transparent 100%) -3.8px 0/calc(100% + 7.6px) 100% repeat-y no-clip!important;
+  mask:linear-gradient(to right,transparent 0%,rgba(0,0,0,.085) 18%,rgba(0,0,0,.56) 29%,rgba(0,0,0,.89) 39%,#000 50%,rgba(0,0,0,.89) 61%,rgba(0,0,0,.56) 71%,rgba(0,0,0,.085) 82%,transparent 100%) -3.8px 0/calc(100% + 7.6px) 100% repeat-y no-clip!important;
 }
 /* キャラクターと旅の進捗内のエリート／ボスは指定の黒茶色にする。 */
 html body #kw-tooltip.character-tooltip,
@@ -12935,7 +13004,7 @@ html body #kw-tooltip.no-title-rule .preview-title{
   line-height:calc(47.25px * var(--game-scale))!important;
 }
 /* オンラインの「編成」「戦闘」は、通常の「一般戦闘」（.journey-battle-prefix）と
-   同じ35px・同色・1行にする。枠は共通のno-title-rule::beforeがinfo_box.svgを9スライスで描く。 */
+   同じ35px・同色・1行にする。枠は共通のno-title-rule::beforeが二重線で描く。 */
 html body.online-mode-active:has(#journey-progress-ui .journey-node[data-online-journey-label="1"]:hover)
   #kw-tooltip.no-title-rule .preview-title{
   font-size:calc(35px * var(--game-scale))!important;
