@@ -38,6 +38,7 @@ async function presentDamageEvent(ev, api) {
   const target = api.findUnit(ev.side, ev.unitId);
   if (!target) return false;
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
+  const damagesHp = ev.damageTo !== 'atk';
   // 同じキャラクターへ続けて数値が出ると重なって読めない。対象ごとに順番待ちする。
   // 対象が違えば待たない（別のカードの上なので重ならない）。規則は present.js。
   // 別経路（薙ぎ払い）が数値を出す分は、その経路が自分の間合いで見せる。
@@ -74,15 +75,21 @@ async function presentDamageEvent(ev, api) {
     await Promise.resolve(playProjectileEffectVfx(vfxSource, srcSide, target, fxSide, projectileCode, {
       amount,
       onImpact: () => {
-        if (typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
-        if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
+        if (damagesHp && typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
+        if (damagesHp && typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
       },
     })).catch(err => console.error('[projectile damage vfx]', err));
     return true;
   }
   // 数値を出す瞬間に、画面に出すHPもここまで進める。
-  if (typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
-  if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
+  // ATKへのダメージは直前のstat_changeがATK表示を進める。逃走する体の
+  // damage.hpAfterは盤面から外すための0であり、HP被弾の表示値ではない。
+  // ここでHP0へ進めると、PvEだけ最終状態の体と合わさって退場前の
+  // 描画で死亡体のように扱われる。
+  if (damagesHp) {
+    if (typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
+    if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
+  }
   if (ev.effect && source && typeof api.onEffectDamage === 'function') api.onEffectDamage(ev, source);
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（強化カードで得た効果で本人のSEが鳴るのを防ぐ）。

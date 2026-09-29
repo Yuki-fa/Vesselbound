@@ -2484,6 +2484,13 @@ const PRESENT_FLED_MOVE_X=-280;    // 画面座標（3840x2160）での移動量
 const PRESENT_FLED_EASING='cubic-bezier(.2,.8,.25,1)';
 const PRESENT_FLED_LETTER_MS=90;   // 「FLED」を1文字ずつ落とす間隔
 const PRESENT_FLED_LABEL_MS=620;   // 文字が落ち切ってから消すまで
+function _removeUnitDamageLabel(unit){
+  if(!unit||unit.id==null||typeof document==='undefined') return;
+  const key=`u:${unit.id}`;
+  document.querySelectorAll('.damage-label-host[data-damage-label-key]').forEach(host=>{
+    if(String(host.dataset.damageLabelKey||'')===key) host.remove();
+  });
+}
 async function playFledVfx(side, unit){
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(!slot) return;
@@ -2508,6 +2515,10 @@ async function playFledVfx(side, unit){
       `transform ${PRESENT_FLED_MOVE_MS}ms ${PRESENT_FLED_EASING}, opacity ${PRESENT_FLED_FADE_MS}ms ease-out`,'important');
     slot.style.setProperty('transform','translateX(0) scale(1.12)','important');
     await new Promise(r=>setTimeout(r,PRESENT_FLED_HOLD_MS));
+    // ダメージ数値は盤面の定位置で読ませるもの。カードが逃走の移動を始める時点で閉じ、
+    // 退場後に _lastVisualRect の旧位置へ数値だけが残らないようにする。
+    // ここまでに DELAY + HOLD の読み取り時間は確保されている。
+    _removeUnitDamageLabel(unit);
     slot.style.setProperty('transform',`translateX(${PRESENT_FLED_MOVE_X}px) scale(.96)`,'important');
     slot.style.setProperty('opacity','0','important');
     // **カードが消えるのと同時に「FLED」を出す。**
