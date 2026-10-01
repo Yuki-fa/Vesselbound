@@ -8402,6 +8402,29 @@ html body #battle-counters .battle-counter-content{
   transform:translateY(-50%)!important;
   line-height:1!important;
 }
+/* **枠内の左右の余白（2026-09-30 利用者指定）**：所持金・ライフの文字、マナ・血のアイコンは枠の左端から50px、
+   所持金・ライフ・マナ・血の値は枠の右端から50pxに右揃えで置く。マナ・血の値は中央揃えにしない
+   （3桁になってもアイコンと重ならないように）。マナ・血の枠は border 25px の内側が基準なので 25px を指定する。 */
+html body #battle-counters .battle-counter-content{
+  display:block!important;
+  height:48px!important;
+}
+html body #battle-counters .battle-counter-icon{
+  position:absolute!important;left:25px!important;top:0!important;
+}
+html body #battle-counters .battle-counter-content>span{
+  position:absolute!important;right:25px!important;left:auto!important;top:50%!important;
+  transform:translateY(-50%)!important;min-width:0!important;text-align:right!important;white-space:nowrap!important;
+}
+html body .battle-status-counter:nth-of-type(n) .battle-status-label,
+html body #reward-production-ui .reward-prod-tile:is(.reward-prod-money,.reward-prod-turn) h2{
+  left:50px!important;
+}
+html body :is(#village-status,#map-status,#battle-status-hud,#online-rival-hud) .battle-status-counter:nth-of-type(n) strong,
+html body .battle-status-counter:nth-of-type(n) strong,
+html body #reward-production-ui .reward-prod-tile:is(.reward-prod-money,.reward-prod-turn) strong{
+  left:auto!important;right:50px!important;width:auto!important;text-align:right!important;
+}
 
 /* ボタンごとの見た目を用途に合わせて微調整する。
    戦闘開始は少し広く、元に戻す／進むは一段狭くし、全て496:122を維持する。 */
@@ -9220,6 +9243,11 @@ html body.game-clear-active #gameover-retry-btn,
 html body.game-clear-active #gameover-back-btn{display:none!important}
 html body.game-clear-active #gameover-actions{justify-content:center!important}
 html body.gameover-ui-pending #scr-gameover.gameover-overlay-active{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+/* 1周目の帰宅エンドはクリア動画を使わず、結果表示の下地を黒のまま保つ。 */
+html body.game-clear-first-run #scr-gameover.gameover-overlay-active{background:#000!important}
+html body.game-clear-first-run #gameover-video,
+html body.game-clear-first-run #gameover-video-tint,
+html body.game-clear-first-run #gameover-video-shade{display:none!important}
 
 /* ══════════════════════════════════════════════════════════
    進行不能なエラーの表示（#fatal-error-overlay）
@@ -10659,6 +10687,19 @@ html body #village-life .inn-life-restored .life-heart-fill{
   pointer-events:none!important;
 }
 #cutscene-video.is-active{display:block!important}
+/* 初クリア後の最初の開始演出。文字は3840×2160の設計座標で173px。 */
+#second-run-intro{
+  display:none;position:fixed;left:var(--game-offset-x);top:var(--game-offset-y);
+  width:var(--game-w);height:var(--game-h);transform:scale(var(--game-scale));transform-origin:top left;
+  z-index:99300;background:#000;align-items:center;justify-content:center;pointer-events:auto;opacity:1;
+}
+html body.second-run-intro-active #second-run-intro{display:flex}
+#second-run-intro .second-run-intro-text{
+  color:#fff;font-family:"Shippori Mincho",serif;font-size:173px;line-height:1.2;letter-spacing:.08em;
+  text-align:center;white-space:pre-wrap;opacity:0;transition:opacity .8s ease;
+}
+#second-run-intro.is-visible .second-run-intro-text{opacity:1}
+#second-run-intro.is-leaving{opacity:0;transition:opacity .8s ease}
 /* 円形フェードイン中は下地を純黒にして、背景が中央から広がって見えるようにする。 */
 html body.village-intro-active #scr-village{background:#000!important}
 /* 中央からのフェードインは clip-path の硬い縁ではなく、放射グラデーションのマスクを
@@ -12479,52 +12520,52 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=assetRename0927"></script>
+<script src="assets.js?v=assetRename0927-fiveSaints1001-storyCycle1001"></script>
 <script src="js/engine/audio.js?v=merge0927"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=arenaEnter0929"></script>
+<script src="js/data/local_xlsx_data.js?v=arenaEnter0929-engraving1001-storyCycle1001"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=enhvfx0929"></script>
-<script src="js/battle/formation.js?v=cardFx0927"></script>
-    <script src="js/battle/present.js?v=area0929-outcome0929"></script>
+    <script src="js/battle/core.js?v=enhvfx0929-engraving1001"></script>
+<script src="js/battle/formation.js?v=cardFx0927-engraving1001"></script>
+    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001"></script>
     <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
-<script src="js/online/sim.js?v=online6"></script>
-<script src="js/online/server_local.js?v=debugOnlineUnlimited01-outcome0929"></script>
+<script src="js/online/sim.js?v=online6-engraving1001"></script>
+<script src="js/online/server_local.js?v=debugOnlineUnlimited01-outcome0929-engraving1001"></script>
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=rainbowText0922"></script>
 <script src="js/online/matching.js?v=reportedFixes0928"></script>
     <script src="js/online/board.js?v=introTitle0927-onlineText0927-outcome0929"></script>
-<script src="js/online/versus.js?v=q0020926-outcome0929"></script>
+<script src="js/online/versus.js?v=q0020926-outcome0929-engraving1001"></script>
 <script src="js/online/flow.js?v=reportedFixes0928"></script>
 <script src="js/online/hud.js?v=onlineExit01-onlineText0927"></script>
-<script src="js/engine/state.js?v=innTalk0925-questText0927"></script>
+<script src="js/engine/state.js?v=innTalk0925-questText0927-fiveSaints1001"></script>
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=cardFx0927"></script>
-<script src="js/save/profile_save.js?v=q0020926"></script>
-<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928"></script>
+<script src="js/save/profile_save.js?v=q0020926-fiveSaints1001-storyCycle1001"></script>
+<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928-fiveSaints1001"></script>
 <script src="js/engine/pool.js?v=dirRename-cardFx0927"></script>
 <script src="js/engine/enemy.js?v=garmHover-outcome0929"></script>
-    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929"></script>
-<script src="js/engine/battle_events.js?v=revive0929-outcome0929"></script>
-<script src="js/engine/render.js?v=area0929-fleeatk0929"></script>
+    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001"></script>
+<script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001"></script>
+<script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
-<script src="js/engine/reward_items.js?v=shopFix0927"></script>
-<script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927"></script>
+<script src="js/engine/reward_items.js?v=shopFix0927-engraving1001"></script>
+<script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=rarityAltar0928"></script>
-<script src="js/engine/map.js?v=innFace0928-q0060928"></script>
+<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001"></script>
+<script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001"></script>
     <script src="js/engine/game_confirm.js?v=tmKeys0926"></script>
-    <script src="js/engine/quest.js?v=q006done0929-outcome0929"></script>
+    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001"></script>
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
     <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929"></script>
-    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929"></script>
+    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001"></script>
 <script src="js/engine/options.js?v=keyRename0927"></script>
 <script src="js/engine/collection.js?v=keyRename0927-textAudit0927"></script>
 <script>

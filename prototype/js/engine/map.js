@@ -154,12 +154,14 @@ function regionInfoForWave(wave){
 // 街の背景キー（Assets.backgrounds）。ステージ番号に対応させる。
 function getVillageBackgroundKey(){
   if(G&&G._isLibraryMenu) return 'library';
+  if(G&&G._isFiveSaints) return 'towerLanding';
   // 塔（祭壇）は全ステージ共通でtower.png。
   if(G&&G._isWaveAltar) return 'tower';
   // 魔獣撃退依頼（Q004）の討伐後の場面は camp.webp（quest.js の _qShowGarmCamp）。
   if(G&&G._questCampScene) return 'camp';
-  // ステージ0＝リーゼ（ゲーム開始地点）もそのままvillage0を使う。
+  // クリア後のリーゼは「5年後」の専用背景。オンライン／デバッグは従来背景のままにする。
   const wave=Math.max(0,Number(G&&G._wave)||0);
+  if(wave===0&&typeof isRepeatStoryRun==='function'&&isRepeatStoryRun()) return 'village0Night';
   if(G&&G._isTavern) return (VILLAGE_FACILITY_BG[wave]||{}).tavern||`village${Math.min(4,wave)}`;
   // 店の入店時の台詞の間は、その店の背景にする。
   if(G&&G._facilityGreetingKey) return (VILLAGE_FACILITY_BG[wave]||{})[G._facilityGreetingKey]||`village${Math.min(4,wave)}`;
@@ -423,9 +425,11 @@ const VILLAGE_FACILITY_DEFS={
   // 塔の施設
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
+  '五聖の座': {key:'landing'},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
+  if(['踊り場','五聖の座'].includes(String(name||''))) return ['五聖の座','踊り場'];
   const out=[String(name||'')];
   const push=v=>{ if(v&&out.indexOf(v)<0) out.push(v); };
   out.slice().forEach(v=>{
@@ -449,6 +453,7 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
   // 塔（「テキストメッセージ」シートに塔「◯◯」直下の行が追加されればそちらが優先）
   '祭壇':'カード3枚と引き換えに指輪1つを得る。',
   '踊り場':'ひと息つける。',
+  '五聖の座':'ひと息つける。',
 };
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
@@ -473,6 +478,12 @@ function _villageLifeFull(){
 }
 function villageFacilityDescText(name){
   const variants=villageFacilityNameVariants(name);
+  if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
+    ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
+    // 未解放時と、この塔で受諾が確定した後は同じ「再訪時」の行を使う。
+    const revisit=textMessage('塔「五聖の座」直下（再訪時）','');
+    if(revisit) return String(revisit);
+  }
   // 闘技場は挑戦後に専用の直下文へ切り替える。シートに行が無い版では
   // 通常の「街「闘技場」直下」へ戻す（表示文をコードへ固定しない）。
   if(variants.includes('闘技場')&&!(G&&G._isWaveAltar)&&_villageArenaUsed()){
@@ -480,7 +491,7 @@ function villageFacilityDescText(name){
     if(done) return String(done);
   }
   // 宿屋はライフ満タンの時「街「宿屋」直下（ライフ満タン時）」を使う（利用者指定 2026-09-25）。
-  if(variants.includes('宿屋')&&!(G&&G._isWaveAltar)&&_villageLifeFull()){
+  if(variants.includes('宿屋')&&!(G&&G._isWaveAltar)&&(_firstRunVargaInnLocked()||_villageLifeFull())){
     const full=textMessage('街「宿屋」直下（ライフ満タン時）','');
     if(full) return String(full);
   }
@@ -561,6 +572,7 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
 const TOWER_FACILITY_POS={
   '祭壇':  {x:2260,y:246},
   '踊り場':{x:1621,y:1402},
+  '五聖の座':{x:1621,y:1402},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
@@ -598,7 +610,11 @@ function villageFacilityList(){
   const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
   const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
   if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
-  return (names.length?names:['ショップ']).map(name=>{
+  return (names.length?names:['ショップ']).filter(name=>{
+    const def=VILLAGE_FACILITY_DEFS[name]||null;
+    // 1周目は塔の「五聖の座」自体を描画しない。
+    return !(def&&def.key==='landing'&&typeof isFirstStoryRun==='function'&&isFirstStoryRun());
+  }).map(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     return {name,key:def?def.key:'none',label:villageFacilityLabelText(name),desc:villageFacilityDescText(name)};
   });
@@ -612,16 +628,34 @@ function _villageArenaUsed(){
   return !!used[_waveFacilityCacheKey()];
 }
 // 中身が未実装の施設だけ暗くする。宿屋は会話シートから料金と回復量を読む。
-const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza','landing']);
+const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza']);
+function _fiveSaintsUnlocked(){
+  // 周回分岐はオフラインの通常ランだけ。オンラインはプロフィールのクリア記録で施設状態を変えない。
+  if(G&&G._onlineMode) return true;
+  return !!(typeof SaveProfile!=='undefined'&&SaveProfile
+    &&typeof SaveProfile.hasClearedRun==='function'&&SaveProfile.hasClearedRun());
+}
+function _firstRunVargaInnLocked(){
+  if(!(typeof isFirstStoryRun==='function'&&isFirstStoryRun())||G&&G._isWaveAltar) return false;
+  const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
+  return town.includes('ヴァルガ');
+}
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
   // 酒場はクエストのある街だけ開く（地域情報の「クエスト」列。quest.js）。
   // 酒場はクエストのある街だけ開き、そのクエストを達成した後は入れない。
-  if(fac.key==='tavern') return !(typeof questTavernAvailable==='function'&&questTavernAvailable(G&&G._wave))
-    ||(typeof questTavernCompleted==='function'&&questTavernCompleted(G&&G._wave));
+  if(fac.key==='tavern'){
+    if(typeof isFirstStoryRun==='function'&&isFirstStoryRun()) return false;
+    return !(typeof questTavernAvailable==='function'&&questTavernAvailable(G&&G._wave))
+      ||(typeof questTavernCompleted==='function'&&questTavernCompleted(G&&G._wave));
+  }
+  if(fac.key==='landing') return !_fiveSaintsUnlocked()
+    ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved());
+  // 1周目のホームは専用会話の入り口。2周目以降とデバッグは従来どおり未実装。
+  if(fac.key==='home') return !(typeof isFirstStoryRun==='function'&&isFirstStoryRun());
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   // 宿屋はライフ満タンの時は入れない（ボタンを暗くする）。
-  if(fac.key==='inn') return _villageLifeFull();
+  if(fac.key==='inn') return _firstRunVargaInnLocked()||_villageLifeFull();
   // 闘技場は同じラン・同じ街では一度だけ挑戦できる。
   if(fac.key==='arena') return _villageArenaUsed();
   // 祭壇は指輪取得後（resolved）も入場できる。中は指輪が消えて枠だけの状態になる
@@ -634,10 +668,16 @@ async function _onVillageFacility(fac){
   if(G._villageIntroPlaying) return;
   if(G._villageFacilityBusy) return;
   if(_screenSwitchFading) return;
+  if(typeof isFirstStoryRun==='function'&&isFirstStoryRun()&&['home','tavern'].includes(fac.key)){
+    G._villageFacilityBusy=true;
+    try{ await _runFirstStoryFacilityEvent(fac); }
+    finally{ G._villageFacilityBusy=false; }
+    return;
+  }
   // 画面が切り替わる施設は暗転を挟む（宿屋は切り替わらない。酒場は openTavern の中で挟む）。
   // 施設に入る音はボタンを押した時に鳴らす。台詞や暗転の後に鳴らすと遅れて聞こえる（2026-09-25 利用者指摘）。
   // 店・宿屋・図書館・酒場＝shop_in.wav、祭壇＝altarIn。音はここだけで鳴らし、各 open〜関数では鳴らさない。
-  const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',ringExchange:'altarIn'}[fac.key];
+  const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',landing:'shopIn',ringExchange:'altarIn'}[fac.key];
   if(enterSfx&&typeof playSfx==='function') playSfx(enterSfx,{group:'ui'});
   if(['shop','forge','item','inn','arena'].includes(fac.key)){
     G._villageFacilityBusy=true;
@@ -712,7 +752,7 @@ async function _onVillageFacility(fac){
       return;
     }finally{ G._villageFacilityBusy=false; }
   }
-  if(['ringExchange','library'].includes(fac.key)){
+  if(['ringExchange','library','landing'].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
@@ -770,7 +810,11 @@ function _enterVillageFacilityNow(fac){
     if(typeof openTavern==='function') openTavern();
     return;
   }
-  // 広場（クエスト受託相当）・闘技場・踊り場は表示のみ。SEも鳴らさない。
+  if(fac.key==='landing'){
+    if(typeof openFiveSaintsSeat==='function') openFiveSaintsSeat();
+    return;
+  }
+  // 広場（クエスト受託相当）は表示のみ。
 }
 // ══════════════════════════════════════════════════════════
 // ワールドマップ画面（出発時に数秒だけ表示してから戦闘へ移行する）
@@ -937,13 +981,20 @@ async function _playWorldMapDeparture(done,beforeReveal){
       return;
     }
     // マップは「これから向かう区間」を光らせる。
-    // 村（stage4）を出た直後＝塔へ向かう区間、塔（stage10）を出た直後＝次のステージの街へ向かう区間。
+    // cityを出た直後＝塔へ向かう区間、altarを出た直後＝次のステージの街へ向かう区間。
     let nextWave=Math.max(1,Number(G._wave)||1);
     let nextStage=Number(G._waveStage)||1;
     // リーゼ（ステージ0）を出た直後はステージ1の最初の戦闘へ向かう区間。
     if(Number(G._wave)===0){ nextWave=1; nextStage=2; }
-    else if(nextStage===4) nextStage=5;
-    else if(nextStage===10){ nextWave=Math.min(5,nextWave+1); nextStage=1; }
+    else{
+      const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(nextWave):[];
+      const node=Array.isArray(route)?route[nextStage-1]:null;
+      if(node==='city') nextStage++;
+      else if(node==='altar'){
+        nextWave=Math.min(5,nextWave+1);
+        nextStage=1;
+      }
+    }
     renderWorldMapScreen(worldMapActiveLine(nextWave,nextStage),nextWave,nextStage);
     if(typeof showScreen==='function') showScreen('map');
     fade.style.transition='opacity .5s ease';
@@ -1153,7 +1204,10 @@ function renderVillageScreen(){
   const departReset=document.getElementById('village-depart-btn');
   if(departReset) departReset.style.display='';
   const info=regionInfoForWave(G&&G._wave);
-  const name=(G&&G._isWaveAltar)
+  // 五聖の座の中は、左上に塔の名前ではなく「五聖の座」見出しを出す（2026-10-01 利用者指摘）。
+  const name=(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
+    ?String(fiveSaintsRewardTitle()||'五聖の座')
+    :(G&&G._isWaveAltar)
     ?String((info&&info.towerName)||'塔')
     :String((info&&info.townName)||'街');
   // 「大樹の抱く集落 エルム」のように半角スペース区切りなら、前半（地域名）を小さく表示する。
@@ -1336,6 +1390,8 @@ function openMapVillage(options){
   if(typeof SaveRun!=='undefined'&&SaveRun&&typeof SaveRun.lockInput==='function') SaveRun.lockInput(false);
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
   G._mapReturnAfterReward=true;
+  G._isFiveSaints=false;
+  document.body.classList.remove('five-saints-active','five-saints-formation-active');
   // 村メニューでは祭壇状態を必ず解除する（塔として開く場合のみ立てる）。
   G._isWaveAltar=!!(options&&options.tower);
   // **入場演出（約2.6秒）の間に、この街／塔の曲を読み込んでおく。**
@@ -1359,9 +1415,10 @@ function openMapVillage(options){
   G.phase='reward';
   // 到着イベントがある場合は、到着時の表示をここでは出さず、イベント完了時へまとめる。
   // prepare関数は地名演出より前にUIを隠す役目も持つため、保存判定より先に一度だけ呼ぶ。
-  const arrivalQuestPending=G._isWaveAltar
+  const storyArrival=_prepareStoryArrival();
+  const arrivalQuestPending=!!storyArrival||(G._isWaveAltar
     ?(typeof questPrepareTowerArrival==='function'&&questPrepareTowerArrival())
-    :(typeof questPrepareTownArrival==='function'&&questPrepareTownArrival());
+    :(typeof questPrepareTownArrival==='function'&&questPrepareTownArrival()));
   // 新規到着時だけ、画面に存在する施設のランダム提示を先に確定する。
   // 施設から戻った時やロード復元時には更新せず、開始チェックポイントを保つ。
   // 抽選結果は先に確定するが、ディスクへの保存は入場演出が真っ暗になった直後に行う。
@@ -1392,8 +1449,10 @@ function openMapVillage(options){
         return true;
       }
       :null;
-    const opening=_playVillageEnterIntro(build,beforeReveal).then(opened=>{
+    const opening=_playVillageEnterIntro(build,beforeReveal).then(async opened=>{
       if(opened===false) return false;
+      const storyResult=await _runStoryArrival(storyArrival);
+      if(storyResult==='final') return true;
       if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
       if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
       if(typeof questResumePendingEvent==='function') questResumePendingEvent();
@@ -1403,9 +1462,13 @@ function openMapVillage(options){
     return opening;
   }
   build();
-  if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
-  if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
-  if(typeof questResumePendingEvent==='function') questResumePendingEvent();
+  void (async()=>{
+    const storyResult=await _runStoryArrival(storyArrival);
+    if(storyResult==='final') return;
+    if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
+    if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
+    if(typeof questResumePendingEvent==='function') questResumePendingEvent();
+  })();
 }
 
 // 図書館メニュー。街と同じ画面構造を使い、背景だけlibrary.pngへ差し替える。
@@ -1678,6 +1741,126 @@ function villageTalkEntry(scene){
   if(!rows) return null;
   const name=Object.keys(rows).find(k=>k===scene||k.endsWith(scene));
   return name?rows[name]:null;
+}
+// 街の見出しに依存しないストーリー会話。塔の場面も同じ経路でシートから引く。
+function storyTalkEntry(scene){
+  const all=(typeof window!=='undefined'&&window.TALK_MESSAGES)||{};
+  for(const rows of Object.values(all)){
+    if(rows&&rows[scene]) return rows[scene];
+  }
+  return null;
+}
+function _storyTalkLines(entry){
+  return Object.keys(entry||{}).filter(key=>/^台詞\d+$/.test(key))
+    .sort((a,b)=>Number(a.replace('\u53f0\u8a5e',''))-Number(b.replace('\u53f0\u8a5e','')))
+    .map(key=>entry[key]).filter(line=>line&&String(line.text||'').trim()).map(line=>({...line}));
+}
+function _storyFirstFace(lines,id){
+  const prefix=`${id}_`;
+  const line=(lines||[]).find(item=>String(item&&item.face||'').startsWith(prefix));
+  return line?String(line.face):undefined;
+}
+
+async function _runFirstStoryFacilityEvent(fac){
+  const suffix=fac.key==='home'?'「ホーム」押下時（一周目）':'「酒場」押下時（一周目）';
+  const talk=villageTalkEntry(suffix);
+  const lines=_storyTalkLines(talk);
+  if(!lines.length) return false;
+  if(fac.key==='tavern'&&typeof playFileSfx==='function') playFileSfx('assets/sfx/knock.wav');
+  await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+  if(typeof showTavernPortrait==='function'){
+    await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
+  }
+  if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
+  const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
+  if(fac.key==='tavern'&&town.includes('ギャラハ')&&typeof storyFlipSlidePortraitLeft==='function'){
+    await storyFlipSlidePortraitLeft('MC001');
+  }else if(typeof _qClearPresentation==='function') await _qClearPresentation();
+  await fadeScreenSwitch(()=>{
+    if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
+    _hideFacilityGreetingScene();
+    if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
+    renderVillageScreen();
+  });
+  return true;
+}
+
+function _storyArrivalSpec(){
+  if(!G||G._onlineMode||G._debugMode) return null;
+  const seen=G._facilityTalkSeen||{};
+  if(!G._isWaveAltar&&Number(G._wave)===0){
+    const first=typeof isFirstStoryRun==='function'&&isFirstStoryRun();
+    const repeat=typeof isRepeatStoryRun==='function'&&isRepeatStoryRun();
+    if(!first&&!repeat) return null;
+    const cycle=first?1:2;
+    const key=`story:riese-arrival:${cycle}`;
+    if(seen[key]) return null;
+    return {key,scene:first?'リーゼ地名演出後（一周目）':'リーゼ地名演出後（二周目）',cssClass:'quest-town-event-active'};
+  }
+  if(G._isWaveAltar&&Number(G._wave)===4
+    &&typeof isFirstStoryRun==='function'&&isFirstStoryRun()){
+    return {scene:'蝕界の塔到達時（一周目）',portraitB:'MC010',cssClass:'tavern-tower-event-active',finalClear:true};
+  }
+  return null;
+}
+function _prepareStoryArrival(){
+  const spec=_storyArrivalSpec();
+  if(!spec) return null;
+  if(typeof _qEnsureStyle==='function') _qEnsureStyle();
+  document.body.classList.add(spec.cssClass);
+  ['MC001',spec.portraitB].filter(Boolean).forEach(id=>{
+    const cfg=window.TAVERN_PORTRAIT_CONFIG&&window.TAVERN_PORTRAIT_CONFIG[id];
+    if(!cfg) return;
+    const image=new Image();
+    image.src=cfg.src;
+    if(typeof image.decode==='function') image.decode().catch(()=>{});
+  });
+  return spec;
+}
+async function _runStoryArrival(spec){
+  if(!spec||G._storyArrivalBusy) return '';
+  const talk=storyTalkEntry(spec.scene);
+  const lines=_storyTalkLines(talk);
+  if(!lines.length){
+    document.body.classList.remove(spec.cssClass);
+    return '';
+  }
+  G._storyArrivalBusy=true;
+  try{
+    document.body.classList.add(spec.cssClass);
+    if(typeof showTavernPortrait==='function'){
+      await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
+      if(spec.portraitB) await showTavernPortrait(spec.portraitB,{screen:'village'});
+    }
+    if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
+    if(spec.finalClear){
+      if(typeof _qClearPresentation==='function') await _qClearPresentation();
+      if(typeof stopBgm==='function') stopBgm(600);
+      if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(600);
+      const fade=_ensureVillageEnterFadeEl();
+      fade.style.transition='opacity .6s ease';
+      fade.style.opacity='1';
+      await _mapDelay(630);
+      document.body.classList.remove(spec.cssClass);
+      if(typeof gameOver==='function') gameOver({clear:true,firstRunClear:true});
+      // 結果画面の黒地に渡した後は、村の暗幕自体は撤去する。
+      fade.style.transition='none';
+      fade.style.opacity='0';
+      return 'final';
+    }
+    G._facilityTalkSeen=G._facilityTalkSeen||{};
+    G._facilityTalkSeen[spec.key]=true;
+    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
+      const saved=SaveRun.checkpointFacilityTalk(false);
+      if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
+    }
+    if(typeof _qClearPresentation==='function') await _qClearPresentation();
+    document.body.classList.remove(spec.cssClass);
+    renderVillageScreen();
+    return 'done';
+  }finally{
+    G._storyArrivalBusy=false;
+  }
 }
 function _facilityGreetingEntry(fac){
   for(const v of villageFacilityNameVariants(fac&&fac.name)){
@@ -2274,7 +2457,7 @@ function openMapItemShop(){
   renderHandEditor();
   renderMoveSlotsInEnemy();
 }
-// 祭壇（wave進行stage10）：指輪交換を選択できるメニュー。
+// 祭壇（wave進行のaltarマス）：指輪交換を選択できるメニュー。
 // 塔（祭壇）画面。村と全く同じ形式（#scr-village）で開く。
 // 指輪交換の「祭壇から出る」からもここへ戻ってくる。
 function _openWaveAltarMenu(){

@@ -1,8 +1,27 @@
 // reward_journey.js — 旅の進捗の計算・描画・デバッグ移動
-// ステージ1だけ先頭が村（リーゼ＝ゲーム開始地点）。その分、**エルムの後**の通常戦闘を1つ減らす
-// （通常の 5〜8＝4戦 → 6〜8＝3戦）。マス数は他ステージと同じ10で、ボス9・祭壇10も据え置き。
-// エリートと街の位置が1つ後ろへずれるため、_waveBattleType()等はこのルートから引く。
-const SCENE1_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','boss','altar'];
+// 通常のオフラインランの周回。初回クリア前だけ1、クリア記録があれば2を返す。
+// オンラインとデバッグにストーリー専用分岐を持ち込まないため、そこでは0とする。
+function offlineStoryCycle(){
+  if(typeof G!=='undefined'&&G&&(G._onlineMode||G._debugMode)) return 0;
+  const cleared=typeof SaveProfile!=='undefined'&&SaveProfile
+    &&typeof SaveProfile.hasClearedRun==='function'&&SaveProfile.hasClearedRun();
+  return cleared?2:1;
+}
+function isFirstStoryRun(){ return offlineStoryCycle()===1; }
+function isRepeatStoryRun(){ return offlineStoryCycle()===2; }
+
+// 1周目は、各Sceneの最後の街から塔までの通常戦闘を1つ減らす。
+// 低い深層の戦闘（街後の最初のbattle）を省き、ボスと最深部は保つ。
+function _journeyFirstRunRoute(route){
+  const shortened=Array.isArray(route)?route.slice():[];
+  const town=shortened.lastIndexOf('city');
+  const battle=shortened.findIndex((type,index)=>index>town&&type==='battle');
+  if(town>=0&&battle>town) shortened.splice(battle,1);
+  return shortened;
+}
+// Scene 1だけは先頭にリーゼがある。2周目以降は他のSceneと同じ
+// 「街後の通常戦闘×4」、1周目とデバッグは従来の短いルートにする。
+const SCENE1_REPEAT_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
 function _journeyRouteForScene(scene){
   // オンライン対戦のステージ構成はサーバーが配る。クライアントで組み立てない。
   if(typeof G!=='undefined'&&G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
@@ -21,8 +40,14 @@ function _journeyRouteForScene(scene){
   }
   const data=typeof SCENE_FLOW_DATA!=='undefined'?SCENE_FLOW_DATA:null;
   if(scene===5) return data&&data.final||['city','battle','battle','boss'];
-  if(scene===1) return (data&&data.scene1)||SCENE1_ROUTE;
-  return data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
+  if(scene===1){
+    const repeatRoute=(data&&data.scene1)||SCENE1_REPEAT_ROUTE;
+    const debug=typeof G!=='undefined'&&G&&G._debugMode;
+    // オンラインでサーバールートがまだ届いていない間も、従来のScene 1表示を保つ。
+    return (isRepeatStoryRun()&&!debug)?repeatRoute:_journeyFirstRunRoute(repeatRoute);
+  }
+  const standard=data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
+  return isFirstStoryRun()?_journeyFirstRunRoute(standard):standard;
 }
 function _journeyIconForNode(type){
   // オンライン対戦マス（versus）はエリートと同じアイコンで表示する（仕様）。

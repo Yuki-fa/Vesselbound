@@ -57,7 +57,8 @@ const CORE_KEYWORD_CARD_NAMES = new Set(
 // 新しい強化カードを足した時の追随漏れは tools/balance_sim/effect_audit.js が検出する。
 const CORE_EFFECT_CARD_NAMES = new Set([...CORE_KEYWORD_CARD_NAMES,
   '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '治癒能力', 'マナ生成',
-  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃']);
+  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃',
+  '宿業の刻印', '抑圧の刻印', '受難の刻印', '苦悶の刻印', '修道の刻印', '我慢の刻印']);
 // 効果文に書かれていれば自身が持つものとして扱うキーワード。
 const CORE_TEXT_KEYWORDS = ['復活', '根性', 'ヘイト', '二段攻撃', '三段攻撃', '三方向攻撃', '全体攻撃', '先制', '隠密'];
 const CORE_REMOVED_KEYWORDS = new Set(['生贄', '狩人', '狙撃', '強靭', 'エリート', 'ボス']);
@@ -429,9 +430,26 @@ function coreConsumeWardCharge(unit) {
 
 function coreUnitHasSacrifice(unit) { return false; }
 
+// 刻印6種のXは、シート本文の固定値ではなく現在のステージから共通計算する。
+// PvE／オンラインとも formation.js が _stageNumber を載せ、コアはGへ触れない。
+function coreEngravingStageNumber(unit, state) {
+  // 戦闘stateの値が「現在のステージ」。保存済みユニットに古い値が残っていても
+  // そちらを優先しない。stateを持たない coreSealValue() だけはユニットへ焼いた値を使う。
+  return Math.max(1, Math.floor(Number(state && state.stageNumber)
+    || Number(state && state.mapIndex) || Number(unit && unit._stageNumber) || 1));
+}
+function coreEngravingStageValue(unit, name, state) {
+  const scale = String(name || '') === '苦悶の刻印' ? 20 : 5;
+  return coreEngravingStageNumber(unit, state) * scale;
+}
+
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
 function coreSealValue(unit) {
   if (unit && unit._sealInfinity) return Infinity;
+  if (unit && (coreHasEffect(unit, '我慢の刻印')
+    || /封印X[（(]?X[＝=]ステージ[×x*]5/.test(coreUnitEffectText(unit)))) {
+    return coreEngravingStageValue(unit, '我慢の刻印');
+  }
   const kw = (coreUnitKeywords(unit) || []).find(k => /^封印(?:\d+|∞)$/.test(k));
   if (kw && /∞/.test(kw)) return Infinity;
   return kw ? Math.max(1, parseInt(String(kw).replace('封印', ''), 10) || 1) : 0;
@@ -662,6 +680,7 @@ function createCoreUnit(raw, side, index) {
     _sealed: !!(raw && raw._sealed),
     _panelSummoned: raw && raw._panelSummoned !== undefined ? !!raw._panelSummoned : true,
     _mainBoardSlot: Number.isInteger(Number(raw && raw._mainBoardSlot)) ? Number(raw._mainBoardSlot) : null,
+    _stageNumber: Math.max(1, Math.floor(Number(raw && raw._stageNumber) || 1)),
     _summonedInBattle: !!(raw && raw._summonedInBattle),
     summonCount: Math.max(1, Number(raw && raw.summonCount) || 1),
     _mapPanelPower: String((raw && raw._mapPanelPower) || ''),
@@ -801,6 +820,7 @@ function coreUnitSnapshot(unit) {
     desc: u.desc, guardian: u.guardian, hate: u.hate, hateTurns: u.hateTurns,
     stealth: u.stealth, _sealed: u._sealed, _panelSummoned: u._panelSummoned,
     _mainBoardSlot: Number.isInteger(Number(u._mainBoardSlot)) ? Number(u._mainBoardSlot) : null,
+    _stageNumber: Math.max(1, Math.floor(Number(u._stageNumber) || 1)),
     _summonedInBattle: !!u._summonedInBattle,
     shield: u.shield, weaken: u.weaken,
     artCode: u.artCode || u._artCode || u.no || '',
@@ -868,6 +888,8 @@ function coreUnitSnapshot(unit) {
 // 初期状態を作る。PvEもPvPもこの形に揃えてからコアへ渡す。
 function createBattleState(setup) {
   const src = (setup && setup.sides) || {};
+  const stageNumber = Math.max(1, Math.floor(Number(setup && setup.stageNumber)
+    || Number(setup && setup.mapIndex) || 1));
   const units = {};
   BATTLE_CORE_SIDES.forEach(side => {
     const list = Array.isArray(src[side] && src[side].units) ? src[side].units : [];
@@ -875,7 +897,7 @@ function createBattleState(setup) {
     // nullをユニットとして扱わず、元のスロット番号だけを維持する。
     units[side] = list.map((u, i) => {
       if (!u) return null;
-      return createCoreUnit(u, side, i);
+      return createCoreUnit({ ...u, _stageNumber: stageNumber }, side, i);
     }).filter(Boolean);
   });
   coreRefreshVoidWalkerBonus({ units });
@@ -896,6 +918,7 @@ function createBattleState(setup) {
       p2: { mana: Math.max(0, Number(setup && setup.resources && setup.resources.p2 && setup.resources.p2.mana) || 0), gold: Math.max(0, Number(setup && setup.resources && setup.resources.p2 && setup.resources.p2.gold) || 0) },
     },
     mapIndex: Math.max(1, Number(setup && setup.mapIndex) || 1),
+    stageNumber,
     turn: 0,
     lane: { p1: { lane: 'front', attacked: new Set() }, p2: { lane: 'front', attacked: new Set() } },
     blood: {
@@ -1900,6 +1923,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     color: source.color || '', lane: source.lane || 'front', race: source.race || '', keywords: source.keywords || [],
     no: source.no || source.artCode || '', art: source.art || '', sfxType: source.sfxType || source.attackSfx || '',
     desc: source.desc || '', effectData: source.effectData, _panelSummoned: true,
+    _stageNumber: coreEngravingStageNumber(source, state),
     manaOnAttack: source.manaOnAttack, manaOnInjury: source.manaOnInjury, manaOnDeath: source.manaOnDeath,
     goldOnBattleEnd: source.goldOnBattleEnd, goldOnDeath: source.goldOnDeath,
     manaCost: source.manaCost, manaRepeat: source.manaRepeat, manaThresholdDesc: source.manaThresholdDesc || source._manaThresholdDesc,
@@ -2035,14 +2059,12 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   coreApplyWargThreshold(state, side, emit);
   emit({ type: 'summon', side, sourceId, placement: spec && spec.placement || '',
     placementTargetId: spec && spec.placementTargetId || null, unit: coreUnitSnapshot(child) });
-  // リッチの召喚反応は、生成したシャドウ自身には再帰させない。
-  // リッチは名前・強化データ・効果文のいずれの形でも同じ効果として扱う。
-  // 魔導板からの写し取りでは名前が別名になることがあるため、効果文だけの
-  // 保持も許容する。シャドウ自身には再帰させない。
-  const hasLichSummonEffect = sideUnits.some(x => x && (
-    coreHasEffect(x, 'リッチ')
-    || /味方が召喚された時[、,]?「青シャドウ」を1体召喚する/.test(coreUnitEffectText(x))
-  ));
+  // 旧リッチの「味方が召喚された時、青シャドウを1体召喚する」は、その効果文を持つ時だけ動かす。
+  // リッチの効果は「味方が死亡するたび、ランダムな敵に4ダメージ」に変わったので、
+  // 名前（リッチ）では判定しない（名前で判定するとシャドウが出続けた。2026-10-01 利用者指摘）。
+  // シャドウ自身には再帰させない。
+  const hasLichSummonEffect = sideUnits.some(x => x
+    && /味方が召喚された時[、,]?「青シャドウ」を1体召喚する/.test(coreUnitEffectText(x)));
   if (wanted !== '青シャドウ' && child.name !== 'シャドウ' && hasLichSummonEffect) {
     // 誘発元は「召喚を起こしたキャラクター」ではなく、今生成した子キャラ。
     // これを sourceId にすると、複数召喚時に全シャドウが元キャラの左隣へ
@@ -2692,6 +2714,14 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
     coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
+  // 修道の刻印：攻撃するたび、現在ステージ×5だけ全ての味方のATKを下げる。
+  // 強化カード由来の攻撃効果なので、本人のカード名や固定値へ分岐させない。
+  const disciplineCount = coreEffectCount(unit, '修道の刻印');
+  if (disciplineCount > 0) {
+    const amount = coreEngravingStageValue(unit, '修道の刻印', state) * disciplineCount;
+    allies.filter(x => x.hp > 0 && !coreIsSealed(x))
+      .forEach(x => addStats(x, -amount, 0, 'discipline_engraving'));
+  }
   const coreBloodOf = side => Math.max(0, Number(state.blood && state.blood[side]) || 0);
   // 攻撃：血がN以上なら全ての味方は+X/+Yを得る（シャドウ）
   const attackBloodTeamBuff = coreTriggerMatch(attackTexts, /^血が(\d+)以上なら全ての味方は\+(\d+)\/?\+(\d+)を得る/);
@@ -3611,6 +3641,26 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
     coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
+  const sufferingCount = coreEffectCount(unit, '受難の刻印');
+  if (sufferingCount > 0) {
+    const amount = coreEngravingStageValue(unit, '受難の刻印', state) * sufferingCount;
+    for (let i = 0; i < repeats; i++) {
+      coreHitAll(state, rng, emit, applyHit, unit,
+        allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), amount,
+        coreEnhancementHitOpt());
+    }
+  }
+  const anguishCount = coreEffectCount(unit, '苦悶の刻印');
+  if (anguishCount > 0 && state.resources && state.resources[unit.side]) {
+    const wanted = coreEngravingStageValue(unit, '苦悶の刻印', state) * anguishCount * repeats;
+    const current = Math.max(0, Number(state.resources[unit.side].gold) || 0);
+    const amount = Math.min(current, wanted);
+    if (amount > 0) {
+      state.resources[unit.side].gold = current - amount;
+      emit({ type: 'gold_spend', side: unit.side, unitId: unit.id, amount,
+        reason: 'anguish_engraving', unit: coreUnitSnapshot(unit) });
+    }
+  }
   // 闇の炎：ダメージ量と回数は本文から読む（基本1ダメージ／合体は1ダメージを2回）。
   // 発動回数は **repeats（逆襲・屍術師の指輪）× 所持枚数** で数える。
   // 怨念・レイス・バンシー・デスナイトと同じ数え方。枚数を見ていなかったため、
@@ -5338,6 +5388,32 @@ function corePickFirstSide(state, rng) {
   return (rng && typeof rng.next === 'function' ? rng.next() : Math.random()) < 0.5 ? 'p1' : 'p2';
 }
 
+// 宿業の刻印は、封印を含む初期配置が確定した直後に一度だけ適用する。
+// HP0は通常の戦闘修正死と同じ共通経路へ渡し、死亡効果・観測・復活を省略しない。
+function coreApplyEngravingOpening(state, rng, emit, applyHit) {
+  if (!state || state._engravingOpeningApplied) return;
+  state._engravingOpeningApplied = true;
+  const allUnits = [...(state.units && state.units.p1 || []), ...(state.units && state.units.p2 || [])]
+    .filter(Boolean);
+  coreWithStatDeathResolution(state, rng, emit, applyHit, trackedEmit => {
+    allUnits.forEach(unit => {
+      const count = coreEffectCount(unit, '宿業の刻印');
+      if (count <= 0 || unit.hp <= 0 || coreIsSealed(unit) || coreUnitIsSilenced(unit)) return;
+      const amount = coreEngravingStageValue(unit, '宿業の刻印', state) * count;
+      const beforeAtk = Math.max(0, Number(unit.atk) || 0);
+      const beforeHp = Math.max(0, Number(unit.hp) || 0);
+      const beforeMaxHp = Math.max(0, Number(unit.maxHp) || beforeHp);
+      unit.atk = Math.max(0, beforeAtk - amount);
+      unit.maxHp = Math.max(0, beforeMaxHp - amount);
+      unit.hp = Math.max(0, Math.min(beforeHp - amount, unit.maxHp));
+      coreEmitPassiveFlash(trackedEmit, unit);
+      trackedEmit({ type: 'stat_change', side: unit.side, unitId: unit.id,
+        atk: unit.atk - beforeAtk, hp: unit.hp - beforeHp, maxHp: unit.maxHp - beforeMaxHp,
+        reason: 'fate_engraving', sourceId: unit.id });
+    });
+  });
+}
+
 // 開戦処理。**PvEもオンラインもここだけを通すこと。**
 // 以前はPvE（_finishNewPanelBattleStartEffects）とオンライン（runBattleCore）で
 // 同じ手順が別々に書かれており、「生命の力」のHP2倍のように片方にしか無い工程があった。
@@ -5353,6 +5429,9 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
     coreApplyMapPanelOpeningEffects(state, emit);
     coreApplyOpeningRings(state, rng, emit, applyHit);
     coreApplyOpeningItems(state, rng, emit, applyHit);
+    // 常時効果は開戦アイテム（静寂の巻物を含む）の後に解決する。
+    // これにより、既存の常時効果と同じく封印・静寂中は宿業の刻印も無効になる。
+    coreApplyEngravingOpening(state, rng, emit, applyHit);
     // **生命の力は開戦効果より先に効かせる。**
     // 「開戦時に場に出してHPを2倍にする」＝場に出た時点でもう2倍。
     // 後に回していたため、HPを読む開戦効果（ウェンディゴの「HP10につき1回」など）が
@@ -5558,6 +5637,8 @@ if (typeof window !== 'undefined') {
   window.coreResolveIncomingDamage = coreResolveIncomingDamage;
   window.coreConsumeWardCharge = coreConsumeWardCharge;
   window.coreUnitHasSacrifice = coreUnitHasSacrifice;
+  window.coreEngravingStageNumber = coreEngravingStageNumber;
+  window.coreEngravingStageValue = coreEngravingStageValue;
   window.coreSealValue = coreSealValue;
   window.coreInitSealStates = coreInitSealStates;
   window.coreSacrificeUnits = coreSacrificeUnits;
@@ -5628,7 +5709,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreSnapshotDeferredState,
     coreSelectAttackTarget, corePierceRearTargets, coreTriDirectionTargets,
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
-    coreUnitHasSacrifice, coreSealValue, coreInitSealStates,
+    coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
     coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus, coreRefreshVoidWalkerBonus,
     coreFormationPassiveSpec, coreApplyFormationPassives,

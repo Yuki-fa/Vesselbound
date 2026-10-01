@@ -150,5 +150,7 @@ function initState(){
     // ラン中のクエスト状態。会話のDOMは保存せず、再開時は入口から再表示する。
     questProgress:{},
     _facilityTalkSeen:{},
+    // 五聖の座：会話のDOMではなく、提示済み刻印と各塔の判断だけをラン保存する。
+    _fiveSaints:{visited:false,offeredNos:[],offers:{},decisions:{},targets:{}},
   };
 }

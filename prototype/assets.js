@@ -57,7 +57,8 @@ const Assets = {
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。
     village0: 'assets/art/backgrounds/stage0_village.webp',
-    // リーゼのホーム（ホームは未実装のため、今は入れない）。
+    village0Night: 'assets/art/backgrounds/stage0_village_night.webp',
+    // リーゼのホーム（1周目の押下会話でだけ使う）。
     homeStart: 'assets/art/backgrounds/stage0_home.webp',
     village1: 'assets/art/backgrounds/stage1_village.webp',
     village2: 'assets/art/backgrounds/stage2_village.webp',
@@ -73,6 +74,7 @@ const Assets = {
     map: 'assets/art/backgrounds/map.webp',
     // 塔（祭壇）画面の背景
     tower: 'assets/art/backgrounds/tower.webp',
+    towerLanding: 'assets/art/backgrounds/tower_landing.webp',
     // 図書館画面の背景
     library: 'assets/art/backgrounds/stage0_library.webp',
     // 街の施設ごとの背景（ステージ1・エルム）

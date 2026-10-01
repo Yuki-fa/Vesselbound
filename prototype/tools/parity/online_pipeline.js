@@ -114,8 +114,9 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
     const summons = sim.召喚 || [];
     check('オンラインでマナ効果が発動する', Number(sim.マナ閾値) >= 1,
       `マナ閾値=${sim.マナ閾値}件（${sim.ダイアウルフのマナ値}）`);
-    check('オンラインでリッチの誘発召喚が出る',
-      summons.filter(n => n === 'シャドウ').length >= 1,
+    // リッチの効果は「味方が死亡するたび4ダメージ」に変わった。召喚に反応してシャドウを出さない（2026-10-01）。
+    check('オンラインでリッチが召喚に反応してシャドウを出さない',
+      summons.filter(n => n === 'シャドウ').length === 0,
       `召喚=${summons.join('→') || '（なし）'}`);
     check('オンラインで光の指輪が召喚体へ結界を付ける',
       Number(sim.光の指輪の結界) >= 1, `結界イベント=${sim.光の指輪の結界}件`);

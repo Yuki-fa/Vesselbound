@@ -88,7 +88,7 @@ function presentShouldSkipTurnGapBeforeManaEffect(events, index) {
 // ここに無い種別（attack / death など）が来たら、別の発動機会として数え直す。
 // damage はマナ閾値効果自身（アラクネ等）も出すため継続扱いにする。
 const PRESENT_MANA_RUN_TYPES = new Set([
-  'mana_threshold', 'mana_gain', 'gold_gain', 'mana_set',
+  'mana_threshold', 'mana_gain', 'gold_gain', 'gold_spend', 'mana_set',
   'stat_change', 'keyword_effect', 'item_reward', 'summon', 'transform', 'seal_apply', 'damage',
 ]);
 

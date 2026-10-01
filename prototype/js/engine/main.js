@@ -50,7 +50,7 @@ function showScreen(id){
     const titleEl=document.getElementById('scr-title');
     // 戦闘・村で付いた一時クラスを持ち越すと、タイトルの上に暗転が残る。
     document.body.classList.remove('battle-victory-pending','village-departing',
-      'gameover-active','game-clear-active','gameover-ui-pending');
+      'gameover-active','game-clear-active','game-clear-first-run','gameover-ui-pending','second-run-intro-active');
     // **タイトルを出す時は必ず「ゲームスタート」の表示へ戻す。**
     // デバッグモードで始めた時、ラベルは「デバッグモード」のまま残す作り
     // （消える瞬間に文字が戻って見えないようにするため）なので、
@@ -634,14 +634,19 @@ function _waveRetryPending(stage){
 }
 // 深層レベル＝そのwave内で何回目の通常戦闘か（1〜6）。エリート/ボスは固定値。
 function _waveDeepLevel(stage,waveOverride){
-  // ステージ1はルートが1つ後ろにずれる（1=村/2,3=通常/4=エリート/5=街/6,7,8=通常/9=ボス）。
-  // 街の後の戦闘は3戦だが、ボス直前が最高難度になるよう深層レベルは4,5,6を割り当てる。
+  // ステージ1は先頭のリーゼの分だけ各マスが1つ後ろにずれる。
+  // 1周目はエルム後が3戦なので従来どおり4,5,6、2周目以降は4戦の3,4,5,6とする。
   const wave=Number(waveOverride==null?(G&&G._wave):waveOverride)||0;
   if(wave===1){
-    const t1={2:1,3:2,4:2,6:4,7:5,8:6,9:6};
+    const repeat=typeof isRepeatStoryRun==='function'&&isRepeatStoryRun();
+    const t1=repeat
+      ?{2:1,3:2,4:2,6:3,7:4,8:5,9:6,10:6}
+      :{2:1,3:2,4:2,6:4,7:5,8:6,9:6};
     return t1[stage]||1;
   }
-  const table={1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
+  // Scene 2～4も1周目は街後の深層3の戦闘を省き、深層4～6とボスを保つ。
+  const first=typeof isFirstStoryRun==='function'&&isFirstStoryRun();
+  const table=first?{1:1,2:2,3:2,5:4,6:5,7:6,8:6}:{1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
   return table[stage]||1;
 }
 function _waveStageFloor(wave,stage){
@@ -712,7 +717,7 @@ function _grantWaveEliteItem(){
   if(idx<0) return;
   slots[idx]=item;
 }
-// stage5：村（ショップ・クエスト受託）
+// ルート上のcity：村（ショップ・クエスト受託）
 function _openWaveVillage(stage,eliteWon,options){
   // ここでshowScreen('battle')を呼ぶとG.phaseがまだ戦闘中の値のためbattle1.wavが再生されてしまう。
   // 画面切り替えはopenMapVillage()（入場演出）側に任せる。
@@ -723,7 +728,7 @@ function _openWaveVillage(stage,eliteWon,options){
   G.phase=null;
   if(typeof openMapVillage==='function') return openMapVillage({intro:true,...(options||{})});
 }
-// stage10：祭壇（鍛冶・指輪交換）
+// ルート上のaltar：祭壇（鍛冶・指輪交換）
 function _openWaveAltar(stage,options){
   // 塔も村と全く同じ形式（#scr-village＋入場演出）。showScreen('battle')は呼ばない
   // （呼ぶとG.phaseがまだ戦闘中の値のためbattle1/battle3が一瞬鳴ってしまう）。
@@ -869,8 +874,18 @@ function _startWaveFlowNext(){
   if(node==='city'){ _startWaveBattle(stage+1); return true; }
   if(node==='altar'){
     if(wave>=4){
-      G._wave=5;
-      _openWaveVillage(1,false);
+      // 1周目は五聖の座／Scene 5へ進まず、蝕界の塔で帰宅エンドにする。
+      // 通常は塔到着会話がこの前に開始するが、データ欠落時の保険もここで保つ。
+      if(typeof isFirstStoryRun==='function'&&isFirstStoryRun()){
+        gameOver({clear:true,firstRunClear:true});
+        return true;
+      }
+      // 蝕界の塔の後は、五聖の座で過半数（2回）の承認を得たランだけ
+      // 伏せられた Scene 5 へ進む。それ以外はここで通常の踏破とする。
+      if(typeof fiveSaintsShouldAdvanceToStageFive==='function'&&fiveSaintsShouldAdvanceToStageFive()){
+        G._wave=5;
+        _openWaveVillage(1,false);
+      }else gameOver({clear:true});
       return true;
     }
     G._wave=Math.min(4,wave+1);
@@ -929,12 +944,14 @@ function finishWaveBattleVictory(showVictoryIntro){
     return true;
   }
   if(type==='boss'){
-    // Scene 1～4のstage9（地域ボス）勝利：報酬なしで祭壇(stage10)へ直行
+    // Scene 1～4の地域ボス勝利：報酬なしで次のaltarへ直行。
     runTransition(()=>{
       G._mapBattle=null; G._waveBattleType=null;
       if(typeof _cleanupBattleEndTransientUnits==='function') _cleanupBattleEndTransientUnits();
       G.enemies=[]; G.phase=null;
-      _openWaveAltar(10,{autosaveMode:'battleProgress'});
+      const route=_waveRouteForWave(wave);
+      const altarStage=Math.max(stage+1,route.indexOf('altar')+1);
+      _openWaveAltar(altarStage,{autosaveMode:'battleProgress'});
     });
     return true;
   }
@@ -1030,6 +1047,43 @@ const OPENING_MOVIE_TAIL_MARGIN = 400; // ms。動画が終わる何ms前まで�
 const FINAL_BOSS_MOVIE_SRC = 'assets/movies/movie3.webm';
 const GAME_CLEAR_MOVIE_SRC = 'assets/vfx/game_clear.webm';
 const FINAL_CLEAR_MOVIE_SRC = 'assets/movies/movie4.webm'; // ラスボス撃破後のエンディング動画
+const SECOND_RUN_INTRO_PROFILE_KEY='story:second-run-intro';
+const SECOND_RUN_INTRO_HOLD_MS=3000;
+const SECOND_RUN_INTRO_FADE_MS=800;
+
+function _ensureSecondRunIntroEl(){
+  let el=document.getElementById('second-run-intro');
+  if(el) return el;
+  el=document.createElement('div');
+  el.id='second-run-intro';
+  el.setAttribute('aria-hidden','true');
+  const text=document.createElement('div');
+  text.className='second-run-intro-text';
+  el.appendChild(text);
+  document.body.appendChild(el);
+  return el;
+}
+
+// 初クリア後の最初のゲーム開始だけ、黒地の文章を出してから
+// それを消しつつ通常のオープニング再生へ渡す。
+async function _playSecondRunOpeningSequence(){
+  const el=_ensureSecondRunIntroEl();
+  const label=el.querySelector('.second-run-intro-text');
+  if(label) label.textContent=typeof textMessage==='function'?textMessage('二周目開始演出',''):'';
+  el.setAttribute('aria-hidden','false');
+  el.classList.remove('is-visible','is-leaving');
+  document.body.classList.add('second-run-intro-active');
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  el.classList.add('is-visible');
+  await sleep(SECOND_RUN_INTRO_HOLD_MS);
+  el.classList.add('is-leaving');
+  const movie=_playOpeningMovie();
+  await sleep(SECOND_RUN_INTRO_FADE_MS);
+  el.classList.remove('is-visible','is-leaving');
+  el.setAttribute('aria-hidden','true');
+  document.body.classList.remove('second-run-intro-active');
+  await movie;
+}
 
 // カットシーン動画の音声を、映像のフェードアウトと同じ時間で絞る。
 // 映像だけ暗転して音が鳴りっぱなしのまま切れると不自然なため、両方を同時に落とす。
@@ -1378,9 +1432,28 @@ function startGameFromTitle(){
   _startingFromTitle = true;
   const startToken=++_titleStartToken;
   if(typeof playSfx === 'function') playSfx('gameStart', { guardKey:'ui:title-game-start' });
+  const hasCleared=typeof SaveProfile!=='undefined'&&SaveProfile
+    &&typeof SaveProfile.hasClearedRun==='function'&&SaveProfile.hasClearedRun();
+  // 1周目はオープニングを再生せず、そのままリーゼから始める。
+  if(!hasCleared){ startGame(); _startingFromTitle=false; return; }
   // オプションからシステムデータを削除した直後も、保存媒体の状態を反映する。
   if(typeof SaveProfile!=='undefined'&&typeof SaveProfile.openingMovieShown==='function'){
     _openingMovieShown=SaveProfile.openingMovieShown();
+  }
+  const secondRunIntroShown=typeof SaveProfile!=='undefined'&&SaveProfile
+    &&typeof SaveProfile.tutorialShown==='function'&&SaveProfile.tutorialShown(SECOND_RUN_INTRO_PROFILE_KEY);
+  if(!secondRunIntroShown){
+    _openingMovieShown=true;
+    // 演出開始時点で両方を記録し、スキップや動画エラーでも二重に出さない。
+    if(typeof SaveProfile!=='undefined'){
+      if(typeof SaveProfile.markTutorialShown==='function') SaveProfile.markTutorialShown(SECOND_RUN_INTRO_PROFILE_KEY);
+      if(typeof SaveProfile.markOpeningMovieShown==='function') SaveProfile.markOpeningMovieShown();
+    }
+    void _playSecondRunOpeningSequence().then(()=>{
+      if(startToken!==_titleStartToken) return;
+      startGame(); _startingFromTitle=false;
+    });
+    return;
   }
   if(_openingMovieShown){ startGame(); _startingFromTitle = false; return; }
   _openingMovieShown = true;
@@ -1588,7 +1661,7 @@ function returnFromDebugGameOver(){
 }
 
 function closeGameOverOverlay(){
-  document.body.classList.remove('gameover-active','game-clear-active','gameover-ui-pending','battle-victory-pending','right-card-peek');
+  document.body.classList.remove('gameover-active','game-clear-active','game-clear-first-run','gameover-ui-pending','battle-victory-pending','right-card-peek');
   const video=document.getElementById('gameover-video');
   const tint=document.getElementById('gameover-video-tint');
   const rewardBgVideo=document.getElementById('reward-bg-video');
@@ -1641,6 +1714,7 @@ function gameOver(options){
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   const opt=options||{};
   const isClear=opt.clear===true;
+  const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode)&&!(G&&G._debugMode);
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
@@ -1707,7 +1781,10 @@ function gameOver(options){
   const resultTitle=document.querySelector('#gameover-results h1');
   // オンライン対戦で相手のライフを0にした場合は「踏破」ではなく「完全勝利」と表示する。
   const _perfect=!!(G&&G._onlineMode&&G._onlinePerfectWin);
-  if(resultTitle) resultTitle.textContent=isClear?(_perfect?_msg('オンライン対戦「完全勝利」見出し','完全勝利'):_msg('「クリア」見出し','踏破')):_msg('「ゲームオーバー」見出し','旅の終焉');
+  if(resultTitle) resultTitle.textContent=isClear
+    ?(_perfect?_msg('オンライン対戦「完全勝利」見出し','完全勝利')
+      :firstRunClear?_msg('「クリア」見出し（一周目）',''):_msg('「クリア」見出し','踏破'))
+    :_msg('「ゲームオーバー」見出し','旅の終焉');
   const back=document.getElementById('gameover-back-btn');
   if(back){
     back.textContent=G._gameOverSpecialDebug
@@ -1735,7 +1812,8 @@ function gameOver(options){
   };
   G.phase=isClear?'clear':'gameover';
   document.body.classList.toggle('game-clear-active',isClear);
-  document.body.classList.toggle('gameover-ui-pending',isClear);
+  document.body.classList.toggle('game-clear-first-run',firstRunClear);
+  document.body.classList.toggle('gameover-ui-pending',isClear&&!firstRunClear);
   document.body.classList.add('gameover-active','battle-victory-pending');
   ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
     const el=document.getElementById(id);
@@ -1746,7 +1824,15 @@ function gameOver(options){
   const tint=document.getElementById('gameover-video-tint');
   const rewardBgVideo=document.getElementById('reward-bg-video');
   if(rewardBgVideo){ try{ rewardBgVideo.pause(); }catch(_e){} }
-  if(video){
+  if(video&&firstRunClear){
+    if(video._gameOverFadeAnimation) video._gameOverFadeAnimation.cancel();
+    if(video._gameOverFadeFrame) cancelAnimationFrame(video._gameOverFadeFrame);
+    video.classList.remove('is-visible');
+    try{ video.pause(); video.currentTime=0; }catch(_e){}
+    video.style.opacity='0';
+    video.style.visibility='hidden';
+    if(tint){ tint.style.opacity='0'; tint.style.visibility='hidden'; }
+  }else if(video){
     if(video._gameOverFadeAnimation) video._gameOverFadeAnimation.cancel();
     if(video._gameOverFadeFrame) cancelAnimationFrame(video._gameOverFadeFrame);
     video.classList.remove('is-visible');

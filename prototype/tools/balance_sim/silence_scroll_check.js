@@ -64,7 +64,8 @@ let checked = 0;
 for (const row of rows) {
   if (ONLY && !row.name.includes(ONLY)) continue;
   // 封印は効果ではなく状態（戦闘開始時に封印されている体は巻物の対象外）。
-  if (/封印/.test((row.unit.keywords || []).join(' ') + row.unit.desc)) continue;
+  const effectTexts=(row.unit.effectData&&row.unit.effectData.effectTexts||[]).join(' ');
+  if (/封印/.test((row.unit.keywords || []).join(' ') + row.unit.desc + effectTexts)) continue;
   for (const scenario of ['live', 'death']) {
     checked++;
     try {

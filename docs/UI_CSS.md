@@ -350,3 +350,5 @@ console.log('実カード', (w*scale).toFixed(2)+'px', '／ CSS指定', w+'px');
 **特殊マス専用のカードのドラッグ（2026-09-25）**：ファラなど `_npcDeployOnly` のカードを持っている間は、置けるマス（特殊マス）を全部 `.npc-drop-hint` で光らせる（重ねたマスだけの `.drag-over` とは別）。盤面はドラッグ中にも描き直されるので、`reward.js: _syncNpcDropHints()` がドラッグの終わりまで毎フレーム付け直す。
 
 **共通の確認窓の追加指定（2026-09-25）**：`showGameConfirm` の `okTone:'blue'` で OK を青（button_blue1.svg。闘技場の「続ける」）、`allowOptions:true` で確認窓の上にオプションボタン（`#game-confirm-options`、画面のオプションボタンと同じ位置・見た目）を出す（闘技場継戦確認・クエスト失敗警告）。開いたオプション画面は確認窓より手前（`#options-layer.is-open{z-index:2000001}`）。
+
+**所持金・ライフ・マナ・血の枠内配置（2026-09-30）**：文字（所持金・ライフ）とアイコン（マナ・血）は枠の左端から50px、値は枠の右端から50pxに右揃え。マナ・血の値も中央揃えにしない（3桁でもアイコンと重ならない）。マナ・血の枠は border 25px の内側が基準なので CSS では 25px（index.html の `#battle-counters .battle-counter-content>span` 周辺）。

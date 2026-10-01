@@ -12,6 +12,10 @@
 
 const QUEST_TAVERN_VARIANT='_1';
 const QUEST_TOWER_VARIANT='_2';
+const FIVE_SAINTS_ENGRAVING_NOS=['E066','E076','E077','E078','E079','E080'];
+const FIVE_SAINTS_SYMBOL_X=[1875,1965,2055,2145];
+const FIVE_SAINTS_SYMBOL_TOP=155;
+const FIVE_SAINTS_CURRENT_PULSE_MS=4000;
 // Q007 の木箱を失った時に、1個あたり支払う金額。
 const Q007_CARGO_LOSS_GOLD_PER_BOX=100;
 // 設計座標。写し身は同じ素材を別インスタンス（key）として扱う。
@@ -72,6 +76,9 @@ const TAVERN_PORTRAIT_CONFIG={
   MC006:{src:'assets/art/sprites/MC006.webp',x:2142,y:102,width:2077,height:4452},
   MC007:{src:'assets/art/sprites/MC007.webp',x:2735,y:1015,width:1085,height:1288},
   MC008:{src:'assets/art/sprites/MC008.webp',x:2700,y:1090,width:1152,height:1183},
+  MC009:{src:'assets/art/sprites/MC009.webp',x:2060,y:185,width:2455,height:4118},
+  // 蝕界の塔の1周目到着イベント。素材の原寸で指定座標へ置く。
+  MC010:{src:'assets/art/sprites/MC010.webp',x:2350,y:150,width:1885,height:3678},
 };
 const TAVERN_PORTRAIT_FADE_MS=480;
 const TAVERN_FACE_FADE_MS=1000;   // 表情の差分のフェードイン（0.48秒では早すぎた。2026-09-25 利用者指摘）
@@ -159,6 +166,359 @@ function _qText(key,fallback){
 
 function _qWait(ms){
   return new Promise(resolve=>window.setTimeout(resolve,Math.max(0,Number(ms)||0)));
+}
+
+function _fiveSaintsState(){
+  if(typeof G==='undefined'||!G) return {visited:false,offeredNos:[],offers:{},decisions:{},targets:{}};
+  if(!G._fiveSaints||typeof G._fiveSaints!=='object'||Array.isArray(G._fiveSaints)) G._fiveSaints={};
+  const state=G._fiveSaints;
+  state.visited=!!state.visited;
+  if(!Array.isArray(state.offeredNos)) state.offeredNos=[];
+  for(const key of ['offers','decisions','targets']){
+    if(!state[key]||typeof state[key]!=='object'||Array.isArray(state[key])) state[key]={};
+  }
+  return state;
+}
+function fiveSaintsAcceptedCount(source){
+  const raw=source||((typeof G!=='undefined'&&G)?_fiveSaintsState():{});
+  const decisions=raw&&raw.decisions&&typeof raw.decisions==='object'?raw.decisions:raw;
+  return Object.values(decisions||{}).filter(value=>value===true||(value&&value.accepted===true)).length;
+}
+function fiveSaintsShouldAdvanceToStageFive(source){ return fiveSaintsAcceptedCount(source)>=2; }
+function fiveSaintsRewardTitle(){ return _qText('「五聖の座」見出し','五聖の座'); }
+function fiveSaintsRewardSlotTitle(){
+  // 「五聖の座」見出しは画面左上の表示。報酬枠はこの行だけを使う（2026-10-01 利用者指定）。
+  return _qText('「五聖の座の報酬枠」見出し','力の枷');
+}
+function _fiveSaintsTalkRow(key){
+  const all=(typeof window!=='undefined'&&window.TALK_MESSAGES)||{};
+  return (all['塔']||{})[key]||{};
+}
+function _fiveSaintsTalkLines(row,keys){
+  // 表情画像のIDは話者A/Bとは独立している。MC009が話している行でも
+  // MC001_* は同席している主人公側の表情差分としてそのまま反映する。
+  return (keys||[]).map(key=>row&&row[key]).filter(line=>line&&String(line.text||'').trim())
+    .map(line=>({...line}));
+}
+
+function _fiveSaintsWave(){ return Math.max(1,Math.min(4,Number(G&&G._wave)||1)); }
+function _fiveSaintsDecisionAt(wave,state){
+  const value=(state||_fiveSaintsState()).decisions[String(wave)];
+  if(value===true||value===false) return {accepted:value};
+  return value&&typeof value==='object'?value:null;
+}
+function fiveSaintsCurrentTowerResolved(){
+  if(typeof G==='undefined'||!G) return false;
+  const decision=_fiveSaintsDecisionAt(_fiveSaintsWave(),_fiveSaintsState());
+  return !!(decision&&(decision.accepted||decision.blocked));
+}
+function _fiveSaintsCheckpoint(){
+  if(typeof SaveRun==='undefined'||!SaveRun.enabled()) return false;
+  return SaveRun.checkpoint('tower');
+}
+function _fiveSaintsOfferNo(wave){
+  const state=_fiveSaintsState();
+  const key=String(wave);
+  if(FIVE_SAINTS_ENGRAVING_NOS.includes(String(state.offers[key]||''))) return state.offers[key];
+  const used=new Set([
+    ...state.offeredNos,
+    ...Object.values(state.offers),
+  ].map(no=>String(no||'').toUpperCase()).filter(Boolean));
+  let candidates=FIVE_SAINTS_ENGRAVING_NOS.filter(no=>!used.has(no));
+  if(!candidates.length) candidates=FIVE_SAINTS_ENGRAVING_NOS.slice();
+  const choose=()=>candidates[Math.floor(rand()*candidates.length)];
+  const no=typeof runWithKeyedRandom==='function'
+    ?runWithKeyedRandom(`five-saints:engraving:${wave}`,choose):choose();
+  state.offers[key]=no;
+  if(!state.offeredNos.includes(no)) state.offeredNos.push(no);
+  return no;
+}
+function _fiveSaintsTargetSlot(wave,no){
+  const state=_fiveSaintsState();
+  const key=String(wave);
+  if(String(no)!=='E076') return null;
+  const saved=Number(state.targets[key]);
+  if(Number.isInteger(saved)&&saved>=0&&saved<15) return saved;
+  const board=Array.isArray(G&&G.mainBoard)?G.mainBoard:[];
+  const empty=Array.from({length:15},(_,i)=>i).filter(i=>!board[i]);
+  const movable=Array.from({length:15},(_,i)=>i).filter(i=>{
+    const card=board[i];
+    return card&&!(_cardIsEngraved(card)||_cardIsSuppressionEngraving(card));
+  });
+  const candidates=empty.length?empty:(movable.length?movable:Array.from({length:15},(_,i)=>i));
+  const choose=()=>candidates[Math.floor(rand()*candidates.length)];
+  const target=typeof runWithKeyedRandom==='function'
+    ?runWithKeyedRandom(`five-saints:suppression-slot:${wave}`,choose):choose();
+  state.targets[key]=target;
+  return target;
+}
+function _fiveSaintsMakeOfferCard(wave){
+  const no=_fiveSaintsOfferNo(wave);
+  const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))
+    ?PANEL_POOL.find(card=>_qCardNo(card)===no):null;
+  const card=def&&typeof makePanel==='function'?makePanel(def.id||def.name):null;
+  if(!card) return null;
+  card._buyPrice=0;
+  card.cost=0;
+  card.noRewardUse=true;
+  card._isOriginalReward=true;
+  card._fiveSaintsOfferCard=true;
+  card._fiveSaintsOfferWave=wave;
+  card._fiveSaintsOfferNo=no;
+  const target=_fiveSaintsTargetSlot(wave,no);
+  if(target!=null) card._fixedBoardSlot=target;
+  return card;
+}
+function fiveSaintsCardCanUseBoardSlot(card,slotIdx){
+  if(!card||!card._fiveSaintsOfferCard||String(card._fiveSaintsOfferNo||_qCardNo(card))!=='E076') return true;
+  const target=Number(card._fixedBoardSlot);
+  return Number.isInteger(target)&&Number(slotIdx)===target;
+}
+function _fiveSaintsPlacedCard(context){
+  const ctx=context||_qFormationContext;
+  if(!ctx||ctx.mode!=='fiveSaints') return null;
+  return (G.mainBoard||[]).find(card=>card&&card._fiveSaintsOfferCard
+    &&Number(card._fiveSaintsOfferWave)===Number(ctx.wave))||null;
+}
+function _fiveSaintsRenderDecor(options){
+  const opts=options||{};
+  const screen=document.getElementById('scr-village');
+  if(!screen) return;
+  document.getElementById('five-saints-decor')?.remove();
+  const state=_fiveSaintsState();
+  const wave=_fiveSaintsWave();
+  const host=document.createElement('div');
+  host.id='five-saints-decor';
+  const approval=document.createElement('img');
+  approval.className='five-saints-approval';
+  approval.src='assets/ui/approval.svg';
+  approval.alt='';
+  const primary=document.createElement('img');
+  primary.className='five-saints-primary';
+  primary.src='assets/ui/symbol1.svg';
+  primary.alt='';
+  const divider=document.createElement('span');
+  divider.className='five-saints-divider';
+  host.append(approval,primary,divider);
+  FIVE_SAINTS_SYMBOL_X.forEach((x,index)=>{
+    const tower=index+1;
+    const stored=_fiveSaintsDecisionAt(tower,state);
+    // 今の塔で拒否しただけなら、まだ受諾できる（再入場で台詞2から）ので未決のまま明滅させる。
+    const decision=(tower===wave&&stored&&!stored.accepted&&!stored.blocked)?null:stored;
+    const symbol=document.createElement('span');
+    symbol.className='five-saints-symbol';
+    symbol.style.left=`${x}px`;
+    if(decision){
+      const img=document.createElement('img');
+      img.src=decision.accepted?'assets/ui/symbol1.svg':'assets/ui/symbol2.svg';
+      img.alt='';
+      symbol.appendChild(img);
+    }else if(tower<wave){
+      const img=document.createElement('img');
+      img.src='assets/ui/symbol2.svg';
+      img.alt='';
+      symbol.appendChild(img);
+    }else symbol.classList.add('is-pending');
+    // 受諾してsymbol1.svgになった塔は、もう明滅させない（2026-10-01 利用者指定）。
+    if(tower===wave&&!decision&&Number(opts.newlyAccepted)!==tower) symbol.classList.add('is-current');
+    if(Number(opts.newlyAccepted)===tower) symbol.classList.add('is-newly-accepted');
+    host.appendChild(symbol);
+  });
+  screen.appendChild(host);
+}
+function _fiveSaintsShowScene(options){
+  _qEnsureStyle();
+  _qRemoveDialogue();
+  void _qClearPresentation({immediate:true});
+  G._isFiveSaints=true;
+  G._isTavern=false;
+  G._isVillageMenu=false;
+  G._isShop=false; G._isForge=false; G._isItemShop=false; G._isRingExchange=false; G._isLibrary=false;
+  G._isWaveAltar=true;
+  G._facilityLabel=_qText('塔「五聖の座」ボタン','五聖の座');
+  G.phase='reward';
+  document.body.classList.remove('world-map-active','reward-screen-active','five-saints-formation-active');
+  document.body.classList.add('five-saints-active');
+  if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
+  if(typeof showScreen==='function') showScreen('village');
+  if(typeof renderVillageScreen==='function') renderVillageScreen();
+  _fiveSaintsRenderDecor(options);
+  // Aキャラ（主人公 MC001）は原則として出す（2026-10-01 利用者指定）。
+  void showTavernPortrait('MC001',{screen:'village'});
+  void showTavernPortrait('MC009',{screen:'village',key:'five-saints-mc009'});
+}
+async function _fiveSaintsLeaveToTower(options){
+  _qRemoveDialogue();
+  const delay=options&&options.delay!=null?Math.max(0,Number(options.delay)||0):TAVERN_LEAVE_DELAY_MS;
+  if(delay) await _qWait(delay);
+  if(!G||!G._isFiveSaints) return;
+  const leave=()=>{
+    _qFormationContext=null;
+    void _qClearPresentation({immediate:true});
+    document.getElementById('five-saints-decor')?.remove();
+    document.body.classList.remove('five-saints-active','five-saints-formation-active','reward-screen-active');
+    G._isFiveSaints=false;
+    if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
+    if(typeof openMapVillage==='function') openMapVillage({tower:true});
+  };
+  if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(leave); else leave();
+}
+function fiveSaintsSyncTargetGlow(){
+  document.querySelectorAll('.five-saints-target-glow').forEach(el=>el.remove());
+  const ctx=_qFormationContext;
+  if(!G||!G._isFiveSaints||!ctx||ctx.mode!=='fiveSaints'||ctx.no!=='E076'||_fiveSaintsPlacedCard(ctx)) return;
+  const slot=document.querySelector(`#hand-slots.board-slots > :nth-child(${Number(ctx.targetSlot)+1})`);
+  if(!slot) return;
+  const glow=document.createElement('span');
+  glow.className='five-saints-target-glow';
+  slot.appendChild(glow);
+}
+function syncFiveSaintsFormationControls(){
+  if(!G||!G._isFiveSaints||G.phase!=='reward'||!_qFormationContext||_qFormationContext.mode!=='fiveSaints') return;
+  const host=document.getElementById('reward-move-btns');
+  const button=host&&host.querySelector('.rew-move-btn');
+  if(!button) return;
+  const accepted=!!_fiveSaintsPlacedCard();
+  button.disabled=!!(G._pendingPanelPlacement||G._fiveSaintsResolving);
+  button.classList.toggle('disabled',button.disabled);
+  button.innerHTML=`<span class="rew-btn-label">${_qText(accepted?'「受諾」ボタン':'「拒否」ボタン',accepted?'受諾':'拒否')}</span>`;
+  button.onclick=()=>{
+    if(button.disabled||G._pendingPanelPlacement||G._fiveSaintsResolving) return;
+    if(accepted) void _fiveSaintsAccept();
+    else void _fiveSaintsReject();
+  };
+  fiveSaintsSyncTargetGlow();
+}
+function _fiveSaintsOpenFormationNow(){
+  const wave=_fiveSaintsWave();
+  const no=_fiveSaintsOfferNo(wave);
+  const targetSlot=_fiveSaintsTargetSlot(wave,no);
+  _qFormationContext={mode:'fiveSaints',wave,no,targetSlot};
+  _qRemoveDialogue();
+  void _qClearPresentation({immediate:true});
+  G._isFiveSaints=true;
+  G._isTavern=false; G._isVillageMenu=false; G._isShop=false; G._isForge=false;
+  G._isItemShop=false; G._isRingExchange=false; G._isLibrary=false;
+  G._isWaveAltar=true;
+  G._facilityLabel=_qText('塔「五聖の座」ボタン','五聖の座');
+  G._mapReturnAfterReward=true;
+  G._freeRewardPanelMode=true;
+  G._rewardOnePickMode=true;
+  G.phase='reward';
+  document.getElementById('five-saints-decor')?.remove();
+  document.body.classList.remove('village-screen-active','five-saints-active');
+  document.body.classList.add('reward-screen-active','five-saints-formation-active');
+  if(typeof showScreen==='function') showScreen('battle');
+  if(typeof _setOverrideBackground==='function') _setOverrideBackground('towerLanding');
+  if(typeof goToReward==='function') goToReward();
+  const card=_fiveSaintsMakeOfferCard(wave);
+  if(typeof _rewCards!=='undefined') _rewCards=card?[card]:[];
+  if(typeof _rewFreePickDone!=='undefined') _rewFreePickDone=false;
+  if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
+  if(typeof renderRewCards==='function') renderRewCards();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderFieldEditor==='function') renderFieldEditor();
+  if(typeof renderMoveSlotsInEnemy==='function') renderMoveSlotsInEnemy();
+  syncQuestFormationUi();
+  syncFiveSaintsFormationControls();
+  fiveSaintsSyncTargetGlow();
+  _fiveSaintsCheckpoint();
+}
+async function _fiveSaintsOpenFormation(){
+  if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(_fiveSaintsOpenFormationNow);
+  else _fiveSaintsOpenFormationNow();
+}
+async function _fiveSaintsAccept(){
+  const ctx=_qFormationContext;
+  const card=_fiveSaintsPlacedCard(ctx);
+  if(!ctx||!card||G._fiveSaintsResolving) return;
+  G._fiveSaintsResolving=true;
+  try{
+    const state=_fiveSaintsState();
+    state.decisions[String(ctx.wave)]={accepted:true,no:ctx.no,slot:(G.mainBoard||[]).indexOf(card)};
+    delete card._fiveSaintsOfferCard;
+    delete card._fiveSaintsOfferWave;
+    delete card._fiveSaintsOfferNo;
+    delete card._rewardReturnCard;
+    delete card._rewardReturnIdx;
+    delete card._rewardReturnPhaseId;
+    if(ctx.no==='E076') card._fixedBoardSlot=(G.mainBoard||[]).indexOf(card);
+    if(typeof _rewCards!=='undefined') _rewCards=[];
+    G._pendingPanelPlacement=null;
+    _qFormationContext=null;
+    _fiveSaintsCheckpoint();
+    const show=()=>_fiveSaintsShowScene({newlyAccepted:ctx.wave});
+    if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(show); else show();
+    const row=_fiveSaintsTalkRow('塔「五聖の座」入場時');
+    await _qStartDialogue(_fiveSaintsTalkLines(row,['台詞3']),{screen:'village'});
+    // 承諾後は、五聖側の立ち絵を下端から烟のように消してから塔へ戻る。
+    await _qSmokePortraitUp('five-saints-mc009');
+    await _fiveSaintsLeaveToTower({delay:0});
+  }finally{ G._fiveSaintsResolving=false; }
+}
+async function _fiveSaintsReject(){
+  const ctx=_qFormationContext;
+  if(!ctx||_fiveSaintsPlacedCard(ctx)||G._fiveSaintsResolving) return;
+  G._fiveSaintsResolving=true;
+  try{
+    const state=_fiveSaintsState();
+    state.decisions[String(ctx.wave)]={accepted:false,no:ctx.no};
+    if(typeof _rewCards!=='undefined') _rewCards=[];
+    G._pendingPanelPlacement=null;
+    _qFormationContext=null;
+    _fiveSaintsCheckpoint();
+    const show=()=>_fiveSaintsShowScene();
+    if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(show); else show();
+    const row=_fiveSaintsTalkRow('塔「五聖の座」入場時');
+    await _qStartDialogue(_fiveSaintsTalkLines(row,['特殊台詞A1']),{screen:'village'});
+    await _fiveSaintsLeaveToTower();
+  }finally{ G._fiveSaintsResolving=false; }
+}
+async function _fiveSaintsRunEntry(firstVisit){
+  const state=_fiveSaintsState();
+  const wave=_fiveSaintsWave();
+  const initial=_fiveSaintsTalkRow('塔「五聖の座」初回入場時');
+  const entry=_fiveSaintsTalkRow('塔「五聖の座」入場時');
+  if(firstVisit){
+    await _qStartDialogue(_fiveSaintsTalkLines(initial,['台詞1','台詞2','台詞3']),{screen:'village'});
+    if(!G||!G._isFiveSaints) return;
+    // 初回台詞を最後まで見た時点で保存する。入場直後にvisitedを立てると、
+    // 台詞の途中で再開したランが初回台詞を飛ばしてしまう。
+    state.visited=true;
+    _fiveSaintsCheckpoint();
+  }
+  if(!G||!G._isFiveSaints) return;
+  const noEarlierAcceptance=wave===4&&[1,2,3].every(tower=>!(_fiveSaintsDecisionAt(tower,state)||{}).accepted);
+  if(noEarlierAcceptance){
+    await _qStartDialogue(_fiveSaintsTalkLines(entry,['台詞1']),{screen:'village'});
+    state.decisions[String(wave)]={accepted:false,blocked:true};
+    _fiveSaintsCheckpoint();
+    _fiveSaintsRenderDecor();
+    await _qStartDialogue(_fiveSaintsTalkLines(entry,['特殊台詞B1']),{screen:'village'});
+    await _fiveSaintsLeaveToTower();
+    return;
+  }
+  const stored=_fiveSaintsDecisionAt(wave,state);
+  // 通常の拒否はこの塔で再び提示できる。蝕界の特殊終了と受諾だけを確定済みとする。
+  const decided=stored&&(stored.accepted||stored.blocked)?stored:null;
+  const retryAfterRefusal=!!(stored&&!stored.accepted&&!stored.blocked);
+  // 同じ塔で拒否した後の再入場は台詞1を飛ばし、台詞2から再開する。
+  if(!firstVisit&&!retryAfterRefusal) await _qStartDialogue(_fiveSaintsTalkLines(entry,['台詞1']),{screen:'village'});
+  if(!G||!G._isFiveSaints) return;
+  if(decided){
+    await _qStartDialogue(_fiveSaintsTalkLines(entry,[decided.accepted?'台詞3':'特殊台詞A1']),{screen:'village'});
+    await _fiveSaintsLeaveToTower();
+    return;
+  }
+  await _qStartDialogue(_fiveSaintsTalkLines(entry,['台詞2']),{screen:'village'});
+  if(G&&G._isFiveSaints) await _fiveSaintsOpenFormation();
+}
+function openFiveSaintsSeat(){
+  if(!G||G._isFiveSaints) return;
+  const state=_fiveSaintsState();
+  const firstVisit=!state.visited;
+  _fiveSaintsShowScene();
+  void _fiveSaintsRunEntry(firstVisit);
 }
 
 function _qEnsureStyle(){
@@ -292,6 +652,29 @@ html body .reward-prod-quest-body p.reward-prod-quest-main{
    会話中もホバー説明を出せるようにする（ここを押しても台詞は送らない）。 */
 html body:is(.tavern-village-active,.tavern-tower-event-active,.quest-town-event-active) #village-name-plate{z-index:130!important}
 html body:is(.tavern-village-active,.tavern-tower-event-active,.quest-town-event-active) #village-status{z-index:5100!important}
+/* 五聖の座だけに重ねる承認表示。座標は3840×2160のゲーム座標。 */
+#five-saints-decor{position:absolute!important;inset:0!important;z-index:126!important;pointer-events:none!important}
+#five-saints-decor .five-saints-approval{position:absolute!important;left:1650px!important;top:115px!important;width:650px!important;height:150px!important}
+#five-saints-decor .five-saints-primary{position:absolute!important;left:1735px!important;top:145px!important;width:90px!important;height:90px!important}
+#five-saints-decor .five-saints-divider{position:absolute!important;left:1850px!important;top:160px!important;width:2.667px!important;height:60px!important;
+  background:linear-gradient(180deg,#bf9000 0%,#8a5c12 100%)!important}
+#five-saints-decor .five-saints-symbol{position:absolute!important;top:${FIVE_SAINTS_SYMBOL_TOP}px!important;width:70px!important;height:70px!important;
+  transform-origin:center!important;filter:none}
+#five-saints-decor .five-saints-symbol.is-pending{background:#6d6d6d!important;
+  -webkit-mask:url("assets/ui/symbol1.svg") center/100% 100% no-repeat!important;
+  mask:url("assets/ui/symbol1.svg") center/100% 100% no-repeat!important}
+#five-saints-decor .five-saints-symbol img{display:block!important;width:70px!important;height:70px!important;max-width:none!important;max-height:none!important}
+#five-saints-decor .five-saints-symbol.is-current{animation:five-saints-current-pulse ${FIVE_SAINTS_CURRENT_PULSE_MS}ms ease-in-out infinite!important}
+#five-saints-decor .five-saints-symbol.is-newly-accepted{animation:five-saints-accepted-glow 1200ms ease-out 1!important}
+@keyframes five-saints-current-pulse{0%,100%{filter:brightness(.3)}50%{filter:brightness(2.35) drop-shadow(0 0 18px rgba(255,218,93,.8))}}
+@keyframes five-saints-accepted-glow{0%{filter:brightness(.15)}45%{filter:brightness(3) drop-shadow(0 0 30px rgba(255,218,93,1))}100%{filter:brightness(1)}}
+html body.five-saints-active #village-facilities,
+html body.five-saints-active #village-move-btns{display:none!important}
+html body.reward-screen-active.five-saints-formation-active #scr-battle > #tavern-presentation-layer{z-index:-1!important}
+.five-saints-target-glow{position:absolute!important;inset:-10px!important;border:5px solid rgba(79,177,255,.95)!important;
+  box-shadow:0 0 18px 7px rgba(38,150,255,.9),inset 0 0 18px rgba(61,178,255,.75)!important;
+  border-radius:12px!important;pointer-events:none!important;z-index:90!important;animation:five-saints-target-pulse 1500ms ease-in-out infinite!important}
+@keyframes five-saints-target-pulse{0%,100%{opacity:.45}50%{opacity:1}}
 `;
   document.head.appendChild(style);
 }
@@ -875,6 +1258,7 @@ function _qClearOfferCardMarks(){
 // クエスト枠に出す説明文。受託して進行中の間だけ出す。
 // 酒場の依頼の編成窓では、受ける前の依頼として出す（拒否した後は、枠の外では出さない）。
 function _qDescription(){
+  if(G&&G._isFiveSaints) return '';
   const active=_qActiveEntry();
   if(active) return String(active.description||(_qQuestData(active.tavernVariant)||{}).description
     ||(_qQuestData(active.towerVariant)||{}).description||'').trim();
@@ -953,8 +1337,9 @@ function syncQuestFormationUi(){
   _qSyncQuestBody();
   const body=document.body;
   if(!body) return;
-  const title=questTavernRewardTitle();
-  if(G&&G.phase==='reward'&&G._isTavern){
+  const fiveSaints=!!(G&&G.phase==='reward'&&G._isFiveSaints);
+  const title=fiveSaints?fiveSaintsRewardSlotTitle():questTavernRewardTitle();
+  if(G&&G.phase==='reward'&&(G._isTavern||fiveSaints)){
     body.classList.add('tavern-screen-active');
     body.style.setProperty('--title-reward',JSON.stringify(title));
   }else{
@@ -963,6 +1348,7 @@ function syncQuestFormationUi(){
   }
   const panel=document.querySelector('.reward-prod-quest');
   if(panel) panel.classList.toggle('quest-active',!!_qDescription());
+  body.classList.toggle('five-saints-formation-active',fiveSaints&&!!(_qFormationContext&&_qFormationContext.mode==='fiveSaints'));
 }
 
 function _qMarkFailed(entry){
@@ -1427,6 +1813,73 @@ async function _qSlidePortrait(spec,screen){
   img.style.removeProperty('transition');
 }
 
+// 立ち絵と現在の表情差分を、座標を変えずに1つの演出層へまとめる。
+// フェード中に本体の元の顔が透けないよう、立ち絵と表情は必ず同じ層で動かす。
+function _qTakePortraitAnimationGroup(key,className){
+  const host=document.getElementById('tavern-presentation-layer');
+  const portrait=host&&host.querySelector(`.tavern-portrait[data-portrait-key="${key}"]`);
+  if(!host||!portrait) return null;
+  const faces=[...host.querySelectorAll(`.tavern-face[data-face-portrait-key="${key}"]`)];
+  const group=document.createElement('div');
+  group.className=className||'tavern-portrait-animation-group';
+  group.style.cssText='position:absolute;inset:0;pointer-events:none;opacity:1';
+  group.style.zIndex=portrait.style.zIndex||'0';
+  host.insertBefore(group,portrait);
+  [portrait,...faces].forEach(el=>group.appendChild(el));
+  return {host,portrait,faces,group};
+}
+
+// ギャラハの1周目酒場用。A立ち絵と表情を一緒に左右反転し、フェードしながら画面左へ送り出す。
+async function _qFlipSlidePortraitLeft(key){
+  const taken=_qTakePortraitAnimationGroup(key||'MC001','tavern-portrait-exit-group');
+  if(!taken) return false;
+  const {portrait,group}=taken;
+  const x=parseFloat(portrait.style.left)||0;
+  const y=parseFloat(portrait.style.top)||0;
+  const width=parseFloat(portrait.style.width)||0;
+  const height=parseFloat(portrait.style.height)||0;
+  group.style.transformOrigin=`${x+width/2}px ${y+height/2}px`;
+  group.style.transform='translate3d(0,0,0) scaleX(1)';
+  group.style.transition=`transform 900ms cubic-bezier(.42,0,.75,.58),opacity ${TAVERN_PORTRAIT_SLIDE_MS}ms ease`;
+  void group.offsetWidth;
+  requestAnimationFrame(()=>{
+    group.style.transform='translate3d(-2300px,0,0) scaleX(-1)';
+    group.style.opacity='0';
+  });
+  await _qWait(920);
+  group.remove();
+  return true;
+}
+
+// 五聖の座の受諾後用。マスクの境界を下端から上へ進め、
+// 少し揺らぎながら立ち上るように透明化する。
+async function _qSmokePortraitUp(key){
+  const taken=_qTakePortraitAnimationGroup(key,'five-saints-smoke-group');
+  if(!taken) return false;
+  const {group}=taken;
+  const duration=1500;
+  const started=performance.now();
+  await new Promise(resolve=>{
+    const tick=now=>{
+      const p=Math.max(0,Math.min(1,(now-started)/duration));
+      const edge=p*112-12;
+      const transparentEnd=Math.max(0,Math.min(100,edge));
+      const opaqueStart=Math.max(0,Math.min(100,edge+12));
+      const mask=`linear-gradient(to top,transparent 0%,transparent ${transparentEnd}%,rgba(0,0,0,.34) ${opaqueStart}%,#000 ${Math.min(100,opaqueStart+5)}%)`;
+      group.style.webkitMaskImage=mask;
+      group.style.maskImage=mask;
+      group.style.opacity=String(1-Math.max(0,(p-.72)/.28));
+      group.style.transform=`translate3d(${Math.sin(p*Math.PI*6)*12*p}px,${-90*p}px,0) scale(${1+p*.018})`;
+      group.style.filter=`blur(${p*2.2}px)`;
+      if(p<1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+  group.remove();
+  return true;
+}
+
 async function _qReplacePortraitWhite(fromKey,spec,screen){
   const host=document.getElementById('tavern-presentation-layer');
   const old=host&&host.querySelector(`.tavern-portrait[data-portrait-key="${fromKey}"]`);
@@ -1470,9 +1923,12 @@ function questForceEndEventForDebug(){
   _qFormationContext=null;
   void _qClearPresentation({immediate:true});
   document.querySelectorAll('.quest-event-shade,.tavern-name-plate').forEach(el=>el.remove());
+  document.getElementById('five-saints-decor')?.remove();
+  document.querySelectorAll('.five-saints-target-glow').forEach(el=>el.remove());
   document.body.classList.remove('tavern-village-active','tavern-screen-active','quest-town-event-active',
-    'tavern-tower-event-active','quest-camp-scene','facility-greeting-active','facility-bg-active');
-  if(G){ G._isTavern=false; G._questCampScene=false; G._facilityGreetingKey=null; }
+    'tavern-tower-event-active','quest-camp-scene','facility-greeting-active','facility-bg-active',
+    'five-saints-active','five-saints-formation-active');
+  if(G){ G._isTavern=false; G._isFiveSaints=false; G._questCampScene=false; G._facilityGreetingKey=null; }
   if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
 }
 
@@ -3175,6 +3631,16 @@ if(typeof window!=='undefined'){
   window.questGarmPreviewStats=questGarmPreviewStats;
   window.syncQuestFormationUi=syncQuestFormationUi;
   window.syncTavernFormationControls=syncTavernFormationControls;
+  window.openFiveSaintsSeat=openFiveSaintsSeat;
+  window.fiveSaintsAcceptedCount=fiveSaintsAcceptedCount;
+  window.fiveSaintsShouldAdvanceToStageFive=fiveSaintsShouldAdvanceToStageFive;
+  window.fiveSaintsCurrentTowerResolved=fiveSaintsCurrentTowerResolved;
+  window.fiveSaintsRewardTitle=fiveSaintsRewardTitle;
+  window.fiveSaintsRewardSlotTitle=fiveSaintsRewardSlotTitle;
+  window.fiveSaintsCardCanUseBoardSlot=fiveSaintsCardCanUseBoardSlot;
+  window.fiveSaintsSyncTargetGlow=fiveSaintsSyncTargetGlow;
+  window.syncFiveSaintsFormationControls=syncFiveSaintsFormationControls;
+  window.storyFlipSlidePortraitLeft=_qFlipSlidePortraitLeft;
   window.questTavernRewardTitle=questTavernRewardTitle;
   window.questRingOfferActive=questRingOfferActive;
   window.questRingOfferSlotCount=questRingOfferSlotCount;

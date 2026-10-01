@@ -363,6 +363,8 @@ const ONLINE_VERSUS_GOLD = 100;
       const opponent = _makeOpponentFormation(rng, m.stage);
       const sim = simulateOnlineBattle({
         seed: battleSeed,
+        mapIndex: Math.max(1, Number(selfFormation && selfFormation.mapIndex) || Number(m.stage) || 1),
+        stageNumber: Math.max(1, Number(selfFormation && selfFormation.stageNumber) || Number(m.stage) || 1),
         sides: {
           p1: { units: (selfFormation && selfFormation.units) || [] },
           p2: opponent,

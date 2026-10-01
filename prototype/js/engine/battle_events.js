@@ -383,7 +383,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     // **再生するイベントの一覧。ここに無い種類は下の分岐まで届かない。**
     // 逃走（fled）が抜けていたため、武器破壊でATKが0になっても FLED 表示が出なかった。
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='shield_set'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='gold_spend'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='shield_set'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
     if(e.type==='sweep_vfx'){
       const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       const foeSide=e.side==='p1'?'p2':'p1';
@@ -647,6 +647,15 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         updateHud:()=>updateHUD(),
         trace:info=>_recordBattleTrace('gold_vfx_start',info),
       });
+      continue;
+    }
+    if(e.type==='gold_spend'){
+      if(e.side==='p1'){
+        const amount=Math.max(0,Number(e.amount)||0);
+        _recordBattleTrace('gold_state_spend',{unitId:e.unitId,amount});
+        G.gold=Math.max(0,(Number(G.gold)||0)-amount);
+        if(typeof updateHUD==='function') updateHUD();
+      }
       continue;
     }
     if(e.type==='transform'){

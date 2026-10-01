@@ -35,6 +35,16 @@ const WAVE=1;
       return b.eval(single?`return (${code.replace(/;\s*$/,'')});`:code);
     };
     b.until=(expr,timeout=20000)=>b.waitFor(expr,timeout,80);
+    // 酒場・宿屋・五聖の座の本来の流れを確かめる検査なので、2周目以降（クリア済み）として動かす。
+    // 1周目は酒場が「ノックの会話」だけになる（周回の違いは story_cycle_check.js が確かめる）。
+    const _goto=b.goto.bind(b);
+    b.goto=async(...args)=>{
+      const r=await _goto(...args);
+      // リーゼ到着時の周回イベント（地名演出後の会話）も出さない。出ている間に別の街へ飛ぶと会話が残る。
+      await b.eval(`if(typeof SaveProfile!=='undefined')SaveProfile.hasClearedRun=()=>true;
+        if(typeof _storyArrivalSpec==='function')window._storyArrivalSpec=()=>null;return 1;`).catch(()=>{});
+      return r;
+    };
     await b.goto(URL,2500);
     await b.until('typeof G!=="undefined"&&window.QUEST_DATA&&window.QUEST_DATA.Q003_1&&typeof PANEL_POOL!=="undefined"&&PANEL_POOL.length>20&&typeof questDebugForceWaveQuest==="function"',30000);
     return b;

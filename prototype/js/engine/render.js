@@ -4404,6 +4404,12 @@ function _enchantEffectTextForPanel(p){
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.includes(p.name)&&(p.desc||p.effectText||p.effect)){
     return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect,p.name);
   }
+  // 刻印6種は「刻印」を付与しつつ、それとは別に固有の効果文を持つ。
+  // キーワード説明だけへ畳むと、接続先キャラクターのプレビューから固有効果が消える。
+  if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.includes('刻印')
+    &&_STAGE_ENGRAVING_NAMES.has(String(p.name||'').trim())){
+    return _plainEffectTextForPreview(p)||'';
+  }
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.length){
     // 付与するキーワードが全て単純キーワード（_ENCHANT_KEYWORD_ONLY）の場合は、
     // 既にキャラクター側の太字キーワード欄に表示されるため、効果文としては重複表示しない
@@ -5456,6 +5462,21 @@ function _annotateSummonNames(desc, owner){
     return note?`${note}${m}`:m;
   });
 }
+const _STAGE_ENGRAVING_NAMES=new Set([
+  '宿業の刻印','抑圧の刻印','受難の刻印','苦悶の刻印','修道の刻印','我慢の刻印',
+]);
+function _stageEngravingDescription(card,desc){
+  const name=String(card&&card.name||'').trim();
+  const no=String(card&&card.no||'').toUpperCase();
+  if(!_STAGE_ENGRAVING_NAMES.has(name)&&!['E066','E076','E077','E078','E079','E080'].includes(no)) return desc;
+  const stage=Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
+  const value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
+  let out=String(desc||'');
+  if(name==='宿業の刻印'||no==='E066'){
+    out=out.replace(/-\s*\d+\s*\/\s*-\s*\d+/,`-${value}/-${value}`);
+  }
+  return out.replace(/X/g,String(value));
+}
 function _rawSubstitutedDesc(card){
   if(!card) return '';
   const g=card.grade||1;
@@ -5465,6 +5486,7 @@ function _rawSubstitutedDesc(card){
     desc=_stripOwnNameFromEffectText(desc,ownName);
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
+  desc=_stageEngravingDescription(card,desc);
   desc=_annotateSummonNames(desc,card);
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。

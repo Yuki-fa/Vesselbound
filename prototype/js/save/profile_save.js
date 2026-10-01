@@ -95,6 +95,19 @@ const SaveProfile=(()=>{
     p.completedRuns[G._runId]={result,endedAt:Date.now()};dirty=true;
     return flush(true);
   }
+  function hasClearedRun(){
+    try{
+      // オプションのシステムデータ削除はSaveStorageを直接消すため、
+      // キャッシュではなく保存媒体を見て、同一ページ内の削除も反映する。
+      const saved=SaveStorage.read('profile',validate);
+      if(!saved){ profile=null;dirty=false;blocked=false;return false; }
+      profile=saved.data;
+      return Object.values(profile.completedRuns||{}).some(run=>run&&run.result==='clear');
+    }catch(error){
+      console.error('[profile] クリア記録の読み込みに失敗しました',error);
+      return Object.values(load().completedRuns||{}).some(run=>run&&run.result==='clear');
+    }
+  }
   function openingMovieShown(){
     // オプションのシステムデータ削除はSaveStorageを直接消すため、
     // キャッシュではなく保存媒体を見て、同一ページ内の削除も反映する。
@@ -123,7 +136,7 @@ const SaveProfile=(()=>{
     p.tutorialsShown[String(key)]=true;dirty=true;
     return flush(true);
   }
-  return {validate,load,flush,enabled,identity,owned,observe,finish,collectionState,resetCache,openingMovieShown,markOpeningMovieShown,tutorialShown,markTutorialShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
+  return {validate,load,flush,enabled,identity,owned,observe,finish,hasClearedRun,collectionState,resetCache,openingMovieShown,markOpeningMovieShown,tutorialShown,markTutorialShown,markCardSeen:card=>mark(card,false),markCardAcquired:card=>mark(card,true)};
 })();
 function markCardSeen(cardId){return SaveProfile.markCardSeen(cardId);}
 function markCardAcquired(cardId){return SaveProfile.markCardAcquired(cardId);}

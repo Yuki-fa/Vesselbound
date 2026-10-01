@@ -1550,20 +1550,32 @@ function main() {
   assert.equal(itemCapEvents.filter(e => e.type === 'summon').length, 1,
     '開戦アイテム召喚の上限拒否が機能していない');
 
-  // 召喚本体とリッチ誘発体は、1体ずつ処理される間に親子順を維持する。
+  // 改名済みの旧効果をカード名だけで発動させない。
   const chained = core.createBattleState({
     sides: {p1: {units: [{id: 'lich', name: 'リッチ', atk: 1, hp: 3, maxHp: 3}]}, p2: {units: []}},
   });
   const chainedEvents = [];
   core.coreSummonUnit(chained, 'p1', {name: 'ペリカン', atk: 1, hp: 1}, e => chainedEvents.push(e), 'lich');
   const chainedSummons = chainedEvents.filter(e => e.type === 'summon');
-  assert.deepEqual(chainedSummons.map(e => e.unit.name), ['ペリカン', 'シャドウ'],
-    'リッチ誘発の召喚順が本体→シャドウになっていない');
-  assert.equal(chainedSummons[1].sourceId, chainedSummons[0].unit.id,
+  assert.deepEqual(chainedSummons.map(e => e.unit.name), ['ペリカン'],
+    'リッチという名前だけで旧シャドウ召喚効果が発動している');
+
+  // 旧効果文そのものを持つ場合は、召喚本体と誘発体の親子順を維持する。
+  const effectChained = core.createBattleState({
+    sides: {p1: {units: [{id: 'summon-watcher', name: '任意名', atk: 1, hp: 3, maxHp: 3,
+      desc: '常時：味方が召喚された時、「青シャドウ」を1体召喚する。'}]}, p2: {units: []}},
+  });
+  const effectChainedEvents = [];
+  core.coreSummonUnit(effectChained, 'p1', {name: 'ペリカン', atk: 1, hp: 1},
+    e => effectChainedEvents.push(e), 'summon-watcher');
+  const effectChainedSummons = effectChainedEvents.filter(e => e.type === 'summon');
+  assert.deepEqual(effectChainedSummons.map(e => e.unit.name), ['ペリカン', 'シャドウ'],
+    '旧効果文による召喚順が本体→シャドウになっていない');
+  assert.equal(effectChainedSummons[1].sourceId, effectChainedSummons[0].unit.id,
     'リッチ誘発体のsourceIdが直前の召喚体になっていない');
   assert.ok(chained.units.p1.filter(u => u && u.hp > 0).length <= 14,
     '連続召喚で戦闘状態の上限を超えている');
-  assert.ok(!chainedSummons.some(e => /^青|^赤|^緑|^黄|^紫/.test(e.unit.name)),
+  assert.ok(!effectChainedSummons.some(e => /^青|^赤|^緑|^黄|^紫/.test(e.unit.name)),
     '召喚キャラクター名に色接頭辞が表示データとして残っている');
 
   const catState = core.createBattleState({

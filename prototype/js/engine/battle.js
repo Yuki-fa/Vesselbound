@@ -888,6 +888,15 @@ function _releaseRepeatCount(unit,isEnemySide){
   return 1+ringExtra+_unitKeywordCount(unit,'禁断の力')+(Number(unit._effectRepeatBonus)||0);
 }
 
+// PvEの各互換フックから共通コアへ渡す現在地。刻印のXは必ず現在のステージを
+// 参照し、保存済みユニットへ以前の値が残っていてもそちらへ戻らないようにする。
+function _pveCoreStageFields(){
+  return {
+    mapIndex:Math.max(1,Number(G.floor)||1),
+    stageNumber:Math.max(1,Number(G._wave)||1),
+  };
+}
+
 // 解放効果のルール本体は共通コアへ委譲する。生贄破棄・VFX・ログはこのファイルの責務。
 async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
   if(!unit||unit.hp<=0||typeof coreApplyReleaseEffects!=='function') return;
@@ -901,6 +910,7 @@ async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -2529,7 +2539,7 @@ function _createPveCoreState(){
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:Math.max(0,Number(G._enemyBlood)||0)},
     // createBattleState() が用意する足場。ここはユニットを複製できないため
     // 手で組むが、**欠けると coreBattleStep() が落ちる**ので必ず揃えること。
-    mapIndex:Math.max(1,Number(G.floor)||1),
+    ..._pveCoreStageFields(),
     turn:0,
     lane:{p1:{lane:'front',attacked:new Set()},p2:{lane:'front',attacked:new Set()}},
     deadUnits:[],
@@ -2546,7 +2556,9 @@ function _createPveCoreState(){
 // コアが判定に使う side/slot を盤面へ焼き付ける。戦闘中は付けたままにする。
 function _stampCoreSideSlots(state){
   ['p1','p2'].forEach(side=>{
-    (state.units[side]||[]).forEach((u,i)=>{ if(!u) return; u.side=side; u.slot=i; });
+    (state.units[side]||[]).forEach((u,i)=>{ if(!u) return; u.side=side; u.slot=i;
+      // 刻印のXは保存済みユニットの古い値ではなく、この戦闘の現在ステージで毎回更新する。
+      u._stageNumber=Math.max(1,Number(state&&state.stageNumber)||Number(G._wave)||1); });
   });
 }
 
@@ -3185,6 +3197,7 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -3760,6 +3773,7 @@ async function _runCoreLiveInjuryEffects(unit, actualDmg, isEnemySide, source, d
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -3882,6 +3896,7 @@ async function applyDamageBatch(entries, options){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -4747,7 +4762,8 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     // **カード名がそのまま能力になる強化の一覧はコアが持つ**（CORE_KEYWORD_CARD_NAMES）。
     // ここに別の一覧を書くと片方だけ取り残される（攻防一体が抜けていて機能していなかった）。
     const keywordPanels=new Set([...CORE_KEYWORD_CARD_NAMES,'防戦']);
-    const panelKeywords=[...(panel.adjacentKeywords||[])];
+    // 「刻印」「荷物」はそのカード自身の性質（手放せない・合体できない）なので、接続したキャラへは付けない（2026-10-01 利用者指定）。
+    const panelKeywords=[...(panel.adjacentKeywords||[])].filter(k=>!['刻印','荷物'].includes(String(k||'').trim()));
     if(keywordPanels.has(String(panel.name||''))&&!enh.abilities.includes(panel.name)) enh.abilities.push(panel.name);
     // 策士は倍率を本文から読む（基本2倍／合体3倍）。合体後の本文が入っているなら
     // 枚数で二重に強くしない（上の copies と同じ理由）。
@@ -5288,6 +5304,7 @@ function _reviveWithHalvedStats(unit,isEnemySide){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -5326,12 +5343,11 @@ async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy,fromCore){
   // 旧PvEの召喚経路は共通コアを通らないため、ここでリッチの召喚監視を補完する。
   // 共通コアが既に連鎖召喚イベントを出した場合は fromCore=true で二重発動を防ぐ。
   if(!fromCore&&!isInitialDeploy&&unit.name!=='青シャドウ'&&!G._resolvingLichSummon){
+    // 旧リッチの効果文を持つ時だけ（名前では判定しない。core.js の coreSummonUnit と同じ条件）。
     const lich=(G.allies||[]).find(x=>x&&x.hp>0&&!_isSealed(x)
-      &&((typeof coreHasEffect==='function'&&coreHasEffect(x,'リッチ'))
-        || _unitHasEffectName(x,'リッチ')
-        || /味方が召喚された時[、,]?「青シャドウ」を1体召喚する/.test(
+      &&/味方が召喚された時[、,]?「青シャドウ」を1体召喚する/.test(
           typeof coreUnitEffectText==='function'?coreUnitEffectText(x):(x.effect||x.desc||'')
-        )));
+        ));
     if(lich){
       G._resolvingLichSummon=true;
       try{ await _spawnAdhocAllyUnit('青シャドウ',1,1,false,{rightOf:lich}); }
@@ -5725,6 +5741,7 @@ async function _finishNewPanelBattleStartEffects(){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -5908,6 +5925,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -6297,6 +6315,7 @@ async function _runCoreLiveAttackObservers(attacker,isEnemySide){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -6337,6 +6356,7 @@ async function _runCoreLiveAttackRing(isEnemySide){
     rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -6375,6 +6395,7 @@ async function _applyCoreShieldLostEffectsLive(lostUnit){
     itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
@@ -6434,6 +6455,7 @@ async function _applyCoreBattleEndEffectsLive(){
     items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
     itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
     resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
+    ..._pveCoreStageFields(),
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},

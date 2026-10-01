@@ -28,6 +28,8 @@ function simulateOnlineBattle(setup) {
     items: (setup && setup.items) || {},
     summonDefs: (setup && setup.summonDefs) || [],
     itemDefs: (setup && setup.itemDefs) || [],
+    mapIndex: setup && setup.mapIndex,
+    stageNumber: setup && setup.stageNumber,
   });
 
   const events = [];

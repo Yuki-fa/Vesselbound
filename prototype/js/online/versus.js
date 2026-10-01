@@ -68,6 +68,8 @@
         _resonanceEffectScales: { ...(u._resonanceEffectScales || {}) },
         _mapPanelPower: entry.panelPower,
         _mainBoardSlot: Number.isInteger(entry.slotIdx) ? entry.slotIdx : null,
+        _stageNumber: Math.max(1, Number(u._stageNumber)
+          || Number(typeof G !== 'undefined' && G && G._wave) || 1),
         _summonedInBattle: !!u._summonedInBattle,
         _openingDuplicate: !!u._openingDuplicate,
         // 3枚合体の印。これを送らないと合体カードの強化分が丸ごと落ちる
@@ -114,6 +116,8 @@
     });
     return {
       units,
+      stageNumber: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
+      mapIndex: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       rings: {
         p1: (typeof _effectiveRings === 'function')
           ? _effectiveRings().map(r => ({ name: String(r.name || ''), unique: String(r.unique || ''), desc: String(r.desc || '') })) : [],

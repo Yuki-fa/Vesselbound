@@ -70,6 +70,8 @@ function formationAssignSlot(occupied, preferredSlot, from, to) {
 function buildBoardFormation(board, opts) {
   const options = opts || {};
   const persistEternal = !!options.persistEternal;
+  const stageNumber = Math.max(1, Math.floor(Number(options.stageNumber)
+    || Number(typeof G !== 'undefined' && G && G._wave) || 1));
   const boardList = (board && Array.isArray(board.boardCards)) ? board.boardCards : [];
   const max = (typeof MAX_ALLIES !== 'undefined' && MAX_ALLIES) || 14;
   const frontCount = Math.min((typeof ENEMY_FRONT_SLOTS !== 'undefined' && ENEMY_FRONT_SLOTS) || 7, max);
@@ -124,6 +126,7 @@ function buildBoardFormation(board, opts) {
         : null;
       if (!unit) continue;
       unit._mapPanelPower = panelPower;
+      unit._stageNumber = stageNumber;
       if (enh && typeof _applyAdjacentPanelEnhancements === 'function') _applyAdjacentPanelEnhancements(unit, enh);
       unit._mainBoardSlot = idx;
       unit.lane = toRear ? 'rear' : 'front';

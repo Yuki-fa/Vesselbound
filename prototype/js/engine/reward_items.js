@@ -422,7 +422,10 @@ function _manaScrollReducible(card){
 // アイテム未使用時は常にtrue（通常操作を妨げない）。
 // カードが既にそのキーワードを持っているか（付与系アイテムの対象外判定に使う）。
 function _cardHasKeyword(card,kw){
-  return (Array.isArray(card&&card.keywords)?card.keywords:[]).some(k=>String(k||'').trim()===kw);
+  return [
+    ...(Array.isArray(card&&card.keywords)?card.keywords:[]),
+    ...(Array.isArray(card&&card.adjacentKeywords)?card.adjacentKeywords:[]),
+  ].some(k=>String(k||'').trim()===kw);
 }
 // 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
 // エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
