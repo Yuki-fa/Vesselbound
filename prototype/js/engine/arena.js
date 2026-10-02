@@ -55,6 +55,7 @@ function _arenaCaptureEntrySnapshot(){
     runStats:_arenaCopy(G.runStats||null),
     waveRewardCount:G._waveRewardCount,
     waveEliteWon:G._waveEliteWon,
+    // 旧セーブの値は往復できるよう保持する。敵の戦力計算では参照しない。
     battleBossMult:G._battleBossMult,
     extraBattleMult:G._extraBattleMult,
     isEliteFight:G._isEliteFight,
@@ -212,7 +213,7 @@ function _arenaStartBattle(){
   const kind=typeof arenaRoundKind==='function'?arenaRoundKind(round):(round===ARENA_ROUND_COUNT?'boss':'elite');
   const floor=typeof _arenaRoundStatFloor==='function'
     ?_arenaRoundStatFloor(round)
-    :Math.max(1,(round-1)*6+2);
+    :floorForMapDeep('闘技場',round);
   G._waveVillage=false;
   G._isWaveAltar=false;
   G._isShop=false;G._isForge=false;G._isTavern=false;G._isItemShop=false;
@@ -223,8 +224,6 @@ function _arenaStartBattle(){
   G._waveBattleWon=null;
   G._waveWithdraw=false;
   G._waveIsRetry=false;
-  G._extraBattleMult=kind==='boss'?2:1.5;
-  G._battleBossMult=G._extraBattleMult;
   G._mapBattle={mapIndex:Math.max(1,Number(G._wave)||1),nodeId:'arena',type:'arena',floor,forcedBoss:false,turn:0};
   G.floor=floor;
   G.phase='battle';

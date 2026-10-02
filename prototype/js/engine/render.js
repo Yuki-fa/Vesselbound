@@ -837,8 +837,9 @@ function _sealCostValue(card){
   if(!card) return 0;
   const kws=[...(card.keywords||[]),...(card.adjacentKeywords||[])];
   if(card._sealInfinity||kws.some(k=>/^封印\s*∞$/.test(String(k||'')))) return Infinity;
-  const kw=kws.find(k=>/^封印\s*\d+$/.test(String(k||'')));
-  if(kw) return Math.max(1,parseInt(String(kw).replace(/\D/g,''),10)||1);
+  // 封印は持っている分を合計する（戦闘の coreSealValue と同じ。封印3＋封印されしもの＝封印12）。
+  const sealKws=kws.filter(k=>/^封印\s*\d+$/.test(String(k||'')));
+  if(sealKws.length) return sealKws.reduce((sum,k)=>sum+Math.max(1,parseInt(String(k).replace(/\D/g,''),10)||1),0);
   if(card._sealValue===Infinity) return Infinity;
   if(card._sealValue>0||card._sealed===true) return Math.max(1,Number(card._sealValue)||1);
   if(card._sealed===false) return 0;

@@ -325,7 +325,23 @@ function _currentRewardMapNumber(){
   return Math.max(1,Math.min(5,mapNo||1));
 }
 
+// **ステージ1の4戦目まではレアリティ3以下しか出さない**（2026-10-02 利用者指定）。
+// 「4戦目まで」＝リーゼを出てからの通常戦・エリートを数えて4回目の戦闘の報酬まで（その間の店も含む）。
+function _rewardEarlyRarityCapActive(){
+  if(typeof G==='undefined'||!G||G._onlineMode) return false;
+  if(Number(G._wave)!==1) return false;
+  const stage=Math.max(0,Number(G._waveStage)||0);
+  const route=typeof _waveRouteForWave==='function'?(_waveRouteForWave(1)||[]):[];
+  if(!route.length) return stage<=6;
+  const fought=route.slice(0,stage).filter(t=>t==='battle'||t==='elite').length;
+  return fought<=4;
+}
 function _rewardRarityWeights(useGoldenRing,useMapProgress){
+  const weights=_rewardRarityWeightsBase(useGoldenRing,useMapProgress);
+  if(!_rewardEarlyRarityCapActive()) return weights;
+  return {...weights,4:0,5:0};
+}
+function _rewardRarityWeightsBase(useGoldenRing,useMapProgress){
   if(!useMapProgress) return _NON_BATTLE_REWARD_RARITY_WEIGHTS;
   if(useGoldenRing&&typeof _hasRingNamed==='function'&&_hasRingNamed('黄金の指輪')){
     return _GOLDEN_RING_REWARD_RARITY_WEIGHTS;

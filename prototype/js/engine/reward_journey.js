@@ -1,8 +1,11 @@
 // reward_journey.js — 旅の進捗の計算・描画・デバッグ移動
 // 通常のオフラインランの周回。初回クリア前だけ1、クリア記録があれば2を返す。
-// オンラインとデバッグにストーリー専用分岐を持ち込まないため、そこでは0とする。
+// デバッグは旅程で選んだ周回（未指定は従来の2周目ルート）、オンラインは0とする。
 function offlineStoryCycle(){
-  if(typeof G!=='undefined'&&G&&(G._onlineMode||G._debugMode)) return 0;
+  if(typeof G!=='undefined'&&G){
+    if(G._onlineMode) return 0;
+    if(G._debugMode) return Number(G._debugStoryCycle)===1?1:2;
+  }
   const cleared=typeof SaveProfile!=='undefined'&&SaveProfile
     &&typeof SaveProfile.hasClearedRun==='function'&&SaveProfile.hasClearedRun();
   return cleared?2:1;
@@ -19,9 +22,10 @@ function _journeyFirstRunRoute(route){
   if(town>=0&&battle>town) shortened.splice(battle,1);
   return shortened;
 }
-// Scene 1だけは先頭にリーゼがある。2周目以降は他のSceneと同じ
-// 「街後の通常戦闘×4」、1周目とデバッグは従来の短いルートにする。
-const SCENE1_REPEAT_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
+// Scene 1だけは先頭にリーゼがあり、エルム後の通常戦は元から3回（他のSceneは4回）。
+// 2周目以降はこの元のルート、1周目はそこから1回減らす（2026-10-02 利用者指摘：
+// 以前は2周目を4回に増やし、1周目を元の3回にしていたため、1周目のScene 1が減っていなかった）。
+const SCENE1_REPEAT_ROUTE=['city','battle','battle','elite','city','battle','battle','battle','boss','altar'];
 function _journeyRouteForScene(scene){
   // オンライン対戦のステージ構成はサーバーが配る。クライアントで組み立てない。
   if(typeof G!=='undefined'&&G&&G._onlineMode&&typeof OnlineMatch!=='undefined'&&OnlineMatch){
@@ -42,9 +46,7 @@ function _journeyRouteForScene(scene){
   if(scene===5) return data&&data.final||['city','battle','battle','boss'];
   if(scene===1){
     const repeatRoute=(data&&data.scene1)||SCENE1_REPEAT_ROUTE;
-    const debug=typeof G!=='undefined'&&G&&G._debugMode;
-    // オンラインでサーバールートがまだ届いていない間も、従来のScene 1表示を保つ。
-    return (isRepeatStoryRun()&&!debug)?repeatRoute:_journeyFirstRunRoute(repeatRoute);
+    return isFirstStoryRun()?_journeyFirstRunRoute(repeatRoute):repeatRoute;
   }
   const standard=data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
   return isFirstStoryRun()?_journeyFirstRunRoute(standard):standard;
@@ -109,9 +111,12 @@ function _journeyDisplayPosition(route,stage,scene){
 // 最終ステージだけは塔ではなく「最終決戦」に置き換える。
 function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
   const get=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
+  // ステージ5はシートの「ステージ5時」の行（最終決戦まで、あと X 戦）をそのまま使う（2026-10-02 シートに追加）。
   const template=reached
     ?get('「編成画面、ショップ画面の旅程枠」内 塔到達時','〜に到達')
-    :get('「編成画面、ショップ画面の旅程枠」内 通常時','〜まであとX戦');
+    :isFinalScene
+      ?get('「編成画面、ショップ画面の旅程枠」内 ステージ5時','最終決戦まで、あと X 戦')
+      :get('「編成画面、ショップ画面の旅程枠」内 通常時','〜まであとX戦');
   const name=isFinalScene?'最終決戦':String(towerName||'祭壇');
   // Xは数字だけを太字にする（前後の文字はシートの本文どおり）。
   return _escapePreviewHtml(template)
@@ -153,19 +158,24 @@ function _syncRewardJourneyUi(options){
 
   // ステージ4まではScene1〜4だけを並べ、ステージ5へ到達した時点で末尾にScene5を足す。
   // （最終ステージの存在自体を、到達するまで伏せておくため）
-  // ただしデバッグモードでは、どのステージにいてもScene5マークを出す
-  // （Sceneマークを押してステージ移動できるようにするため）。
-  const sceneCount=(scene>=5||(G&&G._debugMode))?5:4;
-  const sceneMarks=Array.from({length:sceneCount},(_,idx)=>{
+  // オフラインのデバッグだけ、1周目（4ステージ）／2周目（5ステージ）を横に並べる。
+  const debugStory=!!(G._debugMode&&!G._onlineMode);
+  const debugCycle=debugStory?offlineStoryCycle():0;
+  const sceneCount=(scene>=5||G._debugMode)?5:4;
+  const buildSceneMarks=(count,cycle)=>Array.from({length:count},(_,idx)=>{
     const n=idx+1;
-    const state=n<scene?'passed':(n===scene?'current':'');
-    const connector=idx<sceneCount-1?`<span class="journey-track-line ${n<scene?'passed':''}"></span>`:'';
+    const selected=!cycle||cycle===debugCycle;
+    const state=selected?(n<scene?'passed':(n===scene?'current':'')):'';
+    const connector=idx<count-1?`<span class="journey-track-line ${selected&&n<scene?'passed':''}"></span>`:'';
     // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
-    const jumpAttr=(G&&G._debugMode)?` data-journey-scene="${n}"`:'';
+    const jumpAttr=G._debugMode?` data-journey-scene="${n}"${cycle?` data-journey-cycle="${cycle}" aria-label="${cycle}周目 ステージ${n}"`:''}`:'';
     // ホバー表示はブラウザ標準のtitleではなくカードと同じ枠（#kw-tooltip）で塔の名前を出す。
     // 名前だけの1行表示なので、data-preview-norule で見出し下の直線を消す。
     return `<span class="journey-scene-mark ${state}" data-preview="${_escapePreviewHtml(_journeySceneTowerName(n))}" data-preview-norule="1"${jumpAttr}></span>${connector}`;
   }).join('');
+  const sceneMarks=debugStory?[1,2].map(cycle=>
+    `<div class="journey-scene-group" data-journey-cycle-group="${cycle}"><span class="journey-cycle-label">${cycle}周目</span>${buildSceneMarks(cycle===1?4:5,cycle)}</div>`
+  ).join(''):buildSceneMarks(sceneCount,0);
   const nodeMarks=route.map((type,idx)=>{
     const state=idx<current?'passed':(idx===current?'current':'');
     const resumeClass=options&&options.resume&&idx===current?'run-resume-current':'';
@@ -224,18 +234,35 @@ function _syncRewardJourneyUi(options){
   const countdown=onlineOpponent
     ?_escapePreviewHtml(opponentTemplate).replace(/X/g,()=>_escapePreviewHtml(onlineOpponent))
     :_journeyCountdownHtml(towerName,remaining,reached,isFinalScene);
-  root.innerHTML=`<div class="journey-scene-track">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
+  root.innerHTML=`<div class="journey-scene-track${debugStory?' journey-scene-track-debug':''}">${sceneMarks}</div><div class="journey-countdown ${reached?'reached':''}">${countdown}</div><div class="journey-node-track">${nodeMarks}</div>`;
   if(G&&G._debugMode&&!options?.resume) _bindDebugJourneyJump(root);
 }
 // デバッグ専用：旅の進捗のSceneマーク（countdownの上のアイコン列）をクリックして
-// そのステージ（=G._wave）へ移動する。移動後も編成画面のままにする。
+// 選んだ周回・ステージへ移動する。ステージ1はリーゼの到着イベントから再生する。
 function _bindDebugSceneJump(root){
   root.querySelectorAll('[data-journey-scene]').forEach(mark=>{
     mark.classList.add('journey-scene-mark-debug-jump');
     mark.onclick=e=>{
       e.preventDefault();
       e.stopPropagation();
-      const wave=Math.max(1,Math.min(5,Number(mark.dataset.journeyScene)||1));
+      const debugStory=!G._onlineMode;
+      const cycle=debugStory?(Number(mark.dataset.journeyCycle)===1?1:2):0;
+      const wave=Math.max(1,Math.min(cycle===1?4:5,Number(mark.dataset.journeyScene)||1));
+      // 前の施設の在庫は、移動元のステージへ書き戻してからイベントを片付ける。
+      if(debugStory){
+        if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
+        if(typeof questForceEndEventForDebug==='function') questForceEndEventForDebug();
+        if(offlineStoryCycle()!==cycle) G._waveEnemyPreview={};
+        G._debugStoryCycle=cycle;
+        G._waveBattleWon=null;
+        G._waveFinalVillage=false;
+        G._waveResumeStage=null;
+        G._waveEnemySnapshot=null;
+        G._waveRetryEnemyKey=null;
+        G._waveIsRetry=false;
+        G._retryFloor=false;
+        G._mapReturnAfterReward=false;
+      }
       // ステージ1の先頭マスは村（リーゼ＝シートのステージ0）なので、G._waveは0で表す。
       // 旅の進捗のscene計算はMath.max(1,G._wave)なので、0でもステージ1として表示される。
       G._wave=wave===1?0:wave;
@@ -244,7 +271,9 @@ function _bindDebugSceneJump(root){
       G._mapBattle=null;
       G._waveEliteWon=false;
       G.floor=typeof _waveStageFloor==='function'?_waveStageFloor(wave,1):G.floor;
-      // 編成画面のまま留まる（戦闘・村へは遷移しない）。
+      if(debugStory&&typeof questPrepareArrivalReplayForDebug==='function') questPrepareArrivalReplayForDebug(G._wave);
+      if(debugStory&&wave===1&&typeof _openWaveVillage==='function') return _openWaveVillage(1,false);
+      // ステージ2以降は、最初のマスの手前の編成画面へ移る。
       if(typeof _openWaveFormation==='function') _openWaveFormation();
       else _syncRewardJourneyUi();
     };

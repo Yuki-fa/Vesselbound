@@ -1578,16 +1578,21 @@ function main() {
   assert.ok(!effectChainedSummons.some(e => /^青|^赤|^緑|^黄|^紫/.test(e.unit.name)),
     '召喚キャラクター名に色接頭辞が表示データとして残っている');
 
+  // ケットシーの右に味方を置き、ナイトキャットがケットシーの右隣ではなく前衛の右端へ出ることを見る。
   const catState = core.createBattleState({
-    sides: {p1: {units: [{id: 'cat', name: 'ケットシー', atk: 3, hp: 4, maxHp: 4}]}, p2: {units: []}},
+    sides: {p1: {units: [{id: 'cat', name: 'ケットシー', atk: 3, hp: 4, maxHp: 4},
+      {id: 'cat-right', name: '右の味方', atk: 1, hp: 9, maxHp: 9}]}, p2: {units: []}},
     summonDefs: [{name: 'ナイトキャット', power: 2, life: 3, color: '黄'}],
   });
   const catEvents = [];
   core.coreApplyInjuryEffects(catState.units.p1[0], 1, catState, createSeededRng(7), e => catEvents.push(e),
     () => ({amount: 0, died: false}));
   const catSummon = catEvents.find(e => e.type === 'summon' && e.unit && e.unit.name === 'ナイトキャット');
-  assert.equal(catSummon && catSummon.placement, 'rightOfSource',
-    'ナイトキャットがケットシーの右側へ出る配置指定になっていない');
+  assert.ok(catSummon && !catSummon.placement,
+    'ナイトキャットに右隣などの配置指定が付いている（戦闘中の召喚は前衛の右端）');
+  const catOrder = catState.units.p1.filter(u => u && u.hp > 0).map(u => u.name);
+  assert.equal(catOrder[catOrder.length - 1], 'ナイトキャット',
+    `ナイトキャットが前衛の右端に出ていない：${catOrder.join('→')}`);
 
   // 召喚側が仮置きの1/2を持ち込むと、シートのナイトキャット数値が
   // オフライン／オンライン共通コアへ届かず、表示と戦闘値が食い違う。

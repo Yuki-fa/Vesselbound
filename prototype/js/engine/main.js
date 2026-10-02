@@ -632,27 +632,49 @@ function _waveRetryPending(stage){
   const prefix=`${Math.max(1,Number(G._wave)||1)}:${st}:`;
   return String(G._waveRetryEnemyKey||'').startsWith(prefix);
 }
-// 深層レベル＝そのwave内で何回目の通常戦闘か（1〜6）。エリート/ボスは固定値。
-function _waveDeepLevel(stage,waveOverride){
+// 通常戦の既存の割り当ては保ち、ステージ1〜4のエリート／ボスだけを読み替える。
+function _waveDeepLevelForStory(stage,wave,type,first,repeat){
+  if(wave>=1&&wave<=4){
+    if(type==='elite') return 3;
+    if(type==='boss') return first?6:7;
+  }
+  // ステージ5は深層4段（シート）。村→通常戦（深層1）→通常戦（深層2）→ボス（深層3）→伏せられたラスボス（深層4）。
+  if(wave===5) return ({2:1,3:2,4:3,5:4})[stage]||1;
   // ステージ1は先頭のリーゼの分だけ各マスが1つ後ろにずれる。
-  // 1周目はエルム後が3戦なので従来どおり4,5,6、2周目以降は4戦の3,4,5,6とする。
-  const wave=Number(waveOverride==null?(G&&G._wave):waveOverride)||0;
   if(wave===1){
-    const repeat=typeof isRepeatStoryRun==='function'&&isRepeatStoryRun();
     const t1=repeat
       ?{2:1,3:2,4:2,6:3,7:4,8:5,9:6,10:6}
       :{2:1,3:2,4:2,6:4,7:5,8:6,9:6};
     return t1[stage]||1;
   }
   // Scene 2～4も1周目は街後の深層3の戦闘を省き、深層4～6とボスを保つ。
-  const first=typeof isFirstStoryRun==='function'&&isFirstStoryRun();
   const table=first?{1:1,2:2,3:2,5:4,6:5,7:6,8:6}:{1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
   return table[stage]||1;
 }
-function _waveStageFloor(wave,stage){
-  const maxDeep=typeof _mapDeepLevelsPerMap==='function'?_mapDeepLevelsPerMap():6;
-  const deep=_waveDeepLevel(stage,wave);
-  return Math.max(1,(Math.max(1,Number(wave)||1)-1)*maxDeep+deep);
+function _waveDeepLevel(stage,waveOverride,typeOverride){
+  const wave=Number(waveOverride==null?(G&&G._wave):waveOverride)||0;
+  const type=typeOverride||_waveRouteNode(stage,wave);
+  return _waveDeepLevelForStory(stage,wave,type,
+    typeof isFirstStoryRun==='function'&&isFirstStoryRun(),
+    typeof isRepeatStoryRun==='function'&&isRepeatStoryRun());
+}
+function _waveStageFloor(wave,stage,typeOverride){
+  return floorForMapDeep(Math.max(1,Number(wave)||1),_waveDeepLevel(stage,wave,typeOverride));
+}
+// コレクション用。通常の出現経路にある深層だけを周回別に列挙する。
+function _waveEnemyStatFloors(wave,types){
+  const base=wave===1?SCENE1_REPEAT_ROUTE:(wave===5?SCENE_FLOW_DATA.final:SCENE_FLOW_DATA.standard);
+  const modes=wave===5?[{first:false,repeat:true},{first:false,repeat:false}]
+    :[{first:true,repeat:false},{first:false,repeat:true},{first:false,repeat:false}];
+  const floors=new Set();
+  modes.forEach(({first,repeat})=>{
+    const route=first?_journeyFirstRunRoute(base):base;
+    route.forEach((type,index)=>{
+      if(types.includes(type)) floors.add(floorForMapDeep(wave,_waveDeepLevelForStory(index+1,wave,type,first,repeat)));
+    });
+    if(wave===5&&types.includes('boss')) floors.add(floorForMapDeep(wave,_waveDeepLevelForStory(5,wave,'boss',first,repeat)));
+  });
+  return [...floors];
 }
 // 編成・報酬画面の背景動画（setup.webm）を再開する。
 // 街・施設・ワールドマップの間は#scr-battleごとdisplay:noneになるため、ブラウザが
@@ -803,10 +825,6 @@ function _startWaveBattle(stage){
   G._waveBattleWon=null;
   G._waveRewardCount=null;
   G._waveWithdraw=false;
-  // 強敵補正：通常戦=1、エリート=1.5、ボス（地域・ラスボス共通）=2
-  G._extraBattleMult=type==='elite'?1.5:(type==='boss'?2:1);
-  // _extraBattleMultは敵生成直後に1.0へリセットされるため、戦闘中に参照する用の控えを残す。
-  G._battleBossMult=G._extraBattleMult;
   G._mapBattle={mapIndex:wave,nodeId:questSpec&&questSpec.nodeId||null,type,
     floor:questSpec&&questSpec.floor!=null?questSpec.floor:_waveStageFloor(wave,stage),
     forcedBoss:!!(questSpec&&questSpec.forcedBoss),normalBattleNo:stage===1?1:stage===2?2:0,turn:0};
@@ -1554,7 +1572,8 @@ function startGame(debugMode,onlineMode){
     if(typeof showOnlineMatching==='function') showOnlineMatching();
     return;
   }
-  _openWaveVillage(1,false,{autosaveMode:'runStart'});
+  // デバッグの初回開始だけは従来どおり到着会話を省く。旅程から選び直した時は再生する。
+  _openWaveVillage(1,false,{autosaveMode:'runStart',skipStoryArrival:!!debugMode});
 }
 
 function _runStatsAreaName(){
@@ -1714,7 +1733,7 @@ function gameOver(options){
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
   const opt=options||{};
   const isClear=opt.clear===true;
-  const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode)&&!(G&&G._debugMode);
+  const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode);
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');

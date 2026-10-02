@@ -817,24 +817,22 @@ async function loadGameData() {
     // 新形式は「マップ」列（結合セルで空欄になる行あり）＋「深層レベル」列で管理する。
     const deepRows = _parseCSVWithHeader(dlt || '名前\n', ['マップ', '深層レベル', '補正', 'グレード']);
     const mapDeep = {};
-    let currentMapNo = 0;
+    let currentMap = null;
     deepRows.forEach(row => {
-      const mapRaw = String(row['マップ'] || row['map'] || row['Map'] || row['__col0'] || '').trim();
-      const parsedMap = parseInt(mapRaw, 10);
-      if (Number.isFinite(parsedMap) && parsedMap > 0) currentMapNo = parsedMap;
-      const deep = parseInt(row['深層レベル'] || row['戦闘回数'] || row['階層'] || row['level'] || row['__col1'], 10);
-      if (!currentMapNo || !Number.isFinite(deep) || deep <= 0) return;
-      const mult = parseFloat(row['補正'] || row['mult'] || row['倍率'] || row['__col2']);
-      const grade = parseInt(row['グレード'] || row['grade'] || row['__col3'], 10);
-      mapDeep[currentMapNo] = mapDeep[currentMapNo] || {};
-      mapDeep[currentMapNo][deep] = {
-        map: currentMapNo,
+      const mapRaw = String(row['マップ'] || row['map'] || row['Map'] || '').trim();
+      if (mapRaw) currentMap = mapRaw === '闘技場' ? mapRaw : (/^\d+$/.test(mapRaw) && Number(mapRaw) > 0 ? Number(mapRaw) : null);
+      const deep = parseInt(row['深層レベル'] || row['戦闘回数'] || row['階層'] || row['level'], 10);
+      if (!currentMap || !Number.isFinite(deep) || deep <= 0) return;
+      const mult = parseFloat(row['補正'] || row['mult'] || row['倍率']);
+      const grade = parseInt(row['グレード'] || row['grade'], 10);
+      mapDeep[currentMap] = mapDeep[currentMap] || {};
+      mapDeep[currentMap][deep] = {
+        map: currentMap,
         deepLevel: deep,
-        grade: Math.max(1, Number.isFinite(grade) ? grade : currentMapNo),
+        grade: Math.max(1, Number.isFinite(grade) ? grade : (Number(currentMap) || 1)),
         mult: Number.isFinite(mult) && mult > 0 ? mult : 1,
       };
     });
-    if (typeof window !== 'undefined') window.MAP_DEEP_LEVEL_DATA = mapDeep;
 
     // ── 階層データ ──
     const floorRows = _parseCSV(ft);
@@ -844,24 +842,14 @@ async function loadGameData() {
       return !!fl && !isNaN(fl);
     });
     if (Object.keys(mapDeep).length) {
-      FLOOR_DATA.length = 0;
-      FLOOR_DATA.push(null);
-      BOSS_FLOORS.length = 0;
-      const maxMap = Math.max(...Object.keys(mapDeep).map(n=>parseInt(n,10)).filter(Number.isFinite), 1);
-      const maxDeep = Math.max(1, ...Object.values(mapDeep).flatMap(levels=>Object.keys(levels).map(n=>parseInt(n,10)).filter(Number.isFinite)));
-      for (let mapNo = 1; mapNo <= maxMap; mapNo++) {
-        for (let deep = 1; deep <= maxDeep; deep++) {
-          const flat = (mapNo - 1) * maxDeep + deep;
-          const data = (mapDeep[mapNo] && mapDeep[mapNo][deep]) || (mapDeep[mapNo] && mapDeep[mapNo][maxDeep]) || null;
-          FLOOR_DATA[flat] = data ? { grade: data.grade, mult: data.mult, map: mapNo, deepLevel: deep } : { grade: mapNo, mult: 1, map: mapNo, deepLevel: deep };
-        }
-      }
-      FLOOR_DATA._deepLevelsPerMap = maxDeep;
+      setMapDeepLevelData(mapDeep);
     } else if (validFloorRows.length) {
     FLOOR_DATA.length = 0;
     FLOOR_DATA.push(null); // index 0 は null（1始まり）
     BOSS_FLOORS.length = 0;
-    FLOOR_DATA._deepLevelsPerMap = 5;
+    FLOOR_DATA._floorIdsByMap = {};
+    FLOOR_DATA._deepLevelsPerMap = {};
+    const legacyMapDeep = {};
     validFloorRows.forEach(row => {
       const fl = parseInt(row['階層'] || row['戦闘回数'] || row['深層レベル'] || row['floor']);
       if (!fl || isNaN(fl)) return;
@@ -870,12 +858,19 @@ async function loadGameData() {
         grade: Math.max(1, parseInt(row['グレード'] || row['grade']) || 1),
         mult:  parseFloat(row['補正'] || row['mult']) || 1.0,
       };
+      // 深層表の無い旧形式だけは従来の5階区切りを読み替え、同じ索引へ載せる。
+      const map = Math.ceil(fl / 5), deep = (fl - 1) % 5 + 1;
+      Object.assign(FLOOR_DATA[fl], {map, deepLevel:deep});
+      (FLOOR_DATA._floorIdsByMap[map] ||= {})[deep] = fl;
+      FLOOR_DATA._deepLevelsPerMap[map] = Math.max(FLOOR_DATA._deepLevelsPerMap[map] || 0, deep);
+      (legacyMapDeep[map] ||= {})[deep] = FLOOR_DATA[fl];
       if (isBoss) {
         FLOOR_DATA[fl].boss = true;
         // BOSS_FLOORS はボス階の「1つ前」の階番号（移動先選択でボス専用表示に使う）
         BOSS_FLOORS.push(fl - 1);
       }
     });
+    if (typeof window !== 'undefined') window.MAP_DEEP_LEVEL_DATA = legacyMapDeep;
     } else {
       console.warn('[Vesselbound] 階層データが空のため、既存のFLOOR_DATAを維持します');
     }

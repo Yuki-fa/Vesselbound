@@ -17,16 +17,24 @@ function rollEnemyGrade(floor){
 const _GRADE_BASE_ATK=[[1,2],[1,2],[2,4],[4,7],[7,12]]; // index=grade(0-4)
 const _GRADE_BASE_HP =[[2,4],[2,4],[4,8],[8,14],[14,24]];
 
-// 敵スタッツを計算: rand(def.baseAtk or グレードデフォルト) × floor.mult × extraMult
-function enemyStats(def, floor, extraMult){
-  const fd=FLOOR_DATA[floor];
-  const m=(fd?.mult||1.0)*(extraMult||1.0);
+function _enemyBaseStatRanges(def){
   const g=Math.min(4,Math.max(0,def.grade||1));
-  const atkRange=def.baseAtk||_GRADE_BASE_ATK[g];
-  const hpRange =def.baseHp ||_GRADE_BASE_HP[g];
+  return {atk:def.baseAtk||_GRADE_BASE_ATK[g],hp:def.baseHp||_GRADE_BASE_HP[g]};
+}
+function _scaledEnemyStat(value,mult){ return Math.max(1,Math.round(value*mult)); }
+// 戦力計算式の唯一の入口。基礎ATK/HP乱数 × 深層レベル補正。
+function enemyStats(def, floor){
+  const ranges=_enemyBaseStatRanges(def);
+  const mult=FLOOR_DATA[floor]?.mult||1;
+  return {atk:_scaledEnemyStat(randi(...ranges.atk),mult),hp:_scaledEnemyStat(randi(...ranges.hp),mult)};
+}
+// コレクションの範囲も生成時と同じ基礎値・丸めを使う。
+function enemyStatRanges(def,floor){
+  const ranges=_enemyBaseStatRanges(def);
+  const mult=FLOOR_DATA[floor]?.mult||1;
   return {
-    atk:Math.max(1,Math.round(randi(atkRange[0],atkRange[1])*m)),
-    hp: Math.max(1,Math.round(randi(hpRange[0], hpRange[1]) *m))
+    atkMin:_scaledEnemyStat(ranges.atk[0],mult),atkMax:_scaledEnemyStat(ranges.atk[1],mult),
+    hpMin:_scaledEnemyStat(ranges.hp[0],mult),hpMax:_scaledEnemyStat(ranges.hp[1],mult),
   };
 }
 
@@ -94,9 +102,8 @@ function namedGradeForFloor(floor){
 }
 
 // ネームドキャラを敵として生成（通常/エリート/ボス共通）
-// floor と extraMult を渡すと def.baseAtk × floor.mult × extraMult でスタッツ計算
-function _mkNamedEnemy(def,floor,extraMult,extraKws){
-  const {atk,hp}=enemyStats(def,floor,extraMult||1.0);
+function _mkNamedEnemy(def,floor,extraKws){
+  const {atk,hp}=enemyStats(def,floor);
   const kws=[...(def.keywords||[]),...(extraKws||[])];
   const e=_mkEnemy(atk,hp,def.name,def.icon,def.grade||1,_kwShield(def),kws,def.race||'-');
   _applyEnemyDefAbilities(e, def);
@@ -155,9 +162,12 @@ function _sceneEnemyCount(type){
   const v=table&&table[Math.max(1,Number(G._wave)||1)];
   return v?v.slice():null;
 }
+function _enemyDefCode(def){
+  return String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code)||'').toUpperCase();
+}
 function _fixedFinalEnemyDef(no){
   const key=String(no||'').toUpperCase();
-  return ENEMY_POOL.find(e=>String(e.artCode||e._artCode||e.No||e.no||e['No.']||e.code||'').toUpperCase()===key)||null;
+  return ENEMY_POOL.find(e=>_enemyDefCode(e)===key)||null;
 }
 
 function _pickBossEnemyDef(grade){
@@ -183,8 +193,10 @@ function _ensureWaveEnemyPreview(wave,type){
   const key=`${w}:${type}`;
   G._waveEnemyPreview=G._waveEnemyPreview||{};
   if(G._waveEnemyPreview[key]) return G._waveEnemyPreview[key];
-  const stage=type==='boss'?(w===5?4:9):3;
-  const floor=typeof _waveStageFloor==='function'?_waveStageFloor(w,stage):1;
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(w):[];
+  const routeIndex=route.indexOf(type);
+  const stage=routeIndex>=0?routeIndex+1:(type==='boss'?(w===5?4:9):3);
+  const floor=typeof _waveStageFloor==='function'?_waveStageFloor(w,stage,type):floorForMapDeep(w,type==='elite'?3:6);
   const baseG=(typeof FLOOR_DATA!=='undefined'&&FLOOR_DATA[floor]?.grade)||rollEnemyGrade(floor);
   // Scene 5のルート上のボスはエピトメ。伏せられたラスボスは進捗パネルに出さない。
   const fixedDef=w===5&&type==='boss'?_fixedFinalEnemyDef(SCENE5_BOSS_ENEMY_NO):null;
@@ -204,9 +216,7 @@ function _ensureWaveEnemyPreview(wave,type){
   }
   def=def||_pickBossEnemyDef(baseG)||_pickEnemyDef(baseG);
   if(!def) return null;
-  // _startWaveBattle()のG._extraBattleMult計算（main.js）と同じ倍率を使う。
-  const mult=type==='boss'?2:1.5;
-  const {atk,hp}=enemyStats(def,floor,mult);
+  const {atk,hp}=enemyStats(def,floor);
   const preview={def,atk,hp,floor,grade:baseG,wave:w,type};
   G._waveEnemyPreview[key]=preview;
   if(type==='boss') _recordWaveBossDef(w,def);
@@ -233,8 +243,7 @@ function debugAdvanceEliteBoss(){
     }
     chosen.push(next);
     preview.def=next;
-    const mult=type==='boss'?2:1.5;
-    const stats=enemyStats(next,preview.floor,mult);
+    const stats=enemyStats(next,preview.floor);
     preview.atk=stats.atk;
     preview.hp=stats.hp;
   };
@@ -243,11 +252,15 @@ function debugAdvanceEliteBoss(){
   if(typeof _syncRewardJourneyUi==='function') _syncRewardJourneyUi();
 }
 
-function _sideBossDef(def, grade){
+function _sideBossOptions(def,grade){
   const same=ENEMY_POOL.find(e=>_enemySpawnAllowed(e)&&e!==def && !e.bossOnly && !e.unique && !e._isNamed && e.grade===grade && e.name===def.name);
-  if(same) return same;
   const pool=ENEMY_POOL.filter(e=>_enemySpawnAllowed(e)&&!e.bossOnly && !e.unique && !e._isNamed && e.grade===grade);
-  return pool.length?randFrom(pool):_pickEnemyDef(grade);
+  return {same,pool};
+}
+function _sideBossDef(def, grade){
+  const options=_sideBossOptions(def,grade);
+  if(options.same) return options.same;
+  return options.pool.length?randFrom(options.pool):_pickEnemyDef(grade);
 }
 
 function _bossFightNumber(floor){
@@ -263,24 +276,16 @@ function _pickNonBossEnemyDefDifferent(grade, bossName){
 // ── 闘技場の敵編成 ──────────────────────────────────────
 // 敵の名前・能力は ENEMY_POOL、数値は通常の enemyStats() へ委譲する。
 // ここはPvE専用の編成入口だが、戦闘の効果・対象選択・終了判定は通常どおりコアを通る。
-function _arenaStatFloor(wave,kind){
-  const w=Math.max(1,Number(wave)||1);
-  // 各ステージのエリートは、そのルート上のエリート位置の深層レベルを使う。
-  // 最終ステージだけは伏せられたstage5のボス級としてstage5を使う。
-  const stage=kind==='boss'?(w===5?5:9):(w===1?4:3);
-  return typeof _waveStageFloor==='function'?_waveStageFloor(w,stage):Math.max(1,(w-1)*6+2);
-}
-
-// 闘技場のラウンドと、強さを参照する通常ステージを分けて定義する。
-// 2戦目／4戦目は、それぞれステージ1／2のボス級である点に注意する。
+// statWave は敵の候補選定にだけ使う。強さ・グレードは闘技場の専用深層から引く。
+const ARENA_CHAMPION_ENEMY_NAME='闘技場の覇者 “アレス”';
 const ARENA_ROUND_SPECS=Object.freeze([
   null,
-  {kind:'elite',statWave:1},
-  {kind:'boss',statWave:1},
-  {kind:'elite',statWave:2},
-  {kind:'boss',statWave:2},
-  {kind:'elite',statWave:3},
-  {kind:'boss',statWave:5},
+  {kind:'elite',statWave:1,frontName:'ゴブリン',leaderName:'オーク'},
+  {kind:'boss',statWave:1,frontName:'ポルターガイスト'},
+  {kind:'elite',statWave:2,frontName:'カースドアーマー',leaderName:'グレーターデーモン'},
+  {kind:'boss',statWave:2,frontName:'ダークエルフ'},
+  {kind:'elite',statWave:3,frontName:'カトブレパス',leaderName:'レッドキャップ'},
+  {kind:'boss',statWave:5,leaderName:ARENA_CHAMPION_ENEMY_NAME},
 ]);
 function arenaRoundSpec(round){
   const r=Math.max(1,Math.min(6,Number(round)||1));
@@ -288,8 +293,7 @@ function arenaRoundSpec(round){
 }
 function arenaRoundKind(round){ return arenaRoundSpec(round).kind; }
 function _arenaRoundStatFloor(round){
-  const spec=arenaRoundSpec(round);
-  return _arenaStatFloor(spec.statWave,spec.kind);
+  return floorForMapDeep('闘技場',Math.max(1,Math.min(6,Number(round)||1)));
 }
 
 function _arenaEnemyDef(name,grade){
@@ -297,10 +301,10 @@ function _arenaEnemyDef(name,grade){
   if(exact) return exact;
   return _pickEnemyDef(grade||1);
 }
-function _arenaMakeEnemy(def,floor,mult,lane,role){
+function _arenaMakeEnemy(def,floor,lane,role){
   const baseGrade=FLOOR_DATA[floor]?.grade||def?.grade||rollEnemyGrade(floor);
   const source=def||_arenaEnemyDef('',baseGrade);
-  const stats=enemyStats(source,floor,mult);
+  const stats=enemyStats(source,floor);
   const kws=[...(source.keywords||[])].filter(k=>k!=='ボス'&&k!=='エリート');
   if(role==='boss') kws.push('ボス');
   if(role==='elite') kws.push('エリート');
@@ -316,6 +320,7 @@ function _arenaMakeEnemy(def,floor,mult,lane,role){
   if(role==='elite') unit.elite=true;
   return unit;
 }
+function _arenaLeaderStat(value){ return _scaledEnemyStat(value,2); }
 function _arenaApplyAdjacentStats(enemies){
   const list=(enemies||[]).filter(Boolean);
   const isOrdinary=unit=>!!unit&&!unit.elite&&!unit.boss;
@@ -328,14 +333,48 @@ function _arenaApplyAdjacentStats(enemies){
     const neighbors=rearNeighbors.length===2
       ?rearNeighbors
       :list.filter(candidate=>isOrdinary(candidate)&&String(candidate.lane||'front')==='front');
-    // アレスのように通常敵がいない場合は、ボス級の enemyStats() をそのまま使う。
+    // アレスのように通常敵がいない場合は、闘技場深層の計算値をそのまま使う。
     if(!neighbors.length) return;
     const average=key=>neighbors.reduce((sum,candidate)=>sum+(Number(candidate[key])||0),0)/neighbors.length;
-    unit.atk=Math.max(1,Math.round(average('atk')*2));
+    unit.atk=_arenaLeaderStat(average('atk'));
     unit.baseAtk=unit.atk;
-    unit.hp=Math.max(1,Math.round(average('hp')*2));
+    unit.hp=_arenaLeaderStat(average('hp'));
     unit.maxHp=unit.hp;
   });
+}
+// コレクション用の闘技場の範囲。候補・基礎値・後衛役の2倍は実生成と共通。
+function arenaEnemyStatRanges(def){
+  if(!def) return [];
+  const code=_enemyDefCode(def);
+  if(code) def=ENEMY_POOL.find(enemy=>_enemyDefCode(enemy)===code)||def;
+  const ranges=[];
+  const addLeaderRange=basis=>{
+    if(!basis.length) return;
+    ranges.push({
+      atkMin:_arenaLeaderStat(Math.min(...basis.map(range=>range.atkMin))),
+      atkMax:_arenaLeaderStat(Math.max(...basis.map(range=>range.atkMax))),
+      hpMin:_arenaLeaderStat(Math.min(...basis.map(range=>range.hpMin))),
+      hpMax:_arenaLeaderStat(Math.max(...basis.map(range=>range.hpMax))),
+    });
+  };
+  for(let round=1;round<=6;round++){
+    const spec=arenaRoundSpec(round),floor=_arenaRoundStatFloor(round);
+    if(def.name===spec.frontName) ranges.push(enemyStatRanges(def,floor));
+    if(round===6){
+      if(def.name===spec.leaderName) ranges.push(enemyStatRanges(def,floor));
+    }else if(spec.kind==='elite'){
+      if(def.name===spec.leaderName) addLeaderRange([enemyStatRanges(_arenaEnemyDef(spec.frontName,spec.statWave),floor)]);
+    }else{
+      const bosses=ENEMY_POOL.filter(enemy=>_enemySpawnAllowed(enemy)&&enemy.bossOnly&&enemy.grade===spec.statWave);
+      bosses.forEach(boss=>{
+        const options=_sideBossOptions(boss,spec.statWave);
+        const sides=options.same?[options.same]:options.pool;
+        if(def===boss) addLeaderRange(sides.map(side=>enemyStatRanges(side,floor)));
+        if(sides.includes(def)) ranges.push(enemyStatRanges(def,floor));
+      });
+    }
+  }
+  return ranges;
 }
 function _arenaEnsureUsedBoss(wave){
   const w=Math.max(1,Number(wave)||1);
@@ -353,7 +392,7 @@ function _arenaEnsureUsedBoss(wave){
     return preview.def;
   }
   // 過去セーブに記録がない場合も、候補を一度確定して以後同じランで使う。
-  const floor=_arenaStatFloor(w,'boss');
+  const floor=floorForMapDeep(w,1);
   const grade=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
   const pool=(ENEMY_POOL||[]).filter(e=>_enemySpawnAllowed(e)&&e&&e.bossOnly&&e.grade===grade);
   const fallback=pool[0]||_pickBossEnemyDef(grade)||_pickEnemyDef(grade);
@@ -364,15 +403,15 @@ function _arenaEnsureUsedBoss(wave){
 function _arenaUnusedBoss(wave){
   const w=Math.max(1,Number(wave)||1);
   const used=_arenaEnsureUsedBoss(w);
-  const floor=_arenaStatFloor(w,'boss');
+  const floor=floorForMapDeep(w,1);
   const grade=FLOOR_DATA[floor]?.grade||rollEnemyGrade(floor);
   const pool=(ENEMY_POOL||[]).filter(e=>_enemySpawnAllowed(e)&&e&&e.bossOnly&&e.grade===grade&&e.name!==used?.name);
   return runKeyedPick(`arena:unused-boss:${w}`,pool)||used||_pickBossEnemyDef(grade)||_pickEnemyDef(grade);
 }
 function generateArenaEnemies(round){
   const r=Math.max(1,Math.min(6,Number(round)||1));
-  const eliteMult=1.5,bossMult=2;
-  const makeFixed=(name,floor,mult,lane,role)=>_arenaMakeEnemy(_arenaEnemyDef(name,FLOOR_DATA[floor]?.grade),floor,mult,lane,role||'');
+  const spec=arenaRoundSpec(r);
+  const makeFixed=(name,floor,lane,role)=>_arenaMakeEnemy(_arenaEnemyDef(name,arenaRoundSpec(r).statWave),floor,lane,role||'');
   const finish=enemies=>{
     const kind=arenaRoundKind(r);
     G._isEliteFight=kind==='elite';
@@ -385,45 +424,45 @@ function generateArenaEnemies(round){
   };
   if(r===1){
     const floor=_arenaRoundStatFloor(r);
-    const enemies=Array.from({length:4},()=>makeFixed('ゴブリン',floor,eliteMult,'front',''));
-    enemies.push(makeFixed('オーク',floor,eliteMult,'rear','elite'));
+    const enemies=Array.from({length:4},()=>makeFixed(spec.frontName,floor,'front',''));
+    enemies.push(makeFixed(spec.leaderName,floor,'rear','elite'));
     return finish(enemies);
   }
   if(r===2){
     const floor=_arenaRoundStatFloor(r);
     const central=_arenaUnusedBoss(1);
-    const side=_sideBossDef(central,FLOOR_DATA[floor]?.grade||central.grade||1);
-    const enemies=Array.from({length:4},()=>makeFixed('ポルターガイスト',floor,bossMult,'front',''));
-    enemies.push(_arenaMakeEnemy(side,floor,bossMult,'rear',''));
-    enemies.push(_arenaMakeEnemy(central,floor,bossMult,'rear','boss'));
-    enemies.push(_arenaMakeEnemy(side,floor,bossMult,'rear',''));
+    const side=_sideBossDef(central,central.grade||arenaRoundSpec(r).statWave);
+    const enemies=Array.from({length:4},()=>makeFixed(spec.frontName,floor,'front',''));
+    enemies.push(_arenaMakeEnemy(side,floor,'rear',''));
+    enemies.push(_arenaMakeEnemy(central,floor,'rear','boss'));
+    enemies.push(_arenaMakeEnemy(side,floor,'rear',''));
     return finish(enemies);
   }
   if(r===3){
     const floor=_arenaRoundStatFloor(r);
-    const enemies=Array.from({length:5},()=>makeFixed('カースドアーマー',floor,eliteMult,'front',''));
-    enemies.push(makeFixed('グレーターデーモン',floor,eliteMult,'rear','elite'));
+    const enemies=Array.from({length:5},()=>makeFixed(spec.frontName,floor,'front',''));
+    enemies.push(makeFixed(spec.leaderName,floor,'rear','elite'));
     return finish(enemies);
   }
   if(r===4){
     const floor=_arenaRoundStatFloor(r);
     const central=_arenaUnusedBoss(2);
-    const side=_sideBossDef(central,FLOOR_DATA[floor]?.grade||central.grade||1);
-    const enemies=Array.from({length:5},()=>makeFixed('ダークエルフ',floor,bossMult,'front',''));
-    enemies.push(_arenaMakeEnemy(side,floor,bossMult,'rear',''));
-    enemies.push(_arenaMakeEnemy(central,floor,bossMult,'rear','boss'));
-    enemies.push(_arenaMakeEnemy(side,floor,bossMult,'rear',''));
+    const side=_sideBossDef(central,central.grade||arenaRoundSpec(r).statWave);
+    const enemies=Array.from({length:5},()=>makeFixed(spec.frontName,floor,'front',''));
+    enemies.push(_arenaMakeEnemy(side,floor,'rear',''));
+    enemies.push(_arenaMakeEnemy(central,floor,'rear','boss'));
+    enemies.push(_arenaMakeEnemy(side,floor,'rear',''));
     return finish(enemies);
   }
   if(r===5){
     const floor=_arenaRoundStatFloor(r);
-    const enemies=Array.from({length:6},()=>makeFixed('カトブレパス',floor,eliteMult,'front',''));
-    enemies.push(makeFixed('レッドキャップ',floor,eliteMult,'rear','elite'));
+    const enemies=Array.from({length:6},()=>makeFixed(spec.frontName,floor,'front',''));
+    enemies.push(makeFixed(spec.leaderName,floor,'rear','elite'));
     return finish(enemies);
   }
   const floor=_arenaRoundStatFloor(6);
-  const ares=_arenaEnemyDef('闘技場の覇者 “アレス”',FLOOR_DATA[floor]?.grade||5);
-  const enemy=_arenaMakeEnemy(ares,floor,bossMult,'rear','boss');
+  const ares=_arenaEnemyDef(spec.leaderName,spec.statWave);
+  const enemy=_arenaMakeEnemy(ares,floor,'rear','boss');
   return finish([enemy]);
 }
 
@@ -463,11 +502,11 @@ function _applyOpeningBattleEnemyFormation(enemies,floor){
   return picked;
 }
 
-// Q004の魔狼戦。敵の強さはステージ2エリート戦と同じ floor／1.5倍を使うが、
+// Q004の魔狼戦。敵の強さはステージ2エリート戦と同じ深層3を使うが、
 // 戦闘種別は通常戦のままにして、開戦演出・報酬の入口を通常戦と共有する。
+function questGarmStatFloor(){ return floorForMapDeep(2,3); }
 function generateQuestGarmEnemies(){
-  const floor=typeof _waveStageFloor==='function'?_waveStageFloor(2,3):Math.max(1,Number(G&&G.floor)||1);
-  const mult=1.5;
+  const floor=questGarmStatFloor();
   const encounterSpec=typeof questEncounterEnemySpec==='function'?questEncounterEnemySpec():null;
   const findCode=code=>{
     const key=String(code||'').toUpperCase();
@@ -480,7 +519,7 @@ function generateQuestGarmEnemies(){
   // ガルムの強さはクエスト枠のホバー表示で先に決めた値を使う（quest.js questGarmPreviewStats）。
   const garmPreview=typeof questGarmPreviewStats==='function'?questGarmPreviewStats():null;
   const make=(def,lane)=>{
-    const stats=(def===garm&&garmPreview)?{atk:garmPreview.atk,hp:garmPreview.hp}:enemyStats(def,floor,mult);
+    const stats=(def===garm&&garmPreview)?{atk:garmPreview.atk,hp:garmPreview.hp}:enemyStats(def,floor);
     const unit=_mkEnemy(stats.atk,stats.hp,def.name,def.icon,def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     _applyEnemyDefAbilities(unit,def);
     unit.lane=lane;
@@ -499,7 +538,6 @@ function generateQuestGarmEnemies(){
   G._isEliteFight=false;
   G._eliteIdx=-1;
   G._enemyLaneFixed=true;
-  G._extraBattleMult=1.0;
   return enemies;
 }
 
@@ -510,7 +548,7 @@ function generateEnemies(floor){
     // 本来データが存在するはずの1階層目以降でのみエラーとして記録する
     if(floor!==0) console.error('[generateEnemies] FLOOR_DATA['+floor+'] が未定義');
     const def=_pickEnemyDef(1);
-    const st=enemyStats(def,1,1.0);
+    const st=enemyStats(def,1);
     const e=_mkEnemy(st.atk,st.hp,def.name,def.icon,def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
     _applyEnemyDefAbilities(e,def);
     e._sheetEnemy=!!def._sheetEnemy;
@@ -537,7 +575,7 @@ function generateEnemies(floor){
     const make=(def,isCenter)=>{
       const {atk,hp}=(isCenter&&preview&&preview.def===def)
         ?{atk:preview.atk,hp:preview.hp}
-        :enemyStats(def,floor,G._forceBossMult||G._extraBattleMult||1.5);
+        :enemyStats(def,floor);
       const kws=[...(def.keywords||[])];
       if(isCenter&&!kws.includes('ボス')) kws.push('ボス');
       const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws,def.race||'-');
@@ -602,11 +640,11 @@ function generateEnemies(floor){
     let e;
     if(isElite){
       if(pickedElite){
-        e=_mkNamedEnemy(pickedElite,floor,1.2,['エリート']);
+        e=_mkNamedEnemy(pickedElite,floor,['エリート']);
       } else {
         const g=rollEnemyGrade(floor);
         const def=_pickEnemyDef(g);
-        const {atk,hp}=enemyStats(def,floor,1.2);
+        const {atk,hp}=enemyStats(def,floor);
         const eg=Math.min(6,(FLOOR_DATA[floor]?.grade||1)+1);
         e=_mkEnemy(atk,hp,def.name,def.icon,eg,_kwShield(def),[...(def.keywords||[]),'エリート'],def.race||'-');
         _applyEnemyDefAbilities(e, def);
@@ -622,8 +660,7 @@ function generateEnemies(floor){
       } else {
         def=_pickEnemyDef(g);
       }
-      const _xm=(G._extraBattleMult||1.0);
-      const {atk,hp}=enemyStats(def,floor,_xm);
+      const {atk,hp}=enemyStats(def,floor);
       const kws=[...(def.keywords||[])];
       e=_mkEnemy(atk,hp,def.name,def.icon,g,_kwShield(def),kws,def.race||'-');
       _applyEnemyDefAbilities(e, def);
@@ -633,7 +670,6 @@ function generateEnemies(floor){
     }
     enemies.push(e);
   }
-  G._extraBattleMult=1.0; // 使い捨てリセット
   // 明示指定がある場合は、開幕戦の固定編成よりそちらを優先する。
   if(!_fixedCount&&usesOpeningBattleEnemyFormation(floor)){
     return _applyOpeningBattleEnemyFormation(enemies,floor);
@@ -692,7 +728,7 @@ function generateEliteEnemies(floor){
   const make=(def,isCenter)=>{
     const {atk,hp}=(isCenter&&preview&&preview.def===def)
       ?{atk:preview.atk,hp:preview.hp}
-      :enemyStats(def,floor,(G._extraBattleMult||1.0));
+      :enemyStats(def,floor);
     const kws=[...(def.keywords||[])];
     if(isCenter&&!kws.includes('エリート')) kws.push('エリート');
     const e=_mkEnemy(atk,hp,def.name,def.icon,baseG,_kwShield(def),kws.filter(k=>k!=='ボス'),def.race||'-');
@@ -725,7 +761,6 @@ function generateEliteEnemies(floor){
   G._isEliteFight=true;
   G._eliteIdx=frontCount+(rearN>=3?1:0);
   G._enemyLaneFixed=true;
-  G._extraBattleMult=1.0;
   // 明示指定がある場合は前衛・後衛の数をそのまま保つ（_enforceLaneRulesは混在を強制する）。
   if(!_fixedElite) _enforceLaneRules(enemies);
   return enemies;

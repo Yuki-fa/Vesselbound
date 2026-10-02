@@ -444,15 +444,29 @@ function coreEngravingStageValue(unit, name, state) {
 }
 
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
+// **封印は持っている分を合計する。** 例：封印3のキャラに「封印されしもの」（封印9）を付けると封印12
+// （2026-10-02 利用者指摘：最初の1つだけを使っていて、付けても増えなかった）。
+// 合計するのはキーワード（unit.keywords＝本体＋接続した強化）の「封印N」だけ。効果文から拾う封印は、
+// キーワードが無い時だけ従来どおり1つ使う（同じ封印を本文とキーワードの両方から二重に数えない）。
+// 我慢の刻印（封印X＝ステージ×5）もそこへ足す。
 function coreSealValue(unit) {
   if (unit && unit._sealInfinity) return Infinity;
+  const own = (unit && unit.keywords || []).map(k => String(k || '').trim()).filter(k => /^封印(?:\d+|∞)$/.test(k));
+  if (own.some(k => /∞/.test(k))) return Infinity;
+  let total = own.reduce((sum, k) => sum + Math.max(1, parseInt(k.replace('封印', ''), 10) || 1), 0);
+  if (!own.length) {
+    const kw = (coreUnitKeywords(unit) || []).find(k => /^封印(?:\d+|∞)$/.test(k));
+    if (kw && /∞/.test(kw)) return Infinity;
+    if (kw) total = Math.max(1, parseInt(String(kw).replace('封印', ''), 10) || 1);
+  }
   if (unit && (coreHasEffect(unit, '我慢の刻印')
     || /封印X[（(]?X[＝=]ステージ[×x*]5/.test(coreUnitEffectText(unit)))) {
-    return coreEngravingStageValue(unit, '我慢の刻印');
+    // 編成で接続した時は「封印X」がキーワードとして既に付いている（battle.js _collectAdjacentEnhancements）。
+    // その時は二重に足さない。キーワードが無い（効果名だけを持つ）時だけ足す。
+    const engraving = coreEngravingStageValue(unit, '我慢の刻印');
+    if (!own.includes('封印' + engraving)) total += engraving;
   }
-  const kw = (coreUnitKeywords(unit) || []).find(k => /^封印(?:\d+|∞)$/.test(k));
-  if (kw && /∞/.test(kw)) return Infinity;
-  return kw ? Math.max(1, parseInt(String(kw).replace('封印', ''), 10) || 1) : 0;
+  return total;
 }
 
 // 戦闘開始時の封印状態を決める。units は盤面順（味方→敵）に並んだ全キャラクター。
@@ -3228,9 +3242,10 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   // ケットシー：体数は本文から読む（合体後は2体）。
   const catCount = Math.max(1, coreEffectNumbers(unit, '負傷', /「黄ナイトキャット」を(\d+)体召喚する/, [1])[0]);
   for (let i = 0; i < coreEffectCount(unit, 'ケットシー') * catCount; i++) {
-    // ナイトキャットはケットシーの右隣へ出る。召喚イベントの発生順と
-    // 画面上の並び順を一致させ、連続召喚時に左側へ巻き戻らないようにする。
-    coreSummonUnit(state, unit.side, { name: '黄ナイトキャット', color: '黄', placement: 'rightOfSource' }, emit, unit.id);
+    // ナイトキャットは戦闘中の召喚の決まりどおり前衛の右端へ出る（BATTLE.md）。
+    // 以前は placement:'rightOfSource' を付けていたが、コアは対象IDが無いので右端へ置き、
+    // 表示側だけがケットシーの右隣へ並べていた＝画面と実際の並びが食い違っていた（2026-10-02 利用者指摘）。
+    coreSummonUnit(state, unit.side, { name: '黄ナイトキャット', color: '黄' }, emit, unit.id);
   }
   for (let i = 0; i < coreEffectCount(unit, '波の娘"ラン・ドーター"'); i++) {
     coreSummonUnit(state, unit.side, { name: '黒ケルピー', atk: 1, hp: 3 }, emit, unit.id);

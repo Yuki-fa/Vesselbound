@@ -4773,6 +4773,12 @@ function _collectAdjacentEnhancements(unit, slotIdx){
       enh.strategyCount+=(panel._tripleMerged&&!panel._mergedFormApplied?2:1);
     }
     if(panel.name==='封印されしもの'&&!panelKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) panelKeywords.push('封印1');
+    // 我慢の刻印＝封印X（X＝現在のステージ×5）。接続したキャラのキーワードとして付け、血アイコンにも出す（2026-10-02 利用者指摘）。
+    // 戦闘の coreSealValue は、このキーワードがあれば我慢の刻印の分を二重には足さない。
+    if(String(panel.name||'')==='我慢の刻印'){
+      const stage=Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
+      panelKeywords.push(`封印${stage*5}`);
+    }
     panelKeywords.forEach(k=>{
       enh.effectScales[k]=Math.max(enh.effectScales[k]||1,panel._tripleMerged?2:1);
       // 衝撃X：このキャラクター自身が弱体化するのではなく、攻撃/ダメージ効果で

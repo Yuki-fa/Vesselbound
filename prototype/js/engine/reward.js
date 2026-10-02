@@ -1421,6 +1421,7 @@ function _syncRewardProductionRings(){
           G.rings[srcIdx]=tmp;
           _playRewardAcquireSfx('ring_get.wav');
           _syncRewardProductionUi();
+          if(typeof renderHandEditor==='function') renderHandEditor();
           return;
         }
         if(_dragSrc&&_dragSrc.arr==='ringOffer'&&G._ringOfferUnlocked&&!slot._rewardRing){
@@ -1449,6 +1450,8 @@ function _syncRewardProductionRings(){
           if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
           updateHUD();
           renderRewCards();
+          // 指輪（瞳の指輪など）は魔導板の数値に効くので、取った瞬間に描き直す（2026-10-02 利用者指摘）。
+          if(typeof renderHandEditor==='function') renderHandEditor();
           renderMoveSlotsInEnemy();
           if(G._isRingExchange&&typeof questOnAltarRingTaken==='function') questOnAltarRingTaken();
         }
@@ -1473,11 +1476,13 @@ function _openRingActionConfirm(idx,anchor){
       ring._disabled=!ring._disabled; _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
+      if(typeof renderHandEditor==='function') renderHandEditor();
     }},
     {label:_uiLabel('「捨てる」ボタン','捨てる'),disabled:locked,onClick:()=>{
       G.rings[idx]=null; _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
+      if(typeof renderHandEditor==='function') renderHandEditor();
     }},
     cancel
   ];
@@ -3148,6 +3153,21 @@ function _syncUnitPanelEffectsAfterMove(unit){
   syncUnitPanelStatBonuses(unit);
   if(typeof syncUnitPanelFlags==='function') syncUnitPanelFlags(unit);
 }
+function _panelEyeRingPreviewBonus(card,unit,idx){
+  if(!card||typeof G==='undefined'||!G) return 0;
+  const rings=typeof _effectiveRings==='function'?_effectiveRings():(G.rings||[]);
+  if(!Array.isArray(rings)||!rings.some(Boolean)) return 0;
+  if(typeof coreSealValue==='function'&&coreSealValue(card)>0) return 0;
+  const eye={'赤い瞳の指輪':'赤','青い瞳の指輪':'青','緑の瞳の指輪':'緑','黄の瞳の指輪':'黄','紫の瞳の指輪':'紫'};
+  const colorMap={red:'赤',blue:'青',green:'緑',yellow:'黄',brown:'黄',purple:'紫',茶:'黄'};
+  const raw=String(card.color||'').trim();
+  const color=colorMap[raw.toLowerCase()]||raw;
+  let bonus=rings.filter(r=>r&&eye[r.name]&&eye[r.name]===color).length*10;
+  if(rings.some(r=>r&&r.name==='虹の瞳の指輪')&&typeof _currentRainbowRingBonusForUnit==='function'){
+    bonus+=Number(_currentRainbowRingBonusForUnit({...card,_ownedBoardPreview:true}))||0;
+  }
+  return bonus;
+}
 function _panelCharacterPreviewStats(unit,idx,card){
   const base={
     atk:Number(card?.power??card?.atk??0),
@@ -3173,6 +3193,11 @@ function _panelCharacterPreviewStats(unit,idx,card){
       }
     }catch(_e){ /* 読み込み途中は通常の隣接値だけを表示する。 */ }
   }
+  // 色の瞳の指輪（+10/+10）・虹の瞳の指輪（+X/+X）も魔導板の数値に含める（2026-10-02 利用者指摘）。
+  // 戦闘ではコアの開戦処理（coreApplyOpeningRingsToUnitEarly）が同じ量を足す。鏡の指輪の写しも数える。
+  // 封印されたキャラには戦闘でも掛からないので足さない。
+  const ringBonus=_panelEyeRingPreviewBonus(card,unit,idx);
+  base.atk+=ringBonus; base.hp+=ringBonus;
   // ATK・HPを減少させる強化（呪われた壺の -5/-5 など）の合計がベースを上回っても、
   // **表示は0が下限**。戦闘中の値（_addBattleStats／コアのaddStats）と同じ規則にする。
   base.atk=Math.max(0,base.atk);

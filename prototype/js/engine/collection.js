@@ -279,26 +279,22 @@ function _collectionDescriptionHtml(card,entryKind){
 
 function _collectionEnemyStats(card){
   const grade=Math.max(1,Number(card&&card.grade)||1);
-  const maxDeep=typeof _mapDeepLevelsPerMap==='function'?_mapDeepLevelsPerMap():6;
-  const floorForDeep=deep=>Math.max(1,(grade-1)*maxDeep+Math.max(1,Math.min(maxDeep,deep)));
-  // 通常敵は実際の通常戦マスだけ、強敵は戦力計算式どおり
-  // エリート＝深層3×1.5、ボス＝深層6×2 の候補だけで範囲を作る。
-  const normalDeep=grade===1?[1,2,4,5,6]:(grade===5?[2]:[1,2,3,4,5,6]);
-  const scenarios=card&&card.bossOnly
-    ?[...(grade<5?[{deep:3,extra:1.5}]:[]),{deep:6,extra:2}]
-    :normalDeep.map(deep=>({deep,extra:1}));
-  const mults=scenarios.map(({deep,extra})=>{
-    const floor=typeof FLOOR_DATA!=='undefined'&&FLOOR_DATA[floorForDeep(deep)];
-    return (Number(floor&&floor.mult)||1)*extra;
-  });
-  const atk=Array.isArray(card&&card.baseAtk)?card.baseAtk:[Number(card&&card.atk)||1,Number(card&&card.atk)||1];
-  const hp=Array.isArray(card&&card.baseHp)?card.baseHp:[Number(card&&card.hp)||2,Number(card&&card.hp)||2];
-  const minMult=Math.min(...mults),maxMult=Math.max(...mults);
+  let floors=_waveEnemyStatFloors(grade,card&&card.bossOnly?['elite','boss']:['battle','elite','boss']);
+  const code=_enemyDefCode(card);
+  // ステージ5の固定敵は、その個体が出る戦闘だけを表示範囲へ入れる。
+  if(code===SCENE5_BOSS_ENEMY_NO) floors=[floorForMapDeep(5,_waveDeepLevelForStory(4,5,'boss',false,true))];
+  if([FINAL_BOSS_ENEMY_NO,FINAL_BOSS_LEFT_ENEMY_NO,FINAL_BOSS_RIGHT_ENEMY_NO].includes(code)){
+    floors=[floorForMapDeep(5,_waveDeepLevelForStory(5,5,'boss',false,true))];
+  }
+  // 通常抽選に出ない追撃戦の対象と闘技場の覇者も、専用の生成経路と同じ深層を使う。
+  const configs=typeof QUEST_CONFIG!=='undefined'?Object.values(QUEST_CONFIG):[];
+  if(configs.some(config=>config.pursuit&&String(config.pursuit.targetEnemyNo||'').toUpperCase()===code)) floors=[questGarmStatFloor()];
+  if(card&&card.name===ARENA_CHAMPION_ENEMY_NAME) floors=[_arenaRoundStatFloor(6)];
+  const ranges=floors.map(floor=>enemyStatRanges(card||{},floor));
+  ranges.push(...arenaEnemyStatRanges(card));
   return {
-    atkMin:Math.max(1,Math.round((Number(atk[0])||1)*minMult)),
-    atkMax:Math.max(1,Math.round((Number(atk[1])||Number(atk[0])||1)*maxMult)),
-    hpMin:Math.max(1,Math.round((Number(hp[0])||1)*minMult)),
-    hpMax:Math.max(1,Math.round((Number(hp[1])||Number(hp[0])||1)*maxMult)),
+    atkMin:Math.min(...ranges.map(range=>range.atkMin)),atkMax:Math.max(...ranges.map(range=>range.atkMax)),
+    hpMin:Math.min(...ranges.map(range=>range.hpMin)),hpMax:Math.max(...ranges.map(range=>range.hpMax)),
   };
 }
 

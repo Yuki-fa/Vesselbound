@@ -7,6 +7,225 @@ const {launch,sleep}=require('./headless');
 
 const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
 
+async function checkDebugStoryCycle(browser,ok){
+  const result=await browser.eval(`
+    const old={hasCleared:SaveProfile.hasClearedRun,shown:SaveProfile.tutorialShown,mark:SaveProfile.markTutorialShown,
+      village:_openWaveVillage,intro:_playVillageEnterIntro,portrait:showTavernPortrait,dialogue:_qStartDialogue,
+      story:_runStoryArrival,delay:_mapDelay,gameOver,town:maybeStartQuestTownArrival,tower:maybeStartQ009TowerArrival,
+      pair:_qShowPortraitPair,recovery:_qRunRecoveryTownArrival};
+    const out={selections:[],arrivals:[],order:[],profileWrites:[],clears:[],towns:[]};
+    let opening=null,townArrival=null;
+    try{
+      SaveProfile.hasClearedRun=()=>false;
+      SaveProfile.tutorialShown=()=>true;
+      SaveProfile.markTutorialShown=key=>out.profileWrites.push(key);
+      _openWaveVillage=(stage,elite,options)=>{out.startOptions=options;};
+      startGame(true,false);
+      out.start={cycle:offlineStoryCycle(),wave:G._wave,stage:G._waveStage,arrival:_storyArrivalSpec(out.startOptions)};
+      _openWaveVillage=(...args)=>{opening=old.village(...args);return opening;};
+      _playVillageEnterIntro=async build=>{out.order.push('intro');build();return true;};
+      showTavernPortrait=async()=>null;
+      _qShowPortraitPair=async()=>{};
+      _qStartDialogue=async lines=>{out.order.push('dialogue');out.lastLines=lines.map(line=>line.text);};
+      _mapDelay=async()=>{};
+      gameOver=options=>out.clears.push(options);
+      _runStoryArrival=spec=>{if(spec) out.arrivals.push(spec.scene);return old.story(spec);};
+      maybeStartQuestTownArrival=()=>{townArrival=old.town();return townArrival;};
+      _qRunRecoveryTownArrival=async entry=>{out.towns.push(entry.questId);return 'completed';};
+      G._facilityTalkSeen={'story:riese-arrival:1':true,'story:riese-arrival:2':true};
+      const root=document.getElementById('journey-progress-ui');
+      const select=async(cycle,scene)=>{
+        _syncRewardJourneyUi({root});
+        const mark=root.querySelector('[data-journey-cycle="'+cycle+'"][data-journey-scene="'+scene+'"]');
+        if(!mark) throw new Error('デバッグの周回・ステージマークが無い: '+cycle+':'+scene);
+        await mark.onclick(new MouseEvent('click',{bubbles:true,cancelable:true}));
+        _syncRewardJourneyUi({root});
+      };
+      for(const cycle of [1,2]){
+        // プロフィールを選択と逆の周回にしても、旅程で選んだ周回を使う。
+        SaveProfile.hasClearedRun=()=>cycle===1;
+        for(let scene=1;scene<=(cycle===1?4:5);scene++){
+          await select(cycle,scene);
+          const route=_waveRouteForWave(scene).slice();
+          G._debugMode=false;SaveProfile.hasClearedRun=()=>cycle===2;
+          const normalRoute=_waveRouteForWave(scene).slice();
+          G._debugMode=true;SaveProfile.hasClearedRun=()=>cycle===1;
+          const current=root.querySelector('.journey-scene-mark.current');
+          out.selections.push({cycle:offlineStoryCycle(),scene,wave:G._wave,stage:G._waveStage,
+            sameRoute:JSON.stringify(route)===JSON.stringify(normalRoute),formation:scene===1||!!document.querySelector('#scr-battle.active'),
+            currentCycle:Number(current?.dataset.journeyCycle),currentScene:Number(current?.dataset.journeyScene),
+            elite:scene<=4?_waveDeepLevel(route.indexOf('elite')+1,scene):null,
+            boss:scene<=4?_waveDeepLevel(route.indexOf('boss')+1,scene):null,
+            bossPreview:scene<=4?FLOOR_DATA[_ensureWaveEnemyPreview(scene,'boss').floor].deepLevel:null});
+          if(scene===1){
+            const home=villageFacilityList().find(f=>f.key==='home');
+            out['cycle'+cycle]={background:getVillageBackgroundKey(),library:libraryBackgroundKey(),homeDisabled:_villageFacilityDisabled(home)};
+            await select(cycle,scene); // ラン既読・プロフィール既読があっても同じ会話をもう一度出す。
+          }
+          if(scene===2){
+            const track=root.querySelector('.journey-scene-track-debug');
+            const groups=[...track.querySelectorAll('.journey-scene-group')];
+            const bounds=root.getBoundingClientRect();
+            const children=[...track.querySelectorAll('.journey-scene-mark,.journey-cycle-label')];
+            const label=track.querySelector('.journey-cycle-label'),style=getComputedStyle(label);
+            out.layout={counts:groups.map(group=>group.querySelectorAll('.journey-scene-mark').length),
+              sideBySide:groups[0].getBoundingClientRect().right<groups[1].getBoundingClientRect().left,
+              fits:children.every(el=>{const r=el.getBoundingClientRect();return r.left>=bounds.left&&r.right<=bounds.right;}),
+              visible:style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>0&&label.getBoundingClientRect().height>0,
+              size:getComputedStyle(track.querySelector('.journey-scene-mark')).width,
+              line:getComputedStyle(track.querySelector('.journey-track-line')).width,
+              gap:getComputedStyle(track).gap,currentCount:track.querySelectorAll('.journey-scene-mark.current').length};
+          }
+        }
+        // 周回別のヴァルガ宿屋・酒場・五聖の座も通常と同じ条件になる。
+        G._wave=2;G._waveLife=1;G._isWaveAltar=false;
+        const inn=villageFacilityList().find(f=>f.key==='inn');
+        out['cycle'+cycle].innDisabled=_villageFacilityDisabled(inn);
+        out['cycle'+cycle].tavernDisabled=_villageFacilityDisabled(villageFacilityList().find(f=>f.key==='tavern'));
+        G._isWaveAltar=true;G._fiveSaints={visited:false,offeredNos:[],offers:{},decisions:{},targets:{}};
+        out['cycle'+cycle].landingVisible=villageFacilityList().some(f=>f.key==='landing');
+        out['cycle'+cycle].landingUnlocked=_fiveSaintsUnlocked();
+      }
+      // ステージ2の編成から街マスを押すと、前の街で受けた依頼の到着イベントへ入る。
+      G.questProgress={Q002:{questId:'Q002',wave:1,status:'accepted',tavernVariant:'Q002_1',towerVariant:'Q002_2',
+        townEventDone:false,towerEventDone:false}};
+      await select(2,2);
+      root.querySelector('[data-journey-type="city"]').click();
+      await opening;await townArrival;
+      out.town={started:out.towns.includes('Q002'),done:G.questProgress.Q002.townEventDone,
+        stage:G._waveStage,type:_waveRouteNode(G._waveStage)};
+      await select(2,2);
+      const replay=G._debugArrivalQuest,goldBefore=G.gold,boardCard=G.mainBoard[0];
+      replay.townRewardGiven=false;replay.cargoLossPaid=false;
+      _qGiveTownArrivalGold(replay,{rewardGoldByCount:{3:250}},{},3);
+      const loss=_qPayCargoLoss(replay,3,0);
+      const testCard=makePanel(PANEL_POOL[0].id);G.mainBoard[0]=testCard;
+      const held=_qTakeOwnedCards(_qCardNo(testCard),replay);
+      out.replayResources=G.gold===goldBefore&&loss===0&&held>=1&&G.mainBoard[0]===testCard
+        &&G.questProgress.Q002.status==='completed';
+      G.mainBoard[0]=boardCard;
+      root.querySelector('[data-journey-type="city"]').click();
+      await opening;await townArrival;
+      out.town.replayed=out.towns.filter(id=>id==='Q002').length===2&&G.questProgress.Q002.status==='completed';
+      G.questProgress={};
+      for(const cycle of [1,2]){
+        await select(cycle,4);
+        const clearsBefore=out.clears.length;
+        root.querySelector('[data-journey-type="altar"]').click();
+        await opening;
+        // 1周目の蝕界の塔到達イベントは、立ち絵のフェード（実時間）を挟んでからクリア画面へ進む。終わるまで待つ。
+        await new Promise(resolve=>{const t0=Date.now();const iv=setInterval(()=>{
+          if(out.clears.length>clearsBefore||Date.now()-t0>(cycle===1?6000:1500)){clearInterval(iv);resolve();}},50);});
+        out['tower'+cycle]={arrival:_storyArrivalSpec({intro:true}),clearCount:out.clears.length};
+      }
+      // 進行中の会話・立ち絵・施設・五聖の座と、止まった到着セッションを片付ける。
+      G._storyArrivalBusy=true;G._villageFacilityBusy=true;G._isFiveSaints=true;G._fiveSaintsResolving=true;G._facilityGreetingKey='shop';
+      _qTownSession=true;_qTowerSession=true;
+      document.body.classList.add('five-saints-active','five-saints-formation-active','quest-town-event-active','facility-bg-active');
+      for(const [id,className] of [['tavern-dialogue-layer',''],['five-saints-decor',''],['','tavern-presentation-host'],['','quest-event-shade']]){
+        const el=document.createElement('div');if(id) el.id=id;if(className) el.className=className;
+        document.getElementById('scr-village').appendChild(el);
+      }
+      await select(2,3);
+      out.cleanup={dom:!document.querySelector('#tavern-dialogue-layer,#five-saints-decor,.tavern-presentation-host,.quest-event-shade'),
+        classes:!['five-saints-active','five-saints-formation-active','quest-town-event-active','facility-bg-active'].some(c=>document.body.classList.contains(c)),
+        state:!G._storyArrivalBusy&&!G._villageFacilityBusy&&!G._isFiveSaints&&!G._fiveSaintsResolving&&!G._facilityGreetingKey&&!_qTownSession&&!_qTowerSession};
+      // 立ち絵の待機中に選び直しても、前の到着会話が後から復活しない。
+      let release;
+      showTavernPortrait=()=>new Promise(resolve=>{release=resolve;});
+      G._wave=0;G._isWaveAltar=false;
+      const pending=_runStoryArrival(_storyArrivalSpec({intro:true}));
+      const linesBefore=out.order.filter(v=>v==='dialogue').length;
+      await select(1,3);release(null);
+      out.cancelled=await pending==='cancelled'&&!G._storyArrivalBusy
+        &&out.order.filter(v=>v==='dialogue').length===linesBefore;
+      showTavernPortrait=async()=>null;
+      // 保存形式への追加、復元後の周回、古い保存の既定値を確かめる。
+      const save=SaveRun.buildRunSave('reward');
+      out.saved=save.state.progress._debugStoryCycle;
+      SaveRun.restoreRunState(save);G._debugMode=true;
+      out.restored=offlineStoryCycle();
+      delete save.state.progress._debugStoryCycle;
+      SaveRun.restoreRunState(save);G._debugMode=true;
+      out.legacy=offlineStoryCycle();
+      G._debugStoryCycle=1;G._onlineMode=true;G._wave=2;
+      _syncRewardJourneyUi({root});
+      out.online={cycle:offlineStoryCycle(),groups:root.querySelectorAll('.journey-scene-group').length,
+        marks:root.querySelectorAll('.journey-scene-mark').length,landing:_fiveSaintsUnlocked()};
+      return out;
+    }finally{
+      questForceEndEventForDebug();
+      SaveProfile.hasClearedRun=old.hasCleared;SaveProfile.tutorialShown=old.shown;SaveProfile.markTutorialShown=old.mark;
+      _openWaveVillage=old.village;_playVillageEnterIntro=old.intro;showTavernPortrait=old.portrait;
+      _qStartDialogue=old.dialogue;_runStoryArrival=old.story;_mapDelay=old.delay;gameOver=old.gameOver;
+      maybeStartQuestTownArrival=old.town;maybeStartQ009TowerArrival=old.tower;
+      _qShowPortraitPair=old.pair;_qRunRecoveryTownArrival=old.recovery;
+      G._debugMode=false;G._onlineMode=false;G._isWaveAltar=false;G._facilityTalkSeen={};G.questProgress={};
+    }
+  `);
+  ok('デバッグ開始は2周目ステージ1・到着会話を省略',result.start.cycle===2&&result.start.wave===0
+    &&result.start.stage===1&&result.start.arrival===null&&result.startOptions.skipStoryArrival,result.start);
+  ok('デバッグで1周目1〜4／2周目1〜5を選べ、currentとルート・深層が選択に一致',result.selections.length===9
+    &&result.selections.every(s=>s.sameRoute&&s.formation&&s.stage===1&&s.wave===(s.scene===1?0:s.scene)
+      &&s.currentCycle===s.cycle&&s.currentScene===s.scene
+      &&(s.scene===5||(s.elite===3&&s.boss===(s.cycle===1?6:7)&&s.bossPreview===s.boss))),result.selections);
+  ok('デバッグ旅程の4個＋5個は横並びで枠内、現在マークは1つ',JSON.stringify(result.layout.counts)==='[4,5]'
+    &&result.layout.sideBySide&&result.layout.fits&&result.layout.visible&&result.layout.currentCount===1
+    &&result.layout.size==='16px'&&result.layout.line==='24px'&&result.layout.gap==='56px',result.layout);
+  ok('デバッグの背景・ホーム・宿屋・酒場・五聖の座は選んだ周回に従う',result.cycle1.background==='village0Night'
+    &&result.cycle1.library==='libraryNight'&&!result.cycle1.homeDisabled&&result.cycle1.innDisabled&&!result.cycle1.tavernDisabled
+    &&!result.cycle1.landingVisible&&!result.cycle1.landingUnlocked&&result.cycle2.background==='village0'
+    &&result.cycle2.library==='library'&&result.cycle2.homeDisabled&&!result.cycle2.innDisabled&&!result.cycle2.tavernDisabled
+    &&result.cycle2.landingVisible&&result.cycle2.landingUnlocked,{first:result.cycle1,repeat:result.cycle2});
+  ok('デバッグ選び直しは既読でも地名演出後に周回別リーゼ会話、プロフィールへ書かない',
+    result.arrivals.filter(s=>s==='リーゼ地名演出後（一周目）').length===2
+    &&result.arrivals.filter(s=>s==='リーゼ地名演出後（二周目）').length>=2
+    &&result.order[0]==='intro'&&result.order[1]==='dialogue'&&result.profileWrites.length===0,result.arrivals);
+  ok('デバッグの街・塔マスから到着クエスト（完了済みも再生）／1周目の蝕界イベントへ入る',result.town.started&&result.town.done&&result.town.replayed
+    &&result.town.type==='city'&&result.tower1.arrival.finalClear&&result.tower1.arrival.portraitB==='MC010'
+    &&result.tower1.clearCount===1&&result.tower2.arrival===null&&result.tower2.clearCount===1,{town:result.town,first:result.tower1,repeat:result.tower2});
+  ok('デバッグ選び直しは前のイベントを片付け、待機中の到着会話も復活しない',result.cleanup.dom
+    &&result.cleanup.classes&&result.cleanup.state&&result.cancelled,result.cleanup);
+  ok('完了済み到着会話の再生は報酬・支払い・カード回収を重複しない',result.replayResources);
+  ok('デバッグ周回はランへ保存・復元され、古いランは2周目、オンラインは影響なし',result.saved===1
+    &&result.restored===1&&result.legacy===2&&result.online.cycle===0&&result.online.groups===0
+    &&result.online.marks===5&&result.online.landing,{saved:result.saved,restored:result.restored,legacy:result.legacy,online:result.online});
+}
+
+async function checkDebugStoryCycleVisible(browser,ok){
+  // 会話の可視性も、実際に旅程を押して出た吹き出しで確認する（上の経路検査は待ち時間だけ省略）。
+  await browser.eval(`window.__debugStoryProfile={shown:SaveProfile.tutorialShown,mark:SaveProfile.markTutorialShown};
+    SaveProfile.tutorialShown=()=>true;SaveProfile.markTutorialShown=()=>{throw new Error('デバッグからプロフィールに既読を書いた');};`);
+  try{
+    for(const cycle of [1,2]){
+      await browser.eval(`
+        G._onlineMode=false;G._debugMode=true;G._debugStoryCycle=${cycle};G._wave=2;G._waveStage=1;G.questProgress={};
+        G._facilityTalkSeen={'story:riese-arrival:1':true,'story:riese-arrival:2':true};
+        questForceEndEventForDebug();_openWaveFormation();
+        document.querySelector('#journey-progress-ui [data-journey-cycle="${cycle}"][data-journey-scene="1"]').click();
+      `);
+      await browser.waitFor(`(()=>{const el=document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text.is-visible');
+        return !G._villageIntroPlaying&&!!el&&Number(getComputedStyle(el).opacity)>.95;})()`,20000);
+      const visible=await browser.eval(`
+        const el=document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text.is-visible');
+        const rect=el.getBoundingClientRect(),style=getComputedStyle(el);
+        let opacity=1;for(let p=el;p;p=p.parentElement) opacity*=Number(getComputedStyle(p).opacity);
+        return {text:el.textContent,expected:storyTalkEntry('リーゼ地名演出後（${cycle===1?'一':'二'}周目）')['台詞1'].text,
+          visible:opacity>.1&&style.visibility!=='hidden'&&style.display!=='none'&&style.color!=='rgba(0, 0, 0, 0)'
+            &&rect.width>0&&rect.height>0&&rect.left<innerWidth&&rect.right>0&&rect.top<innerHeight&&rect.bottom>0,
+          background:getVillageBackgroundKey(),cycle:offlineStoryCycle()};
+      `);
+      ok('デバッグ'+cycle+'周目のリーゼ到着会話は実際の色・不透明度・画面内位置で見える',visible.visible
+        &&visible.text.trim()===visible.expected.trim()&&visible.cycle===cycle
+        &&visible.background===(cycle===1?'village0Night':'village0'),visible);
+    }
+  }finally{
+    await browser.eval(`questForceEndEventForDebug();
+      SaveProfile.tutorialShown=window.__debugStoryProfile.shown;SaveProfile.markTutorialShown=window.__debugStoryProfile.mark;
+      delete window.__debugStoryProfile;_openWaveFormation();G._debugMode=false;G._onlineMode=false;G._facilityTalkSeen={};`);
+  }
+}
+
 (async()=>{
   const browser=await launch({width:1600,height:900});
   const ok=(name,value,detail)=>{
@@ -74,6 +293,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         const onlineLanding=villageFacilityList().find(f=>f.key==='landing');
         result.online={cycle:offlineStoryCycle(),visible:!!onlineLanding,disabled:_villageFacilityDisabled(onlineLanding)};
         G._onlineMode=false;G._debugMode=true;
+        G._debugStoryCycle=2;
         result.debug={cycle:offlineStoryCycle(),route:_journeyRouteForScene(1).slice()};
       }finally{
         SaveProfile.hasClearedRun=oldHasCleared;
@@ -81,8 +301,9 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       }
       return result;
     `);
-    ok('1周目だけ各街から塔までが1戦少ない',branches.first.afterCityBattles===4
-      &&branches.repeat.afterCityBattles===5&&branches.first.standardAfterCityBattles===4
+    // Scene 1（エルム→碧翠の塔）は元から通常戦3回＋ボス、他のSceneは4回＋ボス。1周目はどちらも1回少ない。
+    ok('1周目だけ各街から塔までが1戦少ない',branches.first.afterCityBattles===3
+      &&branches.repeat.afterCityBattles===4&&branches.first.standardAfterCityBattles===4
       &&branches.repeat.standardAfterCityBattles===5&&branches.first.route.length+1===branches.repeat.route.length
       &&branches.first.journeyRemaining==='4'&&branches.repeat.journeyRemaining==='5',branches);
     ok('1周目はホーム／酒場が押せ、ヴァルガ宿屋は満タン文で固定',!branches.first.homeDisabled&&!branches.first.tavernDisabled
@@ -90,7 +311,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       &&branches.first.vargaInn.desc===await browser.eval(`return textMessage('街「宿屋」直下（ライフ満タン時）','')`),branches.first);
     ok('1周目は五聖の座を表示せず、未解放説明は再訪時の行',!branches.first.landingVisible
       &&branches.first.lockedDesc===await browser.eval(`return textMessage('塔「五聖の座」直下（再訪時）','')`),branches.first);
-    ok('2周目は夜のリーゼ背景で宿屋と五聖の座を通常利用',branches.repeat.background==='village0Night'
+    ok('1周目は夜・2周目は通常のリーゼ背景、2周目は宿屋と五聖の座を通常利用',branches.repeat.background==='village0'&&branches.first.background==='village0Night'
       &&!branches.repeat.vargaInn.disabled&&branches.repeat.landing.visible&&!branches.repeat.landing.disabled
       &&branches.repeat.landing.desc===await browser.eval(`return textMessage('塔「五聖の座」直下','')`),branches.repeat);
     ok('五聖の座は拒否後は再入場可、受諾後は再訪時文で操作不可',!branches.repeat.refused.disabled
@@ -98,7 +319,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       &&branches.repeat.accepted.disabled
       &&branches.repeat.accepted.desc===await browser.eval(`return textMessage('塔「五聖の座」直下（再訪時）','')`),branches.repeat);
     ok('オンラインとデバッグはプロフィール周回分岐の対象外',branches.online.cycle===0&&branches.online.visible&&!branches.online.disabled
-      &&branches.debug.cycle===0&&branches.debug.route.length===branches.first.route.length,{online:branches.online,debug:branches.debug});
+      &&branches.debug.cycle===2&&branches.debug.route.length===branches.repeat.route.length,{online:branches.online,debug:branches.debug});
 
     const sheet=await browser.eval(`
       const lineCount=entry=>_storyTalkLines(entry).length;
@@ -132,15 +353,22 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         G._onlineMode=false;G._debugMode=false;G._facilityTalkSeen={};G._isWaveAltar=false;G._wave=0;
         SaveProfile.hasClearedRun=()=>false;out.first=_storyArrivalSpec();
         G._facilityTalkSeen[out.first.key]=true;out.firstSeen=_storyArrivalSpec();
+        // 別のラン（ラン内の記録なし）でも、プロフィールに記録済みなら出さない。
+        const oldShown=SaveProfile.tutorialShown;
+        G._facilityTalkSeen={};SaveProfile.tutorialShown=key=>key===out.first.key;out.firstOtherRun=_storyArrivalSpec();
+        SaveProfile.tutorialShown=oldShown;
         G._facilityTalkSeen={};SaveProfile.hasClearedRun=()=>true;out.repeat=_storyArrivalSpec();
         SaveProfile.hasClearedRun=()=>false;G._wave=4;G._isWaveAltar=true;out.tower=_storyArrivalSpec();
         G._onlineMode=true;out.online=_storyArrivalSpec();
       }finally{SaveProfile.hasClearedRun=oldHasCleared;G._onlineMode=false;G._debugMode=false;G._isWaveAltar=false;G._facilityTalkSeen={};}
       return out;
     `);
-    ok('リーゼ会話は周回別にラン内1回、蝕界の塔は1周目だけMC010付き',arrival.first.scene==='リーゼ地名演出後（一周目）'
-      &&arrival.firstSeen===null&&arrival.repeat.scene==='リーゼ地名演出後（二周目）'
+    ok('リーゼ会話は周回別にシステムデータ内1回、蝕界の塔は1周目だけMC010付き',arrival.first.scene==='リーゼ地名演出後（一周目）'
+      &&arrival.firstSeen===null&&arrival.firstOtherRun===null&&arrival.repeat.scene==='リーゼ地名演出後（二周目）'
       &&arrival.tower.finalClear&&arrival.tower.portraitB==='MC010'&&arrival.online===null,arrival);
+
+    await checkDebugStoryCycle(browser,ok);
+    await checkDebugStoryCycleVisible(browser,ok);
 
     const facilityEvents=await browser.eval(`
       return (async()=>{
@@ -280,15 +508,20 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         const smokePromise=_qSmokePortraitUp('five-saints-mc009');
         await new Promise(r=>setTimeout(r,260));
         const smoke=document.querySelector('.five-saints-smoke-group');
-        const smokeState={exists:!!smoke,mask:smoke?.style.webkitMaskImage||smoke?.style.maskImage||'',transform:smoke?.style.transform||''};
+        const smokeState={exists:!!smoke,mask:smoke?.style.webkitMaskImage||smoke?.style.maskImage||'',animated:!!smoke&&smoke.getAnimations().length>0,transform:smoke?getComputedStyle(smoke).transform:''};
         await smokePromise;
         const smokeGone=!document.querySelector('.five-saints-smoke-group')&&!document.querySelector('.tavern-portrait[data-portrait-key="five-saints-mc009"]');
         await _qClearPresentation({immediate:true});
         await showTavernPortrait('MC001',{screen:'village',face:'MC001_C'});
         const exitPromise=storyFlipSlidePortraitLeft('MC001');
         await new Promise(r=>setTimeout(r,80));
-        const exit=document.querySelector('.tavern-portrait-exit-group');
-        const exitState={exists:!!exit,opacity:exit?.style.opacity||'',transform:exit?.style.transform||''};
+        // 元の立ち絵は素早いフェードで消え、左右反転した写しがフェードで現れる（横幅を縮めない）。
+        const exits=[...document.querySelectorAll('.tavern-portrait-exit-group')];
+        const orig=exits.find(el=>!(el.style.transform||'').includes('scaleX(-1)'));
+        const flip=exits.find(el=>(el.style.transform||'').includes('scaleX(-1)'));
+        await new Promise(r=>setTimeout(r,400));
+        const exitState={exists:exits.length===2,origOpacity:orig?.style.opacity||'',flipOpacity:flip?.style.opacity||'',
+          slideTransform:flip?.style.transform||'',origGoneAfterFade:!orig?.isConnected};
         await exitPromise;
         const exitGone=!document.querySelector('.tavern-portrait-exit-group')&&!document.querySelector('.tavern-portrait[data-portrait-key="MC001"]');
         await _qClearPresentation({immediate:true});
@@ -299,9 +532,10 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       &&JSON.stringify([motion.mc010State.left,motion.mc010State.top,motion.mc010State.width,motion.mc010State.height])
         ===JSON.stringify(['2350px','150px','1885px','3678px']),motion.mc010State);
     ok('台詞3後用の退場は下からのマスクと揺らぎ上昇で完了',motion.smokeState.exists
-      &&motion.smokeState.mask.includes('linear-gradient')&&motion.smokeState.transform.includes('translate3d')&&motion.smokeGone,motion.smokeState);
-    ok('ギャラハ用退場は左右反転して左へフェード退場',motion.exitState.exists
-      &&motion.exitState.opacity==='0'&&motion.exitState.transform.includes('scaleX(-1)')&&motion.exitGone,motion.exitState);
+      &&motion.smokeState.mask.includes('linear-gradient')&&motion.smokeState.animated&&motion.smokeGone,motion.smokeState);
+    ok('ギャラハ用退場は素早いフェードで左右反転してから左へスライドして消える',motion.exitState.exists
+      &&motion.exitState.origOpacity==='0'&&motion.exitState.flipOpacity==='1'&&motion.exitState.origGoneAfterFade
+      &&/translate3d\(-\d/.test(motion.exitState.slideTransform)&&motion.exitState.slideTransform.includes('scaleX(-1)')&&motion.exitGone,motion.exitState);
 
     const clearScreen=await browser.eval(`
       const oldFinish=SaveRun.finish,oldRender=renderGameOverBoard;

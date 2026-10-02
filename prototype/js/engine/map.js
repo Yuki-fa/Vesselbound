@@ -70,12 +70,8 @@ function getWorldMapStageBackgroundKey(){
   return `stage${wave}`;
 }
 
-function _mapDeepLevelsPerMap(){
-  const fromFloor=Number(FLOOR_DATA&&FLOOR_DATA._deepLevelsPerMap);
-  if(Number.isFinite(fromFloor)&&fromFloor>0) return fromFloor;
-  const table=(typeof window!=='undefined'&&window.MAP_DEEP_LEVEL_DATA)||null;
-  const levels=table?Object.values(table).flatMap(v=>Object.keys(v||{}).map(n=>parseInt(n,10)).filter(Number.isFinite)):[];
-  return Math.max(1,...levels,6);
+function _mapDeepLevelsPerMap(map){
+  return mapDeepLevelCount(map==null?(Number(G&&G._wave)||1):map);
 }
 
 function _consumePendingMapItemUse(){
@@ -104,6 +100,8 @@ function _ensureScreenSwitchFadeEl(){
 async function fadeScreenSwitch(action){
   if(_screenSwitchFading||typeof document==='undefined') return action();
   _screenSwitchFading=true;
+  const generation=Number(G&&G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G&&G._debugEventGeneration)||0);
   const el=_ensureScreenSwitchFadeEl();
   const wait=ms=>new Promise(r=>window.setTimeout(r,ms));
   el.classList.add('is-blocking');
@@ -112,14 +110,17 @@ async function fadeScreenSwitch(action){
   el.style.opacity='1';
   await wait(SCREEN_SWITCH_FADE_OUT_MS);
   try{
+    if(!isCurrent()) return;
     return await action();
   }finally{
     // 新しい画面が描かれてから明けるよう、2フレーム待つ。
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-    el.style.transition=`opacity ${SCREEN_SWITCH_FADE_IN_MS}ms ease`;
-    el.style.opacity='0';
-    window.setTimeout(()=>{ if(el.style.opacity==='0') el.classList.remove('is-blocking'); },SCREEN_SWITCH_FADE_IN_MS);
-    _screenSwitchFading=false;
+    if(isCurrent()){
+      el.style.transition=`opacity ${SCREEN_SWITCH_FADE_IN_MS}ms ease`;
+      el.style.opacity='0';
+      window.setTimeout(()=>{ if(isCurrent()&&el.style.opacity==='0') el.classList.remove('is-blocking'); },SCREEN_SWITCH_FADE_IN_MS);
+      _screenSwitchFading=false;
+    }
   }
 }
 if(typeof window!=='undefined') window.fadeScreenSwitch=fadeScreenSwitch;
@@ -152,16 +153,21 @@ function regionInfoForWave(wave){
   return rows[w]||null;
 }
 // 街の背景キー（Assets.backgrounds）。ステージ番号に対応させる。
+// 図書館の背景。1周目は夜（stage0_library_night.webp）、2周目以降・オンラインは通常。
+function libraryBackgroundKey(){
+  return typeof isFirstStoryRun==='function'&&isFirstStoryRun()?'libraryNight':'library';
+}
 function getVillageBackgroundKey(){
-  if(G&&G._isLibraryMenu) return 'library';
+  if(G&&G._isLibraryMenu) return libraryBackgroundKey();
   if(G&&G._isFiveSaints) return 'towerLanding';
   // 塔（祭壇）は全ステージ共通でtower.png。
   if(G&&G._isWaveAltar) return 'tower';
   // 魔獣撃退依頼（Q004）の討伐後の場面は camp.webp（quest.js の _qShowGarmCamp）。
   if(G&&G._questCampScene) return 'camp';
-  // クリア後のリーゼは「5年後」の専用背景。オンライン／デバッグは従来背景のままにする。
+  // 1周目のリーゼは夜の背景（stage0_village_night.webp）、2周目以降は通常の背景（stage0_village.webp）。
+  // デバッグは旅程で選んだ周回を使い、オンラインは通常の背景にする。
   const wave=Math.max(0,Number(G&&G._wave)||0);
-  if(wave===0&&typeof isRepeatStoryRun==='function'&&isRepeatStoryRun()) return 'village0Night';
+  if(wave===0&&typeof isFirstStoryRun==='function'&&isFirstStoryRun()) return 'village0Night';
   if(G&&G._isTavern) return (VILLAGE_FACILITY_BG[wave]||{}).tavern||`village${Math.min(4,wave)}`;
   // 店の入店時の台詞の間は、その店の背景にする。
   if(G&&G._facilityGreetingKey) return (VILLAGE_FACILITY_BG[wave]||{})[G._facilityGreetingKey]||`village${Math.min(4,wave)}`;
@@ -630,8 +636,9 @@ function _villageArenaUsed(){
 // 中身が未実装の施設だけ暗くする。宿屋は会話シートから料金と回復量を読む。
 const VILLAGE_FACILITY_UNIMPLEMENTED=new Set(['home','plaza']);
 function _fiveSaintsUnlocked(){
-  // 周回分岐はオフラインの通常ランだけ。オンラインはプロフィールのクリア記録で施設状態を変えない。
+  // オンラインはプロフィールのクリア記録で施設状態を変えない。
   if(G&&G._onlineMode) return true;
+  if(G&&G._debugMode) return typeof isRepeatStoryRun==='function'&&isRepeatStoryRun();
   return !!(typeof SaveProfile!=='undefined'&&SaveProfile
     &&typeof SaveProfile.hasClearedRun==='function'&&SaveProfile.hasClearedRun());
 }
@@ -651,7 +658,7 @@ function _villageFacilityDisabled(fac){
   }
   if(fac.key==='landing') return !_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved());
-  // 1周目のホームは専用会話の入り口。2周目以降とデバッグは従来どおり未実装。
+  // 1周目のホームは専用会話の入り口。2周目以降は従来どおり未実装。
   if(fac.key==='home') return !(typeof isFirstStoryRun==='function'&&isFirstStoryRun());
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   // 宿屋はライフ満タンの時は入れない（ボタンを暗くする）。
@@ -668,10 +675,12 @@ async function _onVillageFacility(fac){
   if(G._villageIntroPlaying) return;
   if(G._villageFacilityBusy) return;
   if(_screenSwitchFading) return;
+  const generation=Number(G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
   if(typeof isFirstStoryRun==='function'&&isFirstStoryRun()&&['home','tavern'].includes(fac.key)){
     G._villageFacilityBusy=true;
     try{ await _runFirstStoryFacilityEvent(fac); }
-    finally{ G._villageFacilityBusy=false; }
+    finally{ if(isCurrent()) G._villageFacilityBusy=false; }
     return;
   }
   // 画面が切り替わる施設は暗転を挟む（宿屋は切り替わらない。酒場は openTavern の中で挟む）。
@@ -701,11 +710,14 @@ async function _onVillageFacility(fac){
       if(talk&&typeof _qStartDialogue==='function'
         &&(forgeChainState||arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
         await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+        if(!isCurrent()) return;
         // 施設の会話は、シートの最初の台詞が B でも酒場と同じ位置に A を出す。
         // 台詞ごとの表情は、その後 _qStartDialogue() がシートの値を適用する。
         if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
+        if(!isCurrent()) return;
         if(fac.key==='inn'){
           await _runVillageInnDialogue(talk);
+          if(!isCurrent()) return;
           await fadeScreenSwitch(()=>{
             if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
             document.body.classList.remove('inn-rest-fading');
@@ -729,6 +741,7 @@ async function _onVillageFacility(fac){
             :talk['台詞1'];
           await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
         }
+        if(!isCurrent()) return;
         if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
         // 命の鎖の特殊会話は「通常の台詞1を見た」とは数えない。
         // 鎖を切った後／写し身がいない次回入店で、台詞1を通常どおり1回出す。
@@ -748,9 +761,9 @@ async function _onVillageFacility(fac){
       }else if(fac.key!=='inn'){
         await fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
       }
-      if(fac.key!=='inn') _maybeStartShopTutorial(fac);
+      if(isCurrent()&&fac.key!=='inn') _maybeStartShopTutorial(fac);
       return;
-    }finally{ G._villageFacilityBusy=false; }
+    }finally{ if(isCurrent()) G._villageFacilityBusy=false; }
   }
   if(['ringExchange','library','landing'].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
@@ -1294,6 +1307,8 @@ function _ensureVillageEnterFadeEl(){
 async function _playVillageEnterIntro(build,beforeReveal){
   if(G._villageIntroPlaying){ build(); return true; }
   G._villageIntroPlaying=true;
+  const generation=Number(G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
   const body=document.body;
   const fade=_ensureVillageEnterFadeEl();
   // エリート／ボス戦後などで既に画面が暗転している場合は、その暗転をそのまま引き継ぐ。
@@ -1316,9 +1331,11 @@ async function _playVillageEnterIntro(build,beforeReveal){
       fade.style.transition='opacity .34s ease';
       fade.style.opacity='1';
       await _mapDelay(360);
+      if(!isCurrent()) return false;
     }
     // 戦闘後／ラン開始の保存表示は、完全暗転のまま最後まで見せてから街を開く。
     if(typeof beforeReveal==='function'&&await beforeReveal()===false) return false;
+    if(!isCurrent()) return false;
     // ② 村画面へ切り替える（背景以外は隠したまま構築する）
     body.classList.add('village-intro-active','village-intro-hide-ui');
     build();
@@ -1332,6 +1349,7 @@ async function _playVillageEnterIntro(build,beforeReveal){
     body.classList.add('village-intro-circle');
     // ④ 円形フェードインの途中で地域名＋下線をフェードイン
     await _mapDelay(340);
+    if(!isCurrent()) return false;
     const title=document.getElementById('village-intro-title');
     const info=regionInfoForWave(G&&G._wave);
     const introName=(G&&G._isWaveAltar)
@@ -1351,12 +1369,14 @@ async function _playVillageEnterIntro(build,beforeReveal){
     if(typeof playSfx==='function') playSfx('boom',{group:'ui',guardMs:0});
     // 地域名と下線を表示してから、文字が焼失するようにフェードアウトする。
     await _mapDelay(1300);
+    if(!isCurrent()) return false;
     // ⑤ 地域名＋下線をフェードアウト
     if(title){
       title.classList.remove('is-visible');
       title.classList.add('is-hiding');
     }
     await _mapDelay(440);
+    if(!isCurrent()) return false;
     if(title) title.classList.remove('is-hiding');
     // 文字が完全に消えた直後から、街／祭壇のBGMを開始する。
     playVillageBgm(600);
@@ -1364,12 +1384,14 @@ async function _playVillageEnterIntro(build,beforeReveal){
     body.classList.remove('village-intro-hide-ui');
     body.classList.add('village-intro-reveal-ui');
     await _mapDelay(440);
-    return true;
+    return isCurrent();
   }finally{
-    body.classList.remove('village-intro-active','village-intro-circle','village-intro-hide-ui','village-intro-reveal-ui');
-    fade.style.transition='none';
-    fade.style.opacity='0';
-    G._villageIntroPlaying=false;
+    if(isCurrent()){
+      body.classList.remove('village-intro-active','village-intro-circle','village-intro-hide-ui','village-intro-reveal-ui');
+      fade.style.transition='none';
+      fade.style.opacity='0';
+      G._villageIntroPlaying=false;
+    }
   }
 }
 // options.intro：戦闘や別Sceneから新しく街へ入る場合はtrue（入場演出を再生する）。
@@ -1415,7 +1437,7 @@ function openMapVillage(options){
   G.phase='reward';
   // 到着イベントがある場合は、到着時の表示をここでは出さず、イベント完了時へまとめる。
   // prepare関数は地名演出より前にUIを隠す役目も持つため、保存判定より先に一度だけ呼ぶ。
-  const storyArrival=_prepareStoryArrival();
+  const storyArrival=_prepareStoryArrival(options);
   const arrivalQuestPending=!!storyArrival||(G._isWaveAltar
     ?(typeof questPrepareTowerArrival==='function'&&questPrepareTowerArrival())
     :(typeof questPrepareTownArrival==='function'&&questPrepareTownArrival()));
@@ -1452,6 +1474,7 @@ function openMapVillage(options){
     const opening=_playVillageEnterIntro(build,beforeReveal).then(async opened=>{
       if(opened===false) return false;
       const storyResult=await _runStoryArrival(storyArrival);
+      if(storyResult==='cancelled') return false;
       if(storyResult==='final') return true;
       if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
       if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
@@ -1464,6 +1487,7 @@ function openMapVillage(options){
   build();
   void (async()=>{
     const storyResult=await _runStoryArrival(storyArrival);
+    if(storyResult==='cancelled') return;
     if(storyResult==='final') return;
     if(G._isWaveAltar&&typeof maybeStartQ009TowerArrival==='function') maybeStartQ009TowerArrival();
     if(!G._isWaveAltar&&typeof maybeStartQuestTownArrival==='function') maybeStartQuestTownArrival();
@@ -1610,7 +1634,7 @@ function openMapLibraryFormation(){
   document.body.classList.remove('village-screen-active','library-screen-active','world-map-active');
   if(typeof showScreen==='function') showScreen('battle');
   if(typeof goToReward==='function') goToReward();
-  _setOverrideBackground('library');
+  _setOverrideBackground(libraryBackgroundKey());
   document.body.classList.add('library-formation-active');
   if(!G._libraryLoanSnapshot){
     G._libraryLoanSnapshot=typeof clone==='function'?{
@@ -1762,31 +1786,42 @@ function _storyFirstFace(lines,id){
 }
 
 async function _runFirstStoryFacilityEvent(fac){
+  const generation=Number(G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
   const suffix=fac.key==='home'?'「ホーム」押下時（一周目）':'「酒場」押下時（一周目）';
   const talk=villageTalkEntry(suffix);
   const lines=_storyTalkLines(talk);
   if(!lines.length) return false;
   if(fac.key==='tavern'&&typeof playFileSfx==='function') playFileSfx('assets/sfx/knock.wav');
-  await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+  // 1周目のホームは暗転させない（入る時も、会話の後にキャラを消して戻る時も。2026-10-02 利用者指定）。
+  const noFade=fac.key==='home';
+  if(noFade) _showFacilityGreetingScene(fac,{keepPlate:true});
+  else await fadeScreenSwitch(()=>{if(isCurrent()) _showFacilityGreetingScene(fac);});
+  if(!isCurrent()) return true;
   if(typeof showTavernPortrait==='function'){
     await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
   }
+  if(!isCurrent()) return true;
   if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
+  if(!isCurrent()) return true;
   const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
   if(fac.key==='tavern'&&town.includes('ギャラハ')&&typeof storyFlipSlidePortraitLeft==='function'){
     await storyFlipSlidePortraitLeft('MC001');
   }else if(typeof _qClearPresentation==='function') await _qClearPresentation();
-  await fadeScreenSwitch(()=>{
+  if(!isCurrent()) return true;
+  const back=()=>{
+    if(!isCurrent()) return;
     if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
     _hideFacilityGreetingScene();
     if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
     renderVillageScreen();
-  });
+  };
+  if(noFade) back(); else await fadeScreenSwitch(back);
   return true;
 }
 
-function _storyArrivalSpec(){
-  if(!G||G._onlineMode||G._debugMode) return null;
+function _storyArrivalSpec(options){
+  if(!G||G._onlineMode||options&&options.skipStoryArrival) return null;
   const seen=G._facilityTalkSeen||{};
   if(!G._isWaveAltar&&Number(G._wave)===0){
     const first=typeof isFirstStoryRun==='function'&&isFirstStoryRun();
@@ -1794,7 +1829,13 @@ function _storyArrivalSpec(){
     if(!first&&!repeat) return null;
     const cycle=first?1:2;
     const key=`story:riese-arrival:${cycle}`;
-    if(seen[key]) return null;
+    // 1周目用・2周目用それぞれ、そのシステムデータ（プロフィール）で一度だけ出す（2026-10-02 利用者指定）。
+    const shownInProfile=!G._debugMode&&typeof SaveProfile!=='undefined'&&SaveProfile&&typeof SaveProfile.tutorialShown==='function'
+      &&SaveProfile.tutorialShown(key);
+    // デバッグでマーク／マスから入場した時は、プロフィール・ランの既読を両方無視する。
+    // 施設から戻っただけならランの既読を使い、到着会話を繰り返さない。
+    const debugArrival=G._debugMode&&options&&options.intro;
+    if((!debugArrival&&seen[key])||shownInProfile) return null;
     return {key,scene:first?'リーゼ地名演出後（一周目）':'リーゼ地名演出後（二周目）',cssClass:'quest-town-event-active'};
   }
   if(G._isWaveAltar&&Number(G._wave)===4
@@ -1803,8 +1844,8 @@ function _storyArrivalSpec(){
   }
   return null;
 }
-function _prepareStoryArrival(){
-  const spec=_storyArrivalSpec();
+function _prepareStoryArrival(options){
+  const spec=_storyArrivalSpec(options);
   if(!spec) return null;
   if(typeof _qEnsureStyle==='function') _qEnsureStyle();
   document.body.classList.add(spec.cssClass);
@@ -1819,6 +1860,8 @@ function _prepareStoryArrival(){
 }
 async function _runStoryArrival(spec){
   if(!spec||G._storyArrivalBusy) return '';
+  const generation=Number(G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
   const talk=storyTalkEntry(spec.scene);
   const lines=_storyTalkLines(talk);
   if(!lines.length){
@@ -1830,17 +1873,22 @@ async function _runStoryArrival(spec){
     document.body.classList.add(spec.cssClass);
     if(typeof showTavernPortrait==='function'){
       await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
+      if(!isCurrent()) return 'cancelled';
       if(spec.portraitB) await showTavernPortrait(spec.portraitB,{screen:'village'});
     }
+    if(!isCurrent()) return 'cancelled';
     if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
+    if(!isCurrent()) return 'cancelled';
     if(spec.finalClear){
       if(typeof _qClearPresentation==='function') await _qClearPresentation();
+      if(!isCurrent()) return 'cancelled';
       if(typeof stopBgm==='function') stopBgm(600);
       if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(600);
       const fade=_ensureVillageEnterFadeEl();
       fade.style.transition='opacity .6s ease';
       fade.style.opacity='1';
       await _mapDelay(630);
+      if(!isCurrent()) return 'cancelled';
       document.body.classList.remove(spec.cssClass);
       if(typeof gameOver==='function') gameOver({clear:true,firstRunClear:true});
       // 結果画面の黒地に渡した後は、村の暗幕自体は撤去する。
@@ -1850,16 +1898,20 @@ async function _runStoryArrival(spec){
     }
     G._facilityTalkSeen=G._facilityTalkSeen||{};
     G._facilityTalkSeen[spec.key]=true;
+    if(!G._debugMode&&spec.key&&typeof SaveProfile!=='undefined'&&SaveProfile&&typeof SaveProfile.markTutorialShown==='function'){
+      SaveProfile.markTutorialShown(spec.key);
+    }
     if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
       const saved=SaveRun.checkpointFacilityTalk(false);
       if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
     }
     if(typeof _qClearPresentation==='function') await _qClearPresentation();
+    if(!isCurrent()) return 'cancelled';
     document.body.classList.remove(spec.cssClass);
     renderVillageScreen();
     return 'done';
   }finally{
-    G._storyArrivalBusy=false;
+    if(isCurrent()) G._storyArrivalBusy=false;
   }
 }
 function _facilityGreetingEntry(fac){
@@ -2018,10 +2070,12 @@ async function _runVillageInnDialogue(talk){
   }
 }
 // 台詞の間は、村の画面を施設の背景にして施設ボタン類を隠す。
-function _showFacilityGreetingScene(fac){
+function _showFacilityGreetingScene(fac,options){
   G._facilityGreetingKey=fac.key;
   if(typeof applyScreenAssetBackground==='function') applyScreenAssetBackground('village');
   document.body.classList.add('facility-greeting-active');
+  // keepPlate：左上の地名を施設名に変えない（1周目のホーム押下時。2026-10-02 利用者指定）。
+  if(options&&options.keepPlate) return;
   const plate=document.getElementById('village-name-plate');
   if(plate) plate.style.display='inline-flex';
   const sub=document.getElementById('village-name-sub');

@@ -122,6 +122,7 @@ function initState(){
     _usedNamedElite:new Set(), _usedNamedRest:new Set(),
     _retryFloor:false,
     _wave:1,
+    _debugStoryCycle:2,
     _waveStage:1,
     _waveBattleType:null,
     _waveBattleWon:null,

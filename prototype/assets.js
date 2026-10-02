@@ -27,6 +27,8 @@ const Assets = {
     summonFramePurpleMerged: `assets/cards/character_frame5_m.svg?v=${CARD_FRAME_VERSION}`,
     enchantmentFrame: `assets/cards/enchantment.svg?v=${CARD_FRAME_VERSION}`,
     enchantmentFrameMerged: `assets/cards/enchantment_m.svg?v=${CARD_FRAME_VERSION}`,
+    // キーワード「刻印」を持つ強化カード（刻印6種）の枠（2026-10-02 利用者指定）。
+    enchantmentEngravingFrame: `assets/cards/enchantment_engraving.svg?v=${CARD_FRAME_VERSION}-engr1002`,
     // spellN は色の枠（_spellFrameByColor が 1=緑 2=青 3=黄 4=赤 5=紫 で引く）。
     // 画像は上と同じものを色で選ぶ。
     spell1: `assets/cards/character_frame3.svg?v=${CARD_FRAME_VERSION}`,
@@ -57,7 +59,7 @@ const Assets = {
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。
     village0: 'assets/art/backgrounds/stage0_village.webp',
-    village0Night: 'assets/art/backgrounds/stage0_village_night.webp',
+    village0Night: 'assets/art/backgrounds/stage0_village_night.webp?v=night1002',
     // リーゼのホーム（1周目の押下会話でだけ使う）。
     homeStart: 'assets/art/backgrounds/stage0_home.webp',
     village1: 'assets/art/backgrounds/stage1_village.webp',
@@ -77,6 +79,7 @@ const Assets = {
     towerLanding: 'assets/art/backgrounds/tower_landing.webp',
     // 図書館画面の背景
     library: 'assets/art/backgrounds/stage0_library.webp',
+    libraryNight: 'assets/art/backgrounds/stage0_library_night.webp?v=night1002',
     // 街の施設ごとの背景（ステージ1・エルム）
     itemShopForest: 'assets/art/backgrounds/stage1_item_shop.webp',
     magicShopForest: 'assets/art/backgrounds/stage1_magic_shop.webp',
@@ -441,7 +444,11 @@ function _getCardFrameAssetBase(card){
       const color=_summonColor(card);
       return color?_summonFrameByColor(color):Assets.cards.characterFrame;
     }
-    if(cat.includes('強化')||cat.includes('エンチャント')) return Assets.cards.enchantmentFrame;
+    if(cat.includes('強化')||cat.includes('エンチャント')){
+      const kws=[...(Array.isArray(card.keywords)?card.keywords:[]),...(Array.isArray(card.adjacentKeywords)?card.adjacentKeywords:[])];
+      if(kws.some(k=>String(k||'').trim()==='刻印')) return Assets.cards.enchantmentEngravingFrame;
+      return Assets.cards.enchantmentFrame;
+    }
     return '';
   }
   if(card.fixedAttack||card.fixedEquip) return '';
