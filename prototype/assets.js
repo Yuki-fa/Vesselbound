@@ -47,62 +47,64 @@ const Assets = {
     collectionBoard: 'assets/cards/c_board.svg',
   },
   backgrounds: {
-    title: 'assets/art/backgrounds/title.webp',
-    stage1: 'assets/art/backgrounds/stage1_battlestage.webp',
+    title: 'assets/art/backgrounds/title.webp?v=bg1003',
+    stage1: 'assets/art/backgrounds/stage1_battlestage.webp?v=bg1003',
     stage2: 'assets/art/backgrounds/stage2_battlestage.webp?v=bg0916',
     stage3: 'assets/art/backgrounds/stage3_battlestage.webp?v=bg0916',
     // ステージ4は街の前後で背景を分ける。
     // stage4＝「黄昏の回廊」（街の手前）／stage4Tower＝「謁見の黒影道」（街を出た後）。
-    stage4: 'assets/art/backgrounds/stage4_battlestage_1.webp',
-    stage4Tower: 'assets/art/backgrounds/stage4_battlestage_2.webp',
+    stage4: 'assets/art/backgrounds/stage4_battlestage_1.webp?v=bg1003',
+    stage4Tower: 'assets/art/backgrounds/stage4_battlestage_2.webp?v=bg1003',
     stageEnd: 'assets/art/backgrounds/stage5_battlestage.webp?v=bg0916',
     // 街（村）専用画面の背景。ステージ番号＝G._waveに対応する。
     // village0＝ゲーム開始地点「風止みの村 リーゼ」。
-    village0: 'assets/art/backgrounds/stage0_village.webp',
-    village0Night: 'assets/art/backgrounds/stage0_village_night.webp?v=night1002',
+    village0: 'assets/art/backgrounds/stage0_village.webp?v=bg1003',
+    village0Night: 'assets/art/backgrounds/stage0_village_night.webp?v=bg1003',
     // リーゼのホーム（1周目の押下会話でだけ使う）。
-    homeStart: 'assets/art/backgrounds/stage0_home.webp',
-    village1: 'assets/art/backgrounds/stage1_village.webp',
-    village2: 'assets/art/backgrounds/stage2_village.webp',
-    village3: 'assets/art/backgrounds/stage3_village.webp',
+    homeStart: 'assets/art/backgrounds/stage0_home.webp?v=bg1003',
+    village1: 'assets/art/backgrounds/stage1_village.webp?v=bg1003',
+    village2: 'assets/art/backgrounds/stage2_village.webp?v=bg1003',
+    village3: 'assets/art/backgrounds/stage3_village.webp?v=bg1003',
     // ギャラハの闘技場受付。
     // 受領済みの素材ファイル名には先頭空白が含まれているため、file://で実在する名前を参照する。
-    arena: 'assets/art/backgrounds/stage3_arena.webp',
+    arena: 'assets/art/backgrounds/stage3_arena.webp?v=bg1003',
     // 闘技場の戦闘背景。
-    stageArena: 'assets/art/backgrounds/stage3_arena_battlestage.webp',
-    village4: 'assets/art/backgrounds/stage4_city.webp',
-    villageEnd: 'assets/art/backgrounds/stage5_village.webp',
+    stageArena: 'assets/art/backgrounds/stage3_arena_battlestage.webp?v=bg1003',
+    village4: 'assets/art/backgrounds/stage4_city.webp?v=bg1003',
+    villageEnd: 'assets/art/backgrounds/stage5_village.webp?v=bg1003',
     // ワールドマップ画面（出発時に数秒表示する）
-    map: 'assets/art/backgrounds/map.webp',
+    map: 'assets/art/backgrounds/map.webp?v=bg1003',
     // 塔（祭壇）画面の背景
-    tower: 'assets/art/backgrounds/tower.webp',
-    towerLanding: 'assets/art/backgrounds/tower_landing.webp',
+    tower: 'assets/art/backgrounds/tower.webp?v=bg1003',
+    towerLanding: 'assets/art/backgrounds/tower_landing.webp?v=bg1003',
+    // 祭壇（指輪交換）の画面の背景（2026-10-03 利用者指定）。
+    altar: 'assets/art/backgrounds/altar.webp?v=bg1003',
     // 図書館画面の背景
-    library: 'assets/art/backgrounds/stage0_library.webp',
-    libraryNight: 'assets/art/backgrounds/stage0_library_night.webp?v=night1002',
+    library: 'assets/art/backgrounds/stage0_library.webp?v=bg1003',
+    libraryNight: 'assets/art/backgrounds/stage0_library_night.webp?v=bg1003',
     // 街の施設ごとの背景（ステージ1・エルム）
-    itemShopForest: 'assets/art/backgrounds/stage1_item_shop.webp',
-    magicShopForest: 'assets/art/backgrounds/stage1_magic_shop.webp',
+    itemShopForest: 'assets/art/backgrounds/stage1_item_shop.webp?v=bg1003',
+    magicShopForest: 'assets/art/backgrounds/stage1_magic_shop.webp?v=bg1003',
     // 街の施設ごとの背景（ステージ2・ヴァルガ）
-    itemShopGrassland: 'assets/art/backgrounds/stage2_item_shop.webp',
-    magicShopGrassland: 'assets/art/backgrounds/stage2_magic_shop.webp',
+    itemShopGrassland: 'assets/art/backgrounds/stage2_item_shop.webp?v=bg1003',
+    magicShopGrassland: 'assets/art/backgrounds/stage2_magic_shop.webp?v=bg1003',
     // 街の施設ごとの背景（ステージ3・ギャラハ）
-    magicShopValley: 'assets/art/backgrounds/stage3_magic_shop.webp',
-    blacksmithValley: 'assets/art/backgrounds/stage3_blacksmith.webp',
+    magicShopValley: 'assets/art/backgrounds/stage3_magic_shop.webp?v=bg1003',
+    blacksmithValley: 'assets/art/backgrounds/stage3_blacksmith.webp?v=bg1003',
     // 街の施設ごとの背景（ステージ4・ヴォルザーク）
-    magicShopCapital: 'assets/art/backgrounds/stage4_shop.webp',
-    blacksmithCapital: 'assets/art/backgrounds/stage4_blacksmith.webp',
+    magicShopCapital: 'assets/art/backgrounds/stage4_item_shop.webp?v=bg1003',
+    blacksmithCapital: 'assets/art/backgrounds/stage4_blacksmith.webp?v=bg1003',
     // 街の施設ごとの背景（ステージ5・フォルセティ）
-    magicShopEndworld: 'assets/art/backgrounds/stage5_magic_shop.webp',
-    itemShopEndworld: 'assets/art/backgrounds/stage5_item_shop.webp',
+    magicShopEndworld: 'assets/art/backgrounds/stage5_magic_shop.webp?v=bg1003',
+    itemShopEndworld: 'assets/art/backgrounds/stage5_item_shop.webp?v=bg1003',
     // 酒場（ステージ1・エルム／2・ヴァルガ／3・ギャラハ）。酒場は未実装のため、今は入れない。
-    tavernForest: 'assets/art/backgrounds/stage1_tavern.webp',
-    tavernGrassland: 'assets/art/backgrounds/stage2_tavern.webp',
-    tavernValley: 'assets/art/backgrounds/stage3_tavern.webp',
-    camp: 'assets/art/backgrounds/camp.webp',
-    innGrassland: 'assets/art/backgrounds/stage2_inn.webp',
-    innCapital: 'assets/art/backgrounds/stage4_inn.webp',
-    innEndworld: 'assets/art/backgrounds/stage5_inn.webp',
+    tavernForest: 'assets/art/backgrounds/stage1_tavern.webp?v=bg1003',
+    tavernGrassland: 'assets/art/backgrounds/stage2_tavern.webp?v=bg1003',
+    tavernValley: 'assets/art/backgrounds/stage3_tavern.webp?v=bg1003',
+    camp: 'assets/art/backgrounds/camp.webp?v=bg1003',
+    innGrassland: 'assets/art/backgrounds/stage2_inn.webp?v=bg1003',
+    innCapital: 'assets/art/backgrounds/stage4_inn.webp?v=bg1003',
+    innEndworld: 'assets/art/backgrounds/stage5_inn.webp?v=bg1003',
   },
   vfx: {
     // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを

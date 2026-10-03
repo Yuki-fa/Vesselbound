@@ -5724,6 +5724,15 @@ async function applyNewPanelBattleStart(options){
     _applyAdjacentPanelEnhancements(u,_collectAdjacentEnhancements(board,u._mainBoardSlot));
   });
   compactBattleUnits();
+  // **色・虹の瞳の指輪の分は、出撃の時点から足した数値を見せる。**（2026-10-02 利用者指摘）
+  // 魔導板では最初から指輪込みで見せているが、コアは開戦の指輪処理で足すため、そのままだと
+  // 戦闘開始で一度指輪抜きへ戻り、開戦でまた上がって見えた。計算はコアのまま、表示だけ先に揃える。
+  // 開戦の再生（_finishNewPanelBattleStartEffects）でも同じ分を据え置きに含め、上昇演出は出さない。
+  (G.allies||[]).forEach(u=>{
+    if(!u||u.hp<=0||typeof presentHoldShown!=='function'||typeof _panelEyeRingPreviewBonus!=='function') return;
+    const b=Number(_panelEyeRingPreviewBonus(u))||0;
+    if(b>0) presentHoldShown(u,(Number(u.atk)||0)+b,(Number(u.hp)||0)+b,(Number(u.maxHp)||Number(u.hp)||1)+b,Number(u.shield)||0,Number(u.weaken)||0);
+  });
   // 全キャラクターの配置が確定したのでここで一度描画し、封印解放等のVFXが正しい座標
   // （getBoundingClientRect）を取得できるようDOMのレイアウト確定を待つ。
   if(typeof renderAll==='function') renderAll();
@@ -5832,7 +5841,20 @@ async function _finishNewPanelBattleStartEffects(){
   }
   _recordBattleTrace('opening_core_events',{count:localEvents.length,types:localEvents.map(e=>e&&e.type).filter(Boolean)});
   try{
-    if(typeof presentHoldShown==='function') _openingShownBefore.forEach(([u,atk,hp,maxHp,shield,weaken])=>presentHoldShown(u,atk,hp,maxHp,shield,weaken));
+    // 瞳の指輪（色・虹）の分は出撃時から見せているので、据え置きの値に含め、その stat_change は再生しない。
+    const _ringShown=new Map();
+    localEvents.forEach(ev=>{
+      if(!ev||ev.type!=='stat_change'||ev.side!=='p1'||(ev.reason!=='color_ring'&&ev.reason!=='rainbow_ring')) return;
+      const key=String(ev.unitId);
+      const r=_ringShown.get(key)||{atk:0,hp:0,maxHp:0};
+      r.atk+=Number(ev.atk)||0; r.hp+=Number(ev.hp)||0; r.maxHp+=Number(ev.maxHp!=null?ev.maxHp:ev.hp)||0;
+      _ringShown.set(key,r);
+      ev._preShown=true;
+    });
+    if(typeof presentHoldShown==='function') _openingShownBefore.forEach(([u,atk,hp,maxHp,shield,weaken])=>{
+      const r=_ringShown.get(String(u&&u.id))||{atk:0,hp:0,maxHp:0};
+      presentHoldShown(u,atk+r.atk,hp+r.hp,maxHp+r.maxHp,shield,weaken);
+    });
     await _flushCorePveHitEvents(state,localEvents,before);
   }finally{
     if(typeof presentReleaseShown==='function'){

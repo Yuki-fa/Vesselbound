@@ -273,3 +273,15 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
 **刻印の追記（2026-10-02）**：我慢の刻印を接続したキャラには「封印X」（X＝現在ステージ×5）をキーワードとして付け、血アイコンにも出す（`battle.js: _collectAdjacentEnhancements`。`coreSealValue` はこのキーワードがあれば二重に足さない）。刻印を持つ強化カードの枠は `enchantment_engraving.svg`（`assets.js: _getCardFrameAssetBase`）。五聖の座の受諾後にMC009が消える演出は、固定のグラデーションマスクの位置と transform・opacity を Web Animations で動かす（毎フレームのJS計算・ぼかしはしない）。
 **旅程の文言**：ステージ5は「「編成画面、ショップ画面の旅程枠」内 ステージ5時」（最終決戦まで、あと X 戦）を使う。
 **ステージ5の深層（2026-10-02）**：深層レベルシートのステージ5は4段。通常戦1回目＝深層1、2回目＝深層2、ボス（エピトメ）＝深層3、伏せられたラスボス（ウルズ・ラグナと左右）＝深層4（`main.js: _waveDeepLevelForStory`）。
+
+**街の施設のBキャラ（2026-10-03）**：入店時の台詞でAキャラ（MC001）に加えて店の人を出す（`map.js: VILLAGE_FACILITY_PORTRAIT_B`、座標と原寸は `quest.js: TAVERN_PORTRAIT_CONFIG`）。エルム：魔導店MC011・道具屋MC012／ヴァルガ：魔導店MC013・道具屋MC014・宿屋MC015／ギャラハ：魔導店MC016・鍛冶屋MC017・闘技場MC018／ヴォルザーク：魔導店MC019・鍛冶屋MC020・宿屋MC021。
+ショップ（魔導店・道具屋・鍛冶屋）は入った時から店の人（Bキャラ）を出し続ける。入店時の台詞などのイベント中はAキャラを足し、終わったらAキャラだけ消す。商品の画面では立ち絵を枠・盤面より奥に置く（酒場の依頼画面と同じ）。店の中のイベントの片付け（`_qClearPresentation`）でも店の人は残し、店を出る時（`openMapVillage`）・戦闘開始時（`_startWaveBattle`）・デバッグの強制終了で消す（`map.js: _showShopPortraitB / _clearShopPortrait`）。
+
+**2026-10-03 の追加**：
+- 祭壇（指輪交換）の画面の背景は altar.webp（`map.js` の祭壇の入口で `_setOverrideBackground('altar')`）。
+- 施設に入る・出る時は in/out の音に加えて ui_confirm も鳴らす（施設・店を出るボタンは data-sfx-silent なので、`_onVillageFacility`・`reward.js` の店を出る処理・図書館の出口で鳴らす）。五聖の座は in/out の音を鳴らさない。
+- 五聖の座も入った時からBキャラ（MC009）を出し続け、編成画面でも枠の奥に残す（`quest.js: _fiveSaintsPlaceB`）。抑圧の刻印の置き場所の発光は、マスの枠と同じ角の丸み・外周に合わせる（`fiveSaintsSyncTargetGlow`）。
+- ギャラハ「魔導店」入店時は、闘技場に入場済みなら台詞1の代わりに特殊台詞A1（闘技場から戻った直後の（闘技場後）の台詞が優先）。
+- 瞳の指輪の分は、戦闘開始時（出撃）から指輪込みの数値で見せ、開戦の指輪の上昇演出は出さない（計算はコアのまま。`battle.js`・`battle_events.js` の `_preShown`）。
+- エルムの背景動画は暗い部分を黒に落としてから screen 合成する（`index.html` の SVGフィルタ `#village-vfx-black-point`。もやで背景が白くなるのを防ぐ）。
+- 背景画像はすべて `?v=` 付きで参照する（同じ名前で差し替えても読み直される）。

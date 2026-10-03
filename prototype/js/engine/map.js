@@ -178,7 +178,9 @@ function getVillageBackgroundKey(){
 const VILLAGE_BG_VIDEOS={
   // 0（リーゼ）は背景動画のみを表示する。
   // layer2Opacity：2枚目だけ不透明度を変える（未指定ならCSSの50%のまま＝塔と同じ濃さ）。
-  1:{src:'assets/vfx/stage2_village.webm',rate:0.3,layers:2,layer2Opacity:0.25},
+  // エルム：動画の青灰色のもやが screen 合成で背景を白く持ち上げていたので、黒を落としてから重ねる
+  // （crushBlack。index.html の SVGフィルタ #village-vfx-black-point。光の粒と筋だけが残る。2026-10-03）。
+  1:{src:'assets/vfx/stage2_village.webm',rate:0.3,layers:2,layer2Opacity:0.25,crushBlack:true},
   3:'assets/vfx/stage3_village.webm',
   4:{src:'assets/vfx/stage4_city.webm',rate:0.9}, // 雷は他の3倍速
 };
@@ -347,9 +349,11 @@ function _syncVillageBgVideo(){
   _applyBgVideoEl(el,src,rate);
   _applyBgVideoEl(el2,(src&&layers>=2)?src:'',rate);
   const isSoftlight=!!(def&&typeof def==='object'&&def.blend==='soft-light');
+  const crushBlack=!!(def&&typeof def==='object'&&def.crushBlack);
   [el,el2].forEach(v=>{
     if(!v) return;
     v.classList.toggle('village-bg-softlight',isSoftlight);
+    v.classList.toggle('village-bg-crush-black',crushBlack);
   });
   // 2枚目の濃さ。指定が無ければCSSの既定（50%）に戻す。
   const layer2Opacity=(def&&typeof def==='object')?def.layer2Opacity:null;
@@ -669,6 +673,59 @@ function _villageFacilityDisabled(fac){
   // （_renderRingOfferCards()／body.ring-offer-resolved）。
   return false;
 }
+// 街の施設に入った時の台詞で出すBキャラ（店の人）。キー＝ステージ（G._wave）→施設キー。
+// 座標と原寸は quest.js の TAVERN_PORTRAIT_CONFIG（2026-10-03 利用者指定）。
+const VILLAGE_FACILITY_PORTRAIT_B={
+  1:{shop:'MC011',item:'MC012'},                 // エルム：魔導店・道具屋
+  2:{shop:'MC013',item:'MC014',inn:'MC015'},     // ヴァルガ：魔導店・道具屋・宿屋
+  3:{shop:'MC016',forge:'MC017',arena:'MC018'},  // ギャラハ：魔導店・鍛冶屋・闘技場
+  4:{shop:'MC019',forge:'MC020',inn:'MC021'},    // ヴォルザーク：魔導店・鍛冶屋・宿屋
+};
+// **ショップ（魔導店・道具屋・鍛冶屋）は、入った時から店の人（Bキャラ）を出し続ける。**（2026-10-03 利用者指定）
+// 入店時の台詞などのイベント中はAキャラを足し、終わったらAキャラだけ消してBキャラは残す。
+// 商品の画面（#scr-battle）では酒場の依頼画面と同じく、立ち絵を枠・盤面より奥に置く（quest.js のCSS）。
+// 店を出る時（openMapVillage）と戦闘開始時（_startWaveBattle）に片付ける。
+const SHOP_PORTRAIT_FACILITIES=new Set(['shop','item','forge']);
+function _shopPortraitB(fac){
+  return fac&&SHOP_PORTRAIT_FACILITIES.has(fac.key)?_villageFacilityPortraitB(fac):null;
+}
+// イベントが終わった時：Aキャラ（MC001と表情）だけを消し、Bキャラは残す。
+function _removeShopEventPortraitA(){
+  const host=document.getElementById('tavern-presentation-layer');
+  if(!host) return;
+  host.querySelectorAll('.tavern-portrait[data-portrait-key="MC001"],.tavern-face[data-face-portrait-key="MC001"],.tavern-name-plate')
+    .forEach(el=>el.remove());
+}
+// 店の人をフェード無しで置く（入店した瞬間から見えているように。2026-10-03 利用者指定）。
+function _placePortraitInstant(id,screen){
+  if(!id||typeof showTavernPortrait!=='function') return;
+  void showTavernPortrait(id,{screen});
+  const host=document.getElementById('tavern-presentation-layer');
+  const img=host&&host.querySelector(`.tavern-portrait[data-portrait-key="${id}"]`);
+  if(!img) return;
+  img.style.setProperty('transition','none','important');
+  img.classList.add('is-visible');
+  void img.offsetWidth;
+  img.style.removeProperty('transition');
+}
+// 商品の画面へBキャラを出す（既に出ていれば移すだけ）。
+function _showShopPortraitB(fac){
+  const id=_shopPortraitB(fac);
+  if(!id||typeof _qMovePresentationHost!=='function') return;
+  const host=_qMovePresentationHost('battle');
+  if(!host) return;
+  host.dataset.shopPortrait='1';
+  host.dataset.shopPortraitKey=id;
+  if(!host.querySelector(`.tavern-portrait[data-portrait-key="${id}"]`)) _placePortraitInstant(id,'battle');
+}
+function _clearShopPortrait(){
+  const host=document.getElementById('tavern-presentation-layer');
+  if(host&&host.dataset.shopPortrait==='1') host.remove();
+}
+function _villageFacilityPortraitB(fac){
+  if(!fac||!G||G._isWaveAltar) return null;
+  return (VILLAGE_FACILITY_PORTRAIT_B[Number(G._wave)||0]||{})[fac.key]||null;
+}
 async function _onVillageFacility(fac){
   if(!fac||_villageFacilityDisabled(fac)) return;
   // 入場演出中（ボタンがまだ見えていない間）は押せないようにする。
@@ -677,6 +734,9 @@ async function _onVillageFacility(fac){
   if(_screenSwitchFading) return;
   const generation=Number(G._debugEventGeneration)||0;
   const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
+  // どこかに入る時は、入る音（in）とは別に ui_confirm も鳴らす（2026-10-03 利用者指定）。
+  // 施設のボタンは data-sfx-silent でボタン共通の確定音を止めているので、ここで1回だけ鳴らす。
+  if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
   if(typeof isFirstStoryRun==='function'&&isFirstStoryRun()&&['home','tavern'].includes(fac.key)){
     G._villageFacilityBusy=true;
     try{ await _runFirstStoryFacilityEvent(fac); }
@@ -686,7 +746,8 @@ async function _onVillageFacility(fac){
   // 画面が切り替わる施設は暗転を挟む（宿屋は切り替わらない。酒場は openTavern の中で挟む）。
   // 施設に入る音はボタンを押した時に鳴らす。台詞や暗転の後に鳴らすと遅れて聞こえる（2026-09-25 利用者指摘）。
   // 店・宿屋・図書館・酒場＝shop_in.wav、祭壇＝altarIn。音はここだけで鳴らし、各 open〜関数では鳴らさない。
-  const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',landing:'shopIn',ringExchange:'altarIn'}[fac.key];
+  // 五聖の座（landing）は in/out の音を鳴らさない（2026-10-03 利用者指定。ui_confirm は上で鳴らす）。
+  const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',ringExchange:'altarIn'}[fac.key];
   if(enterSfx&&typeof playSfx==='function') playSfx(enterSfx,{group:'ui'});
   if(['shop','forge','item','inn','arena'].includes(fac.key)){
     G._villageFacilityBusy=true;
@@ -709,11 +770,19 @@ async function _onVillageFacility(fac){
       const seen=!!((G._facilityTalkSeen||{})[key]);
       if(talk&&typeof _qStartDialogue==='function'
         &&(forgeChainState||arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
-        await fadeScreenSwitch(()=>_showFacilityGreetingScene(fac));
+        await fadeScreenSwitch(()=>{
+          _showFacilityGreetingScene(fac);
+          // 店の人は暗転の中で最初から置いておく（暗転が明けた瞬間から見える）。
+          _placePortraitInstant(_villageFacilityPortraitB(fac),'village');
+        });
         if(!isCurrent()) return;
         // 施設の会話は、シートの最初の台詞が B でも酒場と同じ位置に A を出す。
         // 台詞ごとの表情は、その後 _qStartDialogue() がシートの値を適用する。
         if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
+        if(!isCurrent()) return;
+        // 店の人（Bキャラ）。街×施設ごとに決まっている（VILLAGE_FACILITY_PORTRAIT_B）。
+        const portraitB=_villageFacilityPortraitB(fac);
+        if(portraitB&&typeof showTavernPortrait==='function') await showTavernPortrait(portraitB,{screen:'village'});
         if(!isCurrent()) return;
         if(fac.key==='inn'){
           await _runVillageInnDialogue(talk);
@@ -736,13 +805,18 @@ async function _onVillageFacility(fac){
         if(forgeChainState){
           await _runVillageForgeChainDialogue(talk,forgeChainState);
         }else{
+          // 闘技場にお金を払って入場済み（同じ街）なら、魔導店の通常の入店台詞は台詞1の代わりに特殊台詞A1
+          // （ギャラハ「魔導店」入店時。2026-10-03 利用者指定）。闘技場から戻った直後の（闘技場後）の台詞は従来どおり優先。
           const greetingLine=arenaAfterPending
             ?_facilityArenaAfterTalkLine(talk)
-            :talk['台詞1'];
+            :(fac.key==='shop'&&_villageArenaUsed()&&talk['特殊台詞A1'])
+              ?talk['特殊台詞A1']
+              :talk['台詞1'];
           await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
         }
         if(!isCurrent()) return;
-        if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
+        if(_shopPortraitB(fac)) _removeShopEventPortraitA();
+        else if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
         // 命の鎖の特殊会話は「通常の台詞1を見た」とは数えない。
         // 鎖を切った後／写し身がいない次回入店で、台詞1を通常どおり1回出す。
         if(!forgeChainState){
@@ -757,9 +831,10 @@ async function _onVillageFacility(fac){
         }
         _hideFacilityGreetingScene();
         _enterVillageFacilityNow(fac);
+        _showShopPortraitB(fac);
         _revealFacilityUi();
       }else if(fac.key!=='inn'){
-        await fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
+        await fadeScreenSwitch(()=>{ _enterVillageFacilityNow(fac); _showShopPortraitB(fac); });
       }
       if(isCurrent()&&fac.key!=='inn') _maybeStartShopTutorial(fac);
       return;
@@ -785,6 +860,17 @@ function _revealFacilityUi(){
     backgroundPosition:cs.backgroundPosition,backgroundRepeat:cs.backgroundRepeat,
     opacity:'1',transition:`opacity ${FACILITY_UI_FADE_MS}ms ease`,
   });
+  // 店の人（枠より奥に居る立ち絵）は覆いに隠れないよう、同じ位置の写しを覆いに入れる。
+  // 覆いが消えても下の本物がそのまま見えるので、店の人は一瞬も消えない。
+  const shopHost=scr.querySelector(':scope > #tavern-presentation-layer[data-shop-portrait="1"]');
+  if(shopHost){
+    shopHost.querySelectorAll('.tavern-portrait.is-visible,.tavern-face.is-visible').forEach(el=>{
+      const copy=el.cloneNode(true);
+      copy.style.setProperty('transition','none','important');
+      copy.style.setProperty('opacity','1','important');
+      cover.appendChild(copy);
+    });
+  }
   scr.appendChild(cover);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ cover.style.opacity='0'; }));
   window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
@@ -806,12 +892,12 @@ function _enterVillageFacilityNow(fac){
     return;
   }
   if(fac.key==='ringExchange'){
-    // 祭壇：既存の指輪交換画面（編成UI）へ。背景は塔のままtower.pngを維持する。
+    // 祭壇：既存の指輪交換画面（編成UI）へ。背景は altar.webp（2026-10-03 利用者指定。以前は塔の tower.webp のまま）。
     G._facilityLabel=fac.name;
     document.body.classList.remove('village-screen-active');
     if(typeof showScreen==='function') showScreen('battle');
     openMapRingExchange();
-    _setOverrideBackground('tower');
+    _setOverrideBackground('altar');
     _applyFacilityAmbience(null);
     return;
   }
@@ -1174,6 +1260,8 @@ function renderVillageScreen(){
       exit.style.display='grid';
       exit.onclick=()=>{
         if(_screenSwitchFading) return;
+        // 出る音（out）とは別に ui_confirm も鳴らす（このボタンは data-sfx-silent。2026-10-03 利用者指定）。
+        if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
         if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
         void fadeScreenSwitch(()=>leaveMapLibrary());
       };
@@ -1399,6 +1487,7 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
   G._savePresentation=false;
+  _clearShopPortrait();
   // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
   // この時点ではまだ店（#scr-battle）が表示中。pendingEvent だけ確定し、
   // 村画面を組み立てた後の questResumePendingEvent() から再生する。

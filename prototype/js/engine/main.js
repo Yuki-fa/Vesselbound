@@ -761,6 +761,8 @@ function _openWaveAltar(stage,options){
   if(typeof openMapVillage==='function') return openMapVillage({intro:true,tower:true,...(options||{})});
 }
 function _startWaveBattle(stage){
+  // 店の人（ショップのBキャラ）を戦闘画面へ持ち込まない。
+  if(typeof _clearShopPortrait==='function') _clearShopPortrait();
   // 試験戦闘の終了操作と通常の戦闘開始が近接しても、試験用の敵・終了処理を
   // 次の通常戦闘へ持ち越さない。通常開始側を最終的なフラグ境界にする。
   G._testBattleMode=false;

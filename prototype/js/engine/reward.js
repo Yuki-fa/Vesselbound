@@ -1011,6 +1011,8 @@ function renderMoveSlotsInEnemy(){
       if(!_waveFacilityReturn&&typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       if(_waveFacilityReturn){
         const goBack=()=>{
+          // 出る時も、出る音（out）とは別に ui_confirm を鳴らす（このボタンは data-sfx-silent。2026-10-03 利用者指定）。
+          if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
           if(G._isRingExchange){
             if(typeof playSfx==='function') playSfx('altarOut',{group:'ui'});
             if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();

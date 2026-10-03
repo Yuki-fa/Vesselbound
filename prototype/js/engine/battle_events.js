@@ -727,6 +727,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='stat_change'){
+      // 開戦の瞳の指輪の分は出撃時から表示済み（battle.js の開戦再生で据え置きに含めた）。
+      if(e._preShown) continue;
       if(e.side==='p1'&&typeof questBattleVanishedCard==='function'
         &&questBattleVanishedCard(findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId)),eventList)) return;
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。

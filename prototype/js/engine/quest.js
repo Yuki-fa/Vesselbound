@@ -79,6 +79,18 @@ const TAVERN_PORTRAIT_CONFIG={
   MC009:{src:'assets/art/sprites/MC009.webp',x:2060,y:185,width:2455,height:4118},
   // 蝕界の塔の1周目到着イベント。素材の原寸で指定座標へ置く。
   MC010:{src:'assets/art/sprites/MC010.webp',x:2350,y:150,width:1885,height:3678},
+  // 街の施設（入店時の台詞）のBキャラ（2026-10-03 利用者指定。map.js の VILLAGE_FACILITY_PORTRAIT_B）。
+  MC011:{src:'assets/art/sprites/MC011.webp',x:2390,y:175,width:1975,height:3680},
+  MC012:{src:'assets/art/sprites/MC012.webp',x:1990,y:75,width:2820,height:4578},
+  MC013:{src:'assets/art/sprites/MC013.webp',x:2210,y:180,width:2205,height:4105},
+  MC014:{src:'assets/art/sprites/MC014.webp',x:2400,y:-10,width:2027,height:5000},
+  MC015:{src:'assets/art/sprites/MC015.webp',x:2337,y:200,width:1705,height:3689},
+  MC016:{src:'assets/art/sprites/MC016.webp',x:2505,y:-35,width:2710,height:4215},
+  MC017:{src:'assets/art/sprites/MC017.webp',x:2228,y:205,width:1965,height:3384},
+  MC018:{src:'assets/art/sprites/MC018.webp',x:2372,y:-20,width:2092,height:3788},
+  MC019:{src:'assets/art/sprites/MC019.webp',x:2335,y:170,width:2100,height:3811},
+  MC020:{src:'assets/art/sprites/MC020.webp',x:2325,y:83,width:2187,height:4645},
+  MC021:{src:'assets/art/sprites/MC021.webp',x:2575,y:120,width:1535,height:3652},
 };
 const TAVERN_PORTRAIT_FADE_MS=480;
 const TAVERN_FACE_FADE_MS=1000;   // 表情の差分のフェードイン（0.48秒では早すぎた。2026-09-25 利用者指摘）
@@ -326,6 +338,29 @@ function _fiveSaintsRenderDecor(options){
   });
   screen.appendChild(host);
 }
+// **五聖の座もショップと同じく、入った時からBキャラ（MC009）を出し続ける。**（2026-10-03 利用者指定）
+// フェード無しで置き、編成画面（#scr-battle）へ移っても消さない（枠・盤面より奥）。Aキャラはイベント中だけ。
+// 立ち絵の層に店の人と同じ印（data-shop-portrait）を付けるので、途中の _qClearPresentation では消えない。
+function _fiveSaintsPlaceB(screen){
+  const host=_qMovePresentationHost(screen);
+  if(!host) return;
+  host.dataset.shopPortrait='1';
+  host.dataset.shopPortraitKey='five-saints-mc009';
+  if(host.querySelector('.tavern-portrait[data-portrait-key="five-saints-mc009"]')) return;
+  void showTavernPortrait('MC009',{screen,key:'five-saints-mc009'});
+  const img=host.querySelector('.tavern-portrait[data-portrait-key="five-saints-mc009"]');
+  if(!img) return;
+  img.style.setProperty('transition','none','important');
+  img.classList.add('is-visible');
+  void img.offsetWidth;
+  img.style.removeProperty('transition');
+}
+function _fiveSaintsRemoveA(){
+  const host=document.getElementById('tavern-presentation-layer');
+  if(!host) return;
+  host.querySelectorAll('.tavern-portrait[data-portrait-key="MC001"],.tavern-face[data-face-portrait-key="MC001"],.tavern-name-plate')
+    .forEach(el=>el.remove());
+}
 function _fiveSaintsShowScene(options){
   _qEnsureStyle();
   _qRemoveDialogue();
@@ -343,9 +378,9 @@ function _fiveSaintsShowScene(options){
   if(typeof showScreen==='function') showScreen('village');
   if(typeof renderVillageScreen==='function') renderVillageScreen();
   _fiveSaintsRenderDecor(options);
-  // Aキャラ（主人公 MC001）は原則として出す（2026-10-01 利用者指定）。
+  // Bキャラは入った瞬間から（フェード無し）。Aキャラ（主人公 MC001）は原則として出す（2026-10-01 利用者指定）。
+  _fiveSaintsPlaceB('village');
   void showTavernPortrait('MC001',{screen:'village'});
-  void showTavernPortrait('MC009',{screen:'village',key:'five-saints-mc009'});
 }
 async function _fiveSaintsLeaveToTower(options){
   const generation=Number(G&&G._debugEventGeneration)||0;
@@ -355,7 +390,7 @@ async function _fiveSaintsLeaveToTower(options){
   if(!G||!G._isFiveSaints||generation!==(Number(G._debugEventGeneration)||0)) return;
   const leave=()=>{
     _qFormationContext=null;
-    void _qClearPresentation({immediate:true});
+    void _qClearPresentation({immediate:true,includeShop:true});
     document.getElementById('five-saints-decor')?.remove();
     document.body.classList.remove('five-saints-active','five-saints-formation-active','reward-screen-active');
     G._isFiveSaints=false;
@@ -372,6 +407,11 @@ function fiveSaintsSyncTargetGlow(){
   if(!slot) return;
   const glow=document.createElement('span');
   glow.className='five-saints-target-glow';
+  // マスの枠線の外周にぴったり重ねる（マスごとに枠線の太さが違うので、実際の太さを読む）。
+  const cs=getComputedStyle(slot);
+  ['Top','Right','Bottom','Left'].forEach(side=>{
+    glow.style.setProperty(side.toLowerCase(),`${-(parseFloat(cs['border'+side+'Width'])||0)}px`,'important');
+  });
   slot.appendChild(glow);
 }
 function syncFiveSaintsFormationControls(){
@@ -396,7 +436,8 @@ function _fiveSaintsOpenFormationNow(){
   const targetSlot=_fiveSaintsTargetSlot(wave,no);
   _qFormationContext={mode:'fiveSaints',wave,no,targetSlot};
   _qRemoveDialogue();
-  void _qClearPresentation({immediate:true});
+  // 編成画面ではAキャラだけ消し、Bキャラ（MC009）は残して編成画面の奥へ移す（下の showScreen の後）。
+  _fiveSaintsRemoveA();
   G._isFiveSaints=true;
   G._isTavern=false; G._isVillageMenu=false; G._isShop=false; G._isForge=false;
   G._isItemShop=false; G._isRingExchange=false; G._isLibrary=false;
@@ -410,6 +451,7 @@ function _fiveSaintsOpenFormationNow(){
   document.body.classList.remove('village-screen-active','five-saints-active');
   document.body.classList.add('reward-screen-active','five-saints-formation-active');
   if(typeof showScreen==='function') showScreen('battle');
+  _fiveSaintsPlaceB('battle');
   if(typeof _setOverrideBackground==='function') _setOverrideBackground('towerLanding');
   if(typeof goToReward==='function') goToReward();
   const card=_fiveSaintsMakeOfferCard(wave);
@@ -628,6 +670,7 @@ html body.quest-destroy-wait #scr-battle,html body.quest-destroy-wait #scr-battl
   background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
 }
 /* 編成窓の間、立ち絵は背景のすぐ上（暗幕 ::before z0 と編成の枠より奥）に置く。 */
+html body.reward-screen-active:is(.shop-screen-active,.item-shop-active,.forge-screen-active,.five-saints-formation-active) #scr-battle > #tavern-presentation-layer,
 html body.reward-screen-active.tavern-screen-active #scr-battle > #tavern-presentation-layer{
   z-index:-1!important;
 }
@@ -681,9 +724,14 @@ html body:is(.tavern-village-active,.tavern-tower-event-active,.quest-town-event
 html body.five-saints-active #village-facilities,
 html body.five-saints-active #village-move-btns{display:none!important}
 html body.reward-screen-active.five-saints-formation-active #scr-battle > #tavern-presentation-layer{z-index:-1!important}
-.five-saints-target-glow{position:absolute!important;inset:-10px!important;border:5px solid rgba(79,177,255,.95)!important;
-  box-shadow:0 0 18px 7px rgba(38,150,255,.9),inset 0 0 18px rgba(61,178,255,.75)!important;
-  border-radius:12px!important;pointer-events:none!important;z-index:90!important;animation:five-saints-target-pulse 1500ms ease-in-out infinite!important}
+/* 抑圧の刻印の置き場所の発光。マスの枠（magic_board の外周）と同じ位置・同じ角の丸み（5.65% / 3.721%）で重ね、
+   光はぼかしで外と内へ漏らす（外へ広げた12px角の箱だと枠とずれた。2026-10-03 利用者指摘）。 */
+.five-saints-target-glow{position:absolute!important;inset:0;box-sizing:border-box!important;
+  /* 位置は fiveSaintsSyncTargetGlow() がマスの枠線の太さぶん外へ出して、外周に合わせる。 */
+  border:4px solid rgba(79,177,255,.95)!important;
+  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
+  box-shadow:0 0 18px 6px rgba(38,150,255,.9),inset 0 0 16px rgba(61,178,255,.7)!important;
+  pointer-events:none!important;z-index:90!important;animation:five-saints-target-pulse 1500ms ease-in-out infinite!important}
 @keyframes five-saints-target-pulse{0%,100%{opacity:.45}50%{opacity:1}}
 `;
   document.head.appendChild(style);
@@ -1944,6 +1992,16 @@ async function _qClearPresentation(options){
   _qPendingNamePlate='';
   const host=document.getElementById('tavern-presentation-layer');
   if(!host) return;
+  // ショップの店の人（Bキャラ）は、店の中のイベントが終わっても残す（map.js _showShopPortraitB）。
+  // 店を出る・戦闘・デバッグの片付けは includeShop か map.js の _clearShopPortrait で消す。
+  const shopKey=host.dataset.shopPortrait==='1'&&!(options&&options.includeShop)?String(host.dataset.shopPortraitKey||''):'';
+  if(shopKey){
+    const others=[...host.querySelectorAll('.tavern-portrait,.tavern-face,.tavern-name-plate')].filter(el=>
+      el.dataset.portraitKey!==shopKey&&el.dataset.facePortraitKey!==shopKey);
+    if(options&&options.immediate) others.forEach(el=>el.remove());
+    else { await _qFadePresentationElements(others,TAVERN_PORTRAIT_FADE_MS); others.forEach(el=>el.remove()); }
+    return;
+  }
   if(options&&options.immediate){ host.remove(); return; }
   // 消える途中の層は id を外し、次に出す立ち絵の層とぶつからないようにする。
   host.removeAttribute('id');
@@ -1962,7 +2020,7 @@ function questForceEndEventForDebug(){
   _qDestroySession=false;
   _qPendingNamePlate='';
   _qFormationContext=null;
-  void _qClearPresentation({immediate:true});
+  void _qClearPresentation({immediate:true,includeShop:true});
   document.querySelectorAll('.quest-event-shade,.tavern-name-plate,.tavern-presentation-host').forEach(el=>el.remove());
   document.getElementById('five-saints-decor')?.remove();
   document.querySelectorAll('.five-saints-target-glow').forEach(el=>el.remove());
