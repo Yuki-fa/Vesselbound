@@ -679,7 +679,9 @@ function coreStampUnitBaseStats(unit) {
 // 呼び出し側のオブジェクトを一切書き換えないよう、コア内部用に写した可変ユニットを作る。
 function createCoreUnit(raw, side, index) {
   const atk = Math.max(0, Math.round(Number(raw && raw.atk) || 0));
-  const hp = Math.max(1, Math.round(Number(raw && raw.hp) || 1));
+  // 強化でHP0になった体（_deployedAtZeroHp）は0のまま渡す。開戦の瞳の指輪で正に戻れば出撃する（PvEと同じ）。
+  const zeroHp = !!(raw && raw._deployedAtZeroHp) && !(Number(raw && raw.hp) > 0);
+  const hp = zeroHp ? 0 : Math.max(1, Math.round(Number(raw && raw.hp) || 1));
   const base = coreUnitBaseStats(raw);
   return {
     id: String((raw && raw.id) || `${side}-${index}`),
@@ -688,6 +690,7 @@ function createCoreUnit(raw, side, index) {
     atk,
     hp,
     maxHp: Math.max(hp, Math.round(Number(raw && raw.maxHp) || hp)),
+    ...(zeroHp ? { _deployedAtZeroHp: true } : {}),
     lane: String((raw && raw.lane) || 'front') === 'rear' ? 'rear' : 'front',
     color: String((raw && raw.color) || ''),
     race: String((raw && raw.race) || ''),
@@ -872,6 +875,7 @@ function coreUnitSnapshot(unit) {
     weakenOnHit: Math.max(0, Number(u.weakenOnHit) || 0),
     ringInjuryHp: Math.max(0, Number(u.ringInjuryHp) || 0),
     _rainbowRingBonus: Math.max(0, Number(u._rainbowRingBonus) || 0),
+    ...(u._deployedAtZeroHp ? { _deployedAtZeroHp: true } : {}),
     boardCards: Array.isArray(u.boardCards) ? u.boardCards.map(x => ({ ...x })) : [],
     effectData: u.effectData ? {
       ...u.effectData,
@@ -2251,7 +2255,8 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
 // 開戦時の適用順（early → 苦行 → late → 神速）をそのまま保つため。
 const CORE_COLOR_EYE_RINGS = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
 function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
-  if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
+  // 強化でHP0になった体（_deployedAtZeroHp）にも掛ける。正に戻れば、その体は出撃する。
+  if (!unit || coreIsSealed(unit) || (unit.hp <= 0 && !unit._deployedAtZeroHp)) return;
   const side = unit.side;
   coreResolvedRings(state, side).forEach(ring => {
     const color = CORE_COLOR_EYE_RINGS[String(ring && ring.name || ring || '')];
@@ -2259,16 +2264,22 @@ function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
     unit.atk = Math.max(0, unit.atk + 10); unit.maxHp += 10; unit.hp += 10;
     emit({ type: 'stat_change', side, unitId: unit.id, atk: 10, hp: 10, reason: 'color_ring' });
   });
-  if (side === 'p1' && coreRingCount(state, 'p1', '虹の瞳の指輪')) {
-    const live = (state.units.p1 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
-    const n = coreRainbowRingBonusForUnits(live);
+  // **虹の瞳の指輪は個数分**（鏡の指輪の写しを含む。coreRingCount は鏡を解決した一覧で数える）。
+  // 以前は「持っているか」だけを見ていて、鏡で2つ分になっても1つ分しか上がらなかった（2026-10-05 利用者指摘）。
+  const rainbowCount = side === 'p1' ? coreRingCount(state, 'p1', '虹の瞳の指輪') : 0;
+  if (rainbowCount) {
+    const live = (state.units.p1 || []).filter(Boolean).filter(x => (x.hp > 0 || x._deployedAtZeroHp) && !coreIsSealed(x));
+    const per = coreRainbowRingBonusForUnits(live.map(x => (x.hp > 0 ? x : { ...x, hp: 1 })));
+    const n = per * rainbowCount;
     if (n) {
       unit.atk = Math.max(0, unit.atk + n); unit.maxHp += n; unit.hp += n;
-      unit._rainbowRingBonus = n;
+      // 説明文の X は指輪1つ分（指輪ごとに「+X/+Xされた」を並べるため）。上昇量は atk/hp の合計。
+      unit._rainbowRingBonus = per;
       emit({ type: 'stat_change', side: 'p1', unitId: unit.id, atk: n, hp: n,
-        reason: 'rainbow_ring', rainbowBonus: n });
+        reason: 'rainbow_ring', rainbowBonus: per });
     }
   }
+  if (unit.hp > 0) delete unit._deployedAtZeroHp;
 }
 function coreApplyOpeningRingsToUnitLate(state, unit, emit) {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
@@ -2293,7 +2304,12 @@ function coreApplyOpeningRings(state, rng, emit, applyHit) {
   coreBeginSummonBatch(state);
   try {
   const live = side => (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
-  ['p1', 'p2'].forEach(side => live(side).forEach(u => coreApplyOpeningRingsToUnitEarly(state, u, emit)));
+  // 強化でHP0になった体（_deployedAtZeroHp）も瞳の指輪の対象にする（正に戻れば出撃する）。
+  ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean)
+    .filter(x => (x.hp > 0 || x._deployedAtZeroHp) && !coreIsSealed(x))
+    .forEach(u => coreApplyOpeningRingsToUnitEarly(state, u, emit)));
+  // 瞳の指輪でも正に戻らなかった体は、ここで通常の死亡扱いに戻す（印を残すと盤面から外れない）。
+  ['p1', 'p2'].forEach(side => (state.units[side] || []).forEach(u => { if (u && u._deployedAtZeroHp) delete u._deployedAtZeroHp; }));
   // 効果文駆動の敵全体バフ。どちらの陣営が装備しても、その相手側へ同じ規則で適用する。
   ['p1', 'p2'].forEach(ownerSide => {
     const enemySide = ownerSide === 'p1' ? 'p2' : 'p1';

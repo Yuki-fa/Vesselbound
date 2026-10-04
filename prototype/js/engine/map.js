@@ -700,16 +700,28 @@ function _removeShopEventPortraitA(){
     .forEach(el=>el.remove());
 }
 // 店の人をフェード無しで置く（入店した瞬間から見えているように。2026-10-03 利用者指定）。
-function _placePortraitInstant(id,screen){
+// face：最初の台詞の表情（シートの表情列）。会話が始まってから表情が切り替わって見えないよう、
+// 立ち絵と一緒に最初から付けておく（2026-10-05 利用者指摘：ギャラハ魔導店の特殊台詞A1 など）。
+function _placePortraitInstant(id,screen,face){
   if(!id||typeof showTavernPortrait!=='function') return;
   void showTavernPortrait(id,{screen});
   const host=document.getElementById('tavern-presentation-layer');
   const img=host&&host.querySelector(`.tavern-portrait[data-portrait-key="${id}"]`);
   if(!img) return;
-  img.style.setProperty('transition','none','important');
-  img.classList.add('is-visible');
-  void img.offsetWidth;
-  img.style.removeProperty('transition');
+  const instant=el=>{
+    el.style.setProperty('transition','none','important');
+    el.classList.add('is-visible');
+    void el.offsetWidth;
+    el.style.removeProperty('transition');
+  };
+  instant(img);
+  const spec=face&&typeof _qFaceSpec==='function'?_qFaceSpec(face):null;
+  if(spec&&spec.portraitId===id){
+    // 立ち絵は表示済みなので、表情は今の表情の上に重ねる経路で付く（要素は同期で作られる）。その場で不透明にする。
+    void showTavernPortrait(id,{screen,face});
+    const faceEl=host.querySelector(`.tavern-face[data-face-id="${spec.name}"][data-face-portrait-key="${id}"]`);
+    if(faceEl) instant(faceEl);
+  }
 }
 // 商品の画面へBキャラを出す（既に出ていれば移すだけ）。
 function _showShopPortraitB(fac){
@@ -773,10 +785,22 @@ async function _onVillageFacility(fac){
       const seen=!!((G._facilityTalkSeen||{})[key]);
       if(talk&&typeof _qStartDialogue==='function'
         &&(forgeChainState||arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
+        // 闘技場にお金を払って入場済み（同じ街）なら、魔導店の通常の入店台詞は台詞1の代わりに特殊台詞A1
+        // （ギャラハ「魔導店」入店時。2026-10-03 利用者指定）。闘技場から戻った直後の（闘技場後）の台詞は従来どおり優先。
+        const greetingLine=arenaAfterPending
+          ?_facilityArenaAfterTalkLine(talk)
+          :(fac.key==='shop'&&_villageArenaUsed()&&talk['特殊台詞A1'])
+            ?talk['特殊台詞A1']
+            :talk['台詞1'];
+        // 最初に出る台詞（宿屋・闘技場＝台詞1、命の鎖＝特殊台詞A1／再訪B1、それ以外＝上の入店台詞）の表情を最初から付ける。
+        const firstLine=(fac.key==='inn'||fac.key==='arena')?talk['台詞1']
+          :forgeChainState?(forgeChainState.revisit?talk['特殊台詞B1']:talk['特殊台詞A1'])
+            :greetingLine;
+        const firstFaceA=typeof _qFirstLineFace==='function'?_qFirstLineFace([firstLine].filter(Boolean),'MC001'):'';
         await fadeScreenSwitch(()=>{
           _showFacilityGreetingScene(fac);
           // 主人公と店の人を暗転の中で一緒に置く（明けた瞬間から両方見える）。
-          _placePortraitInstant('MC001','village');
+          _placePortraitInstant('MC001','village',firstFaceA);
           _placePortraitInstant(_villageFacilityPortraitB(fac),'village');
         });
         if(!isCurrent()) return;
@@ -802,13 +826,6 @@ async function _onVillageFacility(fac){
         if(forgeChainState){
           await _runVillageForgeChainDialogue(talk,forgeChainState);
         }else{
-          // 闘技場にお金を払って入場済み（同じ街）なら、魔導店の通常の入店台詞は台詞1の代わりに特殊台詞A1
-          // （ギャラハ「魔導店」入店時。2026-10-03 利用者指定）。闘技場から戻った直後の（闘技場後）の台詞は従来どおり優先。
-          const greetingLine=arenaAfterPending
-            ?_facilityArenaAfterTalkLine(talk)
-            :(fac.key==='shop'&&_villageArenaUsed()&&talk['特殊台詞A1'])
-              ?talk['特殊台詞A1']
-              :talk['台詞1'];
           await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
         }
         if(!isCurrent()) return;
@@ -2151,6 +2168,22 @@ async function _runVillageForgeChainDialogue(talk,state){
 }
 const INN_REST_BG_FADE_MS=650;
 const INN_LIFE_FADE_MS=750;
+// 施設の会話で、A（MC001）とその施設のB（店員）を**同時に**出し直す（宿屋の暗転明け・闘技場から戻った時）。
+// Bは要素ごと消えていることがあるので、先に画像を読み終えてから、両方の準備が済んだ同じフレームでフェードインする
+// （_qShowPortraitPair と同じ waitAppearance）。
+async function _showFacilityPortraitPair(facKey,options){
+  const opts=options||{};
+  if(typeof showTavernPortrait!=='function') return;
+  const bId=typeof _villageFacilityPortraitB==='function'?_villageFacilityPortraitB({key:facKey}):null;
+  const bSrc=bId&&typeof TAVERN_PORTRAIT_CONFIG!=='undefined'&&TAVERN_PORTRAIT_CONFIG[bId]?TAVERN_PORTRAIT_CONFIG[bId].src:'';
+  if(bSrc){ try{ const pre=new Image(); pre.src=bSrc; await pre.decode(); }catch(_e){} }
+  const count=bId?2:1;let ready=0,release;
+  const appearanceReady=new Promise(resolve=>{release=resolve;});
+  const waitAppearance=()=>{if(++ready===count) release();return appearanceReady;};
+  const shown=[showTavernPortrait('MC001',{screen:'village',face:opts.faceA,waitAppearance})];
+  if(bId) shown.push(showTavernPortrait(bId,{screen:'village',waitAppearance}));
+  await Promise.all(shown);
+}
 async function _runVillageInnDialogue(talk){
   if(talk['台詞1']) await _qStartDialogue([talk['台詞1']],{screen:'village'});
   const prompt=talk['台詞2'];
@@ -2205,18 +2238,7 @@ async function _runVillageInnDialogue(talk){
     // 背景の復帰と一緒に、A（台詞4の表情指定つき）とB（宿屋の店員）を同時に出し直す。
     const restFaceSpec=typeof _qFaceSpec==='function'?_qFaceSpec(talk['台詞4'].face):null;
     const restFace=restFaceSpec&&restFaceSpec.portraitId==='MC001'?restFaceSpec.name:undefined;
-    const innB=typeof _villageFacilityPortraitB==='function'?_villageFacilityPortraitB({key:'inn'}):null;
-    // Bは暗転で要素ごと消えるので、出し直す前に画像を読み終えておく（Aより遅れて出ないように）。
-    const innBSrc=innB&&typeof TAVERN_PORTRAIT_CONFIG!=='undefined'&&TAVERN_PORTRAIT_CONFIG[innB]?TAVERN_PORTRAIT_CONFIG[innB].src:'';
-    if(innBSrc){ try{ const pre=new Image(); pre.src=innBSrc; await pre.decode(); }catch(_e){} }
-    if(typeof showTavernPortrait==='function'){
-      // 両方の準備が済んでから同時にフェードインする（_qShowPortraitPair と同じ waitAppearance）。
-      const count=innB?2:1;let ready=0,release;
-      const appearanceReady=new Promise(resolve=>{release=resolve;});
-      const waitAppearance=()=>{if(++ready===count) release();return appearanceReady;};
-      void showTavernPortrait('MC001',{screen:'village',face:restFace,waitAppearance});
-      if(innB) void showTavernPortrait(innB,{screen:'village',waitAppearance});
-    }
+    void _showFacilityPortraitPair('inn',{faceA:restFace});
     await _mapDelay(INN_REST_BG_FADE_MS);
     document.body.classList.remove('inn-rest-return');
     await _qStartDialogue([talk['台詞4']],{screen:'village'});
@@ -2980,12 +3002,17 @@ function _mapPanelPowerIdAtSafe(slotIdx){
 function _mapForgeCandidateSlots(power){
   if(!power) return [];
   const size=typeof MAIN_BOARD_SIZE!=='undefined'?MAIN_BOARD_SIZE:15;
+  // 「抑圧の刻印」が置かれているマスは改造の対象から外す（2026-10-05 利用者指定）。
+  const suppressed=i=>{
+    const card=Array.isArray(G&&G.mainBoard)?G.mainBoard[i]:null;
+    return !!(card&&typeof _cardIsSuppressionEngraving==='function'&&_cardIsSuppressionEngraving(card));
+  };
   if(power.id==='summon'){
     // 召喚の力は、特殊マスではない上段・下段だけを対象にする。
     // ■□■□■ / ■■■■■ / □■□■□
-    return [0,2,4,11,13].filter(i=>i<size&&!_mapPanelPowerIdAtSafe(i));
+    return [0,2,4,11,13].filter(i=>i<size&&!_mapPanelPowerIdAtSafe(i)&&!suppressed(i));
   }
-  return Array.from({length:size},(_,i)=>i).filter(i=>_mapPanelPowerIdAtSafe(i)==='summon');
+  return Array.from({length:size},(_,i)=>i).filter(i=>_mapPanelPowerIdAtSafe(i)==='summon'&&!suppressed(i));
 }
 // カードのフェードアウト後の演出。召喚の力＝board_change1、それ以外＝board_change2の
 // webp＋SFXを再生する（旧ルーレット演出は廃止）。

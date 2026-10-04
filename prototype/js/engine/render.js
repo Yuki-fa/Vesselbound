@@ -4737,7 +4737,9 @@ function _unitPreviewText(unit, desc, slotIdx){
   if(visibleDesc) lines.push(visibleDesc);
   if(normalTexts.length) lines.push(normalTexts.join('\n'));
   if(characterTexts.length){
-    lines.push('__CHARACTER_DESC_SEPARATOR__');
+    // 区切りの直線は、前に本文（キーワード・効果）がある時だけ。名前の直後には見出しの直線が既にあるので、
+    // 効果を持たないキャラ（ペリカン等）が指輪などで効果を得た時に直線が2本並んでいた（2026-10-05 利用者指摘）。
+    if(lines.length>(unit.name?1:0)) lines.push('__CHARACTER_DESC_SEPARATOR__');
     lines.push(characterTexts.join('\n'));
   }
   return lines.join('\n');

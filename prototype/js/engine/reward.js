@@ -3177,8 +3177,10 @@ function _panelEyeRingPreviewBonus(card,unit,idx){
   const raw=String(card.color||'').trim();
   const color=colorMap[raw.toLowerCase()]||raw;
   let bonus=rings.filter(r=>r&&eye[r.name]&&eye[r.name]===color).length*10;
-  if(rings.some(r=>r&&r.name==='虹の瞳の指輪')&&typeof _currentRainbowRingBonusForUnit==='function'){
-    bonus+=Number(_currentRainbowRingBonusForUnit({...card,_ownedBoardPreview:true}))||0;
+  // 虹の瞳の指輪は個数分（鏡の指輪の写しを含む。戦闘のコアと同じ）。
+  const rainbowCount=rings.filter(r=>r&&r.name==='虹の瞳の指輪').length;
+  if(rainbowCount&&typeof _currentRainbowRingBonusForUnit==='function'){
+    bonus+=(Number(_currentRainbowRingBonusForUnit({...card,_ownedBoardPreview:true}))||0)*rainbowCount;
   }
   return bonus;
 }
@@ -3211,6 +3213,8 @@ function _panelCharacterPreviewStats(unit,idx,card){
   // 戦闘ではコアの開戦処理（coreApplyOpeningRingsToUnitEarly）が同じ量を足す。鏡の指輪の写しも数える。
   // 封印されたキャラには戦闘でも掛からないので足さない。
   const ringBonus=_panelEyeRingPreviewBonus(card,unit,idx);
+  // 戦闘では、強化で0未満になったATK/HPを0で止めてから開戦の指輪を足す。表示も同じ順にする。
+  if(ringBonus){ base.atk=Math.max(0,base.atk); base.hp=Math.max(0,base.hp); }
   base.atk+=ringBonus; base.hp+=ringBonus;
   // ATK・HPを減少させる強化（呪われた壺の -5/-5 など）の合計がベースを上回っても、
   // **表示は0が下限**。戦闘中の値（_addBattleStats／コアのaddStats）と同じ規則にする。

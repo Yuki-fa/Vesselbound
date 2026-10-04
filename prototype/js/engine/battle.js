@@ -2719,7 +2719,9 @@ function _layoutEnemyLanes(enemies){
 function compactBattleUnits(){
   // pending召喚体はコアの上限枠を占有するが、まだ表示されていないため
   // 画面の人数・中央寄せ・FLIPの対象には含めない。
-  const liveCount=arr=>(arr||[]).filter(u=>u&&u.hp>0&&!u._corePendingSummon&&!u._isSoul&&!u._isObject).length;
+  // 強化でHP0になった体（_deployedAtZeroHp）は、開戦の瞳の指輪が掛かるまで盤面に残す（コアが開戦の指輪の後に印を外す）。
+  const alive=u=>u&&(u.hp>0||u._deployedAtZeroHp);
+  const liveCount=arr=>(arr||[]).filter(u=>alive(u)&&!u._corePendingSummon&&!u._isSoul&&!u._isObject).length;
   const compactCounts={allies:liveCount(G.allies),enemies:liveCount(G.enemies)};
   const previousCounts=G._lastCompactLiveCounts;
   // コアの召喚・死亡処理はDOMより先に配列を更新するため、前回の配列人数だけを
@@ -2766,8 +2768,8 @@ function compactBattleUnits(){
   // 左端への一時表示・攻撃対象と表示キャラの不一致が発生する。
   const rearSlots=Math.max(0,maxA-frontSlots);
   const nextAllies=new Array(maxA).fill(null);
-  const pendingAllies=(G.allies||[]).filter(a=>a&&a.hp>0&&a._corePendingSummon&&!a._isSoul&&!a._isObject);
-  const liveAllies=(G.allies||[]).filter(a=>a&&a.hp>0&&!a._corePendingSummon&&!a._isSoul&&!a._isObject);
+  const pendingAllies=(G.allies||[]).filter(a=>alive(a)&&a._corePendingSummon&&!a._isSoul&&!a._isObject);
+  const liveAllies=(G.allies||[]).filter(a=>alive(a)&&!a._corePendingSummon&&!a._isSoul&&!a._isObject);
   liveAllies.forEach(clampUnitStats);
   // **固定できるのは「自分の列の中の空き」だけ。**
   // 以前はスロット番号から lane を決め直していたため、召喚（複製など）で前衛が
@@ -4946,6 +4948,9 @@ function _applyAdjacentPanelEnhancements(unit, enh){
     const nextMaxHp=Math.max(0,(unit.maxHp||0)+hpBonus);
     unit.hp=Math.max(0,Math.min((unit.hp||0)+hpBonus,nextMaxHp));
     unit.maxHp=nextMaxHp;
+    // 強化でHP0になった体の印。開戦の瞳の指輪（+X/+X）で正に戻れば出撃する（コアの coreApplyOpeningRingsToUnitEarly）。
+    // 印が無いと、指輪が掛かる前にHP0の体として扱われ、戦闘に出てこなかった（2026-10-05 利用者指摘：獰猛＋瞳の指輪）。
+    if(unit.hp<=0) unit._deployedAtZeroHp=true; else delete unit._deployedAtZeroHp;
   }
   if(enhancementKeywords.length){
   unit.keywords=[...(unit.keywords||[]),...enhancementKeywords].filter(k=>!cardNames.has(String(k||'').trim()));
@@ -5739,7 +5744,7 @@ async function applyNewPanelBattleStart(options){
   // 戦闘開始で一度指輪抜きへ戻り、開戦でまた上がって見えた。計算はコアのまま、表示だけ先に揃える。
   // 開戦の再生（_finishNewPanelBattleStartEffects）でも同じ分を据え置きに含め、上昇演出は出さない。
   (G.allies||[]).forEach(u=>{
-    if(!u||u.hp<=0||typeof presentHoldShown!=='function'||typeof _panelEyeRingPreviewBonus!=='function') return;
+    if(!u||(u.hp<=0&&!u._deployedAtZeroHp)||typeof presentHoldShown!=='function'||typeof _panelEyeRingPreviewBonus!=='function') return;
     const b=Number(_panelEyeRingPreviewBonus(u))||0;
     if(b>0) presentHoldShown(u,(Number(u.atk)||0)+b,(Number(u.hp)||0)+b,(Number(u.maxHp)||Number(u.hp)||1)+b,Number(u.shield)||0,Number(u.weaken)||0);
   });

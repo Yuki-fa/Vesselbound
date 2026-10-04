@@ -86,6 +86,8 @@
         _voidWalkerBonus: Number(u._voidWalkerBonus) || 0,
         // 指輪による負傷時HP付与の残量。
         ringInjuryHp: Number(u.ringInjuryHp) || 0,
+        // 強化でHP0になった体の印（開戦の瞳の指輪で正に戻れば出撃する。PvEと同じ入力にする）。
+        _deployedAtZeroHp: !!u._deployedAtZeroHp,
         summonCount: Number(u.summonCount) || 1,
         boardCards: (entry.contributingPanels.length && typeof _panelSummonDisplayBoardCards === 'function')
           ? _panelSummonDisplayBoardCards(panel, entry.contributingPanels) : [],

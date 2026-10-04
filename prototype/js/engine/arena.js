@@ -405,7 +405,9 @@ async function _arenaFinish(result,wins){
   G._arenaResults=G._arenaResults||{};
   G._arenaResults[_arenaFacilityKey()]={wins:finishedWins,prize,allWon};
   G._arenaEntrySnapshot=null;
-  if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
+  // 結果の台詞（台詞4・特殊台詞A1・台詞5）は、A と闘技場のB（受付）を同時に出す（2026-10-05 利用者指摘：台詞5でBが出ない）。
+  if(typeof _showFacilityPortraitPair==='function') await _showFacilityPortraitPair('arena');
+  else if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
   if(result==='win'){
     if(prize&&typeof gainEventGold==='function') gainEventGold(prize);
     if(typeof updateHUD==='function') updateHUD();

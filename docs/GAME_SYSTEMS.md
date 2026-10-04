@@ -303,3 +303,11 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
 **宿屋（2026-10-04 利用者指定）**：休むと台詞3の後に暗転し、**A・Bの立ち絵も両方消す**。暗転が明ける時（台詞4の前）にAとB（宿屋の店員）を同時に出し直す（`waitAppearance` で両方の準備後に同じフレームでフェードイン）。宿屋はその街で一度使ったら、ライフが減っていても押せない（`_villageInnUsed`。説明は「街「宿屋」直下（ライフ満タン時）」と同じ文）。
 
 **援護射撃（E067）の演出（2026-10-05）**：援護射撃の弾は射手から対象へ飛ばす（発射＝E067_1.webp／E067_1.wav、着弾＝E067_2.webp／E067_2.wav）。コアは援護射撃のダメージに `fxEffect:'援護射撃'`（演出だけに使う印）を載せ、再生側（present_events.js）は `_enchantPresentationNo` でその強化カードの演出番号（E067）を引いて、`PRESENT_PROJECTILE_EFFECTS` の飛び道具として射手から飛ばす。射手本人の固有VFXは従来どおり出さない（effectSource:false）。
+
+**HP0で出撃した体と瞳の指輪（2026-10-05）**：強化（獰猛など）でHPが0以下になった体は、`_applyAdjacentPanelEnhancements` で0に止めて `_deployedAtZeroHp` の印を付ける。盤面を詰める処理（`compactBattleUnits`）はこの体を残し、コアの開戦の指輪（`coreApplyOpeningRingsToUnitEarly`）が色・虹の瞳の指輪を足す。正に戻れば出撃し、戻らなければ開戦の指輪の直後に印を外して通常の死亡扱い。オンラインも `_deployedAtZeroHp` を送り、`createCoreUnit` がHP0のまま受け取る（以前はHP1に切り上げていた）。魔導板の表示も「0で止めてから指輪を足す」順にそろえた。
+
+**虹の瞳の指輪は個数分（2026-10-05）**：鏡の指輪の写しを含め、虹の瞳の指輪の数だけ+X/+Xする（コア・魔導板の表示とも）。`_rainbowRingBonus`／イベントの `rainbowBonus` は指輪1つ分のX（説明文の「+X/+Xされた」を指輪ごとに並べるため）。
+
+**鍛冶屋の改造（2026-10-05 利用者指定）**：「抑圧の刻印」が置かれているマスは改造の対象から外す（`_mapForgeCandidateSlots`）。
+
+**保存した戦闘の再生と表示値（2026-10-05）**：表示用の据え置き値（`_displayAtk`／`_displayHp`／`_displayMaxHp` など、present.js の持ち物）は、保存する戦闘の状態（`snapshotCore`）に入れず、手番の状態を当てる時（`applyFrame`）にも書き戻さない。出撃時の瞳の指輪の先出し（70/70 など）が初期状態ごと保存され、勝った直後の最後の状態で被弾の赤い数字が白に、戦闘中のバフが初期値に戻って見えていた（デバッグでは保存しないので起きなかった）。

@@ -401,9 +401,12 @@ const SaveRun=(()=>{
     const units={};
     for(const side of ['p1','p2']){
       units[side]=(state.units[side]||[]).map(u=>{
-        if(!u||!setupIds||!setupIds.has(u.id)) return u;
+        if(!u) return u;
+        // 表示用の据え置き値（_display*）は保存しない（再生側の持ち物。applyFrame でも読まない）。
+        const strip=x=>{const o={...x};for(const k of Object.keys(o)) if(k.startsWith('_display')) delete o[k];return o;};
+        if(!setupIds||!setupIds.has(u.id)) return strip(u);
         const {boardCards,...rest}=u;
-        return rest;
+        return strip(rest);
       });
     }
     return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0});
@@ -488,9 +491,13 @@ const SaveRun=(()=>{
         // 一度召喚イベントを見せて外した後まで復元すると、次の手番から描画対象外に
         // 戻り、姿だけ消えたまま攻撃を続ける。表示済みの状態は巻き戻さない。
         if(existing&&!existing._corePendingSummon) delete data._corePendingSummon;
+        // **表示用の据え置き値（_display*）は書き戻さない。** 出撃時に瞳の指輪の分を先に見せる据え置き（70/70など）が
+        // 戦闘の初期状態ごと保存されていて、手番の状態を当てるたびに古い表示値へ戻っていた。勝った直後の最後の状態で
+        // 被弾の赤い数字が白に、共振・負傷のバフが初期値に戻って見えた（2026-10-05 利用者指摘）。表示値は再生側が持つ。
+        for(const key of Object.keys(data)) if(key.startsWith('_display')) delete data[key];
         const u=existing||{};
         // boardCards は手番ごとの状態に入れていない（snapshotCore）ので、既存の体からは消さない。
-        for(const key of Object.keys(u)) if(!omitted.has(key)&&key!=='boardCards'&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')) delete u[key];
+        for(const key of Object.keys(u)) if(!omitted.has(key)&&key!=='boardCards'&&!Object.hasOwn(data,key)&&!key.startsWith('_shown')&&!key.startsWith('_display')) delete u[key];
         return Object.assign(u,data);
       });
       state.units[side].splice(0,state.units[side].length,...next);
