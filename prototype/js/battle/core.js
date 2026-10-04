@@ -57,7 +57,7 @@ const CORE_KEYWORD_CARD_NAMES = new Set(
 // 新しい強化カードを足した時の追随漏れは tools/balance_sim/effect_audit.js が検出する。
 const CORE_EFFECT_CARD_NAMES = new Set([...CORE_KEYWORD_CARD_NAMES,
   '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '治癒能力', 'マナ生成',
-  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃',
+  '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃', '魔族の魂',
   '宿業の刻印', '抑圧の刻印', '受難の刻印', '苦悶の刻印', '修道の刻印', '我慢の刻印']);
 // 効果文に書かれていれば自身が持つものとして扱うキーワード。
 const CORE_TEXT_KEYWORDS = ['復活', '根性', 'ヘイト', '二段攻撃', '三段攻撃', '三方向攻撃', '全体攻撃', '先制', '隠密'];
@@ -161,17 +161,23 @@ function coreUnitEffectText(unit) {
     ...(unit && unit._adjacentPanelEffectTexts || []),
     ...(unit && unit.effectData && unit.effectData.effectTexts || [])]
     .filter(Boolean).map(String);
-  return [...new Set(texts)].join(' ');
+  return [...new Set(texts)].join(' ').replace(/；/g, '：');
+}
+
+// 複合トリガはどちらの入口でも同じ本文を読む。表示用のdescは書き換えない。
+function coreTriggerLabelPattern(trigger) {
+  const label = trigger === '負傷' ? '(?:負傷|攻撃[＆&]負傷)'
+    : trigger === '死亡' ? '(?:死亡|攻撃[＆&]死亡)' : trigger;
+  return label + '(?:[＆&](?:攻撃|負傷|死亡))?';
 }
 
 function coreUnitTriggerText(unit, trigger) {
   const texts = [unit && unit.desc, unit && unit.effectText, unit && unit.effect,
     ...(unit && unit._adjacentPanelEffectTexts || []),
     ...(unit && unit.effectData && unit.effectData.effectTexts || [])]
-    .filter(Boolean).map(String);
-  const triggerPattern = trigger === '負傷' ? '(?:負傷|攻撃[＆&]負傷)' : trigger;
+    .filter(Boolean).map(text => String(text).replace(/；/g, '：'));
   // 「復活\n攻撃：…」のように、先頭へ常時キーワード行を持つカードもある。
-  const prefix = new RegExp('(?:^|\\n)\\s*' + triggerPattern + '(?:[＆&](?:攻撃|負傷))?\\s*[：:]');
+  const prefix = new RegExp('(?:^|\\n)\\s*' + coreTriggerLabelPattern(trigger) + '\\s*[：:]');
   const matched = texts.filter(text => prefix.test(text));
   return matched.join(' ');
 }
@@ -183,8 +189,7 @@ function coreUnitTriggerText(unit, trigger) {
 // トリガの前置き（「攻撃：」など）で切り分けて配列にし、どの文にも先頭から当てる。
 function coreTriggerTextParts(unit, trigger) {
   const joined = coreUnitTriggerText(unit, trigger);
-  const label = trigger === '負傷' ? '(?:負傷|攻撃[＆&]負傷)' : trigger;
-  const splitter = new RegExp('\\s*' + label + '(?:[＆&](?:攻撃|負傷))?\\s*[：:]\\s*', 'g');
+  const splitter = new RegExp('\\s*' + coreTriggerLabelPattern(trigger) + '\\s*[：:]\\s*', 'g');
   return String(joined || '').split(splitter).map(x => x.trim()).filter(Boolean);
 }
 // 効果文の配列のうち、**どれか1つでも**当たればその一致を返す。
@@ -196,6 +201,16 @@ function coreTriggerMatch(parts, pattern) {
   return null;
 }
 function coreTriggerTest(parts, pattern) { return !!coreTriggerMatch(parts, pattern); }
+
+// 同じ文がpayloadの本文とeffectDataの両方にあっても二重に実行しない。
+// 接続カードは配列の枚数を保つため、同じ効果を複数枚付けた場合も個別に発動する。
+function coreTriggerEffectEntries(unit, trigger, pattern) {
+  const own = [...new Set([unit && unit.desc, unit && unit.effectText, unit && unit.effect].filter(Boolean).map(String))];
+  const attached = unit && Array.isArray(unit._adjacentPanelEffectTexts) && unit._adjacentPanelEffectTexts.length
+    ? unit._adjacentPanelEffectTexts : (unit && unit.effectData && unit.effectData.effectTexts || []);
+  return [...own, ...attached.filter(text => !own.includes(String(text)))].flatMap(text =>
+    coreTriggerTextParts({ desc: text }, trigger).map(part => part.match(pattern)).filter(Boolean));
+}
 
 // ── 強化カードの効果値は、必ずその効果文から読む ──────────────────
 // **カード名に対して数を直書きしないこと。**
@@ -212,9 +227,8 @@ function coreEffectNumbers(unit, trigger, pattern, fallback) {
   const texts = [unit && unit.desc, unit && unit.effectText, unit && unit.effect,
     ...(unit && unit._adjacentPanelEffectTexts || []),
     ...(unit && unit.effectData && unit.effectData.effectTexts || [])]
-    .filter(Boolean).map(String);
-  const triggerPattern = trigger === '負傷' ? '(?:負傷|攻撃[＆&]負傷)' : trigger;
-  const prefix = trigger ? new RegExp('(?:^|\\n)\\s*' + triggerPattern + '(?:[＆&](?:攻撃|負傷))?\\s*[：:]') : null;
+    .filter(Boolean).map(text => String(text).replace(/；/g, '：'));
+  const prefix = trigger ? new RegExp('(?:^|\\n)\\s*' + coreTriggerLabelPattern(trigger) + '\\s*[：:]') : null;
   for (const text of texts) {
     if (prefix && !prefix.test(text)) continue;
     const m = pattern.exec(text);
@@ -1034,6 +1048,8 @@ function coreApplyDamage(target, amount, emit, opts) {
     batch: (opts && opts.batch) || null,
     // 全体へ同時に与えた効果ダメージ（coreHitAll）だけに付ける印。付かない時は項目ごと出さない。
     ...(opts && opts.area ? { area: true } : {}),
+    // 演出だけに使う効果名（援護射撃の弾＝E067 を射手から飛ばす）。付かない時は項目ごと出さない。
+    ...(opts && opts.fxEffect ? { fxEffect: String(opts.fxEffect) } : {}),
     // 通常攻撃は runBattleCore が _coreAttackContact を立てる。その他の命中は
     // キャラクター効果由来として、再生側が専用VFX/SEを選べるように明示する。
     // **呼び出し側が明示した値を上書きしないこと。** 以前はここで
@@ -1340,7 +1356,7 @@ function coreMatchIsOwnText(unit, match) {
   if (!part) return true;
   const own = [unit && unit.desc, unit && unit.effectText, unit && unit.effect]
     .filter(Boolean).map(String).join('\n');
-  return own.includes(part);
+  return own.replace(/；/g, '：').includes(part);
 }
 function coreMatchHitOpt(unit, match) {
   return coreMatchIsOwnText(unit, match) ? undefined : coreEnhancementHitOpt();
@@ -1453,6 +1469,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     effect: !!opt.effect || !!(source && !source._coreAttackContact && !counter),
     // 援護射撃など「射手本人の固有VFXを出さない」ダメージの印。未指定なら coreApplyDamage 側の既定（true）。
     effectSource: opt.effectSource,
+    fxEffect: opt.fxEffect || null,
     suppressAttackHitSfx: !!opt.suppressAttackHitSfx,
     area: !!opt.area,
   });
@@ -2864,13 +2881,13 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     for (let t = 0; t < allTimes; t++) coreHitAll(state, rng, emit, applyHit, unit, victims, amount);
   }
   // 全ての敵にNダメージを（M回）与える（アラッサス）。回数も本文から読む。
-  const enemyDamage = coreTriggerMatch(attackTexts, /全ての敵に(\d+)ダメージを(?:(\d+)回)?与える/);
-  if (enemyDamage && !coreHasEffect(unit, 'サイレン')) {
+  const enemyDamages = coreTriggerEffectEntries(unit, '攻撃', /^全ての敵に(\d+)ダメージを(?:(\d+)回)?与える/);
+  for (const enemyDamage of enemyDamages) if (!coreHasEffect(unit, 'サイレン') || !coreMatchIsOwnText(unit, enemyDamage)) {
     const amount = Math.max(1, Number(enemyDamage[1]) || 1);
     const enemyTimes = Math.max(1, Number(enemyDamage[2]) || 1);
     // アラッサスは対象ごとの通常VFXではなく、攻撃者起点の薙ぎ払いVFXを使う。
     // DOMには触れず、再生側が同じ対象順で表示できるイベントだけを出す。
-    if (String(unit.no || unit.artCode || '').toUpperCase() === 'C043') {
+    if (String(unit.no || unit.artCode || '').toUpperCase() === 'C043' && coreMatchIsOwnText(unit, enemyDamage)) {
       emit({ type: 'sweep_vfx', side: unit.side, unitId: unit.id,
         targetIds: foes.filter(x => x.hp > 0 && !coreIsSealed(x)).map(x => x.id) });
     }
@@ -2961,7 +2978,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     shooters.forEach(shooter => {
       for (let i = 0; i < times; i++) {
         const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-        if (target) applyHit(shooter, target, amount, false, false, false, { effectSource: false });
+        if (target) applyHit(shooter, target, amount, false, false, false, { effectSource: false, fxEffect: '援護射撃' });
       }
     });
   }
@@ -3676,21 +3693,21 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
         reason: 'anguish_engraving', unit: coreUnitSnapshot(unit) });
     }
   }
-  // 闇の炎：ダメージ量と回数は本文から読む（基本1ダメージ／合体は1ダメージを2回）。
-  // 発動回数は **repeats（逆襲・屍術師の指輪）× 所持枚数** で数える。
-  // 怨念・レイス・バンシー・デスナイトと同じ数え方。枚数を見ていなかったため、
-  // 闇の炎を2枚つけても1枚分しか出ていなかった。
-  if (coreHasEffect(unit, '闇の炎')) {
-    const flame = coreEffectNumbers(unit, '死亡',
-      /全ての敵(?:キャラクター)?に(\d+)ダメージを(?:(\d+)回)?与える/, [1, 1]);
-    const flameTimes = Math.max(1, flame[1] || 1);
-    const flameCopies = Math.max(1, coreEffectCount(unit, '闇の炎'));
-    for (let i = 0; i < repeats * flameCopies; i++) {
-      for (let t = 0; t < flameTimes; t++) {
-        coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), flame[0],
-          coreEnhancementHitOpt());
-      }
-    }
+  // 死亡の敵全体ダメージはここだけ。攻撃＆死亡も同じ束・演出を使う。
+  const areaPattern = /^全ての敵(?:キャラクター)?に(\d+)ダメージを(?:(\d+)回)?与える/;
+  const areaEffects = coreTriggerEffectEntries(unit, '死亡', areaPattern);
+  // 本文を持たず効果名だけで運んでいた旧ユニットの闇の炎も維持する。
+  const flameCopies = coreEffectCount(unit, '闇の炎');
+  if (flameCopies) {
+    const flame = coreEffectNumbers(unit, '死亡', /^死亡\s*[：:]\s*全ての敵(?:キャラクター)?に(\d+)ダメージを(?:(\d+)回)?与える/, [1, 1]);
+    const parsedCopies = areaEffects.filter(m => Number(m[1]) === flame[0] && Number(m[2] || 1) === Number(flame[1] || 1)).length;
+    for (let i = parsedCopies; i < flameCopies; i++) areaEffects.push(['', String(flame[0]), String(flame[1] || 1)]);
+  }
+  for (const area of areaEffects) {
+    const amount = Number(area[1]), times = Math.max(1, Number(area[2]) || 1);
+    const opt = area[0] ? coreMatchHitOpt(unit, area) : coreEnhancementHitOpt();
+    for (let i = 0; i < repeats * times; i++) coreHitAll(state, rng, emit, applyHit, unit,
+      foes.filter(x => x.hp > 0 && !coreIsSealed(x)), amount, opt);
   }
   for (let i = 0; i < repeats; i++) {
     coreUnitKeywords(unit).forEach(keyword => {
@@ -3962,11 +3979,6 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (deathAlliesBuff) {
     for (let i = 0; i < repeats; i++) allies.filter(x => x.hp > 0 && !coreIsSealed(x))
       .forEach(x => addStats(x, Number(deathAlliesBuff[1]), Number(deathAlliesBuff[2]), 'death_allies_buff'));
-  }
-  const deathAll = coreTriggerMatch(deathTexts, /全ての敵キャラクターに(\d+)ダメージ/);
-  if (deathAll && unit.name !== '闇の炎' && !coreHasEffect(unit, '闇の炎')) {
-    const amount = Math.max(1, Number(deathAll[1]) || 1);
-    for (let i = 0; i < repeats; i++) coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
   }
   const deathInstant = coreTriggerTest(deathTexts, /ランダムな敵を即死させる/);
   if (deathInstant && !coreHasEffect(unit, '深藍の魔女"ティアマリス"')) {

@@ -244,6 +244,16 @@ function _enchantFxCode(name){
   return panel?(_effectPresentationCodes(panel)[0]||''):'';
 }
 
+// 効果名（コアが damage.fxEffect に載せる。援護射撃 等）→ その強化カードの演出番号。
+// VFX/SE列があればそれ、無ければカードのNo.（援護射撃＝E067）。**カード名から番号を推測しない。**
+function _enchantPresentationNo(name){
+  const key=String(name||'').trim();
+  if(!key||typeof PANEL_POOL==='undefined'||!Array.isArray(PANEL_POOL)) return '';
+  const panel=PANEL_POOL.find(p=>p&&String(p.name||'').trim()===key);
+  if(!panel) return '';
+  return _effectPresentationCodes(panel)[0]||String(panel.no||panel.artCode||'').trim().toUpperCase();
+}
+if(typeof window!=='undefined') window._enchantPresentationNo=_enchantPresentationNo;
 // 効果のカードNo.（コアが載せる effectNo）→ そのカードのVFX/SE列の番号。
 // **effectNo は効果の識別子なので置き換えない。** 素材を引く時だけこちらを使う。
 // 指定が無ければ effectNo をそのまま使う（従来どおり）。

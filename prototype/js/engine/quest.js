@@ -25,7 +25,8 @@ const Q006_SCENE={
   beside:{id:'MC001',key:'companion',x:330,y:252,layer:-1},
   firstAnchor:{x:2810,y:1435,tail:'bottom'},
   rightAnchor:{x:2380,y:843,tail:'top'},
-  acceptedA1Anchor:{x:1650,y:1390,tail:'bottom'},
+  // 受託後の特殊台詞A1の吹き出し（尻尾の先）。2026-10-03 利用者指定で X1650→X3425。
+  acceptedA1Anchor:{x:3425,y:1390,tail:'bottom'},
   acceptedA2Anchor:{x:2955,y:1340,tail:'top'},
   restored:{id:'MC008',key:'restored',x:2700,y:1090},
   namePlateX:2045,
@@ -64,6 +65,14 @@ const QUEST_CONFIG={
       defeatDialogue:{variant:'tavern',specialGroup:'A',count:1},
       defeatedThenRetreat:{initialCount:1,specialGroup:'B'}}},
 };
+QUEST_CONFIG.Q001={requiredCardNo:'E075',portraitB:QUEST_CONFIG.Q002.portraitB,completeAt:'town',completeWave:2,
+  offerTitleKey:'「酒場の報酬枠」見出し3',acceptButtonKey:'「受領」ボタン',
+  retainedCard:true,lockedTownWave:1,debugWave:1,offlineOnly:true,
+  enemyReplacement:{enemyNo:'EN025',arrivalWave:2},townArrival:{dialogueOnly:true}};
+// 依頼カードのない討伐依頼。ディナの立ち絵は木箱輸送と共通にする。
+QUEST_CONFIG.Q008={requiredCardNo:'',portraitB:QUEST_CONFIG.Q007.portraitB,initialChoice:true,completeAt:'tower',
+  enemyReplacement:{enemyNo:'EN048',frontSkip:2},
+  towerArrival:{rewardLine:3,defeatCount:true,zeroInitialCount:1,zeroSpecialGroup:'A'}};
 
 // ── 調整用レイアウト定数 ──────────────────────────────
 // 立ち絵は設計座標へ原寸配置する。画面外へはみ出した分は #scr-* の overflow で切る。
@@ -91,6 +100,9 @@ const TAVERN_PORTRAIT_CONFIG={
   MC019:{src:'assets/art/sprites/MC019.webp',x:2335,y:170,width:2100,height:3811},
   MC020:{src:'assets/art/sprites/MC020.webp',x:2325,y:83,width:2187,height:4645},
   MC021:{src:'assets/art/sprites/MC021.webp',x:2575,y:120,width:1535,height:3652},
+  MC022:{src:'assets/art/sprites/MC022.webp',x:2057,y:203,width:2428,height:4256},
+  MC023:{src:'assets/art/sprites/MC023.webp',x:2175,y:145,width:2580,height:4113},
+  MC024:{src:'assets/art/sprites/MC024.webp',x:2110,y:152,width:2435,height:4451},
 };
 const TAVERN_PORTRAIT_FADE_MS=480;
 const TAVERN_FACE_FADE_MS=1000;   // 表情の差分のフェードイン（0.48秒では早すぎた。2026-09-25 利用者指摘）
@@ -380,7 +392,7 @@ function _fiveSaintsShowScene(options){
   _fiveSaintsRenderDecor(options);
   // Bキャラは入った瞬間から（フェード無し）。Aキャラ（主人公 MC001）は原則として出す（2026-10-01 利用者指定）。
   _fiveSaintsPlaceB('village');
-  void showTavernPortrait('MC001',{screen:'village'});
+  _placePortraitInstant('MC001','village');
 }
 async function _fiveSaintsLeaveToTower(options){
   const generation=Number(G&&G._debugEventGeneration)||0;
@@ -425,6 +437,8 @@ function syncFiveSaintsFormationControls(){
   button.innerHTML=`<span class="rew-btn-label">${_qText(accepted?'「受諾」ボタン':'「拒否」ボタン',accepted?'受諾':'拒否')}</span>`;
   button.onclick=()=>{
     if(button.disabled||G._pendingPanelPlacement||G._fiveSaintsResolving) return;
+    if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
+    if(!guardFormationLeave()) return;
     if(accepted) void _fiveSaintsAccept();
     else void _fiveSaintsReject();
   };
@@ -467,9 +481,14 @@ function _fiveSaintsOpenFormationNow(){
   fiveSaintsSyncTargetGlow();
   _fiveSaintsCheckpoint();
 }
+// **イベントと編成画面の間の切り替えでは暗転しない**（2026-10-04 利用者指定）。
+// 五聖の座・酒場の依頼・魔獣撃退の camp などのイベントから編成画面へ入る時と、編成画面からイベントへ戻る時。
+// 同じ同期処理の中で入れ替えるので、途中の画面（戦闘画面など）は描かれない。
+async function _qEventFormationSwitch(action){
+  return await action();
+}
 async function _fiveSaintsOpenFormation(){
-  if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(_fiveSaintsOpenFormationNow);
-  else _fiveSaintsOpenFormationNow();
+  await _qEventFormationSwitch(_fiveSaintsOpenFormationNow);
 }
 async function _fiveSaintsAccept(){
   const ctx=_qFormationContext;
@@ -493,7 +512,7 @@ async function _fiveSaintsAccept(){
     _qFormationContext=null;
     _fiveSaintsCheckpoint();
     const show=()=>_fiveSaintsShowScene({newlyAccepted:ctx.wave});
-    if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(show); else show();
+    await _qEventFormationSwitch(show);
     if(!isCurrent()) return;
     const row=_fiveSaintsTalkRow('塔「五聖の座」入場時');
     await _qStartDialogue(_fiveSaintsTalkLines(row,['台詞3']),{screen:'village'});
@@ -518,7 +537,7 @@ async function _fiveSaintsReject(){
     _qFormationContext=null;
     _fiveSaintsCheckpoint();
     const show=()=>_fiveSaintsShowScene();
-    if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(show); else show();
+    await _qEventFormationSwitch(show);
     if(!isCurrent()) return;
     const row=_fiveSaintsTalkRow('塔「五聖の座」入場時');
     await _qStartDialogue(_fiveSaintsTalkLines(row,['特殊台詞A1']),{screen:'village'});
@@ -670,7 +689,7 @@ html body.quest-destroy-wait #scr-battle,html body.quest-destroy-wait #scr-battl
   background:url("assets/art/backgrounds/black1.svg") center/100% 100% no-repeat!important;
 }
 /* 編成窓の間、立ち絵は背景のすぐ上（暗幕 ::before z0 と編成の枠より奥）に置く。 */
-html body.reward-screen-active:is(.shop-screen-active,.item-shop-active,.forge-screen-active,.five-saints-formation-active) #scr-battle > #tavern-presentation-layer,
+html body.reward-screen-active:not(.shop-special-dialogue-active):is(.shop-screen-active,.item-shop-active,.forge-screen-active,.five-saints-formation-active) #scr-battle > #tavern-presentation-layer,
 html body.reward-screen-active.tavern-screen-active #scr-battle > #tavern-presentation-layer{
   z-index:-1!important;
 }
@@ -759,7 +778,8 @@ function _qRegionIds(wave){
   const raw=String(info&&info.quest||'').trim();
   const ids=raw.split(/[、,\s]+/);
   return ids.map(v=>String(v||'').trim()).filter(id=>id&&id!=='-')
-    .filter(id=>_qQuestData(_qVariant(id,QUEST_TAVERN_VARIANT))||_qQuestData(id));
+    .filter(id=>_qQuestData(_qVariant(id,QUEST_TAVERN_VARIANT))||_qQuestData(id))
+    .filter(id=>!(G&&G._onlineMode&&_qConfig({questId:id}).offlineOnly));
 }
 
 // その街の酒場が開いているか（クエストがある街だけ開く）。map.js が施設ボタンの可否に使う。
@@ -773,7 +793,7 @@ function questTavernAvailable(wave){
 function questTavernCompleted(wave){
   const w=Math.max(0,Number(wave!=null?wave:(G&&G._wave))||0);
   const entry=_qEntryForWave(w);
-  return !!(entry&&entry.status==='completed');
+  return !!(entry&&['completed','ended'].includes(entry.status));
 }
 
 function _qAllEntries(){
@@ -786,6 +806,16 @@ function _qNormalizeEntry(entry){
     if(!('cargoLossPaid' in entry)) entry.cargoLossPaid=false;
   }
   if(entry&&_qConfig(entry).pursuit&&!('encounterDefeated' in entry)) entry.encounterDefeated=false;
+  if(entry&&_qConfig(entry).enemyReplacement){
+    if(!Array.isArray(entry.enemyReplacementTargets)){
+      // 訂正前の試作を保存していた場合も、受託時に決めた割り振りを引き継ぐ。
+      entry.enemyReplacementTargets=Array.isArray(entry.enemyAdditionTargets)?entry.enemyAdditionTargets:[];
+    }
+    delete entry.enemyAdditionTargets;
+    entry.enemyReplacementShortfall=Math.max(0,Math.floor(Number(entry.enemyReplacementShortfall)||0));
+    if(!Array.isArray(entry.defeatedEnemyKeys)) entry.defeatedEnemyKeys=[];
+    entry.defeatedCount=Math.max(0,Math.floor(Number(entry.defeatedCount)||0));
+  }
   return entry;
 }
 // その街で出ている（出た）クエスト。
@@ -953,7 +983,9 @@ function _qDebugDefaultQuestId(wave,candidates){
 }
 function _qDebugBuildDraft(){
   return QUEST_DEBUG_WAVES.map(wave=>{
-    const candidates=_qRegionIds(wave);
+    // 通常の発生候補は地域シートだけ。デバッグでは未登録の実装済み依頼も試せる。
+    const candidates=[...new Set([..._qRegionIds(wave),...Object.keys(QUEST_CONFIG)
+      .filter(id=>Number(QUEST_CONFIG[id].debugWave)===wave&&_qQuestData(_qVariant(id,QUEST_TAVERN_VARIANT)))])];
     const current=_qEntryForWave(wave);
     return {wave,candidates,id:_qDebugDefaultQuestId(wave,candidates),initialId:current&&String(current.questId||'')||''};
   });
@@ -1150,10 +1182,79 @@ function _qIsRequiredCard(card,entry){
   const no=String(_qConfig(entry).requiredCardNo||'').toUpperCase();
   return !!(card&&no&&_qCardNo(card)===no);
 }
+
+// 所持を条件に続く依頼。報酬／商品枠へ手放したカードは所持品に数えない。
+function _qRetainedCardCount(entry){
+  const lists=_qOwnedCardLists().filter(list=>typeof _rewCards==='undefined'||list!==_rewCards);
+  // 図書館の説明中は自前の編成が一時的に退避されている。
+  if(G&&G._isLibrary&&G._libraryLoanSnapshot){
+    lists.push(G._libraryLoanSnapshot.mainBoard||[],G._libraryLoanSnapshot.globalPanels||[]);
+  }
+  return lists.reduce((count,list)=>count+list.filter(card=>_qIsRequiredCard(card,entry)).length,0);
+}
+function _qInvalidateEnemyReplacements(entry){
+  (entry.enemyReplacementTargets||[]).forEach(target=>{
+    if(!target.applied){ target.count=0;target.invalidated=true; }
+  });
+}
+function questRetainedProgressSnapshot(){
+  return Object.fromEntries(_qAllEntries().filter(entry=>_qConfig(entry).retainedCard)
+    .map(entry=>[entry.questId,clone(entry)]));
+}
+function questRestoreRetainedProgress(snapshot){
+  Object.entries(snapshot||{}).forEach(([id,entry])=>{
+    if(_qConfig(entry).retainedCard) _qQuestState()[id]=clone(entry);
+  });
+}
+function questCheckRetainedCards(){
+  if(!G||G._onlineMode||G._pendingItemUse) return false;
+  let ended=false;
+  _qAllEntries().filter(entry=>entry.status==='accepted'&&_qConfig(entry).retainedCard).forEach(entry=>{
+    if(_qRetainedCardCount(entry)>0) return;
+    entry.status='ended';entry.rewardCardTaken=false;entry.partedPending=false;
+    entry.townEventDone=true;entry.towerEventDone=true;entry.description='';
+    _qInvalidateEnemyReplacements(entry);
+    ended=true;
+  });
+  return ended;
+}
+function _qLockedTownCardConfig(card){
+  if(!card||!G||G._onlineMode||!G._waveVillage||G._isWaveAltar) return null;
+  return Object.values(QUEST_CONFIG).find(cfg=>cfg.lockedTownWave!=null
+    &&Number(cfg.lockedTownWave)===Number(G._wave)&&String(cfg.requiredCardNo).toUpperCase()===_qCardNo(card))||null;
+}
+function questCardRemovalLocked(card){ return !!_qLockedTownCardConfig(card); }
+function questCanReturnOfferCard(card){
+  const context=_qFormationContext;
+  return !!(card&&card._questOfferCard&&context&&context.mode==='accept'
+    &&['offered','rejected'].includes(context.entry.status)&&_qIsRequiredCard(card,context.entry));
+}
+function _qCardSaleBlockKey(card){
+  const shop=G&&G._isShop?(G._isItemShop?'item':'shop'):'';
+  return shop?`quest-card-sale:${G._wave}:${shop}:${_qCardNo(card)}`:'';
+}
+function questCardSellHidden(card){
+  if(!questCardRemovalLocked(card)) return false;
+  const key=_qCardSaleBlockKey(card);
+  return !key||!!(G._facilityTalkSeen||{})[key];
+}
+function questTryBlockedCardSale(card){
+  if(!questCardRemovalLocked(card)) return false;
+  const key=_qCardSaleBlockKey(card);
+  if(key&&!(G._facilityTalkSeen||{})[key]){
+    G._facilityTalkSeen=G._facilityTalkSeen||{};
+    G._facilityTalkSeen[key]=true;
+    if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
+    if(typeof showVillageShopSpecialDialogue==='function') void showVillageShopSpecialDialogue('特殊台詞A1');
+  }
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderRewCards==='function') renderRewCards();
+  return true;
+}
 // 進行中のクエストに必須のカードか（ショップの「別れる」、戦闘中の台詞の判定に使う）。
 function questRequiredCardFor(card){
   const entry=_qActiveEntry();
-  if(entry&&!_qIsCargoEntry(entry)&&_qIsRequiredCard(card,entry)) return entry;
+  if(entry&&!_qIsCargoEntry(entry)&&!_qConfig(entry).retainedCard&&_qIsRequiredCard(card,entry)) return entry;
   return _qAllEntries().find(e=>e.status==='completed'&&!e.companionReleased
     &&_qIsRequiredCard(card,e)&&questCardLossIsFatal(card))||null;
 }
@@ -1240,6 +1341,7 @@ function questCutFatalLink(){
 
 function _qRequiredOnBoardCount(entry){
   if(_qRequiredRingNo(entry)) return _qRequiredRingCount(entry);
+  if(_qConfig(entry).retainedCard) return _qRetainedCardCount(entry);
   if(typeof G==='undefined'||!G||!entry) return 0;
   const no=String(_qConfig(entry).requiredCardNo||'').trim();
   if(!no) return 0;
@@ -1309,7 +1411,7 @@ function _qMakeRequiredCard(entry){
 }
 
 function _qClearCargoRewardCards(entry){
-  if(!_qIsCargoEntry(entry)||typeof _rewCards==='undefined'||!Array.isArray(_rewCards)) return;
+  if(!(_qIsCargoEntry(entry)||_qConfig(entry).retainedCard)||typeof _rewCards==='undefined'||!Array.isArray(_rewCards)) return;
   for(let i=0;i<_rewCards.length;i++){
     if(_qIsRequiredCard(_rewCards[i],entry)) _rewCards[i]=null;
   }
@@ -1413,6 +1515,7 @@ function _qSyncQuestBody(){
 }
 
 function syncQuestFormationUi(){
+  questCheckRetainedCards();
   _qEnsureStyle();
   _qSyncQuestBody();
   const body=document.body;
@@ -1452,10 +1555,11 @@ function _qMarkFailed(entry){
 //   leaving：画面を出る処理の中から呼ぶ。警告を通らずに出た場合も、ここで失敗へ確定する。
 function checkQ009CompanionPresence(options){
   const opts=options||{};
+  const ended=questCheckRetainedCards();
   const lost=_qFatalCompanionEntries().find(e=>!_qHasRequiredOnBoard(e)&&!_qRequiredInReward(e)&&!_qSacrificePending(e));
   if(lost) return questOnRequiredCardDestroyed(lost,{deferEvent:!!opts.deferEvent});
   const entry=_qActiveEntry();
-  if(!entry) return false;
+  if(!entry||_qConfig(entry).retainedCard) return ended;
   if(entry.companionReleased||_qSacrificePending(entry)) return false;
   // 木箱は輸送後の紛失判定を今回の範囲に含めない。通常の同行キャラだけを判定する。
   if(_qIsCargoEntry(entry)) return false;
@@ -1499,7 +1603,7 @@ function questPartWithCard(card){
 function questNeedsLeaveWarning(){
   if(!G||G._isTavern) return false;
   const entry=_qActiveEntry();
-  return !!(entry&&!_qIsCargoEntry(entry)&&!_qHasRequiredOnBoard(entry)&&!_qSacrificePending(entry)
+  return !!(entry&&!_qIsCargoEntry(entry)&&!_qConfig(entry).retainedCard&&!_qHasRequiredOnBoard(entry)&&!_qSacrificePending(entry)
     &&!entry.companionReleased&&(entry.lifeLinkCut||!questCardLossIsFatal(_qRequiredDefinition(entry))));
 }
 let _qLeaveBypass=false;
@@ -1569,14 +1673,14 @@ function questRequiredEntryOnBoard(){
   const fatal=_qFatalCompanionEntries().find(e=>_qHasRequiredOnBoard(e));
   if(fatal) return fatal;
   const active=_qActiveEntry();
-  if(active&&!_qIsCargoEntry(active)&&_qHasRequiredOnBoard(active)) return active;
+  if(active&&!_qConfig(active).retainedCard&&!_qIsCargoEntry(active)&&_qHasRequiredOnBoard(active)) return active;
   const tavern=G&&G._isTavern?_qEntry():null;
-  if(tavern&&!_qIsCargoEntry(tavern)&&['offered','rejected'].includes(String(tavern.status))&&_qHasRequiredOnBoard(tavern)) return tavern;
+  if(tavern&&!_qConfig(tavern).retainedCard&&!_qIsCargoEntry(tavern)&&['offered','rejected'].includes(String(tavern.status))&&_qHasRequiredOnBoard(tavern)) return tavern;
   return null;
 }
 let _qDestroySession=false;
 function questRequiredCardGone(entry){
-  return !!(entry&&!_qIsCargoEntry(entry)&&!_qDestroySession&&!_qHasRequiredOnBoard(entry)&&!_qRequiredInReward(entry));
+  return !!(entry&&!_qConfig(entry).retainedCard&&!_qIsCargoEntry(entry)&&!_qDestroySession&&!_qHasRequiredOnBoard(entry)&&!_qRequiredInReward(entry));
 }
 function questOnRequiredCardDestroyed(entry,options){
   if(!questRequiredCardGone(entry)) return false;
@@ -1850,6 +1954,8 @@ async function showTavernPortrait(id,options){
   // 不透明度だけ上がると、展開が終わった瞬間にパッと出て見える（塔に着いた時。2026-09-25 利用者指摘）。
   if(typeof img.decode==='function'){ try{ await img.decode(); }catch(_e){} }
   if(appearFace&&typeof appearFace.decode==='function'){ try{ await appearFace.decode(); }catch(_e){} }
+  // A/Bの初登場は、両方の画像・表情が描ける状態になってから同じフレームで始める。
+  if(typeof opts.waitAppearance==='function') await opts.waitAppearance();
   if(appearing){
     let appearanceGroup=null;
     if(appearFace){
@@ -1940,25 +2046,24 @@ async function _qFlipSlidePortraitLeft(key){
   return true;
 }
 
-// 五聖の座の受諾後用。下端から上へ透明になりながら、少し揺らいで立ち上るように消す。
+// 五聖の座の受諾後用。立ち絵の位置は固定し、下端から上へ煙のように消す。
 // **毎フレームJSでマスクの式やぼかしを作り直さない**（大きな立ち絵では重く、カクついた。2026-10-02 利用者指摘）。
-// 固定のグラデーションマスクの位置（mask-position）と transform・opacity を Web Animations で動かす。
+// 固定のグラデーションマスクの位置（mask-position）だけを Web Animations で動かす。
 const FIVE_SAINTS_SMOKE_MS=1600;
 async function _qSmokePortraitUp(key){
   const taken=_qTakePortraitAnimationGroup(key,'five-saints-smoke-group');
   if(!taken) return false;
   const {group}=taken;
-  // マスクは縦200%：上半分＝不透明、真ん中に境目、下半分＝透明。位置0%（上半分が見える）→100%（下半分が見える）へ
-  // 動かすと、境目が立ち絵の下端から上端まで、演出の始めから終わりまで一定の速さで上がる。
+  // マスクは縦200%：上半分＝不透明、真ん中に境目、下半分＝透明。
+  // 56%から完全透明なので、位置112%まで送り、上端も透明にしてから外す（opacityでは消さない）。
   const mask='linear-gradient(to bottom,#000 0%,#000 44%,rgba(0,0,0,.45) 50%,transparent 56%,transparent 100%)';
   ['maskImage','webkitMaskImage'].forEach(k=>{ group.style[k]=mask; });
   ['maskSize','webkitMaskSize'].forEach(k=>{ group.style[k]='100% 200%'; });
   ['maskRepeat','webkitMaskRepeat'].forEach(k=>{ group.style[k]='no-repeat'; });
-  group.style.willChange='transform,opacity,mask-position';
-  const frame=(p,dx,op)=>({offset:p,maskPosition:`0% ${p*100}%`,webkitMaskPosition:`0% ${p*100}%`,
-    transform:`translate3d(${dx}px,${-90*p}px,0)`,opacity:op});
+  group.style.willChange='mask-position';
+  const frame=p=>({offset:p,maskPosition:`0% ${p*112}%`,webkitMaskPosition:`0% ${p*112}%`});
   const anim=group.animate([
-    frame(0,0,1),frame(.2,6,1),frame(.4,-8,1),frame(.6,9,.95),frame(.8,-6,.6),frame(1,0,0),
+    frame(0),frame(1),
   ],{duration:FIVE_SAINTS_SMOKE_MS,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'});
   try{ await anim.finished; }catch(_e){}
   group.remove();
@@ -2025,7 +2130,7 @@ function questForceEndEventForDebug(){
   document.getElementById('five-saints-decor')?.remove();
   document.querySelectorAll('.five-saints-target-glow').forEach(el=>el.remove());
   document.body.classList.remove('tavern-village-active','tavern-screen-active','quest-town-event-active',
-    'tavern-tower-event-active','quest-camp-scene','facility-greeting-active','facility-bg-active',
+    'tavern-tower-event-active','quest-camp-scene','facility-greeting-active','shop-special-dialogue-active','facility-bg-active',
     'five-saints-active','five-saints-formation-active','library-screen-active','library-formation-active',
     'village-intro-active','village-intro-circle','village-intro-hide-ui','village-intro-reveal-ui');
   document.getElementById('village-intro-title')?.classList.remove('is-visible','is-hiding');
@@ -2298,8 +2403,15 @@ function _qStartDialogue(lines,options){
         &&(opts.namePlateLine==null||item.sourceIndex===opts.namePlateLine-1));
       if(named){
         _qPendingNamePlate='';
-        namePlateIndex=named.sourceIndex;
-        _qShowNamePlate(namePlateText,opts.namePlateX);
+        // **同じキャラの名前札はランで一度だけ。**（2026-10-03 利用者指定）
+        // 既読は施設の会話と同じ G._facilityTalkSeen に置く（ラン保存に入る）。
+        const seenKey=`nameplate:${String(namePlateText).replace(/\s+/g,' ').trim()}`;
+        G._facilityTalkSeen=G._facilityTalkSeen||{};
+        if(!G._facilityTalkSeen[seenKey]){
+          G._facilityTalkSeen[seenKey]=true;
+          namePlateIndex=named.sourceIndex;
+          _qShowNamePlate(namePlateText,opts.namePlateX);
+        }else namePlateIndex=-2;
       }
     }
     if(typeof opts.onLine==='function') current.forEach(item=>opts.onLine(item.sourceIndex,item.line));
@@ -2378,7 +2490,7 @@ function _qFirstLineFace(lines,portraitId){
   return spec&&spec.portraitId===portraitId?spec.name:'';
 }
 
-// A（MC001）→ B（クエストごとの立ち絵）の順にフェードインで出す。
+// A（MC001）と設定されたBを、最初から同時にフェードインで出す。
 // 最初の台詞に表情があれば、立ち絵のフェードイン前に重ねて同時に出す。
 async function _qShowPortraitPair(screen,entry,options){
   const generation=Number(G&&G._debugEventGeneration)||0;
@@ -2396,9 +2508,13 @@ async function _qShowPortraitPair(screen,entry,options){
     ?String(opts.faceA||''):_qFirstLineFace(firstLines,'MC001');
   const firstFaceB=portraitB?(Object.prototype.hasOwnProperty.call(opts,'faceB')
     ?String(opts.faceB||''):(portraitB==='MC001'?'':_qFirstLineFace(firstLines,portraitB))):'';
-  await showTavernPortrait('MC001',{screen,face:firstFaceA});
-  if(!isCurrent()) return;
-  if(portraitB) await showTavernPortrait(portraitB,{...(typeof portraitSpec==='object'?portraitSpec:{}),screen,face:firstFaceB});
+  const count=1+(portraitB&&TAVERN_PORTRAIT_CONFIG[portraitB]?1:0);
+  let ready=0,release;
+  const appearanceReady=new Promise(resolve=>{release=resolve;});
+  const waitAppearance=()=>{if(++ready===count) release();return appearanceReady;};
+  const portraits=[showTavernPortrait('MC001',{screen,face:firstFaceA,waitAppearance})];
+  if(portraitB) portraits.push(showTavernPortrait(portraitB,{...(typeof portraitSpec==='object'?portraitSpec:{}),screen,face:firstFaceB,waitAppearance}));
+  await Promise.all(portraits);
   if(!isCurrent()) return;
   // 酒場と街到着イベントで B が出ている時は、次の会話で B が最初に喋る時に名前札を出す。
   // 街到着では _2 行の「キャラクターの名前」を使う。
@@ -2661,8 +2777,9 @@ async function _qClearBattleShade(shade){
 
 async function _qFinishMagicWolfEscape(entry,shade){
   _qMarkFailed(entry);
-  // 立ち絵・暗幕は暗転の中で消す。先に消すと、暗転までの間に戦闘画面が一瞬見えて乱れていた（2026-09-25 利用者指摘）。
-  await fadeScreenSwitch(()=>{
+  // 立ち絵・暗幕は編成画面へ切り替える同じ処理の中で消す。先に消すと、切り替えまでの間に戦闘画面が一瞬見えて乱れていた（2026-09-25 利用者指摘）。
+  // 暗転はしない（2026-10-04 利用者指定）。
+  await _qEventFormationSwitch(()=>{
     _qRemoveDialogue();
     void _qClearPresentation({immediate:true});
     if(shade) shade.remove();
@@ -2770,7 +2887,8 @@ async function _qShowGarmCamp(entry,escaped,options){
   entry.encounterPhase='done';
   entry.description='';
   _qRemoveDialogue();
-  await fadeScreenSwitch(()=>{
+  // camp（イベント）から編成画面へは暗転しない（2026-10-04 利用者指定）。
+  await _qEventFormationSwitch(()=>{
     void _qClearPresentation({immediate:true});
     G._questCampScene=false;
     document.body.classList.remove('tavern-tower-event-active','quest-camp-scene','village-screen-active');
@@ -2852,9 +2970,11 @@ function syncTavernFormationControls(){
   const accepted=_qHasRequiredOnBoard(entry);
   button.disabled=!!G._pendingPanelPlacement;
   button.classList.toggle('disabled',!!button.disabled);
-  button.innerHTML=`<span class="rew-btn-label">${_qText(accepted?'「受託」ボタン':'「拒否」ボタン','')}</span>`;
+  button.innerHTML=`<span class="rew-btn-label">${_qText(accepted?(_qConfig(entry).acceptButtonKey||'「受託」ボタン'):'「拒否」ボタン','')}</span>`;
   button.onclick=()=>{
     if(button.disabled||G._pendingPanelPlacement) return;
+    if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
+    if(!guardFormationLeave()) return;
     if(accepted) _qAcceptTavernQuest();
     else _qRejectTavernQuest();
   };
@@ -3037,6 +3157,163 @@ function _qAssignEncounter(entry){
   entry.encounterDefeated=false;
 }
 
+// 残りの総数を満たせる組だけ列挙し、全ての有効な割り振りから等確率で選ぶ。
+function questAllocateEnemyCounts(battles,min,max,total,rng,capacities){
+  const caps=Array.from({length:battles},(_,i)=>Math.min(max,capacities?capacities[i]:max));
+  const mins=caps.map(cap=>Math.min(min,cap));
+  const choices=[];
+  const visit=(counts,left)=>{
+    const remaining=battles-counts.length;
+    if(left<mins.slice(counts.length).reduce((sum,n)=>sum+n,0)
+      ||left>caps.slice(counts.length).reduce((sum,n)=>sum+n,0)) return;
+    if(!remaining){ choices.push(counts);return; }
+    for(let count=mins[counts.length];count<=caps[counts.length];count++) visit([...counts,count],left-count);
+  };
+  visit([],total);
+  return choices.length?choices[Math.min(choices.length-1,Math.floor(rng()*choices.length))]:[];
+}
+
+function _qEnemyReplacementCapacity(entry,stage,targetWave){
+  const wave=Number(targetWave??entry.wave),type=_waveRouteForWave(wave)[stage-1];
+  const counts=_sceneEnemyCount(type,{wave,stage});
+  if(!counts) return 0;
+  const [total,rear]=counts,skip=Number(_qConfig(entry).enemyReplacement.frontSkip)||0;
+  // 通常生成と同じ体数・前後衛を使い、エリート／ボス本体1体を保護する。
+  return Math.max(0,total-rear-skip)+Math.max(0,rear-(['elite','boss'].includes(type)?1:0));
+}
+
+function _qAssignEnemyReplacements(entry){
+  if(!entry||!_qConfig(entry).enemyReplacement) return;
+  _qNormalizeEntry(entry);
+  const cfg=_qConfig(entry).enemyReplacement;
+  if(cfg.arrivalWave){
+    if(entry.enemyReplacementAssigned||entry.status!=='accepted') return;
+    const limits=(_qQuestData(entry.tavernVariant)||{}).enemyReplacementByScene;
+    if(!limits) return;
+    const fromWave=Number(entry.wave),arrivalWave=Number(cfg.arrivalWave);
+    const fromStage=Number(G._wave)===fromWave?Number(G._waveStage):_waveRouteForWave(fromWave).indexOf('city')+1;
+    const targets=[];
+    for(let wave=fromWave;wave<=arrivalWave;wave++){
+      const route=_waveRouteForWave(wave);
+      const last=wave===arrivalWave?route.indexOf('city'):route.length;
+      for(let stage=wave===fromWave?fromStage+1:1;stage<=last;stage++){
+        const type=route[stage-1],max=Number(limits[type])||0;
+        if(!max) continue;
+        targets.push({wave,stage,type,count:0,capacity:Math.min(max,_qEnemyReplacementCapacity(entry,stage,wave)),applied:false});
+      }
+    }
+    runWithKeyedRandom(`quest:${entry.questId}:enemy-replacements:${fromWave}:${fromStage}:${arrivalWave}`,()=>{
+      targets.forEach(target=>{ target.count=target.capacity>0?1+Math.floor(rand()*target.capacity):0; });
+    });
+    entry.enemyReplacementTargets=targets;
+    entry.enemyReplacementAssigned=true;
+    return;
+  }
+  if(entry.enemyReplacementTargets.length) return;
+  const rule=(_qQuestData(entry.tavernVariant)||{}).enemyReplacementCounts;
+  if(!rule) return;
+  const wave=Number(entry.wave);
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(wave):[];
+  const town=route.lastIndexOf('city');
+  const tower=route.findIndex((type,index)=>index>town&&['altar','tower'].includes(type));
+  if(town<0||tower<0) return;
+  const stages=route.map((type,index)=>({type,stage:index+1}))
+    .filter(({type,stage})=>stage>town+1&&stage<=tower&&['battle','elite','boss'].includes(type))
+    .map(({stage})=>stage);
+  // 実際の旅程を参照するので、1周目で省かれた戦闘へは割り振らない。
+  const capacities=stages.map(stage=>Math.min(rule.max,_qEnemyReplacementCapacity(entry,stage)));
+  const total=Math.min(rule.total,capacities.reduce((sum,n)=>sum+n,0));
+  const choose=()=>questAllocateEnemyCounts(stages.length,rule.min,rule.max,total,rand,capacities);
+  const counts=runWithKeyedRandom(`quest:${entry.questId}:enemy-replacements:${wave}:${stages.join(',')}`,choose);
+  entry.enemyReplacementTargets=counts.map((count,index)=>({wave,stage:stages[index],count,capacity:capacities[index],applied:false}));
+  entry.enemyReplacementShortfall=rule.total-total;
+}
+
+function questReplaceableEnemyIndexes(enemies,frontSkip){
+  let front=0;
+  return (enemies||[]).map((unit,index)=>{
+    if(!unit) return -1;
+    const left=String(unit.lane||'front')!=='rear'&&front++<frontSkip;
+    const protectedRole=unit.boss||unit.elite||['elite','boss'].includes(unit.role)
+      ||(unit.keywords||[]).some(keyword=>keyword==='ボス'||keyword==='エリート');
+    return left||protectedRole?-1:index;
+  }).filter(index=>index>=0);
+}
+
+function _qRebalanceEnemyReplacements(entry,target,available){
+  if(available>=target.count) return;
+  if(_qConfig(entry).enemyReplacement.arrivalWave){
+    target.capacity=available;target.count=available;
+    return;
+  }
+  const rule=(_qQuestData(entry.tavernVariant)||{}).enemyReplacementCounts;
+  const pending=entry.enemyReplacementTargets.filter(t=>t===target||!t.applied&&t.stage>target.stage);
+  const capacities=pending.map(t=>Math.min(rule.max,t===target?available:_qEnemyReplacementCapacity(entry,t.stage)));
+  const wanted=pending.reduce((sum,t)=>sum+t.count,0),total=Math.min(wanted,capacities.reduce((sum,n)=>sum+n,0));
+  const counts=runWithKeyedRandom(`quest:${entry.questId}:enemy-rebalance:${target.stage}:${available}`,
+    ()=>questAllocateEnemyCounts(pending.length,rule.min,rule.max,total,rand,capacities));
+  pending.forEach((t,index)=>{t.count=counts[index];t.capacity=capacities[index];});
+  entry.enemyReplacementShortfall=(Number(entry.enemyReplacementShortfall)||0)+wanted-total;
+}
+
+// 通常生成後に内訳だけを変える。再戦・再開は置き換え済みスナップショットを使う。
+function questReplaceBattleEnemies(enemies,floor){
+  if(!G||G._onlineMode||G._arenaActive||G._testBattleMode||G._libraryTestBattleMode||!Array.isArray(enemies)) return enemies;
+  questCheckRetainedCards();
+  const entry=_qActiveEntry();
+  const cfg=entry&&_qConfig(entry).enemyReplacement;
+  if(!cfg) return enemies;
+  _qAssignEnemyReplacements(entry);
+  const target=entry.enemyReplacementTargets.find(t=>Number(t.wave)===Number(G._wave)&&Number(t.stage)===Number(G._waveStage));
+  if(!target||target.invalidated||enemies.some(unit=>unit&&unit._questEnemyReplacementId===entry.questId)) return enemies;
+  const def=_qQuestEnemyDef(cfg.enemyNo);
+  if(!def) return enemies;
+  const candidates=questReplaceableEnemyIndexes(enemies,Number(cfg.frontSkip)||0);
+  _qRebalanceEnemyReplacements(entry,target,candidates.length);
+  runWithKeyedRandom(`quest:${entry.questId}:replacement-enemies:${target.wave}:${target.stage}`,()=>{
+    for(let i=candidates.length-1;i>0;i--){
+      const j=Math.floor(rand()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]];
+    }
+    for(let index=0;index<target.count;index++){
+      const slot=candidates[index],old=enemies[slot];
+      if(!old) continue;
+      const stats=enemyStats(def,floor);
+      const unit=_mkEnemy(stats.atk,stats.hp,def.name,def.icon,def.grade||1,_kwShield(def),[...(def.keywords||[])],def.race||'-');
+      _applyEnemyDefAbilities(unit,def);
+      unit.id=old.id;unit.lane=old.lane;unit._visualShift=old._visualShift;
+      unit._questEnemyReplacementId=entry.questId;
+      unit._questDefeatKey=`${entry.questId}:${target.wave}:${target.stage}:${index}`;
+      enemies[slot]=unit;
+    }
+  });
+  target.applied=true;
+  return enemies;
+}
+
+// コアが確定したdeathだけ集計する。VFXの有無や逃走の表示は判定に使わない。
+function questRecordBattleDeaths(events,enemies){
+  if(!G||G._onlineMode||G._arenaActive||G._testBattleMode||G._libraryTestBattleMode) return 0;
+  const entry=_qActiveEntry();
+  const cfg=entry&&_qConfig(entry).enemyReplacement;
+  if(!cfg||Number(entry.wave)!==Number(G._wave)) return 0;
+  const units=new Map((enemies||[]).filter(Boolean).map(unit=>[unit.id,unit]));
+  const seen=new Set(entry.defeatedEnemyKeys);
+  let added=0;
+  for(const event of events||[]){
+    if(!event||event.side!=='p2') continue;
+    // コアのイベント用の写しにはクエスト用の印が無い。既存の個体印を保って更新する。
+    if(event.unit) units.set(event.unit.id,{...(units.get(event.unit.id)||{}),...event.unit});
+    if(event.type!=='death') continue;
+    const unit=units.get(event.unitId);
+    if(!unit||_qCardNo(unit)!==cfg.enemyNo) continue;
+    const key=String(unit._questDefeatKey||`${entry.questId}:${G._wave}:${G._waveStage}:${unit.id}`);
+    if(seen.has(key)) continue;
+    seen.add(key);entry.defeatedEnemyKeys.push(key);added++;
+  }
+  entry.defeatedCount+=added;
+  return added;
+}
+
 function _qReturnToTavernResponse(){
   _qShowTavernVillage();
   _qMovePresentationHost('village');
@@ -3153,9 +3430,7 @@ async function _qRunPendingEvent(entry,options){
         const exit=cfg.acceptedExit;
         const lines=_qSpecialLines(data,'A');
         document.body.classList.add('quest-town-event-active');
-        await _qShowPortraitPair('village',entry,{withoutB:true,firstLines:lines});
-        if(exit&&exit.portrait) await showTavernPortrait(exit.portrait.id,{...exit.portrait,screen:'village',
-          face:''});
+        await _qShowPortraitPair('village',entry,{portraitB:exit&&exit.portrait,firstLines:lines,faceB:''});
         await _qStartDialogue(lines,{screen:'village',
           persistentLines:exit.persistentLines,
           lineOptions:(index,line)=>{
@@ -3299,13 +3574,14 @@ function _qAcceptTavernQuest(){
   entry.towerEventDone=false;
   _qAssignRewardMix(entry);
   _qAssignEncounter(entry);
+  _qAssignEnemyReplacements(entry);
   _qCloseRingOffer(entry,false);
   if(cfg.acceptedExit||cfg.acceptGold) entry.pendingEvent='accepted';
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpoint('town');
     if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
-  _qReturnToTavernResponse();
+  void _qEventFormationSwitch(_qReturnToTavernResponse);
   if(entry.pendingEvent){ questResumePendingEvent();return; }
   const data=_qQuestData(entry.tavernVariant)||{};
   _qStartDialogue(data.accepted,{screen:'village',onDone:_qLeaveTavernAfterLines});
@@ -3324,6 +3600,7 @@ function _qRejectTavernQuest(){
     entry.transportCount=0;
     _qClearCargoRewardCards(entry);
   }
+  if(_qConfig(entry).retainedCard) _qClearCargoRewardCards(entry);
   _qClearOfferCardMarks();
   entry.status=special?'rejectedSpecial':'rejected';
   entry.rewardCardTaken=false;
@@ -3332,7 +3609,7 @@ function _qRejectTavernQuest(){
     const saved=SaveRun.checkpoint('town');
     if(special&&saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
   }
-  _qReturnToTavernResponse();
+  void _qEventFormationSwitch(_qReturnToTavernResponse);
   syncQuestFormationUi();
   if(special){
     // A1〜A3の表情は各台詞の「表情」列だけで切り替える。
@@ -3355,6 +3632,8 @@ async function _qLeaveTavernAfterLines(){
 }
 
 function _qLeaveTavernToVillage(){
+  // 酒場を出る時は、店を出るのと同じ out の音を鳴らす（会話の後に自動で出る時も。2026-10-03 利用者指定）。
+  if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
   // 酒場を出る時も暗転を挟む（立ち絵は暗転で隠れてから消す）。
   if(typeof fadeScreenSwitch==='function') return fadeScreenSwitch(_qLeaveTavernToVillageNow);
   return _qLeaveTavernToVillageNow();
@@ -3391,7 +3670,7 @@ async function openTavern(){
   if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(enter); else enter();
   if(!isCurrent()) return;
   const data=_qQuestData(entry.tavernVariant)||{};
-  if(entry.status==='completed') return;
+  if(['completed','ended'].includes(entry.status)) return;
   // 失敗した後に入ると、失敗後台詞を出して酒場を出る。
   if(entry.status==='failed'){
     if(_qConfig(entry).noFailureRevisit) return;
@@ -3443,11 +3722,11 @@ async function openTavern(){
   if(entry.status==='accepted'){
     _qStartDialogue(data.acceptedAfter,{screen:'village',..._qTavernDialogueOptions(entry,false),onDone:_qLeaveTavernAfterLines});
   }else if(entry.status==='rejected'){
-    _qStartDialogue(data.rejectedAfter,{screen:'village',..._qTavernDialogueOptions(entry,false),onDone:_qOpenTavernFormation});
+    _qStartDialogue(data.rejectedAfter,{screen:'village',..._qTavernDialogueOptions(entry,false),onDone:()=>_qEventFormationSwitch(_qOpenTavernFormation)});
   }else if(_qHasDirectChoice(entry)){
     await _qRunDirectTavernChoice(entry,data);
   }else{
-    _qStartDialogue(data.initial,{screen:'village',..._qTavernDialogueOptions(entry,true),onDone:_qOpenTavernFormation});
+    _qStartDialogue(data.initial,{screen:'village',..._qTavernDialogueOptions(entry,true),onDone:()=>_qEventFormationSwitch(_qOpenTavernFormation)});
   }
 }
 
@@ -3608,6 +3887,7 @@ async function _qFinishTownArrival(entry,shade,status){
   entry.townEventDone=true;
   entry.towerEventDone=true;
   entry.description='';
+  if(_qConfig(entry).retainedCard) _qInvalidateEnemyReplacements(entry);
   _qRemoveDialogue();
   await _qClearPresentation();
   if(generation!==(Number(G._debugEventGeneration)||0)) return;
@@ -3633,10 +3913,12 @@ async function _qFinishTownArrival(entry,shade,status){
 }
 
 function _qTownArrivalEntry(){
+  questCheckRetainedCards();
   const entry=_qArrivalEntry();
   const questCfg=entry&&_qConfig(entry);
   const cfg=questCfg&&questCfg.townArrival;
-  if(_qTownSession||!entry||questCfg.completeAt!=='town'||!cfg||entry.townEventDone||!G||G._isWaveAltar) return null;
+  if(_qTownSession||!entry||questCfg.completeAt!=='town'||!cfg||entry.townEventDone||!G||G._isWaveAltar
+    ||questCfg.offlineOnly&&G._onlineMode) return null;
   if(Number(G._wave)!==Number(questCfg.completeWave)) return null;
   // オンラインのG._waveStageはサーバーのraw step（city=5）で、PvEの旅程配列とは
   // 添字の意味が違う。オンラインだけはサーバーが配った現在ノードを正とする。
@@ -3652,7 +3934,8 @@ function _qTownArrivalEntry(){
 function questPrepareTownArrival(){
   const entry=_qTownArrivalEntry();
   if(!entry) return false;
-  const portraitB=_qConfig(entry).townArrival&&_qConfig(entry).townArrival.portraitB;
+  const cfg=_qConfig(entry);
+  const portraitB=cfg.townArrival&&cfg.townArrival.portraitB||cfg.portraitB;
   ['MC001',portraitB].filter(Boolean).forEach(id=>{
     const cfg=TAVERN_PORTRAIT_CONFIG[id];
     if(!cfg) return;
@@ -3685,9 +3968,9 @@ async function maybeStartQuestTownArrival(){
   const firstLines=questCfg.cargo?(data.initial||[]).slice(0,1):(data.initial||[]).slice(0,2);
   await _qShowPortraitPair('village',entry,{portraitB,firstLines,namePlateVariant:entry.towerVariant,forceNamePlate:true});
   if(generation!==(Number(G._debugEventGeneration)||0)) return false;
-  const status=questCfg.cargo
-    ?await _qRunCargoTownArrival(entry,data,cfg)
-    :await _qRunRecoveryTownArrival(entry,data,cfg);
+  let status='completed';
+  if(cfg.dialogueOnly) await _qStartDialogue(data.initial||[],{screen:'village'});
+  else status=questCfg.cargo?await _qRunCargoTownArrival(entry,data,cfg):await _qRunRecoveryTownArrival(entry,data,cfg);
   if(generation!==(Number(G._debugEventGeneration)||0)) return false;
   await _qFinishTownArrival(entry,shade,status);
   return true;
@@ -3745,6 +4028,19 @@ function questPrepareTowerArrival(){
   return true;
 }
 
+function _qTowerArrivalDialogue(entry,data){
+  const cfg=_qConfig(entry).towerArrival||{};
+  const count=Math.max(0,Math.floor(Number(entry.defeatedCount)||0));
+  const formula=data.rewardGoldByDefeat;
+  const zero=cfg.defeatCount&&count===0;
+  const lines=zero?[...(data.initial||[]).slice(0,cfg.zeroInitialCount),..._qSpecialLines(data,cfg.zeroSpecialGroup)]
+    :cfg.defeatCount?_qReplaceCount(data.initial,count):data.initial;
+  const reward=cfg.defeatCount
+    ?(formula?Math.pow(count,formula.power)*formula.multiplier:0)
+    :Math.max(0,Number(data.rewardGold)||0);
+  return {lines,reward,rewardLine:zero?-1:Math.max(0,(Number(cfg.rewardLine)||1)-1)};
+}
+
 // クエストを受けた街の塔に着いた時（地名表示の後）、「_2」の会話を始める。
 async function maybeStartQ009TowerArrival(){
   const entry=_qTowerArrivalEntry();
@@ -3759,18 +4055,17 @@ async function maybeStartQ009TowerArrival(){
   const moves=document.getElementById('village-move-btns');
   if(moves) moves.style.display='none';
   const data=_qQuestData(entry.towerVariant)||{};
-  await _qShowPortraitPair('village',entry,{firstLines:data.initial||[]});
+  const dialogue=_qTowerArrivalDialogue(entry,data);
+  await _qShowPortraitPair('village',entry,{firstLines:dialogue.lines||[]});
   if(generation!==(Number(G._debugEventGeneration)||0)) return;
-  const reward=Math.max(0,Number(data.rewardGold)||0);
   const towerCfg=_qConfig(entry).towerArrival||{};
-  const rewardLine=Math.max(0,(Number(towerCfg.rewardLine)||1)-1);
-  _qStartDialogue(data.initial,{screen:'village',onLine:index=>{
-    if(index!==rewardLine||entry.towerRewardGiven||_qIsDebugArrivalReplay(entry)) return;
+  _qStartDialogue(dialogue.lines,{screen:'village',onLine:index=>{
+    if(index!==dialogue.rewardLine||entry.towerRewardGiven||_qIsDebugArrivalReplay(entry)) return;
     entry.towerRewardGiven=true;
     // 指定された台詞で、クエスト由来の印を持つ指輪だけを回収する。
     if(towerCfg.collectRing) _qRemoveRequiredRing(entry);
     // 「+X」と数え上げは共通の所持金演出（gold_fx.js）、音はイベント収入の共通処理が鳴らす。
-    if(reward&&typeof gainEventGold==='function') gainEventGold(reward);
+    if(dialogue.reward&&typeof gainEventGold==='function') gainEventGold(dialogue.reward);
     if(typeof updateHUD==='function') updateHUD();
     if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('tower');
   },onDone:()=>_qFinishTowerArrival(entry)});

@@ -141,6 +141,8 @@ const SFX_SETTINGS={
     E045:       {group:'ui',     volume: 1.00},
     E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）
     E058_HIT:   {group:'magic',  volume: 0.42}, // 炎の矢（着弾）（実測-3.5dBFS）
+    E067:       {group:'magic',  volume: 0.72}, // 援護射撃（発射）（RMS-20.1dB。ケンタウロス発射-22.9dB×1.00に揃える）
+    E067_HIT:   {group:'magic',  volume: 0.37}, // 援護射撃（着弾）（RMS-10.5dB。ケンタウロス着弾-11.7dB×0.43に揃える）
     K003:       {group:'combat',  volume: 0.47}, // 毒牙（毒のデバフを受けた瞬間）（実測-4.5dBFS）
     K017:       {group:'combat',  volume: 1.00}, // 毒（毒でダメージを受けた瞬間）（実測-19.5dBFS）
   },
@@ -306,6 +308,13 @@ function unlockSfx(){
   }
 }
 
+// 施設の入る音・出る音（shopIn/shopOut/altarIn/altarOut など）は、同じ操作の ui_confirm の直後に鳴らす
+// （同時に鳴らさない。2026-10-04 利用者指定）。ui_confirm.wav の主な音は鳴り始めから約0.14秒で終わる。
+const UI_CONFIRM_FOLLOW_MS=150;
+function playSfxAfterConfirm(key,opts={group:'ui'}){
+  if(typeof window==='undefined'||typeof window.setTimeout!=='function') return playSfx(key,opts);
+  window.setTimeout(()=>playSfx(key,opts),UI_CONFIRM_FOLLOW_MS);
+}
 function playSfx(key,opts={}){
   if(_IS_CLAUDE_BROWSER_PREVIEW) return false;
   if(!_sfxUnlocked) return false;

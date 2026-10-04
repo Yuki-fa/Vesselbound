@@ -58,13 +58,21 @@ async function presentDamageEvent(ev, api) {
   // **発生元から対象へ飛ばす効果**（炎の矢・ケンタウロス）。どの効果を飛ばすかは
   // present.js の `PRESENT_PROJECTILE_EFFECTS` が唯一の実装。
   // 数値・HP・命中VFXは**着弾の瞬間**に出すので、通常の被弾演出はここで打ち切る。
-  const projectileCode = (!shownElsewhere && amount > 0 && vfxSource
+  // 援護射撃のように、射手本人の固有VFXは出さず（effectSource:false）効果の弾だけを射手から飛ばすダメージ。
+  // コアが damage.fxEffect に効果名を載せ、その強化カードの演出番号（E067）で飛ばす。
+  const fxProjectileCode = (!shownElsewhere && amount > 0 && ev.fxEffect && source
+    && typeof _enchantPresentationNo === 'function' && typeof presentIsProjectileEffect === 'function'
+    && typeof playProjectileEffectVfx === 'function')
+    ? (code => (presentIsProjectileEffect(code) ? code : ''))(String(_enchantPresentationNo(ev.fxEffect) || ''))
+    : '';
+  const projectileCode = fxProjectileCode || ((!shownElsewhere && amount > 0 && vfxSource
     && typeof _effectPresentationCode === 'function' && typeof presentIsProjectileEffect === 'function'
     && typeof playProjectileEffectVfx === 'function')
     ? (presentIsProjectileEffect(_effectPresentationCode(vfxSource)) ? String(_effectPresentationCode(vfxSource)) : '')
-    : '';
+    : '');
+  const projectileSource = fxProjectileCode ? source : vfxSource;
   if (projectileCode) {
-    const srcSide = vfxSource.side === 'p2' ? 'enemy' : 'ally';
+    const srcSide = projectileSource.side === 'p2' ? 'enemy' : 'ally';
     if (typeof getEffectSfxKey === 'function' && typeof playSfx === 'function') {
       const key = getEffectSfxKey(projectileCode);
       if (key) playSfx(key, { group: 'magic', guardKey: `projectile:${key}:${Date.now()}`, guardMs: 0 });
@@ -72,7 +80,7 @@ async function presentDamageEvent(ev, api) {
     // 攻撃者のモーションを再開する前に着弾・HP反映まで完了させる。
     // 投げっぱなしにすると、ケンタウロスの攻撃効果だけが敵への着弾前に
     // 通常攻撃へ進み、2つのダメージ表示が重なる。
-    await Promise.resolve(playProjectileEffectVfx(vfxSource, srcSide, target, fxSide, projectileCode, {
+    await Promise.resolve(playProjectileEffectVfx(projectileSource, srcSide, target, fxSide, projectileCode, {
       amount,
       onImpact: () => {
         if (damagesHp && typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);

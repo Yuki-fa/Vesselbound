@@ -309,7 +309,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 #scr-loading.startup-splash{display:flex!important;z-index:100!important;align-items:stretch!important;justify-content:center!important;background:#0b0c10!important;opacity:1;transition:opacity .8s ease!important;pointer-events:auto!important}
 #scr-loading.startup-splash.startup-brand-out{opacity:0!important;pointer-events:none!important}
 #startup-brand-mark{position:absolute;inset:0;overflow:hidden;display:flex;justify-content:center;align-items:flex-end;pointer-events:none}
-#startup-brand-mark img{position:absolute;left:50%;bottom:915px;width:1000px;height:auto;transform:translateX(calc(-50% - 442px));opacity:0;animation:startup-brand-in .4s ease-out forwards}
+#startup-brand-mark img{position:absolute;left:50%;bottom:915px;width:1000px;height:auto;transform:translateX(-50%);opacity:0;animation:startup-brand-in .4s ease-out forwards}
 @keyframes startup-brand-in{from{opacity:0}to{opacity:1}}
 #scr-title.startup-title{z-index:20!important;opacity:0;pointer-events:none;transition:opacity .8s ease!important;background:#0b0c10!important}
 #scr-title.startup-title.active{display:flex!important}
@@ -12119,7 +12119,7 @@ body.cutscene-video-active #title-options-btn,body.cutscene-video-active #battle
 
 <!-- LOADING -->
 <div id="scr-loading" class="screen active startup-splash">
-  <div id="startup-brand-mark" aria-hidden="true"><img src="assets/ui/brand_logo.svg?v=logo1003" alt=""></div>
+  <div id="startup-brand-mark" aria-hidden="true"><img src="assets/ui/brand_logo.svg?v=logo1004" alt=""></div>
   <div id="load-msg" style="display:none">データを読み込み中...</div>
 </div>
 
@@ -12550,20 +12550,20 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=assetRename0927-fiveSaints1001-storyCycle1001-night1002b-engr1002-shop1003"></script>
-<script src="js/engine/audio.js?v=merge0927"></script>
+<script src="assets.js?v=assetRename0927-fiveSaints1001-storyCycle1001-night1002b-engr1002-shop1003-art1004-e0671005"></script>
+<script src="js/engine/audio.js?v=merge0927-se1004-e0671005"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1-deep1002"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
 <script src="js/data/local_xlsx_data.js?v=arenaEnter0929-engraving1001-storyCycle1001-deep1002"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-<script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929-deep1002"></script>
+<script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929-deep1002-q008replace1004-q001e0751004"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=enhvfx0929-engraving1001"></script>
+    <script src="js/battle/core.js?v=enhvfx0929-engraving1001-q001e0751004-e0671005"></script>
 <script src="js/battle/formation.js?v=cardFx0927-engraving1001"></script>
-    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001"></script>
-    <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929"></script>
+    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001-e0671005"></script>
+    <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929-e0671005"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
 <script src="js/online/sim.js?v=online6-engraving1001"></script>
@@ -12579,20 +12579,20 @@ _watchVesselboundDpr();
 <script src="js/save/storage.js?v=save01"></script>
 <script src="js/save/migrations.js?v=cardFx0927"></script>
 <script src="js/save/profile_save.js?v=q0020926-fiveSaints1001-storyCycle1001"></script>
-<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928-fiveSaints1001-debugStory1002"></script>
+<script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928-fiveSaints1001-debugStory1002-q008replace1004"></script>
 <script src="js/engine/pool.js?v=dirRename-cardFx0927"></script>
-<script src="js/engine/enemy.js?v=garmHover-outcome0929-deep1002"></script>
-    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001"></script>
-<script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001"></script>
+<script src="js/engine/enemy.js?v=garmHover-outcome0929-deep1002-q008replace1004"></script>
+    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001-e0671005"></script>
+<script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001-q008replace1004"></script>
 <script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=shopFix0927-engraving1001"></script>
-<script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002"></script>
+<script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002-eventFix1004"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001"></script>
-<script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002"></script>
+<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004"></script>
+<script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q001e0751004-eventFix1004-se1004"></script>
     <script src="js/engine/game_confirm.js?v=tmKeys0926"></script>
-    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002"></script>
+    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q008replace1004-q001e0751004-eventFix1004"></script>
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
     <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929-deep1002"></script>
     <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002"></script>

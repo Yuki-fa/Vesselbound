@@ -13,7 +13,7 @@ async function checkDebugStoryCycle(browser,ok){
       village:_openWaveVillage,intro:_playVillageEnterIntro,portrait:showTavernPortrait,dialogue:_qStartDialogue,
       story:_runStoryArrival,delay:_mapDelay,gameOver,town:maybeStartQuestTownArrival,tower:maybeStartQ009TowerArrival,
       pair:_qShowPortraitPair,recovery:_qRunRecoveryTownArrival};
-    const out={selections:[],arrivals:[],order:[],profileWrites:[],clears:[],towns:[]};
+    const out={selections:[],arrivals:[],order:[],profileWrites:[],clears:[],towns:[],rieseNodes:[]};
     let opening=null,townArrival=null;
     try{
       SaveProfile.hasClearedRun=()=>false;
@@ -45,6 +45,7 @@ async function checkDebugStoryCycle(browser,ok){
         // プロフィールを選択と逆の周回にしても、旅程で選んだ周回を使う。
         SaveProfile.hasClearedRun=()=>cycle===1;
         for(let scene=1;scene<=(cycle===1?4:5);scene++){
+          const arrivalsBefore=out.arrivals.length;
           await select(cycle,scene);
           const route=_waveRouteForWave(scene).slice();
           G._debugMode=false;SaveProfile.hasClearedRun=()=>cycle===2;
@@ -52,15 +53,22 @@ async function checkDebugStoryCycle(browser,ok){
           G._debugMode=true;SaveProfile.hasClearedRun=()=>cycle===1;
           const current=root.querySelector('.journey-scene-mark.current');
           out.selections.push({cycle:offlineStoryCycle(),scene,wave:G._wave,stage:G._waveStage,
-            sameRoute:JSON.stringify(route)===JSON.stringify(normalRoute),formation:scene===1||!!document.querySelector('#scr-battle.active'),
+            sameRoute:JSON.stringify(route)===JSON.stringify(normalRoute),formation:!!document.querySelector('#scr-battle.active')
+              &&G.phase==='reward'&&!document.getElementById('tavern-dialogue-layer')&&out.arrivals.length===arrivalsBefore,
+            towerMark:current?.dataset.preview===_journeySceneTowerName(scene),
             currentCycle:Number(current?.dataset.journeyCycle),currentScene:Number(current?.dataset.journeyScene),
             elite:scene<=4?_waveDeepLevel(route.indexOf('elite')+1,scene):null,
             boss:scene<=4?_waveDeepLevel(route.indexOf('boss')+1,scene):null,
             bossPreview:scene<=4?FLOOR_DATA[_ensureWaveEnemyPreview(scene,'boss').floor].deepLevel:null});
           if(scene===1){
+            // 上段は周回×ステージの編成選択。リーゼの到着演出は下段の最初の街マスだけ。
+            root.querySelector('[data-journey-jump="1"][data-journey-type="city"]').click();await opening;
             const home=villageFacilityList().find(f=>f.key==='home');
             out['cycle'+cycle]={background:getVillageBackgroundKey(),library:libraryBackgroundKey(),homeDisabled:_villageFacilityDisabled(home)};
-            await select(cycle,scene); // ラン既読・プロフィール既読があっても同じ会話をもう一度出す。
+            out.rieseNodes.push({cycle,wave:G._wave,stage:G._waveStage});
+            await select(cycle,scene);
+            root.querySelector('[data-journey-jump="1"][data-journey-type="city"]').click();await opening;
+            out.rieseNodes.push({cycle,wave:G._wave,stage:G._waveStage});
           }
           if(scene===2){
             const track=root.querySelector('.journey-scene-track-debug');
@@ -132,14 +140,14 @@ async function checkDebugStoryCycle(browser,ok){
         state:!G._storyArrivalBusy&&!G._villageFacilityBusy&&!G._isFiveSaints&&!G._fiveSaintsResolving&&!G._facilityGreetingKey&&!_qTownSession&&!_qTowerSession};
       // 立ち絵の待機中に選び直しても、前の到着会話が後から復活しない。
       let release;
-      showTavernPortrait=()=>new Promise(resolve=>{release=resolve;});
+      _qShowPortraitPair=()=>new Promise(resolve=>{release=resolve;});
       G._wave=0;G._isWaveAltar=false;
       const pending=_runStoryArrival(_storyArrivalSpec({intro:true}));
       const linesBefore=out.order.filter(v=>v==='dialogue').length;
       await select(1,3);release(null);
       out.cancelled=await pending==='cancelled'&&!G._storyArrivalBusy
         &&out.order.filter(v=>v==='dialogue').length===linesBefore;
-      showTavernPortrait=async()=>null;
+      _qShowPortraitPair=async()=>{};
       // 保存形式への追加、復元後の周回、古い保存の既定値を確かめる。
       const save=SaveRun.buildRunSave('reward');
       out.saved=save.state.progress._debugStoryCycle;
@@ -166,7 +174,7 @@ async function checkDebugStoryCycle(browser,ok){
   ok('デバッグ開始は2周目ステージ1・到着会話を省略',result.start.cycle===2&&result.start.wave===0
     &&result.start.stage===1&&result.start.arrival===null&&result.startOptions.skipStoryArrival,result.start);
   ok('デバッグで1周目1〜4／2周目1〜5を選べ、currentとルート・深層が選択に一致',result.selections.length===9
-    &&result.selections.every(s=>s.sameRoute&&s.formation&&s.stage===1&&s.wave===(s.scene===1?0:s.scene)
+    &&result.selections.every(s=>s.sameRoute&&s.formation&&s.towerMark&&s.stage===1&&s.wave===s.scene
       &&s.currentCycle===s.cycle&&s.currentScene===s.scene
       &&(s.scene===5||(s.elite===3&&s.boss===(s.cycle===1?6:7)&&s.bossPreview===s.boss))),result.selections);
   ok('デバッグ旅程の4個＋5個は横並びで枠内、現在マークは1つ',JSON.stringify(result.layout.counts)==='[4,5]'
@@ -177,9 +185,11 @@ async function checkDebugStoryCycle(browser,ok){
     &&!result.cycle1.landingVisible&&!result.cycle1.landingUnlocked&&result.cycle2.background==='village0'
     &&result.cycle2.library==='library'&&result.cycle2.homeDisabled&&!result.cycle2.innDisabled&&!result.cycle2.tavernDisabled
     &&result.cycle2.landingVisible&&result.cycle2.landingUnlocked,{first:result.cycle1,repeat:result.cycle2});
-  ok('デバッグ選び直しは既読でも地名演出後に周回別リーゼ会話、プロフィールへ書かない',
+  ok('上段の全9マークは選んだステージの編成に留まり、到着イベントへ入らない',result.selections.every(s=>s.formation&&s.wave===s.scene),result.selections);
+  ok('下段の最初のリーゼマスだけ既読でも地名演出後に周回別会話、プロフィールへ書かない',
     result.arrivals.filter(s=>s==='リーゼ地名演出後（一周目）').length===2
     &&result.arrivals.filter(s=>s==='リーゼ地名演出後（二周目）').length>=2
+    &&result.rieseNodes.length===4&&result.rieseNodes.every(n=>n.wave===0&&n.stage===1)
     &&result.order[0]==='intro'&&result.order[1]==='dialogue'&&result.profileWrites.length===0,result.arrivals);
   ok('デバッグの街・塔マスから到着クエスト（完了済みも再生）／1周目の蝕界イベントへ入る',result.town.started&&result.town.done&&result.town.replayed
     &&result.town.type==='city'&&result.tower1.arrival.finalClear&&result.tower1.arrival.portraitB==='MC010'
@@ -204,6 +214,11 @@ async function checkDebugStoryCycleVisible(browser,ok){
         questForceEndEventForDebug();_openWaveFormation();
         document.querySelector('#journey-progress-ui [data-journey-cycle="${cycle}"][data-journey-scene="1"]').click();
       `);
+      const top=await browser.eval(`const el=document.querySelector('#scr-battle.active');
+        return {wave:G._wave,stage:G._waveStage,cycle:offlineStoryCycle(),formation:!!el&&G.phase==='reward'
+          &&document.body.classList.contains('reward-screen-active')&&!document.getElementById('tavern-dialogue-layer')};`);
+      ok('デバッグ'+cycle+'周目の碧翠の塔マークは編成画面のままステージ1へ移る',top.formation&&top.wave===1&&top.stage===1&&top.cycle===cycle,top);
+      await browser.eval(`document.querySelector('#journey-progress-ui [data-journey-jump="1"][data-journey-type="city"]').click();`);
       await browser.waitFor(`(()=>{const el=document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text.is-visible');
         return !G._villageIntroPlaying&&!!el&&Number(getComputedStyle(el).opacity)>.95;})()`,20000);
       const visible=await browser.eval(`
@@ -301,11 +316,12 @@ async function checkDebugStoryCycleVisible(browser,ok){
       }
       return result;
     `);
-    // Scene 1（エルム→碧翠の塔）は元から通常戦3回＋ボス、他のSceneは4回＋ボス。1周目はどちらも1回少ない。
-    ok('1周目だけ各街から塔までが1戦少ない',branches.first.afterCityBattles===3
+    // Scene 1（エルム→碧翠の塔）は2周目以降が通常戦3回＋ボス、1周目は1回少ない。
+    // Scene 2～4は周回に関わらず通常戦3回＋ボス（2026-10-04 利用者指定）。
+    ok('1周目はエルム→碧翠の塔だけ1戦少なく、他の街→塔は周回に関わらず通常3戦＋ボス',branches.first.afterCityBattles===3
       &&branches.repeat.afterCityBattles===4&&branches.first.standardAfterCityBattles===4
-      &&branches.repeat.standardAfterCityBattles===5&&branches.first.route.length+1===branches.repeat.route.length
-      &&branches.first.journeyRemaining==='4'&&branches.repeat.journeyRemaining==='5',branches);
+      &&branches.repeat.standardAfterCityBattles===4&&branches.first.route.length+1===branches.repeat.route.length
+      &&branches.first.journeyRemaining==='4'&&branches.repeat.journeyRemaining==='4',branches);
     ok('1周目はホーム／酒場が押せ、ヴァルガ宿屋は満タン文で固定',!branches.first.homeDisabled&&!branches.first.tavernDisabled
       &&branches.first.vargaInn.disabled
       &&branches.first.vargaInn.desc===await browser.eval(`return textMessage('街「宿屋」直下（ライフ満タン時）','')`),branches.first);
@@ -499,8 +515,14 @@ async function checkDebugStoryCycleVisible(browser,ok){
       return (async()=>{
         if(typeof showScreen==='function') showScreen('village');
         if(typeof _qClearPresentation==='function') await _qClearPresentation({immediate:true});
-        await showTavernPortrait('MC010',{screen:'village'});
+        await _qShowPortraitPair('village',{tavernVariant:''},{portraitB:'MC010',
+          firstLines:_storyTalkLines(storyTalkEntry('蝕界の塔到達時（一周目）')),withoutNamePlate:true});
         const mc010=document.querySelector('.tavern-portrait[data-portrait-id="MC010"]');
+        const mc001=document.querySelector('.tavern-portrait[data-portrait-id="MC001"]');
+        const bothAtStart=[mc001,mc010].every(el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();
+          let opacity=1;for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+          return el.complete&&el.naturalWidth>0&&opacity>.9&&s.visibility!=='hidden'&&s.display!=='none'
+            &&r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;});
         const mc010State={left:mc010?.style.left,top:mc010?.style.top,width:mc010?.style.width,height:mc010?.style.height,
           loaded:!!(mc010&&mc010.complete&&mc010.naturalWidth===1885&&mc010.naturalHeight===3678)};
         await _qClearPresentation({immediate:true});
@@ -525,14 +547,15 @@ async function checkDebugStoryCycleVisible(browser,ok){
         await exitPromise;
         const exitGone=!document.querySelector('.tavern-portrait-exit-group')&&!document.querySelector('.tavern-portrait[data-portrait-key="MC001"]');
         await _qClearPresentation({immediate:true});
-        return {mc010State,smokeState,smokeGone,exitState,exitGone};
+        return {mc010State,bothAtStart,smokeState,smokeGone,exitState,exitGone};
       })();
     `);
     ok('MC010の実素材を原寸配置',motion.mc010State.loaded
       &&JSON.stringify([motion.mc010State.left,motion.mc010State.top,motion.mc010State.width,motion.mc010State.height])
         ===JSON.stringify(['2350px','150px','1885px','3678px']),motion.mc010State);
-    ok('台詞3後用の退場は下からのマスクと揺らぎ上昇で完了',motion.smokeState.exists
-      &&motion.smokeState.mask.includes('linear-gradient')&&motion.smokeState.animated&&motion.smokeGone,motion.smokeState);
+    ok('蝕界の塔のストーリー会話は最初からMC001とMC010が画面内に見える',motion.bothAtStart);
+    ok('台詞3後用の退場は位置を固定した下からのマスクだけで完了',motion.smokeState.exists
+      &&motion.smokeState.mask.includes('linear-gradient')&&motion.smokeState.animated&&motion.smokeState.transform==='none'&&motion.smokeGone,motion.smokeState);
     ok('ギャラハ用退場は素早いフェードで左右反転してから左へスライドして消える',motion.exitState.exists
       &&motion.exitState.origOpacity==='0'&&motion.exitState.flipOpacity==='1'&&motion.exitState.origGoneAfterFade
       &&/translate3d\(-\d/.test(motion.exitState.slideTransform)&&motion.exitState.slideTransform.includes('scaleX(-1)')&&motion.exitGone,motion.exitState);

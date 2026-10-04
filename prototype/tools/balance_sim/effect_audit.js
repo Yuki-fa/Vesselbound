@@ -39,8 +39,8 @@ const LOADER_IDENTIFIER_KEYWORDS = new Set([
   '復活', '強靭', '熟練', '遺志', '共振', '団結', '封印されしもの', '禁断の力', '武器破壊', '戦術', '大盾', '策士']);
 
 const TRIGGERS = [
-  ['開戦', /^開戦\s*[：:]/], ['攻撃', /^攻撃(?:[＆&]負傷)?\s*[：:]/],
-  ['負傷', /^(?:負傷|攻撃[＆&]負傷)\s*[：:]/], ['死亡', /^死亡\s*[：:]/],
+  ['開戦', /^開戦\s*[：:；]/], ['攻撃', /^攻撃(?:[＆&](?:負傷|死亡))?\s*[：:；]/],
+  ['負傷', /^(?:負傷|攻撃[＆&]負傷)\s*[：:；]/], ['死亡', /^(?:死亡|攻撃[＆&]死亡)\s*[：:；]/],
   ['終戦', /^終戦\s*[：:]/], ['解放', /^解放\s*[：:]/],
 ];
 
@@ -51,7 +51,7 @@ const REQUIRED_REGRESSION_CARDS = [
   'エイドロン', 'ボーンチャリオット', 'ユミル', 'ドラゴネット', 'マーメイド',
   'バンダースナッチ', 'ナーガ', 'リアナンシー', 'カーバンクル', 'ガーゴイル',
   'ヘルハウンド', 'ダークワン', 'ファミリア', 'ウェンディゴ', 'カオス・インプ',
-  'ヴォイド・ウォーカー', 'リリス', 'フィーンド',
+  'ヴォイド・ウォーカー', 'リリス', 'フィーンド', '魔族の魂',
 ];
 
 function makeUnit(card, side) {
@@ -103,6 +103,16 @@ function audit() {
   const loadedNames = new Set(cards.map(card => String(card.name || '')));
   const explicitCoverage = new Set();
   const missingRequired = REQUIRED_REGRESSION_CARDS.filter(name => !loadedNames.has(name));
+  const soul=cards.find(card=>card.name==='魔族の魂');
+  if(soul){
+    for(const side of ['p1','p2']) for(const trigger of ['攻撃','死亡']){
+      const hits=invoke(soul,side,trigger,enemies).events.filter(event=>event.type==='damage');
+      const valid=hits.length===3&&hits.every(event=>event.amount===7&&event.side!==side)
+        &&new Set(hits.map(event=>event.batch)).size===1;
+      if(!valid) ng++;
+      console.log(`魔族の魂 ${side}/${trigger}: ${valid?'OK':'NG'}`);
+    }
+  }
   if (missingRequired.length) {
     ng += missingRequired.length;
     console.error(`実機再確認対象カードが監査データに存在しない: ${missingRequired.join('、')}`);

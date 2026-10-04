@@ -144,22 +144,24 @@ const ENEMY_COUNT_BY_SCENE={
   boss:  {1:[7,3],2:[7,3],3:[8,3],4:[8,3],5:[9,3]},
 };
 const FINAL_BOSS_ENEMY_COUNT=[10,3]; // 伏せられたラスボス戦
-function _sceneEnemyCount(type){
+function _sceneEnemyCount(type,context){
+  const wave=Number(context&&context.wave!=null?context.wave:G._wave);
+  const stage=Number(context&&context.stage!=null?context.stage:G._waveStage);
   // **Scene 1の導入戦はここで数を確定させる**（1戦目＝1体、2戦目＝2体。どちらも後衛）。
   // 以前は null を返して「開幕編成」（_openingBattleEnemyLanes）へ委ねていたが、
   // あちらは **floor で引く**ため、`mapBattle.floor` が `G.floor` とずれると
   // 表に当たらず、間引きも効かないまま4体へ水増しされていた
   // （実測：wave1 / stage3 / G.floor=2 で敵4体）。
   // 仕様は「ステージ1の1戦目は1体、2戦目は2体」なので、floorではなくstageで決める。
-  if(type==='battle'&&Number(G._wave)===1){
-    if(Number(G._waveStage)===2) return [1,1];
-    if(Number(G._waveStage)===3) return [2,2];
+  if(type==='battle'&&wave===1){
+    if(stage===2) return [1,1];
+    if(stage===3) return [2,2];
   }
-  if(type==='boss'&&typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
+  if(type==='boss'&&(context?wave===5&&stage===5:typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow())){
     return FINAL_BOSS_ENEMY_COUNT.slice();
   }
   const table=ENEMY_COUNT_BY_SCENE[type];
-  const v=table&&table[Math.max(1,Number(G._wave)||1)];
+  const v=table&&table[Math.max(1,wave||1)];
   return v?v.slice():null;
 }
 function _enemyDefCode(def){
@@ -610,7 +612,7 @@ function generateEnemies(floor){
     enemies.push(left,boss,right);
     G._bossSlot=frontCount+1;
     G._enemyLaneFixed=true;
-    return enemies;
+    return typeof questReplaceBattleEnemies==='function'?questReplaceBattleEnemies(enemies,floor):enemies;
   }
 
   // 通常戦の数。ステージ（Scene）ごとの明示指定があればそれに従う。
@@ -680,7 +682,7 @@ function generateEnemies(floor){
     enemies.forEach((e,i)=>{ if(e) e.lane=(i>=enemies.length-rearN)?'rear':'front'; });
     G._enemyLaneFixed=true;
     if(typeof questReplaceMagicWolfEnemies==='function') questReplaceMagicWolfEnemies(enemies);
-    return enemies;
+    return typeof questReplaceBattleEnemies==='function'?questReplaceBattleEnemies(enemies,floor):enemies;
   }
   // 前衛が0体の場合は最初の非エリート・非ボスを前衛にする
   const hasFront=enemies.some(e=>e&&(e.lane||'front')==='front');
@@ -716,7 +718,7 @@ function generateEnemies(floor){
     G._eliteIdx=enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
   }
   if(typeof questReplaceMagicWolfEnemies==='function') questReplaceMagicWolfEnemies(enemies);
-  return enemies;
+  return typeof questReplaceBattleEnemies==='function'?questReplaceBattleEnemies(enemies,floor):enemies;
 }
 
 function generateEliteEnemies(floor){
@@ -763,7 +765,7 @@ function generateEliteEnemies(floor){
   G._enemyLaneFixed=true;
   // 明示指定がある場合は前衛・後衛の数をそのまま保つ（_enforceLaneRulesは混在を強制する）。
   if(!_fixedElite) _enforceLaneRules(enemies);
-  return enemies;
+  return typeof questReplaceBattleEnemies==='function'?questReplaceBattleEnemies(enemies,floor):enemies;
 }
 
 // 配置ルール強制：

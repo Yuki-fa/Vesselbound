@@ -714,6 +714,13 @@ async function loadGameData() {
         if (!id) return;
         const summary = String(row['概要'] || '').trim();
         const goldMatch = summary.match(/(\d+)\s*G\s*獲得/);
+        const replacementMatch = summary.match(/(\d+)\s*[〜～~]\s*(\d+)\s*体ずつ(?:追加|置き換え)[\s\S]*合計出現数は\s*(\d+)\s*体/);
+        const replacementByScene = {};
+        for (const [label, type] of [['通常','battle'], ['エリート','elite'], ['ボス','boss']]) {
+          const match = summary.match(new RegExp(label + '戦(?:では|は)?\\s*(\\d+)\\s*体'));
+          if (match) replacementByScene[type] = Number(match[1]);
+        }
+        const defeatGoldMatch = summary.match(/(\d+)\s*乗\s*[×x*]\s*(\d+)\s*G\s*獲得/);
         const rewardGoldByCount = {};
         for (const match of summary.matchAll(/(\d+)\s*個\s*[：:]\s*(\d+)\s*G/g)) {
           rewardGoldByCount[Number(match[1])] = Number(match[2]);
@@ -729,6 +736,11 @@ async function loadGameData() {
           summary,
           // 達成報酬のゴールド（概要の「100G獲得」から読む。無ければ0）。
           rewardGold: goldMatch ? Number(goldMatch[1]) : 0,
+          // 敵の置き換え数・範囲と、討伐数に応じた報酬も概要から読む。
+          // シートの旧記述「追加」は、利用者指定どおり既存の敵を置き換える数として扱う。
+          enemyReplacementCounts: replacementMatch ? {min:Number(replacementMatch[1]),max:Number(replacementMatch[2]),total:Number(replacementMatch[3])} : null,
+          enemyReplacementByScene: Object.keys(replacementByScene).length ? replacementByScene : null,
+          rewardGoldByDefeat: defeatGoldMatch ? {power:Number(defeatGoldMatch[1]),multiplier:Number(defeatGoldMatch[2])} : null,
           // 回収数別の報酬（例：「1個：50G、2個：120G」）。
           rewardGoldByCount,
           initial: lineCols.reduce((out, c) => out.concat(readAt(row, c)), []),

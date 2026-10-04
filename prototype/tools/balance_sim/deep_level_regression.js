@@ -128,7 +128,7 @@ function assertUnitRange(unit,floor){
         }
         const repeat=!mode.online&&(mode.debug?mode.cycle===2:mode.cleared);
         const expectedNormal=wave===1?(repeat?[1,2,3,4,5]:mode.first?[1,2,4,5]:[1,2,4,5,6])
-          :mode.first?[1,2,4,5,6]:[1,2,3,4,5,6];
+          :[1,2,4,5,6];  // ステージ2〜4は周回に関わらず街後の通常戦3回＝深層4〜6（2026-10-04）
         assert.deepEqual(normal,expectedNormal);
       }
     });
@@ -206,7 +206,7 @@ function assertUnitRange(unit,floor){
   check('コレクションは実際の深層で表示し、固定敵・追撃・闘技場を混同しない',()=>{
     // ステージ5のボス＝深層3、伏せられたラスボス（と左右）＝深層4。倍率はシートの値を読む（2026-10-02）。
     const s5=deep=>FLOOR_DATA[floorForMapDeep(5,deep)].mult;
-    for(const [code,mult] of [[SCENE5_BOSS_ENEMY_NO,s5(3)],[FINAL_BOSS_ENEMY_NO,s5(4)],[FINAL_BOSS_LEFT_ENEMY_NO,s5(4)],[FINAL_BOSS_RIGHT_ENEMY_NO,s5(4)],['EN027',2.5],['EN048',6]]){
+    for(const [code,mult] of [[SCENE5_BOSS_ENEMY_NO,s5(3)],[FINAL_BOSS_ENEMY_NO,s5(4)],[FINAL_BOSS_LEFT_ENEMY_NO,s5(4)],[FINAL_BOSS_RIGHT_ENEMY_NO,s5(4)],['EN027',2.5],['EN047',6]]){
       const def=ENEMY_POOL.find(def=>codeOf(def)===code);
       const range=_collectionEnemyStats(def);
       assert.deepEqual(range,{atkMin:Math.round(def.baseAtk[0]*mult),atkMax:Math.round(def.baseAtk[1]*mult),hpMin:Math.round(def.baseHp[0]*mult),hpMax:Math.round(def.baseHp[1]*mult)});

@@ -13,8 +13,9 @@ function offlineStoryCycle(){
 function isFirstStoryRun(){ return offlineStoryCycle()===1; }
 function isRepeatStoryRun(){ return offlineStoryCycle()===2; }
 
-// 1周目は、各Sceneの最後の街から塔までの通常戦闘を1つ減らす。
+// 1周目は、Scene 1だけ最後の街から塔までの通常戦闘を1つ減らす。
 // 低い深層の戦闘（街後の最初のbattle）を省き、ボスと最深部は保つ。
+// Scene 2～4は2周目以降も街後の通常戦が3回になったので、1周目も同じ（減らさない。2026-10-04 利用者指定）。
 function _journeyFirstRunRoute(route){
   const shortened=Array.isArray(route)?route.slice():[];
   const town=shortened.lastIndexOf('city');
@@ -48,8 +49,7 @@ function _journeyRouteForScene(scene){
     const repeatRoute=(data&&data.scene1)||SCENE1_REPEAT_ROUTE;
     return isFirstStoryRun()?_journeyFirstRunRoute(repeatRoute):repeatRoute;
   }
-  const standard=data&&data.standard||['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'];
-  return isFirstStoryRun()?_journeyFirstRunRoute(standard):standard;
+  return (data&&data.standard||['battle','battle','elite','city','battle','battle','battle','boss','altar']).slice();
 }
 function _journeyIconForNode(type){
   // オンライン対戦マス（versus）はエリートと同じアイコンで表示する（仕様）。
@@ -238,7 +238,7 @@ function _syncRewardJourneyUi(options){
   if(G&&G._debugMode&&!options?.resume) _bindDebugJourneyJump(root);
 }
 // デバッグ専用：旅の進捗のSceneマーク（countdownの上のアイコン列）をクリックして
-// 選んだ周回・ステージへ移動する。ステージ1はリーゼの到着イベントから再生する。
+// 選んだ周回・ステージの編成画面へ移動する。街への入場は下段の街マスで行う。
 function _bindDebugSceneJump(root){
   root.querySelectorAll('[data-journey-scene]').forEach(mark=>{
     mark.classList.add('journey-scene-mark-debug-jump');
@@ -263,17 +263,14 @@ function _bindDebugSceneJump(root){
         G._retryFloor=false;
         G._mapReturnAfterReward=false;
       }
-      // ステージ1の先頭マスは村（リーゼ＝シートのステージ0）なので、G._waveは0で表す。
-      // 旅の進捗のscene計算はMath.max(1,G._wave)なので、0でもステージ1として表示される。
-      G._wave=wave===1?0:wave;
+      G._wave=wave;
       G._waveStage=1;
       G._waveBattleType=null;
       G._mapBattle=null;
       G._waveEliteWon=false;
       G.floor=typeof _waveStageFloor==='function'?_waveStageFloor(wave,1):G.floor;
       if(debugStory&&typeof questPrepareArrivalReplayForDebug==='function') questPrepareArrivalReplayForDebug(G._wave);
-      if(debugStory&&wave===1&&typeof _openWaveVillage==='function') return _openWaveVillage(1,false);
-      // ステージ2以降は、最初のマスの手前の編成画面へ移る。
+      // 上段の全マークは、選んだステージの最初のマスの手前の編成画面へ移る。
       if(typeof _openWaveFormation==='function') _openWaveFormation();
       else _syncRewardJourneyUi();
     };

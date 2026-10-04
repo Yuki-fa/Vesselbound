@@ -545,14 +545,15 @@ function _giveDebugGolem(){
 
 // Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。
 const SCENE_FLOW_DATA={
-  standard:['battle','battle','elite','city','battle','battle','battle','battle','boss','altar'],
+  // 街の後の通常戦は、1周目・2周目以降とも3回（2026-10-04 利用者指定。以前は2周目以降が4回で、1周目だけ3回に減らしていた）。
+  standard:['battle','battle','elite','city','battle','battle','battle','boss','altar'],
   // Scene 5は「村→通常戦→通常戦→ボス（万象の揺り籠“エピトメ”）」。
   // エピトメ撃破後に続くラスボス（刻を織る者“ウルズ・ラグナ”＝stage5）は
   // ルートに載せず、プレイヤーからは見えないようにする。
   final:['city','battle','battle','boss'],
 };
 
-// Scene 1～4：通常戦×2→エリート→村→通常戦×4→ボス→祭壇。
+// Scene 1～4：通常戦×2→エリート→村→通常戦×3→ボス→祭壇（Scene 1は先頭にリーゼ、1周目はエルム後が通常戦×2）。
 // Scene 5：村→通常戦×2→ボス（＋伏せられたラスボス）。
 // そのステージ（wave）のマス構成。旅の進捗の表示と同じ配列を使う。
 function _waveRouteForWave(wave){
@@ -647,8 +648,8 @@ function _waveDeepLevelForStory(stage,wave,type,first,repeat){
       :{2:1,3:2,4:2,6:4,7:5,8:6,9:6};
     return t1[stage]||1;
   }
-  // Scene 2～4も1周目は街後の深層3の戦闘を省き、深層4～6とボスを保つ。
-  const table=first?{1:1,2:2,3:2,5:4,6:5,7:6,8:6}:{1:1,2:2,3:2,5:3,6:4,7:5,8:6,9:6};
+  // Scene 2～4は周回に関わらず、街後の通常戦3回が深層4～6（以前の2周目にあった深層3の戦闘は無くした。2026-10-04 利用者指定）。
+  const table={1:1,2:2,3:2,5:4,6:5,7:6,8:6};
   return table[stage]||1;
 }
 function _waveDeepLevel(stage,waveOverride,typeOverride){
@@ -668,7 +669,7 @@ function _waveEnemyStatFloors(wave,types){
     :[{first:true,repeat:false},{first:false,repeat:true},{first:false,repeat:false}];
   const floors=new Set();
   modes.forEach(({first,repeat})=>{
-    const route=first?_journeyFirstRunRoute(base):base;
+    const route=first&&wave===1?_journeyFirstRunRoute(base):base;  // 1周目に減らすのはScene 1だけ
     route.forEach((type,index)=>{
       if(types.includes(type)) floors.add(floorForMapDeep(wave,_waveDeepLevelForStory(index+1,wave,type,first,repeat)));
     });

@@ -129,6 +129,8 @@ function _cardIsSuppressionEngraving(card){
 
 function _rewardAreaAcceptsCard(card){
   if(_cardIsEngraved(card)) return false;
+  if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)
+    &&!(typeof questCanReturnOfferCard==='function'&&questCanReturnOfferCard(card))) return false;
   return typeof questRewardSlotAcceptsCard!=='function'||questRewardSlotAcceptsCard(card);
 }
 
@@ -248,6 +250,7 @@ function _persistCurrentShopStock(){
 function _sellPendingShopCard(idx){
   const card=Array.isArray(_rewCards)?_rewCards[idx]:null;
   if(!card||!card._shopSalePending||_cardIsEngraved(card)) return false;
+  if(typeof questTryBlockedCardSale==='function'&&questTryBlockedCardSale(card)) return false;
   if(typeof _playRewardAcquireSfx==='function') _playRewardAcquireSfx('sell.wav');
   const base=Math.max(0,Number(card._sellDisplayPrice??_shopCardSellGain(card))||0);
   const gain=typeof onGoldGained==='function'?onGoldGained(base):base;
@@ -605,6 +608,7 @@ function _detachBoardConnectionVisuals(srcIdx, srcEl, srcCard){
 function _boardCardSellEnabled(card){
   if(card&&card._npcCard) return false;
   if(_cardIsEngraved(card)) return false;
+  if(typeof questCardSellHidden==='function'&&questCardSellHidden(card)) return false;
   // ゲームオーバー魔導板は編成画面の描画をそのまま流用する（G.phaseを一時的に
   // 'reward'にする）ため、ここで除外しないとデバッグモードで売却UIが付いてくる。
   if(G&&G._renderingGameOverBoard) return false;
@@ -817,6 +821,7 @@ function _finishRewardReveal(immediate){
 
 function _storeRewardStartSnapshot(){
   G._rewardStartSnapshot={
+    retainedQuests:typeof questRetainedProgressSnapshot==='function'?questRetainedProgressSnapshot():{},
     rewCards:clone(_rewCards||[]),
     mainBoard:clone(G.mainBoard||[]),
     globalPanels:clone(G.globalPanels||[]),
@@ -860,6 +865,7 @@ function _facilityCommitStateChanged(){
 function resetRewardToStart(options){
   if(G.phase!=='reward'||!G._rewardStartSnapshot) return;
   const s=G._rewardStartSnapshot;
+  if(s.retainedQuests&&typeof questRestoreRetainedProgress==='function') questRestoreRetainedProgress(s.retainedQuests);
   const _forgePlacementOnly=!!(options&&options.forgePlacementOnly);
   const _forgePowers=_forgePlacementOnly?clone(G.mapPanelPowers||{}):null;
   const _forgeOffers=_forgePlacementOnly?clone(G._mapForgeOffers||[]):null;
@@ -926,6 +932,12 @@ function _showNoDeployableCharacterError(){
     buttonSfx:'uiConfirm'
   });
 }
+// 編成を閉じる／出撃する操作は、施設・イベント・図書館とも同じ判定と窓を使う。
+function guardFormationLeave(){
+  if(!_noDeployableBoardCharacter()) return true;
+  _showNoDeployableCharacterError();
+  return false;
+}
 function renderMoveSlotsInEnemy(){
   const el=document.getElementById('reward-move-btns');
   if(!el) return;
@@ -944,7 +956,7 @@ function renderMoveSlotsInEnemy(){
     test.innerHTML=`<span class="rew-btn-label">${_uiLabel('「試験戦闘」ボタン','試験戦闘')}</span>`;
     test.onclick=()=>{
       if(test.disabled) return;
-      if(_noDeployableBoardCharacter()){ _showNoDeployableCharacterError(); return; }
+      if(!guardFormationLeave()) return;
       if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       startTestBattle();
     };
@@ -965,7 +977,7 @@ function renderMoveSlotsInEnemy(){
       if(quit.disabled) return;
       if(typeof closeMapLibraryFormation==='function') closeMapLibraryFormation();
     };
-    // 「読書をやめる」は入館時の編成へ戻すので、今の盤面に出撃できるキャラがいなくても押せる。
+    // 現在の編成の出撃可否は closeMapLibraryFormation の共通ガードで確認する。
     el.appendChild(quit);
     el.appendChild(restore);
     el.appendChild(test);
@@ -1004,23 +1016,19 @@ function renderMoveSlotsInEnemy(){
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
       if(!_waveFacilityReturn&&G._moveInlineLocked) return;
-      if(_waveFacilityReturn&&!G._isLibrary&&_noDeployableBoardCharacter()){
-        _showNoDeployableCharacterError();
-        return;
-      }
+      if(_waveFacilityReturn&&!guardFormationLeave()) return;
       if(!_waveFacilityReturn&&typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       if(_waveFacilityReturn){
+        // 出る時も、出る音（out）とは別に ui_confirm を鳴らす（このボタンは data-sfx-silent。2026-10-03 利用者指定）。
+        // **押した瞬間に鳴らす。** 暗転の後（goBack の中）で鳴らすと遅れて聞こえた。
+        if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
         const goBack=()=>{
-          // 出る時も、出る音（out）とは別に ui_confirm を鳴らす（このボタンは data-sfx-silent。2026-10-03 利用者指定）。
-          if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
           if(G._isRingExchange){
-            if(typeof playSfx==='function') playSfx('altarOut',{group:'ui'});
             if(typeof _openWaveAltarMenu==='function') _openWaveAltarMenu();
           }else if(G._isLibrary){
             if(typeof playSfx==='function') playSfx('return',{group:'ui'});
             if(typeof openMapVillage==='function') openMapVillage();
           }else{
-            if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
             if(typeof openMapVillage==='function') openMapVillage();
           }
         };
@@ -1028,6 +1036,9 @@ function renderMoveSlotsInEnemy(){
         // 途中離脱の確認が要るのは祭壇（カードを捧げ切る前に離れる時）だけ。
         // 施設を出る時は暗転を挟む（map.js の fadeScreenSwitch。2026-09-24 利用者指定）。
         const goBackFaded=()=>{
+          // 出る音（祭壇＝altarOut、店など＝shopOut）は暗転の後ではなく、ui_confirm の直後に鳴らす（2026-10-04 利用者指定）。
+          // 祭壇の途中離脱の確認を挟む時は、確認して離れる時点から。図書館は return.wav を goBack で鳴らす（従来どおり）。
+          if(!G._isLibrary&&typeof playSfxAfterConfirm==='function') playSfxAfterConfirm(G._isRingExchange?'altarOut':'shopOut',{group:'ui'});
           // 指輪交換の途中離脱では、この関数へ来る前に捧げたカードを回収している。
           // 回収後の正式状態で差分を判定する。
           const changed=_facilityCommitStateChanged();
@@ -1064,7 +1075,10 @@ function renderMoveSlotsInEnemy(){
       reset.dataset.sfxSilent='1';
       reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「元に戻す」ボタン','元に戻す')}</span>`;
       reset.onclick=()=>{
-        if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+        if(typeof playSfx==='function'){
+          if(G._isTavern||G._isFiveSaints) playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
+          else playSfx('return',{group:'ui'});
+        }
         // 鍛冶屋（デバッグ時のみ表示）は入店時点まで完全に巻き戻す。forgePlacementOnlyは
         // 購入済みのパネル力・所持金・提示内容を保持してしまうため使わない。
         resetRewardToStart(null);
@@ -1113,10 +1127,7 @@ function renderMoveSlotsInEnemy(){
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(btn.disabled||G._moveInlineLocked) return;
-      if(!_onlineFormLabel&&_noDeployableBoardCharacter()){
-        _showNoDeployableCharacterError();
-        return;
-      }
+      if(!_onlineFormLabel&&!guardFormationLeave()) return;
       btn.disabled=true;
       if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
       chooseMoveInline(opt.nodeType);
@@ -2131,6 +2142,7 @@ function _pickAltarRingOffer(){
 // 廃棄ボタンから呼ばれる：魔導板のカードを1枚廃棄し、3枚に達したら指輪提示を解放する。
 function _discardBoardCardForRingOffer(idx,card){
   if(!Array.isArray(G._ringOffer)||!G._ringOffer.length||G._ringOfferUnlocked) return;
+  if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return;
   if(_cardIsEngraved(card)) return;
   const unit=_getPartyBoardUnit();
   if(!unit) return;
@@ -3213,6 +3225,7 @@ function _panelCharacterPreviewStats(unit,idx,card){
 }
 function _mergedPanelCard(a,b){
   if(!a||!b||typeof PANEL_POOL==='undefined'||typeof makePanel!=='function') return null;
+  if(typeof questCardRemovalLocked==='function'&&(questCardRemovalLocked(a)||questCardRemovalLocked(b))) return null;
   // 荷物は通常の2枚合体不可。魔鏡も3枚目の代替素材としてのみ扱う。
   // 抑圧の刻印も合体で元マスから消える経路を作らない。
   if(_isLuggagePanel(a)||_isLuggagePanel(b)
@@ -3234,10 +3247,11 @@ function _ownedMergeCards(){
   const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
   if(board&&Array.isArray(board.boardCards)) out.push(...board.boardCards.filter(Boolean));
   if(G&&Array.isArray(G.allies)) out.push(...G.allies.filter(c=>c&&!c._isSoul&&!c._isObject));
-  return out;
+  return out.filter(card=>typeof questCardRemovalLocked!=='function'||!questCardRemovalLocked(card));
 }
 function _rewardMergeCandidate(rewIdx,card){
   if(!card||!G) return false;
+  if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return false;
   if(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(card)) return false;
   if(_isLuggagePanel(card)&&!_isMagicMirrorPanel(card)) return false;
   // ショップでは、魔導板上のカード／所持キャラクターも合体素材として数える。
@@ -3344,6 +3358,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   if(!placed||placed._tripleMerged) return null;
   const available=unit.boardCards.map((card,idx)=>({card,idx}))
     .filter(x=>x.card&&!x.card._tripleMerged&&!_cardIsSuppressionEngraving(x.card)
+      &&!(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(x.card))
       &&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(x.card)));
   const baseCards=available.filter(x=>!_isLuggagePanel(x.card));
   const mirrors=available.filter(x=>_isMagicMirrorPanel(x.card));
@@ -3734,6 +3749,7 @@ function refreshRewardGoldUi(){
 }
 
 function renderHandEditor(){
+  if(typeof questCheckRetainedCards==='function') questCheckRetainedCards();
   if(typeof SaveProfile!=='undefined') SaveProfile.owned();
   if(G.phase!=='reward'&&G._tripleMergeHiddenIdx!=null) _clearTripleMergeHidden();
   _syncBoardCardVisibilityToggle();
@@ -4323,6 +4339,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         discardBtn.onclick=ev=>{
         ev.stopPropagation();
         if(_libraryTutorialIsMoveStep()) return;
+        if(typeof questTryBlockedCardSale==='function'&&questTryBlockedCardSale(card)) return;
         if(discardBtn.classList.contains('library-loan-return-btn')){
           _returnLibraryLoanCard(i,card);
           return;
@@ -4851,8 +4868,10 @@ function dropOnCard(destArr,destIdx){
 function discardHeCard(arrName, idx){
   const arr=arrName==='rings'?G.rings:G.spells;
   const card=arr[idx]; if(!card) return;
+  if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return;
   if(arrName==='rings'&&typeof questRingActionsLocked==='function'&&questRingActionsLocked(card)) return;
   arr[idx]=null;
+  if(typeof questCheckRetainedCards==='function') questCheckRetainedCards();
   if(card&&card.type==='panel'&&typeof returnPanelToSalePool==='function') returnPanelToSalePool(card);
   const refund=cardRefund(card);
   if(refund>0){

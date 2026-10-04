@@ -63,7 +63,7 @@ const Assets = {
     // リーゼのホーム（1周目の押下会話でだけ使う）。
     homeStart: 'assets/art/backgrounds/stage0_home.webp?v=bg1003',
     village1: 'assets/art/backgrounds/stage1_village.webp?v=bg1003',
-    village2: 'assets/art/backgrounds/stage2_village.webp?v=bg1003',
+    village2: 'assets/art/backgrounds/stage2_city.webp?v=bg1003',
     village3: 'assets/art/backgrounds/stage3_village.webp?v=bg1003',
     // ギャラハの闘技場受付。
     // 受領済みの素材ファイル名には先頭空白が含まれているため、file://で実在する名前を参照する。
@@ -71,7 +71,7 @@ const Assets = {
     // 闘技場の戦闘背景。
     stageArena: 'assets/art/backgrounds/stage3_arena_battlestage.webp?v=bg1003',
     village4: 'assets/art/backgrounds/stage4_city.webp?v=bg1003',
-    villageEnd: 'assets/art/backgrounds/stage5_village.webp?v=bg1003',
+    villageEnd: 'assets/art/backgrounds/stage5_city.webp?v=bg1003',
     // ワールドマップ画面（出発時に数秒表示する）
     map: 'assets/art/backgrounds/map.webp?v=bg1003',
     // 塔（祭壇）画面の背景
@@ -103,7 +103,7 @@ const Assets = {
     tavernValley: 'assets/art/backgrounds/stage3_tavern.webp?v=bg1003',
     camp: 'assets/art/backgrounds/camp.webp?v=bg1003',
     innGrassland: 'assets/art/backgrounds/stage2_inn.webp?v=bg1003',
-    innCapital: 'assets/art/backgrounds/stage4_inn.webp?v=bg1003',
+    innCapital: 'assets/art/backgrounds/stage4_inn.png?v=bg1003',
     innEndworld: 'assets/art/backgrounds/stage5_inn.webp?v=bg1003',
   },
   vfx: {
@@ -132,11 +132,13 @@ const Assets = {
     enchantEffect: {
       'E045': 'assets/vfx/S008.webp',   // 活性化（素材名はS008へ変更済み）
       'E058': 'assets/vfx/E058_1.webp', // 炎の矢（発生元の上に出す）
+      'E067': 'assets/vfx/E067_1.webp', // 援護射撃（射手から対象へ飛ばす）
     },
     // 効果が**対象に当たった瞬間**の演出。発生元の演出（enchantEffect）とは別素材。
     // ダメージイベントの effectNo で引く。登録が無ければ通常の被弾VFXのまま。
     enchantEffectHit: {
       'E058': 'assets/vfx/E058_2.webp', // 炎の矢の着弾
+      'E067': 'assets/vfx/E067_2.webp', // 援護射撃の着弾
       'C019': 'assets/vfx/C019_2.webp', // ケンタウロスの着弾
     },
     // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
@@ -304,6 +306,8 @@ const Assets = {
     E045: 'assets/sfx/S008.wav', // 活性化（素材名はS008へ変更済み）
     E058: 'assets/sfx/E058_1.wav', // 炎の矢（発生元）
     E058_HIT: 'assets/sfx/E058_2.wav', // 炎の矢（着弾）
+    E067: 'assets/sfx/E067_1.wav', // 援護射撃（発射）
+    E067_HIT: 'assets/sfx/E067_2.wav', // 援護射撃（着弾）
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
     C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
     K001: 'assets/sfx/K001.wav', // 即死（即死効果を受けた瞬間）
@@ -495,6 +499,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
 }
 
+const CARD_ART_VERSION='art1004';
 function getCharacterNoArtPath(card){
   if(!card||typeof card!=='object') return '';
   const raw=_assetCodeRaw(card);
@@ -529,7 +534,9 @@ function getCharacterNoArtPath(card){
   else return '';
   // カード絵は jpg だけを読む（利用者指定）。以前は png も重ねて候補にしていたが、
   // 素材はすべて jpg なので、カードを描くたびに存在しない png の 404 が出ていた。
-  return `${dir}/${code}.jpg`;
+  // 版の印：ファイルを入れ替えると更新日時が元のまま残り、ブラウザが古い絵をキャッシュから出し続ける
+  // （2026-10-04 EN025/EN040 を入れ替えた後もグレーターデーモンに旧EN025の絵が出た）。絵を差し替えたら上げる。
+  return `${dir}/${code}.jpg?v=${CARD_ART_VERSION}`;
 }
 
 // キャラクターの効果によるダメージ時、そのキャラクター専用の透過WebPが

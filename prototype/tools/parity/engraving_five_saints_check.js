@@ -152,9 +152,9 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
       const transitions=[];
       gameOver=options=>transitions.push({kind:'clear',clear:!!(options&&options.clear),wave:G._wave});
       _openWaveVillage=(stage,intro)=>transitions.push({kind:'stage5',stage,intro,wave:G._wave});
-      G._onlineMode=false;G._wave=4;G._waveStage=10;G._waveResumeStage=null;
+      G._onlineMode=false;G._wave=4;G._waveStage=_waveRouteForWave(4).length;G._waveResumeStage=null;
       G._fiveSaints={decisions:{'1':{accepted:true}}};_startWaveFlowNext();
-      G._wave=4;G._waveStage=10;G._fiveSaints={decisions:{'1':{accepted:true},'3':{accepted:true}}};_startWaveFlowNext();
+      G._wave=4;G._waveStage=_waveRouteForWave(4).length;G._fiveSaints={decisions:{'1':{accepted:true},'3':{accepted:true}}};_startWaveFlowNext();
       gameOver=oldGameOver;_openWaveVillage=oldOpenWaveVillage;
       SaveProfile.hasClearedRun=oldClear;
 
@@ -245,6 +245,75 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
     check('受諾済み／拒否済み／現在の塔のシンボル表示',/symbol1\.svg$/.test(scene.symbolSrc[0])
       &&/symbol2\.svg$/.test(scene.symbolSrc[1])&&scene.animation[0]==='none'&&scene.animation[1]==='none'
       &&scene.animation[2]==='five-saints-current-pulse'&&scene.animationDuration[2]==='4s',JSON.stringify(scene));
+
+    const formation=await browser.eval(`
+      const old={sfx:playSfx,accept:_fiveSaintsAccept,reject:_fiveSaintsReject};
+      const sounds=[],rows=[];let actions=0;
+      const visible=el=>{if(!el)return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+        let opacity=1;for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+        return opacity>.9&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&r.right>0&&r.left<innerWidth;};
+      try{
+        playSfx=(key,opt)=>{sounds.push({key,guard:opt&&opt.guardKey});return true;};
+        _fiveSaintsAccept=async()=>actions++;_fiveSaintsReject=async()=>actions++;
+        G._onlineMode=false;G._wave=3;G.questProgress={};G.mapPanelPowers={};G.allies=G.allies||[];G.enemies=G.enemies||[];  // 編成画面（goToReward）は G.allies・G.enemies を読む（この検査はランを始めずに開く）
+        const hero=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ブラウニー').id);
+        for(const accepted of [false,true])for(const invalid of ['empty','misplaced','sealed']){
+          G._fiveSaints={visited:true,offeredNos:['E077'],offers:{'3':'E077'},decisions:{},targets:{}};
+          G._fiveSaintsResolving=false;G.mainBoard=new Array(15).fill(null);G.globalPanels=[];
+          _fiveSaintsShowScene();
+          const firstPair=['MC001','MC009'].every(id=>visible(document.querySelector('.tavern-portrait[data-portrait-id="'+id+'"]')));
+          _fiveSaintsOpenFormationNow();
+          if(accepted){G.mainBoard[0]=_rewCards[0];_rewCards=[];}
+          if(invalid!=='empty'){const c=clone(hero);if(invalid==='sealed')c.keywords=[...(c.keywords||[]),'封印999'];G.mainBoard[invalid==='sealed'?1:2]=c;}
+          syncFiveSaintsFormationControls();
+          const button=document.querySelector('#reward-move-btns .rew-move-btn');
+          const before=JSON.stringify({board:G.mainBoard,state:G._fiveSaints,ctx:_qFormationContext});
+          sounds.length=0;const count=actions;button.click();
+          const message=document.getElementById('fatal-error-message');
+          rows.push({accepted,invalid,firstPair,label:button.textContent.trim(),
+            blocked:actions===count&&G._isFiveSaints&&document.body.classList.contains('five-saints-formation-active')
+              &&before===JSON.stringify({board:G.mainBoard,state:G._fiveSaints,ctx:_qFormationContext}),
+            warning:document.body.classList.contains('fatal-error-active')&&visible(message)
+              &&message.textContent===textMessage('戦闘キャラ不在時','')
+              &&document.getElementById('fatal-error-title').textContent===textMessage('「戦闘キャラ不在時」見出し',''),
+            instant:sounds.filter(s=>s.key==='uiConfirm').length===1});
+          document.getElementById('fatal-error-back-btn').click();
+          G.mainBoard[3]=clone(hero);syncFiveSaintsFormationControls();sounds.length=0;button.click();
+          rows[rows.length-1].allowed=actions===count+1&&sounds.filter(s=>s.key==='uiConfirm').length===1;
+          sounds.length=0;document.querySelector('#reward-move-btns .rew-reset-btn').click();
+          rows[rows.length-1].resetSound=sounds.filter(s=>s.key==='uiConfirm').length===1;
+        }
+        return rows;
+      }finally{
+        playSfx=old.sfx;_fiveSaintsAccept=old.accept;_fiveSaintsReject=old.reject;questForceEndEventForDebug();
+      }
+    `);
+    check('五聖の座は入場時からA/B両方が見える',formation.every(row=>row.firstPair),JSON.stringify(formation));
+    check('受諾・拒否ともキャラ不在／召喚マス外／全員封印で同じ警告、編成と決定を保つ',
+      formation.length===6&&formation.every(row=>row.blocked&&row.warning),JSON.stringify(formation));
+    check('受諾・拒否・元に戻すは押した瞬間にui_confirmが1回、出撃可能なら退出処理も1回',
+      formation.every(row=>row.instant&&row.allowed&&row.resetSound),JSON.stringify(formation));
+
+    const smoke=await browser.eval(`
+      return (async()=>{
+        showScreen('village');await _qClearPresentation({immediate:true,includeShop:true});
+        await showTavernPortrait('MC009',{screen:'village',key:'five-saints-mc009'});
+        const portrait=document.querySelector('.tavern-portrait[data-portrait-key="five-saints-mc009"]');
+        const before=portrait.getBoundingClientRect();const pending=_qSmokePortraitUp('five-saints-mc009');
+        const group=document.querySelector('.five-saints-smoke-group'),animation=group.getAnimations()[0];
+        animation.pause();const samples=[];
+        for(const progress of [0,.2,.5,.8,1]){
+          animation.currentTime=FIVE_SAINTS_SMOKE_MS*progress;
+          const r=portrait.getBoundingClientRect(),s=getComputedStyle(group);
+          samples.push({progress,dx:r.left-before.left,dy:r.top-before.top,transform:s.transform,opacity:s.opacity,mask:s.maskPosition});
+        }
+        animation.finish();await pending;
+        return {samples,gone:!document.querySelector('.five-saints-smoke-group'),duration:FIVE_SAINTS_SMOKE_MS};
+      })();
+    `);
+    check('煙化は1600msの間、立ち絵の座標・transform・opacityを動かさず下からのマスクだけが進む',
+      smoke.duration===1600&&smoke.gone&&smoke.samples.every(s=>Math.abs(s.dx)<.1&&Math.abs(s.dy)<.1&&s.transform==='none'&&s.opacity==='1')
+      &&smoke.samples[0].mask!==smoke.samples[4].mask&&smoke.samples[4].mask.includes('112%'),JSON.stringify(smoke));
 
     const addedAssets=await browser.eval(`
       const urls=['assets/art/backgrounds/tower_landing.webp','assets/art/sprites/MC009.webp',

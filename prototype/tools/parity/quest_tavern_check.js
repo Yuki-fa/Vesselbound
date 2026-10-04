@@ -1,8 +1,8 @@
 'use strict';
 
-// 酒場クエスト（Q002／Q003／Q004／Q005／Q006 危険生物護送／Q007）の実ブラウザ回帰検査。
+// 酒場クエスト（Q001／Q002／Q003／Q004／Q005／Q006 危険生物護送／Q007／Q008）の実ブラウザ回帰検査。
 // 実行前に prototype で `python3 -m http.server 5500 --bind 127.0.0.1` を起動する。
-//   VB_ONLY=部分一致 で節（「クエスト変更」「物資回収」「魔獣撃退」「危険生物護送」「命の鎖」「木箱輸送」「呪いの指輪」「酒場」「施設会話」「ショップ」「闘技場アレス」「闘技場後」「戦闘」「塔」「祭壇」「所持金」「画面仕様」）を絞れる。
+//   VB_ONLY=部分一致 で節（「クエスト変更」「Q001力の代償」「物資回収」「魔獣撃退」「危険生物護送」「命の鎖」「木箱輸送」「呪いの指輪」「Q008ベイティル退治」「酒場」「イベント編成」「施設会話」「ショップ」「闘技場アレス」「闘技場後」「戦闘」「塔」「祭壇」「所持金」「画面仕様」）を絞れる。
 const assert=require('node:assert/strict');
 const {launch,sleep}=require('./headless');
 
@@ -73,6 +73,15 @@ const WAVE=1;
   async function waitLine(b,line){
     const side=line.speaker==='A'?'left':'right';
     await b.until(`(()=>[...document.querySelectorAll('${lineSel(side)}')].some(el=>el.textContent===${JSON.stringify(line.text)}&&el.classList.contains('is-visible')&&Number(getComputedStyle(el).opacity)>.9))()`);
+  }
+  async function visiblePortraits(b,ids){
+    const state=await b.run(`return ${JSON.stringify(ids)}.map(id=>{
+      const el=document.querySelector('.screen.active .tavern-portrait[data-portrait-id="'+id+'"]');
+      if(!el)return {id,visible:false};const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+      let opacity=1;for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+      return {id,visible:el.complete&&el.naturalWidth>0&&opacity>.9&&s.display!=='none'&&s.visibility!=='hidden'
+        &&r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight};});`);
+    ok('設定されたA/Bの実画像・不透明度・画面内位置',state.every(p=>p.visible),state);
   }
   const clickDialogue=b=>b.run(`document.getElementById('tavern-dialogue-layer')?.click();return 1;`);
   async function waitChoice(b,line){
@@ -333,7 +342,7 @@ const WAVE=1;
     await b.until(`G&&G._runId`,30000);
     const ares=await b.run(`(()=>{
       const enemyNo=def=>String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code)||'').toUpperCase();
-      const def=ENEMY_POOL.find(row=>enemyNo(row)==='EN048');if(!def)throw new Error('EN048の敵定義が無い');
+      const def=ENEMY_POOL.find(row=>enemyNo(row)==='EN047');if(!def)throw new Error('EN047の敵定義が無い');
       window.__installAresOutcomeTest=()=>{const unit=_mkEnemy(20,30,def.name,def.icon,def.grade||1,0,[...(def.keywords||[])],def.race||'-');
         _applyEnemyDefAbilities(unit,def);unit.id='arena-ares-outcome';unit.side='p2';unit.lane='front';unit.boss=true;
         G.allies=new Array(14).fill(null);G.enemies=new Array(14).fill(null);G.enemies[0]=unit;window.__aresOutcomeUnit=unit;renderAll();return unit;};
@@ -344,7 +353,7 @@ const WAVE=1;
       const unit=__installAresOutcomeTest();return {name:unit.name,death:[...(unit.deathBattleLines||[])],
         flee:[...(unit.fleeBattleLines||[])],playerDefeat:[...(unit.playerDefeatBattleLines||[])]};
     })()`);
-    ok('闘技場：EN048アレスの3種の台詞をシート見出しから戦闘ユニットへ渡す',
+    ok('闘技場：EN047アレスの3種の台詞をシート見出しから戦闘ユニットへ渡す',
       ares.death.length>0&&ares.flee.length>0&&ares.playerDefeat.length>0,ares);
 
     await b.run(`(()=>{const unit=__aresOutcomeUnit;unit.hp=0;unit._displayHp=0;
@@ -789,8 +798,8 @@ const WAVE=1;
     await clickDialogue(b);
     await waitIndexed(b,0,q6.q.specialA1[0]);
     const a1=await bubbleState(b,0),beside=await portraitState(b,'companion'),hero=await portraitState(b,'MC001');
-    ok('退出後A1：写し身X330は主人公より奥、尻尾X1650・Y1390、ライフは減らさない',
-      beside?.visible&&beside.x===330&&beside.layer<hero.layer&&a1?.visible&&a1.down&&a1.x===1650&&a1.y===1390&&await b.run(`return G._waveLife===2&&G.life===2`),{a1,beside});
+    ok('退出後A1：写し身X330は主人公より奥、尻尾X3425・Y1390、ライフは減らさない',
+      beside?.visible&&beside.x===330&&beside.layer<hero.layer&&a1?.visible&&a1.down&&a1.x===3425&&a1.y===1390&&await b.run(`return G._waveLife===2&&G.life===2`),{a1,beside});
     await clickDialogue(b);await waitIndexed(b,1,q6.q.specialA2[0]);
     const keptA1=await bubbleState(b,0),a2=await bubbleState(b,1);
     ok('退出後A2：尻尾X2955・Y1340、A1の吹き出しを残し、ライフは減らさない',
@@ -869,7 +878,7 @@ const WAVE=1;
     }
 
     const tower=await newPage();await makeAccepted(tower);
-    await tower.run(`G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    await tower.run(`G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;openMapVillage({tower:true});return 1;`);
     // 出発の処理（マップへ進む＝departWithWorldMap）が呼ばれたことだけを記録し、その先（次の戦闘）へは進ませない。
     // 進ませるとマップの画面は一瞬で過ぎ、次の戦闘で写し身が倒れて別の会話に入る。
     await tower.run(`window.__departCalls=0;window.departWithWorldMap=function(){window.__departCalls++;return false;};return 1;`);
@@ -884,7 +893,7 @@ const WAVE=1;
         const slot=[...document.querySelectorAll('.reward-prod-ring .reward-prod-slots i')].find(el=>!el._rewardRing);if(!slot)throw new Error('空き指輪枠なし');
         _dragSrc={arr:'ringOffer',idx:0};slot.dispatchEvent(new Event('drop',{bubbles:true,cancelable:true}));return 1;`);
     }
-    await tower.run(`G._wave=3;G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    await tower.run(`G._wave=3;G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;openMapVillage({tower:true});return 1;`);
     await takeAltarRing(tower,true);
     ok('以後の塔で還魂を確定しても、祭壇を離れるまでは会話を待つ',await tower.run(`return G.questProgress.Q006.companionReleased&&G.questProgress.Q006.pendingEvent==='towerSacrifice'&&!document.getElementById('tavern-dialogue-layer')`));
     await tower.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
@@ -904,7 +913,7 @@ const WAVE=1;
     ok('還魂完了後もcompleted、カード消失・ゲームオーバーなし',await tower.run(`return G.questProgress.Q006.status==='completed'&&!G.mainBoard.some(c=>c&&c.no==='BC001')&&G.phase!=='gameover'`));
     await finish(tower);
 
-    const kept=await newPage();await makeAccepted(kept);await kept.run(`G._waveStage=10;openMapVillage({tower:true});return 1;`);
+    const kept=await newPage();await makeAccepted(kept);await kept.run(`G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;openMapVillage({tower:true});return 1;`);
     await takeAltarRing(kept,false);await finishLines(kept,q6.q2.specialA1);await kept.until(`!_qPendingEventSession`);
     ok('写し身を還魂せず指輪を取得した時も特殊A1→completed',await kept.run(`return G.questProgress.Q006.status==='completed'&&G.mainBoard[1]?.no==='BC001'&&!G.questProgress.Q006.companionReleased`));
     await finish(kept);
@@ -1033,7 +1042,7 @@ const WAVE=1;
     ok('「受託」でaccepted・保存数2になり、ランセーブ復元後も木箱2枚と運ぶ数2を保つ',
       accepted.status==='accepted'&&accepted.transportCount===2&&accepted.savedStatus==='accepted'&&accepted.savedCount===2
       &&accepted.restoredStatus==='accepted'&&accepted.restoredCount===2&&accepted.board===2&&accepted.offer===0,accepted);
-    await b.run(`G._wave=3;G._waveStage=10;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
+    await b.run(`G._wave=3;G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
     await b.until(`document.querySelector('#scr-village.active')&&!G._villageIntroPlaying`,30000);
     await sleep(700);
     const q007Tower=await b.run(`return {status:G.questProgress.Q007?.status||'',started:!!G.questProgress.Q007?.towerEventStarted,active:document.body.classList.contains('tavern-tower-event-active'),dialogue:!!document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text')};`);
@@ -1207,7 +1216,7 @@ const WAVE=1;
 
     const gold0=await b.run(`return Number(G.gold)||0`);
     await b.until('!G._villageIntroPlaying',30000);
-    await b.run(`G._wave=2;G._waveStage=10;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
+    await b.run(`G._wave=2;G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
     await waitLine(b,q5.q2.initial[0]);
     ok('Q005雷鳴の塔：台詞1ではまだ指輪と所持金を変えない',
       await b.run(`return G.gold===${gold0}&&(G.rings||[]).some(r=>r&&r._questTransportId==='Q005')`));
@@ -1237,25 +1246,343 @@ const WAVE=1;
     await finish(r);
   }
 
-  // ── 施設会話：宿屋の不足時表情と、Bだけの入店台詞でも A を出す ──────
+  // ── Q008 ベイティル退治：依頼品なしの受託と、討伐数に応じた塔報酬 ─────
+  if(section('Q008ベイティル退治')){
+    const b=await newPage();
+    const q8=await b.run(`return {q:QUEST_DATA.Q008_1,q2:QUEST_DATA.Q008_2,portrait:QUEST_CONFIG.Q008.portraitB,shared:QUEST_CONFIG.Q007.portraitB,ids:_qRegionIds(3)}`);
+    ok('Q008：ギャラハの候補はQ007・Q008、BはQ007と同じ、台詞と特殊台詞A1〜A4をシートから読む',
+      q8.ids.join('|')==='Q007|Q008'&&q8.portrait===q8.shared&&q8.q.initial.length===6&&q8.q2.initial.length===3
+      &&[1,2,3,4].every(n=>q8.q2['specialA'+n]?.length===1),q8);
+    async function visibleBubble(page,line){
+      await waitLine(page,line);
+      const side=line.speaker==='A'?'left':'right';
+      const state=await page.run(`(()=>{const el=[...document.querySelectorAll('${lineSel(side)}')].find(el=>el.textContent===${JSON.stringify(line.text)});
+        if(!el)return null;const r=el.getBoundingClientRect(),s=getComputedStyle(el);let opacity=1;
+        for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+        return {opacity,color:s.color,width:r.width,height:r.height,onScreen:r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,display:s.display,visibility:s.visibility};})()`);
+      ok('Q008：台詞の文字色・実効不透明度・画面内の表示位置を確認',state&&state.opacity>.9&&state.width>0&&state.height>0&&state.onScreen
+        &&state.display!=='none'&&state.visibility!=='hidden'&&state.color!=='transparent'&&!/rgba\([^)]*,\s*0\)$/.test(state.color),state);
+    }
+    async function openQ008Choice(page){
+      await openWave(page,3);await clickFacility(page,'^酒場$');
+      for(const line of q8.q.initial.slice(0,5)){await visibleBubble(page,line);await clickDialogue(page);}
+      await waitChoice(page,q8.q.initial[5]);
+      const portrait=await page.run(`(()=>{const p=document.querySelector('.tavern-presentation-host img.tavern-portrait[data-portrait-id="${q8.portrait}"]');
+        return !!(p&&p.complete&&p.naturalWidth>0&&p.classList.contains('is-visible')&&Number(getComputedStyle(p).opacity)>.9);})()`);
+      ok('Q008酒場：台詞6の選択肢まで依頼カードの編成窓を開かず、共通のディナを表示',portrait&&await page.run(`return !document.body.classList.contains('reward-screen-active')`));
+    }
+    async function beginQ008Tower(page,count){
+      // ラン開始直後の街の入場演出（UIを隠す間）が終わってから塔へ移す。演出中に開くと会話の層ごと隠れたままになる。
+      await page.until('!G._villageIntroPlaying',30000);
+      const gold=await page.run(`(()=>{const e=G.questProgress.Q008;e.defeatedCount=${Number(count)};
+        G._wave=3;G._waveStage=_waveRouteForWave(3).indexOf('altar')+1;G._waveVillage=true;G._isWaveAltar=true;
+        const gold=G.gold;openMapVillage({tower:true,intro:true});return gold;})()`);
+      await visibleBubble(page,q8.q2.initial[0]);
+      ok('Q008赤禍の塔：台詞1では報酬を渡さず、施設と出発ボタンを隠す',await page.run(`return G.gold===${gold}
+        &&document.body.classList.contains('tavern-tower-event-active')&&getComputedStyle(document.getElementById('village-facilities')).display==='none'
+        &&getComputedStyle(document.getElementById('village-move-btns')).display==='none'`));
+      return gold;
+    }
+    await startRunWithWaveQuest(b,3,'Q008');await openQ008Choice(b);await clickChoice(b,0);
+    await visibleBubble(b,q8.q.accepted[0]);
+    const accepted=await b.run(`(()=>{const e=G.questProgress.Q008;const targets=clone(e.enemyReplacementTargets||[]);
+      const save=SaveRun.buildRunSave('town');e.enemyReplacementTargets=[];e.defeatedCount=99;SaveRun.restoreRunState(save);
+      const restored=G.questProgress.Q008;return {status:restored.status,targets,count:restored.defeatedCount,
+        same:JSON.stringify(restored.enemyReplacementTargets)===JSON.stringify(targets),description:_qDescription(),q007:!!G.questProgress.Q007};})()`);
+    ok('Q008酒場：受託時に1〜3体・合計8体を保存し、復元しても同じ。説明はシート値、Q007を作らない',
+      accepted.status==='accepted'&&accepted.same&&accepted.count===0&&!accepted.q007
+      &&accepted.targets.every(t=>t.count>=1&&t.count<=3)&&accepted.targets.reduce((sum,t)=>sum+t.count,0)===8
+      &&accepted.description===q8.q.description,accepted);
+    await clickDialogue(b);await b.until(`!G._isTavern&&${notFading}`,30000);
+    const gold=await beginQ008Tower(b,4);
+    await clickDialogue(b);await visibleBubble(b,{...q8.q2.initial[1],text:q8.q2.initial[1].text.replace(/X/g,'4')});
+    ok('Q008赤禍の塔：台詞2のXを4へ置き換え、この時点ではゴールドを変えない',await b.run(`return G.gold===${gold}`));
+    await clickDialogue(b);await visibleBubble(b,q8.q2.initial[2]);
+    await b.until(`G.gold===${gold}+160&&G.questProgress.Q008.towerRewardGiven`,5000);
+    const reward=await b.run(`return {gold:G.gold,flag:SaveRun.serializeRunState().questProgress.Q008.towerRewardGiven}`);
+    ok('Q008赤禍の塔：台詞3で4²×10＝160Gを獲得し、支払済みを保存',reward.gold===gold+160&&reward.flag,reward);
+    await clickDialogue(b);await b.until(`G.questProgress.Q008.status==='completed'&&!document.body.classList.contains('tavern-tower-event-active')`,15000);
+    ok('Q008赤禍の塔：会話を終えると完了し、説明が消える',await b.run(`return G.questProgress.Q008.towerEventDone&&_qDescription()===''`));
+    // デバッグで同じ到着会話を再生しても、本体の完了記録と報酬を変えない。
+    await b.run(`G._debugMode=true;questPrepareArrivalReplayForDebug(3);openMapVillage({tower:true});return 1;`);
+    for(const line of [q8.q2.initial[0],{...q8.q2.initial[1],text:q8.q2.initial[1].text.replace(/X/g,'4')},q8.q2.initial[2]]){
+      await waitLine(b,line);await clickDialogue(b);
+    }
+    await b.until(`!document.body.classList.contains('tavern-tower-event-active')`,15000);
+    ok('Q008デバッグ：完了イベントの再生で報酬を二重に渡さない',await b.run(`return G.gold===${gold}+160&&G.questProgress.Q008.status==='completed'`));
+    await finish(b);
+
+    const z=await newPage();await startRunWithWaveQuest(z,3,'Q008');
+    await z.run(`G.questProgress.Q008.status='accepted';_qAssignEnemyReplacements(G.questProgress.Q008);return 1;`);
+    const zeroGold=await beginQ008Tower(z,0);
+    await clickDialogue(z);
+    for(let n=1;n<=4;n++){
+      await visibleBubble(z,q8.q2['specialA'+n][0]);
+      ok(`Q008 0体：台詞1の後は特殊台詞A${n}で、台詞2・3と報酬を出さない`,await z.run(`return G.gold===${zeroGold}
+        &&![${JSON.stringify(q8.q2.initial[1].text)},${JSON.stringify(q8.q2.initial[2].text)}].some(text=>[...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-text')].some(el=>el.textContent===text))`));
+      await clickDialogue(z);
+    }
+    await z.until(`G.questProgress.Q008.status==='completed'&&!document.body.classList.contains('tavern-tower-event-active')`,15000);
+    ok('Q008 0体：ゴールドを増やさず完了する',await z.run(`return G.gold===${zeroGold}&&G.questProgress.Q008.towerEventDone`));
+    await finish(z);
+
+    const r=await newPage();await startRunWithWaveQuest(r,3,'Q008');await openQ008Choice(r);await clickChoice(r,1);
+    await visibleBubble(r,q8.q.rejected[0]);
+    // 酒場の中では、拒否した依頼の説明も既存クエストと同じく出したまま（_qDescription）。酒場を出たら消える。
+    await clickDialogue(r);await r.until(`!G._isTavern&&${notFading}`,30000);
+    { const st=await r.run(`return {status:G.questProgress.Q008.status,targets:(G.questProgress.Q008.enemyReplacementTargets||[]).length,desc:_qDescription()}`);
+      ok('Q008酒場：断ると拒否台詞、割り振りを作らず、酒場を出るとクエスト説明が残らない',st.status==='rejected'&&!st.targets&&st.desc==='',st); }
+    await clickFacility(r,'^酒場$');await waitChoice(r,q8.q.initial[5]);await clickChoice(r,0);
+    await visibleBubble(r,q8.q.accepted[0]);
+    await r.run(`questForceEndEventForDebug();return 1;`);
+    ok('Q008デバッグ：拒否後の再訪で受託でき、強制終了は会話だけを止めて受託状態を保つ',await r.run(`return G.questProgress.Q008.status==='accepted'
+      &&!document.getElementById('tavern-dialogue-layer')&&!_qTowerSession&&!G._isTavern`));
+    await finish(r);
+  }
+
+  // ── Q001 力の代償：暗転なしの受領、エルムの売却制限、ヴァルガ到着 ────
+  if(section('Q001力の代償')){
+    const b=await newPage();
+    const q001=await b.run(`return {q:QUEST_DATA.Q001_1,q2:QUEST_DATA.Q001_2,
+      portrait:QUEST_CONFIG.Q001.portraitB,shared:QUEST_CONFIG.Q002.portraitB,ids:_qRegionIds(1),
+      title:textMessage('「酒場の報酬枠」見出し3',''),accept:textMessage('「受領」ボタン',''),reject:textMessage('「拒否」ボタン','')};`);
+    ok('Q001：通常の街候補は地域シートのまま、BはQ002と共通、台詞6とAのみの到着台詞を読む',
+      q001.ids.join('|')==='Q002|Q003'&&q001.portrait===q001.shared&&q001.q.initial.length===6
+      &&q001.q2.initial.length>0&&q001.q2.initial.every(line=>line.speaker==='A'),q001);
+    async function visibleQ001Line(page,line){
+      await waitLine(page,line);
+      const side=line.speaker==='A'?'left':'right';
+      const state=await page.run(`(()=>{const el=[...document.querySelectorAll('${lineSel(side)}')].find(el=>el.textContent===${JSON.stringify(line.text)});
+        if(!el)return null;const r=el.getBoundingClientRect(),s=getComputedStyle(el);let opacity=1;
+        for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+        return {opacity,color:s.color,width:r.width,height:r.height,onScreen:r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,display:s.display,visibility:s.visibility};})()`);
+      ok('Q001：台詞の文字色・実効不透明度・画面内の位置を確認',state&&state.opacity>.9&&state.width>0&&state.height>0&&state.onScreen
+        &&state.display!=='none'&&state.visibility!=='hidden'&&state.color!=='transparent'&&!/rgba\([^)]*,\s*0\)$/.test(state.color),state);
+    }
+    async function startQ001FadeProbe(page){
+      await page.run(`window.__q001Fade={black:false,frames:0,done:false};
+        const probe=()=>{const f=document.getElementById('screen-switch-fade');__q001Fade.frames++;
+          if(f&&parseFloat(getComputedStyle(f).opacity)>.05)__q001Fade.black=true;
+          if(!__q001Fade.done)requestAnimationFrame(probe);};requestAnimationFrame(probe);return 1;`);
+    }
+    async function finishQ001FadeProbe(page){
+      const state=await page.run(`__q001Fade.done=true;return __q001Fade;`);
+      ok('Q001：酒場の会話と編成画面の切り替えを暗転なしで表示',state.frames>0&&!state.black,state);
+    }
+    async function openQ001Formation(page){
+      await openWave(page,1);
+      await page.run(`G._waveStage=_waveRouteForWave(1).lastIndexOf('city')+1;return 1;`);
+      await clickFacility(page,'^酒場$');
+      for(const line of q001.q.initial.slice(0,5)){await visibleQ001Line(page,line);await clickDialogue(page);}
+      await visibleQ001Line(page,q001.q.initial[5]);
+      await startQ001FadeProbe(page);await clickDialogue(page);
+      await page.until('document.body.classList.contains("reward-screen-active")&&!!document.querySelector("#reward-move-btns .rew-move-btn")',30000);
+      await sleep(100);
+      await finishQ001FadeProbe(page);
+      const state=await page.run(`(()=>{const el=document.getElementById('reward-offer-section'),s=el&&getComputedStyle(el,'::before');
+        const p=document.querySelector('.tavern-presentation-host img.tavern-portrait[data-portrait-id="${q001.portrait}"]');
+        const cards=(_rewCards||[]).filter(Boolean);return {heading:s?.content||'',headingColor:s?.color||'',visible:!!el&&el.getBoundingClientRect().width>0,
+          count:cards.length,no:_qCardNo(cards[0]),desc:cards[0]?.desc||'',button:document.querySelector('#reward-move-btns .rew-move-btn')?.textContent||'',
+          portrait:!!(p&&p.complete&&p.naturalWidth>0&&p.classList.contains('is-visible'))};})()`);
+      ok('Q001編成：見出し3を表示し、魔族の魂を1枚だけ置き、未取得は拒否',state.heading.includes(q001.title)&&state.visible
+        &&state.headingColor!=='transparent'&&state.count===1&&state.no==='E075'&&state.desc.includes('；')&&state.button.trim()===q001.reject,state);
+    }
+    async function takeQ001(page){
+      return page.run(`(()=>{const idx=_rewCards.findIndex(c=>_qCardNo(c)==='E075'),slot=G.mainBoard.findIndex(c=>!c);
+        if(idx<0||slot<0)throw new Error('Q001のカード／置き先なし');takeRewCard(idx,slot);return slot;})()`);
+    }
+    await startRunWithQuest(b);
+    // 実際の「クエスト変更」を使い、地域シート未登録のQ001を選択する。
+    await b.run(`G._debugMode=true;questDebugOpenEditor();return 1;`);
+    for(let i=0;i<4&&await b.run(`return document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="1"]')?.dataset.questId!=='Q001'`);i++){
+      await b.run(`document.querySelector('#quest-debug-layer .quest-debug-row[data-wave="1"] button[data-quest-debug-dir="next"]').click();return 1;`);
+    }
+    await b.run(`document.getElementById('quest-debug-save').click();return 1;`);
+    ok('Q001デバッグ：クエスト変更で選択・保存できる',await statusOf(b,'Q001')==='offered');
+    await openQ001Formation(b);
+    const slot=await takeQ001(b);
+    await b.until(`document.querySelector('#reward-move-btns .rew-move-btn')?.textContent.trim()===${JSON.stringify(q001.accept)}`);
+    ok('Q001編成：カードを取ると受領へ変わる',true);
+    await b.run(`_dragSrc={arr:'boardCards',idx:${slot}};_returnDragSrcToRewardArea();return 1;`);
+    await b.until(`document.querySelector('#reward-move-btns .rew-move-btn')?.textContent.trim()===${JSON.stringify(q001.reject)}`);
+    ok('Q001編成：カードを戻すと拒否へ戻り、依頼は終了しない',await statusOf(b,'Q001')==='offered');
+    await takeQ001(b);await startQ001FadeProbe(b);
+    await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    await visibleQ001Line(b,q001.q.accepted[0]);await finishQ001FadeProbe(b);
+    const received=await b.run(`return {status:G.questProgress.Q001.status,targets:G.questProgress.Q001.enemyReplacementTargets,
+      saved:SaveRun.serializeRunState().questProgress.Q001.enemyReplacementTargets};`);
+    ok('Q001受領：受託台詞へ進み、割り振りをランセーブに保持',received.status==='accepted'&&received.targets.length>0
+      &&JSON.stringify(received.targets)===JSON.stringify(received.saved),received);
+    for(let i=0;i<q001.q.accepted.length;i++){
+      if(i)await visibleQ001Line(b,q001.q.accepted[i]);await clickDialogue(b);
+    }
+    await b.until(`!G._isTavern&&${notFading}`,30000);
+    await enterShop(b);
+    const beforeSale=await b.run(`(()=>{const fac=villageFacilityList().find(f=>f.key==='shop');return {gold:G.gold,
+      line:_facilityGreetingEntry(fac)['特殊台詞A1'],portrait:_villageFacilityPortraitB(fac)};})()`);
+    const clicked=await b.run(`(()=>{const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075');
+      const btn=document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"] .shop-board-sell-action');if(btn)btn.click();return !!btn;})()`);
+    ok('Q001エルム魔導店：魔族の魂の初回売却ボタンを押せる',clicked);
+    await visibleQ001Line(b,beforeSale.line);
+    const blocked=await b.run(`(()=>{const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075');
+      const p=document.querySelector('.tavern-presentation-host img.tavern-portrait[data-portrait-id="${beforeSale.portrait}"]');
+      const host=p?.closest('.tavern-presentation-host'),shade=document.querySelector('#scr-battle .quest-event-shade');let opacity=1;
+      for(let e=p;e;e=e.parentElement)opacity*=Number(getComputedStyle(e).opacity);
+      return {gold:G.gold,status:G.questProgress.Q001.status,owned:idx>=0,overlay:!!document.querySelector('#scr-battle .quest-event-shade'),
+        button:!!document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"] .shop-board-sell-action'),
+        portrait:!!(p&&p.complete&&p.naturalWidth>0&&p.classList.contains('is-visible')&&opacity>.9&&host&&shade
+          &&Number(getComputedStyle(host).zIndex)>Number(getComputedStyle(shade).zIndex))};})()`);
+    ok('Q001エルム魔導店：店Bの特殊台詞A1を重ね表示し、売らず、売却ボタンが消える',blocked.gold===beforeSale.gold
+      &&blocked.status==='accepted'&&blocked.owned&&blocked.overlay&&blocked.portrait&&!blocked.button,blocked);
+    await clickDialogue(b);await b.until('!G._villageFacilityBusy&&!document.getElementById("tavern-dialogue-layer")',15000);
+    await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    await b.until(`!G._isShop&&${notFading}`,30000);await enterShop(b);
+    ok('Q001エルム魔導店：同じランで再入店しても売却ボタンを復活させない',await b.run(`return (G.mainBoard||[]).filter(c=>_qCardNo(c)==='E075').every(c=>!_boardCardSellEnabled(c));`));
+    await b.run(`questForceEndEventForDebug();G._wave=2;G._waveStage=_waveRouteForWave(2).indexOf('city')+1;
+      G._waveVillage=true;G._isWaveAltar=false;openMapVillage({intro:true});return 1;`);
+    for(const line of q001.q2.initial){
+      await visibleQ001Line(b,line);
+      await visiblePortraits(b,['MC001',q001.portrait]);
+      ok('Q001ヴァルガ：Aの台詞でも酒場と同じBを最初から出す',await b.run(`return G.questProgress.Q001.status==='accepted'
+        &&document.body.classList.contains('quest-town-event-active');`));
+      await clickDialogue(b);
+    }
+    await b.until(`G.questProgress.Q001.status==='completed'&&!document.body.classList.contains('quest-town-event-active')`,15000);
+    ok('Q001ヴァルガ：成功完了で枠と今後の割り振りが消え、カードを保持する',await b.run(`return _qDescription()===''
+      &&_qRetainedCardCount(G.questProgress.Q001)>0&&G.questProgress.Q001.enemyReplacementTargets.filter(t=>!t.applied).every(t=>t.invalidated&&t.count===0);`));
+    await finish(b);
+
+    const r=await newPage();await startRunWithQuest(r,'Q001');await openQ001Formation(r);
+    await r.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    for(const line of q001.q.rejected){await visibleQ001Line(r,line);await clickDialogue(r);}
+    await r.until(`!G._isTavern&&${notFading}`,30000);
+    ok('Q001拒否：拒否台詞へ進み、カードと敵の割り振りを残さない',await r.run(`return G.questProgress.Q001.status==='rejected'
+      &&_qRetainedCardCount(G.questProgress.Q001)===0&&!(G.questProgress.Q001.enemyReplacementTargets||[]).length;`));
+    await finish(r);
+  }
+
+  // ── イベント編成：同時登場、全依頼の退出ガード、即時確定音、図書館 ──
+  if(section('イベント編成')){
+    const b=await newPage();await startRunWithQuest(b);
+    await b.until(notFading,30000);
+    const pair=await b.run(`return (async()=>{
+      const results=[];showScreen('village');
+      for(const speaker of ['A','B']){
+        await _qClearPresentation({immediate:true,includeShop:true});
+        let done=false;const frames=[];
+        const effective=id=>{const el=document.querySelector('.tavern-portrait[data-portrait-id="'+id+'"]');
+          let opacity=el?1:0;for(let p=el;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);return opacity>.01;};
+        const probe=()=>{frames.push([effective('MC001'),effective('MC002')]);if(!done)requestAnimationFrame(probe);};
+        requestAnimationFrame(probe);
+        const line=QUEST_DATA.Q003_1.initial.find(line=>line.speaker===speaker);
+        await _qShowPortraitPair('village',{questId:'Q003',tavernVariant:'Q003_1'},{firstLines:[line].filter(Boolean)});
+        done=true;results.push({speaker,frames:frames.length,both:frames.some(f=>f.every(Boolean)),solo:frames.some(f=>f[0]!==f[1])});
+      }
+      return results;
+    })();`);
+    ok('最初の話者がA/Bどちらでも、片側だけ先に出るフレームが無い',pair.every(r=>r.frames>0&&r.both&&!r.solo),pair);
+    await visiblePortraits(b,['MC001','MC002']);
+    const exits=await b.run(`return (async()=>{
+      const old={sfx:playSfx,accept:_qAcceptTavernQuest,reject:_qRejectTavernQuest};
+      const out=[],sounds=[];let actions=0;
+      try{
+        questForceEndEventForDebug();G._onlineMode=false;G._isLibrary=false;G.mapPanelPowers={};
+        playSfx=(key,opt)=>{sounds.push({key,guard:opt&&opt.guardKey});return true;};
+        _qAcceptTavernQuest=()=>actions++;_qRejectTavernQuest=()=>actions++;
+        const hero=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ブラウニー').id);
+        for(const id of ['Q001','Q003','Q005','Q006','Q007'])for(const accepted of [false,true]){
+          G.questProgress={};G.mainBoard=new Array(15).fill(null);G.globalPanels=[];G.rings=[];
+          G._wave=id==='Q005'||id==='Q006'?2:id==='Q007'?3:1;
+          const entry=questDebugForceWaveQuest(G._wave,id);_qOpenTavernFormation();
+          if(accepted){
+            if(_qConfig(entry).ringOffer)G.rings=[_qMakeRequiredRing(entry)];
+            else {const card=_qMakeRequiredCard(entry);card.keywords=[...(card.keywords||[]),'封印999'];G.mainBoard[1]=card;}
+          }
+          syncTavernFormationControls();
+          const button=document.querySelector('#reward-move-btns .rew-move-btn'),label=button.textContent.trim();
+          const before=JSON.stringify({board:G.mainBoard,entry,rings:G.rings}),count=actions;
+          sounds.length=0;button.click();
+          const warning=document.getElementById('fatal-error-message'),rect=warning.getBoundingClientRect(),style=getComputedStyle(warning);
+          out.push({id,accepted,label,blocked:actions===count&&G._isTavern&&G.phase==='reward'
+            &&before===JSON.stringify({board:G.mainBoard,entry,rings:G.rings}),
+            warning:document.body.classList.contains('fatal-error-active')&&warning.textContent===textMessage('戦闘キャラ不在時','')
+              &&document.getElementById('fatal-error-title').textContent===textMessage('「戦闘キャラ不在時」見出し','')
+              &&style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>.9
+              &&style.color!=='rgba(0, 0, 0, 0)'&&rect.width>0&&rect.height>0&&rect.right>0&&rect.left<innerWidth,
+            immediate:sounds.filter(s=>s.key==='uiConfirm').length===1});
+          document.getElementById('fatal-error-back-btn').click();sounds.length=0;
+          G.mainBoard[3]=clone(hero);syncTavernFormationControls();button.click();
+          out[out.length-1].allowed=actions===count+1&&sounds.filter(s=>s.key==='uiConfirm').length===1;
+          sounds.length=0;document.querySelector('#reward-move-btns .rew-reset-btn').click();
+          out[out.length-1].resetSound=sounds.filter(s=>s.key==='uiConfirm').length===1;
+        }
+        return out;
+      }finally{playSfx=old.sfx;_qAcceptTavernQuest=old.accept;_qRejectTavernQuest=old.reject;questForceEndEventForDebug();}
+    })();`);
+    ok('酒場の受領・受託・拒否は全依頼で同じ警告を出し、盤面・依頼状態を変えない',exits.length===10&&exits.every(r=>r.blocked&&r.warning),exits);
+    ok('イベントの確定と元に戻すは即時ui_confirmが各1回、有効な編成なら処理は1回',exits.every(r=>r.immediate&&r.allowed&&r.resetSound),exits);
+    const library=await b.run(`G.questProgress={};G._wave=0;G.mapPanelPowers={};
+      G.mainBoard=new Array(15).fill(null);G.mainBoard[1]=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ブラウニー').id);
+      openMapLibraryFormation();window.__libraryEntry=JSON.stringify(G._libraryLoanSnapshot.mainBoard);
+      G.mainBoard.fill(null);renderMoveSlotsInEnemy();const before=JSON.stringify(G._libraryLoanSnapshot);
+      document.querySelector('#reward-move-btns .library-quit-btn').click();
+      const message=document.getElementById('fatal-error-message'),rect=message.getBoundingClientRect(),style=getComputedStyle(message);
+      let opacity=1;for(let p=message;p;p=p.parentElement)opacity*=Number(getComputedStyle(p).opacity);
+      return {blocked:G._isLibrary&&!G._isLibraryMenu&&before===JSON.stringify(G._libraryLoanSnapshot)
+        &&document.body.classList.contains('fatal-error-active'),message:message.textContent,
+        visible:opacity>.9&&style.display!=='none'&&style.visibility!=='hidden'&&style.color!=='rgba(0, 0, 0, 0)'
+          &&rect.width>0&&rect.height>0&&rect.right>0&&rect.bottom>0&&rect.left<innerWidth&&rect.top<innerHeight};`);
+    ok('読書をやめるも現在の編成で同じ警告を実表示し、入館時の盤面へまだ戻さない',library.blocked&&library.visible&&library.message===await b.run(`return textMessage('戦闘キャラ不在時','')`),library);
+    const quit=await b.run(`document.getElementById('fatal-error-back-btn').click();
+      G.mainBoard[1]=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ブラウニー').id);
+      document.querySelector('#reward-move-btns .library-quit-btn').click();
+      return G._isLibraryMenu&&!G._isLibrary&&JSON.stringify(G.mainBoard)===__libraryEntry&&!_rewCards.length;`);
+    ok('出撃できる編成なら読書をやめ、入館時へ戻して貸出カードを片付ける',quit);
+    await finish(b);
+  }
+
+  // ── 施設会話：3街の宿屋、休息・拒否・不足・満タン、台詞4までBを保持 ──
   if(section('施設会話')){
     const b=await newPage();
-    await startRunWithWaveQuest(b,2,'Q002');
-    await openWave(b,2);
-    await b.run(`G.gold=0;G._waveLife=0;updateHUD();return 1;`);
-    const innTalk=await b.run(`return villageTalkEntry('「宿屋」入店時')`);
-    await clickFacility(b,'^宿屋$');
-    await waitLine(b,innTalk['台詞1']);
-    const portraits=await b.run(`return [...document.querySelectorAll('#tavern-presentation-layer img.tavern-portrait.is-visible')].map(x=>x.dataset.portraitId)`);
-    ok('宿屋の B の入店台詞でも A（MC001）が出る',portraits.includes('MC001'),{portraits});
-    await clickDialogue(b);
-    await waitChoice(b,innTalk['台詞2']);
-    await clickChoice(b,0);
-    await waitLine(b,innTalk['ゴールド不足時台詞']);
-    await waitVisibleFace(b,innTalk['ゴールド不足時台詞'].face);
-    ok('宿屋のゴールド不足時台詞は会話データの表情を使う',await face(b,innTalk['ゴールド不足時台詞'].face)==='表示',innTalk['ゴールド不足時台詞']);
-    await clickDialogue(b);
-    await b.until(`document.querySelector('#scr-village.active')&&!G._isTavern&&${notFading}`,30000);
+    await startRunWithWaveQuest(b,2,'Q002');await b.until(notFading,30000);
+    for(const [wave,portrait] of [[2,'MC015'],[4,'MC021'],[5,'MC024']])for(const branch of ['rest','cancel','insufficient','full']){
+      // 宿屋は一度休むと押せなくなるので、分岐ごとに使用記録を消してから試す。
+      await b.run(`G.gold=${branch==='insufficient'?0:10000};G._waveLife=${branch==='full'?'waveLifeMax()':0};G._waveInnUsed={};return 1;`);
+      await openWave(b,wave);
+      const talk=await b.run(`return villageTalkEntry('「宿屋」入店時')`);
+      if(branch==='full'){
+        const full=await b.run(`const fac=villageFacilityList().find(f=>f.key==='inn');const gold=G.gold;
+          const disabled=_villageFacilityDisabled(fac);void _onVillageFacility(fac);
+          return disabled&&G.gold===gold&&!document.body.classList.contains('facility-greeting-active');`);
+        ok('宿屋'+wave+'：満タンなら入店と支払いを止める',full);continue;
+      }
+      await clickFacility(b,'^宿屋$');await waitLine(b,talk['台詞1']);await visiblePortraits(b,['MC001',portrait]);
+      await clickDialogue(b);await waitChoice(b,talk['台詞2']);await visiblePortraits(b,['MC001',portrait]);
+      const choices=await b.run(`return _villageDialogueChoices(villageTalkEntry('「宿屋」入店時')['台詞2'].text)`);
+      const index=choices.findIndex(c=>branch==='cancel'?c.cancel:!c.cancel);
+      assert.ok(index>=0,'宿屋の選択肢が無い');
+      // 暗転（inn-rest-fading）の間はA・Bとも消え、明けた後の台詞4で両方が出る（2026-10-04 利用者指定）。
+      if(branch==='rest')await b.run(`window.__innPortraitKeep={done:false,frames:0,goneInDark:false};const tick=()=>{
+        __innPortraitKeep.frames++;if(document.body.classList.contains('inn-rest-fading')&&!document.querySelector('.tavern-portrait[data-portrait-id="${portrait}"],.tavern-portrait[data-portrait-id="MC001"]'))__innPortraitKeep.goneInDark=true;
+        if(!__innPortraitKeep.done)requestAnimationFrame(tick);};requestAnimationFrame(tick);return 1;`);
+      await clickChoice(b,index);
+      if(branch==='insufficient'){
+        await waitLine(b,talk['ゴールド不足時台詞']);await visiblePortraits(b,['MC001',portrait]);
+        if(talk['ゴールド不足時台詞'].face){await waitVisibleFace(b,talk['ゴールド不足時台詞'].face);
+          ok('宿屋の不足時表情は会話シートどおり',await face(b,talk['ゴールド不足時台詞'].face)==='表示');}
+        await clickDialogue(b);
+      }else if(branch==='rest'){
+        await waitLine(b,talk['台詞3']);await visiblePortraits(b,['MC001',portrait]);await clickDialogue(b);
+        await waitLine(b,talk['台詞4']);await visiblePortraits(b,['MC001',portrait]);
+        const keep=await b.run(`__innPortraitKeep.done=true;return {...__innPortraitKeep,gold:G.gold,life:G._waveLife};`);
+        ok('宿屋'+wave+'：暗転でA・Bとも消え、台詞4で両方が出る。料金・回復量も従来どおり',keep.frames>0&&keep.goneInDark
+          &&keep.gold===10000-choices[index].price&&keep.life===choices[index].life,keep);
+        await clickDialogue(b);
+      }
+      await b.until(`!G._villageFacilityBusy&&!document.body.classList.contains('facility-greeting-active')&&${notFading}`,30000);
+      ok('宿屋'+wave+'：'+branch+'の退店後に立ち絵を片付ける',await b.run(`return !document.querySelector('.tavern-presentation-host .tavern-portrait')`));
+      if(branch==='rest') ok('宿屋'+wave+'：一度休んだら、ライフが減っていても宿屋は押せない',await b.run(`return G._waveLife<waveLifeMax()&&!![...document.querySelectorAll('.village-facility')].find(x=>/宿屋/.test(x.textContent)&&x.classList.contains('village-facility-disabled'))`));
+    }
     await finish(b);
   }
 
@@ -1276,7 +1603,8 @@ const WAVE=1;
         const talk=villageTalkEntry('「魔導店」入店時（闘技場後）')||{};
         const picked=_facilityArenaAfterTalkLine(talk);
         const source=talk[${JSON.stringify(scenario.column)}];
-        const normal=villageTalkEntry('「魔導店」入店時')?.['台詞1'];
+        // 闘技場に参加した後の通常の入店は 特殊台詞A1（2026-10-03 利用者指定）。
+        const normalTalk=villageTalkEntry('「魔導店」入店時')||{};const normal=normalTalk['特殊台詞A1']||normalTalk['台詞1'];
         const saved=SaveRun.serializeRunState().choices._arenaResults?.[3];
         return {picked,source,normal,saved};})()`);
       await clickFacility(b,'^魔[導道]店$');
@@ -1295,7 +1623,7 @@ const WAVE=1;
         await clickFacility(b,'^魔[導道]店$');
         await waitLine(b,expected.normal);
         const second=await b.run(`(()=>{const seen=G._facilityTalkSeen||{};return {text:document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text')?.textContent||'',normal:seen['3:shop']===true,special:seen['3:shop:arenaAfter']===true};})()`);
-        ok('闘技場後の専用台詞は1回だけで、次の魔導店入店は通常台詞',second.text===expected.normal.text&&second.special,second);
+        ok('闘技場後の専用台詞は1回だけで、次の魔導店入店は通常の入店台詞（闘技場後は特殊台詞A1）',second.text===expected.normal.text&&second.special,second);
         // 台詞の表示直後のクリックは取りこぼすことがあるので、店の画面に進むまで送る。
         for(let k=0;k<8&&!(await b.run('return document.body.classList.contains("reward-screen-active")&&!!G._isShop'));k++){ await clickDialogue(b); await sleep(700); }
         await b.until('document.body.classList.contains("reward-screen-active")&&G._isShop');
@@ -1327,6 +1655,8 @@ const WAVE=1;
       const back=_rewCards.find(c=>c&&/ファラ/.test(c.name));
       return {p0,p1,mark,back:!!back,backMark:!!(back&&back._itemBuffed),label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent};`);
     ok('ファラにアイテムを使うと印が付き、報酬欄へ戻しても残る',buffed.p1===buffed.p0+5&&buffed.mark&&buffed.back&&buffed.backMark&&buffed.label==='拒否',buffed);
+    // ファラの場所を空けるために動かしたキャラを召喚マス（1）へ戻す。召喚できるキャラがいないと、編成を離れる時の警告で止まる（2026-10-04 仕様）。
+    await b.run(`const bd=G.mainBoard;if(!bd[1]){const k=bd.findIndex((c,i)=>i!==1&&c&&c.type==='panel'&&c.power!=null);if(k>=0){bd[1]=bd[k];bd[k]=null;}}renderHandEditor();return 1;`);
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     const lines=[...q1.q.specialA1,...q1.q.specialA2,...q1.q.specialA3];
     ok('特殊拒否台詞A1・A2・A3がシートにある',lines.length===3,{lines});
@@ -1621,7 +1951,7 @@ const WAVE=1;
       const tick=()=>{document.querySelectorAll('.village-facility,#village-move-btns .rew-move-btn,#village-depart-btn').forEach(el=>{if(vis(el))__btnSeen.push(el.id||el.textContent.trim().slice(0,8));});
         if(!document.querySelector('#tavern-dialogue-layer .tavern-dialogue-text')) requestAnimationFrame(tick);};
       requestAnimationFrame(tick);return 1;`);
-    await b.run(`G._wave=${WAVE};G._waveStage=10;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
+    await b.run(`G._wave=${WAVE};G._waveStage=_waveRouteForWave(G._wave).indexOf('altar')+1;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
     await waitLine(b,q1.q2.initial[0]);
     const seen=await b.run(`return [...new Set(__btnSeen)]`);
     ok('到着の会話が始まる塔では、ボタンが一瞬も出ない',seen.length===0,{seen});

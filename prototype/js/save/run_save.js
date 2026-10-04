@@ -521,6 +521,8 @@ const SaveRun=(()=>{
       }
     }finally{G._coreDrivenBattle=false;G._savedBattleReplaying=false;G._battleVictoryCheckPending=false;}
     if(_battleRunStale(runId)) return;
+    // 保存済みの全結果からも集計する。終戦や描画されなかったdeathを落とさず、既読の個体は重ねない。
+    if(typeof questRecordBattleDeaths==='function') questRecordBattleDeaths(p.events,p.setup.units.p2);
     G._deferManaThresholdEffects=false;
     if(p.outcome==='p2'){
       applyEnd(state);

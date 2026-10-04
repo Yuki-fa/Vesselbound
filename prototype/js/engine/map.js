@@ -501,7 +501,8 @@ function villageFacilityDescText(name){
     if(done) return String(done);
   }
   // 宿屋はライフ満タンの時「街「宿屋」直下（ライフ満タン時）」を使う（利用者指定 2026-09-25）。
-  if(variants.includes('宿屋')&&!(G&&G._isWaveAltar)&&(_firstRunVargaInnLocked()||_villageLifeFull())){
+  // 一度使った後も同じ文（シートに使用後の行が無いため）。
+  if(variants.includes('宿屋')&&!(G&&G._isWaveAltar)&&(_firstRunVargaInnLocked()||_villageLifeFull()||_villageInnUsed())){
     const full=textMessage('街「宿屋」直下（ライフ満タン時）','');
     if(full) return String(full);
   }
@@ -573,9 +574,9 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
   },
   // フォルセティ
   5:{
-    '魔導店':{x:485, y:910},
-    '宿屋':  {x:2723,y:839},
-    '道具屋':{x:1198,y:972},
+    '魔導店':{x:855, y:805},
+    '宿屋':  {x:2725,y:1394},
+    '道具屋':{x:2528,y:735},
   },
 };
 // 塔の施設位置（全ステージ共通・左上合わせpx）。
@@ -666,7 +667,8 @@ function _villageFacilityDisabled(fac){
   if(fac.key==='home') return !(typeof isFirstStoryRun==='function'&&isFirstStoryRun());
   if(VILLAGE_FACILITY_UNIMPLEMENTED.has(fac.key)) return true;
   // 宿屋はライフ満タンの時は入れない（ボタンを暗くする）。
-  if(fac.key==='inn') return _firstRunVargaInnLocked()||_villageLifeFull();
+  // 宿屋はその街で一度使ったら、ライフが減っていても押せない（2026-10-04 利用者指定）。
+  if(fac.key==='inn') return _firstRunVargaInnLocked()||_villageLifeFull()||_villageInnUsed();
   // 闘技場は同じラン・同じ街では一度だけ挑戦できる。
   if(fac.key==='arena') return _villageArenaUsed();
   // 祭壇は指輪取得後（resolved）も入場できる。中は指輪が消えて枠だけの状態になる
@@ -680,6 +682,7 @@ const VILLAGE_FACILITY_PORTRAIT_B={
   2:{shop:'MC013',item:'MC014',inn:'MC015'},     // ヴァルガ：魔導店・道具屋・宿屋
   3:{shop:'MC016',forge:'MC017',arena:'MC018'},  // ギャラハ：魔導店・鍛冶屋・闘技場
   4:{shop:'MC019',forge:'MC020',inn:'MC021'},    // ヴォルザーク：魔導店・鍛冶屋・宿屋
+  5:{shop:'MC022',item:'MC023',inn:'MC024'},     // フォルセティ：魔導店・道具屋・宿屋
 };
 // **ショップ（魔導店・道具屋・鍛冶屋）は、入った時から店の人（Bキャラ）を出し続ける。**（2026-10-03 利用者指定）
 // 入店時の台詞などのイベント中はAキャラを足し、終わったらAキャラだけ消してBキャラは残す。
@@ -748,7 +751,7 @@ async function _onVillageFacility(fac){
   // 店・宿屋・図書館・酒場＝shop_in.wav、祭壇＝altarIn。音はここだけで鳴らし、各 open〜関数では鳴らさない。
   // 五聖の座（landing）は in/out の音を鳴らさない（2026-10-03 利用者指定。ui_confirm は上で鳴らす）。
   const enterSfx={shop:'shopIn',forge:'shopIn',item:'shopIn',inn:'shopIn',arena:'shopIn',library:'shopIn',tavern:'shopIn',ringExchange:'altarIn'}[fac.key];
-  if(enterSfx&&typeof playSfx==='function') playSfx(enterSfx,{group:'ui'});
+  if(enterSfx&&typeof playSfxAfterConfirm==='function') playSfxAfterConfirm(enterSfx,{group:'ui'});
   if(['shop','forge','item','inn','arena'].includes(fac.key)){
     G._villageFacilityBusy=true;
     try{
@@ -772,18 +775,12 @@ async function _onVillageFacility(fac){
         &&(forgeChainState||arenaAfterPending||!seen||fac.key==='inn'||fac.key==='arena')){
         await fadeScreenSwitch(()=>{
           _showFacilityGreetingScene(fac);
-          // 店の人は暗転の中で最初から置いておく（暗転が明けた瞬間から見える）。
+          // 主人公と店の人を暗転の中で一緒に置く（明けた瞬間から両方見える）。
+          _placePortraitInstant('MC001','village');
           _placePortraitInstant(_villageFacilityPortraitB(fac),'village');
         });
         if(!isCurrent()) return;
-        // 施設の会話は、シートの最初の台詞が B でも酒場と同じ位置に A を出す。
         // 台詞ごとの表情は、その後 _qStartDialogue() がシートの値を適用する。
-        if(typeof showTavernPortrait==='function') await showTavernPortrait('MC001',{screen:'village'});
-        if(!isCurrent()) return;
-        // 店の人（Bキャラ）。街×施設ごとに決まっている（VILLAGE_FACILITY_PORTRAIT_B）。
-        const portraitB=_villageFacilityPortraitB(fac);
-        if(portraitB&&typeof showTavernPortrait==='function') await showTavernPortrait(portraitB,{screen:'village'});
-        if(!isCurrent()) return;
         if(fac.key==='inn'){
           await _runVillageInnDialogue(talk);
           if(!isCurrent()) return;
@@ -1115,9 +1112,8 @@ async function _playWorldMapDeparture(done,beforeReveal){
 }
 // ── 出発時のムービー ─────────────────────────────────────
 // ワールドマップの代わりにムービーを流すステージ（キー＝G._wave。街のみ・塔は対象外）。
-const DEPARTURE_MOVIES={
-  5:'assets/movies/movie2.webm', // 断罪と記憶の村 フォルセティ → 最終決戦へ
-};
+// フォルセティ出発後のムービー（movie2.webm）は流さない（2026-10-04 利用者指定）。素材は assets/movies に残す。
+const DEPARTURE_MOVIES={};
 function _departureMovieSrc(){
   if(!G||G._isWaveAltar) return '';
   return DEPARTURE_MOVIES[Math.max(0,Number(G._wave)||0)]||'';
@@ -1224,8 +1220,33 @@ function departWithWorldMap(options){
   }
   const movie=_departureMovieSrc();
   if(movie){ void _playDepartureMovie(movie,next,beforeReveal); return true; }
+  // 蝕界の塔（ステージ4の塔）を出発する時はワールドマップを出さず、暗転だけで次へ進む（2026-10-04 利用者指定）。
+  if(G._isWaveAltar&&Number(G._wave)===4){ void _playPlainDeparture(next,beforeReveal); return true; }
   void _playWorldMapDeparture(next,beforeReveal);
   return true;
+}
+// マップもムービーも挟まない出発。暗転→保存→次の画面。暗転は次の入場演出へそのまま引き継ぐ。
+async function _playPlainDeparture(done,beforeReveal){
+  if(G._worldMapScreenPlaying){ done(); return; }
+  G._worldMapScreenPlaying=true;
+  const fade=_ensureVillageEnterFadeEl();
+  try{
+    fade.style.transition='opacity .34s ease';
+    fade.style.opacity='1';
+    await _mapDelay(360);
+    if(typeof beforeReveal==='function'&&await beforeReveal()===false){
+      fade.style.transition='none';
+      fade.style.opacity='0';
+      return;
+    }
+  }finally{
+    G._worldMapScreenPlaying=false;
+  }
+  done();
+  if(G._villageIntroPlaying) return;
+  await _mapDelay(80);
+  fade.style.transition='opacity .45s ease';
+  fade.style.opacity='0';
 }
 function villageDepart(){
   if(G._pendingPanelPlacement) return;
@@ -1262,7 +1283,7 @@ function renderVillageScreen(){
         if(_screenSwitchFading) return;
         // 出る音（out）とは別に ui_confirm も鳴らす（このボタンは data-sfx-silent。2026-10-03 利用者指定）。
         if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
-        if(typeof playSfx==='function') playSfx('shopOut',{group:'ui'});
+        if(typeof playSfxAfterConfirm==='function') playSfxAfterConfirm('shopOut',{group:'ui'});
         void fadeScreenSwitch(()=>leaveMapLibrary());
       };
     }
@@ -1605,6 +1626,7 @@ function openMapLibraryMenu(){
 // 盤面は入館時の編成へ戻し、貸出カードも捨てる（利用者指定 2026-09-25）。
 // 同じ説明を開き直すと、貸出カードは指定の5枚から始まる。
 function closeMapLibraryFormation(){
+  if(!guardFormationLeave()) return false;
   if(typeof playSfx==='function') playSfx('bookClosing',{group:'ui'});
   const snap=G._libraryLoanSnapshot;
   if(snap){
@@ -1849,7 +1871,12 @@ function openLibraryMergeTutorial(){
 function villageTalkEntry(scene){
   const all=(typeof window!=='undefined'&&window.TALK_MESSAGES)||{};
   const town=String((regionInfoForWave(G&&G._wave)||{}).townName||'');
-  const own=Object.keys(all).find(k=>town&&(k===town||k.includes(town)||town.includes(k)));
+  // 会話シートの街見出しと地域情報の街名は、前半（二つ名）が食い違うことがある
+  // （例：地域情報「遥かなる記憶 フォルセティ」／会話「断罪と記憶の村 フォルセティ」。2026-10-04）。
+  // 完全一致・包含で見つからなければ、後半の固有名（スペースの後）で引く。
+  const properName=v=>String(v||'').trim().split(/[ 　]+/).pop();
+  const own=Object.keys(all).find(k=>town&&(k===town||k.includes(town)||town.includes(k)))
+    ||Object.keys(all).find(k=>town&&properName(k)&&properName(k)===properName(town));
   const rows=own&&all[own];
   if(!rows) return null;
   const name=Object.keys(rows).find(k=>k===scene||k.endsWith(scene));
@@ -1887,8 +1914,9 @@ async function _runFirstStoryFacilityEvent(fac){
   if(noFade) _showFacilityGreetingScene(fac,{keepPlate:true});
   else await fadeScreenSwitch(()=>{if(isCurrent()) _showFacilityGreetingScene(fac);});
   if(!isCurrent()) return true;
-  if(typeof showTavernPortrait==='function'){
-    await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
+  if(typeof _qShowPortraitPair==='function'){
+    await _qShowPortraitPair('village',{tavernVariant:''},{portraitB:_villageFacilityPortraitB(fac),
+      firstLines:lines,faceA:_storyFirstFace(lines,'MC001'),withoutNamePlate:true});
   }
   if(!isCurrent()) return true;
   if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
@@ -1960,10 +1988,9 @@ async function _runStoryArrival(spec){
   G._storyArrivalBusy=true;
   try{
     document.body.classList.add(spec.cssClass);
-    if(typeof showTavernPortrait==='function'){
-      await showTavernPortrait('MC001',{screen:'village',face:_storyFirstFace(lines,'MC001')});
-      if(!isCurrent()) return 'cancelled';
-      if(spec.portraitB) await showTavernPortrait(spec.portraitB,{screen:'village'});
+    if(typeof _qShowPortraitPair==='function'){
+      await _qShowPortraitPair('village',{tavernVariant:''},{portraitB:spec.portraitB,
+        firstLines:lines,faceA:_storyFirstFace(lines,'MC001'),withoutNamePlate:true});
     }
     if(!isCurrent()) return 'cancelled';
     if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
@@ -2009,6 +2036,34 @@ function _facilityGreetingEntry(fac){
     if(t) return t;
   }
   return null;
+}
+// 店内の特殊会話は商品画面へ重ね、店のBキャラをそのまま使う。
+async function showVillageShopSpecialDialogue(column){
+  if(!G||!G._isShop||G._villageFacilityBusy) return;
+  const generation=Number(G._debugEventGeneration)||0;
+  const isCurrent=()=>generation===(Number(G._debugEventGeneration)||0);
+  const fac=villageFacilityList().find(f=>f.key===(G._isItemShop?'item':'shop'));
+  const talk=_facilityGreetingEntry(fac),line=talk&&talk[column];
+  if(!line) return;
+  G._villageFacilityBusy=true;
+  document.body.classList.add('shop-special-dialogue-active');
+  const shade=document.createElement('div');
+  shade.className='quest-event-shade is-visible';
+  document.getElementById('scr-battle')?.appendChild(shade);
+  try{
+    await _qShowPortraitPair('battle',{tavernVariant:''},{portraitB:_villageFacilityPortraitB(fac),firstLines:[line],withoutNamePlate:true});
+    if(!isCurrent()) return;
+    await _qStartDialogue([line],{screen:'battle'});
+    if(!isCurrent()) return;
+    _qRemoveDialogue();
+    await _qClearPresentation();
+  }finally{
+    shade.remove();
+    if(isCurrent()){
+      document.body.classList.remove('shop-special-dialogue-active');
+      G._villageFacilityBusy=false;
+    }
+  }
 }
 function _facilityArenaAfterTalkEntry(fac){
   const names=villageFacilityNameVariants(fac&&fac.name);
@@ -2117,7 +2172,7 @@ async function _runVillageInnDialogue(talk){
   G._waveInnUsed=G._waveInnUsed||{};
   G._waveInnUsed[_waveFacilityCacheKey()]=true;
   if(typeof playSfx==='function') playSfx('purchase',{group:'ui'});
-  // 台詞3はクリックで閉じる。台詞が消えてから、背景だけを暗転させ、キャラも消す（2026-09-25 利用者指定）。
+  // 台詞3を閉じたら暗転する。**暗転でA/Bの立ち絵も両方消し**、明けた時（台詞4の前）に両方を同時に出し直す（2026-10-04 利用者指定）。
   if(talk['台詞3']) await _qStartDialogue([talk['台詞3']],{screen:'village'});
   document.body.classList.add('inn-rest-fading');
   await Promise.all([
@@ -2147,12 +2202,21 @@ async function _runVillageInnDialogue(talk){
   if(talk['台詞4']){
     document.body.classList.add('inn-rest-return');
     document.body.classList.remove('inn-rest-fading');
-    // 暗転の間に消したキャラ（A）も背景と一緒に戻す。
-    // 台詞4に表情の指定があれば、暗転中に切り替えておき、明けた時には最初からその表情で出す
-    //（明けてから表情が変わって見えないようにする。暗転前には表情を変えない。2026-09-28 利用者指定）。
+    // 背景の復帰と一緒に、A（台詞4の表情指定つき）とB（宿屋の店員）を同時に出し直す。
     const restFaceSpec=typeof _qFaceSpec==='function'?_qFaceSpec(talk['台詞4'].face):null;
     const restFace=restFaceSpec&&restFaceSpec.portraitId==='MC001'?restFaceSpec.name:undefined;
-    if(typeof showTavernPortrait==='function') void showTavernPortrait('MC001',{screen:'village',face:restFace});
+    const innB=typeof _villageFacilityPortraitB==='function'?_villageFacilityPortraitB({key:'inn'}):null;
+    // Bは暗転で要素ごと消えるので、出し直す前に画像を読み終えておく（Aより遅れて出ないように）。
+    const innBSrc=innB&&typeof TAVERN_PORTRAIT_CONFIG!=='undefined'&&TAVERN_PORTRAIT_CONFIG[innB]?TAVERN_PORTRAIT_CONFIG[innB].src:'';
+    if(innBSrc){ try{ const pre=new Image(); pre.src=innBSrc; await pre.decode(); }catch(_e){} }
+    if(typeof showTavernPortrait==='function'){
+      // 両方の準備が済んでから同時にフェードインする（_qShowPortraitPair と同じ waitAppearance）。
+      const count=innB?2:1;let ready=0,release;
+      const appearanceReady=new Promise(resolve=>{release=resolve;});
+      const waitAppearance=()=>{if(++ready===count) release();return appearanceReady;};
+      void showTavernPortrait('MC001',{screen:'village',face:restFace,waitAppearance});
+      if(innB) void showTavernPortrait(innB,{screen:'village',waitAppearance});
+    }
     await _mapDelay(INN_REST_BG_FADE_MS);
     document.body.classList.remove('inn-rest-return');
     await _qStartDialogue([talk['台詞4']],{screen:'village'});
