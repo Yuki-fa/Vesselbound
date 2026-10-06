@@ -1,0 +1,360 @@
+/* VFXプレビュー専用。ゲームの G・戦闘コア・保存データには触れない。 */
+var VbFxPreview = (function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var effect = VbFx.effects[0].name, sourceId = '', targetIds = [], cycleToken = 0;
+  var audioVoices = new Set(), audioTimers = new Set();
+  var choices = {}, playCount = 0, lastImpacts = [], running = 0, generation = 0;
+  var allyPortraits = ['C041', 'C024', 'C046', 'C067', 'C077'];
+  var enemyPortraits = ['EN001', 'EN020', 'EN005', 'EN010', 'EN011'];
+  var colorFrames = { 赤: 1, 青: 2, 緑: 3, 黄: 4, 紫: 5 };
+  var allNames = VbFx.effects.map(function (d) { return d.name; });
+  try { choices = JSON.parse(localStorage.getItem('vb-fx-lab-choices') || '{}'); } catch (_) {}
+  function saveChoices() { try { localStorage.setItem('vb-fx-lab-choices', JSON.stringify(choices)); } catch (_) {} }
+  function message(text) { $('message').textContent = text; }
+  function ownSide() { return $('side').value; }
+  function cardsFor(side) { return Array.from(document.querySelectorAll('.lab-card[data-side="' + side + '"]:not(.summon-slot)')); }
+  function card(id) { return document.getElementById(id); }
+  function def(name) { return VbFx.effects.find(function (d) { return d.name === (name || effect); }); }
+  function config(name) { return VbFxPreviewCatalog[name || effect]; }
+  function applyPortrait(el, no) {
+    var c = VbFxPreviewCards[no];
+    if (!c) throw new Error('プレビュー用カードがありません: ' + no);
+    var dir = no.indexOf('EN') === 0 ? 'enemies' : 'characters';
+    var artNo = no === 'C081' ? 'C061' : no;
+    el.querySelector('.art').src = '../assets/art/' + dir + '/' + artNo + '.jpg';
+    el.querySelector('.frame').src = '../assets/cards/' + (el.dataset.side === 'enemy' ? 'enemy_frame.svg' : 'character_frame' + (colorFrames[c.color] || 3) + '.svg');
+    el.querySelector('.name').textContent = c.name; el.dataset.previewName = c.name; el.dataset.no = no; el.dataset.color = c.color;
+    el.setAttribute('aria-label', (el.dataset.side === 'enemy' ? '敵 ' : '味方 ') + c.name);
+  }
+  function buildCard(side, i, no, summon, frontCount) {
+    var el = document.createElement('button'); el.type = 'button';
+    el.id = side + '-' + (summon ? 'wolf' : i); el.className = 'lab-card' + (summon ? ' summon-slot' : '');
+    el.dataset.vbFxCard = '1'; el.dataset.side = side;
+    var lane = summon || i < 3 ? 'front' : 'rear', pos = summon ? 3 : i < 3 ? i : i - 3;
+    VbFxLabGeometry.applyCard(el, side, lane, lane === 'front' ? frontCount : 2, pos);
+    el.innerHTML = '<img class="art" alt=""><img class="frame" alt=""><span class="frame-border"></span><img class="stats-overlay" src="../assets/cards/status_overlay.png" alt=""><span class="name"></span><span class="stats"><b>6</b><b>8</b></span><span class="card-caption"></span>';
+    el.querySelector('.card-caption').textContent = summon ? '召喚先' : (i < 3 ? '前衛' : '後衛');
+    applyPortrait(el, no); el.addEventListener('click', function () { pickCard(el.id); }); return el;
+  }
+  function configureBoard() {
+    var cards = $('cards'); cards.replaceChildren();
+    var conf = config(), side = ownSide(), frontCount = conf.mode === 'summon' ? 4 : 3;
+    allyPortraits.forEach(function (no, i) { cards.appendChild(buildCard('ally', i, no, false, 3)); });
+    enemyPortraits.forEach(function (no, i) { cards.appendChild(buildCard('enemy', i, no, false, 3)); });
+    var own = cardsFor(side);
+    sourceId = own[1].id; applyPortrait(own[1], conf.source);
+    if (conf.deadOrigin) {
+      applyPortrait(own[2], conf.source); applyPortrait(own[1], 'C102');
+      own[1].classList.add('is-dead'); own[1].querySelector('.card-caption').textContent = '死亡した味方';
+    }
+    if (conf.mode === 'green' && side === 'enemy') { applyPortrait(own[0], 'C046'); applyPortrait(own[4], 'C041'); }
+    if (conf.mode === 'summon') {
+      var wolf = buildCard(side, 5, 'C102', true, frontCount); cards.appendChild(wolf);
+    }
+    if (effect === 'worm') cardsFor(side === 'ally' ? 'enemy' : 'ally').forEach(function (el, i) {
+      if (i % 2 === 0) { var tag = document.createElement('span'); tag.className = 'poison'; tag.textContent = '毒'; el.appendChild(tag); }
+    });
+    chooseDefaultTargets(); refreshSourceSelect(); refreshSelection(); lastImpacts = [];
+  }
+  function layoutSummonRow(el) {
+    var side = el.dataset.side;
+    var row = Array.from(document.querySelectorAll('.lab-card[data-side="' + side + '"][data-lane="front"]'));
+    var visible = row.filter(function (card) { return !card.classList.contains('summon-slot') || card.classList.contains('is-summoned'); });
+    visible.forEach(function (card, index) { VbFxLabGeometry.applyCard(card, side, 'front', visible.length, index); });
+  }
+  function chooseDefaultTargets() {
+    var conf = config(), side = card(sourceId).dataset.side, own = cardsFor(side), foes = cardsFor(side === 'ally' ? 'enemy' : 'ally');
+    var selected;
+    if (conf.mode === 'self') selected = [card(sourceId)];
+    else if (conf.mode === 'foes') selected = foes;
+    else if (conf.mode === 'friends') selected = own;
+    else if (conf.mode === 'friend') selected = [own.find(function (el) { return el.id !== sourceId; })];
+    else if (conf.mode === 'green') selected = own.filter(function (el) { return el.id !== sourceId && el.dataset.color === '緑'; });
+    else if (conf.mode === 'others') selected = own.concat(foes).filter(function (el) { return el.id !== sourceId; });
+    else if (conf.mode === 'pair') selected = [foes[1], foes[2]];
+    else if (conf.mode === 'summon') selected = [card(side + '-wolf')];
+    else if (effect === 'cockatrice' || effect === 'atk-down') selected = [foes[0]];
+    else selected = [foes[1]];
+    targetIds = selected.filter(Boolean).map(function (el) { return el.id; });
+  }
+  function refreshSourceSelect() {
+    var select = $('source-select'); select.replaceChildren();
+    cardsFor('ally').concat(cardsFor('enemy')).forEach(function (el) {
+      var option = document.createElement('option'); option.value = el.id;
+      option.textContent = (el.dataset.side === 'ally' ? '味方 ' : '敵 ') + el.dataset.previewName;
+      select.appendChild(option);
+    }); select.value = sourceId;
+  }
+  function refreshSelection() {
+    document.querySelectorAll('.lab-card').forEach(function (el) {
+      el.classList.toggle('is-source', el.id === sourceId); el.classList.toggle('is-target', targetIds.indexOf(el.id) >= 0);
+    }); $('source-select').value = sourceId;
+  }
+  function pickCard(id) {
+    if ($('pick-mode').value === 'source') {
+      sourceId = id; $('side').value = card(id).dataset.side; chooseDefaultTargets();
+    } else {
+      var multi = ['foes', 'friends', 'green', 'others'].indexOf(config().mode) >= 0;
+      if (multi) {
+        if (targetIds.indexOf(id) >= 0) { if (targetIds.length > 1) targetIds = targetIds.filter(function (x) { return x !== id; }); }
+        else targetIds.push(id);
+      } else if (config().mode === 'pair') {
+        if (targetIds.indexOf(id) < 0) targetIds = [targetIds[1] || targetIds[0], id];
+      } else targetIds = [id];
+    } refreshSelection();
+  }
+  // 状態異常の表示などSEの無い演出（2026-10-05 利用者指定：状態を示すだけなのでSE不要）。
+  var NO_SOUND = { id: '', filename: '（SEなし）', source: '', url: '', duration: 0, originalDuration: 0, reason: '状態の表示のみ', trimmed: false, start: 0, peak: 0 };
+  function selectedSound(name) {
+    var ids = VbFxSeCatalog.effects[name || effect] || [], selected = choices[name || effect];
+    if (!ids.length) return NO_SOUND;
+    return VbFxSeCatalog.sounds[ids.indexOf(selected) >= 0 ? selected : ids[0]];
+  }
+  function stopAudio() {
+    audioTimers.forEach(clearTimeout); audioTimers.clear();
+    audioVoices.forEach(function (a) { a._vbCancelled = true; a.pause(); a.removeAttribute('src'); a.load(); }); audioVoices.clear();
+  }
+  // offset：音の何秒目から鳴らすか。fadeAt／fadeEnd：鳴らし始めからの ms で、その間に音量を0へ下げる。
+  function playSound(sound, opts) {
+    if (!sound || !sound.url || Number($('volume').value) === 0) return null;
+    opts = opts || {};
+    var base = Number($('volume').value), audio = new Audio(sound.url + (sound.sha256 ? '?v=' + sound.sha256.slice(0, 10) : '')); audio.volume = base; audioVoices.add(audio);
+    if (opts.offset > 0) audio.currentTime = opts.offset;
+    // 音の途中から鳴らす時は、頭の60msで立ち上げる（途中で切った所がプツッと鳴らないように）。
+    var fadeIn = opts.offset > 0 ? 60 : 0;
+    if (fadeIn) audio.volume = 0;
+    if (opts.fadeEnd > 0 || fadeIn) {
+      var began = performance.now(), fadeAt = Math.max(0, opts.fadeAt || 0), fadeEnd = Math.max(fadeAt + 1, opts.fadeEnd || 0);
+      var tick = setInterval(function () {
+        var e = performance.now() - began;
+        if (audio._vbCancelled || audio.ended) { clearInterval(tick); return; }
+        if (opts.fadeEnd > 0 && e >= fadeEnd) { audio.volume = 0; audio.pause(); clearInterval(tick); return; }
+        var v = base;
+        if (fadeIn && e < fadeIn) v *= e / fadeIn;
+        if (opts.fadeEnd > 0 && e > fadeAt) v *= Math.pow(Math.cos(Math.min(1, (e - fadeAt) / (fadeEnd - fadeAt)) * Math.PI / 2), 2);
+        audio.volume = Math.max(0, Math.min(1, v));
+        if (!(opts.fadeEnd > 0) && e >= fadeIn) clearInterval(tick);
+      }, 16);
+    }
+    var dispose = function () { audioVoices.delete(audio); };
+    audio.addEventListener('ended', dispose, { once: true }); audio.addEventListener('error', function () { dispose(); if (!audio._vbCancelled) message('SEを読み込めません: ' + sound.filename); }, { once: true });
+    audio.play().catch(function (err) { dispose(); if (!audio._vbCancelled) message('音声再生が拒否されました: ' + err.message); }); return audio;
+  }
+  function timer(fn, ms) {
+    var id = setTimeout(function () { audioTimers.delete(id); fn(); }, ms); audioTimers.add(id); return id;
+  }
+  function audition(id) { stopAudio(); playSound(VbFxSeCatalog.sounds[id] || selectedSound()); }
+  function refreshSound() {
+    var ids = VbFxSeCatalog.effects[effect] || [], selected = selectedSound();
+    $('sound-select').replaceChildren(); $('candidate-details').replaceChildren();
+    ids.forEach(function (id, i) {
+      var sound = VbFxSeCatalog.sounds[id], option = document.createElement('option');
+      option.value = id; option.textContent = (sound.adopted ? '【採用】' : (i + 1) + '. ') + sound.filename + ' / ' + sound.duration.toFixed(3) + '秒'; $('sound-select').appendChild(option);
+      var row = document.createElement('div'); row.className = 'candidate';
+      var strong = document.createElement('strong'); strong.textContent = (i + 1) + '. ' + sound.filename;
+      var path = document.createElement('code'); path.textContent = sound.source;
+      var info = document.createElement('span'); info.textContent = 'コピー ' + sound.duration.toFixed(3) + '秒 / 原音 ' + sound.originalDuration.toFixed(3) + '秒 / ' + sound.reason;
+      var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[effect] = id; saveChoices(); refreshSound(); audition(id); });
+      row.append(strong, info, path, button); $('candidate-details').appendChild(row);
+    });
+    if (!ids || !ids.length) {
+      $('sound-name').textContent = NO_SOUND.filename; $('sound-duration').textContent = ''; $('sound-source').textContent = ''; $('sound-reason').textContent = NO_SOUND.reason;
+      $('aux-sound').hidden = true; return;
+    }
+    $('sound-select').value = selected.id; $('sound-name').textContent = selected.filename;
+    $('sound-duration').textContent = selected.duration.toFixed(3) + '秒 / −1dBFS'; $('sound-source').textContent = selected.source;
+    $('sound-reason').textContent = selected.reason + (selected.trimmed ? ' · 原音 ' + selected.originalDuration.toFixed(3) + '秒の ' + selected.start.toFixed(3) + '秒位置から切出し' : ' · 全尺');
+    var aux = config().auxiliary;
+    $('aux-sound').hidden = !aux;
+    if (aux) {
+      var sound = VbFxSeCatalog.sounds[aux];
+      $('aux-sound').textContent = (aux === 'revive' ? '続く復活' : '続くウルフの登場') + 'のSE: ' + sound.filename + ' · ' + sound.duration.toFixed(3) + '秒 · ' + sound.source;
+    }
+  }
+  function select(name, shouldPlay) {
+    if (allNames.indexOf(name) < 0) throw new Error('演出がありません: ' + name);
+    stop(); effect = name; generation++; configureBoard();
+    var d = def(), conf = config();
+    $('effect-title').textContent = d.label; $('duration').textContent = (d.ms / 1000).toFixed(2) + ' s'; $('description').textContent = conf.note;
+    $('notice').hidden = !conf.notice; $('notice').textContent = conf.notice || '';
+    $('attack-proposals').hidden = !conf.proposal;
+    document.querySelectorAll('#effect-list button').forEach(function (b) { b.classList.toggle('selected', b.dataset.name === name); b.setAttribute('aria-current', b.dataset.name === name ? 'true' : 'false'); });
+    refreshSound(); message(''); if (shouldPlay) return play(); return Promise.resolve();
+  }
+  function impact(index, targets, name, impacts, token) {
+    if (token !== generation) return;
+    var r = targets[index]; if (!r) return;
+    var time = performance.now() - impacts.start, entry = { targetIndex: index, target: r.element.dataset.previewName, ms: Math.round(time) };
+    impacts.push(entry); lastImpacts = impacts;
+    if (name === 'dragonnet' || name === 'bandersnatch') applyPortrait(r.element, config(name).morph);
+    if (name === 'direwolf') r.element.classList.add('is-summoned');
+  }
+  function play(name) {
+    if (name && name !== effect) return select(name, true);
+    if (!targetIds.length) { message('対象がありません'); return Promise.reject(new Error('対象なし')); }
+    if (!VbFx.activeCount()) {
+      if (effect === 'dragonnet' || effect === 'bandersnatch') targetIds.forEach(function (id) { applyPortrait(card(id), config().source); });
+      if (effect === 'direwolf') targetIds.forEach(function (id) { card(id).classList.remove('is-summoned'); });
+      if (effect === 'direwolf') targetIds.forEach(function (id) { layoutSummonRow(card(id)); });
+    }
+    var name = effect, conf = config(name), sound = selectedSound(name), token = generation;
+    var targets = targetIds.map(function (id) { return VbFx.rect(card(id)); }), impacts = [];
+    impacts.start = performance.now(); playCount++; running++; $('active-status').textContent = '再生中 ' + running;
+    var ms = VbFx.duration(name, Number($('speed').value));
+    // SEの一番大きい所（sound.peak 秒）を演出の命中の瞬間に合わせる。前倒しが要る時は音の途中から鳴らす。
+    // 演出の終わり（ms）から 260ms でフェードアウトし、演出の後に音だけ長く残らないようにする（2026-10-05 利用者指定）。
+    if (sound && sound.url && !VbFx.effects.find(function (d) { return d.name === name && d.loop; })) {
+      var hit = VbFx.impactMs(name, Number($('speed').value)), lead = hit - (sound.peak || 0) * 1000;
+      var startAt = Math.max(0, lead), offset = lead < 0 ? -lead / 1000 : 0;
+      // ダイアウルフは遠吠えの区間（全体の42%）で音を閉じ、ウルフ登場の音（補助）と重ねない。
+      var soundEnd = name === 'direwolf' ? ms * .44 : ms;
+      // 2026-10-06 利用者指摘「最後に途切れる感じ」：演出の終わりから1.1秒かけて、なだらかに消す（命中直後には消し始めない）。
+      var fadeAt = Math.max(0, Math.max(hit + 250, soundEnd * .95) - startAt), fadeEnd = fadeAt + 1100;
+      timer(function () { if (generation === token) playSound(sound, { offset: offset, fadeAt: fadeAt, fadeEnd: fadeEnd }); }, startAt);
+    }
+    if (conf.auxiliary) timer(function () { if (generation === token) playSound(VbFxSeCatalog.sounds[conf.auxiliary]); }, ms * .46);
+    return VbFx.play(name, {
+      source: VbFx.rect(card(sourceId)), targets: targets, side: ownSide(),
+      allies: cardsFor('ally').map(VbFx.rect), enemies: cardsFor('enemy').map(VbFx.rect),
+      speed: Number($('speed').value), size: Number($('size').value),
+      onImpact: function (i) { impact(i, targets, name, impacts, token); }
+    }).then(function (result) {
+      if (result.assetErrors.length) message('素材を読み込めません: ' + result.assetErrors.join(', '));
+      // 続けて出す演出（例：ヴリコラカス → 復活獲得）。ゲームでも本来のVFXの後に自動で続ける予定（2026-10-06 利用者指定）。
+      if (conf.then && generation === token && !result.cancelled) targetIds.forEach(function (id) { playChained(conf.then, card(id), token); });
+      return { name: name, result: result, impacts: impacts.slice() };
+    }).catch(function (err) { message('演出エラー: ' + err.message); throw err; }).finally(function () {
+      if (generation === token) { running = Math.max(0, running - 1); $('active-status').textContent = running ? '再生中 ' + running : '待機中'; }
+    });
+  }
+  function playChained(name, el, token) {
+    if (!el) return;
+    var sound = selectedSound(name), speed = Number($('speed').value);
+    if (sound && sound.url) {
+      var lead = VbFx.impactMs(name, speed) - (sound.peak || 0) * 1000, startAt = Math.max(0, lead), ms = VbFx.duration(name, speed);
+      timer(function () { if (generation === token) playSound(sound, { offset: lead < 0 ? -lead / 1000 : 0, fadeAt: Math.max(0, ms * .95 - startAt), fadeEnd: Math.max(0, ms * .95 - startAt) + 1100 }); }, startAt);
+    }
+    VbFx.play(name, { source: VbFx.rect(el), targets: [], side: el.dataset.side, speed: speed, size: Number($('size').value) }).catch(function () {});
+  }
+  function stop() {
+    cycleToken++; generation++; VbFx.stopAll(); stopAudio(); running = 0;
+    $('active-status').textContent = '待機中'; $('play-all').textContent = '全部を順に再生';
+  }
+  async function playAll() {
+    stop(); var cycle = ++cycleToken;
+    for (var i = 0; i < allNames.length; i++) {
+      if (cycle !== cycleToken) break;
+      // select() はユーザーの切替と同じ片付けを使う。巡回のトークンだけ継続する。
+      await select(allNames[i]); cycle = cycleToken;
+      $('play-all').textContent = (i + 1) + ' / ' + allNames.length + ' 再生中';
+      var selected = document.querySelector('#effect-list .selected'); if (selected) selected.scrollIntoView({ block: 'nearest' });
+      var started = performance.now(), sound = selectedSound(), conf = config();
+      var ms = VbFx.duration(effect, Number($('speed').value));
+      var audioEnd = ms + 1200;
+      if (conf.auxiliary) audioEnd = Math.max(audioEnd, ms * .46 + VbFxSeCatalog.sounds[conf.auxiliary].duration * 1000);
+      await play();
+      if (cycle !== cycleToken) break;
+      await new Promise(function (resolve) { setTimeout(resolve, Math.max(160, audioEnd - (performance.now() - started) + 160)); });
+    }
+    $('play-all').textContent = '全部を順に再生';
+  }
+  function exportChoices() {
+    var values = VbFx.effects.map(function (d) {
+      var s = selectedSound(d.name);
+      return { name: d.name, label: d.label, se: s.filename, copiedFile: s.url, originalPath: s.source, seconds: s.duration };
+    });
+    var data = { date: new Date().toISOString(), volume: Number($('volume').value), speed: Number($('speed').value), size: Number($('size').value), choices: values };
+    var url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    var anchor = document.createElement('a'); anchor.href = url; anchor.download = 'vesselbound-vfx-selection.json'; anchor.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000); message('選択したSEの一覧を保存しました');
+  }
+  VbFx.effects.forEach(function (d, i) {
+    var b = document.createElement('button'); b.dataset.name = d.name;
+    var number = document.createElement('span'); number.className = 'number'; number.textContent = String(i + 1).padStart(2, '0');
+    var label = document.createElement('span'); label.textContent = d.label;
+    b.append(number, label); b.addEventListener('click', function () { select(d.name, true).catch(function () {}); }); $('effect-list').appendChild(b);
+  });
+  ['all-sweep', 'all-ring', 'all-cross'].forEach(function (name) {
+    var b = document.createElement('button'); b.textContent = def(name).label;
+    var note = document.createElement('small'); note.textContent = { 'all-sweep': '速い薙ぎ払い・460ms', 'all-ring': '中央から広がる一撃・580ms', 'all-cross': '斬撃の交差・460ms' }[name];
+    b.appendChild(note); b.addEventListener('click', function () { select(name, true).catch(function () {}); }); $('proposal-buttons').appendChild(b);
+  });
+  $('effect-count').textContent = VbFx.effects.length + '種類'; $('protocol').textContent = location.protocol === 'file:' ? 'FILE:// LOCAL' : 'HTTP PREVIEW';
+  $('search').addEventListener('input', function () {
+    var query = this.value.toLowerCase(); document.querySelectorAll('#effect-list button').forEach(function (b) { b.hidden = !b.textContent.toLowerCase().includes(query); b.style.display = b.hidden ? 'none' : ''; });
+  });
+  $('source-select').addEventListener('change', function () { sourceId = this.value; $('side').value = card(sourceId).dataset.side; chooseDefaultTargets(); refreshSelection(); });
+  $('auto-target').addEventListener('click', function () { stop(); configureBoard(); });
+  $('side').addEventListener('change', function () { stop(); configureBoard(); });
+  $('background').addEventListener('change', function () { $('board-design').style.backgroundImage = 'url("../assets/art/backgrounds/' + this.value + '")'; });
+  $('replay').addEventListener('click', function () { play().catch(function () {}); });
+  $('play-all').addEventListener('click', function () { playAll().catch(function (err) { message(err.message); }); });
+  $('stop').addEventListener('click', stop);
+  $('sound-select').addEventListener('change', function () { choices[effect] = this.value; saveChoices(); refreshSound(); audition(this.value); });
+  $('sound-only').addEventListener('click', function () { audition(selectedSound().id); });
+  $('export').addEventListener('click', exportChoices);
+  $('volume').addEventListener('input', function () { $('volume-value').textContent = Math.round(Number(this.value) * 100) + '%'; audioVoices.forEach(function (a) { a.volume = Number($('volume').value); }); });
+  ['speed', 'size'].forEach(function (id) { $(id).addEventListener('input', function () { $(id + '-value').textContent = Number(this.value).toFixed(1) + '×'; }); });
+  window.addEventListener('pagehide', stop);
+  // 演出の一覧も↑↓キーで前後へ（全カードタブを開いている時はそちらが受け持つ）。
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+    var catalog = document.getElementById('card-catalog'); if (catalog && !catalog.hidden) return;
+    if (ev.target && /^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName)) return;
+    ev.preventDefault();
+    var i = allNames.indexOf(effect), next = allNames[Math.max(0, Math.min(allNames.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)))];
+    if (next && next !== effect) { select(next, true); var b = document.querySelector('#effect-list button[data-name="' + next + '"]'); if (b) b.scrollIntoView({ block: 'nearest' }); }
+  });
+  // 状態の重ね表示（2026-10-06 利用者指定）：選んだ状態異常のループを、発生元のカード1枚に同時に出す。
+  (function buildStackPanel() {
+    var bar = document.querySelector('.playbar'); if (!bar) return;
+    var panel = document.createElement('section'); panel.className = 'stack-panel';
+    panel.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:6px 10px;font-size:13px';
+    var title = document.createElement('strong'); title.textContent = '状態の重ね表示'; panel.appendChild(title);
+    VbFx.effects.filter(function (d) { return d.loop; }).forEach(function (d) {
+      var label = document.createElement('label'), box = document.createElement('input');
+      box.type = 'checkbox'; box.value = d.name; box.checked = ['shield-state', 'guts-state', 'revive-state'].indexOf(d.name) >= 0;
+      label.appendChild(box); label.appendChild(document.createTextNode(' ' + d.label));
+      // 結界は値＝重ね数、毒・弱体は値で15まで少しずつ禍々しくなる。
+      if (d.name === 'shield-state' || d.name === 'poison-state' || d.name === 'weaken-state') {
+        var num = document.createElement('input'); num.type = 'number'; num.min = '1'; num.max = '30'; num.value = '1';
+        num.style.width = '3.4em'; num.dataset.valueFor = d.name; num.title = d.label + 'の値'; label.appendChild(num);
+      }
+      panel.appendChild(label);
+    });
+    var button = document.createElement('button'); button.textContent = '発生元のカードに重ねて表示'; panel.appendChild(button);
+    button.addEventListener('click', function () {
+      stop();
+      var names = Array.prototype.slice.call(panel.querySelectorAll('input:checked')).map(function (b) { return b.value; });
+      if (!names.length) { message('状態を選んでください'); return; }
+      names.forEach(function (name) {
+        var valueInput = panel.querySelector('[data-value-for="' + name + '"]');
+        VbFx.play(name, { source: VbFx.rect(card(sourceId)), targets: [], side: ownSide(), value: valueInput ? Number(valueInput.value) || 1 : undefined,
+          allies: cardsFor('ally').map(VbFx.rect), enemies: cardsFor('enemy').map(VbFx.rect),
+          speed: Number($('speed').value), size: Number($('size').value) }).catch(function () {});
+      });
+      $('active-status').textContent = '重ね表示 ' + names.length;
+    });
+    panel.addEventListener('change', function (ev) {
+      var name = ev.target && ev.target.dataset && ev.target.dataset.valueFor; if (!name) return;
+      var box = panel.querySelector('input[type=checkbox][value="' + name + '"]'); if (!box || !box.checked) return;
+      VbFx.play(name, { source: VbFx.rect(card(sourceId)), targets: [], side: ownSide(), value: Number(ev.target.value) || 1 }).catch(function () {});
+    });
+    bar.parentNode.insertBefore(panel, bar.nextSibling);
+  })();
+  function scaleBoard() {
+    var game = VbFxLabGeometry.game;
+    var stage = $('stage'), scale = Math.min(stage.clientWidth / game.width, stage.clientHeight / game.height);
+    $('board-design').style.transform = 'translate(-50%,-50%) scale(' + scale + ')';
+  }
+  window.addEventListener('resize', scaleBoard); scaleBoard();
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(function (changes) {
+      changes.forEach(function (change) { if (change.target.classList.contains('summon-slot')) layoutSummonRow(change.target); });
+    }).observe($('cards'), { subtree: true, attributes: true, attributeFilter: ['class'] });
+  }
+  select(effect);
+  return { select: select, play: play, playAll: playAll, stop: stop, audition: audition, ready: true,
+    snapshot: function () { return { name: effect, sourceId: sourceId, targetIds: targetIds.slice(), impacts: lastImpacts.slice(), active: VbFx.activeCount(), plays: playCount, se: selectedSound().id }; } };
+})();

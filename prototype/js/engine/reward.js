@@ -3171,7 +3171,7 @@ function _panelEyeRingPreviewBonus(card,unit,idx){
   if(!card||typeof G==='undefined'||!G) return 0;
   const rings=typeof _effectiveRings==='function'?_effectiveRings():(G.rings||[]);
   if(!Array.isArray(rings)||!rings.some(Boolean)) return 0;
-  if(typeof coreSealValue==='function'&&coreSealValue(card)>0) return 0;
+  // 封印中のキャラにも掛かる（戦闘のコアと同じ。2026-10-05 利用者指摘）。
   const eye={'赤い瞳の指輪':'赤','青い瞳の指輪':'青','緑の瞳の指輪':'緑','黄の瞳の指輪':'黄','紫の瞳の指輪':'紫'};
   const colorMap={red:'赤',blue:'青',green:'緑',yellow:'黄',brown:'黄',purple:'紫',茶:'黄'};
   const raw=String(card.color||'').trim();
@@ -3211,7 +3211,7 @@ function _panelCharacterPreviewStats(unit,idx,card){
   }
   // 色の瞳の指輪（+10/+10）・虹の瞳の指輪（+X/+X）も魔導板の数値に含める（2026-10-02 利用者指摘）。
   // 戦闘ではコアの開戦処理（coreApplyOpeningRingsToUnitEarly）が同じ量を足す。鏡の指輪の写しも数える。
-  // 封印されたキャラには戦闘でも掛からないので足さない。
+  // 封印されたキャラにも戦闘で掛かるので足す。
   const ringBonus=_panelEyeRingPreviewBonus(card,unit,idx);
   // 戦闘では、強化で0未満になったATK/HPを0で止めてから開戦の指輪を足す。表示も同じ順にする。
   if(ringBonus){ base.atk=Math.max(0,base.atk); base.hp=Math.max(0,base.hp); }

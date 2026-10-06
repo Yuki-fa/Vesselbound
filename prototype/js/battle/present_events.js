@@ -19,6 +19,14 @@
 //   ・**ここへルール（数値の計算・勝敗）を書かない。** それはコアの仕事。
 // ═══════════════════════════════════════
 
+// 受け口の違いはカード情報の供給だけ。発動元の判定とDOMの終了監視は共通実装へ渡す。
+function presentBeginActionBannerEvent(ev, events, index) {
+  return typeof actionBannerEnterEvent === 'function' ? actionBannerEnterEvent(ev, events, index) : null;
+}
+function presentEndActionBannerEvent(scope) {
+  if (typeof actionBannerLeaveEvent === 'function') actionBannerLeaveEvent(scope);
+}
+
 // ── ダメージ ────────────────────────────────
 // api:
 //   findUnit(side, id)      … 盤面からユニットを引く
@@ -411,6 +419,7 @@ function presentFlushEffectFlashes() {
 }
 // 戦闘の切れ目で捨てる。持ち越すと次の戦闘の頭で関係のないカードが光る。
 function presentResetEffectFlashes() {
+  if (typeof actionBannerClear === 'function') actionBannerClear();
   // 状態異常の継続VFXも一緒に片付ける（戦闘の切れ目で呼ばれる）。
   if (typeof stopAllKeywordEffectVfx === 'function') stopAllKeywordEffectVfx();
   _presentPendingFlashes = [];
@@ -447,6 +456,7 @@ async function presentEffectFlashEvent(ev, api) {
 // 攻撃を見せた記録は自動加速の共通条件で使う。PvEのイベント生成側と
 // オンラインのイベント受け口の両方からこの関数を通し、片側だけ記録しない。
 function presentRecordAttackEvent(ev) {
+  if (ev && ev.immediate && typeof actionBannerStartScope === 'function') actionBannerStartScope();
   if (!ev || ev.attackerId == null || typeof G === 'undefined' || !G) return;
   if (!G._battleAttackedIds) G._battleAttackedIds = {};
   G._battleAttackedIds[ev.attackerId] = true;
@@ -638,7 +648,9 @@ async function presentManaThresholdEvent(ev, api) {
   const units = [...byUnit.values()];
   if (!units.length && source) units.push({ unit: source, isEnemySide: ev.side === 'p2', targets: [] });
   if (typeof api.playCue === 'function') {
-    await api.playCue(units, { repeat, effectNo: String(ev.effectNo || '') });
+    const actionBannerWave = typeof actionBannerBeginManaWave === 'function' ? actionBannerBeginManaWave(wave) : null;
+    try { await api.playCue(units, { repeat, effectNo: String(ev.effectNo || '') }); }
+    finally { if (typeof actionBannerEndManaWave === 'function') actionBannerEndManaWave(actionBannerWave); }
   }
   return true;
 }
@@ -939,6 +951,8 @@ async function presentBattleResultCutin(api) {
 }
 
 if (typeof window !== 'undefined') {
+  window.presentBeginActionBannerEvent = presentBeginActionBannerEvent;
+  window.presentEndActionBannerEvent = presentEndActionBannerEvent;
   window.presentDamageEvent = presentDamageEvent;
   window.presentDamageSfxBatch = presentDamageSfxBatch;
   window.presentShieldLostEvent = presentShieldLostEvent;
@@ -971,6 +985,7 @@ window.presentReviveEvent = presentReviveEvent;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    presentBeginActionBannerEvent, presentEndActionBannerEvent,
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,

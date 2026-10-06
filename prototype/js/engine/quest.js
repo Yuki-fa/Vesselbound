@@ -507,6 +507,8 @@ async function _fiveSaintsAccept(){
     delete card._rewardReturnIdx;
     delete card._rewardReturnPhaseId;
     if(ctx.no==='E076') card._fixedBoardSlot=(G.mainBoard||[]).indexOf(card);
+    // 刻印のXは取得した時のステージで固定する（2026-10-05 利用者指定）。
+    card._engravingStage=Math.max(1,Number(ctx.wave)||Number(G._wave)||1);
     if(typeof _rewCards!=='undefined') _rewCards=[];
     G._pendingPanelPlacement=null;
     _qFormationContext=null;

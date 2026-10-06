@@ -1120,6 +1120,7 @@ function getCurrentUnitSlot(side,idxOrUnit){
 // 保留している「効果発動時の発光」を、VFXが出るこの瞬間に合わせて始める。
 // **規則は present_events.js が唯一の実装**（ここは受け口を各VFXの入口へ置くだけ）。
 function _syncEffectFlashWithVfx(){
+  if(typeof actionBannerStartScope==='function') actionBannerStartScope();
   if(typeof presentFlushEffectFlashes==='function') presentFlushEffectFlashes();
 }
 
@@ -1788,6 +1789,10 @@ function _vfxHostParent(){
 // 即座に打ち切ってDOMから除去する。演出用の各hostは常にdocument.body直下へfixedで
 // 追加されるため、専用クラスで一括除去すればどの演出タイミングで戦闘が終わっても残らない。
 function _forceStopAllVfx(options){
+  // 終戦（勝利・撤退）では行動表示を消さずに残す（「進む」が出る時に消える。2026-10-06 利用者指定）。
+  // ゲームオーバー・中断などは従来どおり消す。
+  if(options&&options.keepActionBanner){ if(typeof actionBannerHold==='function') actionBannerHold(); }
+  else if(typeof actionBannerClear==='function') actionBannerClear();
   const preserveDamage=!!(options&&options.preserveDamage);
   // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に
   // 生成されるため、戦闘終了時は一時要素を種類を問わずまとめて除去する。
@@ -1888,6 +1893,7 @@ function playEffectVfxOnUnit(unit,side,code,options){
   img.src=_withVfxAssetVersion(url);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   let resolveComplete;
   const completePromise=new Promise(resolve=>{ resolveComplete=resolve; });
   const activeVfx=window.__activeVfxPromises||(window.__activeVfxPromises=new Set());
@@ -2086,6 +2092,7 @@ function playCurvedMissile(options){
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
   const halfW=fromRect.width/2, halfH=fromRect.height/2;
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   // **縦横比は変えない。** 位置（left/top）と回転・拡大だけを触る。
   const place=(pt,deg)=>{
     host.style.left=`${pt.x-halfW}px`;
@@ -2270,6 +2277,7 @@ function playHitVfxAtRect(rect,amount,options){
   const baseTransform=`translate(-50%,-50%) scale(${vfxScale}) rotate(${rotation}deg)`;
   _vfxHostParent().appendChild(host);
   let labelHost=null;
+  if(typeof actionBannerTrackVfxHost==='function'&&!labelOnly) actionBannerTrackVfxHost(host);
 
   const isWebp=labelOnly?true:/\.webp(\?|$)/i.test(hitUrl);
   let mediaEl,stop,videoRef=null;
@@ -2692,6 +2700,7 @@ async function playReviveVfx(unit,side){
     img.src=_withVfxAssetVersion(url);
     host.appendChild(img);
     (underLayer||_vfxHostParent()).appendChild(host);
+    if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
     requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(host) host.style.opacity='1'; }); });
     // 盤面が詰まってカードが動いても、絵はカードに付いて回る。
     const follow=()=>{
@@ -2769,6 +2778,7 @@ function playManaGainVfx(unit,side){
   img.src=_withVfxAssetVersion(url);
   host.appendChild(img);
   _vfxHostParent().appendChild(host);
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
     host.style.opacity='1';
     // 出た瞬間から消え終わるまで、一定の速さで上へ動かす。
@@ -2875,6 +2885,7 @@ async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
     p.done=true;
     if(typeof opt.onTargetHit==='function') opt.onTargetHit(p.unit);
   });
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   await new Promise(resolve=>{
     let startedAt=null;
     const total=fadeMs+growMs;
@@ -2989,6 +3000,7 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   clip.appendChild(host);
   _vfxHostParent().appendChild(clip);
   const img=document.createElement('img');
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(clip);
   img.className='special-vfx-img';
   img.alt='';
   img.style.cssText=`position:absolute;inset:0;width:100%;height:100%;object-fit:${opt.fit||'cover'};object-position:${opt.objectPosition||'center center'};`;
@@ -3254,6 +3266,7 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   clip.appendChild(host);
   _vfxHostParent().appendChild(clip);
   const isWebp=/\.webp(\?|$)/i.test(videoUrl);
+  if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(clip);
   let mediaEl,stop;
   if(isWebp){
     // 透過済みWebPアニメーション。canvasでのルミナンスキー処理は不要でbackground-imageでそのまま再生する
@@ -5465,6 +5478,12 @@ function _annotateSummonNames(desc, owner){
     return note?`${note}${m}`:m;
   });
 }
+// 刻印カードに記録した取得時のステージ（無ければ0）。
+function engravingCardStage(card){
+  const v=Math.floor(Number(card&&card._engravingStage)||0);
+  return v>0?v:0;
+}
+if(typeof window!=='undefined') window.engravingCardStage=engravingCardStage;
 const _STAGE_ENGRAVING_NAMES=new Set([
   '宿業の刻印','抑圧の刻印','受難の刻印','苦悶の刻印','修道の刻印','我慢の刻印',
 ]);
@@ -5472,7 +5491,9 @@ function _stageEngravingDescription(card,desc){
   const name=String(card&&card.name||'').trim();
   const no=String(card&&card.no||'').toUpperCase();
   if(!_STAGE_ENGRAVING_NAMES.has(name)&&!['E066','E076','E077','E078','E079','E080'].includes(no)) return desc;
-  const stage=Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
+  // Xは取得した時のステージで固定（カードの _engravingStage）。記録の無いカード（未取得の提示中・古いセーブ）は現在のステージ。
+  const stage=(typeof engravingCardStage==='function'&&engravingCardStage(card))
+    ||Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
   const value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
   let out=String(desc||'');
   if(name==='宿業の刻印'||no==='E066'){

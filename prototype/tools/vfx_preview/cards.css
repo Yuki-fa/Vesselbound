@@ -1,0 +1,49 @@
+/* 全カードタブと現行素材の表示。盤面寸法はcards_geometry.jsとpreview.cssで共用する。 */
+.lab-tabs{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.lab-tabs button[aria-selected=true]{border-color:var(--gold);background:#615139;color:#fff4dc}
+[data-card-lab-hidden]{display:none!important}
+.cards-page[hidden],.card-sidebar[hidden]{display:none}
+.cards-heading{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}.cards-heading h1{margin:0}.cards-heading>span{color:var(--gold)}
+.cards-intro{color:#bfc4b7;line-height:1.8;margin:8px 0 14px}
+.card-filters{display:flex;flex-wrap:wrap;gap:10px 14px;padding:12px;background:#1c211b;border:1px solid var(--line);border-radius:5px;margin-bottom:14px}
+.card-filters label{font-size:11px}.card-filters input[type=search]{background:#101412;color:var(--ink);border:1px solid #555c49;border-radius:4px;padding:9px;width:210px}
+/* 盤面は演出一覧と同じく横幅いっぱい。詳細は盤面の下（2026-10-06 利用者指定）。 */
+.card-review{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:12px 0 16px}
+.card-stage-mount{min-width:0}.card-stage-mount .playbar{gap:6px;margin:8px 0}.card-stage-mount .playbar #replay,.card-stage-mount .playbar #play-all{display:none}
+.card-stage-mount .stage-toolbar{padding:0 8px}.card-stage-mount .switches{gap:8px}.card-stage-mount .selection-bar{gap:8px}.card-stage-mount .selection-hint{display:none}
+.card-detail{padding:14px;background:#181d19;border:1px solid var(--line);border-radius:5px;line-height:1.7;overflow-wrap:anywhere}
+.card-detail h2{font-size:18px;margin:0 0 8px}.card-detail h2 code{color:var(--gold);font-size:18px}.card-detail p{margin:8px 0;color:#c3c9ba}
+.card-detail-controls{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.card-detail-controls select{width:100%}.card-detail-controls button{font-size:11px}
+.card-play-status{color:#f1ca86!important;min-height:22px}.card-table-wrap{overflow:auto;max-height:68vh;border:1px solid var(--line);border-radius:4px}
+.card-table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px;line-height:1.65;min-width:1100px}
+.card-table th{position:sticky;top:0;z-index:2;background:#262b23;color:#e0d0b0;text-align:left;padding:10px 9px;font-weight:500;white-space:nowrap;border-bottom:1px solid #686048}
+.card-table td{vertical-align:top;padding:10px 9px;border-bottom:1px solid #343b30;overflow-wrap:anywhere;background:#151a16}
+.card-table tr:nth-child(even) td{background:#1b201a}.card-table tr.selected td{background:#2c3023}
+.card-table th:first-child,.card-table td:first-child{position:sticky;left:0;z-index:1;width:82px;min-width:82px;border-right:1px solid #464632}
+.card-table th:first-child{z-index:3}.card-table td:first-child code{font-size:13px;color:#f0c883;white-space:nowrap;font-weight:600}
+.card-table .card-title{min-width:110px;max-width:170px}.card-table .card-effect{min-width:180px;max-width:240px}.card-table .card-media{min-width:195px;max-width:270px}
+.card-table .card-buttons{min-width:110px}.card-table button{display:block;padding:4px 8px;min-height:28px;font-size:11px;margin:0 0 6px;white-space:nowrap;width:100%}
+.card-table code{color:#bdcbb7;font-size:10px}.card-media-entry{margin:5px 0}.card-media-entry small{color:#9cae91;display:block}.card-label{display:inline-block;padding:1px 6px;border:1px solid #565e47;color:#cad2bb;border-radius:3px;margin:0 3px 3px 0;white-space:nowrap}
+.card-label[data-setting=専用]{color:#f2d094;border-color:#9b7747}.card-label[data-setting=不明]{color:#ffc89a;border-color:#a66f40}.card-label[data-setting=無し]{color:#b0b4ac;border-color:#474e42}
+.card-unknown{color:#ecc393;margin:5px 0}.card-unknown summary{color:#edc07d}.card-effect details{margin-top:6px}.cards-counts{font-size:11px;line-height:1.9;color:#bac6af;margin:8px 10px}.card-sidebar h2{margin:14px 10px 4px}.card-sidebar p{margin:8px 10px;color:#c2ba9e;font-size:11px;line-height:1.8}
+.card-notes{margin:12px 0;line-height:1.9;color:#bdc8b1;font-size:11px}.card-notes ul{padding-left:20px}.card-notes code{color:#d9c69d}.cards-page .empty{padding:24px;color:#d4cbb6;text-align:center}
+.card-current-vfx{position:absolute;pointer-events:none;z-index:2000010;height:auto;transform:translate(-50%,-50%)}
+.card-current-flash{position:absolute;inset:0;z-index:10;pointer-events:none;border:5px solid var(--flash-color,#fff);box-shadow:inset 0 0 70px var(--flash-color,#fff),0 0 40px var(--flash-color,#fff)}
+.capture-board .lab-tabs,.capture-board .cards-page{display:none}
+@media(max-width:1100px){.card-table-wrap{max-height:70vh}}
+
+/* 左側の全カード一覧（演出一覧と同じ見た目。2026-10-06 利用者指定） */
+.card-sidebar{display:flex;flex-direction:column;flex:1;min-height:0}
+.card-sidebar[hidden]{display:none}
+#card-list{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#595443 transparent;min-height:0}
+#card-list button{display:flex;align-items:center;width:100%;text-align:left;border:0;border-radius:0;padding:7px 10px;min-height:32px;background:transparent;gap:10px;color:#c7c9bd;font-size:12px}
+#card-list button .number{font-size:10px;color:#7c8174;font-variant-numeric:tabular-nums;width:46px;flex:none}
+#card-list button.selected{background:linear-gradient(90deg,#64543750,transparent);color:#f5e9cf;border-left:2px solid var(--gold);padding-left:8px}
+#card-list button:hover{background:#3b3c3150}
+.card-totals{font-size:11px;color:#a5a697;border-top:1px solid var(--line);padding:8px 4px 0;margin-top:8px}
+
+/* チェック用の★（個別VFXのあるカードだけ） */
+.card-star{margin-left:auto;padding:0 4px;color:#7c7558;cursor:pointer;font-size:13px;line-height:1;user-select:none}
+.card-star.on{color:var(--gold)}
+.card-title .card-star{margin-left:6px}
+#card-list .card-list-name{flex:1}

@@ -121,7 +121,8 @@ function runTrigger(unit,trigger,side='p1'){
     assert.ok(events.some(event=>event.type==='damage'&&event.damageKind==='death_effect'&&event.amount===7));
   });
   check('Q001の街候補はシートのみ、デバッグ候補に追加し、台詞・ボタン・見出しをシートから読む',()=>{
-    reset();assert.deepEqual(_qRegionIds(1),['Q002','Q003']);
+    // 街の候補はシート（地域の「クエスト」列）のとおり。シートの更新で並びが変わってもよい（2026-10-05 エルムにQ001追加）。
+    reset();assert.deepEqual(_qRegionIds(1),String((regionInfoForWave(1)||{}).quest||'').split(/[、,\s]+/).map(x=>x.trim()).filter(x=>x&&x!=='-'));
     assert.ok(_qDebugBuildDraft()[0].candidates.includes('Q001'));
     assert.equal(QUEST_CONFIG.Q001.portraitB,QUEST_CONFIG.Q002.portraitB);
     assert.equal(QUEST_DATA.Q001_1.initial.length,6);assert.equal(QUEST_DATA.Q001_2.initial[0].speaker,'A');

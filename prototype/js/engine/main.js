@@ -2061,7 +2061,7 @@ function continueAfterBattleVictory(silent){
 }
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true,keepActionBanner:true});
   ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
     const debugEl=document.getElementById(debugId);
     if(debugEl) debugEl.style.display='none';

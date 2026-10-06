@@ -1345,9 +1345,10 @@ const WAVE=1;
     const b=await newPage();
     const q001=await b.run(`return {q:QUEST_DATA.Q001_1,q2:QUEST_DATA.Q001_2,
       portrait:QUEST_CONFIG.Q001.portraitB,shared:QUEST_CONFIG.Q002.portraitB,ids:_qRegionIds(1),
+      sheetIds:String((regionInfoForWave(1)||{}).quest||'').split(/[、,\s]+/).map(x=>x.trim()).filter(x=>x&&x!=='-'),
       title:textMessage('「酒場の報酬枠」見出し3',''),accept:textMessage('「受領」ボタン',''),reject:textMessage('「拒否」ボタン','')};`);
     ok('Q001：通常の街候補は地域シートのまま、BはQ002と共通、台詞6とAのみの到着台詞を読む',
-      q001.ids.join('|')==='Q002|Q003'&&q001.portrait===q001.shared&&q001.q.initial.length===6
+      q001.ids.join('|')===q001.sheetIds.filter(id=>q001.ids.includes(id)).join('|')&&q001.ids.length===q001.sheetIds.length&&q001.portrait===q001.shared&&q001.q.initial.length===6
       &&q001.q2.initial.length>0&&q001.q2.initial.every(line=>line.speaker==='A'),q001);
     async function visibleQ001Line(page,line){
       await waitLine(page,line);

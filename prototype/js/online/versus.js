@@ -88,6 +88,8 @@
         ringInjuryHp: Number(u.ringInjuryHp) || 0,
         // 強化でHP0になった体の印（開戦の瞳の指輪で正に戻れば出撃する。PvEと同じ入力にする）。
         _deployedAtZeroHp: !!u._deployedAtZeroHp,
+        // 刻印のXの固定値（取得時のステージ）。PvEと同じ入力にする。
+        ...(u._engravingStages ? { _engravingStages: { ...u._engravingStages } } : {}),
         summonCount: Number(u.summonCount) || 1,
         boardCards: (entry.contributingPanels.length && typeof _panelSummonDisplayBoardCards === 'function')
           ? _panelSummonDisplayBoardCards(panel, entry.contributingPanels) : [],
@@ -169,7 +171,7 @@
     }
 
     // 通常の戦闘画面へ入る（PvE側の盤面状態はここで退避される）。
-    if (typeof beginOnlineVersusField === 'function') beginOnlineVersusField(result);
+    if (typeof beginOnlineVersusField === 'function') beginOnlineVersusField(result, formation);
 
     // ── 再生。値も勝敗もイベント／resultの内容をそのまま使う ──
     try {

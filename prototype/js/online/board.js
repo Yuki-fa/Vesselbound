@@ -418,7 +418,7 @@
   }
 
   // ── 通常の戦闘画面へ入る／戻る ────────────────────────
-  function beginOnlineVersusField(result) {
+  function beginOnlineVersusField(result, ownFormation) {
     if (typeof setBattlePresentationPlaying === 'function') setBattlePresentationPlaying(true);
     _setCardInfo(result && result.formations);
     if (typeof G === 'undefined' || !G) return;
@@ -431,6 +431,7 @@
     // オンラインはPvEの startBattle() を通らないため、速度関連の戦闘状態だけは
     // 共通初期化関数で揃える。盤面は BATTLE_START でサーバー確定値を入れる。
     if (typeof initializeBattlePresentationState === 'function') initializeBattlePresentationState();
+    if (typeof actionBannerSetFormations === 'function') actionBannerSetFormations(result && result.formations, ownFormation);
     // 通常の戦闘画面と同じ状態にする。編成画面用の表示は body.online-versus-active 側の
     // CSSでまとめて隠すので、ここで個々の要素の display は触らない
     // （触ると編成画面へ戻った時に元へ戻す責任がこちらに移ってしまう）。
@@ -599,9 +600,11 @@
     // 演出の再生中は盤面を詰めない・倒れたカードを消さない。
     // 規則も、そのフラグ自体も present.js が唯一の実装（PvEと同じものを使う）。
     presentBeginPlayback();
+    const actionBannerEvent = presentBeginActionBannerEvent(ev, ctx && ctx.events, ctx && ctx.eventIndex);
     try {
       await _renderOnlineVersusEvent(ev, ctx);
     } finally {
+      presentEndActionBannerEvent(actionBannerEvent);
       presentEndPlayback();
     }
   }
@@ -1229,7 +1232,7 @@
         await _awaitMotion();
         if (_deathFxReadyAt > Date.now()) await _sleep(_deathFxReadyAt - Date.now());
         _render();
-        if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx();
+        if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx({ keepActionBanner: true });
         // 勝敗はイベントに書かれた outcome をそのまま出す
         await _playResultCutin(ev.outcome);
         break;

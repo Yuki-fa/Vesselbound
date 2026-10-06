@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Vesselbound · VFXプレビュー</title>
+  <link rel="stylesheet" href="vfx_preview/preview.css?v=fxlab1006-geometry2">
+  <link rel="stylesheet" href="vfx_preview/cards.css?v=cards1006-star1">
+</head>
+<body>
+  <aside class="library">
+    <a class="brand" href="vfx_preview/README.md"><span>VESSELBOUND</span><strong>VFX LAB <small>03</small></strong></a>
+    <p class="library-note">演出と音の試作集</p>
+    <label class="search"><span>演出を探す</span><input id="search" type="search" placeholder="名前で検索" autocomplete="off"></label>
+    <nav id="effect-list" aria-label="演出の一覧"></nav>
+    <div class="library-footer"><span id="effect-count"></span><span>本体への組み込み前</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="eyebrow">CANVAS 2D / SOUND STUDY</span><h1 id="effect-title">準備中</h1></div><div class="badges"><span id="duration"></span><span id="protocol"></span></div></header>
+    <section class="description"><p id="description"></p><p id="notice" class="notice" hidden></p></section>
+    <section class="stage-wrap" aria-label="演出の盤面">
+      <div class="stage-toolbar">
+        <div class="switches"><label>発生元の陣営 <select id="side"><option value="ally">味方 → 敵</option><option value="enemy">敵 → 味方</option></select></label><label>背景 <select id="background"><option value="stage2_battlestage.webp">草原</option><option value="stage1_battlestage.webp">森</option><option value="stage3_battlestage.webp">渓谷</option><option value="stage4_battlestage_1.webp">回廊</option></select></label></div>
+        <span id="active-status" role="status">待機中</span>
+      </div>
+      <div id="stage">
+        <div id="board-design" data-vb-fx-board>
+        <div class="board-shade"></div><span class="side-label enemy-label">ENEMY</span><span class="side-label ally-label">ALLIES</span>
+        <div class="midline"><span>VFX PREVIEW</span></div><div id="cards"></div>
+        </div>
+      </div>
+      <div class="selection-bar"><label>発生元 <select id="source-select"></select></label><label>クリック操作 <select id="pick-mode"><option value="target">対象を選ぶ</option><option value="source">発生元を選ぶ</option></select></label><button id="auto-target" class="text-button">自動選択に戻す</button><span class="selection-hint">金枠＝発生元 / 青枠＝対象</span></div>
+    </section>
+    <section class="playbar">
+      <button id="replay" class="primary">もう一度 <span>↻</span></button><button id="play-all">全部を順に再生</button><button id="stop">停止</button>
+      <label>速さ <input id="speed" type="range" min="0.6" max="2.5" step="0.1" value="1.5"><output id="speed-value">1.5×</output></label>
+      <label>大きさ <input id="size" type="range" min="0.6" max="1.6" step="0.1" value="1"><output id="size-value">1.0×</output></label>
+    </section>
+    <section class="sound-panel" aria-label="SE候補">
+      <div class="sound-head"><h2>SE候補 <small>各演出3つ</small></h2><label class="volume">音量 <input id="volume" type="range" min="0" max="1" step="0.01" value="0.32"><output id="volume-value">32%</output></label></div>
+      <div class="sound-controls"><select id="sound-select" aria-label="SE候補の選択"></select><button id="sound-only">SEだけ聴く</button><button id="export">選択を保存</button></div>
+      <div class="sound-meta"><strong id="sound-name"></strong><span id="sound-duration"></span><code id="sound-source"></code><span id="sound-reason"></span><p id="aux-sound" hidden></p></div>
+      <details id="sound-details"><summary>3候補の元ファイル・尺を比較</summary><div id="candidate-details"></div></details>
+      <div id="attack-proposals" hidden><p>全体攻撃の比較</p><div id="proposal-buttons"></div></div>
+      <details class="references"><summary>見た目の基準：既存素材のコマを比較</summary>
+        <figure><img src="vfx_preview/ref_C018.jpg" alt="C018：真上から見た円形の魔法陣と青い渦" loading="lazy"><figcaption>C018 · 円形の文様・多層の発光・回転する渦</figcaption></figure>
+        <figure><img src="vfx_preview/ref_S008.jpg" alt="S008：白い核と緑の乱れた輪郭、散る粒子" loading="lazy"><figcaption>S008 · 白い核・揺らぐ発光の輪郭・粒子</figcaption></figure>
+        <figure><img src="vfx_preview/ref_C043.jpg" alt="C043：流体の質感を持つ炎の軌跡" loading="lazy"><figcaption>C043 · 炎の濃淡・乱流・残る軌跡</figcaption></figure>
+      </details>
+    </section>
+    <footer class="footer"><span>盤面は3840×2160を縮小表示。数字は仮値。命中の時刻は内部に記録。</span><a href="vfx_preview/se/README.md">全SEの原本一覧</a><a href="vfx_preview/README.md">使い方・接続点</a><a href="vfx_preview/review_capture.html">4コマ撮影</a><span id="message" role="status"></span></footer>
+  </main>
+  <script src="../assets.js?v=fxlab-readonly1005"></script>
+  <script src="../js/engine/fx_lab.js?v=fxlab1006-guts5"></script>
+  <script src="vfx_preview/catalog.js?v=fxlab1006-5"></script>
+  <script src="vfx_preview/se_catalog.js?v=fxlab1006-5"></script>
+  <script src="vfx_preview/cards_routes.js?v=cards1006-geometry2"></script>
+  <script src="vfx_preview/cards_geometry.js?v=cards1006-geometry3"></script>
+  <script src="vfx_preview/preview.js?v=fxlab1006-depth1"></script>
+  <script src="vfx_preview/capture_frames.js?v=fxlab1006-4"></script>
+  <script src="vfx_preview/frame_capture.js?v=fxlab1006-4"></script>
+  <script src="../js/data/local_xlsx_data.js?v=cards1006-read"></script>
+  <script src="../js/data/loader.js?v=cards1006-read"></script>
+  <script src="vfx_preview/cards_model.js?v=cards1006-choice3"></script>
+  <script src="vfx_preview/cards.js?v=cards1006-star2"></script>
+  <script src="vfx_preview/check.js?v=fxlab1006-verify7"></script>
+</body>
+</html>

@@ -28,6 +28,11 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   }
 }
 async function _flushCorePveHitEventsInner(state, events, beforeUnits){
+  if(typeof actionBannerSetBattleData==='function') actionBannerSetBattleData({
+    units:state.units,
+    rings:state.rings||{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
+    items:state.items||{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
+  },beforeUnits);
   // コアがライフを変えた場合（我慢の指輪・負傷:ライフが+Nされる 等）の唯一の反映点。
   // 血は死亡イベントの発行時点でコア側へ加算される。マナ・ゴールドの表示反映を
   // 先行させないため、資源全体ではなく血だけをここでGへ戻す。
@@ -317,6 +322,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       effectStatCueKeys.clear();
       effectStatVfxGate.reset();
     }
+    const _actionBannerEvent=typeof presentBeginActionBannerEvent==='function'
+      ?presentBeginActionBannerEvent(e,eventList,eventIndex):null;
+    try{
     if(e.type==='effect_flash'){
       await presentEffectFlashEvent(e,{ findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) });
       continue;
@@ -966,6 +974,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if(!sweepSources.has(src.id)&&typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
       },
     });
+    }finally{ if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent); }
   }
   // 先出ししたモーションが解放されないまま残らないようにする
   // （attackイベントに到達せず抜けた場合の保険）。

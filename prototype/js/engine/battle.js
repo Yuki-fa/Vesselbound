@@ -673,7 +673,8 @@ function _isBattlePresentationAnimation(anim){
   let owner=target;
   while(owner&&typeof owner.closest!=='function') owner=owner.parentElement||owner.parentNode||owner.host||null;
   if(!owner) return false;
-  if(owner.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover]')) return false;
+  // 行動表示は定数を速度で割ったtransitionを使うため、playbackRateで二重に縮めない。
+  if(owner.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover],#battle-action-banners')) return false;
   return !!owner.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro');
 }
 function _syncBattlePresentationAnimations(){
@@ -711,6 +712,7 @@ function _setBattleSpeedTarget(target){
 // オンラインは startBattle() を通らないため、入口だけ別に初期化すると
 // 自動加速の経過時間や前回の攻撃記録が戦闘をまたいで混ざってしまう。
 function initializeBattlePresentationState(){
+  if(typeof actionBannerClear==='function') actionBannerClear(true);
   if(!G) return;
   G._battleStartedAt=performance.now();
   G._battleSpeed=1;
@@ -1061,7 +1063,7 @@ function _handleVictory(){
   // stale setTimeout が次の戦闘中に発火した場合は何もしない
   if(G.phase!=='reward') return;
   if(G._battleDefeatHandled) return;
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true,keepActionBanner:true});
   if(typeof questHandleBattleVictory==='function'&&questHandleBattleVictory()) return;
   if(typeof finishWaveBattleVictory==='function'&&finishWaveBattleVictory(true)) return;
   // 表示タイマーと非表示タイマーを独立したsetTimeoutで走らせず、表示が確定してから
@@ -1358,6 +1360,8 @@ function showBattleCutin(type='start',options={}){
   // 勝利・撤退の結果表示中は、戦場カードを操作・ホバーできないようにする。
   // 勝利時はfinishBattleAsVictory()で既に付与済みだが、撤退時も同じロックを使う。
   document.body.classList.add('battle-victory-pending');
+  // 行動表示は結果表示が待機に入る（「進む」が出る）まで残す。オンラインの結果表示も同じ。
+  if(typeof actionBannerHold==='function') actionBannerHold();
   // **寄りはここでは戻さない。** 戻すのは完全に暗転して文字も消えた後
   // （main.js の戦闘後遷移）。明るいうちに戻すと画面が引くのが見える。
   _showBattleEndFade();
@@ -1378,6 +1382,7 @@ function showBattleCutin(type='start',options={}){
         battlePresentationSetTimeout(()=>{
           overlay.classList.remove('battle-start-closing');
           overlay.classList.add('awaiting-continue');
+          if(typeof actionBannerReleaseHold==='function') actionBannerReleaseHold();
           resolve(overlay);
         },240);
       }else if(fade){
@@ -1386,13 +1391,15 @@ function showBattleCutin(type='start',options={}){
           fade.classList.remove('is-visible','is-final');
           fade.removeAttribute('style');
           overlay.remove();
+          if(typeof actionBannerReleaseHold==='function') actionBannerReleaseHold();
           resolve(null);
         },360);
       } else if(isResult){
         overlay.classList.remove('battle-start-closing');
         overlay.classList.add('awaiting-continue');
+        if(typeof actionBannerReleaseHold==='function') actionBannerReleaseHold();
         resolve(overlay);
-      } else { overlay.remove(); resolve(null); }
+      } else { overlay.remove(); if(typeof actionBannerReleaseHold==='function') actionBannerReleaseHold(); resolve(null); }
     },Math.max(1500,Number(options.durationMs)||2200));
   });
 }
@@ -1634,6 +1641,11 @@ function _battleOpeningLandingVfx(slot){
   fx.className='battle-opening-appearance-vfx';
   slot.classList.add('battle-opening-appearance-active');
   slot.insertBefore(fx,slot.firstChild);
+  if(typeof actionBannerOpeningUnit==='function'){
+    const enemy=!!slot.closest('#f-enemy');
+    const unit=(enemy?G.enemies:G.allies||[])[Number(slot.dataset.unitIdx)];
+    actionBannerOpeningUnit(unit,enemy?'p2':'p1',fx);
+  }
   _playBattleOpeningAppearanceSfx();
   // 素材は着地直後（約430〜630ms）が小さく明るい光で、その後は大きく薄い輪へ広がる。
   // 700ms／1120msまで出していた時は、広がった輪まで見えて以前より大きく見えた（利用者報告）。
@@ -1709,6 +1721,11 @@ async function _fadeInBattleOpeningSealedSlots(slots,opts){
   slots.forEach(slot=>{
     slot.style.setProperty('transition',
       `opacity ${ms}ms ease, transform ${ms}ms ease, filter ${ms}ms ease`,'important');
+    if(typeof actionBannerOpeningUnit==='function'){
+      const enemy=!!slot.closest('#f-enemy');
+      const unit=((enemy?G.enemies:G.allies)||[])[Number(slot.dataset.unitIdx)];
+      actionBannerOpeningUnit(unit,enemy?'p2':'p1',null,ms);
+    }
     slot.style.setProperty('opacity','1','important');
     slot.style.setProperty('transform','scale(1)','important');
     if(fromDark) slot.style.setProperty('filter','brightness(1)','important');
@@ -2039,6 +2056,7 @@ async function playBattleOpeningSequence(introKind){
   if(typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()){
     await _fadeInBattleOpeningSealedSlots([...enemyFront,...allyFront,...enemyRear,...allyRear,...sealed]);
     host.classList.remove('battle-opening-active');
+    if(!carry&&typeof actionBannerOpeningItems==='function') actionBannerOpeningItems();
     return;
   }
   // **エリート／ボス本人だけ**は通常の登場から外し、後で暗がりから現れさせる。
@@ -2055,6 +2073,7 @@ async function playBattleOpeningSequence(introKind){
       {durationMs:BATTLE_OPENING_BOSS_FADE_MS,fromDark:true});
   }
   host.classList.remove('battle-opening-active','battle-carry-allies');
+  if(!carry&&typeof actionBannerOpeningItems==='function') actionBannerOpeningItems();
 }
 
 // 開幕カードのtransform解除直後は、複数体時の絶対left/top再配置がまだ
@@ -2429,6 +2448,11 @@ async function startBattle(){
   }
 
   // 通常・エリート・ボスを問わず、開幕演出が終わるまでカードは非表示にする。
+  if(typeof actionBannerSetBattleData==='function') actionBannerSetBattleData({
+    units:{p1:G.allies||[],p2:G.enemies||[]},
+    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
+    items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
+  });
   renderAll();
   if(_battleRunStale(_runId)) return;
   const introKind=await _playBattleStartIntro();
@@ -3096,7 +3120,7 @@ async function finishBattleAsVictory(reason){
   // モーションの後始末を待つ前に止めることで、勝利後に演出だけが残らない。
   // 勝利確定時も、直前に出たダメージVFX・数値は最後まで読めるように残す。
   // 攻撃モーションや固有効果など、戦闘を継続して見せる演出だけを止める。
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true});
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true,keepActionBanner:true});
   if(G._battleMotionDepth>0){
     G._pendingVictoryReason=reason||'敵を全滅させた！';
     return;
@@ -4712,7 +4736,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
-  const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],releaseAtkBonus:0,releaseHpBonus:0};
+  const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],releaseAtkBonus:0,releaseHpBonus:0,engravingStages:{}};
   const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
   _recordBattleTrace('adjacent_enhancements_resolved',{slotIdx,unitId:unit&&unit.id||null,names:panels.map(x=>x&&x.panel&&x.panel.name||''),indices:panels.map(x=>x&&x.idx)});
   // ※以前は「複製」を**接続している他の強化カードに置き換える**特別扱いがあった
@@ -4787,8 +4811,12 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     if(panel.name==='封印されしもの'&&!panelKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) panelKeywords.push('封印1');
     // 我慢の刻印＝封印X（X＝現在のステージ×5）。接続したキャラのキーワードとして付け、血アイコンにも出す（2026-10-02 利用者指摘）。
     // 戦闘の coreSealValue は、このキーワードがあれば我慢の刻印の分を二重には足さない。
+    // 刻印のXは**取得した時のステージで固定**（カードの _engravingStage。2026-10-05 利用者指定）。
+    // 記録の無い古いカードだけ現在のステージで数える。
+    const engravingStage=typeof engravingCardStage==='function'?engravingCardStage(panel):0;
+    if(engravingStage) enh.engravingStages[String(panel.name||'')]=engravingStage;
     if(String(panel.name||'')==='我慢の刻印'){
-      const stage=Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
+      const stage=engravingStage||Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
       panelKeywords.push(`封印${stage*5}`);
     }
     panelKeywords.forEach(k=>{
@@ -4938,6 +4966,9 @@ function _applyAdjacentPanelEnhancements(unit, enh){
   unit._resonanceEffectScales={...(enh.effectScales||{})};
   unit._adjacentPanelEffectTexts=effectTexts.slice();
   unit._uniteGroups=[...(enh.uniteGroups||[])];
+  // 接続した刻印ごとの取得ステージ（Xの固定値。コアの coreEngravingStageNumber が使う）。
+  if(enh.engravingStages&&Object.keys(enh.engravingStages).length) unit._engravingStages={...enh.engravingStages};
+  else delete unit._engravingStages;
   if(atkBonus){
     // **ATKの下限は0**（HPを減らす強化と同じく、ATKを減らす強化でも負にしない）。
     unit.atk=Math.max(0,(unit.atk||0)+atkBonus);

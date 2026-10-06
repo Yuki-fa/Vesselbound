@@ -1242,6 +1242,364 @@ function presentStatChangeVfxAllowed(ev) {
   return PRESENT_STAT_CHANGE_VFX_REASONS.has(reason);
 }
 
+// ── 行動表示：発動元の選択（表示だけ。コアの入力・イベントは変更しない）────
+// 常時というトリガでは除外しない。除外は発動元の characterDesc（シート「キャラクター用説明文」）だけ。
+// 現行の非空行：E002/E003/E026/E034/E046/E063/E066/E073、R001〜R005/R032。
+// 理由→カードの対応は発動元の検索用。表示／非表示の一覧を別にハードコードしない。
+const PRESENT_ACTION_BANNER_GROUP_REASONS = new Set([
+  'bond_scroll', 'bond_scroll_summon', 'map_passive_team_buff', 'skoll_hati', 'enemy_mana_passive',
+  'summon_buff', 'summon_scaling_buff', 'summon_song_buff', 'naga_summon', 'summoner_ring',
+  'march_song', 'glory_song', 'revenge_song', 'evil_eye',
+]);
+// 発動理由が明示されている強化カード。番号は効果の識別子であり、素材のVFX番号ではない。
+const PRESENT_ACTION_BANNER_ENCHANT_BY_REASON = {
+  healing: 'E012', wild_power: 'E013', incite: 'E036', roar: 'E049', majesty: 'E050',
+  necromancy: 'E051', character_death_self_buff: 'E051', release_bonus: 'E057',
+  devotion: 'E065', blood_bond: 'E072', release_self_buff: 'E057',
+  discipline_engraving: 'E079', anguish_engraving: 'E078',
+  randomItemOnBattleEnd: 'E030', alchemy: 'E030', wild_power_summon: 'E013',
+  strange_bond: 'E026', strategy: 'E063', tactician: 'E063', fate_engraving: 'E066',
+  evil_eye: 'E018', march_song: 'E068', summon_song_buff: 'E068', glory_song: 'E069', revenge_song: 'E070',
+};
+const PRESENT_ACTION_BANNER_RING_BY_REASON = {
+  paladin_ring: 'R019', speed_ring: 'R031', ring_injury_hp: 'R015', magic_ring: 'R013',
+  seal_breaker_ring: 'R035', lucky_ring: 'R024', patience_ring: 'R040', revival_ring: 'R018',
+  light_ring: 'R022',
+  summoner_ring: 'R034', rainbow_ring: 'R032',
+};
+const PRESENT_ACTION_BANNER_RING_BY_SOURCE = {
+  'undying-ring': 'R017', 'oni-ring': 'R020', 'response-ring': 'R029', 'storm-ring': 'R023',
+};
+const PRESENT_ACTION_BANNER_ITEM_BY_REASON = {
+  giant_scroll: 'giant_scroll', mana_scroll: 'mana_scroll', bond_scroll: 'bond_scroll', bond_scroll_summon: 'bond_scroll',
+};
+const PRESENT_ACTION_BANNER_MAP_BY_REASON = { life_panel_double: 'life', resonance_panel: 'resonance' };
+const PRESENT_ACTION_BANNER_EVENT_TYPES = new Set([
+  'damage', 'stat_change', 'sweep_vfx', 'mana_threshold', 'mana_gain', 'mana_set',
+  'gold_gain', 'gold_spend', 'item_reward', 'bonus_reward', 'life_gain', 'life_set',
+  'summon', 'transform', 'unit_stolen', 'keyword_effect', 'instant_death', 'curse_death',
+  'revive', 'seal_release', 'seal_apply', 'death_summon_grant', 'summon_buff_grant', 'blood_set', 'ring_effect',
+  'life_drain', 'effect_flash', 'attack', 'summon_buff',
+]);
+
+function presentActionBannerName(card) {
+  const name = String(card && card.name || '');
+  // エリート／ボスの称号は引用符の外。和文／ASCIIの両方を受ける。
+  const quoted = name.match(/[“”"]([^“”"]+)[“”"]/);
+  return quoted ? quoted[1].trim() : name;
+}
+
+function presentActionBannerTrigger(ev, hint) {
+  const reason = String(ev && ev.reason || '');
+  if (ev && ev.type === 'mana_threshold' || /^mana_threshold/.test(reason)) return 'mana';
+  if (/^(?:manaOnAttack|attack_mana)/.test(reason)) return 'attack';
+  if (/^(?:manaOnInjury|injury)/.test(reason)) return 'injury';
+  if (/^(?:manaOnDeath|goldOnDeath|death_)/.test(reason)) return 'death';
+  if (/BattleEnd/.test(reason) || /^battle_end/.test(reason)) return 'battle_end';
+  if (/^release/.test(reason)) return 'release';
+  if (ev && ev.damageKind === 'attack_effect') return 'attack';
+  if (ev && ev.damageKind === 'injury_effect') return 'injury';
+  if (ev && ev.damageKind === 'death_effect') return 'death';
+  if (reason === 'wild_power' || reason === 'wild_power_summon') return 'opening';
+  if (reason === 'devotion' || reason === 'blood_bond') return 'death';
+  // 能力変化VFXの色の分類より、コアが出した今回の発動トリガを優先する。
+  return String(hint && hint.trigger || '') || presentStatChangeTrigger(reason) || '';
+}
+
+function presentActionBannerEffectText(card, trigger) {
+  const text = String(card && card.desc || '');
+  const label = { attack: '攻撃', injury: '負傷', death: '死亡', opening: '開戦',
+    release: '解放', battle_end: '終戦', passive: '常時', mana: '\\d+マナ(?:毎)?' }[trigger];
+  if (!label) return text;
+  const parts = text.split(/\n|(?<=[。])(?=(?:開戦|攻撃|負傷|死亡|常時|解放|終戦|\d+マナ))/);
+  return parts.filter(line => new RegExp(`(?:^|[＆&])\\s*(?:${label})(?:[＆&](?:攻撃|負傷|死亡))?\\s*[：:；;]`).test(line)).join('\n');
+}
+
+// コアに効果番号がない旧イベントは、接続カードの「今回のトリガの本文」とイベントの種類を照合する。
+// これは表示元の検索だけ。ダメージ・対象・回数を解き直さない。
+function presentActionBannerTextMatchesEvent(text, ev, source) {
+  if (!text) return false;
+  if (ev.type === 'damage') {
+    if (!/ダメージ/.test(text)) return false;
+    if (ev.area && !/全て/.test(text)) return false;
+    if (!ev.area && !ev.blockedBy && /全て/.test(text)) return false;
+    if (source && ev.side === source.side) return /(?:味方|このキャラクター|全てのキャラクター).*ダメージ/.test(text);
+    return /(?:敵|キャラクター).*ダメージ/.test(text);
+  }
+  if (ev.type === 'summon') return /(?:召喚|コピー)/.test(text);
+  if (ev.type === 'transform') return /変身|変化/.test(text);
+  if (ev.type === 'mana_gain' || ev.type === 'mana_set') return /(?:マナを得る|マナ.*倍)/.test(text);
+  if (ev.type === 'gold_gain') return /(?:ゴールド|\d+G)を得る/.test(text);
+  if (ev.type === 'gold_spend' || ev.type === 'item_reward') return /(?:アイテム|ゴールドを失う)/.test(text);
+  if (ev.type === 'stat_change') return /(?:[+-][\dX]+|[+-]X|ATK.*倍|HP.*倍|ATKを.*与える)/.test(text);
+  if (ev.type === 'keyword_effect') {
+    if (ev.effect === 'weaken') return /弱体|衝撃/.test(text);
+    if (ev.effect === 'poison') return /毒/.test(text);
+    if (ev.effect === 'shield') return /結界/.test(text);
+    return !!ev.keyword && text.includes(String(ev.keyword));
+  }
+  return true;
+}
+
+// 指輪の末尾の発動記録を、同じコアbatchの命中へ対応させる。束そのものは作り直さない。
+// 嵐は発生元IDがなく、逆鱗は負傷者のIDを使うため、名前だけの受け口では判別できない。
+function presentActionBannerRingDamageSources(events) {
+  const list = Array.isArray(events) ? events : [];
+  const sources = new Map();
+  list.forEach((ev, at) => {
+    if (!ev || ev.type !== 'ring_effect') return;
+    if (!['嵐の指輪', '逆鱗の指輪'].includes(ev.ring)) return;
+    let hit = null, blocked = null, from = at;
+    const matches = e => ev.ring === '嵐の指輪'
+      ? e.sourceId == null && e.side !== ev.side
+      : e.sourceId != null && e.damageKind === 'injury_effect' && e.effectSource !== false;
+    for (let i = at - 1; i >= 0; i--) {
+      const e = list[i];
+      if (!e || e.type === 'turn_begin' || e.type === 'battle_start'
+        || e.type === 'ring_effect' && e.ring === ev.ring) break;
+      from = i;
+      if (e.type !== 'damage' || !matches(e)) continue;
+      if (!blocked && e.blockedBy) blocked = e;
+      if (!e.area || !e.batch) continue;
+      hit = e; break;
+    }
+    if (!hit && blocked) {
+      // 全対象が結界で防いだ時はbatchが省略される。末尾の指輪記録と発動境界を使い、名前だけを補う。
+      for (let i = at - 1; i >= from; i--) {
+        const e = list[i];
+        if (e.type === 'mana_threshold' || e.type === 'attack'
+          || e.type === 'effect_flash' && e.trigger !== 'passive') break;
+        if (e.type === 'damage' && e.blockedBy && e.sourceId === blocked.sourceId && matches(e))
+          sources.set(e, { name: ev.ring, side: ev.side });
+      }
+      return;
+    }
+    if (!hit) return;
+    list.forEach(e => {
+      if (e && e.type === 'damage' && e.batch === hit.batch && e.sourceId === hit.sourceId)
+        sources.set(e, { name: ev.ring, side: ev.side });
+    });
+  });
+  return sources;
+}
+
+// 「直ちに攻撃させる」の攻撃／命中は、その命令を発動したカードの行動として表示する。
+// 通常手番の攻撃は対象外。命中の数値や対象は既存イベントから読むだけ。
+function presentActionBannerImmediateHits(events) {
+  const list = Array.isArray(events) ? events : [];
+  const hits = new Map();
+  list.forEach((ev, at) => {
+    if (!ev || ev.type !== 'attack' || !ev.immediate) return;
+    for (let i = at + 1; i < list.length; i++) {
+      const e = list[i];
+      if (!e || ['attack', 'turn_begin', 'battle_end'].includes(e.type)) break;
+      if (e.type === 'damage' && e.sourceId === ev.attackerId && e.unitId === ev.targetId) {
+        hits.set(e, ev); break;
+      }
+    }
+  });
+  return hits;
+}
+
+function presentActionBannerPoisonActivationSource(events, index, api) {
+  const list = Array.isArray(events) ? events : [];
+  for (let i = index - 1; i >= 0; i--) {
+    const ev = list[i];
+    if (!ev || ['attack', 'turn_begin', 'battle_start', 'battle_end'].includes(ev.type)) break;
+    if (ev.type !== 'effect_flash') continue;
+    const unit = api.unit(ev.unitId);
+    if (!unit) return null;
+    const attached = api.enchants(unit);
+    const card = [api.ownCard(unit), ...attached].find(c =>
+      /毒を発動させる/.test(presentActionBannerEffectText(c, ev.trigger)));
+    return card ? { card, side: unit.side, kind: attached.includes(card) ? 'enchant' : 'character' } : null;
+  }
+  return null;
+}
+
+function presentActionBannerEventKeyword(ev) {
+  if (ev.type === 'life_drain') return '生命吸収';
+  if (ev.type === 'instant_death') return '即死';
+  if (ev.type === 'curse_death') return '呪詛';
+  if (ev.type === 'revive') return ev.reason;
+  if (ev.type !== 'keyword_effect') return '';
+  return { poison: '毒', evil_eye: '邪眼', weaken: '衝撃', life_drain: '生命吸収' }[ev.effect] || '';
+}
+function presentActionBannerHasKeyword(card, keyword) {
+  return (card && (card.adjacentKeywords || card.keywords) || [])
+    .some(k => new RegExp(`^${keyword}(?:牙)?\\d*$`).test(String(k)));
+}
+
+function presentActionBannerUnitEffectSource(unit, api, pattern, trigger) {
+  if (!unit) return null;
+  const attached = api.enchants(unit);
+  const card = [api.ownCard(unit), ...attached].find(c =>
+    pattern.test(presentActionBannerEffectText(c, trigger || '')));
+  return card ? { card, side: unit.side, kind: attached.includes(card) ? 'enchant' : 'character' } : null;
+}
+
+// 召喚時の sourceId は「召喚元」であって、ナーガ・歌・累積バフの持ち主とは限らない。
+// この表に相当する検索を先に行い、効果を受けた子や味方のカード名へ落とさない。
+function presentActionBannerReasonSource(ev, api) {
+  const reason = String(ev.reason || '');
+  const make = (card, kind) => card && card.name ? { card, side: ev.side, kind } : null;
+  if (['strange_bond', 'strategy', 'tactician', 'fate_engraving'].includes(reason))
+    return make(api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant'), 'enchant');
+  if (reason === 'color_ring' || reason === 'color_ring_summon') {
+    const target = api.unit(ev.unitId) || {};
+    const code = { 赤: 'R001', 青: 'R002', 緑: 'R003', 黄: 'R004', 紫: 'R005' }[target.color];
+    return make(api.card(code || 'R001', 'ring'), 'ring');
+  }
+  if (reason === 'map_passive_team_buff') {
+    const pattern = /全ての味方は\+X\/\+Xを得る。?（?Xは現在のマップ/;
+    const owner = api.effectOwner(ev.side, '', pattern);
+    return presentActionBannerUnitEffectSource(owner, api, pattern);
+  }
+  if (reason === 'skoll_hati' || reason === 'enemy_mana_passive')
+    return presentActionBannerUnitEffectSource(api.unit(ev.unitId), api, /このキャラクターは\+X\/\+Xを得る。Xは敵が持つマナ/);
+  if (reason === 'naga_summon' || reason === 'summon_scaling_buff') {
+    const pattern = /戦闘中に召喚され(?:る|た)味方は\+1\/\+1を得る/;
+    const owner = api.summonScalingOwner(ev, reason === 'naga_summon');
+    return presentActionBannerUnitEffectSource(owner, api, pattern);
+  }
+  if (reason === 'summon_buff') return api.summonBuffSource(ev);
+  if (['summon_song_buff', 'march_song', 'glory_song', 'revenge_song'].includes(reason)) {
+    const owner = api.summoner(ev);
+    const pattern = reason === 'glory_song' ? /このキャラクターが召喚したキャラクターは結界/
+      : reason === 'revenge_song' ? /このキャラクターが召喚したキャラクターは「死亡：/
+        : /このキャラクターが召喚したキャラクターは\+/;
+    return presentActionBannerUnitEffectSource(owner, api, pattern, 'passive');
+  }
+  if (reason === 'attack_to_atk')
+    return presentActionBannerUnitEffectSource(api.attackDamageSource(ev), api, /攻撃はHPではなくATKにダメージを与える/);
+  if (ev.type === 'damage' && ev.damageTo === 'atk')
+    return presentActionBannerUnitEffectSource(api.unit(ev.sourceId), api, /攻撃はHPではなくATKにダメージを与える/);
+  if (ev.type === 'damage' && ev.blockedBy === 'great_shield')
+    return presentActionBannerUnitEffectSource(api.unit(ev.unitId), api, /自分よりATKが低いキャラクターからの反撃ダメージを受けない/);
+  return undefined;
+}
+
+function presentActionBannerContinuesGroup(ev, next) {
+  return !!(ev && next && PRESENT_ACTION_BANNER_GROUP_REASONS.has(String(ev.reason || ''))
+    && ev.reason === next.reason && ev.side === next.side && ev.type === next.type);
+}
+
+function presentActionBannerSource(ev, api) {
+  const source = presentActionBannerSourceUnfiltered(ev, api);
+  if (!source || !['enchant', 'ring'].includes(source.kind)) return source;
+  const card = source.card;
+  // オンラインで省略される characterDesc は、同じマスタープールのカードで補う。
+  const def = api.card(card.no || card.artCode || card.name, source.kind) || card;
+  return String(def.characterDesc || def['キャラクター用説明文'] || card.characterDesc || '').trim() ? null : source;
+}
+
+function presentActionBannerSourceUnfiltered(ev, api) {
+  if (!ev || !api || !PRESENT_ACTION_BANNER_EVENT_TYPES.has(ev.type)) return null;
+  if (ev.type === 'attack' && !ev.immediate) return null;
+  if (ev.type === 'attack' && !ev.sourceId) {
+    const summonOrigin = api.immediateSummonOrigin(ev.attackerId);
+    if (summonOrigin) return summonOrigin;
+  }
+  const reason = String(ev.reason || '');
+  // 毒の通常処理には発動元IDがない。明示的な「毒を発動させる」の直後だけ、そのカードを表示する。
+  if (ev.effect === 'poison_tick' || reason === 'poison' || ev.keywordEffect === '毒')
+    return api.poisonActivationSource ? api.poisonActivationSource(ev) : null;
+  const reasonSource = presentActionBannerReasonSource(ev, api);
+  if (reasonSource !== undefined) return reasonSource;
+  const immediateSource = api.immediateDamageSource(ev);
+  if (immediateSource) return immediateSource;
+  // 通常攻撃・反撃は表示しない。武器破壊・大盾は上のコア結果から表示元を決める。
+  const ringDamage = api.ringDamage(ev);
+  if (ringDamage) {
+    const card = api.card(ringDamage.name, 'ring');
+    if (card) return { card, side: ringDamage.side, kind: 'ring' };
+  }
+  if (ev.type === 'damage' && (ev.damageKind === 'combat' || ev.counter)) return null;
+  const unit = (ev.type === 'attack' ? api.unit(ev.sourceId) || api.immediateAttackSource(ev) || api.unit(ev.attackerId)
+    : reason === 'hydra' ? api.triggerUnit(ev.side, 'battle_end') || api.effectOwner(ev.side, 'battle_end', /報酬/)
+    : ev.type === 'life_drain' || ['ettin', 'fanatic_blood'].includes(reason)
+    ? api.unit(ev.unitId) : reason === 'injury_hp_loss'
+      ? api.triggerUnit(ev.side === 'p1' ? 'p2' : 'p1', 'injury') : api.unit(ev.sourceId) || api.unit(ev.unitId))
+    || (['behemoth', 'release_mana_double'].includes(reason) && api.triggerUnit(ev.side, 'release'))
+    || ev.unit || null;
+  const hint = unit ? api.hint(unit.id) : null;
+  const sourceSide = unit && unit.side || ev.side;
+  const make = (card, side, kind) => card && card.name ? { card, side: side || sourceSide, kind } : null;
+  const ringCode = PRESENT_ACTION_BANNER_RING_BY_REASON[reason] || PRESENT_ACTION_BANNER_RING_BY_SOURCE[ev.sourceId];
+  if (ev.ring || ev.ringName) return make(api.card(ev.ring || ev.ringName, 'ring'),
+    ev.ringName ? (ev.side === 'p1' ? 'p2' : 'p1') : ev.side, 'ring');
+  if (ringCode) return make(api.card(ringCode, 'ring'), ev.side, 'ring');
+  const itemKey = PRESENT_ACTION_BANNER_ITEM_BY_REASON[reason];
+  if (itemKey) return make(api.item(itemKey, ev.side), ev.side, 'item');
+  const sourceItem = api.item(ev.sourceId);
+  if (sourceItem) return make(sourceItem.card, sourceItem.side, 'item');
+  const mapPower = PRESENT_ACTION_BANNER_MAP_BY_REASON[reason];
+  if (mapPower) return make(api.mapCard(mapPower), ev.side, 'map');
+  // 発生元IDの無い開戦ダメージも、渡された実際の装備から引く。
+  if (ev.type === 'damage' && ev.sourceId == null && !ev.keywordEffect && api.opening()) {
+    const owner = ev.side === 'p1' ? 'p2' : 'p1';
+    const pain = api.ring('R012', ev.side);
+    if (pain && (ev.area || ev.blockedBy)) return make(pain, ev.side, 'ring');
+    const meteor = api.item('meteor_scroll', owner);
+    if (meteor) return make(meteor, owner, 'item');
+    if (pain) return make(pain, ev.side, 'ring');
+  }
+  if (ev.type === 'damage' && ev.effect === false) return null;
+  if (ev.type === 'damage' && ev.blockedBy && ev.sourceId == null) return null;
+  if (ev.type === 'keyword_effect' && !ev.sourceId) {
+    if (ev.effect === 'injury_grant') return make(api.ring('R015', ev.side), ev.side, 'ring');
+    if (ev.effect === 'weaken') {
+      const owner = ev.side === 'p1' ? 'p2' : 'p1';
+      return make(api.ring('R016', owner), owner, 'ring');
+    }
+  }
+  if (!unit) return null;
+  const attached = api.enchants(unit);
+  if (ev.type === 'effect_flash') {
+    // 他の効果を発動する行動は、結果のイベントを自分では持たない。実際の次の発動がある時だけ出す。
+    const manual = [api.ownCard(unit), ...attached].find(c =>
+      /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(c, ev.trigger)));
+    return manual && api.hasTriggeredFollowup(ev) ? make(manual, sourceSide, attached.includes(manual) ? 'enchant' : 'character') : null;
+  }
+  const mappedName = presentStatChangeEnchantName(reason);
+  const mapped = ev.fxEffect ? api.card(ev.fxEffect, 'enchant')
+    : mappedName ? api.card(mappedName, 'enchant')
+      : PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason] ? api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant') : null;
+  if (mapped && attached.some(c => c.name === mapped.name)) return make(mapped, sourceSide, 'enchant');
+  if (ev.fxEffect && mapped) return make(mapped, sourceSide, 'enchant');
+  if (ev.type === 'revive') {
+    const enchant = attached.find(c => presentActionBannerHasKeyword(c, reason));
+    return make(enchant || unit, sourceSide, enchant ? 'enchant' : 'character');
+  }
+  if (ev.type === 'seal_release') {
+    if (ev.fromItem) return make(api.item('sacrifice_doll', ev.side), ev.side, 'item');
+    return make(unit, sourceSide, 'character');
+  }
+  const mana = api.mana(unit.id);
+  const effectNo = ev.effectNo || (/^mana_threshold/.test(reason) && mana && mana.effectNo);
+  if (effectNo) {
+    const card = api.card(effectNo) || unit;
+    return make(card, sourceSide, /^E\d/.test(String(effectNo)) ? 'enchant' : 'character');
+  }
+  if (ev.type === 'summon' && unit._mapPanelPower === 'duplicate' && hint && hint.trigger === 'opening'
+    && ev.unit && ev.unit.name === unit.name && api.mapCopy(ev, unit)) return make(api.mapCard('duplicate'), sourceSide, 'map');
+  const trigger = presentActionBannerTrigger(ev, hint);
+  const own = api.ownCard(unit);
+  const keyword = presentActionBannerEventKeyword(ev);
+  if (keyword && !presentActionBannerHasKeyword(own, keyword)) {
+    const enchant = attached.find(c => presentActionBannerHasKeyword(c, keyword));
+    if (enchant) return make(enchant, sourceSide, 'enchant');
+  }
+  const ownText = presentActionBannerEffectText(own, trigger);
+  const candidates = attached.filter(c => presentActionBannerTextMatchesEvent(presentActionBannerEffectText(c, trigger), ev, unit));
+  if (ev.effectSource === false || !presentActionBannerTextMatchesEvent(ownText, ev, unit)) {
+    const chosen = api.chooseEnchant(candidates, ev, unit, trigger);
+    if (chosen) return make(chosen, sourceSide, 'enchant');
+  }
+  if (!unit.id) return null;
+  return make(unit, sourceSide, 'character');
+}
+
 // ── 演出の再生中フラグ ──────────────────────────────────
 // 「コアが確定した結果を、これから順に見せている最中」であることを表す。
 // 再生中は盤面を詰め直さない・倒れたカードを消さない。ここで先に盤面を動かすと、
@@ -1391,6 +1749,8 @@ function presentBreaksEffectRun(ev) {
 }
 
 if (typeof window !== 'undefined') {
+  window.presentActionBannerSource = presentActionBannerSource;
+  window.presentActionBannerName = presentActionBannerName;
   window.PRESENT_HIT_BEAT_MS = PRESENT_HIT_BEAT_MS;
   window.PRESENT_TURN_GAP_MS = PRESENT_TURN_GAP_MS;
   window.presentShouldSkipTurnGapBeforeManaEffect = presentShouldSkipTurnGapBeforeManaEffect;
@@ -1499,6 +1859,12 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    presentActionBannerSource, presentActionBannerName, presentActionBannerTrigger,
+    presentActionBannerEffectText, presentActionBannerTextMatchesEvent,
+    PRESENT_ACTION_BANNER_GROUP_REASONS, PRESENT_ACTION_BANNER_EVENT_TYPES,
+    presentActionBannerReasonSource, presentActionBannerUnitEffectSource, presentActionBannerContinuesGroup,
+    presentActionBannerRingDamageSources, presentActionBannerEventKeyword,
+    presentActionBannerImmediateHits, presentActionBannerPoisonActivationSource,
     PRESENT_HIT_BEAT_MS, PRESENT_TURN_GAP_MS, PRESENT_ATTACK_MOTION, PRESENT_FRONT_SLOTS, PRESENT_MAX_SLOTS, PRESENT_MANA_RUN_TYPES,
     presentShouldSkipTurnGapBeforeManaEffect,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,

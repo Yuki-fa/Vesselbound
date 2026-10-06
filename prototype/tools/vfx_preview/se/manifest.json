@@ -1,0 +1,771 @@
+{
+  "sounds": {
+    "fireball": {
+      "id": "fireball",
+      "filename": "Fire Fireball Large 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Fireball Large 01.wav",
+      "url": "vfx_preview/se/fireball.wav",
+      "duration": 1.0964,
+      "originalDuration": 1.1479,
+      "start": 0.0516,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "火球の低い破裂",
+      "sha256": "715e9c42ff6d1a9bbb6685ad571d136a39022a2987a89b25605c5e5c8a6e7b50"
+    },
+    "fireball2": {
+      "id": "fireball2",
+      "filename": "Fire Fireball Large 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Fireball Large 03.wav",
+      "url": "vfx_preview/se/fireball2.wav",
+      "duration": 1.1539,
+      "originalDuration": 1.24,
+      "start": 0.0861,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "火球の別テイク",
+      "sha256": "7aa98fcaaa01f1100fc2afc2f136e4d7364319509fdd27aacc37df41475b75cc"
+    },
+    "torch": {
+      "id": "torch",
+      "filename": "Fire Torch Movement Flare Up 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Torch Movement Flare Up 01.wav",
+      "url": "vfx_preview/se/torch.wav",
+      "duration": 1.5701,
+      "originalDuration": 1.6525,
+      "start": 0.0825,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "炎の立ち上がり",
+      "sha256": "3977f36cfbb832b687efb06410a80c6191a223935afc245549a024e06cab36a8"
+    },
+    "torch-pass": {
+      "id": "torch-pass",
+      "filename": "Fire Torch Movement Fast Pass By 04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Torch Movement Fast Pass By 04.wav",
+      "url": "vfx_preview/se/torch-pass.wav",
+      "duration": 0.6638,
+      "originalDuration": 0.8174,
+      "start": 0.1536,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "短い炎の通過",
+      "sha256": "1d0350b52541df6c597cdf053d7297f28b23c9523889fae512ce6b7449e27f5c"
+    },
+    "fire-deflect": {
+      "id": "fire-deflect",
+      "filename": "SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-03.wav",
+      "url": "vfx_preview/se/fire-deflect.wav",
+      "duration": 1.13,
+      "originalDuration": 1.13,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "炎魔法の弾き",
+      "sha256": "fa075440cba4e4f69350503b69ee467f0c0221964fb7d48f1948e85381887c07"
+    },
+    "fire-deflect2": {
+      "id": "fire-deflect2",
+      "filename": "SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-04.wav",
+      "url": "vfx_preview/se/fire-deflect2.wav",
+      "duration": 1.18,
+      "originalDuration": 1.18,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "炎魔法の別テイク",
+      "sha256": "0ad1086e9d4c192268d5eda15c5f862a29e572f58703dcf5ec7f59ce15a5503f"
+    },
+    "ghost": {
+      "id": "ghost",
+      "filename": "Horror Scary Human Whisper Ghost 05.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Human Whisper Ghost 05.wav",
+      "url": "vfx_preview/se/ghost.wav",
+      "duration": 1.95,
+      "originalDuration": 2.782,
+      "start": 0.1102,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "幽霊の囁き（短く切出し）",
+      "sha256": "f2280212ca0917258b4b5c5eabdd5090413e072ae5181bcc08c3549a98fd6d80"
+    },
+    "spell-whisper": {
+      "id": "spell-whisper",
+      "filename": "Horror Scary Human Female Whispering Spell 05.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Human Female Whispering Spell 05.wav",
+      "url": "vfx_preview/se/spell-whisper.wav",
+      "duration": 1.18,
+      "originalDuration": 1.18,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "短い呪文の囁き",
+      "sha256": "ec75000c7b55d9c3b62480cfd554b309c6f13c370031c550d40473ec6fcf736b"
+    },
+    "spell-voice": {
+      "id": "spell-voice",
+      "filename": "Horror Scary Human Female Speaking Spell 11.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Human Female Speaking Spell 11.wav",
+      "url": "vfx_preview/se/spell-voice.wav",
+      "duration": 1.8347,
+      "originalDuration": 1.8347,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "声のある呪文",
+      "sha256": "bd869ea10c244f6aae72e057bd81dda336bcb5423cdbf81a6472cebe715d30cc"
+    },
+    "plasma": {
+      "id": "plasma",
+      "filename": "RPG3_PlasmaMagicBall_Cast01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_PlasmaMagicBall_Cast01.wav",
+      "url": "vfx_preview/se/plasma.wav",
+      "duration": 1.261,
+      "originalDuration": 1.261,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "魔力の弾",
+      "sha256": "30bbe5062d61b75571dd961c3e76a741e745f39b97fe43ebf547aac08ca27ffd"
+    },
+    "ice-break": {
+      "id": "ice-break",
+      "filename": "RPG3_IceMagic2_IceBreakLonger01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_IceMagic2_IceBreakLonger01.wav",
+      "url": "vfx_preview/se/ice-break.wav",
+      "duration": 1.5345,
+      "originalDuration": 1.5345,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "氷の砕け",
+      "sha256": "458952b90a2e9da9f94b51b1bd0bd34bec741231cb6c0e6804145fc47750fd8a"
+    },
+    "ice-deflect": {
+      "id": "ice-deflect",
+      "filename": "SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav",
+      "url": "vfx_preview/se/ice-deflect.wav",
+      "duration": 1.18,
+      "originalDuration": 1.18,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "氷魔法の衝突",
+      "sha256": "b31437cc55a029b2f22609bbd03901d775aa79474628670120cf8ba8e8d91dfc"
+    },
+    "ice-deflect2": {
+      "id": "ice-deflect2",
+      "filename": "SORCERY - DESIGNED - MAGIC ICE Deflect Spell-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-01.wav",
+      "url": "vfx_preview/se/ice-deflect2.wav",
+      "duration": 1.3,
+      "originalDuration": 1.3,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "氷魔法の別テイク",
+      "sha256": "a876a80413a37f3976477ac3f0ba4267eb66e4033961f564021d834a47fdcb3c"
+    },
+    "water": {
+      "id": "water",
+      "filename": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-04.wav",
+      "url": "vfx_preview/se/water.wav",
+      "duration": 1.72,
+      "originalDuration": 1.72,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "水の膜を弾く",
+      "sha256": "2aca87282a8a449b9319e2edab3e0816d909e321d4b88a4f8003565e1fd81a9f"
+    },
+    "electric": {
+      "id": "electric",
+      "filename": "SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-04.wav",
+      "url": "vfx_preview/se/electric.wav",
+      "duration": 1.27,
+      "originalDuration": 1.27,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "魔力の短い放電",
+      "sha256": "8b79d5bed1c14f734d48444a8c5e68e976d75d187690f797165b95ed0a82df13"
+    },
+    "white": {
+      "id": "white",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
+      "url": "vfx_preview/se/white.wav",
+      "duration": 1.836,
+      "originalDuration": 1.91,
+      "start": 0.074,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "明るい魔法の発動",
+      "sha256": "b8eebf49290697f2e381e19ab72185bed028ffb710d6dedfddc52d4f6d5f18b4"
+    },
+    "white2": {
+      "id": "white2",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-04.wav",
+      "url": "vfx_preview/se/white2.wav",
+      "duration": 1.7665,
+      "originalDuration": 1.83,
+      "start": 0.0635,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "白魔法の別テイク",
+      "sha256": "eccf697cf1c966ea880374948bfa5b253d047e87837076385af8fbff0d1fece8"
+    },
+    "light-buff": {
+      "id": "light-buff",
+      "filename": "RPG3_LightMagic_Buff03_P1v2.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_LightMagic_Buff03_P1v2.wav",
+      "url": "vfx_preview/se/light-buff.wav",
+      "duration": 1.95,
+      "originalDuration": 3.2796,
+      "start": 0.0,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "光のバフ（短く切出し）",
+      "sha256": "3904a4280053722061dd4b695b45b6212b16afdf0bfb70b9c35ae80183d0a668"
+    },
+    "chime": {
+      "id": "chime",
+      "filename": "Production Element Title Transition Bell Chime 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Chime 01.wav",
+      "url": "vfx_preview/se/chime.wav",
+      "duration": 1.024,
+      "originalDuration": 1.024,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "鐘のきらめき",
+      "sha256": "631d0972bd0807015867ec6eef18615b97894ee3094506090631cd777884d074"
+    },
+    "chime2": {
+      "id": "chime2",
+      "filename": "Science Fiction Sci-Fi Electronic Chime 139.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/SF・未来・宇宙系/Science Fiction Sci-Fi Electronic Chime 139.wav",
+      "url": "vfx_preview/se/chime2.wav",
+      "duration": 0.6322,
+      "originalDuration": 0.6322,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "短い電子チャイム",
+      "sha256": "727a7a493e56e506d170e1be60c3300228941c4d2da67716f02244006798feb2"
+    },
+    "wind": {
+      "id": "wind",
+      "filename": "WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Elemental Palette Designed Vol. 1/WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
+      "url": "vfx_preview/se/wind.wav",
+      "duration": 1.0487,
+      "originalDuration": 1.0487,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "風が通過する",
+      "sha256": "5d073d6976720b81f5ec0c4e7330bad40bbc214a3e86e2a5bc2fce677afcd0c9"
+    },
+    "whoosh": {
+      "id": "whoosh",
+      "filename": "Production Element Title Transition Whoosh Fly By 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fly By 01.wav",
+      "url": "vfx_preview/se/whoosh.wav",
+      "duration": 1.1832,
+      "originalDuration": 1.1832,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "短い風切り",
+      "sha256": "526488fd55b4bbe8211411ce064e59ba5500a15c76fd070477da7f59968f9bd8"
+    },
+    "arrow": {
+      "id": "arrow",
+      "filename": "Weapon Arrow Shot 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/武器・銃器など/Weapon Arrow Shot 01.wav",
+      "url": "vfx_preview/se/arrow.wav",
+      "duration": 0.362,
+      "originalDuration": 0.362,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "細い矢の発射",
+      "sha256": "129c0887daa84c372ceaf4bb569890d37b8aadaa8044f9ed48c06dfbccb55c91"
+    },
+    "crossbow": {
+      "id": "crossbow",
+      "filename": "Weapon Crossbow Fire Arrow Release 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/武器・銃器など/Weapon Crossbow Fire Arrow Release 01.wav",
+      "url": "vfx_preview/se/crossbow.wav",
+      "duration": 0.3462,
+      "originalDuration": 0.3462,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "鋭い弩の発射",
+      "sha256": "fc1772642f3b3f6843e65379174e783250856fd11eac0daa19c9a082b8975473"
+    },
+    "bow": {
+      "id": "bow",
+      "filename": "Weapon Bow And Arrow Thump 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/武器・銃器など/Weapon Bow And Arrow Thump 01.wav",
+      "url": "vfx_preview/se/bow.wav",
+      "duration": 0.253,
+      "originalDuration": 0.253,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "弦の短い打音",
+      "sha256": "244bf426d8639afbbc6134244ab22c88a10ca28fe6c953786af81480cb6e8b19"
+    },
+    "stone": {
+      "id": "stone",
+      "filename": "Impact Rock Hit Concrete 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/打撃・衝撃・ヒット音/Impact Rock Hit Concrete 01.wav",
+      "url": "vfx_preview/se/stone.wav",
+      "duration": 0.3456,
+      "originalDuration": 0.3456,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "石とコンクリートの接触",
+      "sha256": "189fda33bc391ae838b82bd64c92ee256242ab38a623c893d3064ac4c2f05920"
+    },
+    "stone2": {
+      "id": "stone2",
+      "filename": "Weapon Sword Scrape On Stone 02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/武器・銃器など/Weapon Sword Scrape On Stone 02.wav",
+      "url": "vfx_preview/se/stone2.wav",
+      "duration": 0.977,
+      "originalDuration": 1.0461,
+      "start": 0.0691,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "石の擦れ",
+      "sha256": "babfac4270a7f5a863ec2451be78735a68abcf351e5eb55d1c7530be95e5c172"
+    },
+    "bone": {
+      "id": "bone",
+      "filename": "Impact Rocks Hit By Wood Stick 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/打撃・衝撃・ヒット音/Impact Rocks Hit By Wood Stick 01.wav",
+      "url": "vfx_preview/se/bone.wav",
+      "duration": 0.728,
+      "originalDuration": 0.728,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "骨を連想する硬い打音",
+      "sha256": "e9bc27fb2e383cc5742cfffcefcd34bfce4c1ac52b4a27f26f36a2f7e53cf71d"
+    },
+    "blood": {
+      "id": "blood",
+      "filename": "MELEE - DESIGNED - BLOOD Squish 03-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 03-04.wav",
+      "url": "vfx_preview/se/blood.wav",
+      "duration": 1.7,
+      "originalDuration": 1.7,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "血の湿った破裂",
+      "sha256": "cb63d7d0f4128c61e78ebde70e5b25cae46ef378dc4552a614c2970cc961f630"
+    },
+    "squish": {
+      "id": "squish",
+      "filename": "Horror Scary Squish Eyeballs Crush 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Squish Eyeballs Crush 03.wav",
+      "url": "vfx_preview/se/squish.wav",
+      "duration": 0.913,
+      "originalDuration": 0.913,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "湿った潰れ",
+      "sha256": "a544c3c1d876c49f8547816f9b5121b60a3a5446a7cd83f6c7e99c520a9e9a8e"
+    },
+    "impact": {
+      "id": "impact",
+      "filename": "Far Heavy Impact.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/SFX/Impacts/Far Heavy Impact.wav",
+      "url": "vfx_preview/se/impact.wav",
+      "duration": 1.803,
+      "originalDuration": 1.803,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "重い衝撃",
+      "sha256": "4aae522d6a31e4095937b9fea990e82ab6f8a0b6b4eb9cb49c0cb10350164972"
+    },
+    "impact2": {
+      "id": "impact2",
+      "filename": "Production Element Title Transition Hit Impact Short 14.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Hit Impact Short 14.wav",
+      "url": "vfx_preview/se/impact2.wav",
+      "duration": 0.9674,
+      "originalDuration": 0.9674,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "短い衝撃",
+      "sha256": "28861ba086a213a6100a923c93ca5d48f293c1c91b5374666f00b59b6f86efae"
+    },
+    "explosion": {
+      "id": "explosion",
+      "filename": "Explosion Dynamite Burst 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Explosion Dynamite Burst 01.wav",
+      "url": "vfx_preview/se/explosion.wav",
+      "duration": 1.3455,
+      "originalDuration": 1.3455,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "爆発の一撃",
+      "sha256": "8c0e3f1c5a598a96e7901a0445491d108c89bde43ae573fb91e542becca4d678"
+    },
+    "howl": {
+      "id": "howl",
+      "filename": "Animal Mammal Carnivore Dog Coyote Howl 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/動物・鳴き声/Animal Mammal Carnivore Dog Coyote Howl 01.wav",
+      "url": "vfx_preview/se/howl.wav",
+      "duration": 1.8213,
+      "originalDuration": 1.8213,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "自然な遠吠え",
+      "sha256": "ab597d8679bc5810c2712fea5ded56788f335c57b784af81c57bf92fc8217f51"
+    },
+    "howl2": {
+      "id": "howl2",
+      "filename": "Howling.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Creatures/Animals/Howling.wav",
+      "url": "vfx_preview/se/howl2.wav",
+      "duration": 1.95,
+      "originalDuration": 3.7335,
+      "start": 0.3141,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "獣の遠吠え（短く切出し）",
+      "sha256": "d85b38d685f0613f8fead170f6dde39fd6fc4a2c29eae44e1bca35b717e35bab"
+    },
+    "howl3": {
+      "id": "howl3",
+      "filename": "Animal Dog Hound Howl 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/動物・鳴き声/Animal Dog Hound Howl 01.wav",
+      "url": "vfx_preview/se/howl3.wav",
+      "duration": 1.95,
+      "originalDuration": 3.5733,
+      "start": 0.0,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "犬の遠吠え（短く切出し）",
+      "sha256": "1780f75030cfa53489d5db38953031cc0eb29858e69298b07240169a788c3b70"
+    },
+    "roots": {
+      "id": "roots",
+      "filename": "S008.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/S008.wav",
+      "url": "vfx_preview/se/roots.wav",
+      "duration": 1.8475,
+      "originalDuration": 1.9219,
+      "start": 0.0744,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "既存の活性化",
+      "sha256": "7eb0f1f63ec484c289b6dd3c978ecb938ed0dbf3d94739650138bff1d229b8f1"
+    },
+    "gold": {
+      "id": "gold",
+      "filename": "S003.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/S003.wav",
+      "url": "vfx_preview/se/gold.wav",
+      "duration": 1.88,
+      "originalDuration": 1.88,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "既存の金貨",
+      "sha256": "157aa638154cb2f8d1dbb57116fb323823a9d33f787ff149f475471c1ed987a2"
+    },
+    "shield": {
+      "id": "shield",
+      "filename": "K018.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/K018.wav",
+      "url": "vfx_preview/se/shield.wav",
+      "duration": 1.43,
+      "originalDuration": 1.43,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "既存の結界",
+      "sha256": "82427ea4acb3460ed270e739b398c9bd02aada5e3a69584b7491e1bda136c7fe"
+    },
+    "revive": {
+      "id": "revive",
+      "filename": "K020.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/K020.wav",
+      "url": "vfx_preview/se/revive.wav",
+      "duration": 1.95,
+      "originalDuration": 3.4497,
+      "start": 0.0,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "既存の復活（短く切出し）",
+      "sha256": "cb4b6d238f2efb53f95e17dc77d4d0174e8692be98b6a4cde02d2c8981f4ef77"
+    },
+    "opening": {
+      "id": "opening",
+      "filename": "appearance.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/appearance.wav",
+      "url": "vfx_preview/se/opening.wav",
+      "duration": 0.46,
+      "originalDuration": 0.46,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "既存の登場音",
+      "sha256": "19f595a4438f814c5670194551007d36c3f0e45d474a1934c66ab33639095933"
+    },
+    "slash": {
+      "id": "slash",
+      "filename": "sword1.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/sword1.wav",
+      "url": "vfx_preview/se/slash.wav",
+      "duration": 0.92,
+      "originalDuration": 0.92,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "既存の短い斬撃",
+      "sha256": "3cd279e0dffccfd097256f043dbe18b4db6072f8870424a5cabcf6e0cca58b9a"
+    },
+    "weak-ref": {
+      "id": "weak-ref",
+      "filename": "K003.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/K003.wav",
+      "url": "vfx_preview/se/weak-ref.wav",
+      "duration": 1.95,
+      "originalDuration": 4.55,
+      "start": 0.0,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "既存の状態付与（C053の音ではない）",
+      "sha256": "70aec264e290017be174d1c773e45e7998f0abca0410c61d020429dd06c4850f"
+    },
+    "old-all": {
+      "id": "old-all",
+      "filename": "K009.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/K009.wav",
+      "url": "vfx_preview/se/old-all.wav",
+      "duration": 1.95,
+      "originalDuration": 4.5334,
+      "start": 0.0,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "reason": "現在の全体攻撃",
+      "sha256": "bb8c169fa73c592ca5f5ae70719333c63d6edbc0e8d75d71fd377ad8abf55e7f"
+    },
+    "dark-ref": {
+      "id": "dark-ref",
+      "filename": "C090.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/C090.wav",
+      "url": "vfx_preview/se/dark-ref.wav",
+      "duration": 1.2107,
+      "originalDuration": 1.2107,
+      "start": 0.0,
+      "trimmed": false,
+      "peakDbfs": -1,
+      "reason": "既存の魔力の移動",
+      "sha256": "98d598ff99ce4930a5814d90e96bead44a0ba1c4aace379af61db2e5692e3070"
+    }
+  },
+  "effects": {
+    "dark-fire": [
+      "fireball",
+      "torch",
+      "fire-deflect"
+    ],
+    "banshee": [
+      "ghost",
+      "plasma",
+      "spell-whisper"
+    ],
+    "resentment": [
+      "spell-whisper",
+      "ghost",
+      "spell-voice"
+    ],
+    "lich": [
+      "ghost",
+      "dark-ref",
+      "plasma"
+    ],
+    "great-shield": [
+      "shield",
+      "water",
+      "electric"
+    ],
+    "cover-fire": [
+      "arrow",
+      "crossbow",
+      "bow"
+    ],
+    "shockwave": [
+      "wind",
+      "impact2",
+      "whoosh"
+    ],
+    "demon-soul": [
+      "fire-deflect2",
+      "impact",
+      "fireball2"
+    ],
+    "vrykolakas": [
+      "spell-whisper",
+      "dark-ref",
+      "white"
+    ],
+    "dullahan": [
+      "blood",
+      "squish",
+      "fireball"
+    ],
+    "bone-chariot": [
+      "bone",
+      "stone2",
+      "spell-whisper"
+    ],
+    "jackalope": [
+      "roots",
+      "white2",
+      "chime"
+    ],
+    "dragonnet": [
+      "wind",
+      "water",
+      "roots"
+    ],
+    "cockatrice": [
+      "stone",
+      "stone2",
+      "bone"
+    ],
+    "bandersnatch": [
+      "weak-ref",
+      "spell-whisper",
+      "water"
+    ],
+    "worm": [
+      "wind",
+      "roots",
+      "water"
+    ],
+    "wyvern": [
+      "whoosh",
+      "wind",
+      "slash"
+    ],
+    "frost-sprite": [
+      "ice-deflect",
+      "ice-break",
+      "ice-deflect2"
+    ],
+    "leprechaun": [
+      "gold",
+      "chime",
+      "light-buff"
+    ],
+    "melusine": [
+      "wind",
+      "spell-whisper",
+      "water"
+    ],
+    "carbuncle": [
+      "ice-break",
+      "shield",
+      "electric"
+    ],
+    "pixie": [
+      "plasma",
+      "electric",
+      "white"
+    ],
+    "elemental": [
+      "fire-deflect",
+      "light-buff",
+      "white2"
+    ],
+    "imp": [
+      "dark-ref",
+      "plasma",
+      "spell-whisper"
+    ],
+    "wendigo": [
+      "wind",
+      "ice-break",
+      "ice-deflect2"
+    ],
+    "nightmare": [
+      "ghost",
+      "spell-whisper",
+      "dark-ref"
+    ],
+    "abyss": [
+      "dark-ref",
+      "ghost",
+      "impact"
+    ],
+    "baron": [
+      "spell-voice",
+      "fire-deflect2",
+      "ghost"
+    ],
+    "pegasus": [
+      "white",
+      "light-buff",
+      "chime"
+    ],
+    "direwolf": [
+      "howl",
+      "howl2",
+      "howl3"
+    ],
+    "weaken": [
+      "impact2",
+      "bone",
+      "stone"
+    ],
+    "atk-down": [
+      "ice-deflect",
+      "chime2",
+      "water"
+    ],
+    "all-sweep": [
+      "slash",
+      "whoosh",
+      "impact2"
+    ],
+    "all-ring": [
+      "impact2",
+      "impact",
+      "old-all"
+    ],
+    "all-cross": [
+      "slash",
+      "crossbow",
+      "impact2"
+    ],
+    "meteor-scroll": [
+      "explosion",
+      "fireball",
+      "old-all"
+    ]
+  }
+}

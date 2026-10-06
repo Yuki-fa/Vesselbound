@@ -322,11 +322,28 @@ function coreAttackDamage(unit) {
   if (unit && coreHasEffect(unit, '攻防一体')) return Math.max(0, Number(unit.hp) || 0);
   return Math.max(0, unit && unit.atk || 0);
 }
-function coreCounterDamage(attacker, defender) {
+function coreCounterDamage(attacker, defender, notice) {
   if (!defender || defender.hp <= 0 || coreIsSealed(defender)) return 0;
   const noCounter = /自分よりATKが低いキャラクターからの反撃ダメージを受けない/.test(coreUnitTriggerText(attacker, '攻撃'))
     && (Number(defender.atk) || 0) < (Number(attacker && attacker.atk) || 0);
+  // 表示用の出力だけ。既存の返り値・戦闘状態・乱数は変えない。
+  if (noCounter && notice) {
+    notice.blockedBy = 'great_shield';
+    notice.preventedAmount = coreAttackDamage(defender);
+  }
   return noCounter ? 0 : coreAttackDamage(defender);
+}
+
+// 反撃する位置まで到達した時だけ通知する（先制で倒した相手・範囲攻撃の副対象では出さない）。
+// 既存のdamageを使い、数値・被弾VFX・命中SEを発生させない。
+function coreEmitCounterBlock(state, attacker, defender, notice, emit) {
+  if (!notice || notice.blockedBy !== 'great_shield' || !(notice.preventedAmount > 0)
+    || !attacker || attacker.hp <= 0) return;
+  emit({ type: 'damage', side: attacker.side, unitId: attacker.id, sourceId: defender.id,
+    amount: 0, hpAfter: attacker.hp, counter: true, effect: false, effectSource: false,
+    blockedBy: notice.blockedBy, reason: 'great_shield', preventedAmount: notice.preventedAmount,
+    damageKind: coreDamageKind(state), batch: state._coreDamageBatch || null,
+    suppressAttackHitSfx: true });
 }
 
 // ══════════════════════════════════════════
@@ -446,15 +463,18 @@ function coreUnitHasSacrifice(unit) { return false; }
 
 // 刻印6種のXは、シート本文の固定値ではなく現在のステージから共通計算する。
 // PvE／オンラインとも formation.js が _stageNumber を載せ、コアはGへ触れない。
-function coreEngravingStageNumber(unit, state) {
-  // 戦闘stateの値が「現在のステージ」。保存済みユニットに古い値が残っていても
-  // そちらを優先しない。stateを持たない coreSealValue() だけはユニットへ焼いた値を使う。
+function coreEngravingStageNumber(unit, state, name) {
+  // **Xは刻印を取得した時のステージで固定する**（2026-10-05 利用者指定）。編成が接続した刻印ごとの
+  // 取得ステージ（unit._engravingStages）を最優先し、記録が無い時（古いセーブ）だけ現在のステージを使う。
+  const fixed = name && unit && unit._engravingStages && Number(unit._engravingStages[String(name)]);
+  if (fixed > 0) return Math.max(1, Math.floor(fixed));
+  // 戦闘stateの値が「現在のステージ」。stateを持たない coreSealValue() だけはユニットへ焼いた値を使う。
   return Math.max(1, Math.floor(Number(state && state.stageNumber)
     || Number(state && state.mapIndex) || Number(unit && unit._stageNumber) || 1));
 }
 function coreEngravingStageValue(unit, name, state) {
   const scale = String(name || '') === '苦悶の刻印' ? 20 : 5;
-  return coreEngravingStageNumber(unit, state) * scale;
+  return coreEngravingStageNumber(unit, state, name) * scale;
 }
 
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
@@ -712,6 +732,7 @@ function createCoreUnit(raw, side, index) {
     _panelSummoned: raw && raw._panelSummoned !== undefined ? !!raw._panelSummoned : true,
     _mainBoardSlot: Number.isInteger(Number(raw && raw._mainBoardSlot)) ? Number(raw._mainBoardSlot) : null,
     _stageNumber: Math.max(1, Math.floor(Number(raw && raw._stageNumber) || 1)),
+    ...(raw && raw._engravingStages ? { _engravingStages: { ...raw._engravingStages } } : {}),
     _summonedInBattle: !!(raw && raw._summonedInBattle),
     summonCount: Math.max(1, Number(raw && raw.summonCount) || 1),
     _mapPanelPower: String((raw && raw._mapPanelPower) || ''),
@@ -852,6 +873,7 @@ function coreUnitSnapshot(unit) {
     stealth: u.stealth, _sealed: u._sealed, _panelSummoned: u._panelSummoned,
     _mainBoardSlot: Number.isInteger(Number(u._mainBoardSlot)) ? Number(u._mainBoardSlot) : null,
     _stageNumber: Math.max(1, Math.floor(Number(u._stageNumber) || 1)),
+    ...(u._engravingStages ? { _engravingStages: { ...u._engravingStages } } : {}),
     _summonedInBattle: !!u._summonedInBattle,
     shield: u.shield, weaken: u.weaken,
     artCode: u.artCode || u._artCode || u.no || '',
@@ -1959,6 +1981,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     no: source.no || source.artCode || '', art: source.art || '', sfxType: source.sfxType || source.attackSfx || '',
     desc: source.desc || '', effectData: source.effectData, _panelSummoned: true,
     _stageNumber: coreEngravingStageNumber(source, state),
+    ...(source._engravingStages ? { _engravingStages: { ...source._engravingStages } } : {}),
     manaOnAttack: source.manaOnAttack, manaOnInjury: source.manaOnInjury, manaOnDeath: source.manaOnDeath,
     goldOnBattleEnd: source.goldOnBattleEnd, goldOnDeath: source.goldOnDeath,
     manaCost: source.manaCost, manaRepeat: source.manaRepeat, manaThresholdDesc: source.manaThresholdDesc || source._manaThresholdDesc,
@@ -2256,7 +2279,9 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
 const CORE_COLOR_EYE_RINGS = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
 function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
   // 強化でHP0になった体（_deployedAtZeroHp）にも掛ける。正に戻れば、その体は出撃する。
-  if (!unit || coreIsSealed(unit) || (unit.hp <= 0 && !unit._deployedAtZeroHp)) return;
+  // **封印中の体にも掛ける**（「常時：全ての赤の味方は+10/+10」。説明にも出ている。2026-10-05 利用者指摘）。
+  // 封印の解放は数値を足すだけなので、解放後もこの分は残る。
+  if (!unit || (unit.hp <= 0 && !unit._deployedAtZeroHp)) return;
   const side = unit.side;
   coreResolvedRings(state, side).forEach(ring => {
     const color = CORE_COLOR_EYE_RINGS[String(ring && ring.name || ring || '')];
@@ -2306,7 +2331,7 @@ function coreApplyOpeningRings(state, rng, emit, applyHit) {
   const live = side => (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
   // 強化でHP0になった体（_deployedAtZeroHp）も瞳の指輪の対象にする（正に戻れば出撃する）。
   ['p1', 'p2'].forEach(side => (state.units[side] || []).filter(Boolean)
-    .filter(x => (x.hp > 0 || x._deployedAtZeroHp) && !coreIsSealed(x))
+    .filter(x => (x.hp > 0 || x._deployedAtZeroHp))
     .forEach(u => coreApplyOpeningRingsToUnitEarly(state, u, emit)));
   // 瞳の指輪でも正に戻らなかった体は、ここで通常の死亡扱いに戻す（印を残すと盤面から外れない）。
   ['p1', 'p2'].forEach(side => (state.units[side] || []).forEach(u => { if (u && u._deployedAtZeroHp) delete u._deployedAtZeroHp; }));
@@ -3065,9 +3090,11 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     const target = kingTarget;
     if (skeleton && target) {
       const damage = coreAttackDamage(skeleton);
-      const counter = coreCounterDamage(skeleton, target);
+      const counterNotice = {};
+      const counter = coreCounterDamage(skeleton, target, counterNotice);
       emit({ type: 'attack', side: unit.side, attackerId: skeleton.id, targetId: target.id, damage, counterDamage: counter, immediate: true });
       applyHit(skeleton, target, damage);
+      if (target.hp > 0) coreEmitCounterBlock(state, skeleton, target, counterNotice, emit);
       if (target.hp > 0 && counter > 0) applyHit(target, skeleton, counter, true);
     }
     }
@@ -3140,10 +3167,12 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     const target = rng.pick(foes.filter(x => x !== controlled && x.hp > 0 && !coreIsSealed(x)));
     if (controlled && target) {
       const damage = coreAttackDamage(controlled);
-      const counter = coreCounterDamage(controlled, target);
+      const counterNotice = {};
+      const counter = coreCounterDamage(controlled, target, counterNotice);
       emit({ type: 'attack', side: controlled.side, attackerId: controlled.id, targetId: target.id,
         damage, counterDamage: counter, immediate: true, controlled: true, sourceId: unit.id });
       applyHit(controlled, target, damage);
+      if (target.hp > 0) coreEmitCounterBlock(state, controlled, target, counterNotice, emit);
       if (target.hp > 0 && counter > 0) applyHit(target, controlled, counter, true);
       result.skipAttack = true;
     }
@@ -5295,7 +5324,8 @@ function coreBattleStepInner(ctx) {
           victims.forEach(({ victim, allowCounter }) => {
             if (!victim || victim.hp <= 0) return;
             const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(victim, '先制');
-            const counter = coreCounterDamage(attacker, victim);
+            const counterNotice = {};
+            const counter = coreCounterDamage(attacker, victim, counterNotice);
             // 団結対象へのダメージは束の終了時まで仮結果になるため、先制で倒れたかを
             // ここで判定してはいけない。束を閉じた後に生存を確認して反撃する。
             const uniteBatched = !!(attackerFirst && state._coreUniteBatch
@@ -5305,16 +5335,20 @@ function coreBattleStepInner(ctx) {
             const targetResult = applyHit(attacker, victim, damage, false, false, false, hitOpts);
             delete attacker._coreAttackContact;
             if (allowCounter && uniteBatched) {
-              pendingUniteCounters.push({ victim, counter });
+              pendingUniteCounters.push({ victim, counter, counterNotice });
             } else if (allowCounter && !(attackerFirst && targetResult.died)) {
               applyHit(victim, attacker, counter, true, false, false, hitOpts);
+              coreEmitCounterBlock(state, attacker, victim, counterNotice, emit);
             }
           });
         } finally { if (batched) coreEndDamageBatch(state); }
       });
       // 団結の割り振り結果が確定してから、先制対象の反撃可否を判定する。
-      pendingUniteCounters.forEach(({ victim, counter }) => {
-        if (victim && victim.hp > 0) applyHit(victim, attacker, counter, true, false, false, hitOpts);
+      pendingUniteCounters.forEach(({ victim, counter, counterNotice }) => {
+        if (victim && victim.hp > 0) {
+          coreEmitCounterBlock(state, attacker, victim, counterNotice, emit);
+          applyHit(victim, attacker, counter, true, false, false, hitOpts);
+        }
       });
       // 誘発は戦闘ダメージの束の外で解決する（負傷効果・死亡効果はそれぞれ別の種別になる）。
       pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,

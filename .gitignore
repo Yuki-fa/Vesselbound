@@ -32,3 +32,9 @@ VFXwebp/
 *.psd
 *.ai
 *.tmp
+
+# VFX LAB の撮影結果（再生成できる。大きいので入れない）
+prototype/tools/vfx_preview/shots/
+prototype/tools/vfx_preview/review/
+prototype/tools/vfx_preview/capture_frames/
+prototype/tools/action_banner_mock.jpg

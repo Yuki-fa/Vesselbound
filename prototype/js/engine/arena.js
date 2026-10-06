@@ -342,7 +342,7 @@ async function arenaHandleBattleDefeat(){
   G.phase='reward';
   document.body.classList.remove('battle-turn-active');
   document.body.classList.add('battle-victory-pending');
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({keepActionBanner:true});
   if(typeof _waitForPendingVfx==='function') await _waitForPendingVfx();
   // 闘技場固有の分岐は作らず、通常戦・オンラインと同じ敗北台詞入口を通す。
   if(typeof playBattlePlayerDefeatLines==='function') await playBattlePlayerDefeatLines();
