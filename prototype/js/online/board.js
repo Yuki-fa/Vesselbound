@@ -369,7 +369,7 @@
   function _placeSummonedUnit(list, summoned, spec) {
     const live = list.filter(x => x && x.hp > 0 && !x._isObject && !x._isSoul).length;
     if (live >= MAX_SLOTS) return false;
-    coreInsertSummonedUnit(list, summoned, spec || {}, FRONT_SLOTS);
+    presentInsertSummonedUnit(list, summoned, spec || {}, FRONT_SLOTS);
     // 配列は固定長で扱う（renderField が index 0..MAX_SLOTS-1 を描く）。
     while (list.length > MAX_SLOTS) list.pop();
     while (list.length < MAX_SLOTS) list.push(null);
@@ -545,12 +545,44 @@
     showLines: (unit, side, lines, options) => showBattleUnitOutcomeLines(unit, side, lines, options),
   };
 
+  async function _showDamage(ev, ctx) {
+    await _awaitContactHold(ev);
+    return presentDamageEvent(ev, {
+      findUnit: (side, id) => _find(side, id),
+      findAnyUnit: id => _find('p1', id) || _find('p2', id),
+      applyHp: (unit, hpAfter) => { unit.hp = Math.max(0, Number(hpAfter) || 0); },
+      gate: _damageGate,
+      sleep: _sleep,
+      ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
+      sfxDone: _damageSfxDone,
+      // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（PvEと同じ）。
+      sfxBatch: e0 => {
+        const evs = (ctx && ctx.events) || [];
+        return presentDamageSfxBatch(evs, Math.max(0, evs.indexOf(e0)));
+      },
+      // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
+      runAheadMs: e0 => {
+        const evs = (ctx && ctx.events) || [];
+        return presentDamageRunAheadMs(evs, Math.max(0, evs.indexOf(e0)));
+      },
+      alreadyShown: e0 => !!(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(e0)),
+      // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js（PvEと同じ）。
+      vfxKeyword: e0 => (typeof presentDamageVfxKeyword === 'function'
+        ? presentDamageVfxKeyword((ctx && ctx.events) || [], e0) : ''),
+      // 効果の素材はシートの「VFX/SE」列で引く（PvEと同じ）。
+      effectFxCode: no => (no && typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(no) : no),
+    });
+  }
+
   async function _fireAttackContact(ev, ctx) {
     _firePendingContactVfx();
-    if (typeof presentAttackContactOutcomeLines !== 'function') return;
     const events = (ctx && ctx.events) || [];
     const index = events.indexOf(ev);
-    if (index >= 0) await presentAttackContactOutcomeLines(events, index, _outcomeLineApi);
+    if (index >= 0) {
+      await presentAttackContactHits(events,index,{damage:e=>_showDamage(e,ctx),
+        shield:{findUnit:(side,id)=>_find(side,id),applyShield:(u,next)=>_applyOnlineShield(ctx,u.side,u.id,next)}});
+      if (typeof presentAttackContactOutcomeLines === 'function') await presentAttackContactOutcomeLines(events, index, _outcomeLineApi);
+    }
   }
 
   // 攻撃モーションを開始する。paused=true なら25%地点で止め、release() で接触まで進める。
@@ -577,15 +609,12 @@
       ...PRESENT_ATTACK_MOTION,
       onContact: () => _fireAttackContact(ev, ctx),
       onHit: () => {
-        // 接触の揺れだけをここで出す。
-        // **数値・VFX・HPの反映は、モーションが終わってから後続イベントの順番どおりに出す。**
-        // ここで先取りして出すと、間に挟まる能力変化（負傷など）の演出だけがあとへ回り、
-        // 同じ盤面でも演出の並びがPvEと食い違う。
+        // 揺れはここで、接触ダメージと結界消費は上の共通フックで見せる。
+        // 能力変化・誘発効果は後続イベントの順番を保つ。
         if (typeof _shakeOnAttackContact === 'function') _shakeOnAttackContact(target, dmg);
       },
     });
-    // PvEは攻撃モーションが完全に終わってからヒットSE・ダメージVFX・数値表示を出す。
-    // 同じ契機にするため、呼び出し側はこの Promise を待つ。
+    // 後続の負傷・死亡・詰め直しは、PvEと同じく戻りモーションの完了を待つ。
     const motion = (async () => {
       try { await _awaitMotion(); }
       finally { markReady(); if (motionDepthStarted) endBattleMotion(); }
@@ -724,37 +753,10 @@
       }
       case ONLINE_EVENT.DAMAGE: {
         // 貫通で貫かれた体は、**絵がその位置を通り過ぎるまで**数値を出さない（PvEと同じ）。
-        await _awaitContactHold(ev);
         // 1件のダメージをどう見せるかは present_events.js が唯一の実装（PvEと同じ）。
         // ここでの違い（ユニットの引き方・HPの反映・先読みするイベント列）だけを渡す。
         // 表示はイベントの hpAfter をそのまま反映する（自前で引き算しない）。
-        const shown = await presentDamageEvent(ev, {
-          findUnit: (side, id) => _find(side, id),
-          findAnyUnit: id => _find('p1', id) || _find('p2', id),
-          applyHp: (unit, hpAfter) => { unit.hp = Math.max(0, Number(hpAfter) || 0); },
-          gate: _damageGate,
-          sleep: _sleep,
-          ownEffectText: typeof _ownCardEffectText === 'function' ? _ownCardEffectText : null,
-          sfxDone: _damageSfxDone,
-          // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（PvEと同じ）。
-          sfxBatch: e0 => {
-            const evs = (ctx && ctx.events) || [];
-            const from = Number(ctx && ctx.eventIndex);
-            return presentDamageSfxBatch(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
-          },
-          // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
-          runAheadMs: e0 => {
-            const evs = (ctx && ctx.events) || [];
-            const from = Number(ctx && ctx.eventIndex);
-            return presentDamageRunAheadMs(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
-          },
-          alreadyShown: e0 => !!(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(e0)),
-          // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js（PvEと同じ）。
-          vfxKeyword: e0 => (typeof presentDamageVfxKeyword === 'function'
-            ? presentDamageVfxKeyword((ctx && ctx.events) || [], e0) : ''),
-          // 効果の素材はシートの「VFX/SE」列で引く（PvEと同じ）。
-          effectFxCode: no => (no && typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(no) : no),
-        });
+        await _showDamage(ev,ctx);
         break;
       }
       case 'mana_gain': {

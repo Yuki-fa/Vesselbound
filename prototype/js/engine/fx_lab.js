@@ -123,7 +123,9 @@ var VbFx = (function () {
     }
     var w = el.offsetWidth * scale, h = el.offsetHeight * scale;
     if (!(w > 0 && h > 0)) { w = b.width; h = b.height; angle = 0; }
-    return { cx: b.left + b.width / 2, cy: b.top + b.height / 2, w: w, h: h, angle: angle };
+    var cs = getComputedStyle(el);
+    return { cx: b.left + b.width / 2, cy: b.top + b.height / 2, w: w, h: h, angle: angle,
+      shown: b.width > 1 && b.height > 1 && w > 1 && h > 1 && cs.visibility !== 'hidden' && cs.display !== 'none' };
   }
   function normalize(r) {
     if (!r) return null;
@@ -283,7 +285,7 @@ var VbFx = (function () {
       if (job.done) return;
       var rebound;
       try { rebound = rebindElements(job); } catch (e) { finish(job, false, e); return; }
-      if (job.def.loop && job.source.element && !job.source.element.isConnected) { finish(job, true); return; }
+      if (job.def.loop && (!job.source.element || !job.source.element.isConnected)) { finish(job, true); return; }
       if (job.start == null) {
         job.start = now;
         clearTimeout(job.watchdog);
@@ -315,6 +317,8 @@ var VbFx = (function () {
       // 傾きのない矩形（中心0,0）で描き、描画全体をカードの中心へ移して回す。
       var drawCtx = frameContext, geo = job.def.loop && job.targets[0] && job.targets[0].element && job.targets[0].element.isConnected
         ? cardGeometry(job.targets[0].element) : null;
+      // カードが隠れている（表示されず大きさ0）時は描かない。大きさ0の矩形は画面左上(0,0)に出てしまう（2026-10-07 利用者指摘）。
+      if (job.def.loop && job.targets[0] && job.targets[0].element && (!geo || !geo.shown)) { frameContext.restore(); return; }
       if (geo) {
         job.targets[0].left = -geo.w / 2; job.targets[0].top = -geo.h / 2; job.targets[0].width = geo.w; job.targets[0].height = geo.h;
         job.targets[0].right = geo.w / 2; job.targets[0].bottom = geo.h / 2;
@@ -2071,7 +2075,8 @@ var VbFx = (function () {
     var selected = jobs.filter(function (job) {
       return typeof handle === 'number' ? job.id === handle : handle &&
         (!handle.name || job.def.name === handle.name) &&
-        (!handle.element || job.source.element === handle.element || job.targets.some(function (r) { return r.element === handle.element; }));
+        (handle.key != null ? job.options.key === handle.key
+          : !handle.element || job.source.element === handle.element || job.targets.some(function (r) { return r.element === handle.element; }));
     });
     selected.forEach(function (job) { finish(job, true); }); return selected.length;
   }
@@ -2080,7 +2085,8 @@ var VbFx = (function () {
   function retarget(handle, to) {
     var next = normalize(to); if (!next || !next.element) return 0;
     var selected = jobs.filter(function (job) {
-      return !job.done && job.def.loop && (!handle.name || job.def.name === handle.name) && job.targets[0] && job.targets[0].element === handle.element;
+      return !job.done && job.def.loop && (!handle.name || job.def.name === handle.name) && job.targets[0]
+        && (handle.key != null ? job.options.key === handle.key : job.targets[0].element === handle.element);
     });
     selected.forEach(function (job) {
       job.source = next; job.targets[0] = next; job.from = point(next);

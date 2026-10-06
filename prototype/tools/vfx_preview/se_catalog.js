@@ -725,18 +725,45 @@ var VbFxSeCatalog = {
     },
     "battle-summon-1": {
       "id": "battle-summon-1",
-      "filename": "SORCERY - DESIGNED - MAGIC WHITE Summon-01.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Summon-01.wav",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Summon-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Summon-03.wav",
       "url": "vfx_preview/se/battle-summon-1.wav",
-      "duration": 2.16,
-      "originalDuration": 12.81,
-      "start": 10.3,
+      "duration": 1.8,
+      "originalDuration": 13.12,
+      "start": 0.288,
       "trimmed": true,
       "peakDbfs": -1,
-      "peak": 0.9,
-      "adopted": true,
-      "reason": "採用",
-      "sha256": "4460d3aac5a06fc0ed24d30f2d203868865810d365cd346287e7475457bdace6"
+      "peak": 0.62,
+      "reason": "",
+      "sha256": "c373692692db521a2cbabec35d2b42960797dcdb622f70e0178e332549aee497"
+    },
+    "battle-summon-2": {
+      "id": "battle-summon-2",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-01.wav",
+      "url": "vfx_preview/se/battle-summon-2.wav",
+      "duration": 1.8,
+      "originalDuration": 3.72,
+      "start": 0.052,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "peak": 0.46,
+      "reason": "",
+      "sha256": "26ef845e764b83520b9396050aff45f0fadbba83b04fd624f70b5f928e3204f1"
+    },
+    "battle-summon-3": {
+      "id": "battle-summon-3",
+      "filename": "Portal Opening 1.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Technology/Device Electronic/Portal Opening 1.wav",
+      "url": "vfx_preview/se/battle-summon-3.wav",
+      "duration": 1.8,
+      "originalDuration": 2.0,
+      "start": 0.019,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "peak": 0.52,
+      "reason": "",
+      "sha256": "869c9c2afe336bf0d5385dc7658ad262114b9fdbb8ac31f9b8540ab412a7c115"
     },
     "revive-summon-1": {
       "id": "revive-summon-1",
@@ -968,7 +995,9 @@ var VbFxSeCatalog = {
       "wraith-1"
     ],
     "battle-summon": [
-      "battle-summon-1"
+      "battle-summon-1",
+      "battle-summon-2",
+      "battle-summon-3"
     ],
     "revive-summon": [
       "revive-summon-1"

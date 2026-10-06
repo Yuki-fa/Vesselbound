@@ -772,7 +772,7 @@ async function _onVillageFacility(fac){
       const normalTalk=_facilityGreetingEntry(fac);
       const arenaAfterTalk=_facilityArenaAfterTalkEntry(fac);
       // 命の鎖は、会話シートに A1〜A3 が揃った鍛冶屋だけで起動する。
-      // 町名の分岐を増やさず、ギャラハ等の通常鍛冶屋は従来の台詞1を保つ。
+      // 町名の分岐を増やさず、A1〜A3の無い鍛冶屋（ヴォルザーク等）は従来の台詞1を保つ（2026-10-07 命の鎖はギャラハへ移した）。
       const forgeChainTalk=fac.key==='forge'&&normalTalk
         &&normalTalk['特殊台詞A1']&&normalTalk['特殊台詞A2']&&normalTalk['特殊台詞A3'];
       const forgeChainState=forgeChainTalk&&typeof questForgeChainState==='function'

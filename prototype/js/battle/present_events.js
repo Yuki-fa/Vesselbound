@@ -30,11 +30,11 @@ function presentEndActionBannerEvent(scope) {
 // LABの発動単位・直列化はこの共通入口だけで管理する（受け口はデータ供給だけ）。
 let _presentLabLists = new WeakMap();
 let _presentLabClaims = new WeakMap();
-let _presentLabBlockFx = new WeakMap();
+let _presentContactHits = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
 function presentLabEventHandled(ev) { return !!(ev && _presentLabClaims.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabBlockFx=new WeakMap(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentContactHits = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
 function _presentLabContext(events) {
   let context = _presentLabLists.get(events);
   if (!context) { context = {active:null}; _presentLabLists.set(events,context); }
@@ -200,12 +200,6 @@ async function presentLabEndEvent(ev, events, index, api) {
         context.active={done:playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally'}),gains:[]};
       }
     }
-    if(ev.type==='shield_lost'&&Number(ev.shield)===0) {
-      const generation=battleFxGeneration();
-      context.active={done:Promise.resolve(_presentLabBlockFx.get(ev)).then(()=>{
-        if(generation===battleFxGeneration()) return playBattleLabFx('shield_break',unit,[unit],{side:ev.side==='p2'?'enemy':'ally'});
-      }),gains:[]};
-    }
   }
   if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
 }
@@ -242,6 +236,7 @@ async function presentLabCommittedEvents(events, api, showEvent) {
 //   onEffectDamage(ev)      … 効果ダメージの共通音を鳴らす契機
 async function presentDamageEvent(ev, api) {
   if (!ev || !api) return false;
+  if (_presentContactHits.has(ev)) return true;
   const amount = Math.max(0, Number(ev.amount) || 0);
   const target = api.findUnit(ev.side, ev.unitId);
   if (!target) return false;
@@ -396,14 +391,11 @@ function presentDamageSfxBatch(events, index) {
 // api: findUnit(side,id) / render() …
 function presentShieldLostEvent(ev, api) {
   if (!ev || !api) return false;
+  if (_presentContactHits.has(ev)) return true;
   const unit = api.findUnit(ev.side, ev.unitId);
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
   if (unit) {
-    // 結界がダメージを防いだ瞬間の専用VFXとSE（キーワード「結界」＝K018）。
-    // **絵も音もキーワードの番号で引く。** 数値は出ないので amount は0。
-    if (typeof playHitVfx === 'function') {
-      _presentLabBlockFx.set(ev,Promise.resolve(playHitVfx(fxSide, unit, 0, { keywordEffect: '結界',waitForFinish:true })));
-    }
+    if (typeof battleFxRect === 'function') _presentLabOrigins.shield.set(ev.side,{unit,rect:battleFxRect(unit,fxSide,ev.lastVisualRect)});
     // 結界の状態表示を進めるのはこの瞬間（防御の命中と同じ時刻）。
     // 残りの結界は**イベントに書かれた値**を使う。コアは手番を先に解決し終えているので、
     // 実体（unit.shield）はこの先の分まで減っていることがあり、
@@ -412,11 +404,26 @@ function presentShieldLostEvent(ev, api) {
       ? Math.max(0, Number(ev.shield)) : Math.max(0, Number(unit.shield) || 0);
     if (typeof api.applyShield === 'function') api.applyShield(unit, nextShield);
     if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: nextShield });
+    if (typeof battleFxAdvanceStates === 'function') battleFxAdvanceStates(unit,{shield:nextShield});
     if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
+    // K018の音は防いだ瞬間に残す。消失の絵はLABだけにし、死亡などの後続は待たせない。
+    const sound = typeof getKeywordEffectSfxKey === 'function' ? getKeywordEffectSfxKey('結界') : '';
+    if (sound && typeof playSfx === 'function') playSfx(sound,{group:'combat',guardMs:0});
+    if (nextShield===0 && typeof playBattleLabFx === 'function') void playBattleLabFx('shield_break',unit,[unit],{side:fxSide});
   }
   // 結界のエフェクトを消すため、盤面も描き直す。
   if (typeof api.render === 'function') api.render();
   return !!unit;
+}
+
+// PvE・オンライン・保存再生とも、接触フックから同じイベント受け口を呼ぶ。
+// VFXの終了を待たず、表示済みのイベントは後続ループで二重に出さない。
+async function presentAttackContactHits(events, index, api) {
+  for (const ev of presentAttackContactHitEvents(events,index)) {
+    if (_presentContactHits.has(ev)) continue;
+    const shown = ev.type==='shield_lost' ? presentShieldLostEvent(ev,api.shield) : await api.damage(ev);
+    if (shown) _presentContactHits.add(ev);
+  }
 }
 
 // ── 能力変化（バフ・負傷効果など）────────────────────
@@ -543,13 +550,25 @@ const PRESENT_KEYWORD_EFFECT_NAMES = {
 // 描画の契機：**まだDOMに姿が無い召喚体だけ、攻撃モーション中でも描画を進める。**
 // 保留したままだと次の死亡イベントまで画面に現れず、逆に常に割り込むと
 // 飛行中の複製の戻り先が動いてカードが二重に見える。
-// api:
-//   list(side)                … その陣営の盤面配列
-//   hasUnit(list, id)         … 既に盤面にいるか
-//   place(list, unit, spec)   … coreInsertSummonedUnit を通した配置（成否を返す）
-//   hasDom(unit, side)        … その召喚体のDOMが既にあるか
-//   compact(force)            … 盤面の詰め直し
-//   render()                  … 単純な描き直し
+// コアと同じ配置へ、今このイベントで見えているHPを渡す。
+// PvEの最終HPを使うと、接触で倒れる右端の体を飛ばして召喚体が左へ入り込む。
+// 配置用の写しだけをコアへ渡し、盤面には元の参照を戻す（HPの実値は変えない）。
+function presentInsertSummonedUnit(list, unit, spec, frontSlots) {
+  const originals = new Map();
+  const view = u => {
+    if (!u) return null;
+    const copy = {...u,hp:typeof presentShownHp==='function'?presentShownHp(u):u.hp};
+    originals.set(copy,u); return copy;
+  };
+  const shown = list.map(view), child = view(unit);
+  const at = coreInsertSummonedUnit(shown,child,spec,frontSlots);
+  unit.lane = child.lane;
+  list.splice(0,list.length,...shown.map(u=>originals.get(u)));
+  return at;
+}
+
+// api: list(side) / hasUnit(list,id) / place(list,unit,spec) / hasDom(unit,side) / compact(force) / render()
+// placeは presentInsertSummonedUnit を通し、位置決めをコアへ委ねる。
 function presentSummonPlacement(ev, api) {
   if (!ev || !api || !ev.unit) return false;
   const list = typeof api.list === 'function' ? api.list(ev.side) : null;
@@ -977,6 +996,7 @@ async function presentDeathBatch(evs, api) {
     if (ev.statChange) unit._deathByStatDrain = true;
     else delete unit._deathByStatDrain;
     unit._deathFxReady = true;
+    if (typeof battleFxStopUnitStates === 'function') battleFxStopUnitStates(unit);
   });
   if (typeof api.startFx === 'function') entries.forEach(({ ev, unit }) => api.startFx(unit, ev.side));
   // **死亡効果の解決だけは発生順に行う。** 順序はコアが決めた通りで、ここでは変えない。
@@ -1162,6 +1182,8 @@ if (typeof window !== 'undefined') {
   window.presentBeginActionBannerEvent = presentBeginActionBannerEvent;
   window.presentEndActionBannerEvent = presentEndActionBannerEvent;
   window.presentDamageEvent = presentDamageEvent;
+  window.presentAttackContactHits = presentAttackContactHits;
+  window.presentInsertSummonedUnit = presentInsertSummonedUnit;
   window.presentDamageSfxBatch = presentDamageSfxBatch;
   window.presentShieldLostEvent = presentShieldLostEvent;
   window.presentKeywordEffectEvent = presentKeywordEffectEvent;
@@ -1194,11 +1216,11 @@ window.presentReviveEvent = presentReviveEvent;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     presentBeginActionBannerEvent, presentEndActionBannerEvent,
-    presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentFledEvent,
+    presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentAttackContactHits, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
     presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentDeathBatch, presentOutcomeEventLines, presentAttackContactOutcomeLines,
-    presentPlayerDefeatLines, presentManaThresholdEvent, presentSummonPlacement, presentReviveEvent,
+    presentPlayerDefeatLines, presentManaThresholdEvent, presentSummonPlacement, presentInsertSummonedUnit, presentReviveEvent,
     presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,
     presentRecordAttackEvent,
     presentGoldGainEvent,

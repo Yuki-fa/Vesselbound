@@ -99,12 +99,27 @@ function _battleFxValues(unit) {
 }
 function battleFxAdvanceStates(unit, values) {
   const key = _battleFxKey(unit), entry = _battleFxStates.get(key);
-  if (entry) Object.assign(entry.values,values);
+  if (!entry) return;
+  Object.assign(entry.values,values);
+  // 結界消失などは次のrAFを待たず、そのイベントの命中時刻に止める。
+  Object.keys(values).forEach(state=>{
+    const name = `${state}-state`, old = entry.loops.get(name);
+    if (old && !(Number(values[state])>0)) {
+      VbFx.stop({name,key,element:old.element}); entry.loops.delete(name);
+    }
+  });
+}
+function battleFxStopUnitStates(unit) {
+  const key = _battleFxKey(unit), entry = _battleFxStates.get(key);
+  if (!entry) return;
+  if (typeof VbFx !== 'undefined') entry.loops.forEach((old,name)=>VbFx.stop({name,key,element:old.element}));
+  entry.loops.clear(); _battleFxStates.delete(key);
 }
 function battleFxStoredStateValues(unit) { const entry = _battleFxStates.get(_battleFxKey(unit)); return entry ? entry.values : null; }
 function battleFxStateValues(unit) { return battleFxStoredStateValues(unit)||_battleFxValues(unit); }
 function battleFxSyncUnit(unit, side, slot) {
   if (!unit || !slot || typeof VbFx === 'undefined') return;
+  if (unit._deathFxReady || unit._deathFxStarted || unit._deathFxDone) { battleFxStopUnitStates(unit); return; }
   const key = _battleFxKey(unit);
   let entry = _battleFxStates.get(key);
   if (!entry) { entry = {unit,side,values:_battleFxValues(unit),loops:new Map()}; _battleFxStates.set(key,entry); }
@@ -130,16 +145,17 @@ function _battleFxFollowStates() {
   _battleFxStates.forEach((entry,key) => {
     const r = battleFxRect(entry.unit,entry.side), visible = r && r.element && r.element.style.visibility!=='hidden' &&
       _battleFxCardShown(r.element) &&
-      !entry.unit._deathFxReady && !entry.unit._deathFxStarted && !entry.unit._reviveHidden &&
-      (typeof presentShownHp==='function'?presentShownHp(entry.unit):entry.unit.hp)>0;
+      !entry.unit._deathFxReady && !entry.unit._deathFxStarted && !entry.unit._deathFxDone && !entry.unit._reviveHidden &&
+      ((typeof presentShownHp==='function'?presentShownHp(entry.unit):entry.unit.hp)>0 ||
+        (typeof presentKeepsOnBoard==='function'&&presentKeepsOnBoard(entry.unit)));
     for (const state of ['shield','poison','weaken','guts','revive']) {
       const name = `${state}-state`, old = entry.loops.get(name), value = visible ? Number(entry.values[state])||0 : 0;
       // カードの要素が作り直されただけなら、止めずに付け替える（出し直すと明滅する）。
-      if (old && value && old.element !== r.element && VbFx.retarget && VbFx.retarget({name,element:old.element},r)) old.element = r.element;
-      if (old && (!value || old.element !== r.element)) { VbFx.stop({name,element:old.element}); entry.loops.delete(name); }
+      if (old && value && old.element !== r.element && VbFx.retarget && VbFx.retarget({name,key,element:old.element},r)) old.element = r.element;
+      if (old && (!value || old.element !== r.element)) { VbFx.stop({name,key,element:old.element}); entry.loops.delete(name); }
       const cur = entry.loops.get(name);
       if (value > 0 && (!cur || cur.element !== r.element || cur.value !== value)) {
-        VbFx.play(name,{source:r,targets:[r],side:entry.side,value,dir:1,resolveElement:_battleFxResolveElement}).catch(err=>console.error('[battle state VFX]',err));
+        VbFx.play(name,{key,source:r,targets:[r],side:entry.side,value,dir:1,resolveElement:_battleFxResolveElement}).catch(err=>console.error('[battle state VFX]',err));
         entry.loops.set(name,{element:r.element,value});
       }
     }

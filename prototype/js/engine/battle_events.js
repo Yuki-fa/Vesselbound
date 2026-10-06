@@ -220,6 +220,33 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     ?presentDropDeathsOfStolen(_reordered):_reordered;
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
+  async function _showDamage(e) {
+    await _awaitContactHold(e);
+    return presentDamageEvent(e,{
+      findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+      findAnyUnit:id=>findLiveUnit('p1',id,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id))
+        ||findLiveUnit('p2',id,null),
+      applyHp:(unit,hpAfter)=>{ if(typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{hp:hpAfter}); },
+      gate:damageGate,
+      sleep,
+      ownEffectText:_ownCardEffectText,
+      sfxDone:damageSfxDone,
+      // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（オンラインと同じ）。
+      sfxBatch:ev=>presentDamageSfxBatch(eventList,Math.max(0,eventList.indexOf(ev))),
+      // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
+      runAheadMs:ev=>presentDamageRunAheadMs(eventList,Math.max(0,eventList.indexOf(ev))),
+      // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js。
+      vfxKeyword:ev=>(typeof presentDamageVfxKeyword==='function'
+        ?presentDamageVfxKeyword(eventList,ev):''),
+      // 効果の素材はシートの「VFX/SE」列で引く。
+      effectFxCode:no=>(no&&typeof _effectFxCodeByNo==='function'?_effectFxCodeByNo(no):no),
+      alreadyShown:ev=>sweepShownEvents.has(ev),
+      noteEffectSource:unit=>{ if(!sweepSources.has(unit.id)) effectDamageSources.add(unit.id); },
+      onEffectDamage:(ev,src)=>{
+        if(!sweepSources.has(src.id)&&typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
+      },
+    });
+  }
   const _outcomeLineApi={
     findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))
       ||findLiveUnit(side==='p1'?'p2':'p1',id,findUnit(side==='p1'?'p2':'p1',id)),
@@ -229,6 +256,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   };
   const _fireAttackContact=async(attackEvent,attackIndex)=>{
     _firePendingContactVfx();
+    await presentAttackContactHits(eventList,attackIndex,{damage:_showDamage,
+      shield:{findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))}});
     if(typeof presentAttackContactOutcomeLines==='function'){
       await presentAttackContactOutcomeLines(eventList,attackIndex,_outcomeLineApi);
     }
@@ -852,19 +881,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // ここでPvE独自の配置へ落とすと、コアと配列の並びが食い違い、
       // 全体ダメージの対象順・三方向の隣接・ランダム対象の結果がずれる。
       let placed;
-      if(G._coreDrivenBattle&&typeof coreInsertSummonedUnit==='function'){
+      if(G._coreDrivenBattle&&typeof presentInsertSummonedUnit==='function'){
         if(!list.includes(unit)){
-          coreInsertSummonedUnit(list,unit,e,(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7);
+          presentInsertSummonedUnit(list,unit,e,(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7);
         }
-        // コアが空欄を詰めた後も、開戦配置由来の古い物理添字が残ることがある。
-        // lane の論理列から全体を書き直し、同じIDの参照を一つにする。
-        if(typeof _rebuildBattleUnitArray==='function'){
-          const frontSlots=(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7;
-          const max=e.side==='p2'?(MAX_ENEMIES||14):(MAX_ALLIES||14);
-          _rebuildBattleUnitArray(list,frontSlots,max,
-            list.filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')!=='rear'),
-            list.filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul&&(u.lane||'front')==='rear'));
-        }
+        // 配列の順序・空欄除去は上の共通配置だけで決める。
+        // 最終HPで組み直すと、この後の接触で倒れる体まで消え、damageの対象を失う。
         unit._battleSlot=list.indexOf(unit);
         placed=list.indexOf(unit);
       } else {
@@ -951,33 +973,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     // 貫通で貫かれた体は、**絵がその位置を通り過ぎるまで**数値を出さない。
     // 待たされるのは貫通の対象だけで、他のダメージはVFXに依存しない。
-    await _awaitContactHold(e);
     // 1件のダメージをどう見せるかは present_events.js が唯一の実装（オンラインと同じ）。
     // ここでの違い（ユニットの引き方・HPの進め方・先読みするイベント列）だけを渡す。
-    await presentDamageEvent(e,{
-      findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
-      findAnyUnit:id=>findLiveUnit('p1',id,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id))
-        ||findLiveUnit('p2',id,null),
-      applyHp:(unit,hpAfter)=>{ if(typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{hp:hpAfter}); },
-      gate:damageGate,
-      sleep,
-      ownEffectText:_ownCardEffectText,
-      sfxDone:damageSfxDone,
-      // 同じ瞬間の命中はどれか＝present_events.js の束が唯一の実装（オンラインと同じ）。
-      sfxBatch:ev=>presentDamageSfxBatch(eventList,Math.max(0,eventList.indexOf(ev))),
-      // 次も同じ種類のダメージなら、数値をその間隔で出し切る（判定は present.js）。
-      runAheadMs:ev=>presentDamageRunAheadMs(eventList,Math.max(0,eventList.indexOf(ev))),
-      // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js。
-      vfxKeyword:ev=>(typeof presentDamageVfxKeyword==='function'
-        ?presentDamageVfxKeyword(eventList,ev):''),
-      // 効果の素材はシートの「VFX/SE」列で引く。
-      effectFxCode:no=>(no&&typeof _effectFxCodeByNo==='function'?_effectFxCodeByNo(no):no),
-      alreadyShown:ev=>sweepShownEvents.has(ev),
-      noteEffectSource:unit=>{ if(!sweepSources.has(unit.id)) effectDamageSources.add(unit.id); },
-      onEffectDamage:(ev,src)=>{
-        if(!sweepSources.has(src.id)&&typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
-      },
-    });
+    await _showDamage(e);
     }finally{
       await presentLabEndEvent(e,eventList,eventIndex,_labApi);
       if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent);

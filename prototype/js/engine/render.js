@@ -1671,6 +1671,7 @@ function playUnitDeathBurn(unit,side){
   // 生き残った体は hp>0 のまま届き、焼失が出ずに復活の演出だけになっていた（オンラインは焼失→復活）。
   const shownHp=typeof presentShownHp==='function'?presentShownHp(unit):(unit&&unit.hp);
   if(!unit||shownHp>0||unit._deathFxDone) return false;
+  if(typeof battleFxStopUnitStates==='function') battleFxStopUnitStates(unit);
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
   if(!slot) return false;
   const rect=slot.getBoundingClientRect();
@@ -1688,6 +1689,8 @@ function playUnitDeathBurn(unit,side){
 // 印（_deathByStatDrain）は death.statChange を受けた共通の presentDeathBatch() が立てる。
 // 死亡イベントだけを消失演出の入口にするため、戦闘修正の表示と二重には再生されない。
 function _playUnitDeathCardFx(unit,node,rect,sourceSize){
+  // 旧スロットの写しには、停止前に複製された毒などの局所キャンバスが含まれることがある。
+  node.querySelectorAll('[data-vb-fx-local]').forEach(el=>el.remove());
   const drained=!!(unit&&unit._deathByStatDrain);
   if(unit) delete unit._deathByStatDrain;
   if(drained){
@@ -4839,6 +4842,7 @@ function renderField(id,units,isEnemy,_lane){
     // 敵スロットのレーン：生存敵はu.lane、死亡/空スロットはmoveMaskLanesで補完
     const _slotLane=isEnemy?(_alive?(u.lane||(i>=frontSlots?'rear':'front')):(G.moveMaskLanes?.[i]||(i>=frontSlots?'rear':'front'))):(_alive?(u.lane||'front'):(i>=frontSlots?'rear':'front'));
     if(!_alive){
+      if(u&&typeof battleFxStopUnitStates==='function'&&!presentKeepsOnBoard(u)) battleFxStopUnitStates(u);
       // 消える直前のカードを焼き落とす。実スロットは従来どおり即座に空にするため、
       // 盤面の詰め直しや当たり判定には影響しない。_deathFxDoneで一度だけ発火させる。
       // イベント再生中は焼き落とさない。ここで消すと、まだ出ていないダメージ数値や

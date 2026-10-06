@@ -55,7 +55,8 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
         const promise=run.done
           .then(()=>{settled=true;},e=>{settled=true;error=String(e.stack||e);});
         const start=performance.now();
-        while(!settled&&performance.now()-start<15000) {
+        // 結界消失のように並行で流す演出は、処理が先に終わる。演出が消えるまで見る。
+        while((!settled||VbFx.snapshot().some(job=>job.name===name))&&performance.now()-start<15000) {
           await new Promise(r=>requestAnimationFrame(r));
           if(!VbFx.snapshot().some(job=>job.name===name&&job.frameMs>0))continue;
           frames++;

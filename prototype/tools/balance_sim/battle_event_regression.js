@@ -1292,8 +1292,12 @@ function main() {
   // 召喚の位置決めはコアが唯一の実装（戦闘中の召喚は前衛の右端）。
   // 以前はオンラインだけ「左から最初の空き枠」を使っており、
   // 前の召喚体が倒れた後の召喚が味方の左側へ出ていた。
-  assert.match(board, /coreInsertSummonedUnit\(list, summoned, spec \|\| \{\}, FRONT_SLOTS\);/,
-    'オンラインの召喚位置がコアの共通実装を使っていない');
+  assert.match(board, /presentInsertSummonedUnit\(list, summoned, spec \|\| \{\}, FRONT_SLOTS\);/,
+    'オンラインの召喚位置が表示HPを渡す共通実装を使っていない');
+  assert.match(currentBattle, /presentInsertSummonedUnit\(list,unit,e,/,
+    'PvEの召喚位置が表示HPを渡す共通実装を使っていない');
+  assert.match(read('js/battle/present_events.js'), /coreInsertSummonedUnit\(shown,child,spec,frontSlots\)/,
+    '共通の表示用召喚配置がコアの位置決めを使っていない');
   assert.match(read('js/battle/present_events.js'), /placementTargetId: ev\.placementTargetId != null \? ev\.placementTargetId : null,/,
     '召喚の位置指定を発生元IDで補っている（同時召喚の並びが逆になる）');
   assert.doesNotMatch(board, /presentChooseSummonSlot\(/,

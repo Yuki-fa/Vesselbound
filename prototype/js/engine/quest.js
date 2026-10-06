@@ -1587,12 +1587,19 @@ function onTavernQuestRewardCardTaken(card){
 
 // ショップ：必須カードの右上に値段の代わりに「別れる」を出す（reward.js）。押すとカードを消す。
 // この時点ではまだ失敗にしない（店を出る時に「クエスト失敗警告」を出す）。
+// 命の鎖を切った後（致死効果が消えた後）の写し身も、店では「別れる」を出す（2026-10-07 利用者指摘）。
+function _qPartableEntryFor(card){
+  return questRequiredCardFor(card)||_qAllEntries().find(e=>e.status==='completed'&&!e.companionReleased
+    &&e.lifeLinkCut&&_qIsRequiredCard(card,e))||null;
+}
 function questCardPartable(card){
-  return !!(G&&G._isShop&&questRequiredCardFor(card));
+  return !!(G&&G._isShop&&_qPartableEntryFor(card));
 }
 function questPartWithCard(card){
-  const entry=questRequiredCardFor(card);
+  const entry=_qPartableEntryFor(card);
   if(!entry) return false;
+  // 鎖を切った後の別れは、ゲームオーバーにも失敗にもならず、ただ別れる（同行を終える）。
+  if(entry.lifeLinkCut&&!questCardLossIsFatal(card)){ entry.companionReleased=true; entry.partedPending=false; return true; }
   entry.partedPending=true;
   if(questCardLossIsFatal(card)) entry.lossKindPending='flee';
   return true;

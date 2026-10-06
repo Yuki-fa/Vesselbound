@@ -57,6 +57,7 @@ global.playHitVfx=(_s,u,amount,opts)=>{legacy.push({fn:'hit',unit:u?.id,amount,o
 global.playHitVfxAtRect=(_r,_n,opts)=>{opts?.onFadeStart?.();return Promise.resolve();};
 global.playEffectFlash=()=>{};
 global.playUnitDeathBurn=()=>true;
+global.playCharacterSweepVfx=async(_source,_enemy,targets,_url,opt)=>{targets.forEach(u=>opt?.onTargetHit?.(u));return true;};
 global.playEffectVfxOnUnit=(u,s,code)=>{legacy.push({fn:'effect',unit:u?.id,code});return {stop:()=>Promise.resolve()};};
 global._playCardEffectVfx=(code,targets)=>{legacy.push({fn:'card',code,targets:targets.map(u=>u.id)});return Promise.resolve();};
 global.battlePresentationSetTimeout=fn=>{queueMicrotask(fn);return 0;};
@@ -168,6 +169,18 @@ function assetChecks() {
   console.log('OK 素材 '+urls.size+'パスの実在・favicon.icoの自動取得抑止');
 }
 async function extraChecks() {
+  const oldBurn=playCardBurnAway,oldWave=playCardWaveAway,oldWasted=playWastedLabel;
+  try {
+    for(const drained of [false,true]) {
+      let removed=false,played=false;
+      const snapshot={querySelectorAll:selector=>selector==='[data-vb-fx-local]'?[{remove:()=>{removed=true;}}]:[]};
+      global.playCardBurnAway=global.playCardWaveAway=()=>{assert.ok(removed,'死亡クローンの局所状態キャンバスを描く前に取り除く');played=true;};
+      global.playWastedLabel=()=>{};
+      _playUnitDeathCardFx({_deathByStatDrain:drained},snapshot,rect(0,'p1'));
+      assert.ok(played,'通常死・衰弱死とも共通の死亡描画入口を通る');
+    }
+    console.log('OK 死亡クローンに複製済みの状態キャンバスも残さない');
+  } finally {global.playCardBurnAway=oldBurn;global.playCardWaveAway=oldWave;global.playWastedLabel=oldWasted;}
   const s=fixture('C003');s.units.p1[0].keywords=['結界2','根性','復活'];s.units.p1[0].shield=2;setup(s);
   const u=s.units.p1[0];_battleFxFollowStates();const started=calls.length;
   _battleFxFollowStates();assert.equal(calls.length,started,'状態ループを二重に開始しない');
@@ -190,7 +203,8 @@ async function extraChecks() {
   const shieldEvents=[{type:'shield_lost',side:'p1',unitId:u.id,shield:1},{type:'shield_lost',side:'p1',unitId:u.id,shield:0}];
   await _flushCorePveHitEvents(s,shieldEvents,new Set([...s.units.p1,...s.units.p2]));
   assert.equal(calls.filter(c=>c.name==='shield-break').length,1,'結界0になった時だけ消失を1回');
-  assert.equal(legacy.filter(c=>c.opts?.keywordEffect==='結界').length,2,'結界の防御命中は従来のK018へ渡す');
+  assert.equal(legacy.filter(c=>c.opts?.keywordEffect==='結界').length,0,'旧K018の絵を重ねない');
+  assert.equal(sounds.filter(c=>c.code===getKeywordEffectSfxKey('結界')).length,2,'防いだ瞬間のK018.wavは残す');
   assert.ok(!sounds.some(c=>c.code==='shield_break'),'結界消失にはSE無し');
   const revived=s.units.p1[1];revived.keywords=['復活'];revived.hp=0;
   const reviveEvents=[];coreTryRevive(revived,s,e=>reviveEvents.push(e));
@@ -291,8 +305,157 @@ async function committedEndChecks() {
     console.log('OK 本体／SaveRun.applyEndの終戦VFX・数値の二重加算なし・終戦中も状態を残す');
   } finally {global._persistPermanentStatOrWarn=persist;}
 }
+// 2026-10-07報告。最終状態を先に持つPvEと、イベントで進むオンラインを同じ一手で比較する。
+async function battleBugChecks() {
+  const errors=[];
+  const verify=(label,fn)=>{try{fn();}catch(e){errors.push(label+': '+e.message);}};
+  const bare=(id,over={})=>({id,name:'検査素体',atk:2,hp:40,maxHp:40,color:'黒',desc:'',keywords:[],lane:'front',...over});
+  const scenarios=[
+    {name:'最小・生存',front:1,hp:40},
+    {name:'中央・接触で死亡',front:3,hp:8},
+    {name:'右端・接触で死亡',front:3,hp:8,targetAt:2},
+    {name:'前衛5体・接触で死亡',front:5,hp:8},
+    {name:'前衛6体・召喚拒否',front:6,hp:40},
+    {name:'前衛満員・召喚拒否',front:7,hp:40},
+    {name:'後衛あり・接触で死亡',front:5,rear:3,hp:8},
+    {name:'薙ぎ払いで隣が死亡',front:5,rear:2,hp:40,peerHp:1},
+    {name:'反撃で攻撃者が死亡',front:3,hp:40,allyHp:1},
+  ];
+  const oldMotion=playAttackMotion,oldHit=playHitVfx,oldSound=playAttackDamageSfx;
+  const contactBoards=[];
+  let phase='events';
+  global.playAttackMotion=async(a,b,_side,pause,opt)=>{
+    phase='pause';if(pause)await pause();phase='contact';
+    contactBoards.push([a?.id,b?.id,(G.enemies||[]).filter(Boolean).map(u=>u.id)]);
+    await opt?.onContact?.();phase='returned';
+  };
+  global.playHitVfx=(side,u,amount,opt)=>{const result=oldHit(side,u,amount,opt);legacy.at(-1).phase=phase;legacy.at(-1).hp=presentShownHp(u);return result;};
+  global.playAttackDamageSfx=(u,n)=>{const result=oldSound(u,n);attackSounds.at(-1).phase=phase;return result;};
+  try {
+    for(const sc of scenarios) {
+      const foes=Array.from({length:sc.front},(_,i)=>bare('E'+i,{hp:sc.peerHp||40,maxHp:sc.peerHp||40}));
+      const at=sc.targetAt??Math.floor(sc.front/2);
+      foes[at]=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN026',hp:sc.hp,maxHp:sc.hp,desc:'負傷：「黒ケルピー」を2体召喚する。',keywords:['守護'],guardian:true});
+      for(let i=0;i<(sc.rear||0);i++)foes.push(bare('B'+i,{lane:'rear'}));
+      const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:sc.allyHp||40,maxHp:sc.allyHp||40});
+      const state=createBattleState({sides:{p1:{units:[source]},p2:{units:foes}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
+      state._coreFirstSide='p1';setup(state);contactBoards.length=0;const initial=clone(state),before=new Set([...state.units.p1,...state.units.p2]);
+      const held=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
+      const emitted=[],runner=createBattleRunner(state,createSeededRng(53),e=>emitted.push(e),{skipOpening:true});
+      runner.step({deferCompact:true});
+      const events=emitted.filter(e=>!['battle_start','battle_end'].includes(e.type));
+      held.forEach(args=>presentHoldShown(...args));
+      phase='events';await _flushCorePveHitEvents(state,events,before);
+      const hits=()=>legacy.filter(c=>c.fn==='hit'&&c.amount>0).map(c=>[c.unit,c.amount,c.hp]);
+      const pve=hits(),order=calls.map(c=>c.name),pveBoard=clone(contactBoards);
+      const combat=events.filter(e=>e.type==='damage'&&e.damageKind==='combat'&&e.amount>0);
+      verify(sc.name+' PvE接触ダメージ',()=>{for(const e of combat)assert.ok(pve.some(c=>c[0]===e.unitId&&c[1]===e.amount&&c[2]===e.hpAfter),'数値・HPが出ない '+e.unitId);});
+      verify(sc.name+' PvE命中時刻',()=>{for(const e of combat)assert.ok(legacy.some(c=>c.unit===e.unitId&&c.amount===e.amount&&c.phase==='contact'),'接触でヒットVFXが出ない '+e.unitId);});
+      verify(sc.name+' PvE命中SE',()=>{if(combat.length)assert.ok(attackSounds.some(c=>c.phase==='contact'),'接触で命中SEが出ない');});
+      setup(initial);contactBoards.length=0;G._savedBattleReplaying=false;
+      const result={events:[{type:'battle_start',sides:clone(initial.units)},...clone(events)],formations:{p1:{units:initial.units.p1},p2:{units:initial.units.p2}}};
+      beginOnlineVersusField(result);phase='events';
+      await playOnlineBattleEvents(result,{onEvent:(ev,ctx)=>renderOnlineVersusBoard(ev,ctx)});
+      verify(sc.name+' 両側のHPと数値',()=>assert.deepEqual(hits(),pve));
+      verify(sc.name+' 両側のVFX順序',()=>assert.deepEqual(calls.map(c=>c.name),order));
+      verify(sc.name+' 接触時の盤面の並び',()=>assert.deepEqual(contactBoards,pveBoard));
+      verify(sc.name+' オンライン命中時刻',()=>{for(const e of combat)assert.ok(legacy.some(c=>c.unit===e.unitId&&c.amount===e.amount&&c.phase==='contact'),'接触でヒットVFXが出ない '+e.unitId);});
+      hideOnlineVersusBoard();
+      console.log('検査 '+sc.name+': summon='+events.filter(e=>e.type==='summon').length+' rejected='+events.filter(e=>e.type==='summon_rejected').length);
+    }
+    // 最小盤面も一手だけでは拒否へ届かない。満員後まで進め、効果と命中の呼び出し順を比べる。
+    const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:300,maxHp:300});
+    const ran=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN026',desc:'負傷：「黒ケルピー」を2体召喚する。'});
+    const state=createBattleState({sides:{p1:{units:[source]},p2:{units:[ran]}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
+    state._coreFirstSide='p1';setup(state);const initial=clone(state),events=[];
+    const runner=createBattleRunner(state,createSeededRng(53),e=>events.push(e),{skipOpening:true});
+    const oldNow=performance.now;let now=oldNow();performance.now=()=>now+=1000;
+    try {
+      for(let turn=0;turn<60&&!runner.result;turn++) {
+        const before=new Set([...state.units.p1,...state.units.p2]);
+        const held=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]),from=events.length;
+        runner.step({deferCompact:true});held.forEach(args=>presentHoldShown(...args));phase='events';
+        await _flushCorePveHitEvents(state,events.slice(from),before);
+        held.forEach(([u])=>presentReleaseShown(u));runner.compact();
+      }
+      assert.ok(events.some(e=>e.type==='summon_rejected'),'最小盤面を召喚拒否が起きるまで再生する');
+      const controlEvents=[];
+      const control=createBattleState({sides:{p1:{units:clone(initial.units.p1)},p2:{units:clone(initial.units.p2)}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
+      control._coreFirstSide='p1';
+      runBattleCore(control,createSeededRng(53),{skipOpening:true,onEvent:e=>controlEvents.push(e)});
+      assert.deepEqual(events,controlEvents.filter(e=>e.type!=='battle_end'),'PvEへ再生しても次の手番のコア結果・順序を変えない');
+      const visual=()=>({lab:calls.map(c=>[c.name,c.source,c.targets]),hit:legacy.map(c=>[c.fn,c.unit,c.amount]),
+        order:route.filter(c=>c[1]!=='battle_start')});
+      const pve=visual();setup(initial);
+      const result={events:[{type:'battle_start',sides:clone(initial.units)},...clone(events)],formations:{p1:{units:initial.units.p1},p2:{units:initial.units.p2}}};
+      beginOnlineVersusField(result);phase='events';
+      await playOnlineBattleEvents(result,{onEvent:(ev,ctx)=>renderOnlineVersusBoard(ev,ctx)});
+      verify('最小盤面・満員後の両側演出',()=>assert.deepEqual(visual(),pve));hideOnlineVersusBoard();
+      console.log('検査 最小盤面・満員後: '+events.length+'イベント／召喚拒否'+events.filter(e=>e.type==='summon_rejected').length+'件');
+    } finally {performance.now=oldNow;}
+  } finally {global.playAttackMotion=oldMotion;global.playHitVfx=oldHit;global.playAttackDamageSfx=oldSound;}
+  assert.deepEqual(errors,[],'戦闘表示の回帰');
+  console.log('OK ラン・ドーター9盤面: 接触のHP・VFX・SE・並び／召喚拒否・後衛・死亡／PvE・オンライン・保存再生');
+}
+async function shieldBreakChecks() {
+  // 同じ全体攻撃で、1体は結界で防ぎ、隣の1体は死亡する。生存敵を残して終戦処理は含めない。
+  const source={id:'A0',name:'検査素体',atk:12,hp:40,maxHp:40,color:'赤',keywords:['全体攻撃'],desc:''};
+  const foe={id:'E0',name:'検査敵',atk:2,hp:40,maxHp:40,color:'黒',shield:1,guardian:true,keywords:[],desc:''};
+  const next={...foe,id:'E1',hp:8,maxHp:8,shield:0,guardian:false};
+  const initial=createBattleState({sides:{p1:{units:[source]},p2:{units:[foe,next]}}});
+  const oldLab=playBattleLabFx,oldMotion=playAttackMotion,oldDeath=_playDeathBurnOnce;
+  const oldTimer=setTimeout,oldNow=performance.now;
+  for(const mode of ['通常PvE','保存再生','オンライン']) {
+    const state=createBattleState({sides:{p1:{units:clone(initial.units.p1)},p2:{units:clone(initial.units.p2)}}});
+    state._coreFirstSide='p1';setup(state);G._savedBattleReplaying=mode==='保存再生';
+    _battleFxFollowStates();
+    let release,finished=false,deathWhileBreak=false,phase='events',startedAt=null,stateAtBreak=null,loopAtBreak=null;
+    let now=oldNow();performance.now=()=>now;
+    global.setTimeout=(fn,ms,...args)=>{queueMicrotask(()=>{now+=Math.max(0,Number(ms)||0);fn(...args);});return 0;};
+    const pending=new Promise(resolve=>{release=resolve;});
+    global.playBattleLabFx=(code,...args)=>{
+      if(code!=='shield_break')return oldLab(code,...args);
+      startedAt=phase;
+      stateAtBreak=battleFxStateValues(args[0]).shield;
+      loopAtBreak=_battleFxStates.get(args[0].id)?.loops.has('shield-state');
+      return pending;
+    };
+    global.playAttackMotion=async(_a,_b,_side,pause,opt)=>{if(pause)await pause();phase='contact';await opt?.onContact?.();phase='returned';};
+    global._playDeathBurnOnce=(...args)=>{deathWhileBreak=startedAt!==null&&!finished;return oldDeath(...args);};
+    let done=false,task;
+    try {
+      const events=[],runner=createBattleRunner(state,createSeededRng(53),e=>events.push(e),{skipOpening:true});
+      runner.step({deferCompact:true});
+      if(mode==='オンライン') {
+        const result={events:[{type:'battle_start',sides:clone(initial.units)},...clone(events)],formations:{p1:{units:initial.units.p1},p2:{units:initial.units.p2}}};
+        beginOnlineVersusField(result);_battleFxFollowStates();
+        task=playOnlineBattleEvents(result,{onEvent:(e,ctx)=>renderOnlineVersusBoard(e,ctx)});
+      } else {
+        for(const side of ['p1','p2'])state.units[side].forEach((u,i)=>{const b=initial.units[side][i];presentHoldShown(u,b.atk,b.hp,b.maxHp,b.shield||0,0);});
+        task=_flushCorePveHitEvents(state,events,new Set([...state.units.p1,...state.units.p2]));
+      }
+      task.then(()=>{done=true;});
+      for(let i=0;i<2000&&!done;i++)await Promise.resolve();
+      assert.ok(done,mode+' 結界消失VFXが終わらなくてもイベント再生が完了する');
+      assert.equal(startedAt,'contact',mode+' 接触時にshield-breakを開始');
+      assert.equal(stateAtBreak,0,mode+' 結界の状態値も命中と同時に進む');
+      assert.equal(loopAtBreak,false,mode+' shield-stateを命中と同時に止める');
+      assert.ok(deathWhileBreak,mode+' 結界消失中に敵の死亡演出を開始');
+      assert.equal(legacy.filter(c=>c.opts?.keywordEffect==='結界').length,0,mode+' K018の旧VFXを出さない');
+      assert.equal(sounds.filter(c=>c.code===getKeywordEffectSfxKey('結界')).length,1,mode+' K018.wavを1回だけ鳴らす');
+      console.log('OK '+mode+' 結界消失: 接触開始・状態即時停止・旧VFXなし・死亡を待たせない');
+    } finally {
+      finished=true;release();if(task)await task;
+      if(mode==='オンライン')hideOnlineVersusBoard();
+      global.playBattleLabFx=oldLab;global.playAttackMotion=oldMotion;global._playDeathBurnOnce=oldDeath;
+      global.setTimeout=oldTimer;performance.now=oldNow;
+    }
+  }
+}
 (async()=>{
   await loadGameData();
+  if(!process.env.VB_ONLY||process.env.VB_ONLY==='bugs')await battleBugChecks();
+  if(!process.env.VB_ONLY||process.env.VB_ONLY==='shield')await shieldBreakChecks();
   assetChecks();
   if(!process.env.VB_ONLY)await staleSessionChecks();
   const selected=[...Object.entries(cases).map(([no,trigger])=>[no,no,trigger]),...vbLabVfxExtraCases()]

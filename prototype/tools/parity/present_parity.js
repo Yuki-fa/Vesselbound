@@ -26,10 +26,33 @@ const BASE = process.env.VB_URL || 'http://127.0.0.1:5500/index.html';
 const results = [];
 const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); };
 
+// 前衛中央を狙わせ、アラッサスの攻撃効果で召喚した後も通常攻撃が接触することを見る。
+const ranScenario = (name, front, hp, rear = 0, peerHp = 40, targetAt = Math.floor(front / 2)) => {
+  const p2 = Array.from({ length: front }, (_, i) => ['ゴブリン', 'E' + i,
+    { atk: 2, hp: peerHp, maxHp: peerHp, color: '黒', keywords: [], desc: '' }]);
+  p2[targetAt] = ['波の娘"ラン・ドーター"', 'R', { no: 'EN026', artCode: 'EN026',
+    atk: 2, hp, maxHp: hp, color: '黒', guardian: true, keywords: ['守護'],
+    desc: '負傷：「黒ケルピー」を2体召喚する。' }];
+  for (let i = 0; i < rear; i++) p2.push(['ゴブリン', 'B' + i,
+    { atk: 2, hp: 40, maxHp: 40, color: '黒', lane: 'rear', keywords: [], desc: '' }]);
+  return { name, seed: 53, requires: ['attack', front < 7 ? 'summon' : 'summon_rejected'],
+    rings: { p1: ['神速の指輪'] }, contactHit: { attackerId: 'A0', targetId: 'R' },
+    p1: [['アラッサス', 'A0', { atk: 12, hp: 200, maxHp: 200 }]], p2 };
+};
+
 // ── 検査する盤面 ────────────────────────────────
 // 演出の種類ごとに、それを必ず通るカードを選ぶ。
 // なぜそのカードなのかを必ず一行で書いておくこと。
 const SCENARIOS = [
+  // 神速の指輪で先攻を揃える。先にラン・ドーターが反撃死すると、この再現条件を通らない。
+  ranScenario('ラン・ドーター：最小盤面から満員', 1, 40),
+  ranScenario('ラン・ドーター：中央で召喚後に接触死', 3, 8),
+  ranScenario('ラン・ドーター：右端で召喚後に接触死', 3, 8, 0, 40, 2),
+  ranScenario('ラン・ドーター：前衛5体から満員・接触死', 5, 8),
+  ranScenario('ラン・ドーター：前衛6体・召喚拒否', 6, 40),
+  ranScenario('ラン・ドーター：前衛満員・召喚拒否', 7, 40),
+  ranScenario('ラン・ドーター：後衛あり・召喚後に接触死', 5, 8, 3),
+  ranScenario('ラン・ドーター：薙ぎ払いで周囲が死亡', 5, 40, 2, 1),
   {
     name: '根性で耐える',
     // 根性の体は致死ダメージでもHP1で残る。**HPが一瞬も0に見えてはいけない**（利用者報告：直っていない）。
@@ -217,7 +240,8 @@ const SCENARIOS = [
 
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
-  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], lines: [], lineAtContact: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0 };
+  window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], lines: [], lineAtContact: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0,
+    contact: null, damageHits: [], hitSounds: [] };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -245,6 +269,8 @@ const WATCHER = `
     if (typeof window._recordBattleTrace === 'function') {
       const origTrace = window._recordBattleTrace;
       window._recordBattleTrace = function (type, data) {
+        if (type === 'attack_motion_contact') window.__watch.contact = data;
+        if (type === 'attack_motion_end') window.__watch.contact = null;
         try { if (/^attack_motion/.test(String(type))) (window.__watch.trace = window.__watch.trace || []).push(String(type) + ':' + ((data && data.attackerId) || '') + '>' + ((data && data.targetId) || '')); } catch (e) {}
         return origTrace.apply(this, arguments);
       };
@@ -283,8 +309,17 @@ const WATCHER = `
           ? (getCharacterEffectVfxPath(opt.effectSource) || '') : '';
         window.__watch.calls.push((src.split('/').pop() || 'hit.webp') + '(' + (amount || 0) + ')→'
           + (unit && unit.id));
+        const slot = unit && getCurrentUnitSlot(side, unit), hpNode = slot && slot.querySelector('.slot-stats .h');
+        window.__watch.damageHits.push({ unitId: unit && unit.id, amount,
+          hp: hpNode ? Number(hpNode.textContent) : null, contact: window.__watch.contact,
+          hitVfx: !(opt && (opt.labelOnly || opt.suppressDefaultHit)) });
       } catch (e) { window.__watch.calls.push('?'); }
       return orig.apply(this, arguments);
+    };
+    const origHitSound = window.playAttackDamageSfx;
+    window.playAttackDamageSfx = function (unit, amount) {
+      window.__watch.hitSounds.push({ sourceId: unit && unit.id, amount, contact: window.__watch.contact });
+      return origHitSound.apply(this, arguments);
     };
   }
   window.__watching = true;
@@ -386,6 +421,9 @@ const COLLECT = `
     lineAtContact: window.__watch.lineAtContact.slice(),
     board: window.__watch.board.slice(),
     trace: (window.__watch.trace || []).slice(),
+    damageHits: window.__watch.damageHits.slice(),
+    hitSounds: window.__watch.hitSounds.slice(),
+    combatDamage: (window.__coreEvents || []).filter(e => e.type === 'damage' && e.damageKind === 'combat' && e.amount > 0),
     overlap: window.__watch.overlap.slice(),
     hpEarly: window.__watch.hpEarly.slice(),
     hpZero: window.__watch.hpZero.slice(),
@@ -404,7 +442,7 @@ const COLLECT = `
 
 // カードのマスタから戦闘用の体を作る補助。PvE・オンラインで同じ値になるようにする。
 const SETUP = `
-  const pick = n => PANEL_POOL.find(x => x && x.name === n);
+  const pick = n => [...PANEL_POOL, ...ENEMY_POOL].find(x => x && x.name === n);
   const unit = (n, id, side, slot, over) => {
     const c = pick(n);
     const u0 = Object.assign({
@@ -444,9 +482,8 @@ const SETUP = `
   // オンラインへ渡す形（versus.js が送るのと同じ項目だけ）。
   const wire = (n, id, over) => {
     const u = unit(n, id, 'p1', 0, over);
-    const c = pick(n);
     return { id, name: n, atk: u.atk, hp: u.hp, maxHp: u.maxHp, color: u.color,
-      keywords: u.keywords, desc: u.desc, no: c && c.no, art: c && c.artCode,
+      keywords: u.keywords, desc: u.desc, no: u.no, art: u.artCode, lane: u.lane, guardian: u.guardian,
       manaCost: u.manaCost, manaRepeat: u.manaRepeat,
       // **強化由来のマナ効果は effectData だけで運ぶ**（versus.js が送るのと同じ形）。
       // 本体側に _manaThresholdDesc を付けて渡すと、実機で起きた
@@ -472,7 +509,7 @@ const pveScript = sc => `
   ${sc.p2.map(([n, id, o], i) => `G.enemies[${i}] = unit(${JSON.stringify(n)}, ${JSON.stringify(id)}, 'p2', ${i}, ${JSON.stringify(o || {})});`).join('\n  ')}
   G.phase = 'battle'; G.life = 3; G._waveLife = 3; G.gold = 0;
   G.mana = ${(sc.mana && sc.mana.p1) || 0}; G._enemyMana = ${(sc.mana && sc.mana.p2) || 0};
-  G.rings = []; G.activeBattleItems = [];
+  G.rings = ${JSON.stringify(sc.rings && sc.rings.p1 || [])}.map(n => RING_POOL.find(r => r.name === n)).filter(Boolean); G.activeBattleItems = [];
   G.battleCounters = { damage: 0, deaths: 0 }; G._battleRunId = 1; G._battleMotionDepth = 0;
   G._debugFormationAbort = false; G._testBattleAbort = false; G._battleVictoryPending = false;
   G._battleCoreEvents = []; G._blood = 0;
@@ -519,8 +556,8 @@ const onlineScript = sc => `
     sides: { p1: { units: p1 }, p2: { units: p2 } },
     resources: { p1: { mana: ${(sc.mana && sc.mana.p1) || 0}, gold: 0 },
                  p2: { mana: ${(sc.mana && sc.mana.p2) || 0}, gold: 0 } },
-    rings: { p1: [], p2: [] }, items: { p1: [], p2: [] },
-    summonDefs: PANEL_POOL,
+    rings: { p1: ${JSON.stringify(sc.rings && sc.rings.p1 || [])}.map(n => RING_POOL.find(r => r.name === n)).filter(Boolean), p2: [] }, items: { p1: [], p2: [] },
+    summonDefs: [...PANEL_POOL, ...ENEMY_POOL],
   });
   out.formations = { p1: { units: p1 }, p2: { units: p2 } };
   window.__playbackEnded = false;
@@ -538,6 +575,7 @@ const onlineScript = sc => `
     window.__watch.board.length = 0;
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
     window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.hpZero.length = 0; window.__watch.transformed = {};
+    window.__watch.contact = null; window.__watch.damageHits.length = 0; window.__watch.hitSounds.length = 0;
   };
   try {
     await Promise.race([
@@ -634,6 +672,19 @@ const onlineScript = sc => `
       check(`${tag}演出の呼び出し（対象と順番）が一致する`, pveCalls === onCalls,
         pveCalls === onCalls ? `${(pve.calls || []).length}回`
           : `PvE=${pveCalls || 'なし'}\n\tオンライン=${onCalls || 'なし'}`);
+
+      if (sc.contactHit) {
+        const { attackerId, targetId } = sc.contactHit;
+        for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
+          const damage = (r.combatDamage || []).find(e => e.sourceId === attackerId && e.unitId === targetId && !e.counter);
+          const atContact = c => c && c.attackerId === attackerId && c.targetId === targetId;
+          const hit = damage && (r.damageHits || []).some(h => h.unitId === targetId && h.amount === damage.amount
+            && h.hp === damage.hpAfter && h.hitVfx && atContact(h.contact));
+          const sound = (r.hitSounds || []).some(s => s.sourceId === attackerId && s.amount > 0 && atContact(s.contact));
+          check(`${tag}${label}召喚後の接触でHP・ヒットVFX・SEが出る`, hit && sound,
+            damage ? `${targetId}: ${damage.amount}ダメージ → HP${damage.hpAfter}／接触VFX=${!!hit} SE=${sound}` : '通常攻撃が対象へ届いていない');
+        }
+      }
 
       if(sc.outcomeLine){
         const expected=`${sc.outcomeLine.kind}:p2:E0:${sc.outcomeLine.text}`;

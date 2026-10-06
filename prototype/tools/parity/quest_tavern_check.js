@@ -919,7 +919,7 @@ const WAVE=1;
     await finish(kept);
   }
 
-  // ── ヴォルザーク鍛冶屋：写し身の「命の鎖」を切る特殊会話 ──────────
+  // ── ギャラハ鍛冶屋：写し身の「命の鎖」（2026-10-07 ヴォルザークから移した）を切る特殊会話 ──────────
   if(section('命の鎖')){
     async function prepareForge(page,gold,withCard=true){
       await startRunWithWaveQuest(page,2,'Q006');
@@ -928,15 +928,15 @@ const WAVE=1;
         if(${withCard?'true':'false'}){const c=_qMakeRequiredCard(e);c.desc=String(c.desc||'')+'\\n常時：検査用の別効果。';G.mainBoard[1]=c;}
         const def=PANEL_POOL.find(c=>c.category==='キャラクター'&&!c._npcCard&&Number(c.power)>0);G.mainBoard[3]=makePanel(def.id);G._partyBoardUnit=null;
         G.gold=${Number(gold)};G._facilityTalkSeen={};SaveProfile.markTutorialShown('shop:forge');return 1;})()`);
-      await openWave(page,4);
+      await openWave(page,3);
     }
     async function leaveForge(page){
       await page.until(`document.body.classList.contains('reward-screen-active')&&G._isForge`,30000);
       await page.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
       await page.until(`document.querySelector('#scr-village.active')&&!G._isForge&&${notFading}`,30000);
     }
-    const success=await newPage();await prepareForge(success,250,true);
-    const forgeTalk=await success.run(`return villageTalkEntry('ヴォルザーク「鍛冶屋」入店時')`);
+    const success=await newPage();await prepareForge(success,450,true);
+    const forgeTalk=await success.run(`return villageTalkEntry('ギャラハ「鍛冶屋」入店時')`);
     ok('会話メッセージの特殊台詞A1〜A5・B1を新しい列名で読む',
       ['特殊台詞A1','特殊台詞A2','特殊台詞A3','特殊台詞A4','特殊台詞A5','特殊台詞B1'].every(k=>forgeTalk&&forgeTalk[k])
       &&!forgeTalk?.['特殊台詞1']&&!forgeTalk?.['特殊台詞2'],forgeTalk);
@@ -947,7 +947,7 @@ const WAVE=1;
     const successChoices=await waitChoice(success,forgeTalk['特殊台詞A3']);
     // 料金はシートの選択肢の文（「・切ってもらう（NG）」）から読む。値を検査に直書きしない（シートで100G→50Gに変わった）。
     const chainCost=Number((String(successChoices[0]||'').match(/（(\d+)G）/)||[])[1]);
-    ok('「切ってもらう」の料金を選択肢の文から読む',chainCost>0&&chainCost<250&&successChoices[1].includes('やめておく'),{successChoices,chainCost});
+    ok('「切ってもらう」の料金を選択肢の文から読む',chainCost>0&&chainCost<450&&successChoices[1].includes('やめておく'),{successChoices,chainCost});
     await success.run(`window.__chainSfx='';window.__chainBlack=false;window.__chainProbeDone=false;
       const original=playFileSfx;window.playFileSfx=function(path,volume){window.__chainSfx=path;const audio=original(path,volume);if(path==='assets/sfx/chain_cut.wav'&&audio?.dispatchEvent)setTimeout(()=>audio.dispatchEvent(new Event('ended')),80);return audio;};
       const probe=()=>{const f=document.getElementById('screen-switch-fade');if(f&&parseFloat(getComputedStyle(f).opacity)>.95)__chainBlack=true;if(!__chainProbeDone)requestAnimationFrame(probe);};requestAnimationFrame(probe);return 1;`);
@@ -957,18 +957,22 @@ const WAVE=1;
       fatal:questCardLossIsFatal(c),other:/検査用の別効果/.test(JSON.stringify(c)),lifeLinkCut:G.questProgress.Q006.lifeLinkCut===true,
       face:!!document.querySelector('.tavern-face.is-visible[data-face-portrait-key="MC001"]')};`);
     ok('料金を支払い、暗転中のchain_cut.wav後に通常顔へ戻し、致死効果だけを削除する',
-      cut.gold===250-chainCost&&cut.sfx==='assets/sfx/chain_cut.wav'&&cut.black&&!cut.fatal&&cut.other&&cut.lifeLinkCut&&!cut.face,cut);
+      cut.gold===450-chainCost&&cut.sfx==='assets/sfx/chain_cut.wav'&&cut.black&&!cut.fatal&&cut.other&&cut.lifeLinkCut&&!cut.face,cut);
     await clickDialogue(success);await waitLine(success,forgeTalk['特殊台詞A5']);
     if(forgeTalk['特殊台詞A5'].face){await waitVisibleFace(success,forgeTalk['特殊台詞A5'].face);ok('切断後A5もシートの表情列に従う',await face(success,forgeTalk['特殊台詞A5'].face)==='表示');}
     await clickDialogue(success);await leaveForge(success);
     await success.goto(URL,2500);
     await success.until('window.QUEST_DATA&&typeof SaveRun!=="undefined"&&typeof questForgeChainState==="function"',30000);
     await success.run(`void SaveRun.continueRun();return 1;`);
-    await success.until(`document.querySelector('#scr-village.active')&&G._wave===4&&${notFading}`,30000);
+    await success.until(`document.querySelector('#scr-village.active')&&G._wave===3&&${notFading}`,30000);
     const restoredCut=await success.run(`(()=>{const c=G.mainBoard.find(x=>x&&x.no==='BC001');return {gold:G.gold,card:!!c,fatal:questCardLossIsFatal(c),other:/検査用の別効果/.test(JSON.stringify(c)),cut:G.questProgress.Q006.lifeLinkCut===true};})()`);
-    ok('鎖切断・料金の支払い・残した別効果をランセーブで保つ',restoredCut.gold===250-chainCost&&restoredCut.card&&!restoredCut.fatal&&restoredCut.other&&restoredCut.cut,restoredCut);
+    ok('鎖切断・料金の支払い・残した別効果をランセーブで保つ',restoredCut.gold===450-chainCost&&restoredCut.card&&!restoredCut.fatal&&restoredCut.other&&restoredCut.cut,restoredCut);
     await clickFacility(success,'^鍛[冶治]屋$');await waitLine(success,forgeTalk['台詞1']);
     ok('鎖を切った後の再訪は従来どおり台詞1',true);
+    // 2026-10-07 利用者指摘：鎖を切った後も、店では写し身に「別れる」が出る。別れてもゲームオーバー・失敗にならない。
+    const partCheck=await success.run(`(()=>{const c=G.mainBoard.find(x=>x&&x.no==='BC001');const was=G._isShop;G._isShop=true;
+      const partable=questCardPartable(c);G._isShop=was;return {partable};})()`);
+    ok('鎖を切った後も店で写し身に「別れる」が出る',partCheck.partable,partCheck);
     await clickDialogue(success);await success.until(`document.body.classList.contains('reward-screen-active')&&G._isForge`,30000);
     const harmless=await success.run(`(()=>{const i=G.mainBoard.findIndex(x=>x&&x.no==='BC001'),c=G.mainBoard[i];G.mainBoard[i]=null;const fired=questOnCardLost(c,'death');return {fired,pending:G.questProgress.Q006.pendingEvent||'',phase:G.phase};})()`);
     ok('鎖切断後は写し身を別の方法で失ってもゲームオーバーイベントにならない',!harmless.fired&&!harmless.pending&&harmless.phase!=='gameover',harmless);
@@ -976,7 +980,7 @@ const WAVE=1;
 
     const shortGold=chainCost-1;
     const retry=await newPage();await prepareForge(retry,shortGold,true);
-    const retryTalk=await retry.run(`return villageTalkEntry('ヴォルザーク「鍛冶屋」入店時')`);
+    const retryTalk=await retry.run(`return villageTalkEntry('ギャラハ「鍛冶屋」入店時')`);
     await clickFacility(retry,'^鍛[冶治]屋$');
     await waitLine(retry,retryTalk['特殊台詞A1']);await clickDialogue(retry);
     await waitLine(retry,retryTalk['特殊台詞A2']);await clickDialogue(retry);

@@ -688,6 +688,27 @@ function presentAttackContactOutcomeEvents(events, attackIndex) {
   return out;
 }
 
+// 接触で見せるのは、この一撃の先頭に連続する戦闘ダメージと、それが消費した結界だけ。
+// 能力変化・キーワード・誘発効果を越えて先読みせず、ATK攻撃も従来のイベント順を保つ。
+function presentAttackContactHitEvents(events, attackIndex) {
+  const list = Array.isArray(events) ? events : [], attack = list[attackIndex];
+  if (!attack || attack.type !== 'attack' || attack.effectOnly || attack.attackVisual===false) return [];
+  const out = [];
+  let damage = null;
+  for (let i=attackIndex+1;i<list.length;i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (ev.type==='attack' && ev.attackVisual===false && ev.attackerId===attack.attackerId && !out.length) continue;
+    if (ev.type==='damage' && presentDamageKind(ev)==='combat' && ev.damageTo!=='atk') {
+      out.push(ev); damage=ev; continue;
+    }
+    if (ev.type==='shield_lost' && damage && damage.blockedBy==='shield'
+      && ev.side===damage.side && ev.unitId===damage.unitId) { out.push(ev); damage=null; continue; }
+    break;
+  }
+  return out;
+}
+
 // この数値の**次に同じ種類のダメージが続くか**。続くなら、その間隔（ms）を返す。
 // 束の1つ目は「これから連続再生になる」ことを予約時には知れないため、
 // イベント列を1つ先まで見る。これを見ないと1つ目だけ数値が長く出っぱなしになり、
@@ -1823,6 +1844,7 @@ if (typeof window !== 'undefined') {
   window.presentDeathBatchEvents = presentDeathBatchEvents;
   window.presentUnitOutcomeLines = presentUnitOutcomeLines;
   window.presentAttackContactOutcomeEvents = presentAttackContactOutcomeEvents;
+  window.presentAttackContactHitEvents = presentAttackContactHitEvents;
   window.presentDamageRunAheadMs = presentDamageRunAheadMs;
   window.presentDamageRunLabelMs = presentDamageRunLabelMs;
   window.PRESENT_MANA_RUN_GAP_MS = PRESENT_MANA_RUN_GAP_MS;
@@ -1922,7 +1944,7 @@ if (typeof module !== 'undefined' && module.exports) {
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
-    presentUnitOutcomeLines, presentAttackContactOutcomeEvents,
+    presentUnitOutcomeLines, presentAttackContactOutcomeEvents, presentAttackContactHitEvents,
     PRESENT_MANA_RUN_GAP_MS, PRESENT_EFFECT_VFX_MIN_MS,
     PRESENT_PROJECTILE_FLIGHT_MS, PRESENT_PROJECTILE_STAGGER_MS, PRESENT_PROJECTILE_IMPACT_OFFSET_Y,
     presentEffectKeywordEvents, presentDamageVfxKeyword, presentAreaVfxStyle,

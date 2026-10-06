@@ -2381,7 +2381,7 @@ async function startBattle(){
       if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
       _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
       G.enemies=_newEnemies;
-      compactBattleUnits();
+      compactBattleUnits({keepAllyOrder:carryBattle});
     }
     if(_isBossFight) G._bossSlot=G.enemies.findIndex(e=>e&&(e.boss||(e.keywords||[]).includes('ボス')));
     // エリートの位置を再特定（撃破ボーナス判定で参照するため）
@@ -2759,7 +2759,8 @@ function _layoutEnemyLanes(enemies){
   return enemies;
 }
 
-function compactBattleUnits(){
+function compactBattleUnits(options){
+  const keepAllyOrder=!!(options&&options.keepAllyOrder);
   // pending召喚体はコアの上限枠を占有するが、まだ表示されていないため
   // 画面の人数・中央寄せ・FLIPの対象には含めない。
   // 強化でHP0になった体（_deployedAtZeroHp）は、開戦の瞳の指輪が掛かるまで盤面に残す（コアが開戦の指輪の後に印を外す）。
@@ -2813,7 +2814,7 @@ function compactBattleUnits(){
   const nextAllies=new Array(maxA).fill(null);
   const pendingAllies=(G.allies||[]).filter(a=>alive(a)&&a._corePendingSummon&&!a._isSoul&&!a._isObject);
   const liveAllies=(G.allies||[]).filter(a=>alive(a)&&!a._corePendingSummon&&!a._isSoul&&!a._isObject);
-  liveAllies.forEach(clampUnitStats);
+  if(!keepAllyOrder) liveAllies.forEach(clampUnitStats);
   // **固定できるのは「自分の列の中の空き」だけ。**
   // 以前はスロット番号から lane を決め直していたため、召喚（複製など）で前衛が
   // 増えると、前衛の体が後衛の枠番号を持ったまま後衛列へ居座り、
@@ -2831,20 +2832,27 @@ function compactBattleUnits(){
     });
     return rest;
   };
-  const allyFront=placeFixed(liveAllies.filter(a=>(a.lane||'front')!=='rear'),0,frontSlots);
-  const allyRear=placeFixed(liveAllies.filter(a=>(a.lane||'front')==='rear'),frontSlots,rearSlots);
-  _placeCenteredRow(nextAllies,allyFront.slice(0,frontSlots),0,frontSlots,'front');
-  _placeCenteredRow(nextAllies,allyRear.slice(0,rearSlots),frontSlots,rearSlots,'rear');
-  // 戦闘コアの state.units.p1 と G.allies は同じ配列を参照している。
-  // 配列自体を差し替えると、コアが保持している旧配列だけに召喚・攻撃結果が
-  // 残り、描画側とイベント側の対象が食い違う。内容だけを置き換えて参照を維持する。
-  // 表示待ちの召喚体は、配置済みユニットのレイアウトを汚染しない空き枠へ
-  // 保持する。上限計算とコアの後続効果からは消さない。
-  pendingAllies.forEach(u=>{
-    const old=Number.isInteger(u._battleSlot)?u._battleSlot:-1;
-    let pos=old>=0&&old<nextAllies.length&&!nextAllies[old]?old:nextAllies.findIndex(x=>!x);
-    if(pos>=0) nextAllies[pos]=u;
-  });
+  if(keepAllyOrder){
+    // 連戦の味方は前戦終了時のコア順。出撃時の_battleSlotと召喚後の番号は
+    // 衝突するため、枠へ戻すと生存アラッサスより左へペリカンが移る。
+    // 並べ直さず、死亡・空欄だけを通常のコア規則で詰める。配列の参照も保つ。
+    coreCompactUnits({units:{p1:G.allies}});
+  }else{
+    const allyFront=placeFixed(liveAllies.filter(a=>(a.lane||'front')!=='rear'),0,frontSlots);
+    const allyRear=placeFixed(liveAllies.filter(a=>(a.lane||'front')==='rear'),frontSlots,rearSlots);
+    _placeCenteredRow(nextAllies,allyFront.slice(0,frontSlots),0,frontSlots,'front');
+    _placeCenteredRow(nextAllies,allyRear.slice(0,rearSlots),frontSlots,rearSlots,'rear');
+    // 戦闘コアの state.units.p1 と G.allies は同じ配列を参照している。
+    // 配列自体を差し替えると、コアが保持している旧配列だけに召喚・攻撃結果が
+    // 残り、描画側とイベント側の対象が食い違う。内容だけを置き換えて参照を維持する。
+    // 表示待ちの召喚体は、配置済みユニットのレイアウトを汚染しない空き枠へ
+    // 保持する。上限計算とコアの後続効果からは消さない。
+    pendingAllies.forEach(u=>{
+      const old=Number.isInteger(u._battleSlot)?u._battleSlot:-1;
+      let pos=old>=0&&old<nextAllies.length&&!nextAllies[old]?old:nextAllies.findIndex(x=>!x);
+      if(pos>=0) nextAllies[pos]=u;
+    });
+  }
   // コア駆動の戦闘では、盤面配列の並びをコアと同じ「生存を左詰め」に保つ。
   // 表示用の並び（_battleSlot基準の疎配列）へ組み替えると、コアの配列と
   // 順序が食い違い、全体ダメージの対象順・三方向の隣接・ランダム対象の結果がずれる。
@@ -2854,8 +2862,10 @@ function compactBattleUnits(){
     // 「まだ外さない体」の判定は present.js が唯一の実装（描画側と同じ規則）。
     coreCompactUnits({units:{p1:G.allies,p2:G.enemies}},presentKeepsOnBoard);
   } else {
-  if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...nextAllies);
-  else G.allies=nextAllies;
+  if(!keepAllyOrder){
+    if(Array.isArray(G.allies)) G.allies.splice(0,G.allies.length,...nextAllies);
+    else G.allies=nextAllies;
+  }
   const maxE=MAX_ENEMIES||10;
   const enemyRearSlots=Math.max(0,maxE-frontSlots);
   const nextEnemies=new Array(maxE).fill(null);
