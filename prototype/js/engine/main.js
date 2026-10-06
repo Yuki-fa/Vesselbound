@@ -978,9 +978,8 @@ function finishWaveBattleVictory(showVictoryIntro){
   }
   return false;
 }
-// 敗北は常にゲームオーバー（通常戦・エリート戦・ボス戦とも例外なし）。
 // 敵の種類に関わらず、敗北するとライフを1失う。3つとも失うとゲームオーバー。
-// ライフが残っていれば同じstageを最初からやり直す。
+// ライフが残っていれば、終了時の敵を維持して同じstageへ再挑戦する。
 function handleWaveBattleDefeat(){
   if(!G._waveBattleType) return false;
   // 台詞待ちの間に敗北判定が再入しても、二重に決着を始めない。
@@ -997,14 +996,19 @@ async function _finishWaveBattleDefeat(questDefeat){
   if(questDefeat&&questDefeat.noRetry){
     G._waveRetryEnemyKey=null;
     G._waveIsRetry=false;
+    G._waveEnemySnapshot=null;
+    G._waveEnemySnapshotAtEnd=false;
+    G._waveEnemySnapshotBlood=0;
   }else{
+    // 後片付けで配列を空にする前に、敗北が確定した盤面を控える。
+    // 空配列も有効な確定盤面。元の敵を生成し直したり、生存者だけを選び直したりしない。
+    G._waveEnemySnapshot=SaveRun.copy(G.enemies||[],{battleCarry:true});
+    G._waveEnemySnapshotAtEnd=true;
+    G._waveEnemySnapshotBlood=Math.max(0,Number(G._enemyBlood)||0);
     G._waveRetryEnemyKey=battleKey;
   }
   G._waveLife=Math.max(0,(G._waveLife==null?(typeof waveLifeMax==='function'?waveLifeMax():3):Number(G._waveLife))-1);
-  // **敗北のたびに報酬の抽選鍵を進める。**
-  // 報酬は`reward:<場面>:<段>`の鍵付き乱数で引くので（開き直しても同じ5枚にするため）、
-  // 敗北して同じ場面・段のまま報酬画面へ入ると、直前と全く同じ5枚が出てしまう。
-  // ランに保存される回数を鍵へ足して、敗北後は別の5枚にする。
+  // 敗北回数の保存と、後の勝利報酬の抽選鍵は従来どおり。敗北自体では抽選しない。
   G._waveDefeatCount=(Number(G._waveDefeatCount)||0)+1;
   // **敗北しても持ち物は巻き戻さない。**（ペナルティはライフ1つだけ）
   // 以前はここで所持金・アイテム・指輪・魔導板強化を「直前の画面の開始時点」へ
@@ -1041,10 +1045,10 @@ async function _finishWaveBattleDefeat(questDefeat){
   G._battleDefeatHandled=false;
   G._waveWithdraw=true;
   // showVictoryOverlay()はG.phase==='reward'を要求するためここで先に立てるが、
-  // 実際の画面構築（村/祭壇/新規報酬5枚）は「Withdraw」が消えた後のコールバックで行う。
+  // 実際の編成画面の構築は「Withdraw」が消えた後のコールバックで行う。
   G.phase='reward';
   if(typeof updateHUD==='function') updateHUD();
-  // 敗北後は必ず報酬付き編成画面へ進む（村・祭壇へは戻さない）。
+  // 敗北後は新しい報酬を作らず、編成画面へ進む。
   showVictoryOverlay(()=>{
     G._battleDefeatHandled=true;
     G._waveWithdraw=false;
@@ -1053,7 +1057,7 @@ async function _finishWaveBattleDefeat(questDefeat){
     if(questDefeat&&typeof questFinishBattleDefeat==='function'){
       return questFinishBattleDefeat(questDefeat);
     }
-    if(typeof goToReward==='function') return goToReward({checkpoint:true});
+    if(typeof goToReward==='function') return goToReward({checkpoint:true,noNewRewards:true});
   });
 }
 // ── オープニングムービー ─────────────────────────────────────

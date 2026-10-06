@@ -240,8 +240,9 @@ function runTrigger(unit,trigger,side='p1'){
   });
   const arrival=accept();G._wave=2;G._waveStage=_waveRouteForWave(2).indexOf('city')+1;G._isWaveAltar=false;
   const gold=G.gold;await maybeStartQuestTownArrival();
-  check('ヴァルガ到着はAの台詞でも酒場と同じBを出して成功完了、E075を保持し以後の置き換えを止める',()=>{
-    assert.deepEqual(global.q001Dialogue.lines,QUEST_DATA.Q001_2.initial);assert.notEqual(global.q001Portrait.withoutB,true);
+  check('ヴァルガ到着はBを出さず成功完了、E075を保持し以後の置き換えを止める',()=>{
+    assert.deepEqual(global.q001Dialogue.lines,QUEST_DATA.Q001_2.initial);assert.equal(global.q001Portrait.withoutB,true);
+    assert.equal(global.q001Portrait.forceNamePlate,false);
     assert.equal(global.q001Portrait.portraitB||QUEST_CONFIG.Q001.portraitB,QUEST_CONFIG.Q002.portraitB);
     assert.equal(arrival.status,'completed');assert.equal(arrival.townEventDone,true);assert.equal(_qDescription(),'');
     assert.equal(_qCardNo(G.mainBoard[0]),'E075');assert.equal(G.gold,gold);assert.equal(_qActiveEntry(),null);

@@ -113,25 +113,33 @@ function battleFxSyncUnit(unit, side, slot) {
   // PvEの最終状態の先読み、オンラインの再生用写しによる巻き戻しを避ける。
   if (!_battleFxFrame) _battleFxFrame = requestAnimationFrame(_battleFxFollowStates);
 }
+// カードが画面に出ているか（開戦演出で登場する前・登場の隠し中は状態VFXを出さない。2026-10-07 利用者指摘）。
+function _battleFxCardShown(element) {
+  const card = element.matches && element.matches('.unit-card') ? element : (element.querySelector && element.querySelector('.unit-card')) || element;
+  const cs = getComputedStyle(card);
+  return cs.visibility !== 'hidden' && cs.display !== 'none' && (parseFloat(cs.opacity) || 0) > .05;
+}
 function _battleFxFollowStates() {
   _battleFxFrame = 0;
   const screen = document.getElementById('scr-battle');
   if (!screen || !screen.classList.contains('active')) { stopBattleLabFx(); return; }
-  if(!['player','enemy','battle'].includes(G.phase)||G._battleVictoryPending) {
-    // 状態は終戦で止める。確定済み終戦効果（レプラコーン等）の単発VFX・SEは最後まで見せる。
-    _battleFxStates.forEach(entry=>entry.loops.forEach((old,name)=>VbFx.stop({name,element:old.element})));
-    _battleFxStates.clear();return;
-  }
+  void 0;
+  // 終戦後も、残っている状態の表示は消さない（2026-10-07 利用者指定）。戦闘画面を離れる・次の戦闘の頭で片付ける。
+  const ended=!['player','enemy','battle'].includes(G.phase)||G._battleVictoryPending;
   VbFx.settings.layer = _battleFxLayer;
   _battleFxStates.forEach((entry,key) => {
     const r = battleFxRect(entry.unit,entry.side), visible = r && r.element && r.element.style.visibility!=='hidden' &&
+      _battleFxCardShown(r.element) &&
       !entry.unit._deathFxReady && !entry.unit._deathFxStarted && !entry.unit._reviveHidden &&
       (typeof presentShownHp==='function'?presentShownHp(entry.unit):entry.unit.hp)>0;
     for (const state of ['shield','poison','weaken','guts','revive']) {
       const name = `${state}-state`, old = entry.loops.get(name), value = visible ? Number(entry.values[state])||0 : 0;
+      // カードの要素が作り直されただけなら、止めずに付け替える（出し直すと明滅する）。
+      if (old && value && old.element !== r.element && VbFx.retarget && VbFx.retarget({name,element:old.element},r)) old.element = r.element;
       if (old && (!value || old.element !== r.element)) { VbFx.stop({name,element:old.element}); entry.loops.delete(name); }
-      if (value > 0 && (!old || old.element !== r.element || old.value !== value)) {
-        VbFx.play(name,{source:r,targets:[r],side:entry.side,value,dir:1}).catch(err=>console.error('[battle state VFX]',err));
+      const cur = entry.loops.get(name);
+      if (value > 0 && (!cur || cur.element !== r.element || cur.value !== value)) {
+        VbFx.play(name,{source:r,targets:[r],side:entry.side,value,dir:1,resolveElement:_battleFxResolveElement}).catch(err=>console.error('[battle state VFX]',err));
         entry.loops.set(name,{element:r.element,value});
       }
     }
@@ -139,13 +147,16 @@ function _battleFxFollowStates() {
   });
   if (_battleFxStates.size) _battleFxFrame = requestAnimationFrame(_battleFxFollowStates);
 }
-function stopBattleLabFx() {
+function stopBattleLabFx(options) {
+  // keepStates：終戦で単発の演出だけ止め、状態のループ表示は残す。
+  const keepStates = !!(options && options.keepStates);
   _battleFxGeneration++;
-  if (_battleFxFrame) cancelAnimationFrame(_battleFxFrame); _battleFxFrame = 0;
-  if (typeof VbFx !== 'undefined') VbFx.stopAll();
+  if (!keepStates && _battleFxFrame) { cancelAnimationFrame(_battleFxFrame); _battleFxFrame = 0; }
+  if (typeof VbFx !== 'undefined') VbFx.stopAll(keepStates ? {keepLoops:true} : undefined);
   _battleFxTimers.forEach(clearTimeout); _battleFxTimers.clear();
   _battleFxVoices.forEach(voice=>voice.stop()); _battleFxVoices.clear();
-  _battleFxStates.clear(); _battleFxForms.clear(); _battleFxLastRects.clear();
+  if (!keepStates) _battleFxStates.clear();
+  _battleFxForms.clear(); _battleFxLastRects.clear();
   document.querySelectorAll('[data-battle-lab-fx]').forEach(el=>el.remove());
 }
-window.addEventListener('pagehide',stopBattleLabFx);
+window.addEventListener('pagehide',()=>stopBattleLabFx());

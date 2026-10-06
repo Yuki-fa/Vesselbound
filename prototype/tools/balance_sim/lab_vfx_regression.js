@@ -21,6 +21,8 @@ screen.classList.contains=c=>c==='active';nodes.set(screen.id,screen);
 global.innerWidth=1280;global.innerHeight=800;
 global.document.getElementById=id=>nodes.get(id)||null;
 global.document.querySelector=selector=>selector==='#scr-battle .battle-area'?screen:null;
+// 状態VFXはカードの可視性も読む。仮DOMの初期状態は、画面に出た不透明なカード。
+global.getComputedStyle=element=>({visibility:element.style.visibility||'visible',display:element.style.display||'block',opacity:element.style.opacity||'1'});
 global.document.createElement=tag=>{const e=makeElement(tag);e.isConnected=true;const append=e.appendChild;e.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(e,c);};return e;};
 const append=screen.appendChild;screen.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(screen,c);};
 global.getCurrentUnitSlot=(_side,u)=>slots.get(String(u.id))||null;
@@ -283,9 +285,10 @@ async function committedEndChecks() {
     const count=calls.length;await onBattleEnd();assert.equal(calls.length,count,'終戦VFXを二重に出さない');
     const states=fixture('C003');setup(states);_battleFxFollowStates();
     const stops=stopped.length;G._battleVictoryPending=true;_battleFxFollowStates();
-    assert.equal(_battleFxStates.size,0,'終戦時に状態ループを破棄する');
+    // 2026-10-07 利用者指定：終戦後も残っている状態の表示は消さない（戦闘画面を離れる・次の戦闘で片付ける）。
+    assert.ok(_battleFxStates.size>0,'終戦時も状態ループを残す');
     assert.ok(!stopped.slice(stops).includes('all'),'状態停止が終戦の単発VFXを打ち切らない');
-    console.log('OK 本体／SaveRun.applyEndの終戦VFX・数値の二重加算なし・終戦中の状態停止');
+    console.log('OK 本体／SaveRun.applyEndの終戦VFX・数値の二重加算なし・終戦中も状態を残す');
   } finally {global._persistPermanentStatOrWarn=persist;}
 }
 (async()=>{

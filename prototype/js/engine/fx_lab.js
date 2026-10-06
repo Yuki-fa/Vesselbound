@@ -113,6 +113,18 @@ var VbFx = (function () {
     var r = el.getBoundingClientRect();
     return { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom, element: el };
   }
+  // カード要素の画面上の中心・大きさ・傾き（自身と親のtransformの回転・拡大を含む）。
+  function cardGeometry(el) {
+    var b = el.getBoundingClientRect(), angle = 0, scale = 1, node = el;
+    while (node && node.nodeType === 1 && node !== document.body) {
+      var t = getComputedStyle(node).transform;
+      if (t && t !== 'none') { var m = new DOMMatrixReadOnly(t); angle += Math.atan2(m.b, m.a); scale *= Math.hypot(m.a, m.b); }
+      node = node.parentElement;
+    }
+    var w = el.offsetWidth * scale, h = el.offsetHeight * scale;
+    if (!(w > 0 && h > 0)) { w = b.width; h = b.height; angle = 0; }
+    return { cx: b.left + b.width / 2, cy: b.top + b.height / 2, w: w, h: h, angle: angle };
+  }
   function normalize(r) {
     if (!r) return null;
     if (typeof r.getBoundingClientRect === 'function') return rect(r);
@@ -196,6 +208,13 @@ var VbFx = (function () {
       var next = swaps.get(old);
       if (next !== old) { r.element = next; changed.push(r); }
     });
+    // カードの中に描く状態（毒）は、描画用canvasも新しいカードへ移す。
+    if (job.local && swaps.get(job.local.el) && swaps.get(job.local.el) !== job.local.el) {
+      var nextEl = swaps.get(job.local.el), statusEl = nextEl.querySelector('.unit-stat-overlay-layer, .stats-overlay, .status_overlay, .status-overlay, [class*="status_overlay"]');
+      if (statusEl) statusEl.parentNode.insertBefore(job.local.canvas, statusEl); else nextEl.appendChild(job.local.canvas);
+      job.local.el = nextEl;
+    }
+    if (job.def.loop && swaps.get(job.source.element) === undefined && job.targets[0] && job.targets[0].element !== job.source.element) job.source = job.targets[0];
     swaps.forEach(function (next, old) {
       if (!next || next === old) return;
       var props = leases.get(old);
@@ -292,18 +311,25 @@ var VbFx = (function () {
         r.width = nr.width; r.height = nr.height; r.right = r.left + nr.width; r.bottom = r.top + nr.height;
       });
       frameContext.translate(curShift.x, curShift.y);
-      // カードの中（ステータス表示の下）に描く状態（毒。2026-10-06 利用者指定）。カード内の専用canvasへ描く。
-      var drawCtx = frameContext;
+      // 状態のループは、カードの今の位置・大きさ・**傾き**に毎フレーム合わせる（攻撃の動きで傾く。2026-10-07 利用者指摘）。
+      // 傾きのない矩形（中心0,0）で描き、描画全体をカードの中心へ移して回す。
+      var drawCtx = frameContext, geo = job.def.loop && job.targets[0] && job.targets[0].element && job.targets[0].element.isConnected
+        ? cardGeometry(job.targets[0].element) : null;
+      if (geo) {
+        job.targets[0].left = -geo.w / 2; job.targets[0].top = -geo.h / 2; job.targets[0].width = geo.w; job.targets[0].height = geo.h;
+        job.targets[0].right = geo.w / 2; job.targets[0].bottom = geo.h / 2;
+      }
       if (job.local) {
-        var le = job.local.el, lc = job.local.canvas, lr = le.getBoundingClientRect(), padF = job.local.pad;
-        var cssW = le.offsetWidth * (1 + 2 * padF), cssH = le.offsetHeight * (1 + 2 * padF), ds = lr.width / Math.max(1, le.offsetWidth);
-        var pw = Math.ceil(cssW * ds * (window.devicePixelRatio || 1)), ph = Math.ceil(cssH * ds * (window.devicePixelRatio || 1));
+        // カードの中に描く状態（毒）は、カードの子要素のcanvasなので傾き・移動はDOMが受け持つ。カードの座標（傾きなし）で描く。
+        var le = job.local.el, lc = job.local.canvas, padF = job.local.pad, gw = geo ? geo.w : le.getBoundingClientRect().width, gh = geo ? geo.h : le.getBoundingClientRect().height;
+        var dprL = window.devicePixelRatio || 1, pw = Math.ceil(gw * (1 + 2 * padF) * dprL), ph = Math.ceil(gh * (1 + 2 * padF) * dprL);
         if (lc.width !== pw || lc.height !== ph) { lc.width = pw; lc.height = ph; }
-        var k = pw / (lr.width * (1 + 2 * padF));
+        var k = pw / (gw * (1 + 2 * padF));
         drawCtx = job.local.ctx; drawCtx.setTransform(1, 0, 0, 1, 0, 0); drawCtx.clearRect(0, 0, pw, ph);
-        drawCtx.setTransform(k, 0, 0, k, -(lr.left - lr.width * padF) * k, -(lr.top - lr.height * padF) * k);
-        // 開始時の位置からの移動はカードと一緒に動くので不要（矩形を今の位置へ置き換える）。
-        job.targets.forEach(function (tr) { if (tr.element === le) { var nr = le.getBoundingClientRect(); tr.left = nr.left; tr.top = nr.top; tr.width = nr.width; tr.height = nr.height; tr.right = nr.right; tr.bottom = nr.bottom; } });
+        drawCtx.setTransform(k, 0, 0, k, (gw * (.5 + padF)) * k, (gh * (.5 + padF)) * k);
+      } else if (geo) {
+        frameContext.setTransform(canvas.width / width, 0, 0, canvas.width / width, 0, 0);
+        frameContext.translate(geo.cx, geo.cy); frameContext.rotate(geo.angle);
       }
       try {
         ctx = drawCtx;
@@ -2039,7 +2065,7 @@ var VbFx = (function () {
     var d = lookup[name]; if (!d) return 0;
     return duration(name, speed) * (IMPACT_FRACTION[d.kind] != null ? IMPACT_FRACTION[d.kind] : .25);
   }
-  function stopAll() { jobs.slice().forEach(function (job) { finish(job, true); }); }
+  function stopAll(opts) { jobs.slice().forEach(function (job) { if (!(opts && opts.keepLoops && job.def.loop)) finish(job, true); }); }
   // 描画は共通のまま、カードの状態1件／指定した再生だけを終了する。
   function stop(handle) {
     var selected = jobs.filter(function (job) {
@@ -2049,8 +2075,26 @@ var VbFx = (function () {
     });
     selected.forEach(function (job) { finish(job, true); }); return selected.length;
   }
+  // 状態ループの表示先を、作り直されたカードの要素へ付け替える（止めて出し直すと最初のフェードインからやり直しになり、
+  // 他のキャラの行動で盤面が描き直されるたびに明滅して見える。2026-10-07 利用者指摘）。
+  function retarget(handle, to) {
+    var next = normalize(to); if (!next || !next.element) return 0;
+    var selected = jobs.filter(function (job) {
+      return !job.done && job.def.loop && (!handle.name || job.def.name === handle.name) && job.targets[0] && job.targets[0].element === handle.element;
+    });
+    selected.forEach(function (job) {
+      job.source = next; job.targets[0] = next; job.from = point(next);
+      var r0 = next.element.getBoundingClientRect(); job.anchor0 = { left: r0.left, top: r0.top };
+      if (job.local) {
+        var statusEl = next.element.querySelector('.stats-overlay, .status_overlay, .status-overlay, [class*="status_overlay"], .unit-stat-overlay-layer');
+        if (statusEl) statusEl.parentNode.insertBefore(job.local.canvas, statusEl); else next.element.appendChild(job.local.canvas);
+        job.local.el = next.element;
+      }
+    });
+    return selected.length;
+  }
   window.addEventListener('pagehide', stopAll);
-  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stop: stop, stopAll: stopAll, effects: definitions, settings: settings,
+  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stop: stop, retarget: retarget, stopAll: stopAll, effects: definitions, settings: settings,
     activeCount: function () { return jobs.length; },
     snapshot: function () { return jobs.map(function (job) { return { name: job.def.name, durationMs: job.ms,
       elapsedMs: job.start == null ? null : Math.max(0, performance.now() - job.start),

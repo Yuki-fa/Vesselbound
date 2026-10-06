@@ -644,6 +644,7 @@ function renderRaceBuffSummary(){
 function goToReward(options){
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
+  const _noNewRewards=!!(options&&options.noNewRewards);
   // 前回のめくりが途中で残っていれば片付ける（報酬欄が隠れたままにならないように）。
   _finishRewardReveal(true);
   G._savePresentation=false;
@@ -657,7 +658,7 @@ function goToReward(options){
     G._isRewardTown=true; // 既存UIは街モードを維持
     G._freeRewardPanelMode=true; // 一時仕様：パネルは無料。_baseCostは保持する
     G._rewardOnePickMode=true;
-    _rewFreePickDone=false;
+    _rewFreePickDone=_noNewRewards;
     _rewPhaseId++;
     G._isBossRewardCycle=!!G._bossJustDefeated;
     G._boardDiscardCount=0;
@@ -670,12 +671,11 @@ function goToReward(options){
     const _waveRewardCount=Number.isInteger(G._waveRewardCount)?Math.max(0,Math.min(REWARD_GRID_CAPACITY,G._waveRewardCount)):REWARD_GRID_CAPACITY;
     // **順番に依存させない。**（報酬の中身は現在地とランで決まる）
     // 報酬画面を開き直しても、途中で他の抽選を挟んでも同じ5枚になる。
-    // 鍵には敗北回数（_waveDefeatCount）も入れる。敗北しても場面・段は進まないため、
-    // これが無いと敗北直後の報酬が直前と全く同じ5枚になる。
+    // 既存の勝利報酬の鍵（敗北回数を含む）は維持する。敗北後の編成では抽選しない。
     // レア度4以上の枚数と並び（隣り合わせない）は _arrangeRewardRarity() が唯一の実装。枚数を切り詰めた後に通す。
-    _rewCards=(G._isTavern||G._isFiveSaints)?[]:runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
+    _rewCards=(_noNewRewards||G._isTavern||G._isFiveSaints)?[]:runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
       ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
-    if(!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
+    if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
     _storeRewardStartSnapshot();
@@ -742,7 +742,7 @@ function goToReward(options){
   // **戦闘を終えて報酬画面へ入った時だけ**、報酬カードをめくって見せる。
   // checkpoint付きで呼ばれるのは勝利・敗北後の2か所だけ（battle.js／main.js）。
   // 施設・再開（restoreCheckpoint）・オンラインの編成ではめくらない。
-  if(_saveCheckpoint&&!_isFacilityEntry&&!_restoreCheckpoint) _playRewardReveal();
+  if(_saveCheckpoint&&!_isFacilityEntry&&!_restoreCheckpoint&&!_noNewRewards) _playRewardReveal();
   return autosaveDisplay;
 }
 

@@ -68,7 +68,7 @@ const QUEST_CONFIG={
 QUEST_CONFIG.Q001={requiredCardNo:'E075',portraitB:QUEST_CONFIG.Q002.portraitB,completeAt:'town',completeWave:2,
   offerTitleKey:'「酒場の報酬枠」見出し3',acceptButtonKey:'「受領」ボタン',
   retainedCard:true,lockedTownWave:1,debugWave:1,offlineOnly:true,
-  enemyReplacement:{enemyNo:'EN025',arrivalWave:2},townArrival:{dialogueOnly:true}};
+  enemyReplacement:{enemyNo:'EN025',arrivalWave:2},townArrival:{dialogueOnly:true,withoutB:true}};
 // 依頼カードのない討伐依頼。ディナの立ち絵は木箱輸送と共通にする。
 QUEST_CONFIG.Q008={requiredCardNo:'',portraitB:QUEST_CONFIG.Q007.portraitB,initialChoice:true,completeAt:'tower',
   enemyReplacement:{enemyNo:'EN048',frontSkip:2},
@@ -2704,7 +2704,7 @@ async function questFinishBattleDefeat(spec){
     return true;
   }
   if(spec.passStage&&typeof finishWaveBattleVictory==='function') finishWaveBattleVictory(false);
-  const result=typeof goToReward==='function'?goToReward({checkpoint:true}):undefined;
+  const result=typeof goToReward==='function'?goToReward({checkpoint:true,noNewRewards:true}):undefined;
   await Promise.resolve(result);
   _qResumeOnlineAfterQuestEncounter();
   return true;
@@ -3968,7 +3968,8 @@ async function maybeStartQuestTownArrival(){
   const portraitB=cfg.portraitB;
   const data=_qQuestData(entry.towerVariant)||{};
   const firstLines=questCfg.cargo?(data.initial||[]).slice(0,1):(data.initial||[]).slice(0,2);
-  await _qShowPortraitPair('village',entry,{portraitB,firstLines,namePlateVariant:entry.towerVariant,forceNamePlate:true});
+  // 力の代償（Q001_2）の到着会話はBキャラを出さない（2026-10-07 利用者指定）。townArrival.withoutB で指定する。
+  await _qShowPortraitPair('village',entry,{portraitB,firstLines,namePlateVariant:entry.towerVariant,forceNamePlate:!cfg.withoutB,withoutB:!!cfg.withoutB});
   if(generation!==(Number(G._debugEventGeneration)||0)) return false;
   let status='completed';
   if(cfg.dialogueOnly) await _qStartDialogue(data.initial||[],{screen:'village'});

@@ -2739,6 +2739,7 @@ function coreApplyMapPanelOpeningEffects(state, emit) {
   if (!state || state._mapPanelOpeningApplied) return;
   state._mapPanelOpeningApplied = true;
   ['p1', 'p2'].forEach(sideKey => {
+    if (Array.isArray(state.openingSides) && !state.openingSides.includes(sideKey)) return;
     const units = state.units && state.units[sideKey] || [];
     const colors = new Set(units.filter(u => u && u.hp > 0 && !coreIsSealed(u) && u._mapPanelPower === 'resonance')
       .map(u => u.color).filter(Boolean));
@@ -5465,13 +5466,19 @@ function corePickFirstSide(state, rng) {
   return (rng && typeof rng.next === 'function' ? rng.next() : Math.random()) < 0.5 ? 'p1' : 'p2';
 }
 
+// 開戦へ新しく入る陣営。指定しなければ従来どおり両陣営。
+// 維持した陣営も攻撃・効果の対象には残す。計算式・戦闘の勝敗判定は共通のまま。
+function coreOpeningUnits(state) {
+  const sides = Array.isArray(state.openingSides) ? state.openingSides : ['p1', 'p2'];
+  return sides.flatMap(side => state.units && state.units[side] || []).filter(Boolean);
+}
+
 // 宿業の刻印は、封印を含む初期配置が確定した直後に一度だけ適用する。
 // HP0は通常の戦闘修正死と同じ共通経路へ渡し、死亡効果・観測・復活を省略しない。
 function coreApplyEngravingOpening(state, rng, emit, applyHit) {
   if (!state || state._engravingOpeningApplied) return;
   state._engravingOpeningApplied = true;
-  const allUnits = [...(state.units && state.units.p1 || []), ...(state.units && state.units.p2 || [])]
-    .filter(Boolean);
+  const allUnits = coreOpeningUnits(state);
   coreWithStatDeathResolution(state, rng, emit, applyHit, trackedEmit => {
     allUnits.forEach(unit => {
       const count = coreEffectCount(unit, '宿業の刻印');
@@ -5496,10 +5503,9 @@ function coreApplyEngravingOpening(state, rng, emit, applyHit) {
 // 同じ手順が別々に書かれており、「生命の力」のHP2倍のように片方にしか無い工程があった。
 function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
   const units = state.units;
-  const allUnits = () => [...(units.p1 || []), ...(units.p2 || [])].filter(Boolean);
   // 開始時の盤面（封印されたまま）を先に見せてから、解放を演出として流す。
   emit({ type: 'battle_start', sides: { p1: (units.p1 || []).filter(Boolean).map(coreUnitSnapshot), p2: (units.p2 || []).filter(Boolean).map(coreUnitSnapshot) } });
-  coreInitSealStates(allUnits(), u => (u.side === 'p1' ? u.slot : 100 + u.slot));
+  coreInitSealStates(coreOpeningUnits(state), u => (u.side === 'p1' ? u.slot : 100 + u.slot));
   resolveSeals();
   state._openingPhase = true;
   try {
@@ -5514,13 +5520,13 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
     // 後に回していたため、HPを読む開戦効果（ウェンディゴの「HP10につき1回」など）が
     // 倍化前の値で数えていた（HP30→60でも -3/-3 しか入らなかった）。
     // _mapPanelPower は編成側（formation.js）が入れる値。
-    allUnits().filter(u => u.hp > 0 && !coreIsSealed(u) && u._mapPanelPower === 'life').forEach(u => {
+    coreOpeningUnits(state).filter(u => u.hp > 0 && !coreIsSealed(u) && u._mapPanelPower === 'life').forEach(u => {
       if (u._lifePanelDoubled) return;
       const hp = Math.max(0, Number(u.maxHp) || 0);
       u.maxHp += hp; u.hp += hp; u._lifePanelDoubled = true;
       emit({ type: 'stat_change', side: u.side, unitId: u.id, atk: 0, hp, reason: 'life_panel_double' });
     });
-    allUnits().filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
+    coreOpeningUnits(state).filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
       const shield = coreUnitShieldValue(u);
       if (shield > 0) { u.shield = Math.max(Number(u.shield) || 0, shield); emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: shield }); }
       const repeats = 1 + coreExtraTriggerTimes(u, '開戦', coreEffectCount(u, '恩寵'))
@@ -5595,7 +5601,7 @@ function runBattleCore(state, rng, opts) {
   // skipOpening は「前戦闘の状態をそのまま使う」契約でもある。
   // 開戦済みの封印値をここで再初期化すると、連戦の状態だけが変わるため、
   // 初期化も開戦処理と同じくスキップする。
-  if (!skipOpening) coreInitSealStates(allUnits(), fieldOrder);
+  if (!skipOpening) coreInitSealStates(coreOpeningUnits(state), fieldOrder);
   if (!skipOpening) coreRunOpening(state, rng, emit, applyHit, resolveSeals);
 
   // 先攻：生存数が多い側。同数なら rng で決める（呼び出し側では決めない）。

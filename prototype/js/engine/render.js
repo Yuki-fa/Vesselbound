@@ -1753,7 +1753,8 @@ function _forceStopAllVfx(options){
   // ゲームオーバー・中断などは従来どおり消す。
   if(options&&options.keepActionBanner){ if(typeof actionBannerHold==='function') actionBannerHold(); }
   else if(typeof actionBannerClear==='function') actionBannerClear();
-  if(typeof stopBattleLabFx==='function') stopBattleLabFx();
+  // 終戦（勝利・撤退）では状態のループ表示を残す（2026-10-07 利用者指定）。
+  if(typeof stopBattleLabFx==='function') stopBattleLabFx({keepStates:!!(options&&options.keepActionBanner)});
   if(typeof presentResetLabEvents==='function') presentResetLabEvents();
   const preserveDamage=!!(options&&options.preserveDamage);
   // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に

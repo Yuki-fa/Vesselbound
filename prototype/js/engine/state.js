@@ -130,6 +130,8 @@ function initState(){
     _waveFinalVillage:false,
     _waveRewardCount:null,
     _waveWithdraw:false,
+    _waveEnemySnapshotAtEnd:false,
+    _waveEnemySnapshotBlood:0,
     battleCounters:{damage:0,deaths:0},
     hasGoldenDrop:false,
     baseIncome:0,

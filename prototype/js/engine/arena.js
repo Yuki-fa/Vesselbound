@@ -68,6 +68,8 @@ function _arenaCaptureEntrySnapshot(){
     waveIsRetry:!!G._waveIsRetry,
     waveDefeatCount:G._waveDefeatCount,
     waveEnemySnapshot:_arenaCopy(G._waveEnemySnapshot||null),
+    waveEnemySnapshotAtEnd:!!G._waveEnemySnapshotAtEnd,
+    waveEnemySnapshotBlood:Math.max(0,Number(G._waveEnemySnapshotBlood)||0),
     retryFloor:G._retryFloor,
     mapReturnAfterReward:!!G._mapReturnAfterReward,
     isRewardTown:!!G._isRewardTown,
@@ -124,6 +126,8 @@ function _arenaRestoreEntrySnapshot(){
   if(snap.waveIsRetry!==undefined) G._waveIsRetry=!!snap.waveIsRetry;
   if(snap.waveDefeatCount!==undefined) G._waveDefeatCount=snap.waveDefeatCount;
   if(snap.waveEnemySnapshot!==undefined) G._waveEnemySnapshot=_arenaCopy(snap.waveEnemySnapshot||null);
+  G._waveEnemySnapshotAtEnd=!!snap.waveEnemySnapshotAtEnd;
+  G._waveEnemySnapshotBlood=Math.max(0,Number(snap.waveEnemySnapshotBlood)||0);
   if(snap.retryFloor!==undefined) G._retryFloor=snap.retryFloor;
   if(snap.mapReturnAfterReward!==undefined) G._mapReturnAfterReward=!!snap.mapReturnAfterReward;
   if(snap.isRewardTown!==undefined) G._isRewardTown=!!snap.isRewardTown;

@@ -838,7 +838,8 @@ function _rollEnemyGold(enemy,rng){
 
 function _initSealStates(){
   // 誰が封印されるか・何体必要かはコアが決める。盤面上の並び順だけG側から渡す。
-  coreInitSealStates(_allBattleCharacters(), _fieldOrderOfUnit);
+  const units=_allBattleCharacters().filter(u=>!G._preserveEnemyOpening||!(G.enemies||[]).includes(u));
+  coreInitSealStates(units, _fieldOrderOfUnit);
 }
 
 // 生贄が揃った時点で盤面に並ぶ生贄キャラを、左上（盤面順）から優先し、キャラごとに
@@ -908,6 +909,7 @@ function _pveCoreStageFields(){
   return {
     mapIndex:Math.max(1,Number(G.floor)||1),
     stageNumber:Math.max(1,Number(G._wave)||1),
+    ...(G._preserveEnemyOpening?{openingSides:['p1']}:{}),
   };
 }
 
@@ -1362,8 +1364,13 @@ function showBattleCutin(type='start',options={}){
   // 勝利・撤退の結果表示中は、戦場カードを操作・ホバーできないようにする。
   // 勝利時はfinishBattleAsVictory()で既に付与済みだが、撤退時も同じロックを使う。
   document.body.classList.add('battle-victory-pending');
-  // 行動表示は結果表示が待機に入る（「進む」が出る）まで残す。オンラインの結果表示も同じ。
+  // 行動表示は終戦ですぐには消さず、結果表示の間にゆっくり消して「進む」が出る時には消え終わっている
+  // （2026-10-07 利用者指定）。オンラインの結果表示も同じ。フェード（400ms）と余裕100msぶん前に消し始める。
   if(typeof actionBannerHold==='function') actionBannerHold();
+  if(isResult&&typeof actionBannerReleaseHold==='function'){
+    const fadeMs=(typeof ACTION_BANNER_CONFIG!=='undefined'&&ACTION_BANNER_CONFIG.fadeOutMs)||400;
+    battlePresentationSetTimeout(actionBannerReleaseHold,Math.max(0,Math.max(1500,Number(options.durationMs)||2200)+240-fadeMs-100));
+  }
   // **寄りはここでは戻さない。** 戻すのは完全に暗転して文字も消えた後
   // （main.js の戦闘後遷移）。明るいうちに戻すと画面が引くのが見える。
   _showBattleEndFade();
@@ -2304,6 +2311,13 @@ async function startBattle(){
   // ATK/HPだけ書き換わった状態になる。生成も乱数固定にして構成のぶれを無くす。
   const reuseWaveEnemies=!fixedTestBattle&&!arenaBattle&&!questBattle
     &&!!(waveEnemyKey&&G._waveRetryEnemyKey===waveEnemyKey&&Array.isArray(G._waveEnemySnapshot));
+  // 終了時の敵は開戦済み。古いセーブの開始時スナップショットは従来の初期化を通す。
+  // 保存した戦闘の再生では、setup の同じ指定から復元する（一時的なGの旗は保存しない）。
+  G._preserveEnemyOpening=savedBattle
+    ?Array.isArray(savedBattle.setup.openingSides)&&!savedBattle.setup.openingSides.includes('p2')
+    :reuseWaveEnemies&&!!G._waveEnemySnapshotAtEnd;
+  // 封印の解放条件も同じところから続ける。味方の血は従来どおり初期化する。
+  if(!savedBattle&&G._preserveEnemyOpening) G._enemyBlood=Math.max(0,Number(G._waveEnemySnapshotBlood)||0);
   // **同じ戦闘への再挑戦では開幕の会話を飛ばす。** 同じ台詞を毎回読まされるため。
   // 敵を引き継ぐ（＝同じ敵に挑み直した）時が再挑戦。
   G._skipBattleStartLines=reuseWaveEnemies||!!(questBattle&&G._waveIsRetry);
@@ -2349,24 +2363,26 @@ async function startBattle(){
     const _laneFixed=fixedTestBattle?false:(!!G._enemyLaneFixed||_enemiesAlreadyFixed);
     G._enemyLaneFixed=false;
     const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
-    const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
-    const _mapNormalBattleNo=mapBattle&&mapBattle.type==='battle'&&Number(mapBattle.mapIndex)===1&&Number(mapBattle.turn)<=4?Number(mapBattle.normalBattleNo)||0:0;
-    const _earlyBattleCount=(!_isBossFight&&!_laneFixed)?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
-    if(_earlyBattleCount>0&&_actualEnemies.length>_earlyBattleCount){
-      _actualEnemies.splice(_earlyBattleCount);
+    if(!savedBattle&&!reuseWaveEnemies){
+      const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
+      const _mapNormalBattleNo=mapBattle&&mapBattle.type==='battle'&&Number(mapBattle.mapIndex)===1&&Number(mapBattle.turn)<=4?Number(mapBattle.normalBattleNo)||0:0;
+      const _earlyBattleCount=(!_isBossFight&&!_laneFixed)?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
+      if(_earlyBattleCount>0&&_actualEnemies.length>_earlyBattleCount){
+        _actualEnemies.splice(_earlyBattleCount);
+      }
+      while(!_laneFixed&&!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
+        const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
+        const extra=JSON.parse(JSON.stringify(base));
+        extra.id=uid();
+        extra.lane='front';
+        _actualEnemies.push(extra);
+      }
+      const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
+      if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
+      _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
+      G.enemies=_newEnemies;
+      compactBattleUnits();
     }
-    while(!_laneFixed&&!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
-      const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
-      const extra=JSON.parse(JSON.stringify(base));
-      extra.id=uid();
-      extra.lane='front';
-      _actualEnemies.push(extra);
-    }
-    const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
-    if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
-    _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
-    G.enemies=_newEnemies;
-    compactBattleUnits();
     if(_isBossFight) G._bossSlot=G.enemies.findIndex(e=>e&&(e.boss||(e.keywords||[]).includes('ボス')));
     // エリートの位置を再特定（撃破ボーナス判定で参照するため）
     if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
@@ -2384,7 +2400,7 @@ async function startBattle(){
   // （書き込むと、次の通常戦闘のリトライに試験戦闘の敵が出る）。
   if(waveEnemyKey&&!fixedTestBattle&&!arenaBattle&&!questBattle){
     if(reuseWaveEnemies) G._waveRetryEnemyKey=null;
-    else G._waveEnemySnapshot=clone(G.enemies);
+    else { G._waveEnemySnapshot=null; G._waveEnemySnapshotAtEnd=false; G._waveEnemySnapshotBlood=0; }
   }
   G.enemies.forEach(e=>{
     if(!e) return;
@@ -2843,20 +2859,24 @@ function compactBattleUnits(){
   const maxE=MAX_ENEMIES||10;
   const enemyRearSlots=Math.max(0,maxE-frontSlots);
   const nextEnemies=new Array(maxE).fill(null);
-  const pendingEnemies=(G.enemies||[]).filter(e=>e&&e.hp>0&&e._corePendingSummon&&!e._isObject);
-  const liveEnemies=(G.enemies||[]).filter(e=>e&&e.hp>0&&!e._corePendingSummon&&!e._isObject);
-  liveEnemies.forEach(clampUnitStats);
-  const enemyFront=liveEnemies.filter(e=>(e.lane||'front')!=='rear');
-  const enemyRear=liveEnemies.filter(e=>(e.lane||'front')==='rear');
-  _placeCenteredRow(nextEnemies,enemyFront.slice(0,frontSlots),0,frontSlots,'front');
-  _placeCenteredRow(nextEnemies,enemyRear.slice(0,enemyRearSlots),frontSlots,enemyRearSlots,'rear');
-  pendingEnemies.forEach(u=>{
-    const old=Number.isInteger(u._battleSlot)?u._battleSlot:-1;
-    let pos=old>=0&&old<nextEnemies.length&&!nextEnemies[old]?old:nextEnemies.findIndex(x=>!x);
-    if(pos>=0) nextEnemies[pos]=u;
-  });
-  if(Array.isArray(G.enemies)) G.enemies.splice(0,G.enemies.length,...nextEnemies);
-  else G.enemies=nextEnemies;
+  // 再戦の開戦準備では、敵の配列・空欄・死亡状態・位置を変えない。
+  // 戦闘中の詰め直しは上の共通コアの経路が引き続き行う。
+  if(!G._preserveEnemyOpening){
+    const pendingEnemies=(G.enemies||[]).filter(e=>e&&e.hp>0&&e._corePendingSummon&&!e._isObject);
+    const liveEnemies=(G.enemies||[]).filter(e=>e&&e.hp>0&&!e._corePendingSummon&&!e._isObject);
+    liveEnemies.forEach(clampUnitStats);
+    const enemyFront=liveEnemies.filter(e=>(e.lane||'front')!=='rear');
+    const enemyRear=liveEnemies.filter(e=>(e.lane||'front')==='rear');
+    _placeCenteredRow(nextEnemies,enemyFront.slice(0,frontSlots),0,frontSlots,'front');
+    _placeCenteredRow(nextEnemies,enemyRear.slice(0,enemyRearSlots),frontSlots,enemyRearSlots,'rear');
+    pendingEnemies.forEach(u=>{
+      const old=Number.isInteger(u._battleSlot)?u._battleSlot:-1;
+      let pos=old>=0&&old<nextEnemies.length&&!nextEnemies[old]?old:nextEnemies.findIndex(x=>!x);
+      if(pos>=0) nextEnemies[pos]=u;
+    });
+    if(Array.isArray(G.enemies)) G.enemies.splice(0,G.enemies.length,...nextEnemies);
+    else G.enemies=nextEnemies;
+  }
   }
   G.moveMaskLanes=G.enemies.map(e=>e?(e.lane||'front'):'front');
   G._compactRecenterOnNext=false;
@@ -5796,7 +5816,7 @@ async function _finishNewPanelBattleStartEffects(){
   // 復活の基準値は、開戦効果（バフ）を解決する前の値で毎戦闘作り直す。
   // coreStampUnitBaseStats() が createCoreUnit() 生成体を保護するため、
   // 開戦後に生成済みの召喚体の基準値は上書きしない。
-  [...(G.allies||[]), ...(G.enemies||[])].forEach(coreStampUnitBaseStats);
+  [...(G.allies||[]), ...(G._preserveEnemyOpening?[]:(G.enemies||[]))].forEach(coreStampUnitBaseStats);
   _recordBattleTrace('opening_core_start',{allyCount:(G.allies||[]).filter(Boolean).length});
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},
@@ -6512,7 +6532,7 @@ function onBattleStart(){
       a.shield=shieldValue;
     }
   });
-  G.enemies.forEach(e=>{
+  (G._preserveEnemyOpening?[]:G.enemies).forEach(e=>{
     if(!e||e.hp<=0||_isSealed(e)) return;
     const shieldValue=_unitShieldValue(e);
     if(shieldValue>0&&(e.shield||0)<shieldValue){
