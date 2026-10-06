@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vesselbound</title>
+<link rel="icon" href="data:,">
 <style>
 /* **カーソルは4種類だけ。**（利用者指定）普段とボタン上＝cursor1／押している間＝cursor2／掴めるカードの上＝cursor3／ドラッグ中＝cursor4。
    値はこの変数だけで持ち、各規則は cursor:var(--cursor-*) で参照する（pointer/default/grab を直接書かない）。
@@ -12550,8 +12551,8 @@ window.addEventListener('fullscreenchange',()=>{fitVesselboundViewport();window.
 fitVesselboundViewport();
 _watchVesselboundDpr();
 </script>
-<script src="assets.js?v=assetRename0927-fiveSaints1001-storyCycle1001-night1002b-engr1002-shop1003-art1004-e0671005"></script>
-<script src="js/engine/audio.js?v=merge0927-se1004-e0671005"></script>
+<script src="assets.js?v=assetRename0927-fiveSaints1001-storyCycle1001-night1002b-engr1002-shop1003-art1004-e0671005-battleLab1006"></script>
+<script src="js/engine/audio.js?v=merge0927-se1004-e0671005-battleLab1006"></script>
 <script src="js/engine/constants.js?v=cleanupLegacy01"></script>
 <script src="js/data/floors.js?v=deeplevel1-deep1002"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
@@ -12562,8 +12563,8 @@ _watchVesselboundDpr();
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
     <script src="js/battle/core.js?v=enhvfx0929-engraving1001-q001e0751004-e0671005-fix1005-fix1005b-shield1006"></script>
 <script src="js/battle/formation.js?v=cardFx0927-engraving1001"></script>
-    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001-e0671005-actionBanner1006-passive1006-shield1006"></script>
-    <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929-e0671005-actionBanner1006"></script>
+    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001-e0671005-actionBanner1006-passive1006-shield1006-battleLab1006"></script>
+    <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929-e0671005-actionBanner1006-battleLab1006-labSource1007"></script>
 <script src="js/engine/action_banner.js?v=actionBanner1006d"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
 <script src="js/online/protocol.js?v=core4"></script>
@@ -12572,7 +12573,7 @@ _watchVesselboundDpr();
 <script src="js/online/match.js?v=online13"></script>
 <script src="js/online/playback.js?v=rainbowText0922"></script>
 <script src="js/online/matching.js?v=reportedFixes0928"></script>
-    <script src="js/online/board.js?v=introTitle0927-onlineText0927-outcome0929-actionBanner1006-bannerHold1006"></script>
+    <script src="js/online/board.js?v=introTitle0927-onlineText0927-outcome0929-actionBanner1006-bannerHold1006-battleLab1006"></script>
 <script src="js/online/versus.js?v=q0020926-outcome0929-engraving1001-fix1005-fix1005b-actionBanner1006"></script>
 <script src="js/online/flow.js?v=reportedFixes0928"></script>
 <script src="js/online/hud.js?v=onlineExit01-onlineText0927"></script>
@@ -12583,9 +12584,11 @@ _watchVesselboundDpr();
 <script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928-fiveSaints1001-debugStory1002-q008replace1004-fix1005"></script>
 <script src="js/engine/pool.js?v=dirRename-cardFx0927"></script>
 <script src="js/engine/enemy.js?v=garmHover-outcome0929-deep1002-q008replace1004"></script>
-    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001-e0671005-fix1005-fix1005b-actionBanner1006-bannerHold1006"></script>
-<script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001-q008replace1004-actionBanner1006"></script>
-<script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001-fix1005-fix1005b-actionBanner1006-bannerHold1006"></script>
+    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001-e0671005-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006"></script>
+<script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001-q008replace1004-actionBanner1006-battleLab1006"></script>
+<script src="js/engine/fx_lab.js?v=battleLab1006"></script>
+<script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006"></script>
+<script src="js/engine/battle_fx.js?v=battleLab1006"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
 <script src="js/engine/reward_items.js?v=shopFix0927-engraving1001"></script>
 <script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002-eventFix1004"></script>

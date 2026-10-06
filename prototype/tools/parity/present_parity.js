@@ -222,6 +222,15 @@ const WATCHER = `
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
     window.__hitVfxHooked = true;
+    const origLab = window.playBattleLabFx;
+    if (typeof origLab === 'function') {
+      window.playBattleLabFx = function (code, source, targets) {
+        const spec = presentLabFx(code);
+        window.__watch.calls.push('LAB:' + (spec ? spec[0] : code) + ':' + (source && source.id || '')
+          + '→' + (targets || []).map(u => u && u.id).join('/'));
+        return origLab.apply(this, arguments);
+      };
+    }
     const origEffect = window._playCardEffectVfx;
     if (typeof origEffect === 'function') {
       window._playCardEffectVfx = function (code, targets) {

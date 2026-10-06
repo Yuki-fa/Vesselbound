@@ -120,7 +120,6 @@ const Assets = {
       'C008': 'assets/vfx/C008.webp',
       'C011': 'assets/vfx/C011.webp', // サイレン（攻撃：全体へ広がる波）
       'C017': 'assets/vfx/C017.webp', // メデューサ（負傷：対象の上にダメージVFXの代わりに出す）
-      'C018': 'assets/vfx/C018.webp', // サイクロプス（3マナ：カードの上にフェードイン／アウト）
       'C019': 'assets/vfx/C019_1.webp', // ケンタウロス（攻撃：対象へ飛ばす）
       'C043': 'assets/vfx/C043.webp',
       'C090': 'assets/vfx/C090.webp', // 奪う（対象の上で再生してから移動する）
@@ -132,13 +131,11 @@ const Assets = {
     enchantEffect: {
       'E045': 'assets/vfx/S008.webp',   // 活性化（素材名はS008へ変更済み）
       'E058': 'assets/vfx/E058_1.webp', // 炎の矢（発生元の上に出す）
-      'E067': 'assets/vfx/E067_1.webp', // 援護射撃（射手から対象へ飛ばす）
     },
     // 効果が**対象に当たった瞬間**の演出。発生元の演出（enchantEffect）とは別素材。
     // ダメージイベントの effectNo で引く。登録が無ければ通常の被弾VFXのまま。
     enchantEffectHit: {
       'E058': 'assets/vfx/E058_2.webp', // 炎の矢の着弾
-      'E067': 'assets/vfx/E067_2.webp', // 援護射撃の着弾
       'C019': 'assets/vfx/C019_2.webp', // ケンタウロスの着弾
     },
     // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
@@ -178,7 +175,6 @@ const Assets = {
     keywordEffect: {
       'K001': 'assets/vfx/K001.webp', // 即死（即死効果を受けた瞬間）
       'K003': 'assets/vfx/K003.webp', // 毒牙（毒のデバフを受けた瞬間）
-      'K004': 'assets/vfx/K004.webp', // 衝撃（弱体を付与した瞬間。通常の被弾VFXの代わり）
       'K020': 'assets/vfx/K020.webp', // 復活（再召喚された瞬間）
       'K017': 'assets/vfx/K017.webp', // 毒（毒でダメージを受けた瞬間）
       'K018': 'assets/vfx/K018.webp', // 結界（結界がダメージを防いだ瞬間）
@@ -306,8 +302,45 @@ const Assets = {
     E045: 'assets/sfx/S008.wav', // 活性化（素材名はS008へ変更済み）
     E058: 'assets/sfx/E058_1.wav', // 炎の矢（発生元）
     E058_HIT: 'assets/sfx/E058_2.wav', // 炎の矢（着弾）
-    E067: 'assets/sfx/E067_1.wav', // 援護射撃（発射）
-    E067_HIT: 'assets/sfx/E067_2.wav', // 援護射撃（着弾）
+    E067: 'assets/sfx/E067.wav', // 援護射撃（LABの命中に合わせる）
+    // VFX LABで採用済みの戦闘SE。
+    E006: 'assets/sfx/E006.wav',
+    C024: 'assets/sfx/C024.wav',
+    E035: 'assets/sfx/E035.wav',
+    C039: 'assets/sfx/C039.wav',
+    E062: 'assets/sfx/E062.wav',
+    E071: 'assets/sfx/E071.wav',
+    E075: 'assets/sfx/E075.wav',
+    C032: 'assets/sfx/C032.wav',
+    C037: 'assets/sfx/C037.wav',
+    C038: 'assets/sfx/C038.wav',
+    C046: 'assets/sfx/C046.wav',
+    C049: 'assets/sfx/C049.wav',
+    C051: 'assets/sfx/C051.wav',
+    C053: 'assets/sfx/C053.wav',
+    C054: 'assets/sfx/C054.wav',
+    C058: 'assets/sfx/C058.wav',
+    C067: 'assets/sfx/C067.wav',
+    C068: 'assets/sfx/C068.wav',
+    C069: 'assets/sfx/C069.wav',
+    C077: 'assets/sfx/C077.wav',
+    C078: 'assets/sfx/C078.wav',
+    C080: 'assets/sfx/C080.wav',
+    C081: 'assets/sfx/C081.wav',
+    C092: 'assets/sfx/C092.wav',
+    C096: 'assets/sfx/C096.wav',
+    C098: 'assets/sfx/C098.wav',
+    C076: 'assets/sfx/C076.wav',
+    C041: 'assets/sfx/C041.wav',
+    C014: 'assets/sfx/C014.wav',
+    C018: 'assets/sfx/C018.wav',
+    C025: 'assets/sfx/C025.wav',
+    K016: 'assets/sfx/K016.wav',
+    K002: 'assets/sfx/K002.wav',
+    I006: 'assets/sfx/I006.wav',
+    K018_gain: 'assets/sfx/K018_gain.wav',
+    K020_gain: 'assets/sfx/K020_gain.wav',
+
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
     C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
     K001: 'assets/sfx/K001.wav', // 即死（即死効果を受けた瞬間）

@@ -68,7 +68,7 @@ async function main() {
   const entry = ctx.VbFxCards.history().at(-1), media = card.vfx[ctx.VbFxCardCatalog.defaultVfxIndex(card)];
   assert.equal(entry.completed, true, '読み込みが遅い素材も完了');
   assert.ok(entry.startedAt - began >= 900, 'デコード前から終了タイマーを進めない');
-  assert.ok(entry.elapsedMs >= media.asset.durationMs, 'WebPの全フレームを表示する時間を確保');
+  assert.ok(entry.elapsedMs >= ctx.VbFxLabGeometry.visibleMs(media), '素材の表示時間は現在のゲームの尺を満たす');
   assert.equal(entry.geometry.width, 260 * 2, 'C008の専用幅はカード幅×2');
   assert.equal(entry.geometry.height, 395 * 2, 'C008の専用高さはカード高×2');
   assert.equal(env.document.querySelector('.card-current-vfx'), null, '有限素材の後片付け');
@@ -80,11 +80,40 @@ async function main() {
   assert.ok(env.document.querySelector('.card-current-vfx'), '状態素材は3秒で消さず表示を保持');
   ctx.VbFxCards.stop(); assert.equal(env.document.querySelector('.card-current-vfx'), null, '明示停止で状態素材を消す');
   env.imageDelay = 1;
-  console.log('全カード再生: 固有既定、900msの読込待ち、素材1周完了、ゲーム寸法、状態の継続と停止 OK');
+  console.log('全カード再生: 固有既定、900msの読込待ち、ゲームの尺・寸法、状態の継続と停止 OK');
+  for (const mode of ['rebuild','clone']) {
+    const live = new Map();
+    const make = (id,left,top) => {
+      const el=env.document.createElement('div');el.dataset.unitId=id;
+      Object.assign(el.style,{position:'absolute',left:left+'px',top:top+'px',width:'95px',height:'140px'});
+      el.style.setProperty('filter','contrast(1.05)','');
+      env.document.body.appendChild(el);live.set(id,el);return el;
+    };
+    const source=make('source',100,500),old=make('target',250,140);
+    const fx=ctx.VbFx.play('weaken',{source:ctx.VbFx.rect(source),targets:[ctx.VbFx.rect(old)],
+      resolveElement:el=>live.get(el.dataset.unitId),speed:1.5,dir:1});
+    await env.advance(100);
+    assert.ok(old.style.transform.includes('translate('),'弱体のDOM演出を再生中');
+    const next=make('target',390,140);
+    if(mode==='clone') for(const key of ['transform','filter','translate','transition']) {
+      const val=old.style.getPropertyValue(key);if(val)next.style.setProperty(key,val,old.style.getPropertyPriority(key));
+    }
+    old.remove();await env.advance(50);
+    assert.ok(next.style.transform.includes('translate('),mode+'後のカードへ演出を移す');
+    assert.equal((await env.drive(fx)).cancelled,false,'再描画でも最後まで再生');
+    assert.equal(next.style.transform,'',mode+'後の一時transformを消す');
+    assert.equal(next.style.filter,'contrast(1.05)',mode+'後も元のfilterへ戻す');
+    assert.equal(next.style.translate,'',mode+'後の命中の揺れを消す');
+    assert.equal(ctx.VbFx.activeCount(),0,'再描画後の後片付け');source.remove();next.remove();
+  }
+  console.log('本体のDOM再描画・攻撃クローンへの参照移動と一時スタイルの復元 OK');
   const explicit = boot('?verify=1');
   assert.equal(explicit.document.getElementById('verification-result'), null, '初期化完了までQA開始を待つ');
   explicit.document.readyState = 'complete'; explicit.document.dispatchEvent(new explicit.Event('DOMContentLoaded'));
-  assert.ok(explicit.document.getElementById('verification-result'), 'verify=1のみ検査結果を表示');
+  assert.equal(explicit.document.getElementById('verification-result'),null,'verify=1は操作待ちで検査を自動起動しない');
+  const verifyButton=Array.from(explicit.document.querySelectorAll('button')).find(b=>b.textContent==='全VFX検査を実行');
+  assert.ok(verifyButton,'verify=1で手動起動ボタンを表示');verifyButton.dispatchEvent(new explicit.Event('click'));
+  assert.ok(explicit.document.getElementById('verification-result'), 'ボタン押下で検査結果を表示');
   await explicit.advance(20); explicit.context.VbFx.stopAll();
   const failed = await explicit.drive(explicit.context.VbFxLabCheckResult);
   assert.equal(failed.pass, false, '外部stopAllは検査失敗にする');

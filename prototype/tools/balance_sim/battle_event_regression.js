@@ -905,13 +905,13 @@ function main() {
   assert.match(currentBattle, /presentHoldShown\(u,atk,hp,maxHp,shield,weaken\)/,
     'PvEが手番の頭で表示値（弱体を含む）を据え置いていない');
   // 結界も同じ理由で据え置く。実体を直に描くと、結界を割った演出（K018）より先に
-  // shield.png と結界バッジだけが消える。
+  // 結界の状態ループと結界バッジだけが消える。
   assert.match(read('js/battle/present.js'), /function presentShownShield\(unit\)/,
     '画面に出す結界の規則が present.js に無い');
   assert.match(read('js/engine/render.js'), /const _shownShield=typeof presentShownShield==='function'/,
     'カードの結界表示が据え置き値を見ていない');
   assert.match(read('js/battle/present_events.js'),
-    /presentAdvanceShown\(unit, \{ shield: unit\.shield \}\)/,
+    /presentAdvanceShown\(unit, \{ shield: prior\?prior\.shield\+\(Number\(ev\.amount\)\|\|0\):unit\.shield \}\)/,
     '結界の表示を演出の瞬間に進めていない');
   assert.match(currentBattle, /applyHp:\(unit,hpAfter\)=>\{ if\(typeof presentAdvanceShown==='function'\) presentAdvanceShown\(unit,\{hp:hpAfter\}\); \}/,
     'PvEが数値を出す瞬間に表示HPを進めていない');

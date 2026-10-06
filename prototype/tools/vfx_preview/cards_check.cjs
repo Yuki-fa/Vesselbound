@@ -75,9 +75,12 @@ assert.equal(lab.mediaBox(c008, ...nodes).height, game.cardHeight * 2, 'C008の�
 const front = [0, 1, 2].map(i => { const p = lab.position('enemy', 'front', 3, i);
   return { offsetLeft: p.left, offsetTop: p.top, offsetWidth: game.cardWidth, offsetHeight: game.cardHeight }; });
 const tri = cards.find(c => c.no === 'K008').vfx.find(v => /K008.webp$/.test(v.path));
-const all = cards.find(c => c.no === 'K009').vfx.find(v => /K009.webp$/.test(v.path));
 assert.equal(lab.mediaBox(tri, ...nodes, front).width, (game.cardWidth * 3 + game.gap * 2) * tri.geometry.spanWidthRatio, '三方向の実対象幅');
-assert.ok(Math.abs(lab.mediaBox(all, ...nodes, front).width - game.fieldWidth * game.hitWidthRatio * .2875) < .000001, '全体攻撃の実フィールド幅');
+const present=fs.readFileSync(path.join(root,'js/battle/present.js'),'utf8');
+const labFx=vm.runInNewContext('('+present.match(/const PRESENT_LAB_FX = (\{[\s\S]*?\n\});/)[1]+')');
+assert.equal(labFx.K009[0],'all-cross','全体攻撃の採用演出はLAB案C');
+assert.ok(context.VbFx.effects.some(fx=>fx.name==='all-cross'),'LABと本体に同じ全体攻撃がある');
+assert.ok(render.includes("return playBattleLabFx('K009',attacker,list)"),'本体の全体攻撃は共通LABへ渡す');
 for (const kind of Object.keys(model.kinds)) {
   assert.equal(model.filter(cards, { kind }).length, cards.filter(c => c.kind === kind).length, kind + ' 種別フィルタ');
 }

@@ -324,7 +324,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     const _actionBannerEvent=typeof presentBeginActionBannerEvent==='function'
       ?presentBeginActionBannerEvent(e,eventList,eventIndex):null;
+    const _labApi={findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),units:side=>state.units[side]||[],render:()=>renderAll(),finishEffect:_endManaEffectRun};
     try{
+    await presentLabBeginEvent(e,eventList,eventIndex,_labApi);
     if(e.type==='effect_flash'){
       await presentEffectFlashEvent(e,{ findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) });
       continue;
@@ -538,7 +540,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           attackerFound:!!attacker,targetFound:!!target,
           盤面:_arr.filter(Boolean).map(u=>String(u.id)+(u._corePendingSummon?'(保留)':'')).join(',')});
       }
-      if(_preAttack&&_preAttack.ev===e){
+      if(presentLabOwnsAttackMotion(e)){
+        await _fireAttackContact(e,eventIndex);
+      } else if(_preAttack&&_preAttack.ev===e){
         // 効果より前に始めておいたモーション。ここで接触まで進める。
         const held=_preAttack;
         _preAttack=null;
@@ -974,7 +978,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         if(!sweepSources.has(src.id)&&typeof playDamageEffectSfx==='function') playDamageEffectSfx('single');
       },
     });
-    }finally{ if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent); }
+    }finally{
+      await presentLabEndEvent(e,eventList,eventIndex,_labApi);
+      if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent);
+    }
   }
   // 先出ししたモーションが解放されないまま残らないようにする
   // （attackイベントに到達せず抜けた場合の保険）。

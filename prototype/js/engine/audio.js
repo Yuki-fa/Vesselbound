@@ -112,7 +112,7 @@ const SFX_SETTINGS={
     bossVictory:{group:'ui',     volume: .80, guardMs:1200}, // -10.1
     lifeLost:   {group:'ui',     volume: 1.00}, // -20.5
     K019:       {group:'magic',  volume: 0.40}, // 封印解放（旧S002）（実測-3.0dBFS）
-    S001:       {group:'magic',  volume: 0.92}, // 特殊演出：戦闘中の召喚（実測-10.3dBFS）
+    S001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     S005:       {group:'magic',  volume: 1.00}, // 特殊演出：攻撃時のバフ効果（実測-11.2dBFS）
     S007:       {group:'magic',  volume: 0.63}, // 特殊演出（シート指定）（実測-7.0dBFS）
     C008:       {group:'magic',  volume: 0.42}, // アラクネ（実測-3.5dBFS）
@@ -120,7 +120,7 @@ const SFX_SETTINGS={
     C017:       {group:'magic',  volume: 0.56}, // メデューサ（実測-6.0dBFS）
     C019:       {group:'magic',  volume: 1.00}, // ケンタウロス発射（実測-12.0dBFS）
     C019_HIT:   {group:'magic',  volume: 0.43}, // ケンタウロス着弾（実測-3.7dBFS）
-    K020:       {group:'magic',  volume: 0.39}, // 復活（実測-2.9dBFS）
+    K020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     S004:       {group:'magic',  volume: 1.00}, // 特殊演出：マナ増加（実測-20.9dBFS）
     // シートの「VFX/SE」列に書ける番号は、ここにも必ず登録すること。
     // 登録が無いと playSfx() が鳴らず、絵だけ出て音が出ない。
@@ -131,7 +131,7 @@ const SFX_SETTINGS={
     // 攻撃範囲の音（K007〜K009）は3.7〜4.5秒ある。戦闘SEの共通上限（600ms）で止めると途中で切れるため、上限を外す。
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
-    K009:       {group:'combat',  volume: 0.40, maxPlayMs:0}, // 全体攻撃（実測-2.9dBFS）
+    K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     // キャラクター固有ボイス（グループはuiのまま＝combatのmaxPlayMs打ち切りを受けない）
     C001:       {group:'ui',     volume: .97}, // -10.7
     C002:       {group:'ui',     volume: .55}, // -5.8
@@ -141,8 +141,44 @@ const SFX_SETTINGS={
     E045:       {group:'ui',     volume: 1.00},
     E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）
     E058_HIT:   {group:'magic',  volume: 0.42}, // 炎の矢（着弾）（実測-3.5dBFS）
-    E067:       {group:'magic',  volume: 0.72}, // 援護射撃（発射）（RMS-20.1dB。ケンタウロス発射-22.9dB×1.00に揃える）
-    E067_HIT:   {group:'magic',  volume: 0.37}, // 援護射撃（着弾）（RMS-10.5dB。ケンタウロス着弾-11.7dB×0.43に揃える）
+    E067: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    // LABの採用音は同じ基準音量で鳴らす。
+    E006: {group:'magic',volume:.70},
+    C024: {group:'magic',volume:.70},
+    E035: {group:'magic',volume:.70},
+    C039: {group:'magic',volume:.70},
+    E062: {group:'magic',volume:.70},
+    E071: {group:'magic',volume:.70},
+    E075: {group:'magic',volume:.70},
+    C032: {group:'magic',volume:.70},
+    C037: {group:'magic',volume:.70},
+    C038: {group:'magic',volume:.70},
+    C046: {group:'magic',volume:.70},
+    C049: {group:'magic',volume:.70},
+    C051: {group:'magic',volume:.70},
+    C053: {group:'magic',volume:.70},
+    C054: {group:'magic',volume:.70},
+    C058: {group:'magic',volume:.70},
+    C067: {group:'magic',volume:.70},
+    C068: {group:'magic',volume:.70},
+    C069: {group:'magic',volume:.70},
+    C077: {group:'magic',volume:.70},
+    C078: {group:'magic',volume:.70},
+    C080: {group:'magic',volume:.70},
+    C081: {group:'magic',volume:.70},
+    C092: {group:'magic',volume:.70},
+    C096: {group:'magic',volume:.70},
+    C098: {group:'magic',volume:.70},
+    C076: {group:'magic',volume:.70},
+    C041: {group:'magic',volume:.70},
+    C014: {group:'magic',volume:.70},
+    C018: {group:'magic',volume:.70},
+    C025: {group:'magic',volume:.70},
+    K016: {group:'magic',volume:.70},
+    K002: {group:'magic',volume:.70},
+    I006: {group:'magic',volume:.70},
+    K018_gain: {group:'magic',volume:.70},
+    K020_gain: {group:'magic',volume:.70},
     K003:       {group:'combat',  volume: 0.47}, // 毒牙（毒のデバフを受けた瞬間）（実測-4.5dBFS）
     K017:       {group:'combat',  volume: 1.00}, // 毒（毒でダメージを受けた瞬間）（実測-19.5dBFS）
   },
@@ -358,15 +394,20 @@ function playSfx(key,opts={}){
   if(opts.offsetMs>0){ try{ a.currentTime=opts.offsetMs/1000; }catch(e){} }
   a.dataset.optionBaseVolume=String(finalVol);
   const speed=(typeof getBattleSpeedScale==='function'&&typeof G!=='undefined'&&(G.phase==='enemy'||G._battlePhaseRunning))?getBattleSpeedScale():1;
-  a.playbackRate=Math.max(.5,Math.min(2,speed));
+  a.playbackRate=opts.playbackRate??Math.max(.5,Math.min(2,speed));
   a.volume=Math.max(0,Math.min(1, finalVol * SFX_SETTINGS.sfxVolume * SFX_SETTINGS.masterVolume));
   _sfxActiveVoices++;
   _sfxPlayingByKey[key]=(_sfxPlayingByKey[key]||0)+1;
   let released=false;
   let safetyTimer=null;
+  let envelopeTimer=null;
+  let finishVoice;
+  const finished=new Promise(resolve=>{ finishVoice=resolve; });
   const release=()=>{
     if(released) return;
     released=true;
+    if(envelopeTimer!=null) clearInterval(envelopeTimer);
+    finishVoice();
     { const list=_sfxReleasersByKey[key]; if(list){ const i=list.indexOf(release); if(i>=0) list.splice(i,1); } }
     if(safetyTimer!=null){ clearTimeout(safetyTimer); safetyTimer=null; }
     _sfxActiveVoices=Math.max(0,_sfxActiveVoices-1);
@@ -397,6 +438,23 @@ function playSfx(key,opts={}){
     a.addEventListener('loadedmetadata',scheduleSafety,{once:true});
     a.addEventListener('durationchange',scheduleSafety,{once:true});
   }
+  const fadeInMs=Math.max(0,Number(opts.fadeInMs)||0);
+  const fadeAtMs=Math.max(0,Number(opts.fadeAtMs)||0);
+  const fadeEndMs=Math.max(0,Number(opts.fadeEndMs)||0);
+  if(fadeInMs||fadeEndMs){
+    const began=performance.now();
+    if(fadeInMs) a.volume=0;
+    envelopeTimer=setInterval(()=>{
+      if(released) return;
+      const elapsed=performance.now()-began;
+      if(fadeEndMs&&elapsed>=fadeEndMs){ release(); return; }
+      let gain=fadeInMs?Math.min(1,elapsed/fadeInMs):1;
+      if(fadeEndMs&&elapsed>fadeAtMs) gain*=Math.pow(Math.cos(Math.min(1,(elapsed-fadeAtMs)/Math.max(1,fadeEndMs-fadeAtMs))*Math.PI/2),2);
+      a.volume=Math.max(0,Math.min(1,finalVol*SFX_SETTINGS.sfxVolume*SFX_SETTINGS.masterVolume*gain));
+      if(!fadeEndMs&&elapsed>=fadeInMs){ clearInterval(envelopeTimer); envelopeTimer=null; }
+    },16);
+  }
+  if(typeof opts.onVoice==='function') opts.onVoice({stop:release,finished});
   a.play().catch(release);
   return true;
 }

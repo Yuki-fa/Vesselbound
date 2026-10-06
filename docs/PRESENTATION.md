@@ -645,3 +645,11 @@ loader.js が `panel.mergedForm`（派生値まで含む）を作り、`applyMer
 - 採用したSEは `assets/sfx/<番号>.wav` にコピー済み（元の素材は動かさない）。対応表は `tools/vfx_preview/se/ADOPTED.md`。
 - 状態のループ表示の決まり：結界（金。値＝重ね数、同じものを重ねる）・根性（赤橙の明滅とオーラ）・復活（細い青白い縁と昇る灯）は外から 結界→根性→復活 の枠。毒（下から緑の霧・泡）と弱体（上から紫の膜）は値1〜15で少しずつ禍々しくなり、両方付くとどす黒くなる（最大でも絵が見える濃さ）。毒はカードの枠より上・ステータス表示より下に描く。結界・毒・弱体以外は同じ状態を二重に出さない。
 - 全演出の検査は `?verify=1` で出るボタンから（自動では始めない）。ヘッドレスは `?verify=auto`。
+
+## LAB演出のゲーム組み込み（2026-10-07）
+VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのまま使う。接続は `js/engine/battle_fx.js`（`playBattleLabFx`・状態ループ）と、共通 presenter の `presentLabBeginEvent／presentLabEndEvent`（`js/battle/present_events.js`）。カード番号→演出の対応表は `js/battle/present.js` の `PRESENT_LAB_FX`。
+- 速さはゲームの等速で LAB の 1.5×（`PRESENT_LAB_SPEED × 演出速度`）。SE は採用一覧（tools/vfx_preview/se/ADOPTED.md）の peak を命中に合わせ、途中再生は60msで立ち上げ、終わりは約1.1秒でなだらかに消す。
+- 置き換えた旧演出：C018素材、E067_1/E067_2、K004、AIの結界画像、旧召喚・復活・全体攻撃の描画。隕石の巻物は落下の後に K009.webp を出す。
+- 固有演出の後に、弱体（K016）・ATK減少（K002）・結界獲得・復活獲得が続く（固有演出を置き換えない）。結界が0になった時だけ結界消失を出す（防いだ瞬間の K018.wav は従来どおり）。
+- 状態ループは描画の初回に開始し、コアイベントで値を更新、同じカードの同じ状態は1つ（`VbFx.stop({name,element})` で個別停止）。毒はカードの枠より上・ステータス表示より下。
+- 検査：`tools/parity/lab_vfx_check.js`（ブラウザ。実戦のイベントで各演出が呼ばれ、描画され、後片付けされるか）、`tools/balance_sim/lab_vfx_regression.js`（node で同じ流れを41演出ぶん）。

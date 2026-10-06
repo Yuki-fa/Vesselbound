@@ -27,6 +27,206 @@ function presentEndActionBannerEvent(scope) {
   if (typeof actionBannerLeaveEvent === 'function') actionBannerLeaveEvent(scope);
 }
 
+// LABの発動単位・直列化はこの共通入口だけで管理する（受け口はデータ供給だけ）。
+let _presentLabLists = new WeakMap();
+let _presentLabClaims = new WeakMap();
+let _presentLabBlockFx = new WeakMap();
+let _presentLabOrigins = {death:new Map(),shield:new Map()};
+function presentLabEventHandled(ev) { return !!(ev && _presentLabClaims.has(ev)); }
+function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabBlockFx=new WeakMap(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function _presentLabContext(events) {
+  let context = _presentLabLists.get(events);
+  if (!context) { context = {active:null}; _presentLabLists.set(events,context); }
+  return context;
+}
+function _presentLabSource(ev) {
+  return typeof actionBannerPresentationApi === 'function' && typeof presentActionBannerSourceUnfiltered === 'function'
+    ? presentActionBannerSourceUnfiltered(ev,actionBannerPresentationApi()) : null;
+}
+function _presentLabPlan(ev, events, index, api, context) {
+  let source = _presentLabSource(ev);
+  // マナ効果を直接発動するペガサスは、結果が別カードのmana_thresholdになる。
+  if(!source&&ev.type==='effect_flash'&&typeof actionBannerPresentationApi==='function') {
+    const data=actionBannerPresentationApi(), unit=data.unit(ev.unitId);
+    if(unit&&['C025','C076'].includes(unit.no||unit.artCode)&&
+      /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(data.ownCard(unit),ev.trigger)))
+      source={card:unit,side:unit.side,kind:'character'};
+  }
+  let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')
+    : source && String(source.card.no || source.card.artCode || '');
+  if(source&&source.kind==='character'&&ev.type!=='mana_threshold'&&ev.type!=='effect_flash') {
+    const data=actionBannerPresentationApi(), trigger=presentActionBannerTrigger(ev,data.hint(source.card.id));
+    const own=data.ownCard(source.card);
+    if(ev.effectSource===false||!(presentActionBannerEffectText(own,trigger)||presentActionBannerEffectText(own,'passive'))) code='';
+  }
+  if(source&&source.kind==='item'&&/^\d{1,3}$/.test(code)) code='I'+code.padStart(3,'0');
+  if (ev.blockedBy === 'great_shield') code = 'E062';
+  if(!presentLabFx(code)) {
+    if(ev.type==='keyword_effect'&&ev.effect==='weaken') code='K016';
+  }
+  const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
+  if (!spec || ['S001','K020','K009'].includes(code)) return null;
+  if (ev.type === 'effect_flash' && !['C025','C076'].includes(code)) return null;
+  if (ev.type === 'attack' && !ev.controlled) return null;
+  if (ev.type === 'damage' && ev.damageKind === 'combat' && code !== 'E062') return null;
+  if (ev.type === 'revive' || ev.type === 'shield_lost' || ev.type === 'shield_set') return null;
+  // mana_thresholdのeffectNoはカード定義を指すが、定義のidは盤面のユニットIDではない。
+  // 発動者はコアのunitIdで引く。後続keyword/summonから拾い直す代用経路に落とさない。
+  const sourceId = code === 'E062' || ev.type === 'mana_threshold' ? ev.unitId : ev.sourceId || source && source.card.id || ev.unitId;
+  const ownerSide = source && source.side || ev.side;
+  const find = id => api.findUnit('p1',id) || api.findUnit('p2',id);
+  const owner = find(sourceId) || (source && source.kind === 'item' ? api.units(ownerSide).find(Boolean) : null);
+  const members = presentLabEffectEvents(events,index,code,sourceId);
+  let targets = members.filter(e=>!['mana_threshold','effect_flash'].includes(e.type)).map(e=>find(e.type==='summon'&&e.unit?e.unit.id:e.unitId)).filter(Boolean);
+  if (ev.type === 'effect_flash') {
+    const next = presentLabManualTarget(events,index,code);
+    targets = next ? [find(next.unitId)].filter(Boolean) : [];
+    if (!targets.length) return null;
+  }
+  if (spec[2] === 'self') targets = [owner].filter(Boolean);
+  if (spec[2] === 'green') targets = api.units(ownerSide).filter(u=>u && u.color==='緑' && (typeof presentShownHp==='function'?presentShownHp(u):u.hp)>0);
+  if (spec[2] === 'howl') targets = [];
+  if (spec[2] === 'others') targets = targets.filter(u=>u.id!==sourceId);
+  if (spec[2] === 'pair') targets = [find(ev.attackerId),find(ev.targetId)].filter(Boolean);
+  if (spec[2] === 'foes') targets = targets.filter(u=>api.units(ownerSide==='p2'?'p1':'p2').includes(u));
+  targets = [...new Set(targets)];
+  const origin = spec[2] === 'dead' ? _presentLabOrigins.death.get(ownerSide) : spec[2] === 'lost' ? _presentLabOrigins.shield.get(ownerSide) : null;
+  if (!owner && !origin && !targets.length) return null;
+  if (spec[2] === 'morph') {
+    targets = [...new Set(members.filter(e=>e.type==='transform').map(e=>find(e.unitId)).filter(Boolean))];
+    targets.forEach(u=>{
+      const old = actionBannerPresentationApi().unit(u.id);
+      if (old && typeof battleFxHoldForm === 'function') battleFxHoldForm(u,{...old});
+    });
+  }
+  const sourceRect = origin && origin.rect;
+  const plan = {code,spec,owner,targets,members,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
+    side:ownerSide==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
+  members.forEach(e=>{ if (e.type!=='death' && e.type!=='revive') _presentLabClaims.set(e,plan); });
+  return plan;
+}
+function _presentLabStart(plan) {
+  if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
+  plan.started = true;
+  const resolvers = new Map();
+  plan.targets.forEach(u=>plan.impact.set(String(u.id),new Promise(resolve=>resolvers.set(String(u.id),resolve))));
+  plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
+    onImpact:i=>{ const target=plan.targets[i], resolve=target&&resolvers.get(String(target.id)); if(resolve) resolve(); }});
+  plan.done.finally(()=>resolvers.forEach(resolve=>resolve()));
+}
+async function _presentLabFinish(plan) {
+  if (!plan) return;
+  if (plan.done) await plan.done;
+  if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
+  // 結界・復活の獲得は、元の効果が消えてから同じ波で続ける。
+  for (const code of ['K016','K002','K018_gain','K020_gain']) {
+    if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
+    const units = [...new Set(plan.gains.filter(g=>g.code===code).map(g=>g.unit))];
+    if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0])});
+  }
+}
+async function presentLabBeginEvent(ev, events, index, api) {
+  if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
+  const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
+  if (context.active && context.active !== claimed) { await _presentLabFinish(context.active); context.active = null; }
+  if (ev.type==='death' || ev.type==='shield_lost') {
+    const u = api.findUnit(ev.side,ev.unitId);
+    if (u) {
+      const entry = {unit:u,rect:battleFxRect(u,ev.side==='p2'?'enemy':'ally',ev.lastVisualRect)};
+      _presentLabOrigins[ev.type==='death'?'death':'shield'].set(ev.side,entry);
+    }
+  }
+  if (claimed) {
+    if(claimed.code==='C041'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
+    if (claimed.code==='C054' || claimed.spec[2]==='morph' || claimed.code==='E067') {
+      const wait = claimed.impact.get(String(ev.unitId)); if (wait) await wait;
+    }
+    return;
+  }
+  const plan = _presentLabPlan(ev,events,index,api,context);
+  if (!plan) return;
+  if(plan.code==='K016'&&typeof api.finishEffect==='function') await api.finishEffect();
+  context.active = plan;
+  if (ev.type !== 'mana_threshold') _presentLabStart(plan);
+  // ピクシーの捕縛・移動はLAB自身が描く。従来の攻撃クローンを重ねず、接触で既存処理へ渡す。
+  if(plan.code==='C078'&&ev.type==='attack') {
+    const wait=plan.impact.get(String(ev.targetId));if(wait)await wait;
+  }
+  if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash') {
+    await _presentLabFinish(plan); context.active = null;
+  } else if (plan.code==='E067' || plan.code==='C054' || plan.spec[2]==='morph') {
+    const wait = plan.impact.get(String(ev.unitId)); if (wait) await wait;
+  }
+}
+async function presentLabEndEvent(ev, events, index, api) {
+  if (!ev || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
+  const context = _presentLabContext(events), plan = _presentLabClaims.get(ev);
+  if (ev.type==='mana_threshold' && plan) _presentLabStart(plan);
+  const unitId=ev.unitId!=null?ev.unitId:ev.type==='summon'&&ev.unit?ev.unit.id:null;
+  const unit = unitId!=null ? api.findUnit(ev.side,unitId) : null;
+  if (unit) {
+    if(ev.type==='summon') battleFxAdvanceStates(unit,_battleFxValues(ev.unit));
+    if (ev.type==='keyword_effect') {
+      const previous = battleFxStateValues(unit);
+      if (ev.effect==='poison') battleFxAdvanceStates(unit,{poison:previous.poison+(Number(ev.amount)||0)});
+      if (ev.effect==='weaken') battleFxAdvanceStates(unit,{weaken:previous.weaken+(Number(ev.amount)||0)});
+      if (ev.effect==='shield') battleFxAdvanceStates(unit,{shield:previous.shield+(Number(ev.amount)||0)});
+      if (ev.effect==='keyword_gain' && ['復活','根性'].includes(ev.keyword)) battleFxAdvanceStates(unit,{[ev.keyword==='復活'?'revive':'guts']:1});
+    }
+    if (ev.type==='stat_change' && ev.reason==='melusine_poison_double' && plan && plan.owner) {
+      const factor=coreEffectNumbers(plan.owner,'攻撃',/全ての敵の毒を(\d+)倍にする/,[1])[0];
+      battleFxAdvanceStates(unit,{poison:battleFxStateValues(unit).poison*factor});
+    }
+    if (ev.type==='revive') battleFxAdvanceStates(unit,{[ev.reason==='根性'?'guts':'revive']:0});
+    if (ev.type==='shield_set' || ev.type==='shield_lost') battleFxAdvanceStates(unit,{shield:Number(ev.type==='shield_set'?ev.amount:ev.shield)||0});
+    if (ev.type==='transform') {
+      if(ev.unit&&typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{shield:ev.unit.shield||0,weaken:ev.unit.weaken||0});
+      battleFxAdvanceStates(unit,_battleFxValues(ev.unit||unit));
+      battleFxReleaseForm(unit); if (api.render) api.render();
+    }
+    const gains = [];
+    if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!=='K016')) gains.push('K016');
+    // 付与元の固有演出は保持し、ATK減少の合図をその後へ続ける（HPも減る場合を含む）。
+    if (ev.type==='stat_change' && Number(ev.atk)<0 && (!plan||plan.code!=='K002')) gains.push('K002');
+    if (ev.type==='keyword_effect' && ev.effect==='shield' && Number(ev.amount)>0) gains.push('K018_gain');
+    // shield_setは開戦時の初期結界にも使う。復活直後の付け直しだけ獲得として見せる。
+    if(ev.type==='shield_set'&&Number(ev.amount)>0&&events[index-1]?.type==='revive'&&events[index-1].unitId===ev.unitId) gains.push('K018_gain');
+    if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ev.keyword==='復活') gains.push('K020_gain');
+    for (const code of gains) {
+      if (plan) plan.gains.push({code,unit});
+      else {
+        if(typeof api.finishEffect==='function') await api.finishEffect();
+        context.active={done:playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally'}),gains:[]};
+      }
+    }
+    if(ev.type==='shield_lost'&&Number(ev.shield)===0) {
+      const generation=battleFxGeneration();
+      context.active={done:Promise.resolve(_presentLabBlockFx.get(ev)).then(()=>{
+        if(generation===battleFxGeneration()) return playBattleLabFx('shield_break',unit,[unit],{side:ev.side==='p2'?'enemy':'ally'});
+      }),gains:[]};
+    }
+  }
+  if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
+}
+
+// 終戦など、数値を既に確定・書き戻し済みの出口。再計算せず同じ演出入口へ接続する。
+async function presentLabCommittedEvents(events, api, showEvent) {
+  const list=(events||[]).filter(Boolean);
+  for(const [index,ev]of list.entries()) {
+    const source=_presentLabSource(ev);
+    const scope=source&&presentLabFx(source.card.no||source.card.artCode)
+      ?presentBeginActionBannerEvent(ev,list,index):null;
+    try {
+      await presentLabBeginEvent(ev,list,index,api);
+      if(showEvent)await showEvent(ev);
+    } finally {
+      await presentLabEndEvent(ev,list,index,api);
+      if(scope)presentEndActionBannerEvent(scope);
+    }
+  }
+}
+
 // ── ダメージ ────────────────────────────────
 // api:
 //   findUnit(side, id)      … 盤面からユニットを引く
@@ -61,14 +261,15 @@ async function presentDamageEvent(ev, api) {
   const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
     ? api.findAnyUnit(ev.sourceId) : null;
   // 固有VFXを誰の効果として出すかは present.js が唯一の実装。
-  const vfxSource = typeof presentDamageVfxSource === 'function'
+  const labHandled = presentLabEventHandled(ev);
+  const vfxSource = !labHandled && typeof presentDamageVfxSource === 'function'
     ? presentDamageVfxSource(ev, target, source, api.ownEffectText) : null;
   // **発生元から対象へ飛ばす効果**（炎の矢・ケンタウロス）。どの効果を飛ばすかは
   // present.js の `PRESENT_PROJECTILE_EFFECTS` が唯一の実装。
   // 数値・HP・命中VFXは**着弾の瞬間**に出すので、通常の被弾演出はここで打ち切る。
   // 援護射撃のように、射手本人の固有VFXは出さず（effectSource:false）効果の弾だけを射手から飛ばすダメージ。
   // コアが damage.fxEffect に効果名を載せ、その強化カードの演出番号（E067）で飛ばす。
-  const fxProjectileCode = (!shownElsewhere && amount > 0 && ev.fxEffect && source
+  const fxProjectileCode = (!labHandled && !shownElsewhere && amount > 0 && ev.fxEffect && source
     && typeof _enchantPresentationNo === 'function' && typeof presentIsProjectileEffect === 'function'
     && typeof playProjectileEffectVfx === 'function')
     ? (code => (presentIsProjectileEffect(code) ? code : ''))(String(_enchantPresentationNo(ev.fxEffect) || ''))
@@ -106,7 +307,7 @@ async function presentDamageEvent(ev, api) {
     if (typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
     if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
   }
-  if (ev.effect && source && typeof api.onEffectDamage === 'function') api.onEffectDamage(ev, source);
+  if (!labHandled && ev.effect && source && typeof api.onEffectDamage === 'function') api.onEffectDamage(ev, source);
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（強化カードで得た効果で本人のSEが鳴るのを防ぐ）。
   if (vfxSource && typeof api.noteEffectSource === 'function') api.noteEffectSource(vfxSource);
@@ -115,7 +316,7 @@ async function presentDamageEvent(ev, api) {
   if (amount <= 0) return true;
   // **ひとまとまりの命中音は同時に鳴らす。** 攻撃と反撃のように続けて起きる命中を
   // 1件ずつ鳴らすと、間に挟まるVFXの画像デコードで音がずれて聞こえる。
-  if (!ev.suppressAttackHitSfx && api.sfxDone && !api.sfxDone.has(ev) && typeof playAttackDamageSfx === 'function') {
+  if (!labHandled && !ev.suppressAttackHitSfx && api.sfxDone && !api.sfxDone.has(ev) && typeof playAttackDamageSfx === 'function') {
     const batch = typeof api.sfxBatch === 'function' ? (api.sfxBatch(ev) || []) : [ev];
     // **同じ音は同じ瞬間に1本しか鳴らさない。**
     // 同じ命中音を人数分だけ重ねると、play()の鳴り始めが1本ごとにばらつくうえ、
@@ -125,6 +326,7 @@ async function presentDamageEvent(ev, api) {
     batch.forEach(d => {
       if (!d || api.sfxDone.has(d)) return;
       api.sfxDone.add(d);
+      if (presentLabEventHandled(d)) return;
       const src = d.sourceId != null && typeof api.findAnyUnit === 'function'
         ? api.findAnyUnit(d.sourceId) : null;
       const amt = Math.max(0, Number(d.amount) || 0);
@@ -150,15 +352,16 @@ async function presentDamageEvent(ev, api) {
     // 尺の決め方は present.js が唯一の実装。
     const labelMs = typeof presentDamageRunLabelMs === 'function' ? presentDamageRunLabelMs(runMs) : 0;
     playHitVfx(fxSide, target, amount, {
+      ...(labHandled ? {labelOnly:true,keywordSfx:false} : {}),
       ...(vfxSource ? { effectSource: vfxSource } : {}),
       ...(labelMs > 0 ? { labelDuration: labelMs, labelDurationMin: 0 } : {}),
       keywordEffect: ev.keywordEffect || undefined,
       // 状態異常を付けたダメージは、そのキーワードの絵で見せる（音は変えない）。
-      vfxKeyword: (typeof api.vfxKeyword === 'function' ? api.vfxKeyword(ev) : '') || undefined,
+      vfxKeyword: (!labHandled && typeof api.vfxKeyword === 'function' ? api.vfxKeyword(ev) : '') || undefined,
       // 効果が当たった瞬間の専用演出（炎の矢＝E058_2）。素材が無ければ通常の被弾VFX。
       // 素材はシートの「VFX/SE」列で引く（指定が無ければ効果のカードNo.のまま）。
-      effectHitCode: (typeof api.effectFxCode === 'function'
-        ? api.effectFxCode(ev.effectNo) : ev.effectNo) || undefined,
+      effectHitCode: (!labHandled && (typeof api.effectFxCode === 'function'
+        ? api.effectFxCode(ev.effectNo) : ev.effectNo)) || undefined,
       // ATKへのダメージ（武器破壊）は被弾の絵を出さず、数値の上に小さく「ATK」と出す。
       // HPは減らないので、被弾VFXを出すと「HPを削った」ように見える。
       ...(ev.damageTo === 'atk' ? { labelOnly: true, labelNote: 'ATK' } : {}),
@@ -199,9 +402,9 @@ function presentShieldLostEvent(ev, api) {
     // 結界がダメージを防いだ瞬間の専用VFXとSE（キーワード「結界」＝K018）。
     // **絵も音もキーワードの番号で引く。** 数値は出ないので amount は0。
     if (typeof playHitVfx === 'function') {
-      playHitVfx(fxSide, unit, 0, { keywordEffect: '結界' });
+      _presentLabBlockFx.set(ev,Promise.resolve(playHitVfx(fxSide, unit, 0, { keywordEffect: '結界',waitForFinish:true })));
     }
-    // **shield.png を消すのはこの瞬間**（結界を割った演出と同じ時刻）。
+    // 結界の状態表示を進めるのはこの瞬間（防御の命中と同じ時刻）。
     // 残りの結界は**イベントに書かれた値**を使う。コアは手番を先に解決し終えているので、
     // 実体（unit.shield）はこの先の分まで減っていることがあり、
     // またオンラインの受け口はイベントでしか実体を更新できない。
@@ -242,7 +445,7 @@ async function presentStatChangeEvent(ev, api) {
   const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
     ? api.findAnyUnit(ev.sourceId) : null;
   // どの理由で固有VFXを出すかは present.js が唯一の実装。
-  if (source && typeof presentStatChangeVfxAllowed === 'function' && presentStatChangeVfxAllowed(ev)
+  if (!presentLabEventHandled(ev) && source && typeof presentStatChangeVfxAllowed === 'function' && presentStatChangeVfxAllowed(ev)
     && typeof _playCardEffectVfx === 'function' && typeof _effectPresentationCode === 'function') {
     // 攻撃時のバフは一律の演出（S005）。それ以外は発生元カードの番号。規則は present.js。
     const ownCode = String(_effectPresentationCode(source) || '');
@@ -290,18 +493,20 @@ function presentKeywordEffectEvent(ev, api) {
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit) return false;
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
-  // **結界を得た瞬間に結界の表示（shield.png・結界バッジ）を出す。**
+  // 結界を得た瞬間に状態表示・結界バッジを進める。
   // 盤面の描き直しは次の攻撃などまで来ないため、ここで出さないと
   // 結界を得たのに絵が出ないままになる（スプリガンのマナ効果）。
   // 表示そのものの実装は render.js の updateUnitShieldUi が唯一の置き場。
   if (String(ev.effect || '') === 'shield') {
-    if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: unit.shield });
+    const prior=typeof battleFxStoredStateValues==='function'?battleFxStoredStateValues(unit):null;
+    if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: prior?prior.shield+(Number(ev.amount)||0):unit.shield });
     if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
   }
   // 弱体を与えた瞬間に、据え置いていた弱体の値を進める（ホバー説明の「弱体N」がここで増える）。
   if (String(ev.effect || '') === 'weaken' && unit._displayWeaken != null && typeof presentAdvanceShown === 'function') {
-    presentAdvanceShown(unit, { weaken: Math.min(Math.max(0, Number(unit.weaken) || 0),
-      unit._displayWeaken + Math.max(0, Number(ev.amount) || 0)) });
+    const prior=typeof battleFxStoredStateValues==='function'?battleFxStoredStateValues(unit):null;
+    presentAdvanceShown(unit, { weaken: prior ? prior.weaken+(Number(ev.amount)||0)
+      : Math.min(Math.max(0, Number(unit.weaken) || 0),unit._displayWeaken+Math.max(0,Number(ev.amount)||0)) });
   }
   // **ホバー説明もこの瞬間に作り直す**（弱体・毒などは盤面を描き直すまで説明に出なかった）。
   if (typeof refreshUnitPreviewUi === 'function') refreshUnitPreviewUi(unit, fxSide);
@@ -309,6 +514,7 @@ function presentKeywordEffectEvent(ev, api) {
   if (!keyword) return false;
   // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。
   if (String(ev.effect || '') === 'keyword_gain' && keyword === '復活') return false;
+  if (['weaken','shield'].includes(String(ev.effect || '')) || presentLabEventHandled(ev)) return true;
   if (typeof getKeywordEffectVfxPath !== 'function' || !getKeywordEffectVfxPath(keyword)) return false;
   // **同じキャラクターへ続けて付与される間は出し直さない**（バフVFXと同じ見せ方）。
   // 1つの再生を延ばして出し続ける。実装は render.js が唯一の置き場。
@@ -419,6 +625,8 @@ function presentFlushEffectFlashes() {
 }
 // 戦闘の切れ目で捨てる。持ち越すと次の戦闘の頭で関係のないカードが光る。
 function presentResetEffectFlashes() {
+  presentResetLabEvents();
+  if (typeof stopBattleLabFx === 'function') stopBattleLabFx();
   if (typeof actionBannerClear === 'function') actionBannerClear();
   // 状態異常の継続VFXも一緒に片付ける（戦闘の切れ目で呼ばれる）。
   if (typeof stopAllKeywordEffectVfx === 'function') stopAllKeywordEffectVfx();
@@ -540,7 +748,7 @@ function presentAttackContactVfxEvent(ev, api) {
   modes.forEach(mode=>{
     const path=typeof getAttackContactVfxPath==='function'?getAttackContactVfxPath(mode):'';
     if (!path) return;
-    const sfx=typeof getAttackContactSfxKey==='function'?getAttackContactSfxKey(mode):'';
+    const sfx=mode==='all'?'':(typeof getAttackContactSfxKey==='function'?getAttackContactSfxKey(mode):'');
     if (sfx && typeof playSfx==='function') playSfx(sfx,{group:'combat',guardKey:`contact:${sfx}:${Date.now()}:${mode}`,guardMs:0});
     // 貫通は貫く順の全対象。範囲攻撃は当たった全員の範囲に出す。
     const targets=mode==='pierce'?pierceTargets:spreadTargets;

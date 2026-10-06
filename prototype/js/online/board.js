@@ -191,6 +191,7 @@
   // **VFXはひと続きの処理が終わるまで**出し続ける（最初の1回でだけ始める）。
   // 固有の素材が無い効果では何も鳴らさない・出さない。
   function _playManaEffectPulse(list, effectNo) {
+    if (typeof presentLabFx === 'function' && presentLabFx(effectNo)) return;
     // バフの演出（S005〜S009）は**能力変化を受けた対象の上**に出す（PvEと同じ規則）。
     if (typeof presentIsBuffVfxCode === 'function' && presentIsBuffVfxCode(effectNo)) return;
     const sfxKey = (typeof getEffectSfxKey === 'function' && getEffectSfxKey(effectNo)) || '';
@@ -601,15 +602,18 @@
     // 規則も、そのフラグ自体も present.js が唯一の実装（PvEと同じものを使う）。
     presentBeginPlayback();
     const actionBannerEvent = presentBeginActionBannerEvent(ev, ctx && ctx.events, ctx && ctx.eventIndex);
+    const labEvents=(ctx&&ctx.events)||[ev], labIndex=Number.isInteger(ctx&&ctx.eventIndex)?ctx.eventIndex:0;
+    const labApi={findUnit:(side,id)=>_find(side,id),units:side=>side==='p1'?G.allies:G.enemies,render:_render,finishEffect:_endManaEffectRun};
     try {
-      await _renderOnlineVersusEvent(ev, ctx);
+      await _renderOnlineVersusEvent(ev, ctx,{events:labEvents,index:labIndex,api:labApi});
     } finally {
+      await presentLabEndEvent(ev,labEvents,labIndex,labApi);
       presentEndActionBannerEvent(actionBannerEvent);
       presentEndPlayback();
     }
   }
 
-  async function _renderOnlineVersusEvent(ev, ctx) {
+  async function _renderOnlineVersusEvent(ev, ctx, lab) {
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
     _syncOnlineStatuses(board);
     // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
@@ -642,6 +646,8 @@
       if (ev.type === ONLINE_EVENT.BATTLE_START) _turnPlayed = false;
       if (ev.type === ONLINE_EVENT.BATTLE_START) _deathFxReadyAt = 0;
     }
+    // PvEと同じく、攻撃者が25%地点へ着いてから共通LAB presenterを始める。
+    await presentLabBeginEvent(ev,lab.events,lab.index,lab.api);
 
     switch (ev.type) {
       case ONLINE_EVENT.BATTLE_START: {
@@ -701,6 +707,7 @@
       case ONLINE_EVENT.ATTACK: {
         if (typeof presentRecordAttackEvent === 'function') presentRecordAttackEvent(ev);
         if (ev.attackVisual === false) break;
+        if(presentLabOwnsAttackMotion(ev)){ await _fireAttackContact(ev,ctx); break; }
         if (_preAttack && _preAttack.ev === ev) {
           // 効果より前に始めておいたモーション。ここで接触まで進める。
           const held = _preAttack; _preAttack = null;

@@ -93,6 +93,7 @@ function sandbox(baseURI) {
           const value = state == null ? !this._classes.has(c) : state; if (value) this._classes.add(c); else this._classes.delete(c); classChanged(this); return value;
         } }; this._text = ''; this.complete = true; this.naturalWidth = 1024; this.naturalHeight = 1024;
     }
+    get isConnected() { return this===document.documentElement || !!(this.parentNode&&this.parentNode.isConnected); }
     set className(text) { this._classes = new Set(String(text).split(/\s+/).filter(Boolean)); classChanged(this); }
     get className() { return [...this._classes].join(' '); }
     set textContent(text) { this._text = String(text); this.replaceChildren(); }

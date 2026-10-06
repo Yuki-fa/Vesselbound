@@ -1,6 +1,7 @@
-/* Vesselbound VFX lab — 本体から独立した試作。通常の script で読み込む。
+/* Vesselbound 共通VFX — LABと戦闘で同じ通常の script を読み込む。
  * VbFx.play(name, {source, targets, side, allies, enemies, onImpact}) -> Promise
  * 矩形は画面座標。DOM 演出用には VbFx.rect(element) の element 参照を推奨。
+ * 本体の接続用: settings.layer / options.board / options.resolveElement。
  * 戦闘の計算・HP変更・SE再生は行わない。onImpact は targets の添字で各1回。
  */
 var VbFx = (function () {
@@ -81,7 +82,7 @@ var VbFx = (function () {
     // 状態異常のループは速さの設定に関わらず定義の周期で回す（2026-10-06 利用者が等速で見て速さを指定した）。
     if (d.loop) return d.ms;
     var area = ['wave', 'gold', 'fog'].indexOf(d.kind) >= 0;
-    return Math.min(area ? 2000 : 1500, d.ms / clamp(Number(speed) || settings.speed, .4, 3));
+    return Math.min(area ? 2000 : 1500, d.ms / clamp(Number(speed) || settings.speed, .4, 12));
   }
 
   function clamp(v, a, b) { return Math.max(a == null ? 0 : a, Math.min(b == null ? 1 : b, v)); }
@@ -119,7 +120,8 @@ var VbFx = (function () {
     var w = Number(r.width == null ? r.right - left : r.width), h = Number(r.height == null ? r.bottom - top : r.height);
     if (![left, top, w, h].every(Number.isFinite) || w <= 0 || h <= 0) throw new TypeError('VbFx: 有効な画面矩形を渡してください');
     var out = { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h, element: r.element || null };
-    if (!out.element) {
+    // 明示したelement:nullは倒れた位置などの固定矩形。下にある別カードを拾わない。
+    if (!out.element && !Object.prototype.hasOwnProperty.call(r, 'element')) {
       var p = point(out), el = document.elementFromPoint(p.x, p.y);
       out.element = el && el.closest('[data-vb-fx-card], .unit-card, .slot, .card');
     }
@@ -148,7 +150,10 @@ var VbFx = (function () {
     Object.assign(root.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '1900000', overflow: 'hidden' });
     canvas = document.createElement('canvas'); canvas.dataset.vbFxCanvas = '1';
     Object.assign(canvas.style, { position: 'absolute', left: '0', top: '0', pointerEvents: 'none' });
-    root.appendChild(canvas); document.body.appendChild(root);
+    root.appendChild(canvas);
+    var parent = typeof settings.layer === 'function' ? settings.layer() : null;
+    (parent || document.body).appendChild(root);
+    if (parent) root.style.zIndex = '1';
     ctx = canvas.getContext('2d'); resize();
     window.addEventListener('resize', resize);
   }
@@ -180,6 +185,45 @@ var VbFx = (function () {
     job.nodes.forEach(function (node) { node.remove(); });
     if (job.trail) { job.trail.width = 0; job.trail.height = 0; job.trail = null; job.trailCtx = null; }
   }
+  // 本体がカードDOMを作り直した時だけ参照と一時スタイルを移す。LABの描画には介入しない。
+  function rebindElements(job) {
+    if (typeof job.options.resolveElement !== 'function') return [];
+    var swaps = new Map(), changed = [];
+    [job.source].concat(job.targets, job.allies, job.enemies).forEach(function (r) {
+      if (!r || !r.element) return;
+      var old = r.element;
+      if (!swaps.has(old)) swaps.set(old, job.options.resolveElement(old) || null);
+      var next = swaps.get(old);
+      if (next !== old) { r.element = next; changed.push(r); }
+    });
+    swaps.forEach(function (next, old) {
+      if (!next || next === old) return;
+      var props = leases.get(old);
+      // 攻撃クローンがコピーした演出中のinline値を原値として保存しない。
+      Object.keys(props || {}).forEach(function (key) {
+        var lease = props[key], top = lease.stack[lease.stack.length - 1];
+        var current = leases.get(next);
+        if (top && !(current && current[key]) && next.style.getPropertyValue(key) === top.value) {
+          if (lease.value) next.style.setProperty(key, lease.value, lease.priority);
+          else next.style.removeProperty(key);
+        }
+      });
+    });
+    job.targets.forEach(function (r, i) {
+      if (!r.element || changed.indexOf(r) < 0) return;
+      var style = getComputedStyle(r.element), nr = r.element.getBoundingClientRect();
+      job.baseTransforms[i] = style.transform && style.transform !== 'none' ? style.transform : '';
+      job.baseFilters[i] = style.filter && style.filter !== 'none' ? style.filter : '';
+      job.domScales[i] = r.element.offsetWidth ? nr.width / r.element.offsetWidth : 1;
+    });
+    var relocated = changed.map(function (r) { return { rect: r, bounds: r.element && r.element.getBoundingClientRect() }; });
+    job.styles.slice().forEach(function (ref) {
+      var next = swaps.get(ref.el), props = leases.get(ref.el), lease = props && props[ref.key];
+      var item = lease && lease.stack.find(function (x) { return x.id === job.id; });
+      if (next && next !== ref.el && item) setStyle(job, next, ref.key, item.value);
+    });
+    return relocated;
+  }
   function hit(job, index) {
     if (job.hit.has(index) || job.cancelled) return;
     job.hit.add(index);
@@ -204,6 +248,7 @@ var VbFx = (function () {
   function tick(now) {
     raf = 0;
     if (!ctx) return;
+    if (typeof settings.layer === 'function') settings.layer();
     inFrame = true;
     var frameContext = ctx;
     frameContext.clearRect(0, 0, width, height);
@@ -217,6 +262,9 @@ var VbFx = (function () {
     }
     jobs.slice().forEach(function (job) {
       if (job.done) return;
+      var rebound;
+      try { rebound = rebindElements(job); } catch (e) { finish(job, false, e); return; }
+      if (job.def.loop && job.source.element && !job.source.element.isConnected) { finish(job, true); return; }
       if (job.start == null) {
         job.start = now;
         clearTimeout(job.watchdog);
@@ -237,6 +285,12 @@ var VbFx = (function () {
       if (anchor && anchor.isConnected && job.anchor0) {
         var ar = anchor.getBoundingClientRect(); curShift = { x: ar.left - job.anchor0.left, y: ar.top - job.anchor0.top };
       }
+      rebound.forEach(function (entry) {
+        var r = entry.rect, nr = entry.bounds;
+        if (r === job.source || !nr) return;
+        r.left = nr.left - curShift.x; r.top = nr.top - curShift.y;
+        r.width = nr.width; r.height = nr.height; r.right = r.left + nr.width; r.bottom = r.top + nr.height;
+      });
       frameContext.translate(curShift.x, curShift.y);
       // カードの中（ステータス表示の下）に描く状態（毒。2026-10-06 利用者指定）。カード内の専用canvasへ描く。
       var drawCtx = frameContext;
@@ -1897,7 +1951,7 @@ var VbFx = (function () {
             spread = Math.max(spread, Math.abs(diff) + .1);
           });
         });
-        var speed = clamp(Number(options.speed) || settings.speed, .4, 3);
+        var speed = clamp(Number(options.speed) || settings.speed, .4, 12);
         job = { id: ++sequence, def: def, options: options, source: source, targets: targets, allies: allies, enemies: enemies,
           from: from, angle: angle, spread: Math.min(Math.PI * .98, spread), reach: reach, start: null,
           ms: duration(name, speed),
@@ -1907,7 +1961,7 @@ var VbFx = (function () {
           baseTransforms: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).transform; return v && v !== 'none' ? v : ''; }),
           baseFilters: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).filter; return v && v !== 'none' ? v : ''; }),
           domScales: targets.map(function (r) { return r.element && r.element.offsetWidth ? r.width / r.element.offsetWidth : 1; }),
-          board: source.element && source.element.closest('[data-vb-fx-board], #stage, #battle-field'),
+          board: options.board || (source.element && source.element.closest('[data-vb-fx-board], #stage, #battle-field')),
           value: Math.max(1, Number(options.value) || 1), motes: [], summonMs: 0, dir: options.dir === -1 || options.dir === 1 ? options.dir : (Math.random() < .5 ? -1 : 1),
           resolve: resolve, reject: reject, done: false, cancelled: false };
         job.summonMs = Math.min(420, job.ms * .36);
@@ -1918,7 +1972,7 @@ var VbFx = (function () {
           lcv.dataset.vbFxLocal = '1';
           Object.assign(lcv.style, { position: 'absolute', left: (-padF * 100 / (1 + 2 * padF) * (1 + 2 * padF)) + '%', top: (-padF * 100) + '%',
             width: ((1 + 2 * padF) * 100) + '%', height: ((1 + 2 * padF) * 100) + '%', pointerEvents: 'none' });
-          var statusEl = hostEl.querySelector('.stats-overlay, .status_overlay, .status-overlay, [class*="status_overlay"]');
+          var statusEl = hostEl.querySelector('.unit-stat-overlay-layer, .stats-overlay, .status_overlay, .status-overlay, [class*="status_overlay"]');
           if (statusEl) statusEl.parentNode.insertBefore(lcv, statusEl); else hostEl.appendChild(lcv);
           // 枠（frame）より上、ステータス表示より下（2026-10-06 利用者指定）。
           var sz = statusEl ? parseInt(getComputedStyle(statusEl).zIndex, 10) : NaN;
@@ -1986,8 +2040,17 @@ var VbFx = (function () {
     return duration(name, speed) * (IMPACT_FRACTION[d.kind] != null ? IMPACT_FRACTION[d.kind] : .25);
   }
   function stopAll() { jobs.slice().forEach(function (job) { finish(job, true); }); }
+  // 描画は共通のまま、カードの状態1件／指定した再生だけを終了する。
+  function stop(handle) {
+    var selected = jobs.filter(function (job) {
+      return typeof handle === 'number' ? job.id === handle : handle &&
+        (!handle.name || job.def.name === handle.name) &&
+        (!handle.element || job.source.element === handle.element || job.targets.some(function (r) { return r.element === handle.element; }));
+    });
+    selected.forEach(function (job) { finish(job, true); }); return selected.length;
+  }
   window.addEventListener('pagehide', stopAll);
-  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stopAll: stopAll, effects: definitions, settings: settings,
+  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stop: stop, stopAll: stopAll, effects: definitions, settings: settings,
     activeCount: function () { return jobs.length; },
     snapshot: function () { return jobs.map(function (job) { return { name: job.def.name, durationMs: job.ms,
       elapsedMs: job.start == null ? null : Math.max(0, performance.now() - job.start),

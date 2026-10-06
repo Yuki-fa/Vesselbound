@@ -275,7 +275,6 @@ const PRESENT_EXPAND_VFX_HIT_RATIO = .8;
 const PRESENT_PROJECTILE_EFFECTS = new Set([
   'E058',   // 炎の矢（マナ効果）
   'C019',   // ケンタウロス（攻撃：ランダムな敵にXダメージ）
-  'E067',   // 援護射撃（効果を持つ味方がランダムな敵へ撃つ。damage.fxEffect で射手から飛ばす）
 ]);
 // **速度の唯一のつまみ。** 大きくすると遅くなる（224→448＝速度50%）。
 const PRESENT_PROJECTILE_FLIGHT_MS = 448;               // 炎の矢の飛行時間
@@ -1634,8 +1633,6 @@ const PRESENT_VFX_SCALE = {
   C019: .0625, C019_1: .0625,     // ケンタウロス（120x560）。旧表示の50%
   C017: .5, C018: .5,             // メデューサ／サイクロプス（約450x450）。S006と同じ扱い
   E058_2: 1.2,                    // 炎の矢の着弾（983x552）。矢とは別素材なので別の倍率
-  E067: 1.3,                      // 援護射撃の弾（1920x1080の中央に約104x312の上向きの炎）。炎の矢と同じくらいの長さ
-  E067_2: 1.6,                    // 援護射撃の着弾（1920x1080の中央に約260x280の輪）
   C019_2: 1.2,                    // ケンタウロスの着弾（1436x824）。炎の矢の着弾と同じ扱い
   K003: .5,                       // 毒牙（毒のデバフを受けた瞬間。389x398）
   K017: .5,                       // 毒（毒でダメージを受けた瞬間。370x575）
@@ -1644,6 +1641,59 @@ const PRESENT_VFX_SCALE = {
   S003: .5,                       // 金貨（旧C001）
   C090: .5,                       // 奪う（対象の上で出す。毒牙と同じ大きさ）
 };
+// LABで承認された置換だけ。効果の判定・数値はコア、ここは演出の対応表。
+const PRESENT_LAB_FX = {
+  E006:['dark-fire',.5,'foes'], C024:['banshee',.24,'foe'], E035:['resentment',.7,'foe'],
+  C039:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
+  E071:['shockwave',.1,'foes'], E075:['demon-soul',.9,'foes'], C032:['vrykolakas',.9,'friend'],
+  C037:['dullahan',.18,'foe'], C038:['bone-chariot',.9,'friend'], C046:['jackalope',.7,'green'],
+  C049:['dragonnet',.58,'morph'], C053:['bandersnatch',.9,'morph'], C051:['cockatrice',.04,'foe'],
+  C054:['worm',.9,'foes'], C058:['wyvern',.3,'foe'], C067:['frost-sprite',.18,'foe'],
+  C068:['leprechaun',.9,'friends'], C069:['melusine',.9,'foes'], C077:['carbuncle',.04,'lost'],
+  C078:['pixie',.9,'pair'], C080:['elemental',.74,'self'], C081:['imp',.9,'others'],
+  C092:['wendigo',.9,'foes'], C096:['nightmare',.9,'self'], C098:['baron',.9,'self'],
+  C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
+  C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], K016:['weaken',.2,'target'],
+  K002:['atk-down',.44,'target'], K009:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
+  S001:['battle-summon',.9,'target'], K020:['revive-summon',.9,'target'],
+  K018_gain:['shield-gain',.22,'target'], K020_gain:['revive-gain',.24,'target'],
+  shield_break:['shield-break',null,'target'],
+};
+const PRESENT_LAB_SPEED = 1.5;
+const PRESENT_LAB_SOUND_FADE_MS = 1100;
+function presentLabFx(code) { return PRESENT_LAB_FX[String(code || '').trim()] || null; }
+function presentLabManualTarget(events, index, code) {
+  for(let i=index+1;i<(events||[]).length;i++) {
+    const e=events[i];
+    if(!e||['attack','turn_begin','battle_end','battle_start'].includes(e.type)) return null;
+    if(code==='C076'&&e.type==='mana_threshold'||code==='C025'&&e.type==='effect_flash'&&e.trigger==='injury') return e;
+    if(e.type==='effect_flash') return null;
+  }
+  return null;
+}
+
+// 固有VFXの発動1回の対象。数値の束は変更せず、コアのbatchがある時はそこを越えない。
+function presentLabEffectEvents(events, index, code, ownerId) {
+  const list = Array.isArray(events) ? events : [], first = list[index];
+  if (!first) return [];
+  const out = [first], mana = first.type === 'mana_threshold';
+  for (let i = index + 1; i < list.length; i++) {
+    const ev = list[i];
+    if (!ev || ['turn_begin','battle_end','mana_threshold','effect_flash'].includes(ev.type)) break;
+    if (ev.type === 'attack' && !(code === 'C078' && ev.controlled)) break;
+    if (first.type === 'damage' && ev.type === 'damage' &&
+      ((first.batch || ev.batch) && presentDamageGroupKey(ev) !== presentDamageGroupKey(first)
+      || presentDamageKind(ev) !== presentDamageKind(first) || ev.sourceId !== first.sourceId || ev.fxEffect !== first.fxEffect
+      || out.some(e=>e.type==='damage'&&e.unitId===ev.unitId&&e.side===ev.side))) break;
+    if (ev.sourceId != null && ev.sourceId !== ownerId && !['damage','stat_change'].includes(ev.type)) break;
+    if (mana || code === 'C054' || code === 'C078') out.push(ev);
+    else if (ev.type === first.type && ev.sourceId === first.sourceId &&
+      (first.type === 'damage' || ev.reason === first.reason || code === 'C081' && /^imp_/.test(ev.reason))) out.push(ev);
+    else if (['stat_change','keyword_effect','damage','summon','transform','seal_apply','death_summon_grant'].includes(ev.type)) break;
+  }
+  return out;
+}
+
 function presentCharacterVfxScale(code) {
   const n = Number(PRESENT_VFX_SCALE[String(code || '').toUpperCase()]);
   return Number.isFinite(n) && n > 0 ? n : 1;

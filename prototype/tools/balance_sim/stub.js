@@ -16,6 +16,7 @@ function makeElement(tag = 'div') {
   return el;
 }
 const documentStub={body:makeElement('body'),documentElement:makeElement('html'),createElement:makeElement,createElementNS:(_ns,tag)=>makeElement(tag),
+  baseURI:require('node:url').pathToFileURL(require('node:path').resolve(__dirname,'../../index.html')).href,
   createTextNode:t=>({textContent:String(t)}),getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[],
   addEventListener:noop,removeEventListener:noop};
 const storage=new Map();

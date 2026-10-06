@@ -1198,6 +1198,7 @@ async function playEffectFlash(unit, side, color, count){
 async function playAttackContactVfx({attacker, targets, targetSide, mode, path, duration, fadeDuration, onPass}){
   _syncEffectFlashWithVfx();
   const list=(targets||[]).filter(Boolean);
+  if(mode==='all') return playBattleLabFx('K009',attacker,list);
   if(!list.length||!path||typeof playHitVfxAtRect!=='function') return false;
   const side=targetSide||((list[0].side==='p2')?'enemy':'ally');
   const rectOf=unit=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null;
@@ -1209,20 +1210,6 @@ async function playAttackContactVfx({attacker, targets, targetSide, mode, path, 
   // 「出したい絵の幅」から入れ物の幅を逆算するために使う。
   const cssRatio=scaleOf('PRESENT_VFX_CSS_WIDTH_RATIO',4.6);
   const opts=path=>({customVfxPath:path,hitDuration:duration,fadeDuration,waitForFinish:true,gateMs:0,rotation:0});
-
-  if(mode==='all'){
-    const field=document.getElementById(side==='enemy'?'f-enemy':'f-ally');
-    const fieldRect=field&&field.getBoundingClientRect();
-    const targetRects=list.map(rectOf).filter(Boolean);
-    // 敵の前衛と後衛の矩形をまとめた範囲に置く。盤面全体や画面中央を基準に
-    // すると、後衛を巻き込む位置・味方陣営まで覆う位置になる。
-    const top=targetRects.length?Math.min(...targetRects.map(r=>r.top)):fieldRect&&fieldRect.top;
-    const bottom=targetRects.length?Math.max(...targetRects.map(r=>r.bottom||r.top+r.height)):fieldRect&&fieldRect.bottom;
-    const rect=fieldRect&&bottom>top
-      ?{left:fieldRect.left,top,width:fieldRect.width,height:bottom-top}:fieldRect;
-    if(!rect||!rect.width||!rect.height) return false;
-    return !!(await playHitVfxAtRect(rect,0,{...opts(path),vfxScale:scaleOf('PRESENT_CONTACT_ALL_SCALE',.2875)}));
-  }
 
   // 貫通：**攻撃者から対象へ向かう角度のまま**、対象カードの上を通って
   // 後ろの敵を貫き、画面外まで飛ぶ。当たったキャラクターには、絵がその位置を
@@ -1712,9 +1699,8 @@ function _playUnitDeathCardFx(unit,node,rect,sourceSize){
   }
 }
 
-// 演出用ホストの追加先。#vfx-frame-clip は position:fixed・画面全体の層なので、
-// 子のposition:fixedへ渡す left/top（getBoundingClientRect()の画面座標）は従来どおり。
-// そのためVFXとダメージ数値を同じクリップ層へ入れても、表示位置は変わらない。
+// 演出用ホストの追加先。戦闘中は画面内で縮尺を相殺する層に置き、
+// 子へ渡すleft/top（getBoundingClientRect()の画面座標）は従来どおりに保つ。
 // 背景（イラスト）が実際に描かれている範囲。#scr-battle は黒帯を含む全画面なので、
 // そのまま使うと帯の上にVFXが出る。3840x2160を幅・高さに収めた実寸を返す。
 function _battleVfxClipRect(){
@@ -1736,49 +1722,23 @@ function _vfxClipLayer(){
     layer.id='vfx-frame-clip';
     Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',
       pointerEvents:'none',zIndex:'10035'});
-    (document.body||document.documentElement).appendChild(layer);
+  }
+  const screen=document.getElementById('scr-battle');
+  if(screen&&screen.classList.contains('active')){
+    // 結果カットイン(z=10000)・行動表示(z=10002)より下。既存VFXの画面座標・寸法を保つ。
+    const base=screen.getBoundingClientRect(),scale=_gameScale()||1;
+    Object.assign(layer.style,{position:'absolute',left:`${-base.left/scale}px`,top:`${-base.top/scale}px`,
+      width:`${window.innerWidth}px`,height:`${window.innerHeight}px`,zIndex:'9999',transformOrigin:'0 0',transform:`scale(${1/scale})`});
+    if(layer.parentNode!==screen) screen.appendChild(layer);
+  }else{
+    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',zIndex:'10035',transform:'none'});
+    if(layer.parentNode!==document.body) (document.body||document.documentElement).appendChild(layer);
   }
   const r=_battleVfxClipRect();
   const vw=window.innerWidth||r.width, vh=window.innerHeight||r.height;
   layer.style.clipPath=`inset(${Math.max(0,r.top)}px ${Math.max(0,vw-(r.left+r.width))}px `
     +`${Math.max(0,vh-(r.top+r.height))}px ${Math.max(0,r.left)}px)`;
   return layer;
-}
-
-// ── カードより「下」に出すVFXの層 ────────────────────────────
-// 戦闘画面（#scr-battle）は transform:scale で**自前の重なり文脈**を作るため、
-// body直下のVFX層（#vfx-frame-clip）へ入れた絵は必ずカードより上になる。
-// カードの下に出したい演出（復活＝K020）は、#scr-battle の直下に **z-index:0** の層を作る。
-// 背景（.screen.asset-backed::before＝z-index:-1）より上、
-// 戦闘UI（.battle-scroll＝z-index:1。盤面のカードはこの中）より下になる。
-// ステージの効果動画（#stage-bg-video）が同じ位置づけ（z-index:0）。
-//
-// **末尾へ足すこと。** 先頭へ入れると `#scr-battle>div:nth-of-type(1){display:none}`
-// に当たってこの層自体が消え、しかも本来隠れていた要素が現れる。
-function _underCardVfxLayer(){
-  if(typeof document==='undefined') return null;
-  const scr=document.getElementById('scr-battle');
-  if(!scr) return null;
-  let layer=document.getElementById('vfx-under-card');
-  if(!layer){
-    layer=document.createElement('div');
-    layer.id='vfx-under-card';
-    Object.assign(layer.style,{position:'absolute',left:'0',top:'0',width:'100%',height:'100%',
-      pointerEvents:'none',zIndex:'0',overflow:'visible'});
-  }
-  if(layer.parentNode!==scr) scr.appendChild(layer);
-  return layer;
-}
-// 画面座標（getBoundingClientRect）→ 戦闘画面の中の座標（scaleを戻した値）。
-// #scr-battle は transform:scale されているので、そのまま入れると位置も大きさもずれる。
-function _toBattleScreenRect(r){
-  if(!r||typeof document==='undefined') return r;
-  const scr=document.getElementById('scr-battle');
-  if(!scr) return r;
-  const base=scr.getBoundingClientRect();
-  const s=typeof _gameScale==='function'?(Number(_gameScale())||1):1;
-  if(!(s>0)) return r;
-  return {left:(r.left-base.left)/s,top:(r.top-base.top)/s,width:r.width/s,height:r.height/s};
 }
 
 function _vfxHostParent(){
@@ -1793,6 +1753,8 @@ function _forceStopAllVfx(options){
   // ゲームオーバー・中断などは従来どおり消す。
   if(options&&options.keepActionBanner){ if(typeof actionBannerHold==='function') actionBannerHold(); }
   else if(typeof actionBannerClear==='function') actionBannerClear();
+  if(typeof stopBattleLabFx==='function') stopBattleLabFx();
+  if(typeof presentResetLabEvents==='function') presentResetLabEvents();
   const preserveDamage=!!(options&&options.preserveDamage);
   // 戦闘画面のVFXは複数の親（#vfx-clip-root／#scr-battle／body）に
   // 生成されるため、戦闘終了時は一時要素を種類を問わずまとめて除去する。
@@ -2617,118 +2579,18 @@ if(typeof window!=='undefined'){ window.playFledVfx=playFledVfx; window.playWast
 //   onShown(target, ev) … 数値を出した対象を呼び出し側へ知らせる（二重表示の抑止用）
 // ── 復活（キーワード「復活」で再召喚された）時の演出（K020）──────────
 // **SEと同時にVFXをフェードイン → その上にカードをフェードイン → VFXをフェードアウト。**
-// 大きさ・尺は present.js（PRESENT_REVIVE_*）が唯一の定義。
+// 大きさ・尺・命中はLABで承認されたrevive-summonの定義を使う。
 async function playReviveVfx(unit,side){
   _syncEffectFlashWithVfx();
-  if(!unit||typeof document==='undefined') return false;
-  const url=typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath('復活'):'';
-  const num=(name,fallback)=>{
-    const n=Number(typeof window!=='undefined'?window[name]:undefined);
-    return Number.isFinite(n)?n:fallback;
+  if(!unit||typeof playBattleLabFx!=='function') return false;
+  const reveal=()=>{
+    delete unit._reviveHidden;
+    document.querySelectorAll('.slot[data-unit-id]').forEach(el=>{
+      if(el.dataset.unitId===String(unit.id)) el.classList.remove('revive-hidden');
+    });
   };
-  const fadeIn=num('PRESENT_REVIVE_VFX_FADE_IN_MS',200);
-  // VFXだけを見せる間。素材の光が一番強くなる時刻に合わせる（present.js）。
-  const holdMs=num('PRESENT_REVIVE_VFX_HOLD_MS',500);
-  const cardMs=num('PRESENT_REVIVE_CARD_FADE_MS',320);
-  const fadeOut=num('PRESENT_REVIVE_VFX_FADE_OUT_MS',380);
-  const sfxKey=typeof getKeywordEffectSfxKey==='function'?getKeywordEffectSfxKey('復活'):'';
-  if(sfxKey&&typeof playSfx==='function'){
-    playSfx(sfxKey,{group:'magic',guardKey:`revive:${sfxKey}:${Date.now()}`,guardMs:0});
-  }
-  // **位置は「今そのカードが見えている場所」。** 復活の最中は倒れた体を外して盤面が
-  // 詰まるため、掴んだ位置のまま出すと絵だけ元の場所に取り残される。
-  const rectOf=()=>{
-    try{
-      return typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
-        :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null);
-    }catch(e){ return null; }
-  };
-  const rect=rectOf();
-  // 復活したカードは、VFXが出てから重なって現れる。
-  // **消すのはクラスで行うこと。** 盤面のカード（#f-ally/#f-enemy の .slot）には
-  // `opacity:1!important` が掛かっているため、インラインの opacity では消せない。
-  // 以前はインラインで消していたので、カードは最初から出たままで
-  // VFXがその裏に隠れていた（＝復活の演出が出ていないように見えていた）。
-  const unitId=unit&&unit.id!=null?String(unit.id):'';
-  const currentSlots=()=>{
-    const out=[];
-    const direct=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
-    if(direct&&!direct.classList.contains('attack-motion-clone')) out.push(direct);
-    if(unitId){
-      document.querySelectorAll('.slot[data-unit-id]').forEach(el=>{
-        if(el.classList.contains('attack-motion-clone')) return;
-        if(String(el.dataset.unitId||'')===unitId&&!out.includes(el)) out.push(el);
-      });
-    }
-    return out;
-  };
-  const setHidden=(hidden,transition)=>currentSlots().forEach(el=>{
-    if(transition==null) el.style.removeProperty('transition');
-    else el.style.setProperty('transition',transition,'important');
-    el.classList.toggle('revive-hidden',hidden);
-  });
-  setHidden(true,'none');
-  // 再描画が挟まっても隠れたままにする（印は最後に外す）。
-  if(unit) unit._reviveHidden=true;
-  // **カードより下に出す。** 層が取れない時だけ従来のVFX層へ落とす。
-  const underLayer=_underCardVfxLayer();
-  const placeRect=r=>(underLayer?_toBattleScreenRect(r):r);
-  // 素材の絵がフレームの中で右寄りなので、その分だけ寄せて中心に合わせる（present.js）。
-  const offX=num('PRESENT_REVIVE_VFX_OFFSET_X',0);
-  const offY=num('PRESENT_REVIVE_VFX_OFFSET_Y',0);
-  const applyRect=(el,r)=>{
-    const p=placeRect(r);
-    if(!p) return;
-    Object.assign(el.style,{left:`${p.left+p.width*offX}px`,top:`${p.top+p.height*offY}px`,
-      width:`${p.width}px`,height:`${p.height}px`});
-  };
-  let host=null;
-  if(url&&rect&&rect.width>0){
-    host=document.createElement('div');
-    host.className='effect-sustain-host';
-    Object.assign(host.style,{pointerEvents:'none',opacity:'0',
-      transition:`opacity ${fadeIn}ms ease-out`});
-    // 下の層は #scr-battle の中（scale済み）なので fixed ではなく absolute で置く。
-    if(underLayer) host.style.position='absolute';
-    applyRect(host,rect);
-    const img=document.createElement('img');
-    img.className='vfx vfx-hit-video';
-    img.alt='';
-    img.style.pointerEvents='none';
-    const scale=typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale('K020'):1;
-    img.style.transform=`translate(-50%,-50%) scale(${scale})`;
-    img.src=_withVfxAssetVersion(url);
-    host.appendChild(img);
-    (underLayer||_vfxHostParent()).appendChild(host);
-    if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
-    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(host) host.style.opacity='1'; }); });
-    // 盤面が詰まってカードが動いても、絵はカードに付いて回る。
-    const follow=()=>{
-      if(!host||!host.isConnected) return;
-      const r=rectOf();
-      if(r&&r.width>0&&r.height>0) applyRect(host,r);
-      requestAnimationFrame(follow);
-    };
-    requestAnimationFrame(follow);
-  }
-  try{
-    // フェードイン＋HOLD の間はVFXだけを見せる（カードはまだ出さない）。
-    await new Promise(resolve=>setTimeout(resolve,fadeIn+holdMs));
-    // 再描画後のスロットを引き直してカードをフェードインさせる。
-    if(unit) delete unit._reviveHidden;
-    setHidden(false,`opacity ${cardMs}ms ease-out`);
-    await new Promise(resolve=>setTimeout(resolve,cardMs));
-    return true;
-  } finally {
-    // 途中終了・再描画のどちらでも、全ての現行スロットから印を除去する。
-    if(unit) delete unit._reviveHidden;
-    setHidden(false,null);
-    if(host){
-      host.style.transition=`opacity ${fadeOut}ms ease-out`;
-      host.style.opacity='0';
-      setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
-    }
-  }
+  try{ await playBattleLabFx('K020',unit,[unit],{side,onImpact:reveal}); return true; }
+  finally{ reveal(); }
 }
 
 // ── マナを得た時の演出（S004）────────────────────────────
@@ -3088,35 +2950,17 @@ function playSacrificeDestroyVfx(unit, side, onReverseStart){
   },{..._SPECIAL_VFX_TIMING,scale:4,fit:'cover',offsetY:-slotH*0.15});
 }
 
-// 戦闘中の召喚の登場演出。**S001の逆再生開始でカードを即座に出す**（生贄奉納の逆）。
-// SEとVFXは同時に始め、順再生の間はカードを隠しておく。
-// 戻り値は「カードが出た時点」で解決する（逆再生は裏で続ける。演出待ちで戦闘を止めない）。
-// 素材が無ければ即座に出す（演出だけ省く）。
+// 戦闘中の召喚の登場演出。LABのbattle-summonの命中でカードを出す。
+// 戻り値は「命中でカードが出た時点」で解決する（演出の後半は裏で続ける）。
 function playSummonAppearVfx(unit, side){
-  // **召喚より先に、貯めてある発光を出す。** 発光はまとめ出しのため最大700ms
-  // 待たされることがあり、そのままだと召喚元が光るのが召喚より後になる。
   _syncEffectFlashWithVfx();
   const slot=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,unit):null;
-  if(!slot) return Promise.resolve();
-  const url=Assets?.vfx?.specialProduction?.S001||'';
-  if(!url) return Promise.resolve();
-  const slotH=slot.getBoundingClientRect?.().height||0;
+  if(!slot||typeof playBattleLabFx!=='function') return Promise.resolve();
   slot.style.setProperty('visibility','hidden','important');
   return new Promise(resolve=>{
     let shown=false;
-    const reveal=()=>{
-      if(shown) return; shown=true;
-      slot.style.removeProperty('visibility');
-      resolve();
-    };
-    // 召喚の登場演出だけ速さを変える（倍率は present.js が唯一の定義）。
-    const _speed=Math.max(.1,Number(typeof window!=='undefined'?window.PRESENT_SUMMON_VFX_SPEED:0)||1);
-    const _timing={forwardMs:Math.round(_SPECIAL_VFX_TIMING.forwardMs/_speed),
-      reverseMs:Math.round(_SPECIAL_VFX_TIMING.reverseMs/_speed)};
-    playSpecialProductionVfx(slot,'S001',url,reveal,
-      {..._timing,scale:3,fit:'cover',offsetY:-slotH*0.05}).catch(reveal);
-    // 素材の読み込み失敗などでonMidpointが来なくてもカードは必ず出す。
-    setTimeout(reveal,_timing.forwardMs+900);
+    const reveal=()=>{ if(shown) return; shown=true; slot.style.removeProperty('visibility'); resolve(); };
+    playBattleLabFx('S001',unit,[unit],{side,onImpact:reveal}).finally(reveal);
   });
 }
 
@@ -3412,17 +3256,9 @@ function updateUnitShieldUi(unit,side){
   const slot=getCurrentUnitSlot(side,unit);
   if(!slot) return;
   const shown=typeof presentShownShield==='function'?presentShownShield(unit):(Number(unit.shield)||0);
-  const hasShield=shown>0;
-  slot.classList.toggle('shield-active',hasShield);
-  const portrait=slot.querySelector('.unit-portrait');
-  const existingLayer=portrait&&portrait.querySelector('.unit-shield-layer');
-  if(hasShield&&portrait&&!existingLayer){
-    const layer=document.createElement('div');
-    layer.className='unit-shield-layer';
-    portrait.appendChild(layer);
-  } else if(!hasShield&&existingLayer){
-    existingLayer.remove();
-  }
+  slot.classList.toggle('shield-active',shown>0);
+  slot.querySelectorAll('.unit-shield-layer').forEach(el=>el.remove());
+  if(typeof battleFxSyncUnit==='function') battleFxSyncUnit(unit,side,slot);
 }
 
 // クローンは画面スケール変換(--game-scale)の外(document.body直下)に置かれるため、
@@ -3447,6 +3283,7 @@ function _getAttackTargetRect(slot){
 // fromEl … 見た目の元にするスロット要素／fr … 置きたい位置と大きさ（ビューポート座標）
 function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
+  clone.querySelectorAll('[data-vb-fx-local]').forEach(el=>el.remove());
   clone.classList.add('attack-motion-clone');
   // 直前の攻撃が中断された場合でも、複製側へ非表示状態を引き継がない。
   clone.classList.remove('dragging','drag-over','selected','selectable','motion-hidden');
@@ -5136,7 +4973,7 @@ function renderField(id,units,isEnemy,_lane){
       if(_visualHp(u)<=0) slot.classList.add('inert');
       if(_visualHp(u)<=0&&!_pendingDeath) slot.classList.add('dead-unit');
       if(!isEnemy&&G._selectedBoardUnitIdx===i) slot.classList.add('selected');
-      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,u);
+      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,typeof battleFxShownForm==='function'?battleFxShownForm(u):u);
       if(_isPlayerHero){
         slot.classList.remove('is-defender','uses-hate-frame');
         if(typeof assetUrl==='function'&&typeof Assets!=='undefined'&&Assets.cards?.characterFrame){
@@ -5190,13 +5027,13 @@ function renderField(id,units,isEnemy,_lane){
         if(_shownShield>0) slot.classList.add('shield-active'); else slot.classList.remove('shield-active');
         // .unit-portraitの子として配置することで、attack-motion-clone生成時にportrait用のCSS変数
         // (--new-card-art-left等)がそのまま効き、独立した%指定を並行して持つことによるズレ・変形を防ぐ
-        const shieldLayer=_shownShield>0?'<div class="unit-shield-layer"></div>':'';
+        const shieldLayer=''; // 結界の状態表示はLABのshield-stateに統一。
         const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
         const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
         if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
         } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
+          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
         }
         const _battleFrameLayer=slot.querySelector('.unit-frame-layer');
         if(_battleFrameLayer){
@@ -5340,6 +5177,7 @@ function renderField(id,units,isEnemy,_lane){
       }
     }
     el.appendChild(slot);
+    if(u&&slot.dataset.unitId&&typeof battleFxSyncUnit==='function') battleFxSyncUnit(u,isEnemy?'enemy':'ally',slot);
     if(typeof SaveProfile!=='undefined') SaveProfile.observe(slot,units.find(x=>x&&String(x.id)===String(slot.dataset.unitId)));
     if(u&&u.hp>0&&typeof _recordBattleTrace==='function'){
       // renderAll()は演出中にも複数回呼ばれるため、同じユニットのDOM追加を毎回

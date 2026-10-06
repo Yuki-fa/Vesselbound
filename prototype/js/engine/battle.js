@@ -220,6 +220,7 @@ function playDamageEffectSfx(kind){
 }
 
 function _playCardEffectSfx(code){
+  if(typeof presentLabFx==='function'&&presentLabFx(code)) return false;
   if(typeof playSfx!=='function') return false;
   return playSfx(code,{group:'magic',guardKey:`effect:${code}:${uid()}`,guardMs:0});
 }
@@ -381,6 +382,7 @@ function _resetManaEffectRun(){
 // （マナ効果VFX・SEはひと続きにつき1回だけ、が規則）。
 // **SEは同じ瞬間に1本だけ。** 人数ぶん重ねると鳴り始めがばらついて濁る。
 function _playManaEffectPulse(list,effectNo){
+  if(typeof presentLabFx==='function'&&presentLabFx(effectNo)) return;
   // バフの演出（S005〜S009）は**能力変化を受けた対象の上**に出す（present.js が唯一の規則）。
   // ここで出すと発生元の上になり、対象に選ばれていない本人だけが光る（ドワーフで発覚）。
   if(typeof presentIsBuffVfxCode==='function'&&presentIsBuffVfxCode(effectNo)) return;
@@ -2125,6 +2127,7 @@ function _warmBattleHitSfx(){
   const keys=[];
   ['sword','axe','punch','kick'].forEach(t=>{ for(let lv=1;lv<=3;lv++) keys.push(`${t}${lv}`); });
   keys.push('attack','hit','death','K018');
+  if(typeof PRESENT_LAB_FX!=='undefined') keys.push(...Object.keys(PRESENT_LAB_FX).filter(key=>PRESENT_LAB_FX[key][1]!=null));
   warmSfxVoices(keys);
 }
 
@@ -6598,7 +6601,9 @@ async function onBattleEnd(){
   if(G._battleEndEffectsApplied) return;
   G._battleEndEffectsApplied=true;
   G._coreBattleEndTriggered=false;
+  const endEventStart=(G._battleCoreEvents||[]).length;
   await _applyCoreBattleEndEffectsLive();
+  const endEvents=(G._battleCoreEvents||[]).slice(endEventStart);
   (G._battleCoreEvents||[]).filter(e=>e&&e.type==='bonus_reward'&&e.side==='p1'&&e.unit).forEach(e=>{
     if(typeof _queueBonusRewardPanel==='function') _queueBonusRewardPanel(e.unit);
   });
@@ -6624,14 +6629,22 @@ async function onBattleEnd(){
   }
   // 終戦時のゴールド演出は、他の終戦時効果の処理・演出が終わってから開始する。
   await _waitForPendingVfx();
-  for(const {unit:a,amount,event} of goldEffectUnits){
+  // 終戦のstat_changeは計算・永続化済み。PvE／保存再生も共通presenterでVFXだけを出す。
+  // ゴールドの既存演出をイベント順へ挟み、終戦効果の順序・資源を変えない。
+  const endGold=new Map(goldEffectUnits.map(x=>[x.event,x]));
+  await presentLabCommittedEvents(endEvents,{
+    findUnit:(side,id)=>((side==='p2'?G.enemies:G.allies)||[]).find(u=>u&&u.id===id)||null,
+    units:side=>side==='p2'?G.enemies||[]:G.allies||[],
+  },async event=>{
+    const gold=endGold.get(event);if(!gold)return;
+    const {unit:a,amount}=gold;
     await presentGoldGainEvent(event||{type:'gold_gain',side:'p1',unitId:a.id,unit:a,amount}, {
       findUnit:(side,id)=>(G.allies||[]).find(u=>u&&u.id===id)||null,
       getVisualRect:(ev,source)=>ev.lastVisualRect||source._lastVisualRect||null,
       applyGold:value=>{ if(typeof goldFxRelease==='function') goldFxRelease(value); },
       updateHud:()=>updateHUD(),
     });
-  }
+  });
   // 途中で抜けても預けた分を残さない（表示と所持金を必ず一致させる）。
   if(pendingGold&&typeof goldFxRelease==='function') goldFxRelease(pendingGold);
   for(const a of randomItemEffectUnits) _grantRandomItem(a.name,{free:true});
