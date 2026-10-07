@@ -1252,9 +1252,9 @@ function main() {
       `${name}が効果固有の演出（発動回数ぶん）を出していない`);
     assert.match(src, /getEffectSfxKey\s*\(\s*effectNo\s*\)\s*\)\s*\|\|\s*''/,
       `${name}が効果固有SEを使っていない（素材が無い効果では何も鳴らさない）`);
-    // マナ効果SE（K023）は**ひと続きにつき1回だけ**。繰り返しで鳴らさないこと。
+    // マナ効果SE（K024）は**ひと続きにつき1回だけ**。繰り返しで鳴らさないこと。
     assert.doesNotMatch(src.slice(src.indexOf('_playManaEffectPulse'), src.indexOf('_playManaEffectPulse') + 900),
-      /'K023'/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
+      /'K024'/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
   });
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
     const src = name==='js/engine/battle.js'?currentBattle:read(name);
@@ -1672,7 +1672,7 @@ function main() {
   assert.match(board, /async function _awaitManaReverseStart\(units, opt\)/,
     'オンラインのマナ閾値VFX境界処理がない');
   // マナ効果SEはPvEだけで鳴っていた（オンラインは無音）。両方で鳴らす。
-  assert.match(board, /playSfx\('K023'/,
+  assert.match(board, /playSfx\('K024'/,
     'オンラインでマナ効果SEを鳴らしていない（PvEと食い違う）');
   // 上限・前衛満杯時の後衛送り・ID重複の防止は共通実装（present_events.js）が持つ。
   {

@@ -2405,7 +2405,7 @@ function playHitVfxAtRect(rect,amount,options){
     // にかけて動きを止めずに滑らかにフェードアウトさせる。
     const fadeStartRatio=Math.max(0,Math.min(1,1-fadeDuration/hitDuration));
     const finishWebp=()=>{ if(done) return; done=true; host.remove(); labelHost?.remove(); resolveComplete(); };
-    // 素材が重い（K026＝6.6MB等）と、デコードが終わる前にフェードと破棄タイマーが
+    // 素材が重い（K024＝6.6MB等）と、デコードが終わる前にフェードと破棄タイマーが
     // 走り切り、1コマも描かれないまま消える。＝マナ効果VFXが出ない原因。
     // 画像が使える状態になってから尺を数え始める。読み込めない場合に止まらないよう、
     // 待つのは最大1.5秒まで。
@@ -4538,6 +4538,8 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
   const mergedKws=typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(normalizedKws):[...new Set(normalizedKws)];
   const filtered=mergedKws.filter(k=>{
+    // 眷属は召喚による分類。自身の効果文にも眷属が現れていても、所持欄へ表示する。
+    if(k==='眷属') return true;
     if(!_ENCHANT_KEYWORD_ONLY.has(k.replace(/\d+$/,''))&&fullText.includes(k)) return false;
     return true;
   });

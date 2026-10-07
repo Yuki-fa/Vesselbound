@@ -200,7 +200,7 @@
     }
     if (_manaEffectVfx.length || !effectNo || typeof playEffectVfxOnUnit !== 'function') return;
     list.forEach(({ unit, isEnemySide, rect }) => {
-      // **合図（K023）と同じ位置から出す**（PvEと同じ）。掴み直すと、
+      // **合図（K024）と同じ位置から出す**（PvEと同じ）。掴み直すと、
       // 攻撃モーションの複製カードが既に消えていて盤面の定位置へ戻ってしまう。
       const v = playEffectVfxOnUnit(unit, isEnemySide ? 'enemy' : 'ally', effectNo,
         { rect, minDurationMs: (typeof PRESENT_EFFECT_VFX_MIN_MS === 'number' && PRESENT_EFFECT_VFX_MIN_MS) || 900 });
@@ -244,7 +244,7 @@
   }
   // units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。**1体ずつ順に見せない。**
   // opt.repeat：同じ効果の2回目以降。**間引かず高速で繰り返す。**
-  // マナ効果VFX（K023）とSE（K023）はその効果につき最初の1回だけ。その逆再生開始から先は
+  // マナ効果VFX（K024）とSE（K024）はその効果につき最初の1回だけ。その逆再生開始から先は
   // 効果固有のVFXを処理が終わるまで出し続け、SEを発動回数ぶん鳴らす（PvEと同じ規則）。
   async function _awaitManaReverseStart(units, opt) {
     const list = (Array.isArray(units) ? units : []).filter(x => x && x.unit);
@@ -271,12 +271,12 @@
     _manaEffectCurrentCode = effectNo;
     // マナ効果SEはひと続きにつき1回だけ。
     if (typeof playSfx === 'function') {
-      playSfx('K023', { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
+      playSfx('K024', { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
     }
     let pulsed = false;
     let pulsedAt = 0;
     let projectileDone = null;
-    // 合図（K023）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
+    // 合図（K024）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
     let cueTargets = null;
     const startPulse = () => {
       if (pulsed) return; pulsed = true;
@@ -995,6 +995,7 @@
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         await presentReviveEvent(ev, {
           findUnit: (side, id) => _find(side, id),
+          applyKeywords: (unit, keywords) => { unit.keywords = keywords.slice(); },
           // 蘇生後の値まで表示を進める（PvEと同じ）。
           applyStats: (u2, e2) => {
             if (typeof presentAdvanceShown !== 'function') return;

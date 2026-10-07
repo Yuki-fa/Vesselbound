@@ -349,7 +349,7 @@ const MANA_CUE_VFX_MS=720;
 // ひと続きのマナ効果で走っている演出。**同時に1組だけ。**
 //   _manaEffectVfx  … 効果固有VFX（活性化＝E045）。処理が終わるまで出し続ける
 //                      （同じ効果が同時に乗る全員ぶん）
-//   _manaEffectCueDone … マナ効果VFX（K023）の完了
+//   _manaEffectCueDone … マナ効果VFX（K024）の完了
 let _manaEffectVfx=[];
 let _manaEffectCueDone=null;
 // いま演出を出している効果の番号。**別の効果はこれが終わるまで始めない。**
@@ -378,7 +378,7 @@ function _resetManaEffectRun(){
 // **VFXはひと続きの処理が終わるまで出し続ける**ので、最初の1回でだけ始める
 // （止めるのは `_endManaEffectRun()`）。1回ずつ出し直すと連続再生に見えてしまう。
 // **固有の素材が無い効果では何も鳴らさない・出さない。**
-// マナ効果SE（K023）で代用すると、発動のたびにマナ効果SEが鳴る
+// マナ効果SE（K024）で代用すると、発動のたびにマナ効果SEが鳴る
 // （マナ効果VFX・SEはひと続きにつき1回だけ、が規則）。
 // **SEは同じ瞬間に1本だけ。** 人数ぶん重ねると鳴り始めがばらついて濁る。
 function _playManaEffectPulse(list,effectNo){
@@ -390,7 +390,7 @@ function _playManaEffectPulse(list,effectNo){
   if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
   if(_manaEffectVfx.length||!effectNo||typeof playEffectVfxOnUnit!=='function') return;
   list.forEach(({unit,isEnemySide,rect})=>{
-    // **合図（K023）と同じ位置から出す。** ここは合図の逆再生開始後に呼ばれるため、
+    // **合図（K024）と同じ位置から出す。** ここは合図の逆再生開始後に呼ばれるため、
     // 攻撃モーションの複製カードが既に消えていることがある。掴み直すと
     // 合図だけ動いた位置・固有VFXは盤面の定位置、とズレる。
     const v=playEffectVfxOnUnit(unit,isEnemySide?'enemy':'ally',effectNo,
@@ -436,7 +436,7 @@ async function _playManaEffectProjectiles(list,effectNo,opt){
 // **1体ずつ順に見せない。** 順に見せると「片方が先に強くなる」ように見える。
 // opt.repeat：同じ効果の2回目以降の発動。**間引かず高速で繰り返す。**
 //
-// 見せ方：**マナ効果VFX（K023）とSE（K023）はその効果につき最初の1回だけ。**
+// 見せ方：**マナ効果VFX（K024）とSE（K024）はその効果につき最初の1回だけ。**
 // その逆再生開始から先は、効果固有のVFXを**処理が終わるまで出し続け**、
 // 効果固有のSEを**発動回数ぶん**鳴らす。
 async function _playManaEffectCue(units,opt){
@@ -471,12 +471,12 @@ async function _playManaEffectCue(units,opt){
   _manaEffectCurrentCode=effectNo;
   _recordBattleTrace('mana_vfx_start',{unitId:list[0].unit.id,effectNo,人数:list.length});
   // マナ効果SEはひと続きにつき1回だけ。
-  if(typeof playSfx==='function') playSfx('K023',{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
+  if(typeof playSfx==='function') playSfx('K024',{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
   // 逆再生開始で効果固有の演出へ引き継ぐ（1回目の発動ぶん）。
   let pulsed=false;
   let pulsedAt=0;
   let projectileDone=null;
-  // 合図（K023）を出した位置。**効果固有のVFXも同じ位置から出す。**
+  // 合図（K024）を出した位置。**効果固有のVFXも同じ位置から出す。**
   // ここで揃えないと、合図は動いた位置・固有VFXは盤面の定位置、とズレる
   // （固有VFXは合図の逆再生開始後に出るので、その頃には複製カードが消えている）。
   let cueTargets=null;
@@ -933,6 +933,7 @@ async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
     deferManaThresholdEffects:true,
     _deferLichSummons:true,
   };
+  _takePveSummonState(state);
   const touched=[];
   [...state.units.p1,...state.units.p2].forEach((u,i)=>{
     if(!u) return;
@@ -967,6 +968,7 @@ async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
   };
   try{
     coreApplyReleaseEffects(unit,(sacrificed||[]).map(x=>x&&x._releaseSnapshot||x),state,coreMathRng,emit,applyHit);
+    _keepPveSummonState(state);
   }finally{
     touched.forEach(([u,oldSide,slot,oldVoidWalkerBonus])=>{
       if(oldSide==null) delete u.side; else u.side=oldSide;
@@ -1042,8 +1044,7 @@ async function _resolveSeals(){
       }
       delete unit._sealReady;
       delete unit._coreDeathEffectsTriggered;
-      // 封印から解放されたキャラクターは「戦闘中に召喚された」扱いにする
-      // （ナーガ・ヘルナイト・光の指輪・リッチ等の召喚時効果の対象になる）。
+      // 旧PvEの解放後処理。解放自体は新しい召喚ではなく、眷属を付与しない。
       await _afterPanelSummon(unit,isEnemySide);
       const repeats=_releaseRepeatCount(unit,isEnemySide);
       for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,[]);
@@ -2192,6 +2193,8 @@ async function startBattle(){
   G._isBossRewardCycle=false;
   document.body.classList.remove('right-card-peek');
   G._battleSummonedAllyCount=0;
+  _pveLiveCoreState=null;
+  _pveOpeningSummonState=null;
   // battle-victory-pending は #kw-tooltip 等を display:none で隠すクラス。
   // 解除が goToReward() 側にしか無いため、報酬画面を挟まない遷移
   // （ステージ5のエリート勝利→ラスボス直行など）では付いたまま次の戦闘に入り、
@@ -2579,6 +2582,18 @@ function startPlayerPhase(){
 // 終戦時の効果は別の state で解決するので、その結果をここへも入れないと、次の書き戻しで消える。
 // セーブへ紛れ込まないよう G には載せない。
 let _pveLiveCoreState=null;
+// セーブを使わないPvEは開戦と通常手番でstateを作り直す。眷属の累計・累積強化だけを渡す。
+// 数値や対象はコアが決める。戦闘開始時に必ず捨て、Gやランセーブには載せない。
+let _pveOpeningSummonState=null;
+function _takePveSummonState(state){
+  if(!_pveOpeningSummonState) return;
+  state._summonCount=_pveOpeningSummonState._summonCount;
+  state._summonBuff=_pveOpeningSummonState._summonBuff;
+  _pveOpeningSummonState=null;
+}
+function _keepPveSummonState(state){
+  _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff};
+}
 function _createPveCoreState(){
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},
@@ -2604,6 +2619,7 @@ function _createPveCoreState(){
   // createBattleState() を通らない手組みのstateなので、忘れると
   // 紫キャラクターの強化に+1が乗らない（コアが唯一の実装）。
   if(typeof coreRefreshVoidWalkerBonus==='function') coreRefreshVoidWalkerBonus(state);
+  _takePveSummonState(state);
   return state;
 }
 // コアが判定に使う side/slot を盤面へ焼き付ける。戦闘中は付けたままにする。
@@ -5255,6 +5271,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
       // 後衛へ送ると陣営の上限を超え、編成していない後衛枠にキャラクターが現れる。
       const rearIdx=_summonMidBattleAllyFront(summoned,isEnemySide,placement);
       if(rearIdx>=0){
+        await _applyLegacyBattleSummonTraits(summoned,isEnemySide,placement);
         await _afterPanelSummon(summoned,isEnemySide);
         if(!(placement&&placement.deferCompact)) requestBattleCompact();
       }
@@ -5289,10 +5306,34 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
   // 召喚は前衛の右端にだけ出す。前衛が満杯なら成立させない（後衛へ逃がさない）。
   const rearIdx=placedIdx;
   if(rearIdx>=0){
+    await _applyLegacyBattleSummonTraits(unit,isEnemySide,placement);
     await _afterPanelSummon(unit,isEnemySide);
     if(!(placement&&placement.deferCompact)) requestBattleCompact();
   }
   return rearIdx>=0?unit:null;
+}
+
+// 旧入口は生成・配置だけを維持し、眷属の分類と5効果の計算は共通コアへ渡す。
+async function _applyLegacyBattleSummonTraits(unit,isEnemySide,placement){
+  const liveState=G._coreDrivenBattle&&_pveLiveCoreState;
+  const state=liveState||_createPveCoreState();
+  const side=isEnemySide?'p2':'p1';
+  const oldSide=unit.side;
+  const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
+  const events=[];
+  const emit=ev=>{
+    events.push(ev);
+    if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
+  };
+  unit.side=side;
+  coreMarkBattleSummon(unit);
+  state._summonCount=state._summonCount||{};
+  state._summonCount[side]=coreApplyKenzokuSummonEffects(state,unit,emit,placement&&placement.rightOf&&placement.rightOf.id);
+  if(!liveState) _keepPveSummonState(state);
+  try{ await _flushCorePveHitEvents(state,events,before); }
+  finally{
+    if(oldSide==null) delete unit.side; else unit.side=oldSide;
+  }
 }
 
 function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
@@ -5380,7 +5421,7 @@ async function _checkRingManaThresholdEffects(){
   }
 }
 
-// 復活：死亡時、ATK/HPを半分にして「召喚」する（召喚トリガーを発動させる）。
+// 復活：共通コアが基礎値を半分にして戻す。眷属や召喚時強化の対象にはしない。
 function _reviveWithHalvedStats(unit,isEnemySide){
   if(!unit||typeof coreTryRevive!=='function') return false;
   const side=isEnemySide?'p2':'p1';
@@ -5420,8 +5461,7 @@ function _reviveWithHalvedStats(unit,isEnemySide){
 async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy,fromCore){
   if(!unit) return;
   if(isEnemySide) return;
-  // ヘルナイトの「戦闘中に召喚された味方に生贄を付与する」は、開戦時のパネルからの通常出撃
-  // （isInitialDeploy）ではなく、戦闘中に実際に発生した召喚（死亡・復活・効果による召喚等）にのみ適用する。
+  // 旧PvEの召喚カウンタ。眷属の付与・5効果の判定は共通コアにあり、このカウンタは使わない。
   if(!isInitialDeploy){
     G._battleSummonedAllyCount=(G._battleSummonedAllyCount||0)+1;
   }
@@ -5463,7 +5503,7 @@ async function _releaseSealWithoutSacrifice(unit,isEnemySide){
   unit._sealed=false;
   delete unit._sealValue;
   delete unit._sealReady;
-  // 封印から解放されたキャラクターは「戦闘中に召喚された」扱いにする。
+  // 旧PvEの解放後処理。解放自体では眷属を付与しない。
   await _afterPanelSummon(unit,isEnemySide);
   const repeats=_releaseRepeatCount(unit,isEnemySide);
   for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,[]);
@@ -5789,8 +5829,8 @@ async function applyNewPanelBattleStart(options){
     if(placed>=0){
       _recordBattleTrace('opening_summon_placed',{sourceId:panel.id||panel.name,unitId:summoned.id,name:summoned.name,
         liveCount:(G.allies||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul).length});
-      // 1枚目は通常出撃、複製分は「戦闘中に召喚された」扱いにする。
-      // ツインデビル等のコピーでもリッチ等の召喚時効果を確実に完了させる。
+      // ここは戦闘前の配置なので、体数にかかわらず眷属は付けない。
+      // 追加分に対する旧召喚監視の呼び出し順は維持する。開戦効果のコピーはコアが生成する。
       await _afterPanelSummon(summoned,false,entry.copyIndex===0);
     }else{
       _recordBattleTrace('opening_summon_rejected',{sourceId:panel.id||panel.name,unitId:summoned.id,name:summoned.name,
@@ -5887,6 +5927,7 @@ async function _finishNewPanelBattleStartEffects(){
     // 「生命の力」のHP2倍のようにPvEにしか無い／コアにしか無い工程があった。
     const _openingResolveSeals=()=>{ /* PvEの封印解放は演出付きで後段の _resolveSeals() が行う */ };
     coreRunOpening(state,coreMathRng,emit,applyHit,_openingResolveSeals);
+    _keepPveSummonState(state);
     _recordBattleTrace('opening_effects_done',{life:_currentBattleLife(),
       stateLife:Number(state.life&&state.life.p1)||0,
       味方:(state.units.p1||[]).filter(Boolean).filter(u=>u.hp>0)
@@ -6372,8 +6413,7 @@ async function _processAllyDeathInner(unit){
     _reviveWithHalvedStats(unit,false);
     // 戦闘中に召喚される（蘇生も含む）キャラクターは必ず前衛に置く。
     unit.lane='front';
-    // 根性・復活キーワードによる蘇生（_reviveWithHalvedStats）と同様、戦闘中に「現れた」ものとして
-    // _afterPanelSummon()を通す（ヘルナイトの生贄付与・光の指輪の結界付与等が正しく適用されるようにする）。
+    // 復活時の旧監視処理は通す。眷属の付与・光の指輪などの召喚時効果は対象外。
     await _afterPanelSummon(unit,false);
     requestBattleCompact();
     delete unit._deathProcessing;

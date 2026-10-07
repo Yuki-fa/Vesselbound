@@ -136,7 +136,7 @@ const SFX_SETTINGS={
     C001:       {group:'ui',     volume: .97}, // -10.7
     C002:       {group:'ui',     volume: .55}, // -5.8
     C003:       {group:'ui',     volume: .73}, // -8.3
-    K023:       {group:'magic',  volume: 1.00}, // マナ効果（旧K026）（実測-17.3dBFS）
+    K024:       {group:'magic',  volume: 1.00}, // マナ効果（旧K023）（実測-17.3dBFS）
     // 強化カードの効果SE（カードNo.で引く）
     E045:       {group:'ui',     volume: 1.00},
     E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）

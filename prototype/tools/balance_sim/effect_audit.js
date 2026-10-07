@@ -100,6 +100,8 @@ function invoke(card, side, trigger, enemyPool) {
 
 function audit() {
   const { cards, enemies } = loadCards(); const rows = []; let ng = 0;
+  const kenzokuCases = require('./kenzoku_regression').runCoreChecks();
+  console.log(`眷属・復活除外回帰 ${kenzokuCases}条件 OK`);
   const loadedNames = new Set(cards.map(card => String(card.name || '')));
   const explicitCoverage = new Set();
   const missingRequired = REQUIRED_REGRESSION_CARDS.filter(name => !loadedNames.has(name));

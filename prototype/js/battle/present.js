@@ -1478,7 +1478,7 @@ function presentActionBannerReasonSource(ev, api) {
   if (reason === 'skoll_hati' || reason === 'enemy_mana_passive')
     return presentActionBannerUnitEffectSource(api.unit(ev.unitId), api, /このキャラクターは\+X\/\+Xを得る。Xは敵が持つマナ/);
   if (reason === 'naga_summon' || reason === 'summon_scaling_buff') {
-    const pattern = /戦闘中に召喚され(?:る|た)味方は\+1\/\+1を得る/;
+    const pattern = /味方の眷属(?:は|が召喚された時、その眷属は)\+\d+\/\+\d+を得る/;
     const owner = api.summonScalingOwner(ev, reason === 'naga_summon');
     return presentActionBannerUnitEffectSource(owner, api, pattern);
   }

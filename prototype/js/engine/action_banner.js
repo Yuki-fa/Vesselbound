@@ -344,7 +344,7 @@ function _actionBannerEffectOwner(side, trigger, pattern) {
 function _actionBannerSummonScalingOwner(ev, isNaga) {
   const api = actionBannerPresentationApi();
   const naga = _actionBannerCard('C057');
-  const pattern = /戦闘中に召喚され(?:る|た)味方は\+1\/\+1を得る/;
+  const pattern = /味方の眷属(?:は|が召喚された時、その眷属は)\+\d+\/\+\d+を得る/;
   const holders = [..._actionBannerUnits.values()].filter(u => u.side === ev.side
     && !_actionBannerPendingUnits.has(String(u.id))
     && presentActionBannerUnitEffectSource(u, api, pattern));
@@ -362,7 +362,7 @@ function _actionBannerSummonBuffSource(ev) {
   const records = _actionBannerSummonBuffOwners[ev.side] || [];
   const record = records.find(r => String(r.unitId) === String(ev.sourceId)) || records[records.length - 1];
   if (record) return record.source;
-  const pattern = /この戦闘中、召喚された味方は/;
+  const pattern = /この戦闘中、味方の眷属は/;
   return presentActionBannerUnitEffectSource(_actionBannerEffectOwner(ev.side, '', pattern), actionBannerPresentationApi(), pattern);
 }
 function _actionBannerAttackDamageSource(ev) {

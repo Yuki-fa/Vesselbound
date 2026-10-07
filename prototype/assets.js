@@ -168,8 +168,7 @@ const Assets = {
     // 対応するWebPがあれば、通常のhit.webpの代わりに再生する。存在するものだけをここに登録する。
     // キーワード発動時の専用VFX。キーワードシートのNo.（KXXX）で引く。
     // **シートのNo.を振り直したら、素材ファイル名もここも必ず一緒に直すこと。**
-    // 2026-08-31にNo.が「マナ効果 K026→K023」「毒 K007→K017」「貫通 K023→K007」と
-    // 振り直された際、素材が旧名のままだったため、マナ効果と毒は登録が外れて
+    // 番号の振り直しで素材が旧名のままだった際、マナ効果と毒は登録が外れて
     // 通常の被弾VFX（hit.webp）に化け、貫通が毒のVFXを拾っていた。
     // ずれていないかは tools/parity/anim_check.js が検査する。
     keywordEffect: {
@@ -178,7 +177,7 @@ const Assets = {
       'K020': 'assets/vfx/K020.webp', // 復活（再召喚された瞬間）
       'K017': 'assets/vfx/K017.webp', // 毒（毒でダメージを受けた瞬間）
       'K018': 'assets/vfx/K018.webp', // 結界（結界がダメージを防いだ瞬間）
-      'K023': 'assets/vfx/K023.webp', // マナ効果
+      'K024': 'assets/vfx/K024.webp', // マナ効果（K023＝眷属には素材なし）
     },
     attackContact: {
       tri: 'assets/vfx/K008.webp',
@@ -292,8 +291,8 @@ const Assets = {
     C019: 'assets/sfx/C019_1.wav', // ケンタウロス（発射）
     C090: 'assets/sfx/C090.wav', // 奪う
     C019_HIT: 'assets/sfx/C019_2.wav', // ケンタウロス（着弾）
-    // マナ効果SE。シートのNo.に合わせて K023（旧 K026）。
-    K023: 'assets/sfx/K023.wav',
+    // マナ効果SE。シートのNo.に合わせて K024（旧 K023）。
+    K024: 'assets/sfx/K024.wav',
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃

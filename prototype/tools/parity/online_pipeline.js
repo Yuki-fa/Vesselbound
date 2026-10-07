@@ -95,11 +95,12 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
       const out=simulateOnlineBattle({
         seed:12345,
         // スケルトンキングは攻撃時に召喚する＝戦闘中の召喚。
-        // 光の指輪「常時：戦闘中に召喚される味方は結界1を得る」はここでのみ効く
+        // 光の指輪「常時：味方の眷属は結界1を得る」はここでのみ効く
         // （開戦時の召喚には付かないのが正しい）。
         sides:{p1:{units:[lich,wolf,king]},p2:{units:[{id:'e',name:'敵',atk:1,hp:400,maxHp:400,color:'黒',keywords:[],desc:''}]}},
         resources:{p1:{mana:9,gold:0},p2:{mana:0,gold:0}},
-        rings:{p1:[{name:'光の指輪'}],p2:[]},
+        // 指輪は本文で効果を解決する（2026-10-07 眷属化。オンラインの送信も name・desc を送る）。
+        rings:{p1:[(()=>{const r=(typeof RING_POOL!=='undefined'?RING_POOL:[]).find(x=>x&&x.name==='光の指輪')||{};return {name:'光の指輪',desc:String(r.desc||'常時：味方の眷属は結界1を得る。')};})()],p2:[]},
         items:{p1:[],p2:[]},
         summonDefs:PANEL_POOL,
       });

@@ -270,7 +270,8 @@ function coreSilenceUnit(unit) {
   [...CORE_SILENCE_TEXT_FIELDS, ...CORE_UNIT_EFFECT_STATE_FIELDS].forEach(k => { if (k in unit) stash[k] = unit[k]; });
   unit._silenceStash = stash;
   unit.desc = ''; unit.effectText = ''; unit.effect = '';
-  unit.keywords = []; unit.effectData = {}; unit.boardCards = [];
+  // 眷属は効果ではなく召喚由来の分類なので、沈黙中も保持する。
+  unit.keywords = (unit.keywords || []).filter(k => k === '眷属'); unit.effectData = {}; unit.boardCards = [];
   unit.stealth = false;
   coreCopyUnitEffectState(unit, {}, { resetMissing: true });
   // 結界（キーワード由来の障壁）も効果。張られた分は戻さない（消費される状態のため）。
@@ -284,7 +285,8 @@ function coreUnsilenceUnit(unit) {
   // 沈黙中に外から得たキーワード（付与効果）は残す。
   const gained = Array.isArray(unit.keywords) ? unit.keywords.slice() : [];
   Object.keys(stash).forEach(k => { unit[k] = stash[k]; });
-  unit.keywords = [...(Array.isArray(stash.keywords) ? stash.keywords : []), ...gained];
+  const original = Array.isArray(stash.keywords) ? stash.keywords : [];
+  unit.keywords = [...original, ...gained.filter(k => k !== '眷属' || !original.includes(k))];
 }
 
 function coreShieldValueFromKeyword(k) {
@@ -1821,7 +1823,7 @@ function coreInsertSummonedUnit(list, child, spec, frontSlots) {
   return at;
 }
 
-// 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）。
+// 「この戦闘中、味方の眷属は+X/+Yを得る」（ファントム／エイドロン）。
 // **陣営ごとに戦闘中ずっと積み上がる。** 以後に召喚された体へ、召喚時に加算する。
 function coreAddSummonBuff(state, side, atk, hp, emit, sourceId) {
   if (!state || !side || (!atk && !hp)) return;
@@ -1834,11 +1836,11 @@ function coreAddSummonBuff(state, side, atk, hp, emit, sourceId) {
       totalAtk: cur.atk, totalHp: cur.hp, sourceId: sourceId || null });
   }
   // **既に召喚されている味方にも、増えた分をこの場で足す。**（利用者指定）
-  // 対象はこの戦闘中に召喚された（または「復活」で再召喚された）生存中の体。これから召喚される体は
+  // 対象は生存中の眷属だけ。復活した体は眷属を失う。これから召喚される体は
   // coreSummonUnit() で合計を受け取るので、二重には乗らない。
   const list = (state.units && state.units[side]) || [];
   const giver = sourceId != null ? list.find(u => u && String(u.id) === String(sourceId)) || null : null;
-  list.filter(u => u && u.hp > 0 && u._summonedInBattle).forEach(u => {
+  list.filter(u => u && u.hp > 0 && coreUnitHasKeyword(u, '眷属')).forEach(u => {
     const addAtk = coreStatBonus(u, Number(atk) || 0, giver);
     const addHp = coreStatBonus(u, Number(hp) || 0, giver);
     if (!addAtk && !addHp) return;
@@ -1910,6 +1912,56 @@ function coreEnemySummonStats(source) {
     atk: Math.max(0, Math.round((Number(source.atk) || 0) * CORE_ENEMY_SUMMON_STAT_RATIO)),
     hp: Math.max(1, Math.round(baseHp * CORE_ENEMY_SUMMON_STAT_RATIO)),
   };
+}
+
+// 旧PvEの直接生成入口も、この分類・眷属効果の実装を共有する。
+function coreMarkBattleSummon(unit) {
+  unit.keywords = Array.isArray(unit.keywords) ? unit.keywords : [];
+  if (!unit.keywords.includes('眷属')) unit.keywords.push('眷属');
+}
+function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context) {
+  const side = child.side;
+  // 通常召喚は従来と同じ時点の召喚元・所有者・累計を使い、指輪などの後続誘発を先取りしない。
+  const summonCount = context ? context.summonCount : (state._summonCount = state._summonCount || {})[side] || 0;
+  const sourceUnit = context ? context.sourceUnit
+    : [...(state.units.p1 || []), ...(state.units.p2 || [])].find(x => x && x.id === sourceId);
+  const sideUnits = context ? context.sideUnits : (state.units[side] || []).filter(x => x && x !== child && x.hp > 0);
+  const addStats = (atk, hp, reason) => {
+    atk = coreStatBonus(child, atk, sourceUnit); hp = coreStatBonus(child, hp, sourceUnit);
+    child.atk = Math.max(0, child.atk + atk); child.maxHp += hp; child.hp += hp;
+    emit({ type: 'stat_change', side, unitId: child.id, atk, hp, reason, sourceId: sourceId || null });
+  };
+  // 眷属として成立した召喚の累計（今回の体を含む）。死亡しても履歴は残り、復活では増えない。
+  // 数値は通常・合体効果の本文から読む。名前は従来の発動単位と演出理由の区別だけに使う。
+  const isKenzoku = coreUnitHasKeyword(child, '眷属');
+  const scalingBuffs = sideUnits.map(unit => ({ unit, match: coreUnitEffectText(unit).match(
+    /味方の眷属(?:は|が召喚された時、その眷属は)\+(\d+)\/?\+(\d+)を得る。(?:戦闘中に|この戦闘で)召喚された味方の眷属の数だけ繰り返す/)
+  })).filter(entry => entry.match);
+  const naga = scalingBuffs.find(entry => coreHasEffect(entry.unit, 'ナーガ'));
+  if (isKenzoku && naga) addStats(Number(naga.match[1]) * (summonCount + 1),
+    Number(naga.match[2]) * (summonCount + 1), 'naga_summon');
+  if (isKenzoku) scalingBuffs.filter(entry => !coreHasEffect(entry.unit, 'ナーガ'))
+    .forEach(entry => addStats(Number(entry.match[1]) * (summonCount + 1),
+      Number(entry.match[2]) * (summonCount + 1), 'summon_scaling_buff'));
+  // 既存の体には coreAddSummonBuff() が増えた分を足し、新しい体には合計を1回だけ足す。
+  const summonBuff = coreSummonBuffOf(state, side);
+  if (isKenzoku && (summonBuff.atk || summonBuff.hp)) addStats(summonBuff.atk, summonBuff.hp, 'summon_buff');
+  const kenzokuRings = coreResolvedRings(state, side);
+  const lightRing = kenzokuRings.map(ring => coreUnitEffectText(ring).match(/味方の眷属は結界(\d+)を得る/)).find(Boolean);
+  if (isKenzoku && lightRing) {
+    const amount = Number(lightRing[1]) || 0;
+    child.shield = (Number(child.shield) || 0) + amount;
+    emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount, reason: 'light_ring' });
+  }
+  // 召喚師の指輪：鏡の指輪も同じ本文を解決する。
+  const summonerBonus = kenzokuRings.reduce((total, ring) => {
+    const match = coreUnitEffectText(ring).match(/味方の眷属は\+(\d+)\/?\+(\d+)を得る/);
+    if (match) { total.atk += Number(match[1]); total.hp += Number(match[2]); }
+    return total;
+  }, { atk: 0, hp: 0 });
+  if (isKenzoku && (summonerBonus.atk || summonerBonus.hp)) addStats(summonerBonus.atk, summonerBonus.hp, 'summoner_ring');
+  // 確定は呼び出し元の配置成功時に行う。拒否された召喚は累計へ入れない。
+  return summonCount + (isKenzoku ? 1 : 0);
 }
 
 function coreSummonUnit(state, side, spec, emit, sourceId) {
@@ -2007,8 +2059,10 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
     _summonedBySuccubus: !!source._summonedBySuccubus,
   }, side, list.length);
   coreCopyUnitEffectState(child, source);
-  // 「この戦闘中、召喚された味方」（ファントム／エイドロン）の対象の印。開戦の召喚も含む。
-  // _panelSummoned は魔導板から出撃した体にも付くので、この判定には使えない。
+  // 効果による召喚は、開戦中・敵味方・発生元（キャラ／強化／指輪／アイテム／マス）を問わず眷属。
+  // 初期配置はこの入口を通らず、復活は coreTryRevive() が眷属を取り除く。
+  coreMarkBattleSummon(child);
+  // 配置・恒久強化の保存先判定に使う従来の印も保持する。眷属の対象判定には使わない。
   child._summonedInBattle = true;
   // コアは同一同期処理中の後続効果から召喚体を参照できる必要がある一方、
   // PvE描画側がイベントを再生するまでは盤面スロットを占有させてはいけない。
@@ -2060,28 +2114,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   if (bondCount && (!state._openingPhase || state._openingItemsApplied)) {
     addStats(child, bondCount * 5, bondCount * 5, 'bond_scroll_summon');
   }
-  // 「戦闘中に召喚される」は開戦時の召喚も含む（街・編成画面ではない、という意味）。
-  // 以前は開戦を除外していたため、ミテーラ等の開戦召喚に
-  // ナーガのバフも光の指輪の結界も付かなかった。
-  if (sideUnits.some(x => coreHasEffect(x, 'ナーガ'))) addStats(child, summonCount + 1, summonCount + 1, 'naga_summon');
-  sideUnits.filter(x => !coreHasEffect(x, 'ナーガ')
-    && /戦闘中に召喚される味方は\+1\/\+1を得る/.test(coreUnitEffectText(x)))
-    .forEach(() => addStats(child, summonCount + 1, summonCount + 1, 'summon_scaling_buff'));
-  // 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）。
-  // **既に召喚されている味方と、これから召喚される味方の両方が対象。**（利用者指定）
-  // 既にいる体は発動時に coreAddSummonBuff() が増えた分を足す。ここ（これから召喚される体）は
-  // 積み上がった合計を1回で足す。両方で足しても、同じ体へ二重には乗らない。
-  const summonBuff = coreSummonBuffOf(state, side);
-  if (summonBuff.atk || summonBuff.hp) addStats(child, summonBuff.atk, summonBuff.hp, 'summon_buff');
-  if (coreRingCount(state, side, '光の指輪')) {
-    child.shield = (Number(child.shield) || 0) + 1;
-    emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount: 1, reason: 'light_ring' });
-  }
-  // 召喚師の指輪：常時：戦闘中に召喚された味方は+5/+5を得る。
-  const summonerRings = coreRingCount(state, side, '召喚師の指輪');
-  if (summonerRings) addStats(child, summonerRings * 5, summonerRings * 5, 'summoner_ring');
+  const nextSummonCount = coreApplyKenzokuSummonEffects(state, child, emit, sourceId, { summonCount, sourceUnit, sideUnits });
   // ── 常時：このキャラクターが召喚したキャラクターは〜（進軍／栄光／報復の歌）──
-  // **召喚元だけを見る。** 陣営全体に効く「召喚された味方は〜」（ファントム）とは別物。
+  // **召喚元だけを見る。** 陣営全体に効く「味方の眷属は〜」（ファントム）とは別物。
   // 付ける中身は本文から読む（+X/+Y／結界N／「死亡：〜」の付与）。
   if (sourceUnit) {
     const songText = coreUnitEffectText(sourceUnit);
@@ -2113,7 +2148,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   coreInsertSummonedUnit(list, child, spec, frontSlots);
   // 召喚でヴォイド・ウォーカー自身が現れることもあるので、盤面全体を作り直す。
   coreRefreshVoidWalkerBonus(state);
-  state._summonCount[side] = summonCount + 1;
+  state._summonCount[side] = nextSummonCount;
   coreApplyWargThreshold(state, side, emit);
   emit({ type: 'summon', side, sourceId, placement: spec && spec.placement || '',
     placementTargetId: spec && spec.placementTargetId || null, unit: coreUnitSnapshot(child) });
@@ -2196,6 +2231,8 @@ function coreTransformUnit(state, target, name, emit, overrides) {
     target.imageNo = target.artCode;
   }
   if (Array.isArray(def.keywords)) target.keywords = def.keywords.map(String);
+  // 変身は新しい召喚ではないが、元の体が眷属だったという分類は変わらない。
+  if (old.keywords.includes('眷属') && !target.keywords.includes('眷属')) target.keywords.push('眷属');
   if (def.desc != null) target.desc = String(def.desc || '');
   target.effectData = (def.effectData && typeof def.effectData === 'object') ? { ...def.effectData } : {};
   // 変身先のデータ駆動効果も同時に置換する。旧形態の効果を残さない。
@@ -3415,8 +3452,8 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) applyHit(unit, target, actualDamage);
   }
-  // 負傷：この戦闘中、召喚された味方はATK+Xを得る（エイドロン）
-  const injurySummonAtk = coreTriggerMatch(injuryTexts, /^この戦闘中、召喚された味方はATK\+(\d+)を得る/);
+  // 負傷：この戦闘中、味方の眷属はATK+Xを得る（エイドロン）
+  const injurySummonAtk = coreTriggerMatch(injuryTexts, /^この戦闘中、味方の眷属はATK\+(\d+)を得る/);
   if (injurySummonAtk) coreAddSummonBuff(state, unit.side, Number(injurySummonAtk[1]) || 0, 0, emit, unit.id);
   // 負傷：ランダムな味方に「死亡：「X」を召喚する。」を付与する（ボーンチャリオット）
   const injuryGrantDeathSummon = coreTriggerMatch(injuryTexts, /^ランダムな味方に「死亡：「(.+?)」を召喚する。」を付与する/);
@@ -3909,8 +3946,8 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     }
   }
   // 旧本文の時だけ。**`deathTexts` はこの下で宣言されるので触らない**（TDZ）。
-  // 新しい本文（死亡：召喚された味方は+X/+Y）へ差し替わったら、この旧効果は動かさない。
-  const _phantomOldText = !/召喚された味方は\+/.test(coreUnitTriggerText(unit, '死亡'));
+  // 新しい本文（死亡：味方の眷属は+X/+Y）へ差し替わったら、この旧効果は動かさない。
+  const _phantomOldText = !/味方の眷属は\+/.test(coreUnitTriggerText(unit, '死亡'));
   for (let i = 0; i < repeats && _phantomOldText && coreHasEffect(unit, 'ファントム'); i++) {
     for (let j = 0; j < 3; j++) coreSummonUnit(state, unit.side, { name: '青シャドウ', atk: 1, hp: 1 }, emit, unit.id);
   }
@@ -3921,8 +3958,8 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   // **効果は文ごとに見る。**（同じトリガの効果は複数あり得る＝本体＋強化カード）
   const deathTexts = coreTriggerTextParts(unit, '死亡');
-  // 死亡：この戦闘中、召喚された味方は+X/+Yを得る（ファントム）
-  const deathSummonBuff = coreTriggerMatch(deathTexts, /^この戦闘中、召喚された味方は\+(\d+)\/?\+(\d+)を得る/);
+  // 死亡：この戦闘中、味方の眷属は+X/+Yを得る（ファントム）
+  const deathSummonBuff = coreTriggerMatch(deathTexts, /^この戦闘中、味方の眷属は\+(\d+)\/?\+(\d+)を得る/);
   if (deathSummonBuff) {
     for (let i = 0; i < repeats; i++) {
       coreAddSummonBuff(state, unit.side, Number(deathSummonBuff[1]) || 0, Number(deathSummonBuff[2]) || 0, emit, unit.id);
@@ -4127,9 +4164,9 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
   const deadSide = dead.side === 'p2' ? 'p2' : 'p1';
   const observers = (state.units[deadSide] || []).filter(u => u && u.hp > 0 && !coreIsSealed(u));
   // 旧本文（味方が3体死亡するたび1マナ）の時だけ。本文が変われば新しい効果へ移る。
-  // 新しい本文（負傷：召喚された味方はATK+X）へ差し替わったら、この旧効果は動かさない。
+  // 新しい本文（負傷：味方の眷属はATK+X）へ差し替わったら、この旧効果は動かさない。
   observers.filter(u => coreHasEffect(u, 'エイドロン')
-    && !/召喚された味方はATK\+/.test(coreUnitEffectText(u))).forEach(u => {
+    && !/(?:召喚された味方|味方の眷属)はATK\+/.test(coreUnitEffectText(u))).forEach(u => {
     u._coreObservedAllyDeaths = (Number(u._coreObservedAllyDeaths) || 0) + 1;
     if (u._coreObservedAllyDeaths >= 3) {
       u._coreObservedAllyDeaths = 0;
@@ -4327,22 +4364,18 @@ function coreTryRevive(unit, state, emit) {
     unit.hp = 1;
   }
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
-  // キーワード「復活」は再召喚なので、以後「この戦闘中、召喚された味方」の対象になる。
+  // 配置・恒久強化の保存先判定に使う旧来の印は維持する。眷属の判定とは独立。
   if (!ring && keyword === '復活') unit._summonedInBattle = true;
-  // **復活＝再召喚。** 「この戦闘中、召喚された味方は+X/+Yを得る」（ファントム／エイドロン）は
-  // 効果が発動した後に**召喚された**体へ乗るので、復活した体にも乗せる。
-  // revive イベントより先に乗せて、イベントに載る値も加算後にする
-  // （受け口はイベントの値で表示を進めるため、後から足すと表示だけずれる）。
-  const reviveSummonBuff = coreSummonBuffOf(state, unit.side);
-  if (reviveSummonBuff.atk || reviveSummonBuff.hp) {
-    const atk = coreStatBonus(unit, reviveSummonBuff.atk, unit);
-    const hp = coreStatBonus(unit, reviveSummonBuff.hp, unit);
-    unit.atk = Math.max(0, unit.atk + atk);
-    unit.maxHp += hp;
-    unit.hp += hp;
-    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp, reason: 'summon_buff', sourceId: unit.id });
+  // 復活（指輪も含む）は眷属の付与・召喚時バフの対象外。元が眷属でも復活後は分類を外す。
+  // 根性は死亡せずに耐える効果なので、元の眷属を保持する。
+  if (ring || keyword === '復活') {
+    unit.keywords = unit.keywords.filter(x => x !== '眷属');
+    if (unit._silenceStash && Array.isArray(unit._silenceStash.keywords)) {
+      unit._silenceStash.keywords = unit._silenceStash.keywords.filter(x => x !== '眷属');
+    }
   }
-  emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk, reason: ring ? 'revival_ring' : keyword });
+  emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk,
+    keywords: coreUnitSnapshot(unit).keywords, reason: ring ? 'revival_ring' : keyword });
   // **復活（再召喚）・復活の指輪では、キーワードの結界を付け直す。** 開戦時にしか付けていなかったため、
   // 結界持ちが復活しても結界が無かった（利用者報告）。根性は死亡ではないので、残っている結界をそのまま使う。
   if (ring || keyword === '復活') {
@@ -5741,6 +5774,8 @@ if (typeof window !== 'undefined') {
   window.coreFormationPassiveSpec = coreFormationPassiveSpec;
   window.coreApplyFormationPassives = coreApplyFormationPassives;
   window.coreSummonUnit = coreSummonUnit;
+  window.coreMarkBattleSummon = coreMarkBattleSummon;
+  window.coreApplyKenzokuSummonEffects = coreApplyKenzokuSummonEffects;
   window.coreFlushPendingLichSummons = coreFlushPendingLichSummons;
   window.coreTransformUnit = coreTransformUnit;
   window.coreRestoreDeferredState = coreRestoreDeferredState;
@@ -5784,7 +5819,8 @@ if (typeof module !== 'undefined' && module.exports) {
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
-    coreSummonUnit, coreStealUnit, coreFleesInsteadOfAttack, coreSweepAtkZeroFlee, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
+    coreSummonUnit, coreMarkBattleSummon, coreApplyKenzokuSummonEffects,
+    coreStealUnit, coreFleesInsteadOfAttack, coreSweepAtkZeroFlee, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
     coreBeginSummonBatch, coreEndSummonBatch, coreApplyWargThreshold,
     corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
     coreRunOpening,

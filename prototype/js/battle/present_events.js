@@ -793,6 +793,11 @@ function presentAttackContactVfxEvent(ev, api) {
 async function presentReviveEvent(ev, api) {
   if (!ev || !api || typeof api.findUnit !== 'function') return false;
   const unit0 = api.findUnit(ev.side, ev.unitId);
+  // 表示用の体にはコアのキーワード結果を反映する。コアと体を共有するPvEは書き戻さない。
+  // 眷属の除去を再生側で判断せず、後続の変身・付与まで計算済みの最終状態を巻き戻さない。
+  if (unit0 && Array.isArray(ev.keywords) && typeof api.applyKeywords === 'function') {
+    api.applyKeywords(unit0, ev.keywords);
+  }
   // **画面に出すATK/HPを、蘇生後の値まで進める。**（復活・根性・指輪すべて）
   // ダメージで0まで進めた表示をそのままにすると、根性で耐えたのに
   // 戦闘終了時のHPが0のまま残る。
@@ -819,7 +824,7 @@ async function presentReviveEvent(ev, api) {
 // **発動回数ぶん見せる。間引かない。** 「Xマナ毎」が到達回数ぶん発動したとき、
 // 2回目以降を捨てていたため、5回発動しても演出・SEは1回きりで、
 // ATK/HPも一息に+5/+5されたように見えた（活性化×5で発覚）。
-// マナ効果VFX（K023）は**ひと続きにつき、その効果の最初の1回だけ**。
+// マナ効果VFX（K024）は**ひと続きにつき、その効果の最初の1回だけ**。
 // 2回目以降はSEと能力変化の刻みだけを高速で並べる。
 // 効果そのもののVFX（`ev.effectNo`＝活性化ならE045）は、
 // **マナ効果VFXの逆再生開始から、その処理が終わるまで**出し続ける。

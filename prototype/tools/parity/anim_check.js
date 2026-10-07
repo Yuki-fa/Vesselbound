@@ -164,21 +164,21 @@ const SETUP = `
     // シートのキーワードNo.が振り直されると、登録が外れて通常の被弾VFX（hit.webp）へ
     // 落ちたり、別のキーワードの素材を拾ったりする。
     check('マナ効果VFXが専用素材である',
-      /K023/.test(manaVisible.素材),
+      /K024/.test(manaVisible.素材),
       `素材=${manaVisible.素材}（hit.webpなら通常の被弾VFXに化けている）`);
     const kwVfx = await b.eval(`
       return {マナ効果:getKeywordEffectVfxPath('マナ効果'), 毒:getKeywordEffectVfxPath('毒'),
         貫通:getKeywordEffectVfxPath('貫通')};
     `);
     check('キーワード専用VFXの割り当てが正しい',
-      /K023/.test(kwVfx.マナ効果) && /K017/.test(kwVfx.毒) && !kwVfx.貫通,
+      /K024/.test(kwVfx.マナ効果) && /K017/.test(kwVfx.毒) && !kwVfx.貫通,
       `マナ効果=${kwVfx.マナ効果||'(なし)'} 毒=${kwVfx.毒||'(なし)'} 貫通=${kwVfx.貫通||'(なし)'}`);
 
     check('マナ効果VFXがキャラクターごとに1つ', mana.同時に出たVFXの最大 <= 2,
       `同時最大=${mana.同時に出たVFXの最大}件（対象2キャラなので2以下が正しい）`);
 
     // ── 2d. 効果そのもののVFX（活性化＝E045）が出せること ──
-    // マナ効果VFX（K023）の逆再生開始から、その効果自身のVFXへ引き継ぐ。
+    // マナ効果VFX（K024）の逆再生開始から、その効果自身のVFXへ引き継ぐ。
     // 命中VFXの経路（characterEffect＝CXXXのみ）では強化カードの素材を引けない。
     const sustain = await b.eval(SETUP + `
       const handle=typeof playEffectVfxOnUnit==='function'
