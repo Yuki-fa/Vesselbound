@@ -2,6 +2,7 @@
 
 VFXラボで採用したSEを、切り出し・音量調整した版のまま assets/sfx/<番号>.wav へコピーしたもの（元の素材ファイルは動かしていない）。
 K009（全体攻撃）・S001（戦闘中の召喚）・K020（復活の再召喚）は利用者の許可（2026-10-06）で今の音を上書きした。
+S001は2026-10-08に Cast Small 02-01 へ差し替え、利用者指定で2.5倍（ファイルを1.75倍＋再生音量.70→1.0）にした。
 K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結界／復活を得た時、本来のVFXの後に自動で続けて出す演出の音（例：ヴリコラカス→復活獲得、エルフの負傷→結界獲得）。
 `peak` はその音の一番大きい所（秒）。ゲームへ組み込む時は VFX の命中の瞬間に合わせて鳴らす。
 
@@ -43,7 +44,7 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C014 | titan | The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - EARTHQUAKE Rumble LFE 01-01.wav | 4.4秒 | 0.9 |
 | C018 | cyclops | Xylon Sound Library/Designed Sounds/SFX/Impacts/Riser + Impact.wav | 4.0秒 | 0.9 |
 | C025 | wraith | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Ghostly 02.wav | 4.0秒 | 0.34 |
-| S001 | battle-summon | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Summon-01.wav | 2.16秒 | 0.9 |
+| S001 | battle-summon | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-01.wav | 1.8秒 | 0.46 |
 | K020 | revive-summon | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Summon Meditative-01.wav | 2.3秒 | 0.9 |
 | K018_gain | shield-gain | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-01.wav | 1.2秒 | 0.22 |
 | K020_gain | revive-gain | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Chime 01.wav | 0.999秒 | 0.24 |

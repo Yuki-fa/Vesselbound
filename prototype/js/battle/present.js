@@ -1702,7 +1702,7 @@ const PRESENT_LAB_FX = {
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], K016:['weaken',.2,'target'],
   K002:['atk-down',.44,'target'], K009:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
-  S001:['battle-summon',.9,'target'], K020:['revive-summon',.9,'target'],
+  S001:['battle-summon',.46,'target'], K020:['revive-summon',.9,'target'],
   K018_gain:['shield-gain',.22,'target'], K020_gain:['revive-gain',.24,'target'],
   shield_break:['shield-break',null,'target'],
 };
