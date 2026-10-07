@@ -6,6 +6,13 @@
 // ═══════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════
+function _hideDebugButtons(hide=true){
+  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
+    const debugEl=document.getElementById(debugId);
+    if(debugEl&&hide) debugEl.style.display='none';
+  });
+}
+
 function showScreen(id){
   // **画面が変わったらアイテム関連のUIを畳む。**
   // ポータルの巻物のように「使うとその場で画面が切り替わる」アイテムがあり、
@@ -28,17 +35,11 @@ function showScreen(id){
   if(id!=='map'&&typeof _setDebugMapButtonVisible==='function') _setDebugMapButtonVisible(false);
   if(id!=='reward'){
     document.body.classList.remove('debug-mode');
-    ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
-      const debugEl=document.getElementById(debugId);
-      if(debugEl) debugEl.style.display='none';
-    });
+    _hideDebugButtons();
   }
   const battleCutin=document.getElementById('battle-start-intro');
   const hideDebugCutin=!!(battleCutin||document.body.classList.contains('battle-victory-pending'));
-  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
-    const debugEl=document.getElementById(debugId);
-    if(debugEl&&hideDebugCutin) debugEl.style.display='none';
-  });
+  _hideDebugButtons(hideDebugCutin);
   // 出発時の一時非表示は、次に村を開いた時点で必ず解除する。
   if(id==='village') document.body.classList.remove('village-departing');
   // startGame() は導入演出用のクラス（startup-title-visible 等）をタイトルから外す。
@@ -1331,7 +1332,6 @@ const FINAL_BOSS_INTRO_PRE_WAIT_MS=2000;   // エリート撃破からmovie3を�
 const FINAL_BOSS_INTRO_BLACK_WAIT_MS=2000; // movie3のフェードアウト完了後に待つ時間
 const FINAL_BOSS_INTRO_REVEAL_MS=1200;     // last_battle.webmをフェードインさせる時間
 const FINAL_CLEAR_PRE_WAIT_MS=2000; // ラスボス撃破からmovie4を始めるまでの待ち
-// ラスボス撃破後、クリア画面へ渡す前の暗転だけを行う（現在は未使用。手動テスト用に残す）。
 
 async function startFinalBossIntroSequence(){
   if(G._finalBossIntroRunning) return;
@@ -1663,12 +1663,6 @@ function debugGameOver(){
   G.allies=[];
   if(typeof _startWaveBattle==='function') _startWaveBattle(1);
 }
-// デバッグ：進行不能エラーの画面をそのまま出す（本番と同じ経路を通す）。
-function debugShowError(){
-  if(typeof G==='undefined'||!G||!G._debugMode) return;
-  showFatalError('MN-X0',new Error('デバッグ：エラー画面の確認'));
-}
-
 function returnFromDebugGameOver(){
   if(G&&G._libraryTestBattleMode&&typeof _exitTestBattle==='function'){
     closeGameOverOverlay();
@@ -1744,10 +1738,7 @@ function gameOver(options){
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');
-  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
-    const debugEl=document.getElementById(debugId);
-    if(debugEl) debugEl.style.display='none';
-  });
+  _hideDebugButtons();
   let beginVideoFade=null;
   // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
   if(!isLibraryTestBattle&&!isDebugGameOver&&!isClear){
@@ -2066,10 +2057,7 @@ function continueAfterBattleVictory(silent){
 function showVictoryOverlay(onShown,shownDuration){
   if(G._battleDefeatHandled&&!G._waveWithdraw) return;
   if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true,keepActionBanner:true});
-  ['btn-debug-kill','btn-debug-gameover','btn-debug-quest','btn-test-battle','btn-debug-error','btn-debug-map','btn-debug-life-plus','btn-debug-elite-boss'].forEach(debugId=>{
-    const debugEl=document.getElementById(debugId);
-    if(debugEl) debugEl.style.display='none';
-  });
+  _hideDebugButtons();
   // 注：onBattleEnd()が_panelSummonedユニット（＝現行仕様の全味方）をG.alliesから除去済みのため、
   // ここでの味方生存チェックは常にtrueとなり誤って早期returnしてしまう。勝利可否は呼び出し元で判定済み。
   // 結果表示と同時に浮遊ログのフェードを加速し、画面遷移までに確実に消しきる

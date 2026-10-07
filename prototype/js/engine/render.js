@@ -1081,6 +1081,12 @@ function hideAttackLine(){
   if(svg) svg.innerHTML='';
 }
 
+// DOMRectを保持する時は、必要な4値だけを同じ順番で写す。
+// 矩形の取得時点と有効性の判定は呼び出し側で決める。
+function _copyBattleVisualRect(rect){
+  return {left:rect.left,top:rect.top,width:rect.width,height:rect.height};
+}
+
 function getCurrentUnitSlot(side,idxOrUnit){
   const field=document.getElementById(side==='enemy'?'f-enemy':'f-ally');
   if(!field) return null;
@@ -1379,8 +1385,6 @@ const DEATH_BURN_EDGE='6%';    // 焼け縁のぼかし幅
 const DEATH_BURN_EMBER='9%';   // 火種の帯の太さ
 const DEATH_BURN_ROUGH=34;     // 輪郭の歪み量（0で正円のまま）
 const DEATH_BURN_FREQ=0.013;   // 歪みの細かさ
-const DEATH_BURN_CR_START=-10.9; // 開始時に穴を完全に塞ぐための負のマージン
-const DEATH_BURN_CR_END=115;
 // 書き換えのたびにSVGフィルターの再描画が走る。毎フレームだと約2倍になり処理落ちするため、33msごとにする。
 const DEATH_BURN_FILTER_UPDATE_INTERVAL_MS=33;
 
@@ -3039,11 +3043,6 @@ function playSealReleaseVfx(unit, side){
   },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
 }
 
-// キャラクター専用エフェクトのうち、対象1体に重ねるのではなく、攻撃キャラクターを起点に
-// 対象範囲（最も左〜最も右）を薙ぎ払うように再生する特別な動画を持つキャラクター。
-// 現状はC043（アラッサス）のみの例外対応。
-const _SWEEP_STYLE_EFFECT_CODES=new Set(['C043']);
-
 // 薙ぎ払いWebP素材のうち、周囲に透明マージンを持つもの（フレーム全体を使っていない）だけ、
 // 実際に絵が描かれている領域をフレーム全体に対する比率で指定する。値は全フレームの非透明
 // ピクセル外接矩形の和集合から算出したもの。マージンを持たない素材は登録不要（未登録の場合は
@@ -3559,7 +3558,7 @@ function _settledRectOf(el){
     else el.style.removeProperty('transition');
   }
   if(!r||!r.width||!r.height) return null;
-  return {left:r.left,top:r.top,width:r.width,height:r.height};
+  return _copyBattleVisualRect(r);
 }
 // **同期で完結させること。** ここで await すると、その隙の再描画で
 // カードが移動先へ現れてしまう（＝ワープ）。
@@ -3594,7 +3593,7 @@ function beginUnitStealPresentation(unit, fromSide){
     .sort((a,b)=>a.getBoundingClientRect().left-b.getBoundingClientRect().left):[];
   const position=Math.max(0,laneSlots.indexOf(el));
   const fromList=fromSide==='p2'?(G.enemies||[]):(G.allies||[]);
-  unit._stealPresent={clone,rect:{left:r.left,top:r.top,width:r.width,height:r.height},
+  unit._stealPresent={clone,rect:_copyBattleVisualRect(r),
     // PvEはコアと配列を共有するため、この時点で元配列から既に抜けている。
     // オンラインはイベント再生時に抜くので、まだ実カード自身が元の枠を占めている。
     // 後者へ描画用の空席まで足すと二重に数えて敵盤面を動かしてしまう。
@@ -3643,7 +3642,7 @@ async function playUnitStealMotion(unit, fromSide, toSide, applyBoard, durationM
   if(castPath&&typeof playHitVfxAtRect==='function'){
     // 完了は待たない（1秒の間に重ねて見せる）。
     // 大きさは present.js の PRESENT_VFX_SCALE（C090＝毒牙と同じ .5）。
-    void playHitVfxAtRect({left:fr.left,top:fr.top,width:fr.width,height:fr.height},0,
+    void playHitVfxAtRect(_copyBattleVisualRect(fr),0,
       {customVfxPath:castPath,waitForFinish:false,gateMs:0,rotation:0,
        vfxScale:(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(STEAL_CAST_CODE):1)});
   }
@@ -3789,8 +3788,8 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_rects',{
     attackerId:attacker.id,targetId:target.id,
     openingLayoutSettledAt:Number(G&&G._battleOpeningLayoutSettledAt)||null,
-    sourceRect:{left:fr.left,top:fr.top,width:fr.width,height:fr.height},
-    targetRect:{left:tr.left,top:tr.top,width:tr.width,height:tr.height},
+    sourceRect:_copyBattleVisualRect(fr),
+    targetRect:_copyBattleVisualRect(tr),
     dx,dy,mx,my,dist,ratio,
     motionDepth:Number(G&&G._battleMotionDepth)||0
   });
@@ -4620,18 +4619,14 @@ function captureBattleCompactPreviousRects(){
     if(!field) return;
     field.querySelectorAll('.slot[data-unit-id]').forEach(slot=>{
       const rect=slot.getBoundingClientRect();
-      if(rect&&rect.width>0&&rect.height>0) rects.set(String(slot.dataset.unitId),{
-        left:rect.left,top:rect.top,width:rect.width,height:rect.height
-      });
+      if(rect&&rect.width>0&&rect.height>0) rects.set(String(slot.dataset.unitId),_copyBattleVisualRect(rect));
     });
   });
   document.querySelectorAll('.attack-motion-clone[data-unit-id]').forEach(clone=>{
     const unitId=String(clone.dataset.unitId||'');
     if(!unitId||rects.has(unitId)) return;
     const rect=clone.getBoundingClientRect();
-    if(rect&&rect.width>0&&rect.height>0) rects.set(unitId,{
-      left:rect.left,top:rect.top,width:rect.width,height:rect.height
-    });
+    if(rect&&rect.width>0&&rect.height>0) rects.set(unitId,_copyBattleVisualRect(rect));
   });
   G._battleCompactPreviousRects=rects;
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('battle_compact_previous_rects_held',{count:rects.size,ids:[...rects.keys()]});
@@ -4671,7 +4666,7 @@ function renderField(id,units,isEnemy,_lane){
       const visualUnit=(units||[]).find(x=>x&&String(x.id)===String(oldSlot.dataset.unitId));
       if(visualUnit&&visualUnit.hp<=0){
         const r=oldSlot.getBoundingClientRect();
-        if(r&&r.width>0&&r.height>0) visualUnit._lastVisualRect={left:r.left,top:r.top,width:r.width,height:r.height};
+        if(r&&r.width>0&&r.height>0) visualUnit._lastVisualRect=_copyBattleVisualRect(r);
       }
       if(dyingIds.has(oldSlot.dataset.unitId)&&oldSlot.childElementCount>0){
         const clone=oldSlot.cloneNode(true);
@@ -4713,9 +4708,7 @@ function renderField(id,units,isEnemy,_lane){
     const heldGaps=G._battleCompactHeldGaps||(G._battleCompactHeldGaps={allies:false,enemies:false});
     heldGaps[heldGapSide]=true;
     if(!(G._battleCompactPreviousRects instanceof Map)&&previousRects.size){
-      G._battleCompactPreviousRects=new Map([...previousRects].map(([unitId,rect])=>[unitId,{
-        left:rect.left,top:rect.top,width:rect.width,height:rect.height
-      }]));
+      G._battleCompactPreviousRects=new Map([...previousRects].map(([unitId,rect])=>[unitId,_copyBattleVisualRect(rect)]));
       if(typeof _recordBattleTrace==='function') _recordBattleTrace('battle_compact_previous_rects_held',{
         count:previousRects.size,ids:[...previousRects.keys()],reason:'death_gap'
       });

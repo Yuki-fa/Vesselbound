@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════
 
 let _rewCards=[];
-let _placingChar=null; // フィールド配置待ちのキャラカード
 let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを戻せるよう識別する
 const REWARD_GRID_CAPACITY=5; // 報酬置き場：最大5枚
@@ -61,6 +60,14 @@ function _syncBoardCardVisibilityToggle(){
   align();
   requestAnimationFrame(align);
 }
+function _clearBoardDragVisuals(){
+  _dragSrc=null;
+  window._allySlotDragSrc=null;
+  if(typeof _removeDragGhost==='function') _removeDragGhost();
+  if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
+  document.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
+}
+
 function toggleBoardCardVisibility(){
   // 右クリック（contextmenuハンドラ）とまったく同じ動作にする。
   // 別クラスで独自に隠すと、右クリックで見える状態と食い違ってしまう。
@@ -72,13 +79,7 @@ function toggleBoardCardVisibility(){
   // 詳細度の取り合いに左右されないよう、動作そのものをここで止める。
   if(G._pendingItemUse) return;
   const enabled=document.body.classList.toggle('right-card-peek');
-  if(enabled){
-    _dragSrc=null;
-    window._allySlotDragSrc=null;
-    if(typeof _removeDragGhost==='function') _removeDragGhost();
-    if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-    document.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
-  }
+  if(enabled) _clearBoardDragVisuals();
   _syncBoardCardVisibilityToggle();
 }
 function _findEmptyRewardSlot(){
@@ -3600,13 +3601,7 @@ if(!window._boardSelectionClearBound){
     if(G.phase==='reward'||G.phase==='gameover'||G.phase==='clear'){
       e.preventDefault();
       const enabled=document.body.classList.toggle('right-card-peek');
-      if(enabled){
-        _dragSrc=null;
-        window._allySlotDragSrc=null;
-        if(typeof _removeDragGhost==='function') _removeDragGhost();
-        if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-        document.querySelectorAll('.dragging,.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
-      }
+      if(enabled) _clearBoardDragVisuals();
       // 右クリックで切り替えたときもボタンのラベルを合わせる（同じ機能なので表示がずれてはいけない）
       if(typeof _syncBoardCardVisibilityToggle==='function') _syncBoardCardVisibilityToggle();
     }

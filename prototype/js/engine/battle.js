@@ -3079,7 +3079,7 @@ function requestBattleCompact(options){
       const dead=units.find(u=>u&&String(u.id)===String(oldSlot.dataset.unitId)&&u.hp<=0);
       if(!dead) continue;
       const r=oldSlot.getBoundingClientRect();
-      if(r&&r.width>0&&r.height>0) dead._lastVisualRect={left:r.left,top:r.top,width:r.width,height:r.height};
+      if(r&&r.width>0&&r.height>0) dead._lastVisualRect=_copyBattleVisualRect(r);
     }
   });
   compactBattleUnits();
@@ -3692,12 +3692,6 @@ function _battleUnitSnapshot(unit, hpOverride){
   };
 }
 
-function _damageSideOf(unit){
-  if((G.allies||[]).includes(unit)) return 'ally';
-  if((G.enemies||[]).includes(unit)) return 'enemy';
-  return '';
-}
-
 // 攻撃モーション中に画面で動いている複製カードの位置。
 // **効果の演出（VFX）はここを発生源にする。** 攻撃で少し動いた地点から
 // 効果が出るように見せるため（攻撃そのもののVFXと数値は盤面の定位置のまま）。
@@ -3708,7 +3702,7 @@ function _motionCloneRect(unit){
     .find(x=>String(x.dataset.unitId||'')===id);
   const rect=el&&typeof el.getBoundingClientRect==='function'?el.getBoundingClientRect():null;
   return rect&&rect.width>0&&rect.height>0
-    ?{left:rect.left,top:rect.top,width:rect.width,height:rect.height}:null;
+    ?_copyBattleVisualRect(rect):null;
 }
 
 // 効果の演出を出す位置。**動いている最中はその位置を使う。**
@@ -3726,13 +3720,13 @@ function _captureUnitDamageRect(unit, side){
   const rect=visual&&typeof visual.getBoundingClientRect==='function'
     ?visual.getBoundingClientRect():unit._lastVisualRect;
   if(!rect||!rect.width||!rect.height) return null;
-  return {left:rect.left,top:rect.top,width:rect.width,height:rect.height};
+  return _copyBattleVisualRect(rect);
 }
 
 // 通常攻撃の大ダメージ用画面揺れ。後から設定でON/OFF・強度変更できるよう、
 // 攻撃処理やダメージ計算から分離しておく。
 const BATTLE_SCREEN_SHAKE_CONFIG={enabled:true,strength:1};
-const BATTLE_DESIGN_W=3840, BATTLE_DESIGN_H=2160;
+const BATTLE_DESIGN_H=2160;
 const BATTLE_SCREEN_SHAKE_TIERS=[
   {min:50,max:74,amplitude:7,duration:150,hitStop:0},
   {min:75,max:99,amplitude:11,duration:180,hitStop:0},
@@ -3966,7 +3960,7 @@ async function applyDamageBatch(entries, options){
   const prepared=(entries||[])
     .filter(e=>e&&e.unit&&e.unit.hp>0&&!_isSealed(e.unit)&&e.amount>0)
     .map(e=>{
-      const side=e.side||_damageSideOf(e.unit);
+      const side=e.side||_battleSideOfUnit(e.unit);
       return {...e,side,rect:e.rect||_captureUnitDamageRect(e.unit,side)};
     })
     .filter(e=>e.side);
@@ -4044,7 +4038,7 @@ async function applyDamageBatch(entries, options){
   // コアのマータ分散で肩代わりした対象にも、従来どおりC002の専用VFXを出す。
   prepared.forEach(original=>{
     if(!(Number(original.amount)>=2)||!original.unit) return;
-    const side=original.side||_damageSideOf(original.unit);
+    const side=original.side||_battleSideOfUnit(original.unit);
     const mata=(side==='ally'?G.allies:G.enemies||[]).find(u=>u&&u!==original.unit&&u.hp>0&&
       (typeof coreHasEffect==='function'?coreHasEffect(u,'マータ'):_unitHasEffectName(u,'マータ')));
     if(!mata) return;
@@ -5498,79 +5492,6 @@ async function _afterPanelSummon(unit,isEnemySide,isInitialDeploy,fromCore){
   // まとめて一度だけ_resolveSeals()を呼ぶ。
   if(!isInitialDeploy) await _resolveSeals();
 }
-// 戦闘に持ち込まれたアイテム。以前は静寂の巻物だけを返していたため、
-// _applyOpeningItemEffects() の隕石の巻物などの分岐が一度も実行されなかった。
-// activeBattleItems へ入る時点（startBattle）で対象キーは既に絞られているので、ここでは絞らない。
-function _battleItemCards(){
-  return (G.activeBattleItems||[]).filter(c=>c&&(c.type==='consumable'||c.kind==='item'||c.category==='アイテム'));
-}
-function _livingFrontAllies(){
-  return (G.allies||[]).filter(u=>_canReceiveBattleEffect(u)&&(u.lane||'front')==='front');
-}
-async function _releaseSealWithoutSacrifice(unit,isEnemySide){
-  if(!unit||unit.hp<=0||!_isSealed(unit)) return false;
-  unit._sealReady=true;
-  renderAll();
-  await _awaitFrame();
-  if(typeof playSealReleaseVfx==='function') await playSealReleaseVfx(unit,isEnemySide?'enemy':'ally');
-  unit._sealed=false;
-  delete unit._sealValue;
-  delete unit._sealReady;
-  // 旧PvEの解放後処理。解放自体では眷属を付与しない。
-  await _afterPanelSummon(unit,isEnemySide);
-  const repeats=_releaseRepeatCount(unit,isEnemySide);
-  for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,[]);
-  requestBattleCompact();
-  return true;
-}
-async function _applyOpeningItemEffects(){
-  const items=_battleItemCards();
-  if(!items.length) return;
-  for(const card of items){
-    const key=card.itemEffectKey||'';
-    if(key==='bond_scroll') continue;
-    if(key==='silence_scroll'){
-      (G.enemies||[]).forEach(e=>{ if(e&&e.hp>0) e._scrollSilencedUntilAttack=true; });
-    }else if(key==='shield_scroll'){
-      _livingFrontAllies().forEach(u=>{ u.shield=(u.shield||0)+1; });
-    }else if(key==='underworld_scroll'){
-      const targets=_livingFrontAllies();
-      for(const u of targets) await _applyDeathKeywordEffects(u,false);
-    }else if(key==='giant_scroll'){
-      const target=(G.allies||[]).filter(_canReceiveBattleEffect).sort((a,b)=>(b.maxHp||b.hp||0)-(a.maxHp||a.hp||0))[0];
-      if(target){
-        target.atk=Math.max(0,Math.round((target.atk||0)*2));
-        target.baseAtk=Math.max(0,Math.round((target.baseAtk||0)*2));
-        target.hp=Math.max(1,Math.round((target.hp||1)*2));
-        target.maxHp=Math.max(target.hp,Math.round((target.maxHp||target.hp||1)*2));
-      }
-    }else if(key==='meteor_scroll'){
-      const entries=(G.enemies||[]).filter(e=>e&&e.hp>0).map(e=>({unit:e,side:'enemy',amount:Math.max(1,Math.ceil((Number(e.hp)||0)/2)),source:null}));
-      if(entries.length){
-        playDamageEffectSfx('single');
-        await applyDamageBatch(entries,{effect:true});
-      }
-    }else if(key==='sacrifice_doll'){
-      const targets=(G.allies||[]).filter(u=>u&&u.hp>0&&_isSealed(u));
-      const target=targets.length?targets[Math.floor(Math.random()*targets.length)]:null;
-      if(target) await _releaseSealWithoutSacrifice(target,false);
-    }else if(key==='weakening_scroll'){
-      (G.enemies||[]).forEach(e=>{ if(e&&e.hp>0&&!_isAilmentImmune(e)) e.weaken=(e.weaken||0)+2; });
-    }else if(key==='illusion_scroll'){
-      for(let i=0;i<3;i++) await _spawnAdhocAllyUnit('青ワイルドハント',20,20,false);
-    }else if(key==='mana_scroll'){
-      _gainMana(3,card.name);
-    }else if(key==='inspire_flag'){
-      _livingFrontAllies().forEach(u=>_grantUnitKeyword(u,'根性'));
-    }
-    card._firedThisBattle=true;
-  }
-  renderAll();
-}
-function _normalizeColorTextForBattle(c){
-  return String(c||'')==='茶'?'黄':String(c||'');
-}
-
 // 盤面配列を、lane の論理列から毎回まるごと組み直す。開戦配置の空欄や、
 // コアが左詰めした配列を部分的に上書きすると、書かなかった範囲に古い参照が
 // 残って同じ体が二箇所に見えるため、召喚配置では必ずこの出口を通す。
@@ -6005,46 +5926,6 @@ async function _finishNewPanelBattleStartEffects(){
   else if(typeof renderAll==='function') renderAll();
   await _resolveSeals();
   _recomputeDynamicPanelStats();
-}
-
-// 装備中の指輪による開戦効果をまとめて処理する。
-// 常時効果はいかなるときも最優先される（開戦効果や封印解放より先に、封印の有無を問わず適用する）ため、
-// 指輪の「常時」効果（色+10/+10）を戦闘開始時に適用する。
-function _applyRingPassiveBattleStartEffects(){
-  const rings=_effectiveRings();
-  if(!rings.length) return;
-  // 赤/青/緑/黄/紫の瞳の指輪：常時：全てのX色キャラクターは+10/+10を得る。（自陣営・敵陣営問わず該当色全員）
-  const colorRingMap={'赤い瞳の指輪':'赤','青い瞳の指輪':'青','緑の瞳の指輪':'緑','黄の瞳の指輪':'黄','紫の瞳の指輪':'紫'};
-  rings.forEach(r=>{
-    const color=colorRingMap[r&&r.name];
-    // 常時効果はいかなるときも最優先されるため、封印中のキャラクターにも適用する（includeSealed=true）。
-    if(color) _buffAllBattleColor(color,10,10,r.name,false,true);
-  });
-  // 虹の瞳の指輪：常時：全ての味方は+X/+Xを得る。
-  // Xは味方に存在する異なる色の数×3（最大5色）。
-  if(rings.some(r=>r&&r.name==='虹の瞳の指輪')){
-    const colors=new Set();
-    (G.allies||[]).forEach(unit=>{
-      if(!unit||unit.hp<=0||unit._isObject||unit._isSoul) return;
-      String(unit.color||'').split(/[／/、,，\s]+/).map(_colorKey).filter(Boolean).forEach(c=>colors.add(c));
-    });
-    const x=Math.min(5,colors.size)*3;
-    if(x>0){
-      (G.allies||[]).forEach(unit=>{
-        if(unit&&unit.hp>0&&!unit._isObject&&!unit._isSoul) _addBattleStats(unit,x,x,'ally',true);
-      });
-    }
-  }
-}
-
-
-// includeSealed=true の場合は封印中のキャラクターにも適用する（呼び出し元が「常時」効果の場合に指定する）。
-function _buffAllBattleColor(color, atk, hp, sourceName, unitIsEnemy, includeSealed){
-  const c=_normalizeColorTextForBattle(color);
-  _allBattleCharacters().forEach(u=>{
-    const eligible=includeSealed?!!(u&&u.hp>0&&!u._isObject&&!u._isSoul):_canReceiveBattleEffect(u);
-    if(eligible&&String(u.color||'')===c) _addBattleStats(u,atk,hp,_battleSideOfUnit(u),includeSealed);
-  });
 }
 
 function _grantRandomItem(sourceName, options){
