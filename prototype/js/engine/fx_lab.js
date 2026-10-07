@@ -199,6 +199,16 @@ var VbFx = (function () {
     job.nodes.forEach(function (node) { node.remove(); });
     if (job.trail) { job.trail.width = 0; job.trail.height = 0; job.trail = null; job.trailCtx = null; }
   }
+  // cloneNodeで写したVFXの一時スタイルは、元DOMの終了処理では戻せない。
+  // 登場のopacity等を複製の原値にせず、再生中の効果は通常の付け替えで追従させる。
+  function prepareClone(source, clone) {
+    var props = leases.get(source);
+    Object.keys(props || {}).forEach(function (key) {
+      var lease = props[key];
+      if (lease.value) clone.style.setProperty(key, lease.value, lease.priority);
+      else clone.style.removeProperty(key);
+    });
+  }
   // 本体がカードDOMを作り直した時だけ参照と一時スタイルを移す。LABの描画には介入しない。
   function rebindElements(job) {
     if (typeof job.options.resolveElement !== 'function') return [];
@@ -2100,7 +2110,7 @@ var VbFx = (function () {
     return selected.length;
   }
   window.addEventListener('pagehide', stopAll);
-  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stop: stop, retarget: retarget, stopAll: stopAll, effects: definitions, settings: settings,
+  return { play: play, rect: rect, duration: duration, impactMs: impactMs, stop: stop, retarget: retarget, prepareClone: prepareClone, stopAll: stopAll, effects: definitions, settings: settings,
     activeCount: function () { return jobs.length; },
     snapshot: function () { return jobs.map(function (job) { return { name: job.def.name, durationMs: job.ms,
       elapsedMs: job.start == null ? null : Math.max(0, performance.now() - job.start),

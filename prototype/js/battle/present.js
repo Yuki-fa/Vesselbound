@@ -688,8 +688,9 @@ function presentAttackContactOutcomeEvents(events, attackIndex) {
   return out;
 }
 
-// 接触で見せるのは、この一撃の先頭に連続する戦闘ダメージと、それが消費した結界だけ。
-// 能力変化・キーワード・誘発効果を越えて先読みせず、ATK攻撃も従来のイベント順を保つ。
+// 先頭の戦闘ダメージと結界を接触で見せる。反撃で消費した結界は、途中に
+// 常時効果が入っても同じ接触。即時攻撃の反撃は attack_effect 等になる。
+// 能力変化・誘発ダメージ・ATK攻撃の表示順は動かさない。
 function presentAttackContactHitEvents(events, attackIndex) {
   const list = Array.isArray(events) ? events : [], attack = list[attackIndex];
   if (!attack || attack.type !== 'attack' || attack.effectOnly || attack.attackVisual===false) return [];
@@ -705,6 +706,29 @@ function presentAttackContactHitEvents(events, attackIndex) {
     if (ev.type==='shield_lost' && damage && damage.blockedBy==='shield'
       && ev.side===damage.side && ev.unitId===damage.unitId) { out.push(ev); damage=null; continue; }
     break;
+  }
+  const targetIds = new Set([attack.targetId]);
+  for (let i=attackIndex+1;i<list.length;i++) {
+    const ev = list[i];
+    if (!ev) continue;
+    if (ev.type==='turn_begin' || ev.type==='battle_end') break;
+    if (ev.type==='attack') {
+      if (ev.attackVisual===false && ev.attackerId===attack.attackerId) targetIds.add(ev.targetId);
+      // 命中の負傷効果による別の体の割り込み攻撃の後に、元の反撃が続く場合がある。
+      else if (!ev.immediate || ev.attackerId===attack.attackerId) break;
+    }
+    if (ev.type!=='damage' || !ev.counter || ev.unitId!==attack.attackerId
+      || !targetIds.has(ev.sourceId) || ev.damageTo==='atk') continue;
+    const kind = presentDamageKind(ev);
+    if (kind!=='combat' && !attack.immediate) continue;
+    const lost = list[i+1];
+    if (ev.blockedBy==='shield' && lost && lost.type==='shield_lost'
+      && lost.side===ev.side && lost.unitId===ev.unitId) {
+      if (!out.includes(ev)) out.push(ev);
+      if (!out.includes(lost)) out.push(lost);
+    }
+    // この相手からの反撃は1回。後続の負傷・死亡効果を拾わない。
+    targetIds.delete(ev.sourceId);
   }
   return out;
 }

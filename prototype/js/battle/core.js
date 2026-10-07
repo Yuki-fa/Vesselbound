@@ -2187,9 +2187,6 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   };
   const sideUnits = list.filter(x => x && x.hp > 0);
   const activeItems = state.items && state.items[side] || [];
-  const colorRingMap = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄い瞳の指輪': '黄', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
-  const matchingColorRings = coreResolvedRings(state, side)
-    .filter(r => colorRingMap[String(r && r.name || r || '')] === String(child.color || '')).length;
   // **開戦中に召喚された体にも、盤面に居た体と同じ指輪・巻物を掛ける。**
   // 開戦の指輪（coreApplyOpeningRings）と開戦のアイテム（coreApplyOpeningItems）は
   // 開戦効果より前に走るので、開戦効果で召喚された体（複製・ミテーラ等）は
@@ -2207,8 +2204,8 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
         .forEach(ring => coreApplyOpeningEnemyRingToUnit(ring, child, emit));
       coreApplyOpeningRingsToUnitLate(state, child, emit);
     }
-  } else if (matchingColorRings) {
-    addStats(child, matchingColorRings * 10, matchingColorRings * 10, 'color_ring_summon');
+  } else {
+    coreApplySummonEyeRings(state, child, emit, sourceUnit, sourceId);
   }
   const bondCount = activeItems.filter(item => String(item && item.itemEffectKey || item && item.key || '') === 'bond_scroll').length;
   if (bondCount && (!state._openingPhase || state._openingItemsApplied)) {
@@ -2414,6 +2411,33 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
 // early（色の瞳・虹の瞳）と late（強靭・威圧・聖騎士）に分けてあるのは、
 // 開戦時の適用順（early → 苦行 → late → 神速）をそのまま保つため。
 const CORE_COLOR_EYE_RINGS = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
+// 戦闘中の新規召喚と、基礎能力へ戻る眷属のキーワード復活へ常時修正を適用する。
+// 値を保持するコピー・指輪復活・根性は呼ばず、既に乗っている分を重ねない。
+function coreApplySummonEyeRings(state, unit, emit, sourceUnit, sourceId) {
+  const side = unit.side;
+  const addStats = (amount, reason, rainbowBonus) => {
+    const atk = coreStatBonus(unit, amount, sourceUnit), hp = coreStatBonus(unit, amount, sourceUnit);
+    unit.atk = Math.max(0, unit.atk + atk); unit.maxHp += hp; unit.hp += hp;
+    emit({ type: 'stat_change', side, unitId: unit.id, atk, hp, reason, sourceId: sourceId || null,
+      ...(rainbowBonus != null ? { rainbowBonus } : {}) });
+  };
+  const colorCount = coreResolvedRings(state, side).filter(ring => {
+    const name = String(ring && ring.name || ring || '');
+    const color = CORE_COLOR_EYE_RINGS[name] || (name==='黄い瞳の指輪' ? '黄' : '');
+    return !!color && color === unit.color;
+  }).length;
+  if (colorCount) addStats(colorCount * 10, 'color_ring_summon');
+  const rainbowCount = coreRingCount(state, side, '虹の瞳の指輪');
+  if (rainbowCount) {
+    // 新規召喚はまだ盤面配列へ挿入する前なので、今回の体の色も含める。
+    const live = (state.units[side] || []).filter(x => x && x !== unit);
+    const per = coreRainbowRingBonusForUnits([...live, unit]);
+    if (per) {
+      unit._rainbowRingBonus = per;
+      addStats(per * rainbowCount, 'rainbow_ring', per);
+    }
+  }
+}
 function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
   // 強化でHP0になった体（_deployedAtZeroHp）にも掛ける。正に戻れば、その体は出撃する。
   // **封印中の体にも掛ける**（「常時：全ての赤の味方は+10/+10」。説明にも出ている。2026-10-05 利用者指摘）。
@@ -4476,6 +4500,9 @@ function coreTryRevive(unit, state, emit) {
     const reviveShield = coreUnitShieldValue(unit);
     unit.shield = reviveShield;
     if (reviveShield > 0) emit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
+    // 召喚されたスケルトン等は復活で能力値を作り直す。眷属への常時指輪修正も
+    // 戻す（初期盤面の復活の既存規則や、値を保持する指輪復活は変更しない）。
+    if (!ring && coreUnitHasKeyword(unit, '眷属')) coreApplySummonEyeRings(state, unit, emit, null, null);
     // 元眷属の復活もナーガの対象。ただし新規召喚ではないので履歴を増やさない。
     coreApplyKenzokuScalingBuffs(unit, emit, null, null,
       (state.units[unit.side] || []).filter(other => other && other !== unit && other.hp > 0),

@@ -3287,6 +3287,8 @@ function _getAttackTargetRect(slot){
 // fromEl … 見た目の元にするスロット要素／fr … 置きたい位置と大きさ（ビューポート座標）
 function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
+  // 召喚の後半などが先に終了しても、複製へ写した透明度・scaleを残さない。
+  if(typeof VbFx!=='undefined'&&typeof VbFx.prepareClone==='function') VbFx.prepareClone(fromEl,clone);
   clone.querySelectorAll('[data-vb-fx-local]').forEach(el=>el.remove());
   clone.classList.add('attack-motion-clone');
   // 直前の攻撃が中断された場合でも、複製側へ非表示状態を引き継がない。

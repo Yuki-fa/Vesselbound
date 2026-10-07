@@ -44,6 +44,46 @@ const ranScenario = (name, front, hp, rear = 0, peerHp = 40, targetAt = Math.flo
 // 演出の種類ごとに、それを必ず通るカードを選ぶ。
 // なぜそのカードなのかを必ず一行で書いておくこと。
 const SCENARIOS = [
+  {
+    name: '攻撃側の反撃結界', seed: 100701, requires: ['shield_lost'], shieldAtContact: '^A0$',
+    // 自分の攻撃への反撃で結界を失う。戻り後のshield-breakでは通らない。
+    rings: { p1: ['神速の指輪'] },
+    p1: [['ゴブリン', 'A0', { atk: 1, hp: 40, maxHp: 40, keywords: ['結界1'], desc: '' }]],
+    p2: [['オーク', 'E0', { atk: 2, hp: 30, maxHp: 30, keywords: [], desc: '' }]],
+  },
+  {
+    name: 'スケルトンキング：指輪補正と反撃結界', seed: 100702, requires: ['summon', 'shield_lost'],
+    shieldAtContact: '^A0-summon-', returningSummons: true,
+    summonStats: { name: 'スケルトン', atk: 22, hp: 19, shield: 1 },
+    // 召喚時の4/1に色+10・虹+3・召喚師+5、光の結界1。即時攻撃の反撃で割れる。
+    rings: { p1: ['神速の指輪', '青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
+    p1: [['スケルトンキング', 'A0', { color: '青', hp: 100, maxHp: 100 }]],
+    p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],
+  },
+  {
+    name: 'スケルトンキング：反撃復活と戻り', seed: 100703, requires: ['summon', 'revive'], returningSummons: true,
+    summonStats: { name: 'スケルトン', atk: 22, hp: 19, shield: 0 },
+    // 反撃死→復活でも、接触から戻り終端までクローンは消えず、死亡・復活は後続で見せる。
+    rings: { p1: ['神速の指輪', '青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪'] },
+    p1: [['スケルトンキング', 'A0', { color: '青', hp: 150, maxHp: 150 }]],
+    p2: [['オーク', 'E0', { atk: 40, hp: 150, maxHp: 150, keywords: [], desc: '' }]],
+  },
+  {
+    name: 'ダイアウルフ：戦闘中の召喚と指輪', seed: 100704, requires: ['mana_threshold', 'summon'],
+    summonStats: { name: 'ウルフ', atk: 21, hp: 21, shield: 1 },
+    // 開戦後の攻撃でマナを得て召喚する。開戦の指輪処理に頼って通過させない。
+    rings: { p1: ['神速の指輪', '緑の瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
+    p1: [['ダイアウルフ', 'A0', { color: '緑', hp: 50, maxHp: 50, manaOnAttack: 3 }]],
+    p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],
+  },
+  {
+    name: 'ケットシー：負傷召喚と指輪', seed: 100705, requires: ['summon'],
+    summonStats: { name: 'ナイトキャット', atk: 21, hp: 19, shield: 2 },
+    // 元の結界1と光の結界1を区別し、負傷経路でも色・虹・召喚師を受け取る。
+    rings: { p1: ['神速の指輪', '黄の瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
+    p1: [['ケットシー', 'A0', { color: '黄', hp: 40, maxHp: 40 }]],
+    p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],
+  },
   // 神速の指輪で先攻を揃える。先にラン・ドーターが反撃死すると、この再現条件を通らない。
   ranScenario('ラン・ドーター：最小盤面から満員', 1, 40),
   ranScenario('ラン・ドーター：中央で召喚後に接触死', 3, 8),
@@ -241,7 +281,7 @@ const SCENARIOS = [
 // 画面を見張る仕掛け。PvE・オンラインの双方で同じものを使う。
 const WATCHER = `
   window.__watch = { vfx: [], onCard: [], offCard: [], calls: [], lines: [], lineAtContact: [], board: [], overlap: [], hp: {}, hpEarly: [], hpZero: [], transformed: {}, coreSeen: 0,
-    contact: null, damageHits: [], hitSounds: [] };
+    contact: null, damageHits: [], hitSounds: [], shieldBreaks: [], shieldSounds: [], returns: {} };
   // 画面上の要素の並びは、位置の取り直し等で増減して当てにならない。
   // 「どの演出関数を、どの対象へ、どの順で呼んだか」を記録して比べる。
   if (!window.__hitVfxHooked) {
@@ -250,6 +290,8 @@ const WATCHER = `
     if (typeof origLab === 'function') {
       window.playBattleLabFx = function (code, source, targets) {
         const spec = presentLabFx(code);
+        if (code === 'shield_break') window.__watch.shieldBreaks.push({ unitId: source && source.id,
+          contact: window.__watch.contact, shield: source && battleFxStateValues(source).shield });
         window.__watch.calls.push('LAB:' + (spec ? spec[0] : code) + ':' + (source && source.id || '')
           + '→' + (targets || []).map(u => u && u.id).join('/'));
         return origLab.apply(this, arguments);
@@ -320,6 +362,11 @@ const WATCHER = `
     window.playAttackDamageSfx = function (unit, amount) {
       window.__watch.hitSounds.push({ sourceId: unit && unit.id, amount, contact: window.__watch.contact });
       return origHitSound.apply(this, arguments);
+    };
+    const origSfx = window.playSfx;
+    window.playSfx = function (code) {
+      if (code === 'K018') window.__watch.shieldSounds.push({ contact: window.__watch.contact });
+      return origSfx.apply(this, arguments);
     };
   }
   window.__watching = true;
@@ -394,6 +441,14 @@ const WATCHER = `
     document.querySelectorAll('.attack-motion-clone[data-unit-id]').forEach(clone => {
       const id = clone.dataset.unitId;
       const cr = clone.getBoundingClientRect();
+      if (window.__watch.contact && window.__watch.contact.attackerId === id) {
+        const entry = window.__watch.returns[id] || (window.__watch.returns[id] = { frames: 0, hidden: 0, positions: [] });
+        const st = getComputedStyle(clone);
+        entry.frames++;
+        if (st.visibility === 'hidden' || st.display === 'none' || Number(st.opacity) < .95) entry.hidden++;
+        const point = Math.round(cr.left) + ',' + Math.round(cr.top);
+        if (!entry.positions.includes(point)) entry.positions.push(point);
+      }
       if (!(cr.width > 0)) return;
       [...document.querySelectorAll('#f-ally .slot[data-unit-id],#f-enemy .slot[data-unit-id]')]
         .filter(s2 => s2.dataset.unitId === id)
@@ -423,6 +478,11 @@ const COLLECT = `
     trace: (window.__watch.trace || []).slice(),
     damageHits: window.__watch.damageHits.slice(),
     hitSounds: window.__watch.hitSounds.slice(),
+    shieldBreaks: window.__watch.shieldBreaks.slice(),
+    shieldSounds: window.__watch.shieldSounds.slice(),
+    returns: window.__watch.returns,
+    summons: (window.__coreEvents || []).filter(e => e.type === 'summon').map(e => e.unit),
+    shieldCounters: (window.__coreEvents || []).filter(e => e.type === 'damage' && e.counter && e.blockedBy === 'shield'),
     combatDamage: (window.__coreEvents || []).filter(e => e.type === 'damage' && e.damageKind === 'combat' && e.amount > 0),
     overlap: window.__watch.overlap.slice(),
     hpEarly: window.__watch.hpEarly.slice(),
@@ -485,6 +545,7 @@ const SETUP = `
     return { id, name: n, atk: u.atk, hp: u.hp, maxHp: u.maxHp, color: u.color,
       keywords: u.keywords, desc: u.desc, no: u.no, art: u.artCode, lane: u.lane, guardian: u.guardian,
       manaCost: u.manaCost, manaRepeat: u.manaRepeat,
+      manaOnAttack: u.manaOnAttack,
       // **強化由来のマナ効果は effectData だけで運ぶ**（versus.js が送るのと同じ形）。
       // 本体側に _manaThresholdDesc を付けて渡すと、実機で起きた
       // 「閾値は発火するのに効果が何も起きない」不具合を検査が素通りする。
@@ -576,6 +637,7 @@ const onlineScript = sc => `
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
     window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.hpZero.length = 0; window.__watch.transformed = {};
     window.__watch.contact = null; window.__watch.damageHits.length = 0; window.__watch.hitSounds.length = 0;
+    window.__watch.shieldBreaks.length = 0; window.__watch.shieldSounds.length = 0; window.__watch.returns = {};
   };
   try {
     await Promise.race([
@@ -673,6 +735,35 @@ const onlineScript = sc => `
         pveCalls === onCalls ? `${(pve.calls || []).length}回`
           : `PvE=${pveCalls || 'なし'}\n\tオンライン=${onCalls || 'なし'}`);
 
+      if (sc.shieldAtContact) {
+        for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
+          const breaks = (r.shieldBreaks || []).filter(b => new RegExp(sc.shieldAtContact).test(b.unitId));
+          const contact = b => b.contact && b.contact.attackerId === b.unitId;
+          const counters = (r.shieldCounters || []).filter(e => new RegExp(sc.shieldAtContact).test(e.unitId));
+          const own = breaks.filter(contact);
+          check(`${tag}${label}反撃の結界停止・破壊・K018が接触時に出る`, counters.length > 0 && own.length === counters.length
+            && own.every(b => b.shield === 0)
+            && own.every(b => (r.shieldSounds || []).some(s => s.contact && s.contact.attackerId === b.unitId)),
+          `反撃${counters.length}回／接触破壊${own.length}回`);
+        }
+      }
+      if (sc.summonStats) {
+        for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
+          const children = (r.summons || []).filter(u => u.name === sc.summonStats.name);
+          const want = sc.summonStats;
+          check(`${tag}${label}召喚時に指輪の能力・結界が乗る`, children.length > 0
+            && children.every(u => u.atk === want.atk && u.maxHp === want.hp && u.shield === want.shield),
+          children.map(u => `${u.name} ${u.atk}/${u.maxHp} 結界${u.shield}`).join(' / ') || '召喚なし');
+        }
+      }
+      if (sc.returningSummons) {
+        for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
+          const ids = (r.summons || []).map(u => u.id).filter(id => (r.trace || []).includes('attack_motion_contact:' + id + '>E0'));
+          check(`${tag}${label}即時攻撃のクローンが見えたまま戻る`, ids.length > 0
+            && ids.every(id => r.returns[id] && !r.returns[id].hidden && r.returns[id].positions.length >= 3),
+          ids.map(id => `${id}: ${r.returns[id] ? r.returns[id].frames + 'フレーム/非表示' + r.returns[id].hidden : '戻りなし'}`).join(' / '));
+        }
+      }
       if (sc.contactHit) {
         const { attackerId, targetId } = sc.contactHit;
         for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
