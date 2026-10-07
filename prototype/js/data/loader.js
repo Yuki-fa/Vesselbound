@@ -1628,7 +1628,7 @@ async function loadGameData() {
       if (!panel._sheetKeywordsLoaded) panel.adjacentKeywords = _mergeUniqueKeywords(panel.adjacentKeywords, ['恩寵']);
     });
     (PANEL_POOL || []).filter(p => p && p.name === '竜の契約' && ['エンチャント', '強化'].includes(String(p.category || ''))).forEach(panel => {
-      panel.no = '008';
+      // 番号はシートの正式番号（E008）のまま。旧番号「008」で上書きすると図鑑の記録（SaveProfile.identity）が取れなかった（2026-10-08）。
       if (!panel._sheetDescLoaded) panel.desc = _stripOwnNameFromDesc(panel.desc || '常時：5回負傷した時、25/40、竜の「ドラコニアン」に変身する。（自身が「ドラコニアン」の場合は無効）', panel.name);
       panel._sheetSeen = true;
       panel._implemented = true;
