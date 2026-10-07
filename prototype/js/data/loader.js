@@ -573,6 +573,10 @@ async function loadGameData() {
             if(legacy&&columns.includes(key)) return;
             entry[key]={speaker:target==='A'?'A':'B',face,text:values[i]};
           });
+          // 「キャラクターの名前」列（名前札に出す名前）。台詞の並びを数える処理に混ざらないよう列挙しない値にする。
+          const nameCol=columns.indexOf('キャラクターの名前');
+          if(nameCol>=0&&values[nameCol]&&Object.keys(entry).length)
+            Object.defineProperty(entry,'characterName',{value:values[nameCol],enumerable:false});
           if(Object.keys(entry).length) (talk[section]=talk[section]||{})[a]=entry;
         });
         window.TALK_MESSAGES = talk;

@@ -2334,7 +2334,7 @@ function _qStartDialogue(lines,options){
   // 切り替え中（フェード中）のクリックは捨てずに1回分覚え、切り替えが終わったら次へ進める（2026-09-28）。
   let pendingAdvance=false;
   // 酒場で B（依頼人）が最初に喋る時に名前札を出す（_qShowPortraitPair が _qPendingNamePlate に預ける）。
-  const namePlateText=_qPendingNamePlate;
+  const namePlateText=opts.namePlateText||_qPendingNamePlate;
   let namePlateIndex=-1;
   const hideNamePlateLater=()=>{
     if(namePlateIndex<0) return;
@@ -2408,7 +2408,7 @@ function _qStartDialogue(lines,options){
     });
     current.forEach(item=>_qApplyLineFace(item.line,opts.screen||'village',opts.faceKeys));
     if(namePlateText&&namePlateIndex===-1){
-      const named=current.find(item=>item.line.speaker!=='A'
+      const named=current.find(item=>(opts.namePlateAnySpeaker||item.line.speaker!=='A')
         &&(opts.namePlateLine==null||item.sourceIndex===opts.namePlateLine-1));
       if(named){
         _qPendingNamePlate='';

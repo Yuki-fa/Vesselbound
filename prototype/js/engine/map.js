@@ -2010,7 +2010,10 @@ async function _runStoryArrival(spec){
         firstLines:lines,faceA:_storyFirstFace(lines,'MC001'),withoutNamePlate:true});
     }
     if(!isCurrent()) return 'cancelled';
-    if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village'});
+    // 会話シートの「キャラクターの名前」を、最初の台詞で X540 に名前札として出す（リーゼ地名演出後。2026-10-08 利用者指定）。
+    const storyName=talk&&talk.characterName?String(talk.characterName).trim():'';
+    if(typeof _qStartDialogue==='function') await _qStartDialogue(lines,{screen:'village',
+      ...(storyName?{namePlateText:storyName,namePlateX:540,namePlateLine:1,namePlateAnySpeaker:true}:{})});
     if(!isCurrent()) return 'cancelled';
     if(spec.finalClear){
       if(typeof _qClearPresentation==='function') await _qClearPresentation();
