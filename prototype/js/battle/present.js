@@ -1707,6 +1707,9 @@ const PRESENT_LAB_FX = {
   shield_break:['shield-break',null,'target'],
 };
 const PRESENT_LAB_SPEED = 1.5;
+// 効果ごとの速さの倍率（PRESENT_LAB_SPEED に掛ける）。戦闘中の召喚は2.5倍（2026-10-08 利用者指定）。
+const PRESENT_LAB_SPEED_BY_CODE = { S001:2.5 };
+function presentLabSpeed(code) { return PRESENT_LAB_SPEED * (PRESENT_LAB_SPEED_BY_CODE[String(code || '').trim()] || 1); }
 const PRESENT_LAB_SOUND_FADE_MS = 1100;
 function presentLabFx(code) { return PRESENT_LAB_FX[String(code || '').trim()] || null; }
 function presentLabManualTarget(events, index, code) {

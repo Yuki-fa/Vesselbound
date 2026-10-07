@@ -112,7 +112,7 @@ const SFX_SETTINGS={
     bossVictory:{group:'ui',     volume: .80, guardMs:1200}, // -10.1
     lifeLost:   {group:'ui',     volume: 1.00}, // -20.5
     K019:       {group:'magic',  volume: 0.40}, // 封印解放（旧S002）（実測-3.0dBFS）
-    S001: {group:'magic',volume:1.00,maxPlayMs:0}, // LAB採用音（Cast Small 02-01。利用者指定で2.5倍：ファイル1.75倍×音量.70→1.0）
+    S001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音（Cast Small 02-01）
     S005:       {group:'magic',  volume: 1.00}, // 特殊演出：攻撃時のバフ効果（実測-11.2dBFS）
     S007:       {group:'magic',  volume: 0.63}, // 特殊演出（シート指定）（実測-7.0dBFS）
     C008:       {group:'magic',  volume: 0.42}, // アラクネ（実測-3.5dBFS）

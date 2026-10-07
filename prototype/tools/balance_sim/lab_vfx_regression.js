@@ -105,7 +105,8 @@ async function runCase(no,trigger,card=no) {
   if(no==='shield_break') assert.ok(!sounds.some(c=>c.code===no),'結界消失はSEなし');
   else assert.ok(sounds.some(c=>c.code===no),no+' SEが出る');
   const main=calls.filter(c=>c.name===name);
-  assert.ok(main.every(c=>c.opts.speed===1.5),no+' 標準速さ');
+  // 戦闘中の召喚（S001）は2.5倍（2026-10-08 利用者指定）。他は標準の1.5。
+  assert.ok(main.every(c=>c.opts.speed===(no==='S001'?1.5*2.5:1.5)),no+' 標準速さ');
   assert.ok(main.every(c=>c.opts.board===screen),no+' 実際の戦闘盤面へ画面揺れを接続');
   if(no==='C039') assert.equal(main[0].source,undefined,'リッチは倒れた位置の矩形');
   if(no==='C077') assert.equal(main[0].source,'ally0','カーバンクルは結界消失位置');

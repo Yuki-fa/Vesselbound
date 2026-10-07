@@ -7,7 +7,7 @@ const _battleFxVoices = new Set();
 let _battleFxFrame = 0, _battleFxGeneration = 0, _battleFxSequence = 0;
 function _battleFxKey(unit) { return String(unit && unit.id || ''); }
 function _battleFxSide(unit) { return unit && unit.side === 'p2' || (G.enemies || []).includes(unit) ? 'enemy' : 'ally'; }
-function battleFxSpeed() { return PRESENT_LAB_SPEED * (typeof getBattlePresentationSpeedScale === 'function' ? getBattlePresentationSpeedScale() : 1); }
+function battleFxSpeed(code) { return (typeof presentLabSpeed === 'function' ? presentLabSpeed(code) : PRESENT_LAB_SPEED) * (typeof getBattlePresentationSpeedScale === 'function' ? getBattlePresentationSpeedScale() : 1); }
 function battleFxGeneration() { return _battleFxGeneration; }
 function _battleFxLayer() {
   return _vfxClipLayer();
@@ -60,7 +60,7 @@ function playBattleLabFx(code, source, targets, options) {
   const rects = located.map(x=>x.rect);
   if (!from && !rects.length) return Promise.resolve(false);
   VbFx.settings.layer = _battleFxLayer;
-  const speed = battleFxSpeed(), ms = VbFx.duration(spec[0],speed);
+  const speed = battleFxSpeed(code), ms = VbFx.duration(spec[0],speed);
   const side = opt.side || _battleFxSide(source || targets[0]);
   // 戦闘用の乱数を消費しない。旋回だけの独立した乱数。
   const random = new Uint32Array(1);
