@@ -1537,6 +1537,54 @@ function presentActionBannerSource(ev, api) {
   return String(def.characterDesc || def['キャラクター用説明文'] || card.characterDesc || '').trim() ? null : source;
 }
 
+function presentActionBannerUnitSource(ev,api,reason,unit,hint,sourceSide,make){
+  if (!unit) return null;
+  const attached = api.enchants(unit);
+  if (ev.type === 'effect_flash') {
+    // 他の効果を発動する行動は、結果のイベントを自分では持たない。実際の次の発動がある時だけ出す。
+    const manual = [api.ownCard(unit), ...attached].find(c =>
+      /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(c, ev.trigger)));
+    return manual && api.hasTriggeredFollowup(ev) ? make(manual, sourceSide, attached.includes(manual) ? 'enchant' : 'character') : null;
+  }
+  const mappedName = presentStatChangeEnchantName(reason);
+  const mapped = ev.fxEffect ? api.card(ev.fxEffect, 'enchant')
+    : mappedName ? api.card(mappedName, 'enchant')
+      : PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason] ? api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant') : null;
+  if (mapped && attached.some(c => c.name === mapped.name)) return make(mapped, sourceSide, 'enchant');
+  if (ev.fxEffect && mapped) return make(mapped, sourceSide, 'enchant');
+  if (ev.type === 'revive') {
+    const enchant = attached.find(c => presentActionBannerHasKeyword(c, reason));
+    return make(enchant || unit, sourceSide, enchant ? 'enchant' : 'character');
+  }
+  if (ev.type === 'seal_release') {
+    if (ev.fromItem) return make(api.item('sacrifice_doll', ev.side), ev.side, 'item');
+    return make(unit, sourceSide, 'character');
+  }
+  const mana = api.mana(unit.id);
+  const effectNo = ev.effectNo || (/^mana_threshold/.test(reason) && mana && mana.effectNo);
+  if (effectNo) {
+    const card = api.card(effectNo) || unit;
+    return make(card, sourceSide, /^E\d/.test(String(effectNo)) ? 'enchant' : 'character');
+  }
+  if (ev.type === 'summon' && unit._mapPanelPower === 'duplicate' && hint && hint.trigger === 'opening'
+    && ev.unit && ev.unit.name === unit.name && api.mapCopy(ev, unit)) return make(api.mapCard('duplicate'), sourceSide, 'map');
+  const trigger = presentActionBannerTrigger(ev, hint);
+  const own = api.ownCard(unit);
+  const keyword = presentActionBannerEventKeyword(ev);
+  if (keyword && !presentActionBannerHasKeyword(own, keyword)) {
+    const enchant = attached.find(c => presentActionBannerHasKeyword(c, keyword));
+    if (enchant) return make(enchant, sourceSide, 'enchant');
+  }
+  const ownText = presentActionBannerEffectText(own, trigger);
+  const candidates = attached.filter(c => presentActionBannerTextMatchesEvent(presentActionBannerEffectText(c, trigger), ev, unit));
+  if (ev.effectSource === false || !presentActionBannerTextMatchesEvent(ownText, ev, unit)) {
+    const chosen = api.chooseEnchant(candidates, ev, unit, trigger);
+    if (chosen) return make(chosen, sourceSide, 'enchant');
+  }
+  if (!unit.id) return null;
+  return make(unit, sourceSide, 'character');
+}
+
 function presentActionBannerSourceUnfiltered(ev, api) {
   if (!ev || !api || !PRESENT_ACTION_BANNER_EVENT_TYPES.has(ev.type)) return null;
   // 現在値の保存は発動演出ではない。実際のダメージイベントが発動元を表示する。
@@ -1599,51 +1647,7 @@ function presentActionBannerSourceUnfiltered(ev, api) {
       return make(api.ring('R016', owner), owner, 'ring');
     }
   }
-  if (!unit) return null;
-  const attached = api.enchants(unit);
-  if (ev.type === 'effect_flash') {
-    // 他の効果を発動する行動は、結果のイベントを自分では持たない。実際の次の発動がある時だけ出す。
-    const manual = [api.ownCard(unit), ...attached].find(c =>
-      /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(c, ev.trigger)));
-    return manual && api.hasTriggeredFollowup(ev) ? make(manual, sourceSide, attached.includes(manual) ? 'enchant' : 'character') : null;
-  }
-  const mappedName = presentStatChangeEnchantName(reason);
-  const mapped = ev.fxEffect ? api.card(ev.fxEffect, 'enchant')
-    : mappedName ? api.card(mappedName, 'enchant')
-      : PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason] ? api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant') : null;
-  if (mapped && attached.some(c => c.name === mapped.name)) return make(mapped, sourceSide, 'enchant');
-  if (ev.fxEffect && mapped) return make(mapped, sourceSide, 'enchant');
-  if (ev.type === 'revive') {
-    const enchant = attached.find(c => presentActionBannerHasKeyword(c, reason));
-    return make(enchant || unit, sourceSide, enchant ? 'enchant' : 'character');
-  }
-  if (ev.type === 'seal_release') {
-    if (ev.fromItem) return make(api.item('sacrifice_doll', ev.side), ev.side, 'item');
-    return make(unit, sourceSide, 'character');
-  }
-  const mana = api.mana(unit.id);
-  const effectNo = ev.effectNo || (/^mana_threshold/.test(reason) && mana && mana.effectNo);
-  if (effectNo) {
-    const card = api.card(effectNo) || unit;
-    return make(card, sourceSide, /^E\d/.test(String(effectNo)) ? 'enchant' : 'character');
-  }
-  if (ev.type === 'summon' && unit._mapPanelPower === 'duplicate' && hint && hint.trigger === 'opening'
-    && ev.unit && ev.unit.name === unit.name && api.mapCopy(ev, unit)) return make(api.mapCard('duplicate'), sourceSide, 'map');
-  const trigger = presentActionBannerTrigger(ev, hint);
-  const own = api.ownCard(unit);
-  const keyword = presentActionBannerEventKeyword(ev);
-  if (keyword && !presentActionBannerHasKeyword(own, keyword)) {
-    const enchant = attached.find(c => presentActionBannerHasKeyword(c, keyword));
-    if (enchant) return make(enchant, sourceSide, 'enchant');
-  }
-  const ownText = presentActionBannerEffectText(own, trigger);
-  const candidates = attached.filter(c => presentActionBannerTextMatchesEvent(presentActionBannerEffectText(c, trigger), ev, unit));
-  if (ev.effectSource === false || !presentActionBannerTextMatchesEvent(ownText, ev, unit)) {
-    const chosen = api.chooseEnchant(candidates, ev, unit, trigger);
-    if (chosen) return make(chosen, sourceSide, 'enchant');
-  }
-  if (!unit.id) return null;
-  return make(unit, sourceSide, 'character');
+  return presentActionBannerUnitSource(ev,api,reason,unit,hint,sourceSide,make);
 }
 
 // ── 演出の再生中フラグ ──────────────────────────────────

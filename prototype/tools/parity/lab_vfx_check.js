@@ -77,7 +77,7 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
           calls:calls.length,sounds:sounds.length,speeds:calls.map(c=>c.speed),boardOK:calls.every(c=>c.board),frames,painted,layerOK,settled,error,assetErrors,
           remaining:VbFx.activeCount()+document.querySelectorAll('[data-vb-fx-local],[data-battle-lab-fx]').length};
       `);
-      check(no+' 実戦でLAB演出・SE・描画・後片付け',result.calls>0&&result.ordered&&(no==='shield_break'?result.sounds===0:result.sounds>0)&&result.speeds.every(s=>s===1.5*SPEED)&&result.boardOK&&result.frames>0&&result.painted&&result.layerOK&&result.settled&&!result.error&&!result.assetErrors.length&&!result.remaining,
+      check(no+' 実戦でLAB演出・SE・描画・後片付け',result.calls>0&&result.ordered&&(no==='shield_break'?result.sounds===0:result.sounds>0)&&result.speeds.every(s=>s===1.5*(no==='S001'?2.5:1)*SPEED)&&result.boardOK&&result.frames>0&&result.painted&&result.layerOK&&result.settled&&!result.error&&!result.assetErrors.length&&!result.remaining,
         JSON.stringify(result));
     }
     const states=await b.eval(setup+`

@@ -2139,6 +2139,130 @@ function _warmBattleHitSfx(){
   warmSfxVoices(keys);
 }
 
+function _prepareStartingBattleItems(carryBattle){
+  if(!carryBattle){
+    const pendingItems=[
+      ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
+      ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
+    ];
+    const seenItemKeys=new Set();
+    G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
+      if(!c) return false;
+      if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
+      const key=String(c.itemEffectKey||'')==='meteor_scroll'
+        ?'meteor_scroll'
+        :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
+      if(seenItemKeys.has(key)) return false;
+      seenItemKeys.add(key);
+      return true;
+    });
+    G.pendingBattleItems=[];
+    G.nextBattleItems=[];
+    (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
+  }
+  (G.allies||[]).forEach(u=>{
+    (u?.boardCards||[]).forEach(p=>{
+      if(p){
+        delete p._rewardReturnCard;
+        delete p._rewardReturnIdx;
+        delete p._rewardReturnPhaseId;
+      }
+    });
+  });
+}
+
+function _hideRewardUiForBattle(){
+  // 報酬フェイズUI非表示
+  const rInfo=document.getElementById('reward-info-bar');
+  const rCards=document.getElementById('reward-cards-section');
+  const rHand=document.getElementById('inline-hand-editor');
+  const rMove=document.getElementById('move-inline');
+  const allySection=document.getElementById('ally-section');
+  if(rInfo)  rInfo.style.display='none';
+  if(rCards) rCards.style.display='none';
+  if(rHand)  rHand.style.display='none';
+  if(rMove)  rMove.style.display='none';
+  if(allySection) allySection.style.display='';
+  const eArea=document.getElementById('enemy-area');
+  if(eArea) eArea.style.display='';
+  const rMoveBtns=document.getElementById('reward-move-btns');
+  if(rMoveBtns) rMoveBtns.style.display='none';
+  const eLabel=document.getElementById('enemy-field-label');
+  if(eLabel) eLabel.style.display='';
+  // 報酬フェイズから素早く次戦へ移行した際、報酬カード置き場（旧配置順置き場）とメイン置き場が
+  // 直前のレンダリング内容のまま画面に残ってしまう（renderAll()はこれらを更新しないため）のを防ぐ
+  const rewardOfferSection=document.getElementById('reward-offer-section');
+  if(rewardOfferSection) rewardOfferSection.style.display='none';
+  const rewardOfferRow=document.getElementById('reward-offer-row');
+  if(rewardOfferRow) rewardOfferRow.innerHTML='';
+  if(typeof renderHandEditor==='function') renderHandEditor();
+
+}
+
+function _layoutStartingBattleEnemies(savedBattle,reuseWaveEnemies,arenaBattle,questBattle,fixedTestBattle,mapBattle,battleFloor,carryBattle){
+  // 敵は前衛5体・後衛3体の最大8枠へ整列。オブジェクトは出現させない。
+  {
+    // ステージごとの明示指定（_sceneEnemyCount）で数と前後衛が確定している場合は、
+    // 序盤の間引き・水増し・自動レーン配置をすべて行わない。
+    // **既に確定した敵をそのまま使う経路（再戦のスナップショット／セーブからの復帰）では、
+    // 間引き・水増し・レーン再配置を一切行わない。**
+    // 数と前後衛の抑止は generateEnemies() が立てる G._enemyLaneFixed に依存しているが、
+    // この2経路は generateEnemies() を通らないため旗が立たず、下の水増しが働いていた。
+    // 実例：ステージ1の2戦目（2体）で敗北して再戦すると、同じ敵が4体へ増えていた。
+    const _enemiesAlreadyFixed=!!savedBattle||reuseWaveEnemies||arenaBattle||questBattle;
+    const _laneFixed=fixedTestBattle?false:(!!G._enemyLaneFixed||_enemiesAlreadyFixed);
+    G._enemyLaneFixed=false;
+    const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
+    if(!savedBattle&&!reuseWaveEnemies){
+      const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
+      const _mapNormalBattleNo=mapBattle&&mapBattle.type==='battle'&&Number(mapBattle.mapIndex)===1&&Number(mapBattle.turn)<=4?Number(mapBattle.normalBattleNo)||0:0;
+      const _earlyBattleCount=(!_isBossFight&&!_laneFixed)?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
+      if(_earlyBattleCount>0&&_actualEnemies.length>_earlyBattleCount){
+        _actualEnemies.splice(_earlyBattleCount);
+      }
+      while(!_laneFixed&&!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
+        const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
+        const extra=JSON.parse(JSON.stringify(base));
+        extra.id=uid();
+        extra.lane='front';
+        _actualEnemies.push(extra);
+      }
+      const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
+      if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
+      _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
+      G.enemies=_newEnemies;
+      compactBattleUnits({keepAllyOrder:carryBattle});
+    }
+    if(_isBossFight) G._bossSlot=G.enemies.findIndex(e=>e&&(e.boss||(e.keywords||[]).includes('ボス')));
+    // エリートの位置を再特定（撃破ボーナス判定で参照するため）
+    if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
+  }
+}
+
+function _resetStartingBattleAllies(carryBattle){
+  // ── 味方の戦闘状態をリセット（HP は保持）──
+  G.allies.forEach(a=>{
+    if(!a) return;
+    delete a._deathFxStarted;
+    if(!carryBattle){
+      a._dp=false; a.powerBroken=false;
+      a.nullified=0; a.instadead=false;
+    }
+    a._battleStartHp=a.hp;
+    if(!carryBattle){
+      const hasBattleHate=(a._panelSummoned&&a.guardian);
+      if(hasBattleHate){ a.hate=true; a.hateTurns=99; }
+      else { a.hate=false; a.hateTurns=0; }
+      delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
+    }
+  });
+  snapshotAlliesAtBattleStart();
+  if(_isBossFight){
+    const _bossUnit=G.enemies[G._bossSlot];
+  }
+
+}
+
 async function startBattle(){
   const savedBattle=typeof SaveRun!=='undefined'?SaveRun.takeResume():null;
   const showBattleStartAutosave=!!(G&&G._battleStartAutosaveRequested)&&!savedBattle;
@@ -2200,35 +2324,7 @@ async function startBattle(){
   // （ステージ5のエリート勝利→ラスボス直行など）では付いたまま次の戦闘に入り、
   // その戦闘中ずっとホバー説明が出なくなる。戦闘開始時に必ず落とす。
   document.body.classList.remove('reward-screen-active','ring-offer-phase','ring-offer-resolved','battle-victory-pending');
-  if(!carryBattle){
-    const pendingItems=[
-      ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
-      ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
-    ];
-    const seenItemKeys=new Set();
-    G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
-      if(!c) return false;
-      if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
-      const key=String(c.itemEffectKey||'')==='meteor_scroll'
-        ?'meteor_scroll'
-        :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
-      if(seenItemKeys.has(key)) return false;
-      seenItemKeys.add(key);
-      return true;
-    });
-    G.pendingBattleItems=[];
-    G.nextBattleItems=[];
-    (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
-  }
-  (G.allies||[]).forEach(u=>{
-    (u?.boardCards||[]).forEach(p=>{
-      if(p){
-        delete p._rewardReturnCard;
-        delete p._rewardReturnIdx;
-        delete p._rewardReturnPhaseId;
-      }
-    });
-  });
+  _prepareStartingBattleItems(carryBattle);
   if(typeof setBattleStageBackground==='function') setBattleStageBackground();
   _updateLaneOffset();
 
@@ -2255,31 +2351,7 @@ async function startBattle(){
   G._battleDefeatHandled=false;
   G._selectedBoardUnitIdx=-1;
 
-  // 報酬フェイズUI非表示
-  const rInfo=document.getElementById('reward-info-bar');
-  const rCards=document.getElementById('reward-cards-section');
-  const rHand=document.getElementById('inline-hand-editor');
-  const rMove=document.getElementById('move-inline');
-  const allySection=document.getElementById('ally-section');
-  if(rInfo)  rInfo.style.display='none';
-  if(rCards) rCards.style.display='none';
-  if(rHand)  rHand.style.display='none';
-  if(rMove)  rMove.style.display='none';
-  if(allySection) allySection.style.display='';
-  const eArea=document.getElementById('enemy-area');
-  if(eArea) eArea.style.display='';
-  const rMoveBtns=document.getElementById('reward-move-btns');
-  if(rMoveBtns) rMoveBtns.style.display='none';
-  const eLabel=document.getElementById('enemy-field-label');
-  if(eLabel) eLabel.style.display='';
-  // 報酬フェイズから素早く次戦へ移行した際、報酬カード置き場（旧配置順置き場）とメイン置き場が
-  // 直前のレンダリング内容のまま画面に残ってしまう（renderAll()はこれらを更新しないため）のを防ぐ
-  const rewardOfferSection=document.getElementById('reward-offer-section');
-  if(rewardOfferSection) rewardOfferSection.style.display='none';
-  const rewardOfferRow=document.getElementById('reward-offer-row');
-  if(rewardOfferRow) rewardOfferRow.innerHTML='';
-  if(typeof renderHandEditor==='function') renderHandEditor();
-
+  _hideRewardUiForBattle();
   const fixedTestBattle=!!(G._testBattleMode&&!G._libraryTestBattleMode);
   const mapBattle=fixedTestBattle?null:(G._mapBattle||null);
   // デバッグ試験戦闘は通常進行の現在nodeから完全に分離し、常に指定階層を使う。
@@ -2353,43 +2425,7 @@ async function startBattle(){
       e.atk=3; e.baseAtk=3; e.hp=300; e.maxHp=300;
     });
   }
-  // 敵は前衛5体・後衛3体の最大8枠へ整列。オブジェクトは出現させない。
-  {
-    // ステージごとの明示指定（_sceneEnemyCount）で数と前後衛が確定している場合は、
-    // 序盤の間引き・水増し・自動レーン配置をすべて行わない。
-    // **既に確定した敵をそのまま使う経路（再戦のスナップショット／セーブからの復帰）では、
-    // 間引き・水増し・レーン再配置を一切行わない。**
-    // 数と前後衛の抑止は generateEnemies() が立てる G._enemyLaneFixed に依存しているが、
-    // この2経路は generateEnemies() を通らないため旗が立たず、下の水増しが働いていた。
-    // 実例：ステージ1の2戦目（2体）で敗北して再戦すると、同じ敵が4体へ増えていた。
-    const _enemiesAlreadyFixed=!!savedBattle||reuseWaveEnemies||arenaBattle||questBattle;
-    const _laneFixed=fixedTestBattle?false:(!!G._enemyLaneFixed||_enemiesAlreadyFixed);
-    G._enemyLaneFixed=false;
-    const _scriptedOpening=!mapBattle&&typeof usesOpeningBattleEnemyFormation==='function'&&usesOpeningBattleEnemyFormation(G.floor);
-    if(!savedBattle&&!reuseWaveEnemies){
-      const _actualEnemies=G.enemies.filter(e=>e&&!e._isObject);
-      const _mapNormalBattleNo=mapBattle&&mapBattle.type==='battle'&&Number(mapBattle.mapIndex)===1&&Number(mapBattle.turn)<=4?Number(mapBattle.normalBattleNo)||0:0;
-      const _earlyBattleCount=(!_isBossFight&&!_laneFixed)?(_mapNormalBattleNo===1?1:(_mapNormalBattleNo===2?2:(!mapBattle&&battleFloor===1?1:(!mapBattle&&battleFloor===2?2:0)))):0;
-      if(_earlyBattleCount>0&&_actualEnemies.length>_earlyBattleCount){
-        _actualEnemies.splice(_earlyBattleCount);
-      }
-      while(!_laneFixed&&!_scriptedOpening&&!_earlyBattleCount&&_actualEnemies.length<4&&_actualEnemies.length>0){
-        const base=_actualEnemies[_actualEnemies.length%_actualEnemies.length]||_actualEnemies[0];
-        const extra=JSON.parse(JSON.stringify(base));
-        extra.id=uid();
-        extra.lane='front';
-        _actualEnemies.push(extra);
-      }
-      const _newEnemies=new Array(MAX_ENEMIES||8).fill(null);
-      if(!_isBossFight&&!_scriptedOpening&&!_laneFixed) _layoutEnemyLanes(_actualEnemies);
-      _actualEnemies.forEach((e,idx)=>{ if(idx<_newEnemies.length) _newEnemies[idx]=e; });
-      G.enemies=_newEnemies;
-      compactBattleUnits({keepAllyOrder:carryBattle});
-    }
-    if(_isBossFight) G._bossSlot=G.enemies.findIndex(e=>e&&(e.boss||(e.keywords||[]).includes('ボス')));
-    // エリートの位置を再特定（撃破ボーナス判定で参照するため）
-    if(G._isEliteFight) G._eliteIdx=G.enemies.findIndex(e=>e&&e.keywords&&e.keywords.includes('エリート'));
-  }
+  _layoutStartingBattleEnemies(savedBattle,reuseWaveEnemies,arenaBattle,questBattle,fixedTestBattle,mapBattle,battleFloor,carryBattle);
   if(G.runStats){
     const kind=String(G._waveBattleType||G._mapBattle?.type||'');
     const special=kind==='boss'||kind==='elite';
@@ -2413,27 +2449,7 @@ async function startBattle(){
   });
   G.moveMaskLanes=G.enemies.map(e=>e?(e.lane||'front'):'front');
 
-  // ── 味方の戦闘状態をリセット（HP は保持）──
-  G.allies.forEach(a=>{
-    if(!a) return;
-    delete a._deathFxStarted;
-    if(!carryBattle){
-      a._dp=false; a.powerBroken=false;
-      a.nullified=0; a.instadead=false;
-    }
-    a._battleStartHp=a.hp;
-    if(!carryBattle){
-      const hasBattleHate=(a._panelSummoned&&a.guardian);
-      if(hasBattleHate){ a.hate=true; a.hateTurns=99; }
-      else { a.hate=false; a.hateTurns=0; }
-      delete a._weakenedSavedAtk; delete a._weakenPhaseApplied;
-    }
-  });
-  snapshotAlliesAtBattleStart();
-  if(_isBossFight){
-    const _bossUnit=G.enemies[G._bossSlot];
-  }
-
+  _resetStartingBattleAllies(carryBattle);
   // 味方出撃処理が既存の盤面DOMを再描画する前に、全戦闘でカードを
   // 非表示にして、一瞬だけ見えるフラッシュを防ぐ。
   const preIntroHost=document.getElementById('scr-battle');
@@ -2595,7 +2611,7 @@ function _keepPveSummonState(state){
   _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff};
 }
 function _createPveCoreState(){
-  const state={
+  const state=coreInitializeBattleState({
     units:{p1:G.allies||[],p2:G.enemies||[]},
     summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],
     itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
@@ -2605,20 +2621,11 @@ function _createPveCoreState(){
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:Math.max(0,Number(G._enemyBlood)||0)},
-    // createBattleState() が用意する足場。ここはユニットを複製できないため
-    // 手で組むが、**欠けると coreBattleStep() が落ちる**ので必ず揃えること。
     ..._pveCoreStageFields(),
-    turn:0,
-    lane:{p1:{lane:'front',attacked:new Set()},p2:{lane:'front',attacked:new Set()}},
-    deadUnits:[],
     maxUnits:{p1:(typeof MAX_ALLIES==='number'&&MAX_ALLIES)||14,
       p2:(typeof MAX_ENEMIES==='number'&&MAX_ENEMIES)||14},
     frontSlots:(typeof ENEMY_FRONT_SLOTS==='number'&&ENEMY_FRONT_SLOTS)||7,
-  };
-  // **ヴォイド・ウォーカーの紫修正はここでも作り直す。**
-  // createBattleState() を通らない手組みのstateなので、忘れると
-  // 紫キャラクターの強化に+1が乗らない（コアが唯一の実装）。
-  if(typeof coreRefreshVoidWalkerBonus==='function') coreRefreshVoidWalkerBonus(state);
+  });
   _takePveSummonState(state);
   return state;
 }
@@ -2975,7 +2982,7 @@ function _endDeathCompactDelay(){
 
 // 攻撃モーション（接触攻撃＋反撃を含む一連の演出）が完全に終了するまで、
 // 盤面詰め直し・renderAll()を遅延させるためのロック。
-// _dealAttackDamageWithMutual()/_dealMultiAttackDamageWithMutual()の実行区間全体を
+// コアイベントの攻撃モーションの実行区間全体を
 // beginBattleMotion()/endBattleMotion()で囲むことで、演出中にDOMが再構築されて
 // （visibility:hiddenにした元要素が古いDOM参照になり）ユニットが一瞬消える事象を防ぐ。
 function beginBattleMotion(){
@@ -3649,30 +3656,6 @@ async function _applyAttackEffectsForSide(unit,isEnemySide){
   return await _applyAllyAttackEffectsWithElf(unit);
 }
 
-function _hasAttackEffectsForPause(unit){
-  if(!unit||unit.hp<=0||_isSealed(unit)) return false;
-  const desc=typeof coreUnitEffectText==='function'
-    ? coreUnitEffectText(unit) : String(unit.desc||unit.effectText||unit.effect||'');
-  const hasName=name=>_unitHasEffectName(unit,name);
-  if(_unitEffectPanelCount(unit,'懺悔')>0) return true;
-  if(hasName('ブラウニー')||hasName('ファミリア')||hasName('ユミル')||hasName('ラミア')||hasName('センチネル')||hasName('エルヴンメイジ')||hasName('インプ')||hasName('黄金の瞳"フレイ"')||hasName('万象の揺り籠"エピトメ"')||hasName('スケルトンキング')) return true;
-  const attackText=typeof coreUnitTriggerText==='function'
-    ?coreUnitTriggerText(unit,'攻撃') : desc;
-  if(/^\s*攻撃(?:[＆&](?:攻撃|負傷))?\s*[：:]/.test(attackText)) return true;
-  if(/全ての仲間のHPが\+[12]/.test(desc)||hasName('サイレン')) return true;
-  if(/^攻撃：ランダムな敵にXダメージ/.test(desc)) return true;
-  if(_unitHasKeyword(unit,'竜の契約')||_unitEffectPanelCount(unit,'竜の契約')>0) return true;
-  if(_unitHasKeyword(unit,'共振')||_unitHasKeyword(unit,'戦術')) return true;
-  if(_enhancementCount(unit,'剣技')>0) return true;
-  if(hasName('日刻の巫女"ルミア"')) return true;
-  return false;
-}
-
-function _applyGremlinAttackSwap(attacker,target,isEnemySide){
-  // 互換名。入れ替えのルール本体は coreApplyAttackEffects() に一本化する。
-}
-
-
 function _battleUnitSnapshot(unit, hpOverride){
   if(!unit) return null;
   return {
@@ -4232,165 +4215,6 @@ async function applyDamageBatch(entries, options){
   return results;
 }
 
-async function _consumeAttackEffectPause(unit,isEnemySide,target){
-  if(!unit||!unit._attackEffectPending||unit.hp<=0) return;
-  // 接触コールバックと攻撃演出のフォールバックが同一フレームに重なった場合、
-  // pending フラグの再設定で攻撃効果が二重に入ることがある。追加発動（闇の儀式等）は
-  // この関数が完了してから次の呼び出しへ進むため、実行中だけ再入を拒否する。
-  if(unit._attackEffectDispatching) return;
-  unit._attackEffectDispatching=true;
-  unit._attackEffectPending=false;
-  unit._currentAttackTarget=target||null;
-  unit._attackTargetWasWounded=!!(target&&target.hp>0&&target.hp<target.maxHp);
-  _applyGremlinAttackSwap(unit,target,isEnemySide);
-  try{
-    if(unit._scrollSilencedUntilAttack||unit._silenced){
-      delete unit._scrollSilencedUntilAttack;
-      delete unit._silenced;
-      return;
-    }
-    // コアと同じ順序：攻撃観測を攻撃効果より先に解決する。
-    await _runCoreLiveAttackObservers(unit,isEnemySide);
-    unit._attackObserverFired=true;
-    const skipAttack=await _applyAttackEffectsForSide(unit,isEnemySide);
-    if(skipAttack) unit._skipCurrentAttack=true;
-    await _flushRingManaThresholdEffects();
-  }finally{
-    delete unit._attackEffectDispatching;
-    delete unit._currentAttackTarget;
-    delete unit._attackTargetWasWounded;
-  }
-}
-
-async function _resolveAttackEffectsAtImpact(attacker,isEnemySide,target,result){
-  await _consumeAttackEffectPause(attacker,isEnemySide,target);
-  if(attacker&&attacker._skipCurrentAttack){
-    delete attacker._skipCurrentAttack;
-    // 「代わりに攻撃させる」等で本体の攻撃が省かれる場合でも、モーションは
-    // 途中で引き返さず最後まで見せる。25%地点から戻ると、召喚体の攻撃だけが
-    // 起きて本体は動かないように見える。damage/反撃は skipAttack で抑止する。
-    result.skipAttack=true;
-    return null;
-  }
-  result.attackerDiedBeforeContact=!attacker||attacker.hp<=0;
-  result.targetDiedBeforeContact=!target||target.hp<=0;
-  return (result.attackerDiedBeforeContact||result.targetDiedBeforeContact)?{abort:true}:null;
-}
-
-function _isArassusPreDamageAttack(unit){
-  if(!unit||!unit._attackEffectPending) return false;
-  const text=typeof coreUnitTriggerText==='function'
-    ? coreUnitTriggerText(unit,'攻撃') : String(unit.desc||unit.effectText||unit.effect||'');
-  // アラッサス/サイレン/ケンタウロス/ボーンチャリオットは通常攻撃の接触前に攻撃時効果を解決する。
-  // 効果で本来の攻撃対象が倒れた場合は通常攻撃と反撃を中断する。
-  if(['アラッサス','サイレン'].includes(unit.name)){
-    return /全ての(敵|キャラクター)に1ダメージ/.test(text);
-  }
-  // ケンタウロスは炎の矢（マナ閾値）と同じく、通常攻撃が敵へ到達してから
-  // 攻撃効果を解決する。専用の途中停止へ入れると、矢の着弾前に通常攻撃を
-  // 再開してダメージ表示が重なる。
-  if(unit.name==='グレムリン') return true;
-  return false;
-}
-
-async function _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage,onContact){
-  // 前の攻撃で接触揺れフラグが消費されずに残ると、次の揺れが抑制されてしまうため毎回落とす。
-  G._contactShakeFired=false;
-  const result={
-    contacted:false,
-    targetDiedBeforeContact:false,
-    attackerDiedBeforeContact:false,
-    actualTarget:target
-  };
-  if(!attacker||attacker.hp<=0){
-    result.attackerDiedBeforeContact=true;
-    return result;
-  }
-  if(!target||target.hp<=0){
-    result.targetDiedBeforeContact=true;
-    return result;
-  }
-  if(damage>0&&typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:attack-start:${uid()}`,guardMs:0});
-  if(isEnemySide){
-    let actualTarget=target;
-    let actualIdx=targetIdx;
-    if(damage>0){
-      actualTarget=_redirectToBodyguard(G.allies,target,'good');
-      actualIdx=G.allies.indexOf(actualTarget);
-    }
-    result.actualTarget=actualTarget;
-    if(damage>0&&_isArassusPreDamageAttack(attacker)&&typeof playArassusAttackMotion==='function'){
-      await playArassusAttackMotion(attacker,actualTarget,true,async()=>{
-        await _consumeAttackEffectPause(attacker,true,actualTarget);
-        result.attackerDiedBeforeContact=!attacker||attacker.hp<=0;
-        result.targetDiedBeforeContact=!actualTarget||actualTarget.hp<=0;
-        return (result.attackerDiedBeforeContact||result.targetDiedBeforeContact)?{abort:true}:null;
-      });
-      if(result.attackerDiedBeforeContact||result.targetDiedBeforeContact) return result;
-    } else if(damage>0&&typeof playAttackMotion==='function'){
-      const onImpact=attacker._attackEffectPending
-        ?()=>_resolveAttackEffectsAtImpact(attacker,true,actualTarget,result)
-        :null;
-      await playAttackMotion(attacker,actualTarget,true,onImpact,{...PRESENT_ATTACK_MOTION,
-        onHit:()=>_shakeOnAttackContact(actualTarget,damage),
-        onContact:async()=>{ if(typeof onContact==='function') await onContact(result); }});
-    } else {
-      await _consumeAttackEffectPause(attacker,true,actualTarget);
-    }
-    // 攻撃効果中に召喚・詰め直しが走ると配列要素が置き換わるため、接触直前に
-    // IDで現在の戦闘オブジェクトへ再結合する。演出対象とダメージ対象を同一IDに揃える。
-    attacker=_battleUnitById(G.enemies,attacker)||attacker;
-    actualTarget=_battleUnitById(G.allies,actualTarget)||actualTarget;
-    result.actualTarget=actualTarget;
-    if(!attacker||attacker.hp<=0){
-      result.attackerDiedBeforeContact=true;
-      return result;
-    }
-    if(!actualTarget||actualTarget.hp<=0){
-      result.targetDiedBeforeContact=true;
-      return result;
-    }
-    // ダメージの実適用はここでは行わない。反撃と同じ接触として_dealAttackDamageWithMutual側で
-    // まとめてapplyDamageBatch()に渡すことで、防御側の死亡確定より前に反撃の可否を確定できるようにする。
-    result.contacted=damage>0&&!result.skipAttack;
-    return result;
-  }
-  result.actualTarget=target;
-  if(damage>0&&_isArassusPreDamageAttack(attacker)&&typeof playArassusAttackMotion==='function'){
-    await playArassusAttackMotion(attacker,target,false,async()=>{
-      await _consumeAttackEffectPause(attacker,false,target);
-      result.attackerDiedBeforeContact=!attacker||attacker.hp<=0;
-      result.targetDiedBeforeContact=!target||target.hp<=0;
-      return (result.attackerDiedBeforeContact||result.targetDiedBeforeContact)?{abort:true}:null;
-    });
-    if(result.attackerDiedBeforeContact||result.targetDiedBeforeContact) return result;
-  } else if(damage>0&&typeof playAttackMotion==='function'){
-    const onImpact=attacker._attackEffectPending
-      ?()=>_resolveAttackEffectsAtImpact(attacker,false,target,result)
-      :null;
-    await playAttackMotion(attacker,target,false,onImpact,{...PRESENT_ATTACK_MOTION,
-      onHit:()=>_shakeOnAttackContact(target,damage),
-      onContact:async()=>{ if(typeof onContact==='function') await onContact(result); }});
-  } else {
-    await _consumeAttackEffectPause(attacker,false,target);
-  }
-  // 味方側も攻撃効果による召喚・変身後に、IDで最新の参照へ戻す。
-  attacker=_battleUnitById(G.allies,attacker)||attacker;
-  target=_battleUnitById(G.enemies,target)||target;
-  result.actualTarget=target;
-  if(!attacker||attacker.hp<=0){
-    result.attackerDiedBeforeContact=true;
-    return result;
-  }
-  if(!target||target.hp<=0||!G.enemies.includes(target)){
-    result.targetDiedBeforeContact=true;
-    return result;
-  }
-  // ダメージの実適用はここでは行わない。反撃と同じ接触として_dealAttackDamageWithMutual側で
-  // まとめてapplyDamageBatch()に渡すことで、防御側の死亡確定より前に反撃の可否を確定できるようにする。
-  result.contacted=damage>0&&!result.skipAttack;
-  return result;
-}
 // ラミア：攻撃：対象のキャラクターの攻撃力がこのキャラクターより低い場合、そのキャラクターを仲間にする。
 // ラミアで一時的に仲間にしたキャラクターを、報酬フェイズ突入時・敗北時に取り除く
 function _removeLamiaCapturedUnits(){
@@ -4398,267 +4222,6 @@ function _removeLamiaCapturedUnits(){
   G.allies.splice(0,G.allies.length,...G.allies.map(a=>a&&a._lamiaCaptured?null:a));
 }
 
-
-async function _dealAttackDamageWithMutual(attacker,isEnemySide,target,targetIdx,damage){
-  attacker=_battleUnitById(isEnemySide?G.enemies:G.allies,attacker)||attacker;
-  target=_battleUnitById(isEnemySide?G.allies:G.enemies,target)||target;
-  if(!attacker||!target) return null;
-  // 接触攻撃＋反撃を含む一連の演出が完全に終わるまで、盤面詰め直し・renderAll()を遅延させる
-  beginBattleMotion();
-  try{
-    if(attacker.hp<=0) return null;
-    const applyContactDamage=async attackResult=>{
-      if(!attackResult||attackResult.attackerDiedBeforeContact||attackResult.targetDiedBeforeContact) return;
-      // 攻撃を召喚体へ肩代わりさせた場合（スケルトンキング等）は、本体の攻撃も
-      // それに対する反撃も起こさない。コアは skipAttack で同じ判断をしており、
-      // ここで見ていないとPvEだけ本体が殴り、反撃ダメージまで受けていた。
-      if(attackResult.skipAttack) return;
-      let liveAttacker=_battleUnitById(isEnemySide?G.enemies:G.allies,attacker)||attacker;
-      const defender=_battleUnitById(isEnemySide?G.allies:G.enemies,attackResult.actualTarget||target)||(attackResult.actualTarget||target);
-      if(!liveAttacker||liveAttacker.hp<=0||!defender||defender.hp<=0) return;
-      const attackerHasFirstStrike=_unitHasKeyword(liveAttacker,'先制')&&!_unitHasKeyword(defender,'先制');
-      const suppressCounterBySniper=_unitHasKeyword(liveAttacker,'狙撃')||_unitHasKeyword(defender,'狙撃');
-      const counterAmount=typeof coreCounterDamage==='function'
-        ?coreCounterDamage(liveAttacker,defender):Math.max(0,defender.atk||0);
-      const defenderSide=isEnemySide?'ally':'enemy';
-      const attackerSide=isEnemySide?'enemy':'ally';
-      const entries=[{unit:defender,side:defenderSide,amount:damage,source:liveAttacker,attackSfxSource:liveAttacker}];
-      if(!suppressCounterBySniper&&counterAmount>0){
-        entries.push({unit:liveAttacker,side:attackerSide,amount:counterAmount,source:defender,
-          attackSfxSource:defender,_counterDamage:true});
-      }
-      if(attackerHasFirstStrike&&!suppressCounterBySniper){
-        await applyDamageBatch([entries[0]],{normalAttack:true});
-        if(defender.hp>0&&liveAttacker.hp>0&&counterAmount>0) await applyDamageBatch([entries[1]],{normalAttack:true});
-      }else await applyDamageBatch(entries,{normalAttack:true});
-      attackResult.damageAppliedAtContact=true;
-      attackResult.actualTarget=defender;
-      if(!suppressCounterBySniper&&counterAmount>0){
-        const defenderList=isEnemySide?G.allies:G.enemies;
-        const attackerList=isEnemySide?G.enemies:G.allies;
-      }
-    };
-    const attackResult=await _dealAttackDamage(attacker,isEnemySide,target,targetIdx,damage,applyContactDamage);
-    if(attackResult?.damageAppliedAtContact) return attackResult;
-    const defender=attackResult?.actualTarget||target;
-    if(!attackResult?.contacted||attacker.hp<=0||!defender||defender.hp<=0){
-      return attackResult;
-    }
-    if(!attacker._attackObserverFired) await _runCoreLiveAttackObservers(attacker,isEnemySide);
-    delete attacker._attackObserverFired;
-    // 攻撃・反撃を「同じ接触で同時に成立する相互ダメージ」として扱う。反撃の可否・値は
-    // ダメージ適用前（接触直前）の状態でスナップショットし、攻撃で倒れたことを理由に反撃を
-    // 取り消さない。先制は攻撃側が相手を仕留めた場合のみ反撃を免除する（相手も先制を持つ場合は無効）。
-    // 狙撃は反撃されず、反撃もできない。
-    const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(defender,'先制');
-    const suppressCounterBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(defender,'狙撃');
-    const counterAmount=typeof coreCounterDamage==='function'
-      ?coreCounterDamage(attacker,defender):Math.max(0,defender.atk||0);
-    const defenderSide=isEnemySide?'ally':'enemy';
-    const attackerSide=isEnemySide?'enemy':'ally';
-    if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push({
-      type:'attack', side:isEnemySide?'p2':'p1', attackerId:attacker.id, targetId:defender.id,
-      damage:Math.max(0,Number(damage)||0), counterDamage:counterAmount
-    });
-    // 先制だけは実ダメージを先に確定し、結界・強靭等を通した後も生存していた時だけ反撃させる。
-    // これにより先制攻撃で倒した敵から同時ダメージを受けない。
-    if(attackerHasFirstStrike&&!suppressCounterBySniper){
-      await applyDamageBatch([{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}],{normalAttack:true});
-      if(defender.hp>0&&attacker.hp>0&&counterAmount>0){
-        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender,_counterDamage:true}],{normalAttack:true});
-        const defenderList=isEnemySide?G.allies:G.enemies;
-        const attackerList=isEnemySide?G.enemies:G.allies;
-      }
-      return attackResult;
-    }
-    const suppressCounter=suppressCounterBySniper;
-    const entries=[{unit:defender,side:defenderSide,amount:damage,source:attacker,attackSfxSource:attacker}];
-    if(!suppressCounter&&counterAmount>0){
-      entries.push({unit:attacker,side:attackerSide,amount:counterAmount,source:defender,attackSfxSource:defender,_counterDamage:true});
-    }
-    await applyDamageBatch(entries,{normalAttack:true});
-    if(!suppressCounter&&counterAmount>0){
-      const defenderList=isEnemySide?G.allies:G.enemies;
-      const attackerList=isEnemySide?G.enemies:G.allies;
-    }
-    return attackResult;
-  } finally {
-    if(attacker&&attacker.id!=null){
-      G._suppressNextCompactUnitIds=new Set([String(attacker.id)]);
-      window.setTimeout(()=>G._suppressNextCompactUnitIds=null,500);
-    }
-    endBattleMotion();
-  }
-}
-
-function _battleUnitById(list, unit){
-  if(!unit||!Array.isArray(list)) return null;
-  return list.find(x=>x&&x.id===unit.id)||null;
-}
-
-async function _dealMultiAttackDamageWithMutual(attacker,isEnemySide,primaryTarget,targets,damage,contactModes=[]){
-  // 貫通と範囲攻撃は併用できるので、接触演出は配列で受ける（コアと同じ扱い）。
-  if(typeof contactModes==='string') contactModes=contactModes?[contactModes]:[];
-  const contactMode=contactModes[0]||'';
-  attacker=_battleUnitById(isEnemySide?G.enemies:G.allies,attacker)||attacker;
-  primaryTarget=_battleUnitById(isEnemySide?G.allies:G.enemies,primaryTarget)||primaryTarget;
-  if(!attacker||attacker.hp<=0||!primaryTarget||primaryTarget.hp<=0) return null;
-  // 接触攻撃＋反撃を含む一連の演出が完全に終わるまで、盤面詰め直し・renderAll()を遅延させる
-  beginBattleMotion();
-  try{
-    if(attacker.hp<=0) return null;
-    if(damage>0&&typeof playSfx==='function') playSfx('attack',{group:'combat',guardKey:`combat:attack-start:${uid()}`,guardMs:0});
-    const result={contacted:false,targetDiedBeforeContact:false,attackerDiedBeforeContact:false,actualTarget:primaryTarget};
-    let damageAppliedAtContact=false;
-    let contactVfxPlayed=false;
-    const applyMultiContactDamage=async()=>{
-      if(!attacker||attacker.hp<=0||!primaryTarget||primaryTarget.hp<=0) return;
-      if(contactMode&&!contactVfxPlayed){
-        contactVfxPlayed=true;
-        presentAttackContactVfxEvent({side:isEnemySide?'p2':'p1',attackerId:attacker.id,mode:contactMode,
-          modes:contactModes,primaryTargetId:primaryTarget.id,targetIds:(targets||[]).map(t=>t.id)},
-          {findUnit:(side,id)=>_battleUnitById(side==='p1'?G.allies:G.enemies,{id}),playVfx:playAttackContactVfx});
-      }
-      if(!attacker._attackObserverFired) await _runCoreLiveAttackObservers(attacker,isEnemySide);
-      delete attacker._attackObserverFired;
-      const seen=new Set();
-      const side=isEnemySide?'ally':'enemy';
-      const liveTargets=(targets||[])
-        .map(t=>_battleUnitById(isEnemySide?G.allies:G.enemies,t)||t)
-        .filter(t=>t&&t.hp>0&&!seen.has(t.id)&&!t._isObject&&!t._isSoul)
-        .map(t=>{seen.add(t.id);return t;});
-      const primary=_battleUnitById(isEnemySide?G.allies:G.enemies,primaryTarget)||primaryTarget;
-      const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker,suppressAttackHitSfx:!!contactMode}));
-      if(!entries.length) return;
-      result.contacted=damage>0&&!result.skipAttack;
-      const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(primary,'先制');
-      const suppressBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(primary,'狙撃');
-      const counterAmount=liveTargets.includes(primary)&&!suppressBySniper
-        ?(typeof coreCounterDamage==='function'?coreCounterDamage(attacker,primary):Math.max(0,primary.atk||0)):0;
-      if(Array.isArray(G._battleCoreEvents)) liveTargets.forEach(victim=>G._battleCoreEvents.push({
-        type:'attack',side:isEnemySide?'p2':'p1',attackerId:attacker.id,targetId:victim.id,
-        damage:Math.max(0,Number(damage)||0),counterDamage:victim===primary?counterAmount:0
-      }));
-      if(attackerHasFirstStrike&&!suppressBySniper){
-        await applyDamageBatch([entries.find(e=>e.unit===primary)||entries[0]],{normalAttack:true});
-        if(primary.hp>0&&attacker.hp>0&&counterAmount>0) await applyDamageBatch([{unit:attacker,side:isEnemySide?'enemy':'ally',amount:counterAmount,source:primary,attackSfxSource:primary,_counterDamage:true}],{normalAttack:true});
-      }else{
-        if(counterAmount>0) entries.push({unit:attacker,side:isEnemySide?'enemy':'ally',amount:counterAmount,source:primary,attackSfxSource:primary,_counterDamage:true});
-        await applyDamageBatch(entries,{normalAttack:true});
-      }
-      damageAppliedAtContact=true;
-      result.actualTarget=primary;
-    };
-    if(damage>0&&_isArassusPreDamageAttack(attacker)&&typeof playArassusAttackMotion==='function'){
-      await playArassusAttackMotion(attacker,primaryTarget,isEnemySide,async()=>{
-        await _consumeAttackEffectPause(attacker,isEnemySide,primaryTarget);
-        result.attackerDiedBeforeContact=!attacker||attacker.hp<=0;
-        result.targetDiedBeforeContact=!primaryTarget||primaryTarget.hp<=0;
-        return (result.attackerDiedBeforeContact||result.targetDiedBeforeContact)?{abort:true}:null;
-      });
-      if(result.attackerDiedBeforeContact||result.targetDiedBeforeContact) return result;
-    } else if(damage>0&&typeof playAttackMotion==='function'){
-      const onImpact=attacker._attackEffectPending
-        ?()=>_resolveAttackEffectsAtImpact(attacker,isEnemySide,primaryTarget,result)
-        :null;
-      await playAttackMotion(attacker,primaryTarget,isEnemySide,onImpact,{...PRESENT_ATTACK_MOTION,
-        onContact:applyMultiContactDamage});
-    } else {
-      await _consumeAttackEffectPause(attacker,isEnemySide,primaryTarget);
-    }
-    if(!attacker||attacker.hp<=0){
-      result.attackerDiedBeforeContact=true;
-      return result;
-    }
-    if(!primaryTarget||primaryTarget.hp<=0){
-      result.targetDiedBeforeContact=true;
-      return result;
-    }
-    if(damageAppliedAtContact) return result;
-
-    // 接触直前（ダメージ適用前）に生存していた対象のみ攻撃対象とする
-    const seen=new Set();
-    const side=isEnemySide?'ally':'enemy';
-    const liveTargets=(targets||[])
-      .filter(t=>t&&t.hp>0&&!seen.has(t.id)&&!t._isObject&&!t._isSoul)
-      .map(t=>{ seen.add(t.id); return t; });
-    if(contactMode&&!contactVfxPlayed){
-      contactVfxPlayed=true;
-      presentAttackContactVfxEvent({side:isEnemySide?'p2':'p1',attackerId:attacker.id,mode:contactMode,
-        modes:contactModes,primaryTargetId:primaryTarget.id,targetIds:(targets||[]).map(t=>t.id)},
-        {findUnit:(side,id)=>_battleUnitById(side==='p1'?G.allies:G.enemies,{id}),playVfx:playAttackContactVfx});
-    }
-    const entries=liveTargets.map(t=>({unit:t,side,amount:damage,source:attacker,attackSfxSource:attacker,suppressAttackHitSfx:!!contactMode}));
-    result.contacted=damage>0&&entries.length>0;
-    if(result.contacted && !attacker._attackObserverFired) await _runCoreLiveAttackObservers(attacker,isEnemySide);
-    delete attacker._attackObserverFired;
-
-    // 反撃は本来の攻撃対象（primaryTarget）からのみ発生する。全体攻撃／三方向攻撃で追加ダメージを
-    // 受けた他のキャラクターは反撃しない。反撃可否・値はダメージ適用前にスナップショットし、
-    // このヒットで倒れたことを理由に反撃を取り消さない。先制は攻撃側が相手を仕留めた場合のみ反撃を免除する
-    // （相手も先制を持つ場合は無効）。狙撃は反撃されず、反撃もできない。
-    const attackerHasFirstStrike=_unitHasKeyword(attacker,'先制')&&!_unitHasKeyword(primaryTarget,'先制');
-    const suppressBySniper=_unitHasKeyword(attacker,'狙撃')||_unitHasKeyword(primaryTarget,'狙撃');
-    const counterAmount=liveTargets.includes(primaryTarget)&&!suppressBySniper
-      ?(typeof coreCounterDamage==='function'?coreCounterDamage(attacker,primaryTarget):Math.max(0,primaryTarget.atk||0)):0;
-    if(Array.isArray(G._battleCoreEvents)) liveTargets.forEach(victim=>G._battleCoreEvents.push({
-      type:'attack', side:isEnemySide?'p2':'p1', attackerId:attacker.id, targetId:victim.id,
-      damage:Math.max(0,Number(damage)||0), counterDamage:victim===primaryTarget?counterAmount:0
-    }));
-    // 複数対象攻撃でも先制時は主対象への実ダメージ確定後にだけ反撃可否を判断する。
-    if(attackerHasFirstStrike&&!suppressBySniper){
-      await applyDamageBatch(entries,{normalAttack:true});
-      if(counterAmount>0){
-        const attackerSide=isEnemySide?'enemy':'ally';
-        await applyDamageBatch([{unit:attacker,side:attackerSide,amount:counterAmount,source:primaryTarget,attackSfxSource:primaryTarget,_counterDamage:true}],{normalAttack:true});
-        const attackerList=isEnemySide?G.enemies:G.allies;
-      }
-      return result;
-    }
-    const primaryCanCounter=liveTargets.includes(primaryTarget)&&!suppressBySniper;
-    const normalCounterAmount=primaryCanCounter
-      ?(typeof coreCounterDamage==='function'?coreCounterDamage(attacker,primaryTarget):Math.max(0,primaryTarget.atk||0)):0;
-    const attackerSide=isEnemySide?'enemy':'ally';
-    if(normalCounterAmount>0){
-      entries.push({unit:attacker,side:attackerSide,amount:normalCounterAmount,source:primaryTarget,attackSfxSource:primaryTarget,_counterDamage:true});
-    }
-    await applyDamageBatch(entries,{normalAttack:true});
-    if(normalCounterAmount>0){
-      const attackerList=isEnemySide?G.enemies:G.allies;
-    }
-    return result;
-  } finally {
-    if(attacker&&attacker.id!=null){
-      G._suppressNextCompactUnitIds=new Set([String(attacker.id)]);
-      window.setTimeout(()=>G._suppressNextCompactUnitIds=null,500);
-    }
-    endBattleMotion();
-  }
-}
-
-// 毒の解決はコアが唯一の実装（coreApplyPoisonBeforeTurn）。**ダメージではない。**
-// 通常の戦闘進行はコア駆動（battlePhase → coreBattleStep）が直接呼ぶ。
-// ここは旧来の攻撃アクション（現在はバランス検証ハーネスだけが使う）用の入口。
-async function _applyPoisonBeforeAttack(unit){
-  if(!unit||unit.hp<=0||_isSealed(unit)||!(unit.poison>0)) return;
-  if(typeof coreApplyPoisonBeforeTurn!=='function') return;
-  const isEnemySide=(G.enemies||[]).includes(unit);
-  const emit=ev=>{ if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  const result=coreApplyPoisonBeforeTurn(unit,emit);
-  if(!result||result.amount<=0) return;
-  // 毒の絵と音（K017）。ダメージではないので被弾VFXは出さず、数値だけ添える。
-  if(typeof playHitVfx==='function') await playHitVfx(isEnemySide?'enemy':'ally',unit,result.amount,{keywordEffect:'毒'});
-  if(unit.hp<=0){
-    if(isEnemySide) await processEnemyDeath(unit,G.enemies.indexOf(unit));
-    else await processAllyDeath(unit);
-  }
-}
-
-// 全体攻撃：攻撃対象だけでなく、前衛・後衛を問わず相手陣営の生存キャラクター全員にダメージを与える。
-function _targetsInSameAttackRow(target, list){
-  if(!target) return [];
-  return (list||[]).filter(u=>u&&u.hp>0&&!u._isObject&&!u._isSoul);
-}
 
 function _panelGridPos(idx){
   const cols=(typeof MAIN_BOARD_COLS!=='undefined'&&MAIN_BOARD_COLS)||5;
@@ -6059,176 +5622,6 @@ function getAttackTarget(attacker, targets){
 
 // 貫通：前衛キャラクターへの攻撃時、その後ろに位置する後衛キャラクター（最大3人）にも同じダメージを与える。
 // 前衛F人・後衛R人の場合、後衛R人をF分割し、front側の位置indexに対応する区画を「真後ろ」とみなす。
-function _pierceRearTargets(target, list){ return corePierceRearTargets(target, list); }
-
-async function allyAttackAction(ally, allyIdx){
-  _recordBattleTrace('attack_action_enter',{side:'p1',unitId:ally&&ally.id,name:ally&&ally.name,idx:allyIdx,atk:ally&&ally.atk,hp:ally&&ally.hp});
-  // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
-  // ATK0で攻撃自体がスキップされる場合も先に処理する
-  await _applyPoisonBeforeAttack(ally);
-  ally=_battleUnitById(G.allies,ally);
-  allyIdx=ally?G.allies.indexOf(ally):-1;
-  if(!ally||ally.hp<=0||_isSealed(ally)){ _recordBattleTrace('attack_action_skip',{side:'p1',reason:'not_attackable'}); return false; }
-  delete ally._attackObserverFired;
-  if(_unitHasKeyword(ally,'防戦')){ _recordBattleTrace('attack_action_skip',{side:'p1',reason:'defense'}); return false; }
-  const attackDmg=_attackDamageValue(ally);
-  if(attackDmg<=0){ _recordBattleTrace('attack_action_skip',{side:'p1',reason:'zero_attack',attackDmg}); return false; } // ATK0は攻撃しない
-  await _runCoreLiveAttackRing(false);
-  const liveE=G.enemies.filter(_canReceiveBattleEffect);
-  if(!liveE.length){ _recordBattleTrace('attack_action_skip',{side:'p1',reason:'no_targets'}); return false; }
-
-  let target=getAttackTarget(ally,G.enemies);
-  if(!target){ _recordBattleTrace('attack_action_skip',{side:'p1',reason:'target_null'}); return false; }
-  _recordBattleTrace('attack_action_target',{side:'p1',attackerId:ally.id,targetId:target.id,attackDmg});
-  const isGlobal=coreAttackSpread(ally)==='all';
-  const isTriDir=coreAttackSpread(ally)==='tri';
-  hideAttackLine();
-
-  if(ally.stealth){ ally.stealth=false; ; }
-
-  // 攻撃時効果はアニメーション途中で発動する
-  if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
-  // 全体攻撃・三方向攻撃・単体攻撃の振り分け
-  const eIdx=G.enemies.indexOf(target);
-  let attackTargets=isGlobal?_targetsInSameAttackRow(target,G.enemies).filter(_canReceiveBattleEffect):isTriDir?
-    (typeof coreTriDirectionTargets==='function'?coreTriDirectionTargets(target,G.enemies):[target]).filter(_canReceiveBattleEffect):[target];
-  // 貫通：前衛の対象への攻撃なら、真後ろの後衛キャラクターにも同じダメージを追加する
-  // 貫通は範囲攻撃と**併用できる**（コアの withPierce と同じ扱い）。
-  const contactModes=[...(isGlobal?['all']:isTriDir?['tri']:[]),...(_unitHasKeyword(ally,'貫通')?['pierce']:[])];
-  const contactMode=contactModes[0]||'';
-  const pierceExtra=_unitHasKeyword(ally,'貫通')
-    ?attackTargets.filter(t=>t&&(t.lane||'front')!=='rear')
-      .flatMap(t=>_pierceRearTargets(t,G.enemies)).filter(_canReceiveBattleEffect):[];
-  pierceExtra.forEach(t=>{ if(t&&!attackTargets.includes(t)) attackTargets=[...attackTargets,t]; });
-
-  if(attackTargets.length>1){
-    await _dealMultiAttackDamageWithMutual(ally,false,target,attackTargets,attackDmg,contactModes);
-  } else {
-    await _dealAttackDamageWithMutual(ally,false,target,eIdx,attackDmg);
-  }
-  // 多段攻撃（三段=×2、二段=×1）：1回目の攻撃には全体攻撃／三方向攻撃の対象選択がそのまま適用される。
-  // 2段目以降の追加攻撃は単体攻撃扱いで、全体攻撃／三方向攻撃を持つ場合は発生しない。
-  if(ally.hp>0&&!isGlobal&&!isTriDir){
-    // 追加攻撃回数の数え方はコア（coreExtraAttackTotal）が唯一の実装。
-    // 以前はここで疾風の指輪を数え忘れていた（指輪の効果文は「味方の攻撃回数は1回追加される」）。
-    const extraHits=coreExtraAttackTotal(ally,G.allies||[],_ringCount('疾風の指輪'));
-    let curTgt=target;
-    for(let hi=0;hi<extraHits;hi++){
-      if(!curTgt||curTgt.hp<=0){
-        curTgt=getAttackTarget(ally,G.enemies);
-      }
-      if(!curTgt||curTgt.hp<=0) break;
-      hideAttackLine();
-      // 攻撃時効果はアニメーション途中で発動する
-      if(ally.hp>0&&_hasAttackEffectsForPause(ally)) ally._attackEffectPending=true;
-      await _dealAttackDamageWithMutual(ally,false,curTgt,G.enemies.indexOf(curTgt),attackDmg);
-    }
-  }
-
-
-  renderAll();
-  await battleSleep(180);
-  return true;
-}
-
-// ── 敵攻撃アクション ──────────────────────────
-
-async function enemyAttackAction(enemy, enemyIdx){
-  _recordBattleTrace('attack_action_enter',{side:'p2',unitId:enemy&&enemy.id,name:enemy&&enemy.name,idx:enemyIdx,atk:enemy&&enemy.atk,hp:enemy&&enemy.hp});
-  // 毒は「攻撃するタイミング」ではなく「このキャラクターの手番」に発動するため、
-  // ATK0で攻撃自体がスキップされる場合も先に処理する
-  await _applyPoisonBeforeAttack(enemy);
-  enemy=_battleUnitById(G.enemies,enemy);
-  enemyIdx=enemy?G.enemies.indexOf(enemy):-1;
-  if(!enemy||enemy.hp<=0||_isSealed(enemy)) return false;
-  delete enemy._attackObserverFired;
-  if(_unitHasKeyword(enemy,'防戦')) return false;
-  if(enemy.atk<=0) return false; // ATK0は攻撃しない
-  const liveA=G.allies.filter(_canReceiveBattleEffect);
-  if(!liveA.length) return false;
-
-  // ターゲット選択（前衛後衛ルール）
-  const primaryTarget=getAttackTarget(enemy,G.allies);
-  if(!primaryTarget) return false;
-  // 敵側も旧オフライン版と同じく、スケルトンキングの代理攻撃を先に解決する。
-  if(enemy.name==='スケルトンキング'){
-    if(enemy.stealth){ enemy.stealth=false; ; }
-    const skel=await _spawnAdhocAllyUnit('青スケルトン',4,2,true,{rightOf:enemy});
-    if(skel&&skel.hp>0){
-      const si=G.enemies.indexOf(skel);
-      if(si>=0) await enemyAttackAction(skel,si);
-    }
-    renderAll();
-    await battleSleep(180);
-    return true;
-  }
-  const targets=[primaryTarget];
-  const primaryIdx=G.allies.indexOf(primaryTarget);
-
-  // ※敵側は従来からキーワード列だけを見ており、効果文からは拾わない（味方側とは異なる）。
-  //   挙動を変えないため fromKeywordsOnly を明示している。揃えるかは要判断。
-  const isGlobalAtk=coreAttackSpread(enemy,{fromKeywordsOnly:true})==='all';
-  const isTriDirAtk=coreAttackSpread(enemy,{fromKeywordsOnly:true})==='tri';
-  const liveAllForGlobal=_targetsInSameAttackRow(primaryTarget,G.allies).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth);
-  hideAttackLine();
-
-  if(enemy.stealth){ enemy.stealth=false; ; }
-
-  const atkVal=enemy.nullified>0?0:enemy.atk;
-  if(enemy.nullified>0) enemy.nullified--;
-
-  // 攻撃時効果はアニメーション途中で発動する
-  if(atkVal>0&&enemy.hp>0&&_hasAttackEffectsForPause(enemy)) enemy._attackEffectPending=true;
-
-  // 全体攻撃・三方向攻撃・単体攻撃の振り分け（三方向攻撃：隣接3スロット、隠密は除外）
-  const _triATargets=isTriDirAtk&&typeof coreTriDirectionTargets==='function'
-    ?coreTriDirectionTargets(primaryTarget,G.allies).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth):[];
-  let finalTargets=isGlobalAtk?liveAllForGlobal:isTriDirAtk?_triATargets:targets;
-  // 貫通：前衛の対象への攻撃なら、真後ろの後衛キャラクターにも同じダメージを追加する
-  const contactModes=[...(isGlobalAtk?['all']:isTriDirAtk?['tri']:[]),...(_unitHasKeyword(enemy,'貫通')?['pierce']:[])];
-  const contactMode=contactModes[0]||'';
-  const pierceExtra=_unitHasKeyword(enemy,'貫通')
-    ?finalTargets.filter(t=>t&&(t.lane||'front')!=='rear')
-      .flatMap(t=>_pierceRearTargets(t,G.allies)).filter(a=>_canReceiveBattleEffect(a)&&!a.stealth):[];
-  pierceExtra.forEach(t=>{ if(t&&!finalTargets.includes(t)) finalTargets=[...finalTargets,t]; });
-
-  // 全ターゲットを攻撃
-  if(finalTargets.length>1){
-    await _dealMultiAttackDamageWithMutual(enemy,true,primaryTarget,finalTargets,atkVal,contactModes);
-  } else {
-    await _dealAttackDamageWithMutual(enemy,true,primaryTarget,primaryIdx,atkVal);
-  }
-
-  // 多段攻撃キーワード（三段=×2、二段=×1）：1回目の攻撃には全体攻撃／三方向攻撃の対象選択がそのまま適用される。
-  // 2段目以降の追加攻撃は単体攻撃扱いで、全体攻撃／三方向攻撃を持つ場合は発生しない。
-  if(!isGlobalAtk&&!isTriDirAtk&&enemy.hp>0){
-    // 敵側は fromKeywordsOnly（効果文からのキーワード推定を使わない）を維持する。
-    // PvE専用の生成敵にだけ効く指定で、両陣営とも編成盤面のPvPには存在しない条件のため、
-    // PvE/PvPのパリティ問題にはならない。疾風の指輪は味方の指輪なので敵側は0。
-    const extraHits=coreExtraAttackTotal(enemy,G.enemies||[],0,{fromKeywordsOnly:true});
-    let reTgt=finalTargets[0];
-    for(let hi=0;hi<extraHits;hi++){
-      if(!reTgt||reTgt.hp<=0){
-        reTgt=getAttackTarget(enemy,G.allies);
-      }
-      if(!reTgt||reTgt.hp<=0) break;
-      hideAttackLine();
-      // 攻撃時効果はアニメーション途中で発動する
-      if(atkVal>0&&enemy.hp>0&&_hasAttackEffectsForPause(enemy)) enemy._attackEffectPending=true;
-      await _dealAttackDamageWithMutual(enemy,true,reTgt,G.allies.indexOf(reTgt),atkVal);
-    }
-  }
-
-  // 標的ターン消費はbattlePhaseで1ラウンドに1回行う
-  if(enemy&&enemy._scrollSilencedUntilAttack){
-    delete enemy._scrollSilencedUntilAttack;
-  }
-
-  renderAll();
-  await battleSleep(180);
-  return true;
-}
-
 // ── 味方へのダメージ処理 ─────────────────────────
 
 function _redirectToBodyguard(list, unit, tone) {
@@ -6346,82 +5739,6 @@ async function _processAllyDeathInner(unit){
 
 // 死亡観測は coreApplyDeathObservers() に一本化したため、旧呼び出し名は互換用の空関数にする。
 function _onAnyCharDeath(){ }
-
-async function _runCoreLiveAttackObservers(attacker,isEnemySide){
-  if(!attacker||attacker.hp<=0||typeof coreApplyAttackObservers!=='function') return;
-  const state={
-    units:{p1:G.allies||[],p2:G.enemies||[]},
-    summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],
-    itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
-    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
-    items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
-    resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
-    ..._pveCoreStageFields(),
-    life:{p1:_currentBattleLife(),p2:0},
-    maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
-    blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
-  };
-  const touched=[];
-  [...state.units.p1,...state.units.p2].forEach((u,i)=>{
-    if(!u) return;
-    touched.push([u,u.side,u.slot]); u.side=state.units.p1.includes(u)?'p1':'p2'; u.slot=i;
-  });
-  const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
-  const localEvents=[];
-  const emit=ev=>{ localEvents.push(ev); if(ev&&ev.type==='mana_gain') _recordBattleTrace('mana_gain_generated',{unitId:ev.unitId||null,side:ev.side,amount:Number(ev.amount)||0,reason:ev.reason||''}); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
-  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
-  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
-  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
-      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
-  };
-  try{ coreApplyAttackObservers(attacker,state,coreMathRng,emit,applyHit); }
-  finally{
-    touched.forEach(([u,oldSide,slot])=>{
-      if(oldSide==null) delete u.side; else u.side=oldSide;
-      if(slot==null) delete u.slot; else u.slot=slot;
-    });
-  }
-  const spawned=[...state.units.p1,...state.units.p2].filter(u=>u&&!before.has(u)&&!u._corePendingSummon);
-  for(const u of spawned){ const list=state.units.p1.includes(u)?G.allies:G.enemies; if(!list.includes(u)) list.push(u); await _afterPanelSummon(u,list===G.enemies,false,true); }
-  await _flushCorePveHitEvents(state,localEvents,before);
-}
-
-async function _runCoreLiveAttackRing(isEnemySide){
-  if(isEnemySide||!_hasRingNamed('鬼神の指輪')||typeof coreApplyAttackRing!=='function') return;
-  const state={
-    units:{p1:G.allies||[],p2:G.enemies||[]},
-    summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],
-    itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
-    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
-    items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
-    resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
-    ..._pveCoreStageFields(),
-    life:{p1:_currentBattleLife(),p2:0},
-    maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
-    blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
-    _oniRingAttackCount:G._oniRingAttackCount||0,
-  };
-  G._oniRingAttackCount=state._oniRingAttackCount;
-  const touched=[];
-  [...state.units.p1,...state.units.p2].forEach((u,i)=>{if(u){touched.push([u,u.side,u.slot]);u.side=state.units.p1.includes(u)?'p1':'p2';u.slot=i;}});
-  const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
-  const localEvents=[];
-  const emit=ev=>{localEvents.push(ev);if(Array.isArray(G._battleCoreEvents))G._battleCoreEvents.push(ev);};
-  // オプションはコアへそのまま渡す（deferTriggers/collect を落とすと誘発順が食い違う）。
-  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>
-    coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
-      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
-  try{coreApplyAttackRing(state,'p1',coreMathRng,emit,applyHit);}finally{
-    G._oniRingAttackCount=state._oniRingAttackCount;
-    touched.forEach(([u,side,slot])=>{if(side==null)delete u.side;else u.side=side;if(slot==null)delete u.slot;else u.slot=slot;});
-  }
-  const spawned=[...state.units.p1,...state.units.p2].filter(u=>u&&!before.has(u)&&!u._corePendingSummon);
-  for(const u of spawned){const list=state.units.p1.includes(u)?G.allies:G.enemies;if(!list.includes(u))list.push(u);await _afterPanelSummon(u,list===G.enemies,false,true);}
-  await _flushCorePveHitEvents(state,localEvents,before);
-}
-
 
 // ── シールド喪失時 ──────────────────────────────
 

@@ -89,9 +89,7 @@ function _syncRewardProductionItems(){
           const placed=clone(card);
           if(buyCost>0&&typeof markShopPurchase==='function') markShopPurchase(placed,card,rewIdx,buyCost);
           // 商品枠に置いていた自分のアイテムを戻す場合、売却待ちの印を消してから手持ちへ返す。
-          delete placed._shopSalePending;
-          delete placed._sellDisplayPrice;
-          delete placed._temporaryRewardAreaCard;
+          _clearShopSalePending(placed);
           if(card._isOriginalReward){
             placed._rewardReturnCard=clone(card);
             placed._rewardReturnIdx=rewIdx;

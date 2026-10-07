@@ -1017,6 +1017,15 @@ function coreUnitSnapshot(unit) {
   };
 }
 
+// 入力の複製・参照共有は受け口が決め、戦闘の足場はここだけで初期化する。
+function coreInitializeBattleState(state) {
+  state.turn = 0;
+  state.lane = { p1: { lane: 'front', attacked: new Set() }, p2: { lane: 'front', attacked: new Set() } };
+  state.deadUnits = [];
+  coreRefreshVoidWalkerBonus(state);
+  return state;
+}
+
 // 初期状態を作る。PvEもPvPもこの形に揃えてからコアへ渡す。
 function createBattleState(setup) {
   const src = (setup && setup.sides) || {};
@@ -1032,7 +1041,7 @@ function createBattleState(setup) {
       return createCoreUnit({ ...u, _stageNumber: stageNumber }, side, i);
     }).filter(Boolean);
   });
-  coreRefreshVoidWalkerBonus({ units });
+  const frame = coreInitializeBattleState({ units });
   return {
     units,
     summonDefs: Array.isArray(setup && setup.summonDefs) ? setup.summonDefs.map(x => ({ ...x })) : [],
@@ -1051,13 +1060,13 @@ function createBattleState(setup) {
     },
     mapIndex: Math.max(1, Number(setup && setup.mapIndex) || 1),
     stageNumber,
-    turn: 0,
-    lane: { p1: { lane: 'front', attacked: new Set() }, p2: { lane: 'front', attacked: new Set() } },
+    turn: frame.turn,
+    lane: frame.lane,
     blood: {
       p1: Math.max(0, Number(setup && setup.blood && setup.blood.p1) || 0),
       p2: Math.max(0, Number(setup && setup.blood && setup.blood.p2) || 0),
     },
-    deadUnits: [],
+    deadUnits: frame.deadUnits,
     // UI側の実際の盤面上限と一致させる。固定値14のままだと、盤面が10枠の
     // 実機ではコアが余分な召喚を先に生成し、描画フラッシュ時に左端へ現れる。
     maxUnits: {
@@ -5950,7 +5959,7 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    BATTLE_CORE_TURN_LIMIT, createBattleState, runBattleCore, coreBattleStep, coreCheckUndyingRing,
+    BATTLE_CORE_TURN_LIMIT, coreInitializeBattleState, createBattleState, runBattleCore, coreBattleStep, coreCheckUndyingRing,
     coreLaneAttackCandidates, corePickAttacker, coreExtraAttackTotal,
     battleCoreFinalState, coreUnitSnapshot, createCoreUnit,
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced,

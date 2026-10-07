@@ -870,15 +870,28 @@ function main() {
     '攻撃前に死んでいる召喚体を表示用に生かしていない（召喚も割り込み攻撃も見えない）');
   assert.match(currentBattle, /if\(attacker&&attacker\._presentSummonDeathPending\)\{/,
     '表示用に生かした召喚体を攻撃後に死亡状態へ戻していない');
-  // 「代わりに攻撃させる」で本体の攻撃が省かれる場合、モーションは最後まで見せ、
-  // ダメージと反撃だけを抑止する。25%地点から引き返すと本体が動かないように見え、
-  // skipAttack を読まないとPvEだけ本体が殴って反撃まで受ける（コアは省いている）。
-  assert.match(currentBattle, /result\.skipAttack=true;\s*\n\s*return null;/,
-    '肩代わり攻撃で本体のモーションを途中で打ち切っている');
-  assert.match(currentBattle, /if\(attackResult\.skipAttack\) return;/,
+  // 肩代わり攻撃は、本番のコアで本体のダメージ・反撃を省き、次の側へ手番を渡す。
+  // 削除された検査専用攻撃経路の skipAttack の文字列ではなく、実際のイベントを検査する。
+  const controlledState=core.createBattleState({sides:{
+    p1:{units:[{id:'controller',name:'ピクシー',atk:7,hp:40,maxHp:40,
+      desc:'攻撃：ランダムな前衛の敵を操り、代わりに攻撃させる。'}]},
+    p2:{units:[{id:'controlled-a',name:'敵A',atk:3,hp:40,maxHp:40},
+      {id:'controlled-b',name:'敵B',atk:3,hp:40,maxHp:40}]}
+  }});
+  controlledState._coreFirstSide='p1';
+  const controlledEvents=[];
+  const controlledRunner=core.createBattleRunner(controlledState,createSeededRng(772),
+    e=>controlledEvents.push(e),{skipOpening:true});
+  controlledRunner.step();
+  const controlledAttack=controlledEvents.find(e=>e.type==='attack'&&e.controlled);
+  assert.ok(controlledAttack&&controlledAttack.sourceId==='controller', '肩代わり攻撃のイベントが無い');
+  assert.notEqual(controlledAttack.attackVisual,false, '肩代わり攻撃のモーションを省いている');
+  assert.ok(!controlledAttack.effectOnly, '肩代わり攻撃を途中で引き返す効果専用モーションにしている');
+  assert.ok(!controlledEvents.some(e=>e.type==='damage'&&(e.sourceId==='controller'||e.unitId==='controller')),
     '肩代わり攻撃なのに本体のダメージ・反撃を発生させている');
-  assert.doesNotMatch(currentBattle, /result\.contacted=damage>0;/,
-    'skipAttack を見ずに接触扱いにしている');
+  assert.equal(controlledState.units.p1[0].hp,40, '攻撃していない本体が反撃を受けた');
+  controlledRunner.step();
+  assert.equal(controlledEvents.filter(e=>e.type==='attack'&&!e.immediate)[0]?.side,'p2', '肩代わり後に相手へ手番が渡らない');
   // PvEの盤面配列は null を含む固定長。コアが詰まった配列前提で回すと例外になり、
   // 攻撃処理ごと中断して手番が相手へ渡らない（邪眼＝スリンで100%再現した）。
   assert.match(read('js/battle/core.js'),
@@ -1388,8 +1401,8 @@ function main() {
     'デバッグ試験戦闘へ通常戦闘のnode情報が混入している');
   assert.match(currentBattle, /\} else if\(attacker&&target&&typeof playAttackMotion==='function'\)/,
     '即時攻撃イベントを対象のHP0判定で演出ごとスキップしている');
-  assert.equal(count(currentBattle, /await playAttackMotion\(/g), 5,
-    'PvEのplayAttackMotion呼び出し数が想定外に変化している');
+  assert.equal(count(currentBattle, /await playAttackMotion\(/g), 2,
+    '共通イベント受け口の先出し・即時攻撃のモーション入口が変化している');
   // 攻撃効果は「少し動き出した時点」で見せる。攻撃より前に効果があるときは、
   // 先にモーションを始めて25%地点で止め、効果を見せてから接触まで進める。
   assert.match(currentBattle, /presentPreAttackPlan\(eventList,eventIndex\)/,

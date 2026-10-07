@@ -138,11 +138,6 @@ function shopDone(){
   _startWaveFlowNext();
 }
 
-function returnToMapVillage(){
-  if(G._pendingPanelPlacement) return;
-  openMapVillage();
-}
-
 // ══════════════════════════════════════════════════════════
 // 街（村）専用画面
 // ══════════════════════════════════════════════════════════
@@ -2318,11 +2313,7 @@ function _maybeStartArenaTutorial(){
   });
 }
 
-function runBoardTutorial(cfg){
-  if(!G||G._libraryTutorialActive) return;
-  G._libraryTutorialActive=true;
-  const scr=document.getElementById(cfg.hostId||'scr-battle');
-  if(!scr&&!cfg.allowNoHost){ G._libraryTutorialActive=false; return; }
+function _createBoardTutorialLayer(cfg){
   const root=document.createElement('div'); root.id='library-board-tutorial';
   // #scr-battle は transform:scale() でスタッキングコンテキストになるため、
   // チュートリアルの暗転は body 直下に置き、fixed のビューポート座標で描画する。
@@ -2337,6 +2328,82 @@ function runBoardTutorial(cfg){
   dimPath.setAttribute('fill-opacity','.5');
   dimSvg.appendChild(dimPath);
   dims.appendChild(dimSvg);
+  return {root,dims,dimSvg,dimPath};
+}
+
+function _recalcBoardTutorialDims(dims,dimSvg,dimPath,revealTargets,BOARD_OUTLINE){
+  if(!dims) return;
+  // innerWidth/Height が取れない状況（描画前・非表示タブ等）では暗転を作れないため、
+  // documentElement のサイズで補う。
+  const vw=window.innerWidth||document.documentElement.clientWidth||0;
+  const vh=window.innerHeight||document.documentElement.clientHeight||0;
+  if(vw<=0||vh<=0) return;
+  dimSvg.setAttribute('viewBox',`0 0 ${vw} ${vh}`);
+  const rectPath=r=>`M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`;
+  const cutouts=[`M0 0H${vw}V${vh}H0Z`];
+  const reward=document.getElementById('reward-offer-section');
+  const frame=document.getElementById('hand-pane-board-bg');
+  const frameRect=frame&&frame.getBoundingClientRect();
+  if(revealTargets){
+    const rewardRect=reward&&reward.getBoundingClientRect();
+    if(rewardRect&&rewardRect.width>0&&rewardRect.height>0) cutouts.push(rectPath(rewardRect));
+    if(frameRect&&frameRect.width>0&&frameRect.height>0){
+      const sx=frameRect.width/1631, sy=frameRect.height/1407;
+      cutouts.push(BOARD_OUTLINE.map(([x,y],i)=>`${i?'L':'M'}${frameRect.left+x*sx} ${frameRect.top+y*sy}`).join('')+'Z');
+    }
+  }
+  // オプションボタンは説明中も明るく押せるようにする（利用者指定 2026-09-25）。
+  // 形は button_option.svg（110×102、四隅が半径15の内向きの弧）に合わせて切り抜く。
+  const optBtn=document.getElementById('battle-options-btn');
+  const optRect=optBtn&&optBtn.getBoundingClientRect();
+  if(optRect&&optRect.width>0&&optRect.height>0){
+    const ox=optRect.left, oy=optRect.top, sx=optRect.width/110, sy=optRect.height/102;
+    const P=(x,y)=>`${ox+x*sx} ${oy+y*sy}`, R=`${15*sx} ${15*sy} 0 0 0`;
+    cutouts.push(`M${P(94,101)}L${P(16,101)}A${R} ${P(1,86)}L${P(1,16)}A${R} ${P(16,1)}L${P(94,1)}A${R} ${P(109,16)}L${P(109,86)}A${R} ${P(94,101)}Z`);
+  }
+  dimPath.setAttribute('d',cutouts.join(' '));
+  // 再描画で盤面が差し替わっても、全マスがSVG本体の内側にあることを確認する。
+  const board=document.querySelector('#hand-slots.board-slots');
+  const boardRect=board&&board.getBoundingClientRect();
+  G._libraryTutorialBoardHoleVerified=!!(revealTargets&&frameRect&&boardRect&&boardRect.width>0&&boardRect.height>0
+    &&boardRect.left>=frameRect.left+frameRect.width*.9/1631-.5
+    &&boardRect.top>=frameRect.top-.5
+    &&boardRect.right<=frameRect.left+frameRect.width*1591.1/1631+.5
+    &&boardRect.bottom<=frameRect.bottom+.5);
+}
+
+function _createBoardTutorialGlow(){
+  const GLOW_ONLY='0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)';
+  const withBase=(el,glowValue)=>{
+    const base=String(el.dataset.libTutShadow||'').trim();
+    return base&&base!=='none'?`${base},${glowValue}`:glowValue;
+  };
+  const applyGlowShadow=el=>{
+    if(!el||!el.style) return;
+    if(el.dataset.libTutShadow==null) el.dataset.libTutShadow=el.style.getPropertyValue('box-shadow')||'';
+    el.style.setProperty('box-shadow',withBase(el,GLOW_ONLY),'important');
+  };
+  const clearGlowShadow=el=>{
+    if(!el||!el.style||el.dataset.libTutShadow==null) return;
+    const prev=el.dataset.libTutShadow;
+    delete el.dataset.libTutShadow;
+    if(prev) el.style.setProperty('box-shadow',prev,'important');
+    else el.style.removeProperty('box-shadow');
+  };
+  const glow=(target)=>{
+    const t=typeof target==='function'?target():target;
+    const els=typeof t==='string'?Array.from(document.querySelectorAll(t)):(t instanceof Element?[t]:Array.from(t||[]));
+    els.forEach(el=>{ if(el&&el.classList){ el.classList.add('library-tutorial-glow'); applyGlowShadow(el); } }); return els;
+  };
+  return {withBase,applyGlowShadow,clearGlowShadow,glow};
+}
+
+function runBoardTutorial(cfg){
+  if(!G||G._libraryTutorialActive) return;
+  G._libraryTutorialActive=true;
+  const scr=document.getElementById(cfg.hostId||'scr-battle');
+  if(!scr&&!cfg.allowNoHost){ G._libraryTutorialActive=false; return; }
+  const {root,dims,dimSvg,dimPath}=_createBoardTutorialLayer(cfg);
   // board.svg の背景 polygon（viewBox 1631×1407）。右の装飾だけが張り出す輪郭を
   // 暗転の穴にも使い、SVG の外側に明るい矩形を残さない。
   const BOARD_OUTLINE=[
@@ -2346,46 +2413,7 @@ function runBoardTutorial(cfg){
   ];
   let dimsObserver=null, dimsRecalcFrame=0;
   let revealTargets=false;
-  const recalcDims=()=>{
-    if(!dims) return;
-    // innerWidth/Height が取れない状況（描画前・非表示タブ等）では暗転を作れないため、
-    // documentElement のサイズで補う。
-    const vw=window.innerWidth||document.documentElement.clientWidth||0;
-    const vh=window.innerHeight||document.documentElement.clientHeight||0;
-    if(vw<=0||vh<=0) return;
-    dimSvg.setAttribute('viewBox',`0 0 ${vw} ${vh}`);
-    const rectPath=r=>`M${r.left} ${r.top}H${r.right}V${r.bottom}H${r.left}Z`;
-    const cutouts=[`M0 0H${vw}V${vh}H0Z`];
-    const reward=document.getElementById('reward-offer-section');
-    const frame=document.getElementById('hand-pane-board-bg');
-    const frameRect=frame&&frame.getBoundingClientRect();
-    if(revealTargets){
-      const rewardRect=reward&&reward.getBoundingClientRect();
-      if(rewardRect&&rewardRect.width>0&&rewardRect.height>0) cutouts.push(rectPath(rewardRect));
-      if(frameRect&&frameRect.width>0&&frameRect.height>0){
-        const sx=frameRect.width/1631, sy=frameRect.height/1407;
-        cutouts.push(BOARD_OUTLINE.map(([x,y],i)=>`${i?'L':'M'}${frameRect.left+x*sx} ${frameRect.top+y*sy}`).join('')+'Z');
-      }
-    }
-    // オプションボタンは説明中も明るく押せるようにする（利用者指定 2026-09-25）。
-    // 形は button_option.svg（110×102、四隅が半径15の内向きの弧）に合わせて切り抜く。
-    const optBtn=document.getElementById('battle-options-btn');
-    const optRect=optBtn&&optBtn.getBoundingClientRect();
-    if(optRect&&optRect.width>0&&optRect.height>0){
-      const ox=optRect.left, oy=optRect.top, sx=optRect.width/110, sy=optRect.height/102;
-      const P=(x,y)=>`${ox+x*sx} ${oy+y*sy}`, R=`${15*sx} ${15*sy} 0 0 0`;
-      cutouts.push(`M${P(94,101)}L${P(16,101)}A${R} ${P(1,86)}L${P(1,16)}A${R} ${P(16,1)}L${P(94,1)}A${R} ${P(109,16)}L${P(109,86)}A${R} ${P(94,101)}Z`);
-    }
-    dimPath.setAttribute('d',cutouts.join(' '));
-    // 再描画で盤面が差し替わっても、全マスがSVG本体の内側にあることを確認する。
-    const board=document.querySelector('#hand-slots.board-slots');
-    const boardRect=board&&board.getBoundingClientRect();
-    G._libraryTutorialBoardHoleVerified=!!(revealTargets&&frameRect&&boardRect&&boardRect.width>0&&boardRect.height>0
-      &&boardRect.left>=frameRect.left+frameRect.width*.9/1631-.5
-      &&boardRect.top>=frameRect.top-.5
-      &&boardRect.right<=frameRect.left+frameRect.width*1591.1/1631+.5
-      &&boardRect.bottom<=frameRect.bottom+.5);
-  };
+  const recalcDims=()=>_recalcBoardTutorialDims(dims,dimSvg,dimPath,revealTargets,BOARD_OUTLINE);
   window.addEventListener('resize',recalcDims);
   window.addEventListener('orientationchange',recalcDims);
   const scheduleRecalc=()=>{
@@ -2413,28 +2441,7 @@ function runBoardTutorial(cfg){
   // **マスの枠線（元のインライン値）はそのまま残し、光だけを後ろへ足す。**
   // 以前は内側3px＋外側1pxの線を含む値で丸ごと置き換えていたため、光らせたマスだけ線が太くなった
   // （2026-09-24 利用者指摘）。元の値は dataset.libTutShadow に取っておき、解除時に戻す。
-  const GLOW_ONLY='0 0 14px 2px rgba(255,255,255,.85),0 0 28px 6px rgba(255,234,170,.55)';
-  const withBase=(el,glowValue)=>{
-    const base=String(el.dataset.libTutShadow||'').trim();
-    return base&&base!=='none'?`${base},${glowValue}`:glowValue;
-  };
-  const applyGlowShadow=el=>{
-    if(!el||!el.style) return;
-    if(el.dataset.libTutShadow==null) el.dataset.libTutShadow=el.style.getPropertyValue('box-shadow')||'';
-    el.style.setProperty('box-shadow',withBase(el,GLOW_ONLY),'important');
-  };
-  const clearGlowShadow=el=>{
-    if(!el||!el.style||el.dataset.libTutShadow==null) return;
-    const prev=el.dataset.libTutShadow;
-    delete el.dataset.libTutShadow;
-    if(prev) el.style.setProperty('box-shadow',prev,'important');
-    else el.style.removeProperty('box-shadow');
-  };
-  const glow=(target)=>{
-    const t=typeof target==='function'?target():target;
-    const els=typeof t==='string'?Array.from(document.querySelectorAll(t)):(t instanceof Element?[t]:Array.from(t||[]));
-    els.forEach(el=>{ if(el&&el.classList){ el.classList.add('library-tutorial-glow'); applyGlowShadow(el); } }); return els;
-  };
+  const {withBase,applyGlowShadow,clearGlowShadow,glow}=_createBoardTutorialGlow();
   const clear=()=>document.querySelectorAll('.library-tutorial-glow').forEach(el=>{clearGlowShadow(el);el.classList.remove('library-tutorial-glow');});
   // 発光はインラインstyleの!importantで塗るため、CSSアニメーション（!importantに負ける）では
   // 明滅させられない。同じインライン値を周期的に書き換えて明滅させる。

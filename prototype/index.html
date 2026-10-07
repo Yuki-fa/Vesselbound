@@ -492,7 +492,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .unit-card .slot-desc{display:none!important}
 .grade-stars{display:inline-flex;align-items:flex-start;justify-content:center;gap:.08em;line-height:1}
 .grade-star{display:block;width:1em;height:1em;background:var(--grade-star-image) center/contain no-repeat;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
-.grade-stars-3 .grade-star-2,.grade-stars-4 .grade-star-2,.grade-stars-5 .grade-star-3{transform:translateY(-12%)}
+.grade-stars-3 .grade-star-2,.grade-stars-4 .grade-star-2,.grade-stars-5 .grade-star-3,
 .grade-stars-4 .grade-star-3{transform:translateY(-12%)}
 .grade-stars-5 .grade-star-2,.grade-stars-5 .grade-star-4{transform:translateY(-6%)}
 /* .slot-hpbar / .slot-hpfill removed — replaced by border-top on slot */
@@ -1020,11 +1020,7 @@ html body #scr-battle #f-ally,html body #scr-battle #f-enemy{
 .rew-card::after{
   background-image:var(--card-frame);
 }
-html body .card.panel-character-card{
-  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
-  overflow:hidden!important;
-  clip-path:inset(0 round var(--card-frame-r,5.65% / 3.721%))!important;
-}
+html body .card.panel-character-card,
 html body .card.panel-character-card::after{
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
   overflow:hidden!important;
@@ -1489,9 +1485,7 @@ html body .slot.dragging{
   from{opacity:.75}
   to{opacity:1}
 }
-body.world-map-active #mana-hud{
-  display:none!important;
-}
+body.world-map-active #mana-hud,
 body.world-map-active #enemy-area,
 body.world-map-active #ally-section,
 body.world-map-active #reward-cards-section,
@@ -1499,9 +1493,7 @@ body.world-map-active #reward-offer-section,
 body.world-map-active #main-hand-area,
 body.world-map-active #reward-info-bar,
 body.world-map-active #reward-move-btns,
-body.world-map-active #legacy-battle-header{
-  display:none!important;
-}
+body.world-map-active #legacy-battle-header,
 body.battle-victory-pending #main-hand-area,
 body.battle-victory-pending #reward-cards-section,
 body.battle-victory-pending #reward-offer-section,
@@ -1564,9 +1556,7 @@ html body.map-forge-roll-hide-cards #hand-slots.board-slots > .map-forge-roll-ca
 body.map-forge-roll-hide-cards .map-forge-roll-card-fade::before{
   opacity:1!important;
 }
-body.map-forge-roll-hide-cards .map-forge-roll-card-fade::after{
-  opacity:0!important;
-}
+body.map-forge-roll-hide-cards .map-forge-roll-card-fade::after,
 body.map-forge-roll-hide-cards #hand-slots.board-slots .panel-unite-link{
   opacity:0!important;
 }
@@ -2332,9 +2322,7 @@ body .slot.unit-card .unit-stat-overlay-layer{
   background:url("assets/cards/status_overlay.png") center/100% 100% no-repeat!important;
 }
 body .slot.unit-card.is-defender .unit-frame-layer,
-body .slot.unit-card.uses-hate-frame .unit-frame-layer{
-  width:var(--unit-hate-frame-w)!important;
-}
+body .slot.unit-card.uses-hate-frame .unit-frame-layer,
 body .slot.unit-card.is-defender .unit-stat-overlay-layer,
 body .slot.unit-card.uses-hate-frame .unit-stat-overlay-layer{
   width:var(--unit-hate-frame-w)!important;
@@ -2762,11 +2750,7 @@ body #btn-pass:active:not(:disabled){
   display:grid!important;
   place-items:center!important;
 }
-body.reward-screen-active #btn-pass{
-  display:none!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
-}
+body.reward-screen-active #btn-pass,
 body.reward-screen-active #btn-pass{
   display:none!important;
   visibility:hidden!important;
@@ -3867,9 +3851,7 @@ html body #rw-cards .panel-character-card .card-summon-atk,
 html body #rw-cards .card .card-summon-atk,
 html body #reward-cards-section .panel-character-card .card-summon-atk,
 html body #reward-cards-section .card .card-summon-atk,
-html body #reward-cards-section .rew-card .card-summon-atk{
-  bottom:158px!important;
-}
+html body #reward-cards-section .rew-card .card-summon-atk,
 html body #hand-slots.board-slots .panel-character-card .card-summon-hp,
 html body #hand-slots.board-slots .card .card-summon-hp,
 html body #rw-cards .panel-character-card .card-summon-hp,
@@ -4595,9 +4577,7 @@ html body.reward-screen-active #btn-debug-kill,
 html body.reward-screen-active #rw-count,
 html body.reward-screen-active #rw-race-buffs,
 html body.reward-screen-active #rw-power-rating,
-html body.reward-screen-active #reward-info-bar > .ri-soul:not(:first-child){
-  display:none!important;
-}
+html body.reward-screen-active #reward-info-bar > .ri-soul:not(:first-child),
 html body.reward-screen-active #legacy-battle-header{
   display:none!important;
 }
@@ -4739,14 +4719,7 @@ html body.reward-screen-active .reward-prod-item .reward-prod-slots i{
   pointer-events:auto!important;
   cursor:var(--cursor-normal);
 }
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:2;
-  background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat;
-  pointer-events:none;
-}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
 html body #reward-offer-row > .rew-card.item-offer-card.item-visual::before,
 html body .drag-ghost.item-visual::before{
   content:"";
@@ -4756,7 +4729,7 @@ html body .drag-ghost.item-visual::before{
   background:url("assets/ui/item_slot.svg") center/100% 100% no-repeat;
   pointer-events:none;
 }
-html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled{cursor:var(--cursor-normal)}
+html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled,
 html body .drag-ghost.item-visual-filled{cursor:var(--cursor-normal)}
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual-filled::after,
 html body #reward-offer-row > .rew-card.item-offer-card.item-visual-filled::after,
@@ -4852,9 +4825,7 @@ html body.dragzone-itemslot.dragzone-itemslot #reward-production-ui{
   z-index:9001!important;
 }
 html body.dragzone-ring-slot #reward-production-ui > *:not(.reward-prod-ring),
-html body.dragzone-ring-offer #reward-production-ui > *:not(.reward-prod-ring){
-  filter:brightness(.5)!important;
-}
+html body.dragzone-ring-offer #reward-production-ui > *:not(.reward-prod-ring),
 html body.dragzone-reward-item #reward-production-ui > *:not(.reward-prod-item),
 html body.dragzone-itemslot #reward-production-ui > *:not(.reward-prod-item){
   filter:brightness(.5)!important;
@@ -5570,10 +5541,7 @@ html body.reward-screen-active #reward-info-bar .ri-soul:first-child{
   line-height:1!important;
   letter-spacing:.16em!important;
 }
-html body.reward-screen-active #reward-info-bar .ri-soul:first-child::before{
-  content:none!important;
-  display:none!important;
-}
+html body.reward-screen-active #reward-info-bar .ri-soul:first-child::before,
 html body.reward-screen-active #reward-info-bar .ri-soul:first-child::after{
   content:none!important;
   display:none!important;
@@ -6261,9 +6229,7 @@ html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn{
   left:528.2px!important;
 }
 html body.reward-screen-active .reward-prod-turn strong,
-html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn strong{
-  width:440.8px!important;
-}
+html body:not(.reward-screen-active) #reward-production-ui .reward-prod-turn strong,
 html body #village-status .battle-status-counter:nth-of-type(2) strong,
 html body #map-status .battle-status-counter:nth-of-type(2) strong,
 html body #battle-status-hud .battle-status-counter:nth-of-type(2) strong{
@@ -6696,10 +6662,7 @@ html body[class*="dragzone-"] #hand-slots.board-slots > .card.dragging,
 html body[class*="dragzone-"] #hand-slots.board-slots > .card.dragging:not(.reward-unit-anchor),
 html body[class*="dragzone-"] #hand-slots.board-slots > .card.deploy-slot.dragging:not(.reward-unit-anchor),
 html body[class*="dragzone-"] #hand-slots.board-slots > .card.dragging > *,
-html body[class*="dragzone-"] #hand-slots.board-slots > .card.dragging:not(.reward-unit-anchor) > *{
-  opacity:0!important;
-  visibility:visible!important;
-}
+html body[class*="dragzone-"] #hand-slots.board-slots > .card.dragging:not(.reward-unit-anchor) > *,
 html body #hand-pane .card.drag-source-parts-hidden > *,
 html body #hand-pane .card.drag-source-parts-hidden::before,
 html body #hand-pane .card.drag-source-parts-hidden::after,
@@ -6772,18 +6735,13 @@ html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade::before{
   opacity:1!important;
 }
-html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade::after{
-  opacity:0!important;
-}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade::after,
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade > *{
   opacity:0!important;
 }
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade .panel-dir-mark,
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade .panel-dir,
-html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade .discard-btn{
-  opacity:0!important;
-  visibility:hidden!important;
-}
+html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots > .card.map-forge-roll-card-fade .discard-btn,
 html body.map-forge-roll-hide-cards.reward-screen-active #hand-slots.board-slots .panel-unite-link{
   opacity:0!important;
   visibility:hidden!important;
@@ -7436,9 +7394,7 @@ html body #hand-slots.board-slots > [data-map-board="summon"],
 html body #hand-slots.board-slots > [data-map-board="life"],
 html body #hand-slots.board-slots > [data-map-board="eternal"],
 html body #hand-slots.board-slots > [data-map-board="resonance"],
-html body #hand-slots.board-slots > [data-map-board="duplicate"]{
-  border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
-}
+html body #hand-slots.board-slots > [data-map-board="duplicate"],
 html body #hand-slots.board-slots > [data-map-board="summon"]::after,
 html body #hand-slots.board-slots > [data-map-board="life"]::after,
 html body #hand-slots.board-slots > [data-map-board="eternal"]::after,
@@ -8655,17 +8611,12 @@ html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-v
   width:100%!important;height:100%!important;position:relative!important;display:block!important;
   background:none!important;border:0!important;box-shadow:none!important;
 }
-html body.reward-screen-active #debug-card-palette .debug-palette-card .debug-ring-art{
-  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
-  object-fit:contain!important;display:block!important;z-index:2!important;pointer-events:none!important;
-}
+html body.reward-screen-active #debug-card-palette .debug-palette-card .debug-ring-art,
 html body.reward-screen-active #debug-card-palette .debug-palette-card .debug-item-art{
   position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
   object-fit:contain!important;display:block!important;z-index:2!important;pointer-events:none!important;
 }
-html body.reward-screen-active #debug-card-palette .debug-palette-card > .ring-visual::after{
-  display:none!important;
-}
+html body.reward-screen-active #debug-card-palette .debug-palette-card > .ring-visual::after,
 html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-visual::before,
 html body.reward-screen-active #debug-card-palette .debug-palette-card > .item-visual::after{
   display:none!important;
@@ -9797,9 +9748,9 @@ html body.gameover-active .gameover-rows>div>span{
 /* px指定（左上合わせ）のボタンは中心合わせのtranslateを打ち消す。 */
 .village-facility.village-facility-topleft{transform:none!important}
 .village-facility.village-facility-disabled{cursor:var(--cursor-normal)!important}
-.village-facility.village-facility-disabled::before{filter:grayscale(.7) brightness(.62)!important}
+.village-facility.village-facility-disabled::before,
 .village-facility.village-facility-disabled:hover::before{filter:grayscale(.7) brightness(.62)!important}
-.village-facility.village-facility-disabled .village-facility-name{color:var(--text2)!important}
+.village-facility.village-facility-disabled .village-facility-name,
 .village-facility.village-facility-disabled:hover .village-facility-name{color:var(--text2)!important}
 /* 所持金／ライフ：戦闘画面の #battle-status-hud と同じ位置・同じ寸法（.battle-status-counter を共用） */
 #village-status,
@@ -10875,7 +10826,7 @@ html body.library-formation-active #scr-battle{
 }
 html body.library-screen-active #village-name-plate,
 html body.library-screen-active #scr-village #village-move-btns #village-depart-btn,
-html body.library-screen-active #village-intro-title{display:none!important}
+html body.library-screen-active #village-intro-title,
 html body:not(.library-screen-active) #scr-village #library-exit-btn{display:none!important}
 #library-title{
   position:absolute!important;left:70px!important;top:70px!important;width:520px!important;height:237px!important;
@@ -11645,7 +11596,7 @@ body.library-tutorial-lock #scr-battle .library-tutorial-allowed{pointer-events:
    body のクラスを重ねているのは、上の .library-tutorial-allowed／:is(...) の pointer-events:auto より強くするため。 */
 html body.library-tutorial-message.library-tutorial-message.library-tutorial-message #scr-battle,
 html body.library-tutorial-message.library-tutorial-message.library-tutorial-message #scr-battle *{pointer-events:none!important}
-html body.library-tutorial-message #scr-battle #battle-options-btn{pointer-events:auto!important}
+html body.library-tutorial-message #scr-battle #battle-options-btn,
 html body.library-tutorial-message.library-tutorial-message-moving.library-tutorial-message-moving #scr-battle .library-tutorial-allowed{pointer-events:auto!important}
 html body.library-tutorial-message :is(#kw-tooltip,#keyword-tooltip,#map-power-tooltip){display:none!important}
 /* ボックスはクリックを受け取らない。document側でクリックを拾って次へ進めるため、
@@ -12564,9 +12515,9 @@ _watchVesselboundDpr();
 <script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929-deep1002-q008replace1004-q001e0751004-kenzoku1007-riese1008"></script>
 <script src="js/data/units.js?v=equipLegacyGone01"></script>
 <!-- 共通戦闘コア：PvE/PvP で唯一の戦闘ルール。DOM・G・Math.random に依存しない -->
-    <script src="js/battle/core.js?v=enhvfx0929-engraving1001-q001e0751004-e0671005-fix1005-fix1005b-shield1006-defeatRetry1007-kenzoku1007-soul1007-summonFix1007-summonSe1008"></script>
+    <script src="js/battle/core.js?v=enhvfx0929-engraving1001-q001e0751004-e0671005-fix1005-fix1005b-shield1006-defeatRetry1007-kenzoku1007-soul1007-summonFix1007-summonSe1008-refactor2_1008"></script>
 <script src="js/battle/formation.js?v=cardFx0927-engraving1001-soul1007"></script>
-    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001-e0671005-actionBanner1006-passive1006-shield1006-battleLab1006-battleFix1007b-kenzoku1007-soul1007-summonFix1007-summonSe1008b"></script>
+    <script src="js/battle/present.js?v=area0929-outcome0929-engraving1001-e0671005-actionBanner1006-passive1006-shield1006-battleLab1006-battleFix1007b-kenzoku1007-soul1007-summonFix1007-summonSe1008b-refactor2_1008"></script>
     <script src="js/battle/present_events.js?v=area0929-outcome0929-fleeatk0929-e0671005-actionBanner1006-battleLab1006-labSource1007-battleFix1007b-kenzoku1007"></script>
 <script src="js/engine/action_banner.js?v=actionBanner1006d-kenzoku1007"></script>
 <!-- オンライン対戦（層1=sim / 権威スタブ / 層2=match / 層3=playback） -->
@@ -12585,24 +12536,24 @@ _watchVesselboundDpr();
 <script src="js/save/migrations.js?v=cardFx0927"></script>
 <script src="js/save/profile_save.js?v=q0020926-fiveSaints1001-storyCycle1001"></script>
 <script src="js/save/run_save.js?v=questRingMark0927-questText0927-autosaveFinal0927-q0060928-fiveSaints1001-debugStory1002-q008replace1004-fix1005-defeatRetry1007-soul1007"></script>
-<script src="js/engine/pool.js?v=dirRename-cardFx0927-kenzoku1007-soul1007"></script>
+<script src="js/engine/pool.js?v=dirRename-cardFx0927-kenzoku1007-soul1007-refactor2_1008"></script>
 <script src="js/engine/enemy.js?v=garmHover-outcome0929-deep1002-q008replace1004"></script>
-    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001-e0671005-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006-bannerFade1007-defeatRetry1007-carryOrder1007-kenzoku1007-soul1007-refactor1008"></script>
+    <script src="js/engine/battle.js?v=kiemetsuAttackReflow0928-q0060928-outcome0929-engraving1001-e0671005-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006-bannerFade1007-defeatRetry1007-carryOrder1007-kenzoku1007-soul1007-refactor1008-refactor2_1008"></script>
 <script src="js/engine/battle_events.js?v=revive0929-outcome0929-engraving1001-q008replace1004-actionBanner1006-battleLab1006-battleFix1007b-soul1007"></script>
 <script src="js/engine/fx_lab.js?v=battleLab1006-retarget2-rot2-battleFix1007b-summonFix1007-summonSe1008"></script>
-<script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006-keepStates1007-battleFix1007b-kenzoku1007-soul1007-summonFix1007-refactor1008"></script>
+<script src="js/engine/render.js?v=area0929-fleeatk0929-engraving1001-fix1005-fix1005b-actionBanner1006-bannerHold1006-battleLab1006-keepStates1007-battleFix1007b-kenzoku1007-soul1007-summonFix1007-refactor1008-refactor2_1008"></script>
 <script src="js/engine/battle_fx.js?v=battleLab1006-opening3-keep1-battleFix1007b-summonSpeed1008"></script>
 <script src="js/engine/pointer_drag.js?v=quickDrop02"></script>
-<script src="js/engine/reward_items.js?v=shopFix0927-engraving1001"></script>
+<script src="js/engine/reward_items.js?v=shopFix0927-engraving1001-refactor2_1008"></script>
 <script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002-eventFix1004"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923"></script>
-<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004-fix1005-fix1005b-defeatRetry1007-refactor1008"></script>
-<script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q001e0751004-eventFix1004-se1004-fix1005-riese1008"></script>
+<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004-fix1005-fix1005b-defeatRetry1007-refactor1008-refactor2_1008"></script>
+<script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q001e0751004-eventFix1004-se1004-fix1005-riese1008-refactor2_1008"></script>
     <script src="js/engine/game_confirm.js?v=tmKeys0926"></script>
-    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q008replace1004-q001e0751004-eventFix1004-fix1005b-defeatRetry1007-part1007-riese1008"></script>
+    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q008replace1004-q001e0751004-eventFix1004-fix1005b-defeatRetry1007-part1007-riese1008-refactor2_1008"></script>
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
     <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929-deep1002-fix1005-bannerHold1006-defeatRetry1007"></script>
-    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-bannerHold1006-defeatRetry1007-refactor1008"></script>
+    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-bannerHold1006-defeatRetry1007-refactor1008-refactor2_1008"></script>
 <script src="js/engine/options.js?v=keyRename0927"></script>
 <script src="js/engine/collection.js?v=keyRename0927-textAudit0927-deep1002"></script>
 <script>
@@ -12726,13 +12677,7 @@ html body:has(#battle-start-intro) #btn-debug-quest{
 html body #scr-battle .slot.unit-card.battle-opening-appearance-active{
   clip-path:none!important;
 }
-html body #scr-battle .slot.unit-card.effect-flash{
-  box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
-  border-color:var(--effect-flash-core)!important;
-  filter:none!important;
-  clip-path:none!important;
-  z-index:999!important;
-}
+html body #scr-battle .slot.unit-card.effect-flash,
 html body .attack-motion-clone.effect-flash{
   box-shadow:0 0 0 2px var(--effect-flash-core),0 0 10px var(--effect-flash-glow),0 0 18px var(--effect-flash-glow)!important;
   border-color:var(--effect-flash-core)!important;
@@ -13372,9 +13317,7 @@ html body.reward-screen-active #reward-offer-row > .rew-card.item-visual::before
 html body.reward-screen-active #hand-slots.board-slots > .card .board-frame-layer,
 html body.reward-screen-active #hand-slots.board-slots > .card .map-boundary-layer,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
-html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
-  z-index:110!important;
-}
+html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i::before,
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i::before{
   z-index:110!important;
@@ -13610,9 +13553,7 @@ html body #rw-cards .rew-card .panel-dir{
   pointer-events:auto!important;
 }
 html body #reward-offer-row > .rew-card.character-card > .panel-dir,
-html body #rw-cards .rew-card.character-card > .panel-dir{
-  z-index:300!important;
-}
+html body #rw-cards .rew-card.character-card > .panel-dir,
 html body #reward-offer-row > .rew-card .panel-dir-up,
 html body #reward-offer-row > .rew-card .panel-dir-right,
 html body #reward-offer-row > .rew-card .panel-dir-down,
@@ -14787,10 +14728,7 @@ html body.reward-screen-active #reward-offer-row > .rew-card.item-visual:hover::
 html body.reward-screen-active #reward-offer-row > .rew-card.ring-visual:hover::before,
 html body.reward-screen-active #rw-cards .rew-card.item-visual:hover::before,
 html body.reward-screen-active #rw-cards .rew-card.ring-visual:hover::before,
-html body.reward-screen-active #reward-offer-row > .rew-card.forge-card.item-visual:hover::before{
-  box-shadow:none!important;
-  filter:drop-shadow(0 0 3px rgba(255,255,255,.95)) drop-shadow(0 0 7px rgba(255,255,255,.6)) drop-shadow(0 0 12px rgba(255,234,170,.45))!important;
-}
+html body.reward-screen-active #reward-offer-row > .rew-card.forge-card.item-visual:hover::before,
 html body.reward-screen-active #reward-offer-row > .rew-card.item-visual.item-visual-filled.cant:hover::before,
 html body.reward-screen-active #rw-cards .rew-card.item-visual.item-visual-filled.cant:hover::before{
   box-shadow:none!important;

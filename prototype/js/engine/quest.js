@@ -2298,12 +2298,7 @@ function _qApplyLineFace(line,screen,faceKeys){
     ...(portrait&&portrait.dataset.portraitId===spec.portraitId?{key}:{})});
 }
 
-function _qStartDialogue(lines,options){
-  const opts=options||{};
-  const items=(Array.isArray(lines)?lines:[]).map((line,sourceIndex)=>({line,sourceIndex}))
-    .filter(item=>item.line&&String(item.line.text||'').trim());
-  _qRemoveDialogue();
-  if(!items.length){ if(typeof opts.onDone==='function') opts.onDone(); return Promise.resolve(); }
+function _qDialogueSteps(items,opts){
   // 同時表示と残す台詞の番号は、シートと同じ1始まりで指定する。
   const groups=(Array.isArray(opts.simultaneousLines)?opts.simultaneousLines:[])
     .map(group=>new Set((Array.isArray(group)?group:[]).map(n=>Math.max(0,Number(n)-1))));
@@ -2318,6 +2313,54 @@ function _qStartDialogue(lines,options){
   });
   const persistent=new Set((Array.isArray(opts.persistentLines)?opts.persistentLines:[])
     .map(n=>Math.max(0,Number(n)-1)));
+  return {steps,persistent};
+}
+
+function _qDialogueActiveItems(items,steps,persistent,index){
+  const current=steps[index]||[];
+  const maxIndex=Math.max(...current.map(item=>item.sourceIndex),-1);
+  const kept=items.filter(item=>persistent.has(item.sourceIndex)&&item.sourceIndex<=maxIndex);
+  // 左右それぞれ、今の台詞に無い側は「直前にその側で話した台詞」を残す（以前の見え方。B が話しても A の吹き出しは消えない）。
+  const minIndex=Math.min(...current.map(item=>item.sourceIndex),Infinity);
+  const sideOf=item=>item.line.speaker==='A'?'left':'right';
+  const currentSides=new Set(current.map(sideOf));
+  const lastBySide=new Map();
+  items.forEach(item=>{
+    if(item.sourceIndex>=minIndex) return;
+    const side=sideOf(item);
+    if(currentSides.has(side)) return;
+    const prev=lastBySide.get(side);
+    if(!prev||item.sourceIndex>prev.sourceIndex) lastBySide.set(side,item);
+  });
+  return [...new Map([...kept,...lastBySide.values(),...current].map(item=>[item.sourceIndex,item])).values()];
+}
+
+function _qDialogueBubble(stage,item){
+  const key=String(item.sourceIndex);
+  let bubble=stage.querySelector(`.tavern-dialogue-bubble[data-line-index="${key}"]`);
+  if(bubble) return bubble;
+  const side=item.line.speaker==='A'?'left':'right';
+  bubble=document.createElement('div');
+  bubble.className='tavern-dialogue-bubble';
+  bubble.dataset.side=side;
+  bubble.dataset.lineIndex=key;
+  bubble.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><polygon></polygon></svg><div class="tavern-dialogue-text"></div>';
+  const tail=document.createElement('div');
+  tail.className='tavern-dialogue-tail';
+  tail.dataset.tailSide=side;
+  tail.dataset.lineIndex=key;
+  bubble._dialogueTail=tail;
+  stage.append(bubble,tail);
+  return bubble;
+}
+
+function _qStartDialogue(lines,options){
+  const opts=options||{};
+  const items=(Array.isArray(lines)?lines:[]).map((line,sourceIndex)=>({line,sourceIndex}))
+    .filter(item=>item.line&&String(item.line.text||'').trim());
+  _qRemoveDialogue();
+  if(!items.length){ if(typeof opts.onDone==='function') opts.onDone(); return Promise.resolve(); }
+  const {steps,persistent}=_qDialogueSteps(items,opts);
   const session=++_qDialogueSession;
   const screen=document.getElementById(opts.screen==='battle'?'scr-battle':'scr-village');
   if(!screen) return Promise.resolve();
@@ -2341,42 +2384,8 @@ function _qStartDialogue(lines,options){
     namePlateIndex=-2;
     window.setTimeout(_qHideNamePlate,TAVERN_NAME_PLATE_HOLD_MS);
   };
-  const activeItemsForStep=index=>{
-    const current=steps[index]||[];
-    const maxIndex=Math.max(...current.map(item=>item.sourceIndex),-1);
-    const kept=items.filter(item=>persistent.has(item.sourceIndex)&&item.sourceIndex<=maxIndex);
-    // 左右それぞれ、今の台詞に無い側は「直前にその側で話した台詞」を残す（以前の見え方。B が話しても A の吹き出しは消えない）。
-    const minIndex=Math.min(...current.map(item=>item.sourceIndex),Infinity);
-    const sideOf=item=>item.line.speaker==='A'?'left':'right';
-    const currentSides=new Set(current.map(sideOf));
-    const lastBySide=new Map();
-    items.forEach(item=>{
-      if(item.sourceIndex>=minIndex) return;
-      const side=sideOf(item);
-      if(currentSides.has(side)) return;
-      const prev=lastBySide.get(side);
-      if(!prev||item.sourceIndex>prev.sourceIndex) lastBySide.set(side,item);
-    });
-    return [...new Map([...kept,...lastBySide.values(),...current].map(item=>[item.sourceIndex,item])).values()];
-  };
-  const bubbleFor=item=>{
-    const key=String(item.sourceIndex);
-    let bubble=stage.querySelector(`.tavern-dialogue-bubble[data-line-index="${key}"]`);
-    if(bubble) return bubble;
-    const side=item.line.speaker==='A'?'left':'right';
-    bubble=document.createElement('div');
-    bubble.className='tavern-dialogue-bubble';
-    bubble.dataset.side=side;
-    bubble.dataset.lineIndex=key;
-    bubble.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><polygon></polygon></svg><div class="tavern-dialogue-text"></div>';
-    const tail=document.createElement('div');
-    tail.className='tavern-dialogue-tail';
-    tail.dataset.tailSide=side;
-    tail.dataset.lineIndex=key;
-    bubble._dialogueTail=tail;
-    stage.append(bubble,tail);
-    return bubble;
-  };
+  const activeItemsForStep=index=>_qDialogueActiveItems(items,steps,persistent,index);
+  const bubbleFor=item=>_qDialogueBubble(stage,item);
   const render=async()=>{
     changing=true;
     const current=steps[stepIndex]||[];
@@ -2775,13 +2784,6 @@ function _qMakeBattleShade(){
   shade.style.setProperty('z-index','0','important');
   requestAnimationFrame(()=>shade.classList.add('is-visible'));
   return shade;
-}
-
-async function _qClearBattleShade(shade){
-  if(!shade) return;
-  shade.classList.remove('is-visible');
-  await _qWait(TAVERN_PORTRAIT_FADE_MS);
-  shade.remove();
 }
 
 async function _qFinishMagicWolfEscape(entry,shade){

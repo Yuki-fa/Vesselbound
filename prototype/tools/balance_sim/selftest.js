@@ -3,6 +3,7 @@
 const {simulateCard} = require('./sim');
 
 async function runSelfTest(cards) {
+  if (!Array.isArray(cards) || !cards.length) throw new Error('状態リーク検査の対象カードがない');
   const target = cards[0];
   const seed = 0x5eed1234;
   const direct = await simulateCard(target, {seed, floor:5});
@@ -17,3 +18,13 @@ async function runSelfTest(cards) {
 }
 
 module.exports = {runSelfTest};
+
+// 直接実行でも、全カードの読み込みと状態リーク検査を実際に行う。
+if (require.main === module) {
+  (async()=>{
+    await loadGameData();
+    const cards=PANEL_POOL.filter(c=>c&&c.category==='キャラクター'&&!c._rewardExcluded&&Number(c.rarity)>=0);
+    const result=await runSelfTest(cards);
+    console.log(`OK 状態リーク自己テスト：${result.card}（先行${result.preceding}枚・同一seedの11項目が一致）`);
+  })().catch(error=>{console.error(error);process.exitCode=1;});
+}

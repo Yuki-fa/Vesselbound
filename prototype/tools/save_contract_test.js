@@ -3,15 +3,22 @@ const {launch}=require('./parity/headless');
 (async()=>{
   const b=await launch();
   try{
-    await b.goto('http://127.0.0.1:5500/index.html');
+    await b.goto(process.env.VB_URL||'http://127.0.0.1:5500/index.html');
     await b.waitFor('typeof SaveRun!=="undefined"&&PANEL_POOL.length>20',20000);
     const result=await b.eval(`
       const checks=[];
       const check=(name,value)=>{if(!value) throw new Error(name);checks.push(name);};
       window.alert=message=>{window.__saveAlert=message;};
-      _playVillageEnterIntro=async build=>build();
+      // セーブは入場演出の beforeReveal にある。演出だけ省き、保存は本体と同じ順で通す。
+      _playVillageEnterIntro=async(build,beforeReveal)=>{
+        if(typeof beforeReveal==='function'&&await beforeReveal()===false) return false;
+        build();return true;
+      };
+      // 到着会話は story_cycle_check が担当する。保存契約の検査中に台詞を待たない。
+      _prepareStoryArrival=()=>null;
       startGame(false);
-      const original=loadRun();
+      await new Promise(r=>setTimeout(r,0));
+      const original=loadRun();check('開始チェックポイントが保存済み',original?.checkpoint.type==='town');
       const profileKey=SaveStorage.key('profile','current');
       const runKey=SaveStorage.key('run','current');
       const unknown=()=>PANEL_POOL.find(c=>!SaveProfile.load().cards[SaveProfile.identity(c)?.id]&&c.category==='エンチャント');
@@ -44,7 +51,7 @@ const {launch}=require('./parity/headless');
       let writes=0;SaveStorage.setAdapter({getItem:k=>localStorage.getItem(k),setItem:(k,v)=>{writes++;localStorage.setItem(k,v)},removeItem:k=>localStorage.removeItem(k)});
       for(let i=0;i<100;i++){markCardSeen(card);markCardAcquired(card);}
       check('記録済みカード100回の表示・取得で追加書込なし',writes===0);SaveStorage.setAdapter(null);
-      G._wave=1;G._waveStage=5;G._waveVillage=true;openMapVillage({intro:true});const townStart=loadRun();showScreen('battle');openMapShop();
+      G._wave=1;G._waveStage=5;G._waveVillage=true;await openMapVillage({intro:true});const townStart=loadRun();showScreen('battle');openMapShop();
       await new Promise(r=>setTimeout(r,80));
       const stock=_rewCards.filter(Boolean);
       const stockState=stock.map(c=>({id:SaveProfile.identity(c)?.id,seen:!!SaveProfile.load().cards[SaveProfile.identity(c)?.id]?.seen}));
@@ -68,7 +75,7 @@ const {launch}=require('./parity/headless');
       check('報酬直接再開では戦闘再開UIを出さない',!document.body.classList.contains('run-resume-active'));
       G.gold+=55;const flowOriginal=_startWaveFlowNext;_startWaveFlowNext=()=>true;chooseMoveInline('battle');await new Promise(r=>setTimeout(r,950));_startWaveFlowNext=flowOriginal;SaveRun.lockInput(false);
       check('報酬の戦闘開始確定で途中変更を正式保存',loadRun().checkpoint.type==='reward'&&loadRun().state.player.gold===rewardGold+55);
-      SaveRun.restoreRunState(current);G._wave=1;G._waveStage=10;G._waveVillage=true;G.phase=null;openMapVillage({intro:true,tower:true});
+      SaveRun.restoreRunState(current);G._wave=1;G._waveStage=10;G._waveVillage=true;G.phase=null;await openMapVillage({intro:true,tower:true});
       const towerStart=loadRun(),towerOffer=JSON.stringify(towerStart.state.choices._waveRingExchange?.[1]?.offer||[]);
       check('塔到着時にtypeと祭壇候補を保存',towerStart.checkpoint.type==='tower'&&towerOffer!=='[]');
       G._waveRingExchange[1].offer=[];G.gold+=333;
@@ -118,12 +125,19 @@ const {launch}=require('./parity/headless');
       SaveRun.restoreRunState(current);SaveRun.begin();const clearSave=SaveRun.buildRunSave('town');SaveRun.saveRun(clearSave);SaveRun.finish('clear');
       check('ゲームクリア確定でもrun削除・profile維持',!mem.has(runKey)&&mem.has(profileKey));
       SaveStorage.setAdapter(null);
+      document.getElementById('fatal-error-back-btn')?.click();
       SaveRun.restoreRunState(original);
       let intro=0;_playBattleStartIntro=async()=>{intro++;return 'normal';};
       SaveStorage.setAdapter({getItem:k=>localStorage.getItem(k),setItem:()=>{throw new Error('テストrun保存失敗');},removeItem:k=>localStorage.removeItem(k)});
       _startWaveFlowNext();
-      for(let i=0;i<100&&!window.__saveAlert;i++) await new Promise(r=>setTimeout(r,50));
-      check('保存失敗で戦闘演出は始まらずエラー表示',intro===0&&window.__saveAlert?.includes('セーブに失敗'));
+      for(let i=0;i<100&&!document.body.classList.contains('fatal-error-active');i++) await new Promise(r=>setTimeout(r,50));
+      const failureOverlay=document.getElementById('fatal-error-overlay');
+      const failureMessage=document.getElementById('fatal-error-message');
+      const visible=el=>!!el&&el.getBoundingClientRect().width>0&&el.getBoundingClientRect().height>0
+        &&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility==='visible'&&Number(getComputedStyle(el).opacity)>0;
+      check('保存失敗で戦闘演出は始まらずエラー表示',intro===0&&document.body.classList.contains('fatal-error-active')
+        &&failureMessage?.textContent===textMessage('セーブ失敗時','セーブに失敗しました。空き容量やブラウザの保存設定を確認してください。')
+        &&visible(failureOverlay)&&visible(failureMessage));
       SaveStorage.setAdapter(null);
       return checks;
     `);

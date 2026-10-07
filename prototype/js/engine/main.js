@@ -1724,60 +1724,7 @@ function debugKillAll(){
   if(G.enemies.filter(e=>e&&e.hp>0).length===0) _onAllEnemiesDefeated();
 }
 
-function gameOver(options){
-  if(typeof questDeferGameOver==='function'&&questDeferGameOver(options)) return;
-  // game_over.webm と戦闘終了の暗転は #scr-battle 内にある。
-  // 街・店での非戦闘死亡も、結果枠を組み立てる前に同じ画面へ移す。
-  if(!document.querySelector('#scr-battle.active')&&typeof showScreen==='function') showScreen('battle');
-  const isLibraryTestBattle=!!(G&&G._libraryTestBattleMode);
-  // 敗北・踏破の結果画面へ移る前に、戦闘中の一時VFXを必ず破棄する。
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
-  const opt=options||{};
-  const isClear=opt.clear===true;
-  const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode);
-  if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
-  const isDebugGameOver=!!G._debugGameOver;
-  document.body.classList.remove('debug-mode');
-  _hideDebugButtons();
-  let beginVideoFade=null;
-  // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
-  if(!isLibraryTestBattle&&!isDebugGameOver&&!isClear){
-    G._waveLife=0;
-    G.life=0;
-    if(typeof updateHUD==='function') updateHUD();
-  }
-  if(!isClear&&!isLibraryTestBattle){
-    try{
-      if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
-      else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=sfxFallbackVolume(.9); void se.play(); }
-    }catch(_e){}
-  }
-  document.body.classList.remove('battle-turn-active');
-  // 図書館の試験戦闘は練習用で、図書館のBGMを鳴らしたまま戦闘・結果画面へ進む。
-  // ここで止めると編成画面へ戻った後も無音のままになる（showScreen()は
-  // G._villageBgmActive中はBGMを鳴らし直さないため、二度と復帰しない）。
-  if(!isLibraryTestBattle){
-    if(typeof stopBgm==='function') stopBgm(900);
-    // ステージ持続環境音（雷雨など）はstopBgm()では止まらないため、ゲームオーバーでは明示的に落とす。
-    if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(900);
-  }
-  if(typeof _showBattleEndFade==='function') _showBattleEndFade();
-  // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
-  if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
-  ['rw-cards','reward-cards-section'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el) return;
-    if(id==='rw-cards') el.replaceChildren();
-    else el.style.display='none';
-  });
-  _recordRunStatsSnapshot();
-  G.runStats=G.runStats||{};
-  G.runStats.areaName=_runStatsAreaName();
-  G.runStats.playTime=_runStatsTimeText();
-  G._gameOverSpecialDebug=isDebugGameOver||isLibraryTestBattle;
-  G._gameOverClear=isClear;
-  G._debugGameOver=false;
-  if(typeof renderGameOverBoard==='function') renderGameOverBoard();
+function _renderGameOverResults(isClear,firstRunClear){
   // **表示文はテキストメッセージシート（クリア、ゲームオーバー）が唯一の出どころ。**
   const _msg=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
   [['go-difficulty','「難易度」見出し','難易度'],['go-area','「到達地点」見出し','到達地点'],
@@ -1827,16 +1774,10 @@ function gameOver(options){
     closeGameOverOverlay();
     _returnToTitleMenu();
   };
-  G.phase=isClear?'clear':'gameover';
-  document.body.classList.toggle('game-clear-active',isClear);
-  document.body.classList.toggle('game-clear-first-run',firstRunClear);
-  document.body.classList.toggle('gameover-ui-pending',isClear&&!firstRunClear);
-  document.body.classList.add('gameover-active','battle-victory-pending');
-  ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.setProperty('z-index','10001','important');
-  });
-  document.getElementById('scr-gameover')?.classList.add('gameover-overlay-active');
+}
+
+function _playGameOverVideo(isClear,firstRunClear){
+  let beginVideoFade=null;
   const video=document.getElementById('gameover-video');
   const tint=document.getElementById('gameover-video-tint');
   const rewardBgVideo=document.getElementById('reward-bg-video');
@@ -1935,6 +1876,73 @@ function gameOver(options){
     };
     if(!isClear) beginVideoFade();
   }
+}
+
+function gameOver(options){
+  if(typeof questDeferGameOver==='function'&&questDeferGameOver(options)) return;
+  // game_over.webm と戦闘終了の暗転は #scr-battle 内にある。
+  // 街・店での非戦闘死亡も、結果枠を組み立てる前に同じ画面へ移す。
+  if(!document.querySelector('#scr-battle.active')&&typeof showScreen==='function') showScreen('battle');
+  const isLibraryTestBattle=!!(G&&G._libraryTestBattleMode);
+  // 敗北・踏破の結果画面へ移る前に、戦闘中の一時VFXを必ず破棄する。
+  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx();
+  const opt=options||{};
+  const isClear=opt.clear===true;
+  const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode);
+  if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
+  const isDebugGameOver=!!G._debugGameOver;
+  document.body.classList.remove('debug-mode');
+  _hideDebugButtons();
+  // 通常の全滅では、結果画面を組み立てる前にライフ表示を必ず0へ確定する。
+  if(!isLibraryTestBattle&&!isDebugGameOver&&!isClear){
+    G._waveLife=0;
+    G.life=0;
+    if(typeof updateHUD==='function') updateHUD();
+  }
+  if(!isClear&&!isLibraryTestBattle){
+    try{
+      if(typeof playFileSfx==='function'){ playFileSfx('assets/sfx/game_over.wav'); }
+      else { const se=new Audio('assets/sfx/game_over.wav'); se.volume=sfxFallbackVolume(.9); void se.play(); }
+    }catch(_e){}
+  }
+  document.body.classList.remove('battle-turn-active');
+  // 図書館の試験戦闘は練習用で、図書館のBGMを鳴らしたまま戦闘・結果画面へ進む。
+  // ここで止めると編成画面へ戻った後も無音のままになる（showScreen()は
+  // G._villageBgmActive中はBGMを鳴らし直さないため、二度と復帰しない）。
+  if(!isLibraryTestBattle){
+    if(typeof stopBgm==='function') stopBgm(900);
+    // ステージ持続環境音（雷雨など）はstopBgm()では止まらないため、ゲームオーバーでは明示的に落とす。
+    if(typeof stopEveryBgmLayer==='function') stopEveryBgmLayer(900);
+  }
+  if(typeof _showBattleEndFade==='function') _showBattleEndFade();
+  // ラミアで一時的に仲間にしたキャラクターは敗北時にも持ち越さない
+  if(typeof _removeLamiaCapturedUnits==='function') _removeLamiaCapturedUnits();
+  ['rw-cards','reward-cards-section'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(id==='rw-cards') el.replaceChildren();
+    else el.style.display='none';
+  });
+  _recordRunStatsSnapshot();
+  G.runStats=G.runStats||{};
+  G.runStats.areaName=_runStatsAreaName();
+  G.runStats.playTime=_runStatsTimeText();
+  G._gameOverSpecialDebug=isDebugGameOver||isLibraryTestBattle;
+  G._gameOverClear=isClear;
+  G._debugGameOver=false;
+  if(typeof renderGameOverBoard==='function') renderGameOverBoard();
+  _renderGameOverResults(isClear,firstRunClear);
+  G.phase=isClear?'clear':'gameover';
+  document.body.classList.toggle('game-clear-active',isClear);
+  document.body.classList.toggle('game-clear-first-run',firstRunClear);
+  document.body.classList.toggle('gameover-ui-pending',isClear&&!firstRunClear);
+  document.body.classList.add('gameover-active','battle-victory-pending');
+  ['battle-options-btn','battle-status-hud','battle-counters'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.setProperty('z-index','10001','important');
+  });
+  document.getElementById('scr-gameover')?.classList.add('gameover-overlay-active');
+  _playGameOverVideo(isClear,firstRunClear);
 }
 // onShown：オーバーレイが実際に表示された後、指定ms後に呼ばれるコールバック（省略可）。
 // 呼び出し側で独立したsetTimeoutを組むと、renderAll()等の重い同期処理でメインスレッドが

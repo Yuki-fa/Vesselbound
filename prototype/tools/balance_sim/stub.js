@@ -25,7 +25,7 @@ global.window=global; global.window.addEventListener=noop; global.window.removeE
 try { Object.defineProperty(global,'navigator',{value:{userAgent:'node-balance-sim'},configurable:true}); } catch (_) {}
 global.requestAnimationFrame=immediate; global.cancelAnimationFrame=noop; global.performance={now:()=>Date.now()};
 global.getComputedStyle=()=>new Proxy({}, {get:()=>''});
-global.Audio=function(){return {play:()=>Promise.resolve(),pause:noop,load:noop,addEventListener:noop,currentTime:0};};
+global.Audio=function(src){return {...makeElement('audio'),src,play:()=>Promise.resolve(),pause:noop,load:noop,currentTime:0,cloneNode(){return new Audio(this.src);}};};
 global.HTMLMediaElement=function HTMLMediaElement(){};
 global.localStorage=localStorageStub; global.sessionStorage=localStorageStub; global.alert=noop; global.confirm=()=>true; global.prompt=()=>null;
 global.matchMedia=()=>({matches:false,addListener:noop,removeListener:noop});

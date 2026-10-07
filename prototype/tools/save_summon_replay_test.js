@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {launch}=require('./parity/headless');
-const URL='http://127.0.0.1:5500/index.html';
+const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
 
 (async()=>{
   const b=await launch();
@@ -13,16 +13,27 @@ const URL='http://127.0.0.1:5500/index.html';
       localStorage.removeItem(SaveStorage.key('run','current'));
       localStorage.removeItem(SaveStorage.key('run','backup'));
       window.alert=()=>{};
+      // 村の遅延保存が戦闘保存を上書きしないよう、入場演出だけ省き beforeReveal は通す。
+      _playVillageEnterIntro=async(build,beforeReveal)=>{
+        if(typeof beforeReveal==='function'&&await beforeReveal()===false) return false;
+        build();return true;
+      };
+      _prepareStoryArrival=()=>null;
       startGame(false);
+    `);
+    await b.waitFor('loadRun()?.checkpoint?.type==="town"&&document.body.classList.contains("village-screen-active")',20000);
+    await b.eval(`
+      _openWaveFormation();
       G.mainBoard[3]=makePanel('panel_mitera');
       G.floor=13;G._wave=3;G._waveStage=2;G._waveVillage=false;G._waveBattleType='normal';
       window.__intro=0;
       _playBattleStartIntro=async()=>{window.__intro++;return new Promise(()=>{});};
       showScreen('battle');void startBattle();
     `);
-    await b.waitFor('window.__intro>0',30000);
+    await b.waitFor('window.__intro>0&&loadRun()?.checkpoint?.type==="battle"&&!!loadRun()?.pendingBattle',30000);
     const pending=await b.eval(`
-      const p=loadRun().pendingBattle;
+      const p=loadRun()?.pendingBattle;
+      if(!p) throw new Error('開幕前の戦闘チェックポイントがない');
       return {summons:p.events.filter(e=>e.type==='summon'&&String(e.unit?.name||'').includes('ペリカン')).length,
         frames:p.frames.length,outcome:p.outcome};
     `);

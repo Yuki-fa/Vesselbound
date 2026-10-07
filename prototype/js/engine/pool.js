@@ -413,11 +413,6 @@ function _pickWeightedGradeBucket(buckets,weights){
   }
   return buckets.find(b=>b.length)||[];
 }
-function _pickRewardGradePool(available,cur){
-  const buckets=_rewardGradeBuckets(available,cur);
-  return _pickWeightedGradeBucket(buckets,_rewardGradeWeights(buckets,cur));
-}
-
 const _rewardRarityOf=p=>Math.max(1,Math.min(5,Number(p&&p.rarity)||1));
 
 function _rewardWeightedPick(defs,currentGrade,usedIds,useGoldenRing,useMapProgress){

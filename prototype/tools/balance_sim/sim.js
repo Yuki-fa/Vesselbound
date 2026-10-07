@@ -1,23 +1,6 @@
 'use strict';
 require('./load');
 
-let damageTrackerInstalled=false;
-function installDamageTracker(){
-  if(damageTrackerInstalled) return;
-  const original=_applyDamageState;
-  _applyDamageState=function(unit,dmg,source,side,skipTough){
-    const before=unit&&typeof unit.hp==='number'?unit.hp:0;
-    const result=original(unit,dmg,source,side,skipTough);
-    const actual=Math.max(0,before-(unit&&typeof unit.hp==='number'?unit.hp:before));
-    if(G._simMetrics){
-      if(side==='enemy' && G.allies.includes(source)) G._simMetrics.dealt+=actual;
-      if(side==='ally' && G.enemies.includes(source)) G._simMetrics.taken+=actual;
-    }
-    return result;
-  };
-  damageTrackerInstalled=true;
-}
-
 function makeRng(seed){
   let x=(seed>>>0)||1;
   return ()=>{ x=(Math.imul(1664525,x)+1013904223)>>>0; return x/4294967296; };
@@ -39,7 +22,6 @@ async function waitBattleEnd(){
 }
 
 async function simulateCard(card,{seed=123456789,floor=5}={}){
-  installDamageTracker();
   const oldRandom=Math.random;
   Math.random=makeRng(seed);
   try{

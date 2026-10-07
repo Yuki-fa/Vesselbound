@@ -1,12 +1,14 @@
 'use strict';
 const { launch } = require('./headless');
-const BASE = process.env.VB_URL || 'http://127.0.0.1:5504/index.html';
+const BASE = process.env.VB_URL || 'http://127.0.0.1:5500/index.html';
 
 (async()=>{
   const b=await launch();
   try{
     await b.goto(BASE,1800);
+    await b.waitFor('document.getElementById("scr-battle")&&document.getElementById("f-ally")&&document.getElementById("f-enemy")&&typeof renderField==="function"&&PANEL_POOL.length>20',20000);
     const r=await b.eval(`
+      initState();G.phase='player';initializeBattlePresentationState();
       const px=e=>e?{border:getComputedStyle(e).borderTopWidth,shadow:getComputedStyle(e).boxShadow,outline:getComputedStyle(e).outline,display:getComputedStyle(e).display,opacity:getComputedStyle(e).opacity}:null;
       const pseudo=e=>e?{before:{content:getComputedStyle(e,'::before').content,border:getComputedStyle(e,'::before').borderTopWidth,shadow:getComputedStyle(e,'::before').boxShadow,opacity:getComputedStyle(e,'::before').opacity},after:{content:getComputedStyle(e,'::after').content,border:getComputedStyle(e,'::after').borderTopWidth,shadow:getComputedStyle(e,'::after').boxShadow,opacity:getComputedStyle(e,'::after').opacity}}:null;
       const root=document.getElementById('scr-battle');
@@ -21,6 +23,7 @@ const BASE = process.env.VB_URL || 'http://127.0.0.1:5504/index.html';
       const motion=playAttackMotion(G.allies[0],G.enemies[0],false,null,{stopRatio:.25,firstDuration:260,secondDuration:360,returnDuration:420});
       await new Promise(r=>setTimeout(r,120));
       const clone=document.querySelector('.attack-motion-clone');
+      if(!clone) throw new Error('攻撃モーションの複製が生成されない');
       const attackFrame=clone?.querySelector('.unit-frame-layer');
       const attack=Object.assign(px(attackFrame)||{},{classes:clone?.className||'',inline:attackFrame?.getAttribute('style')||''});
       await motion; endBattleMotion();
@@ -84,6 +87,8 @@ const BASE = process.env.VB_URL || 'http://127.0.0.1:5504/index.html';
       anchor.remove(); _closeItemUseConfirm(); keywordTip.style.display='none';
       return {attack,drag:dragState,ghost:ghostState,specialGhost:specialGhostState,handDrag:handDragState,rewardDrag:rewardDragState,special:specialState,enchant:enchantState,specialEnchant:specialEnchantState,enchantBorder,dark:darkState,darkDragPseudo,darkDragLayers,keywordPlacement};
     `);
+    const assert=require('node:assert/strict');
+    for(const key of ['attack','drag','ghost','specialGhost','handDrag','rewardDrag','special','enchant','specialEnchant','dark']) assert.ok(r[key],key+'の描画状態が取得されない');
     console.log(JSON.stringify(r));
   }finally{ await b.close(); }
 })().catch(e=>{ console.error(e.stack||e); process.exitCode=1; });

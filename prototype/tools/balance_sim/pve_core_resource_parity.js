@@ -26,7 +26,8 @@ function check(name, fn) {
 // --- 静的：PvEがコアへ渡すstateは必ずlifeを持つ ---
 check('PvEの全state定義がlifeを持つ', () => {
   const states = battleSrc.match(/resources:\{p1:\{mana:Number\(_ensureMana\(\)\)\|\|0,gold:Number\(G\.gold\)\|\|0\},p2:\{mana:0,gold:0\}\}[,}]/g) || [];
-  assert.ok(states.length >= 12, `state定義が想定より少ない: ${states.length}`);
+  // 旧攻撃専用stateの2件は、本番の共通コアへの移行で削除済み。
+  assert.ok(states.length >= 11, `state定義が想定より少ない: ${states.length}`);
   // ライフの実値は G._waveLife（表示に使われている方）。_currentBattleLife() が唯一の入口。
   const lifeCount = (battleSrc.match(/life:\{p1:_currentBattleLife\(\),p2:0\}/g) || []).length;
   assert.equal(lifeCount, states.length,
@@ -127,7 +128,8 @@ check('コアへ渡すライフが表示と同じ値である', () => {
   assert.match(battleSrc, /if\(G\._waveLife!=null\) G\._waveLife=next;/,
     'ライフの書き戻しが G._waveLife を更新していない（画面と食い違う）');
   // 上限も渡す。オンライン対戦は3ではなく5。
-  assert.ok((battleSrc.match(/maxLife:\{p1:_currentBattleLifeMax\(\)/g) || []).length >= 13,
+  const stateCount=(battleSrc.match(/resources:\{p1:\{mana:Number\(_ensureMana\(\)\)\|\|0,gold:Number\(G\.gold\)\|\|0\}/g)||[]).length;
+  assert.equal((battleSrc.match(/maxLife:\{p1:_currentBattleLifeMax\(\)/g) || []).length,stateCount,
     'コアへライフ上限を渡していない');
 });
 

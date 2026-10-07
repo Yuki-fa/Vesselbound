@@ -350,7 +350,6 @@ async function runDisplayChecks() {
   // 通常のNodeハーネスを使い、rAFは進めない（見た目・アニメーションの検査ではない）。
   require('./stub'); global.requestAnimationFrame = () => 0;
   require('./load');
-  vm.runInThisContext(fs.readFileSync(path.join(ROOT, 'js/battle/core.js'), 'utf8'), { filename: 'core-display-check.js' });
   const originalLog = console.log, originalTable = console.table;
   try { console.log = () => {}; console.table = () => {}; await loadGameData(); }
   finally { console.log = originalLog; console.table = originalTable; }

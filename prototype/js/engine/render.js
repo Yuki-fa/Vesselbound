@@ -3053,21 +3053,40 @@ const _SWEEP_VFX_CROP={};
 // 攻撃キャラクターのカード先端を起点に、実際の距離・角度で対象群（最も左〜最も右、最も近い〜最も遠い）
 // まで届く長さで炎を伸ばし、対象の角度範囲を回転しながら薙ぎ払うように動画を再生する。
 // SEと合わせるため、再生時間（sweepDuration）は対象数・回転量に関わらず常に一定にする。
+function _captureSweepSourceRect(unit,side){
+  if(!unit) return null;
+  const valid=r=>r&&Number.isFinite(r.left)&&Number.isFinite(r.top)
+    &&Number.isFinite(r.width)&&Number.isFinite(r.height)&&r.width>0&&r.height>0;
+  const id=String(unit.id);
+  const motion=[...document.querySelectorAll('.attack-motion-clone[data-unit-id]')]
+    .find(el=>String(el.dataset.unitId)===id);
+  const slot=getCurrentUnitSlot(side,unit);
+  for(const el of [motion,slot]){
+    if(!el||el.isConnected===false||String(el.dataset.unitId)!==id
+      ||el.classList.contains('dead-empty')) continue;
+    const style=getComputedStyle(el);
+    if(style.display==='none'||style.visibility==='hidden'||style.visibility==='collapse'
+      ||Number(style.opacity)===0) continue;
+    const rect=el.getBoundingClientRect();
+    if(valid(rect)) return _copyBattleVisualRect(rect);
+  }
+  return valid(unit._lastVisualRect)?_copyBattleVisualRect(unit._lastVisualRect):null;
+}
+
 function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   if(!videoUrl) return Promise.resolve();
   const opt=options||{};
   const sweepDuration=opt.sweepDuration||700;
-  const sourceSlot=getCurrentUnitSlot(isEnemySide?'enemy':'ally',unit);
   const targetSlots=(targets||[]).map(t=>getCurrentUnitSlot(isEnemySide?'ally':'enemy',t)).filter(Boolean);
-  if(!sourceSlot||!targetSlots.length) return Promise.resolve();
+  if(!targetSlots.length) return Promise.resolve();
   // **発生源は効果の演出の決まり（_captureUnitEffectRect）どおり、攻撃で踏み込んだ複製カードの位置。**
   // 定位置の枠から出すと、斜め前の敵へ踏み込んだ時にカードの左下など離れた所から炎が出た（2026-09-29 利用者報告）。
-  const sourceRect=(typeof _captureUnitEffectRect==='function'
-    ?_captureUnitEffectRect(unit,isEnemySide?'enemy':'ally'):null)||sourceSlot.getBoundingClientRect();
+  const sourceRect=_captureSweepSourceRect(unit,isEnemySide?'enemy':'ally');
+  if(!sourceRect) return Promise.resolve();
   // カード先端（味方なら上端＝敵陣営へ向く側）を発生源にする
   // カード中央ではなく、やや左寄り（口元付近を想定）を発生源にする
   const originX=sourceRect.left+sourceRect.width*0.25;
-  const originY=isEnemySide?sourceRect.bottom:sourceRect.top;
+  const originY=sourceRect.top+(isEnemySide?sourceRect.height:0);
 
   // 発生源から見た各対象の実際の角度・距離を計算する。これにより対象が1体で近くても、
   // 遠く（後衛）でも、正しい長さ・向きで炎が届く。
@@ -4632,8 +4651,7 @@ function captureBattleCompactPreviousRects(){
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('battle_compact_previous_rects_held',{count:rects.size,ids:[...rects.keys()]});
 }
 
-function renderField(id,units,isEnemy,_lane){
-  const el=document.getElementById(id);
+function _captureFieldVisualState(el,units){
   const previousRects=new Map();
   // 攻撃モーション中の死亡では、モーション終了まで詰めを保留する間に
   // 元スロットが空枠へ置き換わったり、攻撃用複製だけが残ったりする。
@@ -4681,6 +4699,297 @@ function renderField(id,units,isEnemy,_lane){
       });
     }
   }
+  return {previousRects,previousLefts,dyingIds,previousSlots};
+}
+
+function _layoutBattleFieldRows(el,units,isEnemy,previousLefts,_frontIndexes,_rearIndexes,frontSlots){
+  const _fieldW=`calc(var(--unit-card-w) * ${frontSlots} + var(--unit-field-gap) * ${frontSlots-1})`;
+  const _unitX=(count,pos)=>`calc((${_fieldW} - var(--unit-card-w)) / 2 + (${pos} - (${count} - 1) / 2) * (var(--unit-card-w) + var(--unit-field-gap)))`;
+  // 奪う演出の待機中は、奪われた体が元いた場所をレイアウト上だけ空けておく。
+  // カード本体は既に移動先の配列にあるため、元配列へ戻すと戦闘状態を壊す。
+  // 代わりに元位置の並びへ描画専用の空席を差し込み、残った敵が複製へ
+  // 重なるのを防ぐ。動き出す瞬間に origin.released を立てて通常の詰めへ戻す。
+  const _fieldSide=isEnemy?'p2':'p1';
+  const _stealOrigins=[...(G.allies||[]),...(G.enemies||[])]
+    .map(u=>u&&u._stealPendingPresent&&u._stealPresent&&u._stealPresent.origin)
+    .filter(origin=>origin&&!origin.released&&origin.detached!==false&&origin.side===_fieldSide);
+  const _layoutWithStealOrigins=(indexes,lane)=>{
+    const entries=indexes.map(idx=>({idx}));
+    _stealOrigins.filter(origin=>origin.lane===lane)
+      .sort((a,b)=>a.position-b.position)
+      .forEach(origin=>entries.splice(Math.max(0,Math.min(entries.length,Number(origin.position)||0)),0,{ghost:true}));
+    const positions=new Map();
+    entries.forEach((entry,pos)=>{ if(!entry.ghost) positions.set(entry.idx,pos); });
+    return {count:entries.length,positions};
+  };
+  const _rearLayout=_layoutWithStealOrigins(_rearIndexes,'rear');
+  const _frontLayout=_layoutWithStealOrigins(_frontIndexes,'front');
+  // 人数が変わった直後の再描画では、compact が保留されているため既存カードの
+  // left 式は前回の人数を基準にしている。新しい召喚体だけを新人数で計算すると
+  // 半枚ずれて重なるので、フィールド要素に列ごとの基準人数を保持する。
+  // 基準人数の更新は、既存カードの left も書き換える描画だけで行う。
+  // holdLayout 中は既存カードへ previousLefts の旧 left を入れ直すため、
+  // 新規カードも同じ旧人数を基準にして半枚ずれを防ぐ。
+  const holdLayout=!!(G._compactHoldSides&&G._compactHoldSides[isEnemy?'enemies':'allies']
+    &&(G._animateBattleCompact||performance.now()<Number(G._battleCompactAnimatingUntil||0)));
+  const _layoutIsBeingRewritten=!holdLayout;
+  // その列に据え置き中の既存カード（旧 left を持つ体）が1枚も無ければ、重なる相手がいないので新しい人数で置く。
+  // 後衛のエピトメが攻撃中に前衛へボスを召喚した時、前衛の旧人数0を基準にして半枚右へずれ、
+  // 攻撃が終わってから中央へ動いていた（利用者報告）。
+  const _laneHasHeld=indexes=>indexes.some(idx=>{
+    const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
+    return !!uid&&previousLefts.has(uid);
+  });
+  const _storedLayoutCount=(key,count,indexes)=>{
+    const old=Number(el.dataset[key]);
+    if(_layoutIsBeingRewritten||!Number.isFinite(old)||old<0||!_laneHasHeld(indexes)){
+      el.dataset[key]=String(count);
+      return count;
+    }
+    return old;
+  };
+  const _frontBaseCount=_storedLayoutCount('layoutFrontCount',_frontLayout.count,_frontIndexes);
+  const _rearBaseCount=_storedLayoutCount('layoutRearCount',_rearLayout.count,_rearIndexes);
+  const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearBaseCount,_rearLayout.positions.get(idx))]));
+  const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontBaseCount,_frontLayout.positions.get(idx))]));
+  // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。
+  if(holdLayout){
+    [..._frontIndexes,..._rearIndexes].forEach(idx=>{
+      const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
+      const oldLeft=previousLefts.get(uid);
+      if(!oldLeft) return;
+      if(_frontIndexes.includes(idx)) _frontLeft.set(idx,oldLeft);
+      else _rearLeft.set(idx,oldLeft);
+    });
+  }
+  return {_unitX,_rearLeft,_frontLeft};
+}
+
+function _renderBattleUnitContent(slot,u,i,isEnemy){
+  // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
+  {
+    // **結界は表示専用の値で描く**（present.js）。実体を直に描くと、
+    // 結界を割った演出（K018）より先に shield.png が消える。
+    const _shownShield=typeof presentShownShield==='function'?presentShownShield(u):(Number(u.shield)||0);
+    const gradeTag='';
+    const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
+    const _desc=_stripKeywordsFromDesc(_rawDesc,u);
+    const _descSlot=_unitDescSlotIdx(u,i);
+    const descTag=_unitCombinedDescHtml(u,_desc,_descSlot);
+    // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
+    // 既にアイコン化済みの_desc（<img alt="マナ">を含む）ではなくプレーンテキストを渡す
+    // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
+    const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
+    const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
+    if(_preview) slot.setAttribute('data-preview',_preview);
+    // 説明の見出し左の色アイコン。味方はカードの色、**敵は常に黒**（2026-09-24 利用者指定）。
+    // 編成画面のカード（render.js の mkCardEl）と同じ属性で渡す。付け忘れていたため戦闘中だけ出なかった。
+    const _previewColor=isEnemy?'黒':String(u.color||'');
+    if(_previewColor) slot.setAttribute('data-preview-title-color',_previewColor);
+    // 画面に出す値は present.js が唯一の実装。演出の再生中は
+    // 「まだ見せていない変化」を反映しない（数値が出る前にHPが減らない）。
+    const _shownAtk=typeof presentShownAtk==='function'?presentShownAtk(u):(u.atk||0);
+    const _shownHp=typeof presentShownHp==='function'?presentShownHp(u):(u.hp||0);
+    const _shownMaxHp=typeof presentShownMaxHp==='function'?presentShownMaxHp(u):Math.max(1,u.maxHp||u.hp||1);
+    const _hpClass=(_shownHp<_shownMaxHp)?'h hp-damaged':'h';
+    // ATK/HPで縮小率が食い違わないよう、桁数の多い方に合わせた同じクラスを両方へ当てる。
+    const _statPairCls=_cardStatPairDigitClass(_shownAtk,_shownHp);
+    const _hpMax=_shownMaxHp;
+    const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,_shownHp)/_hpMax)*100)));
+    const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(_lifeLabelText())} ${Math.max(0,_shownHp)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
+    const raceTag='';
+    // 情報ブロック：絶対配置でカード全体に広げ中央固定
+    // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
+    const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
+    const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
+    slot.style.borderTop='2px solid var(--teal2)';
+    if(_shownShield>0) slot.classList.add('shield-active'); else slot.classList.remove('shield-active');
+    // .unit-portraitの子として配置することで、attack-motion-clone生成時にportrait用のCSS変数
+    // (--new-card-art-left等)がそのまま効き、独立した%指定を並行して持つことによるズレ・変形を防ぐ
+    const shieldLayer=''; // 結界の状態表示はLABのshield-stateに統一。
+    const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
+    const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
+    if(isEnemy){
+      slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
+    } else {
+      slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
+    }
+    const _battleFrameLayer=slot.querySelector('.unit-frame-layer');
+    if(_battleFrameLayer){
+      _battleFrameLayer.style.setProperty('border','2px solid #c49a6c','important');
+      _battleFrameLayer.style.setProperty('border-width','2px','important');
+      _battleFrameLayer.style.setProperty('background-origin','border-box','important');
+    }
+    if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
+    const hitLayer=document.createElement('div');
+    hitLayer.className='unit-hit-layer';
+    if(_preview) hitLayer.setAttribute('data-preview',_preview);
+    if(_previewColor) hitLayer.setAttribute('data-preview-title-color',_previewColor);
+    slot.appendChild(hitLayer);
+    slot._hitLayer=hitLayer;
+    if(!isEnemy&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(hitLayer,u,i);
+  }
+}
+
+function _wireBattleUnitControls(slot,u,i,isEnemy){
+  if(u&&!isEnemy){
+    const canMoveUnit=!isEnemy&&G.phase==='reward'&&!G._battlePhaseRunning&&!G._resolvingSeals&&!G._mapBattle;
+    slot.draggable=canMoveUnit;
+    slot.addEventListener('dragstart',e=>{
+      if(!canMoveUnit||document.body.classList.contains('right-card-peek')) { e.preventDefault(); return; }
+      if(typeof _libraryTutorialIsMoveStep==='function'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
+      window._allySlotDragSrc=i;
+      e.dataTransfer.effectAllowed='move';
+      if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0);
+      slot.classList.add('dragging');
+      if(typeof _createDragGhost==='function') _createDragGhost(slot);
+      if(typeof _moveDragGhost==='function') _moveDragGhost(e.clientX,e.clientY);
+    });
+    slot.addEventListener('drag',e=>{ if(typeof _moveDragGhost==='function'&&e.clientX&&e.clientY) _moveDragGhost(e.clientX,e.clientY); });
+    slot.addEventListener('dragend',()=>{ window._allySlotDragSrc=null; slot.classList.remove('dragging'); if(typeof _removeDragGhost==='function') _removeDragGhost(); });
+    slot.addEventListener('dragover',e=>{
+      if(!canMoveUnit||window._allySlotDragSrc==null) return;
+      e.preventDefault();
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+    slot.addEventListener('drop',e=>{
+      if(!canMoveUnit) return;
+      const src=window._allySlotDragSrc;
+      if(src==null) return;
+      if(typeof _libraryTutorialAllowsMove==='function'&&!_libraryTutorialAllowsMove(G.allies[src],i)) { window._allySlotDragSrc=null; return; }
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      if(src!==i){
+        const frontSlots=ENEMY_FRONT_SLOTS||7;
+        if((src>=frontSlots)!==(i>=frontSlots)){
+          window._allySlotDragSrc=null;
+          renderAll();
+          return;
+        }
+        const tmp=G.allies[src];
+        G.allies[src]=G.allies[i];
+        G.allies[i]=tmp;
+        if(G.allies[i]) G.allies[i].lane=i>=frontSlots?'rear':'front';
+        if(G.allies[src]) G.allies[src].lane=src>=frontSlots?'rear':'front';
+        renderAll();
+      }
+      window._allySlotDragSrc=null;
+    });
+    slot.onclick=()=>{
+      if(G.phase==='player') return;
+      if(G._selectedBoardUnitIdx!==i) G._selectedBoardCardIdx=null;
+      G._selectedBoardUnitIdx=i;
+      G._showGlobalPanels=false;
+      renderAll();
+      if(typeof renderHandEditor==='function') renderHandEditor();
+    };
+    if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
+  }
+  if(u&&isEnemy&&u.hp>0&&G.phase==='player'){
+    slot.onclick=()=>{
+      const unitIdx=G._selectedBoardUnitIdx;
+      const boardIdx=G._selectedBoardCardIdx;
+      const ally=G.allies&&G.allies[unitIdx];
+      const card=ally&&ally.boardCards&&ally.boardCards[boardIdx];
+      if(!ally||ally.hp<=0||boardIdx==null||boardIdx<0||!card) return;
+      if(typeof useDraggedSpellOnTarget==='function'){
+        const prev=G.spells;
+        G.spells=ally.boardCards;
+        G._boardSpellRestore=prev;
+        useDraggedSpellOnTarget(boardIdx,'enemy',i);
+        if(typeof _restoreBoardSpellSource==='function') _restoreBoardSpellSource();
+      }
+    };
+    if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
+  }
+  if(u&&u.hp>0&&G.phase==='player'&&typeof useDraggedSpellOnTarget==='function'){
+    slot.addEventListener('dragover',e=>{
+      const si=window._spellDragIdx;
+      if(si==null) return;
+      const sp=G.spells&&G.spells[si];
+      const who=isEnemy?'enemy':'ally';
+      if(!sp) return;
+      if((sp.needsEnemy&&who!=='enemy')||(sp.needsAlly&&who!=='ally')) return;
+      if(!sp.needsEnemy&&!sp.needsAlly&&!sp.needsAny) return;
+      e.preventDefault();
+      slot.classList.add('drag-over');
+    });
+    slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
+    slot.addEventListener('drop',e=>{
+      const si=window._spellDragIdx;
+      if(si==null) return;
+      e.preventDefault();
+      slot.classList.remove('drag-over');
+      useDraggedSpellOnTarget(si,isEnemy?'enemy':'ally',i);
+      window._spellDragIdx=null;
+    });
+  }
+}
+
+function _animateBattleFieldCompact(el,id,previousRects){
+  // renderFieldはスロットを再生成するため、通常のtransitionだけでは
+  // 移動前の位置を失ってしまう。FLIPで旧位置から新位置へ滑らかに移動させる。
+  if(G._animateBattleCompact&&previousRects.size){
+    _recordBattleTrace('battle_compact_snapshot',{field:id,previousRects:previousRects.size,currentSlots:el.querySelectorAll('.slot[data-unit-id]').length,ids:[...previousRects.keys()]});
+    // 新しいDOMを作った同じ同期処理内で移動元transformを設定する。
+    // ここを最初のrequestAnimationFrame内で行うと、連続召喚・攻撃終了時の
+    // renderAll()に上書きされ、ブラウザが移動元を一度も描画せず瞬間移動になる。
+    let compactMatched=0;
+    for(const slot of el.querySelectorAll('.slot[data-unit-id]')){
+        const oldRect=previousRects.get(slot.dataset.unitId);
+        if(!oldRect) continue;
+        // 多段攻撃の接触直後に相手側の人数が変わっても、攻撃者自身へ
+        // FLIP移動を掛けない。これがあると攻撃者が左右へ一度動いて戻る。
+        if((G._suppressNextCompactUnitIds&&G._suppressNextCompactUnitIds.has(String(slot.dataset.unitId)))
+          ||(G._suppressCompactUnitIds&&G._suppressCompactUnitIds.has(String(slot.dataset.unitId)))) continue;
+        compactMatched++;
+        const newRect=slot.getBoundingClientRect();
+        const dx=oldRect.left-newRect.left;
+        const dy=oldRect.top-newRect.top;
+        if(Math.abs(dx)<0.5&&Math.abs(dy)<0.5) continue;
+        // grid の position:relative 要素へ absolute な left/top を設定すると、
+        // 「目標位置そのもの」ではなく元の grid 配置からさらにオフセットされる。
+        // そのため人数変化時のFLIPは相対移動量を transform で扱う。
+        const dxScaled=oldRect.left-newRect.left;
+        const dyScaled=oldRect.top-newRect.top;
+        const moveKey=String(slot.dataset.unitId);
+        const compactMoves=G._battleCompactMoves||(G._battleCompactMoves=new Map());
+        compactMoves.set(moveKey,{dx:dxScaled,dy:dyScaled,start:performance.now(),duration:260});
+        _recordBattleTrace('battle_compact_flip',{unitId:slot.dataset.unitId,oldLeft:oldRect.left,oldTop:oldRect.top,newLeft:newRect.left,newTop:newRect.top,dx,dy});
+        slot.style.setProperty('transition','none','important');
+        slot.style.setProperty('transform',`translate(${dxScaled}px,${dyScaled}px)`,'important');
+        // 新しいslotへ設定した移動元transformをこのフレーム中に確定する。
+        // これを省くと、ブラウザが「移動元」と「移動先」を同一レイアウトとして
+        // 折りたたみ、transitionが発火せず瞬間移動になることがある。
+        void slot.offsetWidth;
+        requestAnimationFrame(()=>{
+          if(!slot.isConnected) return;
+          _recordBattleTrace('battle_compact_transition_start',{unitId:slot.dataset.unitId,dx:dxScaled,dy:dyScaled});
+          slot.style.setProperty('transition','transform 260ms ease','important');
+          void slot.offsetWidth;
+          slot.style.setProperty('transform','translate(0,0)','important');
+          window.setTimeout(()=>{
+            if(!slot.isConnected) return;
+            _recordBattleTrace('battle_compact_transition_sample',{unitId:slot.dataset.unitId,
+              transform:getComputedStyle(slot).transform,elapsed:performance.now()-compactMoves.get(moveKey)?.start});
+          },130);
+          window.setTimeout(()=>{
+            if(!slot.isConnected) return;
+            slot.style.removeProperty('transition');
+            slot.style.removeProperty('transform');
+            const current=G._battleCompactMoves;
+            if(current&&current.get(moveKey)?.start===compactMoves.get(moveKey)?.start) current.delete(moveKey);
+          },320);
+        });
+      }
+    _recordBattleTrace('battle_compact_prepare',{field:id,previousRects:previousRects.size,currentSlots:el.querySelectorAll('.slot[data-unit-id]').length,matched:compactMatched});
+  }
+}
+
+function renderField(id,units,isEnemy,_lane){
+  const el=document.getElementById(id);
+  const {previousRects,previousLefts,dyingIds,previousSlots}=_captureFieldVisualState(el,units);
   el.innerHTML='';
   // 優先ターゲットのインデックスを特定（グループ全体をハイライト）
   // _isObject のユニットは攻撃対象外なので除外
@@ -4745,65 +5054,7 @@ function renderField(id,units,isEnemy,_lane){
   const frontSlots=ENEMY_FRONT_SLOTS||7;
   el.style.setProperty('grid-template-columns',`repeat(${frontSlots},var(--unit-card-w))`,'important');
   el.style.setProperty('justify-content','center','important');
-  const _fieldW=`calc(var(--unit-card-w) * ${frontSlots} + var(--unit-field-gap) * ${frontSlots-1})`;
-  const _unitX=(count,pos)=>`calc((${_fieldW} - var(--unit-card-w)) / 2 + (${pos} - (${count} - 1) / 2) * (var(--unit-card-w) + var(--unit-field-gap)))`;
-  // 奪う演出の待機中は、奪われた体が元いた場所をレイアウト上だけ空けておく。
-  // カード本体は既に移動先の配列にあるため、元配列へ戻すと戦闘状態を壊す。
-  // 代わりに元位置の並びへ描画専用の空席を差し込み、残った敵が複製へ
-  // 重なるのを防ぐ。動き出す瞬間に origin.released を立てて通常の詰めへ戻す。
-  const _fieldSide=isEnemy?'p2':'p1';
-  const _stealOrigins=[...(G.allies||[]),...(G.enemies||[])]
-    .map(u=>u&&u._stealPendingPresent&&u._stealPresent&&u._stealPresent.origin)
-    .filter(origin=>origin&&!origin.released&&origin.detached!==false&&origin.side===_fieldSide);
-  const _layoutWithStealOrigins=(indexes,lane)=>{
-    const entries=indexes.map(idx=>({idx}));
-    _stealOrigins.filter(origin=>origin.lane===lane)
-      .sort((a,b)=>a.position-b.position)
-      .forEach(origin=>entries.splice(Math.max(0,Math.min(entries.length,Number(origin.position)||0)),0,{ghost:true}));
-    const positions=new Map();
-    entries.forEach((entry,pos)=>{ if(!entry.ghost) positions.set(entry.idx,pos); });
-    return {count:entries.length,positions};
-  };
-  const _rearLayout=_layoutWithStealOrigins(_rearIndexes,'rear');
-  const _frontLayout=_layoutWithStealOrigins(_frontIndexes,'front');
-  // 人数が変わった直後の再描画では、compact が保留されているため既存カードの
-  // left 式は前回の人数を基準にしている。新しい召喚体だけを新人数で計算すると
-  // 半枚ずれて重なるので、フィールド要素に列ごとの基準人数を保持する。
-  // 基準人数の更新は、既存カードの left も書き換える描画だけで行う。
-  // holdLayout 中は既存カードへ previousLefts の旧 left を入れ直すため、
-  // 新規カードも同じ旧人数を基準にして半枚ずれを防ぐ。
-  const holdLayout=!!(G._compactHoldSides&&G._compactHoldSides[isEnemy?'enemies':'allies']
-    &&(G._animateBattleCompact||performance.now()<Number(G._battleCompactAnimatingUntil||0)));
-  const _layoutIsBeingRewritten=!holdLayout;
-  // その列に据え置き中の既存カード（旧 left を持つ体）が1枚も無ければ、重なる相手がいないので新しい人数で置く。
-  // 後衛のエピトメが攻撃中に前衛へボスを召喚した時、前衛の旧人数0を基準にして半枚右へずれ、
-  // 攻撃が終わってから中央へ動いていた（利用者報告）。
-  const _laneHasHeld=indexes=>indexes.some(idx=>{
-    const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
-    return !!uid&&previousLefts.has(uid);
-  });
-  const _storedLayoutCount=(key,count,indexes)=>{
-    const old=Number(el.dataset[key]);
-    if(_layoutIsBeingRewritten||!Number.isFinite(old)||old<0||!_laneHasHeld(indexes)){
-      el.dataset[key]=String(count);
-      return count;
-    }
-    return old;
-  };
-  const _frontBaseCount=_storedLayoutCount('layoutFrontCount',_frontLayout.count,_frontIndexes);
-  const _rearBaseCount=_storedLayoutCount('layoutRearCount',_rearLayout.count,_rearIndexes);
-  const _rearLeft=new Map(_rearIndexes.map(idx=>[idx,_unitX(_rearBaseCount,_rearLayout.positions.get(idx))]));
-  const _frontLeft=new Map(_frontIndexes.map(idx=>[idx,_unitX(_frontBaseCount,_frontLayout.positions.get(idx))]));
-  // 相手側の人数変化で攻撃中の陣営まで中央寄せしない。
-  if(holdLayout){
-    [..._frontIndexes,..._rearIndexes].forEach(idx=>{
-      const uid=units[idx]&&units[idx].id!=null?String(units[idx].id):'';
-      const oldLeft=previousLefts.get(uid);
-      if(!oldLeft) return;
-      if(_frontIndexes.includes(idx)) _frontLeft.set(idx,oldLeft);
-      else _rearLeft.set(idx,oldLeft);
-    });
-  }
+  const {_unitX,_rearLeft,_frontLeft}=_layoutBattleFieldRows(el,units,isEnemy,previousLefts,_frontIndexes,_rearIndexes,frontSlots);
   for(const i of renderIndexes){
     const rawU=units[i];
     // コアは後続効果の対象にできるよう召喚体を生成直後に配列へ入れるが、
@@ -4990,162 +5241,8 @@ function renderField(id,units,isEnemy,_lane){
         const _sheetRace=getSheetRaceByName(u.name);
         if(_sheetRace) u.race=_sheetRace;
       }
-      // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
-      {
-        // **結界は表示専用の値で描く**（present.js）。実体を直に描くと、
-        // 結界を割った演出（K018）より先に shield.png が消える。
-        const _shownShield=typeof presentShownShield==='function'?presentShownShield(u):(Number(u.shield)||0);
-        const gradeTag='';
-        const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';
-        const _desc=_stripKeywordsFromDesc(_rawDesc,u);
-        const _descSlot=_unitDescSlotIdx(u,i);
-        const descTag=_unitCombinedDescHtml(u,_desc,_descSlot);
-        // data-previewはホバー時に_formatPreviewHtmlで改めてアイコン化されるため、
-        // 既にアイコン化済みの_desc（<img alt="マナ">を含む）ではなくプレーンテキストを渡す
-        // （さもないと「2マナ」が「マナマナ」に化けるバグの原因になる）
-        const _plainDesc=u.desc?_stripKeywordsFromDesc(_stripBattleParentheticalText(_rawSubstitutedDesc(u)),u):'';
-        const _preview=_unitPreviewText(u,_plainDesc,_descSlot);
-        if(_preview) slot.setAttribute('data-preview',_preview);
-        // 説明の見出し左の色アイコン。味方はカードの色、**敵は常に黒**（2026-09-24 利用者指定）。
-        // 編成画面のカード（render.js の mkCardEl）と同じ属性で渡す。付け忘れていたため戦闘中だけ出なかった。
-        const _previewColor=isEnemy?'黒':String(u.color||'');
-        if(_previewColor) slot.setAttribute('data-preview-title-color',_previewColor);
-        // 画面に出す値は present.js が唯一の実装。演出の再生中は
-        // 「まだ見せていない変化」を反映しない（数値が出る前にHPが減らない）。
-        const _shownAtk=typeof presentShownAtk==='function'?presentShownAtk(u):(u.atk||0);
-        const _shownHp=typeof presentShownHp==='function'?presentShownHp(u):(u.hp||0);
-        const _shownMaxHp=typeof presentShownMaxHp==='function'?presentShownMaxHp(u):Math.max(1,u.maxHp||u.hp||1);
-        const _hpClass=(_shownHp<_shownMaxHp)?'h hp-damaged':'h';
-        // ATK/HPで縮小率が食い違わないよう、桁数の多い方に合わせた同じクラスを両方へ当てる。
-        const _statPairCls=_cardStatPairDigitClass(_shownAtk,_shownHp);
-        const _hpMax=_shownMaxHp;
-        const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,_shownHp)/_hpMax)*100)));
-        const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(_lifeLabelText())} ${Math.max(0,_shownHp)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
-        const raceTag='';
-        // 情報ブロック：絶対配置でカード全体に広げ中央固定
-        // 下部セクション：kwBlock・desc をHPバー直上に絶対配置
-        const _infoStyle='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding-bottom:60px;pointer-events:none';
-        const _btmStyle='position:absolute;bottom:6px;left:0;right:0;background:inherit;display:flex;flex-direction:column;align-items:stretch;padding:0 2px 0;z-index:1;pointer-events:auto';
-        slot.style.borderTop='2px solid var(--teal2)';
-        if(_shownShield>0) slot.classList.add('shield-active'); else slot.classList.remove('shield-active');
-        // .unit-portraitの子として配置することで、attack-motion-clone生成時にportrait用のCSS変数
-        // (--new-card-art-left等)がそのまま効き、独立した%指定を並行して持つことによるズレ・変形を防ぐ
-        const shieldLayer=''; // 結界の状態表示はLABのshield-stateに統一。
-        const manaOrbHtml=typeof cardManaCostHtml==='function'?cardManaCostHtml(u):'';
-        const sealCostHtml=typeof cardSealCostHtml==='function'?cardSealCostHtml(u):'';
-        if(isEnemy){
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
-        } else {
-          slot.innerHTML=`${manaOrbHtml}${sealCostHtml}<div class="unit-frame-layer"></div><div class="unit-stat-overlay-layer"></div>${gradeTag}<div class="unit-portrait">${shieldLayer}</div>${hpBar}<div style="${_infoStyle}"><div class="slot-name">${_battleDisplayUnitName(typeof battleFxShownForm==='function'?battleFxShownForm(u).name:u.name)}</div>${raceTag}<div class="slot-stats"><span class="a${_statPairCls}">${_shownAtk}</span><span class="s">/</span><span class="${_hpClass}${_statPairCls}">${_shownHp}</span></div></div><div style="${_btmStyle}">${descTag}</div>`;
-        }
-        const _battleFrameLayer=slot.querySelector('.unit-frame-layer');
-        if(_battleFrameLayer){
-          _battleFrameLayer.style.setProperty('border','2px solid #c49a6c','important');
-          _battleFrameLayer.style.setProperty('border-width','2px','important');
-          _battleFrameLayer.style.setProperty('background-origin','border-box','important');
-        }
-        if(typeof _applyManaOrbState==='function') _applyManaOrbState(slot,u);
-        const hitLayer=document.createElement('div');
-        hitLayer.className='unit-hit-layer';
-        if(_preview) hitLayer.setAttribute('data-preview',_preview);
-        if(_previewColor) hitLayer.setAttribute('data-preview-title-color',_previewColor);
-        slot.appendChild(hitLayer);
-        slot._hitLayer=hitLayer;
-        if(!isEnemy&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(hitLayer,u,i);
-      }
-      if(u&&!isEnemy){
-        const canMoveUnit=!isEnemy&&G.phase==='reward'&&!G._battlePhaseRunning&&!G._resolvingSeals&&!G._mapBattle;
-        slot.draggable=canMoveUnit;
-        slot.addEventListener('dragstart',e=>{
-          if(!canMoveUnit||document.body.classList.contains('right-card-peek')) { e.preventDefault(); return; }
-          if(typeof _libraryTutorialIsMoveStep==='function'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
-          window._allySlotDragSrc=i;
-          e.dataTransfer.effectAllowed='move';
-          if(typeof _transparentDragImg!=='undefined') e.dataTransfer.setDragImage(_transparentDragImg,0,0);
-          slot.classList.add('dragging');
-          if(typeof _createDragGhost==='function') _createDragGhost(slot);
-          if(typeof _moveDragGhost==='function') _moveDragGhost(e.clientX,e.clientY);
-        });
-        slot.addEventListener('drag',e=>{ if(typeof _moveDragGhost==='function'&&e.clientX&&e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-        slot.addEventListener('dragend',()=>{ window._allySlotDragSrc=null; slot.classList.remove('dragging'); if(typeof _removeDragGhost==='function') _removeDragGhost(); });
-        slot.addEventListener('dragover',e=>{
-          if(!canMoveUnit||window._allySlotDragSrc==null) return;
-          e.preventDefault();
-          slot.classList.add('drag-over');
-        });
-        slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
-        slot.addEventListener('drop',e=>{
-          if(!canMoveUnit) return;
-          const src=window._allySlotDragSrc;
-          if(src==null) return;
-          if(typeof _libraryTutorialAllowsMove==='function'&&!_libraryTutorialAllowsMove(G.allies[src],i)) { window._allySlotDragSrc=null; return; }
-          e.preventDefault();
-          slot.classList.remove('drag-over');
-          if(src!==i){
-            const frontSlots=ENEMY_FRONT_SLOTS||7;
-            if((src>=frontSlots)!==(i>=frontSlots)){
-              window._allySlotDragSrc=null;
-              renderAll();
-              return;
-            }
-            const tmp=G.allies[src];
-            G.allies[src]=G.allies[i];
-            G.allies[i]=tmp;
-            if(G.allies[i]) G.allies[i].lane=i>=frontSlots?'rear':'front';
-            if(G.allies[src]) G.allies[src].lane=src>=frontSlots?'rear':'front';
-            renderAll();
-          }
-          window._allySlotDragSrc=null;
-        });
-        slot.onclick=()=>{
-          if(G.phase==='player') return;
-          if(G._selectedBoardUnitIdx!==i) G._selectedBoardCardIdx=null;
-          G._selectedBoardUnitIdx=i;
-          G._showGlobalPanels=false;
-          renderAll();
-          if(typeof renderHandEditor==='function') renderHandEditor();
-        };
-        if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
-      }
-      if(u&&isEnemy&&u.hp>0&&G.phase==='player'){
-        slot.onclick=()=>{
-          const unitIdx=G._selectedBoardUnitIdx;
-          const boardIdx=G._selectedBoardCardIdx;
-          const ally=G.allies&&G.allies[unitIdx];
-          const card=ally&&ally.boardCards&&ally.boardCards[boardIdx];
-          if(!ally||ally.hp<=0||boardIdx==null||boardIdx<0||!card) return;
-          if(typeof useDraggedSpellOnTarget==='function'){
-            const prev=G.spells;
-            G.spells=ally.boardCards;
-            G._boardSpellRestore=prev;
-            useDraggedSpellOnTarget(boardIdx,'enemy',i);
-            if(typeof _restoreBoardSpellSource==='function') _restoreBoardSpellSource();
-          }
-        };
-        if(slot._hitLayer) slot._hitLayer.onclick=slot.onclick;
-      }
-      if(u&&u.hp>0&&G.phase==='player'&&typeof useDraggedSpellOnTarget==='function'){
-        slot.addEventListener('dragover',e=>{
-          const si=window._spellDragIdx;
-          if(si==null) return;
-          const sp=G.spells&&G.spells[si];
-          const who=isEnemy?'enemy':'ally';
-          if(!sp) return;
-          if((sp.needsEnemy&&who!=='enemy')||(sp.needsAlly&&who!=='ally')) return;
-          if(!sp.needsEnemy&&!sp.needsAlly&&!sp.needsAny) return;
-          e.preventDefault();
-          slot.classList.add('drag-over');
-        });
-        slot.addEventListener('dragleave',()=>slot.classList.remove('drag-over'));
-        slot.addEventListener('drop',e=>{
-          const si=window._spellDragIdx;
-          if(si==null) return;
-          e.preventDefault();
-          slot.classList.remove('drag-over');
-          useDraggedSpellOnTarget(si,isEnemy?'enemy':'ally',i);
-          window._spellDragIdx=null;
-        });
-      }
+      _renderBattleUnitContent(slot,u,i,isEnemy);
+      _wireBattleUnitControls(slot,u,i,isEnemy);
     } else {
       slot.classList.add('empty');
       if(!isEnemy){
@@ -5194,63 +5291,7 @@ function renderField(id,units,isEnemy,_lane){
       }
     }
   }
-  // renderFieldはスロットを再生成するため、通常のtransitionだけでは
-  // 移動前の位置を失ってしまう。FLIPで旧位置から新位置へ滑らかに移動させる。
-  if(G._animateBattleCompact&&previousRects.size){
-    _recordBattleTrace('battle_compact_snapshot',{field:id,previousRects:previousRects.size,currentSlots:el.querySelectorAll('.slot[data-unit-id]').length,ids:[...previousRects.keys()]});
-    // 新しいDOMを作った同じ同期処理内で移動元transformを設定する。
-    // ここを最初のrequestAnimationFrame内で行うと、連続召喚・攻撃終了時の
-    // renderAll()に上書きされ、ブラウザが移動元を一度も描画せず瞬間移動になる。
-    let compactMatched=0;
-    for(const slot of el.querySelectorAll('.slot[data-unit-id]')){
-        const oldRect=previousRects.get(slot.dataset.unitId);
-        if(!oldRect) continue;
-        // 多段攻撃の接触直後に相手側の人数が変わっても、攻撃者自身へ
-        // FLIP移動を掛けない。これがあると攻撃者が左右へ一度動いて戻る。
-        if((G._suppressNextCompactUnitIds&&G._suppressNextCompactUnitIds.has(String(slot.dataset.unitId)))
-          ||(G._suppressCompactUnitIds&&G._suppressCompactUnitIds.has(String(slot.dataset.unitId)))) continue;
-        compactMatched++;
-        const newRect=slot.getBoundingClientRect();
-        const dx=oldRect.left-newRect.left;
-        const dy=oldRect.top-newRect.top;
-        if(Math.abs(dx)<0.5&&Math.abs(dy)<0.5) continue;
-        // grid の position:relative 要素へ absolute な left/top を設定すると、
-        // 「目標位置そのもの」ではなく元の grid 配置からさらにオフセットされる。
-        // そのため人数変化時のFLIPは相対移動量を transform で扱う。
-        const dxScaled=oldRect.left-newRect.left;
-        const dyScaled=oldRect.top-newRect.top;
-        const moveKey=String(slot.dataset.unitId);
-        const compactMoves=G._battleCompactMoves||(G._battleCompactMoves=new Map());
-        compactMoves.set(moveKey,{dx:dxScaled,dy:dyScaled,start:performance.now(),duration:260});
-        _recordBattleTrace('battle_compact_flip',{unitId:slot.dataset.unitId,oldLeft:oldRect.left,oldTop:oldRect.top,newLeft:newRect.left,newTop:newRect.top,dx,dy});
-        slot.style.setProperty('transition','none','important');
-        slot.style.setProperty('transform',`translate(${dxScaled}px,${dyScaled}px)`,'important');
-        // 新しいslotへ設定した移動元transformをこのフレーム中に確定する。
-        // これを省くと、ブラウザが「移動元」と「移動先」を同一レイアウトとして
-        // 折りたたみ、transitionが発火せず瞬間移動になることがある。
-        void slot.offsetWidth;
-        requestAnimationFrame(()=>{
-          if(!slot.isConnected) return;
-          _recordBattleTrace('battle_compact_transition_start',{unitId:slot.dataset.unitId,dx:dxScaled,dy:dyScaled});
-          slot.style.setProperty('transition','transform 260ms ease','important');
-          void slot.offsetWidth;
-          slot.style.setProperty('transform','translate(0,0)','important');
-          window.setTimeout(()=>{
-            if(!slot.isConnected) return;
-            _recordBattleTrace('battle_compact_transition_sample',{unitId:slot.dataset.unitId,
-              transform:getComputedStyle(slot).transform,elapsed:performance.now()-compactMoves.get(moveKey)?.start});
-          },130);
-          window.setTimeout(()=>{
-            if(!slot.isConnected) return;
-            slot.style.removeProperty('transition');
-            slot.style.removeProperty('transform');
-            const current=G._battleCompactMoves;
-            if(current&&current.get(moveKey)?.start===compactMoves.get(moveKey)?.start) current.delete(moveKey);
-          },320);
-        });
-      }
-    _recordBattleTrace('battle_compact_prepare',{field:id,previousRects:previousRects.size,currentSlots:el.querySelectorAll('.slot[data-unit-id]').length,matched:compactMatched});
-  }
+  _animateBattleFieldCompact(el,id,previousRects);
 }
 
 function renderHand(){

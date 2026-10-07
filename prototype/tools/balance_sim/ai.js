@@ -1,73 +1,39 @@
 'use strict';
 
-// 本体の戦闘入口（allyAttackAction / enemyAttackAction）だけを使う、差し替え可能な簡易AI。
-// 移動用の本体入口は現行 battle.js に存在しないため、攻撃不能時はパスとして扱う。
+// 開戦まで本体を通し、以後は本番と同じコアで計算する数値用の受け口。
+// 数値・勝敗・対象選択を検査側では実装しない。30手での打ち切りだけは検査条件。
 const SIM_MAX_TURNS = 30;
 
-function _simLiving(list, enemy) {
-  return (list || []).filter(u => u && u.hp > 0 && !u._isObject &&
-    (enemy || (!u._isSoul && !u._isObject)) && !(_isSealed && _isSealed(u)));
-}
-
-function _simTargetFor(attacker, targets) {
-  const live = _simLiving(targets, true);
-  if (!live.length) return null;
-  const atk = Math.max(0, Number(_attackDamageValue(attacker)) || 0);
-  const killable = live.filter(t => atk >= Math.max(0, Number(t.hp) || 0));
-  // 倒せる敵が複数なら、最もATKが高い敵を優先する。
-  if (killable.length) return killable.sort((a, b) => (b.atk || 0) - (a.atk || 0))[0];
-  // 倒せない場合は最もHPが低い敵を優先する。
-  return live.slice().sort((a, b) => (a.hp || 0) - (b.hp || 0) || (b.atk || 0) - (a.atk || 0))[0];
-}
-
-function installBalanceAi() {
-  if (globalThis._balanceAiInstalled) return;
-  globalThis._balanceAiInstalled = true;
-  const originalGetAttackTarget = getAttackTarget;
-  getAttackTarget = function (attacker, targets) {
-    if (G._simAiTarget && G.allies && G.allies.includes(attacker) && targets === G.enemies) {
-      const target = G._simAiTarget;
-      if (target && target.hp > 0 && G.enemies.includes(target)) return target;
-    }
-    return originalGetAttackTarget(attacker, targets);
+function installBalanceCoreHarness() {
+  if (globalThis._balanceCoreHarnessInstalled) return;
+  globalThis._balanceCoreHarnessInstalled = true;
+  // 旧 _applyDamageState の計測をコアの適用点へ移す。開戦も含め、実際に失ったHPを読む。
+  // HPの増加・回復・復活をイベントから推測せず、コアの実体を前後で比較する。
+  const applyDamage = coreApplyDamage;
+  coreApplyDamage = function balanceSimulationDamage(target, amount, emit, opts) {
+    if (!G._simMetrics) return applyDamage(target, amount, emit, opts);
+    const before = target.hp;
+    const fromAllies = (G.allies || []).some(u => u && u.id === (opts && opts.sourceId));
+    const fromEnemies = (G.enemies || []).some(u => u && u.id === (opts && opts.sourceId));
+    const result = applyDamage(target, amount, emit, opts);
+    const actual = Math.max(0, before - target.hp);
+    if (target.side === 'p2' && fromAllies) G._simMetrics.dealt += actual;
+    if (target.side === 'p1' && fromEnemies) G._simMetrics.taken += actual;
+    return result;
   };
-
-  // startPlayerPhase -> _advanceToBattlePhase -> battlePhase から呼ばれる差し替え点。
   battlePhase = async function balanceSimulationBattlePhase() {
-    let turn = Math.max(1, Number(G.turn) || 1);
-    while (G.phase !== 'reward' && !G._battleDefeatHandled && turn <= SIM_MAX_TURNS) {
-      G.phase = 'player';
-      const allies = _simLiving(G.allies, false).slice();
-      for (const ally of allies) {
-        if (G.phase === 'reward' || G._battleDefeatHandled) break;
-        G._simAiTarget = _simTargetFor(ally, G.enemies);
-        // 攻撃入口を直接呼ぶ。ATK0・防戦などは何もせずパスする。
-        await allyAttackAction(ally, G.allies.indexOf(ally));
-        if (typeof _checkBattleOver === 'function' && _checkBattleOver()) break;
-      }
-      delete G._simAiTarget;
-      if (G.phase === 'reward' || G._battleDefeatHandled) break;
-      G.phase = 'enemy';
-      const enemies = _simLiving(G.enemies, true).slice();
-      for (const enemy of enemies) {
-        if (G.phase === 'reward' || G._battleDefeatHandled) break;
-        await enemyAttackAction(enemy, G.enemies.indexOf(enemy));
-        if (typeof _checkBattleOver === 'function' && _checkBattleOver()) break;
-      }
-      if (G.phase === 'reward' || G._battleDefeatHandled) break;
-      if (turn >= SIM_MAX_TURNS) break;
-      turn++;
-      G.turn = turn;
-      G.phase = 'player';
-      await new Promise(resolve => setImmediate(resolve));
-    }
-    delete G._simAiTarget;
-    if (G.phase !== 'reward' && !G._battleDefeatHandled) {
-      G._simTimeout = true;
-      G.phase = 'timeout';
-      G._battlePhaseRunning = false;
-    }
+    const state = _createPveCoreState(); _stampCoreSideSlots(state);
+    const emit = ev => {
+      G._battleCoreEvents.push(ev);
+    };
+    const result = runBattleCore(state, coreMathRng, { skipOpening: true, turnLimit: SIM_MAX_TURNS, onEvent: emit });
+    _syncCoreResourcesToG(state); _syncCoreBloodToG(state);
+    G.turn = result.turns; G._simOutcome = result;
+    G._simTimeout = result.outcome === 'draw';
+    G._battleDefeatHandled = result.outcome === 'p2';
+    G.phase = result.outcome === 'p1' ? 'reward' : G._simTimeout ? 'timeout' : 'defeat';
+    G._battlePhaseRunning = false;
   };
 }
 
-module.exports = {installBalanceAi, SIM_MAX_TURNS};
+module.exports = {installBalanceCoreHarness, SIM_MAX_TURNS};
