@@ -63,6 +63,7 @@
         _adjacentPanelAbilities: Array.isArray(u._adjacentPanelAbilities) ? u._adjacentPanelAbilities.slice() : [],
         _adjacentPanelStrategyCount: Number(u._adjacentPanelStrategyCount) || 0,
         _adjacentPanelEffectTexts: Array.isArray(u._adjacentPanelEffectTexts) ? u._adjacentPanelEffectTexts.slice() : [],
+        _permanentEffectCards: Array.isArray(u._permanentEffectCards) ? u._permanentEffectCards.map(record => ({ ...record })) : [],
         _uniteGroups: Array.isArray(u._uniteGroups) ? u._uniteGroups.slice() : [],
         _resonanceEffectNames: Array.isArray(u._resonanceEffectNames) ? u._resonanceEffectNames.slice() : [],
         _resonanceEffectScales: { ...(u._resonanceEffectScales || {}) },

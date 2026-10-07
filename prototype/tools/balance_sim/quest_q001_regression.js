@@ -62,54 +62,55 @@ function runTrigger(unit,trigger,side='p1'){
 
 (async()=>{
   await loadGameData();SaveRun.ready();
-  check('E075の本文・数値・ポート・抽選除外はシートどおり、表示の；を維持する',()=>{
+  check('E075の本文・数値・ポート・抽選除外はシートどおり、死亡では発動しない',()=>{
     const row=sheet.sheetRows('enchant').find(row=>row['No.']==='E075'),card=makeSoul();
-    assert.equal(card.desc,row['効果']);assert.equal(card.desc,'攻撃＆死亡；全ての敵に7ダメージを与える。');
-    assert.equal(card.rarity,2);assert.equal(card.grade,1);assert.equal(card.directionCount,1);
+    assert.equal(card.desc,row['効果']);assert.equal(card.desc,'攻撃：全ての敵に12ダメージを与える。発動するたびにこのダメージは永久に1減少する。');
+    assert.equal(card.rarity,Number(row['レアリティ']));assert.equal(card.grade,Number(row['グレード']));assert.equal(card.directionCount,Number(row['ポート']));
     const def=PANEL_POOL.find(card=>_qCardNo(card)==='E075');
     assert.equal(def._rewardAvailable,false);assert.equal(def._shopAvailable,false);
     assert.ok(CORE_EFFECT_CARD_NAMES.has(card.name));assert.ok(!_enchantPreviewKeywords(card).includes(card.name));
-    assert.deepEqual(coreTriggerTextParts(card,'攻撃'),['全ての敵に7ダメージを与える。']);
-    assert.deepEqual(coreTriggerTextParts(card,'死亡'),['全ての敵に7ダメージを与える。']);
+    assert.deepEqual(coreTriggerTextParts(card,'攻撃'),['全ての敵に12ダメージを与える。発動するたびにこのダメージは永久に1減少する。']);
+    assert.deepEqual(coreTriggerTextParts(card,'死亡'),[]);
     assert.deepEqual(coreTriggerTextParts(card,'負傷'),[]);
-    for(const delimiter of ['；','：',':']) assert.deepEqual(coreTriggerTextParts({desc:card.desc.replace('；',delimiter)},'死亡'),coreTriggerTextParts(card,'死亡'));
+    for(const delimiter of ['；','：',':']) assert.deepEqual(coreTriggerTextParts({desc:card.desc.replace('：',delimiter)},'攻撃'),coreTriggerTextParts(card,'攻撃'));
     assert.ok(coreUnitTriggerText({desc:'攻撃＆負傷：全ての味方はHP+2を得る。'},'負傷'));
   });
   const inputs=formationInputs();
-  for(const trigger of ['攻撃','死亡']) check(`E075 ${trigger}：実際のPvE編成と送信payloadで敵3体へ7、同一の束・通常VFX`,()=>{
+  for(const trigger of ['攻撃','死亡']) check(`E075 ${trigger}：PvE編成と送信payloadで攻撃12・死亡発動なし`,()=>{
     const offline=runTrigger(inputs.pve,trigger),online=runTrigger(inputs.online,trigger);
     for(const result of [offline,online]){
-      assert.equal(result.hits.length,3);assert.ok(result.hits.every(event=>event.amount===7&&event.effectSource===false&&event.area));
-      assert.ok(result.hits[0].batch);assert.equal(new Set(result.hits.map(event=>event.batch)).size,1);
-      assert.deepEqual(result.state.units.p2.map(unit=>unit.hp),[93,93,93]);
+      assert.equal(result.hits.length,trigger==='攻撃'?3:0);assert.ok(result.hits.every(event=>event.amount===12&&event.effectSource===false&&event.area));
+      if(trigger==='攻撃'){assert.ok(result.hits[0].batch);assert.equal(new Set(result.hits.map(event=>event.batch)).size,1);}
+      assert.deepEqual(result.state.units.p2.map(unit=>unit.hp),Array(3).fill(trigger==='攻撃'?88:100));
     }
     const project=result=>result.hits.map(({amount,unitId,damageKind,effectSource,area})=>({amount,unitId,damageKind,effectSource,area}));
     assert.deepEqual(project(offline),project(online));
-    assert.deepEqual(runTrigger(inputs.online,trigger,'p2').hits.map(event=>event.amount),[7,7,7]);
+    assert.deepEqual(runTrigger(inputs.online,trigger,'p2').hits.map(event=>event.amount),trigger==='攻撃'?[12,12,12]:[]);
   });
-  check('E075＋闇の炎は本文を混同せず、死亡で7と1をそれぞれ全体へ発動する',()=>{
+  check('E075＋闇の炎は本文を混同せず、死亡では闇の炎だけ発動する',()=>{
     const unit=copy(inputs.pve);
     const flame=PANEL_POOL.find(card=>card.name==='闇の炎');
     unit._adjacentPanelEffectTexts.push(flame.desc);unit._resonanceEffectNames.push(flame.name);
     const hits=runTrigger(unit,'死亡').hits;
-    assert.deepEqual(hits.map(event=>event.amount),[7,7,7,1,1,1]);
+    assert.deepEqual(hits.map(event=>event.amount),[1,1,1]);
   });
   check('サイレン・アラッサスの固有効果を保ち、付与したE075は通常の全体ダメージで発動する',()=>{
     for(const name of ['サイレン','アラッサス']){
       const unit=copy(inputs.pve),def=PANEL_POOL.find(card=>card.name===name);
       unit.name=def.name;unit.no=_qCardNo(def);unit.desc=def.desc;unit.effectText=def.desc;unit.effect=def.desc;
       unit.keywords=[];unit.effectData={effectNames:[],effectTexts:unit._adjacentPanelEffectTexts};unit._resonanceEffectNames=[makeSoul().name];
-      const result=runTrigger(unit,'攻撃'),soulHits=result.hits.filter(event=>event.amount===7);
+      const result=runTrigger(unit,'攻撃'),soulHits=result.hits.filter(event=>event.amount===12);
       assert.equal(soulHits.length,3);assert.ok(soulHits.every(event=>event.effectSource===false));
-      assert.equal(result.hits.filter(event=>event.amount===1).length,3);
+      assert.equal(result.hits.filter(event=>event.amount===(name==='アラッサス'?4:1)).length,3);
       assert.equal(result.events.filter(event=>event.type==='sweep_vfx').length,1);
     }
   });
   check('E075の2枚接続は各1回ずつ発動し、payloadの重複表現で4回に増えない',()=>{
     const unit=copy(inputs.online);unit._adjacentPanelEffectTexts.push(makeSoul().desc);unit.effectData.effectTexts.push(makeSoul().desc);
-    for(const trigger of ['攻撃','死亡']) assert.deepEqual(runTrigger(unit,trigger).hits.map(event=>event.amount),Array(6).fill(7));
+    assert.deepEqual(runTrigger(unit,'攻撃').hits.map(event=>event.amount),Array(6).fill(12));
+    assert.deepEqual(runTrigger(unit,'死亡').hits,[]);
   });
-  check('runBattleCore／オンラインシミュレータから攻撃と死亡の両方を呼べる',()=>{
+  check('runBattleCore／オンラインシミュレータでも攻撃で発動し、死亡では発動しない',()=>{
     const subject=copy(inputs.online);subject.hp=subject.maxHp=1;subject.atk=1;
     subject.name='検査用';subject.no='C999';subject.desc='';subject.effect='';subject.effectText='';
     const foe={id:'enemy',name:'敵',hp:100,maxHp:100,atk:2,lane:'front',keywords:[],desc:''};
@@ -117,8 +118,8 @@ function runTrigger(unit,trigger,side='p1'){
     const online=simulateOnlineBattle(setup),state=createBattleState(copy(setup));
     const events=[];runBattleCore(state,createSeededRng(8),{onEvent:event=>events.push(event)});
     assert.deepEqual(online.events,events);
-    assert.ok(events.some(event=>event.type==='damage'&&event.damageKind==='attack_effect'&&event.amount===7));
-    assert.ok(events.some(event=>event.type==='damage'&&event.damageKind==='death_effect'&&event.amount===7));
+    assert.ok(events.some(event=>event.type==='damage'&&event.damageKind==='attack_effect'&&event.amount===12));
+    assert.ok(!events.some(event=>event.type==='damage'&&event.damageKind==='death_effect'));
   });
   check('Q001の街候補はシートのみ、デバッグ候補に追加し、台詞・ボタン・見出しをシートから読む',()=>{
     // 街の候補はシート（地域の「クエスト」列）のとおり。シートの更新で並びが変わってもよい（2026-10-05 エルムにQ001追加）。

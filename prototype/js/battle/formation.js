@@ -209,6 +209,16 @@ function persistBoardCharacterStats(board, slotIdx, atk, hp) {
   return true;
 }
 
+// エンチャント1枚の現在ダメージを絶対値で保存する。カードIDは種類なので、盤面位置も照合する。
+function persistBoardEffectDamage(board, event) {
+  const cards = board && Array.isArray(board.boardCards) ? board.boardCards : [];
+  if (!event || !Number.isInteger(event.boardSlot) || event.boardSlot < 0 || !Number.isFinite(Number(event.damage))) return false;
+  const card = cards[event.boardSlot];
+  if (!card || String(card.id) !== String(event.effectCardId) || !corePermanentDamageSpec(card.desc)) return false;
+  card._permanentEffectDamage = corePermanentDamageValue({ ...card, _permanentEffectDamage: event.damage });
+  return true;
+}
+
 if (typeof window !== 'undefined') {
   window.formationDeploySlots = formationDeploySlots;
   window.boardSlotIsDeployable = boardSlotIsDeployable;
@@ -216,7 +226,8 @@ if (typeof window !== 'undefined') {
   window.buildBoardFormation = buildBoardFormation;
   window.boardHasDeployableCharacter = boardHasDeployableCharacter;
   window.persistBoardCharacterStats = persistBoardCharacterStats;
+  window.persistBoardEffectDamage = persistBoardEffectDamage;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { formationDeploySlots, boardSlotIsDeployable, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats };
+  module.exports = { formationDeploySlots, boardSlotIsDeployable, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats, persistBoardEffectDamage };
 }

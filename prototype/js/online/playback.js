@@ -196,6 +196,7 @@ async function playOnlineBattleEvents(result, handlers) {
         }
       }
     } else if (ev.type === 'keyword_effect') {
+      if (ev.effect === 'effect_value') coreApplyPermanentDamageEvent(ctx.board, ev);
       const u = ctx.unitById(ev.unitId);
       if (u) {
         if (ev.effect === 'poison') u.poison = (Number(u.poison) || 0) + (Number(ev.amount) || 0);
@@ -246,6 +247,8 @@ async function playOnlineBattleEvents(result, handlers) {
           u.maxHp = Number(ev.maxHp) || u.maxHp; u.hp = Number(ev.hp) || u.hp;
         }
       }
+    } else if (ev.type === ONLINE_EVENT.BATTLE_END && ev.kenzokuEnded) {
+      Object.values(board).flat().filter(Boolean).forEach(coreClearKenzoku);
     }
 
     if (typeof opts.onEvent === 'function') await opts.onEvent(ev, ctx);

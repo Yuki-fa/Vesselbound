@@ -208,8 +208,81 @@ function coreTriggerEffectEntries(unit, trigger, pattern) {
   const own = [...new Set([unit && unit.desc, unit && unit.effectText, unit && unit.effect].filter(Boolean).map(String))];
   const attached = unit && Array.isArray(unit._adjacentPanelEffectTexts) && unit._adjacentPanelEffectTexts.length
     ? unit._adjacentPanelEffectTexts : (unit && unit.effectData && unit.effectData.effectTexts || []);
-  return [...own, ...attached.filter(text => !own.includes(String(text)))].flatMap(text =>
-    coreTriggerTextParts({ desc: text }, trigger).map(part => part.match(pattern)).filter(Boolean));
+  const texts = [...own.map(text => ({ text, effectIndex: -1 })),
+    ...attached.map((text, effectIndex) => ({ text, effectIndex })).filter(entry => !own.includes(String(entry.text)))];
+  return texts.flatMap(({ text, effectIndex }) => coreTriggerTextParts({ desc: text }, trigger)
+    .map(part => { const match = part.match(pattern); if (match) match.effectIndex = effectIndex; return match; }).filter(Boolean));
+}
+
+// エンチャント1枚ごとの永久ダメージ。初期値と減少幅は本文を正とする。
+function corePermanentDamageSpec(text) {
+  const match = String(text || '').match(/全ての敵に(\d+)ダメージを(?:(\d+)回)?与える。発動するたびにこのダメージは永久に(\d+)減少する/);
+  return match ? { initial: Number(match[1]), decrease: Number(match[3]) } : null;
+}
+function corePermanentDamageValue(card, text) {
+  const spec = corePermanentDamageSpec(text == null ? card && card.desc : text);
+  if (!spec) return null;
+  const current = card && card._permanentEffectDamage;
+  return current == null || !Number.isFinite(Number(current)) ? spec.initial
+    : Math.max(0, Math.min(spec.initial, Number(current)));
+}
+function corePermanentDamageDescription(card, text) {
+  const damage = corePermanentDamageValue(card, text);
+  return damage == null ? text : String(text).replace(/(全ての敵に)\d+(ダメージを)/, (_, before, after) => before + damage + after);
+}
+function coreEnsurePermanentEffectCards(unit) {
+  if (!unit || coreUnitIsSilenced(unit)) return unit && unit._permanentEffectCards || [];
+  const records = Array.isArray(unit._permanentEffectCards) ? unit._permanentEffectCards : [];
+  const attached = Array.isArray(unit._adjacentPanelEffectTexts) && unit._adjacentPanelEffectTexts.length
+    ? unit._adjacentPanelEffectTexts : unit.effectData && unit.effectData.effectTexts || [];
+  const texts = [{ text: unit.desc || unit.effectText || unit.effect, effectIndex: -1 },
+    ...attached.map((text, effectIndex) => ({ text, effectIndex }))];
+  for (const { text, effectIndex } of texts) {
+    const spec = corePermanentDamageSpec(text);
+    if (!spec) continue;
+    let record = records.find(x => x.effectIndex === effectIndex);
+    if (!record) {
+      // 古い保存・最小入力には接続カード情報がない。戦闘内だけの識別子で個々の発動を保持する。
+      record = { effectIndex, cardId: String(unit.id) + ':effect:' + effectIndex, boardSlot: null, damage: spec.initial };
+      records.push(record);
+    }
+    record.ownerSide = record.ownerSide || unit.side;
+    record.damage = record.damage == null || !Number.isFinite(Number(record.damage)) ? spec.initial
+      : Math.max(0, Math.min(spec.initial, Number(record.damage)));
+  }
+  if (records.length) unit._permanentEffectCards = records;
+  return records;
+}
+// 計算・オンライン再生の両方で、同じ1枚につながる全ての体とホバー用の写しへ絶対値を反映する。
+function coreApplyPermanentDamageEvent(units, event, { updateRecords = true } = {}) {
+  if (!event || event.effect !== 'effect_value') return;
+  const ownerSide = event.effectOwnerSide || event.side;
+  for (const unit of Object.values(units || {}).flat().filter(Boolean)) {
+    for (const holder of [unit, unit._silenceStash].filter(Boolean)) {
+      const records = holder._permanentEffectCards || [];
+      const matching = records.filter(record => String(record.cardId) === String(event.effectCardId)
+        && record.boardSlot === event.boardSlot
+        && (record.ownerSide || unit.side) === ownerSide);
+      if (updateRecords) matching.forEach(record => { record.damage = event.damage; });
+      if (matching.length) (holder.boardCards || []).filter((card, index) => card && String(card.id) === String(event.effectCardId)
+        && (card._permanentEffectBoardSlot == null ? index : card._permanentEffectBoardSlot) === event.boardSlot)
+        .forEach(card => { card._permanentEffectDamage = event.damage; });
+    }
+  }
+}
+function coreConsumePermanentDamage(state, unit, match, emit) {
+  const spec = corePermanentDamageSpec(match.input);
+  if (!spec) return null;
+  for (const other of Object.values(state.units || {}).flat().filter(Boolean)) coreEnsurePermanentEffectCards(other);
+  const record = coreEnsurePermanentEffectCards(unit).find(x => x.effectIndex === match.effectIndex);
+  const damage = record.damage;
+  const event = { type: 'keyword_effect', effect: 'effect_value', side: unit.side, unitId: unit.id,
+    effectCardId: record.cardId, effectOwnerSide: record.ownerSide, boardSlot: record.boardSlot,
+    damage: Math.max(0, damage - spec.decrease), persistent: record.boardSlot != null };
+  // 誘発による割り込み発動も次の値を読む。再生・保存は絶対値なので重ねて適用しても減らない。
+  coreApplyPermanentDamageEvent(state.units, event);
+  emit(event);
+  return damage;
 }
 
 // ── 強化カードの効果値は、必ずその効果文から読む ──────────────────
@@ -793,6 +866,8 @@ function createCoreUnit(raw, side, index) {
       ? raw._adjacentPanelEffectTexts.map(String)
       : (Array.isArray(raw && raw.effectData && raw.effectData.effectTexts)
         ? raw.effectData.effectTexts.map(String) : []),
+    _permanentEffectCards: Array.isArray(raw && raw._permanentEffectCards)
+      ? raw._permanentEffectCards.map(record => ({ ...record, ownerSide: record.ownerSide || side })) : [],
     _adjacentPanelStrategyCount: Number(raw && raw._adjacentPanelStrategyCount)
       || Number(raw && raw.effectData && raw.effectData.strategyCount) || 0,
     _uniteGroups: Array.isArray(raw && raw._uniteGroups) ? raw._uniteGroups.slice() : [],
@@ -826,7 +901,7 @@ const CORE_UNIT_EFFECT_STATE_FIELDS = [
   'manaOnAttack', 'manaOnInjury', 'manaOnDeath', 'goldOnBattleEnd', 'goldOnDeath',
   'randomItemOnBattleEnd', 'randomItemCost', 'manaCost', 'manaRepeat', 'manaThresholdDesc', 'manaThresholdNo', 'manaOrder', 'manaThresholdOrder', 'fxCode',
   'extraManaThresholds', 'weakenOnHit', 'effectRepeatBonus', '_effectRepeatBonus',
-  '_adjacentPanelEffectTexts', '_resonanceEffectNames', '_resonanceEffectScales',
+  '_adjacentPanelEffectTexts', '_permanentEffectCards', '_resonanceEffectNames', '_resonanceEffectScales',
   '_adjacentPanelAbilities', '_adjacentPanelStrategyCount', '_uniteGroups',
   '_manaThresholdDesc', '_manaThresholdNo', '_manaThresholdOrder', '_extraManaThresholds',
 ];
@@ -853,7 +928,7 @@ function coreCopyUnitEffectState(target, source, { resetMissing = false } = {}) 
       target[key] = key === 'randomItemOnBattleEnd' || key === 'manaRepeat' ? false
         : key === '_resonanceEffectScales' ? {}
           : Array.isArray(target[key]) || key.includes('Thresholds') || key.includes('Abilities')
-            || key.includes('EffectNames') || key.includes('EffectTexts') || key === '_uniteGroups' ? [] : 0;
+            || key.includes('EffectNames') || key.includes('EffectTexts') || key === '_permanentEffectCards' || key === '_uniteGroups' ? [] : 0;
     }
   });
   return target;
@@ -914,6 +989,7 @@ function coreUnitSnapshot(unit) {
       ? u._adjacentPanelAbilities.slice() : [],
     _adjacentPanelEffectTexts: Array.isArray(u._adjacentPanelEffectTexts)
       ? u._adjacentPanelEffectTexts.slice() : [],
+    _permanentEffectCards: Array.isArray(u._permanentEffectCards) ? u._permanentEffectCards.map(record => ({ ...record })) : [],
     _uniteGroups: Array.isArray(u._uniteGroups) ? u._uniteGroups.slice() : [],
     _adjacentPanelStrategyCount: Number(u._adjacentPanelStrategyCount) || 0,
     _resonanceEffectNames: Array.isArray(u._resonanceEffectNames)
@@ -1836,7 +1912,7 @@ function coreAddSummonBuff(state, side, atk, hp, emit, sourceId) {
       totalAtk: cur.atk, totalHp: cur.hp, sourceId: sourceId || null });
   }
   // **既に召喚されている味方にも、増えた分をこの場で足す。**（利用者指定）
-  // 対象は生存中の眷属だけ。復活した体は眷属を失う。これから召喚される体は
+  // 対象は生存中の眷属だけ。眷属が復活した体も含める。これから召喚される体は
   // coreSummonUnit() で合計を受け取るので、二重には乗らない。
   const list = (state.units && state.units[side]) || [];
   const giver = sourceId != null ? list.find(u => u && String(u.id) === String(sourceId)) || null : null;
@@ -1919,6 +1995,10 @@ function coreMarkBattleSummon(unit) {
   unit.keywords = Array.isArray(unit.keywords) ? unit.keywords : [];
   if (!unit.keywords.includes('眷属')) unit.keywords.push('眷属');
 }
+function coreClearKenzoku(unit) {
+  unit.keywords = (unit.keywords || []).filter(keyword => keyword !== '眷属');
+  if (unit._silenceStash) unit._silenceStash.keywords = (unit._silenceStash.keywords || []).filter(keyword => keyword !== '眷属');
+}
 function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context) {
   const side = child.side;
   // 通常召喚は従来と同じ時点の召喚元・所有者・累計を使い、指輪などの後続誘発を先取りしない。
@@ -1926,29 +2006,51 @@ function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context) {
   const sourceUnit = context ? context.sourceUnit
     : [...(state.units.p1 || []), ...(state.units.p2 || [])].find(x => x && x.id === sourceId);
   const sideUnits = context ? context.sideUnits : (state.units[side] || []).filter(x => x && x !== child && x.hp > 0);
+  const isKenzoku = coreUnitHasKeyword(child, '眷属');
+  coreApplyKenzokuScalingBuffs(child, emit, sourceUnit, sourceId, sideUnits, summonCount + 1);
+  coreApplyKenzokuBonuses(state, child, emit, sourceUnit, sourceId);
+  // 確定は呼び出し元の配置成功時に行う。拒否された召喚は累計へ入れない。
+  return summonCount + (isKenzoku ? 1 : 0);
+}
+
+// 新規召喚と元眷属の復活に共通する強化。復活では既存の召喚累計を使い、加算しない。
+function coreApplyKenzokuScalingBuffs(child, emit, sourceUnit, sourceId, sideUnits, summonCount) {
+  if (!coreUnitHasKeyword(child, '眷属')) return;
+  const side = child.side;
   const addStats = (atk, hp, reason) => {
     atk = coreStatBonus(child, atk, sourceUnit); hp = coreStatBonus(child, hp, sourceUnit);
     child.atk = Math.max(0, child.atk + atk); child.maxHp += hp; child.hp += hp;
     emit({ type: 'stat_change', side, unitId: child.id, atk, hp, reason, sourceId: sourceId || null });
   };
-  // 眷属として成立した召喚の累計（今回の体を含む）。死亡しても履歴は残り、復活では増えない。
+  // 眷属として成立した召喚の累計。新規召喚は今回の体を含み、復活はそのままの値を使う。
   // 数値は通常・合体効果の本文から読む。名前は従来の発動単位と演出理由の区別だけに使う。
-  const isKenzoku = coreUnitHasKeyword(child, '眷属');
   const scalingBuffs = sideUnits.map(unit => ({ unit, match: coreUnitEffectText(unit).match(
     /味方の眷属(?:は|が召喚された時、その眷属は)\+(\d+)\/?\+(\d+)を得る。(?:戦闘中に|この戦闘で)召喚された味方の眷属の数だけ繰り返す/)
   })).filter(entry => entry.match);
   const naga = scalingBuffs.find(entry => coreHasEffect(entry.unit, 'ナーガ'));
-  if (isKenzoku && naga) addStats(Number(naga.match[1]) * (summonCount + 1),
-    Number(naga.match[2]) * (summonCount + 1), 'naga_summon');
-  if (isKenzoku) scalingBuffs.filter(entry => !coreHasEffect(entry.unit, 'ナーガ'))
-    .forEach(entry => addStats(Number(entry.match[1]) * (summonCount + 1),
-      Number(entry.match[2]) * (summonCount + 1), 'summon_scaling_buff'));
+  if (naga) addStats(Number(naga.match[1]) * summonCount,
+    Number(naga.match[2]) * summonCount, 'naga_summon');
+  scalingBuffs.filter(entry => !coreHasEffect(entry.unit, 'ナーガ'))
+    .forEach(entry => addStats(Number(entry.match[1]) * summonCount,
+      Number(entry.match[2]) * summonCount, 'summon_scaling_buff'));
+}
+
+// 眷属に常時適用する修正。復活時は、基礎値へ戻した能力・貼り直した結界だけを再適用する。
+// 召喚時の強化と履歴は別の入口で扱い、ここでは加算しない。
+function coreApplyKenzokuBonuses(state, child, emit, sourceUnit, sourceId, { stats = true } = {}) {
+  if (!coreUnitHasKeyword(child, '眷属')) return;
+  const side = child.side;
+  const addStats = (atk, hp, reason) => {
+    atk = coreStatBonus(child, atk, sourceUnit); hp = coreStatBonus(child, hp, sourceUnit);
+    child.atk = Math.max(0, child.atk + atk); child.maxHp += hp; child.hp += hp;
+    emit({ type: 'stat_change', side, unitId: child.id, atk, hp, reason, sourceId: sourceId || null });
+  };
   // 既存の体には coreAddSummonBuff() が増えた分を足し、新しい体には合計を1回だけ足す。
   const summonBuff = coreSummonBuffOf(state, side);
-  if (isKenzoku && (summonBuff.atk || summonBuff.hp)) addStats(summonBuff.atk, summonBuff.hp, 'summon_buff');
+  if (stats && (summonBuff.atk || summonBuff.hp)) addStats(summonBuff.atk, summonBuff.hp, 'summon_buff');
   const kenzokuRings = coreResolvedRings(state, side);
   const lightRing = kenzokuRings.map(ring => coreUnitEffectText(ring).match(/味方の眷属は結界(\d+)を得る/)).find(Boolean);
-  if (isKenzoku && lightRing) {
+  if (lightRing) {
     const amount = Number(lightRing[1]) || 0;
     child.shield = (Number(child.shield) || 0) + amount;
     emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount, reason: 'light_ring' });
@@ -1959,9 +2061,7 @@ function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context) {
     if (match) { total.atk += Number(match[1]); total.hp += Number(match[2]); }
     return total;
   }, { atk: 0, hp: 0 });
-  if (isKenzoku && (summonerBonus.atk || summonerBonus.hp)) addStats(summonerBonus.atk, summonerBonus.hp, 'summoner_ring');
-  // 確定は呼び出し元の配置成功時に行う。拒否された召喚は累計へ入れない。
-  return summonCount + (isKenzoku ? 1 : 0);
+  if (stats && (summonerBonus.atk || summonerBonus.hp)) addStats(summonerBonus.atk, summonerBonus.hp, 'summoner_ring');
 }
 
 function coreSummonUnit(state, side, spec, emit, sourceId) {
@@ -2060,7 +2160,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId) {
   }, side, list.length);
   coreCopyUnitEffectState(child, source);
   // 効果による召喚は、開戦中・敵味方・発生元（キャラ／強化／指輪／アイテム／マス）を問わず眷属。
-  // 初期配置はこの入口を通らず、復活は coreTryRevive() が眷属を取り除く。
+  // 初期配置はこの入口を通らず、復活・変身は既存の眷属の有無を維持する。
   coreMarkBattleSummon(child);
   // 配置・恒久強化の保存先判定に使う従来の印も保持する。眷属の対象判定には使わない。
   child._summonedInBattle = true;
@@ -2230,7 +2330,7 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   } else if (target.artCode) {
     target.imageNo = target.artCode;
   }
-  if (Array.isArray(def.keywords)) target.keywords = def.keywords.map(String);
+  if (Array.isArray(def.keywords)) target.keywords = def.keywords.map(String).filter(keyword => keyword !== '眷属');
   // 変身は新しい召喚ではないが、元の体が眷属だったという分類は変わらない。
   if (old.keywords.includes('眷属') && !target.keywords.includes('眷属')) target.keywords.push('眷属');
   if (def.desc != null) target.desc = String(def.desc || '');
@@ -2962,7 +3062,8 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   // 全ての敵にNダメージを（M回）与える（アラッサス）。回数も本文から読む。
   const enemyDamages = coreTriggerEffectEntries(unit, '攻撃', /^全ての敵に(\d+)ダメージを(?:(\d+)回)?与える/);
   for (const enemyDamage of enemyDamages) if (!coreHasEffect(unit, 'サイレン') || !coreMatchIsOwnText(unit, enemyDamage)) {
-    const amount = Math.max(1, Number(enemyDamage[1]) || 1);
+    const permanentDamage = coreConsumePermanentDamage(state, unit, enemyDamage, emit);
+    const amount = permanentDamage == null ? Math.max(1, Number(enemyDamage[1]) || 1) : permanentDamage;
     const enemyTimes = Math.max(1, Number(enemyDamage[2]) || 1);
     // アラッサスは対象ごとの通常VFXではなく、攻撃者起点の薙ぎ払いVFXを使う。
     // DOMには触れず、再生側が同じ対象順で表示できるイベントだけを出す。
@@ -4366,14 +4467,7 @@ function coreTryRevive(unit, state, emit) {
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
   // 配置・恒久強化の保存先判定に使う旧来の印は維持する。眷属の判定とは独立。
   if (!ring && keyword === '復活') unit._summonedInBattle = true;
-  // 復活（指輪も含む）は眷属の付与・召喚時バフの対象外。元が眷属でも復活後は分類を外す。
-  // 根性は死亡せずに耐える効果なので、元の眷属を保持する。
-  if (ring || keyword === '復活') {
-    unit.keywords = unit.keywords.filter(x => x !== '眷属');
-    if (unit._silenceStash && Array.isArray(unit._silenceStash.keywords)) {
-      unit._silenceStash.keywords = unit._silenceStash.keywords.filter(x => x !== '眷属');
-    }
-  }
+  // 復活・根性では出自を変えない。初期配置に新規付与せず、元の眷属は保持する。
   emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk,
     keywords: coreUnitSnapshot(unit).keywords, reason: ring ? 'revival_ring' : keyword });
   // **復活（再召喚）・復活の指輪では、キーワードの結界を付け直す。** 開戦時にしか付けていなかったため、
@@ -4382,6 +4476,13 @@ function coreTryRevive(unit, state, emit) {
     const reviveShield = coreUnitShieldValue(unit);
     unit.shield = reviveShield;
     if (reviveShield > 0) emit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
+    // 元眷属の復活もナーガの対象。ただし新規召喚ではないので履歴を増やさない。
+    coreApplyKenzokuScalingBuffs(unit, emit, null, null,
+      (state.units[unit.side] || []).filter(other => other && other !== unit && other.hp > 0),
+      (state._summonCount || {})[unit.side] || 0);
+    // キーワード復活は基礎能力へ戻るので眷属の常時修正も貼り直す。
+    // 指輪復活は能力値を保持するため、結界だけを貼り直し、二重加算しない。
+    coreApplyKenzokuBonuses(state, unit, emit, null, null, { stats: !ring });
   }
   // 復活後は次の死亡を新しい1回として扱う。
   delete unit._coreDeathTriggered;
@@ -4522,6 +4623,11 @@ function coreTriggerBattleEnd(state, emit, rng) {
       }
     }
   }));
+  // 終戦効果を全て解決した後に、戦闘限定の出自分類を終える。
+  const units = Object.values(state.units).flat().filter(Boolean);
+  state._kenzokuEnded = units.some(unit => coreUnitHasKeyword(unit, '眷属'))
+    || Object.values(state._summonCount || {}).some(count => count > 0);
+  units.forEach(coreClearKenzoku);
 }
 
 // PvE演出だけが使う、マナ閾値効果の遅延適用用スナップショット。
@@ -5477,6 +5583,8 @@ function coreCompactUnits(state, keepOnBoard) {
     // オンラインでは誰も外さないため、死んだ召喚体が配列に残り続けて位置がずれる。
     const kept = list.filter(u => u && (u.hp > 0
       || (typeof keepOnBoard === 'function' && keepOnBoard(u))));
+    // 復活せず盤面から消える時点で分類を終える。ナーガの召喚履歴はそのまま残す。
+    list.filter(u => u && !kept.includes(u)).forEach(coreClearKenzoku);
     // 空欄（null）も詰める。倒れた体が居ない時だけ比べていると、PvEの開戦配置で残った空欄が
     // 詰められず、召喚の差し込みで後衛が描画範囲の外へ押し出される原因になっていた。
     if (kept.length !== list.length) {
@@ -5689,7 +5797,8 @@ function runBattleCore(state, rng, opts) {
       // この指定自体はコア共通の意味なので、オンライン側の将来の利用も同じ結果になる。
       const skipBattleEnd=!!((opts && opts.skipBattleEnd)||state._skipBattleEnd);
       if (!skipBattleEnd) coreTriggerBattleEnd(state, emit, rng);
-      emit({ type: 'battle_end', outcome: result.outcome, reason: result.reason });
+      emit({ type: 'battle_end', outcome: result.outcome, reason: result.reason,
+        ...(state._kenzokuEnded ? { kenzokuEnded: true } : {}) });
       return { outcome: result.outcome, endReason: result.reason, turns: state.turn };
     },
   };
@@ -5732,6 +5841,7 @@ if (typeof window !== 'undefined') {
   window.corePickAttacker = corePickAttacker;
   window.battleCoreFinalState = battleCoreFinalState;
   window.coreUnitSnapshot = coreUnitSnapshot;
+  window.coreClearKenzoku = coreClearKenzoku;
   window.coreMathRng = coreMathRng;
   window.CORE_KEYWORD_CARD_NAMES = CORE_KEYWORD_CARD_NAMES;
   window.CORE_EFFECT_CARD_NAMES = CORE_EFFECT_CARD_NAMES;
@@ -5837,6 +5947,9 @@ if (typeof module !== 'undefined' && module.exports) {
     coreTriggerAtkGainEffects,
     coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreRainbowRingBonusForUnits, coreApplyAttackEffects,
     coreEffectNumbers, coreExtraTriggerTimes,
+    corePermanentDamageSpec, corePermanentDamageValue, corePermanentDamageDescription,
+    coreEnsurePermanentEffectCards, coreApplyPermanentDamageEvent,
+    coreClearKenzoku,
     coreResolvedRings, coreOpeningEnemyStatBonus, coreOpeningEnemyKeywordGrants, coreApplyOpeningEnemyRingToUnit,
     coreApplyOpeningRingsToUnitEarly, coreApplyOpeningRingsToUnitLate,
     coreTriggerTextParts, coreTriggerMatch, coreTriggerTest,

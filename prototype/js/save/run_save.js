@@ -559,6 +559,13 @@ const SaveRun=(()=>{
     if(!end.applied){
       const f=end.pending.frames.at(-1);applyFrame(f,state);
       G._battleCoreEvents.push(...copy(end.pending.events.slice(f.from,f.to)));
+      // 消耗値は絶対値。途中再生済みの分も含め、確定した最後の値をカードへ残す。
+      for(const event of end.pending.events){
+        if(event.type==='keyword_effect'&&event.effect==='effect_value'){
+          _persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(),event);
+          coreApplyPermanentDamageEvent(state.units,event,{updateRecords:false});
+        }
+      }
       _syncCoreLifeToG(state);_syncCoreResourcesToG(state);_syncCoreManaToG(state);
       end.applied=true;
     }

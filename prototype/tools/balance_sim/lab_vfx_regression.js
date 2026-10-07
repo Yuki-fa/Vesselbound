@@ -63,6 +63,7 @@ global._playCardEffectVfx=(code,targets)=>{legacy.push({fn:'card',code,targets:t
 global.battlePresentationSetTimeout=fn=>{queueMicrotask(fn);return 0;};
 SaveRun.recordDeath=()=>{};
 global.persistBoardCharacterStats=()=>true;
+global.persistBoardEffectDamage=()=>true;
 const clone=v=>JSON.parse(JSON.stringify(v));
 // 共通実装をそのまま呼び、経路だけ記録する。描画境界のVbFxだけがspy。
 const beginLab=presentLabBeginEvent,playLab=playBattleLabFx;

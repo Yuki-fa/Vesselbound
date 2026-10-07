@@ -457,6 +457,10 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='keyword_effect'){
+      if(e.effect==='effect_value'){
+        coreApplyPermanentDamageEvent(state.units,e,{updateRecords:false});
+        _persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(),e);
+      }
       // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
       if(keywordShownEvents.has(e)) continue;
       // 状態異常を受けた瞬間の見せ方は present_events.js が唯一の実装（オンラインと同じ）。

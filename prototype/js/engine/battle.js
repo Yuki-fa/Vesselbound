@@ -2626,6 +2626,7 @@ function _createPveCoreState(){
 function _stampCoreSideSlots(state){
   ['p1','p2'].forEach(side=>{
     (state.units[side]||[]).forEach((u,i)=>{ if(!u) return; u.side=side; u.slot=i;
+      coreEnsurePermanentEffectCards(u);
       // 刻印のXは保存済みユニットの古い値ではなく、この戦闘の現在ステージで毎回更新する。
       u._stageNumber=Math.max(1,Number(state&&state.stageNumber)||Number(G._wave)||1); });
   });
@@ -4785,7 +4786,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
-  const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],releaseAtkBonus:0,releaseHpBonus:0,engravingStages:{}};
+  const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],permanentEffectCards:[],releaseAtkBonus:0,releaseHpBonus:0,engravingStages:{}};
   const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
   _recordBattleTrace('adjacent_enhancements_resolved',{slotIdx,unitId:unit&&unit.id||null,names:panels.map(x=>x&&x.panel&&x.panel.name||''),indices:panels.map(x=>x&&x.idx)});
   // ※以前は「複製」を**接続している他の強化カードに置き換える**特別扱いがあった
@@ -4796,7 +4797,12 @@ function _collectAdjacentEnhancements(unit, slotIdx){
   panels.forEach(entry=>{
     const panel=entry.panel;
     if(!panel) return;
-    if(panel.desc) enh.effectTexts.push(String(panel.desc));
+    if(panel.desc){
+      const effectIndex=enh.effectTexts.length;
+      enh.effectTexts.push(String(panel.desc));
+      const damage=corePermanentDamageValue(panel);
+      if(damage!=null) enh.permanentEffectCards.push({effectIndex,cardId:String(panel.id),boardSlot:entry.idx,damage});
+    }
     if(String(panel.name||'')==='団結') enh.uniteGroups.push(String(entry.idx));
     // 強化カード名は、効果文に名前が書かれていないトリガ効果の識別子になる。
     // 例：「逆上」「執念の炎」「恩寵」など。合体枚数もスケールへ反映する。
@@ -4954,6 +4960,7 @@ function _clearAdjacentPanelEnhancements(unit){
   delete unit._adjacentPanelAbilities;
   delete unit._adjacentPanelStrategyCount;
   delete unit._adjacentPanelEffectTexts;
+  delete unit._permanentEffectCards;
   delete unit._uniteGroups;
   delete unit._adjacentPanelSignature;
   delete unit._resonanceEffectNames;
@@ -4989,8 +4996,12 @@ function _applyAdjacentPanelEnhancements(unit, enh){
   const abilities=[...(enh.abilities||[])];
   const strategyCount=Number(enh.strategyCount)||0;
   const effectTexts=[...(enh.effectTexts||[])].filter(Boolean);
+  const permanentEffectCards=(enh.permanentEffectCards||[]).map(record=>({...record}));
   const sig=JSON.stringify({atk:atkBonus,hp:hpBonus,keywords:[...enhancementKeywords].sort(),abilities:[...abilities].sort(),strategyCount,strategyMultiplier:enh.strategyMultiplier||0,releaseAtkBonus,releaseHpBonus,weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaOnInjury:enh.manaOnInjury||0,manaOnDeath:enh.manaOnDeath||0,goldOnBattleEnd:enh.goldOnBattleEnd||0,goldOnDeath:enh.goldOnDeath||0,randomItemOnBattleEnd:!!enh.randomItemOnBattleEnd,randomItemCost:enh.randomItemCost||0,effectRepeatBonus:enh.effectRepeatBonus||0,uniteGroups:[...(enh.uniteGroups||[])].sort(),manaThresholds:enh.manaThresholds||[],effectNames:[...(enh.effectNames||[])].sort(),effectScales:enh.effectScales||{},effectTexts:[...effectTexts].sort()});
-  if(unit._adjacentPanelSignature===sig) return;
+  if(unit._adjacentPanelSignature===sig){
+    unit._permanentEffectCards=permanentEffectCards;
+    return;
+  }
   _clearAdjacentPanelEnhancements(unit);
   unit._adjacentPanelSignature=sig;
   unit._adjacentPanelEnhancements={atk:atkBonus,hp:hpBonus,keywords:[...enhancementKeywords],releaseAtkBonus,releaseHpBonus,weakenOnHit:enh.weakenOnHit||0,manaOnAttack:enh.manaOnAttack||0,manaOnInjury:enh.manaOnInjury||0,manaOnDeath:enh.manaOnDeath||0,goldOnBattleEnd:enh.goldOnBattleEnd||0,goldOnDeath:enh.goldOnDeath||0,randomItemOnBattleEnd:!!enh.randomItemOnBattleEnd,randomItemCost:enh.randomItemCost||0,effectRepeatBonus:enh.effectRepeatBonus||0,manaThresholdAdded:false,effectTexts};
@@ -5014,6 +5025,7 @@ function _applyAdjacentPanelEnhancements(unit, enh){
   unit._resonanceEffectNames=[...(enh.effectNames||[])].filter(Boolean);
   unit._resonanceEffectScales={...(enh.effectScales||{})};
   unit._adjacentPanelEffectTexts=effectTexts.slice();
+  unit._permanentEffectCards=permanentEffectCards;
   unit._uniteGroups=[...(enh.uniteGroups||[])];
   // 接続した刻印ごとの取得ステージ（Xの固定値。コアの coreEngravingStageNumber が使う）。
   if(enh.engravingStages&&Object.keys(enh.engravingStages).length) unit._engravingStages={...enh.engravingStages};
@@ -5340,7 +5352,8 @@ function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
   const center=sourcePanel?{...clone(sourcePanel),directions:['up','down','left','right']}:null;
   const panels=(contributingPanels||[]).map(entry=>{
     const p=entry&&entry.panel?entry.panel:entry;
-    return p?{...clone(p),directions:['up','down','left','right']}:null;
+    return p?{...clone(p),directions:['up','down','left','right'],
+      ...(corePermanentDamageSpec(p.desc)?{_permanentEffectBoardSlot:entry.idx}:{})}:null;
   }).filter(Boolean);
   return [center,...panels];
 }
@@ -6665,6 +6678,21 @@ function _persistPermanentStatOrWarn(board,ev){
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('persist_stats_failed',info);
   console.warn('[Vesselbound] 永久強化を魔導板へ書き戻せなかった',info);
   return false;
+}
+
+function _persistPermanentEffectDamageOrWarn(board,ev){
+  if(!ev||!ev.persistent||(ev.effectOwnerSide||ev.side)!=='p1') return false;
+  const ok=persistBoardEffectDamage(board,ev);
+  // 闘技場は入場時の盤面を復元する。カード1枚の消耗値だけは、その保存先にも残す。
+  if(G._arenaActive&&G._arenaEntrySnapshot){
+    persistBoardEffectDamage({boardCards:G._arenaEntrySnapshot.mainBoard},ev);
+  }
+  if(!ok){
+    const info={cardId:ev.effectCardId,boardSlot:ev.boardSlot,damage:ev.damage};
+    if(typeof _recordBattleTrace==='function') _recordBattleTrace('persist_effect_damage_failed',info);
+    console.warn('[Vesselbound] 永久ダメージ値を魔導板へ書き戻せなかった',info);
+  }
+  return ok;
 }
 
 async function onBattleEnd(){

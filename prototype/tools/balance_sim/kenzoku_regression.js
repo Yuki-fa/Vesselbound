@@ -1,6 +1,6 @@
 'use strict';
 
-// 内蔵シートの現行本文で、眷属の付与／復活除外と両陣営・保存再生を検査する。
+// 内蔵シートの現行本文で、眷属の出自・復活保持と両陣営・保存再生を検査する。
 // ブラウザは起動せず、表示については本体の説明生成関数だけをNodeで呼ぶ。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -145,11 +145,13 @@ function runCoreChecks() {
       [revived, initial].forEach(u => {
         u.hp = 0;
         assert.equal(core.coreTryRevive(u, h.state, h.emit), '復活');
-        assert.equal(isKenzoku(u), false, '復活した体に眷属が残る');
+        assert.equal(isKenzoku(u), u === revived, '復活で元の眷属分類が変わった');
       });
-      assert.deepEqual([revived.atk, revived.hp, revived.shield], [5, 10, 0], '復活へ召喚時強化／結界が付いた');
+      assert.deepEqual([revived.atk, revived.hp, revived.shield], merged ? [14, 19, 1] : [12, 17, 1],
+        '眷属の復活へナーガ／指輪の修正が付かない／復活を召喚数へ加えた');
       assert.deepEqual([initial.atk, initial.hp, initial.shield], [6, 10, 0], '初期配置の復活へ強化が付いた');
-      assert.equal(h.events.slice(revivalStart).filter(e => e.type === 'stat_change').length, 0, '復活で召喚バフが再適用された');
+      assert.deepEqual(h.events.slice(revivalStart).filter(e => e.type === 'stat_change').map(e => e.reason),
+        ['naga_summon', 'summoner_ring'], '元眷属の復活でナーガが発動しない／初期配置へ眷属バフが付いた');
       const beforeLive = [live.atk, live.hp];
       const beforeRevived = [revived.atk, revived.hp, initial.atk, initial.hp];
       h.source.hp = 0;
@@ -158,13 +160,15 @@ function runCoreChecks() {
       core.coreApplyInjuryEffects(eidolon, 1, h.state, h.rng, h.emit, h.hit);
       assert.deepEqual([live.atk, live.hp], [beforeLive[0] + (merged ? 6 : 3), beforeLive[1] + (merged ? 4 : 2)],
         'ファントム／エイドロンが既存の眷属へ作用しない');
-      assert.deepEqual([revived.atk, revived.hp, initial.atk, initial.hp], beforeRevived, '復活した体がファントム／エイドロンの対象になった');
+      assert.deepEqual([revived.atk, revived.hp, initial.atk, initial.hp],
+        [beforeRevived[0] + (merged ? 6 : 3), beforeRevived[1] + (merged ? 4 : 2), beforeRevived[2], beforeRevived[3]],
+        '復活した眷属がファントム／エイドロンの対象外／初期配置の復活が対象になった');
       assert.equal(h.events.filter(e => e.type === 'summon').length, 2, 'ファントムの旧召喚効果が発動した');
       const future = core.coreSummonUnit(h.state, side, specimen, h.emit);
       assert.deepEqual([future.atk, future.hp, future.shield], merged ? [27, 35, 1] : [21, 30, 1],
         '後続の眷属が累積強化を受けない／復活をナーガの召喚数へ加えた');
       assert.equal(h.state._summonCount[side], 3, '復活が召喚累計へ入った');
-      h.events.filter(e => e.type === 'revive').forEach(e => assert.equal(isKenzoku(e), false, '復活イベントに眷属が残る'));
+      h.events.filter(e => e.type === 'revive').forEach(e => assert.equal(isKenzoku(e), e.unitId === revived.id, '復活イベントで出自が変わる'));
     });
     for (const merged of [false, true]) check(`${side}/ナーガの戦闘内召喚履歴${merged ? '・合体' : ''}`, () => {
       const h = harness(side, [card('ナーガ', 'history-naga', {}, merged),
@@ -176,6 +180,8 @@ function runCoreChecks() {
       h.hit(foe, first, first.hp, false, true);
       assert.equal(first.hp, 0, '履歴検査の1体目が死亡していない');
       assert.equal(h.state._summonCount[side], 1, '眷属の死亡で召喚履歴が減った');
+      core.coreCompactUnits(h.state);
+      assert.equal(isKenzoku(first), false, '完全死亡して盤面から消えた体に眷属が残る');
       // 相手側の召喚は味方の履歴へ入れない。
       core.coreSummonUnit(h.state, h.other, specimen, h.emit);
       const second = core.coreSummonUnit(h.state, side, { ...specimen, keywords: ['復活'] }, h.emit);
@@ -183,17 +189,19 @@ function runCoreChecks() {
       h.hit(foe, second, second.hp, false, true);
       const initial = h.state.units[side].find(u => u.id === 'initial-revival');
       h.hit(foe, initial, initial.hp, false, true);
-      assert.deepEqual([second.atk, second.hp], [5, 10], '復活した眷属へナーガの強化が付いた');
+      assert.deepEqual([second.atk, second.hp], merged ? [9, 14] : [7, 12],
+        '復活した眷属へナーガが累計2体分の強化を付けない');
       assert.deepEqual([initial.atk, initial.hp], [6, 10], '初期配置の復活へナーガの強化が付いた');
-      assert.equal(isKenzoku(second), false);
+      assert.equal(isKenzoku(second), true);
       assert.equal(isKenzoku(initial), false);
       assert.equal(h.state._summonCount[side], 2, '復活自体を数えた／復活前の召喚履歴を失った');
       const third = core.coreSummonUnit(h.state, side, specimen, h.emit);
       assert.deepEqual([third.atk, third.hp], merged ? [16, 26] : [13, 23], '後続の召喚が累計3体分にならない');
-      assert.deepEqual([second.atk, second.hp, initial.atk, initial.hp], [5, 10, 6, 10], '後続召喚時に復活体も強化した');
+      assert.deepEqual([second.atk, second.hp, initial.atk, initial.hp], merged ? [9, 14, 6, 10] : [7, 12, 6, 10],
+        '後続召喚時に復活体も再度強化した');
       assert.equal(h.state._summonCount[side], 3);
       assert.deepEqual(h.events.filter(e => e.type === 'stat_change' && e.reason === 'naga_summon').map(e => e.unitId),
-        [first.id, second.id, third.id], 'ナーガの対象が今回召喚された眷属以外にも広がった');
+        [first.id, second.id, second.id, third.id], 'ナーガが復活した元眷属に発動しない／初期配置の復活へ発動した');
     });
     check(`${side}/眷属判定・変身・沈黙・根性`, () => {
       const h = harness(side, [plain('marker-only', { _summonedInBattle: true }), plain('keyword-only', { keywords: ['眷属'] })]);
@@ -212,26 +220,58 @@ function runCoreChecks() {
       assert.equal(isKenzoku(child), true, '沈黙で分類が消えた');
       internal.coreUnsilenceUnit(child);
       assert.equal(child.keywords.filter(k => k === '眷属').length, 1, '沈黙解除で分類が重複した');
+      const revived = core.coreSummonUnit(h.state, side, { name: '累積修正の復活検査', atk: 10, hp: 20, maxHp: 20, keywords: ['復活'] }, h.emit);
+      revived.hp = 0;
+      assert.equal(core.coreTryRevive(revived, h.state, h.emit), '復活');
+      assert.deepEqual([revived.atk, revived.hp], [6, 12], '眷属の復活で既存の累積修正を失った／二重に足した');
+      assert.equal(h.state._summonCount[side], 2, '累積修正を再適用した復活を召喚履歴へ入れた');
+      h.state.summonDefs.push({ name: '変身先の分類検査', keywords: ['眷属'], power: 5, life: 5 });
+      core.coreTransformUnit(h.state, h.source, '変身先の分類検査', h.emit);
+      assert.equal(isKenzoku(h.source), false, '変身先のキーワードで出自が変わった');
+      internal.coreSilenceUnit(child);
+      core.coreTriggerBattleEnd(h.state, h.emit, h.rng);
+      internal.coreUnsilenceUnit(child);
+      assert.equal(isKenzoku(child), false, '終戦後にも眷属が残る');
     });
   }
   check('復活の指輪・奪取・上限拒否', () => {
-    const h = harness('p1', [plain('ring-reviver')], { rings: { p1: [ring('復活の指輪')] } });
+    const h = harness('p1', [plain('ring-reviver')], { rings: { p1: [ring('復活の指輪'), ring('光の指輪'), ring('召喚師の指輪')] } });
     const child = core.coreSummonUnit(h.state, 'p1', { name: '検査体', atk: 10, hp: 20 }, h.emit);
     internal.coreAddSummonBuff(h.state, 'p1', 1, 2, h.emit);
+    const held = [child.atk, child.maxHp];
     internal.coreSilenceUnit(child); child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
-    assert.equal(isKenzoku(child), false, '復活の指輪で眷属が残る');
+    assert.deepEqual([child.atk, child.hp, child.shield], [...held, 1], '指輪復活で常時修正が二重加算された／光の結界を失った');
+    assert.equal(isKenzoku(child), true, '復活の指輪で眷属が消える');
     internal.coreUnsilenceUnit(child);
-    assert.equal(isKenzoku(child), false, '沈黙解除で復活前の眷属が戻る');
+    assert.equal(isKenzoku(child), true, '沈黙解除で眷属が消える');
     const before = child.atk;
     internal.coreAddSummonBuff(h.state, 'p1', 1, 2, h.emit);
-    assert.equal(child.atk, before, '復活の指輪で戻った体が強化の対象');
+    assert.equal(child.atk, before + 1, '復活の指輪で戻った眷属が強化の対象外');
     const target = h.state.units.p2[0];
     assert.equal(core.coreStealUnit(h.state, target, 'p1', h.emit), true);
     assert.equal(isKenzoku(target), false, '奪取だけで眷属が付いた');
     h.state.frontSlots = 3;
     assert.equal(core.coreSummonUnit(h.state, 'p1', { name: '拒否' }, h.emit), null);
     assert.equal(h.state._summonCount.p1, 1, '拒否された召喚を数えた');
+  });
+  for (const merged of [false, true]) check(`復活の指輪・ナーガ${merged ? '・合体' : ''}`, () => {
+    const h = harness('p1', [card('ナーガ', 'ring-naga', {}, merged),
+      plain('initial-ring-revival', { atk: 12, hp: 20, maxHp: 20, keywords: ['復活'] })],
+    { rings: { p1: [ring('復活の指輪'), ring('光の指輪'), ring('召喚師の指輪')] } });
+    const child = core.coreSummonUnit(h.state, 'p1', { name: '指輪の復活検査体', atk: 10, hp: 20, maxHp: 20 }, h.emit);
+    const before = [child.atk, child.maxHp];
+    child.hp = 0;
+    assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
+    const bonus = merged ? 2 : 1;
+    assert.deepEqual([child.atk, child.hp, child.shield], [before[0] + bonus, before[1] + bonus, 1],
+      '指輪復活へナーガが発動しない／常時修正が二重加算された');
+    assert.equal(isKenzoku(child), true);
+    const initial = h.state.units.p1.find(unit => unit.id === 'initial-ring-revival');
+    initial.hp = 0;
+    assert.equal(core.coreTryRevive(initial, h.state, h.emit), '復活');
+    assert.deepEqual([initial.atk, initial.hp, initial.shield], [6, 10, 0], '初期配置の復活が眷属の強化を受けた');
+    assert.equal(h.state._summonCount.p1, 1, '指輪／キーワード復活をナーガの累計に足した');
   });
   check('不死の指輪', () => {
     const h = harness('p1', [plain('undying')], { rings: { p1: [ring('不死の指輪')] } });
@@ -246,7 +286,9 @@ function runCoreChecks() {
 
 async function runReplayChecks() {
   Object.assign(global, { createSeededRng, createBattleState: core.createBattleState,
-    runBattleCore: core.runBattleCore, battleCoreFinalState: core.battleCoreFinalState, ONLINE_PROTOCOL_VERSION: 1 });
+    runBattleCore: core.runBattleCore, battleCoreFinalState: core.battleCoreFinalState,
+    coreClearKenzoku: core.coreClearKenzoku, ONLINE_EVENT: require('../../js/online/protocol').ONLINE_EVENT,
+    ONLINE_PROTOCOL_VERSION: 1 });
   const { simulateOnlineBattle } = require('../../js/online/sim');
   const { presentReviveEvent } = require('../../js/battle/present_events');
   const army = side => [card('ナーガ', `${side}-naga`), card('エイドロン', `${side}-eidolon`),
@@ -263,6 +305,18 @@ async function runReplayChecks() {
   assert.deepEqual(online.finalState, direct.finalState, 'オンラインとの最終状態不一致');
   assert.deepEqual(recomputed, direct, '保存した初期配置・乱数種からの再計算が不一致');
   const savedEvents = copy(direct.events), units = new Map();
+  assert.equal(savedEvents.at(-1).kenzokuEnded, true, '終戦の分類解除がイベントにない');
+  const { playOnlineBattleEvents } = require('../../js/online/playback');
+  const timer = global.setTimeout;
+  try {
+    global.setTimeout = fn => { fn(); return 0; };
+    await playOnlineBattleEvents({ events: copy(savedEvents), outcome: direct.outcome }, {
+      onEvent: (event, context) => {
+        if (event.type === 'battle_end') Object.values(context.board).flat().forEach(unit =>
+          assert.equal(isKenzoku(unit), false, 'オンライン再生で終戦後にも眷属が残る'));
+      },
+    });
+  } finally { global.setTimeout = timer; }
   const key = (side, id) => `${side}:${id}`;
   for (const event of savedEvents) {
     if (event.type === 'battle_start') for (const side of ['p1', 'p2']) event.sides[side].forEach(u => units.set(key(side, u.id), copy(u)));
@@ -274,11 +328,12 @@ async function runReplayChecks() {
     if (event.type === 'revive') {
       const unit = units.get(key(event.side, event.unitId));
       assert.ok(unit, '保存再生の復活対象がない');
+      const wasKenzoku = isKenzoku(unit);
       await presentReviveEvent(event, { findUnit: (side, id) => units.get(key(side, id)),
         applyKeywords: (u, keywords) => { u.keywords = keywords.slice(); },
         applyStats: (u, e) => { u.atk = e.atk; u.hp = e.hp; u.maxHp = e.maxHp; } });
       assert.deepEqual(unit.keywords, event.keywords, '共通の復活受け口でキーワードが反映されない');
-      if (event.reason !== '根性') assert.equal(isKenzoku(unit), false, '保存再生で復活体に眷属が残った');
+      assert.equal(isKenzoku(unit), wasKenzoku, '保存再生の復活で眷属の出自が変わった');
     }
   }
   for (const side of ['p1', 'p2']) {
@@ -309,7 +364,7 @@ async function runDisplayChecks() {
   const unit = plain('display', { keywords: ['眷属'], desc: body, boardCards: [] });
   assert.ok(_unitDisplayKeywords(unit, body, -1).includes('眷属'), '自身の本文に眷属があると所持欄から消える');
   assert.match(_unitPreviewText(unit, body, -1), /キーワード：眷属/);
-  assert.match(_keywordOnlyPreviewText(unit, body, -1), /眷属：このキャラクターは他のキャラクターの効果によって召喚された。/);
+  assert.ok(_keywordOnlyPreviewText(unit, body, -1).includes('眷属：' + keywords.find(row => row['No.'] === 'K023')['効果']));
   for (const name of ['ファントム', 'エイドロン', 'ナーガ']) {
     const definition = PANEL_POOL.find(p => p.name === name);
     assert.ok(definition);

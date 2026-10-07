@@ -101,7 +101,7 @@ function invoke(card, side, trigger, enemyPool) {
 function audit() {
   const { cards, enemies } = loadCards(); const rows = []; let ng = 0;
   const kenzokuCases = require('./kenzoku_regression').runCoreChecks();
-  console.log(`眷属・復活除外回帰 ${kenzokuCases}条件 OK`);
+  console.log(`眷属・復活保持回帰 ${kenzokuCases}条件 OK`);
   const loadedNames = new Set(cards.map(card => String(card.name || '')));
   const explicitCoverage = new Set();
   const missingRequired = REQUIRED_REGRESSION_CARDS.filter(name => !loadedNames.has(name));
@@ -109,7 +109,7 @@ function audit() {
   if(soul){
     for(const side of ['p1','p2']) for(const trigger of ['攻撃','死亡']){
       const hits=invoke(soul,side,trigger,enemies).events.filter(event=>event.type==='damage');
-      const valid=hits.length===3&&hits.every(event=>event.amount===7&&event.side!==side)
+      const valid=trigger==='死亡' ? hits.length===0 : hits.length===3&&hits.every(event=>event.amount===12&&event.side!==side)
         &&new Set(hits.map(event=>event.batch)).size===1;
       if(!valid) ng++;
       console.log(`魔族の魂 ${side}/${trigger}: ${valid?'OK':'NG'}`);

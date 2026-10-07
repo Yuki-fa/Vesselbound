@@ -1515,6 +1515,8 @@ function presentActionBannerSource(ev, api) {
 
 function presentActionBannerSourceUnfiltered(ev, api) {
   if (!ev || !api || !PRESENT_ACTION_BANNER_EVENT_TYPES.has(ev.type)) return null;
+  // 現在値の保存は発動演出ではない。実際のダメージイベントが発動元を表示する。
+  if (ev.type === 'keyword_effect' && ev.effect === 'effect_value') return null;
   if (ev.type === 'attack' && !ev.immediate) return null;
   if (ev.type === 'attack' && !ev.sourceId) {
     const summonOrigin = api.immediateSummonOrigin(ev.attackerId);

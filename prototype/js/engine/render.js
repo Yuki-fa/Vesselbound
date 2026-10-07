@@ -4249,6 +4249,7 @@ function _enchantKeywordDesc(k){
 }
 function _enchantEffectTextForPanel(p){
   if(!p) return '';
+  if(corePermanentDamageSpec(p.desc)) return _plainEffectTextForPreview(p)||'';
   if(p.name==='封印されしもの'){
     return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect||'','封印されしもの')
       .replace(/^封印\d+\s*/,'').trim();
@@ -5356,6 +5357,7 @@ function _rawSubstitutedDesc(card){
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   desc=_stageEngravingDescription(card,desc);
+  desc=corePermanentDamageDescription(card,desc);
   desc=_annotateSummonNames(desc,card);
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。

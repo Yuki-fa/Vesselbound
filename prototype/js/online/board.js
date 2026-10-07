@@ -80,6 +80,7 @@
         ? snap.extraManaThresholds.map(x => ({ ...x })) : [],
       _adjacentPanelAbilities: Array.isArray(snap._adjacentPanelAbilities) ? snap._adjacentPanelAbilities.slice() : [],
       _adjacentPanelEffectTexts: Array.isArray(snap._adjacentPanelEffectTexts) ? snap._adjacentPanelEffectTexts.slice() : [],
+      _permanentEffectCards: Array.isArray(snap._permanentEffectCards) ? snap._permanentEffectCards.map(record => ({ ...record })) : [],
       _resonanceEffectNames: Array.isArray(snap._resonanceEffectNames) ? snap._resonanceEffectNames.slice() : [],
       _resonanceEffectScales: { ...(snap._resonanceEffectScales || {}) },
       _mapPanelPower: String(snap._mapPanelPower || ''),
@@ -847,6 +848,10 @@
         break;
       }
       case 'keyword_effect': {
+        if(ev.effect==='effect_value'){
+          coreApplyPermanentDamageEvent({p1:G.allies,p2:G.enemies},ev);
+          _persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(),ev);
+        }
         const u = _find(ev.side, ev.unitId);
         if (!u) break;
         if (ev.effect === 'poison') u.poison = (Number(u.poison) || 0) + (Number(ev.amount) || 0);
@@ -1241,6 +1246,7 @@
       case ONLINE_EVENT.BATTLE_END:
         await _awaitMotion();
         if (_deathFxReadyAt > Date.now()) await _sleep(_deathFxReadyAt - Date.now());
+        if(ev.kenzokuEnded) [...G.allies,...G.enemies].filter(Boolean).forEach(coreClearKenzoku);
         _render();
         if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx({ keepActionBanner: true });
         // 勝敗はイベントに書かれた outcome をそのまま出す

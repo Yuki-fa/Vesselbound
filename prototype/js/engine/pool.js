@@ -155,7 +155,7 @@ const PANEL_POOL=[
   {id:'panel_elf',no:'062',name:'エルフ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'黄',cost:1,slot:1,power:5,life:3,keywords:['結界1'],desc:'結界1\n負傷：結界1を得る。'},
   {id:'panel_twin_devil',no:'C087',name:'ツインデビル',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:2,life:1,directionCount:2,summonCount:2,desc:'開戦：コピーを1体召喚する。'},
   {id:'panel_archdemon',no:'082',name:'アークデーモン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'紫',cost:1,slot:1,power:25,life:20,keywords:['封印12'],desc:'封印12　解放：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続しているエンチャントの数だけ繰り返す。'},
-  {id:'panel_arassas',no:'043',name:'アラッサス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,power:15,life:15,desc:'召喚：全ての敵に3ダメージを与える。'},
+  {id:'panel_arassas',no:'043',name:'アラッサス',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'青',cost:1,slot:1,power:15,life:15,desc:'攻撃：全ての敵に4ダメージを与える。'},
   {id:'panel_slin',no:'044',name:'スリン',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,power:10,life:20,keywords:['毒牙3','邪眼3'],desc:'毒牙3　邪眼3'},
   {id:'panel_mitera',no:'045',name:'ミテーラ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:2,life:4,desc:'開戦：「緑ペリカン」を2体召喚する。'},
   {id:'panel_jackalope',no:'046',name:'ジャッカロープ',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'緑',cost:1,slot:1,race:'獣',power:2,life:2,desc:'開戦：Xマナを得る。Xは味方の緑キャラクターの数に等しい。'},
