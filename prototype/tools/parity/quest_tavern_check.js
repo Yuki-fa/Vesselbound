@@ -1350,7 +1350,8 @@ const WAVE=1;
     const q001=await b.run(`return {q:QUEST_DATA.Q001_1,q2:QUEST_DATA.Q001_2,
       portrait:QUEST_CONFIG.Q001.portraitB,shared:QUEST_CONFIG.Q002.portraitB,ids:_qRegionIds(1),
       sheetIds:String((regionInfoForWave(1)||{}).quest||'').split(/[、,\s]+/).map(x=>x.trim()).filter(x=>x&&x!=='-'),
-      title:textMessage('「酒場の報酬枠」見出し3',''),accept:textMessage('「受領」ボタン',''),reject:textMessage('「拒否」ボタン','')};`);
+      title:textMessage('「酒場の報酬枠」見出し3',''),soulDesc:PANEL_POOL.find(c=>_qCardNo(c)==='E075')?.desc||'',
+      accept:textMessage('「受領」ボタン',''),reject:textMessage('「拒否」ボタン','')};`);
     ok('Q001：通常の街候補は地域シートのまま、BはQ002と共通、台詞6とAのみの到着台詞を読む',
       q001.ids.join('|')===q001.sheetIds.filter(id=>q001.ids.includes(id)).join('|')&&q001.ids.length===q001.sheetIds.length&&q001.portrait===q001.shared&&q001.q.initial.length===6
       &&q001.q2.initial.length>0&&q001.q2.initial.every(line=>line.speaker==='A'),q001);
@@ -1389,8 +1390,10 @@ const WAVE=1;
         const cards=(_rewCards||[]).filter(Boolean);return {heading:s?.content||'',headingColor:s?.color||'',visible:!!el&&el.getBoundingClientRect().width>0,
           count:cards.length,no:_qCardNo(cards[0]),desc:cards[0]?.desc||'',button:document.querySelector('#reward-move-btns .rew-move-btn')?.textContent||'',
           portrait:!!(p&&p.complete&&p.naturalWidth>0&&p.classList.contains('is-visible'))};})()`);
-      ok('Q001編成：見出し3を表示し、魔族の魂を1枚だけ置き、未取得は拒否',state.heading.includes(q001.title)&&state.visible
-        &&state.headingColor!=='transparent'&&state.count===1&&state.no==='E075'&&state.desc.includes('；')&&state.button.trim()===q001.reject,state);
+      ok('Q001編成：シートの見出し3を表示',!!q001.title&&state.heading===JSON.stringify(q001.title)&&state.visible
+        &&state.headingColor!=='transparent',state);
+      ok('Q001編成：魔族の魂を1枚だけシートの効果文で提示し、未取得は拒否',state.count===1&&state.no==='E075'
+        &&!!q001.soulDesc&&state.desc===q001.soulDesc&&state.button.trim()===q001.reject,state);
     }
     async function takeQ001(page){
       return page.run(`(()=>{const idx=_rewCards.findIndex(c=>_qCardNo(c)==='E075'),slot=G.mainBoard.findIndex(c=>!c);
@@ -1447,9 +1450,12 @@ const WAVE=1;
       G._waveVillage=true;G._isWaveAltar=false;openMapVillage({intro:true});return 1;`);
     for(const line of q001.q2.initial){
       await visibleQ001Line(b,line);
-      await visiblePortraits(b,['MC001',q001.portrait]);
-      ok('Q001ヴァルガ：Aの台詞でも酒場と同じBを最初から出す',await b.run(`return G.questProgress.Q001.status==='accepted'
-        &&document.body.classList.contains('quest-town-event-active');`));
+      await visiblePortraits(b,['MC001']);
+      const arrival=await b.run(`return {status:G.questProgress.Q001.status,
+        active:document.body.classList.contains('quest-town-event-active'),
+        portraits:[...document.querySelectorAll('.screen.active .tavern-portrait')].map(el=>el.dataset.portraitId)};`);
+      ok('Q001ヴァルガ：街到着はAだけを表示し、Bを置かずに会話を進める',arrival.status==='accepted'
+        &&arrival.active&&arrival.portraits.length===1&&arrival.portraits[0]==='MC001',arrival);
       await clickDialogue(b);
     }
     await b.until(`G.questProgress.Q001.status==='completed'&&!document.body.classList.contains('quest-town-event-active')`,15000);

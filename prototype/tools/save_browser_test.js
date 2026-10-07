@@ -8,6 +8,14 @@ const URL='http://127.0.0.1:5500/index.html';
   async function load(){
     await b.goto(URL);await b.waitFor('typeof SaveRun!=="undefined"&&PANEL_POOL.length>20',20000);
     await b.eval('window.__alerts=[];window.alert=msg=>window.__alerts.push(msg);');
+    // 到着会話はstory_cycle_checkが担当する。入場演出とbeforeRevealの保存は本物を通す。
+    await b.eval('_prepareStoryArrival=()=>null;');
+  }
+  async function startNormalRun(){
+    await b.eval('startGame(false);window.__startedRunId=G._runId;');
+    // startGameは入場演出を開始して戻る。暗転後の保存と街表示の完了を待つ。
+    await b.waitFor('loadRun()?.runId===window.__startedRunId&&loadRun()?.checkpoint?.type==="town"&&!G._villageIntroPlaying&&!!document.querySelector("#scr-village.active")',20000);
+    return b.eval('return {checkpoint:loadRun()?.checkpoint,profile:SaveProfile.load(),id:G._runId}');
   }
   async function errors(){return b.events.filter(e=>e.method==='Runtime.consoleAPICalled'&&e.params.type==='error').map(e=>e.params.args.map(a=>a.description||a.value));}
   try{
@@ -21,7 +29,7 @@ const URL='http://127.0.0.1:5500/index.html';
     ok('セーブなしでコンティニューを押しても進まない',await b.eval(
       'const before=document.querySelector(".screen.active")?.id;SaveRun.continueRun();'+
       'return document.querySelector(".screen.active")?.id===before'));
-    const initial=await b.eval('startGame(false);return {checkpoint:loadRun()?.checkpoint,profile:SaveProfile.load(),id:G._runId}');
+    const initial=await startNormalRun();
     ok('通常ラン開始・街到着セーブ',initial.checkpoint?.type==='town');
     ok('初期カードを取得済みで記録',Object.values(initial.profile.cards).filter(x=>x.acquired&&x.seen).length>=2);
     // 戦闘前の保存と、途中終了を確認するため、開幕だけを保留する。
@@ -30,14 +38,21 @@ const URL='http://127.0.0.1:5500/index.html';
     const first=await b.eval('return loadRun()');
     ok('開幕より先に戦闘全体を保存',first.checkpoint?.type==='battle'&&!!first.pendingBattle.finalState&&first.pendingBattle.events.at(-1).type==='battle_end');
     console.log('保存サイズ '+JSON.stringify(first).length+' bytes / '+first.pendingBattle.frames.length+' frames');
-    const deterministic=await b.eval('const p=loadRun().pendingBattle;const q=SaveRun.computeBattle(p.setup,p.seed);return {same:JSON.stringify(p.events)===JSON.stringify(q.events)&&JSON.stringify(p.finalState)===JSON.stringify(q.finalState),p:{events:p.events,final:p.finalState},q:{events:q.events,final:q.finalState}}');
+    const deterministic=await b.eval(`
+      const p=loadRun().pendingBattle;
+      // 保存用setupは定義一覧を省く。再計算の検査ではprepareBattleと同じ定義を補う。
+      const input={...p.setup,summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL};
+      const q=SaveRun.computeBattle(input,p.seed);
+      return {same:JSON.stringify(p.events)===JSON.stringify(q.events)&&JSON.stringify(p.finalState)===JSON.stringify(q.finalState),
+        p:{events:p.events,final:p.finalState},q:{events:q.events,final:q.finalState}};
+    `);
     if(!deterministic.same) console.log('差分',JSON.stringify(deterministic));
     ok('同じseedでイベント・攻撃対象・最終結果が一致',deterministic.same);
     await load();
     ok('再起動でコンティニュー有効',await b.eval('SaveRun.refreshContinue();return !document.getElementById("title-continue-btn").disabled'));
     await b.eval('window.__savedBattleBeforeNewRun=loadRun();void SaveRun.continueRun();');
     await b.waitFor('document.body.classList.contains("run-resume-active")',5000);
-    await b.eval('startGame(false);');
+    await startNormalRun();
     await new Promise(r=>setTimeout(r,4300));
     ok('ゲームスタートは古い再開UIとタイマーを破棄',await b.eval('return !document.body.classList.contains("run-resume-active")&&loadRun()?.checkpoint?.type==="town"&&G._wave===0&&G._waveStage===1'));
     await b.eval('SaveRun.saveRun(window.__savedBattleBeforeNewRun);');

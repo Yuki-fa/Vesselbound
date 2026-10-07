@@ -56,6 +56,12 @@ async function measure(mode, side, speed, receiver, kind = 'alive') {
   const f = fixture(kind, side), u = f.source;
   G.allies = f.state.units.p1; G.enemies = f.state.units.p2;
   getBattlePresentationSpeedScale = () => speed;
+  // 変身・復活と同じく、召喚も成立後の姿を測る。コア生成直後は未表示なので、
+  // fixtureの召喚イベント分だけ配置済みにしてから実際のrenderFieldを通す。
+  for (const ev of f.pre.filter(e => e.type === 'summon')) {
+    const summoned = f.state.units[ev.side].find(x => x && x.id === ev.unit.id);
+    if (summoned) delete summoned._corePendingSummon;
+  }
   // 状態生成とコアは本物。描画はブラウザでは本物、Nodeでは矩形を持つDOMだけに置き換える。
   renderField('f-ally', G.allies, false); renderField('f-enemy', G.enemies, true);
   const sourceSide = side === 'p2' ? 'enemy' : 'ally';
@@ -65,18 +71,29 @@ async function measure(mode, side, speed, receiver, kind = 'alive') {
   u._lastVisualRect = { ...expected };
   let motion = null;
   if (mode === 'motion') {
-    motion = document.createElement('div'); motion.className = 'attack-motion-clone'; motion.dataset.unitId = String(u.id);
-    Object.assign(motion.style, { position: 'fixed', left: `${expected.left + 37}px`, top: `${expected.top - 29}px`,
-      width: `${expected.width}px`, height: `${expected.height}px` });
+    // 本番の複製入口で--motion-card-w/hと!important寸法を設定する。
+    // 単なるdivのwidth/heightだけではCSSのvar指定に負け、Chromeで0×0になる。
+    motion = _buildMotionCardClone(slot, { ...expected, left: expected.left + 37, top: expected.top - 29 });
     document.body.appendChild(motion); expected = _copyBattleVisualRect(motion.getBoundingClientRect());
+    if (!(expected.width > 0 && expected.height > 0)) {
+      motion.remove(); throw new Error('検査の攻撃モーション複製が0×0');
+    }
   } else if (mode !== 'live') {
-    if (mode === 'zero' || mode === 'none') slot.style.display = 'none';
-    else if (mode === 'hidden') slot.style.visibility = 'hidden';
-    else if (mode === 'transparent') slot.style.opacity = '0';
+    // 敵側はdisplay/visibility/opacityに!importantがある。実DOMでも確実に隠す。
+    slot.style.setProperty('transition', 'none', 'important');
+    if (mode === 'zero' || mode === 'none') slot.style.setProperty('display', 'none', 'important');
+    else if (mode === 'hidden') slot.style.setProperty('visibility', 'hidden', 'important');
+    else if (mode === 'transparent') slot.style.setProperty('opacity', '0', 'important');
     else if (mode === 'wrong-id') slot.dataset.unitId = 'replacement';
     else slot.remove();
+    const style = getComputedStyle(slot), rect = slot.getBoundingClientRect();
+    if ((mode === 'zero' || mode === 'none') && (rect.width !== 0 || rect.height !== 0)
+      || mode === 'hidden' && style.visibility !== 'hidden'
+      || mode === 'transparent' && Number(style.opacity) !== 0) {
+      throw new Error('検査の発生元カードを非表示にできなかった: ' + mode);
+    }
     // 消えた枠や同じ添字の別カードが左端へ再配置されても、保存済みの位置を使う。
-    if (['hidden', 'transparent', 'wrong-id'].includes(mode)) slot.style.left = '0px';
+    if (['hidden', 'transparent', 'wrong-id'].includes(mode)) slot.style.setProperty('left', '0px', 'important');
     u.hp = 0;
     if (mode === 'none') delete u._lastVisualRect;
   }
@@ -157,7 +174,18 @@ async function nodeRun() {
   document.createElement = tag => {
     const e = makeElement(tag); e.isConnected = true;
     e.animate = () => ({ addEventListener() {} });
+    e.style.setProperty = (name, value) => { e.style[name] = String(value); };
+    e.style.getPropertyValue = name => e.style[name] || '';
+    e.style.removeProperty = name => { delete e.style[name]; };
+    e.classList.add = (...names) => { e.className = [...new Set([...e.className.split(' ').filter(Boolean), ...names])].join(' '); };
+    e.classList.remove = (...names) => { e.className = e.className.split(' ').filter(c => !names.includes(c)).join(' '); };
     e.classList.contains = c => e.className.split(' ').includes(c);
+    e.cloneNode = () => {
+      const clone = document.createElement(tag); clone.className = e.className;
+      Object.assign(clone.dataset, e.dataset);
+      for (const [name, value] of Object.entries(e.style)) if (typeof value === 'string') clone.style[name] = value;
+      return clone;
+    };
     e.remove = () => { e.isConnected = false; };
     e.getBoundingClientRect = () => {
       const zero = !e.isConnected || e.style.display === 'none';
@@ -176,12 +204,14 @@ async function nodeRun() {
     querySelector: q => slots[id].find(e => e.isConnected && q.includes(`"${e.dataset.unitIdx}"`)) || null,
   } : null;
   document.querySelectorAll = q => q.startsWith('.attack-motion-clone')
-    ? document.body.children.filter(e => e.isConnected && e.className === 'attack-motion-clone') : [];
-  getComputedStyle = e => ({ display: e.style.display || 'block', visibility: e.style.visibility || 'visible', opacity: e.style.opacity || '1' });
-  renderField = (id, list, enemy) => { slots[id] = list.filter(Boolean).map((u, i) => {
+    ? document.body.children.filter(e => e.isConnected && e.classList.contains('attack-motion-clone')) : [];
+  getComputedStyle = e => ({ display: e.style.display || 'block', visibility: e.style.visibility || 'visible', opacity: e.style.opacity || '1',
+    getPropertyValue: name => e.style.getPropertyValue(name) });
+  renderField = (id, list, enemy) => { slots[id] = list.map((u, i) => {
+    if (!u || u.hp <= 0 || u._corePendingSummon) return null;
     const el = document.createElement('div'); el.className = 'slot'; el.dataset.unitId = String(u.id); el.dataset.unitIdx = String(i);
     Object.assign(el.style, { left: `${450 + i * 140}px`, top: enemy ? '160px' : '520px', width: '100px', height: '150px' }); return el;
-  }); };
+  }).filter(Boolean); };
   _vfxHostParent = () => screen; _syncEffectFlashWithVfx = actionBannerTrackVfxHost = () => {};
   _actionBannerShow = () => {};
   playSfx = updateHUD = renderControls = renderAll = () => {}; requestBattleCompact = () => {};

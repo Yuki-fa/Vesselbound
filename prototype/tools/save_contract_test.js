@@ -54,14 +54,34 @@ const {launch}=require('./parity/headless');
       G._wave=1;G._waveStage=5;G._waveVillage=true;await openMapVillage({intro:true});const townStart=loadRun();showScreen('battle');openMapShop();
       await new Promise(r=>setTimeout(r,80));
       const stock=_rewCards.filter(Boolean);
-      const stockState=stock.map(c=>({id:SaveProfile.identity(c)?.id,seen:!!SaveProfile.load().cards[SaveProfile.identity(c)?.id]?.seen}));
+      const stockProfile=SaveProfile.load();
+      const stockState=stock.map(c=>{
+        const id=SaveProfile.identity(c)?.id;
+        return {name:c.name,no:c.no,canonicalNo:c.No||c['No.']||c.artCode,id,seen:!!stockProfile.cards[id]?.seen};
+      });
       check('ショップ陳列で全商品seen=true '+JSON.stringify(stockState),stock.length>0&&stockState.every(x=>x.id&&x.seen));
       const shopIdx=_rewCards.findIndex(Boolean),purchased=_rewCards[shopIdx];purchased.directions=['up','right','down','left'];
       G.gold=10000;takeRewCard(shopIdx,G.mainBoard.findIndex(c=>!c));
       await new Promise(r=>setTimeout(r,80));
       check('ショップ購入でacquired=true',SaveProfile.load().cards[SaveProfile.identity(purchased).id]?.acquired);
       const town=loadRun();check('街途中の購入はrun saveへ書かない',town.state.choices._waveShopStock[1][shopIdx]!==null);
-      openMapVillage();const departOriginal=departWithWorldMap;departWithWorldMap=()=>{};G._villageIntroPlaying=false;villageDepart();const committedTown=loadRun();departWithWorldMap=departOriginal;SaveRun.lockInput(false);document.body.classList.remove('village-departing');
+      openMapVillage();
+      // departWithWorldMapが暗転後の保存コールバックを作る。マップ演出だけ省き、保存を待つ。
+      const departOriginal=_playWorldMapDeparture;let departSave=null,committedTown;
+      _playWorldMapDeparture=(_done,beforeReveal)=>{
+        departSave=Promise.resolve().then(()=>{
+          if(typeof beforeReveal!=='function') throw new Error('街の出発保存コールバックがない');
+          return beforeReveal();
+        });
+        return departSave;
+      };
+      try{
+        villageDepart();
+        check('街の出発は暗転後の保存経路を通る',!!departSave&&await departSave===true);
+        committedTown=loadRun();
+      }finally{
+        _playWorldMapDeparture=departOriginal;SaveRun.lockInput(false);document.body.classList.remove('village-departing');
+      }
       check('街の出発確定で購入結果を正式保存',committedTown.checkpoint.type==='town'&&committedTown.state.choices._waveShopStock[1][shopIdx]===null);
       SaveRun.saveRun(townStart);
       SaveRun.restoreRunState(townStart);openMapVillage({restoreCheckpoint:true});showScreen('battle');openMapShop();
@@ -75,9 +95,15 @@ const {launch}=require('./parity/headless');
       check('報酬直接再開では戦闘再開UIを出さない',!document.body.classList.contains('run-resume-active'));
       G.gold+=55;const flowOriginal=_startWaveFlowNext;_startWaveFlowNext=()=>true;chooseMoveInline('battle');await new Promise(r=>setTimeout(r,950));_startWaveFlowNext=flowOriginal;SaveRun.lockInput(false);
       check('報酬の戦闘開始確定で途中変更を正式保存',loadRun().checkpoint.type==='reward'&&loadRun().state.player.gold===rewardGold+55);
-      SaveRun.restoreRunState(current);G._wave=1;G._waveStage=10;G._waveVillage=true;G.phase=null;await openMapVillage({intro:true,tower:true});
-      const towerStart=loadRun(),towerOffer=JSON.stringify(towerStart.state.choices._waveRingExchange?.[1]?.offer||[]);
-      check('塔到着時にtypeと祭壇候補を保存',towerStart.checkpoint.type==='tower'&&towerOffer!=='[]');
+      SaveRun.restoreRunState(current);G._wave=1;
+      // ステージ1の塔は1周目で9マス目、2周目で10マス目。現在のルートから位置を引く。
+      const towerStage=_waveRouteForWave(G._wave).indexOf('altar')+1;
+      check('現在の周回ルートに塔がある',towerStage>0);
+      G._waveStage=towerStage;G._waveVillage=true;G.phase=null;
+      const towerOpened=await openMapVillage({intro:true,tower:true});
+      const towerStart=loadRun(),towerOffer=JSON.stringify(towerStart?.state.choices._waveRingExchange?.[1]?.offer||[]);
+      check('塔到着時にtypeと祭壇候補を保存',towerOpened===true&&towerStart?.checkpoint.type==='tower'
+        &&towerStart.checkpoint.scene===G._wave&&towerStart.checkpoint.stage===towerStage&&towerOffer!=='[]');
       G._waveRingExchange[1].offer=[];G.gold+=333;
       await SaveRun.continueRun();
       check('塔途中操作を同じ候補の開始状態へ巻き戻す',G.gold===towerStart.state.player.gold&&JSON.stringify(G._waveRingExchange[1].offer)===towerOffer);
@@ -98,14 +124,17 @@ const {launch}=require('./parity/headless');
       checkRejected('存在しない現在地を拒否',s=>s.state.location.stage=999);
       checkRejected('不正なカードIDを拒否',s=>s.state.player.mainBoard[0]={id:'invalid-card'});
       checkRejected('必須フィールド欠落を拒否',s=>delete s.state.player.mainBoard);
+      // 周回判定は保存媒体のprofileを読む。空の媒体へ替える前に取得記録を引き継ぐ。
+      const prof=SaveRun.copy(SaveProfile.load());
+      check('破損検査前のprofileに取得記録がある',!!prof.cards[ref.id]?.acquired);
       const mem=new Map(),backend={getItem:k=>mem.get(k)??null,setItem:(k,v)=>mem.set(k,v),removeItem:k=>mem.delete(k)};
-      SaveStorage.setAdapter(backend);SaveRun.saveRun(current);
+      SaveStorage.setAdapter(backend);SaveStorage.write('profile',prof,SaveProfile.validate);SaveProfile.resetCache();SaveRun.saveRun(current);
       const newer=SaveRun.copy(current);newer.state.player.gold++;SaveRun.saveRun(newer);
       mem.set(runKey,'{broken');
       check('破損currentから正常backupへ復旧',loadRun().state.player.gold===current.state.player.gold);
       mem.set(SaveStorage.key('run','backup'),'{also broken');
       check('両世代破損でも例外を外へ出さず起動継続',loadRun()===null);
-      mem.clear();SaveRun.saveRun(current);const oldRaw=mem.get(runKey);
+      SaveStorage.remove('run');SaveRun.saveRun(current);const oldRaw=mem.get(runKey);
       SaveStorage.setAdapter({...backend,setItem:(k,v)=>{if(k===runKey)throw new Error('テスト容量不足');backend.setItem(k,v);}});
       let failed=false;try{SaveRun.saveRun(newer);}catch(e){failed=true;}
       check('新current保存失敗でも旧currentが残る',failed&&mem.get(runKey)===oldRaw);
@@ -113,9 +142,10 @@ const {launch}=require('./parity/headless');
       const future=SaveRun.copy(current);future.saveVersion=999;mem.set(runKey,JSON.stringify(future));
       let protectedFuture=false;try{SaveRun.saveRun(newer);}catch(e){protectedFuture=e.code==='SAVE_FUTURE';}
       check('未来版セーブを上書きしない',protectedFuture&&JSON.parse(mem.get(runKey)).saveVersion===999);
-      mem.clear();SaveRun.saveRun(current);
-      const prof=SaveRun.copy(SaveProfile.load());SaveStorage.write('profile',prof,SaveProfile.validate);SaveStorage.write('profile',prof,SaveProfile.validate);
-      mem.set(profileKey,'{broken');check('profileもbackupでコレクションを復旧',!!SaveStorage.read('profile',SaveProfile.validate)?.data.cards[ref.id]?.acquired);
+      SaveStorage.remove('run');SaveRun.saveRun(current);
+      SaveStorage.write('profile',prof,SaveProfile.validate);SaveStorage.write('profile',prof,SaveProfile.validate);
+      mem.set(profileKey,'{broken');const recoveredProfile=SaveStorage.read('profile',SaveProfile.validate);
+      check('profileもbackupでコレクションを復旧',recoveredProfile?.generation==='backup'&&!!recoveredProfile.data.cards[ref.id]?.acquired);
       SaveRun.restoreRunState(current);const beforeEnd=mem.get(runKey);
       SaveStorage.setAdapter({...backend,setItem:(k,v)=>{if(k===profileKey)throw new Error('テストprofile保存失敗');backend.setItem(k,v);}});
       SaveRun.finish('gameover');check('profile更新失敗時はrunを削除しない',mem.get(runKey)===beforeEnd);
