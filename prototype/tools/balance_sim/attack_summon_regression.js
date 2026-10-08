@@ -114,6 +114,7 @@ function motionHarness() {
   const body = element(), screen = element('', ['active']), ally = element(), enemy = element();
   body.isConnected = true; body.appendChild(screen); body.appendChild(ally); body.appendChild(enemy);
   const ctx = { console, URL, Uint8Array, Uint8ClampedArray, Uint32Array, Map, Set, WeakMap, WeakSet,
+    Path2D: function(d) { this.d = d; },
     innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1, addEventListener() {}, removeEventListener() {},
     DOMMatrixReadOnly: class { constructor() { this.a = 1; this.b = 0; } },
     performance: { now: () => clock }, requestAnimationFrame: fn => { const id = ++seq; frames.set(id, fn); return id; },
@@ -128,7 +129,7 @@ function motionHarness() {
     G: { phase: 'battle', allies: [], enemies: [] }, _vfxClipLayer: () => body,
   };
   ctx.window = ctx; vm.createContext(ctx);
-  for (const f of ['js/battle/present.js', 'js/engine/fx_lab.js', 'js/engine/battle_fx.js', 'js/engine/render.js', 'js/battle/present_events.js'])
+  for (const f of ['js/battle/present.js', ...require('../vfx_export').RUNTIME_SCRIPTS, 'js/engine/battle_fx.js', 'js/engine/render.js', 'js/battle/present_events.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   Object.assign(ctx, { _gameScale: () => 1, _getAttackTargetRect: e => e.getBoundingClientRect(),
     getCurrentUnitSlot: (_side, u) => slots.get(u.id), _syncEffectFlashWithVfx() {}, renderAll() {},

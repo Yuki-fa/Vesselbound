@@ -31,7 +31,7 @@ const body=element(),screen=element(),ctx={console,URL,Uint8ClampedArray,Map,Set
   G:{phase:'battle',allies:[],enemies:[]},_vfxClipLayer:()=>body,getCurrentUnitSlot:(_side,u)=>slots.get(u.id)||null,
 };
 ctx.window=ctx;vm.createContext(ctx);
-for(const file of ['js/battle/present.js','js/engine/fx_lab.js','js/engine/battle_fx.js','js/battle/present_events.js'])
+for(const file of ['js/battle/present.js',...require('../vfx_export').RUNTIME_SCRIPTS,'js/engine/battle_fx.js','js/battle/present_events.js'])
   vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),ctx,{filename:file});
 function fxFrame() {
   clock+=16;

@@ -1,0 +1,69 @@
+kind,file,exit,seconds
+node --check,js/engine/fx_lab.js,0,0.03
+node --check,js/vfx/curves.js,0,0.03
+node --check,js/vfx/defs/effects.js,0,0.03
+node --check,js/vfx/defs/geometry.js,0,0.03
+node --check,js/vfx/renderer.js,0,0.03
+node --check,js/vfx/schema.js,0,0.03
+node --check,js/vfx/textures.js,0,0.03
+node --check,tools/balance_sim/ai.js,0,0.03
+node --check,tools/balance_sim/attack_summon_regression.js,0,0.03
+node --check,tools/balance_sim/battle_carry_order_regression.js,0,0.03
+node --check,tools/balance_sim/battle_event_regression.js,0,0.03
+node --check,tools/balance_sim/battle_state_init_regression.js,0,0.03
+node --check,tools/balance_sim/battle_state_vfx_regression.js,0,0.03
+node --check,tools/balance_sim/card_core_smoke.js,0,0.03
+node --check,tools/balance_sim/damage_metrics_regression.js,0,0.03
+node --check,tools/balance_sim/deep_level_regression.js,0,0.03
+node --check,tools/balance_sim/defeat_retry_regression.js,0,0.03
+node --check,tools/balance_sim/effect_audit.js,0,0.03
+node --check,tools/balance_sim/effect_value_audit.js,0,0.03
+node --check,tools/balance_sim/id_reference_audit.js,0,0.03
+node --check,tools/balance_sim/kenzoku_regression.js,0,0.03
+node --check,tools/balance_sim/lab_vfx_regression.js,0,0.03
+node --check,tools/balance_sim/load.js,0,0.03
+node --check,tools/balance_sim/offline_online_regression.js,0,0.03
+node --check,tools/balance_sim/permanent_damage_regression.js,0,0.03
+node --check,tools/balance_sim/pve_core_resource_parity.js,0,0.03
+node --check,tools/balance_sim/quest_q001_regression.js,0,0.03
+node --check,tools/balance_sim/quest_q008_regression.js,0,0.03
+node --check,tools/balance_sim/run.js,0,0.03
+node --check,tools/balance_sim/selftest.js,0,0.03
+node --check,tools/balance_sim/sheet_data.js,0,0.03
+node --check,tools/balance_sim/silence_scroll_check.js,0,0.03
+node --check,tools/balance_sim/sim.js,0,0.03
+node --check,tools/balance_sim/stub.js,0,0.03
+node --check,tools/balance_sim/vfx_data_regression.js,0,0.03
+node --check,tools/vfx_capture/capture.js,0,0.03
+node --check,tools/vfx_capture/check.js,0,0.03
+node --check,tools/vfx_capture/clock.js,0,0.03
+node --check,tools/vfx_capture/images.js,0,0.03
+node --check,tools/vfx_capture/trace_compare.js,0,0.03
+node --check,tools/vfx_export.js,0,0.03
+node,tools/balance_sim/attack_summon_regression.js,0,1.85
+node,tools/balance_sim/battle_carry_order_regression.js,0,0.27
+node,tools/balance_sim/battle_event_regression.js,0,0.15
+node,tools/balance_sim/battle_state_init_regression.js,0,0.15
+node,tools/balance_sim/battle_state_vfx_regression.js,0,2.72
+node,tools/balance_sim/card_core_smoke.js,0,0.21
+node,tools/balance_sim/damage_metrics_regression.js,0,0.17
+node,tools/balance_sim/deep_level_regression.js,0,0.27
+node,tools/balance_sim/defeat_retry_regression.js,0,0.29
+node,tools/balance_sim/effect_audit.js,0,0.15
+node,tools/balance_sim/effect_value_audit.js,0,0.11
+node,tools/balance_sim/id_reference_audit.js,0,0.07
+node,tools/balance_sim/kenzoku_regression.js,0,0.23
+node,tools/balance_sim/lab_vfx_regression.js,0,4.86
+node,tools/balance_sim/offline_online_regression.js,0,0.19
+node,tools/balance_sim/permanent_damage_regression.js,0,0.24
+node,tools/balance_sim/pve_core_resource_parity.js,0,0.04
+node,tools/balance_sim/quest_q001_regression.js,0,0.25
+node,tools/balance_sim/quest_q008_regression.js,0,0.22
+node,tools/balance_sim/run.js,0,11.38
+node,tools/balance_sim/selftest.js,0,0.27
+node,tools/balance_sim/silence_scroll_check.js,0,0.62
+node,tools/balance_sim/vfx_data_regression.js,0,236.46
+node,tools/parity/online_payload.js,0,0.03
+node,tools/parity/online_receivers.js,0,0.03
+node,tools/vfx_capture/check.js,0,1.37
+node,tools/vfx_export.js,0,0.16

@@ -6,7 +6,13 @@
 </style>
 <header><h1 id="title">準備中</h1><select id="effect"></select><button id="previous">前</button><button id="next">次</button><span id="status">画像を準備中</span><a href="review_capture.html?phases=1">始め・中盤・命中・終わり</a><a href="../vfx_preview.html?verify=1" target="_blank">file検査</a><a href="http://127.0.0.1:5500/tools/vfx_preview.html?verify=1" target="_blank">http検査</a></header>
 <main id="frames"></main><pre id="checks" style="margin:12px 16px;font-size:11px;white-space:pre-wrap"></pre>
-<script src="../../js/engine/fx_lab.js?v=fxlab1005-10"></script>
+<script src="../../js/vfx/schema.js?v=vfx-layers1008-4"></script>
+<script src="../../js/vfx/curves.js?v=vfx-layers1008-2"></script>
+<script src="../../js/vfx/textures.js?v=vfx-layers1008-2"></script>
+<script src="../../js/vfx/defs/geometry.js?v=vfx-layers1008-2"></script>
+<script src="../../js/vfx/defs/effects.js?v=vfx-layers1008-5"></script>
+<script src="../../js/vfx/renderer.js?v=vfx-layers1008-4"></script>
+<script src="../../js/engine/fx_lab.js?v=vfx-layers1008-2"></script>
 <script>
 var VbFxReviewCapture=(function(){
  'use strict';var session={startEffect:'elemental',phases:false,checks:true};var phases=(new URLSearchParams(location.search).has('phases')?new URLSearchParams(location.search).get('phases')==='1':session.phases),times=phases?['begin','middle','impact','end']:[150,450,800,1200],names=VbFx.effects.map(function(d){return d.name;}),results={},current='',ready=false;

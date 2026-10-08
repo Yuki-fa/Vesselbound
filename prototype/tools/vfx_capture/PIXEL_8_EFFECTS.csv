@@ -1,0 +1,51 @@
+effect,frames,max_mae,max_local_mae,min_ssim,max_rmse,max_channel_diff,max_changed_ratio,numeric_status,visual_status,label,review,observation
+abyss,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,アビス・バロン A・渦,REVIEW_8,渦の輪・霧・周回粒・色と薄まりが同じ
+all-cross,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,全体攻撃 C・交差斬撃,REVIEW_8,交差する帯の形・角度・火花・到達時の光が同じ
+all-ring,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,全体攻撃 B・衝撃リング,REVIEW_8,3重の輪・広がり・霧・周回粒・対象の光が同じ
+all-roar,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,全体攻撃 D・咆哮,REVIEW_8,咆哮の輪・遅延・広がり・粒・揺れ・余韻が同じ
+all-sweep,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,全体攻撃 A・横一閃,REVIEW_8,横一閃の帯・細線・粒・各対象の光と出現時刻が同じ
+atk-down,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ATK減少,REVIEW_8,青い光・縮む輪と粒・カードの色と拡縮が同じ
+bandersnatch,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,バンダースナッチ,REVIEW_8,消えるカード・霧・出現後の粒とタイミングが同じ
+banshee,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,バンシー,REVIEW_8,人魂の頭・尾の形と長さ・剥がれる粒・到達光が同じ
+baron,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,アビス・バロン B・赤い縁,REVIEW_8,赤い縁・霧・輪・周回粒と薄まりが同じ
+battle-summon,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,戦闘中の召喚,REVIEW_8,魔法陣・光・カードの透明度と拡縮・登場時刻が同じ
+bone-chariot,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ボーンチャリオット,REVIEW_8,顔の配置と回転・魔法陣・霧・補助光が同じ
+carbuncle,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,カーバンクル,REVIEW_8,結晶片の面・数・配置・回転・光が同じ
+cockatrice,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,コカトリス,REVIEW_8,石目・ひび・灰色になるカード・粒と薄まりが同じ
+cover-fire,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,援護射撃,REVIEW_8,矢じり・帯状の尾・火花・飛行経路と到達時刻が同じ
+cyclops,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,サイクロプス（全体攻撃を得る）,REVIEW_8,集束・放射する光・後半に残る熱い縁・粒が同じ
+dark-fire,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,闇の炎,REVIEW_8,扇の煙と火・前縁・画面端への流れ・残光が同じ
+demon-soul,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,魔族の魂,REVIEW_8,中心光・らせん・粒・初期半径・到達光が同じ
+direwolf,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ダイアウルフ,REVIEW_8,小さい咆哮・揺れ・ウルフの登場と横移動・着地光が同じ
+dragonnet,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ドラゴネット,REVIEW_8,カードの消失と出現・霧・粒・透明度のタイミングが同じ
+dullahan,8,0.010945268973266538,0.7568359374999999,0.9999678090608254,0.21845427814975563,34,0.01544735240413877,NUMERIC_OK,VISUAL_OK,デュラハン,REVIEW_8,顔と骨の配置・回転・霊体の尾・到達光が同じ
+elemental,8,0.004678745883858483,0.04850260416666666,0.9999944727955812,0.07572961843343132,34,0.012656023222060957,NUMERIC_OK,VISUAL_OK,エレメンタル,REVIEW_8,8色の光と雲・輪の各色・粒・ちらつきと残光が同じ
+frost-sprite,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,フロスト・スプライト,REVIEW_8,氷片の面・角度・回転・光・飛行中の粒が同じ
+great-shield,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,大盾,REVIEW_8,小さい膜・六角格子・輪・接触位置と薄まりが同じ
+guts-state,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,根性状態,REVIEW_8,赤橙の縁のちらつき・淡いオーラ・四隅の光が同じ
+imp,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,インプ,REVIEW_8,対象から戻る粒・接続線・発生元の光とタイミングが同じ
+jackalope,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ジャッカロープ,REVIEW_8,緑の光の線・接続先・魔法陣・粒・到達光が同じ
+leprechaun,8,0.0012322674282503863,0.17513020833333331,0.9999993401713624,0.0351214453881293,2,0.0030975232922889648,NUMERIC_OK,VISUAL_OK,レプラコーン,REVIEW_8,全体の金色の光・魔法陣・粒・瞬きと薄まりが同じ
+lich,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,リッチ,REVIEW_8,人魂の頭・尾の形と長さ・粒・経路と固有の色が同じ
+melusine,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,メリュジーヌ,REVIEW_8,群を包む霧・内部の粒・到達光と広がりが同じ
+meteor-scroll,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,隕石の巻物,REVIEW_8,落下する火球・尾・残光・閃光・画像のコマと時刻が同じ
+nightmare,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ナイトメア,REVIEW_8,周囲の霧・光・輪・周回粒・色と薄まりが同じ
+pegasus,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ペガサス,REVIEW_8,光だまり・魔法陣・輪・周囲の粒と薄まりが同じ
+pixie,8,0.0012044883499539617,0.17903645833333331,0.9999997006792322,0.03474169462988079,2,0.0030048223231424693,NUMERIC_OK,VISUAL_OK,ピクシー,REVIEW_8,捕縛の線と輪・移動と戻り・対象の位置への追従が同じ
+poison-state,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,毒状態,REVIEW_8,下からの緑の霧・泡・カードの濁り・表示位置が同じ
+resentment,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,怨念,REVIEW_8,人魂の頭・尾・粒・経路・固有の色と濃さが同じ
+revive-gain,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,復活獲得,REVIEW_8,青白い枠・カード内の魂の粒・終了時の薄まりが同じ
+revive-state,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,復活状態,REVIEW_8,青白い縁・カード内を昇る魂の灯と薄まりが同じ
+revive-summon,8,0.004701530970551056,0.04850260416666666,0.9999944394669182,0.0758799063966586,34,0.012718760241584344,NUMERIC_OK,VISUAL_OK,復活による召喚,REVIEW_8,巻き付く魂・縁と粒・透明度と拡縮・登場時刻が同じ
+shield-break,8,0.004722755434867425,0.04850260416666666,0.9999944407799993,0.07601963337902941,34,0.01278149726110773,NUMERIC_OK,VISUAL_OK,結界消失,REVIEW_8,金の膜・ひび・閃光・飛び散る三角片・余韻が同じ
+shield-gain,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,結界獲得,REVIEW_8,閉じる金の枠・膜・光帯と反射・呼吸と薄まりが同じ
+shield-state,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,結界状態,REVIEW_8,金の膜・斜めの光帯・反射・呼吸と表示位置が同じ
+shockwave,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,衝撃波,REVIEW_8,扇の前縁・内部の粒・画面端への到達と薄まりが同じ
+titan,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,タイタン（地震で敵全体を弱体化）,REVIEW_8,踏み鳴らし・土煙・岩くず・揺れ・到達時の色変化が同じ
+vrykolakas,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ヴリコラカス,REVIEW_8,不死の霧・魔法陣・輪・周囲の粒が同じ
+weaken-state,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,弱体状態,REVIEW_8,上からの紫の膜・沈む粒・カードの濁りが同じ
+weaken,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,弱体化,REVIEW_8,震え・拡縮・色あせ・吸い込まれる霧と粒が同じ
+wendigo,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ウェンディゴ,REVIEW_8,扇の氷片・針・光・前縁・霧と残光が同じ
+worm,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ワーム,REVIEW_8,扇の煙・前縁・内部の粒・ぼかしと薄まりが同じ
+wraith,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,レイス（味方の負傷効果を発動）,REVIEW_8,影の針・到達時の霧と粒・カードの色変化が同じ
+wyvern,8,0.0,0.0,1.0,0.0,0,0.0,NUMERIC_OK,VISUAL_OK,ワイバーン,REVIEW_8,風の頭・流れる尾・火花・飛行経路が同じ

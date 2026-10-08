@@ -2,7 +2,7 @@
 """Chromeの4コマ撮影ページから保存した画像を、盤面PNGと比較JPGへ分ける。"""
 import argparse
 import json
-import re
+import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -28,8 +28,14 @@ def tiles(source, crop):
     return [im.crop((x + (w + 20) * (i % 2), y + (h + 76) * (i // 2),
                      x + (w + 20) * (i % 2) + w, y + (h + 76) * (i // 2) + h)) for i in range(4)]
 
+def load_definitions():
+    # 古いJS配列の書式へ依存せず、ブラウザと同じ登録データを検証して読む。
+    source = "process.stdout.write(JSON.stringify(require('./tools/vfx_export').validatedBundle().bundle.effects));"
+    effects = json.loads(subprocess.check_output(['node', '-e', source], cwd=PROJECT, text=True))
+    return [(d['name'], d['label'], d['ms']) for d in effects]
+
 def build(native_dir, crop):
-    definitions = re.findall(r"\['([^']+)', '([^']+)', (\d+),", (PROJECT / 'js/engine/fx_lab.js').read_text())
+    definitions = load_definitions()
     font = ImageFont.truetype(str(PROJECT / 'assets/fonts/ShipporiMincho-Medium.ttf'), 22)
     small = ImageFont.truetype(str(PROJECT / 'assets/fonts/ShipporiMincho-Medium.ttf'), 18)
     shots = HERE / 'shots'; shots.mkdir(exist_ok=True)
