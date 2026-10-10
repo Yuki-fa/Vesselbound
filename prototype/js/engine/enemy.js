@@ -534,7 +534,7 @@ function generateQuestGarmEnemies(){
   const count=Math.max(1,Number(countSpec&&countSpec[0])||5);
   const rear=Math.max(1,Math.min(count,Number(countSpec&&countSpec[1])||1));
   const enemies=Array.from({length:Math.max(0,count-rear)},()=>make(wolf,'front'));
-  // 後衛1体は名前指定のガルム・グリーム。EN027の「出現=false」は通常抽選にだけ効く。
+  // 後衛1体は名前指定のガルム・グリーム。EN032の「出現=false」は通常抽選にだけ効く。
   enemies.push(make(garm,'rear'));
   while(enemies.length<count) enemies.push(make(wolf,'rear'));
   G._isEliteFight=false;

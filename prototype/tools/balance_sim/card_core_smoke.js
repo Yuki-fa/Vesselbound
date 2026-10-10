@@ -57,7 +57,7 @@ function assertSheetDrivenMergedForms() {
     catalog.panels.E003.merged.adjacentAtkBonus, catalog.panels.E003.merged.adjacentHpBonus], [3, 2, 6, 4],
   'E003の通常／合体値がシート値と一致しない');
   assert.match(catalog.panels.E026.base.desc, /^常時：/, 'E026が常時効果として読み込まれていない');
-  assert.match(catalog.panels.E026.merged.desc, /味方の数の2倍/, 'E026合体効果の倍率がシートから読まれていない');
+  assert.match(catalog.panels.E026.merged.desc, /味方の数の3倍/, 'E026合体効果の倍率がシートから読まれていない');
   assert.deepEqual([catalog.panels.E034.base.adjacentAtkBonus, catalog.panels.E034.base.adjacentHpBonus,
     catalog.panels.E034.merged.adjacentAtkBonus, catalog.panels.E034.merged.adjacentHpBonus], [8, -3, 16, -3],
   'E034合体時にHP減少まで機械的に倍化されている');

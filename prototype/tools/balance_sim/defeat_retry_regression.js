@@ -264,7 +264,7 @@ function assertCarry(expected,actual){
     entry.status='accepted';entry.encounterPhase='garm';entry.encounterTarget={wave:2,stage:6};
     G._wave=2;G._waveStage=6;G._waveBattleType='battle';
     G._mapBattle={nodeId:'quest-garm',type:'battle'};
-    G.enemies=[unit('garm',0,{artCode:'EN027',_questGarm:true})];
+    G.enemies=[unit('garm',0,{artCode:'EN032',_questGarm:true})];
     const dialogue=questPlayBattleDefeatDialogue;questPlayBattleDefeatDialogue=done;
     try{await lose();assertNoRewards();assert.equal(entry.status,'failed');
       assert.equal(G._waveStage,7);assert.equal(G._waveRetryEnemyKey,null);assert.equal(G._waveEnemySnapshot,null);}

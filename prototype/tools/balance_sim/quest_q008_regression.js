@@ -62,7 +62,7 @@ function coreResult(enemies,defense=false){
     assert.deepEqual(QUEST_DATA.Q008_2.rewardGoldByDefeat,{power:2,multiplier:10});
     assert.equal(QUEST_CONFIG.Q008.portraitB,QUEST_CONFIG.Q007.portraitB);
     assert.deepEqual(_qRegionIds(3),['Q007','Q008']);
-    const def=ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN048');
+    const def=ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN059');
     assert.equal(def.name,'ベイティル');assert.equal(def.spawnEnabled,false);
     assert.equal(coreFleesInsteadOfAttack({...def,desc:def.desc}),true);
   });
@@ -116,7 +116,7 @@ function coreResult(enemies,defense=false){
         const fronts=after.filter(u=>u.lane==='front');
         assert.ok(fronts.slice(0,2).every(u=>!u._questEnemyReplacementId));
         assert.ok(after.length<=MAX_ENEMIES&&fronts.length<=ENEMY_FRONT_SLOTS);
-        const def=ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN048'),range=enemyStatRanges(def,floor);
+        const def=ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN059'),range=enemyStatRanges(def,floor);
         for(const unit of extra){
           assert.ok(unit.atk>=range.atkMin&&unit.atk<=range.atkMax);
           assert.ok(unit.hp>=range.hpMin&&unit.hp<=range.hpMax);

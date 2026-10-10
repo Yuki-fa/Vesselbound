@@ -152,7 +152,7 @@ function runTrigger(unit,trigger,side='p1'){
     }
     for(const key of ['battle:1','battle:2','battle:3','elite:1','elite:2','boss:1']) assert.ok(seen.has(key),key);
   });
-  check('通常の敵数・前後衛・IDを保ち、エリート／ボス本体を保護して深層補正でEN025へ置き換える',()=>{
+  check('通常の敵数・前後衛・IDを保ち、エリート／ボス本体を保護して深層補正でEN026へ置き換える',()=>{
     const entry=accept(false,12);
     for(const target of entry.enemyReplacementTargets){
       G._wave=target.wave;G._waveStage=target.stage;G._waveVillage=false;G._waveBattleType=target.type;
@@ -164,11 +164,11 @@ function runTrigger(unit,trigger,side='p1'){
       assert.equal(after.length,before.length);assert.equal(extra.length,target.count);
       assert.deepEqual(after.map(unit=>unit.lane),before.map(unit=>unit.lane));
       assert.deepEqual(after.map(unit=>unit.id),before.map(unit=>unit.id));
-      const ranges=enemyStatRanges(ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN025'),floor);
+      const ranges=enemyStatRanges(ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN026'),floor);
       for(let i=0;i<after.length;i++){
         const unit=after[i];
         if(unit._questEnemyReplacementId){
-          assert.equal(_qCardNo(unit),'EN025');assert.ok(!before[i].boss&&!before[i].elite&&!['boss','elite'].includes(before[i].role));
+          assert.equal(_qCardNo(unit),'EN026');assert.ok(!before[i].boss&&!before[i].elite&&!['boss','elite'].includes(before[i].role));
           assert.ok(unit.atk>=ranges.atkMin&&unit.atk<=ranges.atkMax);assert.ok(unit.hp>=ranges.hpMin&&unit.hp<=ranges.hpMax);
         }else assert.deepEqual(unit,copy(before[i]));
       }

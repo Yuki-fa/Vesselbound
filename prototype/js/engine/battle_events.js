@@ -746,7 +746,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
           state.resources.p1.gold=Math.max(0,(Number(state.resources.p1.gold)||0)+_gained);
         }
       });
-      // Q004はガルム（EN027）が逃走した結果を、通常の逃走演出を保ったまま
+      // Q004はガルム（EN032）が逃走した結果を、通常の逃走演出を保ったまま
       // クエスト状態へ記録する。勝敗後のcamp遷移はquest.js側で判定する。
       if(typeof questBattleEnemyFled==='function'){
         questBattleEnemyFled(_fledGroup,(side,id)=>findLiveUnit(side,id,findUnit(side,id)));

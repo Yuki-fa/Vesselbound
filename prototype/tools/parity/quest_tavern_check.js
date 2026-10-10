@@ -217,7 +217,7 @@ const WAVE=1;
     // 待たないと約2秒後に画面が村へ戻り、撤退表示の「進む」が押せなくなる（検査だけの問題）。
     await b.until(`document.querySelector('.screen.active')?.id==='scr-village'&&!G._villageIntroPlaying`,60000);
     await new Promise(resolve=>setTimeout(resolve,2500));
-    const code=String(opt.enemyCode||'EN027').toUpperCase();
+    const code=String(opt.enemyCode||'EN032').toUpperCase();
     return b.run(`(()=>{
       if(typeof _skipStartupIntro==='function') window.removeEventListener('pointerdown',_skipStartupIntro,true);
       const code=${JSON.stringify(code)};
@@ -230,7 +230,7 @@ const WAVE=1;
       const unit=_mkEnemy(8,12,def.name,def.icon,def.grade||1,0,[...(def.keywords||[])],def.race||'-');
       _applyEnemyDefAbilities(unit,def);
       unit.id='q004-pursuit-enemy';unit.side='p2';unit.lane='rear';unit._visualShift=false;
-      if(code==='EN027') unit._questGarm=true;
+      if(code==='EN032') unit._questGarm=true;
       const slots=14;
       G.allies=new Array(slots).fill(null);
       G.enemies=new Array(slots).fill(null);G.enemies[0]=unit;
@@ -250,7 +250,7 @@ const WAVE=1;
   if(section('魔獣撃退')){
     const lost=await newPage();
     const lostEnemy=await setupQ004PursuitBoard(lost);
-    ok('魔獣撃退：EN027の死亡・逃走・プレイヤー敗北台詞を敵定義からユニットへ渡す',
+    ok('魔獣撃退：EN032の死亡・逃走・プレイヤー敗北台詞を敵定義からユニットへ渡す',
       lostEnemy.death.length>0&&lostEnemy.flee.length>0&&lostEnemy.playerDefeat.length>0,lostEnemy);
     await lost.run(`handleWaveBattleDefeat();return 1;`);
     await waitBattleLine(lost,lostEnemy.playerDefeat[0]);
@@ -344,7 +344,7 @@ const WAVE=1;
     await b.until(`G&&G._runId`,30000);
     const ares=await b.run(`(()=>{
       const enemyNo=def=>String(def&&(def.artCode||def._artCode||def.No||def.no||def['No.']||def.code)||'').toUpperCase();
-      const def=ENEMY_POOL.find(row=>enemyNo(row)==='EN047');if(!def)throw new Error('EN047の敵定義が無い');
+      const def=ENEMY_POOL.find(row=>enemyNo(row)==='EN048');if(!def)throw new Error('EN048の敵定義が無い');
       window.__installAresOutcomeTest=()=>{const unit=_mkEnemy(20,30,def.name,def.icon,def.grade||1,0,[...(def.keywords||[])],def.race||'-');
         _applyEnemyDefAbilities(unit,def);unit.id='arena-ares-outcome';unit.side='p2';unit.lane='front';unit.boss=true;
         G.allies=new Array(14).fill(null);G.enemies=new Array(14).fill(null);G.enemies[0]=unit;window.__aresOutcomeUnit=unit;renderAll();return unit;};
@@ -355,7 +355,7 @@ const WAVE=1;
       const unit=__installAresOutcomeTest();return {name:unit.name,death:[...(unit.deathBattleLines||[])],
         flee:[...(unit.fleeBattleLines||[])],playerDefeat:[...(unit.playerDefeatBattleLines||[])]};
     })()`);
-    ok('闘技場：EN047アレスの3種の台詞をシート見出しから戦闘ユニットへ渡す',
+    ok('闘技場：EN048アレスの3種の台詞をシート見出しから戦闘ユニットへ渡す',
       ares.death.length>0&&ares.flee.length>0&&ares.playerDefeat.length>0,ares);
 
     await b.run(`(()=>{const unit=__aresOutcomeUnit;unit.hp=0;unit._displayHp=0;
@@ -1338,7 +1338,10 @@ const WAVE=1;
     await clickDialogue(r);await r.until(`!G._isTavern&&${notFading}`,30000);
     { const st=await r.run(`return {status:G.questProgress.Q008.status,targets:(G.questProgress.Q008.enemyReplacementTargets||[]).length,desc:_qDescription()}`);
       ok('Q008酒場：断ると拒否台詞、割り振りを作らず、酒場を出るとクエスト説明が残らない',st.status==='rejected'&&!st.targets&&st.desc==='',st); }
-    await clickFacility(r,'^酒場$');await waitChoice(r,q8.q.initial[5]);await clickChoice(r,0);
+    await clickFacility(r,'^酒場$');
+    // 拒否後台詞（シートにある時）を送ってから、選択肢だけをもう一度出す（quest.js _qRunDirectTavernChoice）。
+    for(const line of q8.q.rejectedAfter||[]){await waitLine(r,line);await clickDialogue(r);}
+    await waitChoice(r,q8.q.initial[5]);await clickChoice(r,0);
     await visibleBubble(r,q8.q.accepted[0]);
     await r.run(`questForceEndEventForDebug();return 1;`);
     ok('Q008デバッグ：拒否後の再訪で受託でき、強制終了は会話だけを止めて受託状態を保つ',await r.run(`return G.questProgress.Q008.status==='accepted'

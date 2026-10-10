@@ -103,7 +103,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         arassus.desc='攻撃：全ての敵に1ダメージを与える。';
         arassus.attackSfx='sword';
         const left=mk('left-'+kind,'左の敵','p2','EN022');
-        const ran=mk('target-'+kind,'波の娘 “ラン・ドーター”','p2','EN026');
+        const ran=mk('target-'+kind,'波の娘 “ラン・ドーター”','p2','EN027');
         ran.desc=kind==='summon'?'負傷：「黒ケルピー」を2体召喚する。':'';
         const right=mk('right-'+kind,'右の敵','p2','EN022');
         G.allies=[arassus]; G.enemies=[left,ran,right]; G._coreDrivenBattle=true;

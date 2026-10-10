@@ -61,17 +61,17 @@ const QUEST_CONFIG={
   Q004:{requiredCardNo:'',portraitB:'MC003',initialChoice:true,noFailureRevisit:true,completeAt:'battle',
     encounterTargets:[{wave:2,stage:6},{wave:2,stage:7},{wave:3,stage:1}],
     // 追撃戦固有の決着は、クエストID分岐ではなくこの設定から引く。
-    pursuit:{targetEnemyNo:'EN027',escortEnemyNo:'EN020',noRetry:true,passStageOnDefeat:true,
+    pursuit:{targetEnemyNo:'EN032',escortEnemyNo:'EN020',noRetry:true,passStageOnDefeat:true,
       defeatDialogue:{variant:'tavern',specialGroup:'A',count:1},
       defeatedThenRetreat:{initialCount:1,specialGroup:'B'}}},
 };
 QUEST_CONFIG.Q001={requiredCardNo:'E075',portraitB:QUEST_CONFIG.Q002.portraitB,completeAt:'town',completeWave:2,
   offerTitleKey:'「酒場の報酬枠」見出し3',acceptButtonKey:'「受領」ボタン',
   retainedCard:true,lockedTownWave:1,debugWave:1,offlineOnly:true,
-  enemyReplacement:{enemyNo:'EN025',arrivalWave:2},townArrival:{dialogueOnly:true,withoutB:true}};
+  enemyReplacement:{enemyNo:'EN026',arrivalWave:2},townArrival:{dialogueOnly:true,withoutB:true}};
 // 依頼カードのない討伐依頼。ディナの立ち絵は木箱輸送と共通にする。
 QUEST_CONFIG.Q008={requiredCardNo:'',portraitB:QUEST_CONFIG.Q007.portraitB,initialChoice:true,completeAt:'tower',
-  enemyReplacement:{enemyNo:'EN048',frontSkip:2},
+  enemyReplacement:{enemyNo:'EN059',frontSkip:2},
   towerArrival:{rewardLine:3,defeatCount:true,zeroInitialCount:1,zeroSpecialGroup:'A'}};
 
 // ── 調整用レイアウト定数 ──────────────────────────────

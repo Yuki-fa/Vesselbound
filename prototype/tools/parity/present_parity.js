@@ -30,7 +30,7 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
 const ranScenario = (name, front, hp, rear = 0, peerHp = 40, targetAt = Math.floor(front / 2)) => {
   const p2 = Array.from({ length: front }, (_, i) => ['ゴブリン', 'E' + i,
     { atk: 2, hp: peerHp, maxHp: peerHp, color: '黒', keywords: [], desc: '' }]);
-  p2[targetAt] = ['波の娘"ラン・ドーター"', 'R', { no: 'EN026', artCode: 'EN026',
+  p2[targetAt] = ['波の娘"ラン・ドーター"', 'R', { no: 'EN027', artCode: 'EN027',
     atk: 2, hp, maxHp: hp, color: '黒', guardian: true, keywords: ['守護'],
     desc: '負傷：「黒ケルピー」を2体召喚する。' }];
   for (let i = 0; i < rear; i++) p2.push(['ゴブリン', 'B' + i,

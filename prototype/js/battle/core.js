@@ -499,12 +499,27 @@ function coreToughValue(unit) { return 0; }
  * @returns {{blocked:boolean, reason:''|'dead'|'sealed'|'shield', amount:number, consumesShield:boolean}}
  *   consumesShield が true の時、呼び出し側が結界を1つ減らすこと。
  */
+// 常時：このキャラクターは「X」以外からのダメージを受けない（冥府の神"タナトス"、2026-10-10）。
+// X は与えた側のカード名に含まれる名前（「ディナ」＝預言者"ディナ"）。与えた側の無いダメージ（毒など）も受けない。
+function coreDamageOnlyFromName(unit) {
+  if (!unit || coreUnitIsSilenced(unit)) return '';
+  const m = String(coreUnitEffectText(unit) || '').match(/このキャラクターは「([^」]+)」以外からのダメージを受けない/);
+  return m ? m[1] : '';
+}
+function coreDamageImmuneFrom(unit, source) {
+  const name = coreDamageOnlyFromName(unit);
+  if (!name) return false;
+  return !(source && String(source.name || '').includes(name));
+}
+
 function coreResolveIncomingDamage(unit, dmg, opts) {
   const skipTough = !!(opts && opts.skipTough);
   // skipWeaken：弱体を加算しない経路（既存の dealDmgToEnemy がこの挙動）。
   const skipWeaken = !!(opts && opts.skipWeaken);
   if (!unit || unit.hp <= 0 || !(dmg > 0)) return { blocked: false, reason: 'dead', amount: 0, consumesShield: false };
   if (coreIsSealed(unit)) return { blocked: true, reason: 'sealed', amount: 0, consumesShield: false };
+  // 特定の相手以外からのダメージを受けない（結界は減らさない）。
+  if (opts && 'source' in opts && coreDamageImmuneFrom(unit, opts.source)) return { blocked: true, reason: 'immune', amount: 0, consumesShield: false };
   // 結界：ダメージを1回無効化して1つ減る。
   if (unit.shield > 0) return { blocked: true, reason: 'shield', amount: 0, consumesShield: true };
   let v = dmg;
@@ -1538,7 +1553,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   // マータの分割は「対象が実際にダメージを受ける」場合だけ行う。
   // 先に分割すると、結界で本体側の1ダメージが0になっても、余剰分だけが
   // マータへ飛んでしまう（本体は無傷なのに肩代わりだけ発生する）。
-  const incoming = coreResolveIncomingDamage(target, amount, {skipTough: !!opt.skipTough});
+  const incoming = coreResolveIncomingDamage(target, amount, {skipTough: !!opt.skipTough, source: source || null});
   if (!opt.skipSourceEffects && amount >= 2 && incoming.amount > 0 && !incoming.blocked
     && !coreHasEffect(target, 'マータ')) {
     const mata = (units[target.side] || []).find(x => x && x !== target && x.hp > 0
@@ -1572,7 +1587,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   }
   const before = target.hp;
   const result = coreApplyDamage(target, amount, emit, {
-    sourceId: source && source.id, counter: !!counter, skipTough: !!opt.skipTough,
+    sourceId: source && source.id, source: source || null, counter: !!counter, skipTough: !!opt.skipTough,
     redirectedFrom: opt.redirectedFrom || null,
     batch: state._coreDamageBatch || null,
     damageKind: coreDamageKind(state),

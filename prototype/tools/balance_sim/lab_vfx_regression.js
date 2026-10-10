@@ -337,7 +337,7 @@ async function battleBugChecks() {
     for(const sc of scenarios) {
       const foes=Array.from({length:sc.front},(_,i)=>bare('E'+i,{hp:sc.peerHp||40,maxHp:sc.peerHp||40}));
       const at=sc.targetAt??Math.floor(sc.front/2);
-      foes[at]=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN026',hp:sc.hp,maxHp:sc.hp,desc:'負傷：「黒ケルピー」を2体召喚する。',keywords:['守護'],guardian:true});
+      foes[at]=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN027',hp:sc.hp,maxHp:sc.hp,desc:'負傷：「黒ケルピー」を2体召喚する。',keywords:['守護'],guardian:true});
       for(let i=0;i<(sc.rear||0);i++)foes.push(bare('B'+i,{lane:'rear'}));
       const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:sc.allyHp||40,maxHp:sc.allyHp||40});
       const state=createBattleState({sides:{p1:{units:[source]},p2:{units:foes}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
@@ -367,7 +367,7 @@ async function battleBugChecks() {
     }
     // 最小盤面も一手だけでは拒否へ届かない。満員後まで進め、効果と命中の呼び出し順を比べる。
     const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:300,maxHp:300});
-    const ran=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN026',desc:'負傷：「黒ケルピー」を2体召喚する。'});
+    const ran=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN027',desc:'負傷：「黒ケルピー」を2体召喚する。'});
     const state=createBattleState({sides:{p1:{units:[source]},p2:{units:[ran]}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
     state._coreFirstSide='p1';setup(state);const initial=clone(state),events=[];
     const runner=createBattleRunner(state,createSeededRng(53),e=>events.push(e),{skipOpening:true});

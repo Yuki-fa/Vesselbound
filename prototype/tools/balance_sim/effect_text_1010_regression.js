@@ -33,7 +33,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
   await loadGameData();
   await check('シートの本文：邪眼・結界・狂気（通常／合体）、エルフ、ミノタウロス、敵3体', () => {
     assert.equal(card('邪眼').desc, '負傷：ランダムな敵はATK-2を得る。');
-    assert.equal(card('結界').desc, '死亡：ランダムな味方は結界1を得る。');
+    assert.equal(card('死者の守護').desc, '死亡：ランダムな味方は結界1を得る。');
     assert.equal(card('狂気').desc, '死亡：全てのキャラクターはATK+4を得る。');
     assert.deepEqual(card('エルフ').keywords, ['先制', '結界1']);
     assert.match(card('ミノタウロス').desc, /結界1を得てからランダムな敵に攻撃する/);
@@ -42,8 +42,8 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     assert.match(enemy('リムスルス').desc, /このキャラクターにダメージを与えた敵に8ダメージを与える/);
     assert.ok(!(enemy('リムスルス').keywords || []).includes('呪詛'), 'リムスルスは呪詛を持たない');
   });
-  await check('強化「結界」は効果文の強化になり、接続先へ結界1のキーワードを付けない', () => {
-    assert.deepEqual(card('結界').adjacentKeywords.filter(k => /^結界/.test(k)), []);
+  await check('強化「死者の守護」（旧「結界」）は効果文の強化で、接続先へ結界1のキーワードを付けない', () => {
+    assert.deepEqual(card('死者の守護').adjacentKeywords.filter(k => /^結界/.test(k)), []);
   });
   for (const [label, text, count] of [['通常', '負傷：ランダムな敵はATK-2を得る。', 1], ['合体', '負傷：ランダムな敵2体はATK-2を得る。', 2]]) {
     await check(`邪眼（${label}）：負傷でランダムな敵${count}体（別々の体）がATK-2`, () => {
@@ -115,6 +115,23 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     const back = h.events.filter(e => e.type === 'damage' && e.unitId === 'attacker' && e.side === 'p1');
     assert.deepEqual(back.map(e => e.amount), [8]);
     assert.equal(h.p1[0].hp, 92);
+  });
+  await check('タナトス：「ディナ」以外からのダメージを受けない（結界も減らさない）', () => {
+    const text = '常時：このキャラクターは「ディナ」以外からのダメージを受けない。';
+    const h = harness([plain('goblin', { name: 'ゴブリン' }), plain('dina', { name: '預言者 "ディナ"' })],
+      [plain('thanatos', { name: '冥府の神 “タナトス”', desc: text, hp: 100, maxHp: 100, shield: 1 })]);
+    const target = h.p2[0];
+    assert.equal(h.hit(h.p1[0], target, 30).amount, 0);
+    assert.equal(target.hp, 100); assert.equal(target.shield, 1, '結界は減らない');
+    assert.ok(h.events.some(e => e.type === 'damage' && e.unitId === 'thanatos' && e.blockedBy === 'immune'));
+    assert.equal(h.hit(null, target, 30).amount, 0, '与えた側の無いダメージも受けない');
+    h.hit(h.p1[1], target, 30);
+    assert.equal(target.shield, 0, 'ディナの攻撃は結界で防ぐ');
+    h.hit(h.p1[1], target, 30);
+    assert.equal(target.hp, 70, 'ディナからはダメージを受ける');
+    coreSilenceUnit(target);
+    h.hit(h.p1[0], target, 5);
+    assert.equal(target.hp, 65, '沈黙中は効果が無い');
   });
   console.log(`2026-10-10 効果文の回帰: ${checked}件OK`);
 })().catch(error => { console.error(error); process.exitCode = 1; });
