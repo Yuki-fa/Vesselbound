@@ -700,7 +700,7 @@ function _openWaveFormation(){
   G.phase=null;
   G._showGlobalPanels=true;
   G._waveVillage=false;
-  G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._facilityLabel='';
+  G._isShop=false; G._isForge=false; G._isTavern=false; G._isVillageMenu=false; G._isWaveAltar=false; G._isItemShop=false; G._isPeddler=false; G._facilityLabel='';
   // 祭壇（指輪交換）の状態も必ず解除する。残っていると次の報酬画面が
   // 指輪提示のままになる。
   G._isRingExchange=false;
@@ -814,6 +814,7 @@ function _startWaveBattle(stage){
   G._isForge=false;
   G._isTavern=false;
   G._isItemShop=false;
+  G._isPeddler=false;
   G._isVillageMenu=false;
   G._isRingExchange=false;
   // 指輪提示フェイズも解除する。残っていると戦闘後の報酬画面が指輪提示のままになる。
@@ -980,7 +981,7 @@ function finishWaveBattleVictory(showVictoryIntro){
   return false;
 }
 // 敵の種類に関わらず、敗北するとライフを1失う。3つとも失うとゲームオーバー。
-// ライフが残っていれば、終了時の敵を維持して同じstageへ再挑戦する。
+// ライフが残っていれば、開始時の敵に戻して同じstageへ再挑戦する。
 function handleWaveBattleDefeat(){
   if(!G._waveBattleType) return false;
   // 台詞待ちの間に敗北判定が再入しても、二重に決着を始めない。
@@ -1001,11 +1002,8 @@ async function _finishWaveBattleDefeat(questDefeat){
     G._waveEnemySnapshotAtEnd=false;
     G._waveEnemySnapshotBlood=0;
   }else{
-    // 後片付けで配列を空にする前に、敗北が確定した盤面を控える。
-    // 空配列も有効な確定盤面。元の敵を生成し直したり、生存者だけを選び直したりしない。
-    G._waveEnemySnapshot=SaveRun.copy(G.enemies||[],{battleCarry:true});
-    G._waveEnemySnapshotAtEnd=true;
-    G._waveEnemySnapshotBlood=Math.max(0,Number(G._enemyBlood)||0);
+    // 再戦は開戦時に控えた敵（startBattle の _waveEnemySnapshot）からやり直す。
+    // 終了時の盤面は控えない（2026-10-10 利用者指定：敗北時の盤面維持をやめ、以前のリセットに戻す）。
     G._waveRetryEnemyKey=battleKey;
   }
   G._waveLife=Math.max(0,(G._waveLife==null?(typeof waveLifeMax==='function'?waveLifeMax():3):Number(G._waveLife))-1);
@@ -1057,6 +1055,11 @@ async function _finishWaveBattleDefeat(questDefeat){
     G.phase=null;
     if(questDefeat&&typeof questFinishBattleDefeat==='function'){
       return questFinishBattleDefeat(questDefeat);
+    }
+    // 全ゲームを通して初めての敗北だけ、行商人のイベントを挟んでから売買できる編成画面へ（peddler.js）。
+    if(typeof defeatPeddlerPending==='function'&&defeatPeddlerPending()){
+      G._battleFadeHeldByCaller=true;
+      return runDefeatPeddlerEvent();
     }
     if(typeof goToReward==='function') return goToReward({checkpoint:true,noNewRewards:true});
   });

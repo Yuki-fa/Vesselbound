@@ -42,7 +42,9 @@ const WAVE=1;
       const r=await _goto(...args);
       // リーゼ到着時の周回イベント（地名演出後の会話）も出さない。出ている間に別の街へ飛ぶと会話が残る。
       await b.eval(`if(typeof SaveProfile!=='undefined')SaveProfile.hasClearedRun=()=>true;
-        if(typeof _storyArrivalSpec==='function')window._storyArrivalSpec=()=>null;return 1;`).catch(()=>{});
+        if(typeof _storyArrivalSpec==='function')window._storyArrivalSpec=()=>null;
+        // 初めての敗北の行商人イベント（peddler.js。defeat_peddler_check.js が担当）は出さない。
+        if(typeof defeatPeddlerPending==='function')window.defeatPeddlerPending=()=>false;return 1;`).catch(()=>{});
       return r;
     };
     await b.goto(URL,2500);

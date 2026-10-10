@@ -76,7 +76,7 @@ function _syncRewardProductionItems(){
           if(!card||!_isItemCard(card)||slot._rewardItem) return;
           // 道具屋の提示アイテムはドラッグで入れても購入扱い（クリック購入と同じくゴールドを徴収する）。
           // ただし自分の手持ちを商品枠へ置いたもの（売却待ち）を戻す場合は徴収しない。
-          const buyCost=(G._isItemShop&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
+          const buyCost=((G._isItemShop||G._isPeddler)&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
           if(buyCost>0&&(G.gold||0)<buyCost) return;
           e.preventDefault();
           _dragSrc=null;
@@ -97,7 +97,7 @@ function _syncRewardProductionItems(){
             _rewFreePickDone=true;
           }
           items[idx]=placed;
-          if(G._isItemShop||G._isLibrary) _rewCards[rewIdx]=null;
+          if(G._isItemShop||G._isPeddler||G._isLibrary) _rewCards[rewIdx]=null;
           else _rewCards.splice(rewIdx,1);
           if(typeof _removeDragGhost==='function') _removeDragGhost();
           if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();

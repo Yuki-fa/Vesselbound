@@ -101,6 +101,18 @@ function assertNoRewards(){
   assert.deepEqual(G._ringOffer,[]);assert.equal(G._ringOfferPhase,false);
   assert.deepEqual(G._rewardStartSnapshot.rewCards,[],'元に戻すでも報酬は復活しない');
 }
+// 開戦時の敵を実経路で作る（startBattle が _waveEnemySnapshot を控える）。
+async function startFresh(type){
+  reset(type);G._waveEnemySnapshot=null;G._waveRetryEnemyKey=null;
+  await startBattle();
+  assert.ok(Array.isArray(G._waveEnemySnapshot)&&G._waveEnemySnapshot.some(Boolean),'開戦時の敵を控える');
+  G.phase='enemy';G._waveBattleType=type;replayed=null;
+  G.allies=[{id:'lost-ally',atk:0,hp:0,maxHp:100,lane:'rear',poison:99,shield:99}];
+  return plain(G._waveEnemySnapshot);
+}
+// 並び（配列の位置）・前衛／後衛・IDだけを比べる。
+const firstOf=list=>(list||[]).find(Boolean)||{};
+const layoutOf=list=>(list||[]).map(u=>u?{id:u.id,lane:u.lane||'front'}:null);
 function assertCarry(expected,actual){
   // コアが再スタンプするside/slotも含め、終了時の全保存可能データを比較する。
   assert.deepEqual(SaveRun.copy(actual,{battleCarry:true}),expected);
@@ -116,72 +128,54 @@ function assertCarry(expected,actual){
 (async()=>{
   await loadGameData();SaveRun.ready();
   for(const type of ['battle','elite','boss']){
-    await check(type+'：敗北で抽選・報酬・指輪を出さず、終了時の敵を後片付け前に保存',async()=>{
-      reset(type);G.enemies=endBoard();G._enemyBlood=4;
-      const expected=SaveRun.copy(G.enemies,{battleCarry:true});
+    await check(type+'：敗北で抽選・報酬・指輪を出さず、開始時の敵の控えを終了時で上書きしない',async()=>{
+      const start=await startFresh(type);
+      G.enemies=endBoard();G._enemyBlood=4;
       const board=plain(G.mainBoard),gold=G.gold;
       await lose();assertNoRewards();
       assert.equal(G._waveLife,2);assert.equal(G.gold,gold);assert.deepEqual(G.mainBoard,board);
-      assert.deepEqual(G._waveEnemySnapshot,expected);assert.equal(G._waveEnemySnapshotAtEnd,true);
-      assert.equal(G._waveEnemySnapshotBlood,4);
+      assert.deepEqual(plain(G._waveEnemySnapshot),start,'開戦時の控えのまま');
+      assert.equal(G._waveEnemySnapshotAtEnd,false);assert.equal(G._waveEnemySnapshotBlood,0);
       assert.equal(G.enemies.length,0);assert.ok(_waveRetryPending());
-      const held=G._waveEnemySnapshot[0];
-      for(const key of ['_lastDamageSource','_currentAttackTarget','_coreRunner','_lastVisualRect',
-        '_displayHp','_displayWeaken','_shownPoison','_battleLinesShown','_deathFxReady',
-        '_deathProcessed','_coreDeathTriggered','_coreInjuryReentry','_corePendingSummon','_manaFireCounts',
-        '_stealPresent','_reviveHidden','_motionHidden','_deathProcessing','_deathWithoutEvent','_deathByStatDrain',
-        '_stealPendingPresent','_preDeathSnapshot','_battleStartHp','_coreInjuryEffectsResolving',
-        '_lastInjuryEffectDispatch','_attackEffectPending','_attackEffectDispatching','_attackObserverFired',
-        '_skipCurrentAttack','_fleeInsteadOfAttack','_coreAtkGainEffectDepth']){
-        assert.equal(Object.hasOwn(held,key),false,key+'は持ち越さない');
-      }
-      assert.equal(held.poison,3);assert.equal(held.weaken,2);assert.equal(held.shield,1);
-      assert.equal(held._wardCharges,1);assert.equal(held._starterRegenUsed,true);
-      assert.deepEqual(held.customStatus,{stacks:7});
       assert.deepEqual(loadRun().state.reward.cards,[],'敗北後のセーブも報酬なし');
-      assert.deepEqual(loadRun().state.progress._waveEnemySnapshot,expected);
-      assert.equal(loadRun().state.progress._waveEnemySnapshotBlood,4);
+      assert.deepEqual(plain(loadRun().state.progress._waveEnemySnapshot),start);
     });
-    await check(type+'：再戦の開戦準備でHP・バフ・状態・死亡・空欄・並びを完全に維持',async()=>{
-      const expected=plain(G._waveEnemySnapshot);
-      G._waveBattleType=type;G._waveIsRetry=true;
+    await check(type+'：再戦は開始時の敵（HP・前衛／後衛・並び）に戻り、敵も通常どおり開戦する',async()=>{
+      const start=plain(G._waveEnemySnapshot);
+      G._waveBattleType=type;G._waveIsRetry=true;G.phase='enemy';
       await startBattle();
-      assert.ok(replayed);assertCarry(expected,G.enemies);assertCarry(expected,replayed.setup.units.p2);
-      assert.deepEqual(replayed.setup.openingSides,['p1']);
-      assert.equal(replayed.setup.blood.p2,4,'敵の封印に使う血も引き継ぐ');
+      assert.ok(replayed);assert.deepEqual(layoutOf(replayed.setup.units.p2),layoutOf(start),'並びと前衛／後衛が開始時と同じ');
+      replayed.setup.units.p2.forEach((u,i)=>{ if(u) assert.equal(u.hp,start[i].hp,'HPは開始時の値'); });
+      assert.equal(replayed.setup.openingSides,undefined,'敵も開戦する');
+      assert.equal(replayed.setup.blood.p2,0,'敵の血も初期化');
       assert.ok(G.allies.some(u=>u&&u.hp>0),'味方は魔導板から従来どおり再出撃');
-      assert.ok(!G.allies.some(u=>u&&u.id==='lost-ally'),'前戦闘の味方状態は持ち越さない');
-      // 同じsetupとseedから、保存時と完全に同じ結果を再計算できる。
       assert.deepEqual(SaveRun.computeBattle(replayed.setup,replayed.seed),replayed);
     });
   }
-  await check('敗北後のSaveRunを読み直し、報酬なしの編成から同じ敵へ再戦',async()=>{
-    reset();G.enemies=endBoard();await lose();
+  await check('敗北後のSaveRunを読み直し、報酬なしの編成から開始時の敵へ再戦',async()=>{
+    const start=await startFresh('battle');G.enemies=endBoard();await lose();
     const save=loadRun(),expected=plain(save.state.progress._waveEnemySnapshot);
+    assert.deepEqual(expected,start);
     G._waveEnemySnapshot=[];_rewCards=[];SaveRun.restoreRunState(save);
     goToReward({restoreCheckpoint:true});assertNoRewards();
-    assert.equal(G._waveEnemySnapshotAtEnd,true);assert.deepEqual(G._waveEnemySnapshot,expected);
-    G._waveBattleType='battle';await startBattle();assertCarry(expected,replayed.setup.units.p2);
+    assert.equal(G._waveEnemySnapshotAtEnd,false);assert.deepEqual(plain(G._waveEnemySnapshot),expected);
+    G._waveBattleType='battle';G.phase='enemy';await startBattle();
+    assert.deepEqual(layoutOf(replayed.setup.units.p2),layoutOf(start));
   });
   await check('再戦開始後のbattleチェックポイントから再開してもsetupと敵を維持',async()=>{
     const save=loadRun(),expected=plain(save.pendingBattle.setup.units.p2);
     SaveRun.restoreRunState(save);
     SaveRun.takeResume=()=>plain(save.pendingBattle);
-    try{await startBattle();assertCarry(expected,G.enemies);assert.deepEqual(replayed,save.pendingBattle);}
+    try{await startBattle();assert.deepEqual(layoutOf(G.enemies),layoutOf(expected));assert.deepEqual(replayed,save.pendingBattle);}
     finally{SaveRun.takeResume=()=>null;}
   });
-  await check('敵の封印の解放条件を保存して再戦し、味方側の血は初期化する',async()=>{
-    reset();G._enemyBlood=7;G._blood=31;
-    G.enemies=[unit('standing',0),unit('still-sealed',1,{keywords:['封印12'],_sealed:true,_sealValue:12})];
-    const before=coreSealRelease(G.enemies[1],G.enemies,{p2:G._enemyBlood});
-    assert.equal(before.ready,false);assert.equal(before.blood,7);
-    await lose();const save=loadRun();
-    assert.equal(save.state.progress._waveEnemySnapshotBlood,7);
-    SaveRun.restoreRunState(save);G._waveBattleType='battle';await startBattle();
-    assert.equal(replayed.setup.blood.p1,0,'味方の扱いは従来どおり');
-    assert.equal(replayed.setup.blood.p2,7);
-    assert.deepEqual(coreSealRelease(replayed.setup.units.p2[1],replayed.setup.units.p2,replayed.setup.blood),before);
-    assert.equal(coreSealRelease(replayed.setup.units.p2[1],replayed.setup.units.p2,{p2:12}).ready,true);
+  await check('再戦では敵の血も封印も開始時へ戻す',async()=>{
+    const start=await startFresh('battle');G._enemyBlood=7;G._blood=31;
+    G.enemies=endBoard();await lose();const save=loadRun();
+    assert.equal(save.state.progress._waveEnemySnapshotBlood,0);
+    SaveRun.restoreRunState(save);G._waveBattleType='battle';G.phase='enemy';await startBattle();
+    assert.equal(replayed.setup.blood.p1,0);assert.equal(replayed.setup.blood.p2,0);
+    assert.deepEqual(layoutOf(replayed.setup.units.p2),layoutOf(start));
   });
   await check('新しい旗が無い旧セーブも復元でき、開始時の敵として初期化',async()=>{
     reset();G.enemies=[unit('legacy',0,{keywords:['結界3'],shield:0})];
@@ -194,14 +188,14 @@ function assertCarry(expected,actual){
     assert.equal(G._preserveEnemyOpening,false);assert.equal(replayed.setup.openingSides,undefined);
     assert.ok(replayed.events.some(ev=>ev.type==='shield_set'&&ev.side==='p2'));
   });
-  await check('保存しないPvE経路でも開戦後まで敵の結界・封印・状態・盤面を維持',async()=>{
-    reset();G.enemies=endBoard();await lose();
-    const expected=plain(G._waveEnemySnapshot),turn=nextTurn;
-    G._debugMode=true;G._waveBattleType='battle';nextTurn=done;
-    try{await startBattle();assertCarry(expected,G.enemies);assert.equal(replayed,null);}
+  await check('保存しないPvE経路でも再戦は開始時の敵へ戻る',async()=>{
+    const start=await startFresh('battle');G.enemies=endBoard();await lose();
+    const turn=nextTurn;
+    G._debugMode=true;G._waveBattleType='battle';G.phase='enemy';nextTurn=done;
+    try{await startBattle();assert.deepEqual(layoutOf(G.enemies),layoutOf(start));assert.equal(G._preserveEnemyOpening,false);}
     finally{nextTurn=turn;}
   });
-  await check('再戦でも味方の開戦効果は敵へ作用し、敵の結界を付け直さない',async()=>{
+  await check('旧セーブ（終了時の盤面を維持していた頃）の再戦でも味方の開戦効果は敵へ作用し、敵の結界を付け直さない',async()=>{
     reset();G._preserveEnemyOpening=true;
     G.allies=[unit('opening-ally',0,{side:'p1',desc:'開戦：全ての敵に弱体3を与える。'})];
     G.activeBattleItems=[{id:'meteor',itemEffectKey:'meteor_scroll'}];
@@ -226,28 +220,23 @@ function assertCarry(expected,actual){
     for(const side of ['p1','p2']) assert.ok(result.events.some(event=>event.type==='shield_set'&&event.side===side));
     assert.equal(defeatTask,null);assert.equal(draws,0);
   });
-  await check('コアが実際に解決した敗北を2回再戦し、その都度の最終HPを保存して再開',async()=>{
+  await check('コアが実際に解決した敗北を2回再戦しても、毎回開始時のHPの敵からやり直す',async()=>{
     reset();G._battleCoreEvents=[];G._battleRunId=1;
     G.allies=[{id:'weak',name:'弱い味方',atk:1,hp:2,maxHp:2,lane:'front',keywords:[]}];
     G.enemies=[unit('strong',0,{atk:50,hp:200,maxHp:200})];
+    G._waveEnemySnapshot=clone(G.enemies);
     const initial=_createPveCoreState();_stampCoreSideSlots(initial);
     const first=SaveRun.computeBattle(initial,57);assert.equal(first.outcome,'p2');
     assert.ok(first.finalState.units.p2[0].hp<200,'初戦で実際にダメージを受ける');
     await originalReplay(first,1);await defeatTask;await continued;
-    assert.deepEqual(G._waveEnemySnapshot,SaveRun.copy(first.finalState.units.p2,{battleCarry:true}));
-    assert.equal(G._waveEnemySnapshotBlood,first.finalState.blood.p2);
-    G._waveBattleType='battle';await startBattle();
-    const second=replayed;assert.equal(second.outcome,'p2');
-    assert.deepEqual(second.setup.units.p2,G._waveEnemySnapshot);
-    assert.ok(second.finalState.units.p2[0].hp<second.setup.units.p2[0].hp);
+    assert.equal(firstOf(G._waveEnemySnapshot).hp,200,'控えは開始時のまま');
+    G._waveBattleType='battle';G.phase='enemy';await startBattle();
+    const second=replayed;assert.equal(firstOf(second.setup.units.p2).hp,200);
     defeatTask=continued=null;
     await originalReplay(second,G._battleRunId);await defeatTask;await continued;
-    assert.equal(G._waveLife,1);
-    const expected=SaveRun.copy(second.finalState.units.p2,{battleCarry:true});
-    assert.deepEqual(G._waveEnemySnapshot,expected);
-    assert.equal(G._waveEnemySnapshotBlood,second.finalState.blood.p2);
-    SaveRun.restoreRunState(loadRun());G._waveBattleType='battle';await startBattle();
-    assert.deepEqual(replayed.setup.units.p2,expected);
+    assert.equal(G._waveLife,1);assert.equal(firstOf(G._waveEnemySnapshot).hp,200);
+    SaveRun.restoreRunState(loadRun());G._waveBattleType='battle';G.phase='enemy';await startBattle();
+    assert.equal(firstOf(replayed.setup.units.p2).hp,200);
   });
   await check('相打ちで敵が全滅した場合は既存どおり勝利処理へ渡す',async()=>{
     reset();G.enemies=[];let victories=0;
@@ -256,12 +245,14 @@ function assertCarry(expected,actual){
     try{handleBattleDefeat();assert.equal(victories,1);assert.equal(G._waveLife,3);assert.equal(defeatTask,null);}
     finally{_onAllEnemiesDefeated=victory;}
   });
-  await check('空盤面が敗北として渡された場合も空のまま保存・再開・再戦し、敵を生成しない',async()=>{
-    reset();G.enemies=[];await _finishWaveBattleDefeat(null);await continued;assertNoRewards();
-    const save=loadRun();SaveRun.restoreRunState(save);assert.deepEqual(G._waveEnemySnapshot,[]);
-    G._waveBattleType='battle';
+  await check('空盤面が敗北として渡されても開始時の敵の控えから再戦し、敵を生成し直さない',async()=>{
+    reset();G._waveEnemySnapshot=[unit('before-battle',0)];
+    G.enemies=[];await _finishWaveBattleDefeat(null);await continued;assertNoRewards();
+    const save=loadRun();SaveRun.restoreRunState(save);
+    assert.deepEqual(layoutOf(G._waveEnemySnapshot),[{id:'before-battle',lane:'front'}]);
+    G._waveBattleType='battle';G.phase='enemy';
     const generate=generateEnemies;generateEnemies=()=>{throw new Error('再生成してはいけない');};
-    try{await startBattle();assert.deepEqual(replayed.setup.units.p2,[]);assert.equal(replayed.outcome,'p1');}
+    try{await startBattle();assert.deepEqual(layoutOf(replayed.setup.units.p2).filter(Boolean),[{id:'before-battle',lane:'front'}]);}
     finally{generateEnemies=generate;}
   });
   await check('ライフ0の敗北はゲームオーバーで報酬を出さない',async()=>{

@@ -135,6 +135,8 @@ function initState(){
     _waveFinalVillage:false,
     _waveRewardCount:null,
     _waveWithdraw:false,
+    _isPeddler:false,
+    _peddlerStock:null,
     _waveEnemySnapshotAtEnd:false,
     _waveEnemySnapshotBlood:0,
     battleCounters:{damage:0,deaths:0},

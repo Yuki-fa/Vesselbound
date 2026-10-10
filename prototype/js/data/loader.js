@@ -1083,7 +1083,10 @@ async function loadGameData() {
       const bareDesc = String(desc || '').split(/\n/)
         .filter(line => !/^\s*(?:常時|開戦|攻撃|負傷|死亡|終戦|解放|マナ|\d+マナ)/.test(line))
         .join('\n');
-      const shield = `${bareDesc} ${panel.name || ''}`.match(/結界\s*(\d*)/);
+      // カード名からの推測は効果文が空の（キーワードだけの）強化カードに限る。
+      // 「結界」は2026-10-10に効果文（死亡：ランダムな味方は結界1を得る）を持つ強化になり、
+      // 名前から結界1まで付けると接続先が結界を持ってしまう。
+      const shield = `${bareDesc} ${String(desc || '').trim() ? '' : (panel.name || '')}`.match(/結界\s*(\d*)/);
       if (shield) panel.adjacentKeywords.push('結界' + (shield[1] || '1'));
       const seal = bareDesc.match(/封印\s*(\d+)/);
       if (seal) panel.adjacentKeywords.push('封印' + (seal[1] || '1'));
@@ -1332,6 +1335,13 @@ async function loadGameData() {
             }
             if(Object.prototype.hasOwnProperty.call(row,'効果')) item.desc=String(row['効果']||'').trim();
             if(Object.prototype.hasOwnProperty.call(row,'ショップ')&&!_truthySheet(row['ショップ'])) item._shopExcluded=true;
+            // 「報酬」列（2026-10-10 追加）：false なら戦闘報酬に出さない。
+            if(Object.prototype.hasOwnProperty.call(row,'報酬')) {
+              if(_truthySheet(row['報酬'])) delete item._rewardExcluded;
+              else item._rewardExcluded=true;
+            }
+            // 「行商人」列（2026-10-10 追加）：true のものだけ行商人（初めての敗北のイベント）が売る。
+            item._peddlerAvailable=Object.prototype.hasOwnProperty.call(row,'行商人')&&_truthySheet(row['行商人']);
           });
       });
       // ゲーム仕様では黄金の巻物は所持金を2倍にする（シート側の旧1.5倍表記を補正）。

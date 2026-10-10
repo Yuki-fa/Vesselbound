@@ -2386,7 +2386,8 @@ async function startBattle(){
   // ATK/HPだけ書き換わった状態になる。生成も乱数固定にして構成のぶれを無くす。
   const reuseWaveEnemies=!fixedTestBattle&&!arenaBattle&&!questBattle
     &&!!(waveEnemyKey&&G._waveRetryEnemyKey===waveEnemyKey&&Array.isArray(G._waveEnemySnapshot));
-  // 終了時の敵は開戦済み。古いセーブの開始時スナップショットは従来の初期化を通す。
+  // 再戦は開始時のスナップショットを使い、敵も通常どおり開戦する。
+  // _waveEnemySnapshotAtEnd は、終了時の盤面を維持していた頃（2026-10-07〜10）の古いセーブだけが持つ。
   // 保存した戦闘の再生では、setup の同じ指定から復元する（一時的なGの旗は保存しない）。
   G._preserveEnemyOpening=savedBattle
     ?Array.isArray(savedBattle.setup.openingSides)&&!savedBattle.setup.openingSides.includes('p2')
@@ -2438,8 +2439,10 @@ async function startBattle(){
   // 試験戦闘の敵を通常戦闘のリトライ用スナップショットへ書き込まない
   // （書き込むと、次の通常戦闘のリトライに試験戦闘の敵が出る）。
   if(waveEnemyKey&&!fixedTestBattle&&!arenaBattle&&!questBattle){
+    // 再戦は開始時の敵へ戻す（2026-10-10 利用者指定：敗北時の盤面維持をやめ、以前のリセットに戻す）。
+    // 並び（前衛・後衛・左右）もこの時点のまま使い、再戦時に配置し直さない。
     if(reuseWaveEnemies) G._waveRetryEnemyKey=null;
-    else { G._waveEnemySnapshot=null; G._waveEnemySnapshotAtEnd=false; G._waveEnemySnapshotBlood=0; }
+    else { G._waveEnemySnapshot=clone(G.enemies); G._waveEnemySnapshotAtEnd=false; G._waveEnemySnapshotBlood=0; }
   }
   G.enemies.forEach(e=>{
     if(!e) return;

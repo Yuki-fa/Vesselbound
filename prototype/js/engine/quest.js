@@ -103,6 +103,8 @@ const TAVERN_PORTRAIT_CONFIG={
   MC022:{src:'assets/art/sprites/MC022.webp',x:2057,y:203,width:2428,height:4256},
   MC023:{src:'assets/art/sprites/MC023.webp',x:2175,y:145,width:2580,height:4113},
   MC024:{src:'assets/art/sprites/MC024.webp',x:2110,y:152,width:2435,height:4451},
+  // 行商人 ガーラ（初めての敗北のイベント。peddler.js。2026-10-10 利用者指定 X2505・Y685）。
+  MC025:{src:'assets/art/sprites/MC025.webp',x:2505,y:685,width:1490,height:2584},
 };
 const TAVERN_PORTRAIT_FADE_MS=480;
 const TAVERN_FACE_FADE_MS=1000;   // 表情の差分のフェードイン（0.48秒では早すぎた。2026-09-25 利用者指摘）

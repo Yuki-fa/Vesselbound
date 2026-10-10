@@ -2728,7 +2728,8 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     const mul = Math.max(1, coreEffectNumbers(unit, '開戦', /Xは味方の緑(?:の味方|の?キャラクター)の数の(\d+)倍に等しい/, [1])[0]);
     coreGainResource(state, unit.side, 'mana', count * mul, unit, emit, 'jackalope');
   }
-  if (coreHasEffect(unit, '緑域の隠者"ヴィーザル"')) allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, 4, 4, 'green_hermit'));
+  // 緑域の隠者"ヴィーザル"は下の共通処理（全ての味方は+X/+Yを得る）で本文の値を使う。
+  // 以前は名前で+4/+4を固定していたため、本文を+12/+12へ変えても効かなかった（2026-10-10）。
   if (coreHasEffect(unit, '金床の賢者"シンドリ"')) allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
     x.keywords = coreUnitKeywords(x).concat(['貫通']);
     emit({ type: 'keyword_effect', effect: 'keyword_gain', side: x.side, unitId: x.id, keyword: '貫通', sourceId: unit.id });
@@ -2794,7 +2795,7 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
       .forEach(x => addStats(x, Number(openingColor[2]), Number(openingColor[3]), 'opening_color_buff'));
   }
   const teamBuff = coreTriggerMatch(openingTexts, /全ての味方(?:は|に)\+([0-9]+)\/\+([0-9]+)を得る/);
-  if (teamBuff && !coreHasEffect(unit, '緑域の隠者"ヴィーザル"')) {
+  if (teamBuff) {
     const atk = Number(teamBuff[1]) || 0, hp = Number(teamBuff[2]) || 0;
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, atk, hp, 'opening_team_buff'));
   }
@@ -3443,7 +3444,10 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   for (let i = 0; i < coreEffectCount(unit, 'ブラウニー'); i++) allies.filter(x => x.hp > 0).forEach(x => addStats(x, 0, brownieHp, 'brownie'));
   // エルフ：結界の数は本文から読む（合体後は結界2）。
   const elfShield = Math.max(1, coreEffectNumbers(unit, '負傷', /結界(\d+)を得る/, [1])[0]);
-  for (let i = 0; i < coreEffectCount(unit, 'エルフ'); i++) {
+  // 本文に負傷の結界獲得がある時だけ（2026-10-10 にエルフは「先制 結界1」のキーワードだけになった。
+  // 名前だけで数えると、負傷のたびに結界を得続けていた）。
+  const elfHasInjuryShield = /結界\d*を得る/.test(coreUnitTriggerText(unit, '負傷') || '');
+  for (let i = 0; elfHasInjuryShield && i < coreEffectCount(unit, 'エルフ'); i++) {
     unit.shield = (Number(unit.shield) || 0) + elfShield;
     emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: elfShield });
   }
@@ -3481,8 +3485,9 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     // 表示側だけがケットシーの右隣へ並べていた＝画面と実際の並びが食い違っていた（2026-10-02 利用者指摘）。
     coreSummonUnit(state, unit.side, { name: '黄ナイトキャット', color: '黄' }, emit, unit.id);
   }
-  for (let i = 0; i < coreEffectCount(unit, '波の娘"ラン・ドーター"'); i++) {
-    coreSummonUnit(state, unit.side, { name: '黒ケルピー', atk: 1, hp: 3 }, emit, unit.id);
+  // 波の娘"ラン・ドーター"：体数は本文から読む（2026-10-10 に2体→1体へ変更。名前で数を書かない）。
+  const kelpieCount = Math.max(1, coreEffectNumbers(unit, '負傷', /「黒ケルピー」を(\d+)体召喚する/, [1])[0]);
+  for (let i = 0; i < coreEffectCount(unit, '波の娘"ラン・ドーター"') * kelpieCount; i++) {
     coreSummonUnit(state, unit.side, { name: '黒ケルピー', atk: 1, hp: 3 }, emit, unit.id);
   }
   for (let i = 0; i < coreEffectCount(unit, '鉄の拳"フォルニョート"'); i++) addStats(unit, 3, 1, 'fornjot');
@@ -3494,9 +3499,19 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   // ミノタウロス：負傷：**効果ダメージを受けた場合**、ランダムな敵に攻撃する。
   // 戦闘ダメージ（攻撃・反撃）では発動しない。毒やカード効果のダメージでは発動する。
   const injuredByEffectDamage = (causeKind || 'other') !== 'combat';
-  // ミノタウロス：攻撃回数は本文から読む（合体後は2回）。
-  const minoTimes = Math.max(1, coreEffectNumbers(unit, '負傷', /ランダムな敵に(\d+)回攻撃する/, [1])[0]);
+  // ミノタウロス：攻撃回数は本文から読む（旧：「N回攻撃する」／2026-10-10〜：「これをもう一度繰り返す」で2回）。
+  // 「結界Nを得てから」がある時は、攻撃の前に毎回その結界を得る（繰り返す時も1回ごとに得る）。
+  const minoText = coreUnitTriggerText(unit, '負傷') || '';
+  const minoTimes = /これをもう一度繰り返す/.test(minoText) ? 2
+    : Math.max(1, coreEffectNumbers(unit, '負傷', /ランダムな敵に(\d+)回攻撃する/, [1])[0]);
+  const minoShieldMatch = minoText.match(/結界(\d*)を得てからランダムな敵に攻撃する/);
+  const minoShield = minoShieldMatch ? Math.max(1, Number(minoShieldMatch[1]) || 1) : 0;
   for (let i = 0; injuredByEffectDamage && i < coreEffectCount(unit, 'ミノタウロス') * minoTimes; i++) {
+    if (unit.hp <= 0) break;
+    if (minoShield > 0) {
+      unit.shield = (Number(unit.shield) || 0) + minoShield;
+      emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: minoShield });
+    }
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       unit._currentAttackTarget = target;
@@ -3608,6 +3623,18 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     // 確率に当たった時だけ光らせる（外れた時は何も出さない）。
     coreEmitEffectFlash(emit, unit, 'injury');
     coreGainResource(state, unit.side, 'mana', Number(injuryChanceMana[2]), unit, emit, 'injury_chance_mana');
+  }
+  // 負傷：ランダムな敵（N体）はATK-Mを得る（強化「邪眼」。N体は別々の体）。
+  const injuryRandomEnemyAtkDown = coreTriggerMatch(injuryTexts, /^ランダムな敵(?:(\d+)体)?はATK-([0-9]+)を得る/);
+  if (injuryRandomEnemyAtkDown) {
+    corePickDistinct(rng, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), Math.max(1, Number(injuryRandomEnemyAtkDown[1]) || 1))
+      .forEach(x => addStats(x, -Number(injuryRandomEnemyAtkDown[2]), 0, 'injury_random_enemy_atk_down'));
+  }
+  // 負傷：このキャラクターにダメージを与えた敵にNダメージを与える（凍てつく亡霊"リムスルス"、2026-10-10）。
+  // ダメージ元が敵で、まだ生きている時だけ。
+  const injuryRetaliate = coreTriggerMatch(injuryTexts, /^このキャラクターにダメージを与えた敵に(\d+)ダメージを与える/);
+  if (injuryRetaliate && source && source.side !== unit.side && source.hp > 0 && !coreIsSealed(source)) {
+    applyHit(unit, source, Math.max(1, Number(injuryRetaliate[1]) || 1), false, false, false, coreMatchHitOpt(unit, injuryRetaliate));
   }
   const injuryEnemyAtkDown = coreTriggerMatch(injuryTexts, /全ての敵はATK-([0-9]+)を得る/);
   if (injuryEnemyAtkDown && !coreHasEffect(unit, 'インキュバス')) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, -Number(injuryEnemyAtkDown[1]), 0, 'injury_enemy_atk_down'));
@@ -4141,6 +4168,26 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       corePickDistinct(rng, stealPool(), Math.max(1, Number(deathSteal[1]) || 1)).forEach(stolen => {
         coreStealUnit(state, stolen, unit.side, emit, unit.id);
       });
+    }
+  }
+  // 死亡：ランダムな味方（N体）は結界Mを得る（強化「結界」、2026-10-10。N体は別々の体）。
+  const deathAllyShield = coreTriggerMatch(deathTexts, /^ランダムな味方(?:(\d+)体)?は結界(\d*)を得る/);
+  if (deathAllyShield) {
+    const amount = Math.max(1, Number(deathAllyShield[2]) || 1);
+    for (let i = 0; i < repeats; i++) {
+      corePickDistinct(rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), Math.max(1, Number(deathAllyShield[1]) || 1))
+        .forEach(x => {
+          x.shield = (Number(x.shield) || 0) + amount;
+          emit({ type: 'keyword_effect', effect: 'shield', side: x.side, unitId: x.id, amount, sourceId: unit.id });
+        });
+    }
+  }
+  // 死亡：全てのキャラクターはATK+Nを得る（強化「狂気」、2026-10-10。敵味方の全員）。
+  const deathAllAtk = coreTriggerMatch(deathTexts, /^全てのキャラクターはATK\+(\d+)を得る/);
+  if (deathAllAtk) {
+    for (let i = 0; i < repeats; i++) {
+      [...allies, ...foes].filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x))
+        .forEach(x => addStats(x, Number(deathAllAtk[1]) || 0, 0, 'death_all_atk'));
     }
   }
   const deathMana = coreTriggerMatch(deathTexts, /^(\d+)マナを得る/);

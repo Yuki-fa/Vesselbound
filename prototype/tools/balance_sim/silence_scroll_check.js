@@ -91,7 +91,10 @@ if (!ONLY) {
   const after = events.slice(firstDone).filter(e => e.reason === 'golem').length;
   if (before !== 0 || after === 0) failures.push(`ゴーレムの負傷効果：最初の攻撃まで${before}回（0のはず）・その後${after}回（1回以上のはず）`);
 
-  const elf = cards.find(c => c.name === 'エルフ');
+  // エルフは2026-10-10に効果文が無くなり（先制・結界1のキーワードだけ）、characterCards() には出ない。
+  const elfRow = sheet.sheetRows('card').find(row => String(row['名前'] || '').trim() === 'エルフ');
+  const elf = cards.find(c => c.name === 'エルフ') || {name: 'エルフ', color: String(elfRow['カラー'] || '').trim(),
+    desc: String(elfRow['効果'] || ''), keywords: String(elfRow['キーワード'] || '').split(/[\s　]+/).filter(Boolean)};
   const elfState = runEvents({name: elf.name, color: elf.color, desc: elf.desc, keywords: elf.keywords.slice()}, 'live', true).state;
   const elfUnit = elfState.units.p2.find(u => u.id === 'T');
   if (elfUnit && elfUnit.hp > 0 && core.coreUnitShieldValue(elfUnit) <= 0) failures.push('エルフ：最初の攻撃の後も結界のキーワードが戻っていない');

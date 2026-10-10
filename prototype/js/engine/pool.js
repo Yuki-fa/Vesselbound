@@ -552,7 +552,9 @@ function cardRefund(card){
 function drawItems(n, maxGrade, opts){
   const currentGrade=_currentRewardMapGrade(maxGrade);
   const forShop=!!(opts&&opts.forShop);
-  const excluded=forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
+  // 行商人はアイテムシートの「行商人」列が true のものだけ（peddler.js）。
+  const forPeddler=!!(opts&&opts.forPeddler);
+  const excluded=forPeddler?(p=>p._peddlerAvailable!==true):forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
   // _noItemEffectImpl：シートにだけある行から作ったアイテム。効果のコードが無いので
   // 入手・購入の抽選には入れない（コレクションには出る）。
   const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&!excluded(p));

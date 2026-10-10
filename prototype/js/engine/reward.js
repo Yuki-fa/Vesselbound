@@ -644,6 +644,9 @@ function goToReward(options){
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
   const _noNewRewards=!!(options&&options.noNewRewards);
+  // 行商人（初めての敗北のイベントの後。peddler.js）：敗北後の編成画面を、魔導店と同じ売買の画面として開く。
+  // 施設として入るのではないので、敗北後の reward チェックポイントはそのまま作る（品揃えと店の旗も保存される）。
+  const _peddler=!!(options&&options.peddler);
   // 前回のめくりが途中で残っていれば片付ける（報酬欄が隠れたままにならないように）。
   _finishRewardReveal(true);
   G._savePresentation=false;
@@ -677,6 +680,18 @@ function goToReward(options){
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
+    if(_peddler){
+      // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。代金は各商品の _buyPrice。
+      _rewCards=clone(G._peddlerStock||[]);
+      _rewFreePickDone=false;
+      G._freeRewardPanelMode=false;
+      G._isShop=true;
+      G._isPeddler=true;
+      G._isItemShop=false;
+      G._mapReturnAfterReward=false;
+      G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
+      G._facilityLabel=typeof defeatPeddlerTitle==='function'?defeatPeddlerTitle():'';
+    }
     _storeRewardStartSnapshot();
   }
   G.phase='reward';
@@ -985,7 +1000,8 @@ function renderMoveSlotsInEnemy(){
   if(G._isShop||G._isForge||G._isTavern||G._isRingExchange||G._isLibrary||G._isFiveSaints){
     // Wave進行中のショップ/鍛冶屋/指輪交換は、村/祭壇の施設なのでボタンを押しても次stageへは進めず、
     // 項目選択（村/祭壇メニュー）へ戻るだけにする。
-    const _waveFacilityReturn=G._isLibrary||(G._isShop||G._isForge||G._isRingExchange);
+    // 行商人（敗北後の編成画面を兼ねる）は店を出るのではなく、そのまま再戦へ進む。
+    const _waveFacilityReturn=G._isLibrary||((G._isShop&&!G._isPeddler)||G._isForge||G._isRingExchange);
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
@@ -1631,6 +1647,12 @@ function renderRewCards(){
       // 購入済みの枠は詰めずに残し、中心に「売切」と表示する。
       if(!card){ el.appendChild(_mkShopSoldOutDiv()); continue; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
+      // 行商人のアイテムは道具屋と同じ正方形の枠で、行の下側に揃える（2026-10-10 利用者指定）。
+      if(_isItemCard(card)){
+        d.classList.add('item-shop-card','item-offer-card','item-visual','item-shop-card-down','item-visual-filled');
+        if(card._shopSalePending){ d.draggable=true; d.classList.remove('reward-drag-locked'); }
+        d.style.setProperty('--item-art',`url("${_rewardItemArtPath(card)}")`);
+      }
       if(pendingRewardIdx===i) d.classList.add('pending-placement');
       el.appendChild(d);
     }

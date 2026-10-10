@@ -135,6 +135,7 @@ function shopDone(){
   G._isTavern=false;
   G._isRingExchange=false;
   G._isItemShop=false;
+  G._isPeddler=false;
   _startWaveFlowNext();
 }
 
@@ -2673,6 +2674,7 @@ function openMapItemShop(){
   // 価格バッジ・購入処理はショップ機構をそのまま使うため_isShopも立てる。
   G._isShop=true;
   G._isItemShop=true;
+  G._isPeddler=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;
@@ -2811,6 +2813,7 @@ function openMapShop(){
   G._mapReturnAfterReward=true;
   G._isShop=true;
   G._isItemShop=false;
+  G._isPeddler=false;
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;
@@ -2870,6 +2873,11 @@ function _waveFacilityCacheKey(){ return Math.max(0,Number(G._wave)||0); }
 function _syncWaveFacilityCache(){
   // 施設に入った時点のキー（G._facilityCacheKey）を優先する。理由はopenMap*()のコメント参照。
   const key=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
+  // 行商人（初めての敗北のイベント。peddler.js）の品揃えは街の店とは別に持つ。
+  if(G._isPeddler){
+    G._peddlerStock=clone(_rewCards||[]);
+    return;
+  }
   if(G._isItemShop){
     G._waveItemShopStock=G._waveItemShopStock||{};
     G._waveItemShopStock[key]=clone(_rewCards||[]);
