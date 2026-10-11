@@ -29,6 +29,8 @@ SaveRun.showAutoSaveIndicator=done;
 let continued,defeatTask,replayed,gameovers=0,draws=0,mixed=0,reveals=0;
 showVictoryOverlay=callback=>{continued=callback();};
 gameOver=()=>{gameovers++;};
+// 敗北のたびに来る行商人（peddler.js。2026-10-11〜）は tools/parity/defeat_peddler_check.js が見る。ここでは通常の敗北後の編成だけを見る。
+defeatPeddlerPending=()=>false;
 const finishDefeat=_finishWaveBattleDefeat;
 _finishWaveBattleDefeat=spec=>(defeatTask=finishDefeat(spec));
 const draw=drawRewards,mix=questMixBattleRewards;

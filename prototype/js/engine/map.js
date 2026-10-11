@@ -769,8 +769,9 @@ async function _onVillageFacility(fac){
       const arenaAfterTalk=_facilityArenaAfterTalkEntry(fac);
       // 命の鎖は、会話シートに A1〜A3 が揃った鍛冶屋だけで起動する。
       // 町名の分岐を増やさず、A1〜A3の無い鍛冶屋（ヴォルザーク等）は従来の台詞1を保つ（2026-10-07 命の鎖はギャラハへ移した）。
+      // ヴォルザークの鍛冶屋にも A1〜A3（護衛依頼の礼）が入ったので、再訪の B1 まで揃った鍛冶屋だけにする（2026-10-11）。
       const forgeChainTalk=fac.key==='forge'&&normalTalk
-        &&normalTalk['特殊台詞A1']&&normalTalk['特殊台詞A2']&&normalTalk['特殊台詞A3'];
+        &&normalTalk['特殊台詞A1']&&normalTalk['特殊台詞A2']&&normalTalk['特殊台詞A3']&&normalTalk['特殊台詞B1'];
       const forgeChainState=forgeChainTalk&&typeof questForgeChainState==='function'
         ?questForgeChainState():null;
       // 闘技場の参加（支払い済み）は同じwaveのラン状態に残る。通常の店台詞を
@@ -788,10 +789,16 @@ async function _onVillageFacility(fac){
           :(fac.key==='shop'&&_villageArenaUsed()&&talk['特殊台詞A1'])
             ?talk['特殊台詞A1']
             :talk['台詞1'];
+        // 護衛依頼を特殊拒否した後のヴォルザークの鍛冶屋は、台詞1の代わりに特殊台詞A1から続けて出す
+        // （A1〜A3。魔導板強化は2割引。quest.js questForgeFavor。2026-10-11 利用者指定）。
+        const forgeFavorLines=fac.key==='forge'&&!forgeChainState&&!arenaAfterPending&&talk['特殊台詞A1']
+          &&typeof questForgeFavor==='function'&&questForgeFavor()
+          ?[1,2,3,4,5].map(n=>talk[`特殊台詞A${n}`]).filter(Boolean):null;
+        const greetingLines=forgeFavorLines||[greetingLine].filter(Boolean);
         // 最初に出る台詞（宿屋・闘技場＝台詞1、命の鎖＝特殊台詞A1／再訪B1、それ以外＝上の入店台詞）の表情を最初から付ける。
         const firstLine=(fac.key==='inn'||fac.key==='arena')?talk['台詞1']
           :forgeChainState?(forgeChainState.revisit?talk['特殊台詞B1']:talk['特殊台詞A1'])
-            :greetingLine;
+            :greetingLines[0];
         const firstFaceA=typeof _qFirstLineFace==='function'?_qFirstLineFace([firstLine].filter(Boolean),'MC001'):'';
         await fadeScreenSwitch(()=>{
           _showFacilityGreetingScene(fac);
@@ -822,7 +829,7 @@ async function _onVillageFacility(fac){
         if(forgeChainState){
           await _runVillageForgeChainDialogue(talk,forgeChainState);
         }else{
-          await _qStartDialogue([greetingLine].filter(Boolean),{screen:'village'});
+          await _qStartDialogue(greetingLines,{screen:'village'});
         }
         if(!isCurrent()) return;
         if(_shopPortraitB(fac)) _removeShopEventPortraitA();
@@ -2954,6 +2961,12 @@ function _pickMapForgeOffers(){
 }
 // 鍛冶屋メニューの画像。並び順＝MAP_PANEL_POWERSの順。
 const MAP_FORGE_ART_BY_ID={summon:'b_board1.svg',life:'b_board2.svg',eternal:'b_board3.svg',resonance:'b_board4.svg',duplicate:'b_board5.svg'};
+// 鍛冶屋の価格。特殊拒否した依頼の礼（quest.js questForgeFavor）があれば割り引く。
+function mapForgePrice(power){
+  const base=Math.max(0,Number(power&&power.price)||0);
+  const favor=typeof questForgeFavor==='function'?questForgeFavor():null;
+  return favor&&favor.discount>0?Math.round(base*(1-favor.discount)):base;
+}
 function renderMapForgeOffers(){
   const section=document.getElementById('reward-offer-section');
   const row=document.getElementById('reward-offer-row');
@@ -2975,7 +2988,8 @@ function renderMapForgeOffers(){
     // 変化させられるマスが無い場合は購入不可（召喚の力＝上下段の通常マスが無い、
     // それ以外＝盤面に「召喚の力」が無い）。所持金不足も同様に不可。
     const noTarget=!_mapForgeCandidateSlots(power).length;
-    const poor=(G.gold||0)<power.price;
+    const price=mapForgePrice(power);
+    const poor=(G.gold||0)<price;
     const disabled=!!G._mapForgeAnimating||noTarget||poor;
     const btn=document.createElement('button');
     btn.type='button';
@@ -2997,7 +3011,7 @@ function renderMapForgeOffers(){
     btn.setAttribute('data-preview',[forgeTitle,forgeDesc].filter(Boolean).join('\n'));
     // マスの説明は、盤面のカードにホバーした時と同じく別ボックス（#map-power-tooltip）へ出す。
     btn.setAttribute('data-map-power-preview',[power.name,powerDesc].filter(Boolean).join('\n'));
-    btn.innerHTML=`<span class="shop-buy-price">${power.price}G</span>`;
+    btn.innerHTML=`<span class="shop-buy-price">${price}G</span>`;
     if(poor&&!noTarget){
       const shortage=document.createElement('div');
       shortage.className='shop-insufficient-badge';
@@ -3120,7 +3134,8 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
   if(G._mapForgeAnimating) return false;
   const power=powerOrSlotIdx&&typeof powerOrSlotIdx==='object'?powerOrSlotIdx:G._pendingMapForgePower;
   if(!power) return false;
-  if((G.gold||0)<power.price) return false;
+  const price=mapForgePrice(power);
+  if((G.gold||0)<price) return false;
   const candidates=_mapForgeCandidateSlots(power);
   if(!candidates.length) return false;
   // **順番に依存させない。**（村の中で鍛冶屋へ行く順番を変えても同じマスが選ばれる）
@@ -3129,7 +3144,7 @@ async function applyPendingMapForgePower(powerOrSlotIdx){
     ?runKeyedPick(`forge:${G._wave}:${G._waveStage}:${power.id}`,candidates)
     :randFrom(candidates);
   const offerIdx=(G._mapForgeOffers||[]).findIndex(p=>p&&p.id===power.id);
-  G.gold-=power.price;
+  G.gold-=price;
   // 購入成立と同時に商品枠を売切へする。代金反映後の再描画で一瞬だけ
   // 「ゴールド不足」が出てから売切へ変わる状態を作らない。
   if(offerIdx>=0) G._mapForgeOffers[offerIdx]=null;

@@ -5394,6 +5394,10 @@ function _rawSubstitutedDesc(card){
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   desc=_stageEngravingDescription(card,desc);
   desc=corePermanentDamageDescription(card,desc);
+  // （状態異常：毒N）は今の毒の値で出す（永続化した毒／戦闘中はその体の毒。預言者"ディナ"、2026-10-11）。
+  const shownPoison=card._persistentPoison!=null?card._persistentPoison
+    :(card._mainBoardSlot!=null&&card.poison!=null?card.poison:null);
+  if(shownPoison!=null) desc=desc.replace(/（状態異常：毒\d+）/,`（状態異常：毒${Math.max(0,Number(shownPoison)||0)}）`);
   desc=_annotateSummonNames(desc,card);
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。

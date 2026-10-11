@@ -755,6 +755,11 @@ async function loadGameData() {
           specialA2,
           specialA3,
           specialA4,
+          // A5 以降（人命救助 Q009 は A5 まで。シートには A8 まで列がある。2026-10-11）。
+          specialA5: readAt(row, colOf('特殊台詞A5')),
+          specialA6: readAt(row, colOf('特殊台詞A6')),
+          specialA7: readAt(row, colOf('特殊台詞A7')),
+          specialA8: readAt(row, colOf('特殊台詞A8')),
           specialB1: readAt(row, colOf('特殊台詞B1')),
           specialB2: readAt(row, colOf('特殊台詞B2')),
           specialB3: readAt(row, colOf('特殊台詞B3')),

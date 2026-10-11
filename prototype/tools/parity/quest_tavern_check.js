@@ -1256,8 +1256,8 @@ const WAVE=1;
   if(section('Q008ベイティル退治')){
     const b=await newPage();
     const q8=await b.run(`return {q:QUEST_DATA.Q008_1,q2:QUEST_DATA.Q008_2,portrait:QUEST_CONFIG.Q008.portraitB,shared:QUEST_CONFIG.Q007.portraitB,ids:_qRegionIds(3)}`);
-    ok('Q008：ギャラハの候補はQ007・Q008、BはQ007と同じ、台詞と特殊台詞A1〜A4をシートから読む',
-      q8.ids.join('|')==='Q007|Q008'&&q8.portrait===q8.shared&&q8.q.initial.length===6&&q8.q2.initial.length===3
+    ok('Q008：ギャラハの候補にQ007・Q008、BはQ007と同じ、台詞と特殊台詞A1〜A4をシートから読む',
+      ['Q007','Q008'].every(id=>q8.ids.includes(id))&&q8.portrait===q8.shared&&q8.q.initial.length===6&&q8.q2.initial.length===3
       &&[1,2,3,4].every(n=>q8.q2['specialA'+n]?.length===1),q8);
     async function visibleBubble(page,line){
       await waitLine(page,line);
@@ -1347,6 +1347,70 @@ const WAVE=1;
     ok('Q008デバッグ：拒否後の再訪で受託でき、強制終了は会話だけを止めて受託状態を保つ',await r.run(`return G.questProgress.Q008.status==='accepted'
       &&!document.getElementById('tavern-dialogue-layer')&&!_qTowerSession&&!G._isTavern`));
     await finish(r);
+  }
+
+  // ── Q009 人命救助（2026-10-11）：ギャラハで受け、毒のディナを赤禍の塔まで連れて行く ────
+  if(section('Q009人命救助')){
+    const b=await newPage();
+    const q9=await b.run(`return {q:QUEST_DATA.Q009_1,q2:QUEST_DATA.Q009_2,cfg:QUEST_CONFIG.Q009,portrait:QUEST_CONFIG.Q007.portraitB,
+      shown:_qFormationInitialLines({questId:'Q009'},QUEST_DATA.Q009_1),special:_qSpecialLines(QUEST_DATA.Q009_1,'A')}`);
+    ok('Q009：シートの台詞（台詞1〜5・特殊台詞A1〜）と設定（BC004・塔・台詞3で報酬）',
+      q9.q.initial.length>=5&&q9.q.specialA1?.length===1&&q9.cfg.requiredCardNo==='BC004'&&q9.cfg.completeAt==='tower'
+      &&q9.cfg.portraitB===q9.portrait&&q9.q2.rewardGold===300&&q9.q2.initial.length>=3,q9);
+    await startRunWithWaveQuest(b,3,'Q009');
+    await openWave(b,3);await clickFacility(b,'^酒場$');
+    // 護衛依頼と同じく、台詞の後は編成窓でディナを提示する（選択肢の台詞6は編成窓のボタンが担うので出さない）。
+    for(const line of q9.shown){await waitLine(b,line);await clickDialogue(b);}
+    await b.until(`document.body.classList.contains('reward-screen-active')&&(_rewCards||[]).some(c=>c&&String(c.no||'').toUpperCase()==='BC004')`,20000);
+    await sleep(600);
+    const offer=await b.run(`(()=>{const c=_rewCards.find(c=>c&&String(c.no||'').toUpperCase()==='BC004');
+      return {choiceShown:!!document.querySelector('#tavern-dialogue-layer .tavern-dialogue-choice'),desc:_rawSubstitutedDesc(c),
+        button:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent};})()`);
+    ok('Q009酒場：最後の台詞の後は選択肢を出さず編成窓でディナを提示（説明は（状態異常：毒N）と常時効果2つ、ボタンは拒否）',
+      !offer.choiceShown&&/（状態異常：毒\d+）/.test(offer.desc)&&/永続化/.test(offer.desc)&&/2倍/.test(offer.desc)&&offer.button==='拒否',offer);
+    // バフ（アイテムの永久強化）を与えてから拒否すると、拒否台詞ではなく特殊台詞A1。
+    await b.run(`const c=_rewCards.find(c=>c&&String(c.no||'').toUpperCase()==='BC004');c._itemBuffed=true;document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
+    const goldBefore=await b.run(`return G.gold`);
+    await waitLine(b,q9.q.specialA1[0]);
+    ok('Q009：ディナにバフを与えてから拒否すると特殊台詞A1（まだゴールドは得ない）',await b.run(`return G.gold===${goldBefore}`));
+    await clickDialogue(b);await waitLine(b,q9.q.specialA2[0]);
+    await b.until(`G.gold>${goldBefore}`,5000);
+    const got=await b.run(`return G.gold-${goldBefore}`);
+    ok('Q009：特殊台詞A2で25〜65Gを得る',got>=25&&got<=65&&got===await b.run(`return G.questProgress.Q009.specialRejectGold`),{got});
+    // 特殊台詞は A1 から最後まで続けて出す（2026-10-11 利用者指摘：A4 の後に A5 へ続かなかった）。
+    for(const line of q9.special.slice(2)){await clickDialogue(b);await waitLine(b,line);}
+    ok('Q009：特殊台詞を最後まで順に出す',true,{count:q9.special.length});
+    await clickDialogue(b);
+    await b.until(`!G._isTavern`,15000);
+    // 再訪：特殊拒否後台詞の表情を最初から付ける（2026-10-11 利用者指摘）。
+    await clickFacility(b,'^酒場$');
+    const after=q9.q.specialRejectedAfter[0];
+    // 立ち絵が出た最初の時点（台詞が出る前）で、もう表情が付いているか。
+    await b.until(`!!document.querySelector('#tavern-presentation-layer .tavern-portrait[data-portrait-key="MC001"]')`,15000);
+    const face=await b.run(`return [...document.querySelectorAll('#tavern-presentation-layer .tavern-face')].map(el=>el.dataset.faceId)`);
+    await waitLine(b,after);
+    ok('Q009再訪：特殊拒否後台詞の表情が立ち絵と同時に付いている',!after.face||face.includes(after.face),{face,want:after.face});
+    await finish(b);
+    // 塔：受託済みでディナを召喚マスに置いた状態から、赤禍の塔の到着会話。台詞3で300G。
+    const c=await newPage();
+    await startRunWithWaveQuest(c,3,'Q009');
+    await c.until('!G._villageIntroPlaying',30000);
+    await c.run(`G._wave=3;G.questProgress={Q009:{questId:'Q009',wave:3,tavernVariant:'Q009_1',towerVariant:'Q009_2',status:'accepted',rewardCardTaken:true,partedPending:false,towerEventStarted:false,towerRewardGiven:false,description:QUEST_DATA.Q009_1.description}};
+      const panel=PANEL_POOL.find(p=>String(p.no||'').toUpperCase()==='BC004');const card=makePanel(panel.id);card._npcCard=true;card.boss=true;card.directions=[];card._persistentPoison=16;
+      const u=_getPartyBoardUnit();for(let i=0;i<u.boardCards.length;i++) u.boardCards[i]=null;u.boardCards[1]=card;return 1;`);
+    const gold0=await c.run(`return G.gold`);
+    await c.run(`G._waveStage=_waveRouteForWave(3).indexOf('altar')+1;G._waveVillage=true;G._isWaveAltar=true;openMapVillage({tower:true,intro:true});return 1;`);
+    await waitLine(c,q9.q2.initial[0]);
+    ok('Q009赤禍の塔：台詞1ではまだ報酬なし',await c.run(`return G.gold===${gold0}`));
+    await clickDialogue(c);await waitLine(c,q9.q2.initial[1]);
+    ok('Q009赤禍の塔：台詞2でもまだ報酬なし',await c.run(`return G.gold===${gold0}`));
+    await clickDialogue(c);await waitLine(c,q9.q2.initial[2]);
+    await c.until(`G.gold===${gold0}+300`,5000);
+    ok('Q009赤禍の塔：台詞3で300G',true);
+    for(const line of q9.q2.initial.slice(2)){await clickDialogue(c);await sleep(400);}
+    await c.until(`G.questProgress.Q009.status==='completed'`,15000);
+    ok('Q009：最後まで送るとクエスト完了',true);
+    await finish(c);
   }
 
   // ── Q001 力の代償：暗転なしの受領、エルムの売却制限、ヴァルガ到着 ────
@@ -1674,8 +1738,9 @@ const WAVE=1;
     // ファラの場所を空けるために動かしたキャラを召喚マス（1）へ戻す。召喚できるキャラがいないと、編成を離れる時の警告で止まる（2026-10-04 仕様）。
     await b.run(`const bd=G.mainBoard;if(!bd[1]){const k=bd.findIndex((c,i)=>i!==1&&c&&c.type==='panel'&&c.power!=null);if(k>=0){bd[1]=bd[k];bd[k]=null;}}renderHandEditor();return 1;`);
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
-    const lines=[...q1.q.specialA1,...q1.q.specialA2,...q1.q.specialA3];
-    ok('特殊拒否台詞A1・A2・A3がシートにある',lines.length===3,{lines});
+    // 特殊台詞は A1 から最後の列まで（2026-10-11 シートで A4 まで。ヴォルザークの鍛冶屋の話が入った）。
+    const lines=[1,2,3,4,5,6,7,8].flatMap(n=>q1.q[`specialA${n}`]||[]);
+    ok('特殊拒否台詞A1〜がシートにある',lines.length>=3,{lines});
     // 表情は新しい方を上に重ねてフェードインする（前の表情は少し後で外す）。見えている一番上の表情を見る。
     const faceNow=()=>b.run(`const fs=[...document.querySelectorAll('.tavern-presentation-host .tavern-face.is-visible')];return fs.length?fs[fs.length-1].dataset.faceId:''`);
     await waitLine(b,lines[0]); await sleep(700);
@@ -1687,9 +1752,9 @@ const WAVE=1;
     await b.run(`window.__faceMin=1;window.__faceFrames=0;const tick=()=>{const fs=[...document.querySelectorAll('.tavern-presentation-host .tavern-face')];
       if(fs.length){__faceFrames++;__faceMin=Math.min(__faceMin,Math.max(...fs.map(f=>f.complete&&f.naturalWidth>0?Number(getComputedStyle(f).opacity):0)));}
       if(G._isTavern) requestAnimationFrame(tick);};requestAnimationFrame(tick);return 1;`);
-    await clickDialogue(b); await waitLine(b,lines[2]);
+    for(const line of lines.slice(2)){await clickDialogue(b); await waitLine(b,line);}
     const lastSpecialFace=[...lines].reverse().find(line=>line.face)?.face||'';
-    ok('特殊拒否台詞はA2の後にA3も続け、A3の無指定では直前のシート表情を保つ',await faceNow()===lastSpecialFace);
+    ok('特殊拒否台詞はA2の後も最後まで続け、無指定では直前のシート表情を保つ',await faceNow()===lastSpecialFace,{now:await faceNow(),lastSpecialFace});
     await clickDialogue(b);
     await sleep(100);
     await sleep(500);
@@ -1697,7 +1762,7 @@ const WAVE=1;
       return {dx:parseFloat(f.style.left)-parseFloat(m.style.left),dy:parseFloat(f.style.top)-parseFloat(m.style.top),w:f.getBoundingClientRect().width/m.getBoundingClientRect().width*1990,min:__faceMin,frames:__faceFrames}`);
     ok('表情の差分は MC001 の左上から X811・Y335（351×351）、切り替え中に元の顔が透けない',fp.dx===811&&fp.dy===335&&Math.abs(fp.w-351)<1&&fp.min>0.99,fp);
     await b.until(`document.querySelector("#scr-village.active")&&!G._isTavern&&${notFading}`);
-    ok('特殊拒否台詞A1→A2→A3の後、酒場を出る',await status(b)==='rejectedSpecial');
+    ok('特殊拒否台詞A1〜最後の後、酒場を出る',await status(b)==='rejectedSpecial');
     await clickFacility(b,'^酒場$');
     await waitLine(b,q1.q.specialRejectedAfter[0]);
     await sleep(600);

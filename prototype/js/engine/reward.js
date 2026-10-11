@@ -701,6 +701,8 @@ function goToReward(options){
   if(typeof _resumeRewardBgVideo==='function') _resumeRewardBgVideo();
   if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
   // 街のBGMが鳴っている間（＝街の施設に入っている間）はmenu.wavへ切り替えない。
+  // 行商人の売買の編成画面は camp の背景と行商人の立ち絵のまま、BGM を流さない（peddler.js。再開時もここで戻す）。
+  if(G._isPeddler&&typeof defeatPeddlerApplySaleScene==='function') defeatPeddlerApplySaleScene();
   // 魔獣撃退依頼の討伐後の編成画面は BGM を流さない（環境音だけ。quest.js _qShowGarmCamp の G._questNoBgm）。
   if(!G._villageBgmActive&&!G._questNoBgm&&typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
   // **報酬・編成画面にいる間に、次の戦闘曲を読み込んでおく。**（先読みの規則は main.js）
@@ -1645,7 +1647,8 @@ function renderRewCards(){
     for(let i=0;i<REWARD_GRID_CAPACITY;i++){
       const card=_rewCards[i]||null;
       // 購入済みの枠は詰めずに残し、中心に「売切」と表示する。
-      if(!card){ el.appendChild(_mkShopSoldOutDiv()); continue; }
+      // 行商人のアイテム枠（右端）は、売切も道具屋と同じ正方形の枠で下側に揃える（2026-10-11 利用者指摘：カードの売切になっていた）。
+      if(!card){ el.appendChild(G._isPeddler&&typeof defeatPeddlerIsItemSlot==='function'&&defeatPeddlerIsItemSlot(i)?_mkShopSoldOutDiv(0):_mkShopSoldOutDiv()); continue; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
       // 行商人のアイテムは道具屋と同じ正方形の枠で、行の下側に揃える（2026-10-10 利用者指定）。
       if(_isItemCard(card)){

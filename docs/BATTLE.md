@@ -52,6 +52,7 @@
 | データ駆動のマナ／ゴールド／アイテム効果 | `coreTriggerManaOnAttack` `coreTriggerManaOnInjury` `coreTriggerManaOnDeath` `coreTriggerBattleEnd` |
 | 即死・毒牙・毒・邪眼・衝撃・弱体・生命吸収 | `coreApplyKeywordOnHit` |
 | 毒のターン処理 | `coreApplyPoisonBeforeTurn` |
+| 開始時の毒・毒の永続化・攻撃する代わりに毒をN倍（預言者"ディナ"） | `coreStartingPoison`／`corePoisonPersists`／`corePoisonMultiplierInsteadOfAttack` |
 | 指輪・アイテム・マナ閾値 | `coreApplyOpeningRings` `coreApplyOpeningItems` `coreApplyRingManaEffects` `coreApplyManaThresholdEffects` |
 | 召喚・変身・復活 | `coreSummonUnit` `coreTransformUnit` `coreTryRevive` |
 | 魔導板・共振・熟練等の戦闘修正 | `coreUnitEffectText` `coreStatBonus` および開戦／各トリガ処理 |
@@ -256,7 +257,7 @@ node prototype/tools/balance_sim/offline_online_regression.js
 - 敗北（撤退）では新しい報酬を出さない（`goToReward({noNewRewards:true})`）。勝利時の報酬は従来どおり。Q004 失敗時の新規戦闘報酬も出さない（目標討伐後の成功謝礼は例外として維持）。闘技場は賞金0・再戦なしのまま。
 - 再戦は**負けた戦闘の開始時の敵**から始める（2026-10-10 利用者指定：10-07 に入れた「終了時の盤面を維持」をやめ、以前のリセットに戻した）。`startBattle` が開戦前の敵を `_waveEnemySnapshot` に控え、敗北では上書きしない。再戦時は並び（前衛・後衛・左右）を配置し直さず控えのまま使い、敵も通常どおり開戦する。
 - `_waveEnemySnapshotAtEnd`／`state.openingSides`（敵の開戦を飛ばす仕組み）は、終了時の盤面を維持していた頃（10-07〜10）の旧セーブを読むためだけに残している。検査は `tools/balance_sim/defeat_retry_regression.js`。
-- 全ゲームを通して初めて敗北した時は、行商人のイベントを挟む（docs/GAME_SYSTEMS.md「初めての敗北の行商人」）。
+- 敗北の後は行商人の売買の画面を挟む（会話は全ゲームを通して初めての敗北だけ。2回目以降は camp＋行商人だけ。docs/GAME_SYSTEMS.md「初めての敗北の行商人」「行商人は敗北のたびに来る」）。
 
 ## 眷属（K023。2026-10-07）
 - 定義（キーワードシート）：「戦闘中に他のカードの効果で新たに召喚された。復活や変身では付与、解除されず、そのまま引き継がれる。」出自が初期盤面の外なら、完全に死亡するか戦闘が終わるまで維持する。
@@ -270,3 +271,7 @@ node prototype/tools/balance_sim/offline_online_regression.js
 - E075 魔族の魂「攻撃：全ての敵に12ダメージを与える。発動するたびにこのダメージは永久に1減少する。」現在値でダメージを与えてから1減らす（下限0）。値はカード（エンチャント1枚）ごとに `_permanentEffectDamage` へ保存し、SaveRun のカード保存で復元、オンラインの編成には `_permanentEffectCards` で現在値を送る。同じ1枚を複数体へ接続した場合は値を共有。書き戻しは絶対値（保存再生で二重に減らない）。
 - 0になったらダメージ・命中VFX/SEは出さず、攻撃時の発光だけ。説明・ホバーは本文の数値を現在値に置き換えて表示する。
 - 検査：tools/balance_sim/permanent_damage_regression.js。
+
+## 毒は手番開始時にHP-X（2026-10-11）
+- キーワード「毒」（K017）：「このキャラクターは手番開始時にHP-Xする。」攻撃できない体（防戦・ATK0）も、毒があれば攻撃順で手番が回り、手番の始めにHP-Xして攻撃せずに手番を終える（`coreLaneAttackCandidates` が防戦でも毒持ちを候補に入れ、`coreBattleStepInner` が毒の後に防戦なら終える）。毒はダメージではない（結界・弱体・強靭・負傷効果は関わらない）のは従来どおり。
+- 預言者"ディナ"（BC004）：効果文の「（状態異常：毒N）」が戦闘開始時の毒（`formation.js` が設定）。「常時：このキャラクターの毒は永続化する。」は、戦闘で生き残った時の毒を魔導板のカード（`_persistentPoison`）へ書き戻し（PvE、`battle.js: _removeAbsentKiemetsuCards` と同じ1戦1回の経路）、次の戦闘はその値から始める。カード説明の（状態異常：毒N）も今の値で出す。「常時：このキャラクターは攻撃する代わりに自身の毒を2倍にする。」は、手番で毒を受けた後に毒を2倍にし、攻撃・攻撃効果は起きない（`keyword_effect` poison・reason `poison_multiply`）。

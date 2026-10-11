@@ -116,22 +116,30 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     assert.deepEqual(back.map(e => e.amount), [8]);
     assert.equal(h.p1[0].hp, 92);
   });
-  await check('タナトス：「ディナ」以外からのダメージを受けない（結界も減らさない）', () => {
-    const text = '常時：このキャラクターは「ディナ」以外からのダメージを受けない。';
-    const h = harness([plain('goblin', { name: 'ゴブリン' }), plain('dina', { name: '預言者 "ディナ"' })],
-      [plain('thanatos', { name: '冥府の神 “タナトス”', desc: text, hp: 100, maxHp: 100, shield: 1 })]);
-    const target = h.p2[0];
-    assert.equal(h.hit(h.p1[0], target, 30).amount, 0);
-    assert.equal(target.hp, 100); assert.equal(target.shield, 1, '結界は減らない');
-    assert.ok(h.events.some(e => e.type === 'damage' && e.unitId === 'thanatos' && e.blockedBy === 'immune'));
-    assert.equal(h.hit(null, target, 30).amount, 0, '与えた側の無いダメージも受けない');
-    h.hit(h.p1[1], target, 30);
-    assert.equal(target.shield, 0, 'ディナの攻撃は結界で防ぐ');
-    h.hit(h.p1[1], target, 30);
-    assert.equal(target.hp, 70, 'ディナからはダメージを受ける');
-    coreSilenceUnit(target);
-    h.hit(h.p1[0], target, 5);
-    assert.equal(target.hp, 65, '沈黙中は効果が無い');
+  await check('毒（手番開始時にHP-X）：防戦の体も毒があれば手番が回り、毒を受けて攻撃しない', () => {
+    const h = harness([plain('guard', { keywords: ['防戦'], poison: 3, hp: 10, maxHp: 10, atk: 9 }), plain('hitter', { atk: 1, hp: 500, maxHp: 500 })],
+      [plain('e0', { atk: 1, hp: 500, maxHp: 500 })]);
+    const runner = createBattleRunner(h.state, h.rng, h.emit);
+    for (let i = 0; i < 12 && !runner.result; i++) runner.step();
+    const ticks = h.events.filter(e => e.type === 'keyword_effect' && e.effect === 'poison_tick' && e.unitId === 'guard');
+    assert.ok(ticks.length >= 1, '防戦でも毒を受ける');
+    assert.ok(!h.events.some(e => e.type === 'attack' && e.attackerId === 'guard'), '防戦は攻撃しない');
+  });
+  await check('ディナ：（状態異常：毒N）で開始、手番は毒を受けてから毒を2倍にし攻撃しない', () => {
+    const dina = PANEL_POOL.find(c => /ディナ/.test(c.name));
+    const unit = plain('dina', { name: dina.name, desc: dina.desc, keywords: dina.keywords.slice(), atk: dina.power, hp: dina.life, maxHp: dina.life });
+    assert.equal(coreStartingPoison(unit), Number((dina.desc.match(/（状態異常：毒(\d+)）/) || [])[1]));
+    assert.ok(corePoisonPersists(unit));
+    assert.equal(corePoisonMultiplierInsteadOfAttack(unit), 2);
+    unit.poison = 4;
+    const h = harness([unit, plain('guard2', { atk: 1, hp: 500, maxHp: 500 })], [plain('e0', { atk: 1, hp: 500, maxHp: 500 })]);
+    const runner = createBattleRunner(h.state, h.rng, h.emit);
+    for (let i = 0; i < 12 && !runner.result; i++) runner.step();
+    const ticks = h.events.filter(e => e.type === 'keyword_effect' && e.effect === 'poison_tick' && e.unitId === 'dina').map(e => e.amount);
+    const doubles = h.events.filter(e => e.type === 'keyword_effect' && e.effect === 'poison' && e.unitId === 'dina' && e.reason === 'poison_multiply').map(e => e.amount);
+    assert.deepEqual(ticks.slice(0, 2), [4, 8], '手番の始めに毒を受け、その後で2倍');
+    assert.deepEqual(doubles.slice(0, 2), [4, 8]);
+    assert.ok(!h.events.some(e => e.type === 'attack' && e.attackerId === 'dina'), '攻撃しない');
   });
   console.log(`2026-10-10 効果文の回帰: ${checked}件OK`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

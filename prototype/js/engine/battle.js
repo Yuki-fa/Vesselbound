@@ -6003,6 +6003,14 @@ function _removeAbsentKiemetsuCards(){
     if(vanished.has(slot)) return;
     _persistPermanentStatOrWarn(board,{boardSlot:slot,atk:0,hp:delta,reason:'kiemetsu'});
   });
+  // 常時：このキャラクターの毒は永続化する（預言者"ディナ"、2026-10-11）。生き残った体の毒をカードへ書き戻す。
+  // 次の戦闘は formation.js がこの値から始める（効果文の（状態異常：毒N）より優先）。
+  liveById.forEach(live=>{
+    if(typeof corePoisonPersists!=='function'||!corePoisonPersists(live)||!(live.hp>0)) return;
+    const slot=Number(live._mainBoardSlot);
+    if(!Number.isInteger(slot)||vanished.has(slot)||!equip[slot]) return;
+    equip[slot]._persistentPoison=Math.max(0,Number(live.poison)||0);
+  });
   // 帰滅カードの死亡・逃走による盤面消失を、酒場クエストの失敗判定へ一本化して通知する。
   if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence();
 }

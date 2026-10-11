@@ -129,6 +129,12 @@ function buildBoardFormation(board, opts) {
       unit._stageNumber = stageNumber;
       if (enh && typeof _applyAdjacentPanelEnhancements === 'function') _applyAdjacentPanelEnhancements(unit, enh);
       unit._mainBoardSlot = idx;
+      // 戦闘開始時の毒：カードへ永続化した毒があればそれ、無ければ効果文の（状態異常：毒N）（預言者"ディナ"、2026-10-11）。
+      if (typeof coreStartingPoison === 'function') {
+        const stored = panel._persistentPoison;
+        const startPoison = stored != null && Number.isFinite(Number(stored)) ? Math.max(0, Number(stored)) : coreStartingPoison(unit);
+        if (startPoison > 0) unit.poison = startPoison;
+      }
       unit.lane = toRear ? 'rear' : 'front';
       unit._battleSlot = desiredSlot;
       const occupied = toRear ? occupiedRear : occupiedFront;

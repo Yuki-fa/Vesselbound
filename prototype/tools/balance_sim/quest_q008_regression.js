@@ -61,7 +61,7 @@ function coreResult(enemies,defense=false){
     assert.deepEqual(QUEST_DATA.Q008_1.enemyReplacementCounts,{min:1,max:3,total:8});
     assert.deepEqual(QUEST_DATA.Q008_2.rewardGoldByDefeat,{power:2,multiplier:10});
     assert.equal(QUEST_CONFIG.Q008.portraitB,QUEST_CONFIG.Q007.portraitB);
-    assert.deepEqual(_qRegionIds(3),['Q007','Q008']);
+    assert.ok(['Q007','Q008'].every(id=>_qRegionIds(3).includes(id)));
     const def=ENEMY_POOL.find(def=>_enemyDefCode(def)==='EN059');
     assert.equal(def.name,'ベイティル');assert.equal(def.spawnEnabled,false);
     assert.equal(coreFleesInsteadOfAttack({...def,desc:def.desc}),true);

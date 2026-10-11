@@ -39,7 +39,9 @@ const QUEST_CONFIG={
   Q002:{requiredCardNo:'',portraitB:'MC002',initialChoice:true,completeAt:'town',completeWave:2,
     rewardMix:{cardNo:'E101',count:3,arrivalWave:2},
     townArrival:{portraitB:'MC005',fallbackGoldByCount:{1:50,2:120,3:250}}},
-  Q003:{requiredCardNo:'BC002',portraitB:'MC002',completeAt:'tower'},
+  // specialRejectForge：特殊拒否（特殊台詞A1）にした後、その街の鍛冶屋は入店台詞を台詞1の代わりに特殊台詞A1にし、
+  // 魔導板強化を discount 割引にする（2026-10-11 利用者指定：ヴォルザークの鍛冶屋で2割引）。
+  Q003:{requiredCardNo:'BC002',portraitB:'MC002',completeAt:'tower',specialRejectForge:{town:'ヴォルザーク',discount:0.2}},
   // Q005 は祭壇の指輪提示レイアウトを使い、R042 を1つだけ依頼品として渡す。
   // towerArrival.rewardLine は1始まりで、報酬と指輪回収を行う台詞番号。
   Q005:{requiredRingNo:'R042',portraitB:'MC003',completeAt:'tower',offerTitleKey:'「酒場の報酬枠」見出し2',
@@ -69,6 +71,11 @@ QUEST_CONFIG.Q001={requiredCardNo:'E075',portraitB:QUEST_CONFIG.Q002.portraitB,c
   offerTitleKey:'「酒場の報酬枠」見出し3',acceptButtonKey:'「受領」ボタン',
   retainedCard:true,lockedTownWave:1,debugWave:1,offlineOnly:true,
   enemyReplacement:{enemyNo:'EN026',arrivalWave:2},townArrival:{dialogueOnly:true,withoutB:true}};
+// 人命救助（2026-10-11）：護衛依頼（Q003）と同じく必須カード（預言者"ディナ"）を召喚マスへ置いて塔まで連れて行く。
+// 「_2」の台詞3で報酬（概要の「300G獲得」）。ディナの立ち絵は木箱輸送と共通。
+// specialRejectGold：特殊拒否（バフを与えてから拒否）の特殊台詞A{line}で、min〜max G をランダムに得る（2026-10-11 利用者指定：25〜65G、端数あり）。
+QUEST_CONFIG.Q009={requiredCardNo:'BC004',portraitB:QUEST_CONFIG.Q007.portraitB,completeAt:'tower',towerArrival:{rewardLine:3},
+  specialRejectGold:{line:2,min:25,max:65}};
 // 依頼カードのない討伐依頼。ディナの立ち絵は木箱輸送と共通にする。
 QUEST_CONFIG.Q008={requiredCardNo:'',portraitB:QUEST_CONFIG.Q007.portraitB,initialChoice:true,completeAt:'tower',
   enemyReplacement:{enemyNo:'EN059',frontSkip:2},
@@ -1099,11 +1106,24 @@ function _qIsCargoEntry(entry){
 
 function _qSpecialLines(data,group){
   const prefix=String(group||'').toUpperCase()==='B'?'specialB':'specialA';
-  return [1,2,3,4].reduce((lines,n)=>lines.concat((data&&data[`${prefix}${n}`])||[]),[]);
+  // A1〜A8（人命救助 Q009 は A5 まで。2026-10-11 利用者指摘：A4 の後に A5 が続かない）。
+  return [1,2,3,4,5,6,7,8].reduce((lines,n)=>lines.concat((data&&data[`${prefix}${n}`])||[]),[]);
 }
 
 function _qHasDirectChoice(entry){
   return !!_qConfig(entry).initialChoice;
+}
+// 台詞が全行「・」で始まる＝選択肢の台詞（「・依頼を受ける／・断る」）。
+function _qIsChoiceText(line){
+  const rows=String(line&&line.text||'').split('\n').map(row=>row.trim()).filter(Boolean);
+  return rows.length>0&&rows.every(row=>row.startsWith('・'));
+}
+// 依頼カードを編成窓で受ける形（護衛依頼・人命救助）では、受ける／断るは編成窓のボタンが担う。
+// シートの最後の台詞が選択肢なら会話では出さない（人命救助 Q009_1 の台詞6。2026-10-11）。
+function _qFormationInitialLines(entry,data){
+  const lines=Array.isArray(data&&data.initial)?data.initial:[];
+  if(_qHasDirectChoice(entry)||!lines.length||!_qIsChoiceText(lines[lines.length-1])) return lines;
+  return lines.slice(0,-1);
 }
 
 function _qCardNo(card){
@@ -1304,6 +1324,17 @@ function questForgeChainState(){
   if(!cards.length) return null;
   const entries=_qFatalEntriesForCards(cards);
   return {revisit:cards.some(card=>card._forgeChainSeen)||entries.some(entry=>entry.forgeChainSeen)};
+}
+// 特殊拒否した依頼の礼（QUEST_CONFIG の specialRejectForge）が今の街の鍛冶屋に効くか。効くなら {discount}。
+function questForgeFavor(){
+  if(typeof G==='undefined'||!G) return null;
+  const town=String((typeof regionInfoForWave==='function'&&regionInfoForWave(G._wave)||{}).townName||'');
+  if(!town) return null;
+  for(const entry of _qAllEntries()){
+    const rule=entry&&entry.status==='rejectedSpecial'&&_qConfig(entry).specialRejectForge;
+    if(rule&&rule.town&&town.includes(String(rule.town))) return {discount:Math.max(0,Math.min(1,Number(rule.discount)||0))};
+  }
+  return null;
 }
 function questMarkForgeChainSeen(){
   const cards=_qOwnedLinkedQuestCards();
@@ -3626,7 +3657,19 @@ function _qRejectTavernQuest(){
   syncQuestFormationUi();
   if(special){
     // A1〜A3の表情は各台詞の「表情」列だけで切り替える。
-    _qStartDialogue(specialLines,{screen:'village',onDone:_qLeaveTavernAfterLines});
+    const goldRule=_qConfig(entry).specialRejectGold;
+    const goldIndex=goldRule?[1,2,3,4,5,6,7,8].slice(0,Math.max(0,(Number(goldRule.line)||1)-1))
+      .reduce((n,k)=>n+((data[`specialA${k}`]||[]).length),0):-1;
+    _qStartDialogue(specialLines,{screen:'village',onLine:index=>{
+      if(index!==goldIndex||entry.specialRejectGoldGiven) return;
+      entry.specialRejectGoldGiven=true;
+      const min=Math.floor(Number(goldRule.min)||0),max=Math.max(min,Math.floor(Number(goldRule.max)||0));
+      const roll=typeof runRandom==='function'?runRandom():Math.random();
+      entry.specialRejectGold=min+Math.min(max-min,Math.floor(roll*(max-min+1)));
+      if(entry.specialRejectGold>0&&typeof gainEventGold==='function') gainEventGold(entry.specialRejectGold);
+      if(typeof updateHUD==='function') updateHUD();
+      if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+    },onDone:_qLeaveTavernAfterLines});
     return;
   }
   // 表情列が空の旧場面だけ、従来の直書き表情を残す。列に指定がある場面は
@@ -3705,7 +3748,8 @@ async function openTavern(){
   }
   // 特殊拒否の後に入ると、特殊拒否後台詞を出して酒場を出る。相手はもう出発しているので A だけ出す。
   if(entry.status==='rejectedSpecial'){
-    await _qShowPortraitPair('village',entry,{withoutB:true});
+    // 表情は特殊拒否後台詞の表情列を最初から付ける（2026-10-11 利用者指摘：最初は通常の顔だった）。
+    await _qShowPortraitPair('village',entry,{withoutB:true,firstLines:data.specialRejectedAfter||[]});
     if(!isCurrent()) return;
     _qStartDialogue(data.specialRejectedAfter,{screen:'village',onDone:_qLeaveTavernAfterLines});
     return;
@@ -3730,7 +3774,7 @@ async function openTavern(){
   }
   if(entry.status==='accepted'||entry.status==='rejected'){
     await _qShowTavernResponsePortraits(entry,entry.status==='accepted'?data.acceptedAfter:data.rejectedAfter);
-  }else await _qShowPortraitPair('village',entry,{firstLines:data.initial||[]});
+  }else await _qShowPortraitPair('village',entry,{firstLines:_qFormationInitialLines(entry,data)});
   if(!isCurrent()) return;
   if(entry.status==='accepted'){
     _qStartDialogue(data.acceptedAfter,{screen:'village',..._qTavernDialogueOptions(entry,false),onDone:_qLeaveTavernAfterLines});
@@ -3739,7 +3783,7 @@ async function openTavern(){
   }else if(_qHasDirectChoice(entry)){
     await _qRunDirectTavernChoice(entry,data);
   }else{
-    _qStartDialogue(data.initial,{screen:'village',..._qTavernDialogueOptions(entry,true),onDone:()=>_qEventFormationSwitch(_qOpenTavernFormation)});
+    _qStartDialogue(_qFormationInitialLines(entry,data),{screen:'village',..._qTavernDialogueOptions(entry,true),onDone:()=>_qEventFormationSwitch(_qOpenTavernFormation)});
   }
 }
 
@@ -4111,6 +4155,7 @@ if(typeof window!=='undefined'){
   window.questReturnRingOffer=questReturnRingOffer;
   window.questRingActionsLocked=questRingActionsLocked;
   window.checkQ009CompanionPresence=checkQ009CompanionPresence;
+  window.questForgeFavor=questForgeFavor;
   window.onTavernQuestRewardCardTaken=onTavernQuestRewardCardTaken;
   window.questMixBattleRewards=questMixBattleRewards;
   window.questRewardSlotAcceptsCard=questRewardSlotAcceptsCard;

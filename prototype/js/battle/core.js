@@ -499,27 +499,12 @@ function coreToughValue(unit) { return 0; }
  * @returns {{blocked:boolean, reason:''|'dead'|'sealed'|'shield', amount:number, consumesShield:boolean}}
  *   consumesShield が true の時、呼び出し側が結界を1つ減らすこと。
  */
-// 常時：このキャラクターは「X」以外からのダメージを受けない（冥府の神"タナトス"、2026-10-10）。
-// X は与えた側のカード名に含まれる名前（「ディナ」＝預言者"ディナ"）。与えた側の無いダメージ（毒など）も受けない。
-function coreDamageOnlyFromName(unit) {
-  if (!unit || coreUnitIsSilenced(unit)) return '';
-  const m = String(coreUnitEffectText(unit) || '').match(/このキャラクターは「([^」]+)」以外からのダメージを受けない/);
-  return m ? m[1] : '';
-}
-function coreDamageImmuneFrom(unit, source) {
-  const name = coreDamageOnlyFromName(unit);
-  if (!name) return false;
-  return !(source && String(source.name || '').includes(name));
-}
-
 function coreResolveIncomingDamage(unit, dmg, opts) {
   const skipTough = !!(opts && opts.skipTough);
   // skipWeaken：弱体を加算しない経路（既存の dealDmgToEnemy がこの挙動）。
   const skipWeaken = !!(opts && opts.skipWeaken);
   if (!unit || unit.hp <= 0 || !(dmg > 0)) return { blocked: false, reason: 'dead', amount: 0, consumesShield: false };
   if (coreIsSealed(unit)) return { blocked: true, reason: 'sealed', amount: 0, consumesShield: false };
-  // 特定の相手以外からのダメージを受けない（結界は減らさない）。
-  if (opts && 'source' in opts && coreDamageImmuneFrom(unit, opts.source)) return { blocked: true, reason: 'immune', amount: 0, consumesShield: false };
   // 結界：ダメージを1回無効化して1つ減る。
   if (unit.shield > 0) return { blocked: true, reason: 'shield', amount: 0, consumesShield: true };
   let v = dmg;
@@ -1105,7 +1090,8 @@ function coreLaneAttackCandidates(units, lane, isEnemySide) {
     if (coreIsSealed(u)) continue;
     if (isEnemySide && u._isObject) continue;
     if (!isEnemySide && (u._isSoul || u._isObject)) continue;
-    if (coreUnitHasKeyword(u, '防戦')) continue;
+    // 毒（K017「手番開始時にHP-X」）：攻撃できない体（防戦）も、毒があれば攻撃順で手番が回る（2026-10-11）。
+    if (coreUnitHasKeyword(u, '防戦') && !((Number(u.poison) || 0) > 0)) continue;
     if ((u.lane || 'front') !== lane) continue;
     const atkVal = isEnemySide
       ? ((Number(u.nullified) || 0) > 0 ? 0 : (Number(u.atk) || 0))
@@ -1553,7 +1539,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   // マータの分割は「対象が実際にダメージを受ける」場合だけ行う。
   // 先に分割すると、結界で本体側の1ダメージが0になっても、余剰分だけが
   // マータへ飛んでしまう（本体は無傷なのに肩代わりだけ発生する）。
-  const incoming = coreResolveIncomingDamage(target, amount, {skipTough: !!opt.skipTough, source: source || null});
+  const incoming = coreResolveIncomingDamage(target, amount, {skipTough: !!opt.skipTough});
   if (!opt.skipSourceEffects && amount >= 2 && incoming.amount > 0 && !incoming.blocked
     && !coreHasEffect(target, 'マータ')) {
     const mata = (units[target.side] || []).find(x => x && x !== target && x.hp > 0
@@ -1587,7 +1573,7 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
   }
   const before = target.hp;
   const result = coreApplyDamage(target, amount, emit, {
-    sourceId: source && source.id, source: source || null, counter: !!counter, skipTough: !!opt.skipTough,
+    sourceId: source && source.id, counter: !!counter, skipTough: !!opt.skipTough,
     redirectedFrom: opt.redirectedFrom || null,
     batch: state._coreDamageBatch || null,
     damageKind: coreDamageKind(state),
@@ -3838,7 +3824,24 @@ function coreApplyKeywordOnHit(attacker, target, damageDone, targetPreHp, state,
   return result;
 }
 
-// 毒（キーワードシート K017）：「このキャラクターは攻撃を行う前にHP-Xする。」
+// （状態異常：毒N）＝カードの効果文に書かれた、戦闘開始時に持っている毒（預言者"ディナ"、2026-10-11）。
+function coreStartingPoison(unit) {
+  const m = String(coreUnitEffectText(unit) || '').match(/（状態異常：毒(\d+)）/);
+  return m ? Math.max(0, Number(m[1]) || 0) : 0;
+}
+// 常時：このキャラクターの毒は永続化する。（戦闘で生き残った時の毒をカードへ書き戻す。受け口は battle.js）
+function corePoisonPersists(unit) {
+  return /このキャラクターの毒は永続化する/.test(String(coreUnitEffectText(unit) || ''));
+}
+// 常時：このキャラクターは攻撃する代わりに自身の毒をN倍にする。（倍率は本文から読む）
+function corePoisonMultiplierInsteadOfAttack(unit) {
+  if (!unit || coreUnitIsSilenced(unit)) return 0;
+  const m = String(coreUnitEffectText(unit) || '').match(/攻撃する代わりに自身の毒を(\d+)倍にする/);
+  return m ? Math.max(1, Number(m[1]) || 2) : 0;
+}
+
+// 毒（キーワードシート K017）：「このキャラクターは手番開始時にHP-Xする。」（2026-10-11 本文変更）
+// 攻撃できない体（防戦・ATK0）も、毒があれば攻撃順で手番が回り、手番の始めにHP-Xする。
 // **ダメージではない。** そのため
 //   ・結界で防げない／弱体・強靭も乗らない（coreApplyDamage を通さない）
 //   ・負傷ではないので負傷効果も発動しない
@@ -5392,6 +5395,19 @@ function coreBattleStepInner(ctx) {
       return { side, result, stop: false };
     }
     if (!coreCanAct(attacker)) { side = foeSide; result = decided(); return { side, result, stop: false }; }
+    // 毒を受けるためだけに手番へ入った防戦の体は、ここで手番を終える（攻撃しない）。
+    if (coreUnitHasKeyword(attacker, '防戦')) { side = foeSide; result = decided(); return { side, result, stop: false }; }
+    // 常時：攻撃する代わりに自身の毒をN倍にする（預言者"ディナ"）。毒を受けた後に倍にし、攻撃・攻撃効果は起きない。
+    const poisonMul = corePoisonMultiplierInsteadOfAttack(attacker);
+    if (poisonMul > 0) {
+      const before = Math.max(0, Number(attacker.poison) || 0);
+      attacker.poison = before * poisonMul;
+      if (attacker.poison > before) {
+        emit({ type: 'keyword_effect', effect: 'poison', side: attacker.side, unitId: attacker.id,
+          sourceId: attacker.id, amount: attacker.poison - before, reason: 'poison_multiply' });
+      }
+      side = foeSide; result = decided(); return { side, result, stop: false };
+    }
     // **ATKが0の体は攻撃しない。**
     // ATK0は本来 coreLaneAttackCandidates() で手番から外れる。毒を持つ体だけは
     // 「毒を受けるため」に手番へ入れているので、毒の解決が済んだこの時点で終わりにする。
