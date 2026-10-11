@@ -654,3 +654,10 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 状態ループは描画の初回に開始し、コアイベントで値を更新、同じカードの同じ状態は1つ（`VbFx.stop({name,element})` で個別停止）。毒はカードの枠より上・ステータス表示より下。
 - 状態ループはカードが画面に出ている時だけ出す（開戦演出で登場する前は出さない）。カードのDOMが作り直されても止めずに付け替え（明滅させない）、カードの移動・**傾き**に毎フレーム追従する（fx_lab の `cardGeometry`）。終戦（勝利・撤退）後も残っている状態は消さない（`stopBattleLabFx({keepStates:true})`）。
 - 検査：`tools/parity/lab_vfx_check.js`（ブラウザ。実戦のイベントで各演出が呼ばれ、描画され、後片付けされるか）、`tools/balance_sim/lab_vfx_regression.js`（node で同じ流れを41演出ぶん）。
+
+## 攻撃中の死亡・複数回攻撃・行動バナーの並び・根性の点（2026-10-10 利用者報告）
+- 攻撃効果の解決中に攻撃者が死ぬ（呪詛・反撃・懺悔の自傷・帰滅の反撃死）と通常の `attack` イベントが出ない。`present.js` が表示専用の `attack(effectOnly)` を補い、踏み込み（25%地点）に攻撃効果のVFXを同期させ、戻ってから通常の死亡演出へ進む。呪詛は `curse_death` だけなので、共通の死亡通知も補う（`present_events.js` で表示HPを0へ）。根性で耐えた呪詛には補わない。
+- 複数回攻撃でキャラが分裂する件：`render.js` が攻撃モーションの所有者をIDごとに持ち、次のモーションが来たら古い複製（attack-motion-clone）を外し、古い終了処理が新しい表示を壊さないようにした。死亡に切り替える時は元枠の `transition` を止めてから隠す（`.slot` の `transition: all .18s` で元カードが180ms見えていた）。
+- 行動バナー（左右端の効果表示）：同じ側に同時に複数出る時は、敵側（左）は前の帯の下端から30px下へ、味方側（右）は前の帯の上端から30px上へ積む（`ACTION_BANNER_CONFIG.stackGap`／`stackDirection`）。消えても詰めず、空いた位置を次の帯が使う。画面外へ出る新しい帯は出さない。
+- 根性（guts-state）は、左右対称に湧いて見えた8粒の小点の層を外した（縁・四隅・オーラ・ちらつきは同じ）。
+- 検査：`tools/parity/attack_lifecycle_1010_check.js`（1／2／3倍・PvE／オンラインの252通り）、`action_banner_1010_check.js`、`guts_state_1010_check.js`、`tools/balance_sim/attack_lifecycle_1010_regression.js`・`guts_state_1010_regression.js`。経緯は `tools/parity/FIX_1010_REPORT.md`。

@@ -1682,6 +1682,10 @@ function playUnitDeathBurn(unit,side){
   if(!(rect.width>0&&rect.height>0)) return false;
   const clone=slot.cloneNode(true);
   unit._deathFxDone=true;
+  // 2026-10-10：死亡用の複製へ切り替える瞬間に元枠を隠す。
+  // .slot の transition:all .18s が visibility にも掛かると180ms両方見える。
+  // 複製は上で確保済みなので、死亡演出の見た目・尺はそのままに元枠だけ遷移を切る。
+  slot.style.setProperty('transition','none','important');
   slot.style.setProperty('visibility','hidden','important');
   _playUnitDeathCardFx(unit,clone,rect,{width:slot.offsetWidth,height:slot.offsetHeight});
   return true;
@@ -3746,6 +3750,9 @@ function _waitForAttackLayoutSettled(timeoutMs){
   });
 }
 
+// 2026-10-10 利用者報告：連続・割り込み攻撃でも同じIDの動くカードは1枚だけ。
+// 古いモーションの終了処理が新しいモーションの実枠を再表示しないよう、所有者を持つ。
+const _attackMotionOwners=new Map();
 function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options){
   if(!attacker||!target||!document.body) return Promise.resolve();
   if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_start',{
@@ -3814,6 +3821,13 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   });
   const tilt=Math.abs(dx)<Math.max(6,fr.width*0.15)?0:(dx>0?4:-4)*(isEnemySide?-1:1);
   const clone=_buildMotionCardClone(fromEl, fr);
+  const motionKey=String(attacker.id);
+  const previousOwner=_attackMotionOwners.get(motionKey);
+  if(previousOwner){ previousOwner.cancel(); previousOwner.clone.remove(); }
+  let cancelled=false, cancelPause=()=>{};
+  const cancellation=new Promise(resolve=>{ cancelPause=resolve; });
+  const motionOwner={clone,cancel:()=>{ cancelled=true; cancelPause({abort:true}); }};
+  _attackMotionOwners.set(motionKey,motionOwner);
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
   fromEl.style.setProperty('visibility','hidden','important');
@@ -3858,12 +3872,16 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const atStop=getTargetMotionTransform(stopRatio)||`translate(${mx*stopRatio}px,${my*stopRatio}px) rotate(${tilt}deg)`;
   const atHit=getTargetMotionTransform(1)||`translate(${mx}px,${my}px) rotate(${tilt}deg)`;
   const cleanup=()=>{
+    // 複製を外してから実枠を戻す。同一IDの次の攻撃が始まっていたら、後始末を引き継ぐ。
+    clone.remove();
+    if(_attackMotionOwners.get(motionKey)!==motionOwner) return;
+    _attackMotionOwners.delete(motionKey);
     if(attacker&&attacker.id!=null&&G._suppressCompactUnitIds){
       // cleanup直後のrenderAll／死亡後compactが同じフレームで走るため、
       // ここで即解除すると元カードへFLIPが付き、戻り終端で一度跳ねる。
       const id=String(attacker.id);
       window.setTimeout(()=>{
-        if(!G._suppressCompactUnitIds) return;
+        if(_attackMotionOwners.has(id)||!G._suppressCompactUnitIds) return;
         G._suppressCompactUnitIds.delete(id);
         if(!G._suppressCompactUnitIds.size) G._suppressCompactUnitIds=null;
       },620);
@@ -3891,7 +3909,6 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       currentEl.classList.remove('motion-hidden');
       currentEl.style.removeProperty('visibility');
     }
-    clone.remove();
     if(typeof renderAll==='function'){
       requestAnimationFrame(()=>{
         // 攻撃終了時の保険renderが、直前に開始したFLIPの詰めアニメーションを
@@ -3899,7 +3916,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         // （2026-09-15：ここを requestBattleCompact 経由にすると、攻撃中に倒れた敵の隙間が
         //  次の死亡まで約30秒残る回帰が出たため、コミット済みの renderAll に戻した。
         //  この場合だけ隙間がモーション終了時に1フレームで詰まる問題は未解決。AGENTS.md 参照）
-        if(attacker&&attacker.hp>0&&performance.now()>(Number(G._battleCompactAnimatingUntil)||0)) renderAll();
+        if(!_attackMotionOwners.has(motionKey)&&attacker&&attacker.hp>0&&performance.now()>(Number(G._battleCompactAnimatingUntil)||0)) renderAll();
       });
     }
   };
@@ -3949,6 +3966,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           // 1フレーム目は必ず開始姿勢のまま。ここで進捗を計算すると
           // now===startedAt でp=0になるだけだが、意図を明示しておく。
         }
+        if(cancelled){ finish(); return; }
         const p=Math.max(0,Math.min(1,(now-startedAt)/scaledDuration));
         // 攻撃モーション本来の加速・減速を戻す。
         const eased=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
@@ -3987,7 +4005,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           {transform:'translate(0,0) rotate(0deg)'},
           {transform:atStop},
         ],opt.firstDuration||260);
-        const pauseResult=await onImpactPause();
+        if(cancelled) return;
+        const pauseResult=await Promise.race([onImpactPause(),cancellation]);
+        if(cancelled) return;
         if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_effect_pause',{
           attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
         });
@@ -4053,6 +4073,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           {transform:atHit},
         ],opt.firstDuration||420);
       }
+      if(cancelled) return;
       // 接触した瞬間のフック。戻りモーション（returnDuration）を待つと画面揺れが
       // 体感で1テンポ遅れるため、ここで呼ぶ。
       if(typeof _recordBattleTrace==='function'){

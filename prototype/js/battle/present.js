@@ -479,7 +479,7 @@ function presentHoldHpForGuts(events) {
 
 function presentReorderDeathsAfterDamageBatch(events) {
   // 根性で耐える一撃の表示HPを先に整える（PvE・オンラインとも、この入口を通る）。
-  const list = presentHoldHpForGuts(Array.isArray(events) ? events.filter(Boolean) : []);
+  const list = presentPrepareInterruptedAttacks(presentHoldHpForGuts(Array.isArray(events) ? events.filter(Boolean) : []));
   if (!list.length) return list;
   // コアが「同じ瞬間」と印を付けたダメージだけを束として扱う。
   // 印の無い単発ダメージは1件で1束なので、送る先が無い＝並べ替えない。
@@ -508,6 +508,68 @@ function presentReorderDeathsAfterDamageBatch(events) {
     out.push(e);
   });
   flush();
+  return out;
+}
+
+// 2026-10-10 利用者報告：攻撃効果中の死亡では通常attackが出ないことがある。
+// 結果・ダメージの事象列はそのまま、表示だけ「踏み込み→効果→戻り→通常の死亡」へ接続する。
+// 呪詛は専用の即死通知しか無いので、両受け口が既に持つ死亡演出への通知をここで補う。
+function presentPrepareInterruptedAttacks(events) {
+  const list = Array.isArray(events) ? events : [];
+  const out = [], completed = new Set();
+  let attack = null;
+  for (let i = 0; i < list.length; i++) {
+    const ev = list[i];
+    // 根性は死亡しない。呪詛の即死通知にも、その直後の根性復帰がある場合は焼失を補わない。
+    const gutsAfterCurse = ev.type === 'curse_death' && list.slice(i + 1).some((next, offset, rest) =>
+      next.type === 'revive' && next.reason === '根性' && next.side === ev.side
+      && String(next.unitId) === String(ev.unitId) && !rest.slice(0, offset).some(n =>
+        n.type === 'turn_begin' || n.type === 'battle_end' || (n.type === 'damage'
+          && n.side === ev.side && String(n.unitId) === String(ev.unitId))));
+    if (ev.type === 'turn_begin' || ev.type === 'battle_start' || ev.type === 'battle_end') {
+      attack = null; completed.clear();
+    }
+    if (ev.type === 'effect_flash' && ev.trigger === 'attack') {
+      if (!attack || attack.actorId !== String(ev.unitId)) {
+        attack = { actorId: String(ev.unitId), side: ev.side, targetId: ev.targetId, hasEffects: false };
+      }
+      if (ev.targetId != null) attack.targetId = ev.targetId;
+      completed.delete(String(ev.unitId));
+    }
+    if (attack) {
+      if (ev.type === 'sweep_vfx' && String(ev.unitId) === attack.actorId) {
+        attack.hasEffects = true;
+        if (attack.targetId == null) attack.targetId = (ev.targetIds || [])[0];
+      } else if (presentPreAttackEffectOwnerId(ev) === attack.actorId && ev.type !== 'effect_flash') {
+        attack.hasEffects = true;
+        if (ev.type === 'damage' && ev.side !== attack.side && attack.targetId == null) attack.targetId = ev.unitId;
+      }
+    }
+    const interrupted = !gutsAfterCurse && attack && attack.hasEffects && String(ev.unitId) === attack.actorId
+      && (ev.type === 'death' || ev.type === 'curse_death' || ev.type === 'fled');
+    if (interrupted && (attack.targetId != null || ev.sourceId != null)) {
+      out.push({ type: 'attack', side: attack.side, attackerId: attack.actorId,
+        targetId: attack.targetId == null ? ev.sourceId : attack.targetId,
+        damage: 0, counterDamage: 0, attackVisual: true, effectOnly: true });
+      completed.add(attack.actorId);
+      attack = null;
+    }
+    // 決着時にコアが末尾へ出す表示専用attackを、上で既に戻った体へ二度出さない。
+    if (ev.type === 'attack' && ev.effectOnly && completed.has(String(ev.attackerId))) continue;
+    out.push(ev);
+    if (ev.type === 'attack' && attack && String(ev.attackerId) === attack.actorId) attack = null;
+    if (ev.type === 'curse_death' && !gutsAfterCurse) {
+      let hasDeath = false;
+      for (let j = i + 1; j < list.length; j++) {
+        const next = list[j];
+        if (next.type === 'turn_begin' || next.type === 'battle_end') break;
+        if (String(next.unitId) !== String(ev.unitId) || next.side !== ev.side) continue;
+        if (next.type === 'revive') break;
+        if (next.type === 'death') { hasDeath = true; break; }
+      }
+      if (!hasDeath) out.push({ type: 'death', side: ev.side, unitId: ev.unitId, reason: 'curse' });
+    }
+  }
   return out;
 }
 

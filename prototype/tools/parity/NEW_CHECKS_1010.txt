@@ -1,0 +1,3 @@
+attack_lifecycle_1010_check.js
+action_banner_1010_check.js
+guts_state_1010_check.js

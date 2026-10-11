@@ -967,6 +967,8 @@ async function presentDeathBatch(evs, api) {
     if (typeof api.isDone === 'function' && api.isDone(ev)) return;
     const unit = api.findUnit(ev.side, ev.unitId);
     if (!unit) return;
+    // 2026-10-10：呪詛はdamage(hpAfter:0)を出さない。共通の死亡通知で表示HPだけを進める。
+    if (ev.reason === 'curse' && typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { hp: 0 });
     // 既に生き返っている（根性など、画面でも倒れていない）場合はここでは演出しない。
     // **倒れたかは画面に出ているHPで見る。** PvEの体はコアの最終状態なので、倒れた後に「復活」で
     // 生き残った体は hp>0 のまま届く。最終値で見ていた頃は、PvEだけ焼失が出ずに復活の演出だけになっていた

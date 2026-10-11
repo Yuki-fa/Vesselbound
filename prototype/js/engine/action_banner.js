@@ -2,6 +2,8 @@
 // コアのユニット・イベント・Gへ表示状態を載せない。戦闘の待機へPromiseも追加しない。
 const ACTION_BANNER_CONFIG = {
   height: 150, width: 900, imageWidth: 445,
+  // 2026-10-10 利用者指定：同じ側の帯は端から30px離す。消えた時に残りを動かさない。
+  stackGap: 30, stackDirection: { p2: 1, p1: -1 },
   enemyY: 300, allyY: 1710, enemyImageY: 195, allyImageY: 1650,
   fadeInMs: 100, fadeOutMs: 400, noVfxHoldMs: 700,
   fontSize: 48, letterSpacing: '.16em', nameInset: 120,
@@ -14,7 +16,7 @@ let _actionBannerScope = null;
 // 終戦から「進む」が出るまでは表示を消さない（2026-10-06 利用者指定）。
 let _actionBannerHeld = false;
 let _actionBannerObserver = null;
-const _actionBannerSides = { p1: null, p2: null };
+const _actionBannerSides = { p1: [], p2: [] };
 let _actionBannerUnits = new Map();
 let _actionBannerHints = new Map();
 let _actionBannerMana = new Map();
@@ -72,25 +74,27 @@ function _actionBannerRoot() {
   root = document.createElement('div');
   root.id = 'battle-action-banners';
   root.setAttribute('aria-hidden', 'true');
-  ['p2', 'p1'].forEach(side => {
-    const banner = document.createElement('div');
-    banner.className = 'action-banner';
-    banner.dataset.side = side;
-    const base = document.createElement('div');
-    base.className = 'action-banner-base';
-    const img = document.createElement('img');
-    img.className = 'action-banner-image';
-    img.alt = '';
-    img.addEventListener('load', () => { img.style.visibility = 'visible'; });
-    img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
-    const name = document.createElement('div');
-    name.className = 'action-banner-name';
-    banner.append(base, img, name);
-    root.appendChild(banner);
-  });
+  ['p2', 'p1'].forEach(side => root.appendChild(_actionBannerElement(side)));
   // 先頭へ入れると既存の nth-of-type に当たるため、必ず画面の末尾へ追加する。
   screen.appendChild(root);
   return root;
+}
+
+function _actionBannerElement(side) {
+  const banner = document.createElement('div');
+  banner.className = 'action-banner';
+  banner.dataset.side = side;
+  const base = document.createElement('div');
+  base.className = 'action-banner-base';
+  const img = document.createElement('img');
+  img.className = 'action-banner-image';
+  img.alt = '';
+  img.addEventListener('load', () => { img.style.visibility = 'visible'; });
+  img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+  const name = document.createElement('div');
+  name.className = 'action-banner-name';
+  banner.append(base, img, name);
+  return banner;
 }
 
 function actionBannerImage(card, kind) {
@@ -108,8 +112,24 @@ function _actionBannerShow(token) {
   if (typeof optionBattleSpeedMultiplier === 'function' && optionBattleSpeedMultiplier() >= ACTION_BANNER_CONFIG.hideAtSpeed) return;
   const root = _actionBannerRoot();
   if (!root) return;
-  const el = root.querySelector(`[data-side="${token.source.side}"]`);
-  if (!el) return;
+  let el = token.el;
+  if (!el) {
+    const c = ACTION_BANNER_CONFIG, side = token.source.side;
+    const used = new Set(_actionBannerSides[side].filter(t => t !== token && t.el && !t.cancelled).map(t => t.stackIndex));
+    let index = 0;
+    while (used.has(index)) index++;
+    const top = (side === 'p2' ? c.enemyY : c.allyY) + c.stackDirection[side] * index * (c.height + c.stackGap);
+    // 2026-10-10：画面外へ出る新しい帯は省略する。既存の帯を動かしたり尺を短くしない。
+    if (top < 0 || top + c.height > (root.clientHeight || 2160)) {
+      token.suppressed = true;
+      _actionBannerSides[side] = _actionBannerSides[side].filter(t => t !== token);
+      return;
+    }
+    el = [...root.querySelectorAll(`[data-side="${side}"]`)].find(e => !e.dataset.occupied);
+    if (!el) { el = _actionBannerElement(side); root.appendChild(el); }
+    el.dataset.occupied = '1'; el.style.top = `${top}px`;
+    token.stackIndex = index;
+  }
   const name = el.querySelector('.action-banner-name');
   const img = el.querySelector('.action-banner-image');
   name.textContent = presentActionBannerName(token.source.card);
@@ -132,7 +152,7 @@ function _actionBannerShow(token) {
 function _actionBannerFade(token) {
   if (!token || token.cancelled || token.users || token.hosts.size || token.fading) return;
   if (_actionBannerHeld) return;
-  if (_actionBannerSides[token.source.side] !== token) return;
+  if (!_actionBannerSides[token.source.side].includes(token)) return;
   token.fading = true;
   if (token.timer != null) clearTimeout(token.timer);
   const el = token.el;
@@ -140,16 +160,17 @@ function _actionBannerFade(token) {
   el.style.transition = `opacity ${ACTION_BANNER_CONFIG.fadeOutMs / _actionBannerSpeed()}ms ease-out`;
   el.style.opacity = '0';
   token.timer = _actionBannerTimer(() => {
-    if (_actionBannerSides[token.source.side] === token) _actionBannerSides[token.source.side] = null;
+    _actionBannerSides[token.source.side] = _actionBannerSides[token.source.side].filter(t => t !== token);
+    el.remove();
     token.cancelled = true;
     token.hosts.clear();
-    if (!_actionBannerSides.p1 && !_actionBannerSides.p2 && _actionBannerObserver) {
+    if (!_actionBannerSides.p1.length && !_actionBannerSides.p2.length && _actionBannerObserver) {
       _actionBannerObserver.disconnect(); _actionBannerObserver = null;
     }
   }, ACTION_BANNER_CONFIG.fadeOutMs);
 }
 function _actionBannerCheckHosts() {
-  Object.values(_actionBannerSides).forEach(token => {
+  Object.values(_actionBannerSides).flat().forEach(token => {
     if (!token || token.cancelled || token.suppressed) return;
     token.hosts.forEach(host => { if (!host.isConnected) token.hosts.delete(host); });
     if (token.hadVfx && !token.hosts.size) _actionBannerFade(token);
@@ -180,7 +201,7 @@ function actionBannerStartScope() {
 function _actionBannerToken(source, suppressRepeat) {
   if (!source || !['p1', 'p2'].includes(source.side)) return null;
   const key = `${source.kind}:${source.card.no || source.card.artCode || source.card.id || source.card.name}:${source.card.name}`;
-  let token = _actionBannerSides[source.side];
+  let token = _actionBannerSides[source.side].find(t => t.key === key && !t.cancelled);
   // 同じ発動の歌などが、別の付与や召喚を挟んで複数対象へ届いても、帯を再点灯しない。
   // 発動元の情報は検査・再生の対応付け用に返し、現在の左右表示には触れない。
   if (suppressRepeat && (!token || token.key !== key || token.cancelled))
@@ -194,13 +215,8 @@ function _actionBannerToken(source, suppressRepeat) {
     token.pending = token.pending || !token.started || wasFading;
     return token;
   }
-  if (token) {
-    token.cancelled = true;
-    token.hosts.clear();
-    if (token.timer != null) clearTimeout(token.timer);
-  }
   token = { source, key, hosts: new Set(), users: 0, started: false, hadVfx: false, fading: false, cancelled: false, timer: null };
-  _actionBannerSides[source.side] = token;
+  _actionBannerSides[source.side].push(token);
   return token;
 }
 // 終戦：VFXが打ち切られても表示は残す（結果の暗転・カットインより上に出したまま）。
@@ -209,8 +225,7 @@ function actionBannerHold() { _actionBannerHeld = true; }
 function actionBannerReleaseHold() {
   if (!_actionBannerHeld) return;
   _actionBannerHeld = false;
-  ['p1', 'p2'].forEach(side => {
-    const token = _actionBannerSides[side];
+  Object.values(_actionBannerSides).flat().forEach(token => {
     if (!token || token.cancelled) return;
     token.users = 0; token.hosts.clear();
     if (token.timer != null) { clearTimeout(token.timer); token.timer = null; }
@@ -219,19 +234,16 @@ function actionBannerReleaseHold() {
 }
 function actionBannerClear(resetSession) {
   _actionBannerHeld = false;
-  Object.values(_actionBannerSides).forEach(token => {
+  Object.values(_actionBannerSides).flat().forEach(token => {
     if (!token) return;
     token.cancelled = true;
     token.hosts.clear();
     if (token.timer != null) clearTimeout(token.timer);
-    if (token.el) { token.el.style.transition = 'none'; token.el.style.opacity = '0'; }
+    if (token.el) token.el.remove();
   });
-  _actionBannerSides.p1 = _actionBannerSides.p2 = null;
+  _actionBannerSides.p1 = []; _actionBannerSides.p2 = [];
   const root = document.getElementById('battle-action-banners');
-  if (root) ['p1', 'p2'].forEach(side => {
-    const el = root.querySelector(`[data-side="${side}"]`);
-    if (el) { el.style.transition = 'none'; el.style.opacity = '0'; }
-  });
+  if (root) root.querySelectorAll('.action-banner').forEach(el => el.remove());
   _actionBannerScope = null;
   _actionBannerWaveScopes = null;
   if (_actionBannerObserver) { _actionBannerObserver.disconnect(); _actionBannerObserver = null; }
