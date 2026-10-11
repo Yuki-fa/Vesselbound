@@ -1140,6 +1140,13 @@ function coreApplyDamage(target, amount, emit, opts) {
       blockedBy: res.reason, sourceId: opts && opts.sourceId, counter: !!(opts && opts.counter),
       keywordEffect: opts && opts.keywordEffect || null,
       suppressAttackHitSfx: !!(opts && opts.suppressAttackHitSfx),
+      // 2026-10-11: 防御された対象も同じ効果の束に残す。欠落すると闇の炎のVFXが結界ごとに分裂する。
+      effectNo: (opts && opts.effectNo) || null,
+      batch: (opts && opts.batch) || null,
+      ...(opts && opts.area ? { area: true } : {}),
+      ...(opts && opts.fxEffect ? { fxEffect: String(opts.fxEffect) } : {}),
+      effect: (opts && opts.effect !== undefined) ? !!opts.effect : !!(opts && opts.sourceId && !opts.counter),
+      effectSource: (opts && opts.effectSource !== undefined) ? !!opts.effectSource : true,
       damageKind: (opts && opts.damageKind) || 'other',
       redirectedFrom: opts && opts.redirectedFrom || null });
     // **残った結界の数をイベントに載せる。** オンラインの受け口はコアの実体を持たず

@@ -1,0 +1,125 @@
+'use strict';
+// 2026-10-11: 1〜3の実DOM検査。通常の売却経路、最後まで進めた図書館、暗転層との重なりを確認。
+const assert=require('node:assert/strict');
+const {launch}=require('./headless');
+const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
+(async()=>{
+  const b=await launch({width:1920,height:1080});
+  try {
+    const open=async()=>{await b.goto(URL);await b.waitFor('typeof PANEL_POOL!=="undefined"&&PANEL_POOL.some(c=>c.no==="C062")&&typeof SaveProfile!=="undefined"',20000);};
+    await open();
+    const sale=await b.eval(`
+      const visible=el=>{if(!el)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight
+        &&[el,...(function*(p){while(p){yield p;p=p.parentElement;}})(el.parentElement)].every(n=>{const s=getComputedStyle(n);return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)>0;});};
+      const out=[];
+      for(const [name,flags,classes] of [
+        ['デバッグ',{_debugMode:true},'debug-mode'],['魔導店',{_isShop:true},'shop-screen-active'],
+        ['道具屋',{_isShop:true,_isItemShop:true},'shop-screen-active item-shop-active'],
+        ['鍛冶屋',{_isForge:true},'forge-screen-active'],['行商人',{_isShop:true,_isPeddler:true},'shop-screen-active peddler-screen-active']]) {
+        initState();Object.assign(G,{phase:'reward',gold:100,rings:[]},flags);_rewCards=[];_rewFreePickDone=true;
+        document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
+        const screen=document.getElementById('scr-battle');screen.classList.add('active');screen.style.setProperty('display','block','important');
+        document.body.className='reward-screen-active '+classes;
+        const item=clone(ITEM_POOL[0]),card=makePanel(PANEL_POOL.find(c=>c.no==='C062').id);
+        G.spellSlots=[item,null,null,null];G.mainBoard[1]=card;renderHandEditor();_syncRewardProductionUi();
+        await new Promise(r=>requestAnimationFrame(r));
+        const itemBtn=document.querySelector('.reward-prod-item .item-shop-sell-action');
+        const itemShown=visible(itemBtn),itemGain=goldIncomeAmount(_itemShopSellPrice(item));
+        if(!itemBtn)throw new Error(name+' アイテム売却UIなし');itemBtn.click();
+        const itemSold=G.spellSlots[0]===null&&G.gold===100+itemGain;
+        const cardBtn=document.querySelector('#hand-slots > .card[data-card-idx="1"] .shop-board-sell-action')
+          ||document.querySelectorAll('#hand-slots > *')[1]?.querySelector('.shop-board-sell-action');
+        const cardShown=visible(cardBtn),before=G.gold,cardGain=goldIncomeAmount(_shopCardSellGain(card));
+        if(!cardBtn)throw new Error(name+' カード売却UIなし');cardBtn.click();
+        out.push({name,itemShown,itemSold,cardShown,cardSold:G.mainBoard[1]===null&&G.gold===before+cardGain});
+      }
+      return out;
+    `);
+    for(const r of sale) for(const field of ['itemShown','itemSold','cardShown','cardSold']) assert.ok(r[field],`${r.name} ${field}`);
+    console.log('OK 1: デバッグ・魔導店・道具屋・鍛冶屋・行商人のアイテム／カード売却');
+
+    // 実際のチュートリアルを開始したままページを離れる。onFinishを直接呼んで済ませない。
+    // 2026-10-11: b.evalは関数本体を評価するため、検査する値はreturnで返す（式だけではundefined）。
+    await b.eval(`SaveStorage.remove('profile');SaveProfile.resetCache();initState();G.gold=10000;openMapLibraryMenu();`);
+    assert.equal(await b.eval(`return getComputedStyle(document.getElementById('library-merge-btn')).display;`),'none','魔導板説明の開始前はマージを表示しない');
+    await b.eval(`document.getElementById('library-howto-btn').click();`);
+    await b.waitFor('G._libraryTutorialActive&&G._libraryTutorialStep>=0',10000);
+    assert.equal(await b.eval(`return SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);`),false,'魔導板説明の開始だけでは完走を記録しない');
+    await open();await b.eval(`initState();G.gold=10000;openMapLibraryMenu();`);
+    assert.equal(await b.eval(`return getComputedStyle(document.getElementById('library-merge-btn')).display;`),'none','途中離脱で解放しない');
+    const completeBoard=async()=>{
+      await b.eval(`document.getElementById('library-howto-btn').click();`);
+      await b.waitFor('G._libraryTutorialActive&&G._libraryTutorialStep>=0',10000);
+      const result=await b.eval(`
+        const wait=ms=>new Promise(r=>setTimeout(r,ms));let visibleText=false;
+        for(let i=0;i<30&&G._libraryTutorialActive;i++) {
+          const box=document.querySelector('.library-tutorial-box'),s=getComputedStyle(box),r=box.getBoundingClientRect();
+          visibleText ||= r.width>0&&r.height>0&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0&&s.visibility!=='hidden'&&Number(s.opacity)>0&&s.color!=='rgba(0, 0, 0, 0)';
+          const move=G._libraryTutorialMove;
+          if(move) {const at=_rewCards.findIndex(c=>c&&c.name===move.name);if(at<0)throw new Error('貸出移動対象がない');takeRewCard(at,move.index);await wait(500);}
+          else {box.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));await wait(220);}
+        }
+        return {done:!G._libraryTutorialActive,visibleText,completed:_libraryBoardTutorialCompleted()};
+      `);
+      assert.ok(result.done&&result.visibleText&&result.completed,JSON.stringify(result));
+    };
+    await completeBoard();
+    await open();await b.eval(`initState();G.gold=10000;openMapLibraryMenu();`);
+    const unlocked=await b.eval(`const el=document.getElementById('library-merge-btn'),s=getComputedStyle(el),r=el.getBoundingClientRect();return {
+      saved:SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY),visible:s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)>0&&r.width>0&&r.right>0&&r.left<innerWidth&&r.bottom>0&&r.top<innerHeight};`);
+    assert.ok(unlocked.saved&&unlocked.visible,'別ラン／ページ再読込後の解放');
+    await b.eval(`document.getElementById('library-merge-btn').click();`);
+    await b.waitFor('G._libraryTutorialActive&&G._libraryTutorialStep===0',10000);
+    await b.eval(`document.querySelector('.library-tutorial-box').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));`);
+    const loans=await b.eval(`const box=document.querySelector('.library-tutorial-box'),s=getComputedStyle(box),r=box.getBoundingClientRect();return {
+      cards:_rewCards.filter(Boolean).map(c=>c.no),name:PANEL_POOL.find(c=>c.no==='C062').name,move:G._libraryTutorialMove?.name,text:box.textContent,
+      visible:s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)>0&&s.color!=='rgba(0, 0, 0, 0)'&&r.width>0&&r.height>0};`);
+    assert.deepEqual(loans.cards,Array(5).fill('C062'));assert.equal(loans.move,loans.name);assert.ok(loans.text.includes(loans.name)&&loans.visible,'C062の貸出名・説明文が実際に見える');
+    await open();await b.eval(`SaveStorage.remove('profile');SaveProfile.resetCache();initState();G._debugMode=true;G.gold=10000;openMapLibraryMenu();`);
+    await completeBoard();
+    assert.equal(await b.eval(`return SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);`),false,'デバッグはプロフィールに完走を書かない');
+    console.log('OK 2: 実際の完走・途中離脱・再読込・デバッグとC062×5の説明');
+
+    await open();
+    const prices=await b.eval(`
+      const overrides=[...document.styleSheets].flatMap(sheet=>{try{return [...sheet.cssRules];}catch(_e){return [];}})
+        .filter(rule=>rule.selectorText?.includes('shop-screen-active:not(.item-shop-active):not(.forge-screen-active)')&&['10001','9999'].includes(rule.style.zIndex));
+      if(overrides.length!==2)throw new Error('値札とマナ・血の規則が見つからない');
+      const snapshot=card=>Object.fromEntries(['.shop-buy-price','.card-activation-costs','.reward-card-dim-layer','.shop-insufficient-badge'].map(sel=>{
+        const el=card.querySelector(sel);if(!el)return [sel,null];const s=getComputedStyle(el),r=el.getBoundingClientRect();return [sel,{z:s.zIndex,color:s.color,filter:s.filter,opacity:s.opacity,bg:s.backgroundColor,display:s.display,visibility:s.visibility,w:r.width,h:r.height}];}));
+      const out=[];
+      for(const [name,classes,item] of [['魔導店','shop-screen-active',false],['行商人','shop-screen-active peddler-screen-active',false],
+        ['道具屋','shop-screen-active item-shop-active',true],['鍛冶屋','shop-screen-active forge-screen-active',false]]) {
+        initState();G.phase='reward';G._isShop=G._isRewardTown=true;G._isItemShop=item;G._isForge=name==='鍛冶屋';G.gold=0;
+        document.body.className='reward-screen-active '+classes;
+        const screen=document.getElementById('scr-battle');screen.classList.add('active');screen.style.setProperty('display','block','important');
+        _rewCards=[];renderRewCards();
+        const offer=document.getElementById('reward-offer-row');offer.replaceChildren();
+        const definition=PANEL_POOL.find(c=>c.category==='キャラクター'&&c.manaCost>0);
+        const card=item?clone(ITEM_POOL[0]):makePanel(definition.id);card._buyPrice=1000;
+        if(!item)card.keywords=[...(card.keywords||[]),'封印3'];
+        const el=_mkRewDiv(card,()=>{},0);
+        if(item)el.classList.add('item-shop-card','item-offer-card','item-visual','item-shop-card-down');
+        offer.appendChild(el);
+        const current=snapshot(el),saved=overrides.map(rule=>rule.style.zIndex);
+        overrides.forEach(rule=>rule.style.removeProperty('z-index'));
+        const prior=snapshot(el);overrides.forEach((rule,i)=>rule.style.setProperty('z-index',saved[i],'important'));
+        out.push({name,current,prior,cant:el.classList.contains('cant'),mana:!!el.querySelector('.mana-cost-entry'),blood:!!el.querySelector('.seal-cost-entry')});
+      }
+      return out;
+    `);
+    const itemPrice=prices.find(r=>r.name==='道具屋').current['.shop-buy-price'];
+    for(const r of prices) {
+      assert.ok(r.cant,r.name+' ゴールド不足');
+      if(['魔導店','行商人'].includes(r.name)) {
+        const p=r.current['.shop-buy-price'],c=r.current['.card-activation-costs'],d=r.current['.reward-card-dim-layer'];
+        assert.ok(r.mana&&r.blood&&p.w>0&&p.h>0&&c.w>0&&c.h>0,'値札とマナ・血が描画されている');
+        assert.ok(Number(p.z)>Number(d.z)&&Number(c.z)<Number(d.z),r.name+' 値札を明るく、マナ・血を暗く');
+        for(const prop of ['color','filter','opacity'])assert.equal(p[prop],itemPrice[prop],r.name+' 値札を道具屋と同じ明るさにする');
+        for(const sel of ['.reward-card-dim-layer','.shop-insufficient-badge'])assert.deepEqual(r.current[sel],r.prior[sel],sel+'の見た目を変えない');
+        const {z:_new,...style}=p,{z:_old,...prior}=r.prior['.shop-buy-price'];assert.deepEqual(style,prior,'値札の色・寸法を変えない');
+      } else assert.deepEqual(r.current,r.prior,r.name+'の見た目を変えない');
+    }
+    console.log('OK 3: 魔導店／行商人の値札・マナ・血の層順と、道具屋／鍛冶屋の不変');
+  } finally {await b.close();}
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

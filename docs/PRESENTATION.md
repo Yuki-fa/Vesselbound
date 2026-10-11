@@ -661,3 +661,8 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 行動バナー（左右端の効果表示）：同じ側に同時に複数出る時は、敵側（左）は前の帯の下端から30px下へ、味方側（右）は前の帯の上端から30px上へ積む（`ACTION_BANNER_CONFIG.stackGap`／`stackDirection`）。消えても詰めず、空いた位置を次の帯が使う。画面外へ出る新しい帯は出さない。
 - 根性（guts-state）は、左右対称に湧いて見えた8粒の小点の層を外した（縁・四隅・オーラ・ちらつきは同じ）。
 - 検査：`tools/parity/attack_lifecycle_1010_check.js`（1／2／3倍・PvE／オンラインの252通り）、`action_banner_1010_check.js`、`guts_state_1010_check.js`、`tools/balance_sim/attack_lifecycle_1010_regression.js`・`guts_state_1010_regression.js`。経緯は `tools/parity/FIX_1010_REPORT.md`。
+
+## 大ダメージの振動・闇の炎の分裂・魔導店の値札（2026-10-11 利用者報告）
+- 大ダメージの振動は、接触から固定440ms待ってから起こしていたため、攻撃者が元の場所に戻った後に揺れていた。共通の `presentDamageImpact` から、ダメージ数値が出る時刻に起こす（閾値・振幅・長さは同じ）。検査は `tools/parity/damage_shake_1011_check.js`、`tools/balance_sim/damage_shake_1011_regression.js`。
+- 闇の炎が3回出た件は表示だけの分裂だった（コアの発動回数は正しい）。結界で防がれたダメージのイベントに `batch` などの演出情報が欠け、同じ死亡効果の波が別々に再生されていた。防いだ時も演出情報を保ち、共通の present が同じ束として扱う。検査は `tools/balance_sim/death_1011_regression.js`。
+- 魔導店・行商人でゴールドが足りないカードは、値札を暗くせず（道具屋と同じ）、カードのマナと血の表示を暗くする（値札を暗転層の上、マナ・血を下に置く）。道具屋・鍛冶屋は変えない。検査は `tools/parity/sale_library_price_1011_check.js`。

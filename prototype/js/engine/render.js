@@ -2683,6 +2683,8 @@ async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown,op
     const side=sideOf(target);
     if(typeof onShown==='function') onShown(target,ev);
     if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,side);
+    // 2026-10-11: 範囲攻撃も絵が当たって数値を出す瞬間に、共通の振動入口へ渡す。
+    if(typeof presentDamageImpact==='function') presentDamageImpact(ev);
     // 命中VFXと数値の両方を、絵が当たった瞬間に出す。
     if(typeof playHitVfx==='function') playHitVfx(side,target,amount,
       {...(ev&&ev.keywordEffect?{keywordEffect:ev.keywordEffect}:{})});

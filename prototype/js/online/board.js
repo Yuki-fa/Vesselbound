@@ -605,15 +605,10 @@
     const ready = paused ? new Promise(resolve => { markReady = resolve; }) : Promise.resolve();
     const motionDepthStarted = typeof beginBattleMotion === 'function';
     if (motionDepthStarted) beginBattleMotion();
-    // PvEの通常攻撃と同じ尺・同じ接触揺れ。
+    // 2026-10-11: PvEと同じ接触表示へ渡す。振動も共通のダメージ表示側で開始する。
     _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => { markReady(); return held; }) : null, {
       ...PRESENT_ATTACK_MOTION,
       onContact: () => _fireAttackContact(ev, ctx),
-      onHit: () => {
-        // 揺れはここで、接触ダメージと結界消費は上の共通フックで見せる。
-        // 能力変化・誘発効果は後続イベントの順番を保つ。
-        if (typeof _shakeOnAttackContact === 'function') _shakeOnAttackContact(target, dmg);
-      },
     });
     // 後続の負傷・死亡・詰め直しは、PvEと同じく戻りモーションの完了を待つ。
     const motion = (async () => {

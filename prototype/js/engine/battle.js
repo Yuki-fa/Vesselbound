@@ -3773,47 +3773,7 @@ async function triggerBattleScreenShake(options){
   host.classList.add('battle-screen-shake');
 }
 
-// 画面揺れを「ぶつかった瞬間」に鳴らすため、コアと同じ規則で
-// 最終ダメージだけを先読みする。状態は一切変更しない（結界も減らさない）。
-function _predictFinalDamage(unit, dmg, skipTough){
-  return coreResolveIncomingDamage(unit,dmg,{skipTough}).amount;
-}
-
-// 接触時に画面揺れを開始する。applyDamageBatch()側は二重に揺らさないよう、このフラグを消費する。
-// 接触フック（onHit）は攻撃モーションの接近区間が終わった時点で呼ばれる。
-// そこから実際にカードがぶつかって見えるまでにわずかな間があるため、
-// この分だけ振動を遅らせて衝突の瞬間に合わせる。速すぎ／遅すぎる場合はここを調整する。
-// 現在値はダメージVFXの再生開始に合わせてある（接触フックからVFXまでの実測は435-441ms／17回）。
-const BATTLE_SHAKE_CONTACT_DELAY_MS=440;
-function _shakeOnAttackContact(target, damage){
-  // **予測できるのは「まだダメージが入っていない盤面」だけ。**
-  // コア駆動のPvEは接触演出の時点で既にHPが減り終わっているため、
-  // ここで予測すると倒れた相手に対して0が返り、画面が一切揺れない。
-  // 確定値を持っている呼び出し側は _shakeWithFinalDamage() を直接使うこと。
-  _shakeWithFinalDamage(_predictFinalDamage(target,damage));
-}
-// 確定したダメージ量で画面を揺らす。**予測しない。**
-function _shakeWithFinalDamage(amount){
-  const predicted=Math.max(0,Number(amount)||0);
-  if(predicted<50) return;
-  // フラグは即座に立てる。applyDamageBatch()側が「接触で揺らし済み」と判断できるよう、
-  // 実際の振動開始（setTimeout）を待たない。
-  G._contactShakeFired=true;
-  if(BATTLE_SHAKE_CONTACT_DELAY_MS>0){
-    const active=window.__activeBattleVfxPromises||(window.__activeBattleVfxPromises=new Set());
-    let resolveDelay;
-    const delayPromise=new Promise(resolve=>{ resolveDelay=resolve; });
-    active.add(delayPromise);
-    window.setTimeout(()=>{
-      Promise.resolve(triggerBattleScreenShake({damage:predicted})).finally(()=>{
-        resolveDelay();
-        active.delete(delayPromise);
-      });
-    },BATTLE_SHAKE_CONTACT_DELAY_MS);
-  }else{
-    triggerBattleScreenShake({damage:predicted});
-  }
-}
+// 2026-10-11: 接触から440ms待つ旧経路を撤去。振動はpresentDamageImpactが数値表示と同時に始める。
 
 // ── 味方の負傷トリガー効果一式（マナ獲得＋名前別の負傷効果）。発動したら true を返す ──
 // 執念の炎：常時：このキャラクターの負傷効果は1回追加で発動する。
@@ -4012,7 +3972,7 @@ async function applyDamageBatch(entries, options){
       ?[...(G.allies||[]),...(G.enemies||[])].find(u=>u&&String(u.id)===String(ev.sourceId))||null
       :null;
     const source=sourceById||base.source||opt.source||null;
-    return {unit,side,actualDmg,died:!!(unit&&unit.hp<=0),blocked:actualDmg<=0,
+    return {unit,side,actualDmg,damageEvent:ev,died:!!(unit&&unit.hp<=0),blocked:actualDmg<=0,
       source,preHp:beforeHp.get(unit)||0,redirectedFrom:ev.redirectedFrom||null,
       needsAllyInjuryEffects:actualDmg>0&&side==='ally'&&unit&&unit.hp>0,
       needsEnemyInjuryEffects:actualDmg>0&&side==='enemy'&&unit&&unit.hp>0,
@@ -4070,22 +4030,6 @@ async function applyDamageBatch(entries, options){
     });
   }
 
-  // 通常攻撃の各ダメージ単位ごとに、軽減後の実ダメージで判定する。
-  // バッチ内に50以上が1件でもあれば1回だけ揺らす（多段攻撃の合計では判定しない）。
-  if(opt.normalAttack){
-    // 各ヒットを個別に判定し、合計値ではなく最大の最終ダメージを揺れ強度へ反映する。
-    const shakeDamage=results.reduce((max,r)=>{
-      if(r.counterDamage) return max;
-      const damage=Number(r.actualDmg)||0;
-      return damage>=50?Math.max(max,damage):max;
-    },0);
-    // 通常攻撃は接触時（_shakeOnAttackContact）に既に揺らしているため、ここでは揺らさない。
-    // 接触モーションを伴わない経路（効果ダメージ等）だけがここで揺れる。
-    if(G._contactShakeFired) G._contactShakeFired=false;
-    else if(shakeDamage>=50) triggerBattleScreenShake({damage:shakeDamage});
-  }
-  // 振動を先に開始し、重いステータス再描画による体感遅延を避ける。
-  // ダメージ値は確定済みなので、表示更新は直後に行う。
   if(typeof _refreshAllUnitStatsUi==='function') _refreshAllUnitStatsUi();
 
   // 生命吸収はバッチ内の全ダメージ（反撃等、攻撃者自身が受ける分も含む）が確定した後に処理する。
@@ -4111,6 +4055,8 @@ async function applyDamageBatch(entries, options){
     const key=r.unit&&r.unit.id!=null?`u:${r.unit.id}`:`i:${i}`;
     const show=(useLiveSlot)=>{
       try{
+        // 2026-10-11: ライブ効果の旧表示経路も、数値を出す時刻で共通の振動入口を呼ぶ。
+        if(typeof presentDamageImpact==='function') presentDamageImpact(r.damageEvent);
         // 数値の重なり防止は対象IDで判定する。矩形（座標）で判定すると、
         // 盤面が詰め直された直後に別位置扱いになり、通常攻撃・反撃・効果ダメージが
         // 同じキャラクターの上で重なって出る。

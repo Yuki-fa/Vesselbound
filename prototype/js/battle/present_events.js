@@ -31,10 +31,19 @@ function presentEndActionBannerEvent(scope) {
 let _presentLabLists = new WeakMap();
 let _presentLabClaims = new WeakMap();
 let _presentContactHits = new WeakSet();
+let _presentDamageImpacts = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
 function presentLabEventHandled(ev) { return !!(ev && _presentLabClaims.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentContactHits = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+// 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
+// 通常・反撃・効果・範囲・飛び道具ともこの入口。強さ／閾値／尺は既存の振動設定が決める。
+function presentDamageImpact(ev) {
+  if (!ev || _presentDamageImpacts.has(ev) || !(Number(ev.amount) > 0)) return;
+  _presentDamageImpacts.add(ev);
+  if (typeof _battleScreenShakeTier === 'function' && !_battleScreenShakeTier(ev.amount)) return;
+  if (typeof triggerBattleScreenShake === 'function') triggerBattleScreenShake({damage:ev.amount});
+}
 function _presentLabContext(events) {
   let context = _presentLabLists.get(events);
   if (!context) { context = {active:null}; _presentLabLists.set(events,context); }
@@ -287,6 +296,7 @@ async function presentDamageEvent(ev, api) {
     await Promise.resolve(playProjectileEffectVfx(projectileSource, srcSide, target, fxSide, projectileCode, {
       amount,
       onImpact: () => {
+        presentDamageImpact(ev);
         if (damagesHp && typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
         if (damagesHp && typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
       },
@@ -336,6 +346,7 @@ async function presentDamageEvent(ev, api) {
     });
   }
   if (typeof playHitVfx === 'function') {
+    presentDamageImpact(ev);
     // 同じ種類のダメージが続いている間は、次の数値が出るまでに「出て消える」が
     // 1回収まる長さにする。既定の長さのままだと、同じ位置に同じ数値が出続けて
     // 何回発動したか分からない（闇の炎が4回続いた時に -1 が1つに見えた）。

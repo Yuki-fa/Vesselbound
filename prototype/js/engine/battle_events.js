@@ -124,29 +124,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     _contactHolds.forEach(h=>h.release());
     _contactHolds.clear();
   };
-  // 画面揺れの強さは「実際に入った量」で決める。**予測しない。**
-  // コアは演出より先にHPを減らし終えているため、接触の時点で相手が倒れていることがあり、
-  // 予測（_predictFinalDamage）は0を返す。大ダメージでも画面が揺れなかったのはこれ。
-  // その攻撃イベントに対応する damage イベント（反撃ではないもの）の量を使う。
-  const _attackShakeAmount=ev=>{
-    if(!ev||ev.targetId==null) return 0;
-    const from=eventList.indexOf(ev);
-    if(from<0) return 0;
-    for(let i=from+1;i<eventList.length;i++){
-      const d=eventList[i];
-      if(!d) break;
-      if(d.type==='turn_begin') break;
-      if(d.type!=='damage') continue;
-      if(d.counter) continue;
-      if(String(d.unitId)!==String(ev.targetId)) continue;
-      return Math.max(0,Number(d.amount)||0);
-    }
-    return 0;
-  };
-  const _shakeForAttack=ev=>{
-    const amount=_attackShakeAmount(ev);
-    if(amount>0&&typeof _shakeWithFinalDamage==='function') _shakeWithFinalDamage(amount);
-  };
+  // 2026-10-11: 振動は共通ダメージ表示側で開始し、モーション側からは予約しない。
   // 命中音を二重に鳴らさないための印（まとめ鳴らし用）。
   const damageSfxDone=new Set();
   const sweepSources=new Set();
@@ -288,7 +266,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         await playAttackMotion(attacker,target,side==='p2',()=>{ markReady(); return stopped; },
           {...PRESENT_ATTACK_MOTION,
            onContact:()=>_fireAttackContact(attackEvent,plan.index),
-           onHit:()=>_shakeForAttack(attackEvent),
            targetRect:target._lastVisualRect||null});
       } finally { markReady(); endBattleMotion(); }
     })();
@@ -588,8 +565,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         try{
           await playAttackMotion(attacker,target,attackSide==='p2',null,{...PRESENT_ATTACK_MOTION,
             onContact:()=>_fireAttackContact(e,eventIndex),
-            // **大ダメージの画面揺れは接触の瞬間**（オンラインの受け口と同じ扱い）。
-            onHit:()=>_shakeForAttack(e),
             targetRect:target._lastVisualRect||null});
         } finally {
           endBattleMotion();

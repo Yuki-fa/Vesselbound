@@ -111,7 +111,8 @@ function _syncRewardProductionItems(){
     // 店（道具屋・魔導店・鍛冶屋）では、手持ちアイテムの売却価格そのものをボタンにする。
     // 価格はアイテムなので全店共通で道具屋準拠（レアリティ×45）。
     slot.querySelector('.shop-board-sell-value')?.remove();
-    if((G._isShop||G._isForge)&&item){
+    // 2026-10-11: デバッグ編成もカードと同じ売却場所にする。通常の店の条件・売価は維持する。
+    if((G._isShop||G._isForge||(G._debugMode&&_boardCardSellEnabled(item)))&&item){
       const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
       const action=document.createElement('button');
       action.type='button';

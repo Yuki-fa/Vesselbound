@@ -22,7 +22,8 @@ global.innerWidth=1280;global.innerHeight=800;
 global.document.getElementById=id=>nodes.get(id)||null;
 global.document.querySelector=selector=>selector==='#scr-battle .battle-area'?screen:null;
 // 状態VFXはカードの可視性も読む。仮DOMの初期状態は、画面に出た不透明なカード。
-global.getComputedStyle=element=>({visibility:element.style.visibility||'visible',display:element.style.display||'block',opacity:element.style.opacity||'1'});
+// 2026-10-11: 数値表示と同時に開始する画面振動も、実装と同じCSS変数読み取りを使えるようにする。
+global.getComputedStyle=element=>({visibility:element.style.visibility||'visible',display:element.style.display||'block',opacity:element.style.opacity||'1',getPropertyValue:key=>key==='--game-scale'?'1':''});
 global.document.createElement=tag=>{const e=makeElement(tag);e.isConnected=true;const append=e.appendChild;e.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(e,c);};return e;};
 const append=screen.appendChild;screen.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(screen,c);};
 global.getCurrentUnitSlot=(_side,u)=>slots.get(String(u.id))||null;

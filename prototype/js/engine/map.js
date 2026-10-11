@@ -1314,7 +1314,10 @@ function renderVillageScreen(){
     const btn=document.getElementById('library-howto-btn');
     if(btn) btn.textContent=textMessage('図書館「魔導板の使い方」ボタン','魔導板の使い方');
     const mergeBtn=document.getElementById('library-merge-btn');
+    const mergeUnlocked=_libraryBoardTutorialCompleted();
     if(mergeBtn){
+      // 2026-10-11: 魔導板の説明を最後まで終えたプロフィールだけ、マージの入口を表示する。
+      mergeBtn.style.display=mergeUnlocked?'':'none';
       mergeBtn.textContent=textMessage('図書館「マージとは」ボタン','マージとは');
       mergeBtn.onclick=()=>{
         if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
@@ -1322,12 +1325,15 @@ function renderVillageScreen(){
       };
     }
     const mergeDesc=document.getElementById('library-merge-desc');
-    if(mergeDesc) mergeDesc.textContent=textMessage('図書館「マージとは」直下','マージのシステムを確認する。');
+    if(mergeDesc){
+      mergeDesc.style.display=mergeUnlocked?'':'none';
+      mergeDesc.textContent=textMessage('図書館「マージとは」直下','マージのシステムを確認する。');
+    }
     if(btn) btn.onclick=()=>{
       if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
       openMapLibraryFormation();
       _prepareLibraryLoanMode('board');
-      if(!window._libraryBoardTutorialPlayed) _waitLibraryUIReady(()=>startLibraryBoardTutorial());
+      if(!_libraryBoardTutorialPlayedInPage()) _waitLibraryUIReady(()=>startLibraryBoardTutorial());
     };
     const desc=document.getElementById('library-howto-desc');
     if(desc){
@@ -1821,14 +1827,32 @@ function _waitLibraryUIReady(fn,tries){
 //       手順＝[キー, 発光させる対象, 予備の文言, 移動させるカード名, 移動の設定]
 //       移動の設定＝{destIndex:置き先のマス番号（nullならどこでも）, done:()=>進めてよいか}
 //   cfg.onFinish  … 終わった時
+// 2026-10-11: 完走の記録は既存のプロフィール既読へ。デバッグはプロフィールを読み書きせず、このページ内だけ。
+const LIBRARY_BOARD_TUTORIAL_KEY='library:board-completed';
+function _libraryBoardTutorialCompleted(){
+  if(G&&G._debugMode) return !!window._libraryDebugBoardTutorialCompleted;
+  return typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);
+}
+// 説明自体は従来どおりページ内で一度。入口の解放記録とは分け、再読込後も説明を読み返せる。
+function _libraryBoardTutorialPlayedInPage(){
+  return G&&G._debugMode?!!window._libraryDebugBoardTutorialCompleted:!!window._libraryBoardTutorialPlayed;
+}
 function startLibraryBoardTutorial(){
-  if(window._libraryBoardTutorialPlayed||!G||!G._isLibrary) return;
-  window._libraryBoardTutorialPlayed=true;
+  if(!G||!G._isLibrary||G._libraryTutorialActive||_libraryBoardTutorialPlayedInPage()) return;
+  const debug=!!G._debugMode;
   runBoardTutorial({
     id:'board',
     introText:textMessage('図書館「魔導板の使い方」説明開始','魔導板の使い方'),
     text:(key,fallback)=>_libraryTutorialText(key,fallback),
     buildSteps:h=>_libraryBoardTutorialSteps(h),
+    // 開始時や途中離脱では記録しない。共通チュートリアルの最終手順を閉じた時だけ呼ばれる。
+    onFinish:()=>{
+      if(debug) window._libraryDebugBoardTutorialCompleted=true;
+      else {
+        window._libraryBoardTutorialPlayed=true;
+        if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);
+      }
+    },
   });
 }
 function _libraryBoardTutorialSteps({cardByName,boardSlot}){
@@ -1847,11 +1871,16 @@ function _libraryBoardTutorialSteps({cardByName,boardSlot}){
   ];
 }
 // ── 図書館「マージとは」──────────────────────────────
-// 貸出カードを MERGE_TUTORIAL_CARD（ブラウニー）5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
+// 貸出カードをシート番号で選んだ5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
 // 貸出カード・魔導板・オプション以外は操作させない（魔導板の使い方と同じ）。
-const MERGE_TUTORIAL_CARD='ブラウニー'; // 「マージとは」の貸出カード（利用者指定 2026-09-25。旧ノーム）
+// 「マージとは」の貸出カード（利用者指定 2026-09-25。旧ノーム）
+// 2026-10-11: 貸出をC062の5枚へ変更。改名に追従するためシート番号から定義・表示名を引く。
+const MERGE_TUTORIAL_CARD_NO='C062';
+function _libraryMergeTutorialCard(){
+  return typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL.find(c=>c&&c.no===MERGE_TUTORIAL_CARD_NO):null;
+}
 function _libraryMergeLoanCards(){
-  const def=(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL))?PANEL_POOL.find(c=>c&&String(c.name||'')===MERGE_TUTORIAL_CARD):null;
+  const def=_libraryMergeTutorialCard();
   if(!def||typeof makePanel!=='function') return [];
   return Array.from({length:5},(_,index)=>{
     const card=makePanel(def.id);
@@ -1865,10 +1894,10 @@ function _libraryMergeLoanCards(){
 }
 function _libraryBoardHasMergedTutorialCard(){
   return (G&&Array.isArray(G.mainBoard)?G.mainBoard:[]).some(c=>c&&c._tripleMerged
-    &&String(c._tripleBaseName||c.name||'').replace(/\+$/,'')===MERGE_TUTORIAL_CARD);
+    &&c.no===MERGE_TUTORIAL_CARD_NO);
 }
 function openLibraryMergeTutorial(){
-  if(!G||G._libraryTutorialActive) return;
+  if(!G||G._libraryTutorialActive||!_libraryBoardTutorialCompleted()) return;
   openMapLibraryFormation();
   _prepareLibraryLoanMode('merge');
   if(window._libraryMergeTutorialPlayed) return;
@@ -1876,10 +1905,14 @@ function openLibraryMergeTutorial(){
   _waitLibraryUIReady(()=>runBoardTutorial({
     id:'merge',
     introText:textMessage('図書館「マージとは」説明開始','マージとは'),
-    text:(key,fallback)=>textMessage(`「マージとは」${key}`,fallback),
+    text:(key,fallback)=>{
+      const message=textMessage(`「マージとは」${key}`,fallback);
+      // 2026-10-11: シートの説明文を保ち、貸出名の箇所だけ現在のC062の表示名に合わせる。
+      return key==='2'?message.replace(/「[^「」]*」/,`「${_libraryMergeTutorialCard()?.name||''}」`):message;
+    },
     buildSteps:()=>[
       ['1',null,'同じカードを魔導板に3枚置くと、合体して1枚のカードになります。これを「マージ」と呼びます。'],
-      ['2',null,`貸出キャラクターの「${MERGE_TUTORIAL_CARD}」を魔導板に3枚置いてみましょう。`,MERGE_TUTORIAL_CARD,{destIndex:null,done:()=>_libraryBoardHasMergedTutorialCard()&&!window._tripleMergeAnimationActive}],
+      ['2',null,`貸出キャラクターの「${_libraryMergeTutorialCard()?.name||''}」を魔導板に3枚置いてみましょう。`,_libraryMergeTutorialCard()?.name||'',{destIndex:null,done:()=>_libraryBoardHasMergedTutorialCard()&&!window._tripleMergeAnimationActive}],
       ['3',()=>Array.from(document.querySelectorAll('#hand-slots.board-slots > *')).filter((el,i)=>{const c=(G.mainBoard||[])[i];return !!(c&&c._tripleMerged);}),'マージ成功です！マージしたカードは効果が強化され、矢印が4方向になります。'],
       ['4',null,'既にマージしたカードを更にマージすることはできません。また、「荷物」という効果を持つカードもマージすることはできません。'],
     ],
