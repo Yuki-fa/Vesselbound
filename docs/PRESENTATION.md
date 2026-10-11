@@ -663,6 +663,7 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 検査：`tools/parity/attack_lifecycle_1010_check.js`（1／2／3倍・PvE／オンラインの252通り）、`action_banner_1010_check.js`、`guts_state_1010_check.js`、`tools/balance_sim/attack_lifecycle_1010_regression.js`・`guts_state_1010_regression.js`。経緯は `tools/parity/FIX_1010_REPORT.md`。
 
 ## 大ダメージの振動・闇の炎の分裂・魔導店の値札（2026-10-11 利用者報告）
-- 大ダメージの振動は、接触から固定440ms待ってから起こしていたため、攻撃者が元の場所に戻った後に揺れていた。共通の `presentDamageImpact` から、ダメージ数値が出る時刻に起こす（閾値・振幅・長さは同じ）。検査は `tools/parity/damage_shake_1011_check.js`、`tools/balance_sim/damage_shake_1011_regression.js`。
+- 大ダメージの振動は、接触から固定440ms待ってから起こしていたため、攻撃者が元の場所に戻った後に揺れていた。共通の `presentDamageImpact` から、ダメージ数値が出る時刻に起こす（閾値・振幅・長さは同じ）。
+- **振動するのは、攻撃で実際に大ダメージを与えた時だけ**（2026-10-12 利用者指定）。反撃（ATKの低い体がATKの高い体へ攻撃した時に受ける反撃など）・攻撃効果・効果ダメージ・毒では振動しない。判定は `present_events.js: presentDamageShakes`（`damageKind==='combat'` かつ `counter` でない）。検査は `tools/parity/damage_shake_1011_check.js`、`tools/balance_sim/damage_shake_1011_regression.js`。
 - 闇の炎が3回出た件は表示だけの分裂だった（コアの発動回数は正しい）。結界で防がれたダメージのイベントに `batch` などの演出情報が欠け、同じ死亡効果の波が別々に再生されていた。防いだ時も演出情報を保ち、共通の present が同じ束として扱う。検査は `tools/balance_sim/death_1011_regression.js`。
 - 魔導店・行商人でゴールドが足りないカードは、値札を暗くせず（道具屋と同じ）、カードのマナと血の表示を暗くする（値札を暗転層の上、マナ・血を下に置く）。道具屋・鍛冶屋は変えない。検査は `tools/parity/sale_library_price_1011_check.js`。

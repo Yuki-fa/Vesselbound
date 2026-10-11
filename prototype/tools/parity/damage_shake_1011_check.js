@@ -90,7 +90,11 @@ async function run(){
       `);
       const name=`${kind} ${speed}倍 ${online?'オンライン':'PvE'}`;
       assert.equal(result.expected,1,name+' コアの大ダメージ');
-      assert.equal(result.shakes.length,1,name+' 振動の重複／欠落');assert.equal(result.hits.length,1,name+' 数値の重複／欠落');
+      assert.equal(result.hits.length,1,name+' 数値の重複／欠落');
+      assert.ok(result.hits[0].dom&&result.hits[0].visible,name+' ダメージ数値が画面上で見える: '+JSON.stringify(result.hits[0]));
+      // 2026-10-12 利用者指定：振動は攻撃で与えた大ダメージだけ。反撃・攻撃効果・効果ダメージでは振動しない。
+      if(kind!=='normal'){assert.equal(result.shakes.length,0,name+' 攻撃以外は振動しない');console.log('OK '+name);checked++;continue;}
+      assert.equal(result.shakes.length,1,name+' 振動の重複／欠落');
       assert.ok(result.shakes[0].active,name+' 実際の振動アニメーションが開始している');
       assert.ok(result.hits[0].dom&&result.hits[0].visible,name+' ダメージ数値が画面上で見える: '+JSON.stringify(result.hits[0]));
       assert.ok(Math.abs(result.shakes[0].at-result.hits[0].at)<48,name+' 数値・被弾VFXと同じフレームで振動を開始: '+JSON.stringify(result));

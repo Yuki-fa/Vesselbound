@@ -38,8 +38,14 @@ function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _pres
 function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
 // 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
 // 通常・反撃・効果・範囲・飛び道具ともこの入口。強さ／閾値／尺は既存の振動設定が決める。
+// 2026-10-12 利用者指定：画面が振動するのは「攻撃で実際に高いダメージを与えた時」だけ。
+// 反撃（ATKの低い体がATKの高い体へ攻撃した時に受ける反撃など）・効果ダメージ・毒などでは振動しない。
+function presentDamageShakes(ev) {
+  return !!ev && ev.damageKind === 'combat' && !ev.counter;
+}
 function presentDamageImpact(ev) {
   if (!ev || _presentDamageImpacts.has(ev) || !(Number(ev.amount) > 0)) return;
+  if (!presentDamageShakes(ev)) return;
   _presentDamageImpacts.add(ev);
   if (typeof _battleScreenShakeTier === 'function' && !_battleScreenShakeTier(ev.amount)) return;
   if (typeof triggerBattleScreenShake === 'function') triggerBattleScreenShake({damage:ev.amount});
