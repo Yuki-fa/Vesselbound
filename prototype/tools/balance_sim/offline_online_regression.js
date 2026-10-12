@@ -431,12 +431,14 @@ function main() {
   const modifierState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
     sides: {p1: {units: [
-      {id: 'void', name: 'ヴォイド・ウォーカー', atk: 1, hp: 3, maxHp: 3, color: '紫'},
+      // 2026-10-12: 名前だけの旧常時補正ではなく、シートの開戦本文を発動する。
+      {id: 'void', name: 'ヴォイド・ウォーカー', atk: 1, hp: 3, maxHp: 3, color: '紫',
+        desc: sheetData.sheetRows('card').find(r => r['No.'] === 'C093')['効果']},
       {id: 'purple', name: '紫役', atk: 1, hp: 3, maxHp: 3, color: '紫'},
     ]}, p2: {units: []}},
   });
   const modifierEvents = [];
-  core.coreApplyOpeningEffects(modifierState.units.p1[1], modifierState, createSeededRng(19),
+  core.coreApplyOpeningEffects(modifierState.units.p1[0], modifierState, createSeededRng(19),
     event => modifierEvents.push(event), () => ({amount: 0, died: false}));
   // 汎用的な本文強化を使い、ヴォイド・ウォーカーの+1が攻撃修正にも乗ることを検証する。
   modifierState.units.p1[1].desc = '攻撃：このキャラクターは+1/+1を得る。';

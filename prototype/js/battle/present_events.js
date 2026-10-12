@@ -78,10 +78,10 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(source&&source.kind==='item'&&/^\d{1,3}$/.test(code)) code='I'+code.padStart(3,'0');
   if (ev.blockedBy === 'great_shield') code = 'E062';
   if(!presentLabFx(code)) {
-    if(ev.type==='keyword_effect'&&ev.effect==='weaken') code='K016';
+    if(ev.type==='keyword_effect'&&ev.effect==='weaken') code=getKeywordAssetKey('弱体');
   }
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
-  if (!spec || ['S001','K020','K009'].includes(code)) return null;
+  if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
   if (ev.type === 'effect_flash' && !['C025','C076'].includes(code)) return null;
   if (ev.type === 'attack' && !ev.controlled) return null;
   if (ev.type === 'damage' && ev.damageKind === 'combat' && code !== 'E062') return null;
@@ -135,7 +135,7 @@ async function _presentLabFinish(plan) {
   if (plan.done) await plan.done;
   if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
   // 結界・復活の獲得は、元の効果が消えてから同じ波で続ける。
-  for (const code of ['K016','K002','K018_gain','K020_gain']) {
+  for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain')]) {
     if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
     const units = [...new Set(plan.gains.filter(g=>g.code===code).map(g=>g.unit))];
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0])});
@@ -161,7 +161,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   }
   const plan = _presentLabPlan(ev,events,index,api,context);
   if (!plan) return;
-  if(plan.code==='K016'&&typeof api.finishEffect==='function') await api.finishEffect();
+  if(plan.code===getKeywordAssetKey('弱体')&&typeof api.finishEffect==='function') await api.finishEffect();
   context.active = plan;
   if (ev.type !== 'mana_threshold') _presentLabStart(plan);
   // ピクシーの捕縛・移動はLAB自身が描く。従来の攻撃クローンを重ねず、接触で既存処理へ渡す。
@@ -201,13 +201,13 @@ async function presentLabEndEvent(ev, events, index, api) {
       battleFxReleaseForm(unit); if (api.render) api.render();
     }
     const gains = [];
-    if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!=='K016')) gains.push('K016');
+    if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!==getKeywordAssetKey('弱体'))) gains.push(getKeywordAssetKey('弱体'));
     // 付与元の固有演出は保持し、ATK減少の合図をその後へ続ける（HPも減る場合を含む）。
-    if (ev.type==='stat_change' && Number(ev.atk)<0 && (!plan||plan.code!=='K002')) gains.push('K002');
-    if (ev.type==='keyword_effect' && ev.effect==='shield' && Number(ev.amount)>0) gains.push('K018_gain');
+    if (ev.type==='stat_change' && Number(ev.atk)<0 && (!plan||plan.code!==getKeywordAssetKey('邪眼'))) gains.push(getKeywordAssetKey('邪眼'));
+    if (ev.type==='keyword_effect' && ev.effect==='shield' && Number(ev.amount)>0) gains.push(getKeywordAssetKey('結界','gain'));
     // shield_setは開戦時の初期結界にも使う。復活直後の付け直しだけ獲得として見せる。
-    if(ev.type==='shield_set'&&Number(ev.amount)>0&&events[index-1]?.type==='revive'&&events[index-1].unitId===ev.unitId) gains.push('K018_gain');
-    if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ev.keyword==='復活') gains.push('K020_gain');
+    if(ev.type==='shield_set'&&Number(ev.amount)>0&&events[index-1]?.type==='revive'&&events[index-1].unitId===ev.unitId) gains.push(getKeywordAssetKey('結界','gain'));
+    if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ev.keyword==='復活') gains.push(getKeywordAssetKey('復活','gain'));
     for (const code of gains) {
       if (plan) plan.gains.push({code,unit});
       else {
@@ -423,7 +423,7 @@ function presentShieldLostEvent(ev, api) {
     if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, { shield: nextShield });
     if (typeof battleFxAdvanceStates === 'function') battleFxAdvanceStates(unit,{shield:nextShield});
     if (typeof updateUnitShieldUi === 'function') updateUnitShieldUi(unit, fxSide);
-    // K018の音は防いだ瞬間に残す。消失の絵はLABだけにし、死亡などの後続は待たせない。
+    // 結界の音は防いだ瞬間に残す。消失の絵はLABだけにし、死亡などの後続は待たせない。
     const sound = typeof getKeywordEffectSfxKey === 'function' ? getKeywordEffectSfxKey('結界') : '';
     if (sound && typeof playSfx === 'function') playSfx(sound,{group:'combat',guardMs:0});
     if (nextShield===0 && typeof playBattleLabFx === 'function') void playBattleLabFx('shield_break',unit,[unit],{side:fxSide});
@@ -505,9 +505,10 @@ async function presentStatChangeEvent(ev, api) {
   return true;
 }
 
+// 2026-10-12 利用者指定: キーワードの意味は名前で引き、既存素材キーは共通対応表で解決する。
 // ── キーワードの付与（毒・弱体など）──────────────────────
 // **状態異常を受けた瞬間**の見せ方。キーワード専用のVFXとSEを対象の上に出す
-// （毒牙で毒を受けた＝K003）。番号はキーワードシートのNo.（`KW_NO_MAP`）で引くので、
+// （毒牙で毒を受けたの既存素材）。素材は名前（`getKeywordAssetKey`）で引くので、
 // **ここにカード名や番号を直接書かないこと。**
 // 素材が登録されていないキーワードでは何も出さない
 // （通常の被弾VFXへ落とすと「殴られた」ように見える）。
@@ -548,8 +549,8 @@ function presentKeywordEffectEvent(ev, api) {
   return true;
 }
 // ── 即死 ────────────────────────────────────
-// 即死効果を受けた瞬間、そのキャラクターの上にキーワード「即死」の演出（K001）を出す。
-// **絵も音もキーワードの番号で引く**（`KW_NO_MAP`）。素材が無ければ何も出さない。
+// 即死効果を受けた瞬間、そのキャラクターの上にキーワード「即死」の演出（既存素材）を出す。
+// **絵も音も名前から素材キーで引く**（`getKeywordAssetKey`）。素材が無ければ何も出さない。
 function presentInstantDeathEvent(ev, api) {
   if (!ev || !api) return false;
   return presentKeywordEffectEvent({ side: ev.side, unitId: ev.unitId, keyword: '即死' }, api);
@@ -841,7 +842,7 @@ async function presentReviveEvent(ev, api) {
 // **発動回数ぶん見せる。間引かない。** 「Xマナ毎」が到達回数ぶん発動したとき、
 // 2回目以降を捨てていたため、5回発動しても演出・SEは1回きりで、
 // ATK/HPも一息に+5/+5されたように見えた（活性化×5で発覚）。
-// マナ効果VFX（K024）は**ひと続きにつき、その効果の最初の1回だけ**。
+// マナ効果VFX（既存素材）は**ひと続きにつき、その効果の最初の1回だけ**。
 // 2回目以降はSEと能力変化の刻みだけを高速で並べる。
 // 効果そのもののVFX（`ev.effectNo`＝活性化ならE045）は、
 // **マナ効果VFXの逆再生開始から、その処理が終わるまで**出し続ける。

@@ -120,8 +120,10 @@ function _collectionDisplayCard(card){
   out.rarity=Math.max(1,Number(out.rarity)||1)+1;
   if(typeof applyMergedPanelForm==='function') applyMergedPanelForm(out);
   if(_collectionKind==='character'){
-    out.power=(Number(card.power??card.atk)||0)*2;
-    out.life=Math.max(1,(Number(card.life??card.hp)||1)*2);
+    // 2026-10-12: 新規トリプルと同じ基本能力3倍を表示する。
+    const tripleBase=tripleCharacterBaseStats(card);
+    out.power=tripleBase.power;
+    out.life=Math.max(1,tripleBase.life);
     if(out.atk!=null) out.atk=out.power;
     if(out.hp!=null) out.hp=out.life;
   }

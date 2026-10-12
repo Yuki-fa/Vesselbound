@@ -1197,14 +1197,14 @@ async function playEffectFlash(unit, side, color, count){
   return true;
 }
 
-// ── 攻撃範囲の接触演出（貫通＝K007／三方向攻撃＝K008／全体攻撃＝K009）──────
+// ── 攻撃範囲の接触演出（貫通の既存素材／三方向攻撃の既存素材／全体攻撃の既存素材）──────
 // **ここが唯一の描画実装**（PvE・オンライン共通）。呼ぶのは接触した瞬間で、
 // 呼び出し側は完了を待たない（待つと複数対象のダメージ数値の時刻がずれる）。
 // 大きさ・位置のつまみは present.js（PRESENT_CONTACT_*）が唯一の定義。
 async function playAttackContactVfx({attacker, targets, targetSide, mode, path, duration, fadeDuration, onPass}){
   _syncEffectFlashWithVfx();
   const list=(targets||[]).filter(Boolean);
-  if(mode==='all') return playBattleLabFx('K009',attacker,list);
+  if(mode==='all') return playBattleLabFx(getKeywordAssetKey('全体攻撃'),attacker,list);
   if(!list.length||!path||typeof playHitVfxAtRect!=='function') return false;
   const side=targetSide||((list[0].side==='p2')?'enemy':'ally');
   const rectOf=unit=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null;
@@ -1919,7 +1919,7 @@ function playEffectVfxOnUnit(unit,side,code,options){
 // 「画面の中心が絵の頂点、画面の底辺が絵の中心」になる大きさで出す
 // （＝絵の高さ＝画面の高さ、中心を画面下端へ置く）。
 // どの効果をこう出すかは present.js の `PRESENT_SCREEN_BOTTOM_VFX` が唯一の実装。
-// ── 状態異常を付けた時のVFX（毒牙＝K003 等）を「出し直さず継続」させる ──────
+// ── 状態異常を付けた時のVFX（毒牙の既存素材 等）を「出し直さず継続」させる ──────
 // **ここが唯一の描画実装**（PvE・オンライン共通）。同じキャラクターへ続けて
 // 付与される間は、既に出ている再生を延ばすだけで作り直さない。
 // 尺・フェードの値は present.js（PRESENT_KEYWORD_VFX_*）が唯一の定義。
@@ -2210,7 +2210,7 @@ function playHitVfxAtRect(rect,amount,options){
   const charVfx=opt.effectSource&&typeof getCharacterEffectVfxPath==='function'?getCharacterEffectVfxPath(opt.effectSource):'';
   // キャラクター固有VFXが無い場合、毒等キーワード発動によるダメージならキーワード専用のVFXを探す。
   const keywordVfx=!charVfx&&opt.keywordEffect&&typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(opt.keywordEffect):'';
-  // 状態異常を付けたダメージの絵（弱体＝K004）。**絵だけ差し替え、SEは変えない。**
+  // 状態異常を付けたダメージの絵（弱体の既存素材）。**絵だけ差し替え、SEは変えない。**
   const vfxKeywordUrl=!charVfx&&!keywordVfx&&opt.vfxKeyword&&typeof getKeywordEffectVfxPath==='function'
     ?getKeywordEffectVfxPath(opt.vfxKeyword):'';
   // 効果が**対象に当たった瞬間**の専用演出（炎の矢＝E058_2）。
@@ -2239,7 +2239,7 @@ function playHitVfxAtRect(rect,amount,options){
   // 明示指定が無いときは素材の番号から決める（指定しないと等倍で巨大に出る）。
   // 大きさの鍵は**枝番まで含めた素材名**（E058_1 と E058_2 は別物）。
   // 枝番を落とすと、着弾VFXが矢と同じ倍率で描かれて見えなくなる（実際にそうなった）。
-  // **キーワードVFX（毒＝K017・毒牙＝K003 等）も同じ倍率表で決める。**
+  // **キーワードVFX（毒の既存素材・毒牙の既存素材 等）も同じ倍率表で決める。**
   // ここに入れていなかった頃は、素材の大きさをどう登録しても等倍のままだった。
   const scaleSourceUrl=effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||'';
   const charVfxCode=scaleSourceUrl
@@ -2413,7 +2413,7 @@ function playHitVfxAtRect(rect,amount,options){
     // にかけて動きを止めずに滑らかにフェードアウトさせる。
     const fadeStartRatio=Math.max(0,Math.min(1,1-fadeDuration/hitDuration));
     const finishWebp=()=>{ if(done) return; done=true; host.remove(); labelHost?.remove(); resolveComplete(); };
-    // 素材が重い（K024＝6.6MB等）と、デコードが終わる前にフェードと破棄タイマーが
+    // 素材が重い（既存素材＝6.6MB等）と、デコードが終わる前にフェードと破棄タイマーが
     // 走り切り、1コマも描かれないまま消える。＝マナ効果VFXが出ない原因。
     // 画像が使える状態になってから尺を数え始める。読み込めない場合に止まらないよう、
     // 待つのは最大1.5秒まで。
@@ -2589,7 +2589,7 @@ if(typeof window!=='undefined'){ window.playFledVfx=playFledVfx; window.playWast
 // 対象ごとに固有VFXが3回出る、といった食い違いになる。
 //   damageOf(target) … その対象のダメージイベント（{amount, keywordEffect}）を返す
 //   onShown(target, ev) … 数値を出した対象を呼び出し側へ知らせる（二重表示の抑止用）
-// ── 復活（キーワード「復活」で再召喚された）時の演出（K020）──────────
+// ── 復活（キーワード「復活」で再召喚された）時の演出（既存素材）──────────
 // **SEと同時にVFXをフェードイン → その上にカードをフェードイン → VFXをフェードアウト。**
 // 大きさ・尺・命中はLABで承認されたrevive-summonの定義を使う。
 async function playReviveVfx(unit,side){
@@ -2601,7 +2601,7 @@ async function playReviveVfx(unit,side){
       if(el.dataset.unitId===String(unit.id)) el.classList.remove('revive-hidden');
     });
   };
-  try{ await playBattleLabFx('K020',unit,[unit],{side,onImpact:reveal}); return true; }
+  try{ await playBattleLabFx(getKeywordAssetKey('復活'),unit,[unit],{side,onImpact:reveal}); return true; }
   finally{ reveal(); }
 }
 
@@ -2978,7 +2978,7 @@ function playSummonAppearVfx(unit, side){
   });
 }
 
-// 封印を1体、K019演出付きで解放する
+// 封印を1体、既存の封印解放演出で解放する
 // 戦闘中のユニットのレアリティ。ユニットは編成カードから作られる際に rarity を
 // 引き継がないため、名前でカード定義（キャラクター／敵）を引いて補う。
 // ホバー説明の見出し色（#kw-tooltip の rarity-N）に使う。
@@ -3002,7 +3002,7 @@ function _battleUnitRarity(unit){
 function playSealReleaseVfx(unit, side){
   _syncEffectFlashWithVfx();
   const slot=getCurrentUnitSlot(side,unit);
-  const url=Assets?.vfx?.specialProduction?.K019||'';
+  const url=Assets?.vfx?.specialProduction?.[getKeywordAssetKey('封印')]||'';
   const slotH=slot?.getBoundingClientRect?.().height||0;
   const fadeMs=Math.max(0,_SEAL_RELEASE_VFX_TIMING.forwardMs+_SEAL_RELEASE_VFX_TIMING.reverseMs-250);
   if(slot){
@@ -3043,7 +3043,7 @@ function playSealReleaseVfx(unit, side){
       statEls.forEach(el=>{ el.style.removeProperty('transition'); el.style.removeProperty('filter'); });
     },fadeMs+40);
   }
-  return playSpecialProductionVfx(slot,'K019',url,()=>{
+  return playSpecialProductionVfx(slot,getKeywordAssetKey('封印'),url,()=>{
     unit._sealed=false;
     delete unit._sealValue;
   },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
@@ -4235,7 +4235,7 @@ function _stripOwnNameFromEffectText(text, name){
   return out;
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','即死','先制','防戦','帰滅','隠密','貫通','結界','生命吸収','封印','荷物']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','熟練','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','即死','先制','防戦','帰滅','隠密','貫通','結界','生命吸収','封印','荷物']);
 // 強化・エンチャントカードの「キーワード：〜」欄に出す語の唯一の実装。
 // 魔導板・報酬画面・コレクションはすべてこれを呼ぶ（同じカードが画面ごとに違う欄を出さないため）。
 // 出すのはシート「キーワード」列（adjacentKeywords）と、カード自身が持つ「荷物」だけ。
@@ -4252,14 +4252,18 @@ function _enchantPreviewKeywords(card){
     ...(card.adjacentKeywords||[]),
   ].map(k=>String(k||'').trim()).filter(Boolean))].filter(k=>{
     if(internal.has(k)) return false;
+    // 2026-10-12: 古いE052の自己参照名は残さず、数値付きの熟練Nだけを表示する。
+    if(k==='熟練') return false;
     if(k!==ownName) return true;
     return _ENCHANT_KEYWORD_ONLY.has(k)||/^結界\d+$/.test(k)||/^封印\d+$/.test(k)
-      ||/^毒牙?\d*$/.test(k)||/^邪眼\d*$/.test(k)||/^衝撃\d*$/.test(k);
+      ||/^毒牙?\d*$/.test(k)||/^邪眼\d*$/.test(k)||/^衝撃\d*$/.test(k)||/^熟練\d+$/.test(k);
   });
 }
 function _enchantKeywordDesc(k){
   const s=String(k||'').trim();
   if(!s) return '';
+  // 2026-10-12: キーワード「熟練N」の説明は、同名エンチャントE052の本文と区別する。
+  if (/^熟練(?:\d+|X)$/.test(s)) return (typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['熟練'])||'';
   // **強化カード名のキーワードは、その強化カードの本文（シート）を使う。**
   // 攻防一体・熟練・大盾などはカードそのものなので、説明はシートの「効果」列が正。
   // コード側へ文章を書き写さないこと（書き写すとシートを直しても反映されない）。
@@ -4792,7 +4796,7 @@ function _renderBattleUnitContent(slot,u,i,isEnemy){
   // ライブユニットは常にユニットとして描画する（moveMask は死亡スロットにのみ表示）
   {
     // **結界は表示専用の値で描く**（present.js）。実体を直に描くと、
-    // 結界を割った演出（K018）より先に shield.png が消える。
+    // 結界を割った演出（既存素材）より先に shield.png が消える。
     const _shownShield=typeof presentShownShield==='function'?presentShownShield(u):(Number(u.shield)||0);
     const gradeTag='';
     const _rawDesc=u.desc?_stripBattleParentheticalText(_rawSubstitutedDesc(u)):'';

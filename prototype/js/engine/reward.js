@@ -3501,8 +3501,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     target.characterDesc=String(target.characterDesc).replaceAll(`「${baseName}」`,`「${baseName}+」`);
   }
   if(String(target.category||'')==='キャラクター'){
-    const baseAtk=Number(def.power??def.atk??0)||0;
-    const baseHp=Number(def.life??def.hp??1)||1;
+    const tripleBase=tripleCharacterBaseStats(def);
     // **アイテム等で個別に付いたステータスは、3枚すべてから合体後へ引き継ぐ。**
     // キーワード（mergedKeywords）と同じ扱い。targetの分だけを見ていたため、
     // 素材にした2枚に掛けた「巨大化の巻物」（+5/+5を永久付与）が消えていた。
@@ -3517,10 +3516,11 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
       atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk;
       hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp;
     });
-    target._permBasePower=baseAtk*2;
-    target._permBaseLife=baseHp*2;
-    target.power=baseAtk*2+atkBuff;
-    target.life=Math.max(1,baseHp*2+hpBuff);
+    // 2026-10-12 利用者指定: 基本能力3倍＋3枚の個別補正。ポート等は従来どおり。
+    target._permBasePower=tripleBase.power;
+    target._permBaseLife=tripleBase.life;
+    target.power=tripleBase.power+atkBuff;
+    target.life=Math.max(1,tripleBase.life+hpBuff);
     if(target.atk!=null) target.atk=target.power;
     if(target.hp!=null) target.hp=target.life;
   }

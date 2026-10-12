@@ -1,3 +1,19 @@
+// 2026-10-12 利用者指定: シートの番号とは独立した、名前→既存素材キーの唯一の対応表。
+// 素材・LAB・音量設定のキーは維持する。熟練には専用素材を割り当てない。
+const KEYWORD_ASSET_KEYS = Object.freeze({
+  '即死':'K001', '邪眼':'K002', '毒牙':'K003', '衝撃':'K004', '生命吸収':'K005',
+  '先制':'K006', '貫通':'K007', '三方向攻撃':'K008', '全体攻撃':'K009',
+  '二段攻撃':'K010', '三段攻撃':'K011', '呪詛':'K012', '隠密':'K013',
+  '防戦':'K014', '帰滅':'K015', '熟練':'', '弱体':'K016', '毒':'K017',
+  '結界':'K018', '封印':'K019', '復活':'K020', '根性':'K021', '加護':'K022',
+  '眷属':'K023', 'マナ効果':'K024', '荷物':'K025', '刻印':'K026',
+  '結界獲得':'K018_gain', '復活獲得':'K020_gain',
+});
+function getKeywordAssetKey(name, variant){
+  const base=String(name||'').trim().replace(/(?:\d+|X|∞)+$/,'');
+  return KEYWORD_ASSET_KEYS[base+(variant==='gain'?'獲得':'')]||'';
+}
+
 // ═══════════════════════════════════════
 // battle/present.js — 再生層の「方針」を1箇所に集める層。
 //
@@ -191,10 +207,10 @@ function presentManaWaveEvents(events, index) {
   return out;
 }
 
-// ── 復活（キーワード「復活」で再召喚された）時の演出（K020）──────────
+// ── 復活（キーワード「復活」で再召喚された）時の演出（既存素材）──────────
 // **SEと同時にVFXをフェードイン → VFXだけを見せる間（HOLD）→ その上にカードを
 // フェードイン → VFXをフェードアウト。**
-// **HOLDを素材の見せ場に合わせること。** K020は119コマ・約3.9秒で、最初の10コマ弱は
+// **HOLDを素材の見せ場に合わせること。** 復活素材は119コマ・約3.9秒で、最初の10コマ弱は
 // ほぼ透明、光が最も強くなるのは再生開始から約0.7秒。以前はHOLDが無く、
 // 0.26秒でカードを重ね始めて0.58秒から消し始めていたため、
 // **一番明るい瞬間がカードの裏で、しかも消えかけの状態**になり、何も出ていないように見えた。
@@ -204,7 +220,7 @@ const PRESENT_REVIVE_VFX_FADE_IN_MS = 200;
 const PRESENT_REVIVE_VFX_HOLD_MS = 500;
 const PRESENT_REVIVE_CARD_FADE_MS = 320;
 const PRESENT_REVIVE_VFX_FADE_OUT_MS = 380;
-// 素材（K020）の絵がフレームの中で右寄りなので、その分だけ左へ寄せて中心に合わせる。
+// 復活素材の絵がフレームの中で右寄りなので、その分だけ左へ寄せて中心に合わせる。
 // **カード幅に対する比**（負で左）。ここが大きさ・位置のつまみの唯一の置き場。
 const PRESENT_REVIVE_VFX_OFFSET_X = -.12;
 const PRESENT_REVIVE_VFX_OFFSET_Y = 0;
@@ -236,7 +252,7 @@ const PRESENT_MANA_GAIN_VFX_RISE = .35;
 // 順再生は素材の再生速度そのものは変えられないので、**折り返しを早める**形になる。
 const PRESENT_SUMMON_VFX_SPEED = 1.5;
 
-// ── 状態異常を付けた時のVFX（毒牙＝K003 等）───────────────────
+// ── 状態異常を付けた時のVFX（毒牙の既存素材 等）───────────────────
 // **同じキャラクターへ続けて付与しても出し直さない。** 1つの再生を延ばして出し続ける
 // （バフVFXと同じ見せ方）。連続付与のたびに作り直していた頃は、絵が何度も頭から
 // 再生されてちらついて見えた。最後の付与からこの時間だけ出し続けてから消す。
@@ -342,7 +358,7 @@ function presentMissileFlightMs(dist) {
 // 判定は「そのダメージの直後に、同じ体へ出ているキーワードイベント」で行う
 // （コアのイベントを見るだけ。演出側でカード名や効果文から推測しない）。
 const PRESENT_DAMAGE_VFX_KEYWORD_BY_EFFECT = {
-  weaken: '衝撃',   // 弱体を付与した＝K004.webp
+  weaken: '衝撃',   // 衝撃で弱体を付与した時の素材
 };
 function presentDamageVfxKeyword(events, damageEvent) {
   const list = Array.isArray(events) ? events : [];
@@ -1165,7 +1181,7 @@ const PRESENT_CARD_EFFECT_VFX_MS = 700;
 const PRESENT_ATTACK_CONTACT_VFX_MS = 420;
 const PRESENT_ATTACK_CONTACT_FADE_MS = 150;
 
-// ── 攻撃範囲の接触演出（貫通＝K007／三方向攻撃＝K008／全体攻撃＝K009）──────
+// ── 攻撃範囲の接触演出（貫通の既存素材／三方向攻撃の既存素材／全体攻撃の既存素材）──────
 // **出すのは「攻撃者が対象にぶつかった瞬間」。** 戻りモーションを待ってはいけない。
 // そのためコアは attack_contact_vfx を**attackイベントより前に**出し、再生側は
 // 攻撃モーションの接触フック（onContact）で鳴らす。
@@ -1184,15 +1200,15 @@ function presentAttackContactModes(ev) {
 // **大きさは「画面に出る絵の幅」で決める。** VFXの入れ物（host）は位置を決めるだけの
 // 見えない箱で、絵は CSS で host幅の460%に描かれる（`.effect-sustain-host .vfx-hit-video`）。
 // 入れ物の大きさを対象の数で変えると絵の大きさまで変わり、倍率のつまみが効かなくなる。
-// 高さは素材の縦横比のまま伸びる（K007は137x1086＝縦に約8倍）。**幅を決めれば高さも決まる。**
+// 高さは素材の縦横比のまま伸びる（貫通素材は137x1086＝縦に約8倍）。**幅を決めれば高さも決まる。**
 const PRESENT_VFX_CSS_WIDTH_RATIO = 4.6;   // CSSの width:460%
-// 三方向攻撃（K008＝958x162の横薙ぎ）。対象3体の横幅に対する絵の幅の比。
+// 三方向攻撃（既存素材＝958x162の横薙ぎ）。対象3体の横幅に対する絵の幅の比。
 const PRESENT_CONTACT_TRI_WIDTH = 3;
 // 絵の中で炎が右寄りにあるぶんの補正。**単位は「絵の幅」に対する比。**
 // マイナスで左へ。**三方向攻撃の横位置のつまみはここだけ。**
 const PRESENT_CONTACT_TRI_OFFSET_X = -.2;
 const PRESENT_CONTACT_ALL_SCALE = .2875;   // 全体攻撃VFXの倍率（従来どおり）
-// 貫通（K007＝137x1086の縦長ビーム）。対象カードの幅に対する絵の幅の比。
+// 貫通（既存素材＝137x1086の縦長ビーム）。対象カードの幅に対する絵の幅の比。
 // **高さはこの約8倍になる。** 大きくすると画面の上下いっぱいに伸びて
 // 「画面の下から現れた」ように見えるので、幅で抑えること。
 const PRESENT_CONTACT_PIERCE_WIDTH = 1.1;
@@ -1747,10 +1763,10 @@ const PRESENT_VFX_SCALE = {
   C017: .5, C018: .5,             // メデューサ／サイクロプス（約450x450）。S006と同じ扱い
   E058_2: 1.2,                    // 炎の矢の着弾（983x552）。矢とは別素材なので別の倍率
   C019_2: 1.2,                    // ケンタウロスの着弾（1436x824）。炎の矢の着弾と同じ扱い
-  K003: .5,                       // 毒牙（毒のデバフを受けた瞬間。389x398）
-  K017: .5,                       // 毒（毒でダメージを受けた瞬間。370x575）
-  K004: .4,                       // 衝撃（弱体を付与した瞬間）
-  K020: .5,                       // 復活（644x1073の縦長）
+  [getKeywordAssetKey('毒牙')]: .5,                       // 毒牙（毒のデバフを受けた瞬間。389x398）
+  [getKeywordAssetKey('毒')]: .5,                       // 毒（毒でダメージを受けた瞬間。370x575）
+  [getKeywordAssetKey('衝撃')]: .4,                       // 衝撃（弱体を付与した瞬間）
+  [getKeywordAssetKey('復活')]: .5,                       // 復活（644x1073の縦長）
   S003: .5,                       // 金貨（旧C001）
   C090: .5,                       // 奪う（対象の上で出す。毒牙と同じ大きさ）
 };
@@ -1766,10 +1782,10 @@ const PRESENT_LAB_FX = {
   C078:['pixie',.9,'pair'], C080:['elemental',.74,'self'], C081:['imp',.9,'others'],
   C092:['wendigo',.9,'foes'], C096:['nightmare',.9,'self'], C098:['baron',.9,'self'],
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
-  C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], K016:['weaken',.2,'target'],
-  K002:['atk-down',.44,'target'], K009:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
-  S001:['battle-summon',.46,'target'], K020:['revive-summon',.9,'target'],
-  K018_gain:['shield-gain',.22,'target'], K020_gain:['revive-gain',.24,'target'],
+  C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
+  [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
+  S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
+  [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   shield_break:['shield-break',null,'target'],
 };
 const PRESENT_LAB_SPEED = 1.5;
@@ -1837,7 +1853,7 @@ function presentShownMaxHp(unit) {
   return Math.max(1, unit._displayMaxHp != null ? unit._displayMaxHp : (Number(unit.maxHp) || Number(unit.hp) || 1));
 }
 // 画面に出す結界の数。ATK/HPと同じ理由で据え置く：コアは1手番ぶんを先に解決するため、
-// そのまま描くと**結界を割った演出（K018）より先に shield.png が消える**。
+// そのまま描くと**結界を割った演出（既存素材）より先に shield.png が消える**。
 function presentShownShield(unit) {
   if (!unit) return 0;
   return Math.max(0, unit._displayShield != null ? unit._displayShield : (Number(unit.shield) || 0));
@@ -2026,6 +2042,7 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
+    KEYWORD_ASSET_KEYS, getKeywordAssetKey,
     presentActionBannerSource, presentActionBannerName, presentActionBannerTrigger,
     presentActionBannerEffectText, presentActionBannerTextMatchesEvent,
     PRESENT_ACTION_BANNER_GROUP_REASONS, PRESENT_ACTION_BANNER_EVENT_TYPES,

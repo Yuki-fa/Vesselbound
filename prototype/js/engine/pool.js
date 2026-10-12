@@ -77,6 +77,12 @@ function _dedupePanelDirections(cards){
   return cards;
 }
 
+// 2026-10-12 利用者指定: 新規トリプルは基本能力3倍。保存済みの値は作り直さない。
+// 個別補正の合算は合体する側で行い、図鑑もこの同じ基礎値を使う。
+function tripleCharacterBaseStats(card){
+  return {power:(Number(card&& (card.power??card.atk))||0)*3,
+    life:(Number(card&& (card.life??card.hp))||1)*3};
+}
 // ── 合体後の姿へ差し替える ────────────────────────────────
 // **合体後の効果・キーワードはシートの「合体効果」列が唯一の出どころ**（loader.js が
 // `mergedForm` として派生値まで作る）。**テキストの数字を機械的に2倍にしてはいけない。**

@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {launch}=require('./headless');
+const {sheetRows}=require('../balance_sim/sheet_data');
 
 const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
 
@@ -418,15 +419,19 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     assert.equal(fixedEnemies.mapType,'boss','試験戦闘の固定生成が通常進行のnodeを破壊している');
     console.log('OK 通常戦闘後も試験戦闘の敵編成を固定');
 
+    // 2026-10-12 第1回Chrome検査: 旧「2体召喚」の直書きをやめ、現行シートの通常／合体本文を照合する。
+    const kingRow=sheetRows('card').find(row=>row['No.']==='C026');
+    assert.ok(kingRow&&kingRow['効果']&&kingRow['合体効果'],'C026の通常／合体効果がシートにある');
+    await browser.waitFor('PANEL_POOL.some(p=>p&&p.no==="C026"&&p._sheetSeen)',20000);
     const kingCard=await browser.eval(`
-      const base=PANEL_POOL.find(p=>p&&p.name==='スケルトンキング');
+      const base=PANEL_POOL.find(p=>p&&p.no==='C026');
       const merged=clone(base);
       applyMergedPanelForm(merged);
       return {base:base&&base.desc,baseRevive:base&&base.keywords&&base.keywords.includes('復活'),
         merged:merged&&merged.desc,mergedRevive:merged&&merged.keywords&&merged.keywords.includes('復活')};
     `);
-    assert.match(kingCard.base,/青スケルトン」を召喚し、このキャラクターの前に攻撃させる/);
-    assert.match(kingCard.merged,/青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる/);
+    assert.equal(kingCard.base,String(kingRow['効果']).trim(),'C026の通常効果はシート本文と一致');
+    assert.equal(kingCard.merged,String(kingRow['合体効果']).trim(),'C026の合体効果は反復を含めてシート本文と一致');
     assert.equal(kingCard.baseRevive&&kingCard.mergedRevive,true,'スケルトンキングの復活が合体前後で欠けている');
     console.log('OK スケルトンキングの合体前後の説明・復活を更新');
 

@@ -50,17 +50,21 @@ function runtimeCatalogSnapshot() {
 
 function assertSheetDrivenMergedForms() {
   const catalog = runtimeCatalogSnapshot();
-  assert.deepEqual([catalog.panels.E002.base.adjacentAtkBonus, catalog.panels.E002.base.adjacentHpBonus,
-    catalog.panels.E002.merged.adjacentAtkBonus, catalog.panels.E002.merged.adjacentHpBonus], [0, 5, 0, 10],
-  'E002の通常／合体HPがシート値と一致しない');
-  assert.deepEqual([catalog.panels.E003.base.adjacentAtkBonus, catalog.panels.E003.base.adjacentHpBonus,
-    catalog.panels.E003.merged.adjacentAtkBonus, catalog.panels.E003.merged.adjacentHpBonus], [3, 2, 6, 4],
-  'E003の通常／合体値がシート値と一致しない');
-  assert.match(catalog.panels.E026.base.desc, /^常時：/, 'E026が常時効果として読み込まれていない');
-  assert.match(catalog.panels.E026.merged.desc, /味方の数の3倍/, 'E026合体効果の倍率がシートから読まれていない');
-  assert.deepEqual([catalog.panels.E034.base.adjacentAtkBonus, catalog.panels.E034.base.adjacentHpBonus,
-    catalog.panels.E034.merged.adjacentAtkBonus, catalog.panels.E034.merged.adjacentHpBonus], [8, -3, 16, -3],
-  'E034合体時にHP減少まで機械的に倍化されている');
+  // 2026-10-12: 合体値を旧シートの定数で固定せず、現行の列から独立に期待値を作る。
+  const rows = sheetData.sheetRows('enchant');
+  const passiveStats = text => {
+    const pair = String(text || '').match(/([+-]\d+)\/([+-]\d+)/);
+    const hp = String(text || '').match(/HP\+(\d+)/);
+    return pair ? [Number(pair[1]), Number(pair[2])] : [0, Number(hp && hp[1]) || 0];
+  };
+  for (const no of ['E002', 'E003', 'E034']) {
+    const row = rows.find(r => r['No.'] === no), forms = catalog.panels[no];
+    assert.deepEqual([forms.base.adjacentAtkBonus, forms.base.adjacentHpBonus,
+      forms.merged.adjacentAtkBonus, forms.merged.adjacentHpBonus],
+      [...passiveStats(row['効果']), ...passiveStats(row['合体効果'])], `${no}の通常／合体値がシート値と一致しない`);
+  }
+  assert.equal(catalog.panels.E026.base.desc, rows.find(r => r['No.'] === 'E026')['効果']);
+  assert.equal(catalog.panels.E026.merged.desc, rows.find(r => r['No.'] === 'E026')['合体効果']);
   assert.equal(catalog.panels.E014.base.name, '多段攻撃', 'E014の改名が反映されていない');
   assert.deepEqual(catalog.panels.E014.base.adjacentKeywords, ['二段攻撃'], 'E014通常キーワードが不正');
   assert.deepEqual(catalog.panels.E014.merged.adjacentKeywords, ['三段攻撃'], 'E014合体キーワードが不正');

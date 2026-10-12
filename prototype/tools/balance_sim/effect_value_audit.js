@@ -44,7 +44,16 @@ function readCards() {
 }
 
 // 文から読み取れる期待値。読めなければ null（対象外）。
+// 2026-10-12: 初回＋反復分を検査し、期待値は現在のシート本文から読む。
 function expectationOf(body) {
+  const repeat = body.match(/。これを(\d+)回繰り返す。?$/);
+  if (repeat) {
+    const exp = expectationOf(body.slice(0, repeat.index) + '。');
+    if (!exp) return null;
+    if (exp.kind === 'damage' || exp.kind === 'eachStat') return exp; // 1回あたりの値は元のまま
+    for (const key of ['value', 'atk', 'hp']) if (exp[key] != null) exp[key] *= 1 + Number(repeat[1]);
+    return exp;
+  }
   if (UNCHECKABLE.test(body)) return null;
   let m;
   if ((m = /^(\d+)マナを得る。?$/.exec(body))) return { kind: 'mana', value: Number(m[1]) };
@@ -98,7 +107,7 @@ function fire(card, trigger, summonDefs) {
   const allies = [subject, ...['赤', '青', '緑', '黄', '紫'].map(color => ({
     id: `ally-${color}`, name: `味方${color}`, atk: 2, hp: 50, maxHp: 50, color, keywords: [], desc: '',
     lane: 'rear' }))];
-  const foes = ['a', 'b', 'c'].map(k => ({ id: `foe-${k}`, name: `敵${k}`, atk: 2, hp: 100, maxHp: 100,
+  const foes = ['a', 'b', 'c'].map(k => ({ id: `foe-${k}`, name: `敵${k}`, atk: 2, hp: 90, maxHp: 100,
     color: '青', keywords: [], desc: '', poison: 2 }));
   // 盤面依存の効果（血・マナ・毒・失ったライフ・HP/ATKのしきい値）が0で空振りしないよう、
   // どれも「発動する側」の値を入れておく。**空振りだと合体前後の差も出ない。**
@@ -109,6 +118,9 @@ function fire(card, trigger, summonDefs) {
     sides: { p1: { units: allies }, p2: { units: foes } },
     summonDefs, itemDefs: [{ id: 'audit-item', name: '監査アイテム', kind: 'item' }],
   });
+  // 条件付き効果も実際に発動する盤面で比べる。死亡済みの体・発動先の効果を置く。
+  state.deadUnits = [{ id: 'corpse', name: '死亡済みの体', atk: 6, hp: 0, maxHp: 10, color: '青', keywords: [], desc: '' }];
+  if (/死亡効果を発動する/.test(card.desc)) state.units.p1[0].effectData.effectTexts = [...(state.units.p1[0].effectData.effectTexts || []), '死亡：1マナを得る。'];
   const unit = state.units.p1[0];
   unit._currentAttackTarget = state.units.p2[0];
   const events = [];
@@ -213,14 +225,14 @@ function mergeDiffAudit(summonDefs) {
 function manaDiffAudit() {
   const rows = [];
   const digits = t => (String(t).match(/\d+/g) || []).join(',');
-  const run = desc => {
+  const run = (desc, manaAmount) => {
     const m = /^(\d+)マナ(毎)?\s*[：:]/.exec(String(desc || ''));
     if (!m) return null;
     const unit = { id: 'A', name: '主', atk: 2, hp: 50, maxHp: 50, color: '紫', desc,
       manaCost: Number(m[1]) || 1, manaRepeat: !!m[2],
       manaThresholdDesc: core.coreManaThresholdDescFromText(desc) };
     const state = core.createBattleState({
-      resources: { p1: { mana: 6, gold: 0 }, p2: { mana: 6, gold: 0 } },
+      resources: { p1: { mana: manaAmount, gold: 0 }, p2: { mana: manaAmount, gold: 0 } },
       sides: { p1: { units: [unit,
         ...['赤', '青', '緑', '黄', '紫'].map(c => ({ id: `a-${c}`, name: `味方${c}`, atk: 1, hp: 60,
           maxHp: 60, color: c, lane: 'rear' }))] },
@@ -247,7 +259,9 @@ function manaDiffAudit() {
     if (!/^\d+マナ/.test(base) || !/^\d+マナ/.test(merged)) return;
     if (digits(base) === digits(merged)) return;
     checked++;
-    const a = run(base); const b = run(merged);
+    // 閾値の変更も検出するため、低いほうの閾値ちょうどで比較する。
+    const manaAmount = Math.min(Number(base.match(/^(\d+)/)[1]), Number(merged.match(/^(\d+)/)[1]));
+    const a = run(base, manaAmount); const b = run(merged, manaAmount);
     if (a === null || b === null) return;
     if (a === b) rows.push(`NG キャラクター ${name} マナ：合体しても結果が変わらない 〔${base} → ${merged}〕`);
   });

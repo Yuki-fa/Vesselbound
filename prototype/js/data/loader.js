@@ -599,7 +599,7 @@ async function loadGameData() {
         KW_DESC_MAP[name] = desc;
         // 「毒牙X」「成長X」など末尾Xを持つ名前は、数字サフィックス版（毒牙1等）でも引けるよう登録
         if (/X$/.test(name)) KW_DESC_MAP[name.slice(0,-1)] = desc;
-        // キーワード発動時の専用VFX（KXXX.mp4）解決用のナンバー（No.列）
+        // 2026-10-12: シートの名前→番号のメタデータ。素材キーはpresent.jsで独立に管理する。
         const code = _sheetArtCode(row, 'K');
         if (code) {
           KW_NO_MAP[name] = code;
@@ -1595,7 +1595,8 @@ async function loadGameData() {
     // スケルトンキングの新仕様。管理元xlsxはユーザー管理のため変更せず、読み込み後の
     // 派生データだけを正規化する。合体前後とも「復活」を持ち、スケルトンの攻撃後に
     // 本体も同じ対象へ攻撃する（旧文の「代わりに」ではない）。
-    _filterBySheetCode(PANEL_POOL, 'C026').forEach(panel => {
+    // 2026-10-12: シートの合体反復を古い2体の予備文で上書きしない。
+    _filterBySheetCode(PANEL_POOL, 'C026').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
       panel.desc = '復活\n攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。';
       panel.keywords = _mergeUniqueKeywords(panel.keywords, ['復活']);
       if (panel.mergedForm) {
@@ -1655,7 +1656,8 @@ async function loadGameData() {
     // **合体後の姿は、上書き処理が全部終わった最後に組み立てる。**
     // 途中で作ると、後から効果文が差し替わったカードの合体後だけ古いままになる。
     (PANEL_POOL || []).forEach(panel => { if (panel) _buildMergedPanelForm(panel); });
-    _filterBySheetCode(PANEL_POOL, 'C026').forEach(panel => {
+    // 2026-10-12: シートの合体反復を古い2体の予備文で上書きしない。
+    _filterBySheetCode(PANEL_POOL, 'C026').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
       if (!panel.mergedForm) return;
       panel.mergedForm.desc = '復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。';
       panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);

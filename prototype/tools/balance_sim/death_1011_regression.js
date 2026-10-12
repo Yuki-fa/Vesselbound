@@ -37,9 +37,13 @@ function kill(units, shield, side = 'p1') {
     const run = kill(formation('C074', 'E006', merged), shield, side);
     const dead = run.events.filter(e => e.type === 'death' && e.unitId === 'cat');
     const damages = run.events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect');
-    const expected = merged ? 2 : 1;
+    // 2026-10-12: 合体反復の期待値はシート本文から読む。
+    const row = sheetRows('enchant').find(r => r['No.'] === 'E006');
+    const text = merged ? row['合体効果'] : row['効果'];
+    const repeat = text.match(/これを(\d+)回繰り返す/);
+    const expected = 1 + Number(repeat && repeat[1]);
     assert.equal(dead.length, 1, 'ケットシーの死亡は1件');
-    assert.equal(damages.length, expected * 3, '敵3体×通常1回／合体2回');
+    assert.equal(damages.length, expected * 3, '敵3体×本文の反復回数');
     assert.equal(run.events.filter(e => e.type === 'effect_flash' && e.unitId === 'cat' && e.trigger === 'death').length, 1);
     const after = run.events.length;
     coreApplyDeathEffects(run.state.units[side][0], run.state, run.rng, run.emit, run.hit);

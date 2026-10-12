@@ -1691,10 +1691,11 @@ function leaveMapLibrary(){
 
 function _libraryLoanCards(){
   // 「生贄」は廃止済みのキーワード（CORE_REMOVED_KEYWORDS）で、シートにも行が無いので貸し出さない。
-  const loanNames=['リザードマン','フィーンド','野生の力','逆上','結界'];
+  // 2026-10-12 利用者指定: 結界の貸出をE014多段攻撃へ。改名に左右されないシート番号で引く。
+  const loanCodes=['C050','C099','E013','E032','E014'];
   const source=typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[];
-  return loanNames.map(name=>{
-    const card=source.find(c=>c&&String(c.name||'')===name);
+  return loanCodes.map(code=>{
+    const card=source.find(c=>c&&String(c.no||c.artCode||'').toUpperCase()===code);
     if(!card) return null;
     const loan=typeof makePanel==='function' ? makePanel(card.id) : (typeof clone==='function'?clone(card):Object.assign({},card));
     if(!loan) return null;
@@ -1702,8 +1703,8 @@ function _libraryLoanCards(){
     loan._isOriginalReward=false;
     // チュートリアルで使う2枚は矢印を固定する。生成時に決めておかないと、
     // 該当ステップに到達するまでランダムな向きのまま表示されてしまう。
-    if(name==='リザードマン') loan.directions=['up','left'];
-    if(name==='野生の力') loan.directions=['up','left','right'];
+    if(code==='C050') loan.directions=['up','left'];
+    if(code==='E013') loan.directions=['up','left','right'];
     return loan;
   }).filter(Boolean).map((loan,index)=>{
     // 魔導板から「返却」した時に、借りた元の報酬枠へ正確に戻すための位置。
@@ -1833,9 +1834,9 @@ function _libraryBoardTutorialCompleted(){
   if(G&&G._debugMode) return !!window._libraryDebugBoardTutorialCompleted;
   return typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);
 }
-// 説明自体は従来どおりページ内で一度。入口の解放記録とは分け、再読込後も説明を読み返せる。
+// 2026-10-12 利用者指定: 完走後は再読込・再開後も編成だけを開く。入口と同じ完走記録を見る。
 function _libraryBoardTutorialPlayedInPage(){
-  return G&&G._debugMode?!!window._libraryDebugBoardTutorialCompleted:!!window._libraryBoardTutorialPlayed;
+  return _libraryBoardTutorialCompleted();
 }
 function startLibraryBoardTutorial(){
   if(!G||!G._isLibrary||G._libraryTutorialActive||_libraryBoardTutorialPlayedInPage()) return;
@@ -1849,7 +1850,6 @@ function startLibraryBoardTutorial(){
     onFinish:()=>{
       if(debug) window._libraryDebugBoardTutorialCompleted=true;
       else {
-        window._libraryBoardTutorialPlayed=true;
         if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);
       }
     },

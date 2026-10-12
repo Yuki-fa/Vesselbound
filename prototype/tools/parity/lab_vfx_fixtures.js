@@ -14,6 +14,8 @@ function vbLabVfxFixture(no) {
   else u=_makePanelSummonUnit(_panelSummonSpec(def),[]);
   Object.assign(u,{id:'source',atk:12,hp:30,maxHp:100,_stageNumber:2});
   const allies=['赤','青','緑','黄','紫'].map((color,i)=>({id:'ally'+i,name:'味方'+i,color,atk:4,hp:70,maxHp:100,desc:'',keywords:[],lane:i>2?'rear':'front'}));
+  // 2026-10-12: C067は攻撃効果の発動を観測するので、観測先にもシートの攻撃効果を持たせる。
+  if(no==='C067') allies[0].desc=PANEL_POOL.find(c=>c.no==='C064').desc;
   if(no==='C025') Object.assign(allies[1],PANEL_POOL.find(c=>c.no==='C003'),{id:'ally1',atk:4,hp:70,maxHp:100});
   if(no==='C076') allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C018')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
   const enemies=['赤','青','緑'].map((color,i)=>({id:'foe'+i,name:'敵'+i,color,atk:4,hp:80,maxHp:100,desc:'',keywords:[],poison:3,shield:0,lane:i===2?'rear':'front'}));

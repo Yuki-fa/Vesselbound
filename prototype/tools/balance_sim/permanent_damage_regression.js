@@ -237,9 +237,13 @@ async function flush(h, events) {
     const events = [], rng = createSeededRng(7), emit = event => events.push(event);
     const hit = (source, target, amount, counter, _a, _b, options) => coreResolveHit(state, source, target, amount, counter, rng, emit, options);
     coreApplyAttackEffects(state.units[side][0], state, rng, emit, hit);
-    assert.deepEqual(hits(events).map(event => event.amount), Array(merged ? 6 : 3).fill(4));
-    assert.equal(events.filter(event => event.type === 'sweep_vfx').length, 1);
-    assert.equal(new Set(hits(events).map(event => event.batch)).size, merged ? 2 : 1);
+    // 2026-10-12: 本文の初回＋反復回数とダメージを検査する。
+    const repeat = unit.desc.match(/これを(\d+)回繰り返す/);
+    const times = 1 + Number(repeat && repeat[1]);
+    const damage = Number(unit.desc.match(/敵に(\d+)ダメージ/)[1]);
+    assert.deepEqual(hits(events).map(event => event.amount), Array(times * 3).fill(damage));
+    assert.equal(events.filter(event => event.type === 'sweep_vfx').length, times);
+    assert.equal(new Set(hits(events).map(event => event.batch)).size, times);
   });
   console.log(`永久ダメージ/C043 回帰検査: ${checked}件 OK`);
 })().catch(error => { console.error(error.stack || error); process.exitCode = 1; });

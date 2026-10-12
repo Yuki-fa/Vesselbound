@@ -624,7 +624,7 @@ function getAttackContactVfxPath(mode){
 }
 function getAttackContactSfxKey(mode){
   const key=String(mode || '').toLowerCase();
-  const code={tri:'K008',all:'K009',pierce:'K007'}[key] || '';
+  const code=getKeywordAssetKey({tri:'三方向攻撃',all:'全体攻撃',pierce:'貫通'}[key]);
   return code && Assets.sfx?.[code] ? code : '';
 }
 
@@ -638,20 +638,17 @@ function getCharacterSweepVfxPath(unit){
   return (Assets.vfx.characterSweep&&Assets.vfx.characterSweep[code])||'';
 }
 
-// キーワード（毒等）の発動によるダメージ時、そのキーワードのナンバー（KXXX、KW_NO_MAPで解決）に
-// 対応する動画が登録されていればそのパスを返す。登録が無ければ空文字。
-// キーワード発動のSEが登録されていれば、playSfx() へ渡す鍵（＝キーワードのNo.）を返す。
-// **VFXと同じ引き方にすること**（片方だけ番号がずれると音と絵が食い違う）。
+// 2026-10-12: VFXとSEは共通の名前→素材キーを使い、シート番号の変更から切り離す。
 function getKeywordEffectSfxKey(keywordName){
   if(!keywordName) return '';
-  const code=(typeof KW_NO_MAP!=='undefined'&&KW_NO_MAP[keywordName])||'';
+  const code=getKeywordAssetKey(keywordName);
   if(!code) return '';
   return (Assets.sfx&&Assets.sfx[code])?code:'';
 }
 
 function getKeywordEffectVfxPath(keywordName){
   if(!keywordName) return '';
-  const code=(typeof KW_NO_MAP!=='undefined'&&KW_NO_MAP[keywordName])||'';
+  const code=getKeywordAssetKey(keywordName);
   if(!code) return '';
   return (Assets.vfx.keywordEffect&&Assets.vfx.keywordEffect[code])||'';
 }

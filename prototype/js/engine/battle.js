@@ -349,7 +349,7 @@ const MANA_CUE_VFX_MS=720;
 // ひと続きのマナ効果で走っている演出。**同時に1組だけ。**
 //   _manaEffectVfx  … 効果固有VFX（活性化＝E045）。処理が終わるまで出し続ける
 //                      （同じ効果が同時に乗る全員ぶん）
-//   _manaEffectCueDone … マナ効果VFX（K024）の完了
+//   _manaEffectCueDone … マナ効果VFX（既存素材）の完了
 let _manaEffectVfx=[];
 let _manaEffectCueDone=null;
 // いま演出を出している効果の番号。**別の効果はこれが終わるまで始めない。**
@@ -378,7 +378,7 @@ function _resetManaEffectRun(){
 // **VFXはひと続きの処理が終わるまで出し続ける**ので、最初の1回でだけ始める
 // （止めるのは `_endManaEffectRun()`）。1回ずつ出し直すと連続再生に見えてしまう。
 // **固有の素材が無い効果では何も鳴らさない・出さない。**
-// マナ効果SE（K024）で代用すると、発動のたびにマナ効果SEが鳴る
+// マナ効果SE（既存素材）で代用すると、発動のたびにマナ効果SEが鳴る
 // （マナ効果VFX・SEはひと続きにつき1回だけ、が規則）。
 // **SEは同じ瞬間に1本だけ。** 人数ぶん重ねると鳴り始めがばらついて濁る。
 function _playManaEffectPulse(list,effectNo){
@@ -390,7 +390,7 @@ function _playManaEffectPulse(list,effectNo){
   if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
   if(_manaEffectVfx.length||!effectNo||typeof playEffectVfxOnUnit!=='function') return;
   list.forEach(({unit,isEnemySide,rect})=>{
-    // **合図（K024）と同じ位置から出す。** ここは合図の逆再生開始後に呼ばれるため、
+    // **合図（既存素材）と同じ位置から出す。** ここは合図の逆再生開始後に呼ばれるため、
     // 攻撃モーションの複製カードが既に消えていることがある。掴み直すと
     // 合図だけ動いた位置・固有VFXは盤面の定位置、とズレる。
     const v=playEffectVfxOnUnit(unit,isEnemySide?'enemy':'ally',effectNo,
@@ -436,7 +436,7 @@ async function _playManaEffectProjectiles(list,effectNo,opt){
 // **1体ずつ順に見せない。** 順に見せると「片方が先に強くなる」ように見える。
 // opt.repeat：同じ効果の2回目以降の発動。**間引かず高速で繰り返す。**
 //
-// 見せ方：**マナ効果VFX（K024）とSE（K024）はその効果につき最初の1回だけ。**
+// 見せ方：**マナ効果VFX（既存素材）とSE（既存素材）はその効果につき最初の1回だけ。**
 // その逆再生開始から先は、効果固有のVFXを**処理が終わるまで出し続け**、
 // 効果固有のSEを**発動回数ぶん**鳴らす。
 async function _playManaEffectCue(units,opt){
@@ -471,12 +471,12 @@ async function _playManaEffectCue(units,opt){
   _manaEffectCurrentCode=effectNo;
   _recordBattleTrace('mana_vfx_start',{unitId:list[0].unit.id,effectNo,人数:list.length});
   // マナ効果SEはひと続きにつき1回だけ。
-  if(typeof playSfx==='function') playSfx('K024',{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
+  if(typeof playSfx==='function') playSfx(getKeywordEffectSfxKey('マナ効果'),{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
   // 逆再生開始で効果固有の演出へ引き継ぐ（1回目の発動ぶん）。
   let pulsed=false;
   let pulsedAt=0;
   let projectileDone=null;
-  // 合図（K024）を出した位置。**効果固有のVFXも同じ位置から出す。**
+  // 合図（既存素材）を出した位置。**効果固有のVFXも同じ位置から出す。**
   // ここで揃えないと、合図は動いた位置・固有VFXは盤面の定位置、とズレる
   // （固有VFXは合図の逆再生開始後に出るので、その頃には複製カードが消えている）。
   let cueTargets=null;
@@ -941,18 +941,11 @@ async function _applyReleaseEffect(unit,isEnemySide,sacrificed){
     u.side=state.units.p1.includes(u)?'p1':'p2';
     u.slot=i;
   });
-  // オンラインのcreateBattleState()と同じく、戦闘開始前にヴォイド・ウォーカーの
-  // 戦闘修正値を紫キャラクターへ注入する。PvE側だけこの初期化が抜けていると、
-  // coreStatBonus()が常に0を受け取り、魔導板の効果が編成画面には出ても戦闘中に
-  // 反映されない。戦闘終了後は、アダプタ固有の一時値を元へ戻す。
-  ['p1','p2'].forEach(sideKey=>{
-    const sideUnits=state.units[sideKey]||[];
-    const hasVoidWalker=sideUnits.some(u=>u&&u.hp>0&&coreHasEffect(u,'ヴォイド・ウォーカー'));
-    sideUnits.forEach(u=>{
-      if(!u) return;
-      u._voidWalkerBonus=hasVoidWalker&&u.color==='紫'?1:0;
-    });
-  });
+  // 2026-10-12: オンラインと同じく、旧保存に残る常時の紫修正だけを初期化する。
+  // 現行本文の熟練付与は、この後の共通コアの開戦処理が行う。
+  // 戦闘終了後は、アダプタ固有の一時値を元へ戻す。
+  // 2026-10-12: 合体の紫修正も本文から読む共通計算を通し、PvEだけ旧値1を渡さない。
+  coreRefreshVoidWalkerBonus(state);
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const localEvents=[];
   const emit=ev=>{
@@ -1087,7 +1080,8 @@ function _handleVictory(){
 
 function addUnitHp(unit, amount, sideOverride){
   if(!unit||amount<=0) return 0;
-  const total=amount+(_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?1:0);
+  // 2026-10-12: 旧受け口も熟練Nの数値を再実装せず、共通コアへ委譲する。
+  const total=_isBattleGainPhase()?coreStatBonus(unit,amount,unit):amount;
   unit.hp+=total; unit.maxHp+=total;
   return total;
 }
@@ -2134,7 +2128,7 @@ function _warmBattleHitSfx(){
   if(typeof warmSfxVoices!=='function') return;
   const keys=[];
   ['sword','axe','punch','kick'].forEach(t=>{ for(let lv=1;lv<=3;lv++) keys.push(`${t}${lv}`); });
-  keys.push('attack','hit','death','K018');
+  keys.push('attack','hit','death',getKeywordEffectSfxKey('結界'));
   if(typeof PRESENT_LAB_FX!=='undefined') keys.push(...Object.keys(PRESENT_LAB_FX).filter(key=>PRESENT_LAB_FX[key][1]!=null));
   warmSfxVoices(keys);
 }
@@ -2601,17 +2595,20 @@ function startPlayerPhase(){
 // 終戦時の効果は別の state で解決するので、その結果をここへも入れないと、次の書き戻しで消える。
 // セーブへ紛れ込まないよう G には載せない。
 let _pveLiveCoreState=null;
-// セーブを使わないPvEは開戦と通常手番でstateを作り直す。眷属の累計・累積強化だけを渡す。
+// セーブを使わないPvEは開戦と通常手番でstateを作り直す。眷属の累計・累積強化を渡す。
 // 数値や対象はコアが決める。戦闘開始時に必ず捨て、Gやランセーブには載せない。
+// 2026-10-12: 本文による敵死亡観測も両陣営の累計を渡し、開戦／旧死亡入口でリセットしない。
 let _pveOpeningSummonState=null;
 function _takePveSummonState(state){
   if(!_pveOpeningSummonState) return;
   state._summonCount=_pveOpeningSummonState._summonCount;
   state._summonBuff=_pveOpeningSummonState._summonBuff;
+  state._coreEnemyDeaths=_pveOpeningSummonState._coreEnemyDeaths;
   _pveOpeningSummonState=null;
 }
 function _keepPveSummonState(state){
-  _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff};
+  _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff,
+    _coreEnemyDeaths:state._coreEnemyDeaths};
 }
 function _createPveCoreState(){
   const state=coreInitializeBattleState({
@@ -3430,7 +3427,7 @@ function _battleSideOfUnit(unit){
 function _addBattleStats(unit, atk, hp, side, includeSealed){
   if(!unit||unit.hp<=0||(!includeSealed&&_isSealed(unit))) return;
   if(atk){
-    const gain=atk>0&&_isBattleGainPhase()&&_unitHasKeyword(unit,'熟練')?atk+1:atk;
+    const gain=_isBattleGainPhase()?coreStatBonus(unit,atk,unit):atk;
     unit.atk=Math.max(0,(unit.atk||0)+gain);
     unit.baseAtk=Math.max(0,(unit.baseAtk||0)+gain);
   }
@@ -3557,7 +3554,8 @@ function _queueBonusRewardPanel(unit){
 function _combatModifierBonus(source,isEnemySide){
   if(!source||String(source.color||'')!=='紫') return 0;
   const side=isEnemySide?G.enemies:G.allies;
-  return (side||[]).some(u=>u&&u.hp>0&&!_isSealed(u)&&u.name==='ヴォイド・ウォーカー')?1:0;
+  // 2026-10-12: 接続強化への紫修正も共通コアが本文の通常／合体の値を決める。
+  return corePurpleModifierBonus(side);
 }
 
 function _allBattleCharacters(){
@@ -4001,7 +3999,7 @@ async function applyDamageBatch(entries, options){
     const unit=[...(G.allies||[]),...(G.enemies||[])].find(u=>u&&String(u.id)===String(ev.unitId));
     if(unit){
       const isEnemySide=ev.side==='p2';
-      if(typeof playSfx==='function') playSfx('K018',{group:'combat'});
+      if(typeof playSfx==='function') playSfx(getKeywordEffectSfxKey('結界'),{group:'combat'});
       if(isEnemySide) onEnemyShieldLost(unit); else onAllyShieldLost(unit);
     }
   });
@@ -4309,11 +4307,12 @@ function _collectAdjacentEnhancements(unit, slotIdx){
       const damage=corePermanentDamageValue(panel);
       if(damage!=null) enh.permanentEffectCards.push({effectIndex,cardId:String(panel.id),boardSlot:entry.idx,damage});
     }
-    if(String(panel.name||'')==='団結') enh.uniteGroups.push(String(entry.idx));
+    // 2026-10-12: 合体の表示名を共通コアの効果識別子へ正規化する。
+    if(coreEffectKey(panel.name)==='団結') enh.uniteGroups.push(String(entry.idx));
     // 強化カード名は、効果文に名前が書かれていないトリガ効果の識別子になる。
     // 例：「逆上」「執念の炎」「恩寵」など。合体枚数もスケールへ反映する。
     if(panel.name && String(panel.category || '') !== 'キャラクター') {
-      const name=String(panel.name);
+      const name=coreEffectKey(panel.name);
       // **合体後の本文がシートから入っているなら、強さは本文が表している。**
       // そこへさらに「2枚分」を掛けると二重に強くなる
       // （咆哮+＝「ATKを3倍にする」が、2枚分×3倍で9倍になっていた）。
@@ -4361,15 +4360,15 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     const keywordPanels=new Set([...CORE_KEYWORD_CARD_NAMES,'防戦']);
     // 「刻印」「荷物」はそのカード自身の性質（手放せない・合体できない）なので、接続したキャラへは付けない（2026-10-01 利用者指定）。
     const panelKeywords=[...(panel.adjacentKeywords||[])].filter(k=>!['刻印','荷物'].includes(String(k||'').trim()));
-    if(keywordPanels.has(String(panel.name||''))&&!enh.abilities.includes(panel.name)) enh.abilities.push(panel.name);
+    if(keywordPanels.has(coreEffectKey(panel.name))&&!enh.abilities.includes(coreEffectKey(panel.name))) enh.abilities.push(coreEffectKey(panel.name));
     // 策士は倍率を本文から読む（基本2倍／合体3倍）。合体後の本文が入っているなら
     // 枚数で二重に強くしない（上の copies と同じ理由）。
-    if(panel.name==='策士'){
+    if(coreEffectKey(panel.name)==='策士'){
       const m=/キーワードの数の(\d+)倍に等しい/.exec(String(panel.desc||''));
       enh.strategyMultiplier=Math.max(enh.strategyMultiplier||0,m?(parseInt(m[1],10)||2):2);
       enh.strategyCount+=(panel._tripleMerged&&!panel._mergedFormApplied?2:1);
     }
-    if(panel.name==='封印されしもの'&&!panelKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) panelKeywords.push('封印1');
+    if(coreEffectKey(panel.name)==='封印されしもの'&&!panelKeywords.some(k=>/^封印\d+$/.test(String(k||'')))) panelKeywords.push('封印1');
     // 我慢の刻印＝封印X（X＝現在のステージ×5）。接続したキャラのキーワードとして付け、血アイコンにも出す（2026-10-02 利用者指摘）。
     // 戦闘の coreSealValue は、このキーワードがあれば我慢の刻印の分を二重には足さない。
     // 刻印のXは**取得した時のステージで固定**（カードの _engravingStage。2026-10-05 利用者指定）。
@@ -4402,15 +4401,10 @@ function _collectAdjacentEnhancements(unit, slotIdx){
     // 持ち主自身を読むとキャラのキーワードが数えられない（策士が強化カード分しか効かなかった）。
     const slotCard=Array.isArray(unit&&unit.boardCards)?unit.boardCards[slotIdx]:null;
     const character=slotCard&&String(slotCard.category||'')==='キャラクター'?slotCard:unit;
-    // 効果文を持つ強化カード名（野生の力・闇の炎など）はキーワードではないので数えない。
-    const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
     const ownKeywords=typeof _unitPanelKeywords==='function'?_unitPanelKeywords(character):(character&&character.keywords||[]);
-    // 数字を落として重複を除く（盤面のカードへ既に強化キーワードが反映済みでも二重に数えない）。
-    const keywordCount=new Set([...(ownKeywords||[]),...(enh.keywords||[]),...(enh.abilities||[])]
-      .map(k=>String(k||'').trim().replace(/\d+$/,''))
-      .filter(k=>k&&!cardNames.has(k))).size;
-    const strategyMul=Math.max(1,Number(enh.strategyMultiplier)||2);
-    enh.strategyBonus=keywordCount*strategyMul*enh.strategyCount;
+    // 2026-10-12: 能力値の計算は共通コアへ。各接続カードの本文の倍率を加算する。
+    enh.strategyBonus=coreKeywordCountBuff([...(ownKeywords||[]),...(enh.keywords||[]),...(enh.abilities||[])],
+      panels.map(entry=>entry.panel));
     enh.atk+=enh.strategyBonus;
     enh.hp+=enh.strategyBonus;
   }
@@ -4490,9 +4484,11 @@ function _applyAdjacentPanelEnhancements(unit, enh){
   unit.keywords=(unit.keywords||[]).filter(k=>!cardNames.has(String(k||'').trim()));
   const side=_battleSideOfUnit(unit);
   const modifierBonus=_combatModifierBonus(unit,side==='enemy');
-  const hasSkill=(_unitPanelKeywords(unit)||[]).includes('熟練')||(enh.keywords||[]).includes('熟練')||(enh.abilities||[]).includes('熟練');
-  const atkBonus=(enh.atk||0)+(enh.atk>0?modifierBonus:0)+(hasSkill&&_isBattleGainPhase()&&enh.atk>0?1:0);
-  const hpBonus=(enh.hp||0)+(enh.hp>0?modifierBonus:0)+(hasSkill&&_isBattleGainPhase()&&enh.hp>0?1:0);
+  // 2026-10-12: 戦闘中の接続修正も共通の正負補正を使う。編成時は従来どおり素の値。
+  const giver={...unit,keywords:[...(unit.keywords||[]),...(enh.keywords||[])],
+    _adjacentPanelEffectTexts:enh.effectTexts||[],_voidWalkerBonus:modifierBonus};
+  const atkBonus=_isBattleGainPhase()?coreStatBonus(giver,enh.atk||0,giver):(enh.atk||0)+(enh.atk>0?modifierBonus:0);
+  const hpBonus=_isBattleGainPhase()?coreStatBonus(giver,enh.hp||0,giver):(enh.hp||0)+(enh.hp>0?modifierBonus:0);
   const releaseAtkBonus=Number(enh.releaseAtkBonus)||0;
   const releaseHpBonus=Number(enh.releaseHpBonus)||0;
   const enhancementKeywords=[...(enh.keywords||[])];
@@ -5491,6 +5487,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     _eidolonDeathCount:Number(G._eidolonDeathCount)||0,
     _genericAllyDeaths:Number(G._genericAllyDeaths)||0,
   };
+  _takePveSummonState(state);
   const touched=[];
   [...state.units.p1,...state.units.p2].forEach((u,i)=>{
     if(!u) return;
@@ -5537,6 +5534,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
       // processEnemyDeath() が現在の死亡を加算済みなのでG側をそのまま保持する。
       G._eidolonDeathCount=Math.max(0,Number(state._eidolonDeathCount)||0);
       G._genericAllyDeaths=Math.max(0,Number(state._genericAllyDeaths)||0);
+      _keepPveSummonState(state);
     // gold_gain はコアで確定済みだが、画面上の反映は死亡固有VFXの開始時に行う。
     G.gold=goldBefore;
     _refreshManaDisplays();
@@ -5596,7 +5594,7 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
   // 結界
   if(unit.shield>0){
     unit.shield--;
-    if(typeof playSfx==='function') playSfx('K018',{group:'combat'});
+    if(typeof playSfx==='function') playSfx(getKeywordEffectSfxKey('結界'),{group:'combat'});
     onAllyShieldLost(unit);
     return false; // ダメージをシールドで防いだ
   }
@@ -5897,7 +5895,7 @@ async function onBattleEnd(){
   await _flushCorePveHitEvents({units:{p1:G.allies||[],p2:G.enemies||[]}},itemRewards,new Set([...G.allies||[],...G.enemies||[]]));
 }
 
-// ── 帰滅（K015）─────────────────────────────────────────
+// ── 帰滅─────────────────────────────────────────
 // 「このキャラクターは戦闘中のHP変化が永続化し、復活の効果を持たずに死亡、逃走した場合は消滅する。」
 //   ・死亡後に復活イベントが続いたら、その1回は消滅しない。
 //   ・復活を消費した後の死亡、または逃走は魔導板のカードごと消す。
@@ -6085,7 +6083,7 @@ async function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
   const _resE=coreResolveIncomingDamage(e,dmg,{skipWeaken:true});
   if(_resE.blocked&&_resE.reason==='shield'){
     if(_resE.consumesShield) e.shield=Math.max(0,(e.shield||0)-1);
-    if(typeof playSfx==='function') playSfx('K018',{group:'combat'});
+    if(typeof playSfx==='function') playSfx(getKeywordEffectSfxKey('結界'),{group:'combat'});
     onEnemyShieldLost(e);
     return;
   }
@@ -6217,11 +6215,36 @@ function _generateFixedTestBattleEnemies(floor){
 
 // ── 演出確認用の試験戦闘（デバッグモード専用）────────────────
 // ステージ20の敵構成を使い、キャラクターの効果・演出を試せるようにする。
+// 2026-10-12 利用者報告: 店・イベントの立ち絵を試験戦闘中だけ退避し、同じDOMを戻す。
+// DOM参照はGやセーブに含めない。表情・位置・店の人の印もそのまま保持する。
+let _testBattlePortraitSnapshot=null;
+function _suspendTestBattlePortraits(){
+  const host=document.getElementById('tavern-presentation-layer');
+  _testBattlePortraitSnapshot=host?{host,parent:host.parentNode,next:host.nextSibling,screen:host.closest('.screen')}:null;
+  if(host) host.remove();
+}
+function _restoreTestBattlePortraits(){
+  const saved=_testBattlePortraitSnapshot;
+  _testBattlePortraitSnapshot=null;
+  if(!saved||!saved.parent) return;
+  // 行商人などは編成の再描画で新しい層が出来るので、退避した姿を唯一の表示に戻す。
+  const current=document.getElementById('tavern-presentation-layer');
+  if(current&&current!==saved.host) current.remove();
+  saved.parent.insertBefore(saved.host,saved.next&&saved.next.parentNode===saved.parent?saved.next:null);
+  // 酒場・campは街画面に立ち絵がある。試験戦闘で切り替えた画面も戻して、復帰後に実際に見せる。
+  if(saved.screen&&!saved.screen.classList.contains('active')&&typeof showScreen==='function'){
+    const screenId=String(saved.screen.id||'').replace(/^scr-/,'');
+    showScreen(screenId);
+    if(screenId==='village'&&typeof renderVillageScreen==='function') renderVillageScreen();
+  }
+}
 function startTestBattle(){
   if(!G||G.phase!=='reward') return;
   // 図書館の「試験戦闘」は通常プレイの機能なので、デバッグモードでなくても開始できる。
   // デバッグ用の試験戦闘ボタン（#btn-test-battle）はデバッグモード中しか表示されない。
   if(!G._debugMode&&!G._isLibrary) return;
+  if(G._testBattleMode) return;
+  _suspendTestBattlePortraits();
   G._testBattleMode=true;
   G._testBattleExitPending=false;
   // 前回の試験戦闘が中断で終わっていた場合の保険（残っていると次が進まない）。
@@ -6239,7 +6262,7 @@ function startTestBattle(){
     const copy=typeof clone==='function'?clone:(v=>v);
     G._testBattleReturnState={
       flags:{
-        isShop:!!G._isShop, isItemShop:!!G._isItemShop, isForge:!!G._isForge,
+        isShop:!!G._isShop, isItemShop:!!G._isItemShop, isForge:!!G._isForge, isPeddler:!!G._isPeddler,
         isTavern:!!G._isTavern, isVillageMenu:!!G._isVillageMenu,
         isRingExchange:!!G._isRingExchange, isWaveAltar:!!G._isWaveAltar,
         isLibrary:!!G._isLibrary, isLibraryMenu:!!G._isLibraryMenu,
@@ -6247,7 +6270,8 @@ function startTestBattle(){
         mapReturnAfterReward:!!G._mapReturnAfterReward, isRewardTown:!!G._isRewardTown,
         freeRewardPanelMode:!!G._freeRewardPanelMode, rewardOnePickMode:!!G._rewardOnePickMode,
         freeItemPhase:G._freeItemPhase, freeItemUsed:!!G._freeItemUsed,
-        isBossRewardCycle:!!G._isBossRewardCycle
+        isBossRewardCycle:!!G._isBossRewardCycle,
+        questCampScene:!!G._questCampScene, questNoBgm:!!G._questNoBgm
       },
       rewCards:copy(_rewCards||[]),
       rewFreePickDone:!!_rewFreePickDone,
@@ -6344,6 +6368,7 @@ async function _exitTestBattle(){
   G._battlePhaseRunning=false;
   if(returnToLibrary&&typeof openMapLibraryFormation==='function'){
     openMapLibraryFormation();
+    _restoreTestBattlePortraits();
     G._testBattleExitPending=false;
     return;
   }
@@ -6352,6 +6377,7 @@ async function _exitTestBattle(){
     const copy=typeof clone==='function'?clone:(v=>v);
     const f=returnState.flags||{};
     G._isShop=!!f.isShop; G._isItemShop=!!f.isItemShop; G._isForge=!!f.isForge;
+    G._isPeddler=!!f.isPeddler;
     G._isTavern=!!f.isTavern; G._isVillageMenu=!!f.isVillageMenu;
     G._isRingExchange=!!f.isRingExchange; G._isWaveAltar=!!f.isWaveAltar;
     G._isLibrary=!!f.isLibrary; G._isLibraryMenu=!!f.isLibraryMenu;
@@ -6360,6 +6386,7 @@ async function _exitTestBattle(){
     G._freeRewardPanelMode=!!f.freeRewardPanelMode; G._rewardOnePickMode=!!f.rewardOnePickMode;
     G._freeItemPhase=f.freeItemPhase; G._freeItemUsed=!!f.freeItemUsed;
     G._isBossRewardCycle=!!f.isBossRewardCycle;
+    G._questCampScene=!!f.questCampScene; G._questNoBgm=!!f.questNoBgm;
     _rewCards=copy(returnState.rewCards||[]);
     _rewFreePickDone=!!returnState.rewFreePickDone;
     G._mapForgeOffers=copy(returnState.mapForgeOffers||[]);
@@ -6377,6 +6404,7 @@ async function _exitTestBattle(){
     G._testBattleReturnState=null;
     if(typeof goToReward==='function') goToReward({restoreCheckpoint:true});
   }else if(typeof goToReward==='function') goToReward();
+  _restoreTestBattlePortraits();
   G._testBattleExitPending=false;
 }
 

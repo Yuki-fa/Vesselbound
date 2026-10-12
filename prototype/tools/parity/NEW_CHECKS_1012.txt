@@ -1,0 +1,2 @@
+library_test_battle_1012_check.js
+skilled_keywords_1012_check.js

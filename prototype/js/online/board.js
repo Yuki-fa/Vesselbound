@@ -201,7 +201,7 @@
     }
     if (_manaEffectVfx.length || !effectNo || typeof playEffectVfxOnUnit !== 'function') return;
     list.forEach(({ unit, isEnemySide, rect }) => {
-      // **合図（K024）と同じ位置から出す**（PvEと同じ）。掴み直すと、
+      // **合図（既存素材）と同じ位置から出す**（PvEと同じ）。掴み直すと、
       // 攻撃モーションの複製カードが既に消えていて盤面の定位置へ戻ってしまう。
       const v = playEffectVfxOnUnit(unit, isEnemySide ? 'enemy' : 'ally', effectNo,
         { rect, minDurationMs: (typeof PRESENT_EFFECT_VFX_MIN_MS === 'number' && PRESENT_EFFECT_VFX_MIN_MS) || 900 });
@@ -245,7 +245,7 @@
   }
   // units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。**1体ずつ順に見せない。**
   // opt.repeat：同じ効果の2回目以降。**間引かず高速で繰り返す。**
-  // マナ効果VFX（K024）とSE（K024）はその効果につき最初の1回だけ。その逆再生開始から先は
+  // マナ効果VFX（既存素材）とSE（既存素材）はその効果につき最初の1回だけ。その逆再生開始から先は
   // 効果固有のVFXを処理が終わるまで出し続け、SEを発動回数ぶん鳴らす（PvEと同じ規則）。
   async function _awaitManaReverseStart(units, opt) {
     const list = (Array.isArray(units) ? units : []).filter(x => x && x.unit);
@@ -272,12 +272,12 @@
     _manaEffectCurrentCode = effectNo;
     // マナ効果SEはひと続きにつき1回だけ。
     if (typeof playSfx === 'function') {
-      playSfx('K024', { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
+      playSfx(getKeywordEffectSfxKey('マナ効果'), { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
     }
     let pulsed = false;
     let pulsedAt = 0;
     let projectileDone = null;
-    // 合図（K024）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
+    // 合図（既存素材）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
     let cueTargets = null;
     const startPulse = () => {
       if (pulsed) return; pulsed = true;
@@ -567,7 +567,7 @@
         return presentDamageRunAheadMs(evs, Math.max(0, evs.indexOf(e0)));
       },
       alreadyShown: e0 => !!(ctx.visualizedDamageEvents && ctx.visualizedDamageEvents.has(e0)),
-      // 状態異常を付けたダメージの絵（弱体＝K004）。判定は present.js（PvEと同じ）。
+      // 状態異常を付けたダメージの絵（弱体の既存素材）。判定は present.js（PvEと同じ）。
       vfxKeyword: e0 => (typeof presentDamageVfxKeyword === 'function'
         ? presentDamageVfxKeyword((ctx && ctx.events) || [], e0) : ''),
       // 効果の素材はシートの「VFX/SE」列で引く（PvEと同じ）。
@@ -858,8 +858,10 @@
         if (ev.effect === 'evil_eye') {
           u.atk = Math.max(0, (Number(u.atk) || 0) - (Number(ev.amount) || 0));
         }
-        if (ev.effect === 'keyword_gain' && ev.keyword && !(u.keywords || []).includes(ev.keyword)) {
-          u.keywords = [...(u.keywords || []), ev.keyword];
+        if (ev.effect === 'keyword_gain' && ev.keyword) {
+          // 2026-10-12: 熟練Nの重複付与はコアが加算済み。再生側で付与値を計算しない。
+          if (Array.isArray(ev.keywords)) u.keywords = [...ev.keywords];
+          else if (!(u.keywords || []).includes(ev.keyword)) u.keywords = [...(u.keywords || []), ev.keyword];
         }
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。状態の反映は上で済ませている。
         // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。

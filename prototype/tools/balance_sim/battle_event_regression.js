@@ -10,6 +10,7 @@ const cp = require('node:child_process');
 const core = require('../../js/battle/core');
 const present = require('../../js/battle/present');
 const {createSeededRng} = require('../../js/online/protocol');
+const {sheetRows} = require('./sheet_data');
 
 const ROOT = path.resolve(__dirname, '../..');
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
@@ -603,7 +604,8 @@ function runPersistentDeathObserverScenario() {
     sides: {
       p1: {units: [{id: 'eidolon', name: 'エイドロン', atk: 1, hp: 5, maxHp: 5},
         {id: 'hellhound', name: 'ヘルハウンド', atk: 1, hp: 5, maxHp: 5,
-          desc: '敵が死亡するたび、このキャラクターは+X/+Xを得る。Xは死亡した敵の数に等しい。'},
+          // 2026-10-12: 旧い+X/+Xの直書きでなく、現在のシート本文を使う。
+          desc: sheetRows('card').find(row => row['No.'] === 'C086')['効果']},
         {id: 'ally-a', name: '味方A', atk: 1, hp: 1, maxHp: 1},
         {id: 'ally-b', name: '味方B', atk: 1, hp: 1, maxHp: 1},
         {id: 'ally-c', name: '味方C', atk: 1, hp: 1, maxHp: 1}]},
@@ -894,8 +896,11 @@ function main() {
   assert.equal(controlledEvents.filter(e=>e.type==='attack'&&!e.immediate)[0]?.side,'p2', '肩代わり後に相手へ手番が渡らない');
   // PvEの盤面配列は null を含む固定長。コアが詰まった配列前提で回すと例外になり、
   // 攻撃処理ごと中断して手番が相手へ渡らない（邪眼＝スリンで100%再現した）。
-  assert.match(read('js/battle/core.js'),
-    /\(state\.units\[attacker\.side\] \|\| \[\]\)\.some\(x => x && x\.hp > 0/,
+  // 2026-10-12: 紫修正を共通計算へ集約したため、旧some式の形ではなく疎配列で実際に発動させる。
+  assert.doesNotThrow(()=>core.coreApplyKeywordOnHit(
+    {id:'sparse-attacker',side:'p1',color:'紫',hp:10,keywords:['邪眼1','衝撃1']},
+    {id:'sparse-target',side:'p2',atk:10,hp:10,keywords:[]},1,10,
+    {units:{p1:[null],p2:[null]},rings:{}},()=>{}),
     'コアが疎配列のnullをガードしていない');
   // 戦闘の進め方はコアが唯一の実装。PvEは1手ずつ step() を呼ぶだけにする。
   assert.match(currentBattle, /const runner=createBattleRunner\(state,coreMathRng,emit,\{skipOpening:true\}\);/,
@@ -1267,7 +1272,7 @@ function main() {
       `${name}が効果固有SEを使っていない（素材が無い効果では何も鳴らさない）`);
     // マナ効果SE（K024）は**ひと続きにつき1回だけ**。繰り返しで鳴らさないこと。
     assert.doesNotMatch(src.slice(src.indexOf('_playManaEffectPulse'), src.indexOf('_playManaEffectPulse') + 900),
-      /'K024'/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
+      /getKeywordEffectSfxKey\('マナ効果'\)/, `${name}が効果1回ぶんの演出でマナ効果SEを鳴らしている`);
   });
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
     const src = name==='js/engine/battle.js'?currentBattle:read(name);
@@ -1685,7 +1690,8 @@ function main() {
   assert.match(board, /async function _awaitManaReverseStart\(units, opt\)/,
     'オンラインのマナ閾値VFX境界処理がない');
   // マナ効果SEはPvEだけで鳴っていた（オンラインは無音）。両方で鳴らす。
-  assert.match(board, /playSfx\('K024'/,
+  // 2026-10-12: 素材番号ではなくキーワード名で引く。
+  assert.match(board, /playSfx\(getKeywordEffectSfxKey\('マナ効果'\)/,
     'オンラインでマナ効果SEを鳴らしていない（PvEと食い違う）');
   // 上限・前衛満杯時の後衛送り・ID重複の防止は共通実装（present_events.js）が持つ。
   {

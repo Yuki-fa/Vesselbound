@@ -315,7 +315,6 @@ function audit() {
     ['ファミリア', '攻撃', 'sacrifice_mana'],
     ['戦術', '攻撃', 'attack_self_buff'],
     ['カオス・インプ', '負傷', 'injury_sacrifice_hp'],
-    ['ラミア', '攻撃', 'attack_self_buff'],
     ['ギガンテス', '負傷', 'injury_allies_atk'],
     ['コボルド', '負傷', 'injury_color_buff'],
     ['ゴーレム', '負傷', 'injury_self_buff'],
@@ -483,8 +482,7 @@ function audit() {
     && dedupeEvents.filter(e => e.reason === 'golem').length === 1;
   if (!dedupeOk) ng++;
   console.log(`同一イベント再入回帰 ユミル=${dedupeEvents.filter(e => e.reason === 'ymir').length} ゴーレム=${dedupeEvents.filter(e => e.reason === 'golem').length} ${dedupeOk ? 'OK' : 'NG'}`);
-  // ラミア条件回帰：攻撃対象が負傷中なら追加の+2/+1が1回だけ発動し、
-  // 全快対象では追加分を発動しない。全快対象だけの最小監査ではこの差を検出できない。
+  // 2026-10-12: ラミアは負傷した敵の数だけ本文の修正を得る。対象の全快／負傷で検査する。
   const lamiaCard = cards.find(x => x.name === 'ラミア');
   if (lamiaCard) {
     const full = invoke(lamiaCard, 'p1', '攻撃', enemies);
@@ -495,9 +493,9 @@ function audit() {
     const woundedEvents = [];
     const woundedHit = (source, target, amount, counter) => core.coreResolveHit(wounded.state, source, target, amount, counter, createSeededRng(13), e => woundedEvents.push(e));
     core.coreApplyAttackEffects(wounded.unit, wounded.state, createSeededRng(13), e => woundedEvents.push(e), woundedHit);
-    const fullLamia = full.events.filter(e => e.reason === 'lamia').length;
-    const woundedLamia = woundedEvents.filter(e => e.reason === 'lamia').length;
-    const lamiaOk = fullLamia === 1 && woundedLamia === 2;
+    const fullLamia = full.events.filter(e => e.reason === 'attack_self_buff').length;
+    const woundedLamia = woundedEvents.filter(e => e.reason === 'attack_self_buff').length;
+    const lamiaOk = fullLamia === 0 && woundedLamia === 1;
     if (!lamiaOk) ng++;
     console.log(`ラミア負傷対象追加発動回帰\t全快=${fullLamia}\t負傷=${woundedLamia}\t${lamiaOk ? 'OK' : 'NG'}`);
   } else {
@@ -649,7 +647,7 @@ function audit() {
     sides: {
       p1: {units: [
         {id: 'eid', name: 'エイドロン', atk: 4, hp: 4, maxHp: 4},
-        {id: 'hell', name: 'ヘルハウンド', atk: 1, hp: 4, maxHp: 4},
+        {id: 'hell', name: 'ヘルハウンド', atk: 1, hp: 4, maxHp: 4, desc: cards.find(c => c.name === 'ヘルハウンド').desc},
         {id: 'd1', name: '死者1', atk: 1, hp: 0, maxHp: 1},
         {id: 'd2', name: '死者2', atk: 1, hp: 0, maxHp: 1},
         {id: 'd3', name: '死者3', atk: 1, hp: 0, maxHp: 1},
@@ -818,16 +816,16 @@ function audit() {
     const changed = s.units.p2.filter(x => x.name === 'ペリカン');
     recordDirect('バンダースナッチ', changed.length === 1 && changed[0].color === '緑' && changed[0].no === 'C999' && es.some(e => e.type === 'transform'), `変身数=${changed.length}`);
   }
-  // ヴォイド・ウォーカー：紫キャラの戦闘修正だけが+1される。
+  // 2026-10-12: ヴォイド・ウォーカーは開戦で紫の味方に熟練1を付与する。
   {
     const voidWalker = makeDirectUnit('ヴォイド・ウォーカー', 'p1', { id: 'void' });
     const purple = { id: 'vp', name: '紫攻撃者', side: 'p1', color: '紫', atk: 2, hp: 2, maxHp: 2, keywords: [], desc: '' };
     const s = makeDirectState([voidWalker, purple], []);
-    s.units.p1.forEach(u => { u._voidWalkerBonus = u.color === '紫' ? 1 : 0; });
+    core.coreApplyOpeningEffects(s.units.p1[0],s,createSeededRng(1012),()=>{},()=>{});
     const corePurple = s.units.p1.find(x => x.id === 'vp');
     recordDirect('ヴォイド・ウォーカー', core.coreStatBonus
-      ? core.coreStatBonus(corePurple, 1) === 2 && corePurple._voidWalkerBonus === 1
-      : corePurple._voidWalkerBonus === 1, '紫修正保持');
+      ? core.coreStatBonus(corePurple, 1) === 2 && core.coreKeywordSum(corePurple,'熟練') === 1
+      : false, '開戦の熟練1');
   }
   // カオス・インプ：味方の解放時に、ランダムな味方の開戦効果を1回発動する。
   {

@@ -326,3 +326,5 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
 **護衛依頼の特殊拒否とヴォルザークの鍛冶屋（2026-10-11 追加）**：護衛依頼（Q003）を特殊拒否（特殊台詞A1）にした後、ヴォルザークの鍛冶屋は入店台詞を台詞1の代わりに会話シートの特殊台詞A1〜（A1→A2→A3）にし、魔導板強化を2割引にする（`QUEST_CONFIG.Q003.specialRejectForge`、`quest.js: questForgeFavor`、`map.js: mapForgePrice`）。命の鎖（ギャラハの鍛冶屋）は、特殊台詞 A1〜A3 に加えて再訪の B1 まで揃った鍛冶屋だけで起動する（ヴォルザークにも A1〜A3 が入ったため）。検査は `tools/balance_sim/dina_rescue_regression.js`。
 
 **図書館「マージとは」とデバッグの売却（2026-10-11 変更）**：「マージとは」の貸出カードはエルフ（C062）5枚。「マージとは」のボタンは「魔導板の使い方」を最後まで終えるまで出さない（途中でやめた時は出さない）。終えた記録はプロフィールの `SaveProfile.tutorialsShown['library:board-completed']`（デバッグはプロフィールを読み書きせず、そのページの間だけ）。デバッグモードの編成画面でも、カードと同じくアイテムを売却できる（売却UIの表示条件が店・鍛冶屋だけだった）。検査は `tools/balance_sim/ui_library_1011_regression.js`、`tools/parity/sale_library_price_1011_check.js`。
+
+**図書館チュートリアルと試験戦闘の立ち絵（2026-10-12 変更）**：「魔導板の使い方」の貸出カードの「結界」は「多段攻撃」（E014。番号で引く）。「魔導板の使い方」を最後まで終えた後は、リセット（再読み込み→再開）しても説明は出さず貸出の編成だけを開く（ボタンの解放と説明の省略が同じ完了記録 `library:board-completed` を見る。デバッグはページ内だけ）。デバッグの試験戦闘を店・行商人・camp などから始めると、立ち絵を退避して戦闘中は出さず、戻った時に同じ表情・配置で戻す。検査は `tools/parity/library_test_battle_1012_check.js`。

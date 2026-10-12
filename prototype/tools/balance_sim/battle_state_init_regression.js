@@ -21,14 +21,17 @@ require('./load');
     assert.equal(live.items.p1,G.activeBattleItems,'アイテムの参照共有');
     assert.deepEqual(live.resources.p1,{mana:13,gold:81});
     assert.equal(live.life.p1,17);assert.equal(live.stageNumber,stage);
-    assert.equal(live.units.p1[3]._voidWalkerBonus,1,'紫修正の初期化');
+    // 2026-10-12: 現行本文は開戦付与。状態を作っただけでは常時補正も熟練も付かない。
+    assert.equal(live.units.p1[3]._voidWalkerBonus,0,'新本文で旧紫修正が初期化される');
+    assert.equal(coreKeywordSum(live.units.p1[3],'熟練'),0,'開戦前に熟練が付く');
     assert.deepEqual(allies.filter(Boolean).map(u=>u.id),ids,'並び・IDを維持');
     const online=createBattleState({stageNumber:stage,sides:{p1:{units:allies},p2:{units:enemies}},
       resources:live.resources,items:live.items});
     assert.notEqual(online.units.p1,allies,'オンラインでは入力を複製');
     assert.notEqual(online.units.p1[1],allies[3],'オンラインのユニットを複製');
     assert.deepEqual(online.units.p1.map(u=>[u.id,u.slot]),[['walker',1],['purple',3]],'空欄を除いても元スロットを維持');
-    assert.equal(online.units.p1[1]._voidWalkerBonus,1,'オンラインも紫修正を初期化');
+    assert.equal(online.units.p1[1]._voidWalkerBonus,0,'オンラインの新本文で旧紫修正が付く');
+    assert.equal(coreKeywordSum(online.units.p1[1],'熟練'),0,'オンラインの開戦前に熟練が付く');
     for(const state of [live,online]){
       assert.equal(state.turn,0);assert.deepEqual(state.deadUnits,[]);
       for(const side of ['p1','p2']){
