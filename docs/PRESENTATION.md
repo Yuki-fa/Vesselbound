@@ -667,3 +667,4 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - **振動するのは、攻撃で実際に大ダメージを与えた時だけ**（2026-10-12 利用者指定）。反撃（ATKの低い体がATKの高い体へ攻撃した時に受ける反撃など）・攻撃効果・効果ダメージ・毒では振動しない。判定は `present_events.js: presentDamageShakes`（`damageKind==='combat'` かつ `counter` でない）。検査は `tools/parity/damage_shake_1011_check.js`、`tools/balance_sim/damage_shake_1011_regression.js`。
 - 闇の炎が3回出た件は表示だけの分裂だった（コアの発動回数は正しい）。結界で防がれたダメージのイベントに `batch` などの演出情報が欠け、同じ死亡効果の波が別々に再生されていた。防いだ時も演出情報を保ち、共通の present が同じ束として扱う。検査は `tools/balance_sim/death_1011_regression.js`。
 - 魔導店・行商人でゴールドが足りないカードは、値札を暗くせず（道具屋と同じ）、カードのマナと血の表示を暗くする（値札を暗転層の上、マナ・血を下に置く）。道具屋・鍛冶屋は変えない。検査は `tools/parity/sale_library_price_1011_check.js`。
+- 隕石の巻物（I006）のダメージは、隕石が墜落した直後（VFX の着弾）に出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。着弾まで後続のイベントを待たせる演出は `present_events.js: PRESENT_LAB_WAIT_IMPACT`（ワーム C054・援護射撃 E067・隕石の巻物 I006）。検査は `tools/parity/lab_vfx_check.js`（I006 の時刻）。

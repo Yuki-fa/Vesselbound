@@ -4724,6 +4724,8 @@ function coreTryRevive(unit, state, emit) {
     unit.hp = 1;
   }
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
+  // 死亡からの復活（キーワード復活・復活の指輪）を数える。手番途中の死亡の判定に使う（根性は死亡ではない）。
+  if (ring || keyword === '復活') unit._coreReviveCount = (Number(unit._coreReviveCount) || 0) + 1;
   // 配置・恒久強化の保存先判定に使う旧来の印は維持する。眷属の判定とは独立。
   if (!ring && keyword === '復活') unit._summonedInBattle = true;
   // 復活・根性では出自を変えない。初期配置に新規付与せず、元の眷属は保持する。
@@ -5594,6 +5596,11 @@ function coreBattleStepInner(ctx) {
     if (coreAttackDamage(attacker) <= 0) { side = foeSide; result = decided(); return { side, result, stop: false }; }
     let plannedTarget;
     let attackEffectResult = { skipAttack: false, lockTarget: false };
+    // 手番の途中で死亡して復活した体は、残りの攻撃（二段・三段攻撃等）を行わない（2026-10-12 利用者指摘：
+    // スケルトンキングが1撃目の反撃で死亡→復活した後に2撃目のスケルトンを召喚していた）。
+    // 復活は同じ体がその場でHPを戻すので、生死だけでは見分けられない。復活した回数で見る（根性は死亡ではないので数えない）。
+    const reviveMarkAtTurnStart = Number(attacker._coreReviveCount) || 0;
+    const diedThisTurn = () => (Number(attacker._coreReviveCount) || 0) !== reviveMarkAtTurnStart;
     const attackEffectRepeats = 1 + coreRingCount(state, side, '狂戦士の指輪')
       + coreExtraTriggerTimes(attacker, '攻撃', coreEffectCount(attacker, '闇の儀式'))
       + Math.max(0, Number(attacker._effectRepeatBonus)
@@ -5798,7 +5805,7 @@ function coreBattleStepInner(ctx) {
     if (result) return { side, result, stop: true };
     const extra = coreAttackSpread(attacker) ? 0
       : coreExtraAttackTotal(attacker, units[side], coreRingCount(state, side, '疾風の指輪'));
-    for (let i = 0; i < extra && attacker.hp > 0; i++) {
+    for (let i = 0; i < extra && attacker.hp > 0 && !diedThisTurn(); i++) {
       const nextTarget = coreSelectAttackTarget(attacker, units[foeSide], rng, { defendersAreEnemies: foeSide === 'p2' });
       if (!nextTarget) break;
       // **追加攻撃も「攻撃」。** 「味方が攻撃するたび」の効果（シャナ等）は
@@ -5845,7 +5852,7 @@ function coreBattleStepInner(ctx) {
         ? (nextTarget.hp > 0 && !coreIsSealed(nextTarget) ? nextTarget : null)
         : nextTarget.hp > 0 && !coreIsSealed(nextTarget) ? nextTarget
         : coreSelectAttackTarget(attacker, units[foeSide], rng, { defendersAreEnemies: foeSide === 'p2' });
-      if (!strikeAt || attacker.hp <= 0) break;
+      if (!strikeAt || attacker.hp <= 0 || diedThisTurn()) break;
       // 二段攻撃等の追加攻撃は「別の一撃」。前の一撃と同じ束にはしない。
       strike([{ victim: strikeAt, allowCounter: true }], strikeAt);
       coreSweepAtkZeroFlee(state, emit);

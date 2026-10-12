@@ -141,6 +141,9 @@ async function _presentLabFinish(plan) {
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0])});
   }
 }
+// ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
+// 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006']);
 async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
@@ -154,7 +157,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   }
   if (claimed) {
     if(claimed.code==='C041'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
-    if (claimed.code==='C054' || claimed.spec[2]==='morph' || claimed.code==='E067') {
+    if (PRESENT_LAB_WAIT_IMPACT.has(claimed.code) || claimed.spec[2]==='morph') {
       const wait = claimed.impact.get(String(ev.unitId)); if (wait) await wait;
     }
     return;
@@ -170,7 +173,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   }
   if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash') {
     await _presentLabFinish(plan); context.active = null;
-  } else if (plan.code==='E067' || plan.code==='C054' || plan.spec[2]==='morph') {
+  } else if (PRESENT_LAB_WAIT_IMPACT.has(plan.code) || plan.spec[2]==='morph') {
     const wait = plan.impact.get(String(ev.unitId)); if (wait) await wait;
   }
 }

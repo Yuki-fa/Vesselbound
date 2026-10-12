@@ -30,9 +30,11 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
         window.__labCalls.push({name,speed:opt.speed,value:opt.value,event:window.__labEventType,impacts:[],at:performance.now(),
           board:!!opt.board&&(opt.board===document.getElementById('battle-field')||opt.board===document.querySelector('#scr-battle .battle-area'))});
         const entry=window.__labCalls[window.__labCalls.length-1],impact=opt.onImpact;
-        return originalPlay(name,{...opt,onImpact:i=>{entry.impacts.push(i);if(impact)impact(i);}})
+        return originalPlay(name,{...opt,onImpact:i=>{entry.impacts.push(i);(entry.impactAt=entry.impactAt||[]).push(performance.now());if(impact)impact(i);}})
           .then(result=>{window.__labDone.push(result);return result;});
       };
+      // 2026-10-12: ダメージ数値を出した時刻（隕石の巻物は墜落の後に出す）。
+      window.__labHits=[];const originalHit=window.playHitVfx;window.playHitVfx=function(side,target,amount){window.__labHits.push(performance.now());return originalHit.apply(this,arguments);};
       window.playSfx=function(code,opt){window.__labSound.push({code,offsetMs:opt&&opt.offsetMs});return originalSound(code,opt);};
       // fixtures は eval の関数内で評価されるため、後続の eval から見えるよう window へ出す。
       Object.assign(window,{vbLabVfxFixture,vbLabVfxTriggers,vbLabVfxCases,vbLabVfxExtraCases,vbLabVfxPrepare,
@@ -49,7 +51,7 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
         // 単発の画素を測る間は状態ループを止める。状態の画素だけで合格するのを防ぐ。
         if(_battleFxFrame)cancelAnimationFrame(_battleFxFrame);_battleFxFrame=-1;
         await new Promise(r=>requestAnimationFrame(r));
-        window.__labCalls=[];window.__labSound=[];window.__labDone=[];
+        window.__labCalls=[];window.__labSound=[];window.__labDone=[];window.__labHits=[];
         const name=presentLabFx(${JSON.stringify(no)})[0];let settled=false,error='',frames=0,painted=false,layerOK=false;
         const run=vbLabVfxStartPve(${JSON.stringify(no)},state,${JSON.stringify(trigger)});
         const promise=run.done
@@ -73,12 +75,14 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
           &&(${JSON.stringify(trigger)}!=='mana'||!vbLabVfxCases[${JSON.stringify(no)}]||calls.every(c=>c.event==='mana_threshold'));
         _forceStopAllVfx();
         await new Promise(r=>requestAnimationFrame(r));
-        return {evs:run.events.map(e=>e.type+':'+(e.effectNo||e.trigger||e.reason||'')),all,ordered,
+        const firstImpact=Math.min(...calls.flatMap(c=>c.impactAt||[])),firstHit=Math.min(...window.__labHits);
+        return {firstImpact,firstHit,hitAfterImpact:Number.isFinite(firstHit)&&Number.isFinite(firstImpact)&&firstHit>=firstImpact-20,evs:run.events.map(e=>e.type+':'+(e.effectNo||e.trigger||e.reason||'')),all,ordered,
           calls:calls.length,sounds:sounds.length,speeds:calls.map(c=>c.speed),boardOK:calls.every(c=>c.board),frames,painted,layerOK,settled,error,assetErrors,
           remaining:VbFx.activeCount()+document.querySelectorAll('[data-vb-fx-local],[data-battle-lab-fx]').length};
       `);
       check(no+' 実戦でLAB演出・SE・描画・後片付け',result.calls>0&&result.ordered&&(no==='shield_break'?result.sounds===0:result.sounds>0)&&result.speeds.every(s=>s===1.5*(no==='S001'?2.5:1)*SPEED)&&result.boardOK&&result.frames>0&&result.painted&&result.layerOK&&result.settled&&!result.error&&!result.assetErrors.length&&!result.remaining,
         JSON.stringify(result));
+      if(no==='I006') check('I006 隕石が墜落した後にダメージを出す（2026-10-12）',result.hitAfterImpact,JSON.stringify({firstImpact:result.firstImpact,firstHit:result.firstHit}));
     }
     const states=await b.eval(setup+`
       const state=vbLabVfxFixture('C003');G.allies=state.units.p1;G.enemies=state.units.p2;
