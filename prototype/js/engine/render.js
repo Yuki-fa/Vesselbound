@@ -3,8 +3,6 @@
 // 依存: constants.js, state.js, battle.js
 // ═══════════════════════════════════════
 
-// VFX素材を差し替えたら上げる。再生ごとに変えないこと（変えるとデコードが再生回数ぶん増える）。
-const VFX_ASSET_VERSION='vfx0916';
 // 戦闘の後の会話・確認（闘技場の継戦確認、魔獣撃退依頼の魔狼の会話など）の間は、デバッグ用のボタンを出さない。
 // 勝利後に phase が reward になる一方、通常の勝利演出を通らないため、右下のボタンが確認窓・会話の後ろに出ていた（2026-09-26）。
 // battle-victory-pending は goToReward() で外れるので、通常の編成画面では従来どおり出る。
@@ -12,15 +10,6 @@ function debugButtonsSuppressed(){
   return !!((typeof G!=='undefined'&&G&&G._arenaActive)
     ||(typeof document!=='undefined'&&document.body&&document.body.classList.contains('battle-victory-pending')));
 }
-function _withVfxAssetVersion(url){
-  const raw=String(url||'');
-  if(!raw) return raw;
-  const hashIndex=raw.indexOf('#');
-  const base=hashIndex<0?raw:raw.slice(0,hashIndex);
-  const hash=hashIndex<0?'':raw.slice(hashIndex);
-  return `${base}${base.includes('?')?'&':'?'}v=${VFX_ASSET_VERSION}${hash}`;
-}
-
 // ── キーワードツールチップ（KW_DESC_MAP は loader.js で effect_id シートから読み込み）──
 
 (function _initKwTooltip(){
@@ -1212,15 +1201,14 @@ async function playAttackContactVfx({attacker, targets, targetSide, mode, path, 
     const n=Number(typeof window!=='undefined'?window[name]:undefined);
     return Number.isFinite(n)?n:fallback;
   };
-  // CSSで絵は入れ物の幅の460%に描かれる（.effect-sustain-host .vfx-hit-video / .vfx）。
-  // 「出したい絵の幅」から入れ物の幅を逆算するために使う。
-  const cssRatio=scaleOf('PRESENT_VFX_CSS_WIDTH_RATIO',4.6);
+  // コード描画の基準幅は入れ物そのもの。接触の幅・位置の指定はpresent.jsに保つ。
+  const cssRatio=1;
   const opts=path=>({customVfxPath:path,hitDuration:duration,fadeDuration,waitForFinish:true,gateMs:0,rotation:0});
 
   // 貫通：**攻撃者から対象へ向かう角度のまま**、対象カードの上を通って
   // 後ろの敵を貫き、画面外まで飛ぶ。当たったキャラクターには、絵がその位置を
   // 通り過ぎた瞬間にダメージを見せる（onPass）。
-  // 入れ物（host）の幅は**絵の幅から逆算する**（CSSで絵はhost幅の460%に描かれる）。
+  // 入れ物（host）の幅はpresent.jsの接触幅に合わせる。
   // 対象の矩形をそのまま入れ物にすると、縦長素材（137x1086）が画面の高さを超えて
   // 伸び、画面の下から現れたように見える。
   if(mode==='pierce'&&typeof playCurvedMissile==='function'){
@@ -1288,90 +1276,6 @@ async function playAttackContactVfx({attacker, targets, targetSide, mode, path, 
     return playHitVfxAtRect(rect,0,{...opts(path),vfxScale:2});
   }));
   return true;
-}
-
-// VFX動画は背景黒で書き出されている。<video>要素はブラウザによってはCSSの
-// mix-blend-mode:screenが正しく効かない（動画専用の合成レイヤーで描画されるため）ことがあるので、
-// <canvas>に毎フレーム描画し、輝度の低い（黒に近い）ピクセルほど透明にするルミナンスキー処理で
-// 黒背景を確実に透過させる。戻り値のcanvasをDOMに追加して使う（videoはcanvasの下に自動追加済み）。
-// host：video/canvasを実際に配置する親要素（画面外に置くとChrome等が「非表示の背景動画」と
-// 判定し、省電力のため自動一時停止してしまう＝AbortError: video-only background media was
-// paused to save power。実際に表示されるhost内に収めることでこれを回避する）。
-// zoom：動画フレーム中心付近だけを拡大して描画したい場合の倍率（例：3なら中心1/3四方を全体に拡大）。
-// 省略時は1（フレーム全体をそのまま描画）。
-function _createLumaKeyedVideoCanvas(videoUrl, className, host, zoom){
-  const zoomFactor=Math.max(1,zoom||1);
-  const video=document.createElement('video');
-  // videoの見た目上の位置・変形はcanvasの描画結果に影響しない（canvasはvideoの現在フレームを
-  // ピクセルとしてサンプリングするだけ）。videoは「そこそこの大きさで表示されている」状態を
-  // 保てば十分。opacity:0や極小サイズ・画面外配置にすると、Chrome等が「非表示の背景動画」と
-  // 判定し省電力のため自動一時停止してしまう（AbortError: video-only background media was
-  // paused to save power）ため、それらは避けた静的なスタイルを与える。
-  // canvas側は呼び出し元がclassName（位置・アニメーション）を制御して上に重ねて隠す。
-  video.src=_withVfxAssetVersion(videoUrl);
-  video.muted=true;
-  video.autoplay=true;
-  video.playsInline=true;
-  Object.assign(video.style,{position:'absolute',left:'0',top:'0',width:'60%',height:'60%',opacity:'0.01',pointerEvents:'none'});
-  if(host) host.appendChild(video);
-  else document.body.appendChild(video);
-
-  const canvas=document.createElement('canvas');
-  canvas.className=className;
-
-  let ctx=null;
-  let timer=0;
-  let stopped=false;
-  // requestAnimationFrameはタブが非アクティブ/非表示扱いの場合に発火しないことがあるため
-  // （自動操作環境等）、確実に動かすsetTimeoutベースのループを使う。
-  const draw=()=>{
-    if(stopped) return;
-    if(video.paused||video.ended||video.readyState<2){
-      timer=setTimeout(draw,32);
-      return;
-    }
-    if(!ctx){
-      canvas.width=video.videoWidth||canvas.width||2;
-      canvas.height=video.videoHeight||canvas.height||2;
-      // 動画本来の縦横比を保つ（CSS側で片方の辺のみ指定している場合に、もう片方をこれで決める）
-      canvas.style.aspectRatio=`${canvas.width} / ${canvas.height}`;
-      ctx=canvas.getContext('2d',{willReadFrequently:true});
-    }
-    if(zoomFactor>1){
-      const sw=video.videoWidth/zoomFactor, sh=video.videoHeight/zoomFactor;
-      const sx=(video.videoWidth-sw)/2, sy=(video.videoHeight-sh)/2;
-      ctx.drawImage(video,sx,sy,sw,sh,0,0,canvas.width,canvas.height);
-    } else {
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    }
-    try{
-      const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-      const d=frame.data;
-      // しきい値以下の輝度は完全透明、しきい値〜しきい値+softness の間はなだらかに不透明化する
-      const threshold=24, softness=60;
-      for(let i=0;i<d.length;i+=4){
-        const luma=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-        d[i+3]=Math.max(0,Math.min(255,(luma-threshold)*(255/softness)));
-      }
-      ctx.putImageData(frame,0,0);
-    }catch(err){
-      // getImageDataに失敗した場合、黒背景の生フレームを不透明表示し続けるより、
-      // 何も出さない方が見た目の破綻が少ないため canvas をクリアする。
-      console.error('[luma-key VFX] getImageData failed, hiding this frame instead of showing an opaque black frame.',err);
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-    }
-    timer=setTimeout(draw,32);
-  };
-  draw();
-  video.play?.().catch(()=>{});
-
-  const stop=()=>{
-    stopped=true;
-    clearTimeout(timer);
-    video.pause?.();
-    video.remove();
-  };
-  return {video,canvas,stop};
 }
 
 // ── 死亡演出：白くボケてから燃えて崩れる ─────────────────────
@@ -1809,11 +1713,33 @@ function damageLabelDurationMs(labelDuration, minMs){
 // （同じ瞬間に出るはずの数値が1体だけ先に出る／命中音がずれる原因になっていた）
 // 画像URLへの印は利用者の指示で廃止した。番号はSEの重複防止キーと、
 // 画像を使わない軌道の決定にだけ残している。
-// 画像URLへ再生ごとの印は付けない。番号はSEの重複防止キーと、
-// 画像を使わない軌道の決定にだけ残している。
 const VFX_VARIANT_COUNT=6;
 let _vfxVariantSeq=0;
 function _vfxVariantIndex(){ _vfxVariantSeq=(_vfxVariantSeq+1)%VFX_VARIANT_COUNT; return _vfxVariantSeq; }
+
+// 定義データの共通再生。DOMは位置・尺・フェードを伝えるだけで、絵はVbFxが描く。
+// 旧画像向けの倍率を標準のカード幅へ正規化し、明示した相対倍率は保つ。
+let _definedVfxSeq=0;
+function _definedVfxSize(code,scale){
+  const base=typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(code):1;
+  return (Number(scale)||base)/(base||1);
+}
+function _playDefinedVfx(host,value,durationMs,options){
+  const opt=options||{};
+  const name=typeof getVfxDefinitionName==='function'?getVfxDefinitionName(value):'';
+  if(!host||!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return {stop:()=>{}};
+  const key=`defined-vfx:${++_definedVfxSeq}`;
+  host.dataset.codeVfx='1'; host.dataset.vfxDefinition=name;
+  VbFx.settings.layer=typeof _vfxClipLayer==='function'?_vfxClipLayer:null;
+  const speed=opt.presentationSpeed&&typeof getBattlePresentationSpeedScale==='function'
+    ?getBattlePresentationSpeedScale():1;
+  const promise=VbFx.play(name,{source:host,targets:[host],key,
+    durationMs:Math.max(1,Number(durationMs)||700)/Math.max(.01,speed),
+    size:Number(opt.size)||1,seed:53,dir:1,repeat:!!opt.repeat,
+    followGeometry:true,followOpacity:true});
+  promise.catch(e=>console.error('[VFX definition]',name,e));
+  return {promise,stop:()=>VbFx.stop({name,key})};
+}
 
 // ── 効果そのもののVFXを1体の上に出す ──────────────────────
 // 命中VFX（playHitVfxAtRect）は `characterEffect`（CXXX）しか引けないため、
@@ -1821,7 +1747,7 @@ function _vfxVariantIndex(){ _vfxVariantSeq=(_vfxVariantSeq+1)%VFX_VARIANT_COUNT
 // 大きさ・追従は命中VFXと同じ規則を使う（present.js の presentCharacterVfxScale）。
 //
 // options.durationMs … 指定するとその時間で自動的に消える（効果1回ぶんの再生）。
-//                      省略すると **停止するまで出続ける**（素材はwebpのloop=0）。
+//                      省略すると **停止するまで定義を繰り返す**。
 // options.minDurationMs … 最低再生時間。stop() が早く呼ばれてもここまでは消さない。
 //                      1回しか発動しない効果で一瞬しか映らないのを防ぐ。
 // 戻り値の stop() はどちらの場合も呼んでよい（自動停止済みなら何もしない）。
@@ -1851,22 +1777,16 @@ function playEffectVfxOnUnit(unit,side,code,options){
   host.className='effect-sustain-host';
   Object.assign(host.style,{left:`${rect.left}px`,top:`${rect.top}px`,
     width:`${rect.width}px`,height:`${rect.height}px`});
-  const img=document.createElement('img');
-  img.className='vfx vfx-hit-video';
-  img.alt='';
-  const characterSized=String(code||'').toUpperCase()==='C008';
-  if(characterSized) Object.assign(img.style,{width:'100%',height:'100%',objectFit:'contain'});
-  img.style.transform=`translate(-50%,-50%) scale(${scale})`;
   // **フェードインで出す。** いきなり全開で出すと画面が一瞬白く弾けて見える。
   const fadeInMs=Math.max(0,Number(opt.fadeInMs)!=null&&Number.isFinite(Number(opt.fadeInMs))?Number(opt.fadeInMs):180);
   if(fadeInMs>0){
-    img.style.opacity='0';
-    img.style.transition=`opacity ${fadeInMs}ms ease-out`;
-    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(!done) img.style.opacity='1'; }); });
+    host.style.opacity='0';
+    host.style.transition=`opacity ${fadeInMs}ms ease-out`;
+    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ if(!done) host.style.opacity='1'; }); });
   }
-  img.src=_withVfxAssetVersion(url);
-  host.appendChild(img);
   _vfxHostParent().appendChild(host);
+  const playing=_playDefinedVfx(host,url,Number(opt.durationMs)||700,
+    {repeat:true,size:_definedVfxSize(code,scale),presentationSpeed:true});
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   let resolveComplete;
   const completePromise=new Promise(resolve=>{ resolveComplete=resolve; });
@@ -1880,7 +1800,7 @@ function playEffectVfxOnUnit(unit,side,code,options){
   // 「活性化だけ元の位置で出る」状態になっていた。
   const follow=()=>{
     if(done) return;
-    if(!host.isConnected){ done=true; resolveComplete(); return; }
+    if(!host.isConnected){ done=true; playing.stop(); resolveComplete(); return; }
     let r=null;
     try{
       r=typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
@@ -1903,10 +1823,10 @@ function playEffectVfxOnUnit(unit,side,code,options){
     const remain=minDurationMs-(now-startedAt);
     if(remain>0){ battlePresentationSetTimeout(stop,remain); return completePromise; }
     done=true;
-    img.style.transition=`opacity ${fadeDuration}ms ease-out`;
-    void img.offsetWidth;
-    img.style.opacity='0';
-    battlePresentationSetTimeout(()=>{ try{ host.remove(); }catch(e){} resolveComplete(); },fadeDuration);
+    host.style.transition=`opacity ${fadeDuration}ms ease-out`;
+    void host.offsetWidth;
+    host.style.opacity='0';
+    battlePresentationSetTimeout(()=>{ playing.stop(); try{ host.remove(); }catch(e){} resolveComplete(); },fadeDuration);
     return completePromise;
   };
   const durationMs=Math.max(0,Number(opt.durationMs)||0);
@@ -1929,7 +1849,7 @@ function playKeywordEffectVfxSustained(unit,side,keyword){
   if(!unit||!keyword||typeof playEffectVfxOnUnit!=='function') return false;
   const url=typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(keyword):'';
   if(!url) return false;
-  const code=(String(url).match(/([A-Za-z]\d{3}(?:_\d+)?)\.[a-z0-9]+$/)||[])[1]||'';
+  const code=typeof getVfxSourceCode==='function'?getVfxSourceCode(url):'';
   if(!code) return false;
   const num=(name,fallback)=>{
     const n=Number(typeof window!=='undefined'?window[name]:undefined);
@@ -1976,7 +1896,7 @@ function stopAllKeywordEffectVfx(){
 
 
 // ── 曲線軌道で飛ぶ演出（ミサイル）────────────────────────
-// **素材そのものは加工しない。** `<img>` の位置と回転だけをJSで動かす。
+// 入れ物の位置と回転だけを動かし、粒・光・帯は定義から共通レンダラーが描く。
 // 弧の形・尺・回転の補正は present.js が唯一の実装（ここには数値を書かない）。
 //
 // playCurvedMissile({ sourceElement | sourceRect, targetElement | targetRect,
@@ -2013,21 +1933,8 @@ function playCurvedMissile(options){
   const codeOffset=typeof presentProjectileImpactOffsetY==='function'
     ?presentProjectileImpactOffsetY(opt.code):impactOffsetY;
   const centerTo={x:toRect.left+toRect.width/2, y:toRect.top+toRect.height/2+toRect.height*codeOffset};
-  // C019_1.webp は絵がキャンバスの上側に寄っている。画像を進行方向へ
-  // 回転しているため、縦方向だけを補正すると斜め着弾時にその余白が
-  // X方向へ回り込み、対象の中心からずれる。画像のローカルY方向の
-  // 余白を、進行方向に合わせて2軸へ投影して補正する。
-  let to=centerTo;
-  const isC019=String(opt.code||'').toUpperCase()==='C019';
-  const c019Lead=isC019?fromRect.width*.45:0;
-  if(isC019){
-    const vy=centerTo.y-from.y;
-    const dir=Math.atan2(vy,centerTo.x-from.x);
-    const imageAngle=dir+Math.PI/2;
-    // ホストのXは対象中心に固定する。縦長素材の上寄りの絵に必要な
-    // Y補正だけを終点へ反映し、回転で生じるX補正は画像側で行う。
-    to={x:centerTo.x,y:centerTo.y+c019Lead*Math.cos(imageAngle)};
-  }
+  // 新しい定義の先端は入れ物の中心。画像の透明余白を補う座標補正は不要。
+  const to=centerTo;
   // 弧の向き・膨らみ・尺は present.js が決める。毎回完全ランダムにはしない。
   const jitter=_vfxVariantIndex()/VFX_VARIANT_COUNT*2-1;   // -1〜1の決まった並び
   // straight：始点から終点へ**まっすぐ**（弧を描かない）。斜めでも直線になるよう
@@ -2058,12 +1965,6 @@ function playCurvedMissile(options){
     width:`${fromRect.width}px`, height:`${fromRect.height}px`,
     pointerEvents:'none',
   });
-  const img=document.createElement('img');
-  img.className='vfx vfx-hit-video';
-  img.alt='';
-  img.style.pointerEvents='none';
-  img.src=_withVfxAssetVersion(asset);
-  host.appendChild(img);
   _vfxHostParent().appendChild(host);
   const halfW=fromRect.width/2, halfH=fromRect.height/2;
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
@@ -2071,20 +1972,18 @@ function playCurvedMissile(options){
   const place=(pt,deg)=>{
     host.style.left=`${pt.x-halfW}px`;
     host.style.top=`${pt.y-halfH}px`;
-    if(isC019){
-      const rad=Number(deg)*Math.PI/180;
-      img.style.left=`calc(50% + ${(-c019Lead*Math.sin(rad)).toFixed(3)}px)`;
-    }else{
-      img.style.left='50%';
-    }
-    img.style.transform=`translate(-50%,-50%) rotate(${deg}deg) scale(${scale})`;
+    host.style.transform=`rotate(${deg}deg)`;
   };
   place(from,Number.isFinite(Number(opt.fixedAngle))?Number(opt.fixedAngle)
     :Math.atan2(cp.c1.y-from.y,cp.c1.x-from.x)*180/Math.PI+noseDeg);
+  const code=opt.code||(typeof getVfxSourceCode==='function'?getVfxSourceCode(asset):'');
+  const playing=_playDefinedVfx(host,asset,flightMs,{size:_definedVfxSize(code,scale),repeat:Number(opt.cleanupDelayMs)>0});
   let cleaned=false;
-  const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
+  const cleanup=()=>{ if(cleaned) return; cleaned=true; playing.stop(); try{ host.remove(); }catch(e){} };
   return new Promise(resolve=>{
+    let finished=false;
     const finish=async()=>{
+      if(finished) return; finished=true;
       flushWaypoints();
       await fireHit();
       const cleanupDelayMs=Math.max(0,Number(opt.cleanupDelayMs)||0);
@@ -2206,7 +2105,7 @@ function playHitVfxAtRect(rect,amount,options){
     height:`${rect.height}px`,
   });
   // キャラクターの効果でダメージが発生した場合、そのキャラクター専用のVFXがあればそれを再生する。
-  // 無ければ通常のhit（既定はWebP）を使う。
+  // 無ければ通常のhit定義を使う。
   const charVfx=opt.effectSource&&typeof getCharacterEffectVfxPath==='function'?getCharacterEffectVfxPath(opt.effectSource):'';
   // キャラクター固有VFXが無い場合、毒等キーワード発動によるダメージならキーワード専用のVFXを探す。
   const keywordVfx=!charVfx&&opt.keywordEffect&&typeof getKeywordEffectVfxPath==='function'?getKeywordEffectVfxPath(opt.keywordEffect):'';
@@ -2234,74 +2133,31 @@ function playHitVfxAtRect(rect,amount,options){
   // 薙ぎ払い（アラッサス）のように演出を別で持つ効果で、数値まで消さないために使う。
   const labelOnly=!!opt.labelOnly;
   const customVfx=opt.customVfxPath||'';
-  const hitUrl=customVfx||effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||Assets?.vfx?.hit||'assets/vfx/hit.webp';
+  const hitUrl=customVfx||effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||Assets?.vfx?.hit||'vfx:hit:hit-burst';
   // キャラクター固有VFXの大きさは present.js が唯一の実装。
   // 明示指定が無いときは素材の番号から決める（指定しないと等倍で巨大に出る）。
   // 大きさの鍵は**枝番まで含めた素材名**（E058_1 と E058_2 は別物）。
   // 枝番を落とすと、着弾VFXが矢と同じ倍率で描かれて見えなくなる（実際にそうなった）。
   // **キーワードVFX（毒の既存素材・毒牙の既存素材 等）も同じ倍率表で決める。**
   // ここに入れていなかった頃は、素材の大きさをどう登録しても等倍のままだった。
-  const scaleSourceUrl=effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||'';
+  const scaleSourceUrl=customVfx||effectHitVfx||charVfx||keywordVfx||vfxKeywordUrl||'';
   const charVfxCode=scaleSourceUrl
-    ?((String(scaleSourceUrl).match(/([A-Za-z]\d{3}(?:_\d+)?)\.[a-z0-9]+$/)||[])[1]||''):'';
+    ?(typeof getVfxSourceCode==='function'?getVfxSourceCode(scaleSourceUrl):''):'';
   const vfxScale=Number(opt.vfxScale)
     ||(charVfxCode&&typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(charVfxCode):1);
   const spin=!!opt.spin;
   const rotation=Number(opt.rotation)||0;
-  const baseTransform=`translate(-50%,-50%) scale(${vfxScale}) rotate(${rotation}deg)`;
+  const baseTransform=`rotate(${rotation}deg)`;
   _vfxHostParent().appendChild(host);
   let labelHost=null;
   if(typeof actionBannerTrackVfxHost==='function'&&!labelOnly) actionBannerTrackVfxHost(host);
 
-  const isWebp=labelOnly?true:/\.webp(\?|$)/i.test(hitUrl);
-  let mediaEl,stop,videoRef=null;
-  if(labelOnly){
-    // 数値だけを出す。命中VFXの絵は作らず、尺の管理だけ同じ経路に乗せる。
-    mediaEl=document.createElement('div');
-    mediaEl.className='vfx vfx-hit-video';
-    mediaEl.style.display='none';
-    host.appendChild(mediaEl);
-    stop=()=>{};
-  } else if(isWebp){
-    // 透過済みWebPアニメーション（黒背景は変換時に透過済み）。canvasでのルミナンスキー処理は不要で、
-    // imgでそのまま再生するだけでよい。再生時間・ズームも変換時に焼き込み済み。
-    mediaEl=document.createElement('img');
-    mediaEl.className='vfx vfx-hit-video';
-    mediaEl.alt='';
-    // 同一URLの<img>を短時間に連続生成すると、ブラウザによっては再生状態が共有され
-    // ループ位置がずれて見えることがあるため、インスタンスごとに独立した画像として
-    // 扱わせるための再生ごとのダミークエリを付与していたが、利用者の指示で外した。
-    mediaEl.src=_withVfxAssetVersion(hitUrl);
-    // **素材が読めなかったら通常の被弾VFXへ戻す。** 専用素材を登録しただけで
-    // ファイルを置き忘れると、何も出ないまま「効果が消えた」ように見える。
-    const fallbackUrl=charVfx||keywordVfx||Assets?.vfx?.hit||'assets/vfx/hit.webp';
-    if(hitUrl!==fallbackUrl){
-      mediaEl.addEventListener('error',()=>{
-        console.warn('[vfx] 素材が読めないため通常の被弾VFXへ戻す:',hitUrl);
-        mediaEl.src=_withVfxAssetVersion(fallbackUrl);
-      },{once:true});
-    }
-    host.appendChild(mediaEl);
-    stop=()=>{};
-  } else {
-    const created=_createLumaKeyedVideoCanvas(hitUrl,'vfx vfx-hit-video',host,opt.zoom||2);
-    mediaEl=created.canvas;
-    stop=created.stop;
-    videoRef=created.video;
-    mediaEl.style.setProperty('--hit-vfx-duration',`${hitDuration}ms`);
-    // hit.mp4自体は0.8秒程度と短いため、等速のままだと一瞬で終わり早すぎて見える。
-    // hitDuration（既定1400ms）まで間延びさせるよう再生速度を落とし、スローモーションにする。
-    videoRef.addEventListener('loadedmetadata',()=>{
-      if(videoRef.duration&&isFinite(videoRef.duration)&&videoRef.duration>0){
-        const speed=typeof getBattlePresentationSpeedScale==='function'
-          ?getBattlePresentationSpeedScale():1;
-        videoRef.playbackRate=Math.min(16,Math.max(0.25,
-          videoRef.duration/(hitDuration/1000)*speed));
-      }
-    },{once:true});
-    host.appendChild(mediaEl);
-  }
+  // 数値は独立したホストへ出す。絵の追従・回転・不透明度だけを共通描画へ渡す。
+  const mediaEl=host;
   mediaEl.style.transform=baseTransform;
+  const playing=labelOnly?{stop:()=>{}}:_playDefinedVfx(host,hitUrl,hitDuration,
+    {size:_definedVfxSize(charVfxCode,vfxScale),presentationSpeed:true});
+  const stop=playing.stop;
   if(amount>0){
     const label=document.createElement('div');
     label.className='vfx-damage-label';
@@ -2397,73 +2253,31 @@ function playHitVfxAtRect(rect,amount,options){
   const finish=()=>{
     if(done) return; done=true;
     notifyFadeStart();
-    stop();
     mediaEl.style.transition=`opacity ${fadeDuration}ms ease-out`;
     // transitionプロパティを設定した直後に同じフレーム内でopacityを変更すると、ブラウザによっては
     // トランジションが認識されずopacity:0へ瞬時にジャンプしてしまう（消え方が不自然に見える原因）。
     // 一度スタイルを強制的に確定させてから変更することで、確実にフェードアニメーションとして扱わせる。
     void mediaEl.offsetWidth;
     mediaEl.style.opacity='0';
-    battlePresentationSetTimeout(()=>{ host.remove(); labelHost?.remove(); resolveComplete(); },fadeDuration);
+    battlePresentationSetTimeout(()=>{ stop(); host.remove(); labelHost?.remove(); resolveComplete(); },fadeDuration);
   };
-  if(isWebp){
-    // 素材自体の再生がhitDurationより先に終わり最後のコマで静止した後、finish()の
-    // フェード開始をhitDurationまで待つ形だと「一瞬静止してから唐突に消える」不自然な
-    // 見た目になる。hitDuration全体を1本のアニメーションとして扱い、終盤（fadeDuration分）
-    // にかけて動きを止めずに滑らかにフェードアウトさせる。
-    const fadeStartRatio=Math.max(0,Math.min(1,1-fadeDuration/hitDuration));
-    const finishWebp=()=>{ if(done) return; done=true; host.remove(); labelHost?.remove(); resolveComplete(); };
-    // 素材が重い（既存素材＝6.6MB等）と、デコードが終わる前にフェードと破棄タイマーが
-    // 走り切り、1コマも描かれないまま消える。＝マナ効果VFXが出ない原因。
-    // 画像が使える状態になってから尺を数え始める。読み込めない場合に止まらないよう、
-    // 待つのは最大1.5秒まで。
-    const startWebpPlayback=()=>{
-      if(done) return;
-      if(typeof mediaEl.animate==='function'){
-        const anim=mediaEl.animate([
-          {opacity:1,offset:0},
-          {opacity:1,offset:fadeStartRatio},
-          {opacity:0,offset:1},
-        ],{duration:hitDuration,easing:'ease-out',fill:'forwards'});
-        anim.addEventListener('finish',finishWebp,{once:true});
-      }else{
-        // iOS等でWeb Animations APIが無い場合も、VFX自体を例外で中断させない。
-        // フェードは省略し、素材を表示したまま所定時間後に確実に破棄する。
-        mediaEl.style.opacity='1';
-      }
-      if(spin&&typeof mediaEl.animate==='function') mediaEl.animate([
-        {transform:`${baseTransform} rotate(0deg)`},
-        {transform:`${baseTransform} rotate(360deg)`},
-        {transform:`${baseTransform} rotate(1440deg)`},
-      ],{duration:hitDuration,easing:'linear',fill:'forwards'});
-      battlePresentationSetTimeout(finishWebp,hitDuration+60);
-      battlePresentationSetTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
-    };
-    if(labelOnly||(mediaEl.complete&&mediaEl.naturalWidth>0)){
-      startWebpPlayback();
-    }else{
-      let started=false;
-      const begin=()=>{ if(started) return; started=true; startWebpPlayback(); };
-      mediaEl.addEventListener('load',begin,{once:true});
-      mediaEl.addEventListener('error',begin,{once:true});
-      battlePresentationSetTimeout(begin,1500);
-    }
-  } else {
-    videoRef.addEventListener('ended',finish,{once:true});
-    // 再生速度調整が効かない場合（メタデータ取得失敗等）の保険。通常はvideoのendedで先に終わる。
-    battlePresentationSetTimeout(finish,opt.maxDuration||Math.max(1000,hitDuration+400));
-    battlePresentationSetTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
+  // 尺と終盤のフェード、onFadeStartの時刻は旧入口と同じ。
+  const fadeStartRatio=Math.max(0,Math.min(1,1-fadeDuration/hitDuration));
+  const finishPlayback=()=>{ if(done) return; done=true; notifyFadeStart(); stop(); host.remove(); labelHost?.remove(); resolveComplete(); };
+  if(typeof mediaEl.animate==='function'){
+    const anim=mediaEl.animate([
+      {opacity:1,offset:0}, {opacity:1,offset:fadeStartRatio}, {opacity:0,offset:1},
+    ],{duration:hitDuration,easing:'ease-out',fill:'forwards'});
+    anim.addEventListener('finish',finishPlayback,{once:true});
   }
-  // 呼び出し元への復帰はgateMsのみ待つ（次の攻撃・演出再開のテンポを演出の長さに引きずられないようにする）。
-  // WebPは読み込み完了後に startWebpPlayback() 側で回転もかける。
-  // ここで先に回すと、デコード待ちの間に回転だけ終わってしまう。
-  if(spin&&!isWebp){
-    if(typeof mediaEl.animate==='function') mediaEl.animate([
-      {transform:`${baseTransform} rotate(0deg)`},
-      {transform:`${baseTransform} rotate(360deg)`},
-      {transform:`${baseTransform} rotate(1440deg)`},
-    ],{duration:hitDuration,easing:'linear',fill:'forwards'});
-  }
+  if(spin&&typeof mediaEl.animate==='function') mediaEl.animate([
+    {transform:`${baseTransform} rotate(0deg)`},
+    {transform:`${baseTransform} rotate(360deg)`},
+    {transform:`${baseTransform} rotate(1440deg)`},
+  ],{duration:hitDuration,easing:'linear',fill:'forwards'});
+  battlePresentationSetTimeout(finishPlayback,hitDuration+60);
+  battlePresentationSetTimeout(notifyFadeStart,Math.max(0,hitDuration-fadeDuration));
+  // 呼び出し元が待つのはgateMsだけ（waitForFinishの場合は従来どおり最後まで）。
   return opt.waitForFinish?completePromise:new Promise(resolve=>battlePresentationSetTimeout(resolve,gateMs));
 }
 
@@ -2643,15 +2457,8 @@ function playManaGainVfx(unit,side){
     transform:'translateY(0)',
     transition:`opacity ${fadeIn}ms ease-out, transform ${riseMs}ms linear`,
   });
-  const img=document.createElement('img');
-  img.className='vfx vfx-hit-video';
-  img.alt='';
-  // 入れ物と同じ大きさで描く（CSSの既定 width:460% を使わない）。
-  Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
-    width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
-  img.src=_withVfxAssetVersion(url);
-  host.appendChild(img);
   _vfxHostParent().appendChild(host);
+  const playing=_playDefinedVfx(host,url,riseMs+80);
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
     host.style.opacity='1';
@@ -2662,7 +2469,7 @@ function playManaGainVfx(unit,side){
     // transform は同じ値のままなので、ここで指定を書き直しても上への移動は途切れない。
     host.style.transition=`opacity ${fadeOut}ms ease-out, transform ${riseMs}ms linear`;
     host.style.opacity='0';
-    setTimeout(()=>{ try{ host.remove(); }catch(e){} },fadeOut+80);
+    setTimeout(()=>{ playing.stop(); try{ host.remove(); }catch(e){} },fadeOut+80);
   },fadeIn+hold);
   return true;
 }
@@ -2739,18 +2546,10 @@ async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
   host.className='effect-sustain-host';
   Object.assign(host.style,{left:`${cx-startW/2}px`,top:`${cy-startW/2}px`,
     width:`${startW}px`,height:`${startW}px`,pointerEvents:'none',opacity:'0',zIndex:'10022'});
-  const img=document.createElement('img');
-  img.className='vfx vfx-hit-video';
-  img.alt='';
-  // **入れ物と同じ大きさで描く。** CSSの既定（width:460%）のままだと、
-  // 絵の見た目の大きさと「どこまで届いたか」の計算が合わなくなる。
-  Object.assign(img.style,{pointerEvents:'none',left:'50%',top:'50%',
-    width:'100%',height:'100%',objectFit:'contain',transform:'translate(-50%,-50%)'});
-  img.src=_withVfxAssetVersion(url);
-  host.appendChild(img);
   _vfxHostParent().appendChild(host);
+  const playing=_playDefinedVfx(host,url,fadeMs+growMs);
   let cleaned=false;
-  const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ host.remove(); }catch(e){} };
+  const cleanup=()=>{ if(cleaned) return; cleaned=true; playing.stop(); try{ host.remove(); }catch(e){} };
   const fireReached=radius=>pending.forEach(p=>{
     if(p.done||radius<p.dist) return;
     p.done=true;
@@ -2831,12 +2630,8 @@ function _battleBackgroundFrameRect(){
   return {left:r.left,top:r.top,width:r.width,height:r.height,scale};
 }
 
-// ── 特殊演出（生贄破棄・封印解放）── 「特殊演出」シートのS002/S003用の汎用再生関数。
-// 対象カードの上にWebPを表示してSFXを再生し、forwardMsが経過したらonMidpoint()を呼びつつ
-// （カードの消去・解封などの実処理はここで行う）、直近forwardMs分に実際に描画されたフレームを
-// canvasへ毎フレーム記録しておき、それをreverseMsかけて逆順に再生する（＝WebPの逆再生）。
-// file://運用のためfetch/XMLHttpRequestで生バイトを読めない（ImageDecoderが使えない）制約があり、
-// 代わりに<img>が実際に表示した見た目をcanvasにdrawImage()で記録→逆順描画する方式にしている。
+// ── 特殊演出（生贄破棄・封印解放）── 定義の時間曲線で展開・収束を描く。
+// forwardMsの合図でonMidpoint()を呼ぶ。SEと実処理の時刻は従来の入口に保持する。
 function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   const opt=options||{};
   const forwardMs=opt.forwardMs??200;
@@ -2875,69 +2670,15 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
   });
   clip.appendChild(host);
   _vfxHostParent().appendChild(clip);
-  const img=document.createElement('img');
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(clip);
-  img.className='special-vfx-img';
-  img.alt='';
-  img.style.cssText=`position:absolute;inset:0;width:100%;height:100%;object-fit:${opt.fit||'cover'};object-position:${opt.objectPosition||'center center'};`;
-  img.src=_withVfxAssetVersion(vfxUrl);
-  host.appendChild(img);
-  const w=Math.max(1,Math.round(hostW)), h=Math.max(1,Math.round(hostH));
-  const frames=[];
-  let capturing=true;
-  const captureLoop=()=>{
-    if(!capturing) return;
-    try{
-      const c=document.createElement('canvas');
-      c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      frames.push(c);
-    }catch(e){ /* デコード前フレーム等はスキップ */ }
-    if(capturing) requestAnimationFrame(captureLoop);
-  };
-  requestAnimationFrame(captureLoop);
+  const playing=_playDefinedVfx(host,vfxUrl,forwardMs+reverseMs);
   return new Promise(resolve=>{
-    setTimeout(()=>{
-      capturing=false;
-      finishMidpoint();
-      img.style.display='none';
-      const canvas=document.createElement('canvas');
-      canvas.width=w; canvas.height=h;
-      canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;';
-      host.appendChild(canvas);
-      const ctx=canvas.getContext('2d');
-      const seq=frames.slice().reverse();
-      let finished=false;
-      let watchdog=null;
-      const cleanup=()=>{
-        if(finished) return;
-        finished=true;
-        if(watchdog){ clearTimeout(watchdog); watchdog=null; }
-        clip.remove();
-        resolve();
-      };
-      // 逆再生はrequestAnimationFrameで進めるが、タブが非表示・最小化・スロットリング中は
-      // フレームが来ない。ここで止まると戦闘フロー全体が固まって進まなくなるため、
-      // 必ず有限時間で終わる番人を置く。演出が途中で切れても戦闘は続けること。
-      watchdog=setTimeout(cleanup,reverseMs+1500);
-      if(!seq.length){ setTimeout(cleanup,reverseMs); return; }
-      const started=performance.now();
-      const step=now=>{
-        if(finished) return;
-        const elapsed=now-started;
-        if(elapsed>=reverseMs){ cleanup(); return; }
-        const progress=Math.max(0,Math.min(1,elapsed/reverseMs));
-        const i=Math.min(seq.length-1,Math.floor(progress*seq.length));
-        ctx.clearRect(0,0,w,h);
-        ctx.drawImage(seq[i],0,0);
-        requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    },forwardMs);
+    setTimeout(finishMidpoint,forwardMs);
+    setTimeout(()=>{ playing.stop(); clip.remove(); resolve(); },forwardMs+reverseMs);
   });
 }
 
-// 特殊演出は元動画が長尺のため、順再生後に直近フレームを逆順に描画して折り返す。
+// 特殊演出は展開→収束の時間曲線。中点の合図と全尺は従来のまま。
 // **逆再生の開始（onMidpoint）が「効果が確定する瞬間」**。生贄奉納はそこで消し、
 // 召喚はそこで出す（逆の関係）。
 const _SPECIAL_VFX_TIMING={forwardMs:750,reverseMs:750};
@@ -3049,13 +2790,6 @@ function playSealReleaseVfx(unit, side){
   },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
 }
 
-// 薙ぎ払いWebP素材のうち、周囲に透明マージンを持つもの（フレーム全体を使っていない）だけ、
-// 実際に絵が描かれている領域をフレーム全体に対する比率で指定する。値は全フレームの非透明
-// ピクセル外接矩形の和集合から算出したもの。マージンを持たない素材は登録不要（未登録の場合は
-// _SWEEP_VFX_FIT側でcontain指定になり、素材本来の縦横比を保ったまま自動的にフィットする）。
-const _SWEEP_VFX_CROP={};
-
-
 // 攻撃キャラクターのカード先端を起点に、実際の距離・角度で対象群（最も左〜最も右、最も近い〜最も遠い）
 // まで届く長さで炎を伸ばし、対象の角度範囲を回転しながら薙ぎ払うように動画を再生する。
 // SEと合わせるため、再生時間（sweepDuration）は対象数・回転量に関わらず常に一定にする。
@@ -3079,8 +2813,8 @@ function _captureSweepSourceRect(unit,side){
   return valid(unit._lastVisualRect)?_copyBattleVisualRect(unit._lastVisualRect):null;
 }
 
-function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
-  if(!videoUrl) return Promise.resolve();
+function playCharacterSweepVfx(unit,isEnemySide,targets,definitionRef,options){
+  if(!definitionRef) return Promise.resolve();
   const opt=options||{};
   const sweepDuration=opt.sweepDuration||700;
   const targetSlots=(targets||[]).map(t=>getCurrentUnitSlot(isEnemySide?'ally':'enemy',t)).filter(Boolean);
@@ -3129,67 +2863,18 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   host.className='sweep-vfx-host';
   Object.assign(host.style,{
     position:'absolute',
-    left:`${originX-clipRect.left}px`,
-    top:`${originY-clipRect.top}px`,
+    left:`${originX-clipRect.left-length/2}px`,
+    top:`${originY-clipRect.top-length/2}px`,
     width:`${length}px`,
     height:`${length}px`,
     zIndex:'auto',
   });
   clip.appendChild(host);
   _vfxHostParent().appendChild(clip);
-  const isWebp=/\.webp(\?|$)/i.test(videoUrl);
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(clip);
-  let mediaEl,stop;
-  if(isWebp){
-    // 透過済みWebPアニメーション。canvasでのルミナンスキー処理は不要でbackground-imageでそのまま再生する
-    // （<img>ではなくdivのbackground-imageにするのは、素材の透明マージンをbackground-size/positionで
-    // トリミングし、実際に絵が描かれている範囲だけをbox一杯に表示するため。後述）。
-    // 動画のように再生速度をsweepDurationへ動的に同期させることはできないため、中身のアニメーションは
-    // 自身の速度で再生させ、薙ぎ払いの見た目（回転）はhost側のanimateでsweepDuration通りに制御する。
-    mediaEl=document.createElement('div');
-    mediaEl.className='vfx-sweep-video';
-    // 同一URLの背景画像に付けていた再生位置ずれ対策のダミークエリは、利用者の指示で外した。
-    const bustUrl=_withVfxAssetVersion(videoUrl);
-    // 素材によっては帯の左右・上下に透明マージンを持って書き出されていることがあり、そのままの
-    // 比率で炎box（幅=届く長さ、高さ=太さ）に収めると、透明部分の分だけ発生源（攻撃キャラ）側に
-    // 隙間ができ、炎がキャラクターから離れて浮いて見えてしまう。そういう素材だけ_SWEEP_VFX_CROPに
-    // 登録しておき、background-size/positionで実際に絵が描かれている範囲（全フレームを走査した
-    // 非透明ピクセルの外接矩形の和集合）だけをbox一杯にトリミング表示することで隙間を無くす
-    // （マージンを持たない素材はcontainで縦横比を保ったままフィットさせるだけでよい）。
-    const code=typeof _assetCodeRaw==='function'&&typeof _normalizeAssetCode==='function'?_normalizeAssetCode(_assetCodeRaw(unit),'C'):'';
-    const crop=_SWEEP_VFX_CROP[code];
-    mediaEl.style.backgroundImage=`url("${bustUrl}")`;
-    mediaEl.style.backgroundRepeat='no-repeat';
-    if(crop){
-      const wFrac=crop.right-crop.left, hFrac=crop.bottom-crop.top;
-      const sx=100/wFrac, sy=100/hFrac;
-      const px=100*crop.left/(1-wFrac), py=100*crop.top/(1-hFrac);
-      mediaEl.style.backgroundSize=`${sx}% ${sy}%`;
-      mediaEl.style.backgroundPosition=`${px}% ${py}%`;
-    } else {
-      // トリミング指定が無い（＝透明マージンを持たない）素材は、100%/100%で引き伸ばすと
-      // box側のアスペクト比（幅=届く長さ、高さ=太さ）とズレて非一様に歪んでしまう。
-      // containで素材本来の縦横比を保ったままboxいっぱいにフィットさせる。
-      mediaEl.style.backgroundSize='contain';
-      mediaEl.style.backgroundPosition='center';
-    }
-    stop=()=>{};
-  } else {
-    // 炎の実体はmp4フレーム中心付近にしかないため、中心を拡大して描画する
-    const created=_createLumaKeyedVideoCanvas(videoUrl,'vfx-sweep-video',host,opt.zoom||3);
-    mediaEl=created.canvas;
-    stop=created.stop;
-    // 回転量に関わらず再生時間を一定に保つため、動画自体の再生速度をsweepDurationに合わせる
-    created.video.addEventListener('loadedmetadata',()=>{
-      if(created.video.duration&&isFinite(created.video.duration)&&created.video.duration>0){
-        const speed=typeof getBattlePresentationSpeedScale==='function'
-          ?getBattlePresentationSpeedScale():1;
-        created.video.playbackRate=Math.min(16,Math.max(0.25,
-          created.video.duration/(sweepDuration/1000)*speed));
-      }
-    },{once:true});
-  }
-  host.appendChild(mediaEl);
+  const mediaEl=host;
+  const playing=_playDefinedVfx(host,definitionRef,sweepDuration,{presentationSpeed:true});
+  const stop=playing.stop;
   // widthは対象までの実距離から計算した「届く長さ」そのものなので、scale()で等倍拡大すると
   // 炎の先端が対象を大きく超えて伸びてしまい、発生源から見て炎が対象と無関係な場所まで届いて
   // しまう（＝カードから離れて見える）原因になる。太さ（height方向）だけをscaleYで拡大し、
@@ -3199,11 +2884,9 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,videoUrl,options){
   // ダメージ数値はその時刻に出す（薙ぎ払いは対象ごとの命中VFXを出さないため、
   // ここで知らせないと数値がまったく出ない）。
   if(typeof opt.onTargetHit==='function'){
-    const span=(endAngle-startAngle)||1;
     angles.forEach((a,i)=>{
-      const ratio=Math.max(0,Math.min(1,(a-startAngle)/span));
       // 0〜0.1は出現、0.1〜0.75で回り切る。その区間へ対象の角度を写す。
-      const at=sweepDuration*(0.1+0.65*ratio);
+      const at=presentSweepTargetHitMs(a,startAngle,endAngle,sweepDuration);
       battlePresentationSetTimeout(()=>{ try{ opt.onTargetHit((targets||[])[i],i); }catch(e){ console.error('[sweep onTargetHit]',e); } },at);
     });
   }

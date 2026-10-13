@@ -155,7 +155,21 @@ var VbFxCards = (function () {
     var ms = VbFxLabGeometry.visibleMs(vfx, Number($('speed').value));
     var fadeMs = Math.max(0, Number(vfx.fadeMs) || 0);
     var host;
-    if (vfx.path) {
+    var definition = (String(vfx.path || '').match(/^vfx:[^:]+:([^:]+)$/) || [])[1];
+    var playing = null;
+    if (definition) {
+      host = element('div', 'card-current-vfx');
+      var at = vfx.geometry && vfx.geometry.anchor === 'source' ? source : target;
+      var rect = at.getBoundingClientRect(), scale = Number($('size').value);
+      Object.assign(host.style,{ position:'fixed',left:rect.left+'px',top:rect.top+'px',
+        width:rect.width+'px',height:rect.height+'px',transform:'none',pointerEvents:'none' });
+      document.body.appendChild(host);
+      VbFx.settings.layer = document.body;
+      playing = VbFx.play(definition,{ source:host,targets:[host],durationMs:Math.max(1,ms),size:scale,
+        repeat:!!vfx.loop,followGeometry:true,followOpacity:true,seed:53,dir:1,key:'card-current:'+id });
+      playing.catch(function(err){ status('定義の再生：'+err.message); });
+      entry.geometry = {width:rect.width*scale,height:rect.height*scale,centerX:rect.left+rect.width/2,centerY:rect.top+rect.height/2,cardWidth:source.offsetWidth};
+    } else if (vfx.path) {
       host = element('img', 'card-current-vfx'); host.alt = vfx.path;
       host.src = new URL('../' + vfx.path, document.baseURI).href + '?card-lab=' + id;
       // デコード待ちを演出尺に含めない。初回のfile://読み込みでも最後のコマまで見せる。
@@ -200,7 +214,7 @@ var VbFxCards = (function () {
     if (id !== token) return;
     entry.finishedAt = performance.now(); entry.elapsedMs = entry.finishedAt - entry.startedAt;
     entry.completed = true; entry.status = 'completed'; entry.looping = !!(vfx.loop && retainLoop);
-    if (!entry.looping) { host.remove(); hosts = hosts.filter(function (h) { return h !== host; }); }
+    if (!entry.looping) { if(definition) VbFx.stop({name:definition,key:'card-current:'+id}); host.remove(); hosts = hosts.filter(function (h) { return h !== host; }); }
   }
   async function playCurrent(card) {
     if (window.VbFxLabCheck && VbFxLabCheck.busy()) return;

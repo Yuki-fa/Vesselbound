@@ -8,7 +8,7 @@
 
 ## 読み込み・書き出し
 
-通常scriptの順序は `schema.js → curves.js → textures.js → defs/geometry.js → defs/effects.js → renderer.js → ../engine/fx_lab.js`。
+通常scriptの順序は `schema.js → curves.js → textures.js → defs/geometry.js → defs/effects.js → defs/webp_geometry.js → defs/webp.js → renderer.js → ../engine/fx_lab.js`。
 ES Modules、ビルド、サーバー、fetchを必要とせず、file://でも再生できる。
 公開VbFx API、戦闘の呼び出し元、命中コールバックは従来どおり。
 
@@ -121,6 +121,21 @@ Unityのモジュールの役割は [ParticleSystemの公式資料](https://docs
 textureまたはshape参照、色、alpha/径/縦横比/回転、位相曲線・palette、行・添字の間隔、補助光の位置を指定する。
 行・位相・cadenceは粒の分布と寿命のパラメータであり、任意の実行条件を受け付けない。
 
+分布ごとの寸法・材質の指定は次のとおり。別の分布のキーを入れても同じ意味にはならない。
+
+| 既存パラメータ | 適用先と意味 | Unityでの対応 |
+|---|---|---|
+| `orbit` / `angleSpeed` | `particles.motion:orbit`の周回半径・角速度。`radius`は周回半径ではない。`orbitSpeed`はこの分布の入力にしない | 共通配置器の周回半径と角速度。径の曲線はAnimationCurve |
+| `radial-drag`の`radius` | 放射粒子の到達範囲。粒径は旧50種と同じseed付き分布と発生元の基準幅（job.unit）で決まり、radiusを縮めても粒径は縮まらない。層のsize/sizeRangeをこの分布の粒径指定に使わない | seed付きStart SizeとSize over Lifetimeを固定し、放射の到達距離を別に設定 |
+| `ballistic`の`sizeRange` / `radius` / `speed` | 粒径の分布・放出位置の半径・速度を別々に指定する。小さな領域へ収める場合は粒径も明示する。寿命/放出時刻はlifeMs/delayMs | Particle SystemのStart Size、Shape半径、Start Speed、Start Lifetimeと共通配置器の放出時刻 |
+| `materials` / 材質の`radius`・`radiusVelocity` | `line-motes`では材質配列を必ず指定する。半径は基準値＋`radiusVelocity`×seedで固定した粒のvelocity。寿命による径の変化は`radiusCurve`で指定する。層の`texture`・`size`だけでは粒を描かない | Particle SystemのRendererの材質・共通配置器のseed付き初期サイズ分布・Size over Lifetime |
+| `spreadDistance` | `line-motes`の点列から横へ散る距離。カード幅単位。未指定の値は1なので細い尾では小さい値を明示する | Shapeまたは共通配置器の横幅 |
+| `beam.taper` | 汎用点列beamの始点0〜終点1に対する幅倍率の曲線。先細りにはこの曲線を指定する。`strokeProfile`は対応する線のgeometry向けで、汎用点列の幅曲線の代わりにはならない | LineRenderer.widthCurve、帯Meshの各点の幅倍率 |
+| `fog.extent` / `offset` / `flow` / `aspect` | `cloud`の領域半径・領域中心・循環移動の速度・素材の縦横比。`flow`は定義尺の秒当たりのカード幅単位。細長い領域を流れる煙や炎にも使う | Particle SystemのBox Shape、共通配置器の循環移動、Billboardの縦横比 |
+| `beam.geometry:filament` / `strokeProfile:ribbon` / `filamentClockRate` | 点列の両端を結ぶ揺れる線を、幅と輪郭が変わる帯として描く。時計倍率で揺れの速度を指定する。通常の点列beamの`taper`とは別の輪郭パラメータ | 共通のnoiseによるLineRendererの点配置、幅が変わる帯Meshと透明マテリアル |
+
+第2段の目視修正はこれらの既存パラメータだけを使い、共通部品・既存50種の定義や描画式は変更しない。
+
 ### 共有合成
 
 compositesは最大64件、batch番号は一意。参照先の層が必要。
@@ -174,5 +189,65 @@ compare.pyは撮影条件・時刻・配置を突き合わせ、PNGの時刻ヘ�
 指標はMAE/RMSE（0〜255）、最大チャンネル差、32×32pxの最大局所MAE、差のある画素比、8×8pxの輝度SSIM。
 数値の基準は **全コマでMAE ≤ 0.25、最大局所MAE ≤ 1.0、SSIM ≥ 0.9999**。
 数値合格はNUMERIC_OK、目視はUNREVIEWEDのまま出力し、STATUSを自動的にVISUAL_OKへ変えない。
+全コマ・全RGB一致の場合だけ`RGB_EXACT`、1チャンネルでも差があれば`PIXEL_DIFF`も別列へ出す。数値の目安以下でも画素不変とは判定しない。
 全50比較画像を自分で見て数値も確認してから、REVIEWとSTATUSへ判定を書く。
 最新の撮影が無い場合は未測定・未確認としてCONTINUEを維持する。
+
+## 第2段：WebPを参考にした32定義
+
+`defs/webp_geometry.js`、`defs/webp.js`を第1段の定義の後、renderer.jsの前に読む。
+第1段50効果・22図形の定義は変更しない。全体は82効果・33図形・12部品型。
+追加したのは汎用の図形データ・数値パラメータと既存部品の組合せで、部品型・式評価・効果名分岐は増やしていない。
+
+| 追加項目 | 意味・許可値 | Unityでの対応 |
+|---|---|---|
+| 効果の`sourceCode` | 任意の出自メタデータ。C/E/S/Kの3桁番号と枝番、hit、appearance_sheet、board_change1/2のみ。描画方式の分岐に使わない | ScriptableObjectの元素材ID。JSON取り込み・参考画像・一覧の対応に利用 |
+| `playback.baseSize` | 任意の基準倍率、0.01〜32。APIのsize未指定時だけ使う。旧定義では未指定なので従来のsettings.sizeを保つ | Transformの基準スケール／Particle Systemの座標単位 |
+| 汎用図形`heart`・`coin` | SVGパス・楕円・面・グラデーションだけの形状データ。shape/particlesの既存geometry欄から使う | ベクターパスをMeshへ変換し、既存のマテリアルとグラデーションで描く |
+| 汎用図形`orb` | 中央から縁への色・濃さを持つ楕円。光球・泡・円周上の光に使用 | 楕円Mesh/Billboardと共有の放射Gradient Material |
+| 汎用図形`cloud-bank` | 大小43個の楕円と放射Gradientからなる雲の膨らみ。各房の左上の明部から縁の陰部へ濃さを変える。色・陰影・倍率・縦横比を効果側から指定 | 同じ楕円群をMeshへ変換し、各面に共有Gradient Materialを適用 |
+| 汎用図形`billow-cloud` | 固定SVGの61房からなる煙塊。各房に細かな起伏と、明部から柔らかく薄れる陰影を持たせる。色・配置・倍率・濃さは既存shapeのパラメータ | 固定パスをMesh群へ変換し、共有の放射Gradient Materialを適用。Transform/AnimationCurveで同じ配置・拡縮・回転・フェードを再生 |
+| 汎用図形`ruffled-ring` | ほつれた外周と逆向きの内周を持つSVGの環。中心を塗らず、環自身に厚みと陰影を持つ | 非ゼロ塗りの穴を保持してパスをMesh化。半径・回転はTransform/AnimationCurve |
+| 汎用図形`fractured-ring` | 長さの異なる角張った先端・裂けと、逆向きの内周を持つ星形の帯。固定のSVG点列のみ | 穴を保持したMeshと共通の色材質。欠け・先端の位置も固定頂点で移植 |
+| 汎用図形`flare` | 八方向の星形と放射Gradient。衝突・光の核・小さな火花に使用 | 同じ頂点のMeshと共有Gradient Material |
+| 汎用図形`rune-wheel` | 多重円、中央で交差する三角・星形、周囲の短い線記号、内部にも記号を持つ3印章のSVG集合。文字フォントや効果名の分岐に依存しない | 同じパスの線Mesh/LineRenderer群。記号も固定の頂点で移植 |
+| 汎用図形`crack-rays` | 不揃いな11放射・33枝のひびの固定点列 | 共有の線Mesh/LineRenderer。色・倍率・濃さはデータから適用 |
+| 汎用図形`flame-tongue` | 分岐・巻き込みを持つ炎の外形、熱い内側と陰のSVG・Linear Gradient。複製と配置は既存のcopies/layout/spreadで指定 | パスのMesh化＋共有Gradient Material。共通配置器が複製と軸上の配置を担当 |
+| `shape.scaleX` / `shape.scaleY` | 図形のローカル軸ごとの追加倍率。有限数0.001〜32、未指定は1。既存の数値曲線・入力binding・変調にも対応。`radius × aspect[軸] × scale[軸]`で拡縮した後にrotationを適用する。位置・尺・合図には作用しない | MeshのローカルTransform.localScaleのX/YへAnimationCurveを適用。既存の半径・縦横比と積にし、親の追従Transformや通知時刻から独立させる |
+
+2026-10-12の最終拡大指摘への修正では7図形を追加した。続くvfxcap_y/r1ではそのうち5図形の固定座標・陰影を調整し、fractured-ringと汎用の軸別倍率2欄を追加した。部品型・式評価・効果名分岐は増やしていない。軸別倍率を指定しない旧50種には従来のaspectをそのまま渡し、追加の描画変換を行わない。
+核は小径のglow.stops/shape、塊は通常合成のshape、環は穴のあるshapeで描く。カード全体を覆う薄い加算面で存在感を代用しない。
+半径・濃さ・回転・複製・固定点列の曲線は既存の数値欄を使用し、実行時に形状の式や生成処理を定義側へ持たせない。
+
+2026-10-13のrun 9再適用ではbillow-cloudを追加して接触の煙へ使う。従来の全図形・部品型・パラメータ・共通レンダラー・許可リストは変更しない。盾の短い放射線と着弾の横光条は既存beam.points/strokes/taper、魔法陣とひびの線幅は既存shape.strokeの数値曲線で指定する。
+
+2026-10-13のr5/r1では、既存billow-cloudを奪う・毒牙・毒被弾にも使い、硬い楕円の房を柔らかな煙へ替える。結界の光条と小片は既存beam.points/strokesの単位座標だけで配置する。復活の開始光点は既存glow.stops/aspect/offset/time/curves、着弾の収束は既存glow.radiusの数値曲線、魔法陣の線幅は既存shape.strokeで指定する。Unityでは同じ固定Mesh・LineRenderer・Gradient MaterialとTransform/AnimationCurve、各層の開始/終了時刻へ移せる。新部品型・新パラメータ・共通描画の分岐は追加しない。
+
+2026-10-13のr5/r2では、毒牙・毒被弾・奪うの煙の中央に、既存glow.stopsを通常合成で3枚重ねる。glowは発光だけでなく、中心が濃く外縁が透ける局所の色の塊にも使える。copies=3・layout=line・spread・aspect・offsetで小径の房を重ね、外側のbillow-cloudの不揃いな輪郭を保つ。radius/alphaの数値曲線は既存の煙と同じ出入りの時刻を使い、全カードを覆う一様な面を増やさない。Unityでは透明な放射Gradient MaterialのQuadを3枚、同じTransform/AnimationCurveと通常のalpha合成で配置する。ハートの配置と炎の陰影色は既存shape.offset/color/light/shadow、魔法陣の線幅は既存shape.strokeを使う。新部品型・新パラメータ・新図形・レンダラーの変更は無い。
+
+2026-10-13のr5/r3では、炎の外側のalphaを抑え、同じflame-tongueをaspect=[1.32,0.40]・小径・暖色の明部で重ねる。分岐する細い内側へ光量を集め、広い煙と区別する。接触煙の中央はglow.stops・通常合成の小径3房で埋める。両方とも既存の固定Mesh/Gradient Material、共通配置器とTransform/AnimationCurveに対応し、新部品型・新パラメータ・新図形・レンダラー分岐を追加しない。演出全尺と命中・合図・追従の時計は維持する。
+
+新しい定義のmsはLAB標準速度1.5で従来の基準尺になる値。実ゲームでは従来の入口が持つ尺を渡す。
+特にS004は70+260+260msの浮上とフェード、除去猶予80msの合計670ms、K024は900msのうち200msで効果へ進む合図、K019は1750+1750ms。
+S001・K020・K009の主経路は既存のbattle-summon・revive-summon・all-crossを保つ。新しい同番号の定義は旧登録と参考LAB用。
+
+### 共通再生APIの追加オプション
+
+これらはゲーム／LABが共通レンダラーへ渡す配置・時計の入力。JSONに命令や効果固有のコードを入れない。
+
+| オプション | 意味 | Unityでの対応 |
+|---|---|---|
+| `durationMs` | 0超〜30000msの有限数。speedによる自動尺の代わりに実際の再生尺を渡す。合図の比率もこの尺へ写す | Playableの再生時間・正規化されたAnimationCurveの時計 |
+| `repeat` | trueなら一周の時間曲線を停止まで繰り返す。Promiseは一周で解決し、stopで終了。旧loopの連続時間は変更しない | Particle System／Playableのループ、開始した一周の完了通知と停止を分離 |
+| `followGeometry` | source要素の中心・回転・縦横別の拡大を毎フレーム追う。飛翔体、薙ぎ払い、拡大波、浮上、着地の入れ物に適用 | 親Transformまたは外部の追従Transform。描画部品の実装は全効果で共通 |
+| `followOpacity` | followGeometry使用時、sourceと祖先の不透明度を描画へ掛ける。部品のalpha指定にも共通のCanvasアダプターで適用 | 親のフェード値をMaterial／VFX Graphの全体不透明度へ掛ける |
+| `impactTimesMs` | 任意の対象数ぶんの0以上の有限数配列。LABで実際の角度・距離から求めた通過時刻を渡す。未指定なら従来の定義のimpactを使う | 対象の配置を受け取る外部Playableの通知時刻。配列を全尺へ正規化 |
+
+`settings.layer`は親要素を返す関数。戦闘は既存の_vfxClipLayerを渡し、数値ラベルより下に置く。
+このオプション群を使わない旧50種は、従来の部品・座標・時間曲線で描画する。
+
+### 利用者指定で保持する内部素材
+
+第1段のdirewolf内部にはappearance-atlas、meteor-scroll内部にはimpact-allのspriteがあり、WebPを参照している。
+2026-10-12の利用者指定により、この2層は**既存の見た目を守るため残す**。コード化の残作業として扱わない。
+新32種はsprite/WebPを使わず、素材ファイル自体は削除していない。

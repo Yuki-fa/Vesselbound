@@ -5,11 +5,12 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const { gameGeometry, webpInfo } = require('./cards_geometry.cjs');
+const { RUNTIME_SCRIPTS } = require('../vfx_export');
 const root = path.resolve(__dirname, '../..');
 const context = { console: { log() {} }, URL, Set, document: { currentScript: null, getElementById: () => null, baseURI: 'file://' + root + '/tools/vfx_preview.html' } };
 context.window = context; context.addEventListener = () => {};
 vm.createContext(context);
-for (const f of ['js/data/local_xlsx_data.js', 'js/data/loader.js', 'js/engine/fx_lab.js',
+for (const f of ['js/data/local_xlsx_data.js', 'js/data/loader.js', ...RUNTIME_SCRIPTS,
   'tools/vfx_preview/catalog.js', 'tools/vfx_preview/cards_routes.js', 'tools/vfx_preview/cards_geometry.js', 'tools/vfx_preview/cards_model.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), context, { filename: f });
 }
@@ -26,18 +27,26 @@ assert.equal(cards.length, Object.keys(context.VbFxCardRoutes.records).length, '
 for (const c of cards) {
   assert.ok(context.VbFxCardRoutes.records[c.no], c.no + ' 台帳あり');
   assert.equal(context.VbFxCardRoutes.records[c.no].signature, model.signature(c.row), c.no + ' シートと台帳一致');
-  for (const media of [...c.vfx, ...c.se]) if (media.path) assert.ok(fs.existsSync(path.join(root, media.path)), c.no + ' 素材あり: ' + media.path);
+  for (const media of [...c.vfx, ...c.se]) if (media.path) {
+    const name = (media.path.match(/^vfx:[^:]+:([^:]+)$/) || [])[1];
+    if (name) assert.ok(context.VbFx.effects.some(d => d.name === name && d.sourceCode === media.sourceCode), c.no + ' 定義と元番号あり: ' + media.path);
+    else assert.ok(fs.existsSync(path.join(root, media.path)), c.no + ' 素材あり: ' + media.path);
+  }
   c.lab.forEach(fx => assert.ok(context.VbFx.effects.some(d => d.name === fx.name), c.no + ' LAB演出がある: ' + fx.name));
   if (c.adopted) assert.ok(fs.existsSync(path.join(root, c.adopted.path)), c.no + ' 正式採用SEあり');
   const dedicated = c.vfx.findIndex(v => model.dedicated(c.row, v, c.kind));
   assert.equal(model.defaultVfxIndex(c), dedicated >= 0 ? dedicated : c.vfx.length ? 0 : -1, c.no + ' 既定は固有素材か実経路の先頭');
 }
 assert.equal(cards.find(c => c.no === 'C008').vfx[model.defaultVfxIndex(cards.find(c => c.no === 'C008'))].path,
-  'assets/vfx/C008.webp', '通常攻撃が先頭でもC008の固有素材を選ぶ');
+  'vfx:C008:arachne-ring', '通常攻撃が先頭でもC008の固有定義を選ぶ');
 const assets = new Map();
 for (const c of cards) for (const vfx of c.vfx.filter(v => v.path)) {
-  if (!assets.has(vfx.path)) assets.set(vfx.path, webpInfo(path.join(root, vfx.path)));
-  assert.deepEqual(JSON.parse(JSON.stringify(vfx.asset)), assets.get(vfx.path), c.no + ' 素材の全フレーム・尺・縦横比');
+  if (vfx.definition) {
+    assert.deepEqual(JSON.parse(JSON.stringify(vfx.asset)), { renderer: 'definition', durationMs: vfx.ms, frameCount: 0 }, c.no + ' 定義の実経路の尺');
+  } else {
+    if (!assets.has(vfx.path)) assets.set(vfx.path, webpInfo(path.join(root, vfx.path)));
+    assert.deepEqual(JSON.parse(JSON.stringify(vfx.asset)), assets.get(vfx.path), c.no + ' 素材の全フレーム・尺・縦横比');
+  }
   assert.ok(vfx.geometry && vfx.geometry.widthRatio > 0, c.no + ' 本体の素材寸法がある');
   assert.equal(context.VbFxLabGeometry.visibleMs(vfx, 2.5), vfx.loop ? Math.max(1, vfx.asset && vfx.asset.durationMs || 3000) : (Number(vfx.ms) || 800), c.no + ' 再生時間は実機と同じ（ゲームの尺）');
 }
@@ -69,12 +78,12 @@ assert.ok(css.includes('width:var(--lab-card-w);height:var(--lab-card-h)'), 'カ
 assert.ok(css.includes('.lab-card .name{display:none}'), '本体の戦闘カードと同じ名前非表示');
 const nodes = ['ally', 'enemy'].map(side => { const p = lab.position(side, 'front', 3, 1);
   return { offsetLeft: p.left, offsetTop: p.top, offsetWidth: game.cardWidth, offsetHeight: game.cardHeight }; });
-const c008 = cards.find(c => c.no === 'C008').vfx.find(v => /C008.webp$/.test(v.path));
-assert.equal(lab.mediaBox(c008, ...nodes).width, game.cardWidth * 2, 'C008の専用幅');
-assert.equal(lab.mediaBox(c008, ...nodes).height, game.cardHeight * 2, 'C008の専用高さ');
+const c008 = cards.find(c => c.no === 'C008').vfx.find(v => v.definition === 'arachne-ring');
+assert.equal(lab.mediaBox(c008, ...nodes).width, game.cardWidth, 'C008の定義の基準幅');
+assert.equal(lab.mediaBox(c008, ...nodes).height, game.cardHeight, 'C008の定義の基準高さ');
 const front = [0, 1, 2].map(i => { const p = lab.position('enemy', 'front', 3, i);
   return { offsetLeft: p.left, offsetTop: p.top, offsetWidth: game.cardWidth, offsetHeight: game.cardHeight }; });
-const tri = cards.find(c => c.no === 'K008').vfx.find(v => /K008.webp$/.test(v.path));
+const tri = cards.find(c => c.no === 'K008').vfx.find(v => v.definition === 'tri-streak');
 assert.equal(lab.mediaBox(tri, ...nodes, front).width, (game.cardWidth * 3 + game.gap * 2) * tri.geometry.spanWidthRatio, '三方向の実対象幅');
 const present=fs.readFileSync(path.join(root,'js/battle/present.js'),'utf8');
 const labFx=vm.runInNewContext('('+present.match(/const PRESENT_LAB_FX = (\{[\s\S]*?\n\});/)[1]+')');

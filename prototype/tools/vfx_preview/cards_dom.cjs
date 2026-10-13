@@ -197,11 +197,30 @@ function sandbox(baseURI) {
     pause() { pending.delete(this.timer); } removeAttribute() { this._src = ''; } load() {}
   }
   const window = new Events(), storage = new Map();
+  class DOMMatrixReadOnly {
+    constructor(text) {
+      let m = [1, 0, 0, 1];
+      for (const [, type, value] of text.matchAll(/([a-zA-Z]+)\(([^)]+)\)/g)) {
+        const n = value.split(/[ ,]+/).map(parseFloat); let part = [1, 0, 0, 1];
+        if (type === 'matrix') part = n.slice(0, 4);
+        else if (type === 'rotate') { const a = n[0] * (value.includes('deg') ? Math.PI / 180 : 1); part = [Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a)]; }
+        else if (type === 'scale') part = [n[0], 0, 0, n[1] ?? n[0]];
+        else if (type === 'scaleX') part[0] = n[0];
+        else if (type === 'scaleY') part[3] = n[0];
+        else if (!type.startsWith('translate')) throw new Error('Node検査の行列で未対応: ' + type);
+        m = [m[0]*part[0]+m[2]*part[1],m[1]*part[0]+m[3]*part[1],m[0]*part[2]+m[2]*part[3],m[1]*part[2]+m[3]*part[3]];
+      }
+      [this.a, this.b, this.c, this.d] = m;
+    }
+  }
   Object.assign(window, { document, Event, Audio, Image: function () { return new Element('img'); }, URL, URLSearchParams,
+    DOMMatrixReadOnly, Path2D: class { constructor(path) { this.path = path; } },
     MutationObserver: class { constructor(callback) { this.callback = callback; } observe(target) { this.target = target; observers.push(this); } },
     console: { log() {}, error() {} }, performance: { now: () => now }, location: { protocol: 'file:', search: '' },
     innerWidth: 1536, innerHeight: 864, devicePixelRatio: 1,
-    getComputedStyle: el => ({ transform: el.style.transform || 'none', filter: el.style.filter || 'none' }),
+    getComputedStyle: el => ({ transform: el.style.transform || 'none', filter: el.style.filter || 'none',
+      opacity: el.style.opacity || '1', scale: el.style.scale || 'none', rotate: el.style.rotate || 'none',
+      visibility: el.style.visibility || 'visible', display: el.style.display || 'block' }),
     localStorage: { getItem: key => storage.get(key), setItem: (key, val) => storage.set(key, val) },
     // Nodeは20fps相当の時計。画素の見た目は検査せず、全尺と命中・後片付けを確認する。
     requestAnimationFrame: fn => schedule(fn, 50), cancelAnimationFrame: id => pending.delete(id),

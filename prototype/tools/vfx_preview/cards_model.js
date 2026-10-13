@@ -14,7 +14,7 @@ var VbFxCardCatalog = (function () {
   function dedicated(row, media, kind) {
     if (kind === 'specialFx' || media.generic) return false;
     var codes = [row['No.']].concat(String(row['VFX/SE'] || '').split(/[\s,、/]+/)).filter(Boolean);
-    var code = String(media.path || '').split('/').pop().split('.')[0];
+    var code = media.sourceCode || (String(media.path || '').match(/^vfx:([^:]+):/) || [])[1] || String(media.path || '').split('/').pop().split('.')[0];
     return !/^S\d/.test(code) && (codes.indexOf(code) >= 0 || codes.indexOf(code.replace(/_\d+$/, '')) >= 0);
   }
   function setting(row, list, unknown, kind) {
@@ -33,7 +33,7 @@ var VbFxCardCatalog = (function () {
     // catalog.sourceだけでは大盾等の試験用素体をカードの割当と誤認する。
     definitions.forEach(function (fx) {
       var label = String(fx.label || ''), name = row['名前'];
-      var matches = label === name || label.indexOf(name + '（') === 0 || label === name + '状態' || label === name + '獲得';
+      var matches = !!fx.sourceCode && [row['No.']].concat(String(row['VFX/SE'] || '').split(/[\s,、/]+/)).indexOf(fx.sourceCode.replace(/_\d+$/, '')) >= 0 || label === name || label.indexOf(name + '（') === 0 || label === name + '状態' || label === name + '獲得';
       if (!matches || result.some(function (x) { return x.name === fx.name; })) return;
       var conf = catalog[fx.name] || {};
       if (kind !== 'keyword' && kind !== 'specialFx' && conf.source !== row['No.']) return;
@@ -54,7 +54,7 @@ var VbFxCardCatalog = (function () {
           : recorded.unknown;
         // 被弾（hit）・カードの消滅・発動の光は全カード共通の演出なので一覧から外す（2026-10-06 利用者指定）。
         var vfx = stale ? [] : unique(recorded.vfx.filter(function (x) {
-          return !/(^|\/)hit\.webp$/.test(x.path || '') && !/^(playCardBurnAway|playEffectFlash)\b/.test(x.fn || '');
+          return x.sourceCode !== 'hit' && !/(^|\/)hit\.webp$/.test(x.path || '') && !/^(playCardBurnAway|playEffectFlash)\b/.test(x.fn || '');
         }), function (x) { return [x.path, x.fn, x.ms, x.fadeMs, x.trigger].join('|'); });
         var se = stale ? [] : unique(recorded.se, function (x) { return x.path; });
         cards.push({ no: row['No.'], name: row['名前'], kind: kind, type: kinds[kind],

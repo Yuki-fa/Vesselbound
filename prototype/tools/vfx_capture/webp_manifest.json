@@ -1,0 +1,298 @@
+{
+  "baseline": "fd294ee",
+  "referenceSampling": "全尺の i/8 (i=0..7)。ゲームの尺はplaybackMs。",
+  "effects": [
+    {
+      "asset": "hit",
+      "name": "hit-burst",
+      "playbackMs": 800
+    },
+    {
+      "asset": "C002",
+      "name": "attack-recoil",
+      "playbackMs": 700
+    },
+    {
+      "asset": "C008",
+      "name": "arachne-ring",
+      "playbackMs": 700
+    },
+    {
+      "asset": "C011",
+      "name": "siren-wave",
+      "playbackMs": 800
+    },
+    {
+      "asset": "C017",
+      "name": "medusa-gaze",
+      "playbackMs": 800
+    },
+    {
+      "asset": "C019_1",
+      "name": "centaur-missile",
+      "playbackMs": 448
+    },
+    {
+      "asset": "C019_2",
+      "name": "centaur-impact",
+      "playbackMs": 800
+    },
+    {
+      "asset": "C043",
+      "name": "flame-sweep",
+      "playbackMs": 700
+    },
+    {
+      "asset": "C090",
+      "name": "steal-mark",
+      "playbackMs": 800,
+      "timingNote": "奪うの滞在1000msとは別に、絵は既定の命中VFX800ms。"
+    },
+    {
+      "asset": "E058_1",
+      "name": "fire-arrow",
+      "playbackMs": 448
+    },
+    {
+      "asset": "E058_2",
+      "name": "fire-arrow-impact",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K001",
+      "name": "death-mark",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K003",
+      "name": "fang-poison",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K007",
+      "name": "piercing-streak",
+      "playbackMs": 420
+    },
+    {
+      "asset": "K008",
+      "name": "tri-streak",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K009",
+      "name": "contact-burst",
+      "playbackMs": 800,
+      "usage": "既存LABの主経路は対象外。旧登録識別子・参考LAB用の定義のみ追加。"
+    },
+    {
+      "asset": "K017",
+      "name": "poison-tick",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K018",
+      "name": "shield-contact",
+      "playbackMs": 800
+    },
+    {
+      "asset": "K019",
+      "name": "seal-release",
+      "playbackMs": 3500
+    },
+    {
+      "asset": "K020",
+      "name": "revive-burst",
+      "playbackMs": 1500,
+      "usage": "既存LABの主経路は対象外。旧登録識別子・参考LAB用の定義のみ追加。"
+    },
+    {
+      "asset": "K024",
+      "name": "mana-cue",
+      "playbackMs": 900,
+      "cueMs": 200,
+      "timingNote": "900msの合図VFX。fadeDuration700なので、効果へ進むonFadeStartは200ms。"
+    },
+    {
+      "asset": "S001",
+      "name": "summon-sigil",
+      "playbackMs": 1000,
+      "usage": "既存LABの主経路は対象外。旧登録識別子・参考LAB用の定義のみ追加。"
+    },
+    {
+      "asset": "S003",
+      "name": "gold-gain",
+      "playbackMs": 700
+    },
+    {
+      "asset": "S004",
+      "name": "mana-gain",
+      "playbackMs": 670,
+      "timingNote": "fadeIn70+hold260+fadeOut260=590ms、除去猶予80ms。合図は70ms。"
+    },
+    {
+      "asset": "S005",
+      "name": "attack-buff",
+      "playbackMs": 700
+    },
+    {
+      "asset": "S006",
+      "name": "injury-buff",
+      "playbackMs": 700
+    },
+    {
+      "asset": "S007",
+      "name": "death-buff",
+      "playbackMs": 700
+    },
+    {
+      "asset": "S008",
+      "name": "mana-buff",
+      "playbackMs": 700
+    },
+    {
+      "asset": "S009",
+      "name": "aura-buff",
+      "playbackMs": 700
+    },
+    {
+      "asset": "appearance_sheet",
+      "name": "opening-sigil",
+      "playbackMs": 980
+    },
+    {
+      "asset": "board_change1",
+      "name": "board-summon",
+      "playbackMs": 1200
+    },
+    {
+      "asset": "board_change2",
+      "name": "board-enchant",
+      "playbackMs": 1200
+    }
+  ],
+  "excluded": [
+    {
+      "asset": "C018",
+      "reason": "PRESENT_LAB_FX C018=cyclopsへ置換済み"
+    },
+    {
+      "asset": "E067_1",
+      "reason": "PRESENT_LAB_FX E067=cover-fireへ置換済み"
+    },
+    {
+      "asset": "E067_2",
+      "reason": "PRESENT_LAB_FX E067=cover-fireへ置換済み"
+    },
+    {
+      "asset": "K004",
+      "reason": "衝撃はカード揺れ、弱体はPRESENT_LAB_FX K016=weakenへ置換済み。旧撮影ツールの参照のみ"
+    },
+    {
+      "asset": "appearance",
+      "reason": "直接再生は無い。appearance_sheetの元素材（参考のみ）"
+    },
+    {
+      "asset": "effect",
+      "reason": "戦闘開始で重ねる経路は利用者指定で廃止"
+    },
+    {
+      "asset": "butterfly1",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly2",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly3",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly4",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly5",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly6",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly7",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly8",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly9",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly10",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly11",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly12",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly13",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly14",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly15",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    },
+    {
+      "asset": "butterfly16",
+      "reason": "ゲーム・LABの読み込み/再生経路無し"
+    }
+  ],
+  "visualConflicts": [
+    {
+      "name": "direwolf",
+      "asset": "appearance_sheet",
+      "reason": "2026-10-12利用者指定。第1段50種の既存の見た目を守るため残す。コード化の残作業から除外。"
+    },
+    {
+      "name": "meteor-scroll",
+      "asset": "K009",
+      "reason": "2026-10-12利用者指定。第1段50種の既存の見た目を守るため残す。コード化の残作業から除外。"
+    }
+  ],
+  "alreadyLabRoutes": [
+    {
+      "code": "S001",
+      "effect": "battle-summon",
+      "reason": "召喚の主経路は第1段のLAB。カード出現のonImpactと尺を変更しない。"
+    },
+    {
+      "code": "K020",
+      "effect": "revive-summon",
+      "reason": "復活の主経路は第1段のLAB。再登場のonImpactと尺を変更しない。"
+    },
+    {
+      "code": "K009",
+      "effect": "all-cross",
+      "reason": "全体攻撃の接触は第1段のLAB。meteor-scroll内部の同じ素材は、2026-10-12指定で既存の見た目を守るため残す。"
+    }
+  ],
+  "absent": [
+    {
+      "asset": "S002",
+      "reason": "素材ファイルも登録も無い。消去は既存のコード演出。"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ var VbFxPreview = (function () {
   var $ = function (id) { return document.getElementById(id); };
   var effect = VbFx.effects[0].name, sourceId = '', targetIds = [], cycleToken = 0;
   var audioVoices = new Set(), audioTimers = new Set();
+  var poseHosts = new Set();
   var choices = {}, playCount = 0, lastImpacts = [], running = 0, generation = 0;
   var allyPortraits = ['C041', 'C024', 'C046', 'C067', 'C077'];
   var enemyPortraits = ['EN001', 'EN020', 'EN005', 'EN010', 'EN011'];
@@ -68,6 +69,7 @@ var VbFxPreview = (function () {
     var selected;
     if (conf.mode === 'self') selected = [card(sourceId)];
     else if (conf.mode === 'foes') selected = foes;
+    else if (conf.mode === 'front') selected = foes.filter(function (el) { return el.dataset.lane === 'front'; });
     else if (conf.mode === 'friends') selected = own;
     else if (conf.mode === 'friend') selected = [own.find(function (el) { return el.id !== sourceId; })];
     else if (conf.mode === 'green') selected = own.filter(function (el) { return el.id !== sourceId && el.dataset.color === '緑'; });
@@ -95,7 +97,7 @@ var VbFxPreview = (function () {
     if ($('pick-mode').value === 'source') {
       sourceId = id; $('side').value = card(id).dataset.side; chooseDefaultTargets();
     } else {
-      var multi = ['foes', 'friends', 'green', 'others'].indexOf(config().mode) >= 0;
+      var multi = ['foes', 'front', 'friends', 'green', 'others'].indexOf(config().mode) >= 0;
       if (multi) {
         if (targetIds.indexOf(id) >= 0) { if (targetIds.length > 1) targetIds = targetIds.filter(function (x) { return x !== id; }); }
         else targetIds.push(id);
@@ -177,6 +179,13 @@ var VbFxPreview = (function () {
     stop(); effect = name; generation++; configureBoard();
     var d = def(), conf = config();
     $('effect-title').textContent = d.label; $('duration').textContent = (d.ms / 1000).toFixed(2) + ' s'; $('description').textContent = conf.note;
+    var reference = $('webp-reference');
+    reference.hidden = !conf.sourceCode;
+    if (conf.sourceCode) {
+      $('webp-reference-label').textContent = '元の参考 · ' + conf.sourceCode + ' · 全尺8コマ';
+      $('webp-reference-image').src = 'vfx_capture/refs/' + conf.sourceCode + '/eight.png';
+      $('webp-reference-all').href = 'vfx_capture/refs/' + conf.sourceCode + '/all.png';
+    } else $('webp-reference-image').removeAttribute('src');
     $('notice').hidden = !conf.notice; $('notice').textContent = conf.notice || '';
     $('attack-proposals').hidden = !conf.proposal;
     document.querySelectorAll('#effect-list button').forEach(function (b) { b.classList.toggle('selected', b.dataset.name === name); b.setAttribute('aria-current', b.dataset.name === name ? 'true' : 'false'); });
@@ -189,6 +198,96 @@ var VbFxPreview = (function () {
     impacts.push(entry); lastImpacts = impacts;
     if (name === 'dragonnet' || name === 'bandersnatch') applyPortrait(r.element, config(name).morph);
     if (name === 'direwolf') r.element.classList.add('is-summoned');
+  }
+  // 新しい定義の配置を本体と同じ座標・合図で確認する。ここは入れ物だけを動かす。
+  // 絵の部品や色はjs/vfx/defsにあり、このプレビューでは描かない。
+  function definitionPlacement(conf, source, targets, ms) {
+    if (!conf.sourceCode) return { source: source, targets: targets, dispose: function () {} };
+    if (!conf.motion) return { source: targets[0] || source, targets: targets, dispose: function () {} };
+    var host = document.createElement('div'), disposed = false, began = null;
+    var from = { x: source.left + source.width / 2, y: source.top + source.height / 2 };
+    var to = targets[0] || source, target = { x: to.left + to.width / 2, y: to.top + to.height / 2 + to.height * (conf.impactOffsetY || 0) };
+    var diag = Math.hypot(window.innerWidth, window.innerHeight), impactTimes;
+    var w = source.width, h = source.height, angle = 0, length, startAngle, endAngle;
+    var cp = presentMissileControlPoints(from, target, -2 / 3);
+    function bezier(t) {
+      var u = 1 - t;
+      return { x: u*u*u*from.x+3*u*u*t*cp.c1.x+3*u*t*t*cp.c2.x+t*t*t*target.x,
+        y: u*u*u*from.y+3*u*u*t*cp.c1.y+3*u*t*t*cp.c2.y+t*t*t*target.y };
+    }
+    if (conf.motion === 'sweep') {
+      from = { x: source.left + source.width * .25, y: source.top + (ownSide() === 'enemy' ? source.height : 0) };
+      var angles = targets.map(function (r) { return Math.atan2(r.top+r.height/2-from.y,r.left+r.width/2-from.x); });
+      length = Math.max(80, Math.max.apply(null, targets.map(function (r) { return Math.hypot(r.left+r.width/2-from.x,r.top+r.height/2-from.y); }))*1.2)*2;
+      startAngle = Math.min.apply(null, angles); endAngle = Math.max.apply(null, angles); w = h = length;
+      impactTimes = angles.map(function(a){return presentSweepTargetHitMs(a,startAngle,endAngle,ms);});
+    } else if (conf.motion === 'expand') {
+      w = h = source.width * PRESENT_EXPAND_VFX_START;
+      var startRadius=w/2*PRESENT_EXPAND_VFX_HIT_RATIO,endRadius=diag*PRESENT_EXPAND_VFX_END/2*PRESENT_EXPAND_VFX_HIT_RATIO;
+      impactTimes=targets.map(function(r){
+        var distance=Math.hypot(r.left+r.width/2-from.x,r.top+r.height/2-from.y);
+        var fraction=Math.max(0,Math.min(1,(distance-startRadius)/(endRadius-startRadius)));
+        var grow=1-Math.sqrt(1-fraction);
+        return ms*(PRESENT_EXPAND_VFX_FADE_MS+PRESENT_EXPAND_VFX_GROW_MS*grow)/(PRESENT_EXPAND_VFX_FADE_MS+PRESENT_EXPAND_VFX_GROW_MS);
+      });
+    } else if (conf.motion === 'pierce') {
+      var deep = targets[targets.length - 1] || to;
+      var vx = deep.left + deep.width / 2 - from.x, vy = deep.top + deep.height / 2 - from.y;
+      var distance = Math.hypot(vx, vy) || 1; vx /= distance; vy /= distance;
+      var along = Math.max(0, Math.hypot(target.x-from.x,target.y-from.y)-to.height*PRESENT_CONTACT_PIERCE_START_OFFSET);
+      from = { x: from.x+vx*along+to.width*PRESENT_CONTACT_PIERCE_OFFSET_X, y: from.y+vy*along };
+      length = Math.max(window.innerWidth,window.innerHeight)*PRESENT_CONTACT_PIERCE_OVERSHOOT;
+      target = { x: from.x+vx*length, y: from.y+vy*length };
+      w = h = to.width*PRESENT_CONTACT_PIERCE_WIDTH; angle = Math.atan2(vy,vx)+Math.PI/2;
+      impactTimes = targets.map(function (r) {
+        var progress = Math.max(0,Math.min(1,((r.left+r.width/2-from.x)*vx+(r.top+r.height/2-from.y)*vy)/length));
+        var lo = 0, hi = 1;
+        for (var i = 0; i < 32; i++) { var mid = (lo+hi)/2; if (presentMissileEase(mid) < progress) lo = mid; else hi = mid; }
+        return (lo+hi)/2*ms;
+      });
+    } else if (conf.motion === 'row') {
+      var left = Math.min.apply(null,targets.map(function(r){return r.left;}));
+      var right = Math.max.apply(null,targets.map(function(r){return r.left+r.width;}));
+      var top = Math.min.apply(null,targets.map(function(r){return r.top;}));
+      w = h = (right-left)*PRESENT_CONTACT_TRI_WIDTH;
+      from = { x: (left+right)/2+w*PRESENT_CONTACT_TRI_OFFSET_X,
+        y: top+Math.max.apply(null,targets.map(function(r){return r.height;}))/2 };
+    } else if (conf.motion === 'board') {
+      w = Math.max(to.width,to.height)*2.6; h = w*1080/1920;
+      from = { x: to.left+to.width/2, y: to.top+to.height/2 };
+    } else if (conf.motion === 'rise') { w = h = source.width * .55; from.y -= source.height * PRESENT_MANA_GAIN_VFX_START_Y; }
+    else if (conf.motion === 'opening') { w = source.width * 2.44; h = source.height * 2.44; }
+    Object.assign(host.style, { position: 'fixed', left: (from.x-w/2)+'px', top: (from.y-h/2)+'px', width: w+'px', height: h+'px', pointerEvents: 'none', transformOrigin: 'center' });
+    document.body.appendChild(host); poseHosts.add(host);
+    function step(now) {
+      if (disposed || !host.isConnected) return;
+      if (began == null) began = now;
+      var t = Math.max(0, Math.min(1, (now-began)/ms)), p = from, opacity = 1, scaleY = 1;
+      if (conf.motion === 'projectile') {
+        var progress = presentMissileEase(t); p = bezier(progress);
+        var ahead = bezier(Math.min(1,progress+.02)), behind = bezier(Math.max(0,progress-.02));
+        angle = Math.atan2(ahead.y-behind.y,ahead.x-behind.x)+Math.PI/2;
+      } else if (conf.motion === 'pierce') {
+        var progress = presentMissileEase(t);
+        p = { x: from.x+(target.x-from.x)*progress, y: from.y+(target.y-from.y)*progress };
+      } else if (conf.motion === 'expand') {
+        var fadeRatio = PRESENT_EXPAND_VFX_FADE_MS/(PRESENT_EXPAND_VFX_FADE_MS+PRESENT_EXPAND_VFX_GROW_MS);
+        var progress = Math.max(0,Math.min(1,(t-fadeRatio)/(1-fadeRatio)));
+        w = h = source.width*PRESENT_EXPAND_VFX_START+(diag*PRESENT_EXPAND_VFX_END-source.width*PRESENT_EXPAND_VFX_START)*(1-Math.pow(1-progress,2));
+        opacity = Math.min(1,t/fadeRatio);
+      } else if (conf.motion === 'sweep') {
+        var progress = Math.max(0,Math.min(1,(t-.1)/.65));
+        angle = startAngle+(endAngle-startAngle)*progress; scaleY = 2;
+        opacity = Math.min(1,t/.1,(1-t)/.25);
+      } else if (conf.motion === 'rise') p = { x: from.x, y: from.y-source.height*PRESENT_MANA_GAIN_VFX_RISE*t };
+      else if (conf.motion === 'opening') opacity = t < 560/980 ? 1 : (1-t)/(420/980);
+      Object.assign(host.style,{ left:(p.x-w/2)+'px',top:(p.y-h/2)+'px',width:w+'px',height:h+'px',
+        opacity:String(Math.max(0,opacity)),transform:'rotate('+angle+'rad) scaleY('+scaleY+')' });
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    return { source: host, targets: targets, followGeometry: true, followOpacity: true, impactTimesMs: impactTimes,
+      dispose: function () { disposed = true; host.remove(); poseHosts.delete(host); } };
   }
   function play(name) {
     if (name && name !== effect) return select(name, true);
@@ -214,8 +313,11 @@ var VbFxPreview = (function () {
       timer(function () { if (generation === token) playSound(sound, { offset: offset, fadeAt: fadeAt, fadeEnd: fadeEnd }); }, startAt);
     }
     if (conf.auxiliary) timer(function () { if (generation === token) playSound(VbFxSeCatalog.sounds[conf.auxiliary]); }, ms * .46);
+    var placement = definitionPlacement(conf, VbFx.rect(card(sourceId)), targets, ms);
     return VbFx.play(name, {
-      source: VbFx.rect(card(sourceId)), targets: targets, side: ownSide(),
+      source: placement.source, targets: placement.targets, side: ownSide(),
+      followGeometry: !!placement.followGeometry, followOpacity: !!placement.followOpacity, impactTimesMs: placement.impactTimesMs,
+      board: conf.sourceCode ? $('board-design') : undefined,
       allies: cardsFor('ally').map(VbFx.rect), enemies: cardsFor('enemy').map(VbFx.rect),
       speed: Number($('speed').value), size: Number($('size').value),
       onImpact: function (i) { impact(i, targets, name, impacts, token); }
@@ -225,6 +327,7 @@ var VbFxPreview = (function () {
       if (conf.then && generation === token && !result.cancelled) targetIds.forEach(function (id) { playChained(conf.then, card(id), token); });
       return { name: name, result: result, impacts: impacts.slice() };
     }).catch(function (err) { message('演出エラー: ' + err.message); throw err; }).finally(function () {
+      placement.dispose();
       if (generation === token) { running = Math.max(0, running - 1); $('active-status').textContent = running ? '再生中 ' + running : '待機中'; }
     });
   }
@@ -239,6 +342,7 @@ var VbFxPreview = (function () {
   }
   function stop() {
     cycleToken++; generation++; VbFx.stopAll(); stopAudio(); running = 0;
+    poseHosts.forEach(function (host) { host.remove(); }); poseHosts.clear();
     $('active-status').textContent = '待機中'; $('play-all').textContent = '全部を順に再生';
   }
   async function playAll() {

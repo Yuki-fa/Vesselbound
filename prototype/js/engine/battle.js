@@ -300,7 +300,7 @@ function _playCardEffectVfx(code,targets,options){
   const opt=options||{};
   if(!list.length||typeof playHitVfxAtRect!=='function') return Promise.resolve();
   // **固有VFXの素材が無いカードはここを通さない。** playHitVfxAtRect() は
-  // 固有VFXが引けないと通常の被弾VFX（hit.webp）へ落ちるため、
+  // 固有VFXが引けないと通常の被弾VFX（hit定義）へ落ちるため、
   // 素材の無いカードの効果を演出すると、強化された味方が「殴られた」ように見える
   // （ギガンテスの負傷効果で味方全員にヒットエフェクトが出ていた）。
   if(typeof getCharacterEffectVfxPath==='function'
@@ -677,7 +677,7 @@ function _isBattlePresentationAnimation(anim){
   if(!owner) return false;
   // 行動表示は定数を速度で割ったtransitionを使うため、playbackRateで二重に縮めない。
   if(owner.closest('#options-layer,.click-ripple,button:hover,[data-ui-hover],#battle-action-banners')) return false;
-  return !!owner.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro');
+  return !!owner.closest('#scr-battle,.vfx,.damage-label-host,.attack-motion-clone,.death-burn-clone,#battle-start-intro,[data-code-vfx]');
 }
 function _syncBattlePresentationAnimations(){
   const speed=isBattlePresentationPlaying()?getBattlePresentationSpeedScale():1;
@@ -1651,12 +1651,13 @@ function _battleOpeningLandingVfx(slot){
     actionBannerOpeningUnit(unit,enemy?'p2':'p1',fx);
   }
   _playBattleOpeningAppearanceSfx();
+  const playing=_playDefinedVfx(fx,'vfx:appearance_sheet:opening-sigil',980,{presentationSpeed:true});
   // 素材は着地直後（約430〜630ms）が小さく明るい光で、その後は大きく薄い輪へ広がる。
   // 700ms／1120msまで出していた時は、広がった輪まで見えて以前より大きく見えた（利用者報告）。
   // 明るい光を出し切った所で薄れ始め、輪が広がり切る前に消す。
   battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),560);
   battlePresentationSetTimeout(()=>{
-    fx.remove();
+    playing.stop(); fx.remove();
     slot.classList.remove('battle-opening-appearance-active');
   },980);
 }

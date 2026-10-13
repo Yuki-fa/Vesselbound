@@ -18,6 +18,11 @@
   <main>
     <header class="topbar"><div><span class="eyebrow">CANVAS 2D / SOUND STUDY</span><h1 id="effect-title">準備中</h1></div><div class="badges"><span id="duration"></span><span id="protocol"></span></div></header>
     <section class="description"><p id="description"></p><p id="notice" class="notice" hidden></p></section>
+    <details id="webp-reference" hidden style="padding:0 24px 16px">
+      <summary id="webp-reference-label">元の参考 · 全尺8コマ</summary>
+      <img id="webp-reference-image" alt="元のWebPを全尺等分した8コマ" style="display:block;width:100%;height:auto;background:#111">
+      <a id="webp-reference-all" target="_blank" rel="noopener">全コマの縮小一覧を開く</a>
+    </details>
     <section class="stage-wrap" aria-label="演出の盤面">
       <div class="stage-toolbar">
         <div class="switches"><label>発生元の陣営 <select id="side"><option value="ally">味方 → 敵</option><option value="enemy">敵 → 味方</option></select></label><label>背景 <select id="background"><option value="stage2_battlestage.webp">草原</option><option value="stage1_battlestage.webp">森</option><option value="stage3_battlestage.webp">渓谷</option><option value="stage4_battlestage_1.webp">回廊</option></select></label></div>
@@ -50,25 +55,29 @@
     </section>
     <footer class="footer"><span>盤面は3840×2160を縮小表示。数字は仮値。命中の時刻は内部に記録。</span><a href="vfx_preview/se/README.md">全SEの原本一覧</a><a href="vfx_preview/README.md">使い方・接続点</a><a href="vfx_preview/review_capture.html">4コマ撮影</a><span id="message" role="status"></span></footer>
   </main>
-  <script src="../assets.js?v=fxlab-readonly1005-battleLab1006"></script>
-  <script src="../js/vfx/schema.js?v=vfx-data1009-1"></script>
+  <script src="../assets.js?v=vfx-webp1009-2"></script>
+  <script src="../js/battle/present.js?v=vfx-webp1009-2"></script>
+  <script src="../js/vfx/schema.js?v=vfx-webp1012-y1"></script>
   <script src="../js/vfx/curves.js?v=vfx-data1009-1"></script>
   <script src="../js/vfx/textures.js?v=vfx-data1009-1"></script>
   <script src="../js/vfx/defs/geometry.js?v=vfx-data1009-1"></script>
   <script src="../js/vfx/defs/effects.js?v=vfx-data1009-1"></script>
-  <script src="../js/vfx/renderer.js?v=vfx-data1009-1"></script>
+  <script src="../js/vfx/defs/webp_geometry.js?v=vfx-webp1013-r9"></script>
+  <!-- 2026-10-13: flame/r1で不足した炎の厚み・上への巻き上がりを比較撮影するため、変更した定義だけキャッシュを更新。 -->
+  <script src="../js/vfx/defs/webp.js?v=vfx-webp1013-flame2"></script>
+  <script src="../js/vfx/renderer.js?v=vfx-webp1012-y1"></script>
   <script src="../js/engine/fx_lab.js?v=vfx-layers1008-2"></script>
-  <script src="vfx_preview/catalog.js?v=fxlab1006-5"></script>
+  <script src="vfx_preview/catalog.js?v=vfx-webp1009-3"></script>
   <script src="vfx_preview/se_catalog.js?v=fxlab1007-summon1"></script>
-  <script src="vfx_preview/cards_routes.js?v=cards1006-geometry2"></script>
+  <script src="vfx_preview/cards_routes.js?v=vfx-webp1013-r5r4"></script>
   <script src="vfx_preview/cards_geometry.js?v=cards1006-geometry3"></script>
-  <script src="vfx_preview/preview.js?v=fxlab1006-depth1"></script>
+  <script src="vfx_preview/preview.js?v=vfx-webp1009-3"></script>
   <script src="vfx_preview/capture_frames.js?v=fxlab1006-4"></script>
   <script src="vfx_preview/frame_capture.js?v=fxlab1006-4"></script>
   <script src="../js/data/local_xlsx_data.js?v=cards1006-read"></script>
   <script src="../js/data/loader.js?v=cards1006-read"></script>
-  <script src="vfx_preview/cards_model.js?v=cards1006-choice3"></script>
-  <script src="vfx_preview/cards.js?v=cards1006-star2"></script>
+  <script src="vfx_preview/cards_model.js?v=vfx-webp1009-2"></script>
+  <script src="vfx_preview/cards.js?v=vfx-webp1009-2"></script>
   <script src="vfx_preview/check.js?v=fxlab1006-verify7"></script>
 </body>
 </html>

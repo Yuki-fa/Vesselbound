@@ -50,6 +50,39 @@ var VbFxPreviewCatalog = {
   'revive-gain': { source: 'C032', mode: 'self', note: '復活を得た瞬間。青白い縁が外から締まって現れ、復活の状態表示へ移る。' },
   'shield-break': { source: 'C077', mode: 'self', note: '結界消失。金の膜にひびが走り、一瞬光って砕け、金の破片が飛び散って消える。' },
   'revive-state': { source: 'C032', mode: 'self', note: '復活効果が付いている間ずっと出す青白いオーラ（ループ／SEなし）。停止するまで出し続ける。' },
+  // 第2段：元の番号を保ったコード描画。
+  "hit-burst": {"source": "C041", "mode": "foe", "sourceCode": "hit", "note": "砂金色の短い火花と薄い煙。白い面でカードを覆わず、細い筋と小さな核で衝突を示す。", "notice": "第2段 · 元の番号 hit · 基準尺 800ms。画像は方向性の参考。"},
+  "attack-recoil": {"source": "C002", "mode": "self", "sourceCode": "C002", "note": "赤橙の外周リング、琥珀の軌道光、薄い霞。赤い反撃の環をカードの周りに残す。", "notice": "第2段 · 元の番号 C002 · 基準尺 700ms。画像は方向性の参考。"},
+  "arachne-ring": {"source": "C008", "mode": "self", "sourceCode": "C008", "note": "橙色の大きな輪と象牙色の破片。元の回転する外周を細い二重のリングと少数の欠片で表す。", "notice": "第2段 · 元の番号 C008 · 基準尺 700ms。画像は方向性の参考。"},
+  "siren-wave": {"source": "C011", "mode": "foes", "sourceCode": "C011", "note": "淡い金の細い波紋と浮遊光。発生元から拡大し、波の縁がカードへ届く順に命中する。", "notice": "第2段 · 元の番号 C011 · 基準尺 800ms。画像は方向性の参考。", "motion": "expand"},
+  "medusa-gaze": {"source": "C017", "mode": "foe", "sourceCode": "C017", "note": "白金の短い稲光と桃色の欠片。前半の一閃を強くし、後半には霞だけを残す。", "notice": "第2段 · 元の番号 C017 · 基準尺 800ms。画像は方向性の参考。"},
+  "centaur-missile": {"source": "C019", "mode": "foe", "sourceCode": "C019_1", "note": "緑の先端に橙の二筋の尾。先端を中心へ合わせ、既存と同じ加速・曲線・上向きの姿勢で飛ぶ。", "notice": "第2段 · 元の番号 C019_1 · 基準尺 448ms。画像は方向性の参考。", "motion": "projectile", "impactOffsetY": 0},
+  "centaur-impact": {"source": "C019", "mode": "foe", "sourceCode": "C019_2", "note": "緑の横長の衝撃と金の火花。飛翔体の色を着弾へ引き継ぐ。", "notice": "第2段 · 元の番号 C019_2 · 基準尺 800ms。画像は方向性の参考。"},
+  "flame-sweep": {"source": "C043", "mode": "foes", "sourceCode": "C043", "note": "橙の流れる炎、細い黄金の芯、控えめな煙。カード先端を原点に、対象までの距離と角度で伸びる。", "notice": "第2段 · 元の番号 C043 · 基準尺 700ms。画像は方向性の参考。", "motion": "sweep"},
+  "steal-mark": {"source": "C090", "mode": "foe", "sourceCode": "C090", "note": "桃色の煙と小さなハート。柔らかい霧を主にし、ハートは少数だけ浮かべる。", "notice": "第2段 · 元の番号 C090 · 基準尺 800ms。画像は方向性の参考。"},
+  "fire-arrow": {"source": "C041", "mode": "foe", "sourceCode": "E058_1", "note": "橙の彗星の先端と赤桃色の尾。尾を二層の細い帯にして飛ばす。", "notice": "第2段 · 元の番号 E058_1 · 基準尺 448ms。画像は方向性の参考。", "motion": "projectile", "impactOffsetY": 0.18},
+  "fire-arrow-impact": {"source": "C041", "mode": "foe", "sourceCode": "E058_2", "note": "橙の横長の火花と短い衝撃輪。白い核を小さくしてカードの絵を残す。", "notice": "第2段 · 元の番号 E058_2 · 基準尺 800ms。画像は方向性の参考。"},
+  "death-mark": {"source": "C032", "mode": "self", "sourceCode": "K001", "note": "紫の蒸気と細かな光。暗い外周と薄い粒で死亡効果の気配を出す。", "notice": "第2段 · 元の番号 K001 · 基準尺 800ms。画像は方向性の参考。"},
+  "fang-poison": {"source": "C041", "mode": "foe", "sourceCode": "K003", "note": "黄緑の丸い毒霧と泡の輪。元の丸い塊を薄いプラズマと少数の環で表す。", "notice": "第2段 · 元の番号 K003 · 基準尺 800ms。画像は方向性の参考。"},
+  "piercing-streak": {"source": "C041", "mode": "foe", "sourceCode": "K007", "note": "細い青白い貫通線。進行方向を向く青い二筋と短い尾で貫く。", "notice": "第2段 · 元の番号 K007 · 基準尺 420ms。画像は方向性の参考。", "motion": "pierce", "impactOffsetY": 0},
+  "tri-streak": {"source": "C041", "mode": "front", "sourceCode": "K008", "note": "青白い横薙ぎの一閃。三体分の列を横切る細い帯と短い火花。", "notice": "第2段 · 元の番号 K008 · 基準尺 800ms。画像は方向性の参考。", "motion": "row"},
+  "contact-burst": {"source": "C041", "mode": "foe", "sourceCode": "K009", "note": "灰色の二波の煙と金の衝撃。二回の膨らみを時間曲線で表す（旧meteor-scroll内の画像は別途保留）。", "notice": "第2段 · 元の番号 K009 · 基準尺 800ms。画像は方向性の参考。"},
+  "poison-tick": {"source": "C041", "mode": "foe", "sourceCode": "K017", "note": "縦に立つ緑の毒霧と泡。毒牙より暗くして継続ダメージを見分ける。", "notice": "第2段 · 元の番号 K017 · 基準尺 800ms。画像は方向性の参考。"},
+  "shield-contact": {"source": "C041", "mode": "foe", "sourceCode": "K018", "note": "小さな青い接触光と波紋。結界への命中を短い青の環で示す。", "notice": "第2段 · 元の番号 K018 · 基準尺 800ms。画像は方向性の参考。"},
+  "seal-release": {"source": "C032", "mode": "self", "sourceCode": "K019", "note": "紫の魔法陣と三角の記号。1750msで展開から収束へ折り返し、解封の合図を保つ。", "notice": "第2段 · 元の番号 K019 · 基準尺 3500ms。画像は方向性の参考。"},
+  "revive-burst": {"source": "C032", "mode": "self", "sourceCode": "K020", "note": "青の光球、輪、少数の欠片。復活の青を細い環と渦で表す（ゲームの主経路はrevive-summon）。", "notice": "第2段 · 元の番号 K020 · 基準尺 1500ms。画像は方向性の参考。"},
+  "mana-cue": {"source": "C041", "mode": "self", "sourceCode": "K024", "note": "水色の魔法陣と回転する三角。マナ効果の合図を細い環と幾何学模様で示す。", "notice": "第2段 · 元の番号 K024 · 基準尺 900ms。画像は方向性の参考。"},
+  "summon-sigil": {"source": "C041", "mode": "self", "sourceCode": "S001", "note": "緑の召喚球と渦の弧。500msのカード出現の合図を持つ（ゲームの主経路はbattle-summon）。", "notice": "第2段 · 元の番号 S001 · 基準尺 1000ms。画像は方向性の参考。"},
+  "gold-gain": {"source": "C041", "mode": "self", "sourceCode": "S003", "note": "陰影のある金貨と薄い灰色の煙。輪郭と面を持つコインを少数だけ散らす。", "notice": "第2段 · 元の番号 S003 · 基準尺 700ms。画像は方向性の参考。"},
+  "mana-gain": {"source": "C041", "mode": "self", "sourceCode": "S004", "note": "青白い縦長の宝石。小さな結晶と光をカード中央の少し上から浮かせる。", "notice": "第2段 · 元の番号 S004 · 基準尺 670ms。画像は方向性の参考。", "motion": "rise"},
+  "attack-buff": {"source": "C041", "mode": "self", "sourceCode": "S005", "note": "金のほつれた環と星の光。細い金の二重輪を主にして攻撃バフを表す。", "notice": "第2段 · 元の番号 S005 · 基準尺 700ms。画像は方向性の参考。"},
+  "injury-buff": {"source": "C041", "mode": "self", "sourceCode": "S006", "note": "橙のほつれた環と点の光。負傷効果のオーラを控えめな赤橙で描く。", "notice": "第2段 · 元の番号 S006 · 基準尺 700ms。画像は方向性の参考。"},
+  "death-buff": {"source": "C041", "mode": "self", "sourceCode": "S007", "note": "青緑の環と青の破片。死亡効果のオーラを冷たい色で見分ける。", "notice": "第2段 · 元の番号 S007 · 基準尺 700ms。画像は方向性の参考。"},
+  "mana-buff": {"source": "C041", "mode": "self", "sourceCode": "S008", "note": "緑の環と丸い光。マナ効果のオーラを薄い緑の二重輪で表す。", "notice": "第2段 · 元の番号 S008 · 基準尺 700ms。画像は方向性の参考。"},
+  "aura-buff": {"source": "C041", "mode": "self", "sourceCode": "S009", "note": "淡い青緑の環と三角片。常時バフの静かなオーラとして繰り返し再生する。", "notice": "第2段 · 元の番号 S009 · 基準尺 700ms。画像は方向性の参考。"},
+  "opening-sigil": {"source": "C041", "mode": "self", "sourceCode": "appearance_sheet", "note": "着地の小さな金の輪と薄い煙。396msから現れ、560msから薄れ、980msで消す。", "notice": "第2段 · 元の番号 appearance_sheet · 基準尺 980ms。画像は方向性の参考。", "motion": "opening"},
+  "board-summon": {"source": "C041", "mode": "self", "sourceCode": "board_change1", "note": "緑の薄い輪と少数の粒。500msでカードを差し替え、1200msで消す。", "notice": "第2段 · 元の番号 board_change1 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
+  "board-enchant": {"source": "C041", "mode": "self", "sourceCode": "board_change2", "note": "青の薄い輪と少数の粒。召喚と同じ尺・密度にして強化の色だけを見分ける。", "notice": "第2段 · 元の番号 board_change2 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
 };
 
 /* カード名・色は内蔵CSVのヘッダから抽出したプレビュー用スナップショット。 */
@@ -208,3 +241,12 @@ var VbFxPreviewCards = {
     "color": "黒"
   }
 };
+
+// 第2段の素体。内蔵CSVのヘッダから採取。
+VbFxPreviewCards["C002"] = {"no":"C002","name":"マータ","color":"赤"};
+VbFxPreviewCards["C008"] = {"no":"C008","name":"アラクネ","color":"赤"};
+VbFxPreviewCards["C011"] = {"no":"C011","name":"サイレン","color":"赤"};
+VbFxPreviewCards["C017"] = {"no":"C017","name":"メデューサ","color":"赤"};
+VbFxPreviewCards["C019"] = {"no":"C019","name":"ケンタウロス","color":"赤"};
+VbFxPreviewCards["C043"] = {"no":"C043","name":"アラッサス","color":"緑"};
+VbFxPreviewCards["C090"] = {"no":"C090","name":"サキュバス","color":"紫"};

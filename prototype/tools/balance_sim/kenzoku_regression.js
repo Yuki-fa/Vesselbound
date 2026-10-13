@@ -393,11 +393,13 @@ async function runDisplayChecks() {
     assert.equal((definition.keywords || []).includes('眷属'), false, `${name}の本文から所持を推測している`);
     assert.equal(definition.desc, rows.find(r => r['名前'] === name)['効果'], 'コードの予備本文とシートの本文が不一致');
   }
-  assert.equal(getKeywordEffectVfxPath('マナ効果'), 'assets/vfx/K024.webp');
+  assert.equal(getVfxDefinitionName(getKeywordEffectVfxPath('マナ効果')), 'mana-cue');
+  assert.equal(getVfxSourceCode(getKeywordEffectVfxPath('マナ効果')), 'K024');
   assert.equal(getKeywordEffectSfxKey('マナ効果'), 'K024');
   assert.equal(getKeywordEffectVfxPath('眷属'), '');
   assert.equal(getKeywordEffectSfxKey('眷属'), '');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/vfx/K024.webp')));
+  const exported=require('../vfx_export').validatedBundle().bundle;
+  assert.ok(exported.effects.some(d=>d.name==='mana-cue'&&d.sourceCode==='K024'),'マナ効果の定義が書き出せる');
   assert.ok(fs.existsSync(path.join(ROOT, 'assets/sfx/K024.wav')));
   assert.equal(fs.existsSync(path.join(ROOT, 'assets/vfx/K023.webp')), false);
   assert.equal(fs.existsSync(path.join(ROOT, 'assets/sfx/K023.wav')), false);

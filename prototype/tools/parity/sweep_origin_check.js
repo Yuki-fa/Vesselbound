@@ -99,21 +99,26 @@ async function measure(mode, side, speed, receiver, kind = 'alive') {
   }
   const sweep = f.events.find(e => e.type === 'sweep_vfx' && e.unitId === u.id);
   if (!sweep) throw new Error('コアからC043のsweep_vfxが出なかった');
-  const origins = [], create = document.createElement.bind(document);
-  document.createElement = function(tag) {
-    const el = create(tag), append = el.appendChild;
-    el.appendChild = function(child) {
-      if (child.className === 'sweep-vfx-host') origins.push({ x: parseFloat(child.style.left), y: parseFloat(child.style.top),
-        clipX: parseFloat(this.style.left), clipY: parseFloat(this.style.top) });
-      return append.call(this, child);
-    };
-    return el;
+  const origins = [], plays = [], play = VbFx.play;
+  VbFx.play = function(name, options) {
+    const host = options && options.source;
+    const sweepHost = host && host.className === 'sweep-vfx-host';
+    if (sweepHost) {
+      // コード描画のsource原点はホスト中央。旧WebPホストの左上ではない。
+      // DOMへ配置された後・回転開始前の実画面座標を測り、クリップ親の位置も含める。
+      const rect = host.getBoundingClientRect();
+      origins.push({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    const promise = play.apply(this, arguments);
+    if (sweepHost) plays.push(promise);
+    return promise;
   };
   try {
     if (receiver === 'pve') await _flushCorePveHitEvents(f.state, [sweep], new Set([...G.allies, ...G.enemies]));
     else await renderOnlineVersusBoard(sweep, { events: [sweep], eventIndex: 0,
       board: f.state.units, visualizedDamageEvents: new Set() });
-  } finally { document.createElement = create; if (motion) motion.remove(); }
+    await Promise.all(plays);
+  } finally { VbFx.play = play; if (motion) motion.remove(); }
   return { expected, origins, suppressed: mode === 'none' };
 }
 
@@ -144,7 +149,7 @@ async function run(evaluate) {
         const r = await evaluate(`return await (${measure})(${JSON.stringify(mode)},${JSON.stringify(side)},${speed},${JSON.stringify(receiver)});`);
         if (r.suppressed) return assert.equal(r.origins.length, 0, '位置不明なのに炎を生成した');
         assert.equal(r.origins.length, 1, '最後の位置から炎を生成していない');
-        const p = r.origins[0], x = p.x + p.clipX, y = p.y + p.clipY, rect = r.expected;
+        const p = r.origins[0], x = p.x, y = p.y, rect = r.expected;
         assert.ok(Number.isFinite(x) && Number.isFinite(y), '原点が有限座標でない');
         assert.ok(Math.abs(x - (rect.left + rect.width * .25)) < 1 && Math.abs(y - (rect.top + (side === 'p2' ? rect.height : 0))) < 1,
           `原点(${x},${y})がカード(${rect.left},${rect.top},${rect.width},${rect.height})から外れた`);
@@ -154,8 +159,8 @@ async function run(evaluate) {
     for (const kind of ['transform', 'revive', 'copy']) await check(`姿 ${side}/${speed}倍/${receiver}/${kind}`, async () => {
       const r = await evaluate(`return await (${measure})('live',${JSON.stringify(side)},${speed},${JSON.stringify(receiver)},${JSON.stringify(kind)});`);
       const p = r.origins[0]; assert.ok(p, '炎がない');
-      assert.ok(Math.abs(p.x + p.clipX - (r.expected.left + r.expected.width * .25)) < 1);
-      assert.ok(Math.abs(p.y + p.clipY - (r.expected.top + (side === 'p2' ? r.expected.height : 0))) < 1);
+      assert.ok(Math.abs(p.x - (r.expected.left + r.expected.width * .25)) < 1);
+      assert.ok(Math.abs(p.y - (r.expected.top + (side === 'p2' ? r.expected.height : 0))) < 1);
     });
   }
   failures.forEach(e => console.error('NG ' + e));
@@ -173,6 +178,15 @@ async function nodeRun() {
   const slots = { 'f-ally': [], 'f-enemy': [] }, clips = [];
   document.createElement = tag => {
     const e = makeElement(tag); e.isConnected = true;
+    if (tag === 'canvas') {
+      // 共通レンダラーの初期化・手続き素材の生成は、本物の処理を最後まで通す。
+      const context = e.getContext();
+      context.setTransform = () => {};
+      context.createImageData = (width, height) => ({ width, height, data: new Uint8ClampedArray(width * height * 4) });
+      context.putImageData = () => {};
+      context.createRadialGradient = () => ({ addColorStop() {} });
+      e.getContext = () => context;
+    }
     e.animate = () => ({ addEventListener() {} });
     e.style.setProperty = (name, value) => { e.style[name] = String(value); };
     e.style.getPropertyValue = name => e.style[name] || '';
@@ -189,7 +203,11 @@ async function nodeRun() {
     e.remove = () => { e.isConnected = false; };
     e.getBoundingClientRect = () => {
       const zero = !e.isConnected || e.style.display === 'none';
-      const left = zero ? 0 : parseFloat(e.style.left) || 0, top = zero ? 0 : parseFloat(e.style.top) || 0;
+      let left = zero ? 0 : parseFloat(e.style.left) || 0, top = zero ? 0 : parseFloat(e.style.top) || 0;
+      if (!zero && e.style.position === 'absolute' && e.parentNode) {
+        const parent = e.parentNode.getBoundingClientRect();
+        left += parent.left; top += parent.top;
+      }
       const width = zero ? 0 : parseFloat(e.style.width) || 0, height = zero ? 0 : parseFloat(e.style.height) || 0;
       return { left, top, width, height, right: left + width, bottom: top + height };
     };
@@ -198,7 +216,8 @@ async function nodeRun() {
     return e;
   };
   const screen = document.createElement('div'); screen.className = 'active';
-  Object.assign(screen.style, { left: '0px', top: '0px', width: '1280px', height: '800px' });
+  // クリップ親が画面左上にない場合も、親の座標補正を検査する。
+  Object.assign(screen.style, { left: '31px', top: '23px', width: '1280px', height: '800px' });
   document.getElementById = id => id === 'scr-battle' ? screen : slots[id] ? {
     querySelectorAll: () => slots[id].filter(e => e.isConnected),
     querySelector: q => slots[id].find(e => e.isConnected && q.includes(`"${e.dataset.unitIdx}"`)) || null,

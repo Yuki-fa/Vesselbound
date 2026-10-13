@@ -13,9 +13,12 @@ console.table = ()=>{};
 for(const m of fs.readFileSync(path.join(ROOT,'index.html'),'utf8').matchAll(/<script\s+src="([^"?]+)(?:\?[^"\s]*)?"/g)) {
   if(!m[1].startsWith('http')) vm.runInThisContext(fs.readFileSync(path.join(ROOT,m[1]),'utf8'),{filename:m[1]});
 }
+// 第2段では共通描画入口を本物に戻して、VbFx境界だけを観測する。
+const definedEntrances=Object.fromEntries(['playHitVfx','playHitVfxAtRect','playEffectVfxOnUnit',
+  '_playCardEffectVfx','playCharacterSweepVfx'].map(name=>[name,global[name]]));
 const nodes = new Map(), slots = new Map(), calls = [], sounds = [], legacy = [], stopped = [], motions = [], attackSounds = [], route = [];
 const rect = (i,side)=>({left:100+i*110,top:side==='p2'?140:550,width:95,height:140,right:195+i*110,bottom:side==='p2'?280:690});
-function element(id,r) {const e=makeElement();e.id=id;e.isConnected=true;e.offsetWidth=r.width;e.offsetHeight=r.height;e.getBoundingClientRect=()=>r;return e;}
+function element(id,r) {const e=makeElement();e.cloneNode=()=>{const c=element(id,r);c.dataset={...e.dataset};return c;};e.id=id;e.isConnected=true;e.offsetWidth=r.width;e.offsetHeight=r.height;e.getBoundingClientRect=()=>r;return e;}
 const screen=element('scr-battle',{left:0,top:0,width:1280,height:800,right:1280,bottom:800});
 screen.classList.contains=c=>c==='active';nodes.set(screen.id,screen);
 global.innerWidth=1280;global.innerHeight=800;
@@ -23,7 +26,7 @@ global.document.getElementById=id=>nodes.get(id)||null;
 global.document.querySelector=selector=>selector==='#scr-battle .battle-area'?screen:null;
 // 状態VFXはカードの可視性も読む。仮DOMの初期状態は、画面に出た不透明なカード。
 // 2026-10-11: 数値表示と同時に開始する画面振動も、実装と同じCSS変数読み取りを使えるようにする。
-global.getComputedStyle=element=>({visibility:element.style.visibility||'visible',display:element.style.display||'block',opacity:element.style.opacity||'1',getPropertyValue:key=>key==='--game-scale'?'1':''});
+global.getComputedStyle=element=>({visibility:element.style.visibility||'visible',display:element.style.display||'block',opacity:element.style.opacity||'1',getPropertyValue:k=>k==='--game-scale'?'1':(typeof element.style.getPropertyValue==='function'?element.style.getPropertyValue(k):'')});
 global.document.createElement=tag=>{const e=makeElement(tag);e.isConnected=true;const append=e.appendChild;e.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(e,c);};return e;};
 const append=screen.appendChild;screen.appendChild=c=>{if(c.id)nodes.set(c.id,c);return append.call(screen,c);};
 global.getCurrentUnitSlot=(_side,u)=>slots.get(String(u.id))||null;
@@ -165,7 +168,18 @@ function assetChecks() {
     const def=[...PANEL_POOL,...ITEM_POOL].find(d=>d.no===no||d.artCode===no);
     if(def)add(actionBannerImage(def,no.startsWith('E')?'enchant':'character'));
   }
-  for(const file of ['K009.webp','K020.webp','K004.webp','appearance_sheet.webp'])add('assets/vfx/'+file);
+  // 第1段のsprite資源は資源表から検査し、新しい定義はデータの検証を通す。
+  const exporter=require('../vfx_export');
+  const registry=exporter.validatedBundle().bundle;
+  const vm=require('node:vm'),context=vm.createContext({});
+  for(const rel of ['js/vfx/curves.js','js/vfx/textures.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,rel),'utf8'),context);
+  Object.values(context.VbFxTextures.sprites).forEach(resource=>add('assets/'+resource.path));
+  const names=new Set(registry.effects.map(d=>d.name));
+  const checkDefinitions=value=>{
+    if(typeof value==='string'&&value.startsWith('vfx:'))assert.ok(names.has(getVfxDefinitionName(value)),value+' の定義が存在する');
+    else if(value&&typeof value==='object')Object.values(value).forEach(checkDefinitions);
+  };
+  checkDefinitions(Assets.vfx);
   for(const url of urls)assert.ok(fs.existsSync(path.join(ROOT,url.split('?')[0])),url+' の素材が存在する');
   const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
   assert.match(html,/<link\s+rel="icon"\s+href="data:,"/,'未配置favicon.icoの自動取得を防ぐ');
@@ -455,6 +469,36 @@ async function shieldBreakChecks() {
     }
   }
 }
+async function webpPresenterChecks(){
+  const stubs=Object.fromEntries(Object.keys(definedEntrances).map(name=>[name,global[name]]));
+  const create=global.document.createElement;
+  global.document.createElement=tag=>{const e=create(tag);e.animate=()=>({finished:Promise.resolve(),cancel(){},addEventListener(){}});return e;};
+  Object.assign(global,definedEntrances);
+  try{
+    const names=new Set(VbFx.effects.filter(d=>d.sourceCode).map(d=>d.name));
+    const summarize=()=>calls.filter(c=>names.has(c.name)).map(c=>[c.name,c.opts.durationMs,c.opts.size,!!c.opts.repeat]);
+    for(const [no,trigger,expected,baselineSe]of vbWebpVfxCases){
+      const state=fixture(no),initial=clone(state);setup(state);renderAll();
+      const run=vbLabVfxStartPve(no,state,trigger);await run.done;
+      const events=clone(run.events),pve=summarize(),se=sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code);
+      assert.ok(pve.some(c=>c[0]===expected),no+' のコアのイベントから '+expected+' を再生: '+JSON.stringify(pve));
+      const normal=fixture(no);setup(normal);G._savedBattleReplaying=false;renderAll();
+      await vbLabVfxStartPve(no,normal,trigger).done;
+      assert.deepEqual(summarize(),pve,no+' 通常PvE／保存再生の新しい定義・尺・倍率・繰り返し');
+      setup(initial);G._savedBattleReplaying=false;
+      const result={events:[{type:'battle_start',sides:clone(initial.units)},...events],formations:{
+        p1:{units:initial.units.p1,items:initial.items.p1,rings:initial.rings.p1},
+        p2:{units:initial.units.p2,items:initial.items.p2,rings:initial.rings.p2}}};
+      beginOnlineVersusField(result);await playOnlineBattleEvents(result,{onEvent:(ev,ctx)=>renderOnlineVersusBoard(ev,ctx)});
+      assert.deepEqual(summarize(),pve,no+' PvE／オンラインの新しい定義・尺・倍率・繰り返し');
+      if(baselineSe){
+        assert.deepEqual(se,baselineSe.pve,no+' PvEの元のSE番号・回数');
+        assert.deepEqual(sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code),baselineSe.online,no+' オンラインの元のSE番号・回数');
+      }else assert.deepEqual(sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code),se,no+' 元のSE番号・回数');
+      hideOnlineVersusBoard();console.log('OK 第2段 '+no+' '+expected+'（共通描画入口・PvE・保存再生・オンライン）');
+    }
+  }finally{Object.assign(global,stubs);global.document.createElement=create;}
+}
 (async()=>{
   await loadGameData();
   if(!process.env.VB_ONLY||process.env.VB_ONLY==='bugs')await battleBugChecks();
@@ -465,5 +509,6 @@ async function shieldBreakChecks() {
     .filter(([no])=>!process.env.VB_ONLY||process.env.VB_ONLY.split(',').includes(no));
   for(const [no,card,trigger]of selected) await runCase(no,trigger,card);
   if(!process.env.VB_ONLY) {await committedEndChecks();await extraChecks();}
-  stopBattleLabFx();console.log('LAB戦闘接続回帰: '+selected.length+'演出 OK');
+  if(!process.env.VB_ONLY||process.env.VB_ONLY==='webp')await webpPresenterChecks();
+  stopBattleLabFx();console.log('LAB戦闘接続回帰: 既存 '+selected.length+'演出 / 第2段 '+(!process.env.VB_ONLY||process.env.VB_ONLY==='webp'?vbWebpVfxCases.length:0)+'シナリオ OK');
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

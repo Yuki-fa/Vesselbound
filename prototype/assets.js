@@ -107,44 +107,43 @@ const Assets = {
     innEndworld: 'assets/art/backgrounds/stage5_inn.webp?v=bg1003',
   },
   vfx: {
-    // 透過済みアニメーションWebP（黒背景を事前に透過済み）。playHitVfxAtRect()が.webpを
-    // 検出した場合、canvasでのルミナンスキー処理を行わずimgでそのまま再生する。
-    hit: 'assets/vfx/hit.webp',
+    // 定義データの識別子。Pathという既存API名は保つが、画像URLを再生しない。
+    hit: 'vfx:hit:hit-burst',
     // キャラクターの効果（通常攻撃ではない）でダメージが発生した際、そのキャラクターの
-    // ナンバー（CXXX）に対応するWebPがあれば、通常のhit.webpの代わりに再生する。
-    // 存在するものだけをここに登録する（未登録＝通常のhit.webpを使用）。
+    // ナンバー（CXXX）に対応する定義があれば、通常の被弾定義の代わりに再生する。
+    // 存在するものだけをここに登録する（未登録＝通常の被弾定義を使用）。
     characterEffect: {
-      'C001': 'assets/vfx/S003.webp', // 金貨（素材名はS003へ変更済み）
-      'C002': 'assets/vfx/C002.webp',
-      'C003': 'assets/vfx/S006.webp', // ゴーレム（素材名はS006へ変更済み）
-      'C008': 'assets/vfx/C008.webp',
-      'C011': 'assets/vfx/C011.webp', // サイレン（攻撃：全体へ広がる波）
-      'C017': 'assets/vfx/C017.webp', // メデューサ（負傷：対象の上にダメージVFXの代わりに出す）
-      'C019': 'assets/vfx/C019_1.webp', // ケンタウロス（攻撃：対象へ飛ばす）
-      'C043': 'assets/vfx/C043.webp',
-      'C090': 'assets/vfx/C090.webp', // 奪う（対象の上で再生してから移動する）
+      'C001': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
+      'C002': 'vfx:C002:attack-recoil',
+      'C003': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）
+      'C008': 'vfx:C008:arachne-ring',
+      'C011': 'vfx:C011:siren-wave', // サイレン（攻撃：全体へ広がる波）
+      'C017': 'vfx:C017:medusa-gaze', // メデューサ（負傷：対象の上にダメージVFXの代わりに出す）
+      'C019': 'vfx:C019_1:centaur-missile', // ケンタウロス（攻撃：対象へ飛ばす）
+      'C043': 'vfx:C043:flame-sweep',
+      'C090': 'vfx:C090:steal-mark', // 奪う（対象の上で再生してから移動する）
     },
-    // 強化カード（エンチャント）の効果そのものの演出WebP。カードのNo.（EXXX）で引く。
+    // 強化カード（エンチャント）の効果そのものの演出定義。カードのNo.（EXXX）で引く。
     // マナ効果のように「発動してから処理が終わるまで出し続ける」用途に使う
-    // （playSustainedEffectVfx。素材はループ再生＝webpのloop=0であること）。
+    // （playSustainedEffectVfx。素材はループ再生＝共通レンダラーのrepeatであること）。
     // **素材を足したらここへ登録すること。** 未登録のカードでは何も出ない。
     enchantEffect: {
-      'E045': 'assets/vfx/S008.webp',   // 活性化（素材名はS008へ変更済み）
-      'E058': 'assets/vfx/E058_1.webp', // 炎の矢（発生元の上に出す）
+      'E045': 'vfx:S008:mana-buff',   // 活性化（素材名はS008へ変更済み）
+      'E058': 'vfx:E058_1:fire-arrow', // 炎の矢（発生元の上に出す）
     },
     // 効果が**対象に当たった瞬間**の演出。発生元の演出（enchantEffect）とは別素材。
     // ダメージイベントの effectNo で引く。登録が無ければ通常の被弾VFXのまま。
     enchantEffectHit: {
-      'E058': 'assets/vfx/E058_2.webp', // 炎の矢の着弾
-      'C019': 'assets/vfx/C019_2.webp', // ケンタウロスの着弾
+      'E058': 'vfx:E058_2:fire-arrow-impact', // 炎の矢の着弾
+      'C019': 'vfx:C019_2:centaur-impact', // ケンタウロスの着弾
     },
-    // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/WebP。
-    // mp4ならcanvasでズーム・回転・再生速度をリアルタイム調整し、WebPならimgでそのまま再生する
+    // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/定義。
+    // 描画は共通レンダラー、位置・回転・再生時間は共通の入口で制御する
     // （characterEffectとは別管理。playHitVfxAtRect()側からは参照しない）。
     characterSweep: {
-      'C043': 'assets/vfx/C043.webp',
+      'C043': 'vfx:C043:flame-sweep',
     },
-    // 特殊演出シートのWebP。**鍵は特殊演出シートのNo.**（素材名とはずれることがある）。
+    // 特殊演出シートの定義。**鍵は特殊演出シートのNo.**（素材名とはずれることがある）。
     // 順再生→逆再生で見せるもの（playSpecialProductionVfx）と、
     // 効果の種類ごとに一律で使うもの（getCharacterEffectVfxPath 経由）の両方を置く。
     // 生贄奉納（旧S003）は廃止。素材が無いので登録しない（演出なしで状態だけ進む）。
@@ -154,35 +153,35 @@ const Assets = {
     // （ゴーレム＝C003 のVFX/SE列が S006 になった時、負傷効果が
     //   「何も起きない＝機能していない」ように見えた）。
     specialProduction: {
-      S001: 'assets/vfx/S001.webp',  // 戦闘中の召喚（逆再生開始でカードを出す）
-      S003: 'assets/vfx/S003.webp',  // 金貨（旧C001）
-      S004: 'assets/vfx/S004.webp',  // マナ獲得（発生させたキャラクターの上に出す）
-      S005: 'assets/vfx/S005.webp',  // 攻撃時のバフ効果（カードを問わず一律）
-      S006: 'assets/vfx/S006.webp',  // 負傷効果（ゴーレム。旧C003）
-      S007: 'assets/vfx/S007.webp',  // 特殊演出（シートの「VFX/SE」列で指定して使う）
-      S008: 'assets/vfx/S008.webp',  // 活性化（旧E045）
-      S009: 'assets/vfx/S009.webp',  // バフ（常時）＝開戦・常時の誘発効果でバフが生じた時
-      K019: 'assets/vfx/K019.webp',  // 封印解放（素材名はK019へ変更済み）
+      S001: 'vfx:S001:summon-sigil',  // 戦闘中の召喚（逆再生開始でカードを出す）
+      S003: 'vfx:S003:gold-gain',  // 金貨（旧C001）
+      S004: 'vfx:S004:mana-gain',  // マナ獲得（発生させたキャラクターの上に出す）
+      S005: 'vfx:S005:attack-buff',  // 攻撃時のバフ効果（カードを問わず一律）
+      S006: 'vfx:S006:injury-buff',  // 負傷効果（ゴーレム。旧C003）
+      S007: 'vfx:S007:death-buff',  // 特殊演出（シートの「VFX/SE」列で指定して使う）
+      S008: 'vfx:S008:mana-buff',  // 活性化（旧E045）
+      S009: 'vfx:S009:aura-buff',  // バフ（常時）＝開戦・常時の誘発効果でバフが生じた時
+      K019: 'vfx:K019:seal-release',  // 封印解放（素材名はK019へ変更済み）
     },
     // キーワード発動（毒等）でダメージが発生した際、そのキーワードのナンバー（KXXX）に
-    // 対応するWebPがあれば、通常のhit.webpの代わりに再生する。存在するものだけをここに登録する。
+    // 対応する定義があれば、通常の被弾定義の代わりに再生する。存在するものだけをここに登録する。
     // キーワード発動時の専用VFX。キーワードシートのNo.（KXXX）で引く。
     // **シートのNo.を振り直したら、素材ファイル名もここも必ず一緒に直すこと。**
     // 番号の振り直しで素材が旧名のままだった際、マナ効果と毒は登録が外れて
-    // 通常の被弾VFX（hit.webp）に化け、貫通が毒のVFXを拾っていた。
+    // 通常の被弾VFX（被弾定義）に化け、貫通が毒のVFXを拾っていた。
     // ずれていないかは tools/parity/anim_check.js が検査する。
     keywordEffect: {
-      'K001': 'assets/vfx/K001.webp', // 即死（即死効果を受けた瞬間）
-      'K003': 'assets/vfx/K003.webp', // 毒牙（毒のデバフを受けた瞬間）
-      'K020': 'assets/vfx/K020.webp', // 復活（再召喚された瞬間）
-      'K017': 'assets/vfx/K017.webp', // 毒（毒でダメージを受けた瞬間）
-      'K018': 'assets/vfx/K018.webp', // 結界（結界がダメージを防いだ瞬間）
-      'K024': 'assets/vfx/K024.webp', // マナ効果（K023＝眷属には素材なし）
+      'K001': 'vfx:K001:death-mark', // 即死（即死効果を受けた瞬間）
+      'K003': 'vfx:K003:fang-poison', // 毒牙（毒のデバフを受けた瞬間）
+      'K020': 'vfx:K020:revive-burst', // 復活（再召喚された瞬間）
+      'K017': 'vfx:K017:poison-tick', // 毒（毒でダメージを受けた瞬間）
+      'K018': 'vfx:K018:shield-contact', // 結界（結界がダメージを防いだ瞬間）
+      'K024': 'vfx:K024:mana-cue', // マナ効果（K023＝眷属には素材なし）
     },
     attackContact: {
-      tri: 'assets/vfx/K008.webp',
-      all: 'assets/vfx/K009.webp',
-      pierce: 'assets/vfx/K007.webp',
+      tri: 'vfx:K008:tri-streak',
+      all: 'vfx:K009:contact-burst',
+      pierce: 'vfx:K007:piercing-streak',
     },
   },
   ui: {
@@ -571,8 +570,18 @@ function getCharacterNoArtPath(card){
   return `${dir}/${code}.jpg?v=${CARD_ART_VERSION}`;
 }
 
-// キャラクターの効果によるダメージ時、そのキャラクター専用の透過WebPが
-// 登録されていればそのパスを返す。登録が無ければ空文字（呼び出し側で通常のhit.webpを使う）。
+// VFXの識別子は元番号と定義名を保持する。素材URLとは混ぜない。
+function getVfxDefinitionName(value){
+  const m=String(value||'').match(/^vfx:([A-Za-z0-9_]+):([a-z][a-z0-9-]*)$/);
+  return m?m[2]:'';
+}
+function getVfxSourceCode(value){
+  const m=String(value||'').match(/^vfx:([A-Za-z0-9_]+):([a-z][a-z0-9-]*)$/);
+  return m?m[1]:'';
+}
+
+// キャラクターの効果によるダメージ時、そのキャラクター専用のコード描画VFXが
+// 登録されていればそのパスを返す。登録が無ければ空文字（呼び出し側で通常の被弾定義を使う）。
 function getCharacterEffectVfxPath(unit){
   // **シートの「VFX/SE」列（fxCode）が最優先。** カードのNo.とは別に指定できる。
   const raw=String((unit&&unit.fxCode)||'').trim()||_assetCodeRaw(unit);
@@ -584,7 +593,7 @@ function getCharacterEffectVfxPath(unit){
     ||(Assets.vfx.specialProduction&&Assets.vfx.specialProduction[code])||'';
 }
 
-// 効果そのものの演出WebPを、カードのNo.（CXXX／EXXX）から引く。
+// 効果そのものの演出定義を、カードのNo.（CXXX／EXXX）から引く。
 // キャラクター（characterEffect）と強化カード（enchantEffect）の**両方**を見る。
 // 登録が無ければ空文字。呼び出し側は空なら何も再生しないこと
 // （playHitVfxAtRect へ空のまま渡すと通常の被弾VFXへ化ける）。
@@ -628,8 +637,7 @@ function getAttackContactSfxKey(mode){
   return code && Assets.sfx?.[code] ? code : '';
 }
 
-// C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画（mp4）のパスを返す。
-// canvasでのズーム・回転・再生速度調整をリアルタイムに行うため、こちらはWebP化しない。
+// C043等、薙ぎ払い専用の定義識別子を返す（SE番号・再生時刻は従来どおり）。
 function getCharacterSweepVfxPath(unit){
   const raw=_assetCodeRaw(unit);
   if(!raw) return '';

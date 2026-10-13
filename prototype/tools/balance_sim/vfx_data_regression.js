@@ -115,8 +115,8 @@ function schemaChecks(bundle){
 }
 async function allEffects(bundle){
   const old=harness(true),next=harness(false),again=harness(false);
-  assert.deepEqual(bundle.effects.map(d=>d.name),Array.from(old.fx.effects,d=>d.name),'旧版の全効果と順序を保持');
-  for(const d of bundle.effects){
+  assert.deepEqual(bundle.effects.filter(d=>!d.sourceCode).map(d=>d.name),Array.from(old.fx.effects,d=>d.name),'旧版の全効果と順序を保持');
+  for(const d of bundle.effects.filter(d=>!d.sourceCode)){
     if(process.env.VB_ONLY&&!process.env.VB_ONLY.split(',').includes(d.name))continue;
     const original=old.fx.effects.find(e=>e.name===d.name);
     for(const key of ['label','ms','color','light','loop','underStatus','stackable'])assert.equal(d[key],original[key],d.name+' のメタデータ '+key);
@@ -244,9 +244,32 @@ async function genericParts(bundle){
   await promise;assert.equal(h.fx.activeCount(),0);
   console.log('OK 新定義だけで放出・重力/抵抗・寿命変化・先細りビーム・膜/霧・波打つ尾・カード移動と明滅の併用・ディゾルブ・全アンカー・複製の出発/到達・頭の角度範囲と保持');
 }
+async function shapeAxisChecks(bundle){
+  const d=clone(bundle.effects[0]);Object.assign(d,{name:'schema-shape-axes',label:'形状の軸別倍率',ms:800,defaultTargets:'source',impact:{atMs:0,cueMs:0}});
+  const base={type:'shape',anchor:'source',basis:'unit',shape:'flare',radius:.25,aspect:[1.6,.8],rotation:.3,color:'#55aa88'};
+  async function trace(layer,ms,value=1){
+    const def=clone(d);def.layers=[layer];const h=harness(false,{schemaVersion:2,effects:[def]});
+    const pending=h.fx.play(def.name,{source:h.source,speed:1,value,seed:53,dir:1});h.step(0);
+    const frame=h.step(ms);traceQuality(frame,def.name);h.fx.stopAll();await pending;return frame;
+  }
+  const animated=Object.assign(clone(base),{curves:{scaleX:{keys:[[0,1],[1,.25]],interpolation:'linear'},scaleY:{keys:[[0,.5],[1,1.5]],interpolation:'linear'}}});
+  for(const ms of [0,200,400,800]){
+    const p=ms/800,expected=Object.assign(clone(base),{aspect:[1.6*(1-.75*p),.8*(.5+p)]});
+    assert.deepEqual(await trace(animated,ms),await trace(expected,ms),'軸別曲線は同じ時刻の固定縦横比と同じ描画・回転・位置になる');
+  }
+  assert.deepEqual(await trace(Object.assign(clone(base),{scaleX:1,scaleY:1}),400),await trace(base,400),'倍率1は未指定と完全一致');
+  const mapped=Object.assign(clone(base),{bind:[{input:'value',target:'scaleX',curve:{keys:[[1,.5],[3,1.5]],interpolation:'linear'}}],modulation:{scaleY:{mode:'multiply',bias:1,amplitude:.2,frequency:Math.PI,timeSpace:'life'}}});
+  assert.deepEqual(await trace(mapped,400,2),await trace(Object.assign(clone(base),{aspect:[1.6,.8*1.2]}),400,2),'固定値のない入力bindingと変調も両軸へ適用');
+  const schema=fs.readFileSync(path.join(ROOT,'js/vfx/schema.js'),'utf8');
+  for(const [axis,value] of [['scaleX',0],['scaleY',33],['scaleX',-1]]){
+    const bad=clone(d);bad.layers=[Object.assign(clone(base),{[axis]:value})];const c=vm.createContext({});vm.runInContext(schema,c);
+    assert.throws(()=>vm.runInContext('VbFxDefs.register('+JSON.stringify({schemaVersion:2,shapes:bundle.shapes,effects:[bad]})+');',c),/範囲/,'軸別倍率の許可範囲を守る');
+  }
+  console.log('OK 形状の軸別倍率：全時刻の固定縦横比との一致・未指定/倍率1一致・入力/変調・範囲拒否');
+}
 async function run(){
-  const {bundle}=validatedBundle();assert.equal(bundle.effects.length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
-  schemaChecks(bundle);await allEffects(bundle);await stateChecks();await genericParts(bundle);
+  const {bundle}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
+  schemaChecks(bundle);await allEffects(bundle);await stateChecks();await genericParts(bundle);await shapeAxisChecks(bundle);
   console.log('VFXデータ回帰: 50効果・9時刻・5速さ・状態値8段階・許可リスト拒否・新部品 OK（画面は未確認）');
 }
 if(require.main===module)run().catch(e=>{console.error(e.stack);process.exitCode=1;});

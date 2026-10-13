@@ -668,3 +668,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 闇の炎が3回出た件は表示だけの分裂だった（コアの発動回数は正しい）。結界で防がれたダメージのイベントに `batch` などの演出情報が欠け、同じ死亡効果の波が別々に再生されていた。防いだ時も演出情報を保ち、共通の present が同じ束として扱う。検査は `tools/balance_sim/death_1011_regression.js`。
 - 魔導店・行商人でゴールドが足りないカードは、値札を暗くせず（道具屋と同じ）、カードのマナと血の表示を暗くする（値札を暗転層の上、マナ・血を下に置く）。道具屋・鍛冶屋は変えない。検査は `tools/parity/sale_library_price_1011_check.js`。
 - 隕石の巻物（I006）のダメージは、隕石が墜落した直後（VFX の着弾）に出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。着弾まで後続のイベントを待たせる演出は `present_events.js: PRESENT_LAB_WAIT_IMPACT`（ワーム C054・援護射撃 E067・隕石の巻物 I006）。検査は `tools/parity/lab_vfx_check.js`（I006 の時刻）。
+
+## webp の VFX をコード描画へ置き換え（2026-10-13 完了）
+- 利用者指定（2026-10-08）：品質を安定させるため、webp 素材で再生していた VFX もコード描画に変える。元の webp は方向性の参考で、完全一致は不要。コード製の既存 VFX（50種）の見た目は変えない。
+- 置き換えた32種（被弾・攻撃効果・マナ・召喚・封印解放・アラッサスの炎 flame-sweep など）の定義は `js/vfx/defs/webp.js`・`webp_geometry.js`、描画は共通レンダラー `js/vfx/renderer.js`。キーワードの VFX は `getKeywordEffectVfxPath()` が「vfx:<素材キー>:<定義名>」を返す（素材キーは旧番号のまま。`present.js: KEYWORD_ASSET_KEYS`）。旧素材（assets/vfx/*.webp）は削除していない。既存50種の内部で使う webp 参照2件（ダイアウルフの appearance_sheet・隕石の巻物の K009）は見た目を守るため残す。
+- 品質の決め方：旧 webp を**ゲーム内と同じ置き方で再生**して撮る `tools/vfx_capture/legacy_ingame.js` と新版の `capture.js` を同じ盤面・カード・時刻で撮り、`ingame_compare.py` で面積・明るさ・核の明るさ（旧比 70〜130%）と形の重なり（IoU 0.35 以上）を出し、カードの周りを拡大した旧／新を目で見比べて決めた（カード全体の色かぶりで数値を稼がない、形で存在感を出す）。
+- 比較用の参照画像（`tools/vfx_capture/refs/**/frame_*.png`、41MB）は `extract_refs.py` で作り直せる生成物なのでコミットしない（基準の reference.json だけ入れる）。

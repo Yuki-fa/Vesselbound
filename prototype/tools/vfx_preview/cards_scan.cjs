@@ -103,11 +103,31 @@ global.playAttackMotion = async (_a, _b, _enemy, onPause, opts) => {
 global.playCurvedMissile = async opts => {
   if (current && opts.asset) add('vfx', { path: opts.asset, fn: 'playCurvedMissile', ms: opts.flightMs,
     scale: opts.scale, trigger: currentEvent && currentEvent.type, mode: 'projectile',
-    geometry: { widthRatio: opts.sourceRect.width / rect.width * geometry.hitWidthRatio * (Number(opts.scale) || 1),
+    geometry: { widthRatio: opts.sourceRect.width / rect.width * _definedVfxSize(opts.code || getVfxSourceCode(opts.asset), opts.scale),
       heightRatio: null, anchor: 'target', offsetX: 0,
       offsetY: typeof presentProjectileImpactOffsetY === 'function' && opts.code
         ? presentProjectileImpactOffsetY(opts.code) : Number(opts.impactOffsetY) || 0 } });
   if (opts.onHit) await opts.onHit();
+};
+// 画像のsrcだけでなく、共通レンダラーに渡された定義と入れ物も実行して採取する。
+global._playDefinedVfx = (host, value, durationMs, options = {}) => {
+  const name = getVfxDefinitionName(value);
+  if (name) {
+    const frame = callStack[callStack.length - 1] || {};
+    const w = parseFloat(host.style.width) || rect.width, h = parseFloat(host.style.height) || rect.height;
+    const left = parseFloat(host.style.left), top = parseFloat(host.style.top);
+    add('vfx', { path: value, definition: name, sourceCode: getVfxSourceCode(value),
+      fn: frame.name || '_playDefinedVfx', ms: frame.ms || durationMs, fadeMs: frame.fadeMs || 0,
+      loop: !!options.repeat, scale: options.size || 1, trigger: currentEvent && (currentEvent.reason || currentEvent.type) || '共通',
+      mode: frame.mode || 'hit', geometry: { widthRatio: w / rect.width * (options.size || 1),
+        heightRatio: h / rect.height * (options.size || 1), offsetX: Number.isFinite(left) ? (left+w/2-rect.left-rect.width/2)/rect.width : 0,
+        offsetY: Number.isFinite(top) ? (top+h/2-rect.top-rect.height/2)/rect.height : 0,
+        anchor: frame.anchor || 'target', fit: 'contain', contact: frame.contact || undefined,
+        rise: frame.name === 'playManaGainVfx' ? PRESENT_MANA_GAIN_VFX_RISE : undefined,
+        spanWidthRatio: frame.contact === 'tri' ? PRESENT_CONTACT_TRI_WIDTH : undefined,
+        drawOffsetX: frame.contact === 'tri' ? PRESENT_CONTACT_TRI_OFFSET_X : undefined } });
+  }
+  return { stop() {}, promise: Promise.resolve() };
 };
 const drawNames = ['playHitVfxAtRect', '_playCardEffectVfx', 'playEffectVfxOnUnit',
   'playKeywordEffectVfxSustained', 'playAttackContactVfx', 'playSpecialProductionVfx',
@@ -385,6 +405,13 @@ async function main() {
       }
       collectImageGeometry();
       for (const vfx of current.vfx) if (vfx.path) {
+        const name = getVfxDefinitionName(vfx.path);
+        if (name) {
+          vfx.definition = name; vfx.sourceCode = getVfxSourceCode(vfx.path);
+          vfx.asset = { renderer: 'definition', durationMs: vfx.ms, frameCount: 0 };
+          if (!vfx.geometry) vfx.geometry = { widthRatio: 1, heightRatio: 1, offsetX: 0, offsetY: 0, anchor: 'target' };
+          continue;
+        }
         vfx.asset = webpInfo(path.join(root, vfx.path));
         // 共通素材の直接参照は本体の幅・素材倍率から組み立てる。
         if (!vfx.geometry) vfx.geometry = { widthRatio: geometry.hitWidthRatio * (Number(vfx.scale) || 1),

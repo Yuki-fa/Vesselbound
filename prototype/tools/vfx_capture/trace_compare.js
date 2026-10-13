@@ -91,7 +91,7 @@ for(let i=0;i<argv.length;i++){const k=argv[i].replace(/^--/,'');if(!(k in optio
 if(!options.out)throw new Error('使用法: node tools/vfx_capture/trace_compare.js --out <フォルダ> [--names a,b] [--frames 8] [--value 15]');
 for(const k of ['frames','seed','speed','value','dir','cycles'])options[k]=Number(options[k]);
 if(!Number.isInteger(options.frames)||options.frames<2||options.frames>64||!Number.isFinite(options.seed)||!Number.isFinite(options.speed)||options.speed<.4||options.speed>12||!Number.isFinite(options.value)||options.value<1||![-1,1].includes(options.dir)||!Number.isInteger(options.cycles)||options.cycles<1||options.cycles>8)throw new Error('比較条件が不正');
-const definitions=validatedBundle().bundle.effects,known=definitions.map(d=>d.name),names=options.names?options.names.split(','):known;
+const definitions=validatedBundle().bundle.effects.filter(d=>!d.sourceCode),known=definitions.map(d=>d.name),names=options.names?options.names.split(','):known;
 for(const n of names)if(!known.includes(n))throw new Error('未知の効果: '+n);
 const companions=options.companions?options.companions.split(','):[];
 for(const n of companions)if(!definitions.some(d=>d.name===n&&d.loop))throw new Error('重ねる状態が不正: '+n);

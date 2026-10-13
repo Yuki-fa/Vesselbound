@@ -18,6 +18,23 @@ const BASE = process.env.VB_URL || 'http://127.0.0.1:5500/index.html';
 const results = [];
 const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); };
 
+// 定義名だけでなく、対応する入れ物の位置に実際の有色・不透明な画素があるか見る。
+const CODE_VFX_PROBE = `
+  function codeVfxVisible(selector,definition){
+    const host=document.querySelector(selector),canvas=document.querySelector('[data-vb-fx-canvas]');
+    if(!host||!canvas||!VbFx.snapshot().some(j=>j.name===definition))return {host,width:0,visible:false};
+    const r=host.getBoundingClientRect(),c=canvas.getBoundingClientRect(),style=getComputedStyle(host);
+    if(r.width<=4||r.height<=4||Number(style.opacity)<=.05||style.visibility==='hidden'||style.display==='none')return {host,width:r.width,visible:false};
+    const sx=canvas.width/c.width,sy=canvas.height/c.height;
+    const x=Math.max(0,Math.floor((r.left-c.left-r.width/2)*sx)),y=Math.max(0,Math.floor((r.top-c.top-r.height/2)*sy));
+    const w=Math.max(0,Math.min(canvas.width-x,Math.ceil(r.width*2*sx))),h=Math.max(0,Math.min(canvas.height-y,Math.ceil(r.height*2*sy)));
+    if(!w||!h)return {host,width:r.width,visible:false};
+    const pixels=canvas.getContext('2d').getImageData(x,y,w,h).data;
+    let colored=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]>12&&Math.max(pixels[i],pixels[i+1],pixels[i+2])>50)colored++;
+    return {host,width:r.width,visible:colored>=16};
+  }
+`;
+
 const SETUP = `
   const el=document.getElementById('scr-battle');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -134,8 +151,8 @@ const SETUP = `
     `);
     // ── マナ効果VFXが「実際に見えているか」──
     // 要素の数だけ数えても、素材のデコードが間に合わず1コマも描かれない場合を見逃す。
-    // マナ効果の素材は6.6MBあり、hitDuration:900・960msで破棄という短い尺に間に合わない。
-    const manaVisible = await b.eval(SETUP + `
+    // マナ効果の定義描画が900msの短い尺でも表示され、700msのフェード後に片付く。
+    const manaVisible = await b.eval(SETUP + CODE_VFX_PROBE + `
       const rect=document.querySelector('#f-ally .slot[data-unit-id="A1"]').getBoundingClientRect();
       const t0=performance.now();
       let 見えたフレーム=0, 最大幅=0, 素材='', 生成された=false, 消えた時刻=0;
@@ -145,14 +162,10 @@ const SETUP = `
         await new Promise(r=>requestAnimationFrame(r));
         const host=document.querySelector('.damage-vfx-host');
         if(host) 生成された=true; else if(生成された&&!消えた時刻) 消えた時刻=Math.round(performance.now()-t0);
-        const img=host&&host.querySelector('img,video,canvas');
-        if(!img) continue;
-        素材=String(img.currentSrc||img.src||'').split('/').pop();
-        const r=img.getBoundingClientRect();
-        const op=Number(getComputedStyle(img).opacity);
-        if(r.width>4&&r.height>4&&op>0.05&&(img.naturalWidth===undefined||img.naturalWidth>0)){
-          見えたフレーム++; 最大幅=Math.max(最大幅,Math.round(r.width));
-        }
+        const shown=codeVfxVisible('.damage-vfx-host[data-vfx-definition="mana-cue"]','mana-cue');
+        if(!shown.host) continue;
+        素材=getKeywordEffectVfxPath('マナ効果');
+        if(shown.visible){見えたフレーム++;最大幅=Math.max(最大幅,Math.round(shown.width));}
       }
       await p;
       return {見えたフレーム,最大幅,素材,消えた時刻};
@@ -161,11 +174,11 @@ const SETUP = `
       manaVisible.見えたフレーム >= 10 && manaVisible.最大幅 > 20,
       `見えたフレーム=${manaVisible.見えたフレーム} 最大幅=${manaVisible.最大幅}px 素材=${manaVisible.素材} 消滅=${manaVisible.消えた時刻}ms`);
     // 素材の取り違えは「出ている」ようにしか見えないので、名前まで確かめる。
-    // シートのキーワードNo.が振り直されると、登録が外れて通常の被弾VFX（hit.webp）へ
+    // シートのキーワードNo.が振り直されると、登録が外れて通常の被弾VFX（hit定義）へ
     // 落ちたり、別のキーワードの素材を拾ったりする。
     check('マナ効果VFXが専用素材である',
       /K024/.test(manaVisible.素材),
-      `素材=${manaVisible.素材}（hit.webpなら通常の被弾VFXに化けている）`);
+      `素材=${manaVisible.素材}（hit-burstなら通常の被弾VFXに化けている）`);
     const kwVfx = await b.eval(`
       return {マナ効果:getKeywordEffectVfxPath('マナ効果'), 毒:getKeywordEffectVfxPath('毒'),
         貫通:getKeywordEffectVfxPath('貫通')};
@@ -180,7 +193,7 @@ const SETUP = `
     // ── 2d. 効果そのもののVFX（活性化＝E045）が出せること ──
     // マナ効果VFX（K024）の逆再生開始から、その効果自身のVFXへ引き継ぐ。
     // 命中VFXの経路（characterEffect＝CXXXのみ）では強化カードの素材を引けない。
-    const sustain = await b.eval(SETUP + `
+    const sustain = await b.eval(SETUP + CODE_VFX_PROBE + `
       const handle=typeof playEffectVfxOnUnit==='function'
         ?playEffectVfxOnUnit(G.allies[0],'ally','E045',{}):null;
       if(!handle) return {開始:false,見えたフレーム:0,最大幅:0,素材:'',停止後:-1,素材無しでnull:false};
@@ -188,14 +201,11 @@ const SETUP = `
       const t0=performance.now();
       while(performance.now()-t0<1800){
         await new Promise(r=>requestAnimationFrame(r));
-        const img=document.querySelector('.effect-sustain-host img');
-        if(!img) continue;
-        素材=String(img.currentSrc||img.src||'').split('/').pop();
-        const rr=img.getBoundingClientRect();
-        const op=Number(getComputedStyle(img).opacity);
-        if(rr.width>4&&rr.height>4&&op>0.05&&img.naturalWidth>0){
-          見えたフレーム++; 最大幅=Math.max(最大幅,Math.round(rr.width));
-        }
+        const value=getEffectVfxPath('E045'),name=getVfxDefinitionName(value);
+        const shown=codeVfxVisible('.effect-sustain-host[data-vfx-definition="'+name+'"]',name);
+        if(!shown.host)continue;
+        素材=value;
+        if(shown.visible){見えたフレーム++;最大幅=Math.max(最大幅,Math.round(shown.width));}
       }
       await handle.stop();
       await new Promise(r=>setTimeout(r,120));
@@ -203,7 +213,7 @@ const SETUP = `
       const 素材無し=playEffectVfxOnUnit(G.allies[0],'ally','C012',{});
       return {開始:true,見えたフレーム,最大幅,素材,
         // 期待するファイル名は assets.js の登録から引く。**ここに素材名を直接書かない**
-        // （素材名が変わるたびに検査が落ちる。実際にE045.webp→S008.webpで落ちた）。
+        // （番号・定義名が変わるたびに検査を手直ししない）。
         期待素材:String(getEffectVfxPath('E045')||'').split('/').pop(),
         停止後:document.querySelectorAll('.effect-sustain-host').length,
         素材無しでnull:素材無し===null};

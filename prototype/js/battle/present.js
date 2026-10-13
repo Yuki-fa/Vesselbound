@@ -301,10 +301,9 @@ const PRESENT_PROJECTILE_STAGGER_MS = 260;
 // 素材の中で絵が上寄りだと、枠の中心を合わせても見た目は上に当たる。
 // 見た目上カードの中央で当たるように下げる。
 const PRESENT_PROJECTILE_IMPACT_OFFSET_Y = .18;
-// ケンタウロスの縦長素材は透明余白の基準位置が炎の矢と異なるため、
-// 飛行方向の実体補正はrender.jsで行い、ここでは基準中心だけを返す。
+// 飛翔体の定義では弾頭を入れ物の中央に描く。従来の着弾中心を保つ。
 function presentProjectileImpactOffsetY(code) {
-  // C019_1.webp は縦長の透明余白が大きく、通常の「枠の中心」では
+  // C019_1 は縦長の透明余白が大きく、通常の「枠の中心」では
   // 絵の実体が敵の上へ大きく外れる。素材の実体中心を敵中心へ合わせる。
   return String(code || '').toUpperCase() === 'C019' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
 }
@@ -320,6 +319,11 @@ const PRESENT_MISSILE_BULGE_JITTER = .12;  // 毎回わずかに変える幅（�
 // 飛行時間は距離で少し変えるが、遠いほど極端に遅くならないよう上下限で挟む。
 const PRESENT_MISSILE_FLIGHT_MIN_MS = 700;
 const PRESENT_MISSILE_FLIGHT_MAX_MS = 1000;
+// 薙ぎ払いの回転区間へ対象角度を写す。本体とLABで同じ命中の合図を使う。
+function presentSweepTargetHitMs(angle,startAngle,endAngle,durationMs) {
+  const ratio=Math.max(0,Math.min(1,(angle-startAngle)/((endAngle-startAngle)||1)));
+  return durationMs*(.1+.65*ratio);
+}
 // 素材の先端が向いている方向の補正（度）。E058_1は**上向き**なので +90。
 // atan2 は「右向き=0度」を返すため、そのまま使うと先端が進行方向を向かない。
 const PRESENT_MISSILE_NOSE_OFFSET_DEG = 90;
@@ -1748,9 +1752,9 @@ function presentResetPlayback() { _presentPlaybackDepth = 0; }
 // 「この番号はこの倍率で出す」という対応をここに集約する。
 // 効果としての再生（_playCardEffectVfx / playEffectVfxOnUnit）と、被弾演出としての
 // 再生（playHitVfx）で別々に持つと、片方だけ巨大に出る（実際にマータで起きた）。
-// 既定は1（＝CSSの width:460% がそのまま効く）。
-// **鍵は「素材の番号」**。命中VFXの経路は**ファイル名から**番号を取り出すため、
-// 素材名を変えたら（C003.webp→S006.webp）両方の番号を登録しておくこと。
+// 既定は1。旧画像向けの倍率はrender.jsで定義の基準幅へ正規化する。
+// **鍵は「元の番号」**。命中VFXの経路は登録識別子から番号を取り出す。
+// 番号を変えたら（C003→S006）両方の番号を登録しておくこと。
 const PRESENT_VFX_SCALE = {
   C001: .5, C002: .5,             // フレームいっぱいの素材（約500x500）。半分で出す
   C003: .5, S006: .5,             // ゴーレム。キャラ枠内で見える大きさに揃える

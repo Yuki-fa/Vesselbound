@@ -21,6 +21,13 @@ function argumentsFor(argv) {
   for (const key of ['frames','seed','speed','value']) opts[key] = Number(opts[key]);
   if (!Number.isInteger(opts.frames) || opts.frames < 2 || opts.frames > 64) throw new Error('--frames は2〜64です');
   if (!Number.isFinite(opts.seed) || !(opts.speed >= .4 && opts.speed <= 12) || !(opts.value >= 1)) throw new Error('seed/speed/value が不正です');
+  if (opts.names && fs.existsSync(opts.names)) opts.names = fs.readFileSync(opts.names,'utf8')
+    .split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&!s.startsWith('#')).join(',');
+  if (opts.names) {
+    const names = opts.names.split(',').map(s=>s.trim());
+    if(names.some(s=>!s)||new Set(names).size!==names.length) throw new Error('--names の空欄・重複は使えません');
+    opts.names = names.join(',');
+  }
   opts.out = path.resolve(opts.out); return opts;
 }
 async function assetsReady(browser) {
@@ -32,6 +39,22 @@ async function assetsReady(browser) {
     await decodeImage(bg, bgSource, bgSource);
     window.dispatchEvent(new Event('resize'));
   `);
+}
+async function captureBaseline(browser, out, name) {
+  const geometry = await browser.eval(`
+    const stage=document.getElementById('stage').getBoundingClientRect(), state=VbFxPreview.snapshot();
+    const cards=Array.from(document.querySelectorAll('.lab-card')).map(el=>{
+      const r=el.getBoundingClientRect();
+      return {id:el.id,no:el.dataset.no,left:r.left-stage.left,top:r.top-stage.top,width:r.width,height:r.height};
+    });
+    return {stage:{x:stage.x,y:stage.y,width:stage.width,height:stage.height,scale:1},cards,
+      source:state.sourceId,targets:state.targetIds};
+  `);
+  fs.mkdirSync(path.join(out,'baselines'),{recursive:true});
+  const shot=await browser.call('Page.captureScreenshot',{format:'png',clip:geometry.stage});
+  const baselineFile='baselines/'+name+'.png';
+  fs.writeFileSync(path.join(out,baselineFile),Buffer.from(shot.data,'base64'));
+  return {geometry,baselineFile};
 }
 async function freezeSprites(browser) {
   // 第1段では残すAnimated WebPだけ、旧LABに既にある静止コマを外から選ぶ。
@@ -62,7 +85,7 @@ async function freezeSprites(browser) {
 }
 async function main(argv) {
   const opts = argumentsFor(argv);
-  if (!opts) { console.log('node tools/vfx_capture/capture.js --url <ページURL> --out <フォルダ> [--names a,b] [--frames 8] [--value 1]'); return; }
+  if (!opts) { console.log('node tools/vfx_capture/capture.js --url <ページURL> --out <フォルダ> [--names a,b または一覧txt] [--frames 8] [--value 1]'); return; }
   // 前後比較に必要な時刻・シード・配置を画像と一緒に記録する。
   fs.mkdirSync(opts.out, { recursive: true });
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'vb-vfx-capture-'));
@@ -75,13 +98,15 @@ async function main(argv) {
     await browser.goto(opts.url);
     await browser.waitFor('window.VbFxPreview && VbFxPreview.ready');
     const all = await browser.eval('return VbFx.effects.map(d => d.name);');
-    const names = opts.names ? opts.names.split(',') : all;
+    const legacy = await browser.eval('return VbFx.effects.filter(d => !d.sourceCode).map(d => d.name);');
+    const names = opts.names ? opts.names.split(',') : legacy;
     for (const name of names) if (!all.includes(name)) throw new Error('未知の効果: ' + name);
     for (const name of names) {
       report.current = { name, stage: 'ページ・素材の読み込み' };
       await browser.goto(opts.url); await browser.waitFor('window.VbFxPreview && VbFxPreview.ready');
       await browser.eval(`await VbFxPreview.select(${JSON.stringify(name)}, false); document.getElementById('volume').value='0'; document.getElementById('speed').value=${opts.speed}; VbFx.settings.seed=${opts.seed};`);
       await assetsReady(browser);
+      const baseline = await captureBaseline(browser,opts.out,name);
       const info = await browser.eval(`
         const original = VbFx.play;
         VbFx.play = function(name, options) { return original(name, Object.assign({}, options, {value:${opts.value}, dir:1, speed:${opts.speed}})); };
@@ -112,7 +137,7 @@ async function main(argv) {
       const output = path.join(opts.out, name + '.png');
       const stitched = spawnSync('python3', [path.join(__dirname, 'compare.py'), '--strip', output, JSON.stringify(times), ...files], { encoding: 'utf8' });
       if (stitched.status !== 0) throw new Error(stitched.stderr || 'PNGの連結に失敗');
-      report.effects.push({ name, ...info, times, file: name + '.png' });
+      report.effects.push({ name, ...info, ...baseline, times, file: name + '.png' });
       delete report.current;
       console.log(name + ': ' + opts.frames + 'コマ → ' + output);
     }
@@ -131,4 +156,4 @@ async function main(argv) {
   }
 }
 if (require.main === module) main(process.argv.slice(2)).catch(e => { console.error(e.message); process.exitCode = 1; });
-module.exports = { argumentsFor, freezeSprites, main };
+module.exports = { argumentsFor, assetsReady, captureBaseline, freezeSprites, main };

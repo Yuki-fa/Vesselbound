@@ -149,6 +149,7 @@ def compare(before, after, output, mae_limit=DEFAULT_MAE, local_limit=DEFAULT_LO
             crop = (i*fw, header, (i+1)*fw, header+fh)
             row = {"effect": Path(name).stem, "frame": i, "time_ms": time_ms, **metrics(a.crop(crop), b.crop(crop))}
             row["numeric_status"] = "NUMERIC_OK" if row["mae"] <= mae_limit and row["max_local_mae"] <= local_limit and row["ssim"] >= ssim_limit else "DIFF"
+            row["pixel_status"] = "RGB_EXACT" if row["changed_pixels"] == 0 else "PIXEL_DIFF"
             rows.append(row)
         frames.extend(rows)
         summaries.append({"effect": Path(name).stem, "frames": len(rows),
@@ -157,7 +158,8 @@ def compare(before, after, output, mae_limit=DEFAULT_MAE, local_limit=DEFAULT_LO
                           "max_channel_diff": max(r["max_channel_diff"] for r in rows),
                           "max_changed_ratio": max(r["changed_ratio"] for r in rows),
                           "numeric_status": "NUMERIC_OK" if all(r["numeric_status"] == "NUMERIC_OK" for r in rows) else "DIFF",
-                          "visual_status": "UNREVIEWED"})
+                          "visual_status": "UNREVIEWED",
+                          "pixel_status": "RGB_EXACT" if all(r["pixel_status"] == "RGB_EXACT" for r in rows) else "PIXEL_DIFF"})
         w, h = a.size
         result = Image.new("RGB", (w, (h + 24) * 2), "#101713")
         draw = ImageDraw.Draw(result)
@@ -170,14 +172,16 @@ def compare(before, after, output, mae_limit=DEFAULT_MAE, local_limit=DEFAULT_LO
     write_csv(output / "effects.csv", summaries)
     lines = ["# 固定時刻VFX比較", "", f"前: `{before}`  ", f"後: `{after}`", "",
              f"RGBは0〜255。全コマでMAE ≤ {mae_limit}、最大{LOCAL_TILE}×{LOCAL_TILE}局所MAE ≤ {local_limit}、輝度SSIM ≥ {ssim_limit}を数値の目安とする。",
-             "SSIMは8×8非重複窓の画素数加重平均。ラベル行は除外。数値合格は目視合格を意味しない。", "",
-             "| 効果 | コマ数 | 最大MAE | 最大局所MAE | 最小SSIM | 最大RMSE | 数値 | 目視 |",
-             "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"]
+             "SSIMは8×8非重複窓の画素数加重平均。ラベル行は除外。数値合格は目視合格を意味しない。",
+             "RGB_EXACTは全コマの全RGBが一致した場合だけ。1チャンネルでも差があればPIXEL_DIFFとし、数値の目安とは別に報告する。", "",
+             "| 効果 | コマ数 | 最大MAE | 最大局所MAE | 最小SSIM | 最大RMSE | 数値 | RGB一致 | 目視 |",
+             "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |"]
     for row in summaries:
-        lines.append(f'| {row["effect"]} | {row["frames"]} | {row["max_mae"]:.6f} | {row["max_local_mae"]:.6f} | {row["min_ssim"]:.8f} | {row["max_rmse"]:.6f} | {row["numeric_status"]} | 未判定 |')
+        lines.append(f'| {row["effect"]} | {row["frames"]} | {row["max_mae"]:.6f} | {row["max_local_mae"]:.6f} | {row["min_ssim"]:.8f} | {row["max_rmse"]:.6f} | {row["numeric_status"]} | {row["pixel_status"]} | 未判定 |')
     (output / "metrics.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     passed = sum(r["numeric_status"] == "NUMERIC_OK" for r in summaries)
-    print(f"{len(old)}効果・{len(frames)}コマの比較を保存: {output}（数値の目安を満たす効果 {passed}/{len(old)}、目視は未判定）")
+    exact = sum(r["pixel_status"] == "RGB_EXACT" for r in summaries)
+    print(f"{len(old)}効果・{len(frames)}コマの比較を保存: {output}（数値の目安 {passed}/{len(old)}、全RGB一致 {exact}/{len(old)}、目視は未判定）")
 
 
 if __name__ == "__main__":

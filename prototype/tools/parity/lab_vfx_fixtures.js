@@ -89,3 +89,15 @@ function vbLabVfxExpectedCalls(code,names) {
   return at>=0&&(!vbLabVfxCases[code]||names.slice(0,at).every(n=>!generic.includes(n)))
     &&(!follow||names.indexOf(follow)>at);
 }
+
+// C002/C017のSE差はfd294eeでも同じ。今回の「SE維持」に従い、両側の従来回数を検査する。
+// 第2段の固有演出。旧50種のシナリオはそのまま、新しい描画入口も同じコア→presenterで比較する。
+var vbWebpVfxCases=[
+  ['C002','redirect','attack-recoil',{pve:['C002'],online:[]}],['C008','mana','arachne-ring'],
+  ['C011','attack','siren-wave'],['C017','injury','medusa-gaze',{pve:['C017'],online:[]}],
+  ['C019','attack','centaur-missile'],['C043','attack','flame-sweep'],
+  ['C090','death','steal-mark'],['E058','mana','fire-arrow'],
+  ['E045','mana','mana-buff'],['C003','injury','injury-buff'],
+  ['C001','battleEnd','gold-gain']
+];
+vbLabVfxTriggers.redirect=(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],6,false,false,false);

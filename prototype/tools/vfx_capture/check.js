@@ -102,7 +102,16 @@ async function main(){
     const effectMetrics=fs.readFileSync(path.join(out,'effects.csv'),'utf8');
     assert.match(effectMetrics,/effect,frames,max_mae,max_local_mae,min_ssim/);
     assert.match(effectMetrics,/effect,2,0(?:\.0)?,0(?:\.0)?,1(?:\.0)?/);
-    assert.match(effectMetrics,/NUMERIC_OK,UNREVIEWED/);
+    assert.match(effectMetrics,/NUMERIC_OK,UNREVIEWED,RGB_EXACT/);
+    // 目安以下の1チャンネル差も「完全一致」としない。
+    execFileSync('python3',['-c',[
+      'from PIL import Image, PngImagePlugin', 'import sys',
+      'p=sys.argv[1]; im=Image.open(p).convert("RGB"); meta=PngImagePlugin.PngInfo()',
+      'meta.add_text("vfx_capture",im.info["vfx_capture"])',
+      'r,g,b=im.getpixel((0,24)); im.putpixel((0,24),(r+1,g,b)); im.save(p,pnginfo=meta)'
+    ].join('\n'),path.join(after,'effect.png')]);
+    execFileSync('python3',[path.join(__dirname,'compare.py'),before,after,out]);
+    assert.match(fs.readFileSync(path.join(out,'effects.csv'),'utf8'),/NUMERIC_OK,UNREVIEWED,PIXEL_DIFF/);
     execFileSync('python3',['-c',[
       'import importlib.util', 'from PIL import Image', 'import sys',
       's = importlib.util.spec_from_file_location("compare", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)',
@@ -116,9 +125,41 @@ async function main(){
     ].join('\n'),path.join(__dirname,'compare.py')]);
     const dimensions=execFileSync('python3',['-c','from PIL import Image; import sys; print(Image.open(sys.argv[1]).size)',path.join(out,'effect.png')],{encoding:'utf8'});
     assert.equal(dimensions.trim(),'(64, 128)');
+    // 第2段の一覧txtと参考比較を、32効果の検査用PNGで実行する（実画面ではない）。
+    const namesFile=path.join(__dirname,'webp_targets.txt');
+    const names=fs.readFileSync(namesFile,'utf8').trim().split(/\r?\n/);
+    assert.equal(argumentsFor(['--url',context.location.href,'--out',temp,'--names',namesFile]).names,names.join(','));
+    assert.throws(()=>argumentsFor(['--url',context.location.href,'--out',temp,'--names','banshee,banshee']),/重複/);
+    const dummy=path.join(temp,'new'),paired=path.join(temp,'ref-paired');
+    execFileSync('python3',['-c',[
+      'import sys,json', 'from pathlib import Path', 'from PIL import Image',
+      'base=Path(sys.argv[1]); out=Path(sys.argv[2]); out.mkdir()',
+      'manifest=json.loads((base/"webp_manifest.json").read_text()); records=[]',
+      'for effect in manifest["effects"]:',
+      '    ms=effect["playbackMs"]; times=[ms*i/8 for i in range(8)]',
+      '    image=Image.new("RGB",(128,44),"#336688"); image.save(out/(effect["name"]+".png"))',
+      '    records.append(dict(name=effect["name"],file=effect["name"]+".png",durationMs=ms,times=times,impactMs=[]))',
+      '(out/"capture.json").write_text(json.dumps(dict(status="captured",effects=records)))'
+    ].join('\n'),__dirname,dummy]);
+    const status=fs.readFileSync(path.join(__dirname,'STATUS.txt'),'utf8');
+    execFileSync('python3',[path.join(__dirname,'ref_compare.py'),'--new',dummy,'--out',paired],{env:{...process.env,PYTHONDONTWRITEBYTECODE:'1'}});
+    const comparisons=JSON.parse(fs.readFileSync(path.join(paired,'ref_compare.json'),'utf8'));
+    assert.equal(comparisons.effects.length,32);assert.equal(comparisons.visualReview,'UNREVIEWED');
+    assert.equal(fs.readFileSync(path.join(__dirname,'STATUS.txt'),'utf8'),status,'道具の成功を目視合格にしない');
+    execFileSync('python3',['-c',[
+      'from PIL import Image', 'from pathlib import Path', 'import json,sys',
+      'out=Path(sys.argv[1]); data=json.loads((out/"ref_compare.json").read_text())',
+      'for entry in data["effects"]:',
+      '    image=Image.open(out/entry["file"]); assert image.size==(128,168)',
+      '    assert image.getpixel((0,148))==(51,102,136)',
+      'report=Path(sys.argv[2])/"capture.json"; data=json.loads(report.read_text()); data["effects"][0]["times"][1]+=1',
+      'report.write_text(json.dumps(data))'
+    ].join('\n'),paired,dummy]);
+    assert.throws(()=>execFileSync('python3',[path.join(__dirname,'ref_compare.py'),'--new',dummy,'--out',paired],{stdio:'pipe',env:{...process.env,PYTHONDONTWRITEBYTECODE:'1'}}),/i\/8/);
     fs.unlinkSync(path.join(before,'effect.png'));
     assert.throws(()=>execFileSync('python3',[path.join(__dirname,'compare.py'),before,after,out],{stdio:'pipe'}),/比較対象が一致しません/);
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
-  console.log('撮影道具: 外部時計・seed・RAF・CSS・静止コマ未配信・load待機・元WebP抽出・別ポート・file://・PNG比較 OK（Chrome撮影は未実行）');
+  await require('./ingame_check').main();
+  console.log('撮影道具: 外部時計・seed・RAF・CSS・静止コマ未配信・load待機・元WebP抽出・別ポート・file://・PNG比較・一覧txt・参考32効果比較・時刻誤りの拒否 OK（Chrome撮影は未実行）');
 }
 main().catch(e=>{console.error(e.stack);process.exitCode=1;});

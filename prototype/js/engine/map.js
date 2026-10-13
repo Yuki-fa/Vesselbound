@@ -3084,7 +3084,7 @@ function _mapForgeCandidateSlots(power){
 // targetSlotIdx：VFXを重ねる対象マス（実際に変化するマスと必ず一致させる）。
 // onMidpoint：VFX開始から0.5秒後に呼ばれる（マスの画像を変化後へ差し替えるため）。
 async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
-  const webpUrl=isSummon?'assets/vfx/board_change1.webp':'assets/vfx/board_change2.webp';
+  const definition=isSummon?'vfx:board_change1:board-summon':'vfx:board_change2:board-enchant';
   // board_change2.wavは未配置のため、召喚以外でも無音にならないようboard_change1.wavへ
   // フォールバックする（専用音源が追加されたら下の候補順の先頭が自動的に使われる）。
   const sfxCandidates=isSummon
@@ -3111,31 +3111,35 @@ async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
     ?document.querySelector(`#hand-slots.board-slots > :nth-child(${targetSlotIdx+1})`):null;
   const rect=slotEl&&slotEl.getBoundingClientRect?slotEl.getBoundingClientRect():null;
   await new Promise(resolve=>{
-    const img=document.createElement('img');
-    img.className='map-board-change-vfx';
-    img.alt='';
+    const host=document.createElement('div');
+    host.className='map-board-change-vfx';
     // 対象マスの中心へ重ねる。
     if(rect&&rect.width&&rect.height){
       const size=Math.max(rect.width,rect.height)*2.6;
-      img.style.left=`${rect.left+rect.width/2}px`;
-      img.style.top=`${rect.top+rect.height*0.5}px`;
-      img.style.width=`${size}px`;
-      img.style.maxWidth='none';
-      img.style.height='auto';
-      img.style.transform='translate(-50%,-50%)';
+      host.style.left=`${rect.left+rect.width/2}px`;
+      host.style.top=`${rect.top+rect.height*0.5}px`;
+      host.style.width=`${size}px`;
+      host.style.maxWidth='none';
+      host.style.height=`${size*1080/1920}px`;
+      host.style.transform='translate(-50%,-50%)';
     }
-    img.src=webpUrl+(webpUrl.includes('?')?'&':'?')+'_r='+Math.random();
-    document.body.appendChild(img);
+    if(!rect||!rect.width||!rect.height){
+      // 旧画像の既定640px・上限70vwと16:9を保ち、空のdivでも有効な矩形を作る。
+      const size=Math.min(640,(window.innerWidth||1920)*.7);
+      host.style.width=`${size}px`;host.style.height=`${size*1080/1920}px`;
+    }
+    document.body.appendChild(host);
+    const playing=_playDefinedVfx(host,definition,1200);
     let done=false;
-    const finish=()=>{ if(done) return; done=true; img.remove(); resolve(); };
+    const finish=()=>{ if(done) return; done=true; playing.stop(); host.remove(); resolve(); };
     if(typeof onMidpoint==='function') setTimeout(()=>{ try{ onMidpoint(); }catch(_e){} },500);
-    // webpアニメーションは再生完了イベントを持たないため、固定尺で終える。
+    // 全尺1200ms・カード差し替え500msの合図は従来どおり。
     setTimeout(finish,1200);
   });
 }
 async function _playMapForgeSlotRoll(candidates,target,power){
   G._mapForgeAnimating=true;
-  // 候補マスの一斉発光も、対象マスの白い枠発光も廃止。対象位置はVFX（webp）だけで示す。
+  // 候補マスの一斉発光も、対象マスの白い枠発光も廃止。対象位置はVFXだけで示す。
   G._mapForgeCandidateSlots=null;
   G._mapForgeHighlightSlot=null;
   document.body?.classList.remove('map-forge-roll-hide-cards');

@@ -29,18 +29,18 @@ const OUT=process.env.VB_C019_SHOT||'/tmp/vesselbound-c019-check.png';
       [[r,'red'],[fr,'cyan']].forEach(([box,color])=>{ const cross=document.createElement('div');
         cross.style.cssText='position:fixed;z-index:999999;pointer-events:none;width:20px;height:20px;border:2px solid '+color+';border-radius:50%;transform:translate(-50%,-50%);left:'+(box.left+box.width/2)+'px;top:'+(box.top+box.height/2)+'px'; document.body.appendChild(cross); });
       window.__c019VisualPromise=playCurvedMissile({sourceElement:source,targetElement:target,
-        asset:'assets/vfx/C019_1.webp',scale:.0625,code:'C019',straight:true,flightMs:800,cleanupDelayMs:1200});
+        asset:getEffectVfxPath('C019'),scale:.0625,code:'C019',straight:true,flightMs:800,cleanupDelayMs:1200});
       window.__e058VisualPromise=playCurvedMissile({sourceElement:source,targetElement:fire,
-        asset:'assets/vfx/E058_1.webp',scale:.125,code:'E058',straight:true,flightMs:800,cleanupDelayMs:1200});
+        asset:getEffectVfxPath('E058'),scale:.125,code:'E058',straight:true,flightMs:800,cleanupDelayMs:1200});
       return {x:r.left+r.width/2,y:r.top+r.height/2,w:r.width,h:r.height,
         fire:{x:fr.left+fr.width/2,y:fr.top+fr.height/2,w:fr.width,h:fr.height}};
     `);
     await sleep(1050);
     const shot=await browser.screenshot(OUT);
     const probe=await browser.eval(`
-      const host=document.querySelector('img[src*="C019_1.webp"]')?.parentElement;
+      const host=document.querySelector('[data-vfx-definition="centaur-missile"]');
       const r=host&&host.getBoundingClientRect();
-      const fire=document.querySelector('img[src*="E058_1.webp"]')?.parentElement;
+      const fire=document.querySelector('[data-vfx-definition="fire-arrow"]');
       const f=fire&&fire.getBoundingClientRect();
       return r?{x:r.left+r.width/2,y:r.top+r.height/2,fire:f?{x:f.left+f.width/2,y:f.top+f.height/2}:null}:null;
     `);
@@ -49,7 +49,7 @@ const OUT=process.env.VB_C019_SHOT||'/tmp/vesselbound-c019-check.png';
     const distance=Math.hypot(probe.x-target.x,probe.y-target.y);
     if(distance>=target.w) throw new Error(`C019終点が離れすぎ: ${distance.toFixed(1)}px`);
     const expectedHostX=target.x;
-    if(Math.abs(probe.x-expectedHostX)>.75) throw new Error(`C019の素材内弾頭補正が不正: ${(probe.x-expectedHostX).toFixed(2)}px`);
+    if(Math.abs(probe.x-expectedHostX)>.75) throw new Error(`C019の定義の弾頭中心が不正: ${(probe.x-expectedHostX).toFixed(2)}px`);
     if(!probe.fire) throw new Error('炎の矢の比較DOMが取得できない');
     const fireDistance=Math.hypot(probe.fire.x-target.fire.x,probe.fire.y-target.fire.y);
     console.log(`OK C019終点 ${distance.toFixed(1)}px / E058終点 ${fireDistance.toFixed(1)}px: ${shot}`);

@@ -20,7 +20,65 @@ function boot(search = '') {
   }
   return env;
 }
+async function checkDefinitionPlacement() {
+  const env=boot(),ctx=env.context,$=id=>env.document.getElementById(id);
+  const center=r=>({x:r.left+r.width/2,y:r.top+r.height/2});
+  const near=(a,b,label)=>assert.ok(Math.abs(a-b)<.00001,label+' '+a+' / '+b);
+  const original=ctx.VbFx.play;let options;
+  ctx.VbFx.play=(name,opts)=>{options=opts;return original(name,opts);};
+  for(const side of ['ally','enemy'])for(const name of ['siren-wave','centaur-missile','fire-arrow','piercing-streak','tri-streak','board-summon','board-enchant']){
+    $('side').value=side;await env.drive(ctx.VbFxPreview.select(name));
+    const source=$('source-select').value,from=center($(source).getBoundingClientRect());
+    const duration=ctx.VbFx.duration(name,Number($('speed').value));
+    const pending=ctx.VbFxPreview.play();
+    assert.equal(options.followGeometry,true,name+' は入れ物を追従');
+    const targets=options.targets,host=options.source,target=center(targets[0]);
+    // RAFと検査用タイマーの同時刻を避け、50msの初回フレームを確実に実行する。
+    assert.ok(targets.length>0);await env.advance(51);
+    const start=center(host.getBoundingClientRect());
+    if(name==='siren-wave'){
+      assert.equal(targets.length,5,'拡大波は相手側全員を対象');
+      assert.ok(targets.every(r=>r.element.dataset.side!==side),'拡大波が自身へ命中しない');
+      assert.ok(options.impactTimesMs.every(ms=>ms>0&&ms<duration),'相手の距離で通過時刻を決める');
+    }else if(name==='tri-streak'){
+      assert.equal(targets.length,3,'三方向攻撃は前衛3体');
+      assert.ok(targets.every(r=>r.element.dataset.lane==='front'));
+      const left=Math.min(...targets.map(r=>r.left)),right=Math.max(...targets.map(r=>r.left+r.width));
+      const width=(right-left)*ctx.PRESENT_CONTACT_TRI_WIDTH;
+      near(host.offsetWidth,width,'三方向の入れ物の幅');
+      near(start.x,(left+right)/2+width*ctx.PRESENT_CONTACT_TRI_OFFSET_X,'三方向の入れ物の中心');
+    }else if(name.startsWith('board-')){
+      near(start.x,target.x,'盤面変更は対象の中心x');near(start.y,target.y,'盤面変更は対象の中心y');
+      near(host.offsetWidth,Math.max(targets[0].width,targets[0].height)*2.6,'盤面変更の幅');
+      near(host.offsetHeight/host.offsetWidth,1080/1920,'盤面変更は16:9');
+    }else if(name==='piercing-streak'){
+      const vx=target.x-from.x,vy=target.y-from.y,distance=Math.hypot(vx,vy);
+      const remaining=targets[0].height*ctx.PRESENT_CONTACT_PIERCE_START_OFFSET;
+      near(start.x,target.x-vx/distance*remaining,'貫通は対象手前から始めるx');
+      near(start.y,target.y-vy/distance*remaining,'貫通は対象手前から始めるy');
+      near(host.offsetWidth,targets[0].width*ctx.PRESENT_CONTACT_PIERCE_WIDTH,'貫通の幅');
+      const reach=Math.max(ctx.innerWidth,ctx.innerHeight)*ctx.PRESENT_CONTACT_PIERCE_OVERSHOOT;
+      const hit=options.impactTimesMs[0];
+      near(ctx.presentMissileEase(hit/duration)*reach,remaining,'命中の合図は対象中心を通る時刻');
+      await env.advance(150);
+      const at=center(host.getBoundingClientRect()),progress=ctx.presentMissileEase(150/duration);
+      near(at.x,start.x+vx/distance*reach*progress,'貫通の直線移動x');
+      near(at.y,start.y+vy/distance*reach*progress,'貫通の直線移動y');
+    }else{
+      near(start.x,from.x,'飛翔体は発生元中心から始めるx');near(start.y,from.y,'飛翔体は発生元中心から始めるy');
+      await env.advance(150);
+      const at=center(host.getBoundingClientRect());
+      assert.ok(Math.hypot(at.x-start.x,at.y-start.y)>10,'飛翔体の入れ物が対象へ移動');
+      assert.ok(host.style.transform.includes('rotate('),'飛翔体の尾が進行方向へ向く');
+    }
+    const report=await env.drive(pending);
+    assert.equal(report.result.cancelled,false);assert.equal(host.isConnected,false,'完了後に入れ物を消す');
+    assert.equal(report.impacts.length,targets.length,'全対象へ一度ずつ命中を通知');
+  }
+  console.log('新定義のLAB配置: 拡大波の相手全員・飛翔体の移動・貫通の開始/通過時刻/直線・前衛列の幅・盤面変更16:9（両陣営） OK');
+}
 async function main() {
+  if(process.argv.includes('--placement-only')){await checkDefinitionPlacement();return;}
   const env = boot(), ctx = env.context, $ = id => env.document.getElementById(id);
   assert.equal($('verification-result'), null, '通常URLでQA表示を作らない');
   assert.equal(ctx.VbFxLabCheck.busy(), false, '通常URLでQAを起動しない');
@@ -62,25 +120,27 @@ async function main() {
     + ' / 追加' + report.extras.length + ' / SE' + report.audioFiles + '（採用' + p.adoptedAudioFiles + '） OK');
   ctx.VbFxCards.show('cards'); ctx.VbFxCards.choose('C008');
   const card = ctx.VbFxCards.cards().find(c => c.no === 'C008');
-  assert.equal(card.vfx[Number($('card-current-choice').value)].path, 'assets/vfx/C008.webp', '固有演出を既定選択');
+  assert.equal(card.vfx[Number($('card-current-choice').value)].path, 'vfx:C008:arachne-ring', '固有定義を既定選択');
   env.imageDelay = 900;
   const began = env.now(); await env.drive(ctx.VbFxCards.playCurrent('C008'));
   const entry = ctx.VbFxCards.history().at(-1), media = card.vfx[ctx.VbFxCardCatalog.defaultVfxIndex(card)];
-  assert.equal(entry.completed, true, '読み込みが遅い素材も完了');
-  assert.ok(entry.startedAt - began >= 900, 'デコード前から終了タイマーを進めない');
+  assert.equal(entry.completed, true, '定義の一周の再生を完了');
+  assert.ok(entry.startedAt - began <= 100, 'コード描画は画像の900msデコード待ちに依存しない');
   assert.ok(entry.elapsedMs >= ctx.VbFxLabGeometry.visibleMs(media), '素材の表示時間は現在のゲームの尺を満たす');
-  assert.equal(entry.geometry.width, 260 * 2, 'C008の専用幅はカード幅×2');
-  assert.equal(entry.geometry.height, 395 * 2, 'C008の専用高さはカード高×2');
-  assert.equal(env.document.querySelector('.card-current-vfx'), null, '有限素材の後片付け');
-  ctx.VbFxCards.choose('K018'); // 結界の保持素材。
-  const stateCard = ctx.VbFxCards.cards().find(c => c.no === 'K018');
+  assert.equal(entry.geometry.width, 260 * .4 * Number($('size').value), 'C008の基準幅は画面のカード幅');
+  assert.equal(entry.geometry.height, 395 * .4 * Number($('size').value), 'C008の基準高さは画面のカード高');
+  ctx.VbFxCards.choose('C019'); await env.drive(ctx.VbFxCards.playCurrent('C019'));
+  assert.equal(ctx.VbFxCards.history().at(-1).completed, true, '有限の飛翔体定義を完了');
+  assert.equal(env.document.querySelector('.card-current-vfx'), null, '有限定義の後片付け');
+  ctx.VbFxCards.choose('C008'); // マナ効果の保持定義。
+  const stateCard = ctx.VbFxCards.cards().find(c => c.no === 'C008');
   const stateIndex = stateCard.vfx.findIndex(v => v.loop);
   assert.ok(stateIndex >= 0, '常時素材の経路がある'); $('card-current-choice').value = String(stateIndex);
-  await env.drive(ctx.VbFxCards.playCurrent('K018'));
+  await env.drive(ctx.VbFxCards.playCurrent('C008'));
   assert.ok(env.document.querySelector('.card-current-vfx'), '状態素材は3秒で消さず表示を保持');
   ctx.VbFxCards.stop(); assert.equal(env.document.querySelector('.card-current-vfx'), null, '明示停止で状態素材を消す');
   env.imageDelay = 1;
-  console.log('全カード再生: 固有既定、900msの読込待ち、ゲームの尺・寸法、状態の継続と停止 OK');
+  console.log('全カード再生: 固有定義の既定、画像待ちへの非依存、ゲームの尺・寸法、有限定義の後片付け・継続定義の停止 OK');
   for (const mode of ['rebuild','clone']) {
     const live = new Map();
     const make = (id,left,top) => {
@@ -107,6 +167,7 @@ async function main() {
     assert.equal(ctx.VbFx.activeCount(),0,'再描画後の後片付け');source.remove();next.remove();
   }
   console.log('本体のDOM再描画・攻撃クローンへの参照移動と一時スタイルの復元 OK');
+  await checkDefinitionPlacement();
   const explicit = boot('?verify=1');
   assert.equal(explicit.document.getElementById('verification-result'), null, '初期化完了までQA開始を待つ');
   explicit.document.readyState = 'complete'; explicit.document.dispatchEvent(new explicit.Event('DOMContentLoaded'));

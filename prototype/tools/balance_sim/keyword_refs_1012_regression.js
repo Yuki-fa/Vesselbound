@@ -35,7 +35,10 @@ const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
   assert.deepEqual(_enchantPreviewKeywords({name:'熟練3',desc:'',adjacentKeywords:['熟練3']}),['熟練3'],'同名の数値付きキーワードが表示から落ちる');
   for(const [name,scale] of [['毒牙',.5],['毒',.5],['衝撃',.4],['復活',.5]]){
     assert.equal(presentCharacterVfxScale(getKeywordAssetKey(name)),scale,name+'の倍率が変わった');
-    const vfx=getKeywordEffectVfxPath(name);if(vfx)assert.ok(fs.existsSync(path.join(ROOT,vfx)));
+    // 2026-10-13: webp をコード描画へ置き換えた後は「vfx:<素材キー>:<定義名>」で VFX 定義を指す。定義名なら定義の存在を、ファイルならファイルを確かめる。
+    const vfx=getKeywordEffectVfxPath(name);
+    if(vfx&&/^vfx:/.test(vfx))assert.ok(VbFx.effects.some(def=>def.name===vfx.split(':')[2]),name+'のVFX定義が無い: '+vfx);
+    else if(vfx)assert.ok(fs.existsSync(path.join(ROOT,vfx.split('?')[0])),name+'の素材が無い: '+vfx);
   }
   for(const [name,variant,fx,peak] of [['弱体',null,'weaken',.2],['邪眼',null,'atk-down',.44],['全体攻撃',null,'all-cross',.04],
     ['復活',null,'revive-summon',.9],['結界','gain','shield-gain',.22],['復活','gain','revive-gain',.24]]){
@@ -47,7 +50,10 @@ const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
   const walk=dir=>{for(const entry of fs.readdirSync(path.join(ROOT,dir),{withFileTypes:true})){
     const file=dir+'/'+entry.name;if(entry.isDirectory())walk(file);else if(file.endsWith('.js'))files.push(file);
   }};walk('js');files.push('assets.js');
-  for(const file of files.filter(f=>f!=='js/data/local_xlsx_data.js')){
+  // 2026-10-13: VFX定義データ（webp を置き換えたコード描画の定義）の K番号は、元素材の名前（素材キー）とその表示名。
+  // キーワードの意味を引く参照ではないので除外する（素材キーは present.js の KEYWORD_ASSET_KEYS が名前から引く）。
+  const assetKeyData=new Set(['js/vfx/defs/webp.js','js/vfx/defs/webp_geometry.js']);
+  for(const file of files.filter(f=>f!=='js/data/local_xlsx_data.js'&&!assetKeyData.has(f))){
     let source=read(file);
     if(file==='js/battle/present.js')source=source.replace(/const KEYWORD_ASSET_KEYS = Object.freeze\(\{[\s\S]*?\}\);/,'');
     if(file==='assets.js')source=source.replace(/const Assets = \{[\s\S]*?\n\};/,'');

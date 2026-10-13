@@ -159,7 +159,7 @@ var VbFxDefs = (function () {
       radius: n(.001, 8), flow: v(-8, 8), texture: e(textures), rim: n(0, 1),
       stops: { form: 'stops' }, gradientFrom: v(-32, 32), gradientTo: v(-32, 32),
       noise: n(0, 2), aspect: v(.001, 32), orbitSpeed: n(-100, 100), arc: r(-100, 100) },
-    shape: { shape: { form: 'shapeRef' }, radius: n(.0001, 32), aspect: v(.001, 32),
+    shape: { shape: { form: 'shapeRef' }, radius: n(.0001, 32), aspect: v(.001, 32), scaleX: n(.001, 32), scaleY: n(.001, 32),
       stroke: n(0, 4), progress: n(0, 1) },
     flash: { stops: { form: 'stops' },texture:e(textures), darkStops:{form:'stops'}, stopAlpha:{form:'stopAlpha'},
       gradient:e(['linear','radial']),gradientSpace:e(['unit','bounds']),gradientFrom:v(-32,32),gradientTo:v(-32,32),
@@ -265,15 +265,17 @@ var VbFxDefs = (function () {
     if (spec.time && spec.time[0] === spec.time[1]) fail(at, '層の寿命が0');
   }
   function effect(d, at) {
-    keys(d, ['name', 'label', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'tag', 'intro', 'layers', 'composites'], at,
+    keys(d, ['name', 'label', 'sourceCode', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'tag', 'intro', 'layers', 'composites'], at,
       ['name', 'label', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'layers']);
     id(d.name, at); label(d.label, at); number(d.ms, at, 1, 30000); color(d.color, at); color(d.light, at);
+    if (d.sourceCode != null && (typeof d.sourceCode !== 'string' || !/^(?:[CESK]\d{3}(?:_\d+)?|hit|appearance_sheet|board_change[12])$/.test(d.sourceCode))) fail(at + '.sourceCode', '元素材の番号が不正');
     enumeration(d.defaultTargets, ['explicit', 'opponents', 'allies', 'source'], at);
     ['loop', 'underStatus', 'stackable'].forEach(function (k) { if (typeof d[k] !== 'boolean') fail(at + '.' + k, '真偽値が必要'); });
     if (d.tag != null) enumeration(d.tag, tags, at + '.tag');
     if (d.intro) curve(d.intro, at + '.intro', false, false);
-    keys(d.playback, ['maxMs', 'speedMin', 'speedMax'], at + '.playback', ['maxMs', 'speedMin', 'speedMax']);
+    keys(d.playback, ['maxMs', 'speedMin', 'speedMax', 'baseSize'], at + '.playback', ['maxMs', 'speedMin', 'speedMax']);
     number(d.playback.maxMs, at, 1, 30000); number(d.playback.speedMin, at, .01, 100); number(d.playback.speedMax, at, d.playback.speedMin, 100);
+    if (d.playback.baseSize != null) number(d.playback.baseSize, at + '.playback.baseSize', .01, 32);
     var impact = d.impact;
     keys(impact, ['atMs', 'cueMs', 'targetMs', 'distance', 'addPlaybackMs'], at + '.impact', ['atMs', 'cueMs']);
     number(impact.atMs, at, 0, d.ms); number(impact.cueMs, at, 0, d.ms);

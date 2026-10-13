@@ -56,6 +56,51 @@ var VbFxRenderer = (function () {
     }
     return out;
   }
+  // 外側で動かす演出用の入れ物。旧カードの描画経路には適用しない。
+  function hostGeometry(el) {
+    var b = el.getBoundingClientRect(), a = 1, bb = 0, c = 0, d = 1, node = el, opacity = 1;
+    while (node && node.nodeType === 1 && node !== document.body) {
+      var style = getComputedStyle(node), ownOpacity = Number(style.opacity), ma = 1, mb = 0, mc = 0, md = 1;
+      if (Number.isFinite(ownOpacity)) opacity *= clamp(ownOpacity);
+      if (style.transform && style.transform !== 'none') {
+        var m = new DOMMatrixReadOnly(style.transform); ma = m.a; mb = m.b; mc = m.c; md = m.d;
+      }
+      // 個別のscale/rotateも、CSSの順序（rotate × scale × transform）で合成する。
+      if (style.scale && style.scale !== 'none') {
+        var parts = style.scale.trim().split(/\s+/), sx = parseFloat(parts[0]), sy = parts[1] == null ? sx : parseFloat(parts[1]);
+        if (parts[0].indexOf('%') >= 0) sx /= 100;
+        if (parts[1] && parts[1].indexOf('%') >= 0) sy /= 100;
+        if (Number.isFinite(sx) && Number.isFinite(sy)) { ma *= sx; mc *= sx; mb *= sy; md *= sy; }
+      }
+      var rotation = style.rotate && style.rotate.match(/^(?:z\s+)?([+-]?[\d.]+)(deg|rad|turn)$/);
+      if (rotation) {
+        var radians = Number(rotation[1]) * (rotation[2] === 'deg' ? Math.PI/180 : rotation[2] === 'turn' ? TAU : 1);
+        var cos = Math.cos(radians), sin = Math.sin(radians), ra = cos*ma-sin*mb, rb = sin*ma+cos*mb;
+        var rc = cos*mc-sin*md, rd = sin*mc+cos*md; ma = ra; mb = rb; mc = rc; md = rd;
+      }
+      var na = ma*a+mc*bb, nb = mb*a+md*bb, nc = ma*c+mc*d, nd = mb*c+md*d;
+      a = na; bb = nb; c = nc; d = nd; node = node.parentElement;
+    }
+    return { cx: b.left + b.width / 2, cy: b.top + b.height / 2,
+      w: (el.offsetWidth || b.width) * Math.hypot(a, bb),
+      h: (el.offsetHeight || b.height) * Math.hypot(c, d), angle: Math.atan2(bb, a), opacity: opacity };
+  }
+  // 部品がalphaを直接指定しても、外側のフェードを保つCanvasの共通アダプター。
+  // *=でも二重に掛けないよう、部品にはフェードを除いた値を返す。
+  function opacityContext(target) {
+    var state = { target: target, factor: 1 }, methods = new Map();
+    state.context = new Proxy(target, {
+      get: function (obj, key) {
+        if (key === 'globalAlpha') return state.factor ? obj.globalAlpha / state.factor : 0;
+        var value = Reflect.get(obj, key, obj);
+        if (typeof value !== 'function') return value;
+        if (!methods.has(key)) methods.set(key, value.bind(obj));
+        return methods.get(key);
+      },
+      set: function (obj, key, value) { return Reflect.set(obj, key, key === 'globalAlpha' ? value * state.factor : value, obj); }
+    });
+    return state;
+  }
   function box(rects) {
     if (!rects.length) return { left: width / 2 - 80, top: height / 2 - 100, width: 160, height: 200 };
     var l = Math.min.apply(null, rects.map(function (r) { return r.left; }));
@@ -209,7 +254,7 @@ var VbFxRenderer = (function () {
       if (job.done) return;
       var rebound;
       try { rebound = rebindElements(job); } catch (e) { finish(job, false, e); return; }
-      if (job.def.loop && (!job.source.element || !job.source.element.isConnected)) { finish(job, true); return; }
+      if ((job.def.loop || job.options.followGeometry) && (!job.source.element || !job.source.element.isConnected)) { finish(job, true); return; }
       if (job.start == null) {
         job.start = now;
         clearTimeout(job.watchdog);
@@ -222,6 +267,7 @@ var VbFxRenderer = (function () {
         if (job.cycle >= 1 && !job.firstCycleResolved) { job.firstCycleResolved = true; clearTimeout(job.watchdog);
           job.resolve({ name: job.def.name, cancelled: false, impacts: 0, assetErrors: job.assetErrors.slice(), looping: true }); }
       }
+      if (job.options.repeat) t -= Math.floor(t);
       frameContext.save();
       // 再生中に画面がスクロールしても、カードに付いていく（2026-10-06 利用者指摘：検査画面をスクロールするとずれる）。
       // 発生元のカードが開始時から動いた分だけ、描画全体をずらす。
@@ -239,13 +285,24 @@ var VbFxRenderer = (function () {
       frameContext.translate(curShift.x, curShift.y);
       // 状態のループは、カードの今の位置・大きさ・**傾き**に毎フレーム合わせる（攻撃の動きで傾く。2026-10-07 利用者指摘）。
       // 傾きのない矩形（中心0,0）で描き、描画全体をカードの中心へ移して回す。
-      var drawCtx = frameContext, geo = job.def.loop && job.targets[0] && job.targets[0].element && job.targets[0].element.isConnected
+      var drawCtx = frameContext, geo = job.def.loop && !job.options.followGeometry && job.targets[0] && job.targets[0].element && job.targets[0].element.isConnected
         ? cardGeometry(job.targets[0].element) : null;
       // カードが隠れている（表示されず大きさ0）時は描かない。大きさ0の矩形は画面左上(0,0)に出てしまう（2026-10-07 利用者指摘）。
-      if (job.def.loop && job.targets[0] && job.targets[0].element && (!geo || !geo.shown)) { frameContext.restore(); return; }
+      if (job.def.loop && !job.options.followGeometry && job.targets[0] && job.targets[0].element && (!geo || !geo.shown)) { frameContext.restore(); return; }
       if (geo) {
         job.targets[0].left = -geo.w / 2; job.targets[0].top = -geo.h / 2; job.targets[0].width = geo.w; job.targets[0].height = geo.h;
         job.targets[0].right = geo.w / 2; job.targets[0].bottom = geo.h / 2;
+      }
+      // 単発/継続VFXの入れ物へ追従する共通の姿勢。旧50種はこのオプションを使わない。
+      // 軌道・拡大・回転を受け口が決め、図形は同じ部品で描く（効果名の分岐は無い）。
+      var followAlpha = 1;
+      if (job.options.followGeometry && anchor && anchor.isConnected) {
+        var pose = hostGeometry(anchor), origin = point(job.source);
+        frameContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        frameContext.translate(pose.cx, pose.cy); frameContext.rotate(pose.angle);
+        frameContext.scale(pose.w / job.source.width, pose.h / job.source.height);
+        frameContext.translate(-origin.x, -origin.y);
+        if (job.options.followOpacity) { followAlpha = pose.opacity; frameContext.globalAlpha *= followAlpha; }
       }
       if (job.local) {
         // カードの中に描く状態（毒）は、カードの子要素のcanvasなので傾き・移動はDOMが受け持つ。カードの座標（傾きなし）で描く。
@@ -261,11 +318,16 @@ var VbFxRenderer = (function () {
       }
       try {
         ctx = drawCtx;
+        if (job.options.followGeometry && job.options.followOpacity) {
+          if (drawCtx !== frameContext) drawCtx.globalAlpha *= followAlpha;
+          if (!job.opacityContext || job.opacityContext.target !== drawCtx) job.opacityContext = opacityContext(drawCtx);
+          job.opacityContext.factor = followAlpha; ctx = job.opacityContext.context;
+        }
         if (job.trail) {
           var tc = job.trailCtx, dt = job.lastFrame == null ? 16.67 : Math.min(80, now - job.lastFrame);
           tc.save(); tc.globalCompositeOperation = 'destination-out'; tc.globalAlpha = 1 - Math.exp(-dt / 65);
           tc.fillStyle = '#000'; tc.fillRect(0, 0, width, height); tc.restore();
-          frameContext.save(); frameContext.globalCompositeOperation = 'lighter'; frameContext.globalAlpha = .46;
+          frameContext.save(); frameContext.globalCompositeOperation = 'lighter'; frameContext.globalAlpha = .46 * followAlpha;
           frameContext.drawImage(job.trail, 0, 0, width, height); frameContext.restore();
         }
         job.lastFrame = now; draw(job, t); updateHits(job, t);
@@ -999,7 +1061,12 @@ var VbFxRenderer = (function () {
     var rotation = value(f, 'rotation', 0) * f.job.dir;
     if(s.align==='trajectory')rotation+=f.angle||0;
     if (s.align === 'tangent') rotation += f.copy / f.copies * TAU + Math.PI / 2;
-    drawPath(s.shape, p, value(f, 'radius', .3) * f.unit, tint(f), s.light || f.job.def.light, s.shadow || '#304050', rotation, s.aspect, alpha(f), value(f, 'stroke', 0) * f.unit,s.variant==null?f.copy:s.variant);
+    // 軸ごとの倍率は形状のローカル座標へ適用。未指定の旧定義には従来のaspectをそのまま渡す。
+    var aspect = s.aspect;
+    if (hasParameter(s, 'scaleX') || hasParameter(s, 'scaleY') || s.modulation && (s.modulation.scaleX || s.modulation.scaleY)) {
+      aspect = [(aspect ? aspect[0] : 1) * value(f, 'scaleX', 1), (aspect ? aspect[1] : 1) * value(f, 'scaleY', 1)];
+    }
+    drawPath(s.shape, p, value(f, 'radius', .3) * f.unit, tint(f), s.light || f.job.def.light, s.shadow || '#304050', rotation, aspect, alpha(f), value(f, 'stroke', 0) * f.unit,s.variant==null?f.copy:s.variant);
   }
   function drawFlash(f) {
     if(alpha(f)<=0)return;
@@ -1235,11 +1302,19 @@ var VbFxRenderer = (function () {
       var def = lookup[name], job;
       try {
         if (!def) throw new Error('VbFx: 未知の演出 ' + name);
-        options = options || {}; ensureLayer();
+        options = options || {};
+        if (options.durationMs != null && (!Number.isFinite(options.durationMs) || options.durationMs <= 0 || options.durationMs > 30000)) throw new TypeError('VbFx: durationMs は0超〜30000msの有限数');
+        ensureLayer();
+        if (options.repeat) def = Object.assign({}, def, { loop: true });
         var allies = (options.allies || []).filter(Boolean).map(normalize), enemies = (options.enemies || []).filter(Boolean).map(normalize);
         var targets = (options.targets || []).filter(Boolean).map(normalize), side = options.side === 'enemy' ? 'enemy' : 'ally';
         var source = normalize(options.source) || targets[0] || (side === 'ally' ? allies[0] : enemies[0]);
         if (!source) source = { left: width / 2 - 40, top: side === 'ally' ? height * .8 : height * .2, width: 80, height: 120 };
+        if (options.followGeometry && source.element) {
+          var pose = hostGeometry(source.element);
+          source = Object.assign({}, source, { left: pose.cx - pose.w / 2, top: pose.cy - pose.h / 2,
+            width: pose.w, height: pose.h, right: pose.cx + pose.w / 2, bottom: pose.cy + pose.h / 2 });
+        }
         if(!targets.length){
           if(def.defaultTargets==='opponents')targets=(side==='ally'?enemies:allies).slice();
           else if(def.defaultTargets==='allies')targets=(side==='ally'?allies:enemies).slice();
@@ -1253,6 +1328,8 @@ var VbFxRenderer = (function () {
           if (def.stackable && options && options.value != null) sameState.value = Math.max(1, Number(options.value) || 1);
           resolve({ name: def.name, cancelled: false, impacts: 0, assetErrors: [], looping: true, skipped: true, updated: !!def.stackable }); return;
         }
+        if (options.impactTimesMs != null && (!Array.isArray(options.impactTimesMs) || options.impactTimesMs.length !== targets.length
+          || options.impactTimesMs.some(function (ms) { return !Number.isFinite(ms) || ms < 0; }))) throw new TypeError('VbFx: impactTimesMs は対象数ぶんの0以上の有限数');
         var from = point(source), opposing = side === 'ally' ? enemies : allies, dest = point(box(opposing.length ? opposing : targets));
         var angle = Math.atan2(dest.y - from.y, dest.x - from.x);
         if (Math.hypot(dest.x - from.x, dest.y - from.y) < 1) angle = side === 'ally' ? -Math.PI / 2 : Math.PI / 2;
@@ -1267,9 +1344,9 @@ var VbFxRenderer = (function () {
         var speed = clamp(Number(options.speed) || settings.speed, def.playback.speedMin, def.playback.speedMax);
         job = { id: ++sequence, def: def, options: options, source: source, targets: targets, allies: allies, enemies: enemies,
           from: from, angle: angle, spread: Math.min(Math.PI * .98, spread), reach: reach, start: null,
-          ms: duration(name, speed),
+          ms: options.durationMs == null ? duration(name, speed) : options.durationMs,
           seed: Number.isFinite(options.seed) ? options.seed : Number.isFinite(settings.seed) ? settings.seed : sequence,
-          unit: source.width * (Number(options.size) || settings.size), size: Number(options.size) || settings.size,
+          unit: source.width * (Number(options.size) || def.playback.baseSize || settings.size), size: Number(options.size) || def.playback.baseSize || settings.size,
           particles: clamp(settings.particles, .2, 2), hit: new Set(), hitAt: [], styles: [], nodes: [], sprites: {}, assetErrors: [],
           baseTransforms: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).transform; return v && v !== 'none' ? v : ''; }),
           baseFilters: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).filter; return v && v !== 'none' ? v : ''; }),
@@ -1322,6 +1399,7 @@ var VbFxRenderer = (function () {
   // 演出の中で「当たる」瞬間（全尺に対する割合）。SEの一番大きい所をここへ合わせる（2026-10-05 利用者指定）。
   function impactMs(name,speed){var d=lookup[name];return d?duration(name,speed)*d.impact.cueMs/d.ms:0;}
   function impactAt(def,job,r,index){
+    if (job.options.impactTimesMs) return Math.min(1,job.options.impactTimesMs[index]/job.ms);
     var spec=def.impact,at=spec.atMs/def.ms;
     if(spec.distance){var p=point(r),range=spec.distance.range==='ray'?rayReach(job,Math.atan2(p.y-job.from.y,p.x-job.from.x)):job.reach;
       at=VbFxCurves.inverse(spec.distance.curve,clamp(Math.hypot(p.x-job.from.x,p.y-job.from.y)/Math.max(1,range)),spec.distance.inverseIterations);}
