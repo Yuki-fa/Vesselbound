@@ -10,16 +10,19 @@ const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
 const names=read('tools/vfx_capture/new_targets_1012.txt').trim().split(/\r?\n/);
 async function baselineChecks(){
   const cache=new Map(),sourceLoader=file=>{if(!cache.has(file))cache.set(file,execFileSync('git',['show',BASELINE+':prototype/'+file],{cwd:ROOT,encoding:'utf8',maxBuffer:4e6}));return cache.get(file);};
-  for(const file of ['js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js','js/vfx/defs/webp.js'])assert.equal(read(file),sourceLoader(file),'既存の全定義を保持: '+file);
+  // webp.js（置換32種）は2026-10-14から品質向上で作り直しているので、不変の確認は元の50種と図形だけにする。
+  for(const file of ['js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js'])assert.equal(read(file),sourceLoader(file),'既存の全定義を保持: '+file);
   const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js']}),after=harness(false);
   assert.equal(before.fx.effects.length,82);
-  for(const d of before.fx.effects)for(const speed of [1.5,3,4.5]){
+  // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
+  const original=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));assert.equal(original.size,50);
+  for(const d of before.fx.effects.filter(d=>original.has(d.name)))for(const speed of [1.5,3,4.5]){
     const pending=[];for(const h of [before,after])pending.push(h.fx.play(d.name,{source:h.fx.rect(h.source),targets:[h.fx.rect(h.target),h.fx.rect(h.target2)],allies:[h.fx.rect(h.source)],enemies:[h.fx.rect(h.target),h.fx.rect(h.target2)],board:h.body,speed,seed:53,dir:1,value:3}));
     const ms=before.fx.duration(d.name,speed);assert.equal(after.fx.duration(d.name,speed),ms);
     for(let i=0;i<8;i++)assert.deepEqual(after.step(ms*i/8),before.step(ms*i/8),d.name+' speed='+speed+' frame='+i+'の描画命令');
     before.fx.stopAll();after.fx.stopAll();await Promise.all(pending);
   }
-  console.log('OK 作業前82種: 定義4ファイル完全一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）');
+  console.log('OK 元の50種: 定義3ファイル完全一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）');
 }
 async function newDataChecks(){
   const {bundle,jsonBytes}=validatedBundle(),data=literalDefinition(read('js/vfx/defs/characters_1012.js'),'characters_1012');
