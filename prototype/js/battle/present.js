@@ -1786,6 +1786,8 @@ const PRESENT_LAB_FX = {
   C078:['pixie',.9,'pair'], C080:['elemental',.74,'self'], C081:['imp',.9,'others'],
   C092:['wendigo',.9,'foes'], C096:['nightmare',.9,'self'], C098:['baron',.9,'self'],
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
+  // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
+  C008:['arachne-ring',.38,'friends'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
@@ -1797,7 +1799,7 @@ const PRESENT_LAB_FX = {
   C099:['fiend',0.833771,'foe'],C029:['phantom',0.262229,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
   C082:['arch-demon',0.48,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
   C097:['overlord',0.48,'self'],C009:['minotaur',0.122354,'reaction'],C042:['sleep-sheep',0.433979,'self'],
-  C056:['scylla',1.516979,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.48,'friend'],
+  C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.48,'friend'],
   C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.672208,'retrigger'],
 };
 const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
@@ -1820,7 +1822,10 @@ function presentLab1012EventMatches(code,ev){
 }
 const PRESENT_LAB_SPEED = 1.5;
 // 2026-10-12: 怒りの閃光と照準の尺。間の結界獲得は既存の尺を保つ。
-const PRESENT_LAB_REACTION_FLASH_MS=240;
+// 2026-10-15 利用者指摘「ミノタウロスは激怒を感じさせるオーラに」：怒りの閃光をオーラにして見える時間を延ばす（240→560ms）。
+// 定義（minotaur）のオーラは全尺の0〜PRESENT_LAB_REACTION_AURA_END。その区間だけを FLASH_MS で見せ、終わったら次（結界獲得）へ進む。
+const PRESENT_LAB_REACTION_FLASH_MS=560;
+const PRESENT_LAB_REACTION_AURA_END=.4;
 const PRESENT_LAB_REACTION_AIM_MS=300;
 // 効果ごとの速さの倍率（PRESENT_LAB_SPEED に掛ける）。戦闘中の召喚は2.5倍（2026-10-08 利用者指定）。
 const PRESENT_LAB_SPEED_BY_CODE = { S001:2.5 };
@@ -1871,7 +1876,7 @@ function presentCharacterHitVfxMs(code) {
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
   C002: .533, C008: .380, C009: .122, C011: .195, C017: .403, C019: .272, C019_HIT: .351, C043: 1.456,
-  C090: .130, S005: .511, S006: .563,
+  C090: .130, S005: .511, S006: .563, S007: .397, S009: .515,
   [getKeywordAssetKey('毒牙')]: .552, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: .384,
 };
 function presentSfxPeakSec(key) {

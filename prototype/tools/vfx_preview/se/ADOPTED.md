@@ -71,8 +71,10 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C097 | overlord | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav | 1.950000秒 | 0.480000 |
 | C009 | minotaur | Adobe/火・炎・爆発/Fire Flare Start Up Ignite 01.wav | 1.950000秒 | 0.122354 |
 | C042 | sleep-sheep | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav | 1.950000秒 | 0.433979 |
-| C056 | scylla | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-01.wav | 1.950000秒 | 1.516979 |
+| C056 | scylla | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav | 1.950000秒 | 0.450000 |
 | C066 | undine | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav | 1.950000秒 | 0.169250 |
 | C079 | spriggan | Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav | 1.950000秒 | 0.480000 |
 | C084 | incubus | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav | 1.950000秒 | 0.270292 |
 | C094 | chaos-imp | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-02.wav | 1.950000秒 | 0.672208 |
+
+2026-10-15：C056（スキュラ）は「SEが急に止まる」との指摘で候補を作り直し、新しい候補1を仮に配置（末尾400msのcos²フェード）。

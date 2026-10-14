@@ -53,7 +53,7 @@ var VbFxPreviewCatalog = {
   // 第2段：元の番号を保ったコード描画。
   "hit-burst": {"source": "C041", "mode": "foe", "sourceCode": "hit", "note": "砂金色の短い火花と薄い煙。白い面でカードを覆わず、細い筋と小さな核で衝突を示す。", "notice": "第2段 · 元の番号 hit · 基準尺 800ms。画像は方向性の参考。"},
   "attack-recoil": {"source": "C002", "mode": "self", "sourceCode": "C002", "note": "赤橙の外周リング、琥珀の軌道光、薄い霞。赤い反撃の環をカードの周りに残す。", "notice": "第2段 · 元の番号 C002 · 基準尺 700ms。画像は方向性の参考。"},
-  "arachne-ring": {"source": "C008", "mode": "self", "sourceCode": "C008", "note": "橙色の大きな輪と象牙色の破片。元の回転する外周を細い二重のリングと少数の欠片で表す。", "notice": "第2段 · 元の番号 C008 · 基準尺 700ms。画像は方向性の参考。"},
+  "arachne-ring": {"source": "C008", "mode": "friends", "sourceCode": "C008", "note": "2026-10-15作り直し：アラクネに熱が集まり、橙の熱波が味方全体へ広がる。届いた瞬間に強化（金の炎）とダメージ（火の弾け）を同時に出す。", "notice": "第2段 · 元の番号 C008 · 旧素材は踏襲しない（利用者指定）。"},
   "siren-wave": {"source": "C011", "mode": "foes", "sourceCode": "C011", "note": "淡い金の細い波紋と浮遊光。発生元から拡大し、波の縁がカードへ届く順に命中する。", "notice": "第2段 · 元の番号 C011 · 基準尺 800ms。画像は方向性の参考。", "motion": "expand"},
   "medusa-gaze": {"source": "C017", "mode": "foe", "sourceCode": "C017", "note": "白金の短い稲光と桃色の欠片。前半の一閃を強くし、後半には霞だけを残す。", "notice": "第2段 · 元の番号 C017 · 基準尺 800ms。画像は方向性の参考。"},
   "centaur-missile": {"source": "C019", "mode": "foe", "sourceCode": "C019_1", "note": "緑の先端に橙の二筋の尾。先端を中心へ合わせ、既存と同じ加速・曲線・上向きの姿勢で飛ぶ。", "notice": "第2段 · 元の番号 C019_1 · 基準尺 448ms。画像は方向性の参考。", "motion": "projectile", "impactOffsetY": 0},

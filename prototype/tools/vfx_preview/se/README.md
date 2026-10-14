@@ -71,6 +71,24 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | incubus | [MELEE - DESIGNED - BLOOD Squish 02-01.wav](#incubus-1) · 1.950秒 / peak 0.270292 | [MELEE - DESIGNED - BLOOD Squish 02-02.wav](#incubus-2) · 1.950秒 / peak 0.713125 | [Horror Scary Flesh Hits Wet Bloody Ground 01.wav](#incubus-3) · 0.445秒 / peak 0.001271 |
 | chaos-imp | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-02.wav](#chaos-imp-1) · 1.950秒 / peak 0.672208 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav](#chaos-imp-2) · 1.950秒 / peak 0.923583 | [SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-01.wav](#chaos-imp-3) · 1.470秒 / peak 0.210229 |
 <!-- VFX21_ROWS_END -->
+<!-- SE1015_ROWS_BEGIN -->
+| flame-sweep | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav](#flame-sweep-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Beam-01.wav](#flame-sweep-2) · 1.950秒 / peak 0.450 | [LARGE BLOWTORCH - Whoosh - Level 4, Slow, Flamethrower, Fire crackle, Jet, Spray, x15.wav](#flame-sweep-3) · 1.950秒 / peak 0.450 |
+| mana-cue | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium 04-01.wav](#mana-cue-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-02.wav](#mana-cue-2) · 1.950秒 / peak 0.516 | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-01.wav](#mana-cue-3) · 1.950秒 / peak 0.450 |
+| attack-recoil | [HERO - DESIGNED - SHIELD Metal Hit Heavy-01.wav](#attack-recoil-1) · 1.002秒 / peak 0.334 | [SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav](#attack-recoil-2) · 1.931秒 / peak 0.309 | [HERO - DESIGNED - ARMOR Metal Hit Heavy-01.wav](#attack-recoil-3) · 0.872秒 / peak 0.185 |
+| injury-buff | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-01.wav](#injury-buff-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Summon 01-01.wav](#injury-buff-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Cast Medium-02.wav](#injury-buff-3) · 1.950秒 / peak 0.450 |
+| attack-buff | [SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-01.wav](#attack-buff-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-02.wav](#attack-buff-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium 02-01.wav](#attack-buff-3) · 1.386秒 / peak 0.450 |
+| siren-wave | [Sonar.wav](#siren-wave-1) · 1.950秒 / peak 0.450 | [Laser Waves.wav](#siren-wave-2) · 1.950秒 / peak 0.105 | [Alien Resonance.wav](#siren-wave-3) · 1.950秒 / peak 0.450 |
+| medusa-gaze | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large Fury-02.wav](#medusa-gaze-1) · 1.950秒 / peak 0.240 | [SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav](#medusa-gaze-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav](#medusa-gaze-3) · 1.682秒 / peak 0.450 |
+| steal-mark | [SORCERY - DESIGNED - MAGIC WHITE Pad Angelic-01.wav](#steal-mark-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC BLACK Summon Medium 01-01.wav](#steal-mark-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-01.wav](#steal-mark-3) · 1.950秒 / peak 0.450 |
+| fang-poison | [SORCERY - DESIGNED - MAGIC ACID Cast Large 01-01.wav](#fang-poison-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-01.wav](#fang-poison-2) · 1.950秒 / peak 0.450 | [Liquid Water Bubble Surfacing And Popping Multiple 01.wav](#fang-poison-3) · 0.663秒 / peak 0.092 |
+| poison-tick | [SORCERY - DESIGNED - MAGIC ACID Hit-01.wav](#poison-tick-1) · 1.950秒 / peak 0.484 | [SORCERY - DESIGNED - MAGIC ACID Hit-02.wav](#poison-tick-2) · 1.950秒 / peak 0.300 | [SORCERY - DESIGNED - MAGIC ACID Cast Small-04.wav](#poison-tick-3) · 1.950秒 / peak 0.450 |
+| centaur-missile | [HERO - DESIGNED - ARROW Fire By 01-01.wav](#centaur-missile-1) · 1.465秒 / peak 0.317 | [HERO - DESIGNED - BOW Wood Release-01.wav](#centaur-missile-2) · 0.464秒 / peak 0.130 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav](#centaur-missile-3) · 1.739秒 / peak 0.450 |
+| centaur-impact | [SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav](#centaur-impact-1) · 1.360秒 / peak 0.367 | [SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 02-02.wav](#centaur-impact-2) · 1.950秒 / peak 0.138 | [SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav](#centaur-impact-3) · 1.168秒 / peak 0.197 |
+| death-buff | [SORCERY - DESIGNED - MAGIC BLACK Summon Large 01-01.wav](#death-buff-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-01.wav](#death-buff-2) · 1.493秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-02.wav](#death-buff-3) · 1.950秒 / peak 0.450 |
+| aura-buff | [SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-02.wav](#aura-buff-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-03.wav](#aura-buff-2) · 1.950秒 / peak 0.475 | [SORCERY - DESIGNED - MAGIC WATER Cast Medium-02.wav](#aura-buff-3) · 1.950秒 / peak 0.450 |
+| arachne-ring | [SORCERY - DESIGNED - MAGIC FIRE Cast Large-01.wav](#arachne-ring-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Summon 02-01.wav](#arachne-ring-2) · 1.950秒 / peak 0.450 | [Explosion Fireball Blast Fire 01.wav](#arachne-ring-3) · 1.950秒 / peak 0.171 |
+| scylla | [SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav](#scylla-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Hit-03.wav](#scylla-2) · 1.950秒 / peak 0.539 | [SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-03.wav](#scylla-3) · 1.950秒 / peak 0.450 |
+<!-- SE1015_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
 
@@ -988,3 +1006,343 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 - 理由: 歪んだ稲妻と開戦効果の再点火。候補3は余韻の違いを比較
 - 原音 1.470000秒 / 開始 0.000000秒 / 出力 1.470000秒 / peak 0.210229秒
 - 48kHz・16bit PCM、頭の無音を詰め、末尾30msフェード、ピーク約-1dBFS。聴感未確認。
+
+## 2026-10-15追加の原音と加工
+
+作り直したVFX（第2段の置換分・アラクネ）とスキュラの候補。ゲームの採用SE（assets/sfx）は、スキュラの仮（候補1）以外は変えていない。聴感未確認。
+
+<a id="flame-sweep-1"></a>
+### flame-sweep-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav`
+- 理由: 薙ぎ払う炎の帯：鞭のような火炎・火炎放射の持続音・バーナーの噴射
+- 原音 4.100秒 / 開始 0.376秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="flame-sweep-2"></a>
+### flame-sweep-2 / SORCERY - DESIGNED - MAGIC FIRE Beam-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Beam-01.wav`
+- 理由: 薙ぎ払う炎の帯：鞭のような火炎・火炎放射の持続音・バーナーの噴射
+- 原音 9.980秒 / 開始 3.073秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="flame-sweep-3"></a>
+### flame-sweep-3 / LARGE BLOWTORCH - Whoosh - Level 4, Slow, Flamethrower, Fire crackle, Jet, Spray, x15.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/A Sound Effect - Collected Transients Free SFX/Collected Transients - Combustion/LARGE BLOWTORCH - Whoosh - Level 4, Slow, Flamethrower, Fire crackle, Jet, Spray, x15.wav`
+- 理由: 薙ぎ払う炎の帯：鞭のような火炎・火炎放射の持続音・バーナーの噴射
+- 原音 30.938秒 / 開始 18.043秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="mana-cue-1"></a>
+### mana-cue-1 / SORCERY - DESIGNED - MAGIC WHITE Cast Medium 04-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 04-01.wav`
+- 理由: 小さな魔法陣が開いて弾ける：澄んだ詠唱の発光
+- 原音 6.310秒 / 開始 1.617秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="mana-cue-2"></a>
+### mana-cue-2 / SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-02.wav`
+- 理由: 小さな魔法陣が開いて弾ける：澄んだ詠唱の発光
+- 原音 3.770秒 / 開始 0.020秒 / 出力 1.950秒 / peak 0.516秒 / 末尾フェード 400ms
+
+<a id="mana-cue-3"></a>
+### mana-cue-3 / SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-01.wav`
+- 理由: 小さな魔法陣が開いて弾ける：澄んだ詠唱の発光
+- 原音 7.480秒 / 開始 1.716秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="attack-recoil-1"></a>
+### attack-recoil-1 / HERO - DESIGNED - SHIELD Metal Hit Heavy-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - SHIELD Metal Hit Heavy-01.wav`
+- 理由: 打撃を受け止める：盾・鎧の重い衝撃と赤い魔力の弾き
+- 原音 1.020秒 / 開始 0.018秒 / 出力 1.002秒 / peak 0.334秒 / 末尾フェード 30ms
+
+<a id="attack-recoil-2"></a>
+### attack-recoil-2 / SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav`
+- 理由: 打撃を受け止める：盾・鎧の重い衝撃と赤い魔力の弾き
+- 原音 1.940秒 / 開始 0.009秒 / 出力 1.931秒 / peak 0.309秒 / 末尾フェード 30ms
+
+<a id="attack-recoil-3"></a>
+### attack-recoil-3 / HERO - DESIGNED - ARMOR Metal Hit Heavy-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - ARMOR Metal Hit Heavy-01.wav`
+- 理由: 打撃を受け止める：盾・鎧の重い衝撃と赤い魔力の弾き
+- 原音 0.920秒 / 開始 0.048秒 / 出力 0.872秒 / peak 0.185秒 / 末尾フェード 30ms
+
+<a id="injury-buff-1"></a>
+### injury-buff-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-01.wav`
+- 理由: 炎が内へ締まって熱い核になる
+- 原音 4.260秒 / 開始 1.434秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="injury-buff-2"></a>
+### injury-buff-2 / SORCERY - DESIGNED - MAGIC FIRE Summon 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Summon 01-01.wav`
+- 理由: 炎が内へ締まって熱い核になる
+- 原音 14.300秒 / 開始 9.040秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="injury-buff-3"></a>
+### injury-buff-3 / SORCERY - DESIGNED - MAGIC FIRE Cast Medium-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Medium-02.wav`
+- 理由: 炎が内へ締まって熱い核になる
+- 原音 3.550秒 / 開始 0.407秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="attack-buff-1"></a>
+### attack-buff-1 / SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-01.wav`
+- 理由: 金の光芒が開く：明るい詠唱の発光
+- 原音 5.590秒 / 開始 2.073秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="attack-buff-2"></a>
+### attack-buff-2 / SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-02.wav`
+- 理由: 金の光芒が開く：明るい詠唱の発光
+- 原音 5.460秒 / 開始 0.908秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="attack-buff-3"></a>
+### attack-buff-3 / SORCERY - DESIGNED - MAGIC WHITE Cast Medium 02-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 02-01.wav`
+- 理由: 金の光芒が開く：明るい詠唱の発光
+- 原音 2.590秒 / 開始 1.204秒 / 出力 1.386秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="siren-wave-1"></a>
+### siren-wave-1 / Sonar.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/User Interface/Sonar.wav`
+- 理由: 広がる超音波：ソナー・波打つ電子音・共鳴音
+- 原音 12.000秒 / 開始 8.973秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="siren-wave-2"></a>
+### siren-wave-2 / Laser Waves.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/SFX/Various SFX/Laser Waves.wav`
+- 理由: 広がる超音波：ソナー・波打つ電子音・共鳴音
+- 原音 2.800秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.105秒 / 末尾フェード 400ms
+
+<a id="siren-wave-3"></a>
+### siren-wave-3 / Alien Resonance.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Textures and Drones/Alien Resonance.wav`
+- 理由: 広がる超音波：ソナー・波打つ電子音・共鳴音
+- 原音 14.915秒 / 開始 5.736秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="medusa-gaze-1"></a>
+### medusa-gaze-1 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large Fury-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large Fury-02.wav`
+- 理由: 魔眼の放電と石化のひび割れ
+- 原音 10.730秒 / 開始 0.014秒 / 出力 1.950秒 / peak 0.240秒 / 末尾フェード 400ms
+
+<a id="medusa-gaze-2"></a>
+### medusa-gaze-2 / SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav`
+- 理由: 魔眼の放電と石化のひび割れ
+- 原音 9.430秒 / 開始 5.564秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="medusa-gaze-3"></a>
+### medusa-gaze-3 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav`
+- 理由: 魔眼の放電と石化のひび割れ
+- 原音 3.010秒 / 開始 1.328秒 / 出力 1.682秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="steal-mark-1"></a>
+### steal-mark-1 / SORCERY - DESIGNED - MAGIC WHITE Pad Angelic-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Pad Angelic-01.wav`
+- 理由: 魅了の渦：甘い響き・妖しい召喚・神秘的な風
+- 原音 32.900秒 / 開始 15.766秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="steal-mark-2"></a>
+### steal-mark-2 / SORCERY - DESIGNED - MAGIC BLACK Summon Medium 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Medium 01-01.wav`
+- 理由: 魅了の渦：甘い響き・妖しい召喚・神秘的な風
+- 原音 32.220秒 / 開始 26.683秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="steal-mark-3"></a>
+### steal-mark-3 / SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-01.wav`
+- 理由: 魅了の渦：甘い響き・妖しい召喚・神秘的な風
+- 原音 10.020秒 / 開始 3.552秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="fang-poison-1"></a>
+### fang-poison-1 / SORCERY - DESIGNED - MAGIC ACID Cast Large 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-01.wav`
+- 理由: 毒の付与：酸の詠唱・泡立つ毒
+- 原音 3.430秒 / 開始 0.217秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="fang-poison-2"></a>
+### fang-poison-2 / SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-01.wav`
+- 理由: 毒の付与：酸の詠唱・泡立つ毒
+- 原音 5.340秒 / 開始 2.488秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="fang-poison-3"></a>
+### fang-poison-3 / Liquid Water Bubble Surfacing And Popping Multiple 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/液体・水/Liquid Water Bubble Surfacing And Popping Multiple 01.wav`
+- 理由: 毒の付与：酸の詠唱・泡立つ毒
+- 原音 0.676秒 / 開始 0.013秒 / 出力 0.663秒 / peak 0.092秒 / 末尾フェード 30ms
+
+<a id="poison-tick-1"></a>
+### poison-tick-1 / SORCERY - DESIGNED - MAGIC ACID Hit-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Hit-01.wav`
+- 理由: 毒で弾ける短い酸の音
+- 原音 4.550秒 / 開始 0.037秒 / 出力 1.950秒 / peak 0.484秒 / 末尾フェード 400ms
+
+<a id="poison-tick-2"></a>
+### poison-tick-2 / SORCERY - DESIGNED - MAGIC ACID Hit-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Hit-02.wav`
+- 理由: 毒で弾ける短い酸の音
+- 原音 3.170秒 / 開始 0.023秒 / 出力 1.950秒 / peak 0.300秒 / 末尾フェード 400ms
+
+<a id="poison-tick-3"></a>
+### poison-tick-3 / SORCERY - DESIGNED - MAGIC ACID Cast Small-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-04.wav`
+- 理由: 毒で弾ける短い酸の音
+- 原音 6.180秒 / 開始 1.366秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="centaur-missile-1"></a>
+### centaur-missile-1 / HERO - DESIGNED - ARROW Fire By 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - ARROW Fire By 01-01.wav`
+- 理由: 魔法の矢の発射：矢が飛ぶ風切り・弓の弦・青い魔力
+- 原音 1.470秒 / 開始 0.005秒 / 出力 1.465秒 / peak 0.317秒 / 末尾フェード 30ms
+
+<a id="centaur-missile-2"></a>
+### centaur-missile-2 / HERO - DESIGNED - BOW Wood Release-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - BOW Wood Release-01.wav`
+- 理由: 魔法の矢の発射：矢が飛ぶ風切り・弓の弦・青い魔力
+- 原音 0.500秒 / 開始 0.036秒 / 出力 0.464秒 / peak 0.130秒 / 末尾フェード 30ms
+
+<a id="centaur-missile-3"></a>
+### centaur-missile-3 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav`
+- 理由: 魔法の矢の発射：矢が飛ぶ風切り・弓の弦・青い魔力
+- 原音 3.270秒 / 開始 1.531秒 / 出力 1.739秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="centaur-impact-1"></a>
+### centaur-impact-1 / SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav`
+- 理由: 青い魔力の着弾
+- 原音 1.360秒 / 開始 0.000秒 / 出力 1.360秒 / peak 0.367秒 / 末尾フェード 30ms
+
+<a id="centaur-impact-2"></a>
+### centaur-impact-2 / SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 02-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 02-02.wav`
+- 理由: 青い魔力の着弾
+- 原音 4.360秒 / 開始 0.010秒 / 出力 1.950秒 / peak 0.138秒 / 末尾フェード 400ms
+
+<a id="centaur-impact-3"></a>
+### centaur-impact-3 / SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav`
+- 理由: 青い魔力の着弾
+- 原音 1.180秒 / 開始 0.012秒 / 出力 1.168秒 / peak 0.197秒 / 末尾フェード 30ms
+
+<a id="death-buff-1"></a>
+### death-buff-1 / SORCERY - DESIGNED - MAGIC BLACK Summon Large 01-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Large 01-01.wav`
+- 理由: 魂の力を受け継ぐ：霊の召喚・冷たい霊火・神秘的な風
+- 原音 39.890秒 / 開始 9.919秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="death-buff-2"></a>
+### death-buff-2 / SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-01.wav`
+- 理由: 魂の力を受け継ぐ：霊の召喚・冷たい霊火・神秘的な風
+- 原音 3.210秒 / 開始 1.717秒 / 出力 1.493秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="death-buff-3"></a>
+### death-buff-3 / SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-02.wav`
+- 理由: 魂の力を受け継ぐ：霊の召喚・冷たい霊火・神秘的な風
+- 原音 9.430秒 / 開始 4.199秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="aura-buff-1"></a>
+### aura-buff-1 / SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-02.wav`
+- 理由: 翠の風が渦を巻く常時の強化
+- 原音 11.170秒 / 開始 3.280秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="aura-buff-2"></a>
+### aura-buff-2 / SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-03.wav`
+- 理由: 翠の風が渦を巻く常時の強化
+- 原音 4.300秒 / 開始 0.021秒 / 出力 1.950秒 / peak 0.475秒 / 末尾フェード 400ms
+
+<a id="aura-buff-3"></a>
+### aura-buff-3 / SORCERY - DESIGNED - MAGIC WATER Cast Medium-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-02.wav`
+- 理由: 翠の風が渦を巻く常時の強化
+- 原音 3.520秒 / 開始 0.539秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="arachne-ring-1"></a>
+### arachne-ring-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Large-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large-01.wav`
+- 理由: 味方全体への熱波：大きな火炎の詠唱・炎の召喚・火球の爆風
+- 原音 5.120秒 / 開始 2.002秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="arachne-ring-2"></a>
+### arachne-ring-2 / SORCERY - DESIGNED - MAGIC FIRE Summon 02-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Summon 02-01.wav`
+- 理由: 味方全体への熱波：大きな火炎の詠唱・炎の召喚・火球の爆風
+- 原音 13.570秒 / 開始 6.253秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="arachne-ring-3"></a>
+### arachne-ring-3 / Explosion Fireball Blast Fire 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Explosion Fireball Blast Fire 01.wav`
+- 理由: 味方全体への熱波：大きな火炎の詠唱・炎の召喚・火球の爆風
+- 原音 4.887秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.171秒 / 末尾フェード 400ms
+
+<a id="scylla-1"></a>
+### scylla-1 / SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav`
+- 理由: 毒の飛沫が降る（以前の候補は音が急に止まったため作り直し）
+- 原音 6.810秒 / 開始 3.647秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="scylla-2"></a>
+### scylla-2 / SORCERY - DESIGNED - MAGIC ACID Hit-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Hit-03.wav`
+- 理由: 毒の飛沫が降る（以前の候補は音が急に止まったため作り直し）
+- 原音 3.390秒 / 開始 0.079秒 / 出力 1.950秒 / peak 0.539秒 / 末尾フェード 400ms
+
+<a id="scylla-3"></a>
+### scylla-3 / SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-03.wav`
+- 理由: 毒の飛沫が降る（以前の候補は音が急に止まったため作り直し）
+- 原音 5.250秒 / 開始 2.547秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms

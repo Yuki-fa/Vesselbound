@@ -162,12 +162,20 @@ function audioChecks(){
       assert.ok(format&&pcm);assert.equal(format.pcm,1);assert.equal(format.rate,48000);assert.equal(format.bits,16);
       const frames=pcm.length/(format.channels*2);assert.ok(frames<=1.95*48000);assert.ok(Math.abs(frames/48000-sound.duration)<1e-6);
       let max=0,peakAt=0;for(let n=0;n<pcm.length/2;n++){const x=Math.abs(pcm.readInt16LE(n*2));if(x>max){max=x;peakAt=Math.floor(n/format.channels)/48000;}}
-      assert.ok(Math.abs(20*Math.log10(max/32767)+1)<.003);assert.ok(Math.abs(peakAt-sound.peak)<1e-6);
+      assert.ok(Math.abs(20*Math.log10(max/32767)+1)<.003);
+      // 2026-10-15：スキュラは作り直した候補（peakは20ms平均の包絡線の最大。末尾は400msのcos²フェード）。
+      if(sound.peakMode==='envelope20ms'){
+        let env=0,best=-1,bestAt=0;const k=Math.round(.02*48000),abs=n=>{let m=0;for(let c=0;c<format.channels;c++)m=Math.max(m,Math.abs(pcm.readInt16LE((n*format.channels+c)*2)));return m;};
+        const vals=Array.from({length:frames},(_,n)=>abs(n));let sum=0;for(let n=0;n<frames;n++){sum+=vals[n];if(n>=k)sum-=vals[n-k];const center=n-Math.floor(k/2);if(sum>best){best=sum;bestAt=center;}}
+        assert.ok(Math.abs(bestAt/48000-sound.peak)<.005,name+'-'+i+' のpeak（包絡線）');
+      }else assert.ok(Math.abs(peakAt-sound.peak)<1e-6);
       for(let ch=0;ch<format.channels;ch++)assert.equal(pcm.readInt16LE(pcm.length-2*(ch+1)),0,'末尾フェード');
       if(i===1)assert.deepEqual(fs.readFileSync(path.join(ROOT,'assets/sfx',entry.code+'.wav')),bytes,'候補1をそのまま仮配置');
     }
   }
-  assert.equal(used.size,63);assert.equal(execFileSync('git',['diff','--name-only','--','assets/'],{cwd:ROOT,encoding:'utf8'}),'','既存assetsの変更なし');
+  assert.equal(used.size,63);
+  // 2026-10-15：スキュラの仮SE（候補1）だけ作り直した候補へ差し替えた（利用者指摘「SEが急に止まる」）。
+  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }
 (async()=>{audioChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='new')await newDataChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='baseline')await baselineChecks();})().catch(e=>{console.error(e.stack);process.exitCode=1;});

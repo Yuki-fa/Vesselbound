@@ -1,0 +1,18 @@
+{
+  "flame-sweep":   {"code":"C043","q":["MAGIC FIRE Cast Large Whiplash-01","MAGIC FIRE Beam-01","LARGE BLOWTORCH - Whoosh"],"why":"薙ぎ払う炎の帯：鞭のような火炎・火炎放射の持続音・バーナーの噴射"},
+  "mana-cue":      {"code":"K024","q":["MAGIC WHITE Cast Medium 04-01","MAGIC WHITE Cast Small 02-02","MAGIC WHITE Cast Medium Energy-01"],"why":"小さな魔法陣が開いて弾ける：澄んだ詠唱の発光"},
+  "attack-recoil": {"code":"C002","q":["HERO - DESIGNED - SHIELD Metal Hit Heavy","MAGIC FIRE Deflect Spell-01","HERO - DESIGNED - ARMOR Metal Hit Heavy"],"why":"打撃を受け止める：盾・鎧の重い衝撃と赤い魔力の弾き"},
+  "injury-buff":   {"code":"S006","q":["MAGIC FIRE Cast Large Frenzy-01","MAGIC FIRE Summon 01-01","MAGIC FIRE Cast Medium-02"],"why":"炎が内へ締まって熱い核になる"},
+  "attack-buff":   {"code":"S005","q":["MAGIC WHITE Cast Large 01-01","MAGIC WHITE Cast Medium Energy-02","MAGIC WHITE Cast Medium 02-01"],"why":"金の光芒が開く：明るい詠唱の発光"},
+  "siren-wave":    {"code":"C011","q":["/Sonar.wav","Laser Waves","Alien Resonance"],"why":"広がる超音波：ソナー・波打つ電子音・共鳴音"},
+  "medusa-gaze":   {"code":"C017","q":["MAGIC ELECTRIC Cast Large Fury-02","MAGIC ICE Break Out Of Spell-02","MAGIC ELECTRIC Cast Medium-01"],"why":"魔眼の放電と石化のひび割れ"},
+  "steal-mark":    {"code":"C090","q":["MAGIC WHITE Pad Angelic-01","MAGIC BLACK Summon Medium 01-01","MAGIC WHITE Whoosh Mystical 01-01"],"why":"魅了の渦：甘い響き・妖しい召喚・神秘的な風"},
+  "fang-poison":   {"code":"K003","q":["MAGIC ACID Cast Large 01-01","MAGIC ACID Cast Medium 01-01","Liquid Water Bubble Surfacing And Popping Multiple 01"],"why":"毒の付与：酸の詠唱・泡立つ毒"},
+  "poison-tick":   {"code":"K017","q":["MAGIC ACID Hit-01","MAGIC ACID Hit-02","MAGIC ACID Cast Small-04"],"why":"毒で弾ける短い酸の音"},
+  "centaur-missile":{"code":"C019_1","q":["HERO - DESIGNED - ARROW Fire By","HERO - DESIGNED - BOW Wood Release","MAGIC ELECTRIC Cast Medium-02"],"why":"魔法の矢の発射：矢が飛ぶ風切り・弓の弦・青い魔力"},
+  "centaur-impact":{"code":"C019_2","q":["MAGIC ELECTRIC Deflect Spell-02","MAGIC WHITE Deflect Spell 02-02","MAGIC ICE Deflect Spell-03"],"why":"青い魔力の着弾"},
+  "death-buff":    {"code":"S007","q":["MAGIC BLACK Summon Large 01-01","MAGIC ICE Freeze Cast Medium-01","MAGIC WHITE Whoosh Mystical 03-02"],"why":"魂の力を受け継ぐ：霊の召喚・冷たい霊火・神秘的な風"},
+  "aura-buff":     {"code":"S009","q":["MAGIC WHITE Whoosh Mystical 01-02","MAGIC WHITE Cast Small 02-03","MAGIC WATER Cast Medium-02"],"why":"翠の風が渦を巻く常時の強化"},
+  "arachne-ring":  {"code":"C008","q":["MAGIC FIRE Cast Large-01","MAGIC FIRE Summon 02-01","Explosion Fireball Blast Fire 01"],"why":"味方全体への熱波：大きな火炎の詠唱・炎の召喚・火球の爆風"},
+  "scylla":        {"code":"C056","q":["MAGIC ACID Cast Large 02-01","MAGIC ACID Hit-03","MAGIC ACID Cast Medium 01-03"],"why":"毒の飛沫が降る（以前の候補は音が急に止まったため作り直し）","replace1012":true}
+}

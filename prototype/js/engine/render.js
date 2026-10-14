@@ -2103,7 +2103,8 @@ function _playSfxAtVfxCue(key,cueMs,options){
   const lead=(Number(cueMs)||0)-peak, opt=options||{};
   if(lead>=0){
     const run=()=>playSfx(key,opt);
-    if(lead<1) run(); else if(typeof battlePresentationSetTimeout==='function') battlePresentationSetTimeout(run,lead); else setTimeout(run,lead);
+    // lead は既に演出の速さを掛けた実時間（ms）。battlePresentationSetTimeout だと速さを二重に掛けるので素のタイマー。
+    if(lead<1) run(); else setTimeout(run,lead);
   } else playSfx(key,{...opt,offsetMs:-lead,fadeInMs:40});
 }
 

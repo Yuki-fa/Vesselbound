@@ -225,6 +225,18 @@ function _playCardEffectSfx(code){
   return playSfx(code,{group:'magic',guardKey:`effect:${code}:${uid()}`,guardMs:0});
 }
 
+// 能力変化の固有VFX（S005〜S009等）と一緒に鳴らす固有SE。SEのピークをVFXの山場（定義の impact）へ合わせる（2026-10-15）。
+// 定義に山場が無い（impact 0）演出は従来どおり始まりと同時に鳴らす。
+function _playCardEffectSfxAtCue(code,durationMs){
+  if(typeof presentLabFx==='function'&&presentLabFx(code)) return false;
+  const url=typeof getCharacterEffectVfxPath==='function'?getCharacterEffectVfxPath(_effectVfxSource(code)):'';
+  const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
+  const cue=url&&typeof _definedVfxCueMs==='function'?_definedVfxCueMs(url,(Number(durationMs)||700)/speedMul):0;
+  if(!(cue>0)||typeof _playSfxAtVfxCue!=='function'||typeof getEffectSfxKey!=='function'||!getEffectSfxKey(code)) return _playCardEffectSfx(code);
+  _playSfxAtVfxCue(code,cue,{group:'magic',guardKey:`effect:${code}:${uid()}`,guardMs:0});
+  return true;
+}
+
 function _effectVfxSource(code){
   return {artCode:code,no:code,_code:code};
 }

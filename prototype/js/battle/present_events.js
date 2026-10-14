@@ -214,11 +214,14 @@ function _presentLabStart(plan) {
     const wave=Math.floor(i/plan.targets.length);(pulseResolvers[wave]||(pulseResolvers[wave]=[])).push(resolve);
   })));
   plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
-    durationMs:plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
+    durationMs:plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
     value:plan.value,colors:plan.colors,
     impactTimes:plan.code==='C095'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
     cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
     onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
+  // ミノタウロスの激怒は定義の前半（オーラ）だけを見せ、オーラが消えた時点で次へ進む（後半は value=1 では何も描かない）。
+  if(plan.code==='C009'){const shown=plan.done;
+    plan.done=Promise.race([shown,new Promise(resolve=>battlePresentationSetTimeout(resolve,PRESENT_LAB_REACTION_FLASH_MS))]).then(()=>{VbFx.stop({name:plan.spec[0]});return true;});}
   plan.done.finally(()=>{resolvers.forEach(resolve=>resolve());pulseResolvers.flat().forEach(resolve=>resolve());});
 }
 async function _presentLabFinish(plan) {
@@ -239,7 +242,8 @@ async function _presentLabFinish(plan) {
 }
 // ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082']);
+// アラクネ（C008）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082','C008']);
 async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
@@ -640,7 +644,9 @@ async function presentStatChangeEvent(ev, api) {
         if (typeof api.trace === 'function') {
           api.trace({ sourceId: source.id, targetId: target.id, reason: String(ev.reason || ''), code: code.toUpperCase() });
         }
-        if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+        // SEのピークをVFXの山場へ合わせる（2026-10-15）。尺は下のVFXと同じ PRESENT_CARD_EFFECT_VFX_MS。
+        if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code.toUpperCase(), typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700);
+        else if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
       }
       // 開始しただけで次のイベントへ進むと、連続効果中に再描画・召喚・攻撃モーションが
       // 重なってVFXが欠ける。同じ効果の表示完了を待ってから次へ進める。
