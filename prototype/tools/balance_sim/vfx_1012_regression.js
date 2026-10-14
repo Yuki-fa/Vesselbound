@@ -126,19 +126,19 @@ async function newDataChecks(){
     await job;assert.equal(dash.source.style.getPropertyValue('transform'),'','突進後のstyle復元');
     assert.equal(dash.source.style.getPropertyValue('z-index'),'','突進後の重なり順を復元');
   }
-  // 2026-10-12指定・撮影第3回: 開始時に縦長カードの上下を四角く切り落とさない。
+  // 2026-10-14: スリープシープ・インキュバスは四角い溶解をやめ、体が深紅に染まって薄れる（色処理＋不透明度）。
+  // 途中で色処理と薄れが掛かり、終了後に元へ戻ることを確かめる（3速さ）。
   for(const name of ['sleep-sheep','incubus'])for(const speed of [1.5,3,4.5]){
-    const mask=harness(false),el=name==='incubus'?mask.target:mask.source;
-    const job=mask.fx.play(name,{source:mask.fx.rect(mask.source),targets:[mask.fx.rect(mask.target)],speed,value:name==='incubus'?2:3,seed:53});
-    mask.step(0);
-    const svg=decodeURIComponent(el.style.getPropertyValue('mask-image').match(/data:image\/svg\+xml,([^"\)]+)/)[1]);
-    assert.match(svg,/preserveAspectRatio="none"/,'縦長矩形の全面にUVを伸ばす');
-    assert.equal((svg.match(/<rect /g)||[]).length,48*48,'開始時の全セルを保持');
-    assert.equal(el.style.getPropertyValue('mask-size'),'100% 100%');
-    mask.step(mask.fx.duration(name,speed));await job;
-    for(const property of ['mask-image','mask-size'])assert.equal(el.style.getPropertyValue(property),'','溶解後に'+property+'を復元');
+    const fade=harness(false),el=name==='incubus'?fade.target:fade.source;
+    const job=fade.fx.play(name,{source:fade.fx.rect(fade.source),targets:[fade.fx.rect(fade.target)],speed,value:name==='incubus'?2:3,seed:53});
+    fade.step(0);const ms=fade.fx.duration(name,speed);fade.step(ms*.4);
+    assert.match(el.style.getPropertyValue('filter'),/sepia\(/,'深紅へ染める色処理');
+    assert.ok(+el.style.getPropertyValue('opacity')<1,'体が薄れる');
+    assert.equal(el.style.getPropertyValue('mask-image'),'','四角い溶解のマスクを使わない');
+    fade.step(ms);await job;
+    for(const property of ['filter','opacity','mask-image'])assert.equal(el.style.getPropertyValue(property),'','終了後に'+property+'を復元');
   }
-  console.log('OK 第3回撮影の回帰: 接触時の重なり順と復元 / 溶解の開始時に縦長カード全面を保持・終了後復元（3速さ）');
+  console.log('OK 第3回撮影の回帰: 接触時の重なり順と復元 / 体が深紅に染まって薄れ・終了後復元（3速さ）');
   console.log('OK 第2回撮影の回帰: 光球・花弁・血滴の実個数 / 脈動1・2・3・5回の谷と発光 / 突進と命中の位置同期（3速さ）');
   console.log('OK 第1回撮影の回帰: ニンフの2色光 / 花弁の外形と倍率 / 亡霊波の近隣カード通過');
   console.log('OK 新21種: 20定義+共有派生1 / 3速さ×16時刻・有限数・実描画・残像の除去・復元・JSON '+jsonBytes+' bytes');
