@@ -22,6 +22,8 @@
 // 2026-10-14 品質向上（Claude直接）：mana-gain を作り直し
 // 2026-10-14 品質向上（Claude直接）：mana-cue を作り直し
 // 2026-10-14 品質向上（Claude直接）：attack-recoil を作り直し
+// 2026-10-14 品質向上（Claude直接）：injury-buff を作り直し
+// 2026-10-14 品質向上（Claude直接）：attack-buff を作り直し
 VbFxDefs.register({
   "schemaVersion": 2,
   "effects": [
@@ -10222,8 +10224,8 @@ VbFxDefs.register({
       "label": "攻撃の強化 · S005",
       "sourceCode": "S005",
       "ms": 1050,
-      "color": "#c59a45",
-      "light": "#f0df9c",
+      "color": "#ffc23a",
+      "light": "#fff2b8",
       "playback": {
         "maxMs": 30000,
         "speedMin": 0.01,
@@ -10240,45 +10242,29 @@ VbFxDefs.register({
       },
       "layers": [
         {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
           "type": "glow",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#c49133",
+          "color": "#ffb020",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 1.05,
           "curves": {
             "alpha": {
               "keys": [
                 [
                   0,
                   0
-                ],
-                [
-                  0.125,
-                  0.04
                 ],
                 [
                   0.25,
-                  0.8
+                  0.55
                 ],
                 [
-                  0.375,
-                  1
-                ],
-                [
-                  0.55,
-                  1
-                ],
-                [
-                  0.68,
-                  0.95
-                ],
-                [
-                  0.78,
-                  0.18
-                ],
-                [
-                  0.88,
-                  0.03
+                  0.7,
+                  0.4675
                 ],
                 [
                   1,
@@ -10287,208 +10273,19 @@ VbFxDefs.register({
               ],
               "interpolation": "smooth"
             }
-          },
-          "radius": 0.32,
-          "blend": "normal",
-          "stops": [
-            [
-              0,
-              "#f6e48c",
-              1
-            ],
-            [
-              0.45,
-              "#f6e48c",
-              1
-            ],
-            [
-              0.68,
-              "#c49133",
-              0.98
-            ],
-            [
-              0.88,
-              "#c49133",
-              0.72
-            ],
-            [
-              1,
-              "#c49133",
-              0
-            ]
-          ]
+          }
         },
         {
-          "type": "shape",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#c49133",
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0
-                ],
-                [
-                  0.24,
-                  0.14
-                ],
-                [
-                  0.375,
-                  0.644
-                ],
-                [
-                  0.55,
-                  0.7
-                ],
-                [
-                  0.68,
-                  0.63
-                ],
-                [
-                  0.78,
-                  0.084
-                ],
-                [
-                  0.88,
-                  0
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.0672
-                ],
-                [
-                  0.125,
-                  0.1344
-                ],
-                [
-                  0.25,
-                  0.6272
-                ],
-                [
-                  0.375,
-                  0.7504
-                ],
-                [
-                  0.56,
-                  0.6832
-                ],
-                [
-                  0.69,
-                  0.7616
-                ],
-                [
-                  0.82,
-                  0.7728
-                ],
-                [
-                  1,
-                  0.784
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  -0.3
-                ],
-                [
-                  1,
-                  1.7
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "shape": "ruffled-ring",
-          "radius": 0.728,
-          "light": "#f6e48c",
-          "shadow": "#705129",
-          "blend": "normal"
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#c49133",
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.24,
-                  0
-                ],
-                [
-                  0.43,
-                  0.574
-                ],
-                [
-                  0.64,
-                  0.63
-                ],
-                [
-                  0.78,
-                  0.035
-                ],
-                [
-                  0.88,
-                  0
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.2
-                ],
-                [
-                  1,
-                  -1.1
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "shape": "ruffled-ring",
-          "radius": 0.4816,
-          "light": "#f6e48c",
-          "shadow": "#705129",
-          "blend": "normal"
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#c49133",
+          "type": "glow",
+          "color": "#ffd060",
+          "texture": "magic-circle",
+          "blend": "add",
+          "radius": 0.58,
+          "directedRotation": true,
           "curves": {
             "alpha": {
               "keys": [
@@ -10498,19 +10295,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.3,
-                  0.1
+                  0.38
                 ],
                 [
-                  0.47,
-                  0.65
-                ],
-                [
-                  0.64,
-                  0.72
-                ],
-                [
-                  0.8,
-                  0
+                  0.7,
+                  0.323
                 ],
                 [
                   1,
@@ -10519,32 +10308,57 @@ VbFxDefs.register({
               ],
               "interpolation": "smooth"
             },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.08000000000000002
+                ],
+                [
+                  0.24,
+                  0.2
+                ],
+                [
+                  0.36,
+                  0.6496000000000001
+                ],
+                [
+                  0.5,
+                  0.58
+                ],
+                [
+                  1,
+                  0.5509999999999999
+                ]
+              ],
+              "interpolation": "smooth"
+            },
             "rotation": {
               "keys": [
                 [
                   0,
-                  -0.18
+                  0
                 ],
                 [
                   1,
-                  0.18
+                  0.5
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "linear"
             }
-          },
-          "shape": "flare",
-          "radius": 0.32,
-          "light": "#f6e48c",
-          "shadow": "#705129",
-          "blend": "normal"
+          }
         },
         {
-          "type": "particles",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#c49133",
+          "type": "shape",
+          "shape": "ruffled-ring",
+          "color": "#ffc040",
+          "light": "#fff0b0",
+          "shadow": "#b07010",
+          "blend": "add",
           "curves": {
             "alpha": {
               "keys": [
@@ -10553,16 +10367,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.12,
-                  0.9
+                  0.3,
+                  0.5
                 ],
                 [
                   0.7,
-                  0.9
-                ],
-                [
-                  0.88,
-                  0.12
+                  0.35
                 ],
                 [
                   1,
@@ -10570,49 +10380,69 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.3
+                ],
+                [
+                  0.3,
+                  0.48
+                ],
+                [
+                  1,
+                  0.62
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  1.2
+                ],
+                [
+                  1,
+                  -0.6
+                ]
+              ],
+              "interpolation": "linear"
             }
-          },
-          "motion": "ballistic",
-          "count": 8,
-          "emission": "rim",
-          "extent": [
-            0.51,
-            0.64
-          ],
-          "lifeMs": [
-            320,
-            650
-          ],
-          "delayMs": [
-            130,
-            230
-          ],
-          "speed": [
-            0.16,
-            0.3
-          ],
-          "gravity": [
-            0,
-            -0.025
-          ],
-          "sizeRange": [
-            0.054,
-            0.08775
-          ],
-          "spin": [
-            -0.8,
-            0.8
-          ],
-          "shape": "star",
-          "light": "#f6e48c",
-          "blend": "normal"
+          }
         },
         {
-          "type": "particles",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#c49133",
+          "type": "particles",
+          "motion": "orbit",
+          "count": 14,
+          "countScale": "none",
+          "orbit": 0.45,
+          "orbitVelocity": 0.3,
+          "angleSpeed": 0.5,
+          "color": "#ffd060",
+          "radialCurve": {
+            "keys": [
+              [
+                0,
+                2
+              ],
+              [
+                1,
+                0.1
+              ]
+            ],
+            "interpolation": "power-in",
+            "exponent": 1.5
+          },
+          "radialDelay": 0.25,
+          "radialLife": 0.32,
+          "skipNonPositiveRadius": true,
           "curves": {
             "alpha": {
               "keys": [
@@ -10621,31 +10451,15 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
-                  0
+                  0.05,
+                  1
                 ],
                 [
-                  0.24,
-                  0.16
+                  0.3,
+                  0.9
                 ],
                 [
-                  0.375,
-                  0.736
-                ],
-                [
-                  0.55,
-                  0.8
-                ],
-                [
-                  0.68,
-                  0.72
-                ],
-                [
-                  0.78,
-                  0.096
-                ],
-                [
-                  0.88,
+                  0.36,
                   0
                 ],
                 [
@@ -10656,22 +10470,645 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "motion": "orbit",
-          "count": 6,
-          "countScale": "none",
-          "size": 0.055,
-          "orbit": 0.6944,
-          "light": "#f6e48c",
-          "shadow": "#c49133",
-          "phaseDistribution": "uniform",
           "materials": [
             {
-              "shape": "orb",
-              "blend": "normal"
+              "texture": "glow",
+              "radiusAbsolute": 0.1,
+              "aspect": [
+                1.6,
+                0.28
+              ],
+              "rotationScale": 1,
+              "color": "#ffd060",
+              "blend": "add"
             }
+          ]
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shape",
+          "shape": "halo-ray",
+          "color": "#ffe08a",
+          "blend": "add",
+          "copies": 6,
+          "layout": "center",
+          "align": "tangent",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.26,
+                  0
+                ],
+                [
+                  0.33999999999999997,
+                  0.85
+                ],
+                [
+                  0.75,
+                  0.5
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.06
+                ],
+                [
+                  0.24,
+                  0.15
+                ],
+                [
+                  0.36,
+                  0.6944
+                ],
+                [
+                  0.5,
+                  0.62
+                ],
+                [
+                  1,
+                  0.589
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0.8
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shape",
+          "shape": "flare",
+          "color": "#ffc83a",
+          "light": "#fff4c0",
+          "blend": "add",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.25,
+                  0.2
+                ],
+                [
+                  0.32999999999999996,
+                  0.8
+                ],
+                [
+                  0.75,
+                  0.55
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.036
+                ],
+                [
+                  0.24,
+                  0.09
+                ],
+                [
+                  0.36,
+                  0.3808000000000001
+                ],
+                [
+                  0.5,
+                  0.34
+                ],
+                [
+                  1,
+                  0.323
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  -0.4
+                ],
+                [
+                  1,
+                  0.5
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shape",
+          "shape": "star",
+          "color": "#ffe38a",
+          "blend": "add",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.27,
+                  0
+                ],
+                [
+                  0.32999999999999996,
+                  0.85
+                ],
+                [
+                  0.75,
+                  0.6
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.044000000000000004
+                ],
+                [
+                  0.24,
+                  0.11
+                ],
+                [
+                  0.36,
+                  0.49280000000000007
+                ],
+                [
+                  0.5,
+                  0.44
+                ],
+                [
+                  1,
+                  0.418
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0.4
+                ],
+                [
+                  1,
+                  -0.3
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "scaleX": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "linear"
+            },
+            "scaleY": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  0.36,
+                  1.25
+                ],
+                [
+                  1,
+                  1.1
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#ffb428",
+          "texture": "plasma",
+          "blend": "add",
+          "variant": 2,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.15,
+                  0.4
+                ],
+                [
+                  0.3,
+                  0.9
+                ],
+                [
+                  0.75,
+                  0.6
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.12
+                ],
+                [
+                  0.3,
+                  0.3
+                ],
+                [
+                  1,
+                  0.26
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  1.8
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#fff4d0",
+          "texture": "glow",
+          "blend": "add",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.15,
+                  0.4
+                ],
+                [
+                  0.3,
+                  0.9
+                ],
+                [
+                  0.5,
+                  0.5
+                ],
+                [
+                  0.8,
+                  0.4
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.15
+                ],
+                [
+                  0.3,
+                  0.34
+                ],
+                [
+                  1,
+                  0.26
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#ffe6a0",
+          "width": 1,
+          "widthSpace": "pixel",
+          "noise": 0.12,
+          "strokeProfile": "halo",
+          "time": [
+            0.3,
+            0.85
           ],
-          "angleSpeed": 0.6,
-          "sizeSize": 0.015
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0.85
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 1.6
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.25
+                ],
+                [
+                  1,
+                  0.95
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "width": {
+              "keys": [
+                [
+                  0,
+                  4
+                ],
+                [
+                  1,
+                  1.2
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "radial-drag",
+          "color": "#ffe9a8",
+          "count": 34,
+          "vortex": 0.5,
+          "radius": 0.95,
+          "time": [
+            0.3,
+            1
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0.7
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "orbit",
+          "count": 7,
+          "countScale": "none",
+          "orbit": 0.55,
+          "orbitSize": 0.35,
+          "angleSpeed": 0.25,
+          "size": 0.06,
+          "sizeSize": 0.04,
+          "color": "#ffd860",
+          "light": "#fffbe0",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.3,
+                  0
+                ],
+                [
+                  0.38,
+                  1
+                ],
+                [
+                  0.6,
+                  0.2
+                ],
+                [
+                  0.7,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "materials": [
+            {
+              "shape": "star",
+              "blend": "add"
+            },
+            {
+              "texture": "glow",
+              "radiusScale": 0.6,
+              "color": "#ffcf50",
+              "blend": "add"
+            }
+          ]
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "orbit",
+          "count": 7,
+          "countScale": "none",
+          "moteOffset": 40,
+          "orbit": 0.6,
+          "orbitSize": 0.3,
+          "angleSpeed": -0.2,
+          "size": 0.05,
+          "sizeSize": 0.04,
+          "color": "#ffd860",
+          "light": "#fffbe0",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.5,
+                  0
+                ],
+                [
+                  0.6,
+                  1
+                ],
+                [
+                  0.85,
+                  0.3
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "materials": [
+            {
+              "shape": "star",
+              "blend": "add"
+            },
+            {
+              "texture": "glow",
+              "radiusScale": 0.6,
+              "color": "#ffcf50",
+              "blend": "add"
+            }
+          ]
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "card",
+          "time": [
+            0.3,
+            0.55
+          ],
+          "clockSpace": "life",
+          "batch": 1,
+          "holdEnd": true,
+          "filterOrder": [
+            "brightness"
+          ],
+          "curves": {
+            "brightness": {
+              "keys": [
+                [
+                  0,
+                  1.4
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            }
+          }
         }
       ]
     },
@@ -10680,8 +11117,8 @@ VbFxDefs.register({
       "label": "負傷の強化 · S006",
       "sourceCode": "S006",
       "ms": 1050,
-      "color": "#c16b34",
-      "light": "#edd09c",
+      "color": "#ff6a1c",
+      "light": "#ffe2a6",
       "playback": {
         "maxMs": 30000,
         "speedMin": 0.01,
@@ -10698,11 +11135,15 @@ VbFxDefs.register({
       },
       "layers": [
         {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
           "type": "glow",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#ec701b",
+          "color": "#5a1606",
+          "texture": "smoke",
+          "radius": 0.9,
+          "variant": 2,
           "curves": {
             "alpha": {
               "keys": [
@@ -10711,111 +11152,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
-                  0.04
-                ],
-                [
-                  0.25,
-                  0.8
-                ],
-                [
-                  0.375,
-                  1
-                ],
-                [
-                  0.55,
-                  1
-                ],
-                [
-                  0.68,
-                  0.95
+                  0.1,
+                  0.28
                 ],
                 [
                   0.78,
-                  0.18
-                ],
-                [
-                  0.88,
-                  0.03
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "radius": 0.32,
-          "blend": "normal",
-          "stops": [
-            [
-              0,
-              "#fff0b0",
-              1
-            ],
-            [
-              0.45,
-              "#fff0b0",
-              1
-            ],
-            [
-              0.68,
-              "#ec701b",
-              0.98
-            ],
-            [
-              0.88,
-              "#ec701b",
-              0.72
-            ],
-            [
-              1,
-              "#ec701b",
-              0
-            ]
-          ]
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#ec701b",
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0
-                ],
-                [
-                  0.24,
-                  0.0969
-                ],
-                [
-                  0.375,
-                  0.44574
-                ],
-                [
-                  0.55,
-                  0.4845
-                ],
-                [
-                  0.68,
-                  0.43605
-                ],
-                [
-                  0.78,
-                  0.05814
-                ],
-                [
-                  0.88,
-                  0
+                  0.28
                 ],
                 [
                   1,
@@ -10828,35 +11170,35 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0696
+                  1
                 ],
                 [
-                  0.125,
-                  0.1392
+                  0.22,
+                  0.97
                 ],
                 [
-                  0.25,
-                  0.6496
+                  0.32,
+                  0.8
                 ],
                 [
-                  0.375,
-                  0.7772
+                  0.4,
+                  0.8640000000000001
                 ],
                 [
-                  0.56,
-                  0.7076
+                  0.52,
+                  0.8400000000000001
                 ],
                 [
-                  0.69,
-                  0.7888
+                  0.62,
+                  0.62
                 ],
                 [
-                  0.82,
-                  0.8004
+                  0.7,
+                  0.682
                 ],
                 [
                   1,
-                  0.812
+                  0.651
                 ]
               ],
               "interpolation": "smooth"
@@ -10865,88 +11207,27 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  -0.3
+                  0
                 ],
                 [
                   1,
-                  1.7
+                  -0.6
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "linear"
             }
-          },
-          "shape": "ruffled-ring",
-          "radius": 0.754,
-          "light": "#fff0b0",
-          "shadow": "#842c19",
-          "blend": "normal"
+          }
         },
         {
-          "type": "shape",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#ec701b",
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.24,
-                  0
-                ],
-                [
-                  0.43,
-                  0.39729
-                ],
-                [
-                  0.64,
-                  0.43605
-                ],
-                [
-                  0.78,
-                  0.024225
-                ],
-                [
-                  0.88,
-                  0
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.2
-                ],
-                [
-                  1,
-                  -1.1
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "shape": "ruffled-ring",
-          "radius": 0.4988,
-          "light": "#fff0b0",
-          "shadow": "#842c19",
-          "blend": "normal"
-        },
-        {
-          "type": "particles",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#ec701b",
+          "type": "glow",
+          "color": "#ff5a14",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 1,
           "curves": {
             "alpha": {
               "keys": [
@@ -10956,15 +11237,15 @@ VbFxDefs.register({
                 ],
                 [
                   0.12,
-                  0.9
+                  0.3
                 ],
                 [
-                  0.7,
-                  0.9
+                  0.62,
+                  0.55
                 ],
                 [
-                  0.88,
-                  0.12
+                  0.85,
+                  0.4
                 ],
                 [
                   1,
@@ -10972,49 +11253,57 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  1.1
+                ],
+                [
+                  0.22,
+                  1.067
+                ],
+                [
+                  0.32,
+                  0.85
+                ],
+                [
+                  0.4,
+                  0.918
+                ],
+                [
+                  0.52,
+                  0.8925
+                ],
+                [
+                  0.62,
+                  0.6
+                ],
+                [
+                  0.7,
+                  0.66
+                ],
+                [
+                  1,
+                  0.63
+                ]
+              ],
+              "interpolation": "smooth"
             }
-          },
-          "motion": "ballistic",
-          "count": 8,
-          "emission": "rim",
-          "extent": [
-            0.51,
-            0.64
-          ],
-          "lifeMs": [
-            320,
-            650
-          ],
-          "delayMs": [
-            130,
-            230
-          ],
-          "speed": [
-            0.16,
-            0.3
-          ],
-          "gravity": [
-            0,
-            -0.025
-          ],
-          "sizeRange": [
-            0.054,
-            0.08775
-          ],
-          "spin": [
-            -0.8,
-            0.8
-          ],
-          "shape": "orb",
-          "light": "#fff0b0",
-          "blend": "normal"
+          }
         },
         {
-          "type": "particles",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#ec701b",
+          "type": "shape",
+          "shape": "ruffled-ring",
+          "color": "#ff7a24",
+          "light": "#ffd080",
+          "shadow": "#a8300c",
+          "blend": "add",
           "curves": {
             "alpha": {
               "keys": [
@@ -11023,31 +11312,386 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
+                  0.1,
+                  0.42
+                ],
+                [
+                  0.62,
+                  0.55
+                ],
+                [
+                  0.8,
+                  0.2
+                ],
+                [
+                  1,
                   0
-                ],
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
                 [
-                  0.24,
-                  0.144
-                ],
-                [
-                  0.375,
-                  0.6624
-                ],
-                [
-                  0.55,
+                  0,
                   0.72
                 ],
                 [
-                  0.68,
-                  0.648
+                  0.22,
+                  0.6983999999999999
+                ],
+                [
+                  0.32,
+                  0.5
+                ],
+                [
+                  0.4,
+                  0.54
+                ],
+                [
+                  0.52,
+                  0.525
+                ],
+                [
+                  0.62,
+                  0.3
+                ],
+                [
+                  0.7,
+                  0.33
+                ],
+                [
+                  1,
+                  0.315
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  1.4
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shape",
+          "shape": "ruffled-ring",
+          "color": "#ffb050",
+          "light": "#fff0c0",
+          "shadow": "#d04a10",
+          "blend": "add",
+          "variant": 1,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.14,
+                  0.25
+                ],
+                [
+                  0.62,
+                  0.4
+                ],
+                [
+                  0.8,
+                  0.15
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.62
+                ],
+                [
+                  0.22,
+                  0.6013999999999999
+                ],
+                [
+                  0.32,
+                  0.42
+                ],
+                [
+                  0.4,
+                  0.4536
+                ],
+                [
+                  0.52,
+                  0.441
+                ],
+                [
+                  0.62,
+                  0.25
+                ],
+                [
+                  0.7,
+                  0.275
+                ],
+                [
+                  1,
+                  0.2625
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  2
+                ],
+                [
+                  1,
+                  0.4
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "orbit",
+          "count": 16,
+          "countScale": "none",
+          "phaseDistribution": "uniform",
+          "orbit": 0.6,
+          "orbitSize": 0.06,
+          "angleSpeed": 1.1,
+          "color": "#ff7a24",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.85
+                ],
+                [
+                  0.62,
+                  0.9
+                ],
+                [
+                  0.8,
+                  0.3
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "orbit": {
+              "keys": [
+                [
+                  0,
+                  0.66
+                ],
+                [
+                  0.22,
+                  0.6402
+                ],
+                [
+                  0.32,
+                  0.46
+                ],
+                [
+                  0.4,
+                  0.4968000000000001
+                ],
+                [
+                  0.52,
+                  0.48300000000000004
+                ],
+                [
+                  0.62,
+                  0.27
+                ],
+                [
+                  0.7,
+                  0.29700000000000004
+                ],
+                [
+                  1,
+                  0.28350000000000003
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "materials": [
+            {
+              "texture": "plasma",
+              "radiusAbsolute": 0.13,
+              "rotationScale": 1,
+              "color": "#ff5a14",
+              "blend": "add"
+            },
+            {
+              "texture": "plasma-soft",
+              "radiusAbsolute": 0.08,
+              "rotationScale": -1,
+              "color": "#ffd27a",
+              "blend": "add",
+              "variantOffset": 1
+            }
+          ]
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#ffc070",
+          "width": 2.2,
+          "widthSpace": "pixel",
+          "noise": 0.03,
+          "strokeProfile": "halo",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.7
+                ],
+                [
+                  0.62,
+                  0.95
+                ],
+                [
+                  0.82,
+                  0.4
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.66
+                ],
+                [
+                  0.22,
+                  0.6402
+                ],
+                [
+                  0.32,
+                  0.45
+                ],
+                [
+                  0.4,
+                  0.48600000000000004
+                ],
+                [
+                  0.52,
+                  0.47250000000000003
+                ],
+                [
+                  0.62,
+                  0.27
+                ],
+                [
+                  0.7,
+                  0.29700000000000004
+                ],
+                [
+                  1,
+                  0.28350000000000003
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "orbit",
+          "count": 18,
+          "countScale": "none",
+          "orbit": 0.5,
+          "orbitVelocity": 0.3,
+          "angleSpeed": 0.6,
+          "angularSpread": 0.5,
+          "color": "#ff7a2a",
+          "radialCurve": {
+            "keys": [
+              [
+                0,
+                1.9
+              ],
+              [
+                1,
+                0.15
+              ]
+            ],
+            "interpolation": "power-in",
+            "exponent": 1.4
+          },
+          "radialDelay": 0.55,
+          "radialLife": 0.45,
+          "skipNonPositiveRadius": true,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  0.95
+                ],
+                [
+                  0.66,
+                  0.9
                 ],
                 [
                   0.78,
-                  0.0864
-                ],
-                [
-                  0.88,
                   0
                 ],
                 [
@@ -11058,22 +11702,346 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "motion": "orbit",
-          "count": 6,
-          "countScale": "none",
-          "size": 0.055,
-          "orbit": 0.6944,
-          "light": "#fff0b0",
-          "shadow": "#ec701b",
-          "phaseDistribution": "uniform",
           "materials": [
             {
-              "shape": "orb",
-              "blend": "normal"
+              "texture": "plasma",
+              "radiusAbsolute": 0.1,
+              "rotationScale": 1,
+              "color": "#ff6a1c",
+              "blend": "add"
+            },
+            {
+              "texture": "glow",
+              "radiusAbsolute": 0.07,
+              "aspect": [
+                1.6,
+                0.3
+              ],
+              "rotationScale": 1,
+              "color": "#ffd090",
+              "blend": "add"
             }
+          ]
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#ff8a2a",
+          "texture": "plasma",
+          "blend": "add",
+          "variant": 1,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.4
+                ],
+                [
+                  0.32,
+                  0.7
+                ],
+                [
+                  0.62,
+                  1
+                ],
+                [
+                  0.85,
+                  0.8
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.12
+                ],
+                [
+                  0.32,
+                  0.2
+                ],
+                [
+                  0.4,
+                  0.17
+                ],
+                [
+                  0.62,
+                  0.28
+                ],
+                [
+                  0.7,
+                  0.24
+                ],
+                [
+                  0.8,
+                  0.27
+                ],
+                [
+                  1,
+                  0.25
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  2.2
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#fff0c8",
+          "texture": "glow",
+          "blend": "add",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.35
+                ],
+                [
+                  0.32,
+                  0.6
+                ],
+                [
+                  0.4,
+                  0.45
+                ],
+                [
+                  0.62,
+                  0.95
+                ],
+                [
+                  0.72,
+                  0.7
+                ],
+                [
+                  0.8,
+                  0.85
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.18
+                ],
+                [
+                  0.32,
+                  0.28
+                ],
+                [
+                  0.62,
+                  0.36
+                ],
+                [
+                  0.72,
+                  0.3
+                ],
+                [
+                  0.8,
+                  0.34
+                ],
+                [
+                  1,
+                  0.3
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "orbit",
+          "count": 10,
+          "countScale": "none",
+          "orbit": 0.16,
+          "orbitVelocity": 0.08,
+          "angleSpeed": 2.2,
+          "sizeRange": [
+            0.035,
+            0.035
           ],
-          "angleSpeed": 0.6,
-          "sizeSize": 0.015
+          "color": "#ffe0a0",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.4,
+                  0
+                ],
+                [
+                  0.62,
+                  0.9
+                ],
+                [
+                  0.85,
+                  0.6
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "card",
+          "time": [
+            0.62,
+            0.85
+          ],
+          "clockSpace": "life",
+          "batch": 1,
+          "holdEnd": true,
+          "filterOrder": [
+            "brightness"
+          ],
+          "curves": {
+            "brightness": {
+              "keys": [
+                [
+                  0,
+                  1.35
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shake",
+          "time": [
+            0.3,
+            0.4
+          ],
+          "clockSpace": "life",
+          "batch": 1,
+          "holdEnd": true,
+          "strength": [
+            0.012,
+            0.004
+          ],
+          "frequencyHz": [
+            22,
+            17
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "shake",
+          "time": [
+            0.6,
+            0.72
+          ],
+          "clockSpace": "life",
+          "batch": 1,
+          "holdEnd": true,
+          "strength": [
+            0.02,
+            0.008
+          ],
+          "frequencyHz": [
+            22,
+            17
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            }
+          }
         }
       ]
     },
